@@ -1,7 +1,8 @@
 # Gamory
 
 A skillshot VFX sandbox — and the game that grew around it — built with **Three.js**, **Vite** and
-hand-written **GLSL**. Ten spells, six physical Barbarian skills, eight classes with their own skill trees, a campaign that runs
+hand-written **GLSL**. Ten spells, six physical Barbarian skills, 108 weapons from swords to rocket
+launchers, eight classes with their own skill trees, a campaign that runs
 from a storybook village to a dragon's dungeon, sunny daytime maps, monsters that walk in and try to
 kill you, loot, NPCs, study games for kids, a level editor, and a chat box
 you can give orders to in plain English — backed by a local AI model in [LM Studio](https://lmstudio.ai)
@@ -181,6 +182,19 @@ dusk get their own coloured skies. [More →](docs/level-editor.md)
   <img src="docs/screenshots/create-wear.jpg" width="49%" alt="An uploaded rigged body worn by the Mage" />
 </p>
 
+## Weapons
+
+108 weapons in twelve kinds — swords, axes, polearms, knives, exotic blades, pistols, rifles, bows,
+heavy weapons, throwing weapons and more — and each fights like itself: guns fire bullets with
+tracers (hold for automatics, X to reload), shotguns spread, snipers pierce, bows and crossbows loose
+arrows, rockets and grenades explode, the flamethrower burns a cone, and boomerangs and chakrams come
+back. Press **I** for the armory. See **[Weapons](docs/weapons.md)**.
+
+<p>
+  <img src="docs/screenshots/weapons-shotgun.jpg" width="49%" alt="A shotgun blast fanning seven pellets into imps" />
+  <img src="docs/screenshots/weapons-armory-rifle.jpg" width="49%" alt="The armory's Rifles tab with each weapon's damage, fire rate, range and specials" />
+</p>
+
 ## Class forge: AI-designed classes
 
 Describe a class in a sentence — *"a pirate captain who fights with cannon fire and the sea"* — and
@@ -239,6 +253,7 @@ flowchart LR
 | [Movement](docs/movement.md) | How the character's gait, lean and arms are animated |
 | [Tuning editor and presets](docs/tuning-editor.md) | The **G** editor: 900+ live sliders, presets |
 | [Third-party services](docs/third-party.md) | What is free, what is paid, and options for 3D models, animation, AI and effects |
+| [Weapons](docs/weapons.md) | All 108 weapons, how each kind fights, ammo and reloading, adding a weapon |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
 | [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |
 | [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |

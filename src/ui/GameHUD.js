@@ -44,6 +44,7 @@ export class GameHUD {
           <i data-health></i>
           <span data-health-text>100</span>
         </div>
+        <div class="vitals__ammo" data-ammo hidden></div>
         <div class="vitals__bar vitals__rage" data-rage-bar hidden>
           <i data-rage></i>
           <span data-rage-text>RAGE 0</span>
@@ -74,6 +75,7 @@ export class GameHUD {
       comboCount: q('[data-combo-count]'),
       health: q('[data-health]'),
       rageBar: q('[data-rage-bar]'),
+      ammo: q('[data-ammo]'),
       rage: q('[data-rage]'),
       rageText: q('[data-rage-text]'),
       healthText: q('[data-health-text]'),
@@ -167,6 +169,15 @@ export class GameHUD {
       this._shown.roaring = roaring;
       this.el.rageBar.classList.toggle('is-roaring', roaring);
     }
+  }
+
+  /** The gun's magazine, under health; null hides it (a melee weapon). */
+  setAmmo(text) {
+    if (this._shown.ammo === text) return;
+    this._shown.ammo = text;
+    this.el.ammo.hidden = !text;
+    if (text) this.el.ammo.textContent = text;
+    this.el.ammo.classList.toggle('is-reloading', Boolean(text?.startsWith('RELOADING')));
   }
 
   /** Flash the screen edges red. Amount is a fraction of max health. */

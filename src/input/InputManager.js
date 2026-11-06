@@ -70,6 +70,8 @@ export class InputManager extends EventEmitter {
     this.pointer = new Vector2(); // NDC
     this.keys = new Set();
     this.enabled = true;
+    /** Left button held down on the arena (automatic weapons keep firing). */
+    this.attackHeld = false;
 
     this._bind();
   }
@@ -79,6 +81,7 @@ export class InputManager extends EventEmitter {
     // above the canvas, and so pointerup always pairs with pointerdown.
     window.addEventListener('pointerdown', this._onPointerDown, true);
     window.addEventListener('pointermove', this._onPointerMove);
+    window.addEventListener('pointerup', this._onPointerUp);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('contextmenu', this._onContextMenu);
@@ -119,11 +122,21 @@ export class InputManager extends EventEmitter {
       (clientX / window.innerWidth) * 2 - 1,
       -(clientY / window.innerHeight) * 2 + 1
     );
-    if (button === 0) this.emit('pointer:attack', this.pointer);
+    if (button === 0) {
+      this.attackHeld = true;
+      this.emit('pointer:attack', this.pointer);
+    }
     else if (button === 2) this.emit('pointer:cast', this.pointer);
   }
 
-  _onBlur = () => this.releaseAll();
+  _onPointerUp = (event) => {
+    if (event.button === 0) this.attackHeld = false;
+  };
+
+  _onBlur = () => {
+    this.attackHeld = false;
+    this.releaseAll();
+  };
 
   _onContextMenu = (event) => {
     // Keep native menu on search boxes; block it everywhere else so right-click
@@ -217,6 +230,7 @@ export class InputManager extends EventEmitter {
         this.emit('action', 'toggleRunHud');
         break;
       case 'KeyI':
+        event.preventDefault(); // the armory focuses its search box: keep the "i" out of it
         this.emit('action', 'toggleWeapons');
         break;
 
@@ -232,6 +246,9 @@ export class InputManager extends EventEmitter {
         break;
       case 'KeyK':
         this.emit('action', 'toggleSkills');
+        break;
+      case 'KeyX':
+        this.emit('action', 'reload');
         break;
       case 'Tab':
         // Tab would move focus around the page; here it opens the bag.

@@ -257,7 +257,7 @@ export function makeClassCharacter(spec) {
     rig: 'kaykit',
     model: lookModel(savedLook(spec.id) ?? spec.looks[0], spec.tint),
     look: savedLook(spec.id) ?? spec.looks[0],
-    castClips: ['cast1', 'cast2', 'cast3', 'slam', 'charge', 'cheer', 'leap', 'spin'],
+    castClips: ['cast1', 'cast2', 'cast3', 'slam', 'charge', 'cheer', 'leap', 'spin', 'shoot1', 'shoot2', 'throw', 'reload1', 'reload2'],
     motion: spec.motion,
     motionDataset: 'kaykit-locomotion',
     defaultLoadout: `class-${spec.id}`,

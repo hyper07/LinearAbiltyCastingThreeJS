@@ -332,6 +332,24 @@ export class Combat extends EventEmitter {
     }
   }
 
+  /**
+   * A weapon's bullet, arrow, blade or flame hitting one monster (see
+   * game/WeaponFire.js). Same damage path as a spell: gear, crits, statuses,
+   * knockback, numbers and kills.
+   */
+  weaponHit(monster, fire, direction, falloff = 1) {
+    if (!settings.combat.enabled || !monster?.isTargetable) return;
+    this._damage(monster, { element: 'weapon', profile: weaponProfile(fire) }, direction, falloff);
+  }
+
+  /** A rocket, grenade or bomb going off. */
+  weaponBlast(point, fire) {
+    if (!settings.combat.enabled) return;
+    const strike = { element: 'weapon', profile: weaponProfile(fire), hit: new Set() };
+    this._blast(strike, point, fire.explode ?? 3);
+    this.emit('impact', point, { element: 'weapon', radius: fire.explode ?? 3 });
+  }
+
   /** A storm: lands like a far cast, then keeps hitting the circle for a while. */
   _advanceStorm(strike, dt) {
     if (strike.front < strike.length) return;
@@ -585,4 +603,9 @@ export class Combat extends EventEmitter {
     this.reset();
     super.clear();
   }
+}
+
+/** A weapon fire profile as a combat profile. */
+function weaponProfile(fire) {
+  return { damage: fire.damage, knockback: fire.knockback ?? 0.5, status: fire.status ?? null, duration: fire.duration ?? 0, shatter: 1 };
 }

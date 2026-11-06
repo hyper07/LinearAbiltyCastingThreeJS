@@ -55,7 +55,7 @@ export class HUD {
           <kbd>N</kbd> next wave &nbsp; <kbd>M</kbd> summon
         </div>
         <div style="margin-top:7px">
-          <kbd>I</kbd> armory — 80+ weapons &nbsp; <kbd>B</kbd> run HUD
+          <kbd>I</kbd> armory — 108 weapons &nbsp; <kbd>X</kbd> reload &nbsp; <kbd>B</kbd> run HUD
         </div>
         <div class="hud__help-note">The Emberwyrm comes on every fifth wave.</div>
         <div>

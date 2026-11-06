@@ -40,7 +40,13 @@ export const KAYKIT_ANIMATION_CLIPS = {
     charge: '2H_Melee_Attack_Stab',
     cheer: 'Cheer',
     leap: 'Jump_Full_Long',
-    spin: '2H_Melee_Attack_Spinning'
+    spin: '2H_Melee_Attack_Spinning',
+    // Weapons.
+    shoot1: '1H_Ranged_Shoot',
+    shoot2: '2H_Ranged_Shoot',
+    throw: 'Throw',
+    reload1: '1H_Ranged_Reload',
+    reload2: '2H_Ranged_Reload'
   }
 };
 
@@ -56,7 +62,12 @@ export const KAYKIT_SKELETON_CLIPS = {
     charge: '2H_Melee_Attack_Stab',
     cheer: 'Taunt',
     leap: '1H_Melee_Attack_Jump_Chop',
-    spin: '2H_Melee_Attack_Spinning'
+    spin: '2H_Melee_Attack_Spinning',
+    shoot1: '1H_Ranged_Shoot',
+    shoot2: '2H_Ranged_Shoot',
+    throw: 'Throw',
+    reload1: '1H_Ranged_Reload',
+    reload2: '2H_Ranged_Reload'
   }
 };
 

@@ -18,10 +18,11 @@
 | **Tab** | Bag — equip weapons, read skill books, drop items |
 | **F** | Talk to the nearest NPC |
 | **R** / **Z** | Drink a health / focus potion |
-| **I** | Armory — try any of the 80+ weapons |
+| **I** | Armory — any of the 108 weapons |
 | **Move the mouse** | Swing the aim arrow, or move the far-cast circle |
 | **Right click** | Cast along the arrow, or drop the circle where it is |
-| **Left click** | Your class's close-range attack |
+| **Left click** | Attack with your weapon — a melee weapon swings, a gun, bow or throwing weapon fires. **Hold** to keep an automatic firing |
+| **X** | Reload the gun in hand |
 | **Esc** | Cancel an armed cast |
 | **Right mouse + drag** | Orbit the camera |
 | **Scroll** | Zoom |

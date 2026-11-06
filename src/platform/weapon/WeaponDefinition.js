@@ -11,7 +11,9 @@ export const WEAPON_CATEGORIES = Object.freeze({
   PISTOL: 'pistol',
   RIFLE: 'rifle',
   BOW: 'bow',
-  HEAVY: 'heavy'
+  HEAVY: 'heavy',
+  THROWING: 'throwing',
+  EXOTIC: 'exotic'
 });
 
 /** Display order and labels for the armory tabs. */
@@ -25,6 +27,8 @@ export const WEAPON_CATEGORY_META = [
   { id: WEAPON_CATEGORIES.RIFLE, label: 'Rifles', glyph: '⌖' },
   { id: WEAPON_CATEGORIES.BOW, label: 'Bows', glyph: '⊹' },
   { id: WEAPON_CATEGORIES.HEAVY, label: 'Heavy', glyph: '◈' },
+  { id: WEAPON_CATEGORIES.THROWING, label: 'Throwing', glyph: '✧' },
+  { id: WEAPON_CATEGORIES.EXOTIC, label: 'Exotic', glyph: '∿' },
   { id: WEAPON_CATEGORIES.UNARMED, label: 'Unarmed', glyph: '○' }
 ];
 
@@ -42,6 +46,7 @@ export const WEAPON_CATEGORY_META = [
  * @property {object} [motionOverrides]
  * @property {object} [castingOverrides]
  * @property {Record<string, number>} [skillModifiers]
+ * @property {object} [fire]          left-click firing overrides (see weapon/fire.js)
  */
 
 /**

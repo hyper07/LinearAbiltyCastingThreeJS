@@ -2045,6 +2045,11 @@ export const settings = {
   /* Barbarian skills — physical, built from the shared effect systems   */
   /* ------------------------------------------------------------------ */
 
+  /** Weapons (left click) — only the hit colour lives here; see platform/weapon/fire.js. */
+  weapon: {
+    lightColor: '#ffe0a8'
+  },
+
   /** EARTHSPLITTER — the axe hits the floor and the floor splits along the line. */
   slam: {
     range: 11.0,

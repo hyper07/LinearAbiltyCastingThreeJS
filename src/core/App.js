@@ -29,6 +29,8 @@ import { DialoguePanel } from '../ui/DialoguePanel.js';
 import { InventoryPanel } from '../ui/InventoryPanel.js';
 import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 import { ClassForgePanel } from '../ui/ClassForgePanel.js';
+import { WeaponFire } from '../game/WeaponFire.js';
+import { fireProfileOf } from '../platform/weapon/fire.js';
 import { designClass, normalizeDesign } from '../ai/ClassDesigner.js';
 import { registerForgedClass, unregisterForgedClass, listForgedClasses, loadForgedClass, saveForgedClass, deleteForgedClass } from '../forge/ClassForge.js';
 
@@ -213,6 +215,20 @@ export class App {
       shake: this.shake,
       flash: this.flash
     });
+    /** Guns, bows and throwing weapons: what left click fires (game/WeaponFire.js). */
+    this.weaponFire = new WeaponFire({
+      scene: this.scene,
+      combat: this.combat,
+      monsters: this.monsters,
+      particles: this.particles,
+      bursts: this.bursts,
+      decals: this.decals,
+      lights: this.lights,
+      shake: this.shake
+    });
+    /** Rounds left in the magazine, per weapon; reload countdown. */
+    this._ammo = new Map();
+    this._reloadLeft = 0;
 
     /* ---- input & targeting ---- */
     this.input = new InputManager(canvas);
@@ -280,7 +296,7 @@ export class App {
     this.profile.on('slots', () => this._syncSlots());
     // Rage: tier-1 physical skills build it per monster they hit; being hit does too.
     this.combat.on('hit', (_monster, _amount, info) => {
-      const gain = ELEMENT_META[info.element]?.rage ?? 0;
+      const gain = info.element === 'weapon' ? 2 : ELEMENT_META[info.element]?.rage ?? 0;
       if (gain > 0) this._gainRage(gain);
     });
     this.monsters.on('playerHit', () => this._gainRage(4));
@@ -538,6 +554,9 @@ export class App {
       case 'toggleInventory':
         if (this.phase === 'playing') this._openPanel('inventory');
         return;
+      case 'reload':
+        if (this.phase === 'playing') this._reload();
+        return;
       case 'toggleSkills':
         if (this.phase === 'playing') this._openPanel('skills');
         return;
@@ -562,10 +581,78 @@ export class App {
     }
   }
 
+  /** The fire profile of the weapon in hand (null: a melee weapon). */
+  get currentFire() {
+    return fireProfileOf(platform.getActiveWeapon());
+  }
+
+  /**
+   * Pull the trigger (or throw): ammo, reload, aim, animation. Left click
+   * calls it; holding the button keeps an automatic weapon firing.
+   */
+  _fireWeapon(fire = this.currentFire) {
+    if (!fire || this._attackCooldown > 0 || this._reloadLeft > 0) return;
+    const weaponId = platform.getActiveWeaponId();
+    const mag = fire.mag ?? 0;
+    if (mag > 0) {
+      const left = this._ammo.get(weaponId) ?? mag;
+      if (left <= 0) return this._reload(fire);
+      this._ammo.set(weaponId, left - 1);
+    }
+    this.character.locomotion.toggleSit(false);
+    const aim = () => {
+      const yaw = this.aim.facing;
+      const direction = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      // From the hands: a gun at chest height, a throw from the shoulder.
+      const muzzle = this.character.position.clone().addScaledVector(direction, 0.6);
+      muzzle.x += Math.cos(yaw) * 0.12;
+      muzzle.z -= Math.sin(yaw) * 0.12;
+      muzzle.y = fire.anim === 'throw' ? 1.55 : 1.3;
+      // How far the cursor is: lobbed grenades and bombs land there.
+      const hit = this.aim._hit;
+      const distance = Math.hypot(hit.x - this.character.position.x, hit.z - this.character.position.z);
+      return { muzzle, direction, yaw, distance };
+    };
+    const shot = aim();
+    this.character.setFacing(shot.yaw);
+    this.weaponFire.fire(shot.muzzle, shot.direction, fire, aim, shot.distance);
+    this._attackCooldown = fire.cooldown + (fire.burst > 1 ? (fire.burst - 1) * 0.07 : 0);
+    // A held automatic does not restart the clip every round.
+    if (!fire.auto || !this.character.isCasting) this.character.playCast(fire.anim ?? 'shoot2');
+    if (mag > 0 && this._ammo.get(weaponId) <= 0) this._reload(fire);
+  }
+
+  _reload(fire = this.currentFire) {
+    if (!fire?.mag || this._reloadLeft > 0) return;
+    if ((this._ammo.get(platform.getActiveWeaponId()) ?? fire.mag) >= fire.mag) return;
+    this._reloadLeft = fire.reload ?? 1.5;
+    this._reloadFor = platform.getActiveWeaponId();
+    this.character.playCast(fire.anim === 'shoot1' ? 'reload1' : 'reload2');
+  }
+
+  /** Reload countdown and held-trigger fire, every frame. */
+  _updateWeapon(dt) {
+    if (this._reloadLeft > 0) {
+      this._reloadLeft -= dt;
+      if (this._reloadFor !== platform.getActiveWeaponId()) this._reloadLeft = 0;
+      else if (this._reloadLeft <= 0) this._ammo.set(this._reloadFor, this.currentFire?.mag ?? 0);
+    }
+    const fire = this.currentFire;
+    if (fire?.auto && this.input.attackHeld && !this.paused && !this.weaponPanel.isVisible && !this.dialogue.isOpen) this._fireWeapon(fire);
+  }
+
   /** Left click — direct attack toward the cursor. */
   _confirmAttack(pointer) {
     if (this.phase !== 'playing' || this.paused) return;
     if (this.weaponPanel.isVisible) return;
+    // A gun, bow or throwing weapon fires; a melee weapon swings below.
+    const fire = this.currentFire;
+    if (fire) {
+      this.aim.point(pointer);
+      this.aim.cancel();
+      this._fireWeapon(fire);
+      return;
+    }
     if (this._attackCooldown > 0) {
       this.hud.showToast('Not ready');
       return;
@@ -1515,6 +1602,7 @@ export class App {
 
   clearEffects() {
     this.loot?.clear();
+    this.weaponFire?.clear();
     this.aim.cancel();
     this.abilities.clear();
     this.combat.reset();
@@ -1776,6 +1864,9 @@ export class App {
       this.director.update(raw, this.elapsed);
 
       this.abilities.update(dt);
+      this.weaponFire.owner = this.character.position;
+      this.weaponFire.update(dt);
+      this._updateWeapon(raw);
       this.particles.flush();
       this.decals.update(dt);
       this.fissures.update(dt);
@@ -1877,6 +1968,13 @@ export class App {
       this.hud.setStarved(element, this._rageCost(element) > this.rage);
     }
     this.gameHud.setRage(this.rage / 100, this.rage, this.usesRage && this.phase === 'playing', this._roarUntil > this.elapsed);
+    const fire = this.phase === 'playing' ? this.currentFire : null;
+    this.gameHud.setAmmo(
+      !fire ? null
+      : this._reloadLeft > 0 ? 'RELOADING…'
+      : fire.mag > 0 ? `${platform.getActiveWeapon()?.label ?? ''} · ${this._ammo.get(platform.getActiveWeaponId()) ?? fire.mag} / ${fire.mag}`
+      : `${platform.getActiveWeapon()?.label ?? ''} · ∞`
+    );
     this.hud.setArmed(this.aim.isArmed);
     this.hud.update(dt, () => ({
       particles: this.particles.countLive(this.elapsed),

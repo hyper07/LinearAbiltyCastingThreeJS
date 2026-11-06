@@ -159,6 +159,9 @@
 .weapon-panel__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  /* Rows as tall as their tallest card — a long description must not overlap the stats. */
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 10px;
   padding: 16px;
   overflow: auto;
@@ -242,4 +245,13 @@
   .weapon-panel__grid {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* How the weapon fights: damage, rate, range, specials. */
+.weapon-panel__card-fire {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #ffd9a0;
 }

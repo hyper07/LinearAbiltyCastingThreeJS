@@ -97,7 +97,33 @@ const RECIPES = {
 
   /* unarmed visuals */
   'fist-gauntlet': { build: buildGauntlet, args: [] },
-  'fist-claw': { build: buildClaws, args: [] }
+  'fist-claw': { build: buildClaws, args: [] },
+
+  /* — throwing — */
+  'throw-knives': { build: buildThrowingKnives, args: [] },
+  'throw-shuriken': { build: buildShuriken, args: ['#9098a8'] },
+  'throw-javelin': { build: buildSpear, args: [0.9, '#a0a8b0'] },
+  'throw-boomerang': { build: buildBoomerang, args: ['#8a5a30'] },
+  'throw-chakram': { build: buildChakram, args: ['#d0a040'] },
+  'throw-bomb': { build: buildBomb, args: ['#2a2a30'] },
+  'throw-smoke': { build: buildBomb, args: ['#8890a0'] },
+
+  /* — more guns — */
+  'pistol-flintlock': { build: buildFlintlock, args: [] },
+  'rifle-musket': { build: buildMusket, args: [1.05, '#5a3a20'] },
+  'rifle-lever': { build: buildMusket, args: [0.8, '#4a3020'] },
+  'rifle-blunderbuss': { build: buildBlunderbuss, args: [] },
+  'rifle-harpoon': { build: buildHarpoonGun, args: [] },
+  'rifle-blowgun': { build: buildBlowgun, args: [] },
+  'bow-hand-cross': { build: buildHandCrossbow, args: [] },
+  'bow-sling': { build: buildSling, args: [] },
+
+  /* — exotic melee — */
+  'exotic-whip': { build: buildWhip, args: ['#5a3a24'] },
+  'exotic-nunchaku': { build: buildNunchaku, args: [] },
+  'exotic-fan': { build: buildWarFan, args: ['#a8323a'] },
+  'exotic-sai': { build: buildSai, args: [] },
+  'exotic-sickle': { build: buildChainSickle, args: [] }
 };
 
 /** Procedural weapon meshes parented to hand bones. */
@@ -174,6 +200,8 @@ export class WeaponVisual {
       case 'sword':
       case 'knife':
       case 'axe':
+      case 'exotic':
+      case 'throwing':
         group.rotation.set(Math.PI * 0.55, flip * 0.2, flip * -0.35);
         group.position.set(flip * 0.02, 0.02, 0.04);
         break;
@@ -307,6 +335,10 @@ function buildCategoryFallback(weapon) {
       return buildRailgun();
     case 'unarmed':
       return buildGauntlet();
+    case 'throwing':
+      return buildThrowingKnives();
+    case 'exotic':
+      return buildSai();
     default:
       return buildSword(0.7, 0.08, accent, metal);
   }
@@ -635,6 +667,172 @@ function buildClaws() {
 
 function mat(color, roughness = 0.75, metalness = 0.15) {
   return new MeshStandardMaterial({ color, roughness, metalness });
+}
+
+/* ---- throwing ---- */
+
+function buildThrowingKnives() {
+  const g = new Group();
+  for (const [i, a] of [[-1, -0.35], [0, 0], [1, 0.35]]) {
+    const k = buildKnife(0.2, '#2a2a30', '#c8d0d8');
+    k.rotation.z = a;
+    k.position.x = i * 0.03;
+    g.add(k);
+  }
+  return g;
+}
+
+function buildShuriken(color) {
+  const g = new Group();
+  for (let i = 0; i < 4; i++) {
+    const blade = meshBox(0.05, 0.22, 0.008, color, 0.35, 0.7, 0, 0, 0);
+    blade.rotation.z = (i * Math.PI) / 4;
+    g.add(blade);
+  }
+  g.add(mesh(new TorusGeometry(0.03, 0.01, 6, 12), '#2a2a30', 0.6));
+  return g;
+}
+
+function buildBoomerang(color) {
+  const g = new Group();
+  const a = meshBox(0.32, 0.06, 0.018, color, 0.7, 0.05, 0.12, 0);
+  const b = meshBox(0.06, 0.3, 0.018, color, 0.7, 0.05, 0, 0.12);
+  g.add(a, b);
+  g.rotation.z = Math.PI * 0.25;
+  return g;
+}
+
+function buildChakram(color) {
+  const g = new Group();
+  g.add(mesh(new TorusGeometry(0.14, 0.018, 6, 28), color, 0.3, 0.8));
+  g.add(mesh(new TorusGeometry(0.1, 0.008, 4, 28), '#5a4020', 0.7, 0.2));
+  return g;
+}
+
+function buildBomb(color) {
+  const g = new Group();
+  g.add(meshSphere(0.1, color, 0.6, 0.2, 0.08));
+  g.add(meshCylinder(0.03, 0.03, 0.05, '#4a4a50', 0.6, 0.19));
+  g.add(meshCylinder(0.006, 0.006, 0.08, '#c8a060', 0.9, 0.25));
+  return g;
+}
+
+/* ---- more guns ---- */
+
+function buildFlintlock() {
+  const g = new Group();
+  g.add(meshBox(0.3, 0.04, 0.035, '#3a3028', 0.5, 0.6, 0.08, 0.02));
+  g.add(meshBox(0.12, 0.12, 0.05, '#5a3a20', 0.85, 0.05, -0.08, -0.04));
+  g.add(meshBox(0.04, 0.05, 0.02, '#b09060', 0.4, 0.7, 0.0, 0.05));
+  return g;
+}
+
+function buildMusket(length, wood) {
+  const g = new Group();
+  g.add(meshBox(length * 0.7, 0.06, 0.05, wood, 0.85, 0.05, -length * 0.1, 0));
+  const barrel = mesh(new CylinderGeometry(0.018, 0.02, length * 0.85, 8), '#4a4a50', 0.4, 0.7);
+  barrel.rotation.z = Math.PI * 0.5;
+  barrel.position.set(length * 0.18, 0.04, 0);
+  g.add(barrel);
+  g.add(meshBox(length * 0.25, 0.1, 0.05, wood, 0.85, 0.05, -length * 0.42, -0.03));
+  return g;
+}
+
+function buildBlunderbuss() {
+  const g = buildMusket(0.7, '#5a3a20');
+  const flare = mesh(new CylinderGeometry(0.06, 0.02, 0.14, 10, 1, true), '#a08050', 0.35, 0.8);
+  flare.rotation.z = -Math.PI * 0.5;
+  flare.position.set(0.55, 0.04, 0);
+  g.add(flare);
+  return g;
+}
+
+function buildHarpoonGun() {
+  const g = buildRifle(0.6, 0.06, '#3a5060', '#7a8890');
+  const shaft = mesh(new CylinderGeometry(0.01, 0.01, 0.5, 6), '#c8d0d8', 0.4, 0.7);
+  shaft.rotation.z = Math.PI * 0.5;
+  shaft.position.set(0.5, 0.06, 0);
+  g.add(shaft);
+  g.add(meshBox(0.08, 0.05, 0.012, '#c8d0d8', 0.4, 0.7, 0.78, 0.06));
+  return g;
+}
+
+function buildBlowgun() {
+  const g = new Group();
+  const tube = mesh(new CylinderGeometry(0.018, 0.022, 0.95, 8), '#7a6a40', 0.8, 0.05);
+  tube.rotation.z = Math.PI * 0.5;
+  tube.position.x = 0.25;
+  g.add(tube);
+  return g;
+}
+
+function buildHandCrossbow() {
+  const g = new Group();
+  g.add(meshBox(0.28, 0.05, 0.05, '#4a4038', 0.8));
+  g.add(meshBox(0.04, 0.2, 0.04, '#3a3028', 0.85, 0.05, 0.08, 0));
+  g.add(meshBox(0.08, 0.1, 0.04, '#2a2018', 0.9, 0.05, -0.1, -0.05));
+  return g;
+}
+
+function buildSling() {
+  const g = new Group();
+  g.add(meshCylinder(0.006, 0.006, 0.45, '#7a5a3a', 0.9, -0.1));
+  g.add(meshSphere(0.035, '#8a8a90', 0.8, 0.05, -0.34));
+  return g;
+}
+
+/* ---- exotic melee ---- */
+
+function buildWhip(color) {
+  const g = new Group();
+  g.add(meshCylinder(0.02, 0.022, 0.2, '#3a2a1a', 0.9, 0));
+  // A coiled lash hanging off the grip.
+  for (let i = 0; i < 6; i++) {
+    const seg = meshCylinder(0.01 - i * 0.001, 0.011 - i * 0.001, 0.14, color, 0.85, 0);
+    seg.position.set(Math.sin(i * 0.9) * 0.05, 0.12 + i * 0.12, Math.cos(i * 0.9) * 0.05 - 0.05);
+    seg.rotation.x = 0.3 * Math.sin(i);
+    g.add(seg);
+  }
+  return g;
+}
+
+function buildNunchaku() {
+  const g = new Group();
+  g.add(meshCylinder(0.02, 0.02, 0.26, '#3a2818', 0.8, 0));
+  const second = meshCylinder(0.02, 0.02, 0.26, '#3a2818', 0.8, 0);
+  second.position.set(0.12, 0.3, 0);
+  second.rotation.z = -0.9;
+  g.add(second);
+  g.add(meshBox(0.01, 0.08, 0.01, '#9098a0', 0.4, 0.8, 0.04, 0.17));
+  return g;
+}
+
+function buildWarFan(color) {
+  const g = new Group();
+  const fan = mesh(new CylinderGeometry(0.28, 0.28, 0.01, 16, 1, false, -Math.PI * 0.4, Math.PI * 0.8), color, 0.6, 0.2);
+  fan.rotation.x = Math.PI * 0.5;
+  fan.position.y = 0.06;
+  g.add(fan);
+  g.add(meshCylinder(0.015, 0.015, 0.16, '#2a2a30', 0.6, -0.06));
+  return g;
+}
+
+function buildSai() {
+  const g = new Group();
+  g.add(meshBox(0.02, 0.4, 0.02, '#b8c0c8', 0.35, 0.8, 0, 0.18));
+  g.add(meshBox(0.14, 0.02, 0.02, '#b8c0c8', 0.35, 0.8, 0, 0.02));
+  g.add(meshBox(0.02, 0.08, 0.02, '#b8c0c8', 0.35, 0.8, -0.06, 0.06));
+  g.add(meshBox(0.02, 0.08, 0.02, '#b8c0c8', 0.35, 0.8, 0.06, 0.06));
+  g.add(meshCylinder(0.018, 0.018, 0.12, '#3a2818', 0.85, -0.06));
+  return g;
+}
+
+function buildChainSickle() {
+  const g = new Group();
+  g.add(meshCylinder(0.018, 0.02, 0.3, '#4a3020', 0.85, 0));
+  g.add(meshBox(0.2, 0.03, 0.01, '#a0a8b0', 0.35, 0.8, 0.08, 0.16));
+  for (let i = 0; i < 5; i++) g.add(meshSphere(0.012, '#707880', 0.5, 0.7, -0.17 - i * 0.04));
+  return g;
 }
 
 function mesh(geometry, color, roughness, metalness = 0.15) {

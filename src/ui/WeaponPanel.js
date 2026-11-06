@@ -1,8 +1,9 @@
+import { describeFire, fireProfileOf } from '../platform/weapon/fire.js';
 import { platform } from '../platform/index.js';
 import { WEAPON_CATEGORY_META, categoryGlyph } from '../platform/weapon/WeaponDefinition.js';
 
 /**
- * Armory window — browse 80+ weapons from FPS, RPG, action, and sci-fi archetypes.
+ * Armory window — browse all 108 weapons by kind, each with how it fights.
  *
  * Opens with <kbd>I</kbd>. Search filters across all categories.
  */
@@ -129,6 +130,7 @@ export class WeaponPanel {
             <span class="weapon-panel__card-icon">${categoryGlyph(weapon.category)}</span>
             <span class="weapon-panel__card-name">${weapon.label}</span>
             <span class="weapon-panel__card-desc">${weapon.description ?? ''}</span>
+            <span class="weapon-panel__card-fire">${describeFire(fireProfileOf(weapon))}</span>
             ${selected ? '<span class="weapon-panel__card-badge">Equipped</span>' : ''}
           </button>`;
       })
@@ -158,7 +160,8 @@ export class WeaponPanel {
     const equipped = platform.getActiveWeaponId?.() ?? this._equippedId;
     this.setEquipped(equipped);
     this._renderGrid();
-    this.searchEl.focus();
+    // After the keystroke that opened the panel, or its letter lands in the box.
+    setTimeout(() => this.searchEl.focus(), 0);
   }
 
   hide() {
