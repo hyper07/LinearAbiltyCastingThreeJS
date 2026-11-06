@@ -129,7 +129,8 @@ dusk get their own coloured skies. [More →](docs/level-editor.md)
   <img src="docs/screenshots/aim-circle.jpg" width="49%" alt="The far-cast targeting circle and reach ring" />
 </p>
 
-**Classes and skill trees** — eight classes, nine bodies, a tree per class.
+**Classes and skill trees** — eight classes, nine bodies, a tree per class. Hover over a skill to see
+what it does, its damage, cooldown and reach now and at the next rank, and what it needs.
 [More →](docs/classes-and-skills.md)
 
 <p>
@@ -137,7 +138,7 @@ dusk get their own coloured skies. [More →](docs/level-editor.md)
   <img src="docs/screenshots/class-mage.jpg" width="49%" alt="The Mage class with its staff and bonuses" />
 </p>
 <p>
-  <img src="docs/screenshots/skill-tree.jpg" width="49%" alt="The K panel in a run: the Knight's five keys and three branches" />
+  <img src="docs/screenshots/skill-tree.jpg" width="49%" alt="The K panel: the Mage's skill tree with skill symbols, rank rings and a detail panel" />
   <img src="docs/screenshots/skill-tree-menu.jpg" width="49%" alt="The main menu's Skill Tree tab for the Mage" />
 </p>
 

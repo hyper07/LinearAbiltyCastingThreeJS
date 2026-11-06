@@ -1123,13 +1123,4 @@
   color: var(--ui-text-dim);
 }
 
-/* The menu's side column is narrow: one branch per row, tighter keys. */
-.main-menu__skill-tree .skilltree__branches {
-  grid-template-columns: 1fr;
-}
-.main-menu__skill-tree .skilltree__keys {
-  gap: 4px;
-}
-.main-menu__skill-tree .skilltree__key-name {
-  font-size: 9.5px;
-}
+/* The menu's side column is narrow: the tree view stacks its details below (container query). */

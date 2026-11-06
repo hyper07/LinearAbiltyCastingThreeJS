@@ -40,12 +40,23 @@ tints still apply on top. The choice is remembered per class. Classes are define
 ## Skill trees and skill books
 
 <p>
-  <img src="screenshots/skill-tree.jpg" width="49%" alt="The K panel in a run: the Knight's five keys and three branches, with gold-lit spells that have a book ready" />
-  <img src="screenshots/skill-tree-menu.jpg" width="49%" alt="The main menu's Skill Tree tab for the Mage: three spells on keys and the Frost branch" />
+  <img src="screenshots/skill-tree.jpg" width="49%" alt="The K panel: the Mage's tree from the class crest down three branches, Frost Lance's details pinned on the right" />
+  <img src="screenshots/skill-tree-menu.jpg" width="49%" alt="The main menu's Skill Tree tab for the Mage: the keys and the top of the tree in the narrow column" />
 </p>
 
-Every class has a **skill tree**: three branches, each a line of spells from tier 1 to tier 3. A class
-starts knowing two tier-1 spells. The rest come from **skill books**:
+Every class has a **skill tree**: three branches, each a line of spells from tier 1 to tier 3. The
+tree is drawn as one: the class crest at the root, a line to each branch, and each skill as a
+medallion with its symbol. The ring around a medallion fills with the skill's rank. A small badge
+shows the key it is on, a lock while it is locked, or a book when you have one ready to read (the
+ring pulses gold). The lines between skills light up once the rank they need is reached; the rank is
+written on the line.
+
+**Hover over a skill** (or tab to it) to see everything about it in the detail panel: what it does,
+how it is aimed and how far it reaches, its damage and cooldown now and at the next rank, its effects
+(slow, stun, root, freeze, burn, Rage), what it needs and what it unlocks. **Click a skill** to keep
+its details there. From the panel you read a book to learn it or rank it up, and put it on a key.
+
+A class starts knowing two tier-1 spells. The rest come from **skill books**:
 
 - **Reading a book teaches its spell** (rank 1), and the spell goes onto a free key.
 - **More copies of the same book raise its rank**, up to 10. Each rank after the first adds +10%
@@ -55,11 +66,12 @@ starts knowing two tier-1 spells. The rest come from **skill books**:
 - **A book for a spell outside your class's tree can't be read** — sell it. Three dropped books in
   four are for your own class's tree; merchants always stock two.
 - **Five keys.** Of everything learned, you choose which five sit on keys 1–5. Press **K** (or click
-  an empty key on the bar), pick a key, then click a learned spell. Right-click a key to empty it.
+  an empty key on the bar), click a learned skill, then a key number under "Put on key". Right-click a
+  key at the top to empty it.
 
 <p>
-  <img src="screenshots/skill-tree-mage.jpg" width="49%" alt="The Mage's skill tree on a new character: Frost, Storm and Arcane branches, three tiers each; Frost Lance and Storm Lance learned on keys 1 and 2" />
-  <img src="screenshots/skill-tree-barbarian.jpg" width="49%" alt="The Barbarian's skill tree on a new character: Might, Rampage and Warlord branches of physical skills; Earthsplitter and Rampage learned on keys 1 and 2" />
+  <img src="screenshots/skill-tree-mage.jpg" width="49%" alt="Hovering over the locked Glacial Crown: its description, reach, damage, cooldown, freeze effect and what it needs" />
+  <img src="screenshots/skill-tree-barbarian.jpg" width="49%" alt="The Barbarian's tree: Earthsplitter at rank 3 pinned with its next-rank numbers; books ready for Rampage and Battle Roar" />
 </p>
 
 | Class | Starts with | Branches (tier 1 → 2 → 3) |
