@@ -9,7 +9,7 @@ const ELEMENTAL_SKILLS = [
   'glacial-crown'
 ];
 
-/** Class loadout — same elemental kit, signature weapon per Diablo archetype. */
+/** Class loadout — the same elemental kit, a signature weapon per class. */
 function classLoadout(id, label, weapon) {
   return createLoadout(id, { label, skills: ELEMENTAL_SKILLS, weapon });
 }
@@ -28,39 +28,18 @@ export const casterStaff = createLoadout('caster-staff', {
   weapon: 'arcane-staff'
 });
 
-/* Diablo II */
-export const d2AmazonLoadout = classLoadout('d2-amazon', 'Amazon', 'longbow');
-export const d2AssassinLoadout = classLoadout('d2-assassin', 'Assassin', 'twin-daggers');
-export const d2BarbarianLoadout = classLoadout('d2-barbarian', 'Barbarian', 'war-axe');
-export const d2DruidLoadout = classLoadout('d2-druid', 'Druid', 'druid-staff');
-export const d2NecromancerLoadout = classLoadout('d2-necromancer', 'Necromancer', 'necro-staff');
-export const d2PaladinLoadout = classLoadout('d2-paladin', 'Paladin', 'war-hammer');
-export const d2SorceressLoadout = classLoadout('d2-sorceress', 'Sorceress', 'arcane-wand');
+/* One loadout per class: the same six spells, the class's starting weapon. */
+const CLASS_WEAPONS = {
+  knight: ['Knight', 'longsword'],
+  mage: ['Mage', 'arcane-staff'],
+  barbarian: ['Barbarian', 'war-axe'],
+  amazon: ['Amazon', 'longbow'],
+  shadowblade: ['Shadowblade', 'twin-daggers'],
+  templar: ['Templar', 'war-hammer'],
+  bonecaller: ['Bonecaller', 'necro-staff'],
+  wildwarden: ['Wildwarden', 'druid-staff']
+};
 
-/* Diablo III */
-export const d3BarbarianLoadout = classLoadout('d3-barbarian', 'Barbarian', 'battle-axe');
-export const d3CrusaderLoadout = classLoadout('d3-crusader', 'Crusader', 'mace');
-export const d3DemonHunterLoadout = classLoadout('d3-demon-hunter', 'Demon Hunter', 'crossbow');
-export const d3MonkLoadout = classLoadout('d3-monk', 'Monk', 'battle-staff');
-export const d3NecromancerLoadout = classLoadout('d3-necromancer', 'Necromancer', 'necro-staff');
-export const d3WitchDoctorLoadout = classLoadout('d3-witch-doctor', 'Witch Doctor', 'void-orb');
-export const d3WizardLoadout = classLoadout('d3-wizard', 'Wizard', 'arcane-staff');
+export const CLASS_LOADOUTS = Object.entries(CLASS_WEAPONS).map(([id, [label, weapon]]) => classLoadout(`class-${id}`, label, weapon));
 
-export const DEFAULT_LOADOUTS = [
-  casterDefault,
-  casterStaff,
-  d2AmazonLoadout,
-  d2AssassinLoadout,
-  d2BarbarianLoadout,
-  d2DruidLoadout,
-  d2NecromancerLoadout,
-  d2PaladinLoadout,
-  d2SorceressLoadout,
-  d3BarbarianLoadout,
-  d3CrusaderLoadout,
-  d3DemonHunterLoadout,
-  d3MonkLoadout,
-  d3NecromancerLoadout,
-  d3WitchDoctorLoadout,
-  d3WizardLoadout
-];
+export const DEFAULT_LOADOUTS = [casterDefault, casterStaff, ...CLASS_LOADOUTS];

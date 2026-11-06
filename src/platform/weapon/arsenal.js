@@ -65,7 +65,7 @@ export const WEAPON_ARSENAL = [
   { id: 'scepter', label: 'Royal Scepter', category: C.MAGIC, visual: 'scepter', weight: 'magic', description: 'Paladin / support — regal one-hand focus.' },
   { id: 'crystal-orb', label: 'Crystal Orb', category: C.MAGIC, visual: 'orb-crystal', weight: 'magic', description: 'Fortune-teller orb — off-hand caster style.' },
   { id: 'void-orb', label: 'Void Orb', category: C.MAGIC, visual: 'orb-void', weight: 'magic', description: 'Warlock soul shard — compact, fast casts.' },
-  { id: 'grimoire', label: 'Grimoire', category: C.MAGIC, visual: 'tome', weight: 'magic', description: 'Spellbook — Diablo / Skyrim conjurer trope.' },
+  { id: 'grimoire', label: 'Grimoire', category: C.MAGIC, visual: 'tome', weight: 'magic', description: 'Spellbook — the conjurer’s classic.' },
   { id: 'spell-tome', label: 'Spell Tome', category: C.MAGIC, visual: 'tome-large', weight: 'medium', description: 'Heavy codex — slower footwork, big wind-up.' },
 
   /* ================================================================ */
@@ -120,7 +120,7 @@ export const WEAPON_ARSENAL = [
   { id: 'bowie-knife', label: 'Bowie Knife', category: C.KNIFE, visual: 'knife-combat', weight: 'medium', description: 'Western survival blade.' },
   { id: 'switchblade', label: 'Switchblade', category: C.KNIFE, visual: 'knife-stiletto', weight: 'light', description: 'Street fighter auto-knife — fastest class.' },
   { id: 'cleaver', label: 'Cleaver', category: C.KNIFE, visual: 'knife-cleaver', weight: 'medium', description: 'Butcher blade — horror / brawler.' },
-  { id: 'twin-daggers', label: 'Twin Daggers', category: C.KNIFE, visual: 'knife-dual', attachSecondary: 'handL', weight: 'light', description: 'Dual wield — Diablo rogue / AC syndicate.' },
+  { id: 'twin-daggers', label: 'Twin Daggers', category: C.KNIFE, visual: 'knife-dual', attachSecondary: 'handL', weight: 'light', description: 'Dual wield — the rogue’s favourite.' },
   { id: 'dual-katanas', label: 'Dual Wakizashi', category: C.KNIFE, visual: 'sword-katana', attachSecondary: 'handL', weight: 'light', description: 'Two short blades — action game dual wield.' },
 
   /* ================================================================ */

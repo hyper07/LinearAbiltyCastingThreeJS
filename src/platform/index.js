@@ -26,7 +26,7 @@ export { kaykitRig, KaykitRigAdapter } from './rig/KaykitRigAdapter.js';
 
 export { createCharacter, castClipUrl } from './character/CharacterDefinition.js';
 export { DEFAULT_CHARACTERS, caster } from './character/catalog.js';
-export { DIABLO_CHARACTERS, DIABLO_II_CHARACTERS, DIABLO_III_CHARACTERS } from './character/diablo.js';
+export { CLASS_CHARACTERS, CLASS_SPECS, LOOKS, classBonuses, describeBonuses } from './character/classes.js';
 
 export { createSkill } from './skill/SkillDefinition.js';
 export { DEFAULT_SKILLS, SKILL_BY_ABILITY } from './skill/catalog.js';

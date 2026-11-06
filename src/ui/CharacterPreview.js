@@ -190,7 +190,8 @@ export class CharacterPreview {
    * @param {CharacterController} source
    */
   _mountClone(source) {
-    const sourceId = source.definition?.id ?? 'default';
+    // Keyed by class *and* body, so a new look on the same class re-clones.
+    const sourceId = `${source.definition?.id ?? 'default'}|${source.definition?.model?.idle ?? ''}`;
     if (this.previewCharacter && this._cloneSourceId === sourceId) {
       this._resetPreviewState();
       this._applyEquippedWeapon();

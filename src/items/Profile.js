@@ -16,7 +16,14 @@ export const BELT_MAX = 10;
 export class Profile extends EventEmitter {
   constructor() {
     super();
+    /** The current class's bonuses — set by the game, not saved. */
+    this.classBonus = {};
     this._load();
+  }
+
+  setClass(bonuses) {
+    this.classBonus = { ...(bonuses ?? {}) };
+    this.emit('stats', this.stats);
   }
 
   _blank() {
@@ -67,10 +74,13 @@ export class Profile extends EventEmitter {
 
   /** Everything the gear and ranks add up to, in plain numbers. */
   get stats() {
-    const s = { damage: 0, cooldown: 0, health: 0, speed: 0, crit: 0, gold: 0, element: {}, elementCooldown: {} };
-    for (const [key, value] of Object.entries(this.equipped?.stats ?? {})) {
-      if (key in s) s[key] += value;
-      else s.element[key] = (s.element[key] ?? 0) + value;
+    const s = { damage: 0, cooldown: 0, health: 0, speed: 0, crit: 0, gold: 0, armor: 0, element: {}, elementCooldown: {} };
+    // Class bonuses (platform/character/classes.js) and gear add up the same way.
+    for (const source of [this.classBonus ?? {}, this.equipped?.stats ?? {}]) {
+      for (const [key, value] of Object.entries(source)) {
+        if (key in s && key !== 'element' && key !== 'elementCooldown') s[key] += value;
+        else s.element[key] = (s.element[key] ?? 0) + value;
+      }
     }
     for (const [element, rank] of Object.entries(this.skills)) {
       if (!rank) continue;

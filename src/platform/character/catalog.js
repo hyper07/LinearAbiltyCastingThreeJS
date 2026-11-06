@@ -1,6 +1,6 @@
 import { createCharacter } from './CharacterDefinition.js';
 import { applyModelManifest } from './modelManifest.js';
-import { DIABLO_CHARACTERS } from './diablo.js';
+import { CLASS_CHARACTERS } from './classes.js';
 
 /** Default player — Mixamo caster with three throw clips. */
 export const caster = applyModelManifest(
@@ -33,4 +33,4 @@ export const caster = applyModelManifest(
   })
 );
 
-export const DEFAULT_CHARACTERS = [caster, ...DIABLO_CHARACTERS.map(applyModelManifest)];
+export const DEFAULT_CHARACTERS = [caster, ...CLASS_CHARACTERS];

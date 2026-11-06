@@ -189,6 +189,8 @@ export class GameDirector extends EventEmitter {
   damagePlayer(amount, source = {}) {
     if (this.state === RunState.DOWNED || !settings.combat.enabled) return;
 
+    // Armour from the player's class (and anything else that sets it): a share ignored.
+    amount *= 1 - Math.min(0.75, Math.max(0, this.armor ?? 0));
     const dealt = Math.min(amount, this.health);
     this.health = Math.max(0, this.health - amount);
     this._sinceDamage = 0;

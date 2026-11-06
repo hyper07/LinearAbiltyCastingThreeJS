@@ -5,6 +5,7 @@ import { WEAPON_CATEGORY_META, categoryGlyph } from '../platform/weapon/WeaponDe
 import { CharacterPreview } from './CharacterPreview.js';
 import { progress } from '../levels/LevelStore.js';
 import { describeGoal } from '../levels/Level.js';
+import { LOOKS, describeBonuses } from '../platform/character/classes.js';
 
 /**
  * Pre-game screen — pick a character and weapon, then enter the arena.
@@ -33,6 +34,7 @@ export class MainMenu {
     this.getLevels = callbacks.getLevels ?? (() => null);
     this.onPlayLevel = callbacks.onPlayLevel ?? (() => {});
     this.onOpenEditor = callbacks.onOpenEditor ?? (() => {});
+    this.onLookChange = callbacks.onLookChange ?? (async () => {});
     this._worldBusy = false;
     this._visible = false;
     this._characterId = platform.getActiveCharacter()?.id ?? 'caster';
@@ -213,7 +215,7 @@ export class MainMenu {
   }
 
   _characterSeriesOrder() {
-    return ['Diablo II', 'Diablo III', 'Original'];
+    return ['Classes', 'Original'];
   }
 
   _filteredCharacters() {
@@ -245,6 +247,9 @@ export class MainMenu {
     const tagline = character.tagline
       ? `<span class="main-menu__character-tagline">${character.tagline}</span>`
       : '';
+    const bonuses = character.classSpec
+      ? `<span class="main-menu__character-bonuses">${describeBonuses(character.classSpec.bonuses).join(' · ')}</span>`
+      : '';
     return `
       <button
         class="main-menu__character${selected ? ' is-selected' : ''}"
@@ -255,6 +260,7 @@ export class MainMenu {
         <span class="main-menu__character-name">${character.label}</span>
         <span class="main-menu__character-meta">${meta}</span>
         ${tagline}
+        ${bonuses}
       </button>`;
   }
 
@@ -589,6 +595,45 @@ export class MainMenu {
       this._applyAppearanceToModels(next);
       this._renderAppearancePanel();
     });
+
+    this._renderLookPicker();
+  }
+
+  /** Classes can wear any of the nine bodies; the class's own picks come first. */
+  _renderLookPicker() {
+    const character = platform.characters.get(this._characterId);
+    if (!character || character.rig !== 'kaykit') return;
+    const suggested = character.classSpec?.looks ?? [];
+    const order = [...suggested, ...Object.keys(LOOKS).filter((id) => !suggested.includes(id))];
+    const box = document.createElement('div');
+    box.className = 'main-menu__looks';
+    const title = document.createElement('span');
+    title.className = 'main-menu__color-label';
+    title.textContent = 'Look';
+    box.append(title);
+    const grid = document.createElement('div');
+    grid.className = 'main-menu__look-grid';
+    for (const id of order) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'main-menu__look';
+      b.classList.toggle('is-active', character.look === id);
+      b.classList.toggle('is-suggested', suggested.includes(id));
+      b.textContent = LOOKS[id].label;
+      b.title = suggested.includes(id) ? `Suits the ${character.label}` : 'Any class can wear any look';
+      b.addEventListener('click', async () => {
+        for (const other of grid.querySelectorAll('button')) other.disabled = true;
+        try {
+          await this.onLookChange(this._characterId, id);
+          this.preview.setCharacter(this._characterId);
+        } finally {
+          this._renderAppearancePanel();
+        }
+      });
+      grid.append(b);
+    }
+    box.append(grid);
+    this.appearanceFormEl.prepend(box);
   }
 
   /**

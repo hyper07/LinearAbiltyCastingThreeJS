@@ -1,8 +1,9 @@
 /**
  * Per-character 3D model sources.
  *
- * Run `npm run fetch-characters` to download CC0 KayKit meshes into
- * `public/models/characters/<id>/model.glb`.
+ * The class bodies are CC0 KayKit meshes committed in
+ * `public/models/characters/<look>/model.glb`; `npm run fetch-characters`
+ * downloads them again.
  */
 
 const KAYKIT_ADV =
@@ -59,119 +60,16 @@ export const CHARACTER_MODEL_SOURCES = {
     targetHeight: 1.78
   },
 
-  'd2-amazon': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Rogue.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.76,
-    tint: '#c45c8a'
-  },
-  'd2-assassin': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Rogue_Hooded.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.72,
-    tint: '#4a5568'
-  },
-  'd2-barbarian': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Barbarian.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.9,
-    tint: '#b84a32'
-  },
-  'd2-druid': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Mage.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.8,
-    tint: '#3d7a46'
-  },
-  'd2-necromancer': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_SKEL}/Skeleton_Mage.glb`,
-    animationClips: KAYKIT_SKELETON_CLIPS,
-    targetHeight: 1.84,
-    tint: '#6b5b7a'
-  },
-  'd2-paladin': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Knight.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.86,
-    tint: '#d4af37'
-  },
-  'd2-sorceress': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Mage.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.74,
-    tint: '#5b8fd4'
-  },
-
-  'd3-barbarian': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Barbarian.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.92,
-    tint: '#8b2e1a'
-  },
-  'd3-crusader': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Knight.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.88,
-    tint: '#e8c547'
-  },
-  'd3-demon-hunter': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Rogue.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.75,
-    tint: '#8b1a1a'
-  },
-  'd3-monk': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_ADV}/Rogue_Hooded.glb`,
-    animationClips: KAYKIT_ANIMATION_CLIPS,
-    targetHeight: 1.78,
-    tint: '#c9a227'
-  },
-  'd3-necromancer': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_SKEL}/Skeleton_Warrior.glb`,
-    animationClips: KAYKIT_SKELETON_CLIPS,
-    targetHeight: 1.82,
-    tint: '#4a6741'
-  },
-  'd3-witch-doctor': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_SKEL}/Skeleton_Minion.glb`,
-    animationClips: KAYKIT_SKELETON_CLIPS,
-    targetHeight: 1.7,
-    tint: '#7a4a9e'
-  },
-  'd3-wizard': {
-    format: 'glb',
-    rig: 'kaykit',
-    downloadUrl: `${KAYKIT_SKEL}/Skeleton_Mage.glb`,
-    animationClips: KAYKIT_SKELETON_CLIPS,
-    targetHeight: 1.76,
-    tint: '#4a90d9'
-  }
+  /* Class bodies (see classes.js LOOKS). `npm run fetch-characters` re-downloads them. */
+  knight: { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_ADV}/Knight.glb`, animationClips: KAYKIT_ANIMATION_CLIPS },
+  mage: { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_ADV}/Mage.glb`, animationClips: KAYKIT_ANIMATION_CLIPS },
+  barbarian: { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_ADV}/Barbarian.glb`, animationClips: KAYKIT_ANIMATION_CLIPS },
+  rogue: { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_ADV}/Rogue.glb`, animationClips: KAYKIT_ANIMATION_CLIPS },
+  'rogue-hooded': { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_ADV}/Rogue_Hooded.glb`, animationClips: KAYKIT_ANIMATION_CLIPS },
+  'skeleton-warrior': { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_SKEL}/Skeleton_Warrior.glb`, animationClips: KAYKIT_SKELETON_CLIPS },
+  'skeleton-mage': { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_SKEL}/Skeleton_Mage.glb`, animationClips: KAYKIT_SKELETON_CLIPS },
+  'skeleton-rogue': { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_SKEL}/Skeleton_Rogue.glb`, animationClips: KAYKIT_SKELETON_CLIPS },
+  'skeleton-minion': { format: 'glb', rig: 'kaykit', downloadUrl: `${KAYKIT_SKEL}/Skeleton_Minion.glb`, animationClips: KAYKIT_SKELETON_CLIPS }
 };
 
 /** Resolve the on-disk model path for a character id. */

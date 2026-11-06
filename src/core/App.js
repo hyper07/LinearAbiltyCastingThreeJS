@@ -60,7 +60,8 @@ import { Editor } from '../ui/Editor.js';
 import { getColor } from '../utils/color.js';
 import { DecalType } from '../effects/GroundDecals.js';
 import { settings, ELEMENTS } from '../config/settings.js';
-import { platform } from '../platform/index.js';
+import { platform, classBonuses, LOOKS } from '../platform/index.js';
+import { lookModel, saveLook } from '../platform/character/classes.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
 
@@ -221,7 +222,8 @@ export class App {
       getLibrary: () => this.catalog,
       getLevels: () => this.levels,
       onPlayLevel: (id) => this.playCampaignLevel(id),
-      onOpenEditor: (options) => this.openEditor(options)
+      onOpenEditor: (options) => this.openEditor(options),
+      onLookChange: (characterId, lookId) => this.setLook(characterId, lookId)
     });
     this.story = new StoryPanel(hudRoot);
     this.goalPill = document.createElement('div');
@@ -641,6 +643,7 @@ export class App {
     if (!character) return;
 
     platform.setCharacter(characterId);
+    this.profile?.setClass(classBonuses(characterId));
 
     if (reloadMesh && this._assets && this.character) {
       await this.character.reload(this._assets, character);
@@ -649,6 +652,22 @@ export class App {
 
     if (this.character?.locomotion && character?.wandSide) {
       this.character.locomotion.wandSide = character.wandSide;
+    }
+  }
+
+  /**
+   * Dress a class in another body (any of the nine KayKit looks), remembered
+   * per class in this browser. Reloads the mesh if it is the one on screen.
+   */
+  async setLook(characterId, lookId) {
+    const character = platform.characters.get(characterId);
+    if (!character || !LOOKS[lookId] || character.rig !== 'kaykit') return;
+    character.look = lookId;
+    character.model = lookModel(lookId, character.model?.tint);
+    saveLook(characterId, lookId);
+    if (platform.getActiveCharacter()?.id === characterId && this._assets) {
+      await this.character.reload(this._assets, character);
+      this.character.applyAppearance(platform.getAppearance(characterId));
     }
   }
 
@@ -1036,7 +1055,8 @@ export class App {
     const stats = this.profile.stats;
     const director = this.director;
     const ratio = director.maxHealth ? director.health / director.maxHealth : 1;
-    director.maxHealth = settings.combat.playerHealth + stats.health;
+    director.maxHealth = Math.max(40, settings.combat.playerHealth + stats.health);
+    director.armor = stats.armor / 100;
     director.health = refill ? director.maxHealth : Math.max(1, Math.round(director.maxHealth * ratio));
     this.character.locomotion.speedBonus = 1 + stats.speed / 100;
   }

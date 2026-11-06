@@ -957,3 +957,53 @@
   margin-bottom: 2px;
   color: var(--ui-accent);
 }
+
+/* ---- class bonuses and looks ---- */
+
+.main-menu__character-bonuses {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #9be37a;
+}
+
+.main-menu__looks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.main-menu__look-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.main-menu__look {
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ui-text-dim);
+  font: inherit;
+  font-size: 11px;
+  padding: 7px 4px;
+  cursor: pointer;
+}
+
+.main-menu__look.is-suggested {
+  color: var(--ui-text);
+}
+
+.main-menu__look.is-active {
+  border-color: var(--ui-accent);
+  background: rgba(127, 214, 255, 0.14);
+  color: #fff;
+}
+
+.main-menu__look:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}

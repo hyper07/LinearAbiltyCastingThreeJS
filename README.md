@@ -167,8 +167,8 @@ The first start also downloads the 3D asset library (~7 GB) in the background; l
 with `[library]` in the terminal show its progress. Make sure the drive has about 10 GB free. If
 you stop the server midway, the next `npm run dev` resumes where it left off.
 
-**Optional: Diablo-class character models.** `npm run fetch-characters` downloads them (see
-[Assets](#assets)). It works the same on Windows.
+The class models ship with the game (see [Classes](#classes)); `npm run fetch-characters`
+re-downloads them if they are ever missing. It works the same on Windows.
 
 **Optional: the AI chat commander.** Install [LM Studio](https://lmstudio.ai) for Windows,
 download and load a model, and start its server. Then copy the settings template and edit it:
@@ -244,18 +244,12 @@ simulated on secondary bone chains *after* the skeleton pose (Verlet/spring or e
 bones); they are not part of locomotion joint data. See `LocomotionPlayback.js` and
 `SecondaryMotion.js`.
 
-**Character models (Diablo classes).** Each class in the main menu loads its own mesh from
-`public/models/characters/<id>/model.glb`. Download the CC0 KayKit set once:
-
-```bash
-npm run fetch-characters
-```
-
-That pulls Barbarian, Knight, Mage, Rogue, and Skeleton variants from the
-[KayKit Adventurers](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0)
-and [Skeletons](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) packs.
-Walk, run, idle and cast clips are embedded in each GLB. To swap a class for your own model, replace
-its `model.glb` and update `src/platform/character/modelManifest.js`.
+**Class bodies.** The nine bodies the classes wear are committed in
+`public/models/characters/<look>/model.glb` — Knight, Mage, Barbarian, Rogue, Hooded rogue and four
+skeletons from the CC0 [KayKit Adventurers](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0)
+and [Skeletons](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) packs
+(`npm run fetch-characters` downloads them again). They share one rig, so walk, run, idle and cast
+clips embedded in each GLB work on every class. See [Classes](#classes).
 
 The rig ships no material, so `diffuse.png` is loaded beside it and assigned as the colour map when
 the imported materials are converted to PBR — an FBX that *does* carry an embedded texture keeps its
@@ -268,6 +262,37 @@ the looping idle, with `character.castBlendIn` / `castBlendOut` as the two edges
 
 The HDR is loaded as image-based lighting and as the reflection source for the ice — it is never
 shown as a visible sky. The stage keeps its flat dark backdrop.
+
+### Classes
+
+<p>
+  <img src="docs/screenshots/class-knight.jpg" width="49%" alt="Class picker: the Knight with its bonuses, longsword and plate" />
+  <img src="docs/screenshots/class-mage.jpg" width="49%" alt="The Mage class with its staff and bonuses" />
+</p>
+<p>
+  <img src="docs/screenshots/class-look-skeleton.jpg" width="49%" alt="Appearance tab: the Knight wearing the skeleton-warrior body" />
+  <img src="docs/screenshots/class-look-barbarian.jpg" width="49%" alt="Appearance tab: the Knight wearing the barbarian body" />
+</p>
+
+Pick a class in the main menu. Every class casts the same six spells; the class sets the body, the
+starting weapon, the close-range attacks and a set of bonuses that stack with gear and skill books:
+
+| Class | Starts with | Bonuses |
+| --- | --- | --- |
+| 🛡 **Knight** | Longsword | +50 health, 20% less damage taken, −5% speed, +15% Glacial Crown |
+| ✦ **Mage** | Arcane staff | −25 health, +18% spell damage, −10% cooldowns |
+| 🪓 **Barbarian** | War axe | +70 health, 10% less damage taken, +8% speed, +20% Cinder Fall |
+| 🏹 **Amazon** | Longbow | +10% speed, +12% critical chance, +20% Storm Lance |
+| 🗡 **Shadowblade** | Twin daggers | −10 health, +15% speed, +8% critical chance, +15% Voltaic Snare |
+| ✚ **Templar** | War hammer | +30 health, 10% less damage taken, +25% Nova Beam |
+| 💀 **Bonecaller** | Necromancer staff | −10 health, +10% spell damage, −6% cooldowns, +20% Voltaic Snare |
+| 🌿 **Wildwarden** | Druid staff | +20 health, +20% Glacial Crown, +15% Frost Lance |
+| ⚡ **Elemental Caster** | Arcane wand | The sandbox original — no bonuses, its own Mixamo body |
+
+**Appearance → Look** dresses any class in any of the nine bodies (Knight, Mage, Barbarian, Rogue,
+Hooded rogue, Skeleton warrior/mage/rogue/minion), the class's own picks listed first, and the colour
+tints still apply on top. The choice is remembered per class. Classes are defined in
+`src/platform/character/classes.js`.
 
 ---
 
