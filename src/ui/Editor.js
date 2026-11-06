@@ -49,6 +49,13 @@ export class Editor {
     // controls here that any folder left open pushes the rest off the screen,
     // so the panel opens as a list of sections and the user picks one.
     this.gui.foldersRecursive().forEach((folder) => folder.close());
+
+    // ...and the panel itself starts hidden. It used to open with the page,
+    // which was right when this was only a VFX sandbox; now there is a fight
+    // going on underneath it and a tuning panel over a third of the screen is
+    // the wrong first impression. `G` brings it back.
+    this._hidden = true;
+    this.gui.show(false);
   }
 
   /* ------------------------------------------------------------------ */

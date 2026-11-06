@@ -1,0 +1,32 @@
+# Build and run the game with its AI bridge:
+#
+#   docker compose up --build          → http://localhost:8787
+#
+# The model itself is *not* in here. It runs wherever LLM_PLATFORM_BASE_URL
+# points — LM Studio on the LAN, Ollama, vLLM, anything OpenAI-compatible —
+# and this container only holds the key and forwards the call.
+
+services:
+  game:
+    build: .
+    image: elemental-arena
+    ports:
+      - '8787:8787'
+    environment:
+      PORT: 8787
+      STATIC_ROOT: /app/dist
+      # Read from .env (compose loads it automatically). Nothing here has a
+      # default: an unset base URL makes the bridge report itself offline, and
+      # the game falls back to its own keyword parser rather than breaking.
+      LLM_PLATFORM_BASE_URL: ${LLM_PLATFORM_BASE_URL}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL1: ${LLM_MODEL1}
+      LLM_MODEL2: ${LLM_MODEL2}
+      # Only needed if the page is served from a *different* origin than this
+      # container. Same-origin (the default) needs no CORS.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    # A model on the host rather than the LAN: point the base URL at
+    # http://host.docker.internal:1234/v1 and keep this mapping.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped

@@ -1,6 +1,7 @@
 import {
   AnimationMixer,
   Box3,
+  Color,
   Group,
   LoopOnce,
   LoopRepeat,
@@ -9,45 +10,72 @@ import {
   SRGBColorSpace,
   Vector3
 } from 'three';
-import { settings, CAST_ANIMATIONS } from '../config/settings.js';
+import { settings } from '../config/settings.js';
 import { LAYER } from '../core/Layers.js';
 import { disposeObject } from '../utils/dispose.js';
-
-const CHARACTER_URL = './models/Idle.fbx';
-/** This export carries no material, so the skin ships beside it as a file. */
-const CHARACTER_TEXTURE_URL = './models/diffuse.png';
-/** One file per entry in `CAST_ANIMATIONS`; only their clips are kept. */
-const castUrl = (name) => `./models/${name}.fbx`;
-/** Mixamo exports in centimetres. */
-const FBX_SCALE = 0.01;
-/** Rigs vary; normalise to a believable human height so the world scale holds. */
-const TARGET_HEIGHT = 1.78;
+import { Locomotion } from './Locomotion.js';
+import { LocomotionPlayback } from './LocomotionPlayback.js';
+import { SecondaryMotion } from './SecondaryMotion.js';
+import { platform } from '../platform/index.js';
+import { castClipUrl } from '../platform/character/CharacterDefinition.js';
+import { locomotionClipUrl } from '../platform/motion/MotionDataset.js';
+import { mixamoRig, shortBoneName } from '../platform/rig/MixamoRigAdapter.js';
+import { WeaponVisual, collectRigBones } from '../entities/WeaponVisual.js';
+import { cloneSkinnedHierarchy } from '../utils/cloneSkinned.js';
+import {
+  applyCharacterColors,
+  captureMaterialBases,
+  copyMaterialBases
+} from './CharacterAppearance.js';
 
 /**
  * Loads the rigged FBX, normalises it for the scene and drives its animation.
  *
- * The character never leaves the spot — it breathes on a loop, turns to face
- * where you are aiming, and throws one of the cast clips when you fire. Those
- * clips ship as separate Mixamo exports of the *same* skeleton, so only their
- * `AnimationClip` is kept: the mixer binds tracks by bone name, which is all
- * that a shared rig needs for a clip authored in another file to play here.
+ * The character walks, runs, jumps, sits, turns to face where you are aiming,
+ * and throws one of the cast clips when you fire. Locomotion gaits come from
+ * authored walk/run clips blended by speed when `motionDataset` clips are
+ * present; otherwise `Locomotion` generates a procedural overlay on idle.
+ * Cast clips ship as separate Mixamo exports of the *same* skeleton, so only
+ * their `AnimationClip` is kept: the mixer binds tracks by bone name.
  *
- * Which clip an ability throws is `settings[element].castAnim` — a per-ability
- * choice, editable live, which is why `playCast` takes the name each time
- * rather than caching one.
+ * Which clip an ability throws comes from the platform skill definition
+ * (`platform.getCastAnim`), editable live, which is why `playCast` takes the
+ * name each time rather than caching one.
  */
 export class CharacterController {
-  constructor(environment) {
+  /**
+   * @param {import('../world/Environment.js').Environment} environment
+   * @param {import('../platform/character/CharacterDefinition.js').CharacterDefinition} [definition]
+   */
+  constructor(environment, definition = null) {
     this.environment = environment;
+    this.definition =
+      definition ?? platform.getActiveCharacter() ?? platform.characters.get('caster');
+    this.rig = platform.getRig(this.definition?.rig ?? 'mixamo');
     this.root = new Group();
     this.root.name = 'Character';
 
-    // Position and heading live on `root`; the bank (walk mode leans into its
-    // turns) lives on a joint underneath it, so the two never fight over the
-    // same rotation.
+    // Three nested frames, so nothing ever fights over the same field:
+    //
+    //   root    world position and heading — where the character *is*
+    //   motion  the vertical offset locomotion wants (step bob, seated drop)
+    //   tilt    the cast lunge (a pitch and a shove, both transient)
+    //
+    // Collapsing any two of these means the walk bob and the cast recoil both
+    // want to write one `position`, and whichever runs second wins.
+    this.motion = new Group();
+    this.motion.name = 'CharacterMotion';
+    this.root.add(this.motion);
+
     this.tilt = new Group();
     this.tilt.name = 'CharacterTilt';
-    this.root.add(this.tilt);
+    this.motion.add(this.tilt);
+
+    /** Walking, running, jumping and sitting. */
+    this.locomotion = new Locomotion(this, { rig: this.rig });
+    this.locomotion.wandSide = this.definition?.wandSide ?? 'Right';
+    this.locomotionPlayback = new LocomotionPlayback(this);
+    this.secondaryMotion = new SecondaryMotion();
 
     this.mixer = null;
     /** The looping breath, always running underneath a cast. */
@@ -70,52 +98,97 @@ export class CharacterController {
     /** 0..1 lunge envelope, decays on its own after `castLunge()`. */
     this._lunge = 0;
     this._rightAxis = new Vector3(1, 0, 0);
+    this.weaponVisual = new WeaponVisual();
+  }
+
+  /**
+   * @param {import('../loaders/AssetLoader.js').AssetLoader} assets
+   * @param {import('../platform/character/CharacterDefinition.js').CharacterDefinition} [definition]
+   */
+  async reload(assets, definition = null) {
+    if (definition) this.definition = definition;
+    this.rig = platform.getRig(this.definition?.rig ?? 'mixamo');
+    this.locomotion.rig = this.rig;
+    this._clearModel();
+    await this.load(assets);
+    this.locomotion.reset();
+    this.resetPlacement();
+    return this;
+  }
+
+  _clearModel() {
+    this.mixer?.removeEventListener('finished', this._onCastFinished);
+    this.mixer?.stopAllAction();
+    this.mixer = null;
+    this.idle = null;
+    this.casts.clear();
+    this._cast = null;
+
+    if (this.model) {
+      this.tilt.remove(this.model);
+      disposeObject(this.model);
+      this.model = null;
+    }
+
+    this.locomotionPlayback = new LocomotionPlayback(this);
+    this.weaponVisual.clear();
   }
 
   /**
    * @param {import('../loaders/AssetLoader.js').AssetLoader} assets
    */
   async load(assets) {
-    // The cast files are the same character again, so they cost a parse each
-    // but nothing at run time — everything but the clip is thrown away below.
-    const [fbx, skin, ...castFiles] = await Promise.all([
-      assets.loadFBX(CHARACTER_URL),
-      assets.loadTexture(CHARACTER_TEXTURE_URL),
-      ...CAST_ANIMATIONS.map((name) => assets.loadFBX(castUrl(name)))
+    const def = this.definition;
+    const modelCfg = def.model ?? {};
+    const format = modelCfg.format ?? 'fbx';
+
+    this.rig = platform.getRig(def.rig ?? 'mixamo');
+    this.locomotion.rig = this.rig;
+
+    if (format === 'glb') {
+      await this._loadGLB(assets, def, modelCfg);
+    } else {
+      await this._loadFBX(assets, def, modelCfg);
+    }
+
+    return this;
+  }
+
+  /**
+   * @param {import('../loaders/AssetLoader.js').AssetLoader} assets
+   * @param {object} def
+   * @param {object} modelCfg
+   */
+  async _loadFBX(assets, def, modelCfg) {
+    const castClips = def.castClips ?? ['cast1', 'cast2', 'cast3'];
+    const motionDataset = platform.getMotionDataset(def.motionDataset);
+    this.locomotionPlayback.bind(motionDataset);
+
+    const locoClipIds = [];
+    if (motionDataset?.clips?.walk && !motionDataset.embedded) {
+      locoClipIds.push(['walk', motionDataset.clips.walk]);
+    }
+    const runId = motionDataset?.clips?.run ?? motionDataset?.clips?.sprint;
+    if (runId && !motionDataset?.embedded) locoClipIds.push(['run', runId]);
+
+    const fbxScale = modelCfg.scale ?? 0.01;
+    const targetHeight = modelCfg.targetHeight ?? 1.78;
+
+    const [fbx, skin, ...extraFiles] = await Promise.all([
+      assets.loadFBX(modelCfg.idle ?? './models/Idle.fbx'),
+      modelCfg.texture ? assets.loadTexture(modelCfg.texture) : Promise.resolve(null),
+      ...castClips.map((name) => assets.loadFBX(castClipUrl(name))),
+      ...locoClipIds.map(([, clipId]) => this._loadLocomotionClipOptional(assets, clipId))
     ]);
-    // The FBX resolves before its textures do; material prep inspects them.
+    const castFiles = extraFiles.slice(0, castClips.length);
+    const locoFiles = extraFiles.slice(castClips.length);
     await assets.settled();
 
-    fbx.scale.setScalar(FBX_SCALE);
-    fbx.updateMatrixWorld(true);
-
-    const box = new Box3().setFromObject(fbx);
-    const size = new Vector3();
-    const center = new Vector3();
-    box.getSize(size);
-
-    // Normalise the rig's height, then drop it onto y = 0 and centre it.
-    fbx.scale.setScalar(FBX_SCALE * (TARGET_HEIGHT / Math.max(0.001, size.y)));
-    fbx.updateMatrixWorld(true);
-    box.setFromObject(fbx);
-    box.getSize(size);
-    box.getCenter(center);
-    this.height = size.y;
-    fbx.position.x -= center.x;
-    fbx.position.z -= center.z;
-    fbx.position.y -= box.min.y;
-
+    this._normalizeRoot(fbx, fbxScale, targetHeight);
     this._prepareMaterials(fbx, skin);
-    this._measureFacing(fbx);
+    this._captureAndApplyAppearance(fbx, def.id, modelCfg);
+    this._finalizeModel(fbx, motionDataset);
 
-    this.tilt.add(fbx);
-    this.model = fbx;
-    this.headPosition.set(0, size.y * 0.86, 0);
-
-    this.mixer = new AnimationMixer(fbx);
-    this.mixer.addEventListener('finished', this._onCastFinished);
-
-    // The breath ships inside the character file itself.
     const idleClip = (fbx.animations ?? [])[0];
     if (!idleClip) {
       console.warn('[CharacterController] no idle clip found in the FBX');
@@ -123,11 +196,324 @@ export class CharacterController {
       this.idle = this.mixer.clipAction(idleClip);
       this.idle.setLoop(LoopRepeat, Infinity);
       this.idle.play();
+      this.locomotionPlayback.setIdle(this.idle);
     }
 
     const bones = new Set();
     fbx.traverse((node) => bones.add(node.name));
-    CAST_ANIMATIONS.forEach((name, index) => this._registerCast(name, castFiles[index], bones));
+    castClips.forEach((name, index) => this._registerCast(name, castFiles[index], bones));
+    locoClipIds.forEach(([slot, clipId], index) => {
+      this._registerLocomotionClip(slot, clipId, locoFiles[index], bones);
+    });
+
+    this._syncLocomotionMode(motionDataset);
+    this._bindAnimatedBones();
+    this._refreshWeaponBones();
+    this.equipWeapon(platform.getActiveWeaponId());
+  }
+
+  /**
+   * @param {import('../loaders/AssetLoader.js').AssetLoader} assets
+   * @param {object} def
+   * @param {object} modelCfg
+   */
+  async _loadGLB(assets, def, modelCfg) {
+    const motionDataset = platform.getMotionDataset(def.motionDataset);
+    this.locomotionPlayback.bind(motionDataset);
+
+    const gltf = await assets.loadGLB(modelCfg.idle);
+    await assets.settled();
+
+    const root = gltf.scene;
+    const animations = gltf.animations ?? [];
+    const clips = modelCfg.animationClips ?? {};
+    const targetHeight = modelCfg.targetHeight ?? 1.78;
+    const importScale = modelCfg.scale ?? 1;
+
+    this._normalizeRoot(root, importScale, targetHeight);
+    this._prepareMaterials(root, null);
+    this._captureAndApplyAppearance(root, def.id, modelCfg);
+    this._finalizeModel(root, motionDataset);
+
+    const idleName = clips.idle ?? 'Idle';
+    const idleClip =
+      animations.find((clip) => clip.name === idleName) ?? animations[0] ?? null;
+    if (!idleClip) {
+      console.warn(`[CharacterController] no idle clip "${idleName}" in ${modelCfg.idle}`);
+    } else {
+      this.idle = this.mixer.clipAction(idleClip);
+      this.idle.setLoop(LoopRepeat, Infinity);
+      this.idle.play();
+      this.locomotionPlayback.setIdle(this.idle);
+    }
+
+    const bones = new Set();
+    root.traverse((node) => bones.add(node.name));
+
+    const castIds = def.castClips ?? ['cast1', 'cast2', 'cast3'];
+    const castMap = clips.casts ?? {};
+    castIds.forEach((id) => {
+      const clipName = castMap[id] ?? id;
+      this._registerEmbeddedClip(id, clipName, animations, bones, true);
+    });
+
+    if (motionDataset?.embedded) {
+      if (motionDataset.clips?.walk) {
+        this._registerEmbeddedClip(
+          'walk',
+          motionDataset.clips.walk,
+          animations,
+          bones,
+          false,
+          LoopRepeat
+        );
+      }
+      if (motionDataset.clips?.run) {
+        this._registerEmbeddedClip(
+          'run',
+          motionDataset.clips.run,
+          animations,
+          bones,
+          false,
+          LoopRepeat
+        );
+      }
+    }
+
+    this._syncLocomotionMode(motionDataset);
+    this._bindAnimatedBones();
+    this._refreshWeaponBones();
+    this.equipWeapon(platform.getActiveWeaponId());
+  }
+
+  /**
+   * @param {import('three').Object3D} root
+   * @param {number} importScale
+   * @param {number} targetHeight
+   */
+  _normalizeRoot(root, importScale, targetHeight) {
+    root.scale.setScalar(importScale);
+    root.updateMatrixWorld(true);
+
+    const box = new Box3().setFromObject(root);
+    const size = new Vector3();
+    const center = new Vector3();
+    box.getSize(size);
+
+    root.scale.setScalar(importScale * (targetHeight / Math.max(0.001, size.y)));
+    root.updateMatrixWorld(true);
+    box.setFromObject(root);
+    box.getSize(size);
+    box.getCenter(center);
+    this.height = size.y;
+    root.position.x -= center.x;
+    root.position.z -= center.z;
+    root.position.y -= box.min.y;
+  }
+
+  /**
+   * @param {import('three').Object3D} root
+   * @param {import('../platform/motion/MotionDataset.js').MotionDataset|null} motionDataset
+   */
+  _finalizeModel(root, motionDataset) {
+    this._measureFacing(root);
+    this.locomotion.bind(root);
+    this.secondaryMotion.bind(root);
+    this.tilt.add(root);
+    this.model = root;
+    this.headPosition.set(0, this.height * 0.86, 0);
+
+    this.mixer = new AnimationMixer(root);
+    this.mixer.addEventListener('finished', this._onCastFinished);
+  }
+
+  /**
+   * @param {import('three').Object3D} root
+   * @param {string} characterId
+   * @param {object} modelCfg
+   */
+  _captureAndApplyAppearance(root, characterId, modelCfg) {
+    this._materialBases = captureMaterialBases(root);
+    const stored = platform.getAppearance(characterId);
+    const appearance = {
+      ...stored,
+      tint: stored.tint ?? modelCfg.tint ?? '#ffffff'
+    };
+    applyCharacterColors(root, appearance, this._materialBases);
+  }
+
+  /**
+   * Re-apply stored colours — used from the main-menu appearance panel.
+   *
+   * @param {import('../platform/appearance/Appearance.js').CharacterAppearance} [appearance]
+   */
+  applyAppearance(appearance = platform.getAppearance(this.definition?.id)) {
+    if (!this.model || !this._materialBases?.size) return;
+    applyCharacterColors(this.model, appearance, this._materialBases);
+  }
+
+  /** @param {import('three').Object3D} root @param {string} [tint] @deprecated */
+  _applyTint(root, tint) {
+    if (!tint) return;
+    const color = new Color(tint);
+    root.traverse((node) => {
+      if (!node.isMesh) return;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of materials) {
+        if (material?.color) material.color.multiply(color);
+      }
+    });
+  }
+
+  _bindAnimatedBones() {
+    const animated = new Set();
+    for (const action of this.mixer._actions ?? []) {
+      for (const track of action._clip.tracks) animated.add(track.name);
+    }
+    if (this.idle) for (const track of this.idle._clip.tracks) animated.add(track.name);
+    this.locomotion.setAnimatedBones(animated);
+  }
+
+  /**
+   * @param {string} name
+   * @param {string} clipName
+   * @param {import('three').AnimationClip[]} animations
+   * @param {Set<string>} bones
+   * @param {boolean} oneShot
+   * @param {number} [loopMode]
+   */
+  _registerEmbeddedClip(name, clipName, animations, bones, oneShot, loopMode = LoopRepeat) {
+    const clip = animations.find((entry) => entry.name === clipName);
+    if (!clip) {
+      console.warn(`[CharacterController] clip "${clipName}" not found for "${name}"`);
+      return;
+    }
+
+    if (!clip.tracks.some((track) => bones.has(track.name.split('.')[0]))) {
+      console.warn(`[CharacterController] "${clipName}" does not match this skeleton`);
+      return;
+    }
+
+    clip.name = name;
+    const action = this.mixer.clipAction(clip);
+
+    if (oneShot) {
+      action.setLoop(LoopOnce, 1);
+      action.clampWhenFinished = true;
+      this.casts.set(name, action);
+      return;
+    }
+
+    if (name === 'walk' || name === 'run') {
+      this.locomotionPlayback.register(name, action);
+    }
+  }
+
+  /**
+   * Clone an already-loaded character for the menu preview.
+   *
+   * Avoids a second trip through `AssetLoader` (which can hang on `settled()`
+   * when the boot loader is reused).
+   *
+   * @param {CharacterController} source loaded game character
+   */
+  loadFromSource(source) {
+    if (!source?.model || !source.mixer) {
+      throw new Error('[CharacterController] loadFromSource requires a loaded character');
+    }
+
+    const fbx = cloneSkinnedHierarchy(source.model);
+
+    // Start from the bind pose so the clone is not inheriting a half-updated frame
+    // from whatever the live character was doing when the preview opened.
+    fbx.traverse((node) => {
+      if (node.isSkinnedMesh && node.skeleton) node.skeleton.pose();
+    });
+    fbx.updateWorldMatrix(true, true);
+
+    this.height = source.height;
+    this.headPosition.copy(source.headPosition);
+    this._forwardYaw = source._forwardYaw;
+    this.forwardAxis.copy(source.forwardAxis);
+    this._rightAxis.copy(source._rightAxis);
+
+    this.locomotion.bind(fbx);
+    this.tilt.add(fbx);
+    this.model = fbx;
+
+    if (source._materialBases?.size) {
+      this._materialBases = copyMaterialBases(source.model, source._materialBases, fbx);
+      this.applyAppearance(platform.getAppearance(this.definition?.id));
+    } else {
+      this._materialBases = captureMaterialBases(fbx);
+    }
+
+    this.mixer = new AnimationMixer(fbx);
+    this.mixer.addEventListener('finished', this._onCastFinished);
+
+    if (source.idle) {
+      const clip = source.idle._clip;
+      this.idle = this.mixer.clipAction(clip);
+      this.idle.setLoop(LoopRepeat, Infinity);
+      this.idle.play();
+    }
+
+    for (const [name, action] of source.casts) {
+      const clip = action._clip;
+      const castAction = this.mixer.clipAction(clip);
+      castAction.setLoop(LoopOnce, 1);
+      castAction.clampWhenFinished = true;
+      this.casts.set(name, castAction);
+    }
+
+    this.locomotionPlayback = new LocomotionPlayback(this);
+    this.locomotionPlayback.bind(source.locomotionPlayback?.dataset ?? null);
+    if (this.idle) this.locomotionPlayback.setIdle(this.idle);
+    for (const slot of ['walk', 'run']) {
+      const src = source.locomotionPlayback?.actions?.[slot];
+      if (src) {
+        this.locomotionPlayback.register(slot, this.mixer.clipAction(src._clip));
+      }
+    }
+    this._syncLocomotionMode(source.locomotionPlayback?.dataset ?? null);
+
+    this.secondaryMotion = new SecondaryMotion();
+    this.secondaryMotion.bind(fbx);
+
+    const animated = new Set();
+    for (const action of this.mixer._actions ?? []) {
+      for (const track of action._clip.tracks) animated.add(track.name);
+    }
+    this.locomotion.setAnimatedBones(animated);
+
+    this._refreshWeaponBones();
+    this.equipWeapon(platform.getActiveWeaponId());
+
+    return this;
+  }
+
+  /** Map every bone in the loaded rig — used for weapon attachment. */
+  _refreshWeaponBones() {
+    this._weaponBones = collectRigBones(this.model);
+  }
+
+  /**
+   * Attach or remove the procedural weapon mesh and apply motion overrides.
+   *
+   * @param {string} weaponId
+   */
+  equipWeapon(weaponId) {
+    const weapon = platform.weapons.get(weaponId) ?? platform.weapons.get('unarmed');
+    if (!weapon) return this;
+
+    if (!this._weaponBones?.size) this._refreshWeaponBones();
+
+    platform.setWeapon(weapon.id);
+    this.weaponVisual.equip(weapon, this._weaponBones, this.rig, this.model);
+
+    if (weapon.attachPoint === 'handL') this.locomotion.wandSide = 'Left';
+    else if (weapon.attachPoint === 'handR') this.locomotion.wandSide = 'Right';
+    else this.locomotion.wandSide = this.definition?.wandSide ?? 'Right';
 
     return this;
   }
@@ -166,6 +552,70 @@ export class CharacterController {
   }
 
   /**
+   * @param {import('../loaders/AssetLoader.js').AssetLoader} assets
+   * @param {string} clipId
+   */
+  async _loadLocomotionClipOptional(assets, clipId) {
+    try {
+      return await assets.loadFBX(locomotionClipUrl(clipId));
+    } catch {
+      console.warn(
+        `[CharacterController] locomotion clip "${clipId}.fbx" missing — procedural gait fallback`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * @param {'walk'|'run'} slot
+   * @param {string} clipId
+   * @param {import('three').Group|null} file
+   * @param {Set<string>} bones
+   */
+  _registerLocomotionClip(slot, clipId, file, bones) {
+    if (!file) return;
+
+    const clip = (file?.animations ?? [])[0];
+    if (!clip) {
+      console.warn(`[CharacterController] "${clipId}.fbx" carries no animation`);
+      disposeObject(file);
+      return;
+    }
+
+    if (!clip.tracks.some((track) => bones.has(track.name.split('.')[0]))) {
+      console.warn(`[CharacterController] "${clipId}.fbx" does not match this skeleton`);
+      disposeObject(file);
+      return;
+    }
+
+    clip.name = clipId;
+    const action = this.mixer.clipAction(clip);
+    this.locomotionPlayback.register(slot, action);
+    disposeObject(file);
+  }
+
+  /** @param {import('../platform/motion/MotionDataset.js').MotionDataset|null} dataset */
+  _syncLocomotionMode(dataset) {
+    const hasWalk = !!this.locomotionPlayback.actions.walk;
+    const hasRun = !!this.locomotionPlayback.actions.run;
+    const hasClips = hasWalk && hasRun;
+    const allowFallback = dataset?.proceduralFallback !== false;
+    this.locomotion.useProceduralGait = !hasClips && allowFallback;
+
+    if (hasClips) {
+      this.locomotionPlayback.actions.walk?.play();
+      this.locomotionPlayback.actions.run?.play();
+      return;
+    }
+
+    if (dataset?.embedded && allowFallback) {
+      console.warn(
+        '[CharacterController] embedded walk/run clips missing — procedural gait fallback'
+      );
+    }
+  }
+
+  /**
    * Convert imported materials to PBR and hook them into the shadow system.
    *
    * @param {import('three').Object3D} root
@@ -174,8 +624,7 @@ export class CharacterController {
   _prepareMaterials(root, skin) {
     const converted = new Map();
 
-    // TextureLoader assumes linear data; this one is authored colour.
-    skin.colorSpace = SRGBColorSpace;
+    if (skin) skin.colorSpace = SRGBColorSpace;
 
     root.traverse((node) => {
       if (!node.isMesh && !node.isSkinnedMesh) return;
@@ -203,7 +652,7 @@ export class CharacterController {
         const standard = new MeshStandardMaterial({
           name: material.name,
           color: material.map ? (material.color ?? 0xffffff) : 0xffffff,
-          map: material.map ?? skin,
+          map: material.map ?? skin ?? null,
           normalMap: material.normalMap ?? null,
           bumpMap: material.normalMap ? null : (material.bumpMap ?? null),
           roughness: 0.85,
@@ -244,7 +693,7 @@ export class CharacterController {
     root.traverse((node) => {
       if (!node.isBone) return;
       // Exporters disagree on the namespace: "mixamorig:LeftFoot", "mixamorigLeftFoot".
-      const short = node.name.split(':').pop().replace(/^mixamorig/i, '');
+      const short = shortBoneName(node.name);
       if (short === 'LeftFoot' && !foot) foot = node;
       else if (short === 'LeftToeBase' && !toe) toe = node;
     });
@@ -270,7 +719,8 @@ export class CharacterController {
    *   one so an ability configured with a clip that failed to load still moves.
    */
   playCast(name) {
-    const next = this.casts.get(name) ?? this.casts.get(CAST_ANIMATIONS[0]);
+    const castClips = this.definition?.castClips ?? ['cast1', 'cast2', 'cast3'];
+    const next = this.casts.get(name) ?? this.casts.get(castClips[0]);
     if (!next || !this.idle) return;
 
     const previous = this._cast;
@@ -284,7 +734,7 @@ export class CharacterController {
     // clip still finishing on a re-cast — so the body never drops to the bind
     // pose for a frame in between two throws. Re-throwing the *same* clip only
     // restarts it: `reset()` has already left it at full weight.
-    const from = previous ?? this.idle;
+    const from = previous ?? this.locomotionPlayback.getBaseAction() ?? this.idle;
     if (from !== next) next.crossFadeFrom(from, settings.character.castBlendIn, false);
   }
 
@@ -297,6 +747,14 @@ export class CharacterController {
     // Anything else finishing is an older clip that a re-cast already faded out.
     if (event.action !== this._cast) return;
     this._cast = null;
+
+    if (this.locomotionPlayback.hasClips) {
+      this.locomotionPlayback.resumeAfterCast(
+        event.action,
+        settings.character.castBlendOut
+      );
+      return;
+    }
 
     // The fade in disabled the idle once its weight hit zero; wake it back up
     // before asking it to come in again.
@@ -360,9 +818,20 @@ export class CharacterController {
     this._lunge = 0;
     this.tilt.quaternion.identity();
     this.tilt.position.set(0, 0, 0);
+    this.motion.position.set(0, 0, 0);
+  }
+
+  /** Drop everything and stand at the origin again. */
+  resetToOrigin() {
+    this.locomotion.reset();
+    this.resetPlacement();
   }
 
   update(dt) {
+    // Move first: the gait is driven by distance travelled, so the pose below
+    // has to be posing *this* frame's displacement, not last frame's.
+    this.locomotion.step(dt);
+
     // Driven by the *simulation* delta, and re-applied every frame even at
     // dt = 0: pausing mid-cast holds the lunge, and `castLean` stays a live
     // slider against that frozen pose.
@@ -371,7 +840,15 @@ export class CharacterController {
     if (!this.mixer) return;
 
     this.mixer.timeScale = settings.global.animationSpeed;
+    this.locomotionPlayback.update(this.locomotion, dt);
     this.mixer.update(dt);
+
+    // Procedural gait only when walk/run clips are unavailable.
+    this.locomotion.applyPose();
+    this.secondaryMotion.update(dt, {
+      velocity: this.locomotion.velocity,
+      facing: this.facing
+    });
   }
 
   get position() {
@@ -385,6 +862,9 @@ export class CharacterController {
     this.idle = null;
     this.casts.clear();
     this._cast = null;
+    this.locomotionPlayback = null;
+    this.secondaryMotion.dispose();
+    this.weaponVisual.clear();
     disposeObject(this.root);
   }
 }

@@ -3,6 +3,9 @@
  * The 3D view owns the whole viewport; everything here floats on top.
  * ------------------------------------------------------------------ */
 
+@import './weapon-panel.css';
+@import './main-menu.css';
+
 :root {
   --ui-bg: rgba(10, 14, 20, 0.55);
   --ui-bg-solid: rgba(12, 16, 22, 0.92);
@@ -149,6 +152,19 @@ body {
   pointer-events: none;
   z-index: 20;
   font-size: 13px;
+}
+
+.hud--menu .hud__title,
+.hud--menu .hud__stats,
+.hud--menu .hud__help,
+.hud--menu .hud__abilities,
+.hud--menu .chat {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.is-menu #viewport {
+  cursor: default;
 }
 
 /* ------------------------------------------------------------------ *
@@ -952,3 +968,521 @@ body {
   }
 }
 
+
+/* ------------------------------------------------------------------ *
+ * The run — health, wave, score, combo, banners
+ * Lives inside .hud, so it inherits `pointer-events: none`; only the
+ * chat panel below opts back in.
+ * ------------------------------------------------------------------ */
+
+.game-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-hud.is-hidden {
+  display: none;
+}
+
+/* --- wave / score, top centre --- */
+
+.run-stats {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 26px;
+  padding: 10px 22px 8px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  backdrop-filter: blur(9px);
+  box-shadow: var(--ui-shadow);
+  text-align: center;
+}
+
+.run-stats__wave,
+.run-stats__score {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.run-stats__label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ui-text-dim);
+}
+
+.run-stats b {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.run-stats__wave b {
+  color: #ffd27f;
+}
+
+.run-stats__row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid var(--ui-border);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ui-text-dim);
+}
+
+/* --- chain counter --- */
+
+.combo {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: rgba(255, 160, 60, 0.14);
+  border: 1px solid rgba(255, 180, 90, 0.35);
+  color: #ffcf94;
+  text-shadow: 0 0 16px rgba(255, 150, 50, 0.6);
+}
+
+.combo.is-visible {
+  display: flex;
+}
+
+.combo b {
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.combo span {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.combo.is-hot {
+  background: rgba(255, 90, 40, 0.2);
+  border-color: rgba(255, 130, 60, 0.6);
+  color: #ffe0b0;
+}
+
+.combo.is-pop {
+  animation: combo-pop 0.28s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes combo-pop {
+  0% { transform: translateX(-50%) scale(1.35); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* --- health, just above the ability bar --- */
+
+.vitals {
+  position: absolute;
+  left: 50%;
+  bottom: 126px;
+  transform: translateX(-50%);
+  width: min(420px, 46vw);
+}
+
+.vitals__bar {
+  position: relative;
+  height: 14px;
+  border-radius: 8px;
+  background: rgba(6, 9, 14, 0.72);
+  border: 1px solid var(--ui-border);
+  overflow: hidden;
+  box-shadow: var(--ui-shadow);
+}
+
+.vitals__bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3fd0a0, #7fe9c4);
+  box-shadow: 0 0 18px rgba(70, 220, 170, 0.45);
+  transition: width 0.12s linear;
+}
+
+.vitals__bar i.is-critical {
+  background: linear-gradient(90deg, #ff4d3d, #ff8a6a);
+  box-shadow: 0 0 22px rgba(255, 80, 60, 0.6);
+  animation: vitals-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes vitals-pulse {
+  50% { filter: brightness(1.4); }
+}
+
+.vitals__bar span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(4, 10, 8, 0.85);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* --- wave banner --- */
+
+.banner {
+  position: absolute;
+  top: 26%;
+  left: 50%;
+  transform: translate(-50%, -10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  text-align: center;
+}
+
+.banner.is-visible {
+  animation: banner-in 2.2s ease-out forwards;
+}
+
+.banner b {
+  font-size: 40px;
+  font-weight: 200;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  text-shadow: 0 0 40px rgba(120, 200, 255, 0.5);
+}
+
+.banner span {
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ui-text-dim);
+}
+
+@keyframes banner-in {
+  0% { opacity: 0; transform: translate(-50%, 14px); letter-spacing: 0.5em; }
+  14% { opacity: 1; transform: translate(-50%, 0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -12px); }
+}
+
+/* --- downed --- */
+
+.downed {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: radial-gradient(120% 90% at 50% 50%, rgba(60, 0, 0, 0.15), rgba(30, 0, 0, 0.55));
+}
+
+.downed.is-visible {
+  display: flex;
+}
+
+.downed b {
+  font-size: 44px;
+  font-weight: 200;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: #ff8a7a;
+  text-shadow: 0 0 50px rgba(255, 60, 40, 0.6);
+}
+
+.downed span {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 220, 214, 0.8);
+}
+
+/* --- damage vignette --- */
+
+.hurt {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  /* Tight to the edges. A hit has to be unmissable without washing the fight
+     out — the moment the middle of the screen goes red you cannot see the thing
+     that is hitting you, which is the opposite of what the feedback is for. */
+  background: radial-gradient(
+    115% 95% at 50% 50%,
+    rgba(255, 0, 0, 0) 62%,
+    rgba(255, 26, 16, 0.62) 100%
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Floating combat text
+ * ------------------------------------------------------------------ */
+
+.combat-text {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.combat-text__item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* The transform is written in px each frame; keeping the element's own
+     origin at 0,0 means one write per number instead of two. */
+  will-change: transform, opacity;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: #f4f8ff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 0, 0, 0.6);
+  transform-origin: 50% 50%;
+  scale: calc(0.7 + 0.3 * var(--pop, 1));
+}
+
+.combat-text__item.is-crit {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffd166;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 22px rgba(255, 190, 70, 0.8);
+}
+
+.combat-text__item.is-shatter {
+  font-size: 26px;
+  font-weight: 800;
+  color: #b9ecff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 26px rgba(120, 220, 255, 0.9);
+}
+
+.combat-text__item.is-burn {
+  font-size: 13px;
+  color: #ff9a5c;
+  opacity: 0.9;
+}
+
+.combat-text__item.is-player {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ff6a58;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 60, 40, 0.8);
+}
+
+/* ------------------------------------------------------------------ *
+ * Commander chat
+ * The one part of the HUD that takes the pointer.
+ * ------------------------------------------------------------------ */
+
+.chat {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: min(360px, 32vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--ui-bg-solid);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+  overflow: hidden;
+  transition: max-height 0.22s ease;
+  max-height: 340px;
+}
+
+.chat.is-collapsed {
+  max-height: 34px;
+}
+
+.chat__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ui-border);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ui-text-dim);
+  flex: 0 0 auto;
+}
+
+.chat__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6b7480;
+  box-shadow: 0 0 0 3px rgba(120, 130, 145, 0.12);
+}
+
+.chat.is-online .chat__dot {
+  background: #4fe0a0;
+  box-shadow: 0 0 0 3px rgba(80, 224, 160, 0.16), 0 0 12px rgba(80, 224, 160, 0.7);
+}
+
+.chat.is-busy .chat__dot {
+  background: var(--ui-accent);
+  animation: chat-think 0.9s ease-in-out infinite;
+}
+
+@keyframes chat-think {
+  50% { transform: scale(1.7); opacity: 0.5; }
+}
+
+.chat__title {
+  color: var(--ui-text);
+  font-weight: 600;
+}
+
+.chat__model {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  opacity: 0.7;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat__collapse {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text-dim);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.chat__collapse:hover {
+  color: var(--ui-text);
+}
+
+.chat__log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 1.42;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+.chat__line {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 7px;
+  align-items: baseline;
+}
+
+.chat__line b {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  text-align: right;
+}
+
+.chat__line.is-player span {
+  color: var(--ui-text);
+}
+
+.chat__line.is-ai b {
+  color: var(--ui-accent);
+  opacity: 0.9;
+}
+
+.chat__line.is-ai span {
+  color: #cfe9ff;
+}
+
+.chat__line.is-reflex b::after {
+  content: '⚡';
+  margin-left: 2px;
+  font-size: 8px;
+}
+
+.chat__line.is-system span {
+  color: var(--ui-text-dim);
+  font-style: italic;
+}
+
+.chat__form {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--ui-border);
+  flex: 0 0 auto;
+}
+
+.chat__input {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  padding: 7px 10px;
+  color: var(--ui-text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.chat__input::placeholder {
+  color: rgba(190, 205, 222, 0.4);
+}
+
+.chat__input:focus {
+  border-color: rgba(127, 214, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(127, 214, 255, 0.12);
+}
+
+.chat__send {
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  background: rgba(127, 214, 255, 0.14);
+  color: var(--ui-accent);
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.chat__send:hover {
+  background: rgba(127, 214, 255, 0.24);
+}
+
+@media (max-width: 860px) {
+  .chat { width: calc(100vw - 36px); }
+  .vitals { width: 64vw; }
+}

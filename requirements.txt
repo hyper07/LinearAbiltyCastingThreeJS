@@ -1,4 +1,4 @@
-# Elemental Sandbox — requirements
+# Elemental Arena — requirements
 #
 # This is a JavaScript (Node.js) project, not a Python one. The libraries are
 # installed by npm from package.json / package-lock.json, NOT by pip:
@@ -17,8 +17,17 @@
 #             Windows:  winget install Git.Git
 #   Browser   Chrome or Edge with WebGL 2 / hardware acceleration enabled
 #
+#   Optional:
+#   LM Studio        https://lmstudio.ai — runs the AI model for the
+#                    plain-English chat commander (any OpenAI-compatible
+#                    server also works). Copy .env.example to .env to set it
+#                    up. The game runs without it.
+#   Docker Desktop   only for `docker compose up --build`
+#
 # ---- npm libraries (installed automatically by `npm install`) -----------
 #
 #   three      ^0.185.1   3D rendering (dependency)
 #   lil-gui    ^0.21.0    in-game VFX editor panels (dependency)
 #   vite       ^8.1.5     dev server and bundler (devDependency)
+#
+# The server in server/ uses Node built-ins only — nothing extra to install.
