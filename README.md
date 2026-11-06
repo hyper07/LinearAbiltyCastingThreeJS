@@ -739,6 +739,17 @@ the game builds it from real, downloaded 3D models (trees, rocks, cliffs, houses
 blocks, ruins, props, vehicles…) and you fight in it when you press **Start Game**.
 **Classic keep** goes back to the hand-built ruins.
 
+Four maps designed by Qwen3-4B in LM Studio from one-line prompts, each mid-wave:
+
+<p>
+  <img src="docs/screenshots/ai-map-graveyard.jpg" width="49%" alt="&quot;Haunted graveyard in fog&quot;: Frost Lance erupting among gravestones while Iron Brutes and a Gloom Wisp close in" />
+  <img src="docs/screenshots/ai-map-city.jpg" width="49%" alt="&quot;City street at dusk&quot;: Storm Lance striking a monster on a street of stylised town houses" />
+</p>
+<p>
+  <img src="docs/screenshots/ai-map-medieval.jpg" width="49%" alt="&quot;Medieval village with a castle&quot;: Frost Lance on an autumn field as an Iron Brute approaches" />
+  <img src="docs/screenshots/ai-map-forest.jpg" width="49%" alt="&quot;Pine forest at dawn&quot;: Nova Beam firing while Cinder Imps run in between the trees" />
+</p>
+
 ### How a map is made
 
 1. **The library.** `npm run library:fetch` (run for you by `npm run dev` / `npm run build`)
@@ -829,6 +840,11 @@ is a real play rather than scenery damage.
 | **Iron Brute** | a wedge, no neck, long arms | 210 | Heavy melee, 18% armour |
 | **Rift Golem** | slab chest, boulder shoulders, stubby legs | 520 | Slams the floor for AoE, 30% armour |
 | **Emberwyrm** | the dragon — see below | 2600 | Two-phase boss, every fifth wave |
+
+<p>
+  <img src="docs/screenshots/monsters-lineup.jpg" width="49%" alt="The four regular monsters side by side: Cinder Imp, Gloom Wisp, Iron Brute and Rift Golem" />
+  <img src="docs/screenshots/monster-emberwyrm.jpg" width="49%" alt="The Emberwyrm boss with its wings spread" />
+</p>
 
 There is exactly one rigged FBX in this project and it is the player, so the monsters are built from
 primitives (`MonsterBuilder.js`) and animated in code (`Monster.js`). That turned out to be an
