@@ -45,11 +45,15 @@ and carry between levels.
 ### The bag grid, levels and the stash
 
 <p>
-  <img src="screenshots/inventory.jpg" width="49%" alt="The bag grid: a tower shield, breastplate, helm, satchel, sling and a ring being dragged to a free cell, which lights up green" />
-  <img src="screenshots/stash.jpg" width="49%" alt="The stash from the main menu: the bag beside a 12 by 10 stash of rifles, caps and tomes" />
+  <img src="screenshots/inventory.jpg" width="49%" alt="The bag: each item a picture of its 3D model at its size in the grid, swords upright, a bow, a staff, a breastplate, books with their skill symbols; the paper doll in pictures too" />
+  <img src="screenshots/stash.jpg" width="49%" alt="The stash beside the bag: swords, polearms, hammers, a boomerang, shields, helmets and rings, each shown as its own picture" />
 </p>
 
-The bag is a grid, 8 cells across. Every item takes its own size:
+The bag is a grid, 8 cells across. Every item shows as a picture of itself: its own 3D model (the
+same one your character holds or wears, or that lies on the ground) rendered into the cells it fills,
+with a glow in its rarity colour. Books show their skill's symbol on the cover. Hover over an item for
+its name and everything about it. The paper doll and the merchant's lists use the same pictures.
+Every item takes its own size:
 
 | Size | Items |
 | --- | --- |

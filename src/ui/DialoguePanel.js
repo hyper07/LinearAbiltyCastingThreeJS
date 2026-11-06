@@ -1,6 +1,7 @@
 import { NPC_ROLES } from '../npc/Npcs.js';
 import { RARITIES, buyPrice, describeItem, itemColor, itemValue } from '../items/Items.js';
 import { mainAnswer } from '../npc/Study.js';
+import { itemThumbnails } from './ItemThumbnails.js';
 
 const PRAISE = ['Great job!', 'Yes — you got it!', 'Brilliant!', "That's right, well done!", 'Wonderful thinking!', 'Spot on!'];
 const TRY_AGAIN = ['Not quite — have another try!', 'Close! Try once more.', 'Hmm, not that one. Try again!'];
@@ -289,6 +290,14 @@ export class DialoguePanel {
           name.style.color = itemColor(item);
           const meta = document.createElement('small');
           meta.textContent = `${item.type === 'weapon' || item.type === 'gear' ? RARITIES[item.rarity].label + ' · ' : ''}${verb} ${priceOf(item)}g`;
+          const url = item.type === 'weapon' || item.type === 'gear' || item.type === 'book' || item.type === 'bag' ? itemThumbnails.of(item, [1, 1]) : null;
+          if (url) {
+            const pic = document.createElement('img');
+            pic.className = 'dialogue__pic';
+            pic.src = url;
+            pic.alt = '';
+            row.append(pic);
+          }
           row.append(name, meta);
           row.addEventListener('click', () => {
             this.system(onPick(item));

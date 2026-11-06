@@ -35,6 +35,7 @@ import { designClass, normalizeDesign } from '../ai/ClassDesigner.js';
 import { registerForgedClass, unregisterForgedClass, listForgedClasses, loadForgedClass, saveForgedClass, deleteForgedClass, skillIds } from '../forge/ClassForge.js';
 import { library, OFFICIAL_AUTHOR } from '../library/Library.js';
 import { LibraryPanel } from '../ui/LibraryPanel.js';
+import { itemThumbnails } from '../ui/ItemThumbnails.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -343,6 +344,8 @@ export class App {
     this.loot = new LootSystem(this.scene, this.labels);
     this.loot.onPickup = (item) => {
       const result = this.profile.pickUp(item);
+      // Draw its picture for the bag now, while nothing is happening, not when the bag opens.
+      if (result.ok && item.type !== 'gold' && item.type !== 'potion') (window.requestIdleCallback ?? setTimeout)(() => itemThumbnails.of(item));
       this.hud.showToast(result.message);
       return result;
     };

@@ -5,6 +5,34 @@ import { ARMOR_CLASSES, GEAR_SLOTS, PROFICIENCY, armorCounts, pieceStats } from 
 import { treeSpells } from '../platform/skill/tree.js';
 import { CLASS_SPECS } from '../platform/character/classes.js';
 import { itemIcon, kindIcon } from './itemIcons.js';
+import { itemThumbnails } from './ItemThumbnails.js';
+import { ELEMENT_SIGILS } from './glyphs.js';
+import { platform } from '../platform/index.js';
+
+/**
+ * An item's picture (its 3D model, rendered — ui/ItemThumbnails.js) for a
+ * slot of `cells`; the line icon when pictures cannot be made. Books carry
+ * their skill's symbol on the cover.
+ */
+function picture(item, cells) {
+  const wrap = document.createElement('span');
+  wrap.className = 'inventory__pic';
+  const url = itemThumbnails.of(item, cells);
+  if (url) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    img.draggable = false;
+    wrap.append(img);
+  } else wrap.innerHTML = itemIcon(item);
+  if (item.type === 'book') {
+    const sigil = document.createElement('span');
+    sigil.className = 'inventory__sigil';
+    sigil.innerHTML = ELEMENT_SIGILS[item.element] ?? '';
+    wrap.append(sigil);
+  }
+  return wrap;
+}
 
 /**
  * The bag (Tab).
@@ -186,18 +214,19 @@ export class InventoryPanel {
         if (slotId === 'weapon') {
           const eq = p.equipped;
           cell.dataset.slot = 'weapon';
-          cell.innerHTML = `<b>${kindIcon('weapon')}</b>`;
-          const name = document.createElement('span');
-          name.textContent = eq ? eq.name : 'Loadout weapon';
+          // The weapon in hand: from the bag, or the one the loadout gave you.
+          const held = eq ?? { type: 'weapon', weapon: platform.getActiveWeaponId?.(), rarity: 'common', name: platform.getActiveWeapon?.()?.label ?? 'Weapon' };
+          if (held.weapon && held.weapon !== 'unarmed') cell.append(picture(held, [2, 2]));
+          else cell.innerHTML = `<b>${kindIcon('weapon')}</b>`;
+          cell.setAttribute('aria-label', held.name);
           if (eq) {
             cell.style.borderColor = itemColor(eq);
             cell.style.color = itemColor(eq);
             cell.title = [eq.name, ...describeItem(eq), '', 'Swap it by clicking another weapon in the bag.'].join('\n');
           } else {
             cell.classList.add('is-empty');
-            cell.title = 'Weapon — the one your loadout gave you. Click a weapon in the bag to hold it instead.';
+            cell.title = `${held.name} — the weapon your loadout gave you. Click a weapon in the bag to hold it instead.`;
           }
-          cell.append(name);
           grid.append(cell);
           continue;
         }
@@ -214,8 +243,8 @@ export class InventoryPanel {
           const color = itemColor(item);
           cell.style.borderColor = color;
           cell.style.color = color;
-          cell.innerHTML = `<b>${itemIcon(item)}</b>`;
-          cell.append(Object.assign(document.createElement('span'), { textContent: item.name }));
+          cell.append(picture(item, itemSize(item)));
+          cell.setAttribute('aria-label', item.name);
           const active = p.isActive(item);
           if (!active) cell.classList.add('is-idle');
           if (item.rarity && RARITIES[item.rarity]) cell.dataset.rarity = item.rarity;
@@ -296,11 +325,8 @@ export class InventoryPanel {
       const color = itemColor(item);
       tile.style.borderColor = color;
       tile.style.color = color;
-      tile.innerHTML = `<b>${itemIcon(item)}</b>`;
-      const label = document.createElement('span');
-      label.textContent = item.name;
-      tile.append(label);
-      if (w * h <= 1) tile.classList.add('is-tiny');
+      tile.append(picture(item, [w, h]));
+      tile.setAttribute('aria-label', item.name);
       const book = item.type === 'book' ? p.bookStatus(item.element) : null;
       if (book && !book.ok) tile.classList.add('is-unreadable');
       if (item.rarity && RARITIES[item.rarity]) tile.dataset.rarity = item.rarity;

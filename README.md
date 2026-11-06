@@ -156,7 +156,7 @@ bag that grows with your level, a stash shared by every class, merchants, quests
 
 <p>
   <img src="docs/screenshots/loot.jpg" width="49%" alt="A Knight in plate beside a boss's loot: light beams in rarity colours and floating item names" />
-  <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag grid: items of different sizes, and a ring being dragged to a free cell that lights up green" />
+  <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag grid: every item shown as a picture of its 3D model at its own size" />
 </p>
 <p>
   <img src="docs/screenshots/npc-dialogue.jpg" width="49%" alt="Talking to the Old Warden: a gift, an AI-written answer and a quest" />
