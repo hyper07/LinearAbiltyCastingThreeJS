@@ -2227,3 +2227,144 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
     grid-template-columns: 1fr;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Weapon scope (hold V with a sniper rifle, DMR, railgun, longbow…)
+ * ------------------------------------------------------------------ */
+
+.scope[hidden] {
+  display: none;
+}
+
+.scope {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  /* Dark everywhere but a round window around the cursor, with a soft lens edge. */
+  background: radial-gradient(
+    circle at var(--x) var(--y),
+    transparent calc(var(--r) - 3px),
+    rgba(10, 14, 18, 0.9) var(--r),
+    rgba(4, 6, 9, 0.94) calc(var(--r) + 40px)
+  );
+}
+
+.scope__reticle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  border-radius: 50%;
+  transform-origin: 50% 50%;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.75), inset 0 0 60px rgba(0, 20, 30, 0.45);
+  font-family: var(--ui-font);
+}
+
+.scope__line {
+  position: absolute;
+  background: rgba(10, 12, 14, 0.9);
+}
+
+.scope__line--n,
+.scope__line--s {
+  left: calc(50% - 1px);
+  width: 2px;
+  height: 38%;
+}
+
+.scope__line--n {
+  top: 0;
+}
+
+.scope__line--s {
+  bottom: 0;
+}
+
+.scope__line--w,
+.scope__line--e {
+  top: calc(50% - 1px);
+  height: 2px;
+  width: 38%;
+  /* mil-dots along the horizontal */
+  background:
+    radial-gradient(circle, rgba(10, 12, 14, 0.95) 2.4px, transparent 2.6px) 0 50% / 14% 8px repeat-x,
+    linear-gradient(rgba(10, 12, 14, 0.9), rgba(10, 12, 14, 0.9)) 0 50% / 100% 2px no-repeat;
+  height: 8px;
+  top: calc(50% - 4px);
+}
+
+.scope__line--w {
+  left: 0;
+}
+
+.scope__line--e {
+  right: 0;
+}
+
+.scope__dot {
+  position: absolute;
+  left: calc(50% - 3px);
+  top: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff3b3b;
+  box-shadow: 0 0 6px #ff3b3b;
+}
+
+.scope__range,
+.scope__target,
+.scope__zoom {
+  position: absolute;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #c8f5d8;
+  text-shadow: 0 1px 2px #000;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.scope__range {
+  left: calc(50% + 14px);
+  top: calc(50% + 12px);
+}
+
+.scope__target {
+  left: calc(50% + 14px);
+  top: calc(50% - 30px);
+  color: #ffd27a;
+}
+
+.scope__zoom {
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  color: rgba(200, 245, 216, 0.75);
+}
+
+.scope.is-far .scope__range {
+  color: #ff8a7a;
+}
+
+body.is-scoped canvas {
+  cursor: none;
+}
+
+/* Through the scope the view is the point: the skill bar, belt and side panels step back. */
+.hud__abilities,
+.belt,
+.hud__title,
+.hud__stats,
+.contact-card {
+  transition: opacity 0.15s ease;
+}
+
+body.is-scoped .hud__abilities,
+body.is-scoped .belt,
+body.is-scoped .hud__title,
+body.is-scoped .hud__stats {
+  opacity: 0.08;
+}

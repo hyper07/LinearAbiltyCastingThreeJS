@@ -30,7 +30,28 @@ fires everything else:
 with **X**. Energy weapons, bows and throwing weapons never reload. Bombs and grenades land where
 the cursor is.
 
-Damage counts as weapon damage: *+% spell damage* gear and critical chance apply, statuses (burn,
+**Scopes.** Long-range weapons have a scope: hold **V** to look through it. The view zooms onto the
+spot under the cursor, the screen darkens around a round sight with a crosshair, and the sight shows
+the range, the zoom, and the name and health of whatever is under the crosshair. Through the scope,
+shots go exactly where the crosshair is (no spread) and land on the body you are pointing at. You
+move at half speed while scoped. Push the cursor toward the edge of the sight to pan; let go of V to
+look up.
+
+| Weapon | Zoom |
+| --- | --- |
+| Sniper rifle | 3.2× |
+| Railgun | 2.6× |
+| Ion cannon | 2.4× |
+| DMR | 2.2× |
+| Lever rifle, laser rifle | 2× |
+| Musket, heavy crossbow | 1.8× |
+| Longbow | 1.6× |
+
+<p>
+  <img src="screenshots/weapons-scope.jpg" width="60%" alt="Looking through the sniper rifle's 3.2× scope: an Iron Brute under the crosshair, its name and health, 16 m" />
+</p>
+
+Damage counts as weapon damage: *+% weapon damage* gear and critical chance apply, statuses (burn,
 root, slow, stun) and knockback work as for spells, and the Barbarian gains a little Rage per hit.
 
 ## Every weapon

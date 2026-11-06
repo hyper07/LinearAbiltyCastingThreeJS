@@ -6,6 +6,7 @@ import { LAYER } from './Layers.js';
 
 const _dir = new Vector3();
 const _desiredTarget = new Vector3();
+const _scopeAt = new Vector3();
 const _spherical = new Spherical();
 const _previousTarget = new Vector3();
 const _targetShift = new Vector3();
@@ -64,6 +65,8 @@ export class CameraRig {
      * without touching the zoom the player set.
      */
     this.distanceBias = 1;
+    /** Scope: 0..1 how far in, the zoom factor at full, and where it looks. */
+    this.scope = { amount: 0, zoom: 1, point: new Vector3() };
 
     /** Orbit requested by the keyboard this frame, radians. Consumed by update. */
     this._orbitYaw = 0;
@@ -115,6 +118,16 @@ export class CameraRig {
     this.distanceBias = damp(this.distanceBias, target, 0.06, dt);
   }
 
+  /**
+   * Look through a weapon's scope: narrow the view by `zoom` and slide it out
+   * toward `point` (the ground under the cursor). `amount` 0..1 eases it in.
+   */
+  setScope(amount, point, zoom) {
+    this.scope.amount = amount;
+    this.scope.zoom = zoom;
+    if (point) this.scope.point.copy(point);
+  }
+
   /** Point the rig should orbit around (character position). */
   setAnchor(x, y, z) {
     this.anchor.set(x, y, z);
@@ -147,8 +160,10 @@ export class CameraRig {
   update(dt) {
     const cam = settings.camera;
 
-    if (this.camera.fov !== cam.fov) {
-      this.camera.fov = cam.fov;
+    const scope = this.scope;
+    const fov = cam.fov / (1 + (scope.zoom - 1) * scope.amount);
+    if (Math.abs(this.camera.fov - fov) > 1e-3) {
+      this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
     }
     this.controls.minPolarAngle = cam.minPolar;
@@ -159,6 +174,12 @@ export class CameraRig {
     _desiredTarget.copy(this.anchor);
     _desiredTarget.y += cam.targetHeight;
     _desiredTarget.lerp(this.focus, blend);
+    // Through a scope the view centres most of the way out on the aim point.
+    if (scope.amount > 0) {
+      _scopeAt.copy(scope.point);
+      _scopeAt.y = cam.targetHeight * 0.5;
+      _desiredTarget.lerp(_scopeAt, scope.amount * 0.92);
+    }
 
     _previousTarget.copy(this.controls.target);
     this.controls.target.set(

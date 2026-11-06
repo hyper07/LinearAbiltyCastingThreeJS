@@ -23,6 +23,7 @@
 | **Right click** | Cast along the arrow, or drop the circle where it is |
 | **Left click** | Attack with your weapon — a melee weapon swings, a gun, bow or throwing weapon fires. **Hold** to keep an automatic firing |
 | **X** | Reload the gun in hand |
+| **V** (hold) | Look through the scope of a long-range weapon (sniper rifle, DMR, railgun, longbow…) |
 | **Esc** | Cancel an armed cast |
 | **Right mouse + drag** | Orbit the camera |
 | **Scroll** | Zoom |

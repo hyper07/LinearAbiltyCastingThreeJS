@@ -192,7 +192,8 @@ what it does, its damage, cooldown and reach now and at the next rank, and what 
 heavy weapons, throwing weapons and more — and each fights like itself: guns fire bullets with
 tracers (hold for automatics, X to reload), shotguns spread, snipers pierce, bows and crossbows loose
 arrows, rockets and grenades explode, the flamethrower burns a cone, and boomerangs and chakrams come
-back. Press **I** for the armory. See **[Weapons](docs/weapons.md)**.
+back. Long-range weapons have a scope: hold **V** to zoom in. Press **I** for the armory. See
+**[Weapons](docs/weapons.md)**.
 
 <p>
   <img src="docs/screenshots/weapons-shotgun.jpg" width="49%" alt="A shotgun blast fanning seven pellets into imps" />

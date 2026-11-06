@@ -15,7 +15,8 @@
  *
  * Common fields: damage, range (m), cooldown (s between shots), auto (keeps
  * firing while the button is held), burst (shots per pull), spread (radians),
- * mag + reload (s) for a magazine, knockback, status + duration, color (tracer
+ * mag + reload (s) for a magazine, knockback, status + duration, scope (zoom
+ * factor when held — V — on long-range weapons), color (tracer
  * / glow), anim ('shoot1' one hand, 'shoot2' two hands, 'throw'), visual (the
  * projectile model).
  */
@@ -49,35 +50,35 @@ export const FIRE_BY_WEAPON = {
   /* rifles */
   carbine: { damage: 11, cooldown: 0.13, mag: 25 },
   'burst-rifle': { auto: false, burst: 3, damage: 12, cooldown: 0.45, spread: 0.02 },
-  dmr: { auto: false, damage: 28, cooldown: 0.42, spread: 0.01, range: 40, mag: 10, pierce: 1 },
-  'sniper-rifle': { auto: false, damage: 75, cooldown: 1.25, spread: 0, range: 52, mag: 5, reload: 2.2, pierce: 3, knockback: 2.5, color: '#fff6d0' },
+  dmr: { scope: 2.2, auto: false, damage: 28, cooldown: 0.42, spread: 0.01, range: 40, mag: 10, pierce: 1 },
+  'sniper-rifle': { scope: 3.2, auto: false, damage: 75, cooldown: 1.25, spread: 0, range: 52, mag: 5, reload: 2.2, pierce: 3, knockback: 2.5, color: '#fff6d0' },
   shotgun: { auto: false, pellets: 7, damage: 8, cooldown: 0.8, spread: 0.2, range: 13, mag: 6, reload: 2.0, knockback: 1.2 },
   'combat-shotgun': { auto: true, pellets: 6, damage: 7, cooldown: 0.38, spread: 0.22, range: 12, mag: 8, reload: 1.8, knockback: 1 },
   lmg: { damage: 9, cooldown: 0.085, spread: 0.06, mag: 80, reload: 3.2 },
   'plasma-rifle': { mode: 'projectile', visual: 'plasma', damage: 14, speed: 40, gravity: 0, cooldown: 0.13, mag: 40, color: '#55bbff' },
-  'laser-rifle': { mode: 'beam', auto: false, damage: 20, cooldown: 0.28, range: 36, pierce: 2, mag: 20, color: '#ff4d6a' },
+  'laser-rifle': { scope: 2, mode: 'beam', auto: false, damage: 20, cooldown: 0.28, range: 36, pierce: 2, mag: 20, color: '#ff4d6a' },
   'pulse-carbine': { mode: 'projectile', visual: 'plasma', auto: false, burst: 3, damage: 10, speed: 44, gravity: 0, cooldown: 0.4, color: '#7fe9c4' },
-  musket: { auto: false, damage: 48, cooldown: 0.5, spread: 0.015, range: 36, mag: 1, reload: 2.4, knockback: 2.2, pierce: 1, color: '#ffd28a' },
-  'lever-rifle': { auto: false, damage: 26, cooldown: 0.5, spread: 0.01, range: 38, mag: 8, reload: 2.4 },
+  musket: { scope: 1.8, auto: false, damage: 48, cooldown: 0.5, spread: 0.015, range: 36, mag: 1, reload: 2.4, knockback: 2.2, pierce: 1, color: '#ffd28a' },
+  'lever-rifle': { scope: 2, auto: false, damage: 26, cooldown: 0.5, spread: 0.01, range: 38, mag: 8, reload: 2.4 },
   blunderbuss: { auto: false, pellets: 10, damage: 7, cooldown: 0.6, spread: 0.32, range: 9, mag: 1, reload: 2.0, knockback: 2.4, color: '#ffc070' },
   'harpoon-gun': { mode: 'projectile', visual: 'harpoon', auto: false, damage: 42, speed: 36, gravity: 1, cooldown: 0.6, mag: 1, reload: 1.6, pierce: 2, status: 'root', duration: 1.2 },
   blowgun: { mode: 'projectile', visual: 'dart', auto: false, damage: 8, speed: 40, gravity: 1.5, cooldown: 0.5, mag: 0, status: 'burn', duration: 3, color: '#9be37a', anim: 'shoot1' },
 
   /* bows */
   shortbow: { damage: 16, cooldown: 0.42, range: 30 },
-  longbow: { damage: 30, cooldown: 0.75, range: 42, speed: 52, pierce: 1 },
+  longbow: { scope: 1.6, damage: 30, cooldown: 0.75, range: 42, speed: 52, pierce: 1 },
   'compound-bow': { damage: 26, cooldown: 0.6, speed: 56, pierce: 1 },
   crossbow: { visual: 'bolt', damage: 34, cooldown: 0.9, speed: 60, gravity: 1, mag: 1, reload: 0.9 },
-  'heavy-crossbow': { visual: 'bolt', damage: 52, cooldown: 1.3, speed: 64, gravity: 1, pierce: 2, knockback: 2.5, mag: 1, reload: 1.4 },
+  'heavy-crossbow': { scope: 1.8, visual: 'bolt', damage: 52, cooldown: 1.3, speed: 64, gravity: 1, pierce: 2, knockback: 2.5, mag: 1, reload: 1.4 },
   'hand-crossbow': { visual: 'bolt', damage: 18, cooldown: 0.45, speed: 50, gravity: 1, mag: 5, reload: 1.4, anim: 'shoot1' },
   sling: { visual: 'stone', damage: 12, cooldown: 0.5, speed: 30, gravity: 6, knockback: 1.4, status: 'shock', duration: 0.25, anim: 'throw' },
 
   /* heavy */
   'grenade-launcher': { visual: 'grenade', damage: 45, speed: 19, gravity: 14, explode: 3, cooldown: 1.0, mag: 6, reload: 2.4, range: 26 },
   minigun: { mode: 'hitscan', auto: true, damage: 6, cooldown: 0.05, spread: 0.09, range: 28, explode: 0, mag: 200, reload: 3.6, knockback: 0.3, color: '#ffe9a0' },
-  railgun: { mode: 'beam', damage: 65, cooldown: 1.8, range: 48, pierce: 99, explode: 0, mag: 0, knockback: 3, color: '#7fd0ff' },
+  railgun: { scope: 2.6, mode: 'beam', damage: 65, cooldown: 1.8, range: 48, pierce: 99, explode: 0, mag: 0, knockback: 3, color: '#7fd0ff' },
   flamethrower: { mode: 'cone', auto: true, damage: 4, cooldown: 0.08, range: 7.5, spread: 0.45, explode: 0, mag: 100, reload: 2.5, knockback: 0.1, status: 'burn', duration: 2.5, color: '#ff8a3c' },
-  'ion-cannon': { mode: 'beam', damage: 85, cooldown: 2.4, range: 44, pierce: 99, explode: 0, mag: 0, knockback: 4, color: '#c27bff' },
+  'ion-cannon': { scope: 2.4, mode: 'beam', damage: 85, cooldown: 2.4, range: 44, pierce: 99, explode: 0, mag: 0, knockback: 4, color: '#c27bff' },
 
   /* throwing */
   'throwing-knives': { damage: 15, cooldown: 0.32 },
@@ -119,6 +120,7 @@ export function describeFire(fire) {
   else if (fire.pierce) parts.push(`pierces ${fire.pierce}`);
   if (fire.returns) parts.push('returns');
   if (fire.status) parts.push(fire.status);
+  if (fire.scope) parts.push(`${fire.scope}× scope`);
   if (fire.mag > 1) parts.push(`${fire.mag} rounds`);
   return parts.join(' · ');
 }

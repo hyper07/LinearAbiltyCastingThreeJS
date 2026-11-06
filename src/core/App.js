@@ -58,6 +58,7 @@ import { DamageNumbers } from '../game/DamageNumbers.js';
 
 import { HUD, LoadingScreen } from '../ui/HUD.js';
 import { GameHUD } from '../ui/GameHUD.js';
+import { ScopeOverlay } from '../ui/ScopeOverlay.js';
 import { WeaponPanel } from '../ui/WeaponPanel.js';
 import { MainMenu } from '../ui/MainMenu.js';
 import { GameMenuButton } from '../ui/GameMenuButton.js';
@@ -74,6 +75,8 @@ const HDR_URL = './hdri/spruit_sunrise.hdr';
 /** Hand the page back for one frame, so the loading veil can repaint. */
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
+const _scopeLook = new Vector3();
+const _scopeAhead = new Vector3();
 const _castPoint = new Vector3();
 const _castDirection = new Vector3();
 
@@ -243,6 +246,9 @@ export class App {
     const hudRoot = document.getElementById('hud');
     this.hud = new HUD(hudRoot);
     this.gameHud = new GameHUD(hudRoot);
+    this.scopeOverlay = new ScopeOverlay(hudRoot);
+    /** 0..1 how far the player is looking through a scope (hold V). */
+    this._scope = 0;
     this.numbers = new DamageNumbers(hudRoot);
     this.weaponPanel = new WeaponPanel(hudRoot, (weaponId) => this.selectWeapon(weaponId));
     this.mainMenu = new MainMenu(hudRoot, {
@@ -608,8 +614,10 @@ export class App {
       this._ammo.set(weaponId, left - 1);
     }
     this.character.locomotion.toggleSit(false);
+    const lock = this._scope > 0.7 && this._scopeTarget?.isTargetable ? this._scopeTarget : null;
     const aim = () => {
-      const yaw = this.aim.facing;
+      const p = this.character.position;
+      const yaw = lock ? Math.atan2(lock.position.x - p.x, lock.position.z - p.z) : this.aim.facing;
       const direction = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
       // From the hands: a gun at chest height, a throw from the shoulder.
       const muzzle = this.character.position.clone().addScaledVector(direction, 0.6);
@@ -617,13 +625,15 @@ export class App {
       muzzle.z -= Math.sin(yaw) * 0.12;
       muzzle.y = fire.anim === 'throw' ? 1.55 : 1.3;
       // How far the cursor is: lobbed grenades and bombs land there.
-      const hit = this.aim._hit;
+      const hit = lock ? lock.position : this.aim._hit;
       const distance = Math.hypot(hit.x - this.character.position.x, hit.z - this.character.position.z);
       return { muzzle, direction, yaw, distance };
     };
     const shot = aim();
     this.character.setFacing(shot.yaw);
-    this.weaponFire.fire(shot.muzzle, shot.direction, fire, aim, shot.distance);
+    // Through a steady scope a shot goes exactly where the crosshair is.
+    const steady = this._scope > 0.7 ? { ...fire, spread: 0 } : fire;
+    this.weaponFire.fire(shot.muzzle, shot.direction, steady, aim, shot.distance);
     this._attackCooldown = fire.cooldown + (fire.burst > 1 ? (fire.burst - 1) * 0.07 : 0);
     // A held automatic does not restart the clip every round.
     if (!fire.auto || !this.character.isCasting) this.character.playCast(fire.anim ?? 'shoot2');
@@ -647,6 +657,89 @@ export class App {
     }
     const fire = this.currentFire;
     if (fire?.auto && this.input.attackHeld && !this.paused && !this.weaponPanel.isVisible && !this.dialogue.isOpen) this._fireWeapon(fire);
+  }
+
+  /**
+   * Hold V with a scoped weapon (sniper rifle, DMR, musket, railgun,
+   * longbow…): the view zooms and slides out to the cursor, shots go exactly
+   * where the crosshair is (no spread), and you move at half speed.
+   */
+  _updateScope(dt) {
+    const fire = this.phase === 'playing' ? this.currentFire : null;
+    const want =
+      Boolean(fire?.scope) && this.input.keys.has('KeyV') && !this.paused &&
+      !this.weaponPanel.isVisible && !this.dialogue.isOpen && !this.inventory.isOpen && !this.skillPanel.isOpen;
+    this._scope = MathUtils.clamp(this._scope + (want ? dt : -dt) / 0.16, 0, 1);
+    const zoom = fire?.scope ?? this._scopeZoom ?? 1;
+    if (fire?.scope) this._scopeZoom = fire.scope;
+    // Scoping in zooms onto the spot the cursor points at, and the view then
+    // holds still so the reticle moves over it. Pushing the cursor toward the
+    // edge of the scope pans, gently. (A view that tracked the cursor would
+    // throw the target past it with every small move at 3× zoom.)
+    const ptr = this.input.pointer;
+    const me = this.character.position;
+    if (want && !this._scopeHeld) {
+      this._scopeCenter = (this._scopeCenter ?? new Vector3()).copy(this.aim._hit);
+      this._scopeCenter.y = 0;
+    }
+    this._scopeHeld = want;
+    if (want && this._scopeCenter) {
+      const edge = Math.max(0, Math.hypot(ptr.x, ptr.y) - 0.6);
+      if (edge > 0) {
+        _scopeAhead.copy(this.aim._hit).setY(0).sub(this._scopeCenter);
+        const len = _scopeAhead.length();
+        if (len > 0.01) this._scopeCenter.addScaledVector(_scopeAhead, Math.min(1, (edge * 28 * dt) / len));
+      }
+      // Never further out than the weapon reaches.
+      _scopeAhead.copy(this._scopeCenter).sub(me).setY(0);
+      const far = (fire?.range ?? 40) * 1.05;
+      if (_scopeAhead.length() > far) this._scopeCenter.copy(me).setY(0).addScaledVector(_scopeAhead.normalize(), far);
+    }
+    this.rig.setScope(this._scope, this._scopeCenter ?? me, zoom);
+    if (this.character?.locomotion) this.character.locomotion.speedBonus = (this._speedBonus ?? 1) * (1 - 0.5 * this._scope);
+    if (this._scope > 0.5) {
+      const t = this._scopeTarget;
+      this.character.setFacing(t ? Math.atan2(t.position.x - this.character.position.x, t.position.z - this.character.position.z) : this.aim.facing);
+    }
+
+    const at = { x: ((ptr.x + 1) / 2) * innerWidth, y: ((1 - ptr.y) / 2) * innerHeight };
+    const hit = this.aim._hit;
+    // What is under the crosshair: the monster whose body is nearest the
+    // cursor on screen. Through a long, low view the ground under the cursor
+    // lies far behind whatever it is pointing at, so a scoped shot aims at
+    // the body itself.
+    let target = null;
+    this._scopeTarget = null;
+    if (this._scope > 0.02) {
+      const toScreen = (v) => ({ x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight, behind: v.z > 1 });
+      let best = Infinity;
+      for (const m of this.monsters.active) {
+        if (!m.isTargetable) continue;
+        // The body on screen, feet to head, and how wide it looks there.
+        const r = m.hitRadius ?? 0.6;
+        const feet = toScreen(_scopeLook.copy(m.position).project(this.camera));
+        const head = toScreen(_scopeLook.copy(m.position).setY(m.position.y + r * 2.6).project(this.camera));
+        if (feet.behind || head.behind) continue;
+        const side = toScreen(_scopeLook.copy(m.position).addScaledVector(_scopeAhead.set(1, 0, 0), r).project(this.camera));
+        const width = Math.max(18, Math.hypot(side.x - feet.x, side.y - feet.y) * 1.2);
+        const sx = head.x - feet.x, sy = head.y - feet.y;
+        const t = MathUtils.clamp(((at.x - feet.x) * sx + (at.y - feet.y) * sy) / Math.max(1, sx * sx + sy * sy), 0, 1);
+        const d = Math.hypot(feet.x + sx * t - at.x, feet.y + sy * t - at.y) / width;
+        if (d < 1 && d < best) {
+          best = d;
+          this._scopeTarget = m;
+        }
+      }
+      const m = this._scopeTarget;
+      if (m) target = `${m.config?.label ?? m.kind}${m.maxHealth ? ` · ${Math.max(0, Math.round((m.health / m.maxHealth) * 100))}%` : ''}`;
+    }
+    this.scopeOverlay.update(this._scope, at, {
+      zoom,
+      distance: this._scopeTarget ? me.distanceTo(this._scopeTarget.position) : Math.hypot(hit.x - me.x, hit.z - me.z),
+      range: fire?.range ?? 99,
+      target,
+      reloading: this._reloadLeft > 0
+    });
   }
 
   /** Left click — direct attack toward the cursor. */
@@ -1434,7 +1527,8 @@ export class App {
     director.block = stats.block / 100;
     director.regen = stats.regen;
     director.health = refill ? director.maxHealth : Math.max(1, Math.round(director.maxHealth * ratio));
-    this.character.locomotion.speedBonus = 1 + stats.speed / 100;
+    this._speedBonus = 1 + stats.speed / 100;
+    this.character.locomotion.speedBonus = this._speedBonus;
   }
 
   _equipItem(item) {
@@ -1917,6 +2011,7 @@ export class App {
     if (this.phase !== 'editor') this.rig.setAnchor(this.character.position.x, 0, this.character.position.z);
     this.shake.update(raw);
     this.flash.update(raw);
+    this._updateScope(raw);
     this.rig.update(raw);
 
     // Items, portals and NPCs run on real time, so they keep breathing through
@@ -2000,8 +2095,8 @@ export class App {
     this.gameHud.setAmmo(
       !fire ? null
       : this._reloadLeft > 0 ? 'RELOADING…'
-      : fire.mag > 0 ? `${platform.getActiveWeapon()?.label ?? ''} · ${this._ammo.get(platform.getActiveWeaponId()) ?? fire.mag} / ${fire.mag}`
-      : `${platform.getActiveWeapon()?.label ?? ''} · ∞`
+      : (fire.mag > 0 ? `${platform.getActiveWeapon()?.label ?? ''} · ${this._ammo.get(platform.getActiveWeaponId()) ?? fire.mag} / ${fire.mag}`
+        : `${platform.getActiveWeapon()?.label ?? ''} · ∞`) + (fire.scope && this._scope < 0.5 ? ' · hold V to scope' : '')
     );
     this.hud.setArmed(this.aim.isArmed);
     this.hud.update(dt, () => ({
