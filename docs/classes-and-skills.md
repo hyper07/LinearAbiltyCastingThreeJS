@@ -54,6 +54,11 @@ starts knowing two tier-1 spells. The rest come from **skill books**:
 - **Five keys.** Of everything learned, you choose which five sit on keys 1–5. Press **K** (or click
   an empty key on the bar), pick a key, then click a learned spell. Right-click a key to empty it.
 
+<p>
+  <img src="screenshots/skill-tree-mage.jpg" width="49%" alt="The Mage's skill tree on a new character: Frost, Storm and Arcane branches, three tiers each; Frost Lance and Storm Lance learned on keys 1 and 2" />
+  <img src="screenshots/skill-tree-barbarian.jpg" width="49%" alt="The Barbarian's skill tree on a new character: Fury, Storm and Winter branches, two tiers each; Blink Strike and Storm Lance learned on keys 1 and 2" />
+</p>
+
 | Class | Starts with | Branches (tier 1 → 2 → 3) |
 | --- | --- | --- |
 | 🛡 Knight | Frost Lance, Blink Strike | Bulwark: Frost Lance → Glacial Crown · Charge: Blink Strike → Nova Beam · Thunder: Storm Lance → Arc Chain |
