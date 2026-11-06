@@ -221,6 +221,22 @@ export class InputManager extends EventEmitter {
       case 'KeyI':
         this.emit('action', 'toggleWeapons');
         break;
+
+      /* --- items and NPCs --- */
+      case 'KeyF':
+        this.emit('action', 'interact');
+        break;
+      case 'KeyR':
+        this.emit('action', 'potionHealth');
+        break;
+      case 'KeyZ':
+        this.emit('action', 'potionFocus');
+        break;
+      case 'Tab':
+        // Tab would move focus around the page; here it opens the bag.
+        event.preventDefault();
+        this.emit('action', 'toggleInventory');
+        break;
       default:
         break;
     }

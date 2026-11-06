@@ -257,8 +257,10 @@ export class Locomotion {
   /** The speed multiplier the current gear asks for. */
   get gearMultiplier() {
     const cfg = this.cfg;
-    if (this.walking) return cfg.walkMultiplier;
-    return this.sprinting ? cfg.sprintMultiplier : 1;
+    // `speedBonus` is equipment (items/Profile.js): +8% move speed → 1.08.
+    const bonus = this.speedBonus ?? 1;
+    if (this.walking) return cfg.walkMultiplier * bonus;
+    return (this.sprinting ? cfg.sprintMultiplier : 1) * bonus;
   }
 
   /** What to call the current gear, for the readout. */

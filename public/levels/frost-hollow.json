@@ -554,6 +554,81 @@
    "z": -9.14
   }
  ],
+ "portals": [
+  {
+   "id": "west",
+   "x": -14,
+   "z": 4,
+   "yaw": 1.5707963267948966,
+   "color": "blue",
+   "label": "West Gate",
+   "target": {
+    "type": "portal",
+    "portal": "east"
+   }
+  },
+  {
+   "id": "east",
+   "x": 14,
+   "z": 4,
+   "yaw": -1.5707963267948966,
+   "color": "violet",
+   "label": "East Gate",
+   "target": {
+    "type": "portal",
+    "portal": "west"
+   }
+  }
+ ],
+ "npcs": [
+  {
+   "id": "warden",
+   "name": "Old Warden",
+   "role": "guide",
+   "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Knight",
+   "x": -4,
+   "z": 6,
+   "yaw": 3.141592653589793,
+   "greeting": "You made it through the pass. Good. The hollow is no place to linger.",
+   "lines": [
+    "The imps come in threes — keep moving and they never surround you.",
+    "Ice slows them. Fire finishes them."
+   ],
+   "ai": true,
+   "persona": "A gruff old soldier who lost his company at the pass; kind underneath; speaks in short sentences.",
+   "gift": {
+    "type": "health",
+    "rarity": "magic",
+    "amount": 50
+   },
+   "quest": {
+    "title": "Thin the herd",
+    "target": "any",
+    "count": 6,
+    "gold": 120,
+    "rarity": "rare"
+   }
+  },
+  {
+   "id": "mira",
+   "name": "Mira",
+   "role": "merchant",
+   "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded",
+   "x": 5,
+   "z": 7,
+   "yaw": 3.141592653589793,
+   "greeting": "Coin for steel, steel for coin. Have a look.",
+   "lines": [],
+   "ai": false,
+   "persona": "",
+   "gift": {
+    "type": "none",
+    "rarity": "magic",
+    "amount": 50
+   },
+   "quest": null
+  }
+ ],
  "rules": {
   "goal": "waves",
   "count": 3,

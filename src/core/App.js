@@ -18,6 +18,15 @@ import { LevelEditor } from '../editor/LevelEditor.js';
 import { LevelStore, progress } from '../levels/LevelStore.js';
 import { describeGoal, normalizeLevel } from '../levels/Level.js';
 import { StoryPanel } from '../ui/StoryPanel.js';
+import { WorldLabels } from '../ui/WorldLabels.js';
+import { PortalSystem } from '../world/Portals.js';
+import { Profile } from '../items/Profile.js';
+import { LootSystem } from '../items/Loot.js';
+import { POTIONS, makeBook, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
+import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
+import { NpcBrain } from '../npc/NpcBrain.js';
+import { DialoguePanel } from '../ui/DialoguePanel.js';
+import { InventoryPanel } from '../ui/InventoryPanel.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -174,6 +183,8 @@ export class App {
     this.monsters.obstacles = this.ruins.obstacles;
 
     this.combat = new Combat({
+      damageMultiplier: (element) => this.profile.damageMultiplier(element),
+      critBonus: () => this.profile.stats.crit / 100,
       monsters: this.monsters,
       ruins: this.ruins,
       particles: this.particles,
@@ -217,6 +228,34 @@ export class App {
     this.goalPill.className = 'level-goal';
     this.goalPill.hidden = true;
     hudRoot.appendChild(this.goalPill);
+
+    /* ---- items, portals, NPCs ---- */
+    this.labels = new WorldLabels(hudRoot);
+    this.profile = new Profile();
+    this.profile.on('stats', () => this._applyProfileStats());
+    this.loot = new LootSystem(this.scene, this.labels);
+    this.loot.onPickup = (item) => {
+      const result = this.profile.pickUp(item);
+      this.hud.showToast(result.message);
+      return result;
+    };
+    this.portals = new PortalSystem(this.scene, this.labels);
+    this.portals.onEnter = (portal) => this._enterPortal(portal);
+    this.npcs = new NpcSystem(this.scene, this.labels, this.catalog);
+    this.npcBrain = new NpcBrain();
+    this.dialogue = new DialoguePanel(hudRoot);
+    this.inventory = new InventoryPanel(hudRoot, this.profile, {
+      onEquip: (item) => this._equipItem(item),
+      onRead: (item) => this.hud.showToast(this.profile.read(item.uid).message),
+      onDrop: (item) => {
+        const removed = this.profile.remove(item.uid);
+        if (removed && this.phase === 'playing') this.loot.drop([removed], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
+      }
+    });
+    this.talkPrompt = document.createElement('div');
+    this.talkPrompt.className = 'talk-prompt';
+    this.talkPrompt.hidden = true;
+    hudRoot.appendChild(this.talkPrompt);
     this.gameMenu = new GameMenuButton(hudRoot, {
       onPause: () => this.togglePause(),
       onExit: () => this.exitToMenu()
@@ -343,7 +382,11 @@ export class App {
 
   /** The run's events → the run's readout. Nothing else listens to these. */
   _bindRun() {
-    this.director.on('kill', (monster) => this._onRunEvent('kill', monster));
+    this.director.on('kill', (monster) => {
+      this._dropLoot(monster);
+      if (this.npcs.onKill(monster.kind)) this._updateGoalPill();
+      this._onRunEvent('kill', monster);
+    });
     this.director.on('waveCleared', (wave) => this._onRunEvent('waveCleared', wave));
     this.director.on('wave', (wave) => this._onRunEvent('wave', wave));
     this.director.on('wave', (wave, count) => {
@@ -416,6 +459,18 @@ export class App {
         this._runHudVisible = !(this._runHudVisible ?? true);
         this.gameHud.setVisible(this._runHudVisible);
         break;
+      case 'interact':
+        if (this.phase === 'playing' && this.npcs.nearest && !this.dialogue.isOpen) this._talkTo(this.npcs.nearest);
+        return;
+      case 'potionHealth':
+        if (this.phase === 'playing') this._drink('health');
+        return;
+      case 'potionFocus':
+        if (this.phase === 'playing') this._drink('focus');
+        return;
+      case 'toggleInventory':
+        if (this.phase === 'playing') this.inventory.toggle();
+        return;
       case 'toggleWeapons':
         this.weaponPanel.toggle();
         break;
@@ -507,6 +562,10 @@ export class App {
     this.gameMenu.setPaused(false);
 
     if (settings.combat.enabled && settings.waves.enabled) this.director.start();
+    // A weapon from the bag beats the loadout pick; gear sets health and speed.
+    if (this.profile.equipped) this.selectWeapon(this.profile.equipped.weapon);
+    this._applyProfileStats({ refill: true });
+    this.inventory.setBeltVisible(true);
 
     this.phase = 'playing';
     this.input.enabled = true;
@@ -522,6 +581,8 @@ export class App {
   exitToMenu() {
     const backToEditor = this.run?.fromEditor;
     this._endRun();
+    this.inventory.setBeltVisible(false);
+    this.inventory.toggle(false);
     this.aim.cancel();
     this.weaponPanel.hide();
     this.clearEffects();
@@ -547,6 +608,8 @@ export class App {
   }
 
   showMainMenu() {
+    this.inventory.setBeltVisible(false);
+    this.inventory.toggle(false);
     this.phase = 'menu';
     this.input.enabled = false;
     this.hud.setGameplayVisible(false);
@@ -649,7 +712,7 @@ export class App {
 
     this.abilities.cast(origin, direction, distance, element);
     this.combat.open(element, origin, direction, distance);
-    this.cooldowns.set(element, Math.max(0, settings[element].cooldown));
+    this.cooldowns.set(element, Math.max(0, settings[element].cooldown * this.profile.cooldownMultiplier(element)));
 
     // Snap onto the shot and throw the body into it. Which clip that is belongs
     // to the ability, so each spell can be cast with its own gesture.
@@ -763,6 +826,11 @@ export class App {
     // Monsters already standing in the level wait for the director's reset.
     const V = this.character.position.constructor;
     for (const m of level.monsters) this.monsters.spawn(m.kind, new V(m.x, 0, m.z));
+    const heightAt = (x, z) => this.composed.heightAt(x, z);
+    this.portals.setPortals(level.portals, heightAt);
+    this.npcs.setNpcs(level.npcs, heightAt);
+    // NPCs are solid: monsters and the caster walk around them.
+    this.composed.obstacles.push(...this.npcs.obstacles);
     this._updateGoalPill();
   }
 
@@ -795,6 +863,10 @@ export class App {
     this.monsters.spawnPoints = null;
     this.run = null;
     this.goalPill.hidden = true;
+    this.portals.clear();
+    this.npcs.clear();
+    this.dialogue.close();
+    this.talkPrompt.hidden = true;
   }
 
   _updateGoalPill() {
@@ -808,7 +880,10 @@ export class App {
       r.goal === 'waves' ? `Wave ${Math.min(run.wave, r.count)} / ${r.count} cleared`
       : r.goal === 'kills' ? `${Math.min(run.kills, r.count)} / ${r.count} defeated`
       : run.wave < r.count ? `The boss arrives on wave ${r.count}` : 'Defeat the Emberwyrm!';
-    this.goalPill.textContent = `${run.level.name} — ${progressText}`;
+    const quests = this.npcs.activeQuests().map((q) =>
+      q.done ? `${q.quest.title}: return to ${q.npc.data.name}` : `${q.quest.title}: ${q.progress}/${q.quest.count}`
+    );
+    this.goalPill.textContent = [run.done ? `${run.level.name} — goal reached, take the portal` : `${run.level.name} — ${progressText}`, ...quests].join('   ·   ');
     this.goalPill.hidden = false;
   }
 
@@ -829,15 +904,38 @@ export class App {
     this._updateGoalPill();
   }
 
-  async _winLevel() {
+  /** Goal reached: stop the waves and open the way out — a gold portal. */
+  _winLevel() {
     const run = this.run;
     run.done = true;
-    this._updateGoalPill();
     this.director.stop();
-    this.hud.showToast('Victory!');
+    this.hud.showToast('Victory! A portal has opened');
     if (!run.fromEditor) progress.complete(run.level.id);
-    // A beat to see the last kill land before the story card.
-    await new Promise((resolve) => setTimeout(resolve, 1600));
+    const p = this.character.position;
+    // A few metres ahead of the caster as the camera sees it, facing the
+    // camera — so it is in view and seen face-on, never edge-on.
+    const heading = this.rig.yaw;
+    let x = p.x + Math.sin(heading) * 4.5;
+    let z = p.z + Math.cos(heading) * 4.5;
+    const r = Math.hypot(x, z);
+    if (r > 21) {
+      x *= 21 / r;
+      z *= 21 / r;
+    }
+    this.portals.add(
+      { id: '__exit', x, z, yaw: heading + Math.PI, color: 'gold', label: 'The way onward', target: { type: 'exit' } },
+      (px, pz) => this.composed.heightAt(px, pz)
+    );
+    this._updateGoalPill();
+  }
+
+  /** Walked into the exit portal: the ending, then the next level. */
+  async _finishLevel() {
+    const run = this.run;
+    if (!run || run.finishing) return;
+    run.finishing = true;
+    this.flash.trigger?.(getColor('#fff2c4'), 0.6);
+    this.monsters.despawnAll();
     this.input.enabled = false;
     const next = run.campaign && run.index >= 0 ? run.campaign[run.index + 1] : null;
     const outro = run.level.story.outro;
@@ -859,6 +957,207 @@ export class App {
     }
     this.exitToMenu();
     if (!run.fromEditor) this.useClassicWorld();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Portals                                                             */
+  /* ------------------------------------------------------------------ */
+
+  async _enterPortal(portal) {
+    if (this.phase !== 'playing') return;
+    const target = portal.data.target ?? { type: 'none' };
+    if (target.type === 'exit') return this._finishLevel();
+    if (target.type === 'portal') {
+      const other = this.portals.get(target.portal);
+      if (!other) return this.hud.showToast('This portal leads nowhere');
+      other.cooldown = 1.6;
+      // Step out a couple of metres in front of the other portal.
+      const yaw = other.group.rotation.y;
+      this._teleport(other.position.x + Math.sin(yaw) * 2, other.position.z + Math.cos(yaw) * 2);
+      this.flash.trigger?.(getColor('#bfe6ff'), 0.35);
+      this.shake.add(0.4 * settings.global.cameraShake, 0.5, 10);
+      return;
+    }
+    if (target.type === 'level') {
+      if (this.run?.fromEditor) return this.hud.showToast(`Leads to level “${target.level}” — works in the campaign`);
+      const campaign = await this.levels.list();
+      const index = campaign.findIndex((entry) => entry.id === target.level);
+      let level;
+      try {
+        level = await this.levels.load(target.level);
+      } catch {
+        return this.hud.showToast('This portal leads nowhere');
+      }
+      this.flash.trigger?.(getColor('#bfe6ff'), 0.6);
+      this.director.stop();
+      this.clearEffects();
+      this._endRun();
+      await this.playLevel(level, { campaign, index });
+      return;
+    }
+    this.hud.showToast('This portal is dormant');
+  }
+
+  /** Move the caster (and the camera with them) without a walk. */
+  _teleport(x, z) {
+    const position = this.character.position;
+    const dx = x - position.x;
+    const dz = z - position.z;
+    position.x = x;
+    position.z = z;
+    this.rig.camera.position.x += dx;
+    this.rig.camera.position.z += dz;
+    this.rig.controls.target.x += dx;
+    this.rig.controls.target.z += dz;
+    // Not locomotion.reset(): that also re-centres the caster on the origin.
+    this.character.locomotion.velocity.set(0, 0, 0);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Items                                                               */
+  /* ------------------------------------------------------------------ */
+
+  _dropLoot(monster) {
+    const items = rollLoot(monster.kind, { wave: this.director.wave || 1, goldFind: this.profile.stats.gold });
+    if (items.length) this.loot.drop(items, monster.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
+  }
+
+  /** Gear → max health, move speed. `refill` tops health up (start of a run). */
+  _applyProfileStats({ refill = false } = {}) {
+    const stats = this.profile.stats;
+    const director = this.director;
+    const ratio = director.maxHealth ? director.health / director.maxHealth : 1;
+    director.maxHealth = settings.combat.playerHealth + stats.health;
+    director.health = refill ? director.maxHealth : Math.max(1, Math.round(director.maxHealth * ratio));
+    this.character.locomotion.speedBonus = 1 + stats.speed / 100;
+  }
+
+  _equipItem(item) {
+    const equipped = this.profile.equip(item.uid);
+    if (!equipped) return;
+    this.selectWeapon(equipped.weapon);
+    this.hud.showToast(`${equipped.name} equipped`);
+  }
+
+  _drink(kind) {
+    if (!this.profile.usePotion(kind)) return this.hud.showToast(`No ${POTIONS[kind].name.toLowerCase()}s left`);
+    if (kind === 'health') {
+      this.director.health = Math.min(this.director.maxHealth, this.director.health + this.director.maxHealth * 0.45);
+      this.flash.trigger?.(getColor('#ff6b7a'), 0.25);
+    } else {
+      for (const element of this.cooldowns.keys()) this.cooldowns.set(element, 0);
+      this.flash.trigger?.(getColor('#7fd6ff'), 0.25);
+    }
+    this.hud.showToast(POTIONS[kind].name);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* NPCs                                                                */
+  /* ------------------------------------------------------------------ */
+
+  _talkTo(npc) {
+    this._pausedForTalk = !this.paused;
+    this.paused = true;
+    this.input.enabled = false;
+    this.talkPrompt.hidden = true;
+    this.dialogue.open(npc, this._npcActions(npc));
+  }
+
+  _npcContext(npc) {
+    const run = this.run;
+    const level = run?.level ?? null;
+    const r = level?.rules;
+    const monsters = r
+      ? Object.entries(r.kinds).filter(([, w]) => w > 0).map(([k]) => settings.monsters.kinds[k]?.label ?? k).join(', ')
+      : 'imps, wisps, brutes and golems';
+    const q = npc.data.quest;
+    return {
+      level,
+      goal: r ? describeGoal(r) : 'survive',
+      progress: run ? (run.done ? 'goal reached' : `${run.kills} defeated, wave ${run.wave}`) : 'free play',
+      monsters,
+      quest: q ? `${q.title} — defeat ${q.count} ${q.target === 'any' ? 'monsters' : settings.monsters.kinds[q.target]?.label ?? q.target} (${npc.state.progress}/${q.count}${npc.state.questAccepted ? ', accepted' : ', not yet accepted'})` : null,
+      player: {
+        healthPct: Math.round((this.director.health / Math.max(1, this.director.maxHealth)) * 100),
+        gold: this.profile.gold,
+        potions: this.profile.potions,
+        weapon: this.profile.equipped?.name ?? platform.getActiveWeapon()?.label ?? 'bare hands',
+        skills: this.profile.skills
+      }
+    };
+  }
+
+  _rewardItem(rarity) {
+    return rarity === 'none' ? null : makeWeapon(rarity);
+  }
+
+  _npcActions(npc) {
+    const profile = this.profile;
+    const give = (item) => {
+      const result = profile.pickUp(item);
+      if (!result.ok) this.loot.drop([item], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
+      return result.ok ? item.name : `${item.name} (dropped at your feet — ${result.message.toLowerCase()})`;
+    };
+    return {
+      scripted: () => this.npcBrain.scripted(npc),
+      ask: (text) => this.npcBrain.reply(npc, text, this._npcContext(npc)),
+      gold: () => profile.gold,
+      takeGift: () => {
+        const g = npc.data.gift;
+        if (!g || g.type === 'none' || npc.state.gifted) return null;
+        npc.state.gifted = true;
+        const item =
+          g.type === 'gold' ? makeGold(g.amount)
+          : g.type === 'health' || g.type === 'focus' ? makePotion(g.type)
+          : g.type === 'book' ? makeBook()
+          : makeWeapon(g.rarity === 'none' ? 'magic' : g.rarity);
+        return `${npc.data.name} gives you ${give(item)}.`;
+      },
+      questState: () => {
+        const q = npc.data.quest;
+        const s = npc.state;
+        if (!q || s.questTurnedIn) return null;
+        const what = q.target === 'any' ? 'monsters' : `${settings.monsters.kinds[q.target]?.label ?? q.target}s`;
+        return {
+          title: q.title,
+          offer: !s.questAccepted,
+          active: s.questAccepted && !s.questDone,
+          ready: s.questDone,
+          progress: `${s.progress}/${q.count} ${what}`
+        };
+      },
+      acceptQuest: () => {
+        const q = npc.data.quest;
+        npc.state.questAccepted = true;
+        this.npcs.refreshMarks();
+        this._updateGoalPill();
+        const what = q.target === 'any' ? 'monsters' : `${settings.monsters.kinds[q.target]?.label ?? q.target}s`;
+        return `Quest accepted: ${q.title} — defeat ${q.count} ${what}. Reward: ${q.gold} gold${q.rarity !== 'none' ? ` and a ${q.rarity} item` : ''}.`;
+      },
+      completeQuest: () => {
+        const q = npc.data.quest;
+        npc.state.questTurnedIn = true;
+        profile.gold += q.gold;
+        profile.save();
+        const reward = this._rewardItem(q.rarity);
+        const got = reward ? ` and ${give(reward)}` : '';
+        this.npcs.refreshMarks();
+        this._updateGoalPill();
+        return `Quest complete! You receive ${q.gold} gold${got}.`;
+      },
+      stock: () => (npc.state.stock ??= npc.data.role === 'healer' ? [makePotion('health'), makePotion('focus')] : merchantStock(Math.random, this.director.wave || 1)),
+      bag: () => profile.bag,
+      buy: (item) => profile.buy(item).message,
+      sell: (item) => `Sold ${item.name} for ${profile.sell(item.uid)} gold`,
+      heal: () => {
+        this.director.health = this.director.maxHealth;
+        return `${npc.data.name} mends your wounds. Full health.`;
+      },
+      onClose: () => {
+        if (this._pausedForTalk) this.paused = false;
+        this.input.enabled = this.phase === 'playing';
+      }
+    };
   }
 
   /** Back to the hand-built ruined keep. */
@@ -883,6 +1182,7 @@ export class App {
   }
 
   clearEffects() {
+    this.loot?.clear();
     this.aim.cancel();
     this.abilities.clear();
     this.combat.reset();
@@ -1156,6 +1456,20 @@ export class App {
     this.flash.update(raw);
     this.rig.update(raw);
 
+    // Items, portals and NPCs run on real time, so they keep breathing through
+    // pauses (and through a conversation, which pauses the fight).
+    if (this.phase === 'playing') {
+      const player = this.character.position;
+      this.portals.update(raw, this.elapsed, this.paused ? null : player);
+      this.loot.update(raw, this.elapsed, this.paused ? null : player);
+      const near = this.npcs.update(raw, player);
+      const showPrompt = Boolean(near) && !this.dialogue.isOpen && !this.paused;
+      this.talkPrompt.hidden = !showPrompt;
+      if (showPrompt) this.talkPrompt.textContent = `F  Talk to ${near.data.name} (${NPC_ROLES[near.data.role]?.label ?? 'Guide'})`;
+    }
+    this.labels.setVisible(this.phase === 'playing' || this.phase === 'editor');
+    this.labels.update(this.camera);
+
     this.contactShadows.setPosition(this.character.position.x, this.character.position.z);
     this.contactShadows.render(this.scene);
 
@@ -1215,7 +1529,7 @@ export class App {
     const gl = this.renderer.gl;
 
     for (const element of ELEMENTS) {
-      this.hud.setCooldown(element, this.cooldowns.get(element) ?? 0, settings[element].cooldown);
+      this.hud.setCooldown(element, this.cooldowns.get(element) ?? 0, settings[element].cooldown * this.profile.cooldownMultiplier(element));
     }
     this.hud.setArmed(this.aim.isArmed);
     this.hud.update(dt, () => ({

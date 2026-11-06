@@ -846,6 +846,8 @@ map in the level editor** to hand-finish a map the AI just made.
 | **Paint** | Paint ground surfaces (grass, snow, sand, gravel, paving, lava…) anywhere, including roads across the arena. |
 | **Spawns** | Mark where waves walk in from. No spawn points = monsters come from all around. |
 | **Monsters** | Place monsters that are already waiting when the level starts — e.g. a Rift Golem guarding a gate. |
+| **Portals** | Place portals and link them to each other or to another level (see [Portals](#portals)). |
+| **NPCs** | Place helpers — guides, merchants, healers, quest givers — with lines, an AI personality, gifts and quests (see [NPCs](#npcs)). |
 
 **Map** sets the ground, landscape shape (flat / hills / mountains / canyon / valley), time of day
 and fog, and has an optional **AI fill** that lays out a starting map from a sentence (it keeps your
@@ -891,6 +893,70 @@ level shows its ending and offers the next level straight away. Progress is reme
 | 1 | **Frost Hollow** | Survive 3 waves | By hand: scattered pines, sculpted ridge, painted gravel road, two waiting monsters |
 | 2 | **Ember Ruins** | Defeat 25 monsters | AI fill (desert canyon temple) + hand-set rules and three spawn points |
 | 3 | **The Wyrm's Graveyard** | Defeat the Emberwyrm (wave 3) | AI fill (foggy graveyard) + a Rift Golem waiting at the gate |
+
+---
+
+## Portals, loot and NPCs
+
+<p>
+  <img src="docs/screenshots/npc-dialogue.jpg" width="49%" alt="Talking to the Old Warden: a gift, an AI-written answer about fighting the Rift Golem, and an accepted quest" />
+  <img src="docs/screenshots/npc-merchant.jpg" width="49%" alt="Trading with Mira the merchant: potions, weapons by rarity and a skill book for sale" />
+</p>
+<p>
+  <img src="docs/screenshots/loot.jpg" width="49%" alt="Loot from a boss: light beams in rarity colours and floating item names" />
+  <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag: a unique sceptre in hand, its bonuses, spell ranks and the 24 slots" />
+</p>
+<p>
+  <img src="docs/screenshots/portal-exit.jpg" width="49%" alt="Goal reached: the gold exit portal beside the violet East Gate" />
+  <img src="docs/screenshots/editor-npcs.jpg" width="49%" alt="Placing NPCs and linked portals in the level editor" />
+</p>
+
+### Loot
+
+Monsters drop **gold**, **potions**, **weapons** and **skill books**. Items burst out of the body,
+land with a light beam in their rarity colour — **Common**, **Magic** (blue), **Rare** (yellow),
+**Epic** (purple), **Unique** (orange) — and a floating name; walk over them to pick them up (or click
+the name from close by). Bigger monsters drop more and better: a Rift Golem always drops a Rare or
+better, the Emberwyrm an Epic or better plus a skill book.
+
+| Item | What it does |
+| --- | --- |
+| Weapon | Any of the 88 armory weapons, with 1–3 bonus stats by rarity: spell damage, one spell's damage, cooldowns, max health, move speed, critical chance, gold found. Uniques are named (*Glacierheart*, *Ashen Requiem*, *Tempest Sceptre*, *Dawnspire*, *The Hollow Crown*, *Wardenblade*) with fixed, stronger bonuses. |
+| Skill book | Raises one spell a rank (max 5): +12% damage and −4% cooldown per rank. |
+| Health potion | **R** — heals 45%. |
+| Focus potion | **Z** — every spell ready again. |
+| Gold | Spent at merchants; weapons sell back for a quarter. |
+
+**Tab** opens the bag: the weapon in hand, what your gear adds up to, spell ranks and 24 slots —
+click a weapon to equip it, a book to read it, right-click to drop. The bag, gold, potions and ranks
+are saved in the browser and carry between levels.
+
+### NPCs
+
+Place them in the editor with the **NPCs** tool. They never fight and monsters ignore them; walk up
+and press **F** to talk (the fight pauses while you do).
+
+| Role | Does |
+| --- | --- |
+| Guide | Talks: a greeting and scripted lines — story, hints, rumours. |
+| Merchant | Sells potions, weapons and a skill book; buys anything from your bag. |
+| Healer | Heals you to full and sells potions. |
+| Quest giver | Sets a task — *defeat N monsters* (any, or one kind) — tracked under the wave counter; hand it in for gold and an item of a chosen rarity. |
+
+Any NPC can give a **gift** the first time you talk (potion, gold, weapon, skill book) and can carry a
+quest. Tick **Talks with the AI model** and give it a personality: the NPC then answers anything you
+type, in character, through your LM Studio model — it knows the level's story and goal, your health,
+gold, potions, weapon and spell ranks, and what the spells actually do, so its advice fits the moment.
+With the model offline it falls back to its scripted lines.
+
+### Portals
+
+Place them with the **Portals** tool and choose what each leads to: **another portal in the level**
+(two linked portals make a two-way shortcut), **another level** (a waypoint into the campaign), or
+nothing. When a level's goal is met, a **gold exit portal** opens in front of you; stepping in shows
+the ending and leads on to the next level.
+
+Keys: **F** talk · **R** health potion · **Z** focus potion · **Tab** bag.
 
 ---
 
@@ -1042,6 +1108,9 @@ src/
                   score, player health, hit-stop), DamageNumbers (floating text)
   input/          InputManager (events) and AimController (both targeting shapes)
   editor/         LevelEditor (tools, brushes, gizmo, undo/redo, play test)
+  items/          Items (rarity, stats, uniques, loot tables, prices), Profile (bag,
+                  gold, potions, ranks — saved per browser), Loot (drops on the ground)
+  npc/            Npcs (rigged helpers, roles, quests), NpcBrain (AI or scripted talk)
   levels/         Level (the file format), LevelStore (load/save/export/import, progress)
   library/        The asset library in the browser: Catalog (queries), ModelLibrary
                   (loading + instancing), categories (shared with the indexer)
@@ -1053,11 +1122,12 @@ src/
   shaders/lib/    Shared GLSL: noise library, common helpers
   ui/             HUD, GameHUD (the run), ChatPanel (the commander), MainMenu,
                   EditorPanel + StoryPanel (level editor, story scenes),
+                  DialoguePanel, InventoryPanel, WorldLabels (floating names),
                   lil-gui editor, preset manager, styles
   utils/          Maths, seeded RNG, colour cache, pooling, disposal, shader patching
   world/          Environment (stage lighting), floor, dust, contact shadows,
                   Ruins (the procedural keep), MapPlan (the plan format),
-                  Terrain (editable relief + sculpt/paint grids) and ComposedWorld
+                  Terrain (editable relief + sculpt/paint grids), Portals, and ComposedWorld
                   (a map built from the library to a level or plan)
   archive/        The retired four-element sandbox — see archive/README.md
 

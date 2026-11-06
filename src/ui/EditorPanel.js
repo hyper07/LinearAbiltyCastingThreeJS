@@ -1,6 +1,7 @@
 import { CATEGORIES } from '../library/categories.js';
 import { platform } from '../platform/index.js';
-import { GOALS, MONSTER_KINDS, describeGoal, slugify } from '../levels/Level.js';
+import { GIFT_TYPES, GOALS, MONSTER_KINDS, NPC_ROLE_NAMES, PORTAL_COLOR_NAMES, REWARD_RARITIES, describeGoal, slugify } from '../levels/Level.js';
+import { NPC_ROLES, npcModels } from '../npc/Npcs.js';
 import { RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../world/MapPlan.js';
 
 const TOOLS = [
@@ -11,7 +12,9 @@ const TOOLS = [
   ['sculpt', 'Sculpt', 'Raise, lower, smooth or flatten the land around the arena. The fighting circle stays flat.'],
   ['paint', 'Paint', 'Paint ground surfaces — anywhere, including the arena floor.'],
   ['spawns', 'Spawns', 'Click to add a point monsters walk in from; click one again to remove it.'],
-  ['monsters', 'Monsters', 'Click to place a monster that is waiting when the level starts; click again to remove.']
+  ['monsters', 'Monsters', 'Click to place a monster that is waiting when the level starts; click again to remove.'],
+  ['portals', 'Portals', 'Click to place a portal, click one to select it, drag to move. Link it to another portal or another level on the right.'],
+  ['npcs', 'NPCs', 'Click to place a helper, click one to edit, drag to move. Guides talk (AI or scripted), merchants and healers trade, quest-givers set tasks.']
 ];
 
 const MONSTER_LABELS = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm' };
@@ -200,6 +203,8 @@ export class EditorPanel {
       );
       return;
     }
+    if (t === 'portals') return this._portalPane(pane);
+    if (t === 'npcs') return this._npcPane(pane);
     if (t === 'monsters') {
       pane.append(
         this._segmented(MONSTER_KINDS, e.monsterKind, (kind) => {
@@ -214,6 +219,129 @@ export class EditorPanel {
         })
       );
     }
+  }
+
+  _portalPane(pane) {
+    const e = this.editor;
+    const m = e.selectedMarker?.kind === 'portal' ? e.selectedMarker.data : null;
+    pane.append(this._note(`${e.level.portals.length} portal(s). Players step in to travel. When the level's goal is met, a gold exit portal also opens on its own.`));
+    if (!m) {
+      pane.append(this._note('Click the ground to add a portal, or click one to edit it.'));
+      return;
+    }
+    const others = e.level.portals.filter((p) => p !== m);
+    const campaign = this._campaign ?? [];
+    const options = ['none', ...others.map((p) => `portal:${p.id}`), ...campaign.filter((c) => c.id !== e.level.id).map((c) => `level:${c.id}`)];
+    const labels = {
+      none: 'Leads nowhere (decoration)',
+      ...Object.fromEntries(others.map((p) => [`portal:${p.id}`, `→ ${p.label || p.id} (this level)`])),
+      ...Object.fromEntries(campaign.map((c) => [`level:${c.id}`, `→ level: ${c.name}`]))
+    };
+    const t = m.target ?? { type: 'none' };
+    const current = t.type === 'portal' ? `portal:${t.portal}` : t.type === 'level' ? `level:${t.level}` : 'none';
+    const text = (label, value, onChange) => {
+      const wrap = document.createElement('label');
+      wrap.className = 'editor__field';
+      const input = document.createElement('input');
+      input.value = value;
+      input.addEventListener('change', () => onChange(input.value));
+      wrap.append(document.createTextNode(label), input);
+      return wrap;
+    };
+    pane.append(
+      this._label('Selected portal'),
+      text('Name shown above it', m.label, (v) => e.updateMarker({ label: v })),
+      this._select('Colour', PORTAL_COLOR_NAMES, m.color, (v) => e.updateMarker({ color: v })),
+      this._select('Leads to', options, current, (v) => {
+        const [type, id] = v.split(':');
+        e.updateMarker({ target: type === 'portal' ? { type, portal: id } : type === 'level' ? { type, level: id } : { type: 'none' } });
+        this.renderPane();
+      }, labels),
+      this._slider('Facing (degrees)', -180, 180, 5, Math.round((m.yaw * 180) / Math.PI), (v) => e.updateMarker({ yaw: (v * Math.PI) / 180 })),
+      this._note('Tip: two portals linked to each other make a two-way shortcut. Linking to a level works in the campaign (play test shows where it leads).'),
+      this._button('Delete portal', () => e.removeMarker(), 'is-danger')
+    );
+  }
+
+  _npcPane(pane) {
+    const e = this.editor;
+    const m = e.selectedMarker?.kind === 'npc' ? e.selectedMarker.data : null;
+    pane.append(this._note(`${e.level.npcs.length} NPC(s). They never fight and monsters ignore them. Players walk up and press F to talk.`));
+    if (!m) {
+      pane.append(this._note('Click the ground to add an NPC, or click one to edit it.'));
+      return;
+    }
+    const field = (label, value, onChange, multiline = false, placeholder = '') => {
+      const wrap = document.createElement('label');
+      wrap.className = 'editor__field';
+      const input = document.createElement(multiline ? 'textarea' : 'input');
+      if (multiline) input.rows = 4;
+      input.placeholder = placeholder;
+      input.value = value ?? '';
+      input.addEventListener('change', () => onChange(input.value));
+      wrap.append(document.createTextNode(label), input);
+      return wrap;
+    };
+    const models = npcModels(e.app.catalog);
+    const check = (label, value, onChange) => {
+      const wrap = document.createElement('label');
+      wrap.className = 'editor__field editor__field--inline';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = value;
+      input.style.width = 'auto';
+      input.addEventListener('change', () => onChange(input.checked));
+      wrap.append(document.createTextNode(label), input);
+      return wrap;
+    };
+    pane.append(
+      this._label('Selected NPC'),
+      field('Name', m.name, (v) => e.updateMarker({ name: v || 'Stranger' })),
+      this._select('Role', NPC_ROLE_NAMES, m.role, (v) => {
+        e.updateMarker({ role: v });
+        this.renderPane();
+      }, Object.fromEntries(NPC_ROLE_NAMES.map((r) => [r, NPC_ROLES[r].label]))),
+      this._select('Look', ['', ...models.map((x) => x.id)], m.model ?? '', (v) => e.updateMarker({ model: v || null }), {
+        '': models.length ? `Default (${models[0].name})` : 'Simple figure (no library yet)',
+        ...Object.fromEntries(models.map((x) => [x.id, x.name.replace(/_/g, ' ')]))
+      }),
+      this._slider('Facing (degrees)', -180, 180, 5, Math.round((m.yaw * 180) / Math.PI), (v) => e.updateMarker({ yaw: (v * Math.PI) / 180 })),
+      field('Greeting', m.greeting, (v) => e.updateMarker({ greeting: v }), false, 'Well met, caster.'),
+      field('Lines (one per line — story, hints, rumours)', (m.lines ?? []).join('\n'), (v) => e.updateMarker({ lines: v.split('\n').map((l) => l.trim()).filter(Boolean) }), true),
+      check('Talks with the AI model (free conversation)', m.ai, (v) => {
+        e.updateMarker({ ai: v });
+        this.renderPane();
+      })
+    );
+    if (m.ai) {
+      pane.append(field('Personality for the AI', m.persona, (v) => e.updateMarker({ persona: v }), true, 'A gruff old soldier who lost his company at the pass; kind underneath; speaks in short sentences.'));
+    }
+    pane.append(
+      this._label('Gift (given the first time you talk)'),
+      this._select('Gift', GIFT_TYPES, m.gift.type, (v) => {
+        e.updateMarker({ gift: { ...m.gift, type: v } });
+        this.renderPane();
+      }, { none: 'No gift', health: 'Health potion', focus: 'Focus potion', gold: 'Gold', weapon: 'Weapon', book: 'Skill book' })
+    );
+    if (m.gift.type === 'weapon') pane.append(this._select('Weapon rarity', REWARD_RARITIES.filter((r) => r !== 'none'), m.gift.rarity, (v) => e.updateMarker({ gift: { ...m.gift, rarity: v } })));
+    if (m.gift.type === 'gold') pane.append(this._slider('Gold amount', 5, 500, 5, m.gift.amount, (v) => e.updateMarker({ gift: { ...m.gift, amount: v } })));
+
+    pane.append(this._label('Quest'), check('Gives a quest', Boolean(m.quest), (v) => {
+      e.updateMarker({ quest: v ? { title: 'Clear the way', target: 'any', count: 10, gold: 100, rarity: 'rare' } : null });
+      this.renderPane();
+    }));
+    if (m.quest) {
+      const q = m.quest;
+      const setQ = (changes) => e.updateMarker({ quest: { ...q, ...changes } });
+      pane.append(
+        field('Quest title', q.title, (v) => setQ({ title: v || 'A favour' })),
+        this._select('Defeat', ['any', ...MONSTER_KINDS], q.target, (v) => setQ({ target: v }), { any: 'Any monsters', grunt: 'Cinder Imps', wisp: 'Gloom Wisps', brute: 'Iron Brutes', golem: 'Rift Golems', dragon: 'The Emberwyrm' }),
+        this._slider('How many', 1, 100, 1, q.count, (v) => setQ({ count: v })),
+        this._slider('Reward gold', 0, 1000, 10, q.gold, (v) => setQ({ gold: v })),
+        this._select('Reward item', REWARD_RARITIES, q.rarity, (v) => setQ({ rarity: v }), { none: 'No item', magic: 'Magic weapon', rare: 'Rare weapon', epic: 'Epic weapon', unique: 'Unique weapon' })
+      );
+    }
+    pane.append(this._button('Delete NPC', () => e.removeMarker(), 'is-danger'));
   }
 
   _selectionPane(pane) {

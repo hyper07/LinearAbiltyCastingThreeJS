@@ -246,8 +246,10 @@ export class Combat extends EventEmitter {
     const cfg = settings.combat;
     const { profile, element } = strike;
 
-    const crit = Math.random() < cfg.critChance;
-    const amount = profile.damage * falloff * cfg.damageScale * (crit ? cfg.critMultiplier : 1);
+    // Gear and spell ranks (see items/Profile.js) scale damage and crit chance.
+    const crit = Math.random() < cfg.critChance + (this.ctx.critBonus?.() ?? 0);
+    const gear = this.ctx.damageMultiplier?.(element) ?? 1;
+    const amount = profile.damage * falloff * cfg.damageScale * gear * (crit ? cfg.critMultiplier : 1);
 
     const result = monster.applyDamage(amount, { shatter: profile.shatter ?? 1 });
     if (result.dealt <= 0 && !result.killed) return;

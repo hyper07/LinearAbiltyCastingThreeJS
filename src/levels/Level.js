@@ -12,6 +12,9 @@ import { EDGE_OPTIONS, RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../
  *   objects: [{ model, category, x, z, yOffset, yaw, scale }],
  *   spawns:  [{ x, z }],                    // where waves walk in from (empty = all around)
  *   monsters: [{ kind, x, z }],             // already standing there when the level starts
+ *   portals: [{ id, x, z, yaw, color, label, target: { type: 'none'|'portal'|'level', portal?, level? } }],
+ *   npcs: [{ id, name, role, model, x, z, yaw, greeting, lines[], ai, persona,
+ *            gift: { type, rarity, amount }, quest: null | { title, target, count, gold, rarity } }],
  *   rules: { goal: 'waves'|'boss'|'kills', count, kinds: { grunt: 5, … }, baseCount, growth, bossEvery, dragonEvery },
  *   story: { intro: { title, speaker, text }, outro: { title, speaker, text } }
  * }
@@ -20,6 +23,10 @@ import { EDGE_OPTIONS, RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../
 export const LEVEL_VERSION = 1;
 export const GOALS = ['waves', 'boss', 'kills'];
 export const MONSTER_KINDS = ['grunt', 'wisp', 'brute', 'golem', 'dragon'];
+export const PORTAL_COLOR_NAMES = ['blue', 'red', 'gold', 'green', 'violet'];
+export const NPC_ROLE_NAMES = ['guide', 'merchant', 'healer', 'quest'];
+export const GIFT_TYPES = ['none', 'health', 'focus', 'gold', 'weapon', 'book'];
+export const REWARD_RARITIES = ['none', 'magic', 'rare', 'epic', 'unique'];
 
 const clamp = (v, lo, hi, fallback) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : fallback);
 const pick = (v, options, fallback) => (options.includes(v) ? v : fallback);
@@ -87,6 +94,51 @@ export function normalizeLevel(raw = {}) {
       .filter((m) => MONSTER_KINDS.includes(m?.kind))
       .slice(0, 60)
       .map((m) => ({ kind: m.kind, x: num(m.x), z: num(m.z) })),
+    portals: (Array.isArray(raw.portals) ? raw.portals : []).slice(0, 16).map((p, i) => {
+      const target = p?.target ?? {};
+      const type = pick(target.type, ['none', 'portal', 'level'], 'none');
+      return {
+        id: String(p?.id ?? `portal-${i + 1}`).slice(0, 32),
+        x: num(p?.x),
+        z: num(p?.z),
+        yaw: num(p?.yaw),
+        color: pick(p?.color, PORTAL_COLOR_NAMES, 'blue'),
+        label: text(p?.label, 40),
+        target: type === 'portal' ? { type, portal: String(target.portal ?? '') } : type === 'level' ? { type, level: String(target.level ?? '') } : { type: 'none' }
+      };
+    }),
+    npcs: (Array.isArray(raw.npcs) ? raw.npcs : []).slice(0, 12).map((n, i) => {
+      const gift = n?.gift ?? {};
+      const quest = n?.quest;
+      return {
+        id: String(n?.id ?? `npc-${i + 1}`).slice(0, 32),
+        name: text(n?.name || 'Stranger', 40),
+        role: pick(n?.role, NPC_ROLE_NAMES, 'guide'),
+        model: n?.model ? String(n.model) : null,
+        x: num(n?.x),
+        z: num(n?.z),
+        yaw: num(n?.yaw),
+        greeting: text(n?.greeting, 400),
+        lines: (Array.isArray(n?.lines) ? n.lines : []).map((l) => text(l, 400)).filter(Boolean).slice(0, 20),
+        ai: Boolean(n?.ai),
+        persona: text(n?.persona, 600),
+        gift: {
+          type: pick(gift.type, GIFT_TYPES, 'none'),
+          rarity: pick(gift.rarity, REWARD_RARITIES, 'magic'),
+          amount: clamp(gift.amount, 1, 9999, 50)
+        },
+        quest:
+          quest && typeof quest === 'object'
+            ? {
+                title: text(quest.title || 'A favour', 60),
+                target: pick(quest.target, ['any', ...MONSTER_KINDS], 'any'),
+                count: clamp(quest.count, 1, 200, 10),
+                gold: clamp(quest.gold, 0, 9999, 100),
+                rarity: pick(quest.rarity, REWARD_RARITIES, 'rare')
+              }
+            : null
+      };
+    }),
     rules: {
       goal: pick(rules.goal, GOALS, 'waves'),
       count: clamp(rules.count, 1, 99, 3),
