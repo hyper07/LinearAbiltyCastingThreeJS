@@ -22,21 +22,33 @@ export class Catalog {
   }
 
   async _load() {
+    let models = [];
     try {
       const response = await fetch(`${this.baseUrl}catalog.json`, { cache: 'no-cache' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      this.models = data.models ?? [];
+      models = data.models ?? [];
       this.materials = data.materials ?? [];
-      this.counts = data.counts ?? {};
+      this.counts = { ...(data.counts ?? {}) };
       this.themes = data.themes ?? {};
-      for (const model of this.models) {
-        model._words = normalizeWords([model.name, model.pack, ...(model.tags ?? []), ...(model.themes ?? [])].join(' '));
-      }
-      this.loaded = true;
     } catch (error) {
       console.info(`[Catalog] no asset library yet (${error.message}) — run \`npm run library:fetch\``);
+      this.counts = {};
     }
+    // "My models": uploads and AI-generated models (server/modelgen.mjs).
+    this.custom = [];
+    try {
+      const response = await fetch(`${this.baseUrl}my-models/index.json`, { cache: 'no-cache' });
+      if (response.ok) this.custom = (await response.json()).models ?? [];
+    } catch {
+      /* none yet */
+    }
+    for (const model of this.custom) this.counts[model.category] = (this.counts[model.category] ?? 0) + 1;
+    this.models = [...models, ...this.custom];
+    for (const model of this.models) {
+      model._words = normalizeWords([model.name, model.pack, ...(model.tags ?? []), ...(model.themes ?? [])].join(' '));
+    }
+    this.loaded = this.models.length > 0;
     return this;
   }
 

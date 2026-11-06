@@ -753,6 +753,7 @@ Compose reads the same `.env`. The model is *not* in the container — it lives 
 | `LLM_MODEL1` | Default planning model |
 | `LLM_TIMEOUT_MS` | Upstream timeout for chat orders (default `45000`); map design asks for up to 150 s |
 | `LIBRARY_ROOT` | The downloaded asset library, served at `/library/` (default `./library`; in Docker, the `./library` folder mounted read-only by `docker-compose.yml`) |
+| `TRIPO_API_KEY` / `MESHY_API_KEY` | Picture-to-3D generation (see [Your own models](#your-own-models--upload-or-make-3d-from-a-picture)); `MODELGEN_PROVIDER` picks one |
 | `ALLOWED_ORIGINS` | Comma-separated CORS allowlist. Only needed if the page is served from a different origin; same-origin needs none |
 
 ---
@@ -918,6 +919,45 @@ level shows its ending and offers the next level straight away. Progress is reme
 | 1 | **Frost Hollow** | Survive 3 waves | By hand: scattered pines, sculpted ridge, painted gravel road, two waiting monsters |
 | 2 | **Ember Ruins** | Defeat 25 monsters | AI fill (desert canyon temple) + hand-set rules and three spawn points |
 | 3 | **The Wyrm's Graveyard** | Defeat the Emberwyrm (wave 3) | AI fill (foggy graveyard) + a Rift Golem waiting at the gate |
+
+---
+
+## Your own models — upload or make 3D from a picture
+
+<p>
+  <img src="docs/screenshots/create-tab.jpg" width="49%" alt="The Create tab: upload a 3D file, make 3D from a picture, and the My models list" />
+  <img src="docs/screenshots/create-wear.jpg" width="49%" alt="An uploaded Mixamo-rigged body worn by the Mage class in the Look picker" />
+</p>
+
+**Main menu → Create** brings your own 3D models into the game:
+
+- **Upload a 3D model** — GLB, glTF, FBX or OBJ (converted to GLB in the browser). Choose what it
+  is: **My character**, or a **map object** in any category (tree, rock, building, prop…).
+- **Make 3D from a picture** — a PNG, JPEG or WebP of a character or object goes to
+  [Tripo3D](https://developers.tripo3d.ai) or [Meshy](https://docs.meshy.ai), which build a textured
+  3D model in 1–3 minutes. For **My character** the model is also **rigged and animated
+  automatically** (idle, walk, run) — Tripo rigs with Mixamo bone names, so the game's own cast
+  animations drive it as well. If it isn't a humanoid, it is kept as a static map object instead.
+
+Everything lands in **My models** (`library/my-models/`, git-ignored like the rest of the library)
+and is usable straight away:
+
+| As | Where |
+| --- | --- |
+| Your character | **Appearance → Look** (★ entries) or **Wear** in My models — any class can wear it, keeping the class's bonuses |
+| Map objects | The level editor's model browser (search its name) and AI-built maps (theme `custom`) |
+| NPCs | The **Look** list of an NPC in the level editor |
+
+Characters need a skeleton. The easy route for any humanoid mesh is to auto-rig it free at
+[mixamo.com](https://www.mixamo.com), download as FBX, and upload that: Mixamo-rigged bodies use the
+game's own idle and cast animations. Bodies rigged some other way play the clips they bring.
+
+**Setup for picture-to-3D:** put **one** key in `.env` and restart `npm run dev` —
+`TRIPO_API_KEY` ([get one](https://developers.tripo3d.ai/en/keys)) or `MESHY_API_KEY`
+([get one](https://www.meshy.ai/developers/keys), needs prepaid API credits). The key stays on the
+dev server, never in the browser. Rough cost per model: Tripo ~$0.30 for an object, ~$0.85 for a
+rigged character with three animations; Meshy ~30 credits for an object, ~45 for a character.
+`MODELGEN_PROVIDER=mock` runs the whole flow offline with a bundled model, for testing.
 
 ---
 
@@ -1155,6 +1195,7 @@ src/
   ui/             HUD, GameHUD (the run), ChatPanel (the commander), MainMenu,
                   EditorPanel + StoryPanel (level editor, story scenes),
                   DialoguePanel, InventoryPanel, WorldLabels (floating names),
+                  ModelStudio (the Create tab),
                   lil-gui editor, preset manager, styles
   utils/          Maths, seeded RNG, colour cache, pooling, disposal, shader patching
   world/          Environment (stage lighting), floor, dust, contact shadows,
@@ -1166,7 +1207,8 @@ src/
 public/levels/    Campaign levels (<id>.json) and their order (index.json) — written by the editor
 scripts/library/  Asset-library downloader (fetch), indexer (index), auto-download hook (ensure)
 library/          The downloaded 3D asset library + catalog.json (git-ignored, fetched)
-server/           The standalone AI bridge for production (zero dependencies)
+server/           The standalone AI bridge for production (zero dependencies), and
+                  modelgen.mjs — uploads and picture-to-3D (Tripo3D / Meshy), shared with dev
 Dockerfile        Two stages: build the client, then serve it beside the bridge
 docker-compose.yml
 ```

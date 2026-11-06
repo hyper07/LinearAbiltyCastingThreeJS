@@ -193,8 +193,45 @@ export function saveLook(classId, lookId) {
   }
 }
 
+/**
+ * Bodies from "My models" (uploads and generated characters), registered once
+ * the catalog has loaded. Ids are `custom:<slug>`.
+ * @type {Record<string, { label: string, path: string, rig: string, animations: string[] }>}
+ */
+export const CUSTOM_LOOKS = {};
+
+export function registerCustomLooks(models) {
+  for (const key of Object.keys(CUSTOM_LOOKS)) delete CUSTOM_LOOKS[key];
+  for (const m of models) {
+    if (!m.rigged || (m.rig !== 'mixamo' && !m.animations?.length)) continue;
+    CUSTOM_LOOKS[`custom:${m.slug}`] = { label: m.name, path: `./library/${m.file}`, rig: m.rig, animations: m.animations ?? [] };
+  }
+  return CUSTOM_LOOKS;
+}
+
+/** Which clip in a model plays idle, walk, run and the casts — by name. */
+function guessClips(names) {
+  const find = (re, fallback) => names.find((n) => re.test(n)) ?? fallback;
+  const idle = find(/idle/i, names[0]);
+  const attack = find(/attack|slash|shoot|cast|fire|punch/i, idle);
+  return { idle, walk: find(/walk/i, null), run: find(/run|sprint/i, null), casts: { cast1: attack, cast2: attack, cast3: attack } };
+}
+
+/** The rig adapter and motion set a look needs. */
+export function lookRig(lookId) {
+  const custom = CUSTOM_LOOKS[lookId];
+  if (!custom) return { rig: 'kaykit', motionDataset: 'kaykit-locomotion' };
+  return custom.rig === 'mixamo' ? { rig: 'mixamo', motionDataset: 'caster-locomotion' } : { rig: 'kaykit', motionDataset: null };
+}
+
 /** The `model` block for a class wearing a given body. */
 export function lookModel(lookId, tint) {
+  const custom = CUSTOM_LOOKS[lookId];
+  if (custom) {
+    return custom.rig === 'mixamo'
+      ? { format: 'glb-mixamo', idle: custom.path, scale: 1, targetHeight: 1.8, tint }
+      : { format: 'glb', idle: custom.path, scale: 1, targetHeight: 1.8, tint, animationClips: guessClips(custom.animations) };
+  }
   const look = LOOKS[lookId] ?? LOOKS.knight;
   return {
     format: 'glb',

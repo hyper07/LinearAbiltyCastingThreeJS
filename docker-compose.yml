@@ -25,11 +25,17 @@ services:
       # Only needed if the page is served from a *different* origin than this
       # container. Same-origin (the default) needs no CORS.
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      # Image → 3D model generation (optional): one of these keys.
+      TRIPO_API_KEY: ${TRIPO_API_KEY:-}
+      MESHY_API_KEY: ${MESHY_API_KEY:-}
+      MODELGEN_PROVIDER: ${MODELGEN_PROVIDER:-}
     # A model on the host rather than the LAN: point the base URL at
     # http://host.docker.internal:1234/v1 and keep this mapping.
     # The 3D asset library, downloaded on the host with `npm run library:fetch`.
     volumes:
       - ./library:/app/library:ro
+      # Uploads and generated models are written here, so this one is writable.
+      - ./library/my-models:/app/library/my-models
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     restart: unless-stopped

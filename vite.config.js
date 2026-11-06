@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 import { libraryState, startFetch } from './scripts/library/ensure.mjs';
+import { createModelStore } from './server/modelgen.mjs';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -16,6 +17,24 @@ const LIBRARY_MIME = {
   '.ktx2': 'image/ktx2',
   '.md': 'text/markdown; charset=utf-8'
 };
+
+/**
+ * "My models": uploads and AI-generated models (server/modelgen.mjs). The
+ * generator API keys stay here, server-side, like the LLM key.
+ */
+function modelStudio(env) {
+  const store = createModelStore({
+    libraryRoot: resolve('library'),
+    env: { ...process.env, ...env },
+    log: (message) => console.log(message)
+  });
+  const middleware = (server) => {
+    server.middlewares.use((req, res, next) => {
+      store.handle(req, res).then((handled) => handled || next(), next);
+    });
+  };
+  return { name: 'model-studio', configureServer: middleware, configurePreviewServer: middleware };
+}
 
 /**
  * Level files for the editor and campaign (dev only).
@@ -390,6 +409,6 @@ export default defineConfig(({ mode }) => {
     },
     // Large binary assets (FBX / HDR) live in /public and are served untouched.
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
-    plugins: [llmBridge(env), assetLibrary(), levelStore()]
+    plugins: [llmBridge(env), assetLibrary(), levelStore(), modelStudio(env)]
   };
 });

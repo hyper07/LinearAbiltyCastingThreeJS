@@ -174,8 +174,19 @@ export class CharacterController {
     const fbxScale = modelCfg.scale ?? 0.01;
     const targetHeight = modelCfg.targetHeight ?? 1.78;
 
+    // A Mixamo-rigged GLB (an upload, or a generated character) wears the
+    // Mixamo body path: its own mesh, the game's idle and cast clips.
+    const body =
+      modelCfg.format === 'glb-mixamo'
+        ? Promise.all([assets.loadGLB(modelCfg.idle), assets.loadFBX('./models/Idle.fbx')]).then(([gltf, idle]) => {
+            const root = gltf.scene;
+            normalizeMixamoBones(root);
+            root.animations = idle.animations ?? [];
+            return root;
+          })
+        : assets.loadFBX(modelCfg.idle ?? './models/Idle.fbx');
     const [fbx, skin, ...extraFiles] = await Promise.all([
-      assets.loadFBX(modelCfg.idle ?? './models/Idle.fbx'),
+      body,
       modelCfg.texture ? assets.loadTexture(modelCfg.texture) : Promise.resolve(null),
       ...castClips.map((name) => assets.loadFBX(castClipUrl(name))),
       ...locoClipIds.map(([, clipId]) => this._loadLocomotionClipOptional(assets, clipId))
@@ -426,9 +437,15 @@ export class CharacterController {
 
     // Start from the bind pose so the clone is not inheriting a half-updated frame
     // from whatever the live character was doing when the preview opened.
-    fbx.traverse((node) => {
-      if (node.isSkinnedMesh && node.skeleton) node.skeleton.pose();
-    });
+    // Mixamo-rigged GLBs (uploads, often converted from FBX) carry scaled
+    // armature nodes that pose() resolves against the clone's not-yet-updated
+    // parents, collapsing the body to a point; their idle sets every bone on
+    // the first frame anyway, so they keep the cloned frame instead.
+    if (this.definition?.model?.format !== 'glb-mixamo') {
+      fbx.traverse((node) => {
+        if (node.isSkinnedMesh && node.skeleton) node.skeleton.pose();
+      });
+    }
     fbx.updateWorldMatrix(true, true);
 
     this.height = source.height;
@@ -867,4 +884,27 @@ export class CharacterController {
     this.weaponVisual.clear();
     disposeObject(this.root);
   }
+}
+
+/** The bones Mixamo names `mixamorig<Name>`. */
+const MIXAMO_BONES = [
+  'Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'HeadTop_End',
+  ...['Left', 'Right'].flatMap((s) => [
+    `${s}Shoulder`, `${s}Arm`, `${s}ForeArm`, `${s}Hand`, `${s}UpLeg`, `${s}Leg`, `${s}Foot`, `${s}ToeBase`, `${s}Toe_End`,
+    ...['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'].flatMap((f) => [1, 2, 3, 4].map((n) => `${s}Hand${f}${n}`))
+  ])
+];
+const MIXAMO_SET = new Set(MIXAMO_BONES);
+
+/**
+ * Give a Mixamo-style skeleton the exact names the game's clips target
+ * (`mixamorigHips`…). Files differ: "mixamorig:Hips" arrives as
+ * "mixamorigHips" already, some exporters drop the prefix ("Hips") or number
+ * it ("mixamorig1Hips"). Renaming bones is safe — skinning binds objects.
+ */
+export function normalizeMixamoBones(root) {
+  root.traverse((node) => {
+    const match = node.name?.match(/^(?:mixamorig\d*)?(.+)$/);
+    if (match && MIXAMO_SET.has(match[1])) node.name = `mixamorig${match[1]}`;
+  });
 }

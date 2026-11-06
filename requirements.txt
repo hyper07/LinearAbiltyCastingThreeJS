@@ -27,6 +27,8 @@
 #                    `npm run dev`; set LIBRARY_AUTO_FETCH=0 to skip it
 #   tar              built into macOS, Linux and Windows 10 (1803+) — used
 #                    to unpack the asset packs
+#   Tripo3D or Meshy API key   only for turning pictures into 3D models
+#                    (main menu → Create); uploads work without one
 #
 # ---- npm libraries (installed automatically by `npm install`) -----------
 #

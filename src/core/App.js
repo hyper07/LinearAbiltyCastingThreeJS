@@ -61,7 +61,7 @@ import { getColor } from '../utils/color.js';
 import { DecalType } from '../effects/GroundDecals.js';
 import { settings, ELEMENTS } from '../config/settings.js';
 import { platform, classBonuses, LOOKS } from '../platform/index.js';
-import { lookModel, saveLook } from '../platform/character/classes.js';
+import { CUSTOM_LOOKS, lookModel, lookRig, registerCustomLooks, saveLook, savedLook } from '../platform/character/classes.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
 
@@ -223,7 +223,11 @@ export class App {
       getLevels: () => this.levels,
       onPlayLevel: (id) => this.playCampaignLevel(id),
       onOpenEditor: (options) => this.openEditor(options),
-      onLookChange: (characterId, lookId) => this.setLook(characterId, lookId)
+      onLookChange: (characterId, lookId) => this.setLook(characterId, lookId),
+      onMyModelsChanged: async () => {
+        await this.catalog.refresh();
+        this._registerMyModels();
+      }
     });
     this.story = new StoryPanel(hudRoot);
     this.goalPill = document.createElement('div');
@@ -655,15 +659,29 @@ export class App {
     }
   }
 
+  /** Make "My models" characters wearable, and put saved custom looks back on. */
+  _registerMyModels() {
+    registerCustomLooks(this.catalog.custom ?? []);
+    for (const character of platform.characters.all()) {
+      const look = character.classSpec ? savedLook(character.id) : null;
+      if (look && CUSTOM_LOOKS[look]) {
+        character.look = look;
+        character.model = lookModel(look, character.model?.tint);
+        Object.assign(character, lookRig(look));
+      }
+    }
+  }
+
   /**
    * Dress a class in another body (any of the nine KayKit looks), remembered
    * per class in this browser. Reloads the mesh if it is the one on screen.
    */
   async setLook(characterId, lookId) {
     const character = platform.characters.get(characterId);
-    if (!character || !LOOKS[lookId] || character.rig !== 'kaykit') return;
+    if (!character || !character.classSpec || !(LOOKS[lookId] || CUSTOM_LOOKS[lookId])) return;
     character.look = lookId;
     character.model = lookModel(lookId, character.model?.tint);
+    Object.assign(character, lookRig(lookId));
     saveLook(characterId, lookId);
     if (platform.getActiveCharacter()?.id === characterId && this._assets) {
       await this.character.reload(this._assets, character);
@@ -1248,6 +1266,9 @@ export class App {
     this.ruins.useStoneTextures(this.ground.textures);
     this.ruins.build();
     this.monsters.obstacles = this.ruins.obstacles;
+
+    await this.catalog.ready;
+    this._registerMyModels();
 
     this.loading.setProgress(0.6, 'Loading character…');
     await this.character.load(assets);

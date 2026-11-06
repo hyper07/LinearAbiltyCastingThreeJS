@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
+import { createModelStore } from './modelgen.mjs';
 
 /**
  * The AI bridge, as a standalone service.
@@ -60,6 +61,8 @@ const MIME = {
 
 /** The downloaded 3D asset library (`npm run library:fetch`), served at /library/. */
 const LIBRARY_ROOT = resolve(process.env.LIBRARY_ROOT ?? './library');
+/** Uploads and AI-generated models, saved under the library (see modelgen.mjs). */
+const models = createModelStore({ libraryRoot: LIBRARY_ROOT });
 
 const json = (res, status, body) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -237,6 +240,8 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname.startsWith('/api/ai')) {
     return handleApi(req, res, url.pathname.slice('/api/ai'.length).replace(/\/+$/, ''));
   }
+
+  if (url.pathname.startsWith('/api/models') && (await models.handle(req, res))) return;
 
   // Levels are static files in the build (dist/levels/); only `npm run dev` can write them.
   if (url.pathname === '/api/levels') {

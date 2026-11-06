@@ -1,6 +1,8 @@
-import { AnimationMixer, CapsuleGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry } from 'three';
+import { AnimationMixer, Box3, CapsuleGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { normalizeMixamoBones } from '../animation/CharacterController.js';
 
 /**
  * Helper NPCs standing in a level: a guide who talks (scripted lines, or the
@@ -22,10 +24,21 @@ export const TALK_RANGE = 2.8;
 
 const loader = new GLTFLoader();
 const templates = new Map();
+let mixamoIdle = null;
+/** The game's own Mixamo idle, for rigged bodies that bring no clips of their own. */
+const loadMixamoIdle = () => (mixamoIdle ??= new FBXLoader().loadAsync('./models/Idle.fbx').then((fbx) => fbx.animations?.[0] ?? null));
 
 /** Rigged characters in the library that can stand in as NPCs. */
 export function npcModels(catalog) {
-  return catalog.models.filter((m) => m.category === 'character' && m.rigged && m.animations?.length);
+  // Humanoid bodies only: KayKit's adventurers and skeletons, and your own
+  // characters. (Some packs ship rigged props that the catalog files as characters.)
+  return catalog.models.filter(
+    (m) =>
+      m.category === 'character' &&
+      m.rigged &&
+      (m.source === 'kaykit' || m.source === 'custom') &&
+      (m.animations?.length || m.rig === 'mixamo')
+  );
 }
 
 export class Npc {
@@ -54,9 +67,11 @@ export class Npc {
         if (!templates.has(model.id)) templates.set(model.id, loader.loadAsync(catalog.url(model.file)));
         const gltf = await templates.get(model.id);
         const body = cloneSkinned(gltf.scene);
-        // Bind-pose boxes include outstretched arms; ~1.85 m tall is about right.
-        const scale = 1.85 / Math.max(0.5, model.size[1] * 0.82);
-        body.scale.setScalar(scale);
+        // Measure the body as it actually stands (skinning included) — catalog
+        // boxes can be in bind space, sideways for some converted files.
+        body.updateMatrixWorld(true);
+        const height = new Box3().setFromObject(body, true).getSize(new Vector3()).y;
+        body.scale.setScalar(1.85 / Math.max(0.05, height));
         body.traverse((node) => {
           if (node.isMesh) {
             node.castShadow = true;
@@ -65,7 +80,11 @@ export class Npc {
         });
         this.root.add(body);
         this.mixer = new AnimationMixer(body);
-        const idle = gltf.animations.find((a) => a.name === 'Idle') ?? gltf.animations.find((a) => /idle/i.test(a.name)) ?? gltf.animations[0];
+        let idle = gltf.animations.find((a) => a.name === 'Idle') ?? gltf.animations.find((a) => /idle/i.test(a.name)) ?? gltf.animations[0];
+        if (!idle && model.rig === 'mixamo') {
+          normalizeMixamoBones(body);
+          idle = await loadMixamoIdle();
+        }
         if (idle) this.mixer.clipAction(idle).play();
         return;
       } catch (error) {

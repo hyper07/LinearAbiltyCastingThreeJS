@@ -5,7 +5,8 @@ import { WEAPON_CATEGORY_META, categoryGlyph } from '../platform/weapon/WeaponDe
 import { CharacterPreview } from './CharacterPreview.js';
 import { progress } from '../levels/LevelStore.js';
 import { describeGoal } from '../levels/Level.js';
-import { LOOKS, describeBonuses } from '../platform/character/classes.js';
+import { CUSTOM_LOOKS, LOOKS, describeBonuses } from '../platform/character/classes.js';
+import { ModelStudio } from './ModelStudio.js';
 
 /**
  * Pre-game screen — pick a character and weapon, then enter the arena.
@@ -35,6 +36,7 @@ export class MainMenu {
     this.onPlayLevel = callbacks.onPlayLevel ?? (() => {});
     this.onOpenEditor = callbacks.onOpenEditor ?? (() => {});
     this.onLookChange = callbacks.onLookChange ?? (async () => {});
+    this.onMyModelsChanged = callbacks.onMyModelsChanged ?? (async () => {});
     this._worldBusy = false;
     this._visible = false;
     this._characterId = platform.getActiveCharacter()?.id ?? 'caster';
@@ -63,6 +65,7 @@ export class MainMenu {
           <button class="main-menu__nav-btn" type="button" data-panel="stats">Stats</button>
           <button class="main-menu__nav-btn" type="button" data-panel="world">World</button>
           <button class="main-menu__nav-btn" type="button" data-panel="campaign">Campaign</button>
+          <button class="main-menu__nav-btn" type="button" data-panel="create">Create</button>
         </nav>
 
         <div class="main-menu__body">
@@ -137,6 +140,11 @@ export class MainMenu {
               <div class="main-menu__world-actions" data-world-edit hidden>
                 <button class="main-menu__world-btn" type="button" data-world-open-editor>Edit this map in the level editor</button>
               </div>
+            </div>
+
+            <div class="main-menu__panel" data-panel="create" hidden>
+              <h2 class="main-menu__section-title">Create</h2>
+              <div data-studio></div>
             </div>
 
             <div class="main-menu__panel" data-panel="campaign" hidden>
@@ -334,6 +342,18 @@ export class MainMenu {
     if (panelId === 'appearance') this._renderAppearancePanel();
     if (panelId === 'world') this._renderLibraryStatus();
     if (panelId === 'campaign') this._renderCampaign();
+    if (panelId === 'create') {
+      this.studio ??= new ModelStudio(this.root.querySelector('[data-studio]'), {
+        onChanged: () => this.onMyModelsChanged(),
+        onWear: async (lookId) => {
+          await this.onLookChange(this._characterId, lookId);
+          this.preview.setCharacter(this._characterId);
+          this._renderAppearancePanel();
+        },
+        currentClass: () => this._characterId
+      });
+      this.studio.refresh();
+    }
   }
 
   /* ---- World: AI-built maps from the asset library ---- */
@@ -602,9 +622,10 @@ export class MainMenu {
   /** Classes can wear any of the nine bodies; the class's own picks come first. */
   _renderLookPicker() {
     const character = platform.characters.get(this._characterId);
-    if (!character || character.rig !== 'kaykit') return;
+    if (!character?.classSpec) return;
     const suggested = character.classSpec?.looks ?? [];
-    const order = [...suggested, ...Object.keys(LOOKS).filter((id) => !suggested.includes(id))];
+    const order = [...suggested, ...Object.keys(LOOKS).filter((id) => !suggested.includes(id)), ...Object.keys(CUSTOM_LOOKS)];
+    const labelOf = (id) => LOOKS[id]?.label ?? `★ ${CUSTOM_LOOKS[id]?.label ?? id}`;
     const box = document.createElement('div');
     box.className = 'main-menu__looks';
     const title = document.createElement('span');
@@ -619,8 +640,8 @@ export class MainMenu {
       b.className = 'main-menu__look';
       b.classList.toggle('is-active', character.look === id);
       b.classList.toggle('is-suggested', suggested.includes(id));
-      b.textContent = LOOKS[id].label;
-      b.title = suggested.includes(id) ? `Suits the ${character.label}` : 'Any class can wear any look';
+      b.textContent = labelOf(id);
+      b.title = CUSTOM_LOOKS[id] ? 'From My models' : suggested.includes(id) ? `Suits the ${character.label}` : 'Any class can wear any look';
       b.addEventListener('click', async () => {
         for (const other of grid.querySelectorAll('button')) other.disabled = true;
         try {
