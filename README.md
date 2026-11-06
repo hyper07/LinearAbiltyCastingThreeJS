@@ -4,6 +4,8 @@ A skillshot VFX sandbox built with **Three.js**, **Vite** and hand-written **GLS
 
 ![Nova Beam mid-burn, with the HUD's ability bar, live stats and contact card](docs/screenshots/hud.jpg)
 
+> **On Windows?** Jump to [Running on Windows](#running-on-windows).
+
 Six abilities and two ways to aim them. Four are **line casts**: press the key to arm, a
 League-of-Legends style arrow appears on the ground and swings with the mouse, click to fire. The
 other two are **far casts**: the arrow is replaced by a circle with a deliberately thick boundary
@@ -88,6 +90,9 @@ References for the look: `icecast.jpg`, `thundercast.jpg`, `superbeam.jpg` and
 
 ## Quick start
 
+Requires **Node.js 22.12+** (or 20.19+) and Git. See [requirements.txt](requirements.txt) for the
+full list. The JavaScript libraries are installed by npm, not pip.
+
 ```bash
 npm install
 ```
@@ -105,6 +110,57 @@ npm run build
 ```bash
 npm run preview
 ```
+
+### Running on Windows
+
+Everything runs natively on Windows 10/11. You don't need WSL. Use **PowerShell** or **Command
+Prompt**. The commands below are PowerShell.
+
+**1. Install Node.js and Git** (once). Either download the installers from
+[nodejs.org](https://nodejs.org) (pick **22 LTS**) and [git-scm.com](https://git-scm.com), or:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+winget install Git.Git
+```
+
+Close and reopen the terminal afterwards so `node` and `git` are on the `PATH`, then check:
+
+```powershell
+node -v    # must print v22.12 or newer (v20.19+ also works)
+npm -v
+```
+
+**2. Get the code and install the libraries.** `npm install` reads `package.json` and installs
+three, lil-gui and Vite into `node_modules\`. There is nothing to `pip install`.
+
+```powershell
+git clone https://github.com/achrefelouafi/LinearAbiltyCastingThreeJS.git
+cd LinearAbiltyCastingThreeJS
+npm install
+```
+
+**3. Run it.**
+
+```powershell
+npm run dev
+```
+
+Open <http://127.0.0.1:5173> in **Chrome** or **Edge**. Stop the server with `Ctrl+C`.
+
+To make an optimised build and serve it locally instead, run `npm run build` and then
+`npm run preview`. Then open the URL it prints (default <http://127.0.0.1:4173>).
+
+#### Windows troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `npm : File ...\npm.ps1 cannot be loaded because running scripts is disabled on this system` | PowerShell's execution policy. Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or use Command Prompt (`cmd`) instead. |
+| `'node' is not recognized as an internal or external command` | Node was installed after the terminal was opened. Close every terminal window (and VS Code) and open a new one. |
+| `Cannot find module '@rolldown/binding-win32-x64-msvc'` or other native-binding errors | `node_modules` was copied from a Mac/Linux machine. Those binaries are per-OS. Delete it and reinstall: `Remove-Item -Recurse -Force node_modules; npm install`. Never copy `node_modules` between machines. |
+| `npm install` or `npm run dev` complains about the Node version | Vite 8 needs Node 20.19+ or 22.12+. Upgrade with `winget upgrade OpenJS.NodeJS.LTS`. |
+| Black canvas, or very low FPS on a laptop | The browser is on the integrated GPU or has hardware acceleration off. Turn on *Settings → System → Use graphics acceleration* in Chrome/Edge. Then in *Windows Settings → System → Display → Graphics*, set the browser to **High performance**. `chrome://gpu` should list WebGL as *Hardware accelerated*. |
+| `Port 5173 is already in use` | Another dev server is running. Close it, or use `npm run dev -- --port 5174`. |
 
 ### Assets
 
