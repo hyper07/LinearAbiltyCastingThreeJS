@@ -158,10 +158,17 @@ function registerSkill(skill, resource, abilities) {
 /* Classes                                                                 */
 /* ---------------------------------------------------------------------- */
 
-/** Skill ids of a design, branch by branch: `<classId>-1` … `<classId>-6`. */
+/**
+ * Skill ids of a design, branch by branch: `<classId>-1` … `<classId>-6` —
+ * or, for a skill reused from the library, that skill's own id (`ice`,
+ * `forge-lunaras-veil-2`…), so it is shared rather than copied.
+ */
 export function skillIds(design) {
-  return design.branches.flatMap((branch, b) => branch.skills.map((_, t) => `${design.id}-${b * 2 + t + 1}`));
+  return design.branches.flatMap((branch, b) => branch.skills.map((skill, t) => skill.ref ?? `${design.id}-${b * 2 + t + 1}`));
 }
+
+/** The platform skill id (loadouts) for an ability id. */
+const platformSkillId = (id) => SKILL_BY_ABILITY[id]?.id ?? `forged-${id}`;
 
 /**
  * Make a design playable: its skills, tree, loadout and character.
@@ -173,9 +180,13 @@ export function skillIds(design) {
 export function registerForgedClass(design, { abilities } = {}) {
   const ids = skillIds(design);
   design.branches.forEach((branch, b) =>
-    branch.skills.forEach((skill, t) =>
-      registerSkill({ ...skill, id: ids[b * 2 + t], tier: t + 1 }, design.resource, abilities)
-    )
+    branch.skills.forEach((skill, t) => {
+      const id = ids[b * 2 + t];
+      // A reused skill is registered once, by whoever made it — unless it is
+      // not loaded here yet (shared from another player's class).
+      if (skill.ref && ELEMENT_META[id]) return;
+      registerSkill({ ...skill, id, tier: t + 1 }, design.resource, abilities);
+    })
   );
 
   const style = CLASS_SPECS.find((c) => c.id === design.style) ?? CLASS_SPECS[0];
@@ -213,7 +224,7 @@ export function registerForgedClass(design, { abilities } = {}) {
   CHARACTER_ATTACK_KITS[design.id] = CHARACTER_ATTACK_KITS[style.id];
   platform.loadouts.register(
     `class-${design.id}`,
-    createLoadout(`class-${design.id}`, { label: design.name, skills: ids.map((id) => `forged-${id}`), weapon: style.weapon })
+    createLoadout(`class-${design.id}`, { label: design.name, skills: ids.map(platformSkillId), weapon: style.weapon })
   );
   platform.characters.register(design.id, makeClassCharacter(spec));
   return spec;

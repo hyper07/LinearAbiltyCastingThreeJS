@@ -223,9 +223,12 @@ export function normalizeDesign(raw = {}, { description = '', id } = {}) {
       name: clean(branch.name, 18) || ['First', 'Second', 'Third'][b],
       skills: [0, 1].map((t) => {
         const skill = branch.skills?.[t] ?? {};
-        let base = BASE_IDS.includes(skill.base) && !used.has(skill.base) ? skill.base : BASE_IDS.find((x) => !used.has(x));
+        // A skill reused from the library keeps its own base (it may share one with another skill here).
+        const ref = typeof skill.ref === 'string' && /^[a-z0-9][a-z0-9-]{0,60}$/.test(skill.ref) && BASE_IDS.includes(skill.base) ? skill.ref : null;
+        let base = ref ? skill.base : BASE_IDS.includes(skill.base) && !used.has(skill.base) ? skill.base : BASE_IDS.find((x) => !used.has(x));
         used.add(base);
         return {
+          ...(ref ? { ref, refStatus: clean(skill.refStatus, 12) || undefined } : {}),
           name: clean(skill.name, 26) || `${name} ${b * 2 + t + 1}`,
           base,
           color: hex(skill.color, color),

@@ -53,6 +53,14 @@ Everything in the preview is editable before saving:
 **Generate again** asks for a new design from the same idea. The **Your classes** list on the left
 re-opens a saved class for editing, chooses it, or deletes it.
 
+## Reusing what already exists
+
+As it designs, the forge asks the [shared library](library.md) what is already there. Under each new
+skill it lists the most similar existing skills (official or shared) and how alike they are; **Use
+it** makes this class reuse that skill instead of a near-copy (**Make my own instead** undoes it).
+Above the class it lists classes already close to this one. **Share in the library** (on by default)
+publishes the class and its new skills when you save; untick it to keep them as drafts.
+
 ## The AI, and without it
 
 Generation uses the AI model set up for the game (LM Studio — see

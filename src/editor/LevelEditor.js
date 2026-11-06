@@ -14,6 +14,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { settings } from '../config/settings.js';
 import { CATEGORIES } from '../library/categories.js';
 import { createLevel, normalizeLevel } from '../levels/Level.js';
+import { library } from '../library/Library.js';
 import { LevelStore } from '../levels/LevelStore.js';
 import { mulberry32 } from '../world/Terrain.js';
 import { EditorPanel } from '../ui/EditorPanel.js';
@@ -227,6 +228,8 @@ export class LevelEditor {
     const level = this.currentLevel();
     const campaign = await this.store.save(level);
     this.level.id = level.id;
+    // Into the shared library too (official campaign levels are already there).
+    library.publishLevel(level, 'shared');
     this.dirty = false;
     this.panel.refresh();
     return campaign;

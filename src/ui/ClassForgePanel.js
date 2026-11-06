@@ -1,7 +1,8 @@
 import { settings, ELEMENT_META, CastShape } from '../config/settings.js';
 import { ELEMENT_SIGILS } from './glyphs.js';
-import { SKILL_BASES, STYLES } from '../forge/ClassForge.js';
-import { LOOKS, describeBonuses } from '../platform/character/classes.js';
+import { SKILL_BASES, STYLES, skillIds } from '../forge/ClassForge.js';
+import { CLASS_SPECS, LOOKS, describeBonuses } from '../platform/character/classes.js';
+import { classFingerprint, skillFingerprint } from '../library/fingerprints.js';
 
 const EXAMPLES = [
   'A pirate captain who fights with cannon fire and the sea',
@@ -69,6 +70,7 @@ export class ClassForgePanel {
         <footer class="forge__foot" data-foot hidden>
           <button type="button" data-regenerate>Generate again</button>
           <span class="forge__spacer"></span>
+          <label class="forge__share" title="Shared classes and their skills go into the library, where others can play them and reuse the skills"><input type="checkbox" data-share checked /> Share in the library</label>
           <button type="button" data-save>Save</button>
           <button type="button" class="forge__primary" data-save-play>Save and choose</button>
         </footer>
@@ -137,8 +139,14 @@ export class ClassForgePanel {
     if (!this.design) return;
     this.design = this.actions.normalize(this.design);
     try {
-      await this.actions.save(this.design);
-      this._status(`Saved “${this.design.name}”. It is in the class list under Created.`, 'is-ok');
+      const share = this.$('[data-share]').checked;
+      const published = await this.actions.save(this.design, { share });
+      const near = (published?.similar ?? []).filter((a) => a.kind === 'class');
+      const where = published?.error ? ' (the library is offline — saved locally only)' : share ? ' and shared in the library' : ' (a draft in the library — only you see it)';
+      this._status(
+        `Saved “${this.design.name}”${where}. It is in the class list under Created.${near.length ? ` Close to: ${near.map((a) => `${a.name} (${Math.round(a.score * 100)}%)`).join(', ')}.` : ''}`,
+        'is-ok'
+      );
       await this.refreshList();
       if (choose) {
         await this.actions.select(this.design.id);
@@ -249,7 +257,68 @@ export class ClassForgePanel {
       tree.append(col);
     });
 
-    preview.append(top, options, bonuses, tree);
+    const banner = el('div', 'forge__similar');
+    banner.hidden = true;
+    preview.append(top, banner, options, bonuses, tree);
+    this._suggestClasses(banner);
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Reuse: what already exists                                            */
+  /* -------------------------------------------------------------------- */
+
+  /** Cached library lookups, keyed by what was asked. */
+  async _similar(kind, fp, options) {
+    this._cache ??= new Map();
+    const key = `${kind}:${JSON.stringify(fp)}:${JSON.stringify(options)}`;
+    if (!this._cache.has(key)) this._cache.set(key, this.actions.similar?.(kind, fp, options) ?? Promise.resolve([]));
+    return this._cache.get(key);
+  }
+
+  /** Classes like this one that already exist — play one instead? */
+  async _suggestClasses(banner) {
+    const d = this.design;
+    const spec = { id: d.id, label: d.name, tagline: d.tagline, style: d.style, resource: d.resource, armorClass: CLASS_SPECS.find((c) => c.id === d.style)?.armorClass, bonuses: d.bonuses };
+    const near = await this._similar('class', classFingerprint(spec, d.branches.flatMap((b) => b.skills)), { exclude: [`class:${d.id}`], min: 0.5, limit: 3 });
+    if (this.design !== d || !near.length) return;
+    banner.hidden = false;
+    banner.append(el('strong', null, 'Already in the library:'));
+    for (const a of near) {
+      const chip = el('button', `forge__match is-${a.status}`);
+      chip.type = 'button';
+      chip.append(el('span', null, a.name), el('small', null, `${a.status} · ${Math.round(a.score * 100)}% alike${a.uses ? ` · used ${a.uses}×` : ''}`));
+      chip.title = `Choose ${a.name} instead of making a new class`;
+      chip.addEventListener('click', async () => {
+        const id = a.id.replace(/^class:/, '');
+        await this.actions.select(id);
+        this.toggle(false);
+      });
+      banner.append(chip);
+    }
+  }
+
+  /** Skills like this one that already exist — reuse one instead of making a near-copy. */
+  async _suggestSkills(skill, box) {
+    if (skill.ref) return;
+    const own = skillIds(this.design).map((id) => `skill:${id}`);
+    const near = await this._similar('skill', skillFingerprint(null, skill), { exclude: own, min: 0.55, limit: 2 });
+    if (!box.isConnected || skill.ref || !near.length) return;
+    box.hidden = false;
+    box.append(el('small', null, 'Similar skill already exists:'));
+    for (const a of near) {
+      const use = el('button', `forge__match is-${a.status}`);
+      use.type = 'button';
+      use.append(el('span', null, a.name), el('small', null, `${a.status} · ${Math.round(a.score * 100)}%${a.uses ? ` · used ${a.uses}×` : ''} — use it`));
+      use.title = `Use ${a.name} here instead of a new skill. It stays one skill everywhere, so its upgrades and fixes reach every class that uses it.`;
+      use.addEventListener('click', async () => {
+        const r = await this.actions.getAsset(a.id);
+        const data = r.asset?.data;
+        if (!data) return;
+        Object.assign(skill, { ref: data.id, refStatus: a.status, name: data.name, base: data.base, color: data.color ?? skill.color, description: data.description ?? skill.description });
+        this.render();
+      });
+      box.append(use);
+    }
   }
 
   _skillCard(skill, tier, starts) {
@@ -299,7 +368,25 @@ export class ClassForgePanel {
     const ability = settings[skill.base] ?? {};
     const stats = el('p', 'forge__stats', `${combat.damage ?? 0} dmg · ${ability.cooldown ?? 0}s cooldown · ${meta.cast === CastShape.SELF ? `${ability.zoneRadius ?? 0} m around` : `${ability.range ?? 0} m`}`);
 
-    card.append(head, tags, desc, base, stats);
+    const suggest = el('div', 'forge__suggest');
+    suggest.hidden = true;
+    if (skill.ref) {
+      card.classList.add('is-reused');
+      for (const input of [name, color, desc, base]) input.disabled = true;
+      tags.prepend(el('span', 'is-reused', `reused · ${skill.refStatus ?? 'library'}`));
+      const unlink = el('button', 'forge__unlink', 'Make my own instead');
+      unlink.type = 'button';
+      unlink.title = 'Stop reusing it: this class gets its own copy you can rename and recolour';
+      unlink.addEventListener('click', () => {
+        delete skill.ref;
+        delete skill.refStatus;
+        this.render();
+      });
+      card.append(head, tags, desc, base, stats, unlink);
+      return card;
+    }
+    card.append(head, tags, desc, base, stats, suggest);
+    this._suggestSkills(skill, suggest);
     return card;
   }
 

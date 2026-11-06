@@ -4,6 +4,7 @@ import { extname, resolve, sep } from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 import { libraryState, startFetch } from './scripts/library/ensure.mjs';
 import { createModelStore } from './server/modelgen.mjs';
+import { libraryApi } from './server/libraryStore.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -494,7 +495,7 @@ export default defineConfig(({ mode }) => {
         // The asset library is gigabytes of files nobody edits by hand, and a
         // saved level must not reload the page out from under the editor.
         // Absolute paths: a bare `**/library/**` would also ignore src/library.
-        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`]
+        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('data')}/**`]
       }
     },
     build: {
@@ -504,6 +505,6 @@ export default defineConfig(({ mode }) => {
     },
     // Large binary assets (FBX / HDR) live in /public and are served untouched.
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
-    plugins: [llmBridge(env), assetLibrary(), levelStore(), classStore(), modelStudio(env)]
+    plugins: [llmBridge(env), assetLibrary(), levelStore(), classStore(), modelStudio(env), libraryApi()]
   };
 });

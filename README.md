@@ -228,6 +228,21 @@ when the AI is not running. See **[Class forge](docs/class-forge.md)**.
   <img src="docs/screenshots/class-forge-cast-2.jpg" width="49%" alt="An AI-designed moon priestess casting a violet ring of ice blades" />
 </p>
 
+## The shared library
+
+Every class, skill, piece of gear, weapon and level, both the game's own (**Official**) and what
+players make (**Shared**, or **Draft** until shared), lives in one library with a status badge and a
+count of how often it has been used. The Class forge checks it as it designs: under each new skill it
+suggests the most similar existing ones, and **Use it** reuses that skill instead of making a
+near-copy. Saving shares the class. Browse and search everything from the main menu (**Library**).
+Local first (SQLite through the dev server) behind an API, so a hosted database can take over later.
+See **[The shared library](docs/library.md)**.
+
+<p>
+  <img src="docs/screenshots/library.jpg" width="49%" alt="The Library window: skills with Shared and Official badges, one skill's details and its most similar skill" />
+  <img src="docs/screenshots/forge-reuse.jpg" width="49%" alt="The Class forge suggesting existing similar skills, with one reused" />
+</p>
+
 ## For parents: study games
 
 Parents can turn the game into a study game. **Tutor** NPCs ask study questions — generated math
@@ -276,6 +291,7 @@ flowchart LR
 | [Weapons](docs/weapons.md) | All 108 weapons, how each kind fights, ammo and reloading, adding a weapon |
 | [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
+| [The shared library](docs/library.md) | Official, shared and draft content; reuse and similar-asset suggestions; the API and database |
 | [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |
 | [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |
 | [Architecture](docs/architecture.md) | Project layout, how the systems fit together, performance, known rough edges |

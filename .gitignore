@@ -140,3 +140,6 @@ dist
 
 # Downloaded 3D asset library (npm run library:fetch) — fetched, never committed
 /library/
+
+# The local content library database (server/libraryStore.js) — your data, not the repo's
+/data/

@@ -32,7 +32,9 @@ import { ClassForgePanel } from '../ui/ClassForgePanel.js';
 import { WeaponFire } from '../game/WeaponFire.js';
 import { fireProfileOf } from '../platform/weapon/fire.js';
 import { designClass, normalizeDesign } from '../ai/ClassDesigner.js';
-import { registerForgedClass, unregisterForgedClass, listForgedClasses, loadForgedClass, saveForgedClass, deleteForgedClass } from '../forge/ClassForge.js';
+import { registerForgedClass, unregisterForgedClass, listForgedClasses, loadForgedClass, saveForgedClass, deleteForgedClass, skillIds } from '../forge/ClassForge.js';
+import { library, OFFICIAL_AUTHOR } from '../library/Library.js';
+import { LibraryPanel } from '../ui/LibraryPanel.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -263,6 +265,7 @@ export class App {
       getLevels: () => this.levels,
       onPlayLevel: (id) => this.playCampaignLevel(id),
       onOpenStash: () => this.inventory.openStash(),
+      onOpenLibrary: () => this.libraryPanel.toggle(true),
       onOpenEditor: (options) => this.openEditor(options),
       onLookChange: (characterId, lookId) => this.setLook(characterId, lookId),
       onMyModelsChanged: async () => {
@@ -275,21 +278,38 @@ export class App {
     this.forge = new ClassForgePanel(hudRoot, {
       design: (text) => designClass(text),
       normalize: (design) => normalizeDesign(design, { id: design.id }),
-      save: async (design) => {
+      save: async (design, { share = true } = {}) => {
         registerForgedClass(design, { abilities: this.abilities });
         await saveForgedClass(design);
         await this.mainMenu.refreshCharacters();
+        // Into the shared library: the class, and the skills it made (reused ones are counted, not copied).
+        return library.publishClass(design, skillIds(design), share ? 'shared' : 'draft');
       },
+      similar: (kind, fingerprint, options) => library.similar(kind, fingerprint, options),
+      getAsset: (id) => library.get(id),
       list: () => listForgedClasses(),
       load: async (id) => normalizeDesign(await loadForgedClass(id), { id }),
       remove: async (id) => {
         await deleteForgedClass(id);
         unregisterForgedClass(id);
+        library.remove(`class:${id}`);
         await this.mainMenu.refreshCharacters(this.mainMenu._characterId === id ? 'knight' : null);
       },
       select: (id) => this.mainMenu.refreshCharacters(id)
     });
-    this._loadForgedClasses();
+    this._forgedReady = this._loadForgedClasses();
+    this.libraryPanel = new LibraryPanel(hudRoot, {
+      selectClass: (id) => this.mainMenu.refreshCharacters(id),
+      playLevel: (id) => this.playCampaignLevel(id),
+      equipWeapon: (id) => this.selectWeapon(id),
+      // A class shared by someone else: save it here and make it playable.
+      installClass: async (design) => {
+        const clean = normalizeDesign(design, { id: design.id });
+        registerForgedClass(clean, { abilities: this.abilities });
+        await saveForgedClass(clean).catch(() => {});
+        await this.mainMenu.refreshCharacters();
+      }
+    });
     this.story = new StoryPanel(hudRoot);
     this.goalPill = document.createElement('div');
     this.goalPill.className = 'level-goal';
@@ -814,6 +834,21 @@ export class App {
   }
 
   /** Register every saved forged class, then show them in the menu. */
+  async _seedLibrary() {
+    try {
+      await this._forgedReady;
+      const seeded = await library.seedOfficial(this.levels);
+      if (!seeded) return;
+      for (const entry of await listForgedClasses()) {
+        if (!(await library.get(`class:${entry.id}`)).error) continue;
+        const design = normalizeDesign(await loadForgedClass(entry.id), { id: entry.id });
+        await library.publishClass({ ...design, author: design.author ?? OFFICIAL_AUTHOR }, skillIds(design), 'shared');
+      }
+    } catch (error) {
+      console.warn('[library]', error.message);
+    }
+  }
+
   async _loadForgedClasses() {
     for (const entry of await listForgedClasses()) {
       try {
@@ -1796,6 +1831,9 @@ export class App {
 
     this.loading.setProgress(1, 'Ready');
     this.loading.hide();
+    // The shared library learns the game's own content (and any forged
+    // classes it has not seen) — in the background, it is not needed to play.
+    this._seedLibrary();
 
     // The contact card waits for the veil to start clearing before its entrance
     // plays — calling reveal here lands it just after the fade.

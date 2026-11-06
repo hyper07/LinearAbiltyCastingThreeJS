@@ -36,6 +36,7 @@ export class MainMenu {
     this.getLevels = callbacks.getLevels ?? (() => null);
     this.onPlayLevel = callbacks.onPlayLevel ?? (() => {});
     this.onOpenStash = callbacks.onOpenStash ?? (() => {});
+    this.onOpenLibrary = callbacks.onOpenLibrary ?? (() => {});
     this.onOpenEditor = callbacks.onOpenEditor ?? (() => {});
     this.onLookChange = callbacks.onLookChange ?? (async () => {});
     this.onMyModelsChanged = callbacks.onMyModelsChanged ?? (async () => {});
@@ -70,6 +71,7 @@ export class MainMenu {
           <button class="main-menu__nav-btn" type="button" data-panel="campaign">Campaign</button>
           <button class="main-menu__nav-btn" type="button" data-panel="create">Create</button>
           <button class="main-menu__nav-btn main-menu__nav-btn--stash" type="button" data-open-stash title="Your stash: a big storage grid every class shares">Stash</button>
+          <button class="main-menu__nav-btn main-menu__nav-btn--library" type="button" data-open-library title="Every class, skill, item, weapon and level — the game's own and what players shared">Library</button>
         </nav>
 
         <div class="main-menu__body">
@@ -192,6 +194,7 @@ export class MainMenu {
     this.panelEls = [...this.root.querySelectorAll('.main-menu__panel[data-panel]')];
     this.navBtns = [...this.root.querySelectorAll('.main-menu__nav-btn[data-panel]')];
     this.root.querySelector('[data-open-stash]').addEventListener('click', () => this.onOpenStash());
+    this.root.querySelector('[data-open-library]').addEventListener('click', () => this.onOpenLibrary());
     this.summaryEl = this.root.querySelector('[data-summary]');
     this.startBtn = this.root.querySelector('[data-start]');
     this.worldLibraryEl = this.root.querySelector('[data-world-library]');
