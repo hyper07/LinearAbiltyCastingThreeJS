@@ -158,7 +158,7 @@ export async function buildCatalog() {
       }
       if (!facts.size || facts.triangles === 0) continue;
       const words = normalizeWords([asset.name, asset.pack, ...(asset.tags ?? []), asset.file].join(' '));
-      const category = categorize(words, facts);
+      const category = categorize(words, { ...facts, realScale: asset.source === 'polyhaven' }, asset.name);
       models.push({
         id: asset.id,
         name: String(asset.name).replace(/\.(gltf|glb)$/i, ''),

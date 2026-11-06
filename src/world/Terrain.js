@@ -292,9 +292,17 @@ export class Terrain {
       material[key] = null;
     }
     this.groundMaterialId = null;
-    // Deterministic per seed, so a saved level reloads with the same texture.
+    // The cleanest material that is mainly this surface wins ("Snow010A: snow,
+    // clean, white" over "Snow011: snow, dirt, dirty"); the seed only breaks
+    // ties, so a saved level reloads with the same texture.
+    const score = (m) =>
+      (m.tags[0] === this.ground ? 3 : 0) +
+      (m.tags.includes('clean') ? 2 : 0) -
+      (m.tags.some((t) => /dirt|debris|mud|brick|construction/.test(t)) && this.ground !== 'dirt' && this.ground !== 'mud' ? 2 : 0);
     const options = this.catalog.materials.filter((m) => m.surface === this.ground);
-    const surface = options.length ? options[this.seed % options.length] : null;
+    const best = Math.max(...options.map(score));
+    const top = options.filter((m) => score(m) === best);
+    const surface = top.length ? top[this.seed % top.length] : null;
     if (surface?.maps?.color) {
       const loader = new TextureLoader();
       const load = async (file, srgb) => {

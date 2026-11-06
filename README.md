@@ -12,7 +12,8 @@ a local AI model in [LM Studio](https://lmstudio.ai) or any OpenAI-compatible se
 
 > **On Windows?** Jump to [Running on Windows](#running-on-windows). **Setting up the AI?** See
 > [Wiring the model](#wiring-the-model). **AI-built maps?** See
-> [AI-built maps and the 3D asset library](#ai-built-maps-and-the-3d-asset-library).
+> [AI-built maps and the 3D asset library](#ai-built-maps-and-the-3d-asset-library). **Making your
+> own levels and story?** See [Level editor and campaign](#level-editor-and-campaign).
 
 Six abilities and two ways to aim them. Four are **line casts**: press the key to arm, a
 League-of-Legends style arrow appears on the ground and swings with the mouse, click to fire. The
@@ -812,6 +813,87 @@ to fetch than to clone. Docker builds skip the download and mount `./library` in
 
 ---
 
+## Level editor and campaign
+
+Build levels by hand — no AI needed — and string them into a story campaign. Open it from the
+main menu: **Campaign → Open level editor**, **Campaign → Edit** on a level, or **World → Edit this
+map in the level editor** to hand-finish a map the AI just made.
+
+![The level editor: a selected object with its move handles and the inspector](docs/screenshots/editor-select.jpg)
+
+<p>
+  <img src="docs/screenshots/editor-scatter.jpg" width="49%" alt="Scatter tool: a scatter set of two pine trees, brush settings and the model browser filtered to pines" />
+  <img src="docs/screenshots/editor-sculpt.jpg" width="49%" alt="Sculpt tool: raise / lower / smooth / flatten with radius and strength, the brush ring on the ground" />
+</p>
+<p>
+  <img src="docs/screenshots/editor-rules.jpg" width="49%" alt="Rules tab: character, goal, which monsters appear in the waves and how the waves grow" />
+  <img src="docs/screenshots/editor-story.jpg" width="49%" alt="Story tab: intro and ending scenes with title, speaker and text" />
+</p>
+<p>
+  <img src="docs/screenshots/editor-ai-fill.jpg" width="49%" alt="Map tab on a graveyard level: ground, landscape, time of day, fog and the optional AI fill" />
+  <img src="docs/screenshots/editor-levels.jpg" width="49%" alt="Campaign levels dialog: reorder, open and delete saved levels" />
+</p>
+
+### Tools
+
+| Tool | What it does |
+| --- | --- |
+| **Select** | Click an object, then drag the handles — **1** move, **2** rotate, **3** scale — or type exact values in the inspector. **Del** deletes, **Ctrl+D** duplicates. |
+| **Place** | Pick any of the library's models in the browser (category + search), click the ground to drop it. **Q / E** turn it first. |
+| **Scatter** | Paint many objects at once — a forest, a rock field — from a *scatter set* (add models with **+**), with radius, count, spacing and size variation. |
+| **Erase** | Drag over objects to remove them. |
+| **Sculpt** | Raise, lower, smooth or flatten the land around the arena. The 25 m fighting circle stays flat, because movement and spells assume flat ground there. |
+| **Paint** | Paint ground surfaces (grass, snow, sand, gravel, paving, lava…) anywhere, including roads across the arena. |
+| **Spawns** | Mark where waves walk in from. No spawn points = monsters come from all around. |
+| **Monsters** | Place monsters that are already waiting when the level starts — e.g. a Rift Golem guarding a gate. |
+
+**Map** sets the ground, landscape shape (flat / hills / mountains / canyon / valley), time of day
+and fog, and has an optional **AI fill** that lays out a starting map from a sentence (it keeps your
+rules, story and markers; **Undo** takes it back). **Rules** sets the character (or the player's
+choice), the goal — *survive N waves*, *defeat N monsters* or *defeat the Emberwyrm* (it arrives on
+wave N) — which monsters the waves contain and how fast they grow. **Story** holds the intro and
+ending scenes. **Play test** drops you into the level and **Exit** brings you back exactly where you
+were, undo history included.
+
+Camera: **right-drag** (or middle-drag) orbits, **wheel** zooms, **WASD / arrows** pan (Shift
+faster), **[ ]** resize the brush. **Ctrl+Z / Ctrl+Shift+Z** undo and redo, **Ctrl+S** saves.
+
+### Saving and sharing
+
+**Save** writes `public/levels/<id>.json` and adds the level to the campaign order in
+`public/levels/index.json` (**Levels…** reorders, opens and deletes). Because they live in
+`public/`, levels are part of the repo and of every build: commit them and anyone who pulls plays
+your campaign. Saving works while running `npm run dev`; a built game is read-only, so use
+**Export** to download a level file and **Import** to load one.
+
+A level file is plain JSON: the world (ground, landscape, time, fog, seed, plus the sculpt and paint
+grids), every object (`model` id, position, height offset, turn, scale), spawn points, waiting
+monsters, rules and story. Objects refer to library models by id — anyone playing the level needs
+the asset library downloaded (it is, after the first `npm run dev`).
+
+### The campaign
+
+<p>
+  <img src="docs/screenshots/campaign-menu.jpg" width="49%" alt="Campaign tab: level 1 completed, level 2 ready, level 3 locked" />
+  <img src="docs/screenshots/story-intro.jpg" width="49%" alt="A level's intro scene: title, speaker, story and goal" />
+</p>
+<p>
+  <img src="docs/screenshots/level-play.jpg" width="49%" alt="Playing a level with its goal counter under the wave and score" />
+  <img src="docs/screenshots/story-outro.jpg" width="49%" alt="Level complete: the ending scene with a button to the next level" />
+</p>
+
+**Campaign** in the main menu lists the levels in order. Each one unlocks the next; finishing a
+level shows its ending and offers the next level straight away. Progress is remembered per browser
+(**Reset progress** clears it). Three starter levels ship with the game:
+
+| # | Level | Goal | Built with |
+| --- | --- | --- | --- |
+| 1 | **Frost Hollow** | Survive 3 waves | By hand: scattered pines, sculpted ridge, painted gravel road, two waiting monsters |
+| 2 | **Ember Ruins** | Defeat 25 monsters | AI fill (desert canyon temple) + hand-set rules and three spawn points |
+| 3 | **The Wyrm's Graveyard** | Defeat the Emberwyrm (wave 3) | AI fill (foggy graveyard) + a Rift Golem waiting at the gate |
+
+---
+
 ## The fight
 
 ### The arena
@@ -959,6 +1041,8 @@ src/
   game/           Combat (strikes: damage timed to the visual), GameDirector (waves,
                   score, player health, hit-stop), DamageNumbers (floating text)
   input/          InputManager (events) and AimController (both targeting shapes)
+  editor/         LevelEditor (tools, brushes, gizmo, undo/redo, play test)
+  levels/         Level (the file format), LevelStore (load/save/export/import, progress)
   library/        The asset library in the browser: Catalog (queries), ModelLibrary
                   (loading + instancing), categories (shared with the indexer)
   loaders/        AssetLoader with a shared LoadingManager
@@ -967,14 +1051,17 @@ src/
   particles/      GPU particle system + engine and rate emitters
   postprocessing/ Composer pipeline, grade shader, distortion shader
   shaders/lib/    Shared GLSL: noise library, common helpers
-  ui/             HUD, GameHUD (the run), ChatPanel (the commander),
+  ui/             HUD, GameHUD (the run), ChatPanel (the commander), MainMenu,
+                  EditorPanel + StoryPanel (level editor, story scenes),
                   lil-gui editor, preset manager, styles
   utils/          Maths, seeded RNG, colour cache, pooling, disposal, shader patching
   world/          Environment (stage lighting), floor, dust, contact shadows,
-                  Ruins (the procedural keep), MapPlan (the plan format) and
-                  ComposedWorld (a map built from the library to a plan)
+                  Ruins (the procedural keep), MapPlan (the plan format),
+                  Terrain (editable relief + sculpt/paint grids) and ComposedWorld
+                  (a map built from the library to a level or plan)
   archive/        The retired four-element sandbox — see archive/README.md
 
+public/levels/    Campaign levels (<id>.json) and their order (index.json) — written by the editor
 scripts/library/  Asset-library downloader (fetch), indexer (index), auto-download hook (ensure)
 library/          The downloaded 3D asset library + catalog.json (git-ignored, fetched)
 server/           The standalone AI bridge for production (zero dependencies)

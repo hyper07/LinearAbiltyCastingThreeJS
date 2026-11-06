@@ -33,10 +33,19 @@ export const CATEGORIES = {
 };
 
 /** First match wins, so the more specific rules come first. */
-const RULES = [
+/**
+ * Checked against the full description before the name: pack-level facts that
+ * outrank what a model happens to be called.
+ */
+const PRE_RULES = [
   // Hex-map terrain pieces (KayKit's hexagon pack) are tiles, whatever they depict.
   ['tile', /^hex\b|\bhex (grass|water|sand|stone|road|river|coast|forest|dirt|tile)\b/],
-  ['tile', /\bhexagon\b.*\b(hill|hills|mountain|mountains|water|coast|river|road|tile)\b|\b(hill|hills|mountain|mountains|water|coast|river|road|tile)\b.*\bhexagon\b/],
+  ['tile', /\bhexagon\b.*\b(hill|hills|mountain|mountains|water|coast|river|road|tile)\b|\b(hill|hills|mountain|mountains|water|coast|river|road|tile)\b.*\bhexagon\b/]
+];
+
+const RULES = [
+  // A barrel is a barrel, whatever else its name says ("Barrel_Beer_Mountain").
+  ['prop', /\b(barrel|barrels|keg|kegs)\b/],
   ['weapon', /\b(sword|axe|bow|crossbow|dagger|spear|staff|wand|shield|hammer|mace|rifle|pistol|gun|blade|arrow|quiver)s?\b/],
   ['vehicle', /\b(car|truck|bus|van|tank|ship|boat|plane|aircraft|jet|helicopter|cart|wagon|train|tram|rocket|spaceship|vehicle|tractor|bike|bicycle|submarine)s?\b/],
   ['tree', /\b(tree|trees|pine|oak|birch|palm|fir|spruce|willow|maple|trunk|stump|conifer|deadtree|dead_tree)\b|tree_/],
@@ -73,11 +82,23 @@ export function normalizeWords(raw) {
  * @param {string} words normalised name, pack, tags and path (see normalizeWords)
  * @param {{ rigged: boolean, size: number[] }} facts from the glTF
  */
-export function categorize(words, facts) {
-  if (facts.rigged) return CREATURE.test(words) ? 'creature' : 'character';
-  for (const [category, re] of RULES) if (re.test(words)) return category;
-  if (CREATURE.test(words)) return 'creature';
-  return 'misc';
+export function categorize(words, facts, name = '') {
+  const named = name ? normalizeWords(name) : '';
+  let category;
+  if (facts.rigged) category = CREATURE.test(named || words) || CREATURE.test(words) ? 'creature' : 'character';
+  else {
+    // The model's own name first: tags describe context ("cement bag" is tagged
+    // "building" as in building materials), the name describes the thing.
+    category =
+      PRE_RULES.find(([, re]) => re.test(words))?.[0] ??
+      (named && RULES.find(([, re]) => re.test(named))?.[0]) ??
+      RULES.find(([, re]) => re.test(words))?.[0] ??
+      (CREATURE.test(words) ? 'creature' : 'misc');
+  }
+  // Real-world-scaled models (Poly Haven) that are small cannot be big things.
+  const BIG = new Set(['building', 'cliff', 'structure', 'vehicle', 'tree']);
+  if (facts.realScale && BIG.has(category) && facts.size && Math.max(...facts.size) < 1.5) category = 'prop';
+  return category;
 }
 
 /** Broad settings a model suits. A model can carry several. */
@@ -96,7 +117,7 @@ export const THEMES = {
   ruins: /\b(ruin|ruins|rubble|broken|column|pillar|ancient|temple)\b/,
   interior: /\b(furniture|table|chair|bed|shelf|kitchen|restaurant|interior|room|lamp)\b/,
   // Art-installation packs (galleries, museum sets, avatar booths): only on request.
-  gallery: /\b(abm|towers|chromatic chaos|trash polka|avatar show|cryptoavatars|retro booth|aero system|ca world)\b/
+  gallery: /\b(abm|towers|chromatic chaos|trash polka|avatar show|cryptoavatars|retro booth|aero system|ca world)\b|\bmountain \d+\b.*\bavatar garden\b/
 };
 
 /** Themes a model is only used for when the plan asks for them by name. */

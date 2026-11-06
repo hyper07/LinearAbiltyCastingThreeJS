@@ -9,7 +9,7 @@
   "edge": "cliffs",
   "timeOfDay": "night",
   "fog": 0.8,
-  "seed": 318231283,
+  "seed": 246563281,
   "terrain": {
    "grid": 161,
    "extent": 170
@@ -17,1075 +17,1003 @@
  },
  "objects": [
   {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_seperate_broken",
-   "category": "ruin",
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/crypt",
+   "category": "structure",
    "x": 0,
-   "z": -70.342,
+   "z": -89.275,
    "yOffset": 0,
    "yaw": 0,
-   "scale": 3.75
+   "scale": 1.7179
   },
   {
-   "model": "kaykit/KayKit-Prototype-Bits-1.0/addons/kaykit_prototype_bits/Assets/gltf/Dummy_Base",
+   "model": "polygonalmind/tomb-chaser-1/TempleFloor01_Cut",
    "category": "building",
-   "x": 74.274,
+   "x": 79.924,
    "z": 0,
    "yOffset": 0,
    "yaw": -1.5708,
-   "scale": 14.4381
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Mountain02",
-   "category": "cliff",
-   "x": 0,
-   "z": 82.998,
-   "yOffset": 0,
-   "yaw": -3.1416,
-   "scale": 18.8841
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/coffin",
-   "category": "structure",
-   "x": -88.943,
-   "z": 0,
-   "yOffset": 0,
-   "yaw": 1.5708,
-   "scale": 8.3333
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_pillar",
-   "category": "ruin",
-   "x": -11.786,
-   "z": -1.187,
-   "yOffset": -0.02,
-   "yaw": 3.7658,
-   "scale": 2.0455
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_broken",
-   "category": "ruin",
-   "x": -5.999,
-   "z": 15.09,
-   "yOffset": -0.02,
-   "yaw": 4.6564,
-   "scale": 1
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_pillar",
-   "category": "ruin",
-   "x": -10.195,
-   "z": -6.273,
-   "yOffset": -0.02,
-   "yaw": 2.3233,
-   "scale": 1.4653
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_seperate_broken",
-   "category": "ruin",
-   "x": 13.111,
-   "z": -5.703,
-   "yOffset": -0.02,
-   "yaw": 1.6953,
-   "scale": 1
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_pillar_broken",
-   "category": "ruin",
-   "x": -17.464,
-   "z": -3.889,
-   "yOffset": -0.02,
-   "yaw": 2.63,
-   "scale": 2.994
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_large",
-   "category": "tree",
-   "x": 12.211,
-   "z": -10.242,
-   "yOffset": -0.02,
-   "yaw": 0.0747,
-   "scale": 0.8883
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Mountain01",
-   "category": "cliff",
-   "x": -24.548,
-   "z": 7.274,
-   "yOffset": -1.2,
-   "yaw": 0.6806,
-   "scale": 3.7205
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Mountain01",
-   "category": "cliff",
-   "x": -1.229,
-   "z": 28.586,
-   "yOffset": -1.2,
-   "yaw": 0.2207,
-   "scale": 3.7205
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Mountain01",
-   "category": "cliff",
-   "x": 10.295,
-   "z": -23.072,
-   "yOffset": -1.2,
-   "yaw": 1.7473,
-   "scale": 3.7205
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Mountain02",
-   "category": "cliff",
-   "x": -20.576,
-   "z": -14.819,
-   "yOffset": -1.2,
-   "yaw": 5.8569,
-   "scale": 5.0561
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Mountain01",
-   "category": "cliff",
-   "x": 28.246,
-   "z": 5.248,
-   "yOffset": -1.103,
-   "yaw": 5.8547,
-   "scale": 3.4208
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Mountain02",
-   "category": "cliff",
-   "x": -9.581,
-   "z": -22.219,
-   "yOffset": -1.2,
-   "yaw": 0.4703,
-   "scale": 5.0561
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -45.274,
-   "z": -58.71,
-   "yOffset": -0.02,
-   "yaw": 3.2278,
-   "scale": 0.4523
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": -42.429,
-   "z": -56.385,
-   "yOffset": -0.02,
-   "yaw": 5.9346,
-   "scale": 0.6686
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": 28.693,
-   "z": -18.284,
-   "yOffset": -0.02,
-   "yaw": 3.1912,
-   "scale": 0.902
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 13.756,
-   "z": 39.362,
-   "yOffset": -0.02,
-   "yaw": 5.3216,
-   "scale": 0.8697
-  },
-  {
-   "model": "polyhaven/dandelion_01",
-   "category": "bush",
-   "x": 44.946,
-   "z": -14.031,
-   "yOffset": -0.02,
-   "yaw": 3.2532,
-   "scale": 0.8378
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -25.131,
-   "z": -24.514,
-   "yOffset": -0.02,
-   "yaw": 4.8903,
-   "scale": 0.8338
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": -38.995,
-   "z": -32.94,
-   "yOffset": -0.02,
-   "yaw": 6.1108,
-   "scale": 0.5532
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -61.407,
-   "z": 38.363,
-   "yOffset": -0.02,
-   "yaw": 3.2817,
-   "scale": 0.4422
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -55.883,
-   "z": 2.366,
-   "yOffset": -0.02,
-   "yaw": 2.7343,
-   "scale": 0.532
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush02",
-   "category": "bush",
-   "x": 47.253,
-   "z": 23.698,
-   "yOffset": -0.02,
-   "yaw": 4.9445,
-   "scale": 2.1371
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": 59.697,
-   "z": -6.315,
-   "yOffset": -0.02,
-   "yaw": 1.6239,
-   "scale": 0.6163
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -15.957,
-   "z": -31.915,
-   "yOffset": -0.02,
-   "yaw": 4.7005,
-   "scale": 0.6316
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": 18.507,
-   "z": 37.076,
-   "yOffset": -0.02,
-   "yaw": 5.4895,
-   "scale": 0.8864
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": 10.851,
-   "z": -57.201,
-   "yOffset": -0.02,
-   "yaw": 5.744,
-   "scale": 5.2806
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -64.402,
-   "z": 0.87,
-   "yOffset": -0.02,
-   "yaw": 4.5756,
-   "scale": 0.606
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": 45.196,
-   "z": 40.995,
-   "yOffset": -0.02,
-   "yaw": 4.361,
-   "scale": 0.4642
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush02",
-   "category": "bush",
-   "x": 53.634,
-   "z": -51.886,
-   "yOffset": -0.02,
-   "yaw": 5.4096,
-   "scale": 1.8293
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": 49.852,
-   "z": -21.32,
-   "yOffset": -0.02,
-   "yaw": 4.5406,
-   "scale": 1.8753
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -42.836,
-   "z": -50.488,
-   "yOffset": -0.02,
-   "yaw": 0.7481,
-   "scale": 0.696
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush02",
-   "category": "bush",
-   "x": 28.129,
-   "z": 40.962,
-   "yOffset": -0.02,
-   "yaw": 5.7664,
-   "scale": 1.9997
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 36.589,
-   "z": -13.231,
-   "yOffset": -0.02,
-   "yaw": 4.3609,
-   "scale": 0.8149
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": -36.944,
-   "z": -12.4,
-   "yOffset": -0.02,
-   "yaw": 5.1996,
-   "scale": 4.6875
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -69.959,
-   "z": -6.513,
-   "yOffset": -0.02,
-   "yaw": 4.5315,
-   "scale": 1.5852
-  },
-  {
-   "model": "polyhaven/dandelion_01",
-   "category": "bush",
-   "x": -28.027,
-   "z": -36.844,
-   "yOffset": -0.02,
-   "yaw": 0.7733,
-   "scale": 0.5367
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": -29.181,
-   "z": -22.247,
-   "yOffset": -0.02,
-   "yaw": 1.7852,
-   "scale": 4.2971
-  },
-  {
-   "model": "polyhaven/dandelion_01",
-   "category": "bush",
-   "x": -22.016,
-   "z": 45.942,
-   "yOffset": -0.02,
-   "yaw": 2.9833,
-   "scale": 0.9141
-  },
-  {
-   "model": "polyhaven/dandelion_01",
-   "category": "bush",
-   "x": 33.83,
-   "z": -65.871,
-   "yOffset": -0.02,
-   "yaw": 5.5224,
-   "scale": 0.5055
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": 13.451,
-   "z": 49.926,
-   "yOffset": -0.02,
-   "yaw": 2.5987,
-   "scale": 1.1367
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -10.946,
-   "z": -67.443,
-   "yOffset": -0.02,
-   "yaw": 5.8229,
-   "scale": 1.5312
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 28.388,
-   "z": 50.073,
-   "yOffset": -0.02,
-   "yaw": 4.5526,
-   "scale": 0.2965
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": 31.628,
-   "z": -60.69,
-   "yOffset": -0.02,
-   "yaw": 5.0729,
-   "scale": 2.1564
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": -7.526,
-   "z": -57.345,
-   "yOffset": -0.02,
-   "yaw": 0.6824,
-   "scale": 1.3739
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": 3.637,
-   "z": 34.722,
-   "yOffset": -0.02,
-   "yaw": 4.0345,
-   "scale": 0.936
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -44.239,
-   "z": -35.288,
-   "yOffset": -0.02,
-   "yaw": 2.1535,
-   "scale": 0.9749
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": 25.327,
-   "z": -33.373,
-   "yOffset": -0.02,
-   "yaw": 2.763,
-   "scale": 3.6996
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": 47.865,
-   "z": 3.378,
-   "yOffset": -0.02,
-   "yaw": 4.9732,
-   "scale": 1.3933
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": 69.245,
-   "z": -21.099,
-   "yOffset": -0.02,
-   "yaw": 3.1002,
-   "scale": 0.853
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 40.76,
-   "z": -40.593,
-   "yOffset": -0.02,
-   "yaw": 0.9828,
-   "scale": 0.8556
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -73.728,
-   "z": -0.666,
-   "yOffset": -0.02,
-   "yaw": 1.399,
-   "scale": 1.2927
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": -4.621,
-   "z": 62.718,
-   "yOffset": -0.02,
-   "yaw": 6.0164,
-   "scale": 1.1251
-  },
-  {
-   "model": "polyhaven/dandelion_01",
-   "category": "bush",
-   "x": 66.932,
-   "z": -20.007,
-   "yOffset": -0.02,
-   "yaw": 3.0824,
-   "scale": 0.6848
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": -18.259,
-   "z": 49.487,
-   "yOffset": -0.02,
-   "yaw": 1.1902,
-   "scale": 2.4485
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": 7.909,
-   "z": -41.957,
-   "yOffset": -0.02,
-   "yaw": 3.8919,
-   "scale": 1.305
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -64.067,
-   "z": -5.358,
-   "yOffset": -0.02,
-   "yaw": 0.6501,
-   "scale": 0.2725
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 0.288,
-   "z": 66.526,
-   "yOffset": -0.02,
-   "yaw": 5.7713,
-   "scale": 0.6797
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -4.481,
-   "z": 63.946,
-   "yOffset": -0.02,
-   "yaw": 4.1698,
-   "scale": 0.4452
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -21.249,
-   "z": 23.427,
-   "yOffset": -0.02,
-   "yaw": 0.0318,
-   "scale": 0.6289
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 37.384,
-   "z": -50.108,
-   "yOffset": -0.02,
-   "yaw": 0.8165,
-   "scale": 0.3629
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": 33.005,
-   "z": 4.682,
-   "yOffset": -0.02,
-   "yaw": 1.4914,
-   "scale": 0.7185
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 40.188,
-   "z": -60.849,
-   "yOffset": -0.02,
-   "yaw": 1.4203,
-   "scale": 0.598
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": 29.656,
-   "z": 29.537,
-   "yOffset": -0.02,
-   "yaw": 4.1767,
-   "scale": 0.6542
-  },
-  {
-   "model": "polygonalmind/MomusPark/Bush_01_Art",
-   "category": "bush",
-   "x": -36.371,
-   "z": 11.282,
-   "yOffset": -0.02,
-   "yaw": 5.7241,
-   "scale": 1.513
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": 53.698,
-   "z": 37.937,
-   "yOffset": -0.02,
-   "yaw": 4.3707,
-   "scale": 0.2643
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": 6.799,
-   "z": 49.731,
-   "yOffset": -0.02,
-   "yaw": 5.5031,
-   "scale": 2.0001
-  },
-  {
-   "model": "polyhaven/dandelion_01",
-   "category": "bush",
-   "x": 51.711,
-   "z": 4.038,
-   "yOffset": -0.02,
-   "yaw": 5.1639,
-   "scale": 0.6907
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush01",
-   "category": "bush",
-   "x": 41.747,
-   "z": -4.513,
-   "yOffset": -0.02,
-   "yaw": 5.5038,
-   "scale": 1.0461
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": 27.72,
-   "z": 59.684,
-   "yOffset": -0.02,
-   "yaw": 5.7448,
-   "scale": 3.2294
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -29.337,
-   "z": 28.453,
-   "yOffset": -0.02,
-   "yaw": 3.9435,
-   "scale": 0.3367
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": 3.786,
-   "z": -54.264,
-   "yOffset": -0.02,
-   "yaw": 1.5922,
-   "scale": 3.5584
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush03",
-   "category": "bush",
-   "x": -4.057,
-   "z": 50.527,
-   "yOffset": -0.02,
-   "yaw": 4.7721,
-   "scale": 0.3374
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": -24.154,
-   "z": 26.996,
-   "yOffset": -0.02,
-   "yaw": 1.4615,
-   "scale": 2.8653
-  },
-  {
-   "model": "polygonalmind/avatar-garden/Bush02",
-   "category": "bush",
-   "x": 14.158,
-   "z": -33.272,
-   "yOffset": -0.02,
-   "yaw": 0.511,
-   "scale": 2.4927
-  },
-  {
-   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
-   "category": "bush",
-   "x": -28.052,
-   "z": 68.367,
-   "yOffset": -0.02,
-   "yaw": 4.9305,
-   "scale": 5.447
-  },
-  {
-   "model": "polyhaven/dandelion_01",
-   "category": "bush",
-   "x": -50.144,
-   "z": 51.964,
-   "yOffset": -0.02,
-   "yaw": 1.9831,
-   "scale": 0.8581
-  },
-  {
-   "model": "polyhaven/rock_07",
-   "category": "rock",
-   "x": -103.46,
-   "z": -26.508,
-   "yOffset": -0.048,
-   "yaw": 3.6878,
-   "scale": 2.787
-  },
-  {
-   "model": "polyhaven/rock_09",
-   "category": "rock",
-   "x": -124.244,
-   "z": -37.939,
-   "yOffset": -0.341,
-   "yaw": 5.5763,
-   "scale": 86.4454
-  },
-  {
-   "model": "polyhaven/rock_09",
-   "category": "rock",
-   "x": 40.029,
-   "z": 97.795,
-   "yOffset": -0.078,
-   "yaw": 6.214,
-   "scale": 19.8667
-  },
-  {
-   "model": "polyhaven/namaqualand_boulder_04",
-   "category": "rock",
-   "x": 69.293,
-   "z": 63.024,
-   "yOffset": -0.255,
-   "yaw": 2.739,
-   "scale": 1.1202
-  },
-  {
-   "model": "polyhaven/rock_07",
-   "category": "rock",
-   "x": 46.036,
-   "z": 142.629,
-   "yOffset": -0.233,
-   "yaw": 4.7207,
-   "scale": 13.4834
-  },
-  {
-   "model": "polyhaven/namaqualand_boulder_05",
-   "category": "rock",
-   "x": -133.381,
-   "z": -54.496,
-   "yOffset": -0.061,
-   "yaw": 0.8023,
-   "scale": 0.9373
-  },
-  {
-   "model": "polyhaven/namaqualand_boulders_01",
-   "category": "rock",
-   "x": -108.995,
-   "z": 64.969,
-   "yOffset": -0.137,
-   "yaw": 1.3163,
-   "scale": 4.5416
-  },
-  {
-   "model": "polyhaven/namaqualand_boulders_01",
-   "category": "rock",
-   "x": -98.106,
-   "z": 113.335,
-   "yOffset": -0.166,
-   "yaw": 0.8019,
-   "scale": 5.4929
-  },
-  {
-   "model": "polyhaven/namaqualand_boulder_02",
-   "category": "rock",
-   "x": -37.29,
-   "z": 95.426,
-   "yOffset": -0.092,
-   "yaw": 3.5935,
-   "scale": 0.8695
-  },
-  {
-   "model": "polyhaven/namaqualand_boulder_04",
-   "category": "rock",
-   "x": -62.223,
-   "z": -135.797,
-   "yOffset": -0.234,
-   "yaw": 5.0292,
-   "scale": 1.0275
-  },
-  {
-   "model": "polyhaven/rock_09",
-   "category": "rock",
-   "x": 9.535,
-   "z": -109.475,
-   "yOffset": -0.151,
-   "yaw": 3.3816,
-   "scale": 38.1498
-  },
-  {
-   "model": "polyhaven/namaqualand_boulders_01",
-   "category": "rock",
-   "x": -91.158,
-   "z": -69.279,
-   "yOffset": -0.33,
-   "yaw": 3.5936,
-   "scale": 10.9437
-  },
-  {
-   "model": "polyhaven/marble_bust_01",
-   "category": "building",
-   "x": -4.116,
-   "z": -12.048,
-   "yOffset": -0.02,
-   "yaw": 0.5738,
-   "scale": 8.7396
+   "scale": 0.934
   },
   {
    "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_seperate",
    "category": "wall",
-   "x": -25.845,
-   "z": -7.236,
+   "x": 0,
+   "z": 87.83,
+   "yOffset": 0,
+   "yaw": -3.1416,
+   "scale": 3.1365
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_small",
+   "category": "tree",
+   "x": -76.954,
+   "z": 0,
+   "yOffset": 0,
+   "yaw": 1.5708,
+   "scale": 6.6881
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_pillar_broken",
+   "category": "ruin",
+   "x": -8.101,
+   "z": 8.765,
    "yOffset": -0.02,
-   "yaw": 0.1215,
-   "scale": 1.1898
+   "yaw": 0.5304,
+   "scale": 2.8293
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/grave_A_destroyed",
+   "category": "ruin",
+   "x": -8.708,
+   "z": -8.906,
+   "yOffset": -0.02,
+   "yaw": 0.2652,
+   "scale": 0.9777
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/grave_A_destroyed",
+   "category": "ruin",
+   "x": 2.06,
+   "z": 17.606,
+   "yOffset": -0.02,
+   "yaw": 5.7353,
+   "scale": 1.3388
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_pillar_broken",
+   "category": "ruin",
+   "x": 6.717,
+   "z": 9.473,
+   "yOffset": -0.02,
+   "yaw": 2.4668,
+   "scale": 2.2161
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/grave_A_destroyed",
+   "category": "ruin",
+   "x": -15.31,
+   "z": -1.599,
+   "yOffset": -0.02,
+   "yaw": 4.8345,
+   "scale": 1.405
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/TempleFloor01_Cut.001",
+   "category": "building",
+   "x": 12.855,
+   "z": -8.516,
+   "yOffset": -0.02,
+   "yaw": -1.1004,
+   "scale": 0.0623
+  },
+  {
+   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
+   "category": "bush",
+   "x": -19.062,
+   "z": 18.14,
+   "yOffset": -0.02,
+   "yaw": 6.2244,
+   "scale": 2.0498
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush03",
+   "category": "bush",
+   "x": -27.438,
+   "z": 1.626,
+   "yOffset": -0.02,
+   "yaw": 0.7085,
+   "scale": 0.8225
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush03",
+   "category": "bush",
+   "x": -11.938,
+   "z": 23.494,
+   "yOffset": -0.02,
+   "yaw": 1.1831,
+   "scale": 0.2674
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush09",
+   "category": "bush",
+   "x": -26.311,
+   "z": -7.277,
+   "yOffset": -0.02,
+   "yaw": 0.8706,
+   "scale": 1.0575
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush09",
+   "category": "bush",
+   "x": 22.873,
+   "z": -14.725,
+   "yOffset": -0.02,
+   "yaw": 5.4208,
+   "scale": 2.1429
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush09",
+   "category": "bush",
+   "x": 14.775,
+   "z": -22.994,
+   "yOffset": -0.02,
+   "yaw": 0.2805,
+   "scale": 1.0452
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush05",
+   "category": "bush",
+   "x": 23.669,
+   "z": 16.972,
+   "yOffset": -0.02,
+   "yaw": 0.8063,
+   "scale": 1.3996
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush09",
+   "category": "bush",
+   "x": -0.55,
+   "z": 25.536,
+   "yOffset": -0.02,
+   "yaw": 4.7588,
+   "scale": 2.1429
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush05",
+   "category": "bush",
+   "x": -24.357,
+   "z": -16.673,
+   "yOffset": -0.02,
+   "yaw": 5.5264,
+   "scale": 1.0811
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush09",
+   "category": "bush",
+   "x": 13.272,
+   "z": 21.542,
+   "yOffset": -0.02,
+   "yaw": 3.0497,
+   "scale": 1.6869
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush09",
+   "category": "bush",
+   "x": -24.042,
+   "z": 6.022,
+   "yOffset": -0.02,
+   "yaw": 2.16,
+   "scale": 0.8365
+  },
+  {
+   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
+   "category": "bush",
+   "x": -17.197,
+   "z": 16.033,
+   "yOffset": -0.02,
+   "yaw": 4.03,
+   "scale": 4.5492
+  },
+  {
+   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
+   "category": "bush",
+   "x": 21.251,
+   "z": 10.645,
+   "yOffset": -0.02,
+   "yaw": 3.9618,
+   "scale": 4.1063
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush03",
+   "category": "bush",
+   "x": -2.538,
+   "z": 25.328,
+   "yOffset": -0.02,
+   "yaw": 2.5149,
+   "scale": 0.3495
+  },
+  {
+   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
+   "category": "bush",
+   "x": -23.288,
+   "z": 0.106,
+   "yOffset": -0.02,
+   "yaw": 1.5834,
+   "scale": 3.1263
+  },
+  {
+   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
+   "category": "bush",
+   "x": 21.947,
+   "z": -12.019,
+   "yOffset": -0.02,
+   "yaw": 0.2798,
+   "scale": 4.2061
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush03",
+   "category": "bush",
+   "x": -17.266,
+   "z": 17.975,
+   "yOffset": -0.02,
+   "yaw": 4.5873,
+   "scale": 0.3511
+  },
+  {
+   "model": "kaykit/KayKit-City-Builder-Bits-1.0/addons/kaykit_city_builder_bits/Assets/gltf/bush",
+   "category": "bush",
+   "x": -11.365,
+   "z": -21.189,
+   "yOffset": -0.02,
+   "yaw": 2.3423,
+   "scale": 3.3248
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush09",
+   "category": "bush",
+   "x": 0.812,
+   "z": -27.674,
+   "yOffset": -0.02,
+   "yaw": 3.9396,
+   "scale": 1.4972
+  },
+  {
+   "model": "polygonalmind/avatar-garden/Bush03",
+   "category": "bush",
+   "x": -8.43,
+   "z": -29.468,
+   "yOffset": -0.02,
+   "yaw": 3.849,
+   "scale": 0.5322
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_medium",
+   "category": "tree",
+   "x": 20.107,
+   "z": 11.413,
+   "yOffset": -0.02,
+   "yaw": 0.3329,
+   "scale": 0.9623
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_small",
+   "category": "tree",
+   "x": -22.169,
+   "z": -17.107,
+   "yOffset": -0.02,
+   "yaw": 5.0639,
+   "scale": 2.8121
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_medium",
+   "category": "tree",
+   "x": 20.663,
+   "z": -13.883,
+   "yOffset": -0.02,
+   "yaw": 3.7121,
+   "scale": 2.0136
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_large",
+   "category": "tree",
+   "x": -30.222,
+   "z": -2.05,
+   "yOffset": -0.02,
+   "yaw": 2.9098,
+   "scale": 1.5048
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_small",
+   "category": "tree",
+   "x": -17.531,
+   "z": 18.468,
+   "yOffset": -0.02,
+   "yaw": 2.3154,
+   "scale": 3.3485
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_large_decorated",
+   "category": "tree",
+   "x": 15.219,
+   "z": 18.651,
+   "yOffset": -0.02,
+   "yaw": 1.7892,
+   "scale": 1.678
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_small",
+   "category": "tree",
+   "x": -10.087,
+   "z": -24.395,
+   "yOffset": -0.02,
+   "yaw": 1.8641,
+   "scale": 3.1429
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_large_decorated",
+   "category": "tree",
+   "x": 24.743,
+   "z": -16.443,
+   "yOffset": -0.02,
+   "yaw": 0.7259,
+   "scale": 1.1373
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_large_decorated",
+   "category": "tree",
+   "x": 18.308,
+   "z": 25,
+   "yOffset": -0.02,
+   "yaw": 6.0504,
+   "scale": 0.92
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/tree_dead_large_decorated",
+   "category": "tree",
+   "x": -8.432,
+   "z": 23.989,
+   "yOffset": -0.02,
+   "yaw": 1.8123,
+   "scale": 1.2278
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/arch_gate",
+   "category": "wall",
+   "x": -26.114,
+   "z": -12.929,
+   "yOffset": -0.02,
+   "yaw": 1.2926,
+   "scale": 0.7787
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_seperate",
+   "category": "wall",
+   "x": -19.941,
+   "z": -11.928,
+   "yOffset": -0.02,
+   "yaw": 1.0323,
+   "scale": 0.6235
   },
   {
    "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_gate",
    "category": "wall",
-   "x": 25.257,
-   "z": -9.498,
+   "x": 25.234,
+   "z": -14.328,
    "yOffset": -0.02,
-   "yaw": 5.0561,
-   "scale": 1.0485
-  },
-  {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/arch_gate",
-   "category": "wall",
-   "x": -19.937,
-   "z": 20.931,
-   "yOffset": -0.02,
-   "yaw": 4.4091,
-   "scale": 0.8793
+   "yaw": 3.0564,
+   "scale": 0.5004
   },
   {
    "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_gate",
    "category": "wall",
-   "x": 16.079,
-   "z": 20.786,
+   "x": 25.412,
+   "z": -3.137,
    "yOffset": -0.02,
-   "yaw": 6.0455,
-   "scale": 1.0925
+   "yaw": 0.9883,
+   "scale": 0.4155
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_seperate",
+   "category": "wall",
+   "x": 12.775,
+   "z": -21.819,
+   "yOffset": -0.02,
+   "yaw": 0.9422,
+   "scale": 1.4046
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_gate",
+   "category": "wall",
+   "x": -23.706,
+   "z": 8.338,
+   "yOffset": -0.02,
+   "yaw": 2.7494,
+   "scale": 0.9537
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_seperate",
+   "category": "wall",
+   "x": -23.917,
+   "z": 16.253,
+   "yOffset": -0.02,
+   "yaw": 2.3088,
+   "scale": 1.8
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence",
+   "category": "wall",
+   "x": 21.359,
+   "z": 20.551,
+   "yOffset": -0.02,
+   "yaw": 2.0502,
+   "scale": 1.288
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence_seperate",
+   "category": "wall",
+   "x": 4.226,
+   "z": 26.056,
+   "yOffset": -0.02,
+   "yaw": 1.5085,
+   "scale": 1.8
   },
   {
    "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/arch_gate",
    "category": "wall",
-   "x": 26.942,
-   "z": -14.565,
+   "x": -24.445,
+   "z": -8.157,
    "yOffset": -0.02,
-   "yaw": 5.9774,
-   "scale": 0.6627
+   "yaw": 0.3375,
+   "scale": 0.7014
   },
   {
-   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/arch_gate",
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence",
    "category": "wall",
-   "x": 22.208,
-   "z": 17.586,
+   "x": -27.247,
+   "z": -3.883,
    "yOffset": -0.02,
-   "yaw": 2.638,
-   "scale": 0.3152
+   "yaw": 1.6842,
+   "scale": 0.6351
   },
   {
-   "model": "polygonalmind/avatar-garden/Mountain03",
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/fence",
+   "category": "wall",
+   "x": -17.822,
+   "z": -18.692,
+   "yOffset": -0.02,
+   "yaw": 0.2195,
+   "scale": 1.3453
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/post",
+   "category": "prop",
+   "x": -44.61,
+   "z": 27.492,
+   "yOffset": -0.02,
+   "yaw": 5.7859,
+   "scale": 0.3008
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": 25.425,
+   "z": -51.16,
+   "yOffset": -0.02,
+   "yaw": 5.1468,
+   "scale": 6.1851
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/post_skull",
+   "category": "prop",
+   "x": -61.526,
+   "z": -32.576,
+   "yOffset": -0.02,
+   "yaw": 1.9177,
+   "scale": 0.4019
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/post",
+   "category": "prop",
+   "x": -51.713,
+   "z": 50.883,
+   "yOffset": -0.02,
+   "yaw": 1.6267,
+   "scale": 0.3856
+  },
+  {
+   "model": "polygonalmind/avatar-garden/WoodenPlank01",
+   "category": "prop",
+   "x": 35.491,
+   "z": -59.578,
+   "yOffset": -0.02,
+   "yaw": 4.3355,
+   "scale": 1.1915
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": -56.034,
+   "z": -23.357,
+   "yOffset": -0.02,
+   "yaw": 5.4168,
+   "scale": 1.6695
+  },
+  {
+   "model": "polygonalmind/avatar-garden/WoodenPlank01",
+   "category": "prop",
+   "x": 0.053,
+   "z": -65.646,
+   "yOffset": -0.02,
+   "yaw": 2.434,
+   "scale": 0.8258
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/post",
+   "category": "prop",
+   "x": -22.684,
+   "z": 32.222,
+   "yOffset": -0.02,
+   "yaw": 1.8959,
+   "scale": 0.2218
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_C",
+   "category": "prop",
+   "x": -61.088,
+   "z": 9.842,
+   "yOffset": -0.02,
+   "yaw": 4.9713,
+   "scale": 2.6044
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/post",
+   "category": "prop",
+   "x": 40.557,
+   "z": -36.66,
+   "yOffset": -0.02,
+   "yaw": 0.7027,
+   "scale": 0.3862
+  },
+  {
+   "model": "polygonalmind/avatar-garden/WoodenPlank01",
+   "category": "prop",
+   "x": 4.339,
+   "z": -54.816,
+   "yOffset": -0.02,
+   "yaw": 0.4478,
+   "scale": 1.2559
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/post",
+   "category": "prop",
+   "x": 25.994,
+   "z": 28.5,
+   "yOffset": -0.02,
+   "yaw": 3.2684,
+   "scale": 0.2352
+  },
+  {
+   "model": "polygonalmind/avatar-garden/WoodenPlank01",
+   "category": "prop",
+   "x": -3.482,
+   "z": -61.139,
+   "yOffset": -0.02,
+   "yaw": 1.2959,
+   "scale": 1.0477
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/post",
+   "category": "prop",
+   "x": -17.821,
+   "z": 26.721,
+   "yOffset": -0.02,
+   "yaw": 2.1682,
+   "scale": 0.2114
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_C",
+   "category": "prop",
+   "x": 59.085,
+   "z": -43.153,
+   "yOffset": -0.02,
+   "yaw": 3.2295,
+   "scale": 3.3875
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -47.883,
+   "z": 13.594,
+   "yOffset": -0.02,
+   "yaw": 5.9267,
+   "scale": 3.0533
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -62.796,
+   "z": -20.685,
+   "yOffset": -0.02,
+   "yaw": 0.4868,
+   "scale": 5.7721
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": 10.552,
+   "z": 58.489,
+   "yOffset": -0.02,
+   "yaw": 3.8848,
+   "scale": 4.4544
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_C",
+   "category": "prop",
+   "x": -33.367,
+   "z": 56.579,
+   "yOffset": -0.02,
+   "yaw": 2.0135,
+   "scale": 3.3875
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": 17.969,
+   "z": 42.563,
+   "yOffset": -0.02,
+   "yaw": 3.7888,
+   "scale": 1.6786
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": 25.59,
+   "z": 34.266,
+   "yOffset": -0.02,
+   "yaw": 3.9306,
+   "scale": 6.1851
+  },
+  {
+   "model": "polyhaven/namaqualand_cliff_01",
    "category": "cliff",
-   "x": -15.966,
-   "z": 22.273,
+   "x": 5.99,
+   "z": -28.909,
    "yOffset": -1.2,
-   "yaw": 3.6607,
-   "scale": 1.4722
+   "yaw": 2.7498,
+   "scale": 2.0157
   },
   {
-   "model": "polyhaven/gothic_statue",
-   "category": "rock",
-   "x": -17.772,
-   "z": 19.678,
-   "yOffset": -0.213,
-   "yaw": 5.1149,
-   "scale": 1.0196
+   "model": "polyhaven/namaqualand_cliff_01",
+   "category": "cliff",
+   "x": 27.325,
+   "z": 5.674,
+   "yOffset": -0.768,
+   "yaw": 0.5443,
+   "scale": 1.2896
   },
   {
-   "model": "polygonalmind/avatar-garden/Stone04",
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
    "category": "rock",
-   "x": 16.566,
-   "z": 17.203,
-   "yOffset": -0.272,
-   "yaw": 0.9179,
-   "scale": 2.2201
+   "x": 20.071,
+   "z": -22.657,
+   "yOffset": -0.254,
+   "yaw": 0.7556,
+   "scale": 1.2083
   },
   {
-   "model": "polygonalmind/avatar-garden/Stone04",
+   "model": "polygonalmind/tomb-chaser-1/GodRa_Art",
    "category": "rock",
-   "x": 13.493,
-   "z": 23.827,
-   "yOffset": -0.156,
-   "yaw": 2.3626,
-   "scale": 1.276
+   "x": -18.832,
+   "z": 24.2,
+   "yOffset": -0.049,
+   "yaw": 1.2705,
+   "scale": 0.1537
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
    "category": "rock",
-   "x": -4.712,
-   "z": -30.499,
-   "yOffset": -0.235,
-   "yaw": 3.2173,
-   "scale": 1.1249
+   "x": -23.449,
+   "z": 10.759,
+   "yOffset": -0.185,
+   "yaw": 0.612,
+   "scale": 0.8836
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/GodRa_Art",
    "category": "rock",
-   "x": -2.735,
-   "z": -29.697,
-   "yOffset": -0.233,
-   "yaw": 0.7397,
-   "scale": 1.1152
+   "x": -14.289,
+   "z": -20.025,
+   "yOffset": -0.17,
+   "yaw": 0.5549,
+   "scale": 0.5308
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
    "category": "rock",
-   "x": -28.519,
-   "z": -11.047,
-   "yOffset": -0.204,
-   "yaw": 2.5376,
-   "scale": 0.979
+   "x": -20.628,
+   "z": 21.394,
+   "yOffset": -0.167,
+   "yaw": 6.0402,
+   "scale": 0.7967
   },
   {
-   "model": "polyhaven/modern_coffee_table_01",
+   "model": "polygonalmind/tomb-chaser-1/Gem03_Art",
    "category": "rock",
-   "x": 21.871,
-   "z": -9.976,
-   "yOffset": -0.079,
-   "yaw": 5.5957,
-   "scale": 1.6831
+   "x": -15.276,
+   "z": -25.265,
+   "yOffset": -0.208,
+   "yaw": 0.7484,
+   "scale": 12.2607
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
    "category": "rock",
-   "x": 21.191,
-   "z": 16.248,
-   "yOffset": -0.23,
-   "yaw": 3.1723,
-   "scale": 1.0999
+   "x": 22.566,
+   "z": 10.654,
+   "yOffset": -0.412,
+   "yaw": 5.4112,
+   "scale": 1.9631
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/Gem01_Art",
    "category": "rock",
-   "x": 21.362,
-   "z": 19.256,
+   "x": 15.923,
+   "z": -25.245,
+   "yOffset": -0.07,
+   "yaw": 0.3183,
+   "scale": 6.982
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/Gem03_Art",
+   "category": "rock",
+   "x": -11.869,
+   "z": -20.055,
+   "yOffset": -0.087,
+   "yaw": 3.3321,
+   "scale": 5.1113
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -3.594,
+   "z": -29.206,
+   "yOffset": -0.078,
+   "yaw": 3.8922,
+   "scale": 0.3731
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -6.048,
+   "z": -22.722,
    "yOffset": -0.18,
-   "yaw": 5.335,
-   "scale": 0.8632
+   "yaw": 1.6247,
+   "scale": 0.8561
   },
   {
-   "model": "polygonalmind/avatar-garden/Stone04",
+   "model": "polygonalmind/tomb-chaser-1/GodRa_Art",
    "category": "rock",
-   "x": 22.839,
-   "z": -14.239,
-   "yOffset": -0.166,
-   "yaw": 4.0721,
-   "scale": 1.3506
+   "x": -3.667,
+   "z": 26.012,
+   "yOffset": -0.18,
+   "yaw": 2.535,
+   "scale": 0.561
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/Gem03_Art",
    "category": "rock",
-   "x": 18.532,
-   "z": 18.682,
-   "yOffset": -0.179,
-   "yaw": 4.4735,
-   "scale": 0.8576
+   "x": 21.577,
+   "z": 15.362,
+   "yOffset": -0.216,
+   "yaw": 2.2719,
+   "scale": 12.7528
   },
   {
-   "model": "polyhaven/modern_coffee_table_01",
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
    "category": "rock",
-   "x": -30.104,
-   "z": -5.132,
-   "yOffset": -0.081,
-   "yaw": 2.5445,
-   "scale": 1.7246
+   "x": 8.631,
+   "z": 24.674,
+   "yOffset": -0.327,
+   "yaw": 3.647,
+   "scale": 1.559
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/Gem03_Art",
    "category": "rock",
-   "x": -15.882,
-   "z": 26.064,
-   "yOffset": -0.186,
-   "yaw": 3.51,
-   "scale": 0.8915
+   "x": 9.802,
+   "z": 20.89,
+   "yOffset": -0.126,
+   "yaw": 3.249,
+   "scale": 7.4166
   },
   {
-   "model": "polyhaven/modular_fort_01",
+   "model": "polygonalmind/tomb-chaser-1/GodRa_Art",
    "category": "rock",
-   "x": 21.011,
-   "z": 22.124,
-   "yOffset": -0.083,
-   "yaw": 4.9538,
-   "scale": 0.0507
+   "x": -17.352,
+   "z": 25.425,
+   "yOffset": -0.287,
+   "yaw": 4.4934,
+   "scale": 0.8939
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
    "category": "rock",
-   "x": 25.032,
-   "z": -17.131,
-   "yOffset": -0.226,
-   "yaw": 2.1901,
-   "scale": 1.0814
+   "x": -8.565,
+   "z": 26.767,
+   "yOffset": -0.363,
+   "yaw": 4.0135,
+   "scale": 1.7275
   },
   {
-   "model": "polygonalmind/avatar-garden/Stone04",
+   "model": "polygonalmind/tomb-chaser-1/Gem03_Art",
    "category": "rock",
-   "x": -29.288,
-   "z": -8.282,
+   "x": 25.559,
+   "z": -11.596,
+   "yOffset": -0.168,
+   "yaw": 2.908,
+   "scale": 9.9296
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodRa_Art",
+   "category": "rock",
+   "x": -28.895,
+   "z": 1.479,
+   "yOffset": -0.148,
+   "yaw": 4.6441,
+   "scale": 0.4604
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/Gem01_Art",
+   "category": "rock",
+   "x": -4.133,
+   "z": -24.846,
+   "yOffset": -0.106,
+   "yaw": 6.1725,
+   "scale": 10.6115
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -21.02,
+   "z": 11.526,
+   "yOffset": -0.219,
+   "yaw": 6.2641,
+   "scale": 1.0429
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -10.678,
+   "z": 25.463,
+   "yOffset": -0.234,
+   "yaw": 3.2423,
+   "scale": 1.113
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodRa_Art",
+   "category": "rock",
+   "x": -23.409,
+   "z": -6.085,
+   "yOffset": -0.195,
+   "yaw": 4.1601,
+   "scale": 0.608
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": 17.315,
+   "z": -22.671,
+   "yOffset": -0.279,
+   "yaw": 4.1352,
+   "scale": 1.3271
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": 23.061,
+   "z": -8.096,
+   "yOffset": -0.386,
+   "yaw": 3.461,
+   "scale": 1.8384
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -5.258,
+   "z": 29.854,
    "yOffset": -0.093,
-   "yaw": 5.728,
-   "scale": 0.7569
+   "yaw": 3.7432,
+   "scale": 0.4441
   },
   {
-   "model": "polygonalmind/avatar-garden/Stone04",
+   "model": "polygonalmind/tomb-chaser-1/Gem01_Art",
    "category": "rock",
-   "x": 12.799,
-   "z": 20.471,
-   "yOffset": -0.053,
-   "yaw": 5.6715,
-   "scale": 0.4291
+   "x": 18.071,
+   "z": -15.924,
+   "yOffset": -0.079,
+   "yaw": 2.9618,
+   "scale": 7.9137
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/GodRa_Art",
    "category": "rock",
-   "x": 22.6,
-   "z": -12.445,
-   "yOffset": -0.237,
-   "yaw": 0.9938,
-   "scale": 1.1361
+   "x": 17.569,
+   "z": -24.965,
+   "yOffset": -0.151,
+   "yaw": 0.0933,
+   "scale": 0.4703
   },
   {
-   "model": "polyhaven/gothic_statue",
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
    "category": "rock",
-   "x": 21.04,
-   "z": -13.814,
-   "yOffset": -0.213,
-   "yaw": 3.5875,
-   "scale": 1.0206
+   "x": -20.011,
+   "z": -15.31,
+   "yOffset": -0.267,
+   "yaw": 2.6612,
+   "scale": 1.2744
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/Gem01_Art",
+   "category": "rock",
+   "x": -14.303,
+   "z": 25.282,
+   "yOffset": -0.136,
+   "yaw": 2.9967,
+   "scale": 13.5513
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -23.211,
+   "z": -5.315,
+   "yOffset": -0.066,
+   "yaw": 2.9125,
+   "scale": 0.3157
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/Gem01_Art",
+   "category": "rock",
+   "x": -11.032,
+   "z": -28.675,
+   "yOffset": -0.16,
+   "yaw": 2.5765,
+   "scale": 15.9295
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -3.704,
+   "z": 28.172,
+   "yOffset": -0.131,
+   "yaw": 2.3854,
+   "scale": 0.6264
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": -20.859,
+   "z": -10.205,
+   "yOffset": -0.192,
+   "yaw": 3.5414,
+   "scale": 0.9147
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/Gem01_Art",
+   "category": "rock",
+   "x": 23.393,
+   "z": -1.278,
+   "yOffset": -0.088,
+   "yaw": 5.2349,
+   "scale": 8.751
+  },
+  {
+   "model": "polygonalmind/tomb-chaser-1/GodBastet_Art",
+   "category": "rock",
+   "x": 15.068,
+   "z": 24.414,
+   "yOffset": -0.083,
+   "yaw": 4.1224,
+   "scale": 0.3958
   }
  ],
  "spawns": [],
