@@ -24,6 +24,10 @@ Open <http://127.0.0.1:5173>. The first `npm run dev` also downloads the free 3D
 (about 7 GB) in the background; the game is playable straight away. Windows, building, assets and
 the AI setup are in **[Setup](docs/setup.md)**.
 
+Nothing paid is needed. Optional paid services — picture-to-3D with Tripo3D or Meshy, hosted AI
+models — and more free and paid sources for 3D models, animation and effects are listed in
+**[Third-party services](docs/third-party.md)**.
+
 ## Playing
 
 Pick a class in the main menu and press **Start Game**. Move with **W A S D**, press **1–5** to arm
@@ -126,8 +130,8 @@ sit on keys 1–5. See **[Classes and skill trees](docs/classes-and-skills.md)**
 [More →](docs/ai-maps.md)
 
 <p>
-  <img src="docs/screenshots/ai-map-graveyard.jpg" width="49%" alt=""Haunted graveyard in fog" with monsters closing in" />
-  <img src="docs/screenshots/ai-map-forest.jpg" width="49%" alt=""Pine forest at dawn": Nova Beam firing between the trees" />
+  <img src="docs/screenshots/ai-map-graveyard.jpg" width="49%" alt="Haunted graveyard in fog, with monsters closing in" />
+  <img src="docs/screenshots/ai-map-forest.jpg" width="49%" alt="Pine forest at dawn: Nova Beam firing between the trees" />
 </p>
 
 **Level editor and campaign** — sculpt, scatter, set the rules, write the story.
@@ -146,3 +150,42 @@ sit on keys 1–5. See **[Classes and skill trees](docs/classes-and-skills.md)**
   <img src="docs/screenshots/create-wear.jpg" width="49%" alt="An uploaded rigged body worn by the Mage" />
 </p>
 
+## Coming next: AI LM mode
+
+A hard mode where the monsters learn how you play — your dodges, your cooldowns, how you aim — and
+pick the attack most likely to land. A small **LM model**, trained on games played in this arena,
+walks a decision tree for each monster and for the Emberwyrm boss; the game turns its answers into
+movement. Planned, not built yet: the decision trees are in **[Adaptive monster AI](docs/adaptive-ai.md)**.
+
+```mermaid
+flowchart LR
+  A["Game describes the moment"] --> B["LM model walks the<br/>monster's decision tree"]
+  B --> C["Tactic: rush, flank,<br/>lead the shot, cut off…"]
+  C --> D["Game code moves<br/>and attacks"]
+  D --> A
+```
+
+## Documentation
+
+| Page | What is in it |
+| --- | --- |
+| [Setup](docs/setup.md) | Install, Windows, build, Docker, assets and character models |
+| [Controls](docs/controls.md) | Every key and mouse action |
+| [Spells](docs/spells.md) | The ten spells, with clips, and how the newer ones are built |
+| [Classes and skill trees](docs/classes-and-skills.md) | The eight classes, their bonuses and bodies, skill trees and books |
+| [Loot, NPCs and portals](docs/items-npcs-portals.md) | Drops, rarities, the bag, merchants, quests, portals |
+| [The fight](docs/combat.md) | The arena, the monsters, the Emberwyrm, how damage is timed |
+| [The AI commander](docs/ai-commander.md) | Chat that casts, wiring LM Studio or another model, Docker |
+| [AI-built maps](docs/ai-maps.md) | Maps from a sentence and the 3D asset library |
+| [Level editor and campaign](docs/level-editor.md) | Building levels, saving and sharing, the campaign |
+| [Your own models](docs/custom-models.md) | Uploading 3D models or making one from a picture |
+| [Movement](docs/movement.md) | How the character's gait, lean and arms are animated |
+| [Tuning editor and presets](docs/tuning-editor.md) | The **G** editor: 900+ live sliders, presets |
+| [Third-party services](docs/third-party.md) | What is free, what is paid, and options for 3D models, animation, AI and effects |
+| [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |
+| [Architecture](docs/architecture.md) | Project layout, how the systems fit together, performance, known rough edges |
+
+## Licence
+
+Code is provided as-is for the purposes of this project. The bundled HDR probe and the character
+FBX retain their original licences.
