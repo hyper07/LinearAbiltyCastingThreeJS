@@ -135,7 +135,7 @@ npm -v
 three, lil-gui and Vite into `node_modules\`. There is nothing to `pip install`.
 
 ```powershell
-git clone https://github.com/achrefelouafi/LinearAbiltyCastingThreeJS.git
+git clone https://github.com/hyper07/LinearAbiltyCastingThreeJS.git
 cd LinearAbiltyCastingThreeJS
 npm install
 ```
