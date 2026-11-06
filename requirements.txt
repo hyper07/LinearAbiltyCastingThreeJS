@@ -1,0 +1,31 @@
+# Elemental Arena — requirements
+#
+# This is a JavaScript (Node.js) project, not a Python one. The libraries are
+# installed by npm from package.json / package-lock.json, NOT by pip:
+#
+#     npm install
+#
+# This file is a checklist of what has to be on the machine. Every line is a
+# comment, so `pip install -r requirements.txt` is a harmless no-op.
+#
+# ---- System tools (install these first) ---------------------------------
+#
+#   Node.js   >= 22.12  (22 LTS recommended; 20.19+ also works)  https://nodejs.org
+#             Windows:  winget install OpenJS.NodeJS.LTS
+#   npm       ships with Node.js
+#   Git       any recent version                                  https://git-scm.com
+#             Windows:  winget install Git.Git
+#   Browser   Chrome or Edge with WebGL 2 / hardware acceleration enabled
+#
+#   Optional:
+#   Docker Desktop   only for `docker compose up --build`
+#   An OpenAI-compatible LLM endpoint (LM Studio, Ollama, vLLM…) — only for
+#   the plain-English chat commander; the game runs without one.
+#
+# ---- npm libraries (installed automatically by `npm install`) -----------
+#
+#   three      ^0.185.1   3D rendering (dependency)
+#   lil-gui    ^0.21.0    in-game VFX editor panels (dependency)
+#   vite       ^8.1.5     dev server and bundler (devDependency)
+#
+# The server in server/ uses Node built-ins only — nothing extra to install.

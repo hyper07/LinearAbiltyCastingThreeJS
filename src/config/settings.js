@@ -215,11 +215,166 @@ export const settings = {
     castBlendOut: 0.3, // seconds to fall back to the idle once it finishes
 
     /* --- how the body sells the cast --- */
-    turnToAim: true, // face the arrow while aiming
+    turnToAim: true, // face the cursor while playing (aim + movement share one heading)
     turnRate: 0.0002, // fraction of the heading gap left after 1s (lower = snappier)
     castLean: 0.34, // radians the torso pitches forward on release
     castRecoil: 0.16, // metres the body is shoved back
-    castSettle: 2.6 // seconds⁻¹ the lunge decays at
+    castSettle: 2.6, // seconds⁻¹ the lunge decays at
+
+    /* ------------------------------------------------------------------ */
+    /* Getting around                                                      */
+    /* ------------------------------------------------------------------ */
+    /**
+     * There is no walk clip in this project — the character ships with an idle
+     * and three cast throws, and that is all. So the gait below is *generated*
+     * and laid over the idle pose bone by bone (`animation/Locomotion.js`).
+     *
+     * Every angle here is in radians and every distance in metres, which means
+     * they are all directly comparable to the numbers the rest of the sandbox
+     * is tuned in — and every one of them is a live slider, so the walk can be
+     * reshaped while it is running.
+     */
+    // Three gears. The gait is not told which one it is in — it reads the
+    // *speed*, so accelerating between them blends the walk into the run
+    // rather than switching a state.
+    moveSpeed: 4.0, // metres/second at the default jog
+    walkMultiplier: 0.46, // × moveSpeed while Alt is held
+    sprintMultiplier: 1.8, // × moveSpeed while Shift is held
+    acceleration: 16.0, // m/s² toward the desired velocity
+    friction: 14.0, // m/s² bleeding it off when the stick is released
+    airControl: 0.45, // fraction of that acceleration available off the ground
+    moveTurnRate: 0.00002, // heading gap left after 1s while running (lower = snappier)
+    radius: 0.42, // how close the body can get to a wall
+
+    /* --- the jump --- */
+    jumpHeight: 1.35, // apex, metres
+    gravity: 22.0, // m/s² — deliberately far above 9.81; real gravity feels floaty
+    coyoteTime: 0.12, // seconds after leaving the ground you can still jump
+    jumpBufferTime: 0.15, // seconds before landing that a press is remembered
+
+    /* --- the generated gait --- */
+    // `strideLength` is the one that matters: it sets the cadence *and*, through
+    // it, how far the thigh has to swing for the foot to stay planted. The
+    // swing angle is derived from it and the measured leg length rather than
+    // authored, so the feet do not skate at any speed — `legSwing` below is only
+    // a multiplier on that derived angle, for exaggerating the gait by hand.
+    // Cadence is the parameter people actually have an intuition for — steps a
+    // second — and the stride length falls out of it. People barely vary
+    // cadence; they cover ground by lengthening the step.
+    // Cadence and the duty cycle both *saturate* with speed rather than ramping
+    // — a body covers extra ground by lengthening its step, not by taking more
+    // of them — so both are driven by an exponential approach from walking pace
+    // (`gaitDecay`) rather than by the posture blend.
+    cadenceWalk: 2.35, // steps/second
+    cadenceRun: 5.15, // ...at a flat sprint
+    gaitDecay: 2.7, // m/s over walking pace for the gait to be ~63% of the way to a run
+    // How far *back* a running stance reaches compared to how far forward. 1 is
+    // symmetric; lower lands the foot closer under the body, which is both what
+    // runners do and what stops the hips having to sink to meet it.
+    strideBias: 0.62,
+    ankleExtend: 0.1, // metres the ankle adds to the leg at push-off
+    // How far below the ankle the foot's contact point drops toward the ends of
+    // the stroke — the foot rolling onto its heel or up onto its toe. Stands in
+    // for the whole set of things a body does to keep its head still (ankle,
+    // knee, pelvic list and rotation) without modelling each of them.
+    //
+    // A rigid leg is a chord, so reaching out to ±A sinks the hips by
+    // `L(1 − cos A)` — 17 cm for this rig's step, three times what a person's
+    // head actually moves. Nobody walks like that, and this is why nobody has
+    // to.
+    legExtend: 0.09,
+    // And a hard ceiling on the sink, in metres.
+    dropWalk: 0.085,
+    dropRun: 0.17,
+    // Fraction of the cycle each foot spends on the ground. A walk keeps one
+    // down for more than half of it; a run keeps it down for a third and spends
+    // the rest airborne. This is what makes them two gaits rather than one gait
+    // at two speeds — and it is what the swing angle is derived from.
+    stanceWalk: 0.62,
+    stanceRun: 0.22,
+    // How much of the stance travel the *contact point* covers by itself — the
+    // foot rolling heel to toe — rather than the ankle. Small, and it has to be:
+    // a planted ankle is genuinely stationary in world space, so anything
+    // discounted here comes straight back as skating. An earlier pass used 0.32
+    // to make a too-long walk stride fit, and the walk stopped planting at all.
+    // The stride is the thing to fix; cadence fixes it.
+    footRollWalk: 0.06,
+    footRollRun: 0.0,
+    legSwing: 1.0, // × the stride-derived foot excursion
+    kneeBend: 1.62, // radians the swing knee folds — high-knee sprint drive
+    // Exponent on the swing's easing. Above 1 the trailing leg hangs back with
+    // the knee folded and then whips through, instead of travelling forward at
+    // an even rate — the rear half of a run's silhouette, and free, because a
+    // foot in the air cannot skate.
+    swingLinger: 1.7,
+    kneeContact: 0.4, // radians a *running* knee keeps even at heel strike
+    stanceKnee: 0.45, // radians the *stance* knee gives at mid-stance, running only
+    flightRise: 0, // metres between steps at a run — 0 keeps feet on the floor unless Space jumps
+    // The arms are *placed*, not nudged — this rig's idle is a casting stance
+    // with the arms up, and a gait laid over that leaves the upper body inert.
+    // Bolt's pump is compact: ~90° elbows, rear hand at the hip, front hand
+    // up by the cheek. The upper arm does not windmill.
+    armSwing: 0.72, // radians the upper arm drives *back* at a flat sprint
+    armForwardReach: 1.05, // × that coming forward — front hand to the cheek
+    armCarry: 0.16, // radians the whole pump sits above a hang (sprinters don't dangle)
+    armTuck: 0.26, // radians they are drawn in toward the ribs (tight corridor)
+    elbowWalk: 0.28, // mean elbow flexion at a walk — arms nearly hang
+    elbowRun: 1.45, // ~87° included; the angle is held, not opened on the drive
+    // How hard the elbow opens and closes across the stroke, as a fraction of
+    // that mean. Sprinters keep the right angle; a wide open back-arm is a
+    // distance-runner's stroke and reads as a sloppy pump.
+    elbowSwing: 0.18,
+    // The wrist. This rig has no finger bones — the spread casting hand is
+    // baked into the skin — so the wrist alone has to un-spellcast it: rolled
+    // so the palm faces the ribs (thumbs up), not the outside of the wrist.
+    // A quarter-turn; the sign lives in `_relaxHand` (the previous sign put
+    // both palms on the *outside*).
+    handRoll: 1.57, // radians about the forearm's own axis
+    handRollCast: 0.0, // extra roll for the wand hand, if the two rest differently
+    handCurl: 0.22, // radians of wrist flexion — a sprinter's wrist stays quiet
+    // The pelvis travels sideways over the foot carrying the weight. A small
+    // number that does more for the look than anything else here: without it
+    // the body runs on rails. Kept small on purpose — this is a translation of
+    // the whole body, so it drags the planted foot with it, and a person's
+    // centre of mass only moves a couple of centimetres each way anyway.
+    hipSwayWalk: 0.028, // metres
+    hipSwayRun: 0.016,
+    // × the *geometric* rise and fall the supporting leg forces on the body.
+    // 1.0 is the physically correct amount and the only one at which the feet
+    // stay on the floor; lower flattens the gait and reintroduces skating.
+    bodyBob: 1.0,
+    // The lean. Runners lean from the ankles — one straight tilted line — so
+    // half of this goes on the hips and the rest is spread up the spine. ~5
+    // degrees at a jog's effort, ~22 flat out, matching the biomechanics refs.
+    runLean: 0.26, // radians — Bolt runs tall; a 30° hunch is a different gait
+    // Radians of extra lean per m/s² of smoothed acceleration: tipped into a
+    // start, back against a stop, banked into a turn. The Overgrowth trick.
+    accelLean: 0.03,
+    // The two halves of the torso disagree: the pelvis turns with the forward
+    // leg, the shoulders turn against it, and by more. These are peak half-
+    // amplitudes; `_poseTorso` scales them by gait and by how much of a run
+    // the body is in, so a walk stays modest and a sprint actually winds up.
+    pelvisTwist: 0.18,
+    shoulderTwist: 0.34,
+    chestBounce: 0.06, // radians the chest counter-pitches against the stride
+    // Pelvis drop toward the swinging leg, and the S-curve the spine puts
+    // through the ribcage to keep the head over the support foot. Kept
+    // quieter than a walk's sway — a sprint is compact, not floppy.
+    pelvisList: 0.09,
+    spineBend: 0.08,
+    // Fraction of a cycle the thorax lags the pelvis. Zero is a rigid twist;
+    // a little delay is what makes the rotation travel *up* the body.
+    spineLag: 0.05,
+    // How hard a driving arm pulls its shoulder down and back, as a fraction
+    // of that arm's swing. The girdle is not a fixed bar.
+    shoulderDrop: 0.22,
+    gaitBlend: 7.0, // seconds⁻¹ the whole overlay fades in and out at
+
+    /* --- sitting --- */
+    sitDrop: 0.66, // metres the hips come down
+    sitBlend: 3.4, // seconds⁻¹ the pose blends at
+    sitFold: 1.45, // radians the thighs fold up
+    sitSplay: 0.62 // radians the knees open outward — cross-legged, not kneeling
   },
 
   /* ================================================================== */
@@ -1724,7 +1879,10 @@ export const settings = {
     fov: 46,
     targetHeight: 1.35,
     damping: 0.06,
-    autoFrame: 0.35 // how strongly the rig drifts toward an active cast
+    autoFrame: 0.35, // how strongly the rig drifts toward an active cast
+    bossZoom: 1.65, // × distance while a boss is on the field
+    keyOrbitSpeed: 2.4, // radians/second the arrow keys swing the view
+    keyPitchSpeed: 1.3 // radians/second they tip it
   },
 
   /* ------------------------------------------------------------------ */
@@ -1801,6 +1959,255 @@ export const settings = {
     // window resizes.
     distortion: 0.045,
     flashStrength: 1.0
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* Combat — what a cast actually does to something standing in it      */
+  /* ------------------------------------------------------------------ */
+  /**
+   * One profile per ability, keyed by the same id as its VFX block above.
+   *
+   * The point of keeping these *here* rather than inside the ability classes is
+   * that the damage has to agree with the picture: `Combat` walks a strike front
+   * downrange using the ability's own `speed`, so a monster is hit on the frame
+   * the fracture reaches it, not when the cast was clicked. Change `speed` in
+   * the ability block and the damage timing follows on its own.
+   *
+   *   width   — half-width of a line strike's damage corridor, metres
+   *   splash  — extra radius applied once at the end of a line strike
+   *   radius  — footprint of a far cast (defaults to its `zoneRadius`)
+   *   status  — what it leaves behind: chill | shock | burn | root | freeze
+   *   shatter — bonus multiplier against an already-frozen target
+   */
+  combat: {
+    enabled: true,
+    playerHealth: 140,
+    playerRegen: 3.5, // health per second, after `regenDelay` without a hit
+    regenDelay: 4.0,
+    sitRegen: 4.0, // × playerRegen while sitting — meditation, and a real risk
+
+    reviveDelay: 3.0, // seconds downed before the caster gets back up
+    hitStop: 0.05, // seconds of near-freeze on a heavy impact — the "crunch"
+    critChance: 0.15,
+    critMultiplier: 1.8,
+    damageScale: 1.0, // master dial for balancing without touching the profiles
+
+    ice: { damage: 30, width: 1.5, splash: 2.4, knockback: 1.5, status: 'chill', duration: 3.0 },
+    thunder: { damage: 42, width: 1.2, splash: 2.8, knockback: 2.0, status: 'shock', duration: 1.1 },
+    meteor: { damage: 90, width: 1.6, splash: 5.0, knockback: 8.0, status: 'burn', duration: 4.0, shatter: 2.2 },
+    beam: { damage: 64, width: 2.0, splash: 1.5, knockback: 3.0, status: 'shock', duration: 0.6 },
+    snare: { damage: 22, radius: 0, knockback: 0, status: 'root', duration: 3.5 },
+    glacier: { damage: 74, radius: 0, knockback: 2.5, status: 'freeze', duration: 3.0 }
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* Monsters                                                            */
+  /* ------------------------------------------------------------------ */
+  /**
+   * Every monster is built from primitives at boot (see `MonsterBuilder`) and
+   * animated procedurally — there is exactly one rigged FBX in this project and
+   * it is the player. The kinds below differ in silhouette, palette and numbers,
+   * which is enough to read them apart at a glance in the middle of a fight.
+   */
+  monsters: {
+    enabled: true,
+    maxAlive: 22, // hard ceiling regardless of what the wave asks for
+    spawnRadius: 20, // where they walk in from, metres from the arena centre
+    spawnTelegraph: 0.9, // seconds of portal before the body appears
+    healthBars: true,
+    damageNumbers: true,
+    corpseFade: 1.6, // seconds a dissolving body stays on screen
+
+    /** Multipliers applied to every kind — the balance dial. */
+    healthScale: 1.0,
+    damageScale: 1.0,
+    speedScale: 1.0,
+
+    kinds: {
+      grunt: {
+        label: 'Cinder Imp',
+        health: 46,
+        speed: 3.4,
+        scale: 0.78,
+        attackRange: 1.9,
+        attackDamage: 8,
+        attackWindup: 0.42,
+        attackCooldown: 1.5,
+        mass: 1.0, // divides knockback
+        armour: 0.0, // fraction of incoming damage shrugged off
+        body: '#4a4150',
+        accent: '#ff7a34',
+        eye: '#ffb347',
+        weight: 5 // relative spawn frequency
+      },
+      wisp: {
+        label: 'Gloom Wisp',
+        health: 58,
+        speed: 3.0,
+        scale: 0.9,
+        attackRange: 11.0, // it never closes — it shoots
+        attackDamage: 7,
+        attackWindup: 0.75,
+        attackCooldown: 2.4,
+        mass: 0.6,
+        armour: 0.0,
+        body: '#332e4d',
+        accent: '#a98bff',
+        eye: '#d9c7ff',
+        weight: 3
+      },
+      brute: {
+        label: 'Iron Brute',
+        health: 210,
+        speed: 2.3,
+        scale: 1.25,
+        attackRange: 2.6,
+        attackDamage: 20,
+        attackWindup: 0.8,
+        attackCooldown: 2.2,
+        mass: 2.4,
+        armour: 0.18,
+        body: '#575b68',
+        accent: '#ff4d3d',
+        eye: '#ff6a52',
+        weight: 2
+      },
+      /**
+       * The boss.
+       *
+       * Never in the random pool (`weight: 0`) — it arrives because a wave
+       * called for it, and `boss: true` lets it ignore the population cap, so a
+       * field already full of imps can never stop it from turning up.
+       *
+       * Two phases, split at `flightThreshold`: on the ground it bites and
+       * sweeps its tail, and once it is hurt it takes off and does nothing but
+       * breathe, which the melee half of the kit cannot answer.
+       */
+      dragon: {
+        label: 'Emberwyrm',
+        health: 2600,
+        speed: 3.0,
+        scale: 1.15,
+        attackRange: 4.8, // the bite
+        attackDamage: 34,
+        attackWindup: 0.85,
+        attackCooldown: 2.8,
+        mass: 12.0,
+        armour: 0.32,
+        weight: 0, // summoned, never rolled
+        boss: true,
+        scales: true, // the scale field in the fragment shader
+        body: '#4e3138', // dark, so the seams and the throat are what glow
+        accent: '#ff7a2a',
+        eye: '#ffd166',
+        membrane: '#7a3038',
+
+        /* --- phase two --- */
+        flightThreshold: 0.5, // health fraction below which it takes off
+
+        /* --- the breath --- */
+        breathRange: 15.0,
+        breathSpread: 0.34, // half-angle of the cone, radians
+        breathWindup: 1.25, // the throat glows for this long first
+        breathDuration: 2.1,
+        breathDamage: 13, // per 0.3 s tick inside the cone
+        breathCooldown: 5.0,
+
+        /* --- the tail sweep --- */
+        sweepRadius: 6.0,
+        sweepDamage: 28,
+        sweepWindup: 0.7,
+        sweepCooldown: 4.2
+      },
+
+      golem: {
+        label: 'Rift Golem',
+        health: 520,
+        speed: 1.6,
+        scale: 1.7,
+        attackRange: 3.4,
+        attackDamage: 30,
+        attackWindup: 1.15,
+        attackSplash: 4.2, // it slams the floor rather than swinging
+        attackCooldown: 3.2,
+        mass: 5.0,
+        armour: 0.3,
+        body: '#646c7e',
+        accent: '#6fe8ff',
+        eye: '#b6f4ff',
+        weight: 1
+      }
+    }
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* Waves                                                               */
+  /* ------------------------------------------------------------------ */
+  waves: {
+    enabled: true,
+    autoStart: true,
+    breather: 6.0, // seconds between waves
+    baseCount: 4, // monsters in wave 1
+    growth: 1.35, // count multiplier per wave
+    spawnInterval: 0.7, // seconds between arrivals inside a wave
+    healthRamp: 0.09, // extra health per wave, fraction
+    bossEvery: 3, // a golem leads every Nth wave
+    dragonEvery: 5 // ...and every Nth wave is the Emberwyrm's
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* The ruins — the arena the fight happens in                          */
+  /* ------------------------------------------------------------------ */
+  /**
+   * A dead keep drawn with instanced stone: a broken curtain wall around the
+   * arena, four corner towers, arcade pillars, rubble and lit braziers. It is
+   * generated from `seed`, so the same number always gives the same ruin — the
+   * layout is a *fact about the level*, not something that shuffles per reload.
+   */
+  ruins: {
+    enabled: true,
+    seed: 1337,
+    /* The arena in four rings, from the caster outward. */
+    innerRadius: 11.0, // clear stage — nothing is ever placed inside this
+    arcadeRadius: 16.5, // the ring of columns
+    wallRadius: 25.0, // the curtain wall and its towers
+    outerRadius: 44.0, // how far the rubble field is scattered
+    wallSegments: 30,
+    towers: 4,
+    pillars: 16,
+    rubble: 90,
+    props: 20, // barrels and crates — these break
+    braziers: 8,
+    brazierGlow: 1.5,
+    bannerSway: 0.9,
+    /**
+     * How much of the floor's stone maps the keep borrows. Kept low: the blocks
+     * are small and mostly distant, and a sharp normal map on sub-pixel geometry
+     * turns into sparkling specular that the chromatic-aberration pass then
+     * splits into coloured confetti.
+     */
+    stoneNormal: 0.35,
+    stoneColor: '#6a6e78',
+    accentColor: '#ff9a4a'
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* The AI commander                                                    */
+  /* ------------------------------------------------------------------ */
+  /**
+   * Chat that casts. `AIDirector` hands the model a snapshot of the battlefield
+   * and a strict JSON schema; whatever comes back is validated against the same
+   * ability registry the keyboard uses, so the model can never invoke something
+   * that is not a real skill.
+   */
+  ai: {
+    enabled: true,
+    autoTarget: true, // resolve a fuzzy target ("the big one") to a real monster
+    maxActions: 4, // per turn — a long combo would outrun the cooldowns anyway
+    actionDelay: 0.55, // seconds between the casts in one plan
+    temperature: 0.3,
+    ignoreCooldown: false, // let the commander queue past a cooling ability
+    narrate: true // print the model's one-line callout in the chat log
   }
 };
 
@@ -1832,25 +2239,29 @@ export const ELEMENTS = ['ice', 'thunder', 'meteor', 'beam', 'snare', 'glacier']
 /**
  * Registry metadata: how an ability is presented, and how it is aimed.
  *
- * `key` must match `InputManager`. `cast` is read by `AimController` to pick
- * between the arrow and the circle; omit it and the ability is a line cast.
+ * `key` must match `InputManager`. The slots are the number row: the letters
+ * they used to sit on belong to movement now, and a game you walk around in
+ * cannot spend WASD-adjacent keys on spells.
+ *
+ * `cast` is read by `AimController` to pick between the arrow and the circle;
+ * omit it and the ability is a line cast.
  */
 export const ELEMENT_META = {
-  ice: { label: 'Frost Lance', accent: '#5fd0ff', key: 'Q', hint: 'Frost Lance' },
-  thunder: { label: 'Storm Lance', accent: '#7fb4ff', key: 'E', hint: 'Storm Lance' },
-  meteor: { label: 'Cinder Fall', accent: '#ff8a3c', key: 'R', hint: 'Cinder Fall' },
-  beam: { label: 'Nova Beam', accent: '#7ff0ff', key: 'F', hint: 'Nova Beam' },
+  ice: { label: 'Frost Lance', accent: '#5fd0ff', key: '1', hint: 'Frost Lance' },
+  thunder: { label: 'Storm Lance', accent: '#7fb4ff', key: '2', hint: 'Storm Lance' },
+  meteor: { label: 'Cinder Fall', accent: '#ff8a3c', key: '3', hint: 'Cinder Fall' },
+  beam: { label: 'Nova Beam', accent: '#7ff0ff', key: '4', hint: 'Nova Beam' },
   snare: {
     label: 'Voltaic Snare',
     accent: '#a98bff',
-    key: 'V',
+    key: '5',
     hint: 'Voltaic Snare',
     cast: CastShape.ZONE
   },
   glacier: {
     label: 'Glacial Crown',
     accent: '#8ee8ff',
-    key: 'X',
+    key: '6',
     hint: 'Glacial Crown',
     cast: CastShape.ZONE
   }

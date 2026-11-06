@@ -25,8 +25,8 @@ export class HUD {
 
     root.innerHTML = `
       <div class="hud__panel hud__title">
-        Elemental Sandbox
-        <span data-blurb>Press Q, E, R, F, V or X, aim, click to cast.</span>
+        Elemental Arena
+        <span data-blurb>WASD to move, arrows to look, 1–6 to pick spells — left click attacks, right click casts.</span>
       </div>
 
       <div class="hud__panel hud__stats">
@@ -37,17 +37,30 @@ export class HUD {
       </div>
 
       <div class="hud__panel hud__help">
-        <div><strong>Q</strong> — Frost Lance &nbsp; <strong>E</strong> — Storm Lance</div>
-        <div><strong>R</strong> — Cinder Fall &nbsp; <strong>F</strong> — Nova Beam</div>
-        <div><strong>V</strong> — Voltaic Snare &nbsp; <strong>X</strong> — Glacial Crown</div>
-        <div class="hud__help-note">V and X are far casts — aimed with a circle, not an arrow.</div>
-        <div><strong>Move</strong> — aim &nbsp; <strong>Left click</strong> — cast</div>
-        <div><strong>Esc / right click</strong> — cancel the cast</div>
-        <div><strong>Right drag</strong> — orbit &nbsp; <strong>Scroll</strong> — zoom</div>
-        <div style="margin-top:6px">
-          <kbd>G</kbd> editor &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>C</kbd> clear
+        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> run &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>Alt</kbd> walk</div>
+        <div><kbd>Space</kbd> jump &nbsp; <kbd>C</kbd> sit and recover</div>
+        <div><kbd>←</kbd><kbd>→</kbd> or <kbd>Q</kbd><kbd>E</kbd> turn the view &nbsp; <kbd>↑</kbd><kbd>↓</kbd> tilt it</div>
+        <div class="hud__help-note">WASD moves relative to where the character faces — steer with the mouse.</div>
+
+        <div style="margin-top:7px"><strong>1</strong> Frost Lance &nbsp; <strong>2</strong> Storm Lance</div>
+        <div><strong>3</strong> Cinder Fall &nbsp; <strong>4</strong> Nova Beam</div>
+        <div><strong>5</strong> Voltaic Snare &nbsp; <strong>6</strong> Glacial Crown</div>
+        <div class="hud__help-note">5 and 6 are far casts — aimed with a circle, not an arrow.</div>
+        <div><strong>Mouse</strong> aim &nbsp; <strong>Left click</strong> attack &nbsp; <strong>Right click</strong> cast</div>
+        <div><strong>Esc</strong> — cancel the cast &nbsp; <strong>Middle drag</strong> orbit</div>
+        <div><strong>Scroll</strong> zoom</div>
+
+        <div style="margin-top:7px">
+          <kbd>N</kbd> next wave &nbsp; <kbd>M</kbd> summon
         </div>
-        <div><kbd>H</kbd> hide this</div>
+        <div style="margin-top:7px">
+          <kbd>I</kbd> armory — 80+ weapons &nbsp; <kbd>B</kbd> run HUD
+        </div>
+        <div class="hud__help-note">The Emberwyrm comes on every fifth wave.</div>
+        <div>
+          <kbd>G</kbd> editor &nbsp; <kbd>P</kbd> pause &nbsp;
+          <kbd>⌫</kbd> clear &nbsp; <kbd>H</kbd> hide this
+        </div>
         <div class="hud__help-note">Paused still applies every editor change.</div>
       </div>
 
@@ -127,6 +140,11 @@ export class HUD {
 
   setPaused(paused) {
     this.pausedBadge.classList.toggle('is-visible', paused);
+  }
+
+  /** Hide gameplay chrome while the main menu is open. */
+  setGameplayVisible(visible) {
+    this.root.classList.toggle('hud--menu', !visible);
   }
 
   toggleHelp() {

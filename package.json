@@ -1,13 +1,15 @@
 {
-  "name": "casting-abilities",
+  "name": "elemental-arena",
   "version": "1.0.0",
   "private": true,
-  "description": "Fully procedural ice-eruption ability with a MOBA-style ground aim indicator, built with Three.js, custom GLSL and a real-time VFX editor.",
+  "description": "Procedural elemental VFX, a generated ruined keep, monsters that fight back, and a chat commander that casts — Three.js, custom GLSL and a live VFX editor.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fetch-characters": "node scripts/fetch-character-models.mjs",
+    "serve": "node server/server.js"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",

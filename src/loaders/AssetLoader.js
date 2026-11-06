@@ -1,5 +1,6 @@
 import { LoadingManager, TextureLoader } from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
 /**
@@ -30,6 +31,7 @@ export class AssetLoader {
     );
 
     this.fbx = new FBXLoader(this.manager);
+    this.gltf = new GLTFLoader(this.manager);
     this.hdr = new HDRLoader(this.manager);
     this.texture = new TextureLoader(this.manager);
 
@@ -67,13 +69,37 @@ export class AssetLoader {
    */
   settled() {
     if (this._total === 0 || this._loaded >= this._total) return Promise.resolve();
-    return new Promise((resolve) => this._settleWaiters.push(resolve));
+    return new Promise((resolve) => {
+      this._settleWaiters.push(resolve);
+      // Guard against counter desync when reusing the loader after onLoad fired.
+      queueMicrotask(() => {
+        if (this._loaded >= this._total) {
+          const index = this._settleWaiters.indexOf(resolve);
+          if (index >= 0) this._settleWaiters.splice(index, 1);
+          resolve();
+        }
+      });
+    });
   }
 
-  /** @returns {Promise<THREE.Group>} */
+  /** @returns {Promise<import('three').Group>} */
   loadFBX(url) {
     return new Promise((resolve, reject) => {
       this.fbx.load(
+        encodeURI(url),
+        resolve,
+        (event) => {
+          if (event.lengthComputable) this._onProgress?.(event.loaded / event.total, url);
+        },
+        reject
+      );
+    });
+  }
+
+  /** @returns {Promise<import('three/addons/loaders/GLTFLoader.js').GLTF>} */
+  loadGLB(url) {
+    return new Promise((resolve, reject) => {
+      this.gltf.load(
         encodeURI(url),
         resolve,
         (event) => {

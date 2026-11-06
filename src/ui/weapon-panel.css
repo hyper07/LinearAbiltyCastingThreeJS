@@ -1,0 +1,245 @@
+
+/* ------------------------------------------------------------------ *
+ * Armory — weapon selection panel
+ * ------------------------------------------------------------------ */
+
+.weapon-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.weapon-panel.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.weapon-panel__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 14, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.weapon-panel__dialog {
+  position: relative;
+  width: min(860px, calc(100vw - 32px));
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: calc(var(--ui-radius) + 4px);
+  box-shadow: var(--ui-shadow);
+  overflow: hidden;
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.2s ease;
+}
+
+.weapon-panel.is-visible .weapon-panel__dialog {
+  transform: translateY(0) scale(1);
+}
+
+.weapon-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.weapon-panel__eyebrow {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+  opacity: 0.75;
+}
+
+.weapon-panel__title {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.weapon-panel__count {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.weapon-panel__search-row {
+  padding: 0 16px 10px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.weapon-panel__search {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui-text);
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.weapon-panel__search:focus {
+  outline: none;
+  border-color: rgba(127, 214, 255, 0.45);
+}
+
+.weapon-panel__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  opacity: 0.65;
+  padding: 24px;
+  margin: 0;
+}
+
+.weapon-panel__close {
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui-text);
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.weapon-panel__close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.weapon-panel__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.weapon-panel__tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ui-text);
+  padding: 7px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.weapon-panel__tab.is-active {
+  border-color: rgba(127, 214, 255, 0.45);
+  background: rgba(127, 214, 255, 0.12);
+  color: var(--ui-accent);
+}
+
+.weapon-panel__tab-glyph {
+  margin-right: 6px;
+  opacity: 0.85;
+}
+
+.weapon-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  padding: 16px;
+  overflow: auto;
+  flex: 1;
+}
+
+.weapon-panel__card {
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ui-text);
+  padding: 14px 12px 12px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 118px;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.weapon-panel__card:hover {
+  border-color: rgba(127, 214, 255, 0.35);
+  background: rgba(127, 214, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.weapon-panel__card.is-equipped {
+  border-color: rgba(127, 214, 255, 0.65);
+  background: rgba(127, 214, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(127, 214, 255, 0.2);
+}
+
+.weapon-panel__card-icon {
+  font-size: 22px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.weapon-panel__card-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.weapon-panel__card-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+.weapon-panel__card-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+  opacity: 0.9;
+}
+
+.weapon-panel__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--ui-border);
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.weapon-panel__hint kbd {
+  font-size: 10px;
+}
+
+@media (max-width: 560px) {
+  .weapon-panel__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

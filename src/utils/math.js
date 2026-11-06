@@ -53,3 +53,38 @@ export function envelope(t, attack = 0.15) {
   if (t <= 0 || t >= 1) return 0;
   return t < attack ? Easing.outCubic(t / attack) : Easing.inOutCubic(1 - (t - attack) / (1 - attack));
 }
+
+/* --------------------------- seeded random --------------------------- */
+
+/**
+ * Deterministic PRNG (mulberry32).
+ *
+ * Level geometry is generated, not authored, so it has to be *stable*: the same
+ * seed must lay the ruins out the same way on every reload, or nothing about the
+ * arena can be reasoned about. `Math.random` is fine for a spark; it is not fine
+ * for a wall.
+ *
+ * @param {number} seed
+ * @returns {() => number} uniform in [0, 1)
+ */
+export function makeRandom(seed = 1) {
+  let a = seed >>> 0;
+  return function random() {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Convenience wrappers around a seeded generator. */
+export function randomHelpers(random) {
+  return {
+    random,
+    range: (a, b) => a + random() * (b - a),
+    int: (a, b) => Math.floor(a + random() * (b - a + 1)),
+    sign: () => (random() < 0.5 ? -1 : 1),
+    pick: (list) => list[Math.floor(random() * list.length) % list.length],
+    chance: (p) => random() < p
+  };
+}

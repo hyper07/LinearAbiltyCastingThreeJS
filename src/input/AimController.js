@@ -137,6 +137,7 @@ export class AimController extends EventEmitter {
    * @returns {boolean} whether a cast was emitted
    */
   confirm() {
+    this._resolve();
     if (!this.armed) return false;
     if (!this.valid) {
       this.emit('reject');
