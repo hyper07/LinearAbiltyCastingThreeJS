@@ -5,12 +5,20 @@
       "name": "Frost Hollow"
     },
     {
+      "id": "thistledown",
+      "name": "Thistledown"
+    },
+    {
       "id": "ember-ruins",
       "name": "Ember Ruins"
     },
     {
       "id": "the-wyrms-graveyard",
       "name": "The Wyrm's Graveyard"
+    },
+    {
+      "id": "dragons-keep",
+      "name": "The Dragon's Keep"
     },
     {
       "id": "study-grove",

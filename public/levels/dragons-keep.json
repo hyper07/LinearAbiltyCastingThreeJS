@@ -1,0 +1,2199 @@
+{
+ "version": 1,
+ "id": "dragons-keep",
+ "name": "The Dragon's Keep",
+ "character": null,
+ "world": {
+  "ground": "rock",
+  "relief": "flat",
+  "edge": "walls",
+  "timeOfDay": "night",
+  "fog": 0.55,
+  "seed": 77001,
+  "terrain": {}
+ },
+ "objects": [
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 26.0,
+   "z": 0.0,
+   "yOffset": 0,
+   "yaw": -1.571,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 25.88,
+   "z": 4.1,
+   "yOffset": 0,
+   "yaw": -1.728,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": 24.3,
+   "z": 3.85,
+   "yOffset": 3.0,
+   "yaw": -1.728,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 24.73,
+   "z": 8.03,
+   "yOffset": 0,
+   "yaw": -1.885,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 23.34,
+   "z": 11.89,
+   "yOffset": 0,
+   "yaw": -2.042,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_red.gltf",
+   "category": "prop",
+   "x": 24.01,
+   "z": 7.8,
+   "yOffset": 1.8,
+   "yaw": -1.885,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": 21.03,
+   "z": 15.28,
+   "yOffset": 0,
+   "yaw": -2.199,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 18.53,
+   "z": 18.53,
+   "yOffset": 0,
+   "yaw": -2.356,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": 17.39,
+   "z": 17.39,
+   "yOffset": 3.0,
+   "yaw": -2.356,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 15.28,
+   "z": 21.03,
+   "yOffset": 0,
+   "yaw": -2.513,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 11.89,
+   "z": 23.34,
+   "yOffset": 0,
+   "yaw": -2.67,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_patternA_red.gltf",
+   "category": "prop",
+   "x": 14.84,
+   "z": 20.43,
+   "yOffset": 1.8,
+   "yaw": -2.513,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": 8.03,
+   "z": 24.73,
+   "yOffset": 0,
+   "yaw": -2.827,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 4.1,
+   "z": 25.88,
+   "yOffset": 0,
+   "yaw": -2.985,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": 3.85,
+   "z": 24.3,
+   "yOffset": 3.0,
+   "yaw": -2.985,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_cracked.gltf",
+   "category": "wall",
+   "x": 0.0,
+   "z": 26.0,
+   "yOffset": 0,
+   "yaw": -3.142,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -4.1,
+   "z": 25.88,
+   "yOffset": 0,
+   "yaw": 2.985,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_shield_red.gltf",
+   "category": "weapon",
+   "x": 0.0,
+   "z": 25.25,
+   "yOffset": 1.8,
+   "yaw": -3.142,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -8.03,
+   "z": 24.73,
+   "yOffset": 0,
+   "yaw": 2.827,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -11.89,
+   "z": 23.34,
+   "yOffset": 0,
+   "yaw": 2.67,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": -11.17,
+   "z": 21.92,
+   "yOffset": 3.0,
+   "yaw": 2.67,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_archedwindow_gated.gltf",
+   "category": "wall",
+   "x": -15.28,
+   "z": 21.03,
+   "yOffset": 0,
+   "yaw": 2.513,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -18.53,
+   "z": 18.53,
+   "yOffset": 0,
+   "yaw": 2.356,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_red.gltf",
+   "category": "prop",
+   "x": -14.84,
+   "z": 20.43,
+   "yOffset": 1.8,
+   "yaw": 2.513,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -21.03,
+   "z": 15.28,
+   "yOffset": 0,
+   "yaw": 2.199,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -23.34,
+   "z": 11.89,
+   "yOffset": 0,
+   "yaw": 2.042,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": -21.92,
+   "z": 11.17,
+   "yOffset": 3.0,
+   "yaw": 2.042,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -24.73,
+   "z": 8.03,
+   "yOffset": 0,
+   "yaw": 1.885,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -25.88,
+   "z": 4.1,
+   "yOffset": 0,
+   "yaw": 1.728,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_patternA_red.gltf",
+   "category": "prop",
+   "x": -24.01,
+   "z": 7.8,
+   "yOffset": 1.8,
+   "yaw": 1.885,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": -26.0,
+   "z": 0.0,
+   "yOffset": 0,
+   "yaw": 1.571,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -25.88,
+   "z": -4.1,
+   "yOffset": 0,
+   "yaw": 1.414,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": -24.3,
+   "z": -3.85,
+   "yOffset": 3.0,
+   "yaw": 1.414,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -24.73,
+   "z": -8.03,
+   "yOffset": 0,
+   "yaw": 1.257,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -23.34,
+   "z": -11.89,
+   "yOffset": 0,
+   "yaw": 1.1,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_shield_red.gltf",
+   "category": "weapon",
+   "x": -24.01,
+   "z": -7.8,
+   "yOffset": 1.8,
+   "yaw": 1.257,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": -21.03,
+   "z": -15.28,
+   "yOffset": 0,
+   "yaw": 0.942,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -18.53,
+   "z": -18.53,
+   "yOffset": 0,
+   "yaw": 0.785,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": -17.39,
+   "z": -17.39,
+   "yOffset": 3.0,
+   "yaw": 0.785,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_cracked.gltf",
+   "category": "wall",
+   "x": -15.28,
+   "z": -21.03,
+   "yOffset": 0,
+   "yaw": 0.628,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -11.89,
+   "z": -23.34,
+   "yOffset": 0,
+   "yaw": 0.471,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_red.gltf",
+   "category": "prop",
+   "x": -14.84,
+   "z": -20.43,
+   "yOffset": 1.8,
+   "yaw": 0.628,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -8.03,
+   "z": -24.73,
+   "yOffset": 0,
+   "yaw": 0.314,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": -4.1,
+   "z": -25.88,
+   "yOffset": 0,
+   "yaw": 0.157,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": -3.85,
+   "z": -24.3,
+   "yOffset": 3.0,
+   "yaw": 0.157,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_archedwindow_gated.gltf",
+   "category": "wall",
+   "x": -0.0,
+   "z": -26.0,
+   "yOffset": 0,
+   "yaw": 0.0,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 4.1,
+   "z": -25.88,
+   "yOffset": 0,
+   "yaw": -0.157,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_patternA_red.gltf",
+   "category": "prop",
+   "x": -0.0,
+   "z": -25.25,
+   "yOffset": 1.8,
+   "yaw": 0.0,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 8.03,
+   "z": -24.73,
+   "yOffset": 0,
+   "yaw": -0.314,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 11.89,
+   "z": -23.34,
+   "yOffset": 0,
+   "yaw": -0.471,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": 11.17,
+   "z": -21.92,
+   "yOffset": 3.0,
+   "yaw": -0.471,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 15.28,
+   "z": -21.03,
+   "yOffset": 0,
+   "yaw": -0.628,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 18.53,
+   "z": -18.53,
+   "yOffset": 0,
+   "yaw": -0.785,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_shield_red.gltf",
+   "category": "weapon",
+   "x": 14.84,
+   "z": -20.43,
+   "yOffset": 1.8,
+   "yaw": -0.628,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": 21.03,
+   "z": -15.28,
+   "yOffset": 0,
+   "yaw": -0.942,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 23.34,
+   "z": -11.89,
+   "yOffset": 0,
+   "yaw": -1.1,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf",
+   "category": "light",
+   "x": 21.92,
+   "z": -11.17,
+   "yOffset": 3.0,
+   "yaw": -1.1,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 24.73,
+   "z": -8.03,
+   "yOffset": 0,
+   "yaw": -1.257,
+   "scale": 2.05
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf",
+   "category": "ruin",
+   "x": 25.88,
+   "z": -4.1,
+   "yOffset": 0,
+   "yaw": -1.414,
+   "scale": 2.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/banner_red.gltf",
+   "category": "prop",
+   "x": 24.01,
+   "z": -7.8,
+   "yOffset": 1.8,
+   "yaw": -1.257,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 36.0,
+   "z": 0.0,
+   "yOffset": 0,
+   "yaw": -1.571,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": 34.95,
+   "z": 8.62,
+   "yOffset": 0,
+   "yaw": -1.812,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": 31.88,
+   "z": 16.73,
+   "yOffset": 0,
+   "yaw": -2.054,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 26.95,
+   "z": 23.87,
+   "yOffset": 0,
+   "yaw": -2.296,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": 20.45,
+   "z": 29.63,
+   "yOffset": 0,
+   "yaw": -2.537,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": 12.77,
+   "z": 33.66,
+   "yOffset": 0,
+   "yaw": -2.779,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 4.34,
+   "z": 35.74,
+   "yOffset": 0,
+   "yaw": -3.021,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": -4.34,
+   "z": 35.74,
+   "yOffset": 0,
+   "yaw": 3.021,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": -12.77,
+   "z": 33.66,
+   "yOffset": 0,
+   "yaw": 2.779,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -20.45,
+   "z": 29.63,
+   "yOffset": 0,
+   "yaw": 2.537,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": -26.95,
+   "z": 23.87,
+   "yOffset": 0,
+   "yaw": 2.296,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": -31.88,
+   "z": 16.73,
+   "yOffset": 0,
+   "yaw": 2.054,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -34.95,
+   "z": 8.62,
+   "yOffset": 0,
+   "yaw": 1.812,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": -36.0,
+   "z": -0.0,
+   "yOffset": 0,
+   "yaw": 1.571,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": -34.95,
+   "z": -8.62,
+   "yOffset": 0,
+   "yaw": 1.329,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -31.88,
+   "z": -16.73,
+   "yOffset": 0,
+   "yaw": 1.087,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": -26.95,
+   "z": -23.87,
+   "yOffset": 0,
+   "yaw": 0.846,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": -20.45,
+   "z": -29.63,
+   "yOffset": 0,
+   "yaw": 0.604,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": -12.77,
+   "z": -33.66,
+   "yOffset": 0,
+   "yaw": 0.362,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": -4.34,
+   "z": -35.74,
+   "yOffset": 0,
+   "yaw": 0.121,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": 4.34,
+   "z": -35.74,
+   "yOffset": 0,
+   "yaw": -0.121,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 12.77,
+   "z": -33.66,
+   "yOffset": 0,
+   "yaw": -0.362,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": 20.45,
+   "z": -29.63,
+   "yOffset": 0,
+   "yaw": -0.604,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf",
+   "category": "wall",
+   "x": 26.95,
+   "z": -23.87,
+   "yOffset": 0,
+   "yaw": -0.846,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf",
+   "category": "wall",
+   "x": 31.88,
+   "z": -16.73,
+   "yOffset": 0,
+   "yaw": -1.087,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/wall_arched.gltf",
+   "category": "wall",
+   "x": 34.95,
+   "z": -8.62,
+   "yOffset": 0,
+   "yaw": -1.329,
+   "scale": 3.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 35.74,
+   "z": 4.34,
+   "yOffset": 0,
+   "yaw": -1.692,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 29.63,
+   "z": 20.45,
+   "yOffset": 0,
+   "yaw": -2.175,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 16.73,
+   "z": 31.88,
+   "yOffset": 0,
+   "yaw": -2.658,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 0.0,
+   "z": 36.0,
+   "yOffset": 0,
+   "yaw": -3.142,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -16.73,
+   "z": 31.88,
+   "yOffset": 0,
+   "yaw": 2.658,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -29.63,
+   "z": 20.45,
+   "yOffset": 0,
+   "yaw": 2.175,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -35.74,
+   "z": 4.34,
+   "yOffset": 0,
+   "yaw": 1.692,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -33.66,
+   "z": -12.77,
+   "yOffset": 0,
+   "yaw": 1.208,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -23.87,
+   "z": -26.95,
+   "yOffset": 0,
+   "yaw": 0.725,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -8.62,
+   "z": -34.95,
+   "yOffset": 0,
+   "yaw": 0.242,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 8.62,
+   "z": -34.95,
+   "yOffset": 0,
+   "yaw": -0.242,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 23.87,
+   "z": -26.95,
+   "yOffset": 0,
+   "yaw": -0.725,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 33.66,
+   "z": -12.77,
+   "yOffset": 0,
+   "yaw": -1.208,
+   "scale": 3.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_half.gltf",
+   "category": "ruin",
+   "x": -30.39,
+   "z": 9.37,
+   "yOffset": 0,
+   "yaw": 5.372,
+   "scale": 1.03
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_half.gltf",
+   "category": "ruin",
+   "x": 12.17,
+   "z": 30.69,
+   "yOffset": 0,
+   "yaw": 4.982,
+   "scale": 1.11
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_large.gltf",
+   "category": "ruin",
+   "x": 25.33,
+   "z": 17.01,
+   "yOffset": 0,
+   "yaw": 5.594,
+   "scale": 1.07
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_half.gltf",
+   "category": "ruin",
+   "x": -21.23,
+   "z": -23.91,
+   "yOffset": 0,
+   "yaw": 4.109,
+   "scale": 1.28
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_large.gltf",
+   "category": "ruin",
+   "x": -22.27,
+   "z": -19.78,
+   "yOffset": 0,
+   "yaw": 0.397,
+   "scale": 1.22
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_large.gltf",
+   "category": "ruin",
+   "x": 32.56,
+   "z": 7.42,
+   "yOffset": 0,
+   "yaw": 2.05,
+   "scale": 1.19
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_large.gltf",
+   "category": "ruin",
+   "x": -25.21,
+   "z": -16.21,
+   "yOffset": 0,
+   "yaw": 3.14,
+   "scale": 1.12
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_half.gltf",
+   "category": "ruin",
+   "x": -16.36,
+   "z": -26.67,
+   "yOffset": 0,
+   "yaw": 3.464,
+   "scale": 1.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_half.gltf",
+   "category": "ruin",
+   "x": 26.75,
+   "z": -12.24,
+   "yOffset": 0,
+   "yaw": 1.443,
+   "scale": 0.96
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_large.gltf",
+   "category": "ruin",
+   "x": -7.13,
+   "z": 28.47,
+   "yOffset": 0,
+   "yaw": 5.319,
+   "scale": 1.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 14.32,
+   "z": 5.93,
+   "yOffset": 0,
+   "yaw": -1.963,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": 13.1,
+   "z": 3.66,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 5.93,
+   "z": 14.32,
+   "yOffset": 0,
+   "yaw": -2.749,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": 6.67,
+   "z": 11.85,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -5.93,
+   "z": 14.32,
+   "yOffset": 0,
+   "yaw": 2.749,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": -3.66,
+   "z": 13.1,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -14.32,
+   "z": 5.93,
+   "yOffset": 0,
+   "yaw": 1.963,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": -11.85,
+   "z": 6.67,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -14.32,
+   "z": -5.93,
+   "yOffset": 0,
+   "yaw": 1.178,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": -13.1,
+   "z": -3.66,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": -5.93,
+   "z": -14.32,
+   "yOffset": 0,
+   "yaw": 0.393,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": -6.67,
+   "z": -11.85,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 5.93,
+   "z": -14.32,
+   "yOffset": 0,
+   "yaw": -0.393,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": 3.66,
+   "z": -13.1,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf",
+   "category": "ruin",
+   "x": 14.32,
+   "z": -5.93,
+   "yOffset": 0,
+   "yaw": -1.178,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/torch_lit.gltf",
+   "category": "light",
+   "x": 11.85,
+   "z": -6.67,
+   "yOffset": 0,
+   "yaw": 0,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -24,
+   "z": -8,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -24,
+   "z": 0,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -24,
+   "z": 8,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -16,
+   "z": -16,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -16,
+   "z": -8,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -16,
+   "z": 0,
+   "yOffset": -0.08,
+   "yaw": 3.142,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -16,
+   "z": 8,
+   "yOffset": -0.08,
+   "yaw": 3.142,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -16,
+   "z": 16,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -8,
+   "z": -24,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": -8,
+   "z": -16,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": -8,
+   "z": -8,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -8,
+   "z": 0,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -8,
+   "z": 8,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -8,
+   "z": 16,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": -8,
+   "z": 24,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 0,
+   "z": -24,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": 0,
+   "z": -16,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 0,
+   "z": -8,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 0,
+   "z": 0,
+   "yOffset": -0.08,
+   "yaw": 3.142,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 0,
+   "z": 8,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 0,
+   "z": 16,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 0,
+   "z": 24,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": 8,
+   "z": -24,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 8,
+   "z": -16,
+   "yOffset": -0.08,
+   "yaw": 3.142,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": 8,
+   "z": -8,
+   "yOffset": -0.08,
+   "yaw": 3.142,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 8,
+   "z": 0,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": 8,
+   "z": 8,
+   "yOffset": -0.08,
+   "yaw": 0,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 8,
+   "z": 16,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": 8,
+   "z": 24,
+   "yOffset": -0.08,
+   "yaw": 3.142,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 16,
+   "z": -16,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf",
+   "category": "tile",
+   "x": 16,
+   "z": -8,
+   "yOffset": -0.08,
+   "yaw": 4.712,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 16,
+   "z": 0,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 16,
+   "z": 8,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 16,
+   "z": 16,
+   "yOffset": -0.08,
+   "yaw": 3.142,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 24,
+   "z": -8,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 24,
+   "z": 0,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf",
+   "category": "tile",
+   "x": 24,
+   "z": 8,
+   "yOffset": -0.08,
+   "yaw": 1.571,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/chest_gold",
+   "category": "prop",
+   "x": -3,
+   "z": 20.5,
+   "yOffset": 0,
+   "yaw": 3.146,
+   "scale": 1.4
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/chest_gold",
+   "category": "prop",
+   "x": 3.2,
+   "z": 20.1,
+   "yOffset": 0,
+   "yaw": -3.073,
+   "scale": 1.3
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_large.gltf",
+   "category": "prop",
+   "x": 0,
+   "z": 21.7,
+   "yOffset": 0,
+   "yaw": 3.128,
+   "scale": 1.8
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_large.gltf",
+   "category": "prop",
+   "x": -1.6,
+   "z": 19.3,
+   "yOffset": 0,
+   "yaw": 2.722,
+   "scale": 1.4
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_medium.gltf",
+   "category": "prop",
+   "x": 1.7,
+   "z": 19.1,
+   "yOffset": 0,
+   "yaw": -3.415,
+   "scale": 1.6
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_large.gltf",
+   "category": "prop",
+   "x": -4.8,
+   "z": 18.9,
+   "yOffset": 0,
+   "yaw": 2.58,
+   "scale": 1.2
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_medium.gltf",
+   "category": "prop",
+   "x": 5,
+   "z": 19.0,
+   "yOffset": 0,
+   "yaw": -2.874,
+   "scale": 1.4
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/sword_shield_gold.gltf",
+   "category": "weapon",
+   "x": -1.2,
+   "z": 22.7,
+   "yOffset": 0,
+   "yaw": 2.893,
+   "scale": 1.4
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/sword_shield.gltf",
+   "category": "weapon",
+   "x": 2.4,
+   "z": 22.5,
+   "yOffset": 0,
+   "yaw": -2.843,
+   "scale": 1.4
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/candle_triple.gltf",
+   "category": "light",
+   "x": -6.2,
+   "z": 20.9,
+   "yOffset": 0,
+   "yaw": 2.767,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/candle_triple.gltf",
+   "category": "light",
+   "x": 6.4,
+   "z": 20.7,
+   "yOffset": 0,
+   "yaw": -2.905,
+   "scale": 2.0
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -4.62,
+   "z": 18.49,
+   "yOffset": 0,
+   "yaw": 4.301,
+   "scale": 2.17
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": -3.61,
+   "z": 20.14,
+   "yOffset": 0,
+   "yaw": 4.744,
+   "scale": 1.97
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": 0.42,
+   "z": 18.16,
+   "yOffset": 0,
+   "yaw": 2.172,
+   "scale": 1.62
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": 2.37,
+   "z": 20.34,
+   "yOffset": 0,
+   "yaw": 4.976,
+   "scale": 1.71
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": 4.87,
+   "z": 18.39,
+   "yOffset": 0,
+   "yaw": 2.85,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": 1.51,
+   "z": 22.09,
+   "yOffset": 0,
+   "yaw": 4.101,
+   "scale": 1.84
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": 0.03,
+   "z": 21.69,
+   "yOffset": 0,
+   "yaw": 4.092,
+   "scale": 1.77
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": -3.54,
+   "z": 21.25,
+   "yOffset": 0,
+   "yaw": 5.655,
+   "scale": 1.57
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": 5.77,
+   "z": 22.4,
+   "yOffset": 0,
+   "yaw": 4.513,
+   "scale": 1.61
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": -5.81,
+   "z": 20.27,
+   "yOffset": 0,
+   "yaw": 3.458,
+   "scale": 1.75
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": 3.22,
+   "z": 20.19,
+   "yOffset": 0,
+   "yaw": 5.451,
+   "scale": 1.57
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -0.85,
+   "z": 18.16,
+   "yOffset": 0,
+   "yaw": 5.755,
+   "scale": 1.95
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -0.35,
+   "z": 22.5,
+   "yOffset": 0,
+   "yaw": 3.095,
+   "scale": 2.16
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": 5.39,
+   "z": 18.39,
+   "yOffset": 0,
+   "yaw": 3.511,
+   "scale": 1.75
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": 3.97,
+   "z": 20.53,
+   "yOffset": 0,
+   "yaw": 5.3,
+   "scale": 1.82
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": 0.72,
+   "z": 19.4,
+   "yOffset": 0,
+   "yaw": 5.467,
+   "scale": 2.16
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": 1.31,
+   "z": 19.37,
+   "yOffset": 0,
+   "yaw": 3.294,
+   "scale": 2.17
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": 0.88,
+   "z": 18.9,
+   "yOffset": 0,
+   "yaw": 3.803,
+   "scale": 1.8
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -5.67,
+   "z": 22.36,
+   "yOffset": 0,
+   "yaw": 6.216,
+   "scale": 1.84
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": -4.54,
+   "z": 18.42,
+   "yOffset": 0,
+   "yaw": 3.385,
+   "scale": 1.45
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -1.03,
+   "z": 22.31,
+   "yOffset": 0,
+   "yaw": 2.973,
+   "scale": 1.62
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -4.48,
+   "z": 19.95,
+   "yOffset": 0,
+   "yaw": 0.682,
+   "scale": 1.82
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -0.97,
+   "z": 18.13,
+   "yOffset": 0,
+   "yaw": 4.896,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin.gltf",
+   "category": "prop",
+   "x": -5.73,
+   "z": 18.87,
+   "yOffset": 0,
+   "yaw": 1.785,
+   "scale": 1.41
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": 2.68,
+   "z": 19.1,
+   "yOffset": 0,
+   "yaw": 4.592,
+   "scale": 1.48
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_small.gltf",
+   "category": "prop",
+   "x": -4.53,
+   "z": 20.3,
+   "yOffset": 0,
+   "yaw": 4.407,
+   "scale": 1.97
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/box_stacked.gltf",
+   "category": "prop",
+   "x": 15.58,
+   "z": -14.87,
+   "yOffset": 0,
+   "yaw": 5.185,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/keg_decorated.gltf",
+   "category": "prop",
+   "x": -16.74,
+   "z": -14.91,
+   "yOffset": 0,
+   "yaw": 4.011,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/keg_decorated.gltf",
+   "category": "prop",
+   "x": -22.55,
+   "z": -4.25,
+   "yOffset": 0,
+   "yaw": 3.686,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/crates_stacked.gltf",
+   "category": "prop",
+   "x": 15.09,
+   "z": 17.43,
+   "yOffset": 0,
+   "yaw": 5.672,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/barrel_small_stack.gltf",
+   "category": "prop",
+   "x": 19.35,
+   "z": -10.2,
+   "yOffset": 0,
+   "yaw": 5.576,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/barrel_large.gltf",
+   "category": "prop",
+   "x": 14.6,
+   "z": 16.34,
+   "yOffset": 0,
+   "yaw": 1.63,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/box_stacked.gltf",
+   "category": "prop",
+   "x": 18.79,
+   "z": 13.12,
+   "yOffset": 0,
+   "yaw": 3.413,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/barrel_large.gltf",
+   "category": "prop",
+   "x": -6.11,
+   "z": -20.97,
+   "yOffset": 0,
+   "yaw": 0.604,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/crates_stacked.gltf",
+   "category": "prop",
+   "x": -20.01,
+   "z": -9.4,
+   "yOffset": 0,
+   "yaw": 0.725,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/keg_decorated.gltf",
+   "category": "prop",
+   "x": -22.77,
+   "z": -0.81,
+   "yOffset": 0,
+   "yaw": 6.274,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/box_stacked.gltf",
+   "category": "prop",
+   "x": 11.38,
+   "z": -19.83,
+   "yOffset": 0,
+   "yaw": 0.667,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/keg_decorated.gltf",
+   "category": "prop",
+   "x": 21.82,
+   "z": 5.23,
+   "yOffset": 0,
+   "yaw": 5.687,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/barrel_large.gltf",
+   "category": "prop",
+   "x": -21.67,
+   "z": 2.56,
+   "yOffset": 0,
+   "yaw": 1.281,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/barrel_large.gltf",
+   "category": "prop",
+   "x": 12.45,
+   "z": -19.56,
+   "yOffset": 0,
+   "yaw": 3.643,
+   "scale": 1.5
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": 11.22,
+   "z": 12.63,
+   "yOffset": 0,
+   "yaw": 2.053,
+   "scale": 2.04
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -13.94,
+   "z": 2.94,
+   "yOffset": 0,
+   "yaw": 2.345,
+   "scale": 1.65
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": -4.43,
+   "z": -4.96,
+   "yOffset": 0,
+   "yaw": 2.852,
+   "scale": 1.63
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": -0.84,
+   "z": -12.46,
+   "yOffset": 0,
+   "yaw": 0.596,
+   "scale": 1.92
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": 2.94,
+   "z": -10.79,
+   "yOffset": 0,
+   "yaw": 4.427,
+   "scale": 2.06
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": 10.3,
+   "z": -12.34,
+   "yOffset": 0,
+   "yaw": 1.2,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -9.87,
+   "z": -5.81,
+   "yOffset": 0,
+   "yaw": 0.731,
+   "scale": 1.7
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -0.38,
+   "z": -8.55,
+   "yOffset": 0,
+   "yaw": 2.073,
+   "scale": 1.59
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -11.56,
+   "z": -2.88,
+   "yOffset": 0,
+   "yaw": 2.549,
+   "scale": 2.04
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -1.22,
+   "z": -7.02,
+   "yOffset": 0,
+   "yaw": 0.634,
+   "scale": 1.71
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_C",
+   "category": "prop",
+   "x": 16.66,
+   "z": -14.13,
+   "yOffset": 0,
+   "yaw": 1.715,
+   "scale": 1.53
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": 10.47,
+   "z": -2.59,
+   "yOffset": 0,
+   "yaw": 3.579,
+   "scale": 1.96
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -11.97,
+   "z": -2.52,
+   "yOffset": 0,
+   "yaw": 4.406,
+   "scale": 1.95
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": 1.6,
+   "z": -21.62,
+   "yOffset": 0,
+   "yaw": 0.679,
+   "scale": 1.58
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_C",
+   "category": "prop",
+   "x": 1.07,
+   "z": 13.05,
+   "yOffset": 0,
+   "yaw": 1.228,
+   "scale": 1.54
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_B",
+   "category": "prop",
+   "x": -5.38,
+   "z": 5.33,
+   "yOffset": 0,
+   "yaw": 2.142,
+   "scale": 1.69
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_C",
+   "category": "prop",
+   "x": -12.24,
+   "z": -3.18,
+   "yOffset": 0,
+   "yaw": 6.252,
+   "scale": 1.9
+  },
+  {
+   "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/bone_A",
+   "category": "prop",
+   "x": -12.26,
+   "z": -14.45,
+   "yOffset": 0,
+   "yaw": 4.2,
+   "scale": 1.88
+  }
+ ],
+ "spawns": [
+  {
+   "x": 17.82,
+   "z": 9.08
+  },
+  {
+   "x": -17.82,
+   "z": 9.08
+  },
+  {
+   "x": -11.76,
+   "z": -16.18
+  },
+  {
+   "x": 11.76,
+   "z": -16.18
+  }
+ ],
+ "monsters": [
+  {
+   "kind": "brute",
+   "x": -5.0,
+   "z": 15.0
+  },
+  {
+   "kind": "brute",
+   "x": 5.0,
+   "z": 15.0
+  }
+ ],
+ "portals": [],
+ "npcs": [
+  {
+   "id": "brenna",
+   "name": "Captain Brenna",
+   "role": "guide",
+   "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Knight",
+   "x": -3.5,
+   "z": -6,
+   "yaw": 0.5,
+   "greeting": "Keep your voice down. The wyrm sleeps on that gold \u2014 for now.",
+   "lines": [
+    "Two waves of its servants, then it wakes. Be ready when the floor starts to shake.",
+    "When it takes to the air, it only breathes fire. Keep moving, and never stand still in the light.",
+    "The brutes guarding the hoard hit hard. Freeze them, then break them."
+   ],
+   "ai": true,
+   "persona": "A scarred veteran of the dragon wars; calm, low-voiced, protective of new casters.",
+   "gift": {
+    "type": "health",
+    "rarity": "magic",
+    "amount": 50
+   },
+   "quest": null
+  },
+  {
+   "id": "grimble",
+   "name": "Grimble",
+   "role": "merchant",
+   "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded",
+   "x": 4,
+   "z": -6.5,
+   "yaw": -0.5,
+   "greeting": "Potions! Blades! Very reasonable prices, considering where we are.",
+   "lines": [],
+   "ai": false,
+   "persona": "",
+   "gift": {
+    "type": "none",
+    "rarity": "magic",
+    "amount": 50
+   },
+   "quest": null
+  }
+ ],
+ "rules": {
+  "goal": "boss",
+  "count": 3,
+  "calm": false,
+  "kinds": {
+   "grunt": 4,
+   "wisp": 3,
+   "brute": 3,
+   "golem": 1,
+   "dragon": 0
+  },
+  "baseCount": 5,
+  "growth": 1.3,
+  "bossEvery": 0,
+  "dragonEvery": 3
+ },
+ "story": {
+  "intro": {
+   "title": "The Dragon's Keep",
+   "speaker": "Captain Brenna",
+   "text": "Deep inside the old keep, the Emberwyrm sleeps on a mountain of stolen gold.\n\nIts servants guard the hall. Hold them off for two waves \u2014 on the third, the wyrm wakes.\n\nWhen it does: bring it down."
+  },
+  "outro": {
+   "title": "The Wyrm Falls",
+   "speaker": "Captain Brenna",
+   "text": "It is over. The keep is quiet for the first time in a hundred years.\n\nTake what you can carry \u2014 you earned it."
+  }
+ }
+}

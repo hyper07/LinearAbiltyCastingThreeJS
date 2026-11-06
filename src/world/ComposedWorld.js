@@ -13,6 +13,7 @@ import { settings } from '../config/settings.js';
 import { CATEGORIES } from '../library/categories.js';
 import { normalizeLevel } from '../levels/Level.js';
 import { Terrain, mulberry32 } from './Terrain.js';
+import { PropLights } from './PropLights.js';
 
 /**
  * A battlefield assembled from the asset library — from a level file (hand-made
@@ -86,7 +87,9 @@ const TIME_PRESETS = {
     // A bright, saturated, sunny grade instead of the stage's moody one.
     post: { exposure: 1.12, vignette: 0.22, saturation: 1.25, contrast: 1.06, temperature: 0.04, grain: 0.015, chromaticAberration: 0.15 } },
   dusk: { backgroundColor: '#3a3048', fogColor: '#8a5a62', sunColor: '#ff9a62', sunIntensity: 2.0, sunElevation: 0.12, ambientIntensity: 0.25, hemiIntensity: 0.5, hemiSkyColor: '#ffb08a', hemiGroundColor: '#3a3040', envIntensity: 0.45, skyEnabled: true, skyZenith: '#2a2c5a', skyHorizon: '#ff9f78', skyClouds: 0.35, skySunSize: 2 },
-  night: {}
+  // Cold, dim moonlight, so torches and spells carry the scene.
+  night: { backgroundColor: '#0a0e18', fogColor: '#0c111c', sunColor: '#a8b8ff', sunIntensity: 1.3, sunElevation: 0.7, ambientIntensity: 0.16, hemiIntensity: 0.35, hemiSkyColor: '#5a6a9a', hemiGroundColor: '#2a2420', envIntensity: 0.22, skyEnabled: false,
+    post: { exposure: 1.0, vignette: 0.6 } }
 };
 
 /* ---------------------------------------------------------------------- */
@@ -110,6 +113,8 @@ export class ComposedWorld {
     this.terrain = new Terrain(catalog);
     this._envBackup = null;
     this._instances = null;
+    /** Torches, candles and lanterns light up (world/PropLights.js). */
+    this.propLights = new PropLights();
     this._fallbacks = new Map();
   }
 
@@ -292,6 +297,8 @@ export class ComposedWorld {
     onProgress?.(0.5, `Loading ${used.size} models…`);
     this._instances = await this.library.instantiate(placements, { shadowRadius: 40 });
     this.group.add(this._instances);
+    this.propLights.build(placements);
+    this.group.add(this.propLights.group);
 
     // Colliders for everything blocking inside (or right at) the playable disc.
     this.obstacles.length = 0;
@@ -452,9 +459,12 @@ export class ComposedWorld {
 
   restoreProps() {}
 
-  update() {}
+  update(dt, time) {
+    this.propLights.update(time ?? 0);
+  }
 
   clear() {
+    this.propLights.clear();
     if (this._instances) this.library.release(this._instances);
     this._instances = null;
     this.terrain.mesh?.removeFromParent();

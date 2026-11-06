@@ -88,6 +88,19 @@ sit on keys 1–5. See **[Classes and skill trees](docs/classes-and-skills.md)**
 
 ## A look around
 
+**Dungeons and fairy tales** — *The Dragon's Keep*, a torch-lit dungeon hall where the Emberwyrm
+sleeps on its gold, and *Thistledown*, a storybook village of cottages and red-spotted toadstools.
+[More →](docs/level-editor.md#the-campaign)
+
+<p>
+  <img src="docs/screenshots/dragons-keep-boss.jpg" width="49%" alt="Nova Beam against the Emberwyrm in the torch-lit hall of the Dragon's Keep" />
+  <img src="docs/screenshots/thistledown-fight.jpg" width="49%" alt="Frost Lance erupting among imps and wisps in the sunny village of Thistledown" />
+</p>
+<p>
+  <img src="docs/screenshots/dragons-keep.jpg" width="49%" alt="The Dragon's Keep: carved pillars, banners and the hoard of gold" />
+  <img src="docs/screenshots/thistledown.jpg" width="49%" alt="Thistledown: cottages, toadstools and colourful trees under a blue sky" />
+</p>
+
 **Sunny maps** — any map set to *Day* gets an open blue sky, clouds and bright sunlight; dawn and
 dusk get their own coloured skies. [More →](docs/level-editor.md)
 
