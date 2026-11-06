@@ -28,7 +28,7 @@ better (and half the time a skill book), the Emberwyrm an Epic or better plus tw
 | Item | What it does |
 | --- | --- |
 | Weapon | Any of the 88 armory weapons, with 1–3 bonus stats by rarity: spell damage, one spell's damage, cooldowns, max health, move speed, critical chance, gold found. Uniques are named (*Glacierheart*, *Ashen Requiem*, *Tempest Sceptre*, *Dawnspire*, *The Hollow Crown*, *Wardenblade*) with fixed, stronger bonuses. |
-| Skill book | Teaches one spell, or raises it a rank (max 10): +10% damage and −3% cooldown per rank after the first. Only classes with that spell in their [skill tree](classes-and-skills.md#skill-trees-and-skill-books) can read it. |
+| Skill book | Teaches one spell, or raises it a rank (max 10): +10% damage and −3% cooldown per rank after the first. Only classes with that spell in their [skill tree](classes-and-skills.md#skill-trees-and-skill-books) can read it. Barbarian skills come in *skill manuals*. |
 | Health potion | **R** — heals 45%. |
 | Focus potion | **Z** — every spell ready again. |
 | Gold | Spent at merchants; weapons sell back for a quarter. |

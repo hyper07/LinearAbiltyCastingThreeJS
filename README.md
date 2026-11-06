@@ -1,7 +1,7 @@
 # Gamory
 
 A skillshot VFX sandbox — and the game that grew around it — built with **Three.js**, **Vite** and
-hand-written **GLSL**. Ten spells, eight classes with their own skill trees, a campaign that runs
+hand-written **GLSL**. Ten spells, six physical Barbarian skills, eight classes with their own skill trees, a campaign that runs
 from a storybook village to a dragon's dungeon, sunny daytime maps, monsters that walk in and try to
 kill you, loot, NPCs, study games for kids, a level editor, and a chat box
 you can give orders to in plain English — backed by a local AI model in [LM Studio](https://lmstudio.ai)
@@ -82,7 +82,16 @@ attack. **K** opens your skill tree, **Tab** the bag. Full list: **[Controls](do
 
 Every spell has a clip and a full description in **[Spells](docs/spells.md)**.
 
-Each class starts with two spells. **Skill books** teach the rest and raise their ranks (up to 10),
+**The Barbarian fights differently:** no spells, but six physical skills — split the ground, charge,
+leap, roar, spin, quake — and a **Rage** bar that melee hits build and big skills spend.
+[More →](docs/classes-and-skills.md#the-barbarian-physical-skills-and-rage)
+
+<p>
+  <img src="docs/screenshots/barbarian-leap.jpg" width="49%" alt="Skybreaker Leap landing among Iron Brutes" />
+  <img src="docs/screenshots/barbarian-tempest.jpg" width="49%" alt="Iron Tempest spinning through brutes" />
+</p>
+
+Each class starts with two skills. **Skill books** teach the rest and raise their ranks (up to 10),
 following the class's tree of three branches and three tiers; you choose which five learned spells
 sit on keys 1–5. See **[Classes and skill trees](docs/classes-and-skills.md)**.
 

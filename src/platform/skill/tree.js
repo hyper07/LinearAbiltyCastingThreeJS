@@ -1,4 +1,4 @@
-import { ELEMENTS, ELEMENT_META } from '../../config/settings.js';
+import { ELEMENT_META, SPELL_IDS } from '../../config/settings.js';
 
 /**
  * Class skill trees.
@@ -23,7 +23,11 @@ export const SLOT_COUNT = 5;
 export const MAX_TIER = 3;
 
 /** @typedef {{ id: string, label: string, accent: string, spells: string[] }} Branch */
-/** @typedef {{ branches: Branch[], start: string[], note?: string }} ClassTree */
+/**
+ * @typedef {{ branches: Branch[], start: string[], note?: string, resource?: 'rage' }} ClassTree
+ *   `resource: 'rage'` — the class fights with Rage (built by hitting, spent by
+ *   its big skills) on top of cooldowns.
+ */
 
 /** @type {Record<string, ClassTree>} keyed by character id */
 export const CLASS_TREES = {
@@ -43,12 +47,14 @@ export const CLASS_TREES = {
       { id: 'arcane', label: 'Arcane', accent: '#c27bff', spells: ['orb', 'beam', 'meteor'] }
     ]
   },
+  // No spells: physical skills. Tier 1 builds Rage, tier 2 spends it.
   barbarian: {
-    start: ['meteor', 'thunder'],
+    start: ['slam', 'rampage'],
+    resource: 'rage',
     branches: [
-      { id: 'fury', label: 'Fury', accent: '#ff8a3c', spells: ['meteor', 'blink'] },
-      { id: 'storm', label: 'Storm', accent: '#7fb4ff', spells: ['thunder', 'chain'] },
-      { id: 'winter', label: 'Winter', accent: '#bfe8ff', spells: ['ice', 'hail'] }
+      { id: 'might', label: 'Might', accent: '#e0a060', spells: ['slam', 'quake'] },
+      { id: 'rampage', label: 'Rampage', accent: '#ff7040', spells: ['rampage', 'leap'] },
+      { id: 'warlord', label: 'Warlord', accent: '#ff4d3d', spells: ['roar', 'tempest'] }
     ]
   },
   amazon: {
@@ -93,7 +99,7 @@ export const CLASS_TREES = {
   },
   // The sandbox caster is the spell tester: every spell, all known from the start.
   caster: {
-    start: [...ELEMENTS],
+    start: [...SPELL_IDS],
     note: 'Spell tester — knows every spell from the start.',
     branches: [
       { id: 'frost', label: 'Frost', accent: '#5fd0ff', spells: ['ice', 'hail', 'glacier'] },

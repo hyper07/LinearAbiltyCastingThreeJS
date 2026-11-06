@@ -57,7 +57,8 @@ export class Combat extends EventEmitter {
     if (!settings.combat.enabled || !profile) return null;
 
     const ability = settings[element];
-    const zoned = castShapeOf(element) === CastShape.ZONE;
+    // A self cast (a shout, a spin) is a far cast whose circle is on the caster.
+    const zoned = castShapeOf(element) === CastShape.ZONE || castShapeOf(element) === CastShape.SELF;
     const speed = Math.max(1, ability.speed * settings.global.speed);
 
     const strike = {
@@ -85,7 +86,9 @@ export class Combat extends EventEmitter {
       seeking: true,
       landed: false,
       lasts: profile.lasts ?? 0,
-      lastPoint: new Vector3(origin.x, 1.2, origin.z)
+      lastPoint: new Vector3(origin.x, 1.2, origin.z),
+      /** For a `follow` storm: the position it stays centred on (App sets it). */
+      followTarget: null
     };
 
     this.strikes.push(strike);
@@ -334,9 +337,11 @@ export class Combat extends EventEmitter {
     if (strike.front < strike.length) return;
     const { profile } = strike;
     _point.copy(strike.origin).addScaledVector(strike.direction, strike.length);
+    // A spin travels with the one spinning.
+    if (profile.follow && strike.followTarget) _point.set(strike.followTarget.x, 0, strike.followTarget.z);
     if (!strike.landed) {
       strike.landed = true;
-      strike.timer = 0.25;
+      strike.timer = profile.follow ? 0 : 0.25;
       this._dressImpact(strike, _point, strike.radius);
     }
     strike.lasts -= dt;

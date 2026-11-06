@@ -32,8 +32,18 @@ export const ELEMENT_NAMES = {
   chain: 'Arc Chain',
   orb: 'Void Orb',
   hail: 'Hailstorm',
-  blink: 'Blink Strike'
+  blink: 'Blink Strike',
+  slam: 'Earthsplitter',
+  rampage: 'Rampage',
+  roar: 'Battle Roar',
+  leap: 'Skybreaker Leap',
+  tempest: 'Iron Tempest',
+  quake: 'Worldbreaker'
 };
+
+/** Physical skills come in manuals, spells in tomes. */
+const PHYSICAL = new Set(['slam', 'rampage', 'roar', 'leap', 'tempest', 'quake']);
+export const bookTitle = (element) => `${PHYSICAL.has(element) ? 'Manual' : 'Tome'} of ${ELEMENT_NAMES[element]}`;
 
 /** Bonus stats. Ranges per rarity tier: [magic, rare, epic] × [min, max]. */
 export const STATS = {
@@ -52,7 +62,13 @@ export const STATS = {
   chain: { label: (v) => `+${v}% Arc Chain damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
   orb: { label: (v) => `+${v}% Void Orb damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
   hail: { label: (v) => `+${v}% Hailstorm damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
-  blink: { label: (v) => `+${v}% Blink Strike damage`, ranges: [[10, 18], [16, 26], [24, 40]] }
+  blink: { label: (v) => `+${v}% Blink Strike damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  slam: { label: (v) => `+${v}% Earthsplitter damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  rampage: { label: (v) => `+${v}% Rampage damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  roar: { label: (v) => `+${v}% Battle Roar damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  leap: { label: (v) => `+${v}% Skybreaker Leap damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  tempest: { label: (v) => `+${v}% Iron Tempest damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  quake: { label: (v) => `+${v}% Worldbreaker damage`, ranges: [[10, 18], [16, 26], [24, 40]] }
 };
 
 /** Named uniques: a fixed weapon and fixed, stronger bonuses. */
@@ -125,7 +141,7 @@ export function makeWeapon(rarity = 'common', rng = Math.random) {
  */
 export function makeBook(element, rng = Math.random, pool = null) {
   element ??= pool?.length && rng() < 0.75 ? pick(pool, rng) : pick(Object.keys(ELEMENT_NAMES), rng);
-  return { uid: uid(), type: 'book', rarity: 'rare', name: `Tome of ${ELEMENT_NAMES[element]}`, element, value: 0 };
+  return { uid: uid(), type: 'book', rarity: 'rare', name: bookTitle(element), element, value: 0 };
 }
 
 export function makePotion(kind = 'health') {
@@ -151,10 +167,10 @@ export function describeItem(item) {
     lines.push(`${RARITIES[item.rarity].label} ${item.baseName ?? ''}`.trim());
     for (const [key, value] of Object.entries(item.stats ?? {})) lines.push(STATS[key]?.label(value) ?? `${key} ${value}`);
   } else if (item.type === 'book') {
-    lines.push('Skill book');
+    lines.push(PHYSICAL.has(item.element) ? 'Skill manual' : 'Skill book');
     lines.push(`Teaches ${ELEMENT_NAMES[item.element]}, or raises it one rank (max ${SKILL_MAX_RANK}).`);
     lines.push(`Each rank after the first: +${SKILL_RANK.damage}% damage, −${SKILL_RANK.cooldown}% cooldown.`);
-    lines.push('Only classes with this spell in their skill tree can read it.');
+    lines.push('Only classes with this skill in their skill tree can read it.');
   } else if (item.type === 'potion') lines.push(POTIONS[item.potion].text);
   else if (item.type === 'gold') lines.push('Gold');
   return lines;

@@ -10,7 +10,14 @@ const ELEMENTAL_SKILLS = [
   'arc-chain',
   'void-orb',
   'hailstorm',
-  'blink-strike'
+  'blink-strike',
+  // Barbarian skills (physical).
+  'earthsplitter',
+  'rampage',
+  'battle-roar',
+  'skybreaker-leap',
+  'iron-tempest',
+  'worldbreaker'
 ];
 
 /** Class loadout — the same elemental kit, a signature weapon per class. */

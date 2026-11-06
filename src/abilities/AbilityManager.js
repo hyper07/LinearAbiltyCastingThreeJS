@@ -8,6 +8,7 @@ import { ChainAbility } from './ChainAbility.js';
 import { OrbAbility } from './OrbAbility.js';
 import { HailAbility } from './HailAbility.js';
 import { BlinkAbility } from './BlinkAbility.js';
+import { SlamAbility, RampageAbility, RoarAbility, LeapAbility, TempestAbility, QuakeAbility } from './PhysicalAbilities.js';
 import { ELEMENTS } from '../config/settings.js';
 import { ObjectPool } from '../utils/ObjectPool.js';
 
@@ -22,7 +23,13 @@ const ABILITY_TYPES = {
   chain: ChainAbility,
   orb: OrbAbility,
   hail: HailAbility,
-  blink: BlinkAbility
+  blink: BlinkAbility,
+  slam: SlamAbility,
+  rampage: RampageAbility,
+  roar: RoarAbility,
+  leap: LeapAbility,
+  tempest: TempestAbility,
+  quake: QuakeAbility
 };
 
 const MAX_CONCURRENT = 4;

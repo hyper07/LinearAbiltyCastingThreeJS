@@ -21,7 +21,7 @@ gear and skill books:
 | --- | --- | --- |
 | 🛡 **Knight** | Longsword | +50 health, 20% less damage taken, −5% speed, +15% Glacial Crown |
 | ✦ **Mage** | Arcane staff | −25 health, +18% spell damage, −10% cooldowns |
-| 🪓 **Barbarian** | War axe | +70 health, 10% less damage taken, +8% speed, +20% Cinder Fall |
+| 🪓 **Barbarian** | War axe | +70 health, 10% less damage taken, +8% speed, +20% Earthsplitter — fights with physical skills and Rage, not spells |
 | 🏹 **Amazon** | Longbow | +10% speed, +12% critical chance, +20% Storm Lance |
 | 🗡 **Shadowblade** | Twin daggers | −10 health, +15% speed, +8% critical chance, +15% Voltaic Snare |
 | ✚ **Templar** | War hammer | +30 health, 10% less damage taken, +25% Nova Beam |
@@ -56,14 +56,14 @@ starts knowing two tier-1 spells. The rest come from **skill books**:
 
 <p>
   <img src="screenshots/skill-tree-mage.jpg" width="49%" alt="The Mage's skill tree on a new character: Frost, Storm and Arcane branches, three tiers each; Frost Lance and Storm Lance learned on keys 1 and 2" />
-  <img src="screenshots/skill-tree-barbarian.jpg" width="49%" alt="The Barbarian's skill tree on a new character: Fury, Storm and Winter branches, two tiers each; Cinder Fall and Storm Lance learned on keys 1 and 2" />
+  <img src="screenshots/skill-tree-barbarian.jpg" width="49%" alt="The Barbarian's skill tree on a new character: Might, Rampage and Warlord branches of physical skills; Earthsplitter and Rampage learned on keys 1 and 2" />
 </p>
 
 | Class | Starts with | Branches (tier 1 → 2 → 3) |
 | --- | --- | --- |
 | 🛡 Knight | Frost Lance, Blink Strike | Bulwark: Frost Lance → Glacial Crown · Charge: Blink Strike → Nova Beam · Thunder: Storm Lance → Arc Chain |
 | ✦ Mage | Frost Lance, Storm Lance | Frost: Frost Lance → Hailstorm → Glacial Crown · Storm: Storm Lance → Arc Chain → Voltaic Snare · Arcane: Void Orb → Nova Beam → Cinder Fall |
-| 🪓 Barbarian | Cinder Fall, Storm Lance | Fury: Cinder Fall → Blink Strike · Storm: Storm Lance → Arc Chain · Winter: Frost Lance → Hailstorm |
+| 🪓 Barbarian | Earthsplitter, Rampage | *Physical skills* — Might: Earthsplitter → Worldbreaker · Rampage: Rampage → Skybreaker Leap · Warlord: Battle Roar → Iron Tempest |
 | 🏹 Amazon | Storm Lance, Frost Lance | Storm: Storm Lance → Arc Chain → Hailstorm · Hunt: Frost Lance → Voltaic Snare · Swift: Blink Strike → Nova Beam |
 | 🗡 Shadowblade | Blink Strike, Void Orb | Shadow: Blink Strike → Voltaic Snare · Void: Void Orb → Arc Chain · Frost: Frost Lance → Hailstorm |
 | ✚ Templar | Void Orb, Storm Lance | Light: Void Orb → Nova Beam → Cinder Fall · Storm: Storm Lance → Arc Chain · Oath: Frost Lance → Glacial Crown |
@@ -72,5 +72,41 @@ starts knowing two tier-1 spells. The rest come from **skill books**:
 | ⚡ Elemental Caster | Every spell | The spell tester — all ten known from the start |
 
 Spells, ranks and keys are saved **per class** in the browser; gold, potions and the bag are shared.
+
+## The Barbarian: physical skills and Rage
+
+<p>
+  <img src="screenshots/barbarian-leap.jpg" width="49%" alt="Skybreaker Leap landing among Iron Brutes: a shockwave ring, cracks and flying debris" />
+  <img src="screenshots/barbarian-tempest.jpg" width="49%" alt="Iron Tempest: a ring of steel streaks and dust around the spinning Barbarian" />
+</p>
+<p>
+  <img src="screenshots/barbarian-quake.jpg" width="49%" alt="Worldbreaker: a wide circle of cracked, heaving ground under a group of brutes" />
+  <img src="screenshots/barbarian-rampage.jpg" width="49%" alt="Rampage: the Barbarian charging through brutes, a dust wake behind" />
+</p>
+
+The Barbarian casts no spells. Its tree is six **physical skills**, and it fights with **Rage**
+as well as cooldowns:
+
+- **Rage builds** when you land hits — left-click melee (6 per monster hit), the tier-1 skills
+  (shown as *+N Rage/hit*), Battle Roar (+30 on cast) — and when you are hit (+4).
+- **Rage is spent** by the tier-2 skills. A card you cannot afford is dimmed on the bar.
+- **Rage drains** after about four seconds out of combat. The bar sits under your health.
+
+So the rhythm is different from a caster's: build with swings and quick skills, then spend on a big
+one.
+
+| Branch | Tier 1 — builds Rage | Tier 2 — spends Rage |
+| --- | --- | --- |
+| **Might** | **Earthsplitter** — the axe hits the floor and the ground splits along the line (+8 Rage per hit) | **Worldbreaker** — a far cast: the ground at the point cracks open and keeps heaving for a couple of seconds, slowing everything in it (60 Rage) |
+| **Rampage** | **Rampage** — charge down the line; the body really travels and knocks everything in the way aside (+6 per hit) | **Skybreaker Leap** — leap to a point and crash down in a ring of cracks (30 Rage) |
+| **Warlord** | **Battle Roar** — a shout around you: stuns, knocks back, +25% damage for 6 s, +30 Rage | **Iron Tempest** — spin with the axe out for 2.6 s, hitting everything around you as you move (40 Rage) |
+
+Battle Roar and Iron Tempest are **self casts**: press the key and they go off around you — no aiming.
+Physical skills come in **skill manuals** instead of tomes; only the Barbarian can read them.
+
+The skill types follow the structure classic action-RPG warriors use — builders and spenders, a
+mobility pair, a shout and a finisher — with the game's own skills and effects. Each one lives in
+`src/abilities/PhysicalAbilities.js`; damage and Rage numbers are in `settings.combat` and
+`ELEMENT_META` (`src/config/settings.js`).
 The trees live in `src/platform/skill/tree.js` — a new spell joins the game by being added to the
 branches of the classes that should have it.

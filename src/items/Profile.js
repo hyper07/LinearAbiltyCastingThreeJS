@@ -73,8 +73,10 @@ export class Profile extends EventEmitter {
   _ensure(classId) {
     const existing = this.progress[classId];
     if (existing) {
-      // A class's starting spells can change between versions; a saved
-      // character always knows its class's current ones.
+      // Trees change between versions: a key holding a skill the class no
+      // longer has is emptied (the Barbarian's old spells, for one)…
+      existing.slots = existing.slots.map((el) => (el && nodeOf(classId, el) ? el : null));
+      // …and a saved character always knows its class's current starting skills.
       for (const el of treeFor(classId).start) {
         if (existing.ranks[el] > 0) continue;
         existing.ranks[el] = 1;

@@ -60,8 +60,8 @@ import { Editor } from '../ui/Editor.js';
 
 import { getColor } from '../utils/color.js';
 import { DecalType } from '../effects/GroundDecals.js';
-import { settings, ELEMENTS, ELEMENT_META } from '../config/settings.js';
-import { platform, classBonuses, LOOKS, treeSpells } from '../platform/index.js';
+import { settings, ELEMENTS, ELEMENT_META, CastShape, castShapeOf } from '../config/settings.js';
+import { platform, classBonuses, LOOKS, treeSpells, treeFor } from '../platform/index.js';
 import { CUSTOM_LOOKS, lookModel, lookRig, registerCustomLooks, saveLook, savedLook } from '../platform/character/classes.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
@@ -106,6 +106,20 @@ export class App {
     this.cooldowns = new Map(ELEMENTS.map((element) => [element, 0]));
     /** Seconds until the next direct attack can fire. */
     this._attackCooldown = 0;
+    /**
+     * Rage, for classes that fight with it (tree `resource: 'rage'`): built by
+     * landing hits — melee swings and the tier-1 skills — and by being hit;
+     * spent by the big skills; drains away out of combat.
+     */
+    this.rage = 0;
+    this._rageIdle = 0;
+    /** Battle Roar's damage buff runs until this time (this.elapsed). */
+    this._roarUntil = 0;
+    /** Iron Tempest: re-throw the spin clip until this time. */
+    this._spinUntil = 0;
+    this._spinNext = 0;
+    /** A charge or leap in progress: the body is moved by the App, not by input. */
+    this._dashState = null;
 
     /* ---- core ---- */
     this.renderer = new Renderer(canvas);
@@ -185,7 +199,7 @@ export class App {
     this.monsters.obstacles = this.ruins.obstacles;
 
     this.combat = new Combat({
-      damageMultiplier: (element) => this.profile.damageMultiplier(element),
+      damageMultiplier: (element) => this.profile.damageMultiplier(element) * this._buffMultiplier(),
       critBonus: () => this.profile.stats.crit / 100,
       monsters: this.monsters,
       ruins: this.ruins,
@@ -241,6 +255,12 @@ export class App {
     this.profile = new Profile();
     this.profile.on('stats', () => this._applyProfileStats());
     this.profile.on('slots', () => this._syncSlots());
+    // Rage: tier-1 physical skills build it per monster they hit; being hit does too.
+    this.combat.on('hit', (_monster, _amount, info) => {
+      const gain = ELEMENT_META[info.element]?.rage ?? 0;
+      if (gain > 0) this._gainRage(gain);
+    });
+    this.monsters.on('playerHit', () => this._gainRage(4));
     this.mainMenu.setProfile(this.profile);
     this.loot = new LootSystem(this.scene, this.labels);
     this.loot.onPickup = (item) => {
@@ -546,6 +566,7 @@ export class App {
 
     if (hits > 0) {
       this.hud.showToast(attack.label);
+      this._gainRage(Math.min(18, hits * 6));
     }
   }
 
@@ -555,6 +576,14 @@ export class App {
     if (this.weaponPanel.isVisible) return;
 
     this.aim.point(pointer);
+    if (!this.aim.isArmed && castShapeOf(this.element) === CastShape.SELF) {
+      if (this._canCast(this.element)) this._fireSelf(this.element);
+      return;
+    }
+    if (!this.aim.isArmed && this._rageCost(this.element) > this.rage) {
+      this._canCast(this.element);
+      return;
+    }
     if (!this.aim.isArmed) {
       if ((this.cooldowns.get(this.element) ?? 0) > 0) {
         this.hud.showToast('Not ready');
@@ -563,6 +592,50 @@ export class App {
       this.aim.arm();
     }
     this.aim.confirm();
+  }
+
+  /** Cooldown and Rage both allow it; says why not if they don't. */
+  _canCast(element) {
+    if ((this.cooldowns.get(element) ?? 0) > 0) {
+      this.hud.showToast('Not ready');
+      return false;
+    }
+    const cost = this._rageCost(element);
+    if (cost > this.rage) {
+      this.hud.showToast(`Needs ${cost} Rage — land hits to build it`);
+      return false;
+    }
+    return true;
+  }
+
+  /** Rage a skill costs (0 for builders and every spell). */
+  _rageCost(element) {
+    const rage = ELEMENT_META[element]?.rage ?? 0;
+    return rage < 0 ? -rage : 0;
+  }
+
+  /** Does the class being played fight with Rage? */
+  get usesRage() {
+    return treeFor(this.profile.classId).resource === 'rage';
+  }
+
+  _gainRage(amount) {
+    if (!this.usesRage || amount <= 0 || this.phase !== 'playing') return;
+    this.rage = Math.min(100, this.rage + amount);
+    this._rageIdle = 0;
+  }
+
+  /** Battle Roar: everything you do hits harder for a few seconds. */
+  _buffMultiplier() {
+    return this._roarUntil > this.elapsed ? 1 + (settings.roar.buffDamage ?? 0) / 100 : 1;
+  }
+
+  /** A self cast: on the body, facing where it faces. */
+  _fireSelf(element) {
+    const yaw = this.character.facing;
+    const origin = this.character.position.clone().setY(0);
+    const direction = origin.clone().set(Math.sin(yaw), 0, Math.cos(yaw));
+    this._fire(element, origin, direction, 0, yaw);
   }
 
   /** The bag (Tab) and the skill tree (K) share the screen: one at a time. */
@@ -615,6 +688,10 @@ export class App {
     if (this.profile.equipped) this.selectWeapon(this.profile.equipped.weapon);
     this._applyProfileStats({ refill: true });
     this.inventory.setBeltVisible(true);
+    this.rage = 0;
+    this._roarUntil = 0;
+    this._spinUntil = 0;
+    this._dashState = null;
 
     this.phase = 'playing';
     this.input.enabled = true;
@@ -773,8 +850,12 @@ export class App {
       this.hud.showToast(`${ELEMENT_META[element]?.label ?? 'That spell'} is not on your keys — open the skill tree (K)`);
       return;
     }
-    if ((this.cooldowns.get(element) ?? 0) > 0) {
-      this.hud.showToast('Not ready');
+    if (!this._canCast(element)) return;
+    // A shout or a spin needs no aiming: it goes off around you now.
+    if (castShapeOf(element) === CastShape.SELF) {
+      if (element !== this.element) this.selectAbility(element, { silent: true });
+      this.aim.cancel();
+      this._fireSelf(element);
       return;
     }
     // Selecting before arming means the arrow is already drawn to the new
@@ -797,10 +878,25 @@ export class App {
     this.character.locomotion.toggleSit(false);
 
     if (element === 'blink') distance = this._blinkTo(origin, direction, distance);
+    // The body really travels: a charge along the ground, a leap through the air.
+    if (element === 'rampage') distance = this._dash(element, origin, direction, distance, 0);
+    if (element === 'leap') distance = this._dash(element, origin, direction, distance, settings.leap.height);
     const ability = this.abilities.cast(origin, direction, distance, element);
     const strike = this.combat.open(element, origin, direction, distance);
     // Chain leaps and orb zaps are decided by Combat; the effect draws them.
     if (strike && ability) strike.fx = { ability, serial: ability.castSerial };
+
+    // Rage: big skills spend it, a shout gives it.
+    this.rage = Math.max(0, this.rage - this._rageCost(element));
+    this._gainRage(ELEMENT_META[element]?.rageOnCast ?? 0);
+    if (element === 'roar') this._roarUntil = this.elapsed + (settings.roar.buffSeconds ?? 6);
+    if (element === 'tempest') {
+      // The spin stays on the body as it moves.
+      if (strike) strike.followTarget = this.character.position;
+      if (ability) ability.follow = this.character.position;
+      this._spinUntil = this.elapsed + (settings.combat.tempest?.lasts ?? 2.6);
+      this._spinNext = this.elapsed + 0.7;
+    }
     this.cooldowns.set(element, Math.max(0, settings[element].cooldown * this.profile.cooldownMultiplier(element)));
 
     // Snap onto the shot and throw the body into it. Which clip that is belongs
@@ -1109,6 +1205,15 @@ export class App {
    * anything solid and inside the arena. Returns the distance actually covered.
    */
   _blinkTo(origin, direction, distance) {
+    const d = this._landingDistance(origin, direction, distance);
+    if (d <= 0.5) return distance; // nowhere to land: a strike without the jump
+    const position = this.character.position;
+    this._teleport(origin.x + direction.x * d + (position.x - origin.x), origin.z + direction.z * d + (position.z - origin.z));
+    return d;
+  }
+
+  /** How far down a line the body can land: short of anything solid, inside the arena. */
+  _landingDistance(origin, direction, distance) {
     const locomotion = this.character.locomotion;
     const body = 0.45;
     const blocked = (x, z) =>
@@ -1117,10 +1222,43 @@ export class App {
       x * x + z * z > locomotion.bounds * locomotion.bounds;
     let d = distance;
     while (d > 0.5 && blocked(origin.x + direction.x * d, origin.z + direction.z * d)) d -= 0.25;
-    if (d <= 0.5) return distance; // nowhere to land: a strike without the jump
-    const position = this.character.position;
-    this._teleport(origin.x + direction.x * d + (position.x - origin.x), origin.z + direction.z * d + (position.z - origin.z));
     return d;
+  }
+
+  /**
+   * Rampage and Skybreaker Leap: carry the body down the line at the skill's
+   * own speed (so it arrives exactly when the strike does), along the ground
+   * or up through an arc `height` metres high. Returns the distance covered.
+   */
+  _dash(element, origin, direction, distance, height) {
+    const d = this._landingDistance(origin, direction, distance);
+    if (d <= 0.5) return distance;
+    const position = this.character.position;
+    const speed = Math.max(1, settings[element].speed * settings.global.speed);
+    this._dashState = {
+      from: position.clone().setY(0),
+      to: position.clone().setY(0).addScaledVector(direction, d),
+      t: 0,
+      duration: d / speed,
+      height
+    };
+    return d;
+  }
+
+  /** Advance a charge or leap; runs after the locomotion step, so it wins. */
+  _updateDash(dt) {
+    const s = this._dashState;
+    if (!s) return;
+    s.t = Math.min(1, s.t + dt / Math.max(0.05, s.duration));
+    const position = this.character.position;
+    position.x = s.from.x + (s.to.x - s.from.x) * s.t;
+    position.z = s.from.z + (s.to.z - s.from.z) * s.t;
+    position.y = s.height * 4 * s.t * (1 - s.t);
+    this.character.locomotion.velocity.set(0, 0, 0);
+    if (s.t >= 1) {
+      position.y = 0;
+      this._dashState = null;
+    }
   }
 
   /** Move the caster (and the camera with them) without a walk. */
@@ -1564,8 +1702,17 @@ export class App {
     }
 
     this.character.update(dt);
+    this._updateDash(dt);
 
     if (this.phase === 'playing') {
+      // Rage drains once you stop fighting.
+      this._rageIdle += raw;
+      if (this._rageIdle > 4 && this.rage > 0) this.rage = Math.max(0, this.rage - 8 * raw);
+      // Iron Tempest: keep the body spinning while it lasts.
+      if (this._spinUntil > this.elapsed && this.elapsed >= this._spinNext) {
+        this.character.playCast('spin');
+        this._spinNext = this.elapsed + 0.7;
+      }
       for (const [element, remaining] of this.cooldowns) {
         if (remaining > 0) this.cooldowns.set(element, Math.max(0, remaining - raw));
       }
@@ -1648,7 +1795,7 @@ export class App {
    * is facing" after the mouse has steered it.
    */
   _readMovement() {
-    if (this.phase !== 'playing') {
+    if (this.phase !== 'playing' || this._dashState) {
       this.character.locomotion.setIntent(0, 0, false);
       return;
     }
@@ -1685,7 +1832,9 @@ export class App {
 
     for (const element of this.hud.cards.keys()) {
       this.hud.setCooldown(element, this.cooldowns.get(element) ?? 0, settings[element].cooldown * this.profile.cooldownMultiplier(element));
+      this.hud.setStarved(element, this._rageCost(element) > this.rage);
     }
+    this.gameHud.setRage(this.rage / 100, this.rage, this.usesRage && this.phase === 'playing', this._roarUntil > this.elapsed);
     this.hud.setArmed(this.aim.isArmed);
     this.hud.update(dt, () => ({
       particles: this.particles.countLive(this.elapsed),

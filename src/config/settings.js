@@ -2042,6 +2042,103 @@ export const settings = {
   },
 
   /* ------------------------------------------------------------------ */
+  /* Barbarian skills — physical, built from the shared effect systems   */
+  /* ------------------------------------------------------------------ */
+
+  /** EARTHSPLITTER — the axe hits the floor and the floor splits along the line. */
+  slam: {
+    range: 11.0,
+    minRange: 1.0,
+    speed: 38.0, // how fast the split runs
+    cooldown: 1.4,
+    castAnim: 'slam',
+    colorDust: '#b89a78',
+    colorGlow: '#ffb060',
+    lightColor: '#ffb060',
+    lightIntensity: 10,
+    lightRadius: 8
+  },
+
+  /** RAMPAGE — a charge down the line; the body really travels. */
+  rampage: {
+    range: 12.0,
+    minRange: 2.0,
+    speed: 30.0,
+    cooldown: 5.0,
+    castAnim: 'charge',
+    colorDust: '#a88a6a',
+    colorGlow: '#ff7040',
+    lightColor: '#ff8a50',
+    lightIntensity: 8,
+    lightRadius: 7
+  },
+
+  /** BATTLE ROAR — a shout that stuns everything around and fires you up. */
+  roar: {
+    range: 0,
+    minRange: 0,
+    speed: 40, // a self cast goes off at once
+    cooldown: 12.0,
+    castAnim: 'cheer',
+    zoneRadius: 6.5,
+    buffDamage: 25, // % more damage from everything, while it lasts
+    buffSeconds: 6,
+    colorGlow: '#ff4d3d',
+    colorCore: '#ffd0a0',
+    lightColor: '#ff5a3a',
+    lightIntensity: 16,
+    lightRadius: 10
+  },
+
+  /** SKYBREAKER LEAP — jump to a point and crash down on it. */
+  leap: {
+    range: 14.0,
+    minRange: 3.0,
+    speed: 20.0, // horizontal metres per second through the air
+    cooldown: 2.5,
+    castAnim: 'leap',
+    zoneRadius: 3.8,
+    height: 3.4, // top of the arc, metres
+    colorDust: '#b89a78',
+    colorGlow: '#ffb347',
+    lightColor: '#ffb060',
+    lightIntensity: 18,
+    lightRadius: 10
+  },
+
+  /** IRON TEMPEST — spin with the axe out; everything near you gets hit. */
+  tempest: {
+    range: 0,
+    minRange: 0,
+    speed: 40, // a self cast goes off at once
+    cooldown: 1.0,
+    castAnim: 'spin',
+    zoneRadius: 3.2,
+    lasts: 2.6,
+    colorEdge: '#eef3ff',
+    colorDust: '#a8987e',
+    lightColor: '#dfe8ff',
+    lightIntensity: 6,
+    lightRadius: 6
+  },
+
+  /** WORLDBREAKER — a far cast: the ground at the point heaves and keeps shaking. */
+  quake: {
+    range: 16.0,
+    minRange: 4.0,
+    speed: 30.0,
+    cooldown: 8.0,
+    castAnim: 'slam',
+    zoneRadius: 6.0,
+    lasts: 1.8,
+    colorDust: '#9a7e60',
+    colorGlow: '#ff9a40',
+    lightColor: '#ff9a40',
+    lightIntensity: 14,
+    lightRadius: 12
+  },
+
+  /* ------------------------------------------------------------------ */
   /* Combat — what a cast actually does to something standing in it      */
   /* ------------------------------------------------------------------ */
   /**
@@ -2088,7 +2185,14 @@ export const settings = {
     chain: { kind: 'chain', damage: 34, width: 1.0, knockback: 0.8, status: 'shock', duration: 0.35, jumps: 4, jumpRange: 7.5, jumpDelay: 0.09, falloff: 0.85 },
     orb: { kind: 'orb', damage: 15, knockback: 0.3, status: 'chill', duration: 1.2, reach: 4.6, tick: 0.3, targets: 2, burst: 55, splash: 3.4 },
     hail: { kind: 'storm', damage: 13, radius: 0, knockback: 0, status: 'chill', duration: 1.6, tick: 0.45, lasts: 4.0 },
-    blink: { damage: 38, width: 1.4, splash: 3.2, knockback: 5.0, status: 'shock', duration: 0.5 }
+    blink: { damage: 38, width: 1.4, splash: 3.2, knockback: 5.0, status: 'shock', duration: 0.5 },
+    // Barbarian skills — physical: no element, just weight.
+    slam: { damage: 30, width: 1.7, knockback: 1.8, status: 'shock', duration: 0.25 },
+    rampage: { damage: 26, width: 1.6, knockback: 4.5, status: 'shock', duration: 0.4 },
+    roar: { damage: 12, radius: 6.5, knockback: 3.5, status: 'shock', duration: 1.4 },
+    leap: { damage: 48, radius: 3.8, knockback: 3.0, status: 'shock', duration: 0.5 },
+    tempest: { kind: 'storm', damage: 14, radius: 3.2, knockback: 1.2, tick: 0.33, lasts: 2.6, follow: true },
+    quake: { kind: 'storm', damage: 30, radius: 6, knockback: 1.5, status: 'chill', duration: 1.5, tick: 0.45, lasts: 1.8 }
   },
 
   /* ------------------------------------------------------------------ */
@@ -2315,7 +2419,9 @@ export const settings = {
  */
 export const CastShape = Object.freeze({
   LINE: 'line',
-  ZONE: 'zone'
+  ZONE: 'zone',
+  // Goes off around the caster the moment the key is pressed — no aiming.
+  SELF: 'self'
 });
 
 /**
@@ -2325,7 +2431,7 @@ export const CastShape = Object.freeze({
  * array, and the index is the slot the keyboard binds to — adding a third
  * ability is a new file, an entry here and a settings block above.
  */
-export const ELEMENTS = ['ice', 'thunder', 'meteor', 'beam', 'snare', 'glacier', 'chain', 'orb', 'hail', 'blink'];
+export const ELEMENTS = ['ice', 'thunder', 'meteor', 'beam', 'snare', 'glacier', 'chain', 'orb', 'hail', 'blink', 'slam', 'rampage', 'roar', 'leap', 'tempest', 'quake'];
 
 /**
  * Registry metadata: how an ability is presented, and how it is aimed.
@@ -2359,8 +2465,20 @@ export const ELEMENT_META = {
   chain: { label: 'Arc Chain', accent: '#ffd23f', key: '7', hint: 'Arc Chain' },
   orb: { label: 'Void Orb', accent: '#c27bff', key: '8', hint: 'Void Orb' },
   hail: { label: 'Hailstorm', accent: '#bfe8ff', key: '9', hint: 'Hailstorm', cast: CastShape.ZONE },
-  blink: { label: 'Blink Strike', accent: '#3dffb0', key: '0', hint: 'Blink Strike' }
+  blink: { label: 'Blink Strike', accent: '#3dffb0', key: '0', hint: 'Blink Strike' },
+  // Physical skills: `physical` marks them (skill books, not tomes; Rage, not
+  // cooldown alone). `rage` > 0 builds Rage per monster hit, < 0 costs it to
+  // cast; `rageOnCast` is a flat gain for casting at all.
+  slam: { label: 'Earthsplitter', accent: '#e0a060', hint: 'Earthsplitter', physical: true, rage: 8 },
+  rampage: { label: 'Rampage', accent: '#ff7040', hint: 'Rampage', physical: true, rage: 6 },
+  roar: { label: 'Battle Roar', accent: '#ff4d3d', hint: 'Battle Roar', physical: true, cast: CastShape.SELF, rageOnCast: 30 },
+  leap: { label: 'Skybreaker Leap', accent: '#ffb347', hint: 'Skybreaker Leap', physical: true, cast: CastShape.ZONE, rage: -30 },
+  tempest: { label: 'Iron Tempest', accent: '#d8dde6', hint: 'Iron Tempest', physical: true, cast: CastShape.SELF, rage: -40 },
+  quake: { label: 'Worldbreaker', accent: '#c88a4a', hint: 'Worldbreaker', physical: true, cast: CastShape.ZONE, rage: -60 }
 };
+
+/** The spells (everything that is not a physical skill). */
+export const SPELL_IDS = ELEMENTS.filter((id) => !ELEMENT_META[id]?.physical);
 
 /** How the given ability is aimed. Line unless its metadata says otherwise. */
 export function castShapeOf(element) {
@@ -2369,7 +2487,8 @@ export function castShapeOf(element) {
 
 /** The footprint a far cast will cover, metres. 0 for a line cast. */
 export function zoneRadiusOf(element) {
-  return castShapeOf(element) === CastShape.ZONE ? (settings[element]?.zoneRadius ?? 0) : 0;
+  const shape = castShapeOf(element);
+  return shape === CastShape.ZONE || shape === CastShape.SELF ? (settings[element]?.zoneRadius ?? 0) : 0;
 }
 
 /** Immutable snapshot used by "Reset to defaults" and the preset system. */

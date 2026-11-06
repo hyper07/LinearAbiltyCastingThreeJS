@@ -1503,3 +1503,42 @@ body.is-menu #viewport {
   line-height: 36px;
   color: var(--ui-text-dim);
 }
+
+/* --- Rage (Barbarian), under the health bar --- */
+
+.vitals__rage[hidden] {
+  display: none;
+}
+
+.vitals__rage {
+  height: 10px;
+  margin-top: 4px;
+}
+
+.vitals__rage i {
+  background: linear-gradient(90deg, #b8261a, #ff6a3a);
+  box-shadow: 0 0 16px rgba(255, 90, 50, 0.5);
+}
+
+.vitals__rage span {
+  font-size: 8px;
+  color: rgba(255, 240, 230, 0.9);
+}
+
+.vitals__rage.is-roaring i {
+  background: linear-gradient(90deg, #ff4d3d, #ffd0a0);
+  animation: vitals-pulse 0.6s ease-in-out infinite;
+}
+
+/* A skill that costs more Rage than you have. */
+.ability-card.is-starved .ability-card__glyph,
+.ability-card.is-starved .ability-card__label {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+}
+
+/* A skill whose name has a long word: smaller, tighter label. */
+.ability-card--long .ability-card__label {
+  font-size: 8.5px;
+  letter-spacing: 0.01em;
+}

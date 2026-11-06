@@ -34,7 +34,13 @@ export const KAYKIT_ANIMATION_CLIPS = {
   casts: {
     cast1: '1H_Ranged_Shoot',
     cast2: '2H_Melee_Attack_Chop',
-    cast3: '1H_Melee_Attack_Stab'
+    cast3: '1H_Melee_Attack_Stab',
+    // Physical skills (Barbarian).
+    slam: '2H_Melee_Attack_Chop',
+    charge: '2H_Melee_Attack_Stab',
+    cheer: 'Cheer',
+    leap: 'Jump_Full_Long',
+    spin: '2H_Melee_Attack_Spinning'
   }
 };
 
@@ -45,7 +51,12 @@ export const KAYKIT_SKELETON_CLIPS = {
   casts: {
     cast1: '1H_Ranged_Shoot',
     cast2: '2H_Melee_Attack_Chop',
-    cast3: '1H_Melee_Attack_Stab'
+    cast3: '1H_Melee_Attack_Stab',
+    slam: '2H_Melee_Attack_Chop',
+    charge: '2H_Melee_Attack_Stab',
+    cheer: 'Taunt',
+    leap: '1H_Melee_Attack_Jump_Chop',
+    spin: '2H_Melee_Attack_Spinning'
   }
 };
 

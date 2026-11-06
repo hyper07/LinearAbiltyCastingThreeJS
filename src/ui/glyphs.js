@@ -136,6 +136,53 @@ const BLINK = WRAP(`
   <path d="M78 22V30M78 66V74M54 48H60M96 48H90M61 31L66 36M95 31L90 36M61 65L66 60M95 65L90 60"/>
 `);
 
+/* --- Barbarian skills --------------------------------------------------- */
+
+/** Earthsplitter — an axe head striking down onto a crack that runs away. */
+const SLAM = WRAP(`
+  <path d="M30 14L52 44"/>
+  <path d="M22 26C30 14 44 12 50 22L38 34C33 30 27 29 22 26Z"/>
+  <path d="M50 52L58 62L54 70L64 78L60 88"/>
+  <path d="M30 60H70" stroke-dasharray="3 7"/>
+`);
+
+/** Rampage — a charging shoulder with speed lines behind it. */
+const RAMPAGE = WRAP(`
+  <path d="M60 30C74 30 84 40 84 54C84 66 74 74 62 74H52L46 56L60 30Z"/>
+  <path d="M14 40H38M20 52H40M14 64H38"/>
+`);
+
+/** Battle Roar — an open mouth with sound rings going out. */
+const ROAR = WRAP(`
+  <path d="M34 40L50 34L66 40L60 62H40Z"/>
+  <path d="M42 48L58 48"/>
+  <path d="M22 30C14 42 14 58 22 70M78 30C86 42 86 58 78 70"/>
+  <path d="M12 22C0 40 0 60 12 78M88 22C100 40 100 60 88 78"/>
+`);
+
+/** Skybreaker Leap — an arc through the air ending in an impact. */
+const LEAP = WRAP(`
+  <path d="M14 76C24 26 60 18 72 66" stroke-dasharray="3 7"/>
+  <path d="M64 58L72 66L80 56"/>
+  <path d="M56 82H88M62 74L56 66M82 74L88 66M72 70V62"/>
+`);
+
+/** Iron Tempest — two blades chasing each other round a circle. */
+const TEMPEST = WRAP(`
+  <path d="M50 18C70 18 82 30 82 50"/>
+  <path d="M50 82C30 82 18 70 18 50"/>
+  <path d="M74 36L82 50L88 38M26 64L18 50L12 62"/>
+  <circle cx="50" cy="50" r="7"/>
+`);
+
+/** Worldbreaker — a fist on ground splitting three ways. */
+const QUAKE = WRAP(`
+  <path d="M36 18H64V40H36Z"/>
+  <path d="M40 18V12M50 18V12M60 18V12"/>
+  <path d="M14 56H86"/>
+  <path d="M50 56L44 70L52 78L46 90M50 56L68 66L76 80M50 56L30 68L22 82"/>
+`);
+
 /** Keyed by the ids in `ELEMENTS`. */
 export const ELEMENT_SIGILS = {
   ice: ICE,
@@ -147,5 +194,11 @@ export const ELEMENT_SIGILS = {
   chain: CHAIN,
   orb: ORB,
   hail: HAIL,
-  blink: BLINK
+  blink: BLINK,
+  slam: SLAM,
+  rampage: RAMPAGE,
+  roar: ROAR,
+  leap: LEAP,
+  tempest: TEMPEST,
+  quake: QUAKE
 };

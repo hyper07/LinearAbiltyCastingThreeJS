@@ -87,14 +87,14 @@ export const CLASS_SPECS = [
     id: 'barbarian',
     label: 'Barbarian',
     icon: '🪓',
-    tagline: 'Raider out of the frozen north who laughs at wounds and calls down fire.',
+    tagline: 'Raider out of the frozen north who laughs at wounds and splits the ground with an axe.',
     weapon: 'war-axe',
     motion: 'humanoid-heavy',
     casting: heavy,
     looks: ['barbarian', 'skeleton-warrior'],
     tint: '#d08a5a',
     attacks: ['cleave', 'maul', 'whirlwind', 'war-cry-strike'],
-    bonuses: { health: 70, armor: 10, speed: 8, meteor: 20 }
+    bonuses: { health: 70, armor: 10, speed: 8, slam: 20 }
   },
   {
     id: 'amazon',
@@ -256,7 +256,7 @@ export const CLASS_CHARACTERS = CLASS_SPECS.map((spec) =>
     rig: 'kaykit',
     model: lookModel(savedLook(spec.id) ?? spec.looks[0], spec.tint),
     look: savedLook(spec.id) ?? spec.looks[0],
-    castClips: ['cast1', 'cast2', 'cast3'],
+    castClips: ['cast1', 'cast2', 'cast3', 'slam', 'charge', 'cheer', 'leap', 'spin'],
     motion: spec.motion,
     motionDataset: 'kaykit-locomotion',
     defaultLoadout: `class-${spec.id}`,

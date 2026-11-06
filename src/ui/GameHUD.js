@@ -44,6 +44,10 @@ export class GameHUD {
           <i data-health></i>
           <span data-health-text>100</span>
         </div>
+        <div class="vitals__bar vitals__rage" data-rage-bar hidden>
+          <i data-rage></i>
+          <span data-rage-text>RAGE 0</span>
+        </div>
       </div>
 
       <div class="banner" data-banner>
@@ -69,6 +73,9 @@ export class GameHUD {
       combo: q('[data-combo]'),
       comboCount: q('[data-combo-count]'),
       health: q('[data-health]'),
+      rageBar: q('[data-rage-bar]'),
+      rage: q('[data-rage]'),
+      rageText: q('[data-rage-text]'),
       healthText: q('[data-health-text]'),
       banner: q('[data-banner]'),
       bannerTitle: q('[data-banner-title]'),
@@ -135,6 +142,31 @@ export class GameHUD {
     }
     this._set(this.el.healthText, 'healthText', String(Math.ceil(value)));
     this.el.health.classList.toggle('is-critical', ratio < 0.3);
+  }
+
+  /**
+   * The Rage bar, under health — only for classes that fight with Rage.
+   * @param {number} ratio 0..1
+   * @param {number} value 0..100
+   * @param {boolean} visible
+   * @param {boolean} roaring Battle Roar's buff is up
+   */
+  setRage(ratio, value, visible, roaring) {
+    if (this._shown.rageVisible !== visible) {
+      this._shown.rageVisible = visible;
+      this.el.rageBar.hidden = !visible;
+    }
+    if (!visible) return;
+    const percent = `${(ratio * 100).toFixed(1)}%`;
+    if (this._shown.rage !== percent) {
+      this._shown.rage = percent;
+      this.el.rage.style.width = percent;
+    }
+    this._set(this.el.rageText, 'rageText', roaring ? `RAGE ${Math.floor(value)} · ROAR +25%` : `RAGE ${Math.floor(value)}`);
+    if (this._shown.roaring !== roaring) {
+      this._shown.roaring = roaring;
+      this.el.rageBar.classList.toggle('is-roaring', roaring);
+    }
   }
 
   /** Flash the screen edges red. Amount is a fraction of max health. */

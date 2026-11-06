@@ -1,4 +1,4 @@
-import { settings, ELEMENT_META } from '../config/settings.js';
+import { settings, ELEMENT_META, CastShape } from '../config/settings.js';
 import { SKILL_MAX_RANK, SKILL_RANK } from '../items/Items.js';
 import { SLOT_COUNT, prerequisite, spellName, treeFor } from '../platform/skill/tree.js';
 import { platform } from '../platform/index.js';
@@ -81,7 +81,10 @@ export class SkillTreeView {
       'p',
       'skilltree__hint',
       tree.note ??
-        `Pick a key, then click a learned spell to put it there. Skill books teach a spell and raise its rank (max ${SKILL_MAX_RANK}); a tier-2 spell needs the one above it at rank 2, tier 3 needs rank 3.`
+        (tree.resource === 'rage'
+          ? `Fights with Rage: tier-1 skills and melee hits build it, tier-2 skills spend it. `
+          : '') +
+          `Pick a key, then click a learned skill to put it there. Skill books teach a skill and raise its rank (max ${SKILL_MAX_RANK}); a tier-2 skill needs the one above it at rank 2, tier 3 needs rank 3.`
     );
 
     /* --- the branches --- */
@@ -124,7 +127,8 @@ export class SkillTreeView {
     const glyph = el('span', 'skilltree__glyph');
     glyph.innerHTML = ELEMENT_SIGILS[element] ?? '';
     const title = el('div', 'skilltree__node-title');
-    title.append(el('strong', null, spellName(element)), el('small', null, `Tier ${tier}${meta.cast === 'zone' ? ' · far cast' : ''}`));
+    const shape = meta.cast === 'zone' ? ' · far cast' : meta.cast === CastShape.SELF ? ' · around you' : '';
+    title.append(el('strong', null, spellName(element)), el('small', null, `Tier ${tier}${shape}`));
     head.append(glyph, title);
     const onKey = slots.indexOf(element);
     if (onKey >= 0) head.append(el('kbd', 'skilltree__on-key', String(onKey + 1)));
@@ -138,7 +142,9 @@ export class SkillTreeView {
     const combat = settings.combat[element] ?? {};
     const ability = settings[element] ?? {};
     const bonus = rank > 1 ? ` · +${(rank - 1) * SKILL_RANK.damage}% dmg` : '';
-    node.append(el('p', 'skilltree__stats', `${combat.damage ?? 0} dmg · ${ability.cooldown ?? 0}s · ${ability.range ?? 0} m${bonus}`));
+    const reach = meta.cast === CastShape.SELF ? `${ability.zoneRadius ?? 0} m around` : `${ability.range ?? 0} m`;
+    const rage = meta.rage > 0 ? ` · +${meta.rage} Rage/hit` : meta.rage < 0 ? ` · ${-meta.rage} Rage` : meta.rageOnCast ? ` · +${meta.rageOnCast} Rage` : '';
+    node.append(el('p', 'skilltree__stats', `${combat.damage ?? 0} dmg · ${ability.cooldown ?? 0}s · ${reach}${rage}${bonus}`));
 
     const foot = el('div', 'skilltree__node-foot');
     if (rank) foot.append(el('span', null, `Rank ${rank}/${SKILL_MAX_RANK}`));

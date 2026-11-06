@@ -102,6 +102,16 @@ export const blinkStrike = createSkill('blink-strike', {
   hint: 'Blink Strike'
 });
 
+/* Barbarian skills — physical. castAnim names map to KayKit clips (modelManifest.js). */
+const physical = (id, abilityId, label, castAnim, castShape, accent) =>
+  createSkill(id, { label, abilityId, castAnim, castShape, accent, hint: label, physical: true });
+export const earthsplitter = physical('earthsplitter', 'slam', 'Earthsplitter', 'slam', CastShape.LINE, '#e0a060');
+export const rampage = physical('rampage', 'rampage', 'Rampage', 'charge', CastShape.LINE, '#ff7040');
+export const battleRoar = physical('battle-roar', 'roar', 'Battle Roar', 'cheer', CastShape.SELF, '#ff4d3d');
+export const skybreakerLeap = physical('skybreaker-leap', 'leap', 'Skybreaker Leap', 'leap', CastShape.ZONE, '#ffb347');
+export const ironTempest = physical('iron-tempest', 'tempest', 'Iron Tempest', 'spin', CastShape.SELF, '#d8dde6');
+export const worldbreaker = physical('worldbreaker', 'quake', 'Worldbreaker', 'slam', CastShape.ZONE, '#c88a4a');
+
 export const DEFAULT_SKILLS = [
   frostLance,
   stormLance,
@@ -112,7 +122,13 @@ export const DEFAULT_SKILLS = [
   arcChain,
   voidOrb,
   hailstorm,
-  blinkStrike
+  blinkStrike,
+  earthsplitter,
+  rampage,
+  battleRoar,
+  skybreakerLeap,
+  ironTempest,
+  worldbreaker
 ];
 
 /** Map ability id → default skill (for resolving cast anim from element id). */

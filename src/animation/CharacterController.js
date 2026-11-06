@@ -394,7 +394,11 @@ export class CharacterController {
    * @param {number} [loopMode]
    */
   _registerEmbeddedClip(name, clipName, animations, bones, oneShot, loopMode = LoopRepeat) {
-    const clip = animations.find((entry) => entry.name === clipName);
+    // Several ids may share one clip (a slam and a cast can both be the
+    // two-handed chop), so register a copy under the new name rather than
+    // renaming the original out from under the next lookup.
+    const source = animations.find((entry) => entry.name === clipName);
+    const clip = source?.clone();
     if (!clip) {
       console.warn(`[CharacterController] clip "${clipName}" not found for "${name}"`);
       return;

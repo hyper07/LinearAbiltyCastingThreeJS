@@ -102,6 +102,8 @@ export class HUD {
       const card = document.createElement('div');
       const meta = element ? ELEMENT_META[element] : null;
       card.className = `ability-card${meta ? '' : ' ability-card--empty'}`;
+      // One long word ("Earthsplitter") will not fit the card at full size.
+      if (meta && meta.label.split(' ').some((word) => word.length > 9)) card.classList.add('ability-card--long');
       if (meta) {
         card.dataset.element = element;
         card.style.setProperty('--accent', meta.accent);
@@ -169,6 +171,12 @@ export class HUD {
     this._cooldownShown.set(element, ratio);
     card.style.setProperty('--cooldown', ratio);
     card.classList.toggle('is-cooling', ratio > 0.001);
+  }
+
+  /** Dim a card whose skill costs more Rage than there is. */
+  setStarved(element, starved) {
+    const card = this.cards.get(element);
+    if (card && card.classList.contains('is-starved') !== starved) card.classList.toggle('is-starved', starved);
   }
 
   setPaused(paused) {

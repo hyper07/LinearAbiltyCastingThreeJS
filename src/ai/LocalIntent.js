@@ -30,7 +30,13 @@ const SKILL_WORDS = {
   chain: ['arc chain', 'chain lightning', 'chain', 'bounce', 'jump between'],
   orb: ['void orb', 'orb', 'sphere', 'ball'],
   hail: ['hailstorm', 'hail', 'blizzard', 'ice storm', 'rain ice'],
-  blink: ['blink strike', 'blink', 'teleport', 'dash', 'warp']
+  blink: ['blink strike', 'blink', 'teleport', 'dash', 'warp'],
+  slam: ['earthsplitter', 'ground slam', 'slam', 'split'],
+  rampage: ['rampage', 'charge', 'rush'],
+  roar: ['battle roar', 'roar', 'shout', 'war cry'],
+  leap: ['skybreaker leap', 'leap', 'jump on'],
+  tempest: ['iron tempest', 'tempest', 'spin', 'whirl'],
+  quake: ['worldbreaker', 'earthquake', 'quake']
 };
 
 /** Words that name a target. Order matters — the first match wins. */
