@@ -1,6 +1,7 @@
 import { platform } from '../platform/index.js';
 import { deriveCharacterStats } from '../platform/stats/deriveStats.js';
-import { buildSkillTree, enrichSkillTree } from '../platform/skill/tree.js';
+import { spellName, treeFor, treeSpells } from '../platform/skill/tree.js';
+import { SkillTreeView } from './SkillTreePanel.js';
 import { WEAPON_CATEGORY_META, categoryGlyph } from '../platform/weapon/WeaponDefinition.js';
 import { CharacterPreview } from './CharacterPreview.js';
 import { progress } from '../levels/LevelStore.js';
@@ -111,7 +112,7 @@ export class MainMenu {
 
             <div class="main-menu__panel" data-panel="skills" hidden>
               <h2 class="main-menu__section-title">Skill Tree</h2>
-              <p class="main-menu__panel-hint">Equipped abilities for this class loadout.</p>
+              <p class="main-menu__panel-hint">This class's spells. Skill books learn and rank them up; pick five for keys 1–5.</p>
               <div class="main-menu__skill-tree" data-skill-tree></div>
             </div>
 
@@ -255,8 +256,10 @@ export class MainMenu {
     const tagline = character.tagline
       ? `<span class="main-menu__character-tagline">${character.tagline}</span>`
       : '';
+    const startSpells = treeFor(character.id).start.map(spellName);
+    const spells = character.classSpec ? ` · Starts with ${startSpells.join(' and ')}` : '';
     const bonuses = character.classSpec
-      ? `<span class="main-menu__character-bonuses">${describeBonuses(character.classSpec.bonuses).join(' · ')}</span>`
+      ? `<span class="main-menu__character-bonuses">${describeBonuses(character.classSpec.bonuses).join(' · ')}${spells}</span>`
       : '';
     return `
       <button
@@ -671,44 +674,21 @@ export class MainMenu {
     this.preview.previewCharacter?.applyAppearance(appearance);
   }
 
-  _renderSkillTree() {
-    const character = platform.characters.get(this._characterId);
-    const loadoutId = character?.defaultLoadout;
-    const stats = deriveCharacterStats(platform, this._characterId, this._weaponId);
-    const skillStatsById = new Map(stats.skills.map((skill) => [skill.id, skill]));
-    const branches = enrichSkillTree(buildSkillTree(platform, loadoutId), skillStatsById);
+  /** Called by the game once the profile exists (it is built after the menu). */
+  setProfile(profile) {
+    this.profile = profile;
+    this.skillTree = new SkillTreeView(this.skillTreeEl, profile, { classId: () => this._characterId });
+    const refresh = () => {
+      if (this.isVisible) this._renderSkillTree();
+    };
+    profile.on('change', refresh);
+    profile.on('slots', refresh);
+    this._renderSkillTree();
+  }
 
-    this.skillTreeEl.innerHTML = branches
-      .map(
-        (branch) => `
-      <div class="main-menu__skill-branch" style="--branch-accent: ${branch.accent}">
-        <div class="main-menu__skill-branch-head">
-          <span class="main-menu__skill-branch-dot"></span>
-          <span class="main-menu__skill-branch-label">${branch.label}</span>
-        </div>
-        <div class="main-menu__skill-nodes">
-          ${branch.nodes
-            .map((node) => {
-              const skill = node.skill;
-              const stats = node.stats;
-              if (!skill) return '';
-              return `
-            <article class="main-menu__skill-node${node.equipped ? ' is-equipped' : ''}">
-              <div class="main-menu__skill-node-head">
-                <span class="main-menu__skill-key">${skill.key}</span>
-                <strong>${skill.label}</strong>
-              </div>
-              <p class="main-menu__skill-node-meta">
-                ${stats ? `${stats.damage} dmg · ${stats.cooldown}s cd · ${stats.range}m range` : skill.hint}
-              </p>
-              <span class="main-menu__skill-node-shape">${skill.castShape}</span>
-            </article>`;
-            })
-            .join('')}
-        </div>
-      </div>`
-      )
-      .join('');
+  _renderSkillTree() {
+    // The tree needs the player's ranks; until the profile arrives there is nothing to draw.
+    this.skillTree?.render();
   }
 
   _renderStats() {
@@ -717,11 +697,18 @@ export class MainMenu {
     const statRow = (label, value) =>
       `<div class="main-menu__stat-row"><span>${label}</span><strong>${value}</strong></div>`;
 
+    // Only the spells this class can learn; the key column is where it sits now.
+    const tree = new Set(treeSpells(this._characterId));
+    const keyOf = (abilityId) => {
+      const i = this.profile?.slotsOf(this._characterId).indexOf(abilityId) ?? -1;
+      return i >= 0 ? String(i + 1) : '–';
+    };
     const skillRows = stats.skills
+      .filter((skill) => tree.has(skill.abilityId))
       .map(
         (skill) => `
       <tr>
-        <td><span class="main-menu__skill-key">${skill.key}</span> ${skill.label}</td>
+        <td><span class="main-menu__skill-key">${keyOf(skill.abilityId)}</span> ${skill.label}</td>
         <td>${skill.damage}</td>
         <td>${skill.cooldown}s</td>
         <td>${skill.range}m</td>

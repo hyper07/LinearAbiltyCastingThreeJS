@@ -1,13 +1,14 @@
-import { ELEMENTS, ELEMENT_META } from '../config/settings.js';
+import { ELEMENT_META } from '../config/settings.js';
 import { ELEMENT_SIGILS } from './glyphs.js';
 import { CONTACT_MARKUP, ContactCard } from './contact.js';
 
 /**
  * Heads-up display: the ability bar, controls, live stats and toasts.
  *
- * Plain DOM — no framework. The bar is built from `ELEMENTS`, so a new ability
- * appears in it on its own; the slots are the only interactive part, and they
- * mirror the keyboard shortcuts through `onAbility`.
+ * Plain DOM — no framework. The bar shows the five spells on keys 1–5
+ * (`setSlots`, from the class's skill tree); the slots are the only
+ * interactive part, and they mirror the keyboard shortcuts through
+ * `onAbility`. An empty slot calls `onEmptySlot` (the game opens the tree).
  *
  * The cooldown sweep is a `conic-gradient` driven by a CSS custom property, so
  * updating it every frame is one `setProperty` call and never touches layout.
@@ -16,6 +17,7 @@ export class HUD {
   constructor(root) {
     this.root = root;
     this.onAbility = null;
+    this.onEmptySlot = null;
     this._toastTimer = 0;
     this._statsAccumulator = 0;
     this._frames = 0;
@@ -27,7 +29,7 @@ export class HUD {
     root.innerHTML = `
       <div class="hud__panel hud__title">
         Elemental Arena
-        <span data-blurb>WASD to move, arrows to look, 1–6 to pick spells — left click attacks, right click casts.</span>
+        <span data-blurb>WASD to move, arrows to look, 1–5 to pick spells, K for the skill tree — left click attacks, right click casts.</span>
       </div>
 
       <div class="hud__panel hud__stats">
@@ -43,10 +45,8 @@ export class HUD {
         <div><kbd>←</kbd><kbd>→</kbd> or <kbd>Q</kbd><kbd>E</kbd> turn the view &nbsp; <kbd>↑</kbd><kbd>↓</kbd> tilt it</div>
         <div class="hud__help-note">WASD moves relative to where the character faces — steer with the mouse.</div>
 
-        <div style="margin-top:7px"><strong>1</strong> Frost Lance &nbsp; <strong>2</strong> Storm Lance</div>
-        <div><strong>3</strong> Cinder Fall &nbsp; <strong>4</strong> Nova Beam</div>
-        <div><strong>5</strong> Voltaic Snare &nbsp; <strong>6</strong> Glacial Crown</div>
-        <div class="hud__help-note">5 and 6 are far casts — aimed with a circle, not an arrow.</div>
+        <div style="margin-top:7px"><strong>1</strong>–<strong>5</strong> your five spells &nbsp; <kbd>K</kbd> skill tree</div>
+        <div class="hud__help-note">Skill books teach spells and raise their ranks. Far casts aim with a circle, not an arrow.</div>
         <div><strong>Mouse</strong> aim &nbsp; <strong>Left click</strong> attack &nbsp; <strong>Right click</strong> cast</div>
         <div><strong>Esc</strong> — cancel the cast &nbsp; <strong>Middle drag</strong> orbit</div>
         <div><strong>Scroll</strong> zoom</div>
@@ -65,18 +65,7 @@ export class HUD {
         <div class="hud__help-note">Paused still applies every editor change.</div>
       </div>
 
-      <div class="hud__abilities">
-        ${ELEMENTS.map((element) => {
-          const meta = ELEMENT_META[element];
-          return `
-            <div class="ability-card" data-element="${element}" style="--accent:${meta.accent}">
-              <div class="ability-card__sweep" data-sweep></div>
-              <div class="ability-card__key">${meta.key}</div>
-              <div class="ability-card__glyph">${ELEMENT_SIGILS[element] ?? ''}</div>
-              <div class="ability-card__label">${meta.label}</div>
-            </div>`;
-        }).join('')}
-      </div>
+      <div class="hud__abilities"></div>
 
       ${CONTACT_MARKUP}
 
@@ -84,14 +73,8 @@ export class HUD {
       <div class="hud__paused" data-paused>Paused</div>
     `;
 
+    /** element → card, for the spells on the bar right now. */
     this.cards = new Map();
-    for (const card of root.querySelectorAll('.ability-card')) {
-      this.cards.set(card.dataset.element, card);
-      card.addEventListener('pointerdown', (event) => {
-        event.stopPropagation();
-        this.onAbility?.(card.dataset.element);
-      });
-    }
 
     this.stats = {
       fps: root.querySelector('[data-stat="fps"]'),
@@ -104,10 +87,50 @@ export class HUD {
     this.pausedBadge = root.querySelector('[data-paused]');
     this.abilityBar = root.querySelector('.hud__abilities');
     this.contact = new ContactCard(root);
+    this._activeElement = null;
+  }
+
+  /**
+   * Lay out the bar: one card per key, in order; `null` is an empty key.
+   * @param {(string|null)[]} slots
+   */
+  setSlots(slots) {
+    this.cards.clear();
+    this._cooldownShown.clear();
+    this.abilityBar.replaceChildren();
+    slots.forEach((element, i) => {
+      const card = document.createElement('div');
+      const meta = element ? ELEMENT_META[element] : null;
+      card.className = `ability-card${meta ? '' : ' ability-card--empty'}`;
+      if (meta) {
+        card.dataset.element = element;
+        card.style.setProperty('--accent', meta.accent);
+        card.innerHTML = `
+          <div class="ability-card__sweep" data-sweep></div>
+          <div class="ability-card__key">${i + 1}</div>
+          <div class="ability-card__glyph">${ELEMENT_SIGILS[element] ?? ''}</div>
+          <div class="ability-card__label">${meta.label}</div>`;
+        this.cards.set(element, card);
+      } else {
+        card.title = 'Empty — learn spells from skill books (K)';
+        card.innerHTML = `
+          <div class="ability-card__key">${i + 1}</div>
+          <div class="ability-card__glyph ability-card__plus">+</div>
+          <div class="ability-card__label">Empty</div>`;
+      }
+      card.addEventListener('pointerdown', (event) => {
+        event.stopPropagation();
+        if (element) this.onAbility?.(element);
+        else this.onEmptySlot?.(i);
+      });
+      this.abilityBar.append(card);
+    });
+    if (this._activeElement) this.setElement(this._activeElement, { silent: true });
   }
 
   /** @param {{silent?: boolean}} [options] */
   setElement(element, options = {}) {
+    this._activeElement = element;
     for (const [key, card] of this.cards) {
       card.classList.toggle('is-active', key === element);
     }

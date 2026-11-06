@@ -65,9 +65,12 @@ export const UNIQUES = [
   { name: 'Wardenblade', weapon: 'claymore', stats: { health: 60, speed: 12, damage: 12 } }
 ];
 
-export const SKILL_MAX_RANK = 5;
-/** Per skill rank: +12% damage and −4% cooldown for that spell. */
-export const SKILL_RANK = { damage: 12, cooldown: 4 };
+/**
+ * Spell ranks: 0 = not learned, 1 = learned (base power), up to 10. One book
+ * per rank. Each rank past the first: +10% damage, −3% cooldown on that spell.
+ */
+export const SKILL_MAX_RANK = 10;
+export const SKILL_RANK = { damage: 10, cooldown: 3 };
 
 export const POTIONS = {
   health: { name: 'Health Potion', color: '#ff4a5a', price: 25, text: 'Restores 45% of your health. (R)' },
@@ -116,8 +119,12 @@ export function makeWeapon(rarity = 'common', rng = Math.random) {
   return item;
 }
 
-export function makeBook(element, rng = Math.random) {
-  element ??= pick(Object.keys(ELEMENT_NAMES), rng);
+/**
+ * A skill book. With a `pool` (the reader's class tree), three books in four
+ * are for spells that class can actually learn; the rest are for selling.
+ */
+export function makeBook(element, rng = Math.random, pool = null) {
+  element ??= pool?.length && rng() < 0.75 ? pick(pool, rng) : pick(Object.keys(ELEMENT_NAMES), rng);
   return { uid: uid(), type: 'book', rarity: 'rare', name: `Tome of ${ELEMENT_NAMES[element]}`, element, value: 0 };
 }
 
@@ -145,8 +152,9 @@ export function describeItem(item) {
     for (const [key, value] of Object.entries(item.stats ?? {})) lines.push(STATS[key]?.label(value) ?? `${key} ${value}`);
   } else if (item.type === 'book') {
     lines.push('Skill book');
-    lines.push(`Raises ${ELEMENT_NAMES[item.element]} by one rank (max ${SKILL_MAX_RANK}).`);
-    lines.push(`Each rank: +${SKILL_RANK.damage}% damage, −${SKILL_RANK.cooldown}% cooldown.`);
+    lines.push(`Teaches ${ELEMENT_NAMES[item.element]}, or raises it one rank (max ${SKILL_MAX_RANK}).`);
+    lines.push(`Each rank after the first: +${SKILL_RANK.damage}% damage, −${SKILL_RANK.cooldown}% cooldown.`);
+    lines.push('Only classes with this spell in their skill tree can read it.');
   } else if (item.type === 'potion') lines.push(POTIONS[item.potion].text);
   else if (item.type === 'gold') lines.push('Gold');
   return lines;
@@ -167,16 +175,17 @@ const TABLES = {
   grunt: { chance: 0.38, rolls: [1, 1], boost: 0, gold: [3, 9] },
   wisp: { chance: 0.45, rolls: [1, 1], boost: 0.2, gold: [5, 12] },
   brute: { chance: 0.75, rolls: [1, 2], boost: 0.5, gold: [12, 30] },
-  golem: { chance: 1, rolls: [2, 3], boost: 1.2, gold: [40, 80], guarantee: 'rare' },
-  dragon: { chance: 1, rolls: [4, 5], boost: 2.5, gold: [150, 300], guarantee: 'epic', book: true }
+  golem: { chance: 1, rolls: [2, 3], boost: 1.2, gold: [40, 80], guarantee: 'rare', book: 0.5 },
+  dragon: { chance: 1, rolls: [4, 5], boost: 2.5, gold: [150, 300], guarantee: 'epic', book: 2 }
 };
 
 /**
  * @param {string} kind monster kind
- * @param {{ wave?: number, goldFind?: number, rng?: () => number }} [options]
+ * @param {{ wave?: number, goldFind?: number, rng?: () => number, bookPool?: string[] }} [options]
+ *   `bookPool`: the spells in the player's class tree, so books mostly fit.
  * @returns {object[]} items to drop
  */
-export function rollLoot(kind, { wave = 1, goldFind = 0, rng = Math.random } = {}) {
+export function rollLoot(kind, { wave = 1, goldFind = 0, rng = Math.random, bookPool = null } = {}) {
   const table = TABLES[kind] ?? TABLES.grunt;
   if (rng() > table.chance) return [];
   const drops = [];
@@ -185,9 +194,9 @@ export function rollLoot(kind, { wave = 1, goldFind = 0, rng = Math.random } = {
   for (let i = 0; i < rolls; i++) {
     const r = rng();
     if (r < 0.5) drops.push(makeGold(Math.max(1, Math.round(between(table.gold, rng) * (1 + wave * 0.08) * (1 + goldFind / 100)))));
-    else if (r < 0.72) drops.push(makePotion(rng() < 0.7 ? 'health' : 'focus'));
-    else if (r < 0.95) drops.push(makeWeapon(rollRarity(rng, boost), rng));
-    else drops.push(makeBook(null, rng));
+    else if (r < 0.7) drops.push(makePotion(rng() < 0.7 ? 'health' : 'focus'));
+    else if (r < 0.9) drops.push(makeWeapon(rollRarity(rng, boost), rng));
+    else drops.push(makeBook(null, rng, bookPool)); // books: one roll in ten
   }
   if (table.guarantee) {
     const floor = RARITY_ORDER.indexOf(table.guarantee);
@@ -195,20 +204,21 @@ export function rollLoot(kind, { wave = 1, goldFind = 0, rng = Math.random } = {
     if (RARITY_ORDER.indexOf(rarity) < floor) rarity = table.guarantee;
     drops.push(makeWeapon(rarity, rng));
   }
-  if (table.book) drops.push(makeBook(null, rng));
+  // `book`: a whole number is that many books, a fraction is a chance of one.
+  for (let n = table.book ?? 0; n > 0; n--) if (n >= 1 || rng() < n) drops.push(makeBook(null, rng, bookPool));
   return drops;
 }
 
-/** A merchant's shelf: potions always, plus a few weapons and a book. */
-export function merchantStock(rng = Math.random, wave = 1) {
+/** A merchant's shelf: potions always, plus a few weapons and two books. */
+export function merchantStock(rng = Math.random, wave = 1, bookPool = null) {
   const stock = [makePotion('health'), makePotion('focus')];
   for (let i = 0; i < 5; i++) stock.push(makeWeapon(rollRarity(rng, 0.4 + wave * 0.05), rng));
-  stock.push(makeBook(null, rng));
+  stock.push(makeBook(null, rng, bookPool), makeBook(null, rng, bookPool));
   return stock;
 }
 
 export function buyPrice(item) {
   if (item.type === 'potion') return POTIONS[item.potion].price;
-  if (item.type === 'book') return 180;
+  if (item.type === 'book') return 150;
   return itemValue(item) * 4;
 }

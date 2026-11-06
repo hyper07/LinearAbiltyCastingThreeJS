@@ -1,5 +1,6 @@
 import { BAG_SIZE } from '../items/Profile.js';
 import { ELEMENT_NAMES, RARITIES, SKILL_MAX_RANK, STATS, describeItem, itemColor } from '../items/Items.js';
+import { treeSpells } from '../platform/skill/tree.js';
 
 /**
  * The bag (Tab): the weapon in hand, what the gear adds up to, spell ranks,
@@ -99,11 +100,12 @@ export class InventoryPanel {
     for (const line of statLines.length ? statLines : ['None yet — equip magic weapons']) stats.append(Object.assign(document.createElement('span'), { textContent: line }));
     const skills = document.createElement('div');
     skills.className = 'inventory__skills';
-    skills.innerHTML = `<small>Spell ranks (skill books)</small>`;
-    for (const [el, name] of Object.entries(ELEMENT_NAMES)) {
-      const rank = p.skills[el] ?? 0;
+    skills.innerHTML = `<small>Your spells — skill tree (K)</small>`;
+    for (const el of treeSpells(p.classId)) {
+      const rank = p.rank(el);
       const row = document.createElement('span');
-      row.textContent = `${name}  ${'●'.repeat(rank)}${'○'.repeat(SKILL_MAX_RANK - rank)}`;
+      row.textContent = rank ? `${ELEMENT_NAMES[el]}  ${rank}/${SKILL_MAX_RANK}` : `${ELEMENT_NAMES[el]}  —`;
+      if (!rank) row.style.opacity = '0.5';
       skills.append(row);
     }
     left.append(equipped, stats, skills);
@@ -122,7 +124,15 @@ export class InventoryPanel {
         name.textContent = item.name;
         name.style.color = itemColor(item);
         slot.append(name);
-        slot.title = [item.name, ...describeItem(item), '', item.type === 'weapon' ? 'Click: equip · Right-click: drop' : 'Click: read · Right-click: drop'].join('\n');
+        const book = item.type === 'book' ? p.bookStatus(item.element) : null;
+        if (book && !book.ok) slot.classList.add('is-unreadable');
+        slot.title = [
+          item.name,
+          ...describeItem(item),
+          ...(book ? ['', book.ok ? `You can read it: ${book.reason.toLowerCase()}` : book.reason] : []),
+          '',
+          item.type === 'weapon' ? 'Click: equip · Right-click: drop' : 'Click: read · Right-click: drop'
+        ].join('\n');
         slot.addEventListener('click', () => (item.type === 'weapon' ? this.actions.onEquip(item) : this.actions.onRead(item)));
         slot.addEventListener('contextmenu', (e) => {
           e.preventDefault();

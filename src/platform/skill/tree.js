@@ -1,74 +1,144 @@
-/** Skill tree layout for the loadout menu — branches and tier rows. */
-export const SKILL_TREE_BRANCHES = [
-  {
-    id: 'frost',
-    label: 'Frost',
-    accent: '#5fd0ff',
-    nodes: [{ skillId: 'frost-lance', tier: 1 }]
-  },
-  {
-    id: 'storm',
-    label: 'Storm',
-    accent: '#7fb4ff',
-    nodes: [{ skillId: 'storm-lance', tier: 1 }]
-  },
-  {
-    id: 'ember',
-    label: 'Ember',
-    accent: '#ff8a3c',
-    nodes: [{ skillId: 'cinder-fall', tier: 2 }]
-  },
-  {
-    id: 'arcane',
-    label: 'Arcane',
-    accent: '#7ff0ff',
-    nodes: [{ skillId: 'nova-beam', tier: 2 }]
-  },
-  {
-    id: 'voltaic',
-    label: 'Voltaic',
-    accent: '#a98bff',
-    nodes: [{ skillId: 'voltaic-snare', tier: 3 }]
-  },
-  {
-    id: 'glacial',
-    label: 'Glacial',
-    accent: '#8ee8ff',
-    nodes: [{ skillId: 'glacial-crown', tier: 3 }]
-  }
-];
+import { ELEMENTS, ELEMENT_META } from '../../config/settings.js';
 
 /**
- * @param {import('../Platform.js').Platform} platform
- * @param {string} [loadoutId]
+ * Class skill trees.
+ *
+ * Every class has three branches, and every branch is a short line of spells
+ * from tier 1 to tier 3. A spell is *learned* by reading its skill book and
+ * *ranked up* by reading more copies of the same book (see items/Profile.js).
+ *
+ * The rule that makes it a tree: a tier-2 spell's book can only be read once
+ * the tier-1 spell above it is at rank 2, and a tier-3 spell needs its tier-2
+ * parent at rank 3. A spell that is not in your class's tree cannot be learned
+ * at all — that book is for selling.
+ *
+ * Of everything learned, the player picks `SLOT_COUNT` for keys 1–5.
+ *
+ * Adding a spell to the game means adding it to `ELEMENTS` and then putting
+ * it in the trees of the classes that should have it; a tree can hold any
+ * number of branches and up to three tiers per branch.
  */
-export function buildSkillTree(platform, loadoutId) {
-  const loadout = platform.loadouts.get(loadoutId ?? platform.getActiveLoadout()?.id);
-  const equipped = new Set(loadout?.skills ?? []);
 
-  return SKILL_TREE_BRANCHES.map((branch) => ({
-    ...branch,
-    nodes: branch.nodes.map((node) => {
-      const skill = platform.skills.get(node.skillId);
-      return {
-        ...node,
-        skill,
-        equipped: equipped.has(node.skillId)
-      };
-    })
-  }));
+export const SLOT_COUNT = 5;
+export const MAX_TIER = 3;
+
+/** @typedef {{ id: string, label: string, accent: string, spells: string[] }} Branch */
+/** @typedef {{ branches: Branch[], start: string[], note?: string }} ClassTree */
+
+/** @type {Record<string, ClassTree>} keyed by character id */
+export const CLASS_TREES = {
+  knight: {
+    start: ['ice', 'blink'],
+    branches: [
+      { id: 'bulwark', label: 'Bulwark', accent: '#8ee8ff', spells: ['ice', 'glacier'] },
+      { id: 'charge', label: 'Charge', accent: '#3dffb0', spells: ['blink', 'beam'] },
+      { id: 'thunder', label: 'Thunder', accent: '#7fb4ff', spells: ['thunder', 'chain'] }
+    ]
+  },
+  mage: {
+    start: ['ice', 'thunder'],
+    branches: [
+      { id: 'frost', label: 'Frost', accent: '#5fd0ff', spells: ['ice', 'hail', 'glacier'] },
+      { id: 'storm', label: 'Storm', accent: '#ffd23f', spells: ['thunder', 'chain', 'snare'] },
+      { id: 'arcane', label: 'Arcane', accent: '#c27bff', spells: ['orb', 'beam', 'meteor'] }
+    ]
+  },
+  barbarian: {
+    start: ['blink', 'thunder'],
+    branches: [
+      { id: 'fury', label: 'Fury', accent: '#ff8a3c', spells: ['blink', 'meteor'] },
+      { id: 'storm', label: 'Storm', accent: '#7fb4ff', spells: ['thunder', 'chain'] },
+      { id: 'winter', label: 'Winter', accent: '#bfe8ff', spells: ['ice', 'hail'] }
+    ]
+  },
+  amazon: {
+    start: ['thunder', 'ice'],
+    branches: [
+      { id: 'storm', label: 'Storm', accent: '#ffd23f', spells: ['thunder', 'chain', 'hail'] },
+      { id: 'hunt', label: 'Hunt', accent: '#a98bff', spells: ['ice', 'snare'] },
+      { id: 'swift', label: 'Swift', accent: '#3dffb0', spells: ['blink', 'beam'] }
+    ]
+  },
+  shadowblade: {
+    start: ['blink', 'orb'],
+    branches: [
+      { id: 'shadow', label: 'Shadow', accent: '#3dffb0', spells: ['blink', 'snare'] },
+      { id: 'void', label: 'Void', accent: '#c27bff', spells: ['orb', 'chain'] },
+      { id: 'frost', label: 'Frost', accent: '#5fd0ff', spells: ['ice', 'hail'] }
+    ]
+  },
+  templar: {
+    start: ['orb', 'thunder'],
+    branches: [
+      { id: 'light', label: 'Light', accent: '#ffd77a', spells: ['orb', 'beam', 'meteor'] },
+      { id: 'storm', label: 'Storm', accent: '#7fb4ff', spells: ['thunder', 'chain'] },
+      { id: 'oath', label: 'Oath', accent: '#8ee8ff', spells: ['ice', 'glacier'] }
+    ]
+  },
+  bonecaller: {
+    start: ['orb', 'ice'],
+    branches: [
+      { id: 'soul', label: 'Soul', accent: '#b9a6d9', spells: ['orb', 'snare'] },
+      { id: 'grave', label: 'Grave', accent: '#8ee8ff', spells: ['ice', 'glacier', 'hail'] },
+      { id: 'storm', label: 'Storm', accent: '#ffd23f', spells: ['thunder', 'chain'] }
+    ]
+  },
+  wildwarden: {
+    start: ['ice', 'blink'],
+    branches: [
+      { id: 'winter', label: 'Winter', accent: '#5fd0ff', spells: ['ice', 'hail', 'glacier'] },
+      { id: 'thorn', label: 'Thorn', accent: '#a98bff', spells: ['thunder', 'snare'] },
+      { id: 'spirit', label: 'Spirit', accent: '#7ccf8a', spells: ['blink', 'orb'] }
+    ]
+  },
+  // The sandbox caster is the spell tester: every spell, all known from the start.
+  caster: {
+    start: [...ELEMENTS],
+    note: 'Spell tester — knows every spell from the start.',
+    branches: [
+      { id: 'frost', label: 'Frost', accent: '#5fd0ff', spells: ['ice', 'hail', 'glacier'] },
+      { id: 'storm', label: 'Storm', accent: '#ffd23f', spells: ['thunder', 'chain', 'snare'] },
+      { id: 'arcane', label: 'Arcane', accent: '#c27bff', spells: ['orb', 'beam', 'meteor'] },
+      { id: 'motion', label: 'Motion', accent: '#3dffb0', spells: ['blink'] }
+    ]
+  }
+};
+
+/** The tree for a character id; anything unknown plays as the spell tester. */
+export function treeFor(classId) {
+  return CLASS_TREES[classId] ?? CLASS_TREES.caster;
+}
+
+/** Every spell in a class's tree, branch by branch. */
+export function treeSpells(classId) {
+  return treeFor(classId).branches.flatMap((b) => b.spells);
 }
 
 /**
- * @param {ReturnType<typeof buildSkillTree>} branches
- * @param {Map<string, object>} skillStatsById keyed by skill id
+ * Where a spell sits in a class's tree.
+ * @returns {{ branch: Branch, tier: number, parent: string|null }|null}
  */
-export function enrichSkillTree(branches, skillStatsById) {
-  return branches.map((branch) => ({
-    ...branch,
-    nodes: branch.nodes.map((node) => ({
-      ...node,
-      stats: skillStatsById.get(node.skillId) ?? null
-    }))
-  }));
+export function nodeOf(classId, element) {
+  for (const branch of treeFor(classId).branches) {
+    const i = branch.spells.indexOf(element);
+    if (i >= 0) return { branch, tier: i + 1, parent: i > 0 ? branch.spells[i - 1] : null };
+  }
+  return null;
+}
+
+/** The parent spell and the rank it needs before this one can be learned. */
+export function prerequisite(classId, element) {
+  const node = nodeOf(classId, element);
+  if (!node?.parent) return null;
+  return { element: node.parent, rank: node.tier };
+}
+
+/** Spell name for messages. */
+export function spellName(element) {
+  return ELEMENT_META[element]?.label ?? element;
+}
+
+/** Start spells, as starting ranks. */
+export function startingRanks(classId) {
+  return Object.fromEntries(treeFor(classId).start.map((el) => [el, 1]));
 }

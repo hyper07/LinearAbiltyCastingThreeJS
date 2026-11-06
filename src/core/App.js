@@ -27,6 +27,7 @@ import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
 import { NpcBrain } from '../npc/NpcBrain.js';
 import { DialoguePanel } from '../ui/DialoguePanel.js';
 import { InventoryPanel } from '../ui/InventoryPanel.js';
+import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -59,8 +60,8 @@ import { Editor } from '../ui/Editor.js';
 
 import { getColor } from '../utils/color.js';
 import { DecalType } from '../effects/GroundDecals.js';
-import { settings, ELEMENTS } from '../config/settings.js';
-import { platform, classBonuses, LOOKS } from '../platform/index.js';
+import { settings, ELEMENTS, ELEMENT_META } from '../config/settings.js';
+import { platform, classBonuses, LOOKS, treeSpells } from '../platform/index.js';
 import { CUSTOM_LOOKS, lookModel, lookRig, registerCustomLooks, saveLook, savedLook } from '../platform/character/classes.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
@@ -239,6 +240,8 @@ export class App {
     this.labels = new WorldLabels(hudRoot);
     this.profile = new Profile();
     this.profile.on('stats', () => this._applyProfileStats());
+    this.profile.on('slots', () => this._syncSlots());
+    this.mainMenu.setProfile(this.profile);
     this.loot = new LootSystem(this.scene, this.labels);
     this.loot.onPickup = (item) => {
       const result = this.profile.pickUp(item);
@@ -252,11 +255,14 @@ export class App {
     this.dialogue = new DialoguePanel(hudRoot);
     this.inventory = new InventoryPanel(hudRoot, this.profile, {
       onEquip: (item) => this._equipItem(item),
-      onRead: (item) => this.hud.showToast(this.profile.read(item.uid).message),
+      onRead: (item) => this.hud.showToast(this.profile.read(item.uid).message, 2400),
       onDrop: (item) => {
         const removed = this.profile.remove(item.uid);
         if (removed && this.phase === 'playing') this.loot.drop([removed], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
       }
+    });
+    this.skillPanel = new SkillTreePanel(hudRoot, this.profile, {
+      onMessage: (text) => this.hud.showToast(text, 2400)
     });
     this.talkPrompt = document.createElement('div');
     this.talkPrompt.className = 'talk-prompt';
@@ -285,6 +291,9 @@ export class App {
 
     this._bindEvents();
     this.selectAbility(ELEMENTS[0], { silent: true });
+    // Whoever the platform starts as, their spells go on the bar.
+    const startId = platform.getActiveCharacter()?.id ?? 'caster';
+    this.profile.setClass(startId, classBonuses(startId));
 
     this._focusPoint = new Vector3();
     /** Reused each frame by `readMovement`; movement is polled, not evented. */
@@ -318,6 +327,9 @@ export class App {
     this.aim.on('reject', () => this.hud.showToast('Too close — aim further out'));
 
     this.hud.onAbility = (element) => this.armAbility(element);
+    this.hud.onEmptySlot = () => {
+      if (this.phase === 'playing') this._openPanel('skills');
+    };
 
     this._bindRun();
     this._bindLocomotion();
@@ -433,7 +445,11 @@ export class App {
 
     switch (action) {
       case 'ability': {
-        const element = ELEMENTS[slot] ?? this.element;
+        const element = this.profile.slots[slot];
+        if (!element) {
+          this.hud.showToast(`Key ${slot + 1} is empty — learn spells from skill books (K)`, 2200);
+          break;
+        }
         // Pressing the *same* key again puts an armed cast away, as it does in a
         // MOBA; pressing a different one swaps the slot without disarming.
         if (this.aim.isArmed && element === this.element) this.aim.cancel();
@@ -442,6 +458,8 @@ export class App {
       }
       case 'cancel':
         if (this.weaponPanel.isVisible) this.weaponPanel.hide();
+        else if (this.skillPanel.isOpen) this.skillPanel.toggle(false);
+        else if (this.inventory.isOpen) this.inventory.toggle(false);
         else this.aim.cancel();
         break;
       case 'jump':
@@ -475,7 +493,10 @@ export class App {
         if (this.phase === 'playing') this._drink('focus');
         return;
       case 'toggleInventory':
-        if (this.phase === 'playing') this.inventory.toggle();
+        if (this.phase === 'playing') this._openPanel('inventory');
+        return;
+      case 'toggleSkills':
+        if (this.phase === 'playing') this._openPanel('skills');
         return;
       case 'toggleWeapons':
         this.weaponPanel.toggle();
@@ -544,6 +565,28 @@ export class App {
     this.aim.confirm();
   }
 
+  /** The bag (Tab) and the skill tree (K) share the screen: one at a time. */
+  _openPanel(which) {
+    const panel = which === 'skills' ? this.skillPanel : this.inventory;
+    const other = which === 'skills' ? this.inventory : this.skillPanel;
+    other.toggle(false);
+    panel.toggle();
+  }
+
+  /**
+   * The spells on keys 1–5 changed (class switch, a book read, a key set):
+   * rebuild the bar, and if the armed spell left it, move to one that is on it.
+   */
+  _syncSlots() {
+    const slots = this.profile.slots;
+    this.hud.setSlots(slots);
+    if (!slots.includes(this.element)) {
+      if (this.aim.isArmed) this.aim.cancel();
+      const first = slots.find(Boolean);
+      if (first) this.selectAbility(first, { silent: true });
+    }
+  }
+
   togglePause() {
     if (this.phase !== 'playing') return;
     this.paused = !this.paused;
@@ -589,6 +632,7 @@ export class App {
     this._endRun();
     this.inventory.setBeltVisible(false);
     this.inventory.toggle(false);
+    this.skillPanel.toggle(false);
     this.aim.cancel();
     this.weaponPanel.hide();
     this.clearEffects();
@@ -616,6 +660,7 @@ export class App {
   showMainMenu() {
     this.inventory.setBeltVisible(false);
     this.inventory.toggle(false);
+    this.skillPanel.toggle(false);
     this.phase = 'menu';
     this.input.enabled = false;
     this.hud.setGameplayVisible(false);
@@ -647,7 +692,7 @@ export class App {
     if (!character) return;
 
     platform.setCharacter(characterId);
-    this.profile?.setClass(classBonuses(characterId));
+    this.profile?.setClass(characterId, classBonuses(characterId));
 
     if (reloadMesh && this._assets && this.character) {
       await this.character.reload(this._assets, character);
@@ -724,6 +769,10 @@ export class App {
 
   /** Select an ability and arm it, unless it is still cooling down. */
   armAbility(element = this.element) {
+    if (!this.profile.slots.includes(element)) {
+      this.hud.showToast(`${ELEMENT_META[element]?.label ?? 'That spell'} is not on your keys — open the skill tree (K)`);
+      return;
+    }
     if ((this.cooldowns.get(element) ?? 0) > 0) {
       this.hud.showToast('Not ready');
       return;
@@ -1086,7 +1135,7 @@ export class App {
   /* ------------------------------------------------------------------ */
 
   _dropLoot(monster) {
-    const items = rollLoot(monster.kind, { wave: this.director.wave || 1, goldFind: this.profile.stats.gold });
+    const items = rollLoot(monster.kind, { wave: this.director.wave || 1, goldFind: this.profile.stats.gold, bookPool: treeSpells(this.profile.classId) });
     if (items.length) this.loot.drop(items, monster.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
   }
 
@@ -1178,7 +1227,7 @@ export class App {
         const item =
           g.type === 'gold' ? makeGold(g.amount)
           : g.type === 'health' || g.type === 'focus' ? makePotion(g.type)
-          : g.type === 'book' ? makeBook()
+          : g.type === 'book' ? makeBook(null, Math.random, treeSpells(profile.classId))
           : makeWeapon(g.rarity === 'none' ? 'magic' : g.rarity);
         return `${npc.data.name} gives you ${give(item)}.`;
       },
@@ -1214,7 +1263,7 @@ export class App {
         this._updateGoalPill();
         return `Quest complete! You receive ${q.gold} gold${got}.`;
       },
-      stock: () => (npc.state.stock ??= npc.data.role === 'healer' ? [makePotion('health'), makePotion('focus')] : merchantStock(Math.random, this.director.wave || 1)),
+      stock: () => (npc.state.stock ??= npc.data.role === 'healer' ? [makePotion('health'), makePotion('focus')] : merchantStock(Math.random, this.director.wave || 1, treeSpells(profile.classId))),
       bag: () => profile.bag,
       buy: (item) => profile.buy(item).message,
       sell: (item) => `Sold ${item.name} for ${profile.sell(item.uid)} gold`,
@@ -1600,7 +1649,7 @@ export class App {
   _updateReadouts(dt) {
     const gl = this.renderer.gl;
 
-    for (const element of ELEMENTS) {
+    for (const element of this.hud.cards.keys()) {
       this.hud.setCooldown(element, this.cooldowns.get(element) ?? 0, settings[element].cooldown * this.profile.cooldownMultiplier(element));
     }
     this.hud.setArmed(this.aim.isArmed);

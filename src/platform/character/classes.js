@@ -3,9 +3,11 @@ import { KAYKIT_ANIMATION_CLIPS } from './modelManifest.js';
 import { ELEMENT_META } from '../../config/settings.js';
 
 /**
- * Player classes. Every class casts the same six elemental spells; what
- * differs is the body, the starting weapon, the close-range attacks, and a
- * set of bonuses that push each one toward a style of play:
+ * Player classes. Each class has its own skill tree of spells
+ * (platform/skill/tree.js) — learned and ranked up with skill books, five on
+ * keys at a time. Beyond that, what differs is the body, the starting weapon,
+ * the close-range attacks, and a set of bonuses that push each one toward a
+ * style of play:
  *
  *   health / armor   how much punishment it takes (armor = % of damage ignored)
  *   speed            % move speed

@@ -43,7 +43,7 @@ export {
 } from './appearance/Appearance.js';
 
 export { deriveCharacterStats } from './stats/deriveStats.js';
-export { SKILL_TREE_BRANCHES, buildSkillTree, enrichSkillTree } from './skill/tree.js';
+export { CLASS_TREES, SLOT_COUNT, treeFor, treeSpells, nodeOf, prerequisite } from './skill/tree.js';
 
 export { createWeapon, WEAPON_CATEGORIES, WEAPON_CATEGORY_META, categoryGlyph } from './weapon/WeaponDefinition.js';
 export { WEAPON_ARSENAL } from './weapon/arsenal.js';

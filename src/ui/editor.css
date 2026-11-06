@@ -1020,3 +1020,322 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
   color: var(--ui-text-dim);
   font-size: 12px;
 }
+
+/* A skill book the class being played cannot read (yet). */
+.inventory__slot.is-unreadable {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+/* ------------------------------------------------------------------ *
+ * Skill tree (K in a run, and the main menu's Skill Tree tab)
+ * ------------------------------------------------------------------ */
+
+.skill-panel[hidden] {
+  display: none;
+}
+
+.skill-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 4, 8, 0.45);
+  font-family: var(--ui-font);
+  color: var(--ui-text);
+  pointer-events: auto;
+}
+
+.skill-panel__card {
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: var(--ui-bg-solid);
+  border: 1px solid var(--ui-border);
+  border-radius: calc(var(--ui-radius) + 4px);
+  box-shadow: var(--ui-shadow);
+}
+
+.skill-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skill-panel__head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.skill-panel__head span {
+  flex: 1;
+  color: var(--ui-text-dim);
+  font-size: 12px;
+}
+
+.skill-panel button,
+.skilltree button {
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.skilltree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--ui-font);
+  color: var(--ui-text);
+}
+
+.skilltree__keys {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.skilltree .skilltree__key {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-color: color-mix(in srgb, var(--accent, #ffffff) 45%, transparent);
+}
+
+.skilltree__key.is-empty {
+  border-style: dashed;
+  color: var(--ui-text-dim);
+}
+
+.skilltree__key.is-selected {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+  background: rgba(127, 214, 255, 0.1);
+}
+
+.skilltree__key kbd {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 10px;
+  color: var(--ui-text-dim);
+}
+
+.skilltree__key-name {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.skilltree__glyph {
+  display: block;
+  min-height: 28px;
+  color: var(--accent, var(--ui-accent));
+}
+
+.skilltree__glyph .glyph-svg {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 0 5px var(--accent, var(--ui-accent)));
+}
+
+.skilltree__hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ui-text-dim);
+}
+
+.skilltree__branches {
+  display: grid;
+  grid-template-columns: repeat(var(--branches, 3), minmax(0, 1fr));
+  gap: 10px;
+}
+
+.skilltree__branch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px;
+  border: 1px solid var(--ui-border);
+  border-top: 3px solid var(--branch, var(--ui-accent));
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.skilltree__branch-name {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--branch, var(--ui-accent));
+}
+
+/* The line between two tiers, with the rank the lower one needs. */
+.skilltree__link {
+  align-self: center;
+  position: relative;
+  padding: 10px 0;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-text-dim);
+}
+
+.skilltree__link::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 0;
+  bottom: 0;
+  border-left: 2px dashed rgba(255, 255, 255, 0.18);
+}
+
+.skilltree__link.is-met {
+  color: var(--branch, var(--ui-accent));
+}
+
+.skilltree__link.is-met::before {
+  border-left-style: solid;
+  border-color: var(--branch, var(--ui-accent));
+}
+
+.skilltree__node {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+}
+
+.skilltree__node.is-learned {
+  border-color: color-mix(in srgb, var(--accent, #fff) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #fff) 18%, transparent);
+}
+
+.skilltree__node.is-locked {
+  opacity: 0.5;
+}
+
+.skilltree__node.is-open {
+  opacity: 0.8;
+}
+
+.skilltree__node.has-book {
+  opacity: 1;
+  border-color: #ffd84a;
+  box-shadow: 0 0 14px -4px #ffd84a;
+}
+
+.skilltree__node.is-clickable {
+  cursor: pointer;
+}
+
+.skilltree__node.is-clickable:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.skilltree__node-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skilltree__node-head .skilltree__glyph {
+  min-height: 0;
+}
+
+.skilltree__node-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.skilltree__node-title small {
+  font-size: 10px;
+  color: var(--ui-text-dim);
+}
+
+.skilltree__on-key {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--accent, var(--ui-accent));
+  color: #0a0e14;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.skilltree__pips {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 3px;
+}
+
+.skilltree__pips i {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.skilltree__pips i.is-on {
+  background: var(--accent, var(--ui-accent));
+  box-shadow: 0 0 6px -1px var(--accent, var(--ui-accent));
+}
+
+.skilltree__stats {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--ui-text-dim);
+}
+
+.skilltree__node-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 10.5px;
+  color: var(--ui-text-dim);
+}
+
+.skilltree__node-foot .is-warn {
+  color: #ffb36a;
+}
+
+.skilltree .skilltree__read {
+  padding: 4px 8px;
+  font-size: 11px;
+  border-color: #ffd84a;
+  color: #ffe58a;
+}
+
+.skilltree__books {
+  color: #ffe58a;
+}
+
+@media (max-width: 760px) {
+  .skilltree__branches {
+    grid-template-columns: 1fr;
+  }
+  .skilltree__keys {
+    gap: 4px;
+  }
+  .skilltree__key-name {
+    font-size: 9.5px;
+  }
+}

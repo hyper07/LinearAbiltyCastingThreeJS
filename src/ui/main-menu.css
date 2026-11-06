@@ -226,12 +226,8 @@
 }
 
 .main-menu__skill-tree {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
   overflow: auto;
   flex: 1;
-  align-content: start;
 }
 
 .main-menu__skill-branch {
@@ -1114,4 +1110,15 @@
 .studio__item span {
   font-size: 10.5px;
   color: var(--ui-text-dim);
+}
+
+/* The menu's side column is narrow: one branch per row, tighter keys. */
+.main-menu__skill-tree .skilltree__branches {
+  grid-template-columns: 1fr;
+}
+.main-menu__skill-tree .skilltree__keys {
+  gap: 4px;
+}
+.main-menu__skill-tree .skilltree__key-name {
+  font-size: 9.5px;
 }

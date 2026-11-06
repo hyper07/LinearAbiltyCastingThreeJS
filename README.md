@@ -15,7 +15,9 @@ a local AI model in [LM Studio](https://lmstudio.ai) or any OpenAI-compatible se
 > [AI-built maps and the 3D asset library](#ai-built-maps-and-the-3d-asset-library). **Making your
 > own levels and story?** See [Level editor and campaign](#level-editor-and-campaign).
 
-Ten spells on keys **1–0**, and two ways to aim them. Seven are **line casts**: press the key to
+Ten spells, five on keys **1–5** at a time. Each class has its own **skill tree**; spells are
+learned and ranked up with **skill books** (see [Skill trees and skill books](#skill-trees-and-skill-books)).
+There are two ways to aim them. Seven are **line casts**: press the key to
 arm, a MOBA-style arrow appears on the ground and swings with the mouse, right-click to fire. The
 other three are **far casts**: the arrow is replaced by a circle with a deliberately thick boundary
 that follows the cursor and answers the only question a ground-targeted AoE has to answer before you
@@ -299,8 +301,9 @@ shown as a visible sky. The stage keeps its flat dark backdrop.
   <img src="docs/screenshots/class-look-barbarian.jpg" width="49%" alt="Appearance tab: the Knight wearing the barbarian body" />
 </p>
 
-Pick a class in the main menu. Every class casts the same six spells; the class sets the body, the
-starting weapon, the close-range attacks and a set of bonuses that stack with gear and skill books:
+Pick a class in the main menu. Each class has its own skill tree of spells (next section); the class
+also sets the body, the starting weapon, the close-range attacks and a set of bonuses that stack with
+gear and skill books:
 
 | Class | Starts with | Bonuses |
 | --- | --- | --- |
@@ -319,6 +322,37 @@ Hooded rogue, Skeleton warrior/mage/rogue/minion), the class's own picks listed 
 tints still apply on top. The choice is remembered per class. Classes are defined in
 `src/platform/character/classes.js`.
 
+### Skill trees and skill books
+
+Every class has a **skill tree**: three branches, each a line of spells from tier 1 to tier 3. A class
+starts knowing two tier-1 spells. The rest come from **skill books**:
+
+- **Reading a book teaches its spell** (rank 1), and the spell goes onto a free key.
+- **More copies of the same book raise its rank**, up to 10. Each rank after the first adds +10%
+  damage and −3% cooldown to that spell.
+- **Tiers gate the tree.** A tier-2 spell's book can only be read once the tier-1 spell above it is
+  at rank 2; tier 3 needs its tier-2 parent at rank 3.
+- **A book for a spell outside your class's tree can't be read** — sell it. Three dropped books in
+  four are for your own class's tree; merchants always stock two.
+- **Five keys.** Of everything learned, you choose which five sit on keys 1–5. Press **K** (or click
+  an empty key on the bar), pick a key, then click a learned spell. Right-click a key to empty it.
+
+| Class | Starts with | Branches (tier 1 → 2 → 3) |
+| --- | --- | --- |
+| 🛡 Knight | Frost Lance, Blink Strike | Bulwark: Frost Lance → Glacial Crown · Charge: Blink Strike → Nova Beam · Thunder: Storm Lance → Arc Chain |
+| ✦ Mage | Frost Lance, Storm Lance | Frost: Frost Lance → Hailstorm → Glacial Crown · Storm: Storm Lance → Arc Chain → Voltaic Snare · Arcane: Void Orb → Nova Beam → Cinder Fall |
+| 🪓 Barbarian | Blink Strike, Storm Lance | Fury: Blink Strike → Cinder Fall · Storm: Storm Lance → Arc Chain · Winter: Frost Lance → Hailstorm |
+| 🏹 Amazon | Storm Lance, Frost Lance | Storm: Storm Lance → Arc Chain → Hailstorm · Hunt: Frost Lance → Voltaic Snare · Swift: Blink Strike → Nova Beam |
+| 🗡 Shadowblade | Blink Strike, Void Orb | Shadow: Blink Strike → Voltaic Snare · Void: Void Orb → Arc Chain · Frost: Frost Lance → Hailstorm |
+| ✚ Templar | Void Orb, Storm Lance | Light: Void Orb → Nova Beam → Cinder Fall · Storm: Storm Lance → Arc Chain · Oath: Frost Lance → Glacial Crown |
+| 💀 Bonecaller | Void Orb, Frost Lance | Soul: Void Orb → Voltaic Snare · Grave: Frost Lance → Glacial Crown → Hailstorm · Storm: Storm Lance → Arc Chain |
+| 🌿 Wildwarden | Frost Lance, Blink Strike | Winter: Frost Lance → Hailstorm → Glacial Crown · Thorn: Storm Lance → Voltaic Snare · Spirit: Blink Strike → Void Orb |
+| ⚡ Elemental Caster | Every spell | The spell tester — all ten known from the start |
+
+Spells, ranks and keys are saved **per class** in the browser; gold, potions and the bag are shared.
+The trees live in `src/platform/skill/tree.js` — a new spell joins the game by being added to the
+branches of the classes that should have it.
+
 ---
 
 ## Controls
@@ -332,16 +366,8 @@ tints still apply on top. The choice is remembered per class. Classes are define
 | **C** | Sit — meditate, and recover health several times faster |
 | **← →** or **Q E** | Turn the view |
 | **↑ ↓** | Tilt the view |
-| **1** | Arm Frost Lance — press again to put it away |
-| **2** | Arm Storm Lance |
-| **3** | Arm Cinder Fall |
-| **4** | Arm Nova Beam |
-| **5** | Arm Voltaic Snare — the far cast, aimed with a circle |
-| **6** | Arm Glacial Crown — a far cast |
-| **7** | Arm Arc Chain |
-| **8** | Arm Void Orb |
-| **9** | Arm Hailstorm — a far cast |
-| **0** | Arm Blink Strike — jump down the line |
+| **1 – 5** | Arm the spell on that key — press again to put it away. Far casts aim with a circle |
+| **K** | Skill tree — read books, choose which spells are on keys 1–5 |
 | **Move the mouse** | Swing the aim arrow, or move the far-cast circle |
 | **Right click** | Cast along the arrow, or drop the circle where it is |
 | **Left click** | Your class's close-range attack |
@@ -1012,19 +1038,20 @@ Monsters drop **gold**, **potions**, **weapons** and **skill books**. Items burs
 land with a light beam in their rarity colour — **Common**, **Magic** (blue), **Rare** (yellow),
 **Epic** (purple), **Unique** (orange) — and a floating name; walk over them to pick them up (or click
 the name from close by). Bigger monsters drop more and better: a Rift Golem always drops a Rare or
-better, the Emberwyrm an Epic or better plus a skill book.
+better (and half the time a skill book), the Emberwyrm an Epic or better plus two skill books.
 
 | Item | What it does |
 | --- | --- |
 | Weapon | Any of the 88 armory weapons, with 1–3 bonus stats by rarity: spell damage, one spell's damage, cooldowns, max health, move speed, critical chance, gold found. Uniques are named (*Glacierheart*, *Ashen Requiem*, *Tempest Sceptre*, *Dawnspire*, *The Hollow Crown*, *Wardenblade*) with fixed, stronger bonuses. |
-| Skill book | Raises one spell a rank (max 5): +12% damage and −4% cooldown per rank. |
+| Skill book | Teaches one spell, or raises it a rank (max 10): +10% damage and −3% cooldown per rank after the first. Only classes with that spell in their [skill tree](#skill-trees-and-skill-books) can read it. |
 | Health potion | **R** — heals 45%. |
 | Focus potion | **Z** — every spell ready again. |
 | Gold | Spent at merchants; weapons sell back for a quarter. |
 
-**Tab** opens the bag: the weapon in hand, what your gear adds up to, spell ranks and 24 slots —
-click a weapon to equip it, a book to read it, right-click to drop. The bag, gold, potions and ranks
-are saved in the browser and carry between levels.
+**Tab** opens the bag: the weapon in hand, what your gear adds up to, your class's spell ranks and
+24 slots — click a weapon to equip it, a book to read it, right-click to drop. Books your class can't
+read are greyed out. The bag, gold, potions and ranks are saved in the browser and carry between
+levels.
 
 ### NPCs
 
@@ -1034,7 +1061,7 @@ and press **F** to talk (the fight pauses while you do).
 | Role | Does |
 | --- | --- |
 | Guide | Talks: a greeting and scripted lines — story, hints, rumours. |
-| Merchant | Sells potions, weapons and a skill book; buys anything from your bag. |
+| Merchant | Sells potions, weapons and two skill books (mostly for your class); buys anything from your bag. |
 | Healer | Heals you to full and sells potions. |
 | Quest giver | Sets a task — *defeat N monsters* (any, or one kind) — tracked under the wave counter; hand it in for gold and an item of a chosen rarity. |
 
@@ -1058,7 +1085,7 @@ portal's colour. Place them with the **Portals** tool, pick the frame and colour
 nothing. When a level's goal is met, a **gold exit portal** opens in front of you; stepping in shows
 the ending and leads on to the next level.
 
-Keys: **F** talk · **R** health potion · **Z** focus potion · **Tab** bag.
+Keys: **F** talk · **R** health potion · **Z** focus potion · **Tab** bag · **K** skill tree.
 
 ---
 
@@ -1211,7 +1238,8 @@ src/
   input/          InputManager (events) and AimController (both targeting shapes)
   editor/         LevelEditor (tools, brushes, gizmo, undo/redo, play test)
   items/          Items (rarity, stats, uniques, loot tables, prices), Profile (bag,
-                  gold, potions, ranks — saved per browser), Loot (drops on the ground)
+                  gold, potions, per-class spell ranks and keys — saved per browser),
+                  Loot (drops on the ground)
   npc/            Npcs (rigged helpers, roles, quests), NpcBrain (AI or scripted talk)
   levels/         Level (the file format), LevelStore (load/save/export/import, progress)
   library/        The asset library in the browser: Catalog (queries), ModelLibrary

@@ -1492,3 +1492,14 @@ body.is-menu #viewport {
   .chat { width: calc(100vw - 36px); }
   .vitals { width: 64vw; }
 }
+
+/* An empty key on the bar: a dashed "+" that opens the skill tree. */
+.ability-card--empty {
+  border-style: dashed;
+  opacity: 0.6;
+}
+.ability-card__plus {
+  font-size: 28px;
+  line-height: 36px;
+  color: var(--ui-text-dim);
+}

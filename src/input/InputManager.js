@@ -1,28 +1,18 @@
 import { Vector2 } from 'three';
 import { EventEmitter } from '../utils/EventEmitter.js';
 
-/** Ability slot per key code. Index is the position in `ELEMENTS`. */
+/** Spell key per key code: the five slots the class's skill tree fills. */
 const SLOT_KEYS = {
   Digit1: 0,
   Digit2: 1,
   Digit3: 2,
   Digit4: 3,
   Digit5: 4,
-  Digit6: 5,
-  Digit7: 6,
-  Digit8: 7,
-  Digit9: 8,
-  Digit0: 9,
   Numpad1: 0,
   Numpad2: 1,
   Numpad3: 2,
   Numpad4: 3,
-  Numpad5: 4,
-  Numpad6: 5,
-  Numpad7: 6,
-  Numpad8: 7,
-  Numpad9: 8,
-  Numpad0: 9
+  Numpad5: 4
 };
 
 /** Movement, as `[x, z]` contributions in the camera's frame. */
@@ -65,7 +55,7 @@ const BLOCKING_UI =
  *   `pointer:cast` (ndc)          — right click on the viewport (spells)
  *   `action` (name, slot)         — everything else, already named by intent.
  *                                   `ability` carries the 0-based slot index,
- *                                   which App maps through `ELEMENTS`.
+ *                                   which App maps through the profile's slots.
  *
  * Keys pressed while a text field has focus are dropped before any of this, so
  * typing in a search box never casts.
@@ -239,6 +229,9 @@ export class InputManager extends EventEmitter {
         break;
       case 'KeyZ':
         this.emit('action', 'potionFocus');
+        break;
+      case 'KeyK':
+        this.emit('action', 'toggleSkills');
         break;
       case 'Tab':
         // Tab would move focus around the page; here it opens the bag.
