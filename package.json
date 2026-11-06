@@ -1,5 +1,5 @@
 {
-  "name": "elemental-arena",
+  "name": "gamory",
   "version": "1.0.0",
   "private": true,
   "description": "Procedural elemental VFX, a generated ruined keep, monsters that fight back, and a chat commander that casts \u2014 Three.js, custom GLSL and a live VFX editor.",

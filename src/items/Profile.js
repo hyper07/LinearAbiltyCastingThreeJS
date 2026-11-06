@@ -2,6 +2,7 @@ import { EventEmitter } from '../utils/EventEmitter.js';
 import { SKILL_MAX_RANK, SKILL_RANK, buyPrice, itemValue } from './Items.js';
 import { SLOT_COUNT, nodeOf, prerequisite, spellName, startingRanks, treeFor, treeSpells } from '../platform/skill/tree.js';
 
+// Storage key keeps the game's first name (Elemental Arena) so existing saves still load.
 const KEY = 'elemental-arena.profile';
 export const BAG_SIZE = 24;
 export const BELT_MAX = 10;

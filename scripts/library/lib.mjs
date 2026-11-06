@@ -20,7 +20,7 @@ export const LIBRARY = path.join(ROOT, 'library');
 export const MANIFESTS = path.join(LIBRARY, 'sources');
 
 /** Honest client name — no browser impersonation. */
-const USER_AGENT = 'elemental-arena-asset-fetcher/1.0 (+https://github.com/hyper07/LinearAbiltyCastingThreeJS)';
+const USER_AGENT = 'gamory-asset-fetcher/1.0 (+https://github.com/hyper07/LinearAbiltyCastingThreeJS)';
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

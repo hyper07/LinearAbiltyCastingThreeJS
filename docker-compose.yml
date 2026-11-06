@@ -9,7 +9,7 @@
 services:
   game:
     build: .
-    image: elemental-arena
+    image: gamory
     ports:
       - '8787:8787'
     environment:

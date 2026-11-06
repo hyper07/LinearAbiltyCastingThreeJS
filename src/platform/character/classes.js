@@ -178,6 +178,7 @@ export function describeBonuses(bonuses = {}) {
 }
 
 /** The chosen body per class, remembered in this browser. */
+// Storage key keeps the game's first name (Elemental Arena) so existing saves still load.
 const LOOK_KEY = 'elemental-arena.looks';
 export function savedLook(classId) {
   try {

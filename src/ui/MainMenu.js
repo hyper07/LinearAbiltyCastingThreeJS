@@ -54,7 +54,7 @@ export class MainMenu {
       <div class="main-menu__backdrop"></div>
       <div class="main-menu__dialog" role="dialog" aria-label="Main menu">
         <header class="main-menu__head">
-          <span class="main-menu__eyebrow">Elemental Arena</span>
+          <span class="main-menu__eyebrow">Gamory</span>
           <h1 class="main-menu__title">Choose Your Loadout</h1>
           <p class="main-menu__subtitle">Preview your fighter, customize colors, review skills and stats.</p>
         </header>

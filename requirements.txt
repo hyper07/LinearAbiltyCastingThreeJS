@@ -1,4 +1,4 @@
-# Elemental Arena — requirements
+# Gamory — requirements
 #
 # This is a JavaScript (Node.js) project, not a Python one. The libraries are
 # installed by npm from package.json / package-lock.json, NOT by pip:

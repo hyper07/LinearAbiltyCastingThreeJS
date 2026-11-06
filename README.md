@@ -1,9 +1,9 @@
-# Elemental Arena
+# Gamory
 
 A skillshot VFX sandbox — and the game that grew around it — built with **Three.js**, **Vite** and
-hand-written **GLSL**. Ten spells, eight classes with their own skill trees, a procedurally generated
-ruined keep, sunny daytime maps, monsters that walk in and try to kill you, loot, NPCs, study games
-for kids, a level editor, and a chat box
+hand-written **GLSL**. Ten spells, eight classes with their own skill trees, a campaign that runs
+from a storybook village to a dragon's dungeon, sunny daytime maps, monsters that walk in and try to
+kill you, loot, NPCs, study games for kids, a level editor, and a chat box
 you can give orders to in plain English — backed by a local AI model in [LM Studio](https://lmstudio.ai)
 or any OpenAI-compatible server.
 

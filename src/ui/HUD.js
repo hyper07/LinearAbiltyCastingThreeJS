@@ -28,7 +28,7 @@ export class HUD {
 
     root.innerHTML = `
       <div class="hud__panel hud__title">
-        Elemental Arena
+        Gamory
         <span data-blurb>WASD to move, arrows to look, 1–5 to pick spells, K for the skill tree — left click attacks, right click casts.</span>
       </div>
 

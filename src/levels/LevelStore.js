@@ -100,6 +100,7 @@ export class LevelStore {
 
 /** Per-player campaign progress — a browser convenience, not shared state. */
 export const progress = {
+  // Keeps the game's first name (Elemental Arena) so existing progress still loads.
   key: 'elemental-arena.campaign',
   read() {
     try {

@@ -1,4 +1,4 @@
-import { Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
+import { DoubleSide, Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const _m = new Matrix4();
@@ -41,9 +41,22 @@ export class ModelLibrary {
               if (!node.isMesh || node.isSkinnedMesh) return;
               const materials = [].concat(node.material);
               for (const material of materials) {
-                // Library assets were authored for many engines; one-sided foliage
-                // cards from photoscans are the usual offender.
-                if (material.transparent && material.opacity >= 0.99) material.transparent = false;
+                // Library assets were authored for many engines. A *textured*
+                // transparent material is almost always a cut-out card — a flower,
+                // a grass tuft, a leaf cluster — whose shape lives in the texture's
+                // alpha. Draw it as a cut-out (alpha test), which sorts correctly
+                // in instanced batches and casts the right shadow, and from both
+                // sides, because a card is a single plane. Turning transparency
+                // off without that is what painted the cut-away parts solid white.
+                if (material.transparent && material.map && material.opacity >= 0.99) {
+                  material.transparent = false;
+                  material.alphaTest = Math.max(material.alphaTest, 0.5);
+                  material.side = DoubleSide;
+                } else if (material.alphaTest > 0) {
+                  material.side = DoubleSide;
+                } else if (material.transparent && material.opacity >= 0.99) {
+                  material.transparent = false;
+                }
                 if (material.map) material.map.anisotropy = 4;
               }
               parts.push({ geometry: node.geometry, material: node.material, matrix: node.matrixWorld.clone() });
