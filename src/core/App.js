@@ -747,8 +747,11 @@ export class App {
     // rig has, and silently ignoring the cast would be worse than standing.
     this.character.locomotion.toggleSit(false);
 
-    this.abilities.cast(origin, direction, distance, element);
-    this.combat.open(element, origin, direction, distance);
+    if (element === 'blink') distance = this._blinkTo(origin, direction, distance);
+    const ability = this.abilities.cast(origin, direction, distance, element);
+    const strike = this.combat.open(element, origin, direction, distance);
+    // Chain leaps and orb zaps are decided by Combat; the effect draws them.
+    if (strike && ability) strike.fx = { ability, serial: ability.castSerial };
     this.cooldowns.set(element, Math.max(0, settings[element].cooldown * this.profile.cooldownMultiplier(element)));
 
     // Snap onto the shot and throw the body into it. Which clip that is belongs
@@ -1042,6 +1045,25 @@ export class App {
       return;
     }
     this.hud.showToast('This portal is dormant');
+  }
+
+  /**
+   * Blink Strike: jump the caster down the aimed line, stopping short of
+   * anything solid and inside the arena. Returns the distance actually covered.
+   */
+  _blinkTo(origin, direction, distance) {
+    const locomotion = this.character.locomotion;
+    const body = 0.45;
+    const blocked = (x, z) =>
+      locomotion.obstacles.some((o) => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.radius + body) ** 2) ||
+      (locomotion.props ?? []).some((p) => p.alive && (x - p.position.x) ** 2 + (z - p.position.z) ** 2 < (p.radius + body) ** 2) ||
+      x * x + z * z > locomotion.bounds * locomotion.bounds;
+    let d = distance;
+    while (d > 0.5 && blocked(origin.x + direction.x * d, origin.z + direction.z * d)) d -= 0.25;
+    if (d <= 0.5) return distance; // nowhere to land: a strike without the jump
+    const position = this.character.position;
+    this._teleport(origin.x + direction.x * d + (position.x - origin.x), origin.z + direction.z * d + (position.z - origin.z));
+    return d;
   }
 
   /** Move the caster (and the camera with them) without a walk. */

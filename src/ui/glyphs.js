@@ -105,6 +105,37 @@ const GLACIER = WRAP(`
   <path d="M79 66L87 41L91 70"/>
 `);
 
+/** Arc Chain — a bolt that bends twice, hopping between three points. */
+const CHAIN = WRAP(`
+  <circle cx="18" cy="70" r="7"/>
+  <circle cx="50" cy="30" r="7"/>
+  <circle cx="82" cy="68" r="7"/>
+  <path d="M24 64L33 52L29 49L44 36"/>
+  <path d="M56 36L64 48L60 51L76 62"/>
+`);
+
+/** Void Orb — a ringed sphere with arcs reaching out of it. */
+const ORB = WRAP(`
+  <circle cx="50" cy="50" r="17"/>
+  <ellipse cx="50" cy="50" rx="31" ry="10" transform="rotate(-25 50 50)"/>
+  <path d="M68 28L78 18L76 26L86 22"/>
+  <path d="M30 74L22 84L23 76L13 80"/>
+`);
+
+/** Hailstorm — a cloud with stones falling out of it. */
+const HAIL = WRAP(`
+  <path d="M24 52C13 52 12 36 24 35C25 22 43 18 49 29C56 18 76 22 75 36C88 36 88 52 76 52Z"/>
+  <path d="M30 62L27 70M50 62L47 74M70 62L67 70M40 76L37 86M60 76L57 86"/>
+`);
+
+/** Blink Strike — a figure's path broken by a jump, landing in a burst. */
+const BLINK = WRAP(`
+  <path d="M12 72H30M38 72H46" stroke-dasharray="2 8"/>
+  <path d="M56 72H70"/>
+  <circle cx="78" cy="48" r="10"/>
+  <path d="M78 22V30M78 66V74M54 48H60M96 48H90M61 31L66 36M95 31L90 36M61 65L66 60M95 65L90 60"/>
+`);
+
 /** Keyed by the ids in `ELEMENTS`. */
 export const ELEMENT_SIGILS = {
   ice: ICE,
@@ -112,5 +143,9 @@ export const ELEMENT_SIGILS = {
   meteor: METEOR,
   beam: BEAM,
   snare: SNARE,
-  glacier: GLACIER
+  glacier: GLACIER,
+  chain: CHAIN,
+  orb: ORB,
+  hail: HAIL,
+  blink: BLINK
 };

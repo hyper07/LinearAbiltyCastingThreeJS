@@ -32,7 +32,7 @@ export class Profile extends EventEmitter {
       potions: { health: 2, focus: 0 },
       bag: [],
       equipped: null,
-      skills: { ice: 0, thunder: 0, meteor: 0, beam: 0, snare: 0, glacier: 0 }
+      skills: { ice: 0, thunder: 0, meteor: 0, beam: 0, snare: 0, glacier: 0, chain: 0, orb: 0, hail: 0, blink: 0 }
     };
   }
 

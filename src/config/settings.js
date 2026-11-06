@@ -1962,6 +1962,79 @@ export const settings = {
   },
 
   /* ------------------------------------------------------------------ */
+  /* Spells 7–0: built from the shared effect systems (abilities/Spell*) */
+  /* ------------------------------------------------------------------ */
+
+  /** ARC CHAIN — a bolt that leaps from the first monster it hits to the next. */
+  chain: {
+    range: 18.0,
+    minRange: 1.5,
+    speed: 90.0, // how fast the first bolt seeks its target, metres/second
+    cooldown: 0.9,
+    castAnim: 'cast2',
+    handHeight: 1.3,
+    arcLife: 0.32, // seconds one leap stays lit
+    arcJitter: 0.38, // metres the bolt kinks off a straight line
+    arcDensity: 12, // glowing points per metre of bolt
+    colorCore: '#fffbe6',
+    colorGlow: '#ffd23f',
+    lightColor: '#ffe27a',
+    lightIntensity: 18,
+    lightRadius: 12
+  },
+
+  /** VOID ORB — a slow orb that lashes out at everything it passes, then bursts. */
+  orb: {
+    range: 22.0,
+    minRange: 2.0,
+    speed: 7.5, // the orb's drift, metres/second
+    cooldown: 2.4,
+    castAnim: 'cast1',
+    height: 1.25, // metres above the floor
+    size: 0.5, // core radius, metres
+    swirl: 1.6, // trail density
+    colorCore: '#fbe9ff',
+    colorGlow: '#b05cff',
+    colorDeep: '#3a0f6e',
+    lightColor: '#c27bff',
+    lightIntensity: 16,
+    lightRadius: 11
+  },
+
+  /** HAILSTORM — a cloud over the target that hammers the ground for a while. */
+  hail: {
+    range: 20.0,
+    minRange: 2.0,
+    speed: 55.0,
+    cooldown: 6.0,
+    castAnim: 'cast3',
+    zoneRadius: 5.0,
+    lasts: 4.0, // seconds the storm rages
+    cloudHeight: 7.5,
+    stones: 120, // hailstones per second
+    colorCore: '#ffffff',
+    colorGlow: '#9fdcff',
+    colorCloud: '#8a98b4',
+    lightColor: '#bfe8ff',
+    lightIntensity: 10,
+    lightRadius: 14
+  },
+
+  /** BLINK STRIKE — vanish, reappear down the line, and hit everything between. */
+  blink: {
+    range: 12.0,
+    minRange: 2.0,
+    speed: 80.0, // the strike front behind you, metres/second
+    cooldown: 3.5,
+    castAnim: 'cast1',
+    colorCore: '#eafff6',
+    colorGlow: '#3dffb0',
+    lightColor: '#7dffc4',
+    lightIntensity: 14,
+    lightRadius: 10
+  },
+
+  /* ------------------------------------------------------------------ */
   /* Combat — what a cast actually does to something standing in it      */
   /* ------------------------------------------------------------------ */
   /**
@@ -1997,7 +2070,18 @@ export const settings = {
     meteor: { damage: 90, width: 1.6, splash: 5.0, knockback: 8.0, status: 'burn', duration: 4.0, shatter: 2.2 },
     beam: { damage: 64, width: 2.0, splash: 1.5, knockback: 3.0, status: 'shock', duration: 0.6 },
     snare: { damage: 22, radius: 0, knockback: 0, status: 'root', duration: 3.5 },
-    glacier: { damage: 74, radius: 0, knockback: 2.5, status: 'freeze', duration: 3.0 }
+    glacier: { damage: 74, radius: 0, knockback: 2.5, status: 'freeze', duration: 3.0 },
+
+    // `kind` picks a strike that is not a plain line or circle (see Combat.js).
+    //   chain — hits the first body in the line, then leaps `jumps` times to the
+    //           nearest one within `jumpRange`, each leap × `falloff`
+    //   orb   — every `tick` s, lashes the `targets` nearest bodies within
+    //           `reach` of the orb; bursts for `burst` over `splash` at the end
+    //   storm — lands, then hits everything in the circle every `tick` s for `lasts` s
+    chain: { kind: 'chain', damage: 34, width: 1.0, knockback: 0.8, status: 'shock', duration: 0.35, jumps: 4, jumpRange: 7.5, jumpDelay: 0.09, falloff: 0.85 },
+    orb: { kind: 'orb', damage: 15, knockback: 0.3, status: 'chill', duration: 1.2, reach: 4.6, tick: 0.3, targets: 2, burst: 55, splash: 3.4 },
+    hail: { kind: 'storm', damage: 13, radius: 0, knockback: 0, status: 'chill', duration: 1.6, tick: 0.45, lasts: 4.0 },
+    blink: { damage: 38, width: 1.4, splash: 3.2, knockback: 5.0, status: 'shock', duration: 0.5 }
   },
 
   /* ------------------------------------------------------------------ */
@@ -2234,7 +2318,7 @@ export const CastShape = Object.freeze({
  * array, and the index is the slot the keyboard binds to — adding a third
  * ability is a new file, an entry here and a settings block above.
  */
-export const ELEMENTS = ['ice', 'thunder', 'meteor', 'beam', 'snare', 'glacier'];
+export const ELEMENTS = ['ice', 'thunder', 'meteor', 'beam', 'snare', 'glacier', 'chain', 'orb', 'hail', 'blink'];
 
 /**
  * Registry metadata: how an ability is presented, and how it is aimed.
@@ -2264,7 +2348,11 @@ export const ELEMENT_META = {
     key: '6',
     hint: 'Glacial Crown',
     cast: CastShape.ZONE
-  }
+  },
+  chain: { label: 'Arc Chain', accent: '#ffd23f', key: '7', hint: 'Arc Chain' },
+  orb: { label: 'Void Orb', accent: '#c27bff', key: '8', hint: 'Void Orb' },
+  hail: { label: 'Hailstorm', accent: '#bfe8ff', key: '9', hint: 'Hailstorm', cast: CastShape.ZONE },
+  blink: { label: 'Blink Strike', accent: '#3dffb0', key: '0', hint: 'Blink Strike' }
 };
 
 /** How the given ability is aimed. Line unless its metadata says otherwise. */

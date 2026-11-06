@@ -40,6 +40,7 @@ export class Editor {
     this._buildBeam();
     this._buildSnare();
     this._buildGlacier();
+    this._buildNewSpells();
     this._buildEnvironment();
     this._buildPost();
     this._buildCamera();
@@ -1566,6 +1567,56 @@ export class Editor {
     light.addColor(c, 'lightColor').name('light colour');
 
     this.glacierFolder = folder;
+  }
+
+  /**
+   * Spells 7–0. They are built from the shared effect pieces, so each has a
+   * short list of dials: how it is cast, its colours, and what it does.
+   */
+  _buildNewSpells() {
+    const R = Editor.range;
+    const spells = [
+      ['chain', '⚡  Arc Chain (7)', (f, c, d) => {
+        R(f, c, 'arcJitter', 0, 1.5, 0.01, 'bolt kinks');
+        R(f, c, 'arcDensity', 2, 30, 1, 'bolt density');
+        R(f, c, 'arcLife', 0.05, 1.5, 0.01, 'bolt hold');
+        R(f, d, 'jumps', 0, 10, 1, 'leaps');
+        R(f, d, 'jumpRange', 1, 20, 0.1, 'leap range');
+        R(f, d, 'falloff', 0.3, 1, 0.01, 'damage kept per leap');
+      }],
+      ['orb', '◉  Void Orb (8)', (f, c, d) => {
+        R(f, c, 'size', 0.1, 2, 0.01, 'orb size');
+        R(f, c, 'height', 0.2, 4, 0.01, 'orb height');
+        R(f, c, 'swirl', 0, 5, 0.05, 'trail density');
+        R(f, d, 'reach', 1, 12, 0.1, 'zap reach');
+        R(f, d, 'tick', 0.05, 2, 0.01, 'seconds between zaps');
+        R(f, d, 'targets', 1, 8, 1, 'targets per zap');
+        R(f, d, 'burst', 0, 300, 1, 'end burst damage');
+      }],
+      ['hail', '☁  Hailstorm (9)', (f, c, d) => {
+        R(f, c, 'zoneRadius', 1, 14, 0.05, 'storm radius');
+        R(f, c, 'stones', 0, 400, 1, 'hailstones / s');
+        R(f, c, 'cloudHeight', 3, 20, 0.1, 'cloud height');
+        R(f, d, 'lasts', 0.5, 12, 0.1, 'storm lasts (s)');
+        R(f, d, 'tick', 0.1, 2, 0.01, 'seconds between hits');
+        f.addColor(c, 'colorCloud').name('cloud colour');
+      }],
+      ['blink', '➶  Blink Strike (0)', () => {}]
+    ];
+    for (const [id, label, extra] of spells) {
+      const c = settings[id];
+      const d = settings.combat[id];
+      const folder = this.gui.addFolder(label);
+      folder.close();
+      R(folder, c, 'range', 2, 50, 0.1, 'max range');
+      R(folder, c, 'speed', 1, 200, 0.5, 'speed');
+      R(folder, c, 'cooldown', 0, 20, 0.05, 'cooldown');
+      R(folder, d, 'damage', 0, 300, 1, 'damage');
+      extra(folder, c, d);
+      folder.addColor(c, 'colorGlow').name('glow colour');
+      folder.addColor(c, 'colorCore').name('core colour');
+      R(folder, c, 'lightIntensity', 0, 80, 0.5, 'light intensity');
+    }
   }
 
   /* ------------------------------------------------------------------ */

@@ -4,6 +4,10 @@ import { MeteorAbility } from './MeteorAbility.js';
 import { BeamAbility } from './BeamAbility.js';
 import { SnareAbility } from './SnareAbility.js';
 import { GlacierAbility } from './GlacierAbility.js';
+import { ChainAbility } from './ChainAbility.js';
+import { OrbAbility } from './OrbAbility.js';
+import { HailAbility } from './HailAbility.js';
+import { BlinkAbility } from './BlinkAbility.js';
 import { ELEMENTS } from '../config/settings.js';
 import { ObjectPool } from '../utils/ObjectPool.js';
 
@@ -14,7 +18,11 @@ const ABILITY_TYPES = {
   meteor: MeteorAbility,
   beam: BeamAbility,
   snare: SnareAbility,
-  glacier: GlacierAbility
+  glacier: GlacierAbility,
+  chain: ChainAbility,
+  orb: OrbAbility,
+  hail: HailAbility,
+  blink: BlinkAbility
 };
 
 const MAX_CONCURRENT = 4;

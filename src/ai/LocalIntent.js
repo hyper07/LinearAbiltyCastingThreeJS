@@ -26,7 +26,11 @@ const SKILL_WORDS = {
   meteor: ['cinder fall', 'meteor', 'comet', 'fireball', 'fire', 'burn', 'rock', 'boulder'],
   beam: ['nova beam', 'beam', 'laser', 'nova', 'ray', 'lance beam'],
   snare: ['voltaic snare', 'snare', 'trap', 'root', 'hold', 'net', 'bind'],
-  glacier: ['glacial crown', 'glacier', 'crown', 'freeze', 'ice wall', 'shatter']
+  glacier: ['glacial crown', 'glacier', 'crown', 'freeze', 'ice wall', 'shatter'],
+  chain: ['arc chain', 'chain lightning', 'chain', 'bounce', 'jump between'],
+  orb: ['void orb', 'orb', 'sphere', 'ball'],
+  hail: ['hailstorm', 'hail', 'blizzard', 'ice storm', 'rain ice'],
+  blink: ['blink strike', 'blink', 'teleport', 'dash', 'warp']
 };
 
 /** Words that name a target. Order matters — the first match wins. */
@@ -65,8 +69,13 @@ function findSkills(text) {
       }
     }
   }
+  // A word inside a longer match is not its own order: "hailstorm" is not
+  // also a Storm Lance, "ice storm" is not also a Frost Lance.
+  const kept = found.filter(
+    (f) => !found.some((g) => g !== f && g.length > f.length && f.index >= g.index && f.index + f.length <= g.index + g.length)
+  );
   // Sorted by position so "freeze it then meteor it" fires in that order.
-  return found.sort((a, b) => a.index - b.index);
+  return kept.sort((a, b) => a.index - b.index);
 }
 
 function findTarget(text) {

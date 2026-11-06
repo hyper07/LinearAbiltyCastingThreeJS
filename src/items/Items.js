@@ -28,7 +28,11 @@ export const ELEMENT_NAMES = {
   meteor: 'Cinder Fall',
   beam: 'Nova Beam',
   snare: 'Voltaic Snare',
-  glacier: 'Glacial Crown'
+  glacier: 'Glacial Crown',
+  chain: 'Arc Chain',
+  orb: 'Void Orb',
+  hail: 'Hailstorm',
+  blink: 'Blink Strike'
 };
 
 /** Bonus stats. Ranges per rarity tier: [magic, rare, epic] × [min, max]. */
@@ -44,7 +48,11 @@ export const STATS = {
   meteor: { label: (v) => `+${v}% Cinder Fall damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
   beam: { label: (v) => `+${v}% Nova Beam damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
   snare: { label: (v) => `+${v}% Voltaic Snare damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
-  glacier: { label: (v) => `+${v}% Glacial Crown damage`, ranges: [[10, 18], [16, 26], [24, 40]] }
+  glacier: { label: (v) => `+${v}% Glacial Crown damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  chain: { label: (v) => `+${v}% Arc Chain damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  orb: { label: (v) => `+${v}% Void Orb damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  hail: { label: (v) => `+${v}% Hailstorm damage`, ranges: [[10, 18], [16, 26], [24, 40]] },
+  blink: { label: (v) => `+${v}% Blink Strike damage`, ranges: [[10, 18], [16, 26], [24, 40]] }
 };
 
 /** Named uniques: a fixed weapon and fixed, stronger bonuses. */

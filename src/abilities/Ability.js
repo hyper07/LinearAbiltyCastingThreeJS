@@ -170,6 +170,8 @@ export class Ability {
     this.fadeTime = 0;
     this.lightBoost = 0;
     this.phase = AbilityPhase.TRAVEL;
+    /** Bumped every cast, so a strike can tell its pooled effect was reused. */
+    this.castSerial = (this.castSerial ?? 0) + 1;
 
     this.position.copy(this.origin);
     this.light = this.ctx.lights.acquire();

@@ -75,7 +75,17 @@ export class Combat extends EventEmitter {
       radius: zoned ? Math.max(0.5, profile.radius || ability.zoneRadius || 4) : 0,
       /** Monsters already hit by this strike; a strike never double-dips. */
       hit: new Set(),
-      resolved: false
+      resolved: false,
+      /** line | zone | chain | orb | storm — see settings.combat. */
+      kind: profile.kind ?? (zoned ? 'zone' : 'line'),
+      /** The effect drawing this cast, told about leaps and zaps (App sets it). */
+      fx: null,
+      timer: 0,
+      jumps: 0,
+      seeking: true,
+      landed: false,
+      lasts: profile.lasts ?? 0,
+      lastPoint: new Vector3(origin.x, 1.2, origin.z)
     };
 
     this.strikes.push(strike);
@@ -138,7 +148,10 @@ export class Combat extends EventEmitter {
       strike.age += dt;
       strike.front += strike.speed * dt;
 
-      if (strike.zoned) this._advanceZone(strike);
+      if (strike.kind === 'chain') this._advanceChain(strike, dt);
+      else if (strike.kind === 'orb') this._advanceOrb(strike, dt);
+      else if (strike.kind === 'storm') this._advanceStorm(strike, dt);
+      else if (strike.zoned) this._advanceZone(strike);
       else this._advanceLine(strike);
 
       if (strike.resolved) this.strikes.splice(i, 1);
@@ -190,6 +203,158 @@ export class Combat extends EventEmitter {
     this._blast(strike, _point, strike.radius);
     this._dressImpact(strike, _point, strike.radius);
     strike.resolved = true;
+  }
+
+  /** Tell the effect drawing this strike what just happened (if it is still that cast). */
+  _fx(strike, type, a, b) {
+    const fx = strike.fx;
+    if (fx && fx.ability.castSerial === fx.serial) fx.ability.onStrike?.(type, a, b);
+  }
+
+  /**
+   * A chain: the first body in the corridor, then a leap to the nearest
+   * untouched body within `jumpRange` every `jumpDelay` seconds.
+   */
+  _advanceChain(strike, dt) {
+    const { profile } = strike;
+    if (strike.seeking) {
+      const width = profile.width ?? 1;
+      let best = null;
+      let bestAlong = Infinity;
+      for (const monster of this.ctx.monsters.active) {
+        if (!monster.isTargetable) continue;
+        _offset.copy(monster.position).sub(strike.origin);
+        _offset.y = 0;
+        const along = _offset.dot(strike.direction);
+        if (along < -0.5 || along > strike.front || along >= bestAlong) continue;
+        const lateral = Math.abs(_offset.x * strike.direction.z - _offset.z * strike.direction.x);
+        if (lateral > width + this._radiusOf(monster)) continue;
+        best = monster;
+        bestAlong = along;
+      }
+      if (best) {
+        strike.seeking = false;
+        this._chainHit(strike, best, true);
+      } else if (strike.front >= strike.length) {
+        _point.copy(strike.origin).addScaledVector(strike.direction, strike.length);
+        this._fx(strike, 'miss', _point);
+        this._dressImpact(strike, _point, 1);
+        strike.resolved = true;
+      }
+      return;
+    }
+
+    strike.timer -= dt;
+    if (strike.timer > 0) return;
+    if (strike.jumps > (profile.jumps ?? 3)) {
+      strike.resolved = true;
+      this._fx(strike, 'end');
+      return;
+    }
+    const reach = profile.jumpRange ?? 7;
+    let next = null;
+    let nextD = reach * reach;
+    for (const monster of this.ctx.monsters.active) {
+      if (!monster.isTargetable || strike.hit.has(monster)) continue;
+      const dx = monster.position.x - strike.lastPoint.x;
+      const dz = monster.position.z - strike.lastPoint.z;
+      const d = dx * dx + dz * dz;
+      if (d < nextD) {
+        next = monster;
+        nextD = d;
+      }
+    }
+    if (!next) {
+      strike.resolved = true;
+      this._fx(strike, 'end');
+      return;
+    }
+    this._chainHit(strike, next, false);
+  }
+
+  _chainHit(strike, monster, first) {
+    const { profile } = strike;
+    monster.centre(_point);
+    this._fx(strike, 'link', first ? null : strike.lastPoint, _point);
+    _scratch.copy(_point).sub(strike.lastPoint).setY(0);
+    if (_scratch.lengthSq() < 1e-6) _scratch.copy(strike.direction);
+    _scratch.normalize();
+    strike.hit.add(monster);
+    this._damage(monster, strike, _scratch, Math.pow(profile.falloff ?? 0.85, strike.jumps));
+    strike.lastPoint.copy(_point);
+    strike.jumps += 1;
+    strike.timer = profile.jumpDelay ?? 0.09;
+  }
+
+  /** An orb drifting down the line, lashing out at whatever is near it. */
+  _advanceOrb(strike, dt) {
+    const { profile } = strike;
+    const height = settings[strike.element]?.height ?? 1.2;
+    _point.copy(strike.origin).addScaledVector(strike.direction, Math.min(strike.front, strike.length));
+    _point.y = height;
+
+    strike.timer -= dt;
+    if (strike.timer <= 0) {
+      strike.timer += profile.tick ?? 0.3;
+      const reach = profile.reach ?? 4.5;
+      const near = [];
+      for (const monster of this.ctx.monsters.active) {
+        if (!monster.isTargetable) continue;
+        const dx = monster.position.x - _point.x;
+        const dz = monster.position.z - _point.z;
+        const d = Math.hypot(dx, dz) - this._radiusOf(monster);
+        if (d <= reach) near.push({ monster, d });
+      }
+      near.sort((a, b) => a.d - b.d);
+      for (const { monster } of near.slice(0, profile.targets ?? 2)) {
+        monster.centre(_offset);
+        this._fx(strike, 'zap', _point, _offset);
+        _scratch.copy(_offset).sub(_point).setY(0);
+        if (_scratch.lengthSq() < 1e-6) _scratch.copy(strike.direction);
+        this._damage(monster, strike, _scratch.normalize());
+      }
+    }
+
+    if (strike.front >= strike.length) {
+      const blast = {
+        element: strike.element,
+        profile: { ...profile, damage: profile.burst ?? profile.damage * 3, knockback: 3.5 },
+        hit: new Set()
+      };
+      _point.y = 0;
+      this._blast(blast, _point, profile.splash ?? 3);
+      this._dressImpact(strike, _point, profile.splash ?? 3);
+      this._fx(strike, 'burst', _point);
+      strike.resolved = true;
+    }
+  }
+
+  /** A storm: lands like a far cast, then keeps hitting the circle for a while. */
+  _advanceStorm(strike, dt) {
+    if (strike.front < strike.length) return;
+    const { profile } = strike;
+    _point.copy(strike.origin).addScaledVector(strike.direction, strike.length);
+    if (!strike.landed) {
+      strike.landed = true;
+      strike.timer = 0.25;
+      this._dressImpact(strike, _point, strike.radius);
+    }
+    strike.lasts -= dt;
+    strike.timer -= dt;
+    if (strike.timer <= 0) {
+      strike.timer += profile.tick ?? 0.45;
+      for (const monster of this.ctx.monsters.active) {
+        if (!monster.isTargetable) continue;
+        const dx = monster.position.x - _point.x;
+        const dz = monster.position.z - _point.z;
+        const reach = strike.radius + this._radiusOf(monster);
+        if (dx * dx + dz * dz > reach * reach) continue;
+        const distance = Math.max(0.001, Math.hypot(dx, dz));
+        _scratch.set(dx / distance, 0, dz / distance);
+        this._damage(monster, strike, _scratch);
+      }
+    }
+    if (strike.lasts <= 0) strike.resolved = true;
   }
 
   /** Everything inside `radius` of `centre`, knocked outward from it. */

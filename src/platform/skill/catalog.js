@@ -1,7 +1,7 @@
 import { createSkill } from './SkillDefinition.js';
 import { CastShape } from '../../config/settings.js';
 
-/** Default six-element skill set — mirrors `ELEMENTS` + `ELEMENT_META`. */
+/** Default skill set (keys 1–0) — mirrors `ELEMENTS` + `ELEMENT_META`. */
 export const frostLance = createSkill('frost-lance', {
   label: 'Frost Lance',
   abilityId: 'ice',
@@ -62,13 +62,57 @@ export const glacialCrown = createSkill('glacial-crown', {
   hint: 'Glacial Crown'
 });
 
+export const arcChain = createSkill('arc-chain', {
+  label: 'Arc Chain',
+  abilityId: 'chain',
+  castAnim: 'cast2',
+  castShape: CastShape.LINE,
+  accent: '#ffd23f',
+  key: '7',
+  hint: 'Arc Chain'
+});
+
+export const voidOrb = createSkill('void-orb', {
+  label: 'Void Orb',
+  abilityId: 'orb',
+  castAnim: 'cast1',
+  castShape: CastShape.LINE,
+  accent: '#c27bff',
+  key: '8',
+  hint: 'Void Orb'
+});
+
+export const hailstorm = createSkill('hailstorm', {
+  label: 'Hailstorm',
+  abilityId: 'hail',
+  castAnim: 'cast3',
+  castShape: CastShape.ZONE,
+  accent: '#bfe8ff',
+  key: '9',
+  hint: 'Hailstorm'
+});
+
+export const blinkStrike = createSkill('blink-strike', {
+  label: 'Blink Strike',
+  abilityId: 'blink',
+  castAnim: 'cast1',
+  castShape: CastShape.LINE,
+  accent: '#3dffb0',
+  key: '0',
+  hint: 'Blink Strike'
+});
+
 export const DEFAULT_SKILLS = [
   frostLance,
   stormLance,
   cinderFall,
   novaBeam,
   voltaicSnare,
-  glacialCrown
+  glacialCrown,
+  arcChain,
+  voidOrb,
+  hailstorm,
+  blinkStrike
 ];
 
 /** Map ability id → default skill (for resolving cast anim from element id). */

@@ -178,13 +178,13 @@ body.is-menu #viewport {
   bottom: 26px;
   transform: translateX(-50%);
   display: flex;
-  gap: 10px;
+  gap: 8px;
   pointer-events: auto;
 }
 
 .ability-card {
   position: relative;
-  width: 96px;
+  width: 86px;
   padding: 12px 8px 10px;
   border-radius: var(--ui-radius);
   border: 1px solid var(--ui-border);
@@ -463,8 +463,13 @@ body.is-menu #viewport {
   .hud__stats {
     display: none;
   }
+  .hud__abilities {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: calc(100vw - 32px);
+  }
   .ability-card {
-    width: 78px;
+    width: 62px;
   }
 }
 

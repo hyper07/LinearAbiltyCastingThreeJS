@@ -1,5 +1,6 @@
 import { createCharacter } from './CharacterDefinition.js';
 import { KAYKIT_ANIMATION_CLIPS } from './modelManifest.js';
+import { ELEMENT_META } from '../../config/settings.js';
 
 /**
  * Player classes. Every class casts the same six elemental spells; what
@@ -11,7 +12,8 @@ import { KAYKIT_ANIMATION_CLIPS } from './modelManifest.js';
  *   damage           % to every spell
  *   cooldown         % off every cooldown
  *   crit             % critical chance
- *   <element>        % to one spell (ice, thunder, meteor, beam, snare, glacier)
+ *   <element>        % to one spell (ice, thunder, meteor, beam, snare, glacier,
+ *                    chain, orb, hail, blink)
  *
  * Bonuses stack with gear and skill books (see items/Profile.js).
  */
@@ -161,7 +163,6 @@ export const CLASS_SPECS = [
 
 /** Bonus lines for the menu, in plain words. */
 export function describeBonuses(bonuses = {}) {
-  const spell = { ice: 'Frost Lance', thunder: 'Storm Lance', meteor: 'Cinder Fall', beam: 'Nova Beam', snare: 'Voltaic Snare', glacier: 'Glacial Crown' };
   const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
   return Object.entries(bonuses).map(([key, v]) => {
     if (key === 'health') return `${sign(v)} max health`;
@@ -170,7 +171,7 @@ export function describeBonuses(bonuses = {}) {
     if (key === 'damage') return `${sign(v)}% spell damage`;
     if (key === 'cooldown') return `−${v}% cooldowns`;
     if (key === 'crit') return `+${v}% critical chance`;
-    return `${sign(v)}% ${spell[key] ?? key} damage`;
+    return `${sign(v)}% ${ELEMENT_META[key]?.label ?? key} damage`;
   });
 }
 

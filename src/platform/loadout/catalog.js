@@ -6,7 +6,11 @@ const ELEMENTAL_SKILLS = [
   'cinder-fall',
   'nova-beam',
   'voltaic-snare',
-  'glacial-crown'
+  'glacial-crown',
+  'arc-chain',
+  'void-orb',
+  'hailstorm',
+  'blink-strike'
 ];
 
 /** Class loadout — the same elemental kit, a signature weapon per class. */
@@ -14,7 +18,7 @@ function classLoadout(id, label, weapon) {
   return createLoadout(id, { label, skills: ELEMENTAL_SKILLS, weapon });
 }
 
-/** Default six-slot elemental loadout for the caster. */
+/** Default ten-slot loadout for the caster (keys 1–0). */
 export const casterDefault = createLoadout('caster-default', {
   label: 'Elemental Caster',
   skills: ELEMENTAL_SKILLS,
@@ -28,7 +32,7 @@ export const casterStaff = createLoadout('caster-staff', {
   weapon: 'arcane-staff'
 });
 
-/* One loadout per class: the same six spells, the class's starting weapon. */
+/* One loadout per class: the same ten spells, the class's starting weapon. */
 const CLASS_WEAPONS = {
   knight: ['Knight', 'longsword'],
   mage: ['Mage', 'arcane-staff'],
