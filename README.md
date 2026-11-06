@@ -150,12 +150,13 @@ what it does, its damage, cooldown and reach now and at the next rank, and what 
   <img src="docs/screenshots/monster-emberwyrm.jpg" width="49%" alt="The Emberwyrm boss with its wings spread" />
 </p>
 
-**Loot, NPCs and portals** — drops by rarity, merchants, quests, stone portals.
+**Loot, NPCs and portals** — drops by rarity, a bag grid where every item takes its own size, a
+bag that grows with your level, a stash shared by every class, merchants, quests, stone portals.
 [More →](docs/items-npcs-portals.md)
 
 <p>
   <img src="docs/screenshots/loot.jpg" width="49%" alt="A Knight in plate beside a boss's loot: light beams in rarity colours and floating item names" />
-  <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag: a paper doll of worn gear, the plate set bonus, 30 slots and the totals" />
+  <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag grid: items of different sizes, and a ring being dragged to a free cell that lights up green" />
 </p>
 <p>
   <img src="docs/screenshots/npc-dialogue.jpg" width="49%" alt="Talking to the Old Warden: a gift, an AI-written answer and a quest" />

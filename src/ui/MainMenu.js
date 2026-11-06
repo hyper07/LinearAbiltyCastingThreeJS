@@ -35,6 +35,7 @@ export class MainMenu {
     this.getLibrary = callbacks.getLibrary ?? (() => null);
     this.getLevels = callbacks.getLevels ?? (() => null);
     this.onPlayLevel = callbacks.onPlayLevel ?? (() => {});
+    this.onOpenStash = callbacks.onOpenStash ?? (() => {});
     this.onOpenEditor = callbacks.onOpenEditor ?? (() => {});
     this.onLookChange = callbacks.onLookChange ?? (async () => {});
     this.onMyModelsChanged = callbacks.onMyModelsChanged ?? (async () => {});
@@ -68,6 +69,7 @@ export class MainMenu {
           <button class="main-menu__nav-btn" type="button" data-panel="world">World</button>
           <button class="main-menu__nav-btn" type="button" data-panel="campaign">Campaign</button>
           <button class="main-menu__nav-btn" type="button" data-panel="create">Create</button>
+          <button class="main-menu__nav-btn main-menu__nav-btn--stash" type="button" data-open-stash title="Your stash: a big storage grid every class shares">Stash</button>
         </nav>
 
         <div class="main-menu__body">
@@ -188,7 +190,8 @@ export class MainMenu {
     this.root.querySelector('[data-open-forge]').addEventListener('click', () => this.onOpenForge());
     this.statsEl = this.root.querySelector('[data-stats]');
     this.panelEls = [...this.root.querySelectorAll('.main-menu__panel[data-panel]')];
-    this.navBtns = [...this.root.querySelectorAll('.main-menu__nav-btn')];
+    this.navBtns = [...this.root.querySelectorAll('.main-menu__nav-btn[data-panel]')];
+    this.root.querySelector('[data-open-stash]').addEventListener('click', () => this.onOpenStash());
     this.summaryEl = this.root.querySelector('[data-summary]');
     this.startBtn = this.root.querySelector('[data-start]');
     this.worldLibraryEl = this.root.querySelector('[data-world-library]');

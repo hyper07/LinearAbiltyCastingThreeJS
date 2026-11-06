@@ -22,7 +22,7 @@ import { WorldLabels } from '../ui/WorldLabels.js';
 import { PortalSystem } from '../world/Portals.js';
 import { Profile } from '../items/Profile.js';
 import { LootSystem } from '../items/Loot.js';
-import { POTIONS, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
+import { POTIONS, XP_FOR, makeBagRowOffer, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
 import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
 import { NpcBrain } from '../npc/NpcBrain.js';
 import { DialoguePanel } from '../ui/DialoguePanel.js';
@@ -262,6 +262,7 @@ export class App {
       getLibrary: () => this.catalog,
       getLevels: () => this.levels,
       onPlayLevel: (id) => this.playCampaignLevel(id),
+      onOpenStash: () => this.inventory.openStash(),
       onOpenEditor: (options) => this.openEditor(options),
       onLookChange: (characterId, lookId) => this.setLook(characterId, lookId),
       onMyModelsChanged: async () => {
@@ -311,6 +312,11 @@ export class App {
       const thorns = this.profile.stats.thorns;
       if (thorns > 0 && source?.monster && !source.ranged) this.combat.thorns(source.monster, thorns);
     });
+    this.profile.on('level', ({ level, bagGrew }) => {
+      this.hud.showToast(`Level ${level}!${bagGrew ? ' Your bag grew a row.' : ''}`, 3200);
+      this.flash.trigger?.(getColor('#ffe27a'), 0.3);
+    });
+    this.profile.on('bag', () => this.inventory.isOpen && this.inventory.render());
     // Worn gear shows on the character (helmet, shield, cloak, quiver).
     this.profile.on('gear', () => this._wearGear());
     this.mainMenu.setProfile(this.profile);
@@ -328,7 +334,8 @@ export class App {
     this.inventory = new InventoryPanel(hudRoot, this.profile, {
       onEquip: (item) => this._equipItem(item),
       onUnequip: (slotId) => this._unequipGear(slotId),
-      onRead: (item) => this.hud.showToast(this.profile.read(item.uid).message, 2400),
+      onRead: (item) => this.hud.showToast((item.type === 'bag' ? this.profile.useBagUpgrade(item.uid) : this.profile.read(item.uid)).message, 2600),
+      onMessage: (text) => this.hud.showToast(text, 2400),
       onDrop: (item) => {
         const removed = this.profile.remove(item.uid);
         if (removed && this.phase === 'playing') this.loot.drop([removed], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
@@ -475,6 +482,7 @@ export class App {
   _bindRun() {
     this.director.on('kill', (monster) => {
       this._dropLoot(monster);
+      this.profile.addXp((XP_FOR[monster.kind] ?? 6) * (1 + ((this.director.wave || 1) - 1) * 0.05));
       if (this.npcs.onKill(monster.kind)) this._updateGoalPill();
       this._onRunEvent('kill', monster);
     });
@@ -1533,7 +1541,11 @@ export class App {
 
   _equipItem(item) {
     const equipped = this.profile.equip(item.uid);
-    if (!equipped) return;
+    if (!equipped) {
+      if (this.profile._lastError) this.hud.showToast(this.profile._lastError, 2400);
+      this.profile._lastError = null;
+      return;
+    }
     if (equipped.type === 'weapon') this.selectWeapon(equipped.weapon);
     const idle = equipped.type === 'gear' && !this.profile.isActive(equipped);
     this.hud.showToast(idle ? `${equipped.name} worn — but it needs a free hand (your weapon takes both)` : `${equipped.name} equipped`, idle ? 3200 : 1800);
@@ -1653,6 +1665,7 @@ export class App {
         npc.state.questTurnedIn = true;
         profile.gold += q.gold;
         profile.save();
+        profile.addXp(40 + q.count * 6);
         const reward = this._rewardItem(q.rarity);
         const got = reward ? ` and ${give(reward)}` : '';
         this.npcs.refreshMarks();
@@ -1685,8 +1698,16 @@ export class App {
           return { ...result, reward: rewards.join(' · ') };
         }
       },
-      stock: () => (npc.state.stock ??= npc.data.role === 'healer' ? [makePotion('health'), makePotion('focus')] : merchantStock(Math.random, this.director.wave || 1, treeSpells(profile.classId))),
+      stock: () => {
+        npc.state.stock ??= npc.data.role === 'healer' ? [makePotion('health'), makePotion('focus')] : merchantStock(Math.random, this.director.wave || 1, treeSpells(profile.classId));
+        // Merchants also sell bag rows — the price is live, so it is not in the cached stock.
+        return npc.data.role === 'merchant' ? [...npc.state.stock, makeBagRowOffer(profile.rowsBought)] : npc.state.stock;
+      },
       bag: () => profile.bag,
+      openStash: () => {
+        this.dialogue.close();
+        this.inventory.openStash();
+      },
       buy: (item) => profile.buy(item).message,
       sell: (item) => `Sold ${item.name} for ${profile.sell(item.uid)} gold`,
       heal: () => {

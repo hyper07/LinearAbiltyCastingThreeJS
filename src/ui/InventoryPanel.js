@@ -1,5 +1,6 @@
-import { BAG_SIZE } from '../items/Profile.js';
-import { ELEMENT_NAMES, RARITIES, SKILL_MAX_RANK, describeItem, itemColor, statLabel } from '../items/Items.js';
+import { BAG_COLS, BAG_MAX_ROWS, STASH_COLS, STASH_ROWS, xpToNext } from '../items/Profile.js';
+import { ELEMENT_NAMES, RARITIES, SKILL_MAX_RANK, describeItem, itemColor, itemSize, statLabel } from '../items/Items.js';
+import { fits, overlapping, usedCells } from '../items/Grid.js';
 import { ARMOR_CLASSES, GEAR_SLOTS, PROFICIENCY, armorCounts, pieceStats } from '../items/Gear.js';
 import { treeSpells } from '../platform/skill/tree.js';
 import { CLASS_SPECS } from '../platform/character/classes.js';
@@ -11,11 +12,19 @@ import { itemIcon, kindIcon } from './itemIcons.js';
  * Left: what you wear, as a paper doll — weapon, helmet, body armor, gloves,
  * belt, leg armor, boots, cloak, off-hand (shield, focus or quiver), amulet
  * and two rings — with your armor proficiency and set bonuses under it.
- * Right: the 30 bag slots, then what everything adds up to and your spells.
+ * Right: the bag — a grid where every item takes its own size in cells (a
+ * ring 1×1, a helmet 2×2, a rifle 2×4) — then what everything adds up to and
+ * your skills. The bag starts 8×4 and grows with your level, bag upgrades
+ * and rows bought from merchants.
  *
- * Click a weapon or piece of gear in the bag to wear it (whatever was in
- * that slot comes back to the bag), a book to read it; click something you
- * wear to take it off; right-click a bag item to drop it.
+ * Click a weapon or piece of gear in the bag to wear it, a book to read it,
+ * a bag upgrade to use it; drag anything to move it (onto another item to
+ * swap, onto the paper doll to wear it); click something you wear to take it
+ * off; right-click to drop.
+ *
+ * Stash mode (`openStash`, from the main menu or a village's Stashkeeper):
+ * the bag beside the big shared stash. Click moves an item across; drag
+ * places it exactly.
  */
 
 /** Paper-doll layout: rows of three. `weapon` is the weapon in hand. */
@@ -49,7 +58,7 @@ export class InventoryPanel {
   /**
    * @param {HTMLElement} host
    * @param {import('../items/Profile.js').Profile} profile
-   * @param {{ onEquip: (item) => void, onUnequip: (slotId: string) => void, onRead: (item) => void, onDrop: (item) => void }} actions
+   * @param {{ onEquip: (item) => void, onUnequip: (slotId: string) => void, onRead: (item) => void, onDrop: (item) => void, onMessage?: (text: string) => void }} actions
    */
   constructor(host, profile, actions) {
     this.profile = profile;
@@ -80,7 +89,15 @@ export class InventoryPanel {
 
   toggle(force) {
     this.root.hidden = force === undefined ? !this.root.hidden : !force;
+    if (this.root.hidden) this.stashMode = false;
+    this.root.classList.toggle('is-stash', Boolean(this.stashMode));
     if (!this.root.hidden) this.render();
+  }
+
+  /** Open the bag beside the stash. */
+  openStash() {
+    this.stashMode = true;
+    this.toggle(true);
   }
 
   setBeltVisible(visible) {
@@ -93,7 +110,8 @@ export class InventoryPanel {
       <span class="belt__slot" title="Health potion (R)"><kbd>R</kbd><i style="background:#ff4a5a"></i>${p.potions.health}</span>
       <span class="belt__slot" title="Focus potion (Z)"><kbd>Z</kbd><i style="background:#4ad2ff"></i>${p.potions.focus}</span>
       <span class="belt__slot belt__gold" title="Gold">● ${p.gold}</span>
-      <span class="belt__slot" title="Bag (Tab)"><kbd>Tab</kbd>Bag ${p.bag.length}/${BAG_SIZE}</span>`;
+      <span class="belt__slot" title="Bag (Tab)"><kbd>Tab</kbd>Bag ${usedCells(p.bag)}/${BAG_COLS * p.bagRowCount}</span>
+      <span class="belt__slot belt__level" title="Level ${p.level} — ${p.xp} / ${xpToNext(p.level)} XP">Lv ${p.level}<b><i style="width:${Math.round((p.xp / xpToNext(p.level)) * 100)}%"></i></b></span>`;
   }
 
   render() {
@@ -104,26 +122,51 @@ export class InventoryPanel {
 
     const head = document.createElement('header');
     head.className = 'inventory__head';
-    head.innerHTML = `<h2>Bag</h2><span>${p.gold} gold · ${p.potions.health} health · ${p.potions.focus} focus potions · ${p.bag.length}/${BAG_SIZE}</span>`;
+    head.innerHTML = `<h2>${this.stashMode ? 'Stash' : 'Bag'}</h2><span>${p.gold} gold · ${p.potions.health} health · ${p.potions.focus} focus potions</span>`;
     const close = document.createElement('button');
     close.type = 'button';
-    close.textContent = 'Close (Tab)';
+    close.textContent = this.stashMode ? 'Close' : 'Close (Tab)';
     close.addEventListener('click', () => this.toggle(false));
     head.append(close);
 
     const left = document.createElement('section');
     left.className = 'inventory__left';
-    left.append(this._doll(), this._armorInfo());
-
     const right = document.createElement('section');
     right.className = 'inventory__right';
-    const lower = document.createElement('div');
-    lower.className = 'inventory__lower';
-    lower.append(this._totals(), this._spells());
-    right.append(this._grid(), lower);
-
+    if (this.stashMode) {
+      card.classList.add('is-stash');
+      left.append(this._bagHeader(), this._grid('bag'));
+      const sh = document.createElement('div');
+      sh.className = 'inventory__grid-head';
+      sh.innerHTML = `<strong>Stash</strong><span>${usedCells(p.stash)} / ${STASH_COLS * STASH_ROWS} cells · shared by every class · click an item to move it across</span>`;
+      right.append(sh, this._grid('stash'));
+    } else {
+      left.append(this._doll(), this._armorInfo());
+      const lower = document.createElement('div');
+      lower.className = 'inventory__lower';
+      lower.append(this._totals(), this._spells());
+      right.append(this._bagHeader(), this._grid('bag'), lower);
+    }
     card.append(head, left, right);
     this.root.append(card);
+  }
+
+  /** Bag size, level and XP, and how the bag grows. */
+  _bagHeader() {
+    const p = this.profile;
+    const box = document.createElement('div');
+    box.className = 'inventory__grid-head';
+    const total = BAG_COLS * p.bagRowCount;
+    const next = p.nextRowLevel;
+    const grow = p.bagRowCount >= BAG_MAX_ROWS ? 'full size' : next ? `next row at level ${next}` : 'grows with bag upgrades and merchants';
+    box.innerHTML = `<strong>Bag</strong><span>${usedCells(p.bag)} / ${total} cells · ${BAG_COLS}×${p.bagRowCount} · ${grow}</span>`;
+    const lvl = document.createElement('span');
+    lvl.className = 'inventory__level';
+    const need = xpToNext(p.level);
+    lvl.title = `${p.xp} / ${need} XP to level ${p.level + 1}. Monsters and quests give XP; every 3 levels the bag grows a row.`;
+    lvl.innerHTML = `Level ${p.level}<b><i style="width:${Math.round((p.xp / need) * 100)}%"></i></b>`;
+    box.append(lvl);
+    return box;
   }
 
   /* -------------------------------------------------------------------- */
@@ -230,47 +273,156 @@ export class InventoryPanel {
     return box;
   }
 
-  _grid() {
+  /** A container as a grid of cells, items laid on it at their size. */
+  _grid(name) {
     const p = this.profile;
-    const grid = document.createElement('div');
-    grid.className = 'inventory__grid';
-    for (let i = 0; i < BAG_SIZE; i++) {
-      const item = p.bag[i];
-      const slot = document.createElement('button');
-      slot.type = 'button';
-      slot.className = 'inventory__slot';
-      if (!item) {
-        slot.disabled = true;
-        grid.append(slot);
-        continue;
-      }
+    const g = p.grid(name);
+    const wrap = document.createElement('div');
+    wrap.className = `inventory__grid inventory__grid--${name}`;
+    wrap.dataset.grid = name;
+    wrap.style.setProperty('--cols', g.cols);
+    wrap.style.setProperty('--rows', g.rows);
+    for (const item of g.items) {
+      const [w, h] = item._size ?? itemSize(item);
+      const [x, y] = item.at ?? [0, 0];
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'inventory__item';
+      tile.dataset.uid = item.uid;
+      tile.style.setProperty('--x', x);
+      tile.style.setProperty('--y', y);
+      tile.style.setProperty('--w', w);
+      tile.style.setProperty('--h', h);
       const color = itemColor(item);
-      slot.style.borderColor = color;
-      slot.innerHTML = `<b style="color:${color}">${itemIcon(item)}</b>`;
-      const name = document.createElement('span');
-      name.textContent = item.name;
-      name.style.color = color;
-      slot.append(name);
+      tile.style.borderColor = color;
+      tile.style.color = color;
+      tile.innerHTML = `<b>${itemIcon(item)}</b>`;
+      const label = document.createElement('span');
+      label.textContent = item.name;
+      tile.append(label);
+      if (w * h <= 1) tile.classList.add('is-tiny');
       const book = item.type === 'book' ? p.bookStatus(item.element) : null;
-      if (book && !book.ok) slot.classList.add('is-unreadable');
+      if (book && !book.ok) tile.classList.add('is-unreadable');
+      if (item.rarity && RARITIES[item.rarity]) tile.dataset.rarity = item.rarity;
       const wearable = item.type === 'weapon' || item.type === 'gear';
-      slot.title = [
+      const verb = this.stashMode ? `Click: move to the ${name === 'bag' ? 'stash' : 'bag'}` : wearable ? 'Click: equip' : item.type === 'bag' ? 'Click: use' : 'Click: read';
+      tile.title = [
         item.name,
+        `${w}×${h} — ${w * h} cell${w * h > 1 ? 's' : ''}`,
         ...describeItem(item),
         ...(item.type === 'gear' ? this._compare(item) : []),
         ...(book ? ['', book.ok ? `You can read it: ${book.reason.toLowerCase()}` : book.reason] : []),
         '',
-        wearable ? 'Click: equip · Right-click: drop' : 'Click: read · Right-click: drop'
+        `${verb} · Drag: move · Right-click: drop`
       ].join('\n');
-      slot.addEventListener('click', () => (wearable ? this.actions.onEquip(item) : this.actions.onRead(item)));
-      slot.addEventListener('contextmenu', (e) => {
+      tile.addEventListener('pointerdown', (e) => this._dragStart(e, item, name, tile));
+      tile.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         this.actions.onDrop(item);
       });
-      if (item.rarity && RARITIES[item.rarity]) slot.dataset.rarity = item.rarity;
-      grid.append(slot);
+      wrap.append(tile);
     }
-    return grid;
+    return wrap;
+  }
+
+  /** A click (no drag) on an item. */
+  _click(item, from) {
+    if (this.stashMode) {
+      const r = this.profile.move(item.uid, from === 'bag' ? 'stash' : 'bag');
+      if (!r.ok && r.message) this._say(r.message);
+      this.render();
+      return;
+    }
+    if (item.type === 'weapon' || item.type === 'gear') this.actions.onEquip(item);
+    else this.actions.onRead(item);
+  }
+
+  _say(text) {
+    this.actions.onMessage?.(text);
+  }
+
+  /**
+   * Press on an item: a click if the pointer does not move, else a drag —
+   * the item follows the pointer, the cells it would land on light up
+   * (green: fits, amber: swaps, red: no), and letting go moves it there or
+   * onto a paper-doll slot.
+   */
+  _dragStart(e, item, from, tile) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const box = tile.getBoundingClientRect();
+    const grabX = sx - box.left;
+    const grabY = sy - box.top;
+    let ghost = null;
+    let preview = null;
+    let target = null;
+    const size = item._size ?? itemSize(item);
+
+    const where = (cx, cy) => {
+      for (const grid of this.root.querySelectorAll('[data-grid]')) {
+        const r = grid.getBoundingClientRect();
+        if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) continue;
+        const cell = r.width / Number(grid.style.getPropertyValue('--cols'));
+        const x = Math.round((cx - grabX - r.left) / cell);
+        const y = Math.round((cy - grabY - r.top) / cell);
+        return { kind: 'grid', grid, name: grid.dataset.grid, x, y, cell };
+      }
+      const slot = document.elementsFromPoint(cx, cy).find((n) => n.dataset?.slot);
+      return slot ? { kind: 'slot', slot: slot.dataset.slot, el: slot } : null;
+    };
+
+    const move = (ev) => {
+      if (!ghost) {
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+        ghost = tile.cloneNode(true);
+        ghost.classList.add('is-ghost');
+        ghost.style.width = `${box.width}px`;
+        ghost.style.height = `${box.height}px`;
+        document.body.append(ghost);
+        tile.classList.add('is-lifted');
+        preview = document.createElement('div');
+        preview.className = 'inventory__drop';
+      }
+      ghost.style.transform = `translate(${ev.clientX - grabX}px, ${ev.clientY - grabY}px)`;
+      target = where(ev.clientX, ev.clientY);
+      this.root.querySelectorAll('.is-drop-target').forEach((n) => n.classList.remove('is-drop-target'));
+      if (target?.kind === 'grid') {
+        const g = this.profile.grid(target.name);
+        const ok = fits(g.items, g.cols, g.rows, size, target.x, target.y, item);
+        const swap = !ok && target.x >= 0 && target.y >= 0 && target.x + size[0] <= g.cols && target.y + size[1] <= g.rows && overlapping(g.items, size, target.x, target.y, item).length === 1;
+        preview.className = `inventory__drop ${ok ? 'is-ok' : swap ? 'is-swap' : 'is-bad'}`;
+        preview.style.setProperty('--x', target.x);
+        preview.style.setProperty('--y', target.y);
+        preview.style.setProperty('--w', size[0]);
+        preview.style.setProperty('--h', size[1]);
+        target.grid.append(preview);
+      } else {
+        preview.remove();
+        if (target?.kind === 'slot') target.el.classList.add('is-drop-target');
+      }
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!ghost) {
+        this._click(item, from);
+        return;
+      }
+      ghost.remove();
+      preview?.remove();
+      tile.classList.remove('is-lifted');
+      if (target?.kind === 'grid') {
+        const r = this.profile.move(item.uid, target.name, target.x, target.y);
+        if (!r.ok && r.message) this._say(r.message);
+      } else if (target?.kind === 'slot' && from === 'bag' && (item.type === 'weapon' || item.type === 'gear')) {
+        this.actions.onEquip(item);
+      }
+      this.render();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
 
   /** "Compared with what you wear" lines for a piece of gear in the bag. */

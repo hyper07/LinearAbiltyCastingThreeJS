@@ -20,7 +20,8 @@ export const NPC_ROLES = {
   merchant: { label: 'Merchant', color: '#ffd166' },
   healer: { label: 'Healer', color: '#6fe3b0' },
   quest: { label: 'Quest giver', color: '#ff9a3c' },
-  tutor: { label: 'Tutor', color: '#b8f06a' }
+  tutor: { label: 'Tutor', color: '#b8f06a' },
+  stash: { label: 'Stashkeeper', color: '#c9a2ff' }
 };
 
 export const TALK_RANGE = 2.8;

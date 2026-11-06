@@ -152,6 +152,7 @@ export class DialoguePanel {
     if (q?.active) this.system(`Quest: ${q.title} — ${q.progress}`);
     if (npc.data.role === 'merchant' || npc.data.role === 'healer') button('Trade', () => this.showTrade());
     if (npc.data.role === 'healer') button('Heal me', () => this.system(a.heal()) || this.refresh());
+    if (npc.data.role === 'stash' && a.openStash) button('Open the stash', () => a.openStash(), true);
     button('Goodbye (Esc)', () => this.close());
   }
 

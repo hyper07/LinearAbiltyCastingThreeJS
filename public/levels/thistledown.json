@@ -2021,6 +2021,28 @@
     "amount": 50
    },
    "quest": null
+  },
+  {
+   "id": "bramble",
+   "name": "Old Bramble",
+   "role": "stash",
+   "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Knight",
+   "x": -8.5,
+   "z": -1.5,
+   "yaw": 1.2,
+   "greeting": "Leave what you can't carry with me \u2014 it'll be here whenever you come back, for every one of you.",
+   "lines": [
+    "The stash is shared: what one of you leaves, another can take.",
+    "Big things take big space. A tower shield eats a whole corner of my shed."
+   ],
+   "ai": false,
+   "persona": "",
+   "gift": {
+    "type": "none",
+    "rarity": "magic",
+    "amount": 50
+   },
+   "quest": null
   }
  ],
  "rules": {

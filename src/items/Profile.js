@@ -1,15 +1,28 @@
 import { EventEmitter } from '../utils/EventEmitter.js';
-import { SKILL_MAX_RANK, SKILL_RANK, buyPrice, itemValue } from './Items.js';
+import { SKILL_MAX_RANK, SKILL_RANK, buyPrice, itemSize, itemValue } from './Items.js';
+import { findSpot, fits, overlapping } from './Grid.js';
 import { GEAR_SLOTS, GEAR_SLOT_IDS, activeSetBonuses, gearActive, isTwoHanded, pieceStats } from './Gear.js';
 import { SLOT_COUNT, nodeOf, prerequisite, spellName, startingRanks, treeFor, treeSpells } from '../platform/skill/tree.js';
 
 // Storage key keeps the game's first name (Elemental Arena) so existing saves still load.
 const KEY = 'elemental-arena.profile';
-export const BAG_SIZE = 30;
+/** The bag is a grid: 8 cells across, 4 rows to start, up to 12. */
+export const BAG_COLS = 8;
+export const BAG_BASE_ROWS = 4;
+export const BAG_MAX_ROWS = 12;
+/** The stash (main menu, or the Stashkeeper in a village): a big shared grid. */
+export const STASH_COLS = 12;
+export const STASH_ROWS = 10;
+/** Every this many character levels, the bag grows a row (up to 6 rows from levels). */
+export const LEVELS_PER_ROW = 3;
+export const MAX_LEVEL = 50;
+/** XP to go from `level` to the next. */
+export const xpToNext = (level) => Math.round(80 * Math.pow(level, 1.45));
 export const BELT_MAX = 10;
 
 /**
- * The player's character between runs: purse, potion belt, bag, the weapon
+ * The player's character between runs: level and XP, purse, potion belt, bag
+ * and stash (grids of items, see items/Grid.js), the weapon
  * in hand, the gear worn (items/Gear.js: helmet, armor, shield, boots,
  * rings…), and — per class — which spells are learned, their ranks and the
  * five on keys 1–5. Saved per browser (a convenience, like campaign
@@ -52,6 +65,12 @@ export class Profile extends EventEmitter {
       gold: 0,
       potions: { health: 2, focus: 0 },
       bag: [],
+      stash: [],
+      level: 1,
+      xp: 0,
+      /** Extra bag rows from upgrade items and from merchants. */
+      bagRows: 0,
+      rowsBought: 0,
       equipped: null,
       /** Worn gear, by slot id (items/Gear.js GEAR_SLOTS). */
       gear: Object.fromEntries(GEAR_SLOT_IDS.map((id) => [id, null])),
@@ -71,7 +90,24 @@ export class Profile extends EventEmitter {
     this.gold = data?.gold ?? blank.gold;
     this.equipped = data?.equipped ?? null;
     this.potions = { ...blank.potions, ...(data?.potions ?? {}) };
-    this.bag = Array.isArray(data?.bag) ? data.bag.slice(0, BAG_SIZE) : [];
+    this.level = Math.max(1, Math.min(MAX_LEVEL, data?.level ?? 1));
+    this.xp = Math.max(0, data?.xp ?? 0);
+    this.bagRows = Math.max(0, data?.bagRows ?? 0);
+    this.rowsBought = Math.max(0, data?.rowsBought ?? 0);
+    this.stash = Array.isArray(data?.stash) ? data.stash : [];
+    this.bag = [];
+    // Place everything again (sizes can change between versions); what no
+    // longer fits in the bag goes to the stash rather than being lost.
+    const fromSave = Array.isArray(data?.bag) ? data.bag : [];
+    for (const it of this.stash) it._size = itemSize(it);
+    this.stash = this._repack(this.stash, STASH_COLS, STASH_ROWS, []);
+    const overflow = [];
+    this.bag = this._repack(fromSave, BAG_COLS, this.bagRowCount, overflow);
+    for (const it of overflow) {
+      const at = findSpot(this.stash, STASH_COLS, STASH_ROWS, it._size);
+      it.at = at ?? [0, 0];
+      this.stash.push(it);
+    }
     this.gear = { ...blank.gear };
     for (const id of GEAR_SLOT_IDS) if (data?.gear?.[id]?.type === 'gear') this.gear[id] = data.gear[id];
     this.progress = data?.progress && typeof data.progress === 'object' ? data.progress : {};
@@ -115,7 +151,7 @@ export class Profile extends EventEmitter {
     try {
       localStorage.setItem(
         KEY,
-        JSON.stringify({ gold: this.gold, potions: this.potions, bag: this.bag, equipped: this.equipped, gear: this.gear, progress: this.progress, legacySkills: this._legacyRanks ?? undefined })
+        JSON.stringify({ gold: this.gold, potions: this.potions, bag: this.bag, stash: this.stash, level: this.level, xp: this.xp, bagRows: this.bagRows, rowsBought: this.rowsBought, equipped: this.equipped, gear: this.gear, progress: this.progress, legacySkills: this._legacyRanks ?? undefined })
       );
     } catch {
       /* private mode: the character just is not remembered */
@@ -271,6 +307,154 @@ export class Profile extends EventEmitter {
   }
 
   /* -------------------------------------------------------------------- */
+  /* Bag, stash, level                                                     */
+  /* -------------------------------------------------------------------- */
+
+  /** Bag rows from character level: one every LEVELS_PER_ROW levels, up to 6. */
+  get levelRows() {
+    return Math.min(6, Math.floor(this.level / LEVELS_PER_ROW));
+  }
+
+  /** How many rows the bag has now. */
+  get bagRowCount() {
+    return Math.min(BAG_MAX_ROWS, BAG_BASE_ROWS + this.levelRows + this.bagRows);
+  }
+
+  /** The level that gives the next bag row (null when levels give no more). */
+  get nextRowLevel() {
+    if (this.levelRows >= 6 || this.bagRowCount >= BAG_MAX_ROWS) return null;
+    return (this.levelRows + 1) * LEVELS_PER_ROW;
+  }
+
+  /** A container by name: `{ items, cols, rows }`. */
+  grid(name) {
+    return name === 'stash'
+      ? { items: this.stash, cols: STASH_COLS, rows: STASH_ROWS }
+      : { items: this.bag, cols: BAG_COLS, rows: this.bagRowCount };
+  }
+
+  /** Lay items out again from scratch; what does not fit goes to `overflow`. */
+  _repack(list, cols, rows, overflow) {
+    const out = [];
+    // Big things first pack tighter; items that already have a free spot keep it.
+    const sorted = [...list].map((it) => ((it._size = itemSize(it)), it));
+    for (const it of sorted) {
+      if (it.at && fits(out, cols, rows, it._size, it.at[0], it.at[1])) {
+        out.push(it);
+        continue;
+      }
+      const at = findSpot(out, cols, rows, it._size);
+      if (at) {
+        it.at = at;
+        out.push(it);
+      } else overflow.push(it);
+    }
+    return out;
+  }
+
+  /** Put an item in a container at a spot (if given and free) or anywhere free. */
+  _put(item, spot = null, name = 'bag') {
+    const g = this.grid(name);
+    item._size = itemSize(item);
+    const at = spot && fits(g.items, g.cols, g.rows, item._size, spot[0], spot[1]) ? spot : findSpot(g.items, g.cols, g.rows, item._size);
+    if (!at) return false;
+    item.at = [...at];
+    g.items.push(item);
+    return true;
+  }
+
+  /** Is there room for this item in the bag? */
+  hasRoomFor(item) {
+    const g = this.grid('bag');
+    return Boolean(findSpot(g.items, g.cols, g.rows, itemSize(item)));
+  }
+
+  /**
+   * Move an item within or between the bag and the stash. With `x, y` it
+   * goes there (if it fits — or swaps with the one item in the way, when
+   * that one fits where this came from); without, anywhere free.
+   * @returns {{ ok: boolean, message?: string }}
+   */
+  move(uid, to, x = null, y = null) {
+    const fromName = this.bag.some((it) => it.uid === uid) ? 'bag' : this.stash.some((it) => it.uid === uid) ? 'stash' : null;
+    if (!fromName) return { ok: false };
+    const from = this.grid(fromName);
+    const dest = this.grid(to);
+    const item = from.items.find((it) => it.uid === uid);
+    item._size = itemSize(item);
+    const was = item.at;
+    if (x == null) {
+      if (fromName === to) return { ok: true };
+      const at = findSpot(dest.items, dest.cols, dest.rows, item._size);
+      if (!at) return { ok: false, message: to === 'stash' ? 'The stash is full' : 'No room in your bag' };
+      from.items.splice(from.items.indexOf(item), 1);
+      item.at = at;
+      dest.items.push(item);
+    } else if (fits(dest.items, dest.cols, dest.rows, item._size, x, y, item)) {
+      from.items.splice(from.items.indexOf(item), 1);
+      item.at = [x, y];
+      dest.items.push(item);
+    } else {
+      // One item in the way: swap the two, if it fits where this one was.
+      const inWay = x + item._size[0] <= dest.cols && y + item._size[1] <= dest.rows ? overlapping(dest.items, item._size, x, y, item) : [];
+      if (inWay.length !== 1) return { ok: false, message: 'It does not fit there' };
+      const other = inWay[0];
+      from.items.splice(from.items.indexOf(item), 1);
+      dest.items.splice(dest.items.indexOf(other), 1);
+      const placedOk = fits(dest.items, dest.cols, dest.rows, item._size, x, y);
+      if (placedOk) {
+        item.at = [x, y];
+        dest.items.push(item);
+      }
+      other._size = itemSize(other);
+      if (!placedOk || !fits(from.items, from.cols, from.rows, other._size, was[0], was[1])) {
+        // Undo.
+        if (placedOk) dest.items.splice(dest.items.indexOf(item), 1);
+        item.at = was;
+        from.items.push(item);
+        dest.items.push(other);
+        return { ok: false, message: 'It does not fit there' };
+      }
+      other.at = [...was];
+      from.items.push(other);
+    }
+    this.save();
+    return { ok: true };
+  }
+
+  /** Use a bag upgrade item: the bag grows for good. */
+  useBagUpgrade(uid) {
+    const i = this.bag.findIndex((it) => it.uid === uid && it.type === 'bag');
+    if (i < 0) return { ok: false, message: 'Not a bag upgrade' };
+    if (this.bagRowCount >= BAG_MAX_ROWS) return { ok: false, message: `Your bag is already as big as it gets (${BAG_MAX_ROWS} rows)` };
+    const [item] = this.bag.splice(i, 1);
+    this.bagRows += item.rows;
+    this.save();
+    this.emit('bag', this.bagRowCount);
+    return { ok: true, message: `${item.name}: your bag now has ${this.bagRowCount} rows` };
+  }
+
+  /**
+   * Gain experience. Levels up as many times as it covers.
+   * @returns {number} levels gained
+   */
+  addXp(amount) {
+    if (this.level >= MAX_LEVEL || amount <= 0) return 0;
+    const rowsBefore = this.bagRowCount;
+    this.xp += Math.round(amount);
+    let gained = 0;
+    while (this.level < MAX_LEVEL && this.xp >= xpToNext(this.level)) {
+      this.xp -= xpToNext(this.level);
+      this.level += 1;
+      gained += 1;
+    }
+    if (this.level >= MAX_LEVEL) this.xp = 0;
+    this.save();
+    if (gained) this.emit('level', { level: this.level, bagGrew: this.bagRowCount > rowsBefore });
+    return gained;
+  }
+
+  /* -------------------------------------------------------------------- */
   /* Actions                                                               */
   /* -------------------------------------------------------------------- */
 
@@ -290,8 +474,7 @@ export class Profile extends EventEmitter {
       this.save();
       return { ok: true, message: item.name };
     }
-    if (this.bag.length >= BAG_SIZE) return { ok: false, message: 'Your bag is full — sell or drop something (Tab)' };
-    this.bag.push(item);
+    if (!this._put(item)) return { ok: false, message: `No room in your bag for ${item.name} — sell, drop or stash something (Tab)` };
     this.save();
     return { ok: true, message: item.name };
   }
@@ -305,17 +488,20 @@ export class Profile extends EventEmitter {
     const i = this.bag.findIndex((it) => it.uid === uid);
     const item = this.bag[i];
     if (!item || (item.type !== 'weapon' && item.type !== 'gear')) return null;
-    let old;
-    if (item.type === 'weapon') {
-      old = this.equipped;
-      this.equipped = item;
-    } else {
-      const slot = this.slotFor(item);
-      old = this.gear[slot];
-      this.gear[slot] = item;
+    const slot = item.type === 'weapon' ? null : this.slotFor(item);
+    const old = item.type === 'weapon' ? this.equipped : this.gear[slot];
+    // The new piece leaves the bag; the old one goes where it was, or
+    // anywhere it fits. No room for it at all: nothing changes.
+    const spot = item.at;
+    this.bag.splice(i, 1);
+    if (old && !this._put(old, spot)) {
+      this.bag.splice(i, 0, item);
+      this._lastError = `No room in your bag for ${old.name}`;
+      return null;
     }
-    if (old) this.bag[i] = old;
-    else this.bag.splice(i, 1);
+    if (item.type === 'weapon') this.equipped = item;
+    else this.gear[slot] = item;
+    delete item.at;
     this.save();
     this.emit('stats', this.stats);
     if (item.type === 'gear') this.emit('gear', this.gear);
@@ -331,8 +517,7 @@ export class Profile extends EventEmitter {
   /** Take off whatever is in a gear slot (back to the bag). */
   unequipGear(slotId) {
     const item = this.gear[slotId];
-    if (!item || this.bag.length >= BAG_SIZE) return false;
-    this.bag.push(item);
+    if (!item || !this._put(item)) return false;
     this.gear[slotId] = null;
     this.save();
     this.emit('stats', this.stats);
@@ -341,8 +526,7 @@ export class Profile extends EventEmitter {
   }
 
   unequip() {
-    if (!this.equipped || this.bag.length >= BAG_SIZE) return false;
-    this.bag.push(this.equipped);
+    if (!this.equipped || !this._put(this.equipped)) return false;
     this.equipped = null;
     this.save();
     this.emit('stats', this.stats);
@@ -388,9 +572,15 @@ export class Profile extends EventEmitter {
   }
 
   remove(uid) {
-    const i = this.bag.findIndex((it) => it.uid === uid);
+    let list = this.bag;
+    let i = list.findIndex((it) => it.uid === uid);
+    if (i < 0) {
+      list = this.stash;
+      i = list.findIndex((it) => it.uid === uid);
+    }
     if (i < 0) return null;
-    const [item] = this.bag.splice(i, 1);
+    const [item] = list.splice(i, 1);
+    delete item.at;
     this.save();
     return item;
   }
@@ -408,6 +598,15 @@ export class Profile extends EventEmitter {
   buy(item) {
     const price = buyPrice(item);
     if (this.gold < price) return { ok: false, message: `Not enough gold (${price} needed)` };
+    if (item.type === 'service' && item.service === 'bagRow') {
+      if (this.bagRowCount >= BAG_MAX_ROWS) return { ok: false, message: `Your bag is already as big as it gets (${BAG_MAX_ROWS} rows)` };
+      this.gold -= price;
+      this.bagRows += 1;
+      this.rowsBought += 1;
+      this.save();
+      this.emit('bag', this.bagRowCount);
+      return { ok: true, message: `Your bag now has ${this.bagRowCount} rows` };
+    }
     const copy = { ...item, uid: `${item.uid}-${Date.now().toString(36)}` };
     const result = this.pickUp(copy);
     if (!result.ok) return result;

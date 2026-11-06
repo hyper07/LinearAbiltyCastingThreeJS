@@ -7,14 +7,19 @@ import { GEAR_BASES, GEAR_BASE_BY_ID, GEAR_ONLY_STATS, GEAR_UNIQUES, gearClassOf
  *
  * Every item is a small plain object, so the bag can be saved as JSON:
  *
- *   { uid, type: 'weapon'|'gear'|'book'|'potion'|'gold', rarity, name, value,
+ *   { uid, type: 'weapon'|'gear'|'book'|'bag'|'potion'|'gold', rarity, name, value,
  *     weapon?, stats?, element?, potion?, amount?,
  *     base?, kind?, group?, implicit? }      // gear: see items/Gear.js
  *
  * Weapons come from the game's own armory and carry bonus stats by rarity;
  * gear (helmets, armor, shields, boots, rings…) carries its item class's base
  * properties plus the same kind of bonus stats; skill books raise one spell's
- * rank; potions go to the belt; gold goes to the purse.
+ * rank; bag upgrades enlarge the bag; potions go to the belt; gold goes to
+ * the purse.
+ *
+ * In the bag and the stash every item takes a rectangle of cells
+ * (`itemSize`): a ring 1×1, a dagger or a book 1×2, a helmet 2×2, body armor
+ * 2×3, a rifle or a tower shield 2×4.
  */
 
 export const RARITIES = {
@@ -101,6 +106,77 @@ export const POTIONS = {
   health: { name: 'Health Potion', color: '#ff4a5a', price: 25, text: 'Restores 45% of your health. (R)' },
   focus: { name: 'Focus Potion', color: '#4ad2ff', price: 40, text: 'Every spell is ready again. (Z)' }
 };
+
+/* ---------------------------------------------------------------------- */
+/* Sizes                                                                   */
+/* ---------------------------------------------------------------------- */
+
+const GEAR_SIZE = { head: [2, 2], hands: [2, 2], feet: [2, 2], waist: [2, 1], back: [2, 3], chest: [2, 3], legs: [2, 3], neck: [1, 1], ring: [1, 1] };
+const OFFHAND_SIZE = { buckler: [2, 2], 'spiked-shield': [2, 2], 'kite-shield': [2, 3], 'tower-shield': [2, 4], 'crystal-focus': [1, 2], 'rune-tablet': [1, 2], 'spirit-totem': [1, 3], quiver: [1, 3], bandolier: [2, 2] };
+const WEAPON_SIZE = {
+  magic: { light: [1, 2], medium: [1, 3], heavy: [1, 4], magic: [1, 3] },
+  sword: { light: [1, 2], medium: [1, 3], heavy: [2, 4] },
+  axe: { light: [1, 2], medium: [2, 3], heavy: [2, 4] },
+  polearm: { _: [1, 4] },
+  knife: { _: [1, 2] },
+  pistol: { light: [2, 1], medium: [2, 2], heavy: [2, 2] },
+  rifle: { _: [2, 4] },
+  bow: { _: [2, 4] },
+  heavy: { _: [2, 4] },
+  throwing: { _: [1, 2] },
+  exotic: { _: [1, 3] },
+  unarmed: { _: [2, 2] }
+};
+const WEAPON_SIZE_BY_ID = { 'hand-crossbow': [2, 2], sling: [1, 2], shuriken: [1, 1], bomb: [1, 1], 'smoke-bomb': [1, 1], javelin: [1, 4], 'dual-pistols': [2, 2], smg: [2, 2], 'machine-pistol': [2, 2] };
+
+/**
+ * How many cells an item takes in the bag, as [columns, rows].
+ * @returns {[number, number]}
+ */
+export function itemSize(item) {
+  if (item.type === 'book') return [1, 2];
+  if (item.type === 'bag') return [2, 2];
+  if (item.type === 'gear') return (item.kind === 'offhand' ? OFFHAND_SIZE[item.base] : GEAR_SIZE[item.kind]) ?? [2, 2];
+  if (item.type === 'weapon') {
+    const w = platform.weapons.get(item.weapon);
+    if (!w) return [1, 3];
+    if (WEAPON_SIZE_BY_ID[w.id]) return WEAPON_SIZE_BY_ID[w.id];
+    if (w.category === 'magic') {
+      const v = String(w.visual);
+      return v.startsWith('staff') ? [1, 4] : v.startsWith('orb') ? [1, 1] : v.startsWith('tome') ? [2, 2] : v === 'scepter' ? [1, 3] : [1, 2];
+    }
+    const sizes = WEAPON_SIZE[w.category] ?? { _: [1, 3] };
+    return sizes[w.weight] ?? sizes._ ?? sizes.medium ?? [1, 3];
+  }
+  return [1, 1];
+}
+
+/* ---------------------------------------------------------------------- */
+/* Bag upgrades                                                            */
+/* ---------------------------------------------------------------------- */
+
+/** Items that make the bag bigger for good, one row of cells per `rows`. */
+export const BAG_UPGRADES = {
+  satchel: { name: 'Leather Satchel', rows: 1, rarity: 'rare', text: 'Use it: your bag gets one more row, for good.' },
+  pack: { name: 'Explorer’s Pack', rows: 2, rarity: 'epic', text: 'Use it: your bag gets two more rows, for good.' }
+};
+
+export function makeBagUpgrade(kind = 'satchel') {
+  const u = BAG_UPGRADES[kind];
+  return { uid: uid(), type: 'bag', rarity: u.rarity, name: u.name, bag: kind, rows: u.rows, value: 0 };
+}
+
+/** A merchant service: one more bag row for gold (not an item you carry). */
+export function makeBagRowOffer(bought = 0) {
+  return { uid: `bag-row-${bought}`, type: 'service', service: 'bagRow', rarity: 'rare', name: 'Bag row (+8 cells)', price: Math.round(150 * Math.pow(1.8, bought)), value: 0 };
+}
+
+/* ---------------------------------------------------------------------- */
+/* Experience                                                              */
+/* ---------------------------------------------------------------------- */
+
+/** XP per monster kind, before the wave bonus. */
+export const XP_FOR = { grunt: 6, wisp: 8, brute: 20, golem: 90, dragon: 400 };
 
 let _uid = 0;
 const uid = () => `${Date.now().toString(36)}-${(_uid++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -211,6 +287,8 @@ export function itemValue(item) {
   if (item.type === 'gold') return item.amount;
   if (item.type === 'potion') return Math.round(POTIONS[item.potion].price / 4);
   if (item.type === 'book') return 40;
+  if (item.type === 'bag') return 60 * item.rows;
+  if (item.type === 'service') return 0;
   const statSum = Object.values(item.stats ?? {}).reduce((a, b) => a + Math.abs(b), 0);
   const baseSum = Object.values(item.implicit ?? {}).reduce((a, b) => a + Math.abs(b), 0);
   return Math.round((8 + statSum * 1.5 + baseSum * 0.5) * RARITIES[item.rarity].value);
@@ -233,6 +311,11 @@ export function describeItem(item) {
     lines.push(`Teaches ${ELEMENT_NAMES[item.element]}, or raises it one rank (max ${SKILL_MAX_RANK}).`);
     lines.push(`Each rank after the first: +${SKILL_RANK.damage}% damage, −${SKILL_RANK.cooldown}% cooldown.`);
     lines.push('Only classes with this skill in their skill tree can read it.');
+  } else if (item.type === 'bag') {
+    lines.push('Bag upgrade');
+    lines.push(BAG_UPGRADES[item.bag]?.text ?? `Use it: +${item.rows} bag rows.`);
+  } else if (item.type === 'service') {
+    lines.push('Your bag gets one more row (8 cells), for good. Each row costs more than the last.');
   } else if (item.type === 'potion') lines.push(POTIONS[item.potion].text);
   else if (item.type === 'gold') lines.push('Gold');
   return lines;
@@ -287,6 +370,9 @@ export function rollLoot(kind, { wave = 1, goldFind = 0, rng = Math.random, book
     else if (r < 0.91) drops.push(makeGear(rollRarity(rng, boost), rng));
     else drops.push(makeBook(null, rng, bookPool)); // books: about one roll in eleven
   }
+  // Bag upgrades: rare everywhere, likelier from the big ones.
+  const bagChance = { grunt: 0.004, wisp: 0.005, brute: 0.015, golem: 0.2, dragon: 0.6 }[kind] ?? 0.004;
+  if (rng() < bagChance) drops.push(makeBagUpgrade(kind === 'dragon' && rng() < 0.5 ? 'pack' : 'satchel'));
   if (table.guarantee) {
     const floor = RARITY_ORDER.indexOf(table.guarantee);
     let rarity = rollRarity(rng, boost);
@@ -301,6 +387,7 @@ export function rollLoot(kind, { wave = 1, goldFind = 0, rng = Math.random, book
 /** A merchant's shelf: potions always, plus weapons, gear and two books. */
 export function merchantStock(rng = Math.random, wave = 1, bookPool = null) {
   const stock = [makePotion('health'), makePotion('focus')];
+  if (rng() < 0.35) stock.push(makeBagUpgrade('satchel'));
   for (let i = 0; i < 3; i++) stock.push(makeWeapon(rollRarity(rng, 0.4 + wave * 0.05), rng));
   for (let i = 0; i < 4; i++) stock.push(makeGear(rollRarity(rng, 0.4 + wave * 0.05), rng));
   stock.push(makeBook(null, rng, bookPool), makeBook(null, rng, bookPool));
@@ -308,6 +395,8 @@ export function merchantStock(rng = Math.random, wave = 1, bookPool = null) {
 }
 
 export function buyPrice(item) {
+  if (item.type === 'service') return item.price;
+  if (item.type === 'bag') return 900 * item.rows;
   if (item.type === 'potion') return POTIONS[item.potion].price;
   if (item.type === 'book') return 150;
   return itemValue(item) * 4;

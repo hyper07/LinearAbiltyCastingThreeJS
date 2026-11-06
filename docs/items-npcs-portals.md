@@ -36,10 +36,45 @@ better plus two skill books.
 | Gold | Spent at merchants; weapons sell back for a quarter. |
 
 **Tab** opens the bag: a paper doll of everything you wear (click a piece to take it off), your
-armor proficiency and set bonuses, 30 slots, what everything adds up to, and your class's skill
-ranks. Click a weapon or piece of gear to wear it, a book to read it, right-click to drop. Hovering
-over gear compares it with what you wear. Books your class can't read are greyed out. The bag, worn
-gear, gold, potions and ranks are saved in the browser and carry between levels.
+armor proficiency and set bonuses, the bag grid, what everything adds up to, and your class's skill
+ranks. Click a weapon or piece of gear to wear it, a book to read it, a bag upgrade to use it,
+right-click to drop. Hovering over gear compares it with what you wear. Books your class can't read
+are greyed out. The bag, stash, worn gear, gold, potions, level and ranks are saved in the browser
+and carry between levels.
+
+### The bag grid, levels and the stash
+
+<p>
+  <img src="screenshots/inventory.jpg" width="49%" alt="The bag grid: a tower shield, breastplate, helm, satchel, sling and a ring being dragged to a free cell, which lights up green" />
+  <img src="screenshots/stash.jpg" width="49%" alt="The stash from the main menu: the bag beside a 12 by 10 stash of rifles, caps and tomes" />
+</p>
+
+The bag is a grid, 8 cells across. Every item takes its own size:
+
+| Size | Items |
+| --- | --- |
+| 1×1 (1 cell) | Rings, amulets, orbs, shuriken, bombs |
+| 1×2 (2) | Books, wands, knives, short swords, throwing weapons, foci |
+| 2×2 (4) | Helmets, gloves, boots, pistols, bucklers, tomes, bag upgrades |
+| 1×3 or 2×3 (3–6) | Swords, axes, cloaks, body and leg armor, kite shields, quivers |
+| 1×4 or 2×4 (4–8) | Staves, polearms, rifles, bows, heavy weapons, greatswords, tower shields |
+
+**Drag** an item to move it: the cells under it light up green if it fits, amber if it will swap with
+the one item in the way, red if it cannot go there. Drag onto the paper doll to wear it.
+
+**The bag grows** from 4 rows to as many as 12, three ways:
+
+- **Levels.** Monsters and quests give XP (bigger monsters more, later waves a little more). Every
+  3 levels the bag gets a row, up to 6 rows. Your level and XP bar show on the belt and in the bag.
+- **Bag upgrades.** A *Leather Satchel* (+1 row) or an *Explorer's Pack* (+2) sometimes drops (a
+  Rift Golem or the Emberwyrm drops them far more often) and merchants sometimes stock one. Click it
+  in the bag to use it.
+- **Merchants** sell a bag row for gold; each row costs more than the last.
+
+**The stash** is a 12×10 grid every class shares. Open it from the main menu (**Stash**) or from a
+**Stashkeeper** in a village (Old Bramble in Thistledown). The bag sits beside it: click an item to
+move it across, or drag it to an exact spot. When an old save's bag no longer fits the grid, what
+does not fit goes to the stash, so nothing is lost.
 
 ### NPCs
 
@@ -49,7 +84,8 @@ and press **F** to talk (the fight pauses while you do).
 | Role | Does |
 | --- | --- |
 | Guide | Talks: a greeting and scripted lines — story, hints, rumours. |
-| Merchant | Sells potions, weapons, gear and two skill books (mostly for your class); buys anything from your bag. |
+| Merchant | Sells potions, weapons, gear, two skill books (mostly for your class), sometimes a bag upgrade, and bag rows; buys anything from your bag. |
+| Stashkeeper | Opens your stash. |
 | Healer | Heals you to full and sells potions. |
 | Quest giver | Sets a task — *defeat N monsters* (any, or one kind) — tracked under the wave counter; hand it in for gold and an item of a chosen rarity. |
 | Tutor | Asks study questions — generated math, or the parent's own — and pays gold for right answers, with a bonus every few. Marked ✎. See [Study games for kids](for-parents.md). |

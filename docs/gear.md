@@ -143,7 +143,7 @@ leave the off hand free.
 ## The bag
 
 **Tab** opens the bag. On the left is a paper doll with what you wear. Click a piece to take it off.
-Below it are your armor proficiency and set bonuses. On the right are the 30 bag slots and the totals.
+Below it are your armor proficiency and set bonuses. On the right are the bag grid (every item takes its own size in cells; see [the bag grid](items-npcs-portals.md#the-bag-grid-levels-and-the-stash)) and the totals.
 Click gear in the bag to wear it; whatever was in that slot goes back to the bag. A ring goes on a
 free finger first. Hovering over a piece in the bag compares it with what you wear in that slot,
 proficiency included.
