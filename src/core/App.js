@@ -14,6 +14,10 @@ import { ComposedWorld } from '../world/ComposedWorld.js';
 import { Catalog } from '../library/Catalog.js';
 import { ModelLibrary } from '../library/ModelLibrary.js';
 import { MapPlanner } from '../ai/MapPlanner.js';
+import { LevelEditor } from '../editor/LevelEditor.js';
+import { LevelStore, progress } from '../levels/LevelStore.js';
+import { describeGoal, normalizeLevel } from '../levels/Level.js';
+import { StoryPanel } from '../ui/StoryPanel.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -123,6 +127,12 @@ export class App {
     this.composed = new ComposedWorld(this.environment, { catalog: this.catalog, library: this.modelLibrary });
     this.mapPlanner = new MapPlanner(this.catalog);
     this.world = this.ruins;
+    /* Levels: files in public/levels/, the campaign that plays them, and the
+       editor that makes them (created on first use). */
+    this.levels = new LevelStore();
+    this.levelEditor = null;
+    /** The level being played, with its goal progress; null in free play. */
+    this.run = null;
 
     this.scene.add(
       this.ground.mesh,
@@ -197,8 +207,16 @@ export class App {
       getEnvironment: () => this.environment,
       onGenerateWorld: (description) => this.generateWorld(description),
       onClassicWorld: () => this.useClassicWorld(),
-      getLibrary: () => this.catalog
+      getLibrary: () => this.catalog,
+      getLevels: () => this.levels,
+      onPlayLevel: (id) => this.playCampaignLevel(id),
+      onOpenEditor: (options) => this.openEditor(options)
     });
+    this.story = new StoryPanel(hudRoot);
+    this.goalPill = document.createElement('div');
+    this.goalPill.className = 'level-goal';
+    this.goalPill.hidden = true;
+    hudRoot.appendChild(this.goalPill);
     this.gameMenu = new GameMenuButton(hudRoot, {
       onPause: () => this.togglePause(),
       onExit: () => this.exitToMenu()
@@ -325,6 +343,9 @@ export class App {
 
   /** The run's events → the run's readout. Nothing else listens to these. */
   _bindRun() {
+    this.director.on('kill', (monster) => this._onRunEvent('kill', monster));
+    this.director.on('waveCleared', (wave) => this._onRunEvent('waveCleared', wave));
+    this.director.on('wave', (wave) => this._onRunEvent('wave', wave));
     this.director.on('wave', (wave, count) => {
       this.gameHud.setWave(wave);
       this.gameHud.showBanner(`Wave ${wave}`, `${count} incoming`);
@@ -357,6 +378,8 @@ export class App {
   }
 
   _handleAction(action, slot) {
+    // The editor reads the keyboard itself; nothing here may fire while it is open.
+    if (this.phase === 'editor') return;
     if (this.phase === 'menu' && action !== 'toggleWeapons' && action !== 'cancel') return;
 
     switch (action) {
@@ -469,10 +492,12 @@ export class App {
   }
 
   /** Apply main-menu selections and start the run. */
-  async enterGame() {
+  async enterGame({ characterId: forced = null, keepRun = false } = {}) {
     const { characterId, weaponId } = this.mainMenu.getSelection();
-    await this.selectCharacter(characterId, { reloadMesh: true });
+    await this.selectCharacter(forced ?? characterId, { reloadMesh: true });
     this.selectWeapon(weaponId);
+    // Free play from the menu is not a level.
+    if (!keepRun) this._endRun();
 
     this.clearEffects();
     this.character.locomotion.reset();
@@ -493,8 +518,10 @@ export class App {
     this.hud.showToast('Fight!');
   }
 
-  /** Leave the arena and return to loadout selection. */
+  /** Leave the arena and return to loadout selection (or to the editor, after a play test). */
   exitToMenu() {
+    const backToEditor = this.run?.fromEditor;
+    this._endRun();
     this.aim.cancel();
     this.weaponPanel.hide();
     this.clearEffects();
@@ -511,6 +538,10 @@ export class App {
     this.hud.setGameplayVisible(false);
     this.gameHud.setVisible(false);
     this.gameMenu.hide();
+    if (backToEditor) {
+      this.levelEditor.resume();
+      return;
+    }
     document.body.classList.add('is-menu');
     this.mainMenu.show();
   }
@@ -657,6 +688,177 @@ export class App {
       /* compile is an optimisation; a failure just means a hitch later */
     }
     return stats;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Levels: the editor and the campaign                                 */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Open the level editor.
+   * @param {{ id?: string, fromCurrentMap?: boolean }} [options] a saved level, or the map on screen
+   */
+  async openEditor({ id = null, fromCurrentMap = false } = {}) {
+    this.levelEditor ??= new LevelEditor(this);
+    let level = null;
+    if (id) level = await this.levels.load(id);
+    else if (fromCurrentMap && this.composed.level) {
+      level = normalizeLevel({ ...this.composed.level, name: this.composed.plan?.name ?? this.composed.level.name });
+      level.world.terrain = this.composed.terrain.serialize();
+    }
+    await this.levelEditor.enter(level);
+  }
+
+  async playCampaignLevel(id) {
+    const campaign = await this.levels.list();
+    const index = campaign.findIndex((entry) => entry.id === id);
+    const level = await this.levels.load(id);
+    await this.playLevel(level, { campaign, index });
+  }
+
+  /**
+   * Play a level: its character, world, rules, story and goal.
+   * @param {object} level
+   * @param {{ fromEditor?: boolean, campaign?: {id: string, name: string}[], index?: number }} [options]
+   */
+  async playLevel(level, { fromEditor = false, campaign = null, index = -1 } = {}) {
+    level = normalizeLevel(level);
+    if (fromEditor) this.levelEditor.suspend();
+    else this.mainMenu.hide();
+
+    await this.catalog.ready;
+    this.clearEffects();
+    await this.composed.buildLevel(level);
+    this._useWorld(this.composed);
+    try {
+      await this.renderer.gl.compileAsync(this.scene, this.camera);
+    } catch {
+      /* optimisation only */
+    }
+
+    const intro = level.story.intro;
+    const choice = await this.story.show({
+      eyebrow: campaign && index >= 0 ? `Level ${index + 1} of ${campaign.length}` : fromEditor ? 'Play test' : 'Level',
+      title: intro.title || level.name,
+      speaker: intro.speaker,
+      text: intro.text,
+      goal: `Goal: ${describeGoal(level.rules)}`,
+      buttons: [
+        { label: fromEditor ? 'Back to editor' : 'Back', value: 'back' },
+        { label: 'Start', value: 'start', primary: true }
+      ]
+    });
+    if (choice === 'back') {
+      if (fromEditor) this.levelEditor.resume();
+      else {
+        this.useClassicWorld();
+        this.showMainMenu();
+      }
+      return;
+    }
+
+    this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, done: false };
+    this._applyRules(level);
+    await this.enterGame({ characterId: level.character, keepRun: true });
+    // Monsters already standing in the level wait for the director's reset.
+    const V = this.character.position.constructor;
+    for (const m of level.monsters) this.monsters.spawn(m.kind, new V(m.x, 0, m.z));
+    this._updateGoalPill();
+  }
+
+  /** The level's wave rules over the global ones, remembered for restoring. */
+  _applyRules(level) {
+    const waves = settings.waves;
+    const kinds = settings.monsters.kinds;
+    this._rulesBackup = {
+      waves: { baseCount: waves.baseCount, growth: waves.growth, bossEvery: waves.bossEvery, dragonEvery: waves.dragonEvery },
+      weights: Object.fromEntries(Object.entries(kinds).map(([k, v]) => [k, v.weight]))
+    };
+    const r = level.rules;
+    Object.assign(waves, { baseCount: r.baseCount, growth: r.growth, bossEvery: r.bossEvery, dragonEvery: r.dragonEvery });
+    // "Defeat the boss": the Emberwyrm arrives on wave `count`.
+    if (r.goal === 'boss') waves.dragonEvery = r.count;
+    for (const [kind, config] of Object.entries(kinds)) {
+      if (kind in r.kinds && !config.boss) config.weight = r.kinds[kind];
+    }
+    // A level with every kind switched off still needs someone to fight.
+    if (!Object.entries(kinds).some(([, c]) => !c.boss && c.weight > 0)) kinds.grunt.weight = 1;
+    this.monsters.spawnPoints = level.spawns.length ? level.spawns : null;
+  }
+
+  _endRun() {
+    if (this._rulesBackup) {
+      Object.assign(settings.waves, this._rulesBackup.waves);
+      for (const [kind, weight] of Object.entries(this._rulesBackup.weights)) settings.monsters.kinds[kind].weight = weight;
+      this._rulesBackup = null;
+    }
+    this.monsters.spawnPoints = null;
+    this.run = null;
+    this.goalPill.hidden = true;
+  }
+
+  _updateGoalPill() {
+    const run = this.run;
+    if (!run) {
+      this.goalPill.hidden = true;
+      return;
+    }
+    const r = run.level.rules;
+    const progressText =
+      r.goal === 'waves' ? `Wave ${Math.min(run.wave, r.count)} / ${r.count} cleared`
+      : r.goal === 'kills' ? `${Math.min(run.kills, r.count)} / ${r.count} defeated`
+      : run.wave < r.count ? `The boss arrives on wave ${r.count}` : 'Defeat the Emberwyrm!';
+    this.goalPill.textContent = `${run.level.name} — ${progressText}`;
+    this.goalPill.hidden = false;
+  }
+
+  _onRunEvent(type, payload) {
+    const run = this.run;
+    if (!run || run.done || this.phase !== 'playing') return;
+    const r = run.level.rules;
+    if (type === 'kill') {
+      run.kills += 1;
+      if (r.goal === 'kills' && run.kills >= r.count) return this._winLevel();
+      if (r.goal === 'boss' && payload?.kind === 'dragon') return this._winLevel();
+    }
+    if (type === 'waveCleared') {
+      run.wave = payload;
+      if (r.goal === 'waves' && run.wave >= r.count) return this._winLevel();
+    }
+    if (type === 'wave') run.wave = Math.max(run.wave, payload - 1);
+    this._updateGoalPill();
+  }
+
+  async _winLevel() {
+    const run = this.run;
+    run.done = true;
+    this._updateGoalPill();
+    this.director.stop();
+    this.hud.showToast('Victory!');
+    if (!run.fromEditor) progress.complete(run.level.id);
+    // A beat to see the last kill land before the story card.
+    await new Promise((resolve) => setTimeout(resolve, 1600));
+    this.input.enabled = false;
+    const next = run.campaign && run.index >= 0 ? run.campaign[run.index + 1] : null;
+    const outro = run.level.story.outro;
+    const choice = await this.story.show({
+      eyebrow: 'Level complete',
+      title: outro.title || 'Victory',
+      speaker: outro.speaker,
+      text: outro.text,
+      buttons: [
+        { label: run.fromEditor ? 'Back to editor' : 'Main menu', value: 'menu' },
+        ...(next ? [{ label: `Next: ${next.name}`, value: 'next', primary: true }] : [])
+      ]
+    });
+    if (choice === 'next' && next) {
+      this.exitToMenu();
+      this.mainMenu.hide();
+      await this.playCampaignLevel(next.id);
+      return;
+    }
+    this.exitToMenu();
+    if (!run.fromEditor) this.useClassicWorld();
   }
 
   /** Back to the hand-built ruined keep. */
@@ -879,7 +1081,12 @@ export class App {
     /* ---- simulation ---- */
     this.renderer.syncSettings();
 
-    this.environment.setFocus(this.character.position.x, this.character.position.z);
+    if (this.phase === 'editor') {
+      this.levelEditor.update(raw);
+      this.environment.setFocus(this.levelEditor.focus.x, this.levelEditor.focus.z);
+    } else {
+      this.environment.setFocus(this.character.position.x, this.character.position.z);
+    }
     this.environment.update();
 
     // Targeting runs on *real* time so the arrow keeps sweeping and animating
@@ -944,7 +1151,7 @@ export class App {
 
     const focus = this.abilities.focus;
     if (focus) this.rig.lookAt(focus.position, MathUtils.clamp(1 - focus.u * 0.4, 0, 1));
-    this.rig.setAnchor(this.character.position.x, 0, this.character.position.z);
+    if (this.phase !== 'editor') this.rig.setAnchor(this.character.position.x, 0, this.character.position.z);
     this.shake.update(raw);
     this.flash.update(raw);
     this.rig.update(raw);

@@ -1,4 +1,5 @@
 import { createReadStream, statSync } from 'node:fs';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 import { libraryState, startFetch } from './scripts/library/ensure.mjs';
@@ -15,6 +16,127 @@ const LIBRARY_MIME = {
   '.ktx2': 'image/ktx2',
   '.md': 'text/markdown; charset=utf-8'
 };
+
+/**
+ * Level files for the editor and campaign (dev only).
+ *
+ * Levels live in `public/levels/<id>.json`, with the campaign order in
+ * `public/levels/index.json`. Being under `public/`, they ship in every build
+ * and are read there as plain static files; only *writing* needs this server,
+ * which is why saving works under `npm run dev` and not in a built game.
+ *
+ *   GET    /api/levels           → the campaign index
+ *   POST   /api/levels/<id>      → save (create or replace) a level
+ *   DELETE /api/levels/<id>      → delete a level
+ *   POST   /api/levels-order     → { order: [ids] } reorder the campaign
+ */
+function levelStore() {
+  const dir = resolve('public', 'levels');
+  const indexFile = resolve(dir, 'index.json');
+  const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
+  const MAX_BYTES = 12 * 1024 * 1024;
+
+  const send = (res, status, body) => {
+    res.statusCode = status;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(body));
+  };
+  const body = (req) =>
+    new Promise((ok, fail) => {
+      const chunks = [];
+      let size = 0;
+      req.on('data', (c) => {
+        size += c.length;
+        if (size > MAX_BYTES) fail(new Error('level too large'));
+        else chunks.push(c);
+      });
+      req.on('end', () => {
+        try {
+          ok(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+        } catch (error) {
+          fail(error);
+        }
+      });
+      req.on('error', fail);
+    });
+  const readIndex = async () => {
+    try {
+      const data = JSON.parse(await readFile(indexFile, 'utf8'));
+      return Array.isArray(data.campaign) ? data : { campaign: [] };
+    } catch {
+      return { campaign: [] };
+    }
+  };
+  // Write-then-rename, so a crash mid-save never leaves half a file behind.
+  const atomicWrite = async (file, text) => {
+    await mkdir(dir, { recursive: true });
+    await writeFile(`${file}.tmp`, text);
+    await rename(`${file}.tmp`, file);
+  };
+
+  const middleware = (server) => {
+    server.middlewares.use(async (req, res, next) => {
+      const url = (req.url ?? '').split('?')[0];
+      // Level files are read straight from disk: they are written while the
+      // server runs, and Vite's own public-file list only knows files it has
+      // seen through the (deliberately unwatched) levels folder.
+      const file = url.match(/^\/levels\/([a-z0-9][a-z0-9-]{0,47}|index)\.json$/);
+      if (file && req.method === 'GET') {
+        try {
+          const text = await readFile(resolve(dir, `${file[1]}.json`), 'utf8');
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'no-cache');
+          return res.end(text);
+        } catch {
+          return send(res, 404, { error: 'no such level' });
+        }
+      }
+      if (!url.startsWith('/api/levels')) return next();
+      try {
+        if (url === '/api/levels' && req.method === 'GET') return send(res, 200, await readIndex());
+
+        if (url === '/api/levels-order' && req.method === 'POST') {
+          const { order } = await body(req);
+          const index = await readIndex();
+          const byId = new Map(index.campaign.map((entry) => [entry.id, entry]));
+          const next = (Array.isArray(order) ? order : []).filter((id) => byId.has(id)).map((id) => byId.get(id));
+          for (const entry of index.campaign) if (!next.includes(entry)) next.push(entry);
+          await atomicWrite(indexFile, JSON.stringify({ campaign: next }, null, 2) + '\n');
+          return send(res, 200, { campaign: next });
+        }
+
+        const match = url.match(/^\/api\/levels\/([^/]+)$/);
+        const id = match ? decodeURIComponent(match[1]) : '';
+        if (!ID.test(id)) return send(res, 400, { error: 'bad level id' });
+        const file = resolve(dir, `${id}.json`);
+
+        if (req.method === 'POST') {
+          const level = await body(req);
+          if (level?.id !== id) return send(res, 400, { error: 'id in the URL and the file disagree' });
+          await atomicWrite(file, JSON.stringify(level, null, 1) + '\n');
+          const index = await readIndex();
+          const entry = index.campaign.find((e) => e.id === id);
+          if (entry) entry.name = level.name;
+          else index.campaign.push({ id, name: level.name });
+          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
+          return send(res, 200, { ok: true, id, campaign: index.campaign });
+        }
+
+        if (req.method === 'DELETE') {
+          await rm(file, { force: true });
+          const index = await readIndex();
+          index.campaign = index.campaign.filter((e) => e.id !== id);
+          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
+          return send(res, 200, { ok: true, campaign: index.campaign });
+        }
+        return send(res, 405, { error: 'method not allowed' });
+      } catch (error) {
+        return send(res, 500, { error: String(error?.message ?? error) });
+      }
+    });
+  };
+  return { name: 'level-store', configureServer: middleware };
+}
 
 /**
  * Serve the downloaded asset library (`./library`, see `npm run library:fetch`)
@@ -253,7 +375,13 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '127.0.0.1',
       port: 5173,
-      open: false
+      open: false,
+      watch: {
+        // The asset library is gigabytes of files nobody edits by hand, and a
+        // saved level must not reload the page out from under the editor.
+        // Absolute paths: a bare `**/library/**` would also ignore src/library.
+        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`]
+      }
     },
     build: {
       target: 'es2022',
@@ -262,6 +390,6 @@ export default defineConfig(({ mode }) => {
     },
     // Large binary assets (FBX / HDR) live in /public and are served untouched.
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
-    plugins: [llmBridge(env), assetLibrary()]
+    plugins: [llmBridge(env), assetLibrary(), levelStore()]
   };
 });

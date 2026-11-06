@@ -1,0 +1,671 @@
+import { CATEGORIES } from '../library/categories.js';
+import { platform } from '../platform/index.js';
+import { GOALS, MONSTER_KINDS, describeGoal, slugify } from '../levels/Level.js';
+import { RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../world/MapPlan.js';
+
+const TOOLS = [
+  ['select', 'Select', 'Click an object, then drag the handles. 1 move · 2 rotate · 3 scale · Del delete · Ctrl+D duplicate'],
+  ['place', 'Place', 'Pick a model on the right, click the ground to drop it. Q / E turn it first.'],
+  ['scatter', 'Scatter', 'Paint many objects at once from your scatter set (or the picked model).'],
+  ['erase', 'Erase', 'Drag over objects to remove them.'],
+  ['sculpt', 'Sculpt', 'Raise, lower, smooth or flatten the land around the arena. The fighting circle stays flat.'],
+  ['paint', 'Paint', 'Paint ground surfaces — anywhere, including the arena floor.'],
+  ['spawns', 'Spawns', 'Click to add a point monsters walk in from; click one again to remove it.'],
+  ['monsters', 'Monsters', 'Click to place a monster that is waiting when the level starts; click again to remove.']
+];
+
+const MONSTER_LABELS = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm' };
+
+const esc = (value) =>
+  String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+/**
+ * The editor's DOM: top bar, tool strip, and a sidebar whose tabs edit the
+ * current tool, the map, the rules and the story. All state lives in the
+ * `LevelEditor`; this only reads it and calls its methods.
+ */
+export class EditorPanel {
+  /** @param {import('../editor/LevelEditor.js').LevelEditor} editor */
+  constructor(host, editor) {
+    this.editor = editor;
+    this.tab = 'tool';
+    this.category = 'tree';
+    this.query = '';
+    this.root = document.createElement('div');
+    this.root.className = 'editor';
+    this.root.hidden = true;
+    this.root.innerHTML = `
+      <header class="editor__bar">
+        <input class="editor__name" data-name maxlength="80" spellcheck="false" aria-label="Level name" />
+        <span class="editor__id" data-id></span>
+        <span class="editor__status" data-status></span>
+        <div class="editor__bar-actions">
+          <button type="button" data-act="undo" title="Undo (Ctrl+Z)">Undo</button>
+          <button type="button" data-act="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+          <button type="button" data-act="levels">Levels…</button>
+          <button type="button" data-act="new">New</button>
+          <button type="button" data-act="import">Import</button>
+          <button type="button" data-act="export">Export</button>
+          <button type="button" class="is-primary" data-act="save" title="Save (Ctrl+S)">Save</button>
+          <button type="button" class="is-primary" data-act="play">Play test</button>
+          <button type="button" data-act="exit">Exit</button>
+        </div>
+      </header>
+      <nav class="editor__tools" data-tools></nav>
+      <aside class="editor__side">
+        <nav class="editor__tabs" data-tabs>
+          <button type="button" data-tab="tool">Tool</button>
+          <button type="button" data-tab="map">Map</button>
+          <button type="button" data-tab="rules">Rules</button>
+          <button type="button" data-tab="story">Story</button>
+        </nav>
+        <div class="editor__pane" data-pane></div>
+      </aside>
+      <div class="editor__help" data-help></div>
+      <div class="editor__modal" data-modal hidden></div>
+    `;
+    host.appendChild(this.root);
+    this.$ = (sel) => this.root.querySelector(sel);
+
+    this.$('[data-tools]').innerHTML = TOOLS.map(
+      ([id, label]) => `<button type="button" data-tool="${id}">${label}</button>`
+    ).join('');
+    this.$('[data-tools]').addEventListener('click', (e) => {
+      const id = e.target.closest('[data-tool]')?.dataset.tool;
+      if (id) {
+        this.tab = 'tool';
+        editor.setTool(id);
+      }
+    });
+    this.$('[data-tabs]').addEventListener('click', (e) => {
+      const tab = e.target.closest('[data-tab]')?.dataset.tab;
+      if (tab) {
+        this.tab = tab;
+        this.renderPane();
+      }
+    });
+    this.$('[data-name]').addEventListener('change', (e) => {
+      const name = e.target.value.trim() || 'Untitled level';
+      editor.level.name = name;
+      // A level that has never been saved follows its name; a saved one keeps its file.
+      if (!this._savedIds?.has(editor.level.id)) editor.level.id = slugify(name);
+      editor._commit('rename');
+      this.refreshStatus();
+    });
+    this.root.querySelector('.editor__bar-actions').addEventListener('click', (e) => {
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      if (act) this._action(act);
+    });
+    // Keys typed into the panel never reach the editor or the game.
+    this.root.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea, select')) e.stopPropagation();
+    });
+  }
+
+  show() {
+    this.root.hidden = false;
+    this._refreshSavedIds();
+  }
+
+  hide() {
+    this.root.hidden = true;
+    this.closeModal();
+  }
+
+  async _refreshSavedIds() {
+    this._campaign = await this.editor.store.list();
+    this._savedIds = new Set(this._campaign.map((e) => e.id));
+    this.refreshStatus();
+  }
+
+  /* -------------------------------------------------------------------- */
+
+  refresh() {
+    this.$('[data-name]').value = this.editor.level.name;
+    this.refreshTool();
+    this.refreshStatus();
+  }
+
+  refreshStatus() {
+    const e = this.editor;
+    this.$('[data-id]').textContent = `levels/${e.level.id}.json`;
+    this.$('[data-status]').textContent =
+      `${e.level.objects.length} objects · ${e.level.spawns.length} spawns · ${e.level.monsters.length} monsters` +
+      (e.dirty ? ' · unsaved changes' : ' · saved');
+    this.$('[data-act="undo"]').disabled = e._undo.length < 2;
+    this.$('[data-act="redo"]').disabled = !e._redo.length;
+  }
+
+  refreshTool() {
+    const e = this.editor;
+    for (const btn of this.root.querySelectorAll('[data-tool]')) btn.classList.toggle('is-active', btn.dataset.tool === e.tool);
+    const tool = TOOLS.find(([id]) => id === e.tool);
+    this.$('[data-help]').textContent =
+      `${tool?.[2] ?? ''}  —  Right-drag orbit · wheel zoom · WASD pan (Shift faster) · [ ] brush size`;
+    this.renderPane();
+  }
+
+  refreshSelection() {
+    if (this.tab === 'tool' && (this.editor.tool === 'select' || this.editor.tool === 'place')) this.renderPane();
+  }
+
+  renderPane() {
+    for (const btn of this.root.querySelectorAll('[data-tab]')) btn.classList.toggle('is-active', btn.dataset.tab === this.tab);
+    const pane = this.$('[data-pane]');
+    const render = { tool: () => this._toolPane(), map: () => this._mapPane(), rules: () => this._rulesPane(), story: () => this._storyPane() }[this.tab];
+    pane.replaceChildren();
+    render?.(pane);
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Panes                                                                 */
+  /* -------------------------------------------------------------------- */
+
+  _toolPane() {
+    const e = this.editor;
+    const pane = this.$('[data-pane]');
+    const t = e.tool;
+    if (t === 'select') return this._selectionPane(pane);
+    if (t === 'place' || t === 'scatter') {
+      if (t === 'scatter') pane.append(this._scatterControls());
+      return pane.append(this._browser());
+    }
+    if (t === 'erase') return pane.append(this._slider('Brush radius', 1, 40, 0.5, e.scatter.radius, (v) => e.setBrush({ radius: v }), 'm'));
+    if (t === 'sculpt') {
+      pane.append(
+        this._segmented(['raise', 'lower', 'smooth', 'flatten'], e.brush.mode, (mode) => e.setBrush({ mode })),
+        this._slider('Brush radius', 1, 40, 0.5, e.brush.radius, (v) => e.setBrush({ radius: v }), 'm'),
+        this._slider('Strength', 0.05, 2, 0.05, e.brush.strength, (v) => e.setBrush({ strength: v })),
+        this._note('Hold the left button and drag. Flatten levels the ground to the height where the stroke started. The 25 m fighting circle stays flat for movement and spells.')
+      );
+      return;
+    }
+    if (t === 'paint') {
+      pane.append(
+        this._segmented(SURFACE_OPTIONS, e.brush.surface, (surface) => e.setBrush({ surface })),
+        this._slider('Brush radius', 1, 40, 0.5, e.brush.radius, (v) => e.setBrush({ radius: v }), 'm')
+      );
+      return;
+    }
+    if (t === 'spawns') {
+      pane.append(
+        this._note(
+          'Gold rings are where waves walk in from. With none, monsters arrive from all around. Put them near the gold band (18–22 m) so they have room to walk in.'
+        ),
+        this._button('Remove all spawn points', () => {
+          e.level.spawns = [];
+          e._syncMarkers();
+          e._commit('spawns');
+        })
+      );
+      return;
+    }
+    if (t === 'monsters') {
+      pane.append(
+        this._segmented(MONSTER_KINDS, e.monsterKind, (kind) => {
+          e.monsterKind = kind;
+          this.renderPane();
+        }, MONSTER_LABELS),
+        this._note('These monsters are already on the field when the level starts, before the first wave.'),
+        this._button('Remove all monsters', () => {
+          e.level.monsters = [];
+          e._syncMarkers();
+          e._commit('monsters');
+        })
+      );
+    }
+  }
+
+  _selectionPane(pane) {
+    const e = this.editor;
+    const o = e.selected;
+    if (!o) {
+      pane.append(this._note('Click an object in the scene to select it. Tip: use Place or Scatter to add objects.'));
+      return;
+    }
+    const model = e.app.composed.resolveModel(o);
+    const title = document.createElement('div');
+    title.className = 'editor__selected';
+    title.innerHTML = `<strong>${esc(model.name)}</strong><span>${esc(model.category)} · ${esc(model.pack ?? '')}</span>`;
+    pane.append(
+      title,
+      this._segmented(['translate', 'rotate', 'scale'], e.gizmo.mode, (mode) => e.setGizmoMode(mode), { translate: 'Move (1)', rotate: 'Rotate (2)', scale: 'Scale (3)' }),
+      this._number('X', o.x, (v) => e.updateSelected({ x: v })),
+      this._number('Z', o.z, (v) => e.updateSelected({ z: v })),
+      this._number('Height above ground', o.yOffset, (v) => e.updateSelected({ yOffset: v })),
+      this._number('Turn (degrees)', (o.yaw * 180) / Math.PI, (v) => e.updateSelected({ yaw: (v * Math.PI) / 180 })),
+      this._number('Scale', o.scale, (v) => e.updateSelected({ scale: Math.max(0.01, v) })),
+      this._row(this._button('Duplicate (Ctrl+D)', () => e.duplicateSelected()), this._button('Delete (Del)', () => e.removeObject(o), 'is-danger'))
+    );
+  }
+
+  _scatterControls() {
+    const e = this.editor;
+    const box = document.createElement('div');
+    box.className = 'editor__group';
+    const set = document.createElement('div');
+    set.className = 'editor__chips';
+    if (e.scatterSet.length) {
+      for (const model of e.scatterSet) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'editor__chip';
+        chip.textContent = `${model.name} ✕`;
+        chip.addEventListener('click', () => {
+          e.scatterSet = e.scatterSet.filter((m) => m !== model);
+          this.renderPane();
+        });
+        set.append(chip);
+      }
+    } else set.textContent = 'Scatter set is empty — add models with “+” below, or the picked model is used.';
+    box.append(
+      this._label('Scatter set'),
+      set,
+      this._slider('Brush radius', 1, 40, 0.5, e.scatter.radius, (v) => e.setBrush({ radius: v }), 'm'),
+      this._slider('Objects per dab', 1, 20, 1, e.scatter.density, (v) => e.setBrush({ density: v })),
+      this._slider('Minimum spacing', 0.2, 10, 0.1, e.scatter.spacing, (v) => e.setBrush({ spacing: v }), 'm'),
+      this._slider('Size variation', 0, 0.8, 0.05, e.scatter.variance, (v) => e.setBrush({ variance: v }))
+    );
+    return box;
+  }
+
+  _browser() {
+    const e = this.editor;
+    const catalog = e.app.catalog;
+    const box = document.createElement('div');
+    box.className = 'editor__group editor__browser';
+    const categories = Object.keys(CATEGORIES);
+    const select = document.createElement('select');
+    select.innerHTML =
+      `<option value="all">All categories</option>` +
+      categories.map((c) => `<option value="${c}">${esc(CATEGORIES[c].label)} (${catalog.counts[c] ?? 0})</option>`).join('');
+    select.value = this.category;
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.placeholder = `Search ${catalog.size.toLocaleString()} models…`;
+    search.value = this.query;
+    const list = document.createElement('div');
+    list.className = 'editor__list';
+
+    const draw = () => {
+      const words = this.query.toLowerCase().split(/\s+/).filter(Boolean);
+      let models = this.category === 'all' ? catalog.models : catalog.models.filter((m) => m.category === this.category);
+      if (words.length) models = models.filter((m) => words.every((w) => m._words.includes(w)));
+      list.replaceChildren();
+      if (!catalog.size) {
+        list.append(this._note('No asset library yet. It downloads on the first `npm run dev` — or run `npm run library:fetch`. Placeholder shapes:'));
+        models = categories.map((c) => e.app.composed._fallbackModel(c));
+      }
+      for (const model of models.slice(0, 200)) {
+        const row = document.createElement('div');
+        row.className = 'editor__item';
+        row.classList.toggle('is-picked', e.currentModel?.id === model.id);
+        const inSet = e.scatterSet.includes(model);
+        const size = model.size ? `${model.size.map((v) => v.toFixed(1)).join(' × ')}` : '';
+        row.innerHTML = `<div><strong>${esc(model.name)}</strong><span>${esc(model.pack ?? '')} · ${esc(model.category)} · ${size}</span></div>
+          <button type="button" class="editor__add" title="Add to scatter set">${inSet ? '✓' : '+'}</button>`;
+        row.addEventListener('click', (event) => {
+          if (event.target.closest('.editor__add')) {
+            e.scatterSet = inSet ? e.scatterSet.filter((m) => m !== model) : [...e.scatterSet, model];
+            if (e.tool !== 'scatter') e.setTool('scatter');
+            else this.renderPane();
+            return;
+          }
+          e.currentModel = model;
+          if (e.tool !== 'place' && e.tool !== 'scatter') e.setTool('place');
+          else draw();
+        });
+        list.append(row);
+      }
+      if (models.length > 200) list.append(this._note(`${models.length - 200} more — narrow the search.`));
+    };
+    select.addEventListener('change', () => {
+      this.category = select.value;
+      draw();
+    });
+    search.addEventListener('input', () => {
+      this.query = search.value;
+      draw();
+    });
+    box.append(this._label(e.currentModel ? `Picked: ${e.currentModel.name}` : 'Pick a model'), select, search, list);
+    draw();
+    return box;
+  }
+
+  _mapPane() {
+    const e = this.editor;
+    const pane = this.$('[data-pane]');
+    const w = e.level.world;
+    pane.append(
+      this._select('Ground', SURFACE_OPTIONS, w.ground, (v) => e.setWorld({ ground: v })),
+      this._select('Landscape', RELIEF_OPTIONS, w.relief, (v) => e.setWorld({ relief: v })),
+      this._select('Time of day', TIME_OPTIONS, w.timeOfDay, (v) => e.setWorld({ timeOfDay: v })),
+      this._slider('Fog', 0, 1, 0.05, w.fog, (v) => e.setWorld({ fog: v })),
+      this._row(
+        this._button('New landscape shape', () => e.setWorld({ seed: (Math.random() * 1e9) | 0 })),
+        this._button('Reset sculpt & paint', async () => {
+          e.terrain.clearEdits();
+          e.terrain.refresh();
+          e._restickObjects();
+          e._commit('reset terrain');
+        })
+      ),
+      this._button('Remove all objects', () => {
+        if (confirm(`Remove all ${e.level.objects.length} objects?`)) e.clearObjects();
+      }, 'is-danger')
+    );
+
+    // Optional AI fill: everything above works without it.
+    const ai = document.createElement('div');
+    ai.className = 'editor__group';
+    const prompt = document.createElement('textarea');
+    prompt.rows = 3;
+    prompt.placeholder = 'Optional: describe a map and let the AI lay out a starting point — e.g. “a ruined castle on a snowy hill”';
+    const out = document.createElement('div');
+    out.className = 'editor__note';
+    const go = this._button('AI fill (replaces objects and landscape)', async () => {
+      go.disabled = true;
+      out.textContent = 'Designing…';
+      try {
+        const { plan, source, note } = await e.aiFill(prompt.value);
+        out.textContent = `${plan.name} — ${source === 'ai' ? 'designed by the AI model' : `keyword planner${note ? ` (${note})` : ''}`}. Undo to go back.`;
+      } catch (error) {
+        out.textContent = `Failed: ${error.message}`;
+      } finally {
+        go.disabled = false;
+      }
+    }, 'is-primary');
+    ai.append(this._label('AI fill (optional)'), prompt, go, out);
+    pane.append(ai);
+  }
+
+  _rulesPane() {
+    const e = this.editor;
+    const pane = this.$('[data-pane]');
+    const r = e.level.rules;
+    const characters = platform.characters.all();
+    const commit = () => {
+      e._commit('rules');
+      this.renderPane();
+    };
+    pane.append(
+      this._select(
+        'Character',
+        ['', ...characters.map((c) => c.id)],
+        e.level.character ?? '',
+        (v) => {
+          e.level.character = v || null;
+          commit();
+        },
+        { '': "Player's choice", ...Object.fromEntries(characters.map((c) => [c.id, c.label])) }
+      ),
+      this._select('Goal', GOALS, r.goal, (v) => {
+        r.goal = v;
+        commit();
+      }, { waves: 'Survive waves', boss: 'Defeat the boss', kills: 'Defeat monsters' }),
+      this._slider(r.goal === 'boss' ? 'Boss arrives on wave' : r.goal === 'kills' ? 'Monsters to defeat' : 'Waves to survive', 1, r.goal === 'kills' ? 99 : 20, 1, r.count, (v) => {
+        r.count = v;
+        e._commit('rules');
+      }),
+      this._note(`Goal: ${describeGoal(r)}${r.goal === 'boss' ? ' — the Emberwyrm arrives on that wave.' : '.'}`),
+      this._label('Monsters in the waves (0 = never)')
+    );
+    for (const kind of MONSTER_KINDS) {
+      if (kind === 'dragon') continue;
+      pane.append(this._slider(MONSTER_LABELS[kind], 0, 10, 1, r.kinds[kind], (v) => {
+        r.kinds[kind] = v;
+        e._commit('rules');
+      }));
+    }
+    pane.append(
+      this._slider('Monsters in wave 1', 1, 30, 1, r.baseCount, (v) => {
+        r.baseCount = v;
+        e._commit('rules');
+      }),
+      this._slider('Growth per wave', 1, 2, 0.05, r.growth, (v) => {
+        r.growth = v;
+        e._commit('rules');
+      }),
+      this._slider('Rift Golem leads every Nth wave (0 = never)', 0, 20, 1, r.bossEvery, (v) => {
+        r.bossEvery = v;
+        e._commit('rules');
+      }),
+      this._slider('Emberwyrm every Nth wave (0 = never)', 0, 20, 1, r.dragonEvery, (v) => {
+        r.dragonEvery = v;
+        e._commit('rules');
+      })
+    );
+  }
+
+  _storyPane() {
+    const e = this.editor;
+    const pane = this.$('[data-pane]');
+    for (const [key, label] of [
+      ['intro', 'Intro — shown before the level'],
+      ['outro', 'Ending — shown when the goal is reached']
+    ]) {
+      const scene = e.level.story[key];
+      const group = document.createElement('div');
+      group.className = 'editor__group';
+      const field = (name, placeholder, multiline = false) => {
+        const input = document.createElement(multiline ? 'textarea' : 'input');
+        if (multiline) input.rows = 6;
+        input.placeholder = placeholder;
+        input.value = scene[name];
+        input.addEventListener('change', () => {
+          scene[name] = input.value;
+          e._commit('story');
+        });
+        return input;
+      };
+      group.append(
+        this._label(label),
+        field('title', 'Title, e.g. “The Frozen Pass”'),
+        field('speaker', 'Speaker (optional), e.g. “Old Warden”'),
+        field('text', 'What happens… Blank lines start new paragraphs.', true)
+      );
+      pane.append(group);
+    }
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Top-bar actions                                                       */
+  /* -------------------------------------------------------------------- */
+
+  async _action(act) {
+    const e = this.editor;
+    try {
+      if (act === 'undo') return e.undo();
+      if (act === 'redo') return e.redo();
+      if (act === 'save') return this.saveFromKeyboard();
+      if (act === 'export') return e.store.exportFile(e.currentLevel());
+      if (act === 'import') {
+        const level = await e.store.importFile();
+        await e.setLevel(level);
+        this.toast(`Imported “${level.name}”. Save to add it to the campaign.`);
+        e.dirty = true;
+        return this.refreshStatus();
+      }
+      if (act === 'new') {
+        if (e.dirty && !confirm('Discard unsaved changes and start a new level?')) return;
+        return e.newLevel();
+      }
+      if (act === 'levels') return this.openLevels();
+      if (act === 'play') return e.app.playLevel(e.currentLevel(), { fromEditor: true });
+      if (act === 'exit') {
+        if (e.dirty && !confirm('Leave the editor? Unsaved changes will be lost.')) return;
+        return e.exit();
+      }
+    } catch (error) {
+      this.toast(error.message, true);
+    }
+  }
+
+  async saveFromKeyboard() {
+    try {
+      const campaign = await this.editor.save();
+      this._campaign = campaign;
+      this._savedIds = new Set(campaign.map((c) => c.id));
+      this.toast(`Saved public/levels/${this.editor.level.id}.json`);
+    } catch (error) {
+      this.toast(error.message, true);
+    }
+  }
+
+  async openLevels() {
+    const e = this.editor;
+    await this._refreshSavedIds();
+    const modal = this.$('[data-modal]');
+    modal.hidden = false;
+    const draw = () => {
+      const rows = (this._campaign ?? [])
+        .map(
+          (c, i) => `<div class="editor__level" data-id="${esc(c.id)}">
+            <span class="editor__level-n">${i + 1}</span>
+            <div><strong>${esc(c.name)}</strong><span>levels/${esc(c.id)}.json</span></div>
+            <button type="button" data-do="up" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button type="button" data-do="down" ${i === this._campaign.length - 1 ? 'disabled' : ''}>↓</button>
+            <button type="button" data-do="open" class="is-primary">Open</button>
+            <button type="button" data-do="delete" class="is-danger">Delete</button>
+          </div>`
+        )
+        .join('');
+      modal.innerHTML = `<div class="editor__dialog">
+        <h2>Campaign levels</h2>
+        <p class="editor__note">The campaign plays these in order. Saved in public/levels/ — commit them to share.</p>
+        ${rows || '<p class="editor__note">No saved levels yet. Build one and press Save.</p>'}
+        <div class="editor__row"><button type="button" data-do="close">Close</button></div>
+      </div>`;
+    };
+    draw();
+    modal.onclick = async (event) => {
+      const action = event.target.closest('[data-do]')?.dataset.do;
+      if (!action) return;
+      if (action === 'close') return this.closeModal();
+      const id = event.target.closest('[data-id]')?.dataset.id;
+      const ids = this._campaign.map((c) => c.id);
+      const i = ids.indexOf(id);
+      try {
+        if (action === 'open') {
+          if (e.dirty && !confirm('Discard unsaved changes?')) return;
+          this.closeModal();
+          await e.open(id);
+          return;
+        }
+        if (action === 'delete') {
+          if (!confirm(`Delete levels/${id}.json?`)) return;
+          this._campaign = await e.store.remove(id);
+        }
+        if (action === 'up' || action === 'down') {
+          const j = action === 'up' ? i - 1 : i + 1;
+          [ids[i], ids[j]] = [ids[j], ids[i]];
+          this._campaign = await e.store.reorder(ids);
+        }
+        this._savedIds = new Set(this._campaign.map((c) => c.id));
+        draw();
+      } catch (error) {
+        this.toast(error.message, true);
+      }
+    };
+  }
+
+  closeModal() {
+    const modal = this.$('[data-modal]');
+    modal.hidden = true;
+    modal.replaceChildren();
+  }
+
+  toast(message, error = false) {
+    const status = this.$('[data-status]');
+    status.textContent = message;
+    status.classList.toggle('is-error', error);
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      status.classList.remove('is-error');
+      this.refreshStatus();
+    }, 4000);
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Little form builders                                                  */
+  /* -------------------------------------------------------------------- */
+
+  _label(text) {
+    const el = document.createElement('div');
+    el.className = 'editor__label';
+    el.textContent = text;
+    return el;
+  }
+
+  _note(text) {
+    const el = document.createElement('p');
+    el.className = 'editor__note';
+    el.textContent = text;
+    return el;
+  }
+
+  _row(...children) {
+    const el = document.createElement('div');
+    el.className = 'editor__row';
+    el.append(...children);
+    return el;
+  }
+
+  _button(text, onClick, cls = '') {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = text;
+    if (cls) b.className = cls;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  _slider(label, min, max, step, value, onChange, unit = '') {
+    const wrap = document.createElement('label');
+    wrap.className = 'editor__field';
+    const out = document.createElement('span');
+    const fmt = (v) => `${+(+v).toFixed(2)}${unit ? ` ${unit}` : ''}`;
+    out.textContent = fmt(value);
+    const input = document.createElement('input');
+    Object.assign(input, { type: 'range', min, max, step, value });
+    input.addEventListener('input', () => (out.textContent = fmt(input.value)));
+    input.addEventListener('change', () => onChange(+input.value));
+    const head = document.createElement('div');
+    head.className = 'editor__field-head';
+    head.append(document.createTextNode(label), out);
+    wrap.append(head, input);
+    return wrap;
+  }
+
+  _number(label, value, onChange) {
+    const wrap = document.createElement('label');
+    wrap.className = 'editor__field editor__field--inline';
+    const input = document.createElement('input');
+    Object.assign(input, { type: 'number', step: 0.1, value: (+value).toFixed(2) });
+    input.addEventListener('change', () => Number.isFinite(+input.value) && onChange(+input.value));
+    wrap.append(document.createTextNode(label), input);
+    return wrap;
+  }
+
+  _select(label, options, value, onChange, labels = {}) {
+    const wrap = document.createElement('label');
+    wrap.className = 'editor__field';
+    const select = document.createElement('select');
+    select.innerHTML = options.map((o) => `<option value="${esc(o)}">${esc(labels[o] ?? o)}</option>`).join('');
+    select.value = value;
+    select.addEventListener('change', () => onChange(select.value));
+    wrap.append(document.createTextNode(label), select);
+    return wrap;
+  }
+
+  _segmented(options, value, onChange, labels = {}) {
+    const wrap = document.createElement('div');
+    wrap.className = 'editor__segmented';
+    for (const option of options) {
+      const b = this._button(labels[option] ?? option, () => onChange(option));
+      b.classList.toggle('is-active', option === value);
+      wrap.append(b);
+    }
+    return wrap;
+  }
+}

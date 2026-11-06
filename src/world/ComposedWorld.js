@@ -1,26 +1,23 @@
 import {
   BoxGeometry,
-  BufferAttribute,
-  BufferGeometry,
-  Color,
   ConeGeometry,
   CylinderGeometry,
   DodecahedronGeometry,
   Group,
   IcosahedronGeometry,
   Matrix4,
-  Mesh,
-  MeshStandardMaterial,
-  RepeatWrapping,
-  SRGBColorSpace,
-  TextureLoader
+  MeshStandardMaterial
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { settings } from '../config/settings.js';
 import { CATEGORIES } from '../library/categories.js';
+import { normalizeLevel } from '../levels/Level.js';
+import { Terrain, mulberry32 } from './Terrain.js';
 
 /**
- * A battlefield assembled from the asset library to a `MapPlan`.
+ * A battlefield assembled from the asset library — from a level file (hand-made
+ * in the editor) or from a `MapPlan` (AI or keywords), which is first turned
+ * into a level, so every AI map can be opened and edited by hand.
  *
  * Same surface as `Ruins` — `group`, `obstacles`, `props`, `breakProp`,
  * `restoreProps`, `update`, `dispose` — so combat, monsters and locomotion do
@@ -46,7 +43,6 @@ const ZONES = {
 const SPAWN_BAND = [18.2, 22.2];
 /** Tallest anything may stand, per zone — cover in the fight must not hide the fight. */
 const ZONE_MAX_HEIGHT = { center: 3, arena: 4.5, edge: 10, outskirts: 18, far: 45 };
-const TERRAIN_RADIUS = 170;
 
 /** Instances per zone at density 1, per category. Scaled by zone area and the triangle budget. */
 const BASE_COUNT = {
@@ -82,69 +78,12 @@ const EDGE_LAYERS = {
   open: []
 };
 
-const SURFACE_COLORS = {
-  grass: ['#3f5a2c', '#56703a'], snow: ['#d9e2ec', '#f2f6fa'], sand: ['#b89a68', '#d1b984'],
-  rock: ['#5d5a57', '#77736e'], dirt: ['#5a4535', '#715a45'], mud: ['#3d3125', '#52412f'],
-  gravel: ['#6e6962', '#8a847b'], moss: ['#44592f', '#5b7140'], ice: ['#a9c8dc', '#cfe4f1'],
-  lava: ['#2a1d18', '#3c2620'], paving: ['#5f5c57', '#77736c'], asphalt: ['#2f3135', '#3d4045']
-};
-
 /** Overrides for `settings.environment`, restored when the map is disposed. */
 const TIME_PRESETS = {
   dawn: { backgroundColor: '#6f7f98', fogColor: '#8a8fa0', sunColor: '#ffc89a', sunIntensity: 2.2, sunElevation: 0.18, ambientIntensity: 0.3, hemiIntensity: 0.6, hemiSkyColor: '#ffd9c0', hemiGroundColor: '#4a4a52', envIntensity: 0.5 },
   day: { backgroundColor: '#9fbad6', fogColor: '#b4c6d8', sunColor: '#fff6e8', sunIntensity: 3.2, sunElevation: 0.85, ambientIntensity: 0.45, hemiIntensity: 0.8, hemiSkyColor: '#cfe3ff', hemiGroundColor: '#5a5448', envIntensity: 0.7 },
   dusk: { backgroundColor: '#3a3048', fogColor: '#5a4458', sunColor: '#ff9a62', sunIntensity: 2.0, sunElevation: 0.12, ambientIntensity: 0.25, hemiIntensity: 0.5, hemiSkyColor: '#ffb08a', hemiGroundColor: '#3a3040', envIntensity: 0.45 },
   night: {}
-};
-
-/* ---------------------------------------------------------------------- */
-/* Seeded noise                                                            */
-/* ---------------------------------------------------------------------- */
-
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function makeNoise(seed) {
-  const perm = new Uint8Array(512);
-  const rng = mulberry32(seed);
-  const base = Array.from({ length: 256 }, (_, i) => i).sort(() => rng() - 0.5);
-  for (let i = 0; i < 512; i++) perm[i] = base[i & 255];
-  const grad = (h, x, y) => ((h & 1 ? -x : x) + (h & 2 ? -y : y));
-  const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
-  const noise = (x, y) => {
-    const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255;
-    const xf = x - Math.floor(x), yf = y - Math.floor(y);
-    const u = fade(xf), v = fade(yf);
-    const aa = perm[perm[xi] + yi], ab = perm[perm[xi] + yi + 1], ba = perm[perm[xi + 1] + yi], bb = perm[perm[xi + 1] + yi + 1];
-    const x1 = grad(aa, xf, yf) + u * (grad(ba, xf - 1, yf) - grad(aa, xf, yf));
-    const x2 = grad(ab, xf, yf - 1) + u * (grad(bb, xf - 1, yf - 1) - grad(ab, xf, yf - 1));
-    return x1 + v * (x2 - x1); // ~[-1, 1]
-  };
-  return (x, y, octaves = 4, ridged = false) => {
-    let sum = 0, amp = 0.5, freq = 1, norm = 0;
-    for (let i = 0; i < octaves; i++) {
-      let n = noise(x * freq, y * freq);
-      if (ridged) n = 1 - Math.abs(n) * 1.6;
-      sum += n * amp;
-      norm += amp;
-      amp *= 0.5;
-      freq *= 2.03;
-    }
-    return sum / norm;
-  };
-}
-
-const smoothstep = (a, b, x) => {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
 };
 
 /* ---------------------------------------------------------------------- */
@@ -163,31 +102,35 @@ export class ComposedWorld {
     this.obstacles = [];
     this.props = [];
     this.plan = null;
+    this.level = null;
     this.stats = null;
+    this.terrain = new Terrain(catalog);
     this._envBackup = null;
     this._instances = null;
-    this._terrain = null;
     this._fallbacks = new Map();
   }
 
   /**
-   * @param {import('./MapPlan.js').normalizePlan extends (...a: any) => infer R ? R : never} plan
-   * @param {{ seed?: number, onProgress?: (fraction: number, label: string) => void }} [options]
+   * Build straight from a map plan (the AI / keyword path).
+   * @returns {Promise<object>} build stats
    */
   async build(plan, { seed = (Math.random() * 1e9) | 0, onProgress } = {}) {
-    this.clear();
+    const level = this.levelFromPlan(plan, { seed });
+    const stats = await this.buildLevel(level, { onProgress });
+    stats.fallbacks = this._planFallbacks;
     this.plan = plan;
-    this._groundMaterial = null;
+    return stats;
+  }
+
+  /**
+   * Turn a map plan into an editable level: the same placement rules as
+   * always, but the result is a plain list of objects instead of meshes.
+   */
+  levelFromPlan(plan, { seed = (Math.random() * 1e9) | 0, base = {} } = {}) {
     const rng = mulberry32(seed);
-    const fbm = makeNoise(seed ^ 0x5bd1e995);
-    this._height = this._heightField(plan.relief, fbm);
+    this.terrain.setup({ ground: plan.ground, relief: plan.relief, seed });
+    this._height = (x, z) => this.terrain.baseHeight(x, z);
 
-    onProgress?.(0.1, 'Shaping the land…');
-    this._terrain = await this._buildTerrain(plan, fbm, rng);
-    this.group.add(this._terrain);
-    this._applyAtmosphere(plan);
-
-    onProgress?.(0.3, 'Choosing models…');
     const layers = [...plan.layers];
     for (const [category, keywords, density] of EDGE_LAYERS[plan.edge] ?? []) {
       layers.push({ category, keywords, zone: 'edge', density, cluster: false, size: 1, edgeRing: true });
@@ -297,31 +240,85 @@ export class ComposedWorld {
       }
     }
 
+    this._planFallbacks = fallbackCount;
+    return normalizeLevel({
+      ...base,
+      name: base.name ?? plan.name,
+      world: { ground: plan.ground, relief: plan.relief, edge: plan.edge, timeOfDay: plan.timeOfDay, fog: plan.fog, seed, terrain: {} },
+      objects: placements.map((p) => ({
+        model: p.model.id,
+        category: p.model.category,
+        x: +p.x.toFixed(3),
+        z: +p.z.toFixed(3),
+        yOffset: +(p.y - this._height(p.x, p.z)).toFixed(3),
+        yaw: +p.yaw.toFixed(4),
+        scale: +p.scale.toFixed(4)
+      }))
+    });
+  }
+
+  /** The library model a level object refers to, or a stand-in for its category. */
+  resolveModel(object) {
+    const model = this.catalog.get(object.model);
+    if (model) return model;
+    const category = object.model.startsWith('procedural/') ? object.model.slice('procedural/'.length) : object.category;
+    return this._fallbackModel(CATEGORIES[category] ? category : 'misc');
+  }
+
+  /**
+   * Build a level: terrain (base relief + hand edits), atmosphere, every
+   * object as GPU instances, and colliders for the fight.
+   */
+  async buildLevel(level, { onProgress } = {}) {
+    this.clear();
+    this.level = level;
+    const world = level.world;
+    onProgress?.(0.1, 'Shaping the land…');
+    this.terrain.setup({ ground: world.ground, relief: world.relief, seed: world.seed });
+    this.terrain.load(world.terrain);
+    await this.terrain.build();
+    this.group.add(this.terrain.mesh);
+    this._applyAtmosphere(world);
+
+    const placements = level.objects.map((o) => {
+      const model = this.resolveModel(o);
+      return { model, x: o.x, z: o.z, y: this.terrain.heightAt(o.x, o.z) + o.yOffset, yaw: o.yaw, scale: o.scale };
+    });
+    const used = new Map(placements.map((p) => [p.model.id, p.model]));
+
     onProgress?.(0.5, `Loading ${used.size} models…`);
     this._instances = await this.library.instantiate(placements, { shadowRadius: 40 });
     this.group.add(this._instances);
 
     // Colliders for everything blocking inside (or right at) the playable disc.
-    const limit = settings.ruins.wallRadius + 2;
-    for (const p of placements) {
-      if (!BLOCKING.has(p.model.category) && !p.landmark) continue;
-      if (Math.hypot(p.x, p.z) - this._footprint(p.model, p.scale) > limit) continue;
-      const radius = p.model.category === 'tree' ? Math.min(0.7, 0.12 * p.model.size[1] * p.scale) : this._footprint(p.model, p.scale) * 0.85;
-      if (radius < 0.3) continue;
-      this.obstacles.push({ x: p.x, z: p.z, radius });
-    }
+    this.obstacles.length = 0;
+    this.obstacles.push(...ComposedWorld.colliders(placements));
 
     this.stats = {
       placements: placements.length,
       models: used.size,
-      fallbacks: fallbackCount,
-      triangles,
+      fallbacks: 0,
       fromLibrary: [...used.values()].filter((m) => !m.procedural).length,
       packs: [...new Set([...used.values()].filter((m) => !m.procedural).map((m) => m.pack))],
-      groundMaterial: this._groundMaterial ?? null
+      groundMaterial: this.terrain.groundMaterialId
     };
     onProgress?.(1, 'Ready');
     return this.stats;
+  }
+
+  /** Circles the monsters and the caster walk around. */
+  static colliders(placements) {
+    const limit = settings.ruins.wallRadius + 2;
+    const out = [];
+    for (const p of placements) {
+      if (!BLOCKING.has(p.model.category)) continue;
+      const footprint = (Math.max(p.model.size[0], p.model.size[2]) * p.scale) / 2;
+      if (Math.hypot(p.x, p.z) - footprint > limit) continue;
+      const radius = p.model.category === 'tree' ? Math.min(0.7, 0.12 * p.model.size[1] * p.scale) : footprint * 0.85;
+      if (radius < 0.3) continue;
+      out.push({ x: p.x, z: p.z, radius });
+    }
+    return out;
   }
 
   /* -------------------------------------------------------------------- */
@@ -387,129 +384,18 @@ export class ComposedWorld {
   /* Terrain                                                               */
   /* -------------------------------------------------------------------- */
 
-  _heightField(relief, fbm) {
-    const flat = settings.ruins.wallRadius + 3;
-    const shapes = {
-      flat: { amp: 0.8, rise: 40, ridged: false },
-      hills: { amp: 9, rise: 50, ridged: false },
-      mountains: { amp: 46, rise: 90, ridged: true },
-      canyon: { amp: 24, rise: 9, ridged: false, plateau: true },
-      valley: { amp: 18, rise: 110, ridged: false }
-    };
-    const s = shapes[relief] ?? shapes.hills;
-    return (x, z) => {
-      const r = Math.hypot(x, z);
-      if (r <= flat) return 0;
-      const t = smoothstep(flat, flat + s.rise, r);
-      let n = fbm(x * 0.018, z * 0.018, 5, s.ridged);
-      n = s.ridged ? Math.max(0, n) ** 1.6 : 0.5 + 0.5 * n;
-      let h = t * s.amp * (0.35 + 0.65 * n);
-      if (s.plateau) h = t * s.amp * (0.85 + 0.15 * n);
-      // Mountains keep rising toward the horizon so the skyline is not a wall of equal peaks.
-      if (relief === 'mountains') h *= 0.6 + 0.6 * smoothstep(flat, TERRAIN_RADIUS, r);
-      return h;
-    };
-  }
-
-  async _buildTerrain(plan, fbm, rng) {
-    const rings = 110;
-    const segments = 180;
-    const positions = [0, 0, 0];
-    const colors = [];
-    const uvs = [0, 0];
-    const [lowColor, highColor] = (SURFACE_COLORS[plan.ground] ?? SURFACE_COLORS.dirt).map((c) => new Color(c));
-    const rockColor = new Color(SURFACE_COLORS.rock[0]);
-    const snowColor = new Color(SURFACE_COLORS.snow[1]);
-    const tmp = new Color();
-    const pushColor = (x, z, h) => {
-      const n = 0.5 + 0.5 * fbm(x * 0.09, z * 0.09, 3);
-      tmp.copy(lowColor).lerp(highColor, n);
-      if (h > 4) tmp.lerp(rockColor, smoothstep(4, 22, h) * 0.85);
-      if (plan.ground === 'snow' || (plan.relief === 'mountains' && h > 28)) tmp.lerp(snowColor, smoothstep(plan.ground === 'snow' ? 0 : 28, 40, h));
-      colors.push(tmp.r, tmp.g, tmp.b);
-    };
-    pushColor(0, 0, 0);
-    for (let i = 1; i <= rings; i++) {
-      const r = TERRAIN_RADIUS * (i / rings) ** 1.7;
-      for (let j = 0; j < segments; j++) {
-        const a = (j / segments) * Math.PI * 2;
-        const x = Math.cos(a) * r;
-        const z = Math.sin(a) * r;
-        const h = this._height(x, z);
-        positions.push(x, h, z);
-        uvs.push(x / 11, z / 11);
-        pushColor(x, z, h);
-      }
-    }
-    const index = [];
-    for (let j = 0; j < segments; j++) index.push(0, 1 + ((j + 1) % segments), 1 + j);
-    for (let i = 1; i < rings; i++) {
-      const a0 = 1 + (i - 1) * segments;
-      const b0 = 1 + i * segments;
-      for (let j = 0; j < segments; j++) {
-        const j1 = (j + 1) % segments;
-        index.push(a0 + j, a0 + j1, b0 + j, a0 + j1, b0 + j1, b0 + j);
-      }
-    }
-    const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
-    geometry.setAttribute('color', new BufferAttribute(new Float32Array(colors), 3));
-    geometry.setAttribute('uv', new BufferAttribute(new Float32Array(uvs), 2));
-    geometry.setIndex(index);
-    geometry.computeVertexNormals();
-
-    const material = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
-    const surface = this.catalog.material(plan.ground, rng);
-    if (surface?.maps?.color) {
-      const loader = new TextureLoader();
-      const load = async (file, srgb) => {
-        if (!file) return null;
-        try {
-          const texture = await loader.loadAsync(this.catalog.url(file));
-          texture.wrapS = texture.wrapT = RepeatWrapping;
-          texture.anisotropy = 8;
-          if (srgb) texture.colorSpace = SRGBColorSpace;
-          return texture;
-        } catch {
-          return null;
-        }
-      };
-      const [map, normalMap, roughnessMap] = await Promise.all([
-        load(surface.maps.color, true),
-        load(surface.maps.normal, false),
-        load(surface.maps.roughness, false)
-      ]);
-      if (map) {
-        material.map = map;
-        material.normalMap = normalMap;
-        material.roughnessMap = roughnessMap;
-        // Vertex colours become a tint over the photo texture, not the colour itself.
-        const c = geometry.getAttribute('color');
-        for (let i = 0; i < c.count; i++) {
-          c.setXYZ(i, 0.35 + c.getX(i) * 1.1, 0.35 + c.getY(i) * 1.1, 0.35 + c.getZ(i) * 1.1);
-        }
-        this._groundMaterial = surface.id;
-      }
-    }
-    const mesh = new Mesh(geometry, material);
-    mesh.name = 'composed-terrain';
-    mesh.receiveShadow = true;
-    // Sits a hair under the ground effects (decals, burns) that draw at y ≈ 0.
-    mesh.position.y = -0.005;
-    return mesh;
-  }
-
-  _applyAtmosphere(plan) {
+  _applyAtmosphere(world) {
     const env = settings.environment;
-    const preset = TIME_PRESETS[plan.timeOfDay] ?? {};
+    if (this._envBackup) Object.assign(env, this._envBackup);
+    const preset = TIME_PRESETS[world.timeOfDay] ?? {};
     this._envBackup = Object.fromEntries(
       [...Object.keys(preset), 'fogNear', 'fogFar', 'fogEnabled'].map((key) => [key, env[key]])
     );
     Object.assign(env, preset);
     env.fogEnabled = true;
     // fog 0 → clear to the horizon, 1 → pea soup past the edge ring.
-    env.fogNear = 60 - plan.fog * 45;
-    env.fogFar = 260 - plan.fog * 190;
+    env.fogNear = 60 - world.fog * 45;
+    env.fogFar = 260 - world.fog * 190;
   }
 
   /* -------------------------------------------------------------------- */
@@ -551,7 +437,7 @@ export class ComposedWorld {
   /* -------------------------------------------------------------------- */
 
   heightAt(x, z) {
-    return this._height ? this._height(x, z) : 0;
+    return this.terrain.heightAt(x, z);
   }
 
   breakProp() {
@@ -565,22 +451,17 @@ export class ComposedWorld {
   clear() {
     if (this._instances) this.library.release(this._instances);
     this._instances = null;
-    if (this._terrain) {
-      this._terrain.geometry.dispose();
-      const m = this._terrain.material;
-      for (const t of [m.map, m.normalMap, m.roughnessMap]) t?.dispose();
-      m.dispose();
-      this._terrain.removeFromParent();
-    }
-    this._terrain = null;
+    this.terrain.mesh?.removeFromParent();
     if (this._envBackup) Object.assign(settings.environment, this._envBackup);
     this._envBackup = null;
     this.obstacles.length = 0;
     this.stats = null;
+    this.level = null;
   }
 
   dispose() {
     this.clear();
+    this.terrain.dispose();
     this.group.removeFromParent();
   }
 }

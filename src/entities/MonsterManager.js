@@ -122,8 +122,18 @@ export class MonsterManager extends EventEmitter {
     return monster;
   }
 
-  /** A point on the arrival ring, biased away from where the caster is looking. */
+  /**
+   * Where the next monster walks in from: one of the level's spawn points
+   * (`spawnPoints`, set by a level) with a little scatter, or else anywhere on
+   * the arrival ring.
+   */
   randomSpawnPoint(out = _spawn) {
+    if (this.spawnPoints?.length) {
+      const point = this.spawnPoints[Math.floor(Math.random() * this.spawnPoints.length)];
+      const a = randRange(0, Math.PI * 2);
+      const r = randRange(0, 1.8);
+      return out.set(point.x + Math.cos(a) * r, 0, point.z + Math.sin(a) * r);
+    }
     const radius = settings.monsters.spawnRadius;
     const angle = randRange(0, Math.PI * 2);
     return out.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);

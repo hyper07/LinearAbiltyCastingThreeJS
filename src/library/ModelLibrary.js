@@ -1,4 +1,4 @@
-import { Group, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three';
+import { Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const _m = new Matrix4();
@@ -114,6 +114,32 @@ export class ModelLibrary {
         }
       })
     );
+    return group;
+  }
+
+  /**
+   * One model as its own little scene graph, for the level editor: selectable,
+   * draggable, with the same footprint-centred pivot as an instance. Shares
+   * geometry and materials with the cache, so it is cheap to make and drop.
+   *
+   * @returns {Promise<Group|null>}
+   */
+  async createObject(model) {
+    const loaded = await this.load(model);
+    if (!loaded) return null;
+    const [w, , d] = model.size;
+    const [minX, minY, minZ] = model.min;
+    const pivot = new Matrix4().makeTranslation(-(minX + w / 2), -minY, -(minZ + d / 2));
+    const group = new Group();
+    group.name = model.id;
+    for (const part of loaded.parts) {
+      const mesh = new Mesh(part.geometry, part.material);
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.multiplyMatrices(pivot, part.matrix);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
     return group;
   }
 

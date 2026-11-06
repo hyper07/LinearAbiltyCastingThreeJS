@@ -238,6 +238,18 @@ const server = http.createServer(async (req, res) => {
     return handleApi(req, res, url.pathname.slice('/api/ai'.length).replace(/\/+$/, ''));
   }
 
+  // Levels are static files in the build (dist/levels/); only `npm run dev` can write them.
+  if (url.pathname === '/api/levels') {
+    try {
+      return json(res, 200, JSON.parse(await readFile(join(STATIC_ROOT, 'levels', 'index.json'), 'utf8')));
+    } catch {
+      return json(res, 200, { campaign: [] });
+    }
+  }
+  if (url.pathname.startsWith('/api/levels')) {
+    return json(res, 405, { error: 'Levels are read-only in a built game. Save under `npm run dev`, or use Export.' });
+  }
+
   if (url.pathname.startsWith('/library/')) {
     return serveLibrary(res, url.pathname.slice('/library'.length));
   }

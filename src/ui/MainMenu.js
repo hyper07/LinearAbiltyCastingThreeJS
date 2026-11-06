@@ -3,6 +3,8 @@ import { deriveCharacterStats } from '../platform/stats/deriveStats.js';
 import { buildSkillTree, enrichSkillTree } from '../platform/skill/tree.js';
 import { WEAPON_CATEGORY_META, categoryGlyph } from '../platform/weapon/WeaponDefinition.js';
 import { CharacterPreview } from './CharacterPreview.js';
+import { progress } from '../levels/LevelStore.js';
+import { describeGoal } from '../levels/Level.js';
 
 /**
  * Pre-game screen — pick a character and weapon, then enter the arena.
@@ -28,6 +30,9 @@ export class MainMenu {
     this.onGenerateWorld = callbacks.onGenerateWorld ?? null;
     this.onClassicWorld = callbacks.onClassicWorld ?? (() => {});
     this.getLibrary = callbacks.getLibrary ?? (() => null);
+    this.getLevels = callbacks.getLevels ?? (() => null);
+    this.onPlayLevel = callbacks.onPlayLevel ?? (() => {});
+    this.onOpenEditor = callbacks.onOpenEditor ?? (() => {});
     this._worldBusy = false;
     this._visible = false;
     this._characterId = platform.getActiveCharacter()?.id ?? 'caster';
@@ -55,6 +60,7 @@ export class MainMenu {
           <button class="main-menu__nav-btn" type="button" data-panel="skills">Skill Tree</button>
           <button class="main-menu__nav-btn" type="button" data-panel="stats">Stats</button>
           <button class="main-menu__nav-btn" type="button" data-panel="world">World</button>
+          <button class="main-menu__nav-btn" type="button" data-panel="campaign">Campaign</button>
         </nav>
 
         <div class="main-menu__body">
@@ -126,6 +132,19 @@ export class MainMenu {
                 <button class="main-menu__world-btn" type="button" data-world-classic>Classic keep</button>
               </div>
               <div class="main-menu__world-result" data-world-result aria-live="polite"></div>
+              <div class="main-menu__world-actions" data-world-edit hidden>
+                <button class="main-menu__world-btn" type="button" data-world-open-editor>Edit this map in the level editor</button>
+              </div>
+            </div>
+
+            <div class="main-menu__panel" data-panel="campaign" hidden>
+              <h2 class="main-menu__section-title">Campaign</h2>
+              <p class="main-menu__panel-hint">Play the levels in order — each one unlocks the next. Build your own with the level editor.</p>
+              <div class="campaign" data-campaign></div>
+              <div class="campaign__actions">
+                <button class="main-menu__world-btn main-menu__world-btn--primary" type="button" data-open-editor>Open level editor</button>
+                <button class="main-menu__world-btn" type="button" data-reset-progress>Reset progress</button>
+              </div>
             </div>
           </section>
         </div>
@@ -160,6 +179,8 @@ export class MainMenu {
     this.worldGenerateBtn = this.root.querySelector('[data-world-generate]');
     this.worldClassicBtn = this.root.querySelector('[data-world-classic]');
     this.worldResultEl = this.root.querySelector('[data-world-result]');
+    this.worldEditEl = this.root.querySelector('[data-world-edit]');
+    this.campaignEl = this.root.querySelector('[data-campaign]');
 
     this.preview = new CharacterPreview(this.previewMount, {
       getCharacter: () => this.getCharacter(),
@@ -180,6 +201,7 @@ export class MainMenu {
 
     this.startBtn.addEventListener('click', () => this._start());
     this._bindWorldPanel();
+    this._bindCampaignPanel();
     this.weaponSearchEl.addEventListener('input', () => {
       this._weaponQuery = this.weaponSearchEl.value.trim().toLowerCase();
       this._renderWeapons();
@@ -305,6 +327,7 @@ export class MainMenu {
     if (panelId === 'stats') this._renderStats();
     if (panelId === 'appearance') this._renderAppearancePanel();
     if (panelId === 'world') this._renderLibraryStatus();
+    if (panelId === 'campaign') this._renderCampaign();
   }
 
   /* ---- World: AI-built maps from the asset library ---- */
@@ -341,10 +364,83 @@ export class MainMenu {
     this.worldClassicBtn.addEventListener('click', () => {
       if (this._worldBusy) return;
       this.onClassicWorld();
+      this.worldEditEl.hidden = true;
       delete this.summaryEl.dataset.world;
       this._updateSummary();
       this._setWorldResult('Back in the classic ruined keep.');
     });
+  }
+
+  /* ---- Campaign ---- */
+
+  _bindCampaignPanel() {
+    this.root.querySelector('[data-world-open-editor]').addEventListener('click', () => {
+      this.onOpenEditor({ fromCurrentMap: true });
+    });
+    this.root.querySelector('[data-open-editor]').addEventListener('click', () => this.onOpenEditor({}));
+    this.root.querySelector('[data-reset-progress]').addEventListener('click', () => {
+      if (!confirm('Forget which levels you have finished?')) return;
+      progress.reset();
+      this._renderCampaign();
+    });
+    this.campaignEl.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-level]');
+      if (!button || button.disabled) return;
+      if (button.dataset.action === 'edit') this.onOpenEditor({ id: button.dataset.level });
+      else this.onPlayLevel(button.dataset.level);
+    });
+  }
+
+  async _renderCampaign() {
+    const store = this.getLevels();
+    if (!store) return;
+    const campaign = await store.list();
+    const done = new Set(progress.read());
+    this.campaignEl.replaceChildren();
+    if (!campaign.length) {
+      const empty = document.createElement('p');
+      empty.className = 'main-menu__panel-hint';
+      empty.textContent = 'No levels yet. Open the level editor, build one and press Save.';
+      this.campaignEl.append(empty);
+      return;
+    }
+    let unlocked = true;
+    for (const [i, entry] of campaign.entries()) {
+      const finished = done.has(entry.id);
+      const row = document.createElement('div');
+      row.className = 'campaign__level';
+      row.classList.toggle('is-done', finished);
+      row.classList.toggle('is-locked', !unlocked);
+      const n = document.createElement('span');
+      n.className = 'campaign__n';
+      n.textContent = finished ? '✓' : String(i + 1);
+      const info = document.createElement('div');
+      info.className = 'campaign__info';
+      const name = document.createElement('strong');
+      name.textContent = entry.name;
+      const detail = document.createElement('span');
+      detail.textContent = finished ? 'Completed' : unlocked ? 'Ready' : 'Locked — finish the level before it';
+      info.append(name, detail);
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'campaign__play';
+      play.dataset.level = entry.id;
+      play.textContent = finished ? 'Replay' : 'Play';
+      play.disabled = !unlocked;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'main-menu__world-btn';
+      edit.dataset.level = entry.id;
+      edit.dataset.action = 'edit';
+      edit.textContent = 'Edit';
+      row.append(n, info, play, edit);
+      this.campaignEl.append(row);
+      // Each level unlocks the next once it is finished.
+      if (!finished) unlocked = false;
+      store.load(entry.id).then((level) => {
+        if (finished || !play.disabled) detail.textContent += ` · ${describeGoal(level.rules)}`;
+      }).catch(() => {});
+    }
   }
 
   async _renderLibraryStatus() {
@@ -405,7 +501,8 @@ export class MainMenu {
           (stats.packs?.length ? ` (${stats.packs.slice(0, 4).join(', ')}${stats.packs.length > 4 ? '…' : ''})` : '')
       ];
       if (stats.fallbacks) lines.push(`${stats.fallbacks} layer(s) had no matching model and used placeholders.`);
-      lines.push('Press Start Game to fight in it.');
+      lines.push('Press Start Game to fight in it, or edit it by hand below.');
+      this.worldEditEl.hidden = false;
       this._setWorldResult(plan.name, lines);
       this.summaryEl.dataset.world = plan.name;
       this._updateSummary();

@@ -1,0 +1,16 @@
+{
+  "campaign": [
+    {
+      "id": "frost-hollow",
+      "name": "Frost Hollow"
+    },
+    {
+      "id": "ember-ruins",
+      "name": "Ember Ruins"
+    },
+    {
+      "id": "the-wyrms-graveyard",
+      "name": "The Wyrm's Graveyard"
+    }
+  ]
+}
