@@ -151,7 +151,7 @@ dusk get their own coloured skies. [More →](docs/level-editor.md)
 
 <p>
   <img src="docs/screenshots/loot.jpg" width="49%" alt="Loot from a boss: light beams in rarity colours and floating item names" />
-  <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag: weapon in hand, bonuses, spell ranks and 24 slots" />
+  <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag: a paper doll of worn gear, the plate set bonus, 30 slots and the totals" />
 </p>
 <p>
   <img src="docs/screenshots/npc-dialogue.jpg" width="49%" alt="Talking to the Old Warden: a gift, an AI-written answer and a quest" />
@@ -193,6 +193,20 @@ back. Press **I** for the armory. See **[Weapons](docs/weapons.md)**.
 <p>
   <img src="docs/screenshots/weapons-shotgun.jpg" width="49%" alt="A shotgun blast fanning seven pellets into imps" />
   <img src="docs/screenshots/weapons-armory-rifle.jpg" width="49%" alt="The armory's Rifles tab with each weapon's damage, fire rate, range and specials" />
+</p>
+
+## Armor and gear
+
+Wear up to eleven pieces: helmet, body armor, gloves, belt, leg armor, boots, cloak, an off-hand
+(shield, focus or quiver), an amulet and two rings. Every piece has an **item class** that decides
+what it does: **cloth** speeds up spells, **leather** adds speed and critical hits, **mail** adds
+armor, health and regeneration, and **plate** adds the most armor and health but slows you down.
+Shields block hits but need a free hand. Three or five pieces of one armor class add a set bonus,
+and each class is proficient in one armor class (+25%). Helmets, shields, foci, quivers and cloaks
+show on your character. See **[Armor and gear](docs/gear.md)**.
+
+<p>
+  <img src="docs/screenshots/gear-lineup.jpg" width="100%" alt="The Knight in a great helm and kite shield, the Mage in a silk hood with a crystal focus, the Amazon with a leather cap and quiver, the Barbarian in a chain coif with a spiked shield" />
 </p>
 
 ## Class forge: AI-designed classes
@@ -254,6 +268,7 @@ flowchart LR
 | [Tuning editor and presets](docs/tuning-editor.md) | The **G** editor: 900+ live sliders, presets |
 | [Third-party services](docs/third-party.md) | What is free, what is paid, and options for 3D models, animation, AI and effects |
 | [Weapons](docs/weapons.md) | All 108 weapons, how each kind fights, ammo and reloading, adding a weapon |
+| [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
 | [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |
 | [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |

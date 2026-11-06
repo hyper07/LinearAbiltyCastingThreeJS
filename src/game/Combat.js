@@ -112,7 +112,8 @@ export class Combat extends EventEmitter {
       knockback: attack.knockback ?? 0.6,
       shatter: 0
     };
-    const strike = { profile, element: 'beam' };
+    // Swings and weapon hits scale with weapon damage (`attack`), not spell damage.
+    const strike = { profile, element: 'beam', bonus: 'attack' };
     let hits = 0;
 
     for (const monster of this.ctx.monsters.active) {
@@ -339,13 +340,24 @@ export class Combat extends EventEmitter {
    */
   weaponHit(monster, fire, direction, falloff = 1) {
     if (!settings.combat.enabled || !monster?.isTargetable) return;
-    this._damage(monster, { element: 'weapon', profile: weaponProfile(fire) }, direction, falloff);
+    this._damage(monster, { element: 'weapon', bonus: 'attack', profile: weaponProfile(fire) }, direction, falloff);
+  }
+
+  /**
+   * Thorns: whatever just hit the player in melee takes `amount` back. No
+   * crit, no gear multiplier — the number on the item is the number dealt.
+   */
+  thorns(monster, amount) {
+    if (!settings.combat.enabled || !monster?.isTargetable || amount <= 0) return;
+    _scratch.copy(monster.position).sub(this.ctx.monsters.target ?? monster.position).setY(0);
+    if (_scratch.lengthSq() < 1e-6) _scratch.set(0, 0, 1);
+    this._damage(monster, { element: 'weapon', bonus: 'thorns', noCrit: true, profile: { damage: amount / settings.combat.damageScale, knockback: 0.4, shatter: 0 } }, _scratch.normalize());
   }
 
   /** A rocket, grenade or bomb going off. */
   weaponBlast(point, fire) {
     if (!settings.combat.enabled) return;
-    const strike = { element: 'weapon', profile: weaponProfile(fire), hit: new Set() };
+    const strike = { element: 'weapon', bonus: 'attack', profile: weaponProfile(fire), hit: new Set() };
     this._blast(strike, point, fire.explode ?? 3);
     this.emit('impact', point, { element: 'weapon', radius: fire.explode ?? 3 });
   }
@@ -435,8 +447,8 @@ export class Combat extends EventEmitter {
     const { profile, element } = strike;
 
     // Gear and spell ranks (see items/Profile.js) scale damage and crit chance.
-    const crit = Math.random() < cfg.critChance + (this.ctx.critBonus?.() ?? 0);
-    const gear = this.ctx.damageMultiplier?.(element) ?? 1;
+    const crit = !strike.noCrit && Math.random() < cfg.critChance + (this.ctx.critBonus?.() ?? 0);
+    const gear = strike.bonus === 'thorns' ? 1 : (this.ctx.damageMultiplier?.(strike.bonus ?? element) ?? 1);
     const amount = profile.damage * falloff * cfg.damageScale * gear * (crit ? cfg.critMultiplier : 1);
 
     const result = monster.applyDamage(amount, { shatter: profile.shatter ?? 1 });

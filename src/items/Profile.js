@@ -1,24 +1,27 @@
 import { EventEmitter } from '../utils/EventEmitter.js';
 import { SKILL_MAX_RANK, SKILL_RANK, buyPrice, itemValue } from './Items.js';
+import { GEAR_SLOTS, GEAR_SLOT_IDS, activeSetBonuses, gearActive, isTwoHanded, pieceStats } from './Gear.js';
 import { SLOT_COUNT, nodeOf, prerequisite, spellName, startingRanks, treeFor, treeSpells } from '../platform/skill/tree.js';
 
 // Storage key keeps the game's first name (Elemental Arena) so existing saves still load.
 const KEY = 'elemental-arena.profile';
-export const BAG_SIZE = 24;
+export const BAG_SIZE = 30;
 export const BELT_MAX = 10;
 
 /**
  * The player's character between runs: purse, potion belt, bag, the weapon
- * in hand, and — per class — which spells are learned, their ranks and the
+ * in hand, the gear worn (items/Gear.js: helmet, armor, shield, boots,
+ * rings…), and — per class — which spells are learned, their ranks and the
  * five on keys 1–5. Saved per browser (a convenience, like campaign
  * progress); `reset()` starts over.
  *
- * Gold, potions and the bag are shared by every class (a stash); spells are
+ * Gold, potions, the bag and the gear are shared by every class (a stash) —
+ * though how well gear works depends on the class wearing it; spells are
  * not, because each class has its own skill tree (platform/skill/tree.js).
  *
  * Emits `change` whenever anything changes, `stats` when the numbers the
- * game uses (damage, cooldowns, health, speed…) may have moved, and `slots`
- * when the spells on keys 1–5 change.
+ * game uses (damage, cooldowns, health, speed…) may have moved, `slots`
+ * when the spells on keys 1–5 change, and `gear` when what is worn changes.
  */
 export class Profile extends EventEmitter {
   constructor() {
@@ -27,13 +30,18 @@ export class Profile extends EventEmitter {
     this.classBonus = {};
     /** The class being played (a character id) — set by the game. */
     this.classId = 'caster';
+    /** The armor class the current class is proficient in — set by the game. */
+    this.favoredArmor = 'cloth';
+    /** Is the weapon in hand two-handed? (A shield or focus then does nothing.) */
+    this.twoHanded = false;
     this._load();
   }
 
-  /** Switch to a class: its bonuses, and its own spells and keys. */
-  setClass(classId, bonuses) {
+  /** Switch to a class: its bonuses, its armor proficiency, and its own spells and keys. */
+  setClass(classId, bonuses, favoredArmor = 'cloth') {
     this.classId = classId ?? 'caster';
     this.classBonus = { ...(bonuses ?? {}) };
+    this.favoredArmor = favoredArmor;
     this._ensure(this.classId);
     this.emit('stats', this.stats);
     this.emit('slots', this.slots);
@@ -45,6 +53,8 @@ export class Profile extends EventEmitter {
       potions: { health: 2, focus: 0 },
       bag: [],
       equipped: null,
+      /** Worn gear, by slot id (items/Gear.js GEAR_SLOTS). */
+      gear: Object.fromEntries(GEAR_SLOT_IDS.map((id) => [id, null])),
       /** Per class id: `{ ranks: { element: rank }, slots: [element|null × 5] }`. */
       progress: {}
     };
@@ -62,6 +72,8 @@ export class Profile extends EventEmitter {
     this.equipped = data?.equipped ?? null;
     this.potions = { ...blank.potions, ...(data?.potions ?? {}) };
     this.bag = Array.isArray(data?.bag) ? data.bag.slice(0, BAG_SIZE) : [];
+    this.gear = { ...blank.gear };
+    for (const id of GEAR_SLOT_IDS) if (data?.gear?.[id]?.type === 'gear') this.gear[id] = data.gear[id];
     this.progress = data?.progress && typeof data.progress === 'object' ? data.progress : {};
     // Saves from before skill trees kept one set of ranks for everyone (rank 0
     // = usable). Those books were read, so they count: each class gets them
@@ -103,7 +115,7 @@ export class Profile extends EventEmitter {
     try {
       localStorage.setItem(
         KEY,
-        JSON.stringify({ gold: this.gold, potions: this.potions, bag: this.bag, equipped: this.equipped, progress: this.progress, legacySkills: this._legacyRanks ?? undefined })
+        JSON.stringify({ gold: this.gold, potions: this.potions, bag: this.bag, equipped: this.equipped, gear: this.gear, progress: this.progress, legacySkills: this._legacyRanks ?? undefined })
       );
     } catch {
       /* private mode: the character just is not remembered */
@@ -200,11 +212,32 @@ export class Profile extends EventEmitter {
   /* Derived numbers                                                       */
   /* -------------------------------------------------------------------- */
 
-  /** Everything the gear and ranks add up to, in plain numbers. */
+  /** The weapon in hand changed: a two-handed one switches a shield or focus off. */
+  setWeapon(weapon) {
+    const two = isTwoHanded(weapon);
+    if (two === this.twoHanded) return;
+    this.twoHanded = two;
+    this.emit('stats', this.stats);
+    this.emit('gear', this.gear);
+  }
+
+  /** Is a worn piece doing anything right now? */
+  isActive(item) {
+    return gearActive(item, this.twoHanded);
+  }
+
+  /** Everything the class, gear and ranks add up to, in plain numbers. */
   get stats() {
-    const s = { damage: 0, cooldown: 0, health: 0, speed: 0, crit: 0, gold: 0, armor: 0, element: {}, elementCooldown: {} };
-    // Class bonuses (platform/character/classes.js) and gear add up the same way.
-    for (const source of [this.classBonus ?? {}, this.equipped?.stats ?? {}]) {
+    const s = { damage: 0, cooldown: 0, health: 0, speed: 0, crit: 0, gold: 0, armor: 0, attack: 0, block: 0, regen: 0, thorns: 0, element: {}, elementCooldown: {} };
+    // Class bonuses (platform/character/classes.js), the weapon, every worn
+    // piece and the armor set bonuses all add up the same way.
+    const sources = [this.classBonus ?? {}, this.equipped?.stats ?? {}];
+    for (const id of GEAR_SLOT_IDS) {
+      const item = this.gear[id];
+      if (item && this.isActive(item)) sources.push(pieceStats(item, this.favoredArmor));
+    }
+    for (const set of activeSetBonuses(this.gear)) sources.push(set.stats);
+    for (const source of sources) {
       for (const [key, value] of Object.entries(source)) {
         if (key in s && key !== 'element' && key !== 'elementCooldown') s[key] += value;
         else s.element[key] = (s.element[key] ?? 0) + value;
@@ -216,12 +249,18 @@ export class Profile extends EventEmitter {
       s.element[element] = (s.element[element] ?? 0) + (rank - 1) * SKILL_RANK.damage;
       s.elementCooldown[element] = (rank - 1) * SKILL_RANK.cooldown;
     }
+    s.regen = Math.round(s.regen * 10) / 10;
     return s;
   }
 
-  /** Damage multiplier for one spell. */
+  /**
+   * Damage multiplier for one spell — or, for `attack`, for weapon hits and
+   * swings (weapon damage, not spell damage).
+   */
   damageMultiplier(element) {
     const s = this.stats;
+    if (element === 'attack') return Math.max(0.1, 1 + s.attack / 100);
+    if (element === 'thorns') return 1;
     return 1 + (s.damage + (s.element[element] ?? 0)) / 100;
   }
 
@@ -257,17 +296,48 @@ export class Profile extends EventEmitter {
     return { ok: true, message: item.name };
   }
 
-  /** Equip a weapon from the bag; the old one goes back in its place. */
+  /**
+   * Equip a weapon or a piece of gear from the bag; whatever was there goes
+   * back in the bag in its place. A ring goes on a free finger, else replaces
+   * the first ring.
+   */
   equip(uid) {
     const i = this.bag.findIndex((it) => it.uid === uid);
-    if (i < 0 || this.bag[i].type !== 'weapon') return null;
     const item = this.bag[i];
-    if (this.equipped) this.bag[i] = this.equipped;
+    if (!item || (item.type !== 'weapon' && item.type !== 'gear')) return null;
+    let old;
+    if (item.type === 'weapon') {
+      old = this.equipped;
+      this.equipped = item;
+    } else {
+      const slot = this.slotFor(item);
+      old = this.gear[slot];
+      this.gear[slot] = item;
+    }
+    if (old) this.bag[i] = old;
     else this.bag.splice(i, 1);
-    this.equipped = item;
     this.save();
     this.emit('stats', this.stats);
+    if (item.type === 'gear') this.emit('gear', this.gear);
     return item;
+  }
+
+  /** Which slot a piece of gear would go in. */
+  slotFor(item) {
+    const slots = GEAR_SLOTS.filter((s) => s.kind === item.kind).map((s) => s.id);
+    return slots.find((id) => !this.gear[id]) ?? slots[0];
+  }
+
+  /** Take off whatever is in a gear slot (back to the bag). */
+  unequipGear(slotId) {
+    const item = this.gear[slotId];
+    if (!item || this.bag.length >= BAG_SIZE) return false;
+    this.bag.push(item);
+    this.gear[slotId] = null;
+    this.save();
+    this.emit('stats', this.stats);
+    this.emit('gear', this.gear);
+    return true;
   }
 
   unequip() {

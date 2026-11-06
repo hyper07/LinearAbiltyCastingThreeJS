@@ -277,7 +277,8 @@ export class MainMenu {
       ? `<span class="main-menu__character-tagline">${character.tagline}</span>`
       : '';
     const startSpells = treeFor(character.id).start.map(spellName);
-    const spells = character.classSpec ? ` · Starts with ${startSpells.join(' and ')}` : '';
+    const armor = character.classSpec?.armorClass;
+    const spells = character.classSpec ? `${armor ? ` · Best in ${armor}` : ''} · Starts with ${startSpells.join(' and ')}` : '';
     const bonuses = character.classSpec
       ? `<span class="main-menu__character-bonuses">${describeBonuses(character.classSpec.bonuses).join(' · ')}${spells}</span>`
       : '';

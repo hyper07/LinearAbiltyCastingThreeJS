@@ -29,7 +29,7 @@ export const GOALS = ['waves', 'boss', 'kills', 'study'];
 export const MONSTER_KINDS = ['grunt', 'wisp', 'brute', 'golem', 'dragon'];
 export const PORTAL_COLOR_NAMES = ['blue', 'red', 'gold', 'green', 'violet'];
 export const NPC_ROLE_NAMES = ['guide', 'merchant', 'healer', 'quest', 'tutor'];
-export const GIFT_TYPES = ['none', 'health', 'focus', 'gold', 'weapon', 'book'];
+export const GIFT_TYPES = ['none', 'health', 'focus', 'gold', 'weapon', 'gear', 'book'];
 export const REWARD_RARITIES = ['none', 'magic', 'rare', 'epic', 'unique'];
 
 const clamp = (v, lo, hi, fallback) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : fallback);

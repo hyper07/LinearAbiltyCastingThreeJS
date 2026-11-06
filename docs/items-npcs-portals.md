@@ -10,7 +10,7 @@
 </p>
 <p>
   <img src="screenshots/loot.jpg" width="49%" alt="Loot from a boss: light beams in rarity colours and floating item names" />
-  <img src="screenshots/inventory.jpg" width="49%" alt="The bag: a unique sceptre in hand, its bonuses, spell ranks and the 24 slots" />
+  <img src="screenshots/inventory.jpg" width="49%" alt="The bag: a paper doll of worn gear, the plate set bonus, 30 slots and the totals" />
 </p>
 <p>
   <img src="screenshots/portal-exit.jpg" width="49%" alt="Goal reached: the gold exit portal beside the violet East Gate" />
@@ -19,24 +19,27 @@
 
 ### Loot
 
-Monsters drop **gold**, **potions**, **weapons** and **skill books**. Items burst out of the body,
+Monsters drop **gold**, **potions**, **weapons**, **gear** and **skill books**. Items burst out of the body,
 land with a light beam in their rarity colour — **Common**, **Magic** (blue), **Rare** (yellow),
 **Epic** (purple), **Unique** (orange) — and a floating name; walk over them to pick them up (or click
 the name from close by). Bigger monsters drop more and better: a Rift Golem always drops a Rare or
-better (and half the time a skill book), the Emberwyrm an Epic or better plus two skill books.
+better (a weapon or a piece of gear, and half the time a skill book), the Emberwyrm an Epic or
+better plus two skill books.
 
 | Item | What it does |
 | --- | --- |
-| Weapon | Any of the 88 armory weapons, with 1–3 bonus stats by rarity: spell damage, one spell's damage, cooldowns, max health, move speed, critical chance, gold found. Uniques are named (*Glacierheart*, *Ashen Requiem*, *Tempest Sceptre*, *Dawnspire*, *The Hollow Crown*, *Wardenblade*) with fixed, stronger bonuses. |
+| Weapon | Any of the armory's weapons, with 1–3 bonus stats by rarity: spell damage, weapon damage, one spell's damage, cooldowns, max health, move speed, critical chance, gold found. Uniques are named (*Glacierheart*, *Ashen Requiem*, *Tempest Sceptre*, *Dawnspire*, *The Hollow Crown*, *Wardenblade*) with fixed, stronger bonuses. |
+| Gear | Helmets, body armor, gloves, belts, leg armor, boots, cloaks, shields, foci, quivers, amulets and rings. Each has its item class's base properties (cloth, leather, mail, plate, shield…) plus bonuses by rarity, and ten named Uniques. See **[Armor and gear](gear.md)**. |
 | Skill book | Teaches one spell, or raises it a rank (max 10): +10% damage and −3% cooldown per rank after the first. Only classes with that spell in their [skill tree](classes-and-skills.md#skill-trees-and-skill-books) can read it. Barbarian skills come in *skill manuals*. |
 | Health potion | **R** — heals 45%. |
 | Focus potion | **Z** — every spell ready again. |
 | Gold | Spent at merchants; weapons sell back for a quarter. |
 
-**Tab** opens the bag: the weapon in hand, what your gear adds up to, your class's spell ranks and
-24 slots — click a weapon to equip it, a book to read it, right-click to drop. Books your class can't
-read are greyed out. The bag, gold, potions and ranks are saved in the browser and carry between
-levels.
+**Tab** opens the bag: a paper doll of everything you wear (click a piece to take it off), your
+armor proficiency and set bonuses, 30 slots, what everything adds up to, and your class's skill
+ranks. Click a weapon or piece of gear to wear it, a book to read it, right-click to drop. Hovering
+over gear compares it with what you wear. Books your class can't read are greyed out. The bag, worn
+gear, gold, potions and ranks are saved in the browser and carry between levels.
 
 ### NPCs
 
@@ -46,7 +49,7 @@ and press **F** to talk (the fight pauses while you do).
 | Role | Does |
 | --- | --- |
 | Guide | Talks: a greeting and scripted lines — story, hints, rumours. |
-| Merchant | Sells potions, weapons and two skill books (mostly for your class); buys anything from your bag. |
+| Merchant | Sells potions, weapons, gear and two skill books (mostly for your class); buys anything from your bag. |
 | Healer | Heals you to full and sells potions. |
 | Quest giver | Sets a task — *defeat N monsters* (any, or one kind) — tracked under the wave counter; hand it in for gold and an item of a chosen rarity. |
 | Tutor | Asks study questions — generated math, or the parent's own — and pays gold for right answers, with a bonus every few. Marked ✎. See [Study games for kids](for-parents.md). |

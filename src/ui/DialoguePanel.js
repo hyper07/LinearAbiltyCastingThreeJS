@@ -287,7 +287,7 @@ export class DialoguePanel {
           name.textContent = item.name;
           name.style.color = itemColor(item);
           const meta = document.createElement('small');
-          meta.textContent = `${item.type === 'weapon' ? RARITIES[item.rarity].label + ' · ' : ''}${verb} ${priceOf(item)}g`;
+          meta.textContent = `${item.type === 'weapon' || item.type === 'gear' ? RARITIES[item.rarity].label + ' · ' : ''}${verb} ${priceOf(item)}g`;
           row.append(name, meta);
           row.addEventListener('click', () => {
             this.system(onPick(item));

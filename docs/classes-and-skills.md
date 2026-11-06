@@ -17,17 +17,20 @@ Pick a class in the main menu. Each class has its own skill tree of spells (next
 also sets the body, the starting weapon, the close-range attacks and a set of bonuses that stack with
 gear and skill books:
 
-| Class | Starts with | Bonuses |
-| --- | --- | --- |
-| 🛡 **Knight** | Longsword | +50 health, 20% less damage taken, −5% speed, +15% Glacial Crown |
-| ✦ **Mage** | Arcane staff | −25 health, +18% spell damage, −10% cooldowns |
-| 🪓 **Barbarian** | War axe | +70 health, 10% less damage taken, +8% speed, +20% Earthsplitter — fights with physical skills and Rage, not spells |
-| 🏹 **Amazon** | Longbow | +10% speed, +12% critical chance, +20% Storm Lance |
-| 🗡 **Shadowblade** | Twin daggers | −10 health, +15% speed, +8% critical chance, +15% Voltaic Snare |
-| ✚ **Templar** | War hammer | +30 health, 10% less damage taken, +25% Nova Beam |
-| 💀 **Bonecaller** | Necromancer staff | −10 health, +10% spell damage, −6% cooldowns, +20% Voltaic Snare |
-| 🌿 **Wildwarden** | Druid staff | +20 health, +20% Glacial Crown, +15% Frost Lance |
-| ⚡ **Elemental Caster** | Arcane wand | The sandbox original — no bonuses, its own Mixamo body |
+| Class | Starts with | Armor | Bonuses |
+| --- | --- | --- | --- |
+| 🛡 **Knight** | Longsword | Plate | +50 health, 20% less damage taken, −5% speed, +15% Glacial Crown |
+| ✦ **Mage** | Arcane staff | Cloth | −25 health, +18% spell damage, −10% cooldowns |
+| 🪓 **Barbarian** | War axe | Mail | +70 health, 10% less damage taken, +8% speed, +20% Earthsplitter — fights with physical skills and Rage, not spells |
+| 🏹 **Amazon** | Longbow | Leather | +10% speed, +12% critical chance, +20% Storm Lance |
+| 🗡 **Shadowblade** | Twin daggers | Leather | −10 health, +15% speed, +8% critical chance, +15% Voltaic Snare |
+| ✚ **Templar** | War hammer | Plate | +30 health, 10% less damage taken, +25% Nova Beam |
+| 💀 **Bonecaller** | Necromancer staff | Cloth | −10 health, +10% spell damage, −6% cooldowns, +20% Voltaic Snare |
+| 🌿 **Wildwarden** | Druid staff | Leather | +20 health, +20% Glacial Crown, +15% Frost Lance |
+| ⚡ **Elemental Caster** | Arcane wand | Cloth | The sandbox original — no bonuses, its own Mixamo body |
+
+**Armor** is the armor class each class is proficient in: it gets +25% from those pieces' base
+properties. See [Armor and gear](gear.md#proficiency-each-class-has-its-armor).
 
 **Appearance → Look** dresses any class in any of the nine bodies (Knight, Mage, Barbarian, Rogue,
 Hooded rogue, Skeleton warrior/mage/rogue/minion), the class's own picks listed first, and the colour

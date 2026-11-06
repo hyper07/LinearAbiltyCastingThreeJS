@@ -21,6 +21,7 @@ import { castClipUrl } from '../platform/character/CharacterDefinition.js';
 import { locomotionClipUrl } from '../platform/motion/MotionDataset.js';
 import { mixamoRig, shortBoneName } from '../platform/rig/MixamoRigAdapter.js';
 import { WeaponVisual, collectRigBones } from '../entities/WeaponVisual.js';
+import { GearVisual } from '../entities/GearVisual.js';
 import { cloneSkinnedHierarchy } from '../utils/cloneSkinned.js';
 import {
   applyCharacterColors,
@@ -99,6 +100,10 @@ export class CharacterController {
     this._lunge = 0;
     this._rightAxis = new Vector3(1, 0, 0);
     this.weaponVisual = new WeaponVisual();
+    this.gearVisual = new GearVisual();
+    /** What is worn (Profile.gear) — re-applied when the model reloads. */
+    this._gear = null;
+    this._gearActive = () => true;
   }
 
   /**
@@ -132,6 +137,7 @@ export class CharacterController {
 
     this.locomotionPlayback = new LocomotionPlayback(this);
     this.weaponVisual.clear();
+    this.gearVisual.clear();
   }
 
   /**
@@ -221,6 +227,7 @@ export class CharacterController {
     this._bindAnimatedBones();
     this._refreshWeaponBones();
     this.equipWeapon(platform.getActiveWeaponId());
+    this.wearGear(this._gear, this._gearActive);
   }
 
   /**
@@ -295,6 +302,7 @@ export class CharacterController {
     this._bindAnimatedBones();
     this._refreshWeaponBones();
     this.equipWeapon(platform.getActiveWeaponId());
+    this.wearGear(this._gear, this._gearActive);
   }
 
   /**
@@ -509,8 +517,37 @@ export class CharacterController {
 
     this._refreshWeaponBones();
     this.equipWeapon(platform.getActiveWeaponId());
+    this.wearGear(this._gear, this._gearActive);
 
     return this;
+  }
+
+  /**
+   * Show worn gear (helmet, shield or focus, cloak, quiver) on the model.
+   * @param {Record<string, object|null>|null} gear Profile.gear
+   * @param {(item: object) => boolean} [isActive] a shield is put away with a two-handed weapon
+   */
+  wearGear(gear, isActive = () => true) {
+    this._gear = gear;
+    this._gearActive = isActive;
+    if (!this.model) return this;
+    if (!this._weaponBones?.size) this._refreshWeaponBones();
+    this.gearVisual.equip(gear, isActive, this._weaponBones, this.rig?.id, this.model);
+    return this;
+  }
+
+  /**
+   * KayKit bodies come holding every prop of their set at once (the knight:
+   * four shields and three swords). The game draws the weapon in hand
+   * (WeaponVisual) and the shield or focus you wear (GearVisual) itself, so
+   * the built-in props are hidden.
+   */
+  _hideBuiltInProps() {
+    if (!this.model || this.model.userData.propsHidden) return;
+    this.model.userData.propsHidden = true;
+    this.model.traverse((node) => {
+      if (node.isMesh && BUILT_IN_PROPS.test(node.name)) node.visible = false;
+    });
   }
 
   /** Map every bone in the loaded rig — used for weapon attachment. */
@@ -530,6 +567,7 @@ export class CharacterController {
     if (!this._weaponBones?.size) this._refreshWeaponBones();
 
     platform.setWeapon(weapon.id);
+    this._hideBuiltInProps();
     this.weaponVisual.equip(weapon, this._weaponBones, this.rig, this.model);
 
     if (weapon.attachPoint === 'handL') this.locomotion.wandSide = 'Left';
@@ -886,9 +924,13 @@ export class CharacterController {
     this.locomotionPlayback = null;
     this.secondaryMotion.dispose();
     this.weaponVisual.clear();
+    this.gearVisual.clear();
     disposeObject(this.root);
   }
 }
+
+/** KayKit prop meshes: weapons, shields, books, mugs… (not hats or capes). */
+const BUILT_IN_PROPS = /^(1H_|2H_)|shield|offhand|spellbook|^mug$|throwable|^knife$|crossbow|wand|staff/i;
 
 /** The bones Mixamo names `mixamorig<Name>`. */
 const MIXAMO_BONES = [

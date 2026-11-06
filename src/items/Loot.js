@@ -10,6 +10,7 @@ import {
   SphereGeometry
 } from 'three';
 import { buildWeaponMesh } from '../entities/WeaponVisual.js';
+import { buildGearMesh } from '../entities/GearVisual.js';
 import { platform } from '../platform/index.js';
 import { RARITIES, itemColor } from './Items.js';
 
@@ -53,6 +54,15 @@ function buildMesh(item) {
     book.position.y = 0.05;
     book.rotation.y = Math.random() * Math.PI;
     group.add(book);
+  } else if (item.type === 'gear') {
+    const mesh = buildGearMesh(item);
+    // Helmets, chests and boots stand up; flat things (shields, rings) lie down.
+    const flat = item.kind === 'offhand' || item.kind === 'ring' || item.kind === 'neck' || item.kind === 'back';
+    if (flat) mesh.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
+    else mesh.rotation.y = Math.random() * Math.PI * 2;
+    mesh.position.y = item.kind === 'head' ? 0.2 : item.kind === 'chest' ? 0.18 : item.kind === 'back' ? 0.05 : 0.06;
+    mesh.scale.setScalar(item.kind === 'ring' || item.kind === 'neck' ? 1.6 : 0.7);
+    group.add(mesh);
   } else if (item.type === 'weapon') {
     const weapon = platform.weapons.get(item.weapon);
     const mesh = weapon ? buildWeaponMesh(weapon) : null;
@@ -105,7 +115,7 @@ export class LootSystem {
       const root = new Group();
       const mesh = buildMesh(item);
       root.add(mesh);
-      const rarity = item.type === 'weapon' || item.type === 'book' ? item.rarity : null;
+      const rarity = item.type === 'weapon' || item.type === 'gear' || item.type === 'book' ? item.rarity : null;
       let beam = null;
       if (rarity && rarity !== 'common') {
         const color = new Color(RARITIES[rarity].color);

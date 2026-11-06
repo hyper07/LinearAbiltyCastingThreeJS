@@ -189,7 +189,20 @@ export class GameDirector extends EventEmitter {
   damagePlayer(amount, source = {}) {
     if (this.state === RunState.DOWNED || !settings.combat.enabled) return;
 
-    // Armour from the player's class (and anything else that sets it): a share ignored.
+    // A shield (or anything else with block) can stop the hit outright.
+    if (Math.random() < Math.min(0.6, Math.max(0, this.block ?? 0))) {
+      const { character, numbers, shake } = this.ctx;
+      if (numbers && character) {
+        _scratch.copy(character.position);
+        _scratch.y += character.height ?? 1.8;
+        numbers.spawn(_scratch, 'BLOCK', { kind: 'heal' });
+      }
+      shake?.add(0.15 * settings.global.cameraShake, 2.4, 24);
+      this.emit('playerBlock', amount, source);
+      return;
+    }
+
+    // Armour from the player's class and gear: a share ignored.
     amount *= 1 - Math.min(0.75, Math.max(0, this.armor ?? 0));
     const dealt = Math.min(amount, this.health);
     this.health = Math.max(0, this.health - amount);
@@ -307,6 +320,10 @@ export class GameDirector extends EventEmitter {
       this._sinceDamage > delay
     ) {
       this.health = Math.min(this.maxHealth, this.health + rate * dt);
+    }
+    // Gear regeneration works always, in a fight too (`regen` health per second).
+    if (this.state !== RunState.DOWNED && this.regen > 0 && this.health < this.maxHealth) {
+      this.health = Math.min(this.maxHealth, this.health + this.regen * dt);
     }
 
     switch (this.state) {

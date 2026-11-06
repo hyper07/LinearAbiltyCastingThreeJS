@@ -191,6 +191,7 @@ export function registerForgedClass(design, { abilities } = {}) {
     tint: design.color,
     attacks: style.attacks,
     bonuses: { ...design.bonuses },
+    armorClass: style.armorClass,
     series: 'Created',
     forged: true
   };

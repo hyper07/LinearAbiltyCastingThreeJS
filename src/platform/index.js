@@ -26,7 +26,7 @@ export { kaykitRig, KaykitRigAdapter } from './rig/KaykitRigAdapter.js';
 
 export { createCharacter, castClipUrl } from './character/CharacterDefinition.js';
 export { DEFAULT_CHARACTERS, caster } from './character/catalog.js';
-export { CLASS_CHARACTERS, CLASS_SPECS, LOOKS, classBonuses, describeBonuses } from './character/classes.js';
+export { CLASS_CHARACTERS, CLASS_SPECS, LOOKS, classArmor, classBonuses, describeBonuses } from './character/classes.js';
 
 export { createSkill } from './skill/SkillDefinition.js';
 export { DEFAULT_SKILLS, SKILL_BY_ABILITY } from './skill/catalog.js';

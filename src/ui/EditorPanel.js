@@ -331,7 +331,7 @@ export class EditorPanel {
         this.renderPane();
       }, { none: 'No gift', health: 'Health potion', focus: 'Focus potion', gold: 'Gold', weapon: 'Weapon', book: 'Skill book' })
     );
-    if (m.gift.type === 'weapon') pane.append(this._select('Weapon rarity', REWARD_RARITIES.filter((r) => r !== 'none'), m.gift.rarity, (v) => e.updateMarker({ gift: { ...m.gift, rarity: v } })));
+    if (m.gift.type === 'weapon' || m.gift.type === 'gear') pane.append(this._select(m.gift.type === 'gear' ? 'Gear rarity' : 'Weapon rarity', REWARD_RARITIES.filter((r) => r !== 'none'), m.gift.rarity, (v) => e.updateMarker({ gift: { ...m.gift, rarity: v } })));
     if (m.gift.type === 'gold') pane.append(this._slider('Gold amount', 5, 500, 5, m.gift.amount, (v) => e.updateMarker({ gift: { ...m.gift, amount: v } })));
 
     pane.append(this._label('Quest'), check('Gives a quest', Boolean(m.quest), (v) => {

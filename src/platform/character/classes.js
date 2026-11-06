@@ -53,6 +53,7 @@ const mystic = { castBlendIn: 0.14, castBlendOut: 0.32, castLean: 0.3, castRecoi
  * @property {string} tint
  * @property {string[]} attacks    close-range attack ids
  * @property {Record<string, number>} bonuses
+ * @property {'cloth'|'leather'|'mail'|'plate'} [armorClass] armor it is proficient in (items/Gear.js)
  */
 
 /** @type {ClassSpec[]} */
@@ -68,7 +69,8 @@ export const CLASS_SPECS = [
     looks: ['knight', 'skeleton-warrior'],
     tint: '#d9dde6',
     attacks: ['heavy-slash', 'shield-bash', 'smite', 'thrust'],
-    bonuses: { health: 50, armor: 20, speed: -5, glacier: 15 }
+    bonuses: { health: 50, armor: 20, speed: -5, glacier: 15 },
+    armorClass: 'plate'
   },
   {
     id: 'mage',
@@ -81,7 +83,8 @@ export const CLASS_SPECS = [
     looks: ['mage', 'skeleton-mage'],
     tint: '#7aa8ff',
     attacks: ['arcane-strike', 'force-push', 'staff-bash', 'jab'],
-    bonuses: { health: -25, damage: 18, cooldown: 10 }
+    bonuses: { health: -25, damage: 18, cooldown: 10 },
+    armorClass: 'cloth'
   },
   {
     id: 'barbarian',
@@ -94,7 +97,8 @@ export const CLASS_SPECS = [
     looks: ['barbarian', 'skeleton-warrior'],
     tint: '#d08a5a',
     attacks: ['cleave', 'maul', 'whirlwind', 'war-cry-strike'],
-    bonuses: { health: 70, armor: 10, speed: 8, slam: 20 }
+    bonuses: { health: 70, armor: 10, speed: 8, slam: 20 },
+    armorClass: 'mail'
   },
   {
     id: 'amazon',
@@ -107,7 +111,8 @@ export const CLASS_SPECS = [
     looks: ['rogue', 'rogue-hooded'],
     tint: '#e0a0c0',
     attacks: ['charged-shot', 'jab', 'rapid-strike', 'power-strike'],
-    bonuses: { speed: 10, crit: 12, thunder: 20 }
+    bonuses: { speed: 10, crit: 12, thunder: 20 },
+    armorClass: 'leather'
   },
   {
     id: 'shadowblade',
@@ -120,7 +125,8 @@ export const CLASS_SPECS = [
     looks: ['rogue-hooded', 'skeleton-rogue'],
     tint: '#8a94a8',
     attacks: ['shadow-step', 'fan-knives', 'palm-strike', 'roundhouse'],
-    bonuses: { speed: 15, crit: 8, snare: 15, health: -10 }
+    bonuses: { speed: 15, crit: 8, snare: 15, health: -10 },
+    armorClass: 'leather'
   },
   {
     id: 'templar',
@@ -133,7 +139,8 @@ export const CLASS_SPECS = [
     looks: ['knight', 'mage'],
     tint: '#ffd77a',
     attacks: ['smite', 'shield-bash', 'heavy-slash', 'war-cry-strike'],
-    bonuses: { health: 30, armor: 10, beam: 25 }
+    bonuses: { health: 30, armor: 10, beam: 25 },
+    armorClass: 'plate'
   },
   {
     id: 'bonecaller',
@@ -146,7 +153,8 @@ export const CLASS_SPECS = [
     looks: ['skeleton-mage', 'skeleton-minion'],
     tint: '#b9a6d9',
     attacks: ['bone-spear', 'soul-drain', 'staff-bash', 'thrust'],
-    bonuses: { health: -10, damage: 10, cooldown: 6, snare: 20 }
+    bonuses: { health: -10, damage: 10, cooldown: 6, snare: 20 },
+    armorClass: 'cloth'
   },
   {
     id: 'wildwarden',
@@ -159,7 +167,8 @@ export const CLASS_SPECS = [
     looks: ['mage', 'barbarian'],
     tint: '#7ccf8a',
     attacks: ['rake', 'mauling-swipe', 'slash', 'thrust'],
-    bonuses: { health: 20, glacier: 20, ice: 15 }
+    bonuses: { health: 20, glacier: 20, ice: 15 },
+    armorClass: 'leather'
   }
 ];
 
@@ -272,4 +281,9 @@ export const CLASS_CHARACTERS = CLASS_SPECS.map(makeClassCharacter);
 /** Bonuses for a character id (none for the sandbox caster). */
 export function classBonuses(characterId) {
   return CLASS_SPECS.find((c) => c.id === characterId)?.bonuses ?? {};
+}
+
+/** The armor class (items/Gear.js) a class is proficient in; casters wear cloth. */
+export function classArmor(characterId) {
+  return CLASS_SPECS.find((c) => c.id === characterId)?.armorClass ?? 'cloth';
 }

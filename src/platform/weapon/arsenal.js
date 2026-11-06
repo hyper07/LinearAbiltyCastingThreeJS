@@ -74,7 +74,7 @@ export const WEAPON_ARSENAL = [
   /* Swords — action RPG, soulslike, hack-and-slash                   */
   /* ================================================================ */
   { id: 'shortsword', label: 'Shortsword', category: C.SWORD, visual: 'sword-short', weight: 'light', description: 'Dungeon crawler sidearm — quick and light.' },
-  { id: 'longsword', label: 'Longsword', category: C.SWORD, visual: 'sword-long', weight: 'medium', description: 'Fantasy default — versatile two-hand blade.' },
+  { id: 'longsword', label: 'Longsword', category: C.SWORD, visual: 'sword-long', weight: 'medium', description: 'Fantasy default — versatile blade that leaves a hand free for a shield.' },
   { id: 'broadsword', label: 'Broadsword', category: C.SWORD, visual: 'sword-broad', weight: 'heavy', description: 'Wide blade — the crusading knight’s weapon.' },
   { id: 'greatsword', label: 'Greatsword', category: C.SWORD, visual: 'sword-great', weight: 'heavy', description: 'Huge greatsword — slow, massive swings.' },
   { id: 'zweihander', label: 'Zweihander', category: C.SWORD, visual: 'sword-great', weight: 'heavy', description: 'Dark fantasy slab blade — heaviest sword class.' },

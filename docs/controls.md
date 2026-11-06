@@ -15,7 +15,7 @@
 | **↑ ↓** | Tilt the view |
 | **1 – 5** | Arm the spell on that key — press again to put it away. Far casts aim with a circle |
 | **K** | Skill tree — read books, choose which spells are on keys 1–5 |
-| **Tab** | Bag — equip weapons, read skill books, drop items |
+| **Tab** | Bag — wear weapons and gear, take gear off, read skill books, drop items |
 | **F** | Talk to the nearest NPC |
 | **R** / **Z** | Drink a health / focus potion |
 | **I** | Armory — any of the 108 weapons |

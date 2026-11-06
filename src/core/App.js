@@ -22,7 +22,7 @@ import { WorldLabels } from '../ui/WorldLabels.js';
 import { PortalSystem } from '../world/Portals.js';
 import { Profile } from '../items/Profile.js';
 import { LootSystem } from '../items/Loot.js';
-import { POTIONS, makeBook, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
+import { POTIONS, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
 import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
 import { NpcBrain } from '../npc/NpcBrain.js';
 import { DialoguePanel } from '../ui/DialoguePanel.js';
@@ -66,7 +66,7 @@ import { Editor } from '../ui/Editor.js';
 import { getColor } from '../utils/color.js';
 import { DecalType } from '../effects/GroundDecals.js';
 import { settings, ELEMENTS, ELEMENT_META, CastShape, castShapeOf } from '../config/settings.js';
-import { platform, classBonuses, LOOKS, treeSpells, treeFor } from '../platform/index.js';
+import { platform, classArmor, classBonuses, LOOKS, treeSpells, treeFor } from '../platform/index.js';
 import { CUSTOM_LOOKS, lookModel, lookRig, registerCustomLooks, saveLook, savedLook } from '../platform/character/classes.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
@@ -299,7 +299,14 @@ export class App {
       const gain = info.element === 'weapon' ? 2 : ELEMENT_META[info.element]?.rage ?? 0;
       if (gain > 0) this._gainRage(gain);
     });
-    this.monsters.on('playerHit', () => this._gainRage(4));
+    this.monsters.on('playerHit', (_amount, source) => {
+      this._gainRage(4);
+      // Thorns: whatever hits you in melee takes some back.
+      const thorns = this.profile.stats.thorns;
+      if (thorns > 0 && source?.monster && !source.ranged) this.combat.thorns(source.monster, thorns);
+    });
+    // Worn gear shows on the character (helmet, shield, cloak, quiver).
+    this.profile.on('gear', () => this._wearGear());
     this.mainMenu.setProfile(this.profile);
     this.loot = new LootSystem(this.scene, this.labels);
     this.loot.onPickup = (item) => {
@@ -314,6 +321,7 @@ export class App {
     this.dialogue = new DialoguePanel(hudRoot);
     this.inventory = new InventoryPanel(hudRoot, this.profile, {
       onEquip: (item) => this._equipItem(item),
+      onUnequip: (slotId) => this._unequipGear(slotId),
       onRead: (item) => this.hud.showToast(this.profile.read(item.uid).message, 2400),
       onDrop: (item) => {
         const removed = this.profile.remove(item.uid);
@@ -352,7 +360,7 @@ export class App {
     this.selectAbility(ELEMENTS[0], { silent: true });
     // Whoever the platform starts as, their spells go on the bar.
     const startId = platform.getActiveCharacter()?.id ?? 'caster';
-    this.profile.setClass(startId, classBonuses(startId));
+    this.profile.setClass(startId, classBonuses(startId), classArmor(startId));
 
     this._focusPoint = new Vector3();
     /** Reused each frame by `readMovement`; movement is polled, not evented. */
@@ -891,7 +899,7 @@ export class App {
     if (!character) return;
 
     platform.setCharacter(characterId);
-    this.profile?.setClass(characterId, classBonuses(characterId));
+    this.profile?.setClass(characterId, classBonuses(characterId), classArmor(characterId));
 
     if (reloadMesh && this._assets && this.character) {
       await this.character.reload(this._assets, character);
@@ -960,6 +968,8 @@ export class App {
     }
 
     const weapon = platform.getActiveWeapon();
+    // A two-handed weapon puts a shield or focus away.
+    this.profile?.setWeapon(weapon);
     this.weaponPanel.setEquipped(weaponId);
     if (this.phase === 'playing') {
       this.hud.showToast(`${weapon?.label ?? weaponId} equipped`);
@@ -1421,6 +1431,8 @@ export class App {
     const ratio = director.maxHealth ? director.health / director.maxHealth : 1;
     director.maxHealth = Math.max(40, settings.combat.playerHealth + stats.health);
     director.armor = stats.armor / 100;
+    director.block = stats.block / 100;
+    director.regen = stats.regen;
     director.health = refill ? director.maxHealth : Math.max(1, Math.round(director.maxHealth * ratio));
     this.character.locomotion.speedBonus = 1 + stats.speed / 100;
   }
@@ -1428,8 +1440,20 @@ export class App {
   _equipItem(item) {
     const equipped = this.profile.equip(item.uid);
     if (!equipped) return;
-    this.selectWeapon(equipped.weapon);
-    this.hud.showToast(`${equipped.name} equipped`);
+    if (equipped.type === 'weapon') this.selectWeapon(equipped.weapon);
+    const idle = equipped.type === 'gear' && !this.profile.isActive(equipped);
+    this.hud.showToast(idle ? `${equipped.name} worn — but it needs a free hand (your weapon takes both)` : `${equipped.name} equipped`, idle ? 3200 : 1800);
+  }
+
+  _unequipGear(slotId) {
+    const item = this.profile.gear[slotId];
+    if (!item) return;
+    if (!this.profile.unequipGear(slotId)) this.hud.showToast('Your bag is full');
+    else this.hud.showToast(`${item.name} taken off`);
+  }
+
+  _wearGear() {
+    this.character?.wearGear(this.profile.gear, (item) => this.profile.isActive(item));
   }
 
   _drink(kind) {
@@ -1475,13 +1499,15 @@ export class App {
         gold: this.profile.gold,
         potions: this.profile.potions,
         weapon: this.profile.equipped?.name ?? platform.getActiveWeapon()?.label ?? 'bare hands',
+        gear: Object.values(this.profile.gear).filter(Boolean).map((g) => g.name),
         skills: this.profile.skills
       }
     };
   }
 
   _rewardItem(rarity) {
-    return rarity === 'none' ? null : makeWeapon(rarity);
+    if (rarity === 'none') return null;
+    return Math.random() < 0.5 ? makeWeapon(rarity) : makeGear(rarity);
   }
 
   _npcActions(npc) {
@@ -1503,6 +1529,7 @@ export class App {
           g.type === 'gold' ? makeGold(g.amount)
           : g.type === 'health' || g.type === 'focus' ? makePotion(g.type)
           : g.type === 'book' ? makeBook(null, Math.random, treeSpells(profile.classId))
+          : g.type === 'gear' ? makeGear(g.rarity === 'none' ? 'magic' : g.rarity)
           : makeWeapon(g.rarity === 'none' ? 'magic' : g.rarity);
         return `${npc.data.name} gives you ${give(item)}.`;
       },
@@ -1645,6 +1672,7 @@ export class App {
 
     this.loading.setProgress(0.6, 'Loading character…');
     await this.character.load(assets);
+    this._wearGear();
 
     this.loading.setProgress(0.65, 'Waking the horde…');
     this.monsters.warmUp();
