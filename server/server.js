@@ -50,8 +50,16 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.hdr': 'image/vnd.radiance',
   '.fbx': 'application/octet-stream',
-  '.map': 'application/json; charset=utf-8'
+  '.map': 'application/json; charset=utf-8',
+  '.gltf': 'model/gltf+json',
+  '.glb': 'model/gltf-binary',
+  '.bin': 'application/octet-stream',
+  '.webp': 'image/webp',
+  '.ktx2': 'image/ktx2'
 };
+
+/** The downloaded 3D asset library (`npm run library:fetch`), served at /library/. */
+const LIBRARY_ROOT = resolve(process.env.LIBRARY_ROOT ?? './library');
 
 const json = (res, status, body) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -83,9 +91,15 @@ function readJson(req) {
   });
 }
 
-async function upstream(path, init = {}) {
+/** A caller may ask for a longer wait (map design) — never past 3 minutes. */
+const requestTimeout = (payload) => {
+  const asked = Number(payload?.timeoutMs);
+  return Number.isFinite(asked) && asked > 0 ? Math.min(Math.max(asked, 5_000), 180_000) : undefined;
+};
+
+async function upstream(path, init = {}, timeoutMs = TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(`${BASE_URL}${path}`, {
       ...init,
@@ -139,7 +153,7 @@ async function handleApi(req, res, route) {
           // scratchpad is pure latency here.
           chat_template_kwargs: { enable_thinking: false }
         })
-      });
+      }, requestTimeout(payload));
       const body = await response.text();
       res.writeHead(response.status, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(body);
@@ -152,6 +166,28 @@ async function handleApi(req, res, route) {
   }
 
   return json(res, 404, { error: 'unknown route' });
+}
+
+/** Serve one library file. Unlike the app, a miss is a plain 404, never index.html. */
+async function serveLibrary(res, pathname) {
+  let relative;
+  try {
+    relative = normalize(decodeURIComponent(pathname)).replace(/^([/\\]|\.\.[/\\])+/, '');
+  } catch {
+    return json(res, 400, { error: 'bad path' });
+  }
+  const filePath = join(LIBRARY_ROOT, relative);
+  if (!filePath.startsWith(LIBRARY_ROOT)) return json(res, 403, { error: 'forbidden' });
+  try {
+    const data = await readFile(filePath);
+    res.writeHead(200, {
+      'Content-Type': MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream',
+      'Cache-Control': filePath.endsWith('catalog.json') ? 'no-cache' : 'public, max-age=86400'
+    });
+    res.end(data);
+  } catch {
+    json(res, 404, { error: 'not found' });
+  }
 }
 
 /** Serve one file out of `STATIC_ROOT`, with the traversal guard. */
@@ -202,6 +238,10 @@ const server = http.createServer(async (req, res) => {
     return handleApi(req, res, url.pathname.slice('/api/ai'.length).replace(/\/+$/, ''));
   }
 
+  if (url.pathname.startsWith('/library/')) {
+    return serveLibrary(res, url.pathname.slice('/library'.length));
+  }
+
   return serveStatic(req, res, url.pathname === '/' ? '/index.html' : url.pathname);
 });
 
@@ -209,4 +249,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[bridge] listening on :${PORT}`);
   console.log(`[bridge] model     ${MODEL || '(unset)'} @ ${BASE_URL || '(unset)'}`);
   console.log(`[bridge] static    ${STATIC_ROOT}`);
+  console.log(`[bridge] library   ${LIBRARY_ROOT}`);
 });

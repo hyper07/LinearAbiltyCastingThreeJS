@@ -14,7 +14,10 @@ export class MainMenu {
    *   onStart: () => void,
    *   onCharacterChange?: (characterId: string) => Promise<void>,
    *   getCharacter?: () => import('../animation/CharacterController.js').CharacterController,
-   *   getEnvironment?: () => import('../world/Environment.js').Environment
+   *   getEnvironment?: () => import('../world/Environment.js').Environment,
+   *   onGenerateWorld?: (description: string) => Promise<{ plan: object, source: string, note?: string, stats: object }>,
+   *   onClassicWorld?: () => void,
+   *   getLibrary?: () => import('../library/Catalog.js').Catalog
    * }} callbacks
    */
   constructor(host, callbacks) {
@@ -22,6 +25,10 @@ export class MainMenu {
     this.onCharacterChange = callbacks.onCharacterChange ?? (async () => {});
     this.getCharacter = callbacks.getCharacter ?? (() => null);
     this.getEnvironment = callbacks.getEnvironment ?? (() => null);
+    this.onGenerateWorld = callbacks.onGenerateWorld ?? null;
+    this.onClassicWorld = callbacks.onClassicWorld ?? (() => {});
+    this.getLibrary = callbacks.getLibrary ?? (() => null);
+    this._worldBusy = false;
     this._visible = false;
     this._characterId = platform.getActiveCharacter()?.id ?? 'caster';
     this._weaponId = platform.getActiveWeaponId() ?? 'arcane-wand';
@@ -47,6 +54,7 @@ export class MainMenu {
           <button class="main-menu__nav-btn" type="button" data-panel="appearance">Appearance</button>
           <button class="main-menu__nav-btn" type="button" data-panel="skills">Skill Tree</button>
           <button class="main-menu__nav-btn" type="button" data-panel="stats">Stats</button>
+          <button class="main-menu__nav-btn" type="button" data-panel="world">World</button>
         </nav>
 
         <div class="main-menu__body">
@@ -100,6 +108,25 @@ export class MainMenu {
               <h2 class="main-menu__section-title">Character Stats</h2>
               <div class="main-menu__stats" data-stats></div>
             </div>
+
+            <div class="main-menu__panel" data-panel="world" hidden>
+              <h2 class="main-menu__section-title">Battlefield</h2>
+              <p class="main-menu__panel-hint" data-world-library>Checking the asset library…</p>
+              <textarea
+                class="main-menu__world-prompt"
+                data-world-prompt
+                rows="3"
+                maxlength="300"
+                placeholder="Describe a map — e.g. a snowy mountain pass with a ruined watchtower at dawn"
+                spellcheck="false"
+              ></textarea>
+              <div class="main-menu__world-chips" data-world-chips></div>
+              <div class="main-menu__world-actions">
+                <button class="main-menu__world-btn main-menu__world-btn--primary" type="button" data-world-generate>Generate map</button>
+                <button class="main-menu__world-btn" type="button" data-world-classic>Classic keep</button>
+              </div>
+              <div class="main-menu__world-result" data-world-result aria-live="polite"></div>
+            </div>
           </section>
         </div>
 
@@ -127,6 +154,12 @@ export class MainMenu {
     this.navBtns = [...this.root.querySelectorAll('.main-menu__nav-btn')];
     this.summaryEl = this.root.querySelector('[data-summary]');
     this.startBtn = this.root.querySelector('[data-start]');
+    this.worldLibraryEl = this.root.querySelector('[data-world-library]');
+    this.worldPromptEl = this.root.querySelector('[data-world-prompt]');
+    this.worldChipsEl = this.root.querySelector('[data-world-chips]');
+    this.worldGenerateBtn = this.root.querySelector('[data-world-generate]');
+    this.worldClassicBtn = this.root.querySelector('[data-world-classic]');
+    this.worldResultEl = this.root.querySelector('[data-world-result]');
 
     this.preview = new CharacterPreview(this.previewMount, {
       getCharacter: () => this.getCharacter(),
@@ -146,6 +179,7 @@ export class MainMenu {
     }
 
     this.startBtn.addEventListener('click', () => this._start());
+    this._bindWorldPanel();
     this.weaponSearchEl.addEventListener('input', () => {
       this._weaponQuery = this.weaponSearchEl.value.trim().toLowerCase();
       this._renderWeapons();
@@ -270,6 +304,120 @@ export class MainMenu {
     if (panelId === 'skills') this._renderSkillTree();
     if (panelId === 'stats') this._renderStats();
     if (panelId === 'appearance') this._renderAppearancePanel();
+    if (panelId === 'world') this._renderLibraryStatus();
+  }
+
+  /* ---- World: AI-built maps from the asset library ---- */
+
+  _bindWorldPanel() {
+    const presets = [
+      'Pine forest at dawn',
+      'Snowy mountain pass with a ruined watchtower',
+      'Desert canyon with ancient columns',
+      'City street at dusk',
+      'Medieval village with a castle',
+      'Haunted graveyard in fog',
+      'Torch-lit dungeon',
+      'Pirate cove on the coast'
+    ];
+    this.worldChipsEl.innerHTML = presets
+      .map((p) => `<button class="main-menu__world-chip" type="button">${p}</button>`)
+      .join('');
+    this.worldChipsEl.addEventListener('click', (event) => {
+      const chip = event.target.closest('.main-menu__world-chip');
+      if (!chip) return;
+      this.worldPromptEl.value = chip.textContent;
+      this._generateWorld();
+    });
+    this.worldGenerateBtn.addEventListener('click', () => this._generateWorld());
+    this.worldPromptEl.addEventListener('keydown', (event) => {
+      // Enter generates; Shift+Enter keeps a newline. Keys never leak to the game.
+      event.stopPropagation();
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        this._generateWorld();
+      }
+    });
+    this.worldClassicBtn.addEventListener('click', () => {
+      if (this._worldBusy) return;
+      this.onClassicWorld();
+      delete this.summaryEl.dataset.world;
+      this._updateSummary();
+      this._setWorldResult('Back in the classic ruined keep.');
+    });
+  }
+
+  async _renderLibraryStatus() {
+    const catalog = this.getLibrary();
+    if (!catalog) return;
+    await catalog.ready;
+    const status = await catalog.status();
+    // The downloader re-indexes after each source; pick each new pack up.
+    if (status && (status.models ?? 0) > catalog.size) await catalog.refresh();
+
+    const ready = catalog.size
+      ? `The AI builds your map from ${catalog.size.toLocaleString()} downloaded 3D models` +
+        (catalog.materials.length ? ` and ${catalog.materials.length} ground textures` : '')
+      : 'No 3D models downloaded yet — maps use simple placeholder shapes for now';
+    if (status?.state === 'running') {
+      const done = status.done?.length ?? 0;
+      const total = status.sources?.length ?? 0;
+      const gb = ((status.bytes ?? 0) / 1024 ** 3).toFixed(1);
+      this.worldLibraryEl.textContent =
+        `${ready}. Downloading the library: ${done}/${total} sources done` +
+        `${status.current ? `, now ${status.current}` : ''} (${gb} GB so far)…`;
+      // Keep polling while the panel is open; stop when the menu or panel closes.
+      clearTimeout(this._libraryPoll);
+      this._libraryPoll = setTimeout(() => {
+        if (this._visible !== false && this._activePanel === 'world') this._renderLibraryStatus();
+      }, 4000);
+    } else {
+      this.worldLibraryEl.textContent = catalog.size
+        ? `${ready}.`
+        : `${ready}. Restart \`npm run dev\` (or run \`npm run library:fetch\`) to download them.`;
+    }
+  }
+
+  _setWorldResult(text, lines = []) {
+    this.worldResultEl.replaceChildren();
+    const head = document.createElement('strong');
+    head.textContent = text;
+    this.worldResultEl.appendChild(head);
+    for (const line of lines) {
+      const div = document.createElement('div');
+      div.textContent = line;
+      this.worldResultEl.appendChild(div);
+    }
+  }
+
+  async _generateWorld() {
+    if (this._worldBusy || !this.onGenerateWorld) return;
+    this._worldBusy = true;
+    this.worldGenerateBtn.disabled = true;
+    this.startBtn.disabled = true;
+    this.root.classList.add('is-building-world');
+    this._setWorldResult('Designing the map…');
+    try {
+      const { plan, source, note, stats } = await this.onGenerateWorld(this.worldPromptEl.value);
+      const lines = [
+        `${source === 'ai' ? 'Designed by the AI model' : `Designed offline from keywords${note ? ` (${note})` : ''}`} · ${plan.theme}, ${plan.relief}, ${plan.timeOfDay}`,
+        `${stats.placements.toLocaleString()} objects from ${stats.fromLibrary} library models` +
+          (stats.packs?.length ? ` (${stats.packs.slice(0, 4).join(', ')}${stats.packs.length > 4 ? '…' : ''})` : '')
+      ];
+      if (stats.fallbacks) lines.push(`${stats.fallbacks} layer(s) had no matching model and used placeholders.`);
+      lines.push('Press Start Game to fight in it.');
+      this._setWorldResult(plan.name, lines);
+      this.summaryEl.dataset.world = plan.name;
+      this._updateSummary();
+    } catch (error) {
+      console.error(error);
+      this._setWorldResult('Could not build that map.', [String(error?.message ?? error)]);
+    } finally {
+      this._worldBusy = false;
+      this.worldGenerateBtn.disabled = false;
+      this.startBtn.disabled = false;
+      this.root.classList.remove('is-building-world');
+    }
   }
 
   _renderAppearancePanel() {
@@ -555,7 +703,8 @@ export class MainMenu {
   _updateSummary() {
     const character = platform.characters.get(this._characterId);
     const weapon = platform.weapons.get(this._weaponId);
-    this.summaryEl.textContent = `${character?.label ?? 'Caster'} · ${weapon?.label ?? 'Unarmed'}`;
+    const world = this.summaryEl.dataset.world;
+    this.summaryEl.textContent = `${character?.label ?? 'Caster'} · ${weapon?.label ?? 'Unarmed'}${world ? ` · ${world}` : ''}`;
   }
 
   /** @returns {{ characterId: string, weaponId: string }} */

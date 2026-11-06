@@ -1,4 +1,94 @@
+import { createReadStream, statSync } from 'node:fs';
+import { extname, resolve, sep } from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
+import { libraryState, startFetch } from './scripts/library/ensure.mjs';
+
+const LIBRARY_MIME = {
+  '.json': 'application/json; charset=utf-8',
+  '.gltf': 'model/gltf+json',
+  '.glb': 'model/gltf-binary',
+  '.bin': 'application/octet-stream',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ktx2': 'image/ktx2',
+  '.md': 'text/markdown; charset=utf-8'
+};
+
+/**
+ * Serve the downloaded asset library (`./library`, see `npm run library:fetch`)
+ * at `/library/*`. It is gigabytes and git-ignored, so it is deliberately not
+ * in `public/` — that would copy all of it into every `vite build`.
+ *
+ * On `npm run dev`, a missing or half-finished library starts downloading in
+ * the background straight away. The server does not wait for it: the game
+ * runs on placeholder shapes until the first pack lands, and the World menu
+ * shows progress and picks up each pack as it arrives.
+ */
+function assetLibrary() {
+  const root = resolve('library');
+  const autoFetch = (server) => {
+    const state = libraryState();
+    if (!state.needed) return;
+    const log = server.config.logger;
+    log.info(`[library] ${state.reason} — downloading the open 3D asset library in the background (~7 GB, resumable).`, { timestamp: true });
+    log.info('[library] The game works meanwhile; set LIBRARY_AUTO_FETCH=0 in .env to turn this off.', { timestamp: true });
+    const child = startFetch({
+      background: true,
+      // Per-model chatter would drown the dev server; keep progress and problems.
+      onLine: (line) => {
+        if (/\d+\/\d+$|starting|assets$|models$|failed|skip|Catalog|Downloaded|budget|already running/.test(line)) {
+          log.info(`[library] ${line.replace(/^\[library\]\s*/, '')}`, { timestamp: true });
+        }
+      }
+    });
+    child.on('close', (code) => {
+      log.info(code ? `[library] download stopped (exit ${code}) — it resumes on the next \`npm run dev\`.` : '[library] download complete.', { timestamp: true });
+    });
+    server.httpServer?.on('close', () => child.kill());
+  };
+  const middleware = (server) => {
+    server.middlewares.use('/library', (req, res, next) => {
+      let pathname;
+      try {
+        pathname = decodeURIComponent((req.url ?? '/').split('?')[0]);
+      } catch {
+        res.statusCode = 400;
+        return res.end();
+      }
+      const file = resolve(root, '.' + pathname);
+      if (file !== root && !file.startsWith(root + sep)) {
+        res.statusCode = 403;
+        return res.end();
+      }
+      let stats;
+      try {
+        stats = statSync(file);
+      } catch {
+        stats = null;
+      }
+      if (!stats?.isFile()) {
+        // A missing catalog is normal before the first fetch; the game falls back.
+        res.statusCode = 404;
+        return res.end();
+      }
+      res.setHeader('Content-Type', LIBRARY_MIME[extname(file).toLowerCase()] ?? 'application/octet-stream');
+      res.setHeader('Content-Length', stats.size);
+      res.setHeader('Cache-Control', file.endsWith('catalog.json') ? 'no-cache' : 'public, max-age=86400');
+      createReadStream(file).pipe(res);
+      void next;
+    });
+  };
+  return {
+    name: 'asset-library',
+    configureServer: (server) => {
+      middleware(server);
+      autoFetch(server);
+    },
+    configurePreviewServer: middleware
+  };
+}
 
 /**
  * Dev/preview-only bridge to the OpenAI-compatible LLM the sandbox talks to.
@@ -20,13 +110,19 @@ import { defineConfig, loadEnv } from 'vite';
  * back to its local intent parser, so a built bundle still understands typed
  * commands, just without the language model.
  */
+/** A caller may ask for a longer wait (map design) — never past 3 minutes. */
+const requestTimeout = (payload) => {
+  const asked = Number(payload?.timeoutMs);
+  return Number.isFinite(asked) && asked > 0 ? Math.min(Math.max(asked, 5_000), 180_000) : undefined;
+};
+
 function llmBridge(env) {
   const baseUrl = (env.LLM_PLATFORM_BASE_URL ?? '').replace(/\/+$/, '');
   const apiKey = env.LLM_API_KEY ?? '';
   const defaultModel = env.LLM_MODEL1 ?? '';
   const fastModel = env.LLM_MODEL2 ?? defaultModel;
   /** A local 4B model on a busy machine can take a while to warm up. */
-  const TIMEOUT_MS = 45_000;
+  const TIMEOUT_MS = Number(env.LLM_TIMEOUT_MS) || 45_000;
 
   const send = (res, status, body) => {
     res.statusCode = status;
@@ -55,9 +151,9 @@ function llmBridge(env) {
       req.on('error', reject);
     });
 
-  const upstream = async (path, init = {}) => {
+  const upstream = async (path, init = {}, timeoutMs = TIMEOUT_MS) => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       return await fetch(`${baseUrl}${path}`, {
         ...init,
@@ -118,7 +214,7 @@ function llmBridge(env) {
               // rather than parsed out of the answer downstream.
               chat_template_kwargs: { enable_thinking: false }
             })
-          });
+          }, requestTimeout(payload));
           const body = await response.text();
           res.statusCode = response.status;
           res.setHeader('Content-Type', 'application/json');
@@ -147,6 +243,10 @@ export default defineConfig(({ mode }) => {
   // these must stay server-side, so they are deliberately not exposed to client
   // code through `import.meta.env`.
   const env = loadEnv(mode, process.cwd(), '');
+  // The library downloader reads these from the process, so .env can set them too.
+  for (const key of ['LIBRARY_AUTO_FETCH', 'LIBRARY_MAX_GB']) {
+    if (env[key] !== undefined && process.env[key] === undefined) process.env[key] = env[key];
+  }
 
   return {
     base: './',
@@ -162,6 +262,6 @@ export default defineConfig(({ mode }) => {
     },
     // Large binary assets (FBX / HDR) live in /public and are served untouched.
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
-    plugins: [llmBridge(env)]
+    plugins: [llmBridge(env), assetLibrary()]
   };
 });

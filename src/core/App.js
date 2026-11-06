@@ -10,6 +10,10 @@ import { Ground } from '../world/Ground.js';
 import { DustMotes } from '../world/DustMotes.js';
 import { ContactShadows } from '../world/ContactShadows.js';
 import { Ruins } from '../world/Ruins.js';
+import { ComposedWorld } from '../world/ComposedWorld.js';
+import { Catalog } from '../library/Catalog.js';
+import { ModelLibrary } from '../library/ModelLibrary.js';
+import { MapPlanner } from '../ai/MapPlanner.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -111,12 +115,21 @@ export class App {
     this.dust = new DustMotes();
     this.contactShadows = new ContactShadows(this.renderer, { size: 2.6, height: 2.4, blur: 2.0 });
     this.ruins = new Ruins(this.environment, { particles: this.particles });
+    /* The downloaded asset library (npm run library:fetch) and the AI-built map
+       made from it. `world` is whichever of the keep and the composed map the
+       fight is standing in; everything that collides or breaks asks it. */
+    this.catalog = new Catalog();
+    this.modelLibrary = new ModelLibrary(this.catalog);
+    this.composed = new ComposedWorld(this.environment, { catalog: this.catalog, library: this.modelLibrary });
+    this.mapPlanner = new MapPlanner(this.catalog);
+    this.world = this.ruins;
 
     this.scene.add(
       this.ground.mesh,
       this.dust.points,
       this.contactShadows.group,
-      this.ruins.group
+      this.ruins.group,
+      this.composed.group
     );
     this.dust.setPixelRatio(this.renderer.gl.getPixelRatio());
 
@@ -181,7 +194,10 @@ export class App {
       onCharacterChange: (characterId) =>
         this.selectCharacter(characterId, { reloadMesh: true }),
       getCharacter: () => this.character,
-      getEnvironment: () => this.environment
+      getEnvironment: () => this.environment,
+      onGenerateWorld: (description) => this.generateWorld(description),
+      onClassicWorld: () => this.useClassicWorld(),
+      getLibrary: () => this.catalog
     });
     this.gameMenu = new GameMenuButton(hudRoot, {
       onPause: () => this.togglePause(),
@@ -611,12 +627,65 @@ export class App {
     this.character.castLunge();
   }
 
+  /* ------------------------------------------------------------------ */
+  /* AI-built maps                                                       */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Plan a map from a sentence (LM Studio if it is up, keywords if not) and
+   * build it from the asset library. Only between runs — the menu calls it.
+   *
+   * @returns {Promise<{ plan: object, source: string, note?: string, stats: object }>}
+   */
+  async generateWorld(description) {
+    await this.catalog.ready;
+    const result = await this.mapPlanner.plan(description);
+    const stats = await this.buildWorld(result.plan);
+    return { ...result, stats };
+  }
+
+  /** Build a given MapPlan (already normalised) and stand the fight in it. */
+  async buildWorld(plan, { seed } = {}) {
+    await this.catalog.ready;
+    this.clearEffects();
+    const stats = await this.composed.build(plan, { seed });
+    this._useWorld(this.composed);
+    // New library materials compile here, not on the first frame of the fight.
+    try {
+      await this.renderer.gl.compileAsync(this.scene, this.camera);
+    } catch {
+      /* compile is an optimisation; a failure just means a hitch later */
+    }
+    return stats;
+  }
+
+  /** Back to the hand-built ruined keep. */
+  useClassicWorld() {
+    this.clearEffects();
+    this.composed.clear();
+    this._useWorld(this.ruins);
+  }
+
+  _useWorld(world) {
+    this.world = world;
+    const classic = world === this.ruins;
+    this.ruins.group.visible = classic;
+    this.ground.mesh.visible = classic;
+    this.composed.group.visible = !classic;
+    this.combat.ctx.ruins = world;
+    this.director.ctx.ruins = world;
+    this.monsters.obstacles = world.obstacles;
+    const locomotion = this.character.locomotion;
+    locomotion.obstacles = world.obstacles;
+    locomotion.props = world.props;
+  }
+
   clearEffects() {
     this.aim.cancel();
     this.abilities.clear();
     this.combat.reset();
     this.monsters.despawnAll();
-    this.ruins.restoreProps();
+    this.world.restoreProps();
     this.particles.reset();
     this.decals.clear();
     this.fissures.clear();
@@ -843,7 +912,7 @@ export class App {
       }
 
       this.ground.update(this.elapsed);
-      this.ruins.update(dt, this.elapsed);
+      this.world.update(dt, this.elapsed);
       this.dust.update(this.elapsed, this.character.position);
 
       /* ---- the fight ----
@@ -970,6 +1039,7 @@ export class App {
     this.combat.dispose();
     this.monsters.dispose();
     this.ruins.dispose();
+    this.composed.dispose();
     this.particles.dispose();
     this.decals.dispose();
     this.fissures.dispose();

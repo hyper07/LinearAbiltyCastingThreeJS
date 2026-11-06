@@ -137,3 +137,6 @@ dist
 
 # Local VFX capture scratch (dev tooling)
 .captures/
+
+# Downloaded 3D asset library (npm run library:fetch) — fetched, never committed
+/library/

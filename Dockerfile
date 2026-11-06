@@ -7,6 +7,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# The 3D asset library is gigabytes: it is mounted at run time (docker-compose.yml),
+# never downloaded into or baked into the image.
+ENV LIBRARY_AUTO_FETCH=0
 # The bundle is static and carries no credentials — the API key never leaves
 # the runtime stage below.
 RUN npm run build
@@ -17,6 +20,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8787
 ENV STATIC_ROOT=/app/dist
+ENV LIBRARY_ROOT=/app/library
 
 # The bridge has no dependencies at all — Node built-ins only — so nothing is
 # installed here. Copy the server and the built client, and that is the image.

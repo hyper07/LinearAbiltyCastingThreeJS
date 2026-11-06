@@ -11,7 +11,8 @@ a local AI model in [LM Studio](https://lmstudio.ai) or any OpenAI-compatible se
 </p>
 
 > **On Windows?** Jump to [Running on Windows](#running-on-windows). **Setting up the AI?** See
-> [Wiring the model](#wiring-the-model).
+> [Wiring the model](#wiring-the-model). **AI-built maps?** See
+> [AI-built maps and the 3D asset library](#ai-built-maps-and-the-3d-asset-library).
 
 Six abilities and two ways to aim them. Four are **line casts**: press the key to arm, a
 League-of-Legends style arrow appears on the ground and swings with the mouse, click to fire. The
@@ -110,6 +111,11 @@ npm run dev
 
 Then open the URL Vite prints (default <http://127.0.0.1:5173>).
 
+**The first `npm run dev` also downloads the 3D asset library** (about 7 GB of free CC0 models, see
+[AI-built maps](#ai-built-maps-and-the-3d-asset-library)) in the background. The game is playable
+straight away and picks up each pack as it lands; later starts skip the download. `npm run build`
+downloads it first if it is missing. Set `LIBRARY_AUTO_FETCH=0` in `.env` to turn this off.
+
 ```bash
 npm run build
 ```
@@ -156,6 +162,10 @@ npm run dev
 Open <http://127.0.0.1:5173> in **Chrome** or **Edge**, pick a loadout and press **Start Game**.
 Stop the server with `Ctrl+C`.
 
+The first start also downloads the 3D asset library (~7 GB) in the background; lines starting
+with `[library]` in the terminal show its progress. Make sure the drive has about 10 GB free. If
+you stop the server midway, the next `npm run dev` resumes where it left off.
+
 **Optional: Diablo-class character models.** `npm run fetch-characters` downloads them (see
 [Assets](#assets)). It works the same on Windows.
 
@@ -194,6 +204,8 @@ ask for permission the first time. *Private networks* is enough. With
 | Black canvas, or very low FPS on a laptop | The browser is on the integrated GPU or has hardware acceleration off. Turn on *Settings → System → Use graphics acceleration* in Chrome/Edge. Then in *Windows Settings → System → Display → Graphics*, set the browser to **High performance**. `chrome://gpu` should list WebGL as *Hardware accelerated*. |
 | `Port 5173 is already in use` | Another dev server is running. Close it, or use `npm run dev -- --port 5174`. |
 | Chat panel still says "reflex only" after creating `.env` | Restart `npm run dev`. Then check that LM Studio's server is **running** with a model **loaded**, and that <http://127.0.0.1:1234/v1/models> opens in the browser. `LLM_MODEL1` must match an id listed there, and the URL must end in `/v1`. If LM Studio is on another PC, enable **Serve on Local Network** there and allow LM Studio through that PC's Windows Firewall. |
+| `[library] … failed` or `skip …: tar exited` in the terminal | The library downloader unpacks zips with Windows' built-in `tar` (Windows 10 1803 or newer). Update Windows, or install 7-Zip and run `npm run library:fetch` again. Failed packs are skipped; the rest still work. |
+| Maps are made of plain grey boxes and cones | The asset library has not finished downloading (World tab shows progress), or was turned off with `LIBRARY_AUTO_FETCH=0`. Run `npm run library:fetch`. |
 | Console shows `[AssetLoader] failed: ./models/walk.fbx` / `run.fbx` | Expected if you haven't added the Mixamo walk/run clips. The game falls back to a procedural gait (see below). |
 
 ### Assets
@@ -713,8 +725,79 @@ Compose reads the same `.env`. The model is *not* in the container — it lives 
 | `LLM_PLATFORM_BASE_URL` | OpenAI-compatible base URL |
 | `LLM_API_KEY` | Sent as `Authorization: Bearer`, never to the browser |
 | `LLM_MODEL1` | Default planning model |
-| `LLM_TIMEOUT_MS` | Upstream timeout (default `45000`) |
+| `LLM_TIMEOUT_MS` | Upstream timeout for chat orders (default `45000`); map design asks for up to 150 s |
+| `LIBRARY_ROOT` | The downloaded asset library, served at `/library/` (default `./library`; in Docker, the `./library` folder mounted read-only by `docker-compose.yml`) |
 | `ALLOWED_ORIGINS` | Comma-separated CORS allowlist. Only needed if the page is served from a different origin; same-origin needs none |
+
+---
+
+## AI-built maps and the 3D asset library
+
+Open the **World** tab in the main menu, describe a battlefield — *"a snowy mountain pass with a
+ruined watchtower at dawn"* — and press **Generate map**. Your LM Studio model designs the map;
+the game builds it from real, downloaded 3D models (trees, rocks, cliffs, houses, castles, city
+blocks, ruins, props, vehicles…) and you fight in it when you press **Start Game**.
+**Classic keep** goes back to the hand-built ruins.
+
+### How a map is made
+
+1. **The library.** `npm run library:fetch` (run for you by `npm run dev` / `npm run build`)
+   downloads open 3D packs into `library/` and indexes every model into `library/catalog.json`:
+   its real size, triangle count, whether it is rigged, a category (`tree`, `rock`, `cliff`,
+   `building`, `wall`, `ruin`, `structure`, `prop`, `light`, `vehicle`, …) and themes (`forest`,
+   `snow`, `desert`, `city`, `medieval`, `dungeon`, `halloween`, `coast`, …).
+2. **The plan.** `src/ai/MapPlanner.js` tells the model what the library holds and asks for a
+   small JSON *map plan* (`src/world/MapPlan.js`): ground, relief, edge, time of day, fog, up to 8
+   placement layers (`category` + keywords + zone + density) and up to 4 landmarks. If no model is
+   reachable, a keyword planner writes the plan instead, so the button always works.
+3. **The build.** `src/world/ComposedWorld.js` shapes terrain outside the arena, picks models for
+   each layer from the catalog (preferring the plan's theme and packs already on the map, so a map
+   keeps one look), sizes them sensibly per category and zone, places them as GPU instances, and
+   gives monsters and the caster colliders to walk around. The 25 m arena itself always stays flat.
+
+Rigged characters and creatures from the library are catalogued too (`character`, `creature`)
+but not used as scenery yet.
+
+### Sources
+
+| Source | What | Licence | How it is fetched |
+| --- | --- | --- | --- |
+| [KayKit](https://github.com/KayKit-Game-Assets) | ~900 stylised models: dungeon, medieval hex, city, furniture, space base, characters, skeletons | CC0 | GitHub |
+| [Polygonal Mind](https://opensource3dassets.com) | ~1,000 GLBs in 18 themed collections, incl. 60 rigged creatures | CC0 | GitHub (Open Source 3D Assets registry) |
+| [Poly Haven](https://polyhaven.com/models) | ~520 photoscanned models: rocks, cliffs, trees, plants, props, buildings | CC0 | Official API |
+| [ambientCG](https://ambientcg.com) | Ground materials (grass, snow, sand, rock, mud…) for terrain | CC0 | Official API |
+| **Inbox** | Anything you download yourself — Kenney, Quaternius, itch.io, Sketchfab | Per pack | Drop the `.zip` (or folder) into `library/inbox/` and run `npm run library:index` |
+
+Kenney and Quaternius block automated downloads, so they come in through the inbox: download the
+packs from their sites by hand (choose the **glTF/GLB** version) and drop the zips into
+`library/inbox/`. Packs whose names start with Kenney, Quaternius or KayKit are recorded as CC0;
+any other pack records its own `LICENSE` file, or "unknown — check before sharing".
+`library/CREDITS.md` lists every pack, licence and author.
+
+### Commands and settings
+
+```bash
+npm run library:fetch                            # everything, resumable, 40 GB cap
+npm run library:fetch -- --sources kaykit,polyhaven
+npm run library:fetch -- --max-gb 10 --res 2k    # cap and Poly Haven texture size
+npm run library:index                            # re-index after adding inbox packs
+```
+
+| `.env` variable | Meaning |
+| --- | --- |
+| `LIBRARY_AUTO_FETCH` | `0` stops `npm run dev` / `npm run build` from downloading the library |
+| `LIBRARY_MAX_GB` | Disk cap for the download (default `40`; the full library is about 7 GB) |
+
+The library is **git-ignored** and never committed: it is several gigabytes, and it is cheaper
+to fetch than to clone. Docker builds skip the download and mount `./library` instead.
+
+### Known limits
+
+- A 4B model sometimes asks for odd layers; the plan is clamped and repaired, but a map can still
+  contain an out-of-place prop. Re-generate, or name what you want ("pine", "tavern", "column").
+- Planning takes ~20 s with Qwen3-4B on LM Studio (longer while the model loads).
+- The packs mix styles (stylised KayKit next to photoscanned Poly Haven); the composer leans
+  toward one pack per map, but does not guarantee it.
 
 ---
 
@@ -841,8 +924,9 @@ All of it switches off: `settings.combat.enabled = false` and the sandbox is exa
 src/
   abilities/      Ability base class (the travelling front), IceAbility, ThunderAbility,
                   MeteorAbility, BeamAbility, SnareAbility, GlacierAbility, pooling manager
-  ai/             AIDirector (the commander: snapshot → constrained plan → casts)
-                  and LocalIntent (the keyword parser that answers first)
+  ai/             AIDirector (the commander: snapshot → constrained plan → casts),
+                  LocalIntent (the keyword parser that answers first) and
+                  MapPlanner (a sentence → a map plan, via the model or keywords)
   animation/      FBX character loading, AnimationMixer, the per-ability cast clips,
                   the procedural cast lunge, Locomotion (the generated gait)
   assets/         Procedural crystal and asteroid geometry, the bolt ribbon strip,
@@ -859,6 +943,8 @@ src/
   game/           Combat (strikes: damage timed to the visual), GameDirector (waves,
                   score, player health, hit-stop), DamageNumbers (floating text)
   input/          InputManager (events) and AimController (both targeting shapes)
+  library/        The asset library in the browser: Catalog (queries), ModelLibrary
+                  (loading + instancing), categories (shared with the indexer)
   loaders/        AssetLoader with a shared LoadingManager
   materials/      IceMaterial, LightningMaterial, MeteorMaterial,
                   VolumetricFireMaterial, BeamMaterial, SnareMaterial, GlacierMaterial
@@ -869,9 +955,12 @@ src/
                   lil-gui editor, preset manager, styles
   utils/          Maths, seeded RNG, colour cache, pooling, disposal, shader patching
   world/          Environment (stage lighting), floor, dust, contact shadows,
-                  Ruins (the procedural keep)
+                  Ruins (the procedural keep), MapPlan (the plan format) and
+                  ComposedWorld (a map built from the library to a plan)
   archive/        The retired four-element sandbox — see archive/README.md
 
+scripts/library/  Asset-library downloader (fetch), indexer (index), auto-download hook (ensure)
+library/          The downloaded 3D asset library + catalog.json (git-ignored, fetched)
 server/           The standalone AI bridge for production (zero dependencies)
 Dockerfile        Two stages: build the client, then serve it beside the bridge
 docker-compose.yml

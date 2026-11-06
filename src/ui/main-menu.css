@@ -865,3 +865,95 @@
 .game-menu-btn__action--exit:hover {
   background: rgba(255, 100, 100, 0.12);
 }
+
+/* ---- World panel: AI-built maps ---- */
+
+.main-menu__world-prompt {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--ui-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.main-menu__world-prompt:focus {
+  outline: none;
+  border-color: var(--ui-accent);
+}
+
+.main-menu__world-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.main-menu__world-chip {
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ui-text-dim);
+  font: inherit;
+  font-size: 11px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.main-menu__world-chip:hover {
+  color: inherit;
+  border-color: var(--ui-accent);
+}
+
+.main-menu__world-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.main-menu__world-btn {
+  appearance: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.main-menu__world-btn--primary {
+  border: none;
+  background: linear-gradient(135deg, #3a8fd4 0%, #7fd6ff 100%);
+  color: #041018;
+}
+
+.main-menu__world-btn:disabled,
+.main-menu__start:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.main-menu__world-result {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ui-text-dim);
+  overflow: auto;
+}
+
+.main-menu__world-result strong {
+  display: block;
+  color: inherit;
+  font-size: 13px;
+  margin-bottom: 2px;
+  color: var(--ui-accent);
+}

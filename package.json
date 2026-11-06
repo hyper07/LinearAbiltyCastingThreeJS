@@ -2,14 +2,17 @@
   "name": "elemental-arena",
   "version": "1.0.0",
   "private": true,
-  "description": "Procedural elemental VFX, a generated ruined keep, monsters that fight back, and a chat commander that casts — Three.js, custom GLSL and a live VFX editor.",
+  "description": "Procedural elemental VFX, a generated ruined keep, monsters that fight back, and a chat commander that casts \u2014 Three.js, custom GLSL and a live VFX editor.",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/library/ensure.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "fetch-characters": "node scripts/fetch-character-models.mjs",
-    "serve": "node server/server.js"
+    "serve": "node server/server.js",
+    "library:fetch": "node scripts/library/fetch.mjs",
+    "library:index": "node scripts/library/index.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",

@@ -23,6 +23,10 @@
 #                    server also works). Copy .env.example to .env to set it
 #                    up. The game runs without it.
 #   Docker Desktop   only for `docker compose up --build`
+#   ~10 GB free disk the 3D asset library (~7 GB) downloads on the first
+#                    `npm run dev`; set LIBRARY_AUTO_FETCH=0 to skip it
+#   tar              built into macOS, Linux and Windows 10 (1803+) — used
+#                    to unpack the asset packs
 #
 # ---- npm libraries (installed automatically by `npm install`) -----------
 #
