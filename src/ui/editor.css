@@ -1055,7 +1055,8 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
   flex-direction: column;
   gap: 12px;
   padding: 18px;
-  background: var(--ui-bg-solid);
+  /* Fully opaque: wave banners and the HUD must not show through the tree. */
+  background: #0c1016;
   border: 1px solid var(--ui-border);
   border-radius: calc(var(--ui-radius) + 4px);
   box-shadow: var(--ui-shadow);

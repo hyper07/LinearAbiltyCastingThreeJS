@@ -56,14 +56,14 @@ starts knowing two tier-1 spells. The rest come from **skill books**:
 
 <p>
   <img src="screenshots/skill-tree-mage.jpg" width="49%" alt="The Mage's skill tree on a new character: Frost, Storm and Arcane branches, three tiers each; Frost Lance and Storm Lance learned on keys 1 and 2" />
-  <img src="screenshots/skill-tree-barbarian.jpg" width="49%" alt="The Barbarian's skill tree on a new character: Fury, Storm and Winter branches, two tiers each; Blink Strike and Storm Lance learned on keys 1 and 2" />
+  <img src="screenshots/skill-tree-barbarian.jpg" width="49%" alt="The Barbarian's skill tree on a new character: Fury, Storm and Winter branches, two tiers each; Cinder Fall and Storm Lance learned on keys 1 and 2" />
 </p>
 
 | Class | Starts with | Branches (tier 1 → 2 → 3) |
 | --- | --- | --- |
 | 🛡 Knight | Frost Lance, Blink Strike | Bulwark: Frost Lance → Glacial Crown · Charge: Blink Strike → Nova Beam · Thunder: Storm Lance → Arc Chain |
 | ✦ Mage | Frost Lance, Storm Lance | Frost: Frost Lance → Hailstorm → Glacial Crown · Storm: Storm Lance → Arc Chain → Voltaic Snare · Arcane: Void Orb → Nova Beam → Cinder Fall |
-| 🪓 Barbarian | Blink Strike, Storm Lance | Fury: Blink Strike → Cinder Fall · Storm: Storm Lance → Arc Chain · Winter: Frost Lance → Hailstorm |
+| 🪓 Barbarian | Cinder Fall, Storm Lance | Fury: Cinder Fall → Blink Strike · Storm: Storm Lance → Arc Chain · Winter: Frost Lance → Hailstorm |
 | 🏹 Amazon | Storm Lance, Frost Lance | Storm: Storm Lance → Arc Chain → Hailstorm · Hunt: Frost Lance → Voltaic Snare · Swift: Blink Strike → Nova Beam |
 | 🗡 Shadowblade | Blink Strike, Void Orb | Shadow: Blink Strike → Voltaic Snare · Void: Void Orb → Arc Chain · Frost: Frost Lance → Hailstorm |
 | ✚ Templar | Void Orb, Storm Lance | Light: Void Orb → Nova Beam → Cinder Fall · Storm: Storm Lance → Arc Chain · Oath: Frost Lance → Glacial Crown |

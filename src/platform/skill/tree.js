@@ -44,9 +44,9 @@ export const CLASS_TREES = {
     ]
   },
   barbarian: {
-    start: ['blink', 'thunder'],
+    start: ['meteor', 'thunder'],
     branches: [
-      { id: 'fury', label: 'Fury', accent: '#ff8a3c', spells: ['blink', 'meteor'] },
+      { id: 'fury', label: 'Fury', accent: '#ff8a3c', spells: ['meteor', 'blink'] },
       { id: 'storm', label: 'Storm', accent: '#7fb4ff', spells: ['thunder', 'chain'] },
       { id: 'winter', label: 'Winter', accent: '#bfe8ff', spells: ['ice', 'hail'] }
     ]

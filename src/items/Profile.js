@@ -71,7 +71,18 @@ export class Profile extends EventEmitter {
 
   /** Make sure a class has a progress record, starting spells on keys. */
   _ensure(classId) {
-    if (this.progress[classId]) return this.progress[classId];
+    const existing = this.progress[classId];
+    if (existing) {
+      // A class's starting spells can change between versions; a saved
+      // character always knows its class's current ones.
+      for (const el of treeFor(classId).start) {
+        if (existing.ranks[el] > 0) continue;
+        existing.ranks[el] = 1;
+        const free = existing.slots.indexOf(null);
+        if (free >= 0) existing.slots[free] = el;
+      }
+      return existing;
+    }
     const ranks = startingRanks(classId);
     for (const el of treeSpells(classId)) {
       const old = this._legacyRanks?.[el] ?? 0;
