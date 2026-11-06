@@ -214,16 +214,16 @@ export class SnareAbility extends Ability {
 
   /** The trap snaps open, then stands. */
   get impactDuration() {
-    return Math.max(0.05, settings.snare.lifetime * settings.global.lifetime);
+    return Math.max(0.05, this.config.lifetime * settings.global.lifetime);
   }
 
   get fadeDuration() {
-    return Math.max(0.05, settings.snare.fadeTime);
+    return Math.max(0.05, this.config.fadeTime);
   }
 
   /** A cage gutters where ice glints — a hard, quantised stutter. */
   lightShimmer() {
-    const c = settings.snare;
+    const c = this.config;
     const step = Math.floor(this.age * Math.max(1, c.lightFlickerSpeed));
     const noise = Math.abs(Math.sin(step * 127.1) * 43758.5453) % 1;
     return 1 - saturate(c.lightFlicker) * noise;
@@ -235,7 +235,7 @@ export class SnareAbility extends Ability {
 
   /** Where the leash leaves the caster, in world space. */
   _handPoint(out) {
-    const c = settings.snare;
+    const c = this.config;
     out
       .copy(this.origin)
       .addScaledVector(this.direction, c.handForward)
@@ -251,7 +251,7 @@ export class SnareAbility extends Ability {
 
   /** The leash's travelling tip. Pinned to the centre once it has arrived. */
   _frontPoint(out) {
-    const c = settings.snare;
+    const c = this.config;
     const u = this.phase === AbilityPhase.TRAVEL ? this.u : 1;
     return this.pointAt(u, out).setY(c.leashCling);
   }
@@ -266,7 +266,7 @@ export class SnareAbility extends Ability {
    * than a second, unrelated animation.
    */
   _openAmount() {
-    const snap = Math.max(0.01, settings.snare.snapTime);
+    const snap = Math.max(0.01, this.config.snapTime);
     const t = saturate(this._openTime / snap);
     const bump = Math.sin(Math.PI * Math.pow(t, 1.7));
     return Easing.outCubic(t) * (1 + 0.16 * bump);
@@ -275,13 +275,13 @@ export class SnareAbility extends Ability {
   _climbAmount() {
     // The pillar is slower off the mark than the ring: the ground goes first,
     // then the air breaks down over it.
-    const snap = Math.max(0.01, settings.snare.snapTime) * 1.7;
+    const snap = Math.max(0.01, this.config.snapTime) * 1.7;
     return Easing.outCubic(saturate(this._openTime / snap));
   }
 
   /** The live footprint, metres. What the indicator measured out. */
   get radius() {
-    return Math.max(0.05, settings.snare.zoneRadius);
+    return Math.max(0.05, this.config.zoneRadius);
   }
 
   /* ------------------------------------------------------------------ */
@@ -318,7 +318,7 @@ export class SnareAbility extends Ability {
    * @param {number} fade 1 while the trap is lit, ramping to 0 as it collapses
    */
   _sync(fade) {
-    const c = settings.snare;
+    const c = this.config;
     const g = settings.global;
     const state = this._state;
     const travelling = this.phase === AbilityPhase.TRAVEL;
@@ -417,7 +417,7 @@ export class SnareAbility extends Ability {
 
   /** The flash at the caster's hand as the leash leaves it. */
   _muzzleFx() {
-    const c = settings.snare;
+    const c = this.config;
     const g = settings.global;
 
     this._handPoint(_pos);
@@ -458,7 +458,7 @@ export class SnareAbility extends Ability {
 
   /** Sparks off the leash and burns under it, while it races to the point. */
   _leashFx(dt) {
-    const c = settings.snare;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -517,7 +517,7 @@ export class SnareAbility extends Ability {
    * @param {number} scale 0..1 — thinned out as the trap collapses
    */
   _fieldFx(dt, scale) {
-    const c = settings.snare;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
     const centre = this._state.centre;
@@ -707,11 +707,11 @@ export class SnareAbility extends Ability {
     this.position.y += 0.3;
 
     this._leashFx(dt);
-    this.ctx.shake.rumble(settings.snare.rumble * settings.global.cameraShake, dt);
+    this.ctx.shake.rumble(this.config.rumble * settings.global.cameraShake, dt);
   }
 
   onImpact() {
-    const c = settings.snare;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -817,7 +817,7 @@ export class SnareAbility extends Ability {
   }
 
   onFade(dt, t) {
-    const c = settings.snare;
+    const c = this.config;
     this._openTime += dt;
 
     // `t` runs 0..1 while the trap stands, then 1..2 while it collapses. Cubic

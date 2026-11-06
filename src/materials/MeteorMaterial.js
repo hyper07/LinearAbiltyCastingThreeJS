@@ -238,7 +238,7 @@ export function createMeteorMaterial(environment) {
    * @param {THREE.Vector3} heading unit direction of travel, world space
    */
   material.userData.sync = (charge = 0, heading = null) => {
-    const c = settings.meteor;
+    const c = material.userData.configOf?.() ?? settings.meteor;
     const g = settings.global;
 
     uniforms.uColorRock.value.copy(getColor(c.colorRock));

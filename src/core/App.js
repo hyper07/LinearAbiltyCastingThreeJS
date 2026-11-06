@@ -28,6 +28,9 @@ import { NpcBrain } from '../npc/NpcBrain.js';
 import { DialoguePanel } from '../ui/DialoguePanel.js';
 import { InventoryPanel } from '../ui/InventoryPanel.js';
 import { SkillTreePanel } from '../ui/SkillTreePanel.js';
+import { ClassForgePanel } from '../ui/ClassForgePanel.js';
+import { designClass, normalizeDesign } from '../ai/ClassDesigner.js';
+import { registerForgedClass, unregisterForgedClass, listForgedClasses, loadForgedClass, saveForgedClass, deleteForgedClass } from '../forge/ClassForge.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -242,8 +245,28 @@ export class App {
       onMyModelsChanged: async () => {
         await this.catalog.refresh();
         this._registerMyModels();
-      }
+      },
+      onOpenForge: () => this.forge.toggle(true)
     });
+    /* ---- the Class forge: AI-designed classes, saved in public/classes ---- */
+    this.forge = new ClassForgePanel(hudRoot, {
+      design: (text) => designClass(text),
+      normalize: (design) => normalizeDesign(design, { id: design.id }),
+      save: async (design) => {
+        registerForgedClass(design, { abilities: this.abilities });
+        await saveForgedClass(design);
+        await this.mainMenu.refreshCharacters();
+      },
+      list: () => listForgedClasses(),
+      load: async (id) => normalizeDesign(await loadForgedClass(id), { id }),
+      remove: async (id) => {
+        await deleteForgedClass(id);
+        unregisterForgedClass(id);
+        await this.mainMenu.refreshCharacters(this.mainMenu._characterId === id ? 'knight' : null);
+      },
+      select: (id) => this.mainMenu.refreshCharacters(id)
+    });
+    this._loadForgedClasses();
     this.story = new StoryPanel(hudRoot);
     this.goalPill = document.createElement('div');
     this.goalPill.className = 'level-goal';
@@ -594,6 +617,18 @@ export class App {
     this.aim.confirm();
   }
 
+  /** Register every saved forged class, then show them in the menu. */
+  async _loadForgedClasses() {
+    for (const entry of await listForgedClasses()) {
+      try {
+        registerForgedClass(normalizeDesign(await loadForgedClass(entry.id), { id: entry.id }), { abilities: this.abilities });
+      } catch (error) {
+        console.warn(`[forge] ${entry.id}: ${error.message}`);
+      }
+    }
+    this.mainMenu._buildCharacters();
+  }
+
   /** Cooldown and Rage both allow it; says why not if they don't. */
   _canCast(element) {
     if ((this.cooldowns.get(element) ?? 0) > 0) {
@@ -627,7 +662,7 @@ export class App {
 
   /** Battle Roar: everything you do hits harder for a few seconds. */
   _buffMultiplier() {
-    return this._roarUntil > this.elapsed ? 1 + (settings.roar.buffDamage ?? 0) / 100 : 1;
+    return this._roarUntil > this.elapsed ? 1 + (this._roarBuff ?? 0) / 100 : 1;
   }
 
   /** A self cast: on the body, facing where it faces. */
@@ -877,10 +912,14 @@ export class App {
     // rig has, and silently ignoring the cast would be worse than standing.
     this.character.locomotion.toggleSit(false);
 
-    if (element === 'blink') distance = this._blinkTo(origin, direction, distance);
+    // Generated skills are built on one of the hand-made ones (`base`) and
+    // behave like it: a skill based on Rampage charges, one based on the
+    // roar buffs, and so on.
+    const kind = ELEMENT_META[element]?.base ?? element;
+    if (kind === 'blink') distance = this._blinkTo(origin, direction, distance);
     // The body really travels: a charge along the ground, a leap through the air.
-    if (element === 'rampage') distance = this._dash(element, origin, direction, distance, 0);
-    if (element === 'leap') distance = this._dash(element, origin, direction, distance, settings.leap.height);
+    if (kind === 'rampage') distance = this._dash(element, origin, direction, distance, 0);
+    if (kind === 'leap') distance = this._dash(element, origin, direction, distance, settings[element].height ?? 3);
     const ability = this.abilities.cast(origin, direction, distance, element);
     const strike = this.combat.open(element, origin, direction, distance);
     // Chain leaps and orb zaps are decided by Combat; the effect draws them.
@@ -889,12 +928,15 @@ export class App {
     // Rage: big skills spend it, a shout gives it.
     this.rage = Math.max(0, this.rage - this._rageCost(element));
     this._gainRage(ELEMENT_META[element]?.rageOnCast ?? 0);
-    if (element === 'roar') this._roarUntil = this.elapsed + (settings.roar.buffSeconds ?? 6);
-    if (element === 'tempest') {
+    if (kind === 'roar') {
+      this._roarUntil = this.elapsed + (settings[element].buffSeconds ?? 6);
+      this._roarBuff = settings[element].buffDamage ?? 25;
+    }
+    if (kind === 'tempest') {
       // The spin stays on the body as it moves.
       if (strike) strike.followTarget = this.character.position;
       if (ability) ability.follow = this.character.position;
-      this._spinUntil = this.elapsed + (settings.combat.tempest?.lasts ?? 2.6);
+      this._spinUntil = this.elapsed + (settings.combat[element]?.lasts ?? 2.6);
       this._spinNext = this.elapsed + 0.7;
     }
     this.cooldowns.set(element, Math.max(0, settings[element].cooldown * this.profile.cooldownMultiplier(element)));

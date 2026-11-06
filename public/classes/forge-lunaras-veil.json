@@ -1,0 +1,70 @@
+{
+ "version": 1,
+ "id": "forge-lunaras-veil",
+ "name": "Lunara's Veil",
+ "icon": "❄️",
+ "tagline": "Whispers of the moon weave ice and stars into her fate.",
+ "look": "skeleton-mage",
+ "style": "mage",
+ "color": "#8e94fa",
+ "resource": "none",
+ "bonuses": {
+  "health": -15,
+  "damage": 12,
+  "cooldown": 8
+ },
+ "prompt": "A moon priestess of ice and starlight",
+ "branches": [
+  {
+   "name": "Crystalline Bonds",
+   "skills": [
+    {
+     "name": "Frostweave",
+     "base": "ice",
+     "color": "#8e94fa",
+     "description": "Weaves a line of ice that freezes the path, slowing enemies and reflecting damage."
+    },
+    {
+     "name": "Starfall",
+     "base": "thunder",
+     "color": "#ff8a3c",
+     "description": "A lightning bolt that stuns enemies, but its charge leaves a glowing trail that attracts nearby ice."
+    }
+   ]
+  },
+  {
+   "name": "Celestial Roots",
+   "skills": [
+    {
+     "name": "Lunar Snare",
+     "base": "snare",
+     "color": "#a8d8b9",
+     "description": "A far-cast circle that roots enemies, preventing them from moving and giving a slow effect."
+    },
+    {
+     "name": "Glacial Circle",
+     "base": "glacier",
+     "color": "#8e94fa",
+     "description": "A ring of blades that freezes enemies, but the ice cracks and releases a shockwave."
+    }
+   ]
+  },
+  {
+   "name": "Stellar Wounds",
+   "skills": [
+    {
+     "name": "Blinking Moon",
+     "base": "blink",
+     "color": "#ff8a3c",
+     "description": "Teleports down a line, cutting through enemies and leaving a lingering frost effect."
+    },
+    {
+     "name": "Celestial Rush",
+     "base": "rampage",
+     "color": "#a8d8b9",
+     "description": "A charge that rages down the line, knocking enemies aside and leaving a trail of ice."
+    }
+   ]
+  }
+ ]
+}

@@ -32,7 +32,7 @@ export class HailAbility extends Ability {
 
   /** The storm *is* the impact phase. */
   get impactDuration() {
-    return Math.max(0.5, settings.combat.hail?.lasts ?? this.config.lasts);
+    return Math.max(0.5, settings.combat[this.element]?.lasts ?? this.config.lasts);
   }
 
   get fadeDuration() {

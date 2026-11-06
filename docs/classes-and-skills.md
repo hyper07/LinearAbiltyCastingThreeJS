@@ -73,6 +73,9 @@ starts knowing two tier-1 spells. The rest come from **skill books**:
 
 Spells, ranks and keys are saved **per class** in the browser; gold, potions and the bag are shared.
 
+New classes can be made in the **[Class forge](class-forge.md)**: describe one in a sentence and
+the AI designs its tree.
+
 ## The Barbarian: physical skills and Rage
 
 <p>

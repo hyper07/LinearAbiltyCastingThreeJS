@@ -247,10 +247,11 @@ export function lookModel(lookId, tint) {
   };
 }
 
-export const CLASS_CHARACTERS = CLASS_SPECS.map((spec) =>
-  createCharacter(spec.id, {
+/** The playable character for a class spec (built-in or made in the Class forge). */
+export function makeClassCharacter(spec) {
+  return createCharacter(spec.id, {
     label: spec.label,
-    series: 'Classes',
+    series: spec.series ?? 'Classes',
     icon: spec.icon,
     tagline: spec.tagline,
     rig: 'kaykit',
@@ -263,8 +264,10 @@ export const CLASS_CHARACTERS = CLASS_SPECS.map((spec) =>
     wandSide: spec.id === 'amazon' ? 'Left' : 'Right',
     casting: spec.casting,
     classSpec: spec
-  })
-);
+  });
+}
+
+export const CLASS_CHARACTERS = CLASS_SPECS.map(makeClassCharacter);
 
 /** Bonuses for a character id (none for the sandbox caster). */
 export function classBonuses(characterId) {

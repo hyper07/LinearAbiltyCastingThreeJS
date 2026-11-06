@@ -249,7 +249,7 @@ export class TempestAbility extends Ability {
   }
 
   get impactDuration() {
-    return Math.max(0.5, settings.combat.tempest?.lasts ?? this.config.lasts);
+    return Math.max(0.5, settings.combat[this.element]?.lasts ?? this.config.lasts);
   }
 
   get fadeDuration() {
@@ -298,7 +298,7 @@ export class QuakeAbility extends Ability {
   }
 
   get impactDuration() {
-    return Math.max(0.5, settings.combat.quake?.lasts ?? this.config.lasts);
+    return Math.max(0.5, settings.combat[this.element]?.lasts ?? this.config.lasts);
   }
 
   get fadeDuration() {

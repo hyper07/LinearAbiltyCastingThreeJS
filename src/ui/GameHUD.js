@@ -162,7 +162,7 @@ export class GameHUD {
       this._shown.rage = percent;
       this.el.rage.style.width = percent;
     }
-    this._set(this.el.rageText, 'rageText', roaring ? `RAGE ${Math.floor(value)} · ROAR +25%` : `RAGE ${Math.floor(value)}`);
+    this._set(this.el.rageText, 'rageText', roaring ? `RAGE ${Math.floor(value)} · ROARING` : `RAGE ${Math.floor(value)}`);
     if (this._shown.roaring !== roaring) {
       this._shown.roaring = roaring;
       this.el.rageBar.classList.toggle('is-roaring', roaring);

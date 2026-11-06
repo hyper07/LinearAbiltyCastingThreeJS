@@ -301,7 +301,7 @@ export function createGlacierMaterial() {
 
   /** Pull the palette and every shading control from the live settings. */
   material.userData.sync = () => {
-    const c = settings.glacier;
+    const c = material.userData.configOf?.() ?? settings.glacier;
     const g = settings.global;
     const env = settings.environment;
 

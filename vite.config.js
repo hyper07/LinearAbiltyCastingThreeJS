@@ -158,6 +158,101 @@ function levelStore() {
 }
 
 /**
+ * Classes made in the Class forge (main menu → Create), as files:
+ * `public/classes/<id>.json` plus `public/classes/index.json`. Like levels, they
+ * live in the repo and ship with every build; writing only works on the dev
+ * server.
+ *
+ *   GET    /classes/<id>.json | /classes/index.json   → read (from disk)
+ *   POST   /api/classes/<id>    → save (create or replace)
+ *   DELETE /api/classes/<id>    → delete
+ */
+function classStore() {
+  const dir = resolve('public', 'classes');
+  const indexFile = resolve(dir, 'index.json');
+  const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
+  const send = (res, status, data) => {
+    res.statusCode = status;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data));
+  };
+  const body = (req) =>
+    new Promise((ok, fail) => {
+      const chunks = [];
+      let size = 0;
+      req.on('data', (c) => {
+        size += c.length;
+        if (size > 512 * 1024) fail(new Error('class too large'));
+        else chunks.push(c);
+      });
+      req.on('end', () => {
+        try {
+          ok(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+        } catch (error) {
+          fail(error);
+        }
+      });
+      req.on('error', fail);
+    });
+  const readIndex = async () => {
+    try {
+      const data = JSON.parse(await readFile(indexFile, 'utf8'));
+      return Array.isArray(data.classes) ? data : { classes: [] };
+    } catch {
+      return { classes: [] };
+    }
+  };
+  const atomicWrite = async (file, text) => {
+    await mkdir(dir, { recursive: true });
+    await writeFile(`${file}.tmp`, text);
+    await rename(`${file}.tmp`, file);
+  };
+  const middleware = (server) => {
+    server.middlewares.use(async (req, res, next) => {
+      const url = (req.url ?? '').split('?')[0];
+      const file = url.match(/^\/classes\/([a-z0-9][a-z0-9-]{0,47}|index)\.json$/);
+      if (file && req.method === 'GET') {
+        if (file[1] === 'index') return send(res, 200, await readIndex());
+        try {
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'no-cache');
+          return res.end(await readFile(resolve(dir, `${file[1]}.json`), 'utf8'));
+        } catch {
+          return send(res, 404, { error: 'no such class' });
+        }
+      }
+      if (!url.startsWith('/api/classes/')) return next();
+      try {
+        const id = decodeURIComponent(url.slice('/api/classes/'.length));
+        if (!ID.test(id)) return send(res, 400, { error: 'bad class id' });
+        const target = resolve(dir, `${id}.json`);
+        const index = await readIndex();
+        if (req.method === 'POST') {
+          const spec = await body(req);
+          if (spec?.id !== id) return send(res, 400, { error: 'id in the URL and the file disagree' });
+          await atomicWrite(target, JSON.stringify(spec, null, 1) + '\n');
+          const entry = index.classes.find((e) => e.id === id);
+          if (entry) entry.name = spec.name;
+          else index.classes.push({ id, name: spec.name });
+          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
+          return send(res, 200, { ok: true, classes: index.classes });
+        }
+        if (req.method === 'DELETE') {
+          await rm(target, { force: true });
+          index.classes = index.classes.filter((e) => e.id !== id);
+          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
+          return send(res, 200, { ok: true, classes: index.classes });
+        }
+        return send(res, 405, { error: 'method not allowed' });
+      } catch (error) {
+        return send(res, 500, { error: String(error?.message ?? error) });
+      }
+    });
+  };
+  return { name: 'class-store', configureServer: middleware };
+}
+
+/**
  * Serve the downloaded asset library (`./library`, see `npm run library:fetch`)
  * at `/library/*`. It is gigabytes and git-ignored, so it is deliberately not
  * in `public/` — that would copy all of it into every `vite build`.
@@ -399,7 +494,7 @@ export default defineConfig(({ mode }) => {
         // The asset library is gigabytes of files nobody edits by hand, and a
         // saved level must not reload the page out from under the editor.
         // Absolute paths: a bare `**/library/**` would also ignore src/library.
-        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`]
+        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`]
       }
     },
     build: {
@@ -409,6 +504,6 @@ export default defineConfig(({ mode }) => {
     },
     // Large binary assets (FBX / HDR) live in /public and are served untouched.
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
-    plugins: [llmBridge(env), assetLibrary(), levelStore(), modelStudio(env)]
+    plugins: [llmBridge(env), assetLibrary(), levelStore(), classStore(), modelStudio(env)]
   };
 });

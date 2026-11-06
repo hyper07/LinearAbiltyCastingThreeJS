@@ -13,7 +13,8 @@ import { ELEMENTS } from '../config/settings.js';
 import { ObjectPool } from '../utils/ObjectPool.js';
 
 /** Registry: adding an ability means adding one line here. */
-const ABILITY_TYPES = {
+/** Ability class per id. Forged skills are added through `registerType`. */
+export const ABILITY_TYPES = {
   ice: IceAbility,
   thunder: ThunderAbility,
   meteor: MeteorAbility,
@@ -66,6 +67,24 @@ export class AbilityManager {
         })
       );
     }
+  }
+
+  /**
+   * Add an ability type after start-up (a skill made in the Class forge). The
+   * pool is created now; instances are built on first cast like any other.
+   */
+  registerType(element, Type) {
+    ABILITY_TYPES[element] = Type;
+    if (this.pools.has(element)) return;
+    this.pools.set(
+      element,
+      new ObjectPool(() => {
+        const ability = new Type(this.ctx);
+        this.ctx.scene.add(ability.group);
+        ability.group.visible = false;
+        return ability;
+      })
+    );
   }
 
   select(element) {

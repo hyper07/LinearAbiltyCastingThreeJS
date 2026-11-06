@@ -26,6 +26,11 @@ export class Registry {
   }
 
   /** @param {string} id */
+  unregister(id) {
+    return this._entries.delete(id);
+  }
+
+  /** @param {string} id */
   get(id) {
     return this._entries.get(id) ?? null;
   }

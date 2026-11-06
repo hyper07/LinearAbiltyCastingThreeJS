@@ -1,3 +1,4 @@
+import { ELEMENT_META } from '../config/settings.js';
 import { platform } from '../platform/index.js';
 
 /**
@@ -41,9 +42,9 @@ export const ELEMENT_NAMES = {
   quake: 'Worldbreaker'
 };
 
-/** Physical skills come in manuals, spells in tomes. */
-const PHYSICAL = new Set(['slam', 'rampage', 'roar', 'leap', 'tempest', 'quake']);
-export const bookTitle = (element) => `${PHYSICAL.has(element) ? 'Manual' : 'Tome'} of ${ELEMENT_NAMES[element]}`;
+/** Physical skills (built-in or forged on a physical base) come in manuals, spells in tomes. */
+const isPhysical = (element) => Boolean(ELEMENT_META[element]?.physical);
+export const bookTitle = (element) => `${isPhysical(element) ? 'Manual' : 'Tome'} of ${ELEMENT_NAMES[element]}`;
 
 /** Bonus stats. Ranges per rarity tier: [magic, rare, epic] × [min, max]. */
 export const STATS = {
@@ -167,7 +168,7 @@ export function describeItem(item) {
     lines.push(`${RARITIES[item.rarity].label} ${item.baseName ?? ''}`.trim());
     for (const [key, value] of Object.entries(item.stats ?? {})) lines.push(STATS[key]?.label(value) ?? `${key} ${value}`);
   } else if (item.type === 'book') {
-    lines.push(PHYSICAL.has(item.element) ? 'Skill manual' : 'Skill book');
+    lines.push(isPhysical(item.element) ? 'Skill manual' : 'Skill book');
     lines.push(`Teaches ${ELEMENT_NAMES[item.element]}, or raises it one rank (max ${SKILL_MAX_RANK}).`);
     lines.push(`Each rank after the first: +${SKILL_RANK.damage}% damage, −${SKILL_RANK.cooldown}% cooldown.`);
     lines.push('Only classes with this skill in their skill tree can read it.');

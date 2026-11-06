@@ -181,6 +181,19 @@ dusk get their own coloured skies. [More →](docs/level-editor.md)
   <img src="docs/screenshots/create-wear.jpg" width="49%" alt="An uploaded rigged body worn by the Mage" />
 </p>
 
+## Class forge: AI-designed classes
+
+Describe a class in a sentence — *"a pirate captain who fights with cannon fire and the sea"* — and
+the AI designs it: name, story, bonuses and six skills in three branches. Every skill is built on one
+of the game's own hand-made effects and re-tinted to its own colour, so it looks and plays like the
+rest of the game. Edit anything, save, and it is in the class list. Works offline from keywords
+when the AI is not running. See **[Class forge](docs/class-forge.md)**.
+
+<p>
+  <img src="docs/screenshots/class-forge.jpg" width="49%" alt="The Class forge editing an AI-designed pirate class" />
+  <img src="docs/screenshots/class-forge-cast-2.jpg" width="49%" alt="An AI-designed moon priestess casting a violet ring of ice blades" />
+</p>
+
 ## For parents: study games
 
 Parents can turn the game into a study game. **Tutor** NPCs ask study questions — generated math
@@ -226,6 +239,7 @@ flowchart LR
 | [Movement](docs/movement.md) | How the character's gait, lean and arms are animated |
 | [Tuning editor and presets](docs/tuning-editor.md) | The **G** editor: 900+ live sliders, presets |
 | [Third-party services](docs/third-party.md) | What is free, what is paid, and options for 3D models, animation, AI and effects |
+| [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
 | [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |
 | [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |
 | [Architecture](docs/architecture.md) | Project layout, how the systems fit together, performance, known rough edges |

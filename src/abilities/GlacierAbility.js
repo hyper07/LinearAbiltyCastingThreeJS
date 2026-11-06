@@ -230,7 +230,7 @@ export class GlacierAbility extends Ability {
 
   /** One crystal shape. Variant index only perturbs the seed. */
   _buildGeometry(variant) {
-    const c = settings.glacier;
+    const c = this.config;
     return createCrystalGeometry({
       seed: 3.9 + variant * 17.3,
       sides: c.facets,
@@ -249,7 +249,7 @@ export class GlacierAbility extends Ability {
    * vertex shader. That is what keeps them live sliders.
    */
   _syncGeometry() {
-    const c = settings.glacier;
+    const c = this.config;
     const key = `${Math.round(c.facets)}|${c.taper.toFixed(3)}|${c.roughness.toFixed(3)}|${c.bend.toFixed(3)}`;
     if (key === this._shapeKey) return;
     this._shapeKey = key;
@@ -349,18 +349,18 @@ export class GlacierAbility extends Ability {
 
   /** The crown blooms, then stands. */
   get impactDuration() {
-    return Math.max(0.2, settings.glacier.lifetime * settings.global.lifetime);
+    return Math.max(0.2, this.config.lifetime * settings.global.lifetime);
   }
 
   /** The collapse: a stagger, then the break-up and the sink. */
   get fadeDuration() {
-    const c = settings.glacier;
+    const c = this.config;
     return Math.max(0.2, c.shatterDelay + c.shatterStagger + c.sinkTime);
   }
 
   /** The live footprint, metres. What the indicator measured out. */
   get radius() {
-    return Math.max(0.05, settings.glacier.zoneRadius);
+    return Math.max(0.05, this.config.zoneRadius);
   }
 
   /* ------------------------------------------------------------------ */
@@ -374,7 +374,7 @@ export class GlacierAbility extends Ability {
 
   /** Where the front leaves the caster, in world space. */
   _handPoint(out) {
-    const c = settings.glacier;
+    const c = this.config;
     out
       .copy(this.origin)
       .addScaledVector(this.direction, c.handForward)
@@ -390,14 +390,14 @@ export class GlacierAbility extends Ability {
    * re-times itself if the slider moves mid-cast.
    */
   _openAmount() {
-    const snap = Math.max(0.02, settings.glacier.snapTime);
+    const snap = Math.max(0.02, this.config.snapTime);
     return Easing.outCubic(saturate(this._openTime / snap));
   }
 
   /** How far the thaw has eaten back into the sheet, 0..1. */
   _thawAmount() {
     if (this.phase !== AbilityPhase.FADE) return 0;
-    const c = settings.glacier;
+    const c = this.config;
     const hold = c.shatterDelay * 0.35;
     return saturate((this.fadeTime - hold) / Math.max(0.05, this.fadeDuration - hold));
   }
@@ -471,7 +471,7 @@ export class GlacierAbility extends Ability {
   /* ------------------------------------------------------------------ */
 
   onSpawn() {
-    const c = settings.glacier;
+    const c = this.config;
 
     this.mistEmitter.reset();
     this.glitterEmitter.reset();
@@ -554,7 +554,7 @@ export class GlacierAbility extends Ability {
    * late bloomers are scattered across the hold.
    */
   _scheduleEruption() {
-    const c = settings.glacier;
+    const c = this.config;
     const hold = Math.max(0.2, c.lifetime * settings.global.lifetime);
 
     for (let i = 0; i < this._activeCount; i++) {
@@ -622,7 +622,7 @@ export class GlacierAbility extends Ability {
    * settings.
    */
   _updateSpikes() {
-    const c = settings.glacier;
+    const c = this.config;
     const g = settings.global;
     const birthFade = Math.max(0.02, c.birthFade);
     const used = [0, 0, 0];
@@ -720,7 +720,7 @@ export class GlacierAbility extends Ability {
    * @param {number} fade 1 while the crown stands, ramping to 0 as it goes
    */
   _sync(fade) {
-    const c = settings.glacier;
+    const c = this.config;
     const g = settings.global;
     const travelling = this.phase === AbilityPhase.TRAVEL;
 
@@ -817,7 +817,7 @@ export class GlacierAbility extends Ability {
 
   /** The puff at the caster's hand as the front leaves it. */
   _muzzleFx() {
-    const c = settings.glacier;
+    const c = this.config;
     const g = settings.global;
 
     this._handPoint(_pos);
@@ -865,7 +865,7 @@ export class GlacierAbility extends Ability {
 
   /** Fog, glitter and rime laid under the front while it races out. */
   _frontFx(dt) {
-    const c = settings.glacier;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -1027,7 +1027,7 @@ export class GlacierAbility extends Ability {
    * @param {number} scale 0..1 — thinned out as the crown collapses
    */
   _fieldFx(dt, scale) {
-    const c = settings.glacier;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
     const centre = this._state.centre;
@@ -1183,11 +1183,11 @@ export class GlacierAbility extends Ability {
     this.position.y = 0.35;
 
     this._frontFx(dt);
-    this.ctx.shake.rumble(settings.glacier.rumble * settings.global.cameraShake, dt);
+    this.ctx.shake.rumble(this.config.rumble * settings.global.cameraShake, dt);
   }
 
   onImpact() {
-    const c = settings.glacier;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -1277,7 +1277,7 @@ export class GlacierAbility extends Ability {
   }
 
   onFade(dt, t) {
-    const c = settings.glacier;
+    const c = this.config;
     this._openTime += dt;
 
     // `t` runs 0..1 while the crown stands, then 1..2 while it collapses. The

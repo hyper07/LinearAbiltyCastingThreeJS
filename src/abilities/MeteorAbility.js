@@ -186,7 +186,7 @@ export class MeteorAbility extends Ability {
 
   /** The rock. Rebuilt when a *shape* control moves — see `_syncGeometry`. */
   _buildGeometry() {
-    const c = settings.meteor;
+    const c = this.config;
     return createAsteroidGeometry({
       seed: 11.7,
       detail: c.facets,
@@ -210,7 +210,7 @@ export class MeteorAbility extends Ability {
    * enough to simply rebuild, which is what keeps those nine controls live.
    */
   _syncGeometry() {
-    const c = settings.meteor;
+    const c = this.config;
     const key = [
       Math.round(c.facets),
       c.lumpiness.toFixed(3),
@@ -306,16 +306,16 @@ export class MeteorAbility extends Ability {
 
   /** The crater burns for `lifetime`, then everything withdraws over `fadeTime`. */
   get impactDuration() {
-    return Math.max(0.2, settings.meteor.lifetime * settings.global.lifetime);
+    return Math.max(0.2, this.config.lifetime * settings.global.lifetime);
   }
 
   get fadeDuration() {
-    return Math.max(0.2, settings.meteor.fadeTime);
+    return Math.max(0.2, this.config.fadeTime);
   }
 
   /** Fire gutters where ice glints — a fast, uneven guttering. */
   lightShimmer() {
-    const c = settings.meteor;
+    const c = this.config;
     const rate = Math.max(0.1, c.lightFlickerSpeed);
     const wobble = Math.sin(this.age * rate) * Math.sin(this.age * rate * 0.37 + 1.7);
     return 1 - saturate(c.lightFlicker) * (0.5 + 0.5 * wobble);
@@ -333,7 +333,7 @@ export class MeteorAbility extends Ability {
    * here rather than baked into the cast.
    */
   _launchPoint(out) {
-    const c = settings.meteor;
+    const c = this.config;
     out
       .copy(this.origin)
       .addScaledVector(this.direction, c.handForward)
@@ -344,7 +344,7 @@ export class MeteorAbility extends Ability {
 
   /** A point on the flight path, `s` from 0 (the hand) to 1 (the target). */
   _arcPoint(s, out) {
-    const c = settings.meteor;
+    const c = this.config;
     const t = saturate(s);
     out
       .copy(this.origin)
@@ -374,12 +374,12 @@ export class MeteorAbility extends Ability {
 
   /** Radius of the meteor, metres. */
   _radius() {
-    return Math.max(0.02, settings.meteor.radius);
+    return Math.max(0.02, this.config.radius);
   }
 
   /** How hot the rock is, 0 at the hand → 1 at the target. */
   _charge() {
-    const c = settings.meteor;
+    const c = this.config;
     if (this.phase !== AbilityPhase.TRAVEL) return 1;
     return Math.pow(saturate(this.u), Math.max(0.05, c.chargeCurve));
   }
@@ -491,7 +491,7 @@ export class MeteorAbility extends Ability {
    * @param {number} burn 0 while the rock is flying, → 1 as the trail dies
    */
   _syncUniforms(burn) {
-    const c = settings.meteor;
+    const c = this.config;
     const g = settings.global;
 
     this._syncGeometry();
@@ -569,7 +569,7 @@ export class MeteorAbility extends Ability {
    * @param {number} retract 0..1 — the debris withdrawing into the floor
    */
   _updateRock(retract) {
-    const c = settings.meteor;
+    const c = this.config;
     const travelling = this.phase === AbilityPhase.TRAVEL;
 
     /* --- instance 0: the meteor itself --- */
@@ -636,7 +636,7 @@ export class MeteorAbility extends Ability {
    * @param {number} burn 0 while the rock is flying, 0 → 1 as the trail dies
    */
   _updateTrail(burn) {
-    const c = settings.meteor;
+    const c = this.config;
     const head = this.phase === AbilityPhase.TRAVEL ? this.u : 1;
     const span = Math.max(0.05, c.trailSpan) / Math.max(0.1, this.length);
     // Once the rock is gone the tail eats its way up to the head.
@@ -722,7 +722,7 @@ export class MeteorAbility extends Ability {
 
   /** The flash at the caster's hand as the rock leaves it. */
   _launchFx() {
-    const c = settings.meteor;
+    const c = this.config;
     const g = settings.global;
 
     this._launchPoint(_pos);
@@ -775,7 +775,7 @@ export class MeteorAbility extends Ability {
    * particle from the head leaves the trail visibly beaded.
    */
   _trailFx(dt) {
-    const c = settings.meteor;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
     const radius = this._radius();
@@ -850,7 +850,7 @@ export class MeteorAbility extends Ability {
 
   /** The crater keeps burning after the rock is gone. */
   _craterFx(dt, scale) {
-    const c = settings.meteor;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -910,11 +910,11 @@ export class MeteorAbility extends Ability {
     this._trailFx(dt);
     this._lastU = this.u;
 
-    this.ctx.shake.rumble(settings.meteor.rumble * settings.global.cameraShake, dt);
+    this.ctx.shake.rumble(this.config.rumble * settings.global.cameraShake, dt);
   }
 
   onImpact() {
-    const c = settings.meteor;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
     const scale = c.burstSize * g.explosionIntensity;
@@ -1039,7 +1039,7 @@ export class MeteorAbility extends Ability {
   }
 
   onFade(dt, t) {
-    const c = settings.meteor;
+    const c = this.config;
 
     // The trail is no longer being fed, so it burns back from the head.
     const burn = saturate(this._sinceImpact / Math.max(0.05, c.trailBurnout));

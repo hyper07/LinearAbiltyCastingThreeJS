@@ -772,7 +772,8 @@ export class VolumetricFireMaterial extends ShaderMaterial {
    * written by it straight afterwards.
    */
   sync() {
-    const c = settings.meteor;
+    // A forged copy of the meteor points this at its own settings.
+    const c = this.configOf?.() ?? settings.meteor;
     const g = settings.global;
     const u = this.uniforms;
 

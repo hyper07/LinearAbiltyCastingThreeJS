@@ -55,7 +55,7 @@ answers differently.
 
 | Option | Why | Cost |
 | --- | --- | --- |
-| [OpenRouter](https://openrouter.ai) | One key for many models | Paid per token |
+| [OpenRouter](https://openrouter.ai) | One key for many models — a larger model writes better class names in the [Class forge](class-forge.md) | Paid per token |
 | [Groq](https://groq.com) | Very fast answers, good for orders in a fight | Paid per token, free tier |
 | [Anthropic Claude](https://docs.anthropic.com) | Strong NPC dialogue and map planning (OpenAI-compatible endpoint) | Paid per token |
 | [ElevenLabs](https://elevenlabs.io) | Spoken NPC voices from their text | Paid, free tier |

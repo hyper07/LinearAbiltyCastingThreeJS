@@ -38,6 +38,7 @@ export class MainMenu {
     this.onOpenEditor = callbacks.onOpenEditor ?? (() => {});
     this.onLookChange = callbacks.onLookChange ?? (async () => {});
     this.onMyModelsChanged = callbacks.onMyModelsChanged ?? (async () => {});
+    this.onOpenForge = callbacks.onOpenForge ?? (() => {});
     this._worldBusy = false;
     this._visible = false;
     this._characterId = platform.getActiveCharacter()?.id ?? 'caster';
@@ -145,6 +146,11 @@ export class MainMenu {
 
             <div class="main-menu__panel" data-panel="create" hidden>
               <h2 class="main-menu__section-title">Create</h2>
+              <section class="studio__card forge-entry">
+                <h3>✦ Class forge</h3>
+                <p class="main-menu__panel-hint">Describe a new class in a sentence — the AI designs its six skills, built on the game's own effects. Edit anything, then save it to the class list.</p>
+                <button type="button" class="main-menu__world-btn main-menu__world-btn--primary" data-open-forge>Open Class forge</button>
+              </section>
               <div data-studio></div>
             </div>
 
@@ -179,6 +185,7 @@ export class MainMenu {
     this.weaponSearchEl = this.root.querySelector('[data-weapon-search]');
     this.appearanceFormEl = this.root.querySelector('[data-appearance-form]');
     this.skillTreeEl = this.root.querySelector('[data-skill-tree]');
+    this.root.querySelector('[data-open-forge]').addEventListener('click', () => this.onOpenForge());
     this.statsEl = this.root.querySelector('[data-stats]');
     this.panelEls = [...this.root.querySelectorAll('.main-menu__panel[data-panel]')];
     this.navBtns = [...this.root.querySelectorAll('.main-menu__nav-btn')];
@@ -224,7 +231,20 @@ export class MainMenu {
   }
 
   _characterSeriesOrder() {
-    return ['Classes', 'Original'];
+    return ['Classes', 'Created', 'Original'];
+  }
+
+  /** Re-draw the class list (a class was added or removed) and pick one. */
+  async refreshCharacters(selectId = null) {
+    if (selectId && platform.characters.get(selectId)) {
+      this._characterId = selectId;
+      const loadout = platform.loadouts.get(platform.characters.get(selectId)?.defaultLoadout);
+      if (loadout?.weapon) this._weaponId = loadout.weapon;
+      await this.onCharacterChange(selectId);
+    }
+    this._buildCharacters();
+    this._updateSummary?.();
+    this._renderSkillTree?.();
   }
 
   _filteredCharacters() {

@@ -142,7 +142,7 @@ export class IceAbility extends Ability {
 
   /** One crystal shape. Variant index only perturbs the seed. */
   _buildGeometry(variant) {
-    const c = settings.ice;
+    const c = this.config;
     return createCrystalGeometry({
       seed: 7.3 + variant * 21.7,
       sides: c.facets,
@@ -161,7 +161,7 @@ export class IceAbility extends Ability {
    * vertex shader. That is what keeps them live sliders.
    */
   _syncGeometry() {
-    const c = settings.ice;
+    const c = this.config;
     const key = `${Math.round(c.facets)}|${c.taper.toFixed(3)}|${c.roughness.toFixed(3)}|${c.bend.toFixed(3)}`;
     if (key === this._shapeKey) return;
     this._shapeKey = key;
@@ -237,11 +237,11 @@ export class IceAbility extends Ability {
 
   /** The field stands for its lifetime, then the fade withdraws it. */
   get impactDuration() {
-    return Math.max(0.2, settings.ice.lifetime * settings.global.lifetime);
+    return Math.max(0.2, this.config.lifetime * settings.global.lifetime);
   }
 
   get fadeDuration() {
-    const c = settings.ice;
+    const c = this.config;
     return Math.max(0.2, c.shatterDelay + c.sinkTime);
   }
 
@@ -250,7 +250,7 @@ export class IceAbility extends Ability {
   /* ------------------------------------------------------------------ */
 
   onSpawn() {
-    const c = settings.ice;
+    const c = this.config;
 
     this.mistEmitter.reset();
     this.glitterEmitter.reset();
@@ -358,7 +358,7 @@ export class IceAbility extends Ability {
    * `limit` is how far down the line the front has got, 0..1.
    */
   _triggerUpTo(limit, includeImpact) {
-    const c = settings.ice;
+    const c = this.config;
     for (let i = 0; i < this._activeCount; i++) {
       const record = this.records[i];
       if (record.eruptTime >= 0) continue;
@@ -392,7 +392,7 @@ export class IceAbility extends Ability {
    * @param {number} retract 0..1 — the whole field withdrawing into the floor.
    */
   _updateSpikes(dt, retract) {
-    const c = settings.ice;
+    const c = this.config;
     const g = settings.global;
     const birthFade = Math.max(0.02, c.birthFade);
     const used = [0, 0, 0];
@@ -479,7 +479,7 @@ export class IceAbility extends Ability {
   /* ------------------------------------------------------------------ */
 
   _syncUniforms() {
-    const c = settings.ice;
+    const c = this.config;
     const g = settings.global;
 
     this._syncGeometry();
@@ -563,7 +563,7 @@ export class IceAbility extends Ability {
 
   /** Fog, glitter and rime shed continuously along the travelling front. */
   _frontFx(dt) {
-    const c = settings.ice;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
     const halfWidth = this._halfWidth(this.u, c);
@@ -636,11 +636,11 @@ export class IceAbility extends Ability {
     this._updateSpikes(dt, 0);
     this._frontFx(dt);
 
-    this.ctx.shake.rumble(settings.ice.rumble * settings.global.cameraShake, dt);
+    this.ctx.shake.rumble(this.config.rumble * settings.global.cameraShake, dt);
   }
 
   onImpact() {
-    const c = settings.ice;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -728,7 +728,7 @@ export class IceAbility extends Ability {
   }
 
   onFade(dt) {
-    const c = settings.ice;
+    const c = this.config;
     this._syncUniforms();
 
     let retract = 0;

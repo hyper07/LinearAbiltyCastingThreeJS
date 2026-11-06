@@ -1,0 +1,12 @@
+{
+  "classes": [
+    {
+      "id": "forge-stormbound-corsair",
+      "name": "Stormbound Corsair"
+    },
+    {
+      "id": "forge-lunaras-veil",
+      "name": "Lunara's Veil"
+    }
+  ]
+}

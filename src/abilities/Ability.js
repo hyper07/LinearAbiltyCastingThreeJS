@@ -79,6 +79,27 @@ export class Ability {
 
     this.createShaders();
     this.createParticles();
+    this._bindMaterialConfig();
+  }
+
+  /**
+   * Point every shader material this ability owns at *its* settings block.
+   * The materials default to their original block (settings.beam, …); a skill
+   * forged from this one has its own block, and this is what makes its
+   * shaders read it.
+   */
+  _bindMaterialConfig() {
+    const configOf = () => this.config;
+    const bind = (m) => {
+      if (!m?.isMaterial) return;
+      if (m.userData?.sync) m.userData.configOf = configOf;
+      if (typeof m.sync === 'function') m.configOf = configOf;
+    };
+    for (const value of Object.values(this)) {
+      if (Array.isArray(value)) value.forEach(bind);
+      else bind(value);
+    }
+    this.group.traverse((node) => [].concat(node.material ?? []).forEach(bind));
   }
 
   /** Live settings block for this element. */

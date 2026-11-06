@@ -203,7 +203,7 @@ export function createIceMaterial(environment) {
 
   /** Pull the palette and every shading control from the live settings. */
   material.userData.sync = () => {
-    const c = settings.ice;
+    const c = material.userData.configOf?.() ?? settings.ice;
     const g = settings.global;
 
     uniforms.uColorDeep.value.copy(getColor(c.colorDeep));

@@ -497,7 +497,7 @@ export function createSnareCageMaterial(pass = SnarePass.CORE) {
    *   { centre, hand, front, radius, height, fade, seed, counts }
    */
   material.userData.sync = (state) => {
-    const c = settings.snare;
+    const c = material.userData.configOf?.() ?? settings.snare;
     const g = settings.global;
     const u = material.uniforms;
 
@@ -738,7 +738,7 @@ export function createSnareFieldMaterial() {
    * @param {object} state { radius, quadSize, fade, seed }
    */
   material.userData.sync = (state) => {
-    const c = settings.snare;
+    const c = material.userData.configOf?.() ?? settings.snare;
     const g = settings.global;
     const u = material.uniforms;
 

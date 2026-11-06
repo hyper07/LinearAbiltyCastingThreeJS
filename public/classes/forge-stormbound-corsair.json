@@ -1,0 +1,73 @@
+{
+ "version": 1,
+ "id": "forge-stormbound-corsair",
+ "name": "Stormbound Corsair",
+ "icon": "🌊",
+ "tagline": "The sea's wrath rides in every cannonball.",
+ "look": "skeleton-rogue",
+ "style": "shadowblade",
+ "color": "#005fa3",
+ "resource": "none",
+ "bonuses": {
+  "health": 20,
+  "armor": 5,
+  "speed": 10,
+  "damage": 15,
+  "cooldown": 8,
+  "crit": 5
+ },
+ "prompt": "A pirate captain who fights with cannon fire and the sea",
+ "branches": [
+  {
+   "name": "Cannons",
+   "skills": [
+    {
+     "name": "Broadside",
+     "base": "beam",
+     "color": "#005fa3",
+     "description": "Launches a cannonball that burns along the line, exploding on impact."
+    },
+    {
+     "name": "Cannon Squall",
+     "base": "hail",
+     "color": "#ff4b2d",
+     "description": "A storm of cannonballs that erupts in a deadly whirlwind, hitting enemies for four seconds."
+    }
+   ]
+  },
+  {
+   "name": "Boarding",
+   "skills": [
+    {
+     "name": "Keelbreaker",
+     "base": "slam",
+     "color": "#ff8a3c",
+     "description": "A cannonball that splits the ground, dealing damage to all enemies in a line."
+    },
+    {
+     "name": "Boarding Rush",
+     "base": "rampage",
+     "color": "#ff4b2d",
+     "description": "A charge that slams through enemies, knocking them aside with a barrage of cannon fire."
+    }
+   ]
+  },
+  {
+   "name": "Command",
+   "skills": [
+    {
+     "name": "Mast Dive",
+     "base": "leap",
+     "color": "#008080",
+     "description": "A cannonball that leaps through the air, crashing down to hit enemies."
+    },
+    {
+     "name": "Captain's Bellow",
+     "base": "roar",
+     "color": "#ff8a3c",
+     "description": "A shout that stuns enemies nearby and boosts damage for a short time."
+    }
+   ]
+  }
+ ]
+}

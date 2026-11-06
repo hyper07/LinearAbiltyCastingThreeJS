@@ -543,7 +543,7 @@ export function createBeamMaterial(pass = BeamPass.CORE) {
    *                         charge, seed, coils, rings }
    */
   material.userData.sync = (state) => {
-    const c = settings.beam;
+    const c = material.userData.configOf?.() ?? settings.beam;
     const g = settings.global;
     const u = material.uniforms;
 

@@ -238,16 +238,16 @@ export class BeamAbility extends Ability {
 
   /** The beam burns where it landed, then collapses. */
   get impactDuration() {
-    return Math.max(0.05, settings.beam.lifetime * settings.global.lifetime);
+    return Math.max(0.05, this.config.lifetime * settings.global.lifetime);
   }
 
   get fadeDuration() {
-    return Math.max(0.05, settings.beam.fadeTime);
+    return Math.max(0.05, this.config.fadeTime);
   }
 
   /** How far the orb has wound up, 0..1. */
   get charge() {
-    return saturate(this.age / Math.max(0.01, settings.beam.charge));
+    return saturate(this.age / Math.max(0.01, this.config.charge));
   }
 
   /**
@@ -256,7 +256,7 @@ export class BeamAbility extends Ability {
    * read as the Storm Lance's light.
    */
   lightShimmer() {
-    const c = settings.beam;
+    const c = this.config;
     return 1 - c.lightPulse * (0.5 - 0.5 * Math.cos(this.age * c.lightPulseSpeed * TAU));
   }
 
@@ -294,7 +294,7 @@ export class BeamAbility extends Ability {
    * applied here rather than baked into the cast.
    */
   _handPoint(out) {
-    const c = settings.beam;
+    const c = this.config;
     out
       .copy(this.origin)
       .addScaledVector(this.direction, c.handForward)
@@ -306,7 +306,7 @@ export class BeamAbility extends Ability {
   /** Where it lands. */
   _impactPoint(out) {
     this.pointAt(1, out);
-    out.y = settings.beam.endHeight;
+    out.y = this.config.endHeight;
     return out;
   }
 
@@ -318,7 +318,7 @@ export class BeamAbility extends Ability {
    * actually draws instead of near it.
    */
   _axisPoint(s, out) {
-    const c = settings.beam;
+    const c = this.config;
     const t = saturate(s);
     out
       .copy(this.origin)
@@ -334,7 +334,7 @@ export class BeamAbility extends Ability {
    * sits on the surface the GPU is drawing.
    */
   _beamRadius(s) {
-    const c = settings.beam;
+    const c = this.config;
     const t = saturate(s);
     const r = lerp(c.radiusNear, c.radius, Math.pow(t, Math.max(0.01, c.radiusCurve)));
     return r * (1 + c.flare * smoothstep(1 - Math.max(1e-3, c.flareWidth), 1, t));
@@ -396,7 +396,7 @@ export class BeamAbility extends Ability {
    *                           makes the cut-out read as a snap
    */
   _syncUniforms(dt, fade, widthFade) {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
     const state = this._state;
 
@@ -500,7 +500,7 @@ export class BeamAbility extends Ability {
    * direction per frame reads as a stream rather than as an intake.
    */
   _intakeFx(dt) {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
     const charge = this.charge;
     const time = frame.uTime.value;
@@ -543,7 +543,7 @@ export class BeamAbility extends Ability {
 
   /** The release: the orb lets go and the column is thrown out of it. */
   _releaseFx() {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
 
     this._handPoint(_pos);
@@ -603,7 +603,7 @@ export class BeamAbility extends Ability {
    * @param {number} scale 0..1 — thinned out as the beam collapses
    */
   _columnFx(dt, scale) {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
     // Only the drawn part of the column is allowed to throw anything.
@@ -707,7 +707,7 @@ export class BeamAbility extends Ability {
 
   /** Burns laid on the floor as the leading edge passes over it. */
   _groundFx() {
-    const c = settings.beam;
+    const c = this.config;
     const step = 1 / Math.max(0.05, c.scorchRate);
 
     while (this.front - this._burnDistance >= step) {
@@ -742,7 +742,7 @@ export class BeamAbility extends Ability {
    * @param {number} scale 0..1 — thinned out as the beam collapses
    */
   _burnFx(dt, scale) {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -815,7 +815,7 @@ export class BeamAbility extends Ability {
   /* ------------------------------------------------------------------ */
 
   onTravel(dt) {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
 
     this._syncUniforms(dt, 1, 1);
@@ -843,7 +843,7 @@ export class BeamAbility extends Ability {
   }
 
   onImpact() {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
     const time = frame.uTime.value;
 
@@ -938,7 +938,7 @@ export class BeamAbility extends Ability {
   }
 
   onFade(dt, t) {
-    const c = settings.beam;
+    const c = this.config;
     const g = settings.global;
 
     // `t` runs 0..1 while the beam burns, then 1..2 while it collapses.
