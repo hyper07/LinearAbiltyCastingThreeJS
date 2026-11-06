@@ -2,6 +2,7 @@ import { CATEGORIES } from '../library/categories.js';
 import { platform } from '../platform/index.js';
 import { GIFT_TYPES, GOALS, MONSTER_KINDS, NPC_ROLE_NAMES, PORTAL_COLOR_NAMES, REWARD_RARITIES, describeGoal, slugify } from '../levels/Level.js';
 import { NPC_ROLES, npcModels } from '../npc/Npcs.js';
+import { PORTAL_FRAMES } from '../world/Portals.js';
 import { RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../world/MapPlan.js';
 
 const TOOLS = [
@@ -252,6 +253,7 @@ export class EditorPanel {
       this._label('Selected portal'),
       text('Name shown above it', m.label, (v) => e.updateMarker({ label: v })),
       this._select('Colour', PORTAL_COLOR_NAMES, m.color, (v) => e.updateMarker({ color: v })),
+      this._select('Frame', Object.keys(PORTAL_FRAMES), m.frame ?? 'arch', (v) => e.updateMarker({ frame: v }), PORTAL_FRAMES),
       this._select('Leads to', options, current, (v) => {
         const [type, id] = v.split(':');
         e.updateMarker({ target: type === 'portal' ? { type, portal: id } : type === 'level' ? { type, level: id } : { type: 'none' } });

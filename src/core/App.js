@@ -915,12 +915,21 @@ export class App {
     // A few metres ahead of the caster as the camera sees it, facing the
     // camera — so it is in view and seen face-on, never edge-on.
     const heading = this.rig.yaw;
-    let x = p.x + Math.sin(heading) * 4.5;
-    let z = p.z + Math.cos(heading) * 4.5;
-    const r = Math.hypot(x, z);
-    if (r > 21) {
-      x *= 21 / r;
-      z *= 21 / r;
+    // Try straight ahead first, then fan out: never on top of a gate or an NPC.
+    const taken = [...this.portals.portals.map((q) => q.position), ...this.npcs.npcs.map((n) => n.position)];
+    let x = p.x;
+    let z = p.z;
+    for (const turn of [0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9, Math.PI]) {
+      let cx = p.x + Math.sin(heading + turn) * 4.5;
+      let cz = p.z + Math.cos(heading + turn) * 4.5;
+      const r = Math.hypot(cx, cz);
+      if (r > 21) {
+        cx *= 21 / r;
+        cz *= 21 / r;
+      }
+      x = cx;
+      z = cz;
+      if (taken.every((t) => Math.hypot(t.x - cx, t.z - cz) > 4.2)) break;
     }
     this.portals.add(
       { id: '__exit', x, z, yaw: heading + Math.PI, color: 'gold', label: 'The way onward', target: { type: 'exit' } },

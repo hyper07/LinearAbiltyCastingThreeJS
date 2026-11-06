@@ -951,7 +951,14 @@ With the model offline it falls back to its scripted lines.
 
 ### Portals
 
-Place them with the **Portals** tool and choose what each leads to: **another portal in the level**
+<p>
+  <img src="docs/screenshots/portal-arch.jpg" width="49%" alt="A stone-arch portal: rough masonry blocks with blue runes around a swirling vortex" />
+  <img src="docs/screenshots/portal-gateway.jpg" width="49%" alt="A stone-gateway portal: two pillars and a lintel with violet runes" />
+</p>
+
+Each portal stands in a **stone arch** (rough-hewn blocks, a keystone, a dais) or a **stone gateway**
+(two standing-stone pillars and a lintel) — or a plain **glowing ring** — with runes that glow in the
+portal's colour. Place them with the **Portals** tool, pick the frame and colour, and choose what each leads to: **another portal in the level**
 (two linked portals make a two-way shortcut), **another level** (a waypoint into the campaign), or
 nothing. When a level's goal is met, a **gold exit portal** opens in front of you; stepping in shows
 the ending and leads on to the next level.

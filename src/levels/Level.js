@@ -12,7 +12,7 @@ import { EDGE_OPTIONS, RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../
  *   objects: [{ model, category, x, z, yOffset, yaw, scale }],
  *   spawns:  [{ x, z }],                    // where waves walk in from (empty = all around)
  *   monsters: [{ kind, x, z }],             // already standing there when the level starts
- *   portals: [{ id, x, z, yaw, color, label, target: { type: 'none'|'portal'|'level', portal?, level? } }],
+ *   portals: [{ id, x, z, yaw, color, frame: 'arch'|'gateway'|'ring', label, target: { type: 'none'|'portal'|'level', portal?, level? } }],
  *   npcs: [{ id, name, role, model, x, z, yaw, greeting, lines[], ai, persona,
  *            gift: { type, rarity, amount }, quest: null | { title, target, count, gold, rarity } }],
  *   rules: { goal: 'waves'|'boss'|'kills', count, kinds: { grunt: 5, … }, baseCount, growth, bossEvery, dragonEvery },
@@ -103,6 +103,7 @@ export function normalizeLevel(raw = {}) {
         z: num(p?.z),
         yaw: num(p?.yaw),
         color: pick(p?.color, PORTAL_COLOR_NAMES, 'blue'),
+        frame: pick(p?.frame, ['arch', 'gateway', 'ring'], 'arch'),
         label: text(p?.label, 40),
         target: type === 'portal' ? { type, portal: String(target.portal ?? '') } : type === 'level' ? { type, level: String(target.level ?? '') } : { type: 'none' }
       };

@@ -561,6 +561,7 @@
    "z": 4,
    "yaw": 1.5707963267948966,
    "color": "blue",
+   "frame": "arch",
    "label": "West Gate",
    "target": {
     "type": "portal",
@@ -573,6 +574,7 @@
    "z": 4,
    "yaw": -1.5707963267948966,
    "color": "violet",
+   "frame": "gateway",
    "label": "East Gate",
    "target": {
     "type": "portal",

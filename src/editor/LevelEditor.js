@@ -472,7 +472,7 @@ export class LevelEditor {
       const yaw = +Math.atan2(-x, -z).toFixed(3);
       const data =
         kind === 'portal'
-          ? { id: `portal-${Date.now().toString(36)}`, x, z, yaw, color: 'blue', label: `Portal ${n}`, target: { type: 'none' } }
+          ? { id: `portal-${Date.now().toString(36)}`, x, z, yaw, color: 'blue', frame: 'arch', label: `Portal ${n}`, target: { type: 'none' } }
           : {
               id: `npc-${Date.now().toString(36)}`,
               name: ['Old Warden', 'Mira', 'Brother Aldo', 'Tamsin', 'Kael'][(n - 1) % 5],
