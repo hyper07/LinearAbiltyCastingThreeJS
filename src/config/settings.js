@@ -1907,6 +1907,13 @@ export const settings = {
     rimElevation: 0.35,
     envIntensity: 0.32,
     backgroundColor: '#121820',
+    // Open sky (world/SkyDome.js). Off on the classic dark stage; daytime maps
+    // turn it on through their time-of-day preset.
+    skyEnabled: false,
+    skyZenith: '#2f7fe0',
+    skyHorizon: '#cfe6ff',
+    skyClouds: 0.5,
+    skySunSize: 1,
     // Fog is pulled well back so it only dissolves the far edge of the floor into
     // the backdrop rather than sitting on top of the action. Toggle and range are
     // both live in the editor (Environment → Backdrop, fog & dust).

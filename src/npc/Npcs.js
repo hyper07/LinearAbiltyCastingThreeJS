@@ -3,21 +3,24 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { normalizeMixamoBones } from '../animation/CharacterController.js';
+import { StudySession } from './Study.js';
 
 /**
  * Helper NPCs standing in a level: a guide who talks (scripted lines, or the
  * AI model in character), a merchant, a healer, a quest-giver. They never
- * fight and monsters ignore them.
+ * fight and monsters ignore them. A tutor asks study questions (npc/Study.js)
+ * and pays out for right answers.
  *
  * Level data: { id, name, role, model, x, z, yaw, greeting, lines[], ai,
- *               persona, gift, quest }
+ *               persona, gift, quest, study }
  */
 
 export const NPC_ROLES = {
   guide: { label: 'Guide', color: '#7fd6ff' },
   merchant: { label: 'Merchant', color: '#ffd166' },
   healer: { label: 'Healer', color: '#6fe3b0' },
-  quest: { label: 'Quest giver', color: '#ff9a3c' }
+  quest: { label: 'Quest giver', color: '#ff9a3c' },
+  tutor: { label: 'Tutor', color: '#b8f06a' }
 };
 
 export const TALK_RANGE = 2.8;
@@ -53,6 +56,8 @@ export class Npc {
     this.ready = this._build(catalog);
     /** Per-run state: quest progress, whether the gift was given. */
     this.state = { questAccepted: false, questDone: false, questTurnedIn: false, progress: 0, gifted: false, stock: null, history: [], lineIndex: 0 };
+    /** A tutor's lessons for this run. */
+    this.study = data.role === 'tutor' && data.study ? new StudySession(data.study) : null;
   }
 
   get position() {
@@ -140,12 +145,13 @@ export class NpcSystem {
     this.refreshMarks();
   }
 
-  /** "!" a quest to take, "?" a quest to hand in. */
+  /** "!" a quest to take, "?" a quest to hand in, "✎" a tutor with lessons. */
   refreshMarks() {
     for (const npc of this.npcs) {
       const q = npc.data.quest;
       const s = npc.state;
-      const mark = !q || s.questTurnedIn ? '' : s.questDone ? '?' : s.questAccepted ? '' : '!';
+      let mark = !q || s.questTurnedIn ? '' : s.questDone ? '?' : s.questAccepted ? '' : '!';
+      if (!mark && npc.study?.hasQuestions) mark = '✎';
       npc.markLabel.setText(mark);
       npc.markLabel.setVisible(Boolean(mark));
     }

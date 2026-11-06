@@ -49,6 +49,7 @@ and press **F** to talk (the fight pauses while you do).
 | Merchant | Sells potions, weapons and two skill books (mostly for your class); buys anything from your bag. |
 | Healer | Heals you to full and sells potions. |
 | Quest giver | Sets a task — *defeat N monsters* (any, or one kind) — tracked under the wave counter; hand it in for gold and an item of a chosen rarity. |
+| Tutor | Asks study questions — generated math, or the parent's own — and pays gold for right answers, with a bonus every few. Marked ✎. See [Study games for kids](for-parents.md). |
 
 Any NPC can give a **gift** the first time you talk (potion, gold, weapon, skill book) and can carry a
 quest. Tick **Talks with the AI model** and give it a personality: the NPC then answers anything you

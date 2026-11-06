@@ -1,0 +1,1359 @@
+{
+  "version": 1,
+  "id": "study-grove",
+  "name": "Study Grove",
+  "character": null,
+  "world": {
+    "ground": "grass",
+    "relief": "hills",
+    "edge": "open",
+    "timeOfDay": "day",
+    "fog": 0.15,
+    "seed": 424242,
+    "terrain": {}
+  },
+  "objects": [
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -14.17,
+      "z": 28.33,
+      "yOffset": 0,
+      "yaw": 5.158,
+      "scale": 4.12
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": 37.41,
+      "z": 25.13,
+      "yOffset": 0,
+      "yaw": 0.54,
+      "scale": 4.54
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": -30.01,
+      "z": 16.95,
+      "yOffset": 0,
+      "yaw": 5.193,
+      "scale": 5.06
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 24.17,
+      "z": 23.8,
+      "yOffset": 0,
+      "yaw": 0.388,
+      "scale": 5.46
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": -24.51,
+      "z": -14.61,
+      "yOffset": 0,
+      "yaw": 5.391,
+      "scale": 5.76
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": -7.75,
+      "z": 30.5,
+      "yOffset": 0,
+      "yaw": 3.518,
+      "scale": 7.6
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": -12.51,
+      "z": -27.48,
+      "yOffset": 0,
+      "yaw": 2.339,
+      "scale": 5.6
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": -27.65,
+      "z": -8.55,
+      "yOffset": 0,
+      "yaw": 3.117,
+      "scale": 7.77
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": -50.08,
+      "z": -10.12,
+      "yOffset": 0,
+      "yaw": 2.846,
+      "scale": 7.65
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -15.88,
+      "z": 49.12,
+      "yOffset": 0,
+      "yaw": 0.514,
+      "scale": 5.95
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": -13.15,
+      "z": 40.26,
+      "yOffset": 0,
+      "yaw": 1.808,
+      "scale": 8.15
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": 30.42,
+      "z": -3.81,
+      "yOffset": 0,
+      "yaw": 2.148,
+      "scale": 6.18
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 36.6,
+      "z": -16.31,
+      "yOffset": 0,
+      "yaw": 3.505,
+      "scale": 4.19
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": 12.73,
+      "z": -50.8,
+      "yOffset": 0,
+      "yaw": 3.733,
+      "scale": 8.03
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": -36.07,
+      "z": -19.8,
+      "yOffset": 0,
+      "yaw": 2.977,
+      "scale": 8.91
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -14.83,
+      "z": -24.78,
+      "yOffset": 0,
+      "yaw": 3.63,
+      "scale": 4.77
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -17.09,
+      "z": -37.06,
+      "yOffset": 0,
+      "yaw": 4.199,
+      "scale": 4.96
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 40.9,
+      "z": 5.84,
+      "yOffset": 0,
+      "yaw": 3.1,
+      "scale": 7.74
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 7.13,
+      "z": 35.2,
+      "yOffset": 0,
+      "yaw": 2.455,
+      "scale": 4.62
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": 20.38,
+      "z": -21.32,
+      "yOffset": 0,
+      "yaw": 1.745,
+      "scale": 7.01
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": 26.31,
+      "z": 30.58,
+      "yOffset": 0,
+      "yaw": 2.608,
+      "scale": 4.7
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": -34.36,
+      "z": 42.19,
+      "yOffset": 0,
+      "yaw": 1.107,
+      "scale": 6.13
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": 3.87,
+      "z": 34.01,
+      "yOffset": 0,
+      "yaw": 1.145,
+      "scale": 8.51
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": -6.28,
+      "z": 30.88,
+      "yOffset": 0,
+      "yaw": 3.557,
+      "scale": 4.92
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": 46.32,
+      "z": -14.06,
+      "yOffset": 0,
+      "yaw": 4.113,
+      "scale": 6.38
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -2.64,
+      "z": -41.07,
+      "yOffset": 0,
+      "yaw": 2.464,
+      "scale": 5.99
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -24.33,
+      "z": 17.91,
+      "yOffset": 0,
+      "yaw": 1.197,
+      "scale": 5.0
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": 40.47,
+      "z": -3.91,
+      "yOffset": 0,
+      "yaw": 0.33,
+      "scale": 6.79
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": 31.69,
+      "z": 0.05,
+      "yOffset": 0,
+      "yaw": 3.854,
+      "scale": 8.92
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": 30.24,
+      "z": 14.3,
+      "yOffset": 0,
+      "yaw": 1.584,
+      "scale": 6.12
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": -21.99,
+      "z": 31.34,
+      "yOffset": 0,
+      "yaw": 3.065,
+      "scale": 6.0
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": 41.49,
+      "z": -5.82,
+      "yOffset": 0,
+      "yaw": 0.642,
+      "scale": 5.9
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -19.35,
+      "z": 29.41,
+      "yOffset": 0,
+      "yaw": 0.145,
+      "scale": 4.4
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 41.34,
+      "z": -13.15,
+      "yOffset": 0,
+      "yaw": 5.741,
+      "scale": 8.02
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 1.85,
+      "z": -36.19,
+      "yOffset": 0,
+      "yaw": 4.372,
+      "scale": 6.16
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": -2.68,
+      "z": 38.27,
+      "yOffset": 0,
+      "yaw": 1.399,
+      "scale": 6.84
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -41.14,
+      "z": -11.0,
+      "yOffset": 0,
+      "yaw": 5.096,
+      "scale": 4.56
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 53.19,
+      "z": -5.05,
+      "yOffset": 0,
+      "yaw": 4.646,
+      "scale": 8.46
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": 6.27,
+      "z": 42.59,
+      "yOffset": 0,
+      "yaw": 6.215,
+      "scale": 8.16
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 10.38,
+      "z": -40.32,
+      "yOffset": 0,
+      "yaw": 6.007,
+      "scale": 8.02
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": -52.99,
+      "z": 18.25,
+      "yOffset": 0,
+      "yaw": 2.29,
+      "scale": 8.94
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 6.28,
+      "z": 33.45,
+      "yOffset": 0,
+      "yaw": 3.031,
+      "scale": 6.78
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": 45.72,
+      "z": -4.25,
+      "yOffset": 0,
+      "yaw": 4.101,
+      "scale": 7.28
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 9.09,
+      "z": -28.2,
+      "yOffset": 0,
+      "yaw": 2.44,
+      "scale": 4.3
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": -7.95,
+      "z": -32.21,
+      "yOffset": 0,
+      "yaw": 3.993,
+      "scale": 7.12
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 48.17,
+      "z": 29.21,
+      "yOffset": 0,
+      "yaw": 2.521,
+      "scale": 4.99
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 46.73,
+      "z": -16.23,
+      "yOffset": 0,
+      "yaw": 0.173,
+      "scale": 9.08
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -34.86,
+      "z": -22.38,
+      "yOffset": 0,
+      "yaw": 5.19,
+      "scale": 4.37
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": 47.01,
+      "z": -5.85,
+      "yOffset": 0,
+      "yaw": 3.443,
+      "scale": 6.15
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 51.31,
+      "z": 6.94,
+      "yOffset": 0,
+      "yaw": 3.307,
+      "scale": 5.62
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 36.98,
+      "z": -16.38,
+      "yOffset": 0,
+      "yaw": 1.325,
+      "scale": 8.49
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": -0.42,
+      "z": 36.08,
+      "yOffset": 0,
+      "yaw": 2.047,
+      "scale": 8.27
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": -50.82,
+      "z": -14.54,
+      "yOffset": 0,
+      "yaw": 2.222,
+      "scale": 8.79
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": -43.53,
+      "z": 11.72,
+      "yOffset": 0,
+      "yaw": 5.763,
+      "scale": 5.05
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": -43.48,
+      "z": -0.45,
+      "yOffset": 0,
+      "yaw": 5.481,
+      "scale": 5.28
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_large",
+      "category": "tree",
+      "x": 7.6,
+      "z": -45.23,
+      "yOffset": 0,
+      "yaw": 2.974,
+      "scale": 6.2
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": -6.87,
+      "z": -43.71,
+      "yOffset": 0,
+      "yaw": 3.333,
+      "scale": 7.99
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": -50.76,
+      "z": 5.61,
+      "yOffset": 0,
+      "yaw": 1.201,
+      "scale": 4.14
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": 28.98,
+      "z": 7.87,
+      "yOffset": 0,
+      "yaw": 4.773,
+      "scale": 7.57
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": 34.74,
+      "z": -21.29,
+      "yOffset": 0,
+      "yaw": 3.807,
+      "scale": 6.43
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": 11.13,
+      "z": 33.81,
+      "yOffset": 0,
+      "yaw": 3.002,
+      "scale": 5.33
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": 45.42,
+      "z": -17.49,
+      "yOffset": 0,
+      "yaw": 5.607,
+      "scale": 8.83
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": 12.0,
+      "z": 39.07,
+      "yOffset": 0,
+      "yaw": 2.777,
+      "scale": 6.03
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_large",
+      "category": "tree",
+      "x": 30.94,
+      "z": 15.17,
+      "yOffset": 0,
+      "yaw": 1.901,
+      "scale": 6.34
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": 36.72,
+      "z": 35.52,
+      "yOffset": 0,
+      "yaw": 2.3,
+      "scale": 5.61
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_B_medium",
+      "category": "tree",
+      "x": -0.61,
+      "z": 31.25,
+      "yOffset": 0,
+      "yaw": 5.982,
+      "scale": 6.37
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_B",
+      "category": "tree",
+      "x": -33.79,
+      "z": 25.12,
+      "yOffset": 0,
+      "yaw": 1.014,
+      "scale": 6.08
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": -39.07,
+      "z": 17.93,
+      "yOffset": 0,
+      "yaw": 2.24,
+      "scale": 7.07
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/trees_A_medium",
+      "category": "tree",
+      "x": 32.09,
+      "z": 20.99,
+      "yOffset": 0,
+      "yaw": 2.766,
+      "scale": 7.54
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/tree_single_A",
+      "category": "tree",
+      "x": 37.04,
+      "z": 4.23,
+      "yOffset": 0,
+      "yaw": 6.034,
+      "scale": 4.74
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower02",
+      "category": "plant",
+      "x": 17.66,
+      "z": 15.15,
+      "yOffset": 0,
+      "yaw": 1.708,
+      "scale": 2.63
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": 13.81,
+      "z": -9.27,
+      "yOffset": 0,
+      "yaw": 4.245,
+      "scale": 2.43
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower08",
+      "category": "plant",
+      "x": 17.59,
+      "z": -6.21,
+      "yOffset": 0,
+      "yaw": 0.562,
+      "scale": 3.55
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower02",
+      "category": "plant",
+      "x": 19.82,
+      "z": 7.49,
+      "yOffset": 0,
+      "yaw": 0.106,
+      "scale": 2.9
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower04",
+      "category": "plant",
+      "x": 14.73,
+      "z": 9.16,
+      "yOffset": 0,
+      "yaw": 5.418,
+      "scale": 2.6
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower05",
+      "category": "plant",
+      "x": -17.3,
+      "z": 5.17,
+      "yOffset": 0,
+      "yaw": 0.271,
+      "scale": 3.43
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": -5.9,
+      "z": -22.69,
+      "yOffset": 0,
+      "yaw": 1.267,
+      "scale": 1.56
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": -6.74,
+      "z": 16.42,
+      "yOffset": 0,
+      "yaw": 4.221,
+      "scale": 1.99
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_01_Art",
+      "category": "plant",
+      "x": -2.86,
+      "z": 22.05,
+      "yOffset": 0,
+      "yaw": 4.604,
+      "scale": 1.52
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower08",
+      "category": "plant",
+      "x": -15.85,
+      "z": -5.27,
+      "yOffset": 0,
+      "yaw": 5.143,
+      "scale": 2.66
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": -17.72,
+      "z": 8.04,
+      "yOffset": 0,
+      "yaw": 1.933,
+      "scale": 2.57
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower03",
+      "category": "plant",
+      "x": 3.7,
+      "z": 16.66,
+      "yOffset": 0,
+      "yaw": 2.183,
+      "scale": 3.11
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower05",
+      "category": "plant",
+      "x": 15.23,
+      "z": 5.42,
+      "yOffset": 0,
+      "yaw": 0.348,
+      "scale": 3.15
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower05",
+      "category": "plant",
+      "x": -9.36,
+      "z": -15.88,
+      "yOffset": 0,
+      "yaw": 4.35,
+      "scale": 3.4
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower01",
+      "category": "plant",
+      "x": 16.0,
+      "z": 4.67,
+      "yOffset": 0,
+      "yaw": 6.04,
+      "scale": 2.89
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower05",
+      "category": "plant",
+      "x": 19.63,
+      "z": -3.41,
+      "yOffset": 0,
+      "yaw": 1.149,
+      "scale": 2.83
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower04",
+      "category": "plant",
+      "x": -8.05,
+      "z": 13.54,
+      "yOffset": 0,
+      "yaw": 4.875,
+      "scale": 2.87
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower01",
+      "category": "plant",
+      "x": 18.81,
+      "z": 12.08,
+      "yOffset": 0,
+      "yaw": 1.882,
+      "scale": 3.09
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_01_Art",
+      "category": "plant",
+      "x": -10.81,
+      "z": -11.47,
+      "yOffset": 0,
+      "yaw": 4.496,
+      "scale": 2.22
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower08",
+      "category": "plant",
+      "x": 13.42,
+      "z": -12.74,
+      "yOffset": 0,
+      "yaw": 4.548,
+      "scale": 2.72
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": -9.57,
+      "z": -12.06,
+      "yOffset": 0,
+      "yaw": 5.101,
+      "scale": 2.31
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower01",
+      "category": "plant",
+      "x": 12.63,
+      "z": 15.13,
+      "yOffset": 0,
+      "yaw": 3.668,
+      "scale": 3.74
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower04",
+      "category": "plant",
+      "x": 16.53,
+      "z": -13.19,
+      "yOffset": 0,
+      "yaw": 0.263,
+      "scale": 2.63
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower08",
+      "category": "plant",
+      "x": -15.39,
+      "z": -17.94,
+      "yOffset": 0,
+      "yaw": 3.942,
+      "scale": 3.34
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower01",
+      "category": "plant",
+      "x": -14.82,
+      "z": -15.05,
+      "yOffset": 0,
+      "yaw": 0.44,
+      "scale": 3.19
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower02",
+      "category": "plant",
+      "x": 21.04,
+      "z": -9.5,
+      "yOffset": 0,
+      "yaw": 2.976,
+      "scale": 3.62
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower04",
+      "category": "plant",
+      "x": 8.22,
+      "z": -21.07,
+      "yOffset": 0,
+      "yaw": 4.082,
+      "scale": 2.85
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower05",
+      "category": "plant",
+      "x": -21.91,
+      "z": 5.58,
+      "yOffset": 0,
+      "yaw": 3.875,
+      "scale": 3.65
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower05",
+      "category": "plant",
+      "x": -9.79,
+      "z": -12.27,
+      "yOffset": 0,
+      "yaw": 4.351,
+      "scale": 3.48
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower08",
+      "category": "plant",
+      "x": -11.73,
+      "z": -11.18,
+      "yOffset": 0,
+      "yaw": 4.22,
+      "scale": 2.9
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower05",
+      "category": "plant",
+      "x": -7.49,
+      "z": -19.71,
+      "yOffset": 0,
+      "yaw": 2.929,
+      "scale": 3.2
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower02",
+      "category": "plant",
+      "x": 16.95,
+      "z": 15.62,
+      "yOffset": 0,
+      "yaw": 0.11,
+      "scale": 3.9
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": -21.64,
+      "z": 5.71,
+      "yOffset": 0,
+      "yaw": 2.429,
+      "scale": 2.59
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower02",
+      "category": "plant",
+      "x": 20.23,
+      "z": -11.7,
+      "yOffset": 0,
+      "yaw": 3.291,
+      "scale": 2.71
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": 15.48,
+      "z": -4.74,
+      "yOffset": 0,
+      "yaw": 4.417,
+      "scale": 2.48
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower01",
+      "category": "plant",
+      "x": 2.69,
+      "z": 22.92,
+      "yOffset": 0,
+      "yaw": 5.966,
+      "scale": 2.74
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": -7.77,
+      "z": -16.95,
+      "yOffset": 0,
+      "yaw": 1.985,
+      "scale": 1.88
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": 8.06,
+      "z": -12.67,
+      "yOffset": 0,
+      "yaw": 5.818,
+      "scale": 1.63
+    },
+    {
+      "model": "polygonalmind/avatar-garden/Flower06",
+      "category": "plant",
+      "x": -5.32,
+      "z": -22.49,
+      "yOffset": 0,
+      "yaw": 2.45,
+      "scale": 2.6
+    },
+    {
+      "model": "polygonalmind/MomusPark/Mushroom_02_Art",
+      "category": "plant",
+      "x": 10.74,
+      "z": -11.44,
+      "yOffset": 0,
+      "yaw": 1.762,
+      "scale": 2.44
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/rock_single_A",
+      "category": "rock",
+      "x": -11,
+      "z": -14,
+      "yOffset": 0,
+      "yaw": 1.794,
+      "scale": 7.5
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/rock_single_B",
+      "category": "rock",
+      "x": 12,
+      "z": -13,
+      "yOffset": 0,
+      "yaw": 1.669,
+      "scale": 5.75
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/rock_single_E",
+      "category": "rock",
+      "x": -17,
+      "z": 3,
+      "yOffset": 0,
+      "yaw": 4.856,
+      "scale": 5.95
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/rock_single_D",
+      "category": "rock",
+      "x": 18,
+      "z": 5,
+      "yOffset": 0,
+      "yaw": 5.099,
+      "scale": 7.65
+    },
+    {
+      "model": "kaykit/KayKit-Medieval-Hexagon-Pack-1.0/addons/kaykit_medieval_hexagon_pack/Assets/gltf/decoration/nature/rock_single_D",
+      "category": "rock",
+      "x": 3,
+      "z": -19,
+      "yOffset": 0,
+      "yaw": 5.908,
+      "scale": 7.74
+    },
+    {
+      "model": "kaykit/KayKit-Furniture-Bits-1.0/addons/kaykit_furniture_bits/Assets/gltf/book_set",
+      "category": "furniture",
+      "x": -5.2,
+      "z": 7.6,
+      "yOffset": 0,
+      "yaw": 3.142,
+      "scale": 1.6
+    },
+    {
+      "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/lantern_standing",
+      "category": "light",
+      "x": -7.9,
+      "z": 7.2,
+      "yOffset": 0,
+      "yaw": 0,
+      "scale": 1.8
+    },
+    {
+      "model": "kaykit/KayKit-Furniture-Bits-1.0/addons/kaykit_furniture_bits/Assets/gltf/book_set",
+      "category": "furniture",
+      "x": 5.2,
+      "z": 7.6,
+      "yOffset": 0,
+      "yaw": 3.142,
+      "scale": 1.6
+    },
+    {
+      "model": "kaykit/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf/lantern_standing",
+      "category": "light",
+      "x": 7.9,
+      "z": 7.2,
+      "yOffset": 0,
+      "yaw": 0,
+      "scale": 1.8
+    }
+  ],
+  "spawns": [],
+  "monsters": [],
+  "portals": [],
+  "npcs": [
+    {
+      "id": "oak",
+      "name": "Old Oak",
+      "role": "guide",
+      "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Barbarian",
+      "x": 0,
+      "z": 9.5,
+      "yaw": 3.141592653589793,
+      "greeting": "Welcome to the Study Grove, young caster! No monsters here \u2014 only questions.",
+      "lines": [
+        "Walk up to a tutor and press F to talk.",
+        "Sage Pip asks number questions. Librarian Wren asks about the world.",
+        "Every right answer gives you gold, and every few right answers a reward!",
+        "Stuck? Press \"Hint, please\". Everyone needs a hint sometimes.",
+        "Answer 8 questions right and the golden gate will open."
+      ],
+      "ai": false,
+      "persona": "",
+      "gift": {
+        "type": "none",
+        "rarity": "magic",
+        "amount": 50
+      },
+      "quest": null
+    },
+    {
+      "id": "pip",
+      "name": "Sage Pip",
+      "role": "tutor",
+      "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Mage",
+      "x": -6.5,
+      "z": 6,
+      "yaw": 3.141592653589793,
+      "greeting": "Hello, number wizard! Shall we practise some sums?",
+      "lines": [
+        "Numbers are like spells \u2014 the more you practise, the stronger they get."
+      ],
+      "ai": true,
+      "persona": "A young learner who is practising adding and taking away. Be extra patient and cheerful.",
+      "gift": {
+        "type": "none",
+        "rarity": "magic",
+        "amount": 50
+      },
+      "quest": null,
+      "study": {
+        "subject": "mixed",
+        "difficulty": "easy",
+        "age": 7,
+        "questions": [],
+        "gold": 10,
+        "bonusEvery": 4,
+        "bonus": "book"
+      }
+    },
+    {
+      "id": "wren",
+      "name": "Librarian Wren",
+      "role": "tutor",
+      "model": "kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded",
+      "x": 6.5,
+      "z": 6,
+      "yaw": 3.141592653589793,
+      "greeting": "Ah, a curious mind! My books are full of questions about the world. Ready?",
+      "lines": [
+        "Every book holds a little magic. Reading is how you find it."
+      ],
+      "ai": true,
+      "persona": "A young learner who loves animals and nature. Use animal examples.",
+      "gift": {
+        "type": "none",
+        "rarity": "magic",
+        "amount": 50
+      },
+      "quest": null,
+      "study": {
+        "subject": "custom",
+        "difficulty": "easy",
+        "age": 7,
+        "questions": [
+          {
+            "q": "How many legs does a spider have?",
+            "a": "8",
+            "wrong": [
+              "6",
+              "10",
+              "4"
+            ],
+            "hint": "Insects have 6 legs. Spiders have a few more!"
+          },
+          {
+            "q": "Which planet do we live on?",
+            "a": "Earth",
+            "wrong": [
+              "Mars",
+              "Venus",
+              "Jupiter"
+            ],
+            "hint": ""
+          },
+          {
+            "q": "What do bees make?",
+            "a": "honey",
+            "wrong": [
+              "milk",
+              "bread",
+              "jam"
+            ],
+            "hint": ""
+          },
+          {
+            "q": "What colour do you get when you mix blue and yellow?",
+            "a": "green",
+            "wrong": [
+              "purple",
+              "orange",
+              "red"
+            ],
+            "hint": "Think of the colour of grass."
+          },
+          {
+            "q": "Which animal is the biggest?",
+            "a": "blue whale/whale",
+            "wrong": [
+              "elephant",
+              "giraffe",
+              "shark"
+            ],
+            "hint": "It lives in the ocean."
+          },
+          {
+            "q": "How many days are in a week?",
+            "a": "7",
+            "wrong": [
+              "5",
+              "6",
+              "10"
+            ],
+            "hint": "Monday, Tuesday, Wednesday\u2026 keep counting!"
+          },
+          {
+            "q": "What is frozen water called?",
+            "a": "ice",
+            "wrong": [
+              "steam",
+              "sand",
+              "glass"
+            ],
+            "hint": ""
+          },
+          {
+            "q": "Which one is a fruit?",
+            "a": "apple",
+            "wrong": [
+              "carrot",
+              "potato",
+              "onion"
+            ],
+            "hint": "It grows on a tree."
+          },
+          {
+            "q": "What do plants need from the sun?",
+            "a": "light",
+            "wrong": [
+              "rain",
+              "wind",
+              "snow"
+            ],
+            "hint": ""
+          },
+          {
+            "q": "What is the opposite of \"hot\"?",
+            "a": "cold",
+            "wrong": [
+              "warm",
+              "big",
+              "fast"
+            ],
+            "hint": ""
+          },
+          {
+            "q": "What shape has three sides?",
+            "a": "triangle",
+            "wrong": [
+              "square",
+              "circle",
+              "rectangle"
+            ],
+            "hint": "Count the corners: one, two, three."
+          },
+          {
+            "q": "How many months are in a year?",
+            "a": "12",
+            "wrong": [
+              "10",
+              "7",
+              "24"
+            ],
+            "hint": ""
+          },
+          {
+            "q": "Which animal says \"moo\"?",
+            "a": "cow",
+            "wrong": [
+              "dog",
+              "sheep",
+              "duck"
+            ],
+            "hint": ""
+          },
+          {
+            "q": "What is the largest ocean?",
+            "a": "Pacific",
+            "wrong": [
+              "Atlantic",
+              "Indian",
+              "Arctic"
+            ],
+            "hint": "Its name means \"peaceful\"."
+          },
+          {
+            "q": "Type the word for a baby cat.",
+            "a": "kitten",
+            "wrong": [],
+            "hint": "It starts with k and rhymes with mitten."
+          },
+          {
+            "q": "Type the next number: 2, 4, 6, \u2026",
+            "a": "8",
+            "wrong": [],
+            "hint": "Count up by twos."
+          }
+        ],
+        "gold": 10,
+        "bonusEvery": 4,
+        "bonus": "health"
+      }
+    }
+  ],
+  "rules": {
+    "goal": "study",
+    "count": 8,
+    "calm": true,
+    "kinds": {
+      "grunt": 5,
+      "wisp": 3,
+      "brute": 2,
+      "golem": 1,
+      "dragon": 0
+    },
+    "baseCount": 4,
+    "growth": 1.35,
+    "bossEvery": 3,
+    "dragonEvery": 5
+  },
+  "story": {
+    "intro": {
+      "title": "The Study Grove",
+      "speaker": "Old Oak",
+      "text": "Long ago, the Grove hid its magic inside riddles.\n\nSage Pip knows numbers. Librarian Wren knows the world. Answer their questions \u2014 8 right answers will open the golden gate.\n\nThere are no monsters here. Take your time, and ask for a hint whenever you need one."
+    },
+    "outro": {
+      "title": "The Gate Opens",
+      "speaker": "Old Oak",
+      "text": "You did it! Every right answer made your magic a little stronger.\n\nCome back to the Grove any time to practise again."
+    }
+  }
+}

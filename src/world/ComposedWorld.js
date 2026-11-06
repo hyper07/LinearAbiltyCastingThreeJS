@@ -80,9 +80,12 @@ const EDGE_LAYERS = {
 
 /** Overrides for `settings.environment`, restored when the map is disposed. */
 const TIME_PRESETS = {
-  dawn: { backgroundColor: '#6f7f98', fogColor: '#8a8fa0', sunColor: '#ffc89a', sunIntensity: 2.2, sunElevation: 0.18, ambientIntensity: 0.3, hemiIntensity: 0.6, hemiSkyColor: '#ffd9c0', hemiGroundColor: '#4a4a52', envIntensity: 0.5 },
-  day: { backgroundColor: '#9fbad6', fogColor: '#b4c6d8', sunColor: '#fff6e8', sunIntensity: 3.2, sunElevation: 0.85, ambientIntensity: 0.45, hemiIntensity: 0.8, hemiSkyColor: '#cfe3ff', hemiGroundColor: '#5a5448', envIntensity: 0.7 },
-  dusk: { backgroundColor: '#3a3048', fogColor: '#5a4458', sunColor: '#ff9a62', sunIntensity: 2.0, sunElevation: 0.12, ambientIntensity: 0.25, hemiIntensity: 0.5, hemiSkyColor: '#ffb08a', hemiGroundColor: '#3a3040', envIntensity: 0.45 },
+  dawn: { backgroundColor: '#6f7f98', fogColor: '#c9b8b0', sunColor: '#ffc89a', sunIntensity: 2.4, sunElevation: 0.18, ambientIntensity: 0.32, hemiIntensity: 0.65, hemiSkyColor: '#ffd9c0', hemiGroundColor: '#4a4a52', envIntensity: 0.5, skyEnabled: true, skyZenith: '#5470a8', skyHorizon: '#ffcfb0', skyClouds: 0.4, skySunSize: 1.6 },
+  // Bright, open, sunny: a deep blue sky with clouds, a strong warm sun high up.
+  day: { backgroundColor: '#cfe6ff', fogColor: '#cfe6ff', sunColor: '#fff3dc', sunIntensity: 3.6, sunElevation: 0.95, ambientIntensity: 0.5, hemiIntensity: 0.95, hemiSkyColor: '#cfe6ff', hemiGroundColor: '#6a6448', envIntensity: 0.75, skyEnabled: true, skyZenith: '#1f6fe8', skyHorizon: '#b8dcff', skyClouds: 0.45, skySunSize: 1,
+    // A bright, saturated, sunny grade instead of the stage's moody one.
+    post: { exposure: 1.12, vignette: 0.22, saturation: 1.25, contrast: 1.06, temperature: 0.04, grain: 0.015, chromaticAberration: 0.15 } },
+  dusk: { backgroundColor: '#3a3048', fogColor: '#8a5a62', sunColor: '#ff9a62', sunIntensity: 2.0, sunElevation: 0.12, ambientIntensity: 0.25, hemiIntensity: 0.5, hemiSkyColor: '#ffb08a', hemiGroundColor: '#3a3040', envIntensity: 0.45, skyEnabled: true, skyZenith: '#2a2c5a', skyHorizon: '#ff9f78', skyClouds: 0.35, skySunSize: 2 },
   night: {}
 };
 
@@ -387,11 +390,14 @@ export class ComposedWorld {
   _applyAtmosphere(world) {
     const env = settings.environment;
     if (this._envBackup) Object.assign(env, this._envBackup);
-    const preset = TIME_PRESETS[world.timeOfDay] ?? {};
+    if (this._postBackup) Object.assign(settings.post, this._postBackup);
+    const { post = {}, ...preset } = TIME_PRESETS[world.timeOfDay] ?? {};
     this._envBackup = Object.fromEntries(
       [...Object.keys(preset), 'fogNear', 'fogFar', 'fogEnabled'].map((key) => [key, env[key]])
     );
+    this._postBackup = Object.fromEntries(Object.keys(post).map((key) => [key, settings.post[key]]));
     Object.assign(env, preset);
+    Object.assign(settings.post, post);
     env.fogEnabled = true;
     // fog 0 → clear to the horizon, 1 → pea soup past the edge ring.
     env.fogNear = 60 - world.fog * 45;
@@ -454,6 +460,8 @@ export class ComposedWorld {
     this.terrain.mesh?.removeFromParent();
     if (this._envBackup) Object.assign(settings.environment, this._envBackup);
     this._envBackup = null;
+    if (this._postBackup) Object.assign(settings.post, this._postBackup);
+    this._postBackup = null;
     this.obstacles.length = 0;
     this.stats = null;
     this.level = null;

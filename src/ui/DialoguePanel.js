@@ -1,9 +1,15 @@
 import { NPC_ROLES } from '../npc/Npcs.js';
 import { RARITIES, buyPrice, describeItem, itemColor, itemValue } from '../items/Items.js';
+import { mainAnswer } from '../npc/Study.js';
+
+const PRAISE = ['Great job!', 'Yes — you got it!', 'Brilliant!', "That's right, well done!", 'Wonderful thinking!', 'Spot on!'];
+const TRY_AGAIN = ['Not quite — have another try!', 'Close! Try once more.', 'Hmm, not that one. Try again!'];
+const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
 
 /**
  * Talking to an NPC: their words, your replies, and whatever they offer —
- * a quest, a gift, trade, healing. The game is paused while it is open.
+ * a quest, a gift, trade, healing, or — with a tutor — study questions. The
+ * game is paused while it is open.
  *
  * The App supplies `actions` (see `App._npcActions`), so this file only knows
  * how to show things and which button calls what.
@@ -25,6 +31,7 @@ export class DialoguePanel {
           <button type="submit" class="is-primary">Ask</button>
         </form>
         <div class="dialogue__trade" data-trade hidden></div>
+        <div class="dialogue__study" data-study hidden></div>
         <div class="dialogue__actions" data-actions></div>
       </div>`;
     host.appendChild(this.root);
@@ -61,6 +68,7 @@ export class DialoguePanel {
     this.$('[data-role]').style.color = role.color;
     this.$('[data-log]').replaceChildren();
     this.$('[data-trade]').hidden = true;
+    this.$('[data-study]').hidden = true;
     this.$('[data-ask]').hidden = !npc.data.ai;
     this.root.hidden = false;
     // Esc closes from anywhere, not only when focus is inside the panel.
@@ -136,6 +144,7 @@ export class DialoguePanel {
       box.append(b);
       return b;
     };
+    if (a.study?.available()) button(this.$('[data-study]').hidden ? '✎ Study with me' : '✎ Next question', () => this.showStudy(), true);
     if (npc.data.lines?.length) button('More…', () => this.say(npc.data.name, a.scripted()));
     const q = a.questState();
     if (q?.offer) button(`Quest: ${q.title}`, () => this.system(a.acceptQuest()) || this.refresh(), true);
@@ -146,8 +155,112 @@ export class DialoguePanel {
     button('Goodbye (Esc)', () => this.close());
   }
 
+  /** A tutor's question: buttons to pick from, or a box to type in. */
+  showStudy() {
+    const study = this.actions.study;
+    const box = this.$('[data-study]');
+    this.$('[data-trade]').hidden = true;
+    box.hidden = false;
+    const question = study.next();
+    if (!question) return;
+    this.refresh();
+    const name = this.npc.data.name;
+    this.say(name, question.q, 'is-question');
+
+    const draw = (disabled = new Set()) => {
+      box.replaceChildren();
+      const head = document.createElement('div');
+      head.className = 'dialogue__study-head';
+      head.textContent = `${study.correct()} right so far`;
+      const q = document.createElement('p');
+      q.className = 'dialogue__study-q';
+      q.textContent = question.q;
+      box.append(head, q);
+      if (question.choices) {
+        const row = document.createElement('div');
+        row.className = 'dialogue__choices';
+        for (const choice of question.choices) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = choice;
+          b.disabled = disabled.has(choice);
+          b.addEventListener('click', () => submit(choice));
+          row.append(b);
+        }
+        box.append(row);
+      } else {
+        const form = document.createElement('form');
+        form.className = 'dialogue__answer';
+        const input = document.createElement('input');
+        input.placeholder = 'Type your answer…';
+        input.autocomplete = 'off';
+        input.maxLength = 120;
+        const go = document.createElement('button');
+        go.type = 'submit';
+        go.className = 'is-primary';
+        go.textContent = 'Answer';
+        form.append(input, go);
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if (input.value.trim()) submit(input.value.trim());
+        });
+        box.append(form);
+        setTimeout(() => input.focus(), 30);
+      }
+      const hint = document.createElement('button');
+      hint.type = 'button';
+      hint.className = 'dialogue__hint';
+      hint.textContent = 'Hint, please';
+      hint.addEventListener('click', () => giveHint());
+      box.append(hint);
+    };
+
+    const giveHint = async () => {
+      if (question.hint) return this.say(name, question.hint);
+      const thinking = this.say(name, '…', 'is-thinking');
+      const help = await study.help('hint', question);
+      thinking.remove();
+      this.say(name, help ?? 'Read the question slowly, one part at a time. You can do it!');
+    };
+
+    const finish = () => {
+      box.replaceChildren();
+      const done = document.createElement('div');
+      done.className = 'dialogue__study-head';
+      done.textContent = `${study.correct()} right so far`;
+      box.append(done);
+      this.refresh();
+    };
+
+    const wrongTries = new Set();
+    const submit = async (given) => {
+      this.say('You', given, 'is-player');
+      const r = study.answer(given);
+      if (r.correct) {
+        this.say(name, pickOne(PRAISE), 'is-praise');
+        if (r.reward) this.system(r.reward);
+        return finish();
+      }
+      if (!r.final) {
+        wrongTries.add(given);
+        this.say(name, pickOne(TRY_AGAIN));
+        if (question.hint) this.say(name, question.hint);
+        return draw(wrongTries);
+      }
+      this.say(name, `The answer is ${mainAnswer(question.a)}. Let's remember that one!`);
+      finish();
+      const thinking = this.say(name, '…', 'is-thinking');
+      const why = await study.help('explain', question);
+      thinking.remove();
+      if (why) this.say(name, why);
+    };
+
+    draw();
+  }
+
   showTrade() {
     const a = this.actions;
+    this.$('[data-study]').hidden = true;
     const trade = this.$('[data-trade]');
     trade.hidden = false;
     const draw = () => {

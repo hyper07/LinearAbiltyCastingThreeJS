@@ -1,5 +1,6 @@
 import { ELEMENT_NAMES } from '../items/Items.js';
 import { NPC_ROLES } from './Npcs.js';
+import { SUBJECTS, mainAnswer } from './Study.js';
 
 const ENDPOINT = './api/ai';
 
@@ -47,8 +48,54 @@ export class NpcBrain {
     return line;
   }
 
+  /**
+   * A tutor talks to a child: short, warm, simple, on topic, and it helps the
+   * child think rather than handing over answers. The parent's notes (the
+   * "personality" box) say what the child is learning.
+   */
+  _tutorSystem(npc) {
+    const d = npc.data;
+    const st = d.study ?? {};
+    const subject = st.subject === 'custom' ? 'the lessons their parent wrote' : SUBJECTS[st.subject]?.toLowerCase() ?? 'school subjects';
+    const current = npc.study?.current;
+    return [
+      `You are ${d.name}, a kind, patient tutor in a friendly fantasy game. You are talking with a child about ${st.age ?? 8} years old.`,
+      d.persona ? `What the parent told you about this child and their lessons: ${d.persona}` : '',
+      `Today you are helping them study ${subject}.`,
+      current ? `The question they are working on: "${current.q}" (do not just give away the answer to it — help them work it out).` : '',
+      'How to talk:',
+      `- Use short, simple words a ${st.age ?? 8}-year-old knows. At most 3 short sentences.`,
+      '- Be warm and encouraging. Praise effort. Mistakes are part of learning.',
+      '- Explain step by step, with small everyday examples (apples, toys, steps).',
+      '- Stay on schoolwork, learning and this friendly game. If asked about anything scary, grown-up, unsafe or private, kindly say that is a question for a parent, and go back to studying.',
+      '- Never ask for or repeat personal details (full name, school, address, phone, photos).',
+      '- Never mention being an AI or a game. No markdown.'
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  /**
+   * Help on one study question.
+   * @param {'hint'|'explain'} kind hint: nudge without the answer; explain: why the answer is right
+   * @returns {Promise<string|null>} null when the AI is off or unreachable
+   */
+  async studyHelp(npc, kind, question) {
+    if (!npc.data.ai || !question) return null;
+    const ask =
+      kind === 'hint'
+        ? `Give one small hint for this question, without saying the answer: "${question.q}"`
+        : `The answer to "${question.q}" is ${mainAnswer(question.a)}. Explain simply why, in 2 short sentences.`;
+    try {
+      return await this._complete([{ role: 'system', content: this._tutorSystem(npc) }, { role: 'user', content: `${ask} /no_think` }], 300);
+    } catch {
+      return null;
+    }
+  }
+
   _system(npc, context) {
     const d = npc.data;
+    if (d.role === 'tutor') return this._tutorSystem(npc);
     const { level, player, quest } = context;
     const role = NPC_ROLES[d.role]?.label ?? 'Guide';
     const skills = Object.entries(player.skills)
@@ -73,20 +120,21 @@ export class NpcBrain {
   }
 
   async _ask(npc, text, context) {
+    const history = npc.state.history.slice(-6);
+    // `/no_think` is Qwen3's switch for "answer directly": without it the
+    // model spends its token budget reasoning and the reply comes back empty.
+    const reply = await this._complete([{ role: 'system', content: this._system(npc, context) }, ...history, { role: 'user', content: `${text} /no_think` }], 700);
+    npc.state.history.push({ role: 'user', content: text }, { role: 'assistant', content: reply });
+    return reply;
+  }
+
+  async _complete(messages, maxTokens) {
     const status = await fetch(`${ENDPOINT}/status`).then((r) => r.json()).catch(() => null);
     if (!status?.ok) throw new Error('the AI model is offline');
-    const history = npc.state.history.slice(-6);
     const response = await fetch(`${ENDPOINT}/command`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        // `/no_think` is Qwen3's switch for "answer directly": without it the
-        // model spends its token budget reasoning and the reply comes back empty.
-        messages: [{ role: 'system', content: this._system(npc, context) }, ...history, { role: 'user', content: `${text} /no_think` }],
-        temperature: 0.75,
-        maxTokens: 700,
-        timeoutMs: 90_000
-      })
+      body: JSON.stringify({ messages, temperature: 0.75, maxTokens, timeoutMs: 90_000 })
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body?.error ?? `HTTP ${response.status}`);
@@ -96,7 +144,6 @@ export class NpcBrain {
     // Plain speech in a dialogue box: drop markdown emphasis and headings.
     reply = reply.replace(/\*\*(.+?)\*\*/g, '$1').replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|$|[.,!?])/g, '$1$2').replace(/^#+\s*/gm, '');
     if (!reply) throw new Error('empty reply');
-    npc.state.history.push({ role: 'user', content: text }, { role: 'assistant', content: reply });
     return reply;
   }
 }

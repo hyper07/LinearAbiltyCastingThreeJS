@@ -433,13 +433,19 @@ export class MainMenu {
       this.campaignEl.append(empty);
       return;
     }
+    // Study levels (goal "answer questions") are always open and never lock
+    // the levels after them, so a parent's lessons are there from day one.
+    const levels = await Promise.all(campaign.map((entry) => store.load(entry.id).catch(() => null)));
     let unlocked = true;
     for (const [i, entry] of campaign.entries()) {
       const finished = done.has(entry.id);
+      const level = levels[i];
+      const isStudy = level?.rules.goal === 'study';
+      const open = unlocked || isStudy;
       const row = document.createElement('div');
       row.className = 'campaign__level';
       row.classList.toggle('is-done', finished);
-      row.classList.toggle('is-locked', !unlocked);
+      row.classList.toggle('is-locked', !open);
       const n = document.createElement('span');
       n.className = 'campaign__n';
       n.textContent = finished ? '✓' : String(i + 1);
@@ -448,14 +454,15 @@ export class MainMenu {
       const name = document.createElement('strong');
       name.textContent = entry.name;
       const detail = document.createElement('span');
-      detail.textContent = finished ? 'Completed' : unlocked ? 'Ready' : 'Locked — finish the level before it';
+      detail.textContent = finished ? 'Completed' : isStudy ? 'Study level — always open' : unlocked ? 'Ready' : 'Locked — finish the level before it';
+      if (level && open) detail.textContent += ` · ${describeGoal(level.rules)}`;
       info.append(name, detail);
       const play = document.createElement('button');
       play.type = 'button';
       play.className = 'campaign__play';
       play.dataset.level = entry.id;
       play.textContent = finished ? 'Replay' : 'Play';
-      play.disabled = !unlocked;
+      play.disabled = !open;
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'main-menu__world-btn';
@@ -465,10 +472,7 @@ export class MainMenu {
       row.append(n, info, play, edit);
       this.campaignEl.append(row);
       // Each level unlocks the next once it is finished.
-      if (!finished) unlocked = false;
-      store.load(entry.id).then((level) => {
-        if (finished || !play.disabled) detail.textContent += ` · ${describeGoal(level.rules)}`;
-      }).catch(() => {});
+      if (!finished && !isStudy) unlocked = false;
     }
   }
 

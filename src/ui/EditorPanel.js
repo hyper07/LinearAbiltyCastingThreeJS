@@ -1,6 +1,7 @@
 import { CATEGORIES } from '../library/categories.js';
 import { platform } from '../platform/index.js';
-import { GIFT_TYPES, GOALS, MONSTER_KINDS, NPC_ROLE_NAMES, PORTAL_COLOR_NAMES, REWARD_RARITIES, describeGoal, slugify } from '../levels/Level.js';
+import { GIFT_TYPES, GOALS, MONSTER_KINDS, NPC_ROLE_NAMES, PORTAL_COLOR_NAMES, REWARD_RARITIES, describeGoal, normalizeStudy, slugify } from '../levels/Level.js';
+import { DIFFICULTIES, STUDY_BONUSES, SUBJECTS, formatQuestions, parseQuestions } from '../npc/Study.js';
 import { NPC_ROLES, npcModels } from '../npc/Npcs.js';
 import { PORTAL_FRAMES } from '../world/Portals.js';
 import { RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../world/MapPlan.js';
@@ -15,7 +16,7 @@ const TOOLS = [
   ['spawns', 'Spawns', 'Click to add a point monsters walk in from; click one again to remove it.'],
   ['monsters', 'Monsters', 'Click to place a monster that is waiting when the level starts; click again to remove.'],
   ['portals', 'Portals', 'Click to place a portal, click one to select it, drag to move. Link it to another portal or another level on the right.'],
-  ['npcs', 'NPCs', 'Click to place a helper, click one to edit, drag to move. Guides talk (AI or scripted), merchants and healers trade, quest-givers set tasks.']
+  ['npcs', 'NPCs', 'Click to place a helper, click one to edit, drag to move. Guides talk (AI or scripted), merchants and healers trade, quest-givers set tasks, tutors ask study questions.']
 ];
 
 const MONSTER_LABELS = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm' };
@@ -300,7 +301,7 @@ export class EditorPanel {
       this._label('Selected NPC'),
       field('Name', m.name, (v) => e.updateMarker({ name: v || 'Stranger' })),
       this._select('Role', NPC_ROLE_NAMES, m.role, (v) => {
-        e.updateMarker({ role: v });
+        e.updateMarker(v === 'tutor' && !m.study ? { role: v, study: normalizeStudy({}) } : { role: v });
         this.renderPane();
       }, Object.fromEntries(NPC_ROLE_NAMES.map((r) => [r, NPC_ROLES[r].label]))),
       this._select('Look', ['', ...models.map((x) => x.id)], m.model ?? '', (v) => e.updateMarker({ model: v || null }), {
@@ -316,8 +317,13 @@ export class EditorPanel {
       })
     );
     if (m.ai) {
-      pane.append(field('Personality for the AI', m.persona, (v) => e.updateMarker({ persona: v }), true, 'A gruff old soldier who lost his company at the pass; kind underneath; speaks in short sentences.'));
+      pane.append(
+        m.role === 'tutor'
+          ? field('About the child and their lessons (for the AI)', m.persona, (v) => e.updateMarker({ persona: v }), true, 'Sam is 7 and just started times tables. Likes dinosaurs. Gets frustrated with big numbers — go slowly.')
+          : field('Personality for the AI', m.persona, (v) => e.updateMarker({ persona: v }), true, 'A gruff old soldier who lost his company at the pass; kind underneath; speaks in short sentences.')
+      );
     }
+    if (m.role === 'tutor') this._studyControls(pane, m, field);
     pane.append(
       this._label('Gift (given the first time you talk)'),
       this._select('Gift', GIFT_TYPES, m.gift.type, (v) => {
@@ -344,6 +350,49 @@ export class EditorPanel {
       );
     }
     pane.append(this._button('Delete NPC', () => e.removeMarker(), 'is-danger'));
+  }
+
+  /** A tutor's lessons: subject, level, the parent's own questions, rewards. */
+  _studyControls(pane, m, field) {
+    const e = this.editor;
+    const st = m.study ?? normalizeStudy({});
+    const setS = (changes, redraw = false) => {
+      e.updateMarker({ study: { ...st, ...changes } });
+      if (redraw) this.renderPane();
+    };
+    pane.append(
+      this._label('Lessons (tutor)'),
+      this._select('Subject', Object.keys(SUBJECTS), st.subject, (v) => setS({ subject: v }, true), SUBJECTS)
+    );
+    if (st.subject === 'custom') {
+      const count = st.questions.length;
+      pane.append(
+        field(
+          `Questions — one per line (${count} now)`,
+          formatQuestions(st.questions),
+          (v) => setS({ questions: parseQuestions(v) }, true),
+          true,
+          'What is the capital of France? | Paris | London, Rome | It is famous for the Eiffel Tower\nHow many legs does a spider have? | 8 | 6, 10\nSpell the colour of the sky | blue'
+        ),
+        this._note('Format: Question | Answer | wrong answers, comma-separated | hint. Only the first two are needed. With wrong answers the child picks a button; without, they type. Accept several answers with a slash: colour/color.')
+      );
+    } else {
+      pane.append(
+        this._select('Difficulty', Object.keys(DIFFICULTIES), st.difficulty, (v) => setS({ difficulty: v }), {
+          easy: 'Easy — within 10, tables to 5',
+          medium: 'Medium — within 20, tables to 10',
+          hard: 'Hard — within 100, tables to 12'
+        }),
+        this._note('Math questions are made up fresh each time, so they never run out. The child picks from four answers.')
+      );
+    }
+    pane.append(
+      this._slider("Child's age (for the AI's words)", 4, 16, 1, st.age, (v) => setS({ age: v })),
+      this._slider('Gold per right answer', 0, 100, 5, st.gold, (v) => setS({ gold: v })),
+      this._select('Bonus', Object.keys(STUDY_BONUSES), st.bonus, (v) => setS({ bonus: v }), STUDY_BONUSES),
+      this._slider('Bonus every N right answers', 1, 20, 1, st.bonusEvery || 5, (v) => setS({ bonusEvery: v })),
+      this._note('Tip: Rules → Goal "Answer questions" makes the level a study level, and Calm mode takes the monsters away.')
+    );
   }
 
   _selectionPane(pane) {
@@ -532,12 +581,26 @@ export class EditorPanel {
       this._select('Goal', GOALS, r.goal, (v) => {
         r.goal = v;
         commit();
-      }, { waves: 'Survive waves', boss: 'Defeat the boss', kills: 'Defeat monsters' }),
-      this._slider(r.goal === 'boss' ? 'Boss arrives on wave' : r.goal === 'kills' ? 'Monsters to defeat' : 'Waves to survive', 1, r.goal === 'kills' ? 99 : 20, 1, r.count, (v) => {
-        r.count = v;
-        e._commit('rules');
+      }, { waves: 'Survive waves', boss: 'Defeat the boss', kills: 'Defeat monsters', study: 'Answer questions (tutors)' }),
+      this._slider(
+        r.goal === 'boss' ? 'Boss arrives on wave' : r.goal === 'kills' ? 'Monsters to defeat' : r.goal === 'study' ? 'Right answers needed' : 'Waves to survive',
+        1,
+        r.goal === 'kills' || r.goal === 'study' ? 99 : 20,
+        1,
+        r.count,
+        (v) => {
+          r.count = v;
+          e._commit('rules');
+        }
+      ),
+      this._note(
+        `Goal: ${describeGoal(r)}${r.goal === 'boss' ? ' — the Emberwyrm arrives on that wave.' : r.goal === 'study' ? ' — add at least one Tutor NPC (NPCs tool).' : '.'}`
+      ),
+      this._check('Calm mode — no monsters at all (good for young children)', r.calm, (v) => {
+        r.calm = v;
+        commit();
       }),
-      this._note(`Goal: ${describeGoal(r)}${r.goal === 'boss' ? ' — the Emberwyrm arrives on that wave.' : '.'}`),
+      ...(r.calm && r.goal !== 'study' ? [this._note('With no monsters, only the "Answer questions" goal can be reached.')] : []),
       this._label('Monsters in the waves (0 = never)')
     );
     for (const kind of MONSTER_KINDS) {
@@ -725,6 +788,18 @@ export class EditorPanel {
     el.className = 'editor__label';
     el.textContent = text;
     return el;
+  }
+
+  _check(label, value, onChange) {
+    const wrap = document.createElement('label');
+    wrap.className = 'editor__field editor__field--inline';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = Boolean(value);
+    input.style.width = 'auto';
+    input.addEventListener('change', () => onChange(input.checked));
+    wrap.append(document.createTextNode(label), input);
+    return wrap;
   }
 
   _note(text) {

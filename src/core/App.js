@@ -909,12 +909,13 @@ export class App {
       return;
     }
 
-    this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, done: false };
+    this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, studied: 0, done: false };
     this._applyRules(level);
     await this.enterGame({ characterId: level.character, keepRun: true });
     // Monsters already standing in the level wait for the director's reset.
+    // A calm level (a study level for young players) has none at all.
     const V = this.character.position.constructor;
-    for (const m of level.monsters) this.monsters.spawn(m.kind, new V(m.x, 0, m.z));
+    if (!level.rules.calm) for (const m of level.monsters) this.monsters.spawn(m.kind, new V(m.x, 0, m.z));
     const heightAt = (x, z) => this.composed.heightAt(x, z);
     this.portals.setPortals(level.portals, heightAt);
     this.npcs.setNpcs(level.npcs, heightAt);
@@ -928,13 +929,15 @@ export class App {
     const waves = settings.waves;
     const kinds = settings.monsters.kinds;
     this._rulesBackup = {
-      waves: { baseCount: waves.baseCount, growth: waves.growth, bossEvery: waves.bossEvery, dragonEvery: waves.dragonEvery },
+      waves: { enabled: waves.enabled, baseCount: waves.baseCount, growth: waves.growth, bossEvery: waves.bossEvery, dragonEvery: waves.dragonEvery },
       weights: Object.fromEntries(Object.entries(kinds).map(([k, v]) => [k, v.weight]))
     };
     const r = level.rules;
     Object.assign(waves, { baseCount: r.baseCount, growth: r.growth, bossEvery: r.bossEvery, dragonEvery: r.dragonEvery });
     // "Defeat the boss": the Emberwyrm arrives on wave `count`.
     if (r.goal === 'boss') waves.dragonEvery = r.count;
+    // Calm: no waves — explore, talk and study.
+    if (r.calm) waves.enabled = false;
     for (const [kind, config] of Object.entries(kinds)) {
       if (kind in r.kinds && !config.boss) config.weight = r.kinds[kind];
     }
@@ -968,6 +971,7 @@ export class App {
     const progressText =
       r.goal === 'waves' ? `Wave ${Math.min(run.wave, r.count)} / ${r.count} cleared`
       : r.goal === 'kills' ? `${Math.min(run.kills, r.count)} / ${r.count} defeated`
+      : r.goal === 'study' ? `${Math.min(run.studied, r.count)} / ${r.count} questions right`
       : run.wave < r.count ? `The boss arrives on wave ${r.count}` : 'Defeat the Emberwyrm!';
     const quests = this.npcs.activeQuests().map((q) =>
       q.done ? `${q.quest.title}: return to ${q.npc.data.name}` : `${q.quest.title}: ${q.progress}/${q.quest.count}`
@@ -990,6 +994,10 @@ export class App {
       if (r.goal === 'waves' && run.wave >= r.count) return this._winLevel();
     }
     if (type === 'wave') run.wave = Math.max(run.wave, payload - 1);
+    if (type === 'study') {
+      run.studied += 1;
+      if (r.goal === 'study' && run.studied >= r.count) return this._winLevel();
+    }
     this._updateGoalPill();
   }
 
@@ -1262,6 +1270,32 @@ export class App {
         this.npcs.refreshMarks();
         this._updateGoalPill();
         return `Quest complete! You receive ${q.gold} gold${got}.`;
+      },
+      study: npc.study && {
+        available: () => npc.study.hasQuestions,
+        next: () => npc.study.next(),
+        correct: () => npc.study.correct,
+        help: (kind, question) => this.npcBrain.studyHelp(npc, kind, question),
+        answer: (given) => {
+          const result = npc.study.answer(given);
+          if (!result.correct) return result;
+          // A right answer pays; every few right answers bring a bonus.
+          const st = npc.data.study;
+          const rewards = [];
+          if (st.gold > 0) {
+            profile.gold += st.gold;
+            profile.save();
+            rewards.push(`+${st.gold} gold`);
+          }
+          if (result.bonus) {
+            const bonus = st.bonus === 'book' ? makeBook(null, Math.random, treeSpells(profile.classId)) : makePotion(st.bonus);
+            rewards.push(`${npc.study.correct} right answers — a bonus: ${give(bonus)}`);
+          }
+          const wasDone = this.run?.done;
+          this._onRunEvent('study');
+          if (this.run?.done && !wasDone) rewards.push('You did it! The way onward is open.');
+          return { ...result, reward: rewards.join(' · ') };
+        }
       },
       stock: () => (npc.state.stock ??= npc.data.role === 'healer' ? [makePotion('health'), makePotion('focus')] : merchantStock(Math.random, this.director.wave || 1, treeSpells(profile.classId))),
       bag: () => profile.bag,

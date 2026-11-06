@@ -13,6 +13,13 @@
   transition: opacity 0.22s ease;
 }
 
+/* A faded-out menu must not catch clicks — some children (the preview's
+   motion buttons) set pointer-events: auto and would sit invisibly over the
+   game and its dialogues. */
+.main-menu:not(.is-visible) * {
+  pointer-events: none !important;
+}
+
 .main-menu.is-visible {
   opacity: 1;
   pointer-events: auto;
@@ -820,6 +827,10 @@
 .game-menu-btn__icon {
   font-size: 15px;
   line-height: 1;
+}
+
+.game-menu-btn__popover[hidden] {
+  display: none;
 }
 
 .game-menu-btn__popover {

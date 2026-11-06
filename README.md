@@ -2,12 +2,13 @@
 
 A skillshot VFX sandbox — and the game that grew around it — built with **Three.js**, **Vite** and
 hand-written **GLSL**. Ten spells, eight classes with their own skill trees, a procedurally generated
-ruined keep, monsters that walk in and try to kill you, loot, NPCs, a level editor, and a chat box
+ruined keep, sunny daytime maps, monsters that walk in and try to kill you, loot, NPCs, study games
+for kids, a level editor, and a chat box
 you can give orders to in plain English — backed by a local AI model in [LM Studio](https://lmstudio.ai)
 or any OpenAI-compatible server.
 
 <p>
-  <img src="docs/screenshots/hud.jpg" width="49%" alt="Nova Beam mid-burn, with the HUD's ability bar, live stats and contact card" />
+  <img src="docs/screenshots/sunny-battle.jpg" width="49%" alt="Nova Beam blasting an Iron Brute in a sunny pine clearing under a blue sky" />
   <img src="docs/screenshots/loadout.jpg" width="49%" alt="Main menu with character preview and weapon list" />
 </p>
 
@@ -87,6 +88,14 @@ sit on keys 1–5. See **[Classes and skill trees](docs/classes-and-skills.md)**
 
 ## A look around
 
+**Sunny maps** — any map set to *Day* gets an open blue sky, clouds and bright sunlight; dawn and
+dusk get their own coloured skies. [More →](docs/level-editor.md)
+
+<p>
+  <img src="docs/screenshots/study-grove.jpg" width="49%" alt="A sunny green clearing ringed by pine trees under a blue sky with clouds" />
+  <img src="docs/screenshots/sunny-battle.jpg" width="49%" alt="Nova Beam in the sunny clearing" />
+</p>
+
 **Aiming** — line casts aim with an arrow, far casts with a circle.
 
 <p>
@@ -150,6 +159,19 @@ sit on keys 1–5. See **[Classes and skill trees](docs/classes-and-skills.md)**
   <img src="docs/screenshots/create-wear.jpg" width="49%" alt="An uploaded rigged body worn by the Mage" />
 </p>
 
+## For parents: study games
+
+Parents can turn the game into a study game. **Tutor** NPCs ask study questions — generated math
+(adding, taking away, times tables) or the parent's own questions — and every right answer earns
+gold and, every few answers, a skill book or potion. With the AI on, the tutor gives hints and
+explains answers in simple, kid-safe words. **Calm mode** takes the monsters away. The sample
+**Study Grove** level is always open in the Campaign. See **[Study games for kids](docs/for-parents.md)**.
+
+<p>
+  <img src="docs/screenshots/study-tutor.jpg" width="49%" alt="A tutor asking a question in the sunny Study Grove" />
+  <img src="docs/screenshots/editor-tutor.jpg" width="49%" alt="Setting up a tutor's lessons in the level editor" />
+</p>
+
 ## Coming next: AI LM mode
 
 A hard mode where the monsters learn how you play — your dodges, your cooldowns, how you aim — and
@@ -182,6 +204,7 @@ flowchart LR
 | [Movement](docs/movement.md) | How the character's gait, lean and arms are animated |
 | [Tuning editor and presets](docs/tuning-editor.md) | The **G** editor: 900+ live sliders, presets |
 | [Third-party services](docs/third-party.md) | What is free, what is paid, and options for 3D models, animation, AI and effects |
+| [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |
 | [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |
 | [Architecture](docs/architecture.md) | Project layout, how the systems fit together, performance, known rough edges |
 

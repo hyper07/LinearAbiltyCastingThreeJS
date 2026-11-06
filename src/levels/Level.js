@@ -1,4 +1,5 @@
 import { EDGE_OPTIONS, RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../world/MapPlan.js';
+import { DIFFICULTIES, STUDY_BONUSES, SUBJECTS } from '../npc/Study.js';
 
 /**
  * A level: one battlefield plus the rules and story around it. Saved as one
@@ -14,17 +15,20 @@ import { EDGE_OPTIONS, RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../
  *   monsters: [{ kind, x, z }],             // already standing there when the level starts
  *   portals: [{ id, x, z, yaw, color, frame: 'arch'|'gateway'|'ring', label, target: { type: 'none'|'portal'|'level', portal?, level? } }],
  *   npcs: [{ id, name, role, model, x, z, yaw, greeting, lines[], ai, persona,
- *            gift: { type, rarity, amount }, quest: null | { title, target, count, gold, rarity } }],
- *   rules: { goal: 'waves'|'boss'|'kills', count, kinds: { grunt: 5, … }, baseCount, growth, bossEvery, dragonEvery },
+ *            gift: { type, rarity, amount }, quest: null | { title, target, count, gold, rarity },
+ *            study: null | { subject, difficulty, age, questions: [{ q, a, wrong[], hint }],
+ *                            gold, bonusEvery, bonus } }],   // tutors (role 'tutor')
+ *   rules: { goal: 'waves'|'boss'|'kills'|'study', count, calm, kinds: { grunt: 5, … }, baseCount, growth, bossEvery, dragonEvery },
+ *          // 'study' = answer `count` tutor questions correctly; calm = no monsters at all
  *   story: { intro: { title, speaker, text }, outro: { title, speaker, text } }
  * }
  */
 
 export const LEVEL_VERSION = 1;
-export const GOALS = ['waves', 'boss', 'kills'];
+export const GOALS = ['waves', 'boss', 'kills', 'study'];
 export const MONSTER_KINDS = ['grunt', 'wisp', 'brute', 'golem', 'dragon'];
 export const PORTAL_COLOR_NAMES = ['blue', 'red', 'gold', 'green', 'violet'];
-export const NPC_ROLE_NAMES = ['guide', 'merchant', 'healer', 'quest'];
+export const NPC_ROLE_NAMES = ['guide', 'merchant', 'healer', 'quest', 'tutor'];
 export const GIFT_TYPES = ['none', 'health', 'focus', 'gold', 'weapon', 'book'];
 export const REWARD_RARITIES = ['none', 'magic', 'rare', 'epic', 'unique'];
 
@@ -137,12 +141,14 @@ export function normalizeLevel(raw = {}) {
                 gold: clamp(quest.gold, 0, 9999, 100),
                 rarity: pick(quest.rarity, REWARD_RARITIES, 'rare')
               }
-            : null
+            : null,
+        study: n?.role === 'tutor' || n?.study ? normalizeStudy(n?.study) : null
       };
     }),
     rules: {
       goal: pick(rules.goal, GOALS, 'waves'),
       count: clamp(rules.count, 1, 99, 3),
+      calm: Boolean(rules.calm),
       kinds,
       baseCount: clamp(rules.baseCount, 1, 30, 4),
       growth: clamp(rules.growth, 1, 2, 1.35),
@@ -153,8 +159,28 @@ export function normalizeLevel(raw = {}) {
   };
 }
 
+/** A tutor's lesson plan, repaired. */
+export function normalizeStudy(raw = {}) {
+  const s = raw ?? {};
+  return {
+    subject: pick(s.subject, Object.keys(SUBJECTS), 'add'),
+    difficulty: pick(s.difficulty, Object.keys(DIFFICULTIES), 'easy'),
+    age: clamp(s.age, 4, 16, 8),
+    questions: (Array.isArray(s.questions) ? s.questions : []).slice(0, 200).map((x) => ({
+      q: text(x?.q, 300),
+      a: text(x?.a, 120),
+      wrong: (Array.isArray(x?.wrong) ? x.wrong : []).map((w) => text(w, 120)).filter(Boolean).slice(0, 5),
+      hint: text(x?.hint, 300)
+    })).filter((x) => x.q && x.a),
+    gold: clamp(s.gold, 0, 500, 10),
+    bonusEvery: clamp(s.bonusEvery, 0, 50, 5),
+    bonus: pick(s.bonus, Object.keys(STUDY_BONUSES), 'book')
+  };
+}
+
 /** What the goal means, in words, for the HUD and the story panel. */
 export function describeGoal(rules) {
+  if (rules.goal === 'study') return `Answer ${rules.count} question${rules.count === 1 ? '' : 's'} correctly`;
   if (rules.goal === 'boss') return 'Defeat the boss';
   if (rules.goal === 'kills') return `Defeat ${rules.count} monsters`;
   return `Survive ${rules.count} wave${rules.count === 1 ? '' : 's'}`;

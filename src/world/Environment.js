@@ -13,6 +13,7 @@ import { settings } from '../config/settings.js';
 import { getColor } from '../utils/color.js';
 import { frame } from '../core/FrameUniforms.js';
 import { patchOnBeforeCompile } from '../utils/shaderPatch.js';
+import { SkyDome } from './SkyDome.js';
 
 const _sunDir = new Vector3();
 
@@ -106,6 +107,10 @@ export class Environment {
     this.rim.target = this.rimTarget;
 
     this.scene.add(this.ambient, this.hemi, this.sun, this.sunTarget, this.rim, this.rimTarget);
+
+    /** The open daytime sky — hidden unless a map's time of day asks for it. */
+    this.sky = new SkyDome();
+    this.scene.add(this.sky.mesh);
     this.sun.target = this.sunTarget;
 
     this.focus = new Vector3();
@@ -178,6 +183,7 @@ export class Environment {
 
     // Hand the key direction to the custom shaders that fake their own normals.
     frame.uLightDir.value.copy(_sunDir).negate();
+    this.sky.update(env, _sunDir, this.camera.position);
 
     this.sun.intensity = env.sunIntensity;
     this.sun.color.copy(getColor(env.sunColor));

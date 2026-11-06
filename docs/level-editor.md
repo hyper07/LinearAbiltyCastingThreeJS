@@ -36,13 +36,15 @@ map in the level editor** to hand-finish a map the AI just made.
 | **Spawns** | Mark where waves walk in from. No spawn points = monsters come from all around. |
 | **Monsters** | Place monsters that are already waiting when the level starts — e.g. a Rift Golem guarding a gate. |
 | **Portals** | Place portals and link them to each other or to another level (see [Portals](items-npcs-portals.md#portals)). |
-| **NPCs** | Place helpers — guides, merchants, healers, quest givers — with lines, an AI personality, gifts and quests (see [NPCs](items-npcs-portals.md#npcs)). |
+| **NPCs** | Place helpers — guides, merchants, healers, quest givers, tutors — with lines, an AI personality, gifts, quests and study questions (see [NPCs](items-npcs-portals.md#npcs) and [Study games for kids](for-parents.md)). |
 
 **Map** sets the ground, landscape shape (flat / hills / mountains / canyon / valley), time of day
-and fog, and has an optional **AI fill** that lays out a starting map from a sentence (it keeps your
+(**Day** is bright and sunny, with an open blue sky and clouds; dawn and dusk get a coloured sky;
+night stays dark) and fog, and has an optional **AI fill** that lays out a starting map from a sentence (it keeps your
 rules, story and markers; **Undo** takes it back). **Rules** sets the character (or the player's
-choice), the goal — *survive N waves*, *defeat N monsters* or *defeat the Emberwyrm* (it arrives on
-wave N) — which monsters the waves contain and how fast they grow. **Story** holds the intro and
+choice), the goal — *survive N waves*, *defeat N monsters*, *defeat the Emberwyrm* (it arrives on
+wave N) or *answer N questions* (tutors) — **Calm mode** (no monsters at all), which monsters the
+waves contain and how fast they grow. **Story** holds the intro and
 ending scenes. **Play test** drops you into the level and **Exit** brings you back exactly where you
 were, undo history included.
 
@@ -75,10 +77,12 @@ the asset library downloaded (it is, after the first `npm run dev`).
 
 **Campaign** in the main menu lists the levels in order. Each one unlocks the next; finishing a
 level shows its ending and offers the next level straight away. Progress is remembered per browser
-(**Reset progress** clears it). Three starter levels ship with the game:
+(**Reset progress** clears it). Study levels (goal *answer N questions*) are always open. Four
+levels ship with the game:
 
 | # | Level | Goal | Built with |
 | --- | --- | --- | --- |
 | 1 | **Frost Hollow** | Survive 3 waves | By hand: scattered pines, sculpted ridge, painted gravel road, two waiting monsters |
 | 2 | **Ember Ruins** | Defeat 25 monsters | AI fill (desert canyon temple) + hand-set rules and three spawn points |
 | 3 | **The Wyrm's Graveyard** | Defeat the Emberwyrm (wave 3) | AI fill (foggy graveyard) + a Rift Golem waiting at the gate |
+| ✎ | **Study Grove** | Answer 8 questions (calm, no monsters) | A sunny clearing with two tutors — see [Study games for kids](for-parents.md) |
