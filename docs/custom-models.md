@@ -5,7 +5,7 @@
 ## Your own models — upload or make 3D from a picture
 
 <p>
-  <img src="screenshots/create-tab.jpg" width="49%" alt="The Create tab: upload a 3D file, make 3D from a picture, and the My models list" />
+  <img src="screenshots/create-tab.jpg" width="49%" alt="The Create tab: the Class forge, uploading a 3D file, and making 3D from a picture" />
   <img src="screenshots/create-wear.jpg" width="49%" alt="An uploaded Mixamo-rigged body worn by the Mage class in the Look picker" />
 </p>
 

@@ -2,15 +2,18 @@
 
 A skillshot VFX sandbox — and the game that grew around it — built with **Three.js**, **Vite** and
 hand-written **GLSL**. Ten spells, six physical Barbarian skills, 108 weapons from swords to rocket
-launchers, eight classes with their own skill trees, a campaign that runs
+launchers, helmets, armor, shields and rings, eight classes with their own skill trees, a campaign that runs
 from a storybook village to a dragon's dungeon, sunny daytime maps, monsters that walk in and try to
 kill you, loot, NPCs, study games for kids, a level editor, and a chat box
 you can give orders to in plain English — backed by a local AI model in [LM Studio](https://lmstudio.ai)
 or any OpenAI-compatible server.
 
 <p>
+  <img src="docs/screenshots/gameplay.gif" width="100%" alt="Gameplay: a Knight in plate armor with a tower shield casts Frost Lance through a pack of monsters in Thistledown, blocks their hits, cuts down a brute, blinks away and leaves loot glowing in rarity colours" />
+</p>
+<p>
   <img src="docs/screenshots/sunny-battle.jpg" width="49%" alt="Nova Beam blasting an Iron Brute in a sunny pine clearing under a blue sky" />
-  <img src="docs/screenshots/loadout.jpg" width="49%" alt="Main menu with character preview and weapon list" />
+  <img src="docs/screenshots/loadout.jpg" width="49%" alt="Main menu: the Knight in the character preview, with its bonuses, armor class and the weapon list" />
 </p>
 
 ## Quick start
@@ -104,7 +107,7 @@ sleeps on its gold, and *Thistledown*, a storybook village of cottages and red-s
 
 <p>
   <img src="docs/screenshots/dragons-keep-boss.jpg" width="49%" alt="Nova Beam against the Emberwyrm in the torch-lit hall of the Dragon's Keep" />
-  <img src="docs/screenshots/thistledown-fight.jpg" width="49%" alt="Frost Lance erupting among imps and wisps in the sunny village of Thistledown" />
+  <img src="docs/screenshots/thistledown-fight.jpg" width="49%" alt="The Mage's Frost Lance erupting among monsters in the sunny village of Thistledown" />
 </p>
 <p>
   <img src="docs/screenshots/dragons-keep.jpg" width="49%" alt="The Dragon's Keep: carved pillars, banners and the hoard of gold" />
@@ -150,7 +153,7 @@ dusk get their own coloured skies. [More →](docs/level-editor.md)
 [More →](docs/items-npcs-portals.md)
 
 <p>
-  <img src="docs/screenshots/loot.jpg" width="49%" alt="Loot from a boss: light beams in rarity colours and floating item names" />
+  <img src="docs/screenshots/loot.jpg" width="49%" alt="A Knight in plate beside a boss's loot: light beams in rarity colours and floating item names" />
   <img src="docs/screenshots/inventory.jpg" width="49%" alt="The bag: a paper doll of worn gear, the plate set bonus, 30 slots and the totals" />
 </p>
 <p>
@@ -178,7 +181,7 @@ dusk get their own coloured skies. [More →](docs/level-editor.md)
 [More →](docs/custom-models.md)
 
 <p>
-  <img src="docs/screenshots/create-tab.jpg" width="49%" alt="The Create tab: upload a 3D file or make 3D from a picture" />
+  <img src="docs/screenshots/create-tab.jpg" width="49%" alt="The Create tab: the Class forge, uploading a 3D file, or making 3D from a picture" />
   <img src="docs/screenshots/create-wear.jpg" width="49%" alt="An uploaded rigged body worn by the Mage" />
 </p>
 

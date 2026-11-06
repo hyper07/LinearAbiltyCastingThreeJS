@@ -168,7 +168,7 @@ const GEAR_PREFIX = {
  */
 export function makeGear(rarity = 'common', rng = Math.random, { kind = null, base: baseId = null } = {}) {
   if (rarity === 'unique') {
-    const pool = GEAR_UNIQUES.filter((u) => !kind || GEAR_BASE_BY_ID[u.base].kind === kind);
+    const pool = GEAR_UNIQUES.filter((u) => (!kind || GEAR_BASE_BY_ID[u.base].kind === kind) && (!baseId || u.base === baseId));
     const u = pick(pool.length ? pool : GEAR_UNIQUES, rng);
     const base = GEAR_BASE_BY_ID[u.base];
     return gearItem(base, 'unique', u.name, { ...u.stats });

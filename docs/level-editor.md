@@ -76,7 +76,7 @@ the asset library downloaded (it is, after the first `npm run dev`).
 ### The campaign
 
 <p>
-  <img src="screenshots/campaign-menu.jpg" width="49%" alt="Campaign tab: level 1 completed, level 2 ready, level 3 locked" />
+  <img src="screenshots/campaign-menu.jpg" width="49%" alt="Campaign tab: Frost Hollow ready to play, the later levels locked until it is won" />
   <img src="screenshots/story-intro.jpg" width="49%" alt="A level's intro scene: title, speaker, story and goal" />
 </p>
 <p>

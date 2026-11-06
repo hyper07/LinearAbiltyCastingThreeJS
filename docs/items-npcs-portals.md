@@ -9,7 +9,7 @@
   <img src="screenshots/npc-merchant.jpg" width="49%" alt="Trading with Mira the merchant: potions, weapons by rarity and a skill book for sale" />
 </p>
 <p>
-  <img src="screenshots/loot.jpg" width="49%" alt="Loot from a boss: light beams in rarity colours and floating item names" />
+  <img src="screenshots/loot.jpg" width="49%" alt="A Knight in plate beside a boss's loot: light beams in rarity colours and floating item names" />
   <img src="screenshots/inventory.jpg" width="49%" alt="The bag: a paper doll of worn gear, the plate set bonus, 30 slots and the totals" />
 </p>
 <p>
