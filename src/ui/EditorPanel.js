@@ -13,8 +13,8 @@ const TOOLS = [
   ['erase', 'Erase', 'Drag over objects to remove them.'],
   ['sculpt', 'Sculpt', 'Raise, lower, smooth or flatten the land around the arena. The fighting circle stays flat.'],
   ['paint', 'Paint', 'Paint ground surfaces — anywhere, including the arena floor.'],
-  ['spawns', 'Spawns', 'Click to add a point monsters walk in from; click one again to remove it.'],
-  ['monsters', 'Monsters', 'Click to place a monster that is waiting when the level starts; click again to remove.'],
+  ['spawns', 'Spawns', 'Click to add a point monsters walk in from, drag one to move it, click one to choose which monsters and waves use it. Del removes it.'],
+  ['monsters', 'Monsters', 'Click to place a monster that is waiting when the level starts, drag one to move it, click one to change or remove it. Del removes it.'],
   ['portals', 'Portals', 'Click to place a portal, click one to select it, drag to move. Link it to another portal or another level on the right.'],
   ['npcs', 'NPCs', 'Click to place a helper, click one to edit, drag to move. Guides talk (AI or scripted), merchants and healers trade, quest-givers set tasks, tutors ask study questions.']
 ];
@@ -192,35 +192,101 @@ export class EditorPanel {
       );
       return;
     }
-    if (t === 'spawns') {
-      pane.append(
-        this._note(
-          'Gold rings are where waves walk in from. With none, monsters arrive from all around. Put them near the gold band (18–22 m) so they have room to walk in.'
-        ),
-        this._button('Remove all spawn points', () => {
-          e.level.spawns = [];
-          e._syncMarkers();
-          e._commit('spawns');
-        })
-      );
-      return;
-    }
+    if (t === 'spawns') return this._spawnPane(pane);
     if (t === 'portals') return this._portalPane(pane);
     if (t === 'npcs') return this._npcPane(pane);
     if (t === 'monsters') {
       pane.append(
         this._segmented(MONSTER_KINDS, e.monsterKind, (kind) => {
           e.monsterKind = kind;
+          // A selected monster becomes the kind picked.
+          if (e.selectedMarker?.kind === 'monster') e.updateMarker({ kind });
           this.renderPane();
         }, MONSTER_LABELS),
-        this._note('These monsters are already on the field when the level starts, before the first wave.'),
+        this._note('These monsters are already on the field when the level starts, before the first wave. Click the ground to place the kind picked above; drag one to move it.')
+      );
+      const m = e.selectedMarker?.kind === 'monster' ? e.selectedMarker.data : null;
+      if (m) {
+        pane.append(
+          this._label(`Selected: ${MONSTER_LABELS[m.kind] ?? m.kind}`),
+          this._note('Pick a kind above to change it.'),
+          this._button('Remove this monster (Del)', () => e.removeMarker(), 'is-danger')
+        );
+      }
+      pane.append(
         this._button('Remove all monsters', () => {
           e.level.monsters = [];
+          e.selectedMarker = null;
           e._syncMarkers();
           e._commit('monsters');
+          this.renderPane();
         })
       );
     }
+  }
+
+  /** Spawn points: the selected one's monsters and waves. */
+  _spawnPane(pane) {
+    const e = this.editor;
+    const m = e.selectedMarker?.kind === 'spawn' ? e.selectedMarker.data : null;
+    pane.append(
+      this._note(
+        `${e.level.spawns.length} spawn point(s). Gold rings are where waves walk in from: each monster picks one of the points open to it, at random. With none, monsters arrive from all around. Put them near the gold band (18–22 m) so they have room to walk in.`
+      )
+    );
+    if (!m) pane.append(this._note('Click the ground to add a point, or click one to choose which monsters and waves use it.'));
+    else {
+      const any = !m.kinds.length;
+      pane.append(this._label('Selected spawn point'), this._check('Any monster', any, (on) => {
+        e.updateMarker({ kinds: on ? [] : [...MONSTER_KINDS] });
+        this.renderPane();
+      }));
+      if (!any) {
+        for (const kind of MONSTER_KINDS) {
+          pane.append(
+            this._check(MONSTER_LABELS[kind], m.kinds.includes(kind), (on) => {
+              const kinds = on ? [...m.kinds, kind] : m.kinds.filter((k) => k !== kind);
+              // Unticking the last one means any monster again.
+              e.updateMarker({ kinds: MONSTER_KINDS.filter((k) => kinds.includes(k)) });
+              this.renderPane();
+            })
+          );
+        }
+      }
+      const wave = (label, value, min, onChange) => {
+        const wrap = document.createElement('label');
+        wrap.className = 'editor__field editor__field--inline';
+        const input = document.createElement('input');
+        Object.assign(input, { type: 'number', min, max: 999, step: 1, value });
+        input.addEventListener('change', () => {
+          const v = Math.round(+input.value);
+          if (Number.isFinite(v)) onChange(Math.max(min, Math.min(999, v)));
+        });
+        wrap.append(document.createTextNode(label), input);
+        return wrap;
+      };
+      pane.append(
+        wave('Open from wave', m.from, 1, (from) => {
+          e.updateMarker({ from, to: m.to && m.to < from ? from : m.to });
+          this.renderPane();
+        }),
+        wave('Until wave (0 = no end)', m.to, 0, (to) => {
+          e.updateMarker({ to: to && to < m.from ? m.from : to });
+          this.renderPane();
+        }),
+        this._note('A monster named here comes only through points that name it. Others use the points open to any monster; if none is open, any point, so nothing gets stuck.'),
+        this._button('Remove this spawn point (Del)', () => e.removeMarker(), 'is-danger')
+      );
+    }
+    pane.append(
+      this._button('Remove all spawn points', () => {
+        e.level.spawns = [];
+        e.selectedMarker = null;
+        e._syncMarkers();
+        e._commit('spawns');
+        this.renderPane();
+      })
+    );
   }
 
   _portalPane(pane) {

@@ -10,6 +10,7 @@ import { BurstMode } from '../effects/BurstSphere.js';
 import { LAYER } from '../core/Layers.js';
 import { Monster } from './Monster.js';
 import { Dragon } from './Dragon.js';
+import { pickSpawnPoint } from '../levels/Level.js';
 import { MonsterAssets } from './MonsterBuilder.js';
 
 /**
@@ -122,7 +123,12 @@ export class MonsterManager extends EventEmitter {
    * @param {Vector3} [position] defaults to a point on the arrival ring
    * @returns {Monster|null} null when the field is full
    */
-  spawn(kind, position = null) {
+  /**
+   * @param {string} kind
+   * @param {import('three').Vector3 | null} position  null = a spawn point (or the arrival ring)
+   * @param {{ wave?: number }} [options]  the wave it belongs to, for spawn points open only in some waves
+   */
+  spawn(kind, position = null, { wave = 1 } = {}) {
     const config = settings.monsters.kinds[kind];
     if (!config) return null;
     // A guest's field is the host's to fill.
@@ -131,7 +137,7 @@ export class MonsterManager extends EventEmitter {
     // it, and a field already full of imps must not be able to cancel that.
     if (!config.boss && this.aliveCount >= settings.monsters.maxAlive + this.extraAlive) return null;
 
-    const at = position ?? this.randomSpawnPoint();
+    const at = position ?? this.randomSpawnPoint(_spawn, kind, wave);
     const monster = this._pool(kind).acquire();
     monster.id = monster.ownId;
     monster.puppet = false;
@@ -254,12 +260,12 @@ export class MonsterManager extends EventEmitter {
 
   /**
    * Where the next monster walks in from: one of the level's spawn points
-   * (`spawnPoints`, set by a level) with a little scatter, or else anywhere on
-   * the arrival ring.
+   * (`spawnPoints`, set by a level) that takes this kind in this wave, with a
+   * little scatter, or else anywhere on the arrival ring.
    */
-  randomSpawnPoint(out = _spawn) {
-    if (this.spawnPoints?.length) {
-      const point = this.spawnPoints[Math.floor(Math.random() * this.spawnPoints.length)];
+  randomSpawnPoint(out = _spawn, kind = null, wave = 1) {
+    const point = pickSpawnPoint(this.spawnPoints, kind, wave);
+    if (point) {
       const a = randRange(0, Math.PI * 2);
       const r = randRange(0, 1.8);
       return out.set(point.x + Math.cos(a) * r, 0, point.z + Math.sin(a) * r);

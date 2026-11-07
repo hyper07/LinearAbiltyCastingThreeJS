@@ -139,9 +139,11 @@ export class LootSystem {
    * @param {object[]} items
    * @param {{x: number, z: number}} from where they burst out
    * @param {(x: number, z: number) => number} [heightAt]
-   * @param {{ targets?: [number, number][] }} [options] pre-rolled landing spots (see `scatter`)
+   * @param {{ targets?: [number, number][], byPlayer?: boolean }} [options] pre-rolled landing spots
+   *   (see `scatter`); `byPlayer`: dropped from the bag, so it is not picked straight back up — it
+   *   waits until the player has stepped away from it once
    */
-  drop(items, from, heightAt = () => 0, { targets = null } = {}) {
+  drop(items, from, heightAt = () => 0, { targets = null, byPlayer = false } = {}) {
     const spots = targets ?? LootSystem.scatter(from, items.length);
     items.forEach((item, i) => {
       const [tx, tz] = spots[i] ?? spots[0] ?? [from.x, from.z];
@@ -173,6 +175,7 @@ export class LootSystem {
         to: { x: tx, z: tz, y: heightAt(tx, tz) },
         t: 0,
         landed: false,
+        waitForLeave: byPlayer,
         label: null
       };
       drop.label = this.labels.add(root.position, item.name, {
@@ -229,6 +232,11 @@ export class LootSystem {
       if (drop.item.type === 'gold' || drop.item.type === 'potion') drop.mesh.rotation.y += dt;
       if (player && !(drop.blockedUntil > performance.now())) {
         const d = Math.hypot(player.x - drop.root.position.x, player.z - drop.root.position.z);
+        // Something you dropped stays down until you have walked off it once.
+        if (drop.waitForLeave) {
+          if (d > 2) drop.waitForLeave = false;
+          continue;
+        }
         if (d < 1.3) this._tryPick(drop, 1.3);
       }
     }

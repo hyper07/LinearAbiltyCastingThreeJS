@@ -398,7 +398,7 @@ export class App {
       onDrop: (item) => {
         const removed = this.profile.remove(item.uid, { worn: true });
         if (removed && this.sync?.active) this.sync.drop(item.uid);
-        if (removed && this.phase === 'playing') this.loot.drop([removed], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
+        if (removed && this.phase === 'playing') this.loot.drop([removed], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0, { byPlayer: true });
       }
     });
     this.skillPanel = new SkillTreePanel(hudRoot, this.profile, {

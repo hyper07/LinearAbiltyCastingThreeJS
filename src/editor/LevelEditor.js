@@ -13,7 +13,7 @@ import {
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { settings } from '../config/settings.js';
 import { CATEGORIES } from '../library/categories.js';
-import { createLevel, normalizeLevel } from '../levels/Level.js';
+import { createLevel, normalizeLevel, normalizeSpawn, spawnLimits } from '../levels/Level.js';
 import { library } from '../library/Library.js';
 import { LevelStore } from '../levels/LevelStore.js';
 import { mulberry32 } from '../world/Terrain.js';
@@ -25,6 +25,15 @@ const _ndc = new Vector2();
 const _v = new Vector3();
 
 /** Marker look per monster kind: colour and rough height in metres. */
+/** The monsters' names in the editor. */
+export const MONSTER_NAMES = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm' };
+
+/** Which marker each tool edits, and how near a click must be to pick one up. */
+const MARKER_TOOLS = { portals: 'portal', npcs: 'npc', spawns: 'spawn', monsters: 'monster' };
+const PICK_RADIUS = { portal: 2, npc: 2, spawn: 1.8, monster: 1.8 };
+/** Portals and NPCs stand where the caster can walk; spawn points and monsters go anywhere on the ground. */
+const WALKABLE = 21.5;
+
 const MONSTER_MARKERS = {
   grunt: ['#ff7a3d', 1.3],
   wisp: ['#b37bff', 1.6],
@@ -61,7 +70,7 @@ export class LevelEditor {
     this.scatterSet = [];
     this.monsterKind = 'grunt';
     this.selected = null;
-    /** A selected portal or NPC: { kind: 'portal'|'npc', data } */
+    /** A selected portal, NPC, spawn point or waiting monster: { kind: 'portal'|'npc'|'spawn'|'monster', data } */
     this.selectedMarker = null;
     this._markerVisuals = [];
     this.ghostYaw = 0;
@@ -428,18 +437,35 @@ export class LevelEditor {
       });
       this._markerVisuals.push({ kind: 'npc', data, object: npc, label });
     }
+    // Spawn points and waiting monsters: a group standing on the ground (so a drag moves it like a portal).
+    const stand = (data, mesh, kind, text, color) => {
+      const group = new Group();
+      group.position.set(data.x, heightAt(data.x, data.z), data.z);
+      group.add(mesh);
+      this.markersGroup.add(group);
+      const label = text ? labels.add(group.position, `${this.selectedMarker?.data === data ? '▶ ' : ''}${text}`, { className: 'world-label--npc', offset: 2.2, maxDistance: 200, color }) : null;
+      this._markerVisuals.push({ kind, data, object: { group, dispose: () => mesh.geometry.dispose() }, label });
+    };
     for (const spawn of this.level.spawns) {
-      const ring = new Mesh(new RingGeometry(0.9, 1.4, 32), this._spawnMaterial);
+      const selected = this.selectedMarker?.data === spawn;
+      const ring = new Mesh(new RingGeometry(0.9, 1.4, 32), selected ? this._spawnSelectedMaterial : this._spawnMaterial);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(spawn.x, this.terrain.heightAt(spawn.x, spawn.z) + 0.06, spawn.z);
-      this.markersGroup.add(ring);
+      ring.position.y = 0.06;
+      // Only points with limits, and the one being edited, carry a label.
+      const limits = spawnLimits(spawn, MONSTER_NAMES);
+      stand(spawn, ring, 'spawn', limits || (selected ? 'Spawn point · any monster' : ''), '#ffd166');
     }
     for (const monster of this.level.monsters) {
       const [color, height] = MONSTER_MARKERS[monster.kind] ?? ['#ffffff', 1.5];
-      const marker = new Mesh(new CapsuleGeometry(height * 0.22, height * 0.55, 4, 10), this._monsterMaterial(color));
-      marker.position.set(monster.x, this.terrain.heightAt(monster.x, monster.z) + height * 0.5, monster.z);
-      this.markersGroup.add(marker);
+      const selected = this.selectedMarker?.data === monster;
+      const marker = new Mesh(new CapsuleGeometry(height * 0.22, height * 0.55, 4, 10), this._monsterMaterial(selected ? '#ffffff' : color));
+      marker.position.y = height * 0.5;
+      stand(monster, marker, 'monster', selected ? MONSTER_NAMES[monster.kind] : '', color);
     }
+  }
+
+  _markerList(kind) {
+    return { portal: this.level.portals, npc: this.level.npcs, spawn: this.level.spawns, monster: this.level.monsters }[kind];
   }
 
   _monsterMaterial(color) {
@@ -458,23 +484,39 @@ export class LevelEditor {
     return '';
   }
 
-  /** Click near a portal/NPC selects it (and starts a drag); elsewhere places a new one. */
+  /** Where a marker of `kind` may stand: portals and NPCs inside the walkable circle, the rest anywhere. */
+  _markerSpot(kind, point) {
+    const r = Math.hypot(point.x, point.z);
+    const k = (kind === 'portal' || kind === 'npc') && r > WALKABLE ? WALKABLE / r : 1;
+    return { x: +(point.x * k).toFixed(2), z: +(point.z * k).toFixed(2) };
+  }
+
+  /**
+   * Press near a portal, NPC, spawn point or waiting monster: select it and
+   * start a drag. Elsewhere: place a new one (selected, so it can be dragged
+   * on the spot).
+   */
   _markerClick(kind, point) {
-    const list = kind === 'portal' ? this.level.portals : this.level.npcs;
-    const hit = list.find((m) => Math.hypot(m.x - point.x, m.z - point.z) < 2);
+    const list = this._markerList(kind);
+    let best = null;
+    for (const m of list) {
+      const d = Math.hypot(m.x - point.x, m.z - point.z);
+      if (d < PICK_RADIUS[kind] && (!best || d < best.d)) best = { m, d };
+    }
+    const hit = best?.m;
     if (hit) {
       this.selectedMarker = { kind, data: hit };
-      this._drag = { data: hit, moved: false };
+      this._drag = { kind, data: hit, moved: false };
     } else {
-      // Inside the area the caster can walk.
-      const r = Math.hypot(point.x, point.z);
-      const k = r > 21.5 ? 21.5 / r : 1;
-      const x = +(point.x * k).toFixed(2);
-      const z = +(point.z * k).toFixed(2);
+      const { x, z } = this._markerSpot(kind, point);
       const n = list.length + 1;
       const yaw = +Math.atan2(-x, -z).toFixed(3);
       const data =
-        kind === 'portal'
+        kind === 'spawn'
+          ? normalizeSpawn({ x, z })
+          : kind === 'monster'
+            ? { kind: this.monsterKind, x, z }
+            : kind === 'portal'
           ? { id: `portal-${Date.now().toString(36)}`, x, z, yaw, color: 'blue', frame: 'arch', label: `Portal ${n}`, target: { type: 'none' } }
           : {
               id: `npc-${Date.now().toString(36)}`,
@@ -493,7 +535,8 @@ export class LevelEditor {
             };
       list.push(data);
       this.selectedMarker = { kind, data };
-      this._commit(kind === 'portal' ? 'add portal' : 'add npc');
+      this._drag = { kind, data, moved: false };
+      this._commit(`add ${kind}`);
     }
     this._syncMarkers();
     this.panel.renderPane();
@@ -510,7 +553,7 @@ export class LevelEditor {
   removeMarker() {
     const marker = this.selectedMarker;
     if (!marker) return;
-    const list = marker.kind === 'portal' ? this.level.portals : this.level.npcs;
+    const list = this._markerList(marker.kind);
     list.splice(list.indexOf(marker.data), 1);
     // Portals that led here now lead nowhere.
     if (marker.kind === 'portal') {
@@ -520,14 +563,6 @@ export class LevelEditor {
     this._syncMarkers();
     this._commit('remove marker');
     this.panel.renderPane();
-  }
-
-  _toggleNear(list, x, z, make) {
-    const i = list.findIndex((p) => Math.hypot(p.x - x, p.z - z) < 1.8);
-    if (i >= 0) list.splice(i, 1);
-    else list.push(make());
-    this._syncMarkers();
-    this._commit('markers');
   }
 
   /* -------------------------------------------------------------------- */
@@ -565,6 +600,9 @@ export class LevelEditor {
 
   async _restore(snapshot) {
     const level = JSON.parse(snapshot.level);
+    // The selection points into the level being replaced.
+    this.selectedMarker = null;
+    this._drag = null;
     this.terrain.restore(snapshot.terrain);
     level.world.terrain = this.terrain.serialize();
     await this.setLevel(level, { keepHistory: true });
@@ -636,16 +674,10 @@ export class LevelEditor {
         if (point) this._stroke = { x: point.x, z: point.z, changed: false, target: this.terrain.heightAt(point.x, point.z), point };
         break;
       case 'spawns':
-        if (point) this._toggleNear(this.level.spawns, point.x, point.z, () => ({ x: +point.x.toFixed(2), z: +point.z.toFixed(2) }));
-        break;
       case 'monsters':
-        if (point) this._toggleNear(this.level.monsters, point.x, point.z, () => ({ kind: this.monsterKind, x: +point.x.toFixed(2), z: +point.z.toFixed(2) }));
-        break;
       case 'portals':
-        if (point) this._markerClick('portal', point);
-        break;
       case 'npcs':
-        if (point) this._markerClick('npc', point);
+        if (point) this._markerClick(MARKER_TOOLS[this.tool], point);
         break;
     }
   };
@@ -656,10 +688,7 @@ export class LevelEditor {
     this._hover = point;
     this._updateCursor(point);
     if (this._pointerDown && this._drag && point) {
-      const r = Math.hypot(point.x, point.z);
-      const k = r > 21.5 ? 21.5 / r : 1;
-      this._drag.data.x = +(point.x * k).toFixed(2);
-      this._drag.data.z = +(point.z * k).toFixed(2);
+      Object.assign(this._drag.data, this._markerSpot(this._drag.kind, point));
       this._drag.moved = true;
       const visual = this._markerVisuals.find((v) => v.data === this._drag.data);
       if (visual) {
@@ -683,11 +712,9 @@ export class LevelEditor {
     if (this._drag) {
       const moved = this._drag.moved;
       this._drag = null;
-      if (moved) {
-        this._syncMarkers();
-        this._commit('move marker');
-        this.panel.renderPane();
-      }
+      if (moved) this._commit('move marker');
+      this._syncMarkers();
+      this.panel.renderPane();
       return;
     }
     const stroke = this._stroke;
@@ -764,10 +791,16 @@ export class LevelEditor {
         break;
       case 'Delete':
       case 'Backspace':
-        if (this.selected) this.removeObject(this.selected);
+        if (this.selectedMarker && MARKER_TOOLS[this.tool]) this.removeMarker();
+        else if (this.selected) this.removeObject(this.selected);
         break;
       case 'Escape':
         this.select(null);
+        if (this.selectedMarker) {
+          this.selectedMarker = null;
+          this._syncMarkers();
+          this.panel.renderPane();
+        }
         break;
       case 'BracketLeft':
         this.setBrush({ radius: Math.max(1, this.brushRadius - 1) });
@@ -796,7 +829,7 @@ export class LevelEditor {
 
   setTool(tool) {
     this.tool = tool;
-    if (tool !== 'portals' && tool !== 'npcs' && this.selectedMarker) {
+    if (this.selectedMarker && MARKER_TOOLS[tool] !== this.selectedMarker.kind) {
       this.selectedMarker = null;
       this._syncMarkers();
     }
@@ -866,6 +899,7 @@ export class LevelEditor {
 
   _buildGuides() {
     this._spawnMaterial = new MeshBasicMaterial({ color: '#ffd166', transparent: true, opacity: 0.9, depthWrite: false });
+    this._spawnSelectedMaterial = new MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthWrite: false });
     // The fighting circle and the band where waves walk in.
     const arena = new Mesh(
       new RingGeometry(settings.ruins.wallRadius - 0.15, settings.ruins.wallRadius + 0.15, 128),

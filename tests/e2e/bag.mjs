@@ -100,6 +100,12 @@ export async function run(browser) {
     t.check('a full bag refuses a pickup', full.n > 0 && full.refused.ok === false && /No room/.test(full.refused.message), JSON.stringify(full.refused));
     await page.waitForTimeout(100);
     await drag(page, await centre(page, '[data-uid="fill-0"]'), ground);
+    // What you drop stays down while you stand on it: the room it made is still free.
+    await page.waitForTimeout(1500);
+    t.check(
+      'dropped things are not picked straight back up',
+      await page.evaluate(() => ['fill-0', 'helm', 'ring-a'].every((uid) => window.app.loot.has(uid) && !window.app.profile.bag.some((i) => i.uid === uid)))
+    );
     const after = await page.evaluate(() =>
       window.app.loot.onPickup({ uid: 'extra', type: 'gear', rarity: 'common', name: 'Spare Hood', base: 'cloth-head', baseName: 'Spare Hood', kind: 'head', group: 'cloth', implicit: {}, stats: {}, value: 0 })
     );

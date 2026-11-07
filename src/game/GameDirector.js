@@ -377,7 +377,7 @@ export class GameDirector extends EventEmitter {
         const kind = this._bossKind ?? monsters.randomKind();
         const boss = this._bossKind;
         this._bossKind = null;
-        const spawned = monsters.spawn(kind);
+        const spawned = monsters.spawn(kind, null, { wave: this.wave });
         if (spawned) {
           this._spawnQueue -= 1;
           if (boss) this.emit('boss', spawned);

@@ -246,8 +246,10 @@ bag that grows with your level, a stash shared by every class, merchants, quests
   <img src="docs/screenshots/ai-map-forest.jpg" width="49%" alt="Pine forest at dawn: Nova Beam firing between the trees" />
 </p>
 
-**Level editor and campaign** — sculpt, scatter, set the rules, write the story.
-[More →](docs/level-editor.md)
+**Level editor and campaign** — sculpt, scatter, set the rules, write the story. Portals, NPCs,
+waiting monsters and spawn points are placed with a click and moved by dragging. Each spawn point can
+be limited to certain monsters and waves (only the Emberwyrm through the north gate, a back door
+that opens in wave 5). [More →](docs/level-editor.md#spawn-points-fixed-places-random-picks)
 
 <p>
   <img src="docs/screenshots/editor-scatter.jpg" width="49%" alt="Level editor: the scatter tool painting pine trees" />

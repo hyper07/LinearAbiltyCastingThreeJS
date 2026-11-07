@@ -75,7 +75,8 @@ it fits, amber if it will swap with the one item in the way, red if it cannot go
 
 **A full bag takes nothing more.** Walk over loot that has no room and it stays on the ground with a
 message. Open the bag, arrange things to free a space the right shape, or drag something out to drop
-it, then pick the new item up. Signed in, every one of these moves is replayed and checked by the
+it, then pick the new item up. Something you drop stays on the ground while you stand on it; walk
+a couple of steps away and back to pick it up again. Signed in, every one of these moves is replayed and checked by the
 server ([Accounts and fair play](security.md)), and an item you drop lies on that fight's floor for
 anyone in the party to take.
 

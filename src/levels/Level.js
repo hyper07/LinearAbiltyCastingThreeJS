@@ -11,7 +11,8 @@ import { DIFFICULTIES, STUDY_BONUSES, SUBJECTS } from '../npc/Study.js';
  *   character: null | characterId,        // null = the player's own pick
  *   world: { ground, relief, edge, timeOfDay, fog, seed, terrain: { sculpt?, paint? } },
  *   objects: [{ model, category, x, z, yOffset, yaw, scale }],
- *   spawns:  [{ x, z }],                    // where waves walk in from (empty = all around)
+ *   spawns:  [{ x, z, kinds: [], from: 1, to: 0 }], // where waves walk in from (empty = all around);
+ *            // kinds: which monsters use it ([] = any), from/to: the waves it is open (to 0 = no end)
  *   monsters: [{ kind, x, z }],             // already standing there when the level starts
  *   portals: [{ id, x, z, yaw, color, frame: 'arch'|'gateway'|'ring', label, target: { type: 'none'|'portal'|'level', portal?, level? } }],
  *   npcs: [{ id, name, role, model, x, z, yaw, greeting, lines[], ai, persona,
@@ -36,6 +37,46 @@ const clamp = (v, lo, hi, fallback) => (Number.isFinite(+v) ? Math.min(hi, Math.
 const pick = (v, options, fallback) => (options.includes(v) ? v : fallback);
 const num = (v, fallback = 0) => (Number.isFinite(+v) ? +v : fallback);
 const text = (v, max = 2000) => String(v ?? '').slice(0, max);
+
+/** A spawn point: where, which monsters ([] = any) and in which waves (`to` 0 = every wave from `from` on). */
+export function normalizeSpawn(s) {
+  const kinds = [...new Set((Array.isArray(s?.kinds) ? s.kinds : []).filter((k) => MONSTER_KINDS.includes(k)))];
+  const from = Math.round(clamp(s?.from, 1, 999, 1));
+  const to = Math.round(clamp(s?.to, 0, 999, 0));
+  return { x: num(s?.x), z: num(s?.z), kinds, from, to: to && to < from ? from : to };
+}
+
+/** Does this spawn point take a monster of `kind` in wave `wave`? */
+export function spawnTakes(point, kind, wave = 1) {
+  if (point.kinds?.length && !point.kinds.includes(kind)) return false;
+  if (wave < (point.from ?? 1)) return false;
+  return !point.to || wave <= point.to;
+}
+
+/**
+ * The spawn point a monster walks in from, at random among:
+ * 1. the points open this wave that name its kind (a gate set to the
+ *    Emberwyrm gets every Emberwyrm), else
+ * 2. the points open this wave that take any monster, else
+ * 3. any point at all (so a wave never gets stuck).
+ * With no points, null (the arrival ring).
+ */
+export function pickSpawnPoint(points, kind, wave = 1, rng = Math.random) {
+  if (!points?.length) return null;
+  const open = points.filter((p) => spawnTakes(p, kind, wave));
+  const named = open.filter((p) => p.kinds?.length);
+  const pool = named.length ? named : open.length ? open : points;
+  return pool[Math.floor(rng() * pool.length)] ?? pool[0];
+}
+
+/** Short text for a spawn point's limits, e.g. "Emberwyrm · waves 5–9"; '' when it takes anything. */
+export function spawnLimits(point, names = {}) {
+  const parts = [];
+  if (point.kinds?.length) parts.push(point.kinds.map((k) => names[k] ?? k).join(', '));
+  if (point.to) parts.push(point.from === point.to ? `wave ${point.from}` : `waves ${point.from}–${point.to}`);
+  else if (point.from > 1) parts.push(`wave ${point.from}+`);
+  return parts.join(' · ');
+}
 
 /** File-name-safe id from a level name. */
 export function slugify(name) {
@@ -93,7 +134,7 @@ export function normalizeLevel(raw = {}) {
         yaw: num(o.yaw),
         scale: clamp(o.scale, 0.01, 100, 1)
       })),
-    spawns: (Array.isArray(raw.spawns) ? raw.spawns : []).slice(0, 32).map((s) => ({ x: num(s.x), z: num(s.z) })),
+    spawns: (Array.isArray(raw.spawns) ? raw.spawns : []).slice(0, 32).map(normalizeSpawn),
     monsters: (Array.isArray(raw.monsters) ? raw.monsters : [])
       .filter((m) => MONSTER_KINDS.includes(m?.kind))
       .slice(0, 60)

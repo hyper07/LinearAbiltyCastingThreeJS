@@ -75,13 +75,15 @@ export async function run(browser) {
     t.check('the server opened the game', await until(page, () => Boolean(window.app.sync.runId), null, 8000));
     await page.evaluate(() => window.app.director.stop());
     await page.waitForTimeout(5500); // waves can't come faster than the clock allows; neither may kills on wave 1 be reported too early
+    // An item for the bag, not gold: the cheats below need something in the bag to move.
     let item = null;
-    for (let i = 0; i < 6 && !item; i++) {
+    const inBag = (it) => it && it.type !== 'gold' && it.type !== 'potion';
+    for (let i = 0; i < 12 && !inBag(item); i++) {
       await spawnAndKill(page);
       await page.waitForTimeout(900);
       item = await pickUpOne(page);
     }
-    t.check('loot comes from the server', Boolean(item), JSON.stringify(item));
+    t.check('loot comes from the server', inBag(item), JSON.stringify(item));
     const synced = await page.evaluate(async () => {
       const view = await (await fetch(`./api/game/state?classId=${window.app.profile.classId}`)).json();
       return { server: view.digest, browser: window.app.profile.digest(), drifts: window.app.sync.drifts };
