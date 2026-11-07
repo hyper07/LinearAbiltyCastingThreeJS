@@ -449,8 +449,8 @@ export class GameAuthority {
     uid = String(uid ?? '');
     const to = run ? 'floor' : 'destroyed';
     const out = this._mutate(accountId, { removed: { [uid]: to }, run: run?.id, reason: 'drop' }, (p) => {
-      const item = p.remove(uid);
-      if (!item) throw new Refusal('Not in your bag or stash');
+      const item = p.remove(uid, { worn: true });
+      if (!item) throw new Refusal('You do not have that item');
       this.history.add(accountId, 'drop', { uid, name: item.name, to }, this.now());
       return item;
     });
@@ -484,6 +484,7 @@ export class GameAuthority {
   _op(accountId, op, args) {
     const str = (v) => (typeof v === 'string' && v.length <= 80 ? v : null);
     const int = (v) => (Number.isInteger(v) && v >= 0 && v < 64 ? v : null);
+    const cell = (v) => v == null || int(v) != null;
     const classOf = (v) => (str(v) && platform.characters.get(v) ? v : 'caster');
     const p = this.character(accountId);
     const find = (uid) => [...p.bag, ...p.stash].find((it) => it.uid === uid);
@@ -494,13 +495,18 @@ export class GameAuthority {
         return this._mutate(accountId, {}, (q) => q.move(uid, to, x ?? null, y ?? null));
       }
       case 'equip':
-        if (!str(args[0])) throw new Violation('bad-request', 'equip');
-        return this._mutate(accountId, {}, (q) => Boolean(q.equip(args[0])));
-      case 'unequipGear':
-        if (!str(args[0])) throw new Violation('bad-request', 'unequipGear');
-        return this._mutate(accountId, {}, (q) => q.unequipGear(args[0]));
-      case 'unequip':
-        return this._mutate(accountId, {}, (q) => q.unequip());
+        if (!str(args[0]) || (args[1] != null && !str(args[1]))) throw new Violation('bad-request', 'equip');
+        return this._mutate(accountId, {}, (q) => Boolean(q.equip(args[0], args[1] ?? null)));
+      case 'unequipGear': {
+        const [slotId, x = null, y = null] = args;
+        if (!str(slotId) || !cell(x) || !cell(y)) throw new Violation('bad-request', 'unequipGear');
+        return this._mutate(accountId, {}, (q) => q.unequipGear(slotId, x, y));
+      }
+      case 'unequip': {
+        const [x = null, y = null] = args;
+        if (!cell(x) || !cell(y)) throw new Violation('bad-request', 'unequip');
+        return this._mutate(accountId, {}, (q) => q.unequip(x, y));
+      }
       case 'read': {
         const [uid, classId] = args;
         const book = str(uid) && find(uid);

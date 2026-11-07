@@ -46,9 +46,14 @@ function picture(item, cells) {
  * and rows bought from merchants.
  *
  * Click a weapon or piece of gear in the bag to wear it, a book to read it,
- * a bag upgrade to use it; drag anything to move it (onto another item to
- * swap, onto the paper doll to wear it); click something you wear to take it
- * off; right-click to drop.
+ * a bag upgrade to use it; click something you wear to take it off.
+ * Everything can be dragged:
+ * - within the bag, to arrange it (onto another item to swap the two);
+ * - from the bag onto the paper doll, to wear it (a ring onto either finger);
+ * - from the paper doll into the bag, to take it off into that spot (onto a
+ *   piece for the same slot, to swap the two);
+ * - out of the bag, in a fight, to drop it on the ground (right-click too).
+ * A full bag takes nothing more: make room by arranging or dropping.
  *
  * Stash mode (`openStash`, from the main menu or a village's Stashkeeper):
  * the bag beside the big shared stash. Click moves an item across; drag
@@ -77,6 +82,13 @@ const SHORT = {
   regen: ' health/s',
   thorns: ' thorns'
 };
+/** Can this item be worn in this paper-doll slot? */
+const goesIn = (item, slotId) =>
+  slotId === 'weapon' ? item?.type === 'weapon' : item?.type === 'gear' && GEAR_SLOTS.some((s) => s.id === slotId && s.kind === item.kind);
+
+/** The name of the slot an item is worn in. */
+const slotName = (item) => (item.type === 'weapon' ? 'weapon' : (GEAR_SLOTS.find((s) => s.kind === item.kind)?.label ?? 'its').toLowerCase());
+
 const shortStat = (key, v) => {
   const abs = Math.round(Math.abs(v) * 10) / 10;
   return `${v > 0 ? '+' : '−'}${abs}${SHORT[key] ?? `% ${ELEMENT_NAMES[key] ?? key}`}`;
@@ -86,7 +98,7 @@ export class InventoryPanel {
   /**
    * @param {HTMLElement} host
    * @param {import('../items/Profile.js').Profile} profile
-   * @param {{ onEquip: (item) => void, onUnequip: (slotId: string) => void, onRead: (item) => void, onDrop: (item) => void, onMessage?: (text: string) => void }} actions
+   * @param {{ onEquip: (item, slotId?: string) => void, onUnequip: (slotId: string, at?: number[]) => void, onRead: (item) => void, onDrop: (item) => void, canDrop?: () => boolean, onMessage?: (text: string) => void }} actions
    */
   constructor(host, profile, actions) {
     this.profile = profile;
@@ -166,7 +178,7 @@ export class InventoryPanel {
       left.append(this._bagHeader(), this._grid('bag'));
       const sh = document.createElement('div');
       sh.className = 'inventory__grid-head';
-      sh.innerHTML = `<strong>Stash</strong><span>${usedCells(p.stash)} / ${STASH_COLS * STASH_ROWS} cells · shared by every class · click an item to move it across</span>`;
+      sh.innerHTML = `<strong>Stash</strong><span>${usedCells(p.stash)} / ${STASH_COLS * STASH_ROWS} cells · shared by every class · click an item to move it across, or drag it to a spot</span>`;
       right.append(sh, this._grid('stash'));
     } else {
       left.append(this._doll(), this._armorInfo());
@@ -203,7 +215,7 @@ export class InventoryPanel {
     const p = this.profile;
     const box = document.createElement('div');
     box.className = 'inventory__doll';
-    box.innerHTML = '<small>Equipped — click to take off</small>';
+    box.innerHTML = '<small>Equipped — click to take off, or drag into the bag</small>';
     const grid = document.createElement('div');
     grid.className = 'inventory__doll-grid';
     for (const row of DOLL) {
@@ -222,7 +234,8 @@ export class InventoryPanel {
           if (eq) {
             cell.style.borderColor = itemColor(eq);
             cell.style.color = itemColor(eq);
-            cell.title = [eq.name, ...describeItem(eq), '', 'Swap it by clicking another weapon in the bag.'].join('\n');
+            cell.title = [eq.name, ...describeItem(eq), '', 'Click: take off · Drag: into the bag, or out to drop it · Click another weapon in the bag to swap'].join('\n');
+            this._wornHandlers(cell, eq, 'weapon');
           } else {
             cell.classList.add('is-empty');
             cell.title = `${held.name} — the weapon your loadout gave you. Click a weapon in the bag to hold it instead.`;
@@ -255,15 +268,23 @@ export class InventoryPanel {
             ...(favored ? ['', `Proficient: +${PROFICIENCY * 100}% from its base properties`] : []),
             ...(active ? [] : ['', 'Not working: your weapon takes both hands']),
             '',
-            'Click: take off'
+            'Click: take off · Drag: into the bag, or out to drop it'
           ].join('\n');
-          cell.addEventListener('click', () => this.actions.onUnequip?.(slotId));
+          this._wornHandlers(cell, item, slotId);
         }
         grid.append(cell);
       }
     }
     box.append(grid);
     return box;
+  }
+
+  /** A worn piece: click (or Enter) takes it off, a drag moves it. */
+  _wornHandlers(cell, item, slotId) {
+    cell.classList.add('is-draggable');
+    cell.addEventListener('pointerdown', (e) => this._dragStart(e, item, { worn: slotId }, cell));
+    // Pointer clicks are decided by the drag code; this is the keyboard's.
+    cell.addEventListener('click', (e) => e.detail === 0 && this.actions.onUnequip?.(slotId));
   }
 
   _armorInfo() {
@@ -339,9 +360,10 @@ export class InventoryPanel {
         ...(item.type === 'gear' ? this._compare(item) : []),
         ...(book ? ['', book.ok ? `You can read it: ${book.reason.toLowerCase()}` : book.reason] : []),
         '',
-        `${verb} · Drag: move · Right-click: drop`
+        `${verb} · Drag: move${this.actions.canDrop?.() ? ', or out of the bag to drop it' : ''} · Right-click: drop`
       ].join('\n');
-      tile.addEventListener('pointerdown', (e) => this._dragStart(e, item, name, tile));
+      tile.addEventListener('pointerdown', (e) => this._dragStart(e, item, { grid: name }, tile));
+      tile.addEventListener('click', (e) => e.detail === 0 && this._click(item, name));
       tile.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         this.actions.onDrop(item);
@@ -369,56 +391,114 @@ export class InventoryPanel {
 
   /**
    * Press on an item: a click if the pointer does not move, else a drag —
-   * the item follows the pointer, the cells it would land on light up
-   * (green: fits, amber: swaps, red: no), and letting go moves it there or
-   * onto a paper-doll slot.
+   * the item follows the pointer and where it would land lights up: cells
+   * in a grid (green: fits, amber: swaps, red: no), the paper-doll slots it
+   * can be worn in, or — outside the bag, in a fight — the ground.
+   * @param {{ grid?: string, worn?: string }} from  a grid name, or the slot it is worn in
    */
-  _dragStart(e, item, from, tile) {
+  _dragStart(e, item, from, el) {
     if (e.button !== 0) return;
     e.preventDefault();
     const sx = e.clientX;
     const sy = e.clientY;
-    const box = tile.getBoundingClientRect();
-    const grabX = sx - box.left;
-    const grabY = sy - box.top;
+    const box = el.getBoundingClientRect();
+    /** The carried picture's size: the item's own, or its size in the bag for a worn piece. */
+    let gw = box.width;
+    let gh = box.height;
+    const size = item._size ?? itemSize(item);
+    const card = this.root.querySelector('.inventory__card');
+    const canDrop = Boolean(this.actions.canDrop?.());
+    // A worn piece is drawn in a square slot; it lands in the grid by its centre.
+    const grabX = from.worn ? null : sx - box.left;
+    const grabY = from.worn ? null : sy - box.top;
     let ghost = null;
     let preview = null;
+    let hint = null;
     let target = null;
-    const size = item._size ?? itemSize(item);
 
     const where = (cx, cy) => {
       for (const grid of this.root.querySelectorAll('[data-grid]')) {
         const r = grid.getBoundingClientRect();
         if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) continue;
         const cell = r.width / Number(grid.style.getPropertyValue('--cols'));
-        const x = Math.round((cx - grabX - r.left) / cell);
-        const y = Math.round((cy - grabY - r.top) / cell);
-        return { kind: 'grid', grid, name: grid.dataset.grid, x, y, cell };
+        const ox = grabX ?? (size[0] * cell) / 2;
+        const oy = grabY ?? (size[1] * cell) / 2;
+        const x = Math.round((cx - ox - r.left) / cell);
+        const y = Math.round((cy - oy - r.top) / cell);
+        return { kind: 'grid', grid, name: grid.dataset.grid, x, y };
       }
       const slot = document.elementsFromPoint(cx, cy).find((n) => n.dataset?.slot);
-      return slot ? { kind: 'slot', slot: slot.dataset.slot, el: slot } : null;
+      if (slot) return { kind: 'slot', slot: slot.dataset.slot, el: slot };
+      const c = card.getBoundingClientRect();
+      const outside = cx < c.left || cx > c.right || cy < c.top || cy > c.bottom;
+      return outside && canDrop ? { kind: 'ground' } : null;
     };
+
+    /** What letting go on a grid spot would do: 'ok', 'swap' (with `other`) or 'bad'. */
+    const onGrid = (t) => {
+      const g = this.profile.grid(t.name);
+      const inside = t.x >= 0 && t.y >= 0 && t.x + size[0] <= g.cols && t.y + size[1] <= g.rows;
+      if (from.worn) {
+        if (t.name !== 'bag') return { verdict: 'bad' };
+        if (fits(g.items, g.cols, g.rows, size, t.x, t.y)) return { verdict: 'ok' };
+        const inWay = inside ? overlapping(g.items, size, t.x, t.y) : [];
+        return inWay.length === 1 && goesIn(inWay[0], from.worn) ? { verdict: 'swap', other: inWay[0] } : { verdict: 'bad' };
+      }
+      if (fits(g.items, g.cols, g.rows, size, t.x, t.y, item)) return { verdict: 'ok' };
+      return { verdict: inside && overlapping(g.items, size, t.x, t.y, item).length === 1 ? 'swap' : 'bad' };
+    };
+
+    const lift = () => {
+      if (from.worn) {
+        // Off the paper doll it is carried at its size in the bag, so you see the room it needs.
+        const bag = this.root.querySelector('[data-grid="bag"]');
+        const cell = bag ? bag.getBoundingClientRect().width / Number(bag.style.getPropertyValue('--cols')) : 40;
+        ghost = document.createElement('div');
+        ghost.className = 'inventory__item';
+        ghost.style.borderColor = ghost.style.color = itemColor(item);
+        ghost.append(picture(item, size));
+        gw = size[0] * cell;
+        gh = size[1] * cell;
+      } else {
+        ghost = el.cloneNode(true);
+        ghost.removeAttribute('data-uid');
+      }
+      ghost.classList.add('inventory__ghost');
+      ghost.style.width = `${gw}px`;
+      ghost.style.height = `${gh}px`;
+      this.root.append(ghost); // inside the bag, where the tile styles apply
+      el.classList.add('is-lifted');
+      preview = document.createElement('div');
+      preview.className = 'inventory__drop';
+      // The slots it can be worn in light up while it is carried.
+      if (from.grid === 'bag') {
+        for (const n of this.root.querySelectorAll('[data-slot]')) if (goesIn(item, n.dataset.slot)) n.classList.add('is-drop-ok');
+      }
+      if (canDrop) {
+        hint = document.createElement('div');
+        hint.className = 'inventory__ground';
+        hint.textContent = 'Drag outside the bag to drop it on the ground';
+        this.root.append(hint);
+      }
+    };
+
+    const clear = () => this.root.querySelectorAll('.is-drop-target, .is-drop-bad').forEach((n) => n.classList.remove('is-drop-target', 'is-drop-bad'));
 
     const move = (ev) => {
       if (!ghost) {
         if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
-        ghost = tile.cloneNode(true);
-        ghost.classList.add('is-ghost');
-        ghost.style.width = `${box.width}px`;
-        ghost.style.height = `${box.height}px`;
-        document.body.append(ghost);
-        tile.classList.add('is-lifted');
-        preview = document.createElement('div');
-        preview.className = 'inventory__drop';
+        lift();
       }
-      ghost.style.transform = `translate(${ev.clientX - grabX}px, ${ev.clientY - grabY}px)`;
+      const gx = grabX ?? gw / 2;
+      const gy = grabY ?? gh / 2;
+      ghost.style.transform = `translate(${ev.clientX - gx}px, ${ev.clientY - gy}px)`;
       target = where(ev.clientX, ev.clientY);
-      this.root.querySelectorAll('.is-drop-target').forEach((n) => n.classList.remove('is-drop-target'));
+      clear();
+      this.root.classList.toggle('is-dropping', target?.kind === 'ground');
+      if (hint) hint.textContent = target?.kind === 'ground' ? `Let go to drop ${item.name} on the ground` : 'Drag outside the bag to drop it on the ground';
       if (target?.kind === 'grid') {
-        const g = this.profile.grid(target.name);
-        const ok = fits(g.items, g.cols, g.rows, size, target.x, target.y, item);
-        const swap = !ok && target.x >= 0 && target.y >= 0 && target.x + size[0] <= g.cols && target.y + size[1] <= g.rows && overlapping(g.items, size, target.x, target.y, item).length === 1;
-        preview.className = `inventory__drop ${ok ? 'is-ok' : swap ? 'is-swap' : 'is-bad'}`;
+        const { verdict } = onGrid(target);
+        preview.className = `inventory__drop is-${verdict}`;
         preview.style.setProperty('--x', target.x);
         preview.style.setProperty('--y', target.y);
         preview.style.setProperty('--w', size[0]);
@@ -426,29 +506,60 @@ export class InventoryPanel {
         target.grid.append(preview);
       } else {
         preview.remove();
-        if (target?.kind === 'slot') target.el.classList.add('is-drop-target');
+        if (target?.kind === 'slot' && target.slot !== from.worn) {
+          target.el.classList.add(from.grid === 'bag' && goesIn(item, target.slot) ? 'is-drop-target' : 'is-drop-bad');
+        }
       }
     };
-    const up = (ev) => {
+
+    const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
       if (!ghost) {
-        this._click(item, from);
+        if (from.worn) this.actions.onUnequip?.(from.worn);
+        else this._click(item, from.grid);
         return;
       }
       ghost.remove();
       preview?.remove();
-      tile.classList.remove('is-lifted');
-      if (target?.kind === 'grid') {
-        const r = this.profile.move(item.uid, target.name, target.x, target.y);
-        if (!r.ok && r.message) this._say(r.message);
-      } else if (target?.kind === 'slot' && from === 'bag' && (item.type === 'weapon' || item.type === 'gear')) {
-        this.actions.onEquip(item);
-      }
-      this.render();
+      hint?.remove();
+      clear();
+      this.root.querySelectorAll('.is-drop-ok').forEach((n) => n.classList.remove('is-drop-ok'));
+      this.root.classList.remove('is-dropping');
+      el.classList.remove('is-lifted');
+      this._drop(item, from, target, target?.kind === 'grid' ? onGrid(target) : null);
+      if (!this.root.hidden) this.render();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  }
+
+  /** Let go of a dragged item over `target`. */
+  _drop(item, from, target, grid) {
+    if (!target) return;
+    if (target.kind === 'ground') {
+      this.actions.onDrop(item);
+      this._say(`${item.name} dropped`);
+      return;
+    }
+    if (target.kind === 'slot') {
+      if (!from.grid || target.slot === from.worn) return;
+      if (from.grid !== 'bag') return this._say('Move it into your bag first');
+      if (item.type !== 'weapon' && item.type !== 'gear') return this._say(`${item.name} cannot be worn`);
+      if (!goesIn(item, target.slot)) return this._say(`${item.name} goes in the ${slotName(item)} slot`);
+      this.actions.onEquip(item, target.slot);
+      return;
+    }
+    if (from.worn) {
+      if (grid.verdict === 'ok') this.actions.onUnequip?.(from.worn, [target.x, target.y]);
+      else if (grid.verdict === 'swap') this.actions.onEquip(grid.other, from.worn);
+      else this._say('It does not fit there');
+      return;
+    }
+    const r = this.profile.move(item.uid, target.name, target.x, target.y);
+    if (!r.ok && r.message) this._say(r.message);
   }
 
   /** "Compared with what you wear" lines for a piece of gear in the bag. */

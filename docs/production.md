@@ -118,7 +118,7 @@ see [The shared library](library.md#where-it-is-stored)).
 
 ```bash
 npm test                # the server: rooms, file stores, the library, accounts and every cheat rule (node --test)
-npm run build && npm run test:e2e   # the real server + two Chromium browsers: a solo run and a co-op run
+npm run build && npm run test:e2e   # the real server + Chromium: a solo run, a co-op run, accounts, and the bag by mouse
 ```
 
 `npm run test:e2e` needs Playwright's browser once: `npx playwright install chromium`.

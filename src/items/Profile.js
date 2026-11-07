@@ -20,6 +20,12 @@ export const MAX_LEVEL = 50;
 export const xpToNext = (level) => Math.round(80 * Math.pow(level, 1.45));
 export const BELT_MAX = 10;
 
+/** `[x, y]` when both are whole cells, else null (anywhere free). */
+const spotOf = (x, y) => (Number.isInteger(x) && Number.isInteger(y) ? [x, y] : null);
+
+/** What a full bag says when something will not go in. */
+const noRoom = (item) => `No room in your bag for ${item.name}. Open the bag (Tab) and move things to make room, or drag one out to drop it`;
+
 /**
  * The player's character between runs: level and XP, purse, potion belt, bag
  * and stash (grids of items, see items/Grid.js), the weapon
@@ -410,9 +416,7 @@ export class Profile extends EventEmitter {
     if (item.type === 'potion') {
       return this.potions[item.potion] >= BELT_MAX ? { ok: false, message: 'Potion belt is full' } : { ok: true, message: '' };
     }
-    return this.hasRoomFor(item)
-      ? { ok: true, message: '' }
-      : { ok: false, message: `No room in your bag for ${item.name} — sell, drop or stash something (Tab)` };
+    return this.hasRoomFor(item) ? { ok: true, message: '' } : { ok: false, message: noRoom(item) };
   }
 
   /**
@@ -520,7 +524,7 @@ export class Profile extends EventEmitter {
       this.save();
       return { ok: true, message: item.name };
     }
-    if (!this._put(item)) return { ok: false, message: `No room in your bag for ${item.name} — sell, drop or stash something (Tab)` };
+    if (!this._put(item)) return { ok: false, message: noRoom(item) };
     this.save();
     return { ok: true, message: item.name };
   }
@@ -530,11 +534,13 @@ export class Profile extends EventEmitter {
    * back in the bag in its place. A ring goes on a free finger, else replaces
    * the first ring.
    */
-  equip(uid) {
+  equip(uid, slotId = null) {
     const i = this.bag.findIndex((it) => it.uid === uid);
     const item = this.bag[i];
     if (!item || (item.type !== 'weapon' && item.type !== 'gear')) return null;
-    const slot = item.type === 'weapon' ? null : this.slotFor(item);
+    // A slot asked for (a ring dragged onto the second finger) is used when the piece goes there.
+    const asked = item.type === 'gear' && slotId && GEAR_SLOTS.some((s) => s.id === slotId && s.kind === item.kind) ? slotId : null;
+    const slot = item.type === 'weapon' ? null : asked ?? this.slotFor(item);
     const old = item.type === 'weapon' ? this.equipped : this.gear[slot];
     // The new piece leaves the bag; the old one goes where it was, or
     // anywhere it fits. No room for it at all: nothing changes.
@@ -560,10 +566,10 @@ export class Profile extends EventEmitter {
     return slots.find((id) => !this.gear[id]) ?? slots[0];
   }
 
-  /** Take off whatever is in a gear slot (back to the bag). */
-  unequipGear(slotId) {
+  /** Take off whatever is in a gear slot (back to the bag: at `x, y` if it fits there, else anywhere). */
+  unequipGear(slotId, x = null, y = null) {
     const item = this.gear[slotId];
-    if (!item || !this._put(item)) return false;
+    if (!item || !this._put(item, spotOf(x, y))) return false;
     this.gear[slotId] = null;
     this.save();
     this.emit('stats', this.stats);
@@ -571,8 +577,9 @@ export class Profile extends EventEmitter {
     return true;
   }
 
-  unequip() {
-    if (!this.equipped || !this._put(this.equipped)) return false;
+  /** Put the weapon in hand back in the bag (at `x, y` if it fits there); the loadout's weapon is held again. */
+  unequip(x = null, y = null) {
+    if (!this.equipped || !this._put(this.equipped, spotOf(x, y))) return false;
     this.equipped = null;
     this.save();
     this.emit('stats', this.stats);
@@ -617,17 +624,39 @@ export class Profile extends EventEmitter {
     return true;
   }
 
-  remove(uid) {
+  /**
+   * Take an item out of the bag or the stash — or, with `worn`, off the
+   * character (dropping a piece of gear or the weapon in hand).
+   */
+  remove(uid, { worn = false } = {}) {
     let list = this.bag;
     let i = list.findIndex((it) => it.uid === uid);
     if (i < 0) {
       list = this.stash;
       i = list.findIndex((it) => it.uid === uid);
     }
-    if (i < 0) return null;
+    if (i < 0) return worn ? this._takeOff(uid) : null;
     const [item] = list.splice(i, 1);
     delete item.at;
     this.save();
+    return item;
+  }
+
+  /** Take a worn piece or the weapon in hand off the character, to nowhere. */
+  _takeOff(uid) {
+    let item = null;
+    if (this.equipped?.uid === uid) {
+      item = this.equipped;
+      this.equipped = null;
+    } else {
+      const slotId = Object.keys(this.gear).find((id) => this.gear[id]?.uid === uid);
+      if (!slotId) return null;
+      item = this.gear[slotId];
+      this.gear[slotId] = null;
+    }
+    this.save();
+    this.emit('stats', this.stats);
+    if (item.type === 'gear') this.emit('gear', this.gear);
     return item;
   }
 

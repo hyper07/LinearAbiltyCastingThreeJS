@@ -12,7 +12,8 @@ import { Accounts } from '../../server/game/accounts.js';
 import { Refusal, Violation } from '../../server/game/rules.js';
 import { createGameServices } from '../../server/game/index.js';
 import { normalizeLevel } from '../../src/levels/Level.js';
-import { buyPrice, itemValue } from '../../src/items/Items.js';
+import { buyPrice, itemSize, itemValue } from '../../src/items/Items.js';
+import { BAG_COLS } from '../../src/items/Profile.js';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 
@@ -242,6 +243,49 @@ test('the inventory rules run on the server: moves, wearing, selling — gold on
     assert.ok(errorOf(() => w.authority.ops(a, { ops: [{ op: 'sell', args: [item.uid] }] })) instanceof Refusal);
     assert.ok(errorOf(() => w.authority.ops(a, { ops: [{ op: 'hack', args: [] }] })) instanceof Violation);
     assert.ok(errorOf(() => w.authority.ops(a, { ops: [{ op: 'move', args: [item.uid, 'nowhere'] }] })) instanceof Violation);
+  } finally {
+    await w.close();
+  }
+});
+
+test('dragging runs on the server too: take off into a cell, swap, drop what you wear on the floor', async () => {
+  const w = await world();
+  try {
+    const a = (await w.accounts.register({ name: 'Ada', password: 'lovelace-1815' })).account.id;
+    const { runId } = await w.authority.startRun(a, {});
+    let item = null;
+    for (let start = 0; !item && start < 4000; start += 400) {
+      for (const d of farm(w, a, runId, 'brute', { min: 6, start })) {
+        if (!item && d.type === 'gear') {
+          w.authority.take(a, { runId, uid: d.uid });
+          item = d;
+        }
+      }
+      w.later(61);
+    }
+    assert.ok(item, 'some gear dropped');
+    const p = w.authority.character(a);
+    w.authority.ops(a, { ops: [{ op: 'equip', args: [item.uid] }] });
+    const slotId = Object.entries(p.gear).find(([, g]) => g?.uid === item.uid)[0];
+
+    // Off into the bottom-right corner of the bag.
+    const [iw, ih] = itemSize(item);
+    const x = BAG_COLS - iw;
+    const y = p.bagRowCount - ih;
+    w.authority.ops(a, { ops: [{ op: 'unequipGear', args: [slotId, x, y] }] });
+    assert.deepEqual(p.bag.find((it) => it.uid === item.uid).at, [x, y]);
+    assert.ok(errorOf(() => w.authority.ops(a, { ops: [{ op: 'unequipGear', args: [slotId, -1, 'x'] }] })) instanceof Violation);
+    assert.ok(errorOf(() => w.authority.ops(a, { ops: [{ op: 'equip', args: [item.uid, 42] }] })) instanceof Violation);
+
+    // Worn, then dropped: it leaves the character and lies on this run's floor.
+    w.authority.ops(a, { ops: [{ op: 'equip', args: [item.uid, slotId] }] });
+    assert.equal(p.gear[slotId]?.uid, item.uid);
+    w.authority.drop(a, { runId, uid: item.uid });
+    assert.equal(p.gear[slotId], null);
+    const row = w.db.q('SELECT state, run FROM items WHERE uid = ?').get(item.uid);
+    assert.equal(row.state, 'floor');
+    assert.equal(row.run, runId);
+    assert.ok(errorOf(() => w.authority.drop(a, { runId, uid: item.uid })) instanceof Refusal, 'it cannot be dropped twice');
   } finally {
     await w.close();
   }

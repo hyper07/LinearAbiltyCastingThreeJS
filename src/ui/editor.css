@@ -1031,19 +1031,54 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
   filter: grayscale(0.6);
 }
 
-.inventory__item.is-lifted {
+.inventory__item.is-lifted,
+.inventory__gear.is-lifted {
   opacity: 0.25;
 }
 
-.inventory__item.is-ghost {
-  position: fixed;
-  left: 0;
-  top: 0;
+/* What follows the pointer while an item is dragged (from the bag, the stash or the paper doll). */
+.inventory__ghost {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  margin: 0 !important;
   z-index: 120;
   pointer-events: none;
   opacity: 0.9;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
   cursor: grabbing;
+}
+
+.inventory__gear.is-draggable {
+  touch-action: none;
+  cursor: grab;
+}
+
+/* The ground: outside the bag while dragging, in a fight. */
+.inventory__ground {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 110;
+  padding: 8px 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(10, 14, 20, 0.85);
+  color: var(--ui-text-dim);
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.inventory.is-dropping {
+  background: rgba(60, 30, 4, 0.5);
+  cursor: grabbing;
+}
+
+.inventory.is-dropping .inventory__ground {
+  border: 1px solid rgba(255, 200, 80, 0.9);
+  color: #ffd27a;
 }
 
 .inventory__drop {
@@ -1072,8 +1107,18 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
   outline: 2px solid rgba(255, 90, 90, 0.8);
 }
 
+.inventory__gear.is-drop-ok {
+  outline: 2px dashed rgba(110, 230, 140, 0.6);
+  opacity: 1;
+}
+
 .inventory__gear.is-drop-target {
   outline: 2px solid rgba(110, 230, 140, 0.9);
+  background: rgba(110, 230, 140, 0.12) !important;
+}
+
+.inventory__gear.is-drop-bad {
+  outline: 2px solid rgba(255, 90, 90, 0.8);
 }
 
 /* stash mode: the bag beside the stash */

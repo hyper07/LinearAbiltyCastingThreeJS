@@ -389,12 +389,14 @@ export class App {
     this.npcBrain = new NpcBrain();
     this.dialogue = new DialoguePanel(hudRoot);
     this.inventory = new InventoryPanel(hudRoot, this.profile, {
-      onEquip: (item) => this._equipItem(item),
-      onUnequip: (slotId) => this._unequipGear(slotId),
+      onEquip: (item, slotId) => this._equipItem(item, slotId),
+      onUnequip: (slotId, at) => this._unequipGear(slotId, at),
       onRead: (item) => this.hud.showToast((item.type === 'bag' ? this.profile.useBagUpgrade(item.uid) : this.profile.read(item.uid)).message, 2600),
       onMessage: (text) => this.hud.showToast(text, 2400),
+      // Dragging something out of the bag drops it at your feet — only in a fight, where there is ground.
+      canDrop: () => this.phase === 'playing',
       onDrop: (item) => {
-        const removed = this.profile.remove(item.uid);
+        const removed = this.profile.remove(item.uid, { worn: true });
         if (removed && this.sync?.active) this.sync.drop(item.uid);
         if (removed && this.phase === 'playing') this.loot.drop([removed], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
       }
@@ -1850,8 +1852,8 @@ export class App {
     this.character.locomotion.speedBonus = this._speedBonus;
   }
 
-  _equipItem(item) {
-    const equipped = this.profile.equip(item.uid);
+  _equipItem(item, slotId = null) {
+    const equipped = this.profile.equip(item.uid, slotId);
     if (!equipped) {
       if (this.profile._lastError) this.hud.showToast(this.profile._lastError, 2400);
       this.profile._lastError = null;
@@ -1862,11 +1864,13 @@ export class App {
     this.hud.showToast(idle ? `${equipped.name} worn — but it needs a free hand (your weapon takes both)` : `${equipped.name} equipped`, idle ? 3200 : 1800);
   }
 
-  _unequipGear(slotId) {
-    const item = this.profile.gear[slotId];
+  /** Take off a piece of gear or the weapon in hand (`slotId` 'weapon'), into the bag at `at` if given. */
+  _unequipGear(slotId, at = null) {
+    const item = slotId === 'weapon' ? this.profile.equipped : this.profile.gear[slotId];
     if (!item) return;
-    if (!this.profile.unequipGear(slotId)) this.hud.showToast('Your bag is full');
-    else this.hud.showToast(`${item.name} taken off`);
+    const [x, y] = at ?? [null, null];
+    const ok = slotId === 'weapon' ? this.profile.unequip(x, y) : this.profile.unequipGear(slotId, x, y);
+    this.hud.showToast(ok ? `${item.name} taken off` : 'Your bag is full — drag it out of the bag to drop it instead');
   }
 
   _wearGear() {

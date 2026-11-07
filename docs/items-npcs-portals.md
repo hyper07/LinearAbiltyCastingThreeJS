@@ -38,7 +38,7 @@ better plus two skill books.
 **Tab** opens the bag: a paper doll of everything you wear (click a piece to take it off), your
 armor proficiency and set bonuses, the bag grid, what everything adds up to, and your class's skill
 ranks. Click a weapon or piece of gear to wear it, a book to read it, a bag upgrade to use it,
-right-click to drop. Hovering over gear compares it with what you wear. Books your class can't read
+right-click to drop; or drag anything where it should go (see below). Hovering over gear compares it with what you wear. Books your class can't read
 are greyed out. The bag, stash, worn gear, gold, potions, level and ranks are saved in the browser
 and carry between levels.
 
@@ -63,8 +63,21 @@ Every item takes its own size:
 | 1×3 or 2×3 (3–6) | Swords, axes, cloaks, body and leg armor, kite shields, quivers |
 | 1×4 or 2×4 (4–8) | Staves, polearms, rifles, bows, heavy weapons, greatswords, tower shields |
 
-**Drag** an item to move it: the cells under it light up green if it fits, amber if it will swap with
-the one item in the way, red if it cannot go there. Drag onto the paper doll to wear it.
+**Everything moves by drag and drop.** While you carry an item, the cells under it light up green if
+it fits, amber if it will swap with the one item in the way, red if it cannot go there.
+
+| Drag | What happens |
+| --- | --- |
+| Within the bag | Arranges it: it goes in that spot, or swaps with the one item in the way |
+| From the bag onto the paper doll | Wears it. The slots it can go in light up; a ring goes on the finger you drop it on |
+| From the paper doll into the bag | Takes it off into that spot; dropped on a piece for the same slot, the two swap |
+| Out of the bag, in a fight | Drops it on the ground at your feet, worn things too (right-click drops as well) |
+
+**A full bag takes nothing more.** Walk over loot that has no room and it stays on the ground with a
+message. Open the bag, arrange things to free a space the right shape, or drag something out to drop
+it, then pick the new item up. Signed in, every one of these moves is replayed and checked by the
+server ([Accounts and fair play](security.md)), and an item you drop lies on that fight's floor for
+anyone in the party to take.
 
 **The bag grows** from 4 rows to as many as 12, three ways:
 

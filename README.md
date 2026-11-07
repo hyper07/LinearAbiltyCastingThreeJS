@@ -44,6 +44,11 @@ Pick a class in the main menu and press **Start Game**. Move with **W A S D**, p
 a spell, aim with the mouse and **right-click** to cast; **left-click** is your class's close-range
 attack. **K** opens your skill tree, **Tab** the bag. Full list: **[Controls](docs/controls.md)**.
 
+The bag is a grid where every item takes its own size, and everything in it moves by drag and drop:
+arrange the bag, drag gear onto your character to wear it or back into the bag to take it off, and
+drag anything out of the bag to drop it on the ground. A full bag takes nothing more, so make room
+first. See **[the bag](docs/items-npcs-portals.md#the-bag-grid-levels-and-the-stash)**.
+
 ## Playing together
 
 Up to four people in one world, each from their own browser. In the main menu, **Play together**
