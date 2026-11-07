@@ -36,6 +36,8 @@ import { library, OFFICIAL_AUTHOR } from '../library/Library.js';
 import { LibraryPanel } from '../ui/LibraryPanel.js';
 import { itemThumbnails } from '../ui/ItemThumbnails.js';
 import { Party } from '../net/Party.js';
+import { Account } from '../net/Account.js';
+import { ProfileSync } from '../net/ProfileSync.js';
 import { LootSystem } from '../items/Loot.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
@@ -346,6 +348,24 @@ export class App {
     this.mainMenu.setProfile(this.profile);
     this.loot = new LootSystem(this.scene, this.labels);
     this.loot.onPickup = (item) => {
+      // Signed in: loot is the server's. The bag takes it at once (the same
+      // rules run here), and the server decides whether it is really ours.
+      if (this.sync?.active) {
+        if (!item.srv) return { ok: false, message: "This loot is not recorded on the server (the host isn't signed in)" };
+        const can = this.profile.canPickUp(item);
+        if (!can.ok) {
+          this.hud.showToast(can.message);
+          return can;
+        }
+        const result = this.profile.pickUp(item);
+        this.sync.take(item.uid).then((r) => {
+          if (r.ok) this.party.send({ t: 'taken', uid: item.uid, by: this.party.id });
+          else this.hud.showToast(r.error ?? 'Someone else got there first', 2200);
+        });
+        if (item.type !== 'gold' && item.type !== 'potion') (window.requestIdleCallback ?? setTimeout)(() => itemThumbnails.of(item));
+        if (result.message) this.hud.showToast(result.message);
+        return result;
+      }
       // In a party the host hands out the loot: a guest asks, and hears back.
       if (this.party.isGuest) {
         const can = this.profile.canPickUp(item);
@@ -375,6 +395,7 @@ export class App {
       onMessage: (text) => this.hud.showToast(text, 2400),
       onDrop: (item) => {
         const removed = this.profile.remove(item.uid);
+        if (removed && this.sync?.active) this.sync.drop(item.uid);
         if (removed && this.phase === 'playing') this.loot.drop([removed], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
       }
     });
@@ -409,6 +430,24 @@ export class App {
     /* ---- playing together ----
        One player hosts the fight; the others play in it. See net/Party.js. */
     this.party = new Party(this);
+
+    /* ---- accounts: signed in, the character is the server's (net/ProfileSync.js) ---- */
+    this.account = new Account();
+    this.sync = new ProfileSync(this.profile);
+    this.sync.on('blocked', (message) => {
+      this.hud.showToast(message, 8000);
+      this._signedOut();
+    });
+    this.sync.on('signedOut', () => this._signedOut());
+    this.mainMenu.bindAccount(this.account, {
+      signIn: (name, password) => this._signIn('login', name, password),
+      signUp: (name, password) => this._signIn('register', name, password),
+      signOut: async () => {
+        await this.account.logout();
+        this._signedOut();
+      },
+      history: () => this.account.history()
+    });
     this.mainMenu.bindParty(this.party);
     this.gameHud.onChat = (text) => this.party.say(text);
     this.monsters.on('attack', (monster, attack, target) => {
@@ -538,8 +577,11 @@ export class App {
     this.director.on('kill', (monster) => {
       // Only the host's director kills; the party hears about it from there.
       this.party.onLocalKill(monster);
-      this._dropLoot(monster);
-      this.profile.addXp((XP_FOR[monster.kind] ?? 6) * (1 + ((this.director.wave || 1) - 1) * 0.05));
+      const wave = this.director.wave || 1;
+      // The same experience the server will grant, so the bar moves now.
+      this.profile.addXp(Math.round((XP_FOR[monster.kind] ?? 6) * (1 + (wave - 1) * 0.05)));
+      if (this.sync.active) this._serverLoot(monster, wave);
+      else this._dropLoot(monster);
       if (this.npcs.onKill(monster.kind)) this._updateGoalPill();
       this._onRunEvent('kill', monster);
     });
@@ -1021,12 +1063,22 @@ export class App {
     document.body.classList.remove('is-menu');
     this.hud.showToast('Fight!');
     this.party.onEnterGame({ fromParty, keepRun, level: this.world === this.composed ? this.composed.level : null });
+    // Signed in: the server opens this fight so it can check what happens in it.
+    // A guest joins the host's instead (the host sends its id).
+    if (this.sync.active && !this.party.isGuest) {
+      const level = this.run && !this.run.fromEditor ? this.run.level.id : null;
+      this.sync.startRun(level).then((r) => {
+        if (r.ok) this.party.setRunId(r.runId);
+        else this.hud.showToast(`The server could not open this game: ${r.error}`, 3000);
+      });
+    }
   }
 
   /** Leave the arena and return to loadout selection (or to the editor, after a play test). */
   exitToMenu({ fromParty = false } = {}) {
     const backToEditor = this.run?.fromEditor;
     this.party.onExitGame({ fromParty });
+    if (this.sync.active) this.sync.endRun();
     this._endRun();
     this.inventory.setBeltVisible(false);
     this.inventory.toggle(false);
@@ -1579,7 +1631,9 @@ export class App {
   _onPartyKill(msg) {
     if (this.phase !== 'playing') return;
     this.director.kills += 1;
-    this.profile.addXp((XP_FOR[msg.k] ?? 6) * (1 + ((msg.w || 1) - 1) * 0.05));
+    this.profile.addXp(Math.round((XP_FOR[msg.k] ?? 6) * (1 + ((msg.w || 1) - 1) * 0.05)));
+    // Signed in, the server checks the kill really happened in the host's game.
+    if (this.sync.active && this.sync.runId) this.sync.partyKill(msg.id);
     if (this.npcs.onKill(msg.k)) this._updateGoalPill();
     this._onRunEvent('kill', { kind: msg.k });
   }
@@ -1721,6 +1775,57 @@ export class App {
   /* Items                                                               */
   /* ------------------------------------------------------------------ */
 
+  /**
+   * Signed in: the server hears of the kill, checks it, rolls the loot and
+   * names every item; what it rolled falls where the monster died.
+   */
+  _serverLoot(monster, wave) {
+    const at = { x: monster.position.x, z: monster.position.z };
+    this.sync.kill(monster.id, monster.kind, wave).then((r) => {
+      if (!r.ok || !r.drops?.length || this.phase !== 'playing') return;
+      const targets = LootSystem.scatter(at, r.drops.length);
+      this.loot.drop(r.drops, at, (x, z) => this.world.heightAt?.(x, z) ?? 0, { targets });
+      this.party.announceLoot(r.drops, at, targets);
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Accounts                                                            */
+  /* ------------------------------------------------------------------ */
+
+  async _signIn(kind, name, password) {
+    const r = kind === 'register' ? await this.account.register(name, password) : await this.account.login(name, password);
+    if (!r.ok) return r;
+    this.sync.attach(r.character);
+    this._afterAccountChange();
+    return r;
+  }
+
+  /** The server says who is signed in (a cookie from an earlier visit). */
+  async _restoreAccount() {
+    const r = await this.account.me();
+    if (r.ok && r.account && r.character) {
+      this.sync.attach(r.character);
+      this._afterAccountChange();
+    }
+  }
+
+  /** Signed out (or blocked): back to this browser's own character. */
+  _signedOut() {
+    if (this.account.user) this.account._set(null);
+    if (this.sync.active) this.sync.detach();
+    this._afterAccountChange();
+  }
+
+  _afterAccountChange() {
+    this._applyProfileStats();
+    this._wearGear();
+    this._syncSlots();
+    if (this.mainMenu.isVisible) this.mainMenu.show();
+    // The party socket says who you are when it connects: reconnect as the new you.
+    if (!this.party.inParty) this.party.session.close();
+  }
+
   _dropLoot(monster) {
     // In a party the books come from everyone's trees, not just the host's.
     const bookPool = this.party.inParty ? this.party.bookPool() : treeSpells(this.profile.classId);
@@ -1828,6 +1933,77 @@ export class App {
   }
 
   _npcActions(npc) {
+    const local = this._localNpcActions(npc);
+    return this.sync.active ? this._serverNpcActions(npc, local) : local;
+  }
+
+  /**
+   * Signed in, everything an NPC gives is made by the server, checked
+   * against the level file: a gift once, a quest reward only when the
+   * server counted the kills, a study reward at a human pace, and the
+   * merchant's goods and prices are the server's.
+   */
+  _serverNpcActions(npc, local) {
+    const sync = this.sync;
+    const id = npc.data.id;
+    const describe = (given) => {
+      if (!given) return '';
+      if (given.dropped) this.loot.drop([given.item], this.character.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
+      return given.dropped ? `${given.item.name} (dropped at your feet — your bag is full)` : given.item.name;
+    };
+    const failed = (r) => r.error ?? 'The server said no';
+    return {
+      ...local,
+      takeGift: () => {
+        const g = npc.data.gift;
+        if (!g || g.type === 'none' || npc.state.gifted) return null;
+        npc.state.gifted = true;
+        return sync.npc(id, 'gift').then((r) => (r.ok && r.given ? `${npc.data.name} gives you ${describe(r.given)}.` : r.ok ? null : failed(r)));
+      },
+      completeQuest: () => {
+        npc.state.questTurnedIn = true;
+        this.npcs.refreshMarks();
+        this._updateGoalPill();
+        return sync.npc(id, 'quest').then((r) => {
+          if (!r.ok) {
+            npc.state.questTurnedIn = false;
+            this.npcs.refreshMarks();
+            return failed(r);
+          }
+          return `Quest complete! You receive ${r.gold} gold${r.given ? ` and ${describe(r.given)}` : ''}.`;
+        });
+      },
+      study: local.study && {
+        ...local.study,
+        answer: (given) => {
+          const result = npc.study.answer(given);
+          if (!result.correct) return result;
+          const wasDone = this.run?.done;
+          this._onRunEvent('study');
+          const reward = sync.npc(id, 'study').then((r) => {
+            if (!r.ok) return failed(r);
+            const parts = [r.gold ? `+${r.gold} gold` : '', r.given ? `${r.count} right answers — a bonus: ${describe(r.given)}` : ''].filter(Boolean);
+            if (this.run?.done && !wasDone) parts.push('You did it! The way onward is open.');
+            return parts.join(' · ');
+          });
+          return { ...result, reward };
+        }
+      },
+      stock: () =>
+        (npc.state.serverStock ??= sync.shop(id, this.director.wave || 1).then((r) => {
+          if (!r.ok) npc.state.serverStock = null;
+          return r.ok ? r.stock : [];
+        })),
+      buy: (item) =>
+        sync.buy(id, item.uid).then((r) => {
+          // A bag row's price moves after each one: ask again next time.
+          if (item.type === 'service') npc.state.serverStock = null;
+          return r.ok ? r.message : failed(r);
+        })
+    };
+  }
+
+  _localNpcActions(npc) {
     const profile = this.profile;
     const give = (item) => {
       const result = profile.pickUp(item);
@@ -2017,6 +2193,8 @@ export class App {
 
     this.showMainMenu();
     this.start();
+    // Signed in from an earlier visit? Then the character is the server's.
+    this._restoreAccount();
   }
 
   /**

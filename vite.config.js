@@ -7,6 +7,7 @@ import { libraryApi } from './server/libraryStore.js';
 import { aiBridge } from './server/api/ai.js';
 import { JsonFileStore, fileApi } from './server/api/files.js';
 import { createRealtime } from './server/realtime.js';
+import { createGameServices } from './server/game/index.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -76,13 +77,40 @@ function fileStores() {
   };
 }
 
+/**
+ * Accounts, characters and the rules (server/game) — one instance shared by
+ * its routes and the party server, with the data in `data/` like the library.
+ */
+function gameServices(env, levelDir) {
+  let ready = null;
+  const get = () =>
+    (ready ??= createGameServices({
+      dataDir: resolve('data'),
+      env,
+      readLevel: (id) => new JsonFileStore({ builtInDir: levelDir(), userDir: levelDir(), indexKey: 'campaign', label: 'level' }).readText(id),
+      log: (line) => console.log(line)
+    }));
+  return get;
+}
+
+/** The game's routes (/api/account, /api/game) over the shared services. */
+function gameApi(getGame) {
+  return mount('game', async (req, res) => {
+    const path = (req.url ?? '').split('?')[0];
+    if (!path.startsWith('/api/account') && !path.startsWith('/api/game')) return false;
+    return (await getGame()).handler(req, res);
+  });
+}
+
 /** Playing together: the room server on the same port, at /ws. */
-function realtime(env) {
+function realtime(env, getGame) {
   const attach = (server) => {
     const rt = createRealtime({
       maxPlayers: Math.max(2, Math.min(8, Number(env.MAX_PLAYERS) || 4)),
-      log: (line) => server.config.logger.info(`[party] ${line}`, { timestamp: true })
+      log: (line) => server.config.logger.info(`[party] ${line}`, { timestamp: true }),
+      authenticate: async (req) => (await getGame()).authenticate(req)
     });
+    getGame().then((game) => game.setPartyCheck((a, b) => rt.sameParty(a, b)));
     server.httpServer?.on('upgrade', (req, socket, head) => {
       // Vite's own HMR socket takes the other upgrades.
       rt.handleUpgrade(req, socket, head);
@@ -176,6 +204,10 @@ export default defineConfig(({ mode }) => {
     if (env[key] !== undefined && process.env[key] === undefined) process.env[key] = env[key];
   }
 
+  // Dev saves levels in the repo; `vite preview` plays the built set like production.
+  let levelDir = () => resolve('public', 'levels');
+  const getGame = gameServices({ ...process.env, ...env }, () => levelDir());
+
   return {
     base: './',
     server: {
@@ -203,7 +235,9 @@ export default defineConfig(({ mode }) => {
       fileStores(),
       modelStudio(env),
       libraryApi(),
-      realtime({ ...process.env, ...env })
+      gameApi(getGame),
+      realtime({ ...process.env, ...env }, getGame),
+      { name: 'level-dir', configurePreviewServer: () => void (levelDir = () => resolve('dist', 'levels')) }
     ]
   };
 });

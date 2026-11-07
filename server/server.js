@@ -8,6 +8,7 @@ import { chain, json, pathOf } from './api/http.js';
 import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
+import { createGameServices } from './game/index.js';
 
 /**
  * The production server: one process that serves the built game and
@@ -15,6 +16,8 @@ import { createRealtime } from './realtime.js';
  *
  *   /                 the built client (dist/), precompressed and cached
  *   /ws               playing together — rooms and relay (realtime.js)
+ *   /api/account/*    accounts and sessions (game/accounts.js)
+ *   /api/game/*       characters, loot, shops — the server decides (game/authority.js)
  *   /api/ai/*         the AI bridge: the model key stays here (api/ai.js)
  *   /api/library/*    the shared content library, SQLite in DATA_DIR (libraryStore.js)
  *   /api/levels/*     levels players save, in DATA_DIR/levels (api/files.js)
@@ -82,12 +85,16 @@ const COMPRESSIBLE = new Set(['.js', '.mjs', '.css', '.html', '.json', '.svg', '
 
 /* ---- the services ---- */
 
-const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, log: (line) => console.log(`[party] ${line}`) });
+const levels = new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'levels'), userDir: join(DATA_DIR, 'levels'), indexKey: 'campaign', label: 'level' });
+const game = await createGameServices({ dataDir: DATA_DIR, readLevel: (id) => levels.readText(id), log: (line) => console.log(line) });
+const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, log: (line) => console.log(`[party] ${line}`), authenticate: game.authenticate });
+game.setPartyCheck((a, b) => realtime.sameParty(a, b));
 const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => console.log(line) });
 let library = null;
 const api = chain([
+  game.handler,
   aiBridge(process.env),
-  fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'levels'), userDir: join(DATA_DIR, 'levels'), indexKey: 'campaign', label: 'level' }), { files: 'levels', ordered: true }),
+  fileApi(levels, { files: 'levels', ordered: true }),
   fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
   libraryHandler(async () => (library ??= await LibraryStore.open(join(DATA_DIR, 'library.sqlite')))),
   async (req, res) => (pathOf(req).startsWith('/api/models') ? models.handle(req, res) : false)
@@ -240,6 +247,7 @@ function shutdown(signal) {
   realtime.close();
   server.close(() => {
     library?.close();
+    game.close();
     process.exit(0);
   });
   setTimeout(() => process.exit(0), 5000).unref();

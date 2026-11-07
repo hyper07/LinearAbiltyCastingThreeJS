@@ -50,6 +50,8 @@ export class Party extends EventEmitter {
     this.remotes = new Map();
     /** Host: the start message of the current run, for guests who arrive late. */
     this.hostRun = null;
+    /** Host: the server's id for this fight (signed in), so guests can join it there. */
+    this.hostRunId = null;
     /** Guest: items taken, waiting for the host's word. */
     this._pending = new Map();
     this._sendAt = 0;
@@ -89,7 +91,9 @@ export class Party extends EventEmitter {
     return this.session.room;
   }
 
+  /** Signed in, you are your account (the server enforces it); else the name typed in the menu. */
   get name() {
+    if (this.app.account?.user) return this.app.account.user.name;
     try {
       return localStorage.getItem(NAME_KEY) || '';
     } catch {
@@ -271,10 +275,17 @@ export class Party extends EventEmitter {
     this.app.monsters.setPuppet(false);
   }
 
+  /** Host, signed in: the server opened this fight; guests join it there to share its loot. */
+  setRunId(runId) {
+    this.hostRunId = runId;
+    if (this.isHost && runId) this.send({ t: 'runid', id: runId });
+  }
+
   /** Host: the run ended (back to the menu). */
   broadcastEnd() {
     if (!this.isHost) return;
     this.hostRun = null;
+    this.hostRunId = null;
     this.send({ t: 'end' });
     this.app.monsters.players = null;
   }
@@ -515,11 +526,19 @@ export class Party extends EventEmitter {
         return;
       case 'ready':
         if (!this.isHost) return;
-        if (this.hostRun && app.phase === 'playing') this.sendTo(from, this.hostRun);
-        else this.sendTo(from, { t: 'wait' });
+        if (this.hostRun && app.phase === 'playing') {
+          this.sendTo(from, this.hostRun);
+          if (this.hostRunId) this.sendTo(from, { t: 'runid', id: this.hostRunId });
+        } else this.sendTo(from, { t: 'wait' });
         return;
       case 'wait':
         app.hud.showToast('The host has not started yet', 2200);
+        return;
+      case 'runid':
+        // The host's fight on the server: join it, so its loot and kills count for us too.
+        if (!this.isGuest) return;
+        this.guestRunId = msg.id;
+        if (app.sync?.active) app.sync.joinRun(msg.id);
         return;
       case 'exit':
         if (this.isHost && app.run?.done) app._finishLevel();

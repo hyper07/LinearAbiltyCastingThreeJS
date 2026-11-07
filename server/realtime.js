@@ -31,7 +31,7 @@ const NAME_MAX = 24;
 /**
  * @param {{ maxPlayers?: number, maxRooms?: number, path?: string, log?: (line: string) => void }} [options]
  */
-export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', log = () => {} } = {}) {
+export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', log = () => {}, authenticate = () => null } = {}) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 4 * 1024 * 1024, perMessageDeflate: false });
   /** code → room */
   const rooms = new Map();
@@ -48,7 +48,10 @@ export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', l
       if (member.id !== exceptId && member.ws.readyState === member.ws.OPEN) member.ws.send(text);
     }
   };
-  const peerInfo = (c) => ({ id: c.id, name: c.name });
+  // `verified`: signed in, so the name is the account's and cannot be borrowed.
+  const peerInfo = (c) => ({ id: c.id, name: c.name, verified: Boolean(c.account) });
+  /** The name a member goes by: their account's, when they are signed in. */
+  const nameOf = (client, asked) => client.account?.name ?? cleanName(asked);
   const cleanName = (name) =>
     String(name ?? '')
       .replace(/[\u0000-\u001f\u007f]/g, '')
@@ -99,7 +102,7 @@ export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', l
         const room = { code: newCode(), host: client.id, players: new Map([[client.id, client]]), created: Date.now(), cap };
         rooms.set(room.code, room);
         client.room = room;
-        client.name = cleanName(msg.name);
+        client.name = nameOf(client, msg.name);
         send(client.ws, joined(room, client));
         log(`room ${room.code} opened by ${client.name}`);
         return;
@@ -110,7 +113,7 @@ export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', l
         if (!room) return send(client.ws, { t: 'error', code: 'no-room', message: 'No party has that code.' });
         if (room.players.size >= room.cap) return send(client.ws, { t: 'error', code: 'full', message: 'That party is full.' });
         if (client.room) leave(client);
-        client.name = cleanName(msg.name);
+        client.name = nameOf(client, msg.name);
         room.players.set(client.id, client);
         client.room = room;
         send(client.ws, joined(room, client));
@@ -135,8 +138,8 @@ export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', l
     }
   }
 
-  wss.on('connection', (ws) => {
-    const client = { id: String(nextId++), name: 'Player', ws, room: null, alive: true, budget: { at: Date.now(), msgs: 0, bytes: 0 } };
+  wss.on('connection', (ws, req, account = null) => {
+    const client = { id: String(nextId++), name: account?.name ?? 'Player', account, ws, room: null, alive: true, budget: { at: Date.now(), msgs: 0, bytes: 0 } };
     clients.add(client);
     ws.on('pong', () => (client.alive = true));
     ws.on('message', (data, isBinary) => {
@@ -168,7 +171,7 @@ export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', l
     ws.on('error', () => {
       /* closed by the other side; 'close' follows */
     });
-    send(ws, { t: 'hello', id: client.id, maxPlayers });
+    send(ws, { t: 'hello', id: client.id, maxPlayers, account: account ? { id: account.id, name: account.name } : null });
   });
 
   // Heartbeat: a socket that misses two pings is gone.
@@ -192,8 +195,27 @@ export function createRealtime({ maxPlayers = 4, maxRooms = 500, path = '/ws', l
     /** Take the upgrade when it is ours; false lets the caller deal with it. */
     handleUpgrade(req, socket, head) {
       if (pathOf(req) !== path) return false;
-      wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+      // Who is connecting: the account behind the session cookie, if any. A
+      // blocked account cannot join a party at all.
+      Promise.resolve()
+        .then(() => authenticate(req))
+        .catch(() => null)
+        .then((account) => {
+          if (account?.blockedUntil > Date.now()) {
+            socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+            return socket.destroy();
+          }
+          wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, account ? { id: account.id, name: account.name } : null));
+        });
       return true;
+    },
+    /** Are these two accounts in the same party right now? */
+    sameParty(a, b) {
+      for (const client of clients) {
+        if (client.account?.id !== a || !client.room) continue;
+        for (const member of client.room.players.values()) if (member.account?.id === b) return true;
+      }
+      return false;
     },
     stats() {
       let players = 0;

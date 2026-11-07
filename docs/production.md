@@ -10,6 +10,8 @@ model uploads, and the bridge to the AI model (the key stays on the server). It 
 ```
 /                 the built client (dist/), brotli/gzip precompressed, cached
 /ws               parties: rooms and relay (WebSocket)
+/api/account/*    accounts and sessions
+/api/game/*       characters, loot, shops, NPC rewards — the server decides
 /api/ai/*         the AI bridge (LM Studio, Ollama, vLLM, any OpenAI-compatible server)
 /api/library/*    the content library — SQLite in DATA_DIR/library.sqlite
 /api/levels/*     levels players save → DATA_DIR/levels
@@ -47,7 +49,9 @@ Requires **Node.js 22.13+** (the library uses Node's built-in SQLite). Keep it r
 | Variable | Meaning | Default |
 | --- | --- | --- |
 | `PORT` / `HOST` | Where to listen | `8787` / `0.0.0.0` |
-| `DATA_DIR` | Saved levels, classes and the library database — **back this up** | `./data` |
+| `DATA_DIR` | Accounts, characters and their history, saved levels, classes, the library, and the server key — **back this up** | `./data` |
+| `SERVER_SECRET` | The key that seals characters and chains the history (base64, 32+ bytes: `openssl rand -base64 48`). Unset: one is made in `DATA_DIR/server.key`. **Never change it** on a server with players | made for you |
+| `ACCOUNTS_PER_ADDRESS_PER_DAY` | New accounts one address may make in a day (raise it for a LAN party behind one address) | `5` |
 | `STATIC_ROOT` | The built client | `./dist` |
 | `LIBRARY_ROOT` | The 3D asset library, served at `/library/` | `./library` |
 | `MAX_PLAYERS` | Players per party (2–8) | `4` |
@@ -82,6 +86,9 @@ The page is served with relative asset paths, so it also works under a sub-path
 
 ## What the server protects
 
+- **Accounts and characters**: hashed passwords, hashed sessions, characters encrypted and sealed,
+  every item registered once, every action checked, a hash-chained history, strikes and blocks for
+  cheating. See **[Accounts and fair play](security.md)**.
 - **Payload caps** on every route (prompts 512 KB, library assets 1 MB, levels 12 MB) and a 4 MB
   cap per party message; oversized bodies are refused before they are buffered.
 - **Rate limits** per client address on the AI bridge and on library writes, and a per-connection
@@ -93,10 +100,10 @@ The page is served with relative asset paths, so it also works under a sub-path
   `X-Frame-Options` on every response.
 - A graceful shutdown on `SIGTERM`: parties are told, the socket closes, the database closes.
 
-Not provided: accounts. A player's character (bag, levels, gold) lives in their browser's storage,
-as it does when playing alone; the shared library and saved levels are per server and public to
-everyone who can open it. The party protocol trusts the players — it is for friends, see
-[Playing together](multiplayer.md#how-it-works).
+Players without an account still play on their browser's own save. The shared library and saved
+levels are per server and public to everyone who can open it. The fight itself runs in the players'
+browsers (the host's, in a party): the server checks that what they report is possible, not that
+each kill was earned — see [the limits](security.md#limits--what-this-does-not-stop-yet).
 
 ## Scaling
 
@@ -110,10 +117,12 @@ see [The shared library](library.md#where-it-is-stored)).
 ## Checks
 
 ```bash
-npm test                # the server: rooms, file stores, the library (node --test)
+npm test                # the server: rooms, file stores, the library, accounts and every cheat rule (node --test)
 npm run build && npm run test:e2e   # the real server + two Chromium browsers: a solo run and a co-op run
 ```
 
 `npm run test:e2e` needs Playwright's browser once: `npx playwright install chromium`.
 `BASE_URL=http://127.0.0.1:5173/ npm run test:e2e` runs the same checks against the dev server.
-`/healthz` is for your uptime monitor.
+`/healthz` is for your uptime monitor. `npm run admin -- audit` (in Docker: `docker compose exec game
+node scripts/admin.mjs audit`) checks the history chain, every character's seal, the item registry
+and the gold ledger; see [Accounts and fair play](security.md#for-the-people-running-the-server).

@@ -29,11 +29,14 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY server ./server
-# The library's similarity scoring is shared with the client, so it lives in src/.
-COPY src/library/similarity.js ./src/library/similarity.js
+COPY scripts/admin.mjs ./scripts/admin.mjs
+# The server runs the game's own rules (inventory, loot, levels) from src/ — the same
+# code the browser runs, so both sides agree on every action.
+COPY src ./src
 
-# Everything players make (levels, classes, the library database) goes to
-# /app/data — mount it. Don't run as root.
+# Everything players make — accounts, characters, the history, levels, classes,
+# the library — goes to /app/data, and so does the server key unless SERVER_SECRET
+# is set. Mount it and back it up. Don't run as root.
 RUN mkdir -p /app/data /app/library && chown -R node:node /app/data /app/library
 USER node
 

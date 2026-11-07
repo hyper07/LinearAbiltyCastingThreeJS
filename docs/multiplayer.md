@@ -44,6 +44,14 @@ each, and room for more of them at once.
 | Quest kills (every tutor and quest-giver counts the party's kills) | Campaign progress (a finished level counts for all who played it) |
 | Chat | The pause key — a party's fight cannot be paused |
 
+## Signed in
+
+When the host is [signed in](security.md), the fight is also opened on the server: guests who are
+signed in join it there, the loot is made by the server, an item goes to whoever reaches it first
+(one database update decides, so two players can never both get it), and every kill's experience is
+checked against what the host reported. Everyone appears under their account name. If the host
+isn't signed in, a signed-in guest still plays, but that party's loot isn't recorded for them.
+
 ## How it works
 
 The server does not run the game. It keeps **rooms** — a code, a host, up to four members — and
@@ -69,8 +77,9 @@ happens in the players' browsers:
   there first). Experience is paid to everyone on every kill, with the books in the drop pool
   drawn from every party member's skill tree.
 
-This is a friends' co-op design: the host's browser is trusted, and so is a guest's report of a
-hit. It is not competitive and nothing is secured against cheating. What it buys is a server that
+This is a co-op design: the host's browser runs the fight, and a guest's report of a hit is
+trusted. Signed in, what can be kept — items, gold, experience — goes through the server's checks
+([Accounts and fair play](security.md)); what happens in the fight itself is trusted to the host. What it buys is a server that
 is a few hundred lines, keeps no game state, and can hold hundreds of parties.
 
 ## Playing over the internet

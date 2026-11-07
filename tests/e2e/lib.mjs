@@ -6,13 +6,20 @@ import { chromium } from 'playwright';
  * itself as `window.app`, which is what the checks poke at.
  */
 
-export const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173/';
+/** Read when used, not when imported: run.mjs sets it after starting its server. */
+export const base = () => process.env.BASE_URL ?? 'http://127.0.0.1:5173/';
 
 export function launch() {
   const args = ['--enable-gpu', '--ignore-gpu-blocklist'];
   if (process.platform === 'darwin') args.push('--use-angle=metal');
   return chromium.launch({ args });
 }
+
+/**
+ * Requests that are meant to miss: the optional walk/run clips (the game
+ * falls back to its own gait) and "is this already in the library?" lookups.
+ */
+const EXPECTED_MISSES = [/^\/models\/(walk|run)\.fbx$/, /^\/api\/library\/[a-z]+(:|%3A)/i];
 
 /** A fresh context (its own localStorage) at the main menu. */
 export async function boot(browser, name = 'page') {
@@ -21,10 +28,22 @@ export async function boot(browser, name = 'page') {
   const errors = [];
   page.on('pageerror', (error) => errors.push(`${name}: ${error.message}`));
   page.on('console', (message) => {
-    if (message.type() === 'error' && !/AssetLoader|favicon|net::ERR/.test(message.text())) errors.push(`${name} console: ${message.text()}`);
+    // Failed requests are judged below, by their address; the browser's own line says nothing useful.
+    if (message.type() === 'error' && !/AssetLoader|favicon|net::ERR|Failed to load resource/.test(message.text())) errors.push(`${name} console: ${message.text()}`);
   });
-  await page.goto(BASE, { waitUntil: 'networkidle' });
+  page.on('response', (response) => {
+    if (response.status() < 400) return;
+    const path = new URL(response.url()).pathname;
+    if (EXPECTED_MISSES.some((re) => re.test(path)) && response.status() === 404) return;
+    errors.push(`${name} ${response.status()} ${response.request().method()} ${path}`);
+  });
+  await page.goto(base(), { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.app && window.app.phase === 'menu', null, { timeout: 120000 });
+  // The loading veil fades out over the menu: wait until a click would reach it, as a player's does.
+  await page.waitForFunction(() => {
+    const b = document.querySelector('[data-start]')?.getBoundingClientRect();
+    return b && document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2)?.closest('[data-start]');
+  }, null, { timeout: 30000 });
   return { context, page, errors, name };
 }
 

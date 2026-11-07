@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { launch } from './lib.mjs';
 import { run as solo } from './solo.mjs';
 import { run as coop } from './coop.mjs';
+import { run as accounts } from './accounts.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -40,7 +41,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);

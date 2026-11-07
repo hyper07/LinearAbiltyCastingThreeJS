@@ -59,6 +59,21 @@ See **[Playing together](docs/multiplayer.md)**.
   <img src="docs/screenshots/party-lobby.jpg" width="49%" alt="The Play together panel: the join code, both members with their classes, and the Start for the party button" />
 </p>
 
+## Accounts and fair play
+
+Sign in from the main menu (**Account**) and your character — level, gold, bag, stash, gear — lives
+on the game server, with a history of everything that happens to it. The browser never sends an item:
+the server makes every item, registers it once, and checks every pickup, sale, purchase and reward in
+one database transaction, so items can't be duplicated or invented, and editing the game in the
+browser changes nothing that lasts. Cheats (foreign loot, impossible waves, fake bosses, kill floods)
+earn strikes; three in a day block the account. Passwords are scrypt-hashed, sessions are stored only
+as hashes, characters are encrypted and sealed (AES-256-GCM), and the history is an HMAC hash chain.
+See **[Accounts and fair play](docs/security.md)**.
+
+<p>
+  <img src="docs/screenshots/account.jpg" width="49%" alt="The Account tab: a verified player and her history — a game played, a warning for a broken rule, an item sold, items picked up and a level reached" />
+</p>
+
 ## Spells
 
 <p>
@@ -298,6 +313,7 @@ flowchart LR
 | [Setup](docs/setup.md) | Install, Windows, build, Docker, assets and character models |
 | [Playing together](docs/multiplayer.md) | Co-op for up to four: parties and codes, what is shared, how the host runs the fight |
 | [Production](docs/production.md) | Running it for players: Docker, settings, HTTPS and proxies, limits, scaling, checks |
+| [Accounts and fair play](docs/security.md) | Accounts, the server-owned character, anti-duplication, cheat rules and blocks, keys and encryption, the audit |
 | [Controls](docs/controls.md) | Every key and mouse action |
 | [Spells](docs/spells.md) | The ten spells, with clips, and how the newer ones are built |
 | [Classes and skill trees](docs/classes-and-skills.md) | The eight classes, their bonuses and bodies, skill trees and books |

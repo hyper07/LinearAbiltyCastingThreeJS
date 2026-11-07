@@ -30,6 +30,11 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL1: ${LLM_MODEL1:-}
       LLM_MODEL2: ${LLM_MODEL2:-}
+      # The key that seals characters and chains the history (base64, 32+ bytes:
+      # `openssl rand -base64 48`). Unset: one is made in ./data/server.key.
+      SERVER_SECRET: ${SERVER_SECRET:-}
+      # New accounts per address per day (raise it for a LAN party behind one address).
+      ACCOUNTS_PER_ADDRESS_PER_DAY: ${ACCOUNTS_PER_ADDRESS_PER_DAY:-5}
       # Playing together: players per party (2–8, default 4).
       MAX_PLAYERS: ${MAX_PLAYERS:-4}
       # 1 when a reverse proxy sits in front (X-Forwarded-For is then trusted).
@@ -42,7 +47,8 @@ services:
       MESHY_API_KEY: ${MESHY_API_KEY:-}
       MODELGEN_PROVIDER: ${MODELGEN_PROVIDER:-}
     volumes:
-      # What players make — levels, classes, the content library. Keep this.
+      # What players make — accounts, characters, history, levels, classes, the
+      # content library — and the server key. Keep this, and back it up.
       - ./data:/app/data
       # The 3D asset library, downloaded on the host with `npm run library:fetch`.
       - ./library:/app/library:ro

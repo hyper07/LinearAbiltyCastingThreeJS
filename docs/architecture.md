@@ -38,7 +38,8 @@ src/
                   (the shared content library's client), fingerprints, similarity
   loaders/        AssetLoader with a shared LoadingManager
   net/            Playing together: Session (the socket and rooms), Party (the host runs
-                  the fight, guests get snapshots and report hits), RemotePlayer (bodies)
+                  the fight, guests get snapshots and report hits), RemotePlayer (bodies);
+                  Account and ProfileSync (signed in: the character is the server's)
   materials/      IceMaterial, LightningMaterial, MeteorMaterial,
                   VolumetricFireMaterial, BeamMaterial, SnareMaterial, GlacierMaterial
   particles/      GPU particle system + engine and rate emitters
@@ -62,7 +63,8 @@ library/          The downloaded 3D asset library + catalog.json (git-ignored, f
 server/           The production server (server.js): the built game, the party server
                   (realtime.js), the content library (libraryStore.js, SQLite), the AI bridge,
                   saved levels and classes (api/files.js), uploads (modelgen.mjs). The handlers
-                  in api/ are the same ones vite.config.js mounts in development
+                  in api/ are the same ones vite.config.js mounts in development; game/ —
+                  accounts, the server-owned character, loot, cheat rules, the history chain
 tests/            unit/ (node --test: rooms, file stores, the library) and e2e/ (Playwright:
                   a solo run and a two-browser co-op run against the real server)
 Dockerfile        Two stages: build the client, then serve it with the one-dependency server

@@ -82,8 +82,11 @@ export class DialoguePanel {
     window.addEventListener('keydown', this._onEscape, true);
     this.say(npc.data.name, npc.data.greeting || actions.scripted());
     // A gift is handed over the first time you speak.
-    const gift = actions.takeGift();
-    if (gift) this.system(gift);
+    // (Signed in, the server makes the gift: the line comes when it answers.)
+    Promise.resolve(actions.takeGift()).then((gift) => {
+      if (gift) this.system(gift);
+      this.refresh();
+    });
     this.refresh();
     if (npc.data.ai) setTimeout(() => this.$('[data-input]').focus(), 50);
   }
@@ -108,6 +111,7 @@ export class DialoguePanel {
   }
 
   system(text) {
+    if (!text) return;
     const line = document.createElement('p');
     line.className = 'dialogue__line is-system';
     line.textContent = text;
@@ -149,7 +153,10 @@ export class DialoguePanel {
     if (npc.data.lines?.length) button('More…', () => this.say(npc.data.name, a.scripted()));
     const q = a.questState();
     if (q?.offer) button(`Quest: ${q.title}`, () => this.system(a.acceptQuest()) || this.refresh(), true);
-    if (q?.ready) button('Complete quest', () => this.system(a.completeQuest()) || this.refresh(), true);
+    if (q?.ready) button('Complete quest', async () => {
+      this.system(await a.completeQuest());
+      this.refresh();
+    }, true);
     if (q?.active) this.system(`Quest: ${q.title} — ${q.progress}`);
     if (npc.data.role === 'merchant' || npc.data.role === 'healer') button('Trade', () => this.showTrade());
     if (npc.data.role === 'healer') button('Heal me', () => this.system(a.heal()) || this.refresh());
@@ -240,7 +247,7 @@ export class DialoguePanel {
       const r = study.answer(given);
       if (r.correct) {
         this.say(name, pickOne(PRAISE), 'is-praise');
-        if (r.reward) this.system(r.reward);
+        if (r.reward) Promise.resolve(r.reward).then((text) => text && this.system(text));
         return finish();
       }
       if (!r.final) {
@@ -265,7 +272,9 @@ export class DialoguePanel {
     this.$('[data-study]').hidden = true;
     const trade = this.$('[data-trade]');
     trade.hidden = false;
-    const draw = () => {
+    const draw = async () => {
+      // The stock may come from the server (signed in): wait for it, then draw.
+      const stock = await a.stock();
       trade.replaceChildren();
       const col = (title, items, priceOf, onPick, verb) => {
         const box = document.createElement('div');
@@ -299,8 +308,9 @@ export class DialoguePanel {
             row.append(pic);
           }
           row.append(name, meta);
-          row.addEventListener('click', () => {
-            this.system(onPick(item));
+          row.addEventListener('click', async () => {
+            row.disabled = true;
+            this.system(await onPick(item));
             draw();
             this.refresh();
           });
@@ -309,7 +319,7 @@ export class DialoguePanel {
         return box;
       };
       trade.append(
-        col('For sale', a.stock(), buyPrice, (item) => a.buy(item), 'buy'),
+        col('For sale', stock, buyPrice, (item) => a.buy(item), 'buy'),
         col('Your bag — click to sell', a.bag(), itemValue, (item) => a.sell(item), 'sell')
       );
     };

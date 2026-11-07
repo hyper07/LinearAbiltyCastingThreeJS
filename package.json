@@ -10,13 +10,14 @@
     "build": "vite build",
     "postbuild": "node scripts/precompress.mjs",
     "preview": "vite preview",
-    "start": "node server/server.js",
+    "start": "node --disable-warning=ExperimentalWarning server/server.js",
     "serve": "node server/server.js",
     "test": "node --test \"tests/unit/**/*.test.mjs\"",
     "test:e2e": "node tests/e2e/run.mjs",
     "fetch-characters": "node scripts/fetch-character-models.mjs",
     "library:fetch": "node scripts/library/fetch.mjs",
-    "library:index": "node scripts/library/index.mjs"
+    "library:index": "node scripts/library/index.mjs",
+    "admin": "node --disable-warning=ExperimentalWarning scripts/admin.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",

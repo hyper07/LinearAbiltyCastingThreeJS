@@ -72,6 +72,7 @@ export class MainMenu {
           <button class="main-menu__nav-btn" type="button" data-panel="party" data-party-nav>Play together</button>
           <button class="main-menu__nav-btn" type="button" data-panel="create">Create</button>
           <button class="main-menu__nav-btn main-menu__nav-btn--stash" type="button" data-open-stash title="Your stash: a big storage grid every class shares">Stash</button>
+          <button class="main-menu__nav-btn main-menu__nav-btn--account" type="button" data-panel="account" data-account-nav>Sign in</button>
           <button class="main-menu__nav-btn main-menu__nav-btn--library" type="button" data-open-library title="Every class, skill, item, weapon and level — the game's own and what players shared">Library</button>
         </nav>
 
@@ -157,6 +158,32 @@ export class MainMenu {
                 <button type="button" class="main-menu__world-btn main-menu__world-btn--primary" data-open-forge>Open Class forge</button>
               </section>
               <div data-studio></div>
+            </div>
+
+            <div class="main-menu__panel" data-panel="account" hidden>
+              <h2 class="main-menu__section-title">Account</h2>
+              <div class="account-panel" data-account-out>
+                <p class="main-menu__panel-hint">Sign in and your character — level, gold, bag, stash and gear — is kept on the game server: on any computer, safe from being edited, with a history of everything that happens to it. Without an account you play on this browser's own save, as before.</p>
+                <form class="account-panel__form" data-account-form>
+                  <input data-account-name maxlength="20" placeholder="Name" autocomplete="username" spellcheck="false" />
+                  <input data-account-password type="password" maxlength="128" placeholder="Password (8 or more characters)" autocomplete="current-password" />
+                  <div class="party-panel__row">
+                    <button class="main-menu__world-btn main-menu__world-btn--primary" type="submit" data-account-signin>Sign in</button>
+                    <button class="main-menu__world-btn" type="button" data-account-signup>Create account</button>
+                  </div>
+                </form>
+                <p class="account-panel__note">A new account starts a new character. Your saved name and password are the only way in — there is no email reset yet.</p>
+              </div>
+              <div class="account-panel" data-account-in hidden>
+                <div class="account-panel__who">
+                  <span class="account-panel__badge" title="Kept on the server, sealed and checked">✓ Verified</span>
+                  <strong data-account-who></strong>
+                  <button class="main-menu__world-btn" type="button" data-account-signout>Sign out</button>
+                </div>
+                <h3 class="account-panel__h">History</h3>
+                <ol class="account-panel__history" data-account-history></ol>
+              </div>
+              <p class="party-panel__status" data-account-status></p>
             </div>
 
             <div class="main-menu__panel" data-panel="party" hidden>
@@ -265,6 +292,76 @@ export class MainMenu {
     });
   }
 
+  /* ---- the account ---- */
+
+  /**
+   * @param {import('../net/Account.js').Account} account
+   * @param {{ signIn, signUp, signOut, history }} actions
+   */
+  bindAccount(account, actions) {
+    this.account = account;
+    this.accountActions = actions;
+    const $ = (s) => this.root.querySelector(s);
+    const status = (text, bad = false) => {
+      const el = $('[data-account-status]');
+      el.textContent = text;
+      el.classList.toggle('is-bad', bad);
+    };
+    this._accountStatus = status;
+    const submit = async (kind) => {
+      const name = $('[data-account-name]').value.trim();
+      const password = $('[data-account-password]').value;
+      if (!name || !password) return status('Type a name and a password.', true);
+      status(kind === 'signUp' ? 'Creating your account…' : 'Signing in…');
+      const r = await actions[kind](name, password);
+      $('[data-account-password]').value = '';
+      status(r.ok ? (kind === 'signUp' ? `Welcome, ${r.account.name}. Your character is on the server now.` : `Welcome back, ${r.account.name}.`) : r.error, !r.ok);
+    };
+    $('[data-account-form]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      submit('signIn');
+    });
+    $('[data-account-signup]').addEventListener('click', () => submit('signUp'));
+    $('[data-account-signout]').addEventListener('click', async () => {
+      await actions.signOut();
+      status("Signed out. You're playing on this browser's own save.");
+    });
+    account.on('change', () => {
+      this._renderAccount();
+      this._renderParty();
+    });
+    this._renderAccount();
+  }
+
+  async _renderAccount() {
+    const account = this.account;
+    if (!account) return;
+    const $ = (s) => this.root.querySelector(s);
+    const user = account.user;
+    $('[data-account-out]').hidden = Boolean(user);
+    $('[data-account-in]').hidden = !user;
+    $('[data-account-nav]').textContent = user ? `✓ ${user.name}` : 'Sign in';
+    if (!user) return;
+    $('[data-account-who]').textContent = user.name;
+    if (this._activePanel !== 'account') return;
+    const events = await this.accountActions.history();
+    const list = $('[data-account-history]');
+    list.replaceChildren(
+      ...events.map((e) => {
+        const li = document.createElement('li');
+        li.className = `account-panel__event is-${e.type}`;
+        const when = document.createElement('time');
+        when.dateTime = new Date(e.at).toISOString();
+        when.textContent = new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const what = document.createElement('span');
+        what.textContent = describeEvent(e);
+        li.append(when, what);
+        return li;
+      })
+    );
+    if (!events.length) list.append(Object.assign(document.createElement('li'), { textContent: 'Nothing yet.' }));
+  }
+
   /* ---- playing together ---- */
 
   /** @param {import('../net/Party.js').Party} party */
@@ -322,6 +419,11 @@ export class MainMenu {
     nav.textContent = inParty ? `Party · ${party.code}` : 'Play together';
     this.startBtn.classList.toggle('is-party', inParty);
     this.startBtn.textContent = !inParty ? 'Start Game' : party.isHost ? 'Start for the party' : "Join the host's fight";
+    // Signed in, the party knows you by your account's name.
+    const nameEl = this.root.querySelector('[data-party-name]');
+    nameEl.value = party.name;
+    nameEl.disabled = Boolean(this.account?.user);
+    nameEl.title = nameEl.disabled ? 'Signed in: your account name' : '';
     if (!inParty) return;
     this.root.querySelector('[data-party-room-code]').textContent = party.code;
     const list = this.root.querySelector('[data-party-members]');
@@ -491,6 +593,7 @@ export class MainMenu {
 
     if (panelId === 'skills') this._renderSkillTree();
     if (panelId === 'stats') this._renderStats();
+    if (panelId === 'account') this._renderAccount();
     if (panelId === 'appearance') this._renderAppearancePanel();
     if (panelId === 'world') this._renderLibraryStatus();
     if (panelId === 'campaign') this._renderCampaign();
@@ -1031,6 +1134,8 @@ export class MainMenu {
     this._renderStats();
     this._updateSummary();
     this._renderParty();
+    // Back from a fight: the history has news.
+    this._renderAccount();
     requestAnimationFrame(() => this.root.classList.add('is-visible'));
     this.preview._characterId = this._characterId;
     this.preview._weaponId = this._weaponId;
@@ -1055,5 +1160,31 @@ export class MainMenu {
 
   get isVisible() {
     return this._visible;
+  }
+}
+
+/** One line of the history, for people. */
+function describeEvent(e) {
+  const d = e.data ?? {};
+  switch (e.type) {
+    case 'register': return `Account created`;
+    case 'login': return 'Signed in';
+    case 'logout': return 'Signed out';
+    case 'login-failed': return 'A wrong password was tried';
+    case 'login-locked': return 'Locked for 15 minutes after five wrong passwords';
+    case 'take': return `Picked up ${d.name}`;
+    case 'drop': return d.to === 'floor' ? `Dropped ${d.name}` : `Threw away ${d.name}`;
+    case 'sell': return `Sold ${d.name} for ${d.gold} gold`;
+    case 'buy': return `Bought ${d.item} from ${d.npc} for ${d.gold} gold`;
+    case 'gift': return `${d.npc} gave you ${d.item}${d.dropped ? ' (dropped: bag full)' : ''}`;
+    case 'quest': return `Quest “${d.title}” done: ${d.gold} gold${d.item ? ` and ${d.item}` : ''}`;
+    case 'study': return `A right answer for ${d.npc}: +${d.gold} gold${d.bonus ? `, and ${d.bonus}` : ''}`;
+    case 'level': return `Reached level ${d.level}`;
+    case 'run': return `Played ${d.level ?? 'free play'}: ${d.kills} defeated in ${d.minutes} min${d.party > 1 ? ` with ${d.party - 1} more` : ''}`;
+    case 'strike': return `Warning: a rule was broken (${d.rule})`;
+    case 'blocked': return `Blocked until ${new Date(d.until).toLocaleString()}: ${d.reason}`;
+    case 'unblocked': return 'Unblocked';
+    case 'tampered': return 'The saved character failed its integrity check';
+    default: return e.type;
   }
 }

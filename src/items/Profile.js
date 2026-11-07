@@ -37,8 +37,14 @@ export const BELT_MAX = 10;
  * when the spells on keys 1–5 change, and `gear` when what is worn changes.
  */
 export class Profile extends EventEmitter {
-  constructor() {
+  /**
+   * @param {{ storage?: Storage|null, data?: object }} [options] where the character is
+   *   kept: the browser's storage (default), or nowhere (`null`: the game server keeps
+   *   it in its database, and the browser mirrors the server's copy)
+   */
+  constructor({ storage, data } = {}) {
     super();
+    this.storage = storage === undefined ? browserStorage() : storage;
     /** The current class's bonuses — set by the game, not saved. */
     this.classBonus = {};
     /** The class being played (a character id) — set by the game. */
@@ -47,7 +53,45 @@ export class Profile extends EventEmitter {
     this.favoredArmor = 'cloth';
     /** Is the weapon in hand two-handed? (A shield or focus then does nothing.) */
     this.twoHanded = false;
-    this._load();
+    this._load(data !== undefined ? data : this._readSaved());
+  }
+
+  _readSaved() {
+    try {
+      return JSON.parse(this.storage?.getItem(KEY) ?? 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  /** The character as saved: what the browser's storage or the server's database holds. */
+  serialize() {
+    return { gold: this.gold, potions: this.potions, bag: this.bag, stash: this.stash, level: this.level, xp: this.xp, bagRows: this.bagRows, rowsBought: this.rowsBought, equipped: this.equipped, gear: this.gear, progress: this.progress, legacySkills: this._legacyRanks ?? undefined };
+  }
+
+  /**
+   * Replace the whole character with another copy of it (the server's) and
+   * tell everything that shows it.
+   */
+  loadState(data) {
+    this._load(JSON.parse(JSON.stringify(data ?? null)));
+    this._ensure(this.classId);
+    this.emit('stats', this.stats);
+    this.emit('slots', this.slots);
+    this.emit('gear', this.gear);
+    this.emit('bag', this.bagRowCount);
+    this.emit('change', this);
+  }
+
+  /** A short fingerprint of the character: the browser and the server compare theirs. */
+  digest() {
+    return profileDigest(this);
+  }
+
+  /** Switch where the character is kept (see the constructor), reading what is there. */
+  useStorage(storage) {
+    this.storage = storage;
+    this.loadState(this._readSaved());
   }
 
   /** Switch to a class: its bonuses, its armor proficiency, and its own spells and keys. */
@@ -79,13 +123,7 @@ export class Profile extends EventEmitter {
     };
   }
 
-  _load() {
-    let data = null;
-    try {
-      data = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    } catch {
-      data = null;
-    }
+  _load(data) {
     const blank = this._blank();
     this.gold = data?.gold ?? blank.gold;
     this.equipped = data?.equipped ?? null;
@@ -149,10 +187,7 @@ export class Profile extends EventEmitter {
 
   save() {
     try {
-      localStorage.setItem(
-        KEY,
-        JSON.stringify({ gold: this.gold, potions: this.potions, bag: this.bag, stash: this.stash, level: this.level, xp: this.xp, bagRows: this.bagRows, rowsBought: this.rowsBought, equipped: this.equipped, gear: this.gear, progress: this.progress, legacySkills: this._legacyRanks ?? undefined })
-      );
+      this.storage?.setItem(KEY, JSON.stringify(this.serialize()));
     } catch {
       /* private mode: the character just is not remembered */
     }
@@ -605,8 +640,12 @@ export class Profile extends EventEmitter {
     return price;
   }
 
-  /** @returns {{ ok: boolean, message: string }} */
-  buy(item) {
+  /**
+   * @param {object} item the offer
+   * @param {{ uid?: string }} [options] the id the bought copy gets (the server names it)
+   * @returns {{ ok: boolean, message: string }}
+   */
+  buy(item, { uid } = {}) {
     const price = buyPrice(item);
     if (this.gold < price) return { ok: false, message: `Not enough gold (${price} needed)` };
     if (item.type === 'service' && item.service === 'bagRow') {
@@ -618,11 +657,48 @@ export class Profile extends EventEmitter {
       this.emit('bag', this.bagRowCount);
       return { ok: true, message: `Your bag now has ${this.bagRowCount} rows` };
     }
-    const copy = { ...item, uid: `${item.uid}-${Date.now().toString(36)}` };
+    const copy = { ...item, uid: uid ?? `${item.uid}-${Date.now().toString(36)}` };
     const result = this.pickUp(copy);
     if (!result.ok) return result;
     this.gold -= price;
     this.save();
     return { ok: true, message: `Bought ${item.name} for ${price} gold` };
   }
+}
+
+/** The browser's storage when there is one (not on the server, not in private mode). */
+function browserStorage() {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A fingerprint of a character (a Profile or its saved form): what it holds
+ * and where, its gold, potions, level and spells. Computed the same way in
+ * the browser and on the server, so either can tell when the two copies
+ * have drifted apart. Item contents are not in it — an item's id is its
+ * identity, and only the server makes items.
+ */
+export function profileDigest(p) {
+  const grid = (list) => (list ?? []).map((it) => `${it.uid}@${it.at?.[0] ?? '-'},${it.at?.[1] ?? '-'}`).sort().join(';');
+  const gear = Object.entries(p.gear ?? {}).map(([slot, it]) => `${slot}=${it?.uid ?? ''}`).sort().join(';');
+  const progress = Object.keys(p.progress ?? {}).sort().map((cls) => {
+    const r = p.progress[cls] ?? {};
+    const ranks = Object.keys(r.ranks ?? {}).sort().filter((k) => r.ranks[k] > 0).map((k) => `${k}:${r.ranks[k]}`).join(',');
+    return `${cls}[${ranks}|${(r.slots ?? []).map((s) => s ?? '').join(',')}]`;
+  }).join(';');
+  const potions = Object.keys(p.potions ?? {}).sort().map((k) => `${k}:${p.potions[k]}`).join(',');
+  const text = [p.gold, p.xp, p.level, p.bagRows, p.rowsBought, potions, grid(p.bag), grid(p.stash), p.equipped?.uid ?? '', gear, progress].join('|');
+  // Two independent 32-bit hashes (FNV-1a and djb2): 64 bits is plenty to notice a drift.
+  let a = 0x811c9dc5;
+  let b = 5381;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = (Math.imul(b, 33) + c) | 0;
+  }
+  return (a >>> 0).toString(36) + (b >>> 0).toString(36);
 }
