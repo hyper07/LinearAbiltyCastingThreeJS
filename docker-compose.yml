@@ -1,10 +1,17 @@
-# Build and run the game with its AI bridge:
+# Build and run the game — the client, the party server, the content library,
+# saved levels and classes, and the AI bridge — in one container:
 #
 #   docker compose up --build          → http://localhost:8787
 #
-# The model itself is *not* in here. It runs wherever LLM_PLATFORM_BASE_URL
+# The AI model itself is *not* in here. It runs wherever LLM_PLATFORM_BASE_URL
 # points — LM Studio on the LAN, Ollama, vLLM, anything OpenAI-compatible —
-# and this container only holds the key and forwards the call.
+# and this container only holds the key and forwards the call. Without it the
+# game still runs; only the chat commander, the Class forge and AI maps fall
+# back to their keyword modes.
+#
+# Put it on the internet behind HTTPS (see docs/production.md): a reverse
+# proxy that forwards WebSocket upgrades on /ws, and TRUST_PROXY=1 here so
+# rate limits see real addresses.
 
 services:
   game:
@@ -15,13 +22,18 @@ services:
     environment:
       PORT: 8787
       STATIC_ROOT: /app/dist
+      DATA_DIR: /app/data
       # Read from .env (compose loads it automatically). Nothing here has a
       # default: an unset base URL makes the bridge report itself offline, and
       # the game falls back to its own keyword parser rather than breaking.
-      LLM_PLATFORM_BASE_URL: ${LLM_PLATFORM_BASE_URL}
-      LLM_API_KEY: ${LLM_API_KEY}
-      LLM_MODEL1: ${LLM_MODEL1}
-      LLM_MODEL2: ${LLM_MODEL2}
+      LLM_PLATFORM_BASE_URL: ${LLM_PLATFORM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL1: ${LLM_MODEL1:-}
+      LLM_MODEL2: ${LLM_MODEL2:-}
+      # Playing together: players per party (2–8, default 4).
+      MAX_PLAYERS: ${MAX_PLAYERS:-4}
+      # 1 when a reverse proxy sits in front (X-Forwarded-For is then trusted).
+      TRUST_PROXY: ${TRUST_PROXY:-0}
       # Only needed if the page is served from a *different* origin than this
       # container. Same-origin (the default) needs no CORS.
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
@@ -29,13 +41,15 @@ services:
       TRIPO_API_KEY: ${TRIPO_API_KEY:-}
       MESHY_API_KEY: ${MESHY_API_KEY:-}
       MODELGEN_PROVIDER: ${MODELGEN_PROVIDER:-}
-    # A model on the host rather than the LAN: point the base URL at
-    # http://host.docker.internal:1234/v1 and keep this mapping.
-    # The 3D asset library, downloaded on the host with `npm run library:fetch`.
     volumes:
+      # What players make — levels, classes, the content library. Keep this.
+      - ./data:/app/data
+      # The 3D asset library, downloaded on the host with `npm run library:fetch`.
       - ./library:/app/library:ro
       # Uploads and generated models are written here, so this one is writable.
       - ./library/my-models:/app/library/my-models
+    # A model on the host rather than the LAN: point the base URL at
+    # http://host.docker.internal:1234/v1 and keep this mapping.
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     restart: unless-stopped

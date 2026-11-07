@@ -10,7 +10,8 @@
 #
 # ---- System tools (install these first) ---------------------------------
 #
-#   Node.js   >= 22.12  (22 LTS recommended; 20.19+ also works)  https://nodejs.org
+#   Node.js   >= 22.13  (22 LTS recommended; the content library needs
+#             the built-in SQLite)                               https://nodejs.org
 #             Windows:  winget install OpenJS.NodeJS.LTS
 #   npm       ships with Node.js
 #   Git       any recent version                                  https://git-scm.com

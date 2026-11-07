@@ -341,14 +341,18 @@ export class Dragon extends Monster {
     });
     ctx.shake?.add(0.7 * settings.global.cameraShake, 2.0, 18);
 
-    _flat.copy(ctx.target).sub(this.position);
-    _flat.y = 0;
-    if (_flat.length() <= radius) {
-      ctx.onPlayerHit?.((cfg.sweepDamage ?? 26) * settings.monsters.damageScale, {
-        position: this.position,
-        monster: this,
-        knockback: 9
-      });
+    // A ring hits everyone standing in it — the whole party, not just the one it was chasing.
+    for (const player of ctx.players ?? [{ position: ctx.target, id: ctx.targetId ?? null }]) {
+      _flat.copy(player.position).sub(this.position);
+      _flat.y = 0;
+      if (_flat.length() <= radius) {
+        ctx.onPlayerHit?.((cfg.sweepDamage ?? 26) * settings.monsters.damageScale, {
+          position: this.position,
+          monster: this,
+          knockback: 9,
+          playerId: player.id
+        });
+      }
     }
   }
 
@@ -385,6 +389,8 @@ export class Dragon extends Monster {
     const spread = cfg.breathSpread ?? 0.34; // half-angle, radians
 
     this._emitFire(ctx, _mouth, _aim, range, strength, scale);
+    // A guest's puppet breathes the fire; the host decides who it burns.
+    if (this.puppet) return;
 
     // Damage on a tick rather than per frame, so the numbers are readable and
     // the total does not depend on the frame rate.
@@ -392,20 +398,53 @@ export class Dragon extends Monster {
     if (this._breathTick > 0) return;
     this._breathTick = 0.3;
 
-    _flat.copy(ctx.target).sub(_mouth);
-    const distance = _flat.length();
-    if (distance > range) return;
-    _flat.multiplyScalar(1 / Math.max(0.001, distance));
-    // Widen the cone with distance the way a real jet spreads, or the far end
-    // becomes impossible to be hit by.
-    const cosLimit = Math.cos(spread + saturate(distance / range) * 0.16);
-    if (_flat.dot(_aim) < cosLimit) return;
+    for (const player of ctx.players ?? [{ position: ctx.target, id: ctx.targetId ?? null }]) {
+      _flat.copy(player.position).sub(_mouth);
+      const distance = _flat.length();
+      if (distance > range) continue;
+      _flat.multiplyScalar(1 / Math.max(0.001, distance));
+      // Widen the cone with distance the way a real jet spreads, or the far end
+      // becomes impossible to be hit by.
+      const cosLimit = Math.cos(spread + saturate(distance / range) * 0.16);
+      if (_flat.dot(_aim) < cosLimit) continue;
 
-    ctx.onPlayerHit?.((cfg.breathDamage ?? 13) * settings.monsters.damageScale * strength, {
-      position: ctx.target,
-      monster: this,
-      burning: true
-    });
+      ctx.onPlayerHit?.((cfg.breathDamage ?? 13) * settings.monsters.damageScale * strength, {
+        position: player.position,
+        monster: this,
+        burning: true,
+        playerId: player.id
+      });
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* playing together                                                    */
+  /* ------------------------------------------------------------------ */
+
+  netEntry() {
+    return {
+      ...super.netEntry(),
+      fl: Math.round(this.flight * 100) / 100,
+      alt: Math.round(this.altitude * 100) / 100,
+      ch: Math.round(this.charge * 100) / 100,
+      br: this.breath ? 1 : 0,
+      bt: this.breath ? Math.round(this.breath.time * 100) / 100 : 0,
+      bd: this.breath?.duration ?? 0
+    };
+  }
+
+  applyNet(e) {
+    super.applyNet(e);
+    if (this.state !== MonsterState.ARRIVING) {
+      this.flight = e.fl ?? this.flight;
+      this.altitude = e.alt ?? this.altitude;
+    }
+    this.charge = Math.max(this.charge, e.ch ?? 0);
+    if (e.br) {
+      if (!this.breath) this.breath = { time: e.bt ?? 0, duration: e.bd || (this.config.breathDuration ?? 2.1) };
+    } else {
+      this.breath = null;
+    }
   }
 
   /** Where the mouth is and which way it points, in world space. */

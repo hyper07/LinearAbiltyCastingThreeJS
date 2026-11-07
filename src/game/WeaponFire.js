@@ -206,14 +206,39 @@ export class WeaponFire {
     for (let i = 1; i < (fire.burst ?? 1); i++) this.queue.push({ at: i * 0.07, fire, aim, muzzle: muzzle.clone(), direction: direction.clone(), distance });
   }
 
-  _shot(muzzle, direction, fire, distance = null) {
+  /**
+   * Another player's shot, playing together: everything you would see — the
+   * flash, the tracer, the bullet in the air — and nothing a monster would
+   * feel, because the shooter already resolved the hit on their screen.
+   * @param {Vector3} [owner] where a returning weapon flies back to
+   */
+  fireVisual(muzzle, direction, fire, distance = null, owner = null) {
+    this._muted(() => this._shot(muzzle, direction, fire, distance, owner));
+    for (let i = 1; i < (fire.burst ?? 1); i++) this.queue.push({ at: i * 0.07, fire, aim: null, muzzle: muzzle.clone(), direction: direction.clone(), distance, visual: true, owner });
+  }
+
+  /** Run `fn` with the combat silenced; projectiles made meanwhile stay silent for life. */
+  _muted(fn) {
+    const combat = this.ctx.combat;
+    const was = combat.muted;
+    combat.muted = true;
+    this._visual = true;
+    try {
+      return fn();
+    } finally {
+      combat.muted = was;
+      this._visual = false;
+    }
+  }
+
+  _shot(muzzle, direction, fire, distance = null, owner = null) {
     const pellets = Math.max(1, fire.pellets ?? 1);
     for (let i = 0; i < pellets; i++) {
       const dir = this._spread(direction, fire.spread ?? 0, pellets > 1 ? (i / (pellets - 1) - 0.5) * 2 : null);
       if (fire.mode === 'hitscan') this._hitscan(muzzle, dir, fire);
       else if (fire.mode === 'beam') this._beam(muzzle, dir, fire);
       else if (fire.mode === 'cone') this._cone(muzzle, dir, fire);
-      else this._launch(muzzle, dir, fire, distance);
+      else this._launch(muzzle, dir, fire, distance, owner);
     }
     this._muzzleFlash(muzzle, direction, fire);
   }
@@ -291,7 +316,7 @@ export class WeaponFire {
     this._flash(muzzle, fire.color, 14, 8, 0.1);
   }
 
-  _launch(muzzle, direction, fire, distance) {
+  _launch(muzzle, direction, fire, distance, owner = null) {
     const kind = fire.visual ?? 'arrow';
     const mesh = this._take(kind);
     mesh.position.copy(muzzle);
@@ -307,7 +332,7 @@ export class WeaponFire {
       const targetY = fire.explode ? 0 : 0.9;
       velocity.y = (targetY - muzzle.y + 0.5 * gravity * t * t) / t;
     }
-    this.projectiles.push({ kind, mesh, fire, velocity, prev: muzzle.clone(), travelled: 0, hit: new Set(), pierced: 0, returning: false, age: 0, spin: Math.random() * 6 });
+    this.projectiles.push({ kind, mesh, fire, velocity, prev: muzzle.clone(), travelled: 0, hit: new Set(), pierced: 0, returning: false, age: 0, spin: Math.random() * 6, visual: Boolean(this._visual), owner });
   }
 
   /* -------------------------------------------------------------------- */
@@ -320,11 +345,14 @@ export class WeaponFire {
       q.at -= dt;
       if (q.at > 0) continue;
       const fresh = q.aim?.();
-      this._shot(fresh?.muzzle ?? q.muzzle, fresh?.direction ?? q.direction, q.fire, fresh?.distance ?? q.distance);
+      if (q.visual) this._muted(() => this._shot(q.muzzle, q.direction, q.fire, q.distance, q.owner));
+      else this._shot(fresh?.muzzle ?? q.muzzle, fresh?.direction ?? q.direction, q.fire, fresh?.distance ?? q.distance);
       this.queue.splice(i, 1);
     }
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      if (!this._step(this.projectiles[i], dt)) this._retire(i);
+      const p = this.projectiles[i];
+      const flying = p.visual ? this._muted(() => this._step(p, dt)) : this._step(p, dt);
+      if (!flying) this._retire(i);
     }
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i];
@@ -352,9 +380,10 @@ export class WeaponFire {
     p.age += dt;
     p.prev.copy(mesh.position);
 
-    if (p.returning && this.owner) {
+    const home = p.owner ?? this.owner;
+    if (p.returning && home) {
       // Steer home to the thrower.
-      _a.copy(this.owner).setY(1.2).sub(mesh.position);
+      _a.copy(home).setY(1.2).sub(mesh.position);
       const d = _a.length();
       if (d < 1) return false;
       velocity.lerp(_a.normalize().multiplyScalar(fire.speed * 1.15), Math.min(1, dt * 6));

@@ -1,43 +1,51 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { extname, join, normalize, resolve } from 'node:path';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { extname, join, normalize, resolve, sep } from 'node:path';
+import { aiBridge } from './api/ai.js';
+import { JsonFileStore, fileApi } from './api/files.js';
+import { chain, json, pathOf } from './api/http.js';
+import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { createModelStore } from './modelgen.mjs';
+import { createRealtime } from './realtime.js';
 
 /**
- * The AI bridge, as a standalone service.
+ * The production server: one process that serves the built game and
+ * everything the game talks to.
  *
- * In development, `vite.config.js` runs this same contract as dev-server
- * middleware and there is nothing to deploy. This exists for the other case:
- * a built bundle is static files, static files cannot hold an API key, and a
- * browser talking straight to an OpenAI-compatible box on the LAN would need
- * that key in the page *and* CORS on the box. Neither is acceptable, so the
- * production answer is a small server that does two things:
+ *   /                 the built client (dist/), precompressed and cached
+ *   /ws               playing together — rooms and relay (realtime.js)
+ *   /api/ai/*         the AI bridge: the model key stays here (api/ai.js)
+ *   /api/library/*    the shared content library, SQLite in DATA_DIR (libraryStore.js)
+ *   /api/levels/*     levels players save, in DATA_DIR/levels (api/files.js)
+ *   /api/classes/*    classes from the Class forge, in DATA_DIR/classes
+ *   /api/models/*     uploads and picture-to-3D (modelgen.mjs)
+ *   /library/*        the downloaded 3D asset library (LIBRARY_ROOT)
+ *   /healthz          { ok, rooms, players, uptime }
  *
- *   1. serves `dist/` (when it is there), and
- *   2. proxies `/api/ai/*` to the model with the key attached server-side.
+ * In development `vite.config.js` mounts the same handlers, so the client
+ * cannot tell the two apart. Everything persistent lives under DATA_DIR —
+ * mount that as a volume and the server is stateless otherwise.
  *
- * Same routes, same request and response shapes as the dev middleware, so the
- * client code cannot tell which one it is talking to — `AIDirector` posts to
- * same-origin `./api/ai/command` in both.
- *
- * No dependencies on purpose. It is ~200 lines of Node built-ins, it starts in
- * milliseconds, and it is the only part of this project that ever sees a
- * credential.
+ * One dependency (`ws`), and Node built-ins for the rest. See docs/production.md.
  */
 
 const PORT = Number(process.env.PORT ?? 8787);
-const BASE_URL = (process.env.LLM_PLATFORM_BASE_URL ?? '').replace(/\/+$/, '');
-const API_KEY = process.env.LLM_API_KEY ?? '';
-const MODEL = process.env.LLM_MODEL1 ?? '';
-const FAST_MODEL = process.env.LLM_MODEL2 ?? MODEL;
-/** Where the built client lives. Absent in an API-only deployment. */
+const HOST = process.env.HOST ?? '0.0.0.0';
+/** Where the built client lives. */
 const STATIC_ROOT = resolve(process.env.STATIC_ROOT ?? './dist');
-const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 45_000);
+/** Everything players make and the library database. */
+const DATA_DIR = resolve(process.env.DATA_DIR ?? './data');
+/** The downloaded 3D asset library (`npm run library:fetch`), served at /library/. */
+const LIBRARY_ROOT = resolve(process.env.LIBRARY_ROOT ?? './library');
+const MAX_PLAYERS = Math.max(2, Math.min(8, Number(process.env.MAX_PLAYERS) || 4));
+const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 500;
 /** Comma-separated origins allowed to call the API cross-site. Empty = none. */
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const VERSION = process.env.npm_package_version ?? process.env.GAMORY_VERSION ?? 'dev';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -45,226 +53,196 @@ const MIME = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
+  '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.ktx2': 'image/ktx2',
   '.hdr': 'image/vnd.radiance',
+  '.mp4': 'video/mp4',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.wasm': 'application/wasm',
   '.fbx': 'application/octet-stream',
-  '.map': 'application/json; charset=utf-8',
   '.gltf': 'model/gltf+json',
   '.glb': 'model/gltf-binary',
-  '.bin': 'application/octet-stream',
-  '.webp': 'image/webp',
-  '.ktx2': 'image/ktx2'
+  '.bin': 'application/octet-stream'
 };
+const COMPRESSIBLE = new Set(['.js', '.mjs', '.css', '.html', '.json', '.svg', '.map', '.txt', '.wasm', '.xml', '.webmanifest']);
 
-/** The downloaded 3D asset library (`npm run library:fetch`), served at /library/. */
-const LIBRARY_ROOT = resolve(process.env.LIBRARY_ROOT ?? './library');
-/** Uploads and AI-generated models, saved under the library (see modelgen.mjs). */
-const models = createModelStore({ libraryRoot: LIBRARY_ROOT });
+/* ---- the services ---- */
 
-const json = (res, status, body) => {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify(body));
-};
+const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, log: (line) => console.log(`[party] ${line}`) });
+const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => console.log(line) });
+let library = null;
+const api = chain([
+  aiBridge(process.env),
+  fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'levels'), userDir: join(DATA_DIR, 'levels'), indexKey: 'campaign', label: 'level' }), { files: 'levels', ordered: true }),
+  fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
+  libraryHandler(async () => (library ??= await LibraryStore.open(join(DATA_DIR, 'library.sqlite')))),
+  async (req, res) => (pathOf(req).startsWith('/api/models') ? models.handle(req, res) : false)
+]);
 
-/** Read a JSON body, refusing anything that is not a plausible prompt. */
-function readJson(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    req.on('data', (chunk) => {
-      size += chunk.length;
-      if (size > 512 * 1024) {
-        reject(new Error('payload too large'));
-        req.destroy();
-      } else {
-        chunks.push(chunk);
-      }
-    });
-    req.on('end', () => {
-      try {
-        resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {});
-      } catch (error) {
-        reject(error);
-      }
-    });
-    req.on('error', reject);
-  });
-}
+/* ---- static files ---- */
 
-/** A caller may ask for a longer wait (map design) — never past 3 minutes. */
-const requestTimeout = (payload) => {
-  const asked = Number(payload?.timeoutMs);
-  return Number.isFinite(asked) && asked > 0 ? Math.min(Math.max(asked, 5_000), 180_000) : undefined;
-};
-
-async function upstream(path, init = {}, timeoutMs = TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+/** Resolve a URL path under a root, refusing anything that escapes it. */
+function safeJoin(root, pathname) {
+  let decoded;
   try {
-    return await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
-        ...(init.headers ?? {})
-      }
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function handleApi(req, res, route) {
-  if (!BASE_URL) {
-    return json(res, 503, { error: 'LLM_PLATFORM_BASE_URL is not set on the server.' });
-  }
-
-  try {
-    if (route === '/status' && req.method === 'GET') {
-      const response = await upstream('/models');
-      const body = await response.json();
-      return json(res, response.ok ? 200 : response.status, {
-        ok: response.ok,
-        model: MODEL,
-        fastModel: FAST_MODEL,
-        models: (body?.data ?? []).map((entry) => entry.id)
-      });
-    }
-
-    if (route === '/command' && req.method === 'POST') {
-      const payload = await readJson(req);
-      const response = await upstream('/chat/completions', {
-        method: 'POST',
-        body: JSON.stringify({
-          model: payload.model || MODEL,
-          messages: payload.messages ?? [],
-          temperature: payload.temperature ?? 0.3,
-          max_tokens: payload.maxTokens ?? 600,
-          ...(payload.schema
-            ? {
-                response_format: {
-                  type: 'json_schema',
-                  json_schema: { name: 'battle_plan', strict: true, schema: payload.schema }
-                }
-              }
-            : {}),
-          // The game needs one JSON turn in about a second; Qwen3's visible
-          // scratchpad is pure latency here.
-          chat_template_kwargs: { enable_thinking: false }
-        })
-      }, requestTimeout(payload));
-      const body = await response.text();
-      res.writeHead(response.status, { 'Content-Type': 'application/json; charset=utf-8' });
-      return res.end(body);
-    }
-  } catch (error) {
-    const timedOut = error?.name === 'AbortError';
-    return json(res, timedOut ? 504 : 502, {
-      error: timedOut ? 'The model took too long to answer.' : String(error?.message ?? error)
-    });
-  }
-
-  return json(res, 404, { error: 'unknown route' });
-}
-
-/** Serve one library file. Unlike the app, a miss is a plain 404, never index.html. */
-async function serveLibrary(res, pathname) {
-  let relative;
-  try {
-    relative = normalize(decodeURIComponent(pathname)).replace(/^([/\\]|\.\.[/\\])+/, '');
+    decoded = decodeURIComponent(pathname);
   } catch {
-    return json(res, 400, { error: 'bad path' });
+    return null;
   }
-  const filePath = join(LIBRARY_ROOT, relative);
-  if (!filePath.startsWith(LIBRARY_ROOT)) return json(res, 403, { error: 'forbidden' });
+  const file = normalize(join(root, decoded));
+  return file === root || file.startsWith(root + sep) ? file : null;
+}
+
+async function fileInfo(file) {
   try {
-    const data = await readFile(filePath);
-    res.writeHead(200, {
-      'Content-Type': MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream',
-      'Cache-Control': filePath.endsWith('catalog.json') ? 'no-cache' : 'public, max-age=86400'
-    });
-    res.end(data);
+    const info = await stat(file);
+    return info.isFile() ? info : null;
   } catch {
-    json(res, 404, { error: 'not found' });
+    return null;
   }
 }
 
-/** Serve one file out of `STATIC_ROOT`, with the traversal guard. */
+/**
+ * Serve one file: the precompressed copy when the browser takes it, a weak
+ * ETag so a reload costs a 304, and caching that matches how Vite names
+ * things (hashed assets live forever, the entry page never).
+ */
+async function sendFile(req, res, file, info, { cacheControl }) {
+  const ext = extname(file).toLowerCase();
+  const etag = `W/"${info.size.toString(16)}-${Math.floor(info.mtimeMs).toString(16)}"`;
+  if (req.headers['if-none-match'] === etag) {
+    res.writeHead(304, { ETag: etag, 'Cache-Control': cacheControl });
+    return res.end();
+  }
+  const headers = {
+    'Content-Type': MIME[ext] ?? 'application/octet-stream',
+    'Cache-Control': cacheControl,
+    ETag: etag,
+    Vary: 'Accept-Encoding'
+  };
+  let source = file;
+  let size = info.size;
+  if (COMPRESSIBLE.has(ext)) {
+    const accepts = String(req.headers['accept-encoding'] ?? '');
+    for (const [encoding, suffix] of [['br', '.br'], ['gzip', '.gz']]) {
+      if (!accepts.includes(encoding)) continue;
+      const packed = await fileInfo(`${file}${suffix}`);
+      if (packed && packed.mtimeMs >= info.mtimeMs) {
+        source = `${file}${suffix}`;
+        size = packed.size;
+        headers['Content-Encoding'] = encoding;
+        break;
+      }
+    }
+  }
+  headers['Content-Length'] = size;
+  res.writeHead(200, headers);
+  if (req.method === 'HEAD') return res.end();
+  createReadStream(source).pipe(res);
+}
+
+/** The built client. Unknown paths without an extension fall back to the entry page. */
 async function serveStatic(req, res, pathname) {
-  const relative = normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, '');
-  let filePath = join(STATIC_ROOT, relative);
-  if (!filePath.startsWith(STATIC_ROOT)) return json(res, 403, { error: 'forbidden' });
-
-  try {
-    let data;
-    try {
-      data = await readFile(filePath);
-    } catch {
-      // Directory, or a client-side route: fall back to the entry document.
-      filePath = join(STATIC_ROOT, 'index.html');
-      data = await readFile(filePath);
-    }
-    res.writeHead(200, {
-      'Content-Type': MIME[extname(filePath)] ?? 'application/octet-stream',
-      'Cache-Control': extname(filePath) === '.html' ? 'no-cache' : 'public, max-age=3600'
-    });
-    res.end(data);
-  } catch {
-    json(res, 404, { error: 'not found' });
+  const file = safeJoin(STATIC_ROOT, pathname === '/' ? '/index.html' : pathname);
+  if (!file) return json(res, 403, { error: 'forbidden' });
+  let info = await fileInfo(file);
+  let target = file;
+  if (!info) {
+    if (extname(pathname)) return json(res, 404, { error: 'not found' });
+    target = join(STATIC_ROOT, 'index.html');
+    info = await fileInfo(target);
+    if (!info) return json(res, 404, { error: 'The game is not built yet — run `npm run build`.' });
   }
+  const ext = extname(target).toLowerCase();
+  const immutable = pathname.startsWith('/assets/');
+  const cacheControl = ext === '.html' ? 'no-cache' : immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600';
+  return sendFile(req, res, target, info, { cacheControl });
 }
+
+/** One library file. Unlike the app, a miss is a plain 404, never index.html. */
+async function serveLibrary(req, res, pathname) {
+  const file = safeJoin(LIBRARY_ROOT, pathname);
+  if (!file) return json(res, 403, { error: 'forbidden' });
+  const info = await fileInfo(file);
+  if (!info) return json(res, 404, { error: 'not found' });
+  return sendFile(req, res, file, info, { cacheControl: file.endsWith('catalog.json') ? 'no-cache' : 'public, max-age=86400' });
+}
+
+/* ---- the server ---- */
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  const pathname = pathOf(req);
   const origin = req.headers.origin;
 
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   // Same-origin needs no CORS at all; this only opens the door for the explicit
   // allowlist, so an unconfigured deployment cannot be called from anywhere.
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   }
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     return res.end();
   }
 
-  if (url.pathname === '/healthz') return json(res, 200, { ok: true });
-
-  if (url.pathname.startsWith('/api/ai')) {
-    return handleApi(req, res, url.pathname.slice('/api/ai'.length).replace(/\/+$/, ''));
-  }
-
-  if (url.pathname.startsWith('/api/models') && (await models.handle(req, res))) return;
-
-  // Levels are static files in the build (dist/levels/); only `npm run dev` can write them.
-  if (url.pathname === '/api/levels') {
-    try {
-      return json(res, 200, JSON.parse(await readFile(join(STATIC_ROOT, 'levels', 'index.json'), 'utf8')));
-    } catch {
-      return json(res, 200, { campaign: [] });
+  try {
+    if (pathname === '/healthz') {
+      return json(res, 200, { ok: true, version: VERSION, uptime: Math.round(process.uptime()), ...realtime.stats() });
     }
+    if (await api(req, res)) return;
+    if (pathname.startsWith('/library/')) return serveLibrary(req, res, pathname.slice('/library'.length));
+    if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method not allowed' });
+    return serveStatic(req, res, pathname);
+  } catch (error) {
+    console.error(`[server] ${req.method} ${pathname}:`, error);
+    return json(res, 500, { error: 'server error' });
   }
-  if (url.pathname.startsWith('/api/levels')) {
-    return json(res, 405, { error: 'Levels are read-only in a built game. Save under `npm run dev`, or use Export.' });
-  }
-
-  if (url.pathname.startsWith('/library/')) {
-    return serveLibrary(res, url.pathname.slice('/library'.length));
-  }
-
-  return serveStatic(req, res, url.pathname === '/' ? '/index.html' : url.pathname);
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[bridge] listening on :${PORT}`);
-  console.log(`[bridge] model     ${MODEL || '(unset)'} @ ${BASE_URL || '(unset)'}`);
-  console.log(`[bridge] static    ${STATIC_ROOT}`);
-  console.log(`[bridge] library   ${LIBRARY_ROOT}`);
+server.on('upgrade', (req, socket, head) => {
+  if (!realtime.handleUpgrade(req, socket, head)) socket.destroy();
 });
+// Browsers keep sockets open; a short keep-alive timeout frees them behind a proxy.
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 70_000;
+
+server.listen(PORT, HOST, () => {
+  console.log(`[gamory] v${VERSION} listening on http://${HOST}:${PORT}`);
+  console.log(`[gamory] static   ${STATIC_ROOT}`);
+  console.log(`[gamory] data     ${DATA_DIR}`);
+  console.log(`[gamory] library  ${LIBRARY_ROOT}`);
+  console.log(`[gamory] model    ${process.env.LLM_MODEL1 || '(unset)'} @ ${process.env.LLM_PLATFORM_BASE_URL || '(unset — AI off)'}`);
+  console.log(`[gamory] parties  up to ${MAX_PLAYERS} players, ${MAX_ROOMS} rooms`);
+});
+
+/** Stop taking connections, tell every party, then leave. */
+function shutdown(signal) {
+  console.log(`[gamory] ${signal}: shutting down`);
+  realtime.close();
+  server.close(() => {
+    library?.close();
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

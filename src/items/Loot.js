@@ -100,8 +100,14 @@ export class LootSystem {
    * @param {object[]} items
    * @param {{x: number, z: number}} from where they burst out
    */
-  drop(items, from, heightAt = () => 0) {
-    items.forEach((item, i) => {
+  /**
+   * Where `count` items bursting out of `from` land, as `[x, z]` pairs. Rolled
+   * once by whoever dropped them, so a party sees the same loot in the same
+   * places.
+   */
+  static scatter(from, count) {
+    const targets = [];
+    for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const distance = 0.8 + Math.random() * 1.6 + i * 0.25;
       let tx = from.x + Math.cos(angle) * distance;
@@ -112,6 +118,33 @@ export class LootSystem {
         tx *= 22 / r;
         tz *= 22 / r;
       }
+      targets.push([Math.round(tx * 100) / 100, Math.round(tz * 100) / 100]);
+    }
+    return targets;
+  }
+
+  /** Is this item still on the ground? */
+  has(uid) {
+    return this.drops.some((drop) => drop.item.uid === uid);
+  }
+
+  /** Someone else took it. */
+  removeByUid(uid) {
+    const drop = this.drops.find((d) => d.item.uid === uid);
+    if (drop) this._remove(drop);
+    return Boolean(drop);
+  }
+
+  /**
+   * @param {object[]} items
+   * @param {{x: number, z: number}} from where they burst out
+   * @param {(x: number, z: number) => number} [heightAt]
+   * @param {{ targets?: [number, number][] }} [options] pre-rolled landing spots (see `scatter`)
+   */
+  drop(items, from, heightAt = () => 0, { targets = null } = {}) {
+    const spots = targets ?? LootSystem.scatter(from, items.length);
+    items.forEach((item, i) => {
+      const [tx, tz] = spots[i] ?? spots[0] ?? [from.x, from.z];
       const root = new Group();
       const mesh = buildMesh(item);
       root.add(mesh);

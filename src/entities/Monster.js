@@ -63,6 +63,10 @@ let _nextId = 1;
  * at the speed this game moves, and this much already produces the thing that
  * matters: a horde that spreads out around you instead of stacking into a line.
  */
+/** Status bits in a network snapshot, in this order. */
+const STATUS_NAMES = ['chill', 'shock', 'burn', 'root', 'freeze'];
+const round2 = (n) => Math.round(n * 100) / 100;
+
 export class Monster {
   /**
    * @param {string} kind key into `settings.monsters.kinds`
@@ -123,6 +127,17 @@ export class Monster {
     this._stepAccumulator = 0;
     this._burnAccumulator = 0;
     this._lastDamageAge = -99;
+
+    /** The id this body was born with; a puppet borrows the host's instead. */
+    this.ownId = this.id;
+    /**
+     * Playing together as a guest: this body is a puppet of the host's
+     * monster. It moves to the host's snapshots, and everything done to it
+     * is sent to the host instead of applied here (see MonsterManager).
+     */
+    this.puppet = false;
+    this.manager = null;
+    this.net = null;
 
     this.root.visible = false;
   }
@@ -238,6 +253,7 @@ export class Monster {
    */
   applyDamage(amount, options = {}) {
     if (!this.isTargetable) return { dealt: 0, killed: false, shattered: false, overkill: 0 };
+    if (this.puppet) return this._puppetDamage(amount, options);
 
     const frozen = this.statuses.has('freeze');
     // Hitting a frozen body is the payoff for freezing it — glacier then meteor
@@ -278,6 +294,8 @@ export class Monster {
    */
   applyStatus(name, duration) {
     if (!STATUS[name] || !this.isAlive || duration <= 0) return;
+    // A puppet shows the status at once and tells the host, who applies it for real.
+    if (this.puppet) this.manager?.outbox.push({ id: this.id, k: 'status', s: name, d: duration });
     // Freeze supersedes chill — they are the same axis at two intensities, and
     // holding both would let the weaker one's expiry thaw the stronger.
     if (name === 'freeze') this.statuses.delete('chill');
@@ -289,6 +307,10 @@ export class Monster {
   /** Shove it. Mass divides the force, which is what makes a golem feel heavy. */
   applyKnockback(x, z, force) {
     if (!this.isAlive || force <= 0) return;
+    if (this.puppet) {
+      this.manager?.outbox.push({ id: this.id, k: 'kb', x, z, f: force });
+      return;
+    }
     const mass = Math.max(0.2, this.config.mass ?? 1);
     const scale = force / mass;
     this.velocity.x += x * scale;
@@ -327,6 +349,7 @@ export class Monster {
    */
   update(dt, ctx) {
     if (this.state === MonsterState.DEAD) return;
+    if (this.puppet) return this.updatePuppet(dt, ctx);
     this.age += dt;
     this.stateTime += dt;
 
@@ -353,6 +376,108 @@ export class Monster {
     this._syncUniforms(dt, ctx);
   }
 
+  /* ------------------------------------------------------------------ */
+  /* playing together: puppets and snapshots                             */
+  /* ------------------------------------------------------------------ */
+
+  /** This monster, as the host sends it twelve times a second. */
+  netEntry() {
+    let bits = 0;
+    for (let i = 0; i < STATUS_NAMES.length; i++) if (this.statuses.has(STATUS_NAMES[i])) bits |= 1 << i;
+    return {
+      id: this.id,
+      k: this.kind,
+      x: round2(this.position.x),
+      z: round2(this.position.z),
+      yaw: round2(this.facing),
+      vx: round2(this.velocity.x),
+      vz: round2(this.velocity.z),
+      hp: Math.round(this.health),
+      mh: Math.round(this.maxHealth),
+      st: this.state,
+      tt: round2(this.stateTime),
+      sb: bits,
+      sh: this.shattered ? 1 : 0
+    };
+  }
+
+  /** A guest's puppet takes the host's word on where it is and how it is. */
+  applyNet(e) {
+    this.net = { x: e.x, z: e.z, yaw: e.yaw ?? this.facing, vx: e.vx ?? 0, vz: e.vz ?? 0, at: performance.now() / 1000 };
+    this.maxHealth = Math.max(1, e.mh ?? this.maxHealth);
+    // A hit landed here a moment ago may not have reached the host yet: keep
+    // the lower of the two so the bar never jumps back up before dropping.
+    const recent = this.age - this._lastDamageAge < 0.4;
+    this.health = Math.max(0, recent ? Math.min(this.health, e.hp) : e.hp);
+    for (let i = 0; i < STATUS_NAMES.length; i++) {
+      if ((e.sb >> i) & 1) this.statuses.set(STATUS_NAMES[i], Math.max(this.statuses.get(STATUS_NAMES[i]) ?? 0, 0.3));
+    }
+    if (this.state !== MonsterState.ARRIVING && this.isAlive) {
+      if (e.st === MonsterState.DYING || e.st === MonsterState.DEAD) this._die(Boolean(e.sh));
+      else if (e.st !== this.state && e.st !== MonsterState.ARRIVING) {
+        this._enter(e.st);
+        this.stateTime = e.tt ?? 0;
+      }
+    }
+  }
+
+  /** A puppet's frame: glide to the host's position, animate, nothing decided here. */
+  updatePuppet(dt, ctx) {
+    this.age += dt;
+    this.stateTime += dt;
+    this._updateStatuses(dt, ctx);
+    this.hitFlash = Math.max(0, this.hitFlash - dt * 7);
+
+    const n = this.net;
+    if (this.state === MonsterState.ARRIVING) {
+      this._updateArriving(dt);
+    } else if (this.state === MonsterState.DYING) {
+      this._updateDying(dt, ctx);
+    } else if (n && dt > 0) {
+      // Where the host's body is by now: the last snapshot carried forward by
+      // its velocity for at most a few frames, then closed in on quickly.
+      const lead = Math.min(0.15, performance.now() / 1000 - n.at);
+      const tx = n.x + n.vx * lead;
+      const tz = n.z + n.vz * lead;
+      const dx = tx - this.position.x;
+      const dz = tz - this.position.z;
+      if (dx * dx + dz * dz > 64) {
+        this.position.x = tx;
+        this.position.z = tz;
+        this.velocity.set(0, 0, 0);
+      } else {
+        const k = 1 - Math.exp(-dt * 12);
+        this.velocity.x = (dx * k) / dt;
+        this.velocity.z = (dz * k) / dt;
+        this.position.x += dx * k;
+        this.position.z += dz * k;
+      }
+      this._face(n.yaw, dt, 12);
+    }
+    this.staggerImpulse.multiplyScalar(Math.pow(0.0005, dt));
+    this._animate(dt, ctx);
+    this._syncUniforms(dt, ctx);
+  }
+
+  /**
+   * A hit on a puppet: shown here straight away (the flash, the bar) and
+   * sent to the host, who deals the real damage and decides the kill.
+   */
+  _puppetDamage(amount, options) {
+    const frozen = this.statuses.has('freeze');
+    const shattered = frozen && (options.shatter ?? 1) > 1;
+    let damage = amount * (shattered ? options.shatter : 1);
+    const armour = options.ignoreArmour ? 0 : (this.config.armour ?? 0);
+    damage *= 1 - clamp(armour, 0, 0.85);
+    const dealt = Math.min(damage, this.health);
+    this.health = Math.max(0, this.health - damage);
+    this.hitFlash = 1;
+    this._lastDamageAge = this.age;
+    this.bar.visible = settings.monsters.healthBars;
+    this.manager?.outbox.push({ id: this.id, k: 'dmg', a: round2(amount), sh: options.shatter ?? 1, ia: Boolean(options.ignoreArmour), el: options.element ?? null });
+    return { dealt, killed: false, shattered: false, overkill: 0 };
+  }
+
   _updateStatuses(dt, ctx) {
     if (!this.statuses.size) return;
     for (const [name, remaining] of this.statuses) {
@@ -361,7 +486,8 @@ export class Monster {
       else this.statuses.set(name, left);
 
       const tick = STATUS[name]?.tick ?? 0;
-      if (tick > 0 && this.isAlive) {
+      // A puppet's burn is the host's to tick.
+      if (tick > 0 && this.isAlive && !this.puppet) {
         this._burnAccumulator += tick * dt;
         // Applied in whole points so the damage numbers stay readable rather
         // than scrolling a fresh "0.4" every frame.

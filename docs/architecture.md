@@ -34,8 +34,11 @@ src/
   npc/            Npcs (rigged helpers, roles, quests), NpcBrain (AI or scripted talk)
   levels/         Level (the file format), LevelStore (load/save/export/import, progress)
   library/        The asset library in the browser: Catalog (queries), ModelLibrary
-                  (loading + instancing), categories (shared with the indexer)
+                  (loading + instancing), categories (shared with the indexer); Library
+                  (the shared content library's client), fingerprints, similarity
   loaders/        AssetLoader with a shared LoadingManager
+  net/            Playing together: Session (the socket and rooms), Party (the host runs
+                  the fight, guests get snapshots and report hits), RemotePlayer (bodies)
   materials/      IceMaterial, LightningMaterial, MeteorMaterial,
                   VolumetricFireMaterial, BeamMaterial, SnareMaterial, GlacierMaterial
   particles/      GPU particle system + engine and rate emitters
@@ -56,11 +59,18 @@ src/
 public/levels/    Campaign levels (<id>.json) and their order (index.json) — written by the editor
 scripts/library/  Asset-library downloader (fetch), indexer (index), auto-download hook (ensure)
 library/          The downloaded 3D asset library + catalog.json (git-ignored, fetched)
-server/           The standalone AI bridge for production (zero dependencies), and
-                  modelgen.mjs — uploads and picture-to-3D (Tripo3D / Meshy), shared with dev
-Dockerfile        Two stages: build the client, then serve it beside the bridge
+server/           The production server (server.js): the built game, the party server
+                  (realtime.js), the content library (libraryStore.js, SQLite), the AI bridge,
+                  saved levels and classes (api/files.js), uploads (modelgen.mjs). The handlers
+                  in api/ are the same ones vite.config.js mounts in development
+tests/            unit/ (node --test: rooms, file stores, the library) and e2e/ (Playwright:
+                  a solo run and a two-browser co-op run against the real server)
+Dockerfile        Two stages: build the client, then serve it with the one-dependency server
 docker-compose.yml
 ```
+
+Playing together is host-authoritative: see [Playing together — how it works](multiplayer.md#how-it-works).
+Running it for players: see [Production](production.md).
 
 ## How it fits together
 

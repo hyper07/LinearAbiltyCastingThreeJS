@@ -14,6 +14,8 @@
  * an unconditional `textContent =` invalidates layout even when the string is
  * identical.
  */
+import { platform } from '../platform/index.js';
+
 export class GameHUD {
   /** @param {HTMLElement} host */
   constructor(host) {
@@ -61,6 +63,16 @@ export class GameHUD {
         <span data-downed-timer></span>
       </div>
 
+      <div class="party-hud" data-party hidden>
+        <div class="party-hud__head"><span>Party</span><b data-party-hud-code></b></div>
+        <div data-party-hud-members></div>
+      </div>
+
+      <div class="party-chat" data-chat hidden>
+        <div class="party-chat__log" data-chat-log></div>
+        <input data-chat-input type="text" maxlength="200" placeholder="Enter to chat" autocomplete="off" spellcheck="false" />
+      </div>
+
       <div class="hurt" data-hurt></div>
     `;
     host.appendChild(this.root);
@@ -84,12 +96,98 @@ export class GameHUD {
       bannerSub: q('[data-banner-sub]'),
       downed: q('[data-downed]'),
       downedTimer: q('[data-downed-timer]'),
-      hurt: q('[data-hurt]')
+      hurt: q('[data-hurt]'),
+      party: q('[data-party]'),
+      partyCode: q('[data-party-hud-code]'),
+      partyMembers: q('[data-party-hud-members]'),
+      chat: q('[data-chat]'),
+      chatLog: q('[data-chat-log]'),
+      chatInput: q('[data-chat-input]')
     };
 
     this._shown = {};
     this._hurt = 0;
     this._bannerTimer = 0;
+    this._partyKey = null;
+    /** `(text) => void` — a line typed into the party chat. */
+    this.onChat = null;
+    this.el.chatInput.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+      if (event.key === 'Enter') {
+        const text = this.el.chatInput.value.trim();
+        this.el.chatInput.value = '';
+        if (text) this.onChat?.(text);
+        this.el.chatInput.blur();
+      } else if (event.key === 'Escape') {
+        this.el.chatInput.value = '';
+        this.el.chatInput.blur();
+      }
+    });
+  }
+
+  /* ---- playing together ---- */
+
+  /**
+   * The party list: who is in, their class, their health, who is down.
+   * @param {object[]|null} members from Party#members(); null hides it
+   */
+  setParty(members, code = '') {
+    const el = this.el;
+    if (!members) {
+      if (!el.party.hidden) {
+        el.party.hidden = true;
+        el.chat.hidden = true;
+        this._partyKey = null;
+      }
+      return;
+    }
+    el.party.hidden = false;
+    el.chat.hidden = false;
+    const key = `${code}|${members.map((m) => `${m.id}:${m.name}:${m.classId}:${Math.round(m.hp * 40)}:${m.downed ? 1 : 0}:${m.host ? 1 : 0}`).join('|')}`;
+    if (key === this._partyKey) return;
+    this._partyKey = key;
+    el.partyCode.textContent = code;
+    el.partyMembers.replaceChildren(
+      ...members.map((m) => {
+        const row = document.createElement('div');
+        row.className = 'party-hud__member';
+        row.classList.toggle('is-you', Boolean(m.you));
+        row.classList.toggle('is-down', Boolean(m.downed));
+        const icon = document.createElement('span');
+        icon.className = 'party-hud__icon';
+        icon.textContent = platform.characters.get(m.classId)?.icon ?? '✦';
+        const name = document.createElement('span');
+        name.className = 'party-hud__name';
+        name.textContent = `${m.name}${m.host ? ' ★' : ''}${m.downed ? ' · down' : ''}`;
+        const bar = document.createElement('span');
+        bar.className = 'party-hud__bar';
+        const fill = document.createElement('i');
+        fill.style.width = `${Math.round(Math.max(0, Math.min(1, m.hp)) * 100)}%`;
+        bar.append(fill);
+        row.append(icon, name, bar);
+        return row;
+      })
+    );
+  }
+
+  /** A line of party chat; it fades after a few seconds. */
+  addChat(name, text, you = false) {
+    const line = document.createElement('div');
+    line.className = 'party-chat__line';
+    line.classList.toggle('is-you', you);
+    const who = document.createElement('b');
+    who.textContent = name;
+    line.append(who, document.createTextNode(text));
+    this.el.chatLog.append(line);
+    while (this.el.chatLog.children.length > 8) this.el.chatLog.firstChild.remove();
+    setTimeout(() => line.classList.add('is-old'), 9000);
+    setTimeout(() => line.remove(), 10000);
+  }
+
+  focusChat() {
+    if (this.el.chat.hidden) return false;
+    this.el.chatInput.focus();
+    return true;
   }
 
   /** Write only when the rendered string actually changes. */

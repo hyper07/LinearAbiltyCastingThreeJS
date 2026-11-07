@@ -4,11 +4,11 @@
  * (`draft` while it is theirs alone, `shared` once it is public, `hidden`
  * when pulled), in one table.
  *
- * Local first: SQLite through Node's built-in `node:sqlite`, in
- * data/library.sqlite, served by the dev server under /api/library. The game
- * only ever talks to the HTTP API (src/library/Library.js), so a hosted
- * database can replace `LibraryStore` without touching the game: keep the
- * same methods and routes.
+ * SQLite through Node's built-in `node:sqlite`, in `<DATA_DIR>/library.sqlite`
+ * (default `data/`), served under /api/library by the dev server and the
+ * production server alike. The game only ever talks to the HTTP API
+ * (src/library/Library.js), so a hosted database can replace `LibraryStore`
+ * without touching the game: keep the same methods and routes.
  *
  * Similar-asset search runs here over every asset's fingerprint (see
  * src/library/similarity.js), so suggestions span the whole library, not
@@ -16,17 +16,22 @@
  */
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 import { rankSimilar } from '../src/library/similarity.js';
+import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from './api/http.js';
 
 export const KINDS = ['class', 'skill', 'item', 'weapon', 'level'];
 export const STATUSES = ['official', 'shared', 'draft', 'hidden'];
 const ID = /^[a-z]+:[a-z0-9:_-]{1,96}$/;
 
 export class LibraryStore {
-  constructor(file = resolve('data', 'library.sqlite')) {
+  /**
+   * @param {string} [file] the database file
+   * @param {object} [sqlite] the `node:sqlite` module (opened lazily by `open` otherwise)
+   */
+  constructor(file = resolve(process.env.DATA_DIR ?? 'data', 'library.sqlite'), sqlite = null) {
     mkdirSync(dirname(file), { recursive: true });
-    this.db = new DatabaseSync(file);
+    if (!sqlite) throw new Error('use LibraryStore.open()');
+    this.db = new sqlite.DatabaseSync(file);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS assets (
         id TEXT PRIMARY KEY,
@@ -47,6 +52,12 @@ export class LibraryStore {
     `);
   }
 
+  /** Open (or create) the database. `node:sqlite` is loaded here, so a Node without it fails loudly, once. */
+  static async open(file) {
+    const sqlite = await import('node:sqlite');
+    return new LibraryStore(file, sqlite);
+  }
+
   _row(row, full = false) {
     if (!row) return null;
     const out = {
@@ -65,13 +76,23 @@ export class LibraryStore {
   list({ kind = null, status = null, q = null, limit = 200, full = false } = {}) {
     const where = [];
     const args = [];
-    if (kind) where.push('kind = ?') && args.push(kind);
-    if (status) where.push('status = ?') && args.push(status);
-    else where.push("status != 'hidden'");
-    if (q) where.push('(name LIKE ? OR summary LIKE ?)') && args.push(`%${q}%`, `%${q}%`);
+    if (kind) {
+      where.push('kind = ?');
+      args.push(kind);
+    }
+    if (status) {
+      where.push('status = ?');
+      args.push(status);
+    } else {
+      where.push("status != 'hidden'");
+    }
+    if (q) {
+      where.push('(name LIKE ? OR summary LIKE ?)');
+      args.push(`%${q}%`, `%${q}%`);
+    }
     const sql = `SELECT * FROM assets ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY featured DESC, CASE status WHEN 'official' THEN 1 ELSE 0 END, uses DESC, updated DESC LIMIT ?`;
-    return this.db.prepare(sql).all(...args, Math.min(500, limit)).map((r) => this._row(r, full));
+    return this.db.prepare(sql).all(...args, Math.max(1, Math.min(500, Number(limit) || 200))).map((r) => this._row(r, full));
   }
 
   /** How many assets of each status (and kind), for the library's header. */
@@ -153,84 +174,97 @@ export class LibraryStore {
 
   /** Assets like this fingerprint (official and shared, plus the asker's drafts), best first. */
   similar({ kind, fingerprint, exclude = [], limit = 5, min = 0.35 }) {
+    if (!KINDS.includes(kind)) return [];
     const rows = this.db.prepare("SELECT * FROM assets WHERE kind = ? AND status != 'hidden'").all(kind);
-    const skip = new Set(exclude);
+    const skip = new Set(Array.isArray(exclude) ? exclude : []);
     const candidates = rows.filter((r) => !skip.has(r.id)).map((r) => ({ ...this._row(r), fingerprint: JSON.parse(r.fingerprint) }));
-    return rankSimilar(fingerprint, candidates, { limit, min }).map(({ fingerprint: _f, ...rest }) => rest);
+    return rankSimilar(fingerprint ?? {}, candidates, { limit: Math.min(50, Number(limit) || 5), min: Number(min) || 0.35 }).map(({ fingerprint: _f, ...rest }) => rest);
+  }
+
+  close() {
+    this.db.close();
   }
 }
 
-/** The dev-server plugin: /api/library over a LibraryStore. */
+/**
+ * The /api/library routes over a store (see docs/library.md for the table).
+ * Writes are rate-limited per address: a public server is otherwise a free
+ * place to park megabytes.
+ *
+ * @param {() => Promise<LibraryStore>} getStore
+ */
+export function libraryHandler(getStore) {
+  const writes = new RateLimiter(120, { burst: 60 });
+  return async (req, res) => {
+    const path = pathOf(req);
+    if (!path.startsWith('/api/library')) return false;
+    const params = queryOf(req);
+    const rest = decodeURIComponent(path.slice('/api/library'.length).replace(/^\//, ''));
+    const writing = req.method !== 'GET';
+    try {
+      if (writing && !writes.take(clientIp(req))) {
+        json(res, 429, { error: 'Too many library changes — wait a moment.' });
+        return true;
+      }
+      const lib = await getStore();
+      if (req.method === 'GET' && !rest) {
+        json(res, 200, {
+          assets: lib.list({ kind: params.get('kind'), status: params.get('status'), q: params.get('q')?.slice(0, 80), limit: Number(params.get('limit') ?? 200), full: params.get('full') === '1' }),
+          counts: lib.counts()
+        });
+        return true;
+      }
+      if (req.method === 'POST' && rest === 'seed') {
+        const { assets } = await readJson(req, 4 * 1024 * 1024);
+        json(res, 200, { seeded: lib.seed(Array.isArray(assets) ? assets : []) });
+        return true;
+      }
+      if (req.method === 'POST' && rest === 'similar') {
+        json(res, 200, { similar: lib.similar(await readJson(req, 256 * 1024)) });
+        return true;
+      }
+      if (req.method === 'POST' && !rest) {
+        const asset = await readJson(req, 1024 * 1024);
+        const saved = lib.upsert(asset);
+        json(res, 200, { asset: saved, similar: lib.similar({ kind: saved.kind, fingerprint: saved.fingerprint, exclude: [saved.id], limit: 3, min: 0.55 }) });
+        return true;
+      }
+      const [id, action] = rest.split('/');
+      if (req.method === 'GET' && id) {
+        const asset = lib.get(id);
+        if (asset) json(res, 200, { asset });
+        else json(res, 404, { error: 'no such asset' });
+        return true;
+      }
+      if (req.method === 'POST' && action === 'use') {
+        json(res, 200, { asset: lib.use(id) });
+        return true;
+      }
+      if (req.method === 'PATCH' && id) {
+        json(res, 200, { asset: lib.setStatus(id, (await readJson(req, 4096)).status) });
+        return true;
+      }
+      if (req.method === 'DELETE' && id) {
+        json(res, 200, { deleted: lib.remove(id) });
+        return true;
+      }
+      json(res, 404, { error: 'unknown library route' });
+    } catch (error) {
+      const message = String(error?.message ?? error);
+      json(res, /too large/.test(message) ? 413 : /node:sqlite|ERR_UNKNOWN_BUILTIN_MODULE/.test(message) ? 503 : 400, { error: message });
+    }
+    return true;
+  };
+}
+
+/** The dev-server plugin: /api/library over a LibraryStore in `data/`. */
 export function libraryApi() {
   let store = null;
-  const getStore = () => (store ??= new LibraryStore());
-  const send = (res, status, data) => {
-    res.statusCode = status;
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.end(JSON.stringify(data));
-  };
-  const body = (req) =>
-    new Promise((ok, fail) => {
-      const chunks = [];
-      let size = 0;
-      req.on('data', (c) => {
-        size += c.length;
-        if (size > 4 * 1024 * 1024) fail(new Error('too large'));
-        else chunks.push(c);
-      });
-      req.on('end', () => {
-        try {
-          ok(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
-        } catch (error) {
-          fail(error);
-        }
-      });
-      req.on('error', fail);
+  const handle = libraryHandler(async () => (store ??= await LibraryStore.open()));
+  const middleware = (server) => {
+    server.middlewares.use((req, res, next) => {
+      handle(req, res).then((handled) => handled || next(), next);
     });
-
-  return {
-    name: 'gamory-library',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        const [path, query = ''] = (req.url ?? '').split('?');
-        if (!path.startsWith('/api/library')) return next();
-        const params = new URLSearchParams(query);
-        const rest = decodeURIComponent(path.slice('/api/library'.length).replace(/^\//, ''));
-        try {
-          const lib = getStore();
-          if (req.method === 'GET' && !rest) {
-            return send(res, 200, {
-              assets: lib.list({ kind: params.get('kind'), status: params.get('status'), q: params.get('q'), limit: Number(params.get('limit') ?? 200), full: params.get('full') === '1' }),
-              counts: lib.counts()
-            });
-          }
-          if (req.method === 'POST' && rest === 'seed') {
-            const { assets } = await body(req);
-            return send(res, 200, { seeded: lib.seed(Array.isArray(assets) ? assets : []) });
-          }
-          if (req.method === 'POST' && rest === 'similar') {
-            const q = await body(req);
-            return send(res, 200, { similar: lib.similar(q) });
-          }
-          if (req.method === 'POST' && !rest) {
-            const asset = await body(req);
-            const saved = lib.upsert(asset);
-            return send(res, 200, { asset: saved, similar: lib.similar({ kind: saved.kind, fingerprint: saved.fingerprint, exclude: [saved.id], limit: 3, min: 0.55 }) });
-          }
-          const [id, action] = rest.split('/');
-          if (req.method === 'GET' && id) {
-            const asset = lib.get(id);
-            return asset ? send(res, 200, { asset }) : send(res, 404, { error: 'no such asset' });
-          }
-          if (req.method === 'POST' && action === 'use') return send(res, 200, { asset: lib.use(id) });
-          if (req.method === 'PATCH' && id) return send(res, 200, { asset: lib.setStatus(id, (await body(req)).status) });
-          if (req.method === 'DELETE' && id) return send(res, 200, { deleted: lib.remove(id) });
-          return send(res, 404, { error: 'unknown library route' });
-        } catch (error) {
-          return send(res, 400, { error: error.message });
-        }
-      });
-    }
   };
+  return { name: 'gamory-library', configureServer: middleware, configurePreviewServer: middleware };
 }

@@ -21,7 +21,6 @@ import { StoryPanel } from '../ui/StoryPanel.js';
 import { WorldLabels } from '../ui/WorldLabels.js';
 import { PortalSystem } from '../world/Portals.js';
 import { Profile } from '../items/Profile.js';
-import { LootSystem } from '../items/Loot.js';
 import { POTIONS, XP_FOR, makeBagRowOffer, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
 import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
 import { NpcBrain } from '../npc/NpcBrain.js';
@@ -36,6 +35,8 @@ import { registerForgedClass, unregisterForgedClass, listForgedClasses, loadForg
 import { library, OFFICIAL_AUTHOR } from '../library/Library.js';
 import { LibraryPanel } from '../ui/LibraryPanel.js';
 import { itemThumbnails } from '../ui/ItemThumbnails.js';
+import { Party } from '../net/Party.js';
+import { LootSystem } from '../items/Loot.js';
 
 import { AssetLoader } from '../loaders/AssetLoader.js';
 import { CharacterController } from '../animation/CharacterController.js';
@@ -328,6 +329,8 @@ export class App {
       if (gain > 0) this._gainRage(gain);
     });
     this.monsters.on('playerHit', (_amount, source) => {
+      // In a party, a hit on someone else is theirs, not yours.
+      if (source?.playerId && this.party?.id && source.playerId !== this.party.id) return;
       this._gainRage(4);
       // Thorns: whatever hits you in melee takes some back.
       const thorns = this.profile.stats.thorns;
@@ -343,10 +346,21 @@ export class App {
     this.mainMenu.setProfile(this.profile);
     this.loot = new LootSystem(this.scene, this.labels);
     this.loot.onPickup = (item) => {
+      // In a party the host hands out the loot: a guest asks, and hears back.
+      if (this.party.isGuest) {
+        const can = this.profile.canPickUp(item);
+        if (!can.ok) {
+          this.hud.showToast(can.message);
+          return can;
+        }
+        this.party.requestTake(item);
+        return { ok: true, message: '' };
+      }
       const result = this.profile.pickUp(item);
       // Draw its picture for the bag now, while nothing is happening, not when the bag opens.
       if (result.ok && item.type !== 'gold' && item.type !== 'potion') (window.requestIdleCallback ?? setTimeout)(() => itemThumbnails.of(item));
-      this.hud.showToast(result.message);
+      if (result.ok) this.party.announceTaken(item.uid);
+      if (result.message) this.hud.showToast(result.message);
       return result;
     };
     this.portals = new PortalSystem(this.scene, this.labels);
@@ -391,6 +405,21 @@ export class App {
       particles: this.particles,
       numbers: this.numbers
     });
+
+    /* ---- playing together ----
+       One player hosts the fight; the others play in it. See net/Party.js. */
+    this.party = new Party(this);
+    this.mainMenu.bindParty(this.party);
+    this.gameHud.onChat = (text) => this.party.say(text);
+    this.monsters.on('attack', (monster, attack, target) => {
+      if (this.party.isHost) this.party.send({ t: 'a', id: monster.id, sp: attack.splash ?? 0, r: attack.ranged ? 1 : 0, tx: Math.round(target.x * 100) / 100, tz: Math.round(target.z * 100) / 100 });
+    });
+    // The host's monsters hit a guest: tell them; their own game takes the damage.
+    this.monsters.on('playerHit', (amount, source) => {
+      if (!this.party.isHost || !source?.playerId || source.playerId === this.party.id) return;
+      this.party.sendTo(source.playerId, { t: 'hit', a: Math.round(amount * 10) / 10, x: source.position?.x, z: source.position?.z, r: source.ranged ? 1 : 0, b: source.burning ? 1 : 0, m: source.monster?.id ?? null });
+    });
+    this.profile.on('gear', () => this.party.sendMeta());
 
     this._bindEvents();
     this.selectAbility(ELEMENTS[0], { silent: true });
@@ -450,24 +479,7 @@ export class App {
     locomotion.props = this.ruins.props;
     locomotion.bounds = settings.ruins.wallRadius - 1.2;
 
-    locomotion.onFootstep = (position, speed) => {
-      this.particles
-        .get('step-dust', { capacity: 500, additive: false, lit: true })
-        .emit(speed > settings.character.moveSpeed ? 5 : 3, {
-          position: _castPoint.set(position.x, 0.05, position.z),
-          radius: 0.18,
-          direction: { x: 0, y: 1, z: 0 },
-          speed: 0.45,
-          speedVariance: 0.7,
-          spread: 0.7,
-          size: 0.13,
-          sizeVariance: 0.5,
-          life: 0.55,
-          lifeVariance: 0.4,
-          tint: getColor('#6a6558'),
-          time: this.elapsed
-        });
-    };
+    locomotion.onFootstep = (position, speed) => this._footstep(position, speed);
 
     locomotion.onLand = (position, impact) => {
       // Scaled by how hard the landing was: stepping off a kerb should not
@@ -501,23 +513,50 @@ export class App {
     };
   }
 
+  /** Dust under a foot — yours, or another player's. */
+  _footstep(position, speed) {
+    this.particles
+      .get('step-dust', { capacity: 500, additive: false, lit: true })
+      .emit(speed > settings.character.moveSpeed ? 5 : 3, {
+        position: _castPoint.set(position.x, 0.05, position.z),
+        radius: 0.18,
+        direction: { x: 0, y: 1, z: 0 },
+        speed: 0.45,
+        speedVariance: 0.7,
+        spread: 0.7,
+        size: 0.13,
+        sizeVariance: 0.5,
+        life: 0.55,
+        lifeVariance: 0.4,
+        tint: getColor('#6a6558'),
+        time: this.elapsed
+      });
+  }
+
   /** The run's events → the run's readout. Nothing else listens to these. */
   _bindRun() {
     this.director.on('kill', (monster) => {
+      // Only the host's director kills; the party hears about it from there.
+      this.party.onLocalKill(monster);
       this._dropLoot(monster);
       this.profile.addXp((XP_FOR[monster.kind] ?? 6) * (1 + ((this.director.wave || 1) - 1) * 0.05));
       if (this.npcs.onKill(monster.kind)) this._updateGoalPill();
       this._onRunEvent('kill', monster);
     });
-    this.director.on('waveCleared', (wave) => this._onRunEvent('waveCleared', wave));
+    this.director.on('waveCleared', (wave) => {
+      this._onRunEvent('waveCleared', wave);
+      this.party.announceRun('cleared', { w: wave });
+    });
     this.director.on('wave', (wave) => this._onRunEvent('wave', wave));
     this.director.on('wave', (wave, count) => {
       this.gameHud.setWave(wave);
       this.gameHud.showBanner(`Wave ${wave}`, `${count} incoming`);
+      this.party.announceRun('wave', { w: wave, n: count });
     });
 
     this.director.on('breather', (next, seconds) => {
       this.gameHud.showBanner('Clear', `Wave ${next} in ${Math.round(seconds)}s`, 2.0);
+      this.party.announceRun('breather', { w: next, s: Math.round(seconds) });
     });
 
     this.director.on('score', (total) => this.gameHud.setScore(total));
@@ -539,6 +578,7 @@ export class App {
     this.director.on('boss', (monster) => {
       this.gameHud.showBanner(monster.label, 'is here', 3.2);
       this.shake.add(0.8 * settings.global.cameraShake, 1.6, 10);
+      this.party.announceRun('boss', { label: monster.label });
     });
   }
 
@@ -568,6 +608,10 @@ export class App {
         break;
       case 'jump':
         this.character.locomotion.jump();
+        this.party.jumped();
+        break;
+      case 'chat':
+        if (this.phase === 'playing' && this.party.inParty) this.gameHud.focusChat();
         break;
       case 'sit': {
         const locomotion = this.character.locomotion;
@@ -578,10 +622,10 @@ export class App {
         break;
       }
       case 'nextWave':
-        this.director.nextWave();
+        if (this.party.canSpawn) this.director.nextWave();
         break;
       case 'summon':
-        this.monsters.spawn(this.monsters.randomKind());
+        if (this.party.canSpawn) this.monsters.spawn(this.monsters.randomKind());
         break;
       case 'toggleRunHud':
         this._runHudVisible = !(this._runHudVisible ?? true);
@@ -665,6 +709,7 @@ export class App {
     // Through a steady scope a shot goes exactly where the crosshair is.
     const steady = this._scope > 0.7 ? { ...fire, spread: 0 } : fire;
     this.weaponFire.fire(shot.muzzle, shot.direction, steady, aim, shot.distance);
+    this.party.sendShot(shot.muzzle, shot.direction, weaponId, shot.distance, this._scope > 0.7);
     this._attackCooldown = fire.cooldown + (fire.burst > 1 ? (fire.burst - 1) * 0.07 : 0);
     // A held automatic does not restart the clip every round.
     if (!fire.auto || !this.character.isCasting) this.character.playCast(fire.anim ?? 'shoot2');
@@ -801,6 +846,7 @@ export class App {
     this.character.setFacing(yaw);
     this.character.playCast(attack.castAnim ?? 'cast2');
     this.character.castLunge();
+    this.party.sendAttack(yaw, attack.castAnim ?? 'cast2');
 
     _castPoint.copy(this.character.position).setY(0);
     const hits = this.combat.melee(_castPoint, _castDirection, attack);
@@ -931,6 +977,8 @@ export class App {
 
   togglePause() {
     if (this.phase !== 'playing') return;
+    // A party's fight runs on the host's clock; nobody can stop it for the others.
+    if (this.party.inParty) return this.hud.showToast("Can't pause while playing together", 2000);
     this.paused = !this.paused;
     this.hud.setPaused(this.paused);
     this.gameMenu.setPaused(this.paused);
@@ -938,7 +986,9 @@ export class App {
   }
 
   /** Apply main-menu selections and start the run. */
-  async enterGame({ characterId: forced = null, keepRun = false } = {}) {
+  async enterGame({ characterId: forced = null, keepRun = false, fromParty = false } = {}) {
+    // A guest joins the host's fight; they do not start their own.
+    if (this.party.isGuest && !fromParty) return this.party.requestStart();
     const { characterId, weaponId } = this.mainMenu.getSelection();
     await this.selectCharacter(forced ?? characterId, { reloadMesh: true });
     this.selectWeapon(weaponId);
@@ -970,11 +1020,13 @@ export class App {
     this.gameMenu.show();
     document.body.classList.remove('is-menu');
     this.hud.showToast('Fight!');
+    this.party.onEnterGame({ fromParty, keepRun, level: this.world === this.composed ? this.composed.level : null });
   }
 
   /** Leave the arena and return to loadout selection (or to the editor, after a play test). */
-  exitToMenu() {
+  exitToMenu({ fromParty = false } = {}) {
     const backToEditor = this.run?.fromEditor;
+    this.party.onExitGame({ fromParty });
     this._endRun();
     this.inventory.setBeltVisible(false);
     this.inventory.toggle(false);
@@ -1048,6 +1100,7 @@ export class App {
     if (this.character?.locomotion && character?.wandSide) {
       this.character.locomotion.wandSide = character.wandSide;
     }
+    this.party?.sendMeta();
   }
 
   /** Make "My models" characters wearable, and put saved custom looks back on. */
@@ -1078,6 +1131,7 @@ export class App {
       await this.character.reload(this._assets, character);
       this.character.applyAppearance(platform.getAppearance(characterId));
     }
+    this.party?.sendMeta();
   }
 
   /**
@@ -1113,6 +1167,7 @@ export class App {
     if (this.phase === 'playing') {
       this.hud.showToast(`${weapon?.label ?? weaponId} equipped`);
     }
+    this.party?.sendMeta();
   }
 
   /** Select an ability and arm it, unless it is still cooling down. */
@@ -1182,6 +1237,8 @@ export class App {
     this.character.setFacing(facing);
     this.character.playCast(platform.getCastAnim(element));
     this.character.castLunge();
+    // The party sees the spell; the damage stays yours to resolve.
+    this.party.sendCast(element, origin, direction, distance, facing, platform.getCastAnim(element));
   }
 
   /* ------------------------------------------------------------------ */
@@ -1247,8 +1304,11 @@ export class App {
    * @param {object} level
    * @param {{ fromEditor?: boolean, campaign?: {id: string, name: string}[], index?: number }} [options]
    */
-  async playLevel(level, { fromEditor = false, campaign = null, index = -1 } = {}) {
+  async playLevel(level, { fromEditor = false, campaign = null, index = -1, fromParty = false } = {}) {
     level = normalizeLevel(level);
+    // Playing together: the host picks the level and the party follows.
+    if (this.party.isGuest && !fromParty) return this.party.requestStart();
+    if (this.party.isHost && !fromParty && !fromEditor) this.party.broadcastStart({ level, campaign, index });
     if (fromEditor) this.levelEditor.suspend();
     else this.mainMenu.hide();
 
@@ -1271,9 +1331,11 @@ export class App {
       goal: `Goal: ${describeGoal(level.rules)}`,
       buttons: [
         { label: fromEditor ? 'Back to editor' : 'Back', value: 'back' },
-        { label: 'Start', value: 'start', primary: true }
+        { label: this.party.isGuest ? 'Join the fight' : 'Start', value: 'start', primary: true }
       ]
     });
+    // The party moved on while this card was up: the new start takes over.
+    if (choice === 'party') return;
     if (choice === 'back') {
       if (fromEditor) this.levelEditor.resume();
       else {
@@ -1285,11 +1347,11 @@ export class App {
 
     this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, studied: 0, done: false };
     this._applyRules(level);
-    await this.enterGame({ characterId: level.character, keepRun: true });
+    await this.enterGame({ characterId: level.character, keepRun: true, fromParty: true });
     // Monsters already standing in the level wait for the director's reset.
     // A calm level (a study level for young players) has none at all.
     const V = this.character.position.constructor;
-    if (!level.rules.calm) for (const m of level.monsters) this.monsters.spawn(m.kind, new V(m.x, 0, m.z));
+    if (!level.rules.calm && this.party.canSpawn) for (const m of level.monsters) this.monsters.spawn(m.kind, new V(m.x, 0, m.z));
     const heightAt = (x, z) => this.composed.heightAt(x, z);
     this.portals.setPortals(level.portals, heightAt);
     this.npcs.setNpcs(level.npcs, heightAt);
@@ -1358,6 +1420,15 @@ export class App {
     const run = this.run;
     if (!run || run.done || this.phase !== 'playing') return;
     const r = run.level.rules;
+    if (this.party.isGuest) {
+      // A guest keeps count for the pill; the host decides when the goal is met.
+      if (type === 'kill') run.kills += 1;
+      if (type === 'waveCleared') run.wave = payload;
+      if (type === 'wave') run.wave = Math.max(run.wave, payload - 1);
+      if (type === 'study') run.studied += 1;
+      this._updateGoalPill();
+      return;
+    }
     if (type === 'kill') {
       run.kills += 1;
       if (r.goal === 'kills' && run.kills >= r.count) return this._winLevel();
@@ -1407,13 +1478,20 @@ export class App {
       (px, pz) => this.composed.heightAt(px, pz)
     );
     this._updateGoalPill();
+    this.party.announceRun('win', { x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100, yaw: heading + Math.PI });
   }
 
   /** Walked into the exit portal: the ending, then the next level. */
-  async _finishLevel() {
+  async _finishLevel({ fromParty = false } = {}) {
     const run = this.run;
     if (!run || run.finishing) return;
+    // A guest stepping through takes the whole party: the host ends the level.
+    if (this.party.isGuest && !fromParty) {
+      this.party.sendTo(this.party.session.host, { t: 'exit' });
+      return this.hud.showToast('Leaving with the party…', 2000);
+    }
     run.finishing = true;
+    this.party.announceRun('finish');
     this.flash.trigger?.(getColor('#fff2c4'), 0.6);
     this.monsters.despawnAll();
     this.input.enabled = false;
@@ -1424,13 +1502,18 @@ export class App {
       title: outro.title || 'Victory',
       speaker: outro.speaker,
       text: outro.text,
-      buttons: [
-        { label: run.fromEditor ? 'Back to editor' : 'Main menu', value: 'menu' },
-        ...(next ? [{ label: `Next: ${next.name}`, value: 'next', primary: true }] : [])
-      ]
+      buttons: this.party.isGuest
+        ? [{ label: 'Main menu', value: 'menu' }]
+        : [
+            { label: run.fromEditor ? 'Back to editor' : 'Main menu', value: 'menu' },
+            ...(next ? [{ label: `Next: ${next.name}`, value: 'next', primary: true }] : [])
+          ]
     });
+    // The host moved the party on: the start message takes it from here.
+    if (choice === 'party') return;
     if (choice === 'next' && next) {
-      this.exitToMenu();
+      // Not an "end" for the party: the next level's start follows at once.
+      this.exitToMenu({ fromParty: true });
       this.mainMenu.hide();
       await this.playCampaignLevel(next.id);
       return;
@@ -1459,23 +1542,103 @@ export class App {
       return;
     }
     if (target.type === 'level') {
-      if (this.run?.fromEditor) return this.hud.showToast(`Leads to level “${target.level}” — works in the campaign`);
-      const campaign = await this.levels.list();
-      const index = campaign.findIndex((entry) => entry.id === target.level);
-      let level;
-      try {
-        level = await this.levels.load(target.level);
-      } catch {
-        return this.hud.showToast('This portal leads nowhere');
+      // In a party the host leads the way; a guest asks them to.
+      if (this.party.isGuest) {
+        this.party.sendTo(this.party.session.host, { t: 'travel', level: target.level });
+        return this.hud.showToast('Asking the host to take the party through…', 2200);
       }
-      this.flash.trigger?.(getColor('#bfe6ff'), 0.6);
-      this.director.stop();
-      this.clearEffects();
-      this._endRun();
-      await this.playLevel(level, { campaign, index });
-      return;
+      return this._travelTo(target.level);
     }
     this.hud.showToast('This portal is dormant');
+  }
+
+  /** Through a level portal: load the level and play it (the party follows). */
+  async _travelTo(levelId) {
+    if (this.phase !== 'playing') return;
+    if (this.run?.fromEditor) return this.hud.showToast(`Leads to level “${levelId}” — works in the campaign`);
+    const campaign = await this.levels.list();
+    const index = campaign.findIndex((entry) => entry.id === levelId);
+    let level;
+    try {
+      level = await this.levels.load(levelId);
+    } catch {
+      return this.hud.showToast('This portal leads nowhere');
+    }
+    this.flash.trigger?.(getColor('#bfe6ff'), 0.6);
+    this.director.stop();
+    this.clearEffects();
+    this._endRun();
+    await this.playLevel(level, { campaign, index });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Playing together: what the host tells a guest                       */
+  /* ------------------------------------------------------------------ */
+
+  /** A monster died in the host's world: the experience and the quest count are everyone's. */
+  _onPartyKill(msg) {
+    if (this.phase !== 'playing') return;
+    this.director.kills += 1;
+    this.profile.addXp((XP_FOR[msg.k] ?? 6) * (1 + ((msg.w || 1) - 1) * 0.05));
+    if (this.npcs.onKill(msg.k)) this._updateGoalPill();
+    this._onRunEvent('kill', { kind: msg.k });
+  }
+
+  /** The run's numbers, with every snapshot. */
+  _applyPartyRun(run) {
+    if (!run) return;
+    const d = this.director;
+    if (typeof run.w === 'number') d.wave = run.w;
+    if (typeof run.k === 'number') d.kills = run.k;
+    if (typeof run.sc === 'number' && run.sc !== d.score) {
+      d.score = run.sc;
+      this.gameHud.setScore(run.sc);
+    }
+    if (typeof run.w === 'number') this.gameHud.setWave(run.w);
+  }
+
+  /** A run event: a wave, a boss, the win, the ending. */
+  _onPartyRun(msg) {
+    if (this.phase !== 'playing') return;
+    switch (msg.ev) {
+      case 'wave':
+        this.director.wave = msg.w;
+        this.gameHud.setWave(msg.w);
+        this.gameHud.showBanner(`Wave ${msg.w}`, `${msg.n} incoming`);
+        this._onRunEvent('wave', msg.w);
+        return;
+      case 'cleared':
+        this._onRunEvent('waveCleared', msg.w);
+        return;
+      case 'breather':
+        this.gameHud.showBanner('Clear', `Wave ${msg.w} in ${msg.s}s`, 2.0);
+        return;
+      case 'boss':
+        this.gameHud.showBanner(msg.label ?? 'A boss', 'is here', 3.2);
+        this.shake.add(0.8 * settings.global.cameraShake, 1.6, 10);
+        return;
+      case 'win':
+        return this._applyPartyWin(msg);
+      case 'finish':
+        return this._finishLevel({ fromParty: true });
+      default:
+        return;
+    }
+  }
+
+  /** The host reached the goal: the same gold portal opens here. */
+  _applyPartyWin(msg) {
+    const run = this.run;
+    if (!run || run.done) return;
+    run.done = true;
+    this.director.stop();
+    this.hud.showToast('Victory! A portal has opened');
+    if (!run.fromEditor) progress.complete(run.level.id);
+    this.portals.add(
+      { id: '__exit', x: msg.x, z: msg.z, yaw: msg.yaw, color: 'gold', label: 'The way onward', target: { type: 'exit' } },
+      (px, pz) => this.composed.heightAt(px, pz)
+    );
+    this._updateGoalPill();
   }
 
   /**
@@ -1559,8 +1722,13 @@ export class App {
   /* ------------------------------------------------------------------ */
 
   _dropLoot(monster) {
-    const items = rollLoot(monster.kind, { wave: this.director.wave || 1, goldFind: this.profile.stats.gold, bookPool: treeSpells(this.profile.classId) });
-    if (items.length) this.loot.drop(items, monster.position, (x, z) => this.world.heightAt?.(x, z) ?? 0);
+    // In a party the books come from everyone's trees, not just the host's.
+    const bookPool = this.party.inParty ? this.party.bookPool() : treeSpells(this.profile.classId);
+    const items = rollLoot(monster.kind, { wave: this.director.wave || 1, goldFind: this.profile.stats.gold, bookPool });
+    if (!items.length) return;
+    const targets = LootSystem.scatter(monster.position, items.length);
+    this.loot.drop(items, monster.position, (x, z) => this.world.heightAt?.(x, z) ?? 0, { targets });
+    this.party.announceLoot(items, monster.position, targets);
   }
 
   /** Gear → max health, move speed. `refill` tops health up (start of a run). */
@@ -1617,8 +1785,13 @@ export class App {
   /* ------------------------------------------------------------------ */
 
   _talkTo(npc) {
-    this._pausedForTalk = !this.paused;
-    this.paused = true;
+    // Alone, a conversation pauses the fight. In a party the world goes on.
+    if (this.party.inParty) {
+      this._pausedForTalk = false;
+    } else {
+      this._pausedForTalk = !this.paused;
+      this.paused = true;
+    }
     this.input.enabled = false;
     this.talkPrompt.hidden = true;
     this.dialogue.open(npc, this._npcActions(npc));
@@ -2061,6 +2234,9 @@ export class App {
       this.dust.update(this.elapsed, this.character.position);
     }
 
+    // Playing together: the other players' bodies, and what goes over the wire.
+    this.party.update(dt);
+
     /* ---- camera ---- */
     // Something the size of the Emberwyrm does not fit in a framing built for a
     // caster and a few imps, so the rig backs off while one is alive. It is a
@@ -2182,6 +2358,7 @@ export class App {
 
   dispose() {
     this.stop();
+    this.party.dispose();
     this.input.dispose();
     this.aim.dispose();
     this.abilities.dispose();

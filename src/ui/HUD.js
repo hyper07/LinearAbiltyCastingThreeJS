@@ -57,6 +57,7 @@ export class HUD {
         <div style="margin-top:7px">
           <kbd>I</kbd> armory — 108 weapons &nbsp; <kbd>X</kbd> reload &nbsp; <kbd>V</kbd> scope &nbsp; <kbd>B</kbd> run HUD
         </div>
+        <div><kbd>Enter</kbd> party chat (playing together)</div>
         <div class="hud__help-note">The Emberwyrm comes on every fifth wave.</div>
         <div>
           <kbd>G</kbd> editor &nbsp; <kbd>P</kbd> pause &nbsp;

@@ -60,6 +60,15 @@ export class GameDirector extends EventEmitter {
     /** 0..1 — how frozen the world is right now. Read by the app each frame. */
     this._hitStop = 0;
     this.elapsed = 0;
+    /**
+     * Playing together: only the host's director runs the waves. A guest's
+     * keeps the player's own health and revive, and shows what the host says.
+     */
+    this.authority = true;
+    /** In a party, hits meant for someone else are not yours to take. */
+    this.localPlayerId = null;
+    /** How many are fighting — the waves grow with the party. */
+    this.partySize = 1;
 
     this._bind();
   }
@@ -71,9 +80,12 @@ export class GameDirector extends EventEmitter {
     combat.on('kill', (monster, info) => this._onKill(monster, info));
     monsters.on('damage', (monster, amount, info) => {
       this._showNumber(monster, amount, info.kind === 'burn' ? 'burn' : 'normal');
-      if (info.killed) this._onKill(monster, { element: 'burn', amount });
+      if (info.killed) this._onKill(monster, { element: info.element ?? 'burn', amount });
     });
-    monsters.on('playerHit', (amount, source) => this.damagePlayer(amount, source));
+    monsters.on('playerHit', (amount, source) => {
+      if (source?.playerId && this.localPlayerId && source.playerId !== this.localPlayerId) return;
+      this.damagePlayer(amount, source);
+    });
   }
 
   /* ------------------------------------------------------------------ */
@@ -89,7 +101,8 @@ export class GameDirector extends EventEmitter {
     this.bestCombo = 0;
     this.health = this.maxHealth = settings.combat.playerHealth;
     this.ctx.monsters.despawnAll();
-    this._beginBreather(1.5);
+    if (this.authority) this._beginBreather(1.5);
+    else this.state = RunState.FIGHTING; // the host's waves are already coming
     this.emit('score', this.score, 0);
     return this;
   }
@@ -113,11 +126,14 @@ export class GameDirector extends EventEmitter {
    * abilities start earning their cooldowns), tougher targets later.
    */
   nextWave() {
+    if (!this.authority) return this.wave;
     const cfg = settings.waves;
     this.wave += 1;
     this.state = RunState.FIGHTING;
 
-    const count = Math.round(cfg.baseCount * Math.pow(cfg.growth, this.wave - 1));
+    // More of them for a party: each extra player adds just over half a wave.
+    const party = 1 + 0.6 * (Math.max(1, this.partySize) - 1);
+    const count = Math.round(cfg.baseCount * Math.pow(cfg.growth, this.wave - 1) * party);
     this._spawnQueue = clamp(count, 1, 60);
     this._spawnTimer = 0;
     // The dragon outranks the golem: a wave that qualifies for both gets the
@@ -129,7 +145,7 @@ export class GameDirector extends EventEmitter {
           ? 'golem'
           : null;
 
-    this.ctx.monsters.healthMultiplier = 1 + (this.wave - 1) * cfg.healthRamp;
+    this.ctx.monsters.healthMultiplier = (1 + (this.wave - 1) * cfg.healthRamp) * (1 + 0.2 * (Math.max(1, this.partySize) - 1));
     this.emit('wave', this.wave, this._spawnQueue);
     return this.wave;
   }
@@ -333,11 +349,13 @@ export class GameDirector extends EventEmitter {
         break;
 
       case RunState.BREATHER:
+        if (!this.authority) break;
         this._breatherTimer -= dt;
         if (this._breatherTimer <= 0) this.nextWave();
         break;
 
       case RunState.FIGHTING:
+        if (!this.authority) break;
         this._updateWave(dt);
         break;
 

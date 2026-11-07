@@ -75,9 +75,10 @@ Without the AI, a **keyword designer** builds the class instead from the words i
 ## Where classes are kept
 
 Each class is a JSON file in `public/classes/` (plus `index.json`), so — like levels — they live in
-the repo and ship with every build. Saving works while running `npm run dev`. Two classes made in the
-forge ship with the game: **Stormbound Corsair** (cannons, boarding and command) and **Lunara's
-Veil** (moonlit ice and starlight).
+the repo and ship with every build. That is under `npm run dev`; on a [production](production.md)
+server the built-in classes are read-only and what players save goes to `DATA_DIR/classes`. Two
+classes made in the forge ship with the game: **Stormbound Corsair** (cannons, boarding and command)
+and **Lunara's Veil** (moonlit ice and starlight).
 
 The code: `src/ai/ClassDesigner.js` (the prompt, schema, keyword designer and checks),
 `src/forge/ClassForge.js` (bases, re-tinting, registering a class), `src/ui/ClassForgePanel.js`

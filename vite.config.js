@@ -1,10 +1,12 @@
 import { createReadStream, statSync } from 'node:fs';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 import { libraryState, startFetch } from './scripts/library/ensure.mjs';
 import { createModelStore } from './server/modelgen.mjs';
 import { libraryApi } from './server/libraryStore.js';
+import { aiBridge } from './server/api/ai.js';
+import { JsonFileStore, fileApi } from './server/api/files.js';
+import { createRealtime } from './server/realtime.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -20,6 +22,20 @@ const LIBRARY_MIME = {
 };
 
 /**
+ * Mount one of the shared API handlers (server/api/*) as dev-server and
+ * preview-server middleware. The production server (server/server.js) runs
+ * the very same handlers, so the client never knows which one it talks to.
+ */
+function mount(name, handler) {
+  const middleware = (server) => {
+    server.middlewares.use((req, res, next) => {
+      handler(req, res).then((handled) => handled || next(), next);
+    });
+  };
+  return { name, configureServer: middleware, configurePreviewServer: middleware };
+}
+
+/**
  * "My models": uploads and AI-generated models (server/modelgen.mjs). The
  * generator API keys stay here, server-side, like the LLM key.
  */
@@ -29,228 +45,51 @@ function modelStudio(env) {
     env: { ...process.env, ...env },
     log: (message) => console.log(message)
   });
-  const middleware = (server) => {
-    server.middlewares.use((req, res, next) => {
-      store.handle(req, res).then((handled) => handled || next(), next);
-    });
-  };
-  return { name: 'model-studio', configureServer: middleware, configurePreviewServer: middleware };
+  return mount('model-studio', (req, res) => store.handle(req, res));
 }
 
 /**
- * Level files for the editor and campaign (dev only).
+ * Levels (`public/levels`) and forged classes (`public/classes`) as files.
  *
- * Levels live in `public/levels/<id>.json`, with the campaign order in
- * `public/levels/index.json`. Being under `public/`, they ship in every build
- * and are read there as plain static files; only *writing* needs this server,
- * which is why saving works under `npm run dev` and not in a built game.
- *
- *   GET    /api/levels           → the campaign index
- *   POST   /api/levels/<id>      → save (create or replace) a level
- *   DELETE /api/levels/<id>      → delete a level
- *   POST   /api/levels-order     → { order: [ids] } reorder the campaign
+ * Under `npm run dev` they are the repo's own folders, so what you save ships
+ * with the next build and can be committed. `vite preview` behaves like
+ * production: the built set is read-only and saves go to `data/`.
  */
-function levelStore() {
-  const dir = resolve('public', 'levels');
-  const indexFile = resolve(dir, 'index.json');
-  const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
-  const MAX_BYTES = 12 * 1024 * 1024;
-
-  const send = (res, status, body) => {
-    res.statusCode = status;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(body));
+function fileStores() {
+  const dev = {
+    levels: fileApi(new JsonFileStore({ builtInDir: 'public/levels', userDir: 'public/levels', indexKey: 'campaign', label: 'level' }), { files: 'levels', ordered: true }),
+    classes: fileApi(new JsonFileStore({ builtInDir: 'public/classes', userDir: 'public/classes', indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' })
   };
-  const body = (req) =>
-    new Promise((ok, fail) => {
-      const chunks = [];
-      let size = 0;
-      req.on('data', (c) => {
-        size += c.length;
-        if (size > MAX_BYTES) fail(new Error('level too large'));
-        else chunks.push(c);
-      });
-      req.on('end', () => {
-        try {
-          ok(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
-        } catch (error) {
-          fail(error);
-        }
-      });
-      req.on('error', fail);
-    });
-  const readIndex = async () => {
-    try {
-      const data = JSON.parse(await readFile(indexFile, 'utf8'));
-      return Array.isArray(data.campaign) ? data : { campaign: [] };
-    } catch {
-      return { campaign: [] };
+  const preview = {
+    levels: fileApi(new JsonFileStore({ builtInDir: 'dist/levels', userDir: 'data/levels', indexKey: 'campaign', label: 'level' }), { files: 'levels', ordered: true }),
+    classes: fileApi(new JsonFileStore({ builtInDir: 'dist/classes', userDir: 'data/classes', indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' })
+  };
+  const use = (server, stores) => {
+    for (const handler of Object.values(stores)) {
+      server.middlewares.use((req, res, next) => handler(req, res).then((handled) => handled || next(), next));
     }
   };
-  // Write-then-rename, so a crash mid-save never leaves half a file behind.
-  const atomicWrite = async (file, text) => {
-    await mkdir(dir, { recursive: true });
-    await writeFile(`${file}.tmp`, text);
-    await rename(`${file}.tmp`, file);
+  return {
+    name: 'file-stores',
+    configureServer: (server) => use(server, dev),
+    configurePreviewServer: (server) => use(server, preview)
   };
-
-  const middleware = (server) => {
-    server.middlewares.use(async (req, res, next) => {
-      const url = (req.url ?? '').split('?')[0];
-      // Level files are read straight from disk: they are written while the
-      // server runs, and Vite's own public-file list only knows files it has
-      // seen through the (deliberately unwatched) levels folder.
-      const file = url.match(/^\/levels\/([a-z0-9][a-z0-9-]{0,47}|index)\.json$/);
-      if (file && req.method === 'GET') {
-        try {
-          const text = await readFile(resolve(dir, `${file[1]}.json`), 'utf8');
-          res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Cache-Control', 'no-cache');
-          return res.end(text);
-        } catch {
-          return send(res, 404, { error: 'no such level' });
-        }
-      }
-      if (!url.startsWith('/api/levels')) return next();
-      try {
-        if (url === '/api/levels' && req.method === 'GET') return send(res, 200, await readIndex());
-
-        if (url === '/api/levels-order' && req.method === 'POST') {
-          const { order } = await body(req);
-          const index = await readIndex();
-          const byId = new Map(index.campaign.map((entry) => [entry.id, entry]));
-          const next = (Array.isArray(order) ? order : []).filter((id) => byId.has(id)).map((id) => byId.get(id));
-          for (const entry of index.campaign) if (!next.includes(entry)) next.push(entry);
-          await atomicWrite(indexFile, JSON.stringify({ campaign: next }, null, 2) + '\n');
-          return send(res, 200, { campaign: next });
-        }
-
-        const match = url.match(/^\/api\/levels\/([^/]+)$/);
-        const id = match ? decodeURIComponent(match[1]) : '';
-        if (!ID.test(id)) return send(res, 400, { error: 'bad level id' });
-        const file = resolve(dir, `${id}.json`);
-
-        if (req.method === 'POST') {
-          const level = await body(req);
-          if (level?.id !== id) return send(res, 400, { error: 'id in the URL and the file disagree' });
-          await atomicWrite(file, JSON.stringify(level, null, 1) + '\n');
-          const index = await readIndex();
-          const entry = index.campaign.find((e) => e.id === id);
-          if (entry) entry.name = level.name;
-          else index.campaign.push({ id, name: level.name });
-          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
-          return send(res, 200, { ok: true, id, campaign: index.campaign });
-        }
-
-        if (req.method === 'DELETE') {
-          await rm(file, { force: true });
-          const index = await readIndex();
-          index.campaign = index.campaign.filter((e) => e.id !== id);
-          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
-          return send(res, 200, { ok: true, campaign: index.campaign });
-        }
-        return send(res, 405, { error: 'method not allowed' });
-      } catch (error) {
-        return send(res, 500, { error: String(error?.message ?? error) });
-      }
-    });
-  };
-  return { name: 'level-store', configureServer: middleware };
 }
 
-/**
- * Classes made in the Class forge (main menu → Create), as files:
- * `public/classes/<id>.json` plus `public/classes/index.json`. Like levels, they
- * live in the repo and ship with every build; writing only works on the dev
- * server.
- *
- *   GET    /classes/<id>.json | /classes/index.json   → read (from disk)
- *   POST   /api/classes/<id>    → save (create or replace)
- *   DELETE /api/classes/<id>    → delete
- */
-function classStore() {
-  const dir = resolve('public', 'classes');
-  const indexFile = resolve(dir, 'index.json');
-  const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
-  const send = (res, status, data) => {
-    res.statusCode = status;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(data));
-  };
-  const body = (req) =>
-    new Promise((ok, fail) => {
-      const chunks = [];
-      let size = 0;
-      req.on('data', (c) => {
-        size += c.length;
-        if (size > 512 * 1024) fail(new Error('class too large'));
-        else chunks.push(c);
-      });
-      req.on('end', () => {
-        try {
-          ok(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
-        } catch (error) {
-          fail(error);
-        }
-      });
-      req.on('error', fail);
+/** Playing together: the room server on the same port, at /ws. */
+function realtime(env) {
+  const attach = (server) => {
+    const rt = createRealtime({
+      maxPlayers: Math.max(2, Math.min(8, Number(env.MAX_PLAYERS) || 4)),
+      log: (line) => server.config.logger.info(`[party] ${line}`, { timestamp: true })
     });
-  const readIndex = async () => {
-    try {
-      const data = JSON.parse(await readFile(indexFile, 'utf8'));
-      return Array.isArray(data.classes) ? data : { classes: [] };
-    } catch {
-      return { classes: [] };
-    }
-  };
-  const atomicWrite = async (file, text) => {
-    await mkdir(dir, { recursive: true });
-    await writeFile(`${file}.tmp`, text);
-    await rename(`${file}.tmp`, file);
-  };
-  const middleware = (server) => {
-    server.middlewares.use(async (req, res, next) => {
-      const url = (req.url ?? '').split('?')[0];
-      const file = url.match(/^\/classes\/([a-z0-9][a-z0-9-]{0,47}|index)\.json$/);
-      if (file && req.method === 'GET') {
-        if (file[1] === 'index') return send(res, 200, await readIndex());
-        try {
-          res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Cache-Control', 'no-cache');
-          return res.end(await readFile(resolve(dir, `${file[1]}.json`), 'utf8'));
-        } catch {
-          return send(res, 404, { error: 'no such class' });
-        }
-      }
-      if (!url.startsWith('/api/classes/')) return next();
-      try {
-        const id = decodeURIComponent(url.slice('/api/classes/'.length));
-        if (!ID.test(id)) return send(res, 400, { error: 'bad class id' });
-        const target = resolve(dir, `${id}.json`);
-        const index = await readIndex();
-        if (req.method === 'POST') {
-          const spec = await body(req);
-          if (spec?.id !== id) return send(res, 400, { error: 'id in the URL and the file disagree' });
-          await atomicWrite(target, JSON.stringify(spec, null, 1) + '\n');
-          const entry = index.classes.find((e) => e.id === id);
-          if (entry) entry.name = spec.name;
-          else index.classes.push({ id, name: spec.name });
-          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
-          return send(res, 200, { ok: true, classes: index.classes });
-        }
-        if (req.method === 'DELETE') {
-          await rm(target, { force: true });
-          index.classes = index.classes.filter((e) => e.id !== id);
-          await atomicWrite(indexFile, JSON.stringify(index, null, 2) + '\n');
-          return send(res, 200, { ok: true, classes: index.classes });
-        }
-        return send(res, 405, { error: 'method not allowed' });
-      } catch (error) {
-        return send(res, 500, { error: String(error?.message ?? error) });
-      }
+    server.httpServer?.on('upgrade', (req, socket, head) => {
+      // Vite's own HMR socket takes the other upgrades.
+      rt.handleUpgrade(req, socket, head);
     });
+    server.httpServer?.on('close', () => rt.close());
   };
-  return { name: 'class-store', configureServer: middleware };
+  return { name: 'realtime', configureServer: attach, configurePreviewServer: attach };
 }
 
 /**
@@ -327,154 +166,6 @@ function assetLibrary() {
   };
 }
 
-/**
- * Dev/preview-only bridge to the OpenAI-compatible LLM the sandbox talks to.
- *
- * The browser never sees `LLM_API_KEY`, and never has to negotiate CORS with a
- * box on the LAN: the page posts to same-origin `/api/ai/*` and the Vite server
- * forwards it with the credentials attached. Two routes, both JSON:
- *
- *   GET  /api/ai/status   → { ok, model, models[] }   — is the brain reachable?
- *   POST /api/ai/command  → the raw chat completion    — one planning turn
- *
- * `/api/ai/command` is deliberately thin. The *game* owns the prompt and the
- * JSON schema (see `src/ai/AIDirector.js`) because those describe the world, and
- * the world is not something a build config should know about. All this layer
- * adds is the key, the model default and a timeout.
- *
- * There is no production equivalent on purpose — a static build has nowhere to
- * hide a key. `AIDirector` treats an unreachable bridge as "offline" and falls
- * back to its local intent parser, so a built bundle still understands typed
- * commands, just without the language model.
- */
-/** A caller may ask for a longer wait (map design) — never past 3 minutes. */
-const requestTimeout = (payload) => {
-  const asked = Number(payload?.timeoutMs);
-  return Number.isFinite(asked) && asked > 0 ? Math.min(Math.max(asked, 5_000), 180_000) : undefined;
-};
-
-function llmBridge(env) {
-  const baseUrl = (env.LLM_PLATFORM_BASE_URL ?? '').replace(/\/+$/, '');
-  const apiKey = env.LLM_API_KEY ?? '';
-  const defaultModel = env.LLM_MODEL1 ?? '';
-  const fastModel = env.LLM_MODEL2 ?? defaultModel;
-  /** A local 4B model on a busy machine can take a while to warm up. */
-  const TIMEOUT_MS = Number(env.LLM_TIMEOUT_MS) || 45_000;
-
-  const send = (res, status, body) => {
-    res.statusCode = status;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(body));
-  };
-
-  const readJson = (req) =>
-    new Promise((resolve, reject) => {
-      const chunks = [];
-      let size = 0;
-      req.on('data', (chunk) => {
-        size += chunk.length;
-        // The prompt is a world snapshot, not an upload — anything this large is
-        // a bug or an abuse, and buffering it would be the damage.
-        if (size > 512 * 1024) reject(new Error('payload too large'));
-        else chunks.push(chunk);
-      });
-      req.on('end', () => {
-        try {
-          resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {});
-        } catch (error) {
-          reject(error);
-        }
-      });
-      req.on('error', reject);
-    });
-
-  const upstream = async (path, init = {}, timeoutMs = TIMEOUT_MS) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      return await fetch(`${baseUrl}${path}`, {
-        ...init,
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-          ...(init.headers ?? {})
-        }
-      });
-    } finally {
-      clearTimeout(timer);
-    }
-  };
-
-  const middleware = (server) => {
-    server.middlewares.use('/api/ai', async (req, res, next) => {
-      const route = (req.url ?? '').split('?')[0].replace(/\/+$/, '');
-
-      if (!baseUrl) {
-        return send(res, 503, {
-          error: 'LLM_PLATFORM_BASE_URL is not set — add it to .env and restart the dev server.'
-        });
-      }
-
-      try {
-        if (route === '/status' && req.method === 'GET') {
-          const response = await upstream('/models');
-          const body = await response.json();
-          const models = (body?.data ?? []).map((entry) => entry.id);
-          return send(res, response.ok ? 200 : response.status, {
-            ok: response.ok,
-            model: defaultModel,
-            fastModel,
-            models
-          });
-        }
-
-        if (route === '/command' && req.method === 'POST') {
-          const payload = await readJson(req);
-          const response = await upstream('/chat/completions', {
-            method: 'POST',
-            body: JSON.stringify({
-              model: payload.model || defaultModel,
-              messages: payload.messages ?? [],
-              temperature: payload.temperature ?? 0.3,
-              max_tokens: payload.maxTokens ?? 600,
-              ...(payload.schema
-                ? {
-                    response_format: {
-                      type: 'json_schema',
-                      json_schema: { name: 'battle_plan', strict: true, schema: payload.schema }
-                    }
-                  }
-                : {}),
-              // Qwen3 reasons out loud by default. The game needs one JSON turn
-              // in under a second or two, so the scratchpad is switched off here
-              // rather than parsed out of the answer downstream.
-              chat_template_kwargs: { enable_thinking: false }
-            })
-          }, requestTimeout(payload));
-          const body = await response.text();
-          res.statusCode = response.status;
-          res.setHeader('Content-Type', 'application/json');
-          return res.end(body);
-        }
-      } catch (error) {
-        const offline = error?.name === 'AbortError';
-        return send(res, offline ? 504 : 502, {
-          error: offline ? 'The model took too long to answer.' : String(error?.message ?? error)
-        });
-      }
-
-      return next();
-    });
-  };
-
-  return {
-    name: 'llm-bridge',
-    configureServer: middleware,
-    configurePreviewServer: middleware
-  };
-}
-
 export default defineConfig(({ mode }) => {
   // Third argument '' loads *every* variable, not just the VITE_ prefixed ones —
   // these must stay server-side, so they are deliberately not exposed to client
@@ -505,6 +196,14 @@ export default defineConfig(({ mode }) => {
     },
     // Large binary assets (FBX / HDR) live in /public and are served untouched.
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
-    plugins: [llmBridge(env), assetLibrary(), levelStore(), classStore(), modelStudio(env), libraryApi()]
+    plugins: [
+      // The AI bridge: the same handler the production server runs, with the key from .env.
+      mount('llm-bridge', aiBridge({ ...process.env, ...env })),
+      assetLibrary(),
+      fileStores(),
+      modelStudio(env),
+      libraryApi(),
+      realtime({ ...process.env, ...env })
+    ]
   };
 });

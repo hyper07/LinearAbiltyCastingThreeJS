@@ -22,6 +22,7 @@ const MONSTER_TYPES = { dragon: Dragon };
 const _spawn = new Vector3();
 const _scratch = new Vector3();
 const _direction = new Vector3();
+const _target = new Vector3();
 
 /**
  * Owns every monster: their pools, their arrivals, their attacks and their
@@ -61,6 +62,21 @@ export class MonsterManager extends EventEmitter {
     this.obstacles = [];
     /** Where they are all trying to get to. */
     this.target = new Vector3();
+    /**
+     * Playing together, on the host: everyone the monsters may go after —
+     * `{ id, position, alive }`. Null when playing alone (then `target`).
+     */
+    this.players = null;
+    /** Room for more bodies when a party is fighting. */
+    this.extraAlive = 0;
+    /**
+     * Playing together, as a guest: every monster here is a puppet of the
+     * host's. Snapshots move them; hits on them go to `outbox` for the host.
+     */
+    this.puppet = false;
+    this.outbox = [];
+    /** id → monster, for snapshots and the host's bookkeeping. */
+    this.byId = new Map();
 
     this.elapsed = 0;
     this.healthMultiplier = 1;
@@ -86,6 +102,7 @@ export class MonsterManager extends EventEmitter {
       const Type = MONSTER_TYPES[kind] ?? Monster;
       pool = new ObjectPool(() => {
         const monster = new Type(kind, this.assets);
+        monster.manager = this;
         this.group.add(monster.root);
         return monster;
       });
@@ -108,18 +125,131 @@ export class MonsterManager extends EventEmitter {
   spawn(kind, position = null) {
     const config = settings.monsters.kinds[kind];
     if (!config) return null;
+    // A guest's field is the host's to fill.
+    if (this.puppet) return null;
     // A boss ignores the population cap. It arrives because the wave called for
     // it, and a field already full of imps must not be able to cancel that.
-    if (!config.boss && this.aliveCount >= settings.monsters.maxAlive) return null;
+    if (!config.boss && this.aliveCount >= settings.monsters.maxAlive + this.extraAlive) return null;
 
     const at = position ?? this.randomSpawnPoint();
     const monster = this._pool(kind).acquire();
+    monster.id = monster.ownId;
+    monster.puppet = false;
+    monster.net = null;
     monster.spawn(at, this.healthMultiplier);
     this.active.push(monster);
+    this.byId.set(monster.id, monster);
 
     this._dressArrival(monster);
     this.emit('spawn', monster);
     return monster;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* playing together                                                    */
+  /* ------------------------------------------------------------------ */
+
+  /** Guest mode on or off. The field is cleared either way: no mixed bodies. */
+  setPuppet(on) {
+    if (this.puppet === on) return;
+    this.despawnAll();
+    this.puppet = on;
+    this.outbox.length = 0;
+  }
+
+  /** The host's field, as sent to the guests. */
+  snapshot() {
+    const out = [];
+    for (const monster of this.active) if (!monster.isFinished) out.push(monster.netEntry());
+    return out;
+  }
+
+  /** A guest: a monster the host has that this field does not yet. */
+  spawnPuppet(e) {
+    if (!settings.monsters.kinds[e.k]) return null;
+    const monster = this._pool(e.k).acquire();
+    monster.id = e.id;
+    monster.puppet = true;
+    monster.net = null;
+    monster.spawn(_spawn.set(e.x, 0, e.z), 1);
+    monster.maxHealth = Math.max(1, e.mh ?? monster.maxHealth);
+    monster.health = Math.max(0, e.hp ?? monster.maxHealth);
+    monster.facing = e.yaw ?? 0;
+    monster.root.rotation.y = monster.facing;
+    this.active.push(monster);
+    this.byId.set(monster.id, monster);
+    this._dressArrival(monster);
+    this.emit('spawn', monster);
+    return monster;
+  }
+
+  /** A guest: the host's snapshot. New ids arrive, known ones move, missing ones are gone. */
+  applySnapshot(entries) {
+    const seen = new Set();
+    for (const e of entries) {
+      if (!e || typeof e.id !== 'string') continue;
+      let monster = this.byId.get(e.id);
+      if (!monster) {
+        if (e.st === 'dying' || e.st === 'dead') continue;
+        monster = this.spawnPuppet(e);
+        if (!monster) continue;
+      }
+      monster.applyNet(e);
+      seen.add(e.id);
+    }
+    for (const monster of this.active) {
+      if (monster.puppet && monster.isAlive && !seen.has(monster.id)) monster._die(false);
+    }
+  }
+
+  /**
+   * The host: what a guest did to the monsters — damage, statuses, shoves —
+   * applied for real. Returns the hits that landed, for the sparks.
+   */
+  applyRemoteHits(hits, from = null) {
+    const landed = [];
+    for (const h of Array.isArray(hits) ? hits : []) {
+      const monster = this.byId.get(h?.id);
+      if (!monster || !monster.isTargetable) continue;
+      if (h.k === 'dmg') {
+        const amount = Math.max(0, Math.min(5000, Number(h.a) || 0));
+        if (amount <= 0) continue;
+        const result = monster.applyDamage(amount, { shatter: Math.max(1, Number(h.sh) || 1), ignoreArmour: Boolean(h.ia), element: h.el });
+        if (result.dealt > 0 || result.killed) {
+          this.emit('damage', monster, Math.round(amount), { kind: 'ally', killed: result.killed, element: h.el ?? 'beam', by: from });
+          landed.push({ monster, element: h.el, result });
+        }
+      } else if (h.k === 'status') {
+        monster.applyStatus(String(h.s), Math.min(10, Number(h.d) || 0));
+      } else if (h.k === 'kb') {
+        monster.applyKnockback(Number(h.x) || 0, Number(h.z) || 0, Math.min(30, Number(h.f) || 0));
+      }
+    }
+    return landed;
+  }
+
+  /** A guest: the host's monster swung or fired — show it. */
+  dressRemoteAttack(msg) {
+    const monster = this.byId.get(msg?.id);
+    if (!monster || !monster.isAlive) return;
+    this._dressAttack(monster, { damage: 0, splash: Number(msg.sp) || 0, ranged: Boolean(msg.r) }, _target.set(Number(msg.tx) || 0, 0, Number(msg.tz) || 0));
+  }
+
+  /** The player a monster goes after: the nearest one still standing. */
+  _nearestPlayer(monster, players) {
+    let best = null;
+    let bestDistSq = Infinity;
+    for (const player of players) {
+      if (!player.alive) continue;
+      const dx = player.position.x - monster.position.x;
+      const dz = player.position.z - monster.position.z;
+      const distSq = dx * dx + dz * dz;
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
+        best = player;
+      }
+    }
+    return best ?? players[0];
   }
 
   /**
@@ -232,8 +362,14 @@ export class MonsterManager extends EventEmitter {
     if (!settings.monsters.enabled) return;
 
     const crowd = this.active;
+    // Playing together, on the host: each monster picks whoever is nearest
+    // and still standing. Alone (or as a guest, for the head-tracking), the
+    // one caster.
+    const players = !this.puppet && this.players?.length ? this.players : null;
     const ctx = {
       target: this.target,
+      targetId: null,
+      players,
       obstacles: this.obstacles,
       crowd,
       elapsed,
@@ -252,6 +388,18 @@ export class MonsterManager extends EventEmitter {
     for (let i = crowd.length - 1; i >= 0; i--) {
       const monster = crowd[i];
       const wasAlive = monster.isAlive;
+      if (players) {
+        const chosen = this._nearestPlayer(monster, players);
+        ctx.target = chosen.position;
+        ctx.targetId = chosen.id;
+        monster.targetPos = chosen.position;
+        monster.targetId = chosen.id;
+      } else {
+        ctx.target = this.target;
+        ctx.targetId = null;
+        monster.targetPos = this.target;
+        monster.targetId = null;
+      }
       monster.update(dt, ctx);
 
       if (wasAlive && !monster.isAlive) this._dressDeath(monster);
@@ -259,18 +407,20 @@ export class MonsterManager extends EventEmitter {
 
       if (monster.isFinished) {
         crowd.splice(i, 1);
+        this.byId.delete(monster.id);
         monster.retire();
         this._pool(monster.kind).release(monster);
       }
     }
 
-    this.projectiles.update(dt, elapsed, this.target, (amount, position) =>
-      this.emit('playerHit', amount, { position, ranged: true })
-    );
+    const targets = players ?? [{ id: null, position: this.target, alive: true }];
+    this.projectiles.update(dt, elapsed, targets, (amount, position, playerId) => {
+      if (!this.puppet && amount > 0) this.emit('playerHit', amount, { position, ranged: true, playerId });
+    });
   }
 
   /**
-   * A monster's swing landed. Turn it into a hit on the caster.
+   * A monster's swing landed. Turn it into a hit on the caster it was after.
    *
    * A ranged kind fires a projectile instead of hitting immediately, which is
    * the only reason the player can dodge a wisp: the bolt is a real object with
@@ -279,10 +429,23 @@ export class MonsterManager extends EventEmitter {
   _resolveAttack(monster) {
     const attack = monster.pendingAttack;
     monster.pendingAttack = null;
+    const target = monster.targetPos ?? this.target;
+    // The host tells the guests, so they see the swing too.
+    this.emit('attack', monster, attack, target);
+    const reached = this._dressAttack(monster, attack, target);
+    if (attack.ranged || this.puppet) return;
+    if (reached) this.emit('playerHit', attack.damage, { position: monster.position, monster, playerId: monster.targetId ?? null });
+  }
+
+  /**
+   * The look of an attack: the bolt in the air, or the swing's arc and the
+   * slam's dust. Returns whether a melee swing reaches `target`.
+   */
+  _dressAttack(monster, attack, target) {
     const accent = getColor(monster.config.accent);
 
     if (attack.ranged) {
-      _direction.copy(this.target).sub(monster.position).setY(0);
+      _direction.copy(target).sub(monster.position).setY(0);
       const distance = _direction.length();
       if (distance > 0.001) _direction.multiplyScalar(1 / distance);
       this.projectiles.fire(
@@ -292,14 +455,14 @@ export class MonsterManager extends EventEmitter {
           monster.position.z
         ),
         _direction,
-        { damage: attack.damage, color: accent, speed: 13, range: distance + 4 }
+        { damage: this.puppet ? 0 : attack.damage, color: accent, speed: 13, range: distance + 4 }
       );
-      return;
+      return false;
     }
 
     /* melee: the swing arc, then the hit */
     const scale = monster.root.scale.x;
-    _direction.copy(this.target).sub(monster.position).setY(0);
+    _direction.copy(target).sub(monster.position).setY(0);
     const distance = _direction.length();
 
     this.ctx.decals?.spawn(DecalType.SHOCKWAVE, monster.position, {
@@ -325,9 +488,7 @@ export class MonsterManager extends EventEmitter {
     }
 
     const reach = (attack.splash > 0 ? attack.splash : monster.config.attackRange * 1.5) * scale;
-    if (distance <= reach) {
-      this.emit('playerHit', attack.damage, { position: monster.position, monster });
-    }
+    return distance <= reach;
   }
 
   /** Everything that happens because something died. */
@@ -438,6 +599,8 @@ export class MonsterManager extends EventEmitter {
       this._pool(monster.kind).release(monster);
     }
     this.active.length = 0;
+    this.byId.clear();
+    this.outbox.length = 0;
     this.projectiles.clear();
   }
 
@@ -495,7 +658,11 @@ class ProjectileField {
     return bolt;
   }
 
-  update(dt, elapsed, target, onHit) {
+  /**
+   * @param {{ id: any, position: Vector3 }[]} targets everyone a bolt can hit
+   * @param {(amount: number, position: Vector3, playerId: any) => void} onHit
+   */
+  update(dt, elapsed, targets, onHit) {
     if (dt <= 0) return;
     const particles = this.ctx.particles;
     const system = particles?.get('bolt-trail', { capacity: 800, additive: true, stretch: true });
@@ -520,13 +687,22 @@ class ProjectileField {
 
       // A generous hit radius: this is a game about dodging by *moving*, not by
       // pixel-perfect positioning against a 16 cm sphere.
-      const dx = bolt.position.x - target.x;
-      const dz = bolt.position.z - target.z;
-      const hit = dx * dx + dz * dz < 0.85 * 0.85 && bolt.position.y < 2.2;
+      let struck = null;
+      if (bolt.position.y < 2.2) {
+        for (const target of targets) {
+          const dx = bolt.position.x - target.position.x;
+          const dz = bolt.position.z - target.position.z;
+          if (dx * dx + dz * dz < 0.85 * 0.85) {
+            struck = target;
+            break;
+          }
+        }
+      }
+      const hit = struck !== null;
 
       if (hit || bolt.travelled > bolt.range || bolt.position.y < 0.05) {
         if (hit) {
-          onHit?.(bolt.damage, bolt.position);
+          onHit?.(bolt.damage, bolt.position, struck.id);
           this.ctx.bursts?.spawn(BurstMode.STORM, bolt.position, {
             radius: 0.15,
             endRadius: 1.0,

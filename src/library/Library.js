@@ -25,8 +25,18 @@ import { classFingerprint, gearFingerprint, levelFingerprint, skillFingerprint, 
 export const OFFICIAL_LEVELS = ['frost-hollow', 'thistledown', 'ember-ruins', 'the-wyrms-graveyard', 'dragons-keep', 'study-grove'];
 export const OFFICIAL_AUTHOR = 'Gamory';
 const NAME_KEY = 'elemental-arena.creator';
+const SEED_KEY = 'elemental-arena.library-seed';
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+/** A small, stable hash of a string (FNV-1a), for "did this change?". */
+function hash(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
 
 async function api(path, options = {}) {
   try {
@@ -72,10 +82,32 @@ export const library = {
     return r.similar ?? [];
   },
 
-  /** Send the game's own content as official assets. */
+  /**
+   * Send the game's own content as official assets. Skipped when this
+   * browser already sent this exact set and the library still holds it —
+   * on a public server every page load would otherwise rewrite it.
+   */
   async seedOfficial(levels) {
     const assets = [...officialSkills(), ...officialClasses(), ...officialGear(), ...officialWeapons(), ...(await officialLevels(levels))];
+    const stamp = `${assets.length}:${hash(JSON.stringify(assets.map((a) => [a.id, a.name, a.summary, a.data])))}`;
+    let sent = null;
+    try {
+      sent = localStorage.getItem(SEED_KEY);
+    } catch {
+      /* private mode */
+    }
+    if (sent === stamp) {
+      const have = await api('?limit=1');
+      if (!have.error && have.counts?.byStatus?.official === assets.length) return 0;
+    }
     const r = await api('/seed', { method: 'POST', body: { assets } });
+    if (r.seeded) {
+      try {
+        localStorage.setItem(SEED_KEY, stamp);
+      } catch {
+        /* private mode */
+      }
+    }
     return r.seeded ?? 0;
   },
 

@@ -369,6 +369,17 @@ export class Profile extends EventEmitter {
     return Boolean(findSpot(g.items, g.cols, g.rows, itemSize(item)));
   }
 
+  /** Would `pickUp` take this? The same answer, without taking it. */
+  canPickUp(item) {
+    if (item.type === 'gold') return { ok: true, message: '' };
+    if (item.type === 'potion') {
+      return this.potions[item.potion] >= BELT_MAX ? { ok: false, message: 'Potion belt is full' } : { ok: true, message: '' };
+    }
+    return this.hasRoomFor(item)
+      ? { ok: true, message: '' }
+      : { ok: false, message: `No room in your bag for ${item.name} — sell, drop or stash something (Tab)` };
+  }
+
   /**
    * Move an item within or between the bag and the stash. With `x, y` it
    * goes there (if it fits — or swaps with the one item in the way, when

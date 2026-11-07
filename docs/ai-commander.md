@@ -90,11 +90,12 @@ not a scratchpad.
 "reflex only", and every keyword order still works. `connect()` is fired in the background during
 boot and never blocks it.
 
-### Production — Docker
+### Production
 
-A static build has nowhere to hide a key, so the bridge ships as a standalone service:
-`server/server.js`, ~200 lines of Node built-ins, zero dependencies. It serves `dist/` and proxies
-`/api/ai/*` with the same contract as the dev middleware, so the client cannot tell them apart.
+A static build has nowhere to hide a key, so the bridge is part of the game server
+(`server/api/ai.js`, run by `server/server.js`): it proxies `/api/ai/*` with the same contract as
+the dev middleware, so the client cannot tell them apart, and rate-limits calls per client address
+(`AI_RATE_PER_MIN`, default 30) so a public server is not a free proxy to your model.
 
 ```bash
 docker compose up --build     # → http://localhost:8787
@@ -102,16 +103,6 @@ docker compose up --build     # → http://localhost:8787
 
 Compose reads the same `.env`. The model is *not* in the container — it lives wherever
 `LLM_PLATFORM_BASE_URL` points. For a model on the Docker host rather than the LAN, use
-`http://host.docker.internal:1234/v1`; the mapping is already in `docker-compose.yml`.
-
-| Variable | Meaning |
-| --- | --- |
-| `PORT` | Listen port (default `8787`) |
-| `STATIC_ROOT` | Built client to serve (default `./dist`) |
-| `LLM_PLATFORM_BASE_URL` | OpenAI-compatible base URL |
-| `LLM_API_KEY` | Sent as `Authorization: Bearer`, never to the browser |
-| `LLM_MODEL1` | Default planning model |
-| `LLM_TIMEOUT_MS` | Upstream timeout for chat orders (default `45000`); map design asks for up to 150 s |
-| `LIBRARY_ROOT` | The downloaded asset library, served at `/library/` (default `./library`; in Docker, the `./library` folder mounted read-only by `docker-compose.yml`) |
-| `TRIPO_API_KEY` / `MESHY_API_KEY` | Picture-to-3D generation (see [Your own models](custom-models.md#your-own-models--upload-or-make-3d-from-a-picture)); `MODELGEN_PROVIDER` picks one |
-| `ALLOWED_ORIGINS` | Comma-separated CORS allowlist. Only needed if the page is served from a different origin; same-origin needs none |
+`http://host.docker.internal:1234/v1`; the mapping is already in `docker-compose.yml`. Everything
+else the server does — the party server, the content library, saved levels and classes, the
+settings table, HTTPS — is in [Production](production.md).

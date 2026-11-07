@@ -42,6 +42,8 @@ export class Combat extends EventEmitter {
     /** Strikes still travelling. */
     this.strikes = [];
     this.elapsed = 0;
+    /** While set, nothing lands: another player's shot being drawn, not dealt. */
+    this.muted = false;
   }
 
   /**
@@ -356,7 +358,7 @@ export class Combat extends EventEmitter {
 
   /** A rocket, grenade or bomb going off. */
   weaponBlast(point, fire) {
-    if (!settings.combat.enabled) return;
+    if (!settings.combat.enabled || this.muted) return;
     const strike = { element: 'weapon', bonus: 'attack', profile: weaponProfile(fire), hit: new Set() };
     this._blast(strike, point, fire.explode ?? 3);
     this.emit('impact', point, { element: 'weapon', radius: fire.explode ?? 3 });
@@ -443,6 +445,7 @@ export class Combat extends EventEmitter {
    * dress it, then tell whoever is keeping score.
    */
   _damage(monster, strike, direction, falloff = 1) {
+    if (this.muted) return;
     const cfg = settings.combat;
     const { profile, element } = strike;
 
@@ -451,7 +454,7 @@ export class Combat extends EventEmitter {
     const gear = strike.bonus === 'thorns' ? 1 : (this.ctx.damageMultiplier?.(strike.bonus ?? element) ?? 1);
     const amount = profile.damage * falloff * cfg.damageScale * gear * (crit ? cfg.critMultiplier : 1);
 
-    const result = monster.applyDamage(amount, { shatter: profile.shatter ?? 1 });
+    const result = monster.applyDamage(amount, { shatter: profile.shatter ?? 1, element });
     if (result.dealt <= 0 && !result.killed) return;
 
     if (profile.status && profile.duration > 0) {

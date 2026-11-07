@@ -64,10 +64,13 @@ the library's "Similar" list from 50%.
 
 ## Where it is stored
 
-**Local first.** The library is a SQLite database (Node's built-in `node:sqlite`) at
-`data/library.sqlite`, served by the dev server under `/api/library`. It is your data, so it is
-git-ignored. At start-up the game sends its own content as the official set; classes already in
-`public/classes` are added as shared the first time.
+The library is a SQLite database (Node's built-in `node:sqlite`) at `data/library.sqlite`
+(`DATA_DIR/library.sqlite` in [production](production.md)), served under `/api/library` by the dev
+server and the game server alike. It is your data, so it is git-ignored. At start-up the game sends
+its own content as the official set (once per build per browser — a server that already holds it is
+left alone); classes already in `public/classes` are added as shared the first time. On a server
+with many players, everyone shares that one library: what one player shares, all can find. Writes
+are rate-limited per client address.
 
 The game only talks to the HTTP API (`src/library/Library.js`), never to the database, so moving the
 library to a hosted database for real public sharing means re-implementing `LibraryStore`

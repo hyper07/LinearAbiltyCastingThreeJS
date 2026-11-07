@@ -52,8 +52,10 @@ export class StoryPanel {
       const finish = (value) => {
         window.removeEventListener('keydown', onKey, true);
         this.root.hidden = true;
+        if (this._finish === finish) this._finish = null;
         resolve(value);
       };
+      this._finish = finish;
       const onKey = (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
@@ -76,5 +78,14 @@ export class StoryPanel {
 
   hide() {
     this.root.hidden = true;
+  }
+
+  get isOpen() {
+    return !this.root.hidden;
+  }
+
+  /** Close the card from outside, as if `value` had been pressed (the party moved on). */
+  dismiss(value) {
+    this._finish?.(value);
   }
 }

@@ -65,8 +65,10 @@ faster), **[ ]** resize the brush. **Ctrl+Z / Ctrl+Shift+Z** undo and redo, **Ct
 **Save** writes `public/levels/<id>.json` and adds the level to the campaign order in
 `public/levels/index.json` (**Levels…** reorders, opens and deletes). Because they live in
 `public/`, levels are part of the repo and of every build: commit them and anyone who pulls plays
-your campaign. Saving works while running `npm run dev`; a built game is read-only, so use
-**Export** to download a level file and **Import** to load one.
+your campaign. That is under `npm run dev`. On a [production](production.md) server, the levels
+that ship with the game are read-only and what players save goes to `DATA_DIR/levels`, shown in the
+same campaign list after the built-in ones; a saved level needs a name of its own (an id that comes
+with the game is refused). **Export** downloads a level file and **Import** loads one, anywhere.
 
 A level file is plain JSON: the world (ground, landscape, time, fog, seed, plus the sculpt and paint
 grids), every object (`model` id, position, height offset, turn, scale), spawn points, waiting

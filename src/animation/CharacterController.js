@@ -560,13 +560,14 @@ export class CharacterController {
    *
    * @param {string} weaponId
    */
-  equipWeapon(weaponId) {
+  equipWeapon(weaponId, { activate = true } = {}) {
     const weapon = platform.weapons.get(weaponId) ?? platform.weapons.get('unarmed');
     if (!weapon) return this;
 
     if (!this._weaponBones?.size) this._refreshWeaponBones();
 
-    platform.setWeapon(weapon.id);
+    // Another player's body carries their weapon without it becoming yours.
+    if (activate) platform.setWeapon(weapon.id);
     this._hideBuiltInProps();
     this.weaponVisual.equip(weapon, this._weaponBones, this.rig, this.model);
 

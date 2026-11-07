@@ -69,6 +69,7 @@ export class MainMenu {
           <button class="main-menu__nav-btn" type="button" data-panel="stats">Stats</button>
           <button class="main-menu__nav-btn" type="button" data-panel="world">World</button>
           <button class="main-menu__nav-btn" type="button" data-panel="campaign">Campaign</button>
+          <button class="main-menu__nav-btn" type="button" data-panel="party" data-party-nav>Play together</button>
           <button class="main-menu__nav-btn" type="button" data-panel="create">Create</button>
           <button class="main-menu__nav-btn main-menu__nav-btn--stash" type="button" data-open-stash title="Your stash: a big storage grid every class shares">Stash</button>
           <button class="main-menu__nav-btn main-menu__nav-btn--library" type="button" data-open-library title="Every class, skill, item, weapon and level — the game's own and what players shared">Library</button>
@@ -158,6 +159,34 @@ export class MainMenu {
               <div data-studio></div>
             </div>
 
+            <div class="main-menu__panel" data-panel="party" hidden>
+              <h2 class="main-menu__section-title">Play together</h2>
+              <p class="main-menu__panel-hint">Make a party and send friends the code, or join theirs. The host runs the fight; everyone plays their own class, keeps their own bag, and levels up together. Up to four players.</p>
+              <div class="party-panel">
+                <div class="party-panel__row">
+                  <input data-party-name maxlength="24" placeholder="Your name" spellcheck="false" />
+                </div>
+                <div data-party-lobby>
+                  <div class="party-panel__row">
+                    <button class="main-menu__world-btn main-menu__world-btn--primary" type="button" data-party-create>Make a party</button>
+                    <input data-party-code maxlength="5" placeholder="CODE" spellcheck="false" autocomplete="off" />
+                    <button class="main-menu__world-btn" type="button" data-party-join>Join</button>
+                  </div>
+                </div>
+                <div data-party-room hidden>
+                  <div class="party-panel__code">
+                    <b data-party-room-code></b>
+                    <small>Send this code to your friends: they open the game, pick <em>Play together</em> and type it in. Then press <em>Start for the party</em> or pick a campaign level.</small>
+                  </div>
+                  <div class="party-panel__members" data-party-members></div>
+                  <div class="party-panel__row">
+                    <button class="main-menu__world-btn" type="button" data-party-leave>Leave the party</button>
+                  </div>
+                </div>
+                <p class="party-panel__status" data-party-status></p>
+              </div>
+            </div>
+
             <div class="main-menu__panel" data-panel="campaign" hidden>
               <h2 class="main-menu__section-title">Campaign</h2>
               <p class="main-menu__panel-hint">Play the levels in order — each one unlocks the next. Build your own with the level editor.</p>
@@ -234,6 +263,99 @@ export class MainMenu {
       this._characterQuery = this.characterSearchEl.value.trim().toLowerCase();
       this._buildCharacters();
     });
+  }
+
+  /* ---- playing together ---- */
+
+  /** @param {import('../net/Party.js').Party} party */
+  bindParty(party) {
+    this.party = party;
+    const $ = (selector) => this.root.querySelector(selector);
+    const nameEl = $('[data-party-name]');
+    const codeEl = $('[data-party-code]');
+    nameEl.value = party.name;
+    nameEl.addEventListener('change', () => (party.name = nameEl.value));
+    const status = (text, bad = false) => {
+      const el = $('[data-party-status]');
+      el.textContent = text;
+      el.classList.toggle('is-bad', bad);
+    };
+    $('[data-party-create]').addEventListener('click', async () => {
+      try {
+        status('Opening a party…');
+        await party.create(nameEl.value);
+        status('Your party is open — share the code.');
+      } catch (error) {
+        status(error.message, true);
+      }
+    });
+    const join = async () => {
+      const code = codeEl.value.trim().toUpperCase();
+      if (code.length < 5) return status('Type the five-letter code.', true);
+      try {
+        status('Joining…');
+        await party.join(code, nameEl.value);
+        status("You're in. The host starts the game; press the button below to join their fight.");
+      } catch (error) {
+        status(error.message, true);
+      }
+    };
+    $('[data-party-join]').addEventListener('click', join);
+    codeEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') join();
+    });
+    $('[data-party-leave]').addEventListener('click', () => {
+      party.leave();
+      status('You left the party.');
+    });
+    party.on('change', () => this._renderParty());
+    this._renderParty();
+  }
+
+  _renderParty() {
+    const party = this.party;
+    if (!party) return;
+    const inParty = party.inParty;
+    this.root.querySelector('[data-party-lobby]').hidden = inParty;
+    this.root.querySelector('[data-party-room]').hidden = !inParty;
+    const nav = this.root.querySelector('[data-party-nav]');
+    nav.textContent = inParty ? `Party · ${party.code}` : 'Play together';
+    this.startBtn.classList.toggle('is-party', inParty);
+    this.startBtn.textContent = !inParty ? 'Start Game' : party.isHost ? 'Start for the party' : "Join the host's fight";
+    if (!inParty) return;
+    this.root.querySelector('[data-party-room-code]').textContent = party.code;
+    const list = this.root.querySelector('[data-party-members]');
+    list.replaceChildren(
+      ...party.members().map((m) => {
+        const row = document.createElement('div');
+        row.className = 'party-member';
+        const icon = document.createElement('span');
+        icon.className = 'party-member__icon';
+        icon.textContent = platform.characters.get(m.classId)?.icon ?? '✦';
+        const name = document.createElement('div');
+        name.className = 'party-member__name';
+        const strong = document.createElement('strong');
+        strong.textContent = m.name;
+        const small = document.createElement('small');
+        small.textContent = platform.characters.get(m.classId)?.label ?? 'Choosing a class…';
+        name.append(strong, small);
+        const tags = document.createElement('span');
+        if (m.host) {
+          const tag = document.createElement('span');
+          tag.className = 'party-member__tag';
+          tag.textContent = 'Host';
+          tags.append(tag);
+        }
+        if (m.you) {
+          const tag = document.createElement('span');
+          tag.className = 'party-member__tag party-member__tag--you';
+          tag.textContent = 'You';
+          tags.append(tag);
+        }
+        row.append(icon, name, tags);
+        return row;
+      })
+    );
   }
 
   _characterSeriesOrder() {
@@ -908,6 +1030,7 @@ export class MainMenu {
     this._renderSkillTree();
     this._renderStats();
     this._updateSummary();
+    this._renderParty();
     requestAnimationFrame(() => this.root.classList.add('is-visible'));
     this.preview._characterId = this._characterId;
     this.preview._weaponId = this._weaponId;

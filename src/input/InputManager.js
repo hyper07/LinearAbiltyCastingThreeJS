@@ -255,6 +255,10 @@ export class InputManager extends EventEmitter {
         event.preventDefault();
         this.emit('action', 'toggleInventory');
         break;
+      case 'Enter':
+      case 'NumpadEnter':
+        this.emit('action', 'chat');
+        break;
       default:
         break;
     }

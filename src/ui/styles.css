@@ -6,6 +6,7 @@
 @import './weapon-panel.css';
 @import './main-menu.css';
 @import './editor.css';
+@import './party.css';
 
 :root {
   --ui-bg: rgba(10, 14, 20, 0.55);

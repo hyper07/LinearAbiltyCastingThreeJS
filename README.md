@@ -4,9 +4,10 @@ A skillshot VFX sandbox — and the game that grew around it — built with **Th
 hand-written **GLSL**. Ten spells, six physical Barbarian skills, 108 weapons from swords to rocket
 launchers, helmets, armor, shields and rings, eight classes with their own skill trees, a campaign that runs
 from a storybook village to a dragon's dungeon, sunny daytime maps, monsters that walk in and try to
-kill you, loot, NPCs, study games for kids, a level editor, and a chat box
-you can give orders to in plain English — backed by a local AI model in [LM Studio](https://lmstudio.ai)
-or any OpenAI-compatible server.
+kill you, loot, NPCs, study games for kids, a level editor, **co-op for up to four players** in the
+browser, and a chat box you can give orders to in plain English — backed by a local AI model in
+[LM Studio](https://lmstudio.ai) or any OpenAI-compatible server. One Node process serves it all
+for players: see [Production](docs/production.md).
 
 <p>
   <img src="docs/screenshots/gameplay.gif" width="100%" alt="Gameplay: a Knight in plate armor with a tower shield casts Frost Lance through a pack of monsters in Thistledown, blocks their hits, cuts down a brute, blinks away and leaves loot glowing in rarity colours" />
@@ -18,7 +19,7 @@ or any OpenAI-compatible server.
 
 ## Quick start
 
-Requires **Node.js 22.12+** (or 20.19+) and Git.
+Requires **Node.js 22.13+** and Git.
 
 ```bash
 npm install
@@ -29,6 +30,10 @@ Open <http://127.0.0.1:5173>. The first `npm run dev` also downloads the free 3D
 (about 7 GB) in the background; the game is playable straight away. Windows, building, assets and
 the AI setup are in **[Setup](docs/setup.md)**.
 
+To run it for players — one container with the game, the party server, the content library and the
+AI bridge — `docker compose up --build` and open <http://localhost:8787>. Details, settings, HTTPS
+and what the server protects are in **[Production](docs/production.md)**.
+
 Nothing paid is needed. Optional paid services — picture-to-3D with Tripo3D or Meshy, hosted AI
 models — and more free and paid sources for 3D models, animation and effects are listed in
 **[Third-party services](docs/third-party.md)**.
@@ -38,6 +43,21 @@ models — and more free and paid sources for 3D models, animation and effects a
 Pick a class in the main menu and press **Start Game**. Move with **W A S D**, press **1–5** to arm
 a spell, aim with the mouse and **right-click** to cast; **left-click** is your class's close-range
 attack. **K** opens your skill tree, **Tab** the bag. Full list: **[Controls](docs/controls.md)**.
+
+## Playing together
+
+Up to four people in one world, each from their own browser. In the main menu, **Play together**
+makes a party with a five-letter code; friends type it in and join. The host starts (or picks a
+campaign level) and the others **Join the host's fight** — straight away or dropping in later.
+Everyone plays their own class, weapon and gear, keeps their own bag and levels up on every kill;
+the monsters, the waves and the loot on the floor are shared, and **Enter** opens the party chat.
+The host's browser runs the fight; the server only keeps the rooms and relays, so it stays small.
+See **[Playing together](docs/multiplayer.md)**.
+
+<p>
+  <img src="docs/screenshots/coop.jpg" width="49%" alt="Two players in Thistledown: the host casts Frost Lance into a pack of monsters while a Barbarian guest fights beside them; the party list shows both players' health and the chat their messages" />
+  <img src="docs/screenshots/party-lobby.jpg" width="49%" alt="The Play together panel: the join code, both members with their classes, and the Start for the party button" />
+</p>
 
 ## Spells
 
@@ -235,8 +255,8 @@ players make (**Shared**, or **Draft** until shared), lives in one library with 
 count of how often it has been used. The Class forge checks it as it designs: under each new skill it
 suggests the most similar existing ones, and **Use it** reuses that skill instead of making a
 near-copy. Saving shares the class. Browse and search everything from the main menu (**Library**).
-Local first (SQLite through the dev server) behind an API, so a hosted database can take over later.
-See **[The shared library](docs/library.md)**.
+SQLite on the game server behind an API (every player on a server shares one library), so a hosted
+database can take over later. See **[The shared library](docs/library.md)**.
 
 <p>
   <img src="docs/screenshots/library.jpg" width="49%" alt="The Library window: skills with Shared and Official badges, one skill's details and its most similar skill" />
@@ -276,12 +296,14 @@ flowchart LR
 | Page | What is in it |
 | --- | --- |
 | [Setup](docs/setup.md) | Install, Windows, build, Docker, assets and character models |
+| [Playing together](docs/multiplayer.md) | Co-op for up to four: parties and codes, what is shared, how the host runs the fight |
+| [Production](docs/production.md) | Running it for players: Docker, settings, HTTPS and proxies, limits, scaling, checks |
 | [Controls](docs/controls.md) | Every key and mouse action |
 | [Spells](docs/spells.md) | The ten spells, with clips, and how the newer ones are built |
 | [Classes and skill trees](docs/classes-and-skills.md) | The eight classes, their bonuses and bodies, skill trees and books |
 | [Loot, NPCs and portals](docs/items-npcs-portals.md) | Drops, rarities, the bag, merchants, quests, portals |
 | [The fight](docs/combat.md) | The arena, the monsters, the Emberwyrm, how damage is timed |
-| [The AI commander](docs/ai-commander.md) | Chat that casts, wiring LM Studio or another model, Docker |
+| [The AI commander](docs/ai-commander.md) | Chat that casts, wiring LM Studio or another model |
 | [AI-built maps](docs/ai-maps.md) | Maps from a sentence and the 3D asset library |
 | [Level editor and campaign](docs/level-editor.md) | Building levels, saving and sharing, the campaign |
 | [Your own models](docs/custom-models.md) | Uploading 3D models or making one from a picture |

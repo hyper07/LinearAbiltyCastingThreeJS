@@ -2,23 +2,32 @@
   "name": "gamory",
   "version": "1.0.0",
   "private": true,
-  "description": "Procedural elemental VFX, a generated ruined keep, monsters that fight back, and a chat commander that casts \u2014 Three.js, custom GLSL and a live VFX editor.",
+  "description": "Gamory — spells, stories and worlds you build. Three.js action RPG with AI-designed classes, a shared content library, and co-op play in the browser.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "prebuild": "node scripts/library/ensure.mjs",
     "build": "vite build",
+    "postbuild": "node scripts/precompress.mjs",
     "preview": "vite preview",
-    "fetch-characters": "node scripts/fetch-character-models.mjs",
+    "start": "node server/server.js",
     "serve": "node server/server.js",
+    "test": "node --test \"tests/unit/**/*.test.mjs\"",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "fetch-characters": "node scripts/fetch-character-models.mjs",
     "library:fetch": "node scripts/library/fetch.mjs",
     "library:index": "node scripts/library/index.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "ws": "^8.22.1"
   },
   "devDependencies": {
+    "playwright": "^1.62.1",
     "vite": "^8.1.5"
+  },
+  "engines": {
+    "node": ">=22.13"
   }
 }

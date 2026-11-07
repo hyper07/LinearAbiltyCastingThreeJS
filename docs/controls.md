@@ -27,12 +27,13 @@
 | **Esc** | Cancel an armed cast |
 | **Right mouse + drag** | Orbit the camera |
 | **Scroll** | Zoom |
-| **T** / **Enter** | Focus the commander — type an order in plain English |
+| **T** | Focus the commander — type an order in plain English |
+| **Enter** | Party chat, when [playing together](multiplayer.md) (**Esc** closes it) |
 | **N** | Send the next wave now |
 | **M** | Summon one random monster |
 | **B** | Show/hide the run HUD (wave, score, health) |
 | **G** | Show/hide the VFX editor — starts hidden |
-| **P** | Pause / resume — *the editor keeps applying* |
+| **P** | Pause / resume — *the editor keeps applying*. Not while playing together: a party's fight runs on |
 | **Backspace** | Clear all effects |
 | **H** | Hide the controls panel |
 
