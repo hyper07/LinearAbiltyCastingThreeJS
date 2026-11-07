@@ -14,7 +14,7 @@ for players: see [Production](docs/production.md).
 </p>
 <p>
   <img src="docs/screenshots/sunny-battle.jpg" width="49%" alt="Nova Beam blasting an Iron Brute in a sunny pine clearing under a blue sky" />
-  <img src="docs/screenshots/loadout.jpg" width="49%" alt="Main menu: the Knight in the character preview, with its bonuses, armor class and the weapon list" />
+  <img src="docs/screenshots/loadout.jpg" width="49%" alt="Main menu: the Barbarian holding a war axe in the character preview, its bonuses on the class card, and the Axes &amp; Blunt weapon tab" />
 </p>
 
 ## Quick start
