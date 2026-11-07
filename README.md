@@ -62,17 +62,52 @@ See **[Playing together](docs/multiplayer.md)**.
 ## Accounts and fair play
 
 Sign in from the main menu (**Account**) and your character — level, gold, bag, stash, gear — lives
-on the game server, with a history of everything that happens to it. The browser never sends an item:
-the server makes every item, registers it once, and checks every pickup, sale, purchase and reward in
-one database transaction, so items can't be duplicated or invented, and editing the game in the
-browser changes nothing that lasts. Cheats (foreign loot, impossible waves, fake bosses, kill floods)
-earn strikes; three in a day block the account. Passwords are scrypt-hashed, sessions are stored only
-as hashes, characters are encrypted and sealed (AES-256-GCM), and the history is an HMAC hash chain.
-See **[Accounts and fair play](docs/security.md)**.
+on the game server, with a history of everything that happens to it. Without an account the game
+plays on the browser's own save, as before. See **[Accounts and fair play](docs/security.md)**.
 
 <p>
-  <img src="docs/screenshots/account.jpg" width="49%" alt="The Account tab: a verified player and her history — a game played, a warning for a broken rule, an item sold, items picked up and a level reached" />
+  <img src="docs/screenshots/account.jpg" width="49%" alt="The Account tab: a verified player and their history — a game played, a warning for a broken rule, an item sold, items picked up and a level reached" />
 </p>
+
+**How items stay honest.** The browser never sends an item; it can only point at things the server
+made.
+
+- **One owner per item.** Every item gets a server-made ID and exactly one place: a character, a
+  game's floor, sold, or used up. A pickup is one database update, so two players grabbing the same
+  item can't both get it.
+- **Every action is re-checked.** The server reruns each move, sale, purchase and reward with the
+  same inventory code the browser uses, and refuses any change that adds, removes or pays more than
+  that action allows. Every change to gold is written to a ledger.
+- **Browser edits don't stick.** After each action the browser and the server compare a fingerprint
+  of the character; on a mismatch the browser takes the server's copy.
+- **Rewards come from the level file.** Gifts are given once, quest rewards only after the server has
+  counted the kills itself, and shop prices are the server's.
+
+**Cheating earns strikes.** Taking another game's loot, waves faster than the clock allows, monsters
+the level doesn't have, or more kills than monsters can arrive each earn a strike. Three strikes in
+a day block the account: for a day, then a week, then for good.
+
+**Where the keys and hashes are used:**
+
+| What | How |
+| --- | --- |
+| Passwords | Salted scrypt, checked in constant time; five wrong tries lock the account for 15 minutes |
+| Sessions | A random 256-bit token in an HttpOnly, SameSite=Strict cookie; the database keeps only its hash |
+| Characters | Encrypted and sealed to their account with AES-256-GCM; a row edited in the database won't open and locks the account for review |
+| History | Every event is chained to the one before it with an HMAC, so editing or deleting one breaks the chain |
+| IP addresses | Never stored in the clear: a keyed hash and an encrypted copy |
+| Party names | Taken from the signed-in account, so nobody can play under someone else's name |
+
+**Running it.** Set `SERVER_SECRET` and back up `data/` together with it: without the key no saved
+character opens, so never change it on a server with players. `npm run admin -- audit` checks the
+history chain, every character's seal, every item's owner and every gold balance; the same script
+shows a player's history and strikes, and blocks or unblocks accounts and addresses
+([for the people running the server](docs/security.md#for-the-people-running-the-server)).
+
+**Not covered yet.** The fight itself still runs in the players' browsers, so the server checks that
+each kill is possible, not that it was earned. There is no password reset, two-factor sign-in or key
+rotation, and the database is SQLite on one machine
+([the limits](docs/security.md#limits--what-this-does-not-stop-yet)).
 
 ## Spells
 

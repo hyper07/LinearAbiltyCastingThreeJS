@@ -3,7 +3,7 @@
 [← Back to the README](../README.md)
 
 <p>
-  <img src="screenshots/account.jpg" width="100%" alt="The Account tab: a verified player, Ada, and her history — a game played, a warning for a rule broken, an item sold, items picked up and a level reached" />
+  <img src="screenshots/account.jpg" width="100%" alt="The Account tab: a verified player, Ada, and their history — a game played, a warning for a rule broken, an item sold, items picked up and a level reached" />
 </p>
 
 Players can play without an account, on their browser's own save, exactly as before. With an
