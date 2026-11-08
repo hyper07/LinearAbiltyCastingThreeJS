@@ -873,6 +873,23 @@
   background: rgba(255, 100, 100, 0.12);
 }
 
+/* A switch in the menu: auto-drink. */
+.game-menu-btn__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+.game-menu-btn__check input {
+  margin: 2px 0 0;
+  accent-color: #ff6b7a;
+}
+.game-menu-btn__check small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ui-text-dim);
+}
+
 /* ---- World panel: AI-built maps ---- */
 
 .main-menu__world-prompt {

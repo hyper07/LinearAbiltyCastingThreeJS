@@ -14,6 +14,7 @@ import { createGameServices } from '../../server/game/index.js';
 import { normalizeLevel } from '../../src/levels/Level.js';
 import { buyPrice, itemSize, itemValue } from '../../src/items/Items.js';
 import { BAG_COLS } from '../../src/items/Profile.js';
+import { treeFor } from '../../src/platform/skill/tree.js';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 
@@ -422,6 +423,24 @@ test("a party member's claim that arrives before the host's report is held, not 
     w.authority.partyKill(guest, { runId, monster: 'never' });
     w.later(120);
     assert.equal(w.authority.character(guest).xp + w.authority.character(guest).level * 1e6, after);
+  } finally {
+    await w.close();
+  }
+});
+
+test('the action bar runs on the server too: a potion on any key, keys swapped', async () => {
+  const w = await world();
+  try {
+    const a = (await w.accounts.register({ name: 'Bea', password: 'potions-on-keys' })).account.id;
+    const p = w.authority.character(a);
+    w.authority.ops(a, { ops: [{ op: 'setSlot', args: [0, 'potion:health', 'mage'] }] });
+    const slots = p.slotsOf('mage');
+    assert.equal(slots.length, 9);
+    assert.equal(slots[0], 'potion:health');
+    assert.equal(slots[5], treeFor('mage').start[0], 'the skill that was on key 1 went where the potion was');
+    // A potion that does not exist changes nothing.
+    w.authority.ops(a, { ops: [{ op: 'setSlot', args: [1, 'potion:gold', 'mage'] }] });
+    assert.notEqual(p.slotsOf('mage')[1], 'potion:gold');
   } finally {
     await w.close();
   }

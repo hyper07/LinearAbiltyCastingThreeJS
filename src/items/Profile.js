@@ -3,6 +3,7 @@ import { SKILL_MAX_RANK, SKILL_RANK, buyPrice, itemSize, itemValue } from './Ite
 import { findSpot, fits, overlapping } from './Grid.js';
 import { GEAR_SLOTS, GEAR_SLOT_IDS, activeSetBonuses, gearActive, isTwoHanded, pieceStats } from './Gear.js';
 import { SLOT_COUNT, nodeOf, prerequisite, spellName, startingRanks, treeFor, treeSpells } from '../platform/skill/tree.js';
+import { DEFAULT_POTION_KEYS, SKILL_KEYS_FIRST, potionEntry, potionOf } from './hotbar.js';
 
 // Storage key keeps the game's first name (Elemental Arena) so existing saves still load.
 const KEY = 'elemental-arena.profile';
@@ -31,7 +32,7 @@ const noRoom = (item) => `No room in your bag for ${item.name}. Open the bag (Ta
  * and stash (grids of items, see items/Grid.js), the weapon
  * in hand, the gear worn (items/Gear.js: helmet, armor, shield, boots,
  * rings…), and — per class — which spells are learned, their ranks and the
- * five on keys 1–5. Saved per browser (a convenience, like campaign
+ * action bar: keys 1–9, each holding a skill or a potion (items/hotbar.js). Saved per browser (a convenience, like campaign
  * progress); `reset()` starts over.
  *
  * Gold, potions, the bag and the gear are shared by every class (a stash) —
@@ -40,7 +41,7 @@ const noRoom = (item) => `No room in your bag for ${item.name}. Open the bag (Ta
  *
  * Emits `change` whenever anything changes, `stats` when the numbers the
  * game uses (damage, cooldowns, health, speed…) may have moved, `slots`
- * when the spells on keys 1–5 change, and `gear` when what is worn changes.
+ * when what is on keys 1–9 changes, and `gear` when what is worn changes.
  */
 export class Profile extends EventEmitter {
   /**
@@ -124,7 +125,7 @@ export class Profile extends EventEmitter {
       equipped: null,
       /** Worn gear, by slot id (items/Gear.js GEAR_SLOTS). */
       gear: Object.fromEntries(GEAR_SLOT_IDS.map((id) => [id, null])),
-      /** Per class id: `{ ranks: { element: rank }, slots: [element|null × 5] }`. */
+      /** Per class id: `{ ranks: { element: rank }, slots: [element|'potion:kind'|null × 9] }`. */
       progress: {}
     };
   }
@@ -165,9 +166,25 @@ export class Profile extends EventEmitter {
   _ensure(classId) {
     const existing = this.progress[classId];
     if (existing) {
+      // Saves from when the bar had five keys, spells only: four more keys,
+      // with the potions on 6 and 7 (where a new character has them).
+      // (Always the same array, changed in place: callers hold on to it.)
+      if (!Array.isArray(existing.slots)) existing.slots = [];
+      const slots = existing.slots;
+      if (slots.length < SLOT_COUNT) {
+        const was = slots.length;
+        for (let i = was; i < SLOT_COUNT; i++) slots[i] = null;
+        for (const [kind, i] of Object.entries(DEFAULT_POTION_KEYS)) {
+          if (i >= was && !slots.includes(potionEntry(kind))) slots[i] = potionEntry(kind);
+        }
+      }
+      slots.length = SLOT_COUNT;
       // Trees change between versions: a key holding a skill the class no
       // longer has is emptied (the Barbarian's old spells, for one)…
-      existing.slots = existing.slots.map((el) => (el && nodeOf(classId, el) ? el : null));
+      for (let i = 0; i < SLOT_COUNT; i++) {
+        const el = slots[i];
+        if (!(el && (potionOf(el) || nodeOf(classId, el)))) slots[i] = null;
+      }
       // …and a saved character always knows its class's current starting skills.
       for (const el of treeFor(classId).start) {
         if (existing.ranks[el] > 0) continue;
@@ -183,10 +200,13 @@ export class Profile extends EventEmitter {
       if (old > 0) ranks[el] = Math.min(SKILL_MAX_RANK, Math.max(ranks[el] ?? 0, old + 1));
     }
     const slots = Array(SLOT_COUNT).fill(null);
+    for (const [kind, i] of Object.entries(DEFAULT_POTION_KEYS)) slots[i] = potionEntry(kind);
     const learned = treeSpells(classId).filter((el) => ranks[el] > 0);
-    // Start spells first, then whatever else is known, in tree order.
+    // Start spells first, then whatever else is known, in tree order: on keys
+    // 1–5, then any key still free.
     const order = [...new Set([...treeFor(classId).start, ...learned])].filter((el) => ranks[el] > 0);
-    order.slice(0, SLOT_COUNT).forEach((el, i) => (slots[i] = el));
+    const keys = [...Array(SLOT_COUNT).keys()].filter((i) => i < SKILL_KEYS_FIRST || !slots[i]);
+    order.slice(0, keys.length).forEach((el, n) => (slots[keys[n]] = el));
     this.progress[classId] = { ranks, slots };
     return this.progress[classId];
   }
@@ -231,7 +251,7 @@ export class Profile extends EventEmitter {
     return this.rank(element, classId) > 0;
   }
 
-  /** The spells on keys 1–5 (null = empty key). */
+  /** What is on keys 1–9: a skill, `potion:kind`, or null (an empty key). */
   slotsOf(classId = this.classId) {
     return this._ensure(classId).slots;
   }
@@ -262,12 +282,14 @@ export class Profile extends EventEmitter {
   }
 
   /**
-   * Put a learned spell on a key. If it is already on another key, the two
-   * keys swap.
+   * Put a learned spell or a potion (`potion:health`) on a key. If it is
+   * already on another key, the two keys swap — so moving a key onto an
+   * empty one moves it.
    */
   setSlot(index, element, classId = this.classId) {
     const slots = this.slotsOf(classId);
-    if (index < 0 || index >= SLOT_COUNT || !this.knows(element, classId)) return false;
+    if (!Number.isInteger(index) || index < 0 || index >= SLOT_COUNT) return false;
+    if (!potionOf(element) && !this.knows(element, classId)) return false;
     const was = slots.indexOf(element);
     if (was === index) return true;
     if (was >= 0) slots[was] = slots[index];

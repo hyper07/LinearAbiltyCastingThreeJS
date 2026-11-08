@@ -729,6 +729,35 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
   color: #ffd24a;
 }
 
+/* The Bag on the belt is a button: open the bag to see what came in. */
+.belt__bag {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.belt__bag:hover,
+.belt__bag:focus-visible {
+  border-color: var(--ui-accent);
+  background: rgba(20, 28, 38, 0.85);
+  outline: none;
+}
+.belt__bag.is-full {
+  border-color: rgba(255, 140, 120, 0.7);
+  color: #ffc2b8;
+}
+.belt__new {
+  margin-left: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ffd24a;
+  color: #1a1408;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
 /* ---- bag ---- */
 
 .inventory {
@@ -1380,11 +1409,11 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
   color: var(--ui-text);
 }
 
-/* --- keys 1–5 --- */
+/* --- keys 1–9 (skills and potions) --- */
 
 .skilltree__keys {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1396,6 +1425,25 @@ body.is-editor .hud > :not(.editor):not(.story):not(.world-labels) {
   border-color: color-mix(in srgb, var(--accent, #7fd6ff) 45%, transparent);
   color: var(--accent, var(--ui-text));
   text-align: left;
+}
+
+.skilltree__keys .skilltree__key {
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 3px;
+  text-align: center;
+  min-width: 0;
+}
+.skilltree__keys .skilltree__key-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.skilltree__glyph svg {
+  width: 20px;
+  height: 20px;
 }
 
 .skilltree__key.is-empty {

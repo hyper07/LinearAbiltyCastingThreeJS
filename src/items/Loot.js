@@ -196,7 +196,9 @@ export class LootSystem {
     if (d > reach) return;
     const result = this.onPickup?.(drop.item) ?? { ok: true };
     if (result.ok) this._remove(drop);
-    else drop.blockedUntil = performance.now() + 2500;
+    // Refused (a full bag): it stays on the ground, and is not tried again
+    // until you have walked off it and come back — or click its name.
+    else drop.waitForLeave = true;
   }
 
   _remove(drop) {
@@ -230,9 +232,9 @@ export class LootSystem {
       }
       if (drop.beam) drop.beam.material.opacity = 0.4 + Math.sin(time * 3 + drop.to.x) * 0.15;
       if (drop.item.type === 'gold' || drop.item.type === 'potion') drop.mesh.rotation.y += dt;
-      if (player && !(drop.blockedUntil > performance.now())) {
+      if (player) {
         const d = Math.hypot(player.x - drop.root.position.x, player.z - drop.root.position.z);
-        // Something you dropped stays down until you have walked off it once.
+        // Something you dropped, or a full bag refused, stays down until you have walked off it once.
         if (drop.waitForLeave) {
           if (d > 2) drop.waitForLeave = false;
           continue;

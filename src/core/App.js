@@ -21,6 +21,7 @@ import { StoryPanel } from '../ui/StoryPanel.js';
 import { WorldLabels } from '../ui/WorldLabels.js';
 import { PortalSystem } from '../world/Portals.js';
 import { Profile } from '../items/Profile.js';
+import { POTION_KINDS, isSkillEntry, potionOf } from '../items/hotbar.js';
 import { POTIONS, XP_FOR, makeBagRowOffer, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
 import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
 import { NpcBrain } from '../npc/NpcBrain.js';
@@ -78,6 +79,24 @@ import { CUSTOM_LOOKS, lookModel, lookRig, registerCustomLooks, saveLook, savedL
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
 
+/** Seconds before the same kind of potion can be drunk again. */
+const POTION_COOLDOWN = 2;
+/** Below this share of health the health potion's key pulses… */
+const LOW_HEALTH = 0.35;
+/** …and below this, with auto-drink on, one is drunk for you. */
+const AUTO_DRINK_AT = 0.3;
+// Storage keys keep the game's first name (Elemental Arena).
+const AUTO_DRINK_KEY = 'elemental-arena.autoDrink';
+
+/** A remembered on/off choice in this browser (off when storage is unavailable). */
+function readFlag(key) {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** Hand the page back for one frame, so the loading veil can repaint. */
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
@@ -108,6 +127,9 @@ export class App {
     this.canvas = canvas;
     this.time = new Time();
     this.elapsed = 0;
+    /** When each potion can be drunk again (game seconds). */
+    this._potionReadyAt = {};
+    this.autoDrink = readFlag(AUTO_DRINK_KEY);
     this.paused = false;
     this._raf = 0;
     /** @type {'menu'|'playing'} */
@@ -325,6 +347,8 @@ export class App {
     this.profile = new Profile();
     this.profile.on('stats', () => this._applyProfileStats());
     this.profile.on('slots', () => this._syncSlots());
+    this.profile.on('change', () => this.hud.setPotions(this.profile.potions));
+    this.hud.setPotions(this.profile.potions);
     // Rage: tier-1 physical skills build it per monster they hit; being hit does too.
     this.combat.on('hit', (_monster, _amount, info) => {
       const gain = info.element === 'weapon' ? 2 : ELEMENT_META[info.element]?.rage ?? 0;
@@ -363,7 +387,7 @@ export class App {
           else this.hud.showToast(r.error ?? 'Someone else got there first', 2200);
         });
         if (item.type !== 'gold' && item.type !== 'potion') (window.requestIdleCallback ?? setTimeout)(() => itemThumbnails.of(item));
-        if (result.message) this.hud.showToast(result.message);
+        this._pickedUp(item, result);
         return result;
       }
       // In a party the host hands out the loot: a guest asks, and hears back.
@@ -380,7 +404,7 @@ export class App {
       // Draw its picture for the bag now, while nothing is happening, not when the bag opens.
       if (result.ok && item.type !== 'gold' && item.type !== 'potion') (window.requestIdleCallback ?? setTimeout)(() => itemThumbnails.of(item));
       if (result.ok) this.party.announceTaken(item.uid);
-      if (result.message) this.hud.showToast(result.message);
+      this._pickedUp(item, result);
       return result;
     };
     this.portals = new PortalSystem(this.scene, this.labels);
@@ -393,6 +417,7 @@ export class App {
       onUnequip: (slotId, at) => this._unequipGear(slotId, at),
       onRead: (item) => this.hud.showToast((item.type === 'bag' ? this.profile.useBagUpgrade(item.uid) : this.profile.read(item.uid)).message, 2600),
       onMessage: (text) => this.hud.showToast(text, 2400),
+      onOpenBag: () => (this.phase === 'playing' ? this._openPanel('inventory') : this.inventory.toggle(true)),
       // Dragging something out of the bag drops it at your feet — only in a fight, where there is ground.
       canDrop: () => this.phase === 'playing',
       onDrop: (item) => {
@@ -410,8 +435,10 @@ export class App {
     hudRoot.appendChild(this.talkPrompt);
     this.gameMenu = new GameMenuButton(hudRoot, {
       onPause: () => this.togglePause(),
-      onExit: () => this.exitToMenu()
+      onExit: () => this.exitToMenu(),
+      onAutoDrink: (on) => this.setAutoDrink(on)
     });
+    this.gameMenu.setAutoDrink(this.autoDrink);
     this.editor = new Editor({
       onClear: () => this.clearEffects(),
       onToast: (message) => this.hud.showToast(message)
@@ -503,6 +530,18 @@ export class App {
     this.hud.onEmptySlot = () => {
       if (this.phase === 'playing') this._openPanel('skills');
     };
+    // The action bar: potions on keys, keys swapped by dragging, a picker per key.
+    this.hud.onPotion = (kind) => this.phase === 'playing' && this._drink(kind);
+    this.hud.onMoveSlot = (from, to) => {
+      const entry = this.profile.slots[from];
+      if (entry) this.profile.setSlot(to, entry);
+    };
+    this.hud.onSetSlot = (index, entry) => this.profile.setSlot(index, entry);
+    this.hud.onClearSlot = (index) => this.profile.clearSlot(index);
+    this.hud.getSlotChoices = () =>
+      treeSpells(this.profile.classId)
+        .filter((el) => this.profile.knows(el))
+        .map((el) => ({ element: el, label: ELEMENT_META[el]?.label ?? el, accent: ELEMENT_META[el]?.accent }));
 
     this._bindRun();
     this._bindLocomotion();
@@ -635,7 +674,12 @@ export class App {
       case 'ability': {
         const element = this.profile.slots[slot];
         if (!element) {
-          this.hud.showToast(`Key ${slot + 1} is empty — learn spells from skill books (K)`, 2200);
+          this.hud.showToast(`Key ${slot + 1} is empty — click it on the bar to put a skill or a potion there`, 2400);
+          break;
+        }
+        const potion = potionOf(element);
+        if (potion) {
+          if (this.phase === 'playing') this._drink(potion);
           break;
         }
         // Pressing the *same* key again puts an armed cast away, as it does in a
@@ -997,6 +1041,19 @@ export class App {
     this._fire(element, origin, direction, 0, yaw);
   }
 
+  /**
+   * Something was taken off the ground. It goes in the bag and stays there
+   * — nothing is put on for you; the Bag button counts what is new until
+   * the bag is opened. A full bag leaves it on the ground (items/Loot.js).
+   */
+  _pickedUp(item, result) {
+    const toBag = result.ok && item.type !== 'gold' && item.type !== 'potion';
+    if (toBag) {
+      this.inventory.markNew();
+      this.hud.showToast(`${item.name} — in your bag (Tab)`, 1800);
+    } else if (result.message) this.hud.showToast(result.message, result.ok ? 1600 : 3200);
+  }
+
   /** The bag (Tab) and the skill tree (K) share the screen: one at a time. */
   _openPanel(which) {
     const panel = which === 'skills' ? this.skillPanel : this.inventory;
@@ -1006,15 +1063,18 @@ export class App {
   }
 
   /**
-   * The spells on keys 1–5 changed (class switch, a book read, a key set):
-   * rebuild the bar, and if the armed spell left it, move to one that is on it.
+   * What is on keys 1–9 changed (class switch, a book read, a key set or
+   * moved): rebuild the bar, and if the armed spell left it, move to one
+   * that is on it.
    */
   _syncSlots() {
     const slots = this.profile.slots;
+    this.hud.setPotions(this.profile.potions);
     this.hud.setSlots(slots);
+    this.inventory?.renderBelt();
     if (!slots.includes(this.element)) {
       if (this.aim.isArmed) this.aim.cancel();
-      const first = slots.find(Boolean);
+      const first = slots.find(isSkillEntry);
       if (first) this.selectAbility(first, { silent: true });
     }
   }
@@ -1877,8 +1937,27 @@ export class App {
     this.character?.wearGear(this.profile.gear, (item) => this.profile.isActive(item));
   }
 
-  _drink(kind) {
-    if (!this.profile.usePotion(kind)) return this.hud.showToast(`No ${POTIONS[kind].name.toLowerCase()}s left`);
+  /**
+   * Drink a potion (its key, R/Z, or auto-drink). A short cooldown after
+   * each, per kind, so a double press or a held-down auto-drink never
+   * spends two.
+   */
+  _drink(kind, { auto = false } = {}) {
+    if (this.director.isDowned) return false;
+    const wait = (this._potionReadyAt[kind] ?? 0) - this.elapsed;
+    if (wait > 0) {
+      if (!auto) this.hud.showToast(`${POTIONS[kind].name} — ready in ${wait.toFixed(1)}s`, 900);
+      return false;
+    }
+    if (kind === 'health' && this.director.health >= this.director.maxHealth && !auto) {
+      this.hud.showToast('Already at full health', 1000);
+      return false;
+    }
+    if (!this.profile.usePotion(kind)) {
+      if (!auto) this.hud.showToast(`No ${POTIONS[kind].name.toLowerCase()}s left`);
+      return false;
+    }
+    this._potionReadyAt[kind] = this.elapsed + POTION_COOLDOWN;
     if (kind === 'health') {
       this.director.health = Math.min(this.director.maxHealth, this.director.health + this.director.maxHealth * 0.45);
       this.flash.trigger?.(getColor('#ff6b7a'), 0.25);
@@ -1886,7 +1965,8 @@ export class App {
       for (const element of this.cooldowns.keys()) this.cooldowns.set(element, 0);
       this.flash.trigger?.(getColor('#7fd6ff'), 0.25);
     }
-    this.hud.showToast(POTIONS[kind].name);
+    this.hud.showToast(auto ? `${POTIONS[kind].name} — drunk automatically` : POTIONS[kind].name);
+    return true;
   }
 
   /* ------------------------------------------------------------------ */
@@ -2502,6 +2582,31 @@ export class App {
     );
   }
 
+  /**
+   * Potion keys: the cooldown sweep, the health key pulsing when health is
+   * low (and there is a potion to drink), and auto-drink when it is on.
+   */
+  _updatePotions() {
+    for (const kind of POTION_KINDS) this.hud.setPotionCooldown(kind, Math.max(0, (this._potionReadyAt[kind] ?? 0) - this.elapsed), POTION_COOLDOWN);
+    const d = this.director;
+    const fighting = this.phase === 'playing' && !this.paused && !d.isDowned;
+    const ratio = d.maxHealth ? d.health / d.maxHealth : 1;
+    this.hud.setLowHealth(fighting && ratio < LOW_HEALTH && this.profile.potions.health > 0);
+    if (fighting && this.autoDrink && ratio < AUTO_DRINK_AT && d.health > 0 && this.profile.potions.health > 0) this._drink('health', { auto: true });
+  }
+
+  /** Auto-drink a health potion when health falls low: a per-browser choice. */
+  setAutoDrink(on) {
+    this.autoDrink = Boolean(on);
+    try {
+      localStorage.setItem(AUTO_DRINK_KEY, this.autoDrink ? '1' : '0');
+    } catch {
+      /* not remembered: fine */
+    }
+    this.gameMenu?.setAutoDrink(this.autoDrink);
+    this.hud.showToast(this.autoDrink ? `Auto-drink on: a health potion below ${Math.round(AUTO_DRINK_AT * 100)}% health` : 'Auto-drink off', 2200);
+  }
+
   /** Everything DOM. Driven by real time so it keeps moving while paused. */
   _updateReadouts(dt) {
     const gl = this.renderer.gl;
@@ -2510,6 +2615,7 @@ export class App {
       this.hud.setCooldown(element, this.cooldowns.get(element) ?? 0, settings[element].cooldown * this.profile.cooldownMultiplier(element));
       this.hud.setStarved(element, this._rageCost(element) > this.rage);
     }
+    this._updatePotions();
     this.gameHud.setRage(this.rage / 100, this.rage, this.usesRage && this.phase === 'playing', this._roarUntil > this.elapsed);
     const fire = this.phase === 'playing' ? this.currentFire : null;
     this.gameHud.setAmmo(

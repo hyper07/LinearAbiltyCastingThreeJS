@@ -8,6 +8,8 @@ import { itemIcon, kindIcon } from './itemIcons.js';
 import { itemThumbnails } from './ItemThumbnails.js';
 import { ELEMENT_SIGILS } from './glyphs.js';
 import { platform } from '../platform/index.js';
+import { POTIONS } from '../items/Items.js';
+import { POTION_KINDS, potionEntry } from '../items/hotbar.js';
 
 /**
  * An item's picture (its 3D model, rendered — ui/ItemThumbnails.js) for a
@@ -112,7 +114,14 @@ export class InventoryPanel {
     this.belt.className = 'belt';
     this.belt.hidden = true;
     host.appendChild(this.belt);
+    /** Items picked up since the bag was last open (the Bag button counts them). */
+    this.unseen = 0;
+    this.belt.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.belt.addEventListener('click', (e) => {
+      if (e.target.closest('[data-open-bag]')) this.actions.onOpenBag ? this.actions.onOpenBag() : this.toggle(true);
+    });
 
+    profile.on('slots', () => this.renderBelt());
     profile.on('change', () => {
       this.renderBelt();
       if (!this.root.hidden) this.render();
@@ -130,6 +139,10 @@ export class InventoryPanel {
   toggle(force) {
     this.root.hidden = force === undefined ? !this.root.hidden : !force;
     if (this.root.hidden) this.stashMode = false;
+    if (!this.root.hidden && this.unseen) {
+      this.unseen = 0;
+      this.renderBelt();
+    }
     this.root.classList.toggle('is-stash', Boolean(this.stashMode));
     if (!this.root.hidden) this.render();
   }
@@ -144,13 +157,28 @@ export class InventoryPanel {
     this.belt.hidden = !visible;
   }
 
+  /** Something new went into the bag: the Bag button says so until the bag is opened. */
+  markNew() {
+    if (!this.root.hidden) return;
+    this.unseen += 1;
+    this.renderBelt();
+  }
+
   renderBelt() {
     const p = this.profile;
+    const used = usedCells(p.bag);
+    const total = BAG_COLS * p.bagRowCount;
+    const full = used >= total;
+    // A potion on the action bar shows its count there; one that is not shows it here (R / Z).
+    const onBar = new Set(p.slots ?? []);
+    const potions = POTION_KINDS.filter((k) => !onBar.has(potionEntry(k)))
+      .map((k) => `<span class="belt__slot" title="${POTIONS[k].name} (${k === 'health' ? 'R' : 'Z'})"><kbd>${k === 'health' ? 'R' : 'Z'}</kbd><i style="background:${POTIONS[k].color}"></i>${p.potions[k]}</span>`)
+      .join('');
+    const news = this.unseen ? `<b class="belt__new">${this.unseen} new</b>` : '';
     this.belt.innerHTML = `
-      <span class="belt__slot" title="Health potion (R)"><kbd>R</kbd><i style="background:#ff4a5a"></i>${p.potions.health}</span>
-      <span class="belt__slot" title="Focus potion (Z)"><kbd>Z</kbd><i style="background:#4ad2ff"></i>${p.potions.focus}</span>
+      ${potions}
       <span class="belt__slot belt__gold" title="Gold">● ${p.gold}</span>
-      <span class="belt__slot" title="Bag (Tab)"><kbd>Tab</kbd>Bag ${usedCells(p.bag)}/${BAG_COLS * p.bagRowCount}</span>
+      <button type="button" class="belt__slot belt__bag${full ? ' is-full' : ''}" data-open-bag title="Open the bag (Tab): see what you picked up, wear it, arrange it${full ? ' — the bag is full: new loot stays on the ground' : ''}"><kbd>Tab</kbd>Bag ${used}/${total}${full ? ' · full' : ''}${news}</button>
       <span class="belt__slot belt__level" title="Level ${p.level} — ${p.xp} / ${xpToNext(p.level)} XP">Lv ${p.level}<b><i style="width:${Math.round((p.xp / xpToNext(p.level)) * 100)}%"></i></b></span>`;
   }
 

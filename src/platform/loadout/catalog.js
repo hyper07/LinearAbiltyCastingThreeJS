@@ -27,7 +27,7 @@ function classLoadout(id, label, weapon) {
 
 /**
  * Default loadout for the caster. `skills` is the full spell list (for stat
- * sheets); which five are on keys 1–5 comes from the class skill tree.
+ * sheets); which are on keys 1–9 comes from the class skill tree.
  */
 export const casterDefault = createLoadout('caster-default', {
   label: 'Elemental Caster',

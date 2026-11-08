@@ -13,11 +13,12 @@
 | **C** | Sit — meditate, and recover health several times faster |
 | **← →** or **Q E** | Turn the view |
 | **↑ ↓** | Tilt the view |
-| **1 – 5** | Arm the spell on that key — press again to put it away. Far casts aim with a circle |
-| **K** | Skill tree — read books, choose which spells are on keys 1–5 |
-| **Tab** | Bag — wear weapons and gear, take gear off, read skill books, drop items; drag items to arrange the bag, wear or take off gear, or drop them on the ground |
+| **1 – 9** | Use what is on that key: arm a spell (press again to put it away; far casts aim with a circle) or drink a potion. Skills start on 1–5, the health and focus potions on 6 and 7 |
+| **Action bar** | Click a key to use it · drag a key onto another to swap them · right-click a key (or click an empty one) to choose a skill or potion for it |
+| **K** | Skill tree — read books, choose which skills are on keys 1–9 |
+| **Tab** / **Bag** button | Bag — wear weapons and gear, take gear off, read skill books, drop items; drag items to arrange the bag, wear or take off gear, or drop them on the ground |
 | **F** | Talk to the nearest NPC |
-| **R** / **Z** | Drink a health / focus potion |
+| **R** / **Z** | Drink a health / focus potion (also on keys 6 and 7). A potion can't be drunk again for 2 seconds. **Menu → Auto-drink** drinks a health potion for you below 30% health |
 | **I** | Armory — any of the 108 weapons |
 | **Move the mouse** | Swing the aim arrow, or move the far-cast circle |
 | **Right click** | Cast along the arrow, or drop the circle where it is |

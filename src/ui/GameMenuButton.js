@@ -1,14 +1,16 @@
 /**
- * Top-right in-game control — pause/resume or return to the main menu.
+ * Top-right in-game control — pause/resume, auto-drink on or off, or return
+ * to the main menu.
  */
 export class GameMenuButton {
   /**
    * @param {HTMLElement} host
-   * @param {{ onPause: () => void, onExit: () => void }} callbacks
+   * @param {{ onPause: () => void, onExit: () => void, onAutoDrink?: (on: boolean) => void }} callbacks
    */
   constructor(host, callbacks) {
     this.onPause = callbacks.onPause;
     this.onExit = callbacks.onExit;
+    this.onAutoDrink = callbacks.onAutoDrink;
     this._visible = false;
     this._open = false;
     this._paused = false;
@@ -23,6 +25,10 @@ export class GameMenuButton {
       </button>
       <div class="game-menu-btn__popover" data-popover hidden>
         <button class="game-menu-btn__action" type="button" data-pause>Pause</button>
+        <label class="game-menu-btn__action game-menu-btn__check" title="Drinks a health potion for you when health falls below 30%">
+          <input type="checkbox" data-autodrink />
+          <span>Auto-drink health potion<small>below 30% health</small></span>
+        </label>
         <button class="game-menu-btn__action game-menu-btn__action--exit" type="button" data-exit>
           Exit to Main Menu
         </button>
@@ -33,6 +39,8 @@ export class GameMenuButton {
     this.toggleBtn = this.root.querySelector('[data-toggle]');
     this.popover = this.root.querySelector('[data-popover]');
     this.pauseBtn = this.root.querySelector('[data-pause]');
+    this.autoDrinkBox = this.root.querySelector('[data-autodrink]');
+    this.autoDrinkBox.addEventListener('change', () => this.onAutoDrink?.(this.autoDrinkBox.checked));
 
     this.toggleBtn.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -66,6 +74,10 @@ export class GameMenuButton {
     this._paused = paused;
     this.pauseBtn.textContent = paused ? 'Resume' : 'Pause';
     this.root.classList.toggle('is-paused', paused);
+  }
+
+  setAutoDrink(on) {
+    this.autoDrinkBox.checked = Boolean(on);
   }
 
   show() {

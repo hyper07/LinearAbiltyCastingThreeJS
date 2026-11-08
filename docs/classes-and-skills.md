@@ -65,9 +65,11 @@ A class starts knowing two tier-1 spells. The rest come from **skill books**:
   at rank 2; tier 3 needs its tier-2 parent at rank 3.
 - **A book for a spell outside your class's tree can't be read** — sell it. Three dropped books in
   four are for your own class's tree; merchants always stock two.
-- **Five keys.** Of everything learned, you choose which five sit on keys 1–5. Press **K** (or click
-  an empty key on the bar), click a learned skill, then a key number under "Put on key". Right-click a
-  key at the top to empty it.
+- **Nine keys.** Of everything learned, you choose what sits on keys 1–9, beside your potions. On the
+  bar itself: drag a key onto another to swap them, or right-click a key (click an empty one) and pick
+  a skill or potion. Or press **K**, click a learned skill, then a key number under "Put on key";
+  right-click a key at the top to empty it. Saves from the five-key bar get keys 6–9, with the potions
+  on 6 and 7.
 
 <p>
   <img src="screenshots/skill-tree-mage.jpg" width="49%" alt="Hovering over the locked Glacial Crown: its description, reach, damage, cooldown, freeze effect and what it needs" />

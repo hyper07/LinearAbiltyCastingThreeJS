@@ -507,8 +507,7 @@ export class Party extends EventEmitter {
         this._pending.delete(msg.uid);
         app.loot.removeByUid(msg.uid);
         if (item && msg.by === this.id) {
-          const result = app.profile.pickUp(item);
-          if (result.message) app.hud.showToast(result.message);
+          app._pickedUp(item, app.profile.pickUp(item));
         } else if (item) {
           app.hud.showToast('Someone else got there first', 1800);
         }

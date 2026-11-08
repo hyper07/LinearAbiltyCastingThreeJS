@@ -12,14 +12,15 @@ import { ELEMENT_META, SPELL_IDS } from '../../config/settings.js';
  * parent at rank 3. A spell that is not in your class's tree cannot be learned
  * at all — that book is for selling.
  *
- * Of everything learned, the player picks `SLOT_COUNT` for keys 1–5.
+ * Of everything learned, the player puts what they like on the action bar:
+ * `SLOT_COUNT` keys (1–9), each holding a skill or a potion (items/hotbar.js).
  *
  * Adding a spell to the game means adding it to `ELEMENTS` and then putting
  * it in the trees of the classes that should have it; a tree can hold any
  * number of branches and up to three tiers per branch.
  */
 
-export const SLOT_COUNT = 5;
+export const SLOT_COUNT = 9;
 export const MAX_TIER = 3;
 
 /** @typedef {{ id: string, label: string, accent: string, spells: string[] }} Branch */

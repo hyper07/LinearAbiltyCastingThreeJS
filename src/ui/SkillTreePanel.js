@@ -1,5 +1,7 @@
 import { ELEMENT_META } from '../config/settings.js';
-import { SKILL_MAX_RANK, SKILL_RANK } from '../items/Items.js';
+import { POTIONS, SKILL_MAX_RANK, SKILL_RANK } from '../items/Items.js';
+import { potionOf } from '../items/hotbar.js';
+import { kindIcon } from './itemIcons.js';
 import { SLOT_COUNT, prerequisite, spellName, treeFor } from '../platform/skill/tree.js';
 import { platform } from '../platform/index.js';
 import { ELEMENT_SIGILS } from './glyphs.js';
@@ -23,9 +25,9 @@ const BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const RING = 2 * Math.PI * 30;
 
 /**
- * One class's skill tree and its five keys.
+ * One class's skill tree and its keys.
  *
- * Top: keys 1–5. Below, the tree itself: the class crest at the root, a
+ * Top: keys 1–9 (skills, and the potions they share the bar with). Below, the tree itself: the class crest at the root, a
  * line to each branch, and down each branch its skills tier by tier, joined
  * by lines that light up once the rank a skill needs is reached. Each skill
  * is a medallion with its symbol, a ring that fills with its rank, and
@@ -76,22 +78,25 @@ export class SkillTreeView {
 
     const root = el('div', 'skilltree');
 
-    /* --- the five keys --- */
+    /* --- the keys (1–9): skills and potions --- */
     const keys = el('div', 'skilltree__keys');
     slots.forEach((element, i) => {
       const key = el('button', 'skilltree__key');
       key.type = 'button';
+      const potion = potionOf(element);
       if (i === this.selectedSlot) key.classList.add('is-selected');
-      if (element) key.style.setProperty('--accent', ELEMENT_META[element]?.accent ?? '');
+      if (potion) key.style.setProperty('--accent', POTIONS[potion].color);
+      else if (element) key.style.setProperty('--accent', ELEMENT_META[element]?.accent ?? '');
       else key.classList.add('is-empty');
       key.append(el('kbd', null, String(i + 1)));
       const glyph = el('span', 'skilltree__glyph');
-      glyph.innerHTML = element ? ELEMENT_SIGILS[element] ?? '' : '';
-      key.append(glyph, el('span', 'skilltree__key-name', element ? spellName(element) : 'Empty'));
-      key.title = element ? `Key ${i + 1}: ${spellName(element)}\nClick to see it · right-click to empty the key` : `Key ${i + 1} is empty — pick a learned skill below, then “Put on key ${i + 1}”`;
+      glyph.innerHTML = potion ? kindIcon('potion') : element ? ELEMENT_SIGILS[element] ?? '' : '';
+      const name = potion ? POTIONS[potion].name : element ? spellName(element) : 'Empty';
+      key.append(glyph, el('span', 'skilltree__key-name', name));
+      key.title = element ? `Key ${i + 1}: ${name}\nClick to see it · right-click to empty the key` : `Key ${i + 1} is empty — pick a learned skill below, then “Put on key ${i + 1}”`;
       key.addEventListener('click', () => {
         this.selectedSlot = i;
-        if (element) this.pinned = element;
+        if (element && !potion) this.pinned = element;
         this.render();
       });
       key.addEventListener('contextmenu', (e) => {
@@ -350,7 +355,8 @@ export class SkillTreeView {
       slots.forEach((onKey, i) => {
         const b = el('button', onKey === element ? 'is-on' : '', String(i + 1));
         b.type = 'button';
-        b.title = onKey === element ? `${spellName(element)} is on key ${i + 1}` : onKey ? `Replace ${spellName(onKey)} on key ${i + 1}` : `Key ${i + 1} is empty`;
+        const there = potionOf(onKey) ? POTIONS[potionOf(onKey)].name : onKey && spellName(onKey);
+        b.title = onKey === element ? `${spellName(element)} is on key ${i + 1}` : onKey ? `Replace ${there} on key ${i + 1}` : `Key ${i + 1} is empty`;
         b.addEventListener('click', () => {
           p.setSlot(i, element, classId);
           this.selectedSlot = i;

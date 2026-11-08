@@ -119,7 +119,7 @@ export class MainMenu {
 
             <div class="main-menu__panel" data-panel="skills" hidden>
               <h2 class="main-menu__section-title">Skill Tree</h2>
-              <p class="main-menu__panel-hint">This class's spells. Skill books learn and rank them up; pick five for keys 1–5.</p>
+              <p class="main-menu__panel-hint">This class's spells. Skill books learn and rank them up; put them on keys 1–9, beside your potions.</p>
               <div class="main-menu__skill-tree" data-skill-tree></div>
             </div>
 

@@ -1,19 +1,13 @@
 import { Vector2 } from 'three';
 import { EventEmitter } from '../utils/EventEmitter.js';
 
-/** Spell key per key code: the five slots the class's skill tree fills. */
-const SLOT_KEYS = {
-  Digit1: 0,
-  Digit2: 1,
-  Digit3: 2,
-  Digit4: 3,
-  Digit5: 4,
-  Numpad1: 0,
-  Numpad2: 1,
-  Numpad3: 2,
-  Numpad4: 3,
-  Numpad5: 4
-};
+/** Action-bar key per key code: keys 1–9 (number row and keypad), each a skill or a potion. */
+const SLOT_KEYS = Object.fromEntries(
+  Array.from({ length: 9 }, (_, i) => [
+    [`Digit${i + 1}`, i],
+    [`Numpad${i + 1}`, i]
+  ]).flat()
+);
 
 /** Movement, as `[x, z]` contributions in the camera's frame. */
 const MOVE_KEYS = {
@@ -44,7 +38,7 @@ const CAMERA_KEYS = {
 
 /** Interactive UI that should steal clicks from the arena. */
 const BLOCKING_UI =
-  '.main-menu.is-visible, .weapon-panel.is-visible, .hud__abilities, .game-menu-btn, .lil-gui, input, textarea, button';
+  '.main-menu.is-visible, .weapon-panel.is-visible, .hud__abilities, .hud__picker, .game-menu-btn, .lil-gui, input, textarea, button';
 
 /**
  * Normalises pointer + keyboard input into a small event vocabulary.

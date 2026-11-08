@@ -2,7 +2,7 @@
 
 [← Back to the README](../README.md)
 
-Ten spells, five on keys **1–5** at a time. Each class has its own **skill tree**; spells are
+Ten spells, on the keys **1–9** of the action bar alongside your potions. Each class has its own **skill tree**; spells are
 learned and ranked up with **skill books** (see [Skill trees and skill books](classes-and-skills.md#skill-trees-and-skill-books)).
 There are two ways to aim them. Seven are **line casts**: press the key to
 arm, a MOBA-style arrow appears on the ground and swings with the mouse, right-click to fire. The

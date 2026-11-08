@@ -40,9 +40,17 @@ models — and more free and paid sources for 3D models, animation and effects a
 
 ## Playing
 
-Pick a class in the main menu and press **Start Game**. Move with **W A S D**, press **1–5** to arm
-a spell, aim with the mouse and **right-click** to cast; **left-click** is your class's close-range
-attack. **K** opens your skill tree, **Tab** the bag. Full list: **[Controls](docs/controls.md)**.
+Pick a class in the main menu and press **Start Game**. Move with **W A S D**, press **1–9** to arm
+a spell or drink a potion, aim with the mouse and **right-click** to cast; **left-click** is your
+class's close-range attack. **K** opens your skill tree, **Tab** (or the **Bag** button) the bag.
+Full list: **[Controls](docs/controls.md)**.
+
+The **action bar** is nine keys. Your skills start on 1–5 and your health and focus potions on 6 and 7,
+each showing how many are left. Drag a key onto another to swap them, or right-click a key (click an
+empty one) to choose any learned skill or potion for it. The health potion pulses when health is low,
+and **Menu → Auto-drink** drinks one for you below 30%. Loot you walk over goes into the bag, never
+onto your character: the **Bag** button counts what is new, and you open the bag to choose what to
+wear. A full bag leaves loot on the ground.
 
 The bag is a grid where every item takes its own size, and everything in it moves by drag and drop:
 arrange the bag, drag gear onto your character to wear it or back into the bag to take it off, and
@@ -171,8 +179,8 @@ leap, roar, spin, quake — and a **Rage** bar that melee hits build and big ski
 </p>
 
 Each class starts with two skills. **Skill books** teach the rest and raise their ranks (up to 10),
-following the class's tree of three branches and three tiers; you choose which five learned spells
-sit on keys 1–5. See **[Classes and skill trees](docs/classes-and-skills.md)**.
+following the class's tree of three branches and three tiers; you choose which learned spells sit
+on keys 1–9, beside your potions. See **[Classes and skill trees](docs/classes-and-skills.md)**.
 
 ## A look around
 

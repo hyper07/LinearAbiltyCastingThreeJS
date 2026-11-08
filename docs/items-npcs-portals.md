@@ -22,7 +22,10 @@
 Monsters drop **gold**, **potions**, **weapons**, **gear** and **skill books**. Items burst out of the body,
 land with a light beam in their rarity colour — **Common**, **Magic** (blue), **Rare** (yellow),
 **Epic** (purple), **Unique** (orange) — and a floating name; walk over them to pick them up (or click
-the name from close by). Bigger monsters drop more and better: a Rift Golem always drops a Rare or
+the name from close by). What you pick up goes into the bag and is never put on for you: the **Bag**
+button above the action bar counts what is new until you open the bag, where you decide what to wear.
+With the bag full, loot stays on the ground (and isn't tried again until you step off it and back);
+make room and come back for it. Bigger monsters drop more and better: a Rift Golem always drops a Rare or
 better (a weapon or a piece of gear, and half the time a skill book), the Emberwyrm an Epic or
 better plus two skill books.
 
@@ -31,11 +34,14 @@ better plus two skill books.
 | Weapon | Any of the armory's weapons, with 1–3 bonus stats by rarity: spell damage, weapon damage, one spell's damage, cooldowns, max health, move speed, critical chance, gold found. Uniques are named (*Glacierheart*, *Ashen Requiem*, *Tempest Sceptre*, *Dawnspire*, *The Hollow Crown*, *Wardenblade*) with fixed, stronger bonuses. |
 | Gear | Helmets, body armor, gloves, belts, leg armor, boots, cloaks, shields, foci, quivers, amulets and rings. Each has its item class's base properties (cloth, leather, mail, plate, shield…) plus bonuses by rarity, and ten named Uniques. See **[Armor and gear](gear.md)**. |
 | Skill book | Teaches one spell, or raises it a rank (max 10): +10% damage and −3% cooldown per rank after the first. Only classes with that spell in their [skill tree](classes-and-skills.md#skill-trees-and-skill-books) can read it. Barbarian skills come in *skill manuals*. |
-| Health potion | **R** — heals 45%. |
-| Focus potion | **Z** — every spell ready again. |
+| Health potion | Key **6** (or **R**) — heals 45%. Its key pulses when health is low; **Menu → Auto-drink** drinks one below 30%. |
+| Focus potion | Key **7** (or **Z**) — every spell ready again. |
 | Gold | Spent at merchants; weapons sell back for a quarter. |
 
-**Tab** opens the bag: a paper doll of everything you wear (click a piece to take it off), your
+Potions sit on the action bar like skills, with their count on the key; drag them to any key you
+like. A potion can't be drunk again for 2 seconds, so a double press never spends two.
+
+**Tab** (or the **Bag** button) opens the bag: a paper doll of everything you wear (click a piece to take it off), your
 armor proficiency and set bonuses, the bag grid, what everything adds up to, and your class's skill
 ranks. Click a weapon or piece of gear to wear it, a book to read it, a bag upgrade to use it,
 right-click to drop; or drag anything where it should go (see below). Hovering over gear compares it with what you wear. Books your class can't read
@@ -128,4 +134,4 @@ portal's colour. Place them with the **Portals** tool, pick the frame and colour
 nothing. When a level's goal is met, a **gold exit portal** opens in front of you; stepping in shows
 the ending and leads on to the next level.
 
-Keys: **F** talk · **R** health potion · **Z** focus potion · **Tab** bag · **K** skill tree.
+Keys: **F** talk · **6** / **R** health potion · **7** / **Z** focus potion · **Tab** bag · **K** skill tree.
