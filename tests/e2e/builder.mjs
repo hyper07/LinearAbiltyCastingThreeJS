@@ -22,6 +22,13 @@ export async function run(browser) {
     await page.fill('.builder [data-prompt]', 'a snowy dungeon crawl with three rooms and a knight');
     await page.click('.builder [data-quick]');
     t.check('Quick build fills in the menus', (await field('genre').inputValue()) === 'dungeon-crawl' && (await field('world').inputValue()) === 'frozen-north' && (await field('hero').inputValue()) === 'knight');
+    // A class a player made (the Class forge ships two) is a hero like any other.
+    t.check('the Hero menu offers classes players made', await page.evaluate(() => [...document.querySelectorAll('.builder [data-field="hero"] option')].some((o) => o.value === 'forge-stormbound-corsair' && /made by a player/.test(o.textContent))));
+    await page.fill('.builder [data-prompt]', 'a pirate story quest with the Stormbound Corsair');
+    await page.click('.builder [data-quick]');
+    t.check('naming a player-made class in the idea picks it', await until(page, () => document.querySelector('.builder [data-field="hero"]')?.value === 'forge-stormbound-corsair', null, 3000));
+    await page.fill('.builder [data-prompt]', 'a snowy dungeon crawl with three rooms and a knight');
+    await page.click('.builder [data-quick]');
     t.check('three chapters, the last one the boss lair', await until(page, () => {
       const items = [...document.querySelectorAll('.builder [data-chapters] li')].map((li) => li.textContent);
       return items.length === 3 && /boss/i.test(items[2]) && /Boss lair/.test(items[2]);

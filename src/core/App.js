@@ -31,7 +31,7 @@ import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 import { ClassForgePanel } from '../ui/ClassForgePanel.js';
 import { GameBuilderPanel } from '../ui/GameBuilderPanel.js';
 import { GameBuilder } from '../ai/GameBuilder.js';
-import { compileGame } from '../blueprints/index.js';
+import { compileGame, describeHero } from '../blueprints/index.js';
 import { CLASS_SPECS } from '../platform/character/classes.js';
 import { WeaponFire } from '../game/WeaponFire.js';
 import { fireProfileOf } from '../platform/weapon/fire.js';
@@ -198,6 +198,8 @@ export class App {
     /* Levels: files in public/levels/, the campaign that plays them, and the
        editor that makes them (created on first use). */
     this.levels = new LevelStore();
+    /** The classes players made, as designs (Class forge): id → design. Offered as heroes by the Game builder. */
+    this.forgedDesigns = new Map();
     /** The game builder's unsaved chapters (playDraftGame). */
     this.drafts = { levels: new Map(), campaign: [] };
     this.levelEditor = null;
@@ -316,6 +318,7 @@ export class App {
       normalize: (design) => normalizeDesign(design, { id: design.id }),
       save: async (design, { share = true } = {}) => {
         registerForgedClass(design, { abilities: this.abilities });
+        this.forgedDesigns.set(design.id, design);
         await saveForgedClass(design);
         await this.mainMenu.refreshCharacters();
         // Into the shared library: the class, and the skills it made (reused ones are counted, not copied).
@@ -328,6 +331,7 @@ export class App {
       remove: async (id) => {
         await deleteForgedClass(id);
         unregisterForgedClass(id);
+        this.forgedDesigns.delete(id);
         library.remove(`class:${id}`);
         await this.mainMenu.refreshCharacters(this.mainMenu._characterId === id ? 'knight' : null);
       },
@@ -336,14 +340,20 @@ export class App {
     this._forgedReady = this._loadForgedClasses();
     /* ---- the Game builder: a sentence or a few menu picks → a whole game (src/blueprints) ---- */
     const gameBuilder = new GameBuilder();
-    const heroes = async () => [...CLASS_SPECS.map((c) => ({ id: c.id, name: c.label })), ...(await listForgedClasses().catch(() => []))];
-    const forgedIds = async () => (await listForgedClasses().catch(() => [])).map((c) => c.id);
+    // The classes players made (Class forge, saved in the class store and the library) are
+    // heroes too: in the menu, in the keywords ("with my Stormbound Corsair") and for the AI.
+    const made = async () => {
+      await this._forgedReady;
+      return [...this.forgedDesigns.values()].reverse().map(describeHero);
+    };
+    const heroes = async () => [...CLASS_SPECS.map((c) => ({ id: c.id, name: c.label })), ...(await made())];
+    const madeIds = async () => (await made()).map((h) => h.id);
     this.builder = new GameBuilderPanel(hudRoot, {
       status: () => gameBuilder.status(),
-      quick: (text) => gameBuilder.quick(text),
-      build: async (text, options) => gameBuilder.build(text, { ...options, heroes: await forgedIds() }),
+      quick: async (text) => gameBuilder.quick(text, { heroes: await made() }),
+      build: async (text, options) => gameBuilder.build(text, { ...options, heroes: await made() }),
       heroes,
-      compile: async (spec, seed) => compileGame(spec, { seed, taken: new Set((await this.levels.list()).map((e) => e.id)), heroes: await forgedIds() }),
+      compile: async (spec, seed) => compileGame(spec, { seed, taken: new Set((await this.levels.list()).map((e) => e.id)), heroes: await madeIds() }),
       play: (levels) => this.playDraftGame(levels),
       save: async (levels) => {
         for (const level of levels) await this.levels.save(level);
@@ -1021,7 +1031,9 @@ export class App {
   async _loadForgedClasses() {
     for (const entry of await listForgedClasses()) {
       try {
-        registerForgedClass(normalizeDesign(await loadForgedClass(entry.id), { id: entry.id }), { abilities: this.abilities });
+        const design = normalizeDesign(await loadForgedClass(entry.id), { id: entry.id });
+        registerForgedClass(design, { abilities: this.abilities });
+        this.forgedDesigns.set(entry.id, design);
       } catch (error) {
         console.warn(`[forge] ${entry.id}: ${error.message}`);
       }

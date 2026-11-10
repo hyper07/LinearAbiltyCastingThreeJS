@@ -39,7 +39,7 @@ with no three.js, so the browser, the server, the command line and the tests all
 | **Genres** (7) | `genres.js` | Win rule and its size, chapters, a boss finale, the helpers it needs, wave pace, story text, its **engine** and **modules** |
 | **Worlds** (12) | `worlds.js` | A ready map plan (ground, relief, edge, time of day, fog, scenery layers), the monsters that fit, a place name, helper names |
 | **Layouts** (6) | `layouts.js` | Where monsters walk in, helper slots, teleport portals, monsters already standing guard |
-| **Heroes** (9) | `cast.js` | The player's class (or the player's own choice; forged classes work too) |
+| **Heroes** (9 + yours) | `cast.js` | The player's class, the player's own choice, or **any class players made** in the Class forge |
 | **Monsters** (6) | `cast.js` | Weights for each monster kind |
 | **Helpers** (6) | `cast.js` | NPC archetypes: guide, merchant, healer, quest-giver, tutor, stash keeper, with their lines |
 | **Modules** | `modules.js` | The features a genre is built from, and what each saves for a player. See [Platform architecture](platform-architecture.md) |
@@ -80,6 +80,14 @@ AI and no randomness beyond the seed:
 - **The map is a plan, not objects.** A compiled level is about 2 KB instead of 25–120 KB. When it is
   played or opened in the editor, the game scatters the scenery from the library with the level's
   seed, so the same file always builds the same map. A party gets the finished level from the host.
+
+## Characters players made
+
+Every class made in the [Class forge](class-forge.md) is a hero here too, marked ✦ in the Hero menu.
+Name it in your idea (*"a pirate story quest with the Stormbound Corsair"*) and Quick build picks it
+with no AI. The AI is shown each one in a line (name, story line and skills), after the fixed
+menus, and may only pick one that exists. The game references the class by id, so it plays with the
+class as it is now. See [Content players make](platform-architecture.md#content-players-make-characters-skills-and-more).
 
 ## Free and Plus
 

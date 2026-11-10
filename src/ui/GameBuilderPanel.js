@@ -144,8 +144,8 @@ export class GameBuilderPanel {
     for (const button of this.root.querySelectorAll('button')) if (!button.matches('[data-close]')) button.disabled = on;
   }
 
-  quick() {
-    const { spec } = this.actions.quick(this.$('[data-prompt]').value);
+  async quick() {
+    const { spec } = await this.actions.quick(this.$('[data-prompt]').value);
     this._show(spec);
     this._status('Built from the words in your idea — no AI used. Change anything on the right.', 'ok');
   }
@@ -239,7 +239,7 @@ export class GameBuilderPanel {
       this._select('Genre', spec.genre, menu(GENRES), (genre) => this._set({ genre, layout: GENRES[genre].layout, chapters: GENRES[genre].chapters, foes: undefined }), 'genre'),
       this._select('World', spec.world, menu(WORLDS), (world) => this._set({ world, foes: GENRES[spec.genre].calm ? 'none' : WORLDS[world].foes }), 'world'),
       this._select('Map layout', spec.layout, menu(LAYOUTS), (layout) => this._set({ layout }), 'layout'),
-      this._select('Hero', spec.hero, [['any', 'Player\'s choice'], ...this.heroes.map((h) => [h.id, h.name])], (hero) => this._set({ hero }), 'hero'),
+      this._select('Hero', spec.hero, [['any', 'Player\'s choice'], ...this.heroes.map((h) => [h.id, h.custom ? `✦ ${h.name} — made by a player` : h.name])], (hero) => this._set({ hero }), 'hero'),
       this._select('Monsters', spec.foes, menu(FOES), (foes) => this._set({ foes }), 'foes'),
       this._select('Difficulty', spec.difficulty, DIFFICULTY_IDS.map((d) => [d, d[0].toUpperCase() + d.slice(1)]), (difficulty) => this._set({ difficulty }), 'difficulty'),
       this._number('Chapters', spec.chapters, 1, MAX_CHAPTERS, (chapters) => this._set({ chapters }), 'chapters')

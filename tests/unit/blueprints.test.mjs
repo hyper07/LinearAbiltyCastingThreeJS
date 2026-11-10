@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ENGINES, FOES, GAME_SPEC_SCHEMA, CUSTOM_SPEC_SCHEMA, GENRES, GENRE_IDS, HERO_IDS, LAYOUTS, LAYOUT_IDS, MODULES, WORLDS, WORLD_IDS, FOE_IDS,
-  chapterIds, compileGame, fill, keywordSpec, menuPrompt, normalizeSpec
+  chapterIds, compileGame, describeHero, fill, keywordSpec, menuPrompt, normalizeSpec, specSchema
 } from '../../src/blueprints/index.js';
+import { readFileSync } from 'node:fs';
 import { MONSTER_KINDS, normalizeLevel } from '../../src/levels/Level.js';
 import { CLASS_SPECS } from '../../src/platform/character/classes.js';
 
@@ -138,4 +139,27 @@ test('fill capitalises at the start of a sentence; chapter ids avoid taken ones'
   assert.equal(fill('{unknown} stays', {}), '{unknown} stays');
   assert.deepEqual(chapterIds('Moon Run', 1, new Set(['moon-run'])), ['moon-run-2']);
   assert.deepEqual(chapterIds('Moon Run', 2, new Set(['moon-run-1'])), ['moon-run-2-1', 'moon-run-2-2']);
+});
+
+test('characters players made are heroes: by name, in the AI menu and schema, in the game', () => {
+  const design = JSON.parse(readFileSync(new URL('../../public/classes/forge-stormbound-corsair.json', import.meta.url), 'utf8'));
+  const hero = describeHero(design);
+  assert.equal(hero.id, 'forge-stormbound-corsair');
+  assert.equal(hero.name, 'Stormbound Corsair');
+  assert.ok(hero.custom && /Skills: /.test(hero.blurb) && hero.blurb.length <= 160, hero.blurb);
+
+  // Named in the idea: the keyword builder picks it (no AI).
+  const spec = keywordSpec('a pirate quest with my stormbound corsair', { heroes: [hero] });
+  assert.equal(spec.hero, 'forge-stormbound-corsair');
+  assert.equal(keywordSpec('a pirate quest with my stormbound corsair').hero, 'any', 'unknown without the list');
+  assert.equal(compileGame(spec, { heroes: [hero.id] }).levels[0].character, 'forge-stormbound-corsair', 'the game plays as that class');
+
+  // The AI sees it after the fixed menus (the cacheable prefix is unchanged) and may pick its id.
+  const plain = menuPrompt();
+  const withHeroes = menuPrompt({ heroes: [hero] });
+  assert.ok(withHeroes.startsWith(plain), 'player-made characters come after the fixed part');
+  assert.ok(withHeroes.includes('- forge-stormbound-corsair: Stormbound Corsair'));
+  assert.ok(specSchema({ heroes: [hero] }).properties.hero.enum.includes('forge-stormbound-corsair'));
+  assert.equal(specSchema(), GAME_SPEC_SCHEMA, 'no extra heroes: the shared schema');
+  assert.equal(specSchema({ custom: true, heroes: [hero] }).required.includes('map'), true);
 });

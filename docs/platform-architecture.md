@@ -16,7 +16,9 @@ modules); the rest is the plan.
 | Modules: the feature list each genre declares, and what each saves | **Built** as data ([`modules.js`](../src/blueprints/modules.js)), checked by the tests |
 | Plans (Free, Plus) enforced by the server | **Built** |
 | Engines other than the action RPG (puzzle, story) | Planned |
+| Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
 | Games as first-class records, with saves per player per game | Planned. Today a player has one character shared by every level |
+| NPCs, worlds, monsters and question sets players make, offered by the builder | Planned |
 | PostgreSQL | Recommended below, not started |
 
 ## The layers
@@ -65,6 +67,50 @@ Each module declares, in one place:
   no other change.
 
 Adding a genre is then data. Adding a module is code in one place. Adding an engine is the only big job.
+
+## Content players make: characters, skills and more
+
+The Barbarian is one example. Players and parents make their own characters and skills, and new
+games must be able to use them. The rule is **make once, store once, reference everywhere**.
+
+**Today (built):**
+
+- A class made in the [Class forge](class-forge.md) is saved as one design file in the class store
+  (`DATA_DIR/classes` on a server, so every player on it can use it). It is also published to the
+  [shared library](library.md) as `class:<id>`, and each of its skills as `skill:<id>`, with a
+  fingerprint for finding similar ones and a count of how often it is used.
+- A skill is a *design*, not code: a name, a colour, numbers, and the hand-made effect it is built on
+  (its `base`). So any skill a player makes inherits that base's behaviour. One built on Battle Roar
+  is a team buff with an aura, in its own colour, with no extra work.
+- **The Game builder uses them.** The Hero menu lists every class players made beside the built-in
+  ones. Naming one in an idea (*"a pirate quest with the Stormbound Corsair"*) picks it with no AI.
+  The AI is shown each one in a single line (name, story line, skills: about 40 tokens), and its
+  id joins the hero list the AI must choose from, so it can pick them but never invent one. Those
+  lines come **after** the fixed menus, so the part of the prompt a hosted model caches stays the same.
+- A game **references** the class by id (`level.character`); it never copies it. Improve the class
+  and every game that uses it gets the improvement.
+
+**Next (planned):** every kind of thing a player makes becomes a library asset the builder can
+offer the same way:
+
+| Kind | Engine | Offered by the builder as |
+| --- | --- | --- |
+| `class`, `skill` (built) | action RPG | Hero menu; skills inside a class |
+| `item`, `weapon` (in the library, not in the builder yet) | action RPG | A merchant's stock, quest rewards, starting gear |
+| `npc` (a helper with a name, body, personality and lines) | shared | Helpers in a game, instead of the archetypes |
+| `world` (a saved map plan or a hand-made level map) | shared | The World menu |
+| `monster` (a monster kind's look and numbers, built on a base) | action RPG | The Monsters menu |
+| `question-set` (a parent's questions for a subject and age) | shared | A tutor's lessons |
+| `game` (a whole built game) | any | Remix: start from someone's game |
+| `puzzle-set`, `story` | puzzle, story | When those engines exist |
+
+Every asset has the same envelope: `id`, `kind`, `engine`, `owner`, `status` (official, shared,
+draft, hidden), `version`, `data` (the design), `fingerprint` and `uses`. A game's spec lists the ids
+it uses, which pins a version. Deleting an asset that games still use hides it instead.
+
+For the AI, the builder sends only what fits the idea: the player's own assets first, then the most
+used shared ones of the kinds the genre needs, capped (30 heroes today). The prompt then stays small
+however large the library grows.
 
 ## Saving progress per player, per game
 
@@ -122,8 +168,11 @@ not touching the game.
 
 ```sql
 accounts   (id, name, plan, family_id, …)             -- as today, plus families for private play
+assets     (id, kind, engine, owner_id, status, version, data jsonb, fingerprint jsonb,
+            uses, created, updated)                    -- classes, skills, items, NPCs, worlds… players made
 games      (id, owner_id, title, engine, genre, modules text[], spec jsonb,
             visibility, version, created, updated)     -- a built game
+game_assets(game_id, asset_id, asset_version)          -- what a game uses, by reference
 game_levels(game_id, level_id, ord, data jsonb)        -- its chapters (a plan, a few KB each)
 saves      (account_id, game_id, module, data jsonb, schema_version, updated,
             PRIMARY KEY (account_id, game_id, module)) -- progress, per player, per game, per module

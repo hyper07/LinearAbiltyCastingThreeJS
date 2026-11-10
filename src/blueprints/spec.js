@@ -66,6 +66,36 @@ export const GAME_SPEC_SCHEMA = {
   properties: SPEC_PROPERTIES
 };
 
+/**
+ * The schema for one request: the menus, plus the characters players made
+ * (their class ids join the hero enum, so the AI can pick them but not invent one).
+ * @param {{ custom?: boolean, heroes?: { id: string }[] }} [options]
+ */
+export function specSchema({ custom = false, heroes = [] } = {}) {
+  const base = custom ? CUSTOM_SPEC_SCHEMA : GAME_SPEC_SCHEMA;
+  const ids = [...new Set([...HERO_IDS, ...heroes.map((h) => h.id)])];
+  if (ids.length === HERO_IDS.length) return base;
+  return { ...base, properties: { ...base.properties, hero: { type: 'string', enum: ids } } };
+}
+
+/**
+ * A class a player made (the Class forge's design) as a menu entry:
+ * `{ id, name, blurb }`, the blurb its story line and its skills, short.
+ */
+export function describeHero(design) {
+  const skills = (design?.branches ?? []).flatMap((b) => (b?.skills ?? []).map((s) => s?.name)).filter(Boolean);
+  const tagline = text(design?.tagline, 80);
+  return {
+    id: String(design?.id ?? ''),
+    name: text(design?.name, 40) || 'Unnamed class',
+    blurb: text(`${tagline}${skills.length ? `${tagline ? ' ' : ''}Skills: ${skills.slice(0, 6).join(', ')}` : ''}`, 160),
+    custom: true
+  };
+}
+
+/** How many player-made characters the AI is shown (the most recent first is up to the caller). */
+export const MAX_PROMPT_HEROES = 30;
+
 const QUESTION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -121,7 +151,8 @@ const menu = (title, registry) => [`${title}:`, ...Object.entries(registry).map(
  * a new genre or world shows up here with no prompt editing. It is the same
  * text for every request.
  */
-export function menuPrompt({ custom = false } = {}) {
+export function menuPrompt({ custom = false, heroes = [] } = {}) {
+  const made = heroes.filter((h) => h?.id && !HERO_IDS.includes(h.id)).slice(0, MAX_PROMPT_HEROES);
   return [
     'You turn a game idea into a game spec for a 3D action game in the browser. Answer with JSON only.',
     'Pick one id from each menu. Choose what fits the idea best; the game builds the map, monsters and helpers itself.',
@@ -143,6 +174,13 @@ export function menuPrompt({ custom = false } = {}) {
           '- chapterStories: one { name, intro, outro } per chapter.',
           '- npcs: names, a greeting and up to 4 lines for the helpers, in the world\'s voice.',
           '- questions: for study genres, up to 12 questions with one answer, 3 wrong answers and a hint, right for the age; else [].'
+        ]
+      : []),
+    // Last, so everything above is the same text for every request (a cacheable prefix).
+    ...(made.length
+      ? [
+          'Characters players made (also hero ids). If the idea names one, or one fits it clearly better than the built-in classes, use its id:',
+          ...made.map((h) => `- ${h.id}: ${h.name} — ${h.blurb ?? ''}`.slice(0, 200))
         ]
       : [])
   ].join('\n');
@@ -247,8 +285,20 @@ function earliest(registry, lower, skip = []) {
 const GENRE_ORDER = ['calm-study', 'study', 'boss-hunt', 'dungeon-crawl', 'quest', 'monster-hunt', 'survival'];
 const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5 };
 
-/** A spec from plain words — used when no model is reachable, and free of charge always. */
-export function keywordSpec(description = '') {
+/** A player-made character named in the text ("…with my Stormbound Corsair"), longest name first. */
+function namedHero(lower, heroes) {
+  return [...heroes]
+    .filter((h) => h?.id && h.name && h.name.length >= 3)
+    .sort((a, b) => b.name.length - a.name.length)
+    .find((h) => lower.includes(h.name.toLowerCase()))?.id;
+}
+
+/**
+ * A spec from plain words — used when no model is reachable, and free of charge always.
+ * @param {string} description
+ * @param {{ heroes?: { id: string, name: string }[] }} [options] characters players made, found by name
+ */
+export function keywordSpec(description = '', { heroes = [] } = {}) {
   const raw = String(description ?? '');
   const lower = raw.toLowerCase();
   const genre = GENRE_ORDER.find((id) => GENRES[id].words.test(lower)) ?? 'survival';
@@ -263,11 +313,11 @@ export function keywordSpec(description = '') {
     genre,
     world,
     layout: earliest(LAYOUTS, lower),
-    hero: earliest(HEROES, lower) ?? 'any',
+    hero: namedHero(lower, heroes) ?? earliest(HEROES, lower) ?? 'any',
     foes: earliest(FOES, lower),
     chapters: chapterMatch ? NUMBER_WORDS[chapterMatch[1]] ?? +chapterMatch[1] : undefined,
     difficulty: /\b(easy|young|little|beginner|gentle)\b/.test(lower) ? 'easy' : /\b(hard|tough|challeng|expert|brutal)\b/.test(lower) ? 'hard' : 'normal',
     subject,
     age: age ? +age[1] : undefined
-  });
+  }, { heroes: heroes.map((h) => h.id) });
 }

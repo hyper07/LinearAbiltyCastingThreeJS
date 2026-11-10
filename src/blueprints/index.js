@@ -10,5 +10,5 @@ export { GENRES, GENRE_IDS, DIFFICULTY, DIFFICULTY_IDS } from './genres.js';
 export { WORLDS, WORLD_IDS } from './worlds.js';
 export { LAYOUTS, LAYOUT_IDS } from './layouts.js';
 export { HEROES, HERO_IDS, FOES, FOE_IDS, HELPERS, HELPER_IDS, SUBJECT_IDS, mainKind } from './cast.js';
-export { GAME_SPEC_SCHEMA, CUSTOM_SPEC_SCHEMA, MAX_CHAPTERS, SPEC_VERSION, isStudyGenre, keywordSpec, menuPrompt, normalizeSpec } from './spec.js';
+export { GAME_SPEC_SCHEMA, CUSTOM_SPEC_SCHEMA, MAX_CHAPTERS, MAX_PROMPT_HEROES, describeHero, specSchema, SPEC_VERSION, isStudyGenre, keywordSpec, menuPrompt, normalizeSpec } from './spec.js';
 export { chapterIds, compileGame, fill, worldPlan } from './compile.js';
