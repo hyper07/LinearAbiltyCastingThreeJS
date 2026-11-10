@@ -36,10 +36,16 @@ export class Accounts {
     return String(name).normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
   }
 
-  _assertAddress(ip) {
-    const row = this.db.q('SELECT until, reason FROM ip_blocks WHERE ip_tag = ?').get(this.keys.ipTag(ip));
+  async _assertAddress(ip) {
+    const row = await this.db.one('SELECT until, reason FROM ip_blocks WHERE ip_tag = ?', [this.keys.ipTag(ip)]);
     if (row && row.until > this.now()) throw new Refusal(`Blocked: ${row.reason ?? 'abuse from this address'}`, 403);
   }
+
+  /*
+   * Passwords are hashed (and checked) outside the server's one-at-a-time
+   * queue — scrypt takes a tenth of a second on purpose, and a burst of
+   * sign-ins must not stall everyone's game. The database part runs in it.
+   */
 
   async register({ name, password, ip = '', agent = '' }) {
     name = String(name ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim();
@@ -47,117 +53,123 @@ export class Accounts {
     if (!NAME.test(name)) throw new Refusal('Names are 3–20 letters or digits (spaces, _ . - inside)', 400);
     if (password.length < 8 || password.length > 128) throw new Refusal('Passwords are 8 to 128 characters', 400);
     if (password.toLowerCase().includes(Accounts.nameKey(name))) throw new Refusal('The password must not contain the name', 400);
-    this._assertAddress(ip);
-    const tag = this.keys.ipTag(ip);
-    const recent = this.db.q('SELECT COUNT(*) AS n FROM accounts WHERE created_ip_tag = ? AND created > ?').get(tag, this.now() - 864e5).n;
-    if (recent >= this.accountsPerAddressPerDay) throw new Refusal('Too many new accounts from this address today', 429);
     const passHash = await hashPassword(password);
     const key = Accounts.nameKey(name);
-    let id;
-    try {
-      id = this.db.tx(() => {
-        const now = this.now();
-        const r = this.db.q('INSERT INTO accounts (name, name_key, pass_hash, created, created_ip_tag, created_ip_enc) VALUES (?, ?, ?, ?, ?, ?)').run(name, key, passHash, now, tag, this.keys.ipSeal(ip));
-        const accountId = Number(r.lastInsertRowid);
-        this.history.add(accountId, 'register', { name }, now);
-        this.authority.createCharacter(accountId);
-        return accountId;
-      });
-    } catch (error) {
-      this.authority.characters.clear();
-      if (/UNIQUE/.test(error.message)) throw new Refusal('That name is taken', 409);
-      throw error;
-    }
-    return this._session(id, ip, agent);
+    const tag = this.keys.ipTag(ip);
+    return this.db.serial(async () => {
+      await this._assertAddress(ip);
+      const recent = (await this.db.one('SELECT COUNT(*) AS n FROM accounts WHERE created_ip_tag = ? AND created > ?', [tag, this.now() - 864e5])).n;
+      if (recent >= this.accountsPerAddressPerDay) throw new Refusal('Too many new accounts from this address today', 429);
+      let id;
+      try {
+        id = await this.db.tx(async () => {
+          const now = this.now();
+          const r = await this.db.one('INSERT INTO accounts (name, name_key, pass_hash, created, created_ip_tag, created_ip_enc) VALUES (?, ?, ?, ?, ?, ?) RETURNING id', [name, key, passHash, now, tag, this.keys.ipSeal(ip)]);
+          await this.history.add(r.id, 'register', { name }, now);
+          await this.authority.createCharacter(r.id);
+          return r.id;
+        });
+      } catch (error) {
+        this.authority.characters.clear();
+        if (error?.code === '23505' || /UNIQUE|duplicate key/i.test(error.message)) throw new Refusal('That name is taken', 409);
+        throw error;
+      }
+      return this._session(id, ip, agent);
+    });
   }
 
   async login({ name, password, ip = '', agent = '' }) {
-    this._assertAddress(ip);
-    const row = this.db.q('SELECT id, pass_hash, failed_logins, locked_until, blocked_until, block_reason FROM accounts WHERE name_key = ?').get(Accounts.nameKey(name ?? ''));
-    const ok = await verifyPassword(String(password ?? ''), row?.pass_hash ?? DUMMY_PASSWORD_HASH);
-    const now = this.now();
-    if (!row) throw new Refusal('Wrong name or password', 401);
-    // Locked: refused even with the right password, so guessing on gains nothing.
-    if (row.locked_until > now) throw new Refusal(`Too many wrong passwords — try again in ${Math.ceil((row.locked_until - now) / 6e4)} minutes`, 429);
-    if (!ok) {
-      const failed = row.failed_logins + 1;
-      this.db.tx(() => {
-        this.db.q('UPDATE accounts SET failed_logins = ?, locked_until = ? WHERE id = ?').run(failed >= MAX_FAILED ? 0 : failed, failed >= MAX_FAILED ? now + LOCK_MINUTES * 6e4 : 0, row.id);
-        this.history.add(row.id, failed >= MAX_FAILED ? 'login-locked' : 'login-failed', { ip: this.keys.ipTag(ip) }, now);
-      });
-      throw new Refusal('Wrong name or password', 401);
-    }
-    if (row.blocked_until > now) throw new Refusal(`This account is blocked until ${new Date(row.blocked_until).toISOString().slice(0, 16).replace('T', ' ')} UTC: ${row.block_reason ?? 'rule breaks'}`, 403);
-    this.db.q('UPDATE accounts SET failed_logins = 0, locked_until = 0, last_login = ? WHERE id = ?').run(now, row.id);
-    return this._session(row.id, ip, agent);
+    await this._assertAddress(ip);
+    const nameKey = Accounts.nameKey(name ?? '');
+    const found = await this.db.one('SELECT pass_hash FROM accounts WHERE name_key = ?', [nameKey]);
+    const ok = await verifyPassword(String(password ?? ''), found?.pass_hash ?? DUMMY_PASSWORD_HASH);
+    return this.db.serial(async () => {
+      // Read again in the queue: the counts may have moved while the password was checked.
+      const row = await this.db.one('SELECT id, pass_hash, failed_logins, locked_until, blocked_until, block_reason FROM accounts WHERE name_key = ?', [nameKey]);
+      const now = this.now();
+      if (!row || !found || row.pass_hash !== found.pass_hash) throw new Refusal('Wrong name or password', 401);
+      // Locked: refused even with the right password, so guessing on gains nothing.
+      if (row.locked_until > now) throw new Refusal(`Too many wrong passwords — try again in ${Math.ceil((row.locked_until - now) / 6e4)} minutes`, 429);
+      if (!ok) {
+        const failed = row.failed_logins + 1;
+        await this.db.tx(async () => {
+          await this.db.run('UPDATE accounts SET failed_logins = ?, locked_until = ? WHERE id = ?', [failed >= MAX_FAILED ? 0 : failed, failed >= MAX_FAILED ? now + LOCK_MINUTES * 6e4 : 0, row.id]);
+          await this.history.add(row.id, failed >= MAX_FAILED ? 'login-locked' : 'login-failed', { ip: this.keys.ipTag(ip) }, now);
+        });
+        throw new Refusal('Wrong name or password', 401);
+      }
+      if (row.blocked_until > now) throw new Refusal(`This account is blocked until ${new Date(row.blocked_until).toISOString().slice(0, 16).replace('T', ' ')} UTC: ${row.block_reason ?? 'rule breaks'}`, 403);
+      await this.db.run('UPDATE accounts SET failed_logins = 0, locked_until = 0, last_login = ? WHERE id = ?', [now, row.id]);
+      return this._session(row.id, ip, agent);
+    });
   }
 
-  _session(accountId, ip, agent) {
+  async _session(accountId, ip, agent) {
     const { token, hash } = newToken();
     const now = this.now();
-    this.db.tx(() => {
-      this.db.q('INSERT INTO sessions (token_hash, account_id, created, expires, ip_tag, ip_enc, agent) VALUES (?, ?, ?, ?, ?, ?, ?)').run(hash, accountId, now, now + SESSION_DAYS * 864e5, this.keys.ipTag(ip), this.keys.ipSeal(ip), String(agent).slice(0, 200));
-      this.history.add(accountId, 'login', { ip: this.keys.ipTag(ip) }, now);
+    await this.db.tx(async () => {
+      await this.db.run('INSERT INTO sessions (token_hash, account_id, created, expires, ip_tag, ip_enc, agent) VALUES (?, ?, ?, ?, ?, ?, ?)', [hash, accountId, now, now + SESSION_DAYS * 864e5, this.keys.ipTag(ip), this.keys.ipSeal(ip), String(agent).slice(0, 200)]);
+      await this.history.add(accountId, 'login', { ip: this.keys.ipTag(ip) }, now);
       // Old sessions expire; more than ten at once is not a person.
-      this.db.q('DELETE FROM sessions WHERE account_id = ? AND (expires < ? OR token_hash NOT IN (SELECT token_hash FROM sessions WHERE account_id = ? ORDER BY created DESC LIMIT 10))').run(accountId, now, accountId);
+      await this.db.run('DELETE FROM sessions WHERE account_id = ? AND (expires < ? OR token_hash NOT IN (SELECT token_hash FROM sessions WHERE account_id = ? ORDER BY created DESC LIMIT 10))', [accountId, now, accountId]);
     });
-    return { token, account: this.public(accountId), maxAge: SESSION_DAYS * 86400 };
+    return { token, account: await this.public(accountId), maxAge: SESSION_DAYS * 86400 };
   }
 
   /** The account a session token belongs to, or null. */
-  fromToken(token) {
+  async fromToken(token) {
     if (!token || token.length > 100) return null;
-    const row = this.db.q('SELECT a.id, a.name, a.plan, a.blocked_until, a.block_reason, s.expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ?').get(tokenHash(token));
+    const row = await this.db.one('SELECT a.id, a.name, a.plan, a.blocked_until, a.block_reason, s.expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ?', [tokenHash(token)]);
     if (!row || row.expires < this.now()) return null;
     return { id: row.id, name: row.name, plan: row.plan, blockedUntil: row.blocked_until, blockReason: row.block_reason };
   }
 
-  logout(token) {
-    const account = this.fromToken(token);
-    this.db.q('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash(token ?? ''));
-    if (account) this.history.add(account.id, 'logout', {}, this.now());
+  async logout(token) {
+    const account = await this.fromToken(token);
+    await this.db.run('DELETE FROM sessions WHERE token_hash = ?', [tokenHash(token ?? '')]);
+    if (account) await this.history.add(account.id, 'logout', {}, this.now());
   }
 
-  public(accountId) {
-    const row = this.db.q('SELECT id, name, plan, created, last_login, blocked_until, block_reason FROM accounts WHERE id = ?').get(accountId);
+  async public(accountId) {
+    const row = await this.db.one('SELECT id, name, plan, created, last_login, blocked_until, block_reason FROM accounts WHERE id = ?', [accountId]);
     if (!row) return null;
     return { id: row.id, name: row.name, plan: row.plan, created: row.created, blocked: row.blocked_until > this.now() ? { until: row.blocked_until, reason: row.block_reason } : null };
   }
 
   /* ---- for the people running the server (scripts/admin.mjs) ---- */
 
-  byName(name) {
-    return this.db.q('SELECT id, name FROM accounts WHERE name_key = ?').get(Accounts.nameKey(name)) ?? null;
+  async byName(name) {
+    return this.db.one('SELECT id, name FROM accounts WHERE name_key = ?', [Accounts.nameKey(name)]);
   }
 
-  block(accountId, hours, reason) {
+  async block(accountId, hours, reason) {
     const until = this.now() + hours * 36e5;
-    this.db.tx(() => {
-      this.db.q('UPDATE accounts SET blocked_until = ?, block_reason = ?, blocks = blocks + 1 WHERE id = ?').run(until, reason, accountId);
-      this.db.q('DELETE FROM sessions WHERE account_id = ?').run(accountId);
-      this.history.add(accountId, 'blocked', { until, reason, by: 'admin' }, this.now());
+    await this.db.tx(async () => {
+      await this.db.run('UPDATE accounts SET blocked_until = ?, block_reason = ?, blocks = blocks + 1 WHERE id = ?', [until, reason, accountId]);
+      await this.db.run('DELETE FROM sessions WHERE account_id = ?', [accountId]);
+      await this.history.add(accountId, 'blocked', { until, reason, by: 'admin' }, this.now());
     });
     return until;
   }
 
-  unblock(accountId, note = '') {
-    this.db.tx(() => {
-      this.db.q('UPDATE accounts SET blocked_until = 0, block_reason = NULL WHERE id = ?').run(accountId);
-      this.db.q('DELETE FROM strikes WHERE account_id = ?').run(accountId);
-      this.history.add(accountId, 'unblocked', { note, by: 'admin' }, this.now());
+  async unblock(accountId, note = '') {
+    await this.db.tx(async () => {
+      await this.db.run('UPDATE accounts SET blocked_until = 0, block_reason = NULL WHERE id = ?', [accountId]);
+      await this.db.run('DELETE FROM strikes WHERE account_id = ?', [accountId]);
+      await this.history.add(accountId, 'unblocked', { note, by: 'admin' }, this.now());
     });
   }
 
   /** Set what an account pays for. The payment itself is not handled here: whatever takes it calls this. */
-  setPlan(accountId, plan) {
+  async setPlan(accountId, plan) {
     if (!PLAN_IDS.includes(plan)) throw new Refusal(`Plans are ${PLAN_IDS.join(', ')}`, 400);
-    this.db.tx(() => {
-      this.db.q('UPDATE accounts SET plan = ? WHERE id = ?').run(plan, accountId);
-      this.history.add(accountId, 'plan', { plan, by: 'admin' }, this.now());
+    await this.db.tx(async () => {
+      await this.db.run('UPDATE accounts SET plan = ? WHERE id = ?', [plan, accountId]);
+      await this.history.add(accountId, 'plan', { plan, by: 'admin' }, this.now());
     });
   }
 
-  blockAddress(ip, hours, reason) {
-    this.db.q('INSERT INTO ip_blocks (ip_tag, until, reason) VALUES (?, ?, ?) ON CONFLICT(ip_tag) DO UPDATE SET until = excluded.until, reason = excluded.reason').run(this.keys.ipTag(ip), this.now() + hours * 36e5, reason);
+  async blockAddress(ip, hours, reason) {
+    await this.db.run('INSERT INTO ip_blocks (ip_tag, until, reason) VALUES (?, ?, ?) ON CONFLICT (ip_tag) DO UPDATE SET until = excluded.until, reason = excluded.reason', [this.keys.ipTag(ip), this.now() + hours * 36e5, reason]);
   }
 }

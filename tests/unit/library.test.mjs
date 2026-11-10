@@ -1,10 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import http from 'node:http';
 import { LibraryStore, libraryHandler } from '../../server/libraryStore.js';
+import { testDatabase } from './db.mjs';
 
 const skill = (id, name, extra = {}) => ({
   id: `skill:${id}`,
@@ -18,44 +16,47 @@ const skill = (id, name, extra = {}) => ({
 });
 
 test('the store: official seed, player saves, statuses, similar', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'gamory-lib-'));
+  const db = await testDatabase();
   try {
-    const lib = await LibraryStore.open(join(dir, 'library.sqlite'));
-    assert.equal(lib.seed([skill('ice', 'Frost Lance'), skill('glacier', 'Glacier Crown')]), 2);
-    assert.equal(lib.counts().byStatus.official, 2);
+    const lib = await LibraryStore.open({ db });
+    assert.equal(await lib.seed([skill('ice', 'Frost Lance'), skill('glacier', 'Glacier Crown')]), 2);
+    assert.equal((await lib.counts()).byStatus.official, 2);
 
-    const mine = lib.upsert(skill('mine', 'Frost Spear', { author: 'Kim', status: 'shared' }));
+    const mine = await lib.upsert(skill('mine', 'Frost Spear', { author: 'Kim', status: 'shared' }));
     assert.equal(mine.status, 'shared');
-    assert.throws(() => lib.upsert(skill('ice', 'Hijack')), /official/);
-    assert.throws(() => lib.setStatus('skill:ice', 'hidden'), /official/);
-    assert.throws(() => lib.remove('skill:ice'), /official/);
-    assert.throws(() => lib.upsert({ id: 'bad id', kind: 'skill' }), /bad asset id/);
-    assert.throws(() => lib.upsert({ id: 'thing:x', kind: 'thing' }), /bad kind/);
+    assert.deepEqual(mine.data, { id: 'mine' }, 'JSONB comes back as an object');
+    await assert.rejects(lib.upsert(skill('ice', 'Hijack')), /official/);
+    await assert.rejects(lib.setStatus('skill:ice', 'hidden'), /official/);
+    await assert.rejects(lib.remove('skill:ice'), /official/);
+    await assert.rejects(lib.upsert({ id: 'bad id', kind: 'skill' }), /bad asset id/);
+    await assert.rejects(lib.upsert({ id: 'thing:x', kind: 'thing' }), /bad kind/);
 
-    assert.equal(lib.setStatus('skill:mine', 'hidden').status, 'hidden');
-    assert.equal(lib.list({ kind: 'skill' }).length, 2);
-    assert.equal(lib.list({ kind: 'skill', status: 'hidden' }).length, 1);
-    lib.setStatus('skill:mine', 'shared');
-    assert.equal(lib.use('skill:mine').uses, 1);
+    assert.equal((await lib.setStatus('skill:mine', 'hidden')).status, 'hidden');
+    assert.equal((await lib.list({ kind: 'skill' })).length, 2);
+    assert.equal((await lib.list({ kind: 'skill', status: 'hidden' })).length, 1);
+    await lib.setStatus('skill:mine', 'shared');
+    assert.equal((await lib.use('skill:mine')).uses, 1);
+    // Search: any case, and % or _ in the words are just characters.
+    assert.equal((await lib.list({ q: 'FROST SP' })).length, 1);
+    assert.equal((await lib.list({ q: '100%' })).length, 0);
 
-    const near = lib.similar({ kind: 'skill', fingerprint: skill('q', 'Frost Lance').fingerprint, exclude: ['skill:ice'], min: 0.3 });
+    const near = await lib.similar({ kind: 'skill', fingerprint: skill('q', 'Frost Lance').fingerprint, exclude: ['skill:ice'], min: 0.3 });
     assert.ok(near.length >= 1);
     assert.ok(near.every((n) => n.id !== 'skill:ice'));
     assert.ok(near[0].score > 0.5);
-    assert.deepEqual(lib.similar({ kind: 'nope', fingerprint: {} }), []);
+    assert.deepEqual(await lib.similar({ kind: 'nope', fingerprint: {} }), []);
 
-    assert.equal(lib.remove('skill:mine'), true);
-    assert.equal(lib.remove('skill:mine'), false);
-    lib.close();
+    assert.equal(await lib.remove('skill:mine'), true);
+    assert.equal(await lib.remove('skill:mine'), false);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await db.close();
   }
 });
 
 test('the routes, with the write limit', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'gamory-lib-'));
-  let lib = null;
-  const handler = libraryHandler(async () => (lib ??= await LibraryStore.open(join(dir, 'library.sqlite'))));
+  const db = await testDatabase();
+  const lib = new LibraryStore(db);
+  const handler = libraryHandler(async () => lib);
   const server = http.createServer((req, res) => handler(req, res).then((h) => h || res.end('no')));
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -84,7 +85,6 @@ test('the routes, with the write limit', async () => {
     assert.equal((await call('/api/library?kind=skill')).status, 200);
   } finally {
     server.close();
-    lib?.close();
-    await rm(dir, { recursive: true, force: true });
+    await db.close();
   }
 });

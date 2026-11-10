@@ -18,10 +18,13 @@
     "library:fetch": "node scripts/library/fetch.mjs",
     "library:index": "node scripts/library/index.mjs",
     "admin": "node --disable-warning=ExperimentalWarning scripts/admin.mjs",
-    "game:new": "node --disable-warning=ExperimentalWarning scripts/new-game.mjs"
+    "game:new": "node --disable-warning=ExperimentalWarning scripts/new-game.mjs",
+    "db:import": "node --disable-warning=ExperimentalWarning scripts/db-import.mjs"
   },
   "dependencies": {
+    "@electric-sql/pglite": "0.5.12",
     "lil-gui": "^0.21.0",
+    "pg": "8.23.1",
     "three": "^0.185.1",
     "ws": "^8.22.1"
   },

@@ -9,6 +9,7 @@ import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
 import { createGameServices } from './game/index.js';
+import { openDatabase } from './db/database.js';
 
 /**
  * The production server: one process that serves the built game and
@@ -19,12 +20,15 @@ import { createGameServices } from './game/index.js';
  *   /api/account/*    accounts and sessions (game/accounts.js)
  *   /api/game/*       characters, loot, shops — the server decides (game/authority.js)
  *   /api/ai/*         the AI bridge: the model key stays here (api/ai.js)
- *   /api/library/*    the shared content library, SQLite in DATA_DIR (libraryStore.js)
+ *   /api/library/*    the shared content library (libraryStore.js)
  *   /api/levels/*     levels players save, in DATA_DIR/levels (api/files.js)
  *   /api/classes/*    classes from the Class forge, in DATA_DIR/classes
  *   /api/models/*     uploads and picture-to-3D (modelgen.mjs)
  *   /library/*        the downloaded 3D asset library (LIBRARY_ROOT)
  *   /healthz          { ok, rooms, players, uptime }
+ *
+ * Accounts, characters and the library share one PostgreSQL database
+ * (db/database.js): DATABASE_URL's, or PGlite in DATA_DIR/postgres when unset.
  *
  * In development `vite.config.js` mounts the same handlers, so the client
  * cannot tell the two apart. Everything persistent lives under DATA_DIR —
@@ -86,17 +90,18 @@ const COMPRESSIBLE = new Set(['.js', '.mjs', '.css', '.html', '.json', '.svg', '
 /* ---- the services ---- */
 
 const levels = new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'levels'), userDir: join(DATA_DIR, 'levels'), indexKey: 'campaign', label: 'level' });
-const game = await createGameServices({ dataDir: DATA_DIR, readLevel: (id) => levels.readText(id), log: (line) => console.log(line) });
+const database = await openDatabase({ url: process.env.DATABASE_URL, dataDir: DATA_DIR, log: (line) => console.log(line) });
+const game = await createGameServices({ dataDir: DATA_DIR, db: database, readLevel: (id) => levels.readText(id), log: (line) => console.log(line) });
 const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, log: (line) => console.log(`[party] ${line}`), authenticate: game.authenticate });
 game.setPartyCheck((a, b) => realtime.sameParty(a, b));
+const library = new LibraryStore(database);
 const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => console.log(line) });
-let library = null;
 const api = chain([
   game.handler,
   aiBridge(process.env, { identify: (req) => game.authenticate(req) }),
   fileApi(levels, { files: 'levels', ordered: true }),
   fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
-  libraryHandler(async () => (library ??= await LibraryStore.open(join(DATA_DIR, 'library.sqlite')))),
+  libraryHandler(async () => library),
   async (req, res) => (pathOf(req).startsWith('/api/models') ? models.handle(req, res) : false)
 ]);
 
@@ -236,6 +241,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[gamory] v${VERSION} listening on http://${HOST}:${PORT}`);
   console.log(`[gamory] static   ${STATIC_ROOT}`);
   console.log(`[gamory] data     ${DATA_DIR}`);
+  console.log(`[gamory] database ${database.kind === 'postgres' ? 'PostgreSQL (DATABASE_URL)' : `PGlite in ${join(DATA_DIR, 'postgres')} (set DATABASE_URL for a PostgreSQL server)`}`);
   console.log(`[gamory] library  ${LIBRARY_ROOT}`);
   console.log(`[gamory] model    ${process.env.LLM_MODEL1 || '(unset)'} @ ${process.env.LLM_PLATFORM_BASE_URL || '(unset — AI off)'}`);
   console.log(`[gamory] parties  up to ${MAX_PLAYERS} players, ${MAX_ROOMS} rooms`);
@@ -246,9 +252,7 @@ function shutdown(signal) {
   console.log(`[gamory] ${signal}: shutting down`);
   realtime.close();
   server.close(() => {
-    library?.close();
-    game.close();
-    process.exit(0);
+    database.close().finally(() => process.exit(0));
   });
   setTimeout(() => process.exit(0), 5000).unref();
 }

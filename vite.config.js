@@ -8,6 +8,7 @@ import { aiBridge } from './server/api/ai.js';
 import { JsonFileStore, fileApi } from './server/api/files.js';
 import { createRealtime } from './server/realtime.js';
 import { createGameServices } from './server/game/index.js';
+import { openDatabase } from './server/db/database.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -79,17 +80,19 @@ function fileStores() {
 
 /**
  * Accounts, characters and the rules (server/game) — one instance shared by
- * its routes and the party server, with the data in `data/` like the library.
+ * its routes and the party server — over the same PostgreSQL database as the
+ * library: DATABASE_URL's, or PGlite in `data/postgres`.
  */
-function gameServices(env, levelDir) {
+function gameServices(env, levelDir, getDb) {
   let ready = null;
   const get = () =>
-    (ready ??= createGameServices({
+    (ready ??= getDb().then((db) => createGameServices({
       dataDir: resolve('data'),
+      db,
       env,
       readLevel: (id) => new JsonFileStore({ builtInDir: levelDir(), userDir: levelDir(), indexKey: 'campaign', label: 'level' }).readText(id),
       log: (line) => console.log(line)
-    }));
+    })));
   return get;
 }
 
@@ -206,7 +209,10 @@ export default defineConfig(({ mode }) => {
 
   // Dev saves levels in the repo; `vite preview` plays the built set like production.
   let levelDir = () => resolve('public', 'levels');
-  const getGame = gameServices({ ...process.env, ...env }, () => levelDir());
+  // One database for the accounts and the library (PGlite lets one opener use a folder).
+  let db = null;
+  const getDb = () => (db ??= openDatabase({ url: env.DATABASE_URL ?? process.env.DATABASE_URL, dataDir: resolve('data'), log: (line) => console.log(line) }));
+  const getGame = gameServices({ ...process.env, ...env }, () => levelDir(), getDb);
 
   return {
     base: './',
@@ -234,7 +240,7 @@ export default defineConfig(({ mode }) => {
       assetLibrary(),
       fileStores(),
       modelStudio(env),
-      libraryApi(),
+      libraryApi(getDb),
       gameApi(getGame),
       realtime({ ...process.env, ...env }, getGame),
       { name: 'level-dir', configurePreviewServer: () => void (levelDir = () => resolve('dist', 'levels')) }

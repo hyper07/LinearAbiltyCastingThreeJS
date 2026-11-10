@@ -119,7 +119,7 @@ shows a player's history and strikes, and blocks or unblocks accounts and addres
 
 **Not covered yet.** The fight itself still runs in the players' browsers, so the server checks that
 each kill is possible, not that it was earned. There is no password reset, two-factor sign-in or key
-rotation, and the database is SQLite on one machine
+rotation, and one game process holds the parties (the database is PostgreSQL, ready for more)
 ([the limits](docs/security.md#limits--what-this-does-not-stop-yet)).
 
 ## Spells
@@ -336,8 +336,8 @@ players make (**Shared**, or **Draft** until shared), lives in one library with 
 count of how often it has been used. The Class forge checks it as it designs: under each new skill it
 suggests the most similar existing ones, and **Use it** reuses that skill instead of making a
 near-copy. Saving shares the class. Browse and search everything from the main menu (**Library**).
-SQLite on the game server behind an API (every player on a server shares one library), so a hosted
-database can take over later. See **[The shared library](docs/library.md)**.
+PostgreSQL on the game server behind an API (every player on a server shares one library). See
+**[The shared library](docs/library.md)**.
 
 <p>
   <img src="docs/screenshots/library.jpg" width="49%" alt="The Library window: skills with Shared and Official badges, one skill's details and its most similar skill" />

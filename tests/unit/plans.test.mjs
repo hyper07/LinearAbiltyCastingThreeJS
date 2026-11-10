@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { aiBridge } from '../../server/api/ai.js';
 import { createGameServices } from '../../server/game/index.js';
 import { PLANS } from '../../src/platform/plans.js';
+import { testDatabase } from './db.mjs';
 
 /** A stand-in for an OpenAI-compatible model box: records what it was asked. */
 async function fakeModel(label) {
@@ -98,18 +99,20 @@ test('AI creations are counted per day; talk and fights are not', async () => {
   }
 });
 
-test('accounts carry a plan; old databases get the column', async () => {
+test('accounts carry a plan, which only free or plus can be', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'gamory-plans-'));
-  const game = await createGameServices({ dataDir: dir, env: { SERVER_SECRET: 'x'.repeat(64) } });
+  const game = await createGameServices({ dataDir: dir, db: await testDatabase(), env: { SERVER_SECRET: 'x'.repeat(64) } });
   try {
     const { token, account } = await game.accounts.register({ name: 'Parent', password: 'family-game-1', ip: '10.1.1.1' });
     assert.equal(account.plan, 'free');
-    game.accounts.setPlan(account.id, 'plus');
-    assert.equal(game.accounts.fromToken(token).plan, 'plus');
-    assert.throws(() => game.accounts.setPlan(account.id, 'gold'), /Plans are/);
-    assert.ok(game.history.of(account.id, 10).some((e) => e.type === 'plan'));
+    await game.accounts.setPlan(account.id, 'plus');
+    assert.equal((await game.accounts.fromToken(token)).plan, 'plus');
+    await assert.rejects(game.accounts.setPlan(account.id, 'gold'), /Plans are/);
+    // The database refuses one too, whoever writes it.
+    await assert.rejects(game.db.run("UPDATE accounts SET plan = 'gold' WHERE id = ?", [account.id]), /check/i);
+    assert.ok((await game.history.of(account.id, 10)).some((e) => e.type === 'plan'));
   } finally {
-    game.close();
+    await game.close();
     await rm(dir, { recursive: true, force: true });
   }
 });

@@ -53,8 +53,13 @@ try {
   }
 } finally {
   await browser.close();
-  server?.kill('SIGTERM');
-  if (dataDir) await rm(dataDir, { recursive: true, force: true });
+  if (server && server.exitCode === null) {
+    // Let it close the database (PGlite writes on close) before its folder goes.
+    const exited = new Promise((r) => server.once('exit', r));
+    server.kill('SIGTERM');
+    await Promise.race([exited, new Promise((r) => setTimeout(r, 8000))]);
+  }
+  if (dataDir) await rm(dataDir, { recursive: true, force: true, maxRetries: 3 });
 }
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');
 process.exit(failed ? 1 : 0);

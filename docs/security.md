@@ -95,7 +95,7 @@ change it on a server with players: there is no key rotation yet.
 ## For the people running the server
 
 ```bash
-npm run admin -- audit                          # the whole database: exit 1 on any problem
+npm run admin -- audit                          # the whole database: exit 1 on any problem (with PGlite, stop the server first)
 npm run admin -- strikes 24                     # who broke rules in the last 24 h
 npm run admin -- history <name>                 # one account's history
 npm run admin -- block <name> <hours> <reason>  # and sign them out

@@ -19,7 +19,7 @@ modules); the rest is the plan.
 | Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
 | Games as first-class records, with saves per player per game | Planned. Today a player has one character shared by every level |
 | NPCs, worlds, monsters and question sets players make, offered by the builder | Planned |
-| PostgreSQL | Recommended below, not started |
+| PostgreSQL | **Built** (chosen 2026-11-10): accounts, characters, items, ledger, history and the library. See [The database](production.md#the-database) |
 
 ## The layers
 
@@ -131,9 +131,10 @@ stash, skill ranks per class. That suits one RPG, but not a platform. The plan:
 
 ## Which database
 
-**Recommendation: PostgreSQL, using JSONB columns for the parts that differ by genre.** Keep SQLite
-for local development and tests behind the same store interface. Add Redis and object storage when
-traffic needs them.
+**Chosen: PostgreSQL, using JSONB columns for the parts that differ by genre.** It is in place: a
+PostgreSQL server in production (`DATABASE_URL`), and the same PostgreSQL in-process (PGlite) for
+`npm run dev` and the tests, so there is one SQL dialect and nothing to install. Redis and object
+storage come when traffic needs them. The comparison that decided it:
 
 The data is two kinds at once, and the choice depends on handling both well:
 
@@ -150,7 +151,7 @@ The data is two kinds at once, and the choice depends on handling both well:
 | Accounts, payments, ledger, items | Its strength: transactions, foreign keys, unique and check constraints | Possible (multi-document transactions exist), but you hand-build what constraints give for free |
 | Saves that differ per genre | JSONB documents, indexed (GIN), queried with SQL | Its strength |
 | Both in one database | Yes | Documents yes; the money side needs more care |
-| What the code already does | The server's SQLite schema (ledger, item registry, hash-chained history) moves over almost as-is | A rewrite of the anti-cheat storage |
+| What the code already did | The SQLite schema (ledger, item registry, hash-chained history) moved over almost as-is | A rewrite of the anti-cheat storage |
 | Hosting | Managed almost everywhere (Neon, Supabase, AWS RDS/Aurora, Google Cloud SQL, Azure) | MongoDB Atlas, or self-hosted |
 | In game backends | Common. The open-source Nakama game server runs on PostgreSQL or CockroachDB | Common for content and saves, often next to a SQL database |
 
@@ -184,16 +185,16 @@ events     (id, account_id, type, data jsonb, prev_hash, hash)  -- the history c
 
 ## How to get there
 
-1. **Games as records** (no new database yet): a `games` table and an API in the SQLite server.
-   The builder saves a game, not loose levels, and the campaign lists games.
-2. **Saves per module**: split today's character into `saves` rows (`classes`, `skills`,
+1. **PostgreSQL** — *done.* The stores run on PostgreSQL (a server, or PGlite in-process), with
+   migrations and a one-time import of the old SQLite data that keeps every id and checks the history chain.
+2. **Games as records**: a `games` table and an API. The builder saves a game, not loose levels, and
+   the campaign lists games. Levels and classes move from files into the database.
+3. **Saves per module**: split today's character into `saves` rows (`classes`, `skills`,
    `inventory`, `rewards` …) under the action RPG's `engine` scope. Every existing character is
    migrated once, and nothing changes for players.
-3. **PostgreSQL**: implement the stores against PostgreSQL. SQLite stays for `npm run dev` and the
-   tests, and production switches with one setting.
 4. **A second engine**: a small puzzle or story engine, to prove modules plug in. The builder then
    offers its genres.
 5. **Scale-out** when needed: Redis for rooms, presence and leaderboards across servers, and object
    storage with a CDN for the asset library.
 
-Steps 1 and 2 bring the most value and need no new infrastructure.
+Steps 2 and 3 are next: they bring the most value, and need nothing beyond the database now in place.

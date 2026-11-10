@@ -4,8 +4,10 @@
 
 One Node process serves everything: the built game, the party server for
 [playing together](multiplayer.md), the [shared library](library.md), saved levels and classes,
-model uploads, and the bridge to the AI model (the key stays on the server). It has one dependency
-(`ws`) and uses Node's built-ins for the rest.
+model uploads, and the bridge to the AI model (the key stays on the server). Accounts, characters,
+their history and the library live in **PostgreSQL** (see [The database](#the-database)). Three
+dependencies: `ws` (parties), `pg` (PostgreSQL) and PGlite (the same PostgreSQL inside the process,
+for a server without one).
 
 ```
 /                 the built client (dist/), brotli/gzip precompressed, cached
@@ -13,7 +15,7 @@ model uploads, and the bridge to the AI model (the key stays on the server). It 
 /api/account/*    accounts and sessions
 /api/game/*       characters, loot, shops, NPC rewards — the server decides
 /api/ai/*         the AI bridge (LM Studio, Ollama, vLLM, any OpenAI-compatible server)
-/api/library/*    the content library — SQLite in DATA_DIR/library.sqlite
+/api/library/*    the content library (PostgreSQL)
 /api/levels/*     levels players save → DATA_DIR/levels
 /api/classes/*    classes from the Class forge → DATA_DIR/classes
 /api/models/*     uploads and picture-to-3D (keys stay on the server)
@@ -28,10 +30,13 @@ cp .env.example .env      # optional: the AI model, keys, MAX_PLAYERS
 docker compose up --build # → http://localhost:8787
 ```
 
-`docker-compose.yml` mounts `./data` for everything players make and `./library` for the 3D asset
-library (download it on the host with `npm run library:fetch`, or leave it out: maps then use
-simple shapes). The image is built in two stages — the client is built, then only `server/`,
-`dist/` and the one package are copied — and runs as a non-root user with a health check.
+`docker-compose.yml` runs two containers: the game, and **PostgreSQL 18** (`db`), reachable only
+from the game (no port is published) with its data in the `pgdata` volume. Set
+`POSTGRES_PASSWORD` in `.env` before the first start. It mounts `./data` for the levels and classes
+players save and the server key, and `./library` for the 3D asset library (download it on the host
+with `npm run library:fetch`, or leave it out: maps then use simple shapes). The image is built in
+two stages — the client is built, then only `server/`, `dist/` and the packages are copied — and
+runs as a non-root user with a health check.
 
 ## Without Docker
 
@@ -41,15 +46,51 @@ npm run build                   # also writes .br/.gz copies next to the bundle
 node --env-file=.env server/server.js   # or: npm start
 ```
 
-Requires **Node.js 22.13+** (the library uses Node's built-in SQLite). Keep it running with
-`systemd`, `pm2`, or your host's process manager.
+Requires **Node.js 22.13+**. Set `DATABASE_URL` to your PostgreSQL (14 or newer; tested on 18).
+Without it the server runs PostgreSQL in-process (PGlite) in `DATA_DIR/postgres`, which is fine for
+one box and a small group. Keep it running with `systemd`, `pm2`, or your host's process manager.
+
+## The database
+
+Everything that must never be wrong — accounts, sessions, plans, characters, the item registry,
+the gold ledger, the hash-chained history, strikes and blocks — and the shared library are in one
+PostgreSQL database. The tables are in `server/db/migrations.js`. They are created, and later
+changed, on start-up: each migration runs once, in order, and several servers starting together
+wait for one another.
+
+| | `DATABASE_URL` set | `DATABASE_URL` unset |
+| --- | --- | --- |
+| What | Your PostgreSQL server (Docker's `db`, or a managed one: Neon, Supabase, AWS RDS, Google Cloud SQL, Azure) | PGlite: PostgreSQL 18 compiled to run inside the game's process |
+| Where | That server | `DATA_DIR/postgres` |
+| For | Production | `npm run dev`, the tests, one small box |
+| Admin tool | Works while the game runs | Stop the game first (one process per folder) |
+
+`?sslmode=require` in the URL turns on TLS (most managed hosts need it). `DATABASE_POOL` sets the
+connection pool size (default 10).
+
+**Coming from the SQLite version?** Nothing to do. On the first start on an empty database, the old
+`DATA_DIR/game.sqlite` and `DATA_DIR/library.sqlite` are brought in once, in one transaction.
+Every id is kept, so the sealed characters still open and the history chain still checks out, and
+the import verifies the chain on the way in. The `.sqlite` files are left alone; delete them when
+you are happy. `npm run db:import` does it by hand and says what happened. It never mixes into a
+database that already has data.
+
+**Backups.** Back up the database *and* the server key (`SERVER_SECRET`, or `DATA_DIR/server.key`):
+characters are sealed with it, and a database without its key cannot be opened.
+
+```bash
+docker compose exec db pg_dump -U gamory -Fc gamory > gamory-$(date +%F).dump   # back up
+docker compose exec -T db pg_restore -U gamory -d gamory --clean < gamory-2026-11-10.dump  # restore
+```
 
 ## Settings
 
 | Variable | Meaning | Default |
 | --- | --- | --- |
 | `PORT` / `HOST` | Where to listen | `8787` / `0.0.0.0` |
-| `DATA_DIR` | Accounts, characters and their history, saved levels, classes, the library, and the server key — **back this up** | `./data` |
+| `DATABASE_URL` | PostgreSQL, e.g. `postgres://gamory:secret@db:5432/gamory` (add `?sslmode=require` for TLS). Unset = PGlite in `DATA_DIR/postgres` | unset |
+| `DATABASE_POOL` | Connections to PostgreSQL | `10` |
+| `DATA_DIR` | Saved levels and classes, the server key, and (without `DATABASE_URL`) the database — **back this up** | `./data` |
 | `SERVER_SECRET` | The key that seals characters and chains the history (base64, 32+ bytes: `openssl rand -base64 48`). Unset: one is made in `DATA_DIR/server.key`. **Never change it** on a server with players | made for you |
 | `ACCOUNTS_PER_ADDRESS_PER_DAY` | New accounts one address may make in a day (raise it for a LAN party behind one address) | `5` |
 | `STATIC_ROOT` | The built client | `./dist` |
@@ -110,16 +151,28 @@ each kill was earned — see [the limits](security.md#limits--what-this-does-not
 ## Scaling
 
 One process holds every party in memory, which is fine for hundreds of parties — the server only
-relays; the players' browsers run the game. To go beyond one process, the party server needs to be
-sticky per room (the same process for everyone in a party), which a load balancer with cookie or
-code-based affinity provides; the library and the saved files are on `DATA_DIR`, so put that on
-shared storage or move `LibraryStore` to a hosted database (its methods and routes are the contract,
-see [The shared library](library.md#where-it-is-stored)).
+relays; the players' browsers run the game. The game's rules run their requests one at a time in
+that process (they read a character, check it and write it back), which a few milliseconds per
+request makes hundreds per second.
+
+To go beyond one process, three things are needed, and the database is already ready for them:
+
+- **Rooms:** the party server must be sticky per room (the same process for everyone in a party),
+  which a load balancer with cookie or code-based affinity provides.
+- **Characters:** the rules keep each character in play in memory. Several processes need each
+  account pinned to one of them, or row locks (`SELECT … FOR UPDATE`) in place of the in-process queue.
+- **Files:** saved levels and classes are on `DATA_DIR`. Put that on shared storage, or move them
+  into the database (planned: games as records, see [Platform architecture](platform-architecture.md)).
+
+The races that matter across processes are already decided in PostgreSQL: taking an item off the
+floor is one conditional update, an item id can exist once (primary key), and two history events
+cannot share an id.
 
 ## Checks
 
 ```bash
-npm test                # the server: rooms, file stores, the library, accounts and every cheat rule (node --test)
+npm test                # the server: rooms, file stores, the database, the library, accounts and every cheat rule (node --test)
+TEST_DATABASE_URL=postgres://user@localhost/postgres npm test   # the same, on a PostgreSQL server (a fresh database per test)
 npm run build && npm run test:e2e   # the real server + Chromium: solo, co-op, accounts, the bag, the map editor and the action bar by mouse
 ```
 

@@ -23,19 +23,21 @@ ENV STATIC_ROOT=/app/dist
 ENV LIBRARY_ROOT=/app/library
 ENV DATA_DIR=/app/data
 
-# The server needs one package (`ws`, for playing together); nothing else.
+# The server needs three packages: `ws` (playing together), `pg` (PostgreSQL)
+# and PGlite (the same PostgreSQL in-process, when DATABASE_URL is unset).
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY server ./server
-COPY scripts/admin.mjs ./scripts/admin.mjs
+COPY scripts/admin.mjs scripts/db-import.mjs ./scripts/
 # The server runs the game's own rules (inventory, loot, levels) from src/ — the same
 # code the browser runs, so both sides agree on every action.
 COPY src ./src
 
-# Everything players make — accounts, characters, the history, levels, classes,
-# the library — goes to /app/data, and so does the server key unless SERVER_SECRET
+# Accounts, characters, the history and the library live in PostgreSQL
+# (DATABASE_URL; without it, PGlite in /app/data/postgres). Levels and classes
+# players save go to /app/data, and so does the server key unless SERVER_SECRET
 # is set. Mount it and back it up. Don't run as root.
 RUN mkdir -p /app/data /app/library && chown -R node:node /app/data /app/library
 USER node

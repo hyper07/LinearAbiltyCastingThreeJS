@@ -1,10 +1,10 @@
-import { join } from 'node:path';
 import { normalizeLevel } from '../../src/levels/Level.js';
 import { platform, classArmor, classBonuses } from '../../src/platform/index.js';
 import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from '../api/http.js';
 import { Accounts } from './accounts.js';
 import { GameAuthority } from './authority.js';
-import { GameDB, History } from './db.js';
+import { History } from './db.js';
+import { openDatabase } from '../db/database.js';
 import { Keys, loadSecret } from './keys.js';
 import { Refusal, Violation } from './rules.js';
 
@@ -23,13 +23,18 @@ const COOKIE = 'gamory_session';
  * address. A refused action answers `{ error, resync: true }`: the browser
  * then takes the server's copy of the character.
  *
- * @param {{ dataDir: string, readLevel?: (id: string) => Promise<string|null>, log?: (line: string) => void, env?: object }} options
+ * The database is PostgreSQL (server/db/database.js): `db` if given, else the
+ * one for DATABASE_URL, else PGlite in `dataDir`. Every request that reads or
+ * changes a character runs through `db.serial`: one at a time, like the
+ * rules expect.
+ *
+ * @param {{ dataDir: string, db?: import('../db/database.js').Database, readLevel?: (id: string) => Promise<string|null>, log?: (line: string) => void, env?: object }} options
  */
-export async function createGameServices({ dataDir, readLevel = async () => null, log = () => {}, env = process.env } = {}) {
+export async function createGameServices({ dataDir, db = null, readLevel = async () => null, log = () => {}, env = process.env } = {}) {
   const { secret, source, created } = loadSecret(dataDir, env);
   if (created) log(`[game] made a new server key in ${source} — keep it (and back it up): without it the saved characters cannot be opened`);
   const keys = new Keys(secret);
-  const db = await GameDB.open(join(dataDir, 'game.sqlite'));
+  db ??= await openDatabase({ url: env.DATABASE_URL, dataDir, log });
   const history = new History(db, keys);
   let sameParty = () => false;
   const authority = new GameAuthority({
@@ -79,25 +84,25 @@ export async function createGameServices({ dataDir, readLevel = async () => null
   const authenticate = (req) => accounts.fromToken(cookieOf(req));
 
   /** The class the browser is playing, so both sides count the same spells. */
-  const useClass = (accountId, classId) => {
+  const useClass = async (accountId, classId) => {
     const id = typeof classId === 'string' && platform.characters.get(classId) ? classId : null;
     if (!id) return;
-    const profile = authority.character(accountId);
+    const profile = await authority.character(accountId);
     if (profile.classId !== id) profile.setClass(id, classBonuses(id), classArmor(id));
   };
 
   const routes = {
-    'GET /api/account/me': ({ account }) => {
+    'GET /api/account/me': async ({ account }) => {
       if (!account) return { account: null };
-      return { account: accounts.public(account.id), character: authority.view(account.id) };
+      return { account: await accounts.public(account.id), character: await authority.view(account.id) };
     },
-    'GET /api/account/history': ({ account, query }) => {
+    'GET /api/account/history': async ({ account, query }) => {
       if (!account) throw new Refusal('Sign in first', 401);
-      return { events: history.of(account.id, Math.min(100, Number(query.get('limit')) || 50), Number(query.get('before')) || null) };
+      return { events: await history.of(account.id, Math.min(100, Number(query.get('limit')) || 50), Number(query.get('before')) || null) };
     },
-    'GET /api/game/state': ({ account, query }) => {
+    'GET /api/game/state': async ({ account, query }) => {
       if (!account) throw new Refusal('Sign in first', 401);
-      useClass(account.id, query.get('classId'));
+      await useClass(account.id, query.get('classId'));
       return authority.view(account.id);
     },
     'POST /api/game/run/start': ({ account, body }) => authority.startRun(account.id, body),
@@ -131,30 +136,33 @@ export async function createGameServices({ dataDir, readLevel = async () => null
         const agent = req.headers['user-agent'] ?? '';
         const result = path.endsWith('register') ? await accounts.register({ ...body, ip, agent }) : await accounts.login({ ...body, ip, agent });
         setCookie(req, res, result.token, result.maxAge);
-        return send(200, { account: result.account, character: authority.view(result.account.id) }), true;
+        return send(200, { account: result.account, character: await db.serial(() => authority.view(result.account.id)) }), true;
       }
       if (path === '/api/account/logout') {
-        accounts.logout(cookieOf(req));
+        await accounts.logout(cookieOf(req));
         setCookie(req, res, '', 0);
         return send(200, { ok: true }), true;
       }
 
       const route = routes[`${req.method} ${path}`];
       if (!route) return send(404, { error: 'unknown route' }), true;
-      const account = authenticate(req);
+      const account = await authenticate(req);
       if (path !== '/api/account/me' && !account) return send(401, { error: 'Sign in first' }), true;
       if (account && !(req.method === 'GET' ? limits.read : limits.game).take(`a${account.id}`)) return send(429, { error: 'Slow down' }), true;
       const body = req.method === 'POST' ? await readJson(req, 64 * 1024) : {};
-      if (account && req.method === 'POST' && path.startsWith('/api/game')) {
-        authority.assertActive(account.id);
-        useClass(account.id, body.classId);
-      }
-      const result = await route({ account, body, query: queryOf(req), ip });
+      // One request at a time from here: the rules read a character, check it and write it back.
+      const result = await db.serial(async () => {
+        if (account && req.method === 'POST' && path.startsWith('/api/game')) {
+          await authority.assertActive(account.id);
+          await useClass(account.id, body.classId);
+        }
+        return route({ account, body, query: queryOf(req), ip });
+      });
       return send(200, result), true;
     } catch (error) {
       if (error instanceof Violation) {
-        const account = authenticate(req);
-        const blocked = account ? authority.strike(account.id, error.rule, error.detail) : null;
+        const account = await authenticate(req);
+        const blocked = account ? await db.serial(() => authority.strike(account.id, error.rule, error.detail)) : null;
         return send(blocked ? 403 : 409, { error: blocked ? `Blocked until ${new Date(blocked.until).toISOString().slice(0, 16).replace('T', ' ')} UTC: ${blocked.reason}` : 'Refused: ' + error.message, rule: error.rule, blocked, resync: true }), true;
       }
       if (error instanceof Refusal) return send(error.status, { error: error.message, blocked: error.blocked ?? null, resync: true }), true;
@@ -178,7 +186,7 @@ export async function createGameServices({ dataDir, readLevel = async () => null
       sameParty = fn;
     },
     close() {
-      db.close();
+      return db.close();
     }
   };
 }

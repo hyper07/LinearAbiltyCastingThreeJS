@@ -1,7 +1,12 @@
 # Build and run the game — the client, the party server, the content library,
-# saved levels and classes, and the AI bridge — in one container:
+# saved levels and classes, and the AI bridge — in one container, with its
+# PostgreSQL database in a second:
 #
 #   docker compose up --build          → http://localhost:8787
+#
+# The database is reachable only from the game container (no port published).
+# Set POSTGRES_PASSWORD in .env. Old SQLite data in ./data (game.sqlite,
+# library.sqlite) is brought into PostgreSQL on the first start, once.
 #
 # The AI model itself is *not* in here. It runs wherever LLM_PLATFORM_BASE_URL
 # points — LM Studio on the LAN, Ollama, vLLM, anything OpenAI-compatible —
@@ -14,15 +19,36 @@
 # rate limits see real addresses.
 
 services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: gamory
+      POSTGRES_USER: gamory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-dot-env}
+    volumes:
+      # Accounts, characters, the item registry, the history, the library. Back it up
+      # (docs/production.md: pg_dump).
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gamory -d gamory']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
   game:
     build: .
     image: gamory
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - '8787:8787'
     environment:
       PORT: 8787
       STATIC_ROOT: /app/dist
       DATA_DIR: /app/data
+      DATABASE_URL: postgres://gamory:${POSTGRES_PASSWORD:-change-me-in-dot-env}@db:5432/gamory
       # Read from .env (compose loads it automatically). Nothing here has a
       # default: an unset base URL makes the bridge report itself offline, and
       # the game falls back to its own keyword parser rather than breaking.
@@ -47,8 +73,9 @@ services:
       MESHY_API_KEY: ${MESHY_API_KEY:-}
       MODELGEN_PROVIDER: ${MODELGEN_PROVIDER:-}
     volumes:
-      # What players make — accounts, characters, history, levels, classes, the
-      # content library — and the server key. Keep this, and back it up.
+      # Levels and classes players save, and the server key (which seals the
+      # characters in the database — without it they cannot be opened). Keep it,
+      # and back it up with the database.
       - ./data:/app/data
       # The 3D asset library, downloaded on the host with `npm run library:fetch`.
       - ./library:/app/library:ro
@@ -59,3 +86,6 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     restart: unless-stopped
+
+volumes:
+  pgdata:

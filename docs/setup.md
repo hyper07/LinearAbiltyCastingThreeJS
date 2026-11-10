@@ -4,7 +4,8 @@
 
 ## Quick start
 
-Requires **Node.js 22.13+** (the content library uses Node's built-in SQLite) and Git. See
+Requires **Node.js 22.13+** and Git. No database to install: `npm run dev` runs PostgreSQL inside the
+process (PGlite) in `data/postgres` — see [The database](production.md#the-database) to use a PostgreSQL server instead. See
 [requirements.txt](../requirements.txt) for the full list. The JavaScript libraries are installed by
 npm, not pip.
 
@@ -108,7 +109,7 @@ then open `http://<your address>:8787` and [play together](multiplayer.md). With
 | `npm : File ...\npm.ps1 cannot be loaded because running scripts is disabled on this system` | PowerShell's execution policy. Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or use Command Prompt (`cmd`) instead. |
 | `'node' is not recognized as an internal or external command` | Node was installed after the terminal was opened. Close every terminal window (and VS Code) and open a new one. |
 | `Cannot find module '@rolldown/binding-win32-x64-msvc'` or other native-binding errors | `node_modules` was copied from a Mac/Linux machine. Those binaries are per-OS. Delete it and reinstall: `Remove-Item -Recurse -Force node_modules; npm install`. Never copy `node_modules` between machines. |
-| `npm install` or `npm run dev` complains about the Node version | The game needs Node 22.13+ (Vite 8 and the built-in SQLite). Upgrade with `winget upgrade OpenJS.NodeJS.LTS`. |
+| `npm install` or `npm run dev` complains about the Node version | The game needs Node 22.13+ (Vite 8). Upgrade with `winget upgrade OpenJS.NodeJS.LTS`. |
 | Black canvas, or very low FPS on a laptop | The browser is on the integrated GPU or has hardware acceleration off. Turn on *Settings → System → Use graphics acceleration* in Chrome/Edge. Then in *Windows Settings → System → Display → Graphics*, set the browser to **High performance**. `chrome://gpu` should list WebGL as *Hardware accelerated*. |
 | `Port 5173 is already in use` | Another dev server is running. Close it, or use `npm run dev -- --port 5174`. |
 | Chat panel still says "reflex only" after creating `.env` | Restart `npm run dev`. Then check that LM Studio's server is **running** with a model **loaded**, and that <http://127.0.0.1:1234/v1/models> opens in the browser. `LLM_MODEL1` must match an id listed there, and the URL must end in `/v1`. If LM Studio is on another PC, enable **Serve on Local Network** there and allow LM Studio through that PC's Windows Firewall. |

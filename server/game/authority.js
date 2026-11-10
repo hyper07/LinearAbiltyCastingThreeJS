@@ -18,6 +18,10 @@ platform.bootstrap();
  * The browser runs the same rules at the same time so the game feels
  * instant, and takes the server's copy whenever the two differ.
  *
+ * Every method here is async (PostgreSQL), and the game server calls them one
+ * request at a time (Database#serial), so a character is never read by one
+ * request while another is half-way through changing it.
+ *
  * Every change runs inside one database transaction together with its
  * bookkeeping — the item registry, the gold ledger, the history — and is
  * checked afterwards: the set of items a character holds may only change in
@@ -31,7 +35,7 @@ platform.bootstrap();
  */
 export class GameAuthority {
   /**
-   * @param {{ db: import('./db.js').GameDB, keys: import('./keys.js').Keys, history: import('./db.js').History,
+   * @param {{ db: import('../db/database.js').Database, keys: import('./keys.js').Keys, history: import('./db.js').History,
    *           loadLevel?: (id: string) => Promise<object|null>, sameParty?: (a: number, b: number) => boolean,
    *           now?: () => number, log?: (line: string) => void }} ctx
    */
@@ -55,19 +59,19 @@ export class GameAuthority {
   /* ------------------------------------------------------------------ */
 
   /** A new account's character: the blank one every player starts with. */
-  createCharacter(accountId) {
+  async createCharacter(accountId) {
     const profile = new Profile({ storage: null, data: null });
     profile.setClass('caster', classBonuses('caster'), classArmor('caster'));
-    this._store(accountId, profile, 1);
+    await this._store(accountId, profile, 1);
     this.characters.set(accountId, profile);
     return profile;
   }
 
   /** The live character, opened from the database the first time. */
-  character(accountId) {
+  async character(accountId) {
     let profile = this.characters.get(accountId);
     if (profile) return profile;
-    const row = this.db.q('SELECT state, version FROM characters WHERE account_id = ?').get(accountId);
+    const row = await this.db.one('SELECT state, version FROM characters WHERE account_id = ?', [accountId]);
     if (!row) return this.createCharacter(accountId);
     let data;
     try {
@@ -75,7 +79,7 @@ export class GameAuthority {
     } catch {
       // The row was edited, copied from another account, or corrupted outside
       // the server. It is never trusted: the account is frozen for a person to look at.
-      this._tampered(accountId);
+      await this._tampered(accountId);
       throw new Refusal('Your saved character failed its integrity check. It has been locked for review.', 423);
     }
     profile = new Profile({ storage: null, data });
@@ -86,21 +90,22 @@ export class GameAuthority {
     return profile;
   }
 
-  _store(accountId, profile, version) {
+  async _store(accountId, profile, version) {
     const sealed = this.keys.seal(profile.serialize(), `character:${accountId}`);
     const now = this.now();
-    this.db.q(
+    await this.db.run(
       `INSERT INTO characters (account_id, state, version, updated) VALUES (?, ?, ?, ?)
-       ON CONFLICT(account_id) DO UPDATE SET state = excluded.state, version = excluded.version, updated = excluded.updated`
-    ).run(accountId, sealed, version, now);
+       ON CONFLICT (account_id) DO UPDATE SET state = excluded.state, version = excluded.version, updated = excluded.updated`,
+      [accountId, sealed, version, now]
+    );
     profile.version = version;
   }
 
-  _tampered(accountId) {
+  async _tampered(accountId) {
     try {
-      this.db.tx(() => {
-        this.db.q("UPDATE accounts SET blocked_until = ?, block_reason = 'saved character failed its integrity check — under review' WHERE id = ?").run(this.now() + 100 * 365 * 864e5, accountId);
-        this.history.add(accountId, 'tampered', { what: 'character seal' }, this.now());
+      await this.db.tx(async () => {
+        await this.db.run("UPDATE accounts SET blocked_until = ?, block_reason = 'saved character failed its integrity check — under review' WHERE id = ?", [this.now() + 100 * 365 * 864e5, accountId]);
+        await this.history.add(accountId, 'tampered', { what: 'character seal' }, this.now());
       });
     } catch {
       /* already recorded */
@@ -109,8 +114,8 @@ export class GameAuthority {
   }
 
   /** What the browser gets: the character and its fingerprint. */
-  view(accountId) {
-    const profile = this.character(accountId);
+  async view(accountId) {
+    const profile = await this.character(accountId);
     return { state: profile.serialize(), version: profile.version, digest: profile.digest() };
   }
 
@@ -122,20 +127,20 @@ export class GameAuthority {
    *   xp:      whether XP may change
    * The registry, ledger and history are written by `fn` through `tx`.
    */
-  _mutate(accountId, allow, fn) {
-    const profile = this.character(accountId);
+  async _mutate(accountId, allow, fn) {
+    const profile = await this.character(accountId);
     const before = snapshot(profile);
     let result;
     try {
-      result = this.db.tx(() => {
-        const out = fn(profile);
+      result = await this.db.tx(async () => {
+        const out = await fn(profile);
         const after = snapshot(profile);
         const problem = checkChange(before, after, allow);
         if (problem) throw new Violation('state-mismatch', problem);
-        this._registry(accountId, before, after, allow);
-        if (after.gold !== before.gold) this._ledger(accountId, after.gold - before.gold, after.gold, allow.reason ?? 'change', allow.ref);
-        if (after.level > before.level) this.history.add(accountId, 'level', { level: after.level }, this.now());
-        this._store(accountId, profile, (profile.version ?? 0) + 1);
+        await this._registry(accountId, before, after, allow);
+        if (after.gold !== before.gold) await this._ledger(accountId, after.gold - before.gold, after.gold, allow.reason ?? 'change', allow.ref);
+        if (after.level > before.level) await this.history.add(accountId, 'level', { level: after.level }, this.now());
+        await this._store(accountId, profile, (profile.version ?? 0) + 1);
         return out;
       });
     } catch (error) {
@@ -147,35 +152,37 @@ export class GameAuthority {
   }
 
   /** Bring the item registry in line with what the change did. */
-  _registry(accountId, before, after, allow) {
+  async _registry(accountId, before, after, allow) {
     const now = this.now();
     for (const uid of after.uids) {
       if (before.uids.has(uid)) continue;
       // Added: it must already be this account's (taken from the floor, made
       // for it in this transaction) — never an id the registry gives to someone else.
-      const row = this.db.q('SELECT owner, state FROM items WHERE uid = ?').get(uid);
+      const row = await this.db.one('SELECT owner, state FROM items WHERE uid = ?', [uid]);
       if (!row || row.owner !== accountId || row.state !== 'held') throw new Violation('state-mismatch', `item ${uid} appeared without being given`);
     }
     for (const uid of before.uids) {
       if (after.uids.has(uid)) continue;
       const to = allow.removed?.[uid];
-      const changed = this.db
-        .q(`UPDATE items SET state = ?, owner = CASE WHEN ? = 'floor' THEN NULL ELSE owner END, run = ?, updated = ? WHERE uid = ? AND owner = ? AND state = 'held'`)
-        .run(to, to, to === 'floor' ? allow.run ?? null : null, now, uid, accountId).changes;
+      const changed = (
+        await this.db.run(`UPDATE items SET state = ?, owner = CASE WHEN ?::text = 'floor' THEN NULL ELSE owner END, run = ?, updated = ? WHERE uid = ? AND owner = ? AND state = 'held'`, [
+          to ?? null, to ?? null, to === 'floor' ? allow.run ?? null : null, now, uid, accountId
+        ])
+      ).rowCount;
       if (!changed) throw new Violation('not-owner', `item ${uid} is not held by this account`);
     }
   }
 
-  _ledger(accountId, delta, balance, reason, ref = null) {
-    this.db.q('INSERT INTO ledger (account_id, delta, balance, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?)').run(accountId, delta, balance, reason, ref, this.now());
+  async _ledger(accountId, delta, balance, reason, ref = null) {
+    await this.db.run('INSERT INTO ledger (account_id, delta, balance, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?)', [accountId, delta, balance, reason, ref, this.now()]);
   }
 
   /** Make an item and register it: held by an account, or lying on a run's floor. */
-  _create(item, { owner = null, run = null, source }) {
+  async _create(item, { owner = null, run = null, source }) {
     item.uid = newId('i');
     item.srv = 1;
     const now = this.now();
-    this.db.q('INSERT INTO items (uid, owner, state, run, source, data, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(item.uid, owner, owner ? 'held' : 'floor', run, source, JSON.stringify(item), now, now);
+    await this.db.run('INSERT INTO items (uid, owner, state, run, source, data, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [item.uid, owner, owner ? 'held' : 'floor', run, source, item, now, now]);
     return item;
   }
 
@@ -184,8 +191,8 @@ export class GameAuthority {
   /* ------------------------------------------------------------------ */
 
   /** Throw if the account may not play right now. */
-  assertActive(accountId) {
-    const row = this.db.q('SELECT blocked_until, block_reason FROM accounts WHERE id = ?').get(accountId);
+  async assertActive(accountId) {
+    const row = await this.db.one('SELECT blocked_until, block_reason FROM accounts WHERE id = ?', [accountId]);
     if (!row) throw new Refusal('No such account', 401);
     if (row.blocked_until > this.now()) {
       const error = new Refusal(`This account is blocked until ${new Date(row.blocked_until).toISOString().slice(0, 16).replace('T', ' ')} UTC: ${row.block_reason ?? 'rule breaks'}`, 403);
@@ -198,23 +205,23 @@ export class GameAuthority {
    * Record a rule break; enough of them in a day block the account, each
    * block longer than the last. Returns the block, if one started.
    */
-  strike(accountId, rule, detail = '') {
+  async strike(accountId, rule, detail = '') {
     const weight = RULES[rule]?.weight ?? 1;
     const now = this.now();
     let blocked = null;
-    this.db.tx(() => {
-      this.db.q('INSERT INTO strikes (account_id, rule, weight, detail, at) VALUES (?, ?, ?, ?, ?)').run(accountId, rule, weight, String(detail).slice(0, 300), now);
-      this.history.add(accountId, 'strike', { rule, detail: String(detail).slice(0, 200) }, now);
-      const total = this.db.q('SELECT COALESCE(SUM(weight), 0) AS w FROM strikes WHERE account_id = ? AND at > ?').get(accountId, now - 864e5).w;
+    await this.db.tx(async () => {
+      await this.db.run('INSERT INTO strikes (account_id, rule, weight, detail, at) VALUES (?, ?, ?, ?, ?)', [accountId, rule, weight, String(detail).slice(0, 300), now]);
+      await this.history.add(accountId, 'strike', { rule, detail: String(detail).slice(0, 200) }, now);
+      const total = (await this.db.one('SELECT COALESCE(SUM(weight), 0) AS w FROM strikes WHERE account_id = ? AND at > ?', [accountId, now - 864e5])).w;
       if (total >= STRIKES_TO_BLOCK) {
-        const account = this.db.q('SELECT blocks, blocked_until FROM accounts WHERE id = ?').get(accountId);
+        const account = await this.db.one('SELECT blocks, blocked_until FROM accounts WHERE id = ?', [accountId]);
         if (account.blocked_until <= now) {
           const hours = BLOCK_HOURS[Math.min(account.blocks, BLOCK_HOURS.length - 1)];
           const until = now + hours * 36e5;
           const reason = `repeated rule breaks (last: ${RULES[rule]?.text ?? rule})`;
-          this.db.q('UPDATE accounts SET blocked_until = ?, block_reason = ?, blocks = blocks + 1 WHERE id = ?').run(until, reason, accountId);
-          this.db.q('DELETE FROM sessions WHERE account_id = ?').run(accountId);
-          this.history.add(accountId, 'blocked', { until, reason, hours }, now);
+          await this.db.run('UPDATE accounts SET blocked_until = ?, block_reason = ?, blocks = blocks + 1 WHERE id = ?', [until, reason, accountId]);
+          await this.db.run('DELETE FROM sessions WHERE account_id = ?', [accountId]);
+          await this.history.add(accountId, 'blocked', { until, reason, hours }, now);
           blocked = { until, reason };
         }
       }
@@ -238,11 +245,11 @@ export class GameAuthority {
 
   /** Start a run: the host (or a solo player) is fighting in `levelId` (null: free play). */
   async startRun(accountId, { level: levelId = null, classId = 'caster' } = {}) {
-    this.assertActive(accountId);
+    await this.assertActive(accountId);
     const level = levelId ? await this.loadLevel(String(levelId)) : null;
     if (levelId && !level) throw new Refusal('No such level', 404);
-    this._sweep();
-    for (const run of this.runs.values()) if (run.owner === accountId && !run.ended) this._endRun(run);
+    await this._sweep();
+    for (const run of this.runs.values()) if (run.owner === accountId && !run.ended) await this._endRun(run);
     const run = {
       id: newId('r'),
       owner: accountId,
@@ -266,8 +273,8 @@ export class GameAuthority {
   }
 
   /** A party member joins the host's run. They must be in the host's party. */
-  joinRun(accountId, { runId, classId = 'caster' } = {}) {
-    this.assertActive(accountId);
+  async joinRun(accountId, { runId, classId = 'caster' } = {}) {
+    await this.assertActive(accountId);
     const run = this.runs.get(String(runId ?? ''));
     if (!run || run.ended) throw new Refusal('That game is over', 410);
     if (run.owner !== accountId && !this.sameParty(accountId, run.owner)) throw new Violation('not-in-party', `run ${run.id}`);
@@ -276,36 +283,36 @@ export class GameAuthority {
     return { runId: run.id };
   }
 
-  endRun(accountId, { runId } = {}) {
+  async endRun(accountId, { runId } = {}) {
     const run = this.runs.get(String(runId ?? ''));
     if (!run) return { ok: true };
-    if (run.owner === accountId) this._endRun(run);
+    if (run.owner === accountId) await this._endRun(run);
     else run.members.delete(accountId);
     return { ok: true };
   }
 
-  _endRun(run) {
+  async _endRun(run) {
     run.ended = true;
     const kills = run.kills.size;
     try {
-      this.db.tx(() => this.history.add(run.owner, 'run', { level: run.level?.id ?? null, kills, minutes: Math.round((this.now() - run.started) / 6e4), party: run.members.size }, this.now()));
+      await this.history.add(run.owner, 'run', { level: run.level?.id ?? null, kills, minutes: Math.round((this.now() - run.started) / 6e4), party: run.members.size }, this.now());
     } catch {
       /* best effort */
     }
   }
 
   /** Forget idle runs, and clear floors nobody will come back to. */
-  _sweep() {
+  async _sweep() {
     const now = this.now();
     if (now - this._sweepAt < 60_000) return;
     this._sweepAt = now;
     for (const [id, run] of this.runs) {
-      if (!run.ended && now - run.seen > LIMITS.runIdleMinutes * 6e4) this._endRun(run);
+      if (!run.ended && now - run.seen > LIMITS.runIdleMinutes * 6e4) await this._endRun(run);
       if (run.ended && now - run.seen > LIMITS.floorMinutes * 6e4) this.runs.delete(id);
     }
     const live = [...this.runs.values()].filter((r) => !r.ended).map((r) => r.id);
     const stale = now - LIMITS.floorMinutes * 6e4;
-    this.db.q(`UPDATE items SET state = 'destroyed', updated = ? WHERE state = 'floor' AND updated < ? ${live.length ? `AND run NOT IN (${live.map(() => '?').join(',')})` : ''}`).run(now, stale, ...live);
+    await this.db.run(`UPDATE items SET state = 'destroyed', updated = ? WHERE state = 'floor' AND updated < ? AND run NOT IN (SELECT jsonb_array_elements_text(?::jsonb))`, [now, stale, JSON.stringify(live)]);
   }
 
   /** The skill books a run drops: from every member's skill tree. */
@@ -324,14 +331,14 @@ export class GameAuthority {
    * have produced, then the loot is rolled here, put on the run's floor, and
    * the host earns the experience.
    */
-  kill(accountId, { runId, monster, kind, wave } = {}) {
-    this.assertActive(accountId);
+  async kill(accountId, { runId, monster, kind, wave } = {}) {
+    await this.assertActive(accountId);
     const run = this._run(runId, accountId, { owner: true });
     monster = String(monster ?? '');
     wave = Math.floor(Number(wave) || 1);
     if (!monster || monster.length > 40 || !settings.monsters.kinds[kind] || wave < 1 || wave > 999) throw new Violation('bad-request', 'malformed kill');
     const previous = run.kills.get(monster);
-    if (previous) return { duplicate: true, drops: [], xp: 0, ...this.view(accountId) };
+    if (previous) return { duplicate: true, drops: [], xp: 0, ...(await this.view(accountId)) };
 
     const now = this.now();
     const seconds = (now - run.started) / 1000;
@@ -347,11 +354,11 @@ export class GameAuthority {
     const record = { kind, wave, at: now, claimed: new Set([accountId]) };
     run.kills.set(monster, record);
 
-    const profile = this.character(accountId);
+    const profile = await this.character(accountId);
     const xp = Math.round((XP_FOR[kind] ?? 6) * (1 + (wave - 1) * 0.05));
     const items = rollLoot(kind, { wave, goldFind: profile.stats.gold, bookPool: this._bookPool(run) });
-    const { digest, version } = this._mutate(accountId, { xp: true, reason: 'kill' }, (p) => {
-      for (const item of items) this._create(item, { run: run.id, source: `kill:${kind}` });
+    const { digest, version } = await this._mutate(accountId, { xp: true, reason: 'kill' }, async (p) => {
+      for (const item of items) await this._create(item, { run: run.id, source: `kill:${kind}` });
       p.addXp(xp);
     });
     // Party members whose claim arrived before this report get their share now.
@@ -362,7 +369,7 @@ export class GameAuthority {
         if (!run.members.has(member) || record.claimed.has(member)) continue;
         record.claimed.add(member);
         try {
-          this._grantPartyXp(member, record);
+          await this._grantPartyXp(member, record);
         } catch (error) {
           this.log(`[game] could not pay an early claim: ${error.message}`);
         }
@@ -371,9 +378,9 @@ export class GameAuthority {
     return { drops: items, xp, digest, version };
   }
 
-  _grantPartyXp(accountId, kill) {
+  async _grantPartyXp(accountId, kill) {
     const xp = Math.round((XP_FOR[kill.kind] ?? 6) * (1 + (kill.wave - 1) * 0.05));
-    return { xp, ...this._mutate(accountId, { xp: true, reason: 'party-kill' }, (p) => p.addXp(xp)) };
+    return { xp, ...(await this._mutate(accountId, { xp: true, reason: 'party-kill' }, (p) => p.addXp(xp))) };
   }
 
   /**
@@ -382,8 +389,8 @@ export class GameAuthority {
    * claim can arrive first: it is held (no strike) and paid when the host's
    * report comes, or forgotten after the window if it never does.
    */
-  partyKill(accountId, { runId, monster } = {}) {
-    this.assertActive(accountId);
+  async partyKill(accountId, { runId, monster } = {}) {
+    await this.assertActive(accountId);
     const run = this._run(runId, accountId);
     monster = String(monster ?? '');
     if (!monster || monster.length > 40) throw new Violation('bad-request', 'malformed party kill');
@@ -398,9 +405,9 @@ export class GameAuthority {
       return { pending: true, xp: 0 };
     }
     if (now - kill.at > LIMITS.partyKillWindow * 1000) throw new Violation('unknown-kill', `${monster.slice(0, 40)}, too late`);
-    if (kill.claimed.has(accountId)) return { duplicate: true, xp: 0, ...this.view(accountId) };
+    if (kill.claimed.has(accountId)) return { duplicate: true, xp: 0, ...(await this.view(accountId)) };
     kill.claimed.add(accountId);
-    const { xp, digest, version } = this._grantPartyXp(accountId, kill);
+    const { xp, digest, version } = await this._grantPartyXp(accountId, kill);
     return { xp, digest, version };
   }
 
@@ -409,16 +416,16 @@ export class GameAuthority {
    * players reaching for the same item at once — on one server or many —
    * cannot both succeed.
    */
-  take(accountId, { runId, uid } = {}) {
-    this.assertActive(accountId);
+  async take(accountId, { runId, uid } = {}) {
+    await this.assertActive(accountId);
     const run = this._run(runId, accountId);
     uid = String(uid ?? '');
-    const row = this.db.q('SELECT owner, state, run, data FROM items WHERE uid = ?').get(uid);
+    const row = await this.db.one('SELECT owner, state, run, data FROM items WHERE uid = ?', [uid]);
     if (!row) throw new Violation('bad-request', `no item ${uid.slice(0, 30)}`);
     if (row.state === 'floor' && row.run !== run.id) throw new Violation('foreign-take', `item from run ${row.run}`);
     if (row.state !== 'floor') throw new Refusal('Someone else got there first');
-    const item = JSON.parse(row.data);
-    const profile = this.character(accountId);
+    const item = row.data;
+    const profile = await this.character(accountId);
     const can = profile.canPickUp(item);
     if (!can.ok) throw new Refusal(can.message);
     const consumed = item.type === 'gold' || item.type === 'potion';
@@ -429,29 +436,29 @@ export class GameAuthority {
       reason: 'loot',
       ref: uid
     };
-    const out = this._mutate(accountId, allow, (p) => {
-      const changed = this.db
-        .q(`UPDATE items SET owner = ?, state = ?, run = NULL, updated = ? WHERE uid = ? AND state = 'floor' AND run = ?`)
-        .run(accountId, consumed ? 'used' : 'held', this.now(), uid, run.id).changes;
+    const out = await this._mutate(accountId, allow, async (p) => {
+      const changed = (
+        await this.db.run(`UPDATE items SET owner = ?, state = ?, run = NULL, updated = ? WHERE uid = ? AND state = 'floor' AND run = ?`, [accountId, consumed ? 'used' : 'held', this.now(), uid, run.id])
+      ).rowCount;
       if (!changed) throw new Refusal('Someone else got there first');
       const r = p.pickUp(item);
       if (!r.ok) throw new Refusal(r.message);
-      if (item.type !== 'gold' && item.type !== 'potion') this.history.add(accountId, 'take', { uid, name: item.name, rarity: item.rarity }, this.now());
+      if (item.type !== 'gold' && item.type !== 'potion') await this.history.add(accountId, 'take', { uid, name: item.name, rarity: item.rarity }, this.now());
       return r;
     });
     return { ok: true, message: out.result.message, digest: out.digest, version: out.version };
   }
 
   /** Put an item down: on the floor of the run, or gone (from the menu). */
-  drop(accountId, { runId = null, uid } = {}) {
-    this.assertActive(accountId);
+  async drop(accountId, { runId = null, uid } = {}) {
+    await this.assertActive(accountId);
     const run = runId ? this._run(runId, accountId) : null;
     uid = String(uid ?? '');
     const to = run ? 'floor' : 'destroyed';
-    const out = this._mutate(accountId, { removed: { [uid]: to }, run: run?.id, reason: 'drop' }, (p) => {
+    const out = await this._mutate(accountId, { removed: { [uid]: to }, run: run?.id, reason: 'drop' }, async (p) => {
       const item = p.remove(uid, { worn: true });
       if (!item) throw new Refusal('You do not have that item');
-      this.history.add(accountId, 'drop', { uid, name: item.name, to }, this.now());
+      await this.history.add(accountId, 'drop', { uid, name: item.name, to }, this.now());
       return item;
     });
     return { ok: true, digest: out.digest, version: out.version };
@@ -467,26 +474,27 @@ export class GameAuthority {
    * nothing but places; reading uses up exactly the book read; selling
    * removes exactly the item sold and pays exactly its value.
    */
-  ops(accountId, { ops } = {}) {
-    this.assertActive(accountId);
+  async ops(accountId, { ops } = {}) {
+    await this.assertActive(accountId);
     if (!Array.isArray(ops) || ops.length > 50) throw new Violation('bad-request', 'ops must be a list of at most 50');
     const results = [];
     let last = null;
     for (const { op, args = [] } of ops) {
       if (!Array.isArray(args) || args.length > 4) throw new Violation('bad-request', `bad args for ${op}`);
-      last = this._op(accountId, String(op), args);
+      last = await this._op(accountId, String(op), args);
       results.push(last.result);
     }
-    const view = last ?? { digest: this.character(accountId).digest(), version: this.character(accountId).version };
+    const character = await this.character(accountId);
+    const view = last ?? { digest: character.digest(), version: character.version };
     return { results, digest: view.digest, version: view.version };
   }
 
-  _op(accountId, op, args) {
+  async _op(accountId, op, args) {
     const str = (v) => (typeof v === 'string' && v.length <= 80 ? v : null);
     const int = (v) => (Number.isInteger(v) && v >= 0 && v < 64 ? v : null);
     const cell = (v) => v == null || int(v) != null;
     const classOf = (v) => (str(v) && platform.characters.get(v) ? v : 'caster');
-    const p = this.character(accountId);
+    const p = await this.character(accountId);
     const find = (uid) => [...p.bag, ...p.stash].find((it) => it.uid === uid);
     switch (op) {
       case 'move': {
@@ -535,9 +543,9 @@ export class GameAuthority {
         const item = str(args[0]) && find(args[0]);
         if (!item) throw new Refusal('Not in your bag or stash');
         const price = itemValue(item);
-        return this._mutate(accountId, { removed: { [item.uid]: 'sold' }, gold: price, reason: 'sell', ref: item.uid }, (q) => {
+        return this._mutate(accountId, { removed: { [item.uid]: 'sold' }, gold: price, reason: 'sell', ref: item.uid }, async (q) => {
           const got = q.sell(item.uid);
-          this.history.add(accountId, 'sell', { uid: item.uid, name: item.name, gold: got }, this.now());
+          await this.history.add(accountId, 'sell', { uid: item.uid, name: item.name, gold: got }, this.now());
           return got;
         });
       }
@@ -557,17 +565,17 @@ export class GameAuthority {
   }
 
   /** Give a made item to a character, or onto the floor when the bag is full. */
-  _give(accountId, run, item, source) {
-    const p = this.character(accountId);
+  async _give(accountId, run, item, source) {
+    const p = await this.character(accountId);
     if (item.type === 'gold' || item.type === 'potion' || p.hasRoomFor(item)) {
       const owned = item.type !== 'gold' && item.type !== 'potion';
-      if (owned) this._create(item, { owner: accountId, source });
+      if (owned) await this._create(item, { owner: accountId, source });
       else item.uid = newId('i');
       const r = p.pickUp(item);
       if (!r.ok) throw new Refusal(r.message);
       return { item, dropped: false };
     }
-    this._create(item, { run: run.id, source });
+    await this._create(item, { run: run.id, source });
     return { item, dropped: true };
   }
 
@@ -580,16 +588,16 @@ export class GameAuthority {
   }
 
   /** Talk to an NPC: `gift` (first meeting), `quest` (turn in), `study` (a right answer). */
-  npc(accountId, { runId, npc: npcId, action, classId = 'caster' } = {}) {
-    this.assertActive(accountId);
+  async npc(accountId, { runId, npc: npcId, action, classId = 'caster' } = {}) {
+    await this.assertActive(accountId);
     const run = this._run(runId, accountId);
     const npc = this._npc(run, npcId);
     const key = `${accountId}:${npc.id}:${action}`;
-    const p = this.character(accountId);
+    const p = await this.character(accountId);
 
     if (action === 'gift') {
       const g = npc.gift;
-      if (!g || g.type === 'none' || run.claims.has(key)) return { given: null, ...this.view(accountId) };
+      if (!g || g.type === 'none' || run.claims.has(key)) return { given: null, ...(await this.view(accountId)) };
       run.claims.add(key);
       const item =
         g.type === 'gold' ? makeGold(g.amount)
@@ -598,9 +606,9 @@ export class GameAuthority {
         : g.type === 'gear' ? makeGear(g.rarity === 'none' ? 'magic' : g.rarity)
         : makeWeapon(g.rarity === 'none' ? 'magic' : g.rarity);
       let given;
-      const out = this._mutate(accountId, { ...this._expect(item), added: [], reason: 'gift', ref: npc.id, anyAdded: true }, () => {
-        given = this._give(accountId, run, item, `gift:${npc.id}`);
-        this.history.add(accountId, 'gift', { npc: npc.name, item: item.name, dropped: given.dropped }, this.now());
+      const out = await this._mutate(accountId, { ...this._expect(item), added: [], reason: 'gift', ref: npc.id, anyAdded: true }, async () => {
+        given = await this._give(accountId, run, item, `gift:${npc.id}`);
+        await this.history.add(accountId, 'gift', { npc: npc.name, item: item.name, dropped: given.dropped }, this.now());
       });
       return { given, digest: out.digest, version: out.version, state: p.serialize() };
     }
@@ -615,11 +623,11 @@ export class GameAuthority {
       run.claims.add(key);
       const reward = q.rarity === 'none' ? null : Math.random() < 0.5 ? makeWeapon(q.rarity) : makeGear(q.rarity);
       let given = null;
-      const out = this._mutate(accountId, { gold: q.gold, xp: true, anyAdded: true, reason: 'quest', ref: npc.id }, (pp) => {
+      const out = await this._mutate(accountId, { gold: q.gold, xp: true, anyAdded: true, reason: 'quest', ref: npc.id }, async (pp) => {
         pp.gold += q.gold;
         pp.addXp(40 + q.count * 6);
-        if (reward) given = this._give(accountId, run, reward, `quest:${npc.id}`);
-        this.history.add(accountId, 'quest', { npc: npc.name, title: q.title, gold: q.gold, item: reward?.name ?? null }, this.now());
+        if (reward) given = await this._give(accountId, run, reward, `quest:${npc.id}`);
+        await this.history.add(accountId, 'quest', { npc: npc.name, title: q.title, gold: q.gold, item: reward?.name ?? null }, this.now());
       });
       return { gold: q.gold, given, digest: out.digest, version: out.version, state: p.serialize() };
     }
@@ -637,10 +645,10 @@ export class GameAuthority {
       const bonus = st.bonusEvery > 0 && s.count % st.bonusEvery === 0 ? (st.bonus === 'book' ? makeBook(null, Math.random, treeSpells(classId)) : makePotion(st.bonus)) : null;
       let given = null;
       const expect = bonus ? this._expect(bonus) : { gold: 0, potions: {} };
-      const out = this._mutate(accountId, { gold: st.gold + expect.gold, potions: expect.potions, anyAdded: true, reason: 'study', ref: npc.id }, (pp) => {
+      const out = await this._mutate(accountId, { gold: st.gold + expect.gold, potions: expect.potions, anyAdded: true, reason: 'study', ref: npc.id }, async (pp) => {
         pp.gold += st.gold;
-        if (bonus) given = this._give(accountId, run, bonus, `study:${npc.id}`);
-        this.history.add(accountId, 'study', { npc: npc.name, gold: st.gold, bonus: bonus?.name ?? null }, this.now());
+        if (bonus) given = await this._give(accountId, run, bonus, `study:${npc.id}`);
+        await this.history.add(accountId, 'study', { npc: npc.name, gold: st.gold, bonus: bonus?.name ?? null }, this.now());
       });
       return { gold: st.gold, given, count: s.count, digest: out.digest, version: out.version, state: p.serialize() };
     }
@@ -649,8 +657,8 @@ export class GameAuthority {
   }
 
   /** A merchant's or healer's goods: made here once per run, the prices are the server's. */
-  shop(accountId, { runId, npc: npcId, classId = 'caster', wave = 1 } = {}) {
-    this.assertActive(accountId);
+  async shop(accountId, { runId, npc: npcId, classId = 'caster', wave = 1 } = {}) {
+    await this.assertActive(accountId);
     const run = this._run(runId, accountId);
     const npc = this._npc(run, npcId);
     if (npc.role !== 'merchant' && npc.role !== 'healer') throw new Refusal('Not a shop', 404);
@@ -664,16 +672,16 @@ export class GameAuthority {
       }
       run.shops.set(key, stock);
     }
-    const p = this.character(accountId);
+    const p = await this.character(accountId);
     const stock = run.shops.get(key);
     return { stock: npc.role === 'merchant' ? [...stock, makeBagRowOffer(p.rowsBought)] : stock };
   }
 
-  buy(accountId, { runId, npc: npcId, offer } = {}) {
-    this.assertActive(accountId);
+  async buy(accountId, { runId, npc: npcId, offer } = {}) {
+    await this.assertActive(accountId);
     const run = this._run(runId, accountId);
     const npc = this._npc(run, npcId);
-    const p = this.character(accountId);
+    const p = await this.character(accountId);
     const stock = run.shops.get(`${accountId}:${npc.id}`) ?? [];
     let item = stock.find((it) => it.uid === offer);
     if (!item && npc.role === 'merchant' && String(offer ?? '').startsWith('bag-row-')) item = makeBagRowOffer(p.rowsBought);
@@ -682,15 +690,15 @@ export class GameAuthority {
     if (p.gold < price) throw new Refusal(`Not enough gold (${price} needed)`);
     const service = item.type === 'service';
     const potion = item.type === 'potion';
-    const out = this._mutate(accountId, { gold: -price, potions: potion ? { [item.potion]: 1 } : {}, anyAdded: !service && !potion, reason: 'buy', ref: item.uid }, (pp) => {
+    const out = await this._mutate(accountId, { gold: -price, potions: potion ? { [item.potion]: 1 } : {}, anyAdded: !service && !potion, reason: 'buy', ref: item.uid }, async (pp) => {
       let uid;
       if (!service && !potion) {
-        const copy = this._create({ ...item }, { owner: accountId, source: `shop:${npc.id}` });
+        const copy = await this._create({ ...item }, { owner: accountId, source: `shop:${npc.id}` });
         uid = copy.uid;
       }
       const r = pp.buy(item, { uid });
       if (!r.ok) throw new Refusal(r.message);
-      this.history.add(accountId, 'buy', { npc: npc.name, item: item.name, gold: price }, this.now());
+      await this.history.add(accountId, 'buy', { npc: npc.name, item: item.name, gold: price }, this.now());
       return r;
     });
     return { ok: true, message: out.result.message, digest: out.digest, version: out.version, state: p.serialize() };
