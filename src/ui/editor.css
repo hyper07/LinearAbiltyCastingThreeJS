@@ -3062,3 +3062,89 @@ body.is-scoped .hud__stats {
   max-height: none;
   line-height: normal;
 }
+
+/* ---- Game builder (ui/GameBuilderPanel.js): the forge's window, a form of menus ---- */
+.builder__plan {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ui-accent);
+  white-space: nowrap;
+}
+.builder__custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.builder__custom small {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 209, 102, 0.16);
+  color: #ffd166;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.builder__custom.is-locked {
+  opacity: 0.55;
+}
+.builder .forge__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.builder__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.builder__grid .forge__field,
+.builder__wide {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.builder__grid select,
+.builder__grid input,
+.builder__wide input,
+.builder__wide textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.builder__heading {
+  margin: 8px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+}
+.builder__chapters {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.builder__chapters span,
+.builder__chapters small {
+  color: var(--ui-text-dim);
+}
+.builder__chapters small {
+  display: block;
+  font-size: 11px;
+}
+.builder__custom-note {
+  margin: 0;
+  font-size: 12px;
+  color: #ffd166;
+}
+@media (max-width: 760px) {
+  .builder .forge__card {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+    overflow: auto;
+  }
+  .builder .forge__head {
+    flex-wrap: wrap;
+  }
+}

@@ -101,6 +101,7 @@ npm run admin -- history <name>                 # one account's history
 npm run admin -- block <name> <hours> <reason>  # and sign them out
 npm run admin -- unblock <name> <note>          # lift a block, clear the strikes
 npm run admin -- block-address <ip> <hours> <reason>
+npm run admin -- plan <name> <free|plus>         # what the account gets from the AI (src/platform/plans.js)
 ```
 
 In Docker: `docker compose exec game node scripts/admin.mjs audit`.

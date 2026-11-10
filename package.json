@@ -17,7 +17,8 @@
     "fetch-characters": "node scripts/fetch-character-models.mjs",
     "library:fetch": "node scripts/library/fetch.mjs",
     "library:index": "node scripts/library/index.mjs",
-    "admin": "node --disable-warning=ExperimentalWarning scripts/admin.mjs"
+    "admin": "node --disable-warning=ExperimentalWarning scripts/admin.mjs",
+    "game:new": "node --disable-warning=ExperimentalWarning scripts/new-game.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",

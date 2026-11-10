@@ -1520,6 +1520,35 @@ body.is-menu #viewport {
   display: none;
 }
 
+/* A team buff on you (Battle Roar from you or a teammate): what it gives and the seconds left. */
+.vitals__buff[hidden] {
+  display: none;
+}
+.vitals__buff {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px auto 0;
+  width: max-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 90, 60, 0.6);
+  background: rgba(60, 10, 6, 0.7);
+  box-shadow: 0 0 14px rgba(255, 77, 61, 0.45);
+  font-size: 11px;
+  color: #ffe2d6;
+}
+.vitals__buff b {
+  color: #ff8a6a;
+  letter-spacing: 0.04em;
+}
+.vitals__buff i {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: #ffd0a0;
+}
+
 .vitals__rage {
   height: 10px;
   margin-top: 4px;

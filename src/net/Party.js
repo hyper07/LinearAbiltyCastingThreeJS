@@ -5,7 +5,7 @@ import { RemotePlayer } from './RemotePlayer.js';
 import { platform } from '../platform/index.js';
 import { fireProfileOf } from '../platform/weapon/fire.js';
 import { treeSpells } from '../platform/skill/tree.js';
-import { settings } from '../config/settings.js';
+import { settings, ELEMENT_META } from '../config/settings.js';
 
 const SEND_HZ = 15;
 const SNAPSHOT_HZ = 12;
@@ -445,6 +445,8 @@ export class Party extends EventEmitter {
         _origin.set(msg.ox, 0, msg.oz);
         _direction.set(msg.dx, 0, msg.dz).normalize();
         if (app.phase === 'playing') app.abilities.cast(_origin, _direction, msg.d, msg.e);
+        // A teammate's roar: the buff and the aura for whoever it reached (this player too).
+        if (app.phase === 'playing' && remote && (ELEMENT_META[msg.e]?.base ?? msg.e) === 'roar') app._teamRoar(msg.e, _origin, { caster: remote });
         remote?.playCast(msg.an ?? platform.getCastAnim(msg.e), { lunge: true, facing: msg.f });
         return;
       }

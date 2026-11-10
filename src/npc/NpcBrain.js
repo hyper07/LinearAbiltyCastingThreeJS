@@ -134,7 +134,7 @@ export class NpcBrain {
     const response = await fetch(`${ENDPOINT}/command`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, temperature: 0.75, maxTokens, timeoutMs: 90_000 })
+      body: JSON.stringify({ task: 'npc', messages, temperature: 0.75, maxTokens, timeoutMs: 90_000 })
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body?.error ?? `HTTP ${response.status}`);

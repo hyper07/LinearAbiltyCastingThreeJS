@@ -51,6 +51,7 @@ export class GameHUD {
           <i data-rage></i>
           <span data-rage-text>RAGE 0</span>
         </div>
+        <div class="vitals__buff" data-buff hidden><b>Battle Roar</b> <span data-buff-text></span> <i data-buff-left></i></div>
       </div>
 
       <div class="banner" data-banner>
@@ -87,6 +88,9 @@ export class GameHUD {
       comboCount: q('[data-combo-count]'),
       health: q('[data-health]'),
       rageBar: q('[data-rage-bar]'),
+      buff: q('[data-buff]'),
+      buffText: q('[data-buff-text]'),
+      buffLeft: q('[data-buff-left]'),
       ammo: q('[data-ammo]'),
       rage: q('[data-rage]'),
       rageText: q('[data-rage-text]'),
@@ -267,6 +271,18 @@ export class GameHUD {
       this._shown.roaring = roaring;
       this.el.rageBar.classList.toggle('is-roaring', roaring);
     }
+  }
+
+  /** A team buff on this player (Battle Roar): what it gives and the seconds left; null hides it. */
+  setBuff(buff) {
+    const visible = Boolean(buff);
+    if (this._shown.buffVisible !== visible) {
+      this._shown.buffVisible = visible;
+      this.el.buff.hidden = !visible;
+    }
+    if (!buff) return;
+    this._set(this.el.buffText, 'buffText', buff.text);
+    this._set(this.el.buffLeft, 'buffLeft', `${Math.ceil(buff.seconds)} s`);
   }
 
   /** The gun's magazine, under health; null hides it (a melee weapon). */

@@ -188,6 +188,7 @@ export class AIDirector extends EventEmitter {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        task: 'command',
         messages,
         schema: PLAN_SCHEMA,
         temperature: settings.ai.temperature,

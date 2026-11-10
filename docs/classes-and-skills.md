@@ -119,9 +119,19 @@ one.
 | --- | --- | --- |
 | **Might** | **Earthsplitter** — the axe hits the floor and the ground splits along the line (+8 Rage per hit) | **Worldbreaker** — a far cast: the ground at the point cracks open and keeps heaving for a couple of seconds, slowing everything in it (60 Rage) |
 | **Rampage** | **Rampage** — charge down the line; the body really travels and knocks everything in the way aside (+6 per hit) | **Skybreaker Leap** — leap to a point and crash down in a ring of cracks (30 Rage) |
-| **Warlord** | **Battle Roar** — a shout around you: stuns, knocks back, +25% damage for 6 s, +30 Rage | **Iron Tempest** — spin with the axe out for 2.6 s, hitting everything around you as you move (40 Rage) |
+| **Warlord** | **Battle Roar** — a shout around you: stuns, knocks back, +25% damage for 6 s for you and every teammate in the circle, +30 Rage | **Iron Tempest** — spin with the axe out for 2.6 s, hitting everything around you as you move (40 Rage) |
 
 Battle Roar and Iron Tempest are **self casts**: press the key and they go off around you — no aiming.
+
+**Battle Roar lifts the team.** Playing together, every teammate within its circle (6.5 m) gets the
++25% damage too. Everyone it reached glows with a red aura (a ring on the ground and a column of
+light) that every player in the party can see, and the ring drains as the 6 seconds run out. Each
+buffed player also sees a **Battle Roar +25% damage · 5 s** countdown under their health, and a
+note saying who roared. Any skill forged on Battle Roar does the same, in its own colour.
+
+<p>
+  <img src="screenshots/team-roar.jpg" width="100%" alt="Playing together: the Barbarian Ada roars and both players glow with a red aura ring and column; the teammate's screen says Ada roared, +25% damage for 6 s, with a countdown under their health" />
+</p>
 Physical skills come in **skill manuals** instead of tomes; only the Barbarian can read them.
 
 The skill types follow the structure classic action-RPG warriors use — builders and spenders, a

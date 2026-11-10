@@ -230,7 +230,7 @@ export default defineConfig(({ mode }) => {
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
     plugins: [
       // The AI bridge: the same handler the production server runs, with the key from .env.
-      mount('llm-bridge', aiBridge({ ...process.env, ...env })),
+      mount('llm-bridge', aiBridge({ ...process.env, ...env }, { identify: async (req) => (await getGame()).authenticate(req) })),
       assetLibrary(),
       fileStores(),
       modelStudio(env),

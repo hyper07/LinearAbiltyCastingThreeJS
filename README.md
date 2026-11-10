@@ -170,7 +170,8 @@ rotation, and the database is SQLite on one machine
 Every spell has a clip and a full description in **[Spells](docs/spells.md)**.
 
 **The Barbarian fights differently:** no spells, but six physical skills — split the ground, charge,
-leap, roar, spin, quake — and a **Rage** bar that melee hits build and big skills spend.
+leap, roar, spin, quake — and a **Rage** bar that melee hits build and big skills spend. Playing
+together, Battle Roar buffs every teammate in its circle, with a red aura everyone can see.
 [More →](docs/classes-and-skills.md#the-barbarian-physical-skills-and-rage)
 
 <p>
@@ -313,6 +314,21 @@ when the AI is not running. See **[Class forge](docs/class-forge.md)**.
   <img src="docs/screenshots/class-forge-cast-2.jpg" width="49%" alt="An AI-designed moon priestess casting a violet ring of ice blades" />
 </p>
 
+## Game builder: whole games from a sentence
+
+Type an idea — *"a times-tables adventure for my 8 year old in an enchanted forest"* — and get a
+whole game: a genre (wave survival, boss hunt, monster hunt, story quest, dungeon crawl, study
+adventure, calm learning), a world (12, from a storybook village to a sci-fi outpost), a map layout,
+a hero, monsters, helpers, a story, and chapters that end in a boss. **Quick build** reads your words
+with no AI at all. **Build with AI** has the AI pick from the menus in about 120 output tokens, and
+**Plus** accounts get a premium model that also writes its own map, stories, lines and questions.
+Change any choice, then play at once or save it to the campaign. See **[Game builder](docs/game-builder.md)**
+and how the platform grows to many genres in **[Platform architecture](docs/platform-architecture.md)**.
+
+<p>
+  <img src="docs/screenshots/game-builder.jpg" width="100%" alt="The Game builder: an idea, Quick build and Build with AI, and the menus for genre, world, layout, hero, monsters, chapters and a parent's study rewards" />
+</p>
+
 ## The shared library
 
 Every class, skill, piece of gear, weapon and level, both the game's own (**Official**) and what
@@ -378,6 +394,8 @@ flowchart LR
 | [Third-party services](docs/third-party.md) | What is free, what is paid, and options for 3D models, animation, AI and effects |
 | [Weapons](docs/weapons.md) | All 108 weapons, how each kind fights, ammo and reloading, adding a weapon |
 | [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
+| [Game builder](docs/game-builder.md) | Whole games from a sentence or a few picks: genres, worlds, layouts, casts; the spec, tokens, Free and Plus, the command line |
+| [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
 | [The shared library](docs/library.md) | Official, shared and draft content; reuse and similar-asset suggestions; the API and database |
 | [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |

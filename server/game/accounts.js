@@ -1,5 +1,6 @@
 import { DUMMY_PASSWORD_HASH, hashPassword, newToken, tokenHash, verifyPassword } from './keys.js';
 import { Refusal } from './rules.js';
+import { PLAN_IDS } from '../../src/platform/plans.js';
 
 const NAME = /^[\p{L}\p{N}][\p{L}\p{N} _.-]{1,18}[\p{L}\p{N}]$/u;
 const SESSION_DAYS = 30;
@@ -106,9 +107,9 @@ export class Accounts {
   /** The account a session token belongs to, or null. */
   fromToken(token) {
     if (!token || token.length > 100) return null;
-    const row = this.db.q('SELECT a.id, a.name, a.blocked_until, a.block_reason, s.expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ?').get(tokenHash(token));
+    const row = this.db.q('SELECT a.id, a.name, a.plan, a.blocked_until, a.block_reason, s.expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ?').get(tokenHash(token));
     if (!row || row.expires < this.now()) return null;
-    return { id: row.id, name: row.name, blockedUntil: row.blocked_until, blockReason: row.block_reason };
+    return { id: row.id, name: row.name, plan: row.plan, blockedUntil: row.blocked_until, blockReason: row.block_reason };
   }
 
   logout(token) {
@@ -118,9 +119,9 @@ export class Accounts {
   }
 
   public(accountId) {
-    const row = this.db.q('SELECT id, name, created, last_login, blocked_until, block_reason FROM accounts WHERE id = ?').get(accountId);
+    const row = this.db.q('SELECT id, name, plan, created, last_login, blocked_until, block_reason FROM accounts WHERE id = ?').get(accountId);
     if (!row) return null;
-    return { id: row.id, name: row.name, created: row.created, blocked: row.blocked_until > this.now() ? { until: row.blocked_until, reason: row.block_reason } : null };
+    return { id: row.id, name: row.name, plan: row.plan, created: row.created, blocked: row.blocked_until > this.now() ? { until: row.blocked_until, reason: row.block_reason } : null };
   }
 
   /* ---- for the people running the server (scripts/admin.mjs) ---- */
@@ -144,6 +145,15 @@ export class Accounts {
       this.db.q('UPDATE accounts SET blocked_until = 0, block_reason = NULL WHERE id = ?').run(accountId);
       this.db.q('DELETE FROM strikes WHERE account_id = ?').run(accountId);
       this.history.add(accountId, 'unblocked', { note, by: 'admin' }, this.now());
+    });
+  }
+
+  /** Set what an account pays for. The payment itself is not handled here: whatever takes it calls this. */
+  setPlan(accountId, plan) {
+    if (!PLAN_IDS.includes(plan)) throw new Refusal(`Plans are ${PLAN_IDS.join(', ')}`, 400);
+    this.db.tx(() => {
+      this.db.q('UPDATE accounts SET plan = ? WHERE id = ?').run(plan, accountId);
+      this.history.add(accountId, 'plan', { plan, by: 'admin' }, this.now());
     });
   }
 

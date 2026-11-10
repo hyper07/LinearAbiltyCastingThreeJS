@@ -103,6 +103,10 @@ export class GameDB {
         reason TEXT
       );
     `);
+    // Added later: what the account pays for (src/platform/plans.js). Old databases get the column on open.
+    if (!this.db.prepare('PRAGMA table_info(accounts)').all().some((c) => c.name === 'plan')) {
+      this.db.exec("ALTER TABLE accounts ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
+    }
     this._stmts = new Map();
   }
 

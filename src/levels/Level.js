@@ -1,4 +1,4 @@
-import { EDGE_OPTIONS, RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS } from '../world/MapPlan.js';
+import { EDGE_OPTIONS, RELIEF_OPTIONS, SURFACE_OPTIONS, TIME_OPTIONS, normalizePlan } from '../world/MapPlan.js';
 import { DIFFICULTIES, STUDY_BONUSES, SUBJECTS } from '../npc/Study.js';
 
 /**
@@ -11,6 +11,9 @@ import { DIFFICULTIES, STUDY_BONUSES, SUBJECTS } from '../npc/Study.js';
  *   character: null | characterId,        // null = the player's own pick
  *   world: { ground, relief, edge, timeOfDay, fog, seed, terrain: { sculpt?, paint? } },
  *   objects: [{ model, category, x, z, yOffset, yaw, scale }],
+ *   plan:    null | MapPlan                // objects still to scatter: with no objects, the game
+ *                                          // builds them from this plan and world.seed on load
+ *   blueprint: null | { genre, world, layout, foes, chapter, of }  // made by the game builder
  *   spawns:  [{ x, z, kinds: [], from: 1, to: 0 }], // where waves walk in from (empty = all around);
  *            // kinds: which monsters use it ([] = any), from/to: the waves it is open (to 0 = no end)
  *   monsters: [{ kind, x, z }],             // already standing there when the level starts
@@ -134,6 +137,8 @@ export function normalizeLevel(raw = {}) {
         yaw: num(o.yaw),
         scale: clamp(o.scale, 0.01, 100, 1)
       })),
+    plan: raw.plan && typeof raw.plan === 'object' ? normalizePlan(raw.plan) : null,
+    blueprint: normalizeBlueprint(raw.blueprint),
     spawns: (Array.isArray(raw.spawns) ? raw.spawns : []).slice(0, 32).map(normalizeSpawn),
     monsters: (Array.isArray(raw.monsters) ? raw.monsters : [])
       .filter((m) => MONSTER_KINDS.includes(m?.kind))
@@ -198,6 +203,13 @@ export function normalizeLevel(raw = {}) {
     },
     story: { intro: scene(story.intro), outro: scene(story.outro) }
   };
+}
+
+/** Where a level came from in the game builder (src/blueprints), or null. */
+function normalizeBlueprint(b) {
+  if (!b || typeof b !== 'object') return null;
+  const id = (v) => String(v ?? '').slice(0, 40);
+  return { genre: id(b.genre), world: id(b.world), layout: id(b.layout), foes: id(b.foes), chapter: clamp(b.chapter, 1, 99, 1), of: clamp(b.of, 1, 99, 1) };
 }
 
 /** A tutor's lesson plan, repaired. */

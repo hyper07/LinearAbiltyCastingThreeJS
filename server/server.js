@@ -93,7 +93,7 @@ const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => cons
 let library = null;
 const api = chain([
   game.handler,
-  aiBridge(process.env),
+  aiBridge(process.env, { identify: (req) => game.authenticate(req) }),
   fileApi(levels, { files: 'levels', ordered: true }),
   fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
   libraryHandler(async () => (library ??= await LibraryStore.open(join(DATA_DIR, 'library.sqlite')))),

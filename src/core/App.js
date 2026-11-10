@@ -29,6 +29,10 @@ import { DialoguePanel } from '../ui/DialoguePanel.js';
 import { InventoryPanel } from '../ui/InventoryPanel.js';
 import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 import { ClassForgePanel } from '../ui/ClassForgePanel.js';
+import { GameBuilderPanel } from '../ui/GameBuilderPanel.js';
+import { GameBuilder } from '../ai/GameBuilder.js';
+import { compileGame } from '../blueprints/index.js';
+import { CLASS_SPECS } from '../platform/character/classes.js';
 import { WeaponFire } from '../game/WeaponFire.js';
 import { fireProfileOf } from '../platform/weapon/fire.js';
 import { designClass, normalizeDesign } from '../ai/ClassDesigner.js';
@@ -72,6 +76,7 @@ import { GameMenuButton } from '../ui/GameMenuButton.js';
 import { Editor } from '../ui/Editor.js';
 
 import { getColor } from '../utils/color.js';
+import { BuffAuras } from '../effects/BuffAuras.js';
 import { DecalType } from '../effects/GroundDecals.js';
 import { settings, ELEMENTS, ELEMENT_META, CastShape, castShapeOf } from '../config/settings.js';
 import { platform, classArmor, classBonuses, LOOKS, treeSpells, treeFor } from '../platform/index.js';
@@ -172,6 +177,8 @@ export class App {
     this.decals = new DecalSystem(this.scene);
     this.fissures = new FissureSystem(this.scene);
     this.bursts = new BurstSystem(this.scene);
+    /** Team buffs (Battle Roar): an aura on everyone it reached, for as long as it lasts. */
+    this.auras = new BuffAuras(this.scene);
     this.shake = new CameraShake(this.rig);
     this.flash = new ScreenFlash();
 
@@ -191,6 +198,8 @@ export class App {
     /* Levels: files in public/levels/, the campaign that plays them, and the
        editor that makes them (created on first use). */
     this.levels = new LevelStore();
+    /** The game builder's unsaved chapters (playDraftGame). */
+    this.drafts = { levels: new Map(), campaign: [] };
     this.levelEditor = null;
     /** The level being played, with its goal progress; null in free play. */
     this.run = null;
@@ -298,7 +307,8 @@ export class App {
         await this.catalog.refresh();
         this._registerMyModels();
       },
-      onOpenForge: () => this.forge.toggle(true)
+      onOpenForge: () => this.forge.toggle(true),
+      onOpenBuilder: () => this.builder.toggle(true)
     });
     /* ---- the Class forge: AI-designed classes, saved in public/classes ---- */
     this.forge = new ClassForgePanel(hudRoot, {
@@ -324,6 +334,28 @@ export class App {
       select: (id) => this.mainMenu.refreshCharacters(id)
     });
     this._forgedReady = this._loadForgedClasses();
+    /* ---- the Game builder: a sentence or a few menu picks → a whole game (src/blueprints) ---- */
+    const gameBuilder = new GameBuilder();
+    const heroes = async () => [...CLASS_SPECS.map((c) => ({ id: c.id, name: c.label })), ...(await listForgedClasses().catch(() => []))];
+    const forgedIds = async () => (await listForgedClasses().catch(() => [])).map((c) => c.id);
+    this.builder = new GameBuilderPanel(hudRoot, {
+      status: () => gameBuilder.status(),
+      quick: (text) => gameBuilder.quick(text),
+      build: async (text, options) => gameBuilder.build(text, { ...options, heroes: await forgedIds() }),
+      heroes,
+      compile: async (spec, seed) => compileGame(spec, { seed, taken: new Set((await this.levels.list()).map((e) => e.id)), heroes: await forgedIds() }),
+      play: (levels) => this.playDraftGame(levels),
+      save: async (levels) => {
+        for (const level of levels) await this.levels.save(level);
+        for (const level of levels) library.publishLevel(level, 'shared');
+      },
+      edit: async (levels) => {
+        this.drafts.levels = new Map(levels.map((level) => [level.id, level]));
+        this.drafts.campaign = levels.map((level) => ({ id: level.id, name: level.name }));
+        this.mainMenu.hide();
+        await this.openEditor({ id: levels[0].id });
+      }
+    });
     this.libraryPanel = new LibraryPanel(hudRoot, {
       selectClass: (id) => this.mainMenu.refreshCharacters(id),
       playLevel: (id) => this.playCampaignLevel(id),
@@ -1113,6 +1145,7 @@ export class App {
     this.inventory.setBeltVisible(true);
     this.rage = 0;
     this._roarUntil = 0;
+    this.auras.clear();
     this._spinUntil = 0;
     this._dashState = null;
 
@@ -1128,7 +1161,8 @@ export class App {
     // Signed in: the server opens this fight so it can check what happens in it.
     // A guest joins the host's instead (the host sends its id).
     if (this.sync.active && !this.party.isGuest) {
-      const level = this.run && !this.run.fromEditor ? this.run.level.id : null;
+      // An unsaved level (a play test, a builder draft) is not on the server: play it on the open rules.
+      const level = this.run && !this.run.fromEditor && !this.run.draft ? this.run.level.id : null;
       this.sync.startRun(level).then((r) => {
         if (r.ok) this.party.setRunId(r.runId);
         else this.hud.showToast(`The server could not open this game: ${r.error}`, 3000);
@@ -1138,6 +1172,7 @@ export class App {
 
   /** Leave the arena and return to loadout selection (or to the editor, after a play test). */
   exitToMenu({ fromParty = false } = {}) {
+    this.auras.clear();
     const backToEditor = this.run?.fromEditor;
     this.party.onExitGame({ fromParty });
     if (this.sync.active) this.sync.endRun();
@@ -1305,6 +1340,35 @@ export class App {
   }
 
   /**
+   * Battle Roar lifts the whole team: everyone within its circle (the caster
+   * always) deals more damage for a few seconds, and gets an aura that shows it.
+   * Each player's game runs this for every roar — its own, and a teammate's
+   * through the party — so the buff lands on whoever was really close, and
+   * every screen shows the same auras.
+   *
+   * @param {string} element a roar, or a forged skill built on it
+   * @param {{ x: number, z: number }} origin where the shout went off
+   * @param {{ caster?: import('../net/RemotePlayer.js').RemotePlayer|null }} [options] null = this player roared
+   */
+  _teamRoar(element, origin, { caster = null } = {}) {
+    const c = settings[element] ?? settings.roar;
+    const seconds = c.buffSeconds ?? 6;
+    const buff = c.buffDamage ?? 25;
+    const reach = (c.zoneRadius ?? 6.5) + 0.5;
+    const look = { color: c.colorGlow ?? '#ff4d3d', seconds };
+    const near = (p) => p && Math.hypot(p.x - origin.x, p.z - origin.z) <= reach;
+    if (!caster || (near(this.character.position) && !this.director.isDowned)) {
+      this._roarUntil = this.elapsed + seconds;
+      this._roarBuff = buff;
+      this.auras.show('me', this.character, look);
+      if (caster) this.hud.showToast(`${caster.name || 'A teammate'} roared: +${buff}% damage for ${seconds} s`, 2200);
+    }
+    for (const [id, remote] of this.party.remotes) {
+      if (remote === caster || near(remote.position)) this.auras.show(`player:${id}`, remote, look);
+    }
+  }
+
+  /**
    * The one place a cast happens.
    *
    * Three things come out of it, in this order: the effect, the damage, and the
@@ -1333,10 +1397,7 @@ export class App {
     // Rage: big skills spend it, a shout gives it.
     this.rage = Math.max(0, this.rage - this._rageCost(element));
     this._gainRage(ELEMENT_META[element]?.rageOnCast ?? 0);
-    if (kind === 'roar') {
-      this._roarUntil = this.elapsed + (settings[element].buffSeconds ?? 6);
-      this._roarBuff = settings[element].buffDamage ?? 25;
-    }
+    if (kind === 'roar') this._teamRoar(element, origin);
     if (kind === 'tempest') {
       // The spin stays on the body as it moves.
       if (strike) strike.followTarget = this.character.position;
@@ -1398,7 +1459,7 @@ export class App {
   async openEditor({ id = null, fromCurrentMap = false } = {}) {
     this.levelEditor ??= new LevelEditor(this);
     let level = null;
-    if (id) level = await this.levels.load(id);
+    if (id) level = await this._expandLevel(await this._loadLevel(id));
     else if (fromCurrentMap && this.composed.level) {
       level = normalizeLevel({ ...this.composed.level, name: this.composed.plan?.name ?? this.composed.level.name });
       level.world.terrain = this.composed.terrain.serialize();
@@ -1407,10 +1468,42 @@ export class App {
   }
 
   async playCampaignLevel(id) {
-    const campaign = await this.levels.list();
+    const campaign = await this._campaignOf(id);
     const index = campaign.findIndex((entry) => entry.id === id);
-    const level = await this.levels.load(id);
+    const level = await this._loadLevel(id);
     await this.playLevel(level, { campaign, index });
+  }
+
+  /**
+   * A level from the game builder carries a map plan and no objects yet:
+   * scatter them from the library now, with the level's own seed, so the same
+   * file always builds the same map (and a party gets the finished level).
+   */
+  async _expandLevel(level) {
+    if (level.objects.length || !level.plan) return level;
+    await this.catalog.ready;
+    return this.composed.levelFromPlan(level.plan, { seed: level.world.seed, base: level });
+  }
+
+  /** A saved level, or one of the builder's unsaved chapters. */
+  async _loadLevel(id) {
+    const draft = this.drafts.levels.get(id);
+    return draft ? normalizeLevel(structuredClone(draft)) : this.levels.load(id);
+  }
+
+  async _campaignOf(id) {
+    return this.drafts.levels.has(id) ? this.drafts.campaign : this.levels.list();
+  }
+
+  /**
+   * Play a built game without saving it: its chapters live here until the
+   * page reloads, and "Next" walks through them like a campaign.
+   * @param {object[]} levels the compiled chapters, in order
+   */
+  async playDraftGame(levels) {
+    this.drafts.levels = new Map(levels.map((level) => [level.id, level]));
+    this.drafts.campaign = levels.map((level) => ({ id: level.id, name: level.name }));
+    await this.playCampaignLevel(levels[0].id);
   }
 
   /**
@@ -1419,7 +1512,7 @@ export class App {
    * @param {{ fromEditor?: boolean, campaign?: {id: string, name: string}[], index?: number }} [options]
    */
   async playLevel(level, { fromEditor = false, campaign = null, index = -1, fromParty = false } = {}) {
-    level = normalizeLevel(level);
+    level = await this._expandLevel(normalizeLevel(level));
     // Playing together: the host picks the level and the party follows.
     if (this.party.isGuest && !fromParty) return this.party.requestStart();
     if (this.party.isHost && !fromParty && !fromEditor) this.party.broadcastStart({ level, campaign, index });
@@ -1459,7 +1552,7 @@ export class App {
       return;
     }
 
-    this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, studied: 0, done: false };
+    this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, studied: 0, done: false, draft: this.drafts.levels.has(level.id) };
     this._applyRules(level);
     await this.enterGame({ characterId: level.character, keepRun: true, fromParty: true });
     // Monsters already standing in the level wait for the director's reset.
@@ -1670,11 +1763,11 @@ export class App {
   async _travelTo(levelId) {
     if (this.phase !== 'playing') return;
     if (this.run?.fromEditor) return this.hud.showToast(`Leads to level “${levelId}” — works in the campaign`);
-    const campaign = await this.levels.list();
+    const campaign = await this._campaignOf(levelId);
     const index = campaign.findIndex((entry) => entry.id === levelId);
     let level;
     try {
-      level = await this.levels.load(levelId);
+      level = await this._loadLevel(levelId);
     } catch {
       return this.hud.showToast('This portal leads nowhere');
     }
@@ -2490,6 +2583,7 @@ export class App {
       this.decals.update(dt);
       this.fissures.update(dt);
       this.bursts.update(dt);
+      this.auras.update(this.elapsed);
       this.lights.update(dt);
     } else {
       this.ground.update(this.elapsed);
@@ -2617,6 +2711,8 @@ export class App {
     }
     this._updatePotions();
     this.gameHud.setRage(this.rage / 100, this.rage, this.usesRage && this.phase === 'playing', this._roarUntil > this.elapsed);
+    // Anyone a roar reached (not just the Barbarian) sees what it gives and for how long.
+    this.gameHud.setBuff(this.phase === 'playing' && this._roarUntil > this.elapsed ? { text: `+${this._roarBuff ?? 25}% damage`, seconds: this._roarUntil - this.elapsed } : null);
     const fire = this.phase === 'playing' ? this.currentFire : null;
     this.gameHud.setAmmo(
       !fire ? null

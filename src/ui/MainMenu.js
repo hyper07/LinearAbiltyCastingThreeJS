@@ -41,6 +41,7 @@ export class MainMenu {
     this.onLookChange = callbacks.onLookChange ?? (async () => {});
     this.onMyModelsChanged = callbacks.onMyModelsChanged ?? (async () => {});
     this.onOpenForge = callbacks.onOpenForge ?? (() => {});
+    this.onOpenBuilder = callbacks.onOpenBuilder ?? (() => {});
     this._worldBusy = false;
     this._visible = false;
     this._characterId = platform.getActiveCharacter()?.id ?? 'caster';
@@ -153,6 +154,11 @@ export class MainMenu {
             <div class="main-menu__panel" data-panel="create" hidden>
               <h2 class="main-menu__section-title">Create</h2>
               <section class="studio__card forge-entry">
+                <h3>✦ Game builder</h3>
+                <p class="main-menu__panel-hint">A whole game from a sentence, or from a few menu picks: genre, world, map, hero and monsters. Study games get your questions and rewards. Play it at once, or save and edit it.</p>
+                <button type="button" class="main-menu__world-btn main-menu__world-btn--primary" data-open-builder>Open Game builder</button>
+              </section>
+              <section class="studio__card forge-entry">
                 <h3>✦ Class forge</h3>
                 <p class="main-menu__panel-hint">Describe a new class in a sentence — the AI designs its six skills, built on the game's own effects. Edit anything, then save it to the class list.</p>
                 <button type="button" class="main-menu__world-btn main-menu__world-btn--primary" data-open-forge>Open Class forge</button>
@@ -246,6 +252,7 @@ export class MainMenu {
     this.appearanceFormEl = this.root.querySelector('[data-appearance-form]');
     this.skillTreeEl = this.root.querySelector('[data-skill-tree]');
     this.root.querySelector('[data-open-forge]').addEventListener('click', () => this.onOpenForge());
+    this.root.querySelector('[data-open-builder]').addEventListener('click', () => this.onOpenBuilder());
     this.statsEl = this.root.querySelector('[data-stats]');
     this.panelEls = [...this.root.querySelectorAll('.main-menu__panel[data-panel]')];
     this.navBtns = [...this.root.querySelectorAll('.main-menu__nav-btn[data-panel]')];
@@ -1136,7 +1143,11 @@ export class MainMenu {
     this._renderParty();
     // Back from a fight: the history has news.
     this._renderAccount();
-    requestAnimationFrame(() => this.root.classList.add('is-visible'));
+    // Fade in next frame — unless it was hidden again meanwhile ("Next level" shows and
+    // hides the menu in one go), or an invisible menu would sit over the story card.
+    requestAnimationFrame(() => {
+      if (this._visible) this.root.classList.add('is-visible');
+    });
     this.preview._characterId = this._characterId;
     this.preview._weaponId = this._weaponId;
     void this.preview.show(() => this.getCharacter()).then(() => {

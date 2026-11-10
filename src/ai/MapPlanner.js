@@ -78,6 +78,7 @@ export class MapPlanner {
           { role: 'system', content: this._systemPrompt() },
           { role: 'user', content: `Design this map: ${description}` }
         ],
+        task: 'map',
         schema: MAP_PLAN_SCHEMA,
         temperature: 0.7,
         maxTokens: 800,

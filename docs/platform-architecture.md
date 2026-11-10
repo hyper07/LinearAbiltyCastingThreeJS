@@ -1,0 +1,150 @@
+# Platform architecture — many genres, one platform
+
+[← Back to the README](../README.md)
+
+Gamory is heading from one game to a platform of many. An action RPG needs classes, skill trees,
+items and an inventory. A puzzle game needs boards, moves and stars. A story game needs chapters,
+choices and endings. This page describes how the platform holds all of them, how each player's
+progress is saved per game, and which database fits. Part of it is built (the blueprints and
+modules); the rest is the plan.
+
+## Status
+
+| Piece | Status |
+| --- | --- |
+| Genres, worlds, layouts, casts as data, and the Game builder | **Built**: [Game builder](game-builder.md) |
+| Modules: the feature list each genre declares, and what each saves | **Built** as data ([`modules.js`](../src/blueprints/modules.js)), checked by the tests |
+| Plans (Free, Plus) enforced by the server | **Built** |
+| Engines other than the action RPG (puzzle, story) | Planned |
+| Games as first-class records, with saves per player per game | Planned. Today a player has one character shared by every level |
+| PostgreSQL | Recommended below, not started |
+
+## The layers
+
+```mermaid
+flowchart TB
+  subgraph Shell["Platform shell — every game"]
+    A["Accounts, plans, families"] --- L["Library: share and reuse"]
+    L --- B["Game builder and AI"] --- P["Party: private rooms"]
+  end
+  subgraph Shared["Shared modules"]
+    S1["levels"] --- S2["story"] --- S3["dialogue"] --- S4["study"] --- S5["rewards"]
+  end
+  subgraph Engines["Engines — one per kind of play"]
+    E1["Action RPG (built)<br/>combat · waves · classes · skills<br/>items · inventory · quests"]
+    E2["Puzzle (planned)<br/>boards · hints"]
+    E3["Story (planned)<br/>choices"]
+  end
+  Shell --> Shared --> Engines
+```
+
+1. **The shell** is the same for every game: accounts and plans, the shared library, the builder and
+   its AI, private party rooms, a parent's controls.
+2. **Shared modules** work in any engine: levels and campaigns, story scenes, helpers who talk,
+   study questions, a parent's rewards.
+3. **Engines** play a kind of game. Each engine owns its modules. The 3D action RPG in `src/core`
+   is the first. A puzzle engine could be a 2D canvas, and a story engine could be mostly text and
+   pictures. They plug in beside it rather than inside it.
+
+A **genre** is a recipe: one engine plus the list of modules it switches on
+([`genres.js`](../src/blueprints/genres.js)). A study adventure is the action RPG with `study` and
+`rewards` added. Calm learning is the same engine without `combat` or `waves`. A future "picture
+puzzle" genre would be the puzzle engine with `boards`, `hints`, `study` and `rewards`. The builder
+only offers what the genre's modules use, so a puzzle game never shows a skill tree.
+
+### A module's contract
+
+Each module declares, in one place:
+
+- **its engine**: `shared`, or the engine that provides it;
+- **what it saves** for a player in one game, for example `skills` → `ranks`, `slots`, `points` and
+  `boards` → `solved`, `stars`, `moves`;
+- *(planned)* **its rules on the server**: what a client may change, checked the way the action RPG's
+  loot and gold already are;
+- *(planned)* **its editor panel and its part of the spec**, so the builder and the AI learn it with
+  no other change.
+
+Adding a genre is then data. Adding a module is code in one place. Adding an engine is the only big job.
+
+## Saving progress per player, per game
+
+Today the server keeps **one character per account**, shared by every level: gold, the bag, the
+stash, skill ranks per class. That suits one RPG, but not a platform. The plan:
+
+- A **game** becomes a record of its own: owner, title, engine, genre, modules, the spec, its levels,
+  version, and whether it is private, shared with family or public.
+- A player's progress lives in **one save per player, per game, per module**. Each save is a small
+  document in the shape its module declares, with a schema version so it can be migrated.
+- **Progress scope** is the game's choice. `game` keeps everything inside that game, which suits a
+  parent's study game or a puzzle pack. `engine` shares a character across every game on the same
+  engine, so an RPG hero keeps their gear from one RPG to the next, like seasons in action RPGs.
+  Today's single character becomes the `engine` scope of the action RPG.
+- **Money and items stay strict.** Gold, items and anything a player could duplicate or trade stay
+  in ledger-style tables with server-side rules. That is what the anti-cheat
+  ([Accounts and fair play](security.md)) is built on.
+
+## Which database
+
+**Recommendation: PostgreSQL, using JSONB columns for the parts that differ by genre.** Keep SQLite
+for local development and tests behind the same store interface. Add Redis and object storage when
+traffic needs them.
+
+The data is two kinds at once, and the choice depends on handling both well:
+
+| Data | Shape | Needs |
+| --- | --- | --- |
+| Accounts, plans, payments, families | Fixed, relational | Constraints, joins, never wrong |
+| Gold ledger, item registry (anti-duplication) | Fixed, relational | Transactions across rows, unique rules, sums that must add up |
+| Game specs, levels, saves per module | Different per genre, nested | Flexible documents, versioned |
+| Rooms, presence, leaderboards | Short-lived, hot | Speed, not durability |
+| 3D models, pictures, big level files | Files | A CDN |
+
+| | PostgreSQL + JSONB | MongoDB |
+| --- | --- | --- |
+| Accounts, payments, ledger, items | Its strength: transactions, foreign keys, unique and check constraints | Possible (multi-document transactions exist), but you hand-build what constraints give for free |
+| Saves that differ per genre | JSONB documents, indexed (GIN), queried with SQL | Its strength |
+| Both in one database | Yes | Documents yes; the money side needs more care |
+| What the code already does | The server's SQLite schema (ledger, item registry, hash-chained history) moves over almost as-is | A rewrite of the anti-cheat storage |
+| Hosting | Managed almost everywhere (Neon, Supabase, AWS RDS/Aurora, Google Cloud SQL, Azure) | MongoDB Atlas, or self-hosted |
+| In game backends | Common. The open-source Nakama game server runs on PostgreSQL or CockroachDB | Common for content and saves, often next to a SQL database |
+
+MongoDB would work well for game content and saves. The reason not to choose it is the other half:
+this platform has real money (Plus), items that must not be duplicated, and parents' rewards.
+Those need the guarantees a relational database gives by default. PostgreSQL with JSONB covers
+the document side well enough that one database serves both. With MongoDB you would likely end up
+running a SQL database next to it anyway.
+
+The choice is also reversible. The game only talks to stores through a small interface
+(`GameDB`, `LibraryStore`, the level and class file stores). Moving means re-implementing those,
+not touching the game.
+
+### Sketch of the tables
+
+```sql
+accounts   (id, name, plan, family_id, …)             -- as today, plus families for private play
+games      (id, owner_id, title, engine, genre, modules text[], spec jsonb,
+            visibility, version, created, updated)     -- a built game
+game_levels(game_id, level_id, ord, data jsonb)        -- its chapters (a plan, a few KB each)
+saves      (account_id, game_id, module, data jsonb, schema_version, updated,
+            PRIMARY KEY (account_id, game_id, module)) -- progress, per player, per game, per module
+items      (uid, owner, game_id, state, data jsonb, …) -- as today, scoped to a game or an engine
+ledger     (id, account_id, game_id, delta, balance, reason, ref, at)
+reward_rules (game_id, rule jsonb)                     -- a parent's "30 gold per right answer"
+events     (id, account_id, type, data jsonb, prev_hash, hash)  -- the history chain, as today
+```
+
+## How to get there
+
+1. **Games as records** (no new database yet): a `games` table and an API in the SQLite server.
+   The builder saves a game, not loose levels, and the campaign lists games.
+2. **Saves per module**: split today's character into `saves` rows (`classes`, `skills`,
+   `inventory`, `rewards` …) under the action RPG's `engine` scope. Every existing character is
+   migrated once, and nothing changes for players.
+3. **PostgreSQL**: implement the stores against PostgreSQL. SQLite stays for `npm run dev` and the
+   tests, and production switches with one setting.
+4. **A second engine**: a small puzzle or story engine, to prove modules plug in. The builder then
+   offers its genres.
+5. **Scale-out** when needed: Redis for rooms, presence and leaderboards across servers, and object
+   storage with a CDN for the asset library.
+
+Steps 1 and 2 bring the most value and need no new infrastructure.

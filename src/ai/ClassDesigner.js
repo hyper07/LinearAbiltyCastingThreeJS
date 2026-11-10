@@ -103,6 +103,7 @@ async function ask(description) {
         { role: 'system', content: systemPrompt() },
         { role: 'user', content: `Design this class: ${description} /no_think` }
       ],
+      task: 'class',
       schema: SCHEMA,
       temperature: 0.85,
       maxTokens: 1400,

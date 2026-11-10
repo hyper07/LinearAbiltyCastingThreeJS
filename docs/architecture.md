@@ -9,8 +9,12 @@ src/
   abilities/      Ability base class (the travelling front), IceAbility, ThunderAbility,
                   MeteorAbility, BeamAbility, SnareAbility, GlacierAbility, pooling manager
   ai/             AIDirector (the commander: snapshot → constrained plan → casts),
-                  LocalIntent (the keyword parser that answers first) and
-                  MapPlanner (a sentence → a map plan, via the model or keywords)
+                  LocalIntent (the keyword parser that answers first),
+                  MapPlanner (a sentence → a map plan, via the model or keywords) and
+                  GameBuilder (a sentence → a game spec, the AI picking from the blueprints)
+  blueprints/     Genres, worlds, layouts, casts and modules as data; the game spec the AI
+                  fills in; compileGame (spec → levels). No three.js: shared with the server,
+                  scripts/new-game.mjs and the tests — see game-builder.md
   animation/      FBX character loading, AnimationMixer, the per-ability cast clips,
                   the procedural cast lunge, Locomotion (the generated gait)
   assets/         Procedural crystal and asteroid geometry, the bolt ribbon strip,
@@ -18,7 +22,7 @@ src/
   config/         settings.js — the single source of truth for every parameter
   core/           App, Renderer, CameraRig, Time, Layers, shared frame uniforms
   effects/        Aim arrow, far-cast circle, ground decals, fissures, bursts,
-                  light pool, shake, flash
+                  light pool, shake, flash, BuffAuras (team buffs on whoever they reached)
   entities/       Monster (brain + procedural animation), MonsterBuilder (bodies,
                   the damage/dissolve/scale shader, health bars), RigKit (joints,
                   parts, joint collapsing, template instancing), Dragon +

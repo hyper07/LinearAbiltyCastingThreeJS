@@ -125,6 +125,50 @@ export async function run(browser) {
     });
     t.check('guest sees the host cast', await until(guest.page, () => window.app.abilities.active.length > 0, null, 3000));
 
+    // Battle Roar is a team buff: whoever it reaches deals more damage, and everyone sees an aura on them.
+    await host.page.evaluate(() => window.app._teleport(0, 0));
+    await guest.page.evaluate(() => window.app._teleport(2.5, 1.5));
+    await until(host.page, () => {
+      const r = [...window.app.party.remotes.values()][0];
+      return r?.body && Math.hypot(r.body.position.x - 2.5, r.body.position.z - 1.5) < 1;
+    }, null, 5000);
+    const roar = () =>
+      host.page.evaluate(() => {
+        const app = window.app;
+        const V = app.character.position.constructor;
+        app._fire('roar', app.character.position.clone().setY(0), new V(0, 0, 1), 0, 0);
+      });
+    await roar();
+    const hostView = await host.page.evaluate(() => ({ buffed: window.app._roarUntil > window.app.elapsed, auras: [...window.app.auras.auras.keys()] }));
+    t.check('the roar buffs the Barbarian and shows their aura', hostView.buffed && hostView.auras.includes('me'), JSON.stringify(hostView));
+    t.check("the host sees an aura on the teammate it reached", hostView.auras.some((k) => k.startsWith('player:')), JSON.stringify(hostView));
+    t.check('the teammate in range gets the damage buff', await until(guest.page, () => window.app._roarUntil > window.app.elapsed && window.app._buffMultiplier() > 1, null, 3000));
+    await until(guest.page, () => document.querySelector('[data-buff]')?.hidden === false, null, 3000);
+    const guestView = await guest.page.evaluate(() => ({ auras: [...window.app.auras.auras.keys()], pill: document.querySelector('[data-buff]')?.hidden === false ? document.querySelector('[data-buff]').textContent : null }));
+    t.check('the teammate sees an aura on themself and on the Barbarian', guestView.auras.includes('me') && guestView.auras.some((k) => k.startsWith('player:')), JSON.stringify(guestView));
+    t.check('the teammate sees what the buff gives and how long it lasts', /\+25% damage/.test(guestView.pill ?? '') && /\d s/.test(guestView.pill ?? ''), guestView.pill);
+    t.check('the aura fades when the buff ends', await guest.page.evaluate(async () => {
+      const app = window.app;
+      for (const aura of app.auras.auras.values()) aura.until = app.elapsed + 0.2;
+      app._roarUntil = app.elapsed + 0.2;
+      const start = performance.now();
+      while (performance.now() - start < 4000 && (app.auras.auras.size || !document.querySelector('[data-buff]').hidden)) await new Promise((r) => setTimeout(r, 100));
+      return app.auras.auras.size === 0 && document.querySelector('[data-buff]').hidden;
+    }));
+    // Out of reach: no buff for the guest, but they still see the Barbarian roaring.
+    await guest.page.evaluate(() => window.app._teleport(16, 10));
+    await until(host.page, () => {
+      const r = [...window.app.party.remotes.values()][0];
+      return r?.body && Math.hypot(r.body.position.x - 16, r.body.position.z - 10) < 1;
+    }, null, 5000);
+    await host.page.evaluate(() => window.app.auras.clear());
+    await roar();
+    await guest.page.waitForTimeout(800);
+    const far = await guest.page.evaluate(() => ({ buffed: window.app._roarUntil > window.app.elapsed, auras: [...window.app.auras.auras.keys()] }));
+    t.check('a teammate out of reach is not buffed, but sees the Barbarian\'s aura', !far.buffed && !far.auras.includes('me') && far.auras.some((k) => k.startsWith('player:')), JSON.stringify(far));
+    t.check('the host does not mark the far teammate', await host.page.evaluate(() => ![...window.app.auras.auras.keys()].some((k) => k.startsWith('player:'))));
+    await guest.page.evaluate(() => window.app._teleport(2, 2));
+
     // The host's monsters hit the guest — and only the guest.
     await host.page.evaluate(() => {
       window.app.monsters.despawnAll();

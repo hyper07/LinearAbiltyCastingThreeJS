@@ -59,7 +59,9 @@ Requires **Node.js 22.13+** (the library uses Node's built-in SQLite). Keep it r
 | `TRUST_PROXY` | `1` behind a reverse proxy: rate limits then see the real client address from `X-Forwarded-For` | `0` |
 | `ALLOWED_ORIGINS` | Comma-separated CORS allowlist — only if the page is served from another origin | none |
 | `LLM_PLATFORM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL1`, `LLM_TIMEOUT_MS` | The AI model, see [The AI commander](ai-commander.md#wiring-the-model). Unset = the AI is off and the game falls back to keywords | unset |
-| `AI_RATE_PER_MIN` | Model calls allowed per client address per minute | `30` |
+| `AI_RATE_PER_MIN`, `AI_RATE_BURST` | Model calls allowed per client address per minute, and how many may come at once | `30`, `10` |
+| `LLM_PREMIUM_MODEL`, `LLM_PREMIUM_BASE_URL`, `LLM_PREMIUM_API_KEY` | The premium model for **Plus** accounts' AI builds (games, maps, classes). Any OpenAI-compatible API; base URL unset = the same box as `LLM_PLATFORM_BASE_URL`. Unset model = Plus uses the standard one. See [Game builder](game-builder.md#free-and-plus) | unset |
+| `AI_DEFAULT_PLAN` | The plan for signed-out players (`free` or `plus`; `plus` is for trying Plus on a dev server) | `free` |
 | `TRIPO_API_KEY` / `MESHY_API_KEY` / `MODELGEN_PROVIDER` | Picture-to-3D, see [Your own models](custom-models.md) | unset |
 
 ## Behind a reverse proxy (HTTPS)

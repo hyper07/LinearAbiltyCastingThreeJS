@@ -9,6 +9,7 @@
  *   node scripts/admin.mjs block <name> <hours> <reason> block an account (and sign it out)
  *   node scripts/admin.mjs unblock <name> [note]         lift a block and clear its strikes
  *   node scripts/admin.mjs block-address <ip> <hours> <reason>
+ *   node scripts/admin.mjs plan <name> <free|plus>       set an account's plan (src/platform/plans.js)
  *
  * The audit checks the four things that would show cheating or tampering:
  *   1. the history chain is unbroken (no event edited, removed or inserted)
@@ -116,7 +117,14 @@ switch (command) {
     console.log(`address blocked for ${hours} h (stored only as a keyed hash)`);
     break;
   }
+  case 'plan': {
+    const a = account(args[0]);
+    if (!args[1]) fail('plan <name> <free|plus>');
+    accounts.setPlan(a.id, args[1]);
+    console.log(`${a.name} is on ${args[1]} (takes effect on their next AI request)`);
+    break;
+  }
   default:
-    console.log('commands: audit | history <name> | strikes [hours] | block <name> <hours> <reason> | unblock <name> | block-address <ip> <hours> <reason>');
+    console.log('commands: audit | history <name> | strikes [hours] | block <name> <hours> <reason> | unblock <name> | block-address <ip> <hours> <reason> | plan <name> <free|plus>');
 }
 db.close();

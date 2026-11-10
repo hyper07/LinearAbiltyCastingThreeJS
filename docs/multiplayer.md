@@ -43,6 +43,7 @@ each, and room for more of them at once.
 | Loot on the floor — first to pick it up gets it | Experience: every kill pays everyone |
 | Quest kills (every tutor and quest-giver counts the party's kills) | Campaign progress (a finished level counts for all who played it) |
 | Chat | The pause key — a party's fight cannot be paused |
+| Team buffs: a Barbarian's Battle Roar buffs every teammate in its circle, with an aura everyone sees | |
 
 ## Signed in
 
