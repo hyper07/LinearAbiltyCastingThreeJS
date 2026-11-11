@@ -17,7 +17,8 @@ modules); the rest is the plan.
 | Plans (Free, Plus) enforced by the server | **Built** |
 | Engines other than the action RPG (puzzle, story) | Planned |
 | Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
-| Games as first-class records, with saves per player per game | Planned. Today a player has one character shared by every level |
+| Games as records, on a home page | **Built**: published games are rows in PostgreSQL with their levels; the home page lists them with the official ones. See [Games on the home page](#games-on-the-home-page) |
+| Saves per player per game | Planned. Today a player has one character shared by every game |
 | NPCs, worlds, monsters and question sets players make, offered by the builder | Planned |
 | PostgreSQL | **Built** (chosen 2026-11-10): accounts, characters, items, ledger, history and the library. See [The database](production.md#the-database) |
 
@@ -112,6 +113,33 @@ For the AI, the builder sends only what fits the idea: the player's own assets f
 used shared ones of the kinds the genre needs, capped (30 heroes today). The prompt then stays small
 however large the library grows.
 
+## Games on the home page
+
+The platform opens on its games, not on one game's menu
+([`ui/PlatformHome.js`](../src/ui/PlatformHome.js)). Each card is a game:
+
+- **Official games** are the levels that ship with the game, read from the level files. Only their
+  play counts are stored (`game_plays`).
+- **Published games** are rows in `games`, each level in `game_levels` with its id renumbered to
+  `<game id>-<n>`, so no game can overwrite another's level or a built-in one. The server's rules
+  load these levels by id, so tutor and quest rewards in a published game are checked like any other.
+- A game's **card** (genre, world, chapters, goal, study, cover look) is worked out once, when it is
+  published ([`platform/gameCards.js`](../src/platform/gameCards.js)), so listing hundreds of games
+  never opens a level. The **cover** is drawn from the card: sky by time of day, ground, and a
+  skyline for the world ([`ui/gameCover.js`](../src/ui/gameCover.js)).
+- Search covers title, summary and maker. Filters are by genre, or kids and study. Sorting is by
+  plays or by newest. Only the account that published a game can remove it.
+
+| Route | Does |
+| --- | --- |
+| `GET /api/games?q=&genre=&sort=popular\|new&limit=` | Cards, official and published |
+| `GET /api/games/<id>` | One game, with its levels |
+| `POST /api/games` | Publish `{ title, summary, levels[], spec?, author? }` (signed in: the account is the maker) |
+| `POST /api/games/<id>/play` | Count a play |
+| `DELETE /api/games/<id>` | Remove (its maker only) |
+
+Not yet: private games for a family, a maker's own page, likes, and comments.
+
 ## Saving progress per player, per game
 
 Today the server keeps **one character per account**, shared by every level: gold, the bag, the
@@ -187,8 +215,8 @@ events     (id, account_id, type, data jsonb, prev_hash, hash)  -- the history c
 
 1. **PostgreSQL** — *done.* The stores run on PostgreSQL (a server, or PGlite in-process), with
    migrations and a one-time import of the old SQLite data that keeps every id and checks the history chain.
-2. **Games as records**: a `games` table and an API. The builder saves a game, not loose levels, and
-   the campaign lists games. Levels and classes move from files into the database.
+2. **Games as records** — *done.* `games` and `game_levels` with `/api/games`; the builder publishes
+   a game; the home page lists them. Still to move: the campaign's own levels and classes, from files into the database.
 3. **Saves per module**: split today's character into `saves` rows (`classes`, `skills`,
    `inventory`, `rewards` …) under the action RPG's `engine` scope. Every existing character is
    migrated once, and nothing changes for players.
@@ -197,4 +225,4 @@ events     (id, account_id, type, data jsonb, prev_hash, hash)  -- the history c
 5. **Scale-out** when needed: Redis for rooms, presence and leaderboards across servers, and object
    storage with a CDN for the asset library.
 
-Steps 2 and 3 are next: they bring the most value, and need nothing beyond the database now in place.
+Step 3 is next: it brings the most value, and needs nothing beyond the database now in place.

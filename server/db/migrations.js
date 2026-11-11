@@ -15,6 +15,9 @@
  *   strikes     rule breaks, with their weight; enough of them block the account
  *   ip_blocks   blocked addresses, as a keyed hash
  *   assets      the shared library: classes, skills, items, weapons, levels
+ *   games       published games (the home page): title, author, card, spec, plays
+ *   game_levels each published game's levels, in order (the rules load them by id)
+ *   game_plays  play counts for the built-in games, which are files
  */
 export const MIGRATIONS = [
   {
@@ -120,6 +123,42 @@ export const MIGRATIONS = [
         updated BIGINT NOT NULL
       );
       CREATE INDEX assets_kind ON assets (kind, status);
+    `
+  },
+  {
+    // Games as records: what the home page lists, and the levels of each.
+    // The built-in campaign levels are files; they are listed as official games,
+    // and only their play counts live here (game_plays).
+    id: '003-games',
+    sql: `
+      CREATE TABLE games (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        author TEXT NOT NULL DEFAULT '',
+        owner_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+        engine TEXT NOT NULL DEFAULT 'action-rpg',
+        genre TEXT NOT NULL,
+        card JSONB NOT NULL,
+        spec JSONB,
+        status TEXT NOT NULL CHECK (status IN ('shared', 'draft', 'hidden')),
+        plays INTEGER NOT NULL DEFAULT 0,
+        created BIGINT NOT NULL,
+        updated BIGINT NOT NULL
+      );
+      CREATE INDEX games_status ON games (status, updated);
+      CREATE INDEX games_owner ON games (owner_id);
+      CREATE TABLE game_levels (
+        level_id TEXT PRIMARY KEY,
+        game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+        ord INTEGER NOT NULL,
+        data JSONB NOT NULL
+      );
+      CREATE INDEX game_levels_game ON game_levels (game_id, ord);
+      CREATE TABLE game_plays (
+        game_id TEXT PRIMARY KEY,
+        plays INTEGER NOT NULL DEFAULT 0
+      );
     `
   }
 ];

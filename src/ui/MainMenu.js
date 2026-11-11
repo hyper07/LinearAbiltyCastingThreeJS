@@ -42,6 +42,7 @@ export class MainMenu {
     this.onMyModelsChanged = callbacks.onMyModelsChanged ?? (async () => {});
     this.onOpenForge = callbacks.onOpenForge ?? (() => {});
     this.onOpenBuilder = callbacks.onOpenBuilder ?? (() => {});
+    this.onHome = callbacks.onHome ?? null;
     this._worldBusy = false;
     this._visible = false;
     this._characterId = platform.getActiveCharacter()?.id ?? 'caster';
@@ -58,6 +59,7 @@ export class MainMenu {
       <div class="main-menu__backdrop"></div>
       <div class="main-menu__dialog" role="dialog" aria-label="Main menu">
         <header class="main-menu__head">
+          <button type="button" class="main-menu__home" data-home title="Back to all the games">← Games</button>
           <span class="main-menu__eyebrow">Gamory</span>
           <h1 class="main-menu__title">Choose Your Loadout</h1>
           <p class="main-menu__subtitle">Preview your fighter, customize colors, review skills and stats.</p>
@@ -253,6 +255,9 @@ export class MainMenu {
     this.skillTreeEl = this.root.querySelector('[data-skill-tree]');
     this.root.querySelector('[data-open-forge]').addEventListener('click', () => this.onOpenForge());
     this.root.querySelector('[data-open-builder]').addEventListener('click', () => this.onOpenBuilder());
+    const home = this.root.querySelector('[data-home]');
+    if (this.onHome) home.addEventListener('click', () => this.onHome());
+    else home.hidden = true;
     this.statsEl = this.root.querySelector('[data-stats]');
     this.panelEls = [...this.root.querySelectorAll('.main-menu__panel[data-panel]')];
     this.navBtns = [...this.root.querySelectorAll('.main-menu__nav-btn[data-panel]')];

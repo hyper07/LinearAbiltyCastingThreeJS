@@ -5,8 +5,8 @@ import { boot, tally, until } from './lib.mjs';
  * (no AI), see the menus filled in, change a menu, Build with AI on a server
  * with no model (it falls back to the words, and says so), play the game
  * without saving — the scenery is scattered from the plan, the helpers stand
- * there, the goal is the genre's — walk through to chapter 2, and save the
- * game to the campaign.
+ * there, the goal is the genre's — walk through to chapter 2, and publish the
+ * game to the home page.
  */
 export async function run(browser) {
   const t = tally();
@@ -84,11 +84,11 @@ export async function run(browser) {
     await page.fill('.builder [data-prompt]', 'Moon Garden');
     await page.click('.builder [data-quick]');
     await page.click('.builder [data-save]');
-    t.check('Save adds it to the campaign', await until(page, () => /Saved/.test(document.querySelector('.builder [data-status]').textContent), null, 10000));
-    const saved = await page.evaluate(async () => (await window.app.levels.list()).some((e) => e.id === 'moon-garden'));
-    t.check('the saved level is in the campaign list', saved);
-    const file = await page.evaluate(async () => (await fetch('./levels/moon-garden.json')).json());
-    t.check('it is saved as a plan, a few kilobytes', file.plan && file.objects.length === 0 && JSON.stringify(file).length < 6000);
+    t.check('Publish puts it on the home page', await until(page, () => /Published/.test(document.querySelector('.builder [data-status]').textContent), null, 10000));
+    const published = await page.evaluate(async () => (await (await fetch('./api/games?q=moon')).json()).games.find((g) => g.title === 'Moon Garden'));
+    t.check('it is a game record on the server', Boolean(published), JSON.stringify(published));
+    const file = await page.evaluate(async (id) => (await (await fetch(`./api/games/${id}`)).json()).game.levels[0], published?.id);
+    t.check('its level is stored as a plan, a few kilobytes', file?.plan && file.objects.length === 0 && JSON.stringify(file).length < 6000);
 
     // The AI is off on the test server: its 503s are the point of the fallback checks above.
     const real = errors.filter((e) => !/ 503 (GET|POST) \/api\/ai\//.test(e));

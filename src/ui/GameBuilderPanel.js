@@ -26,7 +26,8 @@ const el = (tag, className, text) => {
  * stories, helper lines and questions).
  * Right: the spec, every choice a menu — genre, world, layout, hero, foes,
  * chapters, difficulty, the study settings and a parent's reward — and the
- * chapters it compiles to. Play now (nothing saved), Save to the campaign,
+ * chapters it compiles to. Play now (nothing saved), Publish (a game on the
+ * home page, server/gamesStore.js),
  * or Open in the editor to place things by hand.
  */
 export class GameBuilderPanel {
@@ -39,7 +40,7 @@ export class GameBuilderPanel {
    *   heroes: () => Promise<{ id: string, name: string }[]>,
    *   compile: (spec: object, seed: number) => Promise<{ levels: object[] }>,
    *   play: (levels: object[]) => Promise<void>,
-   *   save: (levels: object[]) => Promise<void>,
+   *   save: (levels: object[], spec: object) => Promise<object>,
    *   edit: (levels: object[]) => Promise<void>
    * }} actions
    */
@@ -77,7 +78,7 @@ export class GameBuilderPanel {
           <button type="button" data-reroll title="Same choices, a new scattering of scenery">New map layout</button>
           <span class="forge__spacer"></span>
           <button type="button" data-edit>Open in editor</button>
-          <button type="button" data-save>Save to campaign</button>
+          <button type="button" data-save title="Put it on the home page, for everyone on this server to play">Publish</button>
           <button type="button" class="forge__primary" data-play>Play now</button>
         </footer>
       </div>`;
@@ -322,8 +323,8 @@ export class GameBuilderPanel {
     try {
       const { levels } = await this.actions.compile(this.spec, this.seed);
       if (what === 'save') {
-        await this.actions.save(levels);
-        this._status(`Saved ${levels.length === 1 ? `“${levels[0].name}”` : `${levels.length} chapters`} to the campaign.`, 'ok');
+        const game = await this.actions.save(levels, this.spec);
+        this._status(`Published “${game?.title ?? this.spec.name}” — it is on the home page now.`, 'ok');
         return;
       }
       this.toggle(false);

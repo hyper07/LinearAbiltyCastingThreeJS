@@ -10,6 +10,7 @@ import { run as bag } from './bag.mjs';
 import { run as editor } from './editor.mjs';
 import { run as hotbar } from './hotbar.mjs';
 import { run as builder } from './builder.mjs';
+import { run as home } from './home.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -45,7 +46,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);

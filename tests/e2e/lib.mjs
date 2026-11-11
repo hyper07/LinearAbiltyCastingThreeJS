@@ -21,8 +21,12 @@ export function launch() {
  */
 const EXPECTED_MISSES = [/^\/models\/(walk|run)\.fbx$/, /^\/api\/library\/[a-z]+(:|%3A)/i];
 
-/** A fresh context (its own localStorage) at the main menu. */
-export async function boot(browser, name = 'page') {
+/**
+ * A fresh context (its own localStorage), booted to the platform's home page
+ * and then — unless `view: 'home'` — into the hero menu (class, weapon,
+ * Start), where most checks begin.
+ */
+export async function boot(browser, name = 'page', { view = 'hero' } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
   const errors = [];
@@ -39,11 +43,17 @@ export async function boot(browser, name = 'page') {
   });
   await page.goto(base(), { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.app && window.app.phase === 'menu', null, { timeout: 120000 });
-  // The loading veil fades out over the menu: wait until a click would reach it, as a player's does.
-  await page.waitForFunction(() => {
-    const b = document.querySelector('[data-start]')?.getBoundingClientRect();
-    return b && document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2)?.closest('[data-start]');
-  }, null, { timeout: 30000 });
+  // The loading veil fades out over the page: wait until a click would reach it, as a player's does.
+  const clickable = (selector) =>
+    page.waitForFunction((sel) => {
+      const b = document.querySelector(sel)?.getBoundingClientRect();
+      return b && b.width && document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2)?.closest(sel);
+    }, selector, { timeout: 30000 });
+  await clickable('.home [data-hero]');
+  if (view !== 'home') {
+    await page.click('.home [data-hero]');
+    await clickable('[data-start]');
+  }
   return { context, page, errors, name };
 }
 

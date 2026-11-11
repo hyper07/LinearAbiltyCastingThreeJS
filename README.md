@@ -26,21 +26,35 @@ npm install
 npm run dev
 ```
 
-Open <http://127.0.0.1:5173>. The first `npm run dev` also downloads the free 3D asset library
+Open <http://127.0.0.1:5173>: the platform's home page, every game as a card. The first `npm run dev` also downloads the free 3D asset library
 (about 7 GB) in the background; the game is playable straight away. Windows, building, assets and
 the AI setup are in **[Setup](docs/setup.md)**.
 
-To run it for players — one container with the game, the party server, the content library and the
-AI bridge — `docker compose up --build` and open <http://localhost:8787>. Details, settings, HTTPS
+To run it for players — the game, the party server, the content library and the AI bridge in one
+container, PostgreSQL in another — `docker compose up --build` and open <http://localhost:8787>. Details, settings, HTTPS
 and what the server protects are in **[Production](docs/production.md)**.
 
 Nothing paid is needed. Optional paid services — picture-to-3D with Tripo3D or Meshy, hosted AI
 models — and more free and paid sources for 3D models, animation and effects are listed in
 **[Third-party services](docs/third-party.md)**.
 
+## The home page
+
+Gamory opens on its games, like a video site: a card for every game you can play — the official ones
+and everything people published — with a cover drawn from its world, who made it and how often it
+was played. Search, filter by genre (or **For kids & study**), sort by popular or new, open a game's
+page and press **Play**, as the class you pick. **＋ Create** makes a new game in the
+[Game builder](docs/game-builder.md), and **Publish** puts it on the home page for everyone on the
+server. **Your hero** opens the action RPG's own menu (class, weapon, skills, stash, account), and
+**Play together** makes or joins a party — press Play in a party and everyone comes along.
+
+<p>
+  <img src="docs/screenshots/home.jpg" width="100%" alt="The home page: a search bar, Create, Your hero, Play together and Sign in; genre chips; a Create a game card and cards for Frost Hollow, Thistledown, Ember Ruins, The Wyrm's Graveyard, The Dragon's Keep and Study Grove, each with a drawn cover, a genre badge and a goal" />
+</p>
+
 ## Playing
 
-Pick a class in the main menu and press **Start Game**. Move with **W A S D**, press **1–9** to arm
+In **Your hero**, pick a class and press **Start Game** for the open arena, or play any game from the home page. Move with **W A S D**, press **1–9** to arm
 a spell or drink a potion, aim with the mouse and **right-click** to cast; **left-click** is your
 class's close-range attack. **K** opens your skill tree, **Tab** (or the **Bag** button) the bag.
 Full list: **[Controls](docs/controls.md)**.
@@ -322,7 +336,7 @@ adventure, calm learning), a world (12, from a storybook village to a sci-fi out
 a hero, monsters, helpers, a story, and chapters that end in a boss. **Quick build** reads your words
 with no AI at all. **Build with AI** has the AI pick from the menus in about 120 output tokens, and
 **Plus** accounts get a premium model that also writes its own map, stories, lines and questions.
-Change any choice, then play at once or save it to the campaign. See **[Game builder](docs/game-builder.md)**
+Change any choice, then play at once or publish it to the home page. See **[Game builder](docs/game-builder.md)**
 and how the platform grows to many genres in **[Platform architecture](docs/platform-architecture.md)**.
 
 <p>

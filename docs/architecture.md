@@ -69,7 +69,8 @@ server/           The production server (server.js): the built game, the party s
                   saved levels and classes (api/files.js), uploads (modelgen.mjs). The handlers
                   in api/ are the same ones vite.config.js mounts in development; game/ —
                   accounts, the server-owned character, loot, cheat rules, the history chain;
-                  db/ — PostgreSQL (a server, or PGlite in-process), migrations, the SQLite import
+                  db/ — PostgreSQL (a server, or PGlite in-process), migrations, the SQLite import;
+                  gamesStore.js — the home page's games (official and published)
 tests/            unit/ (node --test: rooms, file stores, the library) and e2e/ (Playwright:
                   a solo run and a two-browser co-op run against the real server)
 Dockerfile        Two stages: build the client, then serve it with the one-dependency server

@@ -16,6 +16,7 @@ for a server without one).
 /api/game/*       characters, loot, shops, NPC rewards — the server decides
 /api/ai/*         the AI bridge (LM Studio, Ollama, vLLM, any OpenAI-compatible server)
 /api/library/*    the content library (PostgreSQL)
+/api/games/*      the games on the home page: official (level files) and published (PostgreSQL)
 /api/levels/*     levels players save → DATA_DIR/levels
 /api/classes/*    classes from the Class forge → DATA_DIR/classes
 /api/models/*     uploads and picture-to-3D (keys stay on the server)

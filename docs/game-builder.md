@@ -10,7 +10,8 @@
 old in an enchanted forest"* — and press **Quick build** (no AI) or **Build with AI**. Every part of
 the game is then a menu you can change: genre, world, map layout, hero, monsters, difficulty, how
 many chapters, and for study games the subject, the child's age, the gold per right answer and the
-bonus. **Play now** plays it at once without saving, **Save to campaign** keeps it, **Open in
+bonus. **Play now** plays it at once without saving, **Publish** puts it on the [home page](platform-architecture.md#games-on-the-home-page) for
+everyone on the server, **Open in
 editor** lets you place things by hand.
 
 ## Why it is fast and cheap

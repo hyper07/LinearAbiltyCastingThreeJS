@@ -30,6 +30,8 @@ import { InventoryPanel } from '../ui/InventoryPanel.js';
 import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 import { ClassForgePanel } from '../ui/ClassForgePanel.js';
 import { GameBuilderPanel } from '../ui/GameBuilderPanel.js';
+import { PlatformHome } from '../ui/PlatformHome.js';
+import { games } from '../platform/gamesClient.js';
 import { GameBuilder } from '../ai/GameBuilder.js';
 import { compileGame, describeHero } from '../blueprints/index.js';
 import { CLASS_SPECS } from '../platform/character/classes.js';
@@ -310,7 +312,8 @@ export class App {
         this._registerMyModels();
       },
       onOpenForge: () => this.forge.toggle(true),
-      onOpenBuilder: () => this.builder.toggle(true)
+      onOpenBuilder: () => this.builder.toggle(true),
+      onHome: () => this.openHome()
     });
     /* ---- the Class forge: AI-designed classes, saved in public/classes ---- */
     this.forge = new ClassForgePanel(hudRoot, {
@@ -355,14 +358,17 @@ export class App {
       heroes,
       compile: async (spec, seed) => compileGame(spec, { seed, taken: new Set((await this.levels.list()).map((e) => e.id)), heroes: await madeIds() }),
       play: (levels) => this.playDraftGame(levels),
-      save: async (levels) => {
-        for (const level of levels) await this.levels.save(level);
-        for (const level of levels) library.publishLevel(level, 'shared');
+      // Publish: a game record on the platform (server/gamesStore.js), on the home page at once.
+      save: async (levels, spec) => {
+        const game = await games.publish({ title: spec?.name ?? levels[0].name, levels, spec, author: this.account.user?.name });
+        if (this.home.isVisible) this.home.refresh();
+        return game;
       },
       edit: async (levels) => {
         this.drafts.levels = new Map(levels.map((level) => [level.id, level]));
         this.drafts.campaign = levels.map((level) => ({ id: level.id, name: level.name }));
         this.mainMenu.hide();
+        this.home.hide();
         await this.openEditor({ id: levels[0].id });
       }
     });
@@ -377,6 +383,26 @@ export class App {
         await saveForgedClass(clean).catch(() => {});
         await this.mainMenu.refreshCharacters();
       }
+    });
+    /* ---- the platform's front page: every game as a card (ui/PlatformHome.js) ---- */
+    /** Which menu screen shows between games: the platform's 'home', or the action RPG's 'hero' menu. */
+    this._menuView = 'home';
+    this.home = new PlatformHome(hudRoot, {
+      list: (params) => games.list(params),
+      get: (id) => games.get(id),
+      play: (id, heroId) => this.playGame(id, { heroId }),
+      remove: (id) => games.remove(id),
+      create: () => this.builder.toggle(true),
+      openHero: (panel) => this.openHero(panel),
+      openForge: () => this.forge.toggle(true),
+      openEditor: () => {
+        this.home.hide();
+        this.openEditor({});
+      },
+      openLibrary: () => this.libraryPanel.toggle(true),
+      heroes,
+      currentHero: () => this.mainMenu.getSelection().characterId,
+      account: () => this.account?.user ?? null
     });
     this.story = new StoryPanel(hudRoot);
     this.goalPill = document.createElement('div');
@@ -1213,7 +1239,51 @@ export class App {
       return;
     }
     document.body.classList.add('is-menu');
-    this.mainMenu.show();
+    this._showMenuView();
+  }
+
+  /** Between games: the home page, or the hero menu if that is where the player was. */
+  _showMenuView() {
+    if (this._menuView === 'hero') {
+      this.home.hide();
+      this.mainMenu.show();
+    } else {
+      this.mainMenu.hide();
+      this.home.show();
+    }
+  }
+
+  /** The platform's front page. */
+  openHome() {
+    this._menuView = 'home';
+    this._showMenuView();
+  }
+
+  /**
+   * The action RPG's own menu — class, weapon, skills, parties, account — at a panel.
+   * @param {'loadout'|'party'|'account'|'campaign'|'create'} [panel]
+   */
+  openHero(panel = 'loadout') {
+    this._menuView = 'hero';
+    this._showMenuView();
+    this.mainMenu._switchPanel(panel);
+  }
+
+  /**
+   * Play a game from the home page: an official one (a level file, and the
+   * campaign after it), or a published one (its levels from the database).
+   * @param {string} id a game id (server/gamesStore.js)
+   * @param {{ heroId?: string|null }} [options] the class to play, unless the game sets one
+   */
+  async playGame(id, { heroId = null } = {}) {
+    const game = await games.get(id);
+    if (heroId) await this.mainMenu.refreshCharacters(heroId);
+    games.play(id);
+    if (game.official) return this.playCampaignLevel(game.levels[0]);
+    const levels = game.levels;
+    // Published levels are on the server too, so a signed-in run checks their rewards (not a draft).
+    this.drafts = { levels: new Map(levels.map((level) => [level.id, level])), campaign: levels.map((level) => ({ id: level.id, name: level.name })), saved: true };
+    await this.playCampaignLevel(levels[0].id);
   }
 
   showMainMenu() {
@@ -1226,7 +1296,7 @@ export class App {
     this.gameHud.setVisible(false);
     this.gameMenu.hide();
     document.body.classList.add('is-menu');
-    this.mainMenu.show();
+    this._showMenuView();
   }
 
   /**
@@ -1513,8 +1583,7 @@ export class App {
    * @param {object[]} levels the compiled chapters, in order
    */
   async playDraftGame(levels) {
-    this.drafts.levels = new Map(levels.map((level) => [level.id, level]));
-    this.drafts.campaign = levels.map((level) => ({ id: level.id, name: level.name }));
+    this.drafts = { levels: new Map(levels.map((level) => [level.id, level])), campaign: levels.map((level) => ({ id: level.id, name: level.name })), saved: false };
     await this.playCampaignLevel(levels[0].id);
   }
 
@@ -1529,7 +1598,10 @@ export class App {
     if (this.party.isGuest && !fromParty) return this.party.requestStart();
     if (this.party.isHost && !fromParty && !fromEditor) this.party.broadcastStart({ level, campaign, index });
     if (fromEditor) this.levelEditor.suspend();
-    else this.mainMenu.hide();
+    else {
+      this.mainMenu.hide();
+      this.home.hide();
+    }
 
     await this.catalog.ready;
     this.clearEffects();
@@ -1564,7 +1636,7 @@ export class App {
       return;
     }
 
-    this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, studied: 0, done: false, draft: this.drafts.levels.has(level.id) };
+    this.run = { level, fromEditor, campaign, index, kills: 0, wave: 0, studied: 0, done: false, draft: this.drafts.levels.has(level.id) && !this.drafts.saved };
     this._applyRules(level);
     await this.enterGame({ characterId: level.character, keepRun: true, fromParty: true });
     // Monsters already standing in the level wait for the director's reset.
@@ -1989,6 +2061,7 @@ export class App {
     this._wearGear();
     this._syncSlots();
     if (this.mainMenu.isVisible) this.mainMenu.show();
+    this.home?.updateAccount();
     // The party socket says who you are when it connects: reconnect as the new you.
     if (!this.party.inParty) this.party.session.close();
   }

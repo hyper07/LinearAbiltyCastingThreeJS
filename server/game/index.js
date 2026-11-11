@@ -45,7 +45,10 @@ export async function createGameServices({ dataDir, db = null, readLevel = async
     sameParty: (a, b) => sameParty(a, b),
     loadLevel: async (id) => {
       const text = await readLevel(id);
-      return text ? normalizeLevel(JSON.parse(text)) : null;
+      if (text) return normalizeLevel(JSON.parse(text));
+      // A published game's level (server/gamesStore.js): its rewards are checked here too.
+      const row = await db.one('SELECT data FROM game_levels WHERE level_id = ?', [String(id)]);
+      return row ? normalizeLevel(row.data) : null;
     }
   });
   const accounts = new Accounts({ db, keys, history, authority, accountsPerAddressPerDay: Number(env.ACCOUNTS_PER_ADDRESS_PER_DAY) || 5 });
@@ -120,7 +123,7 @@ export async function createGameServices({ dataDir, db = null, readLevel = async
 
   async function handler(req, res) {
     const path = pathOf(req);
-    if (!path.startsWith('/api/account') && !path.startsWith('/api/game')) return false;
+    if (!path.startsWith('/api/account') && !path.startsWith('/api/game/')) return false;
     const ip = clientIp(req, trustProxy);
     const send = (status, body) => json(res, status, body);
     try {
@@ -152,7 +155,7 @@ export async function createGameServices({ dataDir, db = null, readLevel = async
       const body = req.method === 'POST' ? await readJson(req, 64 * 1024) : {};
       // One request at a time from here: the rules read a character, check it and write it back.
       const result = await db.serial(async () => {
-        if (account && req.method === 'POST' && path.startsWith('/api/game')) {
+        if (account && req.method === 'POST' && path.startsWith('/api/game/')) {
           await authority.assertActive(account.id);
           await useClass(account.id, body.classId);
         }

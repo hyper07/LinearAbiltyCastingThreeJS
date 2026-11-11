@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 import { libraryState, startFetch } from './scripts/library/ensure.mjs';
 import { createModelStore } from './server/modelgen.mjs';
 import { libraryApi } from './server/libraryStore.js';
+import { GamesStore, gamesHandler } from './server/gamesStore.js';
 import { aiBridge } from './server/api/ai.js';
 import { JsonFileStore, fileApi } from './server/api/files.js';
 import { createRealtime } from './server/realtime.js';
@@ -100,7 +101,7 @@ function gameServices(env, levelDir, getDb) {
 function gameApi(getGame) {
   return mount('game', async (req, res) => {
     const path = (req.url ?? '').split('?')[0];
-    if (!path.startsWith('/api/account') && !path.startsWith('/api/game')) return false;
+    if (!path.startsWith('/api/account') && !path.startsWith('/api/game/')) return false;
     return (await getGame()).handler(req, res);
   });
 }
@@ -241,6 +242,13 @@ export default defineConfig(({ mode }) => {
       fileStores(),
       modelStudio(env),
       libraryApi(getDb),
+      // The home page's games: official (the level files) and published (the database).
+      (() => {
+        let store = null;
+        const getStore = async () =>
+          (store ??= new GamesStore(await getDb(), new JsonFileStore({ builtInDir: levelDir(), userDir: levelDir(), indexKey: 'campaign', label: 'level' })));
+        return mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req) }));
+      })(),
       gameApi(getGame),
       realtime({ ...process.env, ...env }, getGame),
       { name: 'level-dir', configurePreviewServer: () => void (levelDir = () => resolve('dist', 'levels')) }

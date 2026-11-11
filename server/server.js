@@ -6,6 +6,7 @@ import { aiBridge } from './api/ai.js';
 import { JsonFileStore, fileApi } from './api/files.js';
 import { chain, json, pathOf } from './api/http.js';
 import { LibraryStore, libraryHandler } from './libraryStore.js';
+import { GamesStore, gamesHandler } from './gamesStore.js';
 import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
 import { createGameServices } from './game/index.js';
@@ -21,6 +22,7 @@ import { openDatabase } from './db/database.js';
  *   /api/game/*       characters, loot, shops — the server decides (game/authority.js)
  *   /api/ai/*         the AI bridge: the model key stays here (api/ai.js)
  *   /api/library/*    the shared content library (libraryStore.js)
+ *   /api/games/*      the games on the home page: official and published (gamesStore.js)
  *   /api/levels/*     levels players save, in DATA_DIR/levels (api/files.js)
  *   /api/classes/*    classes from the Class forge, in DATA_DIR/classes
  *   /api/models/*     uploads and picture-to-3D (modelgen.mjs)
@@ -95,6 +97,7 @@ const game = await createGameServices({ dataDir: DATA_DIR, db: database, readLev
 const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, log: (line) => console.log(`[party] ${line}`), authenticate: game.authenticate });
 game.setPartyCheck((a, b) => realtime.sameParty(a, b));
 const library = new LibraryStore(database);
+const games = new GamesStore(database, levels);
 const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => console.log(line) });
 const api = chain([
   game.handler,
@@ -102,6 +105,7 @@ const api = chain([
   fileApi(levels, { files: 'levels', ordered: true }),
   fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
   libraryHandler(async () => library),
+  gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req) }),
   async (req, res) => (pathOf(req).startsWith('/api/models') ? models.handle(req, res) : false)
 ]);
 
