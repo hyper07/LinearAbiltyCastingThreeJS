@@ -26,7 +26,7 @@ const _v = new Vector3();
 
 /** Marker look per monster kind: colour and rough height in metres. */
 /** The monsters' names in the editor. */
-export const MONSTER_NAMES = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm' };
+export const MONSTER_NAMES = { grunt: 'Skeleton Minion', wisp: 'Skeleton Mage', brute: 'Skeleton Warrior', golem: 'Bone Colossus', dragon: 'Emberwyrm' };
 
 /** Which marker each tool edits, and how near a click must be to pick one up. */
 const MARKER_TOOLS = { portals: 'portal', npcs: 'npc', spawns: 'spawn', monsters: 'monster' };

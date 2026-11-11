@@ -69,12 +69,12 @@ export async function run(browser) {
     const after = await page.evaluate(() => [...window.app.profile.slots]);
     t.check('dragging key 1 onto key 9 swaps them', after[8] === before[0] && after[0] === before[8], JSON.stringify(after));
 
-    // The picker: the focus potion onto key 1.
+    // The picker: the mana potion onto key 1.
     await page.click(key(0), { button: 'right' });
     t.check('right-click opens the picker', await until(page, () => Boolean(document.querySelector('.hud__picker')), null, 2000));
-    await page.locator('.hud__picker-option', { hasText: 'Focus Potion' }).click();
+    await page.locator('.hud__picker-option', { hasText: 'Mana Potion' }).click();
     const picked = await page.evaluate(() => [...window.app.profile.slots]);
-    t.check('the picker puts the focus potion on key 1', picked[0] === 'potion:focus' && picked[6] !== 'potion:focus', JSON.stringify(picked));
+    t.check('the picker puts the mana potion on key 1', picked[0] === 'potion:focus' && picked[6] !== 'potion:focus', JSON.stringify(picked));
     // An empty key opens the picker on a plain click.
     const empty = picked.findIndex((s) => !s);
     if (empty >= 0) {

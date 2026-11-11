@@ -275,7 +275,7 @@ export class SkillTreeView {
     const classId = this.classId();
     const tree = treeFor(classId);
     const rank = p.rank(element, classId);
-    const info = skillDetails(element, rank);
+    const info = skillDetails(element, rank, { level: p.level, rage: tree.resource === 'rage' });
     const branch = tree.branches.find((b) => b.spells.includes(element));
     const tier = branch ? branch.spells.indexOf(element) + 1 : 1;
     const need = prerequisite(classId, element);

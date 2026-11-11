@@ -39,7 +39,7 @@ Each diamond is a question the LM model answers from the description of the mome
 tactic the monster then carries out. The questions stay the same; training changes *how well* the
 model answers them for each player.
 
-### Melee monsters — Cinder Imp and Iron Brute
+### Melee monsters — Skeleton Minion and Skeleton Warrior
 
 They close in and swing. The Brute's 18% armour makes it the shield: when both are on the field,
 the Brute walks in front and the Imps follow in its shadow.
@@ -58,7 +58,7 @@ flowchart TD
   Q3 -->|"standing still"| T7["Close in and swing"]
 ```
 
-### Ranged monster — Gloom Wisp
+### Ranged monster — Skeleton Mage
 
 It never closes; it fires a dodgeable bolt from 11 m. Its job is to make standing still costly.
 
@@ -75,7 +75,7 @@ flowchart TD
   Q2 -->|"stopped to cast or sit"| T6["Fire now"]
 ```
 
-### Heavy monster — Rift Golem
+### Heavy monster — Bone Colossus
 
 Slow, 30% armour, slams the floor for area damage. It controls space rather than chasing.
 

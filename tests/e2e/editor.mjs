@@ -56,7 +56,7 @@ export async function run(browser) {
     // Limit it to the Emberwyrm, from wave 2.
     await click(page, await screen(page, 0, -8));
     await page.getByLabel('Any monster').uncheck();
-    for (const name of ['Cinder Imp', 'Gloom Wisp', 'Iron Brute', 'Rift Golem']) await page.getByLabel(name, { exact: true }).uncheck();
+    for (const name of ['Skeleton Minion', 'Skeleton Mage', 'Skeleton Warrior', 'Bone Colossus']) await page.getByLabel(name, { exact: true }).uncheck();
     await page.getByLabel('Open from wave').fill('2');
     await page.getByLabel('Open from wave').dispatchEvent('change');
     await page.waitForTimeout(150);
@@ -78,7 +78,7 @@ export async function run(browser) {
     await drag(page, await screen(page, 4, 4), await screen(page, -4, 5));
     l = await level();
     t.check('a waiting monster can be placed and dragged', l.monsters.length === 1 && near(l.monsters[0], -4, 5), JSON.stringify(l.monsters));
-    await page.locator('.editor__segmented button', { hasText: 'Iron Brute' }).click();
+    await page.locator('.editor__segmented button', { hasText: 'Skeleton Warrior' }).click();
     l = await level();
     t.check('the selected monster takes the kind picked', l.monsters[0]?.kind === 'brute', JSON.stringify(l.monsters));
     await click(page, await screen(page, 3, -3));

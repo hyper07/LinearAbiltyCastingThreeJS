@@ -48,7 +48,7 @@ look up.
 | Longbow | 1.6× |
 
 <p>
-  <img src="screenshots/weapons-scope.jpg" width="60%" alt="Looking through the sniper rifle's 3.2× scope: an Iron Brute under the crosshair, its name and health, 16 m" />
+  <img src="screenshots/weapons-scope.jpg" width="60%" alt="Looking through the sniper rifle's 3.2× scope: an Skeleton Warrior under the crosshair, its name and health, 16 m" />
 </p>
 
 Damage counts as weapon damage: *+% weapon damage* gear and critical chance apply, statuses (burn,

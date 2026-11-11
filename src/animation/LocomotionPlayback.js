@@ -25,9 +25,13 @@ export class LocomotionPlayback {
     /** @type {import('../platform/motion/MotionDataset.js').MotionDataset|null} */
     this.dataset = null;
     this.idle = null;
-    /** @type {{ walk: import('three').AnimationAction|null, run: import('three').AnimationAction|null }} */
-    this.actions = { walk: null, run: null };
-    this._weights = { idle: 1, walk: 0, run: 0 };
+    /**
+     * The gaits: forward walk and run, and — when the clip set has them —
+     * walking backwards, strafing left and right, and the in-air pose.
+     * @type {Record<'walk'|'run'|'back'|'left'|'right'|'air', import('three').AnimationAction|null>}
+     */
+    this.actions = { walk: null, run: null, back: null, left: null, right: null, air: null };
+    this._weights = { idle: 1, walk: 0, run: 0, back: 0, left: 0, right: 0, air: 0 };
   }
 
   get hasClips() {
@@ -51,7 +55,7 @@ export class LocomotionPlayback {
    * @param {import('three').AnimationAction} action
    */
   register(name, action) {
-    if (name !== 'walk' && name !== 'run') return;
+    if (!(name in this.actions)) return;
     action.setLoop(LoopRepeat, Infinity);
     action.play();
     action.setEffectiveWeight(0);
@@ -99,14 +103,62 @@ export class LocomotionPlayback {
       targetRun = t;
     }
 
-    const smooth = 1 - Math.exp(-dt / Math.max(0.04, blend.crossFade ?? 0.2));
-    this._weights.idle += (targetIdle - this._weights.idle) * smooth;
-    this._weights.walk += (targetWalk - this._weights.walk) * smooth;
-    this._weights.run += (targetRun - this._weights.run) * smooth;
+    /*
+     * Which way the body moves against the way it faces. Aiming turns the
+     * body to the target, so moving sideways or away is common: playing the
+     * forward run then is what makes feet skate. The moving share of the
+     * blend is split by direction (squared, so the shares add to one):
+     * forward → walk/run, backward → walking backwards, sideways → strafes.
+     */
+    const a = this.actions;
+    let targetBack = 0;
+    let targetLeft = 0;
+    let targetRight = 0;
+    const moving = targetWalk + targetRun;
+    if (moving > 0 && locomotion.speed > idleMax && (a.back || a.left || a.right)) {
+      const rel = Math.atan2(locomotion.velocity.x, locomotion.velocity.z) - this.character.facing;
+      const f = Math.cos(rel);
+      const side = Math.sin(rel); // + is the body's left
+      let fwd = Math.max(0, f) ** 2;
+      let back = a.back ? Math.max(0, -f) ** 2 : 0;
+      let left = a.left ? Math.max(0, side) ** 2 : 0;
+      let right = a.right ? Math.max(0, -side) ** 2 : 0;
+      // A share whose clip is missing goes back to the forward gait.
+      fwd += (a.back ? 0 : Math.max(0, -f) ** 2) + (a.left ? 0 : Math.max(0, side) ** 2) + (a.right ? 0 : Math.max(0, -side) ** 2);
+      const sum = fwd + back + left + right || 1;
+      targetWalk *= fwd / sum;
+      targetRun *= fwd / sum;
+      targetBack = (moving * back) / sum;
+      targetLeft = (moving * left) / sum;
+      targetRight = (moving * right) / sum;
+    }
+    // In the air: the airborne pose over everything.
+    const targetAir = a.air && !locomotion.grounded ? 1 : 0;
+    if (targetAir) {
+      targetIdle = targetWalk = targetRun = targetBack = targetLeft = targetRight = 0;
+    }
 
-    this.idle.setEffectiveWeight(this._weights.idle);
-    this.actions.walk.setEffectiveWeight(this._weights.walk);
-    this.actions.run.setEffectiveWeight(this._weights.run);
+    const smooth = 1 - Math.exp(-dt / Math.max(0.04, blend.crossFade ?? 0.2));
+    const w = this._weights;
+    w.idle += (targetIdle - w.idle) * smooth;
+    w.walk += (targetWalk - w.walk) * smooth;
+    w.run += (targetRun - w.run) * smooth;
+    w.back += (targetBack - w.back) * smooth;
+    w.left += (targetLeft - w.left) * smooth;
+    w.right += (targetRight - w.right) * smooth;
+    w.air += (targetAir - w.air) * (1 - Math.exp(-dt / 0.08));
+
+    this.idle.setEffectiveWeight(w.idle);
+    a.walk.setEffectiveWeight(w.walk);
+    a.run.setEffectiveWeight(w.run);
+    a.back?.setEffectiveWeight(w.back);
+    a.left?.setEffectiveWeight(w.left);
+    a.right?.setEffectiveWeight(w.right);
+    a.air?.setEffectiveWeight(w.air);
+    // Backwards is a walk clip (no one runs backwards well): sped up to match the ground.
+    a.back?.setEffectiveTimeScale(MathUtils.clamp(speed / Math.max(0.01, walkNominal), 0.5, 2.2));
+    // The strafes are running clips.
+    for (const side of [a.left, a.right]) side?.setEffectiveTimeScale(MathUtils.clamp(speed / Math.max(0.01, runNominal * 0.8), 0.55, 1.8));
 
     this.idle.setEffectiveTimeScale(1);
 
@@ -139,8 +191,7 @@ export class LocomotionPlayback {
   resumeAfterCast(finishedAction, blendOut) {
     this.idle.enabled = true;
     this.idle.play();
-    this.actions.walk?.play();
-    this.actions.run?.play();
+    for (const action of Object.values(this.actions)) action?.play();
     this.idle.crossFadeFrom(finishedAction, blendOut, false);
   }
 }

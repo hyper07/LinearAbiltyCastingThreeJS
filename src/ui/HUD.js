@@ -66,7 +66,7 @@ export class HUD {
 
         <div style="margin-top:7px"><strong>1</strong>–<strong>9</strong> your skills and potions &nbsp; <kbd>K</kbd> skill tree</div>
         <div class="hud__help-note">Drag keys on the bar to swap them; right-click a key to choose what is on it.</div>
-        <div><kbd>R</kbd> health potion &nbsp; <kbd>Z</kbd> focus potion &nbsp; <kbd>Tab</kbd> bag</div>
+        <div><kbd>R</kbd> health potion &nbsp; <kbd>Z</kbd> mana potion &nbsp; <kbd>Tab</kbd> bag</div>
         <div class="hud__help-note">Skill books teach spells and raise their ranks. Far casts aim with a circle, not an arrow.</div>
         <div><strong>Mouse</strong> aim &nbsp; <strong>Left click</strong> attack &nbsp; <strong>Right click</strong> cast</div>
         <div><strong>Esc</strong> — cancel the cast &nbsp; <strong>Middle drag</strong> orbit</div>
@@ -139,7 +139,7 @@ export class HUD {
           <div class="ability-card__sweep" data-sweep></div>
           <div class="ability-card__key">${i + 1}</div>
           <div class="ability-card__glyph ability-card__flask">${kindIcon('potion')}</div>
-          <div class="ability-card__label">${kind === 'health' ? 'Health' : 'Focus'}</div>
+          <div class="ability-card__label">${kind === 'health' ? 'Health' : 'Mana'}</div>
           <div class="ability-card__count" data-count>${this._potions[kind] ?? 0}</div>`;
         card.classList.toggle('is-out', !(this._potions[kind] > 0));
         this.potionCards.set(kind, card);

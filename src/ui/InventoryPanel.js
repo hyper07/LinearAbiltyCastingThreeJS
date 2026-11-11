@@ -190,7 +190,7 @@ export class InventoryPanel {
 
     const head = document.createElement('header');
     head.className = 'inventory__head';
-    head.innerHTML = `<h2>${this.stashMode ? 'Stash' : 'Bag'}</h2><span>${p.gold} gold · ${p.potions.health} health · ${p.potions.focus} focus potions</span>`;
+    head.innerHTML = `<h2>${this.stashMode ? 'Stash' : 'Bag'}</h2><span>${p.gold} gold · ${p.potions.health} health · ${p.potions.focus} mana potions</span>`;
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = this.stashMode ? 'Close' : 'Close (Tab)';

@@ -19,7 +19,7 @@ const TOOLS = [
   ['npcs', 'NPCs', 'Click to place a helper, click one to edit, drag to move. Guides talk (AI or scripted), merchants and healers trade, quest-givers set tasks, tutors ask study questions.']
 ];
 
-const MONSTER_LABELS = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm', rival: 'Rival' };
+const MONSTER_LABELS = { grunt: 'Skeleton Minion', wisp: 'Skeleton Mage', brute: 'Skeleton Warrior', golem: 'Bone Colossus', dragon: 'Emberwyrm', rival: 'Rival' };
 
 const esc = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -409,7 +409,7 @@ export class EditorPanel {
       const setQ = (changes) => e.updateMarker({ quest: { ...q, ...changes } });
       pane.append(
         field('Quest title', q.title, (v) => setQ({ title: v || 'A favour' })),
-        this._select('Defeat', ['any', ...MONSTER_KINDS], q.target, (v) => setQ({ target: v }), { any: 'Any monsters', grunt: 'Cinder Imps', wisp: 'Gloom Wisps', brute: 'Iron Brutes', golem: 'Rift Golems', dragon: 'The Emberwyrm' }),
+        this._select('Defeat', ['any', ...MONSTER_KINDS], q.target, (v) => setQ({ target: v }), { any: 'Any monsters', grunt: 'Skeleton Minions', wisp: 'Skeleton Mages', brute: 'Skeleton Warriors', golem: 'Bone Colossi', dragon: 'The Emberwyrm' }),
         this._slider('How many', 1, 100, 1, q.count, (v) => setQ({ count: v })),
         this._slider('Reward gold', 0, 1000, 10, q.gold, (v) => setQ({ gold: v })),
         this._select('Reward item', REWARD_RARITIES, q.rarity, (v) => setQ({ rarity: v }), { none: 'No item', magic: 'Magic weapon', rare: 'Rare weapon', epic: 'Epic weapon', unique: 'Unique weapon' })
@@ -685,7 +685,7 @@ export class EditorPanel {
         r.growth = v;
         e._commit('rules');
       }),
-      this._slider('Rift Golem leads every Nth wave (0 = never)', 0, 20, 1, r.bossEvery, (v) => {
+      this._slider('Bone Colossus leads every Nth wave (0 = never)', 0, 20, 1, r.bossEvery, (v) => {
         r.bossEvery = v;
         e._commit('rules');
       }),

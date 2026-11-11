@@ -55,6 +55,8 @@ export class MonsterManager extends EventEmitter {
     context.scene.add(this.group);
 
     this.assets = new MonsterAssets();
+    /** Animated models for the kinds that have one (MonsterModels.js); set by the app. */
+    this.assets.models = null;
     this.pools = new Map();
     /** Everything currently in the scene, dying bodies included. */
     this.active = [];
@@ -99,6 +101,23 @@ export class MonsterManager extends EventEmitter {
   }
 
   /** Everything an attack can hit: the monsters, and in a battle royale the other players. */
+  /**
+   * Real models for the monsters (MonsterModels.js). Bodies made before they
+   * loaded keep their built shape, so the pools are emptied to build again.
+   * @param {import('./MonsterModels.js').MonsterModelLibrary} library
+   */
+  useModels(library) {
+    this.assets.models = library;
+    for (const [kind, pool] of this.pools) {
+      if (this.active.some((m) => m.kind === kind)) continue;
+      pool.dispose?.((monster) => {
+        this.group.remove(monster.root);
+        monster.dispose();
+      });
+      this.pools.delete(kind);
+    }
+  }
+
   get targets() {
     return this.extraTargets.length ? this.active.concat(this.extraTargets) : this.active;
   }
@@ -255,6 +274,8 @@ export class MonsterManager extends EventEmitter {
   dressRemoteAttack(msg) {
     const monster = this.byId.get(msg?.id);
     if (!monster || !monster.isAlive) return;
+    // A model body swings when it hears of the attack.
+    monster._attackAt = monster.age;
     this._dressAttack(monster, { damage: 0, splash: Number(msg.sp) || 0, ranged: Boolean(msg.r) }, _target.set(Number(msg.tx) || 0, 0, Number(msg.tz) || 0));
   }
 

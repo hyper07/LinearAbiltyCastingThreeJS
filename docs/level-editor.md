@@ -34,7 +34,7 @@ map in the level editor** to hand-finish a map the AI just made.
 | **Sculpt** | Raise, lower, smooth or flatten the land around the arena. The 25 m fighting circle stays flat, because movement and spells assume flat ground there. |
 | **Paint** | Paint ground surfaces (grass, snow, sand, gravel, paving, lava…) anywhere, including roads across the arena. |
 | **Spawns** | Mark where waves walk in from, and optionally which monsters use each point and in which waves (see below). No spawn points = monsters come from all around. |
-| **Monsters** | Place monsters that are already waiting when the level starts — e.g. a Rift Golem guarding a gate. Click one to change its kind. |
+| **Monsters** | Place monsters that are already waiting when the level starts — e.g. a Bone Colossus guarding a gate. Click one to change its kind. |
 | **Portals** | Place portals and link them to each other or to another level (see [Portals](items-npcs-portals.md#portals)). |
 | **NPCs** | Place helpers — guides, merchants, healers, quest givers, tutors — with lines, an AI personality, gifts, quests and study questions (see [NPCs](items-npcs-portals.md#npcs) and [Study games for kids](for-parents.md)). |
 
@@ -57,11 +57,11 @@ In each wave, a monster that some open point names comes only through the points
 a gate set to the Emberwyrm gets every Emberwyrm and nothing else. Every other monster picks among
 the points open to any monster. If no point is open to it, it uses any point, so a wave never gets
 stuck. Limited points show their limits above the ring in the editor
-(*Rift Golem, Emberwyrm · wave 5+*). Which monsters come, how many and how often a boss appears are
+(*Bone Colossus, Emberwyrm · wave 5+*). Which monsters come, how many and how often a boss appears are
 still set on the **Rules** tab; spawn points only decide where they come from.
 
 <p>
-  <img src="screenshots/dragons-keep.jpg" width="49%" alt="The Dragon's Keep: a torch-lit dungeon hall with carved pillars, red banners and the wyrm's hoard of gold guarded by two Iron Brutes" />
+  <img src="screenshots/dragons-keep.jpg" width="49%" alt="The Dragon's Keep: a torch-lit dungeon hall with carved pillars, red banners and the wyrm's hoard of gold guarded by two Skeleton Warriors" />
   <img src="screenshots/thistledown.jpg" width="49%" alt="Thistledown: a sunny storybook village with cottages, red-spotted toadstools and colourful trees" />
 </p>
 
@@ -118,6 +118,6 @@ levels ship with the game:
 | 1 | **Frost Hollow** | Survive 3 waves | By hand: scattered pines, sculpted ridge, painted gravel road, two waiting monsters |
 | 2 | **Thistledown** | Defeat 20 monsters | A storybook village on a sunny day: cottages, a windmill, red-spotted toadstools, a castle on the horizon; a healer, a merchant and the miller's quest |
 | 3 | **Ember Ruins** | Defeat 25 monsters | AI fill (desert canyon temple) + hand-set rules and three spawn points |
-| 4 | **The Wyrm's Graveyard** | Defeat the Emberwyrm (wave 3) | AI fill (foggy graveyard) + a Rift Golem waiting at the gate |
-| 5 | **The Dragon's Keep** | Defeat the Emberwyrm (wave 3) | A torch-lit dungeon hall: stone walls and flagstones, carved pillars, banners, and the wyrm's hoard of gold guarded by two Iron Brutes |
+| 4 | **The Wyrm's Graveyard** | Defeat the Emberwyrm (wave 3) | AI fill (foggy graveyard) + a Bone Colossus waiting at the gate |
+| 5 | **The Dragon's Keep** | Defeat the Emberwyrm (wave 3) | A torch-lit dungeon hall: stone walls and flagstones, carved pillars, banners, and the wyrm's hoard of gold guarded by two Skeleton Warriors |
 | ✎ | **Study Grove** | Answer 8 questions (calm, no monsters) | A sunny clearing with two tutors — see [Study games for kids](for-parents.md) |

@@ -9,10 +9,10 @@ const SPELL_TIPS = [
   'Frost Lance (1): a line of ice that chills and slows everything it crosses — good against groups closing in.',
   'Storm Lance (2): a fast lightning line that shocks — great for a quick hit at range.',
   'Cinder Fall (3): a meteor lobbed to a point; big burst and burning cracks — best on clustered monsters.',
-  'Nova Beam (4): a sustained beam that keeps burning along a line — strongest on big targets like the Rift Golem.',
+  'Nova Beam (4): a sustained beam that keeps burning along a line — strongest on big targets like the Bone Colossus.',
   'Voltaic Snare (5): a far-cast circle that roots and shocks what is inside — trap groups, then hit them.',
   'Glacial Crown (6): a far-cast ring of ice blades that freezes — a wall to stop rushers.',
-  'Potions: R drinks a health potion (45% heal), Z drinks a focus potion (all spells ready).',
+  'Potions: R drinks a health potion (45% heal), Z drinks a mana potion (half your mana back). Spells cost mana; it refills over time.',
   'Tab opens the bag: equip weapons for bonus stats, read skill books to rank up a spell.'
 ];
 
@@ -108,7 +108,7 @@ export class NpcBrain {
       level ? `This place: "${level.name}". ${level.story?.intro?.text ?? ''}` : '',
       level ? `The player's goal here: ${context.goal}. Progress: ${context.progress}.` : '',
       `Monsters here: ${context.monsters}.`,
-      `The player right now: ${player.healthPct}% health, ${player.gold} gold, ${player.potions.health} health potions, ${player.potions.focus} focus potions, weapon: ${player.weapon}, spell ranks: ${skills}.`,
+      `The player right now: ${player.healthPct}% health, ${player.gold} gold, ${player.potions.health} health potions, ${player.potions.focus} mana potions, weapon: ${player.weapon}, spell ranks: ${skills}.`,
       quest ? `Your quest for them: ${quest}.` : '',
       d.lines?.length ? `Things you know and like to say: ${d.lines.join(' | ')}` : '',
       'Facts about the player\'s spells and items (use them for advice, never invent others):',

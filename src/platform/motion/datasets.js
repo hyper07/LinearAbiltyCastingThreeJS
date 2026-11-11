@@ -85,7 +85,8 @@ export const monkLocomotion = createMotionDataset('monk-locomotion', {
 /** KayKit GLB — locomotion clips live inside the character file. */
 export const kaykitLocomotion = createMotionDataset('kaykit-locomotion', {
   label: 'KayKit — embedded gait',
-  clips: { walk: 'Walking_A', run: 'Running_A' },
+  // Forward, backwards, the two strafes and the in-air pose: all authored clips in the KayKit file.
+  clips: { walk: 'Walking_A', run: 'Running_A', back: 'Walking_Backwards', left: 'Running_Strafe_Left', right: 'Running_Strafe_Right', air: 'Jump_Idle' },
   embedded: true,
   blend: {
     idleMaxSpeed: 0.12,

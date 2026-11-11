@@ -296,6 +296,10 @@ export class CharacterController {
           LoopRepeat
         );
       }
+      // Moving other ways than forward, and the jump (LocomotionPlayback blends them by direction).
+      for (const name of ['back', 'left', 'right', 'air']) {
+        if (motionDataset.clips?.[name]) this._registerEmbeddedClip(name, motionDataset.clips[name], animations, bones, false, LoopRepeat);
+      }
     }
 
     this._syncLocomotionMode(motionDataset);
@@ -427,7 +431,7 @@ export class CharacterController {
       return;
     }
 
-    if (name === 'walk' || name === 'run') {
+    if (name in this.locomotionPlayback.actions) {
       this.locomotionPlayback.register(name, action);
     }
   }

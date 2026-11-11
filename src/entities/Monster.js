@@ -1,4 +1,4 @@
-import { Group, MathUtils, Quaternion, Vector3 } from 'three';
+import { Color, Group, MathUtils, Quaternion, Vector3 } from 'three';
 
 import { settings } from '../config/settings.js';
 import { getColor } from '../utils/color.js';
@@ -10,6 +10,12 @@ import {
   createMonsterMaterials
 } from './MonsterBuilder.js';
 import { disposeObject } from '../utils/dispose.js';
+
+
+/** Glow colours for a model body (MonsterModels.js). */
+const _flash = new Color('#ffffff');
+const _frost = new Color('#8fe3ff');
+const _ember = new Color('#ff6a2a');
 
 export const MonsterState = Object.freeze({
   IDLE: 'idle',
@@ -80,23 +86,43 @@ export class Monster {
     this.uniforms = createDamageUniforms(config.accent);
     this.materials = createMonsterMaterials(config, this.uniforms);
 
-    const shared = assets.get(kind, config);
-    const rig = assembleMonster(shared, config, this.materials);
-    this.joints = rig.joints;
-    this.isFloater = shared.shape === 'orb';
-    /**
-     * Resting hip height, so the walk bob has something to bob around.
-     * Not every rig has hips — the dragon's spine is a chain, and it does its
-     * own animation anyway.
-     */
-    this._hipRest = rig.joints.hips?.position.y ?? 0;
-    this.centreHeight = rig.centreHeight;
-    this.barHeight = rig.barHeight;
-
     this.root = new Group();
     this.root.name = `Monster:${kind}`;
-    this.root.add(rig.root);
-    this.body = rig.root;
+    /**
+     * A real animated model when the kind has one and it has loaded
+     * (MonsterModels.js): the brain is the same, the body plays authored clips.
+     * Otherwise the hand-built body, animated in code.
+     */
+    this.model = assets.models?.build(kind) ?? null;
+    if (this.model) {
+      this.joints = {};
+      this.isFloater = false;
+      this._hipRest = 0;
+      this.centreHeight = this.model.height * 0.55;
+      this.barHeight = this.model.height + 0.45;
+      // A holder, so arriving and dying can move the body without undoing the model's own fit.
+      this.body = new Group();
+      this.body.add(this.model.root);
+      this.root.add(this.body);
+    } else {
+      const shared = assets.get(kind, config);
+      const rig = assembleMonster(shared, config, this.materials);
+      this.joints = rig.joints;
+      this.isFloater = shared.shape === 'orb';
+      /**
+       * Resting hip height, so the walk bob has something to bob around.
+       * Not every rig has hips — the dragon's spine is a chain, and it does its
+       * own animation anyway.
+       */
+      this._hipRest = rig.joints.hips?.position.y ?? 0;
+      this.centreHeight = rig.centreHeight;
+      this.barHeight = rig.barHeight;
+      this.root.add(rig.root);
+      this.body = rig.root;
+    }
+    /** When it was last hit, and last attacked (a guest's copy hears of attacks late). */
+    this._hitAt = -99;
+    this._attackAt = -99;
 
     const bar = createHealthBar(config.accent);
     this.bar = bar.mesh;
@@ -221,6 +247,12 @@ export class Monster {
     this._setShadows(true);
     this.state = MonsterState.ARRIVING;
     this.root.visible = true;
+    this._hitAt = -99;
+    this._attackAt = -99;
+    if (this.model) {
+      this.model.reset();
+      this.model.play(this.model.actions.spawn ? 'spawn' : 'idle', { timeScale: this.model.actions.spawn ? this.model.durations.spawn / Math.max(0.3, settings.monsters.spawnTelegraph) : 1, restart: true });
+    }
     return this;
   }
 
@@ -267,6 +299,7 @@ export class Monster {
     const dealt = Math.min(damage, this.health);
     this.health -= damage;
     this.hitFlash = 1;
+    this._hitAt = this.age;
     this._lastDamageAge = this.age;
     this.bar.visible = settings.monsters.healthBars;
 
@@ -472,6 +505,7 @@ export class Monster {
     const dealt = Math.min(damage, this.health);
     this.health = Math.max(0, this.health - damage);
     this.hitFlash = 1;
+    this._hitAt = this.age;
     this._lastDamageAge = this.age;
     this.bar.visible = settings.monsters.healthBars;
     this.manager?.outbox.push({ id: this.id, k: 'dmg', a: round2(amount), sh: options.shatter ?? 1, ia: Boolean(options.ignoreArmour), el: options.element ?? null });
@@ -516,6 +550,11 @@ export class Monster {
 
   _updateArriving(dt) {
     const t = saturate(this.stateTime / Math.max(0.05, settings.monsters.spawnTelegraph));
+    // A model with its own rising clip (the skeletons claw out of the ground) needs no tween.
+    if (this.model?.actions.spawn) {
+      if (t >= 1) this._enter(MonsterState.PURSUE);
+      return;
+    }
     // Rises out of the floor on an overshoot curve, so it looks *pushed* through
     // rather than faded in.
     this.body.position.y = (1 - Easing.outBack(t)) * -2.2;
@@ -537,6 +576,13 @@ export class Monster {
   _updateDying(dt, ctx) {
     const life = Math.max(0.2, settings.monsters.corpseFade);
     this.dissolve = saturate(this.stateTime / life);
+    // A model plays its death clip, then fades.
+    if (this.model) {
+      this.bar.visible = false;
+      this.velocity.multiplyScalar(Math.pow(0.02, dt));
+      if (this.dissolve >= 1) this.state = MonsterState.DEAD;
+      return;
+    }
     // Frozen things do not slump — they stand until they burst.
     if (!this.shattered) {
       this.body.rotation.x = damp(this.body.rotation.x, 1.35, 0.02, dt);
@@ -705,6 +751,7 @@ export class Monster {
    * animates at the speed it is actually walking without a single extra line.
    */
   _animate(dt, ctx) {
+    if (this.model) return this._animateModel(dt, ctx);
     const j = this.joints;
     if (this.isFloater) return this._animateWisp(dt, ctx);
 
@@ -785,6 +832,36 @@ export class Monster {
     this._emitFootstep(speed, ctx);
   }
 
+  /** The model's clip for what the brain is doing: arrive, move, swing, flinch, fall. */
+  _animateModel(dt, ctx) {
+    const m = this.model;
+    const cfg = this.config;
+    const scale = this.root.scale.x;
+    const speed = Math.hypot(this.velocity.x, this.velocity.z);
+    const attacking = this.state === MonsterState.WINDUP || this.state === MonsterState.RECOVER || this.age - this._attackAt < 0.6;
+    if (this.state === MonsterState.DYING) {
+      m.play('death', { fade: 0.12 });
+    } else if (this.state === MonsterState.ARRIVING) {
+      // The spawn clip was started by spawn().
+    } else if (attacking) {
+      // Time the swing so its blow lands as the windup ends.
+      const windup = Math.max(0.15, cfg.attackWindup);
+      m.play('attack', { timeScale: Math.max(0.6, ((m.durations.attack ?? 1) * 0.5) / windup), fade: 0.1, restart: m.role !== 'attack' });
+    } else if (this.age - this._hitAt < 0.3 && m.actions.hit) {
+      m.play('hit', { fade: 0.06, restart: m.role !== 'hit' });
+    } else if (speed < 0.3) {
+      m.play('idle');
+    } else {
+      const role = speed > 2.1 * scale ? 'run' : 'walk';
+      m.play(role, { timeScale: m.pace(role, speed, scale) });
+    }
+    // Frozen solid stops the clip; slowed things move slowly.
+    m.mixer.timeScale = this.statuses.has('freeze') ? 0 : this.statuses.has('chill') ? 0.6 : 1;
+    m.update(dt);
+    this.walkPhase += speed * (2.6 / Math.max(0.6, scale)) * dt;
+    this._emitFootstep(speed, ctx);
+  }
+
   _animateWisp(dt, ctx) {
     const j = this.joints;
     this.bobPhase += dt;
@@ -854,6 +931,12 @@ export class Monster {
     u.uDissolve.value = this.dissolve;
     u.uFreeze.value = damp(u.uFreeze.value, this.statuses.has('freeze') ? 1 : 0, 0.0004, dt);
     u.uBurn.value = damp(u.uBurn.value, this.statuses.has('burn') ? 1 : 0, 0.001, dt);
+    if (this.model) {
+      // The same reads as the built bodies: a white flash, frost, embers — as a glow on the model.
+      const glow = u.uFreeze.value > 0.05 ? _frost : u.uBurn.value > 0.05 ? _ember : _flash;
+      this.model.setGlow(glow, Math.max(this.hitFlash * 0.85, u.uFreeze.value * 0.6, u.uBurn.value * 0.5));
+      this.model.setFade(saturate((this.dissolve - 0.55) / 0.45));
+    }
 
     if (!settings.monsters.healthBars) {
       this.bar.visible = false;
@@ -892,6 +975,7 @@ export class Monster {
   /* ------------------------------------------------------------------ */
 
   dispose() {
+    this.model?.dispose();
     this.materials.body.dispose();
     this.materials.accent.dispose();
     this.materials.glow.dispose();

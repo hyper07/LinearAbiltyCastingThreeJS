@@ -1521,6 +1521,23 @@ body.is-menu #viewport {
   display: none;
 }
 
+/* Mana (game/progression.js): blue, like the rage bar's place under health. */
+.vitals__mana[hidden] {
+  display: none;
+}
+.vitals__mana {
+  height: 10px;
+  margin-top: 4px;
+}
+.vitals__mana i {
+  background: linear-gradient(90deg, #2d4fd8, #6f9dff);
+  box-shadow: 0 0 14px rgba(90, 130, 255, 0.45);
+}
+.vitals__mana span {
+  font-size: 8px;
+  color: rgba(230, 238, 255, 0.92);
+}
+
 /* A team buff on you (Battle Roar from you or a teammate): what it gives and the seconds left. */
 .vitals__buff[hidden] {
   display: none;

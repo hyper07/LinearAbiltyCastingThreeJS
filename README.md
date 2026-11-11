@@ -13,7 +13,7 @@ for players: see [Production](docs/production.md).
   <img src="docs/screenshots/gameplay.gif" width="100%" alt="Gameplay: a Knight in plate armor with a tower shield casts Frost Lance through a pack of monsters in Thistledown, blocks their hits, cuts down a brute, blinks away and leaves loot glowing in rarity colours" />
 </p>
 <p>
-  <img src="docs/screenshots/sunny-battle.jpg" width="49%" alt="Nova Beam blasting an Iron Brute in a sunny pine clearing under a blue sky" />
+  <img src="docs/screenshots/sunny-battle.jpg" width="49%" alt="Nova Beam blasting an Skeleton Warrior in a sunny pine clearing under a blue sky" />
   <img src="docs/screenshots/loadout.jpg" width="49%" alt="Main menu: the Barbarian holding a war axe in the character preview, its bonuses on the class card, and the Axes &amp; Blunt weapon tab" />
 </p>
 
@@ -66,7 +66,10 @@ in the Game builder. See **[Battle royale](docs/battle-royale.md)**.
 
 ## Playing
 
-In **Your hero**, pick a class and press **Start Game** for the open arena, or play any game from the home page. Move with **W A S D**, press **1–9** to arm
+In **Your hero**, pick a class and press **Start Game** for the open arena, or play any game from the home page.
+Spells cost **mana** (the blue bar; the Mana Potion on key 7 gives half back), and cooldowns and the pause
+between casts shorten as you level up and rank up your skills —
+[Mana, cooldowns and levels](docs/classes-and-skills.md#mana-cooldowns-and-levels). Move with **W A S D**, press **1–9** to arm
 a spell or drink a potion, aim with the mouse and **right-click** to cast; **left-click** is your
 class's close-range attack. **K** opens your skill tree, **Tab** (or the **Bag** button) the bag.
 Full list: **[Controls](docs/controls.md)**.
@@ -201,7 +204,7 @@ together, Battle Roar buffs every teammate in its circle, with a red aura everyo
 [More →](docs/classes-and-skills.md#the-barbarian-physical-skills-and-rage)
 
 <p>
-  <img src="docs/screenshots/barbarian-leap.jpg" width="49%" alt="Skybreaker Leap landing among Iron Brutes" />
+  <img src="docs/screenshots/barbarian-leap.jpg" width="49%" alt="Skybreaker Leap landing among Skeleton Warriors" />
   <img src="docs/screenshots/barbarian-tempest.jpg" width="49%" alt="Iron Tempest spinning through brutes" />
 </p>
 

@@ -5,7 +5,7 @@
 ## Portals, loot and NPCs
 
 <p>
-  <img src="screenshots/npc-dialogue.jpg" width="49%" alt="Talking to the Old Warden: a gift, an AI-written answer about fighting the Rift Golem, and an accepted quest" />
+  <img src="screenshots/npc-dialogue.jpg" width="49%" alt="Talking to the Old Warden: a gift, an AI-written answer about fighting the Bone Colossus, and an accepted quest" />
   <img src="screenshots/npc-merchant.jpg" width="49%" alt="Trading with Mira the merchant: potions, weapons by rarity and a skill book for sale" />
 </p>
 <p>
@@ -25,7 +25,7 @@ land with a light beam in their rarity colour — **Common**, **Magic** (blue), 
 the name from close by). What you pick up goes into the bag and is never put on for you: the **Bag**
 button above the action bar counts what is new until you open the bag, where you decide what to wear.
 With the bag full, loot stays on the ground (and isn't tried again until you step off it and back);
-make room and come back for it. Bigger monsters drop more and better: a Rift Golem always drops a Rare or
+make room and come back for it. Bigger monsters drop more and better: a Bone Colossus always drops a Rare or
 better (a weapon or a piece of gear, and half the time a skill book), the Emberwyrm an Epic or
 better plus two skill books.
 
@@ -91,7 +91,7 @@ anyone in the party to take.
 - **Levels.** Monsters and quests give XP (bigger monsters more, later waves a little more). Every
   3 levels the bag gets a row, up to 6 rows. Your level and XP bar show on the belt and in the bag.
 - **Bag upgrades.** A *Leather Satchel* (+1 row) or an *Explorer's Pack* (+2) sometimes drops (a
-  Rift Golem or the Emberwyrm drops them far more often) and merchants sometimes stock one. Click it
+  Bone Colossus or the Emberwyrm drops them far more often) and merchants sometimes stock one. Click it
   in the bag to use it.
 - **Merchants** sell a bag row for gold; each row costs more than the last.
 
@@ -134,4 +134,4 @@ portal's colour. Place them with the **Portals** tool, pick the frame and colour
 nothing. When a level's goal is met, a **gold exit portal** opens in front of you; stepping in shows
 the ending and leads on to the next level.
 
-Keys: **F** talk · **6** / **R** health potion · **7** / **Z** focus potion · **Tab** bag · **K** skill tree.
+Keys: **F** talk · **6** / **R** health potion · **7** / **Z** mana potion · **Tab** bag · **K** skill tree.

@@ -80,6 +80,8 @@ import { Editor } from '../ui/Editor.js';
 import { getColor } from '../utils/color.js';
 import { BuffAuras } from '../effects/BuffAuras.js';
 import { RoyaleMode } from '../game/royale/RoyaleMode.js';
+import { MonsterModelLibrary } from '../entities/MonsterModels.js';
+import { PROGRESSION, globalCooldown, levelCooldownFactor, manaCost, manaRegen, maxMana } from '../game/progression.js';
 import { DecalType } from '../effects/GroundDecals.js';
 import { settings, ELEMENTS, ELEMENT_META, CastShape, castShapeOf } from '../config/settings.js';
 import { platform, classArmor, classBonuses, LOOKS, treeSpells, treeFor } from '../platform/index.js';
@@ -157,6 +159,12 @@ export class App {
      */
     this.rage = 0;
     this._rageIdle = 0;
+    /** Mana: what spells cost (game/progression.js). Rage classes do without. */
+    this.maxMana = maxMana(1);
+    this.mana = this.maxMana;
+    /** The pause after a cast before the next, and how long it was. */
+    this._gcd = 0;
+    this._gcdTotal = 1;
     /** Battle Roar's damage buff runs until this time (this.elapsed). */
     this._roarUntil = 0;
     /** Iron Tempest: re-throw the spin clip until this time. */
@@ -1071,8 +1079,15 @@ export class App {
 
   /** Cooldown and Rage both allow it; says why not if they don't. */
   _canCast(element) {
+    // The short pause after any cast: quietly not yet.
+    if (this._gcd > 0) return false;
     if ((this.cooldowns.get(element) ?? 0) > 0) {
       this.hud.showToast('Not ready');
+      return false;
+    }
+    const mana = this._manaCost(element);
+    if (mana > this.mana) {
+      this.hud.showToast(`Needs ${mana} mana — wait, or drink a mana potion (Z)`);
       return false;
     }
     const cost = this._rageCost(element);
@@ -1081,6 +1096,11 @@ export class App {
       return false;
     }
     return true;
+  }
+
+  /** Mana a skill costs this character now (0 for a Rage class). */
+  _manaCost(element) {
+    return this.usesRage ? 0 : manaCost(element, this.profile.rank(element), { rage: false });
   }
 
   /** Rage a skill costs (0 for builders and every spell). */
@@ -1166,6 +1186,8 @@ export class App {
     // A guest joins the host's fight; they do not start their own.
     if (this.party.isGuest && !fromParty) return this.party.requestStart();
     const { characterId, weaponId } = this.mainMenu.getSelection();
+    // The monsters' models, if they are still on their way (never more than a few seconds).
+    await Promise.race([this.monsterModelsReady, new Promise((r) => setTimeout(r, 8000))]);
     await this.selectCharacter(forced ?? characterId, { reloadMesh: true });
     this.selectWeapon(weaponId);
     // Free play from the menu is not a level.
@@ -1186,6 +1208,7 @@ export class App {
     this.rage = 0;
     this._roarUntil = 0;
     this.auras.clear();
+    this._gcd = 0;
     this._spinUntil = 0;
     this._dashState = null;
 
@@ -1490,7 +1513,10 @@ export class App {
       this._spinUntil = this.elapsed + (settings.combat[element]?.lasts ?? 2.6);
       this._spinNext = this.elapsed + 0.7;
     }
-    this.cooldowns.set(element, Math.max(0, settings[element].cooldown * this.profile.cooldownMultiplier(element)));
+    // Mana, the cooldown and the pause before the next cast (game/progression.js).
+    this.mana = Math.max(0, this.mana - this._manaCost(element));
+    this.cooldowns.set(element, Math.max(0, settings[element].cooldown * levelCooldownFactor(this.profile.level) * this.profile.cooldownMultiplier(element)));
+    this._gcd = this._gcdTotal = globalCooldown(this.profile.level);
 
     // Snap onto the shot and throw the body into it. Which clip that is belongs
     // to the ability, so each spell can be cast with its own gesture.
@@ -1654,6 +1680,8 @@ export class App {
     // A battle royale: the storm, the rivals, the last one standing (game/royale).
     if (level.rules.goal === 'royale') {
       this.royale ??= new RoyaleMode(this);
+      // The rivals are adventurers: their models load the first time a match needs them.
+      await Promise.race([this.monsterModels?.preload(['rival']).then(() => this.monsters.useModels(this.monsterModels)), new Promise((r) => setTimeout(r, 8000))]);
       this.royale.start(level);
     }
     this._updateGoalPill();
@@ -2095,6 +2123,10 @@ export class App {
     director.block = stats.block / 100;
     director.regen = stats.regen;
     director.health = refill ? director.maxHealth : Math.max(1, Math.round(director.maxHealth * ratio));
+    // Mana grows with the character's level (game/progression.js).
+    const manaRatio = this.maxMana ? this.mana / this.maxMana : 1;
+    this.maxMana = maxMana(this.profile.level);
+    this.mana = refill ? this.maxMana : Math.min(this.maxMana, this.maxMana * manaRatio);
     this._speedBonus = 1 + stats.speed / 100;
     this.character.locomotion.speedBonus = this._speedBonus;
   }
@@ -2149,8 +2181,9 @@ export class App {
       this.director.health = Math.min(this.director.maxHealth, this.director.health + this.director.maxHealth * 0.45);
       this.flash.trigger?.(getColor('#ff6b7a'), 0.25);
     } else {
-      for (const element of this.cooldowns.keys()) this.cooldowns.set(element, 0);
-      this.flash.trigger?.(getColor('#7fd6ff'), 0.25);
+      // The Mana Potion: half your mana back.
+      this.mana = Math.min(this.maxMana, this.mana + this.maxMana * PROGRESSION.potionMana);
+      this.flash.trigger?.(getColor('#6f8dff'), 0.25);
     }
     this.hud.showToast(auto ? `${POTIONS[kind].name} — drunk automatically` : POTIONS[kind].name);
     return true;
@@ -2425,6 +2458,20 @@ export class App {
     const assets = new AssetLoader();
     this._assets = assets;
 
+    // The monsters' animated models load in the background (MonsterModels.js); weapons come
+    // from the KayKit skeleton pack in the 3D library when it is there.
+    this.monsterModels = new MonsterModelLibrary(
+      (url) => assets.loadGLB(url),
+      (name) => {
+        const model = this.catalog.models.find((m) => m.id.endsWith(`/${name}`) && /Skeletons/.test(m.id));
+        return model ? this.catalog.url(model.file) : null;
+      }
+    );
+    this.monsterModelsReady = this.catalog.ready
+      .then(() => this.monsterModels.preload(['grunt', 'wisp', 'brute', 'golem']))
+      .then(() => this.monsters.useModels(this.monsterModels))
+      .catch((error) => console.warn('[monsters] models:', error));
+
     this.loading.setProgress(0.05, 'Loading environment…');
     const hdr = await assets.loadHDR(HDR_URL);
     await this.environment.loadEnvironment(hdr);
@@ -2649,6 +2696,9 @@ export class App {
         this.character.playCast('spin');
         this._spinNext = this.elapsed + 0.7;
       }
+      // Mana refills over time, faster at higher levels; the pause between casts runs down.
+      if (!this.usesRage && this.mana < this.maxMana) this.mana = Math.min(this.maxMana, this.mana + manaRegen(this.profile.level) * raw);
+      if (this._gcd > 0) this._gcd = Math.max(0, this._gcd - raw);
       for (const [element, remaining] of this.cooldowns) {
         if (remaining > 0) this.cooldowns.set(element, Math.max(0, remaining - raw));
       }
@@ -2801,11 +2851,16 @@ export class App {
     const gl = this.renderer.gl;
 
     for (const element of this.hud.cards.keys()) {
-      this.hud.setCooldown(element, this.cooldowns.get(element) ?? 0, settings[element].cooldown * this.profile.cooldownMultiplier(element));
-      this.hud.setStarved(element, this._rageCost(element) > this.rage);
+      // A key shows its own cooldown, or the pause after the last cast, whichever is longer.
+      const own = this.cooldowns.get(element) ?? 0;
+      const total = settings[element].cooldown * levelCooldownFactor(this.profile.level) * this.profile.cooldownMultiplier(element);
+      if (this._gcd > own) this.hud.setCooldown(element, this._gcd, this._gcdTotal);
+      else this.hud.setCooldown(element, own, total);
+      this.hud.setStarved(element, this._rageCost(element) > this.rage || this._manaCost(element) > this.mana);
     }
     this._updatePotions();
     this.gameHud.setRage(this.rage / 100, this.rage, this.usesRage && this.phase === 'playing', this._roarUntil > this.elapsed);
+    this.gameHud.setMana(this.mana / Math.max(1, this.maxMana), this.mana, this.maxMana, !this.usesRage && this.phase === 'playing');
     // Anyone a roar reached (not just the Barbarian) sees what it gives and for how long.
     this.gameHud.setBuff(this.phase === 'playing' && this._roarUntil > this.elapsed ? { text: `+${this._roarBuff ?? 25}% damage`, seconds: this._roarUntil - this.elapsed } : null);
     const fire = this.phase === 'playing' ? this.currentFire : null;

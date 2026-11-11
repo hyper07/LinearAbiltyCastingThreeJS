@@ -1,5 +1,6 @@
 import { settings, ELEMENT_META, CastShape } from '../../config/settings.js';
 import { SKILL_MAX_RANK, SKILL_RANK } from '../../items/Items.js';
+import { levelCooldownFactor, manaCost } from '../../game/progression.js';
 
 /**
  * What a skill does, in words — for the skill tree's detail card.
@@ -51,8 +52,9 @@ export function castLabel(element) {
  * Everything the detail card shows, at a rank (default: the rank given).
  * @param {string} element
  * @param {number} rank 0 = not learned (shown as rank 1)
+ * @param {{ level?: number, rage?: boolean }} [who] the character's level (cooldowns shrink with it) and whether it fights with Rage (no mana)
  */
-export function skillDetails(element, rank) {
+export function skillDetails(element, rank, { level = 1, rage = false } = {}) {
   const meta = ELEMENT_META[element] ?? {};
   const base = meta.base ?? element;
   const ability = settings[element] ?? {};
@@ -61,7 +63,8 @@ export function skillDetails(element, rank) {
   const dmgMul = (r) => 1 + (r - 1) * (SKILL_RANK.damage / 100);
   const cdMul = (r) => Math.max(0.4, 1 - ((r - 1) * SKILL_RANK.cooldown) / 100);
   const damage = (r) => Math.round((combat.damage ?? 0) * dmgMul(r));
-  const cooldown = (r) => round((ability.cooldown ?? 0) * cdMul(r), 2);
+  const cooldown = (r) => round((ability.cooldown ?? 0) * cdMul(r) * levelCooldownFactor(level), 2);
+  const mana = (r) => manaCost(element, r, { rage });
 
   const cast = meta.cast;
   const area = combat.radius || ability.zoneRadius;
@@ -82,6 +85,7 @@ export function skillDetails(element, rank) {
   if (base === 'blink' || base === 'rampage' || base === 'leap') effects.push('Moves you');
   if (meta.rage > 0) effects.push(`+${meta.rage} Rage per monster hit`);
   if (meta.rage < 0) effects.push(`Costs ${-meta.rage} Rage`);
+  if (!rage) effects.push(`Costs ${mana(at)} mana`);
   if (meta.rageOnCast) effects.push(`+${meta.rageOnCast} Rage when used`);
 
   return {
@@ -93,7 +97,8 @@ export function skillDetails(element, rank) {
     reach,
     damage: damage(at),
     cooldown: cooldown(at),
-    next: rank >= 1 && rank < SKILL_MAX_RANK ? { damage: damage(rank + 1), cooldown: cooldown(rank + 1) } : null,
+    mana: rage ? 0 : mana(at),
+    next: rank >= 1 && rank < SKILL_MAX_RANK ? { damage: damage(rank + 1), cooldown: cooldown(rank + 1), mana: rage ? 0 : mana(rank + 1) } : null,
     effects
   };
 }

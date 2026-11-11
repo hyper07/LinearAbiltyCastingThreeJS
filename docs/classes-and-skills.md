@@ -93,10 +93,28 @@ Spells, ranks and keys are saved **per class** in the browser; gold, potions and
 New classes can be made in the **[Class forge](class-forge.md)**: describe one in a sentence and
 the AI designs its tree.
 
+## Mana, cooldowns and levels
+
+Every class but the Barbarian spends **mana**. The blue bar under your health shows it, and it
+refills over time. A key whose skill you can't afford dims.
+
+| | Level 1 | Grows with |
+| --- | --- | --- |
+| Mana | 100 | +6 a character level |
+| Mana back per second | 5 | +0.25 a level |
+| Skill cost | 10 (Frost Lance) to 34 (Hailstorm) | +4% a skill rank |
+| Cooldowns | 2.2 × the skill's own | −1.5% a level (never below 1.2 ×), −3% a skill rank, gear |
+| Pause after any cast | 0.9 s | −1.5% a level, never under 0.45 s |
+
+The pause after a cast shows as a sweep on every key, so casts can't be chained instantly. The
+**Mana Potion** (key 7 or **Z**) gives back half your mana. It replaces the Focus Potion, which
+reset every cooldown; old saves keep their potions, now as mana potions. The skill tree's card shows
+each skill's real cost and cooldown for your level. The numbers are in `src/game/progression.js`.
+
 ## The Barbarian: physical skills and Rage
 
 <p>
-  <img src="screenshots/barbarian-leap.jpg" width="49%" alt="Skybreaker Leap landing among Iron Brutes: a shockwave ring, cracks and flying debris" />
+  <img src="screenshots/barbarian-leap.jpg" width="49%" alt="Skybreaker Leap landing among Skeleton Warriors: a shockwave ring, cracks and flying debris" />
   <img src="screenshots/barbarian-tempest.jpg" width="49%" alt="Iron Tempest: a ring of steel streaks and dust around the spinning Barbarian" />
 </p>
 <p>

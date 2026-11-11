@@ -43,7 +43,7 @@ Walk up to a tutor, press **F**, then **✎ Study with me**. Eight right answers
    | **Questions** | Your own questions, one per line (format below) |
    | **Child's age** | How simply the AI tutor talks |
    | **Gold per right answer** | The reward for each right answer |
-   | **Bonus / every N** | A skill book, health or focus potion every N right answers |
+   | **Bonus / every N** | A skill book, health or mana potion every N right answers |
    | **Talks with the AI model** | Hints and explanations from the AI (needs LM Studio — see below) |
    | **About the child and their lessons** | Notes for the AI: what they are learning, what they like |
 

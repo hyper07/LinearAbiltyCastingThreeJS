@@ -42,13 +42,13 @@ const SKILL_WORDS = {
 /** Words that name a target. Order matters — the first match wins. */
 const TARGET_WORDS = [
   [/\b(everything|everyone|all of them|the horde|them all)\b/i, 'all'],
-  [/\b(biggest|largest|strongest|toughest|boss|golem|tank)\b/i, 'strongest'],
+  [/\b(biggest|largest|strongest|toughest|boss|golem|colossus|tank)\b/i, 'strongest'],
   [/\b(weakest|smallest|hurt|wounded|almost dead|finish)\b/i, 'weakest'],
   [/\b(group|cluster|pack|crowd|bunched|clump|most of them)\b/i, 'cluster'],
-  [/\b(furthest|farthest|far one|back line|ranged|wisp)\b/i, 'farthest'],
+  [/\b(furthest|farthest|far one|back line|ranged|wisp|caster|skeleton mage)\b/i, 'farthest'],
   [/\b(nearest|closest|on me|in my face|right here)\b/i, 'nearest'],
-  [/\b(brute)\b/i, 'kind:brute'],
-  [/\b(imp|grunt|little|small ones)\b/i, 'kind:grunt'],
+  [/\b(brute|warrior|skeleton warrior)\b/i, 'kind:brute'],
+  [/\b(imp|grunt|minion|little|small ones)\b/i, 'kind:grunt'],
   [/\b(left)\b/i, 'left'],
   [/\b(right)\b/i, 'right'],
   [/\b(behind|back)\b/i, 'behind'],
@@ -57,10 +57,10 @@ const TARGET_WORDS = [
 ];
 
 const KIND_WORDS = {
-  grunt: ['imp', 'grunt', 'cinder imp', 'small'],
-  wisp: ['wisp', 'gloom', 'floater', 'ghost'],
-  brute: ['brute', 'iron brute', 'big one'],
-  golem: ['golem', 'rift golem', 'boss', 'giant']
+  grunt: ['minion', 'skeleton minion', 'imp', 'grunt', 'small'],
+  wisp: ['skeleton mage', 'mage', 'wisp', 'caster', 'ghost'],
+  brute: ['warrior', 'skeleton warrior', 'brute', 'big one'],
+  golem: ['colossus', 'bone colossus', 'golem', 'boss', 'giant']
 };
 
 /** Find every skill mentioned, in the order they appear in the sentence. */

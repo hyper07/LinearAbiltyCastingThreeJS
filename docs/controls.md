@@ -13,7 +13,7 @@
 | **C** | Sit — meditate, and recover health several times faster |
 | **← →** or **Q E** | Turn the view |
 | **↑ ↓** | Tilt the view |
-| **1 – 9** | Use what is on that key: arm a spell (press again to put it away; far casts aim with a circle) or drink a potion. Skills start on 1–5, the health and focus potions on 6 and 7 |
+| **1 – 9** | Use what is on that key: arm a spell (press again to put it away; far casts aim with a circle) or drink a potion. Skills start on 1–5, the health and mana potions on 6 and 7 |
 | **Action bar** | Click a key to use it · drag a key onto another to swap them · right-click a key (or click an empty one) to choose a skill or potion for it |
 | **K** | Skill tree — read books, choose which skills are on keys 1–9 |
 | **Tab** / **Bag** button | Bag — wear weapons and gear, take gear off, read skill books, drop items; drag items to arrange the bag, wear or take off gear, or drop them on the ground |

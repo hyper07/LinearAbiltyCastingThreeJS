@@ -23,7 +23,20 @@ keeps the offset exactly invariant.
 Aiming outranks running. With a cast armed the body faces the arrow and you
 strafe around your target; with nothing armed it turns to face where it is going.
 
-### The gait
+### Authored clips first
+
+The class characters (KayKit models) carry their own motion clips, and the game plays them: idle,
+walk and run blended by ground speed, and — because aiming turns the body toward the target, so you
+often move sideways or away from where you face — the moving share split by direction:
+**forward** plays walk or run, **backward** plays walking backwards, **sideways** plays the left or
+right strafe, each sped up or slowed to match the ground. Jumping blends to the in-air pose
+(`animation/LocomotionPlayback.js`, clips named in `platform/motion/datasets.js`). New players start
+as the Mage for this reason.
+
+The coded gait below is what the original caster (an FBX character with no walk or run clips) and
+any model without clips falls back to.
+
+### The coded gait
 
 **There is no walk clip.** The character ships with an idle loop and three cast
 throws, and that is the entire animation budget. So `animation/Locomotion.js`

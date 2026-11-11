@@ -104,7 +104,8 @@ export const SKILL_RANK = { damage: 10, cooldown: 3 };
 
 export const POTIONS = {
   health: { name: 'Health Potion', color: '#ff4a5a', price: 25, text: 'Restores 45% of your health. (R)' },
-  focus: { name: 'Focus Potion', color: '#4ad2ff', price: 40, text: 'Every spell is ready again. (Z)' }
+  // Saved as `focus` (bags, the server, the keys): it is the Mana Potion now (game/progression.js).
+  focus: { name: 'Mana Potion', color: '#4a7dff', price: 40, text: 'Restores half your mana. (Z)' }
 };
 
 /* ---------------------------------------------------------------------- */

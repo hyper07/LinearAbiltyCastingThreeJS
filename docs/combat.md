@@ -25,14 +25,15 @@ is a real play rather than scenery damage.
 
 | Kind | Reads as | Health | Behaviour |
 | --- | --- | --- | --- |
-| **Cinder Imp** | small, long-limbed, quick | 46 | Closes and swings |
-| **Gloom Wisp** | floating caged core | 58 | Never closes — fires a dodgeable bolt from 11 m |
-| **Iron Brute** | a wedge, no neck, long arms | 210 | Heavy melee, 18% armour |
-| **Rift Golem** | slab chest, boulder shoulders, stubby legs | 520 | Slams the floor for AoE, 30% armour |
+| **Skeleton Minion** | a small skeleton with an axe, quick | 46 | Closes and swings |
+| **Skeleton Mage** | a skeleton in a hat with a staff | 58 | Never closes — fires a dodgeable bolt from 11 m |
+| **Skeleton Warrior** | helmet, blade and shield | 210 | Heavy melee, 18% armour |
+| **Bone Colossus** | a giant skeleton warrior with an axe | 520 | Slams the floor for AoE, 30% armour |
+| **Rival** (battle royale only) | an adventurer with a crossbow, staff or axe | 130 | Shoots from range, fights everyone |
 | **Emberwyrm** | the dragon — see below | 2600 | Two-phase boss, every fifth wave |
 
 <p>
-  <img src="screenshots/monsters-lineup.jpg" width="49%" alt="The four regular monsters side by side: Cinder Imp, Gloom Wisp, Iron Brute and Rift Golem" />
+  <img src="screenshots/monsters-lineup.jpg" width="49%" alt="The four regular monsters side by side: Skeleton Minion, Skeleton Mage, Skeleton Warrior and Bone Colossus" />
   <img src="screenshots/monster-emberwyrm.jpg" width="49%" alt="The Emberwyrm boss with its wings spread" />
 </p>
 
@@ -50,6 +51,15 @@ animates at the speed it is actually walking without a single extra line.
 Geometry is shared per kind and the assembled rig is cached as a template — joints are collapsed to
 one mesh per material role, then cloned per monster. Materials are *not* shared: every monster needs
 its own `uHit`, `uFreeze`, `uBurn` and `uDissolve`, or hitting one would flash the whole horde white.
+
+The monsters are **animated models**: the KayKit skeletons (and, for rivals, the KayKit
+adventurers) that ship in `public/models/characters`, each with its own authored clips. A skeleton
+claws its way out of the ground when it arrives, walks or runs to match its speed, swings or casts
+with the blow timed to land as its windup ends, flinches when hit, and plays its death before it
+fades. Hits glow white, frost glows blue and burning glows orange; frozen solid stops the clip.
+Weapons and shields come from the KayKit skeleton pack in the 3D library when it is downloaded.
+The behaviour is unchanged: `entities/Monster.js` decides and `entities/MonsterModels.js` plays
+the clip. The Emberwyrm keeps its built body, as does any kind whose model fails to load.
 
 ### The Emberwyrm
 

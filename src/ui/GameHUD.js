@@ -47,6 +47,10 @@ export class GameHUD {
           <span data-health-text>100</span>
         </div>
         <div class="vitals__ammo" data-ammo hidden></div>
+        <div class="vitals__bar vitals__mana" data-mana-bar hidden>
+          <i data-mana></i>
+          <span data-mana-text>MANA 100</span>
+        </div>
         <div class="vitals__bar vitals__rage" data-rage-bar hidden>
           <i data-rage></i>
           <span data-rage-text>RAGE 0</span>
@@ -88,6 +92,9 @@ export class GameHUD {
       comboCount: q('[data-combo-count]'),
       health: q('[data-health]'),
       rageBar: q('[data-rage-bar]'),
+      manaBar: q('[data-mana-bar]'),
+      mana: q('[data-mana]'),
+      manaText: q('[data-mana-text]'),
       buff: q('[data-buff]'),
       buffText: q('[data-buff-text]'),
       buffLeft: q('[data-buff-left]'),
@@ -271,6 +278,21 @@ export class GameHUD {
       this._shown.roaring = roaring;
       this.el.rageBar.classList.toggle('is-roaring', roaring);
     }
+  }
+
+  /** Mana under the health bar (every class but the Rage ones). */
+  setMana(ratio, value, max, visible) {
+    if (this._shown.manaVisible !== visible) {
+      this._shown.manaVisible = visible;
+      this.el.manaBar.hidden = !visible;
+    }
+    if (!visible) return;
+    const percent = `${(Math.max(0, Math.min(1, ratio)) * 100).toFixed(1)}%`;
+    if (this._shown.mana !== percent) {
+      this._shown.mana = percent;
+      this.el.mana.style.width = percent;
+    }
+    this._set(this.el.manaText, 'manaText', `MANA ${Math.floor(value)} / ${Math.round(max)}`);
   }
 
   /** A team buff on this player (Battle Roar): what it gives and the seconds left; null hides it. */

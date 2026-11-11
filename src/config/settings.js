@@ -2225,7 +2225,7 @@ export const settings = {
 
     kinds: {
       grunt: {
-        label: 'Cinder Imp',
+        label: 'Skeleton Minion',
         health: 46,
         speed: 3.4,
         scale: 0.78,
@@ -2241,7 +2241,7 @@ export const settings = {
         weight: 5 // relative spawn frequency
       },
       wisp: {
-        label: 'Gloom Wisp',
+        label: 'Skeleton Mage',
         health: 58,
         speed: 3.0,
         scale: 0.9,
@@ -2257,7 +2257,7 @@ export const settings = {
         weight: 3
       },
       brute: {
-        label: 'Iron Brute',
+        label: 'Skeleton Warrior',
         health: 210,
         speed: 2.3,
         scale: 1.25,
@@ -2321,7 +2321,7 @@ export const settings = {
       },
 
       golem: {
-        label: 'Rift Golem',
+        label: 'Bone Colossus',
         health: 520,
         speed: 1.6,
         scale: 1.7,

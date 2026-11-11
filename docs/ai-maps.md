@@ -13,12 +13,12 @@ blocks, ruins, props, vehicles…) and you fight in it when you press **Start Ga
 Four maps designed by Qwen3-4B in LM Studio from one-line prompts, each mid-wave:
 
 <p>
-  <img src="screenshots/ai-map-graveyard.jpg" width="49%" alt="&quot;Haunted graveyard in fog&quot;: Frost Lance erupting among gravestones while Iron Brutes and a Gloom Wisp close in" />
+  <img src="screenshots/ai-map-graveyard.jpg" width="49%" alt="&quot;Haunted graveyard in fog&quot;: Frost Lance erupting among gravestones while Skeleton Warriors and a Skeleton Mage close in" />
   <img src="screenshots/ai-map-city.jpg" width="49%" alt="&quot;City street at dusk&quot;: Storm Lance striking a monster on a street of stylised town houses" />
 </p>
 <p>
-  <img src="screenshots/ai-map-medieval.jpg" width="49%" alt="&quot;Medieval village with a castle&quot;: Frost Lance on an autumn field as an Iron Brute approaches" />
-  <img src="screenshots/ai-map-forest.jpg" width="49%" alt="&quot;Pine forest at dawn&quot;: Nova Beam firing while Cinder Imps run in between the trees" />
+  <img src="screenshots/ai-map-medieval.jpg" width="49%" alt="&quot;Medieval village with a castle&quot;: Frost Lance on an autumn field as an Skeleton Warrior approaches" />
+  <img src="screenshots/ai-map-forest.jpg" width="49%" alt="&quot;Pine forest at dawn&quot;: Nova Beam firing while Skeleton Minions run in between the trees" />
 </p>
 
 ### How a map is made

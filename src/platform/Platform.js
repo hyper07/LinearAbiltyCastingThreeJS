@@ -76,7 +76,8 @@ export class Platform {
     for (const loadout of DEFAULT_LOADOUTS) this.loadouts.register(loadout.id, loadout);
     for (const attack of DEFAULT_ATTACKS) this.attacks.register(attack.id, attack);
 
-    this.setCharacter('caster');
+    // A class with authored walk, run, strafe and jump clips (the old caster has none, so it uses the coded gait).
+    this.setCharacter(this.characters.has('mage') ? 'mage' : 'caster');
     return this;
   }
 

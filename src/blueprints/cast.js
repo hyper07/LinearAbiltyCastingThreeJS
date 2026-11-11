@@ -22,10 +22,10 @@ export const HEROES = {
 export const HERO_IDS = Object.keys(HEROES);
 
 export const FOES = {
-  imps: { name: 'Cinder Imps', story: 'Cinder Imps', blurb: 'lots of small fast imps', words: /imp|goblin|swarm|small|fire|little monster/, kinds: { grunt: 8, wisp: 2, brute: 1 } },
-  spirits: { name: 'Gloom Wisps', story: 'Gloom Wisps', blurb: 'floating spirits that shoot', words: /ghost|spirit|wisp|phantom|shadow/, kinds: { wisp: 7, grunt: 2 } },
-  brutes: { name: 'Iron Brutes', story: 'Iron Brutes', blurb: 'big slow heavy hitters', words: /brute|ogre|troll|giant|orc|big monster/, kinds: { brute: 6, grunt: 3, wisp: 1 } },
-  golems: { name: 'Rift Golems', story: 'Rift Golems', blurb: 'stone golems with brute escorts', words: /golem|stone|rock|robot|construct|statue/, kinds: { golem: 2, brute: 4, grunt: 3 } },
+  imps: { name: 'Skeleton Minions', story: 'Skeleton Minions', blurb: 'lots of quick skeleton minions with axes', words: /skeleton|minion|imp|goblin|swarm|small|little monster|undead/, kinds: { grunt: 8, wisp: 2, brute: 1 } },
+  spirits: { name: 'Skeleton Mages', story: 'Skeleton Mages', blurb: 'skeleton mages that cast from range', words: /mage|caster|ghost|spirit|wisp|phantom|shadow|wizard skeleton/, kinds: { wisp: 7, grunt: 2 } },
+  brutes: { name: 'Skeleton Warriors', story: 'Skeleton Warriors', blurb: 'armoured skeleton warriors with blade and shield', words: /warrior|knight skeleton|brute|ogre|troll|orc|big monster/, kinds: { brute: 6, grunt: 3, wisp: 1 } },
+  golems: { name: 'Bone Colossi', story: 'Bone Colossi', blurb: 'giant bone colossi with warrior escorts', words: /colossus|giant|golem|stone|robot|construct|statue/, kinds: { golem: 2, brute: 4, grunt: 3 } },
   mixed: { name: 'Monster horde', story: 'monsters of every kind', blurb: 'a bit of everything', words: /horde|army|mixed|monsters|all kinds/, kinds: { grunt: 5, wisp: 3, brute: 3 } },
   none: { name: 'No monsters', story: 'no monsters at all', blurb: 'nothing to fight (calm)', words: /no monsters|peaceful|calm/, kinds: {} }
 };
