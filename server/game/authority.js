@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { platform, classArmor, classBonuses } from '../../src/platform/index.js';
 import { Profile } from '../../src/items/Profile.js';
 import { XP_FOR, buyPrice, itemValue, makeBagRowOffer, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../../src/items/Items.js';
@@ -8,6 +9,17 @@ import { LIMITS, Refusal, RULES, STRIKES_TO_BLOCK, BLOCK_HOURS, Violation, kindA
 
 platform.bootstrap();
 
+/** The game a request is about (see GameAuthority#inGame). */
+const scope = new AsyncLocalStorage();
+/**
+ * Where a character lives: the open arena, or a game (a builder draft, an
+ * official level, a published game) and a class in it — `<game>#<class>`.
+ * Each class is its own character in each game: a new one starts at level 1.
+ */
+export const GAME_SCOPE = /^(arena|(draft|official:[a-z0-9_-]{1,64}|g-[a-z0-9-]{1,60})(#[a-z][a-z0-9-]{1,63})?)$/;
+/** The game part of a scope (`official:thistledown#mage` → `official:thistledown`). */
+export const gameOfScope = (scope) => String(scope).split('#')[0];
+
 /**
  * The authority: the only place a character changes.
  *
@@ -17,6 +29,11 @@ platform.bootstrap();
  * same rules the game uses (src/items/Profile.js), and stores the result.
  * The browser runs the same rules at the same time so the game feels
  * instant, and takes the server's copy whenever the two differ.
+ *
+ * A player has one character **per game**: what is earned in one game stays in
+ * it. Each request runs `inGame(game, …)`, and every character, item and gold
+ * change below belongs to that game. Fight actions take the game from their
+ * run (the server's, never the browser's); the rest from the request, checked.
  *
  * Every method here is async (PostgreSQL), and the game server calls them one
  * request at a time (Database#serial), so a character is never read by one
@@ -47,7 +64,7 @@ export class GameAuthority {
     this.sameParty = sameParty;
     this.now = now;
     this.log = log;
-    /** accountId → Profile (the live copy of each character in play) */
+    /** `${accountId}|${game}` → Profile (the live copy of each character in play) */
     this.characters = new Map();
     /** runId → run */
     this.runs = new Map();
@@ -58,24 +75,59 @@ export class GameAuthority {
   /* characters                                                          */
   /* ------------------------------------------------------------------ */
 
-  /** A new account's character: the blank one every player starts with. */
+  /** The game this request is about ('arena' outside any). */
+  get game() {
+    return scope.getStore() ?? 'arena';
+  }
+
+  /** Run `fn` for one game: every character, item and coin it touches is that game's. */
+  inGame(game, fn) {
+    return scope.run(GAME_SCOPE.test(String(game ?? '')) ? String(game) : 'arena', fn);
+  }
+
+  _key(accountId) {
+    return `${accountId}|${this.game}`;
+  }
+
+  /** What a saved character is sealed to: its account, and (outside the arena) its game. */
+  _seal(accountId) {
+    return this.game === 'arena' ? `character:${accountId}` : `character:${accountId}:${this.game}`;
+  }
+
+  /** This account's characters in a game, one per class: what the lobby shows. */
+  async charactersIn(accountId, game) {
+    const like = `${String(game).replace(/[\\%_]/g, (c) => `\\${c}`)}#%`;
+    const rows = await this.db.many('SELECT game, state, updated FROM characters WHERE account_id = ? AND game LIKE ?', [accountId, like]);
+    const out = [];
+    for (const row of rows) {
+      try {
+        const data = this.keys.open(row.state, `character:${accountId}:${row.game}`);
+        out.push({ classId: row.game.split('#')[1], level: data.level ?? 1, gold: data.gold ?? 0, updated: row.updated });
+      } catch {
+        /* a row that does not open is the audit's business */
+      }
+    }
+    return out;
+  }
+
+  /** A blank character — every player starts each game with one. */
   async createCharacter(accountId) {
     const profile = new Profile({ storage: null, data: null });
     profile.setClass('caster', classBonuses('caster'), classArmor('caster'));
     await this._store(accountId, profile, 1);
-    this.characters.set(accountId, profile);
+    this.characters.set(this._key(accountId), profile);
     return profile;
   }
 
-  /** The live character, opened from the database the first time. */
+  /** The live character in this game, opened from the database the first time. */
   async character(accountId) {
-    let profile = this.characters.get(accountId);
+    let profile = this.characters.get(this._key(accountId));
     if (profile) return profile;
-    const row = await this.db.one('SELECT state, version FROM characters WHERE account_id = ?', [accountId]);
+    const row = await this.db.one('SELECT state, version FROM characters WHERE account_id = ? AND game = ?', [accountId, this.game]);
     if (!row) return this.createCharacter(accountId);
     let data;
     try {
-      data = this.keys.open(row.state, `character:${accountId}`);
+      data = this.keys.open(row.state, this._seal(accountId));
     } catch {
       // The row was edited, copied from another account, or corrupted outside
       // the server. It is never trusted: the account is frozen for a person to look at.
@@ -85,18 +137,18 @@ export class GameAuthority {
     profile = new Profile({ storage: null, data });
     profile.version = row.version;
     profile.setClass('caster', classBonuses('caster'), classArmor('caster'));
-    this.characters.set(accountId, profile);
+    this.characters.set(this._key(accountId), profile);
     if (this.characters.size > 5000) this.characters.delete(this.characters.keys().next().value);
     return profile;
   }
 
   async _store(accountId, profile, version) {
-    const sealed = this.keys.seal(profile.serialize(), `character:${accountId}`);
+    const sealed = this.keys.seal(profile.serialize(), this._seal(accountId));
     const now = this.now();
     await this.db.run(
-      `INSERT INTO characters (account_id, state, version, updated) VALUES (?, ?, ?, ?)
-       ON CONFLICT (account_id) DO UPDATE SET state = excluded.state, version = excluded.version, updated = excluded.updated`,
-      [accountId, sealed, version, now]
+      `INSERT INTO characters (account_id, game, state, version, updated) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (account_id, game) DO UPDATE SET state = excluded.state, version = excluded.version, updated = excluded.updated`,
+      [accountId, this.game, sealed, version, now]
     );
     profile.version = version;
   }
@@ -145,7 +197,7 @@ export class GameAuthority {
       });
     } catch (error) {
       // The live copy may be half-changed: forget it, the database still has the truth.
-      this.characters.delete(accountId);
+      this.characters.delete(this._key(accountId));
       throw error;
     }
     return { result, digest: profile.digest(), version: profile.version };
@@ -158,15 +210,15 @@ export class GameAuthority {
       if (before.uids.has(uid)) continue;
       // Added: it must already be this account's (taken from the floor, made
       // for it in this transaction) — never an id the registry gives to someone else.
-      const row = await this.db.one('SELECT owner, state FROM items WHERE uid = ?', [uid]);
-      if (!row || row.owner !== accountId || row.state !== 'held') throw new Violation('state-mismatch', `item ${uid} appeared without being given`);
+      const row = await this.db.one('SELECT owner, state, game FROM items WHERE uid = ?', [uid]);
+      if (!row || row.owner !== accountId || row.state !== 'held' || row.game !== this.game) throw new Violation('state-mismatch', `item ${uid} appeared without being given`);
     }
     for (const uid of before.uids) {
       if (after.uids.has(uid)) continue;
       const to = allow.removed?.[uid];
       const changed = (
-        await this.db.run(`UPDATE items SET state = ?, owner = CASE WHEN ?::text = 'floor' THEN NULL ELSE owner END, run = ?, updated = ? WHERE uid = ? AND owner = ? AND state = 'held'`, [
-          to ?? null, to ?? null, to === 'floor' ? allow.run ?? null : null, now, uid, accountId
+        await this.db.run(`UPDATE items SET state = ?, owner = CASE WHEN ?::text = 'floor' THEN NULL ELSE owner END, run = ?, updated = ? WHERE uid = ? AND owner = ? AND state = 'held' AND game = ?`, [
+          to ?? null, to ?? null, to === 'floor' ? allow.run ?? null : null, now, uid, accountId, this.game
         ])
       ).rowCount;
       if (!changed) throw new Violation('not-owner', `item ${uid} is not held by this account`);
@@ -174,7 +226,7 @@ export class GameAuthority {
   }
 
   async _ledger(accountId, delta, balance, reason, ref = null) {
-    await this.db.run('INSERT INTO ledger (account_id, delta, balance, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?)', [accountId, delta, balance, reason, ref, this.now()]);
+    await this.db.run('INSERT INTO ledger (account_id, game, delta, balance, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?, ?)', [accountId, this.game, delta, balance, reason, ref, this.now()]);
   }
 
   /** Make an item and register it: held by an account, or lying on a run's floor. */
@@ -182,7 +234,7 @@ export class GameAuthority {
     item.uid = newId('i');
     item.srv = 1;
     const now = this.now();
-    await this.db.run('INSERT INTO items (uid, owner, state, run, source, data, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [item.uid, owner, owner ? 'held' : 'floor', run, source, item, now, now]);
+    await this.db.run('INSERT INTO items (uid, owner, state, run, source, data, created, updated, game) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [item.uid, owner, owner ? 'held' : 'floor', run, source, item, now, now, this.game]);
     return item;
   }
 
@@ -253,6 +305,8 @@ export class GameAuthority {
     const run = {
       id: newId('r'),
       owner: accountId,
+      /** Whose characters this fight changes: the game it is part of. */
+      game: this.game,
       level,
       rules: runRules(level),
       started: this.now(),
@@ -269,7 +323,7 @@ export class GameAuthority {
       ended: false
     };
     this.runs.set(run.id, run);
-    return { runId: run.id, level: level?.id ?? null };
+    return { runId: run.id, level: level?.id ?? null, game: run.game };
   }
 
   /** A party member joins the host's run. They must be in the host's party. */
@@ -295,7 +349,7 @@ export class GameAuthority {
     run.ended = true;
     const kills = run.kills.size;
     try {
-      await this.history.add(run.owner, 'run', { level: run.level?.id ?? null, kills, minutes: Math.round((this.now() - run.started) / 6e4), party: run.members.size }, this.now());
+      await this.history.add(run.owner, 'run', { game: run.game, level: run.level?.id ?? null, kills, minutes: Math.round((this.now() - run.started) / 6e4), party: run.members.size }, this.now());
     } catch {
       /* best effort */
     }
@@ -438,7 +492,7 @@ export class GameAuthority {
     };
     const out = await this._mutate(accountId, allow, async (p) => {
       const changed = (
-        await this.db.run(`UPDATE items SET owner = ?, state = ?, run = NULL, updated = ? WHERE uid = ? AND state = 'floor' AND run = ?`, [accountId, consumed ? 'used' : 'held', this.now(), uid, run.id])
+        await this.db.run(`UPDATE items SET owner = ?, state = ?, run = NULL, game = ?, updated = ? WHERE uid = ? AND state = 'floor' AND run = ?`, [accountId, consumed ? 'used' : 'held', this.game, this.now(), uid, run.id])
       ).rowCount;
       if (!changed) throw new Refusal('Someone else got there first');
       const r = p.pickUp(item);

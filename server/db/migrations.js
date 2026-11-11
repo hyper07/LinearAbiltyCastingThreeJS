@@ -4,8 +4,8 @@
  *
  *   accounts    name, scrypt password hash, block state, plan (src/platform/plans.js)
  *   sessions    SHA-256 of each session token (never the token), expiry, address tag
- *   characters  the character (bag, stash, gear, gold, XP, spells) — AES-256-GCM
- *               encrypted and sealed to its account; a version per change
+ *   characters  a character per account per game (bag, stash, gear, gold, XP, spells) —
+ *               AES-256-GCM encrypted and sealed to its account and game; a version per change
  *   items       every item that exists, once: who holds it, or that it lies on the
  *               floor of a run, or that it was sold or used up. `uid` is the primary
  *               key — an item cannot exist twice
@@ -159,6 +159,23 @@ export const MIGRATIONS = [
         game_id TEXT PRIMARY KEY,
         plays INTEGER NOT NULL DEFAULT 0
       );
+    `
+  },
+  {
+    // A character per player per game: what you earn in one game stays in it.
+    // Existing characters (and their items and gold) become the open arena's ('arena').
+    id: '004-characters-per-game',
+    sql: `
+      ALTER TABLE characters ADD COLUMN game TEXT NOT NULL DEFAULT 'arena';
+      ALTER TABLE characters DROP CONSTRAINT characters_pkey;
+      ALTER TABLE characters ADD PRIMARY KEY (account_id, game);
+      ALTER TABLE items ADD COLUMN game TEXT NOT NULL DEFAULT 'arena';
+      CREATE INDEX items_owner_game ON items (owner, game, state);
+      ALTER TABLE ledger ADD COLUMN game TEXT NOT NULL DEFAULT 'arena';
+      CREATE INDEX ledger_account_game ON ledger (account_id, game, id);
+      -- The characters a game lets players choose, defined when it is made
+      -- ([] = the built-in classes). Classes made in the forge are copied in.
+      ALTER TABLE games ADD COLUMN roster JSONB NOT NULL DEFAULT '[]';
     `
   }
 ];

@@ -1,4 +1,4 @@
-import { boot, tally, until } from './lib.mjs';
+import { boot, pickHero, tally, until } from './lib.mjs';
 
 /**
  * The platform's home page, by mouse: it opens on the games (not the hero
@@ -35,15 +35,52 @@ export async function run(browser, { shots = null } = {}) {
     // A game's page, and playing it.
     await page.click('.home [data-game="official:thistledown"]');
     t.check('a card opens the game\'s page', await until(page, () => /Thistledown/.test(document.querySelector('.home [data-page] .home-page__title')?.textContent ?? ''), null, 5000));
-    await page.selectOption('.home [data-play-hero]', 'mage');
     await shot('home-game');
+    // The arena's character has some gold: the game's own character must not.
+    await page.evaluate(() => {
+      window.app.profile.gold = 77;
+      window.app.profile.save();
+    });
+    const intro = () => until(page, () => window.app.story.isOpen && [...document.querySelectorAll('.story button')].some((b) => b.textContent === 'Start'), null, 30000);
     await page.click('.home [data-play]');
-    await until(page, () => [...document.querySelectorAll('button')].some((b) => b.textContent === 'Start' && b.offsetParent), null, 30000);
-    t.check('Play hides the home page and opens the level', await page.evaluate(() => document.querySelector('.home').hidden));
-    await page.locator('button', { hasText: /^Start$/ }).first().click();
+    t.check('Play opens the game\'s lobby, with its own characters, all new', await until(page, () => window.app.lobby.isOpen && document.querySelectorAll('.lobby [data-lobby-hero]').length === 8 && [...document.querySelectorAll('.lobby [data-lobby-hero] small')].every((s) => /level 1/.test(s.textContent)), null, 10000));
+    await page.click('.lobby [data-lobby-hero="mage"]');
+    await page.selectOption('.lobby [data-lobby-look]', 'skeleton-mage');
+    await shot('lobby');
+    await page.click('.lobby [data-lobby-start]');
+    await intro();
+    t.check('Play hides the home page and opens the level', await page.evaluate(() => document.querySelector('.home').hidden && !window.app.lobby.isOpen));
+    await page.locator('.story button', { hasText: /^Start$/ }).click();
     t.check('it plays, as the class picked', await until(page, () => window.app.phase === 'playing' && window.app.run?.level?.id === 'thistledown' && window.app.mainMenu.getSelection().characterId === 'mage', null, 30000));
+    t.check('…in the body chosen in the lobby, for this game only', await page.evaluate(() => JSON.parse(localStorage.getItem('elemental-arena.look@official:thistledown#mage') ?? '{}').look === 'skeleton-mage'));
+    t.check('as a fresh character of this game and class, not the arena one', await page.evaluate(() => window.app.profile.scope === 'official:thistledown#mage' && window.app.profile.gold === 0 && window.app.profile.level === 1));
+    await page.evaluate(() => {
+      window.app.profile.gold = 5;
+      window.app.profile.save();
+    });
     await page.evaluate(() => window.app.exitToMenu());
     t.check('leaving a game comes back to the home page', await until(page, () => window.app.phase === 'menu' && !document.querySelector('.home').hidden, null, 10000));
+    t.check('…and to the arena character, untouched by the game', await until(page, () => window.app.profile.scope === 'arena' && window.app.profile.gold === 77, null, 5000));
+
+    // Another class in the same game is another character: it starts fresh.
+    await page.click('.home [data-game="official:thistledown"]');
+    await page.click('.home [data-play]');
+    t.check('the lobby shows the character you have here', await until(page, () => /Level 1 · 5 gold/.test(document.querySelector('.lobby [data-lobby-hero="mage"]')?.textContent ?? '') && document.querySelector('.lobby [data-lobby-hero="mage"]').classList.contains('is-chosen'), null, 10000));
+    await page.click('.lobby [data-lobby-hero="knight"]');
+    await page.click('.lobby [data-lobby-start]');
+    await intro();
+    t.check('a new class in the same game starts at level 1 with nothing', await page.evaluate(() => window.app.profile.scope === 'official:thistledown#knight' && window.app.profile.gold === 0));
+    await page.locator('.story button', { hasText: /^Back$/ }).click();
+    await until(page, () => !document.querySelector('.home').hidden && window.app.profile.scope === 'arena', null, 10000);
+    await page.click('.home [data-game="official:thistledown"]');
+    await page.click('.home [data-play]');
+    await until(page, () => window.app.lobby.isOpen, null, 10000);
+    await page.click('.lobby [data-lobby-hero="mage"]');
+    await page.click('.lobby [data-lobby-start]');
+    await intro();
+    t.check('back to the first class: its own gold is still there', await page.evaluate(() => window.app.profile.scope === 'official:thistledown#mage' && window.app.profile.gold === 5));
+    await page.locator('.story button', { hasText: /^Back$/ }).click();
+    await until(page, () => !document.querySelector('.home').hidden && window.app.profile.scope === 'arena', null, 10000);
     t.check('the play was counted', await until(page, async () => (await (await fetch('./api/games/official:thistledown')).json()).game.plays >= 1, null, 5000));
 
     // Create → Publish → it is a card → play it.
@@ -58,6 +95,11 @@ export async function run(browser, { shots = null } = {}) {
     await page.click(`.home [data-game="${published}"]`);
     await until(page, () => document.querySelector('.home [data-play]'), null, 5000);
     await page.click('.home [data-play]');
+    await until(page, () => window.app.lobby.isOpen, null, 15000);
+    const offered = await page.evaluate(() => [...document.querySelectorAll('.lobby [data-lobby-hero]')].map((b) => b.dataset.lobbyHero));
+    t.check('a published game offers the characters it was made with', offered.length === 8 && !offered.some((id) => id.startsWith('forge-')), JSON.stringify(offered));
+    await page.click('.lobby [data-lobby-hero="knight"]');
+    await page.click('.lobby [data-lobby-start]');
     await until(page, () => [...document.querySelectorAll('button')].some((b) => b.textContent === 'Start' && b.offsetParent), null, 30000);
     await page.locator('button', { hasText: /^Start$/ }).first().click();
     t.check('the published game plays from the server', await until(page, (id) => window.app.phase === 'playing' && window.app.run?.level?.id === `${id}-1` && window.app.run.draft === false, published, 30000));

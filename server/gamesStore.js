@@ -15,7 +15,7 @@ import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from './api/ht
  *
  *   GET    /api/games?q=&genre=&sort=popular|new&limit=   cards, best first
  *   GET    /api/games/<id>                                 one game, with its levels
- *   POST   /api/games                                      publish { title, summary, levels[], spec?, author? }
+ *   POST   /api/games                                      publish { title, summary, levels[], spec?, roster?, author? }
  *   POST   /api/games/<id>/play                            count a play
  *   DELETE /api/games/<id>                                 its owner only
  *
@@ -26,6 +26,24 @@ import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from './api/ht
 
 const GAME_ID = /^(official:[a-z0-9_-]{1,64}|g-[a-z0-9-]{1,60})$/;
 const MAX_LEVELS = 12;
+const CLASS_ID = /^[a-z][a-z0-9-]{1,63}$/;
+
+/**
+ * A game's character list: `[{ id, design? }]`, at most 16. A built-in class
+ * is an id; a class made in the forge carries its design, copied into the
+ * game, so the game keeps it as it was and nothing is shared by accident.
+ */
+export function normalizeRoster(raw) {
+  const out = [];
+  for (const entry of Array.isArray(raw) ? raw.slice(0, 16) : []) {
+    const id = String(entry?.id ?? entry ?? '');
+    if (!CLASS_ID.test(id) || out.some((e) => e.id === id)) continue;
+    const design = entry?.design && typeof entry.design === 'object' ? entry.design : null;
+    if (design && JSON.stringify(design).length > 64 * 1024) continue;
+    out.push(design ? { id, design: { ...design, id } } : { id });
+  }
+  return out;
+}
 const text = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 export class GamesStore {
@@ -56,7 +74,7 @@ export class GamesStore {
         this._officialCards.set(entry.id, card);
       }
       const id = `official:${entry.id}`;
-      out.push({ id, title: card.title, summary: card.summary, author: 'Gamory', official: true, genre: card.card.genre, card: card.card, plays: plays.get(id) ?? 0, updated: 0, levels: [entry.id] });
+      out.push({ id, title: card.title, summary: card.summary, author: 'Gamory', official: true, genre: card.card.genre, card: card.card, plays: plays.get(id) ?? 0, updated: 0, levels: [entry.id], roster: [] });
     }
     return out;
   }
@@ -76,6 +94,7 @@ export class GamesStore {
       owner: row.owner_id ?? null,
       created: row.created,
       updated: row.updated,
+      roster: row.roster ?? [],
       ...(full ? { spec: row.spec ?? null, levels } : {})
     };
   }
@@ -134,11 +153,13 @@ export class GamesStore {
     const summary = text(input.summary || levels[0].story.intro.text, 400);
     const author = account?.name ?? (text(input.author, 40) || 'A player');
     const status = input.status === 'draft' && account ? 'draft' : 'shared';
+    // A game with a set hero offers only that one.
+    const roster = levels[0].character ? normalizeRoster([{ id: levels[0].character, design: input.roster?.find?.((e) => e?.id === levels[0].character)?.design }]) : normalizeRoster(input.roster);
     const now = Date.now();
     await this.db.tx(async () => {
       await this.db.run(
-        'INSERT INTO games (id, title, summary, author, owner_id, engine, genre, card, spec, status, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, title, summary, author, account?.id ?? null, 'action-rpg', card.genre, card, spec, status, now, now]
+        'INSERT INTO games (id, title, summary, author, owner_id, engine, genre, card, spec, status, roster, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, title, summary, author, account?.id ?? null, 'action-rpg', card.genre, card, spec, status, JSON.stringify(roster), now, now]
       );
       for (const [i, level] of levels.entries()) await this.db.run('INSERT INTO game_levels (level_id, game_id, ord, data) VALUES (?, ?, ?, ?)', [level.id, id, i, level]);
     });

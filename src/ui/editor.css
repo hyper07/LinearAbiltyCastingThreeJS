@@ -3148,3 +3148,18 @@ body.is-scoped .hud__stats {
     flex-wrap: wrap;
   }
 }
+.builder__roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.builder__roster-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.builder__roster-hint {
+  flex-basis: 100%;
+  color: var(--ui-text-dim);
+}

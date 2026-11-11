@@ -43,7 +43,8 @@ export class PlatformHome {
    *   openHero: (panel?: string) => void,
    *   openForge: () => void, openEditor: () => void, openLibrary: () => void,
    *   heroes: () => Promise<{ id: string, name: string }[]>,
-   *   currentHero: () => string|null,
+   *   heroOf: (gameId: string) => string|null,
+   *   rosterHeroes: (roster: object[]) => { id: string, name: string }[],
    *   account: () => { id: number, name: string }|null
    * }} actions
    */
@@ -250,7 +251,7 @@ export class PlatformHome {
           <div class="home-card__tags home-page__tags"></div>
           <ol class="home-page__chapters" data-chapters></ol>
           <div class="home-page__play">
-            <label class="home-page__hero" ${c.hero ? 'hidden' : ''}><span>Play as</span><select data-play-hero></select></label>
+            <span class="home-page__hero" data-play-hero></span>
             <button type="button" class="home__btn home__btn--primary home-page__go" data-play>▶ Play</button>
             <button type="button" class="home__btn" data-play-party title="Make a party first: when you press Play, everyone in it comes along">Play together</button>
             ${game.owner && game.owner === this.actions.account()?.id ? '<button type="button" class="home__btn home__btn--danger" data-remove>Remove</button>' : ''}
@@ -269,18 +270,17 @@ export class PlatformHome {
       chapters.append(el('li', null, level.name));
     }
     chapters.hidden = !chapters.children.length || chapters.children.length < 2;
-    const select = page.querySelector('[data-play-hero]');
-    const current = this.actions.currentHero();
-    for (const h of heroes) {
-      const o = el('option', null, h.custom ? `✦ ${h.name}` : h.name);
-      o.value = h.id;
-      o.selected = h.id === current;
-      select.append(o);
-    }
+    // Each game has its own character for you: who it is, or that you will choose.
+    const mine = this.actions.heroOf(game.id);
+    const choices = this.actions.rosterHeroes(game.roster ?? []);
+    const named = choices.find((h) => h.id === mine) ?? heroes.find((h) => h.id === mine);
+    page.querySelector('[data-play-hero]').textContent = named
+      ? `You play as ${named.name} here`
+      : `You choose your character when you play: ${choices.length} to pick from`;
     page.querySelector('[data-close]').addEventListener('click', () => this.closePage());
     page.querySelector('[data-play]').addEventListener('click', async (e) => {
       e.currentTarget.disabled = true;
-      await this.actions.play(game.id, c.hero ? null : select.value);
+      await this.actions.play(game.id);
     });
     page.querySelector('[data-play-party]').addEventListener('click', () => this.actions.openHero('party'));
     page.querySelector('[data-remove]')?.addEventListener('click', async () => {

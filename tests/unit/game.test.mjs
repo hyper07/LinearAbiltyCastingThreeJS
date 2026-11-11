@@ -463,3 +463,76 @@ test('a battle royale run accepts rival kills; other levels refuse them', async 
   assert.equal(kindAllowed(runRules(royale), 'rival', 1), true);
   assert.equal(kindAllowed(runRules(normalizeLevel({ name: 'Waves' })), 'rival', 1), false, 'never in a normal level');
 });
+
+test('a character per game: what is earned in one game stays in it', async () => {
+  const w = await world();
+  try {
+    const a = (await w.accounts.register({ name: 'Ada', password: 'lovelace-1815' })).account.id;
+    const A = 'official:thistledown';
+    const B = 'official:frost-hollow';
+    // Loot in game A.
+    let held = null;
+    await w.authority.inGame(A, async () => {
+      const { runId, game } = await w.authority.startRun(a, { level: 'thistledown' });
+      assert.equal(game, A, 'the run belongs to its game');
+      for (let start = 0; !held && start < 4000; start += 400) {
+        for (const d of await farm(w, a, runId, 'brute', { min: 6, start })) {
+          if (held || (d.type !== 'gear' && d.type !== 'weapon')) continue;
+          await w.authority.take(a, { runId, uid: d.uid });
+          held = d;
+        }
+        w.later(61);
+      }
+    });
+    assert.ok(held, 'something to keep');
+    const inA = await w.authority.inGame(A, () => w.authority.character(a));
+    const inB = await w.authority.inGame(B, () => w.authority.character(a));
+    const arena = await w.authority.inGame('arena', () => w.authority.character(a));
+    assert.ok([...inA.bag, ...inA.stash].some((i) => i.uid === held.uid), 'game A has it');
+    assert.ok(![...inB.bag, ...inB.stash].some((i) => i.uid === held.uid), 'game B does not');
+    assert.ok(inA.xp + inA.level * 1e6 > inB.xp + inB.level * 1e6, 'experience stays in game A');
+    assert.equal(arena.bag.length, 0, 'the arena character is untouched');
+    // An item of game A cannot be sold from game B.
+    const sold = await w.authority.inGame(B, () => errorOf(() => w.authority.ops(a, { ops: [{ op: 'sell', args: [held.uid] }] })));
+    assert.ok(sold instanceof Refusal, 'not in your bag there');
+    assert.equal((await w.db.one('SELECT game FROM items WHERE uid = ?', [held.uid])).game, A);
+    // Each game's gold is its own ledger.
+    const rows = await w.db.many('SELECT game, COALESCE(SUM(delta), 0) AS s FROM ledger WHERE account_id = ? GROUP BY game', [a]);
+    for (const r of rows) {
+      const p = await w.authority.inGame(r.game, () => w.authority.character(a));
+      assert.equal(r.s, p.gold, `${r.game}: gold equals its ledger`);
+    }
+    // Saved, each sealed to its own game: a row copied into another game does not open.
+    const rowA = await w.db.one('SELECT state FROM characters WHERE account_id = ? AND game = ?', [a, A]);
+    await w.db.run('UPDATE characters SET state = ? WHERE account_id = ? AND game = ?', [rowA.state, a, B]);
+    w.authority.characters.clear();
+    const copied = await w.authority.inGame(B, () => errorOf(() => w.authority.character(a)));
+    assert.equal(copied?.status, 423, 'a character moved between games is caught');
+  } finally {
+    await w.close();
+  }
+});
+
+test('HTTP: a request names its game, and unknown games are refused', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'gamory-api-'));
+  const readLevel = async (id) => (id === 'thistledown' ? readFile(join(ROOT, 'public/levels/thistledown.json'), 'utf8') : null);
+  const game = await createGameServices({ dataDir: dir, db: await testDatabase(), readLevel, env: { SERVER_SECRET: randomBytes(48).toString('base64') } });
+  const server = http.createServer((req, res) => game.handler(req, res).then((h) => h || res.end('static')));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const res = await fetch(base + '/api/account/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Ada', password: 'lovelace-1815' }) });
+    const cookie = res.headers.get('set-cookie').split(';')[0];
+    const state = (g) => fetch(`${base}/api/game/state?game=${encodeURIComponent(g)}`, { headers: { cookie } });
+    assert.equal((await state('official:thistledown')).status, 200);
+    assert.equal((await state('official:nowhere')).status, 404, 'a level that does not exist');
+    assert.equal((await state('g-made-up-00000000')).status, 404, 'a game nobody published');
+    assert.equal((await state('../etc')).status, 404);
+    const run = await (await fetch(base + '/api/game/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json', cookie }, body: JSON.stringify({ level: 'thistledown', game: 'official:thistledown' }) })).json();
+    assert.equal(run.game, 'official:thistledown');
+  } finally {
+    server.close();
+    await game.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});

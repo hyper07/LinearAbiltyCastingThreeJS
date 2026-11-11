@@ -111,12 +111,13 @@ export class ProfileSync extends EventEmitter {
     if (!this.active) return Promise.resolve({ ok: false, error: 'Not signed in' });
     const digest = expect ? this.profile.digest() : null;
     const last = this.queue[this.queue.length - 1];
-    if (coalesce && last?.path === 'ops' && last.coalesce && last.body.ops.length < 50) {
+    if (coalesce && last?.path === 'ops' && last.coalesce && last.body.ops.length < 50 && last.game === this.profile.scope) {
       last.body.ops.push(...body.ops);
       last.digest = digest;
       return last.promise;
     }
-    const entry = { path, body, digest, expect, apply, coalesce };
+    // The game it was made in, even if the player moves to another before it is sent.
+    const entry = { path, body, digest, expect, apply, coalesce, game: this.profile.scope };
     entry.promise = new Promise((resolve) => (entry.resolve = resolve));
     this.queue.push(entry);
     this._pump();
@@ -129,7 +130,8 @@ export class ProfileSync extends EventEmitter {
     while (this.queue.length) {
       const entry = this.queue.shift();
       const body = typeof entry.body === 'function' ? entry.body() : entry.body;
-      const r = await this._post(entry.path, { ...body, classId: this.profile.classId });
+      // Every request says which game's character it is about (the server checks it).
+      const r = await this._post(entry.path, { ...body, classId: this.profile.classId, game: entry.game });
       if (!r.ok) {
         if (r.blocked) {
           this.emit('blocked', r.error);
@@ -181,10 +183,10 @@ export class ProfileSync extends EventEmitter {
   }
 
   /** Take the server's copy of the character. */
-  async refresh() {
+  async refresh({ force = false } = {}) {
     this._resync = false;
     try {
-      const response = await fetch(`./api/game/state?classId=${encodeURIComponent(this.profile.classId)}`);
+      const response = await fetch(`./api/game/state?classId=${encodeURIComponent(this.profile.classId)}&game=${encodeURIComponent(this.profile.scope ?? 'arena')}`);
       if (!response.ok) return;
       const view = await response.json();
       // Only if nothing else is on its way: a queued action would be undone.
@@ -192,7 +194,7 @@ export class ProfileSync extends EventEmitter {
         this._resync = true;
         return;
       }
-      if (view.digest !== this.profile.digest()) this.profile.loadState(view.state);
+      if (view.digest !== this.profile.digest() || force) this.profile.loadState(view.state);
       this.lastServerDigest = view.digest;
       this.emit('resynced');
     } catch {

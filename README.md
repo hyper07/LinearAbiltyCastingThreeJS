@@ -43,7 +43,17 @@ models — and more free and paid sources for 3D models, animation and effects a
 Gamory opens on its games, like a video site: a card for every game you can play — the official ones
 and everything people published — with a cover drawn from its world, who made it and how often it
 was played. Search, filter by genre (or **For kids & study**), sort by popular or new, open a game's
-page and press **Play**, as the class you pick. **＋ Create** makes a new game in the
+page and press **Play** to open its **lobby**: choose your character from the classes that game offers
+and customize its body and colours, then **Start** — or invite friends with a code, wait for everyone
+to press **Ready**, and start together (in a battle royale, set how many AI rivals fill the empty places).
+
+**Every game keeps its own characters, one per class, per player.** What you earn in one game stays
+in it; a class you have not played there starts at level 1 with nothing, and switching back brings
+your earlier character back. The open arena in **Your hero** keeps its own character too.
+
+<p>
+  <img src="docs/screenshots/lobby.jpg" width="100%" alt="A game's lobby: the classes it offers, each new and starting at level 1, the Mage chosen with a skeleton-mage body, colour pickers, Invite friends and Start" />
+</p> **＋ Create** makes a new game in the
 [Game builder](docs/game-builder.md), and **Publish** puts it on the home page for everyone on the
 server. **Your hero** opens the action RPG's own menu (class, weapon, skills, stash, account), and
 **Play together** makes or joins a party — press Play in a party and everyone comes along.

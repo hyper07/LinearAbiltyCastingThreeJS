@@ -266,9 +266,10 @@ export class Party extends EventEmitter {
    * Host: the run everyone plays. `level` is the full level (so levels made
    * here work for guests too), or null for the classic keep.
    */
-  broadcastStart({ level = null, campaign = null, index = -1 } = {}) {
+  broadcastStart({ level = null, campaign = null, index = -1, game = null } = {}) {
     if (!this.isHost) return;
-    this.hostRun = { t: 'start', level, campaign, index, at: Date.now() };
+    // `game`: which game this is, so each guest plays it with their own character for it.
+    this.hostRun = { t: 'start', level, campaign, index, game, at: Date.now() };
     this.send(this.hostRun);
     this.app.monsters.players = this._players();
     this.app.director.authority = true;
@@ -323,6 +324,15 @@ export class Party extends EventEmitter {
       return;
     }
     if (msg.level) {
+      // The host's game, as this guest's own character in it (chosen the first time).
+      if (msg.game?.id) {
+        // The character this guest picked in the host's lobby (else they choose now).
+        const pick = app.lobby?.pickFor(msg.game.id);
+        app.lobby?.close({ tell: false });
+        if (!(await app.enterGameScope({ ...msg.game, hero: pick?.classId ?? null, custom: pick?.custom ?? null }))) return app.hud.showToast('Choose a character to join this game', 2600);
+      } else {
+        await app.leaveGameScope();
+      }
       await app.playLevel(msg.level, { fromParty: true, campaign: msg.campaign, index: msg.index ?? -1 });
     } else {
       app.useClassicWorld();
@@ -553,6 +563,12 @@ export class Party extends EventEmitter {
         return;
       case 'chat':
         this._chat(remote?.name ?? 'Player', String(msg.text ?? '').slice(0, CHAT_MAX));
+        return;
+      // A game's lobby (ui/GameLobby.js).
+      case 'lobby':
+      case 'lobby-close':
+      case 'lobby-pick':
+        app.lobby?.onMessage(msg, remote);
         return;
       // Battle royale (game/royale/RoyaleMode.js).
       case 'pvp':

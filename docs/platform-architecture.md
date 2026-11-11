@@ -19,7 +19,7 @@ modules); the rest is the plan.
 | Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
 | Battle royale on the action RPG engine: storm, AI rivals, players against players, solo and squads | **Built**: see [Battle royale](battle-royale.md) |
 | Games as records, on a home page | **Built**: published games are rows in PostgreSQL with their levels; the home page lists them with the official ones. See [Games on the home page](#games-on-the-home-page) |
-| Saves per player per game | Planned. Today a player has one character shared by every game |
+| Characters per player, per game, per class | **Built**: a character for each class in each game, in the browser and on the server (sealed to account, game and class); a game's lobby to choose and customize, and to start together |
 | NPCs, worlds, monsters and question sets players make, offered by the builder | Planned |
 | PostgreSQL | **Built** (chosen 2026-11-10): accounts, characters, items, ledger, history and the library. See [The database](production.md#the-database) |
 
@@ -143,11 +143,21 @@ Not yet: private games for a family, a maker's own page, likes, and comments.
 
 ## Saving progress per player, per game
 
-Today the server keeps **one character per account**, shared by every level: gold, the bag, the
-stash, skill ranks per class. That suits one RPG, but not a platform. The plan:
+**Built:** a character lives in a *scope*, `<game>#<class>` (`official:thistledown#mage`,
+`g-moon-garden-1a2b3c4d#knight`), or `arena` for the open arena (and every save from before games).
+Each is its own character: level, experience, gold, bag, stash, gear and skill ranks. In the browser
+it is its own saved copy. On the server, characters, items and the gold ledger carry the scope, the
+rules work on the request's scope (a fight's is its run's, which the browser cannot change), a saved
+character is sealed to its account and scope, so one copied into another game does not open, and the
+audit checks each scope's gold against its own ledger. A game's lobby shows your characters there
+(`GET /api/game/characters?game=`). Customization (body, colours) is kept per scope too.
+
+The rest of this section is the original plan; the parts not done yet are marked.
 
 - A **game** becomes a record of its own: owner, title, engine, genre, modules, the spec, its levels,
-  version, and whether it is private, shared with family or public.
+  its **roster** (the characters players may choose, chosen when it is made; a class from the forge
+  is copied in), and whether it is private, shared with family or public. *(Built, except private and
+  family visibility.)*
 - A player's progress lives in **one save per player, per game, per module**. Each save is a small
   document in the shape its module declares, with a schema version so it can be migrated.
 - **Progress scope** is the game's choice. `game` keeps everything inside that game, which suits a

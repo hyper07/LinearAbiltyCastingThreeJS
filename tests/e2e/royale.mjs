@@ -1,4 +1,4 @@
-import { boot, tally, until } from './lib.mjs';
+import { boot, pickHero, tally, until } from './lib.mjs';
 
 /**
  * The battle royale: alone against the rivals (they spawn, the storm closes
@@ -19,8 +19,11 @@ export async function run(browser, { shots = null } = {}) {
     t.check('the battle royale games are on the home page', await until(page, () => document.querySelector('.home [data-game="official:stormbreak-ruins"]') && document.querySelector('.home [data-game="official:saltwind-squads"]'), null, 10000));
     await page.click('.home [data-game="official:stormbreak-ruins"]');
     await until(page, () => document.querySelector('.home [data-play]'), null, 5000);
-    await page.selectOption('.home [data-play-hero]', 'amazon');
     await page.click('.home [data-play]');
+    await until(page, () => window.app.lobby.isOpen, null, 10000);
+    t.check('a battle royale lobby lets you set the AI rivals', await page.evaluate(() => Boolean(document.querySelector('.lobby [data-lobby-rivals]'))));
+    await page.click('.lobby [data-lobby-hero="amazon"]');
+    await page.click('.lobby [data-lobby-start]');
     await startCard(page);
     await pressStart(page);
     t.check('a match starts', await until(page, () => window.app.phase === 'playing' && window.app.royale?.active, null, 30000));
@@ -76,6 +79,8 @@ export async function run(browser, { shots = null } = {}) {
     await page.click('.home [data-game="official:stormbreak-ruins"]');
     await until(page, () => document.querySelector('.home [data-play]'), null, 5000);
     await page.click('.home [data-play]');
+    await until(page, () => window.app.lobby.isOpen, null, 10000);
+    await page.click('.lobby [data-lobby-start]');
     await startCard(page);
     await pressStart(page);
     await until(page, () => window.app.royale?.active && window.app.monsters.active.filter((m) => m.kind === 'rival').length === 7, null, 30000);
@@ -110,12 +115,22 @@ export async function run(browser, { shots = null } = {}) {
     await until(guest.page, () => window.app.party.isGuest, null, 10000);
     await until(host.page, () => window.app.party.members().length === 2, null, 5000);
 
-    // Not awaited: playGame waits for the Start press.
-    await host.page.evaluate(() => { window.app.playGame('official:stormbreak-ruins'); });
+    // The host opens the game's lobby: the guest sees it too.
+    await host.page.evaluate(() => window.app.openLobby('official:stormbreak-ruins'));
+    await until(host.page, () => window.app.lobby.isOpen, null, 10000);
+    await host.page.click('.lobby [data-lobby-hero="mage"]');
+    t.check('the guest sees the host\'s lobby', await until(guest.page, () => window.app.lobby.isOpen && /Stormbreak/.test(document.querySelector('.lobby__title')?.textContent ?? ''), null, 10000));
+    t.check('the host waits until everyone is ready', await until(host.page, () => document.querySelector('.lobby [data-lobby-start]')?.disabled, null, 5000));
+    await guest.page.click('.lobby [data-lobby-hero="barbarian"]');
+    await guest.page.click('.lobby [data-lobby-ready]');
+    t.check('the host sees the guest\'s pick, ready', await until(host.page, () => [...document.querySelectorAll('.lobby [data-member]')].some((li) => li.classList.contains('is-ready') && /Barbarian/.test(li.textContent)), null, 8000));
+    t.check('then Start is open', await until(host.page, () => document.querySelector('.lobby [data-lobby-start]') && !document.querySelector('.lobby [data-lobby-start]').disabled, null, 5000));
+    await host.page.click('.lobby [data-lobby-start]');
     await startCard(host.page);
     await pressStart(host.page);
     await startCard(guest.page);
     await pressStart(guest.page);
+    t.check('each plays their own character of this game', (await host.page.evaluate(() => window.app.profile.scope)) === 'official:stormbreak-ruins#mage' && (await guest.page.evaluate(() => window.app.profile.scope + ' ' + window.app.mainMenu.getSelection().characterId)) === 'official:stormbreak-ruins#barbarian barbarian');
     t.check('both are in the match', await until(host.page, () => window.app.royale?.active, null, 30000) && (await until(guest.page, () => window.app.royale?.active, null, 30000)));
     t.check('a party of two leaves room for six rivals', await until(host.page, () => window.app.monsters.active.filter((m) => m.kind === 'rival').length === 6, null, 8000));
     t.check('the guest sees the same rivals', await until(guest.page, () => window.app.monsters.active.filter((m) => m.kind === 'rival' && m.puppet).length === 6, null, 8000));
@@ -152,8 +167,12 @@ export async function run(browser, { shots = null } = {}) {
     await guest.page.waitForTimeout(800);
 
     // Squads: the party is one team — no damage between them.
-    // Not awaited: playGame waits for the Start press.
-    await host.page.evaluate(() => { window.app.playGame('official:saltwind-squads'); });
+    await host.page.evaluate(() => window.app.openLobby('official:saltwind-squads'));
+    await until(guest.page, () => window.app.lobby.isOpen && /Saltwind/.test(document.querySelector('.lobby__title')?.textContent ?? ''), null, 10000);
+    await guest.page.click('.lobby [data-lobby-hero="amazon"]');
+    await guest.page.click('.lobby [data-lobby-ready]');
+    await until(host.page, () => document.querySelector('.lobby [data-lobby-start]') && !document.querySelector('.lobby [data-lobby-start]').disabled, null, 8000);
+    await host.page.click('.lobby [data-lobby-start]');
     await startCard(host.page);
     await pressStart(host.page);
     await startCard(guest.page);

@@ -20,7 +20,6 @@ import { describeGoal, normalizeLevel } from '../levels/Level.js';
 import { StoryPanel } from '../ui/StoryPanel.js';
 import { WorldLabels } from '../ui/WorldLabels.js';
 import { PortalSystem } from '../world/Portals.js';
-import { Profile } from '../items/Profile.js';
 import { POTION_KINDS, isSkillEntry, potionOf } from '../items/hotbar.js';
 import { POTIONS, XP_FOR, makeBagRowOffer, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
 import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
@@ -31,6 +30,8 @@ import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 import { ClassForgePanel } from '../ui/ClassForgePanel.js';
 import { GameBuilderPanel } from '../ui/GameBuilderPanel.js';
 import { PlatformHome } from '../ui/PlatformHome.js';
+import { RosterPicker } from '../ui/RosterPicker.js';
+import { GameLobby } from '../ui/GameLobby.js';
 import { games } from '../platform/gamesClient.js';
 import { GameBuilder } from '../ai/GameBuilder.js';
 import { compileGame, describeHero } from '../blueprints/index.js';
@@ -44,6 +45,7 @@ import { LibraryPanel } from '../ui/LibraryPanel.js';
 import { itemThumbnails } from '../ui/ItemThumbnails.js';
 import { Party } from '../net/Party.js';
 import { Account } from '../net/Account.js';
+import { Profile } from '../items/Profile.js';
 import { ProfileSync } from '../net/ProfileSync.js';
 import { LootSystem } from '../items/Loot.js';
 
@@ -358,7 +360,8 @@ export class App {
       await this._forgedReady;
       return [...this.forgedDesigns.values()].reverse().map(describeHero);
     };
-    const heroes = async () => [...CLASS_SPECS.map((c) => ({ id: c.id, name: c.label })), ...(await made())];
+    // The built-in classes (the forge adds its own to CLASS_SPECS as it registers them), then yours.
+    const heroes = async () => [...CLASS_SPECS.filter((c) => !c.forged).map((c) => ({ id: c.id, name: c.label })), ...(await made())];
     const madeIds = async () => (await made()).map((h) => h.id);
     this.builder = new GameBuilderPanel(hudRoot, {
       status: () => gameBuilder.status(),
@@ -368,8 +371,10 @@ export class App {
       compile: async (spec, seed) => compileGame(spec, { seed, taken: new Set((await this.levels.list()).map((e) => e.id)), heroes: await madeIds() }),
       play: (levels) => this.playDraftGame(levels),
       // Publish: a game record on the platform (server/gamesStore.js), on the home page at once.
-      save: async (levels, spec) => {
-        const game = await games.publish({ title: spec?.name ?? levels[0].name, levels, spec, author: this.account.user?.name });
+      save: async (levels, spec, roster = []) => {
+        // The game's own copy of each class it offers: a class made in the forge goes in with its design.
+        const entries = roster.map((id) => (this.forgedDesigns.has(id) ? { id, design: this.forgedDesigns.get(id) } : { id }));
+        const game = await games.publish({ title: spec?.name ?? levels[0].name, levels, spec, roster: entries, author: this.account.user?.name });
         if (this.home.isVisible) this.home.refresh();
         return game;
       },
@@ -399,7 +404,7 @@ export class App {
     this.home = new PlatformHome(hudRoot, {
       list: (params) => games.list(params),
       get: (id) => games.get(id),
-      play: (id, heroId) => this.playGame(id, { heroId }),
+      play: (id) => this.openLobby(id),
       remove: (id) => games.remove(id),
       create: () => this.builder.toggle(true),
       openHero: (panel) => this.openHero(panel),
@@ -410,9 +415,29 @@ export class App {
       },
       openLibrary: () => this.libraryPanel.toggle(true),
       heroes,
-      currentHero: () => this.mainMenu.getSelection().characterId,
+      heroOf: (id) => this.heroOf(id),
+      rosterHeroes: (roster) => this.rosterHeroes(roster),
       account: () => this.account?.user ?? null
     });
+    /** "Choose your character" the first time a player joins a game. */
+    this.rosterPicker = new RosterPicker(hudRoot);
+    /** A game's lobby: your character in it (one per class), and who you play with. */
+    this.lobby = new GameLobby(hudRoot, {
+      party: () => this.party,
+      heroes: (roster) => this.rosterHeroes(roster),
+      characters: (gameId) => this.charactersIn(gameId),
+      looks: (classId) => {
+        const spec = CLASS_SPECS.find((c) => c.id === classId);
+        const ids = [...new Set([...(spec?.looks ?? []), ...Object.keys(LOOKS)])];
+        return ids.filter((id) => LOOKS[id]).map((id) => ({ id, label: LOOKS[id].label }));
+      },
+      custom: (gameId, classId) => this._customOf(this.scopeOf(gameId, classId)),
+      lastHero: (gameId) => this.heroOf(gameId),
+      start: (game, choice, options) => this.startFromLobby(game, choice, options),
+      closed: () => {}
+    });
+    // Someone joined or left the party: the lobby shows it (and the host tells newcomers the game).
+    queueMicrotask(() => this.party?.on('change', () => this.lobby.onPartyChange()));
     this.story = new StoryPanel(hudRoot);
     this.goalPill = document.createElement('div');
     this.goalPill.className = 'level-goal';
@@ -1236,6 +1261,8 @@ export class App {
   /** Leave the arena and return to loadout selection (or to the editor, after a play test). */
   exitToMenu({ fromParty = false } = {}) {
     this.auras.clear();
+    // Back to the arena's character, unless the game goes straight on (next chapter, play again).
+    if (!fromParty) this.leaveGameScope();
     this.royale?.stop();
     const backToEditor = this.run?.fromEditor;
     this.party.onExitGame({ fromParty });
@@ -1301,15 +1328,183 @@ export class App {
    * @param {string} id a game id (server/gamesStore.js)
    * @param {{ heroId?: string|null }} [options] the class to play, unless the game sets one
    */
-  async playGame(id, { heroId = null } = {}) {
+  async playGame(id, { hero = null, custom = null } = {}) {
     const game = await games.get(id);
-    if (heroId) await this.mainMenu.refreshCharacters(heroId);
+    // This game's own character for the class: chosen in the lobby (or here, the first time).
+    if (!(await this.enterGameScope({ id, title: game.title, roster: game.roster ?? [], hero, custom }))) return;
     games.play(id);
     if (game.official) return this.playCampaignLevel(game.levels[0]);
     const levels = game.levels;
     // Published levels are on the server too, so a signed-in run checks their rewards (not a draft).
     this.drafts = { levels: new Map(levels.map((level) => [level.id, level])), campaign: levels.map((level) => ({ id: level.id, name: level.name })), saved: true };
     await this.playCampaignLevel(levels[0].id);
+  }
+
+  /* ---- a character per game, per class ---- */
+
+  /** Where a character lives: the arena, or `<game>#<class>` — each class its own character in each game. */
+  scopeOf(gameId, classId) {
+    return gameId === 'arena' ? 'arena' : `${gameId}#${classId}`;
+  }
+
+  /** How a player customized a class in a game (body, colours), or null. */
+  _customOf(scope) {
+    try {
+      return JSON.parse(localStorage.getItem(`elemental-arena.look@${scope}`) ?? 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  _saveCustom(scope, custom) {
+    try {
+      localStorage.setItem(`elemental-arena.look@${scope}`, JSON.stringify(custom ?? {}));
+    } catch {
+      /* private mode */
+    }
+  }
+
+  /** Put a customization on a class (the body, two colours), without making it the arena's. */
+  async _applyCustom(classId, custom) {
+    if (!custom) return;
+    if (custom.look && LOOKS[custom.look]) await this.setLook(classId, custom.look, { remember: false });
+    const patch = {};
+    if (custom.tint) patch.tint = custom.tint;
+    if (custom.cloth) patch.clothColor = custom.cloth;
+    if (Object.keys(patch).length) {
+      const next = platform.setAppearance(patch, classId);
+      if (platform.getActiveCharacter()?.id === classId) this.character.applyAppearance(next);
+    }
+  }
+
+  /** This player's characters in a game, one per class: from the server signed in, else this browser. */
+  async charactersIn(gameId) {
+    if (this.sync.active) {
+      const response = await fetch(`./api/game/characters?game=${encodeURIComponent(gameId)}`);
+      return response.ok ? (await response.json()).characters ?? [] : [];
+    }
+    const out = [];
+    for (const spec of CLASS_SPECS) {
+      try {
+        const data = JSON.parse(localStorage.getItem(Profile.storageKey(this.scopeOf(gameId, spec.id))) ?? 'null');
+        if (data) out.push({ classId: spec.id, level: data.level ?? 1, gold: data.gold ?? 0 });
+      } catch {
+        /* skip */
+      }
+    }
+    return out;
+  }
+
+  /** The home page's Play: the game's lobby. */
+  async openLobby(id) {
+    const game = await games.get(id);
+    await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
+  }
+
+  /** The lobby's Start (the host's, or a player alone). */
+  async startFromLobby(game, choice, { rivals = null } = {}) {
+    this._saveCustom(this.scopeOf(game.id, choice.classId), choice.custom);
+    this._royaleRivals = rivals;
+    if (this.party.isHost) this.party.send({ t: 'lobby-close' });
+    await this.playGame(game.id, { hero: choice.classId, custom: choice.custom });
+  }
+
+  /** The character this browser chose for a game, or null (first time there). */
+  heroOf(scope) {
+    try {
+      return localStorage.getItem(`elemental-arena.hero@${scope}`);
+    } catch {
+      return null;
+    }
+  }
+
+  _rememberHero(scope, id) {
+    try {
+      localStorage.setItem(`elemental-arena.hero@${scope}`, id);
+    } catch {
+      /* private mode: asked again next time */
+    }
+  }
+
+  /**
+   * What a game lets players be, as picker cards. `[]` means the built-in
+   * classes; a class made in the forge comes with its design, registered here
+   * for this game (copied into it when the game was made).
+   */
+  rosterHeroes(roster = []) {
+    const entries = roster.length ? roster : CLASS_SPECS.filter((c) => !c.forged).map((c) => ({ id: c.id }));
+    const heroes = [];
+    for (const entry of entries) {
+      if (entry.design && !platform.characters.get(entry.id)) {
+        try {
+          registerForgedClass(normalizeDesign(entry.design, { id: entry.id }), { abilities: this.abilities });
+        } catch {
+          continue;
+        }
+      }
+      if (!platform.characters.get(entry.id)) continue;
+      const spec = CLASS_SPECS.find((c) => c.id === entry.id);
+      const design = entry.design ?? this.forgedDesigns.get(entry.id);
+      heroes.push({ id: entry.id, name: spec?.label ?? design?.name ?? entry.id, icon: spec?.icon ?? design?.icon, tagline: spec?.tagline ?? design?.tagline });
+    }
+    return heroes;
+  }
+
+  /**
+   * Become a player of this game: its own character, never another game's.
+   * The first time, the player chooses who to be from the game's roster.
+   * @param {{ id: string, title?: string, roster?: object[], hero?: string|null }} game `hero`: play as this, no question
+   * @returns {Promise<boolean>} false when the player backed out of choosing
+   */
+  async enterGameScope({ id, title = '', roster = [], hero = null, custom = null }) {
+    const heroes = this.rosterHeroes(roster);
+    let chosen = hero ?? this.heroOf(id);
+    if (!chosen || (!hero && !heroes.some((h) => h.id === chosen))) {
+      chosen = heroes.length === 1 ? heroes[0].id : await this.rosterPicker.choose({ title, heroes });
+      if (!chosen) return false;
+    }
+    if (id !== 'draft') this._rememberHero(id, chosen);
+    if (this.profile.scope === 'arena') {
+      // The arena's own body and colours, to put back afterwards.
+      this._arenaHero = this.mainMenu.getSelection().characterId;
+      this._arenaLooks = new Map(CLASS_SPECS.map((c) => [c.id, { look: savedLook(c.id), appearance: { ...platform.getAppearance(c.id) } }]));
+    }
+    const scope = this.scopeOf(id, chosen);
+    await this._switchScope(scope);
+    await this.mainMenu.refreshCharacters(chosen);
+    await this._applyCustom(chosen, custom ?? this._customOf(scope));
+    this.currentGame = { id, title, roster };
+    this.home?.updateAccount();
+    return true;
+  }
+
+  /** Back to the open arena's character (the home page and the hero menu are the arena's). */
+  async leaveGameScope() {
+    this.currentGame = null;
+    if (this.profile.scope === 'arena') return;
+    await this._switchScope('arena');
+    // The arena's body and colours back on every class a game changed.
+    for (const [classId, saved] of this._arenaLooks ?? []) {
+      if (saved.look) await this.setLook(classId, saved.look, { remember: false });
+      platform.setAppearance(saved.appearance, classId);
+    }
+    if (this._arenaHero) await this.mainMenu.refreshCharacters(this._arenaHero);
+    this.character.applyAppearance?.(platform.getAppearance(platform.getActiveCharacter()?.id));
+  }
+
+  async _switchScope(scope) {
+    if (this.profile.scope === scope) return;
+    if (this.sync.active) {
+      // Signed in, the server keeps every game's character: finish this one's, fetch that one's.
+      await this.sync.settled();
+      this.profile.scope = scope;
+      await this.sync.refresh({ force: true });
+    } else {
+      this.profile.useScope(scope);
+    }
+    this._applyProfileStats({ refill: true });
+    this._syncSlots();
+    if (this.inventory?.isOpen) this.inventory.render();
   }
 
   showMainMenu() {
@@ -1377,13 +1572,14 @@ export class App {
    * Dress a class in another body (any of the nine KayKit looks), remembered
    * per class in this browser. Reloads the mesh if it is the one on screen.
    */
-  async setLook(characterId, lookId) {
+  /** @param {{ remember?: boolean }} [options] false: just for now (a game's customization), not the arena's choice */
+  async setLook(characterId, lookId, { remember = true } = {}) {
     const character = platform.characters.get(characterId);
     if (!character || !character.classSpec || !(LOOKS[lookId] || CUSTOM_LOOKS[lookId])) return;
     character.look = lookId;
     character.model = lookModel(lookId, character.model?.tint);
     Object.assign(character, lookRig(lookId));
-    saveLook(characterId, lookId);
+    if (remember) saveLook(characterId, lookId);
     if (platform.getActiveCharacter()?.id === characterId && this._assets) {
       await this.character.reload(this._assets, character);
       this.character.applyAppearance(platform.getAppearance(characterId));
@@ -1612,6 +1808,8 @@ export class App {
    * @param {object[]} levels the compiled chapters, in order
    */
   async playDraftGame(levels) {
+    // A play test: its own throwaway character, as whoever is chosen now.
+    await this.enterGameScope({ id: 'draft', title: 'Play test', hero: levels[0].character ?? this.mainMenu.getSelection().characterId });
     this.drafts = { levels: new Map(levels.map((level) => [level.id, level])), campaign: levels.map((level) => ({ id: level.id, name: level.name })), saved: false };
     await this.playCampaignLevel(levels[0].id);
   }
@@ -1625,7 +1823,8 @@ export class App {
     level = await this._expandLevel(normalizeLevel(level));
     // Playing together: the host picks the level and the party follows.
     if (this.party.isGuest && !fromParty) return this.party.requestStart();
-    if (this.party.isHost && !fromParty && !fromEditor) this.party.broadcastStart({ level, campaign, index });
+    if (this.party.isHost && !fromParty && !fromEditor) this.party.broadcastStart({ level, campaign, index, game: this.currentGame });
+    this.lobby?.close({ tell: false });
     if (fromEditor) this.levelEditor.suspend();
     else {
       this.mainMenu.hide();
@@ -1660,6 +1859,7 @@ export class App {
       if (fromEditor) this.levelEditor.resume();
       else {
         this.useClassicWorld();
+        this.leaveGameScope();
         this.showMainMenu();
       }
       return;
@@ -1680,6 +1880,8 @@ export class App {
     // A battle royale: the storm, the rivals, the last one standing (game/royale).
     if (level.rules.goal === 'royale') {
       this.royale ??= new RoyaleMode(this);
+      // The lobby's choice of how many AI rivals fill the empty places.
+      if (this._royaleRivals != null) level.rules.royale = { ...(level.rules.royale ?? {}), rivals: this._royaleRivals };
       // The rivals are adventurers: their models load the first time a match needs them.
       await Promise.race([this.monsterModels?.preload(['rival']).then(() => this.monsters.useModels(this.monsterModels)), new Promise((r) => setTimeout(r, 8000))]);
       this.royale.start(level);

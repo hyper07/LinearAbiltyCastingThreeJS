@@ -83,6 +83,14 @@ AI and no randomness beyond the seed:
   played or opened in the editor, the game scatters the scenery from the library with the level's
   seed, so the same file always builds the same map. A party gets the finished level from the host.
 
+## Characters players can choose
+
+Under the menus, tick which classes players may choose in this game. All the built-in classes are
+ticked to start with. Classes you made in the Class forge are listed but not ticked: a game only gets
+them if you choose them, and then it keeps its own copy. A game with a set hero offers only that one.
+In the game's lobby each player picks from this list, and each class is a separate character in this
+game for each player ([Platform architecture](platform-architecture.md#saving-progress-per-player-per-game)).
+
 ## Characters players made
 
 Every class made in the [Class forge](class-forge.md) is a hero here too, marked ✦ in the Hero menu.

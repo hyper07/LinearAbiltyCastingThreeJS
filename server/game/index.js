@@ -2,7 +2,7 @@ import { normalizeLevel } from '../../src/levels/Level.js';
 import { platform, classArmor, classBonuses } from '../../src/platform/index.js';
 import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from '../api/http.js';
 import { Accounts } from './accounts.js';
-import { GameAuthority } from './authority.js';
+import { GAME_SCOPE, GameAuthority, gameOfScope } from './authority.js';
 import { History } from './db.js';
 import { openDatabase } from '../db/database.js';
 import { Keys, loadSecret } from './keys.js';
@@ -86,6 +86,29 @@ export async function createGameServices({ dataDir, db = null, readLevel = async
   /** The signed-in account for a request (or an upgrade), or null. */
   const authenticate = (req) => accounts.fromToken(cookieOf(req));
 
+  /**
+   * Which game a request's character belongs to. A fight action's is its
+   * run's (the server's record, whatever the browser says); anything else
+   * names one, which must exist: the arena, a builder draft, an official level
+   * or a published game. Unknown names are refused, so nobody mints characters.
+   */
+  const known = new Set(['arena', 'draft']);
+  const gameOf = async (body, query) => {
+    const run = body?.runId ? authority.runs.get(String(body.runId)) : null;
+    if (run) return run.game;
+    const asked = String(body?.game ?? query?.get?.('game') ?? 'arena');
+    if (known.has(asked)) return asked;
+    if (!GAME_SCOPE.test(asked)) throw new Refusal('No such game', 404);
+    const base = gameOfScope(asked);
+    const exists = known.has(base) ||
+      (base.startsWith('official:')
+        ? Boolean(await readLevel(base.slice('official:'.length)))
+        : Boolean(await db.one('SELECT 1 FROM games WHERE id = ?', [base])));
+    if (!exists) throw new Refusal('No such game', 404);
+    if (known.size < 10000) known.add(asked).add(base);
+    return asked;
+  };
+
   /** The class the browser is playing, so both sides count the same spells. */
   const useClass = async (accountId, classId) => {
     const id = typeof classId === 'string' && platform.characters.get(classId) ? classId : null;
@@ -108,6 +131,8 @@ export async function createGameServices({ dataDir, db = null, readLevel = async
       await useClass(account.id, query.get('classId'));
       return authority.view(account.id);
     },
+    // The lobby: your characters in a game, one per class (level, gold).
+    'GET /api/game/characters': ({ account }) => authority.charactersIn(account.id, gameOfScope(authority.game)).then((characters) => ({ characters })),
     'POST /api/game/run/start': ({ account, body }) => authority.startRun(account.id, body),
     'POST /api/game/run/join': ({ account, body }) => authority.joinRun(account.id, body),
     'POST /api/game/run/end': ({ account, body }) => authority.endRun(account.id, body),
@@ -153,13 +178,18 @@ export async function createGameServices({ dataDir, db = null, readLevel = async
       if (path !== '/api/account/me' && !account) return send(401, { error: 'Sign in first' }), true;
       if (account && !(req.method === 'GET' ? limits.read : limits.game).take(`a${account.id}`)) return send(429, { error: 'Slow down' }), true;
       const body = req.method === 'POST' ? await readJson(req, 64 * 1024) : {};
-      // One request at a time from here: the rules read a character, check it and write it back.
+      // One request at a time from here: the rules read a character, check it and write it back —
+      // the character of this request's game.
+      const query = queryOf(req);
       const result = await db.serial(async () => {
-        if (account && req.method === 'POST' && path.startsWith('/api/game/')) {
-          await authority.assertActive(account.id);
-          await useClass(account.id, body.classId);
-        }
-        return route({ account, body, query: queryOf(req), ip });
+        const game = path.startsWith('/api/game/') ? await gameOf(body, query) : 'arena';
+        return authority.inGame(game, async () => {
+          if (account && req.method === 'POST' && path.startsWith('/api/game/')) {
+            await authority.assertActive(account.id);
+            await useClass(account.id, body.classId);
+          }
+          return route({ account, body, query, ip });
+        });
       });
       return send(200, result), true;
     } catch (error) {

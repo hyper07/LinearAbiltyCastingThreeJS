@@ -34,6 +34,14 @@ When the host leaves, the party ends. A guest can leave and come back to the sam
 Waves grow with the party: each extra player adds about 60% more monsters, a little more health on
 each, and room for more of them at once.
 
+## Starting a game together
+
+Open a game's page on the home page and press **Play**: its lobby opens. **Invite friends** makes a
+party and shows its code; friends join with the code (**Play together**) and see the same lobby. Each
+picks their own character from the game's classes — their own character *in this game*, one per class
+— customizes it and presses **Ready**. The host's **Start** opens once everyone is ready. In a battle
+royale the host also sets how many AI rivals fill the empty places.
+
 ## What is shared and what is yours
 
 | Shared | Yours |

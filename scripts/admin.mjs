@@ -49,31 +49,34 @@ switch (command) {
     console.log(`history: ${chain.count} events ${chain.ok ? 'chained correctly' : `— BROKEN at event ${chain.brokenAt}`}`);
     if (!chain.ok) problems.push(`history chain broken at event ${chain.brokenAt}`);
 
-    const held = new Map(); // uid → account id, from the characters
+    // Each account has a character per game: each is checked on its own.
+    const held = new Map(); // uid → "account|game", from the characters
     let opened = 0;
-    for (const row of await db.many('SELECT account_id, state FROM characters')) {
+    for (const row of await db.many('SELECT account_id, game, state FROM characters')) {
+      const who = `${row.account_id}|${row.game}`;
+      const label = row.game === 'arena' ? `account ${row.account_id}` : `account ${row.account_id} in ${row.game}`;
       let state;
       try {
-        state = keys.open(row.state, `character:${row.account_id}`);
+        state = keys.open(row.state, row.game === 'arena' ? `character:${row.account_id}` : `character:${row.account_id}:${row.game}`);
         opened++;
       } catch {
-        problems.push(`account ${row.account_id}: saved character does not open (edited outside the server, or another key)`);
+        problems.push(`${label}: saved character does not open (edited outside the server, or another key)`);
         continue;
       }
       const uids = [...(state.bag ?? []), ...(state.stash ?? []), state.equipped, ...Object.values(state.gear ?? {})].filter(Boolean).map((i) => i.uid);
       for (const uid of uids) {
-        if (held.has(uid)) problems.push(`item ${uid} is held by accounts ${held.get(uid)} and ${row.account_id}`);
-        held.set(uid, row.account_id);
-        const reg = await db.one('SELECT owner, state FROM items WHERE uid = ?', [uid]);
-        if (!reg) problems.push(`account ${row.account_id}: item ${uid} was never made by the server`);
-        else if (reg.owner !== row.account_id || reg.state !== 'held') problems.push(`account ${row.account_id}: item ${uid} is registered as ${reg.state} for ${reg.owner}`);
+        if (held.has(uid)) problems.push(`item ${uid} is held by ${held.get(uid)} and ${who}`);
+        held.set(uid, who);
+        const reg = await db.one('SELECT owner, state, game FROM items WHERE uid = ?', [uid]);
+        if (!reg) problems.push(`${label}: item ${uid} was never made by the server`);
+        else if (reg.owner !== row.account_id || reg.state !== 'held' || reg.game !== row.game) problems.push(`${label}: item ${uid} is registered as ${reg.state} for ${reg.owner} in ${reg.game}`);
       }
-      const ledger = (await db.one('SELECT COALESCE(SUM(delta), 0) AS s FROM ledger WHERE account_id = ?', [row.account_id])).s;
-      if (ledger !== (state.gold ?? 0)) problems.push(`account ${row.account_id}: gold ${state.gold} but the ledger adds up to ${ledger}`);
+      const ledger = (await db.one('SELECT COALESCE(SUM(delta), 0) AS s FROM ledger WHERE account_id = ? AND game = ?', [row.account_id, row.game])).s;
+      if (ledger !== (state.gold ?? 0)) problems.push(`${label}: gold ${state.gold} but the ledger adds up to ${ledger}`);
     }
     console.log(`characters: ${opened} opened with the server's key`);
-    for (const row of await db.many("SELECT uid, owner FROM items WHERE state = 'held'")) {
-      if (held.get(row.uid) !== row.owner) problems.push(`item ${row.uid} is registered to account ${row.owner} but no character holds it`);
+    for (const row of await db.many("SELECT uid, owner, game FROM items WHERE state = 'held'")) {
+      if (held.get(row.uid) !== `${row.owner}|${row.game}`) problems.push(`item ${row.uid} is registered to account ${row.owner} in ${row.game} but no character holds it`);
     }
     console.log(`items: ${held.size} held, registry consistent: ${!problems.some((p) => /item/.test(p))}`);
     const blocked = (await db.one('SELECT COUNT(*) AS n FROM accounts WHERE blocked_until > ?', [Date.now()])).n;

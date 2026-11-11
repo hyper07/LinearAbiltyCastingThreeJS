@@ -40,7 +40,7 @@ export class GameBuilderPanel {
    *   heroes: () => Promise<{ id: string, name: string }[]>,
    *   compile: (spec: object, seed: number) => Promise<{ levels: object[] }>,
    *   play: (levels: object[]) => Promise<void>,
-   *   save: (levels: object[], spec: object) => Promise<object>,
+   *   save: (levels: object[], spec: object, roster: string[]) => Promise<object>,
    *   edit: (levels: object[]) => Promise<void>
    * }} actions
    */
@@ -119,6 +119,9 @@ export class GameBuilderPanel {
     this.root.hidden = force === undefined ? !this.root.hidden : !force;
     if (!this.isOpen) return;
     this.heroes = await this.actions.heroes().catch(() => []);
+    // Who players may choose in this game: the built-in classes unless changed. Classes you
+    // made are offered but not ticked — a game only gets them if you choose them.
+    this.roster ??= new Set(this.heroes.filter((h) => !h.custom).map((h) => h.id));
     const { plan } = await this.actions.status();
     this._setPlan(plan);
   }
@@ -247,6 +250,31 @@ export class GameBuilderPanel {
     );
     preview.append(choices);
 
+    preview.append(el('h3', 'builder__heading', 'Characters players can choose'));
+    const roster = el('div', 'builder__roster');
+    roster.dataset.roster = '';
+    if (spec.hero !== 'any') {
+      const name = this.heroes.find((h) => h.id === spec.hero)?.name ?? spec.hero;
+      roster.append(el('p', 'builder__custom-note', `Everyone plays as ${name}: this game sets the hero.`));
+    } else {
+      for (const hero of this.heroes) {
+        const label = el('label', 'builder__roster-item');
+        const box = el('input');
+        box.type = 'checkbox';
+        box.dataset.rosterHero = hero.id;
+        box.checked = this.roster.has(hero.id);
+        box.addEventListener('change', () => {
+          if (box.checked) this.roster.add(hero.id);
+          else if (this.roster.size > 1) this.roster.delete(hero.id);
+          else box.checked = true; // at least one
+        });
+        label.append(box, ` ${hero.custom ? '✦ ' : ''}${hero.name}`);
+        roster.append(label);
+      }
+      roster.append(el('p', 'builder__custom-note builder__roster-hint', 'Each player picks one the first time they join, and keeps a separate character in this game.'));
+    }
+    preview.append(roster);
+
     if (study) {
       preview.append(el('h3', 'builder__heading', 'Study and rewards'));
       const studyRow = el('div', 'forge__options builder__grid');
@@ -323,7 +351,8 @@ export class GameBuilderPanel {
     try {
       const { levels } = await this.actions.compile(this.spec, this.seed);
       if (what === 'save') {
-        const game = await this.actions.save(levels, this.spec);
+        const roster = this.spec.hero !== 'any' ? [this.spec.hero] : [...(this.roster ?? [])];
+        const game = await this.actions.save(levels, this.spec, roster);
         this._status(`Published “${game?.title ?? this.spec.name}” — it is on the home page now.`, 'ok');
         return;
       }

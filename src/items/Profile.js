@@ -60,15 +60,38 @@ export class Profile extends EventEmitter {
     this.favoredArmor = 'cloth';
     /** Is the weapon in hand two-handed? (A shield or focus then does nothing.) */
     this.twoHanded = false;
+    /**
+     * The game this character belongs to: a player has one per game
+     * ('arena' — the open arena, and every save from before games — 'draft',
+     * 'official:<level>', or a published game's id). Never mixed.
+     */
+    this.scope = 'arena';
     this._load(data !== undefined ? data : this._readSaved());
+  }
+
+  /** Where a game's character is kept in this browser. */
+  static storageKey(scope = 'arena') {
+    return scope === 'arena' ? KEY : `${KEY}@${scope}`;
   }
 
   _readSaved() {
     try {
-      return JSON.parse(this.storage?.getItem(KEY) ?? 'null');
+      return JSON.parse(this.storage?.getItem(Profile.storageKey(this.scope)) ?? 'null');
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Become the character of another game: this one is saved, that one is
+   * read (or a new one starts). Signed in, the server's copy is fetched
+   * instead (ProfileSync#refresh) — the browser keeps none.
+   */
+  useScope(scope) {
+    if (scope === this.scope) return;
+    if (this.storage) this.save();
+    this.scope = scope;
+    if (this.storage) this.loadState(this._readSaved());
   }
 
   /** The character as saved: what the browser's storage or the server's database holds. */
@@ -213,7 +236,7 @@ export class Profile extends EventEmitter {
 
   save() {
     try {
-      this.storage?.setItem(KEY, JSON.stringify(this.serialize()));
+      this.storage?.setItem(Profile.storageKey(this.scope), JSON.stringify(this.serialize()));
     } catch {
       /* private mode: the character just is not remembered */
     }

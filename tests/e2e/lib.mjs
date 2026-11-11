@@ -82,3 +82,13 @@ export async function until(page, fn, arg = null, ms = 8000) {
     return false;
   }
 }
+
+/**
+ * Answer "Choose your character" if a game asks (the first time a player
+ * joins it). Returns whether it was asked.
+ */
+export async function pickHero(page, id, ms = 15000) {
+  const asked = await until(page, () => window.app.rosterPicker?.isOpen, null, ms);
+  if (asked) await page.click(`.roster [data-hero="${id}"]`);
+  return asked;
+}
