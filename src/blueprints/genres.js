@@ -11,6 +11,7 @@
  *   calm            no monsters at all
  *   chapters        how many levels a game of this genre has by default
  *   finale          what the last chapter becomes ('boss' = the Emberwyrm waits there)
+ *   royale          a battle royale's mode: 'solo' (everyone against everyone) or 'squad' (the party as one team)
  *   helpers         NPC archetypes the genre always places (cast.js HELPERS)
  *   layout, foes    defaults when the spec does not say
  *   pace            wave size and growth (rules.baseCount / rules.growth)
@@ -108,6 +109,44 @@ export const GENRES = {
     story: {
       intro: 'Each room of {place} is worse than the last. {Goal} to open the next door.',
       outro: 'Out of {place} at last, with the treasure and the tale.'
+    }
+  },
+  'battle-royale': {
+    engine: 'action-rpg',
+    modules: ['levels', 'story', 'party', 'combat', 'classes', 'skills', 'items', 'inventory', 'royale'],
+    name: 'Battle royale',
+    blurb: 'everyone against everyone (and AI rivals) as a storm closes in',
+    words: /battle royale|royale|last (one|man|player) standing|free for all|pvp|deathmatch|storm/,
+    goal: 'royale',
+    royale: 'solo',
+    count: 1,
+    chapters: 1,
+    helpers: [],
+    layout: 'open-field',
+    foes: 'none',
+    pace: { baseCount: 1, growth: 1 },
+    story: {
+      intro: 'A storm is rolling over {place}. Grab what you can, keep inside the circle, and be the last one standing.',
+      outro: 'The storm settles over {place}, and only you are left.'
+    }
+  },
+  'squad-royale': {
+    engine: 'action-rpg',
+    modules: ['levels', 'story', 'party', 'combat', 'classes', 'skills', 'items', 'inventory', 'royale'],
+    name: 'Squad royale',
+    blurb: 'your party together against AI rivals as a storm closes in',
+    words: /squad|team royale|together against|duo|trio/,
+    goal: 'royale',
+    royale: 'squad',
+    count: 1,
+    chapters: 1,
+    helpers: [],
+    layout: 'open-field',
+    foes: 'none',
+    pace: { baseCount: 1, growth: 1 },
+    story: {
+      intro: 'Your squad drops into {place} as the storm closes in. Stick together and outlast every rival.',
+      outro: 'Your squad is the last one standing in {place}.'
     }
   },
   study: {

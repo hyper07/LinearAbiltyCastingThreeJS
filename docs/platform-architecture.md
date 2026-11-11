@@ -17,6 +17,7 @@ modules); the rest is the plan.
 | Plans (Free, Plus) enforced by the server | **Built** |
 | Engines other than the action RPG (puzzle, story) | Planned |
 | Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
+| Battle royale on the action RPG engine: storm, AI rivals, players against players, solo and squads | **Built**: see [Battle royale](battle-royale.md) |
 | Games as records, on a home page | **Built**: published games are rows in PostgreSQL with their levels; the home page lists them with the official ones. See [Games on the home page](#games-on-the-home-page) |
 | Saves per player per game | Planned. Today a player has one character shared by every game |
 | NPCs, worlds, monsters and question sets players make, offered by the builder | Planned |

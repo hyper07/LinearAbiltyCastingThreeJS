@@ -254,7 +254,7 @@ export class WeaponFire {
   /** Monsters along a line, nearest first: { monster, along }. */
   _along(origin, direction, range, width) {
     const out = [];
-    for (const monster of this.ctx.monsters.active) {
+    for (const monster of this.ctx.monsters.targets) {
       if (!monster.isTargetable) continue;
       _a.copy(monster.position).sub(origin).setY(0);
       const along = _a.x * direction.x + _a.z * direction.z;
@@ -297,7 +297,7 @@ export class WeaponFire {
 
   _cone(muzzle, direction, fire) {
     const half = fire.spread ?? 0.45;
-    for (const monster of this.ctx.monsters.active) {
+    for (const monster of this.ctx.monsters.targets) {
       if (!monster.isTargetable) continue;
       _a.copy(monster.position).sub(muzzle).setY(0);
       const d = _a.length();
@@ -418,7 +418,7 @@ export class WeaponFire {
     }
 
     // Hits along this frame's path.
-    for (const monster of this.ctx.monsters.active) {
+    for (const monster of this.ctx.monsters.targets) {
       if (!monster.isTargetable || p.hit.has(monster)) continue;
       monster.centre(_centre);
       if (distanceToSegment(_centre, p.prev, mesh.position) > monster.hitRadius + 0.25) continue;

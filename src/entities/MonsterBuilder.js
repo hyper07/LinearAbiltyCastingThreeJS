@@ -411,7 +411,9 @@ export class MonsterAssets {
       // A wedge — wide at the shoulders, almost no neck, arms past the knees.
       brute: { torso: [0.8, 0.9, 0.5], head: 0.24, limb: 0.2, arm: 0.72, leg: 0.6, shoulder: 0.46, neck: 0.05 },
       // Slab-chested with boulder shoulders on stubby legs: unmovable.
-      golem: { torso: [1.05, 1.15, 0.72], head: 0.28, limb: 0.3, arm: 0.86, leg: 0.5, shoulder: 0.62, neck: 0.03 }
+      golem: { torso: [1.05, 1.15, 0.72], head: 0.28, limb: 0.3, arm: 0.86, leg: 0.5, shoulder: 0.62, neck: 0.03 },
+      // A person: human proportions, upright, a real neck — the royale's rivals.
+      rival: { torso: [0.56, 0.78, 0.34], head: 0.22, limb: 0.14, arm: 0.62, leg: 0.78, shoulder: 0.32, neck: 0.12 }
     }[kind] ?? { torso: [0.7, 0.8, 0.5], head: 0.24, limb: 0.18, arm: 0.6, leg: 0.6, shoulder: 0.4, neck: 0.08 };
 
     const [tw, th, td] = proportions.torso;
@@ -442,7 +444,10 @@ export class MonsterAssets {
       eye: this._own(new SphereGeometry(proportions.head * 0.2, 6, 5)),
       horn: this._own(new ConeGeometry(proportions.head * 0.16, proportions.head * 0.75, 5)),
       // Spikes down the spine — pure silhouette, no cost worth mentioning.
-      spike: this._own(new ConeGeometry(proportions.limb * 0.4, proportions.limb * 1.5, 4))
+      spike: this._own(new ConeGeometry(proportions.limb * 0.4, proportions.limb * 1.5, 4)),
+      // A person (the royale's rival): no horns or spikes, a blaster in the right hand.
+      human: Boolean(config.human),
+      gun: config.human ? this._own(new BoxGeometry(proportions.limb * 0.75, proportions.limb * 0.95, proportions.arm * 0.95)) : null
     };
   }
 
@@ -520,8 +525,8 @@ function assembleBiped(assets, config) {
   torso.add(part(assets.waist, 'body', 0, 0.12, 0));
   torso.add(part(assets.chest, 'body', 0, 0.12 + p.torso[1] * 0.46, 0));
   torso.add(part(assets.neck, 'body', 0, 0.12 + p.torso[1] * 0.76, 0));
-  // Spine spikes: three, shrinking upward.
-  for (let i = 0; i < 3; i++) {
+  // Spine spikes: three, shrinking upward. A person has none.
+  for (let i = 0; i < (assets.human ? 0 : 3); i++) {
     const spike = part(assets.spike, 'accent', 0, 0.2 + i * p.torso[1] * 0.26, -p.torso[2] * 0.46);
     spike.rotation.x = -0.7;
     spike.scale.setScalar(1 - i * 0.22);
@@ -532,13 +537,14 @@ function assembleBiped(assets, config) {
   head.position.set(0, 0.14 + p.torso[1] * 0.82 + p.neck, 0);
   torso.add(head);
   head.add(part(assets.head, 'body', 0, p.head * 0.55, 0));
-  head.add(part(assets.jaw, 'body', 0, p.head * 0.12, p.head * 0.5));
+  if (!assets.human) head.add(part(assets.jaw, 'body', 0, p.head * 0.12, p.head * 0.5));
   for (const side of [-1, 1]) {
     // Eyes sit proud of the face so they are visible at a grazing angle; they
     // are unlit and never dissolve, which makes them the last thing you see of
     // a dying monster.
     head.add(glowPart(assets.eye, side * p.head * 0.34, p.head * 0.62, p.head * 0.78));
 
+    if (assets.human) continue;
     const horn = trim(part(assets.horn, 'accent', side * p.head * 0.5, p.head * 1.05, -p.head * 0.15));
     horn.rotation.z = side * -0.42;
     horn.rotation.x = -0.5; // swept back, so they never break the front silhouette
@@ -570,6 +576,7 @@ function assembleBiped(assets, config) {
     const fist = part(assets.fist, 'accent', 0, -p.arm * 0.5, 0);
     fist.scale.setScalar(1.05);
     fore.add(fist);
+    if (assets.gun && side === 1) fore.add(trim(part(assets.gun, 'accent', 0, -p.arm * 0.5, p.arm * 0.32)));
   }
 
   /* --- legs --- */

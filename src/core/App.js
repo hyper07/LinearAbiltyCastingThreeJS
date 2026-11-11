@@ -66,7 +66,7 @@ import { PostProcessing } from '../postprocessing/PostProcessing.js';
 
 import { MonsterManager } from '../entities/MonsterManager.js';
 import { Combat } from '../game/Combat.js';
-import { GameDirector, RunState } from '../game/GameDirector.js';
+import { GameDirector, RunState, isRivalTarget } from '../game/GameDirector.js';
 import { DamageNumbers } from '../game/DamageNumbers.js';
 
 import { HUD, LoadingScreen } from '../ui/HUD.js';
@@ -79,6 +79,7 @@ import { Editor } from '../ui/Editor.js';
 
 import { getColor } from '../utils/color.js';
 import { BuffAuras } from '../effects/BuffAuras.js';
+import { RoyaleMode } from '../game/royale/RoyaleMode.js';
 import { DecalType } from '../effects/GroundDecals.js';
 import { settings, ELEMENTS, ELEMENT_META, CastShape, castShapeOf } from '../config/settings.js';
 import { platform, classArmor, classBonuses, LOOKS, treeSpells, treeFor } from '../platform/index.js';
@@ -423,7 +424,8 @@ export class App {
       if (gain > 0) this._gainRage(gain);
     });
     this.monsters.on('playerHit', (_amount, source) => {
-      // In a party, a hit on someone else is theirs, not yours.
+      // A rival's shot at another rival is nobody's here; in a party, a hit on someone else is theirs.
+      if (isRivalTarget(source?.playerId)) return;
       if (source?.playerId && this.party?.id && source.playerId !== this.party.id) return;
       this._gainRage(4);
       // Thorns: whatever hits you in melee takes some back.
@@ -552,7 +554,7 @@ export class App {
     });
     // The host's monsters hit a guest: tell them; their own game takes the damage.
     this.monsters.on('playerHit', (amount, source) => {
-      if (!this.party.isHost || !source?.playerId || source.playerId === this.party.id) return;
+      if (!this.party.isHost || !source?.playerId || source.playerId === this.party.id || isRivalTarget(source.playerId)) return;
       this.party.sendTo(source.playerId, { t: 'hit', a: Math.round(amount * 10) / 10, x: source.position?.x, z: source.position?.z, r: source.ranged ? 1 : 0, b: source.burning ? 1 : 0, m: source.monster?.id ?? null });
     });
     this.profile.on('gear', () => this.party.sendMeta());
@@ -1211,6 +1213,7 @@ export class App {
   /** Leave the arena and return to loadout selection (or to the editor, after a play test). */
   exitToMenu({ fromParty = false } = {}) {
     this.auras.clear();
+    this.royale?.stop();
     const backToEditor = this.run?.fromEditor;
     this.party.onExitGame({ fromParty });
     if (this.sync.active) this.sync.endRun();
@@ -1648,6 +1651,11 @@ export class App {
     this.npcs.setNpcs(level.npcs, heightAt);
     // NPCs are solid: monsters and the caster walk around them.
     this.composed.obstacles.push(...this.npcs.obstacles);
+    // A battle royale: the storm, the rivals, the last one standing (game/royale).
+    if (level.rules.goal === 'royale') {
+      this.royale ??= new RoyaleMode(this);
+      this.royale.start(level);
+    }
     this._updateGoalPill();
   }
 
@@ -1663,8 +1671,8 @@ export class App {
     Object.assign(waves, { baseCount: r.baseCount, growth: r.growth, bossEvery: r.bossEvery, dragonEvery: r.dragonEvery });
     // "Defeat the boss": the Emberwyrm arrives on wave `count`.
     if (r.goal === 'boss') waves.dragonEvery = r.count;
-    // Calm: no waves — explore, talk and study.
-    if (r.calm) waves.enabled = false;
+    // Calm: no waves — explore, talk and study. A battle royale has no waves either: the rivals are all there from the start.
+    if (r.calm || r.goal === 'royale') waves.enabled = false;
     for (const [kind, config] of Object.entries(kinds)) {
       if (kind in r.kinds && !config.boss) config.weight = r.kinds[kind];
     }
@@ -1696,7 +1704,8 @@ export class App {
     }
     const r = run.level.rules;
     const progressText =
-      r.goal === 'waves' ? `Wave ${Math.min(run.wave, r.count)} / ${r.count} cleared`
+      r.goal === 'royale' ? this.royale?.statusText() ?? ''
+      : r.goal === 'waves' ? `Wave ${Math.min(run.wave, r.count)} / ${r.count} cleared`
       : r.goal === 'kills' ? `${Math.min(run.kills, r.count)} / ${r.count} defeated`
       : r.goal === 'study' ? `${Math.min(run.studied, r.count)} / ${r.count} questions right`
       : run.wave < r.count ? `The boss arrives on wave ${r.count}` : 'Defeat the Emberwyrm!';
@@ -2669,6 +2678,7 @@ export class App {
       this.fissures.update(dt);
       this.bursts.update(dt);
       this.auras.update(this.elapsed);
+      this.royale?.update(dt);
       this.lights.update(dt);
     } else {
       this.ground.update(this.elapsed);

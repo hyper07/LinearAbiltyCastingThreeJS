@@ -22,15 +22,21 @@ import { DIFFICULTIES, STUDY_BONUSES, SUBJECTS } from '../npc/Study.js';
  *            gift: { type, rarity, amount }, quest: null | { title, target, count, gold, rarity },
  *            study: null | { subject, difficulty, age, questions: [{ q, a, wrong[], hint }],
  *                            gold, bonusEvery, bonus } }],   // tutors (role 'tutor')
- *   rules: { goal: 'waves'|'boss'|'kills'|'study', count, calm, kinds: { grunt: 5, … }, baseCount, growth, bossEvery, dragonEvery },
+ *   rules: { goal: 'waves'|'boss'|'kills'|'study'|'royale', count, calm, kinds: { grunt: 5, … }, baseCount, growth, bossEvery, dragonEvery,
+ *            royale: null | { rivals, mode: 'solo'|'squad', storm } },
  *          // 'study' = answer `count` tutor questions correctly; calm = no monsters at all
+ *          // 'royale' = the last one standing as the storm closes in (game/royale)
  *   story: { intro: { title, speaker, text }, outro: { title, speaker, text } }
  * }
  */
 
 export const LEVEL_VERSION = 1;
-export const GOALS = ['waves', 'boss', 'kills', 'study'];
-export const MONSTER_KINDS = ['grunt', 'wisp', 'brute', 'golem', 'dragon'];
+export const GOALS = ['waves', 'boss', 'kills', 'study', 'royale'];
+export const MONSTER_KINDS = ['grunt', 'wisp', 'brute', 'golem', 'dragon', 'rival'];
+/** The kinds waves, spawn points and the editor offer; rivals come only with a battle royale (game/royale). */
+export const WAVE_MONSTER_KINDS = MONSTER_KINDS.filter((k) => k !== 'rival');
+/** Battle royale: everyone against everyone (and the rivals), or the party as one squad. */
+export const ROYALE_MODES = ['solo', 'squad'];
 export const PORTAL_COLOR_NAMES = ['blue', 'red', 'gold', 'green', 'violet'];
 export const NPC_ROLE_NAMES = ['guide', 'merchant', 'healer', 'quest', 'tutor', 'stash'];
 export const GIFT_TYPES = ['none', 'health', 'focus', 'gold', 'weapon', 'gear', 'book'];
@@ -107,7 +113,7 @@ export function normalizeLevel(raw = {}) {
   const scene = (s = {}) => ({ title: text(s.title, 120), speaker: text(s.speaker, 60), text: text(s.text, 4000) });
   const kinds = {};
   for (const kind of MONSTER_KINDS) {
-    const weight = clamp(rules.kinds?.[kind], 0, 20, kind === 'dragon' || kind === 'golem' ? 0 : kind === 'grunt' ? 5 : 3);
+    const weight = clamp(rules.kinds?.[kind], 0, 20, kind === 'dragon' || kind === 'golem' || kind === 'rival' ? 0 : kind === 'grunt' ? 5 : 3);
     kinds[kind] = weight;
   }
   const name = text(raw.name || 'New level', 80);
@@ -199,7 +205,8 @@ export function normalizeLevel(raw = {}) {
       baseCount: clamp(rules.baseCount, 1, 30, 4),
       growth: clamp(rules.growth, 1, 2, 1.35),
       bossEvery: clamp(rules.bossEvery, 0, 20, 3),
-      dragonEvery: clamp(rules.dragonEvery, 0, 20, 5)
+      dragonEvery: clamp(rules.dragonEvery, 0, 20, 5),
+      royale: rules.goal === 'royale' || rules.royale ? normalizeRoyale(rules.royale) : null
     },
     story: { intro: scene(story.intro), outro: scene(story.outro) }
   };
@@ -210,6 +217,16 @@ function normalizeBlueprint(b) {
   if (!b || typeof b !== 'object') return null;
   const id = (v) => String(v ?? '').slice(0, 40);
   return { genre: id(b.genre), world: id(b.world), layout: id(b.layout), foes: id(b.foes), chapter: clamp(b.chapter, 1, 99, 1), of: clamp(b.of, 1, 99, 1) };
+}
+
+/** A battle royale's settings: how many rivals, solo or squads, how fast the storm (× its pace). */
+export function normalizeRoyale(raw = {}) {
+  const r = raw ?? {};
+  return {
+    rivals: Math.round(clamp(r.rivals, 0, 15, 7)),
+    mode: pick(r.mode, ROYALE_MODES, 'solo'),
+    storm: clamp(r.storm, 0.5, 2, 1)
+  };
 }
 
 /** A tutor's lesson plan, repaired. */
@@ -235,6 +252,7 @@ export function normalizeStudy(raw = {}) {
 export function describeGoal(rules) {
   if (rules.goal === 'study') return `Answer ${rules.count} question${rules.count === 1 ? '' : 's'} correctly`;
   if (rules.goal === 'boss') return 'Defeat the boss';
+  if (rules.goal === 'royale') return rules.royale?.mode === 'squad' ? 'Be the last squad standing' : 'Be the last one standing';
   if (rules.goal === 'kills') return `Defeat ${rules.count} monsters`;
   return `Survive ${rules.count} wave${rules.count === 1 ? '' : 's'}`;
 }

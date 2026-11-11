@@ -52,6 +52,18 @@ server. **Your hero** opens the action RPG's own menu (class, weapon, skills, st
   <img src="docs/screenshots/home.jpg" width="100%" alt="The home page: a search bar, Create, Your hero, Play together and Sign in; genre chips; a Create a game card and cards for Frost Hollow, Thistledown, Ember Ruins, The Wyrm's Graveyard, The Dragon's Keep and Study Grove, each with a drawn cover, a genre badge and a goal" />
 </p>
 
+## Battle royale
+
+A mini battle royale, alone against AI rivals or with up to four players in a party: drop in,
+grab loot, keep inside the closing storm, and be the last one standing. **Solo**: everyone against
+everyone, rivals included. **Squad**: your party together against the rivals. Down is out, and you
+see your place. Play **Stormbreak Ruins** or **Saltwind Squads** from the home page, or make your own
+in the Game builder. See **[Battle royale](docs/battle-royale.md)**.
+
+<p>
+  <img src="docs/screenshots/battle-royale.jpg" width="100%" alt="A battle royale: the violet storm wall closing in, the dashed ring of the next circle, a rival's shot coming in, and the goal bar reading 8 left, Storm closing" />
+</p>
+
 ## Playing
 
 In **Your hero**, pick a class and press **Start Game** for the open arena, or play any game from the home page. Move with **W A S D**, press **1–9** to arm
@@ -408,6 +420,7 @@ flowchart LR
 | [Third-party services](docs/third-party.md) | What is free, what is paid, and options for 3D models, animation, AI and effects |
 | [Weapons](docs/weapons.md) | All 108 weapons, how each kind fights, ammo and reloading, adding a weapon |
 | [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
+| [Battle royale](docs/battle-royale.md) | The storm, rivals, solo and squads, players against players, making one, how it works |
 | [Game builder](docs/game-builder.md) | Whole games from a sentence or a few picks: genres, worlds, layouts, casts; the spec, tokens, Free and Plus, the command line |
 | [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |

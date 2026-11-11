@@ -176,7 +176,7 @@ export function makeBagRowOffer(bought = 0) {
 /* ---------------------------------------------------------------------- */
 
 /** XP per monster kind, before the wave bonus. */
-export const XP_FOR = { grunt: 6, wisp: 8, brute: 20, golem: 90, dragon: 400 };
+export const XP_FOR = { grunt: 6, wisp: 8, brute: 20, golem: 90, dragon: 400, rival: 30 };
 
 let _uid = 0;
 const uid = () => `${Date.now().toString(36)}-${(_uid++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -347,7 +347,9 @@ const TABLES = {
   wisp: { chance: 0.45, rolls: [1, 1], boost: 0.2, gold: [5, 12] },
   brute: { chance: 0.75, rolls: [1, 2], boost: 0.5, gold: [12, 30] },
   golem: { chance: 1, rolls: [2, 3], boost: 1.2, gold: [40, 80], guarantee: 'rare', book: 0.5 },
-  dragon: { chance: 1, rolls: [4, 5], boost: 2.5, gold: [150, 300], guarantee: 'epic', book: 2 }
+  dragon: { chance: 1, rolls: [4, 5], boost: 2.5, gold: [150, 300], guarantee: 'epic', book: 2 },
+  // A rival drops what it was carrying: always something, often a weapon.
+  rival: { chance: 1, rolls: [1, 2], boost: 0.6, gold: [10, 25], guarantee: 'magic' }
 };
 
 /**

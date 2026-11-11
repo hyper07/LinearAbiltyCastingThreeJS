@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "id": "stormbreak-ruins",
+  "name": "Stormbreak Ruins",
+  "character": null,
+  "world": {
+    "ground": "dirt",
+    "relief": "hills",
+    "edge": "ruins",
+    "timeOfDay": "night",
+    "fog": 0.4,
+    "seed": 4242,
+    "terrain": {}
+  },
+  "objects": [],
+  "plan": {
+    "name": "Stormbreak Ruins",
+    "theme": "ruins",
+    "themes": [
+      "ruins"
+    ],
+    "ground": "dirt",
+    "relief": "hills",
+    "edge": "ruins",
+    "timeOfDay": "night",
+    "fog": 0.4,
+    "layers": [
+      {
+        "category": "ruin",
+        "keywords": [
+          "column",
+          "pillar",
+          "broken"
+        ],
+        "zone": "arena",
+        "density": 0.85,
+        "cluster": false,
+        "size": 1
+      },
+      {
+        "category": "ruin",
+        "keywords": [],
+        "zone": "edge",
+        "density": 0.8,
+        "cluster": false,
+        "size": 1
+      },
+      {
+        "category": "rock",
+        "keywords": [],
+        "zone": "outskirts",
+        "density": 0.6,
+        "cluster": true,
+        "size": 1
+      },
+      {
+        "category": "tree",
+        "keywords": [
+          "dead"
+        ],
+        "zone": "outskirts",
+        "density": 0.4,
+        "cluster": true,
+        "size": 1
+      },
+      {
+        "category": "plant",
+        "keywords": [
+          "grass"
+        ],
+        "zone": "arena",
+        "density": 0.78,
+        "cluster": true,
+        "size": 1
+      }
+    ],
+    "landmarks": [
+      {
+        "category": "building",
+        "keywords": [
+          "tower",
+          "temple"
+        ],
+        "direction": "north",
+        "distance": "far"
+      }
+    ]
+  },
+  "blueprint": {
+    "genre": "battle-royale",
+    "world": "ancient-temple",
+    "layout": "open-field",
+    "foes": "none",
+    "chapter": 1,
+    "of": 1
+  },
+  "spawns": [],
+  "monsters": [],
+  "portals": [],
+  "npcs": [],
+  "rules": {
+    "goal": "royale",
+    "count": 1,
+    "calm": false,
+    "kinds": {
+      "grunt": 0,
+      "wisp": 0,
+      "brute": 0,
+      "golem": 0,
+      "dragon": 0,
+      "rival": 1
+    },
+    "baseCount": 1,
+    "growth": 1,
+    "bossEvery": 0,
+    "dragonEvery": 0,
+    "royale": {
+      "rivals": 7,
+      "mode": "solo",
+      "storm": 1
+    }
+  },
+  "story": {
+    "intro": {
+      "title": "Stormbreak Ruins",
+      "speaker": "",
+      "text": "A storm is rolling over the Temple of Echoes. Grab what you can, keep inside the circle, and be the last one standing."
+    },
+    "outro": {
+      "title": "The end",
+      "speaker": "",
+      "text": "The storm settles over the Temple of Echoes, and only you are left."
+    }
+  }
+}

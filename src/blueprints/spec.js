@@ -231,8 +231,9 @@ export function normalizeSpec(raw = {}, { heroes = [] } = {}) {
     world,
     layout: pick(r.layout, LAYOUT_IDS, g.layout),
     hero: pick(r.hero, heroIds, 'any'),
-    foes: g.calm ? 'none' : pick(r.foes, FOE_IDS, WORLDS[world].foes ?? g.foes),
-    chapters: int(r.chapters, 1, MAX_CHAPTERS, g.chapters),
+    foes: g.calm || g.goal === 'royale' ? 'none' : pick(r.foes, FOE_IDS, WORLDS[world].foes ?? g.foes),
+    // A battle royale is one match.
+    chapters: g.goal === 'royale' ? 1 : int(r.chapters, 1, MAX_CHAPTERS, g.chapters),
     difficulty: pick(r.difficulty, DIFFICULTY_IDS, 'normal'),
     subject,
     age: int(r.age, 4, 16, 8),
@@ -282,7 +283,7 @@ function earliest(registry, lower, skip = []) {
 }
 
 /** The genre: checked in this order, because "a math game with a dragon" is a study game. */
-const GENRE_ORDER = ['calm-study', 'study', 'boss-hunt', 'dungeon-crawl', 'quest', 'monster-hunt', 'survival'];
+const GENRE_ORDER = ['calm-study', 'study', 'squad-royale', 'battle-royale', 'boss-hunt', 'dungeon-crawl', 'quest', 'monster-hunt', 'survival'];
 const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5 };
 
 /** A player-made character named in the text ("…with my Stormbound Corsair"), longest name first. */

@@ -118,7 +118,7 @@ export class Combat extends EventEmitter {
     const strike = { profile, element: 'beam', bonus: 'attack' };
     let hits = 0;
 
-    for (const monster of this.ctx.monsters.active) {
+    for (const monster of this.ctx.monsters.targets) {
       if (!monster.isTargetable) continue;
 
       _offset.copy(monster.position).sub(origin);
@@ -175,7 +175,7 @@ export class Combat extends EventEmitter {
     const { profile } = strike;
     const width = profile.width ?? 1.2;
 
-    for (const monster of this.ctx.monsters.active) {
+    for (const monster of this.ctx.monsters.targets) {
       if (!monster.isTargetable || strike.hit.has(monster)) continue;
 
       _offset.copy(monster.position).sub(strike.origin);
@@ -227,7 +227,7 @@ export class Combat extends EventEmitter {
       const width = profile.width ?? 1;
       let best = null;
       let bestAlong = Infinity;
-      for (const monster of this.ctx.monsters.active) {
+      for (const monster of this.ctx.monsters.targets) {
         if (!monster.isTargetable) continue;
         _offset.copy(monster.position).sub(strike.origin);
         _offset.y = 0;
@@ -260,7 +260,7 @@ export class Combat extends EventEmitter {
     const reach = profile.jumpRange ?? 7;
     let next = null;
     let nextD = reach * reach;
-    for (const monster of this.ctx.monsters.active) {
+    for (const monster of this.ctx.monsters.targets) {
       if (!monster.isTargetable || strike.hit.has(monster)) continue;
       const dx = monster.position.x - strike.lastPoint.x;
       const dz = monster.position.z - strike.lastPoint.z;
@@ -304,7 +304,7 @@ export class Combat extends EventEmitter {
       strike.timer += profile.tick ?? 0.3;
       const reach = profile.reach ?? 4.5;
       const near = [];
-      for (const monster of this.ctx.monsters.active) {
+      for (const monster of this.ctx.monsters.targets) {
         if (!monster.isTargetable) continue;
         const dx = monster.position.x - _point.x;
         const dz = monster.position.z - _point.z;
@@ -380,7 +380,7 @@ export class Combat extends EventEmitter {
     strike.timer -= dt;
     if (strike.timer <= 0) {
       strike.timer += profile.tick ?? 0.45;
-      for (const monster of this.ctx.monsters.active) {
+      for (const monster of this.ctx.monsters.targets) {
         if (!monster.isTargetable) continue;
         const dx = monster.position.x - _point.x;
         const dz = monster.position.z - _point.z;
@@ -396,7 +396,7 @@ export class Combat extends EventEmitter {
 
   /** Everything inside `radius` of `centre`, knocked outward from it. */
   _blast(strike, centre, radius) {
-    for (const monster of this.ctx.monsters.active) {
+    for (const monster of this.ctx.monsters.targets) {
       if (!monster.isTargetable || strike.hit.has(monster)) continue;
       const dx = monster.position.x - centre.x;
       const dz = monster.position.z - centre.z;
@@ -452,7 +452,8 @@ export class Combat extends EventEmitter {
     // Gear and spell ranks (see items/Profile.js) scale damage and crit chance.
     const crit = !strike.noCrit && Math.random() < cfg.critChance + (this.ctx.critBonus?.() ?? 0);
     const gear = strike.bonus === 'thorns' ? 1 : (this.ctx.damageMultiplier?.(strike.bonus ?? element) ?? 1);
-    const amount = profile.damage * falloff * cfg.damageScale * gear * (crit ? cfg.critMultiplier : 1);
+    // `incomingScale`: another player in a battle royale takes a share (settings.royale.pvpScale).
+    const amount = profile.damage * falloff * cfg.damageScale * gear * (crit ? cfg.critMultiplier : 1) * (monster.incomingScale ?? 1);
 
     const result = monster.applyDamage(amount, { shatter: profile.shatter ?? 1, element });
     if (result.dealt <= 0 && !result.killed) return;

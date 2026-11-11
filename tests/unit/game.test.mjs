@@ -454,3 +454,12 @@ test('the action bar runs on the server too: a potion on any key, keys swapped',
     await w.close();
   }
 });
+
+test('a battle royale run accepts rival kills; other levels refuse them', async () => {
+  const { runRules, kindAllowed } = await import('../../server/game/rules.js');
+  const royale = normalizeLevel({ name: 'Storm', rules: { goal: 'royale' } });
+  assert.equal(royale.rules.royale.rivals, 7);
+  assert.equal(royale.rules.kinds.rival, 0, 'even with no weight set');
+  assert.equal(kindAllowed(runRules(royale), 'rival', 1), true);
+  assert.equal(kindAllowed(runRules(normalizeLevel({ name: 'Waves' })), 'rival', 1), false, 'never in a normal level');
+});

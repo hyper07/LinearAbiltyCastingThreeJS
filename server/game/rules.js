@@ -83,6 +83,8 @@ export function runRules(level) {
   for (const [k, w] of Object.entries(r.kinds ?? {})) if (!kinds[k]?.boss) out.weights[k] = w;
   if (!Object.entries(out.weights).some(([k, w]) => !kinds[k]?.boss && w > 0)) out.weights.grunt = 1;
   for (const m of level.monsters ?? []) out.standing.add(m.kind);
+  // A battle royale's rivals are its whole field, whatever the weights say (game/royale).
+  if (r.goal === 'royale') out.standing.add('rival');
   return out;
 }
 

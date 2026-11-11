@@ -29,7 +29,8 @@ src/
                   DragonBuilder (the boss), MonsterManager (pools, arrivals,
                   attacks, deaths, enemy projectiles)
   game/           Combat (strikes: damage timed to the visual), GameDirector (waves,
-                  score, player health, hit-stop), DamageNumbers (floating text)
+                  score, player health, hit-stop), DamageNumbers (floating text);
+                  royale/ — the battle royale: RoyaleMode, the storm, PlayerTarget (PvP)
   input/          InputManager (events) and AimController (both targeting shapes)
   editor/         LevelEditor (tools, brushes, gizmo, undo/redo, play test)
   items/          Items (rarity, stats, uniques, loot tables, prices), Profile (bag,

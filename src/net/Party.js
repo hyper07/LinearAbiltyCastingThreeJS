@@ -484,7 +484,8 @@ export class Party extends EventEmitter {
         if (!this.isGuest) return;
         const monster = app.monsters.byId.get(msg.id);
         if (monster?.isAlive) monster._die(Boolean(msg.sh));
-        app._onPartyKill(msg);
+        // `nc`: no credit — a rival that fell to the storm or another rival (battle royale).
+        if (!msg.nc) app._onPartyKill(msg);
         return;
       }
       case 'hit':
@@ -552,6 +553,17 @@ export class Party extends EventEmitter {
         return;
       case 'chat':
         this._chat(remote?.name ?? 'Player', String(msg.text ?? '').slice(0, CHAT_MAX));
+        return;
+      // Battle royale (game/royale/RoyaleMode.js).
+      case 'pvp':
+        app.royale?.onPvp(msg, remote);
+        return;
+      case 'royale':
+        // Only the host's clock counts.
+        if (this.isGuest && from === this.session.host) app.royale?.onSync(msg);
+        return;
+      case 'royale-out':
+        app.royale?.onOut(msg, remote);
         return;
       default:
         return;

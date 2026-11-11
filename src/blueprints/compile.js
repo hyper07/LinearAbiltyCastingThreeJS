@@ -45,11 +45,16 @@ export function chapterIds(name, chapters, taken = new Set()) {
 }
 
 /** The map plan for a world (its preset, then the spec's own plan on a Plus build). */
-export function worldPlan(worldId, { name, custom = null, finale = false } = {}) {
+export function worldPlan(worldId, { name, custom = null, finale = false, cover = false } = {}) {
   const world = WORLDS[worldId];
   const base = keywordPlan(world.theme);
   const plan = normalizePlan({ ...base, ...world.plan, ...(custom ?? {}), name: name ?? world.name });
   if (finale) plan.fog = Math.min(1, plan.fog + 0.15);
+  // A battle royale needs things to hide behind: more cover in the fight, and rocks if there were none.
+  if (cover) {
+    for (const layer of plan.layers) if (layer.zone === 'arena') layer.density = Math.min(0.85, layer.density * 1.7 + 0.1);
+    if (!plan.layers.some((l) => l.zone === 'arena' && (l.category === 'rock' || l.category === 'ruin'))) plan.layers.push({ category: 'rock', keywords: [], zone: 'arena', density: 0.6, cluster: true, size: 1 });
+  }
   return plan;
 }
 
@@ -69,7 +74,10 @@ export function compileGame(rawSpec, { seed = 1, taken = new Set(), heroes = [] 
   const diff = DIFFICULTY[spec.difficulty];
   const n = spec.chapters;
   const ids = chapterIds(spec.name, n, taken);
-  const calm = Boolean(genre.calm) || spec.foes === 'none';
+  const royale = genre.goal === 'royale';
+  const calm = !royale && (Boolean(genre.calm) || spec.foes === 'none');
+  /** Rivals in a battle royale, by difficulty. */
+  const RIVALS = { easy: 4, normal: 7, hard: 11 };
   const foes = FOES[spec.foes];
   const rotation = LAYOUT_IDS.filter((id) => id !== 'boss-lair' && id !== spec.layout);
 
@@ -82,7 +90,7 @@ export function compileGame(rawSpec, { seed = 1, taken = new Set(), heroes = [] 
     const baseCount = finale ? GENRES['boss-hunt'].count : genre.count;
     const count = clamp(Math.round(baseCount * diff.count * grow), goal === 'boss' ? 2 : 1, 99);
 
-    const kinds = Object.fromEntries(MONSTER_KINDS.map((k) => [k, k === 'dragon' ? 0 : (foes.kinds[k] ?? 0)]));
+    const kinds = Object.fromEntries(MONSTER_KINDS.map((k) => [k, royale ? (k === 'rival' ? 1 : 0) : k === 'dragon' ? 0 : (foes.kinds[k] ?? 0)]));
     const rules = {
       goal,
       count,
@@ -90,8 +98,9 @@ export function compileGame(rawSpec, { seed = 1, taken = new Set(), heroes = [] 
       kinds,
       baseCount: clamp(Math.round(genre.pace.baseCount * diff.pace * (1 + 0.15 * i)), 1, 30),
       growth: clamp(+(genre.pace.growth * diff.growth).toFixed(2), 1, 2),
-      bossEvery: calm || genre.goal === 'study' ? 0 : 3,
-      dragonEvery: goal === 'boss' ? count : 0
+      bossEvery: calm || royale || genre.goal === 'study' ? 0 : 3,
+      dragonEvery: goal === 'boss' ? count : 0,
+      royale: royale ? { rivals: RIVALS[spec.difficulty], mode: genre.royale ?? 'solo', storm: 1 } : null
     };
     const goalText = describeGoal(rules);
     const ctx = { place: world.place, foes: foes.story, goal: low(goalText), count: String(count) };
@@ -141,8 +150,8 @@ export function compileGame(rawSpec, { seed = 1, taken = new Set(), heroes = [] 
     ]);
 
     const sentry = mainKind(spec.foes);
-    const monsters = calm || genre.goal === 'study' || !sentry ? [] : layout.sentries.map((s) => ({ kind: sentry, x: s.x, z: s.z }));
-    const spawns = layout.spawns.map((s) => ({ x: s.x, z: s.z, kinds: s.boss ? ['dragon', 'golem'] : [], from: 1, to: 0 }));
+    const monsters = calm || royale || genre.goal === 'study' || !sentry ? [] : layout.sentries.map((s) => ({ kind: sentry, x: s.x, z: s.z }));
+    const spawns = royale ? [] : layout.spawns.map((s) => ({ x: s.x, z: s.z, kinds: s.boss ? ['dragon', 'golem'] : [], from: 1, to: 0 }));
 
     const chapter = spec.custom?.chapters?.[i];
     const title = chapter?.name || (n > 1 ? (finale ? 'The lair' : `Chapter ${i + 1}`) : spec.name);
@@ -156,7 +165,7 @@ export function compileGame(rawSpec, { seed = 1, taken = new Set(), heroes = [] 
       fill(i === n - 1 ? genre.story.outro : 'This part of {place} is clear. Onward!', ctx);
 
     const name = n > 1 ? `${spec.name}: ${title}`.slice(0, 80) : spec.name;
-    const plan = worldPlan(spec.world, { name, custom: spec.custom?.plan, finale });
+    const plan = worldPlan(spec.world, { name, custom: spec.custom?.plan, finale, cover: royale });
     const levelSeed = (Math.abs(seed | 0) + i * 7919) % 2147483647;
     return normalizeLevel({
       id,

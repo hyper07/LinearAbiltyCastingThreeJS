@@ -1,6 +1,6 @@
 import { CATEGORIES } from '../library/categories.js';
 import { platform } from '../platform/index.js';
-import { GIFT_TYPES, GOALS, MONSTER_KINDS, NPC_ROLE_NAMES, PORTAL_COLOR_NAMES, REWARD_RARITIES, describeGoal, normalizeStudy, slugify } from '../levels/Level.js';
+import { GIFT_TYPES, GOALS, WAVE_MONSTER_KINDS as MONSTER_KINDS, NPC_ROLE_NAMES, PORTAL_COLOR_NAMES, REWARD_RARITIES, describeGoal, normalizeStudy, slugify } from '../levels/Level.js';
 import { DIFFICULTIES, STUDY_BONUSES, SUBJECTS, formatQuestions, parseQuestions } from '../npc/Study.js';
 import { NPC_ROLES, npcModels } from '../npc/Npcs.js';
 import { PORTAL_FRAMES } from '../world/Portals.js';
@@ -19,7 +19,7 @@ const TOOLS = [
   ['npcs', 'NPCs', 'Click to place a helper, click one to edit, drag to move. Guides talk (AI or scripted), merchants and healers trade, quest-givers set tasks, tutors ask study questions.']
 ];
 
-const MONSTER_LABELS = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm' };
+const MONSTER_LABELS = { grunt: 'Cinder Imp', wisp: 'Gloom Wisp', brute: 'Iron Brute', golem: 'Rift Golem', dragon: 'Emberwyrm', rival: 'Rival' };
 
 const esc = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -647,7 +647,7 @@ export class EditorPanel {
       this._select('Goal', GOALS, r.goal, (v) => {
         r.goal = v;
         commit();
-      }, { waves: 'Survive waves', boss: 'Defeat the boss', kills: 'Defeat monsters', study: 'Answer questions (tutors)' }),
+      }, { waves: 'Survive waves', boss: 'Defeat the boss', kills: 'Defeat monsters', study: 'Answer questions (tutors)', royale: 'Battle royale (last one standing)' }),
       this._slider(
         r.goal === 'boss' ? 'Boss arrives on wave' : r.goal === 'kills' ? 'Monsters to defeat' : r.goal === 'study' ? 'Right answers needed' : 'Waves to survive',
         1,

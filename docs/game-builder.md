@@ -37,7 +37,7 @@ with no three.js, so the browser, the server, the command line and the tests all
 
 | Menu | File | What one entry gives |
 | --- | --- | --- |
-| **Genres** (7) | `genres.js` | Win rule and its size, chapters, a boss finale, the helpers it needs, wave pace, story text, its **engine** and **modules** |
+| **Genres** (9) | `genres.js` | Win rule and its size, chapters, a boss finale, the helpers it needs, wave pace, story text, its **engine** and **modules** |
 | **Worlds** (12) | `worlds.js` | A ready map plan (ground, relief, edge, time of day, fog, scenery layers), the monsters that fit, a place name, helper names |
 | **Layouts** (6) | `layouts.js` | Where monsters walk in, helper slots, teleport portals, monsters already standing guard |
 | **Heroes** (9 + yours) | `cast.js` | The player's class, the player's own choice, or **any class players made** in the Class forge |
@@ -46,7 +46,8 @@ with no three.js, so the browser, the server, the command line and the tests all
 | **Modules** | `modules.js` | The features a genre is built from, and what each saves for a player. See [Platform architecture](platform-architecture.md) |
 
 Genres today: wave survival, boss hunt, monster hunt, story quest (chapters), dungeon crawl
-(chapters, boss at the end), study adventure, and calm learning (questions only, no monsters).
+(chapters, boss at the end), [battle royale and squad royale](battle-royale.md) (a closing storm, AI
+rivals, the last one standing), study adventure, and calm learning (questions only, no monsters).
 Worlds: storybook village, enchanted forest, frozen north, desert ruins, haunted graveyard, dragon
 dungeon, pirate coast, sci-fi outpost, city streets, farm fields, ancient temple, lava wastes.
 

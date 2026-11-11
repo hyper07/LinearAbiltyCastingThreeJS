@@ -31,6 +31,7 @@ export const MODULES = {
   skills: { name: 'Skill tree', blurb: 'ranks, keys 1–9, skill books', engine: 'action-rpg', status: 'ready', saves: ['ranks', 'slots', 'points'] },
   items: { name: 'Items and loot', blurb: 'gear, weapons, rarities, shops', engine: 'action-rpg', status: 'ready', saves: ['equipped'] },
   inventory: { name: 'Bag and stash', blurb: 'a grid bag, a shared stash, potions', engine: 'action-rpg', status: 'ready', saves: ['bag', 'stash', 'potions'] },
+  royale: { name: 'Battle royale', blurb: 'a closing storm, rival fighters, players against players, last one standing', engine: 'action-rpg', status: 'ready', saves: ['wins', 'bestPlace', 'knockouts'] },
   quests: { name: 'Quests', blurb: 'defeat N monsters for a reward', engine: 'action-rpg', status: 'ready', saves: ['active', 'done'] },
 
   // ---- planned engines (not built yet) ----

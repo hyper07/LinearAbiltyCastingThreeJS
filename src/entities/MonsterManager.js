@@ -81,9 +81,26 @@ export class MonsterManager extends EventEmitter {
 
     this.elapsed = 0;
     this.healthMultiplier = 1;
+    /**
+     * Battle royale (game/royale): other players, as things this player's
+     * attacks can hit. Combat and weapons hit `targets`, which is these and
+     * the monsters together.
+     */
+    this.extraTargets = [];
+    /**
+     * Battle royale: where a monster should head instead of its target this
+     * frame (the safe circle, when it stands in the storm), or null.
+     * @type {((monster) => import('three').Vector3|null)|null}
+     */
+    this.steer = null;
 
     this.projectiles = new ProjectileField(context);
     this.group.add(this.projectiles.group);
+  }
+
+  /** Everything an attack can hit: the monsters, and in a battle royale the other players. */
+  get targets() {
+    return this.extraTargets.length ? this.active.concat(this.extraTargets) : this.active;
   }
 
   get aliveCount() {
@@ -246,7 +263,8 @@ export class MonsterManager extends EventEmitter {
     let best = null;
     let bestDistSq = Infinity;
     for (const player of players) {
-      if (!player.alive) continue;
+      // A rival on the list is itself a target: never its own.
+      if (!player.alive || player.monster === monster) continue;
       const dx = player.position.x - monster.position.x;
       const dz = player.position.z - monster.position.z;
       const distSq = dx * dx + dz * dz;
@@ -406,6 +424,13 @@ export class MonsterManager extends EventEmitter {
         monster.targetPos = this.target;
         monster.targetId = null;
       }
+      const away = this.steer?.(monster);
+      if (away) {
+        ctx.target = away;
+        ctx.targetId = null;
+        monster.targetPos = away;
+        monster.targetId = null;
+      }
       monster.update(dt, ctx);
 
       if (wasAlive && !monster.isAlive) this._dressDeath(monster);
@@ -461,7 +486,7 @@ export class MonsterManager extends EventEmitter {
           monster.position.z
         ),
         _direction,
-        { damage: this.puppet ? 0 : attack.damage, color: accent, speed: 13, range: distance + 4 }
+        { damage: this.puppet ? 0 : attack.damage, color: accent, speed: 13, range: distance + 4, owner: monster }
       );
       return false;
     }
@@ -650,8 +675,9 @@ class ProjectileField {
     });
   }
 
-  fire(origin, direction, { damage, color, speed = 12, range = 24 }) {
+  fire(origin, direction, { damage, color, speed = 12, range = 24, owner = null }) {
     const bolt = this.pool.acquire();
+    bolt.owner = owner;
     bolt.position.copy(origin);
     bolt.velocity.copy(direction).multiplyScalar(speed);
     bolt.damage = damage;
@@ -696,6 +722,7 @@ class ProjectileField {
       let struck = null;
       if (bolt.position.y < 2.2) {
         for (const target of targets) {
+          if (target.monster && (target.monster === bolt.owner || !target.monster.isAlive)) continue;
           const dx = bolt.position.x - target.position.x;
           const dz = bolt.position.z - target.position.z;
           if (dx * dx + dz * dz < 0.85 * 0.85) {

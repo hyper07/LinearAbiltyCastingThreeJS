@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "id": "saltwind-squads",
+  "name": "Saltwind Squads",
+  "character": null,
+  "world": {
+    "ground": "sand",
+    "relief": "valley",
+    "edge": "rocks",
+    "timeOfDay": "dusk",
+    "fog": 0.3,
+    "seed": 9191,
+    "terrain": {}
+  },
+  "objects": [],
+  "plan": {
+    "name": "Saltwind Squads",
+    "theme": "coast",
+    "themes": [
+      "coast"
+    ],
+    "ground": "sand",
+    "relief": "valley",
+    "edge": "rocks",
+    "timeOfDay": "dusk",
+    "fog": 0.3,
+    "layers": [
+      {
+        "category": "tree",
+        "keywords": [
+          "palm"
+        ],
+        "zone": "outskirts",
+        "density": 0.6,
+        "cluster": true,
+        "size": 1
+      },
+      {
+        "category": "rock",
+        "keywords": [],
+        "zone": "edge",
+        "density": 0.7,
+        "cluster": false,
+        "size": 1
+      },
+      {
+        "category": "structure",
+        "keywords": [
+          "dock",
+          "pier"
+        ],
+        "zone": "outskirts",
+        "density": 0.4,
+        "cluster": false,
+        "size": 1
+      },
+      {
+        "category": "prop",
+        "keywords": [
+          "barrel",
+          "crate",
+          "boat"
+        ],
+        "zone": "arena",
+        "density": 0.78,
+        "cluster": false,
+        "size": 1
+      },
+      {
+        "category": "vehicle",
+        "keywords": [
+          "boat",
+          "ship"
+        ],
+        "zone": "far",
+        "density": 0.3,
+        "cluster": false,
+        "size": 1
+      },
+      {
+        "category": "rock",
+        "keywords": [],
+        "zone": "arena",
+        "density": 0.6,
+        "cluster": true,
+        "size": 1
+      }
+    ],
+    "landmarks": [
+      {
+        "category": "building",
+        "keywords": [
+          "lighthouse"
+        ],
+        "direction": "north",
+        "distance": "far"
+      }
+    ]
+  },
+  "blueprint": {
+    "genre": "squad-royale",
+    "world": "pirate-coast",
+    "layout": "open-field",
+    "foes": "none",
+    "chapter": 1,
+    "of": 1
+  },
+  "spawns": [],
+  "monsters": [],
+  "portals": [],
+  "npcs": [],
+  "rules": {
+    "goal": "royale",
+    "count": 1,
+    "calm": false,
+    "kinds": {
+      "grunt": 0,
+      "wisp": 0,
+      "brute": 0,
+      "golem": 0,
+      "dragon": 0,
+      "rival": 1
+    },
+    "baseCount": 1,
+    "growth": 1,
+    "bossEvery": 0,
+    "dragonEvery": 0,
+    "royale": {
+      "rivals": 7,
+      "mode": "squad",
+      "storm": 1
+    }
+  },
+  "story": {
+    "intro": {
+      "title": "Saltwind Squads",
+      "speaker": "",
+      "text": "Your squad drops into Saltwind Cove as the storm closes in. Stick together and outlast every rival."
+    },
+    "outro": {
+      "title": "The end",
+      "speaker": "",
+      "text": "Your squad is the last one standing in Saltwind Cove."
+    }
+  }
+}

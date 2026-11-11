@@ -38,6 +38,7 @@ function themeOfObjects(objects = []) {
 function badgeOf(levels) {
   if (levels.length > 1) return `${levels.length} chapters`;
   const r = levels[0]?.rules ?? {};
+  if (r.goal === 'royale') return `${(r.royale?.rivals ?? 7) + 1} fighters`;
   if (r.goal === 'boss') return 'Boss fight';
   if (r.goal === 'study') return `${r.count} questions`;
   if (r.goal === 'kills') return `${r.count} monsters`;
@@ -49,6 +50,7 @@ function genreOfLevel(level) {
   if (level?.blueprint?.genre && GENRES[level.blueprint.genre]) return level.blueprint.genre;
   const r = level?.rules ?? {};
   if (r.goal === 'study') return r.calm ? 'calm-study' : 'study';
+  if (r.goal === 'royale') return r.royale?.mode === 'squad' ? 'squad-royale' : 'battle-royale';
   if (r.goal === 'boss') return 'boss-hunt';
   if (r.goal === 'kills') return level?.npcs?.some((n) => n.quest) ? 'quest' : 'monster-hunt';
   return 'survival';

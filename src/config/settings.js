@@ -2336,8 +2336,53 @@ export const settings = {
         accent: '#6fe8ff',
         eye: '#b6f4ff',
         weight: 1
+      },
+      /**
+       * A rival contestant in the battle royale: a fighter like the player,
+       * who shoots from range, goes after whoever is nearest (other rivals
+       * too) and keeps out of the storm. Never part of a normal wave.
+       */
+      rival: {
+        label: 'Rival',
+        human: true, // a person's body (MonsterBuilder): no horns or spikes, a blaster
+        health: 130,
+        speed: 3.6,
+        scale: 1.0,
+        attackRange: 9.5, // it shoots
+        attackDamage: 9,
+        attackWindup: 0.5,
+        attackCooldown: 1.5,
+        mass: 1.2,
+        armour: 0.1,
+        body: '#3d4a5c',
+        accent: '#ffcf4a',
+        eye: '#ffe9a8',
+        weight: 0
       }
     }
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* Battle royale (game/royale)                                         */
+  /* ------------------------------------------------------------------ */
+  royale: {
+    /** Damage one player's hit does to another, × what it does to a monster: no one-shots. */
+    pvpScale: 0.35,
+    /** Damage a rival's hit does to another rival, × its attack. */
+    rivalScale: 1.0,
+    /** The storm: from the whole arena down to a last circle, in phases. Seconds and metres. */
+    startRadius: 24,
+    phases: [
+      { wait: 25, shrink: 18, radius: 16, damage: 3 },
+      { wait: 20, shrink: 15, radius: 10, damage: 5 },
+      { wait: 15, shrink: 12, radius: 5, damage: 8 },
+      { wait: 12, shrink: 10, radius: 1.5, damage: 12 }
+    ],
+    /** Storm damage ticks this often, seconds. */
+    tick: 0.5,
+    /** Items lying around at the start. */
+    loot: 14,
+    stormColor: '#7b5cff'
   },
 
   /* ------------------------------------------------------------------ */

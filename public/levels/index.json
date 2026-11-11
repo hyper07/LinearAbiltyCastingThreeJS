@@ -23,6 +23,14 @@
     {
       "id": "study-grove",
       "name": "Study Grove"
+    },
+    {
+      "id": "stormbreak-ruins",
+      "name": "Stormbreak Ruins"
+    },
+    {
+      "id": "saltwind-squads",
+      "name": "Saltwind Squads"
     }
   ]
 }

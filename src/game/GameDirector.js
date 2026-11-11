@@ -15,6 +15,10 @@ export const RunState = Object.freeze({
   DOWNED: 'downed'
 });
 
+
+/** A target id of a rival in the battle royale (`m:<monster id>`), not a player. */
+export const isRivalTarget = (id) => typeof id === 'string' && id.startsWith('m:');
+
 /**
  * The run: waves, score, the caster's health and the feel of a hit landing.
  *
@@ -83,6 +87,8 @@ export class GameDirector extends EventEmitter {
       if (info.killed) this._onKill(monster, { element: info.element ?? 'burn', amount });
     });
     monsters.on('playerHit', (amount, source) => {
+      // A rival's shot at another rival (battle royale) is not the player's to take.
+      if (isRivalTarget(source?.playerId)) return;
       if (source?.playerId && this.localPlayerId && source.playerId !== this.localPlayerId) return;
       this.damagePlayer(amount, source);
     });
@@ -344,6 +350,8 @@ export class GameDirector extends EventEmitter {
 
     switch (this.state) {
       case RunState.DOWNED:
+        // A battle royale has no second chances: down is out (game/royale).
+        if (this.noRevive) break;
         this._downedTimer -= dt;
         if (this._downedTimer <= 0) this._revive();
         break;
