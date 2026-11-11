@@ -121,9 +121,24 @@ export async function run(browser, { shots = null } = {}) {
     await host.page.click('.lobby [data-lobby-hero="mage"]');
     t.check('the guest sees the host\'s lobby', await until(guest.page, () => window.app.lobby.isOpen && /Stormbreak/.test(document.querySelector('.lobby__title')?.textContent ?? ''), null, 10000));
     t.check('the host waits until everyone is ready', await until(host.page, () => document.querySelector('.lobby [data-lobby-start]')?.disabled, null, 5000));
+    // Chat while waiting, both ways.
+    await guest.page.fill('.lobby [data-lobby-chat-input]', 'Hi! picking a barbarian');
+    await guest.page.press('.lobby [data-lobby-chat-input]', 'Enter');
+    t.check('chat in the lobby reaches the host', await until(host.page, () => /picking a barbarian/.test(document.querySelector('.lobby [data-lobby-chat]')?.textContent ?? ''), null, 8000));
+    await host.page.fill('.lobby [data-lobby-chat-input]', 'great, I am the mage');
+    await host.page.press('.lobby [data-lobby-chat-input]', 'Enter');
+    t.check('…and back to the guest', await until(guest.page, () => /I am the mage/.test(document.querySelector('.lobby [data-lobby-chat]')?.textContent ?? ''), null, 8000));
     await guest.page.click('.lobby [data-lobby-hero="barbarian"]');
+    await guest.page.selectOption('.lobby [data-lobby-look]', 'skeleton-warrior');
     await guest.page.click('.lobby [data-lobby-ready]');
     t.check('the host sees the guest\'s pick, ready', await until(host.page, () => [...document.querySelectorAll('.lobby [data-member]')].some((li) => li.classList.contains('is-ready') && /Barbarian/.test(li.textContent)), null, 8000));
+    t.check('the stage shows both characters, the guest in the body they chose', await until(host.page, () => {
+      const stage = window.app.lobby.stage;
+      const slots = [...stage.slots.values()];
+      // Exactly two bodies and two names: a look changed mid-load leaves nothing behind.
+      return slots.length === 2 && stage.group.children.length === 2 && stage.labels.children.length === 2 && slots.some((s) => s.key === 'skeleton-warrior' && s.ready);
+    }, null, 15000));
+    if (shots) await host.page.screenshot({ path: `${shots}/lobby-party.png` });
     t.check('then Start is open', await until(host.page, () => document.querySelector('.lobby [data-lobby-start]') && !document.querySelector('.lobby [data-lobby-start]').disabled, null, 5000));
     await host.page.click('.lobby [data-lobby-start]');
     await startCard(host.page);

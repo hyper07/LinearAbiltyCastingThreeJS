@@ -426,6 +426,8 @@ export class App {
       party: () => this.party,
       heroes: (roster) => this.rosterHeroes(roster),
       characters: (gameId) => this.charactersIn(gameId),
+      modelOf: (look) => LOOKS[look]?.path ?? null,
+      loadGLB: (url) => this._assets.loadGLB(url),
       looks: (classId) => {
         const spec = CLASS_SPECS.find((c) => c.id === classId);
         const ids = [...new Set([...(spec?.looks ?? []), ...Object.keys(LOOKS)])];

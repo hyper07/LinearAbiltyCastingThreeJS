@@ -42,6 +42,16 @@ picks their own character from the game's classes — their own character *in th
 — customizes it and presses **Ready**. The host's **Start** opens once everyone is ready. In a battle
 royale the host also sets how many AI rivals fill the empty places.
 
+While they wait, the lobby shows **everyone's character on a stage**: each member's chosen class in
+the body and colours they picked, their name over them, idling while they choose and cheering when
+they press Ready (drag the stage to turn them). Each pick travels in the `lobby-pick` message with the
+look and colours, so everyone sees the same line-up. Beside it is the **party chat** — the same chat
+the party uses in game — so friends can agree on classes before the start.
+
+<p>
+  <img src="screenshots/lobby-together.jpg" width="100%" alt="A party in the lobby: the host's Mage and the guest's skeleton-bodied Barbarian on the stage, both Ready, the players list and the chat" />
+</p>
+
 ## What is shared and what is yours
 
 | Shared | Yours |
@@ -102,6 +112,7 @@ with `--host` to listen on the network).
 
 - `src/net/Session.js` — the socket and the room protocol.
 - `src/net/Party.js` — the coordinator: lobby, messages, snapshots, hits, loot, run events, chat.
+- `src/ui/GameLobby.js` and `src/ui/LobbyStage.js` — a game's lobby: class choice, customizing, players, chat, Ready/Start, and the stage of everyone's characters.
 - `src/net/RemotePlayer.js` — another player's body.
 - `src/entities/MonsterManager.js` — `players` (host targeting), `snapshot()`, `applySnapshot()`,
   `applyRemoteHits()`, puppet mode; `Monster#netEntry`, `#applyNet`, `#updatePuppet`.

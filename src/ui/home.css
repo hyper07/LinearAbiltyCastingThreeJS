@@ -578,8 +578,8 @@
   overflow: auto;
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  grid-template-rows: auto 1fr;
-  gap: 18px 22px;
+  grid-template-rows: auto auto 1fr;
+  gap: 16px 22px;
   padding: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
@@ -742,5 +742,92 @@
 @media (max-width: 760px) {
   .lobby__card {
     grid-template-columns: 1fr;
+  }
+}
+
+/* The lobby's stage (ui/LobbyStage.js): everyone's character, side by side. */
+.lobby-stage {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 85%, #1f2d44 0%, #0d131c 70%);
+  cursor: grab;
+  touch-action: pan-y;
+}
+.lobby-stage:active {
+  cursor: grabbing;
+}
+.lobby-stage__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.lobby-stage__labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.lobby-stage__label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lobby-stage__label small {
+  font-weight: 500;
+  font-size: 10px;
+  color: var(--ui-text-dim);
+}
+.lobby-stage__label.is-ready small {
+  color: #8ee8b0;
+}
+.lobby__chat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lobby__chat-log {
+  height: 120px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #0f151e;
+  font-size: 13px;
+}
+.lobby__chat-log p {
+  margin: 0 0 4px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.lobby__chat-log p.is-you strong {
+  color: var(--ui-accent);
+}
+.lobby__chat-form {
+  display: flex;
+  gap: 6px;
+}
+.lobby__chat-form input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: #1b2430;
+}
+@media (max-width: 760px) {
+  .lobby-stage {
+    height: 220px;
   }
 }
