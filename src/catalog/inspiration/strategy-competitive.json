@@ -1,0 +1,3230 @@
+[
+  {
+    "id": "starcraft-ii",
+    "title": "StarCraft II",
+    "aliases": [
+      "starcraft 2",
+      "sc2"
+    ],
+    "kind": "game",
+    "year": 2010,
+    "creators": [
+      "Blizzard Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS"
+    ],
+    "genres": [
+      "rts"
+    ],
+    "summary": "A science-fiction real-time strategy trilogy in which three very different species (humans, an evolving swarm and a psionic race) mine resources, build bases and armies, and fight across campaigns, ladder matches and a two-player co-op mode. Its co-op mode, where each player picks a levelling commander with call-down powers, became its most-played way to play.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "resource-gathering",
+        "how": "Worker units mine mineral patches and harvest gas from geysers; a later expansion shrank each patch and raised the starting workers so players must expand to new bases sooner."
+      },
+      {
+        "id": "supply-cap",
+        "how": "Every unit costs supply and the cap is raised by building supply structures (depots for humans, psi for the psionic race, control for the swarm) up to a hard limit of 200."
+      },
+      {
+        "id": "base-building",
+        "how": "Players place production, tech and defence buildings, then claim extra resource sites as expansions that must be defended."
+      },
+      {
+        "id": "unit-production",
+        "how": "Each species produces differently: humans train from buildings with add-ons, the swarm hatches units from larvae that queens can boost, and the psionic race warps units into any powered field."
+      },
+      {
+        "id": "tech-tree",
+        "how": "Buildings and add-ons gate stronger units and research, such as a siege unit needing a robotics facility plus a robotics bay."
+      },
+      {
+        "id": "fog-of-war",
+        "how": "The terrain is shown greyed out, but enemy units and buildings are only seen where your units have vision, and old sightings stay frozen at their last known state until a scout or a scan sweep refreshes them."
+      },
+      {
+        "id": "unit-command",
+        "how": "Large armies are selected and ordered in real time, and many units carry active abilities (teleporting shades, steerable energy balls, transforming jets) that reward precise control."
+      },
+      {
+        "id": "asymmetric-factions",
+        "how": "The three species share no units and each has its own economy trick: humans drop extra miners and supplies, the swarm injects larvae, the psionic race speeds production with a time boost."
+      },
+      {
+        "id": "co-op-missions",
+        "how": "Two players each pick a commander and play campaign-style missions against an AI enemy, grouped as Assault (storm strongholds), Control (escort and map control) and Siege (hold points against waves)."
+      },
+      {
+        "id": "commander-calldowns",
+        "how": "Co-op commanders have a top bar of global powers on cooldowns or an energy pool, such as calling in a battlecruiser for 60 seconds, an airstrike, orbital lasers or a shield over every allied unit."
+      },
+      {
+        "id": "hero-units",
+        "how": "Some co-op commanders fight through a single strong hero who spawns for free a few minutes in and revives for free when killed, with the army built to support them."
+      },
+      {
+        "id": "commander-progression",
+        "how": "Each commander levels to 15 unlocking new units and upgrades, then earns mastery points (up to 90) to tune bonuses, and prestige talents that trade a strong advantage for a drawback."
+      },
+      {
+        "id": "run-modifiers",
+        "how": "A weekly mutation stacks rule changes on a co-op mission (enemies gain a one-time shield, nukes fall at random, enemy buildings attack) for a bonus experience bounty."
+      },
+      {
+        "id": "new:campaign-armory",
+        "how": "Between campaign missions players explore a ship hub, spend mission money on units and upgrades unavailable in multiplayer, and choose between branching missions."
+      },
+      {
+        "id": "level-editor",
+        "how": "A built-in map and mod editor publishes to an online arcade, where players made shooters, tower defence and battle-arena maps."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "Versus play uses a ladder with a separate matchmaking rating per race."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Terran",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "MULE call-down",
+            "effect": "summon",
+            "does": "Drops a temporary mining robot onto a mineral patch for a burst of extra income."
+          },
+          {
+            "name": "Scanner Sweep",
+            "effect": "passive",
+            "does": "Clears the fog over any spot on the map for about 12 seconds and reveals cloaked or burrowed units there."
+          },
+          {
+            "name": "Siege mode",
+            "effect": "transform",
+            "does": "Tanks and other machines switch between a mobile form and a stationary long-range form."
+          }
+        ]
+      },
+      {
+        "name": "Zerg",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Spawn Larvae",
+            "effect": "buff",
+            "does": "A queen makes a hatchery produce extra larvae, which are the eggs every unit hatches from."
+          },
+          {
+            "name": "Nydus Worm",
+            "effect": "teleport",
+            "does": "Opens a tunnel exit anywhere so the army can travel across the map in an instant."
+          },
+          {
+            "name": "Corrosive Bile",
+            "effect": "area-blast",
+            "does": "An artillery unit lobs acid onto a target spot after a delay, hitting ground and air."
+          }
+        ]
+      },
+      {
+        "name": "Protoss",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Chrono Boost",
+            "effect": "buff",
+            "does": "Speeds up a building's production or research for a short time."
+          },
+          {
+            "name": "Warp-in",
+            "effect": "teleport",
+            "does": "Units are warped straight into any area powered by a pylon or a warp prism's field."
+          },
+          {
+            "name": "Stasis Ward",
+            "effect": "trap",
+            "does": "An invisible mine that freezes enemies in place when they step near it."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "Jim Raynor",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "Infantry co-op commander who drops units by pod and calls down his battlecruiser and banshee airstrikes."
+      },
+      {
+        "name": "Sarah Kerrigan",
+        "archetype": "commander",
+        "role": "melee-dps",
+        "signature": "A hero commander who fights in person with leaping strikes and dashes, backed by elite swarm units and a fast tunnel network."
+      },
+      {
+        "name": "Artanis",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "Warps his army in anywhere and uses an orbiting ark for orbital strikes, a solar bombardment and shields that save units from fatal hits."
+      },
+      {
+        "name": "Abathur",
+        "archetype": "summoner",
+        "role": "support",
+        "signature": "The swarm's evolution master who upgrades units between campaign missions and later became a co-op commander."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Zergling",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Marine",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Zealot",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Siege Tank",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "Ultralisk",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Carrier",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "Hybrid",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Void Launch (co-op Siege)",
+        "world": "sci-fi-outpost",
+        "layout": "twin-gates"
+      },
+      {
+        "name": "Temple of the Past (co-op Siege)",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Miner Evacuation (co-op Siege)",
+        "world": "lava-wastes",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Dead of Night (co-op Siege)",
+        "world": "haunted-graveyard",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "survival",
+      "world": "sci-fi-outpost",
+      "layout": "twin-gates",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Comet Wardens: two friends each pick a Warden (a drill-boss who calls down mining drones and a rescue rocket, or a hive-mother who fights in person) and hold a frontier colony against night waves of rock-beetles, levelling their Warden between missions.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/StarCraft_II:_Wings_of_Liberty",
+      "official": "https://starcraft2.blizzard.com/",
+      "fandom": "https://starcraft.fandom.com/wiki/Co-op_Missions"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/2/20/StarCraft_II_-_Box_Art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:StarCraft_II_-_Box_Art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/StarCraft_II:_Wings_of_Liberty",
+      "https://en.wikipedia.org/wiki/StarCraft_II:_Heart_of_the_Swarm",
+      "https://en.wikipedia.org/wiki/StarCraft_II:_Legacy_of_the_Void",
+      "https://starcraft.fandom.com/wiki/Co-op_Missions",
+      "https://starcraft.fandom.com/wiki/Supply",
+      "https://starcraft.fandom.com/wiki/Fog_of_war",
+      "https://starcraft.fandom.com/wiki/Mutators",
+      "https://starcraft.fandom.com/wiki/Jim_Raynor_(Co-op_Missions)",
+      "https://starcraft.fandom.com/wiki/Sarah_Kerrigan_(Co-op_Missions)",
+      "https://starcraft.fandom.com/wiki/Artanis_(Co-op_Missions)"
+    ]
+  },
+  {
+    "id": "warcraft-iii-reforged",
+    "title": "Warcraft III: Reforged",
+    "aliases": [
+      "warcraft 3",
+      "warcraft"
+    ],
+    "kind": "game",
+    "year": 2020,
+    "creators": [
+      "Blizzard Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS"
+    ],
+    "genres": [
+      "rts"
+    ],
+    "summary": "A remaster of the 2002 fantasy RTS in which four factions (humans, orcs, undead and night elves) gather gold and lumber, build bases and lead armies under levelling hero units. It mixed RTS with RPG growth and, through its map editor, gave birth to the MOBA genre.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "resource-gathering",
+        "how": "Workers mine gold from mines and chop lumber from trees, and each faction collects in its own way (undead haunt mines and send ghouls for wood, night elves entangle mines with wisps that eat trees)."
+      },
+      {
+        "id": "supply-cap",
+        "how": "Food from farms and similar buildings caps how many units you can field at once."
+      },
+      {
+        "id": "new:upkeep",
+        "how": "Above set army sizes your gold income is cut, pushing players to fight with small, well-used armies."
+      },
+      {
+        "id": "hero-units",
+        "how": "Up to three heroes per player gain experience from kills, reach level 10, learn one of four spells per level point (an ultimate at level 6), carry items and are revived at an altar."
+      },
+      {
+        "id": "neutral-camps",
+        "how": "Neutral creeps guard gold mines and shops; killing them gives heroes experience, gold and item drops, and most fall asleep at night."
+      },
+      {
+        "id": "day-night",
+        "how": "A day/night clock shrinks sight at night, puts creeps to sleep for safer scouting, and lets some night-elf units turn invisible while standing still."
+      },
+      {
+        "id": "fog-of-war",
+        "how": "The map starts hidden; explored areas out of sight fall under fog where terrain shows but enemy movement and building do not."
+      },
+      {
+        "id": "base-building",
+        "how": "Each faction builds differently: human peasants can help build together, undead buildings must sit on spreading blight, and night-elf ancients can uproot and walk."
+      },
+      {
+        "id": "tech-tree",
+        "how": "Upgrading the main hall through three tiers unlocks further buildings, units and research."
+      },
+      {
+        "id": "asymmetric-factions",
+        "how": "Four factions with unique units, buildings, heroes and build methods."
+      },
+      {
+        "id": "story-chapters",
+        "how": "Four faction campaigns told in chapters with in-mission main and hidden side quests, and heroes whose levels carry over between missions."
+      },
+      {
+        "id": "level-editor",
+        "how": "The World Editor let players build custom maps, including tower defence and the battle-arena map that became the MOBA genre."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "Anonymous skill-based matchmaking for solo and arranged team games, with a ladder of standings."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Human Alliance",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Call to Arms",
+            "effect": "transform",
+            "does": "The town hall turns nearby peasants into armed militia for a short time."
+          },
+          {
+            "name": "Blizzard",
+            "effect": "rain-zone",
+            "does": "The Archmage hero rains waves of ice shards on an area."
+          },
+          {
+            "name": "Holy Light",
+            "effect": "heal",
+            "does": "The Paladin hero heals an ally."
+          }
+        ]
+      },
+      {
+        "name": "Orcish Horde",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Burrow",
+            "effect": "shield",
+            "does": "Peons hide inside orc burrows, which then fire at attackers."
+          },
+          {
+            "name": "Chain Lightning",
+            "effect": "chain-hit",
+            "does": "The Far Seer hero's bolt jumps between several enemies."
+          },
+          {
+            "name": "Bladestorm",
+            "effect": "whirlwind",
+            "does": "The Blademaster hero's ultimate spins through all nearby enemies."
+          },
+          {
+            "name": "War Stomp",
+            "effect": "ground-slam",
+            "does": "The Tauren Chieftain hero stomps to stun and damage nearby foes."
+          }
+        ]
+      },
+      {
+        "name": "Undead Scourge",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Blight",
+            "effect": "build-structure",
+            "does": "Undead buildings spread a corrupted ground they must be built on, which also heals undead units."
+          },
+          {
+            "name": "Frost Nova",
+            "effect": "freeze-zone",
+            "does": "The Lich hero blasts a target and slows those around it."
+          },
+          {
+            "name": "Animate Dead",
+            "effect": "summon",
+            "does": "The Death Knight hero's ultimate raises nearby corpses to fight for a while."
+          }
+        ]
+      },
+      {
+        "name": "Night Elf Sentinels",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Uproot",
+            "effect": "transform",
+            "does": "Ancient buildings pull up their roots and walk, and can fight."
+          },
+          {
+            "name": "Entangling Roots",
+            "effect": "root",
+            "does": "The Keeper of the Grove hero pins an enemy in place with roots that deal damage."
+          },
+          {
+            "name": "Starfall",
+            "effect": "rain-zone",
+            "does": "The Priestess of the Moon's ultimate drops stars on all nearby enemies."
+          },
+          {
+            "name": "Metamorphosis",
+            "effect": "transform",
+            "does": "The Demon Hunter hero becomes a ranged demon for a time."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "Paladin",
+        "archetype": "paladin",
+        "role": "tank",
+        "signature": "Human warrior hero: Holy Light, Divine Shield, Devotion Aura and the Resurrection ultimate."
+      },
+      {
+        "name": "Archmage",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Human caster hero: Blizzard, a summoned Water Elemental, Brilliance Aura and Mass Teleport."
+      },
+      {
+        "name": "Mountain King",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Dwarf hero: Storm Bolt, Thunder Clap, Bash and the Avatar ultimate."
+      },
+      {
+        "name": "Blademaster",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "Orc hero: Wind Walk invisibility, Mirror Image, Critical Strike and Bladestorm."
+      },
+      {
+        "name": "Far Seer",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "Orc caster hero: Chain Lightning, Far Sight, Feral Spirit wolves and Earthquake."
+      },
+      {
+        "name": "Death Knight",
+        "archetype": "necromancer",
+        "role": "support",
+        "signature": "Undead counterpart to the Paladin: Death Coil, Death Pact, Unholy Aura and Animate Dead."
+      },
+      {
+        "name": "Keeper of the Grove",
+        "archetype": "druid",
+        "role": "controller",
+        "signature": "Night-elf caster: Entangling Roots, Force of Nature treants, Thorns Aura and Tranquility."
+      },
+      {
+        "name": "Demon Hunter",
+        "archetype": "shapeshifter",
+        "role": "melee-dps",
+        "signature": "Night-elf hero: Mana Burn, Immolation, Evasion and the Metamorphosis ultimate."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Peasant militia",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Ghoul",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Water Elemental",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Treant",
+        "kind": "minion",
+        "foes": "golems"
+      },
+      {
+        "name": "Infernal",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "Neutral creep camp guarding a gold mine",
+        "kind": "elite",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Lordaeron (human campaign)",
+        "world": "storybook-village",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Kalimdor night-elf forests",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Northrend",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "crossroads",
+      "hero": "templar",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Lantern Lords: each player leads one levelling hero and a small village army, clears sleepy forest guardians at night for treasure, and races to light the rival's beacon, with four peoples who build in different ways (walking tree-houses, burrowing camps, chalk-circle towers, singing stone farms).",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Warcraft_III:_Reforged",
+      "official": "https://playwarcraft3.com/",
+      "fandom": "https://warcraft.wiki.gg/wiki/Warcraft_III_heroes"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/4/4f/Warcraft_III_Reforged_Logo.png",
+      "page": "https://en.wikipedia.org/wiki/File:Warcraft_III_Reforged_Logo.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Warcraft_III:_Reforged",
+      "https://en.wikipedia.org/wiki/Warcraft_III:_Reign_of_Chaos",
+      "https://warcraft.wiki.gg/wiki/Warcraft_III_heroes",
+      "https://warcraft.wiki.gg/wiki/Warcraft_III_buildings"
+    ]
+  },
+  {
+    "id": "age-of-empires-iv",
+    "title": "Age of Empires IV",
+    "aliases": [
+      "age of empires 4",
+      "aoe4"
+    ],
+    "kind": "game",
+    "year": 2021,
+    "creators": [
+      "Relic Entertainment",
+      "World's Edge",
+      "Xbox Game Studios"
+    ],
+    "platforms": [
+      "Windows",
+      "Xbox One",
+      "Xbox Series X/S",
+      "PlayStation 5"
+    ],
+    "genres": [
+      "rts"
+    ],
+    "summary": "A historical RTS set from the early Middle Ages to the early Renaissance, where villagers gather food, wood, gold and stone while the player advances through four ages by building landmarks. Its many civilizations play very differently, from nomads who pack up their buildings to a variant led by a single levelling hero.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "resource-gathering",
+        "how": "Villagers gather four resources (food from sheep, deer, boar, berries and farms; wood; gold; stone) and drop them at nearby camps or mills."
+      },
+      {
+        "id": "supply-cap",
+        "how": "Houses raise the population limit, though some civilizations skip houses entirely and start at the maximum."
+      },
+      {
+        "id": "new:age-advancement",
+        "how": "Players advance through Dark, Feudal, Castle and Imperial Ages by building one of two landmark buildings, each landmark giving its own bonus."
+      },
+      {
+        "id": "tech-tree",
+        "how": "Each age unlocks buildings, units and technologies, with unique units and techs per civilization."
+      },
+      {
+        "id": "base-building",
+        "how": "Grid-based building with wooden palisades, stone walls that only siege can hurt, keeps and towers; units can walk and fight on walls."
+      },
+      {
+        "id": "new:influence-zones",
+        "how": "Some buildings project an influence area that boosts what is built inside it, such as farms near a mill gathering faster."
+      },
+      {
+        "id": "asymmetric-factions",
+        "how": "Twenty-plus civilizations, e.g. nomads who can pack up and move every building, dynasties unlocked by building both landmarks of an age, or free but slow research."
+      },
+      {
+        "id": "hero-units",
+        "how": "One variant civilization is led by a hero who starts as a worker, earns experience from gathering, building and fighting, and at each level picks a path (melee or ranged, then companion troops, then a cannon form)."
+      },
+      {
+        "id": "new:victory-conditions",
+        "how": "Games can be won by destroying all landmarks, building and holding a Wonder, or capturing and holding all Sacred Sites with religious units."
+      },
+      {
+        "id": "capture-points",
+        "how": "Neutral Sacred Sites are captured by standing a monk on them for 30 seconds, giving a gold trickle and a countdown toward victory."
+      },
+      {
+        "id": "fog-of-war",
+        "how": "Line of sight is blocked by obstacles such as forests, and stealth forests let units hide."
+      },
+      {
+        "id": "story-chapters",
+        "how": "Historical campaigns told in grouped missions with documentary narration, plus an Art of War series of tutorial challenges."
+      }
+    ],
+    "classes": [
+      {
+        "name": "English",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Network of Castles",
+            "effect": "buff",
+            "does": "Town centres, outposts, towers and keeps raise the attack speed of nearby units when enemies come in range."
+          },
+          {
+            "name": "Setup Camp",
+            "effect": "build-structure",
+            "does": "Scouts and men-at-arms can set down a campfire in the field."
+          }
+        ]
+      },
+      {
+        "name": "Mongols",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Pack up",
+            "effect": "transform",
+            "does": "Every building can be packed into a cart, moved and unpacked elsewhere."
+          },
+          {
+            "name": "Scouting Falcon",
+            "effect": "passive",
+            "does": "The Khan and scouts can keep vision over a chosen area for a while."
+          },
+          {
+            "name": "Raid Bounty",
+            "effect": "passive",
+            "does": "Setting enemy buildings on fire plunders food and gold."
+          }
+        ]
+      },
+      {
+        "name": "Chinese",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Dynasties",
+            "effect": "buff",
+            "does": "Building both landmarks of an age enters a new dynasty with its own bonus and unique units and buildings."
+          },
+          {
+            "name": "Rapid Fabrications",
+            "effect": "build-structure",
+            "does": "Villagers construct buildings much faster than other civilizations."
+          }
+        ]
+      },
+      {
+        "name": "Rus",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Bounty",
+            "effect": "passive",
+            "does": "Hunting animals earns bonus gold, and bounty thresholds raise food gathering and hunting-cabin income."
+          },
+          {
+            "name": "Lodya conversion",
+            "effect": "transform",
+            "does": "Rus ships can be converted into another ship type for a cost."
+          }
+        ]
+      },
+      {
+        "name": "Delhi Sultanate",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Scholastic Achievements",
+            "effect": "passive",
+            "does": "All technology is free but researches slowly, sped up by scholars garrisoned in mosques."
+          },
+          {
+            "name": "Frontier Fortifications",
+            "effect": "build-structure",
+            "does": "Infantry can build palisade walls themselves."
+          }
+        ]
+      },
+      {
+        "name": "Jeanne d'Arc",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Journey of a Hero",
+            "effect": "passive",
+            "does": "Jeanne levels from a peasant to a mounted champion, choosing a melee or ranged path."
+          },
+          {
+            "name": "Rally Call",
+            "effect": "summon",
+            "does": "From level 3 Jeanne summons her chosen companion troops, more of them at level 4."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Longbowman",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Keshik",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Zhuge Nu",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Camel Archer",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "War Elephant",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Royal Knight",
+        "kind": "elite",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Normans campaign",
+        "world": "storybook-village",
+        "layout": "crossroads"
+      },
+      {
+        "name": "The Mongol Empire campaign",
+        "world": "farm-fields",
+        "layout": "open-field"
+      },
+      {
+        "name": "The Rise of Moscow campaign",
+        "world": "frozen-north",
+        "layout": "twin-gates"
+      }
+    ],
+    "blueprint": {
+      "genre": "survival",
+      "world": "farm-fields",
+      "layout": "twin-gates",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Kingdom Lanterns: players grow a village by choosing one of two wonder-buildings to climb each of four eras, then win by toppling the rival's wonders or by holding three glowing shrines with their storytellers for a countdown.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Age_of_Empires_IV",
+      "official": "https://www.ageofempires.com/games/aoeiv/",
+      "fandom": "https://ageofempires.fandom.com/wiki/Age_of_Empires_IV"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/0/08/Age_of_Empires_IV_Cover_Art.png",
+      "page": "https://en.wikipedia.org/wiki/File:Age_of_Empires_IV_Cover_Art.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Age_of_Empires_IV",
+      "https://ageofempires.fandom.com/wiki/Age_of_Empires_IV",
+      "https://ageofempires.fandom.com/wiki/Civilization_(Age_of_Empires_IV)",
+      "https://ageofempires.fandom.com/wiki/Jeanne_d'Arc_(hero)",
+      "https://ageofempires.fandom.com/wiki/Sacred_Site",
+      "https://ageofempires.fandom.com/wiki/Victory"
+    ]
+  },
+  {
+    "id": "command-and-conquer-red-alert-3",
+    "title": "Command & Conquer: Red Alert 3",
+    "aliases": [
+      "red alert",
+      "command and conquer"
+    ],
+    "kind": "game",
+    "year": 2008,
+    "creators": [
+      "EA Los Angeles",
+      "Electronic Arts"
+    ],
+    "platforms": [
+      "Windows",
+      "Xbox 360",
+      "PlayStation 3",
+      "macOS"
+    ],
+    "genres": [
+      "rts"
+    ],
+    "summary": "A tongue-in-cheek alternate-history RTS where three powers (Allies, Soviets and a psychic-tech Empire) harvest ore, build bases on land and sea, and race to superweapons. Every campaign mission is played with a partner, human or AI.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "co-op-missions",
+        "how": "Each faction's nine-mission campaign is fully co-operative with a second player online or an AI partner that takes simple orders, and the two share income."
+      },
+      {
+        "id": "resource-gathering",
+        "how": "Vulnerable collector vehicles harvest from fixed ore mines and bring it back to refineries."
+      },
+      {
+        "id": "base-building",
+        "how": "Bases (and even whole bases on water) are built near the core structure, except the Empire, whose buildings have no proximity rule so it can grab ore faster."
+      },
+      {
+        "id": "tech-tree",
+        "how": "A shallow but wide tree of structures leads to elite units and superweapons."
+      },
+      {
+        "id": "new:superweapons",
+        "how": "Each faction ends its tree in a base-levelling weapon: a teleporting Chronosphere and a Proton Collider, an Iron Curtain and a Vacuum Imploder, or a psionic wave and a nanoswarm dome."
+      },
+      {
+        "id": "commander-calldowns",
+        "how": "Experience earned in battle buys commander powers such as air strikes, recon sweeps and satellite beams that cost no resources but have long cooldowns."
+      },
+      {
+        "id": "new:unit-secondary-abilities",
+        "how": "Almost every unit has one extra ability on the same key, such as a tank that switches to a life-draining beam or a walker that bull-rushes."
+      },
+      {
+        "id": "new:naval-warfare",
+        "how": "Many units are amphibious and every multiplayer map has water, so ignoring the sea gives away much of the economy."
+      },
+      {
+        "id": "asymmetric-factions",
+        "how": "Soviets favour cheap brute force, Allies nonlethal gadgets and air power, and the Empire transforming units that switch land, sea and air."
+      },
+      {
+        "id": "unit-command",
+        "how": "Players command combined land, sea and air forces with hard counters, so a rifleman can shrug off an anti-tank cannon."
+      },
+      {
+        "id": "story-chapters",
+        "how": "Missions are bridged by live-action video briefings with a famous cast."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Allied Nations",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Chronosphere",
+            "effect": "teleport",
+            "does": "Superweapon that teleports a group of units across the map."
+          },
+          {
+            "name": "Proton Collider",
+            "effect": "area-blast",
+            "does": "Superweapon that fires five bolts causing a series of huge explosions."
+          },
+          {
+            "name": "Freeze ray",
+            "effect": "freeze-zone",
+            "does": "An unarmed helicopter freezes or shrinks enemy units."
+          }
+        ]
+      },
+      {
+        "name": "Soviet Union",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Iron Curtain",
+            "effect": "shield",
+            "does": "Makes a group of units briefly invulnerable."
+          },
+          {
+            "name": "Vacuum Imploder",
+            "effect": "pull",
+            "does": "A warhead that sucks units and damaged buildings into one point before exploding."
+          },
+          {
+            "name": "Leech beam",
+            "effect": "beam",
+            "does": "The Hammer Tank can switch to a laser that drains health from enemies."
+          }
+        ]
+      },
+      {
+        "name": "Empire of the Rising Sun",
+        "archetype": "commander",
+        "role": "commander",
+        "skills": [
+          {
+            "name": "Transforming units",
+            "effect": "transform",
+            "does": "Key units switch between land and air or sea and air forms."
+          },
+          {
+            "name": "Psionic Decimator",
+            "effect": "area-blast",
+            "does": "Superweapon that releases a wave of psionic energy able to level a base."
+          },
+          {
+            "name": "Nanoswarm Hive",
+            "effect": "shield",
+            "does": "Generates a stationary dome that nothing can enter or leave."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "Tanya",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "signature": "Allied commando with a time belt that rewinds her position and health a few seconds."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Peacekeeper",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "War Bear",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Sickle walker",
+        "kind": "minion",
+        "foes": "golems"
+      },
+      {
+        "name": "King Oni",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "Kirov airship",
+        "kind": "elite",
+        "foes": "golems"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Island and coastal battle maps",
+        "world": "pirate-coast",
+        "layout": "twin-gates"
+      }
+    ],
+    "blueprint": {
+      "genre": "survival",
+      "world": "pirate-coast",
+      "layout": "twin-gates",
+      "hero": "any",
+      "foes": "golems"
+    },
+    "makeItOurs": "Toybox Tides: two kids co-command a harbour of wind-up toys against a rival toy fleet, calling in balloon drops on a cooldown and racing to finish a giant bubble-dome or a teleporting toy-box before the other side does.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Command_%26_Conquer:_Red_Alert_3"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/9/9b/Command_%26_Conquer_Red_Alert_3_Game_Cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Command_%26_Conquer_Red_Alert_3_Game_Cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Command_%26_Conquer:_Red_Alert_3"
+    ]
+  },
+  {
+    "id": "league-of-legends",
+    "title": "League of Legends",
+    "aliases": [
+      "lol"
+    ],
+    "kind": "game",
+    "year": 2009,
+    "creators": [
+      "Riot Games"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS"
+    ],
+    "genres": [
+      "moba"
+    ],
+    "summary": "A free-to-play 5v5 battle arena where each player controls one champion, levels up and buys items within a match, and the team pushes down three lanes to destroy the enemy Nexus. It is the template for the modern MOBA: lanes, turrets, minion waves, a jungle and team-wide objective monsters.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "lanes",
+        "how": "Three lanes (top, mid, bottom) guarded by turrets and inhibitors; minion waves march from each base, and breaking an inhibitor spawns stronger allied minions in that lane. An all-random mode puts both teams on one long lane with no jungle for quick brawls."
+      },
+      {
+        "id": "in-match-leveling",
+        "how": "Champions start every match at level 1, earn experience and gold from minions, monsters and kills, and lose everything when the match ends."
+      },
+      {
+        "id": "shops",
+        "how": "Gold buys items from a shop that can only be used while standing in your own base."
+      },
+      {
+        "id": "neutral-camps",
+        "how": "The jungle between lanes holds monster camps that respawn; one player usually farms them and ambushes lanes."
+      },
+      {
+        "id": "map-objectives",
+        "how": "Strong river monsters need several players: dragons give permanent team buffs, the Rift Herald becomes an allied siege unit, and Baron Nashor empowers the team's minions."
+      },
+      {
+        "id": "respawn-rules",
+        "how": "Fallen champions return at their base fountain after a timer."
+      },
+      {
+        "id": "ultimate-ability",
+        "how": "Each champion has a passive, three basic abilities and a powerful ultimate on a long cooldown."
+      },
+      {
+        "id": "hero-select",
+        "how": "Players pick from a large roster of champions before the match, with classic positions per lane."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "A ranked ladder with ten tiers from Iron to Challenger."
+      },
+      {
+        "id": "fog-of-war",
+        "how": "Enemies are only visible near your own units and structures, so the jungle hides ambushes."
+      },
+      {
+        "id": "auto-battle",
+        "how": "A built-in auto-battler mode has players buy units from a shop and place them on a board to fight automatically."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Garen",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Decisive Strike",
+            "effect": "buff",
+            "does": "Cleanses slows and gains a burst of speed, empowering the next strike."
+          },
+          {
+            "name": "Courage",
+            "effect": "shield",
+            "does": "Reduces incoming damage for a few seconds, and passively grows armour with each kill."
+          },
+          {
+            "name": "Judgment",
+            "effect": "whirlwind",
+            "does": "Spins his sword around himself, hitting all nearby enemies."
+          },
+          {
+            "name": "Demacian Justice",
+            "effect": "piercing-bolt",
+            "does": "Calls down a finishing blow of true damage on one enemy champion."
+          }
+        ]
+      },
+      {
+        "name": "Ahri",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Orb of Deception",
+            "effect": "projectile",
+            "does": "Throws an orb that hits on the way out and again on its way back."
+          },
+          {
+            "name": "Fox-Fire",
+            "effect": "projectile",
+            "does": "Conjures three flames that orbit her and seek nearby enemies, with a burst of speed."
+          },
+          {
+            "name": "Charm",
+            "effect": "slow-orb",
+            "does": "A kiss that charms the first enemy hit, slowing them and making them walk toward her."
+          },
+          {
+            "name": "Spirit Rush",
+            "effect": "dash-strike",
+            "does": "Dashes and fires bolts at up to three nearby enemies."
+          }
+        ]
+      },
+      {
+        "name": "Jinx",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Switcheroo!",
+            "effect": "transform",
+            "does": "Swaps between a minigun and a rocket launcher."
+          },
+          {
+            "name": "Zap!",
+            "effect": "beam",
+            "does": "Fires a shock blast that slows and reveals the first enemy hit."
+          },
+          {
+            "name": "Flame Chompers!",
+            "effect": "trap",
+            "does": "Throws out three traps that snap shut on enemies who step on them."
+          },
+          {
+            "name": "Super Mega Death Rocket!",
+            "effect": "piercing-bolt",
+            "does": "Fires a rocket across the map that explodes on the first champion it hits."
+          }
+        ]
+      },
+      {
+        "name": "Thresh",
+        "archetype": "warrior",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Death Sentence",
+            "effect": "pull",
+            "does": "Throws his scythe on a chain to hook an enemy and drag them in."
+          },
+          {
+            "name": "Dark Passage",
+            "effect": "shield",
+            "does": "Throws a lantern that shields an ally and pulls them to him when they click it."
+          },
+          {
+            "name": "The Box",
+            "effect": "trap",
+            "does": "Raises a ring of spectral walls that slow and damage enemies who break through."
+          }
+        ]
+      },
+      {
+        "name": "Soraka",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Starcall",
+            "effect": "area-blast",
+            "does": "Calls down a star on a target area."
+          },
+          {
+            "name": "Astral Infusion",
+            "effect": "heal",
+            "does": "Heals a target ally champion."
+          },
+          {
+            "name": "Equinox",
+            "effect": "root",
+            "does": "Creates a zone that silences enemies and roots those still inside when it ends."
+          },
+          {
+            "name": "Wish",
+            "effect": "heal",
+            "does": "Heals every allied champion on the map at once."
+          }
+        ]
+      },
+      {
+        "name": "Annie",
+        "archetype": "summoner",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Disintegrate",
+            "effect": "projectile",
+            "does": "Hurls a fireball at one enemy."
+          },
+          {
+            "name": "Incinerate",
+            "effect": "area-blast",
+            "does": "Releases fire in a cone."
+          },
+          {
+            "name": "Molten Shield",
+            "effect": "shield",
+            "does": "Shields herself or an ally and her bear."
+          },
+          {
+            "name": "Summon: Tibbers",
+            "effect": "summon",
+            "does": "Summons her giant bear in a burst of flame; he can be steered while he lasts."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Lane minions",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Jungle camp monsters",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Dragons",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Rift Herald",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "Baron Nashor",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Summoner's Rift",
+        "world": "enchanted-forest",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Howling Abyss",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "squad-royale",
+      "world": "enchanted-forest",
+      "layout": "twin-gates",
+      "hero": "any",
+      "foes": "imps"
+    },
+    "makeItOurs": "Lantern Lanes: two teams of five storybook heroes push waves of paper soldiers down three lanes toward the other side's great lantern, levelling up each match and teaming up to wake a river-turtle that marches with them.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/League_of_Legends",
+      "official": "https://www.leagueoflegends.com/",
+      "fandom": "https://leagueoflegends.fandom.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d8/League_of_Legends_2019_vector.svg",
+      "page": "https://commons.wikimedia.org/wiki/File:League_of_Legends_2019_vector.svg",
+      "license": "free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/League_of_Legends",
+      "https://leagueoflegends.fandom.com/wiki/Garen/LoL",
+      "https://leagueoflegends.fandom.com/wiki/Ahri/LoL",
+      "https://leagueoflegends.fandom.com/wiki/Jinx/LoL",
+      "https://leagueoflegends.fandom.com/wiki/Thresh/LoL",
+      "https://leagueoflegends.fandom.com/wiki/Soraka/LoL",
+      "https://leagueoflegends.fandom.com/wiki/Annie/LoL"
+    ]
+  },
+  {
+    "id": "dota-2",
+    "title": "Dota 2",
+    "aliases": [
+      "dota"
+    ],
+    "kind": "game",
+    "year": 2013,
+    "creators": [
+      "Valve"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux"
+    ],
+    "genres": [
+      "moba"
+    ],
+    "summary": "Valve's sequel to the Warcraft III mod that founded the MOBA: two teams of five heroes push three lanes to destroy the enemy Ancient. It is known for depth: a draft phase, last-hitting and denying, a day-night cycle, runes and a respawning boss.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "lanes",
+        "how": "Three lanes with towers on each side; creep waves spawn from barracks inside each base and march toward the enemy."
+      },
+      {
+        "id": "hero-draft",
+        "how": "Heroes are drafted before the match and leave the pool once picked; a captains mode has one player per team pick for everyone."
+      },
+      {
+        "id": "in-match-leveling",
+        "how": "Heroes start at level 1 with one ability, gain a level-up point to learn or improve abilities up to level 30, and unlock the ultimate at level 6."
+      },
+      {
+        "id": "skill-tree",
+        "how": "A talent tree offers a choice of upgrades at set levels during the match."
+      },
+      {
+        "id": "mana-resource",
+        "how": "Abilities cost mana that slowly regenerates and then go on cooldown."
+      },
+      {
+        "id": "new:last-hitting",
+        "how": "Only the hero who lands the killing blow on a creep gets its gold, and players can deny by finishing their own creeps."
+      },
+      {
+        "id": "shops",
+        "how": "Gold from kills, structures and creeps buys items at shops on the map; items are open to every hero."
+      },
+      {
+        "id": "neutral-camps",
+        "how": "Neutral creeps live in jungle camps, attack only if provoked, and respawn over time."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Roshan, a respawning boss either team can kill, drops special items such as one that brings its holder back to life once."
+      },
+      {
+        "id": "new:power-runes",
+        "how": "Runes spawn at set spots every few minutes with temporary power-ups such as double damage or invisibility."
+      },
+      {
+        "id": "day-night",
+        "how": "A day-night cycle changes vision and some hero abilities."
+      },
+      {
+        "id": "fog-of-war",
+        "how": "The map is always covered in fog except near your team's units."
+      },
+      {
+        "id": "level-editor",
+        "how": "An arcade of community-made modes, one of which launched the auto-chess genre."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Axe",
+        "archetype": "berserker",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Berserker's Call",
+            "effect": "war-cry",
+            "does": "Taunts nearby enemies into attacking him while he gains armour."
+          },
+          {
+            "name": "Battle Hunger",
+            "effect": "damage-over-time",
+            "does": "Enrages a foe, damaging and slowing them until they kill something."
+          },
+          {
+            "name": "Counter Helix",
+            "effect": "whirlwind",
+            "does": "After enough attacks he spins, hitting all nearby enemies."
+          }
+        ]
+      },
+      {
+        "name": "Crystal Maiden",
+        "archetype": "elementalist",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Crystal Nova",
+            "effect": "freeze-zone",
+            "does": "A burst of frost damages and slows enemies in an area."
+          },
+          {
+            "name": "Frostbite",
+            "effect": "root",
+            "does": "Encases one enemy in ice, stopping it moving or attacking."
+          },
+          {
+            "name": "Freezing Field",
+            "effect": "rain-zone",
+            "does": "Channels many random icy explosions around her."
+          }
+        ]
+      },
+      {
+        "name": "Pudge",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Meat Hook",
+            "effect": "pull",
+            "does": "Throws a hook that drags the first unit it hits back to him."
+          },
+          {
+            "name": "Rot",
+            "effect": "damage-over-time",
+            "does": "A toxic cloud around him hurts and slows enemies, and himself too."
+          },
+          {
+            "name": "Dismember",
+            "effect": "damage-over-time",
+            "does": "Disables one enemy and drains it over time, healing himself."
+          }
+        ]
+      },
+      {
+        "name": "Juggernaut",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Blade Fury",
+            "effect": "whirlwind",
+            "does": "Spins in a bladestorm that hurts nearby enemies while he is immune to magic."
+          },
+          {
+            "name": "Healing Ward",
+            "effect": "heal",
+            "does": "Places a moving ward that heals nearby allies."
+          },
+          {
+            "name": "Omnislash",
+            "effect": "dash-strike",
+            "does": "Leaps between enemies slashing them while invulnerable."
+          }
+        ]
+      },
+      {
+        "name": "Lion",
+        "archetype": "mage",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Earth Spike",
+            "effect": "ground-slam",
+            "does": "Rock spikes burst along a line, tossing and stunning enemies."
+          },
+          {
+            "name": "Hex",
+            "effect": "transform",
+            "does": "Turns an enemy into a harmless beast."
+          },
+          {
+            "name": "Mana Drain",
+            "effect": "beam",
+            "does": "Channels a link that steals mana from an enemy."
+          },
+          {
+            "name": "Finger of Death",
+            "effect": "piercing-bolt",
+            "does": "Deals massive damage to one enemy."
+          }
+        ]
+      },
+      {
+        "name": "Sniper",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Shrapnel",
+            "effect": "rain-zone",
+            "does": "Showers an area with pellets that damage, slow and reveal."
+          },
+          {
+            "name": "Take Aim",
+            "effect": "buff",
+            "does": "Extends his rifle range and guarantees headshots for a while."
+          },
+          {
+            "name": "Assassinate",
+            "effect": "piercing-bolt",
+            "does": "Locks on to a far-off target and fires a devastating shot."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Lane creeps",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Neutral creep camps",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Roshan",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Radiant and Dire map",
+        "world": "enchanted-forest",
+        "layout": "crossroads"
+      }
+    ],
+    "blueprint": {
+      "genre": "squad-royale",
+      "world": "enchanted-forest",
+      "layout": "twin-gates",
+      "hero": "any",
+      "foes": "imps"
+    },
+    "makeItOurs": "Moonwell Clash: two bands of five pick heroes in turns, then push gnome waves along three forest roads to topple the rival's moonwell, grabbing glowing pebbles for short power-ups and teaming up on a sleeping stone giant who drops a second-life charm.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Dota_2",
+      "official": "https://www.dota2.com/",
+      "fandom": "https://dota2.fandom.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/3/31/Dota_2_Steam_artwork.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Dota_2_Steam_artwork.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Dota_2",
+      "https://dota2.fandom.com/wiki/Axe",
+      "https://dota2.fandom.com/wiki/Crystal_Maiden",
+      "https://dota2.fandom.com/wiki/Pudge",
+      "https://dota2.fandom.com/wiki/Juggernaut",
+      "https://dota2.fandom.com/wiki/Lion",
+      "https://dota2.fandom.com/wiki/Sniper"
+    ]
+  },
+  {
+    "id": "heroes-of-the-storm",
+    "title": "Heroes of the Storm",
+    "kind": "game",
+    "year": 2015,
+    "creators": [
+      "Blizzard Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS"
+    ],
+    "genres": [
+      "moba"
+    ],
+    "summary": "Blizzard's crossover MOBA in which 5v5 teams of heroes from its other games fight to destroy the enemy Core on many themed battlegrounds. It streamlines the genre with shared team experience, talents instead of item shops, and a map objective on every battleground.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "in-match-leveling",
+        "how": "Experience from minions, structures and camps goes to the whole team, so every hero on a team levels up together."
+      },
+      {
+        "id": "skill-tree",
+        "how": "Every few levels each player picks one talent that adds or changes an ability, with big choices at level 10 (one of two heroics) and 20."
+      },
+      {
+        "id": "map-objectives",
+        "how": "Each battleground has its own objective, such as collecting tributes to curse the enemy's minions or capturing two obelisks to turn a hero into a dragon knight."
+      },
+      {
+        "id": "lanes",
+        "how": "Lanes of forts and keeps with minion waves lead to each team's Core."
+      },
+      {
+        "id": "neutral-camps",
+        "how": "Mercenary camps can be captured to fight for your team, alongside powerful battleground bosses."
+      },
+      {
+        "id": "mounts",
+        "how": "Every hero can mount up for extra speed, dismounting when attacking or hit."
+      },
+      {
+        "id": "fast-travel",
+        "how": "A channelled Hearthstone teleports a hero back to base, where the Hall of Storms restores health and repels enemies."
+      },
+      {
+        "id": "hero-draft",
+        "how": "Draft modes alternate picks and up to three bans per team, while quick match lets players bring a preferred hero."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "Storm League ranks players from Bronze to Grand Master with divisions and a top-100 leaderboard."
+      },
+      {
+        "id": "ai-opponents",
+        "how": "Training and versus-AI modes fill teams with computer heroes at chosen difficulties."
+      },
+      {
+        "id": "run-modifiers",
+        "how": "A rotating Brawl mode changes the rules every two weeks, from single-lane arenas to mini-games like dodgeball."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Muradin",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Storm Bolt",
+            "effect": "projectile",
+            "does": "Throws a hammer that stuns the first enemy hit."
+          },
+          {
+            "name": "Thunder Clap",
+            "effect": "area-blast",
+            "does": "Blasts nearby enemies, slowing their movement and attacks."
+          },
+          {
+            "name": "Dwarf Toss",
+            "effect": "leap-attack",
+            "does": "Leaps to a location, damaging enemies where he lands and gaining armour."
+          },
+          {
+            "name": "Avatar",
+            "effect": "transform",
+            "does": "Transforms for 20 seconds with a large boost to health."
+          }
+        ]
+      },
+      {
+        "name": "Jaina",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Frostbolt",
+            "effect": "projectile",
+            "does": "Damages and chills the target."
+          },
+          {
+            "name": "Blizzard",
+            "effect": "rain-zone",
+            "does": "Bombards an area with three waves of ice."
+          },
+          {
+            "name": "Ring of Frost",
+            "effect": "root",
+            "does": "After a delay a ring of frost roots enemies inside it."
+          },
+          {
+            "name": "Summon Water Elemental",
+            "effect": "summon",
+            "does": "Summons an elemental whose splash attacks chill."
+          }
+        ]
+      },
+      {
+        "name": "Li Li",
+        "archetype": "healer",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Healing Brew",
+            "effect": "heal",
+            "does": "Heals the lowest-health allied hero nearby."
+          },
+          {
+            "name": "Cloud Serpent",
+            "effect": "buff",
+            "does": "Puts a serpent on an ally that attacks nearby enemies and heals the ally."
+          },
+          {
+            "name": "Blinding Wind",
+            "effect": "slow-orb",
+            "does": "Throws wind at the two nearest enemies, blinding and slowing them."
+          },
+          {
+            "name": "Jug of 1,000 Cups",
+            "effect": "heal",
+            "does": "Channels rapid heals on the lowest-health ally nearby."
+          }
+        ]
+      },
+      {
+        "name": "Abathur",
+        "archetype": "summoner",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Symbiote",
+            "effect": "buff",
+            "does": "Attaches a symbiote to an ally or structure and controls it from afar to stab, burst and shield."
+          },
+          {
+            "name": "Toxic Nest",
+            "effect": "trap",
+            "does": "Lays a mine that damages and reveals the enemy who triggers it."
+          }
+        ]
+      },
+      {
+        "name": "Illidan",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Sweeping Strike",
+            "effect": "dash-strike",
+            "does": "Dashes through enemies, boosting his attack damage on a hit."
+          },
+          {
+            "name": "Evasion",
+            "effect": "buff",
+            "does": "Evades basic attacks for a few seconds."
+          },
+          {
+            "name": "Metamorphosis",
+            "effect": "transform",
+            "does": "Lands in demon form, gaining health for each hero hit."
+          },
+          {
+            "name": "The Hunt",
+            "effect": "dash-strike",
+            "does": "Charges at a distant target and stuns it."
+          }
+        ]
+      },
+      {
+        "name": "Valla",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Hungering Arrow",
+            "effect": "chain-hit",
+            "does": "An arrow that seeks up to two more enemies after the first hit."
+          },
+          {
+            "name": "Multishot",
+            "effect": "area-blast",
+            "does": "Damages all enemies in a target area."
+          },
+          {
+            "name": "Vault",
+            "effect": "dash-strike",
+            "does": "Dashes to a spot, empowering the next attack."
+          },
+          {
+            "name": "Rain of Vengeance",
+            "effect": "rain-zone",
+            "does": "Sends a wave of shadow beasts that stuns enemies in an area."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Lane minions",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Mercenary camps",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Battleground bosses",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Garden Terror",
+        "kind": "elite",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Cursed Hollow",
+        "world": "haunted-graveyard",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Dragon Shire",
+        "world": "storybook-village",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Garden of Terror",
+        "world": "enchanted-forest",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Sky Temple",
+        "world": "ancient-temple",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Braxis Holdout",
+        "world": "sci-fi-outpost",
+        "layout": "twin-gates"
+      },
+      {
+        "name": "Volskaya Foundry",
+        "world": "frozen-north",
+        "layout": "crossroads"
+      }
+    ],
+    "blueprint": {
+      "genre": "squad-royale",
+      "world": "haunted-graveyard",
+      "layout": "twin-gates",
+      "hero": "any",
+      "foes": "imps"
+    },
+    "makeItOurs": "Storybook Stadium: teams of five level up together, pick one storybook perk every few levels instead of shopping, and race to fill a magic seed patch that grows a garden giant to march down a lane for them.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Heroes_of_the_Storm",
+      "official": "https://heroesofthestorm.blizzard.com/",
+      "fandom": "https://heroesofthestorm.fandom.com/wiki/Battleground"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/0/02/Heroes_of_the_Storm_BlizzHeroes_2017_logo.png",
+      "page": "https://en.wikipedia.org/wiki/File:Heroes_of_the_Storm_BlizzHeroes_2017_logo.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Heroes_of_the_Storm",
+      "https://heroesofthestorm.fandom.com/wiki/Battleground",
+      "https://heroesofthestorm.fandom.com/wiki/Muradin",
+      "https://heroesofthestorm.fandom.com/wiki/Jaina",
+      "https://heroesofthestorm.fandom.com/wiki/Li_Li",
+      "https://heroesofthestorm.fandom.com/wiki/Abathur",
+      "https://heroesofthestorm.fandom.com/wiki/Illidan",
+      "https://heroesofthestorm.fandom.com/wiki/Valla"
+    ]
+  },
+  {
+    "id": "pokemon-unite",
+    "title": "Pokémon Unite",
+    "kind": "game",
+    "year": 2021,
+    "creators": [
+      "TiMi Studio Group",
+      "The Pokémon Company"
+    ],
+    "platforms": [
+      "Nintendo Switch",
+      "Android",
+      "iOS"
+    ],
+    "genres": [
+      "moba"
+    ],
+    "summary": "A family-friendly 5v5 MOBA with 10-minute matches where Pokémon defeat wild Pokémon for energy and dunk it into the other team's goal zones for points. Each player's Pokémon starts weak and evolves during the match, and a legendary boss near the end can swing the score.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "score-goals",
+        "how": "Instead of destroying a base, players carry energy from defeated wild Pokémon into enemy goal zones; the team with more points after 10 minutes wins."
+      },
+      {
+        "id": "class-advancement",
+        "how": "Many Pokémon evolve mid-match at set levels, gaining stats and new moves."
+      },
+      {
+        "id": "in-match-leveling",
+        "how": "Pokémon level up from wild Pokémon, scoring and knockouts, choosing between two moves at certain levels."
+      },
+      {
+        "id": "ultimate-ability",
+        "how": "Each Pokémon unlocks a Unite Move at a set level that charges over time."
+      },
+      {
+        "id": "neutral-camps",
+        "how": "Wild Pokémon spawn across the map and give experience and energy when defeated."
+      },
+      {
+        "id": "map-objectives",
+        "how": "A legendary boss appears late in the match; the team that lands the final blow can score instantly in enemy goals for 30 seconds."
+      },
+      {
+        "id": "lanes",
+        "how": "Lanes of goal zones on each side; destroying an active goal zone opens the next one behind it."
+      },
+      {
+        "id": "new:hidden-scoreboard",
+        "how": "There is no live scoreboard, only announcements near the end saying whether your team is far ahead or behind, so losing teams do not quit early."
+      },
+      {
+        "id": "new:quick-mode",
+        "how": "A Quick Battle mode runs 5-minute matches on smaller maps with three or four per team."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "Ranked matches are played on the main map."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Pikachu",
+        "archetype": "elementalist",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Thunder Shock",
+            "effect": "area-blast",
+            "does": "Fires electricity at a target area, damaging and stunning."
+          },
+          {
+            "name": "Electro Web",
+            "effect": "root",
+            "does": "Catches opposing Pokémon in an electric net, leaving them unable to move."
+          },
+          {
+            "name": "Thunder",
+            "effect": "rain-zone",
+            "does": "Drops thunderbolts on enemies in an area."
+          }
+        ]
+      },
+      {
+        "name": "Snorlax",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Tackle",
+            "effect": "dash-strike",
+            "does": "Charges belly-first, shoving the first enemy hit."
+          },
+          {
+            "name": "Rest",
+            "effect": "heal",
+            "does": "Falls asleep on the spot to restore health."
+          },
+          {
+            "name": "Heavy Slam",
+            "effect": "leap-attack",
+            "does": "Slams its body down, damaging and throwing enemies in the area."
+          },
+          {
+            "name": "Power Nap",
+            "effect": "buff",
+            "does": "Its Unite Move, a long buff."
+          }
+        ]
+      },
+      {
+        "name": "Charizard",
+        "archetype": "shapeshifter",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Flame Burst",
+            "effect": "projectile",
+            "does": "A bursting flame that burns the target and speeds Charizard up."
+          },
+          {
+            "name": "Fire Spin",
+            "effect": "damage-over-time",
+            "does": "A fire vortex that burns and slows enemies in an area."
+          },
+          {
+            "name": "Seismic Slam",
+            "effect": "leap-attack",
+            "does": "Its Unite Move: grabs an enemy and slams it down from the air."
+          }
+        ]
+      },
+      {
+        "name": "Eldegoss",
+        "archetype": "healer",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Pollen Puff",
+            "effect": "heal",
+            "does": "A puff that heals an ally or damages an enemy it sticks to."
+          },
+          {
+            "name": "Leaf Tornado",
+            "effect": "buff",
+            "does": "A tornado that leaves a trail speeding up allies."
+          },
+          {
+            "name": "Cotton Guard",
+            "effect": "shield",
+            "does": "Wraps itself and nearby allies in cotton that absorbs damage, then heals."
+          },
+          {
+            "name": "Cotton Cloud Crash",
+            "effect": "heal",
+            "does": "Its Unite Move: floats up invincible, then pounds down to shove enemies and heal allies."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Wild Pokémon",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Zapdos",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Rayquaza",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Theia Sky Ruins",
+        "world": "ancient-temple",
+        "layout": "twin-gates"
+      },
+      {
+        "name": "Remoat Stadium",
+        "world": "enchanted-forest",
+        "layout": "twin-gates"
+      }
+    ],
+    "blueprint": {
+      "genre": "squad-royale",
+      "world": "ancient-temple",
+      "layout": "twin-gates",
+      "hero": "wildwarden",
+      "foes": "spirits"
+    },
+    "makeItOurs": "Sprout Score: two teams of critter-kids catch glow-bugs in the meadow and run them into the other team's flower baskets for points, their critter growing into a bigger form mid-match, with a thunder-owl in the last two minutes that makes baskets open wide.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Pok%C3%A9mon_Unite",
+      "official": "https://unite.pokemon.com/",
+      "fandom": "https://pokemonunite.fandom.com/wiki/Theia_Sky_Ruins"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/c/c5/Pokemon_Unite_logo.png",
+      "page": "https://en.wikipedia.org/wiki/File:Pokemon_Unite_logo.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Pok%C3%A9mon_Unite",
+      "https://pokemonunite.fandom.com/wiki/Pikachu",
+      "https://pokemonunite.fandom.com/wiki/Snorlax",
+      "https://pokemonunite.fandom.com/wiki/Charizard",
+      "https://pokemonunite.fandom.com/wiki/Eldegoss",
+      "https://pokemonunite.fandom.com/wiki/Zapdos",
+      "https://pokemonunite.fandom.com/wiki/Theia_Sky_Ruins"
+    ]
+  },
+  {
+    "id": "fortnite-battle-royale",
+    "title": "Fortnite Battle Royale",
+    "aliases": [
+      "fortnite"
+    ],
+    "kind": "game",
+    "year": 2017,
+    "creators": [
+      "Epic Games"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "PlayStation",
+      "Xbox",
+      "Nintendo Switch",
+      "Android",
+      "iOS"
+    ],
+    "genres": [
+      "battle-royale",
+      "sandbox"
+    ],
+    "summary": "A free-to-play battle royale where up to 100 players skydive onto an island, loot weapons and race a shrinking storm, with a signature system for harvesting materials and building walls and ramps mid-fight. It is also a platform of seasons, live events and player-made islands.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "battle-royale-storm",
+        "how": "The safe area is the eye of a storm that shrinks over the match, and players outside it take growing damage."
+      },
+      {
+        "id": "drop-in-start",
+        "how": "Each round starts with everyone skydiving from a flying bus and choosing where to land."
+      },
+      {
+        "id": "building-in-combat",
+        "how": "A pickaxe harvests wood, stone and metal from almost anything, which players spend to build walls, floors, ramps and roofs in seconds; lighter materials build faster but break easier."
+      },
+      {
+        "id": "loot-rarity",
+        "how": "Chests at named landmarks hold weapons in rarity tiers from Common to Mythic and Exotic, with only five inventory slots."
+      },
+      {
+        "id": "downed-revive",
+        "how": "In squads a downed player can be revived, and eliminated players can be brought back at scarce reboot vans."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Solo, duos, trios or squads of four."
+      },
+      {
+        "id": "ai-opponents",
+        "how": "Bots fill matches for newer players, and hostile NPCs can be beaten for loot while friendly NPCs sell items, heal or join as allies."
+      },
+      {
+        "id": "level-editor",
+        "how": "A Creative mode and an editor let players build their own islands and modes for others to play."
+      },
+      {
+        "id": "new:no-build-mode",
+        "how": "A Zero Build mode removes building and adds a regenerating overshield instead."
+      },
+      {
+        "id": "respawn-rules",
+        "how": "A Reload mode uses smaller islands with automatic respawns until the final moments."
+      },
+      {
+        "id": "seasons",
+        "how": "One-time live events in the world, such as a rocket launch or a concert, change the island for the next season."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "Ranked and skill-based matchmaking for build and no-build play."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Hostile NPC guards",
+        "kind": "minion",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Battle Royale island",
+        "world": "farm-fields",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "battle-royale",
+      "world": "farm-fields",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "none"
+    },
+    "makeItOurs": "Pillow Fort Royale: players parachute from a hot-air balloon onto a giant bedroom, gather blocks and cushions to snap up walls and ramps, and tag each other with foam blasters while a tide of sleepy-fog rolls in from the edges.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Fortnite_Battle_Royale",
+      "official": "https://www.fortnite.com/",
+      "fandom": "https://fortnite.fandom.com/wiki/Building"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/5/53/FNBattleRoyale_Black_Text.svg",
+      "page": "https://commons.wikimedia.org/wiki/File:FNBattleRoyale_Black_Text.svg",
+      "license": "free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Fortnite_Battle_Royale",
+      "https://fortnite.fandom.com/wiki/Building"
+    ]
+  },
+  {
+    "id": "pubg-battlegrounds",
+    "title": "PUBG: Battlegrounds",
+    "aliases": [
+      "pubg",
+      "battlegrounds",
+      "battle ground"
+    ],
+    "kind": "game",
+    "year": 2017,
+    "creators": [
+      "PUBG Studios",
+      "Krafton"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation",
+      "Xbox"
+    ],
+    "genres": [
+      "battle-royale"
+    ],
+    "summary": "The game that made battle royale a genre: up to 100 players parachute onto a large map with nothing, scavenge weapons, armour and vehicles, and fight to be the last alive inside a shrinking blue wall. It plays as a grounded military shooter with long, tense rounds.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "battle-royale-storm",
+        "how": "Every few minutes the safe area shrinks toward a random spot, shown as a blue wall; players outside take rising damage."
+      },
+      {
+        "id": "drop-in-start",
+        "how": "Players jump from a plane whose flight path changes each round and decide when to parachute out."
+      },
+      {
+        "id": "loot",
+        "how": "Weapons, armour and gear are scattered at match start, with riskier areas holding better items, and defeated players can be looted."
+      },
+      {
+        "id": "new:vehicles",
+        "how": "Cars and other vehicles found on the map help players cross huge maps and outrun the zone."
+      },
+      {
+        "id": "new:supply-drops",
+        "how": "A plane drops a care package with rare items at random or where a flare gun is fired, marked by red smoke that draws fights."
+      },
+      {
+        "id": "new:bombardment-zones",
+        "how": "Random red zones are bombed during the match after a warning."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Solo, duo or squads of up to four."
+      },
+      {
+        "id": "new:perspective-modes",
+        "how": "Players can play in first or third person, and servers can force one view."
+      },
+      {
+        "id": "new:event-modes",
+        "how": "A rotating event mode changes the rules, such as larger squads or a different weapon spread."
+      }
+    ],
+    "maps": [
+      {
+        "name": "Erangel",
+        "world": "farm-fields",
+        "layout": "open-field"
+      },
+      {
+        "name": "Taego",
+        "world": "storybook-village",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "battle-royale",
+      "world": "farm-fields",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "none"
+    },
+    "makeItOurs": "Paper Plane Drop: kids glide from a paper plane onto a huge model-railway countryside, hop in toy cars, chase supply kites that drop rare water balloons, and stay ahead of a rising tide of bath bubbles.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/PUBG:_Battlegrounds",
+      "official": "https://pubg.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/9/9f/Pubgbattlegrounds.png",
+      "page": "https://en.wikipedia.org/wiki/File:Pubgbattlegrounds.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/PUBG:_Battlegrounds"
+    ]
+  },
+  {
+    "id": "apex-legends",
+    "title": "Apex Legends",
+    "aliases": [
+      "apex"
+    ],
+    "kind": "game",
+    "year": 2019,
+    "creators": [
+      "Respawn Entertainment",
+      "Electronic Arts"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation",
+      "Xbox",
+      "Nintendo Switch"
+    ],
+    "genres": [
+      "battle-royale",
+      "hero-shooter"
+    ],
+    "summary": "A free-to-play squad battle royale where trios each pick a different Legend with its own tactical, passive and ultimate ability. It added fluid movement, a smart ping system and a way to bring dead teammates back.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "hero-select",
+        "how": "Before the drop each squad member picks a Legend, and no Legend can be taken twice in one squad."
+      },
+      {
+        "id": "character-classes",
+        "how": "Legends belong to five classes (Assault, Skirmisher, Recon, Controller, Support), each with a tactical, a passive and an ultimate ability."
+      },
+      {
+        "id": "battle-royale-storm",
+        "how": "A ring closes around a random point, damaging anyone outside."
+      },
+      {
+        "id": "drop-in-start",
+        "how": "One squad member is jumpmaster and picks when and where the trio skydives, though others can break away."
+      },
+      {
+        "id": "ping-system",
+        "how": "A one-button ping marks enemies, items, places and plans for the squad without voice chat."
+      },
+      {
+        "id": "downed-revive",
+        "how": "Knocked-down players can be revived, and fully killed players can be brought back by carrying their banner to a respawn beacon before it expires."
+      },
+      {
+        "id": "new:traversal",
+        "how": "Players climb low walls, slide down slopes and ride ziplines across the map."
+      },
+      {
+        "id": "in-match-leveling",
+        "how": "Later seasons let each Legend pick upgrades to their abilities as their armour levels up during a match."
+      },
+      {
+        "id": "shops",
+        "how": "A round-based 3v3 mode had players buy weapons and ability charges between rounds."
+      },
+      {
+        "id": "co-op-party",
+        "how": "About twenty squads of three, made of friends or matched players, fight to be the last squad standing."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Wraith",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Into the Void",
+            "effect": "stealth",
+            "does": "Phases out for a few seconds to reposition while unable to be hurt."
+          },
+          {
+            "name": "Dimensional Rift",
+            "effect": "teleport",
+            "does": "Places a pair of linked portals so the squad can travel a long way safely."
+          }
+        ]
+      },
+      {
+        "name": "Bloodhound",
+        "archetype": "ranger",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Eye of the Allfather",
+            "effect": "passive",
+            "does": "A scan that reveals hidden enemies and traps ahead."
+          },
+          {
+            "name": "Beast of the Hunt",
+            "effect": "buff",
+            "does": "Gains speed and highlights enemies for a while."
+          }
+        ]
+      },
+      {
+        "name": "Lifeline",
+        "archetype": "healer",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "D.O.C. Heal Drone",
+            "effect": "heal",
+            "does": "A drone heals nearby allies over time while they are not taking damage."
+          },
+          {
+            "name": "Combat Revive",
+            "effect": "heal",
+            "does": "Her drone revives knocked teammates automatically."
+          },
+          {
+            "name": "D.O.C HALO",
+            "effect": "shield",
+            "does": "Creates a large ring shield that blocks incoming fire."
+          }
+        ]
+      },
+      {
+        "name": "Gibraltar",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Dome of Protection",
+            "effect": "shield",
+            "does": "Throws down a half-dome shield that blocks bullets."
+          },
+          {
+            "name": "Gun Shield",
+            "effect": "shield",
+            "does": "A shield forms around him while aiming."
+          },
+          {
+            "name": "Defensive Bombardment",
+            "effect": "rain-zone",
+            "does": "Calls a damaging, stunning cluster strike onto a target area."
+          }
+        ]
+      },
+      {
+        "name": "Pathfinder",
+        "archetype": "engineer",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Grappling Hook",
+            "effect": "pull",
+            "does": "Grapples to reach high places and reposition."
+          },
+          {
+            "name": "Zipline Gun",
+            "effect": "build-structure",
+            "does": "Fires a zipline the whole squad can ride."
+          }
+        ]
+      },
+      {
+        "name": "Caustic",
+        "archetype": "engineer",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Nox Gas Trap",
+            "effect": "trap",
+            "does": "Places canisters that release toxic gas when enemies come near or shoot them."
+          },
+          {
+            "name": "Nox Gas Grenade",
+            "effect": "damage-over-time",
+            "does": "Throws a grenade that fills a large area with toxic gas."
+          }
+        ]
+      }
+    ],
+    "maps": [
+      {
+        "name": "Kings Canyon",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "World's Edge",
+        "world": "lava-wastes",
+        "layout": "open-field"
+      },
+      {
+        "name": "Olympus",
+        "world": "sci-fi-outpost",
+        "layout": "open-field"
+      },
+      {
+        "name": "Storm Point",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "squad-royale",
+      "world": "desert-ruins",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "none"
+    },
+    "makeItOurs": "Glider Guild: trios of gadget-kids (a portal-maker, a bubble-shield builder, a medic with a hover-bot) drop into a canyon on gliders, ping finds to each other, ride rope-lines and carry a fallen friend's badge to a beacon to bring them back.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Apex_Legends",
+      "official": "https://www.ea.com/games/apex-legends",
+      "fandom": "https://apexlegends.fandom.com/wiki/Map"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/d/db/Apex_legends_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Apex_legends_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Apex_Legends",
+      "https://apexlegends.fandom.com/wiki/Wraith",
+      "https://apexlegends.fandom.com/wiki/Bloodhound",
+      "https://apexlegends.fandom.com/wiki/Lifeline",
+      "https://apexlegends.fandom.com/wiki/Gibraltar",
+      "https://apexlegends.fandom.com/wiki/Pathfinder",
+      "https://apexlegends.fandom.com/wiki/Caustic",
+      "https://apexlegends.fandom.com/wiki/Map"
+    ]
+  },
+  {
+    "id": "overwatch-2",
+    "title": "Overwatch 2",
+    "aliases": [
+      "overwatch"
+    ],
+    "kind": "game",
+    "year": 2023,
+    "creators": [
+      "Blizzard Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation",
+      "Xbox",
+      "Nintendo Switch"
+    ],
+    "genres": [
+      "hero-shooter"
+    ],
+    "summary": "A free-to-play first-person hero shooter where two teams of five (one tank, two damage, two support) fight over objectives such as capture points and moving payloads. Every hero has a distinct kit of abilities and a charged ultimate; the game was renamed simply Overwatch in 2026.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "character-classes",
+        "how": "Heroes fall into tank, damage and support roles, and role queue builds teams of one tank, two damage and two supports."
+      },
+      {
+        "id": "ultimate-ability",
+        "how": "Each hero has active abilities, a passive and an ultimate that charges up during play."
+      },
+      {
+        "id": "capture-points",
+        "how": "Control, Flashpoint and Clash modes have teams fight to capture and hold points, unlocking new points in turn."
+      },
+      {
+        "id": "new:escort-payload",
+        "how": "Escort and Push modes have a team move a payload or robot forward by standing next to it while no enemy is close."
+      },
+      {
+        "id": "in-match-leveling",
+        "how": "Players level up twice in a match and choose one of two perks each time that change an ability."
+      },
+      {
+        "id": "upgrade-draft",
+        "how": "A best-of-seven Stadium mode gives cash after each round to buy upgrades for your hero."
+      },
+      {
+        "id": "ping-system",
+        "how": "A ping system points teammates at places and enemies."
+      },
+      {
+        "id": "hero-draft",
+        "how": "Competitive matches let each team vote to ban two heroes for both sides."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "Competitive ranks adjust after every match with a breakdown of what moved them."
+      },
+      {
+        "id": "hero-select",
+        "how": "Players can switch heroes when they respawn to answer the enemy's team."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Reinhardt",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Barrier Field",
+            "effect": "shield",
+            "does": "Holds up a large frontal energy barrier."
+          },
+          {
+            "name": "Charge",
+            "effect": "dash-strike",
+            "does": "Charges forward and pins an enemy against a wall."
+          },
+          {
+            "name": "Fire Strike",
+            "effect": "projectile",
+            "does": "Launches a fiery projectile."
+          },
+          {
+            "name": "Earthshatter",
+            "effect": "ground-slam",
+            "does": "Knocks down all enemies in front of him."
+          }
+        ]
+      },
+      {
+        "name": "Tracer",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Blink",
+            "effect": "teleport",
+            "does": "Teleports a short way in the direction she is moving."
+          },
+          {
+            "name": "Recall",
+            "effect": "heal",
+            "does": "Travels back in time to her earlier position and health."
+          },
+          {
+            "name": "Pulse Bomb",
+            "effect": "area-blast",
+            "does": "Throws a powerful sticky explosive."
+          }
+        ]
+      },
+      {
+        "name": "Mercy",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Caduceus Staff",
+            "effect": "heal",
+            "does": "A beam that heals an ally or boosts their damage."
+          },
+          {
+            "name": "Guardian Angel",
+            "effect": "teleport",
+            "does": "Flies to an ally."
+          },
+          {
+            "name": "Resurrect",
+            "effect": "heal",
+            "does": "Revives a dead teammate."
+          },
+          {
+            "name": "Valkyrie",
+            "effect": "buff",
+            "does": "Gains flight and enhanced abilities."
+          }
+        ]
+      },
+      {
+        "name": "Mei",
+        "archetype": "elementalist",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Cryo-Freeze",
+            "effect": "shield",
+            "does": "Encases herself in ice, invulnerable while healing."
+          },
+          {
+            "name": "Ice Wall",
+            "effect": "build-structure",
+            "does": "Raises a wall of ice in front of her."
+          },
+          {
+            "name": "Blizzard",
+            "effect": "freeze-zone",
+            "does": "Launches a weather drone that freezes enemies in a wide area."
+          }
+        ]
+      },
+      {
+        "name": "Torbjörn",
+        "archetype": "engineer",
+        "role": "builder",
+        "skills": [
+          {
+            "name": "Deploy Turret",
+            "effect": "build-structure",
+            "does": "Throws down a self-building turret."
+          },
+          {
+            "name": "Overload",
+            "effect": "buff",
+            "does": "Gains extra health and faster attack, movement and reload."
+          },
+          {
+            "name": "Molten Core",
+            "effect": "damage-over-time",
+            "does": "Creates pools of molten slag that damage enemies."
+          }
+        ]
+      },
+      {
+        "name": "Lúcio",
+        "archetype": "bard",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Crossfade",
+            "effect": "heal",
+            "does": "Switches between a song that heals nearby allies and one that speeds them up."
+          },
+          {
+            "name": "Amp It Up",
+            "effect": "buff",
+            "does": "Boosts the current song's effect."
+          },
+          {
+            "name": "Soundwave",
+            "effect": "area-blast",
+            "does": "A short-range blast that knocks enemies away."
+          },
+          {
+            "name": "Sound Barrier",
+            "effect": "shield",
+            "does": "Gives nearby allies temporary extra health."
+          }
+        ]
+      }
+    ],
+    "maps": [
+      {
+        "name": "King's Row",
+        "world": "city-streets",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Ilios",
+        "world": "ancient-temple",
+        "layout": "village-square"
+      },
+      {
+        "name": "Nepal",
+        "world": "frozen-north",
+        "layout": "village-square"
+      },
+      {
+        "name": "Eichenwalde",
+        "world": "storybook-village",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Busan",
+        "world": "city-streets",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "squad-royale",
+      "world": "city-streets",
+      "layout": "village-square",
+      "hero": "any",
+      "foes": "none"
+    },
+    "makeItOurs": "Parade Push: two teams of five (one shield-carrier, two blasters, two helpers) take turns pushing a float down a carnival street while the other side tries to hold it back, each hero charging a big signature move.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Overwatch_(2023_video_game)",
+      "official": "https://overwatch.blizzard.com/",
+      "fandom": "https://overwatch.fandom.com/wiki/Maps"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/8/89/Overwatch_2_Steam_artwork.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Overwatch_2_Steam_artwork.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Overwatch_(2023_video_game)",
+      "https://overwatch.fandom.com/wiki/Reinhardt",
+      "https://overwatch.fandom.com/wiki/Tracer",
+      "https://overwatch.fandom.com/wiki/Mercy",
+      "https://overwatch.fandom.com/wiki/Mei",
+      "https://overwatch.fandom.com/wiki/Torbj%C3%B6rn",
+      "https://overwatch.fandom.com/wiki/L%C3%BAcio",
+      "https://overwatch.fandom.com/wiki/Maps"
+    ]
+  },
+  {
+    "id": "clash-royale",
+    "title": "Clash Royale",
+    "kind": "game",
+    "year": 2016,
+    "creators": [
+      "Supercell"
+    ],
+    "platforms": [
+      "Android",
+      "iOS"
+    ],
+    "genres": [
+      "rts",
+      "tower-defense",
+      "deckbuilder"
+    ],
+    "summary": "A mobile duel of three-minute battles where each player spends regenerating elixir to drop troops, buildings and spells from an eight-card deck across two lanes. Destroy more of the other side's towers, or their king tower, to win.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "deck-building",
+        "how": "Players build an eight-card deck between battles, with four cards in hand at a time cycling as they are played."
+      },
+      {
+        "id": "new:elixir-deploy",
+        "how": "Cards cost elixir that refills over time up to 10, doubling in the last minute and tripling in overtime."
+      },
+      {
+        "id": "lanes",
+        "how": "A river with two bridges splits the arena into two lanes, each guarded by a princess tower with the king tower behind."
+      },
+      {
+        "id": "new:placement-zones",
+        "how": "Troops and buildings can only be placed on your own half, but the zone grows into the enemy's half after you destroy a tower."
+      },
+      {
+        "id": "pvp",
+        "how": "One-on-one ladder battles move players through themed arenas by trophies."
+      },
+      {
+        "id": "co-op-party",
+        "how": "A 2v2 mode teams up friends or random players."
+      },
+      {
+        "id": "gear-upgrading",
+        "how": "Duplicate cards and gold upgrade a card's level, and evolutions give certain cards a special ability."
+      },
+      {
+        "id": "guilds",
+        "how": "Clans donate cards to each other and fight clan wars with four separate decks."
+      },
+      {
+        "id": "hero-draft",
+        "how": "Draft challenges have players pick between pairs of cards to build a deck on the spot."
+      },
+      {
+        "id": "auto-battle",
+        "how": "A Merge Tactics mode has four players merge units and send them into automatic battles."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Golden Knight",
+        "archetype": "knight",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Dashing Dash",
+            "effect": "dash-strike",
+            "does": "Dashes toward enemies, chain-hitting everything in his path."
+          }
+        ]
+      },
+      {
+        "name": "Archer Queen",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Cloaking Cape",
+            "effect": "stealth",
+            "does": "Turns invisible and shoots faster for a short time."
+          }
+        ]
+      },
+      {
+        "name": "Skeleton King",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Soul Summoning",
+            "effect": "summon",
+            "does": "Collects the souls of fallen troops and raises them as skeletons."
+          }
+        ]
+      },
+      {
+        "name": "Mighty Miner",
+        "archetype": "worker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Explosive Escape",
+            "effect": "teleport",
+            "does": "Burrows to the opposite lane, leaving a bomb behind."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Knight",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Goblins",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Skeleton Army",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Barbarians",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Giant",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Hog Rider",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Golem",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "P.E.K.K.A",
+        "kind": "elite",
+        "foes": "golems"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Goblin Stadium",
+        "world": "storybook-village",
+        "layout": "twin-gates"
+      },
+      {
+        "name": "Bone Pit",
+        "world": "haunted-graveyard",
+        "layout": "twin-gates"
+      },
+      {
+        "name": "Frozen Peak",
+        "world": "frozen-north",
+        "layout": "twin-gates"
+      },
+      {
+        "name": "Spell Valley",
+        "world": "enchanted-forest",
+        "layout": "twin-gates"
+      }
+    ],
+    "blueprint": {
+      "genre": "survival",
+      "world": "storybook-village",
+      "layout": "twin-gates",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Sandcastle Siege: each player holds eight shell-cards and spends rising tide-points to drop crabs, kites and splash spells over two bridges, aiming to topple the other side's sandcastle towers before the tide comes in.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Clash_Royale",
+      "official": "https://clashroyale.com/",
+      "fandom": "https://clashroyale.fandom.com/wiki/Cards"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/b/b8/Clash_Royale_game_logo.png",
+      "page": "https://en.wikipedia.org/wiki/File:Clash_Royale_game_logo.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Clash_Royale",
+      "https://clashroyale.fandom.com/wiki/Cards",
+      "https://clashroyale.fandom.com/wiki/Arenas",
+      "https://clashroyale.fandom.com/wiki/Card_Evolution",
+      "https://clashroyale.fandom.com/wiki/Golden_Knight",
+      "https://clashroyale.fandom.com/wiki/Archer_Queen",
+      "https://clashroyale.fandom.com/wiki/Skeleton_King",
+      "https://clashroyale.fandom.com/wiki/Mighty_Miner"
+    ]
+  },
+  {
+    "id": "brawl-stars",
+    "title": "Brawl Stars",
+    "kind": "game",
+    "year": 2018,
+    "creators": [
+      "Supercell"
+    ],
+    "platforms": [
+      "Android",
+      "iOS"
+    ],
+    "genres": [
+      "moba",
+      "hero-shooter",
+      "battle-royale"
+    ],
+    "summary": "A top-down mobile shooter of short 3v3 matches and a 10-player battle royale, where each Brawler has one attack and a Super charged by landing hits. Many quick modes (gem grab, soccer, heists, king of the hill) share one roster of over 100 Brawlers.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "character-classes",
+        "how": "Brawlers belong to seven classes (damage dealer, marksman, tank, assassin, support, controller, artillery)."
+      },
+      {
+        "id": "ultimate-ability",
+        "how": "Each Brawler has a basic attack and a Super that charges by hitting enemies."
+      },
+      {
+        "id": "battle-royale-storm",
+        "how": "Showdown pits 10 players (solo, duo or trio) against each other while poison clouds close in."
+      },
+      {
+        "id": "new:power-cubes",
+        "how": "In Showdown, power cubes from boxes and defeated rivals permanently raise health and damage for that match."
+      },
+      {
+        "id": "score-goals",
+        "how": "Brawl Ball has teams shoot a ball into the other goal, and Gem Grab has them hold ten gems for 15 seconds."
+      },
+      {
+        "id": "capture-points",
+        "how": "Hot Zone has teams stand in zones for a combined total time."
+      },
+      {
+        "id": "seasons",
+        "how": "Many short modes rotate (heist, bounty, knockout, duels, a lane-and-turret arena), each with its own maps."
+      },
+      {
+        "id": "level-editor",
+        "how": "A map maker lets players build maps; player votes pick a daily featured map."
+      },
+      {
+        "id": "gear-upgrading",
+        "how": "Coins and power points level up Brawlers, and gadgets, star powers, gears and hypercharges add abilities."
+      },
+      {
+        "id": "ranked-matchmaking",
+        "how": "Ranked play climbs from Bronze to Pro with random 3v3 modes."
+      },
+      {
+        "id": "guilds",
+        "how": "Clubs team up for a monthly event where each win adds to the club's reward."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Shelly",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Buckshot",
+            "effect": "projectile",
+            "does": "A wide spread of pellets that hurts more up close."
+          },
+          {
+            "name": "Super Shell",
+            "effect": "area-blast",
+            "does": "A huge blast that breaks cover and knocks survivors back."
+          }
+        ]
+      },
+      {
+        "name": "Colt",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Six-Shooters",
+            "effect": "projectile",
+            "does": "Fires a long, straight volley of six bullets."
+          },
+          {
+            "name": "Bullet Storm",
+            "effect": "piercing-bolt",
+            "does": "Fires twelve piercing bullets that go extra far and break cover."
+          }
+        ]
+      },
+      {
+        "name": "El Primo",
+        "archetype": "monk",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Fists of Fury",
+            "effect": "melee-flurry",
+            "does": "A quick flurry of four close-range punches."
+          },
+          {
+            "name": "Flying Elbow Drop",
+            "effect": "leap-attack",
+            "does": "Leaps high and lands to damage and knock back enemies, breaking cover."
+          }
+        ]
+      },
+      {
+        "name": "Poco",
+        "archetype": "bard",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Power Chord",
+            "effect": "heal",
+            "does": "A wide sound wave that damages enemies and heals allies."
+          },
+          {
+            "name": "Encore",
+            "effect": "heal",
+            "does": "A bigger wave that heals him and every teammate it reaches."
+          }
+        ]
+      },
+      {
+        "name": "Jessie",
+        "archetype": "engineer",
+        "role": "builder",
+        "skills": [
+          {
+            "name": "Shock Rifle",
+            "effect": "chain-hit",
+            "does": "An energy orb that bounces between up to three enemies."
+          },
+          {
+            "name": "Scrappy!",
+            "effect": "build-structure",
+            "does": "Throws down a gun turret that shoots enemies on its own."
+          }
+        ]
+      },
+      {
+        "name": "Spike",
+        "archetype": "elementalist",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Needle Grenade",
+            "effect": "area-blast",
+            "does": "A cactus that bursts into spikes in every direction."
+          },
+          {
+            "name": "Stick Around!",
+            "effect": "damage-over-time",
+            "does": "Lobs a grenade that leaves a patch of spikes that damages and slows."
+          }
+        ]
+      }
+    ],
+    "maps": [
+      {
+        "name": "Showdown maps",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "Brawl Ball arenas",
+        "world": "city-streets",
+        "layout": "twin-gates"
+      }
+    ],
+    "blueprint": {
+      "genre": "squad-royale",
+      "world": "desert-ruins",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "none"
+    },
+    "makeItOurs": "Pocket Party Brawl: ten pocket-sized heroes with one trick and one charged super each race to grab glow-cubes in a shrinking sandbox, with quick team side modes like dodge-ball goals and jelly-bean grab.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Brawl_Stars",
+      "official": "https://supercell.com/en/games/brawlstars/",
+      "fandom": "https://brawlstars.fandom.com/wiki/Showdown"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/b/b2/Brawl_Stars_logo_2025.svg",
+      "page": "https://en.wikipedia.org/wiki/File:Brawl_Stars_logo_2025.svg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Brawl_Stars",
+      "https://brawlstars.fandom.com/wiki/Showdown",
+      "https://brawlstars.fandom.com/wiki/Shelly",
+      "https://brawlstars.fandom.com/wiki/Colt",
+      "https://brawlstars.fandom.com/wiki/El_Primo",
+      "https://brawlstars.fandom.com/wiki/Poco",
+      "https://brawlstars.fandom.com/wiki/Jessie",
+      "https://brawlstars.fandom.com/wiki/Spike"
+    ]
+  }
+]

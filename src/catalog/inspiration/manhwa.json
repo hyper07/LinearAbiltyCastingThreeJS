@@ -1,0 +1,1779 @@
+[
+  {
+    "id": "solo-leveling",
+    "title": "Solo Leveling",
+    "kind": "manhwa",
+    "year": 2018,
+    "creators": [
+      "Chugong (original web novel, 2016)",
+      "Jang Sung-rak (Dubu) (art)",
+      "Redice Studio"
+    ],
+    "platforms": [
+      "KakaoPage",
+      "Tapas"
+    ],
+    "genres": [
+      "action-rpg",
+      "dungeon-crawler",
+      "hack-and-slash"
+    ],
+    "summary": "In a world where gates open onto monster dungeons, the weakest E-rank hunter survives a deadly double dungeon and becomes the only player of a hidden game-like System that lets him level up. He grows from a nobody into the Shadow Monarch, commanding an army of the dead in a war between Monarchs and Rulers.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "dungeon-portals",
+        "how": "Gates open across the world onto monster-filled dungeons, and hunters or guilds go in to clear them before they become a danger."
+      },
+      {
+        "id": "rank-system",
+        "how": "Every awakened hunter is measured once by a mana-reading crystal and graded E, D, C, B, A or S, with an unofficial National Level tier above S; gates carry ranks too."
+      },
+      {
+        "id": "dungeon-break",
+        "how": "A gate that is not cleared in time breaks open and its monsters pour out into the city, so every gate is on a clock. A rare gate disguised as a normal one seals its raiders inside until the boss dies, everyone dies, or it breaks, with time inside running about a day per real-world hour and harsh weather as a second enemy."
+      },
+      {
+        "id": "daily-quests",
+        "how": "The System sets the same training quest every day (100 push-ups, 100 sit-ups, 100 squats and a 10 km run) and pays out rewards for finishing it."
+      },
+      {
+        "id": "new:penalty-zone",
+        "how": "Skipping the daily quest teleports the player to a desert penalty zone where he must survive for four hours against a giant monster."
+      },
+      {
+        "id": "stat-points",
+        "how": "A status window shows Strength, Agility, Intelligence, Vitality and Perception; levels from quests and kills give points that he spends on them himself."
+      },
+      {
+        "id": "class-advancement",
+        "how": "At level 40 the System gives a job-change quest in a private dungeon; beating the knight boss turns his class from Assassin into Necromancer, which then becomes Shadow Monarch."
+      },
+      {
+        "id": "shadow-army",
+        "how": "He pulls the shadows out of fallen enemies (and allies) to raise them as loyal soldiers who level up, climb grades from basic to Grand Marshal, rest in his shadow, and can swap places with him."
+      },
+      {
+        "id": "instant-dungeon",
+        "how": "System-made private dungeons that only he can enter with a key, such as the S-rank Demon Castle, a 100-floor climb with the Demon Monarch at the top."
+      },
+      {
+        "id": "guilds",
+        "how": "Hunters join guilds led by S-rank guild masters that compete to recruit strong hunters and win gate clearing rights."
+      },
+      {
+        "id": "raids",
+        "how": "Huge multinational raids, like the Jeju Island raids against an island overrun by giant ants and their king, gather many hunters against one S-rank threat."
+      },
+      {
+        "id": "grid-inventory",
+        "how": "The System's inventory carries his gear and supplies anywhere, for example winter clothing for a whole party trapped in a frozen gate."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Sung Jin-woo",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "signature": "Once the weakest E-rank hunter, the System's only player who becomes the Shadow Monarch and raises an army of shadows."
+      },
+      {
+        "name": "Cha Hae-in",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "An S-rank hunter who fights at Jin-woo's side and becomes his love interest."
+      },
+      {
+        "name": "Go Gun-hee",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "Chairman of the Korean Hunters Association who oversees the country's gates and hunters."
+      },
+      {
+        "name": "Yoo Jin-ho",
+        "archetype": "warrior",
+        "role": "support",
+        "signature": "A rich young hunter who becomes Jin-woo's sworn brother and raid partner."
+      },
+      {
+        "name": "Thomas Andre",
+        "archetype": "berserker",
+        "role": "tank",
+        "signature": "An American National Level Hunter and guild master called Goliath, one of the strongest humans alive."
+      },
+      {
+        "name": "Igris",
+        "archetype": "knight",
+        "role": "melee-dps",
+        "signature": "The Blood-Red Commander, a knight boss of the job-change quest who becomes Jin-woo's first great shadow soldier."
+      },
+      {
+        "name": "Beru",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "The Ant King of Jeju Island, extracted as one of the most powerful shadows of the army."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Ice Elves",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Baruka, leader of the Ice Elves",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Giant ants of Jeju Island",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "The Ant King",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Baran, Demon Monarch of White Flames",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Kamish, the dragon",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The double dungeon",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "The Penalty Zone desert",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "The Ice Elf red gate",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "The Demon Castle",
+        "world": "lava-wastes",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Jeju Island",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "dragon-dungeon",
+      "layout": "gauntlet",
+      "hero": "bonecaller",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Rift Runner: a lowest-grade courier gets a glowing quest journal that sets daily chores, punishes skipped days with a sandstorm trial, and lets the courier bind defeated monsters as lantern-wraith companions that grow with every rift cleared.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Solo_Leveling",
+      "fandom": "https://solo-leveling.fandom.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/6c/Solo_Leveling_Volume_1_Cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Solo_Leveling_Volume_1_Cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Solo_Leveling",
+      "https://en.wikipedia.org/wiki/Sung_Jin-woo",
+      "https://epicstream.com/article/what-is-solo-leveling-daily-quest-sung-jin-woo-workout",
+      "https://beebom.com/solo-leveling-sung-jinwoo-shadow-monarch",
+      "https://beebom.com/solo-leveling-hunters-guilds-explained",
+      "https://beebom.com/red-gates-solo-leveling-explained",
+      "https://www.chapterbrief.net/blog/solo-leveling-power-system-explained"
+    ]
+  },
+  {
+    "id": "solo-leveling-arise",
+    "title": "Solo Leveling: Arise",
+    "kind": "game",
+    "year": 2024,
+    "creators": [
+      "Netmarble Neo",
+      "Netmarble"
+    ],
+    "platforms": [
+      "iOS",
+      "Android",
+      "PC",
+      "Steam (Arise Overdrive, 2025)",
+      "Xbox PC (Arise Overdrive, 2025)"
+    ],
+    "genres": [
+      "action-rpg",
+      "gacha-rpg",
+      "hack-and-slash"
+    ],
+    "summary": "An action RPG of the Solo Leveling webtoon where you play Sung Jin-woo and recruited hunters through the story, clearing gates, raiding bosses and extracting shadows of defeated foes to fight beside you. A premium PC edition, Arise Overdrive, followed on Steam and Xbox PC in November 2025.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "real-time-combat",
+        "how": "Fast action fights with skill and weapon combinations, built around clearing gates and beating bosses."
+      },
+      {
+        "id": "character-classes",
+        "how": "Besides Jin-woo you collect hunters from the webtoon, each with an element (wind, water and others), a faction and a kit with an ultimate skill."
+      },
+      {
+        "id": "shadow-army",
+        "how": "Defeated enemies can be extracted as shadows that fight alongside you; some shadows carry a leader effect, such as raising the whole team's water damage."
+      },
+      {
+        "id": "stat-points",
+        "how": "Every level gives Jin-woo five points to put into Strength, Vitality, Agility, Intelligence or Perception, and they can be reset for gold."
+      },
+      {
+        "id": "class-advancement",
+        "how": "Jin-woo's job changes through the story, from Assassin to Necromancer and on to Monarch of Shadows, unlocking the shadow army."
+      },
+      {
+        "id": "dungeon-portals",
+        "how": "A Gates mode offers dungeon types such as Normal, Red, Special, Bonus and Dungeon Break gates."
+      },
+      {
+        "id": "story-chapters",
+        "how": "A Story Mode of numbered chapters with story, battle and boss stages, plus Hard and Reverse versions that change which hunters you may use."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Instance Dungeons let you rematch story bosses, and later updates add bosses like the Demon Monarch Baran."
+      },
+      {
+        "id": "tower-climb",
+        "how": "Battlefield of Trials is a floor-by-floor challenge that has been extended up to floor 70."
+      },
+      {
+        "id": "new:roster-restricted-modes",
+        "how": "Encore Missions bar Jin-woo so you must clear them with your other hunters, while other modes allow only Jin-woo."
+      },
+      {
+        "id": "guilds",
+        "how": "Guilds fight a shared guild boss and compete in an All-Out Guild War ranked by total damage and team Rage, with six hunters per lineup."
+      },
+      {
+        "id": "gear-upgrading",
+        "how": "Artifact sets and accessories are levelled and reforged step by step with Reforge Stones earned in dungeons."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Arise Overdrive adds four-player co-op raids and cooperative challenges."
+      },
+      {
+        "id": "gacha",
+        "how": "Hunters and weapons come from draw banners and draw tickets (a paid random draw: avoid)."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Sung Jin-woo",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "signature": "The main playable hunter, growing from the weakest hunter into the Monarch of Shadows who commands extracted shadows."
+      },
+      {
+        "name": "Cha Hae-in",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "S-rank hunter from the webtoon, available as a recruitable hunter."
+      },
+      {
+        "name": "Yoo Jin-ho",
+        "archetype": "warrior",
+        "signature": "Jin-woo's partner from the webtoon, available as a recruitable hunter."
+      },
+      {
+        "name": "Sugimoto Reiji",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "A wind-element Blade Guild swordsman whose ultimate is a flurry of slashes."
+      },
+      {
+        "name": "Seorin",
+        "archetype": "gunner",
+        "role": "tank",
+        "signature": "A water-element front-liner on a motorbike who fires ice-infused shots and breaks enemy lines."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Baran, Monarch of White Flames",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Manticore (guild boss)",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Giant Butcher Hars",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Gates",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Battlefield of Trials",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "dragon-dungeon",
+      "layout": "boss-lair",
+      "hero": "bonecaller",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Lanternfall Raids: a party of rift-wardens dives into coloured rifts (calm blue, sealed crimson, collapsing grey), and each defeated boss can be bound as a lantern-wraith whose leader bonus colours the whole team's attacks.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Solo_Leveling",
+      "official": "https://apps.apple.com/app/id1662742277",
+      "fandom": "https://solo-leveling-arise.fandom.com/"
+    },
+    "image": null,
+    "sources": [
+      "https://en.wikipedia.org/wiki/Solo_Leveling",
+      "https://gematsu.com/games/solo-leveling-arise",
+      "https://www.invenglobal.com/articles/19926/solo-leveling-arise-overdrive-is-out-now-on-steam-and-xbox-pc",
+      "https://labs.invenglobal.com/articles/19283/netmarble-updates-solo-leveling-arise-with-new-ssr-hunter-and-global-tournament",
+      "https://www.pocketgamer.com/solo-leveling-arise/sugimoto-reiji-update",
+      "https://game8.co/games/Solo-Leveling-Arise/archives/457435"
+    ]
+  },
+  {
+    "id": "tower-of-god",
+    "title": "Tower of God",
+    "kind": "manhwa",
+    "year": 2010,
+    "creators": [
+      "SIU (Lee Jong-hui)"
+    ],
+    "platforms": [
+      "Naver Webtoon",
+      "WEBTOON"
+    ],
+    "genres": [
+      "story-adventure",
+      "action-rpg",
+      "tactical-rpg"
+    ],
+    "summary": "Bam, who grew up beneath a vast Tower, opens its door to follow his friend Rachel and climbs it floor by floor, passing tests of strength, speed and wit. Climbers called Regulars form teams with set positions and fight with Shinsu, the Tower's magic-like water.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "tower-climb",
+        "how": "The world is a Tower of floors, each its own land with its own test; passing tests moves Regulars up, and those who reach the top become Rankers."
+      },
+      {
+        "id": "character-classes",
+        "how": "Teams are built from five positions: Fisherman (front fighter), Spear Bearer (fighting support), Light Bearer (long-range scouting and coordination), Scout (on-ground scouting) and Wave Controller (Shinsu control)."
+      },
+      {
+        "id": "mana-resource",
+        "how": "Shinsu fills the Tower, gets denser on higher floors, is used through contracts with floor guardians, and is measured in units called baang."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Floor tests are passed as teams, so who you climb with and how the positions mix matters as much as raw power."
+      },
+      {
+        "id": "rank-system",
+        "how": "Status runs from Regulars to Rankers, with the Ten Great Families and King Jahad ruling the top and outsiders called Irregulars upsetting the order."
+      },
+      {
+        "id": "puzzles",
+        "how": "Many floor tests are games of wit and trickery rather than plain fights, such as a crown game that decides team positions."
+      },
+      {
+        "id": "growing-weapon",
+        "how": "Legendary Ignition Weapons like the thirteen Month Series (Black March, Green April) are famous named items that change hands between characters."
+      },
+      {
+        "id": "gacha",
+        "how": "Its game adaptations, such as the collectible card RPG Tower of God: New World and the turn-based Great Journey, use character draws (avoid)."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Fisherman",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Ray Barracuda (Urek Mazino's style)",
+            "effect": "piercing-bolt",
+            "does": "Fires Shinsu at extreme speed straight through a target."
+          },
+          {
+            "name": "Frontline assault",
+            "effect": "melee-flurry",
+            "does": "The fisherman's job is to fight the enemy head-on in close combat."
+          }
+        ]
+      },
+      {
+        "name": "Spear Bearer",
+        "archetype": "spearman",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Spear support",
+            "effect": "projectile",
+            "does": "Backs the fisherman with weapon attacks from behind the front line."
+          },
+          {
+            "name": "Compression Lisensor (Rak's ability)",
+            "effect": "transform",
+            "does": "Shrinks the user's body down to a small size."
+          }
+        ]
+      },
+      {
+        "name": "Light Bearer",
+        "archetype": "bard",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Lighthouse scouting",
+            "effect": "buff",
+            "does": "Uses lighthouse devices to scout from afar and coordinate the team."
+          }
+        ]
+      },
+      {
+        "name": "Scout",
+        "archetype": "rogue",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Ground reconnaissance",
+            "effect": "stealth",
+            "does": "Moves ahead of the team to find enemies on the ground."
+          }
+        ]
+      },
+      {
+        "name": "Wave Controller",
+        "archetype": "elementalist",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Shinsu control",
+            "effect": "slow-orb",
+            "does": "Shapes and throws Shinsu to strike and hamper enemies."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "Twenty-Fifth Bam",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "An Irregular who opened the Tower's door to follow Rachel and whose powers resemble no earlier Irregular."
+      },
+      {
+        "name": "Khun Aguero Agnis",
+        "archetype": "bard",
+        "role": "support",
+        "signature": "A strategist from the Khun family who usually plays Light Bearer."
+      },
+      {
+        "name": "Rak Wraithraiser",
+        "archetype": "spearman",
+        "role": "ranged-dps",
+        "signature": "A reptilian Spear Bearer hunting strong prey, able to shrink himself and control stone."
+      },
+      {
+        "name": "Yuri Ha Jahad",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "A Jahad princess who owns the Ignition Weapons Black March and Green April."
+      },
+      {
+        "name": "Urek Mazino",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "A Ranker fisherman whose Ray Barracuda fires Shinsu at extreme speed."
+      },
+      {
+        "name": "Shibisu",
+        "archetype": "rogue",
+        "role": "support",
+        "signature": "Scout and leader of team Isu."
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Tower's test floors",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "ancient-temple",
+      "layout": "gauntlet",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Spire of Trials: a squad picks five roles (striker, lancer, lamplighter, pathfinder, tide-caller) and climbs a spire where every floor is a different test, some fights and some riddles, and the tide of magic gets thicker the higher you go.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Tower_of_God",
+      "official": "https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95",
+      "fandom": "https://towerofgod.fandom.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/7/7d/Tower_of_God_Volume_1_Cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Tower_of_God_Volume_1_Cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Tower_of_God",
+      "https://en.wikipedia.org/wiki/List_of_Tower_of_God_characters",
+      "https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95",
+      "https://www.destructoid.com/10-best-tower-climbing-manhwa-to-dive-into/"
+    ]
+  },
+  {
+    "id": "the-beginning-after-the-end",
+    "title": "The Beginning After the End",
+    "aliases": [
+      "tbate"
+    ],
+    "kind": "web-novel",
+    "year": 2017,
+    "creators": [
+      "TurtleMe (Brandon Lee)",
+      "Fuyuki23 (webtoon art)"
+    ],
+    "platforms": [
+      "Tapas",
+      "Yen Press (print)"
+    ],
+    "genres": [
+      "story-adventure",
+      "action-rpg"
+    ],
+    "summary": "King Grey is reborn as Arthur Leywin in Dicathen, a land of magic, races and mana beasts, and grows up with a bonded dragon while trying not to repeat his past life's mistakes. A war against the Vritra, a clan of banished deities, later forces him to lead.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "regression",
+        "how": "The hero starts life again as a baby with all the memories and skill of a former king, so early childhood is a fast, knowing climb."
+      },
+      {
+        "id": "rank-system",
+        "how": "A mage's mana core changes colour as it grows, from black through red, orange, yellow and silver to white, each stage taking hard training."
+      },
+      {
+        "id": "character-classes",
+        "how": "Mages split into augmenters, who pour mana into their bodies for close combat, and conjurers, who cast elemental spells from range."
+      },
+      {
+        "id": "elemental-reactions",
+        "how": "Mages have affinities for fire, water, earth or wind, rare ones awaken advanced elements like lightning, ice or gravity, and the hero can use them all."
+      },
+      {
+        "id": "pets",
+        "how": "Arthur raises Sylvie, a dragon hatched from a gift crystal, who bonds to him and grows into a full dragon."
+      },
+      {
+        "id": "new:beast-will",
+        "how": "Mages can make contracts with powerful beasts to gain the beast's will as an extra power."
+      },
+      {
+        "id": "co-op-party",
+        "how": "As a young adventurer Arthur travels with a party, the Twin Horns, taking on adventurer jobs."
+      },
+      {
+        "id": "story-chapters",
+        "how": "The story moves from a family life in Sapin to a continent-wide war led by the Six Lances, two humans, two elves and two dwarves."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Arthur Leywin (King Grey)",
+        "archetype": "elementalist",
+        "role": "melee-dps",
+        "signature": "A reborn king who augments with all four elements plus lightning and ice, and later gains aether."
+      },
+      {
+        "name": "Sylvie",
+        "archetype": "shapeshifter",
+        "role": "support",
+        "signature": "A black dragon hatched from Sylvia's crystal who sees Arthur as her father and fights at his side."
+      },
+      {
+        "name": "The Six Lances",
+        "archetype": "knight",
+        "role": "tank",
+        "signature": "The continent's peace-keeping champions, two from each of the human, elf and dwarf nations."
+      },
+      {
+        "name": "The Twin Horns",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "The adventurer party young Arthur joins."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "The Vritra",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Sapin, the human kingdom",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "Elenoir, the elven forest",
+        "world": "enchanted-forest",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Darv, the underground dwarf nation",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "crossroads",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Second Dawn: a reborn wizard-child raises a hatchling wyrm while a heart-crystal glows through colour bands as it grows, choosing at each band between a body-forging path or a spell-throwing path.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/The_Beginning_After_the_End",
+      "fandom": "https://tbate.fandom.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/c/cc/The_Beginning_After_the_End_webtoon_volume_1_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:The_Beginning_After_the_End_webtoon_volume_1_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/The_Beginning_After_the_End",
+      "https://thenerdsjunction.com/post/the-beginning-after-the-end-power-system"
+    ]
+  },
+  {
+    "id": "omniscient-readers-viewpoint",
+    "title": "Omniscient Reader's Viewpoint",
+    "aliases": [
+      "orv",
+      "omniscient reader"
+    ],
+    "kind": "web-novel",
+    "year": 2018,
+    "creators": [
+      "Sing Shong (singNsong)",
+      "UMI (webtoon adaptation)",
+      "Sleepy-C (webtoon art)"
+    ],
+    "platforms": [
+      "Munpia",
+      "Naver Webtoon",
+      "WEBTOON"
+    ],
+    "genres": [
+      "story-adventure",
+      "action-rpg"
+    ],
+    "summary": "Office worker Kim Dokja is the only person who finished a long web novel about surviving the apocalypse, and when its events come true he uses his knowledge of the plot to change the ending. Goblin-like dokkaebi run deadly scenarios while watching constellations sponsor the survivors.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "quests",
+        "how": "Dokkaebi impose scenarios on everyone at once, survival missions with deadlines and rewards that escalate in danger story by story."
+      },
+      {
+        "id": "new:sponsor-constellations",
+        "how": "Watching constellations pick incarnations to sponsor and give them coins, items, skills and stigma powers."
+      },
+      {
+        "id": "new:audience-streaming",
+        "how": "The dokkaebi broadcast the scenarios to the constellations like a live channel, and the audience's attention shapes rewards."
+      },
+      {
+        "id": "currency",
+        "how": "Coins earned in scenarios buy items, are traded, and can pay for probability, the force that limits how far constellations may interfere."
+      },
+      {
+        "id": "regression",
+        "how": "The original novel's hero, Yoo Joonghyuk, regresses back in time each time his run fails."
+      },
+      {
+        "id": "new:foreknowledge",
+        "how": "The hero wins by knowing the plot ahead of time, steering events and recruiting allies before the story reaches them."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Dokja gathers a company of survivors who clear scenarios together."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Kim Dokja",
+        "archetype": "bard",
+        "role": "support",
+        "signature": "The only reader who finished the novel, using what he knows to rewrite the apocalypse."
+      },
+      {
+        "name": "Yoo Joonghyuk",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "The original novel's protagonist, a regressor who returns to the past whenever he dies."
+      },
+      {
+        "name": "Han Sooyoung",
+        "archetype": "rogue",
+        "role": "support",
+        "signature": "A writer who plagiarised the novel and often ends up as the group's unofficial leader."
+      },
+      {
+        "name": "Jung Heewon",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "One of Dokja's closest companions in the scenarios."
+      }
+    ],
+    "blueprint": {
+      "genre": "survival",
+      "world": "city-streets",
+      "layout": "open-field",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Chapter Zero: the city becomes a storybook whose narrator-imps hand out timed chapters to survive, while sky-spirits in the audience gift stickers of power to the readers they like best.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Omniscient_Reader%27s_Viewpoint",
+      "official": "https://www.webtoons.com/en/action/omniscient-reader/list?title_no=2154"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/69/Omniscient_Reader%27s_Viewpoint_Volume_1_Cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Omniscient_Reader%27s_Viewpoint_Volume_1_Cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Omniscient_Reader%27s_Viewpoint",
+      "https://www.webtoons.com/en/action/omniscient-reader/list?title_no=2154"
+    ]
+  },
+  {
+    "id": "overgeared",
+    "title": "Overgeared",
+    "kind": "web-novel",
+    "year": 2014,
+    "creators": [
+      "Park Saenal",
+      "Monohumbug (Redice Studio, webtoon adaptation)",
+      "Team Argo (webtoon art)"
+    ],
+    "platforms": [
+      "KakaoPage",
+      "WEBTOON"
+    ],
+    "genres": [
+      "mmorpg",
+      "action-rpg"
+    ],
+    "summary": "Down-on-his-luck Shin Young-woo plays the VR game Satisfy as Grid until an S-rank quest makes him Pagma's Successor, a legendary blacksmith class. Forging legendary gear turns him from a nobody into a power in the game.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:vr-game-world",
+        "how": "The whole story happens inside a full-dive VR MMORPG, so real-life money and status ride on in-game success."
+      },
+      {
+        "id": "crafting",
+        "how": "The hero is a legendary blacksmith whose craftsmanship skill slowly raises his chance of forging legendary weapons and armour."
+      },
+      {
+        "id": "class-advancement",
+        "how": "A rare S-rank quest gives a scroll that turns him into a hidden legendary class, and later he gains a second class, Apostle of Justice."
+      },
+      {
+        "id": "loot-rarity",
+        "how": "Items run up to legendary grade, and his class lets him equip every item regardless of its class limits."
+      },
+      {
+        "id": "character-classes",
+        "how": "Players hold distinct classes such as a top-ranked Black Mage, a skill-copying Duplicator and an Orator."
+      },
+      {
+        "id": "quests",
+        "how": "Rare high-rank quests are the gateway to legendary classes and items."
+      },
+      {
+        "id": "guilds",
+        "how": "Player guilds such as the Tzedakah Guild compete and clash inside Satisfy."
+      },
+      {
+        "id": "npc-dialogue",
+        "how": "NPCs like Irene and Regas react to the hero and become lasting allies."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Grid (Shin Young-woo)",
+        "archetype": "engineer",
+        "role": "builder",
+        "signature": "Pagma's Successor, the legendary blacksmith who forges his own overpowered gear."
+      },
+      {
+        "name": "Yura",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A top-ranked Black Mage."
+      },
+      {
+        "name": "Euphemina",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A player with the Duplicator class."
+      },
+      {
+        "name": "Huroi",
+        "archetype": "bard",
+        "role": "support",
+        "signature": "A player with the Orator class."
+      }
+    ],
+    "maps": [
+      {
+        "name": "Windmill Village (level 100 monsters)",
+        "world": "farm-fields",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "storybook-village",
+      "layout": "village-square",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Anvilheart: a clumsy apprentice at a village forge discovers a hidden smith-hero calling, crafts gear that can be worn by any class, and outfits a party that grows from the village to the capital.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Overgeared",
+      "official": "https://www.webtoons.com/en/action/overgeared/list?title_no=10941"
+    },
+    "image": null,
+    "sources": [
+      "https://en.wikipedia.org/wiki/Overgeared",
+      "https://www.webtoons.com/en/action/overgeared/list?title_no=10941"
+    ]
+  },
+  {
+    "id": "the-greatest-estate-developer",
+    "title": "The Greatest Estate Developer",
+    "kind": "manhwa",
+    "year": 2021,
+    "creators": [
+      "BK_Moon (original web novel, 2019)",
+      "Lee Hyun-min (adaptation)",
+      "Kim Hyun-soo (art)"
+    ],
+    "platforms": [
+      "Naver Webtoon",
+      "WEBTOON"
+    ],
+    "genres": [
+      "story-adventure",
+      "life-sim"
+    ],
+    "summary": "A civil engineering student wakes up inside a fantasy novel as Lloyd Frontera, a lazy noble whose family is drowning in debt. He uses modern engineering, a knight, a giant hamster and magic to build his way out of a grim fate.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "base-building",
+        "how": "The hero develops his family's estate with modern infrastructure and inventions instead of fighting his way up."
+      },
+      {
+        "id": "new:transmigration",
+        "how": "He wakes inside the body of a minor character of a novel he was reading, knowing roughly how the story goes."
+      },
+      {
+        "id": "crafting",
+        "how": "Engineering know-how turns into fantasy-world inventions that solve the estate's problems."
+      },
+      {
+        "id": "new:debt-economy",
+        "how": "The family's crushing debt is the clock and the score: every project has to earn money back."
+      },
+      {
+        "id": "pets",
+        "how": "A giant hamster joins Lloyd as one of his companions."
+      },
+      {
+        "id": "npc-dialogue",
+        "how": "The original novel's hero, a knight, serves as Lloyd's personal guard and comic foil."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Lloyd Frontera",
+        "archetype": "engineer",
+        "role": "builder",
+        "signature": "A civil engineer reborn as an indebted noble, who builds his way to fortune."
+      },
+      {
+        "name": "Javier Asrahan",
+        "archetype": "knight",
+        "role": "tank",
+        "signature": "Protagonist of the original novel, a future sword grandmaster serving as Lloyd's loyal bodyguard."
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Frontera estate",
+        "world": "farm-fields",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "farm-fields",
+      "layout": "village-square",
+      "hero": "knight",
+      "foes": "imps"
+    },
+    "makeItOurs": "Bridgewright Manor: a young lord with a toolbelt rebuilds a debt-ridden valley one mill, road and bridge at a time, guarded by a stern squire and helped by a round, pocket-stuffing pet.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/The_Greatest_Estate_Developer",
+      "official": "https://www.webtoons.com/en/fantasy/the-greatest-estate-developer/list?title_no=3596"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/f/f6/The_Greatest_Estate_Developer_Volume_1_Cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:The_Greatest_Estate_Developer_Volume_1_Cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/The_Greatest_Estate_Developer",
+      "https://www.webtoons.com/en/fantasy/the-greatest-estate-developer/list?title_no=3596",
+      "https://myanimelist.net/character/225030/Javier_Asrahan"
+    ]
+  },
+  {
+    "id": "second-life-ranker",
+    "title": "Second Life Ranker",
+    "kind": "manhwa",
+    "year": 2019,
+    "creators": [
+      "Sadoyeon (story)",
+      "Nongnong (art)"
+    ],
+    "platforms": [
+      "KakaoPage",
+      "Tapas"
+    ],
+    "genres": [
+      "action-rpg",
+      "dungeon-crawler"
+    ],
+    "summary": "Cha Yeon-woo learns his twin brother was betrayed and killed while climbing the Tower of the Sun God, then finds the brother's hidden diary in a pocket watch. Climbing under the name Cain with the diary as his guide, he hunts his brother's killers.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "tower-climb",
+        "how": "The Obelisk is a tower of floors, starting from a Tutorial floor (Floor 0) watched by a floor guardian."
+      },
+      {
+        "id": "new:inherited-guidebook",
+        "how": "The dead brother's encrypted diary works as a floor-by-floor guide, until it runs out where his writing stops."
+      },
+      {
+        "id": "leaderboards",
+        "how": "Climbers are ranked on public Tutorial rankings, where rookies make a name for themselves."
+      },
+      {
+        "id": "guilds",
+        "how": "Powerful clans such as Arthia and Cheonghwado, led by high-rankers, rule the tower's politics."
+      },
+      {
+        "id": "summons",
+        "how": "Yeon-woo gathers beast companions such as a phoenix and dragons that fight for him."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Floor guardians and the Tower's Nine Kings stand as the great powers to overcome."
+      },
+      {
+        "id": "new:dragon-form",
+        "how": "His inherited power makes him a Dragon Human, the strength that lets him climb at all."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Cha Yeon-woo (Cain)",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "A former special-forces soldier and Dragon Human climbing the tower to avenge his twin."
+      },
+      {
+        "name": "Edora",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "A princess of the One-Horned Tribe who grows close to Cain."
+      },
+      {
+        "name": "Nayu, the Martial King",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "signature": "Ruler of the One-Horned Tribe and one of the Tower's Nine Kings."
+      },
+      {
+        "name": "Yvlke",
+        "archetype": "commander",
+        "role": "support",
+        "signature": "Guardian of the Tutorial floor and a leader among the floor guardians."
+      },
+      {
+        "name": "Leonte, the Fist God",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "signature": "A Cheonghwado high-ranker and one of the five who killed Yeon-woo's brother."
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Tutorial floor (Floor 0)",
+        "world": "ancient-temple",
+        "layout": "crossroads"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "ancient-temple",
+      "layout": "gauntlet",
+      "hero": "shadowblade",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Twin's Ledger: a hero climbs a spire using a sibling's scribbled map-book, whose notes reveal hidden shortcuts on each floor until the pages go blank and the hero must chart the rest alone.",
+    "links": {
+      "official": "https://myanimelist.net/manga/147324",
+      "fandom": "https://second-life-ranker.fandom.com/wiki/Second_Life_Ranker_Wiki"
+    },
+    "image": null,
+    "sources": [
+      "https://myanimelist.net/manga/147324",
+      "https://www.chapterbrief.net/blog/second-life-ranker-character-guide",
+      "https://www.destructoid.com/10-best-tower-climbing-manhwa-to-dive-into/"
+    ]
+  },
+  {
+    "id": "return-of-the-disaster-class-hero",
+    "title": "The Return of the Disaster-Class Hero",
+    "kind": "manhwa",
+    "year": 2021,
+    "creators": [
+      "HEATS (Redice Studio)",
+      "SAN.G",
+      "BGman (art)"
+    ],
+    "platforms": [
+      "KakaoPage",
+      "Tappytoon",
+      "Tapas",
+      "WEBTOON"
+    ],
+    "genres": [
+      "action-rpg",
+      "story-adventure"
+    ],
+    "summary": "The zodiac gods awakened twelve saints to fight destructive creatures called calamities, but a thirteenth, unchosen man also awoke and became the strongest. Betrayed and locked in the Tower of Demons for twenty years, Lee Geon returns far stronger to settle the score with each saint.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:zodiac-champions",
+        "how": "Twelve heroes are each chosen by a zodiac god, giving a roster of themed champions with a clear pecking order."
+      },
+      {
+        "id": "new:boss-rush-revenge",
+        "how": "The hero works through the twelve saints one at a time, each a boss with followers who fight back."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Calamities, unknown destructive creatures, are the threats the saints exist to stop."
+      },
+      {
+        "id": "pvp",
+        "how": "Most big fights are hero against hero, the returning outcast against the chosen saints."
+      },
+      {
+        "id": "rank-system",
+        "how": "Heroes are measured against each other, and the unchosen thirteenth outranks every chosen saint."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Lee Geon",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "The unchosen thirteenth saint who escapes twenty years in the Tower of Demons to take revenge."
+      },
+      {
+        "name": "The twelve saints",
+        "archetype": "warrior",
+        "signature": "Heroes awakened by the zodiac gods who betrayed Lee Geon."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Calamities",
+        "kind": "elite",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Tower of Demons",
+        "world": "lava-wastes",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "city-streets",
+      "layout": "boss-lair",
+      "hero": "barbarian",
+      "foes": "brutes"
+    },
+    "makeItOurs": "The Thirteenth Star: twelve star-sign champions guard the city, and a forgotten thirteenth returns from a sealed tower to challenge each champion's hall in turn, earning that sign's power with every win.",
+    "links": {
+      "official": "https://tappytoon.com/book/the-return-of-the-disaster-class-hero"
+    },
+    "image": null,
+    "sources": [
+      "https://www.mangaupdates.com/series/jv1z73a/the-return-of-the-disaster-class-hero",
+      "https://tappytoon.com/book/the-return-of-the-disaster-class-hero"
+    ]
+  },
+  {
+    "id": "leveling-with-the-gods",
+    "title": "Leveling with the Gods",
+    "kind": "manhwa",
+    "year": 2021,
+    "creators": [
+      "Black Ajin / B. Ain (original story)",
+      "Ohyeon (art)"
+    ],
+    "platforms": [
+      "KakaoPage",
+      "Tapas",
+      "Yen Press (print)"
+    ],
+    "genres": [
+      "action-rpg",
+      "dungeon-crawler"
+    ],
+    "summary": "After conquering the Tower alongside the Inner Gods, Kim Yuwon loses a final war against the Outer Gods, and the god Kronos sacrifices himself to send him back to the start. He climbs again from the tutorial, using what he knows to build a stronger path.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "tower-climb",
+        "how": "A Tower of floors where gods and climbers rise; each mythology's pantheon rules certain floors. The second climb restarts in a tutorial stretch of floors he has already beaten, now with obstacles that change."
+      },
+      {
+        "id": "regression",
+        "how": "A god sends the defeated hero back in time to redo the climb with all his memories."
+      },
+      {
+        "id": "new:mythic-pantheons",
+        "how": "Gods from real-world mythologies, such as an Olympian army under a Ranker, act as allies, sponsors and rivals with powers from their myths."
+      },
+      {
+        "id": "co-op-party",
+        "how": "He gathers allies early, like a blacksmith he knew in his past life."
+      },
+      {
+        "id": "raids",
+        "how": "The final enemy, the Outer Gods, is a threat even all the Inner Gods together could not beat."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Kim Yuwon",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "A former top climber who returns from defeat to climb the Tower a second time."
+      },
+      {
+        "name": "Vulcaro",
+        "archetype": "engineer",
+        "role": "builder",
+        "signature": "A blacksmith from Yuwon's past life who joins his second climb."
+      },
+      {
+        "name": "Kronos",
+        "archetype": "mage",
+        "role": "support",
+        "signature": "The god who sacrifices himself to send Yuwon back in time."
+      },
+      {
+        "name": "Chryses",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "A Ranker who leads an Olympian army against Yuwon."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "The Outer Gods",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Olympian army",
+        "kind": "minion",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Tower's floors",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "ancient-temple",
+      "layout": "gauntlet",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Rewound Ascent: a fallen champion is sent back to the bottom of a spire where each band of floors belongs to a different family of sky-spirits, and old memories reveal which spirits to befriend this time.",
+    "links": {
+      "official": "https://yenpress.com/series/level-up-with-the-gods",
+      "fandom": "https://leveling-with-the-gods.fandom.com/"
+    },
+    "image": null,
+    "sources": [
+      "https://www.mangaupdates.com/series/his7tyi/level-up-with-the-gods",
+      "https://yenpress.com/series/level-up-with-the-gods",
+      "https://www.chapterbrief.net/blog/level-up-with-the-gods-review",
+      "https://www.destructoid.com/10-best-tower-climbing-manhwa-to-dive-into/"
+    ]
+  },
+  {
+    "id": "the-gamer",
+    "title": "The Gamer",
+    "kind": "manhwa",
+    "year": 2013,
+    "creators": [
+      "Sung Sang-young (story)",
+      "Sang-A (art)"
+    ],
+    "platforms": [
+      "Naver Webtoon",
+      "WEBTOON"
+    ],
+    "genres": [
+      "action-rpg",
+      "story-adventure"
+    ],
+    "summary": "High-schooler Han Ji-han suddenly sees his life as a video game, with levels, stats, skills and quests. He is drawn into the Abyss, a hidden world of ability users and rival clans, and has to grind his way stronger while keeping up with school.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "leveling",
+        "how": "Real life gives experience and levels, with pop-up notices for experience and new skills."
+      },
+      {
+        "id": "stat-points",
+        "how": "He has Strength, Agility, Intelligence, Vitality and Wisdom stats that rise as he levels and trains."
+      },
+      {
+        "id": "use-based-skills",
+        "how": "Every skill, even cooking, has a proficiency level that grows only by repeating it, so grinding real actions makes him better."
+      },
+      {
+        "id": "quests",
+        "how": "Quests pop up from everyday situations around him."
+      },
+      {
+        "id": "instant-dungeon",
+        "how": "He can open pocket-dimension dungeons to fight monsters for experience without harming the real world."
+      },
+      {
+        "id": "new:world-hud",
+        "how": "People carry name tags, enemies show health bars, objects have item descriptions, and a big level gap is shown before a fight."
+      },
+      {
+        "id": "new:calm-mind-passive",
+        "how": "A passive keeps him calm and logical in danger and resistant to fear and mind effects."
+      },
+      {
+        "id": "guilds",
+        "how": "Ability users belong to clans such as Cheonbonmoon and Yeonhonmoon with their own alliances and rivalries."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Han Ji-han",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A high-schooler who sees the world as a game and levels himself up."
+      },
+      {
+        "name": "Shin Seon-il",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Ji-han's childhood friend who brings him into the Cheonbonmoon clan."
+      },
+      {
+        "name": "Kim Yujin",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A classmate who learns magic."
+      }
+    ],
+    "maps": [
+      {
+        "name": "Ji-han's neighbourhood and school",
+        "world": "city-streets",
+        "layout": "crossroads"
+      }
+    ],
+    "blueprint": {
+      "genre": "monster-hunt",
+      "world": "city-streets",
+      "layout": "crossroads",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Homework Hero: a student whose world shows health bars and quest pop-ups levels up chores, sports and spells by practice, and opens pocket training rooms full of monsters after school.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/The_Gamer",
+      "official": "https://www.webtoons.com/en/fantasy/the-gamer/list?title_no=88",
+      "fandom": "https://the-gamer.fandom.com/"
+    },
+    "image": null,
+    "sources": [
+      "https://en.wikipedia.org/wiki/The_Gamer",
+      "https://www.webtoons.com/en/fantasy/the-gamer/list?title_no=88",
+      "https://www.chapterbrief.net/blog/the-gamer-manhwa-review"
+    ]
+  },
+  {
+    "id": "noblesse",
+    "title": "Noblesse",
+    "kind": "manhwa",
+    "year": 2007,
+    "creators": [
+      "Son Je-ho (Jeho Son, story)",
+      "Lee Kwang-su (art)"
+    ],
+    "platforms": [
+      "Naver Webtoon",
+      "WEBTOON"
+    ],
+    "genres": [
+      "story-adventure",
+      "hack-and-slash"
+    ],
+    "summary": "Rai, a noble who slept for 820 years, wakes in modern South Korea and enrolls at a high school founded by his loyal servant Frankenstein. Their quiet school days are broken by the Union, a secret organisation that builds modified humans.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:school-hub",
+        "how": "A high school is the home base between battles, with ordinary classmates to protect."
+      },
+      {
+        "id": "new:blood-contract",
+        "how": "Nobles can grant power to others through contracts of blood and soul, creating bonded servants."
+      },
+      {
+        "id": "new:modified-humans",
+        "how": "The Union turns people into modified humans with enhanced bodies, a steady supply of enemies and some reformed allies."
+      },
+      {
+        "id": "co-op-party",
+        "how": "A growing household of nobles and ex-Union fighters defends the school together."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Arcs build to fights with Union elders and powerful nobles."
+      },
+      {
+        "id": "story-chapters",
+        "how": "The long run is split into arcs that move from school life to the past of the noble world."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Cadis Etrama Di Raizel (Rai)",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "An immensely powerful noble with blood-based powers, awake after 820 years of sleep."
+      },
+      {
+        "name": "Frankenstein",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Rai's devoted servant, a genius who runs Ye Ran High School."
+      },
+      {
+        "name": "M-21",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "A modified human who escapes the Union and joins Rai's household."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Union modified humans",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Union elders",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Ye Ran High School",
+        "world": "city-streets",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "city-streets",
+      "layout": "village-square",
+      "hero": "mage",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Night Prefect: an ancient sleeper wakes as the new student at a seaside academy and, with a fussy headmaster-butler, guards classmates from a lab that builds clockwork-enhanced bruisers.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Noblesse_(manhwa)",
+      "official": "https://www.webtoons.com/en/fantasy/noblesse/list?title_no=87"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/0/07/Noblesse_(manhwa)_Cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Noblesse_(manhwa)_Cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Noblesse_(manhwa)",
+      "https://www.webtoons.com/en/fantasy/noblesse/list?title_no=87"
+    ]
+  },
+  {
+    "id": "hardcore-leveling-warrior",
+    "title": "Hardcore Leveling Warrior",
+    "kind": "manhwa",
+    "year": 2016,
+    "creators": [
+      "Sehoon Kim"
+    ],
+    "platforms": [
+      "Naver Webtoon",
+      "WEBTOON"
+    ],
+    "genres": [
+      "mmorpg",
+      "action-rpg"
+    ],
+    "summary": "Ethan is the top player of Lucid Adventure, the world's biggest game, until a mysterious player kills him and resets his character to level 1. He fights to win back his place against old enemies, new allies and the game's hidden forces.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:vr-game-world",
+        "how": "Life revolves around a massive virtual game, Lucid Adventure, where in-game status carries real-world fame."
+      },
+      {
+        "id": "leveling",
+        "how": "The hook is starting over: the best player alive is knocked back to level 1 and must climb again."
+      },
+      {
+        "id": "leaderboards",
+        "how": "A public ranking crowns the number-one player, and losing that spot is the story's starting wound."
+      },
+      {
+        "id": "pvp",
+        "how": "Player-killing is real and costly: one defeat by another player wipes out the hero's progress."
+      },
+      {
+        "id": "loot-rarity",
+        "how": "The top player is known for a one-of-a-kind golden armour and maxed-out stats."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Back at level 1 he has to rely on new companions to climb again."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Ethan (Gong Won-ho), Hardcore Leveling Warrior",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Former number-one player of Lucid Adventure, reset to level 1."
+      }
+    ],
+    "blueprint": {
+      "genre": "monster-hunt",
+      "world": "enchanted-forest",
+      "layout": "open-field",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Back to One: the champion of an arcade realm is ambushed and dropped to rank one, keeping only know-how, and rebuilds with a ragtag party while hunting the masked player who did it.",
+    "links": {
+      "official": "https://www.webtoons.com/en/action/hardcore-leveling-warrior/list?title_no=1221",
+      "fandom": "https://hardcorelevelingwarrior.fandom.com/"
+    },
+    "image": null,
+    "sources": [
+      "https://www.webtoons.com/en/action/hardcore-leveling-warrior/list?title_no=1221",
+      "https://myanimelist.net/manga/146944/Hardcore_Leveling_Warrior"
+    ]
+  },
+  {
+    "id": "eleceed",
+    "title": "Eleceed",
+    "kind": "manhwa",
+    "year": 2018,
+    "creators": [
+      "Son Je-ho (Jeho Son, story)",
+      "ZHENA (art)"
+    ],
+    "platforms": [
+      "Naver Webtoon",
+      "WEBTOON"
+    ],
+    "genres": [
+      "story-adventure",
+      "action-rpg"
+    ],
+    "summary": "Kind-hearted Seo Jiwoo, who has cat-like speed, rescues an injured talking cat that is really Kayden Break, a top Awakener hiding in a cat's body. Kayden trains him, and Jiwoo grows into an Awakener with electricity powers.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:awakening-powers",
+        "how": "Some people awaken a single signature power, such as wind or electric speed, and live in a hidden Awakener world."
+      },
+      {
+        "id": "mentors",
+        "how": "A gruff master trains the hero in arcs of drills and tests before real fights."
+      },
+      {
+        "id": "rank-system",
+        "how": "Awakeners are ranked, up to S-rank and the world's top ten, and the rankings drive the politics."
+      },
+      {
+        "id": "guilds",
+        "how": "Ranked associations such as the Shinhwa Association recruit, protect and send out Awakeners."
+      },
+      {
+        "id": "pets",
+        "how": "The mentor travels as a big old cat that rides along with the hero."
+      },
+      {
+        "id": "new:school-hub",
+        "how": "School life and an academy exchange arc sit between missions."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Seo Jiwoo",
+        "archetype": "elementalist",
+        "role": "melee-dps",
+        "signature": "A kind teen with cat-like reflexes who awakens lightning-fast electric powers."
+      },
+      {
+        "name": "Kayden Break",
+        "archetype": "shapeshifter",
+        "role": "support",
+        "signature": "A shape-shifting S-rank Awakener trapped in a cat's body who becomes Jiwoo's master."
+      },
+      {
+        "name": "Yoo Jiyoung",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "Chairwoman of the Shinhwa Association and South Korea's strongest Awakener, with wind powers."
+      },
+      {
+        "name": "Kartein",
+        "archetype": "cleric",
+        "role": "healer",
+        "signature": "Known for near-impenetrable defence and healing."
+      }
+    ],
+    "maps": [
+      {
+        "name": "Seoul streets",
+        "world": "city-streets",
+        "layout": "crossroads"
+      }
+    ],
+    "blueprint": {
+      "genre": "monster-hunt",
+      "world": "city-streets",
+      "layout": "crossroads",
+      "hero": "shadowblade",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Sparkpaw: a speedy kid who rescues stray animals is trained by a grumpy legendary hero stuck as a fat housecat, learning to turn speed into crackling lightning dashes.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Eleceed",
+      "official": "https://www.webtoons.com/en/action/eleceed/list?title_no=1571"
+    },
+    "image": null,
+    "sources": [
+      "https://en.wikipedia.org/wiki/Eleceed",
+      "https://www.webtoons.com/en/action/eleceed/list?title_no=1571",
+      "https://www.chapterbrief.net/blog/eleceed-review"
+    ]
+  },
+  {
+    "id": "sss-class-revival-hunter",
+    "title": "SSS-Class Revival Hunter",
+    "aliases": [
+      "sss class suicide hunter"
+    ],
+    "kind": "manhwa",
+    "year": 2020,
+    "creators": [
+      "Sinnoa (original web novel, 2018)",
+      "Neida (adaptation)",
+      "Bill K (art)"
+    ],
+    "platforms": [
+      "KakaoPage",
+      "Tapas"
+    ],
+    "genres": [
+      "action-rpg",
+      "dungeon-crawler",
+      "roguelite"
+    ],
+    "summary": "A Tower full of monsters hands people skill cards, and Kim Gongja gets one that copies the skill of whoever kills him. Killed by the top hunter, he copies a power that sends him back 24 hours whenever he dies, and climbs the Tower by learning from every death.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "regression",
+        "how": "Dying sends the hero's mind back 24 hours, turning every failure into a retry with knowledge, like a roguelite run."
+      },
+      {
+        "id": "copy-skill",
+        "how": "His card copies the skill of whoever kills him, so each defeat can also be a power-up."
+      },
+      {
+        "id": "new:skill-cards",
+        "how": "The Tower grants each person a graded skill card that defines their power."
+      },
+      {
+        "id": "tower-climb",
+        "how": "The Tower's floors are separate worlds, each arc with its own setting and a floor boss, like a demon king on floor 20 or a martial-arts world on floor 22."
+      },
+      {
+        "id": "rank-system",
+        "how": "Hunters are ranked, with the number-one hunter, the Flame Emperor, as the bar to reach."
+      },
+      {
+        "id": "summons",
+        "how": "A copied skill brings a ghostly Sword Emperor along as a talking companion only the hero can deal with."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Floor bosses such as the Hellfire Maiden end each stretch of floors."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Kim Gongja",
+        "archetype": "rogue",
+        "role": "support",
+        "signature": "A weak hunter whose copy card and death-rewind power turn every death into progress."
+      },
+      {
+        "name": "Yoo Soo-ha, the Flame Emperor",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "The world's number-one hunter, whose kill gives Gongja his rewind power."
+      },
+      {
+        "name": "The Sword Emperor",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "A loud, opinionated swordsman ghost who travels with Gongja."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "The Hellfire Maiden (floor 10)",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Preta, Demon King of Fall Rain (floor 20)",
+        "kind": "boss",
+        "foes": "imps"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Tower floors",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Floor 22 martial-arts world",
+        "world": "ancient-temple",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "ancient-temple",
+      "layout": "gauntlet",
+      "hero": "shadowblade",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Echo Climber: when a mirror-mage is knocked out the day rewinds and they keep a copy of the move that beat them, so every floor of the spire becomes a puzzle of picking which foe to learn from.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/SSS-Class_Revival_Hunter"
+    },
+    "image": null,
+    "sources": [
+      "https://en.wikipedia.org/wiki/SSS-Class_Revival_Hunter",
+      "https://www.chapterbrief.net/blog/sss-class-revival-hunter-review",
+      "https://www.destructoid.com/10-best-tower-climbing-manhwa-to-dive-into/"
+    ]
+  }
+]

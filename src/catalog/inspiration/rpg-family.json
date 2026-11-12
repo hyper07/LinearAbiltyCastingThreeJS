@@ -1,0 +1,3044 @@
+[
+  {
+    "id": "dragon-quest-xi",
+    "title": "Dragon Quest XI: Echoes of an Elusive Age",
+    "aliases": [
+      "dragon quest",
+      "dq11"
+    ],
+    "kind": "game",
+    "year": 2017,
+    "creators": [
+      "Square Enix"
+    ],
+    "platforms": [
+      "Nintendo 3DS",
+      "PlayStation 4",
+      "Windows",
+      "Nintendo Switch",
+      "Xbox One",
+      "Nintendo Switch 2"
+    ],
+    "genres": [
+      "jrpg",
+      "story-adventure"
+    ],
+    "summary": "A classic turn-based JRPG in which a marked boy, hunted as a villain by the king, gathers a band of companions to restore a dying world tree. It is the traditional party-adventure template: towns, dungeons, roaming monsters and a long story told in acts.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "turn-based-combat",
+        "how": "The party and the monsters take turns choosing commands, with an optional free camera that is purely visual."
+      },
+      {
+        "id": "new:visible-field-monsters",
+        "how": "There are no random battles: monsters roam the field, and sneaking up to strike one first chips its health and grants a first turn."
+      },
+      {
+        "id": "leveling",
+        "how": "Experience is shared by every living party member, and a level-up fully restores health and magic."
+      },
+      {
+        "id": "skill-tree",
+        "how": "Each companion spends skill points on their own build, and points can be reallocated at camps."
+      },
+      {
+        "id": "gear-upgrading",
+        "how": "A portable forge refines existing weapons and armour on a grid mini-game, spending focus points that grow with the hero's level."
+      },
+      {
+        "id": "mounts",
+        "how": "Some monsters can be ridden across the field, and running over small foes while mounted grants a slice of experience."
+      },
+      {
+        "id": "story-chapters",
+        "how": "The story runs in three acts, the last of which revisits the world after a time-travel twist."
+      },
+      {
+        "id": "new:retro-style-toggle",
+        "how": "The handheld version lets players flip at any time between 3D graphics and a 16-bit sprite style."
+      },
+      {
+        "id": "difficulty-tiers",
+        "how": "An optional very hard mode can be switched on for experienced players who want a tougher run."
+      },
+      {
+        "id": "character-classes",
+        "how": "Each companion is a fixed role (thief, attack mage, healer, entertainer, martial artist, sage, knight) with their own weapon types."
+      }
+    ],
+    "characters": [
+      {
+        "name": "The Luminary",
+        "archetype": "knight",
+        "role": "melee-dps",
+        "signature": "A boy raised in a village who learns he is the reborn chosen hero; fights with sword and shield or a greatsword."
+      },
+      {
+        "name": "Erik",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "signature": "A thief met in the king's dungeon, armed with daggers, swords and boomerangs."
+      },
+      {
+        "name": "Veronica",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A bossy attack mage cursed into a child's body."
+      },
+      {
+        "name": "Serena",
+        "archetype": "cleric",
+        "role": "healer",
+        "signature": "Veronica's twin, wielding healing and defensive magic with wands, shields and spears."
+      },
+      {
+        "name": "Sylvando",
+        "archetype": "bard",
+        "role": "support",
+        "signature": "A flamboyant travelling entertainer and the party's mood-maker, using support magic."
+      },
+      {
+        "name": "Jade",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "signature": "A princess and martial artist fighting with spears and claws."
+      },
+      {
+        "name": "Rab",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "The hero's grandfather, a sage with both attack and healing magic."
+      },
+      {
+        "name": "Hendrik",
+        "archetype": "knight",
+        "role": "tank",
+        "signature": "A loyal knight first sent to hunt the hero, later his sworn ally."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Mordegon",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Jasper",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Calasmos",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Slime Knight",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Golem",
+        "kind": "elite",
+        "foes": "golems"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Cobblestone",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "Heliodor",
+        "world": "city-streets",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Yggdrasil",
+        "world": "enchanted-forest",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Sniflheim",
+        "world": "frozen-north",
+        "layout": "open-field"
+      },
+      {
+        "name": "Puerto Valor",
+        "world": "pirate-coast",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "storybook-village",
+      "layout": "village-square",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A shepherd girl with a glowing birthmark is chased out of her own kingdom and recruits a pickpocket, a pair of feuding sister-witches and a juggling minstrel to rekindle the Lantern Oak; monsters wander the meadows and a tamed one can be ridden between towns.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Dragon_Quest_XI",
+      "fandom": "https://dragon-quest.org/wiki/Dragon_Quest_XI"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/4/4c/Dragon_Quest_XI_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Dragon_Quest_XI_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Dragon_Quest_XI",
+      "https://dragon-quest.org/wiki/Dragon_Quest_XI"
+    ]
+  },
+  {
+    "id": "final-fantasy-vii-remake",
+    "title": "Final Fantasy VII Remake",
+    "aliases": [
+      "final fantasy 7",
+      "ff7",
+      "final fantasy"
+    ],
+    "kind": "game",
+    "year": 2020,
+    "creators": [
+      "Square Enix"
+    ],
+    "platforms": [
+      "PlayStation 4",
+      "PlayStation 5",
+      "Windows",
+      "Nintendo Switch 2",
+      "Xbox Series X/S"
+    ],
+    "genres": [
+      "action-rpg",
+      "jrpg",
+      "story-adventure"
+    ],
+    "summary": "A mercenary joins a resistance cell fighting a power company that drains the planet's life energy, in a real-time remake of the opening of a classic JRPG. Combat mixes action with a time gauge that lets the player pause and pick spells and abilities.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "real-time-combat",
+        "how": "Exploration and battles both happen in real time, with basic attacks and blocks on direct buttons."
+      },
+      {
+        "id": "new:atb-gauge-commands",
+        "how": "A time gauge fills slowly or faster with hits; spending a segment slows the action so the player can pick a spell, item or special move."
+      },
+      {
+        "id": "party-switching",
+        "how": "The player can swap control to any party member mid-battle, each with their own fighting style."
+      },
+      {
+        "id": "ultimate-ability",
+        "how": "A Limit Break gauge charges during battle and unleashes a stronger signature attack."
+      },
+      {
+        "id": "summons",
+        "how": "Large summoned creatures can be called in to fight alongside the party."
+      },
+      {
+        "id": "new:loadout-strategy",
+        "how": "Before fights, the player chooses which weapons and magic each character carries, which shapes what they can do."
+      },
+      {
+        "id": "character-classes",
+        "how": "Party members play differently: close-quarters swordplay versus long-range gunfire, for example."
+      },
+      {
+        "id": "boss-fights",
+        "how": "The story is punctuated by large set-piece bosses, ending with a duel against the hero's nemesis."
+      },
+      {
+        "id": "quests",
+        "how": "Side quests from residents of the slums fill time between story missions."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Cloud Strife",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "A former elite soldier turned mercenary who fights with close-quarters melee attacks."
+      },
+      {
+        "name": "Barret Wallace",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "signature": "Leader of the resistance cell, attacking from long range."
+      },
+      {
+        "name": "Tifa Lockhart",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "signature": "Cloud's childhood friend who brings him into the resistance."
+      },
+      {
+        "name": "Aerith Gainsborough",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A flower seller and the last descendant of an ancient people."
+      },
+      {
+        "name": "Yuffie Kisaragi",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "A ninja who infiltrates the company headquarters in the expansion episode."
+      },
+      {
+        "name": "Sephiroth",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "An enigmatic former elite soldier who haunts Cloud and is fought at the end."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Company soldiers and security robots",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Rufus Shinra",
+        "kind": "elite",
+        "foes": "mixed"
+      },
+      {
+        "name": "Whisper Harbinger",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Sephiroth",
+        "kind": "boss",
+        "foes": "none"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Midgar",
+        "world": "city-streets",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Sector 7 slums",
+        "world": "city-streets",
+        "layout": "village-square"
+      },
+      {
+        "name": "Mako Reactor 1",
+        "world": "sci-fi-outpost",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Company headquarters",
+        "world": "sci-fi-outpost",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "city-streets",
+      "layout": "gauntlet",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "In a smog-wrapped tower city, a hired blade and three rebels sabotage the furnaces of a company that burns the earth's dreams for light; a pause-gauge lets kids stop time to pick a spell, then jump back into the fight.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Final_Fantasy_VII_Remake",
+      "official": "https://www.square-enix.com/ffvii/en-us/games/remake/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/c/ce/FFVIIRemake.png",
+      "page": "https://en.wikipedia.org/wiki/File:FFVIIRemake.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Final_Fantasy_VII_Remake",
+      "https://www.square-enix.com/ffvii/en-us/games/remake/"
+    ]
+  },
+  {
+    "id": "genshin-impact",
+    "title": "Genshin Impact",
+    "aliases": [
+      "genshin"
+    ],
+    "kind": "game",
+    "year": 2020,
+    "creators": [
+      "miHoYo",
+      "HoYoverse"
+    ],
+    "platforms": [
+      "Windows",
+      "Android",
+      "iOS",
+      "PlayStation 5",
+      "Xbox Series X/S"
+    ],
+    "genres": [
+      "action-rpg",
+      "open-world",
+      "gacha-rpg"
+    ],
+    "summary": "An anime-style open world where a traveller searching for a lost twin crosses seven elemental nations, switching between four heroes in real-time combat. Elements react with one another, and most heroes are drawn from paid random banners.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "open-world",
+        "how": "The player runs, climbs, swims and glides freely across a large connected map of nations."
+      },
+      {
+        "id": "party-switching",
+        "how": "A party of four heroes, with an instant swap between them during combat."
+      },
+      {
+        "id": "elemental-reactions",
+        "how": "Seven elements combine on enemies, so water followed by ice freezes a foe in place."
+      },
+      {
+        "id": "puzzles",
+        "how": "Elemental powers solve world puzzles and some reshape terrain, such as freezing water into a path."
+      },
+      {
+        "id": "dungeon-portals",
+        "how": "Instanced challenge domains reward the materials that strengthen heroes and weapons."
+      },
+      {
+        "id": "new:regenerating-reward-energy",
+        "how": "Claiming the best boss and domain rewards costs a currency that refills slowly over real time."
+      },
+      {
+        "id": "rank-system",
+        "how": "An account-wide Adventure Rank unlocks quests and raises a World Level that makes enemies and rewards stronger."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Up to four players explore together, each bringing fewer heroes so the total stays at four."
+      },
+      {
+        "id": "crafting",
+        "how": "Cooked meals give buffs like extra damage or healing, and refined ores forge weapons."
+      },
+      {
+        "id": "fast-travel",
+        "how": "Teleport points across the map, some of which also heal and revive the party."
+      },
+      {
+        "id": "gacha",
+        "how": "Most heroes and weapons come from paid random wishes with a pity counter; catalogued as a mechanic we will not use."
+      },
+      {
+        "id": "level-editor",
+        "how": "A later mode lets players build and share their own games from the world's assets and enemies."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Diluc (claymore, fire)",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Searing Onslaught",
+            "effect": "dash-strike",
+            "does": "A chain of up to three fiery lunging slashes."
+          },
+          {
+            "name": "Dawn",
+            "effect": "area-blast",
+            "does": "Releases a burning phoenix that sweeps through foes in front."
+          }
+        ]
+      },
+      {
+        "name": "Venti (bow, wind)",
+        "archetype": "archer",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Skyward Sonnet",
+            "effect": "area-blast",
+            "does": "A burst of wind that flings nearby enemies into the air."
+          },
+          {
+            "name": "Wind's Grand Ode",
+            "effect": "pull",
+            "does": "A lasting vortex that sucks enemies in and holds them."
+          }
+        ]
+      },
+      {
+        "name": "Zhongli (polearm, earth)",
+        "archetype": "spearman",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Dominus Lapidis",
+            "effect": "shield",
+            "does": "Raises a stone pillar and, when held, a sturdy shield for the active hero."
+          },
+          {
+            "name": "Planet Befall",
+            "effect": "area-blast",
+            "does": "Drops a meteor that damages and petrifies enemies."
+          }
+        ]
+      },
+      {
+        "name": "Bennett (sword, fire)",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Fantastic Voyage",
+            "effect": "heal",
+            "does": "Creates a field that heals allies inside and boosts their attack."
+          }
+        ]
+      },
+      {
+        "name": "Klee (catalyst, fire)",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Jumpy Dumpty",
+            "effect": "area-blast",
+            "does": "Throws a bouncing bomb that bursts into smaller mines."
+          },
+          {
+            "name": "Sparks 'n' Splash",
+            "effect": "rain-zone",
+            "does": "Rains repeated fire bursts on enemies around the hero."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "The Traveler (Aether or Lumine)",
+        "archetype": "elementalist",
+        "role": "melee-dps",
+        "signature": "An outsider without a Vision who learns each nation's element while searching for a lost twin."
+      },
+      {
+        "name": "Paimon",
+        "archetype": "bard",
+        "role": "support",
+        "signature": "The small floating guide who travels with the hero."
+      },
+      {
+        "name": "Raiden Shogun",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "signature": "The electric god-ruler of Inazuma whose policies the hero helps change."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Abyss Order monsters",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Fatui agents",
+        "kind": "elite",
+        "foes": "mixed"
+      },
+      {
+        "name": "Dvalin",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Mondstadt",
+        "world": "storybook-village",
+        "layout": "open-field"
+      },
+      {
+        "name": "Liyue",
+        "world": "ancient-temple",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Inazuma",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      },
+      {
+        "name": "Snezhnaya",
+        "world": "frozen-north",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "open-field",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A party of four weather-kids swap places with a tap: a rain-caller soaks the bog-goblins, a frost-skater freezes them solid, and every hero is earned through quests, never random paid draws.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Genshin_Impact",
+      "official": "https://genshin.hoyoverse.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/5/5d/Genshin_Impact_logo.svg",
+      "page": "https://en.wikipedia.org/wiki/File:Genshin_Impact_logo.svg",
+      "license": "free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Genshin_Impact",
+      "https://game8.co/games/Genshin-Impact/archives/296707"
+    ]
+  },
+  {
+    "id": "honkai-star-rail",
+    "title": "Honkai: Star Rail",
+    "aliases": [
+      "star rail"
+    ],
+    "kind": "game",
+    "year": 2023,
+    "creators": [
+      "miHoYo",
+      "HoYoverse"
+    ],
+    "platforms": [
+      "Windows",
+      "iOS",
+      "Android",
+      "PlayStation 5"
+    ],
+    "genres": [
+      "jrpg",
+      "gacha-rpg"
+    ],
+    "summary": "An amnesiac with a world-ending artefact inside them rides a star-crossing train from planet to planet, fighting in four-hero turn-based battles. Heroes follow Paths that set their combat role, and break enemy toughness by hitting elemental weaknesses.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "turn-based-combat",
+        "how": "Classic JRPG turns with a team of up to four heroes."
+      },
+      {
+        "id": "character-classes",
+        "how": "Each hero follows a Path (Destruction, Hunt, Erudition, Harmony, Nihility, Preservation, Abundance and more) that sets their role."
+      },
+      {
+        "id": "elemental-reactions",
+        "how": "Each enemy is weak to some of seven damage types; hitting a weakness drains its toughness bar and a full break staggers it."
+      },
+      {
+        "id": "new:field-techniques",
+        "how": "Each hero has a special move used while exploring that strikes first or buffs the team before a fight begins."
+      },
+      {
+        "id": "auto-battle",
+        "how": "An auto-battle toggle and fast-forward let the game play routine fights for you."
+      },
+      {
+        "id": "gear-upgrading",
+        "how": "Heroes equip a Light Cone weapon whose bonus only activates when its Path matches the hero, plus sets of relics."
+      },
+      {
+        "id": "puzzles",
+        "how": "Each world is split into compact explorable zones with chests, puzzles and interactables rather than one huge map."
+      },
+      {
+        "id": "story-chapters",
+        "how": "The story is told world by world as the train stops at each planet in turn."
+      },
+      {
+        "id": "gacha",
+        "how": "New heroes and weapons are drawn from paid random banners; catalogued as a mechanic we will not use."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Preservation",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Path role: guard",
+            "effect": "shield",
+            "does": "Protects the team with shields and by drawing attacks."
+          }
+        ]
+      },
+      {
+        "name": "Abundance",
+        "archetype": "healer",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Path role: mend",
+            "effect": "heal",
+            "does": "Restores the team's health between and during enemy turns."
+          }
+        ]
+      },
+      {
+        "name": "Harmony",
+        "archetype": "bard",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Path role: empower",
+            "effect": "buff",
+            "does": "Raises allies' damage, speed or energy."
+          }
+        ]
+      },
+      {
+        "name": "Nihility",
+        "archetype": "druid",
+        "role": "controller",
+        "skills": [
+          {
+            "name": "Path role: weaken",
+            "effect": "damage-over-time",
+            "does": "Applies lingering damage and debuffs to enemies."
+          }
+        ]
+      },
+      {
+        "name": "Erudition",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Path role: sweep",
+            "effect": "area-blast",
+            "does": "Hits many enemies at once."
+          }
+        ]
+      },
+      {
+        "name": "The Hunt",
+        "archetype": "ranger",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Path role: single target",
+            "effect": "piercing-bolt",
+            "does": "Concentrates heavy damage on one enemy."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "The Trailblazer",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "An amnesiac built around a stolen world-ending artefact who later gains the powers of other Paths."
+      },
+      {
+        "name": "March 7th",
+        "archetype": "archer",
+        "role": "support",
+        "signature": "A cheerful train passenger who rescues the hero at the start."
+      },
+      {
+        "name": "Dan Heng",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "signature": "A quiet passenger revealed to be the reincarnation of a dragon-like being."
+      },
+      {
+        "name": "Kafka",
+        "archetype": "assassin",
+        "role": "controller",
+        "signature": "Leader-figure of a rogue hunter crew who plants the artefact and wipes the hero's memory."
+      },
+      {
+        "name": "Bronya",
+        "archetype": "commander",
+        "role": "support",
+        "signature": "Heir who takes over the frozen planet's leadership and promises reform."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Antimatter Legion",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Cocolia",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Phantylia",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Herta Space Station",
+        "world": "sci-fi-outpost",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Belobog (Jarilo-VI)",
+        "world": "frozen-north",
+        "layout": "village-square"
+      },
+      {
+        "name": "Xianzhou Luofu",
+        "world": "ancient-temple",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Penacony Dreamscape",
+        "world": "city-streets",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "frozen-north",
+      "layout": "crossroads",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A lantern-tram stops at a new floating island each chapter; kids pick four heroes by role (shield, mender, cheer-leader, striker) and crack a crystal foe's armour by hitting its matching colour.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Honkai:_Star_Rail",
+      "official": "https://hsr.hoyoverse.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/8/8e/Honkai_Star_Rail_logo.svg",
+      "page": "https://en.wikipedia.org/wiki/File:Honkai_Star_Rail_logo.svg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Honkai:_Star_Rail",
+      "https://game8.co/games/Honkai-Star-Rail/archives/404256"
+    ]
+  },
+  {
+    "id": "pokemon-scarlet-and-violet",
+    "title": "Pokémon Scarlet and Violet",
+    "aliases": [
+      "pokemon"
+    ],
+    "kind": "game",
+    "year": 2022,
+    "creators": [
+      "Game Freak",
+      "Nintendo",
+      "The Pokémon Company"
+    ],
+    "platforms": [
+      "Nintendo Switch"
+    ],
+    "genres": [
+      "monster-collecting",
+      "jrpg",
+      "open-world"
+    ],
+    "summary": "A student at a region's academy rides a legendary creature across the series' first fully open world, catching and training monsters for turn-based battles. Three story routes (gyms, giant titans, a bully gang) can be tackled in any order.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "monster-taming",
+        "how": "Wild creatures are caught, trained and traded, then sent into battle against trainers. Creatures left together at a picnic can produce eggs."
+      },
+      {
+        "id": "turn-based-combat",
+        "how": "Creature battles are turn-based, with elemental types deciding strengths and weaknesses."
+      },
+      {
+        "id": "open-world",
+        "how": "Towns and wilderness join without borders, and creatures wander the overworld."
+      },
+      {
+        "id": "mounts",
+        "how": "A legendary creature serves as a mount and gains new traversal moves (higher jumps, wall climbing) as the story advances."
+      },
+      {
+        "id": "auto-battle",
+        "how": "A creature can be sent out to fight wild ones in the overworld without entering a turn-based battle."
+      },
+      {
+        "id": "new:nonlinear-story-routes",
+        "how": "Three story paths whose objectives can be done in any order unlock a fourth, final route."
+      },
+      {
+        "id": "new:type-shift-transform",
+        "how": "A once-per-battle crystal transformation changes a creature's type to its hidden 'Tera Type'."
+      },
+      {
+        "id": "raids",
+        "how": "Up to four players team up against a powerful crystal-boosted creature under a time limit, and can catch it afterwards."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Up to four players can explore the open world together online."
+      },
+      {
+        "id": "crafting",
+        "how": "Picnics let players make sandwiches that grant temporary boons, alone or with friends."
+      },
+      {
+        "id": "trading",
+        "how": "Players trade and battle with each other over the internet."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Nemona",
+        "archetype": "tamer",
+        "role": "summoner",
+        "signature": "A top-ranked rival trainer who keeps challenging the player."
+      },
+      {
+        "name": "Arven",
+        "archetype": "tamer",
+        "role": "summoner",
+        "signature": "A classmate who asks for help finding five legendary herbs guarded by titan creatures."
+      },
+      {
+        "name": "Penny",
+        "archetype": "tamer",
+        "role": "summoner",
+        "signature": "A shy student secretly behind the plan to disband the bully gang."
+      },
+      {
+        "name": "Geeta",
+        "archetype": "tamer",
+        "role": "commander",
+        "signature": "The region's Top Champion, faced after eight gym badges and the Elite Four."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Klawf (titan)",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Bombirdier (titan)",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Orthworm (titan)",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Dondozo (titan)",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Team Star grunts",
+        "kind": "minion",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Paldea",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Naranja / Uva Academy",
+        "world": "city-streets",
+        "layout": "village-square"
+      },
+      {
+        "name": "Area Zero",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Kitakami",
+        "world": "storybook-village",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "monster-hunt",
+      "world": "enchanted-forest",
+      "layout": "open-field",
+      "hero": "wildwarden",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A summer camp on Puddlehop Isle sends kids out on a gliding beetle to befriend critters, hunt three giant 'grandbeasts' in any order, and share picnic snacks that power up the team.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Pok%C3%A9mon_Scarlet_and_Violet",
+      "official": "https://scarletviolet.pokemon.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/0/00/Pok%C3%A9mon_Scarlet_and_Violet_banner.png",
+      "page": "https://en.wikipedia.org/wiki/File:Pok%C3%A9mon_Scarlet_and_Violet_banner.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Pok%C3%A9mon_Scarlet_and_Violet"
+    ]
+  },
+  {
+    "id": "zelda-tears-of-the-kingdom",
+    "title": "The Legend of Zelda: Tears of the Kingdom",
+    "aliases": [
+      "zelda",
+      "legend of zelda",
+      "tears of the kingdom"
+    ],
+    "kind": "game",
+    "year": 2023,
+    "creators": [
+      "Nintendo EPD"
+    ],
+    "platforms": [
+      "Nintendo Switch",
+      "Nintendo Switch 2"
+    ],
+    "genres": [
+      "open-world",
+      "action-rpg",
+      "sandbox",
+      "puzzle"
+    ],
+    "summary": "A hero with a borrowed ancient arm explores a kingdom across three layers (floating sky islands, the surface and a dark underworld) to stop a returning demon king. Building powers let players glue objects into vehicles and fuse items onto weapons.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "open-world",
+        "how": "Three stacked maps: sky islands, the surface and a vast dark underground, explored by climbing, riding and gliding."
+      },
+      {
+        "id": "new:physics-building",
+        "how": "A grab power picks up objects and sticks them together, so with fans, wheels and rockets players build their own vehicles and contraptions."
+      },
+      {
+        "id": "new:fuse-weapons",
+        "how": "Any material or object can be fused onto a weapon or shield, such as a rocket on a shield that launches the hero upward."
+      },
+      {
+        "id": "new:time-rewind",
+        "how": "A power rewinds one object's motion, for example riding a falling rock back up into the sky."
+      },
+      {
+        "id": "new:pass-through-ceilings",
+        "how": "A power lets the hero rise straight up through solid ceilings to reach the surface above."
+      },
+      {
+        "id": "new:blueprint-autobuild",
+        "how": "A saved contraption can be rebuilt instantly from nearby parts, paying a mined material for missing pieces."
+      },
+      {
+        "id": "puzzles",
+        "how": "Small puzzle shrines across the land plus four temple dungeons with puzzles and bosses."
+      },
+      {
+        "id": "new:collectible-upgrades",
+        "how": "Rewards from shrines buy extra hearts or stamina, and hidden forest-spirit seeds widen the weapon inventory."
+      },
+      {
+        "id": "new:max-health-hazard",
+        "how": "A dark gloom underground temporarily lowers the hero's maximum hearts until they return to the surface."
+      },
+      {
+        "id": "crafting",
+        "how": "Gathered ingredients are cooked into meals and elixirs, with a recipe list tracking discoveries."
+      },
+      {
+        "id": "mounts",
+        "how": "Horses can be tamed and ridden across the surface."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Each temple ends in a boss, and the story ends in a duel with the demon king."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Link",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "The hero, given an ancient arm that grants building and fusing powers."
+      },
+      {
+        "name": "Zelda",
+        "archetype": "mage",
+        "role": "support",
+        "signature": "The princess who vanishes into the past at the start of the story."
+      },
+      {
+        "name": "Ganondorf",
+        "archetype": "necromancer",
+        "role": "caster",
+        "signature": "The demon king, awakened beneath the castle and spreading gloom."
+      },
+      {
+        "name": "Tulin",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "signature": "A young bird-folk archer who becomes a sage."
+      },
+      {
+        "name": "Sidon",
+        "archetype": "warrior",
+        "role": "tank",
+        "signature": "Prince, then king, of the fish-folk and a sage ally."
+      },
+      {
+        "name": "Yunobo",
+        "archetype": "berserker",
+        "role": "tank",
+        "signature": "A rock-eating miner, head of a mining company, and a sage ally."
+      },
+      {
+        "name": "Riju",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "The young chief of the desert people and a sage ally."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Phantom Ganon",
+        "kind": "elite",
+        "foes": "spirits"
+      },
+      {
+        "name": "Temple bosses",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Ganondorf",
+        "kind": "boss",
+        "foes": "none"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Great Sky Island",
+        "world": "ancient-temple",
+        "layout": "open-field"
+      },
+      {
+        "name": "Hyrule surface",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "The Depths",
+        "world": "haunted-graveyard",
+        "layout": "open-field"
+      },
+      {
+        "name": "Fire Temple",
+        "world": "lava-wastes",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Water Temple",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Hyrule Castle",
+        "world": "dragon-dungeon",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "open-field",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Kids explore Cloudhaven, an archipelago of floating meadows, with a tinker-glove that sticks planks, balloons and fans into rafts and gliders, and tape any pebble or pinecone onto their stick for silly new powers.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/The_Legend_of_Zelda:_Tears_of_the_Kingdom",
+      "official": "https://zelda.nintendo.com/tears-of-the-kingdom/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/f/fb/The_Legend_of_Zelda_Tears_of_the_Kingdom_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:The_Legend_of_Zelda_Tears_of_the_Kingdom_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/The_Legend_of_Zelda:_Tears_of_the_Kingdom"
+    ]
+  },
+  {
+    "id": "minecraft-dungeons",
+    "title": "Minecraft Dungeons",
+    "aliases": [
+      "minecraft"
+    ],
+    "kind": "game",
+    "year": 2020,
+    "creators": [
+      "Mojang Studios",
+      "Double Eleven",
+      "Xbox Game Studios"
+    ],
+    "platforms": [
+      "Nintendo Switch",
+      "PlayStation 4",
+      "Windows",
+      "Xbox One",
+      "Xbox Series X/S",
+      "Arcade"
+    ],
+    "genres": [
+      "dungeon-crawler",
+      "hack-and-slash",
+      "action-rpg"
+    ],
+    "summary": "A family-friendly isometric dungeon crawler set in the block world, where up to four heroes free villages from an outcast villain corrupted by a magic orb. There are no classes: whatever weapon, armour and artifacts you pick up is your build.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "gear-defines-build",
+        "how": "There is no class system; any hero can use any weapon or armour, and the loadout is the build."
+      },
+      {
+        "id": "new:enchantment-points",
+        "how": "Gear rolls random enchantments, and points earned by levelling unlock one per slot, such as burning or chilling auras."
+      },
+      {
+        "id": "new:artifact-slots",
+        "how": "Artifact slots hold spell-like items on cooldowns that damage foes, buff the hero or heal allies."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Four-player local and online co-op through the whole campaign."
+      },
+      {
+        "id": "procedural-dungeons",
+        "how": "Missions mix procedurally generated and hand-crafted sections, so replays differ."
+      },
+      {
+        "id": "waves",
+        "how": "Ambushes lock heroes behind a rising gate until the wave is beaten."
+      },
+      {
+        "id": "summons",
+        "how": "Some artifacts summon friendly creatures that fight for the hero."
+      },
+      {
+        "id": "shops",
+        "how": "A camp hub gains merchants as heroes rescue them on missions."
+      },
+      {
+        "id": "new:secret-levels",
+        "how": "Optional sub-dungeons hide scrolls that unlock secret missions, and runes gathered across levels open a final secret one."
+      },
+      {
+        "id": "roguelike-runs",
+        "how": "A later Tower mode climbs 30 procedurally generated floors on a weekly rotation."
+      },
+      {
+        "id": "story-chapters",
+        "how": "A linear mission campaign with cutscenes, extended by themed island expansions."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Illagers and Pillagers",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Redstone Golem",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "Redstone Monstrosity",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Wretched Wraith",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Arch-Illager",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Heart of Ender",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Squid Coast",
+        "world": "pirate-coast",
+        "layout": "village-square"
+      },
+      {
+        "name": "Creeper Woods",
+        "world": "enchanted-forest",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Pumpkin Pastures",
+        "world": "farm-fields",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Desert Temple",
+        "world": "desert-ruins",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Redstone Mines",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Fiery Forge",
+        "world": "lava-wastes",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "enchanted-forest",
+      "layout": "gauntlet",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Four cousins from Pebbleton crawl through the Mosslight Caverns, swapping found crossbows and frying pans freely, each with three trinket slots (a healing totem, a bee jar, a gust horn), to free the villages a lonely sulking wizard has locked away.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Minecraft_Dungeons",
+      "fandom": "https://minecraft.wiki/w/Minecraft_Dungeons"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/7/73/Minecraft_Dungeons_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Minecraft_Dungeons_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Minecraft_Dungeons",
+      "https://minecraft.wiki/w/Minecraft_Dungeons"
+    ]
+  },
+  {
+    "id": "hades",
+    "title": "Hades",
+    "kind": "game",
+    "year": 2020,
+    "creators": [
+      "Supergiant Games"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Nintendo Switch",
+      "PlayStation 4",
+      "PlayStation 5",
+      "Xbox One",
+      "Xbox Series X/S",
+      "iOS"
+    ],
+    "genres": [
+      "roguelike",
+      "action-rpg",
+      "hack-and-slash"
+    ],
+    "summary": "The underworld prince tries again and again to fight his way out of his father's realm, room by room, helped by gifts from the gods. Every death sends him home, where the story moves on and permanent upgrades await.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "roguelike-runs",
+        "how": "Each escape is a chain of randomly ordered rooms through four regions, each ending in a boss."
+      },
+      {
+        "id": "upgrade-draft",
+        "how": "Gods offer a choice of three themed boons (lightning, knock-back waves and so on) that stack up for the rest of the run."
+      },
+      {
+        "id": "dodge-roll",
+        "how": "A dash gives a moment of intangibility and can pass through gaps and thin walls."
+      },
+      {
+        "id": "meta-progression",
+        "how": "Some loot is lost on death, but other currencies buy permanent upgrades, weapons and new room features at the home hub. Between runs the hero walks a home base to talk to characters, upgrade and pick a weapon."
+      },
+      {
+        "id": "npc-dialogue",
+        "how": "Characters remember each failed run, so the story advances through repeated deaths."
+      },
+      {
+        "id": "npc-affinity",
+        "how": "Gifts improve the hero's standing with characters, unlocking side stories and quests with rewards."
+      },
+      {
+        "id": "difficulty-tiers",
+        "how": "After a first win, players add chosen difficulty modifiers (stronger foes, changed bosses) for greater rewards."
+      },
+      {
+        "id": "new:assist-mode",
+        "how": "An optional God Mode makes the hero a little tougher after every failed run so anyone can finish."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Each region ends in a boss, and the final boss can gain an extra phase."
+      },
+      {
+        "id": "new:extra-lives",
+        "how": "Death-defiance tokens revive the hero on the spot during a run."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Stygian Blade",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Blade combo",
+            "effect": "melee-flurry",
+            "does": "A three-hit combo ending in a forward thrust that pushes foes back."
+          },
+          {
+            "name": "Nova Smash",
+            "effect": "ground-slam",
+            "does": "A jump and slam that damages everything nearby."
+          }
+        ]
+      },
+      {
+        "name": "Eternal Spear",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Spin attack",
+            "effect": "whirlwind",
+            "does": "A charged wide spin around the hero."
+          },
+          {
+            "name": "Spear throw",
+            "effect": "projectile",
+            "does": "Throws the spear through enemies in a line; using it again recalls it."
+          }
+        ]
+      },
+      {
+        "name": "Shield of Chaos",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Bull rush",
+            "effect": "dash-strike",
+            "does": "Hold to block, release to charge forward through enemies."
+          },
+          {
+            "name": "Shield throw",
+            "effect": "chain-hit",
+            "does": "The shield bounces between enemies and walls before returning."
+          }
+        ]
+      },
+      {
+        "name": "Heart-Seeking Bow",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Power Shot",
+            "effect": "piercing-bolt",
+            "does": "A timed release of a charged shot deals extra damage."
+          },
+          {
+            "name": "Volley",
+            "effect": "projectile",
+            "does": "Fires a spread of arrows ahead."
+          }
+        ]
+      },
+      {
+        "name": "Twin Fists",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Punch combo",
+            "effect": "melee-flurry",
+            "does": "A rapid five-hit flurry of punches."
+          },
+          {
+            "name": "Dash uppercut",
+            "effect": "dash-strike",
+            "does": "An uppercut that hits twice, or once after a dash."
+          }
+        ]
+      },
+      {
+        "name": "Adamant Rail",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Rapid fire",
+            "effect": "projectile",
+            "does": "Fast shots until the magazine needs a reload."
+          },
+          {
+            "name": "Bombard",
+            "effect": "area-blast",
+            "does": "Lobs an explosive that lands on a target spot after a short delay."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "Zagreus",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "The underworld prince who keeps escaping to find his mother."
+      },
+      {
+        "name": "Hades",
+        "archetype": "necromancer",
+        "role": "caster",
+        "signature": "His stern father, the final boss at the realm's exit."
+      },
+      {
+        "name": "Megaera",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "One of the Furies who guards the first region."
+      },
+      {
+        "name": "Nyx",
+        "archetype": "mage",
+        "role": "support",
+        "signature": "The hero's adoptive mother who helps him reach the gods."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "The Furies",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Lernaean Hydra",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Theseus and Asterius",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Hades",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Tartarus",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Asphodel",
+        "world": "lava-wastes",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Elysium",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Temple of Styx",
+        "world": "haunted-graveyard",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "House of Hades",
+        "world": "ancient-temple",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "dragon-dungeon",
+      "layout": "gauntlet",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A young gardener keeps trying to climb out of the Root Kingdom, choosing one of three blessings from the weather spirits after each room; every tumble back home unlocks a new chat with the household and a permanent seed upgrade.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Hades_(video_game)",
+      "official": "https://www.supergiantgames.com/games/hades/",
+      "fandom": "https://hades.wiki.gg/wiki/Infernal_Arms"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/c/cc/Hades_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Hades_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Hades_(video_game)",
+      "https://www.supergiantgames.com/games/hades/",
+      "https://hades.wiki.gg/wiki/Infernal_Arms"
+    ]
+  },
+  {
+    "id": "vampire-survivors",
+    "title": "Vampire Survivors",
+    "kind": "game",
+    "year": 2022,
+    "creators": [
+      "poncle"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Xbox One",
+      "Xbox Series X/S",
+      "Android",
+      "iOS",
+      "Nintendo Switch",
+      "PlayStation 4",
+      "PlayStation 5",
+      "Meta Quest"
+    ],
+    "genres": [
+      "survivors-like",
+      "roguelite"
+    ],
+    "summary": "A hero who attacks automatically walks an endless field while ever-larger swarms close in, picking new weapons and passives at each level-up. It launched the 'bullet heaven' genre of auto-attack survival games.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:auto-attack",
+        "how": "The player only moves; every weapon fires on its own timer."
+      },
+      {
+        "id": "waves",
+        "how": "Constant, growing waves of monsters that hurt on contact."
+      },
+      {
+        "id": "upgrade-draft",
+        "how": "Experience gems level the hero, and each level offers a pick of three or four weapons or passives, up to six of each."
+      },
+      {
+        "id": "growing-weapon",
+        "how": "A maxed weapon paired with its matching passive evolves into a stronger ultimate form when a chest is opened."
+      },
+      {
+        "id": "loot",
+        "how": "Strong monsters drop chests holding one, three or five random upgrades; floor food restores health."
+      },
+      {
+        "id": "new:timed-survival-finale",
+        "how": "Each stage has a 15–30 minute soft limit, after which an unbeatable reaper appears to end the run."
+      },
+      {
+        "id": "meta-progression",
+        "how": "Gold earned in runs unlocks characters and permanent power-ups between sessions."
+      },
+      {
+        "id": "achievements",
+        "how": "Completing challenges unlocks stages, weapons, characters and game modifiers."
+      },
+      {
+        "id": "run-modifiers",
+        "how": "Unlockable toggles such as endless mode, faster hyper mode and limit-break levelling change how a run plays."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Local co-op lets up to four people play together."
+      },
+      {
+        "id": "character-classes",
+        "how": "Each selectable character starts with a different weapon and bonus."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Endless swarms",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Chest-carrying elites",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "The Reaper",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "blueprint": {
+      "genre": "survival",
+      "world": "haunted-graveyard",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A lantern-keeper strolls through Mothmeadow at dusk while her charms (orbiting fireflies, a bouncing acorn, a bubble wand) fire on their own; each level-up offers three new charms, and pairing two of them grows a super charm before the dawn bell rings.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Vampire_Survivors",
+      "official": "https://poncle.games/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/e/e6/Vampire_Survivors_key_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Vampire_Survivors_key_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Vampire_Survivors"
+    ]
+  },
+  {
+    "id": "slay-the-spire",
+    "title": "Slay the Spire",
+    "kind": "game",
+    "year": 2019,
+    "creators": [
+      "Mega Crit"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux",
+      "PlayStation 4",
+      "Nintendo Switch",
+      "Xbox One",
+      "iOS",
+      "Android"
+    ],
+    "genres": [
+      "deckbuilder",
+      "roguelike"
+    ],
+    "summary": "One of four heroes climbs a randomly generated spire along a branching map, fighting turn-based card battles and growing a deck from rewards. It popularised the roguelike deck-builder.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "deck-building",
+        "how": "After each fight the player may add one of three cards, and must decide when to refuse or remove weak cards to keep the deck sharp."
+      },
+      {
+        "id": "turn-based-combat",
+        "how": "Each turn brings a fresh hand and three energy to spend on attack, skill and lasting power cards."
+      },
+      {
+        "id": "new:enemy-intent",
+        "how": "Every enemy shows what it will do next turn (attack for how much, block, buff), so the player can plan around it."
+      },
+      {
+        "id": "roguelike-runs",
+        "how": "A branching map of fights, elites, rest sites, shops, chests and events, with a boss at the end of each act."
+      },
+      {
+        "id": "permadeath",
+        "how": "Losing all health ends the run and the climb starts again from the bottom."
+      },
+      {
+        "id": "new:relics",
+        "how": "Run-long relics add passive bonuses like extra energy, more health or automatic block."
+      },
+      {
+        "id": "new:rest-site-choice",
+        "how": "Campfires offer a choice: heal, or upgrade a card."
+      },
+      {
+        "id": "potions",
+        "how": "Single-use potions can be drunk on any turn for free to heal, buff or hurt enemies."
+      },
+      {
+        "id": "shops",
+        "how": "A merchant sells cards, relics and potions and will remove a card from the deck for a fee."
+      },
+      {
+        "id": "difficulty-tiers",
+        "how": "Twenty stacking difficulty levels unlock one by one after each win."
+      },
+      {
+        "id": "run-modifiers",
+        "how": "A daily run uses fixed conditions and one random seed, so every player faces the same climb."
+      },
+      {
+        "id": "meta-progression",
+        "how": "Finished runs earn points that unlock new characters, cards and relics."
+      }
+    ],
+    "classes": [
+      {
+        "name": "The Ironclad",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Burning Blood",
+            "effect": "heal",
+            "does": "Starting relic: heals 6 health at the end of each combat."
+          },
+          {
+            "name": "Demon Form",
+            "effect": "buff",
+            "does": "A power card that keeps growing the hero's strength."
+          }
+        ]
+      },
+      {
+        "name": "The Silent",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Ring of the Snake",
+            "effect": "passive",
+            "does": "Starting relic: draws two extra cards at the start of each combat."
+          },
+          {
+            "name": "Poisons",
+            "effect": "damage-over-time",
+            "does": "Wears foes down with daggers and stacking poison."
+          }
+        ]
+      },
+      {
+        "name": "The Defect",
+        "archetype": "engineer",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Cracked Core",
+            "effect": "summon",
+            "does": "Starting relic: channels a lightning orb at the start of each combat."
+          }
+        ]
+      },
+      {
+        "name": "The Watcher",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Pure Water",
+            "effect": "passive",
+            "does": "Starting relic: adds a Miracle card to the hand each combat."
+          },
+          {
+            "name": "Stances",
+            "effect": "transform",
+            "does": "Shifts between divine stances that change how the hero fights."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Spire monsters",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Elites",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Heart of the Spire",
+        "kind": "boss",
+        "foes": "golems"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Spire",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "ancient-temple",
+      "layout": "gauntlet",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A study deck-climber for Gamory: climb the Lighthouse of Riddles with a hand of spell cards, see what each sea-gremlin plans next turn, and answer a quick question at campfires to upgrade a card instead of resting.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Slay_the_Spire",
+      "official": "https://www.megacrit.com/",
+      "fandom": "https://slaythespire.wiki.gg/wiki/Slay_the_Spire_Wiki"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/b/b7/Slay_the_spire_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Slay_the_spire_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Slay_the_Spire",
+      "https://slaythespire.wiki.gg/wiki/The_Ironclad",
+      "https://slaythespire.wiki.gg/wiki/The_Silent",
+      "https://slaythespire.wiki.gg/wiki/The_Defect",
+      "https://slaythespire.wiki.gg/wiki/The_Watcher"
+    ]
+  },
+  {
+    "id": "dead-cells",
+    "title": "Dead Cells",
+    "kind": "game",
+    "year": 2018,
+    "creators": [
+      "Motion Twin",
+      "Evil Empire"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux",
+      "Nintendo Switch",
+      "PlayStation 4",
+      "PlayStation 5",
+      "Xbox One",
+      "iOS",
+      "Android"
+    ],
+    "genres": [
+      "roguelite",
+      "platformer",
+      "action-rpg"
+    ],
+    "summary": "A headless blob of cells possesses a prisoner's body and fights across a cursed island in a 2D side-scrolling 'roguevania', losing its gear at every death. Collected cells buy permanent unlocks that make the next run richer.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "roguelike-runs",
+        "how": "Each run crosses a chain of biomes with branching exits toward the island's king."
+      },
+      {
+        "id": "permadeath",
+        "how": "Death wipes all weapons and upgrades found in the run, apart from a few permanent items."
+      },
+      {
+        "id": "procedural-dungeons",
+        "how": "Levels are stitched from hand-made chunks in random layouts, so placements of enemies and items change."
+      },
+      {
+        "id": "dodge-roll",
+        "how": "A roll dodges attacks and passes through enemies to hit them from behind."
+      },
+      {
+        "id": "meta-progression",
+        "how": "Cells dropped by foes are spent between areas on permanent upgrades, and are lost if the hero dies before reaching the exit. Blueprints found in levels, once carried out, add new weapons and items to future runs."
+      },
+      {
+        "id": "stat-points",
+        "how": "Power scrolls raise health and boost one of three weapon families (brutality, tactics or survival)."
+      },
+      {
+        "id": "upgrade-draft",
+        "how": "Between biomes the hero picks a limited number of mutations that last until death."
+      },
+      {
+        "id": "new:traversal-runes",
+        "how": "Permanent runes taken from elite enemies unlock new ways to move through levels, each needing the one before."
+      },
+      {
+        "id": "new:weapon-reforge",
+        "how": "Weapons can be reforged between levels to reroll their effects."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Pattern-heavy bosses sit between biomes, and higher difficulty tiers unlock with special boss cells."
+      }
+    ],
+    "characters": [
+      {
+        "name": "The Beheaded (the Prisoner)",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "signature": "An amorphous mass that keeps returning in a new body to fight toward the king."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "The Concierge",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Conjunctivius",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "The Time Keeper",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Hand of the King",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "The Giant",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "The Collector",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Prisoners' Quarters",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Promenade of the Condemned",
+        "world": "haunted-graveyard",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Ramparts",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Black Bridge",
+        "world": "haunted-graveyard",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Throne Room",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "dragon-dungeon",
+      "layout": "gauntlet",
+      "hero": "shadowblade",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A slime sprite hops between straw scarecrow bodies to escape a sunken toy castle; glowing beads from beaten wind-up foes buy permanent backpack upgrades, and torn recipe cards found deep inside unlock new tools for the next try.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Dead_Cells",
+      "official": "https://dead-cells.com/",
+      "fandom": "https://deadcells.wiki.gg/wiki/Bosses"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/1/1f/Dead_cells_cover_art.png",
+      "page": "https://en.wikipedia.org/wiki/File:Dead_cells_cover_art.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Dead_Cells",
+      "https://deadcells.wiki.gg/wiki/Bosses"
+    ]
+  },
+  {
+    "id": "stardew-valley",
+    "title": "Stardew Valley",
+    "kind": "game",
+    "year": 2016,
+    "creators": [
+      "ConcernedApe (Eric Barone)"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux",
+      "PlayStation 4",
+      "Xbox One",
+      "Nintendo Switch",
+      "PlayStation Vita",
+      "iOS",
+      "Android",
+      "Nintendo Switch 2"
+    ],
+    "genres": [
+      "life-sim",
+      "sandbox"
+    ],
+    "summary": "A city worker inherits a grandfather's overgrown farm and restores it season by season while befriending a small town. Cosy and open-ended, with a monster-filled mine for players who want some adventure.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "new:seasonal-farming",
+        "how": "Seasonal seeds need daily watering and must be harvested before the season ends, across four 28-day seasons."
+      },
+      {
+        "id": "resource-gathering",
+        "how": "Clearing trees, rocks and weeds makes room to till, and mined ore is smelted in a furnace."
+      },
+      {
+        "id": "crafting",
+        "how": "Gathered materials are crafted into tools, machines and items."
+      },
+      {
+        "id": "new:animal-husbandry",
+        "how": "Barns and coops house animals that give eggs and milk."
+      },
+      {
+        "id": "use-based-skills",
+        "how": "Farming, foraging, fishing, mining and combat skills each grow by doing that activity."
+      },
+      {
+        "id": "npc-affinity",
+        "how": "Talking to and giving gifts to the 30-plus townsfolk builds friendship over time, leading to marriage and children."
+      },
+      {
+        "id": "new:collection-bundles",
+        "how": "Delivering sets of goods to the town's community centre restores it and unlocks new areas, including an island."
+      },
+      {
+        "id": "new:daily-energy",
+        "how": "Each day starts with a full energy bar that drains with every task and refills with food."
+      },
+      {
+        "id": "day-night",
+        "how": "Time runs through each day, and the calendar moves through the seasons."
+      },
+      {
+        "id": "new:descending-mine",
+        "how": "A cave system has floors of monsters and ore that get richer the deeper the player goes, switching between pickaxe and sword."
+      },
+      {
+        "id": "fishing",
+        "how": "Fishing is its own skill and activity across rivers, lakes and the sea."
+      },
+      {
+        "id": "co-op-party",
+        "how": "A later update added online multiplayer so friends can share a farm."
+      },
+      {
+        "id": "housing",
+        "how": "Players customise their character and farmhouse."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Mine monsters",
+        "kind": "minion",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The farm",
+        "world": "farm-fields",
+        "layout": "open-field"
+      },
+      {
+        "name": "Pelican Town",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "The mines",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "The island",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "calm-study",
+      "world": "farm-fields",
+      "layout": "village-square",
+      "hero": "wildwarden",
+      "foes": "none"
+    },
+    "makeItOurs": "A study farm: kids grow a pumpkin patch in Brambleby where each watering is a quick question, deliver basket sets to reopen the old greenhouse, and visit a friendly mole's tunnel for some gentle monster-shooing.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Stardew_Valley",
+      "official": "https://www.stardewvalley.net/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/f/fd/Logo_of_Stardew_Valley.png",
+      "page": "https://en.wikipedia.org/wiki/File:Logo_of_Stardew_Valley.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Stardew_Valley",
+      "https://www.stardewvalley.net/"
+    ]
+  },
+  {
+    "id": "terraria",
+    "title": "Terraria",
+    "kind": "game",
+    "year": 2011,
+    "creators": [
+      "Re-Logic"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux",
+      "PlayStation",
+      "Xbox",
+      "Nintendo Switch",
+      "iOS",
+      "Android"
+    ],
+    "genres": [
+      "sandbox",
+      "survival-crafting",
+      "platformer",
+      "action-rpg"
+    ],
+    "summary": "A 2D sandbox where players dig, build and fight across a procedurally generated world, crafting better gear to take on a long ladder of bosses. Beating a key boss flips the world into a harder second half.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "procedural-dungeons",
+        "how": "Every world is generated in a chosen size, split into biomes with their own enemies and resources."
+      },
+      {
+        "id": "resource-gathering",
+        "how": "Mining caves yields ores and other materials, some found only in certain biomes or dropped by enemies."
+      },
+      {
+        "id": "crafting",
+        "how": "Materials become weapons, armour and potions at crafting stations."
+      },
+      {
+        "id": "base-building",
+        "how": "Players build houses and bases block by block."
+      },
+      {
+        "id": "housing",
+        "how": "Reaching goals attracts helper NPCs who move into houses the player builds; their happiness depends on biome and neighbours."
+      },
+      {
+        "id": "shops",
+        "how": "Settled NPCs sell items or services such as healing, cheaper when they are happy."
+      },
+      {
+        "id": "gear-defines-build",
+        "how": "Melee, ranged, magic and summoner classes come entirely from the equipment worn, so a player can change class any time."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Bosses are summoned with special items or appear when conditions are met, and drop valuable loot."
+      },
+      {
+        "id": "new:boss-gated-world",
+        "how": "Defeating a key boss switches the world into a harder mode with new enemies, resources and NPCs."
+      },
+      {
+        "id": "world-events",
+        "how": "Triggered events bring armies (goblins, pirates, aliens) until they are beaten or time runs out."
+      },
+      {
+        "id": "new:spreading-biome",
+        "how": "Evil biomes slowly spread and infect the rest of the world."
+      },
+      {
+        "id": "co-op-party",
+        "how": "The whole game can be played with friends in multiplayer."
+      },
+      {
+        "id": "character-customization",
+        "how": "Appearance is set at creation and changed with cosmetic vanity gear and dyes."
+      },
+      {
+        "id": "new:creative-mode",
+        "how": "A Journey mode lets players duplicate items and control difficulty, weather and time."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Melee",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Close-range weapons",
+            "effect": "melee-flurry",
+            "does": "Swords and other close weapons strike enemies up close."
+          }
+        ]
+      },
+      {
+        "name": "Ranged",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Bows and guns",
+            "effect": "projectile",
+            "does": "Fires arrows or bullets at range."
+          }
+        ]
+      },
+      {
+        "name": "Magic",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Magic weapons",
+            "effect": "beam",
+            "does": "Spends mana on spell attacks; mana grows with found items."
+          }
+        ]
+      },
+      {
+        "name": "Summoner",
+        "archetype": "summoner",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Minions",
+            "effect": "summon",
+            "does": "Calls allies that fight for the player."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Goblin army",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "King Slime",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Eye of Cthulhu",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Skeletron",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Wall of Flesh",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Golem",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Moon Lord",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Surface and caves",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Corruption / Crimson",
+        "world": "haunted-graveyard",
+        "layout": "open-field"
+      },
+      {
+        "name": "Desert",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "Underground caverns",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "enchanted-forest",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Kids dig into Burrowland, build cottages that attract a baker, a medic and a map-seller, and craft better shovels and slingshots to summon and beat a ladder of giant pests, from a jelly king to a moon moth.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Terraria",
+      "official": "https://terraria.org/",
+      "fandom": "https://terraria.wiki.gg/wiki/Bosses"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/1/1a/Terraria_Steam_artwork.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Terraria_Steam_artwork.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Terraria",
+      "https://terraria.wiki.gg/wiki/Bosses"
+    ]
+  },
+  {
+    "id": "baldurs-gate-3",
+    "title": "Baldur's Gate 3",
+    "aliases": [
+      "baldurs gate",
+      "bg3"
+    ],
+    "kind": "game",
+    "year": 2023,
+    "creators": [
+      "Larian Studios"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation 5",
+      "macOS",
+      "Xbox Series X/S",
+      "Linux"
+    ],
+    "genres": [
+      "tactical-rpg",
+      "story-adventure"
+    ],
+    "summary": "A party infected with mind-controlling parasites seeks a cure across a fantasy realm, in a game built on the fifth-edition tabletop rules. Real-time exploration turns into turn-based tactical combat, and dice rolls decide fights, locks and conversations.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "turn-based-combat",
+        "how": "Initiative sets the turn order, and each character spends an action, a bonus action and movement per turn."
+      },
+      {
+        "id": "new:dice-rolls",
+        "how": "Attacks, skills and dialogue checks roll a twenty-sided die against a target number, with advantage or disadvantage rolling two."
+      },
+      {
+        "id": "character-classes",
+        "how": "Twelve tabletop classes, each with several subclasses."
+      },
+      {
+        "id": "multiclassing",
+        "how": "On level-up a character can put the new level into a different class."
+      },
+      {
+        "id": "stat-points",
+        "how": "Feats at set levels grant a new ability or raise ability scores."
+      },
+      {
+        "id": "dialogue-choices",
+        "how": "Persuasion, intimidation and deception options can start, avoid or reshape fights."
+      },
+      {
+        "id": "elemental-reactions",
+        "how": "Damage types combine or cancel, so grease plus fire burns a target for several turns."
+      },
+      {
+        "id": "checkpoint-rest",
+        "how": "Short rests restore some health and features; long rests at a camp with companions restore everything."
+      },
+      {
+        "id": "quests",
+        "how": "Hundreds of quests with freedom in how to solve them, some mutually exclusive."
+      },
+      {
+        "id": "character-customization",
+        "how": "The player picks class, species and backstory at creation."
+      },
+      {
+        "id": "co-op-party",
+        "how": "The campaign can be played in multiplayer with friends."
+      },
+      {
+        "id": "new:respec",
+        "how": "A camp character lets players rebuild a character's choices."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Barbarian",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Rage",
+            "effect": "buff",
+            "does": "Enters a fury that adds damage and shrugs off physical hits."
+          }
+        ]
+      },
+      {
+        "name": "Fighter",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Second Wind",
+            "effect": "heal",
+            "does": "Recovers a chunk of health in a pinch."
+          },
+          {
+            "name": "Action Surge",
+            "effect": "buff",
+            "does": "Takes an extra action this turn."
+          }
+        ]
+      },
+      {
+        "name": "Rogue",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Sneak Attack",
+            "effect": "passive",
+            "does": "Extra damage when striking with an advantage or beside an ally."
+          },
+          {
+            "name": "Hide",
+            "effect": "stealth",
+            "does": "Slips out of sight to set up the next strike."
+          }
+        ]
+      },
+      {
+        "name": "Wizard",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Magic Missile",
+            "effect": "projectile",
+            "does": "Darts of force that always hit."
+          },
+          {
+            "name": "Fireball",
+            "effect": "area-blast",
+            "does": "An exploding sphere of fire over an area."
+          }
+        ]
+      },
+      {
+        "name": "Cleric",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Cure Wounds",
+            "effect": "heal",
+            "does": "Heals an ally by touch."
+          },
+          {
+            "name": "Spirit Guardians",
+            "effect": "damage-over-time",
+            "does": "Spirits circle the cleric and hurt nearby foes each turn."
+          }
+        ]
+      },
+      {
+        "name": "Druid",
+        "archetype": "druid",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Wild Shape",
+            "effect": "transform",
+            "does": "Turns into an animal form to fight."
+          },
+          {
+            "name": "Moonbeam",
+            "effect": "beam",
+            "does": "A column of moonlight that burns enemies standing in it."
+          }
+        ]
+      },
+      {
+        "name": "Paladin",
+        "archetype": "paladin",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Divine Smite",
+            "effect": "buff",
+            "does": "Spends spell power to add radiant damage to a weapon hit."
+          },
+          {
+            "name": "Lay on Hands",
+            "effect": "heal",
+            "does": "Heals from a pool of holy energy."
+          }
+        ]
+      },
+      {
+        "name": "Bard",
+        "archetype": "bard",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Bardic Inspiration",
+            "effect": "buff",
+            "does": "Gives an ally a bonus die to add to a roll."
+          },
+          {
+            "name": "Vicious Mockery",
+            "effect": "projectile",
+            "does": "An insult that hurts and weakens a foe's next attack."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Goblins",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Gnolls",
+        "kind": "minion",
+        "foes": "brutes"
+      },
+      {
+        "name": "Owlbear",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Mind flayer",
+        "kind": "elite",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Druids' grove",
+        "world": "enchanted-forest",
+        "layout": "village-square"
+      },
+      {
+        "name": "Goblin camp",
+        "world": "ancient-temple",
+        "layout": "crossroads"
+      },
+      {
+        "name": "The Underdark",
+        "world": "dragon-dungeon",
+        "layout": "open-field"
+      },
+      {
+        "name": "Shadow-cursed lands",
+        "world": "haunted-graveyard",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Baldur's Gate (city)",
+        "world": "city-streets",
+        "layout": "crossroads"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "crossroads",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Mechanics only (mature work): a gentle turn-based 'dice tactics' mode for Gamory where a party of four rolls a big friendly die for each swing or spell, and puddles of oil or water combine with fire and frost on the battlefield.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Baldur%27s_Gate_3",
+      "official": "https://baldursgate3.game/",
+      "fandom": "https://bg3.wiki/wiki/Classes"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/1/12/Baldur%27s_Gate_3_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Baldur%27s_Gate_3_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Baldur%27s_Gate_3",
+      "https://bg3.wiki/wiki/Classes"
+    ]
+  },
+  {
+    "id": "ni-no-kuni-ii",
+    "title": "Ni no Kuni II: Revenant Kingdom",
+    "aliases": [
+      "ni no kuni"
+    ],
+    "kind": "game",
+    "year": 2018,
+    "creators": [
+      "Level-5",
+      "Bandai Namco Entertainment"
+    ],
+    "platforms": [
+      "PlayStation 4",
+      "Windows",
+      "Nintendo Switch",
+      "Xbox One",
+      "Xbox Series X/S"
+    ],
+    "genres": [
+      "action-rpg",
+      "jrpg",
+      "story-adventure"
+    ],
+    "summary": "A boy king driven from his castle sets out to found a new kingdom where everyone can be happy, uniting rival nations along the way. Storybook action RPG with tiny elemental helper sprites in battle and a town to build and manage.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "real-time-combat",
+        "how": "Battles happen on an open field where the player moves freely using melee attacks and magic."
+      },
+      {
+        "id": "party-switching",
+        "how": "The player commands one of three party members and can switch at any time, while the other two fight on their own."
+      },
+      {
+        "id": "summons",
+        "how": "Up to four small elemental helper sprites, in six elements, follow the party and cast spells or give combat bonuses."
+      },
+      {
+        "id": "base-building",
+        "how": "The player builds and manages a kingdom, assigning workers to facilities that produce materials and run shops."
+      },
+      {
+        "id": "open-world",
+        "how": "Between quests the player roams towns, villages and dungeons freely."
+      },
+      {
+        "id": "new:diorama-world-map",
+        "how": "Travel between places happens on a world map shown as a diorama with chibi-style characters."
+      },
+      {
+        "id": "quests",
+        "how": "Linear story quests plus many side quests and secrets."
+      },
+      {
+        "id": "story-chapters",
+        "how": "The story moves nation by nation as each ruler is won over to an alliance."
+      },
+      {
+        "id": "shops",
+        "how": "Kingdom facilities open shops for weapons and armour."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Evan Pettiwhisker Tildrum",
+        "archetype": "knight",
+        "role": "melee-dps",
+        "signature": "A young king, usurped from his castle, who founds a new kingdom."
+      },
+      {
+        "name": "Roland Crane",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "A president from our world who arrives younger and becomes Evan's loyal guardian."
+      },
+      {
+        "name": "Tani",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "signature": "A sky-pirate girl of Evan's age."
+      },
+      {
+        "name": "Batu",
+        "archetype": "berserker",
+        "role": "tank",
+        "signature": "Tani's father and boss of the sky pirates."
+      },
+      {
+        "name": "Leander",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Advisor to the queen of an island kingdom who joins the party."
+      },
+      {
+        "name": "Bracken Meadows",
+        "archetype": "engineer",
+        "role": "builder",
+        "signature": "The top engineer and a co-founder of an industrious nation."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Field monsters",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Mausinger",
+        "kind": "elite",
+        "foes": "mixed"
+      },
+      {
+        "name": "Doloran",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Ding Dong Dell",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "Cloudcoil Canyon",
+        "world": "desert-ruins",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Goldpaw",
+        "world": "city-streets",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Hydropolis",
+        "world": "pirate-coast",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Broadleaf",
+        "world": "sci-fi-outpost",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Evermore",
+        "world": "storybook-village",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "storybook-village",
+      "layout": "village-square",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "A kitten-eared prince builds the new town of Kindlewick between quests, giving each rescued villager a job at the bakery or forge, while a cloud of tiny weather sprites tags along in fights to cast puddle and gust spells.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Ni_no_Kuni_II:_Revenant_Kingdom",
+      "official": "https://en.bandainamcoent.eu/ni-no-kuni/ni-no-kuni-ii-revenant-kingdom"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/2/27/Ni_no_Kuni_II_Revenant_Kingdom_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Ni_no_Kuni_II_Revenant_Kingdom_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Ni_no_Kuni_II:_Revenant_Kingdom",
+      "https://en.bandainamcoent.eu/ni-no-kuni/ni-no-kuni-ii-revenant-kingdom"
+    ]
+  },
+  {
+    "id": "prodigy-math-game",
+    "title": "Prodigy Math Game",
+    "aliases": [
+      "prodigy"
+    ],
+    "kind": "game",
+    "year": 2014,
+    "creators": [
+      "Prodigy Education (SMARTeacher)"
+    ],
+    "platforms": [
+      "Web browser",
+      "Android",
+      "iOS"
+    ],
+    "genres": [
+      "educational",
+      "mmorpg",
+      "jrpg"
+    ],
+    "summary": "An online fantasy RPG where a young wizard recovers five stolen keystones by winning turn-based spell battles, and every spell is powered by answering a math question. Teachers use it to set work and track progress, and defeated monsters can be rescued as pets.",
+    "audience": "all",
+    "features": [
+      {
+        "id": "study-questions",
+        "how": "Spells cost magic points, and refilling them means answering a math (or science) question correctly."
+      },
+      {
+        "id": "turn-based-combat",
+        "how": "Battles are turn-based spell duels against monsters and other wizards."
+      },
+      {
+        "id": "monster-taming",
+        "how": "A weakened non-boss foe can be rescued as a pet, which then casts spells and fights in battles."
+      },
+      {
+        "id": "pets",
+        "how": "The player picks one of five starter pets at the academy and trains caught ones."
+      },
+      {
+        "id": "quests",
+        "how": "The main quest sends the player to five elemental areas to recover a keystone from each."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Each area ends in a boss, and the finale replays shadow versions of them with checkpoints."
+      },
+      {
+        "id": "elemental-reactions",
+        "how": "Five elemental towers at the academy each teach a school of magic and reopen as keystones return."
+      },
+      {
+        "id": "new:teacher-dashboard",
+        "how": "Teachers assign homework through the game and monitor each student's work."
+      },
+      {
+        "id": "character-customization",
+        "how": "Players dress their wizard avatar with clothing and items."
+      },
+      {
+        "id": "difficulty-tiers",
+        "how": "After the story, a time-travel twist opens a harder replay of the world."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Players share a persistent online world and can battle other wizards."
+      },
+      {
+        "id": "new:membership-tiers",
+        "how": "Paid membership levels unlock extra items; this freemium model has drawn criticism from child advocates."
+      }
+    ],
+    "characters": [
+      {
+        "name": "The player wizard",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A new academy student who casts spells by answering questions."
+      },
+      {
+        "name": "Noot",
+        "archetype": "bard",
+        "role": "support",
+        "signature": "A fairy guide who teaches the player to cast magic."
+      },
+      {
+        "name": "Theo Addiwise",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "A wizard who lends the player a first wand and a practice duel."
+      },
+      {
+        "name": "The Puppet Master",
+        "archetype": "summoner",
+        "role": "controller",
+        "signature": "The villain who scatters the keystones and possesses the island's creatures."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Possessed creatures",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Area bosses",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "The Puppet Master",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The Academy",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "Firefly Forest",
+        "world": "enchanted-forest",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Shiverchill Mountains",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Bonfire Spire",
+        "world": "lava-wastes",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Shipwreck Shore",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      },
+      {
+        "name": "Dragon Isle",
+        "world": "dragon-dungeon",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "study",
+      "world": "enchanted-forest",
+      "layout": "crossroads",
+      "hero": "mage",
+      "foes": "imps"
+    },
+    "makeItOurs": "Young spell-scholars at the Inkwell School recharge their wands by solving quick sums, befriend the mischief-sprites they calm down, and relight five lighthouse lamps the Thimble Thief knocked out, with every unlock earned in play, not bought.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Prodigy_Math_Game",
+      "official": "https://www.prodigygame.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/9/92/Prodigy_Math_Game_Loading_Screen.png",
+      "page": "https://en.wikipedia.org/wiki/File:Prodigy_Math_Game_Loading_Screen.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Prodigy_Math_Game"
+    ]
+  }
+]

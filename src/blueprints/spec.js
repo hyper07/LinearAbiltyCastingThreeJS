@@ -301,24 +301,40 @@ function namedHero(lower, heroes) {
  */
 export function keywordSpec(description = '', { heroes = [] } = {}) {
   const raw = String(description ?? '');
-  const lower = raw.toLowerCase();
-  const genre = GENRE_ORDER.find((id) => GENRES[id].words.test(lower)) ?? 'survival';
-  const world = earliest(WORLDS, lower) ?? (isStudyGenre(genre) ? 'enchanted-forest' : 'storybook-village');
-  const chapterMatch = lower.match(/\b(\d|one|two|three|four|five)\s+(levels?|chapters?|rooms?|floors?|stages?|parts?)\b/);
-  const age = lower.match(/\b(\d{1,2})[\s-]*(years?|yrs?|yo)\b/);
-  const subject = Object.entries(SUBJECT_WORDS).find(([, re]) => re.test(lower))?.[0];
+  const said = keywordPicks(raw, { heroes });
+  const genre = said.genre ?? 'survival';
   const words = raw.trim().split(/\s+/).filter(Boolean);
   return normalizeSpec({
     // A short title-like idea ("Dragon Dash") is the name; a sentence is not.
     name: words.length && words.length <= 4 && !/[,.!?]/.test(raw) ? words.map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') : '',
+    ...said,
     genre,
-    world,
+    world: said.world ?? (isStudyGenre(genre) ? 'enchanted-forest' : 'storybook-village'),
+    hero: said.hero ?? 'any',
+    difficulty: said.difficulty ?? 'normal'
+  }, { heroes: heroes.map((h) => h.id) });
+}
+
+/**
+ * Only what the words say: the fields a description names, nothing filled in.
+ * (`keywordSpec` fills the rest; the game builder lays these over a known
+ * work's picks for "…like <a game>".)
+ * @returns {{ genre?, world?, layout?, hero?, foes?, chapters?, difficulty?, subject?, age? }}
+ */
+export function keywordPicks(description = '', { heroes = [] } = {}) {
+  const lower = String(description ?? '').toLowerCase();
+  const chapterMatch = lower.match(/\b(\d|one|two|three|four|five)\s+(levels?|chapters?|rooms?|floors?|stages?|parts?)\b/);
+  const age = lower.match(/\b(\d{1,2})[\s-]*(years?|yrs?|yo)\b/);
+  const picks = {
+    genre: GENRE_ORDER.find((id) => GENRES[id].words.test(lower)),
+    world: earliest(WORLDS, lower),
     layout: earliest(LAYOUTS, lower),
-    hero: namedHero(lower, heroes) ?? earliest(HEROES, lower) ?? 'any',
+    hero: namedHero(lower, heroes) ?? earliest(HEROES, lower),
     foes: earliest(FOES, lower),
     chapters: chapterMatch ? NUMBER_WORDS[chapterMatch[1]] ?? +chapterMatch[1] : undefined,
-    difficulty: /\b(easy|young|little|beginner|gentle)\b/.test(lower) ? 'easy' : /\b(hard|tough|challeng|expert|brutal)\b/.test(lower) ? 'hard' : 'normal',
-    subject,
+    difficulty: /\b(easy|young|little|beginner|gentle)\b/.test(lower) ? 'easy' : /\b(hard|tough|challeng|expert|brutal)\b/.test(lower) ? 'hard' : undefined,
+    subject: Object.entries(SUBJECT_WORDS).find(([, re]) => re.test(lower))?.[0],
     age: age ? +age[1] : undefined
-  }, { heroes: heroes.map((h) => h.id) });
+  };
+  return Object.fromEntries(Object.entries(picks).filter(([, v]) => v != null));
 }

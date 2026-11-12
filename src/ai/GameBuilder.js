@@ -1,6 +1,20 @@
-import { keywordSpec, menuPrompt, normalizeSpec, specSchema } from '../blueprints/index.js';
+import { keywordPicks, keywordSpec, menuPrompt, normalizeSpec, specSchema } from '../blueprints/index.js';
 
 const ENDPOINT = './api/ai';
+
+/** The inspiration catalog, loaded the first time a build needs it (not in the first page load). */
+let catalog = null;
+const loadCatalog = () => (catalog ??= import('../catalog/inspiration/index.js').catch(() => null));
+
+/**
+ * "…like Solo Leveling": the work the idea names, from the catalog, or null.
+ * @returns {Promise<{ id: string, spec: object, text: string }|null>}
+ */
+async function inspirationOf(description) {
+  const c = await loadCatalog();
+  const work = c?.matchWork(description);
+  return work ? c.likeWork(work.id) : null;
+}
 
 /**
  * A sentence → a game spec (src/blueprints/spec.js).
@@ -11,6 +25,11 @@ const ENDPOINT = './api/ai';
  *                            (the same every time, so cacheable) and ~120 out
  *   build(text, {custom})    Plus: the premium model also writes the map, the
  *                            chapter stories, the helpers' lines and questions
+ *
+ * "A game like <a known game or story>" (the inspiration catalog,
+ * src/catalog/inspiration) starts from that work's nearest menu picks, and the
+ * AI gets a short note of its systems and an original take: still no names
+ * from the work.
  *
  * `heroes`: the characters players made ({ id, name, blurb }, describeHero), so
  * "a quest with my Stormbound Corsair" plays as that class — in the keywords,
@@ -32,8 +51,12 @@ export class GameBuilder {
     }
   }
 
-  quick(description, { heroes = [] } = {}) {
-    return { spec: keywordSpec(description, { heroes }), source: 'keywords' };
+  async quick(description, { heroes = [] } = {}) {
+    const like = await inspirationOf(description);
+    if (!like) return { spec: keywordSpec(description, { heroes }), source: 'keywords' };
+    // The work's picks first; what the player wrote ("in the frozen north", "with my mage") wins.
+    const spec = normalizeSpec({ ...like.spec, ...keywordPicks(description, { heroes }) }, { heroes: heroes.map((h) => h.id) });
+    return { spec, source: 'keywords', inspiredBy: like.id };
   }
 
   /**
@@ -44,11 +67,12 @@ export class GameBuilder {
   async build(description, { custom = false, heroes = [] } = {}) {
     const text = String(description ?? '').trim() || 'Surprise me: a fun adventure for a child.';
     try {
-      const raw = await this._ask(text, custom, heroes);
+      const like = await inspirationOf(text);
+      const raw = await this._ask(like ? `${text}\n(${like.text})` : text, custom, heroes);
       const spec = normalizeSpec(custom ? { ...raw, custom: { plan: raw.map, chapters: raw.chapterStories, npcs: raw.npcs } } : raw, { heroes: heroes.map((h) => h.id) });
-      return { spec, source: custom ? 'ai-custom' : 'ai' };
+      return { spec, source: custom ? 'ai-custom' : 'ai', ...(like ? { inspiredBy: like.id } : {}) };
     } catch (error) {
-      return { ...this.quick(text, { heroes }), note: error.message, upgrade: Boolean(error.upgrade) };
+      return { ...(await this.quick(text, { heroes })), note: error.message, upgrade: Boolean(error.upgrade) };
     }
   }
 

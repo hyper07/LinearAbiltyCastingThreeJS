@@ -21,7 +21,12 @@ export async function run(browser) {
 
     await page.fill('.builder [data-prompt]', 'a snowy dungeon crawl with three rooms and a knight');
     await page.click('.builder [data-quick]');
-    t.check('Quick build fills in the menus', (await field('genre').inputValue()) === 'dungeon-crawl' && (await field('world').inputValue()) === 'frozen-north' && (await field('hero').inputValue()) === 'knight');
+    // Quick build waits for the catalog the first time (it loads on demand), so wait for the menus.
+    const menus = () => page.evaluate(() => ['genre', 'world', 'hero'].map((f) => document.querySelector(`.builder [data-field="${f}"]`)?.value).join(' '));
+    t.check('Quick build fills in the menus', await until(page, () => ['genre', 'world', 'hero'].map((f) => document.querySelector(`.builder [data-field="${f}"]`)?.value).join(' ') === 'dungeon-crawl frozen-north knight', null, 5000));
+    await page.fill('.builder [data-prompt]', 'a dungeon game like Solo Leveling');
+    await page.click('.builder [data-quick]');
+    t.check('"…like Solo Leveling" starts from that work\'s picks (the catalog), under our own name', await until(page, () => ['genre', 'world', 'hero'].map((f) => document.querySelector(`.builder [data-field="${f}"]`)?.value).join(' ') === 'dungeon-crawl dragon-dungeon bonecaller', null, 8000) && !/solo leveling/i.test(await page.inputValue('.builder [data-field="name"]').catch(() => '')), await menus());
     // A class a player made (the Class forge ships two) is a hero like any other.
     t.check('the Hero menu offers classes players made', await page.evaluate(() => [...document.querySelectorAll('.builder [data-field="hero"] option')].some((o) => o.value === 'forge-stormbound-corsair' && /made by a player/.test(o.textContent))));
     await page.fill('.builder [data-prompt]', 'a pirate story quest with the Stormbound Corsair');

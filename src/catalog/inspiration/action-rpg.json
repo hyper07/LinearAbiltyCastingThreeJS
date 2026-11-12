@@ -1,0 +1,3547 @@
+[
+  {
+    "id": "diablo-2-resurrected",
+    "title": "Diablo II: Resurrected",
+    "kind": "game",
+    "year": 2021,
+    "creators": [
+      "Blizzard Entertainment",
+      "Vicarious Visions"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation 4",
+      "PlayStation 5",
+      "Xbox One",
+      "Xbox Series X/S",
+      "Nintendo Switch"
+    ],
+    "genres": [
+      "action-rpg",
+      "hack-and-slash",
+      "dungeon-crawler"
+    ],
+    "summary": "A faithful remaster of the 2000 dark-fantasy action RPG: pick one of seven heroes and fight through five acts of randomly laid-out wilds and dungeons, chasing better loot. New 3D visuals can be toggled back to the original sprites, and a shared stash lets your own heroes pass items to each other.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "character-classes",
+        "how": "Seven classes, each with three skill trees of ten skills and its own starting stats."
+      },
+      {
+        "id": "skill-tree",
+        "how": "A skill point every level goes into one of three class trees, where early skills unlock later ones, and the game warns that spending is permanent."
+      },
+      {
+        "id": "loot-rarity",
+        "how": "Gear drops as normal, magic (blue, 1-2 random bonuses), rare (yellow, 2-6 bonuses), set (green) or unique (gold, fixed bonuses)."
+      },
+      {
+        "id": "new:runewords",
+        "how": "Runes socketed in an exact order into a plain item with exactly the right sockets turn it into a named runeword with big fixed bonuses."
+      },
+      {
+        "id": "new:item-sets",
+        "how": "Green set items give extra bonuses when two or more pieces of the same named set are worn together."
+      },
+      {
+        "id": "crafting",
+        "how": "The Horadric Cube combines items, for example three small gems into one better gem or three small potions into a stronger one."
+      },
+      {
+        "id": "difficulty-tiers",
+        "how": "Beating the game on Normal unlocks Nightmare, then Hell, with tougher monsters that can be immune to an element but drop better items."
+      },
+      {
+        "id": "permadeath",
+        "how": "Hardcore heroes have one life, lose their gear on death and play on separate channels from normal heroes."
+      },
+      {
+        "id": "stash",
+        "how": "A shared stash moves items between your own characters, replacing the old trick of a 'mule' character."
+      },
+      {
+        "id": "procedural-dungeons",
+        "how": "Each act follows a fixed path between towns, but the wilderness and dungeons in between are randomly generated."
+      },
+      {
+        "id": "story-chapters",
+        "how": "Five acts, each with a town hub and a set of quests (six per act, three in Act IV), ending in a boss."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Online games where players join, share the dungeons and can mark each other to loot a fallen friend's body."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Amazon",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Multiple Shot",
+            "effect": "projectile",
+            "does": "Fires a fan of arrows at once."
+          },
+          {
+            "name": "Lightning Fury",
+            "effect": "chain-hit",
+            "does": "A thrown javelin that bursts into lightning bolts hitting nearby foes."
+          },
+          {
+            "name": "Valkyrie",
+            "effect": "summon",
+            "does": "Calls a spectral warrior maiden to fight beside her."
+          }
+        ]
+      },
+      {
+        "name": "Sorceress",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Frozen Orb",
+            "effect": "slow-orb",
+            "does": "A slow orb that sprays ice bolts in every direction as it flies."
+          },
+          {
+            "name": "Blizzard",
+            "effect": "rain-zone",
+            "does": "Ice shards rain down on an area."
+          },
+          {
+            "name": "Meteor",
+            "effect": "area-blast",
+            "does": "Calls a meteor that explodes and leaves burning ground."
+          },
+          {
+            "name": "Teleport",
+            "effect": "teleport",
+            "does": "Instantly moves her to the cursor."
+          }
+        ]
+      },
+      {
+        "name": "Barbarian",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Whirlwind",
+            "effect": "whirlwind",
+            "does": "Spins through a crowd, hitting everything on the way."
+          },
+          {
+            "name": "Leap Attack",
+            "effect": "leap-attack",
+            "does": "Jumps onto a target and strikes on landing."
+          },
+          {
+            "name": "Battle Orders",
+            "effect": "buff",
+            "does": "A war cry that raises life and mana for the whole party."
+          },
+          {
+            "name": "War Cry",
+            "effect": "war-cry",
+            "does": "A shout that damages and stuns nearby monsters."
+          }
+        ]
+      },
+      {
+        "name": "Necromancer",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Raise Skeleton",
+            "effect": "summon",
+            "does": "Raises a skeleton warrior from a corpse."
+          },
+          {
+            "name": "Corpse Explosion",
+            "effect": "area-blast",
+            "does": "Makes a corpse explode, hurting monsters around it."
+          },
+          {
+            "name": "Bone Spear",
+            "effect": "piercing-bolt",
+            "does": "A bone lance that passes through every enemy in a line."
+          }
+        ]
+      },
+      {
+        "name": "Paladin",
+        "archetype": "paladin",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Blessed Hammer",
+            "effect": "projectile",
+            "does": "Sends a spinning holy hammer spiralling out from the Paladin."
+          },
+          {
+            "name": "Holy Shield",
+            "effect": "shield",
+            "does": "Blesses his shield to block more often and better."
+          },
+          {
+            "name": "Prayer",
+            "effect": "heal",
+            "does": "An aura that heals the Paladin and his party over time."
+          }
+        ]
+      },
+      {
+        "name": "Druid",
+        "archetype": "druid",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Werewolf",
+            "effect": "transform",
+            "does": "Shifts into a fast-attacking wolf form."
+          },
+          {
+            "name": "Armageddon",
+            "effect": "rain-zone",
+            "does": "Molten rocks keep falling around the Druid."
+          },
+          {
+            "name": "Summon Grizzly",
+            "effect": "summon",
+            "does": "Calls a great bear to fight for him."
+          }
+        ]
+      },
+      {
+        "name": "Assassin",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Lightning Sentry",
+            "effect": "trap",
+            "does": "Places a trap that fires lightning at passing monsters."
+          },
+          {
+            "name": "Dragon Claw",
+            "effect": "melee-flurry",
+            "does": "A fast double strike with both claw weapons."
+          },
+          {
+            "name": "Shadow Master",
+            "effect": "summon",
+            "does": "Summons a shadow copy of herself that uses her skills."
+          },
+          {
+            "name": "Burst of Speed",
+            "effect": "buff",
+            "does": "Raises attack and movement speed for a time."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Andariel",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Mephisto",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Diablo",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Baal",
+        "kind": "boss",
+        "foes": "imps"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Rogue Encampment (Act I)",
+        "world": "enchanted-forest",
+        "layout": "village-square"
+      },
+      {
+        "name": "Lut Gholein (Act II)",
+        "world": "desert-ruins",
+        "layout": "village-square"
+      },
+      {
+        "name": "Kurast (Act III)",
+        "world": "ancient-temple",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Hell (Act IV)",
+        "world": "lava-wastes",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Mount Arreat (Act V)",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "haunted-graveyard",
+      "layout": "gauntlet",
+      "hero": "any",
+      "foes": "imps"
+    },
+    "makeItOurs": "Ashfall Road: five chapters from a frontier camp to a burning underworld, where heroes press glowing glyph-stones into plain gear in the right order to wake a named relic, and each finished run unlocks harder Ember and Inferno replays.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Diablo_II:_Resurrected",
+      "official": "https://diablo2.blizzard.com/",
+      "fandom": "https://diablo2.wiki.fextralife.com/Classes"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/8/88/Diablo_2_Resurrected_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Diablo_2_Resurrected_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Diablo_II:_Resurrected",
+      "https://en.wikipedia.org/wiki/Diablo_II",
+      "https://classic.battle.net/diablo2exp/skills/",
+      "https://diablo2.wiki.fextralife.com/Classes",
+      "https://diablo2.wiki.fextralife.com/Sorceress",
+      "https://diablo2.wiki.fextralife.com/Barbarian",
+      "https://diablo2.wiki.fextralife.com/Necromancer",
+      "https://diablo2.wiki.fextralife.com/Paladin",
+      "https://diablo2.wiki.fextralife.com/Amazon",
+      "https://diablo2.wiki.fextralife.com/Assassin",
+      "https://diablo2.wiki.fextralife.com/Druid",
+      "https://diablo2.wiki.fextralife.com/Runewords"
+    ]
+  },
+  {
+    "id": "diablo-iv",
+    "title": "Diablo IV",
+    "aliases": [
+      "diablo 4"
+    ],
+    "kind": "game",
+    "year": 2023,
+    "creators": [
+      "Blizzard Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation 4",
+      "PlayStation 5",
+      "Xbox One",
+      "Xbox Series X/S"
+    ],
+    "genres": [
+      "action-rpg",
+      "hack-and-slash",
+      "open-world",
+      "dungeon-crawler"
+    ],
+    "summary": "An open-world dark-fantasy action RPG where a lone Wanderer crosses a demon-haunted land, building a hero from class skills, skill trees and ever-better loot. Random dungeons, shared world events, seasons and PvP zones keep the loot hunt going.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "open-world",
+        "how": "Seven regions joined without loading screens, playable in any order, with enemies scaled to the player or party leader."
+      },
+      {
+        "id": "procedural-dungeons",
+        "how": "Instanced dungeons with random indoor and outdoor layouts, separate from the fixed overworld."
+      },
+      {
+        "id": "skill-tree",
+        "how": "Each class unlocks and customises its abilities in a skill tree."
+      },
+      {
+        "id": "loot-rarity",
+        "how": "Gear rarity signals power, and the rarest items carry unique effects that change how skills behave."
+      },
+      {
+        "id": "class-unique-mechanic",
+        "how": "Every class gets one personal system on top of skills: the Barbarian's rack of swappable weapons, the Sorcerer's enchantment slots, the Necromancer's book for customising minions, the Paladin's oaths."
+      },
+      {
+        "id": "world-events",
+        "how": "Boss events in the overworld that any passing player can join."
+      },
+      {
+        "id": "pvp",
+        "how": "Marked overworld areas allow fights against other players."
+      },
+      {
+        "id": "mounts",
+        "how": "A rideable mount whose look can be customised."
+      },
+      {
+        "id": "seasons",
+        "how": "Limited-time seasons add season-only items, events and fresh characters to keep the game new."
+      },
+      {
+        "id": "character-customization",
+        "how": "Appearance is chosen freely rather than tied to the class."
+      },
+      {
+        "id": "permadeath",
+        "how": "A hardcore mode where death is permanent."
+      },
+      {
+        "id": "crafting",
+        "how": "Crafting and trading exist but are limited to items below the most powerful tier."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Barbarian",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Whirlwind",
+            "effect": "whirlwind",
+            "does": "Spins through large packs of enemies."
+          },
+          {
+            "name": "Bash",
+            "effect": "ground-slam",
+            "does": "A heavy blow that stuns and hurts one target."
+          },
+          {
+            "name": "Flay",
+            "effect": "damage-over-time",
+            "does": "A cut that makes the target bleed heavily over time."
+          }
+        ]
+      },
+      {
+        "name": "Sorcerer",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Meteor",
+            "effect": "area-blast",
+            "does": "A falling meteor that hits hard and sets the ground on fire."
+          },
+          {
+            "name": "Frozen Orb",
+            "effect": "slow-orb",
+            "does": "An orb that freezes and slows the enemies it passes."
+          },
+          {
+            "name": "Chain Lightning",
+            "effect": "chain-hit",
+            "does": "Lightning that jumps from enemy to enemy."
+          }
+        ]
+      },
+      {
+        "name": "Druid",
+        "archetype": "shapeshifter",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Shred",
+            "effect": "dash-strike",
+            "does": "A gap-closing dash used in werewolf form."
+          },
+          {
+            "name": "Werebear form",
+            "effect": "transform",
+            "does": "Shifts into a sturdy bear that changes the playstyle."
+          }
+        ]
+      },
+      {
+        "name": "Rogue",
+        "archetype": "rogue",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Rapid Fire",
+            "effect": "projectile",
+            "does": "A fast volley of arrows that can be imbued with other effects."
+          },
+          {
+            "name": "Shadow Imbuement",
+            "effect": "buff",
+            "does": "Makes attacks mark enemies so they explode in shadow damage."
+          },
+          {
+            "name": "Poison Imbuement",
+            "effect": "damage-over-time",
+            "does": "Coats attacks in strong poison."
+          }
+        ]
+      },
+      {
+        "name": "Necromancer",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Bone Prison",
+            "effect": "root",
+            "does": "Traps several enemies inside a ring of bone."
+          },
+          {
+            "name": "Corpse Explosion",
+            "effect": "area-blast",
+            "does": "Detonates corpses to damage enemies around them."
+          },
+          {
+            "name": "Book of the Dead",
+            "effect": "summon",
+            "does": "Sets up skeletons and golems, or sacrifices them for a permanent bonus."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Lilith",
+        "kind": "boss",
+        "foes": "imps"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Fractured Peaks",
+        "world": "frozen-north",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Scosglen",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Kehjistan",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "Hawezar",
+        "world": "haunted-graveyard",
+        "layout": "open-field"
+      },
+      {
+        "name": "Skovos",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      },
+      {
+        "name": "Hell",
+        "world": "lava-wastes",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "frozen-north",
+      "layout": "crossroads",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Wildlands of the Thornmother: an open map of five linked biomes the party crosses without loading, where an Emberstorm hour makes one region dangerous and generous for a few minutes, and every class has one personal trick such as a weapon rack, a totem slot or a bone codex.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Diablo_IV",
+      "official": "https://diablo4.blizzard.com/",
+      "fandom": "https://diablo4.wiki.fextralife.com/Classes"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/1/1c/Diablo_IV_cover_art.png",
+      "page": "https://en.wikipedia.org/wiki/File:Diablo_IV_cover_art.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Diablo_IV",
+      "https://diablo4.wiki.fextralife.com/Classes"
+    ]
+  },
+  {
+    "id": "path-of-exile-2",
+    "title": "Path of Exile 2",
+    "aliases": [
+      "poe"
+    ],
+    "kind": "game",
+    "year": 2024,
+    "creators": [
+      "Grinding Gear Games"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation 5",
+      "Xbox Series X/S"
+    ],
+    "genres": [
+      "action-rpg",
+      "hack-and-slash",
+      "dungeon-crawler"
+    ],
+    "summary": "A dark-fantasy action RPG (early access since 2024) in which a reprieved convict chases a reborn god-beast across six acts. Builds come from socketing skill gems with support gems and allocating a huge passive tree, then are tested on a near-endless atlas of endgame maps.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "skill-modifiers",
+        "how": "Abilities come from about 240 active skill gems, each changed by support gems (about 200) that add effects such as extra projectiles."
+      },
+      {
+        "id": "passive-board",
+        "how": "A passive tree of about 2,000 nodes, with split point allocations so a second weapon set can use a different build on the fly."
+      },
+      {
+        "id": "class-advancement",
+        "how": "Each of the twelve classes later chooses one of its Ascendancy classes, which specialise it further."
+      },
+      {
+        "id": "dodge-roll",
+        "how": "A dodge roll is part of basic movement."
+      },
+      {
+        "id": "combo-attacks",
+        "how": "Skills are meant to be chained: ignite a crossbow gas cloud, strike a summoned bell for a shockwave, or charge planted lightning-rod arrows with other lightning skills."
+      },
+      {
+        "id": "summons",
+        "how": "Permanent minions and companions, paid for with a reserved Spirit resource instead of mana."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Bosses demand precise timing and positioning rather than raw damage."
+      },
+      {
+        "id": "new:endgame-atlas",
+        "how": "After the campaign, 100+ endgame maps each hold a boss and modifiers that switch on extra mechanics."
+      },
+      {
+        "id": "story-chapters",
+        "how": "A six-act campaign moving from a cursed county to a desert, a jungle and back in time."
+      },
+      {
+        "id": "character-classes",
+        "how": "Classes are built around weapon families: maces, bows, spears, crossbows, quarterstaffs, spell focuses, minions."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Warrior",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Volcanic Fissure",
+            "effect": "ground-slam",
+            "does": "Splits the ground into a fiery crack that runs toward enemies."
+          },
+          {
+            "name": "Shockwave Totem",
+            "effect": "build-structure",
+            "does": "Plants a totem that keeps slamming the ground around it."
+          }
+        ]
+      },
+      {
+        "name": "Ranger",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Lightning Rod",
+            "effect": "trap",
+            "does": "An arrow that stays in the ground and bursts when charged by other lightning skills."
+          },
+          {
+            "name": "Vine Arrow",
+            "effect": "root",
+            "does": "An arrow that grows entangling vines where it lands."
+          }
+        ]
+      },
+      {
+        "name": "Sorceress",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Comet",
+            "effect": "area-blast",
+            "does": "Calls a heavy comet down on a target spot."
+          },
+          {
+            "name": "Ice Nova",
+            "effect": "freeze-zone",
+            "does": "A ring of frost bursting out around the caster."
+          }
+        ]
+      },
+      {
+        "name": "Mercenary",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Glacial Bolt",
+            "effect": "projectile",
+            "does": "A crossbow bolt of ice."
+          },
+          {
+            "name": "Artillery Ballistas",
+            "effect": "build-structure",
+            "does": "Deploys ballistas that bombard enemies."
+          },
+          {
+            "name": "Gas grenade",
+            "effect": "damage-over-time",
+            "does": "Leaves a poison cloud that another fire skill can ignite into an explosion."
+          }
+        ]
+      },
+      {
+        "name": "Witch",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Contagion",
+            "effect": "damage-over-time",
+            "does": "A chaos curse that spreads from enemy to enemy."
+          },
+          {
+            "name": "Arctic Armour",
+            "effect": "shield",
+            "does": "A protective ice coating on the caster."
+          }
+        ]
+      },
+      {
+        "name": "Huntress",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Wall of Spears",
+            "effect": "build-structure",
+            "does": "Raises a line of spears as a barrier."
+          },
+          {
+            "name": "Whirlwind Slash",
+            "effect": "whirlwind",
+            "does": "A spinning spear slash that whips up a whirlwind."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Risen corpses",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Count Geonor",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Jamanra, the Faridun King",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Ogham (Act 1)",
+        "world": "haunted-graveyard",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Vastiri desert (Act 2)",
+        "world": "desert-ruins",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Vaal ruins (Act 3)",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Ngamakanui islands",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "haunted-graveyard",
+      "layout": "gauntlet",
+      "hero": "any",
+      "foes": "spirits"
+    },
+    "makeItOurs": "Glyphwright: heroes slot a coloured verb glyph into each skill and adverb glyphs beside it (split, echo, chain), set combos on purpose such as lighting a frost-gas cloud into a blast, then step onto a star map of short boss maps.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Path_of_Exile_2",
+      "official": "https://pathofexile2.com/",
+      "fandom": "https://pathofexile2.wiki.fextralife.com/Classes"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/5/52/Path_of_Exile_2_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Path_of_Exile_2_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Path_of_Exile_2",
+      "https://pathofexile2.wiki.fextralife.com/Classes"
+    ]
+  },
+  {
+    "id": "torchlight-2",
+    "title": "Torchlight II",
+    "kind": "game",
+    "year": 2012,
+    "creators": [
+      "Runic Games"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux",
+      "Nintendo Switch",
+      "PlayStation 4",
+      "Xbox One"
+    ],
+    "genres": [
+      "action-rpg",
+      "dungeon-crawler",
+      "hack-and-slash"
+    ],
+    "summary": "A bright, cartoon-styled action RPG where one of four heroes follows a corrupted alchemist across three acts of overland zones and random dungeons, with a pet at their side. It added co-op for up to six players and strong modding tools.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "pets",
+        "how": "A pet companion fights beside the hero and can be sent back to town to sell loot."
+      },
+      {
+        "id": "fishing",
+        "how": "Fishing spots return from the first game as a side activity."
+      },
+      {
+        "id": "procedural-dungeons",
+        "how": "Every playthrough generates new layouts, paths, loot and monsters."
+      },
+      {
+        "id": "day-night",
+        "how": "Overland areas have a time-of-day cycle and changing weather."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Up to six players over LAN or the internet, with free matchmaking."
+      },
+      {
+        "id": "new:per-player-loot",
+        "how": "In multiplayer, loot drops separately for each player, so nobody steals another's drops."
+      },
+      {
+        "id": "level-editor",
+        "how": "The GUTS editor and Steam Workshop let players make, share and auto-install mods."
+      },
+      {
+        "id": "difficulty-tiers",
+        "how": "After the campaign, the same hero replays it at higher difficulty, keeping skills, gold and gear."
+      },
+      {
+        "id": "character-customization",
+        "how": "Each class can be male or female, with face, hairstyle and hair colour choices."
+      },
+      {
+        "id": "skill-tree",
+        "how": "Each class has three skill trees to specialise in."
+      },
+      {
+        "id": "pvp",
+        "how": "Optional player-versus-player fights."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Berserker",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Howl",
+            "effect": "war-cry",
+            "does": "A howl from the Hunter tree."
+          },
+          {
+            "name": "Frost Breath",
+            "effect": "freeze-zone",
+            "does": "A frost attack from the Tundra tree."
+          }
+        ]
+      },
+      {
+        "name": "Embermage",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Prismatic Bolt",
+            "effect": "projectile",
+            "does": "Fires five bolts that can poison, burn, freeze or shock."
+          },
+          {
+            "name": "Magma Spear",
+            "effect": "piercing-bolt",
+            "does": "A spear of molten fire from the Inferno tree."
+          },
+          {
+            "name": "Frost Phase",
+            "effect": "teleport",
+            "does": "Teleports the mage to the cursor, a classic escape."
+          }
+        ]
+      },
+      {
+        "name": "Engineer",
+        "archetype": "engineer",
+        "role": "builder",
+        "skills": [
+          {
+            "name": "Healing Bot",
+            "effect": "summon",
+            "does": "Builds a robot that restores health and mana."
+          },
+          {
+            "name": "Seismic Slam",
+            "effect": "ground-slam",
+            "does": "Stomps the ground to stun nearby enemies and splash them with burning fuel."
+          },
+          {
+            "name": "Spider Mines",
+            "effect": "trap",
+            "does": "Releases little mines that seek out enemies."
+          },
+          {
+            "name": "Emberquake",
+            "effect": "earthquake",
+            "does": "A quake attack from the Blitz tree."
+          }
+        ]
+      },
+      {
+        "name": "Outlander",
+        "archetype": "ranger",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Rapid Fire",
+            "effect": "projectile",
+            "does": "A fast stream of shots."
+          },
+          {
+            "name": "Venomous Hail",
+            "effect": "rain-zone",
+            "does": "Poison shots rain down on an area."
+          },
+          {
+            "name": "Burning Leap",
+            "effect": "leap-attack",
+            "does": "A fiery leap from the Lore tree."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "The Alchemist",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Estherian Steppes (Act I)",
+        "world": "frozen-north",
+        "layout": "crossroads"
+      },
+      {
+        "name": "Mana Wastes (Act II)",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "Grunnheim (Act III)",
+        "world": "haunted-graveyard",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "desert-ruins",
+      "layout": "gauntlet",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Lantern & Hound: every player brings a pet that fights beside them and trots back to town to sell junk, and the friends fish in ponds for snacks that briefly change their pet into something bigger.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Torchlight_II",
+      "official": "https://store.steampowered.com/app/200710/Torchlight_II/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/5/55/TorchlightIICoverArt.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:TorchlightIICoverArt.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Torchlight_II",
+      "https://store.steampowered.com/app/200710/Torchlight_II/",
+      "https://segmentnext.com/torchlight-2-class-builds-and-character-progression-guide"
+    ]
+  },
+  {
+    "id": "grim-dawn",
+    "title": "Grim Dawn",
+    "kind": "game",
+    "year": 2016,
+    "creators": [
+      "Crate Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "Xbox One"
+    ],
+    "genres": [
+      "action-rpg",
+      "hack-and-slash"
+    ],
+    "summary": "A grim, Victorian-flavoured action RPG set in a world nearly wiped out by a war between two otherworldly races, built on the Titan Quest engine. Its depth comes from pairing two masteries into one class, a constellation map of extra powers, and factions that reward or hunt you.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "multiclassing",
+        "how": "A first mastery at level 2 and a second at level 10; any two of the ten masteries combine into one class."
+      },
+      {
+        "id": "passive-board",
+        "how": "Restoring shrines across the world earns devotion points spent on a constellation map, and some stars grant powers bound to a skill that level up with use."
+      },
+      {
+        "id": "new:faction-reputation",
+        "how": "Reputation with factions unlocks bounties, discounts and gear upgrades, while angered factions send named nemesis bosses after you."
+      },
+      {
+        "id": "crafting",
+        "how": "Salvaged components combine into crafted items, and blueprints from enemies and chests unlock better recipes."
+      },
+      {
+        "id": "loot-rarity",
+        "how": "Fast combat centred on collecting armor, weapons and potions of rising quality."
+      },
+      {
+        "id": "difficulty-tiers",
+        "how": "Normal, Elite and Ultimate, each unlocked by beating the final boss on the one before."
+      },
+      {
+        "id": "permadeath",
+        "how": "Hardcore heroes die for good and have their own stash and multiplayer pool."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Parties of up to four, with monster strength and loot scaling to the number of players."
+      },
+      {
+        "id": "pvp",
+        "how": "A host can turn on PvP between players who are not in the same party."
+      },
+      {
+        "id": "waves",
+        "how": "A separate arena mode, the Crucible."
+      },
+      {
+        "id": "summons",
+        "how": "Several masteries summon a permanent ally such as a raven or a thorn beast."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Soldier",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Forcewave",
+            "effect": "ground-slam",
+            "does": "Sends a stunning wave of force; needs a shield or two-handed weapon."
+          },
+          {
+            "name": "Cadence",
+            "effect": "melee-flurry",
+            "does": "A weapon attack where every third strike is amplified."
+          },
+          {
+            "name": "Menhir's Will",
+            "effect": "passive",
+            "does": "A last surge of strength that keeps the Soldier fighting near death."
+          }
+        ]
+      },
+      {
+        "name": "Demolitionist",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Blackwater Cocktail",
+            "effect": "area-blast",
+            "does": "A fire bomb that keeps burning where it lands."
+          },
+          {
+            "name": "Thermite Mine",
+            "effect": "trap",
+            "does": "Drops three charges that blast nearby foes with flame."
+          },
+          {
+            "name": "Stun Jacks",
+            "effect": "root",
+            "does": "Scatters electrified jacks that briefly hold enemies in place."
+          }
+        ]
+      },
+      {
+        "name": "Occultist",
+        "archetype": "summoner",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Summon Familiar",
+            "effect": "summon",
+            "does": "Calls a storm raven to help."
+          },
+          {
+            "name": "Bloody Pox",
+            "effect": "damage-over-time",
+            "does": "A plague curse that drains life and makes enemies bleed."
+          },
+          {
+            "name": "Dreeg's Evil Eye",
+            "effect": "projectile",
+            "does": "An eye that flies to the target and bursts into poison."
+          }
+        ]
+      },
+      {
+        "name": "Nightblade",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Phantasmal Blades",
+            "effect": "projectile",
+            "does": "Thrown shadow blades that cut through enemies."
+          },
+          {
+            "name": "Pneumatic Burst",
+            "effect": "buff",
+            "does": "A short burst of speed and power with a little healing."
+          },
+          {
+            "name": "Blade Barrier",
+            "effect": "shield",
+            "does": "A ring of blades that protects the Nightblade for a moment."
+          }
+        ]
+      },
+      {
+        "name": "Arcanist",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Panetti's Replicating Missile",
+            "effect": "projectile",
+            "does": "An arcane missile that splits into copies on impact."
+          },
+          {
+            "name": "Albrecht's Aether Ray",
+            "effect": "beam",
+            "does": "A channelled beam of arcane energy."
+          },
+          {
+            "name": "Olexra's Flash Freeze",
+            "effect": "freeze-zone",
+            "does": "Freezes enemies that come close."
+          },
+          {
+            "name": "Devastation",
+            "effect": "rain-zone",
+            "does": "Tears a rift that rains arcane embers on an area."
+          }
+        ]
+      },
+      {
+        "name": "Shaman",
+        "archetype": "druid",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Summon Briarthorn",
+            "effect": "summon",
+            "does": "Calls a thorn beast to fight for you."
+          },
+          {
+            "name": "Wendigo Totem",
+            "effect": "heal",
+            "does": "A totem that drains nearby enemies and heals allies."
+          },
+          {
+            "name": "Wind Devil",
+            "effect": "summon",
+            "does": "Conjures a whirling wind that hurls debris at foes."
+          }
+        ]
+      },
+      {
+        "name": "Oathkeeper",
+        "archetype": "paladin",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Aegis of Menhir",
+            "effect": "projectile",
+            "does": "Throws a homing shield that dazes the target and comes back."
+          },
+          {
+            "name": "Eye of Reckoning",
+            "effect": "whirlwind",
+            "does": "A channelled spinning attack of fire and light."
+          },
+          {
+            "name": "Summon Guardian of Empyrion",
+            "effect": "summon",
+            "does": "Summons a celestial guardian."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Aetherials",
+        "kind": "elite",
+        "foes": "spirits"
+      },
+      {
+        "name": "Cthonians",
+        "kind": "elite",
+        "foes": "imps"
+      },
+      {
+        "name": "Faction nemesis",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Devil's Crossing",
+        "world": "city-streets",
+        "layout": "village-square"
+      },
+      {
+        "name": "Malmouth",
+        "world": "city-streets",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "haunted-graveyard",
+      "layout": "crossroads",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Twin Paths: at level 10 every hero adds a second discipline from another school (say Hearthguard plus Stormcaller), lights forgotten star-shrines to fill a sky map of bonus powers, and earns favour with rival camps whose enemies send named hunters after you.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Grim_Dawn",
+      "official": "https://www.grimdawn.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/6c/Grim_Dawn_logo.png",
+      "page": "https://en.wikipedia.org/wiki/File:Grim_Dawn_logo.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Grim_Dawn",
+      "https://www.grimdawn.com/",
+      "https://www.grimdawn.com/guide/",
+      "https://www.grimdawn.com/guide/character/devotion/",
+      "https://www.grimdawn.com/guide/character/masteries/",
+      "https://www.grimdawn.com/guide/character/factions/",
+      "https://www.grimdawn.com/guide/masteries/soldier/",
+      "https://www.grimdawn.com/guide/masteries/occultist/",
+      "https://www.grimdawn.com/guide/masteries/demolitionist/",
+      "https://www.grimdawn.com/guide/masteries/nightblade/",
+      "https://www.grimdawn.com/guide/masteries/arcanist/",
+      "https://www.grimdawn.com/guide/masteries/shaman/",
+      "https://www.grimdawn.com/guide/masteries/oathkeeper/"
+    ]
+  },
+  {
+    "id": "lost-ark",
+    "title": "Lost Ark",
+    "kind": "game",
+    "year": 2019,
+    "creators": [
+      "Smilegate RPG",
+      "Amazon Games"
+    ],
+    "platforms": [
+      "Windows"
+    ],
+    "genres": [
+      "mmorpg",
+      "action-rpg",
+      "hack-and-slash"
+    ],
+    "summary": "A Korean isometric MMO with fast, combo-driven action combat across continents and islands linked by sailing. Characters pick a class family and then an advanced class, and the endgame centres on timed dungeons and multi-phase raids.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "character-classes",
+        "how": "Pick one of the class families (Warrior, Martial Artist, Gunner, Mage, Assassin, Specialist), then one of its advanced classes."
+      },
+      {
+        "id": "combo-attacks",
+        "how": "Combat is built on chaining skills into fluid combos."
+      },
+      {
+        "id": "skill-modifiers",
+        "how": "At skill levels 4, 7 and 10 each skill offers a tier of modifiers ('tripods'), and you pick one per tier."
+      },
+      {
+        "id": "class-unique-mechanic",
+        "how": "Each class has an identity meter: the Berserker's Burst Mode, the Gunlancer's Shield Meter, the Sorceress's Arcane meter."
+      },
+      {
+        "id": "raids",
+        "how": "Guardian raids against a single boss, and eight-player Legion raids of several multi-phase encounters with weekly limits."
+      },
+      {
+        "id": "dungeon-portals",
+        "how": "Chaos Dungeons: fill a progress bar before the timer runs out to open a portal to the next zone."
+      },
+      {
+        "id": "new:sailing",
+        "how": "Unlock a ship, hire a crew and sail between continents to discover dozens of islands."
+      },
+      {
+        "id": "housing",
+        "how": "A personal island Stronghold with a lab, workshop, naval station and training camp."
+      },
+      {
+        "id": "resource-gathering",
+        "how": "Six life skills (mining, foraging, logging, fishing, hunting, excavating), each needing a tool and slowly recharging energy."
+      },
+      {
+        "id": "pvp",
+        "how": "3v3 deathmatches and 1v1 arenas."
+      },
+      {
+        "id": "daily-quests",
+        "how": "Repeatable content is capped per day or per week, for example two Chaos Dungeon runs a day."
+      },
+      {
+        "id": "tower-climb",
+        "how": "Towers of 50 floors reachable from major cities."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Berserker",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Whirlwind",
+            "effect": "whirlwind",
+            "does": "Spins for three seconds, hitting everything nearby."
+          },
+          {
+            "name": "Shoulder Charge",
+            "effect": "dash-strike",
+            "does": "Charges about seven metres through enemies."
+          },
+          {
+            "name": "Red Dust",
+            "effect": "ground-slam",
+            "does": "An upward greatsword swing that leaves foes taking more damage."
+          }
+        ]
+      },
+      {
+        "name": "Gunlancer",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Shout of Hatred",
+            "effect": "war-cry",
+            "does": "Damages nearby foes and taunts them."
+          },
+          {
+            "name": "Guardian's Protection",
+            "effect": "shield",
+            "does": "An aura that cuts damage taken by the party and blocks knockbacks."
+          },
+          {
+            "name": "Counter Gunlance",
+            "effect": "shield",
+            "does": "Raises the shield to block, then counterattacks."
+          }
+        ]
+      },
+      {
+        "name": "Sorceress",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Explosion",
+            "effect": "projectile",
+            "does": "A fire bolt that explodes and knocks foes into the air."
+          },
+          {
+            "name": "Doomsday",
+            "effect": "area-blast",
+            "does": "Calls a giant meteor down on the cursor."
+          },
+          {
+            "name": "Blaze",
+            "effect": "area-blast",
+            "does": "A rectangle of flame ahead that burns and paralyses."
+          }
+        ]
+      },
+      {
+        "name": "Bard",
+        "archetype": "bard",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Heavenly Tune",
+            "effect": "buff",
+            "does": "Damages nearby foes and boosts party attack speed and mana recovery."
+          },
+          {
+            "name": "Symphonia",
+            "effect": "shield",
+            "does": "Shields nearby allies and weakens foes."
+          },
+          {
+            "name": "Sonic Vibration",
+            "effect": "area-blast",
+            "does": "Lifts foes, slams them down and leaves a lingering melody that keeps hitting."
+          }
+        ]
+      },
+      {
+        "name": "Shadowhunter",
+        "archetype": "shapeshifter",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Demonic form",
+            "effect": "transform",
+            "does": "Shapeshifts into a demon form with more power, health and speed."
+          },
+          {
+            "name": "Cruel Cutter",
+            "effect": "projectile",
+            "does": "Throws the weapon in a sweeping arc that launches foes."
+          },
+          {
+            "name": "Blood Massacre",
+            "effect": "area-blast",
+            "does": "Gathers blood energy into an explosion."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Velganos",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Valtan",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Vykas",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Kakul-Saydon",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Procyon islands",
+        "world": "pirate-coast",
+        "layout": "open-field"
+      },
+      {
+        "name": "Shadespire Tower",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Ark of Arrogance (Abyss Dungeon)",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "ancient-temple",
+      "layout": "boss-lair",
+      "hero": "knight",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Tidecall Isles: sail a small crewed boat between island hubs, clear a timed rift run where filling the bar opens the next floor, then gather eight friends for a three-phase colossus; every skill offers a pick-one-of-three tweak at ranks 4, 7 and 10.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Lost_Ark_(video_game)",
+      "official": "https://www.playlostark.com/",
+      "fandom": "https://lostark.wiki.fextralife.com/Lost+Ark+Wiki"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/f/ff/Lost_Ark_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Lost_Ark_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Lost_Ark_(video_game)",
+      "https://www.playlostark.com/en-us/news/articles/launch-release-notes",
+      "https://lostark.wiki.fextralife.com/Lost+Ark+Wiki",
+      "https://lostark.wiki.fextralife.com/Classes",
+      "https://lostark.wiki.fextralife.com/Berserker",
+      "https://lostark.wiki.fextralife.com/Gunlancer",
+      "https://lostark.wiki.fextralife.com/Sorceress",
+      "https://lostark.wiki.fextralife.com/Bard",
+      "https://lostark.wiki.fextralife.com/Shadowhunter"
+    ]
+  },
+  {
+    "id": "world-of-warcraft",
+    "title": "World of Warcraft",
+    "aliases": [
+      "wow"
+    ],
+    "kind": "game",
+    "year": 2004,
+    "creators": [
+      "Blizzard Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS"
+    ],
+    "genres": [
+      "mmorpg",
+      "open-world"
+    ],
+    "summary": "The long-running fantasy MMO of a world split between two factions, where players quest, learn professions, run group dungeons and raids, and battle each other. Eleven expansions since 2004 have added lands, classes and systems.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:factions",
+        "how": "Every character joins the Alliance or the Horde, which decides cities, races and who you can fight."
+      },
+      {
+        "id": "character-classes",
+        "how": "Thirteen classes, each split into specialisations that set its role as tank, healer or damage."
+      },
+      {
+        "id": "skill-tree",
+        "how": "A talent system customises a class's passive and active abilities."
+      },
+      {
+        "id": "quests",
+        "how": "Most of the story is told through NPC quest chains, each finished quest unlocking the next."
+      },
+      {
+        "id": "crafting",
+        "how": "Two primary professions (crafting like blacksmithing or gathering like mining) plus cooking, fishing and archaeology for everyone."
+      },
+      {
+        "id": "guilds",
+        "how": "Guilds get a chat channel, a tabard, a shared bank and repairs."
+      },
+      {
+        "id": "raids",
+        "how": "Group dungeons and large raids instanced per group, up to a Mythic difficulty."
+      },
+      {
+        "id": "pvp",
+        "how": "Battlegrounds with objectives such as capturing a flag, 2v2/3v3/5v5 arenas, and an opt-in War Mode for open-world PvP."
+      },
+      {
+        "id": "trading",
+        "how": "Auction houses where players buy and sell items to each other."
+      },
+      {
+        "id": "mounts",
+        "how": "Ground and flying mounts from vendors, achievements and drops, with a faster Skyriding flight system."
+      },
+      {
+        "id": "new:rested-xp",
+        "how": "Time spent away from the game builds a rested bonus that speeds up experience."
+      },
+      {
+        "id": "corpse-run",
+        "how": "A dead character becomes a ghost at a graveyard and runs back to its body, or revives there with gear damage and weakness."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Warrior",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Charge",
+            "effect": "dash-strike",
+            "does": "Rushes to an enemy, stunning it and building rage."
+          },
+          {
+            "name": "Whirlwind",
+            "effect": "whirlwind",
+            "does": "A spinning attack on all nearby enemies."
+          },
+          {
+            "name": "Heroic Leap",
+            "effect": "leap-attack",
+            "does": "Leaps onto or away from enemies, damaging where it lands."
+          },
+          {
+            "name": "Battle Shout",
+            "effect": "war-cry",
+            "does": "A group-wide buff shout."
+          }
+        ]
+      },
+      {
+        "name": "Mage",
+        "archetype": "mage",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Blizzard",
+            "effect": "rain-zone",
+            "does": "Calls down ice on a group of enemies."
+          },
+          {
+            "name": "Polymorph",
+            "effect": "transform",
+            "does": "Turns an enemy into a harmless critter for a while."
+          },
+          {
+            "name": "Arcane Missiles",
+            "effect": "projectile",
+            "does": "A volley of arcane bolts."
+          },
+          {
+            "name": "Teleport / Portal",
+            "effect": "teleport",
+            "does": "Sends the mage, or opens a portal for others, to a major city."
+          }
+        ]
+      },
+      {
+        "name": "Hunter",
+        "archetype": "ranger",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Tame Beast / Call Pet",
+            "effect": "summon",
+            "does": "Tames wild beasts as pets and calls one to fight."
+          },
+          {
+            "name": "Freezing Trap",
+            "effect": "trap",
+            "does": "A trap that freezes an enemy in place."
+          },
+          {
+            "name": "Aimed Shot",
+            "effect": "piercing-bolt",
+            "does": "A powerful, carefully aimed shot."
+          },
+          {
+            "name": "Feign Death",
+            "effect": "stealth",
+            "does": "Plays dead to shake off pursuers."
+          }
+        ]
+      },
+      {
+        "name": "Druid",
+        "archetype": "druid",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Bear Form",
+            "effect": "transform",
+            "does": "Becomes a sturdy bear to tank."
+          },
+          {
+            "name": "Entangling Roots",
+            "effect": "root",
+            "does": "Roots an enemy in place."
+          },
+          {
+            "name": "Moonfire",
+            "effect": "damage-over-time",
+            "does": "A lunar spell that builds Astral Power."
+          },
+          {
+            "name": "Starfall",
+            "effect": "rain-zone",
+            "does": "Stars fall on enemies, paid for with Astral Power."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Ragnaros",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Onyxia",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Stormwind",
+        "world": "city-streets",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "storybook-village",
+      "layout": "crossroads",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Two Banners: players join the Dawn camp or the Dusk camp, level through quest chains that earn first a ride and later a flying ride, and gather each week for a four-wing raid against an ember-crowned giant.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/World_of_Warcraft",
+      "official": "https://worldofwarcraft.blizzard.com/",
+      "fandom": "https://warcraft.wiki.gg/wiki/World_of_Warcraft"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/65/World_of_Warcraft.png",
+      "page": "https://en.wikipedia.org/wiki/File:World_of_Warcraft.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/World_of_Warcraft",
+      "https://warcraft.wiki.gg/wiki/World_of_Warcraft",
+      "https://warcraft.wiki.gg/wiki/Class",
+      "https://warcraft.wiki.gg/wiki/Mage",
+      "https://warcraft.wiki.gg/wiki/Hunter",
+      "https://warcraft.wiki.gg/wiki/Warrior",
+      "https://warcraft.wiki.gg/wiki/Druid",
+      "https://warcraft.wiki.gg/wiki/Mount"
+    ]
+  },
+  {
+    "id": "final-fantasy-xiv",
+    "title": "Final Fantasy XIV",
+    "aliases": [
+      "ff14",
+      "ffxiv",
+      "final fantasy 14"
+    ],
+    "kind": "game",
+    "year": 2013,
+    "creators": [
+      "Square Enix"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS",
+      "PlayStation 4",
+      "PlayStation 5",
+      "Xbox Series X/S"
+    ],
+    "genres": [
+      "mmorpg",
+      "story-adventure"
+    ],
+    "summary": "Square Enix's story-heavy fantasy MMO, rebuilt in 2013 after a failed launch, where one character can learn every combat, crafting and gathering job just by changing weapons. Players clear dungeons, giant elemental 'primal' trials and raids as tank, healer or damage.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "gear-defines-build",
+        "how": "The equipped weapon decides the class, so one character switches jobs at will and levels each separately."
+      },
+      {
+        "id": "class-advancement",
+        "how": "Many jobs grow out of a base class and are unlocked with a soul crystal."
+      },
+      {
+        "id": "crafting",
+        "how": "Eight crafting jobs and three gathering jobs (miner, botanist, fisher) are levelled like combat jobs."
+      },
+      {
+        "id": "world-events",
+        "how": "FATEs are open-world events (a big monster, a defence, an escort) that anyone nearby can join without a party."
+      },
+      {
+        "id": "raids",
+        "how": "Four-player dungeons and eight-player boss battles against primals and raid bosses."
+      },
+      {
+        "id": "new:ai-party-members",
+        "how": "Duty Support lets a player run some dungeons alone with computer-controlled party members."
+      },
+      {
+        "id": "ultimate-ability",
+        "how": "A shared party gauge fills when members play their roles well and unleashes a Limit Break."
+      },
+      {
+        "id": "guilds",
+        "how": "Free Companies with a shared chest, 24-hour company buffs and a house bought together."
+      },
+      {
+        "id": "housing",
+        "how": "Houses and apartments with decorating, gardening and chocobo training."
+      },
+      {
+        "id": "pvp",
+        "how": "5v5 Crystalline Conflict and Frontlines battles of up to 24 per team."
+      },
+      {
+        "id": "story-chapters",
+        "how": "A main scenario quest line carries the plot across every expansion."
+      },
+      {
+        "id": "daily-quests",
+        "how": "Duty Roulette gives a daily bonus for a random dungeon, plus daily quests and Levequests."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Paladin",
+        "archetype": "paladin",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Hallowed Ground",
+            "effect": "shield",
+            "does": "Makes the Paladin immune to most attacks for 10 seconds."
+          },
+          {
+            "name": "Cover",
+            "effect": "shield",
+            "does": "Takes the damage meant for a nearby party member."
+          },
+          {
+            "name": "Holy Spirit",
+            "effect": "heal",
+            "does": "A holy spell that hurts the target and restores the caster's HP."
+          }
+        ]
+      },
+      {
+        "name": "Black Mage",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Fire IV",
+            "effect": "projectile",
+            "does": "A strong fire spell usable only in Astral Fire."
+          },
+          {
+            "name": "Flare",
+            "effect": "area-blast",
+            "does": "A big area fire spell that costs a lot of MP."
+          },
+          {
+            "name": "Thunder",
+            "effect": "damage-over-time",
+            "does": "Lightning with damage over time."
+          }
+        ]
+      },
+      {
+        "name": "White Mage",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Cure",
+            "effect": "heal",
+            "does": "A single-target heal."
+          },
+          {
+            "name": "Medica",
+            "effect": "heal",
+            "does": "Heals the caster and nearby party members."
+          },
+          {
+            "name": "Holy",
+            "effect": "area-blast",
+            "does": "Damages and briefly stuns nearby enemies."
+          },
+          {
+            "name": "Benediction",
+            "effect": "heal",
+            "does": "Fully restores one target's HP on a long cooldown."
+          }
+        ]
+      },
+      {
+        "name": "Dragoon",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Jump",
+            "effect": "leap-attack",
+            "does": "Jumps onto the target and returns to where it started."
+          },
+          {
+            "name": "Dragonfire Dive",
+            "effect": "leap-attack",
+            "does": "A fiery jump that also hits nearby enemies."
+          },
+          {
+            "name": "Stardiver",
+            "effect": "leap-attack",
+            "does": "A huge fire dive used during Life of the Dragon."
+          }
+        ]
+      },
+      {
+        "name": "Summoner",
+        "archetype": "summoner",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Summon Bahamut",
+            "effect": "summon",
+            "does": "Summons a small dragon that strikes enemies you hit."
+          },
+          {
+            "name": "Summon Phoenix",
+            "effect": "summon",
+            "does": "Summons a fire bird that attacks at once."
+          },
+          {
+            "name": "Ruin",
+            "effect": "projectile",
+            "does": "A basic ranged spell."
+          }
+        ]
+      },
+      {
+        "name": "Ninja",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Katon (Ninjutsu)",
+            "effect": "area-blast",
+            "does": "A fire blast made by combining hand-sign mudras."
+          },
+          {
+            "name": "Hide",
+            "effect": "stealth",
+            "does": "Hides from most enemies outside combat."
+          },
+          {
+            "name": "Shukuchi",
+            "effect": "teleport",
+            "does": "Moves instantly to a chosen spot."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Ifrit",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "Titan",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Garuda",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Gridania",
+        "world": "enchanted-forest",
+        "layout": "village-square"
+      },
+      {
+        "name": "Ul'dah",
+        "world": "desert-ruins",
+        "layout": "village-square"
+      },
+      {
+        "name": "Limsa Lominsa",
+        "world": "pirate-coast",
+        "layout": "village-square"
+      },
+      {
+        "name": "Ishgard",
+        "world": "frozen-north",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "lava-wastes",
+      "layout": "boss-lair",
+      "hero": "any",
+      "foes": "imps"
+    },
+    "makeItOurs": "Toolbelt Hero: one hero becomes a lancer, a healer or a tinker just by picking up a different tool, each tool with its own level, and three friends fight giant elemental spirits while a shared team meter fills into one combined strike.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Final_Fantasy_XIV",
+      "fandom": "https://ffxiv.consolegameswiki.com/wiki/Jobs"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/a/a1/Final_Fantasy_XIV%2C_A_Realm_Reborn_box_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Final_Fantasy_XIV,_A_Realm_Reborn_box_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Final_Fantasy_XIV",
+      "https://ffxiv.consolegameswiki.com/wiki/Jobs",
+      "https://ffxiv.consolegameswiki.com/wiki/Final_Fantasy_XIV",
+      "https://ffxiv.consolegameswiki.com/wiki/Paladin",
+      "https://ffxiv.consolegameswiki.com/wiki/Black_Mage",
+      "https://ffxiv.consolegameswiki.com/wiki/White_Mage",
+      "https://ffxiv.consolegameswiki.com/wiki/Dragoon",
+      "https://ffxiv.consolegameswiki.com/wiki/Summoner",
+      "https://ffxiv.consolegameswiki.com/wiki/Ninja"
+    ]
+  },
+  {
+    "id": "guild-wars-2",
+    "title": "Guild Wars 2",
+    "kind": "game",
+    "year": 2012,
+    "creators": [
+      "ArenaNet",
+      "NCSoft"
+    ],
+    "platforms": [
+      "Windows",
+      "macOS"
+    ],
+    "genres": [
+      "mmorpg",
+      "open-world",
+      "action-rpg"
+    ],
+    "summary": "A fantasy MMO where open-world dynamic events replace most quest-giving and action combat with dodging and weapon-based skill bars needs no dedicated healer. It adds large server-versus-server warfare, account-wide masteries such as gliding and mounts, and level scaling that keeps every zone relevant.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "world-events",
+        "how": "Dynamic events start from what is happening in the world, chain into zone-wide meta events and end in world bosses that crowds fight together."
+      },
+      {
+        "id": "quests",
+        "how": "Renown hearts: fixed spots where an NPC offers a flexible list of local tasks."
+      },
+      {
+        "id": "dodge-roll",
+        "how": "Each dodge spends half the endurance bar and makes you briefly invulnerable."
+      },
+      {
+        "id": "downed-revive",
+        "how": "At zero health you fall and fight on with special downed skills, and you rally back by defeating an enemy or being revived."
+      },
+      {
+        "id": "new:weapon-skill-bar",
+        "how": "The first five skills come from the equipped weapon and profession, then one heal, three utilities and one elite."
+      },
+      {
+        "id": "new:no-required-healer",
+        "how": "Every profession can deal damage, control and support, so no party needs a dedicated healer."
+      },
+      {
+        "id": "new:level-scaling",
+        "how": "Players are scaled down to the level of the zone, so old zones stay challenging."
+      },
+      {
+        "id": "pvp",
+        "how": "Structured PvP at a fixed level and gear, plus World vs World: persistent server battles with siege weapons."
+      },
+      {
+        "id": "crafting",
+        "how": "Eight crafting disciplines that can be switched without losing progress."
+      },
+      {
+        "id": "mounts",
+        "how": "Mounts and gliding are unlocked through account-wide mastery tracks earned in expansion regions."
+      },
+      {
+        "id": "raids",
+        "how": "Five-player fractals, ten-player strike missions and raids."
+      },
+      {
+        "id": "trading",
+        "how": "The Trading Post, a player market."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Warrior",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Hundred Blades",
+            "effect": "melee-flurry",
+            "does": "A channelled greatsword flurry with a heavy final strike."
+          },
+          {
+            "name": "Burst skills",
+            "effect": "ground-slam",
+            "does": "Spend built-up adrenaline on a strong weapon attack."
+          }
+        ]
+      },
+      {
+        "name": "Guardian",
+        "archetype": "paladin",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Wall of Reflection",
+            "effect": "shield",
+            "does": "A ground barrier that sends projectiles back at their shooters."
+          },
+          {
+            "name": "Virtues",
+            "effect": "buff",
+            "does": "Three virtues that boost the Guardian until spent to help allies."
+          }
+        ]
+      },
+      {
+        "name": "Elementalist",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Meteor Shower",
+            "effect": "rain-zone",
+            "does": "Rains fire meteors on an area (staff, fire attunement)."
+          },
+          {
+            "name": "Attunements",
+            "effect": "passive",
+            "does": "Switches between fire, water, air and earth to change every weapon skill."
+          }
+        ]
+      },
+      {
+        "name": "Necromancer",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Summon Flesh Golem",
+            "effect": "summon",
+            "does": "Calls up a flesh golem that slashes and slows enemies."
+          },
+          {
+            "name": "Death Shroud",
+            "effect": "transform",
+            "does": "Enters a shroud fuelled by life force that swaps in new skills."
+          }
+        ]
+      },
+      {
+        "name": "Ranger",
+        "archetype": "ranger",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Rapid Fire",
+            "effect": "projectile",
+            "does": "A channelled longbow volley."
+          },
+          {
+            "name": "Pet",
+            "effect": "summon",
+            "does": "A companion animal with its own skills fights beside the ranger."
+          }
+        ]
+      },
+      {
+        "name": "Thief",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Shadowstep",
+            "effect": "teleport",
+            "does": "Teleports to a target spot and can later return."
+          },
+          {
+            "name": "Steal",
+            "effect": "buff",
+            "does": "Takes a skill from the enemy to use once."
+          }
+        ]
+      },
+      {
+        "name": "Engineer",
+        "archetype": "engineer",
+        "role": "builder",
+        "skills": [
+          {
+            "name": "Turrets and kits",
+            "effect": "build-structure",
+            "does": "Deploys turrets and swaps tool kits to shape the battle."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Zhaitan",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Scarlet Briar",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Lion's Arch",
+        "world": "pirate-coast",
+        "layout": "village-square"
+      },
+      {
+        "name": "Heart of Maguuma",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Crystal Desert",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "Eternal Battlegrounds",
+        "world": "ancient-temple",
+        "layout": "twin-gates"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "crossroads",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Ripple Meadows: there is no quest list, just things happening nearby (a burning mill, a sheep stampede, a giant toad) that anyone can pitch in on; picking up a different weapon swaps your first five moves, and a knocked-down hero keeps fighting from the ground until a friend lifts them.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Guild_Wars_2",
+      "official": "https://www.guildwars2.com/",
+      "fandom": "https://wiki.guildwars2.com/wiki/Guild_Wars_2"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/9/96/Gw2-boxfront.png",
+      "page": "https://en.wikipedia.org/wiki/File:Gw2-boxfront.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Guild_Wars_2",
+      "https://wiki.guildwars2.com/wiki/Guild_Wars_2",
+      "https://wiki.guildwars2.com/wiki/Profession",
+      "https://wiki.guildwars2.com/wiki/Dodge",
+      "https://wiki.guildwars2.com/wiki/Downed",
+      "https://wiki.guildwars2.com/wiki/Renown_Heart",
+      "https://wiki.guildwars2.com/wiki/Mastery",
+      "https://wiki.guildwars2.com/wiki/Hundred_Blades",
+      "https://wiki.guildwars2.com/wiki/Meteor_Shower",
+      "https://wiki.guildwars2.com/wiki/Wall_of_Reflection",
+      "https://wiki.guildwars2.com/wiki/Shadowstep",
+      "https://wiki.guildwars2.com/wiki/Summon_Flesh_Golem",
+      "https://wiki.guildwars2.com/wiki/Rapid_Fire"
+    ]
+  },
+  {
+    "id": "maplestory",
+    "title": "MapleStory",
+    "kind": "game",
+    "year": 2003,
+    "creators": [
+      "Wizet",
+      "Nexon"
+    ],
+    "platforms": [
+      "Windows"
+    ],
+    "genres": [
+      "mmorpg",
+      "platformer"
+    ],
+    "summary": "A free-to-play 2D side-scrolling MMO where cartoon heroes hop across platforms fighting monsters, advance through job tiers and team up for bosses. It is known for its huge roster of class branches and its player-run Free Market.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "class-advancement",
+        "how": "Explorers start as Beginners, pick Warrior, Magician, Bowman, Thief or Pirate at level 10, then advance at 30, 60, 100, 200 and 260, each step adding a skill tab."
+      },
+      {
+        "id": "character-classes",
+        "how": "Ten class branches with their own home towns and stories, such as Explorers, Cygnus Knights, Heroes and the Resistance."
+      },
+      {
+        "id": "new:side-scrolling",
+        "how": "A 2D platformer world: jump between ledges, climb ropes and fight monsters in real time."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Parties split loot and experience from monsters they hunt together."
+      },
+      {
+        "id": "guilds",
+        "how": "Guilds, with the guild name shown under each member's character."
+      },
+      {
+        "id": "trading",
+        "how": "Players trade Mesos and items, and can set up their own shops in the Free Market."
+      },
+      {
+        "id": "crafting",
+        "how": "Professions craft equipment, accessories and potions."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Level-gated bosses such as Zakum, Horntail and Pink Bean, with harder Chaos versions."
+      },
+      {
+        "id": "new:minigames",
+        "how": "Players challenge each other to board and card minigames like Gomoku and Concentration."
+      },
+      {
+        "id": "pets",
+        "how": "Digital pets bought in the Cash Shop follow the player."
+      },
+      {
+        "id": "pvp",
+        "how": "A PvP mode added in the Chaos update."
+      },
+      {
+        "id": "combo-attacks",
+        "how": "The Aran class builds combo counts by hitting monsters, gaining buffs and spending combos on special skills."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Magician",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Magic Claw",
+            "effect": "projectile",
+            "does": "Hits one enemy twice, passing through walls and platforms."
+          },
+          {
+            "name": "Teleport",
+            "effect": "teleport",
+            "does": "Blinks a short distance, even past monsters."
+          },
+          {
+            "name": "Magic Guard",
+            "effect": "shield",
+            "does": "Shifts most damage taken onto MP."
+          }
+        ]
+      },
+      {
+        "name": "Bowman",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Soul Arrow",
+            "effect": "buff",
+            "does": "Lets the archer shoot without using arrows."
+          },
+          {
+            "name": "Arrow Bomb",
+            "effect": "area-blast",
+            "does": "An arrow that hits several enemies and stuns them."
+          },
+          {
+            "name": "Strafe",
+            "effect": "projectile",
+            "does": "A heavy multi-arrow attack."
+          }
+        ]
+      },
+      {
+        "name": "Thief",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Lucky Seven",
+            "effect": "projectile",
+            "does": "A fast throwing-star attack."
+          },
+          {
+            "name": "Haste",
+            "effect": "buff",
+            "does": "Boosts speed and jump."
+          },
+          {
+            "name": "Savage Blow",
+            "effect": "melee-flurry",
+            "does": "A strong close-range combo of dagger strikes."
+          }
+        ]
+      },
+      {
+        "name": "Warrior",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Slash Blast",
+            "effect": "melee-flurry",
+            "does": "A wide sword slash that costs some HP and MP."
+          }
+        ]
+      },
+      {
+        "name": "Evan",
+        "archetype": "tamer",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Dragon partner",
+            "effect": "summon",
+            "does": "A dragon fights alongside the magician."
+          }
+        ]
+      },
+      {
+        "name": "Mechanic",
+        "archetype": "engineer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Robotic suit",
+            "effect": "transform",
+            "does": "Fights from inside a robot suit."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Zakum",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Horntail",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Pink Bean",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "The Black Mage",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Maple Island",
+        "world": "storybook-village",
+        "layout": "open-field"
+      },
+      {
+        "name": "Victoria Island",
+        "world": "enchanted-forest",
+        "layout": "crossroads"
+      },
+      {
+        "name": "El Nath Mountains",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Nihal Desert",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "Temple of Time",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "storybook-village",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "imps"
+    },
+    "makeItOurs": "Leaf Isles: every hero starts as a Sprout, picks one of five paths at level 10 and one of two or three specialities at level 30, and a town plaza lets players open little stalls to sell their finds to friends.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/MapleStory",
+      "official": "https://www.nexon.com/maplestory/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/0/00/MapleStory.svg",
+      "page": "https://commons.wikimedia.org/wiki/File:MapleStory.svg",
+      "license": "free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/MapleStory",
+      "https://en.wikibooks.org/wiki/MapleStory/Jobs",
+      "https://www.digitaltq.com/maplestory-classes-jobs",
+      "https://www.digitaltq.com/maplestory-boss-guide",
+      "https://meowdb.com/msclassic/skills/magician/magic-claw"
+    ]
+  },
+  {
+    "id": "ragnarok-online",
+    "title": "Ragnarok Online",
+    "kind": "game",
+    "year": 2002,
+    "creators": [
+      "Gravity"
+    ],
+    "platforms": [
+      "Windows"
+    ],
+    "genres": [
+      "mmorpg"
+    ],
+    "summary": "A Korean MMO based on a Norse-myth manhwa, with 2D sprite heroes in 3D maps and a branching job tree from Novice up to transcendent and third jobs. Players tame cute monster pets, slot monster cards into gear, run street stalls and besiege guild castles.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "class-advancement",
+        "how": "A Novice becomes one of six first jobs (Swordman, Mage, Archer, Acolyte, Thief, Merchant), then two second-job choices each, then transcendent and third jobs."
+      },
+      {
+        "id": "new:rebirth",
+        "how": "At base level 99 and job level 50 a character can be reborn at level 1 to reach a stronger transcendent job with more stat points."
+      },
+      {
+        "id": "stat-points",
+        "how": "Characters allocate stat points, and transcendent jobs receive more of them."
+      },
+      {
+        "id": "new:monster-cards",
+        "how": "Monsters drop cards that are socketed for good into slotted weapons or armor to add their special effect."
+      },
+      {
+        "id": "gear-upgrading",
+        "how": "Refining raises gear by +1 up to +10, but a failure past the safe level destroys the item and its cards."
+      },
+      {
+        "id": "monster-taming",
+        "how": "Use a monster's specific taming item on it to win an egg, then feed the pet or it leaves; its mood shows in emotes."
+      },
+      {
+        "id": "trading",
+        "how": "The Merchant's Vending skill opens a player shop from the pushcart; towns sell job-specific goods."
+      },
+      {
+        "id": "guilds",
+        "how": "Guilds fight Guild vs Guild and hold castles as headquarters."
+      },
+      {
+        "id": "new:castle-siege",
+        "how": "War of Emperium: twice a week guilds race to destroy the crystal Emperium inside one of 20 castles to claim it."
+      },
+      {
+        "id": "elemental-reactions",
+        "how": "Ten elements with a damage chart, so the right element hits much harder and the wrong one can even heal a monster."
+      },
+      {
+        "id": "pvp",
+        "how": "PvP, GvG and arena modes alongside normal hunting."
+      },
+      {
+        "id": "quests",
+        "how": "Quests usually reward a new skill or a rare item."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Swordman",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Bash",
+            "effect": "ground-slam",
+            "does": "A heavy blow that can stun at higher levels."
+          },
+          {
+            "name": "Magnum Break",
+            "effect": "area-blast",
+            "does": "A fire explosion around the Swordman that also adds fire to his weapon."
+          },
+          {
+            "name": "Provoke",
+            "effect": "war-cry",
+            "does": "Draws an enemy's attacks onto the Swordman."
+          }
+        ]
+      },
+      {
+        "name": "Mage",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Fire Bolt",
+            "effect": "projectile",
+            "does": "Fire bolts strike from above, more of them at higher levels."
+          },
+          {
+            "name": "Frost Diver",
+            "effect": "projectile",
+            "does": "An ice spell that can freeze the target solid."
+          },
+          {
+            "name": "Fire Wall",
+            "effect": "build-structure",
+            "does": "A wall of fire that burns and pushes back monsters crossing it."
+          },
+          {
+            "name": "Safety Wall",
+            "effect": "shield",
+            "does": "A cell that blocks melee attacks."
+          }
+        ]
+      },
+      {
+        "name": "Archer",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Double Strafe",
+            "effect": "projectile",
+            "does": "One shot that hits twice."
+          },
+          {
+            "name": "Arrow Shower",
+            "effect": "rain-zone",
+            "does": "Arrows hit a 5x5 area and knock enemies back."
+          }
+        ]
+      },
+      {
+        "name": "Acolyte",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Heal",
+            "effect": "heal",
+            "does": "Restores an ally's HP, or hurts undead."
+          },
+          {
+            "name": "Blessing",
+            "effect": "buff",
+            "does": "Raises strength, dexterity and intelligence."
+          },
+          {
+            "name": "Increase AGI",
+            "effect": "buff",
+            "does": "Boosts agility and movement speed."
+          },
+          {
+            "name": "Warp Portal",
+            "effect": "teleport",
+            "does": "Opens a portal to a saved destination."
+          }
+        ]
+      },
+      {
+        "name": "Thief",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Hiding",
+            "effect": "stealth",
+            "does": "Hides underground from most monsters."
+          },
+          {
+            "name": "Envenom",
+            "effect": "damage-over-time",
+            "does": "A poisoned strike."
+          },
+          {
+            "name": "Steal",
+            "effect": "passive",
+            "does": "Steals items from monsters."
+          }
+        ]
+      },
+      {
+        "name": "Merchant",
+        "archetype": "worker",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Mammonite",
+            "effect": "ground-slam",
+            "does": "A heavy blow paid for with money."
+          },
+          {
+            "name": "Cart Revolution",
+            "effect": "area-blast",
+            "does": "Swings the pushcart to hit everything around the target."
+          },
+          {
+            "name": "Vending",
+            "effect": "passive",
+            "does": "Opens a shop that sells items from the cart."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Poring",
+        "kind": "minion",
+        "foes": "mixed"
+      },
+      {
+        "name": "Deviruchi",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Sohee",
+        "kind": "minion",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Prontera",
+        "world": "city-streets",
+        "layout": "village-square"
+      },
+      {
+        "name": "Guild castles (War of Emperium)",
+        "world": "ancient-temple",
+        "layout": "twin-gates"
+      }
+    ],
+    "blueprint": {
+      "genre": "monster-hunt",
+      "world": "farm-fields",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Jelly Fields: a Fledgling picks one of six trades at job level 10, cards dropped by jellies and goblins slot into gear forever, and every weekend clubs race to crack the crystal heart inside a hilltop keep.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Ragnarok_Online",
+      "official": "https://renewal.playragnarok.com/"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fb/RO_icon_file.png",
+      "page": "https://commons.wikimedia.org/wiki/File:RO_icon_file.png",
+      "license": "free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Ragnarok_Online",
+      "https://renewal.playragnarok.com/gameguide/classes_skill.aspx?c=2",
+      "https://renewal.playragnarok.com/gameguide/classes_skill.aspx?c=3",
+      "https://renewal.playragnarok.com/gameguide/classes_skill.aspx?c=4",
+      "https://renewal.playragnarok.com/gameguide/classes_skill.aspx?c=5",
+      "https://renewal.playragnarok.com/gameguide/classes_skill.aspx?c=6",
+      "https://renewal.playragnarok.com/gameguide/classes_skill.aspx?c=7",
+      "https://renewal.playragnarok.com/gameguide/Classes_Tree.aspx",
+      "https://renewal.playragnarok.com/gameguide/Features_cardsystem.aspx",
+      "https://renewal.playragnarok.com/gameguide/Features_cutepetsystem.aspx",
+      "https://renewal.playragnarok.com/gameguide/Features_warofemperium.aspx",
+      "https://renewal.playragnarok.com/gameguide/Features_attributesystem.aspx",
+      "https://renewal.playragnarok.com/gameguide/Features_upgradingsystem.aspx"
+    ]
+  },
+  {
+    "id": "elden-ring",
+    "title": "Elden Ring",
+    "kind": "game",
+    "year": 2022,
+    "creators": [
+      "FromSoftware",
+      "Bandai Namco Entertainment",
+      "George R. R. Martin"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation 4",
+      "PlayStation 5",
+      "Xbox One",
+      "Xbox Series X/S",
+      "Nintendo Switch 2"
+    ],
+    "genres": [
+      "action-rpg",
+      "soulslike",
+      "open-world"
+    ],
+    "summary": "FromSoftware's open-world take on its demanding soulslike formula, with worldbuilding by George R. R. Martin. An exiled Tarnished rides a spectral steed across the Lands Between, beating demigods to restore a shattered ring.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "open-world",
+        "how": "Six main regions explored freely, dotted with hidden catacombs, tunnels and caves that hold their own bosses."
+      },
+      {
+        "id": "mounts",
+        "how": "A spectral horse summoned by whistle that can double-jump and ride wind springs high into the air."
+      },
+      {
+        "id": "checkpoint-rest",
+        "how": "Sites of Grace are where you level up, change spells, swap weapon arts, fast travel and respawn."
+      },
+      {
+        "id": "corpse-run",
+        "how": "Dying drops all carried runes where you fell; die again before picking them up and they are gone."
+      },
+      {
+        "id": "stat-points",
+        "how": "Runes, earned from enemies, are spent at Sites of Grace to raise attributes."
+      },
+      {
+        "id": "skill-modifiers",
+        "how": "Ashes of War can be fitted to or removed from weapons, each giving a special weapon skill."
+      },
+      {
+        "id": "summons",
+        "how": "Spirit Ashes call friendly spirits, but only near Rebirth Monuments found in big areas and boss arenas."
+      },
+      {
+        "id": "parry-block",
+        "how": "Shields block, and a well-timed parry opens the enemy to a critical hit."
+      },
+      {
+        "id": "dodge-roll",
+        "how": "Enemy attacks can be dodged as well as blocked."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Each region is ruled by a demigod who serves as its main boss."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Summon signs placed on the ground let other players join a world until the area boss falls."
+      },
+      {
+        "id": "pvp",
+        "how": "Duels by summon sign, or invading other players' worlds."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Astrologer",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Glintstone Pebble",
+            "effect": "projectile",
+            "does": "A quick magic shot that can be cast while moving."
+          },
+          {
+            "name": "Glintstone Arc",
+            "effect": "area-blast",
+            "does": "A horizontal arc of magic that spreads outward."
+          }
+        ]
+      },
+      {
+        "name": "Prophet",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Heal",
+            "effect": "heal",
+            "does": "A healing incantation."
+          },
+          {
+            "name": "Catch Flame",
+            "effect": "area-blast",
+            "does": "A brief burst of flame from the hand."
+          }
+        ]
+      },
+      {
+        "name": "Confessor",
+        "archetype": "paladin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Urgent Heal",
+            "effect": "heal",
+            "does": "A fast healing incantation."
+          },
+          {
+            "name": "Assassin's Approach",
+            "effect": "stealth",
+            "does": "A starting incantation suited to sneaking up on foes."
+          }
+        ]
+      },
+      {
+        "name": "Vagabond",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": []
+      },
+      {
+        "name": "Samurai",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "skills": []
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Tree Sentinel",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Flying Dragon Agheel",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Margit, the Fell Omen",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Godrick the Grafted",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Rennala, Queen of the Full Moon",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Starscourge Radahn",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Limgrave",
+        "world": "farm-fields",
+        "layout": "open-field"
+      },
+      {
+        "name": "Stormveil Castle",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Raya Lucaria Academy",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Caelid",
+        "world": "lava-wastes",
+        "layout": "open-field"
+      },
+      {
+        "name": "Leyndell, Royal Capital",
+        "world": "city-streets",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Mountaintops of the Giants",
+        "world": "frozen-north",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "ancient-temple",
+      "layout": "boss-lair",
+      "hero": "knight",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Gale Steed Wilds: ride a ghost-goat that double-jumps between ledges across six open biomes, rest at glowing lanterns to level up and refill flasks, call a bottle of spirit helpers at stone markers, and topple six crowned wardens in any order.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Elden_Ring",
+      "fandom": "https://eldenring.wiki.fextralife.com/Elden+Ring+Wiki"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/b/b9/Elden_Ring_Box_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Elden_Ring_Box_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Elden_Ring",
+      "https://eldenring.wiki.fextralife.com/Elden+Ring+Wiki",
+      "https://eldenring.wiki.fextralife.com/Classes",
+      "https://eldenring.wiki.fextralife.com/Spirit+Ashes",
+      "https://eldenring.wiki.fextralife.com/Bosses",
+      "https://eldenring.wiki.fextralife.com/Astrologer",
+      "https://eldenring.wiki.fextralife.com/Prophet",
+      "https://eldenring.wiki.fextralife.com/Confessor",
+      "https://eldenring.wiki.fextralife.com/Vagabond",
+      "https://eldenring.wiki.fextralife.com/Samurai",
+      "https://eldenring.wiki.fextralife.com/Torrent"
+    ]
+  },
+  {
+    "id": "dark-souls-iii",
+    "title": "Dark Souls III",
+    "kind": "game",
+    "year": 2016,
+    "creators": [
+      "FromSoftware",
+      "Bandai Namco Entertainment"
+    ],
+    "platforms": [
+      "Windows",
+      "PlayStation 4",
+      "Xbox One"
+    ],
+    "genres": [
+      "action-rpg",
+      "soulslike"
+    ],
+    "summary": "The last Dark Souls, where an Unkindled warrior returns runaway Lords of Cinder to their thrones as the First Flame fades. Interconnected levels, bonfire checkpoints, stamina-based combat and punishing bosses define it.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "checkpoint-rest",
+        "how": "Bonfires restore health and flasks, respawn most enemies and allow fast travel."
+      },
+      {
+        "id": "corpse-run",
+        "how": "Souls, used as both money and experience, drop where you die and are lost if you die again before reaching them."
+      },
+      {
+        "id": "stamina",
+        "how": "A stamina bar limits attacking, blocking and rolling, leaving you open when it runs dry."
+      },
+      {
+        "id": "dodge-roll",
+        "how": "Rolls give a moment of invulnerability at the start."
+      },
+      {
+        "id": "parry-block",
+        "how": "Shields block, and a timed parry opens the enemy to a riposte."
+      },
+      {
+        "id": "mana-resource",
+        "how": "FP fuels sorceries, miracles, pyromancies and weapon skills."
+      },
+      {
+        "id": "potions",
+        "how": "Estus flasks heal and Ashen Estus flasks restore FP, and the player splits the charges between them."
+      },
+      {
+        "id": "skill-modifiers",
+        "how": "Each weapon and shield carries its own special skill that spends FP."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Nineteen base-game bosses guard the way, several with changing phases."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Other players can be summoned for co-op."
+      },
+      {
+        "id": "pvp",
+        "how": "Hostile players can invade your world, and covenants organise multiplayer roles."
+      },
+      {
+        "id": "new:shortcuts",
+        "how": "Big interconnected areas loop back to bonfires through unlockable shortcuts."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Sorcerer",
+        "archetype": "mage",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Soul Arrow",
+            "effect": "projectile",
+            "does": "A basic bolt of soul magic."
+          },
+          {
+            "name": "Heavy Soul Arrow",
+            "effect": "projectile",
+            "does": "A slower, stronger soul bolt."
+          }
+        ]
+      },
+      {
+        "name": "Pyromancer",
+        "archetype": "elementalist",
+        "role": "caster",
+        "skills": [
+          {
+            "name": "Fire Ball",
+            "effect": "projectile",
+            "does": "A thrown ball of fire."
+          }
+        ]
+      },
+      {
+        "name": "Cleric",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Heal",
+            "effect": "heal",
+            "does": "A healing miracle."
+          },
+          {
+            "name": "Force",
+            "effect": "area-blast",
+            "does": "A shockwave miracle that pushes enemies back."
+          }
+        ]
+      },
+      {
+        "name": "Assassin",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Spook",
+            "effect": "stealth",
+            "does": "A starting sorcery for sneaking."
+          }
+        ]
+      },
+      {
+        "name": "Knight",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": []
+      },
+      {
+        "name": "Herald",
+        "archetype": "paladin",
+        "role": "tank",
+        "skills": []
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Iudex Gundyr",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Vordt of the Boreal Valley",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Abyss Watchers",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Pontiff Sulyvahn",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Yhorm the Giant",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Nameless King",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Soul of Cinder",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Firelink Shrine",
+        "world": "haunted-graveyard",
+        "layout": "village-square"
+      },
+      {
+        "name": "High Wall of Lothric",
+        "world": "city-streets",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Undead Settlement",
+        "world": "haunted-graveyard",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Irithyll of the Boreal Valley",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Archdragon Peak",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Kiln of the First Flame",
+        "world": "lava-wastes",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "haunted-graveyard",
+      "layout": "boss-lair",
+      "hero": "knight",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Lantern Steps: a tight castle gauntlet where every lantern you light becomes your respawn point and opens a shortcut door back to it, dropped sparkles wait where you fell for one retry, and each warden boss shows a clear tell to roll through.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Dark_Souls_III",
+      "fandom": "https://darksouls3.wiki.fextralife.com/Dark+Souls+3+Wiki"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/b/bb/Dark_souls_3_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Dark_souls_3_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Dark_Souls_III",
+      "https://darksouls3.wiki.fextralife.com/Dark+Souls+3+Wiki",
+      "https://darksouls3.wiki.fextralife.com/Classes",
+      "https://darksouls3.wiki.fextralife.com/Bosses"
+    ]
+  },
+  {
+    "id": "monster-hunter-world",
+    "title": "Monster Hunter: World",
+    "aliases": [
+      "monster hunter"
+    ],
+    "kind": "game",
+    "year": 2018,
+    "creators": [
+      "Capcom"
+    ],
+    "platforms": [
+      "PlayStation 4",
+      "Xbox One",
+      "Windows"
+    ],
+    "genres": [
+      "action-rpg"
+    ],
+    "summary": "Capcom's hunting action RPG: a hunter tracks giant monsters across seamless habitats, then slays or traps them and turns their parts into new weapons and armor. Up to four hunters play together, with cat companions filling out smaller parties.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:monster-tracking",
+        "how": "Glowing Scoutflies follow tracks and traces, and studying them levels up both the trail and your knowledge of the monster's weaknesses."
+      },
+      {
+        "id": "crafting",
+        "how": "Monster parts and gathered materials are forged into weapons and armor styled after the beast, in a hunt-craft-hunt-harder loop."
+      },
+      {
+        "id": "gear-defines-build",
+        "how": "The hunter has no class or stats; one of 14 weapon types decides the whole moveset."
+      },
+      {
+        "id": "new:gear-skills",
+        "how": "Each armor piece carries ranks of a skill, and ranks add up across the whole outfit."
+      },
+      {
+        "id": "monster-taming",
+        "how": "A weakened monster can be trapped and captured instead of killed."
+      },
+      {
+        "id": "boss-phases",
+        "how": "Hurt monsters change tactics, get more aggressive, or limp to their lair to rest and eat."
+      },
+      {
+        "id": "pets",
+        "how": "A Palico cat companion with its own crafted gear joins solo and duo hunts."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Up to four hunters; anyone can fire an SOS flare that other players can answer."
+      },
+      {
+        "id": "stamina",
+        "how": "Dodging and some attacks use stamina, which only refills when you ease off."
+      },
+      {
+        "id": "new:environment-hazards",
+        "how": "Drop boulders with the Slinger, burst a dam, or lead one monster into another's den to make them fight."
+      },
+      {
+        "id": "day-night",
+        "how": "Weather and a day-night cycle change how some monsters behave mid-hunt."
+      },
+      {
+        "id": "meal-buffs",
+        "how": "A canteen meal before the hunt grants buffs for the trip."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Great Sword",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "True Charged Slash",
+            "effect": "ground-slam",
+            "does": "The fully charged finisher with the weapon's biggest hit."
+          },
+          {
+            "name": "Tackle",
+            "effect": "dash-strike",
+            "does": "A shoulder tackle that can't be interrupted and keeps the charge going."
+          }
+        ]
+      },
+      {
+        "name": "Hunting Horn",
+        "archetype": "bard",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Performance",
+            "effect": "buff",
+            "does": "Plays stored melodies that buff the party, opening with a stunning shockwave."
+          },
+          {
+            "name": "Echo Attack",
+            "effect": "area-blast",
+            "does": "Stores an echo that later bursts out as a damaging wave."
+          }
+        ]
+      },
+      {
+        "name": "Insect Glaive",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Kinsect extracts",
+            "effect": "buff",
+            "does": "A pet insect gathers essences from the monster: red for attack, white for speed, orange for defense, green to heal."
+          },
+          {
+            "name": "Vaulting",
+            "effect": "leap-attack",
+            "does": "Pole-vaults into the air to attack from above."
+          }
+        ]
+      },
+      {
+        "name": "Bow",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "skills": [
+          {
+            "name": "Dragon Piercer",
+            "effect": "piercing-bolt",
+            "does": "A powerful shot that pierces along the monster's body."
+          },
+          {
+            "name": "Arc Shot",
+            "effect": "rain-zone",
+            "does": "Arrows fired high to rain down on an area."
+          }
+        ]
+      },
+      {
+        "name": "Lance",
+        "archetype": "knight",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Guard",
+            "effect": "shield",
+            "does": "Raises the great shield to block attacks."
+          },
+          {
+            "name": "Counter-thrust",
+            "effect": "shield",
+            "does": "Blocks a hit and answers with a strong thrust."
+          }
+        ]
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Anjanath",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Rathalos",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Nergigante",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Zorah Magdaros",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Velkhana",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Astera",
+        "world": "pirate-coast",
+        "layout": "village-square"
+      },
+      {
+        "name": "Ancient Forest",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Wildspire Waste",
+        "world": "desert-ruins",
+        "layout": "open-field"
+      },
+      {
+        "name": "Rotten Vale",
+        "world": "haunted-graveyard",
+        "layout": "open-field"
+      },
+      {
+        "name": "Elder's Recess",
+        "world": "lava-wastes",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Hoarfrost Reach",
+        "world": "frozen-north",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "monster-hunt",
+      "world": "enchanted-forest",
+      "layout": "open-field",
+      "hero": "any",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Track & Tame Expedition: kids follow glowing fireflies to a giant beast's footprints, wear it down, then choose to net it for the sanctuary or defeat it, and stitch its scales into a matching armor set with set-bonus perks, with a cat-like sidekick for small parties.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Monster_Hunter:_World",
+      "fandom": "https://monsterhunterworld.wiki.fextralife.com/Monster+Hunter+World+Wiki"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/1/1b/Monster_Hunter_World_cover_art.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Monster_Hunter_World_cover_art.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Monster_Hunter:_World",
+      "https://monsterhunterworld.wiki.fextralife.com/Monster+Hunter+World+Wiki",
+      "https://monsterhunterworld.wiki.fextralife.com/Locations",
+      "https://monsterhunterworld.wiki.fextralife.com/Great+Sword",
+      "https://monsterhunterworld.wiki.fextralife.com/Hunting+Horn",
+      "https://monsterhunterworld.wiki.fextralife.com/Insect+Glaive",
+      "https://monsterhunterworld.wiki.fextralife.com/Bow",
+      "https://monsterhunterworld.wiki.fextralife.com/Lance"
+    ]
+  }
+]

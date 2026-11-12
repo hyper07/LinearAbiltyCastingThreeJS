@@ -368,6 +368,10 @@ with no AI at all. **Build with AI** has the AI pick from the menus in about 120
 **Plus** accounts get a premium model that also writes its own map, stories, lines and questions.
 Change any choice, then play at once or publish it to the home page. See **[Game builder](docs/game-builder.md)**
 and how the platform grows to many genres in **[Platform architecture](docs/platform-architecture.md)**.
+Write *"a dungeon game like Solo Leveling"* or *"something like Fortnite"*: the
+**[Inspiration catalog](docs/inspiration.md)** — 75 well-known games, manhwa and manga mapped onto our own
+genres, classes, skills and features — starts the game from that work's nearest picks at no token cost,
+under our own names.
 
 <p>
   <img src="docs/screenshots/game-builder.jpg" width="100%" alt="The Game builder: an idea, Quick build and Build with AI, and the menus for genre, world, layout, hero, monsters, chapters and a parent's study rewards" />
@@ -440,6 +444,7 @@ flowchart LR
 | [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
 | [Battle royale](docs/battle-royale.md) | The storm, rivals, solo and squads, players against players, making one, how it works |
 | [Game builder](docs/game-builder.md) | Whole games from a sentence or a few picks: genres, worlds, layouts, casts; the spec, tokens, Free and Plus, the command line |
+| [Inspiration catalog](docs/inspiration.md) | 75 games, manhwa and manga mapped onto our ids, with links; "a game like X" in the builder; the features we lack, ranked |
 | [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
 | [The shared library](docs/library.md) | Official, shared and draft content; reuse and similar-asset suggestions; the API and database |

@@ -99,6 +99,30 @@ with no AI. The AI is shown each one in a line (name, story line and skills), af
 menus, and may only pick one that exists. The game references the class by id, so it plays with the
 class as it is now. See [Content players make](platform-architecture.md#content-players-make-characters-skills-and-more).
 
+## "A game like…": the inspiration catalog
+
+`src/catalog/inspiration/` maps 75 well-known games and RPG / fantasy stories (Diablo, StarCraft,
+League of Legends, Fortnite, Genshin Impact, Pokémon, Solo Leveling, Tower of God, Frieren, …) onto the
+builder's own ids: the nearest genre, world, layout, hero and foes, the class archetypes and skill
+effects, and the systems that make each one (see [the catalog](inspiration.md)).
+
+When an idea names one — *"a dungeon game like Solo Leveling"*, *"a fortnite game"*, *"inspired by
+Hades"* — `GameBuilder` (src/ai/GameBuilder.js):
+
+- **Quick build (no AI):** starts from that work's picks; anything the words say themselves
+  (`keywordPicks`: *"in the frozen north"*, *"with a knight"*) wins over them.
+- **AI build:** adds a ~150-token note after the idea (the picks, its systems, an original take), so the
+  model chooses better without a longer fixed prompt — the cached prefix is unchanged.
+
+A one-word title counts only after "like", "inspired by"… or before "game" / "style", so *"a berserk
+warrior"* is not the manga. The game never takes the work's title or names: the spec has no name from
+it, and the note tells the model to use none. The catalog loads only when a build needs it (its own
+~100 KB file).
+
+`node scripts/check-inspiration.mjs` checks the catalog against the vocabulary
+(`src/catalog/inspiration/vocabulary.js`); `node scripts/inspiration-report.mjs` rewrites
+[inspiration.md](inspiration.md), including the features we lack, ranked by how many works use them.
+
 ## Free and Plus
 
 What each plan gets is one table, [`src/platform/plans.js`](../src/platform/plans.js), which the

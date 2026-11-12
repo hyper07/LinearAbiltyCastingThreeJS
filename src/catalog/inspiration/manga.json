@@ -1,0 +1,2350 @@
+[
+  {
+    "id": "frieren",
+    "title": "Frieren: Beyond Journey's End",
+    "aliases": [
+      "frieren"
+    ],
+    "kind": "manga",
+    "year": 2020,
+    "creators": [
+      "Kanehito Yamada",
+      "Tsukasa Abe"
+    ],
+    "genres": [
+      "story-adventure",
+      "jrpg"
+    ],
+    "summary": "Years after her hero party beat the Demon King, an elf mage who barely notices decades passing walks north with a young apprentice and a timid warrior. It is an after-the-quest journey about magic as a lifelong craft and about remembering old companions.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "quests",
+        "how": "The story is a long overland journey told as small village jobs, detours and favours rather than one big dungeon."
+      },
+      {
+        "id": "story-chapters",
+        "how": "Present-day travel keeps cutting to flashbacks of the old hero party, so the past party keeps teaching the new one."
+      },
+      {
+        "id": "co-op-party",
+        "how": "A clean three-role party: a veteran mage, a fast-casting apprentice and a frontline warrior who holds enemies off the casters."
+      },
+      {
+        "id": "rank-system",
+        "how": "Mages are certified by graded exams, and a proctored first-class mage exam with several stages is a full arc."
+      },
+      {
+        "id": "mana-resource",
+        "how": "Mage duels are decided by mana amount, control and reading the opponent's mana."
+      },
+      {
+        "id": "secret-identity",
+        "how": "Strong casters suppress their mana for years so enemies misjudge them, then reveal their full strength at the decisive moment."
+      },
+      {
+        "id": "conditional-bosses",
+        "how": "Each demon spends centuries perfecting one signature spell, so every demon fight is a puzzle against a single unique power."
+      },
+      {
+        "id": "new:spell-research",
+        "how": "A demon's deadly spell is studied by human mages until it becomes the standard attack spell everyone learns, and the counters to it follow."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Named demon generals such as a mind-control duelist and a gold-curse sage are set-piece boss fights."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Frieren",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Thousand-year-old elf mage who has slain more demons than anyone and devised the demon-slaying spell Zoltraak."
+      },
+      {
+        "name": "Fern",
+        "archetype": "mage",
+        "role": "ranged-dps",
+        "signature": "Frieren's apprentice, a powerful young mage who passes the first-class mage exam."
+      },
+      {
+        "name": "Stark",
+        "archetype": "warrior",
+        "role": "tank",
+        "signature": "Timid but strong young warrior raised by Eisen who takes the front line for the two mages."
+      },
+      {
+        "name": "Himmel",
+        "archetype": "knight",
+        "role": "melee-dps",
+        "signature": "The late hero of the old party whose kindness shapes the whole journey."
+      },
+      {
+        "name": "Heiter",
+        "archetype": "cleric",
+        "role": "healer",
+        "signature": "The old party's priest, who rescued and raised Fern."
+      },
+      {
+        "name": "Eisen",
+        "archetype": "warrior",
+        "role": "tank",
+        "signature": "The old party's dwarf warrior, now too old to travel, who trained Stark."
+      },
+      {
+        "name": "Sein",
+        "archetype": "cleric",
+        "role": "healer",
+        "signature": "Talented village priest who travels with the party for a while."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Aura the Guillotine",
+        "kind": "boss",
+        "foes": "mixed"
+      },
+      {
+        "name": "Macht of Golden Land",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Shadow Warriors",
+        "kind": "elite",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The road north",
+        "world": "frozen-north",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Golden Land",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "crossroads",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Embertrail: an ageless lantern-witch and two young apprentices walk a frost road trading favours for forgotten spell scrolls; each boss has spent centuries perfecting a single trick, and players win by hiding their mana and reading the boss's tell.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Frieren"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/60/Frieren_Beyond_Journey%27s_End.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Frieren_Beyond_Journey%27s_End.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Frieren",
+      "https://en.wikipedia.org/wiki/List_of_Frieren_characters"
+    ]
+  },
+  {
+    "id": "sword-art-online",
+    "title": "Sword Art Online",
+    "aliases": [
+      "sao"
+    ],
+    "kind": "light-novel",
+    "year": 2009,
+    "creators": [
+      "Reki Kawahara",
+      "abec"
+    ],
+    "genres": [
+      "mmorpg",
+      "action-rpg",
+      "story-adventure"
+    ],
+    "summary": "Ten thousand players are trapped in a full-dive virtual MMO where dying in the game means dying for real, and can only leave by clearing all 100 floors of a floating castle. Later arcs move the same players through other virtual worlds.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "permadeath",
+        "how": "A death in the game kills the player in real life, so the whole first arc is played on a single life."
+      },
+      {
+        "id": "tower-climb",
+        "how": "The world is a 100-floor castle cleared one floor at a time, each floor unlocked by beating its boss."
+      },
+      {
+        "id": "raids",
+        "how": "Bosses are taken down by large assault groups where a taunting tank manages monster aggression to protect the healers."
+      },
+      {
+        "id": "guilds",
+        "how": "Players form guilds, from the front-line clearing guild to small friend guilds and a feared player-killer guild."
+      },
+      {
+        "id": "pvp",
+        "how": "Duels settle disputes, and the first arc ends in a one-on-one duel with the game's hidden creator."
+      },
+      {
+        "id": "combo-attacks",
+        "how": "Sword skills are named multi-hit combos; players can even author their own Original Sword Skills, and dual wielding is a rare unique skill."
+      },
+      {
+        "id": "monster-taming",
+        "how": "Rare beast tamers bond with a monster companion, and a special flower item can revive a fallen pet."
+      },
+      {
+        "id": "crafting",
+        "how": "Player blacksmiths forge custom swords from rare ore that has to be fetched on a quest."
+      },
+      {
+        "id": "shops",
+        "how": "Players run their own shops inside the game."
+      },
+      {
+        "id": "new:linked-worlds",
+        "how": "The same characters move between connected game worlds: a sword MMO, a flying fairy MMO, a gun shooter and a simulated civilization."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Kirito",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Solo-playing former beta tester in black, known as the Black Swordsman and for his Dual Blades."
+      },
+      {
+        "name": "Asuna",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Rapier fighter nicknamed The Flash, later a healer who still charges into melee."
+      },
+      {
+        "name": "Sinon",
+        "archetype": "gunner",
+        "role": "ranged-dps",
+        "signature": "Sniper in the gun game, using a heavy rifle won from a dungeon monster."
+      },
+      {
+        "name": "Leafa",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Kendo-trained fairy swordswoman who guides the hero through the flying game."
+      },
+      {
+        "name": "Silica",
+        "archetype": "tamer",
+        "role": "summoner",
+        "signature": "Young beast tamer famous for her small dragon companion."
+      },
+      {
+        "name": "Lisbeth",
+        "archetype": "worker",
+        "role": "builder",
+        "signature": "Blacksmith with her own shop who forges the hero's custom sword."
+      },
+      {
+        "name": "Klein",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Friendly katana fighter who leads his own small guild."
+      },
+      {
+        "name": "Heathcliff",
+        "archetype": "knight",
+        "role": "tank",
+        "signature": "Leader of the top clearing guild, secretly the game's creator, beaten in a final duel."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Floor bosses of Aincrad",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Four-Armed Giant",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Player-killer guild",
+        "kind": "elite",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Aincrad, the floating castle",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Alfheim and the World Tree",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Gun Gale Online",
+        "world": "sci-fi-outpost",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "dragon-dungeon",
+      "layout": "gauntlet",
+      "hero": "knight",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Spire of Hundred Gates: a party climbs a floating tower floor by floor; every floor ends in a raid boss that needs one player drawing its attention while the others heal and strike, and a knocked-out player sits out the rest of the climb.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Sword_Art_Online"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/3/3e/Sword_Art_Online_light_novel_volume_1_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Sword_Art_Online_light_novel_volume_1_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Sword_Art_Online",
+      "https://en.wikipedia.org/wiki/List_of_Sword_Art_Online_characters"
+    ]
+  },
+  {
+    "id": "that-time-i-got-reincarnated-as-a-slime",
+    "title": "That Time I Got Reincarnated as a Slime",
+    "aliases": [
+      "reincarnated as a slime",
+      "tensura"
+    ],
+    "kind": "light-novel",
+    "year": 2014,
+    "creators": [
+      "Fuse",
+      "Mitz Vah"
+    ],
+    "genres": [
+      "action-rpg",
+      "sandbox",
+      "story-adventure"
+    ],
+    "summary": "An office worker is reborn as a slime that can devour anything and copy its skills, befriends a sealed dragon and gathers monsters into a nation of his own. Neighbouring kingdoms, heroes and demon lords then try to ally with it or destroy it.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "copy-skill",
+        "how": "The hero swallows creatures and objects, then mimics their shape and their skills."
+      },
+      {
+        "id": "ally-evolution",
+        "how": "Giving a monster a name binds it as an ally and evolves it into a stronger race: goblins to hobgoblins, ogres to kijin, wolves to tempest wolves."
+      },
+      {
+        "id": "class-advancement",
+        "how": "Evolution chains repeat: when the leader evolves, his named followers evolve again (kijin to oni)."
+      },
+      {
+        "id": "base-building",
+        "how": "Starting from a goblin village, the hero builds a monster nation with a capital, trades and diplomacy."
+      },
+      {
+        "id": "crafting",
+        "how": "Recruited monsters bring crafts such as clothmaking that they teach to the rest of the town."
+      },
+      {
+        "id": "new:skill-advisor",
+        "how": "An analysis skill acts as an advisor inside the hero's head that explains threats and suggests tactics, and it evolves too."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Threats are ranked in disaster tiers up to catastrophe-level dragons and demon lords, and beating an orc lord or a rogue demon lord is a milestone."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Named lieutenants each fill a role: a commander, a healer-priestess, a bodyguard, a ninja scout and a wolf mount."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Rimuru Tempest",
+        "archetype": "shapeshifter",
+        "role": "caster",
+        "signature": "Reincarnated slime who devours foes to copy their skills and rules a monster nation."
+      },
+      {
+        "name": "Benimaru",
+        "archetype": "warrior",
+        "role": "commander",
+        "signature": "Ogre prince who swears loyalty after the orc lord falls and evolves into a kijin."
+      },
+      {
+        "name": "Shuna",
+        "archetype": "cleric",
+        "role": "healer",
+        "signature": "Ogre princess, healer and priestess who teaches the goblins to make clothes."
+      },
+      {
+        "name": "Shion",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "Fierce bodyguard and self-appointed secretary, famous as a terrible cook."
+      },
+      {
+        "name": "Souei",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "Ninja-like scout, spy and messenger."
+      },
+      {
+        "name": "Ranga",
+        "archetype": "shapeshifter",
+        "role": "melee-dps",
+        "signature": "Dire wolf who serves the slime and evolves with his pack into tempest wolves."
+      },
+      {
+        "name": "Veldora Tempest",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "The Storm Dragon, sealed for 300 years, who trades names with the slime."
+      },
+      {
+        "name": "Milim Nava",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "Carefree ancient demon lord known as the Destroyer."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Goblins and dire wolves",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Orc Lord",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Clayman",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Great Forest of Jura",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "The sealed dragon's cave",
+        "world": "dragon-dungeon",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Tempest",
+        "world": "storybook-village",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "village-square",
+      "hero": "wildwarden",
+      "foes": "imps"
+    },
+    "makeItOurs": "Puddle King: you play a little gel creature that swallows foes to borrow their tricks; every creature you befriend and name grows into a stronger form and moves into your growing burrow-town.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/That_Time_I_Got_Reincarnated_as_a_Slime"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/8/8c/That_Time_I_Got_Reincarnated_as_a_Slime_light_novel_volume_1_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:That_Time_I_Got_Reincarnated_as_a_Slime_light_novel_volume_1_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/That_Time_I_Got_Reincarnated_as_a_Slime",
+      "https://en.wikipedia.org/wiki/List_of_That_Time_I_Got_Reincarnated_as_a_Slime_characters"
+    ]
+  },
+  {
+    "id": "overlord",
+    "title": "Overlord",
+    "kind": "light-novel",
+    "year": 2012,
+    "creators": [
+      "Kugane Maruyama",
+      "so-bin"
+    ],
+    "genres": [
+      "mmorpg",
+      "dungeon-crawler",
+      "story-adventure"
+    ],
+    "summary": "When a VR MMO shuts down, its last loyal player is pulled into a new world as his undead overlord avatar, together with his guild's tomb and its now-living NPCs. Mechanics only: the story centres on a villain protagonist and brutal violence.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "new:dungeon-defense",
+        "how": "The guild base is a multi-floor tomb with a guardian on each floor, and invading parties must fight down through them."
+      },
+      {
+        "id": "new:living-npcs",
+        "how": "NPCs the players once designed come alive as fiercely loyal lieutenants whose personalities mirror their creators."
+      },
+      {
+        "id": "guilds",
+        "how": "It begins at the end of a 41-member guild that once ruled the game, with the last member carrying its name."
+      },
+      {
+        "id": "new:tiered-magic",
+        "how": "Spells come in numbered tiers, and a top-tier caster vastly outclasses anyone who only knows the lower tiers."
+      },
+      {
+        "id": "summons",
+        "how": "The undead overlord summons undead servants and relies on instant-death and summoning spells."
+      },
+      {
+        "id": "secret-identity",
+        "how": "The ruler also plays a masked adventurer to explore the world and build a reputation unnoticed."
+      },
+      {
+        "id": "new:world-items",
+        "how": "A handful of world-class items have effects big enough to devastate whole areas."
+      },
+      {
+        "id": "base-building",
+        "how": "The tomb grows into the capital of a whole kingdom over the series."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Ainz Ooal Gown",
+        "archetype": "necromancer",
+        "role": "summoner",
+        "signature": "Skeletal lich player and guild master, master of tier magic, instant death and summoning."
+      },
+      {
+        "name": "Albedo",
+        "archetype": "warrior",
+        "signature": "Succubus overseer of the floor guardians."
+      },
+      {
+        "name": "Shalltear Bloodfallen",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Vampire guardian with the best overall stats, strong in both melee and magic."
+      },
+      {
+        "name": "Demiurge",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "Demon guardian of the seventh floor and the tomb's schemer."
+      },
+      {
+        "name": "Cocytus",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Four-armed insect warrior with ice powers and many weapons."
+      },
+      {
+        "name": "Aura Bella Fiora",
+        "archetype": "tamer",
+        "role": "summoner",
+        "signature": "Dark elf guardian with whip and bow who summons beasts."
+      },
+      {
+        "name": "Sebas Tian",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "signature": "Head butler who fights unarmed and has a strong sense of justice."
+      },
+      {
+        "name": "Pandora's Actor",
+        "archetype": "shapeshifter",
+        "signature": "Treasury guardian who copies the looks and abilities of the guild's members."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Undead hordes",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Necromancer cult raising an undead city",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Worker parties raiding the tomb",
+        "kind": "elite",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Great Tomb of Nazarick",
+        "world": "haunted-graveyard",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "E-Rantel",
+        "world": "city-streets",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "haunted-graveyard",
+      "layout": "gauntlet",
+      "hero": "bonecaller",
+      "foes": "spirits"
+    },
+    "makeItOurs": "Crypt Keeper: you are the friendly keeper of a living crypt; place a guardian on each floor, then raise skeleton helpers between waves as adventurer parties try to reach your throne room.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Overlord_(novel_series)"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/1/18/Overlord_novel.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Overlord_novel.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Overlord_(novel_series)",
+      "https://en.wikipedia.org/wiki/List_of_Overlord_characters"
+    ]
+  },
+  {
+    "id": "the-rising-of-the-shield-hero",
+    "title": "The Rising of the Shield Hero",
+    "aliases": [
+      "shield hero"
+    ],
+    "kind": "light-novel",
+    "year": 2013,
+    "creators": [
+      "Aneko Yusagi",
+      "Seira Minami"
+    ],
+    "genres": [
+      "action-rpg",
+      "story-adventure"
+    ],
+    "summary": "Four young men are summoned as legendary heroes to fight waves of monsters, and the one given only a shield, unable to attack, is framed and shunned. He builds a party of his own and earns trust back. Mechanics only: slavery, abuse and a false-assault plot are central.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "character-classes",
+        "how": "Four summoned heroes each receive one legendary weapon type (shield, sword, spear, bow), and the shield is the only purely defensive one."
+      },
+      {
+        "id": "new:defend-only-hero",
+        "how": "The shield hero cannot deal damage himself, so he wins by protecting and strengthening companions who do the attacking."
+      },
+      {
+        "id": "waves",
+        "how": "Waves of monsters pour into the world at predicted times and must be held back."
+      },
+      {
+        "id": "class-advancement",
+        "how": "A sacred hourglass predicts the waves, performs the Class Up for companions and works as a warp point for heroes."
+      },
+      {
+        "id": "leveling",
+        "how": "Status magic shows levels and stats as in a computer game."
+      },
+      {
+        "id": "monster-taming",
+        "how": "A bird monster hatched from a bought egg grows into a queen of its kind and can also take a girl's form."
+      },
+      {
+        "id": "mounts",
+        "how": "The tamed bird loves pulling the party's cart, which becomes their travelling base."
+      },
+      {
+        "id": "new:rage-form",
+        "how": "A cursed wrath shield gives enormous power but threatens to consume the user."
+      },
+      {
+        "id": "currency",
+        "how": "With no royal backing, the hero must earn his own money to equip his party."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Naofumi Iwatani",
+        "archetype": "knight",
+        "role": "tank",
+        "signature": "The Shield Hero, who cannot attack and protects his party with the legendary shield."
+      },
+      {
+        "name": "Raphtalia",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Raccoon demi-human swordswoman who becomes the hero's blade and later the Vassal Katana Hero."
+      },
+      {
+        "name": "Filo",
+        "archetype": "shapeshifter",
+        "role": "melee-dps",
+        "signature": "Filolial queen hatched from an egg, fast and strong, who can turn into a girl."
+      },
+      {
+        "name": "Ren Amaki",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "The Sword Hero, who treats the world like a single-player RPG."
+      },
+      {
+        "name": "Motoyasu Kitamura",
+        "archetype": "spearman",
+        "role": "melee-dps",
+        "signature": "The Spear Hero, kind but very gullible."
+      },
+      {
+        "name": "Itsuki Kawasumi",
+        "archetype": "archer",
+        "role": "ranged-dps",
+        "signature": "The Bow Hero, who calls himself an ally of justice."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Wave monsters",
+        "kind": "minion",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Raphtalia's coastal village",
+        "world": "pirate-coast",
+        "layout": "village-square"
+      },
+      {
+        "name": "Melromarc",
+        "world": "storybook-village",
+        "layout": "crossroads"
+      }
+    ],
+    "blueprint": {
+      "genre": "survival",
+      "world": "storybook-village",
+      "layout": "village-square",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Bulwark Bearer: one player carries an unbreakable shield and cannot attack while the others do the damage; together they hold a village through timed rift-waves while a hatchling bird ally grows bigger each night.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/The_Rising_of_the_Shield_Hero"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/65/The_Rising_of_the_Shield_Hero_light_novel_vol_1.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:The_Rising_of_the_Shield_Hero_light_novel_vol_1.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/The_Rising_of_the_Shield_Hero",
+      "https://en.wikipedia.org/wiki/List_of_The_Rising_of_the_Shield_Hero_characters"
+    ]
+  },
+  {
+    "id": "mushoku-tensei",
+    "title": "Mushoku Tensei: Jobless Reincarnation",
+    "aliases": [
+      "mushoku tensei"
+    ],
+    "kind": "light-novel",
+    "year": 2014,
+    "creators": [
+      "Rifujin na Magonote",
+      "Shirotaka"
+    ],
+    "genres": [
+      "story-adventure",
+      "jrpg"
+    ],
+    "summary": "A reclusive man is reborn as a baby in a world of swords and sorcery with his memories intact and resolves to live without regrets, following him from childhood magic lessons to old age. Mechanics only: it is criticised for sexualising underage characters.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "new:silent-casting",
+        "how": "Casting without a chant is a rare edge that the hero learns as a toddler and later teaches to a friend."
+      },
+      {
+        "id": "new:sword-schools",
+        "how": "Swordplay is split into rival schools (Sword-God, Water-God, North-God styles) with ranked titles such as Water King."
+      },
+      {
+        "id": "rank-system",
+        "how": "The strongest fighters in the world are ranked as the Seven Great Powers."
+      },
+      {
+        "id": "mentors",
+        "how": "Growth comes through tutors: a travelling mage teaches the hero, who in turn tutors others, and later he studies at a magic university."
+      },
+      {
+        "id": "new:scatter-event",
+        "how": "A magical disaster teleports a whole region's people across the world, turning the story into a long journey home."
+      },
+      {
+        "id": "story-chapters",
+        "how": "One life is told in chapters from birth to old age: childhood, the journey home, university, then family life."
+      },
+      {
+        "id": "mana-resource",
+        "how": "Mana exhaustion has visible lasting costs, such as hair turning white."
+      },
+      {
+        "id": "new:dream-patron",
+        "how": "A god visits the hero in dreams with cryptic advice whose motives are unclear."
+      },
+      {
+        "id": "boss-fights",
+        "how": "A hydra deep in a labyrinth is a deadly set-piece fight."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Rudeus Greyrat",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Reincarnated prodigy who casts without chanting from early childhood."
+      },
+      {
+        "name": "Roxy Migurdia",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Migurd-tribe mage who becomes the hero's travelling tutor."
+      },
+      {
+        "name": "Eris Boreas Greyrat",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Short-tempered noble girl with talent for the Sword-God style."
+      },
+      {
+        "name": "Ruijerd Superdia",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Supard demon warrior who escorts the children home while trying to clear his people's name."
+      },
+      {
+        "name": "Sylphiette",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Elf childhood friend who learns chantless magic and becomes a royal bodyguard."
+      },
+      {
+        "name": "Orsted",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "The Dragon God, strongest of the dragon tribe."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Labyrinth hydra",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The labyrinth",
+        "world": "dragon-dungeon",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Ranoa Magic University",
+        "world": "city-streets",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "enchanted-forest",
+      "layout": "crossroads",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Second Spring: a young spell-student learns to cast without words before anyone else; after a rift scatters the valley's families, the player escorts two friends home across three regions, picking a sword school or spell tutor to train with at each stop.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Mushoku_Tensei"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/f/f6/Mushoku_Tensei_1.png",
+      "page": "https://en.wikipedia.org/wiki/File:Mushoku_Tensei_1.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Mushoku_Tensei",
+      "https://en.wikipedia.org/wiki/List_of_Mushoku_Tensei_characters"
+    ]
+  },
+  {
+    "id": "konosuba",
+    "title": "KonoSuba: God's Blessing on This Wonderful World!",
+    "aliases": [
+      "konosuba"
+    ],
+    "kind": "light-novel",
+    "year": 2013,
+    "creators": [
+      "Natsume Akatsuki",
+      "Kurone Mishima"
+    ],
+    "genres": [
+      "jrpg",
+      "story-adventure"
+    ],
+    "summary": "A shut-in gamer is sent to a fantasy world with MMORPG rules and drags the goddess who mocked him along, then forms a party of brilliant but hopeless misfits. A comedy that turns RPG tropes upside down.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "character-classes",
+        "how": "Adventurers take classic classes (archpriest, archwizard, crusader), but each party member's build is lopsided in a comic way."
+      },
+      {
+        "id": "new:classless-generalist",
+        "how": "By never choosing a class, the hero can learn basic skills from every class (stealing, archery, monster detection, simple magic) and wins by combining them."
+      },
+      {
+        "id": "new:one-shot-nuke",
+        "how": "An archwizard knows only one huge Explosion spell, which empties her mana and leaves her unable to move after one cast."
+      },
+      {
+        "id": "new:luck-stat",
+        "how": "Average stats but very high luck; his Steal skill can snatch an enemy's best item mid-fight."
+      },
+      {
+        "id": "new:flawed-heroes",
+        "how": "Each party member pairs a big strength with a crippling flaw, such as a crusader with great defence who cannot land a hit."
+      },
+      {
+        "id": "boss-fights",
+        "how": "The Devil King's eight generals must be defeated before his castle can be attacked, and each is a themed boss with a weakness."
+      },
+      {
+        "id": "shops",
+        "how": "A kindly lich ex-general runs a magic shop in the starting town."
+      },
+      {
+        "id": "respawn-rules",
+        "how": "The goddess archpriest can bring the recently dead back to life, so deaths are setbacks rather than endings."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Kazuma Satou",
+        "archetype": "rogue",
+        "role": "support",
+        "signature": "Classless adventurer who wins with luck, cunning and a mix of skills such as Steal."
+      },
+      {
+        "name": "Aqua",
+        "archetype": "cleric",
+        "role": "healer",
+        "signature": "Goddess of water and archpriest, strong against undead and able to resurrect the dead."
+      },
+      {
+        "name": "Megumin",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "Archwizard who knows only one spell: a massive Explosion that drains her completely."
+      },
+      {
+        "name": "Darkness",
+        "archetype": "paladin",
+        "role": "tank",
+        "signature": "Crusader with huge defence who cannot hit anything."
+      },
+      {
+        "name": "Wiz",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Timid lich wizard and former general who runs a magic shop."
+      },
+      {
+        "name": "Yunyun",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Highly skilled archwizard and Megumin's self-declared rival."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Verdia the dullahan",
+        "kind": "boss",
+        "foes": "spirits"
+      },
+      {
+        "name": "Vanir, devil of foresight",
+        "kind": "boss",
+        "foes": "imps"
+      },
+      {
+        "name": "The Devil King",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Axel, the beginners' town",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "Ruined castle used for explosion practice",
+        "world": "haunted-graveyard",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "storybook-village",
+      "layout": "village-square",
+      "hero": "mage",
+      "foes": "spirits"
+    },
+    "makeItOurs": "Blunder Squad: four misfit heroes, each with one huge power and one silly flaw (a blaster who can fire only once, a guard who never hits), take odd jobs from a frontier-town board to pay the rent, then face a headless knight.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/KonoSuba"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/3/3e/Kono_Subarashii_Sekai_ni_Shukufuku_o%21_light_novel_volume_1_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Kono_Subarashii_Sekai_ni_Shukufuku_o%21_light_novel_volume_1_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/KonoSuba",
+      "https://en.wikipedia.org/wiki/List_of_KonoSuba_characters"
+    ]
+  },
+  {
+    "id": "delicious-in-dungeon",
+    "title": "Delicious in Dungeon",
+    "aliases": [
+      "dungeon meshi"
+    ],
+    "kind": "manga",
+    "year": 2014,
+    "creators": [
+      "Ryoko Kui"
+    ],
+    "genres": [
+      "dungeon-crawler",
+      "survival-crafting",
+      "story-adventure"
+    ],
+    "summary": "After a red dragon swallows one of their own, a party with no supplies dives back into the dungeon to save her before she is digested, cooking and eating the monsters they fight along the way. It treats the dungeon as a living ecosystem.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "meal-buffs",
+        "how": "Defeated monsters are butchered and cooked into meals, and learning how to cook a monster also shows how to beat it."
+      },
+      {
+        "id": "new:living-off-the-land",
+        "how": "With their supplies left behind, the party survives on what they kill and forage in the dungeon, with a balanced diet keeping them going."
+      },
+      {
+        "id": "new:dungeon-ecology",
+        "how": "Monsters form an ecosystem (living armour, ghosts, dragons) studied like wildlife."
+      },
+      {
+        "id": "respawn-rules",
+        "how": "The dead can be revived if enough of the body is recovered intact, so getting a fallen ally back in time is the goal."
+      },
+      {
+        "id": "new:trap-disarming",
+        "how": "A halfling locksmith disarms traps, picks locks and finds hidden paths, and resents others taking his job."
+      },
+      {
+        "id": "growing-weapon",
+        "how": "The leader's sword turns out to be a living-armour creature that fidgets when monsters are near, a built-in monster detector."
+      },
+      {
+        "id": "co-op-party",
+        "how": "Roles come from races and trades: a human fighter, an elf mage, a halfling locksmith and a dwarf warrior-chef."
+      },
+      {
+        "id": "boss-fights",
+        "how": "The red dragon at the bottom, and what it becomes, are the big fights the whole descent builds toward."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Laios Touden",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Monster-obsessed human fighter who leads the party and turns monster knowledge into tactics."
+      },
+      {
+        "name": "Marcille Donato",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Half-elf magician expert in ancient magic who casts big spells with little preparation."
+      },
+      {
+        "name": "Chilchuck Tims",
+        "archetype": "rogue",
+        "role": "support",
+        "signature": "Halfling locksmith who disarms traps, finds hidden paths and can use a bow."
+      },
+      {
+        "name": "Senshi",
+        "archetype": "warrior",
+        "role": "support",
+        "signature": "Dwarf warrior and dungeon chef with an axe and a cooking pot."
+      },
+      {
+        "name": "Izutsumi",
+        "archetype": "shapeshifter",
+        "role": "melee-dps",
+        "signature": "Girl bound to the soul of a great cat who joins to break the curse."
+      },
+      {
+        "name": "Falin Touden",
+        "archetype": "cleric",
+        "role": "support",
+        "signature": "Spellcaster who can talk to ghosts and teleported the party to safety."
+      },
+      {
+        "name": "Kabru",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Rival party leader who is skilled against people but hates monsters."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Ghosts",
+        "kind": "minion",
+        "foes": "spirits"
+      },
+      {
+        "name": "Living armour",
+        "kind": "elite",
+        "foes": "golems"
+      },
+      {
+        "name": "Red dragon",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Dragon chimera",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "The island dungeon",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "The Golden Country",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "dragon-dungeon",
+      "layout": "gauntlet",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Stewpot Delve: a party descends a living cave where every beast you beat becomes an ingredient; cook meals between floors for buffs, and learn each creature's weak spot from its recipe card.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Delicious_in_Dungeon"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/9/93/Dungeon_Meshi_cover.jpeg",
+      "page": "https://en.wikipedia.org/wiki/File:Dungeon_Meshi_cover.jpeg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Delicious_in_Dungeon",
+      "https://en.wikipedia.org/wiki/List_of_Delicious_in_Dungeon_characters"
+    ]
+  },
+  {
+    "id": "shangri-la-frontier",
+    "title": "Shangri-La Frontier",
+    "kind": "web-novel",
+    "year": 2017,
+    "creators": [
+      "Katarina",
+      "Ryosuke Fuji"
+    ],
+    "genres": [
+      "mmorpg",
+      "action-rpg"
+    ],
+    "summary": "A teenager who loves beating broken, glitchy \"trash games\" finally tries the hit full-dive VR game everyone plays, and his bad-game reflexes carry him into its hidden bosses and secrets. The manga adaptation is the best-known form.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:skill-over-stats",
+        "how": "The hero wins through reflexes and pattern reading learned from glitchy games rather than through gear or levels."
+      },
+      {
+        "id": "conditional-bosses",
+        "how": "Hidden unique monsters and NPCs appear only under conditions such as night in a secret area or a full moon."
+      },
+      {
+        "id": "boss-fights",
+        "how": "The Seven Colossi are the game's strongest unique monsters, and each one is a story-unlocking fight."
+      },
+      {
+        "id": "new:hidden-npc-town",
+        "how": "Befriending a rabbit NPC grants exclusive access to a hidden town with its own blacksmith and important NPCs."
+      },
+      {
+        "id": "pvp",
+        "how": "Player killers and PvP champions are part of the world, and an infamous player killer becomes an ally."
+      },
+      {
+        "id": "guilds",
+        "how": "Guilds have distinct purposes, from a top raiding guild to an animal-lovers' guild and one that catalogs the game's lore."
+      },
+      {
+        "id": "character-customization",
+        "how": "Avatars are personal statements, such as a bird-masked hero and a pro fighter's female brawler."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Sunraku",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "signature": "Bird-masked trash-game expert who wins with reflexes and exploiting quirks."
+      },
+      {
+        "name": "Arthur Pencilgon",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "Notorious player killer who teams up with the hero."
+      },
+      {
+        "name": "Oikatzo",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "signature": "Fighting-game pro who joins as a brawler."
+      },
+      {
+        "name": "Animalia",
+        "archetype": "druid",
+        "role": "caster",
+        "signature": "Druid who leads an animal-obsessed guild."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Lycagon",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Wethermon the Tombguard",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Rabbituza",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "The tombguard's grave",
+        "world": "haunted-graveyard",
+        "layout": "boss-lair"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "haunted-graveyard",
+      "layout": "boss-lair",
+      "hero": "shadowblade",
+      "foes": "spirits"
+    },
+    "makeItOurs": "Moonlit Grave: a hidden guardian wakes only under a full moon; players find a secret burrow-town for gear, then win by learning the guardian's patterns instead of out-levelling it.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Shangri-La_Frontier"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/5/5f/Shangri-La_Frontier_volume_1.png",
+      "page": "https://en.wikipedia.org/wiki/File:Shangri-La_Frontier_volume_1.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Shangri-La_Frontier"
+    ]
+  },
+  {
+    "id": "log-horizon",
+    "title": "Log Horizon",
+    "kind": "light-novel",
+    "year": 2011,
+    "creators": [
+      "Mamare Touno",
+      "Kazuhiro Hara"
+    ],
+    "genres": [
+      "mmorpg",
+      "story-adventure",
+      "life-sim"
+    ],
+    "summary": "Thirty thousand Japanese players are pulled into a long-running MMORPG during an expansion update and have to build a society inside it. It focuses on guild politics, economy and town-building more than on survival.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "character-classes",
+        "how": "Classes fill tank (Guardian, Samurai), damage (Assassin, Swashbuckler), healer (Cleric, Druid, Kannagi) and magic or support (Enchanter, Bard, Summoner) roles."
+      },
+      {
+        "id": "multiclassing",
+        "how": "Every player also has a non-combat subclass (Chef, Scribe, Accountant, Tracker) with real effects such as tasty food, maps or better prices."
+      },
+      {
+        "id": "crafting",
+        "how": "Discovering that hand-cooked food beats the tasteless menu food starts a crafting economy that changes the city."
+      },
+      {
+        "id": "respawn-rules",
+        "how": "Fallen players respawn at the cathedral of the nearest city they have explored, but each revival costs experience and some memories."
+      },
+      {
+        "id": "guilds",
+        "how": "The masters of eleven major guilds form a council that governs the player city."
+      },
+      {
+        "id": "raids",
+        "how": "Elite groups clear high-level group quests called raids."
+      },
+      {
+        "id": "team-buffs",
+        "how": "Support classes win fights through ally buffs, songs and debuffs rather than raw damage."
+      },
+      {
+        "id": "new:npc-society",
+        "how": "Native NPCs have permanent death and later get seats on the city council alongside players."
+      }
+    ],
+    "classes": [
+      {
+        "name": "Guardian",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Defence spells",
+            "effect": "shield",
+            "does": "Heavy-armour spells that protect the guardian and nearby allies."
+          },
+          {
+            "name": "Trap spells",
+            "effect": "trap",
+            "does": "Laid traps that deal heavy damage to enemies."
+          }
+        ]
+      },
+      {
+        "name": "Samurai",
+        "archetype": "warrior",
+        "role": "tank",
+        "skills": [
+          {
+            "name": "Power stances",
+            "effect": "buff",
+            "does": "Strong self-boosts with long cooldowns."
+          },
+          {
+            "name": "Attention-drawing techniques",
+            "effect": "war-cry",
+            "does": "Flashy moves that pull enemies off allies."
+          }
+        ]
+      },
+      {
+        "name": "Assassin",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "skills": [
+          {
+            "name": "Tracker stealth",
+            "effect": "stealth",
+            "does": "With the Tracker subclass, sneak and detect hidden foes."
+          }
+        ]
+      },
+      {
+        "name": "Enchanter",
+        "archetype": "mage",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Support spells",
+            "effect": "buff",
+            "does": "Powerful enhancement spells cast on allies."
+          }
+        ]
+      },
+      {
+        "name": "Bard",
+        "archetype": "bard",
+        "role": "support",
+        "skills": [
+          {
+            "name": "Songs",
+            "effect": "buff",
+            "does": "Songs that raise the stats of the bard and allies."
+          },
+          {
+            "name": "Group debuffs",
+            "effect": "slow-orb",
+            "does": "Weakening effects cast on groups of enemies."
+          }
+        ]
+      },
+      {
+        "name": "Kannagi",
+        "archetype": "cleric",
+        "role": "healer",
+        "skills": [
+          {
+            "name": "Damage barriers",
+            "effect": "shield",
+            "does": "Prevents damage and debuffs before they land instead of healing afterwards."
+          }
+        ]
+      },
+      {
+        "name": "Summoner",
+        "archetype": "summoner",
+        "role": "summoner",
+        "skills": [
+          {
+            "name": "Summons",
+            "effect": "summon",
+            "does": "Calls creatures to fight alongside the party."
+          }
+        ]
+      }
+    ],
+    "characters": [
+      {
+        "name": "Shiroe",
+        "archetype": "mage",
+        "role": "support",
+        "signature": "Enchanter strategist with a Scribe subclass who founds the guild and the city council."
+      },
+      {
+        "name": "Naotsugu",
+        "archetype": "warrior",
+        "role": "tank",
+        "signature": "Guardian tank in heavy armour with defence and trap spells."
+      },
+      {
+        "name": "Akatsuki",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "Assassin with a Tracker subclass for stealth and detection."
+      },
+      {
+        "name": "Nyanta",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "signature": "Cat-folk Swashbuckler whose Chef subclass makes real, tasty food."
+      },
+      {
+        "name": "Tohya",
+        "archetype": "warrior",
+        "role": "tank",
+        "signature": "Young Samurai tank with an Accountant subclass."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Raid bosses",
+        "kind": "boss",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Akihabara",
+        "world": "city-streets",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "city-streets",
+      "layout": "village-square",
+      "hero": "knight",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Hearthguild: players pick a fighting class plus a home trade (cook, mapmaker, merchant); trades change the town, so a cook's meals buff the party, and guild leaders vote on town rules between raids.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Log_Horizon"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/67/Log_Horizon_Novel_Cover_Volume_1.png",
+      "page": "https://en.wikipedia.org/wiki/File:Log_Horizon_Novel_Cover_Volume_1.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Log_Horizon",
+      "https://en.wikipedia.org/wiki/List_of_Log_Horizon_characters"
+    ]
+  },
+  {
+    "id": "danmachi",
+    "title": "Is It Wrong to Try to Pick Up Girls in a Dungeon?",
+    "aliases": [
+      "danmachi"
+    ],
+    "kind": "light-novel",
+    "year": 2013,
+    "creators": [
+      "Fujino Ōmori",
+      "Suzuhito Yasuda"
+    ],
+    "genres": [
+      "dungeon-crawler",
+      "action-rpg",
+      "jrpg"
+    ],
+    "summary": "In a city built over an endless dungeon, gods sponsor adventurers in household factions, and a rookie who is his goddess's only member grows unusually fast. Levels, ability scores and skills are part of the world itself.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "new:patron-gods",
+        "how": "Every adventurer belongs to a god's household (Familia), and the god looks after their growth and unlocks their status."
+      },
+      {
+        "id": "leveling",
+        "how": "Levels and ability scores rise from defeating stronger monsters, and each level-up (Level 1 to 6 and beyond) is a big public milestone."
+      },
+      {
+        "id": "new:growth-skill",
+        "how": "A rare skill speeds the hero's growth based on the strength of his feelings, and a later skill boosts his attacks in desperate moments."
+      },
+      {
+        "id": "growing-weapon",
+        "how": "A god-forged knife grows stronger as its owner grows and only works in the hands of the household's members."
+      },
+      {
+        "id": "loot",
+        "how": "Monsters leave crystal stones that are sold for money or used to make magic items."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Certain floors hold floor bosses that take a long time to respawn after being killed."
+      },
+      {
+        "id": "new:porter-role",
+        "how": "A supporter role carries loot and supplies so the fighters can keep fighting."
+      },
+      {
+        "id": "guilds",
+        "how": "Households compete for standing, and a formal War Game between them decides who takes the loser's assets."
+      },
+      {
+        "id": "crafting",
+        "how": "Smith-adventurers forge weapons, including magic swords that unleash big spells."
+      },
+      {
+        "id": "new:thinking-monsters",
+        "how": "Some monsters have minds of their own, eat magic stones to grow stronger and can become allies."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Bell Cranel",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "signature": "Rookie with twin daggers whose rare skill makes him level up at record speed."
+      },
+      {
+        "name": "Hestia",
+        "archetype": "cleric",
+        "role": "support",
+        "signature": "Goddess and patron of the hero's household who keeps his growth skill secret."
+      },
+      {
+        "name": "Ais Wallenstein",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Sword Princess of a top household who reached Level 6 by beating a floor boss alone."
+      },
+      {
+        "name": "Liliruca Arde",
+        "archetype": "worker",
+        "role": "support",
+        "signature": "Supporter who carries a backpack three times her size for loot and supplies."
+      },
+      {
+        "name": "Welf Crozzo",
+        "archetype": "engineer",
+        "role": "builder",
+        "signature": "Smith from a fallen noble line who can forge magic swords."
+      },
+      {
+        "name": "Ryū Lion",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "signature": "Elf waitress and former adventurer called the Gale Wind."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Killer Ants",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Minotaur",
+        "kind": "elite",
+        "foes": "brutes"
+      },
+      {
+        "name": "Goliath",
+        "kind": "boss",
+        "foes": "golems"
+      },
+      {
+        "name": "Juggernaut",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Orario",
+        "world": "city-streets",
+        "layout": "village-square"
+      },
+      {
+        "name": "The Dungeon",
+        "world": "dragon-dungeon",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "dragon-dungeon",
+      "layout": "gauntlet",
+      "hero": "shadowblade",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Patron's Pact: each player is sworn to a small hearth-spirit that turns their deeds into new skills; dive the deepening cave under the town for glowing stones while a porter friend carries the haul, and duel rival lodges for their hall.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Is_It_Wrong_to_Try_to_Pick_Up_Girls_in_a_Dungeon%3F"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/1/15/DanMachi_light_novel_volume_1_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:DanMachi_light_novel_volume_1_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Is_It_Wrong_to_Try_to_Pick_Up_Girls_in_a_Dungeon%3F",
+      "https://en.wikipedia.org/wiki/List_of_Is_It_Wrong_to_Try_to_Pick_Up_Girls_in_a_Dungeon%3F_characters"
+    ]
+  },
+  {
+    "id": "the-eminence-in-shadow",
+    "title": "The Eminence in Shadow",
+    "aliases": [
+      "eminence in shadow"
+    ],
+    "kind": "light-novel",
+    "year": 2018,
+    "creators": [
+      "Daisuke Aizawa",
+      "Tōzai"
+    ],
+    "genres": [
+      "action-rpg",
+      "story-adventure"
+    ],
+    "summary": "A boy obsessed with being the hidden mastermind is reborn in a fantasy world, invents a secret villain cult for his followers to fight, and then finds out the cult is real. A comedy of misunderstandings with a shadow-organization power fantasy.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "secret-identity",
+        "how": "The hero lives two lives: an unnoticed background student by day and the masked leader of a shadow organization by night, plus many other disguises."
+      },
+      {
+        "id": "guilds",
+        "how": "The secret organization grows by recruiting people it rescues, with a ranked inner circle (the Seven Shadows) and named lower ranks."
+      },
+      {
+        "id": "new:front-company",
+        "how": "A trading company built on ideas from the hero's old world funds the organization."
+      },
+      {
+        "id": "new:shape-suits",
+        "how": "Members wear shape-shifting slime bodysuits as armour and disguise."
+      },
+      {
+        "id": "new:cure-recruits",
+        "how": "Curing victims of a possession sickness turns them into loyal recruits."
+      },
+      {
+        "id": "character-customization",
+        "how": "Personas are a running feature, from a weak-looking noble to a suited masked figure."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Cid Kagenou / Shadow",
+        "archetype": "assassin",
+        "role": "melee-dps",
+        "signature": "Plain student by day and masked leader of the shadow organization by night."
+      },
+      {
+        "name": "Alpha",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "First member and second-in-command, an elf who runs the organization day to day."
+      },
+      {
+        "name": "Beta",
+        "archetype": "bard",
+        "role": "support",
+        "signature": "Elf who writes the chronicles of Shadow's deeds and becomes a famous author."
+      },
+      {
+        "name": "Gamma",
+        "archetype": "commander",
+        "role": "support",
+        "signature": "The Brain, who runs finances and the front company."
+      },
+      {
+        "name": "Delta",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "Beast-kin Glass Cannon who tracks and hunts targets with heightened senses."
+      },
+      {
+        "name": "Claire Kagenou",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "The hero's older sister, a top-ranked spellsword student."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Cult of Diablos agents",
+        "kind": "elite",
+        "foes": "mixed"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Midgar Academy",
+        "world": "city-streets",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "city-streets",
+      "layout": "crossroads",
+      "hero": "shadowblade",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Two Faces: by day you are the clumsy apprentice nobody notices; by night you lead a masked band in gel armour, and every villager you rescue can join your secret roster.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/The_Eminence_in_Shadow"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/2/2c/The_Eminence_in_Shadow_light_novel_volume_1_cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:The_Eminence_in_Shadow_light_novel_volume_1_cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/The_Eminence_in_Shadow",
+      "https://en.wikipedia.org/wiki/List_of_The_Eminence_in_Shadow_characters"
+    ]
+  },
+  {
+    "id": "black-clover",
+    "title": "Black Clover",
+    "kind": "manga",
+    "year": 2015,
+    "creators": [
+      "Yūki Tabata"
+    ],
+    "genres": [
+      "action-rpg",
+      "story-adventure"
+    ],
+    "summary": "In a kingdom where everyone uses magic, an orphan born with none receives a rare grimoire of anti-magic swords and joins the misfit squad of the Magic Knights. He and his wind-prodigy rival race to become the Wizard King.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "growing-weapon",
+        "how": "Every mage carries a grimoire holding their spells, and rare four- and five-leaf grimoires mark exceptional power."
+      },
+      {
+        "id": "elemental-reactions",
+        "how": "Each person has one magic attribute (wind, water, lightning, plant, mirror, spatial, time) that defines their whole kit."
+      },
+      {
+        "id": "new:anti-magic",
+        "how": "The magicless hero uses anti-magic swords that cancel and cut through spells."
+      },
+      {
+        "id": "guilds",
+        "how": "Mages serve in rival Magic Knight squads with their own captains and cultures, from elite to misfit."
+      },
+      {
+        "id": "rank-system",
+        "how": "Knights hold class ranks, and the strongest mage of all becomes the Wizard King."
+      },
+      {
+        "id": "new:devil-pact",
+        "how": "Pacts with devils unlock Devil Union, a fused power form."
+      },
+      {
+        "id": "team-buffs",
+        "how": "Support specialists matter: a spatial mage moves the squad and a plant mage heals."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Asta",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "Magicless orphan with great strength and anti-magic swords from a five-leaf grimoire."
+      },
+      {
+        "name": "Yuno",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "Wind prodigy with a four-leaf grimoire and a wind spirit partner."
+      },
+      {
+        "name": "Noelle Silva",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "Royal water mage who learns to control her huge mana."
+      },
+      {
+        "name": "Yami Sukehiro",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Misfit squad captain whose dark magic can cut through other spells."
+      },
+      {
+        "name": "Luck Voltia",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "Battle-loving lightning mage with lightning gloves and boots for speed."
+      },
+      {
+        "name": "Mimosa Vermillion",
+        "archetype": "healer",
+        "role": "healer",
+        "signature": "Royal with healing-focused plant magic."
+      },
+      {
+        "name": "Finral Roulacase",
+        "archetype": "mage",
+        "role": "support",
+        "signature": "Spatial mage who moves the squad around."
+      },
+      {
+        "name": "Julius Novachrono",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "The Wizard King, wielder of rare time magic."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Eye of the Midnight Sun",
+        "kind": "elite",
+        "foes": "mixed"
+      },
+      {
+        "name": "Reincarnated elves",
+        "kind": "elite",
+        "foes": "spirits"
+      },
+      {
+        "name": "Devils",
+        "kind": "boss",
+        "foes": "imps"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Hage village",
+        "world": "storybook-village",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "storybook-village",
+      "layout": "crossroads",
+      "hero": "mage",
+      "foes": "imps"
+    },
+    "makeItOurs": "Leafbook Academy: each player draws a spellbook whose leaf count hints at its power; one player draws a blank book that cancels magic instead, and squads compete on missions for the captain's crest.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Black_Clover"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/6/69/Black_Clover%2C_volume_1.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:Black_Clover%2C_volume_1.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Black_Clover",
+      "https://en.wikipedia.org/wiki/List_of_Black_Clover_characters"
+    ]
+  },
+  {
+    "id": "fairy-tail",
+    "title": "Fairy Tail",
+    "kind": "manga",
+    "year": 2006,
+    "creators": [
+      "Hiro Mashima"
+    ],
+    "genres": [
+      "action-rpg",
+      "story-adventure"
+    ],
+    "summary": "A fire-breathing dragon slayer and a celestial wizard join a rowdy wizard guild that takes paid jobs across the kingdom. They fight dark guilds, demons and dragons, with friendship as the guild's core.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "guilds",
+        "how": "Wizards join guilds that are home, family and employer at once, and illegal dark guilds are the usual enemies."
+      },
+      {
+        "id": "quests",
+        "how": "Paid job requests from clients, with the reward cut when the team wrecks things."
+      },
+      {
+        "id": "rank-system",
+        "how": "An elite S-Class rank is earned through a guild trial."
+      },
+      {
+        "id": "new:guild-tournament",
+        "how": "Guilds send teams of their strongest wizards to a national tournament."
+      },
+      {
+        "id": "instant-dungeon",
+        "how": "A celestial wizard collects keys, each summoning a specific spirit, with twelve rare golden zodiac keys to find."
+      },
+      {
+        "id": "new:quick-equip",
+        "how": "A knight instantly swaps whole sets of armour and weapons mid-fight to change her abilities."
+      },
+      {
+        "id": "new:eat-element",
+        "how": "Dragon slayers consume their own element to refuel, such as eating fire or breathing clean air."
+      },
+      {
+        "id": "building-in-combat",
+        "how": "Ice-Make shapes ice into any weapon or object the caster imagines."
+      },
+      {
+        "id": "pets",
+        "how": "A flying cat companion carries its partner through the air."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Natsu Dragneel",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "Fire dragon slayer who eats flames and breathes fire, but gets motion sick."
+      },
+      {
+        "name": "Lucy Heartfilia",
+        "archetype": "summoner",
+        "role": "summoner",
+        "signature": "Celestial wizard who summons spirits with magical keys."
+      },
+      {
+        "name": "Gray Fullbuster",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "Ice-Make wizard who shapes ice into any weapon or object."
+      },
+      {
+        "name": "Erza Scarlet",
+        "archetype": "knight",
+        "role": "melee-dps",
+        "signature": "S-Class swordswoman who instantly swaps armour and weapons."
+      },
+      {
+        "name": "Wendy Marvell",
+        "archetype": "healer",
+        "role": "healer",
+        "signature": "Young sky dragon slayer whose magic heals injuries and ailments."
+      },
+      {
+        "name": "Happy",
+        "archetype": "shapeshifter",
+        "role": "support",
+        "signature": "Blue cat who sprouts wings to fly, carrying Natsu through the air."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Dark guild wizards",
+        "kind": "elite",
+        "foes": "mixed"
+      },
+      {
+        "name": "Deliora",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Acnologia",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Magnolia and the guild hall",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "Sirius Island",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      },
+      {
+        "name": "Tower of Heaven",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      }
+    ],
+    "blueprint": {
+      "genre": "quest",
+      "world": "storybook-village",
+      "layout": "village-square",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Lanternhall: a rowdy guild hall with a job board; a flame-eater, a key-caller who summons star creatures and an armour-swapper take paid jobs, lose reward gold for every building they wreck, then enter the yearly guild games.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Fairy_Tail"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/e/e1/FairyTail-Volume_1_Cover.jpg",
+      "page": "https://en.wikipedia.org/wiki/File:FairyTail-Volume_1_Cover.jpg",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Fairy_Tail",
+      "https://en.wikipedia.org/wiki/List_of_Fairy_Tail_characters"
+    ]
+  },
+  {
+    "id": "magi-the-labyrinth-of-magic",
+    "title": "Magi: The Labyrinth of Magic",
+    "aliases": [
+      "magi"
+    ],
+    "kind": "manga",
+    "year": 2009,
+    "creators": [
+      "Shinobu Ohtaka"
+    ],
+    "genres": [
+      "action-rpg",
+      "dungeon-crawler",
+      "story-adventure"
+    ],
+    "summary": "In a world drawn from the Arabian Nights, towering dungeons appear holding djinn and treasure, and a boy magi with a djinn in his flute helps a would-be king conquer them. Conquerors carry their djinn's power in personal items.",
+    "audience": "teen",
+    "features": [
+      {
+        "id": "dungeon-portals",
+        "how": "Dungeons suddenly appear around the world, and clearing one wins its treasure and the loyalty of its djinn."
+      },
+      {
+        "id": "growing-weapon",
+        "how": "A conquered djinn lives in a personal item (a metal vessel) whose powers grow up to a full Djinn Equip transformation."
+      },
+      {
+        "id": "team-buffs",
+        "how": "A conqueror can make weaker household vessels that share some of the djinn's power with companions."
+      },
+      {
+        "id": "mana-resource",
+        "how": "All magic and magic weapons run on magoi, which rest and food restore, and running completely dry is fatal."
+      },
+      {
+        "id": "new:kingmaker-mage",
+        "how": "A rare Magi can draw power from the world around them and chooses and guides king candidates."
+      },
+      {
+        "id": "new:corruption",
+        "how": "Despair turns a person's life essence black, changing their power and their side."
+      },
+      {
+        "id": "summons",
+        "how": "The boy magi keeps a djinn in his flute and can call out its giant body."
+      },
+      {
+        "id": "mounts",
+        "how": "A turban unfolds into a flying carpet."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Aladdin",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Boy magi who carries the djinn Ugo in his flute and flies on a turban carpet."
+      },
+      {
+        "name": "Alibaba Saluja",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Dungeon conqueror and swordsman who masters Djinn Equip."
+      },
+      {
+        "name": "Morgiana",
+        "archetype": "monk",
+        "role": "melee-dps",
+        "signature": "Fanalis warrior of great strength and speed whose old shackles become enchanted chain weapons."
+      },
+      {
+        "name": "Sinbad",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "Legendary adventurer-king who conquered seven dungeons."
+      },
+      {
+        "name": "Judar",
+        "archetype": "elementalist",
+        "role": "caster",
+        "signature": "Fallen magi who specializes in ice magic."
+      },
+      {
+        "name": "Hakuryuu Ren",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Prince who conquers dungeons to gain djinn power."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Al-Thamen sorcerers",
+        "kind": "elite",
+        "foes": "mixed"
+      },
+      {
+        "name": "Ill Ilah",
+        "kind": "boss",
+        "foes": "spirits"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Dungeon Amon",
+        "world": "ancient-temple",
+        "layout": "gauntlet"
+      },
+      {
+        "name": "Balbadd",
+        "world": "desert-ruins",
+        "layout": "village-square"
+      }
+    ],
+    "blueprint": {
+      "genre": "dungeon-crawl",
+      "world": "desert-ruins",
+      "layout": "gauntlet",
+      "hero": "mage",
+      "foes": "mixed"
+    },
+    "makeItOurs": "Sandspire Vaults: towers rise from the dunes overnight; clear one to bind its genie into a trinket you carry, then make lesser charms that share a slice of its power with your party.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Magi:_The_Labyrinth_of_Magic"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/3/31/MagiCover01.png",
+      "page": "https://en.wikipedia.org/wiki/File:MagiCover01.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Magi:_The_Labyrinth_of_Magic",
+      "https://en.wikipedia.org/wiki/List_of_Magi:_The_Labyrinth_of_Magic_characters"
+    ]
+  },
+  {
+    "id": "berserk",
+    "title": "Berserk",
+    "kind": "manga",
+    "year": 1989,
+    "creators": [
+      "Kentaro Miura"
+    ],
+    "genres": [
+      "hack-and-slash",
+      "action-rpg"
+    ],
+    "summary": "A lone mercenary swordsman hunts the demons, once human, of a dark medieval-style world after the leader he once followed sacrifices their whole company. Mechanics only: extreme gore and sexual violence.",
+    "audience": "mature",
+    "features": [
+      {
+        "id": "new:oversized-weapon",
+        "how": "The hero fights with an enormous slab sword plus a prosthetic arm with a built-in cannon and a repeating crossbow."
+      },
+      {
+        "id": "new:cursed-power-armor",
+        "how": "A cursed armour boosts strength far past normal at the cost of sanity, and a witch must keep the wearer steady."
+      },
+      {
+        "id": "new:hunted-mark",
+        "how": "A brand on the hero marks him as prey, so demons and spirits keep hunting him."
+      },
+      {
+        "id": "boss-fights",
+        "how": "Demons who were once human, each a unique monstrous form, are the recurring big fights."
+      },
+      {
+        "id": "new:mercenary-warfare",
+        "how": "An early arc follows a mercenary company through battles and sieges in a long war."
+      },
+      {
+        "id": "co-op-party",
+        "how": "A later party mixes a young witch, a thief with sharp throwing aim, a fencer in wind-spirit gear and a healing elf."
+      },
+      {
+        "id": "growing-weapon",
+        "how": "Gear blessed by elemental spirits, such as a fire dagger and a wind rapier and cloak, gives non-mages magical tricks."
+      }
+    ],
+    "characters": [
+      {
+        "name": "Guts",
+        "archetype": "berserker",
+        "role": "melee-dps",
+        "signature": "The Black Swordsman, with a giant sword, a prosthetic arm and a cursed armour."
+      },
+      {
+        "name": "Griffith",
+        "archetype": "commander",
+        "role": "commander",
+        "signature": "Leader of a mercenary band whose ambition turns him into the main villain."
+      },
+      {
+        "name": "Casca",
+        "archetype": "warrior",
+        "role": "melee-dps",
+        "signature": "Commander in the mercenary band."
+      },
+      {
+        "name": "Schierke",
+        "archetype": "mage",
+        "role": "caster",
+        "signature": "Young witch who uses hypnosis, sensory magic and steadies the hero in his armour."
+      },
+      {
+        "name": "Puck",
+        "archetype": "healer",
+        "role": "healer",
+        "signature": "Elf with healing powder from his wings and a blinding flash."
+      },
+      {
+        "name": "Serpico",
+        "archetype": "rogue",
+        "role": "melee-dps",
+        "signature": "Quick fencer with a wind rapier and a projectile-deflecting cloak."
+      },
+      {
+        "name": "Isidro",
+        "archetype": "rogue",
+        "role": "ranged-dps",
+        "signature": "Runaway thief with excellent throwing aim and a fire dagger."
+      }
+    ],
+    "monsters": [
+      {
+        "name": "Trolls",
+        "kind": "minion",
+        "foes": "imps"
+      },
+      {
+        "name": "Apostles",
+        "kind": "boss",
+        "foes": "brutes"
+      },
+      {
+        "name": "Nosferatu Zodd",
+        "kind": "boss",
+        "foes": "brutes"
+      }
+    ],
+    "maps": [
+      {
+        "name": "Enoch Village",
+        "world": "storybook-village",
+        "layout": "village-square"
+      },
+      {
+        "name": "St. Albion",
+        "world": "ancient-temple",
+        "layout": "boss-lair"
+      },
+      {
+        "name": "Elfhelm",
+        "world": "enchanted-forest",
+        "layout": "open-field"
+      }
+    ],
+    "blueprint": {
+      "genre": "boss-hunt",
+      "world": "haunted-graveyard",
+      "layout": "boss-lair",
+      "hero": "barbarian",
+      "foes": "brutes"
+    },
+    "makeItOurs": "Iron Vigil (teen-safe take): a lone guard with an oversized blade and a gadget arm escorts a hedge-witch, a sling-thrower and a glowing sprite healer through troll-haunted hills; a fury-armour gives big power, but the witch must calm the wearer before its meter tops out.",
+    "links": {
+      "wikipedia": "https://en.wikipedia.org/wiki/Berserk_(manga)"
+    },
+    "image": {
+      "url": "https://upload.wikimedia.org/wikipedia/en/4/4a/Berserk_vol01.png",
+      "page": "https://en.wikipedia.org/wiki/File:Berserk_vol01.png",
+      "license": "non-free"
+    },
+    "sources": [
+      "https://en.wikipedia.org/wiki/Berserk_(manga)",
+      "https://en.wikipedia.org/wiki/List_of_Berserk_characters"
+    ]
+  }
+]
