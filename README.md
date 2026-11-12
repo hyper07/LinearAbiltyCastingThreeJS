@@ -49,6 +49,11 @@ everyone's chosen character stands on the lobby's stage, in the body and colours
 cheers when they press **Ready**), with a party chat beside it. The host starts once everyone is
 ready (in a battle royale, after setting how many AI rivals fill the empty places).
 
+**📈 Stock Market Challenge** is a game of its own kind: a million in game money and a year of real
+daily stock prices, one trading day at a time, a leaderboard, and a look at how you invest — see
+**[Stock Market Challenge](docs/stock-market.md)** (prices from Alpaca with keys in `.env`; an admin
+Dashboard for tickers and players).
+
 **Every game keeps its own characters, one per class, per player.** What you earn in one game stays
 in it; a class you have not played there starts at level 1 with nothing, and switching back brings
 your earlier character back. The open arena in **Your hero** keeps its own character too.
@@ -445,6 +450,7 @@ flowchart LR
 | [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
 | [Battle royale](docs/battle-royale.md) | The storm, rivals, solo and squads, players against players, making one, how it works |
 | [Game builder](docs/game-builder.md) | Whole games from a sentence or a few picks: genres, worlds, layouts, casts; the spec, tokens, Free and Plus, the command line |
+| [Stock Market Challenge](docs/stock-market.md) | A year of real stock prices from a million in game money: trading, the leaderboard, each player's pattern, the admin Dashboard, setting up Alpaca |
 | [Inspiration catalog](docs/inspiration.md) | 75 games, manhwa and manga and their 685 characters mapped onto our ids, with links; "a game like X" in the builder, "a class like X" in the forge; the features we lack, ranked |
 | [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |

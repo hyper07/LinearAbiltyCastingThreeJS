@@ -10,6 +10,7 @@ import { JsonFileStore, fileApi } from './server/api/files.js';
 import { createRealtime } from './server/realtime.js';
 import { createGameServices } from './server/game/index.js';
 import { openDatabase } from './server/db/database.js';
+import { createMarket } from './server/market/index.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -103,6 +104,17 @@ function gameApi(getGame) {
     const path = (req.url ?? '').split('?')[0];
     if (!path.startsWith('/api/account') && !path.startsWith('/api/game/')) return false;
     return (await getGame()).handler(req, res);
+  });
+}
+
+/** The stock market game (/api/market): prices from Alpaca with the keys in .env. */
+function marketApi(env, getDb, getGame) {
+  let market = null;
+  return mount('market', async (req, res) => {
+    const path = (req.url ?? '').split('?')[0];
+    if (!path.startsWith('/api/market/')) return false;
+    market ??= Promise.all([getDb(), getGame()]).then(([db, game]) => createMarket({ db, env, authenticate: (r) => game.authenticate(r), log: (line) => console.log(line) }));
+    return (await market).handler(req, res);
   });
 }
 
@@ -250,6 +262,7 @@ export default defineConfig(({ mode }) => {
         return mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req) }));
       })(),
       gameApi(getGame),
+      marketApi({ ...process.env, ...env }, getDb, getGame),
       realtime({ ...process.env, ...env }, getGame),
       { name: 'level-dir', configurePreviewServer: () => void (levelDir = () => resolve('dist', 'levels')) }
     ]

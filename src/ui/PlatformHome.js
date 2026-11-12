@@ -107,6 +107,7 @@ export class PlatformHome {
     chip('All', '').classList.add('is-active');
     chip('For kids & study', '', true);
     for (const [id, g] of Object.entries(GENRES)) chip(`${GENRE_ICONS[id] ?? ''} ${g.name}`, id);
+    chip(`${GENRE_ICONS['market-sim']} Stock market`, 'market-sim');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -274,15 +275,21 @@ export class PlatformHome {
     const mine = this.actions.heroOf(game.id);
     const choices = this.actions.rosterHeroes(game.roster ?? []);
     const named = choices.find((h) => h.id === mine) ?? heroes.find((h) => h.id === mine);
-    page.querySelector('[data-play-hero]').textContent = named
-      ? `You play as ${named.name} here`
-      : `You choose your character when you play: ${choices.length} to pick from`;
+    page.querySelector('[data-play-hero]').textContent = game.engine === 'market'
+      ? 'Your own run: a million to start, a year to play, at your pace'
+      : named
+        ? `You play as ${named.name} here`
+        : `You choose your character when you play: ${choices.length} to pick from`;
+    if (game.engine === 'market') {
+      page.querySelector('[data-play-party]').remove();
+      page.querySelector('.home-page__hint').textContent = 'Game money only. Sign in to keep your run and be on the leaderboard.';
+    }
     page.querySelector('[data-close]').addEventListener('click', () => this.closePage());
     page.querySelector('[data-play]').addEventListener('click', async (e) => {
       e.currentTarget.disabled = true;
       await this.actions.play(game.id);
     });
-    page.querySelector('[data-play-party]').addEventListener('click', () => this.actions.openHero('party'));
+    page.querySelector('[data-play-party]')?.addEventListener('click', () => this.actions.openHero('party'));
     page.querySelector('[data-remove]')?.addEventListener('click', async () => {
       await this.actions.remove(game.id);
       this.closePage();

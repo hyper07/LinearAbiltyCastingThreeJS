@@ -1400,7 +1400,18 @@ export class App {
   /** The home page's Play: the game's lobby. */
   async openLobby(id) {
     const game = await games.get(id);
+    if (game.engine === 'market') return this.openMarket(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
+  }
+
+  /** The stock market game: its own screen over the home page (loaded the first time). */
+  async openMarket(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { MarketGame } = await import('../market/MarketGame.js');
+    this.home.closePage();
+    const view = new MarketGame(document.body, { account: this.account?.user ?? null, onClose: () => this.home.refresh?.() });
+    await view.open();
+    return view;
   }
 
   /** The lobby's Start (the host's, or a player alone). */

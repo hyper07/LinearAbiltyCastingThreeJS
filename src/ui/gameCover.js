@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -102,6 +102,7 @@ function skyline(kind, r, color) {
  * @returns {string} SVG markup (320×180)
  */
 export function coverSvg(game) {
+  if (game.card?.cover === 'market') return marketCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -132,5 +133,30 @@ export function coverSvg(game) {
     <path d="M0 140 Q90 128 180 140 T320 136 V180 H0Z" fill="${near}" opacity=".55"/>
     ${lava}
     <rect width="320" height="180" fill="url(#fog-${uid})"/>
+  </svg>`;
+}
+
+/** The stock game's cover: a night skyline of candles and a climbing line. */
+function marketCover(game) {
+  const r = rng(game.id);
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  let price = 120;
+  const candles = [];
+  const line = [];
+  for (let i = 0; i < 26; i++) {
+    const open = price;
+    price = Math.max(40, Math.min(170, price + (r() - 0.38) * 18));
+    const x = 14 + i * 11.6;
+    const up = price < open; // y grows downward: a smaller y is a higher price
+    candles.push(`<rect x="${x.toFixed(1)}" y="${Math.min(open, price).toFixed(1)}" width="6" height="${Math.max(2, Math.abs(open - price)).toFixed(1)}" rx="1" fill="${up ? '#3fbf7f' : '#ef6b6b'}" opacity="0.85"/>`);
+    line.push(`${(x + 3).toFixed(1)},${price.toFixed(1)}`);
+  }
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="mk-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e2238"/><stop offset="1" stop-color="#091019"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#mk-${uid})"/>
+    ${[50, 90, 130].map((y) => `<line x1="0" x2="320" y1="${y}" y2="${y}" stroke="rgba(255,255,255,0.06)"/>`).join('')}
+    ${candles.join('')}
+    <polyline points="${line.join(' ')}" fill="none" stroke="#7fd6ff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <text x="16" y="164" fill="#e8edf3" font-family="system-ui, sans-serif" font-size="20" font-weight="800">$1,000,000</text>
   </svg>`;
 }

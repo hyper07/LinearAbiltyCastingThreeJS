@@ -11,6 +11,7 @@ import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
 import { createGameServices } from './game/index.js';
 import { openDatabase } from './db/database.js';
+import { createMarket } from './market/index.js';
 
 /**
  * The production server: one process that serves the built game and
@@ -23,6 +24,7 @@ import { openDatabase } from './db/database.js';
  *   /api/ai/*         the AI bridge: the model key stays here (api/ai.js)
  *   /api/library/*    the shared content library (libraryStore.js)
  *   /api/games/*      the games on the home page: official and published (gamesStore.js)
+ *   /api/market/*     the stock market game and its admin dashboard (market/index.js)
  *   /api/levels/*     levels players save, in DATA_DIR/levels (api/files.js)
  *   /api/classes/*    classes from the Class forge, in DATA_DIR/classes
  *   /api/models/*     uploads and picture-to-3D (modelgen.mjs)
@@ -98,6 +100,7 @@ const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, 
 game.setPartyCheck((a, b) => realtime.sameParty(a, b));
 const library = new LibraryStore(database);
 const games = new GamesStore(database, levels);
+const market = createMarket({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => console.log(line) });
 const api = chain([
   game.handler,
@@ -106,6 +109,7 @@ const api = chain([
   fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
   libraryHandler(async () => library),
   gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req) }),
+  market.handler,
   async (req, res) => (pathOf(req).startsWith('/api/models') ? models.handle(req, res) : false)
 ]);
 

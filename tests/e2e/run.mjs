@@ -12,6 +12,7 @@ import { run as hotbar } from './hotbar.mjs';
 import { run as builder } from './builder.mjs';
 import { run as home } from './home.mjs';
 import { run as royale } from './royale.mjs';
+import { run as market } from './market.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -30,7 +31,8 @@ if (!process.env.BASE_URL) {
   const port = 8790 + Math.floor(Math.random() * 100);
   dataDir = await mkdtemp(join(tmpdir(), 'gamory-e2e-'));
   server = spawn(process.execPath, [resolve('server/server.js')], {
-    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '' },
+    // The stock game on made-up prices, with an admin, so the tests need no data keys.
+    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '', MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'MarketBoss' },
     stdio: ['ignore', 'pipe', 'inherit']
   });
   process.env.BASE_URL = `http://127.0.0.1:${port}/`;
@@ -47,7 +49,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);

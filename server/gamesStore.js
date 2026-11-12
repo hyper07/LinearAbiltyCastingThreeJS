@@ -25,6 +25,21 @@ import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from './api/ht
  */
 
 const GAME_ID = /^(official:[a-z0-9_-]{1,64}|g-[a-z0-9-]{1,60})$/;
+
+/**
+ * Official games on engines other than the action RPG: not level files, but
+ * listed (and counted) with the official games all the same.
+ */
+export const ENGINE_GAMES = [
+  {
+    id: 'official:stock-market',
+    title: 'Stock Market Challenge',
+    summary: 'A million in game money and a year of real stock prices, one trading day at a time. Buy, sell, beat the market and climb the leaderboard — then see what kind of investor you are.',
+    engine: 'market',
+    genre: 'market-sim',
+    card: { genre: 'market-sim', genreName: 'Stock market', cover: 'market', badge: 'NEW' }
+  }
+];
 const MAX_LEVELS = 12;
 const CLASS_ID = /^[a-z][a-z0-9-]{1,63}$/;
 
@@ -74,8 +89,9 @@ export class GamesStore {
         this._officialCards.set(entry.id, card);
       }
       const id = `official:${entry.id}`;
-      out.push({ id, title: card.title, summary: card.summary, author: 'Gamory', official: true, genre: card.card.genre, card: card.card, plays: plays.get(id) ?? 0, updated: 0, levels: [entry.id], roster: [] });
+      out.push({ id, engine: 'action-rpg', title: card.title, summary: card.summary, author: 'Gamory', official: true, genre: card.card.genre, card: card.card, plays: plays.get(id) ?? 0, updated: 0, levels: [entry.id], roster: [] });
     }
+    for (const g of ENGINE_GAMES) out.push({ ...g, author: 'Gamory', official: true, plays: plays.get(g.id) ?? 0, updated: 0, levels: [], roster: [] });
     return out;
   }
 
@@ -92,6 +108,7 @@ export class GamesStore {
       plays: row.plays,
       status: row.status,
       owner: row.owner_id ?? null,
+      engine: row.engine ?? 'action-rpg',
       created: row.created,
       updated: row.updated,
       roster: row.roster ?? [],
