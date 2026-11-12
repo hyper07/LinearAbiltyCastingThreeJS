@@ -280,3 +280,24 @@ export const FEATURE_ALIASES = {
 export const FEATURE_IDS = Object.keys(FEATURES);
 export const ARCHETYPE_IDS = Object.keys(ARCHETYPES);
 export const EFFECT_IDS = Object.keys(EFFECTS);
+
+/* ---------------------------------------------------------------------- */
+/* Characters (characters/*.json)                                          */
+/* ---------------------------------------------------------------------- */
+
+/** What a character record is: a class to play, a hero, a story character, a boss, a unit, a companion, a townsperson. */
+export const CHARACTER_KINDS = ['class', 'hero', 'character', 'boss', 'unit', 'companion', 'npc'];
+export const ELEMENTS = ['physical', 'fire', 'ice', 'lightning', 'earth', 'wind', 'water', 'light', 'dark', 'poison', 'arcane', 'nature', 'blood', 'tech', 'none'];
+export const WEAPONS = [
+  'sword', 'greatsword', 'dual-blades', 'dagger', 'axe', 'hammer', 'mace', 'spear', 'polearm', 'scythe', 'katana', 'whip',
+  'bow', 'crossbow', 'gun', 'rifle', 'cannon', 'thrown', 'staff', 'wand', 'tome', 'orb', 'instrument', 'shield',
+  'fists', 'claws', 'tools', 'none'
+];
+export const RESOURCES = ['mana', 'rage', 'energy', 'stamina', 'ammo', 'cards', 'none', 'other'];
+export const BUILDS = ['small', 'slim', 'average', 'athletic', 'bulky', 'giant', 'creature'];
+/** Our bodies (src/platform/character/classes.js LOOKS). */
+export const LOOK_IDS = ['knight', 'mage', 'barbarian', 'rogue', 'rogue-hooded', 'skeleton-warrior', 'skeleton-mage', 'skeleton-rogue', 'skeleton-minion'];
+export const SKILL_KINDS = ['basic', 'active', 'ultimate', 'passive'];
+/** The forge's hand-made abilities (src/forge/ClassForge.js SKILL_BASES) and the classes it borrows motion from. */
+export const FORGE_BASES = ['ice', 'thunder', 'meteor', 'beam', 'snare', 'glacier', 'chain', 'orb', 'hail', 'blink', 'slam', 'rampage', 'roar', 'leap', 'tempest', 'quake'];
+export const FORGE_STYLES = ['knight', 'mage', 'barbarian', 'amazon', 'shadowblade', 'templar', 'bonecaller', 'wildwarden'];

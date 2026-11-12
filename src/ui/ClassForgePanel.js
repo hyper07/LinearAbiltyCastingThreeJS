@@ -121,11 +121,15 @@ export class ClassForgePanel {
     buttons.forEach((b) => (b.disabled = true));
     this._status('Designing… (the AI can take up to a minute)', 'is-busy');
     try {
-      const { design, source, note } = await this.actions.design(text);
+      const { design, source, note, inspiredBy } = await this.actions.design(text);
       this.design = design;
       this._status(
-        source === 'ai' ? 'Designed by the AI. Edit anything, then Save.' : `AI unavailable (${note}) — designed from keywords instead. Edit anything, then Save.`,
-        source === 'ai' ? 'is-ok' : ''
+        source === 'catalog'
+          ? `Our own class, inspired by how ${inspiredBy.name}${inspiredBy.work ? ` (${inspiredBy.work})` : ''} plays — no AI needed. Edit anything, then Save.`
+          : source === 'ai'
+            ? 'Designed by the AI. Edit anything, then Save.'
+            : `AI unavailable (${note}) — designed from keywords instead. Edit anything, then Save.`,
+        source === 'ai' || source === 'catalog' ? 'is-ok' : ''
       );
       this.render();
     } catch (error) {

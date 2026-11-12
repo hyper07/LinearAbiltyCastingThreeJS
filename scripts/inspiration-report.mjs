@@ -8,6 +8,7 @@
 import { writeFile } from 'node:fs/promises';
 import { ENTRIES, effectGaps, featureGaps } from '../src/catalog/inspiration/index.js';
 import { FEATURES } from '../src/catalog/inspiration/vocabulary.js';
+import { CHARACTERS, charactersOf } from '../src/catalog/inspiration/characters.js';
 
 const GROUPS = [
   ['Action RPGs and MMOs', 'action-rpg'],
@@ -44,7 +45,11 @@ out.push(
   'own: a spec never carries its title, and each entry\'s **original take** names a game with our names.',
   'Works marked *mature* are catalogued for their mechanics only, never as a theme for children\'s games.',
   '',
-  `**${ENTRIES.length} works.** In the Game builder, write an idea like *"a dungeon game like Solo Leveling"*:`,
+  `**${ENTRIES.length} works, ${CHARACTERS.length} characters.** Each character has an element, weapon, stats, look,`,
+  'signature skills mapped onto our effects, and an original class for the Class forge — write',
+  '*"a class like <a character>"* in the forge and it is ready at once, with no AI and our own names.',
+  '',
+  `In the Game builder, write an idea like *"a dungeon game like Solo Leveling"*:`,
   'the keyword builder starts from that work\'s nearest picks, and the AI gets a short note of its',
   'systems and an original take (`src/ai/GameBuilder.js`).',
   ''
@@ -84,6 +89,18 @@ for (const [heading, file] of GROUPS) {
     const people = [...(e.classes ?? []), ...(e.characters ?? [])];
     if (people.length) out.push(`**${e.classes?.length ? 'Classes' : 'Characters'}:** ${people.map((c) => `${cell(c.name)} (${c.archetype})`).join(', ')}`, '');
     out.push(`**Original take:** ${cell(e.makeItOurs)}`, '');
+    const cast = charactersOf(e.id);
+    if (cast.length) {
+      out.push('<details><summary><b>Characters</b> (' + cast.length + ') — and the original class we make from each</summary>', '');
+      out.push('| Name | Kind | Plays as | Element · weapon | Signature skills | Our class (Class forge) |', '| --- | --- | --- | --- | --- | --- |');
+      for (const c of cast) {
+        const img = c.image ? ` [img](${c.image.page ?? c.image.url})` : '';
+        out.push(
+          `| **${cell(c.name)}**${img} | ${c.kind} | ${c.archetype}, ${c.role} | ${c.element} · ${c.weapon} | ${cell(c.skills.slice(0, 4).map((k) => k.name).join(', '))} | ${c.forge.icon} **${cell(c.forge.name)}** — ${cell(c.forge.branches.map((b) => b.name).join(' / '))} |`
+        );
+      }
+      out.push('', '</details>', '');
+    }
   }
 }
 

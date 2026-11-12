@@ -3,16 +3,16 @@
  * Check inspiration-catalog files against the shared vocabulary.
  *
  *   node scripts/check-inspiration.mjs                 the catalog in src/catalog/inspiration/
- *   node scripts/check-inspiration.mjs a.json b.json   any files
+ *   node scripts/check-inspiration.mjs a.json b.json   any files (a file of characters is told by its records' "work")
  */
 import { readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { validateEntries } from '../src/catalog/inspiration/validate.js';
+import { validateCharacters, validateEntries } from '../src/catalog/inspiration/validate.js';
+import { ENTRIES } from '../src/catalog/inspiration/index.js';
 
 const DIR = resolve('src/catalog/inspiration');
-const files = process.argv.slice(2).length
-  ? process.argv.slice(2)
-  : (await readdir(DIR)).filter((f) => f.endsWith('.json')).map((f) => join(DIR, f));
+const listJson = async (dir) => (await readdir(dir).catch(() => [])).filter((f) => f.endsWith('.json')).map((f) => join(dir, f));
+const files = process.argv.slice(2).length ? process.argv.slice(2) : [...(await listJson(DIR)), ...(await listJson(join(DIR, 'characters')))];
 
 let bad = 0;
 for (const file of files) {
@@ -24,9 +24,10 @@ for (const file of files) {
     bad++;
     continue;
   }
-  const problems = validateEntries(entries);
+  const characters = Array.isArray(entries) && entries.length > 0 && entries.every((e) => e && typeof e.work === 'string');
+  const problems = characters ? validateCharacters(entries, ENTRIES) : validateEntries(entries);
   bad += problems.length;
-  console.log(`${problems.length ? '✗' : '✓'} ${file}: ${entries.length} entries${problems.length ? `, ${problems.length} problems` : ''}`);
+  console.log(`${problems.length ? '✗' : '✓'} ${file}: ${entries.length} ${characters ? 'characters' : 'entries'}${problems.length ? `, ${problems.length} problems` : ''}`);
   for (const p of problems) console.log(`    ${p}`);
 }
 process.exit(bad ? 1 : 0);

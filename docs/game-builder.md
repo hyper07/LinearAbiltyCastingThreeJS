@@ -119,6 +119,15 @@ warrior"* is not the manga. The game never takes the work's title or names: the 
 it, and the note tells the model to use none. The catalog loads only when a build needs it (its own
 ~100 KB file).
 
+**Characters.** `src/catalog/inspiration/characters/` holds 685 characters of those works — classes,
+heroes, story characters, bosses, RTS units, companions and townspeople — each with element, weapon,
+resource, stats (1–5 within their work), look (our nearest body, colours, outfit), signature skills
+mapped onto our effects, story, relations, an image link and sources, and **an original class for the
+Class forge** inspired by how they play. In the forge, *"a class like Sung Jin-woo"* or *"plays like
+Guts"* gives that class at once — no AI, no tokens — under our own names (the checker refuses a forge
+class that reuses a word of the character's name or the work's title). `characters.js`:
+`findCharacters`, `matchCharacter`, `forgeDesignOf`. Loaded only when a class is designed.
+
 `node scripts/check-inspiration.mjs` checks the catalog against the vocabulary
 (`src/catalog/inspiration/vocabulary.js`); `node scripts/inspiration-report.mjs` rewrites
 [inspiration.md](inspiration.md), including the features we lack, ranked by how many works use them.

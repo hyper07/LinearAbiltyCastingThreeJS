@@ -265,11 +265,27 @@ export function normalizeDesign(raw = {}, { description = '', id } = {}) {
   };
 }
 
+/** The character catalog, loaded the first time a design needs it. */
+let characters = null;
+async function catalogClass(description) {
+  const catalog = await (characters ??= import('../catalog/inspiration/characters.js').catch(() => null));
+  const c = catalog?.matchCharacter(description);
+  if (!c) return null;
+  return {
+    design: normalizeDesign(catalog.forgeDesignOf(c.id, description), { description }),
+    source: 'catalog',
+    inspiredBy: { name: c.name, work: catalog.getWorkTitle(c.work) }
+  };
+}
+
 /**
  * @param {string} description one sentence from the player
- * @returns {Promise<{ design: object, source: 'ai'|'keywords', note?: string }>}
+ * @returns {Promise<{ design: object, source: 'ai'|'keywords'|'catalog', note?: string, inspiredBy?: { name, work } }>}
  */
 export async function designClass(description) {
+  // "A class like <a catalogued character>": their ready-made original class, no AI and no tokens.
+  const like = await catalogClass(description);
+  if (like) return like;
   try {
     const raw = await ask(description);
     return { design: normalizeDesign(raw, { description }), source: 'ai' };

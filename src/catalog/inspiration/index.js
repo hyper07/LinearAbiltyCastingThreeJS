@@ -23,7 +23,7 @@ const BY_ID = new Map(ENTRIES.map((e) => [e.id, e]));
 
 export const getWork = (id) => BY_ID.get(id) ?? null;
 
-const fold = (s) => String(s ?? '').toLowerCase().replace(/['’]/g, '').normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const fold = (s) => String(s ?? '').toLowerCase().replace(/['’]/g, '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
 /** Number and edition words a sentence leaves off ("like StarCraft", "like Fortnite"). */
 const EDITION = /( (i{1,3}|iv|v|vi{1,3}|ix|x{1,2}|[0-9]+|remake|reforged|resurrected|battle royale|battlegrounds|online|world))+$/;
