@@ -54,6 +54,14 @@ export const ENGINE_GAMES = [
     engine: 'rts',
     genre: 'strategy',
     card: { genre: 'strategy', genreName: 'Strategy', cover: 'rts', badge: 'NEW' }
+  },
+  {
+    id: 'official:lanebreak',
+    title: 'Lanebreak',
+    summary: 'Five against five down three lanes. Pick a champion, last-hit minions, take towers and break the enemy core — with bots, or with friends in a party.',
+    engine: 'moba',
+    genre: 'arena',
+    card: { genre: 'arena', genreName: 'Battle arena', cover: 'moba', badge: 'NEW' }
   }
 ];
 const MAX_LEVELS = 12;

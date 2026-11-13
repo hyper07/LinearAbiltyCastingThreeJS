@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -105,6 +105,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'market') return marketCover(game);
   if (game.card?.cover === 'work') return workCover(game);
   if (game.card?.cover === 'rts') return rtsCover(game);
+  if (game.card?.cover === 'moba') return mobaCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -213,5 +214,21 @@ function rtsCover(game) {
     ${crystals}
     ${shots}
     <text x="16" y="34" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="800">♜ Shardfront</text>
+  </svg>`;
+}
+
+/** Lanebreak's cover: three lanes from corner to corner, a river, two crystals. */
+function mobaCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="lb-${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d4a2a"/><stop offset="1" stop-color="#1c3220"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#lb-${uid})"/>
+    <path d="M70 0 L250 180" stroke="#3f8fb8" stroke-width="14" opacity=".85"/>
+    <g fill="none" stroke="#a68a5f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M40 160 L40 22 L280 22"/><path d="M40 160 L280 22"/><path d="M40 160 L280 160 L280 22"/>
+    </g>
+    <path d="M40 142 l10 14 -10 14 -10 -14z" fill="#3d8bff"/><path d="M280 4 l10 14 -10 14 -10 -14z" fill="#ef4f4f"/>
+    <g fill="#ffd27a"><circle cx="150" cy="88" r="4"/><circle cx="170" cy="78" r="4"/></g>
+    <text x="60" y="118" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="800">⚔ Lanebreak</text>
   </svg>`;
 }

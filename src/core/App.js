@@ -1403,6 +1403,7 @@ export class App {
     if (game.engine === 'market') return this.openMarket(game);
     if (game.engine === 'work') return this.openWork(game);
     if (game.engine === 'rts') return this.openRts(game);
+    if (game.engine === 'moba') return this.openMoba(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1437,6 +1438,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new RtsGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Lanebreak, the battle arena: its own screen and 3D view, like Shardfront. */
+  async openMoba(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { MobaGame } = await import('../moba/MobaGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new MobaGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

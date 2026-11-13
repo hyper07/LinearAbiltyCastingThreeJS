@@ -110,6 +110,7 @@ export class PlatformHome {
     chip(`${GENRE_ICONS['market-sim']} Stock market`, 'market-sim');
     chip(`${GENRE_ICONS['work-sim']} Work life`, 'work-sim');
     chip(`${GENRE_ICONS.strategy} Strategy`, 'strategy');
+    chip(`${GENRE_ICONS.arena} Battle arena`, 'arena');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -283,12 +284,16 @@ export class PlatformHome {
         ? 'Your own career, in real time: today\'s news is today\'s work'
         : game.engine === 'rts'
         ? 'Pick your faction, the map and your rivals when you play'
+        : game.engine === 'moba'
+        ? 'Pick your champion and side when you play — alone with bots, or with friends'
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (game.engine === 'market' || game.engine === 'work' || game.engine === 'rts') {
+    if (game.engine === 'market' || game.engine === 'work' || game.engine === 'rts' || game.engine === 'moba') {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = game.engine === 'rts'
+      page.querySelector('.home-page__hint').textContent = game.engine === 'moba'
+        ? 'Play with friends from inside the game: one makes a party, the others join with its code. Bots fill the empty seats.'
+        : game.engine === 'rts'
         ? 'You against up to three computer players, on maps up to 512 m across. Your wins are kept on this device.'
         : game.engine === 'work'
         ? 'Game money only: your pay goes to your wallet, which the Stock Market Challenge can invest. Sign in to keep your job.'
