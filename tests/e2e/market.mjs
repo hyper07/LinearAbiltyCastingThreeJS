@@ -3,16 +3,16 @@ import { boot, tally, until } from './lib.mjs';
 /**
  * The stock market game, by mouse: its card on the home page, a run from a
  * million, a buy priced by the server, days moving on, the chart, the
- * leaderboard, the player's style — and, for an admin, the dashboard that
- * adds a ticker. The test server runs on made-up prices (MARKET_PROVIDER=fixture)
- * with `MarketBoss` as its admin (tests/e2e/run.mjs).
+ * leaderboard, the player's style — and the admin API (no screen) that the
+ * platform's admin site uses with its id and password. The test server runs on
+ * made-up prices (MARKET_PROVIDER=fixture), admin `siteadmin` (tests/e2e/run.mjs).
  */
 export async function run(browser, { shots = null } = {}) {
   const t = tally();
   const { context, page, errors } = await boot(browser, 'market', { view: 'home' });
   const shot = (name) => shots && page.screenshot({ path: `${shots}/${name}.png` });
   try {
-    // An admin account, signed in (the session cookie), then the page again so the game knows it.
+    // A player, signed in (the session cookie), then the page again so the game knows it.
     const made = await page.evaluate(async () => {
       const r = await fetch('./api/account/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'MarketBoss', password: 'buy-low-sell-high' }) });
       return r.status;
@@ -61,21 +61,25 @@ export async function run(browser, { shots = null } = {}) {
     t.check('My style reads your pattern', await until(page, () => document.querySelectorAll('.mk .mk__tag').length >= 1 && document.querySelectorAll('.mk .mk__tile').length >= 6, null, 10000));
     await shot('market-style');
 
-    // The dashboard: an admin adds a ticker, and it is fetched.
-    t.check('an admin sees the Dashboard tab', await page.evaluate(() => Boolean(document.querySelector('.mk [data-tab="admin"]'))));
-    await page.click('.mk [data-tab="admin"]');
-    await page.waitForSelector('.mk [data-add-symbol]', { timeout: 10000 });
-    await page.fill('.mk [data-add-symbol]', 'nke');
-    await page.click('.mk .mk__add button[type="submit"]');
-    t.check('adding a ticker fetches its year', await until(page, () => {
-      const row = document.querySelector('.mk [data-ticker="NKE"]');
-      return row && Number(row.children[4]?.textContent) > 200;
-    }, null, 20000));
-    await shot('market-dashboard');
+    // No admin screen in the game: the platform's admin site uses the admin API with its id and password.
+    t.check('the game has no admin tab', await page.evaluate(() => !document.querySelector('.mk [data-tab="admin"]')));
+    const admin = await page.evaluate(async () => {
+      const auth = { Authorization: `Basic ${btoa('siteadmin:test-admin-pass')}` };
+      const refused = (await fetch('./api/market/admin')).status;
+      const add = await fetch('./api/market/admin/tickers', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: 'nke' }) });
+      const view = await fetch('./api/market/admin', { headers: auth }).then((r) => r.json());
+      const trades = await fetch('./api/market/admin/trades', { headers: auth }).then((r) => r.json());
+      return { refused, added: add.status, nke: view.tickers.find((x) => x.symbol === 'NKE')?.bars ?? 0, me: view.players.find((p) => p.name === 'MarketBoss'), trades: trades.trades.length };
+    });
+    t.check('the admin API refuses without the id and password', admin.refused === 401);
+    t.check('with them, adding a ticker fetches its year', admin.added === 200 && admin.nke > 200, JSON.stringify(admin));
+    t.check('the admin API lists players with their style, and every trade', admin.me?.trades === 1 && admin.me.tags.length > 0 && admin.trades === 1);
 
     await page.click('.mk [data-close]');
     t.check('✕ goes back to the games', await until(page, () => !document.querySelector('.mk') && !document.querySelector('.home').hidden, null, 5000));
-    t.check('no page errors', errors.length === 0, errors.join(' | '));
+    // The admin API's refusal without a password is on purpose.
+    const real = errors.filter((e) => !/401 GET \/api\/market\/admin$/.test(e));
+    t.check('no page errors', real.length === 0, real.join(' | '));
   } finally {
     await context.close();
   }

@@ -26,8 +26,9 @@ const arrow = (v) => (sign(v, 1) > 0 ? '▲' : sign(v, 1) < 0 ? '▼' : '•');
 /**
  * The stock market game: a year of real daily prices, one trading day at a
  * time, from a million in game money. Tabs: Market (the stocks, a chart, buy
- * and sell), Portfolio, Leaderboard, My style (your pattern), and — for
- * admins — the Dashboard (tickers and every player).
+ * and sell), Portfolio, Leaderboard and My style (your pattern). Tickers and
+ * every player's data are for the platform's admin site, through the admin
+ * API (server/market/index.js) — there is no admin screen here.
  *
  * Opens over the home page; `onClose` goes back to it.
  */
@@ -147,8 +148,7 @@ export class MarketGame {
       ['market', 'Market'],
       ['portfolio', 'Portfolio'],
       ['leaderboard', 'Leaderboard'],
-      ['style', 'My style'],
-      ...(this.state.admin ? [['admin', 'Dashboard']] : [])
+      ['style', 'My style']
     ];
     for (const [id, label] of list) {
       const b = button(label, `mk__tab${this.tab === id ? ' is-active' : ''}`, async () => {
@@ -167,7 +167,6 @@ export class MarketGame {
     const body = this.$('[data-body]');
     body.replaceChildren();
     if (this.tab === 'leaderboard') return this.renderLeaderboard(body);
-    if (this.tab === 'admin') return this.renderAdmin(body);
     if (!this.account) {
       body.append(this.notice('Sign in to play', 'Open Your hero → Account to sign in or make an account. Your run, trades and place on the leaderboard are saved to it.'));
       return;
@@ -464,116 +463,6 @@ export class MarketGame {
       }
       body.append(bars);
     }
-  }
-
-  /* ---- Dashboard (admins) ---- */
-
-  async renderAdmin(body) {
-    let view;
-    try {
-      view = await market.admin.view();
-    } catch (error) {
-      body.append(this.notice('Dashboard', error.message));
-      return;
-    }
-    const p = view.provider;
-    body.append(
-      el(
-        'p',
-        p.ready ? 'mk__muted' : 'mk__warn',
-        p.ready
-          ? `Prices: ${p.id}${p.refreshing ? ' (fetching now…)' : ''} · the year: ${view.calendar.days} trading days, ${view.calendar.first ?? '—'} to ${view.calendar.last ?? '—'}`
-          : `Prices: not set up. ${p.why}`
-      )
-    );
-
-    // Add a ticker.
-    const form = el('form', 'mk__add');
-    const sym = el('input', 'mk__search');
-    sym.placeholder = 'Ticker, e.g. NKE';
-    sym.required = true;
-    sym.dataset.addSymbol = '';
-    const name = el('input', 'mk__search');
-    name.placeholder = 'Name (optional)';
-    const sector = el('input', 'mk__search');
-    sector.placeholder = 'Sector (optional)';
-    const add = el('button', 'mk__btn mk__btn--primary', 'Add and fetch a year');
-    add.type = 'submit';
-    form.append(sym, name, sector, add, button('Refresh all prices', 'mk__btn', async () => this.adminDo(() => market.admin.refresh(), 'Fetched every ticker again.')));
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.adminDo(() => market.admin.add({ symbol: sym.value, name: name.value, sector: sector.value }), `Added ${sym.value.toUpperCase()}.`);
-    });
-    body.append(el('h3', 'mk__h', `Tickers (${view.tickers.length})`), form);
-
-    const table = el('table', 'mk__table mk__table--wide');
-    table.dataset.tickers = '';
-    const head = el('tr');
-    for (const h of ['On', 'Ticker', 'Name', 'Sector', 'Days of prices', 'From – to', 'Fetched', '']) head.append(el('th', null, h));
-    table.append(head);
-    for (const t of view.tickers) {
-      const tr = el('tr', t.enabled ? '' : 'is-off');
-      tr.dataset.ticker = t.symbol;
-      const on = el('input');
-      on.type = 'checkbox';
-      on.checked = t.enabled;
-      on.setAttribute('aria-label', `${t.symbol} in the game`);
-      on.addEventListener('change', () => this.adminDo(() => market.admin.enable(t.symbol, on.checked), `${t.symbol} ${on.checked ? 'is in' : 'is out of'} the game.`));
-      const cell = el('td');
-      cell.append(on);
-      const remove = t.benchmark ? el('span', 'mk__muted', 'benchmark') : button('Remove', 'mk__chip', () => confirm(`Remove ${t.symbol} and its prices?`) && this.adminDo(() => market.admin.remove(t.symbol), `Removed ${t.symbol}.`));
-      const last = el('td');
-      last.append(remove);
-      tr.append(cell, el('td', null, t.symbol), el('td', null, t.name), el('td', null, t.sector), el('td', `mk__num ${t.bars < 200 ? 'is-down' : ''}`, String(t.bars)), el('td', null, t.first_day ? `${t.first_day} – ${t.last_day}` : '—'), el('td', t.fetch_error ? 'is-down' : 'mk__muted', t.fetch_error ?? (t.fetched ? new Date(t.fetched).toLocaleString() : 'never')), last);
-      table.append(tr);
-    }
-    const scroll = el('div', 'mk__scroll mk__scroll--admin');
-    scroll.append(table);
-    body.append(scroll);
-
-    // Every player.
-    body.append(el('h3', 'mk__h', `Players (${view.players.length})`));
-    const players = el('table', 'mk__table mk__table--wide');
-    const ph = el('tr');
-    for (const h of ['#', 'Player', 'Net worth', 'Return', 'Day', 'Trades', 'Style']) ph.append(el('th', null, h));
-    players.append(ph);
-    const detail = el('div', 'mk__player');
-    for (const pl of view.players) {
-      const tr = el('tr', 'mk__row');
-      tr.tabIndex = 0;
-      tr.append(el('td', 'mk__num', String(pl.rank)), el('td', null, pl.name), el('td', 'mk__num', money(pl.value)), el('td', `mk__num ${dirClass(pl.return)}`, percent(pl.return)), el('td', 'mk__num', pl.status === 'finished' ? 'Finished' : `${pl.dayIndex + 1} / ${pl.days}`), el('td', 'mk__num', String(pl.trades)), el('td', null, pl.tags.map((t) => t.label).join(', ')));
-      const open = async () => {
-        detail.replaceChildren(el('p', 'mk__muted', 'Loading…'));
-        const d = await market.admin.player(pl.accountId).catch((e) => ({ error: e.message }));
-        detail.replaceChildren();
-        if (d.error) return detail.append(el('p', 'mk__warn', d.error));
-        detail.append(el('h3', 'mk__h', `${d.player.name}: what they own`));
-        const list = el('ul', 'mk__trades');
-        for (const pos of d.pattern?.positions ?? []) list.append(el('li', null, `${pos.symbol}: ${pos.qty} shares, ${money(pos.value)} (${Math.round(pos.share * 100)}%)`));
-        if (!list.children.length) list.append(el('li', 'mk__muted', 'Nothing held.'));
-        detail.append(list, el('h3', 'mk__h', 'Pattern'));
-        const pre = el('pre', 'mk__pre', JSON.stringify(d.pattern?.metrics ?? {}, null, 2));
-        detail.append(pre, el('h3', 'mk__h', `Trades (${d.pattern?.trades?.length ?? 0})`));
-        const tl = el('ol', 'mk__trades');
-        for (const t of (d.pattern?.trades ?? []).slice(-40).reverse()) tl.append(el('li', null, `${t.day} · ${t.side} ${t.qty} ${t.symbol} at ${money(t.price, { exact: true })}`));
-        detail.append(tl);
-      };
-      tr.addEventListener('click', open);
-      tr.addEventListener('keydown', (e) => e.key === 'Enter' && open());
-      players.append(tr);
-    }
-    body.append(players, detail);
-  }
-
-  async adminDo(action, done) {
-    this.say('Working…');
-    try {
-      await action();
-      this.say(done, 'is-ok');
-    } catch (error) {
-      this.say(error.message, 'is-error');
-    }
-    await this.reload();
   }
 }
 

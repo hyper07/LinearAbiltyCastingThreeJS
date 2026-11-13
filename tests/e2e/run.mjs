@@ -31,8 +31,8 @@ if (!process.env.BASE_URL) {
   const port = 8790 + Math.floor(Math.random() * 100);
   dataDir = await mkdtemp(join(tmpdir(), 'gamory-e2e-'));
   server = spawn(process.execPath, [resolve('server/server.js')], {
-    // The stock game on made-up prices, with an admin, so the tests need no data keys.
-    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '', MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'MarketBoss' },
+    // The stock game on made-up prices, with a test admin id and password, so the tests need no keys.
+    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '', MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'test-admin-pass' },
     stdio: ['ignore', 'pipe', 'inherit']
   });
   process.env.BASE_URL = `http://127.0.0.1:${port}/`;

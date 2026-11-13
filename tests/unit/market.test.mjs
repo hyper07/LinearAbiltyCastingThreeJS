@@ -10,7 +10,7 @@ async function world() {
   const add = async (name) => (await db.one('INSERT INTO accounts (name, name_key, pass_hash, created) VALUES (?, ?, ?, ?) RETURNING id, name', [name, name.toLowerCase(), 'x', 0]));
   const ada = await add('Ada');
   const bo = await add('Bo');
-  const market = createMarket({ db, authenticate: async () => null, env: { MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'Ada' }, now: () => Date.parse('2026-11-12T20:00:00Z') });
+  const market = createMarket({ db, authenticate: async () => null, env: { MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'correct-horse' }, now: () => Date.parse('2026-11-12T20:00:00Z') });
   await market.ready;
   return { db, market, ada, bo };
 }
@@ -62,23 +62,30 @@ test('nobody sees tomorrow: bars stop at the player\'s own day', async () => {
     await db.serial(() => market.next(bo, { days: 20 }));
     const handler = market.handler;
     // Through the route, as the browser would ask.
-    const ask = async (account, url) => {
-      const m = createMarket({ db, authenticate: async () => account, env: { MARKET_PROVIDER: 'fixture' } });
+    const ask = async (account, url, headers = {}) => {
+      const m = createMarket({ db, authenticate: async () => account, env: { MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'correct-horse' } });
       await m.ready;
       const out = await new Promise((resolve) => {
         const res = { statusCode: 0, headers: {}, setHeader() {}, writeHead(code) { this.statusCode = code; }, end(body) { resolve({ status: this.statusCode, body: JSON.parse(body) }); } };
-        m.handler({ method: 'GET', url, headers: { host: 'x' } }, res);
+        m.handler({ method: 'GET', url, headers: { host: 'x', ...headers }, socket: {} }, res);
       });
       m.stop();
       return out;
     };
+    const basic = (id, password) => ({ authorization: `Basic ${Buffer.from(`${id}:${password}`).toString('base64')}` });
     const a = await ask(ada, '/api/market/bars?symbol=MSFT');
     const b = await ask(bo, '/api/market/bars?symbol=MSFT');
     assert.equal(a.body.bars.length, 1, 'day 0: one bar');
     assert.equal(b.body.bars.length, 21, 'day 20: twenty-one bars');
     assert.equal(typeof handler, 'function');
-    const admin = await ask(bo, '/api/market/admin');
-    assert.equal(admin.status, 403, 'the dashboard is for admins only');
+    assert.equal((await ask(bo, '/api/market/admin')).status, 401, 'a player\'s session is not the admin');
+    assert.equal((await ask(null, '/api/market/admin', basic('siteadmin', 'wrong'))).status, 401, 'a wrong password is refused');
+    assert.equal((await ask(null, '/api/market/admin', basic('someone', 'correct-horse'))).status, 401, 'an id not in ADMIN_ACCOUNTS is refused');
+    const admin = await ask(null, '/api/market/admin', basic('SiteAdmin', 'correct-horse'));
+    assert.equal(admin.status, 200, 'the admin site\'s id and password open it');
+    assert.equal(admin.body.players.length, 2);
+    const trades = await ask(null, '/api/market/admin/trades?limit=10', basic('siteadmin', 'correct-horse'));
+    assert.deepEqual(trades.body.trades, []);
   } finally {
     market.stop();
     await db.close();

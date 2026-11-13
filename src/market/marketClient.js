@@ -19,15 +19,7 @@ export const market = {
   bars: (symbol) => call(`bars?symbol=${encodeURIComponent(symbol)}`),
   history: () => call('history'),
   profile: () => call('profile'),
-  leaderboard: () => call('leaderboard'),
-  admin: {
-    view: () => call('admin'),
-    player: (accountId) => call(`admin/player?account=${encodeURIComponent(accountId)}`),
-    add: (ticker) => call('admin/tickers', { method: 'POST', body: ticker }),
-    enable: (symbol, enabled) => call('admin/ticker', { method: 'POST', body: { symbol, enabled } }),
-    remove: (symbol) => call(`admin/ticker?symbol=${encodeURIComponent(symbol)}`, { method: 'DELETE' }),
-    refresh: () => call('admin/refresh', { method: 'POST', body: {} })
-  }
+  leaderboard: () => call('leaderboard')
 };
 
 /** $1,234,567 from cents (no cents shown past a thousand). */

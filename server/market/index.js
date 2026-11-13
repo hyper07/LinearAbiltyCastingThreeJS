@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from '../api/http.js';
 import { BENCHMARK, START_CASH, STARTER_TICKERS, SYMBOL } from '../../src/market/tickers.js';
 import { investorPattern } from '../../src/market/patterns.js';
@@ -16,9 +17,11 @@ import { marketProvider } from './providers.js';
  *   GET  /api/market/profile         your investing pattern (src/market/patterns.js)
  *   GET  /api/market/leaderboard     players by net worth (each one's latest run)
  *
- *   The admin dashboard (accounts named in ADMIN_ACCOUNTS):
+ *   The admin API, for the platform's admin site (no screen in the game):
+ *   HTTP Basic auth — an id from ADMIN_ACCOUNTS and ADMIN_PASSWORD.
  *   GET    /api/market/admin                   tickers and their data, the provider, every player
  *   GET    /api/market/admin/player?account=   one player's portfolio, pattern and trades
+ *   GET    /api/market/admin/trades?after=&limit=   every trade, in order, a page at a time
  *   POST   /api/market/admin/tickers           add { symbol, name?, sector? } and fetch its year
  *   POST   /api/market/admin/ticker            { symbol, enabled }
  *   DELETE /api/market/admin/ticker?symbol=    remove a ticker and its prices
@@ -33,8 +36,20 @@ import { marketProvider } from './providers.js';
 export function createMarket({ db, authenticate, env = process.env, log = () => {}, now = () => Date.now() }) {
   const provider = marketProvider(env);
   const admins = new Set(String(env.ADMIN_ACCOUNTS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
-  const isAdmin = (account) => Boolean(account && admins.has(String(account.name).toLowerCase()));
-  const limits = { read: new RateLimiter(600, { burst: 120 }), write: new RateLimiter(300, { burst: 60 }), admin: new RateLimiter(60, { burst: 20 }) };
+  const digest = (v) => createHash('sha256').update(String(v)).digest();
+  const adminPassword = env.ADMIN_PASSWORD ? digest(env.ADMIN_PASSWORD) : null;
+  /** The admin site's id and password (HTTP Basic), checked in constant time; null when wrong or unset. */
+  const adminOf = (req) => {
+    const header = String(req.headers.authorization ?? '');
+    if (!adminPassword || !header.startsWith('Basic ')) return null;
+    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+    const at = decoded.indexOf(':');
+    if (at < 1) return null;
+    const id = decoded.slice(0, at).trim().toLowerCase();
+    const passwordOk = timingSafeEqual(digest(decoded.slice(at + 1)), adminPassword);
+    return passwordOk && admins.has(id) ? id : null;
+  };
+  const limits = { read: new RateLimiter(600, { burst: 120 }), write: new RateLimiter(300, { burst: 60 }), admin: new RateLimiter(120, { burst: 30 }), adminFail: new RateLimiter(10, { burst: 5 }) };
   const YEAR_DAYS = 252;
   const START_CENTS = START_CASH * 100;
 
@@ -259,7 +274,7 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
     const run = account ? await activeRun(account.id) : null;
     const list = await tickers();
     const map = await load();
-    const base = { provider: { id: provider.id, ready: provider.ready }, startCash: START_CENTS, admin: isAdmin(account), tickers: list.length };
+    const base = { provider: { id: provider.id, ready: provider.ready }, startCash: START_CENTS, tickers: list.length };
     if (!run) {
       const last = account ? await latestRun(account.id) : null;
       return { ...base, run: null, last: last && last.status === 'finished' ? { finalValue: Number(last.final_value), startCash: Number(last.start_cash) } : null };
@@ -411,6 +426,16 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
       if (!who) throw refusal('No such player', 404);
       return { player: { id: Number(who.id), name: who.name }, pattern: await patternOf(run), holdings: run ? await holdingsOf(run.id) : [] };
     },
+    'GET /api/market/admin/trades': async ({ query }) => {
+      const after = Math.max(0, Number(query.get('after')) || 0);
+      const limit = Math.max(1, Math.min(5000, Number(query.get('limit')) || 1000));
+      const rows = await db.many(
+        `SELECT t.id, t.run_id, t.account_id, a.name, t.day_index, t.day, t.symbol, t.side, t.qty, t.price, t.cash_after, t.at
+           FROM market_trades t JOIN accounts a ON a.id = t.account_id WHERE t.id > ? ORDER BY t.id LIMIT ?`,
+        [after, limit]
+      );
+      return { trades: rows, next: rows.length === limit ? rows.at(-1).id : null };
+    },
     'POST /api/market/admin/tickers': ({ body }) => addTicker(body ?? {}),
     'POST /api/market/admin/ticker': async ({ body }) => {
       const s = String(body?.symbol ?? '').toUpperCase();
@@ -437,17 +462,32 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
       if (!route) return send(404, { error: 'unknown route' }), true;
       if (req.method !== 'GET') {
         const origin = req.headers.origin;
-        if (origin && new URL(origin).host !== req.headers.host) return send(403, { error: 'Cross-site request refused' }), true;
+        let host = null;
+        try {
+          host = origin ? new URL(origin).host : req.headers.host;
+        } catch {}
+        if (host !== req.headers.host) return send(403, { error: 'Cross-site request refused' }), true;
         if (req.method === 'POST' && !String(req.headers['content-type'] ?? '').startsWith('application/json')) return send(415, { error: 'JSON only' }), true;
       }
-      const account = await authenticate(req);
-      const open = path === '/api/market/state' || path === '/api/market/leaderboard';
-      if (!account && !open) return send(401, { error: 'Sign in to play the stock game' }), true;
-      if (account?.blockedUntil > now()) return send(403, { error: `Blocked: ${account.blockReason ?? ''}` }), true;
       const adminRoute = path.startsWith('/api/market/admin');
-      if (adminRoute && !isAdmin(account)) return send(403, { error: 'Admins only (ADMIN_ACCOUNTS)' }), true;
-      const limiter = adminRoute ? limits.admin : req.method === 'GET' ? limits.read : limits.write;
-      if (!limiter.take(account ? `a${account.id}` : clientIp(req))) return send(429, { error: 'Slow down' }), true;
+      const ip = clientIp(req);
+      let account = null;
+      if (adminRoute) {
+        // The platform's admin site: its id and password, not a player's session.
+        if (!adminOf(req)) {
+          if (!limits.adminFail.take(ip)) return send(429, { error: 'Too many tries — wait a minute' }), true;
+          res.setHeader('WWW-Authenticate', 'Basic realm="Gamory admin", charset="UTF-8"');
+          return send(401, { error: adminPassword ? 'Admin id and password required' : 'The admin API is off (set ADMIN_ACCOUNTS and ADMIN_PASSWORD)' }), true;
+        }
+        if (!limits.admin.take(ip)) return send(429, { error: 'Slow down' }), true;
+      } else {
+        account = await authenticate(req);
+        const open = path === '/api/market/state' || path === '/api/market/leaderboard';
+        if (!account && !open) return send(401, { error: 'Sign in to play the stock game' }), true;
+        if (account?.blockedUntil > now()) return send(403, { error: `Blocked: ${account.blockReason ?? ''}` }), true;
+        const limiter = req.method === 'GET' ? limits.read : limits.write;
+        if (!limiter.take(account ? `a${account.id}` : ip)) return send(429, { error: 'Slow down' }), true;
+      }
       await ready;
       const body = req.method === 'POST' ? await readJson(req, 16 * 1024) : {};
       return send(200, await route({ account, body, query: queryOf(req) })), true;

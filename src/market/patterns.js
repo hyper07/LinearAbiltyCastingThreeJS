@@ -2,7 +2,7 @@
  * A player's investing pattern, from one run: what they traded, how long they
  * held, how spread out they were, how they did against the market — and a few
  * plain-word style tags ("Dip buyer", "Patient holder"…). The player sees their
- * own; the admin dashboard sees everyone's.
+ * own; the platform's admin site reads everyone's (the admin API).
  *
  * Pure: the server passes the rows, so the tests can too.
  *

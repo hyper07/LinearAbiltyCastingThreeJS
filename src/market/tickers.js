@@ -1,7 +1,7 @@
 /**
  * The stock game's starting list: 50 of the largest S&P 500 companies (by
  * market value, late 2026, approximately) and SPY as the benchmark. The admin
- * dashboard adds, removes and switches off any of them; this is only the seed.
+ * API adds, removes and switches off any of them; this is only the seed.
  */
 export const STARTER_TICKERS = [
   ['NVDA', 'NVIDIA', 'Information Technology'],
