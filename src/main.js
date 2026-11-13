@@ -1,3 +1,4 @@
+import '@fontsource-variable/nunito/wght.css';
 import { App } from './core/App.js';
 import { LoadingScreen } from './ui/HUD.js';
 

@@ -1,6 +1,7 @@
 import { GENRES } from '../blueprints/genres.js';
 import { cardLine } from '../platform/gameCards.js';
 import { GENRE_ICONS, coverSvg } from './gameCover.js';
+import { tilt, confetti, popColor } from './pop.js';
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -75,6 +76,29 @@ export class PlatformHome {
         </div>
       </div>
       <main class="home__main">
+        <section class="home-hero" data-hero-banner aria-label="Featured game">
+          <div class="home-hero__text">
+            <span class="home-hero__hello">Hi there! 👋</span>
+            <h1 class="home-hero__title">What shall we <em>play</em> today?</h1>
+            <p class="home-hero__sub" data-feature-sub>Pick a game, or make your own in a sentence.</p>
+            <div class="home-hero__actions">
+              <button type="button" class="pop-btn pop-btn--sun" data-feature-play>▶ Play</button>
+              <button type="button" class="pop-btn pop-btn--white" data-surprise title="Open a game picked at random">🎲 Surprise me</button>
+              <button type="button" class="pop-btn pop-btn--mint" data-feature-create>✨ Make a game</button>
+            </div>
+          </div>
+          <div class="home-hero__stage">
+            <button type="button" class="home-hero__card" data-feature-open aria-label="Open the featured game">
+              <span class="home-hero__cover" data-feature-cover></span>
+              <span class="home-hero__name" data-feature-name></span>
+            </button>
+            <div class="home-hero__dots" data-feature-dots role="tablist" aria-label="Featured games"></div>
+            <span class="home-hero__float home-hero__float--a" aria-hidden="true">🎮</span>
+            <span class="home-hero__float home-hero__float--b" aria-hidden="true">⭐</span>
+            <span class="home-hero__float home-hero__float--c" aria-hidden="true">🏰</span>
+            <span class="home-hero__float home-hero__float--d" aria-hidden="true">⚔️</span>
+          </div>
+        </section>
         <section class="home__studio" aria-label="Make something">
           <span>Make:</span>
           <button type="button" data-builder>a game</button>
@@ -94,6 +118,7 @@ export class PlatformHome {
       const b = el('button', 'home__chip', label);
       b.type = 'button';
       b.dataset.genre = genre;
+      b.style.setProperty('--chip', popColor(chips.children.length));
       if (kids) b.dataset.kids = '1';
       b.addEventListener('click', () => {
         this.query.genre = kids ? '' : genre;
@@ -128,6 +153,22 @@ export class PlatformHome {
         this.refresh();
       });
     }
+    // The banner: a featured game that changes, a random pick, a shortcut to making one.
+    tilt(this.$('[data-feature-open]'), { max: 12 });
+    this.$('[data-feature-open]').addEventListener('click', () => this._featured && this.openPage(this._featured.id));
+    this.$('[data-feature-play]').addEventListener('click', () => this._featured && this.openPage(this._featured.id));
+    this.$('[data-feature-create]').addEventListener('click', (e) => {
+      confetti(e.currentTarget, 40);
+      actions.create();
+    });
+    this.$('[data-surprise]').addEventListener('click', (e) => {
+      const list = this.games ?? [];
+      if (!list.length) return;
+      confetti(e.currentTarget, 50);
+      this.openPage(list[Math.floor(Math.random() * list.length)].id);
+    });
+    this.$('[data-hero-banner]').addEventListener('pointerenter', () => (this._hold = true));
+    this.$('[data-hero-banner]').addEventListener('pointerleave', () => (this._hold = false));
     this.$('[data-create]').addEventListener('click', () => actions.create());
     this.$('[data-builder]').addEventListener('click', () => actions.create());
     this.$('[data-forge]').addEventListener('click', () => actions.openForge());
@@ -185,8 +226,45 @@ export class PlatformHome {
     if (this.query.kids) list = list.filter((g) => g.card?.study || g.card?.calm || ['study', 'calm-study'].includes(g.genre));
     this.games = list;
     grid.replaceChildren(this._createCard(), ...list.map((g) => this._card(g)));
+    [...grid.children].forEach((c, i) => c.style.setProperty('--i', String(Math.min(i, 16))));
+    this._feature(list);
     empty.hidden = list.length > 0;
     empty.textContent = this.query.q ? `No games match “${this.query.q}”. Make one?` : 'No games here yet. Make the first one!';
+  }
+
+  /** The banner's featured games: the newest official ones first, changing every few seconds. */
+  _feature(list) {
+    const picks = [...list.filter((g) => g.card?.badge === 'NEW'), ...list.filter((g) => g.card?.badge !== 'NEW')].slice(0, 5);
+    const banner = this.$('[data-hero-banner]');
+    banner.hidden = !picks.length || Boolean(this.query.q);
+    clearInterval(this._rotate);
+    if (banner.hidden) return;
+    const dots = this.$('[data-feature-dots]');
+    const show = (i) => {
+      this._featureAt = (i + picks.length) % picks.length;
+      const g = (this._featured = picks[this._featureAt]);
+      const card = this.$('[data-feature-open]');
+      card.classList.remove('is-in');
+      void card.offsetWidth; // restart the pop-in
+      card.classList.add('is-in');
+      this.$('[data-feature-cover]').innerHTML = coverSvg(g);
+      this.$('[data-feature-name]').textContent = g.title;
+      this.$('[data-feature-play]').textContent = `▶ Play ${g.title}`;
+      this.$('[data-feature-sub]').textContent = g.summary ? g.summary.split('. ')[0].replace(/\.$/, '') + '.' : 'Pick a game, or make your own in a sentence.';
+      [...dots.children].forEach((d, k) => d.setAttribute('aria-selected', String(k === this._featureAt)));
+    };
+    dots.replaceChildren(...picks.map((g, i) => {
+      const d = el('button', 'home-hero__dot');
+      d.type = 'button';
+      d.setAttribute('role', 'tab');
+      d.setAttribute('aria-label', g.title);
+      d.addEventListener('click', () => show(i));
+      return d;
+    }));
+    show(0);
+    this._rotate = setInterval(() => {
+      if (!this._hold && this.isVisible && this.$('[data-page]').hidden) show(this._featureAt + 1);
+    }, 5000);
   }
 
   _createCard() {
@@ -224,7 +302,7 @@ export class PlatformHome {
     const tags = card.querySelector('.home-card__tags');
     for (const tag of [c.genreName, c.study && 'Study', c.calm && 'No monsters', c.worldName].filter(Boolean)) tags.append(el('span', null, tag));
     card.addEventListener('click', () => this.openPage(game.id));
-    return card;
+    return tilt(card);
   }
 
   /* ---- a game's own page ---- */
@@ -306,6 +384,7 @@ export class PlatformHome {
     }
     page.querySelector('[data-close]').addEventListener('click', () => this.closePage());
     page.querySelector('[data-play]').addEventListener('click', async (e) => {
+      confetti(e.currentTarget);
       e.currentTarget.disabled = true;
       await this.actions.play(game.id);
     });

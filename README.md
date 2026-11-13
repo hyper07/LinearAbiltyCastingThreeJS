@@ -472,6 +472,7 @@ flowchart LR
 | [Shardfront](docs/shardfront.md) | The real-time strategy game: factions, maps, the computer players, controls, model slots |
 | [Lanebreak](docs/lanebreak.md) | The battle arena: champions, the map, bots, controls, playing with friends |
 | [Hearthvale](docs/hearthvale.md) | The online RPG: classes, zones, quests, dungeons, professions, parties, guilds, trading; how the server runs it |
+| [Design system](docs/design-system.md) | Gamory Pop: the tokens, the two surfaces, the motions, and how a game takes the look |
 | [Stock Market Challenge](docs/stock-market.md) | A year of real stock prices from a million in game money: trading, the leaderboard, each player's pattern, the admin API, setting up Alpaca |
 | [Inspiration catalog](docs/inspiration.md) | 75 games, manhwa and manga and their 685 characters mapped onto our ids, with links; "a game like X" in the builder, "a class like X" in the forge; the features we lack, ranked |
 | [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |

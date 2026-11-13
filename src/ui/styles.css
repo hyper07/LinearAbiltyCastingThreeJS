@@ -8,6 +8,7 @@
 @import './editor.css';
 @import './party.css';
 @import './home.css';
+@import './pop.css';
 
 :root {
   --ui-bg: rgba(10, 14, 20, 0.55);
