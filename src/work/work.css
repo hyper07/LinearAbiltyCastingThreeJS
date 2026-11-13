@@ -1,0 +1,218 @@
+/* ---- Work Life (work/WorkGame.js): shares the stock game's base styles (market.css) ---- */
+
+.wk-job {
+  padding: 14px 16px;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  background: var(--mk-surface);
+}
+.wk-job h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.wk-job p {
+  margin: 6px 0;
+}
+.wk-meter {
+  height: 8px;
+  max-width: 420px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.wk-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--viz-1);
+}
+.wk-missions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.wk-mission {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  background: var(--mk-surface);
+}
+.wk-mission.is-done {
+  border-color: rgba(63, 191, 127, 0.4);
+}
+.wk-mission.is-missed {
+  opacity: 0.6;
+}
+.wk-mission p {
+  margin: 0;
+  line-height: 1.45;
+}
+.wk-mission__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.wk-mission__news {
+  font-size: 13px;
+  color: var(--mk-muted);
+}
+.wk-mission__news a,
+.wk-news a {
+  color: var(--mk-accent);
+}
+.wk-mission__result {
+  font-size: 13px;
+  color: var(--mk-muted);
+}
+.wk-options {
+  display: grid;
+  gap: 6px;
+}
+.wk-option {
+  padding: 9px 12px;
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+  background: var(--mk-surface-2);
+  text-align: left;
+  line-height: 1.35;
+}
+.wk-option:hover:not(:disabled) {
+  border-color: rgba(127, 214, 255, 0.5);
+}
+.wk-tag {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(127, 214, 255, 0.12);
+  color: var(--mk-accent);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.wk-tag--warn {
+  background: rgba(239, 107, 107, 0.14);
+  color: var(--mk-down);
+}
+.wk-text {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--mk-line);
+  border-radius: 8px;
+  background: var(--mk-surface-2);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+.wk-game {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wk-triage {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.wk-triage li span {
+  margin-right: 6px;
+}
+.wk-news {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.wk-news .wk-tag {
+  margin-right: 8px;
+}
+.wk-companies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+.wk-company {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+  background: var(--mk-surface);
+  text-align: left;
+}
+.wk-company:hover {
+  border-color: rgba(127, 214, 255, 0.45);
+}
+.wk-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(5, 8, 12, 0.7);
+}
+.wk-modal__card {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--mk-line);
+  border-radius: 14px;
+  background: var(--mk-bg);
+}
+.wk-modal__card > .mk__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.wk-modal__card h2 {
+  margin: 0 40px 12px 0;
+  font-size: 18px;
+}
+.wk-roles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.wk-role {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+  background: var(--mk-surface);
+  text-align: left;
+}
+.wk-role__icon {
+  font-size: 22px;
+}
+.wk-question {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+}
+.wk-question legend {
+  padding: 0 4px;
+  font-weight: 650;
+}
+.wk-answer {
+  display: block;
+  padding: 4px 0;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .wk-missions {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1401,6 +1401,7 @@ export class App {
   async openLobby(id) {
     const game = await games.get(id);
     if (game.engine === 'market') return this.openMarket(game);
+    if (game.engine === 'work') return this.openWork(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1410,6 +1411,16 @@ export class App {
     const { MarketGame } = await import('../market/MarketGame.js');
     this.home.closePage();
     const view = new MarketGame(document.body, { account: this.account?.user ?? null, onClose: () => this.home.refresh?.() });
+    await view.open();
+    return view;
+  }
+
+  /** Work Life: its own screen over the home page (loaded the first time). */
+  async openWork(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { WorkGame } = await import('../work/WorkGame.js');
+    this.home.closePage();
+    const view = new WorkGame(document.body, { account: this.account?.user ?? null, onClose: () => this.home.refresh?.() });
     await view.open();
     return view;
   }

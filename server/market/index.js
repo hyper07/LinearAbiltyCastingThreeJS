@@ -1,8 +1,9 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { RateLimiter, clientIp, json, pathOf, queryOf, readJson } from '../api/http.js';
+import { adminAuth } from '../api/adminAuth.js';
 import { BENCHMARK, START_CASH, STARTER_TICKERS, SYMBOL } from '../../src/market/tickers.js';
 import { investorPattern } from '../../src/market/patterns.js';
 import { marketProvider } from './providers.js';
+import { createWallet } from '../wallet.js';
 
 /**
  * The stock market game: a year of real daily prices, replayed one trading
@@ -12,6 +13,7 @@ import { marketProvider } from './providers.js';
  *   POST /api/market/run             start a run ({ restart: true } abandons the current one)
  *   POST /api/market/next            move on { days: 1–20 }; past the last day the run finishes
  *   POST /api/market/trade           { symbol, side: buy|sell, qty } at today's close
+ *   POST /api/market/deposit         { amount } (cents) from your wallet (salary from the work game) into your run
  *   GET  /api/market/bars?symbol=    a stock's bars up to YOUR day — never later
  *   GET  /api/market/history         your run's net worth by day, and your trades
  *   GET  /api/market/profile         your investing pattern (src/market/patterns.js)
@@ -35,21 +37,9 @@ import { marketProvider } from './providers.js';
  */
 export function createMarket({ db, authenticate, env = process.env, log = () => {}, now = () => Date.now() }) {
   const provider = marketProvider(env);
-  const admins = new Set(String(env.ADMIN_ACCOUNTS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
-  const digest = (v) => createHash('sha256').update(String(v)).digest();
-  const adminPassword = env.ADMIN_PASSWORD ? digest(env.ADMIN_PASSWORD) : null;
-  /** The admin site's id and password (HTTP Basic), checked in constant time; null when wrong or unset. */
-  const adminOf = (req) => {
-    const header = String(req.headers.authorization ?? '');
-    if (!adminPassword || !header.startsWith('Basic ')) return null;
-    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-    const at = decoded.indexOf(':');
-    if (at < 1) return null;
-    const id = decoded.slice(0, at).trim().toLowerCase();
-    const passwordOk = timingSafeEqual(digest(decoded.slice(at + 1)), adminPassword);
-    return passwordOk && admins.has(id) ? id : null;
-  };
-  const limits = { read: new RateLimiter(600, { burst: 120 }), write: new RateLimiter(300, { burst: 60 }), admin: new RateLimiter(120, { burst: 30 }), adminFail: new RateLimiter(10, { burst: 5 }) };
+  const admin = adminAuth(env);
+  const wallet = createWallet(db, { now });
+  const limits = { read: new RateLimiter(600, { burst: 120 }), write: new RateLimiter(300, { burst: 60 }) };
   const YEAR_DAYS = 252;
   const START_CENTS = START_CASH * 100;
 
@@ -268,13 +258,28 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
     });
   }
 
+  /** Money from the wallet into the run: it counts as money put in, not as a gain. */
+  async function deposit(account, { amount }) {
+    const cents = Math.floor(Number(amount));
+    if (!(cents >= 100)) throw refusal('Move at least $1', 400);
+    const run = await activeRun(account.id);
+    if (!run) throw refusal('Start a run first', 409);
+    return db.tx(async () => {
+      await wallet.debit(account.id, cents, 'to stock run', `run:${run.id}`);
+      const cash = Number(run.cash) + cents;
+      await db.run('UPDATE market_runs SET cash = ?, deposits = deposits + ?, updated = ? WHERE id = ?', [cash, cents, now(), run.id]);
+      await snapshot({ ...run, cash }, run.day_index);
+      return { ok: true, amount: cents };
+    });
+  }
+
   /* ---- what a player sees ---- */
 
   async function state(account) {
     const run = account ? await activeRun(account.id) : null;
     const list = await tickers();
     const map = await load();
-    const base = { provider: { id: provider.id, ready: provider.ready }, startCash: START_CENTS, tickers: list.length };
+    const base = { provider: { id: provider.id, ready: provider.ready }, startCash: START_CENTS, tickers: list.length, wallet: account ? await wallet.balance(account.id) : 0 };
     if (!run) {
       const last = account ? await latestRun(account.id) : null;
       return { ...base, run: null, last: last && last.status === 'finished' ? { finalValue: Number(last.final_value), startCash: Number(last.start_cash) } : null };
@@ -302,7 +307,7 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
     const value = await valueAt(run, [...holdings.values()], run.day_index);
     return {
       ...base,
-      run: { id: Number(run.id), dayIndex: run.day_index, days: run.days.length, day, first: run.days[0], last: run.days.at(-1), cash: Number(run.cash), value, startCash: Number(run.start_cash) },
+      run: { id: Number(run.id), dayIndex: run.day_index, days: run.days.length, day, first: run.days[0], last: run.days.at(-1), cash: Number(run.cash), value, startCash: Number(run.start_cash), deposits: Number(run.deposits ?? 0) },
       quotes
     };
   }
@@ -338,7 +343,7 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
       snapshots: h.snapshots.map((s) => ({ day_index: s.dayIndex, cash: s.cash, value: s.value, holdings: s.holdings })),
       closeOf: (symbol, i) => closeOn(map.get(symbol), run.days[Math.max(0, Math.min(run.days.length - 1, i))]),
       sectorOf: (symbol) => sectors.get(symbol) ?? 'Other',
-      startCash: Number(run.start_cash),
+      startCash: Number(run.start_cash) + Number(run.deposits ?? 0),
       dayIndex: index,
       benchmark: BENCHMARK.symbol
     });
@@ -348,7 +353,7 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
   /** Each player's latest run (active or finished), by net worth. */
   async function leaderboard(limit = 100) {
     const rows = await db.many(
-      `SELECT DISTINCT ON (r.account_id) r.id, r.account_id, a.name, r.status, r.day_index, jsonb_array_length(r.days) AS days, r.start_cash, r.final_value,
+      `SELECT DISTINCT ON (r.account_id) r.id, r.account_id, a.name, r.status, r.day_index, jsonb_array_length(r.days) AS days, r.start_cash, r.deposits, r.final_value,
               (SELECT s.value FROM market_snapshots s WHERE s.run_id = r.id ORDER BY s.day_index DESC LIMIT 1) AS value,
               (SELECT COUNT(*) FROM market_trades t WHERE t.run_id = r.id)::int AS trades
          FROM market_runs r JOIN accounts a ON a.id = r.account_id
@@ -358,7 +363,8 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
     return rows
       .map((r) => {
         const value = Number(r.status === 'finished' ? r.final_value : r.value ?? r.start_cash);
-        return { accountId: Number(r.account_id), name: r.name, status: r.status, dayIndex: r.day_index, days: r.days, value, return: value / Number(r.start_cash) - 1, trades: r.trades };
+        const putIn = Number(r.start_cash) + Number(r.deposits ?? 0);
+        return { accountId: Number(r.account_id), name: r.name, status: r.status, dayIndex: r.day_index, days: r.days, value, deposits: Number(r.deposits ?? 0), return: value / putIn - 1, trades: r.trades };
       })
       .sort((a, b) => b.value - a.value)
       .slice(0, limit)
@@ -411,6 +417,7 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
     'POST /api/market/run': ({ account, body }) => db.serial(() => startRun(account, body)).then(() => state(account)),
     'POST /api/market/next': ({ account, body }) => db.serial(() => next(account, body)).then(async (r) => ({ ...r, state: await state(account) })),
     'POST /api/market/trade': ({ account, body }) => db.serial(() => trade(account, body)).then(async (r) => ({ ...r, state: await state(account) })),
+    'POST /api/market/deposit': ({ account, body }) => db.serial(() => deposit(account, body)).then(async (r) => ({ ...r, state: await state(account) })),
     'GET /api/market/bars': ({ account, query }) => bars(account, query.get('symbol')),
     'GET /api/market/history': async ({ account }) => {
       const run = (await activeRun(account.id)) ?? (await latestRun(account.id));
@@ -474,12 +481,7 @@ export function createMarket({ db, authenticate, env = process.env, log = () => 
       let account = null;
       if (adminRoute) {
         // The platform's admin site: its id and password, not a player's session.
-        if (!adminOf(req)) {
-          if (!limits.adminFail.take(ip)) return send(429, { error: 'Too many tries — wait a minute' }), true;
-          res.setHeader('WWW-Authenticate', 'Basic realm="Gamory admin", charset="UTF-8"');
-          return send(401, { error: adminPassword ? 'Admin id and password required' : 'The admin API is off (set ADMIN_ACCOUNTS and ADMIN_PASSWORD)' }), true;
-        }
-        if (!limits.admin.take(ip)) return send(429, { error: 'Slow down' }), true;
+        if (admin.refuse(req, res, send)) return true;
       } else {
         account = await authenticate(req);
         const open = path === '/api/market/state' || path === '/api/market/leaderboard';

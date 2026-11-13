@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -103,6 +103,7 @@ function skyline(kind, r, color) {
  */
 export function coverSvg(game) {
   if (game.card?.cover === 'market') return marketCover(game);
+  if (game.card?.cover === 'work') return workCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -158,5 +159,30 @@ function marketCover(game) {
     ${candles.join('')}
     <polyline points="${line.join(' ')}" fill="none" stroke="#7fd6ff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
     <text x="16" y="164" fill="#e8edf3" font-family="system-ui, sans-serif" font-size="20" font-weight="800">$1,000,000</text>
+  </svg>`;
+}
+
+/** Work Life's cover: an office skyline at dusk, lit windows, a briefcase badge. */
+function workCover(game) {
+  const r = rng(game.id);
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const towers = [];
+  let x = 0;
+  while (x < 320) {
+    const w = 26 + Math.floor(r() * 30);
+    const h = 60 + Math.floor(r() * 100);
+    const y = 180 - h;
+    const windows = [];
+    for (let wy = y + 8; wy < 172; wy += 12) {
+      for (let wx = x + 5; wx < x + w - 6; wx += 9) if (r() > 0.45) windows.push(`<rect x="${wx}" y="${wy}" width="4" height="6" fill="#ffd27a" opacity="${(0.5 + r() * 0.5).toFixed(2)}"/>`);
+    }
+    towers.push(`<rect x="${x}" y="${y}" width="${w - 3}" height="${h}" fill="#17243a"/>${windows.join('')}`);
+    x += w;
+  }
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="wk-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2a5c"/><stop offset="0.6" stop-color="#c0607a"/><stop offset="1" stop-color="#f2a65a"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#wk-${uid})"/>
+    ${towers.join('')}
+    <text x="16" y="34" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="800">💼 9 to 5</text>
   </svg>`;
 }

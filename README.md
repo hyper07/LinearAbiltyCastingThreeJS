@@ -54,6 +54,11 @@ daily stock prices, one trading day at a time, a leaderboard, and a look at how 
 **[Stock Market Challenge](docs/stock-market.md)** (prices from Alpaca with keys in `.env`; an admin API
 for tickers and players, for the platform's admin site).
 
+**💼 Work Life**: a job at one of 500 real companies, in real time — that day's real news about your
+company becomes your tasks (decisions, mini-games, notes the AI grades), pay goes to a wallet the stock
+game can invest, and a yearly review decides raises and promotions; layoff news can reach you. See
+**[Work Life](docs/work-life.md)**.
+
 **Every game keeps its own characters, one per class, per player.** What you earn in one game stays
 in it; a class you have not played there starts at level 1 with nothing, and switching back brings
 your earlier character back. The open arena in **Your hero** keeps its own character too.
@@ -450,6 +455,7 @@ flowchart LR
 | [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
 | [Battle royale](docs/battle-royale.md) | The storm, rivals, solo and squads, players against players, making one, how it works |
 | [Game builder](docs/game-builder.md) | Whole games from a sentence or a few picks: genres, worlds, layouts, casts; the spec, tokens, Free and Plus, the command line |
+| [Work Life](docs/work-life.md) | Jobs at real companies, tasks from their news, pay into the wallet, reviews, promotions and layoffs; the admin API |
 | [Stock Market Challenge](docs/stock-market.md) | A year of real stock prices from a million in game money: trading, the leaderboard, each player's pattern, the admin API, setting up Alpaca |
 | [Inspiration catalog](docs/inspiration.md) | 75 games, manhwa and manga and their 685 characters mapped onto our ids, with links; "a game like X" in the builder, "a class like X" in the forge; the features we lack, ranked |
 | [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |

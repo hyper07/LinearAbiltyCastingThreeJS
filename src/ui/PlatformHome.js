@@ -108,6 +108,7 @@ export class PlatformHome {
     chip('For kids & study', '', true);
     for (const [id, g] of Object.entries(GENRES)) chip(`${GENRE_ICONS[id] ?? ''} ${g.name}`, id);
     chip(`${GENRE_ICONS['market-sim']} Stock market`, 'market-sim');
+    chip(`${GENRE_ICONS['work-sim']} Work life`, 'work-sim');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -277,12 +278,16 @@ export class PlatformHome {
     const named = choices.find((h) => h.id === mine) ?? heroes.find((h) => h.id === mine);
     page.querySelector('[data-play-hero]').textContent = game.engine === 'market'
       ? 'Your own run: a million to start, a year to play, at your pace'
-      : named
+      : game.engine === 'work'
+        ? 'Your own career, in real time: today\'s news is today\'s work'
+        : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (game.engine === 'market') {
+    if (game.engine === 'market' || game.engine === 'work') {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = 'Game money only. Sign in to keep your run and be on the leaderboard.';
+      page.querySelector('.home-page__hint').textContent = game.engine === 'work'
+        ? 'Game money only: your pay goes to your wallet, which the Stock Market Challenge can invest. Sign in to keep your job.'
+        : 'Game money only. Sign in to keep your run and be on the leaderboard.';
     }
     page.querySelector('[data-close]').addEventListener('click', () => this.closePage());
     page.querySelector('[data-play]').addEventListener('click', async (e) => {

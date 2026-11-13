@@ -26,6 +26,9 @@ market — and what kind of investor they are. No real money, ever.
   cannot be traded.
 - **Nobody sees tomorrow.** The server only ever sends a player prices up to their own day, so the
   charts cannot leak what happens next.
+- **Your wallet.** Pay from [Work Life](work-life.md) lands in a wallet; *Portfolio → Add to this run*
+  moves it into your run. Money added counts as money put in: your return is net worth against the
+  million plus what you added.
 - **Tabs:** *Market* (every stock, sortable and searchable; a stock's chart and the order box),
   *Portfolio* (your net worth against the market — SPY, indexed to the same million — what you own
   and your trades), *Leaderboard* (each player's latest year by net worth, with their day), *My style*

@@ -38,6 +38,14 @@ export const ENGINE_GAMES = [
     engine: 'market',
     genre: 'market-sim',
     card: { genre: 'market-sim', genreName: 'Stock market', cover: 'market', badge: 'NEW' }
+  },
+  {
+    id: 'official:work-life',
+    title: 'Work Life',
+    summary: 'Apply for a job at one of 500 real companies. Every day, real news about your company becomes your work: decisions, mini-games and notes to write. Get paid, earn bonuses, face your yearly review — and survive the layoffs.',
+    engine: 'work',
+    genre: 'work-sim',
+    card: { genre: 'work-sim', genreName: 'Work life', cover: 'work', badge: 'NEW' }
   }
 ];
 const MAX_LEVELS = 12;

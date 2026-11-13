@@ -13,6 +13,7 @@ import { run as builder } from './builder.mjs';
 import { run as home } from './home.mjs';
 import { run as royale } from './royale.mjs';
 import { run as market } from './market.mjs';
+import { run as work } from './work.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -32,7 +33,7 @@ if (!process.env.BASE_URL) {
   dataDir = await mkdtemp(join(tmpdir(), 'gamory-e2e-'));
   server = spawn(process.execPath, [resolve('server/server.js')], {
     // The stock game on made-up prices, with a test admin id and password, so the tests need no keys.
-    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '', MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'test-admin-pass' },
+    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '', MARKET_PROVIDER: 'fixture', WORK_NEWS_PROVIDER: 'fixture', WORK_AI: 'off', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'test-admin-pass' },
     stdio: ['ignore', 'pipe', 'inherit']
   });
   process.env.BASE_URL = `http://127.0.0.1:${port}/`;
@@ -49,7 +50,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);

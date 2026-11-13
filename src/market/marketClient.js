@@ -19,7 +19,8 @@ export const market = {
   bars: (symbol) => call(`bars?symbol=${encodeURIComponent(symbol)}`),
   history: () => call('history'),
   profile: () => call('profile'),
-  leaderboard: () => call('leaderboard')
+  leaderboard: () => call('leaderboard'),
+  deposit: (amount) => call('deposit', { method: 'POST', body: { amount } })
 };
 
 /** $1,234,567 from cents (no cents shown past a thousand). */

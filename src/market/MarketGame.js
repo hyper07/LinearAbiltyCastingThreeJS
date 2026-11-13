@@ -107,7 +107,7 @@ export class MarketGame {
     }
     const r = s.run;
     clock.textContent = `Day ${r.dayIndex + 1} of ${r.days} · ${dateWords(r.day)}`;
-    const ret = r.value / r.startCash - 1;
+    const ret = r.value / (r.startCash + (r.deposits ?? 0)) - 1;
     const stat = (label, value, cls = '') => {
       const box = el('div', `mk__stat ${cls}`);
       box.append(el('small', null, label), el('strong', null, value));
@@ -373,7 +373,33 @@ export class MarketGame {
     }
     if (!held.length) table.append(row(el('td', 'mk__muted', 'Nothing yet: pick a stock in Market and press Buy.')));
     const trades = el('ol', 'mk__trades');
-    body.append(el('h3', 'mk__h', 'Your money against the market'), chart, top, el('h3', 'mk__h', 'What you own'), table, el('h3', 'mk__h', 'Your trades'), trades);
+    // Money from the wallet (pay from Work Life) into this run.
+    const fund = el('div', 'mk__order');
+    fund.dataset.wallet = '';
+    fund.append(el('span', null, `Wallet: ${money(this.state.wallet ?? 0)}`), el('small', 'mk__muted', r.deposits ? ` · added to this run so far: ${money(r.deposits)}` : ' · your pay from Work Life'));
+    if ((this.state.wallet ?? 0) >= 100) {
+      const amount = el('input', 'mk__qty');
+      amount.type = 'number';
+      amount.min = '1';
+      amount.value = String(Math.floor((this.state.wallet ?? 0) / 100));
+      amount.setAttribute('aria-label', 'Dollars to add');
+      const add = button('Add to this run', 'mk__btn mk__btn--primary', async () => {
+        add.disabled = true;
+        try {
+          const res = await market.deposit(Math.round(Number(amount.value) * 100));
+          this.state = res.state;
+          this.say(`Added ${money(res.amount)} from your wallet.`, 'is-ok');
+          this.renderHead();
+          await this.renderBody();
+        } catch (error) {
+          add.disabled = false;
+          this.say(error.message, 'is-error');
+        }
+      });
+      add.dataset.deposit = '';
+      fund.append(amount, add);
+    }
+    body.append(el('h3', 'mk__h', 'Your money against the market'), chart, top, fund, el('h3', 'mk__h', 'What you own'), table, el('h3', 'mk__h', 'Your trades'), trades);
 
     const [{ snapshots, trades: list }, spy] = await Promise.all([market.history(), market.bars('SPY').catch(() => ({ bars: [] }))]);
     const start = r.startCash;
