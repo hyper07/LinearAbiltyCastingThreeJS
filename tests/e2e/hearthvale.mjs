@@ -81,6 +81,7 @@ export async function run(browser, { shots = null } = {}) {
     t.check('the landscape is alive: hills, grass, flowers, birds, an hour of the day', await page.evaluate(() => {
       const l = window.hearthvale.view.land;
       const grass = l.group.children.find((c) => c.isInstancedMesh && c.count > 1000);
+      if (!l.giantTrees?.length || !l.kicks?.length || window.hearthvale.view.gates.length !== 2) return false;
       return Boolean(grass) && l.patches.length > 0 && l.flocks.length > 0 && ['Dawn', 'Day', 'Dusk', 'Night'].includes(l.hour) && Math.abs(window.hearthvale.view.h(22, 52)) > 0.2;
     }));
         t.check('characters start with seed money', await page.evaluate(() => window.hearthvale.ch.gold === 100));

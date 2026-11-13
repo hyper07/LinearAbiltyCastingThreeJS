@@ -129,7 +129,9 @@ export function normalizeLevel(raw = {}) {
       timeOfDay: pick(world.timeOfDay, TIME_OPTIONS, 'day'),
       fog: clamp(world.fog, 0, 1, 0.3),
       seed: Math.abs(num(world.seed, (Math.random() * 1e9) | 0)) | 0,
-      terrain: world.terrain && typeof world.terrain === 'object' ? world.terrain : {}
+      terrain: world.terrain && typeof world.terrain === 'object' ? world.terrain : {},
+      // The living landscape (world/LivingLand.js) is on unless a level turns it off.
+      ...(world.life === false ? { life: false } : {})
     },
     objects: (Array.isArray(raw.objects) ? raw.objects : [])
       .filter((o) => o && typeof o.model === 'string')

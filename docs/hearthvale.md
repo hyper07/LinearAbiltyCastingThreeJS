@@ -43,7 +43,16 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   turns gold, at night come stars, fireflies and lit lanterns by the stalls and gates (the hour is
   shown beside the zone's name). The Ashfen is misty; in the crypt dust drifts and torches flicker,
   and embers rise in the Ember Spire. A tree between you and the camera steps out of the way.
-  All of it is drawn by the browser (`src/mmo/landscape.js`); the server's world stays flat and fair.
+  **Logs and boulders** roll away when you (or a monster) walk into them, and a log that ends up in a
+  pond floats. **Waterfalls** pour off cliffs into the Greenfold's lake and an Ashfen pool: stand
+  under one and the spray grows. The **Elder Baobab** — a giant bottle-trunked tree — sheds leaves,
+  shakes its crown when someone passes under, and its fruit glows at night. **Snow-capped mountains**
+  ring every zone, too far to ever reach. **Gateways** between zones are rune-carved stone arches
+  around a whirl of light (blue for a road, violet where a level is asked, ember-red for a dungeon or
+  the raid), with a rune circle turning on the ground and sparks drawn in; they brighten as you near.
+  All of it is drawn by the browser (`src/world/LivingLand.js`, set up per zone in
+  `src/mmo/landscape.js`); the server's world stays flat and fair — only the baobabs and cliffs are
+  walls there too. Where each player's logs have rolled is their own.
 - **Bosses** warn before they hit: a red circle grows on the ground where a slam or a burst will land
   — get out of it. Some call adds; some grow enraged when they're nearly down.
 - **Money and stores.** Every character starts with **100 gold** (characters made before then got it

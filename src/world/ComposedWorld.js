@@ -14,6 +14,7 @@ import { CATEGORIES } from '../library/categories.js';
 import { normalizeLevel } from '../levels/Level.js';
 import { Terrain, mulberry32 } from './Terrain.js';
 import { PropLights } from './PropLights.js';
+import { LivingLand } from './LivingLand.js';
 
 /**
  * A battlefield assembled from the asset library — from a level file (hand-made
@@ -304,6 +305,10 @@ export class ComposedWorld {
     this.obstacles.length = 0;
     this.obstacles.push(...ComposedWorld.colliders(placements));
 
+    // The living part (LivingLand.js): what suits this ground, edge, relief and hour.
+    this.life = ComposedWorld.lifeFor(world, this.terrain, this.obstacles);
+    if (this.life) this.group.add(this.life.group);
+
     this.stats = {
       placements: placements.length,
       models: used.size,
@@ -461,6 +466,70 @@ export class ComposedWorld {
 
   update(dt, time) {
     this.propLights.update(time ?? 0);
+    // `actors` (the player first, then whoever is near) is set by the game each frame.
+    const [me, ...others] = this.actors?.length ? this.actors : [{ x: 0, z: 0, moving: false }];
+    this.life?.update(Math.min(0.1, dt || 0.016), me, others, null);
+  }
+
+  /**
+   * The living landscape for a world, from what the level already says:
+   *
+   *   grass ground          grass (short in the fight, thick outside), flowers, butterflies, birds
+   *   dirt or moss          thin grass, birds
+   *   any open ground       logs and boulders to walk into
+   *   a forest edge         a giant tree in the outskirts
+   *   hills, a valley, mountains or a canyon (on green ground)   a waterfall there too
+   *   dusk or night         fireflies (and the giant tree's fruit glows)
+   *
+   * Nothing here blocks the way or changes the fight. A level can say
+   * `world.life: false` to have none of it.
+   */
+  static lifeFor(world, terrain, obstacles = []) {
+    if (world.life === false || typeof document === 'undefined') return null;
+    const green = world.ground === 'grass';
+    const earthy = ['dirt', 'moss', 'mud'].includes(world.ground);
+    const open = green || earthy || ['sand', 'snow', 'gravel', 'rock'].includes(world.ground);
+    if (!open) return null;
+    const R = settings.ruins.wallRadius;
+    const reach = 62;
+    const rand = mulberry32((world.seed ?? 1) ^ 0x51f3);
+    const at = (dist) => {
+      const a = rand() * Math.PI * 2;
+      return { x: Math.cos(a) * dist, z: Math.sin(a) * dist, a };
+    };
+    const giants = [];
+    const waterfalls = [];
+    if ((green || earthy) && world.edge === 'forest') {
+      const g = at(R + 16 + rand() * 8);
+      giants.push({ x: g.x, z: g.z, r: 3.6 });
+    }
+    if (green && ['hills', 'valley', 'mountains', 'canyon'].includes(world.relief)) {
+      const w = at(R + 13 + rand() * 6);
+      // Facing the middle, so the fight sees it.
+      waterfalls.push({ x: w.x, z: w.z, face: Math.atan2(-w.x, -w.z), height: 9 });
+    }
+    const dark = world.timeOfDay === 'night' ? 1 : world.timeOfDay === 'dusk' ? 0.6 : 0;
+    return new LivingLand({
+      seed: `world-${world.seed ?? 1}`,
+      bounds: [-reach, -reach, reach, reach],
+      height: (x, z) => terrain.heightAt(x, z),
+      // Not in a prop, not on a slope too steep to grow on, not beyond the skyline ring.
+      free: (x, z, pad = 0) => {
+        if (Math.hypot(x, z) > reach) return false;
+        for (const o of obstacles) if (Math.hypot(o.x - x, o.z - z) < o.radius + 0.5 + pad) return false;
+        return Math.abs(terrain.heightAt(x + 1, z) - terrain.heightAt(x, z)) < 0.8;
+      },
+      ground: { grass: '#5d8a3c', dirt: '#6f7a45', moss: '#5f7d3a', mud: '#5a5f3a' }[world.ground] ?? '#5d8a3c',
+      // Short and thin where the fight is, so nothing on the ground is hidden.
+      grass: green || earthy ? { density: green ? 0.55 : 0.2, scale: 0.9, thin: (x, z) => (Math.hypot(x, z) < R ? 0.3 : 1) } : null,
+      flowers: green,
+      birds: green || earthy,
+      kickables: 10,
+      giants,
+      waterfalls,
+      mist: world.fog > 0.6,
+      sky: dark ? { night: dark } : null
+    });
   }
 
   clear() {
@@ -468,6 +537,11 @@ export class ComposedWorld {
     if (this._instances) this.library.release(this._instances);
     this._instances = null;
     this.terrain.mesh?.removeFromParent();
+    if (this.life) {
+      this.life.group.removeFromParent();
+      this.life.dispose();
+      this.life = null;
+    }
     if (this._envBackup) Object.assign(settings.environment, this._envBackup);
     this._envBackup = null;
     if (this._postBackup) Object.assign(settings.post, this._postBackup);

@@ -32,6 +32,7 @@ export const ZONES = {
     walls: [
       { x: 30, z: 30, r: 8, kind: 'house' }, { x: 90, z: 30, r: 8, kind: 'house' }, { x: 26, z: 80, r: 7, kind: 'house' },
       { x: 95, z: 92, r: 7, kind: 'house' }, { x: 60, z: 60, r: 4, kind: 'well' }, { x: 40, z: 100, r: 6, kind: 'house' },
+      { x: 96, z: 58, r: 3.2, kind: 'giant' },
       { x: 52, z: 80.6, r: 2.2, kind: 'stall', sign: 'Provisioner', color: '#3f8f4a', face: 0 },
       { x: 68, z: 80.6, r: 2.2, kind: 'stall', sign: 'Bank', color: '#3a5fa8', face: 0 },
       { x: 78, z: 48.6, r: 2.2, kind: 'stall', sign: 'Smithy', color: '#a8553a', face: 0 },
@@ -64,7 +65,9 @@ export const ZONES = {
       { x: 60, z: 200, r: 7, kind: 'rock' }, { x: 180, z: 205, r: 6, kind: 'trees' }, { x: 40, z: 120, r: 9, kind: 'trees' },
       { x: 150, z: 120, r: 8, kind: 'rock' }, { x: 205, z: 140, r: 10, kind: 'trees' }, { x: 90, z: 95, r: 6, kind: 'rock' },
       { x: 60, z: 60, r: 7, kind: 'trees' }, { x: 140, z: 30, r: 7, kind: 'rock' }, { x: 200, z: 60, r: 8, kind: 'trees' },
-      { x: 120, z: 140, r: 5, kind: 'rock' }, { x: 30, z: 30, r: 9, kind: 'trees' }, { x: 225, z: 215, r: 8, kind: 'trees' }
+      { x: 120, z: 140, r: 5, kind: 'rock' }, { x: 30, z: 30, r: 9, kind: 'trees' }, { x: 225, z: 215, r: 8, kind: 'trees' },
+      // Landmarks (drawn by the landscape): a waterfall into the lake, and the Elder Baobab.
+      { x: 172, z: 32.5, r: 5, kind: 'cliff', face: 0, tall: 11 }, { x: 98, z: 150, r: 4.6, kind: 'giant' }
     ],
     spawns: [
       { mob: 'rattler', at: [100, 185], radius: 18, count: 8 },
@@ -94,7 +97,8 @@ export const ZONES = {
     spawn: [20, 120], graveyard: [24, 120],
     walls: [
       { x: 70, z: 70, r: 9, kind: 'trees' }, { x: 120, z: 200, r: 8, kind: 'rock' }, { x: 160, z: 100, r: 10, kind: 'trees' },
-      { x: 90, z: 140, r: 6, kind: 'rock' }, { x: 210, z: 180, r: 9, kind: 'rock' }, { x: 40, z: 30, r: 8, kind: 'trees' }
+      { x: 90, z: 140, r: 6, kind: 'rock' }, { x: 210, z: 180, r: 9, kind: 'rock' }, { x: 40, z: 30, r: 8, kind: 'trees' },
+      { x: 130, z: 49, r: 5, kind: 'cliff', face: 0, tall: 9 }, { x: 126, z: 126, r: 5.2, kind: 'giant' }
     ],
     spawns: [
       { mob: 'fen_lurker', at: [70, 180], radius: 20, count: 9 },

@@ -356,4 +356,7 @@ test('the landscape\'s hills: the same every time, flat indoors, a bowl where a 
   let steep = 0;
   for (let x = 5; x < 235; x += 3) steep = Math.max(steep, Math.abs(a(x + 1, 120) - a(x, 120)));
   assert.ok(steep < 0.6, `gentle slopes (${steep.toFixed(2)} a metre)`);
+  // Landmarks block the way on the server too: nobody walks through the baobab or the cliff.
+  for (const [id, z] of Object.entries(ZONES)) for (const w of z.walls.filter((x) => x.kind === 'giant' || x.kind === 'cliff')) assert.equal(walkableIn(id, w.x, w.z), false, `${id} ${w.kind}`);
+  assert.ok(ZONES.greenfold.walls.some((w) => w.kind === 'giant') && ZONES.greenfold.walls.some((w) => w.kind === 'cliff'));
 });

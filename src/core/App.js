@@ -2991,6 +2991,14 @@ export class App {
       }
 
       this.ground.update(this.elapsed);
+      // Who is walking where: the living landscape answers (grass bends, birds fly, logs roll).
+      if (this.world === this.composed && this.composed.life) {
+        const me = this.character.position;
+        const moving = this._lifeAt ? Math.hypot(me.x - this._lifeAt.x, me.z - this._lifeAt.z) > 0.005 : false;
+        this._lifeAt = { x: me.x, z: me.z };
+        const near = (this.monsters?.active ?? []).filter((m) => m.position && Math.hypot(m.position.x - me.x, m.position.z - me.z) < 30).slice(0, 7);
+        this.composed.actors = [{ x: me.x, z: me.z, moving }, ...near.map((m) => ({ x: m.position.x, z: m.position.z }))];
+      }
       this.world.update(dt, this.elapsed);
       this.dust.update(this.elapsed, this.character.position);
 

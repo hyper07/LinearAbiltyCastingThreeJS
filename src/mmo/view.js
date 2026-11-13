@@ -43,7 +43,7 @@ export class MmoView {
     this.canvas.className = 'hv__canvas';
     host.prepend(this.canvas);
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(55, 1, 0.3, 500);
+    this.camera = new THREE.PerspectiveCamera(55, 1, 0.3, 1200);
     this.yaw = Math.PI;
     this.pitch = 0.5;
     this.dist = 13;
@@ -160,6 +160,7 @@ export class MmoView {
       }
     }
     this.torches = this.torches?.filter((t) => t.parent === g) ?? [];
+    this.gates = [];
     const stand = (o) => {
       o.position.y += this.h(o.position.x, o.position.z);
       return o;
@@ -169,7 +170,7 @@ export class MmoView {
     for (const p of def.portals) g.add(stand(this._portal(p)));
     // The living part: grass, water, birds, the sky (or, indoors, dust and torchlight).
     this.land?.dispose();
-    this.land = new Landscape(zone, this.h);
+    this.land = Landscape(zone, this.h);
     g.add(this.land.group);
     // Scattered trees and rocks outside the paths, for the open zones.
     this.decor = [];
@@ -212,6 +213,9 @@ export class MmoView {
         tree.scale.setScalar(0.9 + (i % 4) * 0.15);
         g.add(tree);
       }
+    } else if (wall.kind === 'cliff' || wall.kind === 'giant') {
+      // The landscape draws these (a waterfall, a giant tree); here they only block the way.
+      return g;
     } else if (wall.kind === 'stall') {
       // A market stall: a counter, four posts, a striped awning, a painted sign.
       const wood = mat('#8a6a4a');
@@ -329,19 +333,143 @@ export class MmoView {
     return g;
   }
 
+  /**
+   * A gateway: a stone arch carved with glowing runes around a whirling
+   * oval of light, a rune circle turning on the ground, and sparks drawn
+   * into it. Blue for a road, violet where a level is asked, ember-red
+   * for a dungeon or a raid. It brightens as you come near.
+   */
   _portal(p) {
     const g = new THREE.Group();
     g.position.set(p.at[0], 0, p.at[1]);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.25, 8, 32), new THREE.MeshStandardMaterial({ color: '#8a8a94', roughness: 0.6 }));
-    ring.position.y = 2.6;
-    const veil = new THREE.Mesh(new THREE.CircleGeometry(2.2, 32), new THREE.MeshBasicMaterial({ color: p.level ? '#b48cff' : '#7fd6ff', transparent: true, opacity: 0.45, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
-    veil.position.y = 2.6;
-    veil.userData.spin = true;
+    const kind = ZONES[p.to]?.kind;
+    const tone = new THREE.Color(kind === 'dungeon' || kind === 'raid' ? '#ff5a2a' : p.level ? '#a070ff' : '#4aa8ff');
+    const stone = new THREE.MeshStandardMaterial({ color: '#77736b', roughness: 0.95, flatShading: true });
+    const rune = new THREE.MeshBasicMaterial({ color: tone });
+    // Two pillars of rough blocks and an arch of wedge stones over them.
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 4; i++) {
+        const block = new THREE.Mesh(new THREE.BoxGeometry(1.1 - i * 0.05, 1.05, 1.2 - i * 0.05), stone);
+        block.position.set(side * 2.3, 0.52 + i * 1.05, 0);
+        block.rotation.y = (i % 2 ? 0.08 : -0.06) * side;
+        block.castShadow = true;
+        g.add(block);
+        const mark = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.06), rune);
+        mark.position.set(side * 2.3, 0.6 + i * 1.05, 0.62);
+        mark.rotation.z = (i * 0.9 + side) % 1.2;
+        g.add(mark);
+      }
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 1.7), stone);
+      foot.position.set(side * 2.3, 0.2, 0);
+      g.add(foot);
+    }
+    for (let i = 0; i <= 8; i++) {
+      const a = (i / 8) * Math.PI;
+      const wedge = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.95, 1.15), stone);
+      wedge.position.set(Math.cos(a) * 2.3, 4.2 + Math.sin(a) * 1.9, 0);
+      wedge.rotation.z = a - Math.PI / 2;
+      wedge.castShadow = true;
+      g.add(wedge);
+    }
+    const key = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), rune);
+    key.position.set(0, 6.75, 0);
+    g.add(key);
+    // The whirl of light inside.
+    const uniforms = { uTime: { value: 0 }, uTone: { value: tone }, uNear: { value: 0 } };
+    const veil = new THREE.Mesh(new THREE.PlaneGeometry(4.3, 6.2), new THREE.ShaderMaterial({
+      uniforms,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `
+        uniform float uTime; uniform vec3 uTone; uniform float uNear; varying vec2 vUv;
+        void main() {
+          vec2 p = (vUv - 0.5) * 2.0;
+          float r = length(p);
+          float a = atan(p.y, p.x);
+          // Arms of light winding into the middle, two speeds over each other.
+          float arms = sin(a * 3.0 + r * 9.0 - uTime * 3.2) * 0.5 + 0.5;
+          float fine = sin(a * 7.0 - r * 16.0 + uTime * 2.1) * 0.5 + 0.5;
+          float ripple = sin(r * 22.0 - uTime * 5.0) * 0.5 + 0.5;
+          float edge = smoothstep(1.0, 0.72, r);
+          float core = pow(max(0.0, 1.0 - r), 2.2);
+          float light = (0.25 + arms * 0.55 + fine * 0.25 + ripple * 0.12) * edge + core * 1.6;
+          vec3 col = mix(uTone, vec3(1.0), core * 0.85 + fine * 0.12) * light * (0.8 + uNear * 0.6);
+          gl_FragColor = vec4(col, edge * (0.75 + uNear * 0.25));
+        }`
+    }));
+    veil.position.y = 3.25;
+    g.add(veil);
+    // A circle of runes turning on the ground in front.
+    const cvs = document.createElement('canvas');
+    cvs.width = cvs.height = 256;
+    const c = cvs.getContext('2d');
+    c.strokeStyle = '#fff';
+    c.fillStyle = '#fff';
+    c.lineWidth = 5;
+    for (const r of [118, 96]) {
+      c.beginPath();
+      c.arc(128, 128, r, 0, Math.PI * 2);
+      c.stroke();
+    }
+    c.font = '700 22px serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    [...'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊ'].forEach((ch, i, all) => {
+      const a = (i / all.length) * Math.PI * 2;
+      c.save();
+      c.translate(128 + Math.cos(a) * 107, 128 + Math.sin(a) * 107);
+      c.rotate(a + Math.PI / 2);
+      c.fillText(ch, 0, 0);
+      c.restore();
+    });
+    c.beginPath();
+    for (let i = 0; i < 6; i++) c.lineTo(128 + Math.cos((i * 2.094) % 6.283 + i) * 90, 128 + Math.sin((i * 2.094) % 6.283 + i) * 90);
+    c.closePath();
+    c.lineWidth = 3;
+    c.stroke();
+    const circle = new THREE.Mesh(new THREE.CircleGeometry(3.4, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cvs), color: tone, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+    circle.position.set(0, 0.12, 2.2);
+    g.add(circle);
+    // Sparks, drawn in.
+    const n = 46;
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
+    const sparks = new THREE.Points(sg, new THREE.PointsMaterial({ color: tone.clone().lerp(new THREE.Color('#ffffff'), 0.5), size: 0.16, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+    sparks.frustumCulled = false;
+    g.add(sparks);
+    const light = new THREE.PointLight(tone, 14, 22, 1.6);
+    light.position.set(0, 3.2, 1.2);
+    g.add(light);
     // Face the middle of the zone.
     const [w, h] = ZONES[this.zone].size;
     g.rotation.y = Math.atan2(w / 2 - p.at[0], h / 2 - p.at[1]);
-    g.add(ring, veil);
+    (this.gates ??= []).push({ at: p.at, uniforms, circle, sparks, light, key, seeds: Array.from({ length: n }, (_, i) => [i * 2.4, (i * 0.37) % 1, 0.5 + ((i * 0.61) % 1)]) });
     return g;
+  }
+
+  /** The gateways' own life: the whirl, the turning runes, the sparks; brighter as you near. */
+  _gates(dt, me) {
+    for (const gate of this.gates ?? []) {
+      const d = Math.hypot(me.x - gate.at[0], me.z - gate.at[1]);
+      const near = Math.max(0, Math.min(1, 1 - (d - 4) / 14));
+      gate.uniforms.uTime.value = this.time;
+      gate.uniforms.uNear.value += (near - gate.uniforms.uNear.value) * Math.min(1, dt * 4);
+      gate.circle.rotation.y -= dt * (0.4 + near * 1.2);
+      gate.key.rotation.y += dt * 2;
+      gate.key.position.y = 6.75 + Math.sin(this.time * 2) * 0.15;
+      gate.light.intensity = 10 + near * 16 + Math.sin(this.time * 6) * 1.5;
+      const p = gate.sparks.geometry.attributes.position;
+      gate.seeds.forEach(([a, ph, sp], i) => {
+        const t = (this.time * 0.35 * sp + ph) % 1;
+        const r = (1 - t) * 3.4;
+        const ang = a + t * 7;
+        p.setXYZ(i, Math.cos(ang) * r * 0.62, 3.25 + Math.sin(ang) * r * 0.9, 0.15 + (1 - t) * 1.6);
+      });
+      p.needsUpdate = true;
+    }
   }
 
   /* ------------------------------------------------------- characters */
@@ -490,6 +618,7 @@ export class MmoView {
     this.sun.position.set(tx + 30, gy + 60, tz + 20);
     this.sun.target.position.set(tx, gy, tz);
     this.sun.target.updateMatrixWorld();
+    this._gates(dt, me);
     // A tree standing between you and the camera steps out of the way.
     for (const t of this.decor ?? []) {
       const dx = cx - tx;
