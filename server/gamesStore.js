@@ -62,6 +62,14 @@ export const ENGINE_GAMES = [
     engine: 'moba',
     genre: 'arena',
     card: { genre: 'arena', genreName: 'Battle arena', cover: 'moba', badge: 'NEW' }
+  },
+  {
+    id: 'official:hearthvale',
+    title: 'Hearthvale',
+    summary: 'An online adventure in small groups: four classes, quests from the people of Hearthvale, a dungeon for five and a raid for eight, guilds, trading, gathering and crafting. Your character is kept on your account.',
+    engine: 'mmo',
+    genre: 'mmorpg',
+    card: { genre: 'mmorpg', genreName: 'Online RPG', cover: 'mmo', badge: 'NEW' }
   }
 ];
 const MAX_LEVELS = 12;

@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -106,6 +106,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'work') return workCover(game);
   if (game.card?.cover === 'rts') return rtsCover(game);
   if (game.card?.cover === 'moba') return mobaCover(game);
+  if (game.card?.cover === 'mmo') return mmoCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -230,5 +231,20 @@ function mobaCover(game) {
     <path d="M40 142 l10 14 -10 14 -10 -14z" fill="#3d8bff"/><path d="M280 4 l10 14 -10 14 -10 -14z" fill="#ef4f4f"/>
     <g fill="#ffd27a"><circle cx="150" cy="88" r="4"/><circle cx="170" cy="78" r="4"/></g>
     <text x="60" y="118" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="800">⚔ Lanebreak</text>
+  </svg>`;
+}
+
+/** Hearthvale's cover: a town at dusk under a hill, a road to a glowing gate. */
+function mmoCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const houses = [[30, 120], [72, 128], [112, 118], [210, 124], [252, 130]].map(([x, y]) => `<rect x="${x}" y="${y}" width="30" height="24" fill="#d8c8a8"/><path d="M${x - 4} ${y} L${x + 15} ${y - 16} L${x + 34} ${y}Z" fill="#8a4a3a"/><rect x="${x + 11}" y="${y + 10}" width="8" height="14" fill="#5a3a2a"/><rect x="${x + 3}" y="${y + 6}" width="6" height="5" fill="#ffd27a"/>`).join('');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="hv-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2350"/><stop offset=".65" stop-color="#b8607a"/><stop offset="1" stop-color="#e8a86a"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#hv-${uid})"/>
+    <path d="M0 120 Q90 70 170 100 T320 90 V180 H0Z" fill="#3d5a34"/>
+    <path d="M150 180 Q160 140 168 104" stroke="#b49a6a" stroke-width="10" fill="none"/>
+    <ellipse cx="168" cy="96" rx="11" ry="14" fill="#7fd6ff" opacity=".85"/>
+    ${houses}
+    <text x="16" y="34" fill="#ffe8b8" font-family="system-ui, sans-serif" font-size="22" font-weight="800">🏰 Hearthvale</text>
   </svg>`;
 }

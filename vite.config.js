@@ -12,6 +12,7 @@ import { createGameServices } from './server/game/index.js';
 import { openDatabase } from './server/db/database.js';
 import { createMarket } from './server/market/index.js';
 import { createWork } from './server/work/index.js';
+import { createMmo } from './server/mmo/index.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -128,6 +129,25 @@ function workApi(env, getDb, getGame) {
     work ??= Promise.all([getDb(), getGame()]).then(([db, game]) => createWork({ db, env, authenticate: (r) => game.authenticate(r), log: (line) => console.log(line) }));
     return (await work).handler(req, res);
   });
+}
+
+/** Hearthvale: its character API (/api/mmo) and its worlds (WebSocket /mmo), run by the dev server. */
+function mmoApi(env, getDb, getGame) {
+  let mmo = null;
+  const get = () => (mmo ??= Promise.all([getDb(), getGame()]).then(([db, game]) => createMmo({ db, authenticate: (r) => game.authenticate(r), log: (line) => console.log(line) })));
+  const http = mount('mmo', async (req, res) => {
+    const path = (req.url ?? '').split('?')[0];
+    if (!path.startsWith('/api/mmo/')) return false;
+    return (await get()).handler(req, res);
+  });
+  const attach = (server) => {
+    server.httpServer?.on('upgrade', (req, socket, head) => {
+      if ((req.url ?? '').split('?')[0] !== '/mmo') return;
+      get().then((m) => m.handleUpgrade(req, socket, head));
+    });
+    server.httpServer?.on('close', () => mmo?.then((m) => m.close()));
+  };
+  return [http, { name: 'mmo-worlds', configureServer: attach, configurePreviewServer: attach }];
 }
 
 /** Playing together: the room server on the same port, at /ws. */
@@ -276,6 +296,7 @@ export default defineConfig(({ mode }) => {
       gameApi(getGame),
       marketApi({ ...process.env, ...env }, getDb, getGame),
       workApi({ ...process.env, ...env }, getDb, getGame),
+      ...mmoApi({ ...process.env, ...env }, getDb, getGame),
       realtime({ ...process.env, ...env }, getGame),
       { name: 'level-dir', configurePreviewServer: () => void (levelDir = () => resolve('dist', 'levels')) }
     ]

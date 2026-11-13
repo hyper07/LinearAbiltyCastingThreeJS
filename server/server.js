@@ -13,6 +13,7 @@ import { createGameServices } from './game/index.js';
 import { openDatabase } from './db/database.js';
 import { createMarket } from './market/index.js';
 import { createWork } from './work/index.js';
+import { createMmo } from './mmo/index.js';
 
 /**
  * The production server: one process that serves the built game and
@@ -20,6 +21,7 @@ import { createWork } from './work/index.js';
  *
  *   /                 the built client (dist/), precompressed and cached
  *   /ws               playing together — rooms and relay (realtime.js)
+ *   /mmo              Hearthvale's worlds, run here (mmo/index.js); /api/mmo/* its characters
  *   /api/account/*    accounts and sessions (game/accounts.js)
  *   /api/game/*       characters, loot, shops — the server decides (game/authority.js)
  *   /api/ai/*         the AI bridge: the model key stays here (api/ai.js)
@@ -104,6 +106,7 @@ const library = new LibraryStore(database);
 const games = new GamesStore(database, levels);
 const market = createMarket({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const work = createWork({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
+const mmo = createMmo({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => console.log(line) });
 const api = chain([
   game.handler,
@@ -114,6 +117,7 @@ const api = chain([
   gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req) }),
   market.handler,
   work.handler,
+  mmo.handler,
   async (req, res) => (pathOf(req).startsWith('/api/models') ? models.handle(req, res) : false)
 ]);
 
@@ -243,7 +247,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.on('upgrade', (req, socket, head) => {
-  if (!realtime.handleUpgrade(req, socket, head)) socket.destroy();
+  if (!realtime.handleUpgrade(req, socket, head) && !mmo.handleUpgrade(req, socket, head)) socket.destroy();
 });
 // Browsers keep sockets open; a short keep-alive timeout frees them behind a proxy.
 server.keepAliveTimeout = 65_000;
@@ -263,8 +267,10 @@ server.listen(PORT, HOST, () => {
 function shutdown(signal) {
   console.log(`[gamory] ${signal}: shutting down`);
   realtime.close();
+  // Hearthvale saves everyone who is playing before the database closes.
+  const saved = mmo.close().catch(() => {});
   server.close(() => {
-    database.close().finally(() => process.exit(0));
+    saved.finally(() => database.close().finally(() => process.exit(0)));
   });
   setTimeout(() => process.exit(0), 5000).unref();
 }

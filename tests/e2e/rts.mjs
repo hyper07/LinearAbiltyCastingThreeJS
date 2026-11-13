@@ -92,7 +92,7 @@ export async function run(browser, { shots = null } = {}) {
           const z0 = c.z0 + dz;
           if (!sim.canPlace(0, 'depot', x0, z0)) continue;
           const p = view.toScreen((x0 + 1) * 2, 0.5, (z0 + 1) * 2);
-          if (p.x > 40 && p.y > 60 && p.x < view.width - 40 && p.y < view.height - 230) return { x: r.left + p.x, y: r.top + p.y };
+          if (p.x > 60 && p.y > 150 && p.x < view.width - 60 && p.y < view.height - 60) return { x: r.left + p.x, y: r.top + p.y };
         }
       }
       return null;

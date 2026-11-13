@@ -1404,6 +1404,7 @@ export class App {
     if (game.engine === 'work') return this.openWork(game);
     if (game.engine === 'rts') return this.openRts(game);
     if (game.engine === 'moba') return this.openMoba(game);
+    if (game.engine === 'mmo') return this.openMmo(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1455,6 +1456,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new MobaGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Hearthvale, the online RPG: its own screen and 3D view; the server runs its worlds. */
+  async openMmo(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { MmoGame } = await import('../mmo/MmoGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new MmoGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
