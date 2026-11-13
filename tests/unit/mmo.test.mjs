@@ -342,3 +342,18 @@ test('Hearthvale has people: shopkeepers face the square, villagers walk their r
     await db.close();
   }
 });
+
+test('the landscape\'s hills: the same every time, flat indoors, a bowl where a pond is', async () => {
+  const { heightFn } = await import('../../src/mmo/landscape.js').catch(() => ({}));
+  if (!heightFn) return; // needs three: skipped where it isn't installed
+  const a = heightFn('greenfold');
+  const b = heightFn('greenfold');
+  assert.equal(a(100, 100), b(100, 100));
+  assert.equal(heightFn('crypt')(30, 100), 0);
+  const pond = a.ponds[0];
+  assert.ok(a(pond.x, pond.z) < pond.level - 0.5, 'the middle of a pond is under water');
+  assert.ok(a(pond.x + pond.r * 1.3, pond.z) > pond.level, 'its bank is above it');
+  let steep = 0;
+  for (let x = 5; x < 235; x += 3) steep = Math.max(steep, Math.abs(a(x + 1, 120) - a(x, 120)));
+  assert.ok(steep < 0.6, `gentle slopes (${steep.toFixed(2)} a metre)`);
+});

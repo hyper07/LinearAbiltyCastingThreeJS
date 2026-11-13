@@ -27,6 +27,7 @@ export const NPCS = {
 export const ZONES = {
   hearthvale: {
     name: 'Hearthvale', kind: 'town', size: [120, 120], ground: '#6f8f4a', path: '#b49a6a', safe: true,
+    ponds: [{ x: 22, z: 52, r: 7 }], hills: 0.5,
     spawn: [60, 92], graveyard: [60, 92],
     walls: [
       { x: 30, z: 30, r: 8, kind: 'house' }, { x: 90, z: 30, r: 8, kind: 'house' }, { x: 26, z: 80, r: 7, kind: 'house' },
@@ -56,6 +57,8 @@ export const ZONES = {
   },
   greenfold: {
     name: 'The Greenfold', kind: 'open', size: [240, 240], ground: '#5d8a3c', path: '#a68a5f', levels: '1–10',
+    // For the eyes only (src/mmo/landscape.js): ponds to wade through, how hilly, where birds gather.
+    ponds: [{ x: 172, z: 48, r: 13 }, { x: 78, z: 140, r: 9 }, { x: 150, z: 218, r: 7 }], hills: 2.4,
     spawn: [120, 222], graveyard: [120, 214],
     walls: [
       { x: 60, z: 200, r: 7, kind: 'rock' }, { x: 180, z: 205, r: 6, kind: 'trees' }, { x: 40, z: 120, r: 9, kind: 'trees' },
@@ -87,6 +90,7 @@ export const ZONES = {
   },
   ashfen: {
     name: 'The Ashfen', kind: 'open', size: [240, 240], ground: '#4f6a45', path: '#8a7a5a', levels: '10–18',
+    ponds: [{ x: 100, z: 120, r: 12 }, { x: 55, z: 150, r: 10 }, { x: 172, z: 200, r: 9 }, { x: 130, z: 60, r: 8 }, { x: 205, z: 110, r: 7 }], hills: 1.6, mist: true,
     spawn: [20, 120], graveyard: [24, 120],
     walls: [
       { x: 70, z: 70, r: 9, kind: 'trees' }, { x: 120, z: 200, r: 8, kind: 'rock' }, { x: 160, z: 100, r: 10, kind: 'trees' },

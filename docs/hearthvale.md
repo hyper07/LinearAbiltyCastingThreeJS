@@ -16,6 +16,11 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-store.jpg" width="100%" alt="Brannoc's store: a quest to accept, 105 gold, Weapons Armor and Sell tabs, a Militia Sword showing +2 power against the sword worn, with Buy and Buy &amp; wear" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-landscape.jpg" width="49%" alt="The Greenfold by day: rolling hills thick with grass that parts round the player, flower patches, pines, rocks, a pond in the distance and Rattlebones in the field" />
+  <img src="screenshots/hearthvale-night.jpg" width="49%" alt="The same field at night: a dark blue sky with stars and fireflies over the grass" />
+</p>
+
 ## How it plays
 
 - **Classes.** **Vanguard** (a tank: holds the monsters' attention), **Ranger** (crossbow, slows),
@@ -31,6 +36,14 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   bandits, the barrow and the Old Gravelord), **the Ashfen** (levels 10–18), **the Sunken Crypt**
   (a dungeon for up to 5 from level 8: Warden Kessa and the Drowned King) and **the Ember Spire**
   (a raid for up to 8 from level 16: Cinderwing, the Ash Colossus). Walk into a portal and press **F**.
+- **A living landscape.** The ground rolls in gentle hills. Grass sways in the wind and bends away
+  from whoever walks through it; flowers grow in patches with butterflies over them; ponds can be
+  waded through, and your steps leave rings on the water; flocks of birds take off when you come
+  close and land again somewhere quiet. The sun crosses the sky in eight minutes: at dusk the light
+  turns gold, at night come stars, fireflies and lit lanterns by the stalls and gates (the hour is
+  shown beside the zone's name). The Ashfen is misty; in the crypt dust drifts and torches flicker,
+  and embers rise in the Ember Spire. A tree between you and the camera steps out of the way.
+  All of it is drawn by the browser (`src/mmo/landscape.js`); the server's world stays flat and fair.
 - **Bosses** warn before they hit: a red circle grows on the ground where a slam or a burst will land
   — get out of it. Some call adds; some grow enraged when they're nearly down.
 - **Money and stores.** Every character starts with **100 gold** (characters made before then got it

@@ -820,6 +820,8 @@ export class MmoGame {
     } else $('[data-party]').innerHTML = '';
     // What F would do.
     $('[data-hint]').textContent = this._hintText(state);
+    const indoor = ZONES[this.zone].kind === 'dungeon' || ZONES[this.zone].kind === 'raid';
+    $('[data-zone]').textContent = `${ZONES[this.zone].name}${indoor || !this.view.land ? '' : ` · ${this.view.land.hour}`}`;
     this._minimap(state);
   }
 

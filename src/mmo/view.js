@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CLASSES, MOBS, NODES } from './data.js';
 import { ZONES, NPCS } from './world.js';
+import { Landscape, heightFn } from './landscape.js';
 
 /**
  * Draws one Hearthvale zone: the ground, its houses, trees, rocks and
@@ -93,6 +94,9 @@ export class MmoView {
     this.scene.background = new THREE.Color(indoor ? '#0d0f14' : '#9cc8e8');
     this.scene.fog = new THREE.Fog(indoor ? '#0d0f14' : '#b8d6ea', indoor ? 30 : 60, indoor ? 90 : 190);
     this.hemi.intensity = indoor ? 0.7 : 1.1;
+    // Coming in from the night outside: indoor light is its own.
+    this.sun.intensity = 2.2;
+    this.sun.color.set('#fff0d8');
     // The ground: one painted picture, with a path through the middle.
     const S = 512;
     const cvs = document.createElement('canvas');
@@ -125,11 +129,17 @@ export class MmoView {
     void pts;
     const tex = new THREE.CanvasTexture(cvs);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2).translate(w / 2, 0, h / 2), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
+    // The ground rolls (landscape.js): the same picture, laid over the hills.
+    this.h = heightFn(zone);
+    const geo = new THREE.PlaneGeometry(w, h, Math.round(w / 2), Math.round(h / 2)).rotateX(-Math.PI / 2).translate(w / 2, 0, h / 2);
+    const gp = geo.attributes.position;
+    for (let i = 0; i < gp.count; i++) gp.setY(i, this.h(gp.getX(i), gp.getZ(i)));
+    geo.computeVertexNormals();
+    const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
     ground.receiveShadow = true;
     g.add(ground);
     if (!indoor) {
-      const beyond = new THREE.Mesh(new THREE.PlaneGeometry(w * 6, h * 6).rotateX(-Math.PI / 2).translate(w / 2, -0.05, h / 2), new THREE.MeshStandardMaterial({ color: def.ground, roughness: 1 }));
+      const beyond = new THREE.Mesh(new THREE.PlaneGeometry(w * 6, h * 6).rotateX(-Math.PI / 2).translate(w / 2, -3.2, h / 2), new THREE.MeshStandardMaterial({ color: def.ground, roughness: 1 }));
       g.add(beyond);
     } else {
       // Walls round a dungeon.
@@ -145,13 +155,24 @@ export class MmoView {
           const torch = new THREE.PointLight(def.kind === 'raid' ? '#ff7a3a' : '#7fd0ff', 18, 26, 1.6);
           torch.position.set(x, 4, z);
           g.add(torch);
+          (this.torches ??= []).push(torch);
         }
       }
     }
-    for (const wall of def.walls) g.add(this._wallMesh(wall));
-    for (const s of def.stations) g.add(this._station(s));
-    for (const p of def.portals) g.add(this._portal(p));
+    this.torches = this.torches?.filter((t) => t.parent === g) ?? [];
+    const stand = (o) => {
+      o.position.y += this.h(o.position.x, o.position.z);
+      return o;
+    };
+    for (const wall of def.walls) g.add(stand(this._wallMesh(wall)));
+    for (const s of def.stations) g.add(stand(this._station(s)));
+    for (const p of def.portals) g.add(stand(this._portal(p)));
+    // The living part: grass, water, birds, the sky (or, indoors, dust and torchlight).
+    this.land?.dispose();
+    this.land = new Landscape(zone, this.h);
+    g.add(this.land.group);
     // Scattered trees and rocks outside the paths, for the open zones.
+    this.decor = [];
     if (def.kind === 'open') g.add(this._scatter(def, w, h));
     g.traverse((o) => {
       if (o.isMesh) {
@@ -270,7 +291,9 @@ export class MmoView {
       if (def.portals.some((p) => Math.hypot(p.at[0] - x, p.at[1] - z) < 12) || Math.hypot(def.spawn[0] - x, def.spawn[1] - z) < 14) continue;
       if (def.spawns.some((s) => Math.hypot(s.at[0] - x, s.at[1] - z) < s.radius + 3)) continue;
       const t = rand() < 0.75 ? this._tree() : new THREE.Mesh(new THREE.DodecahedronGeometry(0.8 + rand(), 0), new THREE.MeshStandardMaterial({ color: '#8a857a', flatShading: true }));
-      t.position.set(x, t.isMesh ? 0.4 : 0, z);
+      if ((this.h.ponds ?? []).some((p) => Math.hypot(p.x - x, p.z - z) < p.r + 2)) continue;
+      t.position.set(x, (t.isMesh ? 0.4 : 0) + this.h(x, z), z);
+      if (!t.isMesh) (this.decor ??= []).push(t);
       g.add(t);
     }
     return g;
@@ -419,8 +442,9 @@ export class MmoView {
     this.height = h;
   }
 
+  /** Where a point `y` above the ground at (x, z) lands on screen. */
   toScreen(x, y, z) {
-    const v = new THREE.Vector3(x, y, z).project(this.camera);
+    const v = new THREE.Vector3(x, y + (this.h?.(x, z) ?? 0), z).project(this.camera);
     return { x: ((v.x + 1) / 2) * this.width, y: ((1 - v.y) / 2) * this.height, front: v.z < 1 };
   }
 
@@ -458,11 +482,27 @@ export class MmoView {
     const tz = me.z;
     const cx = tx + Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist;
     const cz = tz + Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist;
-    this.camera.position.set(cx, 1.6 + Math.sin(this.pitch) * this.dist, cz);
-    this.camera.lookAt(tx, 1.8, tz);
-    this.sun.position.set(tx + 30, 60, tz + 20);
-    this.sun.target.position.set(tx, 0, tz);
+    const gy = this.h(tx, tz);
+    // The camera stays above the ground it is over, too.
+    const cy = Math.max(gy + 1.6 + Math.sin(this.pitch) * this.dist, this.h(cx, cz) + 1.2);
+    this.camera.position.set(cx, cy, cz);
+    this.camera.lookAt(tx, gy + 1.8, tz);
+    this.sun.position.set(tx + 30, gy + 60, tz + 20);
+    this.sun.target.position.set(tx, gy, tz);
     this.sun.target.updateMatrixWorld();
+    // A tree standing between you and the camera steps out of the way.
+    for (const t of this.decor ?? []) {
+      const dx = cx - tx;
+      const dz = cz - tz;
+      const k = Math.max(0, Math.min(1, ((t.position.x - tx) * dx + (t.position.z - tz) * dz) / (dx * dx + dz * dz || 1)));
+      t.visible = Math.hypot(t.position.x - (tx + dx * k), t.position.z - (tz + dz * k)) > 2.4;
+    }
+    // The landscape lives: wind, water, birds, the hour.
+    const moving = this._meAt && Math.hypot(me.x - this._meAt.x, me.z - this._meAt.z) > 0.01;
+    this._meAt = { x: me.x, z: me.z };
+    const others = state.ents.filter((e) => (e.k === 'p' || e.k === 'm' || e.k === 'npc') && e.i !== me.i && !e.dead && Math.abs(e.x - me.x) < 40 && Math.abs(e.z - me.z) < 40)
+      .sort((a, b) => Math.hypot(a.x - me.x, a.z - me.z) - Math.hypot(b.x - me.x, b.z - me.z)).slice(0, 7);
+    this.land.update(dt, { x: me.x, z: me.z, moving }, others, { scene: this.scene, sun: this.sun, hemi: this.hemi, torches: this.torches });
 
     const seen = new Set();
     for (const e of state.ents) {
@@ -476,7 +516,8 @@ export class MmoView {
       const isMe = e.i === me.i;
       const x = isMe ? me.x : e.x;
       const z = isMe ? me.z : e.z;
-      m.group.position.set(x, 0, z);
+      // Standing in a pond: sunk a little, wading.
+      m.group.position.set(x, this.h(x, z), z);
       if (e.k === 'n') {
         m.group.visible = true;
         if (m.node) m.node.visible = e.ready;
@@ -517,7 +558,9 @@ export class MmoView {
     this.targetRing.visible = Boolean(t);
     if (t) {
       const isMe = t.i === me.i;
-      this.targetRing.position.set(isMe ? me.x : t.x, 0.06, isMe ? me.z : t.z);
+      const rx = isMe ? me.x : t.x;
+      const rz = isMe ? me.z : t.z;
+      this.targetRing.position.set(rx, this.h(rx, rz) + 0.12, rz);
       const s = t.k === 'm' ? (MOBS[t.ty].scale ?? 1) : 1;
       this.targetRing.scale.setScalar(s);
       this.targetRing.material.color.set(t.k === 'm' ? '#ff5a5a' : t.k === 'p' ? '#5affa0' : '#ffd166');
@@ -532,7 +575,7 @@ export class MmoView {
       const tl = state.tele[i];
       ring.visible = Boolean(tl);
       if (!tl) return;
-      ring.position.set(tl.x, 0.07, tl.z);
+      ring.position.set(tl.x, this.h(tl.x, tl.z) + 0.15, tl.z);
       ring.scale.setScalar(tl.r);
       ring.material.opacity = 0.25 + 0.35 * (1 - Math.min(1, tl.left / 2));
     });
@@ -545,7 +588,7 @@ export class MmoView {
       const k = f.t / f.dur;
       const x = f.from ? f.from.x + (f.to.x - f.from.x) * k : f.x;
       const z = f.from ? f.from.z + (f.to.z - f.from.z) * k : f.z;
-      o.position.set(x, f.y, z);
+      o.position.set(x, f.y + this.h(x, z), z);
       o.scale.setScalar(f.from ? f.r0 : f.r0 + (f.r1 - f.r0) * k);
       o.updateMatrix();
       this.fxMesh.setMatrixAt(fi, o.matrix);
