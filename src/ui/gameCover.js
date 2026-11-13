@@ -101,6 +101,30 @@ function skyline(kind, r, color) {
  * @param {{ id: string, card: object }} game
  * @returns {string} SVG markup (320×180)
  */
+/** Official games with a real screenshot for a cover (public/covers/<name>.jpg). */
+const PHOTO_COVERS = new Set(['hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove']);
+
+/**
+ * A game's cover as markup: a screenshot of the game where there is one
+ * (if it fails to load, the drawn cover takes its place), else the drawn cover.
+ */
+export function coverHtml(game) {
+  const name = String(game.id ?? '').replace(/^official:/, '');
+  if (!game.official || !PHOTO_COVERS.has(name)) return coverSvg(game);
+  return `<img class="cover-photo" src="./covers/${name}.jpg" alt="" loading="lazy" decoding="async" data-cover-fallback>`;
+}
+
+/** Swap any cover photo under `root` that failed to load for the drawn cover. */
+export function guardCovers(root, game) {
+  for (const img of root.querySelectorAll('img[data-cover-fallback]')) {
+    img.addEventListener('error', () => {
+      const box = document.createElement('div');
+      box.innerHTML = coverSvg(game);
+      img.replaceWith(box.firstElementChild);
+    }, { once: true });
+  }
+}
+
 export function coverSvg(game) {
   if (game.card?.cover === 'market') return marketCover(game);
   if (game.card?.cover === 'work') return workCover(game);

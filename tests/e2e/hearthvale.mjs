@@ -24,6 +24,11 @@ export async function run(browser, { shots = null } = {}) {
     await p.click('.home [data-play]');
     await p.waitForSelector('.hv [data-classes]', { timeout: 15000 });
     await p.click(`.hv [data-cls="${cls}"]`);
+    // The maker: a style, a build and a colour, shown on the stage.
+    await p.click('.hv [data-styles] .hv-opt:nth-child(2)');
+    await p.click('.hv [data-builds] [data-value="tall"]');
+    await p.click('.hv [data-tints] [data-value="#a8c8ff"]');
+    await p.waitForFunction(() => window.hearthvale.stage?.shown?.look.build === 'tall' && window.hearthvale.stage.body, null, { timeout: 15000 });
     await p.fill('.hv [data-name]', hero);
     await p.click('.hv [data-create]');
     await p.waitForSelector('.hv-char [data-play]', { timeout: 10000 });
@@ -35,7 +40,12 @@ export async function run(browser, { shots = null } = {}) {
     await signIn(page, `Hv${stamp}a`);
     const hero = `Wren${stamp.replace(/[^a-z]/g, '') || 'a'}`.slice(0, 16);
     t.check('make a Vanguard and enter Hearthvale', await enter(page, hero, 'vanguard'));
-    t.check('the hotbar has six skills', (await page.$$('.hv [data-hotbar] .hv-slot')).length === 6);
+    t.check('the look chosen in the maker is worn in the world', await until(page, () => {
+      const hv = window.hearthvale;
+      const e = hv.current?.ents.find((x) => x.i === hv.you);
+      return e?.lk?.build === 'tall' && e.lk.tint === '#a8c8ff' && e.lk.style === 'raider';
+    }, null, 8000));
+        t.check('the hotbar has six skills', (await page.$$('.hv [data-hotbar] .hv-slot')).length === 6);
 
     // Walk forward with W.
     const start = await me(page);
@@ -134,13 +144,13 @@ export async function run(browser, { shots = null } = {}) {
     t.check('the party frame shows the friend', await until(page, (n) => (document.querySelector('.hv [data-party]')?.textContent ?? '').includes(n), friend, 8000));
     await q.evaluate(() => window.hearthvale._chat('/p hello from the mender'));
     t.check('party chat reaches the other', await until(page, () => /hello from the mender/.test(document.querySelector('.hv [data-chatlog]')?.textContent ?? ''), null, 5000));
-    t.check('the friend is drawn in the right body (a Knight for the Vanguard)', await until(q, (n) => {
+    t.check('the friend is drawn in the body they chose (the Raider: a Barbarian)', await until(q, (n) => {
       const hv = window.hearthvale;
       const e = hv.current?.ents.find((x) => x.k === 'p' && x.n === n);
       const m = e && hv.view.models.get(e.i);
-      let knight = false;
+      let knight = false; // the Raider's body
       m?.group.traverse((o) => {
-        if (o.isMesh && o.visible && /^Knight_/.test(o.name)) knight = true;
+        if (o.isMesh && o.visible && /^Barbarian_/.test(o.name)) knight = true;
       });
       return knight;
     }, hero, 10000));

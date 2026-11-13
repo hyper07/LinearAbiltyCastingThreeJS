@@ -21,7 +21,20 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-night.jpg" width="49%" alt="The same field at night: a dark blue sky with stars and fireflies over the grass" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-maker.jpg" width="49%" alt="The character maker: class cards, style, build, hat and cape, ten outfit colours and a name on the left; a hooded Ranger turning on a stage on the right" />
+  <img src="screenshots/hearthvale-chooser.jpg" width="49%" alt="Choosing a character: a card for each on the left, the chosen Knight on the stage with a name plate, Enter Hearthvale, Change look and Delete" />
+</p>
+
 ## How it plays
+
+- **Your character.** The maker shows your character live on a stage (drag to turn it) as you
+  choose: a **class**, one of three **styles** for it (a Vanguard can be a Knight, a Raider or a
+  Revenant; a Ranger a Scout, a Stalker or a Bone hunter…), a **build** (slender, medium, sturdy,
+  small, tall), **hat** and **cape** on or off, one of ten **outfit colours**, and a name (🎲 suggests
+  one; *Surprise me* rolls a whole look). Everyone in the world sees you that way. *Change look* on
+  the choosing screen reopens the wardrobe for a character you have (not while it's playing). The
+  free character pack has no separate male and female bodies, so the choice is by style and build.
 
 - **Classes.** **Vanguard** (a tank: holds the monsters' attention), **Ranger** (crossbow, slows),
   **Arcanist** (fire and frost from range) and **Mender** (heals, shields, revives). Six skills each,
@@ -80,7 +93,7 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 | | |
 |---|---|
 | Walk · look | **W A S D** (or hold both mouse buttons) · drag the mouse to turn the camera, the wheel zooms |
-| Target · fight | Click, or **Tab** for the nearest enemy · right-click an enemy to attack · **1–6** skills |
+| Target · fight | **Left-click** an enemy: target and attack · **right-click**: attack and use your first skill · **Tab**: nearest enemy · **1–6** skills (a line above the hotbar reminds you when enemies are near) |
 | Use | **F**: talk, gather, step through a portal, use a crafting station |
 | Windows | **I** bag · **C** character · **L** quests · **K** crafting · **P** party · **G** guild · **H** help · **Enter** chat · **Esc** close |
 

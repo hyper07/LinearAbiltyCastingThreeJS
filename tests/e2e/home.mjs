@@ -16,7 +16,7 @@ export async function run(browser, { shots = null } = {}) {
     t.check('the platform opens on the games, not the hero menu', await page.evaluate(() => !document.querySelector('.home').hidden && document.querySelector('.main-menu').hidden));
     t.check('official games are cards', await until(page, () => document.querySelectorAll('.home [data-game^="official:"]').length >= 6, null, 10000));
     t.check('the first card is Create a game', await page.evaluate(() => document.querySelector('.home [data-grid]').firstElementChild?.hasAttribute('data-create-card')));
-    t.check('every card has a cover, a title and who made it', await page.evaluate(() => [...document.querySelectorAll('.home [data-game]')].every((c) => c.querySelector('svg') && c.querySelector('.home-card__title').textContent && /Gamory|·/.test(c.querySelector('.home-card__meta').textContent))));
+    t.check('every card has a cover (a screenshot that loaded, or a drawing), a title and who made it', await page.evaluate(() => [...document.querySelectorAll('.home [data-game]')].every((c) => (c.querySelector('.home-card__cover svg') || c.querySelector('.home-card__cover img.cover-photo')?.naturalWidth > 0) && c.querySelector('.home-card__title').textContent && /Gamory|·/.test(c.querySelector('.home-card__meta').textContent))));
     if (shots) await page.waitForTimeout(2500); // the loading veil's fade
     await shot('home');
 

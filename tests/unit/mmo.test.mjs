@@ -360,3 +360,33 @@ test('the landscape\'s hills: the same every time, flat indoors, a bowl where a 
   for (const [id, z] of Object.entries(ZONES)) for (const w of z.walls.filter((x) => x.kind === 'giant' || x.kind === 'cliff')) assert.equal(walkableIn(id, w.x, w.z), false, `${id} ${w.kind}`);
   assert.ok(ZONES.greenfold.walls.some((w) => w.kind === 'giant') && ZONES.greenfold.walls.some((w) => w.kind === 'cliff'));
 });
+
+test('looks: checked on the way in, kept with the character, changed only when not playing', async () => {
+  const { cleanLook, lookOf, STYLES } = await import('../../src/mmo/looks.js');
+  assert.deepEqual(cleanLook('ranger', { style: 'knight', build: 'giant', tint: 'red', hat: false }), { style: 'scout', build: 'medium', tint: '#ffffff', hat: false, cape: true }, 'unknown choices fall back');
+  assert.equal(lookOf('vanguard', { style: 'raider' }).body, 'Barbarian');
+  for (const [cls, styles] of Object.entries(STYLES)) assert.ok(styles.length >= 3 && CLASSES[cls], cls);
+  const { db, mmo, join, as } = await world();
+  try {
+    as(0);
+    const made = await call(mmo, 'POST', '/api/mmo/characters', { name: 'Vesper', cls: 'arcanist', look: { style: 'lich', build: 'tall', tint: '#c9b0ff', cape: false } });
+    assert.equal(made.status, 200);
+    const list = await call(mmo, 'GET', '/api/mmo/characters');
+    assert.deepEqual(list.body.characters[0].look, { style: 'lich', build: 'tall', tint: '#c9b0ff', hat: true, cape: false });
+    const id = list.body.characters[0].id;
+    const changed = await call(mmo, 'POST', '/api/mmo/characters/look', { id, look: { style: 'wizard', build: 'small' } });
+    assert.equal(changed.body.look.style, 'wizard');
+    // In the world, others see the look; and it can't be changed from outside meanwhile.
+    const row = await db.one('SELECT id, account_id, name, data, guild_id FROM mmo_characters WHERE id = ?', [id]);
+    const ws = { readyState: 1, inbox: [], h: {}, send(t) { ws.inbox.push(JSON.parse(t)); }, on(e, f) { ws.h[e] = f; }, close() { ws.h.close?.(); } };
+    mmo.connect(ws, { id: row.account_id, name: 'Ada' }, row);
+    mmo.step();
+    const me = ws.inbox.filter((m) => m.t === 'snap').pop().s.ents.find((e) => e.k === 'p');
+    assert.equal(me.lk.style, 'wizard');
+    assert.equal((await call(mmo, 'POST', '/api/mmo/characters/look', { id, look: { style: 'lich' } })).status, 409);
+    void join;
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});

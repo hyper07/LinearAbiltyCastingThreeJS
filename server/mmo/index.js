@@ -3,6 +3,7 @@ import { RateLimiter, json, pathOf, queryOf, readJson } from '../api/http.js';
 import { Instance } from './instance.js';
 import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX } from '../../src/mmo/data.js';
 import { ZONES, NPCS } from '../../src/mmo/world.js';
+import { cleanLook } from '../../src/mmo/looks.js';
 import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf } from '../../src/mmo/rules.js';
 
 /**
@@ -15,6 +16,7 @@ import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, coun
  *
  *   GET  /api/mmo/characters          your characters
  *   POST /api/mmo/characters          { name, cls } — a new one (up to six)
+ *   POST /api/mmo/characters/look     { id, look } — a new look (not while playing)
  *   POST /api/mmo/characters/delete   { id }
  *   WS   /mmo?char=<id>               play: signed in, your own character
  */
@@ -46,7 +48,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
       if (!account) return send(401, { error: 'Sign in to play Hearthvale: your characters are kept on your account.' }), true;
       if (req.method === 'GET' && p === '/api/mmo/characters') {
         const rows = await db.many('SELECT id, name, cls, level, data FROM mmo_characters WHERE account_id = ? ORDER BY id', [account.id]);
-        return send(200, { characters: rows.map((r) => ({ id: r.id, name: r.name, cls: r.cls, level: r.level, zone: r.data?.zone ?? 'hearthvale', online: online.has(r.id) })) }), true;
+        return send(200, { characters: rows.map((r) => ({ id: r.id, name: r.name, cls: r.cls, level: r.level, zone: r.data?.zone ?? 'hearthvale', gold: r.data?.gold ?? 0, look: cleanLook(r.cls, r.data?.look), online: online.has(r.id) })) }), true;
       }
       if (req.method === 'POST' && p === '/api/mmo/characters') {
         if (!limits.create.take(`a${account.id}`)) return send(429, { error: 'Slow down' }), true;
@@ -60,12 +62,26 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
           if ((count?.n ?? 0) >= MAX_CHARS) return { error: `Up to ${MAX_CHARS} characters` };
           const taken = await db.one('SELECT id FROM mmo_characters WHERE name_key = ?', [name.toLowerCase()]);
           if (taken) return { error: 'That name is taken' };
-          const ch = newCharacter(name, cls);
+          const ch = newCharacter(name, cls, body.look);
           const now = Date.now();
           return db.one('INSERT INTO mmo_characters (account_id, name, name_key, cls, level, data, created, updated) VALUES (?, ?, ?, ?, 1, ?, ?, ?) RETURNING id, name, cls, level', [account.id, name, name.toLowerCase(), cls, JSON.stringify(ch), now, now]);
         });
         if (created.error) return send(409, created), true;
         return send(200, { character: created }), true;
+      }
+      if (req.method === 'POST' && p === '/api/mmo/characters/look') {
+        // A new look for a character that isn't playing right now.
+        const body = await readJson(req, 4096);
+        const id = Number(body.id);
+        if (online.has(id)) return send(409, { error: 'Leave the world first to change this character\'s look' }), true;
+        const done = await db.serial(async () => {
+          const row = await db.one('SELECT data, cls FROM mmo_characters WHERE id = ? AND account_id = ?', [id, account.id]);
+          if (!row) return null;
+          const look = cleanLook(row.cls, body.look);
+          await db.run('UPDATE mmo_characters SET data = ?, updated = ? WHERE id = ?', [JSON.stringify({ ...row.data, look }), Date.now(), id]);
+          return look;
+        });
+        return done ? (send(200, { look: done }), true) : (send(404, { error: 'No such character' }), true);
       }
       if (req.method === 'POST' && p === '/api/mmo/characters/delete') {
         const body = await readJson(req, 1024);

@@ -1,6 +1,6 @@
 import { GENRES } from '../blueprints/genres.js';
 import { cardLine } from '../platform/gameCards.js';
-import { GENRE_ICONS, coverSvg } from './gameCover.js';
+import { GENRE_ICONS, coverHtml, guardCovers } from './gameCover.js';
 import { tilt, confetti, popColor } from './pop.js';
 
 const el = (tag, className, text) => {
@@ -247,7 +247,8 @@ export class PlatformHome {
       card.classList.remove('is-in');
       void card.offsetWidth; // restart the pop-in
       card.classList.add('is-in');
-      this.$('[data-feature-cover]').innerHTML = coverSvg(g);
+      this.$('[data-feature-cover]').innerHTML = coverHtml(g);
+      guardCovers(this.$('[data-feature-cover]'), g);
       this.$('[data-feature-name]').textContent = g.title;
       this.$('[data-feature-play]').textContent = `▶ Play ${g.title}`;
       this.$('[data-feature-sub]').textContent = g.summary ? g.summary.split('. ')[0].replace(/\.$/, '') + '.' : 'Pick a game, or make your own in a sentence.';
@@ -285,7 +286,7 @@ export class PlatformHome {
     const c = game.card ?? {};
     const badge = c.badge ?? '';
     card.innerHTML = `
-      <div class="home-card__cover">${coverSvg(game)}
+      <div class="home-card__cover">${coverHtml(game)}
         <span class="home-card__genre" title="${c.genreName ?? ''}">${GENRE_ICONS[game.genre] ?? '🎮'}</span>
         ${badge ? `<span class="home-card__badge">${badge}</span>` : ''}
       </div>
@@ -301,6 +302,7 @@ export class PlatformHome {
     card.querySelector('.home-card__meta').textContent = [game.author, plays(game.plays ?? 0), game.official ? 'Official' : ago(game.updated)].filter(Boolean).join(' · ');
     const tags = card.querySelector('.home-card__tags');
     for (const tag of [c.genreName, c.study && 'Study', c.calm && 'No monsters', c.worldName].filter(Boolean)) tags.append(el('span', null, tag));
+    guardCovers(card, game);
     card.addEventListener('click', () => this.openPage(game.id));
     return tilt(card);
   }
@@ -326,7 +328,7 @@ export class PlatformHome {
     page.innerHTML = `
       <div class="home-page__card" role="dialog" aria-modal="true" aria-label="${game.title.replace(/"/g, '&quot;')}">
         <button type="button" class="home-page__close" data-close aria-label="Close">✕</button>
-        <div class="home-page__cover">${coverSvg(game)}</div>
+        <div class="home-page__cover">${coverHtml(game)}</div>
         <div class="home-page__info">
           <h2 class="home-page__title"></h2>
           <p class="home-page__meta"></p>
@@ -342,6 +344,7 @@ export class PlatformHome {
           <p class="home-page__hint">In a party? Press Play — your party comes with you.</p>
         </div>
       </div>`;
+    guardCovers(page, game);
     page.querySelector('.home-page__title').textContent = game.title;
     page.querySelector('.home-page__meta').textContent = [game.author, plays(game.plays ?? 0), game.official ? 'Official' : ago(game.updated), cardLine(c)].filter(Boolean).join(' · ');
     page.querySelector('.home-page__summary').textContent = game.summary || '';

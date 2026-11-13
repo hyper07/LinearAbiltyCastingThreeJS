@@ -94,27 +94,27 @@
 /* ==========================================================================
  * The loading veil
  * ========================================================================== */
-.loader {
+html .loader {
   background: radial-gradient(circle at 30% 20%, #ffe9b8, var(--pop-paper) 55%);
   color: var(--pop-ink);
 }
-.loader__title {
+html .loader__title {
   color: var(--pop-ink);
   font-family: var(--pop-font);
   font-weight: 900;
   letter-spacing: 0.01em;
 }
-.loader__status {
+html .loader__status {
   color: var(--pop-ink-2);
 }
-.loader__bar {
+html .loader__bar {
   height: 14px;
   border: var(--pop-border);
   border-radius: 999px;
   background: var(--pop-card);
   overflow: hidden;
 }
-.loader__bar i {
+html .loader__bar i {
   background: repeating-linear-gradient(45deg, var(--pop-pink) 0 12px, var(--pop-sun) 12px 24px);
 }
 
@@ -404,8 +404,8 @@
   pointer-events: none;
 }
 .home-hero__float--a {
-  left: -4%;
-  top: -6%;
+  left: -6%;
+  top: -8%;
 }
 .home-hero__float--b {
   right: -2%;
@@ -413,13 +413,13 @@
   animation-delay: -1.2s;
 }
 .home-hero__float--c {
-  left: 0;
-  bottom: 12%;
+  left: -5%;
+  bottom: -4%;
   animation-delay: -2.4s;
 }
 .home-hero__float--d {
-  right: 2%;
-  bottom: 16%;
+  right: -3%;
+  bottom: -2%;
   animation-delay: -3.3s;
 }
 
@@ -594,6 +594,31 @@
   font-weight: 700;
 }
 
+/* Covers that are screenshots. */
+.cover-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.home-card__cover .cover-photo {
+  transition: transform 0.4s var(--pop-spring);
+}
+.home-card:hover .home-card__cover .cover-photo {
+  transform: scale(1.08) rotate(-1deg);
+}
+.home-page__play {
+  align-items: center;
+  gap: 10px 12px;
+  flex-wrap: wrap;
+}
+.home-page__play .home__btn {
+  height: auto;
+  line-height: 1.1;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
 /* A game's own page: a big sticker that pops in. */
 .home__page {
   background: rgba(43, 33, 64, 0.45);
@@ -638,6 +663,8 @@
   line-height: 1.5;
 }
 .home .home-page__go {
+  height: auto;
+  line-height: 1.1;
   padding: 13px 34px;
   background: var(--pop-mint);
   color: var(--pop-ink);

@@ -2,6 +2,8 @@ import { MmoView } from './view.js';
 import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
 import { questsAt, questDone, countOf } from './rules.js';
+import { CharacterStage } from './bodies.js';
+import { STYLES, BUILDS, TINTS, cleanLook, lookOf } from './looks.js';
 import './mmo.css';
 
 const el = (tag, className, text) => {
@@ -75,6 +77,7 @@ export class MmoGame {
     cancelAnimationFrame(this._raf);
     this._resize?.disconnect();
     this.ws?.close();
+    this.stage?.dispose();
     this.view?.dispose();
     this.root.remove();
     if (window.hearthvale === this) delete window.hearthvale;
@@ -83,12 +86,15 @@ export class MmoGame {
 
   /* -------------------------------------------------------- characters */
 
-  async characters(note = '') {
+  /** The first screen: your characters on a stage (pick one, play), or the maker when you have none. */
+  async characters(note = '', { make = false, edit = null } = {}) {
     cancelAnimationFrame(this._raf);
     this.ws?.close();
     this.ws = null;
     this.view?.dispose();
     this.view = null;
+    this.stage?.dispose();
+    this.stage = null;
     let list = null;
     let error = '';
     try {
@@ -99,67 +105,202 @@ export class MmoGame {
     } catch {
       error = 'Could not reach the server.';
     }
-    this.pickCls = this.pickCls ?? 'vanguard';
-    this.root.innerHTML = `
-      <div class="hv-select">
-        <header class="hv-select__head"><div><h1>Hearthvale</h1><p>An online adventure in small groups: quests, dungeons, a raid, guilds, trading, gathering and crafting.</p></div>
-          <button type="button" class="hv__x" data-close aria-label="Back to the games">✕</button></header>
-        ${note ? `<p class="hv-note">${esc(note)}</p>` : ''}
-        ${list ? `
-        <section><h2>Your characters</h2><div class="hv-chars" data-chars>${list.length ? '' : '<p class="hv-muted">None yet — make one below.</p>'}</div></section>
-        <section class="hv-create"><h2>A new character</h2>
-          <div class="hv-classes" data-classes role="radiogroup" aria-label="Class"></div>
-          <div class="hv-create__row"><label class="hv-field">Name <input data-name maxlength="16" placeholder="2–16 letters" autocomplete="off"></label>
-          <button type="button" class="hv-btn hv-btn--go" data-create>Create</button></div>
-          <p class="hv-error" data-error role="alert"></p>
-        </section>` : `<p class="hv-error">${esc(error)}</p><p class="hv-muted">Characters are kept on your account. Sign in from the home page (top right), then come back.</p>`}
-        <p class="hv-credits">Characters: KayKit Adventurers &amp; Skeletons by Kay Lousberg (CC0). Hearthvale's world, classes, quests and names are Gamory's own.</p>
-      </div>`;
+    const head = `<header class="hv-select__head"><div><h1>Hearthvale</h1><p>An online adventure in small groups: quests, dungeons, a raid, guilds, trading, gathering and crafting.</p></div>
+      <button type="button" class="hv__x" data-close aria-label="Back to the games">✕</button></header>${note ? `<p class="hv-note">${esc(note)}</p>` : ''}`;
+    const credits = '<p class="hv-credits">Characters: KayKit Adventurers &amp; Skeletons by Kay Lousberg (CC0). Hearthvale\'s world, classes, quests and names are Gamory\'s own.</p>';
+    if (!list) {
+      this.root.innerHTML = `<div class="hv-select">${head}<p class="hv-error">${esc(error)}</p><p class="hv-muted">Characters are kept on your account. Sign in from the home page (top right), then come back.</p>${credits}</div>`;
+      this.root.querySelector('[data-close]').addEventListener('click', () => this.close());
+      return;
+    }
+    if (edit) return this._maker(head, credits, list, list.find((c) => c.id === edit));
+    if (make || !list.length) return this._maker(head, credits, list, null);
+    this._chooser(head, credits, list);
+  }
+
+  /** Choose who to play: cards on the left, the chosen one on the stage. */
+  _chooser(head, credits, list) {
+    const last = Number(localStorage.getItem?.('elemental-arena.hearthvale.last') ?? 0);
+    let chosen = list.find((c) => c.id === last) ?? list[0];
+    this.root.innerHTML = `<div class="hv-select">${head}
+      <div class="hv-choose">
+        <section class="hv-choose__list"><h2>Your characters</h2><div class="hv-chars" data-chars role="radiogroup" aria-label="Your characters"></div>
+          <button type="button" class="hv-btn hv-newchar" data-new ${list.length >= 6 ? 'disabled' : ''}>＋ New character${list.length >= 6 ? ' (six at most)' : ''}</button></section>
+        <section class="hv-choose__stage">
+          <div class="hv-stage3d" data-stage3d><span class="hv-stage3d__hint">drag to turn</span></div>
+          <div class="hv-plate"><strong data-plate-name></strong><span data-plate-line></span></div>
+          <div class="hv-choose__actions"><button type="button" class="hv-btn hv-btn--go hv-btn--big" data-enter>▶ Enter Hearthvale</button>
+            <button type="button" class="hv-btn" data-look>Change look</button><button type="button" class="hv-btn" data-del>Delete</button></div>
+        </section>
+      </div>${credits}</div>`;
     const $ = (s) => this.root.querySelector(s);
     $('[data-close]').addEventListener('click', () => this.close());
-    if (!list) return;
+    this.stage = new CharacterStage($('[data-stage3d]'));
     const chars = $('[data-chars]');
+    const paint = (cheer = false) => {
+      for (const row of chars.children) row.setAttribute('aria-checked', String(Number(row.dataset.char) === chosen.id));
+      $('[data-plate-name]').textContent = chosen.name;
+      $('[data-plate-line]').textContent = `Level ${chosen.level} ${CLASSES[chosen.cls].name} · ${lookOf(chosen.cls, chosen.look).styleName} · ${ZONES[chosen.zone]?.name ?? ''} · ${chosen.gold} gold`;
+      this.stage.show(chosen.cls, chosen.look, { cheer });
+    };
     for (const c of list) {
       const row = el('div', 'hv-char');
-      row.innerHTML = `<span class="hv-char__icon">${CLASSES[c.cls]?.name[0] ?? '?'}</span><div><b></b><small></small></div><button type="button" class="hv-btn hv-btn--go" data-play>Play</button><button type="button" class="hv-btn" data-del aria-label="Delete">🗑</button>`;
+      row.dataset.char = c.id;
+      row.setAttribute('role', 'radio');
+      row.tabIndex = 0;
+      row.innerHTML = `<span class="hv-char__icon" style="background:${lookOf(c.cls, c.look).tint === '#ffffff' ? '' : lookOf(c.cls, c.look).tint}">${CLASSES[c.cls]?.skills[0].icon ?? '?'}</span><div><b></b><small></small></div><button type="button" class="hv-btn hv-btn--go" data-play>Play</button>`;
       row.querySelector('b').textContent = c.name;
       row.querySelector('small').textContent = `Level ${c.level} ${CLASSES[c.cls]?.name ?? c.cls} · ${ZONES[c.zone]?.name ?? ''}`;
-      row.dataset.char = c.id;
-      row.querySelector('[data-play]').addEventListener('click', () => this.play(c.id));
-      row.querySelector('[data-del]').addEventListener('click', async () => {
-        if (!window.confirm(`Delete ${c.name} for good?`)) return;
-        await fetch('./api/mmo/characters/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) });
-        this.characters();
+      row.addEventListener('click', () => {
+        chosen = c;
+        paint(true);
+      });
+      row.querySelector('[data-play]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._enter(c.id);
       });
       chars.append(row);
     }
-    const classes = $('[data-classes]');
-    for (const id of CLASS_ORDER) {
-      const c = CLASSES[id];
-      const b = el('button', 'hv-class');
-      b.type = 'button';
-      b.dataset.cls = id;
-      b.setAttribute('role', 'radio');
-      b.innerHTML = `<strong>${esc(c.name)}</strong><span>${esc(c.role)}</span><p>${esc(c.blurb)}</p><small>${c.skills.map((s) => `${s.icon} ${esc(s.name)}`).join(' · ')}</small>`;
-      b.addEventListener('click', () => {
-        this.pickCls = id;
-        paint();
-      });
-      classes.append(b);
-    }
-    const paint = () => {
-      for (const b of classes.children) b.setAttribute('aria-checked', String(b.dataset.cls === this.pickCls));
-    };
     paint();
+    $('[data-enter]').addEventListener('click', () => this._enter(chosen.id));
+    $('[data-new]').addEventListener('click', () => this.characters('', { make: true }));
+    $('[data-look]').addEventListener('click', () => this.characters('', { edit: chosen.id }));
+    $('[data-del]').addEventListener('click', async () => {
+      if (!window.confirm(`Delete ${chosen.name} for good?`)) return;
+      await fetch('./api/mmo/characters/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: chosen.id }) });
+      this.characters();
+    });
+  }
+
+  _enter(id) {
+    try {
+      localStorage.setItem('elemental-arena.hearthvale.last', String(id));
+    } catch {
+      /* private mode */
+    }
+    this.stage?.dispose();
+    this.stage = null;
+    this.play(id);
+  }
+
+  /**
+   * The character maker (or, with `editing`, the wardrobe for one you have):
+   * class, style, build, hat and cape, colour and name on the left; the
+   * character itself, live, on the right.
+   */
+  _maker(head, credits, list, editing) {
+    const pick = { cls: editing?.cls ?? this.pickCls ?? 'vanguard', look: cleanLook(editing?.cls ?? this.pickCls ?? 'vanguard', editing?.look) };
+    this.root.innerHTML = `<div class="hv-select">${head}
+      <div class="hv-make">
+        <section class="hv-make__form">
+          <h2>${editing ? `${esc(editing.name)}'s look` : 'A new character'}</h2>
+          ${editing ? '' : '<h3>Class</h3><div class="hv-classes" data-classes role="radiogroup" aria-label="Class"></div><p class="hv-make__about" data-about></p>'}
+          <h3>Style</h3><div class="hv-opts" data-styles role="radiogroup" aria-label="Style"></div>
+          <h3>Build</h3><div class="hv-opts" data-builds role="radiogroup" aria-label="Build"></div>
+          <h3>Outfit</h3><div class="hv-opts"><label class="hv-toggle"><input type="checkbox" data-hat> Hat or helmet</label><label class="hv-toggle"><input type="checkbox" data-cape> Cape</label></div>
+          <h3>Colour</h3><div class="hv-swatches" data-tints role="radiogroup" aria-label="Outfit colour"></div>
+          ${editing ? '' : '<h3>Name</h3><div class="hv-create__row"><label class="hv-field"><input data-name maxlength="16" placeholder="2–16 letters" autocomplete="off" aria-label="Name"></label><button type="button" class="hv-btn" data-random title="Suggest a name">🎲</button></div>'}
+          <p class="hv-error" data-error role="alert"></p>
+          <div class="hv-create__row"><button type="button" class="hv-btn hv-btn--go hv-btn--big" data-create>${editing ? 'Save this look' : 'Create'}</button>
+            ${list.length ? '<button type="button" class="hv-btn" data-back>Back</button>' : ''}<button type="button" class="hv-btn" data-shuffle title="Try a random look">🎲 Surprise me</button></div>
+        </section>
+        <section class="hv-make__stage"><div class="hv-stage3d" data-stage3d><span class="hv-stage3d__hint">drag to turn</span></div>
+          <div class="hv-plate"><strong data-plate-name></strong><span data-plate-line></span></div></section>
+      </div>${credits}</div>`;
+    const $ = (s) => this.root.querySelector(s);
+    $('[data-close]').addEventListener('click', () => this.close());
+    this.stage = new CharacterStage($('[data-stage3d]'));
+    const option = (host, value, label, on) => {
+      const b = el('button', 'hv-opt', label);
+      b.type = 'button';
+      b.dataset.value = value;
+      b.setAttribute('role', 'radio');
+      b.addEventListener('click', () => on(value));
+      host.append(b);
+    };
+    const paint = (cheer = true) => {
+      pick.look = cleanLook(pick.cls, pick.look);
+      const classes = $('[data-classes]');
+      if (classes) {
+        for (const b of classes.children) b.setAttribute('aria-checked', String(b.dataset.cls === pick.cls));
+        const c = CLASSES[pick.cls];
+        $('[data-about]').textContent = `${c.blurb} Skills: ${c.skills.map((x) => x.name).join(', ')}.`;
+      }
+      const styles = $('[data-styles]');
+      styles.replaceChildren();
+      for (const st of STYLES[pick.cls]) option(styles, st.id, st.name, (v) => { pick.look.style = v; paint(); });
+      for (const b of styles.children) b.setAttribute('aria-checked', String(b.dataset.value === pick.look.style));
+      for (const b of $('[data-builds]').children) b.setAttribute('aria-checked', String(b.dataset.value === pick.look.build));
+      for (const b of $('[data-tints]').children) b.setAttribute('aria-checked', String(b.dataset.value === pick.look.tint));
+      $('[data-hat]').checked = pick.look.hat;
+      $('[data-cape]').checked = pick.look.cape;
+      $('[data-plate-name]').textContent = editing?.name ?? ($('[data-name]')?.value.trim() || 'Your hero');
+      $('[data-plate-line]').textContent = `${CLASSES[pick.cls].name} · ${lookOf(pick.cls, pick.look).styleName} · ${BUILDS[pick.look.build].name}`;
+      this.stage.show(pick.cls, pick.look, { cheer });
+    };
+    const classes = $('[data-classes]');
+    if (classes) {
+      for (const id of CLASS_ORDER) {
+        const c = CLASSES[id];
+        const b = el('button', 'hv-class');
+        b.type = 'button';
+        b.dataset.cls = id;
+        b.setAttribute('role', 'radio');
+        b.innerHTML = `<i>${c.skills[0].icon}</i><strong>${esc(c.name)}</strong><span>${esc(c.role)}</span>`;
+        b.addEventListener('click', () => {
+          this.pickCls = pick.cls = id;
+          pick.look.style = null;
+          paint();
+        });
+        classes.append(b);
+      }
+    }
+    for (const [id, b] of Object.entries(BUILDS)) option($('[data-builds]'), id, b.name, (v) => { pick.look.build = v; paint(false); });
+    for (const [hex, name] of TINTS) {
+      const b = el('button', 'hv-swatch');
+      b.type = 'button';
+      b.dataset.value = hex;
+      b.title = name;
+      b.setAttribute('aria-label', name);
+      b.setAttribute('role', 'radio');
+      b.style.background = hex;
+      b.addEventListener('click', () => { pick.look.tint = hex; paint(false); });
+      $('[data-tints]').append(b);
+    }
+    $('[data-hat]').addEventListener('change', (e) => { pick.look.hat = e.target.checked; paint(false); });
+    $('[data-cape]').addEventListener('change', (e) => { pick.look.cape = e.target.checked; paint(false); });
+    const NAMES = ['Wren', 'Aldous', 'Mira', 'Bram', 'Isolde', 'Corin', 'Tamsin', 'Osric', 'Liora', 'Fenn', 'Maeve', 'Rowan', 'Sable', 'Thane', 'Ysra', 'Dax'];
+    $('[data-random]')?.addEventListener('click', () => {
+      $('[data-name]').value = NAMES[Math.floor(Math.random() * NAMES.length)] + ['', 'a', 'el', 'is', 'or'][Math.floor(Math.random() * 5)];
+      paint(false);
+    });
+    $('[data-name]')?.addEventListener('input', () => ($('[data-plate-name]').textContent = $('[data-name]').value.trim() || 'Your hero'));
+    $('[data-shuffle]').addEventListener('click', () => {
+      const any = (a) => a[Math.floor(Math.random() * a.length)];
+      if (!editing) this.pickCls = pick.cls = any(CLASS_ORDER);
+      pick.look = { style: any(STYLES[pick.cls]).id, build: any(Object.keys(BUILDS)), tint: any(TINTS)[0], hat: Math.random() < 0.7, cape: Math.random() < 0.7 };
+      paint();
+    });
+    $('[data-back]')?.addEventListener('click', () => this.characters());
     $('[data-create]').addEventListener('click', async () => {
-      const r = await fetch('./api/mmo/characters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('[data-name]').value, cls: this.pickCls }) });
+      const r = editing
+        ? await fetch('./api/mmo/characters/look', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, look: pick.look }) })
+        : await fetch('./api/mmo/characters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('[data-name]').value, cls: pick.cls, look: pick.look }) });
       const body = await r.json();
       if (!r.ok) {
         $('[data-error]').textContent = body.error;
         return;
       }
+      if (body.character) {
+        try {
+          localStorage.setItem('elemental-arena.hearthvale.last', String(body.character.id));
+        } catch {
+          /* private mode */
+        }
+      }
       this.characters();
     });
+    paint(false);
   }
 
   /* ------------------------------------------------------------ playing */
@@ -569,7 +710,11 @@ export class MmoGame {
       const r = canvas.getBoundingClientRect();
       const hit = this.view.pick(this.current.ents, e.clientX - r.left, e.clientY - r.top);
       if (!hit) {
-        if (d.button === 0) this.setTarget(null);
+        // A right-click on nothing: your first skill on the enemy you have (or the nearest one).
+        if (d.button === 2 && this.current.ents.some((x) => x.k === 'm' && !x.dead && Math.hypot(x.x - this.me.x, x.z - this.me.z) < 32)) {
+          this.useSkill(0);
+          this.send({ t: 'attack', on: true });
+        } else if (d.button === 0) this.setTarget(null);
         return;
       }
       if (hit.k === 'npc') {
@@ -581,8 +726,11 @@ export class MmoGame {
         return;
       }
       this.setTarget(hit.i);
-      // A right-click on an enemy also attacks it.
-      if (d.button === 2 && hit.k === 'm') this.send({ t: 'attack', on: true });
+      // An enemy: a left-click attacks it; a right-click attacks and uses your first skill.
+      if (hit.k === 'm' && !hit.dead) {
+        this.send({ t: 'attack', on: true });
+        if (d.button === 2) this.useSkill(0);
+      }
     });
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -834,6 +982,9 @@ export class MmoGame {
     }
     for (const p of ZONES[this.zone].portals) if (near(...p.at) < 6) return `F — ${p.name}`;
     for (const s of ZONES[this.zone].stations) if (near(...s.at) < 6.5) return `F — use the ${s.name}`;
+    // Nothing to use: say how to fight when something to fight is near.
+    const foe = state.ents.some((e) => e.k === 'm' && !e.dead && near(e.x, e.z) < 28);
+    if (foe) return this._isEnemy(this.target) ? `Fighting — right-click: ${CLASSES[this.ch.cls].skills[0].name} · 1–6: skills · Tab: next enemy` : 'Left-click an enemy to attack · right-click: attack with your first skill · Tab: nearest enemy';
     return '';
   }
 
@@ -1258,7 +1409,7 @@ export class MmoGame {
   _win_help() {
     return this._window('How to play', 'help', `<ul class="hv-help">
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
-      <li><b>Target</b>: click someone, or Tab for the nearest enemy. Right-click an enemy to attack it.</li>
+      <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
       <li><b>Skills</b>: 1–6 (new ones open as you level). One skill a second; some take time to cast — moving stops them.</li>
       <li><b>F</b>: talk to someone (a ! has a quest, a ? wants one back), gather a node, step through a portal, use a crafting station.</li>
       <li><b>Windows</b>: I bag · C character · L quests · K crafting · P party · G guild · Enter chat.</li>

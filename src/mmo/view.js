@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CLASSES, MOBS, NODES } from './data.js';
 import { ZONES, NPCS } from './world.js';
 import { Landscape, heightFn } from './landscape.js';
+import { dress } from './bodies.js';
+import { lookOf } from './looks.js';
 
 /**
  * Draws one Hearthvale zone: the ground, its houses, trees, rocks and
@@ -12,25 +12,6 @@ import { Landscape, heightFn } from './landscape.js';
  * monsters — with name plates, the target ring and boss warning circles.
  * A third-person camera follows your character; it never changes the world.
  */
-
-const KIT = {
-  Knight: 'kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Knight.glb',
-  Barbarian: 'kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Barbarian.glb',
-  Mage: 'kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb',
-  Rogue: 'kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue.glb',
-  Rogue_Hooded: 'kaykit/KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded.glb',
-  Skeleton_Mage: 'kaykit/KayKit-Character-Pack-Skeletons-1.0/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Mage.glb',
-  Skeleton_Minion: 'kaykit/KayKit-Character-Pack-Skeletons-1.0/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Minion.glb',
-  Skeleton_Warrior: 'kaykit/KayKit-Character-Pack-Skeletons-1.0/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Warrior.glb',
-  Skeleton_Rogue: 'kaykit/KayKit-Character-Pack-Skeletons-1.0/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Rogue.glb'
-};
-const PROPS = /^(1H_|2H_|Badge_Shield|Rectangle_Shield|Round_Shield|Spike_Shield|Barbarian_Round_Shield|Mug|Spellbook|Knife|Throwable)/;
-const gltfCache = new Map();
-
-function loadBody(body) {
-  if (!gltfCache.has(body)) gltfCache.set(body, new GLTFLoader().loadAsync(`./library/${KIT[body]}`).catch(() => null));
-  return gltfCache.get(body);
-}
 
 export class MmoView {
   constructor(host) {
@@ -476,14 +457,19 @@ export class MmoView {
 
   _make(e) {
     let body;
+    let entry_attack = null;
     let show = [];
     let tint = '#ffffff';
     let height = 2;
+    let extra = {};
     if (e.k === 'p') {
-      const c = CLASSES[e.c];
-      body = c.body;
-      show = c.show;
-      tint = c.tint;
+      // A player wears the look they chose (looks.js).
+      const l = lookOf(e.c, e.lk);
+      body = l.body;
+      show = l.show;
+      tint = l.tint;
+      extra = { hat: l.hat, cape: l.cape, wide: l.wide, tall: l.tall };
+      entry_attack = l.attack;
     } else if (e.k === 'npc') {
       const n = NPCS[e.npc];
       body = n.body;
@@ -509,26 +495,12 @@ export class MmoView {
       entry.height = def.skill === 'logging' ? 5 : 1.4;
       return entry;
     }
-    loadBody(body).then((gltf) => {
-      if (!gltf || !this.models.has(e.i)) return;
-      const model = SkeletonUtils.clone(gltf.scene);
-      const color = new THREE.Color(tint);
-      model.traverse((o) => {
-        if (!o.isMesh) return;
-        if (PROPS.test(o.name) && !show.includes(o.name)) {
-          o.visible = false;
-          return;
-        }
-        o.castShadow = true;
-        o.frustumCulled = false;
-        o.material = o.material.clone();
-        o.material.color.multiply(color);
-      });
-      const box = new THREE.Box3().setFromObject(model);
-      model.scale.setScalar(height / Math.max(0.1, box.max.y - box.min.y));
-      group.add(model);
-      entry.mixer = new THREE.AnimationMixer(model);
-      for (const clip of gltf.animations) entry.actions[clip.name] = entry.mixer.clipAction(clip);
+    entry.attack = entry_attack;
+    dress({ body, show, tint, height, ...extra }).then((made) => {
+      if (!made || !this.models.has(e.i)) return;
+      group.add(made.model);
+      entry.mixer = made.mixer;
+      entry.actions = made.actions;
       entry.act = null;
     });
     return entry;
@@ -665,7 +637,7 @@ export class MmoView {
         once = true;
       } else if (e.cast) clip = e.cast.s === 'gather' ? 'Interact' : 'Spellcasting';
       else if (m.oneShot && this.time - m.oneShot.at < 0.6) {
-        clip = m.oneShot.kind === 'swing' ? (e.k === 'p' ? CLASSES[e.c].attack : MOBS[e.ty]?.ranged ? 'Spellcast_Shoot' : '1H_Melee_Attack_Chop') : 'Spellcast_Shoot';
+        clip = m.oneShot.kind === 'swing' ? (e.k === 'p' ? m.attack ?? CLASSES[e.c].attack : MOBS[e.ty]?.ranged ? 'Spellcast_Shoot' : '1H_Melee_Attack_Chop') : 'Spellcast_Shoot';
         once = true;
         if (m.playedShot !== m.oneShot) {
           m.playedShot = m.oneShot;

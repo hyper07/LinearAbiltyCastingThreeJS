@@ -713,7 +713,7 @@ export class Instance {
     for (const e of this.ents.values()) {
       if (e.kind === 'player') {
         ents.push({
-          i: e.id, k: 'p', n: e.name, c: e.cls, l: e.ch.level, x: r(e.x), z: r(e.z), a: r(e.a), hp: Math.round(e.hp), mh: e.st.maxHp,
+          i: e.id, k: 'p', n: e.name, c: e.cls, lk: e.ch.look, l: e.ch.level, x: r(e.x), z: r(e.z), a: r(e.a), hp: Math.round(e.hp), mh: e.st.maxHp,
           mp: Math.round(e.mana), mm: e.st.maxMana, t: e.target, dead: e.dead || undefined, sh: e.shield > 0 ? Math.round(e.shield) : undefined,
           cast: e.cast ? { s: e.cast.id, left: r(e.cast.until - this.time), total: e.cast.total } : e.gather ? { s: 'gather', left: r(e.gather.until - this.time), total: e.gather.total } : undefined,
           party: e.client.party ?? undefined, buffs: e.buffs.length ? e.buffs.map((b) => b.id) : undefined, gcd: e.gcdUntil > this.time ? r(e.gcdUntil - this.time) : undefined,
