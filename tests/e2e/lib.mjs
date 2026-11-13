@@ -17,9 +17,10 @@ export function launch() {
 
 /**
  * Requests that are meant to miss: the optional walk/run clips (the game
- * falls back to its own gait) and "is this already in the library?" lookups.
+ * falls back to its own gait), "is this already in the library?" lookups,
+ * and Shardfront's list of your own models (none, unless you add one).
  */
-const EXPECTED_MISSES = [/^\/models\/(walk|run)\.fbx$/, /^\/api\/library\/[a-z]+(:|%3A)/i];
+const EXPECTED_MISSES = [/^\/models\/(walk|run)\.fbx$/, /^\/api\/library\/[a-z]+(:|%3A)/i, /^\/library\/my-models\/shardfront\.json$/];
 
 /**
  * A fresh context (its own localStorage), booted to the platform's home page

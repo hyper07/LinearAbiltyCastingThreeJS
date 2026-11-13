@@ -46,6 +46,14 @@ export const ENGINE_GAMES = [
     engine: 'work',
     genre: 'work-sim',
     card: { genre: 'work-sim', genreName: 'Work life', cover: 'work', badge: 'NEW' }
+  },
+  {
+    id: 'official:shardfront',
+    title: 'Shardfront',
+    summary: 'Real-time strategy on big maps. Pick one of three factions, mine shards, build a base, raise an army and wipe out up to three computer rivals.',
+    engine: 'rts',
+    genre: 'strategy',
+    card: { genre: 'strategy', genreName: 'Strategy', cover: 'rts', badge: 'NEW' }
   }
 ];
 const MAX_LEVELS = 12;

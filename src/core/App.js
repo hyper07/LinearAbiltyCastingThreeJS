@@ -1402,6 +1402,7 @@ export class App {
     const game = await games.get(id);
     if (game.engine === 'market') return this.openMarket(game);
     if (game.engine === 'work') return this.openWork(game);
+    if (game.engine === 'rts') return this.openRts(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1421,6 +1422,27 @@ export class App {
     const { WorkGame } = await import('../work/WorkGame.js');
     this.home.closePage();
     const view = new WorkGame(document.body, { account: this.account?.user ?? null, onClose: () => this.home.refresh?.() });
+    await view.open();
+    return view;
+  }
+
+  /**
+   * Shardfront, the strategy game: its own screen and its own 3D view over
+   * the home page (loaded the first time). The platform's own drawing stops
+   * while it is open, so the two don't share the GPU.
+   */
+  async openRts(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { RtsGame } = await import('../rts/RtsGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new RtsGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
     await view.open();
     return view;
   }

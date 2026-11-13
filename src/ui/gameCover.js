@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -104,6 +104,7 @@ function skyline(kind, r, color) {
 export function coverSvg(game) {
   if (game.card?.cover === 'market') return marketCover(game);
   if (game.card?.cover === 'work') return workCover(game);
+  if (game.card?.cover === 'rts') return rtsCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -184,5 +185,33 @@ function workCover(game) {
     <rect width="320" height="180" fill="url(#wk-${uid})"/>
     ${towers.join('')}
     <text x="16" y="34" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="800">💼 9 to 5</text>
+  </svg>`;
+}
+
+/** Shardfront's cover: two bases across a dark field, crystals between, shots in the air. */
+function rtsCover(game) {
+  const r = rng(game.id);
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const crystals = Array.from({ length: 9 }, (_, i) => {
+    const x = 128 + i * 8 + r() * 6;
+    const y = 112 + Math.sin(i) * 6;
+    return `<path d="M${x.toFixed(1)} ${(y - 14).toFixed(1)} l5 10 -5 8 -5 -8z" fill="#7ef0ff" opacity="${(0.65 + r() * 0.35).toFixed(2)}"/>`;
+  }).join('');
+  const shots = Array.from({ length: 5 }, () => {
+    const x = 80 + r() * 160;
+    const y = 60 + r() * 40;
+    return `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + 14).toFixed(1)}" y2="${(y + 5).toFixed(1)}" stroke="#ffd27a" stroke-width="2" stroke-linecap="round"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="rts-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16223a"/><stop offset="1" stop-color="#2c4a2a"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#rts-${uid})"/>
+    <path d="M0 120 Q80 104 160 116 T320 112 V180 H0Z" fill="#3e6230"/>
+    <g fill="#8e9aa8"><rect x="22" y="96" width="44" height="30" rx="3"/><rect x="30" y="82" width="28" height="16"/><rect x="72" y="110" width="16" height="16"/></g>
+    <rect x="22" y="118" width="44" height="5" fill="#3d8bff"/>
+    <g fill="#5c8a3a"><rect x="262" y="88" width="8" height="38" fill="#3b2b1d"/><circle cx="266" cy="82" r="22"/><circle cx="240" cy="112" r="10"/></g>
+    <circle cx="266" cy="100" r="4" fill="#ef4f4f"/>
+    ${crystals}
+    ${shots}
+    <text x="16" y="34" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="800">♜ Shardfront</text>
   </svg>`;
 }

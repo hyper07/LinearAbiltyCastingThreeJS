@@ -15,7 +15,7 @@ modules); the rest is the plan.
 | Genres, worlds, layouts, casts as data, and the Game builder | **Built**: [Game builder](game-builder.md) |
 | Modules: the feature list each genre declares, and what each saves | **Built** as data ([`modules.js`](../src/blueprints/modules.js)), checked by the tests |
 | Plans (Free, Plus) enforced by the server | **Built** |
-| Engines other than the action RPG | **Built**: the stock market game (engine `market` — [Stock Market Challenge](stock-market.md)) and the work game (engine `work` — [Work Life](work-life.md)), 2D screens sharing a wallet. Puzzle and story: planned |
+| Engines other than the action RPG | **Built**: the stock market game (engine `market` — [Stock Market Challenge](stock-market.md)) and the work game (engine `work` — [Work Life](work-life.md)), 2D screens sharing a wallet; the strategy game (engine `rts` — [Shardfront](shardfront.md)), its own 3D view. Puzzle and story: planned |
 | Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
 | Battle royale on the action RPG engine: storm, AI rivals, players against players, solo and squads | **Built**: see [Battle royale](battle-royale.md) |
 | Games as records, on a home page | **Built**: published games are rows in PostgreSQL with their levels; the home page lists them with the official ones. See [Games on the home page](#games-on-the-home-page) |

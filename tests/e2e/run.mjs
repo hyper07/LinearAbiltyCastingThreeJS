@@ -14,6 +14,7 @@ import { run as home } from './home.mjs';
 import { run as royale } from './royale.mjs';
 import { run as market } from './market.mjs';
 import { run as work } from './work.mjs';
+import { run as rts } from './rts.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -50,7 +51,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);
