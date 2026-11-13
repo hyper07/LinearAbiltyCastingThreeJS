@@ -10,13 +10,18 @@
 
 export const NPCS = {
   marla: { name: 'Marla Thistle', title: 'Warden of the Greenfold', body: 'Knight', show: ['1H_Sword'], tint: '#ffe6c8' },
-  brannoc: { name: 'Brannoc', title: 'Smith', body: 'Barbarian', show: ['1H_Axe'], tint: '#ffd0b0' },
+  brannoc: { name: 'Brannoc', title: 'Smith — Weapons & Armor', body: 'Barbarian', show: ['1H_Axe'], tint: '#ffd0b0', vendor: true },
   ysolde: { name: 'Ysolde', title: 'Healer & Alchemist', body: 'Mage', show: ['Spellbook'], tint: '#e8fff0' },
   osric: { name: 'Captain Osric', title: 'Road Watch', body: 'Knight', show: ['1H_Sword', 'Round_Shield'], tint: '#d8e4ff' },
   aldric: { name: 'Elder Aldric', title: 'Keeper of Old Seals', body: 'Mage', show: ['2H_Staff'], tint: '#e6d8ff' },
-  pell: { name: 'Pell', title: 'Provisioner', body: 'Rogue', show: [], tint: '#fff0c8', vendor: true },
+  pell: { name: 'Pell', title: 'Provisioner — Food & Draughts', body: 'Rogue', show: [], tint: '#fff0c8', vendor: true },
   tamsin: { name: 'Tamsin', title: 'Banker', body: 'Rogue_Hooded', show: [], tint: '#d8f0ff', bank: true },
-  fenwick: { name: 'Fenwick', title: 'Guild Registrar', body: 'Mage', show: ['Spellbook_open'], tint: '#ffe0f0', guild: true }
+  fenwick: { name: 'Fenwick', title: 'Guild Registrar', body: 'Mage', show: ['Spellbook_open'], tint: '#ffe0f0', guild: true },
+  // Villagers who go about their day (something to say, nothing to sell).
+  hob: { name: 'Hob', title: 'Farmer', body: 'Barbarian', show: [], tint: '#e8d8b0', says: ['Rattlebones in my turnips again. Third time this month.', 'The Greenfold used to be quiet, you know.'] },
+  linnet: { name: 'Linnet', title: 'Courier', body: 'Rogue_Hooded', show: [], tint: '#d0f0d8', says: ['Letters for the Road Watch! Mind your feet!', 'Captain Osric pays well for bandit trouble.'] },
+  gareth: { name: 'Gareth', title: 'Town Guard', body: 'Knight', show: ['1H_Sword', 'Round_Shield'], tint: '#c8d8ff', says: ['Keep to the roads after dark.', 'The north gate leads to the Greenfold. Bring potions.'] },
+  mira: { name: 'Mira', title: 'Traveling Scholar', body: 'Mage', show: ['Spellbook'], tint: '#f0e0ff', says: ['They say the Sunken Crypt hums at night.', 'Elder Aldric knows more about the old seals than he lets on.'] }
 };
 
 export const ZONES = {
@@ -25,7 +30,18 @@ export const ZONES = {
     spawn: [60, 92], graveyard: [60, 92],
     walls: [
       { x: 30, z: 30, r: 8, kind: 'house' }, { x: 90, z: 30, r: 8, kind: 'house' }, { x: 26, z: 80, r: 7, kind: 'house' },
-      { x: 95, z: 92, r: 7, kind: 'house' }, { x: 60, z: 60, r: 4, kind: 'well' }, { x: 40, z: 100, r: 6, kind: 'house' }
+      { x: 95, z: 92, r: 7, kind: 'house' }, { x: 60, z: 60, r: 4, kind: 'well' }, { x: 40, z: 100, r: 6, kind: 'house' },
+      { x: 52, z: 80.6, r: 2.2, kind: 'stall', sign: 'Provisioner', color: '#3f8f4a', face: 0 },
+      { x: 68, z: 80.6, r: 2.2, kind: 'stall', sign: 'Bank', color: '#3a5fa8', face: 0 },
+      { x: 78, z: 48.6, r: 2.2, kind: 'stall', sign: 'Smithy', color: '#a8553a', face: 0 },
+      { x: 87.4, z: 68, r: 2.2, kind: 'stall', sign: 'Guild Hall', color: '#8a3aa8', face: -Math.PI / 2 },
+      { x: 42, z: 66.6, r: 2.2, kind: 'stall', sign: 'Healer', color: '#3aa89a', face: 0 }
+    ],
+    walkers: [
+      { id: 'hob', route: [[46, 92], [46, 78], [34, 88]] },
+      { id: 'linnet', route: [[60, 18], [60, 50], [74, 66], [60, 86]] },
+      { id: 'gareth', route: [[54, 12], [66, 12], [66, 24], [54, 24]] },
+      { id: 'mira', route: [[64, 54], [72, 62], [64, 70], [56, 62]] }
     ],
     npcs: [
       { id: 'marla', at: [52, 66] }, { id: 'brannoc', at: [78, 52] }, { id: 'ysolde', at: [42, 70] }, { id: 'osric', at: [70, 74] },

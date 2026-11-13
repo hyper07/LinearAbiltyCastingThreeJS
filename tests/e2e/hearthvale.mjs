@@ -78,7 +78,41 @@ export async function run(browser, { shots = null } = {}) {
       await page.click('.hv-win--npc [data-accept]');
       t.check('the quest is taken and tracked', await until(page, () => /Rattlebones: 0\/6/.test(document.querySelector('.hv [data-tracker]')?.textContent ?? ''), null, 5000));
     } else t.check('walked to Marla', false);
+    t.check('characters start with seed money', await page.evaluate(() => window.hearthvale.ch.gold === 100));
+    t.check('the shopkeepers stand where they should (no lost bodies)', await page.evaluate(() => {
+      const hv = window.hearthvale;
+      return ['pell', 'brannoc', 'tamsin'].every((id) => {
+        const e = hv.current.ents.find((x) => x.k === 'npc' && x.npc === id);
+        const m = e && hv.view.models.get(e.i);
+        return m && Number.isFinite(m.group.rotation.y) && Math.hypot(m.group.position.x - e.x, m.group.position.z - e.z) < 3;
+      });
+    }));
     await shot(page, 'hearthvale-town');
+
+    // Brannoc's store: walk over, F, Buy & wear a sword.
+    await page.evaluate(([tx, tz]) => new Promise((done) => {
+      const hv = window.hearthvale;
+      const timer = setInterval(() => {
+        const dx = tx - hv.me.x;
+        const dz = tz - hv.me.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.5) {
+          clearInterval(timer);
+          done();
+          return;
+        }
+        const k = Math.min(1, 0.6 / d);
+        hv.me.x += dx * k;
+        hv.me.z += dz * k;
+      }, 100);
+    }), [78, 55]);
+    await page.waitForTimeout(600);
+    if (await page.$('.hv-win--npc .hv__x')) await page.click('.hv-win--npc .hv__x');
+    await page.keyboard.press('f');
+    t.check('F at the Smithy opens Brannoc\'s store', await until(page, () => Boolean(document.querySelector('.hv-store [data-buy="militia_sword"]')), null, 6000));
+    await page.click('.hv-store [data-buy="militia_sword"][data-wear]');
+    t.check('Buy & wear: the sword is worn, 20 gold spent', await until(page, () => window.hearthvale.ch.equip.weapon === 'militia_sword' && window.hearthvale.ch.gold === 80, null, 6000));
+    await shot(page, 'hearthvale-store');
 
     // A second player: invited to the party by name, then both in one world.
     const other = await boot(browser, 'hearthvale-2', { view: 'home' });

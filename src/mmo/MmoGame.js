@@ -1,5 +1,5 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
 import { questsAt, questDone, countOf } from './rules.js';
 import './mmo.css';
@@ -295,12 +295,30 @@ export class MmoGame {
         this._events(msg.ev, msg.s);
         if (!this.me) {
           const mine = msg.s.ents.find((e) => e.i === this.you);
-          if (mine) this.me = { i: mine.i, x: mine.x, z: mine.z, a: mine.a };
+          if (mine) {
+            this.me = { i: mine.i, x: mine.x, z: mine.z, a: mine.a };
+            // Arriving: look into the zone (toward its middle), not at the wall behind you.
+            const [w, h] = ZONES[this.zone].size;
+            const cx = this.zone === 'hearthvale' ? w / 2 : w / 2;
+            const cz = this.zone === 'hearthvale' ? h * 0.6 : h / 2;
+            this.view.yaw = Math.atan2(mine.x - cx, mine.z - cz);
+            this.view.pitch = 0.45;
+            this.me.a = Math.atan2(cx - mine.x, cz - mine.z);
+            if (this.zone === 'hearthvale' && !this._welcomed) {
+              this._welcomed = true;
+              this.toast('Welcome to Hearthvale! 💰 marks a shop: Pell sells food and draughts, Brannoc weapons and armor. ! marks a quest.', 'good');
+            }
+          }
         }
         return;
       case 'me':
         this.ch = msg.ch;
         this.st = msg.st;
+        if (this.wearNext) {
+          const slot = this.ch.bag.findIndex((x) => x?.item === this.wearNext);
+          if (slot >= 0) this.send({ t: 'equip', slot });
+          this.wearNext = null;
+        }
         this._renderAll();
         return;
       case 'correct':
@@ -447,6 +465,8 @@ export class MmoGame {
     const ents = cur.s.ents.map((e) => {
       const p = before.get(e.i);
       if (!p || e.k === 'n' || Math.hypot(p.x - e.x, p.z - e.z) > 6) return e;
+      // No heading on either side (or a bad one): blend the place, keep the newest heading.
+      if (!Number.isFinite(e.a) || !Number.isFinite(p.a)) return { ...e, x: p.x + (e.x - p.x) * k, z: p.z + (e.z - p.z) * k };
       let da = e.a - p.a;
       da = Math.atan2(Math.sin(da), Math.cos(da));
       return { ...e, x: p.x + (e.x - p.x) * k, z: p.z + (e.z - p.z) * k, a: p.a + da * k };
@@ -456,7 +476,7 @@ export class MmoGame {
       for (const e of ents) {
         if (e.k !== 'npc') continue;
         const q = questsAt(this.ch, e.npc);
-        e.mark = q.hand.length ? '?' : q.offer.length ? '!' : null;
+        e.mark = q.hand.length ? '?' : q.offer.length ? '!' : VENDORS[e.npc] ? '💰' : null;
       }
     }
     return { ...cur.s, ents };
@@ -874,6 +894,10 @@ export class MmoGame {
       if (w) box.append(w);
     }
     for (const b of this.$('[data-menu]').children) b.classList.toggle('is-on', this.panels.has(b.dataset.panel));
+    // A window that redraws takes its clicked button with it: give the keys back to the game
+    // (so W A S D and F keep working), unless someone is typing.
+    const active = document.activeElement;
+    if (!(active instanceof HTMLInputElement) && (!active || active === document.body || !this.root.contains(active) || !active.isConnected)) this.root.focus({ preventScroll: true });
   }
 
   _window(title, id, body) {
@@ -1034,23 +1058,8 @@ export class MmoGame {
       });
       body.append(row);
     }
-    if (n.vendor) {
-      body.append(el('h3', null, 'For sale'));
-      const list = el('div', 'hv-shop');
-      for (const id of n.vendor) {
-        const b = el('button', 'hv-shop__item');
-        b.type = 'button';
-        b.innerHTML = `<span>${ICON(id)}</span><b></b><em>${ITEMS[id].value * 4} gold</em>`;
-        b.querySelector('b').textContent = ITEMS[id].name;
-        b.title = itemTip(id);
-        b.dataset.buy = id;
-        b.disabled = this.ch.gold < ITEMS[id].value * 4;
-        b.addEventListener('click', () => this.send({ t: 'buy', item: id, n: 1 }));
-        list.append(b);
-      }
-      body.append(list, el('p', 'hv-muted', 'Open your bag (I) and click an item to sell it.'));
-      this.panels.add('bag');
-    }
+    if (n.says) body.append(el('p', 'hv-says', `“${n.says}”`));
+    if (n.vendor) body.append(this._store(n));
     if (n.bank) {
       body.append(el('h3', null, 'Your bank'));
       const grid = el('div', 'hv-grid');
@@ -1067,8 +1076,94 @@ export class MmoGame {
         body.append(f);
       }
     }
-    if (!n.hand.length && !n.offer.length && !n.vendor && !n.bank && !n.guild) body.append(el('p', null, 'Nothing for you right now. Come back later.'));
+    if (!n.hand.length && !n.offer.length && !n.vendor && !n.bank && !n.guild && !n.says) body.append(el('p', null, 'Nothing for you right now. Come back later.'));
     return this._window(def.name, 'npc', body);
+  }
+
+  /**
+   * A shop: what it sells in tabs (weapons, armor, supplies), each with its
+   * stats beside what you wear now, and a Sell tab for your bag.
+   */
+  _store(n) {
+    const box = el('div', 'hv-store');
+    const items = n.vendor;
+    const groups = [
+      ['weapons', 'Weapons', items.filter((id) => ITEMS[id].slot === 'weapon')],
+      ['armor', 'Armor', items.filter((id) => ITEMS[id].slot && ITEMS[id].slot !== 'weapon')],
+      ['supplies', 'Supplies', items.filter((id) => !ITEMS[id].slot)],
+      ['sell', 'Sell', null]
+    ].filter(([, , list]) => !list || list.length);
+    if (!groups.some(([k]) => k === this.storeTab)) this.storeTab = groups[0][0];
+    const head = el('div', 'hv-store__head');
+    head.innerHTML = `<span class="hv-store__gold">🪙 ${this.ch.gold} gold</span>`;
+    const tabs = el('div', 'hv-store__tabs');
+    for (const [key, label] of groups) {
+      const b = el('button', `hv-btn${this.storeTab === key ? ' is-on' : ''}`, label);
+      b.type = 'button';
+      b.dataset.tab = key;
+      b.addEventListener('click', () => {
+        this.storeTab = key;
+        this._renderAll();
+      });
+      tabs.append(b);
+    }
+    head.append(tabs);
+    box.append(head);
+    const list = el('div', 'hv-store__list');
+    if (this.storeTab === 'sell') {
+      const sellable = this.ch.bag.map((x, i) => [x, i]).filter(([x]) => x && (ITEMS[x.item].value ?? 0) > 0);
+      if (!sellable.length) list.append(el('p', 'hv-muted', 'Nothing in your bag to sell.'));
+      for (const [x, i] of sellable) {
+        const row = el('div', 'hv-store__row');
+        row.innerHTML = `<span class="hv-store__icon">${ICON(x.item)}</span><div><b></b><small></small></div><button type="button" class="hv-btn" data-sell="${i}">Sell</button>`;
+        row.querySelector('b').textContent = `${ITEMS[x.item].name}${x.n > 1 ? ` ×${x.n}` : ''}`;
+        row.querySelector('b').style.color = itemColor(x.item);
+        row.querySelector('small').textContent = `${(ITEMS[x.item].value ?? 0) * x.n} gold`;
+        row.querySelector('button').addEventListener('click', () => this.send({ t: 'sell', slot: i }));
+        list.append(row);
+      }
+    } else {
+      const [, , ids] = groups.find(([k]) => k === this.storeTab);
+      for (const id of ids) {
+        const it = ITEMS[id];
+        const price = it.value * 4;
+        const row = el('div', 'hv-store__row');
+        row.dataset.item = id;
+        const lowLevel = (it.level ?? 1) > this.ch.level;
+        let compare = '';
+        if (it.slot) {
+          const worn = this.ch.equip[it.slot];
+          const keys = new Set([...Object.keys(it.stats ?? {}), ...Object.keys(ITEMS[worn]?.stats ?? {})]);
+          const diffs = [...keys].map((k) => [k, (it.stats?.[k] ?? 0) - (ITEMS[worn]?.stats?.[k] ?? 0)]).filter(([, d]) => d);
+          compare = worn === id ? '<em class="hv-store__same">You wear this</em>' : diffs.length ? diffs.map(([k, d]) => `<em class="${d > 0 ? 'is-up' : 'is-down'}">${d > 0 ? '+' : ''}${d} ${k}</em>`).join(' ') : '<em class="hv-store__same">Same as yours</em>';
+        }
+        const stats = it.stats ? Object.entries(it.stats).map(([k, v]) => `+${v} ${k}`).join(' · ') : it.use ? `${it.use.heal ? `heals ${it.use.heal}` : ''}${it.use.heal && it.use.mana ? ' · ' : ''}${it.use.mana ? `restores ${it.use.mana} mana` : ''}` : '';
+        row.innerHTML = `<span class="hv-store__icon">${ICON(id)}</span>
+          <div><b></b><small>${esc(stats)}${it.slot ? ` · ${it.slot}` : ''}${it.level ? ` · <span class="${lowLevel ? 'is-down' : ''}">level ${it.level}</span>` : ''}</small>${compare ? `<span class="hv-store__cmp">${compare}</span>` : ''}</div>
+          <div class="hv-store__buy"><span class="hv-store__price">${price} g</span></div>`;
+        row.querySelector('b').textContent = it.name;
+        row.querySelector('b').style.color = itemColor(id);
+        const buy = row.querySelector('.hv-store__buy');
+        const add = (label, count, wear = false) => {
+          const b = el('button', `hv-btn${wear ? ' hv-btn--go' : ''}`, label);
+          b.type = 'button';
+          b.dataset.buy = id;
+          if (wear) b.dataset.wear = '1';
+          b.disabled = this.ch.gold < price * count;
+          b.addEventListener('click', () => {
+            if (wear) this.wearNext = id;
+            this.send({ t: 'buy', npc: n.npc, item: id, n: count });
+          });
+          buy.append(b);
+        };
+        add('Buy', 1);
+        if (!it.slot) add('×5', 5);
+        else if (!lowLevel && this.ch.equip[it.slot] !== id) add('Buy & wear', 1, true);
+        list.append(row);
+      }
+    }
+    box.append(list);
+    return box;
   }
 
   _win_craft() {

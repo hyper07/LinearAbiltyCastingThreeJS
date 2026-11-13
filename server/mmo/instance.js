@@ -34,7 +34,10 @@ export class Instance {
     this.tele = []; // telegraphs: boss attacks about to land
     this.onEmpty = onEmpty;
     this.emptySince = 0;
-    for (const n of this.def.npcs) this._add({ kind: 'npc', npc: n.id, x: n.at[0], z: n.at[1], a: 0 });
+    // NPCs face the middle of town; villagers walk their rounds.
+    const [w, h] = this.def.size;
+    for (const n of this.def.npcs) this._add({ kind: 'npc', npc: n.id, x: n.at[0], z: n.at[1], a: Math.atan2(w / 2 - n.at[0], (h * 0.75) - n.at[1]) });
+    for (const v of this.def.walkers ?? []) this._add({ kind: 'npc', npc: v.id, x: v.route[0][0], z: v.route[0][1], a: 0, route: v.route, leg: 1, restUntil: 0 });
     for (const group of this.def.nodes) for (const at of group.at) this._add({ kind: 'node', type: group.type, x: at[0], z: at[1], ready: true, respawnAt: 0 });
     this.def.spawns.forEach((s, gi) => {
       for (let i = 0; i < s.count; i++) this._spawnMob(s, gi);
@@ -502,6 +505,7 @@ export class Instance {
     const t = this.time;
     for (const p of this.players.values()) this._playerStep(p, t);
     for (const e of this.ents.values()) {
+      if (e.kind === 'npc' && e.route) this._stroll(e, t);
       if (e.kind === 'mob') this._mobStep(e, t);
       else if (e.kind === 'node' && !e.ready && t >= e.respawnAt) e.ready = true;
     }
@@ -662,6 +666,16 @@ export class Instance {
     this.tele = keep;
   }
 
+  /** A villager on their round: walk to the next stop, stand a while, go on. */
+  _stroll(v, t) {
+    if (t < v.restUntil) return;
+    const [x, z] = v.route[v.leg];
+    if (this._walk(v, { x, z }, 2.4)) {
+      v.leg = (v.leg + 1) % v.route.length;
+      v.restUntil = t + 3 + (v.id % 4);
+    }
+  }
+
   /** Walk an entity toward a point; true when there. */
   _walk(e, to, speed) {
     const dx = to.x - e.x;
@@ -711,7 +725,7 @@ export class Instance {
       } else if (e.kind === 'node') {
         ents.push({ i: e.id, k: 'n', ty: e.type, x: e.x, z: e.z, ready: e.ready });
       } else if (e.kind === 'npc') {
-        ents.push({ i: e.id, k: 'npc', npc: e.npc, x: e.x, z: e.z });
+        ents.push({ i: e.id, k: 'npc', npc: e.npc, x: r(e.x), z: r(e.z), a: r(e.a ?? 0) });
       }
     }
     return { t: r(this.time), zone: this.zone, ents, tele: this.tele.map((tl) => ({ i: tl.id, x: r(tl.x), z: r(tl.z), r: tl.r, left: r(tl.at - this.time) })) };

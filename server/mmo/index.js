@@ -1,7 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { RateLimiter, json, pathOf, queryOf, readJson } from '../api/http.js';
 import { Instance } from './instance.js';
-import { CLASSES, ITEMS, VENDOR, QUESTS, RECIPES, SLOTS, PARTY_MAX } from '../../src/mmo/data.js';
+import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX } from '../../src/mmo/data.js';
 import { ZONES, NPCS } from '../../src/mmo/world.js';
 import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf } from '../../src/mmo/rules.js';
 
@@ -226,7 +226,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
       case 'talk': {
         const npc = NPCS[msg.npc];
         if (!npc || !inst.near(p, 'npc', msg.npc)) return err('Too far away');
-        return client.send({ t: 'npc', npc: msg.npc, ...questsAt(ch, msg.npc), vendor: npc.vendor ? VENDOR : null, bank: Boolean(npc.bank), guild: Boolean(npc.guild) });
+        return client.send({ t: 'npc', npc: msg.npc, ...questsAt(ch, msg.npc), vendor: VENDORS[msg.npc] ?? null, bank: Boolean(npc.bank), guild: Boolean(npc.guild), says: npc.says ? npc.says[Math.floor(Math.random() * npc.says.length)] : null });
       }
       case 'quest-accept': {
         const q = QUESTS[msg.id];
@@ -263,19 +263,22 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
       case 'buy': {
         const item = String(msg.item);
         const n = Math.max(1, Math.min(20, msg.n | 0 || 1));
-        if (!VENDOR.includes(item) || !inst.near(p, 'npc', 'pell')) return err('Nobody sells that here');
+        const shop = String(msg.npc ?? '');
+        if (!VENDORS[shop]?.includes(item) || !inst.near(p, 'npc', shop)) return err('Nobody sells that here');
         const price = ITEMS[item].value * 4 * n;
         if (ch.gold < price) return err('Not enough gold');
         const got = give(ch, item, n);
         if (!got) return err('Your bag is full');
         ch.gold -= ITEMS[item].value * 4 * got;
+        client.send({ t: 'ev', ev: [{ type: 'text', text: `Bought ${ITEMS[item].name}${got > 1 ? ` ×${got}` : ''}` }] });
         return client.dirty();
       }
       case 'sell': {
         const s = ch.bag[msg.slot | 0];
-        if (!s || !inst.near(p, 'npc', 'pell')) return err('Find a vendor to sell to');
+        if (!s || !Object.keys(VENDORS).some((v) => inst.near(p, 'npc', v))) return err('Find a shopkeeper to sell to');
         ch.gold += (ITEMS[s.item].value ?? 0) * s.n;
         ch.bag[msg.slot | 0] = null;
+        client.send({ t: 'ev', ev: [{ type: 'text', text: `Sold ${ITEMS[s.item].name}${s.n > 1 ? ` ×${s.n}` : ''} for ${(ITEMS[s.item].value ?? 0) * s.n} gold` }] });
         return client.dirty();
       }
       case 'bank-put': case 'bank-take': {

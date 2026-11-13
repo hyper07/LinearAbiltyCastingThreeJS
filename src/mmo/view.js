@@ -191,6 +191,47 @@ export class MmoView {
         tree.scale.setScalar(0.9 + (i % 4) * 0.15);
         g.add(tree);
       }
+    } else if (wall.kind === 'stall') {
+      // A market stall: a counter, four posts, a striped awning, a painted sign.
+      const wood = mat('#8a6a4a');
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(4, 1.1, 1.2), wood);
+      counter.position.set(0, 0.55, 0.6);
+      g.add(counter);
+      for (const [x, z] of [[-1.9, -0.4], [1.9, -0.4], [-1.9, 1.1], [1.9, 1.1]]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3, 0.18), wood);
+        post.position.set(x, 1.5, z);
+        g.add(post);
+      }
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.15, 2.2), mat(wall.color ?? '#a8553a'));
+      awning.position.set(0, 3.05, 0.35);
+      awning.rotation.x = 0.18;
+      g.add(awning);
+      const cvs = document.createElement('canvas');
+      cvs.width = 256;
+      cvs.height = 64;
+      const c = cvs.getContext('2d');
+      c.fillStyle = '#f1e2c0';
+      c.fillRect(0, 0, 256, 64);
+      c.strokeStyle = '#5a3a2a';
+      c.lineWidth = 6;
+      c.strokeRect(3, 3, 250, 58);
+      c.fillStyle = '#3a2418';
+      c.font = '700 34px Georgia, serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(wall.sign ?? '', 128, 34);
+      const tex = new THREE.CanvasTexture(cvs);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide }));
+      sign.position.set(0, 3.6, 1.2);
+      g.add(sign);
+      // Goods on the counter.
+      for (let i = 0; i < 4; i++) {
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.5), mat(['#c8a060', '#9ac06a', '#c06a5a', '#6a9ac0'][i]));
+        crate.position.set(-1.3 + i * 0.85, 1.3, 0.6);
+        g.add(crate);
+      }
+      g.rotation.y = wall.face ?? 0;
     } else if (wall.kind === 'pillar') {
       const p = new THREE.Mesh(new THREE.CylinderGeometry(wall.r * 0.7, wall.r * 0.8, 9, 10), mat('#6a6e78'));
       p.position.y = 4.5;
@@ -443,11 +484,11 @@ export class MmoView {
         continue;
       }
       const a = isMe ? me.a : e.a;
-      if (a != null) m.group.rotation.y = a;
+      if (Number.isFinite(a)) m.group.rotation.y = a;
       if (!m.mixer) continue;
       const moving = m.last && Math.hypot(x - m.last.x, z - m.last.z) > 0.02;
       m.last = { x, z };
-      let clip = moving ? 'Running_A' : 'Idle';
+      let clip = moving ? (e.k === 'npc' ? 'Walking_A' : 'Running_A') : 'Idle';
       let once = false;
       if (e.dead) {
         clip = 'Death_A';

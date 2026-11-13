@@ -10,7 +10,10 @@ your account, so **sign in to play**. The world, classes, quests and names are o
 are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset library.
 
 <p>
-  <img src="screenshots/hearthvale-town.jpg" width="100%" alt="A Vanguard in Hearthvale talking to Marla Thistle, who offers the quest Rattling in the Fields; the quest tracker, the round map, the six-skill hotbar and the chat" />
+  <img src="screenshots/hearthvale-town.jpg" width="100%" alt="Hearthvale's square: market stalls with signs (Bank, Provisioner, Healer, Smithy), the shopkeepers and villagers, a well, the anvil, a Vanguard in front of Brannoc the smith" />
+</p>
+<p>
+  <img src="screenshots/hearthvale-store.jpg" width="100%" alt="Brannoc's store: a quest to accept, 105 gold, Weapons Armor and Sell tabs, a Militia Sword showing +2 power against the sword worn, with Buy and Buy &amp; wear" />
 </p>
 
 ## How it plays
@@ -23,13 +26,19 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   GCD), and some take time to cast — moving stops them. Monsters go after whoever they hate most:
   damage makes them angry (the Vanguard's twice as much), healing does too, and **Challenge** forces
   them back onto the Vanguard.
-- **The world.** **Hearthvale** (the town: quest givers, the provisioner, the bank, the guild
-  registrar and three crafting stations), **the Greenfold** (levels 1–10: Rattlebones, Grave Archers,
+- **The world.** **Hearthvale** (the town: quest givers, two stores, the bank, the guild
+  registrar, three crafting stations, and villagers going about their day), **the Greenfold** (levels 1–10: Rattlebones, Grave Archers,
   bandits, the barrow and the Old Gravelord), **the Ashfen** (levels 10–18), **the Sunken Crypt**
   (a dungeon for up to 5 from level 8: Warden Kessa and the Drowned King) and **the Ember Spire**
   (a raid for up to 8 from level 16: Cinderwing, the Ash Colossus). Walk into a portal and press **F**.
 - **Bosses** warn before they hit: a red circle grows on the ground where a slam or a burst will land
   — get out of it. Some call adds; some grow enraged when they're nearly down.
+- **Money and stores.** Every character starts with **100 gold** (characters made before then got it
+  once). Hearthvale's stalls have signs, and a 💰 marks each shopkeeper: **Pell** (Provisioner) sells
+  bread and draughts; **Brannoc** (Smithy) sells weapons and armor in three tiers (levels 1, 5 and
+  9–10). His store has Weapons, Armor and Sell tabs, compares each piece with what you wear (+2
+  power…), shows the level it needs, and has **Buy & wear**. Stores sell at four times an item's
+  value and buy at its value.
 - **Loot** is rolled for everyone who fought, straight into their bags; gold too. Kills count for
   everyone's quests in the party.
 - **Quests** come from the people with a **!** over them; a **?** means one is ready to hand in. Kill

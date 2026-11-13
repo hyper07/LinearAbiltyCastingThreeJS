@@ -51,7 +51,8 @@ export async function run(browser, { shots = null } = {}) {
         .sort((a, b) => Math.hypot(a.x - core.x, a.z - core.z) - Math.hypot(b.x - core.x, b.z - core.z))
         .find((nd) => {
           const p = v.toScreen(nd.x, 1, nd.z);
-          return p.x > 20 && p.y > 70 && p.x < v.width - 20 && p.y < v.height - 20;
+          // On screen, clear of the bars, and really what a click there would hit.
+          return p.x > 20 && p.y > 70 && p.x < v.width - 20 && p.y < v.height - 20 && v.pick(p.x, p.y)?.id === nd.id;
         });
       const p = v.toScreen(node.x, 1, node.z);
       return { x: r.left + p.x, y: r.top + p.y };

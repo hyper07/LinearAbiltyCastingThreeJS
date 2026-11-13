@@ -704,3 +704,84 @@
     display: none;
   }
 }
+
+/* ---- stores ---- */
+.hv-win--npc {
+  width: 460px;
+}
+.hv-says {
+  font-style: italic;
+  color: #f1e2c0;
+}
+.hv-store__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+.hv-store__gold {
+  color: var(--hv-gold);
+  font-weight: 800;
+}
+.hv-store__tabs {
+  display: flex;
+  gap: 4px;
+}
+.hv-store__list {
+  display: grid;
+  gap: 6px;
+}
+.hv-store__row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--hv-line);
+  border-radius: 10px;
+  background: #1a1820;
+}
+.hv-store__row > div {
+  display: grid;
+  gap: 2px;
+}
+.hv-store__row small {
+  color: var(--hv-muted);
+  font-size: 11px;
+}
+.hv-store__icon {
+  font-size: 22px;
+  text-align: center;
+}
+.hv-store__cmp {
+  font-size: 11px;
+}
+.hv-store__cmp em {
+  font-style: normal;
+  margin-right: 6px;
+}
+.hv-store .is-up {
+  color: #7dff9e;
+}
+.hv-store .is-down {
+  color: #ff8a7a;
+}
+.hv-store__same {
+  color: var(--hv-muted);
+}
+.hv-store__buy {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  max-width: 170px;
+}
+.hv-store__price {
+  color: var(--hv-gold);
+  font-weight: 700;
+  font-size: 12px;
+  margin-right: 2px;
+}

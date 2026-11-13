@@ -4,7 +4,7 @@ import { Readable } from 'node:stream';
 import { testDatabase } from './db.mjs';
 import { createMmo } from '../../server/mmo/index.js';
 import { newCharacter, statsOf, give, take, countOf, addXp, questsAt, questDone, normalize } from '../../src/mmo/rules.js';
-import { CLASSES, ITEMS, QUESTS, RECIPES, MOBS, XP_TO } from '../../src/mmo/data.js';
+import { CLASSES, ITEMS, QUESTS, RECIPES, MOBS, XP_TO, VENDORS, SEED_GOLD } from '../../src/mmo/data.js';
 import { ZONES, walkableIn } from '../../src/mmo/world.js';
 
 /** A socket that isn't one: what the server sends lands in `inbox`. */
@@ -88,6 +88,11 @@ test('rules: a new character, its stats, bags, experience', () => {
   ch.quests.active.q_supplies = 0;
   assert.equal(questDone(ch, 'q_supplies'), true, 'five ore in the bag');
   assert.equal(normalize({ ...ch, bag: [{ item: 'nonsense', n: 3 }] }).bag[0], null, 'unknown items are dropped on load');
+  assert.equal(newCharacter('Penny', 'ranger').gold, SEED_GOLD, 'seed money to start');
+  const old = normalize({ ...newCharacter('Olden', 'mender'), gold: 7, seeded: undefined });
+  assert.equal(old.gold, 7 + SEED_GOLD, 'an older character gets it once');
+  assert.equal(normalize(old).gold, 7 + SEED_GOLD, 'and only once');
+  for (const list of Object.values(VENDORS)) for (const id of list) assert.ok(ITEMS[id], id);
   for (const c of Object.values(CLASSES)) assert.equal(c.skills.length, 6);
   for (const r of Object.values(RECIPES)) for (const [item] of [...r.uses, r.makes]) assert.ok(ITEMS[item], item);
   for (const q of Object.values(QUESTS)) assert.ok(q.goal.kill ? MOBS[q.goal.kill] : ITEMS[q.goal.gather], q.name);
@@ -151,7 +156,7 @@ test('a day in Hearthvale: a quest, the Greenfold, a fight, loot, the quest done
     assert.ok(ev.some((e) => e.type === 'xp' && e.amount > 0), 'experience');
     assert.ok(ev.some((e) => e.type === 'loot'), 'loot rolled');
     assert.equal(client.ch.quests.active.q_rattle, 1, 'a kill for the quest');
-    assert.ok(client.ch.xp > 0 && client.ch.gold > 5);
+    assert.ok(client.ch.xp > 0 && client.ch.gold > SEED_GOLD);
     // Finish the quest the quick way and hand it in.
     client.ch.quests.active.q_rattle = 6;
     Object.assign(me, { x: 120, z: 230 });
@@ -208,12 +213,14 @@ test('together: a party shares a world, chats, trades; a guild; crafting; saved 
     assert.equal(a.ws.last('trade').done, true);
     assert.equal(countOf(a.client.ch, 'minor_potion'), potionsA - 3);
     assert.equal(countOf(b.client.ch, 'minor_potion'), potionsB + 3);
-    assert.equal(b.client.ch.gold, 8);
+    assert.equal(b.client.ch.gold, SEED_GOLD + 3);
     // A guild: chartered at Fenwick.
     Object.assign(a.client.body, { x: 84, z: 71 });
+    const purse = a.client.ch.gold;
+    a.client.ch.gold = 2;
     a.ws.say({ t: 'guild-create', name: 'Lantern Watch' });
     assert.match(a.ws.last('error').text, /10 gold/, 'a charter costs gold');
-    a.client.ch.gold += 20;
+    a.client.ch.gold = purse;
     a.ws.say({ t: 'guild-create', name: 'Lantern Watch' });
     await new Promise((r) => setTimeout(r, 50));
     assert.equal(a.ws.last('guild').guild.name, 'Lantern Watch');
@@ -271,6 +278,65 @@ test('the Sunken Crypt: a level to enter, and the Drowned King\'s slam lands whe
     assert.ok(warned, 'a warning circle on the ground');
     steps(40);
     assert.ok(ws.inbox.filter((m) => m.t === 'snap').flatMap((m) => m.ev).some((e) => e.type === 'blast'), 'and then it lands');
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});
+
+test('the stores: Brannoc sells gear, Pell supplies, each only by their stall; selling pays the value', async () => {
+  const { db, mmo, join } = await world();
+  try {
+    const { ws, client } = await join(0, 'Shopper', 'ranger');
+    const ch = client.ch;
+    const me = client.body;
+    assert.equal(ch.gold, SEED_GOLD);
+    // Far from the smith: no sale.
+    ws.say({ t: 'buy', npc: 'brannoc', item: 'hunting_crossbow' });
+    assert.match(ws.last('error').text, /Nobody sells/);
+    // At Brannoc's stall: a crossbow.
+    Object.assign(me, { x: 78, z: 54 });
+    ws.say({ t: 'talk', npc: 'brannoc' });
+    assert.ok(ws.last('npc').vendor.includes('hunting_crossbow'), 'his stock comes with the talk');
+    ws.say({ t: 'buy', npc: 'brannoc', item: 'hunting_crossbow' });
+    assert.equal(countOf(ch, 'hunting_crossbow'), 1);
+    assert.equal(ch.gold, SEED_GOLD - ITEMS.hunting_crossbow.value * 4);
+    // Brannoc doesn't sell bread; Pell does.
+    ws.say({ t: 'buy', npc: 'brannoc', item: 'bread' });
+    assert.match(ws.last('error').text, /Nobody sells/);
+    Object.assign(me, { x: 52, z: 86 });
+    const bread = countOf(ch, 'bread');
+    ws.say({ t: 'buy', npc: 'pell', item: 'bread', n: 5 });
+    assert.equal(countOf(ch, 'bread'), bread + 5);
+    // Wear the crossbow, sell the old one.
+    ws.say({ t: 'equip', slot: ch.bag.findIndex((x) => x?.item === 'hunting_crossbow') });
+    assert.equal(ch.equip.weapon, 'hunting_crossbow');
+    const gold = ch.gold;
+    ws.say({ t: 'sell', slot: ch.bag.findIndex((x) => x?.item === 'worn_crossbow') });
+    assert.equal(ch.gold, gold + ITEMS.worn_crossbow.value);
+    assert.equal(countOf(ch, 'worn_crossbow'), 0);
+    // Gear above your level can be bought but not worn.
+    Object.assign(me, { x: 78, z: 54 });
+    ws.say({ t: 'buy', npc: 'brannoc', item: 'copper_blade' });
+    ws.say({ t: 'equip', slot: ch.bag.findIndex((x) => x?.item === 'copper_blade') });
+    assert.match(ws.last('error').text, /level 5/);
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});
+
+test('Hearthvale has people: shopkeepers face the square, villagers walk their rounds', async () => {
+  const { db, mmo, join, steps } = await world();
+  try {
+    const { client } = await join(0, 'Watcher', 'mender');
+    const inst = client.instance;
+    const hob = [...inst.ents.values()].find((e) => e.npc === 'hob');
+    const start = { x: hob.x, z: hob.z };
+    steps(60);
+    assert.ok(Math.hypot(hob.x - start.x, hob.z - start.z) > 3, 'Hob walked');
+    const npcs = [...inst.ents.values()].filter((e) => e.kind === 'npc');
+    assert.ok(npcs.length >= 12, `${npcs.length} people in town`);
   } finally {
     await mmo.close();
     await db.close();

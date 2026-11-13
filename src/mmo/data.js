@@ -113,6 +113,20 @@ export const ITEMS = {
   ember_crest: { name: 'Ember Crest', slot: 'head', level: 18, stats: { armor: 22, stamina: 12, power: 10 }, value: 300, rarity: 'epic' },
   cinder_edge: { name: 'Cinderwing\'s Edge', slot: 'weapon', level: 20, stats: { power: 40, stamina: 12 }, value: 500, rarity: 'epic' },
   ashen_treads: { name: 'Ashen Treads', slot: 'feet', level: 16, stats: { armor: 12, stamina: 8, power: 6 }, value: 90, rarity: 'uncommon' },
+  // Brannoc's stock: plain gear for every class, three tiers
+  militia_sword: { name: 'Militia Sword', slot: 'weapon', level: 1, stats: { power: 4 }, value: 5 },
+  hunting_crossbow: { name: 'Hunting Crossbow', slot: 'weapon', level: 1, stats: { power: 4 }, value: 5 },
+  willow_staff: { name: 'Willow Staff', slot: 'weapon', level: 1, stats: { power: 4 }, value: 5 },
+  cloth_hood: { name: 'Cloth Hood', slot: 'head', level: 1, stats: { armor: 2, stamina: 1 }, value: 3 },
+  wooden_charm: { name: 'Carved Charm', slot: 'trinket', level: 1, stats: { power: 1, stamina: 1 }, value: 4 },
+  ring_vest: { name: 'Ringmail Vest', slot: 'chest', level: 5, stats: { armor: 8, stamina: 3 }, value: 12 },
+  scout_boots: { name: 'Scout Boots', slot: 'feet', level: 5, stats: { armor: 5, stamina: 2 }, value: 10 },
+  ring_leggings: { name: 'Ringmail Leggings', slot: 'legs', level: 6, stats: { armor: 7, stamina: 3 }, value: 12 },
+  steel_sword: { name: 'Steel Longsword', slot: 'weapon', level: 9, stats: { power: 11, stamina: 2 }, value: 28 },
+  steel_crossbow: { name: 'Steel Crossbow', slot: 'weapon', level: 9, stats: { power: 11, stamina: 2 }, value: 28 },
+  oak_rod: { name: 'Carved Oak Rod', slot: 'weapon', level: 9, stats: { power: 11, stamina: 2 }, value: 28 },
+  scale_vest: { name: 'Scale Hauberk', slot: 'chest', level: 10, stats: { armor: 14, stamina: 5 }, value: 30 },
+  scale_helm: { name: 'Scale Coif', slot: 'head', level: 10, stats: { armor: 9, stamina: 4 }, value: 26 },
   // Consumables
   minor_potion: { name: 'Minor Healing Draught', use: { heal: 80 }, stack: 20, value: 2 },
   mana_tonic: { name: 'Mana Tonic', use: { mana: 80 }, stack: 20, value: 2 },
@@ -128,8 +142,19 @@ export const ITEMS = {
   ember_shard: { name: 'Ember Shard', mat: true, stack: 40, value: 10 }
 };
 
-/** What the Hearthvale vendors sell. */
-export const VENDOR = ['minor_potion', 'mana_tonic', 'bread', 'leather_boots', 'traveler_leggings', 'copper_helm', 'padded_vest'];
+/** Hearthvale's stores: Pell's supplies, Brannoc's weapons and armor. A store sells at four times an item's value and buys at its value. */
+export const VENDORS = {
+  pell: ['bread', 'minor_potion', 'mana_tonic', 'greater_potion'],
+  brannoc: [
+    'militia_sword', 'hunting_crossbow', 'willow_staff', 'cloth_hood', 'padded_vest', 'leather_boots', 'traveler_leggings', 'wooden_charm',
+    'copper_blade', 'ash_bow', 'ash_staff', 'copper_helm', 'ring_vest', 'scout_boots', 'ring_leggings',
+    'steel_sword', 'steel_crossbow', 'oak_rod', 'scale_helm', 'scale_vest'
+  ]
+};
+/** Every item any store sells (for checks that don't care which). */
+export const VENDOR = [...new Set(Object.values(VENDORS).flat())];
+/** Money a new character starts with (and a one-time gift to older characters). */
+export const SEED_GOLD = 100;
 
 /** The starting kit for each class. */
 export const STARTER = {

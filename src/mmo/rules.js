@@ -1,4 +1,4 @@
-import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS } from './data.js';
+import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD } from './data.js';
 
 /**
  * Hearthvale's formulas, shared by the server (which decides) and the
@@ -14,7 +14,7 @@ export function newCharacter(name, cls) {
   const bag = new Array(BAG_SIZE).fill(null);
   kit.bag.forEach(([item, n], i) => (bag[i] = { item, n }));
   return {
-    name, cls, level: 1, xp: 0, gold: 5, zone: 'hearthvale', x: 60, z: 92, hp: null, mana: null,
+    name, cls, level: 1, xp: 0, gold: SEED_GOLD, seeded: true, zone: 'hearthvale', x: 60, z: 92, hp: null, mana: null,
     equip: { weapon: kit.weapon, chest: kit.chest },
     bag, bank: new Array(BANK_SIZE).fill(null),
     quests: { active: {}, done: [] },
@@ -144,6 +144,12 @@ export function normalize(raw) {
   ch.quests = { active: { ...(raw.quests?.active ?? {}) }, done: [...(raw.quests?.done ?? [])] };
   ch.skills = { ...newCharacter('x', ch.cls).skills, ...(raw.skills ?? {}) };
   ch.level = Math.max(1, Math.min(MAX_LEVEL, raw.level | 0 || 1));
+  ch.gold = Math.max(0, Math.floor(Number(raw.gold) || 0));
+  // Characters made before seed money existed get it once.
+  if (!raw.seeded) {
+    ch.gold += SEED_GOLD;
+    ch.seeded = true;
+  }
   return ch;
 }
 
