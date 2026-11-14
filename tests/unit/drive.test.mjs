@@ -25,8 +25,8 @@ test('brakes stop it and hold it a moment; held on, it reverses; the handbrake s
   car.v = 20;
   drive(car, { brake: true }, 1);
   assert.ok(car.v < 0.5 && car.v >= 0, 'stopped, not yet backing up');
-  drive(car, { brake: true }, 0.2);
-  assert.ok(car.v >= -0.01, 'a short hold stays stopped');
+  // Stopped after about 0.8 s; the hold before reversing is a third of a second from there.
+  assert.ok(car.hold > 0 && car.hold < 0.35, `held ${car.hold.toFixed(2)} s, not yet reversing`);
   drive(car, { brake: true }, 3);
   assert.ok(car.v < 0 && car.v >= -CAR.reverse, 'reversing');
   const b = fresh();
