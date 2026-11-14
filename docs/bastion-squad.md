@@ -49,6 +49,11 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   together to the nearest thing they can beat, home to heal when hurt. Four bots alone win Casual in
   about half an hour and Hard in about fifty minutes; Hell needs you.
 
+**2D or 3D**: Grave Purge comes drawn two ways — the menu's tabs, or the **Grave Purge 2D** card.
+Same game, same rooms (a 2D player and a 3D player can share one). 3D draws models and shadows and
+builds them as the camera reaches them (a hitch the first time it sees a new place); 2D is a plain
+canvas, light on older computers. Both show their frames a second at the bottom left.
+
 **Controls**: drag or click to select (double-click: all of that rank on screen; Shift adds);
 right-click to move or attack; **A** then click to attack-move; **S** stop; **H** hold; **Tab** all
 your soldiers; **Ctrl+1–5** make a group, **1–5** pick it; **Space** to your selection; the map:
@@ -61,6 +66,8 @@ click to look, right-click to send; wheel to zoom; arrows or the screen's edge t
 | `src/squad/purge/sim.js` | `Purge`: orders, the Forge, fighting, the dead waking and leashing, crypts, raids, the wards and the Heart, bots — no drawing |
 | `src/squad/purge/view.js` | the land (rocks, KayKit Halloween pieces for the dead's buildings, Space Base pieces for the camp), soldiers, skeletons; built only near the camera |
 | `src/squad/purge/PurgeGame.js` | menu, rooms, selection and orders, HUD, the Forge / armoury / give panels, minimap |
+| `src/squad/purge/flat.js` | the 2D view: the same game drawn flat on a plain canvas (no WebGL) — the land painted once, shapes for everything that moves |
+| `src/squad/purge/overlay.js` | what both views draw and pick alike: health bars, names, ore popups, picking and box-selecting |
 
 Tests: `tests/unit/purge.test.mjs` (the land and its ways, the Forge, pay and relics, shrines,
 the Heart and the king, the clock, a whole game won by bots) and `tests/e2e/bastion.mjs`.

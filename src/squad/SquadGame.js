@@ -110,7 +110,7 @@ export class SquadGame {
     const lobby = this.lobby ?? null;
     m.innerHTML = `
       <div class="bs__card">
-        ${this.onSwap ? '<div class="gp__modes"><button type="button" data-swap>Grave Purge</button><button type="button" class="is-on">Hold the Outpost</button></div>' : ''}
+        ${this.onSwap ? '<div class="gp__modes"><button type="button" data-swap="purge">Grave Purge 3D</button><button type="button" data-swap="purge2d">Grave Purge 2D</button><button type="button" class="is-on">Hold the Outpost</button></div>' : ''}
         <h1>Bastion Squad</h1>
         <p class="bs__lead">Kestrel Outpost, a mining station on a dead world. The dead are climbing out of the rifts. Four soldiers hold the reactor through fifteen waves — every fifth ends with something worse. Fight together, heal each other, lift whoever falls; spend what you earn in the armoury.</p>
         <h3>Your soldier</h3>
@@ -149,7 +149,7 @@ export class SquadGame {
       };
     }
     const $ = (q) => m.querySelector(q);
-    if ($('[data-swap]')) $('[data-swap]').onclick = () => this.onSwap('purge');
+    for (const b of m.querySelectorAll('[data-swap]')) b.onclick = () => this.onSwap(b.dataset.swap);
     if ($('[data-solo]')) $('[data-solo]').onclick = () => this.startSolo();
     if ($('[data-make]')) $('[data-make]').onclick = () => this._room('create');
     if ($('[data-join]')) {

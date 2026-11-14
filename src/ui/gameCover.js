@@ -304,7 +304,7 @@ function squadCover(game) {
     ${[176, 196, 262, 280].map((x, k) => `<circle cx="${x}" cy="88" r="3.4" fill="#f0d0b0"/><rect x="${x - 3}" y="91" width="6" height="8" rx="2" fill="${['#4f8cff', '#3ddc84', '#ff8a2a', '#f5c518'][k]}"/>`).join('')}
     <path d="M150 100 L120 128" stroke="#ffe9b0" stroke-width="1.5"/><path d="M170 96 L110 122" stroke="#ffe9b0" stroke-width="1.5"/>
     <text x="16" y="34" fill="#ffffff" font-family="system-ui, sans-serif" font-size="24" font-weight="900">${String(game.title).replace(/[<&]/g, '')}</text>
-    <text x="17" y="52" fill="#d79bff" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="2">HOLD THE REACTOR · CO-OP</text>
+    <text x="17" y="52" fill="#d79bff" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="2">${String(game.id).endsWith('2d') ? 'TOP-DOWN 2D · CO-OP' : 'GRAVE PURGE · HOLD THE OUTPOST'}</text>
   </svg>`;
 }
 

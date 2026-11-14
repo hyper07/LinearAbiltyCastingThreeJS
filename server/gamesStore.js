@@ -88,6 +88,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'coop', genreName: 'Co-op', cover: 'squad', badge: 'NEW' }
   },
   {
+    id: 'official:gravepurge2d',
+    title: 'Grave Purge 2D',
+    summary: 'Bastion Squad\'s Grave Purge drawn flat, from straight above, with no 3D at all — the same game, the same rooms: raise squads from Recruits to Paragons at the Forge, clear the Gravefield, break the Heart and its king before time runs out. Light on older computers.',
+    engine: 'squad',
+    genre: 'coop',
+    card: { genre: 'coop', genreName: 'Co-op', cover: 'squad', badge: 'NEW' }
+  },
+  {
     id: 'official:breachline',
     title: 'Breachline',
     summary: 'A tactical first-person shooter: five against five over short rounds. Raiders carry a charge to site A or B; Wardens hold the sites or disarm it. Buy before each round, change ends at the half — alone with bots, or with up to four friends in a room.',

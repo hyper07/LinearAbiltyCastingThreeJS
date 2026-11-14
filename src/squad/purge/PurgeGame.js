@@ -1,5 +1,5 @@
 import { Purge, forgeCheck } from './sim.js';
-import { PurgeView } from './view.js';
+import { FlatView } from './flat.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
 import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART } from './map.js';
@@ -24,8 +24,9 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStar
  * F the Forge · U upgrades · G give ore · Space: to your selection.
  */
 export class PurgeGame {
-  constructor(host, { account = null, onClose = () => {}, onSwap = null } = {}) {
+  constructor(host, { account = null, onClose = () => {}, onSwap = null, flat = false } = {}) {
     this.host = host;
+    this.flat = flat;
     this.account = account;
     this.onClose = onClose;
     this.onSwap = onSwap;
@@ -54,12 +55,16 @@ export class PurgeGame {
         <div class="gp__panel" data-panel hidden></div>
         <div class="bs__aim" data-aim hidden></div>
         <div class="gp__feed" data-feed></div>
+        <div class="gp__fps" data-fps></div>
       </div>
       <div class="bs__menu" data-menu></div>
       <button type="button" class="bs__x" data-close aria-label="Leave Grave Purge">✕</button>`;
     this.host.append(this.root);
     this.$ = (q) => this.root.querySelector(q);
-    this.view = new PurgeView(this.$('[data-stage]'));
+    // 2D: plain canvas shapes. 3D: three.js (loaded only when wanted).
+    const View = this.flat ? FlatView : (await import('./view.js')).PurgeView;
+    this.view = new View(this.$('[data-stage]'));
+    this.fps = { frames: 0, at: performance.now(), value: 0, worst: 0, slow: 0 };
     this.view.selected = this.selected;
     this.overlay = this.$('[data-overlay]');
     this.octx = this.overlay.getContext('2d');
@@ -113,8 +118,8 @@ export class PurgeGame {
     const heroes = lobby?.heroesOnly ?? this.pick.heroesOnly;
     m.innerHTML = `
       <div class="bs__card gp__card">
-        ${this.onSwap ? '<div class="gp__modes"><button type="button" class="is-on">Grave Purge</button><button type="button" data-swap>Hold the Outpost</button></div>' : ''}
-        <h1>Bastion Squad · Grave Purge</h1>
+        ${this.onSwap ? `<div class="gp__modes"><button type="button" class="${this.flat ? '' : 'is-on'}" ${this.flat ? 'data-swap-to="purge"' : ''}>Grave Purge 3D</button><button type="button" class="${this.flat ? 'is-on' : ''}" ${this.flat ? '' : 'data-swap-to="purge2d"'}>Grave Purge 2D</button><button type="button" data-swap-to="hold">Hold the Outpost</button></div>` : ''}
+        <h1>Bastion Squad · Grave Purge${this.flat ? ' <small class="gp__tag">2D</small>' : ''}</h1>
         <p class="bs__lead">The dead hold the Gravefield. Four commanders start in a camp in its corner with a few Recruits each. Every kill pays ore: buy Recruits at the barracks and raise them at the Forge — Recruit, Veteran, Vanguard, Phantom, Paragon. Break the six Shrines of Bones (each makes your Veterans stronger) and the six Soul Nodes, then the Heart of the Grave, then the king it wakes — before the clock runs out.</p>
         <ol class="gp__ladder">${RANK_ORDER.map((r) => {
           const d = RANKS[r];
@@ -145,7 +150,7 @@ export class PurgeGame {
       if (inRoom) this._hostLobby();
       else this._menu();
     };
-    if ($('[data-swap]')) $('[data-swap]').onclick = () => this.onSwap('hold');
+    for (const b of m.querySelectorAll('[data-swap-to]')) b.onclick = () => this.onSwap(b.dataset.swapTo);
     if ($('[data-solo]')) $('[data-solo]').onclick = () => this.startSolo();
     if ($('[data-make]')) $('[data-make]').onclick = () => this._room('create');
     if ($('[data-join]')) {
@@ -501,6 +506,7 @@ export class PurgeGame {
   _frame(now) {
     this._raf = requestAnimationFrame((t) => this._frame(t));
     const dt = Math.min(0.1, (now - this._last) / 1000);
+    this._meter(now, now - this._last);
     this._last = now;
     let events = [];
     if (this.game) {
@@ -541,6 +547,21 @@ export class PurgeGame {
     this.view.overlay(this.octx, this.state, this.mySlot);
     this._events(events);
     this._hud();
+  }
+
+  /** Frames a second (and the slowest frame) over each half second, for comparing 2D and 3D. */
+  _meter(now, ms) {
+    const f = this.fps;
+    f.frames++;
+    f.worst = Math.max(f.worst, ms);
+    if (now - f.at < 500) return;
+    f.value = Math.round((f.frames * 1000) / (now - f.at));
+    f.slowest = Math.round(f.worst);
+    f.frames = 0;
+    f.worst = 0;
+    f.at = now;
+    const el = this.$('[data-fps]');
+    if (el) el.textContent = `${this.flat ? '2D' : '3D'} · ${f.value} fps · slowest frame ${f.slowest} ms`;
   }
 
   _pan(dt) {

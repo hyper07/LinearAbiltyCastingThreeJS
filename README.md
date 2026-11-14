@@ -79,7 +79,7 @@ crafting, guilds, chat and trading. The server runs the worlds; characters are k
 squads from Recruits to Paragons at the Forge, clear a land of crypts, spires and shrines, break the Heart
 of the Grave and kill the king it wakes before time runs out. **Hold the Outpost** — Rifleman, Medic,
 Gunner and Engineer keep a reactor alive through fifteen waves. Alone with bots, or with up to three
-friends. [More →](docs/bastion-squad.md)
+friends. Grave Purge also comes in **2D** (its own card), for lighter computers. [More →](docs/bastion-squad.md)
 
 **🏎️ Gangnam Drift**: night racing on the real streets of Seoul — five courses planned on the real road
 network (Gangnam, Namsan, Gwanghwamun, Dongdaemun, Yeouido), drifting to fill your boost, against three

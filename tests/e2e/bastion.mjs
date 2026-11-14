@@ -49,7 +49,12 @@ export async function run(browser) {
     t.check('the speed buttons speed the game up', await until(page, () => window.gravePurge.game.speed === 2));
     t.check('the HUD shows the time, the wards and the team', await page.evaluate(() => /Time left/i.test(document.querySelector('.gp [data-top]').textContent) && document.querySelectorAll('.gp [data-team] p').length === 4));
     await page.evaluate(() => window.gravePurge._menu());
-    await page.click('.gp [data-swap]');
+    await page.click('.gp [data-swap-to="purge2d"]');
+    t.check('the 2D tab opens Grave Purge drawn flat, no WebGL', await until(page, () => window.gravePurge?.flat && document.querySelector('.gp [data-solo]') && !document.querySelector('.gp canvas.bs__canvas').getContext('2d') === false, null, 15000));
+    await page.click('.gp [data-solo]');
+    t.check('…and it plays: soldiers, a frame rate shown', await until(page, () => window.gravePurge.state?.ents.some((e) => e.k === 'troop') && /2D · \d+ fps/.test(document.querySelector('.gp [data-fps]').textContent), null, 10000));
+    await page.evaluate(() => window.gravePurge._menu());
+    await page.click('.gp [data-swap-to="hold"]');
     t.check('the other tab opens Hold the Outpost with four soldiers', await until(page, () => !document.querySelector('.gp') && document.querySelectorAll('.bs [data-cls]').length === 4, null, 15000));
     await page.click('.bs [data-cls="medic"]');
     await page.click('.bs [data-solo]');

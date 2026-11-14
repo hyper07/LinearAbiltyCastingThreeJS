@@ -1584,6 +1584,7 @@ export class App {
     const open = async (which) => {
       const Screen = which === 'hold' ? SquadGame : PurgeGame;
       const view = new Screen(document.body, {
+        flat: which === 'purge2d',
         account: this.account?.user ?? null,
         onClose: () => {
           this.start();
@@ -1597,7 +1598,7 @@ export class App {
       await view.open();
       return view;
     };
-    return open(mode);
+    return open(game.id === 'official:gravepurge2d' ? 'purge2d' : mode);
   }
 
   /** Breachline: a first-person shooter with its own screen, alone or in a room of four. */
