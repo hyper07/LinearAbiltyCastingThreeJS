@@ -30,6 +30,10 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-combat.jpg" width="100%" alt="A Vanguard mid-swing among Rattlebones: a white sword arc, sparks on the enemy struck, damage numbers, a combo counter reading 3 hits and +4% damage, and the purple experience gauge under the hotbar at 96% of level 2" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-blows.jpg" width="100%" alt="Ten blows slowed down. Top row, a player's in ice-blue: chop, thrust, uppercut, wide sweep, cross. Bottom row: a player's cleaver with a ring on the ground, then monsters' in crimson — claw marks, crossed knives, a sweep — and an elite's violet overhead blow with a ring" />
+</p>
+
 ## How it plays
 
 - **Your character.** The maker shows your character live on a stage (drag to turn it) as you
@@ -48,8 +52,13 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   GCD), and some take time to cast — moving stops them. Monsters go after whoever they hate most:
   damage makes them angry (the Vanguard's twice as much), healing does too, and **Challenge** forces
   them back onto the Vanguard.
-- **Blows, combos and hits.** A Vanguard's basic attack is a three-part sword chain — chop, slice,
-  sweep — each with its arc through the air, and its skills are blows too: **Heavy Strike** is a
+- **Blows, combos and hits.** A Vanguard's basic attack is a three-part sword chain, and each part
+  has three ways to go, picked at random: a chop, a thrust or a forehand; then a backhand, an
+  uppercut or a double thrust; then a wide sweep, a cross or a cleaver that shocks the ground.
+  Monsters swing by how they're armed: bare-handed ones leave three claw marks, knife-fighters stab
+  and cross, armed ones chop and sweep, and an elite's blow rings the ground. **Whose steel is whose
+  shows in its colour**: players' is ice-blue (a finisher flares white), monsters' crimson, an
+  elite's violet (`src/mmo/blows.js`). Its skills are blows too: **Heavy Strike** is a
   double slash, **Cleave** a spin with a ring of steel, **Shield Slam** a bash. A Ranger, Arcanist or
   Mender **kicks** whatever stands right in front of them instead of shooting. Every hit within four
   seconds of the last adds to your **combo** (shown at the right: hits, a cheer, the bonus and a

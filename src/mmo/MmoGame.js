@@ -1,9 +1,10 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, MELEE_CHAIN } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
 import { questsAt, questDone, countOf } from './rules.js';
 import { CharacterStage } from './bodies.js';
 import { STYLES, BUILDS, TINTS, cleanLook, lookOf } from './looks.js';
+import { playerBlow, mobBlow, kickBlow, BLOW_COLORS } from './blows.js';
 import { confetti } from '../ui/pop.js';
 import './mmo.css';
 
@@ -565,17 +566,13 @@ export class MmoGame {
           const a = at(ev.id);
           const b = at(ev.target);
           const player = a?.k === 'p';
-          // A player's blade goes chop, slice, sweep; up close, an archer or a caster kicks.
-          const clip = !player ? null : ev.close ? 'Unarmed_Melee_Attack_Kick' : ev.ranged ? null : MELEE_CHAIN[ev.n ?? 0];
-          this.view.act(ev.id, 'swing', clip, ev.ranged ? 0.6 : 0.55);
+          // A player's blade goes through its chain; up close, an archer or a caster kicks.
+          // Monsters swing by how they are armed. Whose steel is whose shows in its colour.
+          const blow = ev.ranged ? null : !player ? mobBlow(a?.ty) : ev.close ? kickBlow() : playerBlow(ev.n);
+          this.view.act(ev.id, 'swing', blow?.clip ?? null, ev.ranged ? 0.6 : 0.55);
           if (!a || !b) break;
-          if (ev.ranged) this.view.missile(a, b, player ? '#ffe9a8' : '#c9a8ff');
-          else if (!ev.close) {
-            const facing = Math.atan2(b.x - a.x, b.z - a.z);
-            const n = ev.n ?? Math.floor(Math.random() * 2);
-            if (player) this.view.slash(a.x, a.z, facing, n === 2 ? { roll: 0.12, size: 3.3, color: '#ffc45c', dur: 0.3 } : n === 1 ? { roll: -0.75, flip: true } : { roll: 1.2 });
-            else this.view.slash(a.x, a.z, facing, { roll: n ? 0.8 : -0.5, flip: Boolean(n), size: 2.2 * (MOBS[a.ty]?.scale ?? 1), color: '#ff9a8a', y: 1.1 * (MOBS[a.ty]?.scale ?? 1) });
-          }
+          if (ev.ranged) this.view.missile(a, b, player ? '#bfe6ff' : '#ff7ad0');
+          else this.view.blow(a.x, a.z, Math.atan2(b.x - a.x, b.z - a.z), blow.strokes);
           break;
         }
         case 'skill': {
@@ -588,12 +585,12 @@ export class MmoGame {
           const facing = b ? Math.atan2(b.x - a.x, b.z - a.z) : a.a ?? 0;
           switch (def?.fx) {
             case 'slash':
-              this.view.slash(a.x, a.z, facing, { roll: 0.7, size: 3.6, color: '#ffd27a', dur: 0.3 });
-              this.view.slash(a.x, a.z, facing, { roll: -0.7, flip: true, size: 3.2, color: '#ffffff', dur: 0.22 });
+              this.view.slash(a.x, a.z, facing, { roll: 0.7, size: 3.6, color: BLOW_COLORS.player, dur: 0.3 });
+              this.view.slash(a.x, a.z, facing, { roll: -0.7, flip: true, size: 3.2, color: BLOW_COLORS.finisher, dur: 0.22, delay: 0.08 });
               break;
             case 'spin':
-              this.view.slash(a.x, a.z, facing, { full: true, size: (def.radius ?? 5) * 1.15, color: '#ffd27a', dur: 0.4, y: 1 });
-              this.view.slash(a.x, a.z, facing, { full: true, size: (def.radius ?? 5) * 0.75, color: '#ffffff', dur: 0.3, y: 1.3 });
+              this.view.slash(a.x, a.z, facing, { full: true, size: (def.radius ?? 5) * 1.15, color: BLOW_COLORS.player, dur: 0.4, y: 1 });
+              this.view.slash(a.x, a.z, facing, { full: true, size: (def.radius ?? 5) * 0.75, color: BLOW_COLORS.finisher, dur: 0.3, y: 1.3, delay: 0.08 });
               break;
             case 'bash':
               if (b) this.view.burst(b.x, b.z, 2.2, '#bfe3ff', 0.3, 1.2);

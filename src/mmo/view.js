@@ -60,24 +60,39 @@ export class MmoView {
 
   /* -------------------------------------------------- blows and hits */
 
-  /** A blade's arc through the air (or a ring, for a spin or a shout). */
-  _slashMesh(full) {
-    const geo = full ? new THREE.RingGeometry(0.55, 1, 48, 1) : new THREE.RingGeometry(0.55, 1, 28, 1, -Math.PI / 2 - 1.25, 2.5);
+  /**
+   * A blade's path through the air: an `arc`, a `wide` sweep, a `full` ring
+   * (a spin, a shout, a shock on the ground) or a straight `stab`.
+   */
+  _slashMesh(shape) {
+    const half = shape === 'wide' ? 2.1 : 1.25;
+    const geo = shape === 'full' ? new THREE.RingGeometry(0.55, 1, 48, 1)
+      : shape === 'stab' ? new THREE.PlaneGeometry(0.3, 1.1).translate(0, -0.65, 0)
+        : new THREE.RingGeometry(0.55, 1, 36, 1, -Math.PI / 2 - half, half * 2);
     const mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-      uniforms: { uK: { value: 0 }, uColor: { value: new THREE.Color('#ffffff') }, uFull: { value: full ? 1 : 0 } },
+      uniforms: { uK: { value: 0 }, uColor: { value: new THREE.Color('#ffffff') }, uMode: { value: shape === 'full' ? 1 : shape === 'stab' ? 2 : 0 }, uHalf: { value: half }, uIn: { value: 0.55 } },
       vertexShader: 'varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: `
-        uniform float uK; uniform vec3 uColor; uniform float uFull; varying vec2 vP;
+        uniform float uK; uniform vec3 uColor; uniform float uMode; uniform float uHalf; uniform float uIn; varying vec2 vP;
         void main() {
           float r = length(vP);
-          float edge = smoothstep(0.55, 0.78, r) * smoothstep(1.0, 0.9, r);
-          // Along the arc, 0 to 1; the bright head runs ahead and a tail fades behind it.
-          float a = uFull > 0.5 ? fract(atan(vP.y, vP.x) / 6.2832 + 0.5) : clamp((atan(vP.y, vP.x) + 1.5708 + 1.25) / 2.5, 0.0, 1.0);
-          float head = uK * 1.5;
-          float tail = uFull > 0.5 ? 1.0 : smoothstep(head - 0.75, head, a) * step(a, head);
           float fade = 1.0 - smoothstep(0.55, 1.0, uK);
-          float light = edge * tail * fade;
+          float light;
+          if (uMode > 1.5) {
+            // A thrust: a streak that shoots out and narrows to its point.
+            float a = clamp((-vP.y - 0.1) / 1.1, 0.0, 1.0);
+            float head = uK * 1.6;
+            float width = 0.15 * (1.0 - a * 0.85);
+            light = smoothstep(width, width * 0.2, abs(vP.x)) * smoothstep(head - 0.8, head, a) * step(a, head) * fade;
+          } else {
+            float edge = smoothstep(uIn, mix(uIn, 1.0, 0.5), r) * smoothstep(1.0, 0.9, r);
+            // Along the arc, 0 to 1; the bright head runs ahead and a tail fades behind it.
+            float a = clamp((atan(vP.y, vP.x) + 1.5708 + uHalf) / (2.0 * uHalf), 0.0, 1.0);
+            float head = uK * 1.5;
+            float tail = uMode > 0.5 ? 1.0 : smoothstep(head - 0.75, head, a) * step(a, head);
+            light = edge * tail * fade;
+          }
           gl_FragColor = vec4(uColor * light * 1.6 + vec3(1.0) * pow(light, 3.0) * 0.7, light);
         }`
     });
@@ -89,25 +104,35 @@ export class MmoView {
     holder.add(mesh);
     holder.visible = false;
     this.scene.add(holder);
-    return { holder, mesh, full, busy: false };
+    return { holder, mesh, shape, busy: false };
   }
 
   /**
-   * Draw a blow in front of someone facing `a`: `roll` tips the arc (0 flat,
-   * 1.3 a chop down), `flip` swings it the other way, `full` makes a ring.
+   * Draw a blow in front of someone facing `a`. `shape`: arc, wide, full or
+   * stab. `roll` tips an arc (0 flat, 1.3 a chop down), `flip` swings it the
+   * other way, `thin` makes it a claw mark, `side` shifts it left or right,
+   * `delay` holds it back a moment (the second stroke of a cross).
    */
-  slash(x, z, a, { roll = 0, flip = false, full = false, size = 2.6, color = '#fff3c4', dur = 0.26, y = 1.15 } = {}) {
-    let s = this.slashes.find((q) => !q.busy && q.full === full);
+  slash(x, z, a, { shape, full = false, roll = 0, flip = false, thin = false, side = 0, delay = 0, size = 2.6, color = '#6ecbff', dur = 0.26, y = 1.15 } = {}) {
+    const kind = shape ?? (full ? 'full' : 'arc');
+    let s = this.slashes.find((q) => !q.busy && q.shape === kind);
     if (!s) {
-      if (this.slashes.length >= 24) return;
-      s = this._slashMesh(full);
+      if (this.slashes.length >= 40) return;
+      s = this._slashMesh(kind);
       this.slashes.push(s);
     }
-    Object.assign(s, { busy: true, t: 0, dur, size, x, z, y });
+    Object.assign(s, { busy: true, t: -delay, dur, size, x: x + Math.cos(a) * side, z: z - Math.sin(a) * side, y });
     s.holder.rotation.set(0, a, roll);
     s.mesh.scale.set(flip ? -1 : 1, 1, 1);
     s.mesh.material.uniforms.uColor.value.set(color);
-    s.holder.visible = true;
+    s.mesh.material.uniforms.uIn.value = thin ? 0.68 : 0.55;
+    s.mesh.material.uniforms.uK.value = 0;
+    s.holder.visible = false;
+  }
+
+  /** Every stroke of a blow (blows.js). */
+  blow(x, z, a, strokes) {
+    for (const st of strokes) this.slash(x, z, a, st);
   }
 
   /** Someone is struck: they flinch away from the blow, and sparks fly. */
@@ -802,6 +827,8 @@ export class MmoView {
     for (const sl of this.slashes) {
       if (!sl.busy) continue;
       sl.t += dt;
+      if (sl.t < 0) continue;
+      sl.holder.visible = true;
       const k = sl.t / sl.dur;
       if (k >= 1) {
         sl.busy = false;
@@ -809,7 +836,7 @@ export class MmoView {
         continue;
       }
       sl.holder.position.set(sl.x, this.h(sl.x, sl.z) + sl.y, sl.z);
-      sl.holder.scale.setScalar(sl.size * (sl.full ? 0.35 + 0.65 * k : 0.85 + 0.15 * k));
+      sl.holder.scale.setScalar(sl.size * (sl.shape === 'full' ? 0.35 + 0.65 * k : 0.85 + 0.15 * k));
       sl.mesh.material.uniforms.uK.value = k;
     }
     this.floaters = this.floaters.filter((f) => (f.t += dt) < (f.life ?? 1.1));

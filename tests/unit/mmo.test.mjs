@@ -456,3 +456,32 @@ test('fighting in a row: a combo that grows, a finisher every third swing, a kic
     await db.close();
   }
 });
+
+test('blows: players and monsters swing in their own colours, and in more than one way', async () => {
+  const { playerBlow, mobBlow, kickBlow, BLOW_COLORS } = await import('../../src/mmo/blows.js');
+  const mine = new Set([BLOW_COLORS.player, BLOW_COLORS.finisher, BLOW_COLORS.kick]);
+  const theirs = new Set([BLOW_COLORS.monster, BLOW_COLORS.elite]);
+  assert.ok([...mine].every((c) => !theirs.has(c)));
+  for (let step = 0; step < COMBO.chain; step++) {
+    const names = new Set();
+    for (let i = 0; i < 80; i++) {
+      const b = playerBlow(step);
+      names.add(b.name);
+      assert.ok(b.clip && b.strokes.length && b.strokes.every((s) => mine.has(s.color)));
+    }
+    assert.ok(names.size >= 3, `step ${step}: ${[...names].join(', ')}`);
+  }
+  assert.ok(kickBlow().strokes.every((s) => mine.has(s.color)));
+  const shapes = new Set();
+  for (const type of Object.keys(MOBS)) {
+    for (let i = 0; i < 20; i++) {
+      const b = mobBlow(type);
+      assert.ok(b.clip && b.strokes.length);
+      assert.ok(b.strokes.every((s) => s.color === (MOBS[type].elite ? BLOW_COLORS.elite : BLOW_COLORS.monster)), type);
+      shapes.add(b.name);
+    }
+  }
+  assert.ok(shapes.size >= 6, [...shapes].join(', '));
+  assert.equal(mobBlow('rattler').armed, 'claws');
+  assert.equal(mobBlow('cutthroat').armed, 'knives');
+});
