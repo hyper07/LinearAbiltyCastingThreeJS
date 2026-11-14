@@ -34,6 +34,12 @@ export const RANKS = {
    * ridges, and launches attack drones when the dead come near.
    */
   dreadnought: { name: 'Dreadnought', hp: 22000, armor: 20, speed: 5.5, gun: { dmg: 380, rate: 2, range: 15, splash: 3.5 }, scale: 1, from: { vanguard: 10, phantom: 1, paragon: 1 }, ore: 60000, relics: 16, tier: 5, one: true, hidden: true, unlock: { weapons: 30 }, flying: true, drones: { count: 4, every: 12, reach: 16 } },
+  /**
+   * The Engineer (the workers of the classic maps): cheap and unarmed. Left
+   * standing on the Exchange it turns your points into ore; it builds
+   * bunkers. Bought at the barracks (T).
+   */
+  engineer: { name: 'Engineer', hp: 70, armor: 0, speed: 5.4, gun: { dmg: 0, rate: 0, range: 0 }, scale: 0.95, weapon: 'sidearm', cost: 75, tier: 0, worker: true },
   /** The Dreadnought's drones: fast, light, gone after a while. */
   drone: { name: 'Drone', hp: 420, armor: 4, speed: 10, gun: { dmg: 45, rate: 3, range: 8 }, scale: 1, tier: 0, flying: true, life: 25, summoned: true }
 };
@@ -51,6 +57,7 @@ export const LOOKS = {
   phantom: { paint: '#4a3c68', glow: '#a070ff', label: 'black' },
   paragon: { paint: '#e8b840', glow: '#ffc040', robot: true, label: 'a war robot' },
   dreadnought: { paint: '#5a606a', glow: '#ff6030', ship: 'big', label: 'a flying gunship' },
+  engineer: { paint: '#f0a030', label: 'hi-vis orange' },
   drone: { paint: '#a8b0ba', glow: '#60d0ff', ship: 'small', label: 'a drone' }
 };
 
@@ -143,8 +150,29 @@ export const SPEEDS = [1, 1.5, 2, 3];
 /** Money: what you start with, and the stipend every minute (it grows by `grow` a minute played). */
 export const ECON = { start: 600, stipend: 300, grow: 25, every: 60, heroesOnly: { bonus: 3000 } };
 
-/** The camp: soldiers in it heal (a share of their health a second), fast on the healing pad; its guns. */
-export const CAMP = { heal: 0.05, padHeal: 0.18, padReach: 6, gun: { dmg: 30, rate: 2, range: 13 }, gunHp: 6000 };
+/** The camp: its healing pad (a share of health a second — paid for, see HEAL) and its guns. */
+export const CAMP = { padHeal: 0.18, padReach: 7, gun: { dmg: 30, rate: 2, range: 13 }, gunHp: 6000 };
+
+/** Healing is paid for: ore for every point of health the pad gives back. */
+export const HEAL = { orePerHp: 0.2 };
+
+/**
+ * Kills pay points, not ore. Points become ore only at the Exchange in the
+ * camp, while one of yours stands on it (an Engineer is cheapest): `ratio`
+ * points make one ore.
+ */
+export const EXCHANGE = { reach: 4, ratio: 10 };
+
+/**
+ * Bunkers: six seats; those inside fight on (a little further) and cannot
+ * be hit. Each player has one in front of the camp that cannot be broken —
+ * until the time runs out and they all fall. Engineers build more (these
+ * can be broken), two each.
+ */
+export const BUNKER = { seats: 6, reach: 1.5, r: 1.8, built: { hp: 2600, armor: 5, cost: 1500, time: 8, max: 2 } };
+
+/** When the time runs out: the bunkers fall, and the dead come every minute, more each time. */
+export const LAST_STAND = { every: 60, first: 20, count: 8, grow: 2, cap: 26 };
 
 /**
  * The combinations, as words: for the board by the Forge and the

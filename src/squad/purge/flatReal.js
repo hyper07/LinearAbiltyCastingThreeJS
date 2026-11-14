@@ -1,5 +1,5 @@
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS, recipes } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, Grid, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, Grid, foeDef } from './map.js';
 import { ELEVATION } from './sprites.js';
 
 /**
@@ -265,7 +265,7 @@ export function paintLand(tex, sprites) {
   place('forge', FORGE.x, FORGE.z);
   place('barracks', BARRACKS.x, BARRACKS.z);
   place('armory', ARMORY.x, ARMORY.z);
-  place('cargo', 40, 30);
+  place('exchange', EXCHANGE_AT.x, EXCHANGE_AT.z);
   place('cargo', 42, 4);
   place('solar', 22, 3);
   place('solar', 28, 3);
@@ -499,6 +499,33 @@ export function drawWorld(view, g, state, dt, seen) {
     g.globalAlpha = 1;
     items.push({ z: s.z, draw: () => building(view, g, s, state, down.has(s.id)) });
   }
+  // Bunkers: a module on the ground; your own ones under a blue shield.
+  for (const e of state.ents) {
+    if (e.k !== 'bunker' || !seen(e.x, e.z)) continue;
+    items.push({ z: e.z, draw: () => {
+      const st = view.sprites.stills.bunker;
+      if (view.shadowPass) return shadow(g, e.x, e.z, 2.6, 1.8, 0.5);
+      g.save();
+      g.translate(e.x, e.z);
+      g.scale(0.4 + 0.6 * e.built, 0.4 + 0.6 * e.built);
+      if (st) stamp(g, st, 0, 0);
+      else {
+        g.fillStyle = '#6a7078';
+        g.fillRect(-2, -1.6, 4, 2.6);
+      }
+      g.restore();
+      if (e.base) {
+        const pulse = Math.sin(view.time * 2 + e.i) * 0.5 + 0.5;
+        g.strokeStyle = `rgba(110,190,255,${0.35 + pulse * 0.25})`;
+        g.fillStyle = 'rgba(110,190,255,0.08)';
+        g.lineWidth = 0.15;
+        g.beginPath();
+        g.ellipse(e.x, e.z - 1.2, 3.2, 2.6, 0, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+    } });
+  }
   // The camp's guns, and the board by the Forge.
   for (const e of state.ents) if (e.k === 'gun' && seen(e.x, e.z)) items.push({ z: e.z, draw: () => view._gun(g, e) });
   if (seen(BOARD.x, BOARD.z, 10)) items.push({ z: BOARD.z, draw: () => !view.shadowPass && drawBoard(g, state.players[view.mySlot]?.upg) });
@@ -512,7 +539,7 @@ export function drawWorld(view, g, state, dt, seen) {
   for (const e of state.ents) {
     if (!seen(e.x, e.z)) continue;
     if (e.k === 'foe') items.push({ z: e.z, draw: () => foe(view, g, e, dt) });
-    else if (e.k === 'troop') items.push({ z: e.z, draw: () => troop(view, g, e, dt) });
+    else if (e.k === 'troop' && !e.in) items.push({ z: e.z, draw: () => troop(view, g, e, dt) });
   }
   for (const d of view.dying) {
     items.push({ z: d.e.z, draw: () => {

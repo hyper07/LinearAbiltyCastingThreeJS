@@ -75,9 +75,9 @@ test('a kill pays the killer; a building pays more, and its relics go to everyon
   const g = new Purge({ seats: seats(2, 2), seed: 2 });
   const t = g.troops.find((x) => x.o === 1);
   const foe = g.foes.find((f) => f.tier === 1 && !f.boss);
-  const ore = g.players[1].ore;
+  const points = g.players[1].points;
   g._hurt(foe, 1e6, t);
-  assert.equal(g.players[1].ore, ore + foe.bounty);
+  assert.equal(g.players[1].points, points + foe.bounty * 10, 'kills pay points (ore at the Exchange)');
   assert.ok(g.down.has(foe.i));
   const cache = g.buildings.find((b) => b.type === 'cache');
   const before = g.players.map((p) => p.relics);
@@ -110,11 +110,21 @@ test('shrines make Veterans stronger; the Heart is sealed until every ward is br
   assert.deepEqual(g.over, { won: true, why: 'king' });
 });
 
-test('time runs out: the game is lost', () => {
+test('time runs out: the bunkers fall and the last stand begins; it is lost when everyone is dead', () => {
   const g = new Purge({ seats: seats(1, 1), difficulty: 'hell', seed: 4 });
+  const t = g.troops[0];
+  g.order(0, { t: 'enter', ids: [t.i], id: g.bunkers[0].i });
+  for (let i = 0; i < 20 * 20 && !t.inside; i++) g.step(TICK);
+  assert.ok(t.inside, 'in the bunker');
   g.left = 0.04;
   g.step(TICK);
-  assert.deepEqual(g.over, { won: false, why: 'time' });
+  assert.equal(g.over, null, 'not over: the last stand');
+  assert.ok(g.lastStand && g.events.some((e) => e.t === 'lastStand'));
+  assert.equal(g.bunkers.filter((b) => b.base).length, 0, 'the bunkers have fallen');
+  assert.ok(!t.inside, 'out in the open');
+  for (const x of [...g.troops]) g._hurt(x, 1e9, g.foes[0]);
+  g.step(TICK);
+  assert.deepEqual(g.over, { won: false, why: 'fallen' });
 });
 
 test('soldiers left alone fight what comes; sleeping guards wake when soldiers come near', () => {
@@ -278,4 +288,79 @@ test('the combinations, as written on the board: the hidden one stays ??? until 
   const found = recipes({ weapons: 30, armor: 0 });
   assert.equal(found[5].name, 'Dreadnought');
   assert.match(found[5].text, /10 Vanguards \+ Phantom \+ Paragon/);
+});
+
+test('the Exchange: points turn into ore only while one of yours stands on it — an Engineer will do', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 16 });
+  const p = g.players[0];
+  p.points = 5000;
+  const ore = p.ore;
+  for (let i = 0; i < 20; i++) g.step(TICK);
+  assert.equal(p.points, 5000, 'nobody there: nothing changes');
+  g.order(0, { t: 'buy', n: 1, rank: 'engineer' });
+  const eng = g.troops.find((t) => t.rank === 'engineer');
+  assert.ok(eng, 'an Engineer, from the barracks');
+  g.order(0, { t: 'toExchange', ids: [eng.i] });
+  for (let i = 0; i < 20 * 15 && p.points >= 10; i++) g.step(TICK);
+  assert.ok(p.points < 10, 'all exchanged');
+  assert.ok(p.ore >= ore - 75 + 500 - 1, '5000 points made 500 ore');
+});
+
+test('healing at the pad costs ore; with none, nothing heals', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 17 });
+  g.guns = []; // no gun kills sharing ore round while we watch
+  const p = g.players[0];
+  const t = g.troops[0];
+  [t.x, t.z] = [27, 22];
+  t.order = { t: 'hold' };
+  t.hp = 10;
+  p.ore = 0;
+  for (let i = 0; i < 40; i++) g.step(TICK);
+  assert.ok(t.hp < 11, 'no ore, no healing');
+  p.ore = 1000;
+  for (let i = 0; i < 20 * 10; i++) g.step(TICK);
+  assert.ok(t.hp >= t.max - 0.5, 'healed');
+  assert.ok(Math.abs(1000 - p.ore - (t.max - 10) * 0.2) < 1, `paid ${1000 - p.ore} ore`);
+});
+
+test('bunkers: six inside, safe, fighting on; Engineers build more, and those can be broken', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 18 });
+  const p = g.players[0];
+  p.ore = 1e5;
+  g.order(0, { t: 'buy', n: 5 });
+  const squad = g.troops.filter((t) => t.rank === 'recruit');
+  const own = g.bunkers[0];
+  g.order(0, { t: 'enter', ids: squad.map((t) => t.i), id: own.i });
+  for (let i = 0; i < 20 * 25; i++) g.step(TICK);
+  assert.equal(own.seats.length, 6, 'six seats');
+  assert.equal(squad.filter((t) => t.inside).length, 6);
+  const sitting = squad.find((t) => t.inside);
+  const hp = sitting.hp;
+  g._hurt(sitting, 500, g.foes[0]);
+  g._hurt(own, 1e9, g.foes[0]);
+  assert.equal(sitting.hp, hp, 'cannot be hit inside');
+  assert.ok(g.ents.has(own.i), 'your own bunker cannot be broken');
+  g.order(0, { t: 'unload' });
+  assert.equal(own.seats.length, 0);
+  // An Engineer builds one.
+  g.order(0, { t: 'buy', n: 1, rank: 'engineer' });
+  const eng = g.troops.find((t) => t.rank === 'engineer');
+  g.order(0, { t: 'build', ids: [eng.i], x: 30, z: 30 });
+  for (let i = 0; i < 20 * 25 && !g.events.some((e) => e.t === 'built'); i++) g.step(TICK);
+  const built = g.bunkers.find((b) => !b.base);
+  assert.ok(built && built.built >= 1, 'built');
+  g._hurt(built, 1e9, g.foes[0]);
+  assert.ok(!g.ents.has(built.i), 'a built bunker can be broken');
+});
+
+test('one game’s ruins never leak into the next game’s ground', () => {
+  const a = new Purge({ seats: seats(1, 1), seed: 19 });
+  const b0 = a.buildings.find((b) => b.type === 'crypt');
+  a._hurt(b0, 1e9, a.troops[0]);
+  assert.ok(!a.grid.blocked(b0.x, b0.z));
+  const b = new Purge({ seats: seats(1, 1), seed: 20 });
+  assert.ok(b.grid.blocked(b0.x, b0.z), 'standing again in a new game');
+  const again = b.buildings.find((x) => x.i === b0.i);
+  b._hurt(again, 1e9, b.troops[0]);
+  assert.ok(!b.grid.blocked(b0.x, b0.z), 'and can fall again');
 });

@@ -1,11 +1,12 @@
 import { RANKS, BUILDINGS, GUARDIANS } from './rules.js';
-import { STRUCTURES, GUARDS, BARRACKS, ARMORY, FORGE, PAD, inBase, foeDef } from './map.js';
-import { CAMP } from './rules.js';
+import { STRUCTURES, GUARDS, BARRACKS, ARMORY, FORGE, PAD, EXCHANGE_AT, inBase, foeDef } from './map.js';
+import { CAMP, BUNKER } from './rules.js';
 
 /** The camp's places, named on the ground with their keys. */
 const PLACES = [
   [FORGE, 'THE FORGE', 'raise soldiers here · W send · F open', '#5cc8ff'],
-  [PAD, 'HEALING PAD', 'heals fast · E send', '#3ddc84'],
+  [PAD, 'HEALING PAD', 'heals for ore · E send', '#3ddc84'],
+  [EXCHANGE_AT, 'EXCHANGE', 'points → ore while one of yours stands here · X send', '#ffb84d'],
   [BARRACKS, 'BARRACKS', 'R Recruit', '#e8e2d0'],
   [ARMORY, 'ARMOURY', 'U upgrades', '#e8e2d0']
 ];
@@ -21,7 +22,7 @@ export function pickAt(view, state, px, py, kind = 'foe', mySlot = -1) {
   let best = null;
   let bestD = 30;
   for (const e of state.ents) {
-    if (kind === 'troop' ? e.k !== 'troop' || e.o !== mySlot : e.k !== 'foe') continue;
+    if (kind === 'troop' ? e.k !== 'troop' || e.o !== mySlot || e.in : e.k !== 'foe') continue;
     const h = e.k === 'foe' ? foeDef(e.kind).size * 0.55 : 1;
     const p = view.toScreen(e.x, h, e.z);
     const d = Math.hypot(p.x - px, p.y - py) - (e.k === 'foe' && GUARDIANS[e.kind] ? 24 : 0);
@@ -60,7 +61,7 @@ export function boxedIn(view, state, x0, y0, x1, y1, mySlot) {
   const [ax, bx] = [Math.min(x0, x1), Math.max(x0, x1)];
   const [ay, by] = [Math.min(y0, y1), Math.max(y0, y1)];
   return state.ents.filter((e) => {
-    if (e.k !== 'troop' || e.o !== mySlot) return false;
+    if (e.k !== 'troop' || e.o !== mySlot || e.in) return false;
     const p = view.toScreen(e.x, 0.8, e.z);
     return p.x >= ax && p.x <= bx && p.y >= ay && p.y <= by;
   }).map((e) => e.i);
@@ -83,7 +84,22 @@ export function drawOverlay(view, ctx, state) {
     return p;
   };
   for (const e of state.ents) {
+    if (e.k === 'bunker') {
+      // A bunker: whose, how full, and (if it can be broken) how hurt or how far built.
+      const p = view.toScreen(e.x, 3.6, e.z);
+      if (p.x < -80 || p.y < -30 || p.x > view.width + 80 || p.y > view.height + 30) continue;
+      ctx.font = '800 11px system-ui, sans-serif';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      const label = `${e.base ? (e.o === view.mySlot ? 'YOUR BUNKER' : 'BUNKER') : e.built < 1 ? `BUILDING ${Math.round(e.built * 100)}%` : 'BUNKER'} · ${e.n}/${BUNKER.seats}`;
+      ctx.strokeText(label, p.x, p.y - 8);
+      ctx.fillStyle = e.base ? '#8fd0ff' : '#ffd08a';
+      ctx.fillText(label, p.x, p.y - 8);
+      if (!e.base) bar(e.x, 3.2, e.z, e.hp / e.max, 46, '#ffb84d');
+      continue;
+    }
     if (e.k === 'troop') {
+      if (e.in) continue;
       if (e.hp >= e.max && !view.selected.has(e.i)) continue;
       const k = e.hp / e.max;
       bar(e.x, 2.3 * RANKS[e.rank].scale, e.z, k, 26 + RANKS[e.rank].tier * 6, k > 0.5 ? '#4ade80' : k > 0.25 ? '#facc15' : '#ef4444');
@@ -132,8 +148,8 @@ export function drawOverlay(view, ctx, state) {
   }
   // Soldiers healing in the camp: green crosses rising (faster on the pad).
   for (const e of state.ents) {
-    if (e.k !== 'troop' || e.hp >= e.max || !inBase(e.x, e.z)) continue;
-    const fast = Math.hypot(e.x - PAD.x, e.z - PAD.z) < CAMP.padReach;
+    if (e.k !== 'troop' || e.in || e.hp >= e.max || Math.hypot(e.x - PAD.x, e.z - PAD.z) >= CAMP.padReach) continue;
+    const fast = true;
     const rise = ((view.time ?? 0) * (fast ? 1.6 : 0.8) + e.i * 0.37) % 1;
     const p = view.toScreen(e.x + 0.3, 1.8 + rise * 1.2, e.z);
     ctx.globalAlpha = 1 - rise;

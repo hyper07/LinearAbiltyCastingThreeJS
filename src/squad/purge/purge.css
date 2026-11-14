@@ -147,7 +147,7 @@
 }
 .gp__purse {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto auto auto auto;
   column-gap: 6px;
   align-items: baseline;
 }
@@ -318,7 +318,11 @@
 
 .gp__cmds {
   display: grid;
-  grid-template-columns: repeat(6, auto);
+  grid-template-columns: repeat(8, auto);
+}
+.gp__cmds .gp__xchg em,
+.gp__purse .gp__pts {
+  color: #ffb84d;
 }
 .gp__cmds button:disabled {
   opacity: 0.4;

@@ -28,6 +28,10 @@ export const PAD = { x: 26, z: 22 };
 /** The board by the Forge, the combinations written on it (its middle, along the ground). */
 export const BOARD = { x: 12.5, z: 33.5, w: 11 };
 export const SPAWN = { x: 22, z: 15 };
+/** The Exchange: points become ore while one of yours stands here. */
+export const EXCHANGE_AT = { x: 40, z: 30 };
+/** Each player's own bunker, in front of the camp's east side. */
+export const BUNKERS = [{ x: 55, z: 6 }, { x: 55, z: 14 }, { x: 55, z: 22 }, { x: 55, z: 30 }];
 /** The camp's two guns, at its open sides. */
 export const GUNS = [{ x: 46, z: 20 }, { x: 24, z: 36 }];
 export const inBase = (x, z) => x >= BASE.x0 && x <= BASE.x1 && z >= BASE.z0 && z <= BASE.z1;
@@ -221,8 +225,10 @@ export class Grid {
   /** A building fell: its ground is open. */
   free(id) {
     const s = this.structures.get(id);
-    if (!s || s.freed) return;
-    s.freed = true;
+    // Kept per grid (not on the shared map), so one game's ruins never leak into the next.
+    this.freed ??= new Set();
+    if (!s || this.freed.has(id)) return;
+    this.freed.add(id);
     this.mark(s.x, s.z, BUILDINGS[s.type].r, -1);
   }
 

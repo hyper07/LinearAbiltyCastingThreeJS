@@ -1,5 +1,5 @@
-import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, STRAGGLERS } from './rules.js';
-import { SIZE, STRUCTURES, GUARDS, KEYS, BASE, FORGE, PAD, SPAWN, GUNS, BARRACKS, HEART, Grid, inBase, foeDef, FIRST_DYNAMIC } from './map.js';
+import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, STRAGGLERS, HEAL, EXCHANGE, BUNKER, LAST_STAND } from './rules.js';
+import { SIZE, STRUCTURES, GUARDS, KEYS, BASE, FORGE, PAD, SPAWN, GUNS, BARRACKS, HEART, EXCHANGE_AT, BUNKERS, Grid, inBase, foeDef, FIRST_DYNAMIC } from './map.js';
 
 /**
  * A game of Grave Purge: up to four players' soldiers (people, or bots in
@@ -53,7 +53,7 @@ export class Purge {
     this.events = [];
     this.nextId = FIRST_DYNAMIC;
     this.grid = new Grid();
-    this.players = seats.map((s, slot) => ({ slot, name: s.name, bot: Boolean(s.bot), ore: ECON.start + (heroesOnly ? ECON.heroesOnly.bonus : 0), relics: 0, upg: { weapons: 0, armor: 0 }, kills: 0, earned: 0, color: COLORS[slot], free: 0, autoForge: true, brain: { mode: 'gather', at: 0 } }));
+    this.players = seats.map((s, slot) => ({ slot, name: s.name, bot: Boolean(s.bot), ore: ECON.start + (heroesOnly ? ECON.heroesOnly.bonus : 0), relics: 0, upg: { weapons: 0, armor: 0 }, kills: 0, earned: 0, color: COLORS[slot], free: 0, autoForge: true, points: 0, brain: { mode: 'gather', at: 0 } }));
     this.troops = [];
     this.foes = [];
     this.ents = new Map();
@@ -75,6 +75,9 @@ export class Purge {
       this.ents.set(g.i, g);
       return g;
     });
+    // Each player's own bunker: cannot be broken, until the time runs out.
+    this.bunkers = this.players.map((p) => this._bunker(p.slot, BUNKERS[p.slot].x, BUNKERS[p.slot].z, true));
+    this.lastStand = false;
     // Everyone starts with soldiers.
     for (const p of this.players) {
       if (heroesOnly) this._troop(p.slot, 'veteran');
@@ -100,6 +103,14 @@ export class Purge {
   }
 
   /* ------------------------------------------------------------- making */
+
+  _bunker(slot, x, z, base = false) {
+    const max = base ? 1 : BUNKER.built.hp;
+    const b = { i: this.nextId++, k: 'bunker', o: slot, x, z, hp: max, max, base, seats: [], built: base ? 1 : 0, a: 0 };
+    this.ents.set(b.i, b);
+    this.grid.mark(x, z, BUNKER.r, 1);
+    return b;
+  }
 
   _troop(slot, rank, at = null) {
     const def = RANKS[rank];
@@ -155,6 +166,37 @@ export class Purge {
     const p = this.players[slot];
     if (!p || this.over) return;
     const mine = (ids) => (Array.isArray(ids) ? ids : []).map((i) => this.ents.get(i)).filter((t) => t && t.k === 'troop' && t.o === slot && t.hp > 0);
+    // Any order but staying put takes a soldier out of its bunker first.
+    if (['move', 'amove', 'attack', 'patrol', 'heal', 'toForge', 'build', 'enter', 'toExchange'].includes(o.t)) for (const t of mine(o.ids)) if (t.inside) this._leave(t);
+    if (o.t === 'enter') {
+      const b = this.ents.get(o.id);
+      if (!b || b.k !== 'bunker' || b.o !== slot) return;
+      for (const t of mine(o.ids)) {
+        if (RANKS[t.rank].flying) continue;
+        t.order = { t: 'enter', id: b.i };
+        t.tgt = null;
+        t.path = this.grid.path(t.x, t.z, b.x + 2.2, b.z) ?? [[b.x + 2.2, b.z]];
+      }
+      return;
+    }
+    if (o.t === 'unload') {
+      for (const t of this.troops) if (t.o === slot && t.inside) this._leave(t);
+      return;
+    }
+    if (o.t === 'toExchange') {
+      this._send(mine(o.ids), 'move', EXCHANGE_AT.x, EXCHANGE_AT.z);
+      return;
+    }
+    if (o.t === 'build') {
+      const x = Number(o.x);
+      const z = Number(o.z);
+      const workers = mine(o.ids).filter((t) => RANKS[t.rank].worker);
+      if (!workers.length || !Number.isFinite(x) || !Number.isFinite(z)) return;
+      const w = workers[0];
+      w.order = { t: 'build', x, z };
+      w.path = this.grid.path(w.x, w.z, x + 2.4, z) ?? [[x + 2.4, z]];
+      return;
+    }
     if (o.t === 'move' || o.t === 'amove') this._send(mine(o.ids), o.t, Number(o.x), Number(o.z));
     else if (o.t === 'patrol') {
       // Back and forth between where each stands and the point, fighting whatever comes.
@@ -178,7 +220,7 @@ export class Purge {
         t.path = null;
         t.tgt = null;
       }
-    } else if (o.t === 'buy') this._buy(p, Math.max(1, Math.min(10, Number(o.n) || 1)));
+    } else if (o.t === 'buy') this._buy(p, Math.max(1, Math.min(10, Number(o.n) || 1)), o.rank === 'engineer' ? 'engineer' : null);
     else if (o.t === 'forge') this.forge(slot, o.rank);
     else if (o.t === 'upgrade') {
       const u = UPGRADES[o.key];
@@ -212,10 +254,12 @@ export class Purge {
     const cz = troops.reduce((s, t) => s + t.z, 0) / troops.length;
     const shared = this.grid.path(cx, cz, x, z);
     troops.forEach((t, k) => {
-      // A loose block round the point: rows of five, 1.6 m apart.
-      const row = Math.floor(k / 5);
-      const col = (k % 5) - 2;
-      const [gx, gz] = this.grid.open(x + col * 1.6, z + row * 1.6 - 1.6);
+      // A loose block round the point: rows of up to five, 1.6 m apart, centred on it.
+      const cols = Math.min(5, troops.length);
+      const rows = Math.ceil(troops.length / cols);
+      const row = Math.floor(k / cols);
+      const col = (k % cols) - (cols - 1) / 2;
+      const [gx, gz] = this.grid.open(x + col * 1.6, z + (row - (rows - 1) / 2) * 1.6);
       t.order = { t: how, x: gx, z: gz };
       t.tgt = null;
       if (RANKS[t.rank].flying) t.path = [[gx, gz]];
@@ -224,9 +268,9 @@ export class Purge {
     });
   }
 
-  _buy(p, n) {
-    const rank = this.heroesOnly ? 'veteran' : 'recruit';
-    const cost = this.heroesOnly ? RANKS.veteran.ore + RANKS.recruit.cost : RANKS.recruit.cost;
+  _buy(p, n, what = null) {
+    const rank = what ?? (this.heroesOnly ? 'veteran' : 'recruit');
+    const cost = what ? RANKS[what].cost : this.heroesOnly ? RANKS.veteran.ore + RANKS.recruit.cost : RANKS.recruit.cost;
     for (let k = 0; k < n; k++) {
       if (p.ore < cost || this.troops.filter((t) => t.o === p.slot && !RANKS[t.rank].summoned).length >= SUPPLY) return;
       p.ore -= cost;
@@ -314,7 +358,8 @@ export class Purge {
     for (const g of this.guns) this._gun(g, dt);
     this._raids(dt);
     this._stragglers(dt);
-    if (this.left <= 0 && !this.over) this._end(false, 'time');
+    if (this.left <= 0 && !this.lastStand && !this.over) this._startLastStand();
+    if (this.lastStand && !this.over && !this.troops.length) this._end(false, 'fallen');
     return this.events;
   }
 
@@ -328,8 +373,9 @@ export class Purge {
       if (!list) h.set(key, (list = []));
       list.push(e);
     };
-    for (const t of this.troops) put(this.th, t);
+    for (const t of this.troops) if (!t.inside) put(this.th, t);
     for (const g of this.guns) if (g.hp > 0) put(this.th, g);
+    for (const b of this.bunkers) if (!b.base) put(this.th, b);
     for (const f of this.foes) if (f.awake || f.raid) put(this.fh, f);
   }
 
@@ -363,7 +409,21 @@ export class Purge {
       for (const p of this.players) p.ore += n;
       this.events.push({ t: 'stipend', n });
     }
-    // Nobody left and nothing to buy with: a free Recruit now and then.
+    // The Exchange: points become ore while one of yours stands there.
+    this.exchangeT = (this.exchangeT ?? 0) - dt;
+    if (this.exchangeT <= 0) {
+      this.exchangeT = 0.5;
+      for (const p of this.players) {
+        if (p.points < EXCHANGE.ratio) continue;
+        if (!this.troops.some((t) => t.o === p.slot && !t.inside && Math.hypot(t.x - EXCHANGE_AT.x, t.z - EXCHANGE_AT.z) < EXCHANGE.reach)) continue;
+        const n = Math.floor(p.points / EXCHANGE.ratio);
+        p.points -= n * EXCHANGE.ratio;
+        p.ore += n;
+        this.events.push({ t: 'exchange', o: p.slot, n });
+      }
+    }
+    // Nobody left and nothing to buy with: a free Recruit now and then (not in the last stand).
+    if (this.lastStand) return;
     for (const p of this.players) {
       if (this.troops.some((t) => t.o === p.slot) || p.ore >= RANKS.recruit.cost) continue;
       p.free += dt;
@@ -372,6 +432,28 @@ export class Purge {
         this._troop(p.slot, 'recruit', BARRACKS);
       }
     }
+  }
+
+  /* -------------------------------------------------------------- bunkers */
+
+  _leave(t) {
+    const b = this.ents.get(t.inside);
+    t.inside = null;
+    if (b) {
+      b.seats = b.seats.filter((i) => i !== t.i);
+      const a = (t.i % 6) * 1.05;
+      [t.x, t.z] = this.grid.open(b.x + Math.cos(a) * 2.6, b.z + Math.sin(a) * 2.6);
+    }
+    t.order = { t: 'idle' };
+    t.path = null;
+  }
+
+  _fallBunker(b) {
+    for (const t of this.troops) if (t.inside === b.i) this._leave(t);
+    this.bunkers.splice(this.bunkers.indexOf(b), 1);
+    this.ents.delete(b.i);
+    this.grid.mark(b.x, b.z, BUNKER.r, -1);
+    this.events.push({ t: 'bunkerDown', id: b.i, x: b.x, z: b.z, base: b.base });
   }
 
   /* ------------------------------------------------------------- soldiers */
@@ -401,13 +483,64 @@ export class Purge {
         this.events.push({ t: 'drones', id: t.i, x: t.x, z: t.z });
       }
     }
-    // The camp heals; the pad in its middle heals fast.
-    if (inBase(t.x, t.z) && t.hp < t.max) t.hp = Math.min(t.max, t.hp + t.max * (Math.hypot(t.x - PAD.x, t.z - PAD.z) < CAMP.padReach ? CAMP.padHeal : CAMP.heal) * dt);
     const o = t.order;
+    // In a bunker: safe, and shooting from it, a little further.
+    if (t.inside) {
+      const b = this.ents.get(t.inside);
+      if (!b) return this._leave(t);
+      [t.x, t.z] = [b.x, b.z];
+      if (s.dmg <= 0) return;
+      let target = t.tgt != null ? this.ents.get(t.tgt) : null;
+      if (!target || target.hp <= 0 || Math.hypot(target.x - t.x, target.z - t.z) > s.range + BUNKER.reach + 1) target = this._foeNear(t.x, t.z, s.range + BUNKER.reach);
+      t.tgt = target?.i ?? null;
+      if (target && t.cd <= 0) {
+        t.cd = 1 / s.rate;
+        t.aa++;
+        b.a = facing(target.x - b.x, target.z - b.z);
+        this.events.push({ t: 'shot', id: b.i, to: target.i, big: RANKS[t.rank].tier >= 2 });
+        this._hurt(target, s.dmg, t);
+      }
+      return;
+    }
+    // The healing pad: health back, for ore.
+    if (t.hp < t.max && Math.hypot(t.x - PAD.x, t.z - PAD.z) < CAMP.padReach) {
+      const p = this.players[t.o];
+      const want = Math.min(t.max - t.hp, t.max * CAMP.padHeal * dt, p.ore / HEAL.orePerHp);
+      if (want > 0) {
+        t.hp += want;
+        p.ore -= want * HEAL.orePerHp;
+        p.healed = (p.healed ?? 0) + want * HEAL.orePerHp;
+      }
+    }
+    // Going into a bunker.
+    if (o.t === 'enter' || o.t === 'build') {
+      const goal = o.t === 'enter' ? this.ents.get(o.id) : o;
+      if (!goal || (o.t === 'enter' && goal.k !== 'bunker')) {
+        t.order = { t: 'idle' };
+        return;
+      }
+      if (Math.hypot(goal.x - t.x, goal.z - t.z) < 3.4) {
+        t.path = null;
+        if (o.t === 'enter') {
+          if (goal.seats.length < BUNKER.seats) {
+            goal.seats.push(t.i);
+            t.inside = goal.i;
+            t.tgt = null;
+            this.events.push({ t: 'enter', id: t.i, bunker: goal.i });
+          }
+          t.order = { t: 'idle' };
+        } else this._build(t, o, dt);
+        return;
+      }
+      if (!t.path?.length) t.path = this.grid.path(t.x, t.z, goal.x + 2.4, goal.z) ?? [[goal.x + 2.4, goal.z]];
+      this._walk(t, s.speed, dt);
+      return;
+    }
     let target = t.tgt != null ? this.ents.get(t.tgt) : null;
     if (target && (target.hp <= 0 || !this.ents.has(target.i) || target.sealed)) target = t.tgt = null;
-    // Look for a fight unless told just to walk.
-    if (!target && o.t !== 'move' && t.cd <= 0.05) {
+    if (s.dmg <= 0) target = t.tgt = null;
+    // Look for a fight unless told just to walk (or unarmed).
+    if (!target && o.t !== 'move' && s.dmg > 0 && t.cd <= 0.05) {
       const reach = o.t === 'hold' ? s.range : s.range + (o.t === 'idle' ? 4 : 3);
       target = this._foeNear(t.x, t.z, reach);
       t.tgt = target?.i ?? null;
@@ -461,6 +594,37 @@ export class Purge {
     if (o.t === 'move' || o.t === 'amove') t.order = { t: 'idle' };
     t.act = 'idle';
     this._spread(t, dt);
+  }
+
+  /** An Engineer at work: the ore paid when it starts, the bunker rising while it stays. */
+  _build(t, o, dt) {
+    const p = this.players[t.o];
+    if (!o.bunker) {
+      const mine = this.bunkers.filter((b) => b.o === t.o && !b.base).length;
+      if (mine >= BUNKER.built.max || p.ore < BUNKER.built.cost || this.grid.blocked(o.x, o.z)) {
+        this.events.push({ t: 'cannot', o: t.o, why: mine >= BUNKER.built.max ? `Two bunkers each` : p.ore < BUNKER.built.cost ? `A bunker costs ${BUNKER.built.cost} ore` : 'Not there: the ground is taken' });
+        t.order = { t: 'idle' };
+        return;
+      }
+      p.ore -= BUNKER.built.cost;
+      const b = this._bunker(t.o, o.x, o.z);
+      b.hp = b.max * 0.1;
+      this.bunkers.push(b);
+      o.bunker = b.i;
+      this.events.push({ t: 'building', o: t.o, id: b.i, x: b.x, z: b.z });
+    }
+    const b = this.ents.get(o.bunker);
+    if (!b) {
+      t.order = { t: 'idle' };
+      return;
+    }
+    b.built = Math.min(1, b.built + dt / BUNKER.built.time);
+    b.hp = Math.min(b.max, b.hp + (b.max * 0.9 * dt) / BUNKER.built.time);
+    t.act = 'aim';
+    if (b.built >= 1) {
+      t.order = { t: 'idle' };
+      this.events.push({ t: 'built', o: t.o, id: b.i });
+    }
   }
 
   /** The nearest of the dead (or their building) within reach of a point. */
@@ -530,7 +694,7 @@ export class Purge {
     let px = 0;
     let pz = 0;
     this._near(h, e.x, e.z, r + 1, (o) => {
-      if (o === e || o.k === 'gun') return;
+      if (o === e || o.k === 'gun' || o.k === 'bunker') return;
       const dx = e.x - o.x;
       const dz = e.z - o.z;
       const d = Math.hypot(dx, dz);
@@ -615,7 +779,7 @@ export class Purge {
       }
     }
     if (target) {
-      const reach = def.range + (target.k === 'gun' ? 1.5 : 0.4);
+      const reach = def.range + (target.k === 'gun' ? 1.5 : target.k === 'bunker' ? BUNKER.r + 0.4 : 0.4);
       const d = Math.hypot(target.x - f.x, target.z - f.z);
       if (d <= reach) {
         f.a = facing(target.x - f.x, target.z - f.z);
@@ -747,12 +911,14 @@ export class Purge {
   _raids(dt) {
     this.raidT -= dt;
     if (this.raidT > 0) return;
-    this.raidT = this.diff.raid;
-    const from = this.buildings.filter((b) => b.alive && BUILDINGS[b.type].spawns).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];
+    this.raidT = this.lastStand ? LAST_STAND.every : this.diff.raid;
+    const spawners = this.buildings.filter((b) => b.alive && BUILDINGS[b.type].spawns).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
+    const from = spawners[0];
     if (!from) return;
     this.raids++;
-    const count = Math.min(16, 3 + this.raids + Math.floor(this.fallen / 6));
-    this._wave([from], count, null);
+    this.standWaves = (this.standWaves ?? 0) + (this.lastStand ? 1 : 0);
+    const count = this.lastStand ? Math.min(LAST_STAND.cap, LAST_STAND.count + this.standWaves * LAST_STAND.grow) : Math.min(16, 3 + this.raids + Math.floor(this.fallen / 6));
+    this._wave(this.lastStand ? spawners.slice(0, 3) : [from], count, null);
     this.events.push({ t: 'raid', wave: this.raids, x: from.x, z: from.z, n: count });
   }
 
@@ -805,7 +971,9 @@ export class Purge {
 
   _hurt(target, amount, by) {
     if (target.hp <= 0) return;
-    const armor = target.k === 'troop' ? this.troopStat(target).armor : target.k === 'foe' ? foeDef(target.kind).armor : target.k === 'bld' ? BUILDINGS[target.type].armor : 0;
+    if (target.k === 'bunker' && target.base) return;
+    if (target.k === 'troop' && target.inside) return;
+    const armor = target.k === 'troop' ? this.troopStat(target).armor : target.k === 'foe' ? foeDef(target.kind).armor : target.k === 'bld' ? BUILDINGS[target.type].armor : target.k === 'bunker' ? BUNKER.built.armor : 0;
     const dmg = Math.max(amount * 0.25, amount - armor);
     if (target.sealed) return;
     target.hp -= dmg;
@@ -819,6 +987,7 @@ export class Purge {
     else if (target.k === 'foe') this._fallFoe(target, by);
     else if (target.k === 'bld') this._fallBuilding(target, by);
     else if (target.k === 'gun') this.events.push({ t: 'gunDown', id: target.i });
+    else if (target.k === 'bunker') this._fallBunker(target);
   }
 
   _pay(by, n, x, z) {
@@ -828,11 +997,12 @@ export class Purge {
       for (const p of this.players) p.ore += Math.round(n / this.players.length);
       return;
     }
-    owner.ore += n;
+    const pts = n * EXCHANGE.ratio;
+    owner.points += pts;
     owner.earned += n;
     owner.kills++;
     by.kills++;
-    this.events.push({ t: 'ore', o: owner.slot, n, x, z });
+    this.events.push({ t: 'ore', o: owner.slot, n: pts, pts: true, x, z });
   }
 
   _fallTroop(t, by) {
@@ -884,6 +1054,14 @@ export class Purge {
     }
   }
 
+  /** The time is up: every bunker falls; from now on the dead come every minute. */
+  _startLastStand() {
+    this.lastStand = true;
+    for (const b of [...this.bunkers]) if (b.base) this._fallBunker(b);
+    this.raidT = LAST_STAND.first;
+    this.events.push({ t: 'lastStand' });
+  }
+
   _end(won, why) {
     this.over = { won, why };
     this.events.push({ t: 'over', won, why });
@@ -901,7 +1079,13 @@ export class Purge {
     b.at -= dt;
     if (b.at > 0) return;
     b.at = 0.8 + (p.slot % 3) * 0.1;
-    const mine = this.troops.filter((t) => t.o === p.slot);
+    const all = this.troops.filter((t) => t.o === p.slot);
+    // An Engineer kept on the Exchange, so kills turn into ore.
+    const worker = all.find((t) => RANKS[t.rank].worker);
+    if (!worker) {
+      if (p.ore >= RANKS.engineer.cost) this._buy(p, 1, 'engineer');
+    } else if (Math.hypot(worker.x - EXCHANGE_AT.x, worker.z - EXCHANGE_AT.z) > 2.5 && !worker.path?.length) this._send([worker], 'move', EXCHANGE_AT.x, EXCHANGE_AT.z);
+    const mine = all.filter((t) => !RANKS[t.rank].worker);
     // Money: Recruits to ten, then raise, then upgrades.
     const count = (r) => mine.filter((t) => t.rank === r).length;
     const plan = this._botPlan(p, mine, count);
@@ -1021,7 +1205,8 @@ export class Purge {
       return false;
     };
     const ents = [];
-    for (const t of this.troops) ents.push({ i: t.i, k: 'troop', rank: t.rank, o: t.o, x: +t.x.toFixed(2), z: +t.z.toFixed(2), a: +t.a.toFixed(2), hp: Math.ceil(t.hp), max: t.max, act: t.act, aa: t.aa });
+    for (const t of this.troops) ents.push({ i: t.i, k: 'troop', rank: t.rank, o: t.o, x: +t.x.toFixed(2), z: +t.z.toFixed(2), a: +t.a.toFixed(2), hp: Math.ceil(t.hp), max: t.max, act: t.act, aa: t.aa, in: t.inside ?? undefined });
+    for (const b of this.bunkers) ents.push({ i: b.i, k: 'bunker', o: b.o, x: b.x, z: b.z, a: +b.a.toFixed(2), hp: Math.ceil(b.hp), max: b.max, base: b.base, n: b.seats.length, built: +b.built.toFixed(2) });
     for (const f of this.foes) {
       if (!f.awake && f.static && !(f.hp < f.max && near(f))) continue;
       if (!f.awake && !f.static && !near(f)) continue;
@@ -1041,7 +1226,8 @@ export class Purge {
       keysLeft: this.keysLeft,
       raids: this.raids,
       raidIn: this.raidT,
-      players: this.players.map((p) => ({ slot: p.slot, name: p.name, bot: p.bot, autoForge: p.autoForge, ore: Math.floor(p.ore), relics: p.relics, upg: { ...p.upg }, kills: p.kills, earned: p.earned, color: p.color, army: this.troops.filter((t) => t.o === p.slot).length })),
+      lastStand: this.lastStand,
+      players: this.players.map((p) => ({ slot: p.slot, name: p.name, bot: p.bot, autoForge: p.autoForge, ore: Math.floor(p.ore), points: Math.floor(p.points), relics: p.relics, upg: { ...p.upg }, kills: p.kills, earned: p.earned, color: p.color, army: this.troops.filter((t) => t.o === p.slot).length })),
       ents,
       hurt,
       down: [...this.down],

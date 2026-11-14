@@ -49,6 +49,8 @@ export const STILLS = {
   pad: [SPACE + 'landingpad_large.gltf', 10],
   forge: [SPACE + 'drill_structure.gltf', 4.6],
   cargo: [SPACE + 'cargo_A_stacked.gltf', 2.4],
+  exchange: [SPACE + 'cargodepot_A.gltf', 4],
+  bunker: [SPACE + 'structure_low.gltf', 4.2],
   turbine: [SPACE + 'windturbine_tall.gltf', 3],
   solar: [SPACE + 'solarpanel.gltf', 3],
   lights: [SPACE + 'lights.gltf', 1.6],
@@ -148,7 +150,7 @@ export class SpriteBaker {
     if (!gltf) return null;
     const robot = await loadRobot();
     const out = {};
-    for (const rank of RANK_ORDER) {
+    for (const rank of [...RANK_ORDER, 'engineer']) {
       if (LOOKS[rank].ship) {
         progress();
         continue;
@@ -283,7 +285,7 @@ export async function bakeSprites(onProgress = () => {}) {
   } catch {
     return null;
   }
-  const total = RANK_ORDER.length + Object.keys(FOES).length + Object.keys(STILLS).length;
+  const total = RANK_ORDER.length + 1 + Object.keys(FOES).length + Object.keys(STILLS).length;
   let done = 0;
   const step = () => onProgress(++done / total);
   try {

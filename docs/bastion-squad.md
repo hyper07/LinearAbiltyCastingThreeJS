@@ -17,8 +17,10 @@ with four Recruits each. Four broken rings of ridges cut the land into bands tha
 further out they are (tier 1 to 4); each ring has gaps to pass. Everywhere are the dead's
 buildings and camps of guards asleep until soldiers come near — 112 buildings and 344 guards.
 
-- **Ore**: every kill pays its killer's commander; buildings pay more; a supply drop every minute
-  pays everyone (more as the game goes on). Give ore to a teammate with **G**.
+- **Points and ore**, the classic way: every kill pays its killer **points**, not ore. Points become
+  ore (10 to 1) at the **Exchange** — the gold ring east of the healing pad — but only while one of
+  yours stands on it; an **Engineer** (**T**, 75 ore, unarmed) is the cheap one to leave there
+  (select it, **X**). The minute's supply drop and ore given by teammates (**G**) are ore already.
 - **The barracks** sells Recruits (150 ore; **R**, **Shift+R** for five). 24 soldiers at most.
 - **The Forge** — on the camp's left side, ringed with blue crystals and named on the ground — is
   where soldiers are raised, the way the classic maps' combining spot works: walk a soldier into its
@@ -57,16 +59,23 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   Knight, the Ash Witch, the Pale Hound, the Hollow Bishop, the Cinder Lich, the Rotfather).
 - **The Heart of the Grave**, in its sanctum in the far south-east, is sealed until all twelve
   wards are broken. Break it and **the Grave King** rises from it; kill him to win.
-- **Healing**: soldiers heal slowly anywhere in the camp and fast on the **healing pad** in its middle
-  (green crosses rise while they heal); **E** sends the selected there.
+- **Healing costs ore**: only the **healing pad** heals, fast, at 1 ore for every 5 health given
+  back (green crosses while it does); with no ore, nothing heals. **E** sends the selected there.
 - **Stragglers**: every half a minute a few of the weakest dead wander into the camp from its near
   edges (more and tougher as time goes on, a dozen at most) — easy kills, half as much ore again as
   usual, for whoever is home. The camp's guns leave them to the soldiers for twelve seconds.
+- **Bunkers**: each commander has their own bunker in front of the camp's east side. It cannot be
+  broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and
+  still shoot (a little further). **L** empties them. Engineers build more (**B**, then click; 1,500
+  ore, two each) — those can be broken.
+- **The time**: when it runs out, every bunker falls and the **last stand** begins: the dead come every
+  minute from the nearest crypts, more each time. It is lost only if all of your side's soldiers
+  are dead; it is still won by killing the king.
 - **Waves**: every few minutes a numbered wave comes for the camp from the crypt nearest it, bigger
   each time (and bigger the more you have broken); the camp's two guns help, and soldiers in the camp
   heal. And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
   it send a wave to where it fell (then on to the camp) — the map shows where they come from.
-- **The clock**: Casual 90 minutes, Hard 75, Hell 60 (the dead tougher too). **Heroes only** mode
+- **The clock** (how long the bunkers stand): Casual 90 minutes, Hard 75, Hell 60 (the dead tougher too). **Heroes only** mode
   sells Veterans at the barracks instead of Recruits and gives 3,000 ore to start. The host can run
   the game at ×1, ×1.5, ×2 or ×3.
 - **Bots** take the empty seats: they buy, raise at the Forge, upgrade, and take their armies out
@@ -92,7 +101,7 @@ the way) · **M** move · **P** patrol · **S** stop · **H** hold · **E** heal
 **Ctrl/Alt+0–9** save the selection as a group, **Shift+0–9** add to it, **0–9** pick it (twice
 quickly: look at it) — the group bar shows them (right-click a slot to save there) · **Tab/F2** all
 your soldiers · **Space** the last alert · **Backspace** the camp · **Shift+F5–F8** save a view,
-**F5–F8** go back to it · **R** a Recruit (**Shift+R** five) · **F** Forge · **U** upgrades · **G**
+**F5–F8** go back to it · **R** a Recruit (**Shift+R** five) · **T** an Engineer · **X** to the Exchange · **B** build a bunker · right-click a bunker to go in · **L** out of the bunkers · **F** Forge · **U** upgrades · **G**
 give ore · **+/−** speed · **O** objectives · **F1** all the keys. The command card at the bottom has the same, to click.
 (On Windows, Ctrl+number may switch browser tabs: use Alt+number.)
 

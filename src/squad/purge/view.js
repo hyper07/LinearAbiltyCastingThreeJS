@@ -7,7 +7,7 @@ import { dress } from '../../mmo/bodies.js';
 import { SquadView } from '../view.js';
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS, recipes } from './rules.js';
 import { loadRobot, Robot } from './robot.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, GUNS, HEART, tierAt, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, GUNS, HEART, tierAt, foeDef } from './map.js';
 import { FORGE_REACH } from './rules.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 
@@ -115,7 +115,12 @@ export class PurgeView extends SquadView {
     this._space('basemodule_E', ARMORY.x, ARMORY.z, 6);
     this._space('landingpad_large', PAD.x, PAD.z, 10);
     this._space('drill_structure', FORGE.x, FORGE.z, 4.6);
-    this._space('cargo_A_stacked', 40, 30, 2.4);
+    // The Exchange: a depot with a gold ring round it.
+    this._space('cargodepot_A', EXCHANGE_AT.x, EXCHANGE_AT.z, 4);
+    const gold = new THREE.Mesh(new THREE.RingGeometry(3.6, 4, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffb84d', transparent: true, opacity: 0.7, depthWrite: false }));
+    gold.position.set(EXCHANGE_AT.x, 0.07, EXCHANGE_AT.z);
+    this.scene.add(gold);
+    this._space('cargo_A_stacked', 42, 4, 2.4);
     this._space('windturbine_tall', 4, 4, 3);
     this._space('solarpanel', 22, 4, 3);
     this._space('lights', 46, 2, 1.6);
@@ -313,7 +318,8 @@ export class PurgeView extends SquadView {
           this.dying.push({ m, t: 0, soldier: true });
           this.models.delete(e.id);
         }
-      } else if (e.t === 'ore' && e.o === this.mySlot) this.popups.push({ x: e.x, z: e.z, text: `+${e.n}`, t: 0 });
+      } else if (e.t === 'ore' && e.o === this.mySlot) this.popups.push({ x: e.x, z: e.z, text: `+${e.n.toLocaleString()}${e.pts ? ' pts' : ''}`, t: 0 });
+      else if (e.t === 'exchange' && e.o === this.mySlot && e.n >= 5) this.popups.push({ x: EXCHANGE_AT.x, z: EXCHANGE_AT.z, text: `+${e.n.toLocaleString()} ore`, t: 0 });
     }
   }
 
@@ -397,6 +403,19 @@ export class PurgeView extends SquadView {
     });
     this.scene.add(m.group);
     return m;
+  }
+
+  /** A bunker: a squat module; your own (unbreakable) ones under a blue shield. */
+  _bunkerModel(e) {
+    const g = new THREE.Group();
+    this._place3(LIB + SPACE + 'structure_low.gltf', 0, 0, 4.2, 0, { parent: g });
+    if (e.base) {
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(3.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#60b8ff', transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
+      g.add(dome);
+    }
+    g.position.set(e.x, 0, e.z);
+    this.scene.add(g);
+    return { group: g, kind: 'bunker' };
   }
 
   _gunModel() {
@@ -514,12 +533,18 @@ export class PurgeView extends SquadView {
         if (m) this.sleepers.delete(e.i);
         else if (e.k === 'troop') m = this._troop(e);
         else if (e.k === 'foe') m = this._skeleton(e.kind, e.tier);
+        else if (e.k === 'bunker') m = this._bunkerModel(e);
         else m = this._gunModel();
         m.rank = e.rank;
         this.models.set(e.i, m);
       }
       m.group.position.set(e.x, 0, e.z);
+      if (e.k === 'bunker') {
+        m.group.scale.setScalar(0.4 + 0.6 * e.built);
+        continue;
+      }
       if (e.k === 'troop') {
+        m.group.visible = !e.in;
         m.group.rotation.y = e.a + Math.PI;
         m.ring.material.color.set(this.selected.has(e.i) ? '#ffffff' : COLORS[e.o]);
         m.ring.material.opacity = this.selected.has(e.i) ? 1 : 0.6;

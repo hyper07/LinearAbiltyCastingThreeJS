@@ -1,8 +1,8 @@
 import { Purge, forgeCheck } from './sim.js';
 import { FlatView } from './flat.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
-import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD } from './map.js';
+import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER } from './rules.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT } from './map.js';
 import '../squad.css';
 import './purge.css';
 
@@ -341,8 +341,12 @@ export class PurgeGame {
         if (!ground) return;
         const ids = this._mine();
         if (!ids.length) return;
-        const foe = this.view.pick(this.state, p.x, p.y, 'foe');
-        if (foe) this.order({ t: 'attack', ids, id: foe.i });
+        const bunker = this.state.ents.find((e) => e.k === 'bunker' && e.o === this.mySlot && Math.hypot(e.x - ground.x, e.z - ground.z) < 3.2);
+        const foe = bunker ? null : this.view.pick(this.state, p.x, p.y, 'foe');
+        if (bunker) {
+          this.order({ t: 'enter', ids, id: bunker.i });
+          this._feed(`Into the bunker (${bunker.n}/${BUNKER.seats} seats taken)`);
+        } else if (foe) this.order({ t: 'attack', ids, id: foe.i });
         else this.order({ t: 'move', ids, x: ground.x, z: ground.z });
         this.view._ring(foe?.x ?? ground.x, foe?.z ?? ground.z, foe ? 1.4 : 0.8, foe ? '#ff5040' : '#7dffb0', 0.35);
         this._aim(null);
@@ -350,6 +354,7 @@ export class PurgeGame {
         if (this.aimMode && ground) {
           const ids = this._mine();
           if (ids.length) this.order({ t: this.aimMode, ids, x: ground.x, z: ground.z });
+          if (this.aimMode === 'build') this.view._ring(ground.x, ground.z, BUNKER.r + 0.5, '#f0a030', 0.6);
           this.view._ring(ground.x, ground.z, 0.8, this.aimMode === 'move' ? '#7dffb0' : this.aimMode === 'patrol' ? '#80c0ff' : '#ffb040', 0.35);
           this._aim(null);
           return;
@@ -463,7 +468,7 @@ export class PurgeGame {
       case 'e':
         if (ids().length) {
           this.order({ t: 'heal', ids: ids() });
-          this._feed('To the healing pad');
+          this._feed(`To the healing pad — healing costs ore (1 for every ${Math.round(1 / HEAL.orePerHp)} health)`);
         }
         return true;
       case 'w':
@@ -474,6 +479,22 @@ export class PurgeGame {
         return true;
       case 'r':
         this.order({ t: 'buy', n: e.shiftKey ? 5 : 1 });
+        return true;
+      case 't':
+        this.order({ t: 'buy', n: 1, rank: 'engineer' });
+        return true;
+      case 'b':
+        if (this.state.ents.some((x) => this.selected.has(x.i) && x.rank === 'engineer')) this._aim('build');
+        else this._feed('Select an Engineer (T buys one) to build a bunker');
+        return true;
+      case 'x':
+        if (ids().length) {
+          this.order({ t: 'toExchange', ids: ids() });
+          this._feed('To the Exchange — your points turn into ore while they stand there');
+        }
+        return true;
+      case 'l':
+        this.order({ t: 'unload' });
         return true;
       case 'f':
         this._panel(this.panel === 'forge' ? null : 'forge');
@@ -552,6 +573,8 @@ export class PurgeGame {
       ['A', 'Attack: click where — they fight on the way'], ['M', 'Move: click where — they do not stop to fight'], ['P', 'Patrol: back and forth to where you click'],
       ['S · H', 'Stop · hold position'], ['E', 'Heal: off to the healing pad (fast healing; the camp heals slowly)'],
       ['W', 'To the Forge: walked into its ring, a soldier is raised a rank when you have the ore'],
+      ['T', `An Engineer (${RANKS.engineer.cost} ore): unarmed; holds the Exchange, builds bunkers`], ['X', 'To the Exchange: kills pay points — they turn into ore while one of yours stands there'],
+      ['B', `Build a bunker with the selected Engineer (${BUNKER.built.cost} ore; can be broken)`], ['Right-click a bunker', `In you go — ${BUNKER.seats} seats, safe, still shooting`], ['L', 'Everyone out of the bunkers'],
       ['Ctrl/Alt + 0–9', 'Save the selection as a group'], ['Shift + 0–9', 'Add the selection to a group'], ['0–9', 'Pick a group (twice quickly: look at it)'],
       ['Tab · F2', 'All your soldiers'], ['Space', 'The last alert (else your soldiers)'], ['Backspace', 'Back to the camp'],
       ['Shift+F5–F8 · F5–F8', 'Save a view · go to it'], ['O · F9', 'Objectives and the combinations'], ['R · Shift+R', 'A Recruit · five'], ['F · U · G', 'Forge · armoury · give ore'], ['+ −', 'Game speed (the host)'], ['F1 · ?', 'These keys']
@@ -564,7 +587,7 @@ export class PurgeGame {
     this.aimMode = mode;
     const aim = this.$('[data-aim]');
     aim.hidden = !mode;
-    const say = { amove: 'Attack: left-click where to go — they fight on the way', move: 'Move: left-click where to go', patrol: 'Patrol: left-click the far end' };
+    const say = { amove: 'Attack: left-click where to go — they fight on the way', move: 'Move: left-click where to go', patrol: 'Patrol: left-click the far end', build: `Build a bunker: left-click where (${BUNKER.built.cost} ore, two each)` };
     if (mode) aim.textContent = `${say[mode]} (right-click the map works too) · Esc cancels`;
   }
 
@@ -751,6 +774,11 @@ export class PurgeGame {
         this._feed(`Hidden rank found: the ${d.name} (F to see it)`);
         this._panelKey = '';
       } else if (e.t === 'secret') this._feed(`${this.state.players[e.o]?.name} found a secret at the Forge`);
+      else if (e.t === 'lastStand') {
+        this._banner('The last stand', 'Time is up: the bunkers have fallen. The dead come every minute now, more each time — hold out, and finish the king.', 6);
+      } else if (e.t === 'bunkerDown' && !e.base) this._feed('A bunker has fallen');
+      else if (e.t === 'built' && e.o === this.mySlot) this._feed('Your bunker is built — right-click it with soldiers selected');
+      else if (e.t === 'cannot' && e.o === this.mySlot) this._feed(e.why);
       else if (e.t === 'stray') {
         this._feed(`Stragglers: ${e.n} of the dead wander towards the camp — easy ore`);
         this.pings.push({ x: e.x, z: e.z, t: performance.now() });
@@ -807,11 +835,11 @@ export class PurgeGame {
     const s = this.state;
     const me = this.me();
     const host = Boolean(this.game);
-    const topKey = `${Math.floor(s.left)}|${s.shrines}|${s.nodes}|${s.keysLeft}|${s.speed}|${Math.floor(s.raidIn)}`;
+    const topKey = `${s.lastStand}|${Math.floor(s.left)}|${s.shrines}|${s.nodes}|${s.keysLeft}|${s.speed}|${Math.floor(s.raidIn)}`;
     if (topKey !== this._topKey) {
       this._topKey = topKey;
       this.$('[data-top]').innerHTML = `
-        <div class="bs__wave"><small>Time left</small><b class="${s.left < 300 ? 'gp__late' : ''}">${clock(s.left)}</b></div>
+        ${s.lastStand ? '<div class="bs__wave"><small>The bunkers have fallen</small><b class="gp__late">LAST STAND</b></div>' : `<div class="bs__wave"><small>Bunkers fall in</small><b class="${s.left < 300 ? 'gp__late' : ''}">${clock(s.left)}</b></div>`}
         <div class="bs__wave"><small>Shrines</small><b>${s.shrines}/6</b></div>
         <div class="bs__wave"><small>Soul nodes</small><b>${s.nodes}/6</b></div>
         <div class="bs__wave"><small>The Heart</small><b>${s.keysLeft ? 'sealed' : 'open'}</b></div>
@@ -829,13 +857,13 @@ export class PurgeGame {
     if (me) {
       const mine = s.ents.filter((e) => e.k === 'troop' && e.o === this.mySlot);
       const sel = mine.filter((e) => this.selected.has(e.i));
-      const count = (list) => RANK_ORDER.map((r) => [r, list.filter((e) => e.rank === r).length]).filter(([, n]) => n);
-      const key = `${me.ore}|${me.relics}|${mine.length}|${sel.length}|${count(sel).join()}|${count(mine).join()}|${this.panel}`;
+      const count = (list) => [...RANK_ORDER, 'engineer', 'drone'].map((r) => [r, list.filter((e) => e.rank === r).length]).filter(([, n]) => n);
+      const key = `${me.ore}|${me.points}|${me.relics}|${mine.length}|${sel.length}|${count(sel).join()}|${count(mine).join()}|${this.panel}`;
       if (key !== this._barKey) {
         this._barKey = key;
         const recruit = s.heroesOnly ? `Veteran · ${(RANKS.veteran.ore + RANKS.recruit.cost).toLocaleString()}` : `Recruit · ${RANKS.recruit.cost}`;
         this.$('[data-bar]').innerHTML = `
-          <div class="gp__purse"><b>${me.ore.toLocaleString()}</b><small>ore</small><b>${me.relics}</b><small>relics</small><b>${mine.filter((e) => !RANKS[e.rank].summoned).length}/${SUPPLY}</b><small>soldiers</small></div>
+          <div class="gp__purse"><b>${me.ore.toLocaleString()}</b><small>ore</small><b class="gp__pts">${me.points.toLocaleString()}</b><small>points</small><b>${me.relics}</b><small>relics</small><b>${mine.filter((e) => !RANKS[e.rank].summoned).length}/${SUPPLY}</b><small>soldiers</small></div>
           <div class="gp__sel">${sel.length ? `<b>${sel.length} selected</b><small>${count(sel).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ')}</small>` : `<b>Nothing selected</b><small>${count(mine).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ') || 'No soldiers — buy some (R)'} · Tab selects all</small>`}</div>
           <div class="gp__cmds">
             <button type="button" data-key="m" ${sel.length ? '' : 'disabled'}><em>M</em><b>Move</b></button>
@@ -845,7 +873,11 @@ export class PurgeGame {
             <button type="button" data-key="h" ${sel.length ? '' : 'disabled'}><em>H</em><b>Hold</b></button>
             <button type="button" data-key="e" class="gp__heal" ${sel.length ? '' : 'disabled'}><em>E</em><b>Heal</b></button>
             <button type="button" data-key="w" class="gp__forge" ${sel.length ? '' : 'disabled'}><em>W</em><b>To Forge</b></button>
+            <button type="button" data-key="x" class="gp__xchg" ${sel.length ? '' : 'disabled'}><em>X</em><b>Exchange</b></button>
+            <button type="button" data-key="l"><em>L</em><b>Unload</b></button>
             <button type="button" data-buy="1"><em>R</em><b>${recruit}</b></button>
+            <button type="button" data-key="t"><em>T</em><b>Engineer · ${RANKS.engineer.cost}</b></button>
+            <button type="button" data-key="b" ${sel.some((e) => e.rank === 'engineer') ? '' : 'disabled'}><em>B</em><b>Bunker</b></button>
             <button type="button" data-open="forge" class="${this.panel === 'forge' ? 'is-on' : ''}"><em>F</em><b>Forge</b></button>
             <button type="button" data-open="armory" class="${this.panel === 'armory' ? 'is-on' : ''}"><em>U</em><b>Upgrade</b></button>
             <button type="button" data-open="give" class="${this.panel === 'give' ? 'is-on' : ''}"><em>G</em><b>Give</b></button>
@@ -891,8 +923,10 @@ export class PurgeGame {
         ${goal(s.nodes >= 6, `Break the six Soul Nodes (${s.nodes}/6)`)}
         ${goal(!s.keysLeft && !STRUCTURES.some((b) => b.type === 'heart' && !s.down.includes(b.id)), `Break the Heart of the Grave (${s.keysLeft ? 'sealed' : 'open'})`)}
         ${goal(false, `Kill the Grave King${king ? ' — he has risen' : ''}`)}
-        <li>⏱ Before time runs out: ${clock(s.left)}</li>
+        <li>${s.lastStand ? '⚔ The last stand: the bunkers have fallen — hold out' : `⏱ Your bunkers stand for ${clock(s.left)} — then they fall, and the dead come every minute`}</li>
       </ol>
+      <h3>Money</h3>
+      <ul class="gp__mission"><li>Kills pay <b>points</b>: they turn into ore at the <b>Exchange</b> (east of the pad) while one of yours stands there — an Engineer (T, ${RANKS.engineer.cost} ore) is cheapest. Healing on the pad costs ore.</li></ul>
       <h3>Combinations <small>at the Forge, left of the camp — walk soldiers into the ring (W)</small></h3>
       <ul class="gp__recipes">${rows.map((r) => `<li class="${r.secret ? 'is-secret' : r.state === 'ready' ? 'is-ready' : ''}"><b>${esc(r.name)}</b><span>= ${esc(r.text)}</span>${r.state ? `<em>${r.state === 'ready' ? 'ready — in the ring' : esc(r.state)}</em>` : ''}</li>`).join('')}</ul>
       <p class="gp__hint">O shows or hides this · the board by the Forge says the same</p>`;

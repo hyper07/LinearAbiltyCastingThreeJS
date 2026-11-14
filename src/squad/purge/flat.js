@@ -1,5 +1,5 @@
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, FORGE_REACH, LOOKS } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, EXCHANGE_AT, foeDef } from './map.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 import { loadTextures, paintLand, drawWorld, remains, drawBoard, LIFT } from './flatReal.js';
 
@@ -332,7 +332,8 @@ export class FlatView {
           this.dying.push({ e: dead, t: 0 });
           if (this.sprites) setTimeout(() => this.sprites && remains(this.land, this.sprites, dead.x, dead.z, dead.k === 'troop' ? 'troop' : 'bones'), 1100);
         }
-      } else if (e.t === 'ore' && e.o === this.mySlot) this.popups.push({ x: e.x, z: e.z, text: `+${e.n}`, t: 0 });
+      } else if (e.t === 'ore' && e.o === this.mySlot) this.popups.push({ x: e.x, z: e.z, text: `+${e.n.toLocaleString()}${e.pts ? ' pts' : ''}`, t: 0 });
+      else if (e.t === 'exchange' && e.o === this.mySlot && e.n >= 5) this.popups.push({ x: EXCHANGE_AT.x, z: EXCHANGE_AT.z, text: `+${e.n.toLocaleString()} ore`, t: 0 });
     }
   }
 
@@ -405,7 +406,15 @@ export class FlatView {
     this.dying = this.dying.filter((d) => d.t < 1.2);
     for (const e of state.ents) if (e.k === 'foe' && seen(e.x, e.z)) this._foe(g, e, dt);
     for (const e of state.ents) if (e.k === 'gun' && seen(e.x, e.z)) this._gun(g, e);
-    for (const e of state.ents) if (e.k === 'troop' && seen(e.x, e.z)) this._troop(g, e, dt);
+    for (const e of state.ents) {
+      if (e.k !== 'bunker' || !seen(e.x, e.z)) continue;
+      g.fillStyle = e.base ? '#5a7088' : '#6a6458';
+      g.fillRect(e.x - 2, e.z - 1.5, 4, 3);
+      g.strokeStyle = e.base ? '#8fd0ff' : '#ffd08a';
+      g.lineWidth = 0.2;
+      g.strokeRect(e.x - 2, e.z - 1.5, 4, 3);
+    }
+    for (const e of state.ents) if (e.k === 'troop' && !e.in && seen(e.x, e.z)) this._troop(g, e, dt);
     this._effects(g, dt);
     g.restore();
     this._grade(g);
@@ -441,6 +450,12 @@ export class FlatView {
     g.beginPath();
     g.arc(FORGE.x, FORGE.z, 4, 0, Math.PI * 2);
     g.fill();
+    // The Exchange's gold ring.
+    g.strokeStyle = `rgba(255,184,77,${0.5 + Math.sin(this.time * 2.5) * 0.2})`;
+    g.lineWidth = 0.3;
+    g.beginPath();
+    g.arc(EXCHANGE_AT.x, EXCHANGE_AT.z, 3.8, 0, Math.PI * 2);
+    g.stroke();
     g.strokeStyle = `rgba(61,220,132,${0.4 + Math.sin(this.time * 2) * 0.15})`;
     g.lineWidth = 0.3;
     g.beginPath();

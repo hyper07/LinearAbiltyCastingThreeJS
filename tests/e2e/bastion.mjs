@@ -60,7 +60,7 @@ export async function run(browser) {
     await page.keyboard.press('Escape');
     await page.click('.gp [data-speed="2"]');
     t.check('the speed buttons speed the game up', await until(page, () => window.gravePurge.game.speed === 2));
-    t.check('the HUD shows the time, the wards and the team', await page.evaluate(() => /Time left/i.test(document.querySelector('.gp [data-top]').textContent) && document.querySelectorAll('.gp [data-team] p').length === 4));
+    t.check('the HUD shows the time, the wards and the team', await page.evaluate(() => /Bunkers fall in/i.test(document.querySelector('.gp [data-top]').textContent) && document.querySelectorAll('.gp [data-team] p').length === 4));
     await page.evaluate(() => window.gravePurge._menu());
     await page.click('.gp [data-swap-to="purge2d"]');
     t.check('the 2D tab opens Grave Purge drawn flat, no WebGL', await until(page, () => window.gravePurge?.flat && document.querySelector('.gp [data-solo]') && !document.querySelector('.gp canvas.bs__canvas').getContext('2d') === false, null, 15000));
