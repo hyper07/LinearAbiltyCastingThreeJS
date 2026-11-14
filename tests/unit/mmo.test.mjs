@@ -770,7 +770,8 @@ test('found gear: made from its id, rarer from better monsters, and something fr
     kinds[base] = (kinds[base] ?? 0) + 1;
   }
   assert.equal(Object.keys(kinds).length, Object.keys(BASES).length);
-  assert.ok(Object.values(kinds).every((n) => n > 380 && n < 620), JSON.stringify(kinds));
+  const even = 5500 / Object.keys(BASES).length;
+  assert.ok(Object.values(kinds).every((n) => n > even * 0.75 && n < even * 1.25), JSON.stringify(kinds));
   // A common piece half the time; a better one on its own roll, always from an elite, two from a boss.
   let common = 0;
   let better = 0;
@@ -1106,4 +1107,47 @@ test('the bag is a grid: things take the room their shape needs, can be moved an
     await mmo.close();
     await db.close();
   }
+});
+
+test('rings, an amulet and a belt: two hands for rings, each piece in its own place', async () => {
+  const { SLOTS, placesFor, foundId, sizeOf, VENDORS } = await import('../../src/mmo/data.js');
+  const R = await import('../../src/mmo/rules.js');
+  for (const slot of ['amulet', 'belt', 'ring1', 'ring2']) assert.ok(SLOTS.includes(slot), slot);
+  assert.deepEqual(placesFor('ring'), ['ring1', 'ring2']);
+  assert.deepEqual(placesFor('belt'), ['belt']);
+  assert.deepEqual(sizeOf('rope_belt'), [2, 1]);
+  assert.deepEqual(sizeOf(foundId('ring', 'rare', 5, 3)), [1, 1]);
+  for (const id of ['copper_ring', 'rope_belt', 'glass_amulet', 'silver_ring', 'studded_belt']) assert.ok(VENDORS.brannoc.includes(id) && ITEMS[id].slot, `${id} is sold`);
+  const ch = R.newCharacter('Ringa', 'vanguard');
+  ch.level = 10;
+  ch.bag.fill(null);
+  const before = R.statsOf(ch);
+  for (const item of ['copper_ring', 'silver_ring', foundId('ring', 'rare', 8, 77), 'rope_belt', 'glass_amulet']) R.give(ch, item, 1);
+  const at = (item) => ch.bag.findIndex((s) => s?.item === item);
+  // The first ring takes the first hand, the second the other; a third replaces the first.
+  assert.equal(R.wear(ch, at('copper_ring')), null);
+  assert.equal(ch.equip.ring1, 'copper_ring');
+  assert.equal(R.wear(ch, at('silver_ring')), null);
+  assert.equal(ch.equip.ring2, 'silver_ring');
+  const third = foundId('ring', 'rare', 8, 77);
+  assert.equal(R.wear(ch, at(third)), null);
+  assert.equal(ch.equip.ring1, third);
+  assert.ok(ch.bag.some((s) => s?.item === 'copper_ring'), 'the first ring came back to the bag');
+  // Asked for a hand, it goes on that hand; a belt is not worn on a finger.
+  assert.equal(R.wear(ch, at('copper_ring'), 'ring2'), null);
+  assert.equal(ch.equip.ring2, 'copper_ring');
+  assert.match(R.wear(ch, at('rope_belt'), 'ring1'), /not worn there/);
+  assert.equal(R.wear(ch, at('rope_belt')), null);
+  assert.equal(R.wear(ch, at('glass_amulet')), null);
+  assert.deepEqual([ch.equip.belt, ch.equip.amulet], ['rope_belt', 'glass_amulet']);
+  const after = R.statsOf(ch);
+  assert.ok(after.power > before.power && after.maxHp > before.maxHp && after.armor > before.armor, 'they all count');
+  assert.equal(R.takeOff(ch, 'ring2'), null);
+  assert.equal(ch.equip.ring2, undefined);
+  // Kept when saved and loaded; a ring in the belt's place is not.
+  const back = R.normalize(JSON.parse(JSON.stringify({ ...ch, equip: { ...ch.equip, belt: 'copper_ring', ring2: 'silver_ring' } })));
+  assert.equal(back.equip.ring1, third);
+  assert.equal(back.equip.ring2, 'silver_ring');
+  assert.equal(back.equip.belt, undefined);
+  assert.equal(back.equip.amulet, 'glass_amulet');
 });

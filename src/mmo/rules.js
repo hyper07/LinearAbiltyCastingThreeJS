@@ -1,4 +1,4 @@
-import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, DROPS, foundId, BAR_SIZE, BAG_W, BAG_H, sizeOf } from './data.js';
+import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, DROPS, foundId, BAR_SIZE, BAG_W, BAG_H, sizeOf, placesFor } from './data.js';
 
 import { cleanLook } from './looks.js';
 
@@ -395,7 +395,7 @@ export function normalize(raw) {
   ch.bag = Array.from({ length: BAG_SIZE }, (_, i) => (raw.bag?.[i]?.item && ITEMS[raw.bag[i].item] ? { item: raw.bag[i].item, n: Math.max(1, raw.bag[i].n | 0), x: raw.bag[i].x, y: raw.bag[i].y } : null));
   layout(ch);
   ch.bank = Array.from({ length: BANK_SIZE }, (_, i) => (raw.bank?.[i]?.item && ITEMS[raw.bank[i].item] ? { item: raw.bank[i].item, n: Math.max(1, raw.bank[i].n | 0) } : null));
-  ch.equip = Object.fromEntries(SLOTS.filter((s) => ITEMS[raw.equip?.[s]]?.slot === s).map((s) => [s, raw.equip[s]]));
+  ch.equip = Object.fromEntries(SLOTS.filter((s) => placesFor(ITEMS[raw.equip?.[s]]?.slot).includes(s)).map((s) => [s, raw.equip[s]]));
   ch.quests = { active: { ...(raw.quests?.active ?? {}) }, done: [...(raw.quests?.done ?? [])] };
   ch.skills = { ...newCharacter('x', ch.cls).skills, ...(raw.skills ?? {}) };
   ch.level = Math.max(1, Math.min(MAX_LEVEL, raw.level | 0 || 1));
@@ -428,21 +428,39 @@ export function normalize(raw) {
 
 export { XP_TO, MAX_LEVEL };
 
-/** Wear what is in a bag slot (what was worn goes back there). Returns why not, or null when done. */
-export function wear(ch, bagSlot) {
+/**
+ * Where a piece from the bag would be worn: the place asked for if it may
+ * go there, else the first of its places that is free, else its first (a
+ * ring goes on the empty hand before it replaces one).
+ */
+export function placeFor(ch, item, to = null) {
+  const places = placesFor(ITEMS[item]?.slot);
+  if (to && places.includes(to)) return to;
+  return places.find((p) => !ch.equip[p]) ?? places[0] ?? null;
+}
+
+/**
+ * Wear what is in a bag slot (what was worn there goes back to the bag).
+ * `to` names the place, for the things that have more than one (rings).
+ * Returns why not, or null when done.
+ */
+export function wear(ch, bagSlot, to = null) {
   const i = bagSlot | 0;
   const s = ch.bag[i];
   const it = s && ITEMS[s.item];
   if (!it?.slot) return 'That isn\'t something to wear';
+  if (to && !placesFor(it.slot).includes(to)) return `That is not worn there`;
   if ((it.level ?? 1) > ch.level) return `Needs level ${it.level}`;
-  const old = ch.equip[it.slot];
+  const place = placeFor(ch, s.item, to);
+  if (!place) return 'That isn\'t something to wear';
+  const old = ch.equip[place];
   if (old) {
     // What comes off goes where the new piece was, if its shape fits there; else wherever it does.
     const spot = fitsAt(ch, old, s.x, s.y, i) ? [s.x, s.y] : findSpot(ch, old, i);
     if (!spot) return `No room in your bag for ${ITEMS[old].name}`;
     ch.bag[i] = { item: old, n: 1, x: spot[0], y: spot[1] };
   } else ch.bag[i] = null;
-  ch.equip[it.slot] = s.item;
+  ch.equip[place] = s.item;
   return null;
 }
 

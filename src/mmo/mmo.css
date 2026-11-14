@@ -1478,7 +1478,7 @@
 .hv-doll {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-template-areas: 'plate plate plate' '. head .' 'weapon chest trinket' '. legs .' '. feet .';
+  grid-template-areas: 'plate plate plate' 'amulet head trinket' 'weapon chest ring1' '. belt ring2' '. legs .' '. feet .';
   gap: 8px;
   align-content: start;
   padding: 10px;
@@ -2185,7 +2185,12 @@
   z-index: 2;
 }
 .hv-bag__item.is-dragging {
-  z-index: 5;
+  opacity: 0.3;
+}
+.hv-bag__carried {
+  position: absolute;
+  z-index: 60;
+  margin: 0;
   cursor: grabbing;
   transition: none;
   transform: scale(1.06);
@@ -2243,4 +2248,48 @@
   flex: 1;
   opacity: 0.75;
   font-size: 11.5px;
+}
+
+.hv-doll__slot--amulet { grid-area: amulet; }
+.hv-doll__slot--belt { grid-area: belt; }
+.hv-doll__slot--ring1 { grid-area: ring1; }
+.hv-doll__slot--ring2 { grid-area: ring2; }
+.hv-doll__slot--amulet .hv-item,
+.hv-doll__slot--trinket .hv-item,
+.hv-doll__slot--ring1 .hv-item,
+.hv-doll__slot--ring2 .hv-item {
+  width: 40px;
+  font-size: 19px;
+  align-self: center;
+}
+.hv-doll__slot--belt .hv-item {
+  width: 60px;
+  aspect-ratio: 2 / 1;
+  font-size: 20px;
+}
+.hv-doll__slot {
+  align-content: center;
+}
+.hv-doll .hv-item {
+  display: grid;
+  place-items: center;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+/* While something is dragged from the bag: where it may go, and where it is about to. */
+.hv-doll .hv-item.is-target {
+  outline: 2px dashed #2fd3a0;
+  outline-offset: 2px;
+  animation: hv-tile-open 1.2s ease-in-out infinite;
+}
+.hv-doll .hv-item.is-over {
+  outline: 3px solid #fff;
+  transform: scale(1.12);
+  box-shadow: 0 0 18px #2fd3a0;
+}
+/* Room for the character sheet and the bag side by side. */
+.hv-windows {
+  width: min(1320px, calc(100% - 24px));
+}
+.hv-win--char {
+  width: min(600px, calc(100vw - 24px));
 }

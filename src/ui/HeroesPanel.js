@@ -1,6 +1,6 @@
 import { coverHtml, guardCovers } from './gameCover.js';
 import { popColor } from './pop.js';
-import { CLASSES, ITEMS, SLOTS, RARITY_INFO } from '../mmo/data.js';
+import { CLASSES, ITEMS, SLOTS, SLOT_NAMES, RARITY_INFO, placesFor } from '../mmo/data.js';
 import { lookOf } from '../mmo/looks.js';
 import './heroes.css';
 
@@ -10,7 +10,6 @@ const el = (tag, className, text) => {
   if (text != null) node.textContent = text;
   return node;
 };
-const SLOT_NAMES = { weapon: 'Weapon', head: 'Head', chest: 'Chest', legs: 'Legs', feet: 'Feet', trinket: 'Trinket' };
 const statLine = (stats = {}) => Object.entries(stats).map(([k, v]) => (k === 'crit' ? `+${v}% crit` : k === 'haste' ? `+${v}% speed` : `+${v} ${k}`)).join(' · ');
 /** An item's name in its rarity's colour (darkened a little to read on paper). */
 const nameOf = (item) => {
@@ -238,7 +237,9 @@ export class HeroesPanel {
     const gear = (c.bag ?? []).map((s, i) => ({ s, i })).filter(({ s }) => s && ITEMS[s.item]?.slot);
     for (const { s, i } of gear) {
       const item = ITEMS[s.item];
-      const worn = ITEMS[c.equip?.[item.slot]];
+      // Against what it would replace (a ring: the empty hand first, else the first ring).
+      const places = placesFor(item.slot);
+      const worn = ITEMS[c.equip?.[places.find((p) => !c.equip?.[p]) ?? places[0]]];
       const row = el('div', `heroes__slot is-${item.rarity ?? 'plain'}`);
       row.dataset.bag = i;
       const diff = Object.keys({ ...item.stats, ...(worn?.stats ?? {}) }).map((k) => [k, (item.stats?.[k] ?? 0) - (worn?.stats?.[k] ?? 0)]).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`).join(' · ');

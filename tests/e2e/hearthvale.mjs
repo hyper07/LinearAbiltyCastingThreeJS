@@ -172,6 +172,7 @@ export async function run(browser, { shots = null } = {}) {
     t.check('a right-click on a key opens the picker: skills, draughts and food', await until(page, () => !document.querySelector('.hv-picker').hidden && document.querySelectorAll('.hv-picker .hv-pick').length >= 9, null, 5000));
     await page.click('.hv-picker [data-pick="potion:health"]');
     t.check('picking moves the health draught to key 8 and swaps the tonic to 7; the server keeps it', await until(page, () => window.hearthvale.ch.bars[7] === 'potion:health' && window.hearthvale.ch.bars[6] === 'potion:mana' && document.querySelector('.hv-picker').hidden, null, 5000));
+    t.check('the character sheet has ten places (two rings, an amulet, a belt) and opens with the bag beside it', await page.evaluate(() => document.querySelectorAll('.hv-win--char [data-gear]').length === 10 && ['ring1', 'ring2', 'amulet', 'belt'].every((k) => document.querySelector(`.hv-win--char [data-gear="${k}"]`)) && Boolean(document.querySelector('.hv-win--bag .hv-bag'))));
     t.check('the hotbar locks what isn\'t learned yet', await page.evaluate(() => document.querySelectorAll('.hv-hotbar .hv-slot.is-locked').length >= 3 && document.querySelectorAll('.hv-hotbar .hv-slot:not(.is-locked)').length >= 1));
     const all = [...errors, ...other.errors].filter((e) => !/404 GET \/library\/my-models/.test(e));
     t.check('no page errors', all.length === 0, all.join(' | '));

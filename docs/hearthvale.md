@@ -38,7 +38,7 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-tree.jpg" width="100%" alt="The Vanguard's skill tree: three paths — Blade, Bulwark and Command — each a grid of ten tiles joined by lines (skills square, runes diamonds, passives round, a star for the mastery), Heavy Strike lit at rank 4 of 5, and a panel on the right that explains the picked tile" />
 </p>
 <p>
-  <img src="screenshots/hearthvale-sheet.jpg" width="100%" alt="The character sheet: gear slots laid out like a body on the left; Strength, Agility, Intellect and Vitality with + and +5 buttons and seven points to spend; boxes for offense, defense, resource and professions" />
+  <img src="screenshots/hearthvale-sheet.jpg" width="100%" alt="The character sheet with the bag beside it: ten gear places on the body (amulet, head, charm; weapon, chest, ring; belt, ring; legs; feet), a sword being dragged from the bag onto the weapon place, which is lit; attributes and stat boxes in the middle; the bag's grid on the right" />
 </p>
 <p>
   <img src="screenshots/hearthvale-classes.jpg" width="100%" alt="The character maker with eight class cards — Vanguard, Berserker, Templar, Shadowblade, Ranger, Arcanist, Stormcaller, Mender — and a Berserker with a great axe on the stage" />
@@ -148,6 +148,14 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   colour. **Hold the pointer on one** (or tab to it) for its words: name, rarity, slot and level,
   what it gives, how it compares with what you wear, what it sells for, and what a click does.
   In a store, click a picture to pick it; Buy, ×5 and Buy & wear are under the shelf.
+- **Gear: ten places.** Weapon, head, chest, legs, feet, a charm, **an amulet, a belt and two
+  rings**. Rings, amulets and belts drop like any other gear (in every rarity) and Brannoc sells
+  plain ones. A ring goes on your empty hand first; a third replaces the first, unless you drop it
+  on the hand you mean.
+- **Dress by dragging.** **C** opens your character with the bag beside it. Drag a piece from the
+  bag onto the body: the places it may go light up, and it is worn where you drop it (what was
+  there goes back to the bag, if its shape fits). A click on a piece in the bag wears it too; a
+  click on a worn piece takes it off.
 - **The bag is a grid (I).** Ten cells by seven, and every item takes the room its shape needs: a
   charm, a draught or a stack of ore one cell; daggers and wands one by two; a sword one by three;
   a staff one by four; helms, greaves and boots two by two; a great axe, a crossbow or a hauberk
@@ -240,7 +248,8 @@ trading, loot, guilds and progress fair.
   warned slam; combos, finishers and the close-range kick; keys 1–8 and the draught that fits; a stacked pack spreading out; the eight
   classes, their trees, runes, synergies and masteries, attribute points and starting over; found
   gear made from its id, rarity by monster, loot on the ground and picking it up, the second-hand
-  shelf; wandering monsters and sprinting; the bag's grid, moving and tidying; the jump) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
+  shelf; wandering monsters and sprinting; the bag's grid, moving and tidying; the jump; rings,
+  amulet and belt) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).
 
 ## Next

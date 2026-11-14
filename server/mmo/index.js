@@ -119,7 +119,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
           const row = await db.one('SELECT id, name, cls, level, data FROM mmo_characters WHERE id = ? AND account_id = ?', [id, account.id]);
           if (!row) return { status: 404, error: 'No such character' };
           const ch = normalize({ ...row.data, name: row.name, cls: row.cls });
-          const why = p.endsWith('/wear') ? wear(ch, Number(body.slot)) : takeOff(ch, String(body.slot));
+          const why = p.endsWith('/wear') ? wear(ch, Number(body.slot), typeof body.to === 'string' ? body.to : null) : takeOff(ch, String(body.slot));
           if (why) return { status: 400, error: why };
           await db.run('UPDATE mmo_characters SET data = ?, updated = ? WHERE id = ?', [JSON.stringify(ch), Date.now(), id]);
           return { character: { id: row.id, name: row.name, cls: row.cls, level: row.level, gold: ch.gold, look: cleanLook(row.cls, ch.look), online: false, ...wardrobe({ ...row, data: ch }) } };
@@ -397,7 +397,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
         return client.dirty();
       }
       case 'equip': {
-        const why = wear(ch, msg.slot);
+        const why = wear(ch, msg.slot, typeof msg.to === 'string' ? msg.to : null);
         if (why) return err(why);
         inst.refresh(p);
         return client.dirty();

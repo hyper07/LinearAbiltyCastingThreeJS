@@ -1,5 +1,5 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD, SPRINT, DROPS, BAG_W, BAG_H, sizeOf } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD, SPRINT, DROPS, BAG_W, BAG_H, sizeOf, SLOT_NAMES, placesFor } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
 import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods, potionFor, fitsAt } from './rules.js';
 import { CharacterStage } from './bodies.js';
@@ -32,7 +32,9 @@ const itemTip = (id) => {
 };
 /** An item's name as HTML, in its rarity's colour. */
 const itemName = (id, n = 1) => `<span class="hv-rarity" style="color:${itemColor(id)}">${esc(ITEMS[id]?.name ?? '?')}${n > 1 ? ` ×${n}` : ''}</span>`;
-const BASE_ICON = { sword: '⚔', axe: '🪓', daggers: '🗡', crossbow: '🏹', staff: '🪄', wand: '✨', helm: '⛑', hauberk: '🥋', greaves: '👖', boots: '👢', charm: '📿' };
+const BASE_ICON = { sword: '⚔', axe: '🪓', daggers: '🗡', crossbow: '🏹', staff: '🪄', wand: '✨', helm: '⛑', hauberk: '🥋', greaves: '👖', boots: '👢', charm: '🧿', ring: '💍', amulet: '📿', belt: '🪢' };
+/** What an empty place on the body shows, faintly. */
+const SLOT_ICON = { weapon: '🗡', head: '⛑', chest: '🥋', legs: '👖', feet: '👢', trinket: '🧿', amulet: '📿', belt: '🪢', ring1: '💍', ring2: '💍' };
 const ICON = (id) => {
   const it = ITEMS[id];
   if (!it) return '';
@@ -42,7 +44,10 @@ const ICON = (id) => {
   if (it.slot === 'chest') return '🥋';
   if (it.slot === 'legs') return '👖';
   if (it.slot === 'feet') return '👢';
-  if (it.slot === 'trinket') return '💍';
+  if (it.slot === 'trinket') return '🧿';
+  if (it.slot === 'ring') return '💍';
+  if (it.slot === 'amulet') return '📿';
+  if (it.slot === 'belt') return '🪢';
   if (it.use?.mana && !it.use.heal) return '🧪';
   if (it.use) return id === 'bread' ? '🍞' : '❤';
   if (/ore/.test(id)) return '🪨';
@@ -1263,11 +1268,14 @@ export class MmoGame {
     if (!it) return '';
     const rarity = rarityOf(id);
     const out = [`<h5 style="color:${itemColor(id)}">${esc(it.name)}</h5>`];
-    if (it.slot) out.push(`<small>${RARITY_INFO[rarity].name} ${esc(it.slot)}${it.level ? ` · <span class="${it.level > this.ch.level ? 'is-down' : ''}">level ${it.level}</span>` : ''}</small>`);
+    if (it.slot) out.push(`<small>${RARITY_INFO[rarity].name} ${esc(SLOT_NAMES[it.slot] ?? it.slot)}${it.level ? ` · <span class="${it.level > this.ch.level ? 'is-down' : ''}">level ${it.level}</span>` : ''}</small>`);
     else out.push(`<small>${it.use ? 'To eat or drink' : 'Material'}</small>`);
     if (it.stats) out.push(`<ul>${statText(it.stats).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`);
     if (it.use) out.push(`<ul>${it.use.heal ? `<li>Restores ${it.use.heal} health</li>` : ''}${it.use.mana ? `<li>Restores ${it.use.mana} ${esc(CLASSES[this.ch.cls].resource.toLowerCase())}</li>` : ''}</ul>`);
-    const worn = it.slot ? this.ch.equip[it.slot] : null;
+    // Against what it would replace: its place (for a ring, the empty hand first, else the first ring).
+    const places = placesFor(it.slot);
+    const isWorn = places.some((p) => this.ch.equip[p] === id);
+    const worn = isWorn ? id : it.slot ? this.ch.equip[places.find((p) => !this.ch.equip[p]) ?? places[0]] : null;
     if (it.slot && worn !== id) {
       const keys = new Set([...Object.keys(it.stats ?? {}), ...Object.keys(ITEMS[worn]?.stats ?? {})]);
       const diffs = [...keys].map((k) => [k, (it.stats?.[k] ?? 0) - (ITEMS[worn]?.stats?.[k] ?? 0)]).filter(([, d]) => d);
@@ -1488,6 +1496,8 @@ export class MmoGame {
     else {
       this.panels.add(panel);
       if (panel === 'guild') this.send({ t: 'guild-roster' });
+      // The character sheet comes with the bag beside it: drag from one onto the other.
+      if (panel === 'char') this.panels.add('bag');
     }
     this._renderAll();
   }
@@ -1694,26 +1704,50 @@ export class MmoGame {
         const grab = { x: e.clientX - box.left - s.x * CELL, y: e.clientY - box.top - s.y * CELL };
         dragged = false;
         let cell = null;
+        let carried = null;
         const move = (ev) => {
           if (!dragged && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 6) return;
+          if (!dragged) {
+            // The places on the body this piece may go light up.
+            for (const g of this.root.querySelectorAll('[data-gear]')) g.classList.toggle('is-target', placesFor(it.slot).includes(g.dataset.gear) && (it.level ?? 1) <= this.ch.level);
+          }
+          if (!dragged) {
+            // What you carry is a copy over everything (the bag's window would cut the real one off at its edge).
+            carried = b.cloneNode(true);
+            carried.classList.add('hv-bag__carried');
+            carried.style.width = `${w * CELL - 4}px`;
+            carried.style.height = `${h * CELL - 4}px`;
+            this.root.append(carried);
+          }
           dragged = true;
           b.classList.add('is-dragging');
           if (this.tip) this.tip.hidden = true;
-          b.style.left = `${ev.clientX - box.left - grab.x}px`;
-          b.style.top = `${ev.clientY - box.top - grab.y}px`;
+          const rootBox = this.root.getBoundingClientRect();
+          carried.style.left = `${ev.clientX - rootBox.left - grab.x}px`;
+          carried.style.top = `${ev.clientY - rootBox.top - grab.y}px`;
+          const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.('[data-gear]');
+          for (const g of this.root.querySelectorAll('[data-gear].is-over')) g.classList.remove('is-over');
+          if (over?.classList.contains('is-target')) over.classList.add('is-over');
           cell = [Math.round((ev.clientX - box.left - grab.x) / CELL), Math.round((ev.clientY - box.top - grab.y) / CELL)];
           const ok = fitsAt(this.ch, s.item, cell[0], cell[1], i);
           ghost.hidden = cell[0] < 0 || cell[1] < 0 || cell[0] + w > BAG_W || cell[1] + h > BAG_H;
           ghost.classList.toggle('is-bad', !ok);
           Object.assign(ghost.style, { left: `${cell[0] * CELL}px`, top: `${cell[1] * CELL}px`, width: `${w * CELL}px`, height: `${h * CELL}px` });
         };
-        const up = () => {
+        const up = (ev) => {
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
           ghost.hidden = true;
           b.classList.remove('is-dragging');
+          carried?.remove();
+          const gear = dragged ? document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.('[data-gear]') : null;
+          for (const g of this.root.querySelectorAll('[data-gear]')) g.classList.remove('is-target', 'is-over');
           if (!dragged) return;
-          if (cell && fitsAt(this.ch, s.item, cell[0], cell[1], i)) {
+          if (gear) {
+            // Dropped on the body: wear it there, if that is where such a thing goes.
+            if (placesFor(it.slot).includes(gear.dataset.gear)) this.send({ t: 'equip', slot: i, to: gear.dataset.gear });
+            else this.toast(it.slot ? `${it.name} is worn as a ${String(SLOT_NAMES[it.slot] ?? it.slot).toLowerCase()}, not there` : `${it.name} can't be worn`);
+          } else if (cell && fitsAt(this.ch, s.item, cell[0], cell[1], i)) {
             // Move it here at once; the server says the same a moment later.
             s.x = cell[0];
             s.y = cell[1];
@@ -1757,14 +1791,15 @@ export class MmoGame {
     for (const slot of SLOTS) {
       const id = this.ch.equip[slot];
       const cell = el('div', `hv-doll__slot hv-doll__slot--${slot}`);
-      const b = this._slotButton(id ? { item: id, n: 1 } : null, () => id && this.send({ t: 'unequip', slot }), '\nClick: take off');
+      const b = this._slotButton(id ? { item: id, n: 1 } : null, () => id && this.send({ t: 'unequip', slot }));
       b.dataset.gear = slot;
       if (!id) {
         // An empty place shows faintly what goes there.
         b.classList.add('is-vacant');
-        b.innerHTML = `<span>${{ weapon: '🗡', head: '⛑', chest: '🥋', legs: '👖', feet: '👢', trinket: '💍' }[slot]}</span>`;
-        b.dataset.tipText = `${slot[0].toUpperCase()}${slot.slice(1)} — nothing worn`;
-      }
+        b.innerHTML = `<span>${SLOT_ICON[slot]}</span>`;
+        b.dataset.tipTitle = SLOT_NAMES[slot];
+        b.dataset.tipText = 'Nothing worn.\n› Drag a piece here from the bag, or click it in the bag';
+      } else b.dataset.tipHint = 'Click: take off';
       cell.append(b);
       gear.append(cell);
     }
@@ -1973,7 +2008,7 @@ export class MmoGame {
         };
         add('Buy', 1);
         if (!it.slot) add('×5', 5);
-        else if (!low && this.ch.equip[it.slot] !== pick.id) add('Buy & wear', 1, true);
+        else if (!low && !placesFor(it.slot).some((p) => this.ch.equip[p] === pick.id)) add('Buy & wear', 1, true);
         foot.append(info, buy);
       }
     }
@@ -2214,6 +2249,7 @@ export class MmoGame {
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
       <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
       <li><b>Jump</b>: <b>Space</b>.</li>
+      <li><b>Gear</b>: weapon, head, chest, legs, feet, a charm, an amulet, a belt and two rings. <b>C</b> opens your character with the bag beside it: drag a piece from the bag onto its place on the body (the places it can go light up), or just click it in the bag. Click a worn piece to take it off.</li>
       <li><b>The bag</b> (I) is a grid, and things take the room their shape needs: a charm or a draught one cell, a sword one by three, a great axe or a hauberk two by three. Drag to arrange, or press Tidy.</li>
       <li><b>Run</b>: hold <b>Shift</b> to run half again as fast; <b>R</b> (or the button by the hotbar) keeps you running, and then Shift walks.</li>
       <li><b>Loot</b> falls on the ground where a monster dies, under a beam of its rarity's colour, with its name over it. Walk over it, click it, or press <b>F</b> to pick it up; it lies there three minutes, for you alone.</li>

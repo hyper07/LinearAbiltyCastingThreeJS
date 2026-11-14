@@ -20,7 +20,11 @@ export const BAR_SIZE = 8;
 /** Seconds before another draught of the same kind (health and mana each have their own). */
 export const POTION_CD = 15;
 export const XP_TO = Array.from({ length: MAX_LEVEL + 1 }, (_, l) => (l <= 1 ? 0 : Math.round(80 * (l - 1) ** 1.9 + 120 * (l - 1))));
-export const SLOTS = ['weapon', 'head', 'chest', 'legs', 'feet', 'trinket'];
+/** Where gear is worn. Two rings: an item of slot `ring` goes on either hand. */
+export const SLOTS = ['weapon', 'head', 'chest', 'legs', 'feet', 'trinket', 'amulet', 'belt', 'ring1', 'ring2'];
+export const SLOT_NAMES = { weapon: 'Weapon', head: 'Head', chest: 'Chest', legs: 'Legs', feet: 'Feet', trinket: 'Charm', amulet: 'Amulet', belt: 'Belt', ring1: 'Ring', ring2: 'Ring', ring: 'Ring' };
+/** The places an item of a given slot may be worn (`ring` → either ring place). */
+export const placesFor = (slot) => (slot === 'ring' ? ['ring1', 'ring2'] : SLOTS.includes(slot) ? [slot] : []);
 
 /* ------------------------------------------------------------- classes */
 
@@ -294,6 +298,11 @@ const FIXED_ITEMS = {
   hunting_crossbow: { name: 'Hunting Crossbow', slot: 'weapon', level: 1, stats: { power: 4 }, value: 5 },
   willow_staff: { name: 'Willow Staff', slot: 'weapon', level: 1, stats: { power: 4 }, value: 5 },
   cloth_hood: { name: 'Cloth Hood', slot: 'head', level: 1, stats: { armor: 2, stamina: 1 }, value: 3 },
+  copper_ring: { name: 'Copper Ring', slot: 'ring', level: 1, stats: { power: 1 }, value: 4 },
+  rope_belt: { name: 'Rope Belt', slot: 'belt', level: 1, stats: { armor: 1, stamina: 1 }, value: 3 },
+  glass_amulet: { name: 'Glass Amulet', slot: 'amulet', level: 1, stats: { stamina: 2 }, value: 4 },
+  silver_ring: { name: 'Silver Ring', slot: 'ring', level: 6, stats: { power: 3, stamina: 1 }, value: 14 },
+  studded_belt: { name: 'Studded Belt', slot: 'belt', level: 6, stats: { armor: 4, stamina: 2 }, value: 12 },
   wooden_charm: { name: 'Carved Charm', slot: 'trinket', level: 1, stats: { power: 1, stamina: 1 }, value: 4 },
   ring_vest: { name: 'Ringmail Vest', slot: 'chest', level: 5, stats: { armor: 8, stamina: 3 }, value: 12 },
   scout_boots: { name: 'Scout Boots', slot: 'feet', level: 5, stats: { armor: 5, stamina: 2 }, value: 10 },
@@ -341,7 +350,9 @@ export const BASES = {
   crossbow: { name: 'Crossbow', slot: 'weapon', power: 1, size: [2, 3] }, staff: { name: 'Staff', slot: 'weapon', power: 1, size: [1, 4] }, wand: { name: 'Wand', slot: 'weapon', power: 0.95, size: [1, 2] },
   helm: { name: 'Helm', slot: 'head', armor: 0.8, stamina: 0.3, size: [2, 2] }, hauberk: { name: 'Hauberk', slot: 'chest', armor: 1.3, stamina: 0.4, size: [2, 3] },
   greaves: { name: 'Greaves', slot: 'legs', armor: 0.9, stamina: 0.35, size: [2, 2] }, boots: { name: 'Boots', slot: 'feet', armor: 0.6, stamina: 0.25, size: [2, 2] },
-  charm: { name: 'Charm', slot: 'trinket', power: 0.4, stamina: 0.35, size: [1, 1] }
+  charm: { name: 'Charm', slot: 'trinket', power: 0.4, stamina: 0.35, size: [1, 1] },
+  ring: { name: 'Ring', slot: 'ring', power: 0.28, stamina: 0.2, size: [1, 1] }, amulet: { name: 'Amulet', slot: 'amulet', power: 0.3, stamina: 0.35, size: [1, 1] },
+  belt: { name: 'Belt', slot: 'belt', armor: 0.4, stamina: 0.4, size: [2, 1] }
 };
 /** The weapon each class would rather find. */
 export const WEAPON_OF = { vanguard: 'sword', templar: 'sword', berserker: 'axe', shadowblade: 'daggers', ranger: 'crossbow', arcanist: 'staff', stormcaller: 'wand', mender: 'wand' };
@@ -403,7 +414,7 @@ export const ITEMS = new Proxy(FIXED_ITEMS, {
 });
 
 /** The room a listed piece of gear takes, by where it is worn (a weapon's by what it is). */
-const SLOT_SIZE = { head: [2, 2], chest: [2, 3], legs: [2, 2], feet: [2, 2], trinket: [1, 1] };
+const SLOT_SIZE = { head: [2, 2], chest: [2, 3], legs: [2, 2], feet: [2, 2], trinket: [1, 1], ring: [1, 1], amulet: [1, 1], belt: [2, 1] };
 /**
  * How many cells of the bag an item takes: [wide, tall]. A charm, a draught
  * or a stack of ore is one cell; a sword is one wide and three tall; a great
@@ -436,8 +447,8 @@ export const SPRINT = 1.5;
 export const VENDORS = {
   pell: ['bread', 'minor_potion', 'mana_tonic', 'greater_potion'],
   brannoc: [
-    'militia_sword', 'hunting_crossbow', 'willow_staff', 'cloth_hood', 'padded_vest', 'leather_boots', 'traveler_leggings', 'wooden_charm',
-    'copper_blade', 'ash_bow', 'ash_staff', 'copper_helm', 'ring_vest', 'scout_boots', 'ring_leggings',
+    'militia_sword', 'hunting_crossbow', 'willow_staff', 'cloth_hood', 'padded_vest', 'leather_boots', 'traveler_leggings', 'wooden_charm', 'copper_ring', 'rope_belt', 'glass_amulet',
+    'copper_blade', 'ash_bow', 'ash_staff', 'copper_helm', 'ring_vest', 'scout_boots', 'ring_leggings', 'silver_ring', 'studded_belt',
     'steel_sword', 'steel_crossbow', 'oak_rod', 'scale_helm', 'scale_vest'
   ]
 };
