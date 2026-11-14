@@ -271,7 +271,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 4;
+export const EXTRAS_VERSION = 5;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -320,7 +320,7 @@ const EXTRA_MODELS = [
   }
 ];
 /** ambientCG materials by id: metal and concrete for Breachline's yards. */
-const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027', 'PaintedMetal004', 'Concrete034', 'Concrete047A', 'MetalPlates006', 'Metal063', 'PavingStones128', 'Asphalt031'];
+const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027', 'PaintedMetal004', 'Concrete034', 'Concrete047A', 'MetalPlates006', 'Metal063', 'PavingStones128', 'Asphalt031', 'Ground078', 'Ground071', 'Ground103', 'Gravel043', 'Rock030'];
 
 export async function extras({ budget }) {
   const SRC = 'extras';

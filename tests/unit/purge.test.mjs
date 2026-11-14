@@ -143,3 +143,25 @@ test('a snapshot carries soldiers, the awake dead, hurt buildings and what has f
   assert.deepEqual(s.down, []);
   assert.ok(JSON.stringify(s).length < 20000, 'small enough to send ten times a second');
 });
+
+test('waves: a crypt that falls is answered by the crypts near it; the camp gets numbered waves', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 8 });
+  const t = g.troops[0];
+  const crypt = g.buildings.find((b) => b.type === 'crypt' && g.buildings.some((o) => o !== b && o.alive && BUILDINGS[o.type].spawns && Math.hypot(o.x - b.x, o.z - b.z) < 110));
+  const before = g.foes.length;
+  g._hurt(crypt, 1e7, t);
+  const wave = g.foes.slice(before);
+  assert.ok(wave.length >= 4, `a wave of ${wave.length}`);
+  assert.ok(wave.every((f) => f.raid && f.goal && Math.hypot(f.goal.x - crypt.x, f.goal.z - crypt.z) < 5), 'sent to where it fell');
+  assert.ok(g.events.some((e) => e.t === 'wrath'));
+  // The camp's waves come numbered, and grow.
+  g.raidT = 0;
+  g.step(TICK);
+  const first = g.events.find((e) => e.t === 'raid');
+  g.raidT = 0;
+  g.step(TICK);
+  const second = g.events.find((e) => e.t === 'raid');
+  assert.equal(first.wave, 1);
+  assert.equal(second.wave, 2);
+  assert.ok(second.n >= first.n);
+});

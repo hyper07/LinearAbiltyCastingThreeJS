@@ -52,6 +52,7 @@ export async function run(browser) {
     await page.click('.gp [data-swap-to="purge2d"]');
     t.check('the 2D tab opens Grave Purge drawn flat, no WebGL', await until(page, () => window.gravePurge?.flat && document.querySelector('.gp [data-solo]') && !document.querySelector('.gp canvas.bs__canvas').getContext('2d') === false, null, 15000));
     await page.click('.gp [data-solo]');
+    t.check('…its sprites are painted from the 3D models', await until(page, () => Boolean(window.gravePurge.view.sprites?.soldiers?.recruit && window.gravePurge.view.sprites.dead?.husk), null, 30000));
     t.check('…and it plays: soldiers, a frame rate shown', await until(page, () => window.gravePurge.state?.ents.some((e) => e.k === 'troop') && /2D · \d+ fps/.test(document.querySelector('.gp [data-fps]').textContent), null, 10000));
     await page.evaluate(() => window.gravePurge._menu());
     await page.click('.gp [data-swap-to="hold"]');

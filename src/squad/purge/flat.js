@@ -1,13 +1,15 @@
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, FORGE_REACH } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, foeDef } from './map.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
+import { loadTextures, paintLand, drawWorld, remains, LIFT } from './flatReal.js';
 
 /**
- * Grave Purge in 2D: the same game drawn flat, from straight above, on a
- * plain canvas — no WebGL, no models. The land (ground, ridges, rocks,
- * graves, the camp) is painted once into a big picture; each frame draws
- * that, then the buildings, the dead and the soldiers as shapes. Same
- * interface as the 3D view, so the game screen can use either.
+ * Grave Purge in 2D: the same game drawn flat on a plain canvas. At first
+ * (and wherever WebGL is missing) as simple shapes over a painted land;
+ * once the sprites are baked (sprites.js — a second or two, in the
+ * background), the realistic way (flatReal.js): photo-textured ground,
+ * cliffs, blight, and pre-rendered sprites. Same interface as the 3D view,
+ * so the game screen can use either.
  */
 
 const PX = 8; // pixels a metre in the painted land
@@ -41,7 +43,7 @@ export class FlatView {
     host.prepend(this.canvas);
     this.ctx = this.canvas.getContext('2d');
     this.target = new Point(PAD.x, 0, PAD.z + 6);
-    this.zoom = 34;
+    this.zoom = 27;
     this.time = 0;
     this.width = 1;
     this.height = 1;
@@ -53,6 +55,25 @@ export class FlatView {
     this.falling = new Map();
     this.look = new Map(); // entity id → { a (shown facing), swing, aa }
     this.land = this._paint();
+    this.sprites = null;
+    this.progress = 0;
+    this.ready = this._bake();
+  }
+
+  /** Textures and sprites, then the land repainted with them. */
+  async _bake() {
+    try {
+      const [{ bakeSprites }, tex] = await Promise.all([import('./sprites.js'), loadTextures()]);
+      const sprites = await bakeSprites((p) => (this.progress = p));
+      if (!sprites || !tex.t1 || this.gone) return false;
+      this.land = paintLand(tex, sprites);
+      this.sprites = sprites;
+      this.progress = 1;
+      return true;
+    } catch (e) {
+      console.warn('2D sprites', e);
+      return false;
+    }
   }
 
   /* ------------------------------------------------------------- the land */
@@ -255,7 +276,7 @@ export class FlatView {
   /** A world point on screen; height lifts it up the screen a little (bars over heads). */
   toScreen(x, y, z) {
     const k = this.scale;
-    return { x: (x - this.target.x) * k + this.width / 2, y: (z - this.target.z) * k + this.height / 2 - y * k * 0.45, front: true };
+    return { x: (x - this.target.x) * k + this.width / 2, y: (z - this.target.z) * k + this.height / 2 - y * k * (this.sprites ? LIFT : 0.45), front: true };
   }
 
   pick(state, px, py, kind = 'foe', mySlot = -1) {
@@ -304,9 +325,13 @@ export class FlatView {
       } else if (e.t === 'fall') {
         this.fx.push({ kind: 'blast', x: e.x, z: e.z, r: (BUILDINGS[e.type]?.r ?? 2) * 1.8, color: '#c0a080', life: 0.7, t: 0 });
         this.falling.set(e.id, 0);
+        if (this.sprites) setTimeout(() => this.sprites && remains(this.land, this.sprites, e.x, e.z, 'building'), 900);
       } else if (e.t === 'kill') {
         const dead = this.last?.get(e.id);
-        if (dead) this.dying.push({ e: dead, t: 0 });
+        if (dead) {
+          this.dying.push({ e: dead, t: 0 });
+          if (this.sprites) setTimeout(() => this.sprites && remains(this.land, this.sprites, dead.x, dead.z, dead.k === 'troop' ? 'troop' : 'bones'), 1100);
+        }
       } else if (e.t === 'ore' && e.o === this.mySlot) this.popups.push({ x: e.x, z: e.z, text: `+${e.n}`, t: 0 });
     }
   }
@@ -338,6 +363,17 @@ export class FlatView {
     const view = { x0: this.target.x - this.width / 2 / k - 8, x1: this.target.x + this.width / 2 / k + 8, z0: this.target.z - this.height / 2 / k - 8, z1: this.target.z + this.height / 2 / k + 8 };
     const seen = (x, z, pad = 0) => x > view.x0 - pad && x < view.x1 + pad && z > view.z0 - pad && z < view.z1 + pad;
     this._camp(g);
+    if (this.sprites) {
+      for (const d of this.dying) d.t += dt;
+      this.dying = this.dying.filter((d) => d.t < 1.2);
+      for (const [id, f] of this.falling) this.falling.set(id, f + dt);
+      drawWorld(this, g, state, dt, seen);
+      this._effects(g, dt);
+      g.restore();
+      this._grade(g);
+      this.popups = this.popups.filter((p) => (p.t += dt) < 1.4);
+      return;
+    }
     const down = new Set(state.down);
     for (const s of STRUCTURES) {
       if (!seen(s.x, s.z, 12)) continue;
@@ -371,13 +407,17 @@ export class FlatView {
     for (const e of state.ents) if (e.k === 'troop' && seen(e.x, e.z)) this._troop(g, e, dt);
     this._effects(g, dt);
     g.restore();
-    // A dusk vignette.
+    this._grade(g);
+    this.popups = this.popups.filter((p) => (p.t += dt) < 1.4);
+  }
+
+  /** A dusk vignette over everything. */
+  _grade(g) {
     const v = g.createRadialGradient(this.width / 2, this.height / 2, Math.min(this.width, this.height) * 0.35, this.width / 2, this.height / 2, Math.max(this.width, this.height) * 0.75);
     v.addColorStop(0, 'rgba(20,10,30,0)');
     v.addColorStop(1, 'rgba(20,10,30,0.45)');
     g.fillStyle = v;
     g.fillRect(0, 0, this.width, this.height);
-    this.popups = this.popups.filter((p) => (p.t += dt) < 1.4);
   }
 
   _camp(g) {
@@ -747,6 +787,7 @@ export class FlatView {
   }
 
   dispose() {
+    this.gone = true;
     this.canvas.remove();
     this.land = null;
   }

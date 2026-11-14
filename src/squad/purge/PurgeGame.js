@@ -36,6 +36,7 @@ export class PurgeGame {
     this.selected = new Set();
     this.groups = new Map();
     this.panel = null;
+    this.pings = [];
     window.gravePurge = this;
   }
 
@@ -561,7 +562,8 @@ export class PurgeGame {
     f.worst = 0;
     f.at = now;
     const el = this.$('[data-fps]');
-    if (el) el.textContent = `${this.flat ? '2D' : '3D'} · ${f.value} fps · slowest frame ${f.slowest} ms`;
+    const baking = this.flat && this.view.progress < 1 && !this.view.sprites;
+    if (el) el.textContent = `${this.flat ? '2D' : '3D'} · ${f.value} fps · slowest frame ${f.slowest} ms${baking ? ` · painting sprites ${Math.round(this.view.progress * 100)}%` : ''}`;
   }
 
   _pan(dt) {
@@ -586,7 +588,14 @@ export class PurgeGame {
       else if (e.t === 'heart') this._banner('The Heart of the Grave is open', 'Every ward is broken — it can be hurt now (far south-east)', 4);
       else if (e.t === 'king') this._banner(GUARDIANS.king.name, 'The Heart is broken — and the king rises from it', 4);
       else if (e.t === 'guardian') this._feed(`${GUARDIANS[e.kind]?.name ?? 'A guardian'} is slain`);
-      else if (e.t === 'raid') this._banner('A raid!', `${e.n} of the dead are coming for the camp`, 3);
+      else if (e.t === 'raid') {
+        this._banner(`Wave ${e.wave}`, `${e.n} of the dead are coming for the camp`, 3);
+        this.pings.push({ x: e.x, z: e.z, t: performance.now() });
+      }
+      else if (e.t === 'wrath') {
+        this._banner('The dead answer', `${e.n} are coming from the crypts nearby, to where the ${BUILDINGS[e.type]?.name ?? 'building'} fell`, 3);
+        this.pings.push(...e.from.map(([x, z]) => ({ x, z, t: performance.now() })), { x: e.x, z: e.z, t: performance.now() });
+      }
       else if (e.t === 'forge') this._feed(`${this.state.players[e.o]?.name} raised a ${RANKS[e.rank].name}`);
       else if (e.t === 'give') this._feed(`${this.state.players[e.o]?.name} gave ${this.state.players[e.to]?.name} ${e.n.toLocaleString()} ore`);
       else if (e.t === 'stipend') this._feed(`Supply drop: +${e.n} ore each`);
@@ -650,7 +659,7 @@ export class PurgeGame {
         <div class="bs__wave"><small>Shrines</small><b>${s.shrines}/6</b></div>
         <div class="bs__wave"><small>Soul nodes</small><b>${s.nodes}/6</b></div>
         <div class="bs__wave"><small>The Heart</small><b>${s.keysLeft ? 'sealed' : 'open'}</b></div>
-        <div class="bs__wave"><small>Next raid</small><b>${clock(Math.max(0, s.raidIn))}</b></div>
+        <div class="bs__wave"><small>Wave ${s.raids + 1} in</small><b>${clock(Math.max(0, s.raidIn))}</b></div>
         <div class="gp__speed">${SPEEDS.map((n) => `<button type="button" data-speed="${n}" class="${s.speed === n ? 'is-on' : ''}" ${host ? '' : 'disabled'}>×${n}</button>`).join('')}</div>`;
       for (const b of this.$('[data-top]').querySelectorAll('[data-speed]')) b.onclick = () => this.game && (this.game.speed = Number(b.dataset.speed));
     }
@@ -757,6 +766,17 @@ export class PurgeGame {
         g.lineWidth = 1;
         g.stroke();
       }
+    }
+    // Where waves come from: red rings, for a few seconds.
+    const now = performance.now();
+    this.pings = this.pings.filter((p) => now - p.t < 5000);
+    for (const p of this.pings) {
+      const age = ((now - p.t) % 1000) / 1000;
+      g.strokeStyle = `rgba(255,70,50,${1 - age})`;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(p.x * k, p.z * k, 4 + age * 14, 0, Math.PI * 2);
+      g.stroke();
     }
     const corners = [[0, 0], [this.view.width, 0], [this.view.width, this.view.height], [0, this.view.height]].map(([x, y]) => this.view.groundAt(x, y));
     if (corners.every(Boolean)) {

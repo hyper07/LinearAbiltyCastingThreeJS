@@ -84,6 +84,7 @@ export class Purge {
     this.keysLeft = KEYS.length;
     this.raidT = this.diff.raid + 120;
     this.raids = 0;
+    this.fallen = 0;
     this.stipendT = ECON.every;
     this.paths = 0;
     this.over = null;
@@ -552,8 +553,13 @@ export class Purge {
       return;
     }
     if (f.raid) {
-      // Raiders go for the camp.
-      if (!f.path?.length) f.path = this.grid.path(f.x, f.z, PAD.x, PAD.z) ?? [[PAD.x, PAD.z]];
+      // A wave: to where it was sent (where its crypt fell), then on to the camp.
+      const goal = f.goal ?? PAD;
+      if (f.goal && Math.hypot(f.x - goal.x, f.z - goal.z) < 6) {
+        f.goal = null;
+        f.path = null;
+      }
+      if (!f.path?.length) f.path = (this.paths++ < 14 ? this.grid.path(f.x, f.z, goal.x, goal.z) : null) ?? [[goal.x, goal.z]];
       this._walk(f, def.speed, dt);
       return;
     }
@@ -645,7 +651,12 @@ export class Purge {
     return best;
   }
 
-  /** Every few minutes the dead come for the camp, from the crypt nearest it. */
+  /**
+   * Waves. Every few minutes the dead come for the camp, from the crypt
+   * nearest it, more each time. And every crypt, ossuary, shrine or soul
+   * node that falls is answered: the nearest crypts still standing send a
+   * wave to where it fell (then on to the camp).
+   */
   _raids(dt) {
     this.raidT -= dt;
     if (this.raidT > 0) return;
@@ -653,13 +664,32 @@ export class Purge {
     const from = this.buildings.filter((b) => b.alive && BUILDINGS[b.type].spawns).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];
     if (!from) return;
     this.raids++;
-    const kinds = BUILDINGS[from.type].spawns.kinds;
-    const count = Math.min(12, 3 + this.raids);
+    const count = Math.min(16, 3 + this.raids + Math.floor(this.fallen / 6));
+    this._wave([from], count, null);
+    this.events.push({ t: 'raid', wave: this.raids, x: from.x, z: from.z, n: count });
+  }
+
+  /** A wave of `count` from these buildings (shared out), sent to `goal` (or straight at the camp). */
+  _wave(from, count, goal) {
     for (let n = 0; n < count; n++) {
-      const a = (n / count) * Math.PI * 2;
-      this._foe(kinds[n % kinds.length], from.x + Math.cos(a) * 5, from.z + Math.sin(a) * 5, { tier: from.tier, raid: true, home: { x: PAD.x, z: PAD.z } });
+      const b = from[n % from.length];
+      const kinds = BUILDINGS[b.type].spawns.kinds;
+      const a = (n / count) * Math.PI * 2 + this.rand();
+      const f = this._foe(kinds[Math.floor(this.rand() * kinds.length)], b.x + Math.cos(a) * (BUILDINGS[b.type].r + 3), b.z + Math.sin(a) * (BUILDINGS[b.type].r + 3), { tier: b.tier, raid: true, home: { x: PAD.x, z: PAD.z } });
+      f.goal = goal ? { x: goal.x + Math.cos(a) * 3, z: goal.z + Math.sin(a) * 3 } : null;
+      f.since = this.t;
     }
-    this.events.push({ t: 'raid', x: from.x, z: from.z, n: count });
+  }
+
+  /** A building of the dead has fallen: the crypts nearby answer. */
+  _wrath(b) {
+    const def = BUILDINGS[b.type];
+    if (!(def.spawns || def.key)) return;
+    const near = this.buildings.filter((o) => o.alive && BUILDINGS[o.type].spawns && Math.hypot(o.x - b.x, o.z - b.z) < 110).sort((p, q) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(q.x - b.x, q.z - b.z)).slice(0, 2);
+    if (!near.length) return;
+    const count = Math.min(12, 2 + Math.round(b.tier * 1.5) + (def.key ? 2 : 0));
+    this._wave(near, count, { x: b.x, z: b.z });
+    this.events.push({ t: 'wrath', x: b.x, z: b.z, n: count, from: near.map((o) => [o.x, o.z]), type: b.type });
   }
 
   /* --------------------------------------------------------------- harm */
@@ -720,6 +750,8 @@ export class Purge {
     this._pay(by, Math.round(def.bounty * k), b.x, b.z);
     for (const p of this.players) p.relics += def.relics ?? 0;
     this.events.push({ t: 'fall', id: b.i, type: b.type, x: b.x, z: b.z, relics: def.relics ?? 0 });
+    this.fallen++;
+    this._wrath(b);
     if (def.key) {
       this.keysLeft--;
       if (b.type === 'shrine') {

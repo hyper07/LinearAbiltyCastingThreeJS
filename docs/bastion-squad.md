@@ -40,14 +40,24 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   Knight, the Ash Witch, the Pale Hound, the Hollow Bishop, the Cinder Lich, the Rotfather).
 - **The Heart of the Grave**, in its sanctum in the far south-east, is sealed until all twelve
   wards are broken. Break it and **the Grave King** rises from it; kill him to win.
-- **Raids**: every few minutes the dead come for the camp from the nearest crypt; the camp's two
-  guns help. Soldiers in the camp heal.
+- **Waves**: every few minutes a numbered wave comes for the camp from the crypt nearest it, bigger
+  each time (and bigger the more you have broken); the camp's two guns help, and soldiers in the camp
+  heal. And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
+  it send a wave to where it fell (then on to the camp) — the map shows where they come from.
 - **The clock**: Casual 90 minutes, Hard 75, Hell 60 (the dead tougher too). **Heroes only** mode
   sells Veterans at the barracks instead of Recruits and gives 3,000 ore to start. The host can run
   the game at ×1, ×1.5, ×2 or ×3.
 - **Bots** take the empty seats: they buy, raise at the Forge, upgrade, and take their armies out
   together to the nearest thing they can beat, home to heal when hurt. Four bots alone win Casual in
   about half an hour and Hard in about fifty minutes; Hell needs you.
+
+**2D, the realistic way**: the 2D view is drawn like the classic 2D strategy games — its sprites are
+our own 3D models (the soldier for each rank, each kind of the dead, the crypts, shrines, camp, graves
+and trees) rendered once while the menu shows (about a second; `sprites.js`), from a three-quarter
+view with the sun in the north-west, five ways round plus mirrors, with run, walk and strike frames.
+The land is painted from photo textures (ambientCG) — grass near the camp, dirt, dark earth, ash —
+with rock cliffs along the ridges, and a purple blight veins the ground round every building of the
+dead. Bones, blood and rubble stay where things fell (`flatReal.js`).
 
 **2D or 3D**: Grave Purge comes drawn two ways — the menu's tabs, or the **Grave Purge 2D** card.
 Same game, same rooms (a 2D player and a 3D player can share one). 3D draws models and shadows and
@@ -63,10 +73,12 @@ click to look, right-click to send; wheel to zoom; arrows or the screen's edge t
 | --- | --- |
 | `src/squad/purge/rules.js` | ranks, upgrades, the dead and their guardians, buildings, shrine gifts, difficulty, money |
 | `src/squad/purge/map.js` | the Gravefield from a fixed seed (rings of ridges, buildings, camps), the walking grid and A* |
-| `src/squad/purge/sim.js` | `Purge`: orders, the Forge, fighting, the dead waking and leashing, crypts, raids, the wards and the Heart, bots — no drawing |
+| `src/squad/purge/sim.js` | `Purge`: orders, the Forge, fighting, the dead waking and leashing, crypts, waves (timed, and answering each building that falls), the wards and the Heart, bots — no drawing |
 | `src/squad/purge/view.js` | the land (rocks, KayKit Halloween pieces for the dead's buildings, Space Base pieces for the camp), soldiers, skeletons; built only near the camera |
 | `src/squad/purge/PurgeGame.js` | menu, rooms, selection and orders, HUD, the Forge / armoury / give panels, minimap |
 | `src/squad/purge/flat.js` | the 2D view: the same game drawn flat on a plain canvas (no WebGL) — the land painted once, shapes for everything that moves |
+| `src/squad/purge/sprites.js` | the sprite baker: our 3D models rendered once into sheets of 2D pictures (then the 3D is let go) |
+| `src/squad/purge/flatReal.js` | the realistic 2D: textured land, cliffs, blight, sprites back to front with shadows, remains |
 | `src/squad/purge/overlay.js` | what both views draw and pick alike: health bars, names, ore popups, picking and box-selecting |
 
 Tests: `tests/unit/purge.test.mjs` (the land and its ways, the Forge, pay and relics, shrines,
