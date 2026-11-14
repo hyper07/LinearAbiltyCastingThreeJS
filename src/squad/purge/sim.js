@@ -1,4 +1,4 @@
-import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, STRAGGLERS, HEAL, EXCHANGE, BUNKER, LAST_STAND, TEAM, STIM } from './rules.js';
+import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, BASE_SPAWNS, START, HEAL, EXCHANGE, BUNKER, LAST_STAND, TEAM, STIM } from './rules.js';
 import { SIZE, STRUCTURES, GUARDS, KEYS, BASE, FORGE, PAD, SPAWN, BARRACKS, HEART, EXCHANGE_AT, BUNKERS, Grid, inBase, foeDef, FIRST_DYNAMIC } from './map.js';
 
 /**
@@ -42,7 +42,7 @@ export class Purge {
   /**
    * @param {{ seats: { name: string, bot?: boolean }[], difficulty?: string, heroesOnly?: boolean, seed?: number }} options
    */
-  constructor({ seats, difficulty = 'hard', heroesOnly = false, seed = 1 }) {
+  constructor({ seats, difficulty = 'hard', heroesOnly = false, seed = 1, countdown = START.countdown }) {
     this.diff = DIFFICULTY[difficulty] ?? DIFFICULTY.hard;
     this.difficulty = DIFFICULTY[difficulty] ? difficulty : 'hard';
     this.heroesOnly = heroesOnly;
@@ -72,11 +72,9 @@ export class Purge {
     // Each player's own bunker: cannot be broken, until the time runs out.
     this.bunkers = this.players.map((p) => this._bunker(p.slot, BUNKERS[p.slot].x, BUNKERS[p.slot].z, true));
     this.lastStand = false;
-    // Everyone starts with soldiers.
-    for (const p of this.players) {
-      if (heroesOnly) this._troop(p.slot, 'veteran');
-      else for (let n = 0; n < 4; n++) this._troop(p.slot, 'recruit');
-    }
+    // The countdown: soldiers arrive when it is done.
+    this.startIn = countdown;
+    if (countdown <= 0) this._deploy();
     this.shrines = 0;
     this.nodes = 0;
     this.keysLeft = KEYS.length;
@@ -97,6 +95,21 @@ export class Purge {
   }
 
   /* ------------------------------------------------------------- making */
+
+  /** The start: everyone's first soldiers, round their own bunker. */
+  _deploy() {
+    this.startIn = 0;
+    for (const p of this.players) {
+      const at = BUNKERS[p.slot];
+      const list = this.heroesOnly ? ['veteran'] : ['recruit', 'recruit', 'recruit', 'recruit'];
+      list.forEach((rank, k) => {
+        const t = this._troop(p.slot, rank, at);
+        const a = (k / list.length) * Math.PI * 2 + 0.6;
+        [t.x, t.z] = this.grid.open(at.x + Math.cos(a) * 3, at.z + Math.sin(a) * 3);
+      });
+    }
+    this.events.push({ t: 'deploy' });
+  }
 
   _bunker(slot, x, z, base = false) {
     const max = base ? 1 : BUNKER.built.hp;
@@ -366,6 +379,14 @@ export class Purge {
   step(dt, orders = new Map()) {
     this.events = [];
     if (this.over) return this.events;
+    // Before the start: only the countdown runs.
+    if (this.startIn > 0) {
+      const before = Math.ceil(this.startIn);
+      this.startIn -= dt;
+      if (Math.ceil(this.startIn) !== before && this.startIn > 0) this.events.push({ t: 'countdown', n: Math.ceil(this.startIn) });
+      if (this.startIn <= 0) this._deploy();
+      return this.events;
+    }
     for (const [slot, list] of orders) for (const o of list) this.order(slot, o);
     this.t += dt;
     this.left -= dt;
@@ -378,7 +399,7 @@ export class Purge {
     for (const f of [...this.foes]) this._foeStep(f, dt);
     for (const b of this.buildings) if (b.alive) this._building(b, dt);
     this._raids(dt);
-    this._stragglers(dt);
+    this._baseSpawns(dt);
     this._healPulse(dt);
     if (this.left <= 0 && !this.lastStand && !this.over) this._startLastStand();
     // Lost only when nobody has a soldier left nor the ore for one.
@@ -1015,26 +1036,34 @@ export class Purge {
     this.events.push({ t: 'raid', wave: this.raids, x: from.x, z: from.z, n: count });
   }
 
-  /** A few weak dead walk into the camp from its near edges: easy ore. */
-  _stragglers(dt) {
-    this.strayT = (this.strayT ?? STRAGGLERS.first) - dt;
-    if (this.strayT > 0) return;
-    this.strayT = STRAGGLERS.every;
-    if (this.foes.filter((f) => f.stray).length >= STRAGGLERS.cap) return;
-    const minutes = this.t / 60;
-    const count = Math.round(STRAGGLERS.count + minutes * STRAGGLERS.grow);
-    const tier = minutes < 25 ? 1 : 2;
-    // From the east or the south, just past the camp, out of sight.
-    const east = this.rand() < 0.5;
-    const sx = east ? 70 + this.rand() * 20 : 6 + this.rand() * 30;
-    const sz = east ? 6 + this.rand() * 26 : 58 + this.rand() * 14;
-    for (let n = 0; n < count; n++) {
-      const f = this._foe(STRAGGLERS.kinds[n % STRAGGLERS.kinds.length], sx + (this.rand() - 0.5) * 6, sz + (this.rand() - 0.5) * 6, { tier, raid: true, home: { x: PAD.x, z: PAD.z } });
-      f.stray = true;
-      f.bounty = Math.round(f.bounty * STRAGGLERS.bonus);
-      f.since = this.t;
+  /** The base's spawn events: a warning, then the dead out of the three zones round the camp. */
+  _baseSpawns(dt) {
+    const S = BASE_SPAWNS;
+    this.spawnIn = (this.spawnIn ?? S.first) - dt;
+    if (!this.spawnWarned && this.spawnIn <= S.warn) {
+      this.spawnWarned = true;
+      this.events.push({ t: 'spawnSoon', zones: S.zones, in: S.warn });
     }
-    this.events.push({ t: 'stray', x: sx, z: sz, n: count });
+    if (this.spawnIn > 0) return;
+    this.spawnIn = S.every;
+    this.spawnWarned = false;
+    const alive = this.foes.filter((f) => f.stray).length;
+    if (alive >= S.cap) return;
+    const minutes = this.t / 60;
+    const each = Math.min(S.perZone, Math.round(S.count + minutes * S.grow), Math.ceil((S.cap - alive) / S.zones.length));
+    const tier = minutes < 20 ? 1 : minutes < 45 ? 2 : 3;
+    const kinds = S.kinds[tier];
+    for (const z of S.zones) {
+      for (let n = 0; n < each; n++) {
+        const a = (n / each) * Math.PI * 2 + this.rand();
+        const f = this._foe(kinds[Math.floor(this.rand() * kinds.length)], z.x + Math.cos(a) * 2, z.z + Math.sin(a) * 2, { tier, raid: true, home: { x: PAD.x, z: PAD.z } });
+        f.stray = true;
+        f.bounty = Math.round(f.bounty * S.bonus);
+        f.since = this.t;
+      }
+    }
+    this.spawns = (this.spawns ?? 0) + 1;
+    this.events.push({ t: 'spawn', n: each * S.zones.length, zones: S.zones, count: this.spawns });
   }
 
   /** A wave of `count` from these buildings (shared out), sent to `goal` (or straight at the camp). */
@@ -1338,6 +1367,8 @@ export class Purge {
       keysLeft: this.keysLeft,
       raids: this.raids,
       raidIn: this.raidT,
+      startIn: Math.max(0, this.startIn),
+      spawnIn: this.spawnIn ?? BASE_SPAWNS.first,
       lastStand: this.lastStand,
       players: this.players.map((p) => ({ slot: p.slot, name: p.name, bot: p.bot, autoForge: p.autoForge, ore: Math.floor(p.ore), points: Math.floor(p.points), relics: p.relics, upg: { ...p.upg }, kills: p.kills, earned: p.earned, color: p.color, army: this.troops.filter((t) => t.o === p.slot).length })),
       ents,

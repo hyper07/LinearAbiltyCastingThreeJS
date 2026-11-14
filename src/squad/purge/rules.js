@@ -153,11 +153,23 @@ export const DIFFICULTY = {
 };
 
 /**
- * Stragglers: every so often a few of the weakest dead wander into the camp
- * from the land's near edges — easy kills, easy ore, for whoever is home.
- * More of them, and tougher, as time goes on; `cap` at once.
+ * The start: a countdown, then everyone's soldiers arrive at their own
+ * bunker in the camp.
  */
-export const STRAGGLERS = { every: 30, first: 45, count: 6, grow: 1 / 6, kinds: ['husk', 'husk', 'ravager'], bonus: 1.5, cap: 18 };
+export const START = { countdown: 10 };
+
+/**
+ * Spawn events at the base, as the classic maps have them: three marked
+ * zones just outside the camp. Every `every` seconds (after `first`), with
+ * `warn` seconds' warning (the zones flare), the dead come out of all three
+ * and make for the camp — easy points (half as many again) for whoever is
+ * home. More, and tougher, as time goes on; `cap` alive at once.
+ */
+export const BASE_SPAWNS = {
+  zones: [{ x: 58, z: 5 }, { x: 59, z: 31 }, { x: 38, z: 47 }],
+  every: 40, first: 50, warn: 5, count: 2, grow: 1 / 6, perZone: 8, cap: 30, bonus: 1.5,
+  kinds: { 1: ['husk', 'husk', 'ravager', 'hexer'], 2: ['husk', 'ravager', 'hexer', 'brute'], 3: ['brute', 'wight', 'hexer', 'bonecaller'] }
+};
 
 /** How fast the game runs (the host's to set). */
 export const SPEEDS = [1, 1.5, 2, 3];

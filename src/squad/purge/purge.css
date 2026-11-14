@@ -523,3 +523,13 @@
 .gp .bs__boss {
   top: 128px;
 }
+.gp__top {
+  gap: 12px;
+  padding: 6px 14px;
+}
+.gp__top .bs__wave small {
+  white-space: nowrap;
+}
+.gp__top .bs__wave b {
+  font-size: 16px;
+}

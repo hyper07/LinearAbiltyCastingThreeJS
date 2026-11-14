@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Purge, forgeCheck } from '../../src/squad/purge/sim.js';
-import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS, STRAGGLERS, recipes } from '../../src/squad/purge/rules.js';
+import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS, BASE_SPAWNS, recipes } from '../../src/squad/purge/rules.js';
 import { STRUCTURES, GUARDS, KEYS, Grid, FORGE, SPAWN, HEART, BASE, tierAt } from '../../src/squad/purge/map.js';
 
 const seats = (n = 4, people = 1) => Array.from({ length: n }, (_, i) => ({ name: `P${i}`, bot: i >= people }));
@@ -33,7 +33,7 @@ test('a way round a ridge: the path never steps on a blocked cell', () => {
 });
 
 test('the camp: four Recruits each, Recruits for ore, the supply cap, the Forge', () => {
-  const g = new Purge({ seats: seats(4, 4), seed: 1 });
+  const g = new Purge({ countdown: 0, seats: seats(4, 4), seed: 1 });
   assert.equal(g.troops.filter((t) => t.o === 0).length, 4);
   const p = g.players[0];
   const ore = p.ore;
@@ -72,7 +72,7 @@ test('the camp: four Recruits each, Recruits for ore, the supply cap, the Forge'
 });
 
 test('a kill pays the killer; a building pays more, and its relics go to everyone', () => {
-  const g = new Purge({ seats: seats(2, 2), seed: 2 });
+  const g = new Purge({ countdown: 0, seats: seats(2, 2), seed: 2 });
   const t = g.troops.find((x) => x.o === 1);
   const foe = g.foes.find((f) => f.tier === 1 && !f.boss);
   const points = g.players[1].points;
@@ -87,7 +87,7 @@ test('a kill pays the killer; a building pays more, and its relics go to everyon
 });
 
 test('shrines make Veterans stronger; the Heart is sealed until every ward is broken; the king ends it', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 3 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 3 });
   const vet = g._troop(0, 'veteran');
   const reach = g.troopStat(vet).range;
   const recruit = g.troops.find((t) => t.rank === 'recruit');
@@ -111,7 +111,7 @@ test('shrines make Veterans stronger; the Heart is sealed until every ward is br
 });
 
 test('time runs out: the bunkers fall and the last stand begins; it is lost when everyone is dead', () => {
-  const g = new Purge({ seats: seats(1, 1), difficulty: 'hell', seed: 4 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), difficulty: 'hell', seed: 4 });
   const t = g.troops[0];
   g.order(0, { t: 'enter', ids: [t.i], id: g.bunkers[0].i });
   for (let i = 0; i < 20 * 20 && !t.inside; i++) g.step(TICK);
@@ -132,8 +132,8 @@ test('time runs out: the bunkers fall and the last stand begins; it is lost when
 });
 
 test('soldiers left alone fight what comes; sleeping guards wake when soldiers come near', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 5 });
-  g.strayT = 1e9; // no stragglers in the way
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 5 });
+  g.spawnIn = 1e9; // no stragglers in the way
   const foe = g.foes.find((f) => f.tier === 1 && !f.boss);
   assert.equal(foe.awake, false);
   for (let n = 0; n < 4; n++) g._troop(0, 'veteran');
@@ -145,13 +145,13 @@ test('soldiers left alone fight what comes; sleeping guards wake when soldiers c
 });
 
 test('four bots alone clear the Gravefield on Casual, inside the time', () => {
-  const g = new Purge({ seats: seats(4, 0), difficulty: 'casual', seed: 11 });
+  const g = new Purge({ countdown: 0, seats: seats(4, 0), difficulty: 'casual', seed: 11 });
   while (!g.over && g.t < 90 * 60) g.step(TICK);
   assert.equal(g.over?.won, true, `bots stalled: ${JSON.stringify(g.over)} with ${g.keysLeft} wards left at ${(g.t / 60).toFixed(1)} min`);
 });
 
 test('a snapshot carries soldiers, the awake dead, hurt buildings and what has fallen', () => {
-  const g = new Purge({ seats: seats(2, 1), seed: 6 });
+  const g = new Purge({ countdown: 0, seats: seats(2, 1), seed: 6 });
   const s = g.snapshot();
   assert.equal(s.players.length, 2);
   assert.ok(s.ents.some((e) => e.k === 'troop'));
@@ -161,7 +161,7 @@ test('a snapshot carries soldiers, the awake dead, hurt buildings and what has f
 });
 
 test('waves: a crypt that falls is answered by the crypts near it; the camp gets numbered waves', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 8 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 8 });
   const t = g.troops[0];
   const crypt = g.buildings.find((b) => b.type === 'crypt' && g.buildings.some((o) => o !== b && o.alive && BUILDINGS[o.type].spawns && Math.hypot(o.x - b.x, o.z - b.z) < 110));
   const before = g.foes.length;
@@ -183,7 +183,7 @@ test('waves: a crypt that falls is answered by the crypts near it; the camp gets
 });
 
 test('the Forge raises by itself: a soldier walked into its ring goes up one rank a visit', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 12 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 12 });
   const p = g.players[0];
   p.ore = 100000;
   const r = g.troops.find((t) => t.rank === 'recruit');
@@ -208,7 +208,7 @@ test('the Forge raises by itself: a soldier walked into its ring goes up one ran
 });
 
 test('heal sends soldiers to the pad, where they heal fast; patrol goes back and forth', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 13 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 13 });
   const squad = g.troops.filter((t) => t.o === 0);
   for (const t of squad) t.hp = t.max * 0.3;
   g.order(0, { t: 'heal', ids: squad.map((t) => t.i) });
@@ -227,33 +227,48 @@ test('heal sends soldiers to the pad, where they heal fast; patrol goes back and
   assert.ok(far > 10 && back, `out ${far.toFixed(1)} m and back`);
 });
 
-test('stragglers wander into the camp for easy points; the camp has no guns — only soldiers’ kills pay', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 14 });
+test('spawn events at the base: a warning, then the dead out of three zones round the camp; the camp has no guns — only soldiers’ kills pay', () => {
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 14 });
   assert.ok(!g.snapshot().ents.some((e) => e.k === 'gun'), 'no guns in the camp');
-  g.strayT = 0;
+  g.spawnIn = BASE_SPAWNS.warn + 0.01;
   g.step(TICK);
-  const strays = g.foes.filter((f) => f.stray);
-  assert.ok(strays.length >= 4, 'a few of them');
-  assert.ok(strays.every((f) => f.tier === 1 && ['husk', 'ravager'].includes(f.kind)), 'weak ones');
-  assert.ok(g.events.some((e) => e.t === 'stray'));
-  // Killed by a soldier: points to its owner. Killed by anything else: nothing.
+  assert.ok(g.events.some((e) => e.t === 'spawnSoon'), 'warned');
+  for (let i = 0; i < 20 * (BASE_SPAWNS.warn + 1) && !g.foes.some((f) => f.stray); i++) g.step(TICK);
+  const spawned = g.foes.filter((f) => f.stray);
+  assert.equal(spawned.length, BASE_SPAWNS.count * BASE_SPAWNS.zones.length, 'from each zone');
+  for (const z of BASE_SPAWNS.zones) assert.ok(spawned.some((f) => Math.hypot(f.x - z.x, f.z - z.z) < 4), `out of the zone at ${z.x},${z.z}`);
+  assert.ok(spawned.every((f) => f.tier === 1), 'weak, early on');
+  // Killed by a soldier: points to its owner, half as many again. Killed by anything else: nothing.
   const p = g.players[0];
-  g._hurt(strays[0], 1e6, g.troops[0]);
-  assert.equal(p.points, strays[0].bounty * 10);
+  g._hurt(spawned[0], 1e6, g.troops[0]);
+  assert.equal(p.points, spawned[0].bounty * 10);
   const ore = p.ore;
-  g._hurt(strays[1], 1e6, strays[2]);
+  g._hurt(spawned[1], 1e6, spawned[2]);
   assert.equal(p.ore, ore);
-  assert.equal(p.points, strays[0].bounty * 10);
   // Never more than the cap at once.
-  for (let i = 0; i < 10; i++) {
-    g.strayT = 0;
-    g._stragglers(TICK);
+  for (let i = 0; i < 20; i++) {
+    g.spawnIn = 0;
+    g._baseSpawns(TICK);
   }
-  assert.ok(g.foes.filter((x) => x.stray).length <= STRAGGLERS.cap + 8);
+  assert.ok(g.foes.filter((x) => x.stray).length <= BASE_SPAWNS.cap + BASE_SPAWNS.zones.length);
+});
+
+test('the start: a countdown, then everyone’s soldiers arrive at their own bunker', () => {
+  const g = new Purge({ seats: seats(2, 2), seed: 30 });
+  assert.equal(g.troops.length, 0, 'nobody yet');
+  for (let i = 0; i < 20 * 5; i++) g.step(TICK);
+  assert.equal(g.troops.length, 0, 'still counting');
+  assert.ok(g.snapshot().startIn > 4);
+  for (let i = 0; i < 20 * 6; i++) g.step(TICK);
+  assert.equal(g.troops.length, 8, 'four each');
+  for (const p of g.players) {
+    const own = g.bunkers.find((b) => b.base && b.o === p.slot);
+    assert.ok(g.troops.filter((t) => t.o === p.slot).every((t) => Math.hypot(t.x - own.x, t.z - own.z) < 5), 'round their own bunker');
+  }
 });
 
 test('the hidden rank: "???" until Weapons is mastered; then ten Vanguards, a Phantom and a Paragon make a flying Dreadnought that launches drones', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 15 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 15 });
   const p = g.players[0];
   p.ore = 1e7;
   p.relics = 100;
@@ -298,7 +313,7 @@ test('the combinations, as written on the board: the hidden one stays ??? until 
 });
 
 test('the Exchange: points turn into ore only while one of yours stands on it — an Engineer will do', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 16 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 16 });
   const p = g.players[0];
   p.points = 5000;
   const ore = p.ore;
@@ -314,7 +329,7 @@ test('the Exchange: points turn into ore only while one of yours stands on it �
 });
 
 test('the camp heals everyone in it to full every few seconds, for ore; with none, nothing heals', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 17 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 17 });
   const p = g.players[0];
   const t = g.troops[0];
   [t.x, t.z] = [27, 22];
@@ -330,7 +345,7 @@ test('the camp heals everyone in it to full every few seconds, for ore; with non
 });
 
 test('bunkers: six inside, safe, fighting on; Engineers build more, and those can be broken', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 18 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 18 });
   const p = g.players[0];
   p.ore = 1e5;
   g.order(0, { t: 'buy', n: 5 });
@@ -360,11 +375,11 @@ test('bunkers: six inside, safe, fighting on; Engineers build more, and those ca
 });
 
 test('one game’s ruins never leak into the next game’s ground', () => {
-  const a = new Purge({ seats: seats(1, 1), seed: 19 });
+  const a = new Purge({ countdown: 0, seats: seats(1, 1), seed: 19 });
   const b0 = a.buildings.find((b) => b.type === 'crypt');
   a._hurt(b0, 1e9, a.troops[0]);
   assert.ok(!a.grid.blocked(b0.x, b0.z));
-  const b = new Purge({ seats: seats(1, 1), seed: 20 });
+  const b = new Purge({ countdown: 0, seats: seats(1, 1), seed: 20 });
   assert.ok(b.grid.blocked(b0.x, b0.z), 'standing again in a new game');
   const again = b.buildings.find((x) => x.i === b0.i);
   b._hurt(again, 1e9, b.troops[0]);
@@ -372,7 +387,7 @@ test('one game’s ruins never leak into the next game’s ground', () => {
 });
 
 test('team play: a building broken or a hero killed pays the others half; every two minutes some points are exchanged for everyone', () => {
-  const g = new Purge({ seats: seats(3, 3), seed: 21 });
+  const g = new Purge({ countdown: 0, seats: seats(3, 3), seed: 21 });
   const [a, b, c] = g.players;
   const t = g.troops.find((x) => x.o === 0);
   const crypt = g.buildings.find((x) => x.type === 'crypt');
@@ -398,7 +413,7 @@ test('team play: a building broken or a hero killed pays the others half; every 
 });
 
 test('the Stim Pack: faster for a while, for a tenth of health; never an Engineer', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 22 });
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 22 });
   const t = g.troops.find((x) => x.rank === 'recruit');
   g.order(0, { t: 'buy', n: 1, rank: 'engineer' });
   const eng = g.troops.find((x) => x.rank === 'engineer');
@@ -415,8 +430,8 @@ test('the Stim Pack: faster for a while, for a tenth of health; never an Enginee
 });
 
 test('the dead in the air: a Frost Wraith freezes soldiers (no acting, no harm); a Bile Drifter slows them; both fly over ridges', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 23 });
-  g.strayT = 1e9;
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 23 });
+  g.spawnIn = 1e9;
   const squad = g.troops.filter((t) => t.o === 0 && t.rank === 'recruit');
   for (const [k, t] of squad.entries()) [t.x, t.z] = [70 + k, 70];
   const w = g._foe('wraith', 76, 70, { tier: 3 });
@@ -433,8 +448,8 @@ test('the dead in the air: a Frost Wraith freezes soldiers (no acting, no harm);
   for (let i = 0; i < 20; i++) g.step(TICK);
   assert.equal(ice[0].x, x, 'cannot move while frozen');
   // Bile.
-  const g2 = new Purge({ seats: seats(1, 1), seed: 24 });
-  g2.strayT = 1e9;
+  const g2 = new Purge({ countdown: 0, seats: seats(1, 1), seed: 24 });
+  g2.spawnIn = 1e9;
   const r = g2.troops.find((t) => t.rank === 'recruit');
   [r.x, r.z] = [70, 70];
   const m = g2._foe('mire', 75, 70, { tier: 2 });
@@ -452,8 +467,8 @@ test('the dead in the air: a Frost Wraith freezes soldiers (no acting, no harm);
 });
 
 test('the hero monsters: go for the hurt and the strong, never an Engineer first; rage when low', () => {
-  const g = new Purge({ seats: seats(1, 1), seed: 25 });
-  g.strayT = 1e9;
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 25 });
+  g.spawnIn = 1e9;
   const boss = g._foe('marrow', 80, 80, { tier: 2 });
   boss.awake = true;
   g.order(0, { t: 'buy', n: 1, rank: 'engineer' });

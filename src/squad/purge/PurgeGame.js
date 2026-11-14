@@ -1,8 +1,8 @@
 import { Purge, forgeCheck } from './sim.js';
 import { FlatView } from './flat.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
-import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER, TEAM, STIM, CAMP } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT } from './map.js';
+import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER, TEAM, STIM, CAMP, BASE_SPAWNS } from './rules.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT, BUNKERS } from './map.js';
 import '../squad.css';
 import './purge.css';
 
@@ -292,12 +292,14 @@ export class PurgeGame {
     this.$('[data-feed]').innerHTML = '';
     this._panel(null);
     this.state = null;
-    this.view.target.set(PAD.x, 0, PAD.z + 6);
+    // The camera on your own bunker, where your soldiers will arrive.
+    const own = BUNKERS[slot] ?? PAD;
+    this.view.target.set(own.x - 4, 0, own.z + 4);
     this.goalsOpen = true;
     this._goalsKey = '';
     this.root.focus();
     this._sound();
-    this._banner('Grave Purge', 'Drag to select, right-click to send. R buys Recruits; W walks them to the Forge (left of the camp, blue crystals) to be raised; E sends the hurt home (the camp heals everyone every 5 s); T stims. F1: all the keys.', 6);
+    this._banner('Get ready', 'Your soldiers arrive at your bunker in 10 seconds. Drag to select, right-click to send. R buys Recruits; W walks them to the Forge (left of the camp, blue crystals) to be raised; E sends the hurt home (the camp heals everyone every 5 s); T stims. F1: all the keys.', 6);
   }
 
   /** An order for my soldiers: straight in (alone or hosting), or to the host. */
@@ -787,6 +789,12 @@ export class PurgeGame {
       } else if (e.t === 'bunkerDown' && !e.base) this._feed('A bunker has fallen');
       else if (e.t === 'built' && e.o === this.mySlot) this._feed('Your bunker is built — right-click it with soldiers selected');
       else if (e.t === 'cannot' && e.o === this.mySlot) this._feed(e.why);
+      else if (e.t === 'countdown') this._banner(`Get ready — ${e.n}`, e.n > 5 ? 'Your soldiers arrive at your bunker when the count is done. F1: all the keys.' : 'Drag to select, right-click to send; R buys Recruits, W walks them to the Forge.', 1.2);
+      else if (e.t === 'deploy') this._banner('Go!', 'Your soldiers are here, by your bunker. Spawn events come from the three rune circles round the camp — easy points.', 4);
+      else if (e.t === 'spawnSoon') {
+        this._feed(`Spawn in ${e.in} s — the rune circles round the camp`);
+        for (const z of e.zones) this.pings.push({ x: z.x, z: z.z, t: performance.now() });
+      } else if (e.t === 'spawn') this._feed(`Spawn ${e.count}: ${e.n} of the dead out of the rune circles — easy points`);
       else if (e.t === 'stray') {
         this._feed(`Stragglers: ${e.n} of the dead wander towards the camp — easy ore`);
         this.pings.push({ x: e.x, z: e.z, t: performance.now() });
@@ -843,7 +851,7 @@ export class PurgeGame {
     const s = this.state;
     const me = this.me();
     const host = Boolean(this.game);
-    const topKey = `${s.lastStand}|${Math.floor(s.left)}|${s.shrines}|${s.nodes}|${s.keysLeft}|${s.speed}|${Math.floor(s.raidIn)}`;
+    const topKey = `${s.lastStand}|${Math.floor(s.spawnIn)}|${Math.ceil(s.startIn)}|${Math.floor(s.left)}|${s.shrines}|${s.nodes}|${s.keysLeft}|${s.speed}|${Math.floor(s.raidIn)}`;
     if (topKey !== this._topKey) {
       this._topKey = topKey;
       this.$('[data-top]').innerHTML = `
@@ -852,6 +860,7 @@ export class PurgeGame {
         <div class="bs__wave"><small>Soul nodes</small><b>${s.nodes}/6</b></div>
         <div class="bs__wave"><small>The Heart</small><b>${s.keysLeft ? 'sealed' : 'open'}</b></div>
         <div class="bs__wave"><small>Wave ${s.raids + 1} in</small><b>${clock(Math.max(0, s.raidIn))}</b></div>
+        <div class="bs__wave"><small>Spawn in</small><b class="${s.spawnIn <= BASE_SPAWNS.warn ? 'gp__late' : ''}">${s.startIn > 0 ? '—' : clock(Math.max(0, s.spawnIn))}</b></div>
         <div class="gp__speed">${SPEEDS.map((n) => `<button type="button" data-speed="${n}" class="${s.speed === n ? 'is-on' : ''}" ${host ? '' : 'disabled'}>×${n}</button>`).join('')}</div>`;
       for (const b of this.$('[data-top]').querySelectorAll('[data-speed]')) b.onclick = () => this.game && (this.game.speed = Number(b.dataset.speed));
     }

@@ -18,10 +18,10 @@ export async function run(browser) {
     await page.click('.home [data-play]');
     t.check('Bastion Squad is a card, and Play opens Grave Purge with its ladder of ranks (the last one hidden)', await until(page, () => document.querySelectorAll('.gp .gp__ladder li').length === 6 && /\?\?\?/.test(document.querySelector('.gp .gp__ladder').textContent) && document.querySelector('.gp [data-solo]'), null, 15000));
     await page.click('.gp [data-solo]');
-    t.check('Grave Purge: four commanders, three of them bots, four Recruits each', await until(page, () => {
+    t.check('Grave Purge: a countdown, then four commanders (three of them bots), four Recruits each at their bunkers', await until(page, () => {
       const s = window.gravePurge.state;
       return s?.players.length === 4 && s.players.filter((p) => p.bot).length === 3 && s.ents.filter((e) => e.k === 'troop' && e.o === window.gravePurge.mySlot).length === 4;
-    }, null, 10000));
+    }, null, 20000));
     await page.waitForTimeout(800);
     await page.keyboard.press('Tab');
     t.check('Tab selects my soldiers', await until(page, () => window.gravePurge.selected.size === 4));
@@ -66,7 +66,7 @@ export async function run(browser) {
     t.check('the 2D tab opens Grave Purge drawn flat, no WebGL', await until(page, () => window.gravePurge?.flat && document.querySelector('.gp [data-solo]') && !document.querySelector('.gp canvas.bs__canvas').getContext('2d') === false, null, 15000));
     await page.click('.gp [data-solo]');
     t.check('…its sprites are painted from the 3D models', await until(page, () => Boolean(window.gravePurge.view.sprites?.soldiers?.recruit && window.gravePurge.view.sprites.dead?.husk), null, 30000));
-    t.check('…and it plays: soldiers, a frame rate shown', await until(page, () => window.gravePurge.state?.ents.some((e) => e.k === 'troop') && /2D · \d+ fps/.test(document.querySelector('.gp [data-fps]').textContent), null, 10000));
+    t.check('…and it plays: soldiers, a frame rate shown', await until(page, () => window.gravePurge.state?.ents.some((e) => e.k === 'troop') && /2D · \d+ fps/.test(document.querySelector('.gp [data-fps]').textContent), null, 20000));
     await page.evaluate(() => window.gravePurge._menu());
     await page.click('.gp [data-swap-to="hold"]');
     t.check('the other tab opens Hold the Outpost with four soldiers', await until(page, () => !document.querySelector('.gp') && document.querySelectorAll('.bs [data-cls]').length === 4, null, 15000));

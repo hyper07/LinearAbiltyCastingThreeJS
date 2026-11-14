@@ -5,7 +5,7 @@ import { loadSoldier, Soldier } from '../../fps/soldier.js';
 import { gunModel } from '../../fps/guns.js';
 import { dress } from '../../mmo/bodies.js';
 import { SquadView } from '../view.js';
-import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS, recipes } from './rules.js';
+import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS, BASE_SPAWNS, recipes } from './rules.js';
 import { loadRobot, Robot } from './robot.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, HEART, tierAt, foeDef } from './map.js';
 import { FORGE_REACH } from './rules.js';
@@ -170,6 +170,18 @@ export class PurgeView extends SquadView {
     panel.castShadow = true;
     this.scene.add(panel);
     this._paintBoard(null);
+    // The spawn zones round the camp: rune rings on the ground, flaring before the dead come.
+    this.zones = BASE_SPAWNS.zones.map((z) => {
+      const mat = new THREE.MeshBasicMaterial({ color: '#b070ff', transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide });
+      const ring = new THREE.Group();
+      ring.add(new THREE.Mesh(new THREE.RingGeometry(3.2, 3.5, 48).rotateX(-Math.PI / 2), mat));
+      ring.add(new THREE.Mesh(new THREE.RingGeometry(1.9, 2.1, 5).rotateX(-Math.PI / 2), mat));
+      ring.position.set(z.x, 0.08, z.z);
+      const light = new THREE.PointLight('#b070ff', 10, 9, 2);
+      light.position.set(z.x, 2, z.z);
+      this.scene.add(ring, light);
+      return { ring, mat, light };
+    });
     // The ridges and boulders: one rocky mesh.
     this._rocks();
     // Stand-ins the parent's frame expects.
@@ -636,6 +648,13 @@ export class PurgeView extends SquadView {
     this._sleepers(state, seen);
     this._sites(state, dt);
     this._paintBoard(state.players[this.mySlot]?.upg);
+    const soon = state.startIn <= 0 && state.spawnIn <= BASE_SPAWNS.warn;
+    for (const z of this.zones ?? []) {
+      z.ring.rotation.y = this.time * 0.4;
+      z.mat.color.set(soon ? '#ff6a50' : '#b070ff');
+      z.light.color.set(soon ? '#ff5030' : '#b070ff');
+      z.mat.opacity = 0.45 + (Math.sin(this.time * (soon ? 10 : 2)) * 0.5 + 0.5) * 0.45;
+    }
     this.dying = this.dying.filter((d) => {
       d.t += dt;
       d.m.made?.mixer.update(dt);

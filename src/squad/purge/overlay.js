@@ -1,6 +1,6 @@
 import { RANKS, BUILDINGS, GUARDIANS } from './rules.js';
 import { STRUCTURES, GUARDS, BARRACKS, ARMORY, FORGE, PAD, EXCHANGE_AT, inBase, foeDef } from './map.js';
-import { CAMP, BUNKER, COLORS } from './rules.js';
+import { CAMP, BUNKER, COLORS, BASE_SPAWNS } from './rules.js';
 
 /** The camp's places, named on the ground with their keys. */
 const PLACES = [
@@ -151,6 +151,19 @@ export function drawOverlay(view, ctx, state) {
     ctx.strokeText(hint, p.x, p.y + 14);
     ctx.fillStyle = '#ffffff';
     ctx.fillText(hint, p.x, p.y + 14);
+  }
+  // The spawn zones round the camp.
+  for (const z of BASE_SPAWNS.zones) {
+    const p = view.toScreen(z.x, 0, z.z + 4.2);
+    if (p.x < -80 || p.y < -30 || p.x > view.width + 80 || p.y > view.height + 30) continue;
+    const soon = state.startIn <= 0 && state.spawnIn <= BASE_SPAWNS.warn;
+    ctx.font = '900 11px system-ui, sans-serif';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    const text = soon ? `SPAWN IN ${Math.ceil(state.spawnIn)}` : 'SPAWN ZONE';
+    ctx.strokeText(text, p.x, p.y);
+    ctx.fillStyle = soon ? '#ff6a5a' : '#d0a0ff';
+    ctx.fillText(text, p.x, p.y);
   }
   // Soldiers healing in the camp: green crosses rising (faster on the pad).
   for (const e of state.ents) {

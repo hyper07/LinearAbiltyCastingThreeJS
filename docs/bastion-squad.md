@@ -65,9 +65,12 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
 - **The camp heals**: every 5 seconds every soldier inside the camp is made whole — for ore (1 for
   every 5 health). Between heals a heavy enough beating still kills, so when the hero monsters come at
   you together, get home in time. **E** sends the selected home.
-- **Stragglers**: every half a minute a few of the weakest dead wander into the camp from its near
-  edges, six to start (more and tougher as time goes on, eighteen at most) — easy kills, half as many points again as
-  usual, for whoever is home.
+- **The start**: a ten-second countdown, then everyone's soldiers arrive at their own bunker.
+- **Spawn events at the base**, as the classic maps have them: three rune circles just outside the camp
+  (north-east, east, south). Every 40 seconds — five seconds' warning, the circles flaring red, a ping on
+  the map — the dead come out of all three and make for the camp: easy points (half as many again), two
+  from each circle to start, more and tougher as time goes on (thirty alive at most). The top bar
+  counts down to the next.
 - **The dead in the air** fly straight over the ridges: the **Frost Wraith** casts grave frost on
   the soldiers round its target — frozen for a minute, unable to act and **unable to be hurt** (so kill
   the wraith, or wait it out); the **Bile Drifter** spits bile that **slows** whoever it splashes (half

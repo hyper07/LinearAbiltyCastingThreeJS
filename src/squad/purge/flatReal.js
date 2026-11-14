@@ -1,4 +1,4 @@
-import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS, recipes } from './rules.js';
+import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS, BASE_SPAWNS, recipes } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, Grid, foeDef } from './map.js';
 import { ELEVATION } from './sprites.js';
 
@@ -471,12 +471,57 @@ function frame(g, sheet, row, col, x, z, k, scale, flip) {
   g.restore();
 }
 
+/** The spawn zones: rune circles on the ground, flaring before the dead come out. */
+export function drawZones(view, g, state) {
+  const soon = state.startIn <= 0 && state.spawnIn <= BASE_SPAWNS.warn;
+  for (const z of BASE_SPAWNS.zones) {
+    const pulse = Math.sin(view.time * (soon ? 10 : 2) + z.x) * 0.5 + 0.5;
+    const r = 3.4;
+    const glow = g.createRadialGradient(z.x, z.z, 0, z.x, z.z, r * 1.4);
+    glow.addColorStop(0, soon ? `rgba(255,80,60,${0.35 + pulse * 0.3})` : `rgba(160,80,255,${0.18 + pulse * 0.12})`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = glow;
+    g.beginPath();
+    g.arc(z.x, z.z, r * 1.4, 0, Math.PI * 2);
+    g.fill();
+    g.save();
+    g.translate(z.x, z.z);
+    g.rotate(view.time * 0.4);
+    g.strokeStyle = soon ? '#ff7a60' : '#b070ff';
+    g.lineWidth = 0.14;
+    g.globalAlpha = 0.65 + pulse * 0.3;
+    g.beginPath();
+    g.arc(0, 0, r, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.arc(0, 0, r * 0.62, 0, Math.PI * 2);
+    g.stroke();
+    // A star of runes between the rings.
+    g.beginPath();
+    for (let k = 0; k <= 5; k++) {
+      const a = (k * 2 * Math.PI * 2) / 5 - Math.PI / 2;
+      const px = Math.cos(a) * r * 0.62;
+      const pz = Math.sin(a) * r * 0.62;
+      k ? g.lineTo(px, pz) : g.moveTo(px, pz);
+    }
+    g.stroke();
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      g.fillStyle = g.strokeStyle;
+      g.fillRect(Math.cos(a) * r * 0.81 - 0.12, Math.sin(a) * r * 0.81 - 0.12, 0.24, 0.24);
+    }
+    g.restore();
+    g.globalAlpha = 1;
+  }
+}
+
 /**
  * Draw the world (in metres, on a context already scaled and moved for the
  * camera): blight, shadows, then every building, guard and soldier from
  * the back to the front.
  */
 export function drawWorld(view, g, state, dt, seen) {
+  drawZones(view, g, state);
   const sp = view.sprites;
   const k = 1; // the context is in metres
   const down = new Set(state.down);
