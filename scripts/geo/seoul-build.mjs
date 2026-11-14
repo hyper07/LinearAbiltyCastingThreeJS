@@ -12,14 +12,19 @@
  *      named buildings. Git-ignored; nothing from the register is committed.
  *
  * Only footprints, heights (the register's, else from floors), uses and
- * building names are kept. No terrain: the ground is flat.
+ * building names are kept from the register. The land and the main roads
+ * come from open data this downloads itself (seoul-extras.mjs; `--offline`
+ * skips that, and the ground is then flat).
  */
 import { openSync, readSync, closeSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { TILE, tileKey, tileOf, encodeTile, simplify, area2, heightOf, useOf } from '../../src/city/tiles.js';
+import { buildExtras } from './seoul-extras.mjs';
 
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const offline = process.argv.includes('--offline');
 const find = () => {
-  for (const dir of [process.argv[2], 'library/Seoul_Map.zip', 'library', 'data/geo/seoul'].filter(Boolean)) {
+  for (const dir of [args[0], 'library/Seoul_Map.zip', 'library', 'data/geo/seoul'].filter(Boolean)) {
     if (!existsSync(dir)) continue;
     const shp = readdirSync(dir).find((f) => /^AL_D010_11_\d+\.shp$/i.test(f));
     if (shp) return join(dir, shp.replace(/\.shp$/i, ''));
@@ -31,7 +36,7 @@ if (!base) {
   console.error('No Seoul building file found. Download 국토교통부 GIS건물통합정보 for 서울특별시 (AL_D010_11_<date>) and put the .shp, .dbf and .prj in library/Seoul_Map.zip/ or data/geo/seoul/.');
   process.exit(1);
 }
-const out = resolve(process.argv[3] ?? 'data/geo/seoul/tiles');
+const out = resolve(args[1] ?? 'data/geo/seoul/tiles');
 const prj = existsSync(`${base}.prj`) ? readFileSync(`${base}.prj`, 'utf8') : '';
 if (!/5186|Central_Belt_2010/.test(prj)) console.warn('[seoul] The .prj is not EPSG:5186 (Korea 2000 Central Belt 2010) — the tiles may be misplaced.');
 /** Seoul, generously, in the source's grid: a few records carry coordinates from elsewhere. */
@@ -78,6 +83,8 @@ const reader = (fd, start) => {
 const nextShape = reader(shp, 100);
 const nextRow = reader(dbf, headLen);
 
+/** Towers the register lists by their base building: what to call them, and how tall the whole is (metres). */
+const MASTS = { 서울타워: { label: 'N서울타워 (남산타워)', height: 237 } };
 const tiles = new Map();
 const districts = new Map();
 const landmarks = [];
@@ -104,11 +111,14 @@ for (let i = 0; i < total; i++) {
     const r = [];
     for (let k = from; k < to - 1; k++) r.push(body.readDoubleLE(44 + parts * 4 + k * 16), body.readDoubleLE(44 + parts * 4 + k * 16 + 8));
     const a = Math.abs(area2(r)) / 2;
-    if (a > ringArea) {
+    if (a > ringArea || !ring) {
       ringArea = a;
       ring = r;
     }
   }
+  // A few towers are in the register as a bare point or their base only: the game draws the mast, to this height.
+  const mast = MASTS[text(row, 'A24')];
+  if (mast && ring?.length >= 2) landmarks.push({ name: mast.label, height: mast.height, x: Math.round(ring[0]), y: Math.round(ring[1]), place: text(row, 'A4').split(/\s+/).slice(1, 3).join(' '), tower: true });
   if (!ring || ring.length < 6 || ringArea < 6 || ring[0] < BOUNDS.x0 || ring[0] > BOUNDS.x1 || ring[1] < BOUNDS.y0 || ring[1] > BOUNDS.y1) {
     dropped++;
     continue;
@@ -147,7 +157,7 @@ for (let i = 0; i < total; i++) {
     d.count++;
     districts.set(gu, d);
   }
-  if (name && height >= 60) landmarks.push({ name, height: Math.round(height), x: Math.round(cx), y: Math.round(cy), place });
+  if (name && height >= 60 && !mast) landmarks.push({ name, height: Math.round(height), x: Math.round(cx), y: Math.round(cy), place });
   kept++;
   if (i % 100000 === 0 && i) console.log(`[seoul] ${i.toLocaleString()} of ${total.toLocaleString()} read…`);
 }
@@ -173,7 +183,11 @@ for (const l of landmarks.sort((a, b) => b.height - a.height)) {
   const key = `${l.name.replace(/\s*\S*동$/, '').replace(/[\s\d]+$/, '')}|${l.place}`;
   if (!seen.has(key)) seen.set(key, { ...l, name: l.name.replace(/\s+\S{1,6}동$/, '') });
 }
+const extras = await buildExtras(out, index, { offline });
 writeFileSync(join(out, 'index.json'), JSON.stringify({
+  terrain: extras.terrain,
+  roads: extras.roads,
+  credits: extras.credits,
   tile: TILE,
   crs: 'EPSG:5186',
   source: '국토교통부 GIS건물통합정보 (서울특별시)',
@@ -182,6 +196,6 @@ writeFileSync(join(out, 'index.json'), JSON.stringify({
   buildings: kept,
   tiles: index,
   districts: [...districts.values()].filter((d) => d.count > 200).map((d) => ({ name: d.name, x: Math.round(d.x / d.count), y: Math.round(d.y / d.count), count: d.count })).sort((a, b) => a.name.localeCompare(b.name, 'ko')),
-  landmarks: [...seen.values()].slice(0, 400)
+  landmarks: [...[...seen.values()].filter((l) => l.tower), ...[...seen.values()].filter((l) => !l.tower).slice(0, 400)]
 }));
 console.log(`[seoul] ${kept.toLocaleString()} buildings in ${tiles.size} tiles (${(bytes / 1048576).toFixed(1)} MB) → ${out}; ${dropped.toLocaleString()} left out (tiny, broken or outside Seoul); ${((Date.now() - t0) / 1000).toFixed(1)}s`);

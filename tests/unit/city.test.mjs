@@ -41,3 +41,20 @@ test('Seoul tiles: fewer points, the same shape; heights and uses from what the 
   assert.equal(USES[useOf('14000')], 'office');
   assert.equal(USES[useOf('')], 'other');
 });
+
+test('Seoul\'s grid: longitude and latitude to the register\'s metres and back', async () => {
+  const { toGrid, toLonLat } = await import('../../scripts/geo/tm.mjs');
+  // The grid's own origin, by definition.
+  const [ox, oy] = toGrid(127, 38);
+  assert.ok(Math.abs(ox - 200000) < 1e-6 && Math.abs(oy - 600000) < 1e-6);
+  // City Hall: where the game's world begins.
+  const [x, y] = toGrid(126.9779, 37.5663);
+  assert.ok(Math.abs(x - 198050) < 60 && Math.abs(y - 551860) < 60, `${x}, ${y}`);
+  for (const [lon, lat] of [[126.9779, 37.5663], [126.7642, 37.4301], [127.1835, 37.7011], [126.9882, 37.5512]]) {
+    const [bx, by] = toLonLat(...toGrid(lon, lat));
+    assert.ok(Math.abs(bx - lon) < 1e-8 && Math.abs(by - lat) < 1e-8, 'there and back to well under a millimetre');
+  }
+  // A hundred metres east is a hundred metres east.
+  const [x2] = toGrid(126.9779 + 100 / (111320 * Math.cos((37.5663 * Math.PI) / 180)), 37.5663);
+  assert.ok(Math.abs(x2 - x - 100) < 0.5);
+});

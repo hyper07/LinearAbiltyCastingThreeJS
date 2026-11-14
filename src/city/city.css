@@ -281,3 +281,10 @@
   font-weight: 900;
   color: #8b5cf6;
 }
+
+.seoul__sources {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  opacity: 0.8;
+}

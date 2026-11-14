@@ -17,7 +17,10 @@ const ORIGIN = { x: 198050, y: 551860 };
 /** Wall colours by what a building is for (see tiles.js USES), light to read windows on. */
 const PALETTE = { house: '#d9c4a5', apartment: '#cfd6dd', shop: '#e2b98f', office: '#a9bdd1', public: '#d7b0a0', industry: '#b9b3a6', other: '#c9c2b6' };
 const QUALITY = { low: 800, medium: 1300, high: 2000 };
-const ATTRIBUTION = '건물 데이터: 국토교통부 GIS건물통합정보 · 공공누리 제1유형(출처표시) — building data: MOLIT, Korea (KOGL Type 1)';
+const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 공공누리 제1유형(출처표시)';
+/** Road widths in metres by class (motorway … tertiary); a link road is narrower. */
+const ROAD_WIDTH = [22, 18, 15, 11, 8];
+const WATER = new THREE.Color('#3f74b3');
 
 /**
  * Seoul, for real: every building in the city at its true place and height,
@@ -25,9 +28,11 @@ const ATTRIBUTION = '건물 데이터: 국토교통부 GIS건물통합정보 · 
  * as map tiles while you fly over it or walk its streets.
  *
  * The world is the source's own grid in metres, moved so City Hall is the
- * origin: +X is east, −Z is north. The ground is flat (no terrain data is
- * used or shown). Nothing here is sent anywhere: districts you have visited
- * are kept in this browser.
+ * origin: +X is east, −Z is north. The land (hills, and the Han where the
+ * elevation model is level) and the main roads come from open data the
+ * converter downloads; without them the ground is flat. Heights only shape
+ * the ground: no elevation figure or coordinate is ever shown. Nothing here
+ * is sent anywhere: districts you have visited are kept in this browser.
  */
 export class SeoulGame {
   /** @param {HTMLElement} host @param {{ onClose?: () => void, base?: string }} [options] */
@@ -36,6 +41,7 @@ export class SeoulGame {
     this.onClose = onClose;
     this.base = base;
     this.tiles = new Map(); // key → { state, mesh?, foot?, place? }
+    this.lands = new Map(); // key → { ground, roads? }: the land of every tile in view, built on or not
     this.queue = [];
     this.keys = new Set();
     this.mode = 'fly';
@@ -113,6 +119,19 @@ export class SeoulGame {
       if (!r.ok) throw new Error(String(r.status));
       this.index = await r.json();
       this.index.landmarks = (this.index.landmarks ?? []).map((l) => ({ ...l, wx: l.x - ORIGIN.x, wz: -(l.y - ORIGIN.y) }));
+      // The land and the roads, if the converter had them: both are needed before anything is built on them.
+      const bin = (name) => fetch(`${this.base}${name}`).then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null);
+      const [terrain, roads] = await Promise.all([this.index.terrain ? bin('terrain.bin') : null, this.index.roads ? bin('roads.bin') : null]);
+      if (terrain) this._terrain(terrain);
+      if (roads) this._roads(roads);
+      if (this.terrain) {
+        this.ground.visible = false;
+        this.pos.y += this.groundAt(this.pos.x, this.pos.z);
+      }
+      for (const l of this.index.landmarks) if (l.tower) this._tower(l);
+      // A short credit always on screen; each source's full notice is in the Places panel.
+      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : ''].filter(Boolean).join(' · ');
+      this.ready = true;
     } catch {
       this._message('<b>Seoul\'s map isn\'t installed on this server yet.</b><br>Download 국토교통부 GIS건물통합정보 for 서울특별시 (file <code>AL_D010_11_…</code>, free, KOGL type 1) into <code>library/Seoul_Map.zip/</code> or <code>data/geo/seoul/</code>, then run <code>npm run geo:seoul</code> and open this again.');
     }
@@ -126,6 +145,8 @@ export class SeoulGame {
     window.removeEventListener('keyup', this._up, true);
     for (const t of this.tiles.values()) this._free(t);
     this.tiles.clear();
+    for (const l of this.lands.values()) for (const m of [l.ground, l.roads]) m?.geometry.dispose();
+    this.lands.clear();
     this.renderer?.dispose();
     this.root?.remove();
     if (window.seoul === this) delete window.seoul;
@@ -248,17 +269,35 @@ export class SeoulGame {
 
   /** Load what is near, drop what is far: called every frame, does a little each time. */
   _stream() {
-    if (!this.index) return;
+    if (!this.ready) return;
     const reach = QUALITY[this.quality] + (this.mode === 'fly' ? Math.min(1200, this.pos.y * 1.2) : 0);
     const [ctx, cty] = tileOf(this.pos.x + ORIGIN.x, -this.pos.z + ORIGIN.y);
     const span = Math.ceil(reach / TILE);
     const want = new Map();
+    const land = new Map();
     for (let dx = -span; dx <= span; dx++) {
       for (let dy = -span; dy <= span; dy++) {
         const d = Math.hypot(dx, dy) * TILE;
         const key = tileKey(ctx + dx, cty + dy);
-        if (d <= reach && this.index.tiles[key]) want.set(key, d);
+        if (d > reach) continue;
+        if (this.index.tiles[key]) want.set(key, d);
+        if (this.terrain) land.set(key, d);
       }
+    }
+    // The land of every tile in view (hills and water have no buildings): a few a frame, nearest first.
+    for (const [key, l] of this.lands) {
+      if (land.has(key)) continue;
+      for (const m of [l.ground, l.roads]) {
+        if (!m) continue;
+        this.scene.remove(m);
+        m.geometry.dispose();
+      }
+      this.lands.delete(key);
+    }
+    let made = 0;
+    for (const [key] of [...land].filter(([k]) => !this.lands.has(k)).sort((a, b) => a[1] - b[1])) {
+      if (made++ >= 6) break;
+      this.lands.set(key, this._land(key));
     }
     for (const [key, t] of this.tiles) {
       if (want.has(key)) continue;
@@ -336,7 +375,12 @@ export class SeoulGame {
         minz = Math.min(minz, zs[i]);
         maxz = Math.max(maxz, zs[i]);
       }
-      foot.push({ minx, maxx, minz, maxz, xs, zs, h, name: b.name });
+      // It stands on the land: its top is its height above the ground at its middle; its walls reach down to the lowest corner.
+      let low = Infinity;
+      for (let i = 0; i < n; i++) low = Math.min(low, this.groundAt(xs[i], zs[i]));
+      const base = low - 1.5;
+      const top = this.groundAt((minx + maxx) / 2, (minz + maxz) / 2) + b.height;
+      foot.push({ minx, maxx, minz, maxz, xs, zs, h: b.height, name: b.name });
       let along = seed * 3.2;
       for (let i = 0; i < n; i++) {
         const j = (i + 1) % n;
@@ -349,7 +393,7 @@ export class SeoulGame {
         const u0 = along;
         const u1 = along + len;
         along = u1;
-        pos.push(xs[i], 0, zs[i], xs[j], 0, zs[j], xs[j], h, zs[j], xs[i], 0, zs[i], xs[j], h, zs[j], xs[i], h, zs[i]);
+        pos.push(xs[i], base, zs[i], xs[j], base, zs[j], xs[j], top, zs[j], xs[i], base, zs[i], xs[j], top, zs[j], xs[i], top, zs[i]);
         for (let k = 0; k < 6; k++) nor.push(nx, 0, nz);
         // Darker at the foot: a cheap shadow where walls meet the street.
         for (const top of [0, 0, 1, 0, 1, 1]) col.push(color.r * (top ? 1 : 0.78), color.g * (top ? 1 : 0.78), color.b * (top ? 1 : 0.78));
@@ -360,7 +404,7 @@ export class SeoulGame {
       for (let [a, c, d] of THREE.ShapeUtils.triangulateShape(contour, [])) {
         // Facing the sky, whichever way the triangulation wound it (else the roof is lit from below).
         if ((zs[c] - zs[a]) * (xs[d] - xs[a]) - (xs[c] - xs[a]) * (zs[d] - zs[a]) < 0) [c, d] = [d, c];
-        pos.push(xs[a], h, zs[a], xs[c], h, zs[c], xs[d], h, zs[d]);
+        pos.push(xs[a], top, zs[a], xs[c], top, zs[c], xs[d], top, zs[d]);
         for (let k = 0; k < 3; k++) {
           nor.push(0, 1, 0);
           col.push(roof.r, roof.g, roof.b);
@@ -381,6 +425,204 @@ export class SeoulGame {
     t.count = t.data.buildings.length;
     t.data = null;
     t.state = 'ready';
+  }
+
+  /* ----------------------------------------------- the land, roads, a tower */
+
+  /** Read terrain.bin: a grid of ground heights (and where there is water) over the whole city. */
+  _terrain(buf) {
+    const v = new DataView(buf);
+    if (v.getUint32(0, true) !== 0x544f4553) return;
+    const cols = v.getUint16(14, true);
+    const rows = v.getUint16(16, true);
+    this.terrain = {
+      x0: v.getInt32(4, true) - ORIGIN.x, y0: v.getInt32(8, true) - ORIGIN.y, cell: v.getUint16(12, true), cols, rows,
+      h: new Uint16Array(buf, 24, cols * rows), water: new Uint8Array(buf, 24 + cols * rows * 2, cols * rows)
+    };
+  }
+
+  /** How high the ground is at a point, in the world's metres (0 everywhere without terrain). */
+  groundAt(x, z) {
+    const t = this.terrain;
+    if (!t) return 0;
+    const fx = Math.max(0, Math.min(t.cols - 1.001, (x - t.x0) / t.cell));
+    const fy = Math.max(0, Math.min(t.rows - 1.001, (-z - t.y0) / t.cell));
+    const i = Math.floor(fx);
+    const j = Math.floor(fy);
+    const u = fx - i;
+    const w = fy - j;
+    const at = (a, b) => t.h[b * t.cols + a];
+    return (at(i, j) * (1 - u) * (1 - w) + at(i + 1, j) * u * (1 - w) + at(i, j + 1) * (1 - u) * w + at(i + 1, j + 1) * u * w) / 10;
+  }
+
+  /** Whether a point is on water (the Han, a stream, a lake). */
+  waterAt(x, z) {
+    const t = this.terrain;
+    if (!t) return false;
+    const i = Math.round((x - t.x0) / t.cell);
+    const j = Math.round((-z - t.y0) / t.cell);
+    return i >= 0 && j >= 0 && i < t.cols && j < t.rows && t.water[j * t.cols + i] === 1;
+  }
+
+  /** One tile's land: the ground as a mesh coloured by what it is, and the roads that cross it. */
+  _land(key) {
+    const [tx, ty] = key.split('_').map(Number);
+    const t = this.terrain;
+    const ox = tx * TILE - ORIGIN.x;
+    const oy = ty * TILE - ORIGIN.y;
+    const n = TILE / t.cell; // cells across
+    const pos = [];
+    const col = [];
+    const idx = [];
+    const c = new THREE.Color();
+    const town = new THREE.Color('#9aa593');
+    const wood = new THREE.Color('#4f7d48');
+    const rock = new THREE.Color('#8f8f86');
+    for (let j = 0; j <= n; j++) {
+      for (let i = 0; i <= n; i++) {
+        const x = ox + i * t.cell;
+        const y = oy + j * t.cell;
+        const z = -y;
+        const h = this.groundAt(x, z);
+        pos.push(x, h, z);
+        if (this.waterAt(x, z)) c.copy(WATER);
+        else {
+          // Steep or high is wooded hillside; the highest is bare rock; the rest is town.
+          const slope = Math.hypot(this.groundAt(x + t.cell, z) - this.groundAt(x - t.cell, z), this.groundAt(x, z + t.cell) - this.groundAt(x, z - t.cell)) / (2 * t.cell);
+          c.copy(town).lerp(wood, Math.min(1, Math.max(0, slope * 5 - 0.25) + Math.max(0, (h - 110) / 120)));
+          if (h > 420) c.lerp(rock, Math.min(1, (h - 420) / 200));
+        }
+        col.push(c.r, c.g, c.b);
+      }
+    }
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const a = j * (n + 1) + i;
+        idx.push(a, a + 1, a + n + 2, a, a + n + 2, a + n + 1);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    this.landMaterial ??= new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    const ground = new THREE.Mesh(geo, this.landMaterial);
+    this.scene.add(ground);
+    return { ground, roads: this._roadMesh(key) };
+  }
+
+  /** Read roads.bin and sort every road into the tiles it crosses. */
+  _roads(buf) {
+    const v = new DataView(buf);
+    if (v.getUint32(0, true) !== 0x524f4553) return;
+    const x0 = v.getInt32(4, true) - ORIGIN.x;
+    const y0 = v.getInt32(8, true) - ORIGIN.y;
+    const count = v.getUint32(12, true);
+    this.roadTiles = new Map();
+    let o = 16;
+    for (let k = 0; k < count; k++) {
+      const cls = v.getUint8(o);
+      const flags = v.getUint8(o + 1);
+      const n = v.getUint16(o + 2, true);
+      const pts = new Float32Array(n * 2);
+      let first = null;
+      for (let i = 0; i < n; i++) {
+        const x = x0 + v.getInt32(o + 4 + i * 8, true) / 10;
+        const y = y0 + v.getInt32(o + 8 + i * 8, true) / 10;
+        pts[i * 2] = x;
+        pts[i * 2 + 1] = -y; // world Z
+        first ??= tileKey(...tileOf(x + ORIGIN.x, y + ORIGIN.y));
+      }
+      o += 4 + n * 8;
+      // A road is drawn whole with the tile it starts in.
+      if (!this.roadTiles.has(first)) this.roadTiles.set(first, []);
+      this.roadTiles.get(first).push({ pts, width: ROAD_WIDTH[cls] * (flags & 1 ? 0.55 : 1), bridge: Boolean(flags & 2), cls });
+    }
+  }
+
+  /** The roads that start in a tile, as ribbons laid on the ground (lifted over water: bridges). */
+  _roadMesh(key) {
+    const list = this.roadTiles?.get(key);
+    if (!list?.length) return null;
+    const pos = [];
+    const col = [];
+    const c = new THREE.Color();
+    for (const r of list) {
+      // Points no more than a cell apart, so the ribbon follows the ground.
+      const line = [];
+      for (let i = 0; i + 1 < r.pts.length / 2; i++) {
+        const ax = r.pts[i * 2];
+        const az = r.pts[i * 2 + 1];
+        const bx = r.pts[i * 2 + 2];
+        const bz = r.pts[i * 2 + 3];
+        const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 20));
+        for (let s = i ? 1 : 0; s <= steps; s++) line.push([ax + ((bx - ax) * s) / steps, az + ((bz - az) * s) / steps]);
+      }
+      // Height: the ground; over water (or on a bridge), a deck above it, eased in at both ends.
+      const lift = line.map(([x, z]) => (this.waterAt(x, z) ? 11 : r.bridge ? 5 : 0));
+      const eased = lift.map((_, i) => {
+        let s = 0;
+        let k = 0;
+        for (let d = -4; d <= 4; d++) {
+          if (lift[i + d] == null) continue;
+          s += lift[i + d];
+          k++;
+        }
+        return s / k;
+      });
+      c.set(r.cls <= 1 ? '#3f4350' : '#4c5058');
+      const half = r.width / 2;
+      let prev = null;
+      line.forEach(([x, z], i) => {
+        const [nx, nz] = line[Math.min(line.length - 1, i + 1)];
+        const [px, pz] = line[Math.max(0, i - 1)];
+        const dx = nx - px;
+        const dz = nz - pz;
+        const len = Math.hypot(dx, dz) || 1;
+        const y = this.groundAt(x, z) + 0.9 + eased[i];
+        const left = [x - (dz / len) * half, y, z + (dx / len) * half];
+        const right = [x + (dz / len) * half, y, z - (dx / len) * half];
+        if (prev) {
+          pos.push(...prev.left, ...prev.right, ...right, ...prev.left, ...right, ...left);
+          for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
+        }
+        prev = { left, right };
+      });
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    this.roadMaterial ??= new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+    const mesh = new THREE.Mesh(geo, this.roadMaterial);
+    this.scene.add(mesh);
+    return mesh;
+  }
+
+  /** A broadcast tower the register lists only as a point: our own plain shape, to its real height. */
+  _tower(l) {
+    const g = new THREE.Group();
+    const base = this.groundAt(l.wx, l.wz);
+    const white = new THREE.MeshLambertMaterial({ color: '#e9ecef' });
+    const dark = new THREE.MeshLambertMaterial({ color: '#5a6170' });
+    const red = new THREE.MeshLambertMaterial({ color: '#d8483f' });
+    const H = l.height;
+    const part = (geo, mat, y) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.y = y;
+      g.add(m);
+    };
+    part(new THREE.CylinderGeometry(9, 13, H * 0.1, 20), white, H * 0.05); // the foot
+    part(new THREE.CylinderGeometry(4.5, 7, H * 0.48, 20), white, H * 0.34); // the shaft
+    part(new THREE.CylinderGeometry(13, 9, H * 0.035, 24), dark, H * 0.5975); // under the deck
+    part(new THREE.CylinderGeometry(14, 13, H * 0.06, 24), white, H * 0.645); // the observation deck
+    part(new THREE.CylinderGeometry(7, 13, H * 0.04, 24), dark, H * 0.695);
+    part(new THREE.CylinderGeometry(1.6, 3.2, H * 0.17, 12), red, H * 0.8); // the mast, banded
+    part(new THREE.CylinderGeometry(0.8, 1.6, H * 0.115, 10), white, H * 0.9425);
+    g.position.set(l.wx, base, l.wz);
+    this.scene.add(g);
+    l.base = base;
   }
 
   /** The building standing at a point on the ground (its footprint), or null. */
@@ -410,12 +652,12 @@ export class SeoulGame {
     for (const b of this.root.querySelectorAll('[data-mode]')) b.classList.toggle('is-on', b.dataset.mode === this.mode);
     if (this.mode === 'walk') {
       // Land where you were hovering — beside a building, not inside one.
-      this.pos.y = 0;
       for (let k = 0; k < 40 && this.buildingAt(this.pos.x, this.pos.z); k++) this.pos.x += 6;
+      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
       this.pitch = Math.max(-0.5, Math.min(0.3, this.pitch));
       this._walker();
     } else {
-      this.pos.y = Math.max(this.pos.y, 120);
+      this.pos.y = Math.max(this.pos.y, this.groundAt(this.pos.x, this.pos.z) + 120);
       if (this.walker) this.walker.visible = false;
     }
     this.$('[data-help]').textContent = this.mode === 'fly'
@@ -446,7 +688,7 @@ export class SeoulGame {
   /** Jump to a place: above it, looking north across it. */
   goTo(wx, wz, { height = 0, name = '' } = {}) {
     this.setMode('fly');
-    this.pos.set(wx, Math.max(180, height + 120), wz + 420 + height);
+    this.pos.set(wx, this.groundAt(wx, wz) + Math.max(180, height + 120), wz + 420 + height);
     this.yaw = 0;
     this.pitch = -0.38;
     if (name) this.toast(name);
@@ -474,10 +716,11 @@ export class SeoulGame {
     const rx = -fz;
     const rz = fx;
     if (this.mode === 'fly') {
-      const speed = (60 + this.pos.y * 0.6) * (fast ? 3.5 : 1);
+      const speed = (60 + Math.max(0, this.pos.y - this.groundAt(this.pos.x, this.pos.z)) * 0.6) * (fast ? 3.5 : 1);
       this.pos.x += (fx * f + rx * s) * speed * dt;
       this.pos.z += (fz * f + rz * s) * speed * dt;
-      this.pos.y = Math.max(8, Math.min(2500, this.pos.y + up * speed * 0.7 * dt + f * Math.sin(this.pitch) * speed * dt * 0.6));
+      const floor = this.groundAt(this.pos.x, this.pos.z) + 8;
+      this.pos.y = Math.max(floor, Math.min(floor + 2600, this.pos.y + up * speed * 0.7 * dt + f * Math.sin(this.pitch) * speed * dt * 0.6));
       this.speed = Math.hypot(f, s) * speed;
     } else {
       const speed = fast ? 9 : 4.2;
@@ -493,7 +736,8 @@ export class SeoulGame {
       const moving = Boolean(f || s);
       this.speed = moving ? speed : 0;
       if (moving) this.walker.rotation.y = Math.atan2(fx * f + rx * s, fz * f + rz * s);
-      this.walker.position.set(this.pos.x, 0, this.pos.z);
+      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
+      this.walker.position.set(this.pos.x, this.pos.y, this.pos.z);
       const a = this.walkerAnim;
       if (a) {
         const want = a.actions[moving ? (fast ? 'Running_A' : 'Walking_A') : 'Idle'];
@@ -516,9 +760,9 @@ export class SeoulGame {
       this.camera.position.copy(this.pos);
       this.camera.lookAt(this.pos.clone().add(dir));
     } else {
-      const head = new THREE.Vector3(this.pos.x, 1.7, this.pos.z);
+      const head = new THREE.Vector3(this.pos.x, this.pos.y + 1.7, this.pos.z);
       this.camera.position.copy(head).addScaledVector(dir, -this.zoom);
-      this.camera.position.y = Math.max(0.6, this.camera.position.y);
+      this.camera.position.y = Math.max(this.groundAt(this.camera.position.x, this.camera.position.z) + 0.6, this.camera.position.y);
       this.camera.lookAt(head);
     }
     this.sun.position.copy(this.camera.position).addScaledVector(this.sunDir, 800);
@@ -546,7 +790,10 @@ export class SeoulGame {
     stage.addEventListener('wheel', (e) => {
       e.preventDefault();
       if (this.mode === 'walk') this.zoom = Math.max(3, Math.min(40, this.zoom * (e.deltaY > 0 ? 1.12 : 0.89)));
-      else this.pos.y = Math.max(8, Math.min(2500, this.pos.y * (e.deltaY > 0 ? 1.1 : 0.91)));
+      else {
+        const g = this.groundAt(this.pos.x, this.pos.z);
+        this.pos.y = g + Math.max(8, Math.min(2600, (this.pos.y - g) * (e.deltaY > 0 ? 1.1 : 0.91)));
+      }
     }, { passive: false });
     stage.addEventListener('contextmenu', (e) => e.preventDefault());
     this._down = (e) => {
@@ -611,7 +858,8 @@ export class SeoulGame {
     if (!open || !this.index) return this.root.focus();
     box.innerHTML = `<header><b>Places</b><input type="search" placeholder="Search towers and districts" data-find aria-label="Search places" /><button type="button" class="seoul__x" data-places-close aria-label="Close">✕</button></header>
       <h4>Districts <small>${this.visited.size} of ${this.index.districts.length} visited</small></h4><div class="seoul__chips" data-districts></div>
-      <h4>Tallest named buildings</h4><div class="seoul__list" data-landmarks></div>`;
+      <h4>Tallest named buildings</h4><div class="seoul__list" data-landmarks></div>
+      <h4>Where the map comes from</h4><p class="seoul__sources">${[`${ATTRIBUTION} (KOGL type 1)`, ...(this.index.credits ?? [])].map(esc).join('<br>')}</p>`;
     box.querySelector('[data-places-close]').addEventListener('click', () => this.togglePlaces(false));
     const fill = (q = '') => {
       const d = box.querySelector('[data-districts]');
@@ -650,7 +898,7 @@ export class SeoulGame {
     for (const l of this.index.landmarks) {
       const d = Math.hypot(l.wx - this.camera.position.x, l.wz - this.camera.position.z);
       if (d > reach) continue;
-      v.set(l.wx, l.height + 8, l.wz).project(this.camera);
+      v.set(l.wx, (l.base ??= this.groundAt(l.wx, l.wz)) + l.height + 8, l.wz).project(this.camera);
       if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) continue;
       shown.push({ l, d, x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h });
     }
