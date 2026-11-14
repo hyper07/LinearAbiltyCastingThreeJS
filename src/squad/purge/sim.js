@@ -1,4 +1,4 @@
-import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, STRAGGLERS, HEAL, EXCHANGE, BUNKER, LAST_STAND, TEAM } from './rules.js';
+import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, STRAGGLERS, HEAL, EXCHANGE, BUNKER, LAST_STAND, TEAM, STIM } from './rules.js';
 import { SIZE, STRUCTURES, GUARDS, KEYS, BASE, FORGE, PAD, SPAWN, BARRACKS, HEART, EXCHANGE_AT, BUNKERS, Grid, inBase, foeDef, FIRST_DYNAMIC } from './map.js';
 
 /**
@@ -151,7 +151,23 @@ export class Purge {
         dmg *= 1 + (g.dmg ?? 0);
       }
     }
-    return { hp: Math.round(hp), dmg, rate: def.gun.rate, range, splash: def.gun.splash ?? 0, armor: def.armor + p.upg.armor, speed: def.speed };
+    let rate = def.gun.rate;
+    let speed = def.speed;
+    // Stimmed: faster at everything. Slimed: slower.
+    if (t.stim > this.t) {
+      rate *= STIM.rate;
+      speed *= STIM.speed;
+    }
+    if (t.slow > this.t) {
+      rate *= FOES.mire.slow.rate;
+      speed *= FOES.mire.slow.speed;
+    }
+    return { hp: Math.round(hp), dmg, rate, range, splash: def.gun.splash ?? 0, armor: def.armor + p.upg.armor, speed };
+  }
+
+  /** Frozen in grave frost: nothing done, and nothing can hurt it. */
+  frozen(t) {
+    return t.frozen > this.t;
   }
 
   /* -------------------------------------------------------------- orders */
@@ -171,6 +187,18 @@ export class Purge {
         t.tgt = null;
         t.path = this.grid.path(t.x, t.z, b.x + 2.2, b.z) ?? [[b.x + 2.2, b.z]];
       }
+      return;
+    }
+    if (o.t === 'stim') {
+      let n = 0;
+      for (const t of mine(o.ids)) {
+        const def = RANKS[t.rank];
+        if (def.worker || def.flying || this.frozen(t) || t.stim > this.t || t.hp <= t.max * STIM.cost + 1) continue;
+        t.hp -= t.max * STIM.cost;
+        t.stim = this.t + STIM.seconds;
+        n++;
+      }
+      if (n) this.events.push({ t: 'stim', o: slot, n, ids: mine(o.ids).filter((t) => t.stim > this.t).map((t) => t.i) });
       return;
     }
     if (o.t === 'unload') {
@@ -351,6 +379,7 @@ export class Purge {
     for (const b of this.buildings) if (b.alive) this._building(b, dt);
     this._raids(dt);
     this._stragglers(dt);
+    this._healPulse(dt);
     if (this.left <= 0 && !this.lastStand && !this.over) this._startLastStand();
     // Lost only when nobody has a soldier left nor the ore for one.
     if (this.lastStand && !this.over && !this.troops.length && this.players.every((p) => p.ore < RANKS.recruit.cost)) this._end(false, 'fallen');
@@ -367,7 +396,7 @@ export class Purge {
       if (!list) h.set(key, (list = []));
       list.push(e);
     };
-    for (const t of this.troops) if (!t.inside) put(this.th, t);
+    for (const t of this.troops) if (!t.inside && !this.frozen(t)) put(this.th, t);
     for (const b of this.bunkers) if (!b.base) put(this.th, b);
     for (const f of this.foes) if (f.awake || f.raid) put(this.fh, f);
   }
@@ -439,6 +468,25 @@ export class Purge {
     }
   }
 
+  /** Every few seconds the camp makes every soldier in it whole, for ore (as much as there is). */
+  _healPulse(dt) {
+    this.healT = (this.healT ?? CAMP.pulse) - dt;
+    if (this.healT > 0) return;
+    this.healT = CAMP.pulse;
+    const healed = [];
+    for (const t of this.troops) {
+      if (t.hp >= t.max || !inBase(t.x, t.z)) continue;
+      const p = this.players[t.o];
+      const want = Math.min(t.max - t.hp, p.ore / HEAL.orePerHp);
+      if (want <= 0) continue;
+      t.hp += want;
+      p.ore -= want * HEAL.orePerHp;
+      p.healed = (p.healed ?? 0) + want * HEAL.orePerHp;
+      healed.push(t.i);
+    }
+    this.events.push({ t: 'healPulse', ids: healed });
+  }
+
   /* -------------------------------------------------------------- bunkers */
 
   _leave(t) {
@@ -464,6 +512,10 @@ export class Purge {
   /* ------------------------------------------------------------- soldiers */
 
   _troopStep(t, dt) {
+    if (this.frozen(t)) {
+      t.act = 'frozen';
+      return;
+    }
     const s = this.troopStat(t);
     const rank = RANKS[t.rank];
     t.cd = Math.max(0, t.cd - dt);
@@ -506,16 +558,6 @@ export class Purge {
         this._hurt(target, s.dmg, t);
       }
       return;
-    }
-    // The healing pad: health back, for ore.
-    if (t.hp < t.max && Math.hypot(t.x - PAD.x, t.z - PAD.z) < CAMP.padReach) {
-      const p = this.players[t.o];
-      const want = Math.min(t.max - t.hp, t.max * CAMP.padHeal * dt, p.ore / HEAL.orePerHp);
-      if (want > 0) {
-        t.hp += want;
-        p.ore -= want * HEAL.orePerHp;
-        p.healed = (p.healed ?? 0) + want * HEAL.orePerHp;
-      }
     }
     // Going into a bunker.
     if (o.t === 'enter' || o.t === 'build') {
@@ -682,7 +724,7 @@ export class Purge {
     const step = Math.min(d, speed * dt);
     const nx = e.x + (dx / d) * step;
     const nz = e.z + (dz / d) * step;
-    if (e.k === 'troop' && RANKS[e.rank].flying) [e.x, e.z] = [Math.max(1, Math.min(SIZE - 1, nx)), Math.max(1, Math.min(SIZE - 1, nz))];
+    if ((e.k === 'troop' && RANKS[e.rank].flying) || (e.k === 'foe' && foeDef(e.kind).flying)) [e.x, e.z] = [Math.max(1, Math.min(SIZE - 1, nx)), Math.max(1, Math.min(SIZE - 1, nz))];
     else if (!this.grid.blocked(nx, nz)) [e.x, e.z] = [nx, nz];
     else if (!this.grid.blocked(nx, e.z)) e.x = nx;
     else if (!this.grid.blocked(e.x, nz)) e.z = nz;
@@ -741,10 +783,51 @@ export class Purge {
       return;
     }
     let target = f.tgt != null ? this.ents.get(f.tgt) : null;
-    if (target && target.hp <= 0) target = f.tgt = null;
+    if (target && (target.hp <= 0 || (target.k === 'troop' && (this.frozen(target) || target.inside)))) target = f.tgt = null;
+    // The hero monsters think: who to kill, where to stand, and rage when low.
+    if (f.boss && !f.raid) {
+      if (!f.enraged && f.hp < f.max * 0.35) {
+        f.enraged = true;
+        f.dmg *= 1.3;
+        this.events.push({ t: 'enrage', id: f.i, kind: f.kind, x: f.x, z: f.z });
+      }
+      f.think = (f.think ?? 0) - dt;
+      if (f.think <= 0) {
+        f.think = 0.8;
+        // The hurt (to finish) and the strong (to stop), near enough; never an Engineer first.
+        let best = null;
+        let top = -Infinity;
+        this._near(this.th, f.x, f.z, 18, (e) => {
+          if (e.k !== 'troop' || e.hp <= 0) return;
+          const r = RANKS[e.rank];
+          const score = (1 - e.hp / e.max) * 2 + (r.tier ?? 0) * 0.6 - Math.hypot(e.x - f.x, e.z - f.z) / 18 - (r.worker ? 1.5 : 0);
+          if (score > top) {
+            top = score;
+            best = e;
+          }
+        });
+        if (best) {
+          target = best;
+          f.tgt = best.i;
+        }
+      }
+      // Casters keep their distance: a soldier too close, and they step back first.
+      if (def.ranged && target) {
+        let near = null;
+        this._near(this.th, f.x, f.z, 4, (e) => e.k === 'troop' && Math.hypot(e.x - f.x, e.z - f.z) < 3.5 && (near = e));
+        if (near) {
+          const dx = f.x - near.x;
+          const dz = f.z - near.z;
+          const d = Math.hypot(dx, dz) || 1;
+          f.path = [[f.x + (dx / d) * 4, f.z + (dz / d) * 4]];
+          this._walk(f, def.speed * 1.1, dt);
+          return;
+        }
+      }
+    }
     const fromHome = Math.hypot(f.x - f.home.x, f.z - f.home.z);
     // Too far from home: give up and walk back (raiders never do).
-    if (!f.raid && fromHome > (f.boss ? 26 : 34)) {
+    if (!f.raid && fromHome > (f.boss ? 40 : 34)) {
       f.tgt = null;
       target = null;
       f.leaving = true;
@@ -783,24 +866,50 @@ export class Purge {
         return;
       }
     }
+    // A Frost Wraith: grave frost on the soldiers round its target.
+    if (def.freeze && target) {
+      f.freezeT = (f.freezeT ?? def.freeze.every * 0.4) - dt;
+      if (f.freezeT <= 0 && Math.hypot(target.x - f.x, target.z - f.z) < def.freeze.range) {
+        f.freezeT = def.freeze.every;
+        f.aa++;
+        f.act = 'summon';
+        const hit = [];
+        this._near(this.th, target.x, target.z, def.freeze.radius + 1, (e) => e.k === 'troop' && Math.hypot(e.x - target.x, e.z - target.z) < def.freeze.radius && hit.push(e));
+        for (const e of hit) {
+          e.frozen = this.t + def.freeze.seconds;
+          e.path = null;
+          e.tgt = null;
+        }
+        this.events.push({ t: 'freeze', id: f.i, x: target.x, z: target.z, r: def.freeze.radius, n: hit.length, owners: [...new Set(hit.map((e) => e.o))], seconds: def.freeze.seconds });
+        f.tgt = null;
+        return;
+      }
+    }
     if (target) {
       const reach = def.range + (target.k === 'gun' ? 1.5 : target.k === 'bunker' ? BUNKER.r + 0.4 : 0.4);
       const d = Math.hypot(target.x - f.x, target.z - f.z);
       if (d <= reach) {
         f.a = facing(target.x - f.x, target.z - f.z);
         if (f.cd <= 0) {
-          f.cd = 1 / def.rate;
+          f.cd = 1 / (def.rate * (f.enraged ? 1.3 : 1));
           f.aa++;
           f.act = 'attack';
-          if (def.ranged) this.events.push({ t: 'bolt', id: f.i, to: target.i });
+          if (def.ranged) this.events.push({ t: 'bolt', id: f.i, to: target.i, slime: Boolean(def.slow) });
           this._hurt(target, f.dmg, f);
+          if (def.slow) {
+            // Bile: everyone it splashes is slowed.
+            const hit = [];
+            this._near(this.th, target.x, target.z, def.slow.radius + 1, (e) => e.k === 'troop' && Math.hypot(e.x - target.x, e.z - target.z) < def.slow.radius && hit.push(e));
+            for (const e of hit) e.slow = this.t + def.slow.seconds;
+            this.events.push({ t: 'slime', x: target.x, z: target.z, r: def.slow.radius });
+          }
         }
         return;
       }
       f.repath -= dt;
       if (f.repath <= 0 || !f.path?.length) {
         f.repath = 1 + (f.i % 5) * 0.1;
-        f.path = this.grid.line(f.x, f.z, target.x, target.z) ? [[target.x, target.z]] : this.paths++ < 14 ? this.grid.path(f.x, f.z, target.x, target.z) : f.path;
+        f.path = def.flying || this.grid.line(f.x, f.z, target.x, target.z) ? [[target.x, target.z]] : this.paths++ < 14 ? this.grid.path(f.x, f.z, target.x, target.z) : f.path;
       }
       this._walk(f, def.speed, dt);
       return;
@@ -813,7 +922,7 @@ export class Purge {
         f.goal = null;
         f.path = null;
       }
-      if (!f.path?.length) f.path = (this.paths++ < 14 ? this.grid.path(f.x, f.z, goal.x, goal.z) : null) ?? [[goal.x, goal.z]];
+      if (!f.path?.length) f.path = (def.flying ? [[goal.x, goal.z]] : this.paths++ < 14 ? this.grid.path(f.x, f.z, goal.x, goal.z) : null) ?? [[goal.x, goal.z]];
       this._walk(f, def.speed, dt);
       return;
     }
@@ -821,7 +930,7 @@ export class Purge {
     if (fromHome > 1.5) {
       if (!f.path?.length || f.repath <= 0) {
         f.repath = 2;
-        f.path = this.grid.line(f.x, f.z, f.home.x, f.home.z) ? [[f.home.x, f.home.z]] : this.paths++ < 14 ? this.grid.path(f.x, f.z, f.home.x, f.home.z) : null;
+        f.path = def.flying || this.grid.line(f.x, f.z, f.home.x, f.home.z) ? [[f.home.x, f.home.z]] : this.paths++ < 14 ? this.grid.path(f.x, f.z, f.home.x, f.home.z) : null;
       }
       f.repath -= dt;
       this._walk(f, def.speed, dt);
@@ -859,7 +968,9 @@ export class Purge {
         b.spawnT = def.spawns.every;
         // Only while soldiers are about: no hordes piling up unseen.
         if (b.kids.length < def.spawns.keep && this._nearestTroop(b.x, b.z, 45)) {
-          const kind = def.spawns.kinds[Math.floor(this.rand() * def.spawns.kinds.length)];
+          // The dead in the air only from the crypts further out.
+          const kinds = b.tier >= 2 ? def.spawns.kinds : def.spawns.kinds.filter((k) => !FOES[k].flying);
+          const kind = kinds[Math.floor(this.rand() * kinds.length)];
           const a = this.rand() * Math.PI * 2;
           const f = this._foe(kind, b.x + Math.cos(a) * (BUILDINGS[b.type].r + 2), b.z + Math.sin(a) * (BUILDINGS[b.type].r + 2), { tier: b.tier, home: { x: b.x + Math.cos(a) * 5, z: b.z + Math.sin(a) * 5 } });
           f.awake = true;
@@ -930,7 +1041,7 @@ export class Purge {
   _wave(from, count, goal) {
     for (let n = 0; n < count; n++) {
       const b = from[n % from.length];
-      const kinds = BUILDINGS[b.type].spawns.kinds;
+      const kinds = BUILDINGS[b.type].spawns.kinds.filter((k) => b.tier >= 2 || !FOES[k].flying);
       const a = (n / count) * Math.PI * 2 + this.rand();
       const f = this._foe(kinds[Math.floor(this.rand() * kinds.length)], b.x + Math.cos(a) * (BUILDINGS[b.type].r + 3), b.z + Math.sin(a) * (BUILDINGS[b.type].r + 3), { tier: b.tier, raid: true, home: { x: PAD.x, z: PAD.z } });
       f.goal = goal ? { x: goal.x + Math.cos(a) * 3, z: goal.z + Math.sin(a) * 3 } : null;
@@ -954,7 +1065,7 @@ export class Purge {
   _hurt(target, amount, by) {
     if (target.hp <= 0) return;
     if (target.k === 'bunker' && target.base) return;
-    if (target.k === 'troop' && target.inside) return;
+    if (target.k === 'troop' && (target.inside || this.frozen(target))) return;
     const armor = target.k === 'troop' ? this.troopStat(target).armor : target.k === 'foe' ? foeDef(target.kind).armor : target.k === 'bld' ? BUILDINGS[target.type].armor : target.k === 'bunker' ? BUNKER.built.armor : 0;
     const dmg = Math.max(amount * 0.25, amount - armor);
     if (target.sealed) return;
@@ -1106,6 +1217,14 @@ export class Purge {
     const army = mine.filter((t) => !t.forging || !forging);
     for (const t of mine) if (!forging) t.forging = false;
     if (!army.length) return;
+    // In a fight, healthy: stim.
+    if (this.t > (b.stimAt ?? 0)) {
+      const ids = army.filter((t) => t.tgt != null && t.hp > t.max * 0.6).map((t) => t.i);
+      if (ids.length >= 3) {
+        this.order(p.slot, { t: 'stim', ids });
+        b.stimAt = this.t + 15;
+      }
+    }
     const hp = army.reduce((s, t) => s + t.hp, 0);
     const max = army.reduce((s, t) => s + t.max, 0);
     // Strength: the whole team's (bots go out together), damage a second × health.
@@ -1115,7 +1234,9 @@ export class Purge {
     }, 0);
     const cx = army.reduce((s, t) => s + t.x, 0) / army.length;
     const cz = army.reduce((s, t) => s + t.z, 0) / army.length;
-    if (b.mode === 'out' && (hp < max * 0.4 || army.length < Math.max(2, b.size * 0.4))) {
+    // Against a hero of the dead, home sooner: the camp heals everyone every few seconds.
+    const vsHero = army.some((t) => this.ents.get(t.tgt)?.boss);
+    if (b.mode === 'out' && (hp < max * (vsHero ? 0.6 : 0.4) || army.length < Math.max(2, b.size * (vsHero ? 0.6 : 0.4)))) {
       b.mode = 'home';
       this._send(army, 'move', PAD.x, PAD.z);
       return;
@@ -1197,7 +1318,7 @@ export class Purge {
       return false;
     };
     const ents = [];
-    for (const t of this.troops) ents.push({ i: t.i, k: 'troop', rank: t.rank, o: t.o, x: +t.x.toFixed(2), z: +t.z.toFixed(2), a: +t.a.toFixed(2), hp: Math.ceil(t.hp), max: t.max, act: t.act, aa: t.aa, in: t.inside ?? undefined });
+    for (const t of this.troops) ents.push({ i: t.i, k: 'troop', rank: t.rank, o: t.o, x: +t.x.toFixed(2), z: +t.z.toFixed(2), a: +t.a.toFixed(2), hp: Math.ceil(t.hp), max: t.max, act: t.act, aa: t.aa, in: t.inside ?? undefined, fz: t.frozen > this.t ? +(t.frozen - this.t).toFixed(1) : undefined, sl: t.slow > this.t ? 1 : undefined, st: t.stim > this.t ? 1 : undefined });
     for (const b of this.bunkers) ents.push({ i: b.i, k: 'bunker', o: b.o, x: b.x, z: b.z, a: +b.a.toFixed(2), hp: Math.ceil(b.hp), max: b.max, base: b.base, n: b.seats.length, built: +b.built.toFixed(2) });
     for (const f of this.foes) {
       if (!f.awake && f.static && !(f.hp < f.max && near(f))) continue;

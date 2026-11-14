@@ -31,9 +31,11 @@ const FOE_CLIPS = {
   hexer: { walk: 'Walking_B', attack: 'Spellcast_Shoot' },
   brute: { walk: 'Walking_A', attack: '2H_Melee_Attack_Chop' },
   wight: { walk: 'Walking_A', attack: '1H_Melee_Attack_Slice_Diagonal' },
-  bonecaller: { walk: 'Walking_B', attack: 'Spellcast_Shoot' }
+  bonecaller: { walk: 'Walking_B', attack: 'Spellcast_Shoot' },
+  wraith: { walk: 'Idle', attack: 'Spellcast_Shoot' },
+  mire: { walk: 'Idle', attack: '1H_Melee_Attack_Stab' }
 };
-const FOE_TINT = { husk: '#e6e0cc', ravager: '#d4c4b0', hexer: '#c4b0e4', brute: '#c8beaa', wight: '#8a9aa8', bonecaller: '#a880d0' };
+const FOE_TINT = { husk: '#e6e0cc', ravager: '#d4c4b0', hexer: '#c4b0e4', brute: '#c8beaa', wight: '#8a9aa8', bonecaller: '#a880d0', wraith: '#a8e0ff', mire: '#9ad060' };
 /** Still things: the dead's buildings, the camp, the land's graves and trees. [file, metres across (or tall, with `tall`), tint] */
 export const STILLS = {
   spire: [HALLOWEEN + 'post_skull.gltf', 4.4, null, true],

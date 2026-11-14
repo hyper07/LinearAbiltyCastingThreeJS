@@ -171,9 +171,9 @@ for (const [x, z] of [[8, 118], [118, 8], [10, 196], [196, 10], [150, 150], [70,
 // The rest, band by band: [inner, outer radius, spires, barrows, crypts, ossuaries, camps, the guards they keep].
 const BANDS = [
   [52, 95, 6, 6, 2, 0, 12, ['husk', 'husk', 'ravager', 'hexer'], [4, 6]],
-  [106, 160, 10, 9, 4, 1, 14, ['husk', 'ravager', 'hexer', 'brute'], [5, 7]],
-  [171, 220, 12, 8, 3, 3, 13, ['brute', 'hexer', 'wight', 'bonecaller'], [4, 6]],
-  [231, 340, 12, 6, 2, 3, 13, ['wight', 'bonecaller', 'brute'], [4, 6]]
+  [106, 160, 10, 9, 4, 1, 14, ['husk', 'ravager', 'hexer', 'brute', 'mire'], [5, 7]],
+  [171, 220, 12, 8, 3, 3, 13, ['brute', 'hexer', 'wight', 'bonecaller', 'wraith', 'mire'], [4, 6]],
+  [231, 340, 12, 6, 2, 3, 13, ['wight', 'bonecaller', 'brute', 'wraith'], [4, 6]]
 ];
 for (const [r0, r1, spires, barrows, crypts, ossuaries, camps, kinds, [c0, c1]] of BANDS) {
   for (const [type, n] of [['crypt', crypts], ['ossuary', ossuaries], ['spire', spires], ['barrow', barrows]]) {

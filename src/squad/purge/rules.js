@@ -71,6 +71,12 @@ export const UPGRADES = {
 };
 export const upgradeCost = (key, level) => UPGRADES[key].cost + UPGRADES[key].step * level;
 
+/**
+ * The Stim Pack (T): the selected soldiers fire and move half again as
+ * fast for a while, for a tenth of their most health (never their last).
+ */
+export const STIM = { seconds: 10, rate: 1.5, speed: 1.5, cost: 0.1 };
+
 /** What you can give a teammate at once (G). */
 export const GIFTS = [500, 2000, 8000];
 
@@ -85,20 +91,30 @@ export const FOES = {
   hexer: { name: 'Hexer', body: 'Skeleton_Mage', size: 1.9, hp: 90, dmg: 12, rate: 0.8, range: 9, speed: 3.8, armor: 0, bounty: 30, ranged: true },
   brute: { name: 'Brute', body: 'Skeleton_Warrior', size: 2.6, hp: 380, dmg: 22, rate: 0.8, range: 2, speed: 3.5, armor: 3, bounty: 70 },
   wight: { name: 'Wight', body: 'Skeleton_Warrior', size: 2.2, hp: 420, dmg: 22, rate: 1, range: 1.8, speed: 4.8, armor: 4, bounty: 110 },
-  bonecaller: { name: 'Bonecaller', body: 'Skeleton_Mage', size: 2.2, hp: 320, dmg: 20, rate: 0.9, range: 11, speed: 3.6, armor: 2, bounty: 120, ranged: true }
+  bonecaller: { name: 'Bonecaller', body: 'Skeleton_Mage', size: 2.2, hp: 320, dmg: 20, rate: 0.9, range: 11, speed: 3.6, armor: 2, bounty: 120, ranged: true },
+  // The dead in the air: they fly over the ridges.
+  /** Frost Wraith: casts grave frost on soldiers — frozen where they stand, unable to act, and unable to be hurt, for a minute. */
+  wraith: { name: 'Frost Wraith', body: 'Skeleton_Mage', size: 2, hp: 520, dmg: 16, rate: 0.8, range: 9, speed: 5.4, armor: 2, bounty: 150, ranged: true, flying: true, freeze: { range: 11, radius: 4, every: 40, seconds: 60 } },
+  /** Bile Drifter: spits bile that slows the soldiers it splashes. */
+  mire: { name: 'Bile Drifter', body: 'Skeleton_Rogue', size: 1.6, hp: 160, dmg: 6, rate: 1.1, range: 8, speed: 6.2, armor: 0, bounty: 60, ranged: true, flying: true, slow: { radius: 2.6, seconds: 8, speed: 0.5, rate: 0.8 } }
 };
 export const TIER = { 1: { hp: 1, dmg: 1, bounty: 1 }, 2: { hp: 2, dmg: 1.6, bounty: 2 }, 3: { hp: 3.5, dmg: 2.2, bounty: 4 }, 4: { hp: 6, dmg: 3, bounty: 7 } };
 
-/** Named guardians: one at each soul node, and more. Big, and worth a lot (and half as much again to each teammate). */
+/**
+ * Named guardians — the hero monsters: one at each soul node, and the king.
+ * Big, hard-hitting and clever (they pick off the hurt and the strong,
+ * casters keep their distance, they rage when low), and worth a lot (and
+ * half as much again to each teammate).
+ */
 export const GUARDIANS = {
-  marrow: { name: 'Marrow Knight', body: 'Skeleton_Warrior', size: 3.4, hp: 5200, dmg: 60, rate: 0.9, range: 2.5, speed: 4.4, armor: 6, bounty: 1500, tint: '#d8c8a0' },
-  ash: { name: 'Ash Witch', body: 'Skeleton_Mage', size: 3.2, hp: 4200, dmg: 55, rate: 0.9, range: 12, speed: 4, armor: 3, bounty: 1500, tint: '#a080e0', ranged: true },
-  hound: { name: 'The Pale Hound', body: 'Skeleton_Rogue', size: 3, hp: 4600, dmg: 48, rate: 1.8, range: 2, speed: 7, armor: 4, bounty: 1750, tint: '#e8e8f0' },
-  bishop: { name: 'Hollow Bishop', body: 'Skeleton_Mage', size: 3.6, hp: 9000, dmg: 90, rate: 0.8, range: 13, speed: 3.8, armor: 6, bounty: 3000, tint: '#80d0c0', ranged: true, summon: { kind: 'husk', count: 5, every: 10 } },
-  rotfather: { name: 'Rotfather', body: 'Skeleton_Warrior', size: 4.4, hp: 16000, dmg: 140, rate: 0.7, range: 3.5, speed: 3.6, armor: 10, bounty: 4500, tint: '#90a060', slam: { radius: 6, dmg: 120, every: 7 } },
-  cinder: { name: 'Cinder Lich', body: 'Skeleton_Mage', size: 4.2, hp: 14000, dmg: 120, rate: 0.9, range: 14, speed: 3.8, armor: 8, bounty: 4500, tint: '#ff8040', ranged: true, summon: { kind: 'wight', count: 3, every: 12 } },
+  marrow: { name: 'Marrow Knight', body: 'Skeleton_Warrior', size: 3.4, hp: 5200, dmg: 96, rate: 0.9, range: 2.5, speed: 4.4, armor: 6, bounty: 1500, tint: '#d8c8a0' },
+  ash: { name: 'Ash Witch', body: 'Skeleton_Mage', size: 3.2, hp: 4200, dmg: 88, rate: 0.9, range: 12, speed: 4, armor: 3, bounty: 1500, tint: '#a080e0', ranged: true },
+  hound: { name: 'The Pale Hound', body: 'Skeleton_Rogue', size: 3, hp: 4600, dmg: 77, rate: 1.8, range: 2, speed: 7, armor: 4, bounty: 1750, tint: '#e8e8f0' },
+  bishop: { name: 'Hollow Bishop', body: 'Skeleton_Mage', size: 3.6, hp: 9000, dmg: 144, rate: 0.8, range: 13, speed: 3.8, armor: 6, bounty: 3000, tint: '#80d0c0', ranged: true, summon: { kind: 'husk', count: 5, every: 10 } },
+  rotfather: { name: 'Rotfather', body: 'Skeleton_Warrior', size: 4.4, hp: 16000, dmg: 224, rate: 0.7, range: 3.5, speed: 3.6, armor: 10, bounty: 4500, tint: '#90a060', slam: { radius: 6, dmg: 180, every: 7 } },
+  cinder: { name: 'Cinder Lich', body: 'Skeleton_Mage', size: 4.2, hp: 14000, dmg: 192, rate: 0.9, range: 14, speed: 3.8, armor: 8, bounty: 4500, tint: '#ff8040', ranged: true, summon: { kind: 'wight', count: 3, every: 12 } },
   // Woken by the Heart's fall: the last fight.
-  king: { name: 'The Grave King', body: 'Skeleton_Warrior', size: 6.4, hp: 70000, dmg: 200, rate: 0.7, range: 4.5, speed: 4, armor: 16, bounty: 25000, tint: '#f0d080', slam: { radius: 7, dmg: 140, every: 7 }, summon: { kind: 'wight', count: 4, every: 11 }, king: true }
+  king: { name: 'The Grave King', body: 'Skeleton_Warrior', size: 6.4, hp: 70000, dmg: 320, rate: 0.7, range: 4.5, speed: 4, armor: 16, bounty: 25000, tint: '#f0d080', slam: { radius: 7, dmg: 210, every: 7 }, summon: { kind: 'wight', count: 4, every: 11 }, king: true }
 };
 
 /**
@@ -109,8 +125,8 @@ export const GUARDIANS = {
 export const BUILDINGS = {
   spire: { name: 'Bone Spire', hp: 700, armor: 2, r: 1.4, bounty: 60, shoots: { dmg: 14, rate: 1, range: 9 } },
   barrow: { name: 'Barrow', hp: 1200, armor: 1, r: 1.8, bounty: 80 },
-  crypt: { name: 'Crypt', hp: 2600, armor: 3, r: 2.8, bounty: 250, spawns: { kinds: ['husk', 'ravager', 'hexer'], every: 20, keep: 8 } },
-  ossuary: { name: 'Ossuary', hp: 5200, armor: 5, r: 3.2, bounty: 600, spawns: { kinds: ['brute', 'wight', 'bonecaller'], every: 28, keep: 6 } },
+  crypt: { name: 'Crypt', hp: 2600, armor: 3, r: 2.8, bounty: 250, spawns: { kinds: ['husk', 'ravager', 'hexer', 'husk', 'mire'], every: 20, keep: 8 } },
+  ossuary: { name: 'Ossuary', hp: 5200, armor: 5, r: 3.2, bounty: 600, spawns: { kinds: ['brute', 'wight', 'bonecaller', 'wraith', 'mire'], every: 28, keep: 6 } },
   cache: { name: 'Relic Cache', hp: 300, armor: 0, r: 1, bounty: 1250, relics: 1, loot: true },
   node: { name: 'Soul Node', hp: 9000, armor: 6, r: 2.2, bounty: 3000, relics: 2, key: true, shoots: { dmg: 40, rate: 0.8, range: 11 } },
   shrine: { name: 'Shrine of Bones', hp: 14000, armor: 8, r: 3, bounty: 5000, relics: 3, key: true },
@@ -149,10 +165,14 @@ export const SPEEDS = [1, 1.5, 2, 3];
 /** Money: what you start with, and the stipend every minute (it grows by `grow` a minute played). */
 export const ECON = { start: 600, stipend: 300, grow: 25, every: 60, heroesOnly: { bonus: 3000 } };
 
-/** The camp: its healing pad (a share of health a second — paid for, see HEAL). No guns: the soldiers do the killing. */
-export const CAMP = { padHeal: 0.18, padReach: 7 };
+/**
+ * The camp heals: every `pulse` seconds, every soldier inside it is made
+ * whole (paid for, see HEAL). Between pulses a heavy enough beating still
+ * kills. No guns: the soldiers do the killing.
+ */
+export const CAMP = { pulse: 5 };
 
-/** Healing is paid for: ore for every point of health the pad gives back. */
+/** Healing is paid for: ore for every point of health the camp gives back. */
 export const HEAL = { orePerHp: 0.2 };
 
 /**

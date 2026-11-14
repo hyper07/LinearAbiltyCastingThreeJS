@@ -313,7 +313,7 @@ test('the Exchange: points turn into ore only while one of yours stands on it â€
   assert.ok(p.ore >= ore - 75 + 500 - 1, '5000 points made 500 ore');
 });
 
-test('healing at the pad costs ore; with none, nothing heals', () => {
+test('the camp heals everyone in it to full every few seconds, for ore; with none, nothing heals', () => {
   const g = new Purge({ seats: seats(1, 1), seed: 17 });
   const p = g.players[0];
   const t = g.troops[0];
@@ -395,4 +395,81 @@ test('team play: a building broken or a hero killed pays the others half; every 
   g.step(TICK);
   assert.deepEqual([a.ore - ore[0], b.ore - ore[1], c.ore - ore[2]], [1000, 500, 0]);
   assert.deepEqual([a.points, b.points, c.points], [2000, 1000, 3000]);
+});
+
+test('the Stim Pack: faster for a while, for a tenth of health; never an Engineer', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 22 });
+  const t = g.troops.find((x) => x.rank === 'recruit');
+  g.order(0, { t: 'buy', n: 1, rank: 'engineer' });
+  const eng = g.troops.find((x) => x.rank === 'engineer');
+  const before = g.troopStat(t);
+  const hp = t.hp;
+  g.order(0, { t: 'stim', ids: [t.i, eng.i] });
+  const now = g.troopStat(t);
+  assert.equal(now.rate, before.rate * 1.5);
+  assert.equal(now.speed, before.speed * 1.5);
+  assert.equal(t.hp, hp - t.max * 0.1);
+  assert.ok(!(eng.stim > g.t), 'no stim for Engineers');
+  g.t += 11;
+  assert.equal(g.troopStat(t).rate, before.rate, 'worn off');
+});
+
+test('the dead in the air: a Frost Wraith freezes soldiers (no acting, no harm); a Bile Drifter slows them; both fly over ridges', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 23 });
+  g.strayT = 1e9;
+  const squad = g.troops.filter((t) => t.o === 0 && t.rank === 'recruit');
+  for (const [k, t] of squad.entries()) [t.x, t.z] = [70 + k, 70];
+  const w = g._foe('wraith', 76, 70, { tier: 3 });
+  w.awake = true;
+  w.freezeT = 0; // ready to cast
+  for (let i = 0; i < 20 * 20 && !squad.some((t) => g.frozen(t)); i++) g.step(TICK);
+  const ice = squad.filter((t) => g.frozen(t));
+  assert.ok(ice.length >= 1, 'frozen');
+  const hp = ice[0].hp;
+  g._hurt(ice[0], 1e6, w);
+  assert.equal(ice[0].hp, hp, 'cannot be hurt while frozen');
+  const x = ice[0].x;
+  g.order(0, { t: 'move', ids: [ice[0].i], x: x + 20, z: 70 });
+  for (let i = 0; i < 20; i++) g.step(TICK);
+  assert.equal(ice[0].x, x, 'cannot move while frozen');
+  // Bile.
+  const g2 = new Purge({ seats: seats(1, 1), seed: 24 });
+  g2.strayT = 1e9;
+  const r = g2.troops.find((t) => t.rank === 'recruit');
+  [r.x, r.z] = [70, 70];
+  const m = g2._foe('mire', 75, 70, { tier: 2 });
+  m.awake = true;
+  const speed = g2.troopStat(r).speed;
+  for (let i = 0; i < 20 * 10 && !(r.slow > g2.t); i++) g2.step(TICK);
+  assert.ok(r.slow > g2.t, 'slimed');
+  assert.equal(g2.troopStat(r).speed, speed * 0.5);
+  // Flying: straight over a blocked cell, where walkers go round.
+  const f = g2._foe('mire', 100 * Math.cos(0.5) + 6, 100 * Math.sin(0.5), { tier: 2 });
+  f.path = [[100 * Math.cos(0.5) - 6, 100 * Math.sin(0.5)]];
+  const x0 = f.x;
+  for (let i = 0; i < 40; i++) g2._walk(f, 6, TICK);
+  assert.ok(f.x < x0 - 6, 'flew over the ridge');
+});
+
+test('the hero monsters: go for the hurt and the strong, never an Engineer first; rage when low', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 25 });
+  g.strayT = 1e9;
+  const boss = g._foe('marrow', 80, 80, { tier: 2 });
+  boss.awake = true;
+  g.order(0, { t: 'buy', n: 1, rank: 'engineer' });
+  const eng = g.troops.find((t) => t.rank === 'engineer');
+  const vet = g._troop(0, 'veteran');
+  const rec = g.troops.find((t) => t.rank === 'recruit');
+  [eng.x, eng.z] = [82, 80];
+  [rec.x, rec.z] = [84, 80];
+  [vet.x, vet.z] = [86, 80];
+  for (const t of [eng, rec, vet]) t.order = { t: 'hold' };
+  g._hash();
+  g._foeStep(boss, TICK);
+  assert.equal(boss.tgt, vet.i, 'the strongest near, not the nearest Engineer');
+  boss.hp = boss.max * 0.3;
+  boss.think = 0;
+  const dmg = boss.dmg;
+  g._foeStep(boss, TICK);
+  assert.ok(boss.enraged && boss.dmg > dmg, 'enraged');
 });

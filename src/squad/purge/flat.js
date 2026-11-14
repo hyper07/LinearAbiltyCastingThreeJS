@@ -315,9 +315,22 @@ export class FlatView {
       } else if (e.t === 'bolt') {
         const a = at.get(e.id) ?? this._site(e.id);
         const b = at.get(e.to);
-        if (a && b) this._line(a, b, '#c070ff', 0.22, 2.5);
+        if (a && b) this._line(a, b, e.slime ? '#8ad040' : '#c070ff', 0.22, 2.5);
       } else if (e.t === 'blast') this.fx.push({ kind: 'blast', x: e.x, z: e.z, r: e.r, color: '#80e0ff', life: 0.4, t: 0 });
       else if (e.t === 'slam') this._ring(e.x, e.z, e.r, '#ff7040', 0.6);
+      else if (e.t === 'freeze') {
+        this.fx.push({ kind: 'blast', x: e.x, z: e.z, r: e.r * 1.2, color: '#9fe8ff', life: 0.8, t: 0 });
+        this._ring(e.x, e.z, e.r, '#c8f4ff', 1.2);
+      } else if (e.t === 'slime') this.fx.push({ kind: 'blast', x: e.x, z: e.z, r: e.r, color: '#8ad040', life: 0.5, t: 0 });
+      else if (e.t === 'stim') for (const id of e.ids ?? []) {
+        const t = this.last?.get(id);
+        if (t) this._ring(t.x, t.z, 1.2, '#ff4030', 0.5);
+      } else if (e.t === 'healPulse') {
+        for (const id of e.ids ?? []) {
+          const t = this.last?.get(id);
+          if (t) this._ring(t.x, t.z, 1.1, '#4ade80', 0.8);
+        }
+      }
       else if (e.t === 'summon') this._ring(e.x, e.z, 4, '#b060ff', 0.8);
       else if (e.t === 'forge') {
         this._ring(e.x, e.z, 4, '#40c0ff', 1);

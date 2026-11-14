@@ -318,7 +318,10 @@
 
 .gp__cmds {
   display: grid;
-  grid-template-columns: repeat(8, auto);
+  grid-template-columns: repeat(9, auto);
+}
+.gp__cmds .gp__stim em {
+  color: #ff6a50;
 }
 .gp__cmds .gp__xchg em,
 .gp__purse .gp__pts {

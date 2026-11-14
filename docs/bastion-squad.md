@@ -20,7 +20,7 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
 - **Points and ore**, the classic way: every kill pays its killer **points**, not ore. It is a team
   game: a **building broken or a hero killed** (a guardian, the king) also pays **each teammate half**.
   Points become ore (10 to 1) at the **Exchange** — the gold ring east of the healing pad — while one
-  of yours stands on it; an **Engineer** (**T**, 75 ore, unarmed) is the cheap one to leave there
+  of yours stands on it; an **Engineer** (**Y**, 75 ore, unarmed) is the cheap one to leave there
   (select it, **X**). And **every two minutes** some are exchanged for everyone without a visit: the
   biggest of 500, 1,000 or 1,500 ore that their points cover. The minute's supply drop and ore given
   by teammates (**G**) are ore already. **The camp has no guns**: only soldiers' kills pay.
@@ -62,11 +62,22 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   Knight, the Ash Witch, the Pale Hound, the Hollow Bishop, the Cinder Lich, the Rotfather).
 - **The Heart of the Grave**, in its sanctum in the far south-east, is sealed until all twelve
   wards are broken. Break it and **the Grave King** rises from it; kill him to win.
-- **Healing costs ore**: only the **healing pad** heals, fast, at 1 ore for every 5 health given
-  back (green crosses while it does); with no ore, nothing heals. **E** sends the selected there.
+- **The camp heals**: every 5 seconds every soldier inside the camp is made whole — for ore (1 for
+  every 5 health). Between heals a heavy enough beating still kills, so when the hero monsters come at
+  you together, get home in time. **E** sends the selected home.
 - **Stragglers**: every half a minute a few of the weakest dead wander into the camp from its near
   edges, six to start (more and tougher as time goes on, eighteen at most) — easy kills, half as many points again as
   usual, for whoever is home.
+- **The dead in the air** fly straight over the ridges: the **Frost Wraith** casts grave frost on
+  the soldiers round its target — frozen for a minute, unable to act and **unable to be hurt** (so kill
+  the wraith, or wait it out); the **Bile Drifter** spits bile that **slows** whoever it splashes (half
+  speed, a little slower to fire) for 8 seconds. They come from the crypts and ossuaries beyond the
+  first ring, and live in the further camps.
+- **The hero monsters** (the guardians and the king) hit hard and think: they go for the hurt and the
+  strong (never an Engineer first), the casters step back from soldiers who close in, and below a third
+  of their health they rage — harder and faster.
+- **Stim Pack** (**T**): the selected soldiers fire and move half again as fast for 10 seconds, for a
+  tenth of their most health (Engineers and the flying can't).
 - **Bunkers**: each commander has their own bunker inside the camp (three along its east side, one in
   its south-east corner), in their own colour — ring, flag, name. It cannot be broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and
   still shoot (a little further). **L** empties them. Engineers build more (**B**, then click; 1,500
@@ -103,7 +114,7 @@ the way) · **M** move · **P** patrol · **S** stop · **H** hold · **E** heal
 **Ctrl/Alt+0–9** save the selection as a group, **Shift+0–9** add to it, **0–9** pick it (twice
 quickly: look at it) — the group bar shows them (right-click a slot to save there) · **Tab/F2** all
 your soldiers · **Space** the last alert · **Backspace** the camp · **Shift+F5–F8** save a view,
-**F5–F8** go back to it · **R** a Recruit (**Shift+R** five) · **T** an Engineer · **X** to the Exchange · **B** build a bunker · right-click a bunker to go in · **L** out of the bunkers · **F** Forge · **U** upgrades · **G**
+**F5–F8** go back to it · **R** a Recruit (**Shift+R** five) · **T** Stim Pack · **Y** an Engineer · **X** to the Exchange · **B** build a bunker · right-click a bunker to go in · **L** out of the bunkers · **F** Forge · **U** upgrades · **G**
 give ore · **+/−** speed · **O** objectives · **F1** all the keys. The command card at the bottom has the same, to click.
 (On Windows, Ctrl+number may switch browser tabs: use Alt+number.)
 

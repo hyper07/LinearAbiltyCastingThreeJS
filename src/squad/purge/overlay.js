@@ -5,7 +5,7 @@ import { CAMP, BUNKER, COLORS } from './rules.js';
 /** The camp's places, named on the ground with their keys. */
 const PLACES = [
   [FORGE, 'THE FORGE', 'raise soldiers here · W send · F open', '#5cc8ff'],
-  [PAD, 'HEALING PAD', 'heals for ore · E send', '#3ddc84'],
+  [PAD, 'THE CAMP HEALS', 'everyone in it, to full, every 5 s (for ore) · E come home', '#3ddc84'],
   [EXCHANGE_AT, 'EXCHANGE', 'points → ore while one of yours stands here · X send', '#ffb84d'],
   [BARRACKS, 'BARRACKS', 'R Recruit', '#e8e2d0'],
   [ARMORY, 'ARMOURY', 'U upgrades', '#e8e2d0']
@@ -112,7 +112,7 @@ export function drawOverlay(view, ctx, state) {
     } else if (e.k === 'foe') {
       const guardian = GUARDIANS[e.kind];
       if (e.hp >= e.max && !guardian) continue;
-      const p = bar(e.x, foeDef(e.kind).size + 0.5, e.z, e.hp / e.max, guardian ? 80 : 26, guardian ? '#ff9020' : '#e0483c', Boolean(guardian));
+      const p = bar(e.x, foeDef(e.kind).size + 0.5 + (foeDef(e.kind).flying ? 2.4 : 0), e.z, e.hp / e.max, guardian ? 80 : 26, guardian ? '#ff9020' : '#e0483c', Boolean(guardian));
       if (p && guardian) {
         ctx.font = '700 12px system-ui, sans-serif';
         ctx.strokeStyle = 'rgba(0,0,0,0.75)';
@@ -154,7 +154,7 @@ export function drawOverlay(view, ctx, state) {
   }
   // Soldiers healing in the camp: green crosses rising (faster on the pad).
   for (const e of state.ents) {
-    if (e.k !== 'troop' || e.in || e.hp >= e.max || Math.hypot(e.x - PAD.x, e.z - PAD.z) >= CAMP.padReach) continue;
+    if (e.k !== 'troop' || e.in || e.hp >= e.max || !inBase(e.x, e.z)) continue;
     const fast = true;
     const rise = ((view.time ?? 0) * (fast ? 1.6 : 0.8) + e.i * 0.37) % 1;
     const p = view.toScreen(e.x + 0.3, 1.8 + rise * 1.2, e.z);

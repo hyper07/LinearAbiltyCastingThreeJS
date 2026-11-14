@@ -29,11 +29,13 @@ const CLIPS = {
   hexer: { walk: 'Walking_B', attack: 'Spellcast_Shoot' },
   brute: { walk: 'Walking_A', attack: '2H_Melee_Attack_Chop' },
   wight: { walk: 'Walking_A', attack: '1H_Melee_Attack_Slice_Diagonal' },
-  bonecaller: { walk: 'Walking_B', attack: 'Spellcast_Shoot' }
+  bonecaller: { walk: 'Walking_B', attack: 'Spellcast_Shoot' },
+  wraith: { walk: 'Idle', attack: 'Spellcast_Shoot', summon: 'Spellcast_Summon' },
+  mire: { walk: 'Idle', attack: '1H_Melee_Attack_Stab' }
 };
 const BOSS_CLIPS = { walk: 'Walking_A', attack: '2H_Melee_Attack_Chop', slam: '2H_Melee_Attack_Spin', summon: 'Spellcast_Summon' };
 const MAGE_CLIPS = { walk: 'Walking_B', attack: 'Spellcast_Shoot', summon: 'Spellcast_Summon' };
-const TINT = { husk: '#d9d4c4', ravager: '#c9b8a8', hexer: '#b9a6d9', brute: '#b8b0a0', wight: '#8a9aa8', bonecaller: '#9a70c0' };
+const TINT = { husk: '#d9d4c4', ravager: '#c9b8a8', hexer: '#b9a6d9', brute: '#b8b0a0', wight: '#8a9aa8', bonecaller: '#9a70c0', wraith: '#a8e0ff', mire: '#9ad060' };
 /** The look of each building: a model, how wide, and a glow. */
 const LOOK = {
   spire: { model: HALLOWEEN + 'post_skull.gltf', width: 1.6, height: 4.4, glow: '#b060ff' },
@@ -296,9 +298,22 @@ export class PurgeView extends SquadView {
       } else if (e.t === 'bolt') {
         const a = at.get(e.id) ?? this._siteAt(e.id);
         const b = at.get(e.to);
-        if (a && b) this._streak(a.x, e.tower ? 4 : 1.6, a.z, b.x, 1.1, b.z, e.tower ? '#d070ff' : '#c070ff', 0.25, 3);
+        if (a && b) this._streak(a.x, e.tower ? 4 : e.slime ? 3 : 1.6, a.z, b.x, 1.1, b.z, e.tower ? '#d070ff' : e.slime ? '#8ad040' : '#c070ff', 0.25, 3);
       } else if (e.t === 'blast') this._burst(e.x, e.z, e.r, '#80e0ff');
       else if (e.t === 'slam') this._ring(e.x, e.z, e.r, '#ff7040', 0.6);
+      else if (e.t === 'freeze') {
+        this._burst(e.x, e.z, e.r, '#9fe8ff');
+        this._ring(e.x, e.z, e.r, '#c8f4ff', 1.2);
+      } else if (e.t === 'slime') this._burst(e.x, e.z, e.r * 0.8, '#8ad040');
+      else if (e.t === 'stim') for (const id of e.ids ?? []) {
+        const t = at.get(id);
+        if (t) this._ring(t.x, t.z, 1.2, '#ff4030', 0.5, true);
+      } else if (e.t === 'healPulse') {
+        for (const id of e.ids ?? []) {
+          const t = at.get(id);
+          if (t) this._ring(t.x, t.z, 1.2, '#4ade80', 0.8, true);
+        }
+      }
       else if (e.t === 'summon') this._ring(e.x, e.z, 4, '#b060ff', 0.8, true);
       else if (e.t === 'forge') {
         this._ring(e.x, e.z, 4, '#40c0ff', 1, true);
@@ -385,6 +400,22 @@ export class PurgeView extends SquadView {
     const size = def.size * (guardian ? 1 : 1 + (tier - 1) * 0.06);
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3 * (size / 1.7), size * 0.5, 4, 8).translate(0, size / 2, 0), new THREE.MeshStandardMaterial({ color: tint }));
     m.group.add(stand);
+    if (def.flying) {
+      // Wings (ragged membranes) and a glow under: one of the dead in the air.
+      const glow = kind === 'wraith' ? '#80d8ff' : '#90e050';
+      const wing = new THREE.MeshStandardMaterial({ color: glow, emissive: glow, emissiveIntensity: 0.5, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+      m.wings = [-1, 1].map((side) => {
+        const w = new THREE.Mesh(new THREE.PlaneGeometry(size * 0.9, size * 0.5), wing);
+        w.position.set(side * size * 0.45, size * 0.62, -0.1);
+        w.rotation.y = side * 0.3;
+        m.group.add(w);
+        return w;
+      });
+      const light = new THREE.PointLight(glow, 6, 6, 2);
+      light.position.y = size * 0.5;
+      m.group.add(light);
+      m.hover = 2.4;
+    }
     dress({ body: def.body, height: size, tint, hat: true, cape: true }).then((made) => {
       if (!made || m.gone) return;
       m.made = made;
@@ -557,9 +588,31 @@ export class PurgeView extends SquadView {
         m.group.rotation.y = e.a + Math.PI;
         m.ring.material.color.set(this.selected.has(e.i) ? '#ffffff' : COLORS[e.o]);
         m.ring.material.opacity = this.selected.has(e.i) ? 1 : 0.6;
-        m.soldier?.update(dt, { moving: e.act === 'run', slow: false, pitch: 0, alive: true });
+        // Grave frost: in a block of ice, still. Bile: green slime round the feet. Stim: a red glow.
+        if (e.fz && !m.ice) {
+          m.ice = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.3, 1.3).translate(0, 1.15, 0), new THREE.MeshStandardMaterial({ color: '#bfefff', emissive: '#4fb8ff', emissiveIntensity: 0.5, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2 }));
+          m.group.add(m.ice);
+        }
+        if (m.ice) m.ice.visible = Boolean(e.fz);
+        if (e.sl && !m.slime) {
+          m.slime = new THREE.Mesh(new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#7ad040', transparent: true, opacity: 0.55, depthWrite: false }));
+          m.slime.position.y = 0.05;
+          m.group.add(m.slime);
+        }
+        if (m.slime) m.slime.visible = Boolean(e.sl);
+        if (e.st && !m.stim) {
+          m.stim = new THREE.PointLight('#ff3020', 6, 4, 2);
+          m.stim.position.y = 1.2;
+          m.group.add(m.stim);
+        }
+        if (m.stim) m.stim.visible = Boolean(e.st);
+        if (!e.fz) m.soldier?.update(dt * (e.st ? 1.5 : e.sl ? 0.6 : 1), { moving: e.act === 'run', slow: false, pitch: 0, alive: true });
       } else if (e.k === 'foe') {
         m.group.rotation.y = e.a;
+        if (m.hover) {
+          m.group.position.y = m.hover + Math.sin(this.time * 2.5 + e.i) * 0.25;
+          for (const [k, w] of m.wings.entries()) w.rotation.z = (k ? -1 : 1) * (0.3 + Math.sin(this.time * 9 + e.i) * 0.35);
+        }
         if (m.made) {
           const clips = m.clips;
           if (e.act === 'run') this._play(m, clips.walk, { speed: foeDef(e.kind).speed / 4 });

@@ -641,6 +641,45 @@ function building(view, g, s, state, falling) {
   }
 }
 
+/** What is happening to a soldier: frozen in ice, slimed, stimmed. */
+function effects(view, g, e, scale = 1) {
+  if (e.st) view._glow(g, e.x, e.z - 0.9 * scale, 1.1 * scale, '#ff3020', 0.55);
+  if (e.sl) {
+    g.fillStyle = 'rgba(120,200,60,0.5)';
+    g.beginPath();
+    g.ellipse(e.x, e.z, 0.8 * scale, 0.5 * scale, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(140,220,70,0.75)';
+    for (let k = 0; k < 3; k++) g.fillRect(e.x - 0.35 * scale + k * 0.3 * scale, e.z - (1.2 - ((view.time * 1.5 + k * 0.33 + e.i) % 1) * 0.8) * scale * LIFT, 0.08, 0.16);
+  }
+  if (e.fz) {
+    // A block of ice, catching the light.
+    const w = 0.7 * scale;
+    const h = 2.1 * scale * LIFT;
+    const grad = g.createLinearGradient(e.x - w, e.z - h, e.x + w, e.z);
+    grad.addColorStop(0, 'rgba(230,250,255,0.75)');
+    grad.addColorStop(0.5, 'rgba(150,220,255,0.45)');
+    grad.addColorStop(1, 'rgba(90,170,240,0.6)');
+    g.fillStyle = grad;
+    g.strokeStyle = 'rgba(240,252,255,0.9)';
+    g.lineWidth = 0.06;
+    g.beginPath();
+    g.moveTo(e.x - w, e.z + 0.2);
+    g.lineTo(e.x - w * 0.9, e.z - h);
+    g.lineTo(e.x + w * 0.2, e.z - h - 0.25);
+    g.lineTo(e.x + w, e.z - h * 0.9);
+    g.lineTo(e.x + w * 0.95, e.z + 0.25);
+    g.closePath();
+    g.fill();
+    g.stroke();
+    g.font = '700 0.42px system-ui, sans-serif';
+    g.fillStyle = '#e8faff';
+    g.textAlign = 'center';
+    g.fillText(`${Math.ceil(e.fz)}`, e.x, e.z - h - 0.4);
+    g.textAlign = 'start';
+  }
+}
+
 /** A flying thing: its shadow on the ground, itself up in the air, turned the way it flies. */
 function ship(view, g, e, dt, dead) {
   const look = LOOKS[e.rank];
@@ -698,6 +737,7 @@ function troop(view, g, e, dt, dead = false) {
   const col = run ? sheet.index.run[Math.floor(view.time * 12 + e.i) % sheet.index.run.length] : sheet.index.idle[0];
   if (def.tier >= 3) view._glow(g, e.x, e.z - 0.8, 1.8 * scale, e.rank === 'paragon' ? '#ffd060' : '#a080ff', 0.35);
   frame(g, sheet, row, col, e.x, e.z, 1, scale, flip);
+  effects(view, g, e, scale);
   // A flash at the muzzle when it fires.
   if (p.swing > 0.55 && !dead) {
     const fx = e.x + Math.sin(p.a) * 0.75 * scale;
@@ -727,7 +767,7 @@ function foe(view, g, e, dt, dead = false) {
   const p = view._pose(e, dead ? 0 : dt);
   const scale = (guardian ? def.size / FOES[baseKind].size : 1) * (guardian ? 1 : 1 + ((e.tier ?? 1) - 1) * 0.06);
   if (view.shadowPass) {
-    shadow(g, e.x, e.z, 0.32 * def.size, 0.2 * def.size);
+    shadow(g, e.x + (def.flying ? 0.8 : 0), e.z + (def.flying ? 0.6 : 0), 0.32 * def.size, 0.2 * def.size, def.flying ? 0.28 : 0.38);
     if (guardian) {
       g.strokeStyle = guardian.tint;
       g.globalAlpha = 0.6;
@@ -742,6 +782,29 @@ function foe(view, g, e, dt, dead = false) {
   const [row, flip] = dirOf(p.a);
   let col = sheet.index.idle[0];
   if (p.swing > 0) col = sheet.index.attack[Math.min(2, Math.floor((1 - p.swing) * 3))];
+  if (def.flying) {
+    // Up in the air (its shadow was drawn on the ground), wings beating.
+    const hover = (2.4 + Math.sin(view.time * 2.5 + e.i) * 0.25) * LIFT;
+    const glow = e.kind === 'wraith' ? '#80d8ff' : '#90e050';
+    const beat = Math.sin(view.time * 9 + e.i);
+    g.save();
+    g.translate(e.x, e.z - hover - def.size * 0.55 * LIFT);
+    g.fillStyle = glow;
+    g.globalAlpha *= 0.5;
+    for (const side of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.quadraticCurveTo(side * def.size * 0.7, -def.size * (0.5 + beat * 0.25), side * def.size * 1.05, -def.size * (0.1 + beat * 0.2));
+      g.lineTo(side * def.size * 0.8, def.size * 0.12);
+      g.lineTo(side * def.size * 0.5, def.size * 0.02);
+      g.closePath();
+      g.fill();
+    }
+    g.restore();
+    view._glow(g, e.x, e.z - hover - def.size * 0.4 * LIFT, def.size * 0.7, glow, 0.45);
+    frame(g, sheet, row, col, e.x, e.z - hover, 1, scale, flip);
+    return;
+  }
   else if (e.act === 'run') col = sheet.index.walk[Math.floor(view.time * (8 * def.speed) / 4.4 + e.i) % sheet.index.walk.length];
   if (guardian) view._glow(g, e.x, e.z - def.size * 0.4, def.size * 0.9, guardian.tint, 0.45 + Math.sin(view.time * 3) * 0.1);
   else if ((e.tier ?? 1) >= 3) view._glow(g, e.x, e.z - def.size * 0.35, def.size * 0.6, (e.tier ?? 1) >= 4 ? '#ff3050' : '#8040ff', 0.3);
