@@ -58,7 +58,9 @@ function prepare(gltf) {
   wrap.updateMatrixWorld(true);
   // Centre between the axles, wheels on the ground.
   const box = new THREE.Box3().setFromObject(holder);
-  const mid = fl.clone().add(rl).multiplyScalar(0.5);
+  // The middle of all four wheels (the left ones alone would put the car's middle on its left side).
+  const rr = at('WheelRearR') ?? rl;
+  const mid = fl.clone().add(rl).add(fr ?? fl).add(rr).multiplyScalar(0.25);
   scene.localToWorld(mid);
   holder.position.x -= mid.x;
   holder.position.z -= mid.z;
@@ -106,12 +108,51 @@ function standIn(color, kind) {
 }
 
 /**
+ * The parts that make one of the garage's cars itself (garage.js): a wing,
+ * a ducktail or a lip at the back, a scoop on the bonnet, skirts down the
+ * sides, a glow underneath. Built to the body's own size; the front is −z.
+ */
+function bodyKit(kind, look, color) {
+  const g = new THREE.Group();
+  const carbon = new THREE.MeshStandardMaterial({ color: '#1a1b1e', roughness: 0.35, metalness: 0.3 });
+  const paint = new THREE.MeshPhysicalMaterial({ color, roughness: 0.3, metalness: 0.6, clearcoat: 1 });
+  const L = kind.length;
+  const W = kind.width * 0.74; // the body, without the mirrors
+  const H = kind.height;
+  const box = (w, h, d, mat, x, y, z, rx = 0) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    m.rotation.x = rx;
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  };
+  if (look.spoiler === 'wing') {
+    for (const s of [-1, 1]) box(0.05, 0.32, 0.12, carbon, s * W * 0.32, H * 0.78, L * 0.42);
+    box(W * 0.92, 0.04, 0.34, carbon, 0, H * 0.94, L * 0.44, -0.12);
+    for (const s of [-1, 1]) box(0.03, 0.16, 0.36, carbon, s * W * 0.46, H * 0.96, L * 0.44);
+  } else if (look.spoiler === 'ducktail') box(W * 0.8, 0.06, 0.22, paint, 0, H * 0.66, L * 0.47, -0.35);
+  else if (look.spoiler === 'lip') box(W * 0.7, 0.03, 0.12, carbon, 0, H * 0.62, L * 0.48, -0.2);
+  if (look.scoop) box(W * 0.28, 0.08, L * 0.16, carbon, 0, H * 0.6, -L * 0.22);
+  if (look.skirts) for (const s of [-1, 1]) box(0.06, 0.08, L * 0.5, carbon, s * W * 0.49, 0.14, 0);
+  if (look.glow) {
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.9, L * 0.8).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: look.glow, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+    glow.position.y = 0.04;
+    g.add(glow);
+  }
+  // The model is turned and scaled inside its holder; the kit is built in the car's own frame.
+  g.userData.kit = true;
+  return g;
+}
+
+/**
  * One car in a paint. `lite` (traffic) leaves the inside out. Returns
  * { group, wheels, steer(angle), spin(radians), near(on) }.
  */
-export function makeCar(kind, color, { lite = false } = {}) {
+export function makeCar(kind, color, { lite = false, look = null } = {}) {
   const group = new THREE.Group();
   const model = kind.template.clone(true);
+  if (look?.scale) model.scale.set(...look.scale);
   model.traverse((o) => {
     if (!o.isMesh) return;
     if (lite && /^(Interior|Engine|Axles)/.test(o.name)) o.visible = false;
@@ -128,7 +169,9 @@ export function makeCar(kind, color, { lite = false } = {}) {
   const far = standIn(color, kind);
   far.visible = false;
   group.add(model, far);
+  if (look) model.add(bodyKit(kind, look, color));
   const wheels = Object.entries(kind.wheelInfo).map(([name, info]) => ({ node: model.getObjectByName(name), front: /Front/.test(name), ...info }));
+  if (look?.wheels && look.wheels !== 1) for (const w of wheels) w.node?.scale.multiplyScalar(look.wheels);
   const lights = [];
   model.traverse((o) => o.userData.light && lights.push(o));
   let spun = 0;

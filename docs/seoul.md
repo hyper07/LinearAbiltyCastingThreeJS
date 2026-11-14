@@ -90,10 +90,20 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 
 **🏁 Gangnam Drift** (the button) is a night race for four cars on a loop of real Seoul streets.
 
-- **Courses**: Gwanghwamun Loop, Namsan Twisties, Dongdaemun Night, Gangnam Avenues and Yeouido
-  Island, 4 to 5 km a lap. Each is planned on the spot from the real road network: four points
+- **Courses**: five city loops of 4 to 5 km (Gwanghwamun Loop, Namsan Twisties, Dongdaemun Night,
+  Gangnam Avenues, Yeouido Island) and three long ones of a single lap across the city — Han River
+  Grand Tour (13.8 km, both banks and the bridges), Seoul Marathon (16.2 km) and Downtown Circuit
+  (11.8 km). Each is planned on the spot from the real road network: four points
   round the place, joined by the best roads, never the same street twice, never turning round on
   itself. The same roads always give the same course, so a room needs only the course's name.
+- **The garage**: five cars of our own — Solenne GT (fast and steady), Noctis R (a drift build with a
+  wing; its boost fills fastest), Hanbit Speedster (the highest top speed), Arden Coupe (quickest off
+  the line, sharpest turn) and Volta EV (electric: instant pull, planted) — each in four paints, with
+  bars for speed, pick-up, grip and drift. They share one licensed body (Car Concept, CC BY 4.0) but
+  each has its own proportions, parts and handling. Bots pick cars too.
+- **The crowd**: people line the course behind red-and-white barriers — both sides of the start, the
+  outside of every turn, every half kilometre between — and go wild as the cars come by (arms up,
+  waving, bouncing, a roar and whistles as you pass). They come to life as you near them.
 - **Alone**: you against three bots. **Together**: one player makes a room and gives the five-letter
   code; up to three others join; the host picks the course and the laps (1, 2, 3 or 5) and starts.
   Bots take any empty seats (the host's browser drives them).

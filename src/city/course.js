@@ -16,7 +16,11 @@ export const COURSES = [
   { id: 'namsan', name: 'Namsan Twisties', ko: '남산', x: 900, z: 900, r: 700, text: 'Under the tower, below the mountain: twenty corners — a drifter\'s course.' },
   { id: 'dongdaemun', name: 'Dongdaemun Night', ko: '동대문', x: 4300, z: -300, r: 700, text: 'Past the old east gate and the night markets: quick turns on busy streets.' },
   { id: 'gangnam', name: 'Gangnam Avenues', ko: '강남', x: 6343, z: 7091, r: 1000, text: 'The big avenues south of the river: flat out, then hard on the brakes.' },
-  { id: 'yeouido', name: 'Yeouido Island', ko: '여의도', x: -3300, z: 4700, r: 600, text: 'The river island of towers: long and fast, over the water and back.' }
+  { id: 'yeouido', name: 'Yeouido Island', ko: '여의도', x: -3300, z: 4700, r: 600, text: 'The river island of towers: long and fast, over the water and back.' },
+  // The long ones: across the city, a single lap is a journey.
+  { id: 'hangang', name: 'Han River Grand Tour', ko: '한강', x: 1500, z: 4300, r: 3000, target: 15000, min: 8000, max: 26000, reach: 1.6, laps: 1, long: true, text: 'Both banks of the Han and the bridges between: nearly 14 km of the city at night.' },
+  { id: 'marathon', name: 'Seoul Marathon', ko: '서울 일주', x: 2500, z: 3800, r: 3500, target: 18000, min: 8000, max: 26000, reach: 1.6, laps: 1, long: true, text: 'The longest: 16 km from the old city south over the river and back.' },
+  { id: 'downtown', name: 'Downtown Circuit', ko: '도심', x: 1500, z: -500, r: 2200, target: 12000, min: 8000, max: 26000, reach: 1.6, laps: 1, long: true, text: 'Palaces, markets and towers: 12 km of the old city\'s boulevards.' }
 ];
 
 /** How much a metre of each class of road costs: big roads are preferred, small ones avoided. */
@@ -203,7 +207,7 @@ function cutHairpins(points) {
  * at each point), length } or null when no loop could be made there.
  */
 export function planCourse(roads, def, { step = 6, why = null, target = def.target ?? 4200 } = {}) {
-  const nodes = buildGraph(roads, def.x, def.z, def.r * 3);
+  const nodes = buildGraph(roads, def.x, def.z, def.r * (def.reach ?? 3));
   let best = null;
   for (const turn of [Math.PI / 4, 0, Math.PI / 8, (3 * Math.PI) / 8, Math.PI / 6]) {
     for (const scale of [0.45, 0.6, 0.8, 1, 1.25]) {
@@ -247,7 +251,7 @@ export function planCourse(roads, def, { step = 6, why = null, target = def.targ
       for (let i = 1; i < points.length; i++) s.push(s[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
       const length = s.at(-1) + Math.hypot(points[0][0] - points.at(-1)[0], points[0][1] - points.at(-1)[1]);
       // A course worth racing: not a dash round one block, not a tour of the city.
-      if (length < 1800 || length > 9000) {
+      if (length < (def.min ?? 1800) || length > (def.max ?? 9000)) {
         why?.push(`length ${length.toFixed(0)}`);
         continue;
       }

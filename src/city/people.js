@@ -67,6 +67,21 @@ function facingOf(root, bones) {
   return Math.atan2(forward.x, forward.z);
 }
 
+/** Turn `bone` so it points (towards `child`) along `dir` in the world, by `k` of the way. */
+function bend(bone, child, dir, k) {
+  if (!bone || !child) return;
+  bone.updateWorldMatrix(true, false);
+  child.updateWorldMatrix(false, false);
+  const from = bone.getWorldPosition(new THREE.Vector3());
+  const now = child.getWorldPosition(new THREE.Vector3()).sub(from).normalize();
+  const turn = new THREE.Quaternion().setFromUnitVectors(now, dir);
+  turn.slerp(new THREE.Quaternion(), 1 - k);
+  const world = bone.getWorldQuaternion(new THREE.Quaternion()).premultiply(turn);
+  const parent = bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  bone.quaternion.copy(parent.multiply(world));
+  bone.updateWorldMatrix(false, true);
+}
+
 export function loadPerson(kind) {
   return Promise.all([load(PEOPLE[kind].file), load(SOURCE.file)]).then(([person, source]) => (person && source ? { person, source, kind } : null));
 }
@@ -125,8 +140,11 @@ export class Person {
     this.state = name;
   }
 
-  /** One frame: `speed` in metres a second picks idle, walk or run, and paces the steps. */
-  update(dt, speed = 0) {
+  /**
+   * One frame: `speed` in metres a second picks idle, walk or run, and paces
+   * the steps; `cheer` (0–1) raises the arms and waves them, and bounces.
+   */
+  update(dt, speed = 0, cheer = 0) {
     const name = speed > 3.2 ? 'Run' : speed > 0.3 ? 'Walk' : 'Idle';
     this.play(name);
     if (this.actions.Walk) this.actions.Walk.timeScale = name === 'Walk' ? Math.max(0.6, speed / 1.5) : 1;
@@ -154,5 +172,27 @@ export class Person {
     // The bob of the hips, scaled to this person.
     const bob = (this.srcBones[0].getWorldPosition(va).y - this.srcHipY) / this.srcHeight;
     this.inner.position.y = this.baseY + bob * PEOPLE[this.kind].height;
+    this.cheering = (this.cheering ?? 0) + (cheer - (this.cheering ?? 0)) * Math.min(1, dt * 5);
+    if (this.cheering > 0.02) this._cheer(this.cheering, dt);
+  }
+
+  /** Arms up and waving, a bounce on the toes: a crowd as a car goes by. */
+  _cheer(k, dt) {
+    this.t = (this.t ?? Math.random() * 10) + dt;
+    const at = (name) => this.bones[BONES.indexOf(name)];
+    const pos = (b) => b.getWorldPosition(new THREE.Vector3());
+    const left = pos(at('LeftArm'));
+    const right = pos(at('RightArm'));
+    const out = left.clone().sub(right).normalize();
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const [side, s] of [['Left', 1], ['Right', -1]]) {
+      const arm = at(`${side}Arm`);
+      const fore = at(`${side}ForeArm`);
+      const hand = at(`${side}Hand`);
+      const wave = Math.sin(this.t * 9 + s) * 0.35;
+      bend(arm, fore, up.clone().addScaledVector(out, s * 0.45).normalize(), k);
+      bend(fore, hand, up.clone().addScaledVector(out, s * wave).normalize(), k);
+    }
+    this.inner.position.y += Math.abs(Math.sin(this.t * 7)) * 0.12 * k;
   }
 }
