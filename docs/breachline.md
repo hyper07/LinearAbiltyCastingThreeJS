@@ -31,10 +31,10 @@ person isn't in.
 | W A S D | walk |
 | Mouse | look (click the game to take aim; Esc lets the mouse go) |
 | Left button | fire (hold, for automatic weapons) |
-| Right button | look down a scope (Longwatch) |
+| Right button | step a sniper's scope in (twice for closer), and out again |
 | R | reload |
 | 1 / 2 | main weapon / sidearm |
-| 3 | the knife (you run a little faster with it out) |
+| 3 | your blade: the knife, or one you bought (you run a little faster with a light one out) |
 | 4 / 5 | frag grenade / smoke grenade (click to throw; aim higher to throw further) |
 | B | the shop — only in the pause before a round |
 | E (hold) | set the charge in a site (Raiders) / disarm it (Wardens) |
@@ -73,8 +73,15 @@ half of each hit until it is used up; a helmet makes a head shot hurt less.
 | Vantage Rifle | 2700 | the all-round rifle |
 | Kestrel Carbine | 2900 | steadier, a little lighter on damage |
 | Bulwark Battle Rifle | 3100 | heavy rounds, 20 to a magazine |
+| Heron Scout | 1700 | a light bolt-action sniper you can run with |
 | Marksman DMR | 3800 | semi-automatic through a scope |
 | Longwatch | 4500 | one shot at a time, through a scope |
+| Falcon Auto-Sniper | 5000 | a sniper that fires as fast as you click |
+| Ironpeak .50 | 6000 | one body shot drops anyone; heavy, slow, two steps of zoom |
+| Karambit | 300 | a hooked knife: quick strikes, quicker on your feet |
+| Machete | 250 | a long blade with reach |
+| Hatchet | 400 | a hand axe: hard blows |
+| Fire Axe | 650 | slow, long and brutal |
 | Anvil LMG | 5200 | 100 rounds, slow to carry and slow to reload |
 | Frag grenade | 300 | up to 98 damage within 7 m, bounces off walls |
 | Smoke grenade | 300 | a cloud nearly 10 m wide for 16 s; nobody sees through it, bots included |

@@ -23,12 +23,18 @@ export const PLAYER = { radius: 0.4, eye: 1.62, speed: 5.4, jump: 4.6, gravity: 
  * grenades. `dmg` a hit to the body; a head is `head` times that. `rpm`
  * rounds a minute (`auto` holds the trigger). `spread` degrees standing
  * still, more when moving or firing fast (`kick` added a shot, lost over
- * time). `pellets` for a shotgun. `zoom` field of view through a scope.
+ * time). `pellets` for a shotgun. `zoom` the fields of view through a scope,
+ * one for each step of zoom (right-click steps in, and out again).
  * `bounty` what a kill with it pays (instead of MONEY.kill). The knife is
- * `melee` (`back` for a stab from behind); grenades are thrown (`throw`).
+ * `melee` (`back` for a blow from behind; one bought replaces the knife on
+ * key 3); grenades are thrown (`throw`).
  */
 export const WEAPONS = {
   knife: { name: 'Knife', slot: 3, price: 0, melee: true, dmg: 40, back: 150, rpm: 100, range: 1.9, mag: 0, move: 1.1, bounty: 1500 },
+  karambit: { name: 'Karambit', slot: 3, price: 300, melee: true, dmg: 34, back: 150, rpm: 150, range: 1.7, mag: 0, move: 1.13, bounty: 1500 },
+  machete: { name: 'Machete', slot: 3, price: 250, melee: true, dmg: 55, back: 150, rpm: 85, range: 2.2, mag: 0, move: 1.08, bounty: 1300 },
+  hatchet: { name: 'Hatchet', slot: 3, price: 400, melee: true, dmg: 68, back: 160, rpm: 70, range: 2.1, mag: 0, move: 1.05, bounty: 1200 },
+  fireaxe: { name: 'Fire Axe', slot: 3, price: 650, melee: true, dmg: 96, back: 200, rpm: 45, range: 2.5, mag: 0, move: 0.98, bounty: 1000 },
   sidearm: { name: 'P9 Sidearm', slot: 2, price: 0, dmg: 26, head: 3.6, rpm: 380, auto: false, mag: 12, reload: 1.6, spread: 1.1, kick: 0.9, move: 1, range: 60 },
   viper: { name: 'Viper Machine Pistol', slot: 2, price: 500, dmg: 17, head: 3.4, rpm: 900, auto: true, mag: 18, reload: 1.9, spread: 1.7, kick: 0.45, move: 1, range: 40 },
   ram: { name: 'Ram .50', slot: 2, price: 700, dmg: 52, head: 3.2, rpm: 200, auto: false, mag: 7, reload: 2.1, spread: 1.3, kick: 2.6, move: 0.98, range: 70 },
@@ -41,8 +47,11 @@ export const WEAPONS = {
   vantage: { name: 'Vantage Rifle', slot: 1, price: 2700, dmg: 34, head: 4, rpm: 600, auto: true, mag: 30, reload: 2.4, spread: 0.9, kick: 0.62, move: 0.9, range: 120 },
   kestrel: { name: 'Kestrel Carbine', slot: 1, price: 2900, dmg: 30, head: 4, rpm: 680, auto: true, mag: 30, reload: 2.5, spread: 0.7, kick: 0.45, move: 0.92, range: 120 },
   bulwark: { name: 'Bulwark Battle Rifle', slot: 1, price: 3100, dmg: 44, head: 3.6, rpm: 450, auto: true, mag: 20, reload: 2.8, spread: 0.85, kick: 0.95, move: 0.86, range: 140 },
-  marksman: { name: 'Marksman DMR', slot: 1, price: 3800, dmg: 72, head: 2.8, rpm: 170, auto: false, mag: 10, reload: 2.9, spread: 0.15, unscoped: 3, kick: 2.2, move: 0.85, range: 200, zoom: 38 },
-  longwatch: { name: 'Longwatch', slot: 1, price: 4500, dmg: 108, head: 2.4, rpm: 42, auto: false, mag: 5, reload: 3.2, spread: 0.08, unscoped: 5, kick: 4, move: 0.82, range: 240, zoom: 22, bounty: 100 },
+  heron: { name: 'Heron Scout', slot: 1, price: 1700, dmg: 88, head: 2.6, rpm: 48, auto: false, mag: 10, reload: 2.8, spread: 0.1, unscoped: 3.5, kick: 3, move: 0.97, range: 220, zoom: [40, 18], bounty: 300 },
+  marksman: { name: 'Marksman DMR', slot: 1, price: 3800, dmg: 72, head: 2.8, rpm: 170, auto: false, mag: 10, reload: 2.9, spread: 0.15, unscoped: 3, kick: 2.2, move: 0.85, range: 200, zoom: [38] },
+  longwatch: { name: 'Longwatch', slot: 1, price: 4500, dmg: 108, head: 2.4, rpm: 42, auto: false, mag: 5, reload: 3.2, spread: 0.08, unscoped: 5, kick: 4, move: 0.82, range: 240, zoom: [40, 15], bounty: 100 },
+  falcon: { name: 'Falcon Auto-Sniper', slot: 1, price: 5000, dmg: 80, head: 3, rpm: 230, auto: false, mag: 20, reload: 3.4, spread: 0.12, unscoped: 4.5, kick: 2.6, move: 0.78, range: 240, zoom: [40, 18], bounty: 150 },
+  ironpeak: { name: 'Ironpeak .50', slot: 1, price: 6000, dmg: 150, head: 2, rpm: 30, auto: false, mag: 5, reload: 4, spread: 0.06, unscoped: 6, kick: 5, move: 0.74, range: 300, zoom: [35, 12], bounty: 100 },
   anvil: { name: 'Anvil LMG', slot: 1, price: 5200, dmg: 32, head: 3.6, rpm: 760, auto: true, mag: 100, reload: 5.2, spread: 1.4, kick: 0.5, move: 0.78, range: 120 },
   frag: { name: 'Frag grenade', slot: 4, price: 300, throw: true, dmg: 98, radius: 7, fuse: 1.8, rpm: 60, mag: 0, move: 1 },
   smoke: { name: 'Smoke grenade', slot: 5, price: 300, throw: true, radius: 4.8, last: 16, fuse: 1.4, rpm: 60, mag: 0, move: 1 }
@@ -59,7 +68,9 @@ export const SHOP = [
   { name: 'SMGs', items: ['badger', 'wasp', 'hornet'] },
   { name: 'Shotguns', items: ['gavel', 'ripsaw'] },
   { name: 'Rifles', items: ['sparrow', 'vantage', 'kestrel', 'bulwark'] },
-  { name: 'Scoped and heavy', items: ['marksman', 'longwatch', 'anvil'] },
+  { name: 'Snipers', items: ['heron', 'marksman', 'falcon', 'longwatch', 'ironpeak'] },
+  { name: 'Heavy', items: ['anvil'] },
+  { name: 'Melee', items: ['karambit', 'machete', 'hatchet', 'fireaxe'] },
   { name: 'Grenades', items: ['frag', 'smoke'] },
   { name: 'Gear', items: ['vest', 'helmet', 'kit'] }
 ];
@@ -68,7 +79,7 @@ export const BUY_ORDER = SHOP.flatMap((s) => s.items);
 /** What a player has in their hands, by the slot they hold (1 main, 2 sidearm, 3 knife, 4 frag, 5 smoke). */
 export function weaponIn(p) {
   if (p.slot === 1 && p.primary) return p.primary;
-  if (p.slot === 3) return 'knife';
+  if (p.slot === 3) return p.melee ?? 'knife';
   if (p.slot === 4 && p.nades?.frag > 0) return 'frag';
   if (p.slot === 5 && p.nades?.smoke > 0) return 'smoke';
   return p.secondary;

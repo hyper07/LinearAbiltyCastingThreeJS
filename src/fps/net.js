@@ -9,7 +9,7 @@ import { getMap } from './map.js';
  * view and the HUD draw either without knowing which.
  */
 
-const KEYS = ['id', 'name', 'bot', 'squad', 'money', 'kills', 'deaths', 'primary', 'secondary', 'armor', 'helmet', 'kit', 'alive', 'hp', 'x', 'y', 'z', 'yaw', 'pitch', 'slot', 'reloading', 'moving', 'scoped', 'hasCharge', 'using', 'nades'];
+const KEYS = ['id', 'name', 'bot', 'squad', 'money', 'kills', 'deaths', 'primary', 'secondary', 'armor', 'helmet', 'kit', 'alive', 'hp', 'x', 'y', 'z', 'yaw', 'pitch', 'slot', 'reloading', 'moving', 'scoped', 'hasCharge', 'using', 'nades', 'melee', 'zoomLevel'];
 const round = (v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v);
 
 /** A match, as sent: small arrays, numbers to two places. */

@@ -19,7 +19,7 @@ const REASON = { eliminated: 'the other side is down', defused: 'the charge was 
  * shows a mirror of it (net.js). The screen is the same either way.
  *
  * Keys: W A S D to walk, the mouse to look, left button to fire, right to
- * look down a scope, R reload, 1 and 2 weapons, 3 the knife, 4 and 5
+ * step a scope's zoom in (and out), R reload, 1 and 2 weapons, 3 the blade, 4 and 5
  * grenades, B to buy, E to set or
  * disarm the charge, Space to jump, Tab for the scores, Enter to talk.
  */
@@ -33,7 +33,8 @@ export class FpsGame {
     this.yaw = 0;
     this.pitch = 0;
     this.press = { shoot: false, jump: false, reload: false };
-    this.mouse = { fire: false, scope: false };
+    this.mouse = { fire: false };
+    this.zoomLevel = 0; // right-click steps through a scope's zoom, and out
     this.pick = { side: 'atk', skill: 'normal', map: 'foundry' };
     this.feed = [];
     this.queue = [];
@@ -157,7 +158,7 @@ export class FpsGame {
           </div>
           <p class="bl__note" data-note role="status">${esc(note)}</p>
         </div>
-        <p class="bl__keys">W A S D walk · mouse look · click fire · right-click scope · R reload · 1 2 weapons · 3 knife · 4 frag · 5 smoke · B buy · E charge · Space jump · Tab scores</p>
+        <p class="bl__keys">W A S D walk · mouse look · click fire · right-click zoom (again: closer, again: out) · R reload · 1 2 weapons · 3 melee · 4 frag · 5 smoke · B buy · E charge · Space jump · Tab scores</p>
       </div>`;
     const mark = () => {
       for (const b of menu.querySelectorAll('[data-side] button')) b.classList.toggle('is-on', b.dataset.value === this.pick.side);
@@ -457,13 +458,14 @@ export class FpsGame {
     on(document, 'pointerlockchange', () => {
       const locked = document.pointerLockElement === this.view.canvas;
       this.locked = locked;
-      if (!locked) Object.assign(this.mouse, { fire: false, scope: false });
+      if (!locked) this.mouse.fire = false;
       // Losing the mouse in a match (Escape) is a pause; the shop and the chat take it on purpose.
       if (this.playing && !this.match.over) this.$('[data-pause]').hidden = locked || !this.$('[data-shop]').hidden || this.typing;
     });
     on(document, 'mousemove', (e) => {
       if (!this.locked || !this.playing) return;
-      const k = this.sens * (this.zooming ? 0.4 : 1);
+      // Slower through a scope, the more so the closer it is.
+      const k = this.sens * (this.zooming ? this.view.fov / 74 : 1);
       this.yaw -= e.movementX * k;
       this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - e.movementY * k));
     });
@@ -477,11 +479,14 @@ export class FpsGame {
       if (e.button === 0) {
         this.mouse.fire = true;
         this.press.shoot = true;
-      } else if (e.button === 2) this.mouse.scope = true;
+      } else if (e.button === 2) {
+        const zoom = this.me?.alive && WEAPONS[this.match.weaponOf(this.me)]?.zoom;
+        this.zoomLevel = zoom ? (this.zoomLevel + 1) % (zoom.length + 1) : 0;
+        if (zoom) this._beep(this.zoomLevel ? 1200 : 900, 0.03);
+      }
     });
     on(document, 'mouseup', (e) => {
       if (e.button === 0) this.mouse.fire = false;
-      else if (e.button === 2) this.mouse.scope = false;
     });
     on(this.root, 'contextmenu', (e) => e.preventDefault());
     on(window, 'keydown', (e) => {
@@ -551,10 +556,15 @@ export class FpsGame {
       reload: free && this.press.reload,
       use: free && k.has('e'),
       jump: free && this.press.jump,
-      scope: free && this.mouse.scope,
+      scope: free ? this.zoomLevel : 0,
       slot: this.slotKey && performance.now() < this.slotKey.until ? this.slotKey.slot : undefined
     };
-    this.zooming = Boolean(input.scope && this.me?.alive && WEAPONS[this.match.weaponOf(this.me)]?.zoom);
+    // The scope comes off with a weapon change, a reload or a fall.
+    const zoom = this.me?.alive && WEAPONS[this.match.weaponOf(this.me)]?.zoom;
+    if (!zoom || this.me.reloading > 0 || this.held !== this.match.weaponOf(this.me)) this.zoomLevel = 0;
+    this.held = this.me && this.match.weaponOf(this.me);
+    input.scope = free ? this.zoomLevel : 0;
+    this.zooming = Boolean(input.scope && zoom);
     return input;
   }
 
@@ -831,23 +841,23 @@ export class FpsGame {
     const m = this.match;
     const me = this.me;
     const side = m.sideOf(me.squad);
-    const key = `${me.money}|${me.primary}|${me.secondary}|${me.armor}|${me.helmet}|${me.kit}|${me.nades?.frag}|${me.nades?.smoke}|${side}`;
+    const key = `${me.money}|${me.primary}|${me.secondary}|${me.melee}|${me.armor}|${me.helmet}|${me.kit}|${me.nades?.frag}|${me.nades?.smoke}|${side}`;
     if (key === this._shopKey) return;
     this._shopKey = key;
     const row = (id) => {
       const it = WEAPONS[id] ?? GEAR[id];
       const w = WEAPONS[id];
-      const have = w?.throw ? me.nades?.[id] >= 1 : w ? me.primary === id || me.secondary === id : id === 'kit' ? me.kit : id === 'helmet' ? me.helmet && me.armor >= 100 : me.armor >= 100;
+      const have = w?.throw ? me.nades?.[id] >= 1 : w?.melee ? (me.melee ?? 'knife') === id : w ? me.primary === id || me.secondary === id : id === 'kit' ? me.kit : id === 'helmet' ? me.helmet && me.armor >= 100 : me.armor >= 100;
       const price = it.price - (id === 'helmet' && me.armor >= 100 && !me.helmet ? GEAR.vest.price : 0);
       const no = have || me.money < price || (it.team && it.team !== side);
-      const text = w?.throw ? (id === 'frag' ? `up to ${w.dmg} damage within ${w.radius} m` : `a cloud ${w.radius * 2} m wide for ${w.last} s — nobody sees through it`) : w ? `${w.dmg}${w.pellets ? `×${w.pellets}` : ''} damage · ${w.rpm} a minute · ${w.mag} rounds${w.zoom ? ' · scope' : ''}` : it.text;
+      const text = w?.melee ? `${w.dmg} a blow · ${w.back} from behind · ${w.rpm} a minute · ${w.range} m reach` : w?.throw ? (id === 'frag' ? `up to ${w.dmg} damage within ${w.radius} m` : `a cloud ${w.radius * 2} m wide for ${w.last} s — nobody sees through it`) : w ? `${w.dmg}${w.pellets ? `×${w.pellets}` : ''} damage · ${w.rpm} a minute · ${w.mag} rounds${w.zoom ? ` · scope ×${w.zoom.length}` : ''}` : it.text;
       return `<button type="button" data-buy="${id}" ${no ? 'disabled' : ''} class="${have ? 'is-have' : ''}"><b>${esc(it.name)}</b><small>${esc(text)}</small><em>${have ? 'yours' : `$${price}`}</em></button>`;
     };
     const shop = this.$('[data-shop]');
     shop.innerHTML = `
       <header><h2>Buy</h2><span>$${me.money}</span><button type="button" data-shop-close aria-label="Close">✕</button></header>
       <div class="bl__goods">${SHOP.map((shelf) => `<div><h3>${shelf.name}</h3>${shelf.items.map(row).join('')}</div>`).join('')}</div>
-      <p class="bl__hint">B or click outside to close. What you carry is kept if you live through the round. Kills pay more with an SMG ($600), a shotgun ($900) or the knife ($1500).</p>`;
+      <p class="bl__hint">B or click outside to close. What you carry is kept if you live through the round. Kills pay more with an SMG ($600), a shotgun ($900) or a blade ($1000–1500). A blade bought takes the knife's place on 3.</p>`;
     shop.querySelector('[data-shop-close]').onclick = () => this.toggleShop(false);
     for (const b of shop.querySelectorAll('[data-buy]')) b.onclick = () => this.buy(b.dataset.buy);
   }

@@ -614,7 +614,8 @@ export class FpsView {
       this.camera.rotation.set(-0.2, s.yaw, 0);
     }
     const w = viewer && WEAPONS[match.weaponOf(viewer)];
-    const want = first && zoom && w?.zoom ? w.zoom : 74;
+    const level = first && w?.zoom && viewer.scoped !== false ? Math.min(w.zoom.length, Number(zoom) || 0) : 0;
+    const want = level ? w.zoom[level - 1] : 74;
     this.fov += (want - this.fov) * Math.min(1, dt * 14);
     this.camera.fov = this.fov;
     this.camera.updateProjectionMatrix();

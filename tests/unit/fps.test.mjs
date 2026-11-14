@@ -425,3 +425,39 @@ test('a match is played on the map it is given, start to finish, by bots alone',
   }
   assert.equal(new Match({ map: 'nowhere' }).map.id, 'foundry', 'an unknown map is Foundry');
 });
+
+test('blades: one bought takes the knife\'s place on 3, hits harder, and is lost with a fall', () => {
+  const m = new Match({ seed: 14, team: 'atk' });
+  const me = m.me;
+  assert.equal(m.buy(me, 'fireaxe'), null);
+  assert.equal(m.buy(me, 'fireaxe'), 'You have that');
+  run(m, TIME.buy + 0.1, {});
+  m.step(1 / 30, { slot: 3 });
+  assert.equal(m.weaponOf(me), 'fireaxe');
+  assert.ok(WEAPONS.fireaxe.dmg > WEAPONS.knife.dmg && WEAPONS.fireaxe.move < WEAPONS.knife.move, 'heavier, slower');
+  me.alive = false;
+  m._newRound();
+  assert.equal(m.weaponOf({ ...me, slot: 3 }), 'knife', 'after a fall, the knife again');
+});
+
+test('a sniper\'s scope steps in and out: 0, 1, 2 — and comes off to reload', () => {
+  const m = new Match({ seed: 15, team: 'atk' });
+  const me = m.me;
+  me.money = 9000;
+  assert.equal(m.buy(me, 'longwatch'), null);
+  run(m, TIME.buy + 0.1, {});
+  m.step(1 / 30, { scope: 1 });
+  assert.deepEqual([me.zoomLevel, me.scoped], [1, true]);
+  m.step(1 / 30, { scope: 2 });
+  assert.equal(me.zoomLevel, 2);
+  m.step(1 / 30, { scope: 5 });
+  assert.equal(me.zoomLevel, 2, 'no deeper than the scope goes');
+  m.step(1 / 30, { scope: 0 });
+  assert.equal(me.scoped, false);
+  // Unscoped, a sniper is wild; scoped, it is true.
+  me.ammo.longwatch = 1;
+  m.step(1 / 30, { scope: 1 });
+  m.step(1 / 30, { reload: true, scope: 1 });
+  assert.equal(me.zoomLevel, 0, 'reloading takes the eye off the scope');
+  for (const id of ['heron', 'falcon', 'ironpeak', 'longwatch']) assert.ok(Array.isArray(WEAPONS[id].zoom) && WEAPONS[id].zoom.length === 2, `${id} has two steps of zoom`);
+});

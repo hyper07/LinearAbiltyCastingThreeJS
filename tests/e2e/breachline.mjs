@@ -36,7 +36,7 @@ export async function run(browser, { shots = null } = {}) {
     }, null, 10000));
     t.check('the HUD shows health, money and a weapon', await until(page, () => document.querySelector('.bl [data-hp]').textContent === '100' && document.querySelector('.bl [data-money]').textContent === '$4000' && /Sidearm/.test(document.querySelector('.bl [data-weapon]').textContent)));
     await page.keyboard.press('b');
-    t.check('B opens the shop', await until(page, () => !document.querySelector('.bl [data-shop]').hidden && document.querySelectorAll('.bl [data-buy]').length === 19));
+    t.check('B opens the shop', await until(page, () => !document.querySelector('.bl [data-shop]').hidden && document.querySelectorAll('.bl [data-buy]').length === 26));
     t.check('what I cannot pay for cannot be bought', await page.evaluate(() => document.querySelector('.bl [data-buy="longwatch"]').disabled && !document.querySelector('.bl [data-buy="ram"]').disabled));
     await shot(page, 'breachline-shop');
     await page.click('.bl [data-buy="ram"]');

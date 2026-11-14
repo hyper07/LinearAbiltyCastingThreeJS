@@ -222,6 +222,42 @@ function grenade(kind) {
   return g;
 }
 
+/** Blades and axes, held low in the right hand: a handle, and what does the work. */
+function blade(kind) {
+  const g = new THREE.Group();
+  const p = parts(g);
+  const z = -0.36;
+  const red = new THREE.MeshStandardMaterial({ color: '#a3241c', roughness: 0.55, metalness: 0.3 });
+  const edge = new THREE.MeshStandardMaterial({ color: '#c9ccd1', roughness: 0.25, metalness: 0.95 });
+  if (kind === 'karambit') {
+    // A short grip with a ring, and a blade that hooks round.
+    p.box(0.026, 0.03, 0.09, M.polymer, 0, -0.04, z + 0.04);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.006, 6, 14), M.steel);
+    ring.position.set(0, -0.04, z + 0.1);
+    ring.rotation.y = Math.PI / 2;
+    g.add(ring);
+    for (let i = 0; i < 5; i++) p.box(0.006, 0.005, 0.04, M.worn, 0, -0.04 - i * 0.012, z - 0.02 - i * 0.03, 0.35 + i * 0.25);
+  } else if (kind === 'machete') {
+    p.box(0.028, 0.034, 0.12, M.wood, 0, -0.04, z + 0.05);
+    p.box(0.05, 0.012, 0.014, M.steel, 0, -0.04, z - 0.015);
+    p.box(0.05, 0.006, 0.42, M.worn, 0.004, -0.038, z - 0.23);
+    p.box(0.04, 0.006, 0.06, M.worn, 0.01, -0.038, z - 0.46);
+    p.box(0.008, 0.008, 0.42, M.dark, 0.026, -0.034, z - 0.23);
+  } else {
+    // An axe: a long wooden haft, a steel head with its edge, red paint on the big one.
+    const big = kind === 'fireaxe';
+    const len = big ? 0.7 : 0.42;
+    p.box(0.03, 0.03, len, M.wood, 0, -0.04, z - len / 2 + 0.08);
+    p.box(0.05, 0.05, 0.06, M.dark, 0, -0.04, z + 0.06);
+    const hz = z - len + 0.1;
+    p.box(0.04, big ? 0.14 : 0.1, 0.07, big ? red : M.steel, 0, -0.04 + (big ? 0.07 : 0.05), hz);
+    p.box(0.012, big ? 0.17 : 0.12, 0.08, edge, 0, -0.04 + (big ? 0.085 : 0.06), hz - 0.03);
+    if (big) p.box(0.03, 0.08, 0.04, red, 0, -0.08, hz + 0.01); // the pick on the back
+  }
+  g.userData = { grip: new THREE.Vector3(0, -0.04, z + 0.04), fore: new THREE.Vector3(-0.22, -0.32, 0.05), muzzle: new THREE.Vector3(0, -0.03, z - 0.2) };
+  return g;
+}
+
 const MAKERS = {
   knife,
   frag: () => grenade('frag'),
@@ -233,6 +269,13 @@ const MAKERS = {
   sparrow: () => rifle({ length: 0.8, short: true }),
   bulwark: () => rifle({ length: 1.15, furniture: M.wood }),
   marksman: () => rifle({ length: 1.3, furniture: M.tan, scope: true }),
+  heron: () => rifle({ length: 1.15, furniture: M.tan, scope: true, short: true }),
+  falcon: () => rifle({ length: 1.4, furniture: M.polymer, scope: true, box: true }),
+  ironpeak: () => rifle({ length: 1.9, furniture: M.dark, scope: true, bipod: true }),
+  karambit: () => blade('karambit'),
+  machete: () => blade('machete'),
+  hatchet: () => blade('hatchet'),
+  fireaxe: () => blade('fireaxe'),
   anvil: () => rifle({ length: 1.35, box: true, bipod: true }),
   sidearm: () => pistol(),
   ram: () => pistol({ big: true }),

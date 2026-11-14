@@ -36,7 +36,7 @@ export class Match {
     this.players = [];
     for (let i = 0; i < TEAM_SIZE * 2; i++) {
       const squad = i < TEAM_SIZE ? 0 : 1;
-      this.players.push({ id: i, name: NAMES[(i + this.seed) % NAMES.length], bot: true, squad, money: MONEY.start, kills: 0, deaths: 0, primary: null, secondary: 'sidearm', armor: 0, helmet: false, kit: false, nades: { frag: 0, smoke: 0 }, alive: false });
+      this.players.push({ id: i, name: NAMES[(i + this.seed) % NAMES.length], bot: true, squad, money: MONEY.start, kills: 0, deaths: 0, primary: null, secondary: 'sidearm', armor: 0, helmet: false, kit: false, nades: { frag: 0, smoke: 0 }, melee: 'knife', alive: false });
     }
     this.events = [];
     this.charge = null;
@@ -98,8 +98,8 @@ export class Match {
       const side = this.sideOf(p.squad);
       const [x, z] = this.map.SPAWNS[side][places[side]++ % this.map.SPAWNS[side].length];
       // Whoever lived keeps what they carried; whoever fell starts again with a sidearm.
-      if (!p.alive) Object.assign(p, { primary: null, secondary: 'sidearm', armor: 0, helmet: false, kit: false, nades: { frag: 0, smoke: 0 } });
-      Object.assign(p, { alive: true, hp: PLAYER.hp, x, z, y: 0, vy: 0, yaw: side === 'atk' ? -Math.PI / 2 : Math.PI / 2, pitch: 0, slot: p.primary ? 1 : 2, cool: 0, reloading: 0, kick: 0, using: 0, moving: false, scoped: false, hasCharge: false, target: null, path: [], wp: null, goal: null, stuck: 0, burst: 0, rest: 0, look: null, mf: 0, ms: 0, cover: null, heard: null, lastSeen: null, trade: 0, dodge: 1, dodgeUntil: 0 });
+      if (!p.alive) Object.assign(p, { primary: null, secondary: 'sidearm', armor: 0, helmet: false, kit: false, nades: { frag: 0, smoke: 0 }, melee: 'knife' });
+      Object.assign(p, { alive: true, hp: PLAYER.hp, x, z, y: 0, vy: 0, yaw: side === 'atk' ? -Math.PI / 2 : Math.PI / 2, pitch: 0, slot: p.primary ? 1 : 2, cool: 0, reloading: 0, kick: 0, using: 0, moving: false, scoped: false, zoomLevel: 0, hasCharge: false, target: null, path: [], wp: null, goal: null, stuck: 0, burst: 0, rest: 0, look: null, mf: 0, ms: 0, cover: null, heard: null, lastSeen: null, trade: 0, dodge: 1, dodgeUntil: 0 });
       p.ammo = {};
       for (const w of [p.primary, p.secondary]) if (w) p.ammo[w] = WEAPONS[w].mag;
     }
@@ -156,11 +156,12 @@ export class Match {
     if (item === 'vest' && p.armor >= 100) return 'Your vest is whole';
     if (item === 'helmet' && p.helmet && p.armor >= 100) return 'You have that';
     if (item === 'kit' && p.kit) return 'You have that';
-    if (w && (p.primary === item || p.secondary === item || w.melee)) return 'You have that';
+    if (w && (p.primary === item || p.secondary === item || (w.melee && (p.melee ?? 'knife') === item))) return 'You have that';
     if (w?.throw && p.nades[item] >= 1) return 'You have that';
     if (p.money < price) return 'Not enough money';
     p.money -= price;
     if (w?.throw) p.nades[item]++;
+    else if (w?.melee) p.melee = item;
     else if (w) {
       if (w.slot === 1) p.primary = item;
       else p.secondary = item;
@@ -197,6 +198,7 @@ export class Match {
     if (p.reloading > 0 || p.ammo[id] >= WEAPONS[id].mag) return;
     p.reloading = WEAPONS[id].reload;
     p.scoped = false;
+    p.zoomLevel = 0;
     this.events.push({ type: 'reload', id: p.id });
   }
 
@@ -351,9 +353,13 @@ export class Match {
         p.slot = cmd.slot;
         p.reloading = 0;
         p.scoped = false;
+        p.zoomLevel = 0;
         p.cool = Math.max(p.cool, cmd.slot === 3 ? 0.2 : 0.35);
       }
-      p.scoped = Boolean(cmd.scope && WEAPONS[this.weaponOf(p)].zoom && p.reloading <= 0);
+      // `scope` is how far in: 0 out, 1 the first step of zoom, 2 the second (where the scope has one).
+      const zoom = WEAPONS[this.weaponOf(p)].zoom;
+      p.zoomLevel = zoom && p.reloading <= 0 ? Math.min(zoom.length, Number(cmd.scope) || 0) : 0;
+      p.scoped = p.zoomLevel > 0;
       if (!live) {
         p.moving = false;
         continue;
@@ -408,7 +414,7 @@ export class Match {
   }
 
   _human(p, input) {
-    return { f: input.f ?? 0, s: input.s ?? 0, yaw: input.yaw ?? p.yaw, pitch: input.pitch ?? p.pitch, fire: Boolean(input.fire), shoot: Boolean(input.shoot), reload: Boolean(input.reload), use: Boolean(input.use), jump: Boolean(input.jump), slot: input.slot, scope: Boolean(input.scope) };
+    return { f: input.f ?? 0, s: input.s ?? 0, yaw: input.yaw ?? p.yaw, pitch: input.pitch ?? p.pitch, fire: Boolean(input.fire), shoot: Boolean(input.shoot), reload: Boolean(input.reload), use: Boolean(input.use), jump: Boolean(input.jump), slot: input.slot, scope: Math.max(0, Math.min(2, Number(input.scope) || 0)) };
   }
 
   /** Setting the charge (a Raider carrying it, standing in a site) or disarming it (a Warden beside it): hold, and it takes time. */
@@ -467,7 +473,8 @@ export class Match {
 
   /** A knife stab at whoever is in reach in front; from behind it goes through anything. */
   _stab(p) {
-    const w = WEAPONS.knife;
+    const id = this.weaponOf(p);
+    const w = WEAPONS[id];
     p.cool = 60 / w.rpm;
     this.events.push({ type: 'slash', id: p.id });
     this._noise(p, 10);
@@ -484,7 +491,7 @@ export class Match {
     if (!best) return true;
     // From behind: they face the way the knife comes from.
     const back = Math.abs(turn(best.yaw, Math.atan2(-(best.x - p.x), -(best.z - p.z)))) < rad(70);
-    this._hurt(best, p, back ? w.back : w.dmg, 'knife', false, { pierce: back });
+    this._hurt(best, p, back ? w.back : w.dmg, id, false, { pierce: back });
     return true;
   }
 
@@ -712,7 +719,7 @@ export class Match {
   /** What a bot does this step: where it looks, where it walks, whether it shoots. */
   _think(p, dt, live) {
     const best = p.primary ? 1 : 2;
-    const cmd = { f: 0, s: 0, yaw: p.yaw, pitch: p.pitch, fire: false, shoot: false, reload: false, use: false, jump: false, slot: p.slot === 3 ? best : p.slot, scope: false, error: 0 };
+    const cmd = { f: 0, s: 0, yaw: p.yaw, pitch: p.pitch, fire: false, shoot: false, reload: false, use: false, jump: false, slot: p.slot === 3 ? best : p.slot, scope: 0, error: 0 };
     if (!live) return cmd;
     const side = this.sideOf(p.squad);
     const eye = p.y + PLAYER.eye;
@@ -868,7 +875,7 @@ export class Match {
     }
     const close = seenD < 10 || w.range < 50;
     const holding = side === 'def' && this.phase === 'live' && p.hp > 55 && !close;
-    cmd.scope = Boolean(w.zoom) && seenD > 10;
+    cmd.scope = w.zoom && seenD > 10 ? (seenD > 45 ? w.zoom.length : 1) : 0;
     if (this.time >= (p.reactAt ?? 0) && onAim && p.reloading <= 0) {
       if (p.rest > 0) p.rest -= dt;
       else {
@@ -979,7 +986,7 @@ export class Match {
       const wants = {
         rifle: side === 'atk' ? ['vantage', 'bulwark', 'sparrow', 'hornet', 'badger'] : ['kestrel', 'vantage', 'sparrow', 'hornet', 'badger'],
         entry: this.rand() < 0.5 ? ['ripsaw', 'hornet', 'gavel', 'wasp', 'badger'] : ['hornet', 'wasp', 'ripsaw', 'gavel', 'badger'],
-        scope: this.rand() < 0.6 ? ['longwatch', 'marksman', 'kestrel', 'sparrow'] : ['marksman', 'longwatch', 'vantage', 'sparrow'],
+        scope: [['longwatch', 'falcon', 'marksman', 'heron', 'sparrow'], ['ironpeak', 'longwatch', 'heron', 'sparrow'], ['marksman', 'falcon', 'heron', 'vantage'], ['heron', 'marksman', 'kestrel', 'sparrow']][Math.floor(this.rand() * 4)],
         heavy: this.rand() < 0.4 ? ['anvil', 'bulwark', 'vantage', 'sparrow'] : ['bulwark', 'vantage', 'sparrow', 'wasp']
       }[role];
       // The first it can afford and still wear armour; failing that, the first it can afford at all.
@@ -990,6 +997,8 @@ export class Match {
     if (p.money >= 1000 && !p.helmet && !eco) this.buy(p, 'helmet');
     else if (p.money >= (eco ? 1400 : 650) && p.armor < 100) this.buy(p, 'vest');
     if (side === 'def' && p.money >= 400 && !p.kit && !eco) this.buy(p, 'kit');
+    // Money to spare: now and then a better blade.
+    if (!eco && p.melee === 'knife' && p.money >= 2500 && this.rand() < 0.25) this.buy(p, ['karambit', 'machete', 'hatchet', 'fireaxe'][Math.floor(this.rand() * 4)]);
     if (!eco) {
       if (p.money >= 300 && (side === 'atk' || this.rand() < 0.5)) this.buy(p, 'smoke');
       if (p.money >= 300) this.buy(p, 'frag');
