@@ -4,7 +4,7 @@ import { Readable } from 'node:stream';
 import { testDatabase } from './db.mjs';
 import { createMmo } from '../../server/mmo/index.js';
 import { newCharacter, statsOf, give, take, countOf, addXp, questsAt, questDone, normalize } from '../../src/mmo/rules.js';
-import { CLASSES, ITEMS, QUESTS, RECIPES, MOBS, XP_TO, VENDORS, SEED_GOLD } from '../../src/mmo/data.js';
+import { CLASSES, ITEMS, QUESTS, RECIPES, MOBS, XP_TO, VENDORS, SEED_GOLD, COMBO, MELEE_CHAIN } from '../../src/mmo/data.js';
 import { ZONES, walkableIn } from '../../src/mmo/world.js';
 
 /** A socket that isn't one: what the server sends lands in `inbox`. */
@@ -385,6 +385,72 @@ test('looks: checked on the way in, kept with the character, changed only when n
     assert.equal(me.lk.style, 'wizard');
     assert.equal((await call(mmo, 'POST', '/api/mmo/characters/look', { id, look: { style: 'lich' } })).status, 409);
     void join;
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});
+
+test('fighting in a row: a combo that grows, a finisher every third swing, a kick up close', async () => {
+  const { db, mmo, join, steps } = await world();
+  try {
+    assert.equal(MELEE_CHAIN.length, COMBO.chain);
+    // What everyone in the zone was shown (it comes with the snapshots), from a mark on.
+    const shown = (sock, from = 0) => sock.inbox.slice(from).filter((m) => m.t === 'snap').flatMap((m) => m.ev ?? []);
+    for (const s of CLASSES.vanguard.skills.filter((k) => k.kind === 'strike')) assert.ok(s.anim && s.fx, `${s.name} is a blow you can see`);
+    const { ws, client } = await join(0, 'Combra', 'vanguard');
+    const town = client.body;
+    Object.assign(town, { x: 60, z: 8 });
+    ws.say({ t: 'portal', id: 'to_greenfold' });
+    const inst = client.instance;
+    const me = client.body;
+    const mob = [...inst.ents.values()].filter((e) => e.kind === 'mob' && e.type === 'rattler')[0];
+    Object.assign(mob, { hp: 1e6, maxHp: 1e6 });
+    Object.assign(me, { x: mob.x + 1.5, z: mob.z });
+    ws.say({ t: 'target', id: mob.id });
+    ws.say({ t: 'attack', on: true });
+    for (let i = 0; i < 160; i++) {
+      me.hp = me.st.maxHp;
+      steps(1);
+    }
+    const ev = shown(ws);
+    const swings = ev.filter((e) => e.type === 'swing' && e.id === me.id);
+    const hits = ev.filter((e) => e.type === 'dmg' && e.by === me.id);
+    assert.ok(swings.length >= 6, `swings: ${swings.length}`);
+    assert.deepEqual(swings.slice(0, 6).map((e) => e.n), [0, 1, 2, 0, 1, 2], 'chop, slice, sweep, and again');
+    assert.ok(swings.every((e) => !e.ranged && !e.close), 'a sword is not a crossbow');
+    assert.deepEqual(hits.slice(0, 6).map((e) => e.combo), [1, 2, 3, 4, 5, 6], 'the combo counts up');
+    assert.deepEqual(hits.slice(0, 6).map((e) => Boolean(e.fin)), [false, false, true, false, false, true], 'every third is a finisher');
+    // Step away long enough and it starts over.
+    ws.say({ t: 'attack', on: false });
+    steps(Math.ceil((COMBO.keep + 1) * 10));
+    const mark = ws.inbox.length;
+    ws.say({ t: 'attack', on: true });
+    for (let i = 0; i < 40; i++) {
+      me.hp = me.st.maxHp;
+      steps(1);
+    }
+    const again = shown(ws, mark);
+    assert.equal(again.find((e) => e.type === 'dmg' && e.by === me.id).combo, 1, 'a rest ends the combo');
+    assert.equal(again.find((e) => e.type === 'swing' && e.id === me.id).n, 0);
+
+    // A Ranger shoots from afar and kicks what is in its face.
+    const r = await join(1, 'Kickra', 'ranger');
+    Object.assign(r.client.body, { x: 60, z: 8 });
+    r.ws.say({ t: 'portal', id: 'to_greenfold' });
+    const bow = r.client.body;
+    const other = [...r.client.instance.ents.values()].filter((e) => e.kind === 'mob' && e.type === 'rattler')[0];
+    Object.assign(other, { hp: 1e6, maxHp: 1e6 });
+    Object.assign(bow, { x: other.x + 1.5, z: other.z });
+    r.ws.say({ t: 'target', id: other.id });
+    r.ws.say({ t: 'attack', on: true });
+    for (let i = 0; i < 30; i++) {
+      bow.hp = bow.st.maxHp;
+      Object.assign(bow, { x: other.x + 1.5, z: other.z });
+      steps(1);
+    }
+    const kick = shown(r.ws).find((e) => e.type === 'swing' && e.id === bow.id);
+    assert.ok(kick.close && !kick.ranged, 'a kick');
   } finally {
     await mmo.close();
     await db.close();

@@ -1,4 +1,4 @@
-import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS } from '../../src/mmo/data.js';
+import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO } from '../../src/mmo/data.js';
 import { ZONES, NPCS, walkableIn } from '../../src/mmo/world.js';
 import { statsOf, killXp, addXp, give, take } from '../../src/mmo/rules.js';
 
@@ -335,11 +335,16 @@ export class Instance {
 
   /* -------------------------------------------------------------- damage */
 
-  _hurtMob(m, raw, p, threatMult = 1) {
+  _hurtMob(m, raw, p, threatMult = 1, fin = false) {
     if (m.dead) return;
     const diff = m.level - p.ch.level;
     let dmg = raw * rand(0.9, 1.1) * (diff > 0 ? Math.max(0.4, 1 - diff * 0.1) : 1);
     if (m.markUntil > this.time) dmg *= 1 + m.mark;
+    // A combo: hits in a row, each a little harder than the last.
+    p.combo = this.time <= (p.comboUntil ?? 0) ? (p.combo ?? 0) + 1 : 1;
+    p.comboUntil = this.time + COMBO.keep;
+    dmg *= 1 + Math.min(p.combo - 1, COMBO.cap) * COMBO.per;
+    if (fin) dmg *= COMBO.finisher;
     const crit = Math.random() < 0.1;
     if (crit) dmg *= 1.5;
     dmg = Math.max(1, Math.round(dmg));
@@ -347,7 +352,7 @@ export class Instance {
     m.tagged.add(p.charId);
     p.combatUntil = this.time + 5;
     this._aggro(m, p, dmg * threatMult * (p.cls === 'vanguard' ? 1.5 : 1));
-    this.out.push({ type: 'dmg', id: m.id, amount: dmg, by: p.id, crit });
+    this.out.push({ type: 'dmg', id: m.id, amount: dmg, by: p.id, crit, combo: p.combo, fin: fin || undefined });
     if (m.hp <= 0) this._killMob(m);
   }
 
@@ -540,10 +545,16 @@ export class Instance {
     if (m?.kind === 'mob' && !m.dead && !p.cast && t >= p.swingAt) {
       const reach = p.st.ranged ? p.st.range : p.st.range + m.radius + 0.6;
       if (dist(p, m) <= reach) {
+        // Basic attacks come in threes: the third in a row is a finisher.
+        p.chain = t - (p.swungAt ?? -99) <= p.st.swing + 1.5 ? ((p.chain ?? 0) + 1) % COMBO.chain : 0;
+        p.swungAt = t;
         p.swingAt = t + p.st.swing;
         p.a = Math.atan2(m.x - p.x, m.z - p.z);
-        this.out.push({ type: 'swing', id: p.id, target: m.id, ranged: p.st.ranged });
-        this._hurtMob(m, p.st.power * 0.7 + p.ch.level * 1.5, p, 1);
+        const fin = p.chain === COMBO.chain - 1;
+        // Someone with a crossbow or a staff kicks what stands right in front of them.
+        const close = p.st.ranged && dist(p, m) <= COMBO.close + m.radius;
+        this.out.push({ type: 'swing', id: p.id, target: m.id, ranged: p.st.ranged && !close, n: p.chain, close: close || undefined });
+        this._hurtMob(m, p.st.power * 0.7 + p.ch.level * 1.5, p, 1, fin);
       }
     } else if (m?.dead) p.attacking = false;
   }

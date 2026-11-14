@@ -22,7 +22,18 @@ export const SLOTS = ['weapon', 'head', 'chest', 'legs', 'feet', 'trinket'];
  * (ranged, hostile target), `heal` (friendly target, or yourself), `aura`
  * (yourself), `nova` (around you), `area` (around your target), `blink`,
  * `taunt`, `revive`. `cast` is seconds standing still (0 = instant).
+ * `anim` is the move the body makes (else its usual attack), `fx` what is
+ * drawn with it: a `slash`, a `spin`, a shield `bash`, a `guard`, a `shout`.
  */
+
+/**
+ * Fighting in a row: every hit within COMBO.keep seconds of the last adds
+ * to a combo (each worth `per` more damage, up to `cap` hits), and every
+ * third basic attack in a row is a finisher.
+ */
+export const COMBO = { keep: 4, per: 0.02, cap: 10, finisher: 1.4, chain: 3, close: 3.2 };
+/** What a body does for the 1st, 2nd and 3rd basic melee attack in a row. */
+export const MELEE_CHAIN = ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Slice_Horizontal'];
 export const CLASSES = {
   vanguard: {
     id: 'vanguard', name: 'Vanguard', role: 'Tank', resource: 'Resolve',
@@ -30,12 +41,12 @@ export const CLASSES = {
     body: 'Knight', show: ['1H_Sword', 'Round_Shield'], tint: '#ffffff', attack: '1H_Melee_Attack_Chop',
     base: { hp: 130, hpL: 26, mana: 100, manaL: 0, power: 8, powerL: 2.2, armor: 12, armorL: 3, range: 2.6, speed: 2.2, regen: 7 },
     skills: [
-      { id: 'strike', name: 'Heavy Strike', kind: 'strike', level: 1, cost: 12, cd: 0, damage: 14, coef: 1.0, threat: 1.6, icon: '⚔' },
-      { id: 'taunt', name: 'Challenge', kind: 'taunt', level: 2, cost: 8, cd: 8, range: 20, icon: '📣' },
-      { id: 'cleave', name: 'Cleave', kind: 'nova', level: 4, cost: 20, cd: 6, damage: 12, coef: 0.7, radius: 5, threat: 1.8, icon: '🌀' },
-      { id: 'wall', name: 'Shield Wall', kind: 'aura', level: 6, cost: 15, cd: 30, buff: { reduce: 0.4, time: 8 }, icon: '🛡' },
-      { id: 'slam', name: 'Shield Slam', kind: 'strike', level: 8, cost: 18, cd: 12, damage: 18, coef: 0.8, stun: 2, threat: 2, icon: '💥' },
-      { id: 'rally', name: 'Rallying Cry', kind: 'nova', level: 12, cost: 25, cd: 45, radius: 15, heal: 40, coef: 1.2, friendly: true, icon: '🎺' }
+      { id: 'strike', anim: '1H_Melee_Attack_Slice_Diagonal', fx: 'slash', name: 'Heavy Strike', kind: 'strike', level: 1, cost: 12, cd: 0, damage: 14, coef: 1.0, threat: 1.6, icon: '⚔' },
+      { id: 'taunt', anim: 'Cheer', fx: 'shout', name: 'Challenge', kind: 'taunt', level: 2, cost: 8, cd: 8, range: 20, icon: '📣' },
+      { id: 'cleave', anim: '2H_Melee_Attack_Spin', fx: 'spin', name: 'Cleave', kind: 'nova', level: 4, cost: 20, cd: 6, damage: 12, coef: 0.7, radius: 5, threat: 1.8, icon: '🌀' },
+      { id: 'wall', anim: 'Block', fx: 'guard', name: 'Shield Wall', kind: 'aura', level: 6, cost: 15, cd: 30, buff: { reduce: 0.4, time: 8 }, icon: '🛡' },
+      { id: 'slam', anim: 'Block_Attack', fx: 'bash', name: 'Shield Slam', kind: 'strike', level: 8, cost: 18, cd: 12, damage: 18, coef: 0.8, stun: 2, threat: 2, icon: '💥' },
+      { id: 'rally', anim: 'Cheer', fx: 'shout', name: 'Rallying Cry', kind: 'nova', level: 12, cost: 25, cd: 45, radius: 15, heal: 40, coef: 1.2, friendly: true, icon: '🎺' }
     ]
   },
   ranger: {
@@ -47,9 +58,9 @@ export const CLASSES = {
       { id: 'quick', name: 'Quick Shot', kind: 'bolt', level: 1, cost: 15, cd: 0, range: 28, damage: 12, coef: 0.9, icon: '➶' },
       { id: 'aimed', name: 'Aimed Shot', kind: 'bolt', level: 2, cost: 25, cd: 6, cast: 1.8, range: 32, damage: 30, coef: 1.8, icon: '🎯' },
       { id: 'hamstring', name: 'Crippling Bolt', kind: 'bolt', level: 4, cost: 20, cd: 10, range: 28, damage: 8, coef: 0.5, slow: { amount: 0.5, time: 6 }, icon: '🦶' },
-      { id: 'roll', name: 'Evasive Roll', kind: 'blink', level: 6, cost: 10, cd: 15, distance: -9, icon: '↩' },
+      { id: 'roll', anim: 'Dodge_Backward', name: 'Evasive Roll', kind: 'blink', level: 6, cost: 10, cd: 15, distance: -9, icon: '↩' },
       { id: 'volley', name: 'Volley', kind: 'area', level: 8, cost: 40, cd: 14, cast: 1.2, range: 30, radius: 6, damage: 16, coef: 1.0, icon: '🌧' },
-      { id: 'mark', name: 'Hunter\'s Mark', kind: 'bolt', level: 12, cost: 15, cd: 30, range: 34, damage: 0, coef: 0, mark: { more: 0.15, time: 20 }, icon: '🔻' }
+      { id: 'mark', anim: 'Throw', name: 'Hunter\'s Mark', kind: 'bolt', level: 12, cost: 15, cd: 30, range: 34, damage: 0, coef: 0, mark: { more: 0.15, time: 20 }, icon: '🔻' }
     ]
   },
   arcanist: {
@@ -60,10 +71,10 @@ export const CLASSES = {
     skills: [
       { id: 'firebolt', name: 'Firebolt', kind: 'bolt', level: 1, cost: 12, cd: 0, cast: 1.6, range: 28, damage: 20, coef: 1.4, icon: '🔥' },
       { id: 'frost', name: 'Frost Lash', kind: 'bolt', level: 2, cost: 15, cd: 6, range: 26, damage: 12, coef: 0.8, slow: { amount: 0.4, time: 4 }, icon: '❄' },
-      { id: 'barrier', name: 'Arcane Barrier', kind: 'aura', level: 4, cost: 25, cd: 25, shield: 40, coef: 1.5, icon: '🔮' },
-      { id: 'ring', name: 'Flame Ring', kind: 'nova', level: 6, cost: 30, cd: 10, radius: 6, damage: 16, coef: 1.0, icon: '⭕' },
-      { id: 'blink', name: 'Blink', kind: 'blink', level: 8, cost: 15, cd: 18, distance: 11, icon: '✨' },
-      { id: 'meteor', name: 'Meteor', kind: 'area', level: 12, cost: 50, cd: 20, cast: 2.6, range: 30, radius: 6, damage: 40, coef: 2.4, icon: '☄' }
+      { id: 'barrier', anim: 'Spellcast_Raise', name: 'Arcane Barrier', kind: 'aura', level: 4, cost: 25, cd: 25, shield: 40, coef: 1.5, icon: '🔮' },
+      { id: 'ring', anim: 'Spellcast_Raise', name: 'Flame Ring', kind: 'nova', level: 6, cost: 30, cd: 10, radius: 6, damage: 16, coef: 1.0, icon: '⭕' },
+      { id: 'blink', anim: 'Dodge_Forward', name: 'Blink', kind: 'blink', level: 8, cost: 15, cd: 18, distance: 11, icon: '✨' },
+      { id: 'meteor', anim: 'Spellcast_Raise', name: 'Meteor', kind: 'area', level: 12, cost: 50, cd: 20, cast: 2.6, range: 30, radius: 6, damage: 40, coef: 2.4, icon: '☄' }
     ]
   },
   mender: {
@@ -76,7 +87,7 @@ export const CLASSES = {
       { id: 'smite', name: 'Smite', kind: 'bolt', level: 1, cost: 12, cd: 0, cast: 1.5, range: 26, damage: 14, coef: 1.0, icon: '☀' },
       { id: 'renew', name: 'Renew', kind: 'heal', level: 3, cost: 15, cd: 3, range: 28, hot: { heal: 8, coef: 0.4, time: 10 }, icon: '🌿' },
       { id: 'ward', name: 'Ward', kind: 'heal', level: 5, cost: 22, cd: 10, range: 28, shield: 35, coef: 1.4, icon: '💠' },
-      { id: 'radiance', name: 'Radiance', kind: 'nova', level: 8, cost: 45, cd: 12, cast: 2, radius: 18, heal: 25, coef: 1.0, friendly: true, icon: '🌟' },
+      { id: 'radiance', anim: 'Spellcast_Raise', name: 'Radiance', kind: 'nova', level: 8, cost: 45, cd: 12, cast: 2, radius: 18, heal: 25, coef: 1.0, friendly: true, icon: '🌟' },
       { id: 'revive', name: 'Revive', kind: 'revive', level: 10, cost: 50, cd: 30, cast: 4, range: 20, icon: '🕊' }
     ]
   }

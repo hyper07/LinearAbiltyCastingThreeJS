@@ -54,6 +54,89 @@ export class MmoView {
     this.scene.add(this.targetRing);
     this.teleGroup = new THREE.Group();
     this.scene.add(this.teleGroup);
+    this.slashes = [];
+    this.shakeAmt = 0;
+  }
+
+  /* -------------------------------------------------- blows and hits */
+
+  /** A blade's arc through the air (or a ring, for a spin or a shout). */
+  _slashMesh(full) {
+    const geo = full ? new THREE.RingGeometry(0.55, 1, 48, 1) : new THREE.RingGeometry(0.55, 1, 28, 1, -Math.PI / 2 - 1.25, 2.5);
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      uniforms: { uK: { value: 0 }, uColor: { value: new THREE.Color('#ffffff') }, uFull: { value: full ? 1 : 0 } },
+      vertexShader: 'varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `
+        uniform float uK; uniform vec3 uColor; uniform float uFull; varying vec2 vP;
+        void main() {
+          float r = length(vP);
+          float edge = smoothstep(0.55, 0.78, r) * smoothstep(1.0, 0.9, r);
+          // Along the arc, 0 to 1; the bright head runs ahead and a tail fades behind it.
+          float a = uFull > 0.5 ? fract(atan(vP.y, vP.x) / 6.2832 + 0.5) : clamp((atan(vP.y, vP.x) + 1.5708 + 1.25) / 2.5, 0.0, 1.0);
+          float head = uK * 1.5;
+          float tail = uFull > 0.5 ? 1.0 : smoothstep(head - 0.75, head, a) * step(a, head);
+          float fade = 1.0 - smoothstep(0.55, 1.0, uK);
+          float light = edge * tail * fade;
+          gl_FragColor = vec4(uColor * light * 1.6 + vec3(1.0) * pow(light, 3.0) * 0.7, light);
+        }`
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.frustumCulled = false;
+    const holder = new THREE.Group();
+    holder.rotation.order = 'YXZ';
+    holder.add(mesh);
+    holder.visible = false;
+    this.scene.add(holder);
+    return { holder, mesh, full, busy: false };
+  }
+
+  /**
+   * Draw a blow in front of someone facing `a`: `roll` tips the arc (0 flat,
+   * 1.3 a chop down), `flip` swings it the other way, `full` makes a ring.
+   */
+  slash(x, z, a, { roll = 0, flip = false, full = false, size = 2.6, color = '#fff3c4', dur = 0.26, y = 1.15 } = {}) {
+    let s = this.slashes.find((q) => !q.busy && q.full === full);
+    if (!s) {
+      if (this.slashes.length >= 24) return;
+      s = this._slashMesh(full);
+      this.slashes.push(s);
+    }
+    Object.assign(s, { busy: true, t: 0, dur, size, x, z, y });
+    s.holder.rotation.set(0, a, roll);
+    s.mesh.scale.set(flip ? -1 : 1, 1, 1);
+    s.mesh.material.uniforms.uColor.value.set(color);
+    s.holder.visible = true;
+  }
+
+  /** Someone is struck: they flinch away from the blow, and sparks fly. */
+  hit(id, from, { strength = 1, color = '#fff0b0', x, z } = {}) {
+    const m = this.models.get(id);
+    if (m) {
+      let dx = from ? x - from.x : 0;
+      let dz = from ? z - from.z : 0;
+      const d = Math.hypot(dx, dz) || 1;
+      m.hitAt = this.time;
+      m.hitDir = { x: dx / d, z: dz / d, s: Math.min(2, strength) };
+      const busy = m.oneShot && this.time - m.oneShot.at < (m.oneShot.dur ?? 0.6);
+      if (!busy) m.oneShot = { kind: 'hit', clip: strength > 1.2 ? 'Hit_B' : 'Hit_A', at: this.time, dur: 0.35 };
+    }
+    if (!Number.isFinite(x)) return;
+    this.burst(x, z, 0.3 + 0.25 * strength, '#b8b8b8', 0.14, 1.2);
+    this.burst(x, z, 0.7 + 0.45 * strength, new THREE.Color(color).multiplyScalar(0.32), 0.28, 1.2);
+    const n = Math.round(5 + strength * 4);
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const far = 0.9 + Math.random() * 1.4 * strength;
+      if (this.fx.length > 190) this.fx.shift();
+      this.fx.push({ from: { x, z }, to: { x: x + Math.cos(ang) * far, z: z + Math.sin(ang) * far }, y: 0.9 + Math.random() * 0.9, y1: 0.4 + Math.random() * 2, r0: 0.07 + Math.random() * 0.07, t: 0, dur: 0.22 + Math.random() * 0.18, color: new THREE.Color(color), fade: true });
+    }
+  }
+
+  /** Jolt the camera (a heavy blow landed, or took one). */
+  shake(amount) {
+    this.shakeAmt = Math.min(0.6, Math.max(this.shakeAmt, amount));
   }
 
   /* ------------------------------------------------------------ the zone */
@@ -517,10 +600,10 @@ export class MmoView {
     m.current = next;
   }
 
-  /** An attack or a cast to show, from the events. */
-  act(id, kind) {
+  /** An attack or a cast to show, from the events: `clip` names the move, if not the usual one. */
+  act(id, kind, clip = null, dur = 0.6) {
     const m = this.models.get(id);
-    if (m) m.oneShot = { kind, at: this.time };
+    if (m) m.oneShot = { kind, clip, at: this.time, dur };
   }
 
   /* --------------------------------------------------------------- camera */
@@ -587,6 +670,12 @@ export class MmoView {
     const cy = Math.max(gy + 1.6 + Math.sin(this.pitch) * this.dist, this.h(cx, cz) + 1.2);
     this.camera.position.set(cx, cy, cz);
     this.camera.lookAt(tx, gy + 1.8, tz);
+    if (this.shakeAmt > 0.002) {
+      this.camera.position.x += (Math.random() - 0.5) * this.shakeAmt;
+      this.camera.position.y += (Math.random() - 0.5) * this.shakeAmt;
+      this.camera.position.z += (Math.random() - 0.5) * this.shakeAmt;
+      this.shakeAmt *= Math.exp(-dt * 9);
+    }
     this.sun.position.set(tx + 30, gy + 60, tz + 20);
     this.sun.target.position.set(tx, gy, tz);
     this.sun.target.updateMatrixWorld();
@@ -619,6 +708,14 @@ export class MmoView {
       const z = isMe ? me.z : e.z;
       // Standing in a pond: sunk a little, wading.
       m.group.position.set(x, this.h(x, z), z);
+      // Struck a moment ago: knocked back a little, and squashed.
+      const since = m.hitAt != null ? this.time - m.hitAt : 9;
+      if (since < 0.22 && e.k !== 'n') {
+        const k = Math.sin((since / 0.22) * Math.PI);
+        m.group.position.x += m.hitDir.x * 0.3 * m.hitDir.s * k;
+        m.group.position.z += m.hitDir.z * 0.3 * m.hitDir.s * k;
+        m.group.scale.set(1 + 0.1 * k, 1 - 0.1 * k, 1 + 0.1 * k);
+      } else if (e.k !== 'n' && m.group.scale.y !== 1) m.group.scale.setScalar(1);
       if (e.k === 'n') {
         m.group.visible = true;
         if (m.node) m.node.visible = e.ready;
@@ -636,9 +733,12 @@ export class MmoView {
         clip = 'Death_A';
         once = true;
       } else if (e.cast) clip = e.cast.s === 'gather' ? 'Interact' : 'Spellcasting';
-      else if (m.oneShot && this.time - m.oneShot.at < 0.6) {
-        clip = m.oneShot.kind === 'swing' ? (e.k === 'p' ? m.attack ?? CLASSES[e.c].attack : MOBS[e.ty]?.ranged ? 'Spellcast_Shoot' : '1H_Melee_Attack_Chop') : 'Spellcast_Shoot';
-        once = true;
+      else if (m.oneShot && this.time - m.oneShot.at < (m.oneShot.dur ?? 0.6)) {
+        const usual = e.k === 'p' ? m.attack ?? CLASSES[e.c].attack : MOBS[e.ty]?.ranged ? 'Spellcast_Shoot' : '1H_Melee_Attack_Chop';
+        clip = m.oneShot.kind === 'swing' || m.oneShot.kind === 'hit' ? usual : 'Spellcast_Shoot';
+        if (m.oneShot.clip && m.actions[m.oneShot.clip]) clip = m.oneShot.clip;
+        else if (m.oneShot.kind === 'hit') clip = moving ? 'Running_A' : 'Idle';
+        once = clip !== 'Running_A' && clip !== 'Idle';
         if (m.playedShot !== m.oneShot) {
           m.playedShot = m.oneShot;
           m.current = null;
@@ -689,17 +789,30 @@ export class MmoView {
       const k = f.t / f.dur;
       const x = f.from ? f.from.x + (f.to.x - f.from.x) * k : f.x;
       const z = f.from ? f.from.z + (f.to.z - f.from.z) * k : f.z;
-      o.position.set(x, f.y + this.h(x, z), z);
+      o.position.set(x, f.y + (f.y1 != null ? (f.y1 - f.y) * k - 2.2 * k * k : 0) + this.h(x, z), z);
       o.scale.setScalar(f.from ? f.r0 : f.r0 + (f.r1 - f.r0) * k);
       o.updateMatrix();
       this.fxMesh.setMatrixAt(fi, o.matrix);
-      this.fxMesh.setColorAt(fi, color.copy(f.color).multiplyScalar(f.from ? 1 : 1 - k));
+      this.fxMesh.setColorAt(fi, color.copy(f.color).multiplyScalar(f.from && !f.fade ? 1 : 1 - k));
       fi++;
     }
     this.fxMesh.count = fi;
     this.fxMesh.instanceMatrix.needsUpdate = true;
     if (this.fxMesh.instanceColor) this.fxMesh.instanceColor.needsUpdate = true;
-    this.floaters = this.floaters.filter((f) => (f.t += dt) < 1.1);
+    for (const sl of this.slashes) {
+      if (!sl.busy) continue;
+      sl.t += dt;
+      const k = sl.t / sl.dur;
+      if (k >= 1) {
+        sl.busy = false;
+        sl.holder.visible = false;
+        continue;
+      }
+      sl.holder.position.set(sl.x, this.h(sl.x, sl.z) + sl.y, sl.z);
+      sl.holder.scale.setScalar(sl.size * (sl.full ? 0.35 + 0.65 * k : 0.85 + 0.15 * k));
+      sl.mesh.material.uniforms.uK.value = k;
+    }
+    this.floaters = this.floaters.filter((f) => (f.t += dt) < (f.life ?? 1.1));
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -762,15 +875,29 @@ export class MmoView {
         ctx.fillRect(p.x - w / 2, p.y + 12, w * (1 - e.cast.left / e.cast.total), 3);
       }
     }
-    ctx.font = '800 15px system-ui, sans-serif';
+    ctx.lineJoin = 'round';
     for (const f of this.floaters) {
+      const life = f.life ?? 1.1;
       const p = this.toScreen(f.x, 2.6 + f.t * 2, f.z);
       if (!p.front) continue;
-      ctx.globalAlpha = Math.max(0, 1 - f.t);
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillText(f.text, p.x + 1, p.y + 1);
+      // Numbers pop in big, settle, drift aside and fade.
+      const pop = f.t < 0.12 ? 0.6 + (f.t / 0.12) * 0.75 : Math.max(1, 1.35 - (f.t - 0.12) * 2.2);
+      const size = Math.round((f.size ?? 15) * pop);
+      ctx.font = `900 ${size}px Nunito, system-ui, sans-serif`;
+      ctx.globalAlpha = Math.max(0, Math.min(1, (life - f.t) / 0.4));
+      const px = p.x + (f.dx ?? 0) * (0.4 + f.t);
+      ctx.lineWidth = Math.max(3, size * 0.2);
+      ctx.strokeStyle = 'rgba(20,10,30,0.85)';
+      ctx.strokeText(f.text, px, p.y);
       ctx.fillStyle = f.color;
-      ctx.fillText(f.text, p.x, p.y);
+      ctx.fillText(f.text, px, p.y);
+      if (f.tag) {
+        ctx.font = `900 ${Math.round(size * 0.5)}px Nunito, system-ui, sans-serif`;
+        ctx.lineWidth = 3;
+        ctx.strokeText(f.tag, px, p.y - size * 0.95);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(f.tag, px, p.y - size * 0.95);
+      }
     }
     ctx.globalAlpha = 1;
     ctx.restore();

@@ -26,6 +26,10 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-chooser.jpg" width="49%" alt="Choosing a character: a card for each on the left, the chosen Knight on the stage with a name plate, Enter Hearthvale, Change look and Delete" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-combat.jpg" width="100%" alt="A Vanguard mid-swing among Rattlebones: a white sword arc, sparks on the enemy struck, damage numbers, a combo counter reading 3 hits and +4% damage, and the purple experience gauge under the hotbar at 96% of level 2" />
+</p>
+
 ## How it plays
 
 - **Your character.** The maker shows your character live on a stage (drag to turn it) as you
@@ -44,6 +48,18 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   GCD), and some take time to cast — moving stops them. Monsters go after whoever they hate most:
   damage makes them angry (the Vanguard's twice as much), healing does too, and **Challenge** forces
   them back onto the Vanguard.
+- **Blows, combos and hits.** A Vanguard's basic attack is a three-part sword chain — chop, slice,
+  sweep — each with its arc through the air, and its skills are blows too: **Heavy Strike** is a
+  double slash, **Cleave** a spin with a ring of steel, **Shield Slam** a bash. A Ranger, Arcanist or
+  Mender **kicks** whatever stands right in front of them instead of shooting. Every hit within four
+  seconds of the last adds to your **combo** (shown at the right: hits, a cheer, the bonus and a
+  timer): each hit is 2% harder, up to +20%. Every third basic attack in a row is a **finisher**
+  (40% harder). Whatever is struck flinches back and throws sparks; crits and finishers get bigger
+  numbers and jolt the camera, and the screen's edge flashes red when you are hit. The server counts
+  the combo and the chain (`COMBO` in `src/mmo/data.js`); the browser only draws them.
+- **Experience.** A gauge under the hotbar: your level in the badge, experience toward the next
+  level in numbers and percent, tenth marks, and your gold. Each gain flies up off it; a level-up
+  gets a banner and confetti.
 - **The world.** **Hearthvale** (the town: quest givers, two stores, the bank, the guild
   registrar, three crafting stations, and villagers going about their day), **the Greenfold** (levels 1–10: Rattlebones, Grave Archers,
   bandits, the barrow and the Old Gravelord), **the Ashfen** (levels 10–18), **the Sunken Crypt**
@@ -118,7 +134,7 @@ trading, loot, guilds and progress fair.
   KayKit characters, and the HUD.
 - **Tests**: `tests/unit/mmo.test.mjs` (the rules; characters over HTTP; a day of questing and a
   kill; a party with chat, a heal, a trade, a guild and crafting, saved on leaving; the crypt boss's
-  warned slam) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
+  warned slam; combos, finishers and the close-range kick) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).
 
 ## Next

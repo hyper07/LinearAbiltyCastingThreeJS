@@ -1,9 +1,10 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, MELEE_CHAIN } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
 import { questsAt, questDone, countOf } from './rules.js';
 import { CharacterStage } from './bodies.js';
 import { STYLES, BUILDS, TINTS, cleanLook, lookOf } from './looks.js';
+import { confetti } from '../ui/pop.js';
 import './mmo.css';
 
 const el = (tag, className, text) => {
@@ -329,8 +330,16 @@ export class MmoGame {
       <div class="hv-castbar" data-castbar hidden><span></span><b></b></div>
       <div class="hv-bottom">
         <div class="hv-hotbar" data-hotbar></div>
-        <div class="hv-xp" data-xp><span></span><b></b></div>
+        <div class="hv-xp" data-xp role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax="100">
+          <span class="hv-xp__lvl" data-xp-lvl title="Your level"></span>
+          <span class="hv-xp__track"><i class="hv-xp__fill" data-xp-fill></i><i class="hv-xp__ticks"></i><b data-xp-text></b></span>
+          <span class="hv-xp__gold" data-xp-gold title="Gold"></span>
+          <span class="hv-xp__gains" data-xp-gains aria-hidden="true"></span>
+        </div>
       </div>
+      <div class="hv-combo" data-combo hidden aria-live="off"><b data-combo-n></b><span>hits</span><strong data-combo-word></strong><em data-combo-more></em><i><u data-combo-left></u></i></div>
+      <div class="hv-hurt" data-hurt aria-hidden="true"></div>
+      <div class="hv-levelup" data-levelup hidden></div>
       <div class="hv-chat" data-chatbox><div class="hv-chat__log" data-chatlog></div><input class="hv-chat__input" data-chat maxlength="200" placeholder="Enter to chat · /p party · /g guild · /w name · /world" aria-label="Chat"></div>
       <nav class="hv-menu" data-menu></nav>
       <div class="hv-hint" data-hint></div>
@@ -513,36 +522,95 @@ export class MmoGame {
   _events(list, snap) {
     if (!list) return;
     const find = (id) => (snap ?? this.snaps[this.snaps.length - 1]?.s)?.ents.find((e) => e.i === id);
+    // Where someone is: yourself where your browser has you, not where the server last heard.
+    const at = (id) => {
+      const e = find(id);
+      return e && id === this.you && this.me ? { ...e, x: this.me.x, z: this.me.z, a: this.me.a } : e;
+    };
     for (const ev of list) {
       switch (ev.type) {
         case 'dmg': {
-          const e = find(ev.id);
+          const e = at(ev.id);
           if (!e) break;
+          const src = at(ev.by);
+          const big = ev.fin || ev.crit;
+          const strength = ev.fin && ev.crit ? 2 : ev.fin ? 1.6 : ev.crit ? 1.4 : 1;
+          if (Math.hypot(e.x - this.me?.x, e.z - this.me?.z) < 50) this.view.hit(ev.id, src, { strength, x: e.x, z: e.z, color: e.k === 'p' ? '#ff8a7a' : big ? '#ffb347' : '#fff0b0' });
           const mine = ev.by === this.you || ev.id === this.you;
-          if (mine) this.view.floaters.push({ x: e.x, z: e.z, t: 0, text: `${ev.amount}${ev.crit ? '!' : ''}`, color: ev.id === this.you ? '#ff6b6b' : ev.crit ? '#ffb347' : '#ffe08a' });
+          if (mine) {
+            this.view.floaters.push({
+              x: e.x, z: e.z, t: 0, text: `${ev.amount}`, dx: (Math.random() - 0.5) * 70,
+              size: ev.id === this.you ? 16 : ev.fin ? 26 : ev.crit ? 23 : 16, life: big ? 1.4 : 1.1,
+              tag: ev.id === this.you ? null : ev.fin && ev.crit ? 'CRITICAL FINISHER' : ev.fin ? 'FINISHER' : ev.crit ? 'CRIT' : null,
+              color: ev.id === this.you ? '#ff6b6b' : ev.fin ? '#ff9a3c' : ev.crit ? '#ffc93c' : '#fff2c0'
+            });
+          }
+          if (ev.by === this.you) {
+            this._combo(ev.combo ?? 1);
+            if (big) this.view.shake(ev.fin && ev.crit ? 0.3 : 0.18);
+          }
+          if (ev.id === this.you) {
+            this.view.shake(Math.min(0.4, 0.08 + (ev.amount / Math.max(1, this.st?.maxHp ?? 100)) * 1.5));
+            this._hurt();
+          }
           break;
         }
         case 'heal': {
-          const e = find(ev.id);
-          if (e && (ev.by === this.you || ev.id === this.you)) this.view.floaters.push({ x: e.x, z: e.z, t: 0, text: `+${ev.amount}`, color: '#6bff9b' });
+          const e = at(ev.id);
+          if (e && (ev.by === this.you || ev.id === this.you)) this.view.floaters.push({ x: e.x, z: e.z, t: 0, text: `+${ev.amount}`, color: '#6bff9b', dx: (Math.random() - 0.5) * 50 });
           if (e) this.view.burst(e.x, e.z, 1.4, '#7dffa8', 0.5);
           break;
         }
         case 'swing': {
-          this.view.act(ev.id, 'swing');
-          const a = find(ev.id);
-          const b = find(ev.target);
-          if (ev.ranged && a && b) this.view.missile(a, b, a.k === 'p' ? '#ffe9a8' : '#c9a8ff');
+          const a = at(ev.id);
+          const b = at(ev.target);
+          const player = a?.k === 'p';
+          // A player's blade goes chop, slice, sweep; up close, an archer or a caster kicks.
+          const clip = !player ? null : ev.close ? 'Unarmed_Melee_Attack_Kick' : ev.ranged ? null : MELEE_CHAIN[ev.n ?? 0];
+          this.view.act(ev.id, 'swing', clip, ev.ranged ? 0.6 : 0.55);
+          if (!a || !b) break;
+          if (ev.ranged) this.view.missile(a, b, player ? '#ffe9a8' : '#c9a8ff');
+          else if (!ev.close) {
+            const facing = Math.atan2(b.x - a.x, b.z - a.z);
+            const n = ev.n ?? Math.floor(Math.random() * 2);
+            if (player) this.view.slash(a.x, a.z, facing, n === 2 ? { roll: 0.12, size: 3.3, color: '#ffc45c', dur: 0.3 } : n === 1 ? { roll: -0.75, flip: true } : { roll: 1.2 });
+            else this.view.slash(a.x, a.z, facing, { roll: n ? 0.8 : -0.5, flip: Boolean(n), size: 2.2 * (MOBS[a.ty]?.scale ?? 1), color: '#ff9a8a', y: 1.1 * (MOBS[a.ty]?.scale ?? 1) });
+          }
           break;
         }
         case 'skill': {
-          this.view.act(ev.id, 'cast');
-          const a = find(ev.id);
-          if (a && ev.target != null && ev.target !== ev.id) {
-            const b = find(ev.target);
-            if (b) this.view.missile(a, b, '#ffb05c');
+          const a = at(ev.id);
+          const def = a?.k === 'p' ? CLASSES[a.c]?.skills.find((k) => k.id === ev.skill) : null;
+          const fights = a?.k === 'p' && (a.c === 'vanguard' || a.c === 'ranger');
+          this.view.act(ev.id, fights ? 'swing' : 'cast', def?.anim ?? null, def?.fx === 'spin' ? 0.9 : 0.7);
+          if (!a) break;
+          const b = ev.target != null && ev.target !== ev.id ? at(ev.target) : null;
+          const facing = b ? Math.atan2(b.x - a.x, b.z - a.z) : a.a ?? 0;
+          switch (def?.fx) {
+            case 'slash':
+              this.view.slash(a.x, a.z, facing, { roll: 0.7, size: 3.6, color: '#ffd27a', dur: 0.3 });
+              this.view.slash(a.x, a.z, facing, { roll: -0.7, flip: true, size: 3.2, color: '#ffffff', dur: 0.22 });
+              break;
+            case 'spin':
+              this.view.slash(a.x, a.z, facing, { full: true, size: (def.radius ?? 5) * 1.15, color: '#ffd27a', dur: 0.4, y: 1 });
+              this.view.slash(a.x, a.z, facing, { full: true, size: (def.radius ?? 5) * 0.75, color: '#ffffff', dur: 0.3, y: 1.3 });
+              break;
+            case 'bash':
+              if (b) this.view.burst(b.x, b.z, 2.2, '#bfe3ff', 0.3, 1.2);
+              this.view.slash(a.x, a.z, facing, { roll: 0, size: 2.4, color: '#bfe3ff', dur: 0.2 });
+              if (ev.id === this.you) this.view.shake(0.22);
+              break;
+            case 'guard':
+              this.view.slash(a.x, a.z, 0, { full: true, size: 2.4, color: '#7dc4ff', dur: 0.6, y: 0.3 });
+              this.view.burst(a.x, a.z, 1.8, '#7dc4ff', 0.5, 1);
+              break;
+            case 'shout':
+              this.view.slash(a.x, a.z, 0, { full: true, size: def.radius ?? 8, color: '#ffe28a', dur: 0.6, y: 0.3 });
+              break;
+            default:
+              if (b && def?.kind !== 'strike') this.view.missile(a, b, '#ffb05c');
+              if (ev.x != null && def?.kind !== 'strike') this.view.burst(ev.x, ev.z, 1.6, '#ffd27a', 0.35);
           }
-          if (ev.x != null) this.view.burst(ev.x, ev.z, 1.6, '#ffd27a', 0.35);
           break;
         }
         case 'blast':
@@ -550,17 +618,21 @@ export class MmoGame {
           break;
         case 'death': {
           const e = find(ev.id);
-          if (e) this.view.burst(e.x, e.z, 1.6, '#aaaaaa', 0.5);
+          if (e) this.view.burst(e.x, e.z, 1.3, '#3c3c3c', 0.5);
           if (ev.id === this.target) this.target = null;
           break;
         }
         case 'level': {
           const e = find(ev.id);
-          if (e) this.view.burst(e.x, e.z, 3, '#ffe28a', 0.9, 0.3);
+          if (e) {
+            this.view.burst(e.x, e.z, 3, '#ffe28a', 0.9, 0.3);
+            this.view.slash(e.x, e.z, 0, { full: true, size: 5, color: '#ffe28a', dur: 0.8, y: 0.3 });
+          }
+          if (ev.id === this.you) this._levelUp(ev.level);
           break;
         }
         case 'xp':
-          this.toast(`+${ev.amount} experience`, 'good');
+          this._gain(ev.amount);
           break;
         case 'loot':
           this.toast(`${ev.from}: ${ev.gold} gold${ev.items.length ? `, ${ev.items.map((i) => ITEMS[i].name).join(', ')}` : ''}`, 'good');
@@ -925,6 +997,74 @@ export class MmoGame {
     setTimeout(() => t.remove(), 4500);
   }
 
+  /* --------------------------------------------- combo, hurt, experience */
+
+  /** The combo counter: hits in a row, and what they add to your damage. */
+  _combo(n) {
+    const box = this.$?.('[data-combo]');
+    if (!box) return;
+    this.comboUntil = performance.now() + COMBO.keep * 1000;
+    if (n < 2) {
+      box.hidden = true;
+      return;
+    }
+    const more = Math.round(Math.min(n - 1, COMBO.cap) * COMBO.per * 100);
+    const word = n >= 40 ? 'Legendary!' : n >= 25 ? 'Unstoppable!' : n >= 15 ? 'Fierce!' : n >= 8 ? 'Great!' : n >= 4 ? 'Nice!' : '';
+    box.hidden = false;
+    box.dataset.rank = n >= 25 ? '3' : n >= 15 ? '2' : n >= 8 ? '1' : '0';
+    this.$('[data-combo-n]').textContent = n;
+    this.$('[data-combo-word]').textContent = word;
+    this.$('[data-combo-more]').textContent = `+${more}% damage`;
+    // Play the pop again.
+    box.classList.remove('is-pop');
+    void box.offsetWidth;
+    box.classList.add('is-pop');
+  }
+
+  _comboTick() {
+    const box = this.$?.('[data-combo]');
+    if (!box || box.hidden) return;
+    const left = (this.comboUntil - performance.now()) / (COMBO.keep * 1000);
+    if (left <= 0) box.hidden = true;
+    else this.$('[data-combo-left]').style.width = `${left * 100}%`;
+  }
+
+  /** A red flash round the screen when you are struck. */
+  _hurt() {
+    const v = this.$?.('[data-hurt]');
+    if (!v) return;
+    v.classList.remove('is-on');
+    void v.offsetWidth;
+    v.classList.add('is-on');
+  }
+
+  /** Experience earned: a number that flies up off the gauge. */
+  _gain(amount) {
+    const box = this.$?.('[data-xp-gains]');
+    if (!box) return;
+    const g = el('span', 'hv-xp__gain', `+${amount} XP`);
+    box.append(g);
+    setTimeout(() => g.remove(), 1600);
+    const bar = this.$('[data-xp]');
+    bar.classList.remove('is-gain');
+    void bar.offsetWidth;
+    bar.classList.add('is-gain');
+  }
+
+  _levelUp(level) {
+    const b = this.$?.('[data-levelup]');
+    if (!b) return;
+    b.innerHTML = `<small>Level up!</small><b>Level ${level}</b>`;
+    b.hidden = false;
+    b.classList.remove('is-on');
+    void b.offsetWidth;
+    b.classList.add('is-on');
+    confetti(null, 110);
+    this.view.shake(0.2);
+    clearTimeout(this._levelTimer);
+    this._levelTimer = setTimeout(() => (b.hidden = true), 2800);
+  }
+
   /* ----------------------------------------------------------------- HUD */
 
   _hud(state, meEnt) {
@@ -968,6 +1108,7 @@ export class MmoGame {
     } else $('[data-party]').innerHTML = '';
     // What F would do.
     $('[data-hint]').textContent = this._hintText(state);
+    this._comboTick();
     const indoor = ZONES[this.zone].kind === 'dungeon' || ZONES[this.zone].kind === 'raid';
     $('[data-zone]').textContent = `${ZONES[this.zone].name}${indoor || !this.view.land ? '' : ` · ${this.view.land.hour}`}`;
     this._minimap(state);
@@ -1091,9 +1232,13 @@ export class MmoGame {
     const lo = XP_TO[this.ch.level] ?? 0;
     const hi = XP_TO[this.ch.level + 1] ?? lo + 1;
     const k = this.ch.level >= MAX_LEVEL ? 1 : (this.ch.xp - lo) / (hi - lo);
+    const pct = Math.round(Math.max(0, Math.min(1, k)) * 100);
     const x = this.$('[data-xp]');
-    x.querySelector('span').style.width = `${Math.max(0, Math.min(1, k)) * 100}%`;
-    x.querySelector('b').textContent = this.ch.level >= MAX_LEVEL ? `Level ${MAX_LEVEL}` : `Level ${this.ch.level} · ${this.ch.xp - lo} / ${hi - lo} xp · ${this.ch.gold} gold`;
+    x.setAttribute('aria-valuenow', pct);
+    this.$('[data-xp-lvl]').textContent = this.ch.level;
+    this.$('[data-xp-fill]').style.width = `${Math.max(0, Math.min(1, k)) * 100}%`;
+    this.$('[data-xp-text]').textContent = this.ch.level >= MAX_LEVEL ? 'Highest level' : `${this.ch.xp - lo} / ${hi - lo} XP  ·  ${pct}%  ·  ${hi - this.ch.xp} to level ${this.ch.level + 1}`;
+    this.$('[data-xp-gold]').textContent = `💰 ${this.ch.gold}`;
   }
 
   _tracker() {
@@ -1411,6 +1556,8 @@ export class MmoGame {
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
       <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
       <li><b>Skills</b>: 1–6 (new ones open as you level). One skill a second; some take time to cast — moving stops them.</li>
+      <li><b>Combos</b>: every hit within four seconds of the last adds to your combo — each one hits 2% harder, up to +20%. Every third basic attack in a row is a <b>finisher</b> (40% harder). Keep swinging and weave skills in between.</li>
+      <li><b>Experience</b>: the purple gauge under the hotbar fills as you fight and hand in quests; the badge on its left is your level.</li>
       <li><b>F</b>: talk to someone (a ! has a quest, a ? wants one back), gather a node, step through a portal, use a crafting station.</li>
       <li><b>Windows</b>: I bag · C character · L quests · K crafting · P party · G guild · Enter chat.</li>
       <li><b>Together</b>: invite friends by name (P). A party shares a world, its kills and its quests. The Sunken Crypt (from the Greenfold, level 8) takes up to 5; the Ember Spire (from the Ashfen, level 16) up to 8. Watch for red circles on the ground: get out of them.</li>
