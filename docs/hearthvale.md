@@ -143,7 +143,7 @@ trading, loot, guilds and progress fair.
   KayKit characters, and the HUD.
 - **Tests**: `tests/unit/mmo.test.mjs` (the rules; characters over HTTP; a day of questing and a
   kill; a party with chat, a heal, a trade, a guild and crafting, saved on leaving; the crypt boss's
-  warned slam; combos, finishers and the close-range kick) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
+  warned slam; combos, finishers and the close-range kick; a stacked pack spreading out) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).
 
 ## Next

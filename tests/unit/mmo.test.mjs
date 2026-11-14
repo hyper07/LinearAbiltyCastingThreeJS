@@ -485,3 +485,39 @@ test('blows: players and monsters swing in their own colours, and in more than o
   assert.equal(mobBlow('rattler').armed, 'claws');
   assert.equal(mobBlow('cutthroat').armed, 'knives');
 });
+
+test('monsters never stand inside one another: a pack spreads out and surrounds you', async () => {
+  const { db, mmo, join, steps } = await world();
+  try {
+    const { ws, client } = await join(0, 'Crowda', 'vanguard');
+    Object.assign(client.body, { x: 60, z: 8 });
+    ws.say({ t: 'portal', id: 'to_greenfold' });
+    const inst = client.instance;
+    const me = client.body;
+    const pack = [...inst.ents.values()].filter((e) => e.kind === 'mob' && e.type === 'rattler').sort((a, b) => Math.hypot(a.x - me.x, a.z - me.z) - Math.hypot(b.x - me.x, b.z - me.z)).slice(0, 6);
+    // All six on the very same spot, and all of them after you.
+    const spot = { x: pack[0].x, z: pack[0].z };
+    Object.assign(me, { x: spot.x + 6, z: spot.z });
+    for (const m of pack) {
+      Object.assign(m, { x: spot.x, z: spot.z, hp: 1e6, maxHp: 1e6, home: [spot.x, spot.z] });
+      inst._aggro(m, me, 50);
+    }
+    let hits = 0;
+    for (let i = 0; i < 120; i++) {
+      me.hp = me.st.maxHp;
+      steps(1);
+    }
+    hits = ws.inbox.filter((m) => m.t === 'snap').flatMap((m) => m.ev ?? []).filter((e) => e.type === 'swing' && pack.some((m) => m.id === e.id)).length;
+    const living = [...inst.ents.values()].filter((e) => e.kind === 'mob' && !e.dead && e.state !== 'return');
+    let closest = Infinity;
+    for (let i = 0; i < living.length; i++) for (let j = i + 1; j < living.length; j++) closest = Math.min(closest, Math.hypot(living[i].x - living[j].x, living[i].z - living[j].z) - living[i].radius - living[j].radius);
+    assert.ok(closest > -0.15, `no two overlap (closest gap ${closest.toFixed(2)})`);
+    assert.ok(pack.every((m) => Math.hypot(m.x - me.x, m.z - me.z) > m.radius + me.radius - 0.05), 'none stands inside the player');
+    assert.ok(new Set(pack.map((m) => `${m.x.toFixed(1)},${m.z.toFixed(1)}`)).size === pack.length, 'each has a place of its own');
+    assert.ok(pack.every((m) => Math.hypot(m.x - me.x, m.z - me.z) < 6), 'and they still reach you');
+    assert.ok(hits >= pack.length, `they still fight (${hits} swings)`);
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});

@@ -14,6 +14,8 @@ import { statsOf, killXp, addXp, give, take } from '../../src/mmo/rules.js';
  * asks for a save.
  */
 
+/** How far past its reach a monster already in a fight may be jostled before it walks back in. */
+const CROWD = 1;
 const TICK = 0.1;
 const AGGRO = 9;
 const LEASH = 45;
@@ -514,6 +516,7 @@ export class Instance {
       if (e.kind === 'mob') this._mobStep(e, t);
       else if (e.kind === 'node' && !e.ready && t >= e.respawnAt) e.ready = true;
     }
+    this._spread();
     this._teleStep(t);
     if (!this.players.size && this.emptySince && t - this.emptySince > 60) this.onEmpty(this);
   }
@@ -617,10 +620,14 @@ export class Instance {
     m.target = target.id;
     if (m.boss) this._bossStep(m, target, t);
     const range = (def.range ?? 2.4) + target.radius;
-    if (dist(m, target) > range) {
+    const d = dist(m, target);
+    // Walk into reach; once there, hold the ground even when a neighbour shoulders you back a step.
+    if (d > range + (m.inReach ? CROWD : 0)) {
+      m.inReach = false;
       this._walk(m, target, speed);
       return;
     }
+    m.inReach = true;
     m.a = Math.atan2(target.x - m.x, target.z - m.z);
     if (t >= m.swingAt) {
       m.swingAt = t + 2;
@@ -688,6 +695,59 @@ export class Instance {
   }
 
   /** Walk an entity toward a point; true when there. */
+  /**
+   * No two monsters in one place: living ones that overlap push each other
+   * apart (so a pack surrounds you instead of standing inside one another),
+   * and none stands inside a player. One walking home is let through.
+   */
+  _spread() {
+    const mobs = [];
+    for (const e of this.ents.values()) if (e.kind === 'mob' && !e.dead && e.state !== 'return') mobs.push(e);
+    const push = (m, dx, dz) => {
+      const nx = m.x + dx;
+      const nz = m.z + dz;
+      if (!walkableIn(this.zone, nx, nz, 0.4)) return;
+      m.x = nx;
+      m.z = nz;
+      // Standing about at home: this is home now, or it would walk back into its neighbour.
+      if (m.state === 'idle') m.home = [nx, nz];
+    };
+    for (let i = 0; i < mobs.length; i++) {
+      const a = mobs[i];
+      for (let j = i + 1; j < mobs.length; j++) {
+        const b = mobs[j];
+        const need = a.radius + b.radius + 0.25;
+        let dx = b.x - a.x;
+        let dz = b.z - a.z;
+        if (Math.abs(dx) >= need || Math.abs(dz) >= need) continue;
+        let d = Math.hypot(dx, dz);
+        if (d >= need) continue;
+        if (d < 0.001) {
+          // Exactly on top of each other: part along a line of their own.
+          const ang = ((a.id * 7 + b.id * 13) % 360) * (Math.PI / 180);
+          dx = Math.cos(ang);
+          dz = Math.sin(ang);
+          d = 1;
+        }
+        // Part quickly but not in one jump; the bigger one gives less ground.
+        const over = Math.min(need - d, 6 * TICK) / d;
+        const share = a.radius / (a.radius + b.radius);
+        push(a, -dx * over * (1 - share), -dz * over * (1 - share));
+        push(b, dx * over * share, dz * over * share);
+      }
+      for (const p of this.players.values()) {
+        if (p.dead) continue;
+        const need = a.radius + p.radius + 0.2;
+        const dx = a.x - p.x;
+        const dz = a.z - p.z;
+        const d = Math.hypot(dx, dz);
+        if (d >= need) continue;
+        if (d < 0.001) push(a, need, 0);
+        else push(a, (dx / d) * Math.min(need - d, 6 * TICK), (dz / d) * Math.min(need - d, 6 * TICK));
+      }
+    }
+  }
+
   _walk(e, to, speed) {
     const dx = to.x - e.x;
     const dz = to.z - e.z;
