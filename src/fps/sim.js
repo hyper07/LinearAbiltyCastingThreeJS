@@ -99,7 +99,7 @@ export class Match {
       const [x, z] = this.map.SPAWNS[side][places[side]++ % this.map.SPAWNS[side].length];
       // Whoever lived keeps what they carried; whoever fell starts again with a sidearm.
       if (!p.alive) Object.assign(p, { primary: null, secondary: 'sidearm', armor: 0, helmet: false, kit: false, nades: { frag: 0, smoke: 0 } });
-      Object.assign(p, { alive: true, hp: PLAYER.hp, x, z, y: 0, vy: 0, yaw: side === 'atk' ? -Math.PI / 2 : Math.PI / 2, pitch: 0, slot: p.primary ? 1 : 2, cool: 0, reloading: 0, kick: 0, using: 0, moving: false, scoped: false, hasCharge: false, target: null, path: [], wp: null, goal: null, stuck: 0, burst: 0, rest: 0, look: null, cover: null, heard: null, lastSeen: null, trade: 0, dodge: 1, dodgeUntil: 0 });
+      Object.assign(p, { alive: true, hp: PLAYER.hp, x, z, y: 0, vy: 0, yaw: side === 'atk' ? -Math.PI / 2 : Math.PI / 2, pitch: 0, slot: p.primary ? 1 : 2, cool: 0, reloading: 0, kick: 0, using: 0, moving: false, scoped: false, hasCharge: false, target: null, path: [], wp: null, goal: null, stuck: 0, burst: 0, rest: 0, look: null, mf: 0, ms: 0, cover: null, heard: null, lastSeen: null, trade: 0, dodge: 1, dodgeUntil: 0 });
       p.ammo = {};
       for (const w of [p.primary, p.secondary]) if (w) p.ammo[w] = WEAPONS[w].mag;
     }
@@ -216,7 +216,7 @@ export class Match {
     }
     p.ammo[id]--;
     p.cool = 60 / w.rpm;
-    const spread = w.spread + p.kick + (p.moving ? 1.6 : 0) + (p.y > 0.05 ? 3 : 0) + (w.unscoped && !p.scoped ? w.unscoped : 0) + error;
+    const spread = w.spread + p.kick + 1.6 * Math.min(1, (p.pace ?? 0) / (PLAYER.speed * 0.6)) + (p.y > 0.05 ? 3 : 0) + (w.unscoped && !p.scoped ? w.unscoped : 0) + error;
     p.kick = Math.min(6, p.kick + w.kick);
     this._noise(p, 45);
     const foes = this.players.filter((q) => q.alive && q.squad !== p.squad);
@@ -320,7 +320,7 @@ export class Match {
     this.timer -= dt;
     if (this.phase === 'buy' && this.timer <= 0) {
       this.phase = 'live';
-      this.timer = TIME.round;
+      this.timer = (this.map.PLAN.round ?? TIME.round);
       this.events.push({ type: 'phase', phase: 'live' });
     } else if (this.phase === 'after' && this.timer <= 0) {
       this._afterRound();
@@ -336,6 +336,14 @@ export class Match {
         if (p.reloading <= 0) p.ammo[this.weaponOf(p)] = WEAPONS[this.weaponOf(p)].mag;
       }
       const cmd = p.bot ? this._think(p, dt, live) : this._human(p, input instanceof Map ? input.get(p.id) ?? {} : p.id === 0 ? input : {});
+      // A bot's legs ease into a new direction over a tenth of a second, as a person's do: no snapping.
+      if (p.bot) {
+        const k = Math.min(1, dt * 14);
+        p.mf = (p.mf ?? 0) + (cmd.f - (p.mf ?? 0)) * k;
+        p.ms = (p.ms ?? 0) + (cmd.s - (p.ms ?? 0)) * k;
+        cmd.f = Math.abs(p.mf) < 0.02 ? 0 : p.mf;
+        cmd.s = Math.abs(p.ms) < 0.02 ? 0 : p.ms;
+      }
       // Looking.
       p.yaw = cmd.yaw;
       p.pitch = Math.max(-1.45, Math.min(1.45, cmd.pitch));
@@ -367,6 +375,8 @@ export class Match {
       if (this.map.clear(nx, p.z, PLAYER.radius)) p.x = nx;
       if (this.map.clear(p.x, nz, PLAYER.radius)) p.z = nz;
       p.moving = Math.hypot(p.x - bx, p.z - bz) > speed * dt * 0.3 && len > 0.1;
+      // How fast they really go (for aim: nearly stopped is nearly steady).
+      p.pace = dt > 0 ? Math.hypot(p.x - bx, p.z - bz) / dt : 0;
       if (cmd.jump && p.y <= 0) p.vy = PLAYER.jump;
       if (p.y > 0 || p.vy > 0) {
         p.y += p.vy * dt;
@@ -608,7 +618,7 @@ export class Match {
       const raiders = this.living('atk');
       const staged = raiders.filter((p) => this.map.PLAN.stage[site].some((k) => Math.hypot(p.x - this.map.NODES[k][0], p.z - this.map.NODES[k][1]) < 8)).length;
       if (staged >= Math.ceil(raiders.length * 0.6)) plan.stagedAt ??= this.time;
-      const elapsed = TIME.round - this.timer;
+      const elapsed = (this.map.PLAN.round ?? TIME.round) - this.timer;
       const ready = plan.stagedAt != null && this.time - plan.stagedAt > (plan.faking ? 4 : 2);
       if (plan.faking && (ready || elapsed > 32)) {
         // The fake is done: a grenade into that site for the noise, then everyone to the real one.
@@ -872,26 +882,21 @@ export class Match {
         }
       }
     }
+    // Moving in a fight: up close, weave and close in; at range, sidestep between bursts and
+    // stand still to shoot. (The legs ease between these — see step() — so it never twitches.)
     const shooting = cmd.fire;
+    if (this.time > p.dodgeUntil) {
+      p.dodge = this.rand() < 0.5 ? -1 : 1;
+      p.dodgeUntil = this.time + (close ? 0.3 + this.rand() * 0.4 : 0.35 + this.rand() * 0.45);
+    }
     if (close) {
-      // Up close: run and gun, weaving.
-      if (this.time > p.dodgeUntil) {
-        p.dodge = this.rand() < 0.5 ? -1 : 1;
-        p.dodgeUntil = this.time + 0.3 + this.rand() * 0.4;
-      }
       cmd.s = p.dodge * 0.8;
       if (w.range < 50 && seenD > 4) cmd.f = 0.8;
-    } else if (!shooting) {
-      // At range: sidestep between bursts, then stand still to shoot.
-      if (this.time > p.dodgeUntil) {
-        p.dodge = this.rand() < 0.5 ? -1 : 1;
-        p.dodgeUntil = this.time + 0.35 + this.rand() * 0.45;
-      }
-      cmd.s = p.dodge * (holding ? 0.5 : 1);
-    }
+    } else if (!shooting) cmd.s = p.dodge * (holding ? 0.5 : 1);
+    // No room that way: stand, and pick again soon (rather than flipping back and forth each step).
     if (cmd.s && !this._room(p, Math.sign(cmd.s))) {
-      p.dodge = -p.dodge;
-      cmd.s = -cmd.s;
+      cmd.s = 0;
+      p.dodgeUntil = Math.min(p.dodgeUntil, this.time + 0.15);
     }
     if (w.zoom) cmd.f = 0;
     // Two or more of them close together, not too near: a grenade.

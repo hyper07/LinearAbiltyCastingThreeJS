@@ -147,7 +147,8 @@ const HARBOR = {
     watch: { plant: [80, 48], guard: [128, 48], disarm: [64, 48], idle: [64, 48], hold: { A: [44, 18], B: [44, 78], mid: [44, 48] } },
     alarm: 40,
     sight: 140,
-    stage: { A: ['N3', 'MA'], B: ['S3', 'MB'] },
+    // Gather out of the Wardens' sight: mid-quay and in the corridor, not where they hold.
+    stage: { A: ['N2', 'M2'], B: ['S2', 'M2'] },
     smokes: { A: [[118, 28], [121, 13]], B: [[118, 68], [121, 83]] },
     retake: { A: 'CA', B: 'CB' },
     retakeSmokes: { A: [[96, 20]], B: [[96, 76]] }

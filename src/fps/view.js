@@ -433,7 +433,10 @@ export class FpsView {
       const visible = !(p === viewer && p.alive);
       b.group.visible = visible;
       b.group.position.set(p.x, p.y, p.z);
-      b.group.rotation.y = p.yaw;
+      // The body turns smoothly to where its owner looks; the walk shows while moving, without flickering on and off.
+      b.yaw = b.yaw == null || !p.alive ? p.yaw : b.yaw + Math.atan2(Math.sin(p.yaw - b.yaw), Math.cos(p.yaw - b.yaw)) * Math.min(1, dt * 14);
+      b.group.rotation.y = b.yaw;
+      b.moveFor = p.moving ? 0.2 : Math.max(0, (b.moveFor ?? 0) - dt);
       // The dead fall back and lie still.
       b.fall = p.alive ? 0 : Math.min(1, b.fall + dt * 2.6);
       const ease = 1 - (1 - b.fall) ** 3;
@@ -446,7 +449,7 @@ export class FpsView {
           b.weapon = weapon;
           b.soldier.hold(gunModel(weapon));
         }
-        b.soldier.update(dt, { moving: p.moving, slow: p.scoped || p.using > 0, pitch: p.pitch, alive: p.alive });
+        b.soldier.update(dt, { moving: b.moveFor > 0, slow: p.scoped || p.using > 0, pitch: p.pitch, alive: p.alive });
       }
     }
   }
@@ -595,9 +598,20 @@ export class FpsView {
       this.camera.position.set(viewer.x, viewer.y + PLAYER.eye + (viewer.moving ? Math.sin(this.bob) * 0.035 : 0), viewer.z);
       this.camera.rotation.set(viewer.pitch + this.recoil * 0.035, viewer.yaw, 0);
     } else if (eye) {
+      // Watching someone: the camera follows behind them, easing after their moves and turns rather than copying each twitch.
+      const w = this.spec;
+      if (!w || w.id !== eye.id) this.spec = { id: eye.id, x: eye.x, y: eye.y, z: eye.z, yaw: eye.yaw };
+      else {
+        const k = Math.min(1, dt * 7);
+        w.x += (eye.x - w.x) * k;
+        w.y += (eye.y - w.y) * k;
+        w.z += (eye.z - w.z) * k;
+        w.yaw += Math.atan2(Math.sin(eye.yaw - w.yaw), Math.cos(eye.yaw - w.yaw)) * Math.min(1, dt * 3.5);
+      }
+      const s = this.spec;
       const back = 3.4;
-      this.camera.position.set(eye.x + Math.sin(eye.yaw) * back, eye.y + 2.4, eye.z + Math.cos(eye.yaw) * back);
-      this.camera.rotation.set(-0.2, eye.yaw, 0);
+      this.camera.position.set(s.x + Math.sin(s.yaw) * back, s.y + 2.4, s.z + Math.cos(s.yaw) * back);
+      this.camera.rotation.set(-0.2, s.yaw, 0);
     }
     const w = viewer && WEAPONS[match.weaponOf(viewer)];
     const want = first && zoom && w?.zoom ? w.zoom : 74;
