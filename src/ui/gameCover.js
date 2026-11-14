@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -132,6 +132,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'moba') return mobaCover(game);
   if (game.card?.cover === 'mmo') return mmoCover(game);
   if (game.card?.cover === 'city') return cityCover(game);
+  if (game.card?.cover === 'fps') return fpsCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -261,6 +262,23 @@ function mobaCover(game) {
 
 /** Hearthvale's cover: a town at dusk under a hill, a road to a glowing gate. */
 /** A city at dusk: towers with lit windows over a river. Our own drawing (no photograph, no skyline traced). */
+function fpsCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="fp-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2a3c"/><stop offset="1" stop-color="#5b6d80"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#fp-${uid})"/>
+    <path d="M0 122 L110 96 H210 L320 122 V180 H0Z" fill="#8f8a80"/>
+    <rect x="0" y="40" width="70" height="92" fill="#b9b2a4"/><rect x="250" y="34" width="70" height="98" fill="#a59e90"/>
+    <rect x="118" y="78" width="30" height="30" fill="#a9773f" stroke="#6b451f" stroke-width="3"/><path d="M118 78 L148 108 M148 78 L118 108" stroke="#6b451f" stroke-width="3"/>
+    <ellipse cx="190" cy="128" rx="46" ry="12" fill="none" stroke="#ffd24a" stroke-width="3" stroke-dasharray="10 6"/>
+    <text x="182" y="135" fill="#ffd24a" font-family="system-ui, sans-serif" font-size="20" font-weight="900">A</text>
+    <circle cx="86" cy="104" r="7" fill="#ff8a3c"/><rect x="80" y="111" width="12" height="20" rx="5" fill="#ff8a3c"/>
+    <circle cx="232" cy="96" r="6" fill="#38c6d9"/><rect x="227" y="102" width="10" height="17" rx="4" fill="#38c6d9"/>
+    <g stroke="#7dffb0" stroke-width="2.5"><path d="M160 60 v-12 M160 76 v12 M152 68 h-12 M168 68 h12"/></g>
+    <text x="16" y="30" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="900">${String(game.title).replace(/[<&]/g, '')}</text>
+  </svg>`;
+}
+
 function cityCover(game) {
   const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
   const r = rng(game.id);

@@ -1477,6 +1477,7 @@ export class App {
     if (game.engine === 'moba') return this.openMoba(game);
     if (game.engine === 'mmo') return this.openMmo(game);
     if (game.engine === 'city') return this.openCity(game);
+    if (game.engine === 'fps') return this.openFps(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1562,6 +1563,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new SeoulGame(document.body, {
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Breachline: a first-person shooter with its own screen, alone or in a room of four. */
+  async openFps(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { FpsGame } = await import('../fps/FpsGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new FpsGame(document.body, {
+      account: this.account?.user ?? null,
       onClose: () => {
         this.start();
         this.home.refresh?.();

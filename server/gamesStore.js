@@ -78,6 +78,14 @@ export const ENGINE_GAMES = [
     engine: 'city',
     genre: 'travel',
     card: { genre: 'travel', genreName: 'Travel', cover: 'city', badge: 'NEW' }
+  },
+  {
+    id: 'official:breachline',
+    title: 'Breachline',
+    summary: 'A tactical first-person shooter: five against five over short rounds. Raiders carry a charge to site A or B; Wardens hold the sites or disarm it. Buy before each round, change ends at the half — alone with bots, or with up to four friends in a room.',
+    engine: 'fps',
+    genre: 'shooter',
+    card: { genre: 'shooter', genreName: 'Shooter', cover: 'fps', badge: 'NEW' }
   }
 ];
 const MAX_LEVELS = 12;

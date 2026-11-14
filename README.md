@@ -80,6 +80,11 @@ true place and height, from Korea's public building register — with 25 distric
 towers to find, and windows that light up at night. You download the data yourself (free, attribution
 required) and convert it with one command. [More →](docs/seoul.md)
 
+**🎯 Breachline**: a tactical first-person shooter — five against five over short rounds, with a
+pause to buy before each. Raiders carry a charge to site A or B; Wardens hold the sites or disarm
+it. Alone with bots, or with up to four friends in a room, the match run by the server.
+[More →](docs/breachline.md)
+
 **Every game keeps its own characters, one per class, per player.** What you earn in one game stays
 in it; a class you have not played there starts at level 1 with nothing, and switching back brings
 your earlier character back. The open arena in **Arena hero** keeps its own character too.

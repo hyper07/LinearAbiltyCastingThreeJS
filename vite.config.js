@@ -13,6 +13,7 @@ import { openDatabase } from './server/db/database.js';
 import { createMarket } from './server/market/index.js';
 import { createWork } from './server/work/index.js';
 import { createMmo } from './server/mmo/index.js';
+import { createFps } from './server/fps/index.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -148,6 +149,18 @@ function mmoApi(env, getDb, getGame) {
     server.httpServer?.on('close', () => mmo?.then((m) => m.close()));
   };
   return [http, { name: 'mmo-worlds', configureServer: attach, configurePreviewServer: attach }];
+}
+
+/** Breachline's rooms and matches (WebSocket /fps), run by the dev server. */
+function fpsRooms(getGame) {
+  const attach = (server) => {
+    const fps = createFps({ authenticate: async (req) => (await getGame()).authenticate(req), log: (line) => console.log(line) });
+    server.httpServer?.on('upgrade', (req, socket, head) => {
+      fps.handleUpgrade(req, socket, head);
+    });
+    server.httpServer?.on('close', () => fps.close());
+  };
+  return { name: 'fps-rooms', configureServer: attach, configurePreviewServer: attach };
 }
 
 /** Playing together: the room server on the same port, at /ws. */
@@ -327,6 +340,7 @@ export default defineConfig(({ mode }) => {
       marketApi({ ...process.env, ...env }, getDb, getGame),
       workApi({ ...process.env, ...env }, getDb, getGame),
       ...mmoApi({ ...process.env, ...env }, getDb, getGame),
+      fpsRooms(getGame),
       realtime({ ...process.env, ...env }, getGame),
       { name: 'level-dir', configurePreviewServer: () => void (levelDir = () => resolve('dist', 'levels')) }
     ]

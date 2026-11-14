@@ -209,7 +209,10 @@ async function pgliteDriver(dataDir) {
 }
 
 /** One open database per place, so the game and the library share it (PGlite allows one opener per folder). */
-const opened = new Map();
+// Kept on the process, not the module: the dev server loads this file afresh
+// each time its config changes, and a second PGlite opened on a folder that
+// the first still holds corrupts it (two writers, one write-ahead log).
+const opened = (globalThis[Symbol.for('gamory.databases')] ??= new Map());
 
 /** The server's key, when there is one already (to check the history chain on import). */
 async function existingKeys(dataDir) {

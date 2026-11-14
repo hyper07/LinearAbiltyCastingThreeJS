@@ -12,6 +12,7 @@ for a server without one).
 ```
 /                 the built client (dist/), brotli/gzip precompressed, cached
 /ws               parties: rooms and relay (WebSocket)
+/fps              Breachline: rooms and their matches (WebSocket)
 /api/account/*    accounts and sessions
 /api/game/*       characters, loot, shops, NPC rewards — the server decides
 /api/ai/*         the AI bridge (LM Studio, Ollama, vLLM, any OpenAI-compatible server)
@@ -109,7 +110,7 @@ docker compose exec -T db pg_restore -U gamory -d gamory --clean < gamory-2026-1
 ## Behind a reverse proxy (HTTPS)
 
 Put nginx, Caddy, Traefik or your platform's load balancer in front for TLS. Two things matter:
-forward WebSocket upgrades on `/ws`, and set `TRUST_PROXY=1`. For nginx:
+forward WebSocket upgrades (`/ws`, `/mmo` and `/fps`), and set `TRUST_PROXY=1`. For nginx:
 
 ```nginx
 location / {
