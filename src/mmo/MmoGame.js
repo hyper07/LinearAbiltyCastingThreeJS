@@ -951,34 +951,54 @@ export class MmoGame {
     if (i == null) return;
     const cls = CLASSES[this.ch.cls];
     const now = this.ch.bars?.[i] ?? null;
-    box.innerHTML = `<header><b>Key ${i + 1}</b><span>Pick what it does. Press another number, or click another key, to set that one.</span><button type="button" class="hv__x" data-picker-close aria-label="Close">✕</button></header><div class="hv-picker__groups"></div>`;
+    box.innerHTML = `<header><b>Key ${i + 1}</b><span>Click a picture to put it on this key (hover to read it). Press another number to set that key.</span><button type="button" class="hv__x" data-picker-close aria-label="Close">✕</button></header><div class="hv-picker__groups"></div>`;
     box.querySelector('[data-picker-close]').addEventListener('click', () => this._pickKey(i));
     const groups = box.querySelector('.hv-picker__groups');
+    const bars = this.ch.bars ?? [];
+    /** A row of pictures: hover one for its words, click to put it on the key. */
     const group = (title, options) => {
       const g = el('section');
       g.append(el('h4', null, title));
       const row = el('div', 'hv-picker__row');
       for (const o of options) {
-        const b = el('button', `hv-pick ${now === o.value ? 'is-on' : ''} ${o.dim ? 'is-dim' : ''}`);
+        const b = el('button', `hv-slot hv-pick ${o.cls ?? ''} ${now === o.value ? 'is-on' : ''} ${o.dim ? 'is-dim' : ''}`);
         b.type = 'button';
         b.dataset.pick = o.value ?? '';
-        b.title = o.tip ?? o.name;
-        b.innerHTML = `<span class="hv-pick__icon">${o.icon}</span><span class="hv-pick__name"></span>${o.note ? `<small>${esc(o.note)}</small>` : ''}`;
-        b.querySelector('.hv-pick__name').textContent = o.name;
+        b.setAttribute('aria-label', o.name);
+        if (o.item) {
+          b.dataset.tip = o.item;
+          b.dataset.tipHint = `${o.note}\n› Click: put it on key ${i + 1}`;
+        } else {
+          b.dataset.tipTitle = o.name;
+          b.dataset.tipText = `${o.text}\n› Click: put it on key ${i + 1}`;
+        }
+        const on = o.value ? bars.indexOf(o.value) : -1;
+        b.innerHTML = `<span class="hv-slot__icon">${o.icon}</span>${on >= 0 ? `<kbd>${on + 1}</kbd>` : ''}${o.corner ?? ''}`;
         b.addEventListener('click', () => this._setKey(i, o.value));
         row.append(b);
       }
       g.append(row);
       groups.append(g);
     };
-    group('Skills', cls.skills.map((k) => ({ value: k.id, icon: k.icon, name: k.name, dim: !rankOf(this.ch, k.id), note: rankOf(this.ch, k.id) ? `rank ${rankOf(this.ch, k.id)}` : 'not learned', tip: `${k.name} — ${this._skillText(k, Math.max(1, rankOf(this.ch, k.id)))}` })));
+    group('Skills', cls.skills.map((k) => {
+      const rank = rankOf(this.ch, k.id);
+      const mod = skillMods(this.ch, k.id);
+      const cost = Math.round(k.cost * (this.st?.costMult ?? 1) * (1 - mod.cost));
+      const cd = k.cd ? Math.round(k.cd * (this.st?.cdMult ?? 1) * (1 - mod.cd) * 10) / 10 : 0;
+      return {
+        value: k.id, icon: k.icon, name: k.name, dim: !rank,
+        corner: rank ? `<span class="hv-slot__rank">${rank}</span>` : '<span class="hv-slot__lock">🔒</span>',
+        text: `${rank ? `Rank ${rank}` : this.ch.level < k.level ? `Not learned — can be learned at level ${k.level}` : 'Not learned — open the skill tree (T)'}\n${this._skillText(k, Math.max(1, rank))}\n${k.cast ? `${k.cast}s cast` : 'Instant'} · ${cost} ${cls.resource.toLowerCase()}${cd ? ` · ${cd}s cooldown` : ''}`
+      };
+    }));
     const count = (kind) => this._barCount({ kind: 'potion', what: kind });
     const food = [...new Set(this.ch.bag.filter((x) => x && ITEMS[x.item]?.use).map((x) => x.item))];
+    const n = (id) => this.ch.bag.reduce((sum, x) => sum + (x?.item === id ? x.n : 0), 0);
     group('Draughts and food', [
-      { value: 'potion:health', icon: '❤', name: 'Health draught', note: `${count('health')} in the bag`, dim: !count('health'), tip: 'Drinks the healing draught that best fits what you are missing' },
-      { value: 'potion:mana', icon: '🧪', name: `${cls.resource} tonic`, note: `${count('mana')} in the bag`, dim: !count('mana'), tip: 'Drinks the tonic that best fits what you are missing' },
-      ...food.map((id) => ({ value: `item:${id}`, icon: ICON(id), name: ITEMS[id].name, note: `${this.ch.bag.reduce((n, x) => n + (x?.item === id ? x.n : 0), 0)} in the bag`, tip: itemTip(id) })),
-      { value: null, icon: '∅', name: 'Nothing', note: 'leave it empty' }
+      { value: 'potion:health', cls: 'hv-slot--potion hv-slot--health', icon: '❤', name: 'Health draught', dim: !count('health'), corner: `<span class="hv-slot__count">${count('health')}</span>`, text: `Drinks whichever healing draught in your bag best fits what you are missing.\n${count('health')} in the bag` },
+      { value: 'potion:mana', cls: 'hv-slot--potion hv-slot--mana', icon: '🧪', name: `${cls.resource} tonic`, dim: !count('mana'), corner: `<span class="hv-slot__count">${count('mana')}</span>`, text: `Drinks whichever tonic in your bag best fits what you are missing.\n${count('mana')} in the bag` },
+      ...food.map((id) => ({ value: `item:${id}`, cls: 'hv-slot--potion hv-slot--food', icon: ICON(id), name: ITEMS[id].name, item: id, note: `${n(id)} in the bag — this key uses only this one`, corner: `<span class="hv-slot__count">${n(id)}</span>` })),
+      { value: null, cls: 'is-empty', icon: '∅', name: 'Nothing', text: 'Leave this key empty.' }
     ]);
   }
 
@@ -1130,7 +1150,9 @@ export class MmoGame {
       tip.style.top = `${y}px`;
     };
     const show = (target, e) => {
-      const html = target.dataset.tip ? this._tipHtml(target.dataset.tip, target.dataset.tipHint) : `<p>${esc(target.dataset.tipText)}</p>`;
+      // An item's words, or a title with lines under it (a skill, a draught key, an empty slot).
+      const html = target.dataset.tip ? this._tipHtml(target.dataset.tip, target.dataset.tipHint)
+        : `${target.dataset.tipTitle ? `<h5 style="color:${target.dataset.tipColor ?? '#ffd76a'}">${esc(target.dataset.tipTitle)}</h5>` : ''}${String(target.dataset.tipText ?? '').split('\n').filter(Boolean).map((l) => `<p class="${l.startsWith('›') ? 'hv-tip__hint' : ''}">${esc(l.replace(/^› /, ''))}</p>`).join('')}`;
       if (!html) return;
       tip.innerHTML = html;
       tip.hidden = false;
@@ -1138,12 +1160,12 @@ export class MmoGame {
       place(e);
     };
     this.root.addEventListener('mouseover', (e) => {
-      const target = e.target.closest?.('[data-tip], [data-tip-text]');
+      const target = e.target.closest?.('[data-tip], [data-tip-text], [data-tip-title]');
       if (target && target !== this._tipFor) show(target, e);
     });
     this.root.addEventListener('mousemove', (e) => {
       if (!this._tipFor) return;
-      if (!this._tipFor.isConnected || !e.target.closest?.('[data-tip], [data-tip-text]')) {
+      if (!this._tipFor.isConnected || !e.target.closest?.('[data-tip], [data-tip-text], [data-tip-title]')) {
         this._tipFor = null;
         tip.hidden = true;
       } else place(e);
@@ -1154,7 +1176,7 @@ export class MmoGame {
     });
     // The keyboard gets it too: focus shows the words beside the picture.
     this.root.addEventListener('focusin', (e) => {
-      const target = e.target.closest?.('[data-tip]');
+      const target = e.target.closest?.('[data-tip], [data-tip-title]');
       if (!target || !target.matches(':focus-visible')) return;
       const r = target.getBoundingClientRect();
       show(target, { clientX: r.right, clientY: r.top });
@@ -1460,7 +1482,8 @@ export class MmoGame {
       let corner = '';
       if (!e) {
         b.classList.add('is-empty');
-        b.title = `Key ${i + 1} is empty — right-click to choose what it does`;
+        b.dataset.tipTitle = `Key ${i + 1}`;
+        b.dataset.tipText = 'Empty.\n› Right-click: choose what it does';
       } else if (e.kind === 'skill') {
         const s = e.def;
         const rank = rankOf(this.ch, s.id);
@@ -1468,7 +1491,9 @@ export class MmoGame {
         const cost = Math.round(s.cost * (this.st?.costMult ?? 1) * (1 - mod.cost));
         const cd = s.cd ? Math.round(s.cd * (this.st?.cdMult ?? 1) * (1 - mod.cd) * 10) / 10 : 0;
         b.dataset.skill = s.id;
-        b.title = `${s.name} (${i + 1})${rank ? ` · rank ${rank}` : ''} — ${s.cast ? `${s.cast}s cast` : 'instant'}, ${cost} ${cls.resource.toLowerCase()}${cd ? `, ${cd}s cooldown` : ''}${rank ? '' : this.ch.level < s.level ? ` · can be learned at level ${s.level}` : ' · not learned: open the skill tree (T)'}\nRight-click: change this key`;
+        b.dataset.tipTitle = s.name;
+        b.dataset.tipText = `${rank ? `Rank ${rank}` : this.ch.level < s.level ? `Not learned — can be learned at level ${s.level}` : 'Not learned — open the skill tree (T)'}\n${this._skillText(s, Math.max(1, rank))}\n${s.cast ? `${s.cast}s cast` : 'Instant'} · ${cost} ${cls.resource.toLowerCase()}${cd ? ` · ${cd}s cooldown` : ''}\n› Key ${i + 1} · right-click: change this key`;
+        b.setAttribute('aria-label', `${s.name}, key ${i + 1}`);
         b.classList.toggle('is-locked', !rank);
         icon = s.icon;
         corner = rank ? `<span class="hv-slot__rank">${rank}</span>` : '<span class="hv-slot__lock">🔒</span>';
@@ -1477,7 +1502,11 @@ export class MmoGame {
         b.dataset.potion = e.kind === 'potion' ? e.what : e.id;
         b.classList.add('hv-slot--potion', e.kind === 'potion' ? `hv-slot--${e.what}` : 'hv-slot--food');
         b.classList.toggle('is-none', !n);
-        b.title = `${e.kind === 'potion' ? (e.what === 'mana' ? `${cls.resource} tonic` : 'Health draught') : ITEMS[e.id].name} (${i + 1}) — ${n} in the bag${e.kind === 'potion' ? '; drinks the one that fits best' : ''}\nRight-click: change this key`;
+        const label = e.kind === 'potion' ? (e.what === 'mana' ? `${cls.resource} tonic` : 'Health draught') : ITEMS[e.id].name;
+        b.dataset.tipTitle = label;
+        b.dataset.tipColor = e.kind === 'potion' && e.what === 'mana' ? '#7fb0ff' : e.kind === 'potion' ? '#ff8fa3' : '#ffd76a';
+        b.dataset.tipText = `${n} in the bag${e.kind === 'potion' ? '\nDrinks the one that best fits what you are missing.' : ''}\n› Key ${i + 1} · right-click: change this key`;
+        b.setAttribute('aria-label', `${label}, key ${i + 1}, ${n} left`);
         icon = e.kind === 'potion' ? (e.what === 'mana' ? '🧪' : '❤') : ICON(e.id);
         corner = `<span class="hv-slot__count">${n}</span>`;
       }

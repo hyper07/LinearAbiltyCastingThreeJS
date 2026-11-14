@@ -45,7 +45,7 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 </p>
 
 <p>
-  <img src="screenshots/hearthvale-keys.jpg" width="100%" alt="The hotbar's key picker open on key 7: the class's skills (the unlearned ones dimmed), then Health draught, Resolve tonic, Minor Healing Draught and Hearth Bread with how many are in the bag, and Nothing; below, keys 1 to 8 with the health draught on 7 and a tonic on 8, each showing a count" />
+  <img src="screenshots/hearthvale-keys.jpg" width="100%" alt="The key picker open on key 7, pictures only: a row of the class's six skills (each with its rank or a lock, and the number of the key it is on) and a row of draughts and food with how many are left; a tooltip on Challenge gives its rank, what it does, its cost and cooldown, and Click: put it on key 7. Below, keys 1 to 8" />
 </p>
 
 <p>
@@ -142,7 +142,8 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   In a store, click a picture to pick it; Buy, ×5 and Buy & wear are under the shelf.
 - **Keys 1–8, yours to set.** The hotbar has eight keys: your six skills on 1–6, a **health
   draught on 7** and a **tonic on 8** to start with. **Right-click a key** (or press **⚙ Keys**, then
-  a number) for a picker with every skill, the two draughts and whatever food is in your bag; what
+  a number) for a picker of **pictures** — every skill, the two draughts and whatever food is in your
+  bag, each marked with the key it is on now; hover one to read it, click to put it on the key. What
   you pick trades places with what was there, and the server keeps your keys with the character. A
   draught key drinks **the one in your bag that fits what you are missing** (a minor one for a
   scratch, a greater one for a wound), shows how many you carry, and **glows when you are low**.
