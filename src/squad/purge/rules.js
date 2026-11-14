@@ -109,8 +109,8 @@ export const GUARDIANS = {
 export const BUILDINGS = {
   spire: { name: 'Bone Spire', hp: 700, armor: 2, r: 1.4, bounty: 60, shoots: { dmg: 14, rate: 1, range: 9 } },
   barrow: { name: 'Barrow', hp: 1200, armor: 1, r: 1.8, bounty: 80 },
-  crypt: { name: 'Crypt', hp: 2600, armor: 3, r: 2.8, bounty: 250, spawns: { kinds: ['husk', 'ravager', 'hexer'], every: 30, keep: 5 } },
-  ossuary: { name: 'Ossuary', hp: 5200, armor: 5, r: 3.2, bounty: 600, spawns: { kinds: ['brute', 'wight', 'bonecaller'], every: 40, keep: 4 } },
+  crypt: { name: 'Crypt', hp: 2600, armor: 3, r: 2.8, bounty: 250, spawns: { kinds: ['husk', 'ravager', 'hexer'], every: 20, keep: 8 } },
+  ossuary: { name: 'Ossuary', hp: 5200, armor: 5, r: 3.2, bounty: 600, spawns: { kinds: ['brute', 'wight', 'bonecaller'], every: 28, keep: 6 } },
   cache: { name: 'Relic Cache', hp: 300, armor: 0, r: 1, bounty: 1250, relics: 1, loot: true },
   node: { name: 'Soul Node', hp: 9000, armor: 6, r: 2.2, bounty: 3000, relics: 2, key: true, shoots: { dmg: 40, rate: 0.8, range: 11 } },
   shrine: { name: 'Shrine of Bones', hp: 14000, armor: 8, r: 3, bounty: 5000, relics: 3, key: true },
@@ -141,7 +141,7 @@ export const DIFFICULTY = {
  * from the land's near edges — easy kills, easy ore, for whoever is home.
  * More of them, and tougher, as time goes on; `cap` at once.
  */
-export const STRAGGLERS = { every: 30, first: 45, count: 4, grow: 1 / 8, kinds: ['husk', 'husk', 'ravager'], bonus: 1.5, cap: 12 };
+export const STRAGGLERS = { every: 30, first: 45, count: 6, grow: 1 / 6, kinds: ['husk', 'husk', 'ravager'], bonus: 1.5, cap: 18 };
 
 /** How fast the game runs (the host's to set). */
 export const SPEEDS = [1, 1.5, 2, 3];
@@ -175,7 +175,7 @@ export const TEAM = { share: 0.5 };
 export const BUNKER = { seats: 6, reach: 1.5, r: 1.8, built: { hp: 2600, armor: 5, cost: 1500, time: 8, max: 2 } };
 
 /** When the time runs out: the bunkers fall, and the dead come every minute, more each time. */
-export const LAST_STAND = { every: 60, first: 20, count: 8, grow: 2, cap: 26 };
+export const LAST_STAND = { every: 60, first: 20, count: 12, grow: 3, cap: 36 };
 
 /**
  * The combinations, as words: for the board by the Forge and the

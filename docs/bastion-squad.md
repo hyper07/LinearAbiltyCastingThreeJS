@@ -55,8 +55,8 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
 - **Relics** come from breaking shrines, soul nodes and relic caches; every commander gets them.
 - **The armoury** (**U**): Weapons (+8% damage a level, to 30) and Plating (+1 armour, to 20), for
   all your soldiers.
-- **The dead's buildings**: Bone Spires shoot; Crypts and Ossuaries raise guards while soldiers are
-  about; Barrows just stand; Relic Caches pay ore and a relic.
+- **The dead's buildings**: Bone Spires shoot; Crypts (up to eight guards, one every 20 s) and Ossuaries
+  (up to six, one every 28 s) raise guards while soldiers are about; Barrows just stand; Relic Caches pay ore and a relic.
 - **The wards**: six Shrines of Bones — each one broken makes every Veteran and above stronger
   (more reach, health, damage) — and six Soul Nodes, each guarded by a named guardian (the Marrow
   Knight, the Ash Witch, the Pale Hound, the Hollow Bishop, the Cinder Lich, the Rotfather).
@@ -65,7 +65,7 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
 - **Healing costs ore**: only the **healing pad** heals, fast, at 1 ore for every 5 health given
   back (green crosses while it does); with no ore, nothing heals. **E** sends the selected there.
 - **Stragglers**: every half a minute a few of the weakest dead wander into the camp from its near
-  edges (more and tougher as time goes on, a dozen at most) — easy kills, half as many points again as
+  edges, six to start (more and tougher as time goes on, eighteen at most) — easy kills, half as many points again as
   usual, for whoever is home.
 - **Bunkers**: each commander has their own bunker inside the camp (three along its east side, one in
   its south-east corner), in their own colour — ring, flag, name. It cannot be broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and

@@ -899,7 +899,7 @@ export class Purge {
     if (!from) return;
     this.raids++;
     this.standWaves = (this.standWaves ?? 0) + (this.lastStand ? 1 : 0);
-    const count = this.lastStand ? Math.min(LAST_STAND.cap, LAST_STAND.count + this.standWaves * LAST_STAND.grow) : Math.min(16, 3 + this.raids + Math.floor(this.fallen / 6));
+    const count = this.lastStand ? Math.min(LAST_STAND.cap, LAST_STAND.count + this.standWaves * LAST_STAND.grow) : Math.min(24, 5 + Math.round(this.raids * 1.5) + Math.floor(this.fallen / 5));
     this._wave(this.lastStand ? spawners.slice(0, 3) : [from], count, null);
     this.events.push({ t: 'raid', wave: this.raids, x: from.x, z: from.z, n: count });
   }
@@ -944,7 +944,7 @@ export class Purge {
     if (!(def.spawns || def.key)) return;
     const near = this.buildings.filter((o) => o.alive && BUILDINGS[o.type].spawns && Math.hypot(o.x - b.x, o.z - b.z) < 110).sort((p, q) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(q.x - b.x, q.z - b.z)).slice(0, 2);
     if (!near.length) return;
-    const count = Math.min(12, 2 + Math.round(b.tier * 1.5) + (def.key ? 2 : 0));
+    const count = Math.min(18, 4 + b.tier * 2 + (def.key ? 3 : 0));
     this._wave(near, count, { x: b.x, z: b.z });
     this.events.push({ t: 'wrath', x: b.x, z: b.z, n: count, from: near.map((o) => [o.x, o.z]), type: b.type });
   }

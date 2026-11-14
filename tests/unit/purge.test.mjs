@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Purge, forgeCheck } from '../../src/squad/purge/sim.js';
-import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS, recipes } from '../../src/squad/purge/rules.js';
+import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS, STRAGGLERS, recipes } from '../../src/squad/purge/rules.js';
 import { STRUCTURES, GUARDS, KEYS, Grid, FORGE, SPAWN, HEART, BASE, tierAt } from '../../src/squad/purge/map.js';
 
 const seats = (n = 4, people = 1) => Array.from({ length: n }, (_, i) => ({ name: `P${i}`, bot: i >= people }));
@@ -249,7 +249,7 @@ test('stragglers wander into the camp for easy points; the camp has no guns — 
     g.strayT = 0;
     g._stragglers(TICK);
   }
-  assert.ok(g.foes.filter((x) => x.stray).length <= 12 + 5);
+  assert.ok(g.foes.filter((x) => x.stray).length <= STRAGGLERS.cap + 8);
 });
 
 test('the hidden rank: "???" until Weapons is mastered; then ten Vanguards, a Phantom and a Paragon make a flying Dreadnought that launches drones', () => {
