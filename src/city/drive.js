@@ -19,8 +19,15 @@ export const CAR = {
   steer: 0.62,
   wheelbase: 2.7,
   halfLength: 2.25,
-  halfWidth: 0.95
+  halfWidth: 0.95,
+  grip: 9,
+  slideGrip: 1.4,
+  boostAccel: 0,
+  boostTop: 0
 };
+
+/** A race car: faster, quicker, and looser at the back, so it drifts when you throw it in. */
+export const RACE = { ...CAR, top: 60, accel: 12.5, brake: 30, steer: 0.6, grip: 6.5, slideGrip: 1.05, boostAccel: 10, boostTop: 14 };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
@@ -41,23 +48,28 @@ export function corners(x, z, heading) {
  * handbrake } (true/false). `blocked(x, z)` says whether a point is inside
  * something solid. Returns what happened: { hit } when it struck something.
  */
-export function stepCar(car, input, dt, blocked = () => false) {
-  const { throttle, brake, left, right, handbrake } = input;
-  // Engine, brakes, reverse.
-  if (throttle) car.v += (car.v < 0 ? CAR.brake : CAR.accel * (1 - Math.max(0, car.v) / CAR.top)) * dt;
-  if (brake) car.v -= (car.v > 0.5 ? CAR.brake : CAR.accel * 0.7) * dt;
-  car.v = clamp(car.v, -CAR.reverse, CAR.top);
+export function stepCar(car, input, dt, blocked = () => false, spec = CAR) {
+  const { throttle, brake, left, right, handbrake, boost } = input;
+  const top = spec.top + (boost ? spec.boostTop : 0);
+  // Engine, brakes, reverse — and a boost, if the car has one.
+  if (throttle) car.v += (car.v < 0 ? spec.brake : (spec.accel + (boost ? spec.boostAccel : 0)) * (1 - Math.max(0, car.v) / top)) * dt;
+  if (brake) car.v -= (car.v > 0.5 ? spec.brake : spec.accel * 0.7) * dt;
+  car.v = clamp(car.v, -spec.reverse, Math.max(top, Math.min(car.v, spec.top + spec.boostTop)));
+  if (car.v > top) car.v -= 6 * dt; // after a boost, back down to the car's own top
   // Rolling and air: slows a car left alone; a handbrake slows it more.
-  const slow = (CAR.roll + CAR.drag * car.v * car.v + (handbrake ? 7 : 0)) * dt;
+  const slow = (spec.roll + spec.drag * car.v * car.v + (handbrake ? 7 : 0)) * dt;
   if (!throttle && !brake) car.v = Math.abs(car.v) <= slow ? 0 : car.v - Math.sign(car.v) * slow;
   else if (handbrake) car.v -= Math.sign(car.v) * Math.min(Math.abs(car.v), 7 * dt);
-  // Steering: less lock at speed, eased in.
-  const want = ((left ? 1 : 0) - (right ? 1 : 0)) * (CAR.steer / (1 + Math.abs(car.v) / 14));
+  // Steering (keys, or `steer` −1 to 1 from a bot): less lock at speed, eased in.
+  const wheel = input.steer ?? (left ? 1 : 0) - (right ? 1 : 0);
+  const want = wheel * (spec.steer / (1 + Math.abs(car.v) / 14));
   car.steer += (want - car.steer) * Math.min(1, dt * 6);
-  const yawRate = (car.v * Math.tan(car.steer)) / CAR.wheelbase * (handbrake ? 1.5 : 1);
+  const yawRate = (car.v * Math.tan(car.steer)) / spec.wheelbase * (handbrake ? 1.5 : 1);
   car.heading += yawRate * dt;
   // The way it goes follows the way it points — slowly in a skid.
-  const grip = handbrake ? 1.4 : 9;
+  // Thrown in hard at speed, the back steps out a little even without the handbrake.
+  const loose = Math.abs(wheel) > 0.8 && Math.abs(car.v) > 22 ? 0.6 : 1;
+  const grip = handbrake ? spec.slideGrip : spec.grip * loose;
   car.travel = (car.travel ?? car.heading) + turn(car.travel ?? car.heading, car.heading) * Math.min(1, dt * grip);
   car.drift = Math.abs(turn(car.travel, car.heading));
   const nx = car.x - Math.sin(car.travel) * car.v * dt;

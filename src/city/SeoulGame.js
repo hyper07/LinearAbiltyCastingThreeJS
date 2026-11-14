@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
+import { Race } from './race.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
 
@@ -39,7 +40,8 @@ export { ROAD_CELL };
  */
 export class SeoulGame {
   /** @param {HTMLElement} host @param {{ onClose?: () => void, base?: string }} [options] */
-  constructor(host, { onClose = () => {}, base = './geo/seoul/' } = {}) {
+  constructor(host, { onClose = () => {}, base = './geo/seoul/', account = null } = {}) {
+    this.account = account;
     this.host = host;
     this.onClose = onClose;
     this.base = base;
@@ -85,6 +87,7 @@ export class SeoulGame {
           <button type="button" data-mode="walk" title="Walk the streets (F switches)">🚶 Walk</button>
           <button type="button" data-mode="drive" title="Drive: into the nearest car, or one brought to the road beside you">🚗 Drive</button>
           <button type="button" data-who title="Who you are on the street (V)">🧍</button>
+          <button type="button" data-race title="Gangnam Drift: race at night on real streets — alone against bots, or with up to four friends">🏁 Gangnam Drift</button>
           <button type="button" data-open-places title="Districts and tall buildings to go to (M)">🧭 Places</button>
         </div>
         <label class="seoul__time" title="Time of day">🌞<input type="range" min="0" max="24" step="0.25" data-hour aria-label="Time of day" /><span data-clock></span></label>
@@ -116,6 +119,8 @@ export class SeoulGame {
     this.street.whoButton = $('[data-who]');
     this.street.dress(this.street.who);
     $('[data-who]').addEventListener('click', () => this.street.switchPerson());
+    this.race = new Race(this);
+    $('[data-race]').addEventListener('click', () => this.race.menu());
     this.setMode('fly');
     this.setHour(this.hour);
     this._stamps();
@@ -156,6 +161,7 @@ export class SeoulGame {
     this.tiles.clear();
     for (const l of this.lands.values()) for (const m of [l.ground, l.roads]) m?.geometry.dispose();
     this.lands.clear();
+    this.race?.dispose();
     this.street?.dispose();
     this.renderer?.dispose();
     this.root?.remove();
@@ -703,8 +709,20 @@ export class SeoulGame {
    * Fly, walk or drive. `keep` (from getting in or out of a car) keeps you
    * where you are; otherwise walking starts on the ground under you.
    */
-  setMode(mode, { keep = false } = {}) {
+  setMode(mode, { keep = false, fromRace = false } = {}) {
     const was = this.mode;
+    // Leaving a race by another button: the race takes itself down first.
+    if (was === 'race' && mode !== 'race' && !fromRace) {
+      this.race.quit();
+      if (mode === 'fly') return;
+    }
+    if (mode === 'race') {
+      this.mode = 'race';
+      this.street.hide();
+      for (const b of this.root.querySelectorAll('[data-mode]')) b.classList.remove('is-on');
+      this.root.focus();
+      return;
+    }
     this.mode = mode === 'walk' || mode === 'drive' ? mode : 'fly';
     if (this.mode !== 'fly' && was === 'fly' && !keep) {
       // Land where you were hovering — beside a building, not inside one.
@@ -783,7 +801,8 @@ export class SeoulGame {
       const floor = this.groundAt(this.pos.x, this.pos.z) + 8;
       this.pos.y = Math.max(floor, Math.min(floor + 2600, this.pos.y + up * speed * 0.7 * dt + f * Math.sin(this.pitch) * speed * dt * 0.6));
       this.speed = Math.hypot(f, s) * speed;
-    } else this.street.update(dt);
+    } else if (this.mode === 'race') this.race.update(dt);
+    else this.street.update(dt);
     // Stay over the city.
     this.pos.x = Math.max(-21000, Math.min(21000, this.pos.x));
     this.pos.z = Math.max(-17000, Math.min(18000, this.pos.z));
@@ -794,7 +813,8 @@ export class SeoulGame {
     if (this.mode === 'fly') {
       this.camera.position.copy(this.pos);
       this.camera.lookAt(this.pos.clone().add(dir));
-    } else this.street.camera(this.camera);
+    } else if (this.mode === 'race') this.race.camera(this.camera);
+    else this.street.camera(this.camera);
     this.sun.position.copy(this.camera.position).addScaledVector(this.sunDir, 800);
     this.sun.target.position.copy(this.camera.position);
     this.sun.target.updateMatrixWorld();
@@ -838,6 +858,11 @@ export class SeoulGame {
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (e.repeat) return;
+      if (this.mode === 'race') {
+        if (e.code === 'KeyH') this.race.horn();
+        else if (e.code === 'Escape') this.race.quit();
+        return;
+      }
       if (e.code === 'KeyF') this.setMode(this.mode === 'fly' ? 'walk' : 'fly');
       else if (e.code === 'KeyE' && this.mode !== 'fly') this.street.use();
       else if (e.code === 'KeyH' && this.mode === 'drive') this.street.horn();

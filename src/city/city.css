@@ -348,3 +348,374 @@
     bottom: 150px;
   }
 }
+
+/* ---- Racing (city/race.js): the map top left, place and laps, the board, speed and boost ---- */
+.seoul.is-racing .seoul__bar,
+.seoul.is-racing .seoul__where,
+.seoul.is-racing .seoul__stamps,
+.seoul.is-racing .seoul__labels,
+.seoul.is-racing .seoul__map,
+.seoul.is-racing .seoul__speed,
+.seoul.is-racing .seoul__hint {
+  display: none !important;
+}
+.seoul.is-racing .seoul__x {
+  margin-left: auto;
+}
+.race__map {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 220px;
+  height: 220px;
+  border-radius: 16px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.race__pos {
+  position: absolute;
+  top: 14px;
+  left: 248px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 8px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(12, 14, 22, 0.82);
+  color: #fff;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.race__pos b {
+  font-size: 46px;
+  line-height: 1;
+  color: #ffd400;
+}
+.race__pos small {
+  opacity: 0.7;
+}
+.race__pos span {
+  grid-column: 1 / -1;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #ff8a2a;
+}
+.race__pos i {
+  grid-column: 1 / -1;
+  font-style: normal;
+  font-size: 26px;
+  font-weight: 800;
+}
+.race__pos em {
+  grid-column: 1 / -1;
+  font-style: normal;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.race__board {
+  position: absolute;
+  top: 70px;
+  right: 14px;
+  min-width: 210px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(12, 14, 22, 0.78);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+}
+.race__board p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+}
+.race__board p.is-me {
+  color: #ffd400;
+  font-weight: 800;
+}
+.race__board b {
+  width: 16px;
+}
+.race__board i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.race__board span {
+  margin-left: auto;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.race__board small {
+  opacity: 0.55;
+}
+.race__speed {
+  position: absolute;
+  right: 22px;
+  bottom: 26px;
+  display: grid;
+  justify-items: end;
+  padding: 10px 18px;
+  min-width: 170px;
+  border-radius: 16px;
+  background: rgba(12, 14, 22, 0.82);
+  color: #fff;
+  pointer-events: none;
+}
+.race__speed b {
+  font-size: 58px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.race__speed small {
+  opacity: 0.7;
+}
+.race__speed span {
+  min-height: 18px;
+  font-weight: 900;
+  color: #ff8a2a;
+  letter-spacing: 0.1em;
+}
+.race__boost {
+  width: 100%;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+.race__boost i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2ad4ff, #b45bff);
+}
+.race__count {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 120px;
+  font-weight: 900;
+  color: #ffd400;
+  text-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.race__drift {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 30px;
+  font-weight: 900;
+  font-style: italic;
+  color: #2ad4ff;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.race__drift.is-banked {
+  color: #b45bff;
+}
+.race__msg {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border-radius: 12px;
+  background: rgba(12, 14, 22, 0.82);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  pointer-events: none;
+}
+.race__menu,
+.race__results {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(860px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 18px 22px;
+  border-radius: 20px;
+  background: rgba(14, 16, 26, 0.94);
+  border: 1px solid rgba(255, 138, 42, 0.45);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  color: #fff;
+  z-index: 3;
+}
+.race__menu header {
+  display: flex;
+  align-items: center;
+}
+.race__menu h2,
+.race__results h2 {
+  margin: 0;
+  flex: 1;
+  font-size: 26px;
+}
+.race__menu header button {
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+.race__lead {
+  opacity: 0.8;
+  line-height: 1.45;
+}
+.race__courses {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.race__courses button {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.race__courses button.is-on {
+  border-color: #ff8a2a;
+  background: rgba(255, 138, 42, 0.15);
+}
+.race__courses span {
+  font-size: 12px;
+  color: #ff8a2a;
+}
+.race__courses small {
+  font-size: 12px;
+  opacity: 0.75;
+  line-height: 1.3;
+}
+.race__courses em {
+  font-style: normal;
+  font-size: 12px;
+  opacity: 0.6;
+}
+.race__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.race__row > span {
+  opacity: 0.75;
+  font-size: 14px;
+}
+.race__row button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.race__row button.is-on {
+  background: #ff8a2a;
+  border-color: #ff8a2a;
+  color: #1a0d02;
+}
+.race__row .race__go {
+  background: #ff8a2a;
+  border-color: #ff8a2a;
+  color: #1a0d02;
+  font-size: 16px;
+  padding: 10px 20px;
+}
+.race__row input {
+  width: 90px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font: inherit;
+  text-align: center;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.race__room {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.race__room [data-race-code] {
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: #ff8a2a;
+  color: #1a0d02;
+  letter-spacing: 0.15em;
+}
+.race__room ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.race__room em {
+  font-style: normal;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.race__note {
+  min-height: 18px;
+  color: #ffb199;
+  font-size: 13px;
+}
+.race__keys {
+  font-size: 12px;
+  opacity: 0.6;
+}
+.race__results table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.race__results th {
+  text-align: left;
+  font-size: 12px;
+  opacity: 0.6;
+  padding: 4px 8px;
+}
+.race__results td {
+  padding: 6px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.race__results tr.is-me td {
+  color: #ffd400;
+  font-weight: 800;
+}
+.race__results td i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 2px;
+}
+@media (max-width: 640px) {
+  .race__map {
+    width: 140px;
+    height: 140px;
+  }
+  .race__pos {
+    left: 164px;
+  }
+  .race__board {
+    display: none;
+  }
+}

@@ -1563,6 +1563,7 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new SeoulGame(document.body, {
+      account: this.account?.user ?? null,
       onClose: () => {
         this.start();
         this.home.refresh?.();

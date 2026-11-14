@@ -86,6 +86,29 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **View**: near, far or farthest — how many tiles are kept around you (800 m to 2 km, more when
   flying high).
 
+## Gangnam Drift: racing at night
+
+**🏁 Gangnam Drift** (the button) is a night race for four cars on a loop of real Seoul streets.
+
+- **Courses**: Gwanghwamun Loop, Namsan Twisties, Dongdaemun Night, Gangnam Avenues and Yeouido
+  Island, 4 to 5 km a lap. Each is planned on the spot from the real road network: four points
+  round the place, joined by the best roads, never the same street twice, never turning round on
+  itself. The same roads always give the same course, so a room needs only the course's name.
+- **Alone**: you against three bots. **Together**: one player makes a room and gives the five-letter
+  code; up to three others join; the host picks the course and the laps (1, 2, 3 or 5) and starts.
+  Bots take any empty seats (the host's browser drives them).
+- **Driving**: **W** go, **S** brake, **A D** steer, **Space** handbrake to throw the car into a
+  slide, **Shift** to spend boost, **R** back onto the course, **H** horn. Sliding through a corner
+  scores drift points and fills the boost.
+- **On screen**: the map at the top left turns with you and shows the course ahead in orange over
+  the streets, with everyone on it; your place and lap, the lap's time, your best and the total;
+  the order of all four; speed and boost. Orange chevrons on the road point the way, and a gate
+  marks the start and finish. A countdown starts the race; the results table ends it (time, best
+  lap, drift points).
+- `src/city/race.js` runs the race; `src/city/course.js` plans the courses (tested in
+  `tests/unit/course.test.mjs`); the room goes over the party server (`/ws`), each browser
+  telling the others where its cars are fifteen times a second.
+
 ## On the street: how it is built
 
 - `src/city/street.js` — walking, getting in and out, driving, traffic, people walking, the map
