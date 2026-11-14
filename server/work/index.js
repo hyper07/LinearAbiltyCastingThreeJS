@@ -7,6 +7,7 @@ import { newsProvider } from './newsProvider.js';
 import { EVENT_EFFECTS, classify, cleanText, isAbout, isSafe } from '../../src/work/news.js';
 import { CHOICE_POINTS, INTERVIEW, ROUTINE, SCENARIOS, fill, seededOrder } from '../../src/work/scenarios.js';
 import { MINIGAMES, make as makeGame, score as scoreGame } from '../../src/work/minigames.js';
+import { cleanLife, viewOf as lifeView, act as lifeAct, choose as lifeChoose, sleep as lifeSleep, nextSeason as lifeNext, newLife } from '../../src/work/life.js';
 import {
   DAY_MS, LEVELS, MISSIONS_PER_DAY, QUARTER_DAYS, RATINGS, ROLES, ROLE_IDS, YEAR_DAYS,
   dayPay, evaluate, layoffRisk, offerLevel, outcome, salaryFor, severance, titleOf
@@ -31,6 +32,11 @@ const BY_SYMBOL = new Map(COMPANIES.map((c) => [c.symbol, c]));
  *   POST /api/work/interview  { application, answers[] }  → hired (and how) or not
  *   POST /api/work/mission    { id, answer }              → score and feedback
  *   POST /api/work/quit
+ *   GET  /api/work/gig                      an odd job: a small puzzle anyone may do for a little money
+ *   POST /api/work/gig        { answer }                  → score, pay, perhaps an offer
+ *   POST /api/work/offer      { id, accept }              → take or decline an offer that arrived
+ *   GET  /api/work/life                     your life: the day, what you are, who you know, what you can do
+ *   POST /api/work/life       { do: 'act'|'choose'|'sleep'|'next'|'restart', id?, choice? }  → the same, a step on
  *   GET  /api/wallet                        your game money and its history
  *
  *   The admin API (HTTP Basic, ADMIN_ACCOUNTS + ADMIN_PASSWORD; no screen):
@@ -43,14 +49,22 @@ const BY_SYMBOL = new Map(COMPANIES.map((c) => [c.symbol, c]));
  *
  * @param {{ db, authenticate, env?, log?, now?: () => number }} options
  */
-export function createWork({ db, authenticate, env = process.env, log = () => {}, now = () => Date.now() }) {
+export function createWork({ db, authenticate, env = process.env, log = () => {}, now = () => Date.now(), rand = Math.random }) {
   const news = newsProvider(env, { now });
   const model = env.WORK_AI === 'off' ? { available: false } : serverModel(env);
   const wallet = createWallet(db, { now });
   const admin = adminAuth(env);
   const tz = env.WORK_TZ || 'UTC';
   const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
-  const dayOf = (t) => dayFormat.format(new Date(t));
+  /**
+   * How fast the game's clock runs: WORK_SPEED game days to a real day (10
+   * unless set). A game day is then 2 h 24 min of real time, a game year
+   * (28 days) under three real days. At 1 the game's days are the calendar's.
+   */
+  const speed = Math.max(1, Math.min(240, Number(env.WORK_SPEED ?? 10) || 10));
+  const GAME_DAY = DAY_MS / speed;
+  const dayOf = speed === 1 ? (t) => dayFormat.format(new Date(t)) : (t) => `day ${Math.floor(t / GAME_DAY)}`;
+  const nextDayAt = (t) => (speed === 1 ? null : (Math.floor(t / GAME_DAY) + 1) * GAME_DAY);
   const limits = { read: new RateLimiter(300, { burst: 60 }), write: new RateLimiter(120, { burst: 30 }) };
   const refusal = (message, status = 409) => Object.assign(new Error(message), { status });
   const hash = (s) => [...String(s)].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
@@ -116,9 +130,9 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
   async function hiringFreeze(symbol) {
     const row = await db.one(
       "SELECT MAX(c.created) AS at FROM work_news_company c JOIN work_news n ON n.id = c.news_id WHERE c.symbol = ? AND n.kind = 'layoffs' AND c.created >= ?",
-      [symbol, now() - (EVENT_EFFECTS.layoffs.freezeDays ?? 7) * DAY_MS]
+      [symbol, now() - (EVENT_EFFECTS.layoffs.freezeDays ?? 7) * GAME_DAY]
     );
-    return row?.at ? Number(row.at) + 7 * DAY_MS : null;
+    return row?.at ? Number(row.at) + 7 * GAME_DAY : null;
   }
 
   // Keep the news of companies where people work fresh.
@@ -276,7 +290,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     return r.rowCount > 0;
   };
   const periodMissions = (job, from, to) => db.many('SELECT score, status FROM work_missions WHERE job_id = ? AND created >= ? AND created < ?', [job.id, from, to]);
-  const yearsOf = (job) => (now() - Number(job.hired)) / (YEAR_DAYS * DAY_MS);
+  const yearsOf = (job) => (now() - Number(job.hired)) / (YEAR_DAYS * GAME_DAY);
 
   /** Missed missions, company news (bonuses, layoffs), reviews: everything due by now. Inside db.serial. */
   async function settle(job) {
@@ -322,10 +336,10 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     // Quarterly check-ins and the year's evaluation.
     for (let guard = 0; guard < 24; guard++) {
       const start = Number(job.period_start);
-      const quarter = Math.floor((now() - start) / (QUARTER_DAYS * DAY_MS));
+      const quarter = Math.floor((now() - start) / (QUARTER_DAYS * GAME_DAY));
       if (quarter >= 1 && now() < Number(job.review_due)) {
         const q = Math.min(3, quarter);
-        const ev = evaluate(await periodMissions(job, start, start + q * QUARTER_DAYS * DAY_MS));
+        const ev = evaluate(await periodMissions(job, start, start + q * QUARTER_DAYS * GAME_DAY));
         await event(job, 'check-in', { quarter: q, performance: ev.performance, rating: ev.rating }, `q${job.reviews}-${q}`);
       }
       if (now() < Number(job.review_due)) break;
@@ -348,8 +362,8 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
         await db.run("UPDATE work_missions SET status = 'missed', score = 0 WHERE job_id = ? AND status = 'open'", [job.id]);
         return { ...job, status: 'let_go' };
       }
-      await db.run('UPDATE work_jobs SET level = ?, salary = ?, period_start = ?, review_due = ?, reviews = reviews + 1, last_rating = ?, warnings = ? WHERE id = ?', [level, salary, end, end + YEAR_DAYS * DAY_MS, ev.rating, out.warnings, job.id]);
-      job = { ...job, level, salary, period_start: end, review_due: end + YEAR_DAYS * DAY_MS, reviews: job.reviews + 1, last_rating: ev.rating, warnings: out.warnings };
+      await db.run('UPDATE work_jobs SET level = ?, salary = ?, period_start = ?, review_due = ?, reviews = reviews + 1, last_rating = ?, warnings = ? WHERE id = ?', [level, salary, end, end + YEAR_DAYS * GAME_DAY, ev.rating, out.warnings, job.id]);
+      job = { ...job, level, salary, period_start: end, review_due: end + YEAR_DAYS * GAME_DAY, reviews: job.reviews + 1, last_rating: ev.rating, warnings: out.warnings };
     }
     return job;
   }
@@ -361,7 +375,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     const have = await db.many('SELECT kind, news_id FROM work_missions WHERE job_id = ? AND day = ?', [job.id, today]);
     if (have.length >= MISSIONS_PER_DAY) return [];
     const used = new Set((await db.many('SELECT news_id FROM work_missions WHERE job_id = ? AND news_id IS NOT NULL', [job.id])).map((r) => r.news_id));
-    const fresh = (await companyNews(job.symbol, Math.max(Number(job.hired) - DAY_MS, now() - 36 * 3_600_000), 10)).filter((n) => n.safe && !used.has(n.id));
+    const fresh = (await companyNews(job.symbol, Math.max(Number(job.hired) - GAME_DAY, now() - 36 * 3_600_000), 10)).filter((n) => n.safe && !used.has(n.id));
     const wanted = [];
     const room = MISSIONS_PER_DAY - have.length;
     const writtenToday = have.some((m) => m.kind === 'written');
@@ -401,7 +415,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
               for (const m of planned.slice(0, Math.max(0, MISSIONS_PER_DAY - count))) {
                 await db.run(
                   `INSERT INTO work_missions (job_id, account_id, day, kind, news_id, title, public, secret, status, created, due) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?) ON CONFLICT DO NOTHING`,
-                  [job.id, account.id, day, m.kind, m.news_id, m.title, JSON.stringify(m.public), JSON.stringify(m.secret), now(), now() + 36 * 3_600_000]
+                  [job.id, account.id, day, m.kind, m.news_id, m.title, JSON.stringify(m.public), JSON.stringify(m.secret), now(), now() + 1.5 * GAME_DAY]
                 );
               }
             })
@@ -417,7 +431,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     const job = await activeJob(account.id);
     const last = job ? null : await db.one('SELECT * FROM work_jobs WHERE account_id = ? ORDER BY hired DESC LIMIT 1', [account.id]);
     const events = (await db.many('SELECT kind, data, at FROM work_events WHERE account_id = ? ORDER BY id DESC LIMIT 25', [account.id])).map((e) => ({ kind: e.kind, data: e.data, at: Number(e.at) }));
-    const base = { wallet: await wallet.balance(account.id), events, newsReady: news.ready, ai: model.available, day: dayOf(now()), tz };
+    const base = { wallet: await wallet.balance(account.id), events, newsReady: news.ready, ai: model.available, day: dayOf(now()), tz, speed, nextDay: nextDayAt(now()), gigs: await gigState(account), offer: await openOffer(account.id) };
     if (!job) return { ...base, job: null, last: last ? { symbol: last.symbol, company: BY_SYMBOL.get(last.symbol)?.name, status: last.status, title: titleOf(last.role, last.level) } : null };
     const company = BY_SYMBOL.get(job.symbol);
     const missions = (await db.many("SELECT id, day, kind, title, public, status, score, feedback, due FROM work_missions WHERE job_id = ? AND (status = 'open' OR day = ?) ORDER BY id", [job.id, dayOf(now())])).map((m) => ({ ...m, id: Number(m.id), due: Number(m.due) }));
@@ -457,7 +471,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     if (!company) throw refusal('No such company', 404);
     if (!ROLE_IDS.includes(role)) throw refusal('Pick a role', 400);
     if (await activeJob(account.id)) throw refusal('You already have a job: quit it first to apply somewhere else.');
-    const recent = await db.one("SELECT decided FROM work_applications WHERE account_id = ? AND symbol = ? AND status = 'rejected' AND decided > ? ORDER BY decided DESC LIMIT 1", [account.id, company.symbol, now() - DAY_MS]);
+    const recent = await db.one("SELECT decided FROM work_applications WHERE account_id = ? AND symbol = ? AND status = 'rejected' AND decided > ? ORDER BY decided DESC LIMIT 1", [account.id, company.symbol, now() - GAME_DAY]);
     if (recent) throw refusal(`${company.name} said no today. Try again tomorrow, or apply somewhere else.`);
     await refreshNews([company.symbol]);
     const freeze = await hiringFreeze(company.symbol);
@@ -493,7 +507,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
         const salary = salaryFor(app.role, level);
         const job = await db.one(
           `INSERT INTO work_jobs (account_id, symbol, role, level, salary, status, hired, period_start, review_due, news_since) VALUES (?, ?, ?, ?, ?, 'employed', ?, ?, ?, ?) RETURNING *`,
-          [account.id, app.symbol, app.role, level, salary, now(), now(), now() + YEAR_DAYS * DAY_MS, now()]
+          [account.id, app.symbol, app.role, level, salary, now(), now(), now() + YEAR_DAYS * GAME_DAY, now()]
         );
         await db.run("UPDATE work_applications SET status = 'hired', score = ?, decided = ? WHERE id = ?", [score, now(), app.id]);
         await event(job, 'hired', { company: company.name, title: titleOf(app.role, level), salary, score });
@@ -548,10 +562,146 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
           await db.run('UPDATE work_jobs SET last_paid_day = ? WHERE id = ?', [day, job.id]);
           await wallet.credit(account.id, paid, 'salary', `job:${job.id}:${day}`);
           await event(job, 'paid', { amount: paid, day }, `pay-${day}`);
+          // A day well worked gets noticed: now and then, another company writes.
+          if (result.score >= 60) await maybeOffer(account, { job, chance: 0.12 });
         }
         return { ...result, paid, wallet: await wallet.balance(account.id) };
       })
     );
+  }
+
+  /* ---- odd jobs: a little money for anyone, and the offers that come of them ---- */
+
+  const GIGS_PER_DAY = 5;
+  /** The most one odd job pays (cents): a good day of them is still less than an intern's day. */
+  const GIG_PAY = 12_000;
+  const GIG_KINDS = Object.keys(MINIGAMES);
+  const gigsDone = async (accountId, day) => Number((await db.one("SELECT COUNT(*)::int AS n FROM work_events WHERE account_id = ? AND kind = 'gig' AND data->>'day' = ?", [accountId, day]))?.n ?? 0);
+  /** The odd job waiting for someone: made from who they are, the day and how many they have done, so it needs no keeping. */
+  function gigFor(accountId, day, n) {
+    const seed = `gig:${accountId}:${day}:${n}`;
+    const kind = GIG_KINDS[(Number(accountId) + n * 7 + day.length * 3 + [...day].reduce((a, c) => a + c.charCodeAt(0), 0)) % GIG_KINDS.length];
+    return { kind, ...makeGame(kind, seed, ROLE_IDS[n % ROLE_IDS.length]) };
+  }
+  async function gigState(account) {
+    const day = dayOf(now());
+    const done = await gigsDone(account.id, day);
+    return { left: Math.max(0, GIGS_PER_DAY - done), perDay: GIGS_PER_DAY, pay: GIG_PAY };
+  }
+
+  /** An odd job to do: a small puzzle, open to anyone signed in, with or without a job. */
+  async function gig(account) {
+    const day = dayOf(now());
+    const n = await gigsDone(account.id, day);
+    if (n >= GIGS_PER_DAY) return { left: 0, perDay: GIGS_PER_DAY, pay: GIG_PAY, game: null, nextDay: nextDayAt(now()) };
+    const g = gigFor(account.id, day, n);
+    return { left: GIGS_PER_DAY - n, perDay: GIGS_PER_DAY, pay: GIG_PAY, n, game: { kind: g.kind, title: MINIGAMES[g.kind]?.name ?? g.kind, how: MINIGAMES[g.kind]?.how ?? '', public: g.public } };
+  }
+
+  /** Hand in an odd job: paid by how well it was done; now and then, someone who saw it offers real work. */
+  async function gigDone(account, { answer }) {
+    return db.serial(() =>
+      db.tx(async () => {
+        const day = dayOf(now());
+        const n = await gigsDone(account.id, day);
+        if (n >= GIGS_PER_DAY) throw refusal('No more odd jobs today — more come with the next day');
+        const g = gigFor(account.id, day, n);
+        const score = scoreGame(g.kind, g.secret, answer ?? {});
+        const paid = Math.round((GIG_PAY * score) / 100);
+        if (paid > 0) await wallet.credit(account.id, paid, 'gig', `gig:${day}:${n}`);
+        await db.run('INSERT INTO work_events (account_id, job_id, kind, data, ref, at) VALUES (?, NULL, ?, ?, NULL, ?)', [account.id, 'gig', JSON.stringify({ day, n, score, amount: paid }), now()]);
+        const job = await activeJob(account.id);
+        // Good work is how people hear of you: more so without a job, and more the better it was.
+        const offer = score >= 50 ? await maybeOffer(account, { job, chance: job ? 0.08 : 0.25 + score / 400, score }) : null;
+        return { score, paid, wallet: await wallet.balance(account.id), left: GIGS_PER_DAY - n - 1, offer, feedback: score >= 90 ? 'Spot on.' : score >= 60 ? 'Good work — a little off.' : 'Not quite: check the rule and try the next one.' };
+      })
+    );
+  }
+
+  /** The offer on the table, if there is one that has not lapsed or been answered. */
+  async function openOffer(accountId) {
+    const row = await db.one("SELECT id, data FROM work_events WHERE account_id = ? AND kind = 'offer' ORDER BY id DESC LIMIT 1", [accountId]);
+    if (!row || row.data.status || Number(row.data.expires) < now()) return null;
+    return { id: Number(row.id), ...row.data };
+  }
+
+  /**
+   * Perhaps an offer arrives: a company that is hiring, a role, and the pay
+   * that company gives for it — the same as its own people at that level
+   * (for someone with a job: their level, within a tenth of their pay either
+   * way). No interview: take it or leave it within two days.
+   */
+  async function maybeOffer(account, { job = null, chance = 0.3, score = 70 } = {}) {
+    if (rand() >= chance || (await openOffer(account.id))) return null;
+    const frozen = new Set((await db.many("SELECT c.symbol FROM work_news_company c JOIN work_news n ON n.id = c.news_id WHERE n.kind = 'layoffs' AND c.created >= ?", [now() - 7 * GAME_DAY])).map((r) => r.symbol));
+    const pool = COMPANIES.filter((c) => !frozen.has(c.symbol) && c.symbol !== job?.symbol);
+    if (!pool.length) return null;
+    const company = pool[Math.floor(rand() * pool.length)];
+    const role = job?.role ?? ROLE_IDS[Math.floor(rand() * ROLE_IDS.length)];
+    const level = job ? Number(job.level) : score >= 85 ? 1 : 0;
+    const salary = job ? Math.round((Number(job.salary) * (0.92 + rand() * 0.2)) / 100) * 100 : salaryFor(role, level);
+    const data = { symbol: company.symbol, company: company.name, sector: company.sector, role, level, title: titleOf(role, level), salary, expires: now() + 2 * GAME_DAY };
+    const row = await db.one('INSERT INTO work_events (account_id, job_id, kind, data, ref, at) VALUES (?, NULL, ?, ?, NULL, ?) RETURNING id', [account.id, 'offer', JSON.stringify(data), now()]);
+    return { id: Number(row.id), ...data };
+  }
+
+  /** Take an offer (leaving the job you have, if any) or turn it down. */
+  async function offerAnswer(account, { id, accept }) {
+    return db.serial(() =>
+      db.tx(async () => {
+        const offer = await openOffer(account.id);
+        if (!offer || offer.id !== Number(id)) throw refusal('That offer is gone', 404);
+        await db.run('UPDATE work_events SET data = ? WHERE id = ?', [JSON.stringify({ ...offer, id: undefined, status: accept ? 'accepted' : 'declined' }), offer.id]);
+        if (!accept) return { accepted: false };
+        const old = await activeJob(account.id);
+        if (old) {
+          await db.run("UPDATE work_jobs SET status = 'quit', ended = ? WHERE id = ?", [now(), old.id]);
+          await db.run("UPDATE work_missions SET status = 'missed', score = 0 WHERE job_id = ? AND status = 'open'", [old.id]);
+          await event(old, 'quit', { company: BY_SYMBOL.get(old.symbol)?.name });
+        }
+        const job = await db.one(
+          `INSERT INTO work_jobs (account_id, symbol, role, level, salary, status, hired, period_start, review_due, news_since) VALUES (?, ?, ?, ?, ?, 'employed', ?, ?, ?, ?) RETURNING *`,
+          [account.id, offer.symbol, offer.role, offer.level, offer.salary, now(), now(), now() + YEAR_DAYS * GAME_DAY, now()]
+        );
+        await event(job, 'hired', { company: offer.company, title: offer.title, salary: offer.salary, offered: true });
+        return { accepted: true, company: offer.company, title: offer.title, salary: offer.salary };
+      })
+    );
+  }
+
+  /* ---- the "Life" side: days, people and scenes (src/work/life.js) ---- */
+
+  /** The job a life's scenes speak of: the one you really have here, if you have one. */
+  async function lifeContext(account) {
+    const job = await activeJob(account.id);
+    return job ? { company: BY_SYMBOL.get(job.symbol)?.name, role: ROLES[job.role]?.name?.toLowerCase(), title: LEVELS[job.level]?.title, name: account.name } : { name: account.name };
+  }
+
+  async function loadLife(account) {
+    const row = await db.one('SELECT data FROM work_life WHERE account_id = ?', [account.id]);
+    return cleanLife(row?.data, Number(account.id) * 2654435761);
+  }
+
+  async function life(account) {
+    return { life: lifeView(await loadLife(account), await lifeContext(account)) };
+  }
+
+  /** One step of a life: spend a part of the day, answer a scene, sleep, begin the next season, or start over. */
+  async function lifeStep(account, body) {
+    return db.serial(async () => {
+      let state = await loadLife(account);
+      const what = String(body?.do ?? '');
+      let why = null;
+      if (what === 'act') why = lifeAct(state, String(body.id ?? ''));
+      else if (what === 'choose') why = lifeChoose(state, Number(body.choice));
+      else if (what === 'sleep') why = lifeSleep(state);
+      else if (what === 'next') why = lifeNext(state);
+      else if (what === 'restart') state = newLife((Number(account.id) * 2654435761 + now()) >>> 0);
+      else throw Object.assign(new Error('Unknown step'), { status: 400 });
+      if (why) throw Object.assign(new Error(why), { status: 400 });
+      await db.run('INSERT INTO work_life (account_id, data, updated) VALUES (?, ?, ?) ON CONFLICT (account_id) DO UPDATE SET data = EXCLUDED.data, updated = EXCLUDED.updated', [account.id, JSON.stringify(state), now()]);
+      return { life: lifeView(state, await lifeContext(account)) };
+    });
   }
 
   async function companies({ q = '', sector = '' } = {}) {
@@ -559,7 +709,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     const list = COMPANIES.filter((c) => (!sector || c.sector === sector) && (!needle || `${c.symbol} ${c.name} ${c.industry} ${c.hq}`.toLowerCase().includes(needle)));
     const staff = new Map((await db.many("SELECT symbol, COUNT(*)::int AS n FROM work_jobs WHERE status = 'employed' GROUP BY symbol")).map((r) => [r.symbol, r.n]));
     const frozen = new Map(
-      (await db.many("SELECT c.symbol, MAX(c.created) AS at FROM work_news_company c JOIN work_news n ON n.id = c.news_id WHERE n.kind = 'layoffs' AND c.created >= ? GROUP BY c.symbol", [now() - 7 * DAY_MS])).map((r) => [r.symbol, Number(r.at) + 7 * DAY_MS])
+      (await db.many("SELECT c.symbol, MAX(c.created) AS at FROM work_news_company c JOIN work_news n ON n.id = c.news_id WHERE n.kind = 'layoffs' AND c.created >= ? GROUP BY c.symbol", [now() - 7 * GAME_DAY])).map((r) => [r.symbol, Number(r.at) + 7 * GAME_DAY])
     );
     return {
       sectors: [...new Set(COMPANIES.map((c) => c.sector))].sort(),
@@ -608,6 +758,11 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     'POST /api/work/interview': ({ account, body }) => interview(account, body),
     'POST /api/work/mission': ({ account, body }) => mission(account, body),
     'POST /api/work/quit': ({ account }) => quit(account),
+    'GET /api/work/gig': ({ account }) => gig(account),
+    'POST /api/work/gig': ({ account, body }) => gigDone(account, body),
+    'POST /api/work/offer': ({ account, body }) => offerAnswer(account, body),
+    'GET /api/work/life': ({ account }) => life(account),
+    'POST /api/work/life': ({ account, body }) => lifeStep(account, body),
     'GET /api/wallet': async ({ account }) => ({ balance: await wallet.balance(account.id), ledger: await wallet.ledger(account.id) }),
     'GET /api/work/admin': () => adminView(),
     'GET /api/work/admin/missions': async ({ query }) => {
@@ -656,5 +811,5 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     }
   }
 
-  return { handler, wallet, stop: () => clearInterval(timer), today, apply, interview, mission, quit, companies, refreshNews, settle };
+  return { handler, wallet, stop: () => clearInterval(timer), today, apply, interview, mission, quit, companies, refreshNews, settle, life, lifeStep, gig, gigDone, offerAnswer, maybeOffer, speed };
 }

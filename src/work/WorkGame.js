@@ -1,6 +1,7 @@
 import { money } from '../market/marketClient.js';
 import '../market/market.css';
 import './work.css';
+import { LifeView } from './LifeView.js';
 
 /** The work game's server calls (server/work/index.js). */
 async function call(path, body) {
@@ -33,7 +34,9 @@ const KIND_LABEL = {
   capital: 'Dividend', expansion: 'Growth', other: 'News'
 };
 const EVENT_TEXT = {
-  hired: (d) => `Hired at ${d.company} as ${d.title} — ${money(d.salary)} a year.`,
+  hired: (d) => `${d.offered ? 'Took an offer' : 'Hired'} at ${d.company} as ${d.title} — ${money(d.salary)} a year.`,
+  gig: (d) => `Odd job: score ${d.score}, paid ${money(d.amount)}.`,
+  offer: (d) => `An offer from ${d.company}: ${d.title}, ${money(d.salary)} a year${d.status ? ` (${d.status})` : ''}.`,
   paid: (d) => `Paid ${money(d.amount)} for ${d.day}.`,
   bonus: (d) => `Bonus ${money(d.amount)}: "${d.headline}".`,
   'check-in': (d) => `Quarter ${d.quarter} check-in: performance ${d.performance} (${d.rating}).`,
@@ -126,14 +129,19 @@ export class WorkGame {
     stat('Wallet', money(s.wallet));
     if (s.job) {
       stat('Salary', `${money(s.job.salary)}/yr`);
-      stat('Review in', `${Math.max(0, Math.ceil((s.job.reviewDue - Date.now()) / 86_400_000))} days`);
+      stat('Review in', `${Math.max(0, Math.ceil((s.job.reviewDue - Date.now()) / (86_400_000 / (s.speed ?? 1))))} days`);
+    }
+    // The game's days are shorter than real ones: say when the next begins.
+    if (s.nextDay) {
+      const left = Math.max(0, s.nextDay - Date.now());
+      stat('Next day in', left > 3_600_000 ? `${Math.floor(left / 3_600_000)}h ${Math.round((left % 3_600_000) / 60_000)}m` : `${Math.max(1, Math.round(left / 60_000))} min`);
     }
   }
 
   renderTabs() {
     const tabs = this.$('[data-tabs]');
     tabs.replaceChildren();
-    for (const [id, label] of [['today', 'Today'], ['jobs', 'Job search'], ['career', 'Career']]) {
+    for (const [id, label] of [['today', 'Today'], ['life', '🌱 Life'], ['jobs', 'Job search'], ['career', 'Career']]) {
       const b = button(label, `mk__tab${this.tab === id ? ' is-active' : ''}`, async () => {
         this.tab = id;
         this.renderTabs();
@@ -149,6 +157,12 @@ export class WorkGame {
   async renderBody() {
     const body = this.$('[data-body]');
     body.replaceChildren();
+    body.classList.toggle('is-life', this.tab === 'life');
+    if (this.tab === 'life') {
+      // Your days outside the task list: people, scenes, and what you make of yourself.
+      this.lifeView ??= new LifeView({ call, say: (text, kind) => this.say(text, kind), share: (card) => this.shareCard?.(card) });
+      return this.lifeView.render(body).catch((error) => body.append(this.notice('Life', error.status === 401 ? 'Sign in to live a life here: it is kept on your account.' : error.message)));
+    }
     if (this.tab === 'jobs') return this.renderJobs(body);
     if (this.tab === 'career') return this.renderCareer(body);
     return this.renderToday(body);
@@ -164,6 +178,7 @@ export class WorkGame {
 
   renderToday(body) {
     const s = this.state;
+    if (s.offer) body.append(this.offerCard(s.offer));
     if (!s.job) {
       const last = s.last;
       const box = this.notice(
@@ -176,6 +191,7 @@ export class WorkGame {
         this.renderBody();
       }));
       body.append(box);
+      this.gigCard(body);
       return;
     }
     const j = s.job;
@@ -224,6 +240,163 @@ export class WorkGame {
     } else if (!s.newsReady) {
       body.append(el('p', 'mk__muted', 'Company news is not set up on this server yet, so today is routine work.'));
     }
+    this.gigCard(body);
+  }
+
+  /** An offer that arrived: who, what, how much — take it or leave it. */
+  offerCard(o) {
+    const card = el('section', 'wk-offer');
+    card.dataset.offer = String(o.id);
+    const left = Math.max(0, o.expires - Date.now());
+    card.append(
+      el('span', 'wk-offer__tag', '✉ An offer'),
+      el('h2', null, `${o.title} at ${o.company}`),
+      el('p', null, `${o.company} (${o.sector}) would like you to join — no interview. ${money(o.salary)} a year, what they pay their own people in that role. Open for ${left > 3_600_000 ? `${Math.round(left / 3_600_000)} more hours` : `${Math.max(1, Math.round(left / 60_000))} more minutes`}.${this.state?.job ? ` Taking it means leaving ${this.state.job.company}.` : ''}`)
+    );
+    const row = el('div', 'wk-offer__row');
+    const answer = async (accept) => {
+      try {
+        const r = await call('work/offer', { id: o.id, accept });
+        if (r.accepted) {
+          this.tab = 'today';
+          await this.reload();
+          this.shareCard({ kind: 'hired', line: `I just took a job as ${r.title} at ${r.company}`, detail: `${money(r.salary)} a year (game money)` });
+        } else await this.reload();
+      } catch (error) {
+        this.say(error.message, 'is-error');
+      }
+    };
+    const yes = button('Accept the offer', 'mk__btn mk__btn--primary', () => answer(true));
+    yes.dataset.accept = '';
+    const no = button('No, thank you', 'mk__btn', () => answer(false));
+    no.dataset.decline = '';
+    row.append(yes, no);
+    card.append(row);
+    return card;
+  }
+
+  /** Odd jobs: a small puzzle anyone can do for a little money. Good work brings offers. */
+  async gigCard(body) {
+    const box = el('section', 'wk-gig');
+    box.dataset.gig = '';
+    body.append(box);
+    const draw = async () => {
+      let g;
+      try {
+        g = await call('work/gig');
+      } catch (error) {
+        box.replaceChildren(el('p', 'mk__muted', error.message));
+        return;
+      }
+      box.replaceChildren(el('h3', 'mk__h', `Odd jobs — ${g.left} of ${g.perDay} left today`), el('p', 'mk__muted', `Quick paid tasks for anyone, job or no job: up to ${money(g.pay)} each, by how well you do. Good work gets noticed — now and then a company sends an offer.`));
+      if (!g.game) {
+        box.append(el('p', null, 'That is all for today. More come with the next day.'));
+        return;
+      }
+      const card = el('article', 'wk-mission is-open');
+      card.dataset.kind = 'minigame';
+      const head = el('div', 'wk-mission__head');
+      head.append(el('strong', null, g.game.title), el('span', 'wk-tag', 'Odd job'));
+      card.append(head, el('p', 'mk__muted', g.game.how ?? ''));
+      card.append(this.minigame({ public: { ...g.game.public, kind: g.game.kind } }, async (answer, buttons = []) => {
+        for (const b of buttons) b.disabled = true;
+        try {
+          const r = await call('work/gig', { answer });
+          this.say(`Score ${r.score}: paid ${money(r.paid)}. ${r.feedback}${r.offer ? ` And — an offer from ${r.offer.company}!` : ''}`, r.score >= 60 ? 'is-good' : '');
+          await this.reload();
+        } catch (error) {
+          this.say(error.message, 'is-error');
+          for (const b of buttons) b.disabled = false;
+        }
+      }));
+      box.append(card);
+    };
+    await draw();
+  }
+
+  /**
+   * Something to tell people: a card to post. It always says this is a
+   * game — these are real companies' names, and nobody should read it as a
+   * real job. LinkedIn and Facebook open with the game's address; the words
+   * are copied for you to paste (those sites do not let a page fill them in).
+   */
+  shareCard({ line, detail = '' }) {
+    const modal = this.modal('Share it');
+    const text = `🎮 ${line} — in Work Life, a career game on Gamory. (A simulation: not a real job!)${detail ? ` ${detail}.` : ''}`;
+    const url = location.origin + location.pathname;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 630;
+    canvas.className = 'wk-share__card';
+    const c = canvas.getContext('2d');
+    const g = c.createLinearGradient(0, 0, 1200, 630);
+    g.addColorStop(0, '#8b5cf6');
+    g.addColorStop(0.55, '#ff5da2');
+    g.addColorStop(1, '#ffc93c');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 1200, 630);
+    c.fillStyle = '#fff8ec';
+    c.beginPath();
+    c.roundRect(50, 50, 1100, 530, 40);
+    c.fill();
+    c.fillStyle = '#2b1d4e';
+    c.font = '900 40px "Nunito Variable", system-ui, sans-serif';
+    c.fillText('💼 Work Life', 100, 135);
+    c.font = '900 58px "Nunito Variable", system-ui, sans-serif';
+    // Wrap the headline to the card.
+    const words = line.split(' ');
+    let row = '';
+    let y = 245;
+    for (const w of words) {
+      if (c.measureText(`${row} ${w}`).width > 1000 && row) {
+        c.fillText(row, 100, y);
+        row = w;
+        y += 72;
+      } else row = row ? `${row} ${w}` : w;
+    }
+    c.fillText(row, 100, y);
+    c.font = '700 32px "Nunito Variable", system-ui, sans-serif';
+    c.fillStyle = '#5a4a8a';
+    if (detail) c.fillText(detail.length > 62 ? `${detail.slice(0, 60)}…` : detail, 100, y + 62);
+    c.fillStyle = '#2b1d4e';
+    c.font = '800 28px "Nunito Variable", system-ui, sans-serif';
+    c.fillText('🎮 A career game on Gamory — a simulation, not a real job', 100, 535);
+    const quote = el('textarea', 'wk-share__text');
+    quote.value = text;
+    quote.rows = 3;
+    quote.setAttribute('aria-label', 'What to post');
+    const row2 = el('div', 'wk-share__row');
+    const copy = async () => {
+      try {
+        await navigator.clipboard.writeText(quote.value);
+        modal.say('Copied — paste it into your post.');
+      } catch {
+        quote.select();
+        modal.say('Select the words above and copy them.');
+      }
+    };
+    const open = (href) => window.open(href, '_blank', 'noopener,noreferrer,width=720,height=640');
+    const li = button('in  LinkedIn', 'mk__btn wk-share__li', async () => {
+      await copy();
+      open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`);
+    });
+    li.dataset.share = 'linkedin';
+    const fb = button('f  Facebook', 'mk__btn wk-share__fb', async () => {
+      await copy();
+      open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote.value)}`);
+    });
+    fb.dataset.share = 'facebook';
+    const cp = button('Copy the words', 'mk__btn', copy);
+    cp.dataset.share = 'copy';
+    const save = button('Save the picture', 'mk__btn', () => {
+      const a = document.createElement('a');
+      a.download = 'work-life.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+    save.dataset.share = 'save';
+    row2.append(li, fb, cp, save);
+    modal.body.append(canvas, quote, row2, el('p', 'mk__muted', 'LinkedIn and Facebook open in a new window with the address of the game; the words are copied so you can paste them. Nothing is posted until you press their button.'));
   }
 
   missionCard(m) {
@@ -352,6 +525,16 @@ export class WorkGame {
   /* ---- Job search ---- */
 
   async renderJobs(body) {
+    if (this.state?.offer) body.append(this.offerCard(this.state.offer));
+    if (this.state && !this.state.job) {
+      const tip = el('p', 'wk-tip', 'No job yet? Odd jobs on the Today tab pay a little straight away — and good work there brings offers with no interview.');
+      tip.append(' ', button('Go to odd jobs', 'mk__btn', () => {
+        this.tab = 'today';
+        this.renderTabs();
+        this.renderBody();
+      }));
+      body.append(tip);
+    }
     if (this.state.job) {
       body.append(el('p', 'mk__muted', `You work at ${this.state.job.company}. To apply somewhere else, quit first (Career).`));
     }
@@ -450,6 +633,11 @@ export class WorkGame {
         });
         done.dataset.done = '';
         modal.body.append(done);
+        if (r.hired) {
+          const share = button('📣 Share the news', 'mk__btn', () => this.shareCard({ line: `I just got hired as ${r.title} at ${r.company}`, detail: `${money(r.salary)} a year (game money)` }));
+          share.dataset.shareOpen = '';
+          modal.body.append(share);
+        }
       } catch (error) {
         go.disabled = false;
         modal.say(error.message);
@@ -480,6 +668,9 @@ export class WorkGame {
   async renderCareer(body) {
     const s = this.state;
     if (s.job) {
+      const share = button('📣 Share where you work', 'mk__btn', () => this.shareCard({ line: `I work as ${s.job.title} at ${s.job.company}`, detail: `Performance ${s.job.performance.performance} · ${money(s.job.salary)} a year (game money)` }));
+      share.dataset.shareOpen = '';
+      body.append(share);
       const quit = button('Quit this job', 'mk__btn mk__btn--sell', async () => {
         if (!confirm(`Leave ${s.job.company}? You lose your title and salary there.`)) return;
         try {

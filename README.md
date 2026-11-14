@@ -54,9 +54,12 @@ daily stock prices, one trading day at a time, a leaderboard, and a look at how 
 **[Stock Market Challenge](docs/stock-market.md)** (prices from Alpaca with keys in `.env`; an admin API
 for tickers and players, for the platform's admin site).
 
-**💼 Work Life**: a job at one of 500 real companies, in real time — that day's real news about your
-company becomes your tasks (decisions, mini-games, notes the AI grades), pay goes to a wallet the stock
-game can invest, and a yearly review decides raises and promotions; layoff news can reach you. See
+**💼 Work Life**: a job at one of 500 real companies, on a clock ten times faster than life — the
+day's real news about your company becomes your tasks (decisions, mini-games, notes the AI grades),
+pay goes to a wallet the stock game can invest, and a yearly review decides raises and promotions;
+layoff news can reach you. Odd jobs pay anyone a little, offers arrive from other companies, and
+there is a **Life** to raise around the job: days in three parts, six people to grow close to, and
+animated scenes whose outcome depends on what you choose and what you have in you. See
 **[Work Life](docs/work-life.md)**.
 
 **♜ Shardfront**: real-time strategy on big maps (up to 512 m across). Pick one of three factions of our

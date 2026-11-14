@@ -400,5 +400,16 @@ export const MIGRATIONS = [
         created BIGINT NOT NULL
       );
     `
+  },
+  {
+    // Work Life's "Life" side (src/work/life.js): one life an account, saved whole.
+    id: '008-work-life',
+    sql: `
+      CREATE TABLE work_life (
+        account_id BIGINT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+        data JSONB NOT NULL,
+        updated BIGINT NOT NULL
+      );
+    `
   }
 ];

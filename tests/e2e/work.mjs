@@ -78,6 +78,22 @@ export async function run(browser, { shots = null } = {}) {
     const wallet = await page.evaluate(() => fetch('./api/wallet').then((r) => r.json()));
     t.check('a day of work is paid into the wallet', wallet.balance > 0 && wallet.ledger.some((l) => l.reason === 'salary'), JSON.stringify(wallet).slice(0, 200));
 
+    // Life: a day in parts, a stage, things to do; the first thing done brings the first scene.
+    await page.click('.wk [data-tab="life"]');
+    t.check('Life opens on Monday morning with a stage, your stats, people and things to do', await until(page, () => /Monday/.test(document.querySelector('.lf__when')?.textContent ?? '') && Boolean(document.querySelector('.lf [data-stage] svg')) && document.querySelectorAll('.lf [data-stat]').length === 6 && document.querySelectorAll('.lf [data-act]').length >= 4, null, 10000));
+    await page.click('.lf [data-act="steady"]');
+    t.check('doing something brings a scene: people on the stage, words, and after them choices', await until(page, () => document.querySelectorAll('.lf .lf__person').length === 2 && Boolean(document.querySelector('.lf [data-say]')) && document.querySelectorAll('.lf [data-choice]').length === 3, null, 12000));
+    for (let i = 0; i < 6 && !(await page.$('.lf [data-choice]:not(:disabled)')); i++) await page.click('.lf [data-next]', { force: true });
+    await page.keyboard.press('1');
+    t.check('an answer changes who you are to them, and the scene says what came of it', await until(page, () => Boolean(document.querySelector('.lf .lf__chips--stage .lf__chip, .lf [data-next]')) && /You chose/.test(document.querySelector('.lf__below')?.textContent ?? ''), null, 10000));
+    await shot('work-life');
+    // Odd jobs for anyone; and a card to share.
+    await page.click('.wk [data-tab="today"]');
+    t.check('Today offers odd jobs, five a day', await until(page, () => /Odd jobs — \d of 5 left today/.test(document.querySelector('.wk [data-gig]')?.textContent ?? ''), null, 10000));
+    await page.click('.wk [data-tab="career"]');
+    await page.click('.wk [data-share-open]');
+    t.check('sharing shows a card and the words, which say it is a game, with LinkedIn and Facebook', await until(page, () => Boolean(document.querySelector('.wk-modal canvas')) && /not a real job/.test(document.querySelector('.wk-share__text')?.value ?? '') && Boolean(document.querySelector('[data-share="linkedin"]')) && Boolean(document.querySelector('[data-share="facebook"]')), null, 5000));
+    await page.click('.wk-modal .mk__close');
     await page.click('.wk [data-tab="career"]');
     t.check('the career page tells what happened', await until(page, () => /Hired at/.test(document.querySelector('.wk .mk__body')?.textContent ?? '') && /salary/.test(document.querySelector('.wk .mk__body')?.textContent ?? ''), null, 10000));
 

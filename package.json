@@ -19,6 +19,7 @@
     "library:index": "node scripts/library/index.mjs",
     "admin": "node --disable-warning=ExperimentalWarning scripts/admin.mjs",
     "game:new": "node --disable-warning=ExperimentalWarning scripts/new-game.mjs",
+    "work:images": "node scripts/work/scene-images.mjs",
     "geo:seoul": "node scripts/geo/seoul-build.mjs",
     "db:import": "node --disable-warning=ExperimentalWarning scripts/db-import.mjs"
   },

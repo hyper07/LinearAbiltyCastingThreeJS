@@ -14,7 +14,7 @@ async function world() {
   const clock = { t: Date.parse('2026-11-12T15:00:00Z') };
   const now = () => clock.t;
   const ada = await db.one('INSERT INTO accounts (name, name_key, pass_hash, created) VALUES (?, ?, ?, ?) RETURNING id, name, plan', ['Ada', 'ada', 'x', 0]);
-  const env = { WORK_NEWS_PROVIDER: 'fixture', WORK_AI: 'off', MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'pw' };
+  const env = { WORK_SPEED: '1', WORK_NEWS_PROVIDER: 'fixture', WORK_AI: 'off', MARKET_PROVIDER: 'fixture', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'pw' };
   const work = createWork({ db, authenticate: async () => ada, env, now });
   return { db, clock, ada, work, env, now };
 }
@@ -144,3 +144,159 @@ import { Readable } from 'node:stream';
 function require_stream(text) {
   return Readable.from([Buffer.from(text)]);
 }
+
+test('the game clock runs ten times faster by default; odd jobs pay anyone; offers arrive and can be taken', async () => {
+  const db = await testDatabase();
+  const clock = { t: Date.parse('2026-11-12T15:00:00Z') };
+  const now = () => clock.t;
+  const ada = await db.one('INSERT INTO accounts (name, name_key, pass_hash, created) VALUES (?, ?, ?, ?) RETURNING id, name, plan', ['Ada', 'ada', 'x', 0]);
+  // "Luck" we can steer: every roll comes from this list (then 0.99: nothing happens).
+  const rolls = [];
+  const rand = () => (rolls.length ? rolls.shift() : 0.99);
+  const work = createWork({ db, authenticate: async () => ada, env: { WORK_NEWS_PROVIDER: 'fixture', WORK_AI: 'off', MARKET_PROVIDER: 'fixture' }, now, rand });
+  try {
+    assert.equal(work.speed, 10);
+    const first = await work.today(ada);
+    assert.equal(first.speed, 10);
+    assert.ok(first.nextDay > clock.t && first.nextDay - clock.t <= 8_640_000, 'a game day is 2 h 24 min');
+    assert.equal(first.job, null);
+    assert.deepEqual({ left: first.gigs.left, perDay: first.gigs.perDay }, { left: 5, perDay: 5 });
+    // An odd job: a puzzle with no answer in it, paid by the score.
+    const g = await work.gig(ada);
+    assert.ok(g.game?.public && g.game.title && !JSON.stringify(g.game).includes('"answer"'));
+    const wrong = await work.gigDone(ada, { answer: {} });
+    assert.ok(wrong.score < 50 && wrong.paid === Math.round((g.pay * wrong.score) / 100) && wrong.offer === null);
+    assert.equal(wrong.left, 4);
+    // Do the next one properly (the server can make the same puzzle again, so we can work out its answer here).
+    const { make } = await import('../../src/work/minigames.js');
+    const solve = async () => {
+      const next = await work.gig(ada);
+      const day = (await work.today(ada)).day;
+      const made = make(next.game.kind, `gig:${ada.id}:${day}:${next.n}`, ['engineer', 'analyst', 'marketing', 'sales', 'support', 'operations', 'finance', 'people'][next.n % 8]);
+      const s = made.secret;
+      return next.game.kind === 'triage' ? { order: s.order } : next.game.kind === 'spot-error' ? { rows: s.wrong } : { value: s.answer };
+    };
+    rolls.push(0.01, 0.5, 0.5);
+    const good = await work.gigDone(ada, { answer: await solve() });
+    assert.ok(good.score >= 90, `solved: ${good.score}`);
+    assert.equal(good.paid, Math.round((g.pay * good.score) / 100));
+    assert.equal(good.wallet, wrong.paid + good.paid);
+    assert.ok(good.offer?.company && good.offer.salary > 0 && good.offer.title, 'good work brought an offer');
+    const { salaryFor } = await import('../../src/work/roles.js');
+    assert.equal(good.offer.salary, salaryFor(good.offer.role, good.offer.level), 'at the pay that company gives for the role');
+    assert.equal((await work.today(ada)).offer.id, good.offer.id);
+    // Only so many a day; the next game day (2 h 24 min later) brings more.
+    for (let i = 0; i < 3; i++) await work.gigDone(ada, { answer: {} });
+    await assert.rejects(() => work.gigDone(ada, { answer: {} }), /No more odd jobs today/);
+    assert.equal((await work.gig(ada)).game, null);
+    clock.t += 8_640_000;
+    assert.equal((await work.gig(ada)).left, 5);
+    // Take the offer: hired without an interview, at that pay.
+    await assert.rejects(() => work.offerAnswer(ada, { id: good.offer.id + 99, accept: true }), /gone/);
+    const taken = await work.offerAnswer(ada, { id: good.offer.id, accept: true });
+    assert.deepEqual({ accepted: taken.accepted, company: taken.company, salary: taken.salary }, { accepted: true, company: good.offer.company, salary: good.offer.salary });
+    const after = await work.today(ada);
+    assert.equal(after.job.company, good.offer.company);
+    assert.equal(after.offer, null);
+    await assert.rejects(() => work.offerAnswer(ada, { id: good.offer.id, accept: true }), /gone/);
+    // With a job, another company may write: the same level, about the same pay. Declining keeps the job.
+    rolls.push(0.0, 0.3, 0.5);
+    const poach = await work.maybeOffer(ada, { job: { symbol: after.job.symbol, role: after.job.role, level: after.job.level, salary: after.job.salary }, chance: 1 });
+    assert.ok(poach && poach.symbol !== after.job.symbol && Math.abs(poach.salary - after.job.salary) <= after.job.salary * 0.13);
+    assert.equal((await work.offerAnswer(ada, { id: poach.id, accept: false })).accepted, false);
+    assert.equal((await work.today(ada)).job.company, good.offer.company);
+    // An offer lapses after two game days.
+    rolls.push(0.0, 0.3, 0.5);
+    const late = await work.maybeOffer(ada, { chance: 1 });
+    clock.t += 3 * 8_640_000;
+    await assert.rejects(() => work.offerAnswer(ada, { id: late.id, accept: true }), /gone/);
+  } finally {
+    work.stop();
+    await db.close();
+  }
+});
+
+test('Life: days of three parts, scenes that turn on what you choose and what you have in you, a season with a name', async () => {
+  const L = await import('../../src/work/life.js');
+  const { SCENES, ACTIVITIES, PEOPLE } = await import('../../src/work/lifeStory.js');
+  // The story is well formed: every person and stat it names exists; a choice that asks something has both outcomes.
+  const stats = new Set(Object.keys(L.newLife().stats));
+  const fxOk = (fx = {}) => Object.keys(fx).every((k) => k === 'people' || k === 'flag' || stats.has(k)) && Object.keys(fx.people ?? {}).every((id) => PEOPLE[id]);
+  for (const a of ACTIVITIES) assert.ok(fxOk(a.fx), a.id);
+  for (const sc of SCENES) {
+    assert.ok(sc.lines.length && sc.choices.length >= 2 && sc.cast.every((id) => PEOPLE[id]), sc.id);
+    for (const c of sc.choices) assert.ok(c.ok.lines.length && fxOk(c.ok.fx) && (!c.need || (c.no?.lines.length && fxOk(c.no.fx))), `${sc.id}: ${c.t}`);
+  }
+  // Monday morning: work to do; the first scene comes after it.
+  const s = L.newLife(5);
+  let v = L.viewOf(s, { company: 'Acme Corp', role: 'data analyst', title: 'Junior', name: 'Ada' });
+  assert.deepEqual([v.weekday, v.partName, v.weekend], ['Monday', 'Morning', false]);
+  assert.ok(v.activities.some((a) => a.id === 'focus') && !v.activities.some((a) => a.id === 'rest'), 'a weekday morning is for work');
+  assert.match(L.act(s, 'rest'), /can't do that now/);
+  assert.equal(L.act(s, 'steady'), null);
+  assert.equal(s.scene, 'first-day');
+  v = L.viewOf(s, { company: 'Acme Corp', role: 'data analyst', title: 'Junior', name: 'Ada' });
+  assert.match(v.scene.lines[0].text, /Welcome to Acme Corp, Ada\. You're our new Junior data analyst/);
+  assert.match(L.act(s, 'steady'), /answer it first/);
+  assert.match(L.sleep(s), /answer it first/);
+  const before = s.people.mina;
+  assert.equal(L.choose(s, 0), null);
+  assert.ok(s.people.mina > before && s.scene === null && s.last.kind === 'scene' && s.last.lines.length);
+  // The same moment, two people: one has it in them, one doesn't.
+  const strong = L.newLife(1);
+  const tired = L.newLife(1);
+  for (const x of [strong, tired]) Object.assign(x, { scene: 'mina-deadline', day: 3, part: 2 });
+  tired.stats.energy = 10;
+  L.choose(strong, 0);
+  L.choose(tired, 0);
+  assert.ok(strong.last.ok && strong.flags['mina-owes'] && !tired.last.ok && !tired.flags['mina-owes']);
+  assert.notEqual(strong.last.lines[0].text, tired.last.lines[0].text);
+  // What happened decides what can happen: the lunch comes only to the one who stayed.
+  const lunch = SCENES.find((x) => x.id === 'mina-lunch');
+  assert.equal(lunch.when.flag, 'mina-owes');
+  // An evening, then sleep: energy back, a new day; weekends are free; Sunday the rent goes out.
+  assert.equal(L.act(s, 'learn'), null);
+  assert.ok(L.viewOf(s).activities.some((a) => a.id === 'rest'), 'the evening is yours');
+  const money = s.stats.money;
+  for (let guard = 0; s.day < 8 && guard < 200; guard++) {
+    if (s.scene) L.choose(s, 0);
+    else if (L.activitiesFor(s).length) L.act(s, L.activitiesFor(s).find((a) => !a.locked).id);
+    else {
+      if (L.weekdayOf(s.day) === 5) assert.ok(L.isWeekend(s.day));
+      L.sleep(s);
+    }
+  }
+  assert.equal(s.day, 8);
+  assert.ok(s.last.kind === 'night' || s.scene || s.last.kind === 'scene');
+  assert.notEqual(s.stats.money, money);
+  // Worn out, you get less from the same hours.
+  const fresh = L.newLife(2);
+  const worn = L.newLife(2);
+  worn.stats.energy = 20;
+  L.act(fresh, 'learn');
+  L.act(worn, 'learn');
+  assert.ok(fresh.last.done.stats.skill > worn.last.done.stats.skill && worn.last.tired);
+  // A whole season, lived two ways, is remembered two ways.
+  const live = (pick, answer) => {
+    const x = L.newLife(9);
+    for (let guard = 0; !x.review && guard < 3000; guard++) {
+      if (x.scene) L.choose(x, answer(x));
+      else if (L.activitiesFor(x).filter((a) => !a.locked).length) L.act(x, pick(L.activitiesFor(x).filter((a) => !a.locked)).id);
+      else L.sleep(x);
+    }
+    return x;
+  };
+  const grind = live((a) => a.find((x) => x.id === 'focus') ?? a.find((x) => x.id === 'overtime') ?? a.find((x) => x.id === 'study') ?? a[0], () => 0);
+  const idle = live((a) => a.find((x) => x.id === 'coast') ?? a.find((x) => x.id === 'rest') ?? a[0], (x) => L.viewOf(x).scene.choices.length - 1);
+  assert.equal(grind.day, 29);
+  assert.ok(grind.review.title && idle.review.title && grind.review.id !== idle.review.id, `${grind.review.title} / ${idle.review.title}`);
+  assert.match(L.sleep(grind), /Read how the season went/);
+  assert.equal(L.nextSeason(grind), null);
+  assert.equal(grind.review, null);
+  assert.equal(grind.seasons.length, 1);
+  // A saved life comes back as it was; nonsense comes back as a new one.
+  const back = L.cleanLife(JSON.parse(JSON.stringify(grind)));
+  assert.deepEqual(back.stats, grind.stats);
+  assert.equal(L.cleanLife({ nonsense: true }).day, 1);
+  assert.equal(L.cleanLife({ ...grind, stats: { ...grind.stats, skill: 9999 } }).stats.skill, 100);
+});
