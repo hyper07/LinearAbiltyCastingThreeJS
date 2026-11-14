@@ -496,3 +496,27 @@
     max-height: 30vh;
   }
 }
+
+/* Announcements sit in a slim strip under the top bar, out of the way of the fight (the end-of-game results stay in the middle). */
+.gp .bs__banner:not(.is-end) {
+  top: 66px;
+  max-width: min(560px, max(300px, calc(100vw - 760px)));
+  padding: 6px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 212, 0, 0.35);
+  background: rgba(20, 16, 26, 0.8);
+  pointer-events: none;
+}
+.gp .bs__banner:not(.is-end) h2 {
+  font-size: 15px;
+  line-height: 1.25;
+  color: #ffd400;
+}
+.gp .bs__banner:not(.is-end) p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.gp .bs__boss {
+  top: 128px;
+}
