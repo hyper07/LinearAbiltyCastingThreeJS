@@ -280,7 +280,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
     const ch = client.ch;
     const err = (text) => client.send({ t: 'error', text });
     switch (msg.t) {
-      case 'move': case 'target': case 'attack': case 'skill': case 'stop': case 'gather': case 'use': case 'release':
+      case 'move': case 'target': case 'attack': case 'skill': case 'stop': case 'gather': case 'use': case 'pickup': case 'release':
         return inst.handle(p, msg);
       case 'quaff': {
         // "Drink a health (or mana) draught": the one in the bag that fits what is missing.

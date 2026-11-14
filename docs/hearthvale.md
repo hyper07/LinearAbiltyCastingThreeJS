@@ -52,6 +52,10 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-tooltip.jpg" width="100%" alt="The bag as a grid of item pictures framed in their rarity's colour, with a tooltip on one: Warded Daggers, uncommon weapon, level 3, +6 power, +2 armor, how it compares, what it sells for, Click: wear. Beside it the character sheet with picture-only gear slots, and the eight-key hotbar with a health draught on 7 and a tonic on 8" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-drops.jpg" width="100%" alt="A fight in the Greenfold with loot on the ground: Worn Daggers under a white beam beside the player and a Keen Great Axe under a green one further off, each with its name; the loot line reads Rust Bandit: 5 gold, dropped Worn Daggers; a Walking/Running button sits beside the hotbar" />
+</p>
+
 ## How it plays
 
 - **Your character.** The maker shows your character live on a stage (drag to turn it) as you
@@ -159,18 +163,26 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   six hours. *Sell all common gear* empties a bag of white items in one click. His store has Weapons, Armor and Sell tabs, compares each piece with what you wear (+2
   power…), shows the level it needs, and has **Buy & wear**. Stores sell at four times an item's
   value and buy at its value.
-- **Loot.** Every kill drops something for everyone who fought, straight into their bags (gold
-  too), and often **gear**: about four kills in nine, always from an elite, two pieces from a boss.
-  Found gear is made on the spot — a sword, great axe, daggers, crossbow, staff, wand, helm,
-  hauberk, greaves, boots or charm near the monster's level — in one of five rarities, **each with
-  its own colour everywhere it shows** (bag, character sheet, stores, loot lines, My heroes):
-  <b>common</b> (white), <b>uncommon</b> (green, one extra property), <b>rare</b> (blue, two),
-  <b>epic</b> (purple, three) and <b>unique</b> (orange, a name of its own). Properties add
-  stamina, power, armor, critical chance or attack speed ("Keen Helm of the Hawk"). **Rarity
-  depends on the monster**: each monster level adds a little luck, an elite a lot, a boss more;
-  epics hardly drop under level 6 or uniques under 10; a monster five levels beneath you finds
-  little but common gear. A rare or better find gets its own banner. With a full bag, what you
-  can't carry becomes the gold a shop would pay. Kills count for everyone's quests in the party.
+- **Loot falls on the ground.** Where a monster dies its loot lies under a **beam of its rarity's
+  colour** (taller for rarer), a turning gem with the item's name over it. **Walk over it, click
+  it, or press F** to pick it up; it lies there three minutes, for you alone (everyone who fought
+  gets their own). Gold goes straight to your purse. A kill drops **a common piece of gear half
+  the time**, and on a separate roll (about one kill in five; always from an elite, two from a
+  boss) a **better one**. Gear is made on the spot near the monster's level and is **for any
+  class**: sword, great axe, daggers, crossbow, staff, wand, helm, hauberk, greaves, boots or charm,
+  each as likely as the next — what you can't use, sell or trade. Five rarities, **each with its
+  own colour everywhere it shows**: <b>common</b> (white), <b>uncommon</b> (green, one extra
+  property), <b>rare</b> (blue, two), <b>epic</b> (purple, three) and <b>unique</b> (orange, a name
+  of its own). Properties add stamina, power, armor, critical chance or attack speed ("Keen Helm of
+  the Hawk"). **How rare depends on the monster**: each level adds a little luck, an elite a lot, a
+  boss more; epics hardly drop under level 6 or uniques under 10; a monster five levels beneath
+  you rarely drops better than common. A rare or better find gets its own banner. With a full bag
+  it stays on the ground until you make room. Monsters also drop what they carry (bone dust,
+  bread, draughts) by their own chances. Kills count for everyone's quests in the party.
+- **Monsters wander.** Left alone they amble about near where they live — a few steps, a pause, a
+  few more — and never stand inside one another; come close and they turn on you.
+- **Running.** Hold **Shift** to run half again as fast; **R** (or the button beside the hotbar)
+  keeps you running, and then Shift walks.
 - **Quests** come from the people with a **!** over them; a **?** means one is ready to hand in. Kill
   quests count as you go; gathering quests take the items when you hand them in. Some open others.
 - **Gathering and crafting.** Copper and Iron veins (Mining), Sunleaf and Ghostcap (Herbalism), Ash
@@ -187,9 +199,9 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 
 | | |
 |---|---|
-| Walk · look | **W A S D** (or hold both mouse buttons) · drag the mouse to turn the camera, the wheel zooms |
+| Walk · run · look | **W A S D** (or hold both mouse buttons) · **Shift** runs, **R** keeps running · drag the mouse to turn the camera, the wheel zooms |
 | Target · fight | **Left-click** an enemy: target and attack · **right-click**: attack and use your first skill · **Tab**: nearest enemy · **1–8** skills and draughts — right-click a key to change it (a line above the hotbar reminds you when enemies are near) |
-| Use | **F**: talk, gather, step through a portal, use a crafting station |
+| Use | **F**: pick up loot, talk, gather, step through a portal, use a crafting station |
 | Windows | **I** bag · **C** character and attributes · **T** skill tree · **L** quests · **K** crafting · **P** party · **G** guild · **H** help · **Enter** chat · **Esc** close |
 
 ## How it works
@@ -215,7 +227,8 @@ trading, loot, guilds and progress fair.
   kill; a party with chat, a heal, a trade, a guild and crafting, saved on leaving; the crypt boss's
   warned slam; combos, finishers and the close-range kick; keys 1–8 and the draught that fits; a stacked pack spreading out; the eight
   classes, their trees, runes, synergies and masteries, attribute points and starting over; found
-  gear made from its id, rarity by monster, a drop from every kill, the second-hand shelf) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
+  gear made from its id, rarity by monster, loot on the ground and picking it up, the second-hand
+  shelf; wandering monsters and sprinting) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).
 
 ## Next

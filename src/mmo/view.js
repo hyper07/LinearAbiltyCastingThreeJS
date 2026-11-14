@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CLASSES, MOBS, NODES } from './data.js';
+import { CLASSES, MOBS, NODES, ITEMS, RARITY_INFO } from './data.js';
 import { ZONES, NPCS } from './world.js';
 import { Landscape, heightFn } from './landscape.js';
 import { dress } from './bodies.js';
@@ -159,6 +159,66 @@ export class MmoView {
     }
   }
 
+  /* ---------------------------------------------------- loot on the ground */
+
+  /** What lies on the ground for you: a turning gem under a beam of its rarity's colour. */
+  _drops(list, me, dt) {
+    this.dropModels ??= new Map();
+    const mine = list.filter((d) => d.o === me.i);
+    const seen = new Set();
+    for (const d of mine) {
+      seen.add(d.i);
+      let g = this.dropModels.get(d.i);
+      if (!g) {
+        const rarity = ITEMS[d.item]?.slot ? ITEMS[d.item].rarity ?? 'common' : null;
+        const color = new THREE.Color(RARITY_INFO[rarity]?.color ?? '#e8d9a8');
+        const rank = Math.max(0, Object.keys(RARITY_INFO).indexOf(rarity));
+        g = new THREE.Group();
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.7, flatShading: true, metalness: 0.3, roughness: 0.35 }));
+        gem.castShadow = true;
+        const tall = 2.2 + rank * 1.6;
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05 + rank * 0.03, 0.16 + rank * 0.05, tall, 10, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22 + rank * 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        beam.position.y = tall / 2;
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7, depthWrite: false }));
+        ring.position.y = 0.06;
+        g.add(gem, beam, ring);
+        g.userData = { gem, born: this.time, item: d.item, x: d.x, z: d.z };
+        this.scene.add(g);
+        this.dropModels.set(d.i, g);
+      }
+      const age = this.time - g.userData.born;
+      // It pops out of the monster and settles.
+      const hop = age < 0.45 ? Math.sin((age / 0.45) * Math.PI) * 1.4 : 0;
+      g.position.set(d.x, this.h(d.x, d.z), d.z);
+      g.userData.gem.position.y = 0.55 + hop + Math.sin(this.time * 2.4 + d.i) * 0.08;
+      g.userData.gem.rotation.y += dt * 1.8;
+    }
+    for (const [id, g] of this.dropModels) {
+      if (seen.has(id)) continue;
+      this.scene.remove(g);
+      this.dropModels.delete(id);
+    }
+    this.myDrops = mine;
+  }
+
+  /** The drop under a screen point (its gem or its label), or null. */
+  pickDrop(px, py) {
+    let best = null;
+    let bestD = 34;
+    for (const d of this.myDrops ?? []) {
+      for (const y of [0.6, 1.5]) {
+        const p = this.toScreen(d.x, y, d.z);
+        if (!p.front) continue;
+        const dist = Math.hypot(p.x - px, (p.y - py) * 1.4);
+        if (dist < bestD) {
+          bestD = dist;
+          best = d;
+        }
+      }
+    }
+    return best;
+  }
+
   /** Jolt the camera (a heavy blow landed, or took one). */
   shake(amount) {
     this.shakeAmt = Math.min(0.6, Math.max(this.shakeAmt, amount));
@@ -171,6 +231,9 @@ export class MmoView {
    * far goes, since ids are per copy; the ground is rebuilt only for a new zone.
    */
   setZone(zone) {
+    for (const g of this.dropModels?.values() ?? []) this.scene.remove(g);
+    this.dropModels?.clear();
+    this.myDrops = [];
     for (const m of this.models.values()) this.scene.remove(m.group);
     this.models.clear();
     if (this.zone === zone) return;
@@ -752,7 +815,8 @@ export class MmoView {
       if (!m.mixer) continue;
       const moving = m.last && Math.hypot(x - m.last.x, z - m.last.z) > 0.02;
       m.last = { x, z };
-      let clip = moving ? (e.k === 'npc' ? 'Walking_A' : 'Running_A') : 'Idle';
+      // Villagers and idle monsters amble; everyone else runs (a sprint leans into it).
+      let clip = moving ? (e.k === 'npc' || (e.k === 'm' && e.st === 'idle') ? 'Walking_A' : isMe && this.sprinting && m.actions.Running_B ? 'Running_B' : 'Running_A') : 'Idle';
       let once = false;
       if (e.dead) {
         clip = 'Death_A';
@@ -777,6 +841,7 @@ export class MmoView {
       this.scene.remove(m.group);
       this.models.delete(id);
     }
+    this._drops(state.drops ?? [], me, dt);
     for (const o of this.zoneGroup?.children ?? []) o.traverse?.((c) => c.userData.spin && (c.rotation.z += dt * 0.7));
 
     // The target ring.
@@ -901,6 +966,21 @@ export class MmoView {
         ctx.fillStyle = '#ffd24a';
         ctx.fillRect(p.x - w / 2, p.y + 12, w * (1 - e.cast.left / e.cast.total), 3);
       }
+    }
+    // Loot: each thing's name over it, in its rarity's colour.
+    for (const d of this.myDrops ?? []) {
+      if (Math.hypot(d.x - me.x, d.z - me.z) > 40) continue;
+      const p = this.toScreen(d.x, 1.5, d.z);
+      if (!p.front) continue;
+      const it = ITEMS[d.item];
+      const rarity = it?.slot ? it.rarity ?? 'common' : null;
+      const name = it?.name ?? '?';
+      ctx.font = '800 12px Nunito, system-ui, sans-serif';
+      const w = ctx.measureText(name).width + 12;
+      ctx.fillStyle = 'rgba(10, 8, 18, 0.78)';
+      ctx.fillRect(p.x - w / 2, p.y - 12, w, 17);
+      ctx.fillStyle = RARITY_INFO[rarity]?.color ?? '#e8d9a8';
+      ctx.fillText(name, p.x, p.y + 1);
     }
     ctx.lineJoin = 'round';
     for (const f of this.floaters) {

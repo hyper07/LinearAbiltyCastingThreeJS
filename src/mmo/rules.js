@@ -1,4 +1,4 @@
-import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, WEAPON_OF, DROPS, foundId, BAR_SIZE } from './data.js';
+import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, DROPS, foundId, BAR_SIZE } from './data.js';
 
 import { cleanLook } from './looks.js';
 
@@ -366,28 +366,42 @@ export function takeOff(ch, slot) {
 /* ---- found gear ---- */
 
 /**
- * How rare a drop is. Better monsters find better things: each monster
- * level adds a little, an elite a lot, a boss more; a monster far beneath
- * the player finds little but common gear.
+ * How rare a better-than-common drop is. Better monsters find better
+ * things: each monster level adds a little, an elite a lot, a boss more; a
+ * monster far beneath the player finds little. With `common: true` a common
+ * piece is among what may come up.
  * @returns {string} a rarity
  */
-export function rollRarity(mobLevel, playerLevel, { elite = false, boss = false } = {}, rand = Math.random) {
+export function rollRarity(mobLevel, playerLevel, { elite = false, boss = false, common = false } = {}, rand = Math.random) {
   let luck = 1 + mobLevel * 0.08 + (elite ? 1.5 : 0) + (boss ? 3 : 0);
   if (mobLevel < playerLevel - 4) luck *= 0.25;
   const w = { ...DROPS.weights };
-  w.uncommon *= Math.sqrt(luck);
+  if (!common) w.common = 0;
   w.rare *= luck;
   w.epic *= luck * (mobLevel >= 6 || boss ? 1 : 0.3);
   w.unique *= luck * (mobLevel >= 10 || boss ? 1 : 0.2);
   let roll = rand() * RARITIES.reduce((n, r) => n + w[r], 0);
   for (const r of RARITIES) if ((roll -= w[r]) < 0) return r;
-  return 'common';
+  return common ? 'common' : 'uncommon';
 }
 
-/** A piece of found gear from a monster: usually near its level, often the weapon the killer's class uses. */
-export function rollGear(mobLevel, playerLevel, cls, opts = {}, rand = Math.random) {
+/**
+ * How many pieces of gear a kill drops, and how rare: a common one half the
+ * time; a better one on its own roll (always from an elite, two from a boss;
+ * a quarter as often from a monster far beneath the player).
+ * @returns {string[]} rarities
+ */
+export function rollDrops(mobLevel, playerLevel, { elite = false, boss = false } = {}, rand = Math.random) {
+  const out = [];
+  if (rand() < DROPS.common) out.push('common');
+  const better = boss ? 2 : elite ? 1 : rand() < DROPS.better * (mobLevel < playerLevel - 4 ? 0.25 : 1) ? 1 : 0;
+  for (let i = 0; i < better; i++) out.push(rollRarity(mobLevel, playerLevel, { elite, boss }, rand));
+  return out;
+}
+
+/** A piece of found gear of a rarity, near a monster's level: any kind, for any class. */
+export function rollGear(mobLevel, rarity, rand = Math.random) {
   const level = Math.max(1, Math.min(MAX_LEVEL, mobLevel + Math.floor(rand() * 3) - 1));
   const bases = Object.keys(BASES);
-  const base = rand() < 0.3 && WEAPON_OF[cls] ? WEAPON_OF[cls] : bases[Math.floor(rand() * bases.length)];
-  return foundId(base, rollRarity(mobLevel, playerLevel, opts, rand), level, Math.floor(rand() * 0x7fffffff));
+  return foundId(bases[Math.floor(rand() * bases.length)], rarity, level, Math.floor(rand() * 0x7fffffff));
 }

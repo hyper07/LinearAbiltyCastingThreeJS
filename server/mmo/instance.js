@@ -1,6 +1,6 @@
-import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS, DROPS, POTION_CD } from '../../src/mmo/data.js';
+import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS, DROPS, POTION_CD, SPRINT } from '../../src/mmo/data.js';
 import { ZONES, NPCS, walkableIn } from '../../src/mmo/world.js';
-import { statsOf, killXp, addXp, give, take, rankOf, rankMult, rollGear, skillMods } from '../../src/mmo/rules.js';
+import { statsOf, killXp, addXp, give, take, rankOf, rankMult, rollGear, rollDrops, skillMods } from '../../src/mmo/rules.js';
 
 /**
  * One copy of one zone, run by the server: the players in it (a party, or
@@ -16,6 +16,8 @@ import { statsOf, killXp, addXp, give, take, rankOf, rankMult, rollGear, skillMo
 
 /** How far past its reach a monster already in a fight may be jostled before it walks back in. */
 const CROWD = 1;
+/** How far from home an idle monster wanders. */
+const ROAM = 5;
 const TICK = 0.1;
 const AGGRO = 9;
 const LEASH = 45;
@@ -32,6 +34,8 @@ export class Instance {
     this.ents = new Map();
     this.players = new Map(); // charId → body
     this.out = []; // events everyone here sees, sent with the next snapshot
+    /** Loot lying on the ground: id → { id, item, x, z, owner (a character), until }. */
+    this.drops = new Map();
     this.tele = []; // telegraphs: boss attacks about to land
     this.onEmpty = onEmpty;
     this.emptySince = 0;
@@ -167,6 +171,8 @@ export class Instance {
         p.cast = null;
         p.gather = null;
         return;
+      case 'pickup':
+        return this._pickup(p, Number(msg.id));
       case 'gather':
         return this._startGather(p, msg.node);
       case 'use':
@@ -192,7 +198,7 @@ export class Instance {
     const now = Date.now();
     const dt = Math.min(2, (now - p.movedAt) / 1000);
     const d = Math.hypot(x - p.x, z - p.z);
-    if (p.dead || d > RUN_SPEED * 1.4 * dt + 1.2 || !walkableIn(this.zone, x, z, 0.3)) {
+    if (p.dead || d > RUN_SPEED * SPRINT * 1.15 * dt + 1.2 || !walkableIn(this.zone, x, z, 0.3)) {
       if (d > 0.05) p.client.send({ t: 'correct', x: p.x, z: p.z });
       p.movedAt = now;
       return;
@@ -468,23 +474,11 @@ export class Instance {
         if (Math.random() > chance) continue;
         got.push(item);
       }
-      // Found gear: always from an elite (two from a boss), often from anything else.
-      const rolls = def.boss ? 2 : def.elite || Math.random() < DROPS.gear ? 1 : 0;
-      for (let k = 0; k < rolls; k++) got.push(rollGear(m.level, ch.level, p.cls, { elite: def.elite, boss: Boolean(def.boss) }));
-      // And nobody walks away with nothing: a little something from what it carried.
-      if (!got.length) got.push(def.loot[Math.floor(Math.random() * def.loot.length)]?.[0] ?? 'bread');
-      const kept = [];
-      let sold = 0;
-      for (const item of got) {
-        if (give(ch, item, 1)) kept.push(item);
-        else {
-          // No room: it is turned into the gold a shop would pay.
-          sold += ITEMS[item].value ?? 0;
-          ch.gold += ITEMS[item].value ?? 0;
-        }
-      }
-      if (sold) this._say(p, { type: 'text', text: `Your bag is full — what you couldn't carry became ${sold} gold.` });
-      this._say(p, { type: 'loot', gold, items: kept, from: def.name });
+      // Found gear, for any class: a common piece half the time, a better one on its own roll.
+      for (const rarity of rollDrops(m.level, ch.level, { elite: def.elite, boss: Boolean(def.boss) })) got.push(rollGear(m.level, rarity));
+      // It all falls on the ground where the monster died, for this player to pick up.
+      for (const item of got) this._drop(item, m, p);
+      this._say(p, { type: 'loot', gold, items: got, from: def.name });
       // Kill quests.
       for (const [qid, have] of Object.entries(ch.quests.active)) {
         const q = QUESTS[qid];
@@ -533,6 +527,45 @@ export class Instance {
     p.client.dirty();
   }
 
+  /* ----------------------------------------------------- loot on the ground */
+
+  /** Leave an item on the ground near where a monster died, for one player. */
+  _drop(item, at, p) {
+    let x = at.x;
+    let z = at.z;
+    for (let k = 0; k < 8; k++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.8 + Math.random() * 1.8;
+      if (walkableIn(this.zone, at.x + Math.cos(a) * r, at.z + Math.sin(a) * r, 0.4)) {
+        x = at.x + Math.cos(a) * r;
+        z = at.z + Math.sin(a) * r;
+        break;
+      }
+    }
+    const id = this.nextId++;
+    this.drops.set(id, { id, item, x, z, owner: p.charId, until: this.time + DROPS.lies });
+    // Someone who never picks anything up doesn't get to bury the field.
+    const mine = [...this.drops.values()].filter((d) => d.owner === p.charId);
+    for (const old of mine.slice(0, Math.max(0, mine.length - DROPS.most))) this.drops.delete(old.id);
+    return id;
+  }
+
+  _pickup(p, id) {
+    const d = this.drops.get(id);
+    if (!d || d.owner !== p.charId || p.dead) return;
+    if (Math.hypot(d.x - p.x, d.z - p.z) > DROPS.reach) return this._err(p, 'Too far away');
+    if (!give(p.ch, d.item, 1)) {
+      if (this.time > (p.fullAt ?? 0)) {
+        p.fullAt = this.time + 4;
+        this._err(p, 'Your bag is full — sell or throw something away');
+      }
+      return;
+    }
+    this.drops.delete(id);
+    this._say(p, { type: 'picked', item: d.item });
+    p.client.dirty();
+  }
+
   _use(p, slot) {
     const s = p.ch.bag[slot];
     const use = s && ITEMS[s.item]?.use;
@@ -561,6 +594,7 @@ export class Instance {
       else if (e.kind === 'node' && !e.ready && t >= e.respawnAt) e.ready = true;
     }
     this._spread();
+    for (const d of this.drops.values()) if (t >= d.until) this.drops.delete(d.id);
     this._teleStep(t);
     if (!this.players.size && this.emptySince && t - this.emptySince > 60) this.onEmpty(this);
   }
@@ -619,6 +653,17 @@ export class Instance {
     const speed = def.speed * (m.slowUntil > t ? 1 - m.slow : 1) * (m.state === 'return' ? 1.8 : 1);
     if (m.state === 'idle') {
       if (this.def.safe) return;
+      // With nobody to fight it ambles about near home: a few steps, a pause, a few more.
+      if (!m.boss && this.players.size) {
+        if (!m.roam || t >= m.roam.next) {
+          const a = Math.random() * Math.PI * 2;
+          const far = 1.5 + Math.random() * ROAM;
+          const x = m.home[0] + Math.cos(a) * far;
+          const z = m.home[1] + Math.sin(a) * far;
+          m.roam = { x, z, going: walkableIn(this.zone, x, z, 1), next: t + 4 + Math.random() * 7 };
+        }
+        if (m.roam.going && this._walk(m, m.roam, def.speed * 0.3)) m.roam.going = false;
+      }
       for (const p of this.players.values()) {
         if (p.dead) continue;
         const reach = AGGRO + Math.max(-4, Math.min(4, m.level - p.ch.level));
@@ -753,8 +798,6 @@ export class Instance {
       if (!walkableIn(this.zone, nx, nz, 0.4)) return;
       m.x = nx;
       m.z = nz;
-      // Standing about at home: this is home now, or it would walk back into its neighbour.
-      if (m.state === 'idle') m.home = [nx, nz];
     };
     for (let i = 0; i < mobs.length; i++) {
       const a = mobs[i];
@@ -844,7 +887,13 @@ export class Instance {
         ents.push({ i: e.id, k: 'npc', npc: e.npc, x: r(e.x), z: r(e.z), a: r(e.a ?? 0) });
       }
     }
-    return { t: r(this.time), zone: this.zone, ents, tele: this.tele.map((tl) => ({ i: tl.id, x: r(tl.x), z: r(tl.z), r: tl.r, left: r(tl.at - this.time) })) };
+    // What lies on the ground, with whose it is (`o`: that player's id here).
+    const drops = [];
+    for (const d of this.drops.values()) {
+      const owner = this.players.get(d.owner);
+      if (owner) drops.push({ i: d.id, item: d.item, x: r(d.x), z: r(d.z), o: owner.id });
+    }
+    return { t: r(this.time), zone: this.zone, ents, drops, tele: this.tele.map((tl) => ({ i: tl.id, x: r(tl.x), z: r(tl.z), r: tl.r, left: r(tl.at - this.time) })) };
   }
 
   /** The NPC or station a player is standing by (within reach). */

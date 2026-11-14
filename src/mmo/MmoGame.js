@@ -1,5 +1,5 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD, SPRINT, DROPS } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
 import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods, potionFor } from './rules.js';
 import { CharacterStage } from './bodies.js';
@@ -340,7 +340,7 @@ export class MmoGame {
       <div class="hv-castbar" data-castbar hidden><span></span><b></b></div>
       <div class="hv-bottom">
         <div class="hv-picker" data-picker hidden></div>
-        <div class="hv-hotrow"><div class="hv-hotbar" data-hotbar></div><button type="button" class="hv-btn hv-keys" data-keys title="Choose what keys 1–8 do (or right-click a key)">⚙ Keys</button></div>
+        <div class="hv-hotrow"><div class="hv-hotbar" data-hotbar></div><button type="button" class="hv-btn hv-keys" data-keys title="Choose what keys 1–8 do (or right-click a key)">⚙ Keys</button><button type="button" class="hv-btn hv-keys" data-run></button></div>
         <div class="hv-xp" data-xp role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax="100">
           <span class="hv-xp__lvl" data-xp-lvl title="Your level"></span>
           <span class="hv-xp__track"><i class="hv-xp__fill" data-xp-fill></i><i class="hv-xp__ticks"></i><b data-xp-text></b></span>
@@ -384,6 +384,14 @@ export class MmoGame {
       $('[data-menu]').append(b);
     }
     this._tipInit();
+    $('[data-run]').addEventListener('click', () => this._setRun(!this.alwaysRun));
+    let run = false;
+    try {
+      run = localStorage.getItem('hearthvale.run') === '1';
+    } catch {
+      /* private mode */
+    }
+    this._setRun(run, true);
     $('[data-keys]').addEventListener('click', () => this._pickKey(this.picking ?? 0));
     $('[data-release]').addEventListener('click', () => this.send({ t: 'release' }));
     const chat = $('[data-chat]');
@@ -662,6 +670,13 @@ export class MmoGame {
         case 'quest-done':
           this.toast(`Quest complete: ${QUESTS[ev.id].name} (+${ev.xp} xp, ${ev.gold} gold${ev.item ? `, ${ITEMS[ev.item].name}` : ''})`, 'good');
           break;
+        case 'picked': {
+          const t = el('div', 'hv-toast hv-toast--loot');
+          t.innerHTML = `Picked up ${itemName(ev.item)}`;
+          this.$('[data-toasts]')?.append(t);
+          setTimeout(() => t.remove(), 3000);
+          break;
+        }
         case 'gathered':
           this.toast(`${ITEMS[ev.item].name} ×${ev.n}${ev.up ? ` — ${PROFESSIONS[ev.skill]} ${ev.level}` : ''}`, 'good');
           break;
@@ -728,6 +743,8 @@ export class MmoGame {
     }
     this.view.target = this.target;
     this.view.render(state, this.me, dt);
+    // Walking over what fell for you picks it up.
+    if (this.me && meEnt && !meEnt.dead) for (const d of this.view.myDrops ?? []) if (Math.hypot(d.x - this.me.x, d.z - this.me.z) < 2.2) this._pickup(d);
     const partyIds = new Set((this.party?.members ?? []).map((m) => m.id).filter(Boolean));
     this.view.drawOverlay(this.octx, state, this.me, partyIds);
     this._hudAt -= dt;
@@ -757,7 +774,10 @@ export class MmoGame {
     const l = Math.hypot(dx, dz) || 1;
     dx /= l;
     dz /= l;
-    const speed = RUN_SPEED * (f < 0 && !s ? 0.6 : 1) * dt;
+    // Shift sprints (R keeps it on); never backwards.
+    const sprint = f >= 0 && (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) !== Boolean(this.alwaysRun);
+    this.view.sprinting = sprint;
+    const speed = RUN_SPEED * (f < 0 && !s ? 0.6 : sprint ? SPRINT : 1) * dt;
     const nx = this.me.x + dx * speed;
     const nz = this.me.z + dz * speed;
     if (walkableIn(this.zone, nx, nz)) {
@@ -797,6 +817,9 @@ export class MmoGame {
       drag = null;
       if (!d || d.moved > 6 || !this.current) return;
       const r = canvas.getBoundingClientRect();
+      // Loot on the ground comes first: a click picks it up (walk closer if it is out of reach).
+      const loot = d.button === 0 ? this.view.pickDrop(e.clientX - r.left, e.clientY - r.top) : null;
+      if (loot) return this._pickup(loot, true);
       const hit = this.view.pick(this.current.ents, e.clientX - r.left, e.clientY - r.top);
       if (!hit) {
         // A right-click on nothing: your first skill on the enemy you have (or the nearest one).
@@ -868,6 +891,8 @@ export class MmoGame {
         return this.toggle('char');
       case 'KeyT':
         return this.toggle('skills');
+      case 'KeyR':
+        return this._setRun(!this.alwaysRun);
       case 'KeyL':
         return this.toggle('quests');
       case 'KeyK':
@@ -1029,10 +1054,45 @@ export class MmoGame {
     this.setTarget(enemies[(i + 1) % enemies.length].i);
   }
 
-  /** F: the nearest thing to use — an NPC, a node, a portal or a crafting station. */
+  /** Always run, or only while Shift is held: kept in this browser. */
+  _setRun(on, quiet = false) {
+    this.alwaysRun = Boolean(on);
+    try {
+      localStorage.setItem('hearthvale.run', on ? '1' : '0');
+    } catch {
+      /* private mode */
+    }
+    const b = this.$?.('[data-run]');
+    if (b) {
+      b.classList.toggle('is-on', this.alwaysRun);
+      b.textContent = this.alwaysRun ? '🏃 Running' : '🚶 Walking';
+      b.title = this.alwaysRun ? 'You run all the time (hold Shift to walk). R or a click: walk instead' : 'Hold Shift to run. R or a click: run all the time';
+    }
+    if (!quiet) this.toast(this.alwaysRun ? 'Running — hold Shift to walk' : 'Walking — hold Shift to run');
+  }
+
+  /** Pick up something that fell for you; out of reach, say so (once) rather than nothing. */
+  _pickup(d, say = false) {
+    const far = Math.hypot(d.x - this.me.x, d.z - this.me.z);
+    if (far > DROPS.reach) {
+      if (say) this.toast(`Walk closer to pick up ${ITEMS[d.item]?.name ?? 'it'}`);
+      return;
+    }
+    this._asked ??= new Map();
+    const now = performance.now();
+    if (now - (this._asked.get(d.i) ?? 0) < 900) return;
+    this._asked.set(d.i, now);
+    if (this._asked.size > 200) this._asked.clear();
+    this.send({ t: 'pickup', id: d.i });
+  }
+
+  /** F: the nearest thing to use — loot, an NPC, a node, a portal or a crafting station. */
   _interact() {
     if (!this.current || !this.me) return;
     const near = (x, z) => Math.hypot(x - this.me.x, z - this.me.z);
+    // Loot within reach: all of it at once.
+    const loot = (this.view.myDrops ?? []).filter((d) => near(d.x, d.z) <= DROPS.reach);
+    if (loot.length) return loot.forEach((d) => this._pickup(d));
     let best = null;
     let bestD = 6.5;
     for (const e of this.current.ents) {
@@ -1213,7 +1273,7 @@ export class MmoGame {
     const box = this.$?.('[data-toasts]');
     if (!box) return;
     const t = el('div', 'hv-toast hv-toast--loot');
-    t.innerHTML = `${esc(ev.from)}: <b class="hv-gold">${ev.gold} gold</b>${ev.items.map((i) => `, ${itemName(i)}`).join('')}`;
+    t.innerHTML = `${esc(ev.from)}: <b class="hv-gold">${ev.gold} gold</b>${ev.items.length ? ` · dropped ${ev.items.map((i) => itemName(i)).join(', ')}` : ''}`;
     box.append(t);
     setTimeout(() => t.remove(), 5500);
     const order = Object.keys(RARITY_INFO);
@@ -2057,6 +2117,8 @@ export class MmoGame {
     return this._window('How to play', 'help', `<ul class="hv-help">
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
       <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
+      <li><b>Run</b>: hold <b>Shift</b> to run half again as fast; <b>R</b> (or the button by the hotbar) keeps you running, and then Shift walks.</li>
+      <li><b>Loot</b> falls on the ground where a monster dies, under a beam of its rarity's colour, with its name over it. Walk over it, click it, or press <b>F</b> to pick it up; it lies there three minutes, for you alone.</li>
       <li><b>Keys 1–8</b>: your skills on 1–6, a health draught on 7 and a tonic on 8 to start with. <b>Right-click a key</b> (or press ⚙ Keys) to put any skill, draught or food on it. A draught key drinks the one in your bag that fits what you're missing, shows how many you have, and glows when you're low. Health and mana each wait 15 seconds between drinks.</li>
       <li><b>Skills</b>: learned in the tree (T). One skill a second; some take time to cast — moving stops them.</li>
       <li><b>Growing</b>: every level brings two skill points and five attribute points. <b>T</b> opens your class's skill tree: three paths of ten tiles — skills, runes that change a skill, passives, a synergy and a mastery — each joined to the one it needs. <b>C</b> has Strength, Agility, Intellect and Vitality. "Start over" in the tree takes them all back for gold.</li>

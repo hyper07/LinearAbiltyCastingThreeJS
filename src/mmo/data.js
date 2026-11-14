@@ -400,7 +400,15 @@ export const ITEMS = new Proxy(FIXED_ITEMS, {
 });
 
 /** How often a kill drops found gear, and how the rarities are weighed. */
-export const DROPS = { gear: 0.45, elite: 1, weights: { common: 58, uncommon: 28, rare: 10, epic: 3.2, unique: 0.8 }, shelf: 30, shelfHours: 6 };
+/**
+ * What a kill drops on the ground: a common piece of gear half the time,
+ * and — on its own roll — a better one (`better`; always from an elite, two
+ * from a boss), its rarity by `weights`. A drop lies there `lies` seconds,
+ * for the one it fell for; walk over it or click it to pick it up.
+ */
+export const DROPS = { common: 0.5, better: 0.22, weights: { common: 58, uncommon: 28, rare: 10, epic: 3.2, unique: 0.8 }, lies: 180, reach: 4.5, most: 40, shelf: 30, shelfHours: 6 };
+/** Holding Shift (or with "always run" on) you move this much faster. */
+export const SPRINT = 1.5;
 
 /** Hearthvale's stores: Pell's supplies, Brannoc's weapons and armor. A store sells at four times an item's value and buys at its value. */
 export const VENDORS = {

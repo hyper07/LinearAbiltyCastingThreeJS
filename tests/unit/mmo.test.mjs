@@ -761,8 +761,30 @@ test('found gear: made from its id, rarer from better monsters, and something fr
   const boss = share(16, 16, { elite: true, boss: true });
   const grey = share(2, 18, {});
   assert.ok(grey < low && low < high && high < elite && elite < boss, `${grey} < ${low} < ${high} < ${elite} < ${boss}`);
-  const g = ITEMS[R.rollGear(9, 9, 'ranger', {}, rand)];
-  assert.ok(g && BASES[g.base] && Math.abs(g.level - 9) <= 1);
+  const g = ITEMS[R.rollGear(9, 'rare', rand)];
+  assert.ok(g && BASES[g.base] && Math.abs(g.level - 9) <= 1 && g.rarity === 'rare');
+  // Gear is for any class: every kind turns up about as often as any other.
+  const kinds = {};
+  for (let i = 0; i < 5500; i++) {
+    const base = ITEMS[R.rollGear(9, 'common', rand)].base;
+    kinds[base] = (kinds[base] ?? 0) + 1;
+  }
+  assert.equal(Object.keys(kinds).length, Object.keys(BASES).length);
+  assert.ok(Object.values(kinds).every((n) => n > 380 && n < 620), JSON.stringify(kinds));
+  // A common piece half the time; a better one on its own roll, always from an elite, two from a boss.
+  let common = 0;
+  let better = 0;
+  for (let i = 0; i < 8000; i++) {
+    const d = R.rollDrops(8, 8, {}, rand);
+    if (d.includes('common')) common++;
+    if (d.some((x) => x !== 'common')) better++;
+  }
+  assert.ok(Math.abs(common / 8000 - 0.5) < 0.03, `common ${common / 8000}`);
+  assert.ok(Math.abs(better / 8000 - 0.22) < 0.03, `better ${better / 8000}`);
+  for (let i = 0; i < 50; i++) {
+    assert.equal(R.rollDrops(8, 8, { elite: true }, rand).filter((x) => x !== 'common').length, 1);
+    assert.equal(R.rollDrops(8, 8, { elite: true, boss: true }, rand).filter((x) => x !== 'common').length, 2);
+  }
   // Wearing found gear counts, crit and haste too.
   const ch = R.newCharacter('Loota', 'ranger');
   ch.level = 20;
@@ -780,7 +802,8 @@ test('found gear: made from its id, rarer from better monsters, and something fr
   assert.equal(R.normalize(JSON.parse(JSON.stringify(ch))).equip.weapon, keen, 'and it is kept when saved and loaded');
 });
 
-test('every kill drops something; sold gear goes on the shops\' second-hand shelf at the shop\'s price', async () => {
+test('loot falls on the ground for the one who earned it, and is picked up; sold gear goes on the second-hand shelf', async () => {
+  const { DROPS } = await import('../../src/mmo/data.js');
   const { db, mmo, join, steps } = await world();
   try {
     const { ws, client } = await join(0, 'Sellra', 'vanguard');
@@ -789,28 +812,54 @@ test('every kill drops something; sold gear goes on the shops\' second-hand shel
     const inst = client.instance;
     const me = client.body;
     client.ch.bag.fill(null);
-    let kills = 0;
-    for (const mob of [...inst.ents.values()].filter((e) => e.kind === 'mob' && e.type === 'rattler').slice(0, 12)) {
-      mob.tagged.add(me.charId);
-      Object.assign(me, { x: mob.x + 1, z: mob.z });
-      const before = ws.events().filter((e) => e.type === 'loot').length;
-      inst._killMob(mob);
-      const loot = ws.events().filter((e) => e.type === 'loot');
-      assert.equal(loot.length, before + 1);
-      assert.ok(loot.at(-1).items.length >= 1 && loot.at(-1).items.every((i) => ITEMS[i]), `kill ${kills}: something dropped`);
-      kills++;
-    }
-    assert.ok(kills >= 6);
-    // A full bag: what can't be carried becomes gold, not nothing.
-    client.ch.bag.fill({ item: 'rusty_sword', n: 1 });
-    const gold = client.ch.gold;
+    // An elite always drops gear: it lies on the ground, not in the bag.
     const boss = [...inst.ents.values()].find((e) => e.kind === 'mob' && e.type === 'gravelord');
     boss.tagged.add(me.charId);
     Object.assign(me, { x: boss.x + 1, z: boss.z });
     inst._killMob(boss);
-    assert.ok(client.ch.gold > gold && ws.events().some((e) => e.type === 'text' && /became \d+ gold/.test(e.text)));
+    const loot = ws.events().filter((e) => e.type === 'loot').at(-1);
+    assert.ok(loot.items.length >= 1 && loot.items.every((i) => ITEMS[i]));
+    assert.ok(client.ch.bag.every((x) => x === null), 'nothing went straight into the bag');
+    steps(1);
+    let snap = ws.last('snap').s;
+    assert.equal(snap.drops.length, loot.items.length);
+    assert.ok(snap.drops.every((d) => d.o === me.id && Math.hypot(d.x - boss.x, d.z - boss.z) < 3.5), 'near where it died, marked as this player\'s');
+    // Too far to reach; then close enough.
+    const first = snap.drops[0];
+    Object.assign(me, { x: first.x + DROPS.reach + 3, z: first.z });
+    ws.say({ t: 'pickup', id: first.i });
+    assert.match(ws.last('error').text, /Too far/);
+    Object.assign(me, { x: first.x + 1, z: first.z });
+    ws.say({ t: 'pickup', id: first.i });
+    assert.ok(client.ch.bag.some((x) => x?.item === first.item));
+    assert.ok(ws.events().some((e) => e.type === 'picked' && e.item === first.item));
+    ws.say({ t: 'pickup', id: first.i });
+    assert.equal(client.ch.bag.filter((x) => x?.item === first.item).length, 1, 'only once');
+    // Someone else can't take what fell for you, and doesn't get a full bag's worth for free.
+    const other = await join(1, 'Thiefa', 'ranger');
+    Object.assign(other.client.body, { x: 60, z: 8 });
+    other.ws.say({ t: 'portal', id: 'to_greenfold' });
+    // (Alone, they are in their own copy of the zone: nothing of yours is there at all.)
+    assert.notEqual(other.client.instance, inst);
+    // A full bag leaves it lying there.
+    const mob = [...inst.ents.values()].find((e) => e.kind === 'mob' && !e.dead && e.type === 'gravelord') ?? [...inst.ents.values()].find((e) => e.kind === 'mob' && !e.dead);
+    client.ch.bag.fill({ item: 'rusty_sword', n: 1 });
+    const lying = inst._drop('bread', me, me);
+    ws.say({ t: 'pickup', id: lying });
+    assert.match(ws.last('error').text, /bag is full/);
+    assert.ok(inst.drops.has(lying));
+    client.ch.bag[3] = null;
+    ws.say({ t: 'pickup', id: lying });
+    assert.ok(!inst.drops.has(lying) && client.ch.bag[3].item === 'bread');
+    // What nobody picks up is gone after a while.
+    const stale = inst._drop('bread', me, me);
+    steps(DROPS.lies * 10 + 5);
+    assert.ok(!inst.drops.has(stale));
+    assert.ok(mob);
     // Back in town: sell a found sword to Pell; it turns up on the shelf, priced by the shop.
     const { foundId } = await import('../../src/mmo/data.js');
+    me.hp = me.st.maxHp;
+    me.dead = false;
     const sword = foundId('sword', 'rare', 5, 4242);
     Object.assign(me, { x: 120, z: 230 });
     ws.say({ t: 'portal', id: 'to_town' });
@@ -908,6 +957,57 @@ test('keys 1–8: skills and draughts where the player puts them; a draught key 
     // Setting the keys is kept with the character.
     ws.say({ t: 'bars', bars: ['potion:health', 'firebolt', 'item:mana_tonic', null, 'strike', 'frost', 'blink', 'meteor'] });
     assert.deepEqual(client.ch.bars, ['potion:health', 'firebolt', 'item:mana_tonic', null, null, 'frost', 'blink', 'meteor']);
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});
+
+test('idle monsters wander near home, and still come for you; sprinting is allowed, flying is not', async () => {
+  const { RUN_SPEED, SPRINT } = await import('../../src/mmo/data.js');
+  const { db, mmo, join, steps } = await world();
+  try {
+    const { ws, client } = await join(0, 'Roama', 'vanguard');
+    Object.assign(client.body, { x: 60, z: 8 });
+    ws.say({ t: 'portal', id: 'to_greenfold' });
+    const inst = client.instance;
+    const me = client.body;
+    const mobs = [...inst.ents.values()].filter((e) => e.kind === 'mob' && e.type === 'rattler');
+    const far = mobs.filter((m) => Math.hypot(m.x - me.x, m.z - me.z) > 40).slice(0, 8);
+    assert.ok(far.length >= 4);
+    const start = far.map((m) => [m.x, m.z]);
+    const homes = far.map((m) => [...m.home]);
+    let moved = 0;
+    let most = 0;
+    for (let i = 0; i < 400; i++) {
+      me.hp = me.st.maxHp;
+      steps(1);
+      far.forEach((m, k) => {
+        if (m.state !== 'idle') return;
+        most = Math.max(most, Math.hypot(m.x - homes[k][0], m.z - homes[k][1]));
+      });
+    }
+    far.forEach((m, k) => {
+      if (Math.hypot(m.x - start[k][0], m.z - start[k][1]) > 0.5) moved++;
+    });
+    assert.ok(moved >= far.length - 1, `${moved} of ${far.length} wandered`);
+    assert.ok(most < 9, `none strays far from home (${most.toFixed(1)})`);
+    assert.ok(far.every((m, k) => m.home[0] === homes[k][0] && m.home[1] === homes[k][1]), 'home stays where it was');
+    // Walk up to one: it stops ambling and fights.
+    const one = far[0];
+    Object.assign(me, { x: one.x + 3, z: one.z });
+    steps(3);
+    assert.equal(one.state, 'fight');
+    // Sprinting: a step at sprint speed is taken; one far beyond it is put back.
+    const town = await join(1, 'Sprinta', 'ranger');
+    const b = town.client.body;
+    const from = { x: b.x, z: b.z };
+    b.movedAt = Date.now() - 100;
+    town.ws.say({ t: 'move', x: from.x + RUN_SPEED * SPRINT * 0.1, z: from.z, a: 0 });
+    assert.ok(Math.abs(b.x - (from.x + RUN_SPEED * SPRINT * 0.1)) < 1e-6, 'a sprint step');
+    b.movedAt = Date.now() - 100;
+    town.ws.say({ t: 'move', x: b.x + 9, z: b.z, a: 0 });
+    assert.ok(town.ws.last('correct'), 'nine metres in a tenth of a second: put back');
   } finally {
     await mmo.close();
     await db.close();
