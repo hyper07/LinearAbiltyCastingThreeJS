@@ -27,7 +27,7 @@ const ROAD_CELL = 40;
 export { ROAD_CELL };
 
 /**
- * Seoul, for real: every building in the city at its true place and height,
+ * Gangnam Drift (Seoul, for real): every building in the city at its true place and height,
  * from the national building register (public data, KOGL type 1), streamed
  * as map tiles while you fly over it or walk its streets.
  *
@@ -76,7 +76,7 @@ export class SeoulGame {
       <header class="seoul__top">
         <div class="seoul__where"><b data-place>Seoul</b><small data-sub>서울특별시</small></div>
         <div class="seoul__stamps" data-stamps title="Districts you have visited"></div>
-        <button type="button" class="seoul__x" data-close aria-label="Leave Seoul">✕</button>
+        <button type="button" class="seoul__x" data-close aria-label="Leave Gangnam Drift">✕</button>
       </header>
       <div class="seoul__toast" data-toast role="status" aria-live="polite" hidden></div>
       <div class="seoul__msg" data-msg hidden></div>
@@ -87,7 +87,7 @@ export class SeoulGame {
           <button type="button" data-mode="walk" title="Walk the streets (F switches)">🚶 Walk</button>
           <button type="button" data-mode="drive" title="Drive: into the nearest car, or one brought to the road beside you">🚗 Drive</button>
           <button type="button" data-who title="Who you are on the street (V)">🧍</button>
-          <button type="button" data-race title="Gangnam Drift: race at night on real streets — alone against bots, or with up to four friends">🏁 Gangnam Drift</button>
+          <button type="button" data-race title="Race at night on real streets — alone against bots, or with up to four friends">🏁 Race</button>
           <button type="button" data-open-places title="Districts and tall buildings to go to (M)">🧭 Places</button>
         </div>
         <label class="seoul__time" title="Time of day">🌞<input type="range" min="0" max="24" step="0.25" data-hour aria-label="Time of day" /><span data-clock></span></label>
@@ -146,6 +146,8 @@ export class SeoulGame {
       // A short credit always on screen; each source's full notice is in the Places panel.
       this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)'].filter(Boolean).join(' · ');
       this.ready = true;
+      // Gangnam Drift opens on its races; close the menu to fly, walk and drive the city.
+      this.race.menu();
     } catch {
       this._message('<b>Seoul\'s map isn\'t installed on this server yet.</b><br>Download 국토교통부 GIS건물통합정보 for 서울특별시 (file <code>AL_D010_11_…</code>, free, KOGL type 1) into <code>library/Seoul_Map.zip/</code> or <code>data/geo/seoul/</code>, then run <code>npm run geo:seoul</code> and open this again.');
     }

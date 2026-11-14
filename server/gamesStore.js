@@ -73,11 +73,11 @@ export const ENGINE_GAMES = [
   },
   {
     id: 'official:seoul',
-    title: 'Seoul, for real',
-    summary: 'Walk and fly through the real Seoul: every building in the city, from the national building register, at its true place and height. Visit all 25 districts, find the tallest towers, watch the windows light up at night.',
+    title: 'Gangnam Drift',
+    summary: 'Night racing on the real streets of Seoul: drift through Gangnam, Namsan, Gwanghwamun and more — against three bots, or with up to four friends. Between races, drive, walk or fly through the whole city, every building at its true place and height.',
     engine: 'city',
-    genre: 'travel',
-    card: { genre: 'travel', genreName: 'Travel', cover: 'city', badge: 'NEW' }
+    genre: 'racing',
+    card: { genre: 'racing', genreName: 'Racing', cover: 'drift', badge: 'NEW' }
   },
   {
     id: 'official:breachline',

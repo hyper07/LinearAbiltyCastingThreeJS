@@ -1,4 +1,4 @@
-# Seoul, for real
+# Gangnam Drift (Seoul, for real)
 
 [← Back to the README](../README.md)
 
@@ -55,7 +55,7 @@ including commercially, **with attribution** — the game shows the credit on sc
    about 80 MB) and the roads (about 20 MB) into `data/geo/seoul/src/` once, then writes 2,285
    building tiles (23 MB), `terrain.bin` (7 MB), `roads.bin` (1 MB) and an index. `--offline` skips
    the downloads; without them the ground is flat and there are no roads.
-3. Open **Seoul, for real** from the home page. Without the tiles, the game says how to install them.
+3. Open **Gangnam Drift** from the home page (it opens on the race menu; close it to explore the city). Without the tiles, the game says how to install them.
 
 For a newer register file, repeat both steps. On a deployed server the tiles go in
 `DATA_DIR/geo/seoul/tiles/`; they are served at `/geo/seoul/*`.

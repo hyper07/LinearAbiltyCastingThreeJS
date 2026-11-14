@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -132,6 +132,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'moba') return mobaCover(game);
   if (game.card?.cover === 'mmo') return mmoCover(game);
   if (game.card?.cover === 'city') return cityCover(game);
+  if (game.card?.cover === 'drift') return driftCover(game);
   if (game.card?.cover === 'fps') return fpsCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
@@ -276,6 +277,39 @@ function fpsCover(game) {
     <circle cx="232" cy="96" r="6" fill="#38c6d9"/><rect x="227" y="102" width="10" height="17" rx="4" fill="#38c6d9"/>
     <g stroke="#7dffb0" stroke-width="2.5"><path d="M160 60 v-12 M160 76 v12 M152 68 h-12 M168 68 h12"/></g>
     <text x="16" y="30" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="900">${String(game.title).replace(/[<&]/g, '')}</text>
+  </svg>`;
+}
+
+/** Night towers, a wet road, two cars' light trails sweeping through a bend. */
+function driftCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const r = rng(game.id);
+  let towers = '';
+  for (let x = 0; x < 320; ) {
+    const w = 16 + Math.floor(r() * 24);
+    const h = 40 + Math.floor(r() * 90);
+    let lights = '';
+    for (let wy = 112 - h + 6; wy < 106; wy += 8) for (let wx = x + 3; wx < x + w - 4; wx += 6) if (r() < 0.35) lights += `<rect x="${wx}" y="${wy}" width="3" height="3" fill="${r() < 0.2 ? '#ff9a3c' : '#ffd98a'}"/>`;
+    towers += `<rect x="${x}" y="${112 - h}" width="${w}" height="${h}" fill="${r() < 0.5 ? '#141a33' : '#1c2347'}"/>${lights}`;
+    x += w + 1;
+  }
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs>
+      <linearGradient id="dr-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05060f"/><stop offset=".7" stop-color="#2a1747"/><stop offset="1" stop-color="#5a2a4a"/></linearGradient>
+      <linearGradient id="dt-${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff3d2e" stop-opacity="0"/><stop offset="1" stop-color="#ff3d2e"/></linearGradient>
+      <linearGradient id="dh-${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2ad4ff" stop-opacity="0"/><stop offset="1" stop-color="#b9f2ff"/></linearGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#dr-${uid})"/>
+    ${towers}
+    <path d="M0 112 H320 V180 H0Z" fill="#14151c"/>
+    <path d="M-10 175 C 90 160, 140 120, 330 128" stroke="#2a2c38" stroke-width="34" fill="none"/>
+    <path d="M-10 168 C 90 152, 150 118, 330 122" stroke="url(#dt-${uid})" stroke-width="3" fill="none"/>
+    <path d="M-10 178 C 100 162, 160 126, 330 132" stroke="url(#dh-${uid})" stroke-width="3" fill="none"/>
+    <path d="M150 140 l14 -5 l22 1 l8 6 l-6 5 h-34 z" fill="#e8e9ee"/><path d="M164 135 l6 -5 h12 l6 6z" fill="#2a3442"/>
+    <circle cx="160" cy="147" r="3.5" fill="#0a0a0a"/><circle cx="184" cy="147" r="3.5" fill="#0a0a0a"/>
+    <path d="M196 141 l10 0" stroke="#fff6c8" stroke-width="2"/>
+    <text x="16" y="34" fill="#ffffff" font-family="system-ui, sans-serif" font-size="24" font-weight="900" font-style="italic">${String(game.title).replace(/[<&]/g, '')}</text>
+    <text x="17" y="54" fill="#ff8a2a" font-family="system-ui, sans-serif" font-size="12" font-weight="800" letter-spacing="2">강남 · SEOUL NIGHT RACING</text>
   </svg>`;
 }
 

@@ -1556,7 +1556,7 @@ export class App {
     return view;
   }
 
-  /** Seoul, for real: its own screen and 3D view, streaming the city's buildings as you move. */
+  /** Gangnam Drift (Seoul, for real): its own screen and 3D view, streaming the city's buildings as you move. */
   async openCity(game) {
     games.play?.(game.id)?.catch?.(() => {});
     const { SeoulGame } = await import('../city/SeoulGame.js');

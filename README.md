@@ -75,9 +75,10 @@ the people of a town, two wild zones, a dungeon for five and a raid for eight, g
 crafting, guilds, chat and trading. The server runs the worlds; characters are kept on your account
 — see **[Hearthvale](docs/hearthvale.md)**.
 
-**🗺️ Seoul, for real**: fly over and walk through the real Seoul — every building in the city at its
-true place and height, from Korea's public building register — with 25 districts to visit, the tallest
-towers to find, and windows that light up at night. You download the data yourself (free, attribution
+**🏎️ Gangnam Drift**: night racing on the real streets of Seoul — five courses planned on the real road
+network (Gangnam, Namsan, Gwanghwamun, Dongdaemun, Yeouido), drifting to fill your boost, against three
+bots or with up to four friends in a room. Between races, drive, walk or fly through the whole city —
+every building at its true place and height, from Korea's public building register. You download the data yourself (free, attribution
 required) and convert it with one command. [More →](docs/seoul.md)
 
 **🎯 Breachline**: a tactical first-person shooter — five against five over short rounds, with a

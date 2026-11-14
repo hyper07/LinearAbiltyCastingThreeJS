@@ -141,6 +141,7 @@ export class PlatformHome {
     chip(`${GENRE_ICONS.mmorpg} Online RPG`, 'mmorpg');
     chip(`${GENRE_ICONS.travel} Travel`, 'travel');
     chip(`${GENRE_ICONS.shooter} Shooter`, 'shooter');
+    chip(`${GENRE_ICONS.racing} Racing`, 'racing');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -376,7 +377,7 @@ export class PlatformHome {
         : game.engine === 'mmo'
         ? 'Your characters live on your account: sign in to play'
         : game.engine === 'city'
-        ? 'Fly over the city or walk its streets — no character to make'
+        ? 'Race at night, or drive, walk and fly the city — no character to make'
         : game.engine === 'fps'
         ? 'Pick your side and the bots\' skill when you play — alone, or in a room with friends'
         : named
@@ -387,7 +388,7 @@ export class PlatformHome {
       page.querySelector('.home-page__hint').textContent = game.engine === 'fps'
         ? 'Play with up to four friends from inside the game: one makes a room, the others join with its code. Bots fill the other seats. Best with a mouse and keyboard.'
         : game.engine === 'city'
-        ? 'Every building is from Korea\'s public building register (국토교통부 GIS건물통합정보, KOGL type 1). The districts you visit are kept on this device.'
+        ? 'Race with up to four friends from inside the game: one makes a room, the others join with its code; bots fill the empty seats. Every building is from Korea\'s public building register (국토교통부 GIS건물통합정보, KOGL type 1).'
         : game.engine === 'mmo'
         ? 'Groups of up to eight share a world. Invite friends by name inside the game; guilds, chat and trading work across the whole server.'
         : game.engine === 'moba'
