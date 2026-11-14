@@ -82,7 +82,7 @@ export const ENGINE_GAMES = [
   {
     id: 'official:bastion',
     title: 'Bastion Squad',
-    summary: 'A co-op squad holds Kestrel Outpost\'s reactor against fifteen waves of the risen dead. Four soldiers — Rifleman, Medic, Gunner, Engineer — with their own skills; heal each other, lift the fallen, spend credits in the armoury. Alone with three bot soldiers, or with up to three friends.',
+    summary: 'Co-op against the risen dead, two operations. Grave Purge: four commanders raise squads from Recruits to Paragons, clear a land of crypts, spires and shrines, then break the Heart of the Grave and its king before time runs out. Hold the Outpost: four soldiers keep a reactor alive through fifteen waves. Alone with bots, or with up to three friends.',
     engine: 'squad',
     genre: 'coop',
     card: { genre: 'coop', genreName: 'Co-op', cover: 'squad', badge: 'NEW' }

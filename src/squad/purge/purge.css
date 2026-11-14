@@ -1,0 +1,297 @@
+/* ---- Bastion Squad · Grave Purge (squad/purge/PurgeGame.js) ---- */
+.gp__modes {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.gp__modes button {
+  border: 0;
+  padding: 6px 14px;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gp__modes button.is-on {
+  background: #ffd400;
+  color: #1a1420;
+}
+.gp__ladder {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 10px 0 14px;
+  padding: 0;
+  list-style: none;
+  counter-reset: rank;
+}
+.gp__ladder li {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  counter-increment: rank;
+}
+.gp__ladder li b::before {
+  content: counter(rank) '. ';
+  opacity: 0.5;
+}
+.gp__ladder small,
+.gp__hint {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.bs__row button small {
+  opacity: 0.6;
+  font-weight: 600;
+}
+.gp__top {
+  pointer-events: auto;
+  gap: 16px;
+}
+.gp__late {
+  color: #ff6a5a;
+}
+.gp__speed {
+  display: flex;
+  gap: 3px;
+}
+.gp__speed button,
+.gp__cmds button {
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.gp__speed button {
+  padding: 4px 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.gp__speed button.is-on {
+  background: #ffd400;
+  color: #1a1420;
+}
+.gp__speed button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.gp__team {
+  top: 60px;
+  right: 12px;
+  display: grid;
+  gap: 4px;
+  width: 230px;
+}
+.gp__team p {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  column-gap: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(20, 16, 26, 0.8);
+  align-items: center;
+}
+.gp__team p.is-me {
+  outline: 2px solid #ffd400;
+}
+.gp__team i,
+.gp__dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.gp__team i {
+  grid-row: span 2;
+  margin: 0;
+}
+.gp__team small {
+  grid-column: 2 / span 2;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.gp__team span {
+  grid-column: 3;
+  grid-row: 1;
+  font-weight: 800;
+  color: #ffd34d;
+}
+.gp__mini {
+  width: 210px;
+  height: 210px;
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.gp__bar {
+  left: 236px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(20, 16, 26, 0.88);
+  pointer-events: auto;
+}
+.gp__purse {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 6px;
+  align-items: baseline;
+}
+.gp__purse b {
+  font-size: 18px;
+  color: #ffd34d;
+}
+.gp__purse small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.gp__sel {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.gp__sel small {
+  opacity: 0.75;
+  font-size: 12px;
+}
+.gp__cmds {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.gp__cmds button {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 6px 10px;
+  min-width: 62px;
+}
+.gp__cmds button em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffd400;
+}
+.gp__cmds button b {
+  font-size: 12px;
+}
+.gp__cmds button.is-on {
+  outline: 2px solid #ffd400;
+}
+.gp__panel {
+  right: 12px;
+  bottom: 96px;
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(20, 16, 26, 0.94);
+  pointer-events: auto;
+}
+.gp__panel header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gp__panel h2 {
+  margin: 0;
+  font-size: 18px;
+  flex: 1;
+}
+.gp__panel header span {
+  color: #ffd34d;
+  font-weight: 800;
+}
+.gp__panel header button {
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+}
+.gp__panel > button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.gp__panel > button small,
+.gp__panel > button i {
+  grid-column: 1;
+  font-size: 12px;
+  opacity: 0.75;
+  font-style: normal;
+}
+.gp__panel > button em {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ff9a8a;
+  max-width: 150px;
+  text-align: right;
+}
+.gp__panel > button.is-ok {
+  border-color: #3ddc84;
+}
+.gp__panel > button.is-ok em {
+  color: #3ddc84;
+}
+.gp__panel > button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.gp__feed {
+  left: 12px;
+  top: 12px;
+  display: grid;
+  gap: 4px;
+  max-width: 340px;
+}
+.gp__feed p {
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(20, 16, 26, 0.75);
+  font-size: 13px;
+}
+@media (max-width: 900px) {
+  .gp__ladder {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .gp__team {
+    display: none;
+  }
+  .gp__bar {
+    left: 12px;
+    bottom: 230px;
+    flex-wrap: wrap;
+  }
+}

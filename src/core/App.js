@@ -1574,21 +1574,30 @@ export class App {
     return view;
   }
 
-  /** Bastion Squad: a co-op squad against waves, its own screen. */
-  async openSquad(game) {
+  /** Bastion Squad: co-op against the dead, its own screen — Grave Purge (raise a squad, clear the land) or Hold the Outpost (waves). */
+  async openSquad(game, mode = 'purge') {
     games.play?.(game.id)?.catch?.(() => {});
     const { SquadGame } = await import('../squad/SquadGame.js');
+    const { PurgeGame } = await import('../squad/purge/PurgeGame.js');
     this.home.closePage();
     this.stop();
-    const view = new SquadGame(document.body, {
-      account: this.account?.user ?? null,
-      onClose: () => {
-        this.start();
-        this.home.refresh?.();
-      }
-    });
-    await view.open();
-    return view;
+    const open = async (which) => {
+      const Screen = which === 'hold' ? SquadGame : PurgeGame;
+      const view = new Screen(document.body, {
+        account: this.account?.user ?? null,
+        onClose: () => {
+          this.start();
+          this.home.refresh?.();
+        },
+        onSwap: (next) => {
+          view.close(true);
+          open(next);
+        }
+      });
+      await view.open();
+      return view;
+    };
+    return open(mode);
   }
 
   /** Breachline: a first-person shooter with its own screen, alone or in a room of four. */

@@ -382,14 +382,14 @@ export class PlatformHome {
         : game.engine === 'fps'
         ? 'Pick your side and the bots\' skill when you play — alone, or in a room with friends'
         : game.engine === 'squad'
-        ? 'Pick your soldier when you play — alone with three bot soldiers, or with friends'
+        ? 'Grave Purge or Hold the Outpost — pick when you play, alone with bots or with friends'
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
     if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
       page.querySelector('.home-page__hint').textContent = game.engine === 'squad'
-        ? 'Play with up to three friends from inside the game: one makes a room, the others join with its code. Bot soldiers take the empty places.'
+        ? 'Play with up to three friends from inside the game: one makes a room, the others join with its code. Bots take the empty places.'
         : game.engine === 'fps'
         ? 'Play with up to four friends from inside the game: one makes a room, the others join with its code. Bots fill the other seats. Best with a mouse and keyboard.'
         : game.engine === 'city'

@@ -75,9 +75,10 @@ the people of a town, two wild zones, a dungeon for five and a raid for eight, g
 crafting, guilds, chat and trading. The server runs the worlds; characters are kept on your account
 — see **[Hearthvale](docs/hearthvale.md)**.
 
-**🪖 Bastion Squad**: a co-op squad holds a frontier outpost's reactor against fifteen waves of the risen
-dead — Rifleman, Medic, Gunner and Engineer, each with their own skills; heal each other, lift the fallen,
-upgrade in the armoury, face a boss every fifth wave. Alone with three bot soldiers, or with up to three
+**🪖 Bastion Squad**: co-op against the risen dead, two operations. **Grave Purge** — four commanders raise
+squads from Recruits to Paragons at the Forge, clear a land of crypts, spires and shrines, break the Heart
+of the Grave and kill the king it wakes before time runs out. **Hold the Outpost** — Rifleman, Medic,
+Gunner and Engineer keep a reactor alive through fifteen waves. Alone with bots, or with up to three
 friends. [More →](docs/bastion-squad.md)
 
 **🏎️ Gangnam Drift**: night racing on the real streets of Seoul — five courses planned on the real road

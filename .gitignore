@@ -143,3 +143,8 @@ dist
 
 # The local content library database (server/libraryStore.js) — your data, not the repo's
 /data/
+
+# Local files a person brings to look at (map extracts and the like): never committed
+/source/
+*.scx
+*.scm

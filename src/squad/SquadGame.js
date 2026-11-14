@@ -4,6 +4,7 @@ import { MobaLink, Mirror } from '../moba/net.js';
 import { CLASSES, CLASS_ORDER, FOES, UPGRADES, MEDKIT, DIFFICULTY, TICK, WAVES, upgradeCost } from './rules.js';
 import { SIZE, WALLS, RIFTS, REACTOR_AT } from './map.js';
 import './squad.css';
+import './purge/purge.css';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const BOT_NAMES = ['Kade', 'Mara', 'Osei', 'Lin'];
@@ -20,10 +21,11 @@ const SEATS = 4;
  * the cursor. F: a medkit. B: the armoury. Space: back to your soldier.
  */
 export class SquadGame {
-  constructor(host, { account = null, onClose = () => {} } = {}) {
+  constructor(host, { account = null, onClose = () => {}, onSwap = null } = {}) {
     this.host = host;
     this.account = account;
     this.onClose = onClose;
+    this.onSwap = onSwap;
     this.pick = { cls: 'rifleman', difficulty: 'veteran' };
     try {
       this.pick.cls = CLASSES[localStorage.getItem('gamory.squad.class')] ? localStorage.getItem('gamory.squad.class') : 'rifleman';
@@ -83,7 +85,7 @@ export class SquadGame {
     this.overlay.height = Math.round(h * dpr);
   }
 
-  close() {
+  close(swap = false) {
     cancelAnimationFrame(this._raf);
     this._resize?.disconnect();
     for (const [t, type, fn, opt] of this._listeners ?? []) t.removeEventListener(type, fn, opt);
@@ -92,7 +94,7 @@ export class SquadGame {
     this.audio?.close?.();
     this.root?.remove();
     if (window.bastion === this) delete window.bastion;
-    this.onClose();
+    if (!swap) this.onClose();
   }
 
   /* --------------------------------------------------------------- menus */
@@ -108,6 +110,7 @@ export class SquadGame {
     const lobby = this.lobby ?? null;
     m.innerHTML = `
       <div class="bs__card">
+        ${this.onSwap ? '<div class="gp__modes"><button type="button" data-swap>Grave Purge</button><button type="button" class="is-on">Hold the Outpost</button></div>' : ''}
         <h1>Bastion Squad</h1>
         <p class="bs__lead">Kestrel Outpost, a mining station on a dead world. The dead are climbing out of the rifts. Four soldiers hold the reactor through fifteen waves — every fifth ends with something worse. Fight together, heal each other, lift whoever falls; spend what you earn in the armoury.</p>
         <h3>Your soldier</h3>
@@ -146,6 +149,7 @@ export class SquadGame {
       };
     }
     const $ = (q) => m.querySelector(q);
+    if ($('[data-swap]')) $('[data-swap]').onclick = () => this.onSwap('purge');
     if ($('[data-solo]')) $('[data-solo]').onclick = () => this.startSolo();
     if ($('[data-make]')) $('[data-make]').onclick = () => this._room('create');
     if ($('[data-join]')) {

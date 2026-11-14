@@ -1,10 +1,13 @@
 import { boot, tally, until } from './lib.mjs';
 
 /**
- * Bastion Squad, by mouse and keys: the card opens the menu; deploy as a
- * Medic with three bot soldiers; a right-click walks the Medic; B opens the
- * armoury and buying an upgrade takes the credits; the first wave comes,
- * and the squad holds it.
+ * Bastion Squad, by mouse and keys. Grave Purge first (Play opens it): start
+ * with three bot commanders; Tab selects my soldiers and a right-click sends
+ * them; R buys a Recruit; F opens the Forge and raising a Veteran there
+ * works; the speed buttons speed it up. Then Hold the Outpost (the menu's
+ * other tab): deploy as a Medic with three bot soldiers; a right-click walks
+ * the Medic; B opens the armoury and buying an upgrade takes the credits;
+ * the first wave comes, and the squad holds it.
  */
 export async function run(browser) {
   const t = tally();
@@ -13,7 +16,41 @@ export async function run(browser) {
     await page.click('.home [data-game="official:bastion"]');
     await page.waitForSelector('.home [data-play]');
     await page.click('.home [data-play]');
-    t.check('Bastion Squad is a card, and Play opens its menu with four soldiers', await until(page, () => document.querySelectorAll('.bs [data-cls]').length === 4, null, 15000));
+    t.check('Bastion Squad is a card, and Play opens Grave Purge with its ladder of five ranks', await until(page, () => document.querySelectorAll('.gp .gp__ladder li').length === 5 && document.querySelector('.gp [data-solo]'), null, 15000));
+    await page.click('.gp [data-solo]');
+    t.check('Grave Purge: four commanders, three of them bots, four Recruits each', await until(page, () => {
+      const s = window.gravePurge.state;
+      return s?.players.length === 4 && s.players.filter((p) => p.bot).length === 3 && s.ents.filter((e) => e.k === 'troop' && e.o === window.gravePurge.mySlot).length === 4;
+    }, null, 10000));
+    await page.waitForTimeout(800);
+    await page.keyboard.press('Tab');
+    t.check('Tab selects my soldiers', await until(page, () => window.gravePurge.selected.size === 4));
+    const where = await page.evaluate(() => window.gravePurge.game.troops.filter((x) => x.o === window.gravePurge.mySlot).map((x) => [x.x, x.z]));
+    await page.mouse.click(700, 260, { button: 'right' });
+    t.check('a right-click sends them', await until(page, (w) => window.gravePurge.game.troops.filter((x) => x.o === window.gravePurge.mySlot).some((x, k) => Math.hypot(x.x - w[k][0], x.z - w[k][1]) > 1), where, 5000));
+    const ore = await page.evaluate(() => window.gravePurge.game.players[window.gravePurge.mySlot].ore);
+    await page.keyboard.press('r');
+    t.check('R buys a Recruit for ore', await until(page, (o) => { const g = window.gravePurge.game; return g.troops.filter((x) => x.o === window.gravePurge.mySlot).length === 5 && g.players[window.gravePurge.mySlot].ore < o; }, ore, 3000));
+    await page.keyboard.press('f');
+    t.check('F opens the Forge with four ranks to raise', await until(page, () => !document.querySelector('.gp [data-panel]').hidden && document.querySelectorAll('.gp [data-forge]').length === 4));
+    await page.evaluate(() => {
+      const g = window.gravePurge.game;
+      const me = window.gravePurge.mySlot;
+      g.players[me].ore = 5000;
+      const r = g.troops.find((x) => x.o === me && x.rank === 'recruit');
+      r.order = { t: 'hold' };
+      r.path = null;
+      [r.x, r.z] = [9 + 2, 29];
+    });
+    t.check('…which says when a Veteran can be raised', await until(page, () => document.querySelector('.gp [data-forge="veteran"]')?.classList.contains('is-ok'), null, 3000));
+    await page.click('.gp [data-forge="veteran"]');
+    t.check('raising a Veteran at the Forge', await until(page, () => window.gravePurge.game.troops.some((x) => x.o === window.gravePurge.mySlot && x.rank === 'veteran'), null, 3000));
+    await page.click('.gp [data-speed="2"]');
+    t.check('the speed buttons speed the game up', await until(page, () => window.gravePurge.game.speed === 2));
+    t.check('the HUD shows the time, the wards and the team', await page.evaluate(() => /Time left/i.test(document.querySelector('.gp [data-top]').textContent) && document.querySelectorAll('.gp [data-team] p').length === 4));
+    await page.evaluate(() => window.gravePurge._menu());
+    await page.click('.gp [data-swap]');
+    t.check('the other tab opens Hold the Outpost with four soldiers', await until(page, () => !document.querySelector('.gp') && document.querySelectorAll('.bs [data-cls]').length === 4, null, 15000));
     await page.click('.bs [data-cls="medic"]');
     await page.click('.bs [data-solo]');
     t.check('deployed: four soldiers, mine a Medic, three bots', await until(page, () => {
