@@ -49,13 +49,13 @@ test('the camp: four Recruits each, Recruits for ore, the supply cap, the Forge'
   assert.ok(vet && vet.rank === 'veteran');
   assert.equal(p.ore, 5000 - RANKS.veteran.ore);
   assert.ok(!g.ents.has(r.i), 'the Recruit became the Veteran');
-  // A Vanguard is one at a time.
+  // Vanguards, as many as you like (the hidden rank needs ten).
   p.ore = 20000;
   [vet.x, vet.z] = [FORGE.x, FORGE.z + 2];
   assert.ok(g.forge(0, 'vanguard'));
   const v2 = g._troop(0, 'veteran', FORGE);
   [v2.x, v2.z] = [FORGE.x, FORGE.z];
-  assert.match(forgeCheck(g.troops, 0, p.ore, p.relics, 'vanguard').why, /One Vanguard/);
+  assert.ok(forgeCheck(g.troops, 0, p.ore, p.relics, 'vanguard', p.upg).ok, 'a second Vanguard');
   // A Phantom needs relics.
   const v3 = g._troop(0, 'veteran', FORGE);
   [v3.x, v3.z] = [FORGE.x + 1, FORGE.z];
@@ -233,4 +233,39 @@ test('stragglers wander into the camp for easy ore; the guns leave them to the s
     g._stragglers(TICK);
   }
   assert.ok(g.foes.filter((x) => x.stray).length <= 12 + 5);
+});
+
+test('the hidden rank: "???" until Weapons is mastered; then ten Vanguards, a Phantom and a Paragon make a flying Dreadnought that launches drones', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 15 });
+  const p = g.players[0];
+  p.ore = 1e7;
+  p.relics = 100;
+  const at = () => [FORGE.x + (Math.random() - 0.5) * 4, FORGE.z + (Math.random() - 0.5) * 4];
+  for (let n = 0; n < 10; n++) [g._troop(0, 'vanguard').x, g.troops.at(-1).z] = at();
+  for (const r of ['phantom', 'paragon']) [g._troop(0, r).x, g.troops.at(-1).z] = at();
+  for (const t of g.troops) if (t.rank !== 'recruit') [t.x, t.z] = at();
+  const locked = g.canForge(0, 'dreadnought');
+  assert.equal(locked.ok, false);
+  assert.ok(locked.secret, 'a secret: shown as ???');
+  // Master Weapons: the secret is found.
+  p.upg.weapons = 29;
+  g.order(0, { t: 'upgrade', key: 'weapons' });
+  assert.ok(g.events.some((e) => e.t === 'secret' && e.rank === 'dreadnought'));
+  const ship = g.forge(0, 'dreadnought');
+  assert.ok(ship && ship.rank === 'dreadnought');
+  assert.equal(g.troops.filter((t) => t.rank === 'vanguard').length, 0, 'the ten Vanguards went into it');
+  // It flies: straight over a ridge, where a soldier would go round.
+  [ship.x, ship.z] = [60, 60];
+  g.order(0, { t: 'move', ids: [ship.i], x: 120, z: 120 });
+  assert.deepEqual(ship.path, [ship.order.x != null ? [ship.order.x, ship.order.z] : [120, 120]]);
+  // Near the dead, it launches drones; they go after a while.
+  const foe = g.foes.find((f) => f.tier === 3 && !f.boss);
+  [ship.x, ship.z] = [foe.x + 6, foe.z];
+  ship.order = { t: 'hold' };
+  foe.awake = true;
+  g.step(TICK);
+  const drones = g.troops.filter((t) => t.rank === 'drone');
+  assert.equal(drones.length, 4);
+  for (let i = 0; i < 20 * 30; i++) g.step(TICK);
+  assert.ok(drones.every((d) => !g.ents.has(d.i)), 'the drones are gone');
 });

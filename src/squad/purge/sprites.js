@@ -63,7 +63,10 @@ export const STILLS = {
   fence: [HALLOWEEN + 'fence_broken.gltf', 2.2],
   lantern: [HALLOWEEN + 'post_lantern.gltf', 1.4],
   coffin: [HALLOWEEN + 'coffin.gltf', 2],
-  pumpkin: [HALLOWEEN + 'skull_candle.gltf', 0.6]
+  pumpkin: [HALLOWEEN + 'skull_candle.gltf', 0.6],
+  // Flying things, seen from straight above (the game turns them as they fly).
+  shipBig: [SPACE + 'lander_B.gltf', 6.5, '#8a909a', false, true],
+  shipSmall: [SPACE + 'lander_A.gltf', 1.5, '#c0c8d0', false, true]
 };
 
 const wait = () => new Promise((r) => setTimeout(r, 0));
@@ -86,12 +89,20 @@ export class SpriteBaker {
   }
 
   /** Frame a box of `span` metres round a thing `height` tall at the origin; where its feet land in the picture. */
-  _frame(span, height, cell) {
+  _frame(span, height, cell, top = false) {
     const cy = height * 0.4;
     const c = this.camera;
     Object.assign(c, { left: -span / 2, right: span / 2, top: span / 2, bottom: -span / 2 });
-    c.position.set(0, cy + Math.sin(ELEVATION) * 60, Math.cos(ELEVATION) * 60);
-    c.lookAt(0, cy, 0);
+    if (top) {
+      // Straight down, north up the picture.
+      c.up.set(0, 0, -1);
+      c.position.set(0, 60, 0);
+      c.lookAt(0, 0, 0);
+    } else {
+      c.up.set(0, 1, 0);
+      c.position.set(0, cy + Math.sin(ELEVATION) * 60, Math.cos(ELEVATION) * 60);
+      c.lookAt(0, cy, 0);
+    }
     c.updateProjectionMatrix();
     c.updateMatrixWorld(true);
     this.renderer.setSize(cell, cell, false);
@@ -138,6 +149,10 @@ export class SpriteBaker {
     const robot = await loadRobot();
     const out = {};
     for (const rank of RANK_ORDER) {
+      if (LOOKS[rank].ship) {
+        progress();
+        continue;
+      }
       if (LOOKS[rank].robot && robot) {
         // The Paragon: the war robot, standing and running.
         const r = new Robot(robot, { paint: LOOKS[rank].paint, team: '#d8dde4' });
@@ -217,7 +232,7 @@ export class SpriteBaker {
   /** The still things, each one picture. */
   async stills(progress) {
     const out = {};
-    for (const [key, [file, size, tint, tall]] of Object.entries(STILLS)) {
+    for (const [key, [file, size, tint, tall, top]] of Object.entries(STILLS)) {
       const g = await this.loader.loadAsync(LIB + file).catch(() => null);
       if (!g) continue;
       const m = g.scene;
@@ -239,9 +254,9 @@ export class SpriteBaker {
       holder.add(m);
       const w = Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
       const h = box.max.y - box.min.y;
-      const span = Math.max(w * 1.15, h * 1.2) + 0.6;
+      const span = top ? w * 1.1 : Math.max(w * 1.15, h * 1.2) + 0.6;
       const cell = Math.ceil(span * PPM);
-      const anchor = this._frame(span, h, cell);
+      const anchor = this._frame(span, h, cell, top);
       const atlas = document.createElement('canvas');
       atlas.width = atlas.height = cell;
       this.scene.add(holder);

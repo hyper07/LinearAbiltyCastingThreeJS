@@ -621,6 +621,25 @@ export class FlatView {
 
   _troop(g, e, dt, dead = false) {
     const def = RANKS[e.rank];
+    if (LOOKS[e.rank].ship) {
+      // A flying thing, simply: a dart shape up in the air.
+      const p = this._pose(e, dt);
+      const size = LOOKS[e.rank].ship === 'big' ? 3.2 : 0.8;
+      this._shadow(g, e.x + 1, e.z + 1, size * 0.7);
+      g.save();
+      g.translate(e.x, e.z - size);
+      g.rotate(-p.a);
+      g.fillStyle = LOOKS[e.rank].paint;
+      g.beginPath();
+      g.moveTo(0, size);
+      g.lineTo(size * 0.8, -size * 0.7);
+      g.lineTo(0, -size * 0.3);
+      g.lineTo(-size * 0.8, -size * 0.7);
+      g.closePath();
+      g.fill();
+      g.restore();
+      return;
+    }
     const p = this._pose(e, dt);
     const r = 0.5 * def.scale;
     const color = COLORS[e.o] ?? '#888';

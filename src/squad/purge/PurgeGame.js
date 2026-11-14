@@ -129,6 +129,7 @@ export class PurgeGame {
         <p class="bs__lead">The dead hold the Gravefield. Four commanders start in a camp in its corner with a few Recruits each. Every kill pays ore: buy Recruits at the barracks and raise them at the Forge — Recruit, Veteran, Vanguard, Phantom, Paragon. Break the six Shrines of Bones (each makes your Veterans stronger) and the six Soul Nodes, then the Heart of the Grave, then the king it wakes — before the clock runs out.</p>
         <ol class="gp__ladder">${RANK_ORDER.map((r) => {
           const d = RANKS[r];
+          if (d.hidden) return '<li><b>???</b><small>A hidden rank. Find its secret.</small></li>';
           const from = d.from ? Object.entries(d.from).map(([k, n]) => `${n > 1 ? `${n} ` : ''}${RANKS[k].name}${n > 1 ? 's' : ''}`).join(' + ') : 'the barracks';
           return `<li><b>${d.name}</b><small>${d.from ? `${from} + ${d.ore.toLocaleString()} ore${d.relics ? ` + ${d.relics} relics` : ''}${d.one ? ' · one each' : ''}` : `${d.cost} ore at ${from}`}</small></li>`;
         }).join('')}</ol>
@@ -583,7 +584,7 @@ export class PurgeGame {
     const el = this.$('[data-panel]');
     if (!me || !this.panel) return;
     const mineAll = this.state.ents.filter((e) => e.k === 'troop');
-    const key = `${this.panel}|${me.ore}|${me.relics}|${me.autoForge}|${JSON.stringify(me.upg)}|${mineAll.filter((e) => e.o === this.mySlot).map((e) => `${e.rank}${Math.round(e.x / 2)},${Math.round(e.z / 2)}`).join()}`;
+    const key = `${this.panel}|${me.ore}|${me.relics}|${me.autoForge}|${JSON.stringify(me.upg)}|${this.state.ents.length}|${mineAll.filter((e) => e.o === this.mySlot).map((e) => `${e.rank}${Math.round(e.x / 2)},${Math.round(e.z / 2)}`).join()}`;
     if (key === this._panelKey) return;
     this._panelKey = key;
     if (this.panel === 'forge') {
@@ -592,7 +593,8 @@ export class PurgeGame {
         <div class="bs__row"><span>Raise in the ring by itself</span><button type="button" data-auto class="${me.autoForge ? 'is-on' : ''}">${me.autoForge ? 'On' : 'Off'}</button></div>
         ${RANK_ORDER.filter((r) => RANKS[r].from).map((r) => {
           const d = RANKS[r];
-          const can = forgeCheck(mineAll, this.mySlot, me.ore, me.relics, r);
+          const can = forgeCheck(mineAll, this.mySlot, me.ore, me.relics, r, me.upg);
+          if (can.secret) return `<button type="button" disabled><b>???</b><small>A hidden rank. Something must be mastered first…</small><i>Its recipe shows here once its secret is found.</i><em>???</em></button>`;
           const from = Object.entries(d.from).map(([k, n]) => `${n > 1 ? `${n} ` : ''}${RANKS[k].name}${n > 1 ? 's' : ''}`).join(' + ');
           return `<button type="button" data-forge="${r}" class="${can.ok ? 'is-ok' : ''}"><b>${d.name}</b><small>${from} + ${d.ore.toLocaleString()} ore${d.relics ? ` + ${d.relics} relics` : ''}${d.one ? ' · one each' : ''}</small><i>${d.hp} health · ${d.gun.dmg} × ${d.gun.rate}/s · reach ${d.gun.range}${d.gun.splash ? ' · bursts' : ''}</i><em>${can.ok ? 'Raise' : esc(can.why)}</em></button>`;
         }).join('')}
@@ -729,6 +731,12 @@ export class PurgeGame {
         }
       }
       else if (e.t === 'give') this._feed(`${this.state.players[e.o]?.name} gave ${this.state.players[e.to]?.name} ${e.n.toLocaleString()} ore`);
+      else if (e.t === 'secret' && e.o === this.mySlot) {
+        const d = RANKS[e.rank];
+        this._banner(`A secret: the ${d.name}`, `Weapons mastered — the Forge's hidden rank is open: ${Object.entries(d.from).map(([k, n]) => `${n} ${RANKS[k].name}${n > 1 ? 's' : ''}`).join(' + ')} + ${d.ore.toLocaleString()} ore + ${d.relics} relics`, 7);
+        this._feed(`Hidden rank found: the ${d.name} (F to see it)`);
+        this._panelKey = '';
+      } else if (e.t === 'secret') this._feed(`${this.state.players[e.o]?.name} found a secret at the Forge`);
       else if (e.t === 'stray') {
         this._feed(`Stragglers: ${e.n} of the dead wander towards the camp — easy ore`);
         this.pings.push({ x: e.x, z: e.z, t: performance.now() });
@@ -813,7 +821,7 @@ export class PurgeGame {
         this._barKey = key;
         const recruit = s.heroesOnly ? `Veteran · ${(RANKS.veteran.ore + RANKS.recruit.cost).toLocaleString()}` : `Recruit · ${RANKS.recruit.cost}`;
         this.$('[data-bar]').innerHTML = `
-          <div class="gp__purse"><b>${me.ore.toLocaleString()}</b><small>ore</small><b>${me.relics}</b><small>relics</small><b>${mine.length}/${SUPPLY}</b><small>soldiers</small></div>
+          <div class="gp__purse"><b>${me.ore.toLocaleString()}</b><small>ore</small><b>${me.relics}</b><small>relics</small><b>${mine.filter((e) => !RANKS[e.rank].summoned).length}/${SUPPLY}</b><small>soldiers</small></div>
           <div class="gp__sel">${sel.length ? `<b>${sel.length} selected</b><small>${count(sel).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ')}</small>` : `<b>Nothing selected</b><small>${count(mine).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ') || 'No soldiers — buy some (R)'} · Tab selects all</small>`}</div>
           <div class="gp__cmds">
             <button type="button" data-key="m" ${sel.length ? '' : 'disabled'}><em>M</em><b>Move</b></button>

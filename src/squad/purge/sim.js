@@ -20,9 +20,10 @@ const facing = (dx, dz) => Math.atan2(dx, dz);
  * reach of the Forge. Used by the game and by the screen (to say what is
  * missing).
  */
-export function forgeCheck(troops, slot, ore, relics, rank) {
+export function forgeCheck(troops, slot, ore, relics, rank, upg = null) {
   const def = RANKS[rank];
   if (!def?.from) return { ok: false, why: 'Not a rank you raise' };
+  if (def.unlock && !(upg && Object.entries(def.unlock).every(([k, n]) => (upg[k] ?? 0) >= n))) return { ok: false, why: '???', secret: true };
   if (def.one && troops.some((t) => t.o === slot && t.rank === rank)) return { ok: false, why: `One ${def.name} at a time` };
   const near = troops.filter((t) => t.o === slot && Math.hypot(t.x - FORGE.x, t.z - FORGE.z) < FORGE_REACH);
   const use = [];
@@ -187,6 +188,9 @@ export class Purge {
       p.ore -= cost;
       p.upg[o.key]++;
       this.events.push({ t: 'upgrade', o: slot, key: o.key, level: p.upg[o.key] });
+      for (const [rank, def] of Object.entries(RANKS)) {
+        if (def.unlock?.[o.key] === p.upg[o.key]) this.events.push({ t: 'secret', o: slot, rank });
+      }
     } else if (o.t === 'autoForge') {
       p.autoForge = Boolean(o.on);
     } else if (o.t === 'give') {
@@ -214,7 +218,8 @@ export class Purge {
       const [gx, gz] = this.grid.open(x + col * 1.6, z + row * 1.6 - 1.6);
       t.order = { t: how, x: gx, z: gz };
       t.tgt = null;
-      if (shared && this.grid.line(t.x, t.z, shared[0][0], shared[0][1])) t.path = [...shared.slice(0, -1), [gx, gz]];
+      if (RANKS[t.rank].flying) t.path = [[gx, gz]];
+      else if (shared && this.grid.line(t.x, t.z, shared[0][0], shared[0][1])) t.path = [...shared.slice(0, -1), [gx, gz]];
       else t.path = this.grid.path(t.x, t.z, gx, gz) ?? [[gx, gz]];
     });
   }
@@ -223,7 +228,7 @@ export class Purge {
     const rank = this.heroesOnly ? 'veteran' : 'recruit';
     const cost = this.heroesOnly ? RANKS.veteran.ore + RANKS.recruit.cost : RANKS.recruit.cost;
     for (let k = 0; k < n; k++) {
-      if (p.ore < cost || this.troops.filter((t) => t.o === p.slot).length >= SUPPLY) return;
+      if (p.ore < cost || this.troops.filter((t) => t.o === p.slot && !RANKS[t.rank].summoned).length >= SUPPLY) return;
       p.ore -= cost;
       const t = this._troop(p.slot, rank, BARRACKS);
       this.events.push({ t: 'made', o: p.slot, id: t.i, rank });
@@ -233,7 +238,7 @@ export class Purge {
   /** What a player could raise at the Forge now, and what stops them if not. */
   canForge(slot, rank) {
     const p = this.players[slot];
-    return p ? forgeCheck(this.troops, slot, p.ore, p.relics, rank) : { ok: false, why: 'No such player' };
+    return p ? forgeCheck(this.troops, slot, p.ore, p.relics, rank, p.upg) : { ok: false, why: 'No such player' };
   }
 
   forge(slot, rank) {
@@ -265,13 +270,13 @@ export class Purge {
       for (const t of this.troops) if (t.fresh && t.o === p.slot && Math.hypot(t.x - FORGE.x, t.z - FORGE.z) >= FORGE_REACH) t.fresh = false;
       const ring = this.troops.filter((t) => t.o === p.slot && !t.fresh && Math.hypot(t.x - FORGE.x, t.z - FORGE.z) < FORGE_REACH && !t.path?.length && t.order.t !== 'move');
       if (!ring.length) continue;
-      for (const rank of ['paragon', 'phantom', 'vanguard', 'veteran']) {
+      for (const rank of ['dreadnought', 'paragon', 'phantom', 'vanguard', 'veteran']) {
         const def = RANKS[rank];
         const main = Object.keys(def.from).sort((a, b) => RANKS[b].tier - RANKS[a].tier)[0];
         if (!ring.some((t) => t.rank === main)) continue;
         if (def.one && this.troops.some((t) => t.o === p.slot && t.rank === rank)) continue;
-        if (!forgeCheck(ring, p.slot, p.ore, p.relics, rank).ok) continue;
-        const can = forgeCheck(ring, p.slot, p.ore, p.relics, rank);
+        const can = forgeCheck(ring, p.slot, p.ore, p.relics, rank, p.upg);
+        if (!can.ok) continue;
         const from = can.use.map((t) => t.i);
         p.ore -= def.ore;
         p.relics -= def.relics ?? 0;
@@ -373,7 +378,29 @@ export class Purge {
 
   _troopStep(t, dt) {
     const s = this.troopStat(t);
+    const rank = RANKS[t.rank];
     t.cd = Math.max(0, t.cd - dt);
+    if (rank.life) {
+      t.life = (t.life ?? rank.life) - dt;
+      if (t.life <= 0) {
+        this._remove(t);
+        this.events.push({ t: 'kill', id: t.i, troop: true, o: t.o, rank: t.rank, expired: true });
+        return;
+      }
+    }
+    if (rank.drones) {
+      t.droneT = (t.droneT ?? 0) - dt;
+      if (t.droneT <= 0 && this._foeNearAwake(t.x, t.z, rank.drones.reach)) {
+        t.droneT = rank.drones.every;
+        for (let n = 0; n < rank.drones.count; n++) {
+          const a = (n / rank.drones.count) * Math.PI * 2;
+          const d = this._troop(t.o, 'drone', { x: t.x + Math.cos(a) * 2.5, z: t.z + Math.sin(a) * 2.5 });
+          [d.x, d.z] = [t.x + Math.cos(a) * 2.5, t.z + Math.sin(a) * 2.5];
+          d.order = { t: 'amove', x: t.x, z: t.z };
+        }
+        this.events.push({ t: 'drones', id: t.i, x: t.x, z: t.z });
+      }
+    }
     // The camp heals; the pad in its middle heals fast.
     if (inBase(t.x, t.z) && t.hp < t.max) t.hp = Math.min(t.max, t.hp + t.max * (Math.hypot(t.x - PAD.x, t.z - PAD.z) < CAMP.padReach ? CAMP.padHeal : CAMP.heal) * dt);
     const o = t.order;
@@ -413,7 +440,7 @@ export class Purge {
       // Close in.
       if (!t.chase || t.chase.id !== target.i || this.t > t.chase.at) {
         t.chase = { id: target.i, at: this.t + 1 };
-        t.path = this.grid.line(t.x, t.z, target.x, target.z) ? [[target.x, target.z]] : this.paths++ < 10 ? this.grid.path(t.x, t.z, target.x, target.z) : t.path;
+        t.path = RANKS[t.rank].flying || this.grid.line(t.x, t.z, target.x, target.z) ? [[target.x, target.z]] : this.paths++ < 10 ? this.grid.path(t.x, t.z, target.x, target.z) : t.path;
       }
       this._walk(t, s.speed, dt);
       return;
@@ -486,7 +513,8 @@ export class Purge {
     const step = Math.min(d, speed * dt);
     const nx = e.x + (dx / d) * step;
     const nz = e.z + (dz / d) * step;
-    if (!this.grid.blocked(nx, nz)) [e.x, e.z] = [nx, nz];
+    if (e.k === 'troop' && RANKS[e.rank].flying) [e.x, e.z] = [Math.max(1, Math.min(SIZE - 1, nx)), Math.max(1, Math.min(SIZE - 1, nz))];
+    else if (!this.grid.blocked(nx, nz)) [e.x, e.z] = [nx, nz];
     else if (!this.grid.blocked(nx, e.z)) e.x = nx;
     else if (!this.grid.blocked(e.x, nz)) e.z = nz;
     else e.path = null;

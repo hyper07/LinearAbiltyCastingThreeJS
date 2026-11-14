@@ -291,7 +291,21 @@ export class PurgeView extends SquadView {
       m.group.remove(stand);
       m.group.add(body.group);
     };
-    if (look.robot) loadRobot().then((gltf) => gltf && ready(new Robot(gltf, { paint: look.paint, team: color })));
+    if (look.ship) {
+      // A flying thing: the lander, hovering and bobbing, an engine glow behind.
+      const big = look.ship === 'big';
+      const holder = new THREE.Group();
+      const hover = big ? 4.2 : 2.6;
+      this._place3(LIB + SPACE + (big ? 'lander_B.gltf' : 'lander_A.gltf'), 0, 0, big ? 6.5 : 1.5, Math.PI, { parent: holder }).then((model) => {
+        if (!model) return;
+        model.position.y += hover;
+        const engine = new THREE.PointLight(look.glow, big ? 30 : 6, big ? 10 : 4, 2);
+        engine.position.set(0, hover, big ? 3 : 0.8);
+        holder.add(engine);
+        let t = Math.random() * 6;
+        ready({ group: holder, update: (dt) => (holder.position.y = Math.sin((t += dt) * 2) * 0.15) });
+      });
+    } else if (look.robot) loadRobot().then((gltf) => gltf && ready(new Robot(gltf, { paint: look.paint, team: color })));
     else {
       loadSoldier().then((gltf) => {
         if (!gltf) return;

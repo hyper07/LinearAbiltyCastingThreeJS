@@ -30,13 +30,19 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   | --- | --- | --- | --- |
   | Recruit | the barracks | 150 | |
   | Veteran | a Recruit | 1,200 | |
-  | Vanguard (one each) | a Veteran | 3,500 | |
+  | Vanguard | a Veteran | 3,500 | |
   | Phantom (one each) | a Vanguard + 2 Veterans | 9,000 | 4 |
   | Paragon (one each) | a Phantom | 22,000 | 10 |
+  | ??? — the hidden rank | a secret… | | |
 
 - **Each rank looks its own**: Recruits in khaki, Veterans in green, Vanguards in steel blue,
   Phantoms in black with a violet glow — and the Paragon is a gold war robot with shoulder cannons
   (Robot Expressive, CC0). Your team's colour is the ring at their feet (and the arm bands).
+- **The hidden rank**, as in the classic maps: the Forge shows a "???" until its secret is found —
+  your **Weapons upgrade mastered (30/30)**. Then it opens: ten Vanguards, your Phantom and your Paragon
+  + 60,000 ore + 16 relics make the **Dreadnought**, a flying gunship (one each). It flies straight
+  over the ridges, its cannon bursts, and when the dead come near it launches four attack drones
+  that fight for 25 seconds. (Spoiler kept out of the game itself until you find it.)
 - **Relics** come from breaking shrines, soul nodes and relic caches; every commander gets them.
 - **The armoury** (**U**): Weapons (+8% damage a level, to 30) and Plating (+1 armour, to 20), for
   all your soldiers.

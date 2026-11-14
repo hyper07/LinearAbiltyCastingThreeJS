@@ -25,11 +25,19 @@ export const COLORS = ['#4f8cff', '#ff5a4f', '#3ddc84', '#f5c518'];
 export const RANKS = {
   recruit: { name: 'Recruit', hp: 90, armor: 0, speed: 5, gun: { dmg: 9, rate: 1.6, range: 9 }, scale: 1, weapon: 'vantage', cost: 150, tier: 0 },
   veteran: { name: 'Veteran', hp: 340, armor: 2, speed: 5.4, gun: { dmg: 24, rate: 2, range: 10 }, scale: 1.12, weapon: 'anvil', from: { recruit: 1 }, ore: 1200, tier: 1 },
-  vanguard: { name: 'Vanguard', hp: 950, armor: 5, speed: 5.6, gun: { dmg: 58, rate: 2.2, range: 11 }, scale: 1.24, weapon: 'falcon', from: { veteran: 1 }, ore: 3500, tier: 2, one: true },
+  vanguard: { name: 'Vanguard', hp: 950, armor: 5, speed: 5.6, gun: { dmg: 58, rate: 2.2, range: 11 }, scale: 1.24, weapon: 'falcon', from: { veteran: 1 }, ore: 3500, tier: 2 },
   phantom: { name: 'Phantom', hp: 2000, armor: 8, speed: 6, gun: { dmg: 80, rate: 3, range: 12 }, scale: 1.3, weapon: 'ironpeak', from: { vanguard: 1, veteran: 2 }, ore: 9000, relics: 4, tier: 3, one: true },
-  paragon: { name: 'Paragon', hp: 4600, armor: 12, speed: 6.2, gun: { dmg: 170, rate: 2.5, range: 13, splash: 2.6 }, scale: 1.3, weapon: 'falcon', from: { phantom: 1 }, ore: 22000, relics: 10, tier: 4, one: true }
+  paragon: { name: 'Paragon', hp: 4600, armor: 12, speed: 6.2, gun: { dmg: 170, rate: 2.5, range: 13, splash: 2.6 }, scale: 1.3, weapon: 'falcon', from: { phantom: 1 }, ore: 22000, relics: 10, tier: 4, one: true },
+  /**
+   * The hidden rank: shown as "???" at the Forge until its secret is
+   * found — Weapons upgraded all the way. A flying gunship: it crosses the
+   * ridges, and launches attack drones when the dead come near.
+   */
+  dreadnought: { name: 'Dreadnought', hp: 22000, armor: 20, speed: 5.5, gun: { dmg: 380, rate: 2, range: 15, splash: 3.5 }, scale: 1, from: { vanguard: 10, phantom: 1, paragon: 1 }, ore: 60000, relics: 16, tier: 5, one: true, hidden: true, unlock: { weapons: 30 }, flying: true, drones: { count: 4, every: 12, reach: 16 } },
+  /** The Dreadnought's drones: fast, light, gone after a while. */
+  drone: { name: 'Drone', hp: 420, armor: 4, speed: 10, gun: { dmg: 45, rate: 3, range: 8 }, scale: 1, tier: 0, flying: true, life: 25, summoned: true }
 };
-export const RANK_ORDER = ['recruit', 'veteran', 'vanguard', 'phantom', 'paragon'];
+export const RANK_ORDER = ['recruit', 'veteran', 'vanguard', 'phantom', 'paragon', 'dreadnought'];
 
 /**
  * How each rank looks, so they are told apart at a glance: the soldier's
@@ -41,7 +49,9 @@ export const LOOKS = {
   veteran: { paint: '#8fbf6a', label: 'green' },
   vanguard: { paint: '#7aa4ff', label: 'blue' },
   phantom: { paint: '#4a3c68', glow: '#a070ff', label: 'black' },
-  paragon: { paint: '#e8b840', glow: '#ffc040', robot: true, label: 'a war robot' }
+  paragon: { paint: '#e8b840', glow: '#ffc040', robot: true, label: 'a war robot' },
+  dreadnought: { paint: '#5a606a', glow: '#ff6030', ship: 'big', label: 'a flying gunship' },
+  drone: { paint: '#a8b0ba', glow: '#60d0ff', ship: 'small', label: 'a drone' }
 };
 
 /** The Forge: where soldiers stand to be raised (metres from its middle). */

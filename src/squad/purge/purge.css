@@ -23,7 +23,7 @@
 }
 .gp__ladder {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 6px;
   margin: 10px 0 14px;
   padding: 0;

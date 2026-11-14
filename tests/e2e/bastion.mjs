@@ -16,7 +16,7 @@ export async function run(browser) {
     await page.click('.home [data-game="official:bastion"]');
     await page.waitForSelector('.home [data-play]');
     await page.click('.home [data-play]');
-    t.check('Bastion Squad is a card, and Play opens Grave Purge with its ladder of five ranks', await until(page, () => document.querySelectorAll('.gp .gp__ladder li').length === 5 && document.querySelector('.gp [data-solo]'), null, 15000));
+    t.check('Bastion Squad is a card, and Play opens Grave Purge with its ladder of ranks (the last one hidden)', await until(page, () => document.querySelectorAll('.gp .gp__ladder li').length === 6 && /\?\?\?/.test(document.querySelector('.gp .gp__ladder').textContent) && document.querySelector('.gp [data-solo]'), null, 15000));
     await page.click('.gp [data-solo]');
     t.check('Grave Purge: four commanders, three of them bots, four Recruits each', await until(page, () => {
       const s = window.gravePurge.state;
@@ -32,7 +32,7 @@ export async function run(browser) {
     await page.keyboard.press('r');
     t.check('R buys a Recruit for ore', await until(page, (o) => { const g = window.gravePurge.game; return g.troops.filter((x) => x.o === window.gravePurge.mySlot).length === 5 && g.players[window.gravePurge.mySlot].ore < o; }, ore, 3000));
     await page.keyboard.press('f');
-    t.check('F opens the Forge with four ranks to raise', await until(page, () => !document.querySelector('.gp [data-panel]').hidden && document.querySelectorAll('.gp [data-forge]').length === 4));
+    t.check('F opens the Forge: four ranks to raise, and a hidden one (???)', await until(page, () => !document.querySelector('.gp [data-panel]').hidden && document.querySelectorAll('.gp [data-forge]').length === 4 && /\?\?\?/.test(document.querySelector('.gp [data-panel]').textContent)));
     await page.keyboard.press('Escape');
     // Like the map's combining spot: a Recruit walked into the Forge's ring (W) is raised by itself.
     await page.evaluate(() => {

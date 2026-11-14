@@ -1,4 +1,4 @@
-import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH } from './rules.js';
+import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, Grid, foeDef } from './map.js';
 import { ELEVATION } from './sprites.js';
 
@@ -542,8 +542,42 @@ function building(view, g, s, state, falling) {
   }
 }
 
+/** A flying thing: its shadow on the ground, itself up in the air, turned the way it flies. */
+function ship(view, g, e, dt, dead) {
+  const look = LOOKS[e.rank];
+  const big = look.ship === 'big';
+  const still = view.sprites.stills[big ? 'shipBig' : 'shipSmall'];
+  const p = view._pose(e, dead ? 0 : dt);
+  const hover = (big ? 4.2 : 2.6) + Math.sin(view.time * 2 + e.i) * 0.15;
+  const size = big ? 6.5 : 1.5;
+  if (view.shadowPass) {
+    shadow(g, e.x + hover * 0.25, e.z + hover * 0.2, size * 0.45, size * 0.35, 0.45);
+    if (big) {
+      g.strokeStyle = view.selected.has(e.i) ? '#7dffb0' : COLORS[e.o];
+      g.globalAlpha = 0.7;
+      g.lineWidth = 0.15;
+      g.beginPath();
+      g.ellipse(e.x, e.z, size * 0.5, size * 0.35, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.globalAlpha = 1;
+    }
+    return;
+  }
+  const z = e.z - hover * LIFT;
+  view._glow(g, e.x - Math.sin(p.a) * size * 0.35, z - Math.cos(p.a) * size * 0.35, size * 0.35, look.glow, 0.7);
+  if (!still) return;
+  const s = 1 / still.ppm;
+  g.save();
+  g.translate(e.x, z);
+  g.rotate(-p.a);
+  g.drawImage(still.atlas, -still.anchor.x * s, -still.anchor.y * s, still.cell * s, still.cell * s);
+  g.restore();
+  if (p.swing > 0.55 && !dead) view._glow(g, e.x + Math.sin(p.a) * size * 0.45, z + Math.cos(p.a) * size * 0.45, big ? 1.6 : 0.6, '#ffd080', 0.9);
+}
+
 function troop(view, g, e, dt, dead = false) {
   const def = RANKS[e.rank];
+  if (LOOKS[e.rank].ship) return ship(view, g, e, dt, dead);
   const sheet = view.sprites.soldiers?.[e.rank];
   if (!sheet) return view.shadowPass ? null : view._troop(g, e, dt, dead);
   const p = view._pose(e, dead ? 0 : dt);
