@@ -41,8 +41,10 @@ models — and more free and paid sources for 3D models, animation and effects a
 ## The home page
 
 Gamory opens on its games, like a video site: a card for every game you can play — the official ones
-and everything people published — with a cover drawn from its world, who made it and how often it
-was played. Search, filter by genre (or **For kids & study**), sort by popular or new, open a game's
+and everything people published — with a cover (a real screenshot for the official games, drawn from
+its world for the rest), who made it and how often it was played. The official games' screenshots are
+taken by `BASE_URL=http://127.0.0.1:5173/ node scripts/covers.mjs` (with the game running; name games
+to retake only those) — each game brought to a good moment, its menus and HUD hidden. Search, filter by genre (or **For kids & study**), sort by popular or new, open a game's
 page and press **Play** to open its **lobby**: choose your character from the classes that game offers
 and customize its body and colours, then **Start** — or invite friends with a code and wait together:
 everyone's chosen character stands on the lobby's stage, in the body and colours they picked (and

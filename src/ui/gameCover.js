@@ -101,8 +101,12 @@ function skyline(kind, r, color) {
  * @param {{ id: string, card: object }} game
  * @returns {string} SVG markup (320×180)
  */
-/** Official games with a real screenshot for a cover (public/covers/<name>.jpg). */
-const PHOTO_COVERS = new Set(['hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove']);
+/** Official games with a real screenshot for a cover (public/covers/<name>.jpg; scripts/covers.mjs takes most of them). */
+const PHOTO_COVERS = new Set([
+  'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
+  // Taken by scripts/covers.mjs (run it again to refresh them).
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life'
+]);
 
 /**
  * A game's cover as markup: a screenshot of the game where there is one
