@@ -1013,3 +1013,97 @@ test('idle monsters wander near home, and still come for you; sprinting is allow
     await db.close();
   }
 });
+
+test('the bag is a grid: things take the room their shape needs, can be moved and tidied, and a full bag says so', async () => {
+  const { BAG_W, BAG_H, sizeOf, foundId } = await import('../../src/mmo/data.js');
+  const R = await import('../../src/mmo/rules.js');
+  assert.deepEqual(sizeOf('bread'), [1, 1]);
+  assert.deepEqual(sizeOf('rusty_sword'), [1, 3]);
+  assert.deepEqual(sizeOf('worn_crossbow'), [2, 3]);
+  assert.deepEqual(sizeOf('oak_staff'), [1, 4]);
+  assert.deepEqual(sizeOf('padded_vest'), [2, 3]);
+  assert.deepEqual(sizeOf(foundId('axe', 'rare', 5, 9)), [2, 3]);
+  assert.deepEqual(sizeOf(foundId('charm', 'rare', 5, 9)), [1, 1]);
+  // No two things share a cell, whatever is put in.
+  const overlap = (ch) => {
+    const seen = new Set();
+    for (const s of ch.bag) {
+      if (!s || !Number.isInteger(s.x)) continue;
+      const [w, h] = sizeOf(s.item);
+      assert.ok(s.x >= 0 && s.y >= 0 && s.x + w <= BAG_W && s.y + h <= BAG_H, `${s.item} inside the bag`);
+      for (let y = s.y; y < s.y + h; y++) for (let x = s.x; x < s.x + w; x++) {
+        if (seen.has(`${x},${y}`)) return true;
+        seen.add(`${x},${y}`);
+      }
+    }
+    return false;
+  };
+  const ch = R.newCharacter('Baga', 'vanguard');
+  assert.ok(ch.bag.filter(Boolean).every((s) => Number.isInteger(s.x)), 'a new character\'s kit has its places');
+  for (const item of ['rusty_sword', 'worn_crossbow', 'padded_vest', 'oak_staff', 'leather_boots', 'copper_helm']) assert.equal(R.give(ch, item, 1), 1);
+  assert.equal(R.give(ch, 'bread', 30), 30, 'stacks, then more stacks');
+  assert.ok(!overlap(ch));
+  // Fill it with great axes (2 × 3): as many as the shape allows, then no more — though small things still fit.
+  const full = R.newCharacter('Fulla', 'berserker');
+  full.bag.fill(null);
+  let axes = 0;
+  while (R.give(full, 'chipped_axe', 1)) axes++;
+  assert.equal(axes, Math.floor(BAG_W / 2) * Math.floor(BAG_H / 3));
+  assert.ok(!overlap(full));
+  assert.equal(R.give(full, 'chipped_axe', 1), 0, 'no room for another');
+  assert.equal(R.give(full, 'bone_charm', 1), 1, 'a charm still fits in the strip that is left');
+  assert.equal(R.canHold(full, [{ item: 'chipped_axe', n: 1 }]), false);
+  assert.equal(R.canHold(full, [{ item: 'chipped_axe', n: 1 }], [0]), true, 'if the first axe goes, another can come');
+  // Moving: onto free cells yes, onto something or off the edge no.
+  const m = R.newCharacter('Mova', 'vanguard');
+  m.bag.fill(null);
+  R.give(m, 'rusty_sword', 1);
+  R.give(m, 'padded_vest', 1);
+  assert.deepEqual([m.bag[0].x, m.bag[0].y, m.bag[1].x, m.bag[1].y], [0, 0, 1, 0]);
+  assert.match(R.moveInBag(m, 0, 2, 1), /doesn't fit/, 'onto the vest');
+  assert.match(R.moveInBag(m, 0, 0, BAG_H - 2), /doesn't fit/, 'off the bottom');
+  assert.equal(R.moveInBag(m, 0, 7, 2), null);
+  assert.deepEqual([m.bag[0].x, m.bag[0].y], [7, 2]);
+  assert.equal(R.moveInBag(m, 0, 7, 3), null, 'a step down, over where it was');
+  // Wearing: what comes off takes the place of what went on, if its shape fits there.
+  m.bag[0].x = 7;
+  m.bag[0].y = 3;
+  assert.equal(R.wear(m, 0), null);
+  assert.equal(m.bag[0].item, 'rusty_sword', 'the starter sword came off (same shape, same place)');
+  assert.deepEqual([m.bag[0].x, m.bag[0].y], [7, 3]);
+  // Tidy: biggest first, nothing lost, nothing overlapping.
+  const t = R.newCharacter('Tida', 'vanguard');
+  t.bag.fill(null);
+  for (const item of ['bread', 'rusty_sword', 'bone_charm', 'padded_vest', 'oak_staff', 'minor_potion', 'worn_crossbow']) R.give(t, item, 1);
+  const before = t.bag.filter(Boolean).map((s) => s.item).sort();
+  R.tidyBag(t);
+  assert.deepEqual(t.bag.filter(Boolean).map((s) => s.item).sort(), before);
+  assert.equal(t.bag[0].item, 'oak_staff', 'the tallest first');
+  assert.ok(!overlap(t) && t.bag.filter(Boolean).every((s) => Number.isInteger(s.x)));
+  // An old save (no places, twenty slots) is laid out; what cannot fit stays yours, without a place.
+  const old = R.normalize({ name: 'Olda', cls: 'vanguard', level: 3, seeded: true, bag: Array.from({ length: 20 }, () => ({ item: 'padded_vest', n: 1 })) });
+  assert.equal(old.bag.filter(Boolean).length, 20);
+  assert.ok(!overlap(old));
+  assert.equal(old.bag.filter((s) => s && Number.isInteger(s.x)).length, Math.floor(BAG_W / 2) * Math.floor(BAG_H / 3));
+
+  const { db, mmo, join, steps } = await world();
+  try {
+    const { ws, client } = await join(0, 'Draga', 'vanguard');
+    client.ch.bag.fill(null);
+    R.give(client.ch, 'rusty_sword', 1);
+    ws.say({ t: 'bag-move', slot: 0, x: 4, y: 2 });
+    assert.deepEqual([client.ch.bag[0].x, client.ch.bag[0].y], [4, 2]);
+    ws.say({ t: 'bag-move', slot: 0, x: 99, y: 2 });
+    assert.match(ws.last('error').text, /doesn't fit/);
+    ws.say({ t: 'bag-tidy' });
+    assert.deepEqual([client.ch.bag[0].x, client.ch.bag[0].y], [0, 0]);
+    // A hop is shown to everyone here, and not more often than it takes.
+    ws.say({ t: 'jump' });
+    ws.say({ t: 'jump' });
+    steps(1);
+    assert.equal(ws.inbox.filter((x) => x.t === 'snap').flatMap((x) => x.ev ?? []).filter((e) => e.type === 'jump' && e.id === client.body.id).length, 1);
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});

@@ -1,4 +1,4 @@
-import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, DROPS, foundId, BAR_SIZE } from './data.js';
+import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, DROPS, foundId, BAR_SIZE, BAG_W, BAG_H, sizeOf } from './data.js';
 
 import { cleanLook } from './looks.js';
 
@@ -15,7 +15,7 @@ export function newCharacter(name, cls, look = null) {
   const kit = STARTER[cls];
   const bag = new Array(BAG_SIZE).fill(null);
   kit.bag.forEach(([item, n], i) => (bag[i] = { item, n }));
-  return {
+  return layout({
     name, cls, look: cleanLook(cls, look), level: 1, xp: 0, gold: SEED_GOLD, seeded: true, zone: 'hearthvale', x: 60, z: 92, hp: null, mana: null,
     equip: { weapon: kit.weapon, chest: kit.chest },
     bag, bank: new Array(BANK_SIZE).fill(null),
@@ -24,7 +24,7 @@ export function newCharacter(name, cls, look = null) {
     bars: defaultBars(cls),
     attrs: Object.fromEntries(ATTR_ORDER.map((a) => [a, 0])),
     tree: freeNodes(cls)
-  };
+  });
 }
 
 /* ---- the keys 1–8 ---- */
@@ -241,10 +241,93 @@ export function countOf(ch, item) {
   return ch.bag.reduce((n, s) => n + (s?.item === item ? s.n : 0), 0);
 }
 
-/** Put `n` of an item in the bag (stacking); returns how many fit. */
+/* ---- the bag's grid: every item takes the room its shape needs ---- */
+
+/** Which cells are taken (1) in a character's bag, leaving out one entry (`skip`). Entries without a place take none. */
+function taken(ch, skip = -1) {
+  const grid = new Uint8Array(BAG_W * BAG_H);
+  ch.bag.forEach((s, i) => {
+    if (!s || i === skip || !Number.isInteger(s.x) || !Number.isInteger(s.y)) return;
+    const [w, h] = sizeOf(s.item);
+    for (let y = s.y; y < Math.min(BAG_H, s.y + h); y++) for (let x = s.x; x < Math.min(BAG_W, s.x + w); x++) grid[y * BAG_W + x] = 1;
+  });
+  return grid;
+}
+
+/** Whether an item would fit with its top-left corner at a cell (not counting entry `skip`, e.g. itself). */
+export function fitsAt(ch, item, x, y, skip = -1, grid = taken(ch, skip)) {
+  const [w, h] = sizeOf(item);
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x + w > BAG_W || y + h > BAG_H) return false;
+  for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (grid[j * BAG_W + i]) return false;
+  return true;
+}
+
+/** The first place an item fits, reading the bag like a page: [x, y], or null. */
+export function findSpot(ch, item, skip = -1) {
+  const grid = taken(ch, skip);
+  for (let y = 0; y < BAG_H; y++) for (let x = 0; x < BAG_W; x++) if (fitsAt(ch, item, x, y, skip, grid)) return [x, y];
+  return null;
+}
+
+/**
+ * Give every entry of the bag a place of its own: one that has none (an old
+ * save, something put in by hand) or whose place is taken or off the edge
+ * gets the first that fits. What fits nowhere is left without a place (it
+ * is still yours; the bag shows it apart until room is made).
+ */
+export function layout(ch) {
+  const placed = { ...ch, bag: ch.bag.map(() => null) };
+  ch.bag.forEach((s, i) => {
+    if (!s) return;
+    if (!fitsAt(placed, s.item, s.x, s.y)) {
+      const spot = findSpot(placed, s.item);
+      s.x = spot?.[0];
+      s.y = spot?.[1];
+    }
+    placed.bag[i] = s;
+  });
+  return ch;
+}
+
+/** Move a bag entry to a cell. Returns why not, or null when done. */
+export function moveInBag(ch, slot, x, y) {
+  const s = ch.bag[slot | 0];
+  if (!s) return 'Nothing there';
+  if (!fitsAt(ch, s.item, x | 0, y | 0, slot | 0)) return 'It doesn\'t fit there';
+  s.x = x | 0;
+  s.y = y | 0;
+  return null;
+}
+
+/** Put the bag in order: the biggest things first, each in the first place it fits. */
+export function tidyBag(ch) {
+  const order = ch.bag.filter(Boolean).sort((a, b) => {
+    const [aw, ah] = sizeOf(a.item);
+    const [bw, bh] = sizeOf(b.item);
+    return bh - ah || bw * bh - aw * ah || String(a.item).localeCompare(String(b.item));
+  });
+  for (const s of order) {
+    delete s.x;
+    delete s.y;
+  }
+  ch.bag = [...order, ...new Array(Math.max(0, ch.bag.length - order.length)).fill(null)];
+  return layout(ch);
+}
+
+/** Whether a bag could take these things as well, once the given entries are gone (a trade, a reward). */
+export function canHold(ch, things, freed = []) {
+  const copy = { bag: ch.bag.map((s, i) => (s && !freed.includes(i) ? { ...s } : null)) };
+  return things.every((t) => give(copy, t.item, t.n ?? 1) === (t.n ?? 1));
+}
+
+/**
+ * Put things in a bag (or the bank): onto a stack of the same first, then
+ * wherever each fits. Returns how many went in.
+ */
 export function give(ch, item, n = 1, list = 'bag') {
   const slots = ch[list];
   const max = ITEMS[item]?.stack ?? 1;
+  const grid = list === 'bag';
   let left = n;
   for (const s of slots) {
     if (left <= 0) break;
@@ -256,14 +339,16 @@ export function give(ch, item, n = 1, list = 'bag') {
   }
   for (let i = 0; i < slots.length && left > 0; i++) {
     if (slots[i]) continue;
+    // In the bag a thing needs room for its shape, not just an empty entry.
+    const spot = grid ? findSpot(ch, item) : null;
+    if (grid && !spot) break;
     const k = Math.min(left, max);
-    slots[i] = { item, n: k };
+    slots[i] = grid ? { item, n: k, x: spot[0], y: spot[1] } : { item, n: k };
     left -= k;
   }
   return n - left;
 }
 
-/** Take `n` of an item from the bag; false (and nothing taken) if there aren't that many. */
 export function take(ch, item, n = 1) {
   if (countOf(ch, item) < n) return false;
   let left = n;
@@ -307,7 +392,8 @@ export function questDone(ch, id) {
 /** A tidy, safe copy of a character as loaded (fills anything an older save lacks). */
 export function normalize(raw) {
   const ch = { ...newCharacter(raw.name, CLASSES[raw.cls] ? raw.cls : 'vanguard'), ...raw };
-  ch.bag = Array.from({ length: BAG_SIZE }, (_, i) => (raw.bag?.[i]?.item && ITEMS[raw.bag[i].item] ? { item: raw.bag[i].item, n: Math.max(1, raw.bag[i].n | 0) } : null));
+  ch.bag = Array.from({ length: BAG_SIZE }, (_, i) => (raw.bag?.[i]?.item && ITEMS[raw.bag[i].item] ? { item: raw.bag[i].item, n: Math.max(1, raw.bag[i].n | 0), x: raw.bag[i].x, y: raw.bag[i].y } : null));
+  layout(ch);
   ch.bank = Array.from({ length: BANK_SIZE }, (_, i) => (raw.bank?.[i]?.item && ITEMS[raw.bank[i].item] ? { item: raw.bank[i].item, n: Math.max(1, raw.bank[i].n | 0) } : null));
   ch.equip = Object.fromEntries(SLOTS.filter((s) => ITEMS[raw.equip?.[s]]?.slot === s).map((s) => [s, raw.equip[s]]));
   ch.quests = { active: { ...(raw.quests?.active ?? {}) }, done: [...(raw.quests?.done ?? [])] };
@@ -350,8 +436,13 @@ export function wear(ch, bagSlot) {
   if (!it?.slot) return 'That isn\'t something to wear';
   if ((it.level ?? 1) > ch.level) return `Needs level ${it.level}`;
   const old = ch.equip[it.slot];
+  if (old) {
+    // What comes off goes where the new piece was, if its shape fits there; else wherever it does.
+    const spot = fitsAt(ch, old, s.x, s.y, i) ? [s.x, s.y] : findSpot(ch, old, i);
+    if (!spot) return `No room in your bag for ${ITEMS[old].name}`;
+    ch.bag[i] = { item: old, n: 1, x: spot[0], y: spot[1] };
+  } else ch.bag[i] = null;
   ch.equip[it.slot] = s.item;
-  ch.bag[i] = old ? { item: old, n: 1 } : null;
   return null;
 }
 

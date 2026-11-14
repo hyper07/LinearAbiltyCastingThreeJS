@@ -219,6 +219,15 @@ export class MmoView {
     return best;
   }
 
+  /** Someone hops. */
+  jump(id) {
+    const m = this.models.get(id);
+    if (!m || (m.jumpAt != null && this.time - m.jumpAt < 0.5)) return;
+    m.jumpAt = this.time;
+    const busy = m.oneShot && this.time - m.oneShot.at < (m.oneShot.dur ?? 0.6);
+    if (!busy) m.oneShot = { kind: 'hit', clip: 'Jump_Full_Short', at: this.time, dur: 0.55 };
+  }
+
   /** Jolt the camera (a heavy blow landed, or took one). */
   shake(amount) {
     this.shakeAmt = Math.min(0.6, Math.max(this.shakeAmt, amount));
@@ -796,6 +805,9 @@ export class MmoView {
       const z = isMe ? me.z : e.z;
       // Standing in a pond: sunk a little, wading.
       m.group.position.set(x, this.h(x, z), z);
+      // A hop: up and down in half a second.
+      const air = m.jumpAt != null ? (this.time - m.jumpAt) / 0.55 : 2;
+      if (air < 1 && e.k !== 'n') m.group.position.y += 6.4 * air * (1 - air);
       // Struck a moment ago: knocked back a little, and squashed.
       const since = m.hitAt != null ? this.time - m.hitAt : 9;
       if (since < 0.22 && e.k !== 'n') {

@@ -8,7 +8,10 @@
 
 export const MAX_LEVEL = 20;
 export const GCD = 1.0; // seconds between skills
-export const BAG_SIZE = 20;
+/** The bag: a grid of cells; every item takes the room its shape needs (see `sizeOf`). `BAG_SIZE` is the most things it can hold, however small. */
+export const BAG_W = 10;
+export const BAG_H = 7;
+export const BAG_SIZE = 48;
 export const BANK_SIZE = 24;
 export const RUN_SPEED = 7;
 export const PARTY_MAX = 8;
@@ -334,11 +337,11 @@ export const RARITY_INFO = {
 };
 /** What can be found: its slot, and how its worth is shared between stats. */
 export const BASES = {
-  sword: { name: 'Sword', slot: 'weapon', power: 1 }, axe: { name: 'Great Axe', slot: 'weapon', power: 1.05 }, daggers: { name: 'Daggers', slot: 'weapon', power: 0.95 },
-  crossbow: { name: 'Crossbow', slot: 'weapon', power: 1 }, staff: { name: 'Staff', slot: 'weapon', power: 1 }, wand: { name: 'Wand', slot: 'weapon', power: 0.95 },
-  helm: { name: 'Helm', slot: 'head', armor: 0.8, stamina: 0.3 }, hauberk: { name: 'Hauberk', slot: 'chest', armor: 1.3, stamina: 0.4 },
-  greaves: { name: 'Greaves', slot: 'legs', armor: 0.9, stamina: 0.35 }, boots: { name: 'Boots', slot: 'feet', armor: 0.6, stamina: 0.25 },
-  charm: { name: 'Charm', slot: 'trinket', power: 0.4, stamina: 0.35 }
+  sword: { name: 'Sword', slot: 'weapon', power: 1, size: [1, 3] }, axe: { name: 'Great Axe', slot: 'weapon', power: 1.05, size: [2, 3] }, daggers: { name: 'Daggers', slot: 'weapon', power: 0.95, size: [1, 2] },
+  crossbow: { name: 'Crossbow', slot: 'weapon', power: 1, size: [2, 3] }, staff: { name: 'Staff', slot: 'weapon', power: 1, size: [1, 4] }, wand: { name: 'Wand', slot: 'weapon', power: 0.95, size: [1, 2] },
+  helm: { name: 'Helm', slot: 'head', armor: 0.8, stamina: 0.3, size: [2, 2] }, hauberk: { name: 'Hauberk', slot: 'chest', armor: 1.3, stamina: 0.4, size: [2, 3] },
+  greaves: { name: 'Greaves', slot: 'legs', armor: 0.9, stamina: 0.35, size: [2, 2] }, boots: { name: 'Boots', slot: 'feet', armor: 0.6, stamina: 0.25, size: [2, 2] },
+  charm: { name: 'Charm', slot: 'trinket', power: 0.4, stamina: 0.35, size: [1, 1] }
 };
 /** The weapon each class would rather find. */
 export const WEAPON_OF = { vanguard: 'sword', templar: 'sword', berserker: 'axe', shadowblade: 'daggers', ranger: 'crossbow', arcanist: 'staff', stormcaller: 'wand', mender: 'wand' };
@@ -398,6 +401,25 @@ export const ITEMS = new Proxy(FIXED_ITEMS, {
   get: (fixed, id) => (typeof id === 'string' && id.charCodeAt(0) === 126 ? decodeFound(id) : fixed[id]),
   has: (fixed, id) => (typeof id === 'string' && id.charCodeAt(0) === 126 ? Boolean(decodeFound(id)) : id in fixed)
 });
+
+/** The room a listed piece of gear takes, by where it is worn (a weapon's by what it is). */
+const SLOT_SIZE = { head: [2, 2], chest: [2, 3], legs: [2, 2], feet: [2, 2], trinket: [1, 1] };
+/**
+ * How many cells of the bag an item takes: [wide, tall]. A charm, a draught
+ * or a stack of ore is one cell; a sword is one wide and three tall; a great
+ * axe, a crossbow or a hauberk two by three; a staff one by four.
+ */
+export function sizeOf(id) {
+  const it = ITEMS[id];
+  if (!it?.slot) return [1, 1];
+  if (it.base) return BASES[it.base].size;
+  if (it.slot !== 'weapon') return SLOT_SIZE[it.slot] ?? [1, 1];
+  const name = it.name.toLowerCase();
+  if (/axe|crossbow/.test(name)) return [2, 3];
+  if (/staff|rod/.test(name)) return [1, 4];
+  if (/wand|dagger/.test(name)) return [1, 2];
+  return [1, 3];
+}
 
 /** How often a kill drops found gear, and how the rarities are weighed. */
 /**

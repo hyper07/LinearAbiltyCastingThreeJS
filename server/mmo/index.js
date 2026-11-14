@@ -4,7 +4,7 @@ import { Instance } from './instance.js';
 import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX, DROPS } from '../../src/mmo/data.js';
 import { ZONES, NPCS } from '../../src/mmo/world.js';
 import { cleanLook } from '../../src/mmo/looks.js';
-import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf, wear, takeOff, raiseAttr, learn, respec, potionFor, cleanBars } from '../../src/mmo/rules.js';
+import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, addXp, statsOf, wear, takeOff, raiseAttr, learn, respec, potionFor, cleanBars, layout, moveInBag, tidyBag, canHold } from '../../src/mmo/rules.js';
 
 /**
  * Hearthvale's server. Characters live in the database (`mmo_characters`,
@@ -262,7 +262,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
     for (const client of online.values()) {
       if (client.changed) {
         client.changed = false;
-        client.send({ t: 'me', ch: client.ch, st: statsOf(client.ch) });
+        client.send({ t: 'me', ch: layout(client.ch), st: statsOf(client.ch) });
         if (client.party) broadcastParty(client.party);
       }
       if (now - client.savedAt > SAVE_EVERY) save(client);
@@ -291,6 +291,21 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
         if (slot < 0) return err(kind === 'mana' ? 'No mana tonics — Pell the provisioner sells them' : 'No healing draughts — Pell the provisioner sells them');
         return inst.handle(p, { t: 'use', slot });
       }
+      case 'bag-move': {
+        // Drag something to another place in the bag.
+        const why = moveInBag(ch, msg.slot, msg.x, msg.y);
+        if (why) return err(why);
+        return client.dirty();
+      }
+      case 'bag-tidy':
+        tidyBag(ch);
+        return client.dirty();
+      case 'jump':
+        // A hop, for everyone here to see. It changes nothing but how you look.
+        if (p.dead || inst.time < (p.jumpAt ?? 0)) return;
+        p.jumpAt = inst.time + 0.6;
+        inst.out.push({ type: 'jump', id: p.id });
+        return;
       case 'bars':
         // What the player put on keys 1–8.
         ch.bars = cleanBars(ch.cls, msg.bars);
@@ -311,7 +326,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
       case 'quest-turnin': {
         const q = QUESTS[msg.id];
         if (!q || !inst.near(p, 'npc', q.to) || !questDone(ch, msg.id)) return err('Not done yet');
-        if (q.reward.item && !freeSlots(ch) && !countOf(ch, q.reward.item)) return err('Make room in your bag first');
+        if (q.reward.item && !canHold(ch, [{ item: q.reward.item, n: 1 }])) return err('Make room in your bag first');
         if (q.goal.gather) take(ch, q.goal.gather, q.goal.count);
         delete ch.quests.active[msg.id];
         ch.quests.done.push(msg.id);
@@ -426,7 +441,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
         if (!inst.near(p, 'station', r.station)) return err(`Use the ${r.station} in Hearthvale`);
         if ((ch.skills[r.skill] ?? 1) < r.need) return err(`Needs ${r.skill} ${r.need}`);
         if (!r.uses.every(([item, n]) => countOf(ch, item) >= n)) return err('Missing materials');
-        if (!freeSlots(ch) && !countOf(ch, r.makes[0])) return err('Your bag is full');
+        if (!canHold(ch, [{ item: r.makes[0], n: r.makes[1] }])) return err('Your bag is full');
         for (const [item, n] of r.uses) take(ch, item, n);
         give(ch, r.makes[0], r.makes[1]);
         const skill = ch.skills[r.skill] ?? 1;
@@ -746,7 +761,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
     const oa = trade.offer[A.charId];
     const ob = trade.offer[B.charId];
     if (ga.length !== oa.slots.length || gb.length !== ob.slots.length || A.ch.gold < oa.gold || B.ch.gold < ob.gold) return cancelTrade(client, 'Something changed — the trade was cancelled.');
-    if (freeSlots(A.ch) + oa.slots.length < gb.length || freeSlots(B.ch) + ob.slots.length < ga.length) return cancelTrade(client, 'Not enough room in a bag.');
+    if (!canHold(A.ch, gb, oa.slots) || !canHold(B.ch, ga, ob.slots)) return cancelTrade(client, 'Not enough room in a bag.');
     for (const s of oa.slots) A.ch.bag[s] = null;
     for (const s of ob.slots) B.ch.bag[s] = null;
     for (const s of gb) give(A.ch, s.item, s.n);

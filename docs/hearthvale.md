@@ -56,6 +56,10 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-drops.jpg" width="100%" alt="A fight in the Greenfold with loot on the ground: Worn Daggers under a white beam beside the player and a Keen Great Axe under a green one further off, each with its name; the loot line reads Rust Bandit: 5 gold, dropped Worn Daggers; a Walking/Running button sits beside the hotbar" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-bag.jpg" width="100%" alt="The bag as a ten-by-seven grid: a crossbow, a vest and a great axe taking two by three cells, swords and daggers one cell wide and two or three tall, boots and leggings two by two, and stacks of small things in single cells; a great axe is being dragged to a new place" />
+</p>
+
 ## How it plays
 
 - **Your character.** The maker shows your character live on a stage (drag to turn it) as you
@@ -144,6 +148,14 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   colour. **Hold the pointer on one** (or tab to it) for its words: name, rarity, slot and level,
   what it gives, how it compares with what you wear, what it sells for, and what a click does.
   In a store, click a picture to pick it; Buy, ×5 and Buy & wear are under the shelf.
+- **The bag is a grid (I).** Ten cells by seven, and every item takes the room its shape needs: a
+  charm, a draught or a stack of ore one cell; daggers and wands one by two; a sword one by three;
+  a staff one by four; helms, greaves and boots two by two; a great axe, a crossbow or a hauberk
+  two by three. **Drag** something to put it elsewhere (a green shadow shows where it will land,
+  red where it won't fit), or press **Tidy** to pack everything, biggest first. What you take off
+  goes where the piece you put on was, if it fits there. A thing that fits nowhere stays on the
+  ground (or, from an old save, is shown beside the grid until you make room).
+- **Jump**: **Space** — a hop the others see too. It is only for show.
 - **Keys 1–8, yours to set.** The hotbar has eight keys: your six skills on 1–6, a **health
   draught on 7** and a **tonic on 8** to start with. **Right-click a key** (or press **⚙ Keys**, then
   a number) for a picker of **pictures** — every skill, the two draughts and whatever food is in your
@@ -199,7 +211,7 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 
 | | |
 |---|---|
-| Walk · run · look | **W A S D** (or hold both mouse buttons) · **Shift** runs, **R** keeps running · drag the mouse to turn the camera, the wheel zooms |
+| Walk · run · jump · look | **W A S D** (or hold both mouse buttons) · **Shift** runs, **R** keeps running · **Space** jumps · drag the mouse to turn the camera, the wheel zooms |
 | Target · fight | **Left-click** an enemy: target and attack · **right-click**: attack and use your first skill · **Tab**: nearest enemy · **1–8** skills and draughts — right-click a key to change it (a line above the hotbar reminds you when enemies are near) |
 | Use | **F**: pick up loot, talk, gather, step through a portal, use a crafting station |
 | Windows | **I** bag · **C** character and attributes · **T** skill tree · **L** quests · **K** crafting · **P** party · **G** guild · **H** help · **Enter** chat · **Esc** close |
@@ -228,7 +240,7 @@ trading, loot, guilds and progress fair.
   warned slam; combos, finishers and the close-range kick; keys 1–8 and the draught that fits; a stacked pack spreading out; the eight
   classes, their trees, runes, synergies and masteries, attribute points and starting over; found
   gear made from its id, rarity by monster, loot on the ground and picking it up, the second-hand
-  shelf; wandering monsters and sprinting) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
+  shelf; wandering monsters and sprinting; the bag's grid, moving and tidying; the jump) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).
 
 ## Next

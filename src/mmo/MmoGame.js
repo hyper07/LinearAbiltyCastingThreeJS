@@ -1,7 +1,7 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD, SPRINT, DROPS } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD, SPRINT, DROPS, BAG_W, BAG_H, sizeOf } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
-import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods, potionFor } from './rules.js';
+import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods, potionFor, fitsAt } from './rules.js';
 import { CharacterStage } from './bodies.js';
 import { STYLES, BUILDS, TINTS, cleanLook, lookOf } from './looks.js';
 import { playerBlow, mobBlow, kickBlow, BLOW_COLORS } from './blows.js';
@@ -670,6 +670,9 @@ export class MmoGame {
         case 'quest-done':
           this.toast(`Quest complete: ${QUESTS[ev.id].name} (+${ev.xp} xp, ${ev.gold} gold${ev.item ? `, ${ITEMS[ev.item].name}` : ''})`, 'good');
           break;
+        case 'jump':
+          if (ev.id !== this.you) this.view.jump(ev.id);
+          break;
         case 'picked': {
           const t = el('div', 'hv-toast hv-toast--loot');
           t.innerHTML = `Picked up ${itemName(ev.item)}`;
@@ -893,6 +896,13 @@ export class MmoGame {
         return this.toggle('skills');
       case 'KeyR':
         return this._setRun(!this.alwaysRun);
+      case 'Space':
+        // A hop: at once here, and told to the server so the others see it.
+        if (this.me && !this.current?.ents.find((x) => x.i === this.you)?.dead) {
+          this.view.jump(this.you);
+          this.send({ t: 'jump' });
+        }
+        return;
       case 'KeyL':
         return this.toggle('quests');
       case 'KeyK':
@@ -1621,32 +1631,118 @@ export class MmoGame {
     return b;
   }
 
+  /**
+   * The bag: a grid where every item takes the room its shape needs — a
+   * charm one cell, a sword one by three, a great axe two by three. Drag
+   * something to put it elsewhere; click it to wear, use, sell, bank or
+   * offer it (whichever fits what is open); right-click to throw it away.
+   */
   _win_bag() {
-    const body = el('div');
-    const grid = el('div', 'hv-grid');
+    const CELL = 42;
+    const body = el('div', 'hv-bagwin');
+    const grid = el('div', 'hv-bag');
+    grid.style.setProperty('--cell', `${CELL}px`);
+    grid.style.width = `${BAG_W * CELL}px`;
+    grid.style.height = `${BAG_H * CELL}px`;
+    grid.dataset.bag = '';
+    const ghost = el('div', 'hv-bag__ghost');
+    ghost.hidden = true;
+    grid.append(ghost);
+    const loose = el('div', 'hv-bag__loose');
     const mode = this.panels.has('trade') ? 'trade' : this.npc?.vendor ? 'sell' : this.npc?.bank ? 'bank' : 'use';
+    const offered = new Set(this.trade?.me.items.map((x) => x.slot) ?? []);
     this.ch.bag.forEach((s, i) => {
-      const hint = !s ? '' : mode === 'sell' ? `\nClick: sell for ${(ITEMS[s.item].value ?? 0) * s.n} gold` : mode === 'bank' ? '\nClick: put in the bank' : mode === 'trade' ? '\nClick: offer in the trade' : ITEMS[s.item].slot ? '\nClick: wear' : ITEMS[s.item].use ? '\nClick: use' : '';
+      if (!s) return;
+      const it = ITEMS[s.item];
+      const [w, h] = sizeOf(s.item);
+      const hint = `${mode === 'sell' ? `Click: sell for ${(it.value ?? 0) * s.n} gold` : mode === 'bank' ? 'Click: put in the bank' : mode === 'trade' ? 'Click: offer in the trade' : it.slot ? 'Click: wear' : it.use ? 'Click: use' : ''}\nDrag: move it · right-click: throw away`;
+      let dragged = false;
       const b = this._slotButton(s, () => {
-        if (!s) return;
+        if (dragged) return;
         if (mode === 'sell') this.send({ t: 'sell', slot: i });
         else if (mode === 'bank') this.send({ t: 'bank-put', slot: i });
         else if (mode === 'trade') {
-          const offer = new Set(this.trade?.me.items.map((x) => x.slot) ?? []);
-          if (offer.has(i)) offer.delete(i);
-          else offer.add(i);
-          this.send({ t: 'trade-offer', slots: [...offer], gold: this.trade?.me.gold ?? 0 });
-        } else if (ITEMS[s.item].slot) this.send({ t: 'equip', slot: i });
-        else if (ITEMS[s.item].use) this.send({ t: 'use', slot: i });
+          if (offered.has(i)) offered.delete(i);
+          else offered.add(i);
+          this.send({ t: 'trade-offer', slots: [...offered], gold: this.trade?.me.gold ?? 0 });
+        } else if (it.slot) this.send({ t: 'equip', slot: i });
+        else if (it.use) this.send({ t: 'use', slot: i });
       }, hint);
       b.dataset.slot = String(i);
+      b.classList.add('hv-bag__item');
+      b.classList.toggle('is-offered', offered.has(i));
       b.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        if (s && window.confirm(`Throw away ${ITEMS[s.item].name}?`)) this.send({ t: 'destroy', slot: i });
+        if (window.confirm(`Throw away ${it.name}?`)) this.send({ t: 'destroy', slot: i });
+      });
+      const placed = Number.isInteger(s.x) && Number.isInteger(s.y);
+      b.style.setProperty('--w', String(w));
+      b.style.setProperty('--h', String(h));
+      b.querySelector('span').style.fontSize = `${Math.min(w, h) * CELL * 0.5 + (Math.max(w, h) - Math.min(w, h)) * 5}px`;
+      if (!placed) {
+        // Fits nowhere just now: shown apart, still yours, until room is made.
+        loose.append(b);
+        return;
+      }
+      b.style.left = `${s.x * CELL}px`;
+      b.style.top = `${s.y * CELL}px`;
+      // Dragging: the item follows the pointer; a shadow shows where it would land, green if it fits.
+      b.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        const start = { x: e.clientX, y: e.clientY };
+        const box = grid.getBoundingClientRect();
+        const grab = { x: e.clientX - box.left - s.x * CELL, y: e.clientY - box.top - s.y * CELL };
+        dragged = false;
+        let cell = null;
+        const move = (ev) => {
+          if (!dragged && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 6) return;
+          dragged = true;
+          b.classList.add('is-dragging');
+          if (this.tip) this.tip.hidden = true;
+          b.style.left = `${ev.clientX - box.left - grab.x}px`;
+          b.style.top = `${ev.clientY - box.top - grab.y}px`;
+          cell = [Math.round((ev.clientX - box.left - grab.x) / CELL), Math.round((ev.clientY - box.top - grab.y) / CELL)];
+          const ok = fitsAt(this.ch, s.item, cell[0], cell[1], i);
+          ghost.hidden = cell[0] < 0 || cell[1] < 0 || cell[0] + w > BAG_W || cell[1] + h > BAG_H;
+          ghost.classList.toggle('is-bad', !ok);
+          Object.assign(ghost.style, { left: `${cell[0] * CELL}px`, top: `${cell[1] * CELL}px`, width: `${w * CELL}px`, height: `${h * CELL}px` });
+        };
+        const up = () => {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+          ghost.hidden = true;
+          b.classList.remove('is-dragging');
+          if (!dragged) return;
+          if (cell && fitsAt(this.ch, s.item, cell[0], cell[1], i)) {
+            // Move it here at once; the server says the same a moment later.
+            s.x = cell[0];
+            s.y = cell[1];
+            this.send({ t: 'bag-move', slot: i, x: cell[0], y: cell[1] });
+          }
+          b.style.left = `${s.x * CELL}px`;
+          b.style.top = `${s.y * CELL}px`;
+          // The click that follows a drag is not a click.
+          setTimeout(() => (dragged = false), 0);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
       });
       grid.append(b);
     });
-    body.append(grid, el('p', 'hv-muted', `${this.ch.gold} gold · right-click an item to throw it away`));
+    const foot = el('div', 'hv-bag__foot');
+    foot.innerHTML = `<span class="hv-gold">🪙 ${this.ch.gold} gold</span><small>Drag to arrange · click to ${mode === 'sell' ? 'sell' : mode === 'bank' ? 'bank' : mode === 'trade' ? 'offer' : 'wear or use'} · right-click to throw away</small>`;
+    const tidy = el('button', 'hv-btn', 'Tidy');
+    tidy.type = 'button';
+    tidy.title = 'Put everything in order, the biggest first';
+    tidy.dataset.tidy = '';
+    tidy.addEventListener('click', () => this.send({ t: 'bag-tidy' }));
+    foot.append(tidy);
+    body.append(grid);
+    if (loose.children.length) {
+      const note = el('p', 'hv-bag__note', 'No room for these — move things, sell some, or press Tidy:');
+      body.append(note, loose);
+    }
+    body.append(foot);
     return this._window('Bag', 'bag', body);
   }
 
@@ -2117,6 +2213,8 @@ export class MmoGame {
     return this._window('How to play', 'help', `<ul class="hv-help">
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
       <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
+      <li><b>Jump</b>: <b>Space</b>.</li>
+      <li><b>The bag</b> (I) is a grid, and things take the room their shape needs: a charm or a draught one cell, a sword one by three, a great axe or a hauberk two by three. Drag to arrange, or press Tidy.</li>
       <li><b>Run</b>: hold <b>Shift</b> to run half again as fast; <b>R</b> (or the button by the hotbar) keeps you running, and then Shift walks.</li>
       <li><b>Loot</b> falls on the ground where a monster dies, under a beam of its rarity's colour, with its name over it. Walk over it, click it, or press <b>F</b> to pick it up; it lies there three minutes, for you alone.</li>
       <li><b>Keys 1–8</b>: your skills on 1–6, a health draught on 7 and a tonic on 8 to start with. <b>Right-click a key</b> (or press ⚙ Keys) to put any skill, draught or food on it. A draught key drinks the one in your bag that fits what you're missing, shows how many you have, and glows when you're low. Health and mana each wait 15 seconds between drinks.</li>

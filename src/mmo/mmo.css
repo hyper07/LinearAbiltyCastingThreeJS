@@ -2145,3 +2145,102 @@
 .hv-store__pick .is-down {
   color: #ff9c9c;
 }
+
+/* ---- the bag: a grid; every item takes the room its shape needs ---- */
+.hv-win--bag {
+  width: auto;
+  max-width: calc(100vw - 24px);
+}
+.hv-bag {
+  position: relative;
+  border: 2px solid #4a4458;
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / var(--cell) var(--cell),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / var(--cell) var(--cell),
+    linear-gradient(#17141f, #0f0d15);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.6);
+  touch-action: none;
+  user-select: none;
+}
+.hv-bag__item {
+  position: absolute;
+  width: calc(var(--w) * var(--cell) - 4px);
+  height: calc(var(--h) * var(--cell) - 4px);
+  margin: 2px;
+  aspect-ratio: auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 7px;
+  cursor: grab;
+  transition: left 0.12s, top 0.12s, transform 0.1s;
+}
+.hv-bag__item:not(.has-rarity) {
+  border: 2px solid #5a5468;
+  background: radial-gradient(circle at 50% 35%, #2c2838, #1a1820 75%);
+}
+.hv-bag__item:hover {
+  filter: brightness(1.25);
+  z-index: 2;
+}
+.hv-bag__item.is-dragging {
+  z-index: 5;
+  cursor: grabbing;
+  transition: none;
+  transform: scale(1.06);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.hv-bag__item.is-offered {
+  outline: 3px solid #2fd3a0;
+}
+.hv-bag__item span {
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6));
+}
+.hv-bag__item small {
+  right: 3px;
+  bottom: 1px;
+  padding: 0 3px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.65);
+  font-size: 10.5px;
+}
+.hv-bag__ghost {
+  position: absolute;
+  border-radius: 7px;
+  background: rgba(47, 211, 160, 0.28);
+  outline: 2px solid #2fd3a0;
+  pointer-events: none;
+}
+.hv-bag__ghost.is-bad {
+  background: rgba(255, 90, 90, 0.25);
+  outline-color: #ff6b6b;
+}
+.hv-bag__loose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  --cell: 32px;
+}
+.hv-bag__loose .hv-bag__item {
+  position: relative;
+}
+.hv-bag__note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #ffab9c;
+}
+.hv-bag__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.hv-bag__foot small {
+  flex: 1;
+  opacity: 0.75;
+  font-size: 11.5px;
+}
