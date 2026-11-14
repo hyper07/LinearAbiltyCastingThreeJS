@@ -779,6 +779,7 @@ export class PurgeGame {
       } else if (e.t === 'secret') this._feed(`${this.state.players[e.o]?.name} found a secret at the Forge`);
       else if (e.t === 'ore' && e.shared != null && e.o === this.mySlot) this._feed(`Team: ${this.state.players[e.shared]?.name} made a big kill — +${e.n.toLocaleString()} points for you`);
       else if (e.t === 'autoExchange' && e.o === this.mySlot) this._feed(`Two-minute exchange: ${(e.n * EXCHANGE.ratio).toLocaleString()} points → +${e.n.toLocaleString()} ore`);
+      else if (e.t === 'release' && e.o === this.mySlot) this._feed(`${GUARDIANS[e.kind]?.name ?? 'The hero'} lost you in the bunker — it turns for home`);
       else if (e.t === 'enrage') this._feed(`${GUARDIANS[e.kind]?.name ?? 'A hero of the dead'} is enraged — harder and faster now`);
       else if (e.t === 'freeze' && e.owners?.includes(this.mySlot)) this._banner('Grave frost!', `A Frost Wraith froze ${e.n} soldier${e.n === 1 ? '' : 's'} for ${e.seconds} s — they cannot act, nor be hurt. Kill the wraith!`, 4);
       else if (e.t === 'lastStand') {

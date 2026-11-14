@@ -816,8 +816,27 @@ export class Purge {
         f.dmg *= 1.3;
         this.events.push({ t: 'enrage', id: f.i, kind: f.kind, x: f.x, z: f.z });
       }
+      // The soldier it is chasing: followed wherever it goes — home to the camp if it likes — until
+      // it is dead, or slips into a bunker (then the hero lets go and goes home).
+      if (f.puller != null) {
+        const p = this.ents.get(f.puller);
+        if (!p || p.hp <= 0) f.puller = null;
+        else if (p.inside) {
+          f.puller = null;
+          f.tgt = null;
+          target = null;
+          f.leaving = true;
+          f.path = null;
+          this.events.push({ t: 'release', id: f.i, kind: f.kind, o: p.o });
+        } else if (this.frozen(p)) f.puller = null;
+        else {
+          target = p;
+          f.tgt = p.i;
+          f.lost = 0;
+        }
+      }
       f.think = (f.think ?? 0) - dt;
-      if (f.think <= 0) {
+      if (f.think <= 0 && f.puller == null && !f.leaving) {
         f.think = 0.8;
         // The hurt (to finish) and the strong (to stop), near enough; never an Engineer first.
         let best = null;
@@ -834,6 +853,7 @@ export class Purge {
         if (best) {
           target = best;
           f.tgt = best.i;
+          f.puller = best.i;
         }
       }
       // Casters keep their distance: a soldier too close, and they step back first.
@@ -851,24 +871,22 @@ export class Purge {
       }
     }
     const fromHome = Math.hypot(f.x - f.home.x, f.z - f.home.z);
-    // Too far from home: give up and walk back (raiders never do). A hero of the dead
-    // follows as far as it is led: it gives up only when no soldier has been in sight a while.
+    // Too far from home: give up and walk back (raiders never do). A hero of the dead with
+    // nobody to chase gives up when no soldier has been in sight a while.
     if (f.boss && !f.raid) {
-      const seen = this._nearestTroop(f.x, f.z, HERO_PULL.sight);
-      f.lost = seen ? 0 : (f.lost ?? 0) + dt;
-      if (f.lost > HERO_PULL.forget && fromHome > 2) {
-        f.tgt = null;
-        target = null;
-        f.leaving = true;
-      }
-      // At a bunker with nobody to hit outside: it hammers the bunker (one's own cannot break) while those inside shoot.
-      if (!target && !f.leaving) {
-        const b = this.bunkers.filter((x) => Math.hypot(x.x - f.x, x.z - f.z) < HERO_PULL.sight).sort((p, q) => Math.hypot(p.x - f.x, p.z - f.z) - Math.hypot(q.x - f.x, q.z - f.z))[0];
-        if (b && b.seats.length) {
-          target = b;
-          f.tgt = b.i;
-          f.lost = 0;
+      if (f.puller == null) {
+        const seen = this._nearestTroop(f.x, f.z, HERO_PULL.sight);
+        f.lost = seen ? 0 : (f.lost ?? 0) + dt;
+        if (f.lost > HERO_PULL.forget && fromHome > 2) {
+          f.tgt = null;
+          target = null;
+          f.leaving = true;
         }
+      }
+      // Going home: nothing turns it, until it is there.
+      if (f.leaving) {
+        target = null;
+        f.tgt = null;
       }
     } else if (!f.raid && fromHome > 34) {
       f.tgt = null;

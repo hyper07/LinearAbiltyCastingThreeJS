@@ -142,11 +142,11 @@ export const BUILDINGS = {
   heart: { name: 'Heart of the Grave', hp: 60000, armor: 12, r: 5, bounty: 20000, relics: 0, heart: true, shoots: { dmg: 90, rate: 1.2, range: 14 } }
 };
 /**
- * Pulling a hero of the dead: it notices soldiers within `notice` metres and
- * follows them as far as they lead it — home to the camp, if they like —
- * giving up only when no soldier has been within `sight` for `forget`
- * seconds. At a bunker with soldiers in it and nobody outside, it keeps
- * hammering the bunker (your own cannot break) while they shoot it.
+ * Pulling a hero of the dead: it notices soldiers within `notice` metres,
+ * picks one, and follows that soldier wherever it goes — home to the camp,
+ * if it likes — until the soldier dies or slips into a bunker; then it lets
+ * go and walks home (nothing in a bunker can be hit). With nobody to chase,
+ * it gives up when no soldier has been within `sight` for `forget` seconds.
  */
 export const HERO_PULL = { notice: 12, sight: 22, forget: 6 };
 

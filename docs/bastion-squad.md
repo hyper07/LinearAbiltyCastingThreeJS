@@ -80,11 +80,12 @@ inside, spires in the corners, a hero and its escort.
   the wraith, or wait it out); the **Bile Drifter** spits bile that **slows** whoever it splashes (half
   speed, a little slower to fire) for 8 seconds. They come from the crypts and ossuaries beyond the
   first ring, and live in the further camps.
-- **Pulling heroes**: a hero of the dead notices soldiers within 12 metres and follows them as far as
-  they lead it — home to the camp, if they like — giving up only when no soldier has been within 22
-  metres for 6 seconds. Kite it home (stim helps: all but the Night Stalker are slower than a stimmed
-  soldier); at a bunker with soldiers in it and nobody outside, it hammers the bunker (your own cannot
-  break) while they shoot it. That is the fast money: the big bounties, half to each teammate too.
+- **Pulling heroes**: a hero of the dead notices soldiers within 12 metres, picks one, and follows that
+  soldier wherever it goes — all the way home to the camp — until it dies or slips into a bunker. In a
+  bunker nothing can be hurt, so the hero lets go and walks home (shoot it as it goes). With nobody to
+  chase, it gives up when no soldier has been within 22 metres for 6 seconds. That is the fast money:
+  pull a hero to the camp and kill it there, with the camp's healing behind you — the big bounties,
+  half to each teammate too.
 - **The hero monsters** (the guardians, the keeps' and the lone heroes, the king) hit hard and think: they go for the hurt and the
   strong (never an Engineer first), the casters step back from soldiers who close in, and below a third
   of their health they rage — harder and faster.

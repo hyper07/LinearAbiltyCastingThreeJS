@@ -506,37 +506,36 @@ test('players only: alone, one bunker and fewer, weaker dead than four face', ()
   assert.ok(one.foes.filter((f) => f.stray).length < four.foes.filter((f) => f.stray).length, 'fewer from the spawn zones');
 });
 
-test('pulling a hero: it follows a soldier far from home, and at a bunker with soldiers in it, keeps hammering (harmlessly) while they shoot', () => {
+test('pulling a hero: it follows the soldier it picked all the way to the camp; a bunker makes it let go and go home; nothing in a bunker is hurt', () => {
   const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 32 });
   g.spawnIn = 1e9;
   g.raidT = 1e9;
-  // Open ground east of the camp, a clear walk home.
+  // Open ground east of the camp.
   const hero = g._foe('warden', 80, 30, { tier: 2 });
   hero.home = { x: 80, z: 30 };
   const lure = g._troop(0, 'veteran');
   [lure.x, lure.z] = [70, 30];
-  assert.ok(!g.grid.blocked(80, 30) && !g.grid.blocked(70, 30));
   for (let i = 0; i < 20; i++) g.step(TICK);
-  assert.ok(hero.awake, 'noticed at ten metres');
-  // Lead it home, kiting: a few steps towards the camp whenever it comes close, waiting when it falls behind.
-  for (let i = 0; i < 20 * 40; i++) {
-    const d = Math.hypot(hero.x - lure.x, hero.z - lure.z);
-    if (d < 8 && !lure.path?.length) {
-      const dx = 40 - lure.x;
-      const dz = 22 - lure.z;
-      const l = Math.hypot(dx, dz) || 1;
-      if (l > 4) g.order(0, { t: 'move', ids: [lure.i], x: lure.x + (dx / l) * 6, z: lure.z + (dz / l) * 6 });
-    }
+  assert.ok(hero.awake && hero.puller === lure.i, 'noticed, and picked the lure');
+  // The lure runs straight home, faster than the hero, out of its sight: it still follows.
+  const own = g.bunkers[0];
+  g.order(0, { t: 'move', ids: [lure.i], x: own.x - 4, z: own.z });
+  for (let i = 0; i < 20 * 30; i++) {
     g.step(TICK);
     lure.hp = lure.max; // a hardy lure
   }
-  assert.ok(Math.hypot(hero.x - hero.home.x, hero.z - hero.home.z) > 25, `followed far from home (${Math.round(Math.hypot(hero.x - 80, hero.z - 30))} m)`);
-  // Into the bunker: the hero stays at it, and the bunker cannot break.
-  const own = g.bunkers[0];
+  assert.ok(Math.hypot(hero.x - own.x, hero.z - own.z) < 14, `followed it to the camp (${Math.round(Math.hypot(hero.x - own.x, hero.z - own.z))} m from the bunker)`);
+  // Into the bunker: the hero lets go, cannot touch it, and turns for home.
   g.order(0, { t: 'enter', ids: [lure.i], id: own.i });
-  for (let i = 0; i < 20 * 20; i++) g.step(TICK);
+  for (let i = 0; i < 20 * 3 && !lure.inside; i++) g.step(TICK);
   assert.ok(lure.inside, 'in the bunker');
-  assert.ok(g.ents.has(own.i), 'your own bunker holds');
-  assert.ok(hero.hp < hero.max, 'shot from inside');
-  assert.ok(Math.hypot(hero.x - own.x, hero.z - own.z) < 12, 'still at the bunker');
+  g.step(TICK);
+  assert.ok(hero.leaving && hero.puller == null, 'let go');
+  const hp = lure.hp;
+  g._hurt(lure, 1e6, hero);
+  assert.equal(lure.hp, hp, 'nothing in a bunker is hurt');
+  const near = Math.hypot(hero.x - own.x, hero.z - own.z);
+  for (let i = 0; i < 20 * 8; i++) g.step(TICK);
+  assert.ok(Math.hypot(hero.x - own.x, hero.z - own.z) > near + 10, 'walking home');
 });
+
