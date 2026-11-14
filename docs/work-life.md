@@ -14,11 +14,6 @@ Game money only.
   <img src="screenshots/work-interview.jpg" width="100%" alt="The interview: three workplace questions with four answers each" />
 </p>
 
-<p>
-  <img src="screenshots/work-life-result.jpg" width="49%" alt="A Life scene: your first day in the office, your manager and Mina on the stage, Mina's answer in a speech box with what it changed (+3 Skill, Mina +6), your stats and the people you know beside it" />
-  <img src="screenshots/work-life-cut.jpg" width="49%" alt="A moment between scenes: you at your desk for 'A steady day', ticks floating up, the time of day and next game day in the bar" />
-</p>
-
 *The screenshots come from the test suite, which runs on made-up news.*
 
 ## Life: the days around the job
@@ -29,6 +24,9 @@ working life. (The stories, people and places are our own.)
 <p>
   <img src="screenshots/work-life-scene.jpg" width="49%" alt="A Life scene with photographs: an office at dusk, two people's portraits on the stage, the one speaking lit and framed in gold, her words in a speech box, your stats and the people you know beside it" />
   <img src="screenshots/work-life-task.jpg" width="49%" alt="A hard choice being done: under the dimmed scene, a small task to play — put five jobs in order — with the mark to reach and what your energy adds to it" />
+</p>
+<p>
+  <img src="screenshots/work-life-park.jpg" width="100%" alt="An evening run: a real park at night, a lamp lit on the path, small lights drifting in the air, and what the run did to you (+3 Health, −12 Energy, +6 Mood); under it, the wait until tomorrow morning" />
 </p>
 
 - **It keeps the game's time, like real life.** A day in Life is a game day (2 hours 24 minutes of
@@ -84,7 +82,9 @@ working life. (The stories, people and places are our own.)
 
 **The pictures.** People and places are **photographs made once by an image-generating AI** and
 kept with the game in `public/work-scenes/` (thirteen people in three moods, six places by day and
-by night); nothing is generated while you play. They were made with `npm run work:images -- --free
+by night); nothing is generated while you play. Over a place's photograph the game lays the light
+of the hour (warm in the morning, violet at dusk, blue at night), a slow drift of the camera, small
+lights or rain in the air, and a soft edge, so a still picture reads as somewhere you are. They were made with `npm run work:images -- --free
 --people`, which uses pollinations.ai's free service at its allowed pace (one picture every 45
 seconds; its small mark is left on each picture and it is credited on screen). The people and
 places are invented — no real person is shown. With your own image service

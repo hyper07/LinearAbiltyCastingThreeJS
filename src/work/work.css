@@ -1193,3 +1193,71 @@
 .lf__credit {
   font-size: 11px;
 }
+
+/* ---- a photograph for a place: the hour's light, air that moves, a soft edge ---- */
+.lf__stage.is-photo .lf__cam {
+  inset: -4%;
+  animation: lf-pan 26s ease-in-out infinite alternate;
+}
+@keyframes lf-pan {
+  from { scale: 1.02; translate: -1.2% 0.6%; }
+  to { scale: 1.1; translate: 1.2% -0.8%; }
+}
+.lf__grade,
+.lf__vignette,
+.lf__air {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.lf__grade {
+  mix-blend-mode: soft-light;
+}
+.is-part-0 .lf__grade { background: linear-gradient(180deg, rgba(255, 196, 120, 0.55), rgba(255, 230, 190, 0.2) 60%, transparent); }
+.is-part-1 .lf__grade { background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 50%); }
+.is-part-2 .lf__grade { background: linear-gradient(180deg, rgba(120, 80, 190, 0.5), rgba(255, 140, 90, 0.35) 70%, rgba(40, 20, 70, 0.3)); mix-blend-mode: overlay; }
+.is-part-3 .lf__grade { background: linear-gradient(180deg, rgba(20, 30, 80, 0.55), rgba(10, 14, 40, 0.45)); mix-blend-mode: multiply; }
+.lf__vignette {
+  background: radial-gradient(ellipse at 50% 42%, transparent 52%, rgba(12, 8, 30, 0.5) 100%);
+}
+.lf__air i {
+  position: absolute;
+  width: calc(7px * var(--s));
+  height: calc(7px * var(--s));
+  border-radius: 50%;
+  background: rgba(255, 244, 214, 0.75);
+  filter: blur(2.5px);
+  opacity: 0;
+  animation: lf-mote 9s linear infinite;
+}
+.is-part-2 .lf__air i,
+.is-part-3 .lf__air i {
+  background: rgba(255, 214, 140, 0.8);
+  filter: blur(3.5px);
+}
+@keyframes lf-mote {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.75; }
+  85% { opacity: 0.6; }
+  100% { transform: translate(46px, -90px) scale(1.2); opacity: 0; }
+}
+.lf__air.is-rain i {
+  width: 2px;
+  height: 26px;
+  border-radius: 1px;
+  background: rgba(210, 230, 255, 0.7);
+  filter: none;
+  animation: lf-raindrop 0.55s linear infinite;
+}
+@keyframes lf-raindrop {
+  from { transform: translate(0, -60px) rotate(12deg); opacity: 0.9; }
+  to { transform: translate(-34px, 170px) rotate(12deg); opacity: 0.2; }
+}
+/* On a photograph the caption sits as a glass strip, not a white card over the picture. */
+.lf__stage.is-photo .lf__caption {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lf__stage.is-photo .lf__cam, .lf__air i { animation: none !important; }
+}

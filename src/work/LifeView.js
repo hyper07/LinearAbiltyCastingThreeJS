@@ -162,6 +162,13 @@ export class LifeView {
     const photo = this.pics[`${place}-${part}`] ?? this.pics[place];
     cam.innerHTML = photo ? `<img class="lf__photo" src="./work-scenes/${esc(photo)}" alt="" draggable="false">` : backdrop(place, part, { rain: id === 'sora-rain' });
     stage.append(cam);
+    if (photo) {
+      // A photograph is one moment: the light of the hour, a little drifting dust or rain, and a soft edge make it a place.
+      stage.classList.add('is-photo', `is-part-${part}`);
+      const air = el('div', `lf__air ${id === 'sora-rain' ? 'is-rain' : ''}`);
+      air.innerHTML = Array.from({ length: id === 'sora-rain' ? 40 : 16 }, (_, i) => `<i style="left:${(i * 61) % 100}%;top:${(i * 37) % 100}%;animation-delay:-${(i * 0.7) % 9}s;--s:${0.6 + ((i * 13) % 10) / 8}"></i>`).join('');
+      stage.append(el('div', 'lf__grade'), air, el('div', 'lf__vignette'));
+    }
     stage.addEventListener('pointermove', (e) => {
       const r = stage.getBoundingClientRect();
       stage.style.setProperty('--px', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
