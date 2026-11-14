@@ -66,10 +66,18 @@ export const ENGINE_GAMES = [
   {
     id: 'official:hearthvale',
     title: 'Hearthvale',
-    summary: 'An online adventure in small groups: four classes, quests from the people of Hearthvale, a dungeon for five and a raid for eight, guilds, trading, gathering and crafting. Your character is kept on your account.',
+    summary: 'An online adventure in small groups: eight classes with skill trees, quests from the people of Hearthvale, a dungeon for five and a raid for eight, guilds, trading, gathering and crafting. Your character is kept on your account.',
     engine: 'mmo',
     genre: 'mmorpg',
     card: { genre: 'mmorpg', genreName: 'Online RPG', cover: 'mmo', badge: 'NEW' }
+  },
+  {
+    id: 'official:seoul',
+    title: 'Seoul, for real',
+    summary: 'Walk and fly through the real Seoul: every building in the city, from the national building register, at its true place and height. Visit all 25 districts, find the tallest towers, watch the windows light up at night.',
+    engine: 'city',
+    genre: 'travel',
+    card: { genre: 'travel', genreName: 'Travel', cover: 'city', badge: 'NEW' }
   }
 ];
 const MAX_LEVELS = 12;

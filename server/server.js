@@ -33,6 +33,7 @@ import { createMmo } from './mmo/index.js';
  *   /api/classes/*    classes from the Class forge, in DATA_DIR/classes
  *   /api/models/*     uploads and picture-to-3D (modelgen.mjs)
  *   /library/*        the downloaded 3D asset library (LIBRARY_ROOT)
+ *   /geo/seoul/*      Seoul's buildings as map tiles (DATA_DIR/geo/seoul/tiles)
  *   /healthz          { ok, rooms, players, uptime }
  *
  * Accounts, characters and the library share one PostgreSQL database
@@ -201,6 +202,15 @@ async function serveStatic(req, res, pathname) {
   return sendFile(req, res, target, info, { cacheControl });
 }
 
+/** One map tile (or the index of them). A miss is a plain 404: the game then says the map isn't installed. */
+async function serveGeo(req, res, pathname) {
+  const file = safeJoin(join(DATA_DIR, 'geo', 'seoul', 'tiles'), pathname);
+  if (!file) return json(res, 403, { error: 'forbidden' });
+  const info = await fileInfo(file);
+  if (!info) return json(res, 404, { error: 'not found' });
+  return sendFile(req, res, file, info, { cacheControl: file.endsWith('index.json') ? 'no-cache' : 'public, max-age=86400' });
+}
+
 /** One library file. Unlike the app, a miss is a plain 404, never index.html. */
 async function serveLibrary(req, res, pathname) {
   const file = safeJoin(LIBRARY_ROOT, pathname);
@@ -238,6 +248,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (await api(req, res)) return;
     if (pathname.startsWith('/library/')) return serveLibrary(req, res, pathname.slice('/library'.length));
+    // Map tiles made from public data (scripts/geo/seoul-build.mjs), kept in DATA_DIR/geo.
+    if (pathname.startsWith('/geo/seoul/')) return serveGeo(req, res, pathname.slice('/geo/seoul'.length));
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method not allowed' });
     return serveStatic(req, res, pathname);
   } catch (error) {

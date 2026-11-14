@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -131,6 +131,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'rts') return rtsCover(game);
   if (game.card?.cover === 'moba') return mobaCover(game);
   if (game.card?.cover === 'mmo') return mmoCover(game);
+  if (game.card?.cover === 'city') return cityCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -259,6 +260,31 @@ function mobaCover(game) {
 }
 
 /** Hearthvale's cover: a town at dusk under a hill, a road to a glowing gate. */
+/** A city at dusk: towers with lit windows over a river. Our own drawing (no photograph, no skyline traced). */
+function cityCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const r = rng(game.id);
+  let towers = '';
+  for (let x = 4; x < 316; ) {
+    const w = 14 + Math.floor(r() * 22);
+    const h = 30 + Math.floor(r() * 95);
+    const y = 138 - h;
+    let lights = '';
+    for (let wy = y + 6; wy < 132; wy += 9) for (let wx = x + 3; wx < x + w - 4; wx += 6) if (r() < 0.45) lights += `<rect x="${wx}" y="${wy}" width="3" height="4" fill="#ffd98a"/>`;
+    towers += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${r() < 0.5 ? '#2c3158' : '#3a3f6e'}"/>${lights}`;
+    x += w + 2;
+  }
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="ct-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27255a"/><stop offset=".6" stop-color="#c8658f"/><stop offset="1" stop-color="#ffb46a"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#ct-${uid})"/>
+    <circle cx="250" cy="52" r="20" fill="#ffe7b0" opacity=".9"/>
+    ${towers}
+    <rect y="138" width="320" height="42" fill="#3b4a8a"/>
+    <path d="M0 150 H320 M0 162 H320" stroke="#ffd98a" stroke-width="1.5" stroke-dasharray="14 22" opacity=".5"/>
+    <text x="16" y="34" fill="#fff3d6" font-family="system-ui, sans-serif" font-size="22" font-weight="800">🗺️ ${String(game.title).replace(/[<&]/g, '')}</text>
+  </svg>`;
+}
+
 function mmoCover(game) {
   const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
   const houses = [[30, 120], [72, 128], [112, 118], [210, 124], [252, 130]].map(([x, y]) => `<rect x="${x}" y="${y}" width="30" height="24" fill="#d8c8a8"/><path d="M${x - 4} ${y} L${x + 15} ${y - 16} L${x + 34} ${y}Z" fill="#8a4a3a"/><rect x="${x + 11}" y="${y + 10}" width="8" height="14" fill="#5a3a2a"/><rect x="${x + 3}" y="${y + 6}" width="6" height="5" fill="#ffd27a"/>`).join('');

@@ -1476,6 +1476,7 @@ export class App {
     if (game.engine === 'rts') return this.openRts(game);
     if (game.engine === 'moba') return this.openMoba(game);
     if (game.engine === 'mmo') return this.openMmo(game);
+    if (game.engine === 'city') return this.openCity(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1545,6 +1546,22 @@ export class App {
     this.stop();
     const view = new MmoGame(document.body, {
       account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Seoul, for real: its own screen and 3D view, streaming the city's buildings as you move. */
+  async openCity(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { SeoulGame } = await import('../city/SeoulGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new SeoulGame(document.body, {
       onClose: () => {
         this.start();
         this.home.refresh?.();

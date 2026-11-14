@@ -168,6 +168,35 @@ function realtime(env, getGame) {
   return { name: 'realtime', configureServer: attach, configurePreviewServer: attach };
 }
 
+/** Serve Seoul's map tiles (`data/geo/seoul/tiles`, made by `npm run geo:seoul`) at `/geo/seoul/*`. */
+function geoTiles() {
+  const root = resolve('data/geo/seoul/tiles');
+  const middleware = (server) => {
+    server.middlewares.use('/geo/seoul', (req, res) => {
+      const name = (req.url ?? '/').split('?')[0].slice(1);
+      if (!/^(index\.json|\d+_\d+\.bin)$/.test(name)) {
+        res.statusCode = 404;
+        return res.end();
+      }
+      let stats = null;
+      try {
+        stats = statSync(resolve(root, name));
+      } catch {
+        /* not converted yet */
+      }
+      if (!stats?.isFile()) {
+        res.statusCode = 404;
+        return res.end();
+      }
+      res.setHeader('Content-Type', name.endsWith('.json') ? 'application/json' : 'application/octet-stream');
+      res.setHeader('Content-Length', stats.size);
+      res.setHeader('Cache-Control', name.endsWith('.json') ? 'no-cache' : 'public, max-age=86400');
+      createReadStream(resolve(root, name)).pipe(res);
+    });
+  };
+  return { name: 'geo-tiles', configureServer: middleware, configurePreviewServer: middleware };
+}
+
 /**
  * Serve the downloaded asset library (`./library`, see `npm run library:fetch`)
  * at `/library/*`. It is gigabytes and git-ignored, so it is deliberately not
@@ -283,6 +312,7 @@ export default defineConfig(({ mode }) => {
       // The AI bridge: the same handler the production server runs, with the key from .env.
       mount('llm-bridge', aiBridge({ ...process.env, ...env }, { identify: async (req) => (await getGame()).authenticate(req) })),
       assetLibrary(),
+      geoTiles(),
       fileStores(),
       modelStudio(env),
       libraryApi(getDb),

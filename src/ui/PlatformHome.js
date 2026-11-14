@@ -139,6 +139,7 @@ export class PlatformHome {
     chip(`${GENRE_ICONS.strategy} Strategy`, 'strategy');
     chip(`${GENRE_ICONS.arena} Battle arena`, 'arena');
     chip(`${GENRE_ICONS.mmorpg} Online RPG`, 'mmorpg');
+    chip(`${GENRE_ICONS.travel} Travel`, 'travel');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -373,12 +374,16 @@ export class PlatformHome {
         ? 'Pick your champion and side when you play — alone with bots, or with friends'
         : game.engine === 'mmo'
         ? 'Your characters live on your account: sign in to play'
+        : game.engine === 'city'
+        ? 'Fly over the city or walk its streets — no character to make'
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (game.engine === 'market' || game.engine === 'work' || game.engine === 'rts' || game.engine === 'moba' || game.engine === 'mmo') {
+    if (['market', 'work', 'rts', 'moba', 'mmo', 'city'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = game.engine === 'mmo'
+      page.querySelector('.home-page__hint').textContent = game.engine === 'city'
+        ? 'Every building is from Korea\'s public building register (국토교통부 GIS건물통합정보, KOGL type 1). The districts you visit are kept on this device.'
+        : game.engine === 'mmo'
         ? 'Groups of up to eight share a world. Invite friends by name inside the game; guilds, chat and trading work across the whole server.'
         : game.engine === 'moba'
         ? 'Play with friends from inside the game: one makes a party, the others join with its code. Bots fill the empty seats.'

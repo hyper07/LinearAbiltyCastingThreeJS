@@ -72,6 +72,11 @@ the people of a town, two wild zones, a dungeon for five and a raid for eight, g
 crafting, guilds, chat and trading. The server runs the worlds; characters are kept on your account
 — see **[Hearthvale](docs/hearthvale.md)**.
 
+**🗺️ Seoul, for real**: fly over and walk through the real Seoul — every building in the city at its
+true place and height, from Korea's public building register — with 25 districts to visit, the tallest
+towers to find, and windows that light up at night. You download the data yourself (free, attribution
+required) and convert it with one command. [More →](docs/seoul.md)
+
 **Every game keeps its own characters, one per class, per player.** What you earn in one game stays
 in it; a class you have not played there starts at level 1 with nothing, and switching back brings
 your earlier character back. The open arena in **Arena hero** keeps its own character too.
