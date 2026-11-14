@@ -56,5 +56,10 @@ on it); Play, Surprise me and Make a game throw confetti. All of it stops under
 ## Not yet in the new look
 
 The action RPG's own screens — its main menu (class, weapon, skills), the in-fight HUD, the game
-builder, the level editor and the party lobby — still wear the earlier dark look, apart from the
-typeface. They are next.
+builder, the level editor and the "Play together" panel — still wear the earlier dark look, apart
+from the typeface. They are next.
+
+A game's **lobby** (where you choose your character) is in the new look: paper and ink, an accent
+by the kind of game (mint for study games, coral for hunts, sky for royales, violet otherwise), the
+character on a lit stage, a card for each class with its description, the body as buttons, and
+colours as swatches with a picker at the end of the row for any other.

@@ -1,5 +1,11 @@
 import { LobbyStage } from './LobbyStage.js';
 
+/** Colours to click (the picker at the end of each row takes any other). */
+const TINT_SWATCHES = [['#ffffff', 'As made'], ['#ffd9c2', 'Peach'], ['#ffe9a8', 'Butter'], ['#c9f5d3', 'Mint'], ['#bfe6ff', 'Sky'], ['#d9c8ff', 'Lilac'], ['#ffc2dc', 'Blossom'], ['#c8ccd6', 'Ash']];
+const CLOTH_SWATCHES = [['#7a5cff', 'Violet'], ['#ff5da2', 'Pink'], ['#ff7a59', 'Coral'], ['#ffc93c', 'Sun'], ['#2fd3a0', 'Mint'], ['#38b6ff', 'Sky'], ['#3a4a8a', 'Navy'], ['#8a5a3a', 'Bark'], ['#e8edf3', 'Cloud'], ['#2b2b38', 'Night']];
+/** A colour for each class card, in turn. */
+const TONES = ['#ff5da2', '#ffc93c', '#38b6ff', '#2fd3a0', '#8b5cf6', '#ff7a59'];
+
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -174,13 +180,15 @@ export class GameLobby {
     const card = el('div', 'lobby__card');
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-label', `${g.title} — lobby`);
+    // Each kind of game has its own accent: a calm study game is mint, a hunt is coral…
+    this.root.dataset.genre = /study|calm/.test(g.genre ?? '') ? 'study' : /royale|survival/.test(g.genre ?? '') ? 'royale' : /boss|hunt|dungeon/.test(g.genre ?? '') ? 'hunt' : 'quest';
 
     const head = el('header', 'lobby__head');
     const back = el('button', 'lobby__back', '← Back');
     back.type = 'button';
     back.dataset.lobbyBack = '';
     back.addEventListener('click', () => this.close());
-    head.append(back, el('h2', 'lobby__title', g.title));
+    head.append(back, el('h2', 'lobby__title', g.title), el('span', 'lobby__sub', 'Choose who you play as'));
     card.append(head);
 
     // The stage: a renderer made once, moved into each new lobby.
@@ -189,14 +197,18 @@ export class GameLobby {
     if (this.stage) this.stage.attach(stageBox);
     else this.stage = new LobbyStage(stageBox, { loadGLB: this.actions.loadGLB, modelOf: this.actions.modelOf });
     this._bindStageDrag(stageBox);
-    card.append(stageBox);
+    // Left: your character on its stage, and how it looks. Right: who to be, and who you play with.
+    const look = el('section', 'lobby__look');
+    stageBox.append(el('span', 'lobby-stage__hint', 'drag to turn'));
+    this.customEl = el('div', 'lobby__custom');
+    look.append(stageBox, this.customEl);
+    card.append(look);
 
     const mine = el('section', 'lobby__section');
     mine.append(el('h3', 'lobby__heading', 'Your character'));
-    mine.append(el('p', 'lobby__hint', 'Each class is its own character in this game. A new one starts at level 1 with nothing; one you have played keeps its level, gear and gold here.'));
     this.heroesEl = el('div', 'lobby__heroes');
-    this.customEl = el('div', 'lobby__custom');
-    mine.append(this.heroesEl, this.customEl);
+    mine.append(this.heroesEl);
+    mine.append(el('p', 'lobby__hint', 'Each class is its own character in this game: a new one starts at level 1; one you have played keeps its level, gear and gold.'));
     card.append(mine);
 
     const side = el('section', 'lobby__section lobby__players');
@@ -238,7 +250,9 @@ export class GameLobby {
       const b = el('button', `lobby__hero${hero.id === this.choice.classId ? ' is-chosen' : ''}`);
       b.type = 'button';
       b.dataset.lobbyHero = hero.id;
-      b.append(el('span', 'lobby__icon', hero.icon || '⚔️'), el('strong', null, hero.name), el('small', null, have ? `Level ${have.level} · ${have.gold} gold` : 'New — starts at level 1'));
+      b.append(el('span', 'lobby__icon', hero.icon || '⚔️'), el('strong', null, hero.name), el('em', 'lobby__tagline', hero.tagline ?? ''), el('small', null, have ? `Level ${have.level} · ${have.gold} gold` : 'New · level 1'));
+      b.classList.toggle('is-played', Boolean(have));
+      b.style.setProperty('--tone', TONES[this.heroesEl.children.length % TONES.length]);
       b.disabled = this.ready;
       b.addEventListener('click', () => {
         this._choose(hero.id);
@@ -259,42 +273,83 @@ export class GameLobby {
       this._sendPick();
       this._renderPlayers();
     };
-    if (looks.length) {
-      const label = el('label', 'lobby__field');
-      label.append(el('span', null, 'Body'));
-      const select = el('select');
-      select.dataset.lobbyLook = '';
+    const row = (name) => {
+      const box = el('div', 'lobby__field');
+      box.append(el('span', 'lobby__field-name', name));
+      const body = el('div', 'lobby__choices');
+      box.append(body);
+      this.customEl.append(box);
+      return body;
+    };
+    if (looks.length > 1) {
+      // The body: one button each, not a list to open.
+      const body = row('Body');
       for (const look of looks) {
-        const o = el('option', null, look.label);
-        o.value = look.id;
-        o.selected = look.id === this.choice.custom.look;
-        select.append(o);
+        const b = el('button', `lobby__chip${look.id === this.choice.custom.look ? ' is-on' : ''}`, look.label);
+        b.type = 'button';
+        b.dataset.lobbyLook = look.id;
+        b.disabled = this.ready;
+        b.addEventListener('click', () => {
+          this.choice.custom.look = look.id;
+          changed();
+          this._renderCustom();
+        });
+        body.append(b);
       }
-      select.disabled = this.ready;
-      select.addEventListener('change', () => {
-        this.choice.custom.look = select.value;
-        changed();
-      });
-      label.append(select);
-      this.customEl.append(label);
     }
-    for (const [key, name, fallback] of [['tint', 'Colour', '#ffffff'], ['cloth', 'Clothes', '#7a5cff']]) {
-      const label = el('label', 'lobby__field');
-      label.append(el('span', null, name));
+    // Colours: a row of swatches to click, and a picker at the end for any other.
+    for (const [key, name, fallback, palette] of [['tint', 'Colour', '#ffffff', TINT_SWATCHES], ['cloth', 'Clothes', '#7a5cff', CLOTH_SWATCHES]]) {
+      const body = row(name);
+      const now = (this.choice.custom[key] ?? fallback).toLowerCase();
+      for (const [color, label] of palette) {
+        const b = el('button', `lobby__swatch${color === now ? ' is-on' : ''}`);
+        b.type = 'button';
+        b.dataset.lobbySwatch = `${key}:${color}`;
+        b.style.setProperty('--swatch', color);
+        b.title = label;
+        b.setAttribute('aria-label', `${name}: ${label}`);
+        b.setAttribute('aria-pressed', String(color === now));
+        b.disabled = this.ready;
+        b.addEventListener('click', () => {
+          this.choice.custom[key] = color;
+          changed();
+          this._renderCustom();
+        });
+        body.append(b);
+      }
+      const own = el('label', `lobby__swatch lobby__swatch--own${palette.some(([c]) => c === now) ? '' : ' is-on'}`);
+      own.title = 'Any other colour';
+      own.style.setProperty('--swatch', palette.some(([c]) => c === now) ? '#ffffff' : now);
       const input = el('input');
       input.type = 'color';
       input.dataset.lobbyColor = key;
-      input.value = this.choice.custom[key] ?? fallback;
+      input.value = now;
       input.disabled = this.ready;
+      input.setAttribute('aria-label', `${name}: any other colour`);
       let timer = null;
       input.addEventListener('input', () => {
         this.choice.custom[key] = input.value;
+        own.style.setProperty('--swatch', input.value);
         clearTimeout(timer);
         timer = setTimeout(changed, 120);
       });
-      label.append(input);
-      this.customEl.append(label);
+      input.addEventListener('change', () => this._renderCustom());
+      own.append(el('span', null, '🎨'), input);
+      body.append(own);
     }
+    const dice = el('button', 'lobby__chip lobby__dice', '🎲 Surprise me');
+    dice.type = 'button';
+    dice.dataset.lobbySurprise = '';
+    dice.disabled = this.ready;
+    dice.addEventListener('click', () => {
+      const pick = (list) => list[Math.floor(Math.random() * list.length)];
+      if (looks.length) this.choice.custom.look = pick(looks).id;
+      this.choice.custom.tint = pick(TINT_SWATCHES)[0];
+      this.choice.custom.cloth = pick(CLOTH_SWATCHES)[0];
+      changed();
+      this._renderCustom();
+    });
+    this.customEl.append(dice);
   }
 
   /** The member list and the stage, which show the same people. */

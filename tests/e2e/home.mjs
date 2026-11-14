@@ -45,7 +45,8 @@ export async function run(browser, { shots = null } = {}) {
     await page.click('.home [data-play]');
     t.check('Play opens the game\'s lobby, with its own characters, all new', await until(page, () => window.app.lobby.isOpen && document.querySelectorAll('.lobby [data-lobby-hero]').length === 8 && [...document.querySelectorAll('.lobby [data-lobby-hero] small')].every((s) => /level 1/.test(s.textContent)), null, 10000));
     await page.click('.lobby [data-lobby-hero="mage"]');
-    await page.selectOption('.lobby [data-lobby-look]', 'skeleton-mage');
+    await page.click('.lobby [data-lobby-look="skeleton-mage"]');
+    await page.click('.lobby [data-lobby-swatch="cloth:#2fd3a0"]');
     await shot('lobby');
     await page.click('.lobby [data-lobby-start]');
     await intro();

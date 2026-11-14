@@ -129,7 +129,7 @@ export async function run(browser, { shots = null } = {}) {
     await host.page.press('.lobby [data-lobby-chat-input]', 'Enter');
     t.check('…and back to the guest', await until(guest.page, () => /I am the mage/.test(document.querySelector('.lobby [data-lobby-chat]')?.textContent ?? ''), null, 8000));
     await guest.page.click('.lobby [data-lobby-hero="barbarian"]');
-    await guest.page.selectOption('.lobby [data-lobby-look]', 'skeleton-warrior');
+    await guest.page.click('.lobby [data-lobby-look="skeleton-warrior"]');
     await guest.page.click('.lobby [data-lobby-ready]');
     t.check('the host sees the guest\'s pick, ready', await until(host.page, () => [...document.querySelectorAll('.lobby [data-member]')].some((li) => li.classList.contains('is-ready') && /Barbarian/.test(li.textContent)), null, 8000));
     t.check('the stage shows both characters, the guest in the body they chose', await until(host.page, () => {

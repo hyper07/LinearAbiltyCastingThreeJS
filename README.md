@@ -82,7 +82,7 @@ in it; a class you have not played there starts at level 1 with nothing, and swi
 your earlier character back. The open arena in **Arena hero** keeps its own character too.
 
 <p>
-  <img src="docs/screenshots/lobby.jpg" width="100%" alt="A game's lobby: the classes it offers, each new and starting at level 1, the Mage chosen with a skeleton-mage body, colour pickers, Invite friends and Start" />
+  <img src="docs/screenshots/lobby.jpg" width="100%" alt="Study Grove's lobby, bright with a mint accent: the Mage on a lit stage on the left with body buttons, colour and clothes swatches and Surprise me under it; on the right a card for each class with its description, the Mage ticked; Invite friends, chat and Start" />
   <img src="docs/screenshots/lobby-together.jpg" width="100%" alt="A party in the lobby: the host's Mage and the guest's skeleton-bodied Barbarian side by side on the stage, both marked Ready, the players list and the party chat" />
 </p>
 

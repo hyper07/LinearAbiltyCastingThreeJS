@@ -163,9 +163,9 @@ export class LobbyStage {
     root.position.set(-_centre.x, -_box.min.y, -_centre.z);
     const holder = new Group();
     holder.add(root);
-    const pad = new Mesh(new CircleGeometry(0.55, 40).rotateX(-Math.PI / 2), new MeshStandardMaterial({ color: '#1c2636', roughness: 0.9 }));
+    const pad = new Mesh(new CircleGeometry(0.55, 40).rotateX(-Math.PI / 2), new MeshStandardMaterial({ color: '#fff3d6', roughness: 0.9 }));
     pad.position.y = 0.001;
-    const ring = new Mesh(new RingGeometry(0.55, 0.6, 48).rotateX(-Math.PI / 2), new MeshStandardMaterial({ color: '#7fd6ff', emissive: new Color('#2c6c8c') }));
+    const ring = new Mesh(new RingGeometry(0.55, 0.6, 48).rotateX(-Math.PI / 2), new MeshStandardMaterial({ color: '#2b1d4e', emissive: new Color('#2b1d4e') }));
     ring.position.y = 0.003;
     holder.add(pad, ring);
     this.group.add(holder);
