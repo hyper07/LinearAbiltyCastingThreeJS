@@ -719,3 +719,57 @@
     display: none;
   }
 }
+
+/* The next turn, at the top of the screen. */
+.race__turn {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 8px 20px;
+  border-radius: 16px;
+  background: rgba(12, 14, 22, 0.85);
+  border: 2px solid #ff8a2a;
+  color: #fff;
+  pointer-events: none;
+}
+.race__turn b {
+  grid-row: 1 / span 2;
+  font-size: 46px;
+  line-height: 1;
+  color: #ff8a2a;
+}
+.race__turn span {
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+}
+.race__turn small {
+  font-size: 15px;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+.race__turn.is-sharp {
+  border-color: #ff3b30;
+}
+.race__turn.is-sharp b {
+  color: #ff3b30;
+}
+.race__turn.is-near {
+  animation: race-pulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes race-pulse {
+  to {
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+@media (max-width: 640px) {
+  .race__turn {
+    top: auto;
+    bottom: 120px;
+  }
+}

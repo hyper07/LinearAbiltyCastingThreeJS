@@ -97,13 +97,14 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **Alone**: you against three bots. **Together**: one player makes a room and gives the five-letter
   code; up to three others join; the host picks the course and the laps (1, 2, 3 or 5) and starts.
   Bots take any empty seats (the host's browser drives them).
-- **Driving**: **W** go, **S** brake, **A D** steer, **Space** handbrake to throw the car into a
+- **Driving**: **W** go, **S** brake (held on once stopped, it backs up — the camera stays behind), **A D** steer, **Space** handbrake to throw the car into a
   slide, **Shift** to spend boost, **R** back onto the course, **H** horn. Sliding through a corner
   scores drift points and fills the boost.
 - **On screen**: the map at the top left turns with you and shows the course ahead in orange over
   the streets, with everyone on it; your place and lap, the lap's time, your best and the total;
-  the order of all four; speed and boost. Orange chevrons on the road point the way, and a gate
-  marks the start and finish. A countdown starts the race; the results table ends it (time, best
+  the order of all four; speed and boost. Orange chevrons on the road point the way; every turn has an arrow board on the outside
+  of the bend (red for a sharp one), and the next turn is named at the top of the screen with its
+  distance. A gate marks the start and finish. A countdown starts the race; the results table ends it (time, best
   lap, drift points).
 - `src/city/race.js` runs the race; `src/city/course.js` plans the courses (tested in
   `tests/unit/course.test.mjs`); the room goes over the party server (`/ws`), each browser

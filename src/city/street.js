@@ -389,7 +389,7 @@ export class Street {
       const c = this.car;
       // Unless you are looking round with the mouse, the view comes back behind the car.
       if (performance.now() - (g.dragAt ?? 0) > 1400) {
-        const behind = c.s.v < -1 ? c.s.heading + Math.PI : c.s.heading;
+        const behind = c.s.heading; // behind the car, backing up included
         g.yaw += turn(g.yaw, behind) * Math.min(1, 0.05 + Math.abs(c.s.v) * 0.004);
         g.pitch += (-0.2 - g.pitch) * 0.04;
       }

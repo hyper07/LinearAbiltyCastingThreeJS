@@ -20,11 +20,13 @@ test('a car speeds up to its top speed and no further, and rolls to a stop when 
   assert.equal(car.v, 0);
 });
 
-test('brakes stop it, then it reverses; the handbrake slows it too', () => {
+test('brakes stop it and hold it a moment; held on, it reverses; the handbrake slows it too', () => {
   const car = fresh();
   car.v = 20;
   drive(car, { brake: true }, 1);
-  assert.ok(car.v < 0.5);
+  assert.ok(car.v < 0.5 && car.v >= 0, 'stopped, not yet backing up');
+  drive(car, { brake: true }, 0.2);
+  assert.ok(car.v >= -0.01, 'a short hold stays stopped');
   drive(car, { brake: true }, 3);
   assert.ok(car.v < 0 && car.v >= -CAR.reverse, 'reversing');
   const b = fresh();

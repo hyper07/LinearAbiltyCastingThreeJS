@@ -27,7 +27,7 @@ export const CAR = {
 };
 
 /** A race car: faster, quicker, and looser at the back, so it drifts when you throw it in. */
-export const RACE = { ...CAR, top: 60, accel: 12.5, brake: 30, steer: 0.6, grip: 6.5, slideGrip: 1.05, boostAccel: 10, boostTop: 14 };
+export const RACE = { ...CAR, top: 60, accel: 12.5, brake: 32, steer: 0.6, grip: 6.5, slideGrip: 1.05, boostAccel: 10, boostTop: 14 };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
@@ -53,13 +53,20 @@ export function stepCar(car, input, dt, blocked = () => false, spec = CAR) {
   const top = spec.top + (boost ? spec.boostTop : 0);
   // Engine, brakes, reverse — and a boost, if the car has one.
   if (throttle) car.v += (car.v < 0 ? spec.brake : (spec.accel + (boost ? spec.boostAccel : 0)) * (1 - Math.max(0, car.v) / top)) * dt;
-  if (brake) car.v -= (car.v > 0.5 ? spec.brake : spec.accel * 0.7) * dt;
+  // S brakes to a stop; held on once stopped (a third of a second), it reverses.
+  if (brake && car.v > 0.5) car.v -= spec.brake * dt;
+  else if (brake) {
+    car.hold = (car.hold ?? 0) + dt;
+    if (car.hold > 0.35) car.v -= spec.accel * 0.7 * dt;
+    else car.v = Math.min(car.v, Math.max(0, car.v - spec.brake * dt));
+  }
+  if (!brake) car.hold = 0;
   car.v = clamp(car.v, -spec.reverse, Math.max(top, Math.min(car.v, spec.top + spec.boostTop)));
   if (car.v > top) car.v -= 6 * dt; // after a boost, back down to the car's own top
   // Rolling and air: slows a car left alone; a handbrake slows it more.
-  const slow = (spec.roll + spec.drag * car.v * car.v + (handbrake ? 7 : 0)) * dt;
+  const slow = (spec.roll + spec.drag * car.v * car.v + (handbrake ? 9 : 0)) * dt;
   if (!throttle && !brake) car.v = Math.abs(car.v) <= slow ? 0 : car.v - Math.sign(car.v) * slow;
-  else if (handbrake) car.v -= Math.sign(car.v) * Math.min(Math.abs(car.v), 7 * dt);
+  else if (handbrake) car.v -= Math.sign(car.v) * Math.min(Math.abs(car.v), 9 * dt);
   // Steering (keys, or `steer` −1 to 1 from a bot): less lock at speed, eased in.
   const wheel = input.steer ?? (left ? 1 : 0) - (right ? 1 : 0);
   const want = wheel * (spec.steer / (1 + Math.abs(car.v) / 14));

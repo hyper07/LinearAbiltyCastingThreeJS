@@ -57,6 +57,7 @@ export class Race {
     };
     this.menuEl = el('race__menu');
     this.mapEl = el('race__map', 'canvas');
+    this.turnEl = el('race__turn');
     this.mapEl.width = this.mapEl.height = 440;
     this.posEl = el('race__pos');
     this.boardEl = el('race__board');
@@ -69,6 +70,7 @@ export class Race {
 
   _show(on) {
     for (const n of [this.mapEl, this.posEl, this.boardEl, this.speedEl]) n.hidden = !on;
+    if (!on) this.turnEl.hidden = true;
     this.g.root.classList.toggle('is-racing', on);
   }
 
@@ -362,7 +364,119 @@ export class Race {
     gate.rotation.y = heading;
     this.gate = gate;
     this.decor.add(gate);
+    this._turnSigns();
     this.g.scene.add(this.decor);
+  }
+
+  /**
+   * The course's turns: where it bends (over 60 m) by more than about 25°,
+   * which way, and how hard. Each gets an arrow board on the outside of the
+   * bend, facing the cars coming, and is named on screen as it comes up.
+   */
+  _turnSigns() {
+    const c = this.course;
+    const pts = c.points;
+    const n = pts.length;
+    const dir = (i, j) => {
+      const a = pts[((i % n) + n) % n];
+      const b = pts[((j % n) + n) % n];
+      return Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
+    };
+    const bendAt = (i) => turn(dir(i - 5, i), dir(i, i + 5));
+    this.turns = [];
+    let run = null;
+    for (let i = 0; i <= n; i++) {
+      const b = i < n ? bendAt(i) : 0;
+      if (Math.abs(b) > 0.45 && i < n) {
+        if (!run || Math.sign(b) !== Math.sign(run.bend)) {
+          if (run) this.turns.push(run);
+          run = { at: i, bend: b, from: i };
+        } else if (Math.abs(b) > Math.abs(run.bend)) Object.assign(run, { at: i, bend: b });
+      } else if (run) {
+        this.turns.push(run);
+        run = null;
+      }
+    }
+    // A bend split by the loop's join is one bend.
+    for (const t of this.turns) t.total = Math.abs(turn(dir(t.from - 5, t.from), dir(t.at + 5, t.at + 10)));
+    const boards = new Map();
+    const board = (left, sharp) => {
+      const k = `${left}|${sharp}`;
+      if (boards.has(k)) return boards.get(k);
+      const cv = document.createElement('canvas');
+      cv.width = 256;
+      cv.height = 160;
+      const g = cv.getContext('2d');
+      g.fillStyle = sharp ? '#c4161c' : '#16181f';
+      g.fillRect(0, 0, 256, 160);
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = 6;
+      g.strokeRect(6, 6, 244, 148);
+      g.fillStyle = sharp ? '#ffffff' : '#ff8a2a';
+      // Chevrons pointing the way to turn.
+      for (let k2 = 0; k2 < (sharp ? 3 : 2); k2++) {
+        const x = 70 + k2 * 58;
+        g.beginPath();
+        g.moveTo(x + 30, 30);
+        g.lineTo(x - 10, 80);
+        g.lineTo(x + 30, 130);
+        g.lineTo(x + 52, 130);
+        g.lineTo(x + 12, 80);
+        g.lineTo(x + 52, 30);
+        g.closePath();
+        g.fill();
+      }
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      if (!left) {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.repeat.x = -1; // mirrored: pointing right
+      }
+      const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+      boards.set(k, mat);
+      return mat;
+    };
+    const post = new THREE.MeshStandardMaterial({ color: '#2a2c33', metalness: 0.6, roughness: 0.4 });
+    for (const t of this.turns) {
+      const left = t.bend > 0;
+      const sharp = t.total > 1.2;
+      // On the outside of the bend at its apex, square to the cars coming in.
+      const p = pts[t.at];
+      const approach = dir(t.at - 8, t.at - 2);
+      const w = (p[2] ?? 12) / 2 + 2.5;
+      // Outside: right of the way in for a left turn, left of it for a right.
+      const side = left ? 1 : -1;
+      const fx = -Math.sin(approach);
+      const fz = -Math.cos(approach);
+      const x = p[0] + -fz * side * w + fx * 6;
+      const z = p[1] + fx * side * w + fz * 6;
+      const sign = new THREE.Group();
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.6), board(left, sharp));
+      panel.position.y = 3.3;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.4, 8), post);
+      pole.position.y = 1.7;
+      sign.add(panel, pole);
+      sign.position.set(x, this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14), z);
+      sign.rotation.y = approach; // its face to the cars coming
+      sign.userData.at = { x, z };
+      this.decor.add(sign);
+      t.sign = sign;
+    }
+  }
+
+  /** The next turn ahead of a car: { left, sharp, hairpin, metres } within 300 m, or null. */
+  _nextTurn(r) {
+    if (!this.turns?.length) return null;
+    const c = this.course;
+    const L = c.length;
+    let best = null;
+    for (const t of this.turns) {
+      let d = c.s[t.from] - c.s[r.idx];
+      if (d < -10) d += L;
+      if (d < -10 || d > 300) continue;
+      if (!best || d < best.metres) best = { left: t.bend > 0, sharp: t.total > 1.2, hairpin: t.total > 2, metres: Math.max(0, d) };
+    }
+    return best;
   }
 
   /** Sit the chevrons on the road surface near you (roads and bridges load as you go). */
@@ -379,6 +493,11 @@ export class Race {
       m.setMatrixAt(k, o.matrix);
     });
     m.instanceMatrix.needsUpdate = true;
+    // The turn boards, likewise.
+    for (const t of this.turns ?? []) {
+      const a = t.sign?.userData.at;
+      if (a && (all || Math.hypot(a.x - p.x, a.z - p.z) < 400)) t.sign.position.y = this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14);
+    }
   }
 
   /* ---------------------------------------------------------- a frame */
@@ -671,6 +790,19 @@ export class Race {
     const kmh = Math.round(Math.abs(me.s.v) * 3.6);
     this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost"><i style="width:${Math.round(me.boost * 100)}%"></i></div><span>${me.boosting ? 'BOOST' : me.s.drift > 0.22 && Math.abs(me.s.v) > 12 ? 'DRIFT' : me.s.v < -0.3 ? 'R' : ''}</span>`;
     if (me.wrong && this.phase === 'racing') this._flash('WRONG WAY', 0.4);
+    // The next turn, named as it comes up.
+    const next = this.phase !== 'done' && me.done == null ? this._nextTurn(me) : null;
+    this.turnEl.hidden = !next;
+    if (next) {
+      const arrow = next.hairpin ? (next.left ? '⮌' : '⮎') : next.left ? '⬅' : '➡';
+      const what = next.hairpin ? 'HAIRPIN' : next.sharp ? 'SHARP' : '';
+      const key = `${arrow}|${what}|${Math.round(next.metres / 10)}`;
+      if (key !== this._turnKey) {
+        this._turnKey = key;
+        this.turnEl.className = `race__turn${next.sharp ? ' is-sharp' : ''}${next.metres < 60 ? ' is-near' : ''}`;
+        this.turnEl.innerHTML = `<b>${arrow}</b><span>${what ? `${what} ` : ''}${next.left ? 'LEFT' : 'RIGHT'}</span><small>${next.metres < 15 ? 'now' : `${Math.round(next.metres / 10) * 10} m`}</small>`;
+      }
+    }
     this._minimap();
   }
 
@@ -786,7 +918,8 @@ export class Race {
     const r = this.me;
     if (!r) return;
     if (performance.now() - (g.dragAt ?? 0) > 1000) {
-      const behind = r.s.v < -1 ? r.s.heading + Math.PI : r.s.travel ?? r.s.heading;
+      // Behind the car always — backing up included, so the controls never seem to flip.
+      const behind = r.s.v < -1 ? r.s.heading : r.s.travel ?? r.s.heading;
       g.yaw += turn(g.yaw, behind) * 0.12;
       g.pitch += (-0.16 - g.pitch) * 0.08;
     }
@@ -848,6 +981,6 @@ export class Race {
 
   dispose() {
     this.quit();
-    for (const n of [this.menuEl, this.mapEl, this.posEl, this.boardEl, this.speedEl, this.countEl, this.driftEl, this.msgEl, this.resultEl]) n.remove();
+    for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.boardEl, this.speedEl, this.countEl, this.driftEl, this.msgEl, this.resultEl]) n.remove();
   }
 }
