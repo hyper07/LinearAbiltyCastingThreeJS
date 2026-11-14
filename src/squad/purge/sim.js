@@ -1,4 +1,4 @@
-import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, BASE_SPAWNS, START, HEAL, EXCHANGE, BUNKER, LAST_STAND, TEAM, STIM } from './rules.js';
+import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, BASE_SPAWNS, START, HEAL, EXCHANGE, BUNKER, LAST_STAND, TEAM, STIM, HERO_PULL } from './rules.js';
 import { SIZE, STRUCTURES, GUARDS, KEYS, BASE, FORGE, PAD, SPAWN, BARRACKS, HEART, EXCHANGE_AT, BUNKERS, Grid, inBase, foeDef, FIRST_DYNAMIC } from './map.js';
 
 /**
@@ -53,6 +53,9 @@ export class Purge {
     this.events = [];
     this.nextId = FIRST_DYNAMIC;
     this.grid = new Grid();
+    // Fewer players, fewer and weaker dead: one alone faces about 40% as many, at 78% health.
+    const n = Math.max(1, seats.length);
+    this.crowd = { hp: 0.7 + 0.075 * n, count: Math.max(0.4, n / 4) };
     this.players = seats.map((s, slot) => ({ slot, name: s.name, bot: Boolean(s.bot), ore: ECON.start + (heroesOnly ? ECON.heroesOnly.bonus : 0), relics: 0, upg: { weapons: 0, armor: 0 }, kills: 0, earned: 0, color: COLORS[slot], free: 0, autoForge: true, points: 0, brain: { mode: 'gather', at: 0 } }));
     this.troops = [];
     this.foes = [];
@@ -62,7 +65,7 @@ export class Purge {
     this.buildings = STRUCTURES.map((s) => {
       const def = BUILDINGS[s.type];
       const k = def.heart || def.key ? 1 : BUILD_TIER[s.tier];
-      const max = Math.round(def.hp * k * this.diff.hp);
+      const max = Math.round(def.hp * k * this.diff.hp * this.crowd.hp);
       const b = { i: s.id, k: 'bld', type: s.type, x: s.x, z: s.z, tier: s.tier, hp: max, max, cd: 0, spawnT: 10 + (s.id % 7) * 3, kids: [], alive: true, sealed: Boolean(def.heart), guard: s.guard };
       this.ents.set(b.i, b);
       return b;
@@ -137,7 +140,7 @@ export class Purge {
     const guardian = Boolean(GUARDIANS[kind]);
     const k = guardian ? { hp: 1, dmg: 1, bounty: 1 } : TIER[tier];
     [x, z] = this.grid.open(x, z);
-    const max = Math.round(def.hp * k.hp * this.diff.hp);
+    const max = Math.round(def.hp * k.hp * this.diff.hp * this.crowd.hp);
     const f = {
       i: id ?? this.nextId++, k: 'foe', kind, x, z, a: Math.PI * 2 * ((x * 7 + z) % 1), hp: max, max, tier, camp, boss: boss || guardian,
       dmg: def.dmg * k.dmg * this.diff.dmg, bounty: Math.round(def.bounty * k.bounty), home: home ?? { x, z }, awake: raid, raid, tgt: null, cd: 0, path: null, repath: 0,
@@ -800,7 +803,8 @@ export class Purge {
       if (f.look > 0) return;
       f.look = 0.5;
       if (f.hp < f.max && !f.boss) f.hp = Math.min(f.max, f.hp + f.max * 0.01 * 0.5);
-      if (this._nearestTroop(f.x, f.z, (def.ranged ? def.range : 6) + 5)) this._wake(f);
+      // A hero of the dead notices soldiers further off (and can be pulled).
+      if (this._nearestTroop(f.x, f.z, f.boss ? HERO_PULL.notice : (def.ranged ? def.range : 6) + 5)) this._wake(f);
       return;
     }
     let target = f.tgt != null ? this.ents.get(f.tgt) : null;
@@ -847,8 +851,26 @@ export class Purge {
       }
     }
     const fromHome = Math.hypot(f.x - f.home.x, f.z - f.home.z);
-    // Too far from home: give up and walk back (raiders never do).
-    if (!f.raid && fromHome > (f.boss ? 40 : 34)) {
+    // Too far from home: give up and walk back (raiders never do). A hero of the dead
+    // follows as far as it is led: it gives up only when no soldier has been in sight a while.
+    if (f.boss && !f.raid) {
+      const seen = this._nearestTroop(f.x, f.z, HERO_PULL.sight);
+      f.lost = seen ? 0 : (f.lost ?? 0) + dt;
+      if (f.lost > HERO_PULL.forget && fromHome > 2) {
+        f.tgt = null;
+        target = null;
+        f.leaving = true;
+      }
+      // At a bunker with nobody to hit outside: it hammers the bunker (one's own cannot break) while those inside shoot.
+      if (!target && !f.leaving) {
+        const b = this.bunkers.filter((x) => Math.hypot(x.x - f.x, x.z - f.z) < HERO_PULL.sight).sort((p, q) => Math.hypot(p.x - f.x, p.z - f.z) - Math.hypot(q.x - f.x, q.z - f.z))[0];
+        if (b && b.seats.length) {
+          target = b;
+          f.tgt = b.i;
+          f.lost = 0;
+        }
+      }
+    } else if (!f.raid && fromHome > 34) {
       f.tgt = null;
       target = null;
       f.leaving = true;
@@ -988,7 +1010,7 @@ export class Purge {
       if (b.spawnT <= 0) {
         b.spawnT = def.spawns.every;
         // Only while soldiers are about: no hordes piling up unseen.
-        if (b.kids.length < def.spawns.keep && this._nearestTroop(b.x, b.z, 45)) {
+        if (b.kids.length < Math.max(2, Math.round(def.spawns.keep * this.crowd.count)) && this._nearestTroop(b.x, b.z, 45)) {
           // The dead in the air only from the crypts further out.
           const kinds = b.tier >= 2 ? def.spawns.kinds : def.spawns.kinds.filter((k) => !FOES[k].flying);
           const kind = kinds[Math.floor(this.rand() * kinds.length)];
@@ -1031,7 +1053,7 @@ export class Purge {
     if (!from) return;
     this.raids++;
     this.standWaves = (this.standWaves ?? 0) + (this.lastStand ? 1 : 0);
-    const count = this.lastStand ? Math.min(LAST_STAND.cap, LAST_STAND.count + this.standWaves * LAST_STAND.grow) : Math.min(24, 5 + Math.round(this.raids * 1.5) + Math.floor(this.fallen / 5));
+    const count = Math.max(3, Math.round(this.crowd.count * (this.lastStand ? Math.min(LAST_STAND.cap, LAST_STAND.count + this.standWaves * LAST_STAND.grow) : Math.min(24, 5 + Math.round(this.raids * 1.5) + Math.floor(this.fallen / 5)))));
     this._wave(this.lastStand ? spawners.slice(0, 3) : [from], count, null);
     this.events.push({ t: 'raid', wave: this.raids, x: from.x, z: from.z, n: count });
   }
@@ -1050,7 +1072,7 @@ export class Purge {
     const alive = this.foes.filter((f) => f.stray).length;
     if (alive >= S.cap) return;
     const minutes = this.t / 60;
-    const each = Math.min(S.perZone, Math.round(S.count + minutes * S.grow), Math.ceil((S.cap - alive) / S.zones.length));
+    const each = Math.max(1, Math.min(Math.round(S.perZone * this.crowd.count), Math.round((S.count + minutes * S.grow) * this.crowd.count), Math.ceil((S.cap * this.crowd.count - alive) / S.zones.length)));
     const tier = minutes < 20 ? 1 : minutes < 45 ? 2 : 3;
     const kinds = S.kinds[tier];
     for (const z of S.zones) {
@@ -1084,7 +1106,7 @@ export class Purge {
     if (!(def.spawns || def.key)) return;
     const near = this.buildings.filter((o) => o.alive && BUILDINGS[o.type].spawns && Math.hypot(o.x - b.x, o.z - b.z) < 110).sort((p, q) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(q.x - b.x, q.z - b.z)).slice(0, 2);
     if (!near.length) return;
-    const count = Math.min(18, 4 + b.tier * 2 + (def.key ? 3 : 0));
+    const count = Math.max(2, Math.round(this.crowd.count * Math.min(18, 4 + b.tier * 2 + (def.key ? 3 : 0))));
     this._wave(near, count, { x: b.x, z: b.z });
     this.events.push({ t: 'wrath', x: b.x, z: b.z, n: count, from: near.map((o) => [o.x, o.z]), type: b.type });
   }
@@ -1218,6 +1240,19 @@ export class Purge {
       if (p.ore >= RANKS.engineer.cost) this._buy(p, 1, 'engineer');
     } else if (Math.hypot(worker.x - EXCHANGE_AT.x, worker.z - EXCHANGE_AT.z) > 2.5 && !worker.path?.length) this._send([worker], 'move', EXCHANGE_AT.x, EXCHANGE_AT.z);
     const mine = all.filter((t) => !RANKS[t.rank].worker);
+    // A hero of the dead in the camp: the six strongest into the bunker, to shoot it from safety.
+    const intruder = this.foes.find((f) => f.boss && inBase(f.x, f.z));
+    const own = this.bunkers.find((x) => x.base && x.o === p.slot);
+    if (intruder && own) {
+      b.hiding = this.t;
+      const seats = BUNKER.seats - own.seats.length;
+      const going = mine.filter((t) => !t.inside && t.order.t === 'enter').length;
+      const pick = mine.filter((t) => !t.inside && t.order.t !== 'enter' && inBase(t.x, t.z) && !RANKS[t.rank].flying).sort((x, y) => RANKS[y.rank].tier - RANKS[x.rank].tier).slice(0, Math.max(0, seats - going));
+      if (pick.length) this.order(p.slot, { t: 'enter', ids: pick.map((t) => t.i), id: own.i });
+    } else if (b.hiding && this.t - b.hiding > 5 && own?.seats.length) {
+      b.hiding = 0;
+      this.order(p.slot, { t: 'unload' });
+    }
     // Money: Recruits to ten, then raise, then upgrades.
     const count = (r) => mine.filter((t) => t.rank === r).length;
     const plan = this._botPlan(p, mine, count);

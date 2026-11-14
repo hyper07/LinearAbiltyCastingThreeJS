@@ -1,5 +1,5 @@
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS, BASE_SPAWNS, recipes } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, Grid, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, WALLS, Grid, foeDef } from './map.js';
 import { ELEVATION } from './sprites.js';
 
 /**
@@ -252,6 +252,42 @@ export function paintLand(tex, sprites) {
   pile.sort((a, b) => a[1] - b[1]);
   for (const [x, z, rad] of pile) boulder(x, z, rad);
   for (const [x, z, rad] of ROCKS) boulder(x, z, rad);
+  // The keeps' walls: dark dressed stone, a lit top, a shadow to the south-east, a dark flagstone floor inside.
+  for (const [x0, z0, x1, z1] of WALLS) {
+    g.lineCap = 'square';
+    g.lineWidth = 1.9;
+    g.strokeStyle = 'rgba(10,6,10,0.45)';
+    g.beginPath();
+    g.moveTo(x0 + 0.7, z0 + 1.1);
+    g.lineTo(x1 + 0.7, z1 + 1.1);
+    g.stroke();
+    g.lineWidth = 1.6;
+    g.strokeStyle = '#3a3438';
+    g.beginPath();
+    g.moveTo(x0, z0 + 0.5);
+    g.lineTo(x1, z1 + 0.5);
+    g.stroke();
+    g.lineWidth = 1.4;
+    g.strokeStyle = rock;
+    g.beginPath();
+    g.moveTo(x0, z0);
+    g.lineTo(x1, z1);
+    g.stroke();
+    g.lineWidth = 0.25;
+    g.strokeStyle = 'rgba(230,220,210,0.35)';
+    g.beginPath();
+    g.moveTo(x0, z0 - 0.55);
+    g.lineTo(x1, z1 - 0.55);
+    g.stroke();
+    // Merlons along the top.
+    const n = Math.floor(Math.hypot(x1 - x0, z1 - z0) / 1.6);
+    g.fillStyle = '#5a5258';
+    for (let k = 0; k <= n; k += 2) {
+      const t = n ? k / n : 0;
+      g.fillRect(x0 + (x1 - x0) * t - 0.4, z0 + (z1 - z0) * t - 0.9, 0.8, 0.5);
+    }
+  }
+  g.lineCap = 'round';
   const st = sprites?.stills ?? {};
   // The camp's buildings.
   const place = (key, x, z) => {

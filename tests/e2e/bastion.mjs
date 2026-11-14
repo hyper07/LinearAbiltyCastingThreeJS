@@ -18,9 +18,9 @@ export async function run(browser) {
     await page.click('.home [data-play]');
     t.check('Bastion Squad is a card, and Play opens Grave Purge with its ladder of ranks (the last one hidden)', await until(page, () => document.querySelectorAll('.gp .gp__ladder li').length === 6 && /\?\?\?/.test(document.querySelector('.gp .gp__ladder').textContent) && document.querySelector('.gp [data-solo]'), null, 15000));
     await page.click('.gp [data-solo]');
-    t.check('Grave Purge: a countdown, then four commanders (three of them bots), four Recruits each at their bunkers', await until(page, () => {
+    t.check('Grave Purge alone: no bots — one commander, one bunker, a countdown, then four Recruits at it', await until(page, () => {
       const s = window.gravePurge.state;
-      return s?.players.length === 4 && s.players.filter((p) => p.bot).length === 3 && s.ents.filter((e) => e.k === 'troop' && e.o === window.gravePurge.mySlot).length === 4;
+      return s?.players.length === 1 && !s.players[0].bot && s.ents.filter((e) => e.k === 'bunker').length === 1 && s.ents.filter((e) => e.k === 'troop' && e.o === window.gravePurge.mySlot).length === 4;
     }, null, 20000));
     await page.waitForTimeout(800);
     await page.keyboard.press('Tab');
@@ -60,7 +60,7 @@ export async function run(browser) {
     await page.keyboard.press('Escape');
     await page.click('.gp [data-speed="2"]');
     t.check('the speed buttons speed the game up', await until(page, () => window.gravePurge.game.speed === 2));
-    t.check('the HUD shows the time, the wards and the team', await page.evaluate(() => /Bunkers fall in/i.test(document.querySelector('.gp [data-top]').textContent) && document.querySelectorAll('.gp [data-team] p').length === 4));
+    t.check('the HUD shows the time, the wards and the team', await page.evaluate(() => /Bunkers fall in/i.test(document.querySelector('.gp [data-top]').textContent) && document.querySelectorAll('.gp [data-team] p').length === 1));
     await page.evaluate(() => window.gravePurge._menu());
     await page.click('.gp [data-swap-to="purge2d"]');
     t.check('the 2D tab opens Grave Purge drawn flat, no WebGL', await until(page, () => window.gravePurge?.flat && document.querySelector('.gp [data-solo]') && !document.querySelector('.gp canvas.bs__canvas').getContext('2d') === false, null, 15000));

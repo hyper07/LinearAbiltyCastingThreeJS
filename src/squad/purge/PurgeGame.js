@@ -1,7 +1,7 @@
 import { Purge, forgeCheck } from './sim.js';
 import { FlatView } from './flat.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
-import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER, TEAM, STIM, CAMP, BASE_SPAWNS } from './rules.js';
+import { TICK, SEATS, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER, TEAM, STIM, CAMP, BASE_SPAWNS } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT, BUNKERS } from './map.js';
 import '../squad.css';
 import './purge.css';
@@ -15,7 +15,8 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStar
  * the Forge, upgrade at the armoury, and take the Gravefield back — every
  * crypt, spire and camp pays ore. Break the six shrines and six soul nodes,
  * then the Heart, then the king it wakes, before time runs out. Alone with
- * three bot players, or with up to three friends (the host's browser runs
+ * nobody but you (one bunker, every resource yours), or with up to three
+ * friends — players only, no bots (the host's browser runs
  * the game; the others send orders and draw what it sends back).
  *
  * Keys, the classic way: left-click or drag selects; right-click moves or
@@ -81,8 +82,8 @@ export class PurgeGame {
     this._bind();
     this._menu();
     this._mapLayer();
-    // Behind the menu: four bots at work.
-    this.demo = new Purge({ difficulty: 'casual', seed: 3, seats: BOT_NAMES.map((name) => ({ name, bot: true })) });
+    // Behind the menu: the land itself, nobody in it yet, the camera drifting over it.
+    this.demo = new Purge({ difficulty: 'casual', seed: 3, seats: [], countdown: 1e9 });
     this._last = performance.now();
     this._raf = requestAnimationFrame((t) => this._frame(t));
     this.root.focus();
@@ -127,7 +128,7 @@ export class PurgeGame {
       <div class="bs__card gp__card">
         ${this.onSwap ? `<div class="gp__modes"><button type="button" class="${this.flat ? '' : 'is-on'}" ${this.flat ? 'data-swap-to="purge"' : ''}>Grave Purge 3D</button><button type="button" class="${this.flat ? 'is-on' : ''}" ${this.flat ? '' : 'data-swap-to="purge2d"'}>Grave Purge 2D</button><button type="button" data-swap-to="hold">Hold the Outpost</button></div>` : ''}
         <h1>Bastion Squad · Grave Purge${this.flat ? ' <small class="gp__tag">2D</small>' : ''}</h1>
-        <p class="bs__lead">The dead hold the Gravefield. Four commanders start in a camp in its corner with a few Recruits each. Every kill pays ore: buy Recruits at the barracks and raise them at the Forge — Recruit, Veteran, Vanguard, Phantom, Paragon. Break the six Shrines of Bones (each makes your Veterans stronger) and the six Soul Nodes, then the Heart of the Grave, then the king it wakes — before the clock runs out.</p>
+        <p class="bs__lead">The dead hold the Gravefield. One to four commanders — players only — start in a camp in its corner, a bunker and four Recruits each (alone, every resource is yours; the dead come fewer the fewer you are). Every kill pays points (ore at the Exchange); pull the heroes of the dead home to your bunker for the big ones. Buy Recruits at the barracks and raise them at the Forge — Recruit, Veteran, Vanguard, Phantom, Paragon. Break the six Shrines of Bones (each makes your Veterans stronger) and the six Soul Nodes, then the Heart of the Grave, then the king it wakes — before the clock runs out.</p>
         <ol class="gp__ladder">${RANK_ORDER.map((r) => {
           const d = RANKS[r];
           if (d.hidden) return '<li><b>???</b><small>A hidden rank. Find its secret.</small></li>';
@@ -137,10 +138,10 @@ export class PurgeGame {
         <div class="bs__row"><span>Difficulty</span>${Object.entries(DIFFICULTY).map(([id, d]) => `<button type="button" data-diff="${id}" class="${diff === id ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${d.name} <small>${d.minutes} min</small></button>`).join('')}</div>
         <div class="bs__row"><span>Mode</span><button type="button" data-heroes class="${heroes ? 'is-on' : ''}" ${host ? '' : 'disabled'}>Heroes only</button><small class="gp__hint">${heroes ? 'No Recruits: the barracks sells Veterans; +3,000 ore to start.' : 'Start with four Recruits each.'}</small></div>
         ${inRoom ? `
-          <div class="bs__room"><b>Room <span data-code>${esc(this.link.code)}</span></b> — give friends the code (up to four). Bot commanders take the empty places.
+          <div class="bs__room"><b>Room <span data-code>${esc(this.link.code)}</span></b> — give friends the code (up to four). Only players: no bots.
             <ul>${(lobby?.people ?? this.link.peers()).map((p, i) => `<li><i style="background:${COLORS[i] ?? '#888'}"></i>${esc(p.name)}${p.id === this.link.session.host ? ' <em>host</em>' : ''}</li>`).join('')}</ul></div>
           <div class="bs__row">${host ? '<button type="button" class="bs__go" data-start>Start</button>' : '<span>Waiting for the host to start…</span>'}<button type="button" data-leave>Leave the room</button></div>` : `
-          <div class="bs__row"><button type="button" class="bs__go" data-solo>Play with three bot commanders</button></div>
+          <div class="bs__row"><button type="button" class="bs__go" data-solo>Play alone</button></div>
           <div class="bs__row"><span>With friends</span><button type="button" data-make>Make a room</button><input data-code-in maxlength="5" placeholder="CODE" /><button type="button" data-join>Join</button></div>`}
         <p class="bs__note" data-note>${esc(note)}</p>
         <p class="bs__keys">Drag or click to select · right-click move / attack · A attack · M move · P patrol · S stop · H hold · E heal (home) · T stim · W to the Forge · Y Engineer · Ctrl/Alt+0–9 save a group, 0–9 pick it · Tab all · Space last alert · Backspace camp · R Recruit · F Forge · U upgrades · G give · O objectives · F1 all the keys</p>
@@ -209,9 +210,9 @@ export class PurgeGame {
     });
     link.on('peers', () => link.isHost && this._hostLobby());
     link.on('left', (id) => {
-      // Someone left mid-game: a bot takes over their soldiers.
+      // Someone left mid-game: their soldiers stay where they are (no bots in this game).
       const slot = this.seatOf?.get(id);
-      if (slot != null && this.game) this.game.players[slot].bot = true;
+      if (slot != null && this.game) this._feed(`${this.game.players[slot]?.name} has left`);
       if (link.isHost) this._hostLobby();
     });
     link.on('closed', () => {
@@ -241,7 +242,6 @@ export class PurgeGame {
 
   _seats(people) {
     const seats = people.map((p) => ({ name: p.name, id: p.id }));
-    for (let i = seats.length; i < SEATS; i++) seats.push({ name: BOT_NAMES[i], bot: true });
     return seats;
   }
 
@@ -697,12 +697,9 @@ export class PurgeGame {
       if (s) this.state = s;
       events = this.pending.splice(0);
     } else {
-      // The menu's backdrop: the bots, from above the camp.
-      for (let k = 0; k < 2; k++) this.view.absorb(this.demo.step(TICK), this.demo.snapshot());
+      // The menu's backdrop: the land, the camera drifting slowly over it.
       const s = this.demo.snapshot();
-      if (this.demo.over) this.demo = new Purge({ difficulty: 'casual', seed: (now | 0) + 1, seats: BOT_NAMES.map((name) => ({ name, bot: true })) });
-      const lead = s.ents.find((e) => e.k === 'troop' && !BASE_HAS(e));
-      this.view.render(s, dt, { follow: lead ?? { x: PAD.x, z: PAD.z } });
+      this.view.render(s, dt, { follow: { x: 90 + Math.sin(now / 24000) * 70, z: 90 + Math.cos(now / 31000) * 70 } });
       return;
     }
     if (!this.state) return;
@@ -1128,5 +1125,4 @@ export class PurgeGame {
   }
 }
 
-const BASE_HAS = (e) => e.x <= BASE.x1 && e.z <= BASE.z1;
 export { HEART };

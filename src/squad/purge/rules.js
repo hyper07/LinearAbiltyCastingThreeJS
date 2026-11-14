@@ -113,6 +113,15 @@ export const GUARDIANS = {
   bishop: { name: 'Hollow Bishop', body: 'Skeleton_Mage', size: 3.6, hp: 9000, dmg: 144, rate: 0.8, range: 13, speed: 3.8, armor: 6, bounty: 3000, tint: '#80d0c0', ranged: true, summon: { kind: 'husk', count: 5, every: 10 } },
   rotfather: { name: 'Rotfather', body: 'Skeleton_Warrior', size: 4.4, hp: 16000, dmg: 224, rate: 0.7, range: 3.5, speed: 3.6, armor: 10, bounty: 4500, tint: '#90a060', slam: { radius: 6, dmg: 180, every: 7 } },
   cinder: { name: 'Cinder Lich', body: 'Skeleton_Mage', size: 4.2, hp: 14000, dmg: 192, rate: 0.9, range: 14, speed: 3.8, armor: 8, bounty: 4500, tint: '#ff8040', ranged: true, summon: { kind: 'wight', count: 3, every: 12 } },
+  // Heroes out in the land: in the keeps and alone with an escort. Worth pulling home.
+  warden: { name: 'Gravewarden', body: 'Skeleton_Warrior', size: 2.9, hp: 3000, dmg: 70, rate: 0.9, range: 2.2, speed: 4.3, armor: 4, bounty: 900, tint: '#c0b090' },
+  bride: { name: 'Ashen Bride', body: 'Skeleton_Mage', size: 2.8, hp: 2500, dmg: 62, rate: 0.9, range: 10, speed: 4.2, armor: 2, bounty: 900, tint: '#e0a0b0', ranged: true },
+  stalker: { name: 'Night Stalker', body: 'Skeleton_Rogue', size: 2.6, hp: 2300, dmg: 52, rate: 1.6, range: 1.8, speed: 6.6, armor: 3, bounty: 1000, tint: '#7080a0' },
+  baron: { name: 'Bone Baron', body: 'Skeleton_Warrior', size: 3.6, hp: 7500, dmg: 130, rate: 0.8, range: 2.8, speed: 4.2, armor: 7, bounty: 2200, tint: '#b09060', slam: { radius: 5, dmg: 110, every: 8 } },
+  seer: { name: 'Hollow Seer', body: 'Skeleton_Mage', size: 3.3, hp: 6200, dmg: 110, rate: 0.9, range: 12, speed: 4, armor: 4, bounty: 2200, tint: '#60c0e0', ranged: true, summon: { kind: 'hexer', count: 3, every: 12 } },
+  reaper: { name: 'Pale Reaper', body: 'Skeleton_Rogue', size: 3.2, hp: 6800, dmg: 105, rate: 1.4, range: 2.2, speed: 5, armor: 5, bounty: 2400, tint: '#f0f0f0' },
+  tyrant: { name: 'Crypt Tyrant', body: 'Skeleton_Warrior', size: 4.2, hp: 13000, dmg: 190, rate: 0.75, range: 3.2, speed: 4, armor: 10, bounty: 4000, tint: '#a04040', slam: { radius: 6, dmg: 160, every: 7 } },
+  oracle: { name: 'Bone Oracle', body: 'Skeleton_Mage', size: 4, hp: 11000, dmg: 170, rate: 0.85, range: 13, speed: 3.9, armor: 7, bounty: 4000, tint: '#9060e0', ranged: true, summon: { kind: 'wight', count: 3, every: 13 } },
   // Woken by the Heart's fall: the last fight.
   king: { name: 'The Grave King', body: 'Skeleton_Warrior', size: 6.4, hp: 70000, dmg: 320, rate: 0.7, range: 4.5, speed: 4, armor: 16, bounty: 25000, tint: '#f0d080', slam: { radius: 7, dmg: 210, every: 7 }, summon: { kind: 'wight', count: 4, every: 11 }, king: true }
 };
@@ -132,6 +141,15 @@ export const BUILDINGS = {
   shrine: { name: 'Shrine of Bones', hp: 14000, armor: 8, r: 3, bounty: 5000, relics: 3, key: true },
   heart: { name: 'Heart of the Grave', hp: 60000, armor: 12, r: 5, bounty: 20000, relics: 0, heart: true, shoots: { dmg: 90, rate: 1.2, range: 14 } }
 };
+/**
+ * Pulling a hero of the dead: it notices soldiers within `notice` metres and
+ * follows them as far as they lead it — home to the camp, if they like —
+ * giving up only when no soldier has been within `sight` for `forget`
+ * seconds. At a bunker with soldiers in it and nobody outside, it keeps
+ * hammering the bunker (your own cannot break) while they shoot it.
+ */
+export const HERO_PULL = { notice: 12, sight: 22, forget: 6 };
+
 /** Buildings take tier scaling too, but less than guards. */
 export const BUILD_TIER = { 1: 1, 2: 1.7, 3: 2.6, 4: 3.8 };
 
@@ -147,9 +165,9 @@ export const SHRINE_GIFTS = [
 
 /** How hard: the dead's health and damage, the time you have (minutes), and raids. */
 export const DIFFICULTY = {
-  casual: { name: 'Casual', hp: 0.75, dmg: 0.7, minutes: 90, raid: 420 },
-  hard: { name: 'Hard', hp: 1, dmg: 1, minutes: 75, raid: 300 },
-  hell: { name: 'Hell', hp: 1.5, dmg: 1.4, minutes: 60, raid: 220 }
+  casual: { name: 'Casual', hp: 0.75, dmg: 0.7, minutes: 100, raid: 420 },
+  hard: { name: 'Hard', hp: 1, dmg: 1, minutes: 90, raid: 300 },
+  hell: { name: 'Hell', hp: 1.5, dmg: 1.4, minutes: 75, raid: 220 }
 };
 
 /**

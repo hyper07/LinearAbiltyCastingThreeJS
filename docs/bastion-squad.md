@@ -12,10 +12,14 @@ Both are our own games: the setting, maps, soldiers, enemies, numbers and words 
 
 ## Grave Purge
 
-**The Gravefield**, 256 metres square. Four commanders start in a camp in its north-west corner
-with four Recruits each. Four broken rings of ridges cut the land into bands that get harder the
+**The Gravefield**, 256 metres square. One to four commanders — **players only, no bots** — start in
+a camp in its north-west corner, a bunker and four Recruits each. Alone, every resource is yours and
+the dead come fewer and weaker (about 40% as many, at 78% health, growing to the full measure with
+four players). Four broken rings of ridges cut the land into bands that get harder the
 further out they are (tier 1 to 4); each ring has gaps to pass. Everywhere are the dead's
-buildings and camps of guards asleep until soldiers come near — 112 buildings and 344 guards.
+buildings and camps of guards asleep until soldiers come near — 168 buildings, 349 guards, 22 heroes of
+the dead. Six **keeps** stand behind stone walls with a gate facing the camp — a crypt or ossuary
+inside, spires in the corners, a hero and its escort.
 
 - **Points and ore**, the classic way: every kill pays its killer **points**, not ore. It is a team
   game: a **building broken or a hero killed** (a guardian, the king) also pays **each teammate half**.
@@ -76,7 +80,12 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   the wraith, or wait it out); the **Bile Drifter** spits bile that **slows** whoever it splashes (half
   speed, a little slower to fire) for 8 seconds. They come from the crypts and ossuaries beyond the
   first ring, and live in the further camps.
-- **The hero monsters** (the guardians and the king) hit hard and think: they go for the hurt and the
+- **Pulling heroes**: a hero of the dead notices soldiers within 12 metres and follows them as far as
+  they lead it — home to the camp, if they like — giving up only when no soldier has been within 22
+  metres for 6 seconds. Kite it home (stim helps: all but the Night Stalker are slower than a stimmed
+  soldier); at a bunker with soldiers in it and nobody outside, it hammers the bunker (your own cannot
+  break) while they shoot it. That is the fast money: the big bounties, half to each teammate too.
+- **The hero monsters** (the guardians, the keeps' and the lone heroes, the king) hit hard and think: they go for the hurt and the
   strong (never an Engineer first), the casters step back from soldiers who close in, and below a third
   of their health they rage — harder and faster.
 - **Stim Pack** (**T**): the selected soldiers fire and move half again as fast for 10 seconds, for a
@@ -91,12 +100,11 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
 - **Waves**: every few minutes a numbered wave comes for the camp from the crypt nearest it, bigger
   each time (and bigger the more you have broken). And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
   it send a wave to where it fell (then on to the camp) — the map shows where they come from.
-- **The clock** (how long the bunkers stand): Casual 90 minutes, Hard 75, Hell 60 (the dead tougher too). **Heroes only** mode
+- **The clock** (how long the bunkers stand): Casual 100 minutes, Hard 90, Hell 75 (the dead tougher too). **Heroes only** mode
   sells Veterans at the barracks instead of Recruits and gives 3,000 ore to start. The host can run
   the game at ×1, ×1.5, ×2 or ×3.
-- **Bots** take the empty seats: they buy, raise at the Forge, upgrade, and take their armies out
-  together to the nearest thing they can beat, home to heal when hurt. Four bots alone win Casual in
-  about half an hour and Hard in about fifty minutes; Hell needs you.
+- **No bots** in Grave Purge: alone, or with friends in a room (Hold the Outpost still fills empty
+  seats with bot soldiers). The game's rules keep a bot player only for balance checks.
 
 **2D, the realistic way**: the 2D view is drawn like the classic 2D strategy games — its sprites are
 our own 3D models (the soldier for each rank, each kind of the dead, the crypts, shrines, camp, graves

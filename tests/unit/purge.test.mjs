@@ -15,8 +15,9 @@ test('the Gravefield: the same land every time, harder further out, every buildi
   assert.equal(tierAt(HEART.x, HEART.z), 4);
   const grid = new Grid();
   for (const s of STRUCTURES) {
-    const [x, z] = grid.open(s.x + BUILDINGS[s.type].r + 2, s.z);
-    assert.ok(grid.path(SPAWN.x, SPAWN.z, x, z), `a way to the ${s.type} at ${s.x},${s.z}`);
+    // From some side (a keep's wall may close one).
+    const sides = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dz]) => grid.open(s.x + dx * (BUILDINGS[s.type].r + 2), s.z + dz * (BUILDINGS[s.type].r + 2)));
+    assert.ok(sides.some(([x, z]) => grid.path(SPAWN.x, SPAWN.z, x, z)), `a way to the ${s.type} at ${s.x},${s.z}`);
   }
   for (const s of STRUCTURES) assert.ok(!(s.x < BASE.x1 && s.z < BASE.z1), 'nothing of the dead inside the camp');
 });
@@ -161,7 +162,7 @@ test('a snapshot carries soldiers, the awake dead, hurt buildings and what has f
 });
 
 test('waves: a crypt that falls is answered by the crypts near it; the camp gets numbered waves', () => {
-  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 8 });
+  const g = new Purge({ countdown: 0, seats: seats(4, 4), seed: 8 });
   const t = g.troops[0];
   const crypt = g.buildings.find((b) => b.type === 'crypt' && g.buildings.some((o) => o !== b && o.alive && BUILDINGS[o.type].spawns && Math.hypot(o.x - b.x, o.z - b.z) < 110));
   const before = g.foes.length;
@@ -228,7 +229,7 @@ test('heal sends soldiers to the pad, where they heal fast; patrol goes back and
 });
 
 test('spawn events at the base: a warning, then the dead out of three zones round the camp; the camp has no guns — only soldiers’ kills pay', () => {
-  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 14 });
+  const g = new Purge({ countdown: 0, seats: seats(4, 4), seed: 14 });
   assert.ok(!g.snapshot().ents.some((e) => e.k === 'gun'), 'no guns in the camp');
   g.spawnIn = BASE_SPAWNS.warn + 0.01;
   g.step(TICK);
@@ -487,4 +488,55 @@ test('the hero monsters: go for the hurt and the strong, never an Engineer first
   const dmg = boss.dmg;
   g._foeStep(boss, TICK);
   assert.ok(boss.enraged && boss.dmg > dmg, 'enraged');
+});
+
+test('players only: alone, one bunker and fewer, weaker dead than four face', () => {
+  const one = new Purge({ countdown: 0, seats: seats(1, 1), seed: 31 });
+  const four = new Purge({ countdown: 0, seats: seats(4, 4), seed: 31 });
+  assert.equal(one.bunkers.length, 1, 'one bunker');
+  assert.equal(four.bunkers.length, 4);
+  assert.ok(one.players.every((p) => !p.bot));
+  const crypt = (g) => g.buildings.find((b) => b.type === 'crypt');
+  assert.ok(crypt(one).max < crypt(four).max, 'weaker buildings alone');
+  assert.ok(one.foes[0].max < four.foes[0].max, 'weaker dead alone');
+  for (const g of [one, four]) {
+    g.spawnIn = 0;
+    g._baseSpawns(TICK);
+  }
+  assert.ok(one.foes.filter((f) => f.stray).length < four.foes.filter((f) => f.stray).length, 'fewer from the spawn zones');
+});
+
+test('pulling a hero: it follows a soldier far from home, and at a bunker with soldiers in it, keeps hammering (harmlessly) while they shoot', () => {
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 32 });
+  g.spawnIn = 1e9;
+  g.raidT = 1e9;
+  // Open ground east of the camp, a clear walk home.
+  const hero = g._foe('warden', 80, 30, { tier: 2 });
+  hero.home = { x: 80, z: 30 };
+  const lure = g._troop(0, 'veteran');
+  [lure.x, lure.z] = [70, 30];
+  assert.ok(!g.grid.blocked(80, 30) && !g.grid.blocked(70, 30));
+  for (let i = 0; i < 20; i++) g.step(TICK);
+  assert.ok(hero.awake, 'noticed at ten metres');
+  // Lead it home, kiting: a few steps towards the camp whenever it comes close, waiting when it falls behind.
+  for (let i = 0; i < 20 * 40; i++) {
+    const d = Math.hypot(hero.x - lure.x, hero.z - lure.z);
+    if (d < 8 && !lure.path?.length) {
+      const dx = 40 - lure.x;
+      const dz = 22 - lure.z;
+      const l = Math.hypot(dx, dz) || 1;
+      if (l > 4) g.order(0, { t: 'move', ids: [lure.i], x: lure.x + (dx / l) * 6, z: lure.z + (dz / l) * 6 });
+    }
+    g.step(TICK);
+    lure.hp = lure.max; // a hardy lure
+  }
+  assert.ok(Math.hypot(hero.x - hero.home.x, hero.z - hero.home.z) > 25, `followed far from home (${Math.round(Math.hypot(hero.x - 80, hero.z - 30))} m)`);
+  // Into the bunker: the hero stays at it, and the bunker cannot break.
+  const own = g.bunkers[0];
+  g.order(0, { t: 'enter', ids: [lure.i], id: own.i });
+  for (let i = 0; i < 20 * 20; i++) g.step(TICK);
+  assert.ok(lure.inside, 'in the bunker');
+  assert.ok(g.ents.has(own.i), 'your own bunker holds');
+  assert.ok(hero.hp < hero.max, 'shot from inside');
+  assert.ok(Math.hypot(hero.x - own.x, hero.z - own.z) < 12, 'still at the bunker');
 });

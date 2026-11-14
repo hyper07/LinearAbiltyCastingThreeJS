@@ -163,6 +163,47 @@ for (let i = 0; i < 6; i++) {
   const z = HEART.z + Math.sin(a) * 15;
   if (free(x, z, 1.4)) build(i % 2 ? 'spire' : 'ossuary', x, z);
 }
+// The keeps: walled compounds of the dead, a gate facing the camp; a crypt or an ossuary in the
+// middle, spires in the corners, a hero of the dead and its escort.
+/** Stone walls: [x0, z0, x1, z1], a metre and a half thick. */
+export const WALLS = [];
+const WALL = 1.5;
+const KEEPS = [[125, 30, 'warden'], [130, 62, 'bride'], [190, 20, 'baron'], [192, 70, 'seer'], [252, 36, 'tyrant'], [244, 56, 'oracle']];
+for (const [r, a, hero] of KEEPS) {
+  const [x, z] = polar(r, a);
+  const w = 22;
+  const d = 18;
+  const x0 = x - w / 2;
+  const z0 = z - d / 2;
+  const x1 = x + w / 2;
+  const z1 = z + d / 2;
+  // The gate on the side facing the camp (north or west), six metres wide.
+  const gateWest = x > z;
+  const g = 3;
+  if (gateWest) {
+    WALLS.push([x0, z0, x1, z0], [x0, z1, x1, z1], [x1, z0, x1, z1], [x0, z0, x0, z - g], [x0, z + g, x0, z1]);
+  } else {
+    WALLS.push([x0, z0, x0, z1], [x1, z0, x1, z1], [x0, z1, x1, z1], [x0, z0, x - g, z0], [x + g, z0, x1, z0]);
+  }
+  taken.push([x, z, Math.hypot(w, d) / 2 + 3]);
+  const t = tierAt(x, z);
+  build(t >= 3 ? 'ossuary' : 'crypt', x + (gateWest ? 3 : 0), z + (gateWest ? 0 : 3));
+  build('spire', x0 + 3, z0 + 3);
+  build('spire', x1 - 3, z1 - 3);
+  if (t >= 3) build('spire', x1 - 3, z0 + 3);
+  GUARDS.push({ id: nextId++, kind: hero, x: +(x - (gateWest ? 5 : 0)).toFixed(1), z: +(z - (gateWest ? 0 : 5)).toFixed(1), tier: t, camp: campId, boss: true });
+  camp(x - (gateWest ? 6 : -4), z + (gateWest ? 4 : -6), t >= 3 ? ['wight', 'bonecaller', 'brute'] : ['brute', 'hexer', 'ravager'], 4, 3);
+}
+// Heroes out alone, each with an escort: worth pulling home.
+const LONE = [[108, 15, 'stalker'], [110, 75, 'warden'], [150, 45, 'bride'], [168, 8, 'reaper'], [168, 84, 'stalker'], [205, 45, 'reaper'], [235, 15, 'baron'], [232, 78, 'seer'], [270, 20, 'tyrant'], [268, 70, 'oracle']];
+for (const [r, a, hero] of LONE) {
+  const p = free(...polar(r, a), 4) ? polar(r, a) : spot(r - 12, r + 12, a - 8, a + 8, 4);
+  if (!p) continue;
+  const [x, z] = p;
+  const t = tierAt(x, z);
+  GUARDS.push({ id: nextId++, kind: hero, x: +x.toFixed(1), z: +z.toFixed(1), tier: t, camp: campId, boss: true });
+  camp(x + 2, z + 2, t >= 3 ? ['wight', 'bonecaller'] : t >= 2 ? ['brute', 'hexer'] : ['husk', 'hexer'], 3, 3);
+}
 // Relic caches, out at the edges.
 for (const [x, z] of [[8, 118], [118, 8], [10, 196], [196, 10], [150, 150], [70, 240], [240, 120], [96, 96]]) {
   const p = free(x, z, 1) ? [x, z] : spot(Math.hypot(x, z) - 10, Math.hypot(x, z) + 10, (Math.atan2(z, x) * 180) / Math.PI - 6, (Math.atan2(z, x) * 180) / Math.PI + 6, 1);
@@ -170,10 +211,10 @@ for (const [x, z] of [[8, 118], [118, 8], [10, 196], [196, 10], [150, 150], [70,
 }
 // The rest, band by band: [inner, outer radius, spires, barrows, crypts, ossuaries, camps, the guards they keep].
 const BANDS = [
-  [52, 95, 6, 6, 2, 0, 12, ['husk', 'husk', 'ravager', 'hexer'], [4, 6]],
-  [106, 160, 10, 9, 4, 1, 14, ['husk', 'ravager', 'hexer', 'brute', 'mire'], [5, 7]],
-  [171, 220, 12, 8, 3, 3, 13, ['brute', 'hexer', 'wight', 'bonecaller', 'wraith', 'mire'], [4, 6]],
-  [231, 340, 12, 6, 2, 3, 13, ['wight', 'bonecaller', 'brute', 'wraith'], [4, 6]]
+  [52, 95, 9, 9, 2, 0, 12, ['husk', 'husk', 'ravager', 'hexer'], [4, 6]],
+  [106, 160, 15, 13, 4, 1, 14, ['husk', 'ravager', 'hexer', 'brute', 'mire'], [5, 7]],
+  [171, 220, 18, 12, 3, 3, 13, ['brute', 'hexer', 'wight', 'bonecaller', 'wraith', 'mire'], [4, 6]],
+  [231, 340, 18, 9, 2, 3, 13, ['wight', 'bonecaller', 'brute', 'wraith'], [4, 6]]
 ];
 for (const [r0, r1, spires, barrows, crypts, ossuaries, camps, kinds, [c0, c1]] of BANDS) {
   for (const [type, n] of [['crypt', crypts], ['ossuary', ossuaries], ['spire', spires], ['barrow', barrows]]) {
@@ -190,7 +231,7 @@ for (const [r0, r1, spires, barrows, crypts, ossuaries, camps, kinds, [c0, c1]] 
 export const FIRST_DYNAMIC = 100000;
 
 /** The things that must fall before the Heart can be hurt. */
-export const KEYS = STRUCTURES.filter((s) => BUILDINGS[s.type].key).map((s) => s.id);
+export const KEYS = []; // filled in at the end, once the layout is final
 
 /* ---------------------------------------------------------------- walking */
 
@@ -215,6 +256,10 @@ export class Grid {
     };
     this.mark = mark;
     for (const { pts, w } of RIDGES) for (const [x, z] of pts) mark(x, z, w / 2, 1);
+    for (const [x0, z0, x1, z1] of WALLS) {
+      const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0));
+      for (let k = 0; k <= n; k++) mark(x0 + ((x1 - x0) * k) / n, z0 + ((z1 - z0) * k) / n, WALL / 2, 1);
+    }
     for (const [x, z, r] of ROCKS) mark(x, z, r, 1);
     for (const s of structures) mark(s.x, s.z, BUILDINGS[s.type].r, 1);
     this.structures = new Map(structures.map((s) => [s.id, s]));
@@ -392,3 +437,21 @@ class Heap {
 
 /** A guard's stats (a camp guard, a spawned one, or a guardian). */
 export const foeDef = (kind) => FOES[kind] ?? GUARDIANS[kind];
+
+/*
+ * Anything the layout sealed off (a building boxed in by a ridge, a rock and
+ * a wall) is left out: every building and guard can be reached from the camp.
+ */
+{
+  const grid = new Grid([]);
+  const reach = (x, z, r) => {
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const [ox, oz] = grid.open(x + dx * (r + 2), z + dz * (r + 2));
+      if (!grid.blocked(ox, oz) && grid.path(SPAWN.x, SPAWN.z, ox, oz)) return true;
+    }
+    return false;
+  };
+  for (let i = STRUCTURES.length - 1; i >= 0; i--) if (!reach(STRUCTURES[i].x, STRUCTURES[i].z, BUILDINGS[STRUCTURES[i].type].r)) STRUCTURES.splice(i, 1);
+  for (let i = GUARDS.length - 1; i >= 0; i--) if (!reach(GUARDS[i].x, GUARDS[i].z, 0)) GUARDS.splice(i, 1);
+  KEYS.push(...STRUCTURES.filter((s) => BUILDINGS[s.type].key).map((s) => s.id));
+}

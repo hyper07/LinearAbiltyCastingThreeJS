@@ -7,7 +7,7 @@ import { dress } from '../../mmo/bodies.js';
 import { SquadView } from '../view.js';
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS, BASE_SPAWNS, recipes } from './rules.js';
 import { loadRobot, Robot } from './robot.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, HEART, tierAt, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, WALLS, HEART, tierAt, foeDef } from './map.js';
 import { FORGE_REACH } from './rules.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 
@@ -182,6 +182,22 @@ export class PurgeView extends SquadView {
       this.scene.add(ring, light);
       return { ring, mat, light };
     });
+    // The keeps' walls: dressed stone with merlons.
+    const stone = surface('wall', { color: '#6a6268' });
+    for (const [x0, z0, x1, z1] of WALLS) {
+      const len = Math.hypot(x1 - x0, z1 - z0) + 1.5;
+      const wall = new THREE.Mesh(worldBox(len, 2.8, 1.5, 2), stone);
+      wall.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2);
+      wall.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      this.scene.add(wall);
+      for (let k = 0; k < len / 1.6 - 1; k += 2) {
+        const m = new THREE.Mesh(worldBox(0.8, 0.6, 1.5, 1), stone);
+        m.position.set(-len / 2 + 0.8 + k * 1.6, 2.8, 0);
+        wall.add(m);
+      }
+    }
     // The ridges and boulders: one rocky mesh.
     this._rocks();
     // Stand-ins the parent's frame expects.
