@@ -1,5 +1,5 @@
 import { TEAM_SIZE, WIN_ROUNDS, HALF, TIME, MONEY, PLAYER, WEAPONS, GEAR, SKILL, lossPay } from './rules.js';
-import { SITES, SPAWNS, NODES, HOLDS, nearestNode, route, clear, rayBoxes, sees } from './map.js';
+import { SITES, SPAWNS, NODES, HOLDS, PLAN, nearestNode, route, clear, rayBoxes, sees } from './map.js';
 
 /**
  * A match of Breachline: ten players (you and nine bots, or all bots), their
@@ -103,7 +103,7 @@ export class Match {
     // Wardens split: two for each site, one in the middle.
     this.living('def').forEach((p, i) => (p.post = ['A', 'B', 'A', 'B', 'mid'][i % 5]));
     // Raiders each prefer a lane, so they don't all walk in a line.
-    this.living('atk').forEach((p, i) => (p.avoid = new Set([['N2', 'S2'], ['M2'], ['M2', 'S2'], ['N2'], []][i % 5])));
+    this.living('atk').forEach((p, i) => (p.avoid = new Set(PLAN.lanes[i % PLAN.lanes.length])));
     this.events.push({ type: 'phase', phase: 'buy', round: this.round });
   }
 
@@ -435,7 +435,7 @@ export class Match {
     for (const q of this.players) {
       if (!q.alive || q.squad === p.squad) continue;
       const d = Math.hypot(q.x - p.x, q.z - p.z);
-      if (d > 85 || d >= seenD) continue;
+      if (d > PLAN.sight || d >= seenD) continue;
       const bearing = Math.atan2(-(q.x - p.x), -(q.z - p.z));
       if (d > 5 && Math.abs(turn(p.yaw, bearing)) > rad(75) && p.target !== q.id) continue;
       if (!sees(p.x, eye, p.z, q.x, q.y + 1.3, q.z) && !sees(p.x, eye, p.z, q.x, q.y + 1.62, q.z)) continue;
@@ -451,7 +451,7 @@ export class Match {
       // A Warden who sees Raiders near a site calls it: the others come.
       if (side === 'def' && this.phase === 'live') {
         const near = Object.entries(SITES).map(([k, v]) => [k, Math.hypot(seen.x - v.x, seen.z - v.z)]).sort((a, b) => a[1] - b[1])[0];
-        if (near[1] < 26 && (!this.alarm || this.alarm.site !== near[0] || this.time - this.alarm.at > 6)) this.alarm = { site: near[0], at: this.time };
+        if (near[1] < PLAN.alarm && (!this.alarm || this.alarm.site !== near[0] || this.time - this.alarm.at > 6)) this.alarm = { site: near[0], at: this.time };
       }
       p.lastSeen = { x: seen.x, z: seen.z, at: this.time };
     } else if (p.target != null) {
@@ -533,7 +533,7 @@ export class Match {
       }
     } else {
       // Arrived: hold, and sweep slowly the way trouble would come from.
-      const watch = goal.watch ?? [40, 30];
+      const watch = goal.watch ?? PLAN.watch.idle;
       const base = Math.atan2(-(watch[0] - p.x), -(watch[1] - p.z));
       const want = base + Math.sin(this.time * 0.7 + p.id * 1.7) * rad(38);
       cmd.yaw = p.yaw + Math.max(-rad(140) * dt, Math.min(rad(140) * dt, turn(p.yaw, want)));
@@ -569,14 +569,14 @@ export class Match {
         if (near === p) return { key: 'fetch', node: nearestNode(this.charge.x, this.charge.z), point: { x: this.charge.x, z: this.charge.z } };
       }
       const site = this.charge?.site ?? this.plan.site;
-      if (p.hasCharge) return { key: `plant${site}`, node: site, watch: [50, 30] };
-      if (this.phase === 'planted') return { key: `guard${site}:${pick(HOLDS[site])}`, node: pick(HOLDS[site]), watch: [72, 30] };
-      return { key: `push${site}:${pick(HOLDS[site].slice(0, 3))}`, node: pick(HOLDS[site].slice(0, 3)), watch: [72, 30] };
+      if (p.hasCharge) return { key: `plant${site}`, node: site, watch: PLAN.watch.plant };
+      if (this.phase === 'planted') return { key: `guard${site}:${pick(HOLDS[site])}`, node: pick(HOLDS[site]), watch: PLAN.watch.guard };
+      return { key: `push${site}:${pick(HOLDS[site].slice(0, 3))}`, node: pick(HOLDS[site].slice(0, 3)), watch: PLAN.watch.guard };
     }
-    if (this.charge?.state === 'planted') return { key: 'disarm', node: this.charge.site, point: { x: this.charge.x + 0.6, z: this.charge.z }, watch: [40, 30] };
+    if (this.charge?.state === 'planted') return { key: 'disarm', node: this.charge.site, point: { x: this.charge.x + 0.6, z: this.charge.z }, watch: PLAN.watch.disarm };
     // A call for help, a couple of seconds old (word has to travel): leave your post for that site.
     const called = this.alarm && this.time - this.alarm.at > 0.6 && this.time - this.alarm.at < 25 ? this.alarm.site : null;
     const post = called ?? p.post ?? 'mid';
-    return { key: `hold${post}:${pick(HOLDS[post])}`, node: pick(HOLDS[post]), watch: [30, post === 'A' ? 12 : post === 'B' ? 48 : 30] };
+    return { key: `hold${post}:${pick(HOLDS[post])}`, node: pick(HOLDS[post]), watch: PLAN.watch.hold[post] };
   }
 }

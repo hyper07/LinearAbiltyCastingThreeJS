@@ -17,7 +17,7 @@ import { SOURCES } from './sources.mjs';
 import { buildCatalog } from './index.mjs';
 
 /** Smallest first, so a fresh library has usable models within a minute. */
-const DEFAULT_ORDER = ['kaykit', 'polygonalmind', 'ambientcg', 'polyhaven', 'inbox'];
+const DEFAULT_ORDER = ['kaykit', 'polygonalmind', 'ambientcg', 'extras', 'polyhaven', 'inbox'];
 const STATUS = path.join(LIBRARY, 'status.json');
 const LOCK = path.join(LIBRARY, '.fetch.lock');
 

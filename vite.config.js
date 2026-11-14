@@ -229,6 +229,7 @@ function assetLibrary() {
     log.info(`[library] ${state.reason} — downloading the open 3D asset library in the background (~7 GB, resumable).`, { timestamp: true });
     log.info('[library] The game works meanwhile; set LIBRARY_AUTO_FETCH=0 in .env to turn this off.', { timestamp: true });
     const child = startFetch({
+      sources: state.sources,
       background: true,
       // Per-model chatter would drown the dev server; keep progress and problems.
       onLine: (line) => {

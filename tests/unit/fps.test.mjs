@@ -40,7 +40,14 @@ test('the map: every place to stand is clear, every path between two is walkable
     for (let k = 0; k <= 1; k += 0.02) assert.ok(clear(ax + (bx - ax) * k, az + (bz - az) * k, 0.38), `the way ${a}–${b} is blocked`);
   }
   for (const site of ['A', 'B']) assert.ok(route('T', site).length > 1, `no way to ${site}`);
-  assert.ok(BOXES.length > 10);
+  assert.ok(BOXES.length > 30);
+  // Every solid thing is a known kind (that is how it is drawn), inside the yard, and no site is built over.
+  const kinds = new Set(['wall', 'building', 'container', 'crates', 'barrels', 'tanks', 'bags']);
+  for (const [x, z, w, d, h, kind] of BOXES) {
+    assert.ok(kinds.has(kind), `unknown kind ${kind}`);
+    assert.ok(x >= -1 && z >= -1 && x + w <= 145 && z + d <= 105 && h > 0, `a box outside the yard at ${x},${z}`);
+  }
+  for (const s of Object.values(SITES)) assert.ok(clear(s.x, s.z, 1.5), 'a site has room to set the charge');
   // A wall is a wall: across the map, nobody sees from one spawn to the other.
   assert.equal(sees(SPAWNS.atk[0][0], 1.6, SPAWNS.atk[0][1], SPAWNS.def[0][0], 1.6, SPAWNS.def[0][1]), false);
 });

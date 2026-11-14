@@ -17,8 +17,9 @@ Prices and plans change often, so check each provider's site before you buy.
 | [Meshy](https://docs.meshy.ai) | Picture → 3D model, rigging | **Paid**, prepaid API credits: about 30 credits for an object, 45 for a character | `MESHY_API_KEY` |
 | [KayKit](https://github.com/KayKit-Game-Assets) | The class characters and their animations; about 900 map models | Free (CC0) | Downloaded automatically |
 | [Polygonal Mind](https://opensource3dassets.com) | About 1,000 map models, including 60 rigged creatures | Free (CC0) | Downloaded automatically |
-| [Poly Haven](https://polyhaven.com/models) | About 520 photoscanned rocks, trees, plants and buildings | Free (CC0) | Downloaded automatically |
-| [ambientCG](https://ambientcg.com) | Ground materials for terrain | Free (CC0) | Downloaded automatically |
+| [Poly Haven](https://polyhaven.com/models) | About 520 photoscanned rocks, trees, plants and buildings; Breachline's barrels, gas bottles, cement sacks, roller doors, pipes and lamps | Free (CC0) | Downloaded automatically |
+| [ambientCG](https://ambientcg.com) | Ground materials for terrain; Breachline's brick, concrete, asphalt, planks and corrugated steel | Free (CC0) | Downloaded automatically |
+| Soldier from the [three.js examples](https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf) (made with [Mixamo](https://www.mixamo.com)) | Breachline's players: an animated soldier (idle, walk, run) | Free to use in a game under Mixamo's terms; fetched into the library at a fixed three.js release, never committed here | Downloaded automatically |
 | [Kenney](https://kenney.nl), [Quaternius](https://quaternius.com) | More stylised packs | Free (CC0) | Download by hand into `library/inbox/` — they block automated downloads |
 | [Mixamo](https://www.mixamo.com) | Rigging any humanoid mesh so the game's animations drive it | Free (Adobe account) | Rig on the site, download FBX, upload in **Create** |
 

@@ -5,6 +5,12 @@ before each. The **Raiders** carry a charge to one of two sites and set it; the 
 the sites, or disarm the charge in time. First to seven rounds wins, and the squads change ends
 after six. The teams, the map ("Foundry") and the weapons are invented for this game.
 
+Foundry is an old works yard, 144 by 104 metres: four brick warehouses split the yard into a
+north lane, a middle road and a south lane, with a pump house in front of the Wardens' yard. Cover
+is what such a yard has: shipping containers (too tall to shoot over), stacks of crates (some
+low enough to shoot over), barrels, gas bottles and pallets of cement. Beyond the wall stand
+blocks of flats and workshops; the sky is a real one, a sunrise photographed as an HDR.
+
 Play it alone with nine bots, or with **up to four people** in a room — bots fill every seat a
 person isn't in.
 
@@ -29,7 +35,7 @@ A round, as it goes:
 1. **Buy** (12 s). Everyone stands at their spawn. Money comes from the last round: 3000 for a
    win, 1400 for a loss (more for each loss in a row, up to 3400), 300 for each opponent dropped,
    300 for setting or disarming the charge. What you carry is kept if you live.
-2. **Live** (1:40). One Raider has the charge (a ◆ by their ammo, a yellow mark on the radar).
+2. **Live** (1:55). One Raider has the charge (a ◆ by their ammo, a yellow mark on the radar).
    Raiders win by setting it and keeping it safe for 35 s, or by dropping every Warden. Wardens
    win by dropping every Raider before it is set, by disarming it (6 s, or 3 s with a kit), or by
    running out the clock.
@@ -64,9 +70,19 @@ everyone is back in the room, and the host can start another.
 | `src/fps/map.js` | the map as boxes, the sites and spawns, the bots' paths, and what blocks a walk or a shot |
 | `src/fps/sim.js` | `Match`: movement, shots, rounds, money, the charge, and the bots — no drawing, no browser |
 | `src/fps/net.js` | `pack(match)` (what the server sends) and `Mirror` (what a browser keeps of it) |
-| `src/fps/view.js` | the 3D picture: map, players, the weapon in hand, shots |
+| `src/fps/view.js` | the 3D picture: the yard, players, the weapon in hand, shots |
+| `src/fps/assets.js` | surfaces (ambientCG) and props (Poly Haven) from the asset library, drawn instanced |
+| `src/fps/soldier.js` | the animated soldier: team tint and arm bands, a two-bone reach that puts both hands on the weapon |
+| `src/fps/guns.js` | the seven weapons, built from parts and merged to a few meshes each |
 | `src/fps/FpsGame.js` | the screen: menu, room, controls, HUD, shop, radar, scores, chat |
 | `server/fps/index.js` | rooms and their matches, over the WebSocket endpoint `/fps` |
+
+What it is drawn with comes from the downloaded asset library (`npm run dev` and `npm run build`
+fetch it; see [third-party](third-party.md)): photoscanned props from Poly Haven, surfaces from
+ambientCG, and an animated soldier from the three.js examples (made with Mixamo). A library from
+before Breachline fetches just these new files the next time the dev server or a build starts
+(`extras` in `scripts/library/sources.mjs`). Without the library the game still plays: textured
+boxes stay plain and players are simple figures.
 
 Alone, the match runs in the browser. In a room it runs **on the server**, thirty steps a second:
 browsers send their keys and where they look, the server sends back the whole match, and each

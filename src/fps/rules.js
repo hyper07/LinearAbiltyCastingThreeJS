@@ -14,7 +14,7 @@ export const TEAM_SIZE = 5;
 /** First to this many rounds wins; the teams change ends after HALF rounds. */
 export const WIN_ROUNDS = 7;
 export const HALF = 6;
-export const TIME = { buy: 12, round: 100, fuse: 35, plant: 3, defuse: 6, defuseKit: 3, after: 4 };
+export const TIME = { buy: 12, round: 115, fuse: 35, plant: 3, defuse: 6, defuseKit: 3, after: 4 };
 export const MONEY = { start: 800, max: 12000, kill: 300, win: 3000, lose: 1400, loseMore: 500, loseMost: 3400, plant: 300, defuse: 300 };
 export const PLAYER = { radius: 0.4, eye: 1.62, speed: 5.4, jump: 4.6, gravity: 14, hp: 100 };
 

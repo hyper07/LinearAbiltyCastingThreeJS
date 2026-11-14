@@ -8,7 +8,7 @@
  * are fetched here. Sites that block scripts (Kenney, Quaternius, itch.io) go
  * through the inbox instead — see `inbox` below and the README.
  */
-import { copyFile, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   LIBRARY,
@@ -215,40 +215,9 @@ export async function ambientcg({ budget, perQuery = 6, resolution = '1K-JPG' })
     for (const asset of found) {
       if (seen.has(asset.assetId) || budget.exhausted) continue;
       seen.add(asset.assetId);
-      const downloads = Object.values(asset.downloadFolders?.default?.downloadFiletypeCategories ?? {}).flatMap(
-        (c) => c.downloads ?? []
-      );
-      const pick = downloads.find((d) => d.attribute === resolution) ?? downloads.find((d) => /1K/.test(d.attribute));
-      if (!pick) continue;
-      const dir = path.join(LIBRARY, SRC, safeName(asset.assetId));
-      const zip = path.join(LIBRARY, '.cache', `${asset.assetId}_${pick.attribute}.zip`);
       try {
-        if (!(await exists(path.join(dir, '.done')))) {
-          await download(pick.downloadLink, zip, budget, pick.size);
-          await extractZip(zip, dir);
-          await mkdir(dir, { recursive: true });
-          await writeFile(path.join(dir, '.done'), '');
-        }
-        const files = (await walk(dir)).filter((f) => /\.(jpe?g|png)$/i.test(f));
-        const map = (re) => files.find((f) => re.test(path.basename(f)));
-        assets.push({
-          id: `${SRC}/${asset.assetId}`,
-          name: asset.displayName ?? asset.assetId,
-          source: SRC,
-          pack: 'ambientCG',
-          kind: 'material',
-          maps: {
-            color: map(/_Color\./i) && rel(map(/_Color\./i)),
-            normal: map(/_NormalGL\./i) && rel(map(/_NormalGL\./i)),
-            roughness: map(/_Roughness\./i) && rel(map(/_Roughness\./i)),
-            ao: map(/_AmbientOcclusion\./i) && rel(map(/_AmbientOcclusion\./i))
-          },
-          files: files.map(rel),
-          tags: [query, ...(asset.tags ?? []), asset.displayCategory ?? ''].map((t) => String(t).toLowerCase()),
-          license: 'CC0-1.0',
-          author: 'ambientCG',
-          url: `https://ambientcg.com/view?id=${asset.assetId}`
-        });
+        const entry = await ambientMaterial(asset, query, budget, resolution);
+        if (entry) assets.push(entry);
       } catch (error) {
         if (error.budget) break;
         log(SRC, `skip ${asset.assetId}: ${error.message}`);
@@ -256,6 +225,100 @@ export async function ambientcg({ budget, perQuery = 6, resolution = '1K-JPG' })
     }
     log(SRC, `"${query}": ${found.length}`);
   }
+  return assets;
+}
+
+
+/** Download one ambientCG material (an asset from their API) and describe it for the catalog. */
+async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
+  const SRC = 'ambientcg';
+  const downloads = Object.values(asset.downloadFolders?.default?.downloadFiletypeCategories ?? {}).flatMap((c) => c.downloads ?? []);
+  const pick = downloads.find((d) => d.attribute === resolution) ?? downloads.find((d) => /1K/.test(d.attribute));
+  if (!pick) return null;
+  const dir = path.join(LIBRARY, SRC, safeName(asset.assetId));
+  const zip = path.join(LIBRARY, '.cache', `${asset.assetId}_${pick.attribute}.zip`);
+  if (!(await exists(path.join(dir, '.done')))) {
+    await download(pick.downloadLink, zip, budget, pick.size);
+    await extractZip(zip, dir);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, '.done'), '');
+  }
+  const files = (await walk(dir)).filter((f) => /\.(jpe?g|png)$/i.test(f));
+  const map = (re) => files.find((f) => re.test(path.basename(f)));
+  return {
+    id: `${SRC}/${asset.assetId}`,
+    name: asset.displayName ?? asset.assetId,
+    source: SRC,
+    pack: 'ambientCG',
+    kind: 'material',
+    maps: {
+      color: map(/_Color\./i) && rel(map(/_Color\./i)),
+      normal: map(/_NormalGL\./i) && rel(map(/_NormalGL\./i)),
+      roughness: map(/_Roughness\./i) && rel(map(/_Roughness\./i)),
+      ao: map(/_AmbientOcclusion\./i) && rel(map(/_AmbientOcclusion\./i)),
+      metalness: map(/_Metalness\./i) && rel(map(/_Metalness\./i))
+    },
+    files: files.map(rel),
+    tags: [query, ...(asset.tags ?? []), asset.displayCategory ?? ''].map((t) => String(t).toLowerCase()),
+    license: 'CC0-1.0',
+    author: 'ambientCG',
+    url: `https://ambientcg.com/view?id=${asset.assetId}`
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Extras — named files a game needs, from GitHub and ambientCG by id        */
+/* ------------------------------------------------------------------------ */
+
+/** Bump when the list changes, so libraries that have the old list fetch the new files. */
+export const EXTRAS_VERSION = 2;
+
+/** Models fetched as single files from a GitHub repository at a fixed tag. */
+const EXTRA_MODELS = [
+  {
+    id: 'soldier',
+    name: 'Soldier',
+    url: 'https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/models/gltf/Soldier.glb',
+    file: 'soldier/Soldier.glb',
+    tags: ['character', 'soldier', 'human', 'military', 'rigged', 'animated'],
+    // The character and its animations come from Adobe Mixamo, whose terms allow use in games;
+    // it is fetched from the three.js examples, not redistributed in this repository.
+    license: 'Mixamo (free for use in projects, not for redistribution as a standalone asset)',
+    author: 'Adobe Mixamo, via the three.js examples',
+    page: 'https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf'
+  }
+];
+/** ambientCG materials by id: metal and concrete for Breachline's yards. */
+const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027', 'PaintedMetal004', 'Concrete034', 'Concrete047A', 'MetalPlates006', 'Metal063'];
+
+export async function extras({ budget }) {
+  const SRC = 'extras';
+  const assets = [];
+  for (const m of EXTRA_MODELS) {
+    const dest = path.join(LIBRARY, SRC, ...m.file.split('/'));
+    try {
+      // A binary glTF starts with "glTF"; anything else (an error page) is fetched again.
+      const head = await readFile(dest).then((b) => b.subarray(0, 4).toString('latin1')).catch(() => '');
+      if (head !== 'glTF') await rm(dest, { force: true });
+      await download(m.url, dest, budget);
+      if ((await readFile(dest)).subarray(0, 4).toString('latin1') !== 'glTF') throw new Error('not a binary glTF');
+      assets.push({ id: `${SRC}/${m.id}`, name: m.name, source: SRC, pack: 'Extras', file: rel(dest), files: [rel(dest)], tags: m.tags, license: m.license, author: m.author, url: m.page });
+    } catch (error) {
+      if (error.budget) break;
+      log(SRC, `skip ${m.id}: ${error.message}`);
+    }
+  }
+  for (const id of EXTRA_MATERIALS) {
+    try {
+      const found = (await getJson(`https://ambientcg.com/api/v2/full_json?id=${encodeURIComponent(id)}&include=downloadData,tagData`)).foundAssets ?? [];
+      const entry = found[0] && (await ambientMaterial(found[0], 'extras', budget));
+      if (entry) assets.push(entry);
+    } catch (error) {
+      if (error.budget) break;
+      log(SRC, `skip ${id}: ${error.message}`);
+    }
+  }
+  if (assets.length) await writeFile(path.join(LIBRARY, SRC, '.done'), String(EXTRAS_VERSION));
   return assets;
 }
 
@@ -331,4 +394,4 @@ export async function inbox({ budget }) {
   return assets;
 }
 
-export const SOURCES = { polyhaven, kaykit, polygonalmind, ambientcg, inbox };
+export const SOURCES = { polyhaven, kaykit, polygonalmind, ambientcg, extras, inbox };

@@ -13,6 +13,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { EXTRAS_VERSION } from './sources.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
 const LIBRARY = path.join(ROOT, 'library');
@@ -42,6 +44,10 @@ export function libraryState() {
   const status = readJson(path.join(LIBRARY, 'status.json'));
   const lockPid = Number(readJson(path.join(LIBRARY, '.fetch.lock')));
   if (lockPid && alive(lockPid)) return { needed: false, reason: 'a download is already running', models: status?.models ?? 0 };
+  // A finished library from before the extras (named files games need) fetches just those.
+  const extrasDone = Number(readJson(path.join(LIBRARY, 'extras', '.done')) ?? 0) >= EXTRAS_VERSION;
+  const ready = (status?.state === 'done' && status.models > 0) || (!status && readJson(path.join(LIBRARY, 'catalog.json'))?.models?.length);
+  if (ready && !extrasDone) return { needed: true, reason: 'new game assets to add', models: status?.models ?? 0, sources: ['extras'] };
   // Only the model count is needed; the catalog can be a few MB, so peek at the status first.
   if (status?.state === 'done' && status.models > 0) return { needed: false, reason: 'ready', models: status.models };
   if (status?.state === 'running') return { needed: true, reason: 'the last download was interrupted — resuming', models: status.models ?? 0 };
@@ -51,8 +57,8 @@ export function libraryState() {
 }
 
 /** Start the fetcher. `background` pipes its log through `onLine` instead of the terminal. */
-export function startFetch({ background = false, onLine } = {}) {
-  const child = spawn(process.execPath, [path.join(HERE, 'fetch.mjs')], {
+export function startFetch({ background = false, onLine, sources = null } = {}) {
+  const child = spawn(process.execPath, [path.join(HERE, 'fetch.mjs'), ...(sources ? ['--sources', sources.join(',')] : [])], {
     cwd: ROOT,
     stdio: background ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     env: process.env
@@ -79,7 +85,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else {
     console.log(`[library] ${state.reason}: downloading the open 3D asset library (~7 GB, resumable).`);
     console.log('[library] Set LIBRARY_AUTO_FETCH=0 to skip; the game then uses placeholder shapes.');
-    const child = startFetch();
+    const child = startFetch({ sources: state.sources });
     const code = await new Promise((resolve) => child.on('close', resolve));
     // A failed download must not fail the build: the game runs without the library.
     if (code) console.warn(`[library] download exited with code ${code}; continuing without a complete library.`);
