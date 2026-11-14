@@ -1,7 +1,7 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, POINTS } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
-import { questsAt, questDone, countOf } from './rules.js';
+import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost } from './rules.js';
 import { CharacterStage } from './bodies.js';
 import { STYLES, BUILDS, TINTS, cleanLook, lookOf } from './looks.js';
 import { playerBlow, mobBlow, kickBlow, BLOW_COLORS } from './blows.js';
@@ -93,6 +93,8 @@ export class MmoGame {
     cancelAnimationFrame(this._raf);
     this.ws?.close();
     this.ws = null;
+    this._resize?.disconnect();
+    this._resize = null;
     this.view?.dispose();
     this.view = null;
     this.stage?.dispose();
@@ -354,6 +356,7 @@ export class MmoGame {
     this.octx = this.overlay.getContext('2d');
     this.mini = $('[data-mini]');
     const fit = () => {
+      if (!this.view) return; // the world was left while a resize was on its way
       const w = stage.clientWidth;
       const h = stage.clientHeight;
       this.view.resize(w, h);
@@ -364,7 +367,7 @@ export class MmoGame {
     this._resize = new ResizeObserver(fit);
     this._resize.observe(stage);
     fit();
-    for (const [key, label, panel] of [['I', 'Bag', 'bag'], ['C', 'Character', 'char'], ['L', 'Quests', 'quests'], ['K', 'Crafting', 'craft'], ['P', 'Party', 'party'], ['G', 'Guild', 'guild'], ['H', 'Help', 'help'], ['', 'Leave', 'leave']]) {
+    for (const [key, label, panel] of [['I', 'Bag', 'bag'], ['C', 'Character', 'char'], ['T', 'Skills', 'skills'], ['L', 'Quests', 'quests'], ['K', 'Crafting', 'craft'], ['P', 'Party', 'party'], ['G', 'Guild', 'guild'], ['H', 'Help', 'help'], ['', 'Leave', 'leave']]) {
       const b = el('button', 'hv-btn hv-menu__btn', label);
       b.type = 'button';
       b.title = key ? `${label} (${key})` : 'Back to your characters';
@@ -568,7 +571,7 @@ export class MmoGame {
           const player = a?.k === 'p';
           // A player's blade goes through its chain; up close, an archer or a caster kicks.
           // Monsters swing by how they are armed. Whose steel is whose shows in its colour.
-          const blow = ev.ranged ? null : !player ? mobBlow(a?.ty) : ev.close ? kickBlow() : playerBlow(ev.n);
+          const blow = ev.ranged ? null : !player ? mobBlow(a?.ty) : ev.close ? kickBlow() : playerBlow(ev.n, CLASSES[a.c]?.melee);
           this.view.act(ev.id, 'swing', blow?.clip ?? null, ev.ranged ? 0.6 : 0.55);
           if (!a || !b) break;
           if (ev.ranged) this.view.missile(a, b, player ? '#bfe6ff' : '#ff7ad0');
@@ -578,7 +581,7 @@ export class MmoGame {
         case 'skill': {
           const a = at(ev.id);
           const def = a?.k === 'p' ? CLASSES[a.c]?.skills.find((k) => k.id === ev.skill) : null;
-          const fights = a?.k === 'p' && (a.c === 'vanguard' || a.c === 'ranger');
+          const fights = a?.k === 'p' && !CLASSES[a.c]?.caster;
           this.view.act(ev.id, fights ? 'swing' : 'cast', def?.anim ?? null, def?.fx === 'spin' ? 0.9 : 0.7);
           if (!a) break;
           const b = ev.target != null && ev.target !== ev.id ? at(ev.target) : null;
@@ -844,6 +847,8 @@ export class MmoGame {
         return this.toggle('bag');
       case 'KeyC':
         return this.toggle('char');
+      case 'KeyT':
+        return this.toggle('skills');
       case 'KeyL':
         return this.toggle('quests');
       case 'KeyK':
@@ -870,8 +875,9 @@ export class MmoGame {
   useSkill(i) {
     const def = CLASSES[this.ch?.cls]?.skills[i];
     if (!def) return;
-    if (this.ch.level < def.level) {
-      this.toast(`${def.name} opens at level ${def.level}`);
+    if (!rankOf(this.ch, def.id)) {
+      this.toast(this.ch.level < def.level ? `${def.name} can be learned at level ${def.level}` : `Learn ${def.name} in the skill tree first (T)`);
+      if (this.ch.level >= def.level && !this.panels.has('skills')) this.toggle('skills');
       return;
     }
     // A hostile skill with no target: take the nearest enemy.
@@ -1091,7 +1097,7 @@ export class MmoGame {
       const total = (meEnt.cds?.[def.id] ?? 0) > (meEnt.gcd ?? 0) ? def.cd : GCD;
       b.querySelector('.hv-slot__cd').style.height = cd > 0 ? `${Math.min(1, cd / Math.max(0.1, total)) * 100}%` : '0';
       b.querySelector('.hv-slot__n').textContent = cd > 1 ? String(Math.ceil(cd)) : '';
-      b.classList.toggle('is-off', this.ch.level < def.level || meEnt.mp < def.cost);
+      b.classList.toggle('is-off', !rankOf(this.ch, def.id) || meEnt.mp < Math.round(def.cost * (this.st?.costMult ?? 1)));
     }
     $('[data-dead]').hidden = !meEnt.dead;
     // Party health.
@@ -1184,9 +1190,18 @@ export class MmoGame {
       const w = this[`_win_${p}`]?.();
       if (w) box.append(w);
     }
-    for (const b of this.$('[data-menu]').children) b.classList.toggle('is-on', this.panels.has(b.dataset.panel));
+    for (const b of this.$('[data-menu]').children) {
+      b.classList.toggle('is-on', this.panels.has(b.dataset.panel));
+      // Points waiting to be spent show on their buttons.
+      const waiting = b.dataset.panel === 'skills' ? skillPointsLeft(this.ch) : b.dataset.panel === 'char' ? attrPointsLeft(this.ch) : 0;
+      b.classList.toggle('has-points', waiting > 0);
+      if (waiting > 0) b.dataset.points = String(waiting);
+      else delete b.dataset.points;
+    }
     // A window that redraws takes its clicked button with it: give the keys back to the game
     // (so W A S D and F keep working), unless someone is typing.
+    // A window taller than the screen must never scroll the game itself out of view.
+    this.root.scrollTop = 0;
     const active = document.activeElement;
     if (!(active instanceof HTMLInputElement) && (!active || active === document.body || !this.root.contains(active) || !active.isConnected)) this.root.focus({ preventScroll: true });
   }
@@ -1211,15 +1226,19 @@ export class MmoGame {
   _hotbar() {
     const bar = this.$('[data-hotbar]');
     const skills = CLASSES[this.ch.cls].skills;
-    if (bar.dataset.cls === this.ch.cls && bar.dataset.level === String(this.ch.level)) return;
-    bar.dataset.cls = this.ch.cls;
-    bar.dataset.level = String(this.ch.level);
+    const key = `${this.ch.cls}|${this.ch.level}|${JSON.stringify(this.ch.tree)}|${this.st?.costMult}|${this.st?.cdMult}`;
+    if (bar.dataset.key === key) return;
+    bar.dataset.key = key;
     bar.replaceChildren(...skills.map((s, i) => {
       const b = el('button', 'hv-slot');
       b.type = 'button';
       b.dataset.i = String(i);
-      b.title = `${s.name} (${i + 1}) — ${s.cast ? `${s.cast}s cast` : 'instant'}, ${s.cost} ${CLASSES[this.ch.cls].resource.toLowerCase()}${s.cd ? `, ${s.cd}s cooldown` : ''}${this.ch.level < s.level ? ` · opens at level ${s.level}` : ''}`;
-      b.innerHTML = `<kbd>${i + 1}</kbd><span class="hv-slot__icon">${s.icon}</span><span class="hv-slot__cd"></span><span class="hv-slot__n"></span>`;
+      const rank = rankOf(this.ch, s.id);
+      const cost = Math.round(s.cost * (this.st?.costMult ?? 1));
+      const cd = s.cd ? Math.round(s.cd * (this.st?.cdMult ?? 1) * 10) / 10 : 0;
+      b.title = `${s.name} (${i + 1})${rank ? ` · rank ${rank}` : ''} — ${s.cast ? `${s.cast}s cast` : 'instant'}, ${cost} ${CLASSES[this.ch.cls].resource.toLowerCase()}${cd ? `, ${cd}s cooldown` : ''}${rank ? '' : this.ch.level < s.level ? ` · can be learned at level ${s.level}` : ' · not learned: open the skill tree (T)'}`;
+      b.classList.toggle('is-locked', !rank);
+      b.innerHTML = `<kbd>${i + 1}</kbd><span class="hv-slot__icon">${s.icon}</span><span class="hv-slot__cd"></span><span class="hv-slot__n"></span>${rank ? `<span class="hv-slot__rank">${rank}</span>` : '<span class="hv-slot__lock">🔒</span>'}`;
       b.addEventListener('click', () => this.useSkill(i));
       return b;
     }));
@@ -1299,10 +1318,33 @@ export class MmoGame {
       gear.append(row);
     }
     const st = this.st ?? {};
+    const cls = CLASSES[this.ch.cls];
+    const left = attrPointsLeft(this.ch);
     const stats = el('div', 'hv-stats');
-    stats.innerHTML = `<p><b>${esc(this.ch.name)}</b>, level ${this.ch.level} ${esc(CLASSES[this.ch.cls].name)}</p>
-      <p>Health ${st.maxHp} · ${esc(CLASSES[this.ch.cls].resource)} ${st.maxMana} · Power ${st.power} · Armor ${st.armor}</p>
+    stats.innerHTML = `<p><b>${esc(this.ch.name)}</b>, level ${this.ch.level} ${esc(cls.name)}</p>
+      <p>Health ${st.maxHp} · ${esc(cls.resource)} ${st.maxMana} · Power ${st.power} · Armor ${st.armor}</p>
+      <p>Critical chance ${Math.round((st.crit ?? 0.1) * 100)}% · Attack every ${(st.swing ?? 0).toFixed(2)}s</p>
+      <h3>Attributes <span class="hv-points ${left ? 'is-some' : ''}" data-attr-left>${left} point${left === 1 ? '' : 's'} to spend</span></h3>
+      <div class="hv-attrs" data-attrs></div>
       <h3>Professions</h3><ul>${Object.entries(PROFESSIONS).map(([k, n]) => `<li>${esc(n)} <b>${this.ch.skills[k] ?? 1}</b></li>`).join('')}</ul>`;
+    const attrs = stats.querySelector('[data-attrs]');
+    for (const a of ATTR_ORDER) {
+      const def = ATTRS[a];
+      const row = el('div', `hv-attr ${cls.main === a ? 'is-main' : ''}`);
+      row.dataset.attr = a;
+      row.innerHTML = `<span class="hv-attr__icon">${def.icon}</span><div><b>${def.name} <i>${this.ch.attrs?.[a] ?? 0}</i></b><small>${def.does}${cls.main === a ? ` · <em>+${POINTS.mainPower} power (your class's own)</em>` : ''}</small></div>`;
+      const one = el('button', 'hv-btn hv-attr__plus', '+1');
+      const five = el('button', 'hv-btn hv-attr__plus', '+5');
+      one.type = five.type = 'button';
+      one.title = `Put one point in ${def.name}`;
+      five.title = `Put five points in ${def.name}`;
+      one.disabled = left < 1;
+      five.disabled = left < 5;
+      one.addEventListener('click', () => this.send({ t: 'attr', attr: a, n: 1 }));
+      five.addEventListener('click', () => this.send({ t: 'attr', attr: a, n: 5 }));
+      row.append(one, five);
+      attrs.append(row);
+    }
     body.append(gear, stats);
     return this._window('Character', 'char', body);
   }
@@ -1548,11 +1590,78 @@ export class MmoGame {
     return this._window(`Trade with ${t.them.name}`, 'trade', wrap);
   }
 
+  /** The skill tree: three paths; a point each level; a click puts one in. */
+  _win_skills() {
+    const cls = CLASSES[this.ch.cls];
+    const left = skillPointsLeft(this.ch);
+    const body = el('div', 'hv-tree');
+    const head = el('div', 'hv-tree__head');
+    head.innerHTML = `<span class="hv-points ${left ? 'is-some' : ''}" data-skill-left>${left} skill point${left === 1 ? '' : 's'} to spend</span><small>One point every level. A skill's rank adds ${POINTS.rank * 100}% to what it does; each node needs the one above it.</small>`;
+    const cost = respecCost(this.ch);
+    const reset = el('button', 'hv-btn', cost ? `Start over (${cost} gold)` : 'Start over');
+    reset.type = 'button';
+    reset.title = 'Take back every skill and attribute point';
+    reset.dataset.respec = '';
+    reset.disabled = this.ch.gold < cost;
+    reset.addEventListener('click', () => this.send({ t: 'respec' }));
+    head.append(reset);
+    const cols = el('div', 'hv-tree__paths');
+    for (const path of TREES[this.ch.cls]) {
+      const col = el('div', 'hv-tree__path');
+      col.append(el('h3', null, path.name));
+      for (const node of path.nodes) {
+        const rank = rankOf(this.ch, node.id);
+        const why = cannotLearn(this.ch, node.id);
+        const skill = node.kind === 'skill' ? cls.skills.find((k) => k.id === node.id) : null;
+        const b = el('button', `hv-node hv-node--${node.kind} ${rank ? 'is-known' : ''} ${rank >= node.max ? 'is-full' : ''} ${why ? '' : 'is-open'}`);
+        b.type = 'button';
+        b.dataset.node = node.id;
+        const what = skill ? this._skillText(skill, Math.max(1, rank)) : `${node.text} a rank`;
+        b.innerHTML = `<span class="hv-node__icon">${node.icon}</span><span class="hv-node__text"><b></b><small></small></span><span class="hv-node__rank">${rank}/${node.max}</span>`;
+        b.querySelector('b').textContent = node.name;
+        b.querySelector('small').textContent = what;
+        b.title = `${node.name} — ${what}${rank >= node.max ? '' : why ? `\n${why}` : '\nClick: put a point in'}`;
+        b.setAttribute('aria-disabled', String(Boolean(why)));
+        b.addEventListener('click', () => (why ? this.toast(why) : this.send({ t: 'learn', node: node.id })));
+        if (node.row) col.append(el('span', `hv-tree__link ${rankOf(this.ch, node.needs) ? 'is-lit' : ''}`));
+        col.append(b);
+      }
+      cols.append(col);
+    }
+    body.append(head, cols);
+    return this._window(`${cls.name} skills`, 'skills', body);
+  }
+
+  /** What a skill does, in a line, at a rank. */
+  _skillText(s, rank) {
+    const k = 1 + (rank - 1) * POINTS.rank;
+    const power = this.st?.power ?? 0;
+    const n = (base) => Math.round(((base ?? 0) + power * (s.coef ?? 0)) * k);
+    const bits = [];
+    if (s.damage || (s.coef && !s.heal && !s.shield && s.kind !== 'heal')) bits.push(`${n(s.damage)} damage${s.radius ? ' to all near' : ''}`);
+    if (s.heal) bits.push(`heals ${n(s.heal)}${s.radius ? ' to friends near' : ''}`);
+    if (s.shield) bits.push(`a shield of ${n(s.shield)}`);
+    if (s.hot) bits.push('heals over time');
+    if (s.stun) bits.push(`stuns ${s.stun}s`);
+    if (s.slow) bits.push(`slows ${s.slow.time}s`);
+    if (s.mark) bits.push(`marked: +${s.mark.more * 100}% damage taken`);
+    if (s.leech) bits.push(`returns ${s.leech * 100}% as health`);
+    if (s.execute) bits.push(`double below ${s.execute * 100}% health`);
+    if (s.buff?.reduce) bits.push(`${s.buff.reduce * 100}% less damage taken for ${s.buff.time}s`);
+    if (s.buff?.more) bits.push(`+${s.buff.more * 100}% damage for ${s.buff.time}s`);
+    if (s.buff?.haste) bits.push(`+${s.buff.haste * 100}% attack speed for ${s.buff.time}s`);
+    if (s.kind === 'blink') bits.push(s.distance < 0 ? 'rolls back' : `leaps ${s.distance} m`);
+    if (s.kind === 'taunt') bits.push('makes the enemy attack you');
+    if (s.kind === 'revive') bits.push('brings a fallen friend back');
+    return `${bits.join(', ') || s.name}${s.level > 1 ? ` · level ${s.level}` : ''}`;
+  }
+
   _win_help() {
     return this._window('How to play', 'help', `<ul class="hv-help">
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
       <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
       <li><b>Skills</b>: 1–6 (new ones open as you level). One skill a second; some take time to cast — moving stops them.</li>
+      <li><b>Growing</b>: every level brings a skill point and five attribute points. <b>T</b> opens your class's skill tree (three paths; a skill's rank makes it stronger, passives add for good); <b>C</b> has Strength, Agility, Intellect and Vitality. "Start over" in the tree takes them all back for gold.</li>
       <li><b>Combos</b>: every hit within four seconds of the last adds to your combo — each one hits 2% harder, up to +20%. Every third basic attack in a row is a <b>finisher</b> (40% harder). Keep swinging and weave skills in between.</li>
       <li><b>Experience</b>: the purple gauge under the hotbar fills as you fight and hand in quests; the badge on its left is your level.</li>
       <li><b>F</b>: talk to someone (a ! has a quest, a ? wants one back), gather a node, step through a portal, use a crafting station.</li>

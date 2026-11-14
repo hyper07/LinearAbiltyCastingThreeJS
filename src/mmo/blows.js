@@ -30,9 +30,23 @@ const PLAYER = [
   ]
 ];
 
-export function playerBlow(step) {
+/** The same chain for a two-handed weapon (heavier, wider) and for a knife in each hand (quick, crossed). */
+const STYLES = {
+  twohand: [
+    [{ name: 'great chop', clip: '2H_Melee_Attack_Chop', strokes: [{ roll: 1.35, size: 3.4, dur: 0.3 }] }, { name: 'great thrust', clip: '2H_Melee_Attack_Stab', strokes: [{ shape: 'stab', size: 3.8, dur: 0.22 }] }],
+    [{ name: 'great slice', clip: '2H_Melee_Attack_Slice', strokes: [{ shape: 'wide', roll: -0.5, flip: true, size: 3.4, dur: 0.3 }] }, { name: 'great uppercut', clip: '2H_Melee_Attack_Slice', strokes: [{ roll: -1.3, flip: true, y: 0.95, size: 3.4 }] }],
+    [{ name: 'great spin', clip: '2H_Melee_Attack_Spin', strokes: [{ shape: 'full', size: 3.6, dur: 0.4, y: 1 }] }, { name: 'earthshaker', clip: '2H_Melee_Attack_Chop', strokes: [{ roll: 1.35, size: 3.9, dur: 0.32 }, { shape: 'full', size: 3, y: 0.2, delay: 0.16, dur: 0.4 }] }]
+  ],
+  dual: [
+    [{ name: 'left-right', clip: 'Dualwield_Melee_Attack_Slice', strokes: [{ roll: 0.6, size: 2.2, dur: 0.18 }, { roll: -0.6, flip: true, size: 2.2, dur: 0.18, delay: 0.08 }] }, { name: 'twin stab', clip: 'Dualwield_Melee_Attack_Stab', strokes: [{ shape: 'stab', size: 2.6, dur: 0.15, side: -0.3 }, { shape: 'stab', size: 2.6, dur: 0.15, side: 0.3, delay: 0.06 }] }],
+    [{ name: 'scissor', clip: 'Dualwield_Melee_Attack_Chop', strokes: [{ roll: 1.1, size: 2.3, dur: 0.18 }, { roll: 1.1, flip: true, size: 2.3, dur: 0.18 }] }, { name: 'low cut', clip: 'Dualwield_Melee_Attack_Slice', strokes: [{ roll: -0.3, flip: true, y: 0.7, size: 2.3, dur: 0.18 }, { roll: 0.3, y: 1.3, size: 2.3, dur: 0.18, delay: 0.07 }] }],
+    [{ name: 'flurry', clip: 'Dualwield_Melee_Attack_Slice', strokes: [{ roll: 0.9, size: 2.5, dur: 0.16 }, { roll: -0.9, flip: true, size: 2.5, dur: 0.16, delay: 0.06 }, { roll: 0.2, size: 2.7, dur: 0.16, delay: 0.12 }, { shape: 'stab', size: 3, dur: 0.16, delay: 0.18 }] }, { name: 'whirl of knives', clip: 'Dualwield_Melee_Attack_Slice', strokes: [{ shape: 'wide', roll: 0.1, size: 2.8, dur: 0.24 }, { shape: 'wide', roll: -0.1, flip: true, size: 2.8, dur: 0.24, delay: 0.1 }] }]
+  ]
+};
+
+export function playerBlow(step, style = 'onehand') {
   const n = Math.max(0, Math.min(PLAYER.length - 1, step ?? 0));
-  const b = pick(PLAYER[n]);
+  const b = pick((STYLES[style] ?? PLAYER)[n]);
   const color = n === PLAYER.length - 1 ? BLOW_COLORS.finisher : BLOW_COLORS.player;
   return { ...b, strokes: b.strokes.map((s) => ({ color, ...s })) };
 }

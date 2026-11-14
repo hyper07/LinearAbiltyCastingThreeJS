@@ -4,7 +4,7 @@ import { Instance } from './instance.js';
 import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX } from '../../src/mmo/data.js';
 import { ZONES, NPCS } from '../../src/mmo/world.js';
 import { cleanLook } from '../../src/mmo/looks.js';
-import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf, wear, takeOff } from '../../src/mmo/rules.js';
+import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf, wear, takeOff, raiseAttr, learn, respec } from '../../src/mmo/rules.js';
 
 /**
  * Hearthvale's server. Characters live in the database (`mmo_characters`,
@@ -334,6 +334,27 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
       }
       case 'equip': {
         const why = wear(ch, msg.slot);
+        if (why) return err(why);
+        inst.refresh(p);
+        return client.dirty();
+      }
+      case 'attr': {
+        // Attribute points, into strength, agility, intellect or vitality.
+        const why = raiseAttr(ch, String(msg.attr), Number(msg.n) || 1);
+        if (why) return err(why);
+        inst.refresh(p);
+        return client.dirty();
+      }
+      case 'learn': {
+        // A skill point, into a node of the class's tree.
+        const why = learn(ch, String(msg.node));
+        if (why) return err(why);
+        inst.refresh(p);
+        return client.dirty();
+      }
+      case 'respec': {
+        if (p.combatUntil > inst.time) return err('Not in the middle of a fight');
+        const why = respec(ch);
         if (why) return err(why);
         inst.refresh(p);
         return client.dirty();

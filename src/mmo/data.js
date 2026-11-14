@@ -36,7 +36,7 @@ export const COMBO = { keep: 4, per: 0.02, cap: 10, finisher: 1.4, chain: 3, clo
 export const MELEE_CHAIN = ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Slice_Horizontal'];
 export const CLASSES = {
   vanguard: {
-    id: 'vanguard', name: 'Vanguard', role: 'Tank', resource: 'Resolve',
+    id: 'vanguard', name: 'Vanguard', role: 'Tank', resource: 'Resolve', main: 'str', threat: 1.5, melee: 'onehand',
     blurb: 'A shield for the party: holds the monsters\' attention and takes the hits.',
     body: 'Knight', show: ['1H_Sword', 'Round_Shield'], tint: '#ffffff', attack: '1H_Melee_Attack_Chop',
     base: { hp: 130, hpL: 26, mana: 100, manaL: 0, power: 8, powerL: 2.2, armor: 12, armorL: 3, range: 2.6, speed: 2.2, regen: 7 },
@@ -50,7 +50,7 @@ export const CLASSES = {
     ]
   },
   ranger: {
-    id: 'ranger', name: 'Ranger', role: 'Damage', resource: 'Focus',
+    id: 'ranger', name: 'Ranger', role: 'Damage', resource: 'Focus', main: 'agi',
     blurb: 'A crossbow and patience. Strikes from far away and slows whatever gives chase.',
     body: 'Rogue', show: ['2H_Crossbow'], tint: '#ffffff', attack: '2H_Ranged_Shoot', ranged: true,
     base: { hp: 105, hpL: 21, mana: 100, manaL: 0, power: 10, powerL: 2.6, armor: 6, armorL: 2, range: 26, speed: 2.4, regen: 12 },
@@ -64,7 +64,7 @@ export const CLASSES = {
     ]
   },
   arcanist: {
-    id: 'arcanist', name: 'Arcanist', role: 'Damage', resource: 'Mana',
+    id: 'arcanist', name: 'Arcanist', role: 'Damage', resource: 'Mana', main: 'int', caster: true,
     blurb: 'Fire and frost from behind the line. Fragile, and the hardest hitter in any party.',
     body: 'Mage', show: ['2H_Staff'], tint: '#ffe2d0', attack: 'Spellcast_Shoot', ranged: true,
     base: { hp: 95, hpL: 19, mana: 150, manaL: 22, power: 11, powerL: 2.9, armor: 4, armorL: 1.5, range: 26, speed: 2.4, regen: 3 },
@@ -78,7 +78,7 @@ export const CLASSES = {
     ]
   },
   mender: {
-    id: 'mender', name: 'Mender', role: 'Healer', resource: 'Mana',
+    id: 'mender', name: 'Mender', role: 'Healer', resource: 'Mana', main: 'int', caster: true,
     blurb: 'Keeps everyone standing. Heals, shields, brings the fallen back — and smites when it must.',
     body: 'Mage', show: ['1H_Wand', 'Spellbook'], tint: '#fff6d8', attack: 'Spellcast_Shoot', ranged: true,
     base: { hp: 100, hpL: 20, mana: 160, manaL: 24, power: 10, powerL: 2.6, armor: 5, armorL: 1.8, range: 24, speed: 2.4, regen: 3.5 },
@@ -90,9 +90,114 @@ export const CLASSES = {
       { id: 'radiance', anim: 'Spellcast_Raise', name: 'Radiance', kind: 'nova', level: 8, cost: 45, cd: 12, cast: 2, radius: 18, heal: 25, coef: 1.0, friendly: true, icon: '🌟' },
       { id: 'revive', name: 'Revive', kind: 'revive', level: 10, cost: 50, cd: 30, cast: 4, range: 20, icon: '🕊' }
     ]
+  },
+  berserker: {
+    id: 'berserker', name: 'Berserker', role: 'Damage', resource: 'Fury', main: 'str', melee: 'twohand',
+    blurb: 'A great axe and no shield. Hits hardest when the fight is thickest, and drinks back what it spills.',
+    body: 'Barbarian', show: ['2H_Axe'], tint: '#ffd0c0', attack: '2H_Melee_Attack_Chop',
+    base: { hp: 120, hpL: 24, mana: 100, manaL: 0, power: 11, powerL: 2.9, armor: 8, armorL: 2.2, range: 2.8, speed: 2.6, regen: 8 },
+    skills: [
+      { id: 'cleaving', anim: '2H_Melee_Attack_Slice', fx: 'slash', name: 'Cleaving Blow', kind: 'strike', level: 1, cost: 12, cd: 0, damage: 16, coef: 1.1, icon: '🪓' },
+      { id: 'warcry', anim: 'Cheer', fx: 'shout', name: 'War Cry', kind: 'aura', level: 2, cost: 10, cd: 25, buff: { more: 0.2, time: 10 }, icon: '😤' },
+      { id: 'whirl', anim: '2H_Melee_Attack_Spin', fx: 'spin', name: 'Whirlwind', kind: 'nova', level: 4, cost: 22, cd: 6, damage: 14, coef: 0.8, radius: 5, icon: '🌪' },
+      { id: 'leap', anim: 'Jump_Full_Long', name: 'Leap', kind: 'blink', level: 6, cost: 10, cd: 14, distance: 10, icon: '🦘' },
+      { id: 'feast', anim: '2H_Melee_Attack_Chop', fx: 'slash', name: 'Blood Feast', kind: 'strike', level: 8, cost: 18, cd: 12, damage: 20, coef: 1.0, leech: 0.5, icon: '🩸' },
+      { id: 'execute', anim: '2H_Melee_Attack_Chop', fx: 'bash', name: 'Executioner', kind: 'strike', level: 12, cost: 35, cd: 20, damage: 40, coef: 2.2, execute: 0.35, icon: '💀' }
+    ]
+  },
+  shadowblade: {
+    id: 'shadowblade', name: 'Shadowblade', role: 'Damage', resource: 'Energy', main: 'agi', melee: 'dual',
+    blurb: 'Two knives and quick feet. Strikes fast, slips away, and is gone before the blow comes back.',
+    body: 'Rogue_Hooded', show: ['Knife', 'Knife_Offhand'], tint: '#d8c8ff', attack: 'Dualwield_Melee_Attack_Slice',
+    base: { hp: 100, hpL: 20, mana: 100, manaL: 0, power: 10, powerL: 2.6, armor: 6, armorL: 1.9, range: 2.4, speed: 1.7, regen: 14 },
+    skills: [
+      { id: 'twin', anim: 'Dualwield_Melee_Attack_Slice', fx: 'slash', name: 'Twin Fangs', kind: 'strike', level: 1, cost: 14, cd: 0, damage: 12, coef: 0.9, icon: '🗡' },
+      { id: 'step', anim: 'Dodge_Forward', name: 'Shadowstep', kind: 'blink', level: 2, cost: 10, cd: 12, distance: 9, icon: '👣' },
+      { id: 'cripple', anim: 'Dualwield_Melee_Attack_Stab', fx: 'slash', name: 'Crippling Cut', kind: 'strike', level: 4, cost: 16, cd: 8, damage: 8, coef: 0.6, slow: { amount: 0.5, time: 6 }, icon: '🦵' },
+      { id: 'fan', anim: 'Throw', fx: 'spin', name: 'Fan of Knives', kind: 'nova', level: 6, cost: 25, cd: 8, damage: 12, coef: 0.7, radius: 6, icon: '✴' },
+      { id: 'ambush', anim: 'Dualwield_Melee_Attack_Chop', fx: 'bash', name: 'Ambush', kind: 'strike', level: 8, cost: 30, cd: 14, damage: 26, coef: 1.6, stun: 1.5, icon: '🌑' },
+      { id: 'dance', anim: 'Cheer', fx: 'guard', name: 'Blade Dance', kind: 'aura', level: 12, cost: 20, cd: 40, buff: { haste: 0.4, more: 0.1, time: 8 }, icon: '💃' }
+    ]
+  },
+  stormcaller: {
+    id: 'stormcaller', name: 'Stormcaller', role: 'Damage', resource: 'Mana', main: 'int', caster: true,
+    blurb: 'Lightning that leaps from one foe to the next, and a wind to carry you out of trouble.',
+    body: 'Mage', show: ['Spellbook_open'], tint: '#c8e4ff', attack: 'Spellcast_Shoot', ranged: true,
+    base: { hp: 95, hpL: 19, mana: 150, manaL: 22, power: 11, powerL: 2.8, armor: 4, armorL: 1.5, range: 26, speed: 2.4, regen: 3 },
+    skills: [
+      { id: 'spark', name: 'Spark', kind: 'bolt', level: 1, cost: 10, cd: 0, cast: 1.2, range: 28, damage: 16, coef: 1.1, icon: '⚡' },
+      { id: 'grip', name: 'Static Grip', kind: 'bolt', level: 2, cost: 16, cd: 10, range: 26, damage: 8, coef: 0.5, stun: 1.5, icon: '🧲' },
+      { id: 'chain', name: 'Chain Lightning', kind: 'area', level: 4, cost: 28, cd: 6, cast: 1.5, range: 28, radius: 6, damage: 14, coef: 0.9, icon: '🌩' },
+      { id: 'stormshield', anim: 'Spellcast_Raise', fx: 'guard', name: 'Storm Shield', kind: 'aura', level: 6, cost: 22, cd: 22, shield: 35, coef: 1.3, icon: '🌀' },
+      { id: 'gale', anim: 'Dodge_Forward', name: 'Gale Step', kind: 'blink', level: 8, cost: 14, cd: 16, distance: 11, icon: '💨' },
+      { id: 'tempest', anim: 'Spellcast_Raise', name: 'Tempest', kind: 'area', level: 12, cost: 55, cd: 22, cast: 2.4, range: 30, radius: 8, damage: 34, coef: 2.0, icon: '⛈' }
+    ]
+  },
+  templar: {
+    id: 'templar', name: 'Templar', role: 'Tank · Healer', resource: 'Mana', main: 'str', threat: 1.3, melee: 'onehand',
+    blurb: 'Sword, shield and a prayer. Stands in front, mends who stands beside, and judges what stands against.',
+    body: 'Knight', show: ['1H_Sword', 'Badge_Shield'], tint: '#fff2c0', attack: '1H_Melee_Attack_Chop',
+    base: { hp: 120, hpL: 24, mana: 120, manaL: 12, power: 9, powerL: 2.4, armor: 11, armorL: 2.8, range: 2.6, speed: 2.3, regen: 4 },
+    skills: [
+      { id: 'righteous', anim: '1H_Melee_Attack_Slice_Diagonal', fx: 'slash', name: 'Righteous Blow', kind: 'strike', level: 1, cost: 12, cd: 0, damage: 13, coef: 1.0, threat: 1.4, icon: '⚔' },
+      { id: 'holylight', anim: 'Spellcast_Raise', name: 'Holy Light', kind: 'heal', level: 2, cost: 20, cd: 0, cast: 1.5, range: 24, heal: 26, coef: 1.3, icon: '✨' },
+      { id: 'consecrate', anim: 'Spellcast_Raise', fx: 'spin', name: 'Consecrate', kind: 'nova', level: 4, cost: 22, cd: 8, damage: 10, coef: 0.6, radius: 5, threat: 1.8, icon: '🔆' },
+      { id: 'aegis', anim: 'Block', fx: 'guard', name: 'Aegis', kind: 'aura', level: 6, cost: 15, cd: 28, buff: { reduce: 0.3, time: 8 }, icon: '🛡' },
+      { id: 'judge', anim: 'Block_Attack', fx: 'bash', name: 'Judgement', kind: 'strike', level: 8, cost: 20, cd: 14, damage: 20, coef: 1.2, stun: 2, threat: 2, icon: '⚖' },
+      { id: 'bene', anim: 'Cheer', fx: 'shout', name: 'Benediction', kind: 'nova', level: 12, cost: 40, cd: 40, radius: 14, heal: 35, coef: 1.1, friendly: true, icon: '🕯' }
+    ]
   }
 };
-export const CLASS_ORDER = ['vanguard', 'ranger', 'arcanist', 'mender'];
+export const CLASS_ORDER = ['vanguard', 'berserker', 'templar', 'shadowblade', 'ranger', 'arcanist', 'stormcaller', 'mender'];
+
+/* ---------------------------------------------- attributes and the tree */
+
+/**
+ * Attributes, raised with the five points every level brings. Each does
+ * something for everyone, and a class's `main` one adds to its power too.
+ */
+export const ATTRS = {
+  str: { name: 'Strength', does: '+1 armor', icon: '💪' },
+  agi: { name: 'Agility', does: '+0.25% critical chance, +0.3% attack speed', icon: '🏹' },
+  int: { name: 'Intellect', does: '+4 mana, a little faster to return', icon: '🧠' },
+  vit: { name: 'Vitality', does: '+8 health', icon: '❤' }
+};
+export const ATTR_ORDER = ['str', 'agi', 'int', 'vit'];
+export const POINTS = { attrs: 5, skills: 1, mainPower: 0.4, skillMax: 5, passiveMax: 3, rank: 0.1, respec: 10 };
+
+/** What a passive rank adds: [the stat it touches, how much a rank is worth, how to say it]. */
+const P = {
+  power: ['powerPct', 4, '+4% power'], hp: ['hpPct', 5, '+5% health'], armor: ['armorPct', 6, '+6% armor'], mana: ['manaPct', 8, '+8% mana'],
+  crit: ['crit', 3, '+3% critical chance'], haste: ['haste', 4, '+4% attack speed'], cost: ['costCut', 5, 'skills cost 5% less'], cd: ['cdCut', 5, 'cooldowns 5% shorter'],
+  heal: ['healPct', 6, '+6% healing done'], leech: ['leech', 2, '2% of your damage returns as health'], threat: ['threatPct', 15, '+15% threat'], regen: ['regenPct', 12, 'your resource returns 12% faster']
+};
+/** Each class's three paths: a skill, a passive it opens, a second skill, a second passive. */
+const PATHS = {
+  vanguard: [['Blade', 'strike', ['Honed Edge', 'power'], 'slam', ['Deep Cuts', 'crit']], ['Bulwark', 'taunt', ['Thick Hide', 'armor'], 'wall', ['Unbreakable', 'hp']], ['Command', 'cleave', ['Commanding Presence', 'threat'], 'rally', ['Second Wind', 'regen']]],
+  berserker: [['Fury', 'cleaving', ['Rage', 'power'], 'whirl', ['Frenzy', 'haste']], ['Blood', 'warcry', ['Thick Blood', 'hp'], 'feast', ['Vampiric', 'leech']], ['Doom', 'leap', ['Brutal', 'crit'], 'execute', ['Relentless', 'cd']]],
+  templar: [['Wrath', 'righteous', ['Zeal', 'power'], 'judge', ['Verdict', 'crit']], ['Shield', 'consecrate', ['Bastion', 'armor'], 'aegis', ['Stalwart', 'hp']], ['Mercy', 'holylight', ['Blessed Hands', 'heal'], 'bene', ['Faithful', 'mana']]],
+  shadowblade: [['Fangs', 'twin', ['Sharpened', 'power'], 'ambush', ['Lethal', 'crit']], ['Shadow', 'step', ['Fleet', 'haste'], 'dance', ['Slippery', 'armor']], ['Knives', 'cripple', ['Thrift', 'cost'], 'fan', ['Bloodletter', 'leech']]],
+  ranger: [['Marksman', 'quick', ['Steady Aim', 'crit'], 'aimed', ['Piercing', 'power']], ['Trapper', 'hamstring', ['Light Feet', 'haste'], 'roll', ['Survivor', 'hp']], ['Hunter', 'volley', ['Efficient', 'cost'], 'mark', ['Quick Reload', 'cd']]],
+  arcanist: [['Fire', 'firebolt', ['Kindling', 'power'], 'ring', ['Wildfire', 'crit']], ['Frost', 'frost', ['Deep Chill', 'cost'], 'barrier', ['Ice Veins', 'hp']], ['Arcane', 'blink', ['Clear Mind', 'mana'], 'meteor', ['Overflow', 'cd']]],
+  stormcaller: [['Lightning', 'spark', ['Charged', 'power'], 'chain', ['Overload', 'crit']], ['Wind', 'grip', ['Tailwind', 'cd'], 'gale', ['Squall', 'haste']], ['Tempest', 'stormshield', ['Deep Well', 'mana'], 'tempest', ['Eye of the Storm', 'cost']]],
+  mender: [['Light', 'mend', ['Gentle Hands', 'heal'], 'radiance', ['Grace', 'cd']], ['Faith', 'smite', ['Zeal', 'power'], 'ward', ['Devotion', 'mana']], ['Life', 'renew', ['Wellspring', 'regen'], 'revive', ['Fortitude', 'hp']]]
+};
+/**
+ * The skill trees: per class, three paths of four nodes, top to bottom. A
+ * node needs a rank in the one above it; a skill node also needs its level.
+ * Skill nodes go to rank 5 (each rank +10% to what the skill does), passive
+ * nodes to rank 3. A point comes with every level; level-1 skills are free.
+ */
+export const TREES = Object.fromEntries(Object.entries(PATHS).map(([cls, paths]) => [cls, paths.map(([name, a, pa, b, pb], bi) => {
+  const skill = (id) => CLASSES[cls].skills.find((k) => k.id === id);
+  const passive = (row, [title, key]) => ({ id: `${cls}.${bi}.${row}`, kind: 'passive', name: title, max: POINTS.passiveMax, stat: P[key][0], per: P[key][1], text: P[key][2], icon: '◆' });
+  const active = (id) => ({ id, kind: 'skill', name: skill(id).name, max: POINTS.skillMax, level: skill(id).level, icon: skill(id).icon, free: skill(id).level === 1 });
+  const nodes = [active(a), passive(1, pa), active(b), passive(3, pb)];
+  nodes.forEach((n, row) => Object.assign(n, { row, branch: bi, needs: row ? nodes[row - 1].id : null }));
+  return { name, nodes };
+})]));
+/** Every node of a class's tree, by id. */
+export const NODES_OF = Object.fromEntries(Object.entries(TREES).map(([cls, paths]) => [cls, Object.fromEntries(paths.flatMap((p) => p.nodes).map((n) => [n.id, n]))]));
 
 /* -------------------------------------------------------------- items */
 
@@ -106,6 +211,8 @@ export const ITEMS = {
   oak_staff: { name: 'Oak Staff', slot: 'weapon', level: 1, stats: { power: 2 }, value: 2 },
   worn_crossbow: { name: 'Worn Crossbow', slot: 'weapon', level: 1, stats: { power: 2 }, value: 2 },
   apprentice_wand: { name: 'Apprentice Wand', slot: 'weapon', level: 1, stats: { power: 2 }, value: 2 },
+  chipped_axe: { name: 'Chipped Great Axe', slot: 'weapon', level: 1, stats: { power: 2 }, value: 2 },
+  worn_daggers: { name: 'Worn Daggers', slot: 'weapon', level: 1, stats: { power: 2 }, value: 2 },
   padded_vest: { name: 'Padded Vest', slot: 'chest', level: 1, stats: { armor: 3, stamina: 1 }, value: 2 },
   copper_blade: { name: 'Copper Blade', slot: 'weapon', level: 5, stats: { power: 6, stamina: 1 }, value: 12, rarity: 'common' },
   copper_helm: { name: 'Copper Helm', slot: 'head', level: 5, stats: { armor: 6, stamina: 2 }, value: 10 },
@@ -172,7 +279,11 @@ export const STARTER = {
   vanguard: { weapon: 'rusty_sword', chest: 'padded_vest', bag: [['minor_potion', 3], ['bread', 4]] },
   ranger: { weapon: 'worn_crossbow', chest: 'padded_vest', bag: [['minor_potion', 3], ['bread', 4]] },
   arcanist: { weapon: 'oak_staff', chest: 'padded_vest', bag: [['minor_potion', 3], ['mana_tonic', 3]] },
-  mender: { weapon: 'apprentice_wand', chest: 'padded_vest', bag: [['minor_potion', 3], ['mana_tonic', 3]] }
+  mender: { weapon: 'apprentice_wand', chest: 'padded_vest', bag: [['minor_potion', 3], ['mana_tonic', 3]] },
+  berserker: { weapon: 'chipped_axe', chest: 'padded_vest', bag: [['minor_potion', 3], ['bread', 4]] },
+  shadowblade: { weapon: 'worn_daggers', chest: 'padded_vest', bag: [['minor_potion', 3], ['bread', 4]] },
+  stormcaller: { weapon: 'apprentice_wand', chest: 'padded_vest', bag: [['minor_potion', 3], ['mana_tonic', 3]] },
+  templar: { weapon: 'rusty_sword', chest: 'padded_vest', bag: [['minor_potion', 3], ['mana_tonic', 3]] }
 };
 
 /* ------------------------------------------------------------ monsters */

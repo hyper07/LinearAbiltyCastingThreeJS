@@ -555,3 +555,137 @@ test('"My heroes": a character\'s gear is listed, worn and taken off outside the
     await db.close();
   }
 });
+
+test('growing: eight classes, a tree each, skill and attribute points every level', async () => {
+  const { CLASS_ORDER, TREES, NODES_OF, POINTS, STARTER, ATTR_ORDER } = await import('../../src/mmo/data.js');
+  const R = await import('../../src/mmo/rules.js');
+  const { STYLES } = await import('../../src/mmo/looks.js');
+  assert.equal(CLASS_ORDER.length, 8);
+  for (const cls of CLASS_ORDER) {
+    const c = CLASSES[cls];
+    assert.ok(c.skills.length === 6 && ATTR_ORDER.includes(c.main) && STARTER[cls] && ITEMS[STARTER[cls].weapon], cls);
+    assert.equal(STYLES[cls].length, 3, `${cls}: three looks`);
+    assert.equal(TREES[cls].length, 3, `${cls}: three paths`);
+    const nodes = Object.values(NODES_OF[cls]);
+    assert.equal(nodes.length, 12);
+    assert.deepEqual(nodes.filter((n) => n.kind === 'skill').map((n) => n.id).sort(), c.skills.map((k) => k.id).sort(), `${cls}: every skill is in the tree`);
+    assert.ok(nodes.some((n) => n.free), `${cls}: something to start with`);
+  }
+  // A new Berserker: its first skill, nothing to spend.
+  const ch = R.newCharacter('Grukk', 'berserker');
+  assert.deepEqual(ch.tree, { cleaving: 1 });
+  assert.equal(R.skillPointsLeft(ch), 0);
+  assert.equal(R.attrPointsLeft(ch), 0);
+  assert.match(R.learn(ch, 'warcry'), /level 2/);
+  // Level 4: three skill points, fifteen attribute points.
+  ch.level = 4;
+  assert.equal(R.skillPointsLeft(ch), 3 * POINTS.skills);
+  assert.equal(R.attrPointsLeft(ch), 3 * POINTS.attrs);
+  assert.match(R.learn(ch, 'feast'), /level 8/);
+  assert.match(R.learn(ch, 'berserker.1.1'), /War Cry first/, 'a node needs the one above it');
+  assert.equal(R.learn(ch, 'warcry'), null);
+  assert.equal(R.learn(ch, 'berserker.0.1'), null, 'Rage, under Cleaving Blow');
+  assert.equal(R.learn(ch, 'cleaving'), null);
+  assert.equal(R.rankOf(ch, 'cleaving'), 2);
+  assert.match(R.learn(ch, 'whirl'), /No skill points/);
+  assert.ok(Math.abs(R.rankMult(ch, 'cleaving') - 1.1) < 1e-9);
+  // Attributes: strength is a Berserker's own (power), vitality is health, agility crits.
+  const before = R.statsOf(ch);
+  assert.equal(R.raiseAttr(ch, 'str', 5), null);
+  assert.equal(R.raiseAttr(ch, 'vit', 5), null);
+  assert.equal(R.raiseAttr(ch, 'agi', 5), null);
+  assert.match(R.raiseAttr(ch, 'int', 1), /No attribute points/);
+  const after = R.statsOf(ch);
+  assert.ok(after.power > before.power && after.armor === before.armor + 5, 'strength');
+  assert.equal(after.maxHp, before.maxHp + 40, 'vitality');
+  assert.ok(after.crit > before.crit && after.swing < before.swing, 'agility');
+  // A passive: Rage is +4% power a rank.
+  const plain = R.newCharacter('Plain', 'berserker');
+  plain.level = 4;
+  const raged = { ...plain, tree: { cleaving: 1, 'berserker.0.1': 3 } };
+  assert.ok(R.statsOf(raged).power > R.statsOf(plain).power);
+  // Starting over costs gold and gives everything back.
+  ch.gold = 5;
+  assert.match(R.respec(ch), /costs 30 gold/);
+  ch.gold = 100;
+  assert.equal(R.respec(ch), null);
+  assert.equal(ch.gold, 70);
+  assert.deepEqual(ch.tree, { cleaving: 1 });
+  assert.equal(R.attrPointsLeft(ch), 15);
+  // An older save (no tree): it keeps every skill its level had opened. A cheated one is reset.
+  const old = R.normalize({ name: 'Olda', cls: 'vanguard', level: 8, seeded: true });
+  assert.deepEqual(Object.keys(old.tree).sort(), ['cleave', 'slam', 'strike', 'taunt', 'wall']);
+  assert.equal(R.skillPointsLeft(old), 7 - 4);
+  const cheat = R.normalize({ name: 'Cheata', cls: 'vanguard', level: 2, seeded: true, tree: { strike: 5, slam: 5, rally: 5 }, attrs: { str: 999 } });
+  assert.deepEqual(cheat.tree, { strike: 1 });
+  assert.equal(cheat.attrs.str, 0);
+});
+
+test('growing, in the world: unlearned skills are refused, points are spent over the socket, ranks hit harder', async () => {
+  const { db, mmo, join, steps } = await world();
+  try {
+    const { ws, client } = await join(0, 'Grukka', 'berserker');
+    Object.assign(client.body, { x: 60, z: 8 });
+    ws.say({ t: 'portal', id: 'to_greenfold' });
+    const inst = client.instance;
+    const me = client.body;
+    const mob = [...inst.ents.values()].filter((e) => e.kind === 'mob' && e.type === 'rattler')[0];
+    Object.assign(mob, { hp: 1e7, maxHp: 1e7 });
+    Object.assign(me, { x: mob.x + 1.5, z: mob.z });
+    ws.say({ t: 'target', id: mob.id });
+    ws.say({ t: 'skill', id: 'whirl' });
+    assert.match(ws.last('error').text, /haven't learned Whirlwind/);
+    ws.say({ t: 'learn', node: 'whirl' });
+    assert.match(ws.last('error').text, /level 4/);
+    ws.say({ t: 'attr', attr: 'str', n: 1 });
+    assert.match(ws.last('error').text, /No attribute points/);
+    // Grow to level 6 and spend.
+    client.ch.level = 6;
+    inst.refresh(me);
+    ws.say({ t: 'learn', node: 'whirl' });
+    assert.match(ws.last('error').text, /Learn Rage first/, 'down the path, one node at a time');
+    for (const node of ['berserker.0.1', 'whirl', 'cleaving', 'cleaving', 'cleaving']) ws.say({ t: 'learn', node });
+    assert.equal(client.ch.tree.cleaving, 4);
+    assert.equal(client.ch.tree.whirl, 1);
+    ws.say({ t: 'learn', node: 'warcry' });
+    assert.match(ws.last('error').text, /No skill points/);
+    const power = me.st.power;
+    ws.say({ t: 'attr', attr: 'str', n: 5 });
+    ws.say({ t: 'attr', attr: 'vit', n: 5 });
+    assert.ok(me.st.power > power && client.ch.attrs.vit === 5);
+    steps(1);
+    assert.ok(ws.last('me').ch.attrs.str === 5 && ws.last('me').st.crit > 0, 'the browser is told');
+    // Rank 5 Cleaving Blow against rank 1: 40% more.
+    client.ch.tree.cleaving = 5;
+    const swing = (rank) => {
+      client.ch.tree.cleaving = rank;
+      let sum = 0;
+      for (let i = 0; i < 60; i++) {
+        me.mana = 100;
+        me.gcdUntil = 0;
+        me.combo = 0;
+        me.comboUntil = 0;
+        me.hp = me.st.maxHp;
+        const before = mob.hp;
+        ws.say({ t: 'skill', id: 'cleaving' });
+        sum += before - mob.hp;
+        steps(1);
+      }
+      return sum;
+    };
+    me.attacking = false;
+    const weak = swing(1);
+    const strong = swing(5);
+    assert.ok(strong > weak * 1.2 && strong < weak * 1.7, `rank 5 hits harder: ${weak} → ${strong}`);
+    // Starting over, out of a fight.
+    me.combatUntil = 0;
+    client.ch.gold = 500;
+    ws.say({ t: 'respec' });
+    assert.deepEqual(client.ch.tree, { cleaving: 1 });
+    assert.equal(client.ch.attrs.str, 0);
+    assert.equal(client.ch.gold, 450);
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});

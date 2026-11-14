@@ -67,7 +67,7 @@ of war — see **[Shardfront](docs/shardfront.md)**. Any unit or building can we
 abilities each, minion waves, towers, a jungle and a shop. Play alone with bots, or with friends in a
 party (by code; same side or opposite sides) — see **[Lanebreak](docs/lanebreak.md)**.
 
-**🏰 Hearthvale**: an online RPG in small groups — four classes with tab-target combat, quests from
+**🏰 Hearthvale**: an online RPG in small groups — eight classes with skill trees and attribute points, tab-target combat, quests from
 the people of a town, two wild zones, a dungeon for five and a raid for eight, gathering and
 crafting, guilds, chat and trading. The server runs the worlds; characters are kept on your account
 — see **[Hearthvale](docs/hearthvale.md)**.

@@ -25,6 +25,26 @@ export const STYLES = {
     { id: 'trickster', name: 'Trickster', body: 'Rogue_Hooded', show: ['Throwable'], attack: 'Spellcast_Shoot' },
     { id: 'lich', name: 'Lich', body: 'Skeleton_Mage', show: [], attack: 'Spellcast_Shoot' }
   ],
+  berserker: [
+    { id: 'axeman', name: 'Axeman', body: 'Barbarian', show: ['2H_Axe'], attack: '2H_Melee_Attack_Chop' },
+    { id: 'greatsword', name: 'Greatsword', body: 'Knight', show: ['2H_Sword'], attack: '2H_Melee_Attack_Slice' },
+    { id: 'reaver', name: 'Bone reaver', body: 'Skeleton_Warrior', show: [], attack: '2H_Melee_Attack_Chop' }
+  ],
+  shadowblade: [
+    { id: 'assassin', name: 'Assassin', body: 'Rogue_Hooded', show: ['Knife', 'Knife_Offhand'], attack: 'Dualwield_Melee_Attack_Slice' },
+    { id: 'duelist', name: 'Duelist', body: 'Rogue', show: ['Knife', 'Knife_Offhand'], attack: 'Dualwield_Melee_Attack_Slice' },
+    { id: 'wraith', name: 'Wraith', body: 'Skeleton_Rogue', show: [], attack: 'Dualwield_Melee_Attack_Slice' }
+  ],
+  stormcaller: [
+    { id: 'tempest', name: 'Tempest', body: 'Mage', show: ['Spellbook_open'], attack: 'Spellcast_Shoot' },
+    { id: 'skyseer', name: 'Sky-seer', body: 'Rogue_Hooded', show: ['Throwable'], attack: 'Spellcast_Shoot' },
+    { id: 'stormwraith', name: 'Storm wraith', body: 'Skeleton_Mage', show: [], attack: 'Spellcast_Shoot' }
+  ],
+  templar: [
+    { id: 'crusader', name: 'Crusader', body: 'Knight', show: ['1H_Sword', 'Badge_Shield'], attack: '1H_Melee_Attack_Chop' },
+    { id: 'warpriest', name: 'War priest', body: 'Barbarian', show: ['1H_Axe', 'Barbarian_Round_Shield'], attack: '1H_Melee_Attack_Chop' },
+    { id: 'deathknight', name: 'Oathbound', body: 'Skeleton_Warrior', show: [], attack: '1H_Melee_Attack_Chop' }
+  ],
   mender: [
     { id: 'cleric', name: 'Cleric', body: 'Mage', show: ['1H_Wand', 'Spellbook'], attack: 'Spellcast_Shoot' },
     { id: 'herbalist', name: 'Herbalist', body: 'Rogue', show: ['Throwable'], attack: 'Spellcast_Shoot' },

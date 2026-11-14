@@ -1,4 +1,4 @@
-import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD } from './data.js';
+import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF } from './data.js';
 
 import { cleanLook } from './looks.js';
 
@@ -21,9 +21,87 @@ export function newCharacter(name, cls, look = null) {
     bag, bank: new Array(BANK_SIZE).fill(null),
     quests: { active: {}, done: [] },
     skills: Object.fromEntries(Object.keys(PROFESSIONS).map((k) => [k, 1])),
-    bars: CLASSES[cls].skills.map((s) => s.id)
+    bars: CLASSES[cls].skills.map((s) => s.id),
+    attrs: Object.fromEntries(ATTR_ORDER.map((a) => [a, 0])),
+    tree: freeNodes(cls)
   };
 }
+
+/* ---- attributes and the skill tree ---- */
+
+/** What every character of a class knows from the start: its level-1 skills, at rank 1. */
+export function freeNodes(cls) {
+  return Object.fromEntries(Object.values(NODES_OF[cls]).filter((n) => n.free).map((n) => [n.id, 1]));
+}
+
+/** The rank a character has in a skill or a passive (0: not learned). */
+export const rankOf = (ch, id) => ch.tree?.[id] ?? 0;
+
+/** Attribute points not yet spent: five a level. */
+export function attrPointsLeft(ch) {
+  return (ch.level - 1) * POINTS.attrs - ATTR_ORDER.reduce((n, a) => n + (ch.attrs?.[a] ?? 0), 0);
+}
+
+/** Skill points not yet spent: one a level (the free level-1 skills cost nothing). */
+export function skillPointsLeft(ch) {
+  const nodes = NODES_OF[ch.cls];
+  const spent = Object.entries(ch.tree ?? {}).reduce((n, [id, r]) => n + (nodes[id] ? r - (nodes[id].free ? 1 : 0) : 0), 0);
+  return (ch.level - 1) * POINTS.skills - spent;
+}
+
+/** Why a node cannot take another rank right now, or null if it can. */
+export function cannotLearn(ch, id) {
+  const node = NODES_OF[ch.cls]?.[id];
+  if (!node) return 'No such skill';
+  if (rankOf(ch, id) >= node.max) return 'Already at its highest rank';
+  if (node.level && ch.level < node.level) return `Needs level ${node.level}`;
+  if (node.needs && !rankOf(ch, node.needs)) return `Learn ${NODES_OF[ch.cls][node.needs].name} first`;
+  if (skillPointsLeft(ch) < 1) return 'No skill points — you earn one each level';
+  return null;
+}
+
+/** Put a skill point in a node. Returns why not, or null when done. */
+export function learn(ch, id) {
+  const why = cannotLearn(ch, id);
+  if (why) return why;
+  ch.tree[id] = rankOf(ch, id) + 1;
+  return null;
+}
+
+/** Put attribute points in one attribute. Returns why not, or null when done. */
+export function raiseAttr(ch, attr, n = 1) {
+  const k = Math.max(1, Math.min(50, n | 0));
+  if (!ATTR_ORDER.includes(attr)) return 'No such attribute';
+  if (attrPointsLeft(ch) < k) return 'No attribute points — you earn five each level';
+  ch.attrs[attr] = (ch.attrs[attr] ?? 0) + k;
+  return null;
+}
+
+/** What starting over costs: gold by level (free at level 1). */
+export const respecCost = (ch) => (ch.level - 1) * POINTS.respec;
+
+/** Take every skill and attribute point back, for gold. Returns why not, or null when done. */
+export function respec(ch) {
+  const cost = respecCost(ch);
+  if (ch.gold < cost) return `Starting over costs ${cost} gold`;
+  ch.gold -= cost;
+  ch.attrs = Object.fromEntries(ATTR_ORDER.map((a) => [a, 0]));
+  ch.tree = freeNodes(ch.cls);
+  return null;
+}
+
+/** What the passives a character has learned add up to, by stat (in percent). */
+export function passivesOf(ch) {
+  const sum = {};
+  for (const [id, r] of Object.entries(ch.tree ?? {})) {
+    const node = NODES_OF[ch.cls]?.[id];
+    if (node?.kind === 'passive') sum[node.stat] = (sum[node.stat] ?? 0) + node.per * r;
+  }
+  return sum;
+}
+
+/** How much more a skill does at the rank a character has it. */
+export const rankMult = (ch, id) => 1 + Math.max(0, rankOf(ch, id) - 1) * POINTS.rank;
 
 /** Everything that follows from level and gear. */
 export function statsOf(ch) {
@@ -35,15 +113,27 @@ export function statsOf(ch) {
     if (!id || !ITEMS[id]?.stats) continue;
     for (const [k, v] of Object.entries(ITEMS[id].stats)) gear[k] = (gear[k] ?? 0) + v;
   }
+  const a = Object.fromEntries(ATTR_ORDER.map((k) => [k, ch.attrs?.[k] ?? 0]));
+  const p = passivesOf(ch);
+  const pct = (k) => 1 + (p[k] ?? 0) / 100;
+  const main = CLASSES[ch.cls].main;
+  const haste = Math.min(0.5, a.agi * 0.003 + (p.haste ?? 0) / 100);
   return {
-    maxHp: Math.round(b.hp + b.hpL * l + gear.stamina * 10),
-    maxMana: Math.round(b.mana + b.manaL * l),
-    power: Math.round(b.power + b.powerL * l + gear.power),
-    armor: Math.round(b.armor + b.armorL * l + gear.armor),
+    maxHp: Math.round((b.hp + b.hpL * l + gear.stamina * 10 + a.vit * 8) * pct('hpPct')),
+    maxMana: Math.round((b.mana + b.manaL * l + a.int * 4) * pct('manaPct')),
+    power: Math.round((b.power + b.powerL * l + gear.power + (a[main] ?? 0) * POINTS.mainPower) * pct('powerPct')),
+    armor: Math.round((b.armor + b.armorL * l + gear.armor + a.str) * pct('armorPct')),
     range: b.range,
-    swing: b.speed,
-    regen: b.regen,
-    ranged: Boolean(CLASSES[ch.cls].ranged)
+    swing: b.speed / (1 + haste),
+    regen: (b.regen + a.int * 0.03) * pct('regenPct'),
+    ranged: Boolean(CLASSES[ch.cls].ranged),
+    crit: Math.min(0.6, 0.1 + a.agi * 0.0025 + (p.crit ?? 0) / 100),
+    haste,
+    costMult: Math.max(0.5, 1 - (p.costCut ?? 0) / 100),
+    cdMult: Math.max(0.5, 1 - (p.cdCut ?? 0) / 100),
+    healMult: pct('healPct'),
+    leech: (p.leech ?? 0) / 100,
+    threat: (CLASSES[ch.cls].threat ?? 1) * pct('threatPct')
   };
 }
 
@@ -148,6 +238,20 @@ export function normalize(raw) {
   ch.level = Math.max(1, Math.min(MAX_LEVEL, raw.level | 0 || 1));
   ch.look = cleanLook(ch.cls, raw.look);
   ch.gold = Math.max(0, Math.floor(Number(raw.gold) || 0));
+  // Attributes: whole, not negative, and no more than the levels brought.
+  ch.attrs = Object.fromEntries(ATTR_ORDER.map((a) => [a, Math.max(0, Math.floor(Number(raw.attrs?.[a]) || 0))]));
+  if (attrPointsLeft(ch) < 0) ch.attrs = Object.fromEntries(ATTR_ORDER.map((a) => [a, 0]));
+  // The tree. A character from before there was one knows every skill its level had opened.
+  const nodes = NODES_OF[ch.cls];
+  if (raw.tree && typeof raw.tree === 'object') {
+    ch.tree = { ...freeNodes(ch.cls) };
+    for (const [id, r] of Object.entries(raw.tree)) if (nodes[id]) ch.tree[id] = Math.max(nodes[id].free ? 1 : 0, Math.min(nodes[id].max, r | 0));
+    for (const id of Object.keys(ch.tree)) if (!ch.tree[id]) delete ch.tree[id];
+    if (skillPointsLeft(ch) < 0) ch.tree = freeNodes(ch.cls);
+  } else {
+    ch.tree = freeNodes(ch.cls);
+    for (const n of Object.values(nodes).sort((x, y) => (x.level ?? 0) - (y.level ?? 0))) if (n.kind === 'skill' && !n.free && n.level <= ch.level && skillPointsLeft(ch) > 0) ch.tree[n.id] = 1;
+  }
   // Characters made before seed money existed get it once.
   if (!raw.seeded) {
     ch.gold += SEED_GOLD;

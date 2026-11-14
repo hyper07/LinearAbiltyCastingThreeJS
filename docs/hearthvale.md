@@ -2,7 +2,7 @@
 
 [← Back to the README](../README.md)
 
-An online role-playing game in small groups. Make a character in one of four classes, take quests
+An online role-playing game in small groups. Make a character in one of eight classes, take quests
 from the people of Hearthvale, fight your way through the Greenfold and the Ashfen, clear the Sunken
 Crypt with up to five friends and the Ember Spire with up to eight. Gather ore, herbs and wood, craft
 gear and draughts, found a guild, chat, and trade with other players. Your characters are kept on
@@ -34,6 +34,13 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-blows.jpg" width="100%" alt="Ten blows slowed down. Top row, a player's in ice-blue: chop, thrust, uppercut, wide sweep, cross. Bottom row: a player's cleaver with a ring on the ground, then monsters' in crimson — claw marks, crossed knives, a sweep — and an elite's violet overhead blow with a ring" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-tree.jpg" width="100%" alt="The Vanguard's skill tree — Blade, Bulwark and Command, four nodes each, Heavy Strike at rank 2 of 5 — beside the character sheet with Strength, Agility, Intellect and Vitality and eight points to spend; on the hotbar two skills show their rank and four a lock" />
+</p>
+<p>
+  <img src="screenshots/hearthvale-classes.jpg" width="100%" alt="The character maker with eight class cards — Vanguard, Berserker, Templar, Shadowblade, Ranger, Arcanist, Stormcaller, Mender — and a Berserker with a great axe on the stage" />
+</p>
+
 ## How it plays
 
 - **Your character.** The maker shows your character live on a stage (drag to turn it) as you
@@ -48,9 +55,26 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   gear in its bag: **Wear** and **Take off** work there too, while the character isn't in the world
   (`POST /api/mmo/characters/wear`, `/takeoff`).
 
-- **Classes.** **Vanguard** (a tank: holds the monsters' attention), **Ranger** (crossbow, slows),
-  **Arcanist** (fire and frost from range) and **Mender** (heals, shields, revives). Six skills each,
-  opening from level 1 to 12. Levels run to 20.
+- **Classes.** Eight: **Vanguard** (a tank: holds the monsters' attention), **Berserker** (a great
+  axe; hits hardest in a crowd and drinks health back), **Templar** (sword, shield and prayers: a
+  tank who heals), **Shadowblade** (two knives, quick, slips away), **Ranger** (crossbow, slows),
+  **Arcanist** (fire and frost from range), **Stormcaller** (lightning that leaps between foes) and
+  **Mender** (heals, shields, revives). Six skills each, three looks each. Levels run to 20.
+- **The skill tree (T).** Every class has three paths of four nodes: a skill, a passive it opens, a
+  second skill, a second passive (a Berserker's are Fury, Blood and Doom). You know your level-1
+  skill from the start; **every level brings one skill point**. A point learns a skill (once you
+  are its level, and have the node above it) or raises one — to rank 5, each rank +10% to what it
+  does — or goes into a passive (to rank 3: power, health, armor, critical chance, attack speed,
+  cheaper skills, shorter cooldowns, more healing, life returned from damage…). Nineteen points by
+  level 20 against forty-seven places to put them, so two characters of a class differ. The hotbar
+  shows each skill's rank, and a lock on what isn't learned.
+- **Attributes (C).** **Every level also brings five attribute points**, for **Strength** (+1
+  armor), **Agility** (+0.25% critical chance, +0.3% attack speed), **Intellect** (+4 mana, faster to
+  return) and **Vitality** (+8 health). Each class has one of its own — Strength for the Vanguard,
+  Berserker and Templar; Agility for the Shadowblade and Ranger; Intellect for the Arcanist,
+  Stormcaller and Mender — which adds 0.4 power a point as well. Buttons with points waiting show a
+  count. **Start over** in the tree takes every point back for 10 gold a level (not mid-fight).
+  Characters made before the tree keep every skill their level had opened, with the rest to spend.
 - **Combat** is tab-target: pick a target (click it, or **Tab** for the nearest enemy), and your
   character swings or shoots at it on its own. Skills (**1–6**) share a one-second cooldown (the
   GCD), and some take time to cast — moving stops them. Monsters go after whoever they hate most:
@@ -124,7 +148,7 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 | Walk · look | **W A S D** (or hold both mouse buttons) · drag the mouse to turn the camera, the wheel zooms |
 | Target · fight | **Left-click** an enemy: target and attack · **right-click**: attack and use your first skill · **Tab**: nearest enemy · **1–6** skills (a line above the hotbar reminds you when enemies are near) |
 | Use | **F**: talk, gather, step through a portal, use a crafting station |
-| Windows | **I** bag · **C** character · **L** quests · **K** crafting · **P** party · **G** guild · **H** help · **Enter** chat · **Esc** close |
+| Windows | **I** bag · **C** character and attributes · **T** skill tree · **L** quests · **K** crafting · **P** party · **G** guild · **H** help · **Enter** chat · **Esc** close |
 
 ## How it works
 
@@ -147,7 +171,8 @@ trading, loot, guilds and progress fair.
   KayKit characters, and the HUD.
 - **Tests**: `tests/unit/mmo.test.mjs` (the rules; characters over HTTP; a day of questing and a
   kill; a party with chat, a heal, a trade, a guild and crafting, saved on leaving; the crypt boss's
-  warned slam; combos, finishers and the close-range kick; a stacked pack spreading out) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
+  warned slam; combos, finishers and the close-range kick; a stacked pack spreading out; the eight
+  classes, their trees, skill and attribute points, ranks and starting over) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).
 
 ## Next

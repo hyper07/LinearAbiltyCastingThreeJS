@@ -1,6 +1,6 @@
-import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO } from '../../src/mmo/data.js';
+import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS } from '../../src/mmo/data.js';
 import { ZONES, NPCS, walkableIn } from '../../src/mmo/world.js';
-import { statsOf, killXp, addXp, give, take } from '../../src/mmo/rules.js';
+import { statsOf, killXp, addXp, give, take, rankOf, rankMult } from '../../src/mmo/rules.js';
 
 /**
  * One copy of one zone, run by the server: the players in it (a party, or
@@ -214,11 +214,12 @@ export class Instance {
 
   _skill(p, id, targetId) {
     const def = CLASSES[p.cls].skills.find((s) => s.id === id);
-    if (!def || p.ch.level < def.level || p.dead) return;
+    if (!def || p.dead) return;
+    if (!rankOf(p.ch, id)) return this._err(p, `You haven't learned ${def.name} — open the skill tree (T)`);
     if (p.cast) return this._err(p, 'Already casting');
     if (this.time < p.gcdUntil) return;
     if ((p.cds[id] ?? 0) > this.time) return this._err(p, `${def.name} isn't ready`);
-    if (p.mana < def.cost) return this._err(p, `Not enough ${CLASSES[p.cls].resource.toLowerCase()}`);
+    if (p.mana < this._cost(p, def)) return this._err(p, `Not enough ${CLASSES[p.cls].resource.toLowerCase()}`);
     const target = this._resolveTarget(p, def, targetId);
     if (target === false) return;
     p.gcdUntil = this.time + GCD;
@@ -255,17 +256,29 @@ export class Instance {
     return null;
   }
 
+  /** What a skill costs this player (passives make skills cheaper). */
+  _cost(p, def) {
+    return Math.round(def.cost * (p.st.costMult ?? 1));
+  }
+
   _resolve(p, def, target) {
-    p.mana -= def.cost;
-    if (def.cd) p.cds[def.id] = this.time + def.cd;
+    p.mana -= this._cost(p, def);
+    if (def.cd) p.cds[def.id] = this.time + def.cd * (p.st.cdMult ?? 1);
     const power = p.st.power;
-    const amount = (base) => (base ?? 0) + power * (def.coef ?? 0);
+    // Every rank past the first makes the skill do a tenth more.
+    const rank = rankMult(p.ch, def.id);
+    const amount = (base) => ((base ?? 0) + power * (def.coef ?? 0)) * rank;
     this.out.push({ type: 'skill', id: p.id, skill: def.id, target: target?.id ?? null, x: target?.x ?? p.x, z: target?.z ?? p.z });
     switch (def.kind) {
       case 'strike':
       case 'bolt':
         if (!target || target.dead) return;
-        if (def.damage || def.coef) this._hurtMob(target, amount(def.damage), p, def.threat ?? 1);
+        if (def.damage || def.coef) {
+          // An executioner's blow lands twice as hard on what is nearly down.
+          const finish = def.execute && target.hp <= target.maxHp * def.execute ? 2 : 1;
+          const dealt = this._hurtMob(target, amount(def.damage) * finish, p, def.threat ?? 1);
+          if (def.leech && dealt) this._heal(p, dealt * def.leech, null);
+        }
         if (def.stun) target.stunUntil = this.time + def.stun;
         if (def.slow) {
           target.slow = def.slow.amount;
@@ -347,15 +360,18 @@ export class Instance {
     p.comboUntil = this.time + COMBO.keep;
     dmg *= 1 + Math.min(p.combo - 1, COMBO.cap) * COMBO.per;
     if (fin) dmg *= COMBO.finisher;
-    const crit = Math.random() < 0.1;
+    for (const b of p.buffs) if (b.more) dmg *= 1 + b.more;
+    const crit = Math.random() < (p.st.crit ?? 0.1);
     if (crit) dmg *= 1.5;
     dmg = Math.max(1, Math.round(dmg));
     m.hp -= dmg;
     m.tagged.add(p.charId);
     p.combatUntil = this.time + 5;
-    this._aggro(m, p, dmg * threatMult * (p.cls === 'vanguard' ? 1.5 : 1));
+    this._aggro(m, p, dmg * threatMult * (p.st.threat ?? 1));
     this.out.push({ type: 'dmg', id: m.id, amount: dmg, by: p.id, crit, combo: p.combo, fin: fin || undefined });
+    if (p.st.leech && !p.dead) p.hp = Math.min(p.st.maxHp, p.hp + dmg * p.st.leech);
     if (m.hp <= 0) this._killMob(m);
+    return dmg;
   }
 
   _aggro(m, p, amount) {
@@ -374,7 +390,7 @@ export class Instance {
 
   _heal(t, raw, by) {
     if (t.dead) return;
-    const amount = Math.round(raw * rand(0.95, 1.05));
+    const amount = Math.round(raw * rand(0.95, 1.05) * (by?.st?.healMult ?? 1));
     const before = t.hp;
     t.hp = Math.min(t.st.maxHp, t.hp + amount);
     const done = Math.round(t.hp - before);
@@ -433,7 +449,7 @@ export class Instance {
           p.hp = p.st.maxHp;
           p.mana = p.st.maxMana;
           this.out.push({ type: 'level', id: p.id, level: ch.level });
-          this._say(p, { type: 'text', text: `You reached level ${ch.level}!${CLASSES[p.cls].skills.filter((s) => s.level > before && s.level <= ch.level).map((s) => ` New skill: ${s.name}.`).join('')}` });
+          this._say(p, { type: 'text', text: `You reached level ${ch.level}! +${(ch.level - before) * POINTS.skills} skill point${ch.level - before > 1 ? 's' : ''} (T) and +${(ch.level - before) * POINTS.attrs} attribute points (C).${CLASSES[p.cls].skills.filter((k) => k.level > before && k.level <= ch.level).map((k) => ` ${k.name} can now be learned.`).join('')}` });
         }
       }
       const gold = Math.round(rand(def.gold[0], def.gold[1]));
@@ -537,7 +553,7 @@ export class Instance {
       const def = CLASSES[p.cls].skills.find((s) => s.id === p.cast.id);
       const target = p.cast.target ? this.ents.get(p.cast.target) : null;
       p.cast = null;
-      if (def && p.mana >= def.cost) {
+      if (def && p.mana >= this._cost(p, def)) {
         const again = this._resolveTarget(p, def, target?.id ?? null);
         if (again !== false) this._resolve(p, def, again);
       }
@@ -551,7 +567,7 @@ export class Instance {
         // Basic attacks come in threes: the third in a row is a finisher.
         p.chain = t - (p.swungAt ?? -99) <= p.st.swing + 1.5 ? ((p.chain ?? 0) + 1) % COMBO.chain : 0;
         p.swungAt = t;
-        p.swingAt = t + p.st.swing;
+        p.swingAt = t + p.st.swing / (1 + p.buffs.reduce((h, b) => h + (b.haste ?? 0), 0));
         p.a = Math.atan2(m.x - p.x, m.z - p.z);
         const fin = p.chain === COMBO.chain - 1;
         // Someone with a crossbow or a staff kicks what stands right in front of them.
