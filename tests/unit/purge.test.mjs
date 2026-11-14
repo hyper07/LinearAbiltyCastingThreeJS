@@ -210,3 +210,27 @@ test('heal sends soldiers to the pad, where they heal fast; patrol goes back and
   }
   assert.ok(far > 10 && back, `out ${far.toFixed(1)} m and back`);
 });
+
+test('stragglers wander into the camp for easy ore; the guns leave them to the soldiers at first', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 14 });
+  g.strayT = 0;
+  g.step(TICK);
+  const strays = g.foes.filter((f) => f.stray);
+  assert.ok(strays.length >= 4, 'a few of them');
+  assert.ok(strays.every((f) => f.tier === 1 && ['husk', 'ravager'].includes(f.kind)), 'weak ones');
+  assert.ok(g.events.some((e) => e.t === 'stray'));
+  // Just in: the guns hold fire; after a while loose in the camp, they shoot.
+  const f = strays[0];
+  [f.x, f.z] = [g.guns[0].x - 4, g.guns[0].z];
+  f.inCamp = g.t;
+  g._hash();
+  assert.equal(g._foeNearAwake(g.guns[0].x, g.guns[0].z, 13), null);
+  f.inCamp = g.t - 20;
+  assert.equal(g._foeNearAwake(g.guns[0].x, g.guns[0].z, 13), f);
+  // Never more than the cap at once.
+  for (let i = 0; i < 10; i++) {
+    g.strayT = 0;
+    g._stragglers(TICK);
+  }
+  assert.ok(g.foes.filter((x) => x.stray).length <= 12 + 5);
+});

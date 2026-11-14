@@ -1,4 +1,4 @@
-import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS } from './rules.js';
+import { RANKS, RANK_ORDER, FORGE_REACH, UPGRADES, upgradeCost, FOES, GUARDIANS, TIER, BUILDINGS, BUILD_TIER, SHRINE_GIFTS, DIFFICULTY, ECON, CAMP, SUPPLY, COLORS, STRAGGLERS } from './rules.js';
 import { SIZE, STRUCTURES, GUARDS, KEYS, BASE, FORGE, PAD, SPAWN, GUNS, BARRACKS, HEART, Grid, inBase, foeDef, FIRST_DYNAMIC } from './map.js';
 
 /**
@@ -308,6 +308,7 @@ export class Purge {
     for (const b of this.buildings) if (b.alive) this._building(b, dt);
     for (const g of this.guns) this._gun(g, dt);
     this._raids(dt);
+    this._stragglers(dt);
     if (this.left <= 0 && !this.over) this._end(false, 'time');
     return this.events;
   }
@@ -607,6 +608,7 @@ export class Purge {
       this._walk(f, def.speed, dt);
       return;
     }
+    if (f.stray && f.inCamp == null && inBase(f.x, f.z)) f.inCamp = this.t;
     if (f.raid) {
       // A wave: to where it was sent (where its crypt fell), then on to the camp.
       const goal = f.goal ?? PAD;
@@ -697,6 +699,8 @@ export class Purge {
     let best = null;
     let bd = r;
     this._near(this.fh, x, z, r, (f) => {
+      // Stragglers are the soldiers' to kill — unless they have been loose in the camp a while.
+      if (f.stray && !(f.inCamp != null && this.t - f.inCamp > STRAGGLERS.grace)) return;
       const d = Math.hypot(f.x - x, f.z - z);
       if (d < bd) {
         best = f;
@@ -722,6 +726,28 @@ export class Purge {
     const count = Math.min(16, 3 + this.raids + Math.floor(this.fallen / 6));
     this._wave([from], count, null);
     this.events.push({ t: 'raid', wave: this.raids, x: from.x, z: from.z, n: count });
+  }
+
+  /** A few weak dead walk into the camp from its near edges: easy ore. */
+  _stragglers(dt) {
+    this.strayT = (this.strayT ?? STRAGGLERS.first) - dt;
+    if (this.strayT > 0) return;
+    this.strayT = STRAGGLERS.every;
+    if (this.foes.filter((f) => f.stray).length >= STRAGGLERS.cap) return;
+    const minutes = this.t / 60;
+    const count = Math.round(STRAGGLERS.count + minutes * STRAGGLERS.grow);
+    const tier = minutes < 25 ? 1 : 2;
+    // From the east or the south, just past the camp, out of sight.
+    const east = this.rand() < 0.5;
+    const sx = east ? 70 + this.rand() * 20 : 6 + this.rand() * 30;
+    const sz = east ? 6 + this.rand() * 26 : 58 + this.rand() * 14;
+    for (let n = 0; n < count; n++) {
+      const f = this._foe(STRAGGLERS.kinds[n % STRAGGLERS.kinds.length], sx + (this.rand() - 0.5) * 6, sz + (this.rand() - 0.5) * 6, { tier, raid: true, home: { x: PAD.x, z: PAD.z } });
+      f.stray = true;
+      f.bounty = Math.round(f.bounty * STRAGGLERS.bonus);
+      f.since = this.t;
+    }
+    this.events.push({ t: 'stray', x: sx, z: sz, n: count });
   }
 
   /** A wave of `count` from these buildings (shared out), sent to `goal` (or straight at the camp). */

@@ -271,7 +271,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 5;
+export const EXTRAS_VERSION = 6;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -306,6 +306,16 @@ const EXTRA_MODELS = [
     license: 'Ready Player Me avatar, as published in the three.js examples',
     author: 'Ready Player Me, via the three.js examples',
     page: 'https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf'
+  },
+  {
+    id: 'robot',
+    name: 'Robot Expressive (an animated robot)',
+    url: 'https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
+    file: 'robot/RobotExpressive.glb',
+    tags: ['character', 'robot', 'mech', 'rigged', 'animated'],
+    license: 'CC0-1.0',
+    author: 'Tomás Laulhé (Quaternius), modified by Don McCurdy, via the three.js examples',
+    page: 'https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf/RobotExpressive'
   },
   {
     id: 'car',

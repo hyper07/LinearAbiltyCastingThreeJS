@@ -3,7 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadSoldier, Soldier } from '../../fps/soldier.js';
 import { gunModel } from '../../fps/guns.js';
 import { dress } from '../../mmo/bodies.js';
-import { RANKS, RANK_ORDER, FOES } from './rules.js';
+import { RANKS, RANK_ORDER, FOES, LOOKS } from './rules.js';
+import { loadRobot, Robot } from './robot.js';
 
 /**
  * Grave Purge 2D's sprites, made the way the classic 2D strategy games made
@@ -23,8 +24,6 @@ const HALLOWEEN = 'KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets
 const SPACE = 'KayKit-Space-Base-Bits-1.0/addons/kaykit_space_base_bits/Assets/gltf/';
 const DUNGEON = 'KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/Assets/gltf/';
 
-/** How each soldier rank looks: a wash over the uniform. */
-const RANK_LOOK = { recruit: '#f0e8d4', veteran: '#c4cca8', vanguard: '#a8b8d4', phantom: '#6a6084', paragon: '#ffe08a' };
 /** How each kind of the dead moves (clip, frames). */
 const FOE_CLIPS = {
   husk: { walk: 'Walking_D_Skeletons', attack: 'Unarmed_Melee_Attack_Punch_A' },
@@ -136,9 +135,31 @@ export class SpriteBaker {
   async soldiers(progress) {
     const gltf = await loadSoldier();
     if (!gltf) return null;
+    const robot = await loadRobot();
     const out = {};
     for (const rank of RANK_ORDER) {
-      const s = new Soldier(gltf, '#c8ccd2', RANK_LOOK[rank], gunModel(RANKS[rank].weapon));
+      if (LOOKS[rank].robot && robot) {
+        // The Paragon: the war robot, standing and running.
+        const r = new Robot(robot, { paint: LOOKS[rank].paint, team: '#d8dde4' });
+        const run = r.actions.Running?.getClip().duration ?? 0.7;
+        out[rank] = await this._sheet(r.group, {
+          span: 3,
+          height: 2.1,
+          frames: [['Idle', 0, 'idle'], ...Array.from({ length: 8 }, (_, k) => ['Running', (k / 8) * run, 'run'])],
+          turn: (a) => (r.group.rotation.y = a + Math.PI),
+          pose: (name, t) => {
+            r.mixer.stopAllAction();
+            const act = r.actions[name];
+            act.reset().play();
+            act.time = t;
+            r.mixer.update(0);
+          }
+        });
+        progress();
+        continue;
+      }
+      const s = new Soldier(gltf, '#c8ccd2', LOOKS[rank].paint, gunModel(RANKS[rank].weapon));
+      if (LOOKS[rank].glow) s.model.traverse((o) => o.isMesh && (o.material.emissive = new THREE.Color(LOOKS[rank].glow), (o.material.emissiveIntensity = 0.18)));
       const run = s.actions.Run?.getClip().duration ?? 0.7;
       const frames = [['Idle', 0, 'idle'], ...Array.from({ length: 8 }, (_, k) => ['Run', (k / 8) * run, 'run'])];
       out[rank] = await this._sheet(s.group, {

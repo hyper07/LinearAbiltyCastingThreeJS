@@ -729,7 +729,10 @@ export class PurgeGame {
         }
       }
       else if (e.t === 'give') this._feed(`${this.state.players[e.o]?.name} gave ${this.state.players[e.to]?.name} ${e.n.toLocaleString()} ore`);
-      else if (e.t === 'stipend') this._feed(`Supply drop: +${e.n} ore each`);
+      else if (e.t === 'stray') {
+        this._feed(`Stragglers: ${e.n} of the dead wander towards the camp — easy ore`);
+        this.pings.push({ x: e.x, z: e.z, t: performance.now() });
+      } else if (e.t === 'stipend') this._feed(`Supply drop: +${e.n} ore each`);
       else if (e.t === 'over') this._end(e);
       if (e.t === 'shot' && this.audio) this._pop(e.big ? 0.05 : 0.035);
       if ((e.t === 'blast' || e.t === 'fall') && this.audio) this._boom();

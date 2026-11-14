@@ -27,9 +27,22 @@ export const RANKS = {
   veteran: { name: 'Veteran', hp: 340, armor: 2, speed: 5.4, gun: { dmg: 24, rate: 2, range: 10 }, scale: 1.12, weapon: 'anvil', from: { recruit: 1 }, ore: 1200, tier: 1 },
   vanguard: { name: 'Vanguard', hp: 950, armor: 5, speed: 5.6, gun: { dmg: 58, rate: 2.2, range: 11 }, scale: 1.24, weapon: 'falcon', from: { veteran: 1 }, ore: 3500, tier: 2, one: true },
   phantom: { name: 'Phantom', hp: 2000, armor: 8, speed: 6, gun: { dmg: 80, rate: 3, range: 12 }, scale: 1.3, weapon: 'ironpeak', from: { vanguard: 1, veteran: 2 }, ore: 9000, relics: 4, tier: 3, one: true },
-  paragon: { name: 'Paragon', hp: 4600, armor: 12, speed: 6.2, gun: { dmg: 170, rate: 2.5, range: 13, splash: 2.6 }, scale: 1.45, weapon: 'falcon', from: { phantom: 1 }, ore: 22000, relics: 10, tier: 4, one: true }
+  paragon: { name: 'Paragon', hp: 4600, armor: 12, speed: 6.2, gun: { dmg: 170, rate: 2.5, range: 13, splash: 2.6 }, scale: 1.3, weapon: 'falcon', from: { phantom: 1 }, ore: 22000, relics: 10, tier: 4, one: true }
 };
 export const RANK_ORDER = ['recruit', 'veteran', 'vanguard', 'phantom', 'paragon'];
+
+/**
+ * How each rank looks, so they are told apart at a glance: the soldier's
+ * uniform washed in its rank's colour (khaki, green, blue, black with a
+ * violet glow), and the Paragon a war robot in gold.
+ */
+export const LOOKS = {
+  recruit: { paint: '#efe4c8', label: 'khaki' },
+  veteran: { paint: '#8fbf6a', label: 'green' },
+  vanguard: { paint: '#7aa4ff', label: 'blue' },
+  phantom: { paint: '#4a3c68', glow: '#a070ff', label: 'black' },
+  paragon: { paint: '#e8b840', glow: '#ffc040', robot: true, label: 'a war robot' }
+};
 
 /** The Forge: where soldiers stand to be raised (metres from its middle). */
 export const FORGE_REACH = 7;
@@ -105,6 +118,14 @@ export const DIFFICULTY = {
   hard: { name: 'Hard', hp: 1, dmg: 1, minutes: 75, raid: 300 },
   hell: { name: 'Hell', hp: 1.5, dmg: 1.4, minutes: 60, raid: 220 }
 };
+
+/**
+ * Stragglers: every so often a few of the weakest dead wander into the camp
+ * from the land's near edges — easy kills, easy ore, for whoever is home.
+ * The camp's guns leave them to the soldiers (for `grace` seconds once they
+ * are in). More of them, and tougher, as time goes on; `cap` at once.
+ */
+export const STRAGGLERS = { every: 30, first: 45, count: 4, grow: 1 / 8, kinds: ['husk', 'husk', 'ravager'], bonus: 1.5, cap: 12, grace: 12 };
 
 /** How fast the game runs (the host's to set). */
 export const SPEEDS = [1, 1.5, 2, 3];

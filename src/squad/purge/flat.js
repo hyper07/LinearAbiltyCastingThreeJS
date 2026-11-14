@@ -1,4 +1,4 @@
-import { RANKS, BUILDINGS, GUARDIANS, COLORS, FORGE_REACH } from './rules.js';
+import { RANKS, BUILDINGS, GUARDIANS, COLORS, FORGE_REACH, LOOKS } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, foeDef } from './map.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 import { loadTextures, paintLand, drawWorld, remains, LIFT } from './flatReal.js';
@@ -644,7 +644,7 @@ export class FlatView {
     g.arc(-r * 0.45, step * r * 0.5, r * 0.3, 0, Math.PI * 2);
     g.arc(r * 0.45, -step * r * 0.5, r * 0.3, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = def.tier >= 3 ? (e.rank === 'paragon' ? '#e8c060' : '#4a4060') : color;
+    g.fillStyle = LOOKS[e.rank].paint;
     g.beginPath();
     g.ellipse(0, 0, r * 1.05, r * 0.8, 0, 0, Math.PI * 2);
     g.fill();

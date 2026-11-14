@@ -5,7 +5,8 @@ import { loadSoldier, Soldier } from '../../fps/soldier.js';
 import { gunModel } from '../../fps/guns.js';
 import { dress } from '../../mmo/bodies.js';
 import { SquadView } from '../view.js';
-import { RANKS, BUILDINGS, GUARDIANS, COLORS } from './rules.js';
+import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS } from './rules.js';
+import { loadRobot, Robot } from './robot.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, GUNS, HEART, tierAt, foeDef } from './map.js';
 import { FORGE_REACH } from './rules.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
@@ -270,26 +271,35 @@ export class PurgeView extends SquadView {
 
   _troop(e) {
     const def = RANKS[e.rank];
+    const look = LOOKS[e.rank];
     const color = COLORS[e.o] ?? '#888';
     const m = { group: new THREE.Group(), kind: 'troop', soldier: null, fall: 0 };
-    const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1, 4, 8).translate(0, 0.9, 0), new THREE.MeshStandardMaterial({ color }));
+    const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1, 4, 8).translate(0, 0.9, 0), new THREE.MeshStandardMaterial({ color: look.paint }));
     m.group.add(stand);
     m.ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.9, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
     m.ring.position.y = 0.06;
     m.group.add(m.ring);
     m.group.scale.setScalar(def.scale);
-    if (def.tier >= 3) {
-      const aura = new THREE.PointLight(e.rank === 'paragon' ? '#ffd060' : '#a080ff', 8, 6, 2);
+    if (look.glow) {
+      const aura = new THREE.PointLight(look.glow, 8, 6, 2);
       aura.position.y = 2;
       m.group.add(aura);
     }
-    loadSoldier().then((gltf) => {
-      if (!gltf || m.gone) return;
-      const tint = def.tier >= 3 ? (e.rank === 'paragon' ? '#e8c060' : '#4a4060') : color;
-      m.soldier = new Soldier(gltf, color, tint, gunModel(def.weapon));
+    const ready = (body) => {
+      if (!body || m.gone) return;
+      m.soldier = body;
       m.group.remove(stand);
-      m.group.add(m.soldier.group);
-    });
+      m.group.add(body.group);
+    };
+    if (look.robot) loadRobot().then((gltf) => gltf && ready(new Robot(gltf, { paint: look.paint, team: color })));
+    else {
+      loadSoldier().then((gltf) => {
+        if (!gltf) return;
+        const s = new Soldier(gltf, color, look.paint, gunModel(def.weapon));
+        if (look.glow) s.model.traverse((o) => o.isMesh && (o.material.emissive = new THREE.Color(look.glow), (o.material.emissiveIntensity = 0.15)));
+        ready(s);
+      });
+    }
     this.scene.add(m.group);
     return m;
   }

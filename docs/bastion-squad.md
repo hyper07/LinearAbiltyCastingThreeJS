@@ -34,6 +34,9 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   | Phantom (one each) | a Vanguard + 2 Veterans | 9,000 | 4 |
   | Paragon (one each) | a Phantom | 22,000 | 10 |
 
+- **Each rank looks its own**: Recruits in khaki, Veterans in green, Vanguards in steel blue,
+  Phantoms in black with a violet glow — and the Paragon is a gold war robot with shoulder cannons
+  (Robot Expressive, CC0). Your team's colour is the ring at their feet (and the arm bands).
 - **Relics** come from breaking shrines, soul nodes and relic caches; every commander gets them.
 - **The armoury** (**U**): Weapons (+8% damage a level, to 30) and Plating (+1 armour, to 20), for
   all your soldiers.
@@ -46,6 +49,9 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   wards are broken. Break it and **the Grave King** rises from it; kill him to win.
 - **Healing**: soldiers heal slowly anywhere in the camp and fast on the **healing pad** in its middle
   (green crosses rise while they heal); **E** sends the selected there.
+- **Stragglers**: every half a minute a few of the weakest dead wander into the camp from its near
+  edges (more and tougher as time goes on, a dozen at most) — easy kills, half as much ore again as
+  usual, for whoever is home. The camp's guns leave them to the soldiers for twelve seconds.
 - **Waves**: every few minutes a numbered wave comes for the camp from the crypt nearest it, bigger
   each time (and bigger the more you have broken); the camp's two guns help, and soldiers in the camp
   heal. And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
