@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { pathOf } from '../api/http.js';
 import { Match } from '../../src/fps/sim.js';
+import { MAPS } from '../../src/fps/map.js';
 import { pack } from '../../src/fps/net.js';
 import { SKILL, WEAPONS, GEAR } from '../../src/fps/rules.js';
 
@@ -18,7 +19,7 @@ import { SKILL, WEAPONS, GEAR } from '../../src/fps/rules.js';
  *
  *   → { t:'create', name, skill?, side? }   ← { t:'room', code, you, host, skill, side, playing, members[] }
  *   → { t:'join', code, name }              ← { t:'room', … }  or  { t:'error', text }
- *   → { t:'squad', squad }   { t:'skill', skill }   { t:'side', side }   (the last two: host)
+ *   → { t:'squad', squad }   { t:'skill', skill }   { t:'side', side }   { t:'map', map }   (the last three: host)
  *   → { t:'start' }  (host)                 ← { t:'begin', you: <player id> }
  *   → { t:'in', f, s, yaw, pitch, fire, shoot, reload, use, jump, slot, scope }
  *   → { t:'buy', item }                     ← { t:'note', text } when it can't be bought
@@ -44,7 +45,7 @@ export function createFps({ authenticate = () => null, log = () => {}, path = '/
     const text = JSON.stringify(msg);
     for (const c of room.members.values()) if (c.ws.readyState === 1) c.ws.send(text);
   };
-  const roomMsg = (room, c) => ({ t: 'room', code: room.code, you: c.id, host: room.host, skill: room.skill, side: room.side, playing: Boolean(room.match && !room.match.over), members: [...room.members.values()].map((m) => ({ id: m.id, name: m.name, squad: m.squad })) });
+  const roomMsg = (room, c) => ({ t: 'room', code: room.code, you: c.id, host: room.host, skill: room.skill, side: room.side, map: room.map, playing: Boolean(room.match && !room.match.over), members: [...room.members.values()].map((m) => ({ id: m.id, name: m.name, squad: m.squad })) });
   const tell = (room) => {
     for (const c of room.members.values()) send(c, roomMsg(room, c));
   };
@@ -63,7 +64,7 @@ export function createFps({ authenticate = () => null, log = () => {}, path = '/
     const members = [...room.members.values()];
     room.done = false;
     // Seated from the start, so each person begins with a full purse (a bot spends its own before the first round).
-    room.match = new Match({ seed: (Math.random() * 2 ** 31) | 0, team: room.side, skill: room.skill, humans: members.map((c) => ({ name: c.name, squad: c.squad })) });
+    room.match = new Match({ seed: (Math.random() * 2 ** 31) | 0, team: room.side, skill: room.skill, map: room.map, humans: members.map((c) => ({ name: c.name, squad: c.squad })) });
     room.inputs = new Map();
     room.pending = [];
     members.forEach((c, i) => seat(room, c, room.match.seated[i]));
@@ -108,7 +109,7 @@ export function createFps({ authenticate = () => null, log = () => {}, path = '/
       do {
         code = Array.from({ length: 5 }, () => CODE[Math.floor(Math.random() * CODE.length)]).join('');
       } while (rooms.has(code));
-      const room = { code, host: c.id, members: new Map(), skill: SKILL[msg.skill] ? msg.skill : 'normal', side: msg.side === 'def' ? 'def' : 'atk', match: null, inputs: new Map(), pending: [] };
+      const room = { code, host: c.id, members: new Map(), skill: SKILL[msg.skill] ? msg.skill : 'normal', side: msg.side === 'def' ? 'def' : 'atk', map: MAPS[msg.map] ? msg.map : 'foundry', match: null, inputs: new Map(), pending: [] };
       rooms.set(code, room);
       join(c, room, msg.name);
     },
@@ -130,6 +131,11 @@ export function createFps({ authenticate = () => null, log = () => {}, path = '/
     skill(c, msg) {
       if (c.room?.host !== c.id || !SKILL[msg.skill]) return;
       c.room.skill = msg.skill;
+      tell(c.room);
+    },
+    map(c, msg) {
+      if (c.room?.host !== c.id || !MAPS[msg.map] || (c.room.match && !c.room.match.over)) return;
+      c.room.map = msg.map;
       tell(c.room);
     },
     side(c, msg) {

@@ -1,7 +1,7 @@
 import { Match } from './sim.js';
 import { Mirror } from './net.js';
 import { FpsView } from './view.js';
-import { BOXES, SITES, SIZE } from './map.js';
+import { MAPS, MAP_ORDER, getMap } from './map.js';
 import { TEAM, TIME, WEAPONS, GEAR, SHOP, SKILL, WIN_ROUNDS, MONEY } from './rules.js';
 import './fps.css';
 
@@ -34,13 +34,14 @@ export class FpsGame {
     this.pitch = 0;
     this.press = { shoot: false, jump: false, reload: false };
     this.mouse = { fire: false, scope: false };
-    this.pick = { side: 'atk', skill: 'normal' };
+    this.pick = { side: 'atk', skill: 'normal', map: 'foundry' };
     this.feed = [];
     this.queue = [];
     this.sens = 0.0022;
     try {
       this.name = localStorage.getItem('gamory.breachline.name') ?? '';
       this.sens = Number(localStorage.getItem('gamory.breachline.sens')) || 0.0022;
+      this.pick.map = MAPS[localStorage.getItem('gamory.breachline.map')] ? localStorage.getItem('gamory.breachline.map') : 'foundry';
     } catch {
       this.name = '';
     }
@@ -105,7 +106,7 @@ export class FpsGame {
     this._bind();
     this._menu();
     // Behind the menu: a match of bots to look at.
-    this.demo = new Match({ human: false, seed: (Math.random() * 1e9) | 0 });
+    this.demo = new Match({ human: false, seed: (Math.random() * 1e9) | 0, map: this.pick.map });
     this._last = performance.now();
     this._raf = requestAnimationFrame((t) => this._frame(t));
     this.root.focus();
@@ -141,6 +142,8 @@ export class FpsGame {
         <div class="bl__pick" data-side>
           ${Object.entries(TEAM).map(([id, t]) => `<button type="button" data-value="${id}" style="--c:${t.color}"><b>${t.name}</b><small>${id === 'atk' ? 'Attack first: set the charge' : 'Defend first: hold the sites'}</small></button>`).join('')}
         </div>
+        <h3 class="bl__label">Map</h3>
+        ${this._mapCards(this.pick.map)}
         <div class="bl__seg" data-skill><span>Bots</span>${Object.entries(SKILL).map(([id, s]) => `<button type="button" data-value="${id}">${s.name}</button>`).join('')}</div>
         <div class="bl__row"><button type="button" class="bl__btn bl__btn--go" data-solo>Play alone, with bots</button></div>
         <div class="bl__together">
@@ -162,6 +165,20 @@ export class FpsGame {
     };
     for (const b of menu.querySelectorAll('[data-side] button')) b.onclick = () => ((this.pick.side = b.dataset.value), mark());
     for (const b of menu.querySelectorAll('[data-skill] button')) b.onclick = () => ((this.pick.skill = b.dataset.value), mark());
+    for (const b of menu.querySelectorAll('[data-map]')) {
+      b.onclick = () => {
+        this.pick.map = b.dataset.map;
+        try {
+          localStorage.setItem('gamory.breachline.map', this.pick.map);
+        } catch {
+          /* private mode */
+        }
+        for (const o of menu.querySelectorAll('[data-map]')) o.classList.toggle('is-on', o === b);
+        // The backdrop shows the map chosen.
+        this.demo = new Match({ human: false, seed: (Math.random() * 1e9) | 0, map: this.pick.map });
+      };
+    }
+    this._thumbs(menu);
     mark();
     menu.querySelector('[data-solo]').onclick = () => this.playSolo();
     const name = () => {
@@ -173,7 +190,7 @@ export class FpsGame {
       }
       return this.name || 'Player';
     };
-    menu.querySelector('[data-make]').onclick = () => this._net({ t: 'create', name: name(), skill: this.pick.skill, side: this.pick.side });
+    menu.querySelector('[data-make]').onclick = () => this._net({ t: 'create', name: name(), skill: this.pick.skill, side: this.pick.side, map: this.pick.map });
     const join = () => {
       const code = menu.querySelector('[data-code]').value.trim().toUpperCase();
       if (code.length !== 5) return (menu.querySelector('[data-note]').textContent = 'A room code has five letters');
@@ -201,6 +218,8 @@ export class FpsGame {
             ${mine?.squad === s || room.playing ? '' : `<button type="button" class="bl__btn bl__btn--quiet" data-squad="${s}">Join ${TEAM[sides[s]].name}</button>`}
           </div>`).join('')}
         </div>
+        <h3 class="bl__label">Map${host ? ' — you choose' : ` — ${esc(MAPS[room.map]?.name ?? 'Foundry')}, chosen by the host`}</h3>
+        ${this._mapCards(room.map ?? 'foundry', !host || room.playing)}
         <div class="bl__seg" data-skill><span>Bots</span>${Object.entries(SKILL).map(([id, s]) => `<button type="button" data-value="${id}" class="${room.skill === id ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${s.name}</button>`).join('')}</div>
         <div class="bl__row">
           ${host ? `<button type="button" class="bl__btn bl__btn--go" data-start>${this.last ? 'Play again' : 'Start the match'}</button>` : '<span class="bl__wait">Waiting for the host to start…</span>'}
@@ -212,6 +231,9 @@ export class FpsGame {
       </div>`;
     for (const b of menu.querySelectorAll('[data-squad]')) b.onclick = () => this._send({ t: 'squad', squad: Number(b.dataset.squad) });
     for (const b of menu.querySelectorAll('[data-skill] button')) b.onclick = () => this._send({ t: 'skill', skill: b.dataset.value });
+    for (const b of menu.querySelectorAll('[data-map]')) b.onclick = () => this._send({ t: 'map', map: b.dataset.map });
+    this._thumbs(menu);
+    if (room.map && this.demo?.map.id !== room.map) this.demo = new Match({ human: false, seed: (Math.random() * 1e9) | 0, map: room.map });
     const start = menu.querySelector('[data-start]');
     if (start) start.onclick = () => this._send({ t: 'start' });
     menu.querySelector('[data-leave-room]').onclick = () => this._leaveRoom();
@@ -222,6 +244,46 @@ export class FpsGame {
       this._send({ t: 'say', text: say.value, all: true });
       say.value = '';
     };
+  }
+
+  /** The maps to choose from: name, a line about it, and a plan seen from above. `chosen` is ticked; `locked` (not the host) only shows. */
+  _mapCards(chosen, locked = false) {
+    return `<div class="bl__maps" data-maps>${MAP_ORDER.map((id) => {
+      const m = MAPS[id];
+      return `<button type="button" data-map="${id}" class="${id === chosen ? 'is-on' : ''}" ${locked ? 'disabled' : ''}><canvas data-thumb="${id}" width="132" height="96"></canvas><b>${esc(m.name)}</b><small>${esc(m.text)}</small><em>${m.SIZE[0]} × ${m.SIZE[1]} m</em></button>`;
+    }).join('')}</div>`;
+  }
+
+  /** Draw each map card's plan: walls and cover, the two sites, the two starts. */
+  _thumbs(root) {
+    for (const c of root.querySelectorAll('[data-thumb]')) {
+      const m = MAPS[c.dataset.thumb];
+      const g = c.getContext('2d');
+      const k = Math.min(c.width / m.SIZE[0], c.height / m.SIZE[1]);
+      g.fillStyle = m.look?.ground === 'paving' ? '#4a463f' : '#3a3f47';
+      g.fillRect(0, 0, c.width, c.height);
+      g.save();
+      g.translate((c.width - m.SIZE[0] * k) / 2, (c.height - m.SIZE[1] * k) / 2);
+      for (const [x, z, w, d, h, kind] of m.BOXES) {
+        g.fillStyle = kind === 'building' || kind === 'wall' ? '#b9a98f' : kind === 'container' ? '#6f8fb3' : '#8a7356';
+        if (h > 0.5) g.fillRect(x * k, z * k, Math.max(1, w * k), Math.max(1, d * k));
+      }
+      g.fillStyle = 'rgba(255,207,58,0.5)';
+      g.font = `800 ${Math.round(10)}px system-ui`;
+      for (const [name, st] of Object.entries(m.SITES)) {
+        g.beginPath();
+        g.arc(st.x * k, st.z * k, st.r * k, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#ffcf3a';
+        g.fillText(name, st.x * k - 3, st.z * k + 4);
+        g.fillStyle = 'rgba(255,207,58,0.5)';
+      }
+      for (const [side, color] of [['atk', TEAM.atk.color], ['def', TEAM.def.color]]) {
+        g.fillStyle = color;
+        for (const [x, z] of m.SPAWNS[side]) g.fillRect(x * k - 1, z * k - 1, 3, 3);
+      }
+      g.restore();
+    }
   }
 
   feedChat() {
@@ -317,7 +379,7 @@ export class FpsGame {
   /* ------------------------------------------------------------- a match */
 
   playSolo() {
-    const match = new Match({ seed: (Math.random() * 2 ** 31) | 0, team: this.pick.side, skill: this.pick.skill, name: this.account?.name ?? (this.name || 'You') });
+    const match = new Match({ seed: (Math.random() * 2 ** 31) | 0, team: this.pick.side, skill: this.pick.skill, name: this.account?.name ?? (this.name || 'You'), map: this.pick.map });
     this.myId = 0;
     this._begin(match, true);
     this.me = match.me;
@@ -505,7 +567,7 @@ export class FpsGame {
     if (!this.match) {
       // The menu's backdrop: bots at it, seen from above a site.
       const demo = this.demo;
-      if (demo.over) this.demo = new Match({ human: false, seed: (now | 0) + 7 });
+      if (demo.over) this.demo = new Match({ human: false, seed: (now | 0) + 7, map: demo.map.id });
       const events = demo.step(dt);
       this.view.show(events, demo, null);
       this.view.overview(demo, now / 1000, dt);
@@ -670,7 +732,7 @@ export class FpsGame {
     }
     // What to do, when it isn't obvious.
     if (me.alive && !(me.using > 0) && (m.phase === 'live' || m.phase === 'planted')) {
-      const inSite = Object.values(SITES).some((s) => Math.hypot(me.x - s.x, me.z - s.z) < s.r);
+      const inSite = Object.values(m.map.SITES).some((s) => Math.hypot(me.x - s.x, me.z - s.z) < s.r);
       const byCharge = m.charge?.state === 'planted' && Math.hypot(me.x - m.charge.x, me.z - m.charge.z) < 1.7;
       if (side === 'atk' && me.hasCharge && inSite && m.phase === 'live') this._tip('Hold E to set the charge', 0.2);
       else if (side === 'def' && byCharge) this._tip('Hold E to disarm', 0.2);
@@ -692,9 +754,16 @@ export class FpsGame {
   _radar() {
     const c = this.$('[data-radar]');
     const g = c.getContext('2d');
-    const k = c.width / SIZE[0];
     const m = this.match;
     const me = this.me;
+    const { SIZE, SITES, BOXES } = m.map;
+    // The radar keeps the map's own shape.
+    const tall = Math.round((c.width * SIZE[1]) / SIZE[0]);
+    if (c.height !== tall) {
+      c.height = tall;
+      c.style.height = `${tall}px`;
+    }
+    const k = c.width / SIZE[0];
     g.clearRect(0, 0, c.width, c.height);
     g.fillStyle = 'rgba(12,16,24,0.62)';
     g.fillRect(0, 0, c.width, c.height);

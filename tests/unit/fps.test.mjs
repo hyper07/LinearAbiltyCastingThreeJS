@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../../src/fps/sim.js';
 import { Mirror, pack } from '../../src/fps/net.js';
-import { BOXES, EDGES, NODES, SITES, SPAWNS, clear, route, sees } from '../../src/fps/map.js';
+import { BOXES, EDGES, NODES, SITES, SPAWNS, clear, route, sees, MAPS, MAP_ORDER } from '../../src/fps/map.js';
 import { MONEY, TIME, WEAPONS, WIN_ROUNDS, BUY_ORDER, SHOP } from '../../src/fps/rules.js';
 import { createFps } from '../../server/fps/index.js';
 
@@ -198,6 +198,11 @@ test('the mirror: what the server packs is what a browser shows, eased between w
   run(m, TIME.buy + 1, { f: 1, yaw: -Math.PI / 2 });
   const mirror = new Mirror();
   mirror.apply(JSON.parse(JSON.stringify(pack(m))), 0);
+  assert.equal(mirror.map.id, m.map.id);
+  const elsewhere = new Match({ seed: 6, map: 'harbor' });
+  const far = new Mirror();
+  far.apply(JSON.parse(JSON.stringify(pack(elsewhere))), 0);
+  assert.equal(far.map.id, 'harbor', 'a browser learns the map from the server');
   assert.equal(mirror.players.length, 10);
   assert.equal(mirror.phase, 'live');
   assert.equal(mirror.sideOf(0), m.sideOf(0));
@@ -221,7 +226,7 @@ test('rooms: made with a code, joined by it, four at most; the host starts, keys
     return { name, ws };
   });
   const [ada, ben, cy, di, eve] = people;
-  ada.ws.say({ t: 'create', name: 'Ada', skill: 'easy', side: 'def' });
+  ada.ws.say({ t: 'create', name: 'Ada', skill: 'easy', side: 'def', map: 'harbor' });
   const code = ada.ws.last('room').code;
   assert.match(code, /^[A-Z2-9]{5}$/);
   eve.ws.say({ t: 'join', code: 'ZZZZZ', name: 'Eve' });
@@ -232,7 +237,13 @@ test('rooms: made with a code, joined by it, four at most; the host starts, keys
   let room = ada.ws.last('room');
   assert.equal(room.members.length, 4);
   assert.deepEqual(room.members.map((m) => m.squad), [0, 1, 0, 1], 'a room splits evenly as it fills');
-  assert.deepEqual([room.skill, room.side], ['easy', 'def']);
+  assert.deepEqual([room.skill, room.side, room.map], ['easy', 'def', 'harbor']);
+  // The host chooses the map; nobody else can.
+  ben.ws.say({ t: 'map', map: 'foundry' });
+  assert.equal(ada.ws.last('room').map, 'harbor');
+  ada.ws.say({ t: 'map', map: 'oldtown' });
+  ada.ws.say({ t: 'map', map: 'nowhere' });
+  assert.equal(ben.ws.last('room').map, 'oldtown');
   // Only the host starts, or changes the bots.
   ben.ws.say({ t: 'start' });
   ben.ws.say({ t: 'skill', skill: 'hard' });
@@ -243,6 +254,9 @@ test('rooms: made with a code, joined by it, four at most; the host starts, keys
   ada.ws.say({ t: 'start' });
   const match = fps.rooms.get(code).match;
   assert.ok(match);
+  assert.equal(match.map.id, 'oldtown', 'the match is on the host\'s map');
+  ada.ws.say({ t: 'map', map: 'foundry' });
+  assert.equal(fps.rooms.get(code).map, 'oldtown', 'and stays on it while it is played');
   const seat = (p) => match.players[p.ws.last('begin').you];
   assert.deepEqual([ada, ben, cy, di].map((p) => seat(p).squad), [0, 1, 1, 1]);
   assert.deepEqual([ada, ben, cy, di].map((p) => seat(p).name), ['Ada', 'Ben', 'Cy', 'Di']);
@@ -370,4 +384,44 @@ test('bots buy by their part in the team, use grenades, and save together when m
   }
   assert.ok(threw > 3, `grenades thrown: ${threw}`);
   assert.ok(went > 0, 'the Raiders went in');
+});
+
+test('every map: places to stand are clear, every path is walkable, both sites reachable, spawns out of each other\'s sight', () => {
+  assert.ok(MAP_ORDER.length >= 3, 'more than one map to choose');
+  const kinds = new Set(['wall', 'building', 'container', 'crates', 'barrels', 'tanks', 'bags']);
+  for (const id of MAP_ORDER) {
+    const m = MAPS[id];
+    assert.ok(m.name && m.text, `${id} has a name and a line about it`);
+    for (const [name, [x, z]] of Object.entries(m.NODES)) assert.ok(m.clear(x, z), `${id}: node ${name} is inside something`);
+    for (const side of ['atk', 'def']) for (const [x, z] of m.SPAWNS[side]) assert.ok(m.clear(x, z), `${id}: a ${side} spawn is blocked`);
+    for (const [a, b] of m.EDGES) {
+      const [ax, az] = m.NODES[a];
+      const [bx, bz] = m.NODES[b];
+      for (let k = 0; k <= 1; k += 0.02) assert.ok(m.clear(ax + (bx - ax) * k, az + (bz - az) * k, 0.38), `${id}: the way ${a}–${b} is blocked`);
+    }
+    for (const site of ['A', 'B']) {
+      assert.ok(m.route('T', site).length > 1, `${id}: no way from the Raiders to ${site}`);
+      assert.ok(m.route('CT', site).length > 1, `${id}: no way from the Wardens to ${site}`);
+      assert.ok(m.clear(m.SITES[site].x, m.SITES[site].z, 1.5), `${id}: site ${site} is built over`);
+    }
+    for (const [x, z, w, d, h, kind] of m.BOXES) assert.ok(kinds.has(kind) && h > 0, `${id}: a box of unknown kind at ${x},${z}`);
+    // Every name the bots' plan uses is a real place.
+    const named = [...Object.values(m.HOLDS).flat(), ...m.PLAN.lanes.flat(), ...Object.values(m.PLAN.stage).flat(), ...Object.values(m.PLAN.retake)];
+    for (const n of named) assert.ok(m.NODES[n], `${id}: the plan names ${n}, which is not on the map`);
+    const [sx, sz] = m.SPAWNS.atk[0];
+    const [tx, tz] = m.SPAWNS.def[0];
+    assert.equal(m.sees(sx, 1.6, sz, tx, 1.6, tz), false, `${id}: the two starts can see each other`);
+  }
+});
+
+test('a match is played on the map it is given, start to finish, by bots alone', () => {
+  for (const id of ['harbor', 'oldtown']) {
+    const m = new Match({ seed: 31, human: false, map: id, skill: 'hard' });
+    assert.equal(m.map.id, id);
+    let steps = 0;
+    while (!m.over && steps++ < 400000) m.step(1 / 30);
+    assert.ok(m.over, `${id}: the match ended`);
+    assert.equal(Math.max(...m.over.score), WIN_ROUNDS);
+  }
+  assert.equal(new Match({ map: 'nowhere' }).map.id, 'foundry', 'an unknown map is Foundry');
 });

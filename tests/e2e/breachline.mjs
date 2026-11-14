@@ -25,12 +25,14 @@ export async function run(browser, { shots = null } = {}) {
   try {
     t.check('Breachline is a card, and Play opens its menu', await open(page));
     await shot(page, 'breachline-menu');
+    t.check('three maps to choose from, each with its plan drawn', await page.evaluate(() => document.querySelectorAll('.bl [data-map]').length === 3 && [...document.querySelectorAll('.bl [data-thumb]')].every((c) => c.getContext('2d').getImageData(10, 10, 1, 1).data[3] > 0)));
+    await page.click('.bl [data-map="harbor"]');
     await page.click('.bl [data-side] [data-value="def"]');
     await page.click('.bl [data-skill] [data-value="easy"]');
     await page.click('.bl [data-solo]');
     t.check('a match alone: ten players, I am a Warden, the round opens with a pause to buy', await until(page, () => {
       const g = window.breachline;
-      return g.match?.players.length === 10 && g.me && g.match.sideOf(g.me.squad) === 'def' && g.match.phase === 'buy' && g.match.players.filter((p) => p.bot).length === 9;
+      return g.match?.players.length === 10 && g.me && g.match.map.id === 'harbor' && g.match.sideOf(g.me.squad) === 'def' && g.match.phase === 'buy' && g.match.players.filter((p) => p.bot).length === 9;
     }, null, 10000));
     t.check('the HUD shows health, money and a weapon', await until(page, () => document.querySelector('.bl [data-hp]').textContent === '100' && document.querySelector('.bl [data-money]').textContent === '$4000' && /Sidearm/.test(document.querySelector('.bl [data-weapon]').textContent)));
     await page.keyboard.press('b');
@@ -77,6 +79,7 @@ export async function run(browser, { shots = null } = {}) {
     t.check('leaving goes back to the menu', await until(page, () => Boolean(document.querySelector('.bl [data-make]')) && !document.querySelector('.bl [data-menu]').hidden));
 
     // Together: a room, a guest, a match on the server.
+    await page.click('.bl [data-map="foundry"]');
     await page.fill('.bl [data-name]', 'Hostly');
     await page.click('.bl [data-make]');
     t.check('making a room gives a five-letter code', await until(page, () => /^[A-Z2-9]{5}$/.test(document.querySelector('.bl [data-room-code]')?.textContent ?? '')));
@@ -91,6 +94,8 @@ export async function run(browser, { shots = null } = {}) {
       const r = window.breachline.room;
       return r?.members.length === 2 && r.members[0].squad !== r.members[1].squad;
     }) && await until(guest.page, () => window.breachline.room?.members.length === 2));
+    await page.click('.bl [data-map="oldtown"]');
+    t.check('the host picks the map, and the guest sees it (and cannot change it)', await until(guest.page, () => window.breachline.room?.map === 'oldtown' && document.querySelector('.bl [data-map="oldtown"]').classList.contains('is-on') && document.querySelector('.bl [data-map="harbor"]').disabled));
     t.check('only the host has Start', await page.evaluate(() => Boolean(document.querySelector('.bl [data-start]'))) && await guest.page.evaluate(() => !document.querySelector('.bl [data-start]')));
     await guest.page.click('.bl [data-squad="0"]');
     t.check('the guest moves to the host\'s squad', await until(page, () => window.breachline.room.members.every((m) => m.squad === 0)));
@@ -102,7 +107,7 @@ export async function run(browser, { shots = null } = {}) {
     const both = async (fn, ms = 10000) => (await until(page, fn, null, ms)) && (await until(guest.page, fn, null, ms));
     t.check('the host starts: both are in one match of ten, two people and eight bots, on the same squad', await both(() => {
       const g = window.breachline;
-      return g.match?.players.length === 10 && g.me && !g.me.bot && g.match.players.filter((p) => !p.bot).length === 2 && g.match.players.filter((p) => !p.bot).every((p) => p.squad === g.me.squad);
+      return g.match?.players.length === 10 && g.me && !g.me.bot && g.match.map?.id === 'oldtown' && g.match.players.filter((p) => !p.bot).length === 2 && g.match.players.filter((p) => !p.bot).every((p) => p.squad === g.me.squad);
     }));
     const [h, gst] = [await me(page), await me(guest.page)];
     t.check('each has a seat of their own', h.id !== gst.id, JSON.stringify([h, gst]));

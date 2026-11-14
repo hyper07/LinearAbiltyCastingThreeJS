@@ -1,5 +1,5 @@
 import { PLAYER, WEAPONS, weaponIn } from './rules.js';
-import { clear } from './map.js';
+import { getMap } from './map.js';
 
 /**
  * Breachline over the wire. The server runs the match (sim.js) and sends
@@ -15,6 +15,7 @@ const round = (v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v);
 /** A match, as sent: small arrays, numbers to two places. */
 export function pack(match) {
   return {
+    map: match.map.id,
     time: round(match.time),
     phase: match.phase,
     timer: round(match.timer),
@@ -44,6 +45,7 @@ export class Mirror {
     this.over = null;
     this.nades = [];
     this.smokes = [];
+    this.map = getMap('foundry');
   }
 
   sideOf(squad) {
@@ -61,6 +63,7 @@ export class Mirror {
   /** Take in what the server sent. Positions are kept aside (`to`) and eased towards in `frame`. */
   apply(snap, myId = null) {
     for (const k of ['time', 'phase', 'timer', 'round', 'score', 'attackers', 'charge', 'over']) this[k] = snap[k];
+    if (snap.map && snap.map !== this.map.id) this.map = getMap(snap.map);
     this.nades = (snap.nades ?? []).map(([x, y, z, kind]) => ({ x, y, z, kind }));
     this.smokes = (snap.smokes ?? []).map(([x, z, r, at, until]) => ({ x, z, r, at, until }));
     snap.players.forEach((row, i) => {
@@ -105,8 +108,8 @@ export class Mirror {
           const s = len > 1 ? input.s / len : input.s;
           const nx = p.x + (-Math.sin(p.yaw) * f + Math.cos(p.yaw) * s) * speed * dt;
           const nz = p.z + (-Math.cos(p.yaw) * f - Math.sin(p.yaw) * s) * speed * dt;
-          if (clear(nx, p.z, PLAYER.radius)) p.x = nx;
-          if (clear(p.x, nz, PLAYER.radius)) p.z = nz;
+          if (this.map.clear(nx, p.z, PLAYER.radius)) p.x = nx;
+          if (this.map.clear(p.x, nz, PLAYER.radius)) p.z = nz;
         }
         const k = Math.min(1, dt * 6);
         p.x += (p.to.x - p.x) * k;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { BOXES, SITES, SIZE, SPAWNS } from './map.js';
+import { getMap } from './map.js';
 import { TEAM, PLAYER, WEAPONS } from './rules.js';
 import { surface, worldBox, PropBatch, sky } from './assets.js';
 import { loadSoldier, Soldier } from './soldier.js';
@@ -16,7 +16,6 @@ import { gunModel } from './guns.js';
  * draws: plain textured shapes and plain figures.
  */
 
-const CENTER = [SIZE[0] / 2, SIZE[1] / 2];
 /** A wash over each team's uniforms, on top of their arm bands. */
 const TINT = { atk: '#f3d7b4', def: '#95acc9' };
 const CONTAINER_COLORS = ['#8c3a2a', '#2c5a86', '#3f6a46', '#b3a383', '#c0682c', '#5b6066'];
@@ -34,7 +33,8 @@ function seeded(seed) {
 }
 
 export class FpsView {
-  constructor(host) {
+  /** @param {HTMLElement} host @param {any} [map] a map from map.js (Foundry when left out) */
+  constructor(host, map = getMap('foundry')) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
@@ -55,16 +55,14 @@ export class FpsView {
     this.fov = 74;
     this.scene.add(new THREE.HemisphereLight('#e6efff', '#8a8072', 1.15));
     const sun = new THREE.DirectionalLight('#fff0d8', 2.6);
-    sun.position.set(CENTER[0] + 70, 95, CENTER[1] - 40);
-    sun.target.position.set(CENTER[0], 0, CENTER[1]);
     sun.castShadow = true;
     sun.shadow.mapSize.set(4096, 4096);
-    Object.assign(sun.shadow.camera, { left: -95, right: 95, top: 95, bottom: -95, near: 10, far: 300 });
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.03;
     this.scene.add(sun, sun.target);
     this.sun = sun;
-    this._map();
+    this._charge0();
+    this.setMap(map);
     this._viewModel();
     sky(this.renderer, this.scene).then(() => {
       this.vmScene.environment = this.scene.environment;
@@ -80,8 +78,30 @@ export class FpsView {
 
   /* ----------------------------------------------------------------- map */
 
+  /** Build a map's world (and take down the last one's). */
+  setMap(map) {
+    if (this.mapDef?.id === map.id) return;
+    if (this.yard) {
+      this.scene.remove(this.yard);
+      this.yard.traverse((o) => o.geometry?.dispose?.());
+    }
+    this.mapDef = map;
+    const [W, D] = map.SIZE;
+    this.center = [W / 2, D / 2];
+    // The sun's shadows cover the whole map.
+    const reach = Math.max(W, D) / 2 + 22;
+    this.sun.position.set(this.center[0] + 70, 95, this.center[1] - 40);
+    this.sun.target.position.set(this.center[0], 0, this.center[1]);
+    Object.assign(this.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 10, far: 320 });
+    this.sun.shadow.camera.updateProjectionMatrix();
+    this._map();
+  }
+
   _map() {
+    const { BOXES, SITES, SPAWNS, look = {} } = this.mapDef;
+    const CENTER = this.center;
     const yard = new THREE.Group();
+    this.yard = yard;
     this.scene.add(yard);
     this.props = new PropBatch(yard);
     const rand = seeded(1307);
@@ -100,16 +120,17 @@ export class FpsView {
       for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * w) / tile, (uv.getY(i) * d) / tile);
       return g;
     };
-    mesh(flat(700, 700, 6), surface('asphalt', { color: '#858585' }), CENTER[0], 0, CENTER[1], { shadow: false });
+    const paved = look.ground === 'paving';
+    mesh(flat(700, 700, paved ? 3 : 6), paved ? surface('paving', { color: '#a49f96' }) : surface('asphalt', { color: '#858585' }), CENTER[0], 0, CENTER[1], { shadow: false });
     for (const s of Object.values(SITES)) mesh(flat(s.r * 2 + 6, s.r * 2 + 6, 5), surface('slab', { color: '#6e6b66' }), s.x, 0.012, s.z, { shadow: false });
     for (const side of ['atk', 'def']) {
       const xs = SPAWNS[side].map((p) => p[0]);
       const x = (Math.min(...xs) + Math.max(...xs)) / 2;
-      mesh(flat(14, 22, 3), surface('paving', { color: '#b3aea5' }), x, 0.012, CENTER[1], { shadow: false });
+      if (!paved) mesh(flat(14, 22, 3), surface('paving', { color: '#b3aea5' }), x, 0.012, CENTER[1], { shadow: false });
     }
     // Lines painted on the road.
     const paint = new THREE.MeshStandardMaterial({ color: '#e9e4d2', roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 });
-    for (let x = 18; x < 98; x += 6) mesh(new THREE.PlaneGeometry(3, 0.16).rotateX(-Math.PI / 2), paint, x, 0.02, 52, { shadow: false });
+    if (look.lines != null) for (let x = 18; x < this.mapDef.SIZE[0] - 46; x += 6) mesh(new THREE.PlaneGeometry(3, 0.16).rotateX(-Math.PI / 2), paint, x, 0.02, look.lines, { shadow: false });
     // The sites: a painted ring and a letter on the ground.
     for (const [name, s] of Object.entries(SITES)) {
       const c = document.createElement('canvas');
@@ -150,7 +171,10 @@ export class FpsView {
     if (crates.frame.length) mesh(mergeGeometries(crates.frame), frameWood, 0, 0, 0);
     this._scenery(rand);
     this.props.build({ flat: new Set(['shutterWindow', 'shutterDoor', 'pipes', 'securityLight', 'fireEscape', 'lamp', 'aircon', 'bag']) }).then((n) => (this.propsDrawn = n));
-    // The charge: a case with a light that blinks faster as its time runs out.
+  }
+
+  /** The charge: a case with a light that blinks faster as its time runs out. */
+  _charge0() {
     this.chargeMesh = new THREE.Group();
     const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.34), new THREE.MeshStandardMaterial({ color: '#2a2d33', roughness: 0.5, metalness: 0.4 }));
     box.position.y = 0.11;
@@ -166,7 +190,8 @@ export class FpsView {
   _building(yard, mesh, x, z, w, d, h, i, rand) {
     const cx = x + w / 2;
     const cz = z + d / 2;
-    mesh(worldBox(w, h, d, 3), surface(i % 2 ? 'brickRed' : 'brick'), cx, 0, cz);
+    const walls = this.mapDef.look?.walls ?? ['brick', 'brickRed'];
+    mesh(worldBox(w, h, d, 3), surface(walls[i % walls.length]), cx, 0, cz);
     mesh(worldBox(w + 0.12, 0.8, d + 0.12, 3), surface('concrete'), cx, 0, cz);
     mesh(worldBox(w + 0.5, 0.45, d + 0.5, 3), surface('concrete'), cx, h - 0.2, cz);
     mesh(worldBox(w - 1, 0.6, d - 1, 4), surface('slab', { color: '#6d6a64' }), cx, h + 0.1, cz);
@@ -291,7 +316,7 @@ export class FpsView {
 
   /** Beyond the yard wall: factory fronts and blocks of flats; inside it, lamps and odds and ends. */
   _scenery(rand) {
-    const [W, D] = SIZE;
+    const [W, D] = this.mapDef.SIZE;
     // Blocks beyond the wall, each a few storeys of brick or concrete with shuttered windows facing the yard.
     const blocks = [];
     for (let x = -14; x < W + 14; ) {
@@ -321,11 +346,11 @@ export class FpsView {
       body.position.set(cx, 0, cz);
       body.rotation.y = turn;
       body.receiveShadow = true;
-      this.scene.add(body);
+      this.yard.add(body);
       const cap = new THREE.Mesh(worldBox(w + 0.4, 0.5, deep + 0.4, 3), surface('concrete', { color: '#9c978e' }));
       cap.position.set(cx, h, cz);
       cap.rotation.y = turn;
-      this.scene.add(cap);
+      this.yard.add(cap);
       for (let f = 0; f < floors; f++)
         for (let t = 2.2; t < w - 2.5; t += 3.6) {
           const px = x + along[0] * t;
@@ -335,8 +360,8 @@ export class FpsView {
         }
     }
     if (frames.length) {
-      this.scene.add(new THREE.Mesh(mergeGeometries(frames), new THREE.MeshStandardMaterial({ color: '#d8d3c8', roughness: 0.8 })));
-      this.scene.add(new THREE.Mesh(mergeGeometries(panes), new THREE.MeshStandardMaterial({ color: '#28323c', roughness: 0.08, metalness: 0.6 })));
+      this.yard.add(new THREE.Mesh(mergeGeometries(frames), new THREE.MeshStandardMaterial({ color: '#d8d3c8', roughness: 0.8 })));
+      this.yard.add(new THREE.Mesh(mergeGeometries(panes), new THREE.MeshStandardMaterial({ color: '#28323c', roughness: 0.08, metalness: 0.6 })));
     }
     // Lamps along the yard wall, facing in.
     for (let x = 18; x < W - 6; x += 40) {
@@ -560,6 +585,7 @@ export class FpsView {
    * behind a living teammate.
    */
   render(match, viewer, dt, { zoom = false } = {}) {
+    if (match.map && match.map.id !== this.mapDef.id) this.setMap(match.map);
     this._people(match, viewer, dt);
     const eye = viewer?.alive ? viewer : match.players.find((p) => p.alive && p.squad === viewer?.squad) ?? match.players.find((p) => p.alive) ?? viewer;
     const first = eye === viewer && viewer?.alive;
@@ -714,12 +740,15 @@ export class FpsView {
 
   /** The menu's backdrop: a slow turn high above the yard, the gun put away. */
   overview(match, t, dt) {
+    if (match.map && match.map.id !== this.mapDef.id) this.setMap(match.map);
     this.gun.visible = false;
     this._people(match, null, dt);
     this.camera.fov = this.fov = 55;
     this.camera.updateProjectionMatrix();
-    this.camera.position.set(CENTER[0] + Math.sin(t * 0.05) * 95, 55, CENTER[1] + Math.cos(t * 0.05) * 80);
-    this.camera.lookAt(CENTER[0] + 10, 0, CENTER[1]);
+    const [cx, cz] = this.center;
+    const [W, D] = this.mapDef.SIZE;
+    this.camera.position.set(cx + Math.sin(t * 0.05) * W * 0.66, Math.max(W, D) * 0.4, cz + Math.cos(t * 0.05) * D * 0.78);
+    this.camera.lookAt(cx + 10, 0, cz);
     this._fade(dt);
     this._charge(match);
     this._grenades(match, dt);

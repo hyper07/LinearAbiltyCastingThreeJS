@@ -1,5 +1,5 @@
 import { TEAM_SIZE, WIN_ROUNDS, HALF, TIME, MONEY, PLAYER, WEAPONS, GEAR, SKILL, lossPay, weaponIn, canHold } from './rules.js';
-import { BOXES, SITES, SPAWNS, NODES, HOLDS, PLAN, nearestNode, route, clear, rayBoxes, sees } from './map.js';
+import { getMap } from './map.js';
 
 /**
  * A match of Breachline: ten players (you and nine bots, or all bots), their
@@ -19,9 +19,12 @@ export class Match {
   /**
    * `humans` seats people from the start: `[{ name, squad }]` (squad 0 or 1).
    * Without it, `human` seats one person (`name`) in squad 0.
-   * @param {{ seed?: number, team?: 'atk'|'def', skill?: 'easy'|'normal'|'hard', name?: string, human?: boolean, humans?: { name: string, squad?: number }[] }} [options]
+   * `map` is a map's id (map.js MAPS).
+   * @param {{ seed?: number, team?: 'atk'|'def', skill?: 'easy'|'normal'|'hard', name?: string, human?: boolean, humans?: { name: string, squad?: number }[], map?: string }} [options]
    */
-  constructor({ seed = 1, team = 'atk', skill = 'normal', name = 'You', human = true, humans = null } = {}) {
+  constructor({ seed = 1, team = 'atk', skill = 'normal', name = 'You', human = true, humans = null, map = 'foundry' } = {}) {
+    /** Which map: its boxes, sites, spawns and the ways bots walk (map.js). */
+    this.map = getMap(map);
     this.seed = seed >>> 0 || 1;
     this.skill = SKILL[skill] ?? SKILL.normal;
     this.time = 0;
@@ -93,7 +96,7 @@ export class Match {
     const places = { atk: 0, def: 0 };
     for (const p of this.players) {
       const side = this.sideOf(p.squad);
-      const [x, z] = SPAWNS[side][places[side]++ % SPAWNS[side].length];
+      const [x, z] = this.map.SPAWNS[side][places[side]++ % this.map.SPAWNS[side].length];
       // Whoever lived keeps what they carried; whoever fell starts again with a sidearm.
       if (!p.alive) Object.assign(p, { primary: null, secondary: 'sidearm', armor: 0, helmet: false, kit: false, nades: { frag: 0, smoke: 0 } });
       Object.assign(p, { alive: true, hp: PLAYER.hp, x, z, y: 0, vy: 0, yaw: side === 'atk' ? -Math.PI / 2 : Math.PI / 2, pitch: 0, slot: p.primary ? 1 : 2, cool: 0, reloading: 0, kick: 0, using: 0, moving: false, scoped: false, hasCharge: false, target: null, path: [], wp: null, goal: null, stuck: 0, burst: 0, rest: 0, look: null, cover: null, heard: null, lastSeen: null, trade: 0, dodge: 1, dodgeUntil: 0 });
@@ -107,7 +110,7 @@ export class Match {
     // Wardens split: two for each site, one in the middle.
     this.living('def').forEach((p, i) => (p.post = ['A', 'B', 'A', 'B', 'mid'][i % 5]));
     // Raiders each prefer a lane, so they don't all walk in a line.
-    this.living('atk').forEach((p, i) => (p.avoid = new Set(PLAN.lanes[i % PLAN.lanes.length])));
+    this.living('atk').forEach((p, i) => (p.avoid = new Set(this.map.PLAN.lanes[i % this.map.PLAN.lanes.length])));
     this.events.push({ type: 'phase', phase: 'buy', round: this.round });
   }
 
@@ -229,7 +232,7 @@ export class Match {
       const ox = p.x;
       const oy = p.y + PLAYER.eye;
       const oz = p.z;
-      let far = rayBoxes(ox, oy, oz, dx, dy, dz, w.range);
+      let far = this.map.rayBoxes(ox, oy, oz, dx, dy, dz, w.range);
       let hit = null;
       let head = false;
       for (const q of foes) {
@@ -361,8 +364,8 @@ export class Match {
       const nz = p.z + vz * dt;
       const bx = p.x;
       const bz = p.z;
-      if (clear(nx, p.z, PLAYER.radius)) p.x = nx;
-      if (clear(p.x, nz, PLAYER.radius)) p.z = nz;
+      if (this.map.clear(nx, p.z, PLAYER.radius)) p.x = nx;
+      if (this.map.clear(p.x, nz, PLAYER.radius)) p.z = nz;
       p.moving = Math.hypot(p.x - bx, p.z - bz) > speed * dt * 0.3 && len > 0.1;
       if (cmd.jump && p.y <= 0) p.vy = PLAYER.jump;
       if (p.y > 0 || p.vy > 0) {
@@ -402,7 +405,7 @@ export class Match {
   _use(p, dt) {
     const side = this.sideOf(p.squad);
     if (side === 'atk' && p.hasCharge && this.phase === 'live') {
-      const site = Object.entries(SITES).find(([, s]) => Math.hypot(p.x - s.x, p.z - s.z) < s.r);
+      const site = Object.entries(this.map.SITES).find(([, s]) => Math.hypot(p.x - s.x, p.z - s.z) < s.r);
       if (!site || p.y > 0) return false;
       p.using += dt;
       if (p.using >= TIME.plant) {
@@ -499,7 +502,7 @@ export class Match {
   }
 
   _inBox(x, y, z) {
-    for (const [bx, bz, w, d, h] of BOXES) if (y < h && x > bx - 0.08 && x < bx + w + 0.08 && z > bz - 0.08 && z < bz + d + 0.08) return true;
+    for (const [bx, bz, w, d, h] of this.map.BOXES) if (y < h && x > bx - 0.08 && x < bx + w + 0.08 && z > bz - 0.08 && z < bz + d + 0.08) return true;
     return false;
   }
 
@@ -549,7 +552,7 @@ export class Match {
     for (const q of this.players) {
       if (!q.alive || q.squad === by.squad) continue;
       const d = Math.hypot(q.x - n.x, q.y + 1 - n.y, q.z - n.z);
-      if (d > w.radius || !sees(n.x, n.y + 0.25, n.z, q.x, q.y + 1.1, q.z)) continue;
+      if (d > w.radius || !this.map.sees(n.x, n.y + 0.25, n.z, q.x, q.y + 1.1, q.z)) continue;
       this._hurt(q, by, w.dmg * (1 - d / w.radius) ** 1.3, 'frag', false);
     }
   }
@@ -573,7 +576,7 @@ export class Match {
 
   /** Can one eye see another: nothing solid and no smoke between. */
   _see(ax, ay, az, bx, by, bz) {
-    return sees(ax, ay, az, bx, by, bz) && !this._smoked(ax, ay, az, bx, by, bz);
+    return this.map.sees(ax, ay, az, bx, by, bz) && !this._smoked(ax, ay, az, bx, by, bz);
   }
 
   /** A noise at a player (a shot, a stab, a blast): enemy bots within `far` turn to it. */
@@ -603,31 +606,31 @@ export class Match {
     if (this.phase === 'live' && !plan.go) {
       const site = plan.faking ?? plan.site;
       const raiders = this.living('atk');
-      const staged = raiders.filter((p) => PLAN.stage[site].some((k) => Math.hypot(p.x - NODES[k][0], p.z - NODES[k][1]) < 8)).length;
+      const staged = raiders.filter((p) => this.map.PLAN.stage[site].some((k) => Math.hypot(p.x - this.map.NODES[k][0], p.z - this.map.NODES[k][1]) < 8)).length;
       if (staged >= Math.ceil(raiders.length * 0.6)) plan.stagedAt ??= this.time;
       const elapsed = TIME.round - this.timer;
       const ready = plan.stagedAt != null && this.time - plan.stagedAt > (plan.faking ? 4 : 2);
       if (plan.faking && (ready || elapsed > 32)) {
         // The fake is done: a grenade into that site for the noise, then everyone to the real one.
         const noisy = raiders.find((p) => p.bot && p.nades.frag > 0);
-        if (noisy) this._lob(noisy, 'frag', SITES[site].x, SITES[site].z);
+        if (noisy) this._lob(noisy, 'frag', this.map.SITES[site].x, this.map.SITES[site].z);
         plan.faking = null;
         plan.stagedAt = null;
         plan.style = 'rush';
         plan.go = true;
       } else if (!plan.faking && (ready || elapsed > 40 || this.timer < 60)) {
         plan.go = true;
-        this._utility('atk', PLAN.smokes[plan.site], HOLDS[plan.site].slice(0, 2));
+        this._utility('atk', this.map.PLAN.smokes[plan.site], this.map.HOLDS[plan.site].slice(0, 2));
       }
     }
     // Wardens take a site back together, behind smoke.
     if (this.phase === 'planted' && !plan.retakeGo) {
-      const k = PLAN.retake[this.charge.site];
+      const k = this.map.PLAN.retake[this.charge.site];
       const defs = this.living('def');
-      const there = defs.filter((p) => Math.hypot(p.x - NODES[k][0], p.z - NODES[k][1]) < 9).length;
+      const there = defs.filter((p) => Math.hypot(p.x - this.map.NODES[k][0], p.z - this.map.NODES[k][1]) < 9).length;
       if (there >= Math.min(2, defs.length) || this.timer < 22 || !this.living('atk').length) {
         plan.retakeGo = true;
-        this._utility('def', PLAN.retakeSmokes[this.charge.site], [this.charge.site]);
+        this._utility('def', this.map.PLAN.retakeSmokes[this.charge.site], [this.charge.site]);
       }
     }
   }
@@ -640,7 +643,7 @@ export class Match {
       if (p) this._lob(p, kind, x + (this.rand() - 0.5) * 1.5, z + (this.rand() - 0.5) * 1.5);
     };
     for (const [x, z] of smokes) throwFrom('smoke', x, z);
-    for (const k of frags) throwFrom('frag', NODES[k][0], NODES[k][1]);
+    for (const k of frags) throwFrom('frag', this.map.NODES[k][0], this.map.NODES[k][1]);
   }
 
   /* ---------------------------------------------------------------- bots */
@@ -659,7 +662,7 @@ export class Match {
   /** Whether a straight walk from here to there is clear. */
   _walkable(x0, z0, x1, z1) {
     const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.5);
-    for (let i = 1; i <= n; i++) if (!clear(x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n, 0.45)) return false;
+    for (let i = 1; i <= n; i++) if (!this.map.clear(x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n, 0.45)) return false;
     return true;
   }
 
@@ -667,15 +670,15 @@ export class Match {
   _coverFrom(p, enemy) {
     let best = null;
     let bestD = Infinity;
-    for (const [bx, bz, w, d, h] of BOXES) {
+    for (const [bx, bz, w, d, h] of this.map.BOXES) {
       if (h < 1.25) continue;
       const cx = bx + w / 2;
       const cz = bz + d / 2;
       if (Math.hypot(cx - p.x, cz - p.z) > 16 + Math.max(w, d) / 2) continue;
       for (const [x, z] of [[bx - 0.9, bz - 0.9], [bx + w + 0.9, bz - 0.9], [bx - 0.9, bz + d + 0.9], [bx + w + 0.9, bz + d + 0.9], [cx, bz - 0.9], [cx, bz + d + 0.9], [bx - 0.9, cz], [bx + w + 0.9, cz]]) {
         const dist = Math.hypot(x - p.x, z - p.z);
-        if (dist >= bestD || dist > 14 || !clear(x, z, 0.45)) continue;
-        if (sees(enemy.x, enemy.y + PLAYER.eye, enemy.z, x, 1.3, z)) continue;
+        if (dist >= bestD || dist > 14 || !this.map.clear(x, z, 0.45)) continue;
+        if (this.map.sees(enemy.x, enemy.y + PLAYER.eye, enemy.z, x, 1.3, z)) continue;
         if (!this._walkable(p.x, p.z, x, z)) continue;
         best = { x, z };
         bestD = dist;
@@ -686,7 +689,7 @@ export class Match {
 
   /** Is there room to sidestep (`s` −1 left, 1 right)? */
   _room(p, s) {
-    return clear(p.x + Math.cos(p.yaw) * s * 0.9, p.z - Math.sin(p.yaw) * s * 0.9, 0.45);
+    return this.map.clear(p.x + Math.cos(p.yaw) * s * 0.9, p.z - Math.sin(p.yaw) * s * 0.9, 0.45);
   }
 
   /** Walk towards a point whatever way we face (the command's f and s). */
@@ -711,7 +714,7 @@ export class Match {
     for (const q of this.players) {
       if (!q.alive || q.squad === p.squad) continue;
       const d = Math.hypot(q.x - p.x, q.z - p.z);
-      if (d > PLAN.sight) continue;
+      if (d > this.map.PLAN.sight) continue;
       const bearing = Math.atan2(-(q.x - p.x), -(q.z - p.z));
       if (d > 5 && Math.abs(turn(p.yaw, bearing)) > rad(75) && p.target !== q.id) continue;
       if (!this._see(p.x, eye, p.z, q.x, q.y + 1.3, q.z) && !this._see(p.x, eye, p.z, q.x, q.y + 1.62, q.z)) continue;
@@ -729,8 +732,8 @@ export class Match {
         p.aimHead = this.rand() < sk.head;
       }
       if (side === 'def' && this.phase === 'live') {
-        const near = Object.entries(SITES).map(([k, v]) => [k, Math.hypot(seen.x - v.x, seen.z - v.z)]).sort((a, b) => a[1] - b[1])[0];
-        if (near[1] < PLAN.alarm && (!this.alarm || this.alarm.site !== near[0] || this.time - this.alarm.at > 6)) this.alarm = { site: near[0], at: this.time };
+        const near = Object.entries(this.map.SITES).map(([k, v]) => [k, Math.hypot(seen.x - v.x, seen.z - v.z)]).sort((a, b) => a[1] - b[1])[0];
+        if (near[1] < this.map.PLAN.alarm && (!this.alarm || this.alarm.site !== near[0] || this.time - this.alarm.at > 6)) this.alarm = { site: near[0], at: this.time };
       }
       p.lastSeen = { x: seen.x, z: seen.z, at: this.time };
       p.heard = null;
@@ -759,7 +762,7 @@ export class Match {
     const goal = this._botGoal(p, side);
     if (goal.key !== p.goal) {
       p.goal = goal.key;
-      p.path = goal.node ? route(nearestNode(p.x, p.z), goal.node, p.avoid).map((k) => ({ x: NODES[k][0] + (this.rand() - 0.5) * 1.6, z: NODES[k][1] + (this.rand() - 0.5) * 1.6 })) : [];
+      p.path = goal.node ? this.map.route(this.map.nearestNode(p.x, p.z), goal.node, p.avoid).map((k) => ({ x: this.map.NODES[k][0] + (this.rand() - 0.5) * 1.6, z: this.map.NODES[k][1] + (this.rand() - 0.5) * 1.6 })) : [];
       if (goal.point) p.path.push(goal.point);
       if (p.path.length > 1 && Math.hypot(p.path[0].x - p.x, p.path[0].z - p.z) < 2.5) p.path.shift();
     }
@@ -799,7 +802,7 @@ export class Match {
       }
     } else {
       // Arrived: hold, sweeping slowly the way trouble would come from (or towards a sound).
-      const watch = look ? [look.x, look.z] : goal.watch ?? PLAN.watch.idle;
+      const watch = look ? [look.x, look.z] : goal.watch ?? this.map.PLAN.watch.idle;
       const base = Math.atan2(-(watch[0] - p.x), -(watch[1] - p.z));
       const want = base + (look ? 0 : Math.sin(this.time * 0.7 + p.id * 1.7) * rad(32));
       cmd.yaw = p.yaw + Math.max(-rad(160) * dt, Math.min(rad(160) * dt, turn(p.yaw, want)));
@@ -902,7 +905,7 @@ export class Match {
   /** Should this bot be setting or disarming the charge right now? */
   _botUse(p, side, seen) {
     if (side === 'atk' && p.hasCharge && this.phase === 'live') {
-      const s = SITES[this.plan.site];
+      const s = this.map.SITES[this.plan.site];
       return Math.hypot(p.x - s.x, p.z - s.z) < s.r - 1.5 && (!seen || p.using > 1.5);
     }
     if (side === 'def' && this.charge?.state === 'planted' && Math.hypot(p.x - this.charge.x, p.z - this.charge.z) < 1.5) {
@@ -919,41 +922,41 @@ export class Match {
     const plan = this.plan;
     // A teammate just fell nearby: go at whoever did it.
     if (p.trade && this.time - p.trade < 5 && p.lastSeen && !p.hasCharge && Math.hypot(p.lastSeen.x - p.x, p.lastSeen.z - p.z) < 35) {
-      return { key: `trade${p.trade}`, node: nearestNode(p.lastSeen.x, p.lastSeen.z), point: { x: p.lastSeen.x, z: p.lastSeen.z }, watch: [p.lastSeen.x, p.lastSeen.z] };
+      return { key: `trade${p.trade}`, node: this.map.nearestNode(p.lastSeen.x, p.lastSeen.z), point: { x: p.lastSeen.x, z: p.lastSeen.z }, watch: [p.lastSeen.x, p.lastSeen.z] };
     }
     if (side === 'atk') {
       if (this.charge?.state === 'dropped') {
         // The nearest Raider goes back for it.
         const near = this.living('atk').sort((a, b) => Math.hypot(a.x - this.charge.x, a.z - this.charge.z) - Math.hypot(b.x - this.charge.x, b.z - this.charge.z))[0];
-        if (near === p) return { key: 'fetch', node: nearestNode(this.charge.x, this.charge.z), point: { x: this.charge.x, z: this.charge.z } };
+        if (near === p) return { key: 'fetch', node: this.map.nearestNode(this.charge.x, this.charge.z), point: { x: this.charge.x, z: this.charge.z } };
       }
       if (this.phase === 'planted') {
         const site = this.charge.site;
-        return { key: `guard${site}:${pick(HOLDS[site])}`, node: pick(HOLDS[site]), watch: PLAN.watch.guard };
+        return { key: `guard${site}:${pick(this.map.HOLDS[site])}`, node: pick(this.map.HOLDS[site]), watch: this.map.PLAN.watch.guard };
       }
       if (!plan.go) {
         // Gather where this one comes in from, out of sight of the site.
         const site = plan.faking ?? plan.site;
-        const stage = PLAN.stage[site][p.id % 2];
-        return { key: `stage${site}:${stage}`, node: stage, watch: [SITES[site].x, SITES[site].z] };
+        const stage = this.map.PLAN.stage[site][p.id % 2];
+        return { key: `stage${site}:${stage}`, node: stage, watch: [this.map.SITES[site].x, this.map.SITES[site].z] };
       }
       const site = plan.site;
-      if (p.hasCharge) return { key: `plant${site}`, node: site, watch: PLAN.watch.plant };
-      return { key: `push${site}:${pick(HOLDS[site].slice(0, 3))}`, node: pick(HOLDS[site].slice(0, 3)), watch: PLAN.watch.guard };
+      if (p.hasCharge) return { key: `plant${site}`, node: site, watch: this.map.PLAN.watch.plant };
+      return { key: `push${site}:${pick(this.map.HOLDS[site].slice(0, 3))}`, node: pick(this.map.HOLDS[site].slice(0, 3)), watch: this.map.PLAN.watch.guard };
     }
     if (this.charge?.state === 'planted') {
       const site = this.charge.site;
       const charge = [this.charge.x, this.charge.z];
-      if (!plan.retakeGo) return { key: `regroup${site}`, node: PLAN.retake[site], watch: charge };
+      if (!plan.retakeGo) return { key: `regroup${site}`, node: this.map.PLAN.retake[site], watch: charge };
       // In together: the nearest disarms, the rest clear the site around them.
       const nearest = this.living('def').sort((a, b) => Math.hypot(a.x - charge[0], a.z - charge[1]) - Math.hypot(b.x - charge[0], b.z - charge[1]))[0];
-      if (nearest === p || !this.living('atk').length) return { key: 'disarm', node: site, point: { x: charge[0] + 0.6, z: charge[1] }, watch: PLAN.watch.disarm };
-      return { key: `clear${site}:${pick(HOLDS[site])}`, node: pick(HOLDS[site]), watch: PLAN.watch.disarm };
+      if (nearest === p || !this.living('atk').length) return { key: 'disarm', node: site, point: { x: charge[0] + 0.6, z: charge[1] }, watch: this.map.PLAN.watch.disarm };
+      return { key: `clear${site}:${pick(this.map.HOLDS[site])}`, node: pick(this.map.HOLDS[site]), watch: this.map.PLAN.watch.disarm };
     }
     // A call for help, a couple of seconds old (word has to travel): leave your post for that site.
     const called = this.alarm && this.time - this.alarm.at > 0.6 && this.time - this.alarm.at < 25 ? this.alarm.site : null;
     const post = called ?? p.post ?? 'mid';
-    return { key: `hold${post}:${pick(HOLDS[post])}`, node: pick(HOLDS[post]), watch: PLAN.watch.hold[post] };
+    return { key: `hold${post}:${pick(this.map.HOLDS[post])}`, node: pick(this.map.HOLDS[post]), watch: this.map.PLAN.watch.hold[post] };
   }
 
   /**

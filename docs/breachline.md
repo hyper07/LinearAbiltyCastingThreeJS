@@ -5,11 +5,21 @@ before each. The **Raiders** carry a charge to one of two sites and set it; the 
 the sites, or disarm the charge in time. First to seven rounds wins, and the squads change ends
 after six. The teams, the map ("Foundry") and the weapons are invented for this game.
 
-Foundry is an old works yard, 144 by 104 metres: four brick warehouses split the yard into a
-north lane, a middle road and a south lane, with a pump house in front of the Wardens' yard. Cover
-is what such a yard has: shipping containers (too tall to shoot over), stacks of crates (some
-low enough to shoot over), barrels, gas bottles and pallets of cement. Beyond the wall stand
-blocks of flats and workshops; the sky is a real one, a sunrise photographed as an HDR.
+Three maps, each with a plan drawn on its card. Playing alone you choose one; in a room, the host
+chooses and everyone sees it.
+
+- **Foundry** — an old works yard, 144 by 104 metres: four brick warehouses split it into a north
+  lane, a middle road and a south lane, with a gap across each side; a pump house in front of the
+  Wardens' yard. Long sightlines down the middle road.
+- **Harbor** — a container port, 136 by 96: a maze of containers on two quays, some stacked two
+  high, and one long warehouse whose narrow corridor is the only way through the middle.
+- **Old Town** — 120 by 104: three streets between blocks of houses, two alleys across them, a
+  fountain house at the end of the main street, and market squares with crates for sites. Close
+  fights, many corners.
+
+Cover is what such places have: shipping containers (too tall to shoot over), stacks of crates
+(some low enough to shoot over), barrels, gas bottles and pallets of cement. Beyond the walls
+stand blocks of flats and workshops; the sky is a real one, a sunrise photographed as an HDR.
 
 Play it alone with nine bots, or with **up to four people** in a room — bots fill every seat a
 person isn't in.
@@ -98,7 +108,7 @@ everyone is back in the room, and the host can start another.
 | File | What it holds |
 | --- | --- |
 | `src/fps/rules.js` | the numbers: weapons, prices, money, timings, bot skill |
-| `src/fps/map.js` | the map as boxes, the sites and spawns, the bots' paths, and what blocks a walk or a shot |
+| `src/fps/map.js` | the maps (`MAPS`): boxes, sites and spawns, the bots' paths and plan, and what blocks a walk or a shot |
 | `src/fps/sim.js` | `Match`: movement, shots, rounds, money, the charge, and the bots — no drawing, no browser |
 | `src/fps/net.js` | `pack(match)` (what the server sends) and `Mirror` (what a browser keeps of it) |
 | `src/fps/view.js` | the 3D picture: the yard, players, the weapon in hand, shots |
