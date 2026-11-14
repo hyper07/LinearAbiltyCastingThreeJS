@@ -260,6 +260,8 @@ export function paintLand(tex, sprites) {
     stamp(g, st[key], x, z);
   };
   place('pad', PAD.x, PAD.z);
+  // The Forge's blue crystals round the back of its ring, like a seam of ore.
+  crystals(g, FORGE.x, FORGE.z, FORGE_REACH + 0.4, r);
   place('forge', FORGE.x, FORGE.z);
   place('barracks', BARRACKS.x, BARRACKS.z);
   place('armory', ARMORY.x, ARMORY.z);
@@ -289,6 +291,42 @@ export function paintLand(tex, sprites) {
     stamp(g, s, x, z, 1, flip);
   }
   return c;
+}
+
+/** Blue crystals in clusters along an arc round (x, z): the Forge's mark. */
+function crystals(g, x, z, radius, r) {
+  for (let k = 0; k < 11; k++) {
+    const a = Math.PI * 0.55 + (k / 10) * Math.PI * 0.95;
+    const cx = x + Math.cos(a) * radius;
+    const cz = z + Math.sin(a) * radius * 0.95;
+    shadow(g, cx, cz, 0.9, 0.5, 0.4);
+    for (let n = 0; n < 3; n++) {
+      const h = 0.9 + r() * 1.3;
+      const w = 0.28 + r() * 0.22;
+      const px = cx + (r() - 0.5) * 0.9;
+      const pz = cz + (r() - 0.5) * 0.5;
+      const lean = (r() - 0.5) * 0.5;
+      const grad = g.createLinearGradient(px - w, pz - h, px + w, pz);
+      grad.addColorStop(0, '#e8fbff');
+      grad.addColorStop(0.35, '#58c8ff');
+      grad.addColorStop(1, '#0c3a7a');
+      g.fillStyle = grad;
+      g.beginPath();
+      g.moveTo(px - w, pz);
+      g.lineTo(px - w * 0.7 + lean, pz - h * 0.8);
+      g.lineTo(px + lean * 1.2, pz - h);
+      g.lineTo(px + w * 0.8 + lean, pz - h * 0.75);
+      g.lineTo(px + w, pz);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = 'rgba(220,250,255,0.6)';
+      g.lineWidth = 0.05;
+      g.beginPath();
+      g.moveTo(px + lean * 1.2, pz - h);
+      g.lineTo(px, pz);
+      g.stroke();
+    }
+  }
 }
 
 /** The blight round one of the dead's buildings: dark purple ground, veined. */

@@ -18,10 +18,13 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStar
  * three bot players, or with up to three friends (the host's browser runs
  * the game; the others send orders and draw what it sends back).
  *
- * Left-click or drag: select. Right-click: move, or attack what you click.
- * A then left-click: attack-move. S stop · H hold · Tab all soldiers ·
- * Ctrl+1–5 make a group, 1–5 pick it · R buy a Recruit (Shift: five) ·
- * F the Forge · U upgrades · G give ore · Space: to your selection.
+ * Keys, the classic way: left-click or drag selects; right-click moves or
+ * attacks. A attack · M move · P patrol (then click) · S stop · H hold ·
+ * E heal (to the pad) · W to the Forge · Ctrl/Alt+0–9 save a group, Shift+
+ * 0–9 add to it, 0–9 pick it (twice: look at it) · Tab or F2 all soldiers ·
+ * Space the last alert · Backspace the camp · Shift+F5–F8 save a view,
+ * F5–F8 go to it · R Recruit (Shift: five) · F Forge · U upgrades · G give
+ * · +/− speed · F1 or ? keys.
  */
 export class PurgeGame {
   constructor(host, { account = null, onClose = () => {}, onSwap = null, flat = false } = {}) {
@@ -57,6 +60,8 @@ export class PurgeGame {
         <div class="bs__aim" data-aim hidden></div>
         <div class="gp__feed" data-feed></div>
         <div class="gp__fps" data-fps></div>
+        <div class="gp__groups" data-groups></div>
+        <div class="gp__help" data-help hidden></div>
       </div>
       <div class="bs__menu" data-menu></div>
       <button type="button" class="bs__x" data-close aria-label="Leave Grave Purge">✕</button>`;
@@ -136,7 +141,7 @@ export class PurgeGame {
           <div class="bs__row"><button type="button" class="bs__go" data-solo>Play with three bot commanders</button></div>
           <div class="bs__row"><span>With friends</span><button type="button" data-make>Make a room</button><input data-code-in maxlength="5" placeholder="CODE" /><button type="button" data-join>Join</button></div>`}
         <p class="bs__note" data-note>${esc(note)}</p>
-        <p class="bs__keys">Drag or click to select · right-click move / attack · A + click attack-move · S stop · H hold · Tab all soldiers · Ctrl+1–5 group · R Recruit (Shift five) · F Forge · U upgrades · G give ore · Space to your soldiers · wheel zoom · arrows or screen edge to look round</p>
+        <p class="bs__keys">Drag or click to select · right-click move / attack · A attack · M move · P patrol · S stop · H hold · E heal · W to the Forge · Ctrl/Alt+0–9 save a group, 0–9 pick it · Tab all · Space last alert · Backspace camp · R Recruit · F Forge · U upgrades · G give · F1 all the keys</p>
       </div>`;
     const $ = (q) => m.querySelector(q);
     for (const b of m.querySelectorAll('[data-diff]')) {
@@ -288,7 +293,7 @@ export class PurgeGame {
     this.view.target.set(PAD.x, 0, PAD.z + 6);
     this.root.focus();
     this._sound();
-    this._banner('Grave Purge', 'Select your soldiers (drag), right-click to send them. R buys Recruits; F raises them at the Forge.', 5);
+    this._banner('Grave Purge', 'Drag to select, right-click to send. R buys Recruits; W walks them to the Forge (left of the camp, blue crystals) to be raised; E sends the hurt to the healing pad. F1: all the keys.', 6);
   }
 
   /** An order for my soldiers: straight in (alone or hosting), or to the host. */
@@ -338,10 +343,10 @@ export class PurgeGame {
         this.view._ring(foe?.x ?? ground.x, foe?.z ?? ground.z, foe ? 1.4 : 0.8, foe ? '#ff5040' : '#7dffb0', 0.35);
         this._aim(null);
       } else if (e.button === 0) {
-        if (this.aimMode === 'amove' && ground) {
+        if (this.aimMode && ground) {
           const ids = this._mine();
-          if (ids.length) this.order({ t: 'amove', ids, x: ground.x, z: ground.z });
-          this.view._ring(ground.x, ground.z, 0.8, '#ffb040', 0.35);
+          if (ids.length) this.order({ t: this.aimMode, ids, x: ground.x, z: ground.z });
+          this.view._ring(ground.x, ground.z, 0.8, this.aimMode === 'move' ? '#7dffb0' : this.aimMode === 'patrol' ? '#80c0ff' : '#ffb040', 0.35);
           this._aim(null);
           return;
         }
@@ -380,7 +385,7 @@ export class PurgeGame {
       const z = ((e.clientY - r.top) / r.height) * SIZE;
       if (e.button === 2) {
         const ids = this._mine();
-        if (ids.length) this.order({ t: this.aimMode === 'amove' ? 'amove' : 'move', ids, x, z });
+        if (ids.length) this.order({ t: this.aimMode ?? 'move', ids, x, z });
         this._aim(null);
       } else {
         this.view.target.set(x, 0, z);
@@ -394,46 +399,158 @@ export class PurgeGame {
         if (e.key === 'Escape' && !this.$('[data-menu]').hidden) this.close();
         return;
       }
-      const k = e.key.toLowerCase();
-      this.keys.add(e.key);
-      if (e.repeat) return;
-      if (/^[1-5]$/.test(e.key)) {
-        if (e.ctrlKey || e.metaKey) this.groups.set(e.key, [...this.selected]);
-        else {
-          this.selected.clear();
-          for (const i of this.groups.get(e.key) ?? []) this.selected.add(i);
-        }
-        e.preventDefault();
-      } else if (k === 'tab') {
-        e.preventDefault();
-        this.selected.clear();
-        for (const t of this.state.ents) if (t.k === 'troop' && t.o === this.mySlot) this.selected.add(t.i);
-      } else if (k === 'a') this._aim('amove');
-      else if (k === 's') this.order({ t: 'stop', ids: this._mine() });
-      else if (k === 'h') this.order({ t: 'hold', ids: this._mine() });
-      else if (k === 'r') this.order({ t: 'buy', n: e.shiftKey ? 5 : 1 });
-      else if (k === 'f') this._panel(this.panel === 'forge' ? null : 'forge');
-      else if (k === 'u') this._panel(this.panel === 'armory' ? null : 'armory');
-      else if (k === 'g') this._panel(this.panel === 'give' ? null : 'give');
-      else if (k === ' ') {
-        e.preventDefault();
-        this._centre();
-      } else if (e.key === 'Escape') {
-        this._aim(null);
-        this._panel(null);
-      } else if ((k === '+' || k === '=' || k === '-') && this.game) {
-        const n = SPEEDS.indexOf(this.game.speed) + (k === '-' ? -1 : 1);
-        this.game.speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, n))];
-      }
+      if (this._key(e)) e.preventDefault();
     });
     on(window, 'keyup', (e) => this.keys.delete(e.key));
+  }
+
+  /** One key: true when the game used it. */
+  _key(e) {
+    const k = e.key.toLowerCase();
+    this.keys.add(e.key);
+    if (e.repeat) return /^[0-9]$/.test(e.key) || e.key === 'Tab';
+    const digit = /^Digit[0-9]$/.test(e.code) ? e.code.slice(5) : /^[0-9]$/.test(e.key) ? e.key : null;
+    if (digit != null) {
+      if (e.ctrlKey || e.metaKey || e.altKey) this._saveGroup(digit, false);
+      else if (e.shiftKey) this._saveGroup(digit, true);
+      else this._pickGroup(digit);
+      return true;
+    }
+    const fkey = /^F([5-8])$/.exec(e.key);
+    if (fkey) {
+      this.views ??= new Map();
+      if (e.shiftKey || e.ctrlKey || e.altKey) {
+        this.views.set(fkey[1], { x: this.view.target.x, z: this.view.target.z });
+        this._feed(`View saved to F${fkey[1]}`);
+      } else if (this.views.has(fkey[1])) {
+        const v = this.views.get(fkey[1]);
+        this.view.target.set(v.x, 0, v.z);
+      }
+      return true;
+    }
+    const ids = () => this._mine();
+    switch (k) {
+      case 'tab':
+      case 'f2':
+        this.selected.clear();
+        for (const t of this.state.ents) if (t.k === 'troop' && t.o === this.mySlot) this.selected.add(t.i);
+        return true;
+      case 'a':
+        this._aim('amove');
+        return true;
+      case 'm':
+        this._aim('move');
+        return true;
+      case 'p':
+        this._aim('patrol');
+        return true;
+      case 's':
+        this.order({ t: 'stop', ids: ids() });
+        return true;
+      case 'h':
+        this.order({ t: 'hold', ids: ids() });
+        return true;
+      case 'e':
+        if (ids().length) {
+          this.order({ t: 'heal', ids: ids() });
+          this._feed('To the healing pad');
+        }
+        return true;
+      case 'w':
+        if (ids().length) {
+          this.order({ t: 'toForge', ids: ids() });
+          this._feed(this.me()?.autoForge ? 'To the Forge — they are raised there when you have the ore' : 'To the Forge');
+        }
+        return true;
+      case 'r':
+        this.order({ t: 'buy', n: e.shiftKey ? 5 : 1 });
+        return true;
+      case 'f':
+        this._panel(this.panel === 'forge' ? null : 'forge');
+        return true;
+      case 'u':
+        this._panel(this.panel === 'armory' ? null : 'armory');
+        return true;
+      case 'g':
+        this._panel(this.panel === 'give' ? null : 'give');
+        return true;
+      case ' ':
+        // The last alert (a wave), if recent; else your selection.
+        if (this.alert && performance.now() - this.alert.t < 15000) this.view.target.set(this.alert.x, 0, this.alert.z);
+        else this._centre();
+        return true;
+      case 'backspace':
+        this.view.target.set(PAD.x, 0, PAD.z + 4);
+        return true;
+      case 'f1':
+      case '?':
+        this._help();
+        return true;
+      case 'escape':
+        this._aim(null);
+        this._panel(null);
+        this.$('[data-help]').hidden = true;
+        return true;
+      case '+':
+      case '=':
+      case '-':
+        if (this.game) {
+          const n = SPEEDS.indexOf(this.game.speed) + (k === '-' ? -1 : 1);
+          this.game.speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, n))];
+        }
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** Save the selection as group n (or add it to the group). */
+  _saveGroup(n, add) {
+    const now = this._mine();
+    if (!now.length && !add) return;
+    const list = add ? [...new Set([...(this.groups.get(n) ?? []), ...now])] : now;
+    this.groups.set(n, list);
+    this._feed(`Group ${n}: ${list.length} soldier${list.length === 1 ? '' : 's'}`);
+    this._groupKey = '';
+  }
+
+  /** Pick group n; picked again quickly, look at it. */
+  _pickGroup(n) {
+    const alive = new Set(this.state.ents.filter((e) => e.k === 'troop' && e.o === this.mySlot).map((e) => e.i));
+    const list = (this.groups.get(n) ?? []).filter((i) => alive.has(i));
+    this.groups.set(n, list);
+    if (!list.length) return;
+    this.selected.clear();
+    for (const i of list) this.selected.add(i);
+    const now = performance.now();
+    if (this._lastGroup?.n === n && now - this._lastGroup.t < 350) this._centre();
+    this._lastGroup = { n, t: now };
+  }
+
+  _help() {
+    const h = this.$('[data-help]');
+    h.hidden = !h.hidden;
+    if (h.hidden) return;
+    const rows = [
+      ['Select', 'Left-click · drag a box · double-click: that rank on screen · Shift adds'],
+      ['Move / attack', 'Right-click the ground / the dead (the map too)'],
+      ['A', 'Attack: click where — they fight on the way'], ['M', 'Move: click where — they do not stop to fight'], ['P', 'Patrol: back and forth to where you click'],
+      ['S · H', 'Stop · hold position'], ['E', 'Heal: off to the healing pad (fast healing; the camp heals slowly)'],
+      ['W', 'To the Forge: walked into its ring, a soldier is raised a rank when you have the ore'],
+      ['Ctrl/Alt + 0–9', 'Save the selection as a group'], ['Shift + 0–9', 'Add the selection to a group'], ['0–9', 'Pick a group (twice quickly: look at it)'],
+      ['Tab · F2', 'All your soldiers'], ['Space', 'The last alert (else your soldiers)'], ['Backspace', 'Back to the camp'],
+      ['Shift+F5–F8 · F5–F8', 'Save a view · go to it'], ['R · Shift+R', 'A Recruit · five'], ['F · U · G', 'Forge · armoury · give ore'], ['+ −', 'Game speed (the host)'], ['F1 · ?', 'These keys']
+    ];
+    h.innerHTML = `<header><h2>Keys</h2><button type="button" data-help-x>✕</button></header><table>${rows.map(([key, what]) => `<tr><th>${esc(key)}</th><td>${esc(what)}</td></tr>`).join('')}</table><p class="gp__hint">On Windows, Ctrl+number may switch browser tabs — use Alt+number to save a group.</p>`;
+    h.querySelector('[data-help-x]').onclick = () => (h.hidden = true);
   }
 
   _aim(mode) {
     this.aimMode = mode;
     const aim = this.$('[data-aim]');
     aim.hidden = !mode;
-    if (mode) aim.textContent = 'Attack-move: left-click where to go (on the map too, right-click)';
+    const say = { amove: 'Attack: left-click where to go — they fight on the way', move: 'Move: left-click where to go', patrol: 'Patrol: left-click the far end' };
+    if (mode) aim.textContent = `${say[mode]} (right-click the map works too) · Esc cancels`;
   }
 
   /** My selected soldiers that still stand. */
@@ -466,23 +583,25 @@ export class PurgeGame {
     const el = this.$('[data-panel]');
     if (!me || !this.panel) return;
     const mineAll = this.state.ents.filter((e) => e.k === 'troop');
-    const key = `${this.panel}|${me.ore}|${me.relics}|${JSON.stringify(me.upg)}|${mineAll.filter((e) => e.o === this.mySlot).map((e) => `${e.rank}${Math.round(e.x / 2)},${Math.round(e.z / 2)}`).join()}`;
+    const key = `${this.panel}|${me.ore}|${me.relics}|${me.autoForge}|${JSON.stringify(me.upg)}|${mineAll.filter((e) => e.o === this.mySlot).map((e) => `${e.rank}${Math.round(e.x / 2)},${Math.round(e.z / 2)}`).join()}`;
     if (key === this._panelKey) return;
     this._panelKey = key;
     if (this.panel === 'forge') {
       el.innerHTML = `<header><h2>The Forge</h2><span>${me.ore.toLocaleString()} ore · ${me.relics} relics</span><button type="button" data-x>✕</button></header>
-        <p class="gp__hint">Soldiers to be raised stand in the blue ring by the Forge (the camp's west side). Relics come from breaking shrines, soul nodes and relic caches — everyone gets them.</p>
+        <p class="gp__hint">The Forge is on the camp's left side, ringed with blue crystals. Walk soldiers into the ring (select them, <b>W</b>): ${me.autoForge ? 'each is raised a rank by itself as soon as you have the ore — one rank a visit (walk it out and back in for the next)' : 'then raise them here'}. Relics come from breaking shrines, soul nodes and relic caches — everyone gets them.</p>
+        <div class="bs__row"><span>Raise in the ring by itself</span><button type="button" data-auto class="${me.autoForge ? 'is-on' : ''}">${me.autoForge ? 'On' : 'Off'}</button></div>
         ${RANK_ORDER.filter((r) => RANKS[r].from).map((r) => {
           const d = RANKS[r];
           const can = forgeCheck(mineAll, this.mySlot, me.ore, me.relics, r);
           const from = Object.entries(d.from).map(([k, n]) => `${n > 1 ? `${n} ` : ''}${RANKS[k].name}${n > 1 ? 's' : ''}`).join(' + ');
           return `<button type="button" data-forge="${r}" class="${can.ok ? 'is-ok' : ''}"><b>${d.name}</b><small>${from} + ${d.ore.toLocaleString()} ore${d.relics ? ` + ${d.relics} relics` : ''}${d.one ? ' · one each' : ''}</small><i>${d.hp} health · ${d.gun.dmg} × ${d.gun.rate}/s · reach ${d.gun.range}${d.gun.splash ? ' · bursts' : ''}</i><em>${can.ok ? 'Raise' : esc(can.why)}</em></button>`;
         }).join('')}
-        <div class="bs__row"><button type="button" data-send-forge>Send selected to the Forge</button></div>`;
+        <div class="bs__row"><button type="button" data-send-forge>Send selected to the Forge (W)</button></div>`;
       for (const b of el.querySelectorAll('[data-forge]')) b.onclick = () => this.order({ t: 'forge', rank: b.dataset.forge });
+      el.querySelector('[data-auto]').onclick = () => this.order({ t: 'autoForge', on: !me.autoForge });
       el.querySelector('[data-send-forge]').onclick = () => {
         const ids = this._mine();
-        if (ids.length) this.order({ t: 'move', ids, x: FORGE.x + 2, z: FORGE.z - 1 });
+        if (ids.length) this.order({ t: 'toForge', ids });
       };
     } else if (this.panel === 'armory') {
       el.innerHTML = `<header><h2>Armoury</h2><span>${me.ore.toLocaleString()} ore</span><button type="button" data-x>✕</button></header>
@@ -591,12 +710,24 @@ export class PurgeGame {
       else if (e.t === 'raid') {
         this._banner(`Wave ${e.wave}`, `${e.n} of the dead are coming for the camp`, 3);
         this.pings.push({ x: e.x, z: e.z, t: performance.now() });
+        this.alert = { x: e.x, z: e.z, t: performance.now() };
       }
       else if (e.t === 'wrath') {
         this._banner('The dead answer', `${e.n} are coming from the crypts nearby, to where the ${BUILDINGS[e.type]?.name ?? 'building'} fell`, 3);
         this.pings.push(...e.from.map(([x, z]) => ({ x, z, t: performance.now() })), { x: e.x, z: e.z, t: performance.now() });
+        this.alert = { x: e.from[0][0], z: e.from[0][1], t: performance.now() };
       }
-      else if (e.t === 'forge') this._feed(`${this.state.players[e.o]?.name} raised a ${RANKS[e.rank].name}`);
+      else if (e.t === 'forge') {
+        this._feed(`${e.o === this.mySlot ? 'You' : this.state.players[e.o]?.name} raised a ${RANKS[e.rank].name}`);
+        // The raised soldier takes the place of what it was made from, in the selection and in groups.
+        if (e.o === this.mySlot && e.from?.length) {
+          const was = new Set(e.from);
+          if (e.from.some((i) => this.selected.has(i))) this.selected.add(e.id);
+          for (const [n, list] of this.groups) if (list.some((i) => was.has(i))) this.groups.set(n, [...list.filter((i) => !was.has(i)), e.id]);
+          for (const i of e.from) this.selected.delete(i);
+          this._groupKey = '';
+        }
+      }
       else if (e.t === 'give') this._feed(`${this.state.players[e.o]?.name} gave ${this.state.players[e.to]?.name} ${e.n.toLocaleString()} ore`);
       else if (e.t === 'stipend') this._feed(`Supply drop: +${e.n} ore each`);
       else if (e.t === 'over') this._end(e);
@@ -682,18 +813,49 @@ export class PurgeGame {
           <div class="gp__purse"><b>${me.ore.toLocaleString()}</b><small>ore</small><b>${me.relics}</b><small>relics</small><b>${mine.length}/${SUPPLY}</b><small>soldiers</small></div>
           <div class="gp__sel">${sel.length ? `<b>${sel.length} selected</b><small>${count(sel).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ')}</small>` : `<b>Nothing selected</b><small>${count(mine).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ') || 'No soldiers — buy some (R)'} · Tab selects all</small>`}</div>
           <div class="gp__cmds">
+            <button type="button" data-key="m" ${sel.length ? '' : 'disabled'}><em>M</em><b>Move</b></button>
+            <button type="button" data-key="s" ${sel.length ? '' : 'disabled'}><em>S</em><b>Stop</b></button>
+            <button type="button" data-key="a" ${sel.length ? '' : 'disabled'}><em>A</em><b>Attack</b></button>
+            <button type="button" data-key="p" ${sel.length ? '' : 'disabled'}><em>P</em><b>Patrol</b></button>
+            <button type="button" data-key="h" ${sel.length ? '' : 'disabled'}><em>H</em><b>Hold</b></button>
+            <button type="button" data-key="e" class="gp__heal" ${sel.length ? '' : 'disabled'}><em>E</em><b>Heal</b></button>
+            <button type="button" data-key="w" class="gp__forge" ${sel.length ? '' : 'disabled'}><em>W</em><b>To Forge</b></button>
             <button type="button" data-buy="1"><em>R</em><b>${recruit}</b></button>
-            <button type="button" data-buy="5"><em>⇧R</em><b>Five</b></button>
             <button type="button" data-open="forge" class="${this.panel === 'forge' ? 'is-on' : ''}"><em>F</em><b>Forge</b></button>
-            <button type="button" data-open="armory" class="${this.panel === 'armory' ? 'is-on' : ''}"><em>U</em><b>Armoury</b></button>
+            <button type="button" data-open="armory" class="${this.panel === 'armory' ? 'is-on' : ''}"><em>U</em><b>Upgrade</b></button>
             <button type="button" data-open="give" class="${this.panel === 'give' ? 'is-on' : ''}"><em>G</em><b>Give</b></button>
+            <button type="button" data-key="?"><em>F1</em><b>Keys</b></button>
           </div>`;
+        for (const b of this.$('[data-bar]').querySelectorAll('[data-key]')) b.onclick = () => this._key({ key: b.dataset.key, code: '', repeat: false });
         for (const b of this.$('[data-bar]').querySelectorAll('[data-buy]')) b.onclick = () => this.order({ t: 'buy', n: Number(b.dataset.buy) });
         for (const b of this.$('[data-bar]').querySelectorAll('[data-open]')) b.onclick = () => this._panel(this.panel === b.dataset.open ? null : b.dataset.open);
       }
     }
     if (this.panel) this._drawPanel();
+    this._groupBar();
     this._minimap();
+  }
+
+  /** The saved groups, 1 to 0: click to pick, right-click to save the selection there. */
+  _groupBar() {
+    const alive = new Map(this.state.ents.filter((e) => e.k === 'troop' && e.o === this.mySlot).map((e) => [e.i, e]));
+    const slots = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    const key = slots.map((n) => (this.groups.get(n) ?? []).filter((i) => alive.has(i)).length).join();
+    if (key === this._groupKey) return;
+    this._groupKey = key;
+    const el = this.$('[data-groups]');
+    el.innerHTML = slots.map((n) => {
+      const list = (this.groups.get(n) ?? []).filter((i) => alive.has(i));
+      const top = list.map((i) => alive.get(i)).sort((a, b) => RANKS[b.rank].tier - RANKS[a.rank].tier)[0];
+      return `<button type="button" data-group="${n}" class="${list.length ? 'is-set' : ''}" title="${list.length ? `Group ${n}: ${list.length} — click to pick` : `Right-click (or Ctrl/Alt+${n}) to save your selection as group ${n}`}"><em>${n}</em>${list.length ? `<b>${list.length}</b><small>${RANKS[top.rank].name}</small>` : ''}</button>`;
+    }).join('');
+    for (const b of el.querySelectorAll('[data-group]')) {
+      b.onclick = (e) => (e.shiftKey ? this._saveGroup(b.dataset.group, true) : this._pickGroup(b.dataset.group));
+      b.oncontextmenu = (e) => {
+        e.preventDefault();
+        this._saveGroup(b.dataset.group, false);
+      };
+    }
   }
 
   /** The land drawn once for the map: ridges, rocks, the camp. */

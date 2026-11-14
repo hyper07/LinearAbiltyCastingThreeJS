@@ -52,7 +52,7 @@ export class Purge {
     this.events = [];
     this.nextId = FIRST_DYNAMIC;
     this.grid = new Grid();
-    this.players = seats.map((s, slot) => ({ slot, name: s.name, bot: Boolean(s.bot), ore: ECON.start + (heroesOnly ? ECON.heroesOnly.bonus : 0), relics: 0, upg: { weapons: 0, armor: 0 }, kills: 0, earned: 0, color: COLORS[slot], free: 0, brain: { mode: 'gather', at: 0 } }));
+    this.players = seats.map((s, slot) => ({ slot, name: s.name, bot: Boolean(s.bot), ore: ECON.start + (heroesOnly ? ECON.heroesOnly.bonus : 0), relics: 0, upg: { weapons: 0, armor: 0 }, kills: 0, earned: 0, color: COLORS[slot], free: 0, autoForge: true, brain: { mode: 'gather', at: 0 } }));
     this.troops = [];
     this.foes = [];
     this.ents = new Map();
@@ -155,6 +155,14 @@ export class Purge {
     if (!p || this.over) return;
     const mine = (ids) => (Array.isArray(ids) ? ids : []).map((i) => this.ents.get(i)).filter((t) => t && t.k === 'troop' && t.o === slot && t.hp > 0);
     if (o.t === 'move' || o.t === 'amove') this._send(mine(o.ids), o.t, Number(o.x), Number(o.z));
+    else if (o.t === 'patrol') {
+      // Back and forth between where each stands and the point, fighting whatever comes.
+      const list = mine(o.ids);
+      const from = list.map((t) => ({ x: t.x, z: t.z }));
+      this._send(list, 'amove', Number(o.x), Number(o.z));
+      list.forEach((t, k) => (t.order = { t: 'patrol', a: from[k], b: { x: t.order.x, z: t.order.z } }));
+    } else if (o.t === 'heal') this._send(mine(o.ids), 'move', PAD.x, PAD.z);
+    else if (o.t === 'toForge') this._send(mine(o.ids), 'move', FORGE.x + 1.5, FORGE.z - 1);
     else if (o.t === 'attack') {
       const target = this.ents.get(o.id);
       if (!target || target.hp <= 0 || target.k === 'troop' || target.k === 'gun' || target.sealed) return;
@@ -179,6 +187,8 @@ export class Purge {
       p.ore -= cost;
       p.upg[o.key]++;
       this.events.push({ t: 'upgrade', o: slot, key: o.key, level: p.upg[o.key] });
+    } else if (o.t === 'autoForge') {
+      p.autoForge = Boolean(o.on);
     } else if (o.t === 'give') {
       const to = this.players[o.to];
       const n = Math.min(p.ore, Math.max(0, Math.floor(Number(o.n) || 0)));
@@ -235,8 +245,43 @@ export class Purge {
     p.relics -= def.relics ?? 0;
     for (const t of can.use) this._remove(t);
     const made = this._troop(slot, rank, FORGE);
-    this.events.push({ t: 'forge', o: slot, id: made.i, rank, x: FORGE.x, z: FORGE.z });
+    made.fresh = true;
+    this.events.push({ t: 'forge', o: slot, id: made.i, rank, x: FORGE.x, z: FORGE.z, from: can.use.map((t) => t.i) });
     return made;
+  }
+
+  /**
+   * The Forge raises by itself: a soldier walked into its ring and standing
+   * there is raised to the highest rank it can make (with whatever else of
+   * the owner's stands in the ring), once there is the ore and the relics.
+   */
+  _autoForge(dt) {
+    this.forgeT = (this.forgeT ?? 0) - dt;
+    if (this.forgeT > 0) return;
+    this.forgeT = 0.5;
+    for (const p of this.players) {
+      if (p.bot || !p.autoForge) continue;
+      // One rank a visit: a soldier just raised must step out of the ring and back in for the next.
+      for (const t of this.troops) if (t.fresh && t.o === p.slot && Math.hypot(t.x - FORGE.x, t.z - FORGE.z) >= FORGE_REACH) t.fresh = false;
+      const ring = this.troops.filter((t) => t.o === p.slot && !t.fresh && Math.hypot(t.x - FORGE.x, t.z - FORGE.z) < FORGE_REACH && !t.path?.length && t.order.t !== 'move');
+      if (!ring.length) continue;
+      for (const rank of ['paragon', 'phantom', 'vanguard', 'veteran']) {
+        const def = RANKS[rank];
+        const main = Object.keys(def.from).sort((a, b) => RANKS[b].tier - RANKS[a].tier)[0];
+        if (!ring.some((t) => t.rank === main)) continue;
+        if (def.one && this.troops.some((t) => t.o === p.slot && t.rank === rank)) continue;
+        if (!forgeCheck(ring, p.slot, p.ore, p.relics, rank).ok) continue;
+        const can = forgeCheck(ring, p.slot, p.ore, p.relics, rank);
+        const from = can.use.map((t) => t.i);
+        p.ore -= def.ore;
+        p.relics -= def.relics ?? 0;
+        for (const t of can.use) this._remove(t);
+        const made = this._troop(p.slot, rank, FORGE);
+        made.fresh = true;
+        this.events.push({ t: 'forge', o: p.slot, id: made.i, rank, x: FORGE.x, z: FORGE.z, auto: true, from });
+        break;
+      }
+    }
   }
 
   _remove(e) {
@@ -257,6 +302,7 @@ export class Purge {
     this._hash();
     for (const p of this.players) if (p.bot) this._bot(p, dt);
     this._economy(dt);
+    this._autoForge(dt);
     for (const t of [...this.troops]) this._troopStep(t, dt);
     for (const f of [...this.foes]) this._foeStep(f, dt);
     for (const b of this.buildings) if (b.alive) this._building(b, dt);
@@ -327,7 +373,8 @@ export class Purge {
   _troopStep(t, dt) {
     const s = this.troopStat(t);
     t.cd = Math.max(0, t.cd - dt);
-    if (inBase(t.x, t.z) && t.hp < t.max) t.hp = Math.min(t.max, t.hp + t.max * CAMP.heal * dt);
+    // The camp heals; the pad in its middle heals fast.
+    if (inBase(t.x, t.z) && t.hp < t.max) t.hp = Math.min(t.max, t.hp + t.max * (Math.hypot(t.x - PAD.x, t.z - PAD.z) < CAMP.padReach ? CAMP.padHeal : CAMP.heal) * dt);
     const o = t.order;
     let target = t.tgt != null ? this.ents.get(t.tgt) : null;
     if (target && (target.hp <= 0 || !this.ents.has(target.i) || target.sealed)) target = t.tgt = null;
@@ -368,6 +415,14 @@ export class Purge {
         t.path = this.grid.line(t.x, t.z, target.x, target.z) ? [[target.x, target.z]] : this.paths++ < 10 ? this.grid.path(t.x, t.z, target.x, target.z) : t.path;
       }
       this._walk(t, s.speed, dt);
+      return;
+    }
+    if (o.t === 'patrol') {
+      if (!t.path?.length) {
+        [o.a, o.b] = [o.b, o.a];
+        t.path = this.paths++ < 10 ? this.grid.path(t.x, t.z, o.b.x, o.b.z) ?? [[o.b.x, o.b.z]] : null;
+      }
+      if (t.path?.length) this._walk(t, s.speed, dt);
       return;
     }
     if ((o.t === 'move' || o.t === 'amove') && t.path?.length) {
@@ -932,7 +987,7 @@ export class Purge {
       keysLeft: this.keysLeft,
       raids: this.raids,
       raidIn: this.raidT,
-      players: this.players.map((p) => ({ slot: p.slot, name: p.name, bot: p.bot, ore: Math.floor(p.ore), relics: p.relics, upg: { ...p.upg }, kills: p.kills, earned: p.earned, color: p.color, army: this.troops.filter((t) => t.o === p.slot).length })),
+      players: this.players.map((p) => ({ slot: p.slot, name: p.name, bot: p.bot, autoForge: p.autoForge, ore: Math.floor(p.ore), relics: p.relics, upg: { ...p.upg }, kills: p.kills, earned: p.earned, color: p.color, army: this.troops.filter((t) => t.o === p.slot).length })),
       ents,
       hurt,
       down: [...this.down],

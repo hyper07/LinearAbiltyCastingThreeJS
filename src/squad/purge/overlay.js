@@ -1,5 +1,14 @@
 import { RANKS, BUILDINGS, GUARDIANS } from './rules.js';
-import { STRUCTURES, GUARDS, foeDef } from './map.js';
+import { STRUCTURES, GUARDS, BARRACKS, ARMORY, FORGE, PAD, inBase, foeDef } from './map.js';
+import { CAMP } from './rules.js';
+
+/** The camp's places, named on the ground with their keys. */
+const PLACES = [
+  [FORGE, 'THE FORGE', 'raise soldiers here · W send · F open', '#5cc8ff'],
+  [PAD, 'HEALING PAD', 'heals fast · E send', '#3ddc84'],
+  [BARRACKS, 'BARRACKS', 'R Recruit', '#e8e2d0'],
+  [ARMORY, 'ARMOURY', 'U upgrades', '#e8e2d0']
+];
 
 /**
  * What both Grave Purge views (3D and 2D) draw and pick the same way, given
@@ -105,6 +114,36 @@ export function drawOverlay(view, ctx, state) {
       ctx.fillStyle = '#e8c8ff';
       ctx.fillText(BUILDINGS[s.type].name, p.x, p.y - 6);
     }
+  }
+  // The camp's places, when the camera is near them.
+  for (const [at, name, hint, color] of PLACES) {
+    const p = view.toScreen(at.x, 0, at.z + 3.5);
+    if (p.x < -120 || p.y < -40 || p.x > view.width + 120 || p.y > view.height + 40) continue;
+    ctx.font = '900 13px system-ui, sans-serif';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.strokeText(name, p.x, p.y);
+    ctx.fillStyle = color;
+    ctx.fillText(name, p.x, p.y);
+    ctx.font = '700 11px system-ui, sans-serif';
+    ctx.strokeText(hint, p.x, p.y + 14);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(hint, p.x, p.y + 14);
+  }
+  // Soldiers healing in the camp: green crosses rising (faster on the pad).
+  for (const e of state.ents) {
+    if (e.k !== 'troop' || e.hp >= e.max || !inBase(e.x, e.z)) continue;
+    const fast = Math.hypot(e.x - PAD.x, e.z - PAD.z) < CAMP.padReach;
+    const rise = ((view.time ?? 0) * (fast ? 1.6 : 0.8) + e.i * 0.37) % 1;
+    const p = view.toScreen(e.x + 0.3, 1.8 + rise * 1.2, e.z);
+    ctx.globalAlpha = 1 - rise;
+    ctx.font = `900 ${fast ? 15 : 12}px system-ui, sans-serif`;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 3;
+    ctx.strokeText('+', p.x, p.y);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillText('+', p.x, p.y);
+    ctx.globalAlpha = 1;
   }
   ctx.font = '800 14px system-ui, sans-serif';
   for (const p of view.popups) {

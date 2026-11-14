@@ -20,8 +20,12 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
 - **Ore**: every kill pays its killer's commander; buildings pay more; a supply drop every minute
   pays everyone (more as the game goes on). Give ore to a teammate with **G**.
 - **The barracks** sells Recruits (150 ore; **R**, **Shift+R** for five). 24 soldiers at most.
-- **The Forge** (the blue ring on the camp's west side, **F**) raises soldiers standing in it:
-
+- **The Forge** — on the camp's left side, ringed with blue crystals and named on the ground — is
+  where soldiers are raised, the way the classic maps' combining spot works: walk a soldier into its
+  ring (select, **W**) and it is raised to the next rank by itself as soon as you have the ore and
+  relics, one rank a visit (walk it out and back in for the next). The Forge panel (**F**) shows what
+  each rank needs, raises by hand, and turns raising-by-itself off. A raised soldier keeps its place
+  in your selection and groups.
   | Rank | From | Ore | Relics |
   | --- | --- | --- | --- |
   | Recruit | the barracks | 150 | |
@@ -40,6 +44,8 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   Knight, the Ash Witch, the Pale Hound, the Hollow Bishop, the Cinder Lich, the Rotfather).
 - **The Heart of the Grave**, in its sanctum in the far south-east, is sealed until all twelve
   wards are broken. Break it and **the Grave King** rises from it; kill him to win.
+- **Healing**: soldiers heal slowly anywhere in the camp and fast on the **healing pad** in its middle
+  (green crosses rise while they heal); **E** sends the selected there.
 - **Waves**: every few minutes a numbered wave comes for the camp from the crypt nearest it, bigger
   each time (and bigger the more you have broken); the camp's two guns help, and soldiers in the camp
   heal. And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
@@ -64,10 +70,15 @@ Same game, same rooms (a 2D player and a 3D player can share one). 3D draws mode
 builds them as the camera reaches them (a hitch the first time it sees a new place); 2D is a plain
 canvas, light on older computers. Both show their frames a second at the bottom left.
 
-**Controls**: drag or click to select (double-click: all of that rank on screen; Shift adds);
-right-click to move or attack; **A** then click to attack-move; **S** stop; **H** hold; **Tab** all
-your soldiers; **Ctrl+1–5** make a group, **1–5** pick it; **Space** to your selection; the map:
-click to look, right-click to send; wheel to zoom; arrows or the screen's edge to look round.
+**Controls**, the classic way: left-click or drag to select (double-click: that rank on screen;
+Shift adds); right-click moves, or attacks what you click. **A** attack (then click: they fight on
+the way) · **M** move · **P** patrol · **S** stop · **H** hold · **E** heal · **W** to the Forge ·
+**Ctrl/Alt+0–9** save the selection as a group, **Shift+0–9** add to it, **0–9** pick it (twice
+quickly: look at it) — the group bar shows them (right-click a slot to save there) · **Tab/F2** all
+your soldiers · **Space** the last alert · **Backspace** the camp · **Shift+F5–F8** save a view,
+**F5–F8** go back to it · **R** a Recruit (**Shift+R** five) · **F** Forge · **U** upgrades · **G**
+give ore · **+/−** speed · **F1** all the keys. The command card at the bottom has the same, to click.
+(On Windows, Ctrl+number may switch browser tabs: use Alt+number.)
 
 | File | What it holds |
 | --- | --- |

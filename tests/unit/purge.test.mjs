@@ -165,3 +165,48 @@ test('waves: a crypt that falls is answered by the crypts near it; the camp gets
   assert.equal(second.wave, 2);
   assert.ok(second.n >= first.n);
 });
+
+test('the Forge raises by itself: a soldier walked into its ring goes up one rank a visit', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 12 });
+  const p = g.players[0];
+  p.ore = 100000;
+  const r = g.troops.find((t) => t.rank === 'recruit');
+  g.order(0, { t: 'toForge', ids: [r.i] });
+  for (let i = 0; i < 20 * 15 && g.troops.every((t) => t.rank !== 'veteran'); i++) g.step(TICK);
+  const vet = g.troops.find((t) => t.rank === 'veteran');
+  assert.ok(vet, 'a Veteran');
+  for (let i = 0; i < 20 * 3; i++) g.step(TICK);
+  assert.ok(!g.troops.some((t) => t.rank === 'vanguard'), 'not straight on to Vanguard: one rank a visit');
+  // Out of the ring and back: the next rank.
+  [vet.x, vet.z] = [FORGE.x + 12, FORGE.z];
+  g.step(TICK);
+  g.order(0, { t: 'toForge', ids: [vet.i] });
+  for (let i = 0; i < 20 * 15 && !g.troops.some((t) => t.rank === 'vanguard'); i++) g.step(TICK);
+  assert.ok(g.troops.some((t) => t.rank === 'vanguard'), 'a Vanguard');
+  // Off: nothing happens by itself.
+  g.order(0, { t: 'autoForge', on: false });
+  const r2 = g.troops.find((t) => t.rank === 'recruit');
+  g.order(0, { t: 'toForge', ids: [r2.i] });
+  for (let i = 0; i < 20 * 15; i++) g.step(TICK);
+  assert.ok(g.ents.has(r2.i), 'still a Recruit');
+});
+
+test('heal sends soldiers to the pad, where they heal fast; patrol goes back and forth', () => {
+  const g = new Purge({ seats: seats(1, 1), seed: 13 });
+  const squad = g.troops.filter((t) => t.o === 0);
+  for (const t of squad) t.hp = t.max * 0.3;
+  g.order(0, { t: 'heal', ids: squad.map((t) => t.i) });
+  for (let i = 0; i < 20 * 12; i++) g.step(TICK);
+  assert.ok(squad.every((t) => t.hp >= t.max * 0.95), 'healed');
+  const t = squad[0];
+  g.order(0, { t: 'patrol', ids: [t.i], x: t.x + 14, z: t.z });
+  let far = 0;
+  let back = false;
+  const start = t.x;
+  for (let i = 0; i < 20 * 20; i++) {
+    g.step(TICK);
+    far = Math.max(far, t.x - start);
+    if (far > 10 && t.x - start < 3) back = true;
+  }
+  assert.ok(far > 10 && back, `out ${far.toFixed(1)} m and back`);
+});

@@ -33,18 +33,28 @@ export async function run(browser) {
     t.check('R buys a Recruit for ore', await until(page, (o) => { const g = window.gravePurge.game; return g.troops.filter((x) => x.o === window.gravePurge.mySlot).length === 5 && g.players[window.gravePurge.mySlot].ore < o; }, ore, 3000));
     await page.keyboard.press('f');
     t.check('F opens the Forge with four ranks to raise', await until(page, () => !document.querySelector('.gp [data-panel]').hidden && document.querySelectorAll('.gp [data-forge]').length === 4));
+    await page.keyboard.press('Escape');
+    // Like the map's combining spot: a Recruit walked into the Forge's ring (W) is raised by itself.
     await page.evaluate(() => {
-      const g = window.gravePurge.game;
-      const me = window.gravePurge.mySlot;
-      g.players[me].ore = 5000;
-      const r = g.troops.find((x) => x.o === me && x.rank === 'recruit');
-      r.order = { t: 'hold' };
-      r.path = null;
-      [r.x, r.z] = [9 + 2, 29];
+      const gp = window.gravePurge;
+      gp.game.players[gp.mySlot].ore = 5000;
+      gp.selected.clear();
+      gp.selected.add(gp.game.troops.find((x) => x.o === gp.mySlot && x.rank === 'recruit').i);
     });
-    t.check('…which says when a Veteran can be raised', await until(page, () => document.querySelector('.gp [data-forge="veteran"]')?.classList.contains('is-ok'), null, 3000));
-    await page.click('.gp [data-forge="veteran"]');
-    t.check('raising a Veteran at the Forge', await until(page, () => window.gravePurge.game.troops.some((x) => x.o === window.gravePurge.mySlot && x.rank === 'veteran'), null, 3000));
+    await page.keyboard.press('w');
+    t.check('W walks a Recruit to the Forge, and it is raised to a Veteran there by itself', await until(page, () => window.gravePurge.game.troops.some((x) => x.o === window.gravePurge.mySlot && x.rank === 'veteran'), null, 15000));
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Alt+3');
+    t.check('Alt+3 saves the selection as group 3, shown in the group bar', await until(page, () => document.querySelector('.gp [data-group="3"]')?.classList.contains('is-set')));
+    await page.mouse.click(700, 300);
+    await page.keyboard.press('3');
+    t.check('3 picks the group again', await until(page, () => window.gravePurge.selected.size >= 4));
+    await page.evaluate(() => { for (const x of window.gravePurge.game.troops) if (x.o === window.gravePurge.mySlot) x.hp = x.max / 2; });
+    await page.keyboard.press('e');
+    t.check('E sends them to the healing pad, and they heal', await until(page, () => window.gravePurge.game.troops.filter((x) => x.o === window.gravePurge.mySlot).every((x) => x.hp > x.max * 0.8), null, 20000));
+    await page.keyboard.press('F1');
+    t.check('F1 shows the keys', await until(page, () => !document.querySelector('.gp [data-help]').hidden && document.querySelectorAll('.gp [data-help] tr').length > 10));
+    await page.keyboard.press('Escape');
     await page.click('.gp [data-speed="2"]');
     t.check('the speed buttons speed the game up', await until(page, () => window.gravePurge.game.speed === 2));
     t.check('the HUD shows the time, the wards and the team', await page.evaluate(() => /Time left/i.test(document.querySelector('.gp [data-top]').textContent) && document.querySelectorAll('.gp [data-team] p').length === 4));

@@ -22,7 +22,8 @@ export const N = SIZE / CELL;
 export const BASE = { x0: 0, z0: 0, x1: 48, z1: 38 };
 export const BARRACKS = { x: 14, z: 9, r: 3 };
 export const ARMORY = { x: 34, z: 9, r: 2.6 };
-export const FORGE = { x: 9, z: 29, r: 2.4 };
+/** The Forge: on the camp's left side, ringed with blue crystals. Soldiers walked into its ring are raised. */
+export const FORGE = { x: 8, z: 20, r: 2.4 };
 export const PAD = { x: 26, z: 22 };
 export const SPAWN = { x: 22, z: 15 };
 /** The camp's two guns, at its open sides. */

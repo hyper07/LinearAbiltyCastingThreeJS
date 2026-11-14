@@ -112,5 +112,5 @@ export const SPEEDS = [1, 1.5, 2, 3];
 /** Money: what you start with, and the stipend every minute (it grows by `grow` a minute played). */
 export const ECON = { start: 600, stipend: 300, grow: 25, every: 60, heroesOnly: { bonus: 3000 } };
 
-/** The camp: soldiers in it heal (a share of their health a second); its guns. */
-export const CAMP = { heal: 0.06, gun: { dmg: 30, rate: 2, range: 13 }, gunHp: 6000 };
+/** The camp: soldiers in it heal (a share of their health a second), fast on the healing pad; its guns. */
+export const CAMP = { heal: 0.05, padHeal: 0.18, padReach: 6, gun: { dmg: 30, rate: 2, range: 13 }, gunHp: 6000 };

@@ -123,6 +123,20 @@ export class PurgeView extends SquadView {
     this.forgeRing = new THREE.Mesh(new THREE.RingGeometry(FORGE_REACH - 0.4, FORGE_REACH, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#40c0ff', transparent: true, opacity: 0.55, depthWrite: false }));
     this.forgeRing.position.set(FORGE.x, 0.08, FORGE.z);
     this.scene.add(this.forgeRing);
+    // Blue crystals round the back of the ring: the Forge's mark, seen from across the camp.
+    const crystal = new THREE.MeshStandardMaterial({ color: '#58c8ff', emissive: '#1a70d0', emissiveIntensity: 1.2, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.92 });
+    for (let k = 0; k < 11; k++) {
+      const a = Math.PI * 0.55 + (k / 10) * Math.PI * 0.95;
+      for (let n = 0; n < 3; n++) {
+        const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), crystal);
+        const h = 1.6 + ((k * 7 + n * 3) % 5) * 0.35;
+        c.scale.set(0.7, h, 0.7);
+        c.position.set(FORGE.x + Math.cos(a) * (FORGE_REACH + 0.4) + (n - 1) * 0.5, h * 0.4, FORGE.z + Math.sin(a) * (FORGE_REACH + 0.4) + ((n * 5) % 3 - 1) * 0.3);
+        c.rotation.set((n - 1) * 0.2, k, (k % 3 - 1) * 0.2);
+        c.castShadow = true;
+        this.scene.add(c);
+      }
+    }
     const forgeLight = new THREE.PointLight('#40c0ff', 30, 16, 1.6);
     forgeLight.position.set(FORGE.x, 4, FORGE.z);
     this.scene.add(forgeLight);
