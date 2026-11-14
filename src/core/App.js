@@ -1478,6 +1478,7 @@ export class App {
     if (game.engine === 'mmo') return this.openMmo(game);
     if (game.engine === 'city') return this.openCity(game);
     if (game.engine === 'fps') return this.openFps(game);
+    if (game.engine === 'squad') return this.openSquad(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1563,6 +1564,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new SeoulGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Bastion Squad: a co-op squad against waves, its own screen. */
+  async openSquad(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { SquadGame } = await import('../squad/SquadGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new SquadGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

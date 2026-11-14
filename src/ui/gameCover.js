@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -133,6 +133,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'mmo') return mmoCover(game);
   if (game.card?.cover === 'city') return cityCover(game);
   if (game.card?.cover === 'drift') return driftCover(game);
+  if (game.card?.cover === 'squad') return squadCover(game);
   if (game.card?.cover === 'fps') return fpsCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
@@ -277,6 +278,33 @@ function fpsCover(game) {
     <circle cx="232" cy="96" r="6" fill="#38c6d9"/><rect x="227" y="102" width="10" height="17" rx="4" fill="#38c6d9"/>
     <g stroke="#7dffb0" stroke-width="2.5"><path d="M160 60 v-12 M160 76 v12 M152 68 h-12 M168 68 h12"/></g>
     <text x="16" y="30" fill="#fff" font-family="system-ui, sans-serif" font-size="22" font-weight="900">${String(game.title).replace(/[<&]/g, '')}</text>
+  </svg>`;
+}
+
+/** A walled outpost round a glowing reactor at dusk, a purple rift, soldiers on the wall. */
+function squadCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const r = rng(game.id);
+  let dead = '';
+  for (let k = 0; k < 18; k++) {
+    const x = 10 + r() * 110;
+    const y = 120 + r() * 50;
+    dead += `<circle cx="${x}" cy="${y - 7}" r="3" fill="#e8e2d0"/><rect x="${x - 2}" y="${y - 4}" width="4" height="9" rx="2" fill="#d8d0bc"/>`;
+  }
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="sq-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1030"/><stop offset=".6" stop-color="#5a2a50"/><stop offset="1" stop-color="#a0603a"/></linearGradient>
+    <radialGradient id="sr-${uid}"><stop offset="0" stop-color="#e0b0ff"/><stop offset="1" stop-color="#7020c0" stop-opacity="0"/></radialGradient></defs>
+    <rect width="320" height="180" fill="url(#sq-${uid})"/>
+    <path d="M0 120 L320 108 V180 H0Z" fill="#4a3428"/>
+    <ellipse cx="60" cy="150" rx="46" ry="12" fill="url(#sr-${uid})"/>
+    ${dead}
+    <path d="M160 98 h130 v40 h-130z" fill="#7a7670"/><path d="M160 98 h130 v5 h-130z" fill="#9aa0a8"/>
+    <rect x="212" y="70" width="26" height="40" fill="#3a4048"/><rect x="218" y="80" width="14" height="24" fill="#5cd8ff"/>
+    <circle cx="225" cy="88" r="26" fill="#5cd8ff" opacity=".18"/>
+    ${[176, 196, 262, 280].map((x, k) => `<circle cx="${x}" cy="88" r="3.4" fill="#f0d0b0"/><rect x="${x - 3}" y="91" width="6" height="8" rx="2" fill="${['#4f8cff', '#3ddc84', '#ff8a2a', '#f5c518'][k]}"/>`).join('')}
+    <path d="M150 100 L120 128" stroke="#ffe9b0" stroke-width="1.5"/><path d="M170 96 L110 122" stroke="#ffe9b0" stroke-width="1.5"/>
+    <text x="16" y="34" fill="#ffffff" font-family="system-ui, sans-serif" font-size="24" font-weight="900">${String(game.title).replace(/[<&]/g, '')}</text>
+    <text x="17" y="52" fill="#d79bff" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="2">HOLD THE REACTOR · CO-OP</text>
   </svg>`;
 }
 

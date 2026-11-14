@@ -75,6 +75,11 @@ the people of a town, two wild zones, a dungeon for five and a raid for eight, g
 crafting, guilds, chat and trading. The server runs the worlds; characters are kept on your account
 — see **[Hearthvale](docs/hearthvale.md)**.
 
+**🪖 Bastion Squad**: a co-op squad holds a frontier outpost's reactor against fifteen waves of the risen
+dead — Rifleman, Medic, Gunner and Engineer, each with their own skills; heal each other, lift the fallen,
+upgrade in the armoury, face a boss every fifth wave. Alone with three bot soldiers, or with up to three
+friends. [More →](docs/bastion-squad.md)
+
 **🏎️ Gangnam Drift**: night racing on the real streets of Seoul — five courses planned on the real road
 network (Gangnam, Namsan, Gwanghwamun, Dongdaemun, Yeouido), drifting to fill your boost, against three
 bots or with up to four friends in a room. Between races, drive, walk or fly through the whole city —

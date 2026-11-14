@@ -1,0 +1,534 @@
+/* ---- Bastion Squad (squad/SquadGame.js) ---- */
+.bs {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: #120e14;
+  color: #f1eef4;
+  font-family: var(--pop-font, 'Nunito Variable', system-ui, sans-serif);
+  overflow: hidden;
+  outline: none;
+  user-select: none;
+}
+.bs [hidden] {
+  display: none !important;
+}
+.bs__stage,
+.bs__canvas,
+.bs__overlay,
+.bs__hud {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.bs__overlay,
+.bs__hud {
+  pointer-events: none;
+}
+.bs__hud > * {
+  position: absolute;
+}
+.bs__x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(20, 16, 26, 0.75);
+  color: #fff;
+  cursor: pointer;
+  z-index: 5;
+}
+.bs__bar {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.bs__bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #4ade80;
+}
+.bs__top {
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 18px;
+  border-radius: 14px;
+  background: rgba(20, 16, 26, 0.82);
+}
+.bs__wave {
+  display: grid;
+}
+.bs__wave b {
+  font-size: 18px;
+}
+.bs__wave small,
+.bs__reactor small,
+.bs__lives small {
+  font-size: 11px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.bs__reactor {
+  display: grid;
+  gap: 3px;
+  width: 220px;
+}
+.bs__reactor .bs__bar > i {
+  background: linear-gradient(90deg, #28b8ff, #7de9ff);
+}
+.bs__lives {
+  display: grid;
+  justify-items: center;
+}
+.bs__lives b {
+  font-size: 22px;
+  color: #ffd400;
+}
+.bs__boss {
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 80vw);
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+.bs__boss b {
+  color: #ffb020;
+  text-shadow: 0 2px 6px #000;
+}
+.bs__boss .bs__bar {
+  height: 14px;
+}
+.bs__boss .bs__bar > i {
+  background: linear-gradient(90deg, #ff4a2a, #ffb020);
+}
+.bs__banner {
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 28px;
+  border-radius: 16px;
+  background: rgba(20, 16, 26, 0.86);
+  text-align: center;
+}
+.bs__banner h2 {
+  margin: 0;
+  font-size: 26px;
+}
+.bs__banner p {
+  margin: 4px 0 0;
+  opacity: 0.85;
+}
+.bs__banner.is-end {
+  pointer-events: auto;
+  top: 18%;
+  min-width: min(560px, 92vw);
+}
+.bs__banner table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.bs__banner td,
+.bs__banner th {
+  padding: 4px 8px;
+}
+.bs__banner th {
+  font-size: 12px;
+  opacity: 0.6;
+}
+.bs__banner td i,
+.bs__squad i,
+.bs__room i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+.bs__squad {
+  top: 70px;
+  right: 12px;
+  width: 210px;
+  display: grid;
+  gap: 6px;
+}
+.bs__squad p {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(20, 16, 26, 0.78);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 4px;
+  align-items: center;
+}
+.bs__squad p small {
+  grid-column: 2;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.bs__squad p .bs__bar {
+  grid-column: 1 / -1;
+  height: 6px;
+  margin-top: 4px;
+}
+.bs__squad p.is-me {
+  outline: 2px solid #ffd400;
+}
+.bs__squad p.is-down {
+  opacity: 0.55;
+}
+.bs__mini {
+  left: 12px;
+  bottom: 12px;
+  width: 190px;
+  height: 190px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+.bs__me {
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(20, 16, 26, 0.86);
+  pointer-events: auto;
+}
+.bs__who {
+  display: grid;
+  align-content: center;
+  padding: 0 10px;
+  border-left: 4px solid var(--c);
+}
+.bs__who b {
+  color: var(--c);
+  font-size: 16px;
+}
+.bs__stats {
+  display: grid;
+  gap: 5px;
+  width: 200px;
+  align-content: center;
+}
+.bs__bar--hp {
+  height: 16px;
+}
+.bs__bar--hp span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+.bs__bar--xp {
+  height: 5px;
+}
+.bs__bar--xp > i {
+  background: #ffd400;
+}
+.bs__stats p {
+  margin: 0;
+  font-size: 12px;
+}
+.bs__stats em {
+  color: #7de9ff;
+  font-style: normal;
+}
+.bs__skills {
+  display: flex;
+  gap: 6px;
+}
+.bs__skills button {
+  position: relative;
+  width: 78px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.bs__skills button em {
+  font-style: normal;
+  font-weight: 900;
+  font-size: 15px;
+  color: #ffd400;
+}
+.bs__skills button.is-cool {
+  opacity: 0.55;
+}
+.bs__skills button i {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 22px;
+  font-weight: 900;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+}
+.bs__shop {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: min(520px, 94vw);
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(20, 16, 26, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: auto;
+}
+.bs__shop header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bs__shop h2 {
+  margin: 0;
+  flex: 1;
+}
+.bs__shop header span {
+  color: #ffd400;
+  font-weight: 900;
+}
+.bs__shop header button {
+  border: 0;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+.bs__shop [data-buy] {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.bs__shop [data-buy]:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.bs__shop [data-buy] small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.bs__shop [data-buy] i {
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #7de9ff;
+}
+.bs__shop [data-buy] em {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+  font-style: normal;
+  font-weight: 900;
+  color: #ffd400;
+}
+.bs__aim {
+  top: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(255, 176, 64, 0.9);
+  color: #1a1004;
+  font-weight: 800;
+}
+
+/* The menu */
+.bs__menu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: auto;
+  background: linear-gradient(rgba(10, 8, 14, 0.3), rgba(10, 8, 14, 0.75));
+}
+.bs__card {
+  width: min(880px, 100%);
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: rgba(20, 16, 26, 0.93);
+  border: 1px solid rgba(176, 96, 255, 0.4);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+.bs__card h1 {
+  margin: 0;
+  font-size: 34px;
+}
+.bs__card h3 {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+}
+.bs__lead {
+  opacity: 0.82;
+  line-height: 1.45;
+}
+.bs__classes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.bs__classes button {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.bs__classes button.is-on {
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+}
+.bs__classes b {
+  color: var(--c);
+  font-size: 17px;
+}
+.bs__classes small,
+.bs__classes span {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.bs__classes ul {
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.bs__classes em {
+  font-style: normal;
+  font-weight: 900;
+  color: #ffd400;
+  margin-right: 4px;
+}
+.bs__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.bs__row > span {
+  font-size: 14px;
+  opacity: 0.75;
+}
+.bs__row button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bs__row button.is-on,
+.bs__row .bs__go {
+  background: #b060ff;
+  border-color: #b060ff;
+}
+.bs__row .bs__go {
+  font-size: 16px;
+  padding: 10px 20px;
+}
+.bs__row input {
+  width: 90px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font: inherit;
+  text-align: center;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.bs__room {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.bs__room [data-code] {
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: #b060ff;
+  letter-spacing: 0.15em;
+}
+.bs__room ul {
+  margin: 8px 0 0;
+  padding-left: 4px;
+  list-style: none;
+}
+.bs__room em {
+  font-style: normal;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.bs__note {
+  min-height: 18px;
+  color: #ffb199;
+  font-size: 13px;
+}
+.bs__keys {
+  font-size: 12px;
+  opacity: 0.6;
+}
+@media (max-width: 760px) {
+  .bs__classes {
+    grid-template-columns: 1fr 1fr;
+  }
+  .bs__squad,
+  .bs__mini {
+    display: none;
+  }
+  .bs__me {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}

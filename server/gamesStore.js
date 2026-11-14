@@ -80,6 +80,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'racing', genreName: 'Racing', cover: 'drift', badge: 'NEW' }
   },
   {
+    id: 'official:bastion',
+    title: 'Bastion Squad',
+    summary: 'A co-op squad holds Kestrel Outpost\'s reactor against fifteen waves of the risen dead. Four soldiers — Rifleman, Medic, Gunner, Engineer — with their own skills; heal each other, lift the fallen, spend credits in the armoury. Alone with three bot soldiers, or with up to three friends.',
+    engine: 'squad',
+    genre: 'coop',
+    card: { genre: 'coop', genreName: 'Co-op', cover: 'squad', badge: 'NEW' }
+  },
+  {
     id: 'official:breachline',
     title: 'Breachline',
     summary: 'A tactical first-person shooter: five against five over short rounds. Raiders carry a charge to site A or B; Wardens hold the sites or disarm it. Buy before each round, change ends at the half — alone with bots, or with up to four friends in a room.',

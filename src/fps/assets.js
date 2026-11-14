@@ -25,7 +25,9 @@ export const SURFACES = {
   steel: { id: 'CorrugatedSteel005', tile: 2.4 },
   metal: { id: 'Metal027', tile: 1 },
   plates: { id: 'MetalPlates006', tile: 2 },
-  rust: { id: 'Metal063', tile: 2 }
+  rust: { id: 'Metal063', tile: 2 },
+  dirt: { id: 'Ground054', tile: 7 },
+  gravel: { id: 'Gravel023', tile: 4 }
 };
 
 /** Props: their files in the library. Their sizes are real ones, in metres. */
