@@ -163,7 +163,7 @@ export const ATTRS = {
   vit: { name: 'Vitality', does: '+8 health', icon: '❤' }
 };
 export const ATTR_ORDER = ['str', 'agi', 'int', 'vit'];
-export const POINTS = { attrs: 5, skills: 1, mainPower: 0.4, skillMax: 5, passiveMax: 3, rank: 0.1, respec: 10 };
+export const POINTS = { attrs: 5, skills: 2, mainPower: 0.4, skillMax: 5, passiveMax: 3, runeMax: 2, gate: 8, rank: 0.1, respec: 10 };
 
 /** What a passive rank adds: [the stat it touches, how much a rank is worth, how to say it]. */
 const P = {
@@ -182,18 +182,69 @@ const PATHS = {
   stormcaller: [['Lightning', 'spark', ['Charged', 'power'], 'chain', ['Overload', 'crit']], ['Wind', 'grip', ['Tailwind', 'cd'], 'gale', ['Squall', 'haste']], ['Tempest', 'stormshield', ['Deep Well', 'mana'], 'tempest', ['Eye of the Storm', 'cost']]],
   mender: [['Light', 'mend', ['Gentle Hands', 'heal'], 'radiance', ['Grace', 'cd']], ['Faith', 'smite', ['Zeal', 'power'], 'ward', ['Devotion', 'mana']], ['Life', 'renew', ['Wellspring', 'regen'], 'revive', ['Fortitude', 'hp']]]
 };
+/** What a rune does to its skill, a rank: [a word for its name, how much, how to say it]. */
+export const RUNES = {
+  dmg: ['Brutal', 15, '+15% damage'], leech: ['Draining', 8, 'returns 8% of its damage as health'], cd: ['Swift', 12, 'cooldown 12% shorter'],
+  cost: ['Thrifty', 15, 'costs 15% less'], radius: ['Wide', 18, 'reaches 18% wider'], cast: ['Quick', 15, 'casts 15% faster'],
+  last: ['Lasting', 25, 'lasts 25% longer'], shield: ['Thick', 20, 'its shield is 20% stronger'], heal: ['Blessed', 15, 'heals 15% more'],
+  ward: ['Warding', 6, 'leaves you a shield worth 6% of your health'], stun: ['Stunning', 0.4, 'stuns 0.4s longer']
+};
+/** The two runes a skill gets, by what it is. */
+function runesFor(k) {
+  switch (k.kind) {
+    case 'strike': return k.stun ? ['dmg', 'stun'] : k.slow ? ['dmg', 'last'] : k.leech ? ['dmg', 'cd'] : ['dmg', 'leech'];
+    case 'bolt': return k.stun ? ['stun', 'cd'] : k.slow ? ['dmg', 'last'] : k.mark ? ['last', 'cd'] : k.cast ? ['dmg', 'cast'] : ['dmg', 'cost'];
+    case 'area': return ['radius', 'dmg'];
+    case 'nova': return k.friendly ? ['heal', 'radius'] : ['radius', 'dmg'];
+    case 'aura': return k.shield ? ['shield', 'cd'] : ['last', 'cd'];
+    case 'heal': return k.shield ? ['shield', 'cost'] : k.hot ? ['heal', 'last'] : ['heal', k.cast ? 'cast' : 'cost'];
+    case 'revive': return ['cast', 'cd'];
+    default: return ['cd', 'ward']; // blink, taunt
+  }
+}
+/** What mastering a path gives, by which path it is. */
+const MASTERY = [{ powerPct: 12 }, { hpPct: 10, armorPct: 10 }, { cdCut: 8, costCut: 8 }];
+const MASTERY_TEXT = ['+12% power', '+10% health and armor', 'skills cost 8% less, cooldowns 8% shorter'];
+
 /**
- * The skill trees: per class, three paths of four nodes, top to bottom. A
- * node needs a rank in the one above it; a skill node also needs its level.
- * Skill nodes go to rank 5 (each rank +10% to what the skill does), passive
- * nodes to rank 3. A point comes with every level; level-1 skills are free.
+ * The skill trees: per class, three paths of ten nodes on a grid three wide
+ * and five deep (`col`, `row`), each joined to the node it `needs`:
+ *
+ *        [skill A]                 A: the path's first skill
+ *   [rune]       [passive]         a rune changes its skill; a passive is yours for good
+ *   [rune] [skill B] [passive]
+ *   [rune] [synergy]               the synergy strengthens both skills
+ *   [rune] [mastery]               the mastery asks for eight points in the path
+ *
+ * A node needs a rank in the one it hangs from, and its own level. Skills go
+ * to rank 5 (+10% a rank), runes to 2, passives and the synergy to 3, the
+ * mastery to 1. Two points come with every level; level-1 skills are free.
  */
 export const TREES = Object.fromEntries(Object.entries(PATHS).map(([cls, paths]) => [cls, paths.map(([name, a, pa, b, pb], bi) => {
   const skill = (id) => CLASSES[cls].skills.find((k) => k.id === id);
-  const passive = (row, [title, key]) => ({ id: `${cls}.${bi}.${row}`, kind: 'passive', name: title, max: POINTS.passiveMax, stat: P[key][0], per: P[key][1], text: P[key][2], icon: '◆' });
-  const active = (id) => ({ id, kind: 'skill', name: skill(id).name, max: POINTS.skillMax, level: skill(id).level, icon: skill(id).icon, free: skill(id).level === 1 });
-  const nodes = [active(a), passive(1, pa), active(b), passive(3, pb)];
-  nodes.forEach((n, row) => Object.assign(n, { row, branch: bi, needs: row ? nodes[row - 1].id : null }));
+  const A = skill(a);
+  const B = skill(b);
+  const id = (key) => `${cls}.${bi}.${key}`;
+  const active = (k) => ({ id: k.id, kind: 'skill', name: k.name, max: POINTS.skillMax, level: k.level, icon: k.icon, free: k.level === 1 });
+  const passive = (key, [title, stat], level) => ({ id: id(key), kind: 'passive', name: title, max: POINTS.passiveMax, stat: P[stat][0], per: P[stat][1], text: `${P[stat][2]} a rank`, icon: '◆', level });
+  const rune = (key, k, i, level) => {
+    const effect = runesFor(k)[i];
+    return { id: id(key), kind: 'rune', name: `${RUNES[effect][0]} ${k.name}`, max: POINTS.runeMax, skill: k.id, effect, per: RUNES[effect][1], text: `${k.name} ${RUNES[effect][2]} a rank`, icon: k.icon, level };
+  };
+  const late = Math.max(A.level, B.level);
+  const nodes = [
+    { ...active(A), col: 1, row: 0, needs: null },
+    { ...rune('a1', A, 0, A.level + 1), col: 0, row: 1, needs: A.id },
+    { ...passive('p1', pa, A.level + 1), col: 2, row: 1, needs: A.id },
+    { ...rune('a2', A, 1, A.level + 3), col: 0, row: 2, needs: id('a1') },
+    { ...active(B), col: 1, row: 2, needs: A.id },
+    { ...passive('p2', pb, A.level + 4), col: 2, row: 2, needs: id('p1') },
+    { ...rune('b1', B, 0, B.level + 1), col: 0, row: 3, needs: B.id },
+    { id: id('syn'), kind: 'synergy', name: `${name} Synergy`, max: POINTS.passiveMax, skills: [A.id, B.id], per: 8, text: `${A.name} and ${B.name} do 8% more a rank`, icon: '∞', level: B.level + 1, col: 1, row: 3, needs: B.id },
+    { ...rune('b2', B, 1, B.level + 3), col: 0, row: 4, needs: id('b1') },
+    { id: id('m'), kind: 'mastery', name: `${name} Mastery`, max: 1, stats: MASTERY[bi], text: MASTERY_TEXT[bi], icon: '★', level: Math.min(MAX_LEVEL - 2, late + 3), gate: POINTS.gate, col: 1, row: 4, needs: id('syn') }
+  ];
+  nodes.forEach((n) => (n.branch = bi));
   return { name, nodes };
 })]));
 /** Every node of a class's tree, by id. */
@@ -205,7 +256,7 @@ export const NODES_OF = Object.fromEntries(Object.entries(TREES).map(([cls, path
  * Items: `slot` for gear (stats: power, stamina, armor), `use` for
  * consumables, `mat` for materials. `value` is what a vendor pays (they sell at four times that).
  */
-export const ITEMS = {
+const FIXED_ITEMS = {
   // Gear
   rusty_sword: { name: 'Rusty Sword', slot: 'weapon', level: 1, stats: { power: 2 }, value: 2 },
   oak_staff: { name: 'Oak Staff', slot: 'weapon', level: 1, stats: { power: 2 }, value: 2 },
@@ -259,6 +310,93 @@ export const ITEMS = {
   bone_dust: { name: 'Bone Dust', mat: true, stack: 40, value: 1 },
   ember_shard: { name: 'Ember Shard', mat: true, stack: 40, value: 10 }
 };
+
+/* ------------------------------------------------- found gear (generated) */
+
+/**
+ * Gear that monsters drop is made, not listed: a base (what it is), a
+ * rarity, a level and a seed, written into its id — `~sword.2.9.k3f` — and
+ * everything else (name, stats, value) follows from those four, the same on
+ * the server and in every browser. Nothing about an item can be forged: an
+ * id either decodes to exactly what it always was, or to nothing.
+ */
+export const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'unique'];
+export const RARITY_INFO = {
+  common: { name: 'Common', mult: 1, affixes: 0, color: '#e8edf3' },
+  uncommon: { name: 'Uncommon', mult: 1.25, affixes: 1, color: '#5fe07a' },
+  rare: { name: 'Rare', mult: 1.55, affixes: 2, color: '#5aa7ff' },
+  epic: { name: 'Epic', mult: 1.9, affixes: 3, color: '#c084fc' },
+  unique: { name: 'Unique', mult: 2.3, affixes: 3, color: '#ff9a3c' }
+};
+/** What can be found: its slot, and how its worth is shared between stats. */
+export const BASES = {
+  sword: { name: 'Sword', slot: 'weapon', power: 1 }, axe: { name: 'Great Axe', slot: 'weapon', power: 1.05 }, daggers: { name: 'Daggers', slot: 'weapon', power: 0.95 },
+  crossbow: { name: 'Crossbow', slot: 'weapon', power: 1 }, staff: { name: 'Staff', slot: 'weapon', power: 1 }, wand: { name: 'Wand', slot: 'weapon', power: 0.95 },
+  helm: { name: 'Helm', slot: 'head', armor: 0.8, stamina: 0.3 }, hauberk: { name: 'Hauberk', slot: 'chest', armor: 1.3, stamina: 0.4 },
+  greaves: { name: 'Greaves', slot: 'legs', armor: 0.9, stamina: 0.35 }, boots: { name: 'Boots', slot: 'feet', armor: 0.6, stamina: 0.25 },
+  charm: { name: 'Charm', slot: 'trinket', power: 0.4, stamina: 0.35 }
+};
+/** The weapon each class would rather find. */
+export const WEAPON_OF = { vanguard: 'sword', templar: 'sword', berserker: 'axe', shadowblade: 'daggers', ranger: 'crossbow', arcanist: 'staff', stormcaller: 'wand', mender: 'wand' };
+/** Extra properties on better gear: [stat, share of the item's worth, a word before the name, a word after]. */
+const AFFIXES = [
+  ['stamina', 0.3, 'Stout', 'of the Bear'], ['power', 0.22, 'Fierce', 'of the Wolf'], ['armor', 0.35, 'Warded', 'of the Tortoise'],
+  ['crit', 0.14, 'Keen', 'of the Hawk'], ['haste', 0.16, 'Swift', 'of the Hare'], ['stamina', 0.36, 'Hale', 'of the Ox'], ['power', 0.26, 'Savage', 'of the Boar']
+];
+const UNIQUE_NAMES = ['Hollow Sun', 'Widow\'s Promise', 'Last Ember', 'The Quiet Hour', 'Greywater', 'Oathkeeper\'s Burden', 'Thornmother', 'Winter\'s Tooth', 'The Long Road', 'Saltwind', 'Mirefang', 'Dawnbreaker\'s Rest', 'Cinderheart', 'The Ninth Bell', 'Stormglass', 'Barrowlight'];
+
+/** The id of a found item. */
+export const foundId = (base, rarity, level, seed) => `~${base}.${RARITIES.indexOf(rarity)}.${level}.${(seed >>> 0).toString(36)}`;
+const FOUND_RE = /^~([a-z]+)\.([0-4])\.(\d{1,2})\.([0-9a-z]{1,7})$/;
+const found = new Map();
+
+function decodeFound(id) {
+  if (found.has(id)) return found.get(id);
+  const m = FOUND_RE.exec(id);
+  const base = m && BASES[m[1]];
+  const level = m ? Number(m[3]) : 0;
+  if (!base || level < 1 || level > MAX_LEVEL) return undefined;
+  const rarity = RARITIES[Number(m[2])];
+  const info = RARITY_INFO[rarity];
+  let seed = parseInt(m[4], 36) >>> 0;
+  if (foundId(m[1], rarity, level, seed) !== id) return undefined; // one spelling per item
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const worth = (2 + level * 1.1) * info.mult * (0.9 + rand() * 0.2);
+  const stats = {};
+  const add = (k, v) => {
+    const n = k === 'crit' || k === 'haste' ? Math.max(1, Math.round(v * 0.6)) : Math.max(1, Math.round(v));
+    stats[k] = (stats[k] ?? 0) + n;
+  };
+  for (const k of ['power', 'armor', 'stamina']) if (base[k]) add(k, worth * base[k]);
+  const words = [];
+  const pool = [...AFFIXES];
+  for (let i = 0; i < info.affixes; i++) {
+    const [k, share, before, after] = pool.splice(Math.floor(rand() * pool.length), 1)[0];
+    add(k, worth * share * (rarity === 'unique' ? 1.25 : 1));
+    words.push([before, after]);
+  }
+  const name = rarity === 'unique' ? `${UNIQUE_NAMES[Math.floor(rand() * UNIQUE_NAMES.length)]}, ${base.name}`
+    : `${words[0] ? `${words[0][0]} ` : level >= 12 ? 'Tempered ' : level >= 6 ? 'Sturdy ' : 'Worn '}${base.name}${words[1] ? ` ${words[1][1]}` : ''}`;
+  const item = Object.freeze({ name, slot: base.slot, level, stats: Object.freeze(stats), value: Math.max(1, Math.round(worth * info.mult * 0.7)), rarity, base: m[1], found: true });
+  if (found.size > 20000) found.clear();
+  found.set(id, item);
+  return item;
+}
+
+/** Every item by id: the listed ones, and any found one (decoded from its id). */
+export const ITEMS = new Proxy(FIXED_ITEMS, {
+  get: (fixed, id) => (typeof id === 'string' && id.charCodeAt(0) === 126 ? decodeFound(id) : fixed[id]),
+  has: (fixed, id) => (typeof id === 'string' && id.charCodeAt(0) === 126 ? Boolean(decodeFound(id)) : id in fixed)
+});
+
+/** How often a kill drops found gear, and how the rarities are weighed. */
+export const DROPS = { gear: 0.45, elite: 1, weights: { common: 58, uncommon: 28, rare: 10, epic: 3.2, unique: 0.8 }, shelf: 30, shelfHours: 6 };
 
 /** Hearthvale's stores: Pell's supplies, Brannoc's weapons and armor. A store sells at four times an item's value and buys at its value. */
 export const VENDORS = {

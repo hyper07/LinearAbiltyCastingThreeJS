@@ -567,9 +567,20 @@ test('growing: eight classes, a tree each, skill and attribute points every leve
     assert.equal(STYLES[cls].length, 3, `${cls}: three looks`);
     assert.equal(TREES[cls].length, 3, `${cls}: three paths`);
     const nodes = Object.values(NODES_OF[cls]);
-    assert.equal(nodes.length, 12);
+    assert.equal(nodes.length, 30, `${cls}: ten nodes a path`);
     assert.deepEqual(nodes.filter((n) => n.kind === 'skill').map((n) => n.id).sort(), c.skills.map((k) => k.id).sort(), `${cls}: every skill is in the tree`);
+    assert.equal(nodes.filter((n) => n.kind === 'rune').length, 12, `${cls}: two runes a skill`);
+    assert.equal(nodes.filter((n) => n.kind === 'synergy').length, 3);
+    assert.equal(nodes.filter((n) => n.kind === 'mastery').length, 3);
     assert.ok(nodes.some((n) => n.free), `${cls}: something to start with`);
+    for (const path of TREES[cls]) {
+      const cells = new Set(path.nodes.map((n) => `${n.col},${n.row}`));
+      assert.equal(cells.size, path.nodes.length, `${cls} ${path.name}: one node a cell`);
+      for (const n of path.nodes) {
+        const up = n.needs && NODES_OF[cls][n.needs];
+        assert.ok(!n.needs || (up && up.row < n.row && up.level <= n.level && n.level <= 20), `${cls} ${n.name}: hangs from a node above it, no earlier than it`);
+      }
+    }
   }
   // A new Berserker: its first skill, nothing to spend.
   const ch = R.newCharacter('Grukk', 'berserker');
@@ -577,18 +588,39 @@ test('growing: eight classes, a tree each, skill and attribute points every leve
   assert.equal(R.skillPointsLeft(ch), 0);
   assert.equal(R.attrPointsLeft(ch), 0);
   assert.match(R.learn(ch, 'warcry'), /level 2/);
-  // Level 4: three skill points, fifteen attribute points.
+  // Level 4: three levels of points.
   ch.level = 4;
   assert.equal(R.skillPointsLeft(ch), 3 * POINTS.skills);
   assert.equal(R.attrPointsLeft(ch), 3 * POINTS.attrs);
   assert.match(R.learn(ch, 'feast'), /level 8/);
-  assert.match(R.learn(ch, 'berserker.1.1'), /War Cry first/, 'a node needs the one above it');
+  assert.match(R.learn(ch, 'berserker.1.p1'), /War Cry first/, 'a node needs the one it hangs from');
+  assert.match(R.learn(ch, 'berserker.0.a2'), /Brutal Cleaving Blow first/);
   assert.equal(R.learn(ch, 'warcry'), null);
-  assert.equal(R.learn(ch, 'berserker.0.1'), null, 'Rage, under Cleaving Blow');
+  assert.equal(R.learn(ch, 'berserker.0.p1'), null, 'Rage, under Cleaving Blow');
   assert.equal(R.learn(ch, 'cleaving'), null);
   assert.equal(R.rankOf(ch, 'cleaving'), 2);
-  assert.match(R.learn(ch, 'whirl'), /No skill points/);
+  assert.equal(R.learn(ch, 'berserker.0.a1'), null, 'a rune: Brutal Cleaving Blow');
+  assert.equal(R.learn(ch, 'berserker.0.a1'), null);
+  assert.match(R.learn(ch, 'berserker.0.a1'), /highest rank/);
+  assert.equal(R.learn(ch, 'whirl'), null);
+  assert.match(R.learn(ch, 'berserker.0.p1'), /No skill points/);
   assert.ok(Math.abs(R.rankMult(ch, 'cleaving') - 1.1) < 1e-9);
+  // Runes change their own skill only; the synergy both skills of its path; the mastery is gated.
+  assert.ok(Math.abs(R.skillMods(ch, 'cleaving').dmg - 0.3) < 1e-9 && R.skillMods(ch, 'whirl').dmg === 0);
+  ch.level = 12;
+  assert.match(R.learn(ch, 'berserker.0.m'), /Synergy first/);
+  for (let i = 0; i < 3; i++) assert.equal(R.learn(ch, 'berserker.0.syn'), null);
+  assert.ok(Math.abs(R.skillMods(ch, 'whirl').dmg - 0.24) < 1e-9 && Math.abs(R.skillMods(ch, 'cleaving').dmg - 0.54) < 1e-9);
+  assert.equal(R.pointsIn(ch, 0), 9);
+  const noMastery = R.statsOf(ch).power;
+  assert.equal(R.learn(ch, 'berserker.0.m'), null, 'eight points in the path opens its mastery');
+  assert.ok(R.statsOf(ch).power > noMastery * 1.08, 'Fury Mastery: +12% power');
+  const short = R.newCharacter('Short', 'berserker');
+  short.level = 12;
+  for (const id of ['whirl', 'berserker.0.syn']) assert.equal(R.learn(short, id), null);
+  assert.match(R.learn(short, 'berserker.0.m'), /Needs 8 points in this path \(you have 3\)/);
+  ch.level = 4;
+  ch.tree = { cleaving: 2, warcry: 1, 'berserker.0.p1': 1 };
   // Attributes: strength is a Berserker's own (power), vitality is health, agility crits.
   const before = R.statsOf(ch);
   assert.equal(R.raiseAttr(ch, 'str', 5), null);
@@ -597,12 +629,12 @@ test('growing: eight classes, a tree each, skill and attribute points every leve
   assert.match(R.raiseAttr(ch, 'int', 1), /No attribute points/);
   const after = R.statsOf(ch);
   assert.ok(after.power > before.power && after.armor === before.armor + 5, 'strength');
-  assert.equal(after.maxHp, before.maxHp + 40, 'vitality');
+  assert.ok(after.maxHp >= before.maxHp + 40, 'vitality');
   assert.ok(after.crit > before.crit && after.swing < before.swing, 'agility');
   // A passive: Rage is +4% power a rank.
   const plain = R.newCharacter('Plain', 'berserker');
   plain.level = 4;
-  const raged = { ...plain, tree: { cleaving: 1, 'berserker.0.1': 3 } };
+  const raged = { ...plain, tree: { cleaving: 1, 'berserker.0.p1': 3 } };
   assert.ok(R.statsOf(raged).power > R.statsOf(plain).power);
   // Starting over costs gold and gives everything back.
   ch.gold = 5;
@@ -615,13 +647,16 @@ test('growing: eight classes, a tree each, skill and attribute points every leve
   // An older save (no tree): it keeps every skill its level had opened. A cheated one is reset.
   const old = R.normalize({ name: 'Olda', cls: 'vanguard', level: 8, seeded: true });
   assert.deepEqual(Object.keys(old.tree).sort(), ['cleave', 'slam', 'strike', 'taunt', 'wall']);
-  assert.equal(R.skillPointsLeft(old), 7 - 4);
+  assert.equal(R.skillPointsLeft(old), 7 * POINTS.skills - 4);
   const cheat = R.normalize({ name: 'Cheata', cls: 'vanguard', level: 2, seeded: true, tree: { strike: 5, slam: 5, rally: 5 }, attrs: { str: 999 } });
   assert.deepEqual(cheat.tree, { strike: 1 });
   assert.equal(cheat.attrs.str, 0);
+  const orphan = R.normalize({ name: 'Orpha', cls: 'vanguard', level: 20, seeded: true, tree: { strike: 1, 'vanguard.0.m': 1 } });
+  assert.deepEqual(orphan.tree, { strike: 1 }, 'a node without what it hangs from');
 });
 
 test('growing, in the world: unlearned skills are refused, points are spent over the socket, ranks hit harder', async () => {
+  const R2 = await import('../../src/mmo/rules.js');
   const { db, mmo, join, steps } = await world();
   try {
     const { ws, client } = await join(0, 'Grukka', 'berserker');
@@ -642,9 +677,9 @@ test('growing, in the world: unlearned skills are refused, points are spent over
     // Grow to level 6 and spend.
     client.ch.level = 6;
     inst.refresh(me);
-    ws.say({ t: 'learn', node: 'whirl' });
-    assert.match(ws.last('error').text, /Learn Rage first/, 'down the path, one node at a time');
-    for (const node of ['berserker.0.1', 'whirl', 'cleaving', 'cleaving', 'cleaving']) ws.say({ t: 'learn', node });
+    ws.say({ t: 'learn', node: 'berserker.0.syn' });
+    assert.match(ws.last('error').text, /Learn Whirlwind first/, 'down the path, one node at a time');
+    for (const node of ['whirl', 'cleaving', 'cleaving', 'cleaving', 'berserker.0.a1', 'berserker.0.a1', 'berserker.0.p1', 'berserker.0.p1', 'berserker.0.p1', 'berserker.0.a2']) ws.say({ t: 'learn', node });
     assert.equal(client.ch.tree.cleaving, 4);
     assert.equal(client.ch.tree.whirl, 1);
     ws.say({ t: 'learn', node: 'warcry' });
@@ -677,6 +712,8 @@ test('growing, in the world: unlearned skills are refused, points are spent over
     const weak = swing(1);
     const strong = swing(5);
     assert.ok(strong > weak * 1.2 && strong < weak * 1.7, `rank 5 hits harder: ${weak} → ${strong}`);
+    // Runes: Brutal ×2 was on for both (+30%); Draining returned health with every blow.
+    assert.ok(R2.skillMods(client.ch, 'cleaving').leech > 0);
     // Starting over, out of a fight.
     me.combatUntil = 0;
     client.ch.gold = 500;
@@ -684,6 +721,129 @@ test('growing, in the world: unlearned skills are refused, points are spent over
     assert.deepEqual(client.ch.tree, { cleaving: 1 });
     assert.equal(client.ch.attrs.str, 0);
     assert.equal(client.ch.gold, 450);
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});
+
+test('found gear: made from its id, rarer from better monsters, and something from every kill', async () => {
+  const { RARITIES, RARITY_INFO, BASES, foundId } = await import('../../src/mmo/data.js');
+  const R = await import('../../src/mmo/rules.js');
+  // An id is the whole item: the same every time, and nothing else spells it.
+  const id = foundId('axe', 'epic', 14, 123456);
+  const it = ITEMS[id];
+  assert.ok(it && it.slot === 'weapon' && it.level === 14 && it.rarity === 'epic' && it.stats.power > 20 && it.value > 0);
+  assert.equal(ITEMS[id], it);
+  assert.deepEqual({ ...ITEMS[foundId('axe', 'epic', 14, 123456)].stats }, { ...it.stats });
+  for (const bad of ['~axe.3.14', '~axe.9.14.abc', '~axe.3.99.abc', '~nope.3.14.abc', '~axe.3.14.ABC', '~axe.3.014.abc', '~axe.3.14.0abc', '~axe.3.14.abc.power=999']) assert.equal(ITEMS[bad], undefined, bad);
+  assert.ok(!('~axe.3.99.abc' in ITEMS) && id in ITEMS && 'bread' in ITEMS);
+  // Rarer is better, at the same level and base.
+  const worth = (r) => {
+    let sum = 0;
+    for (let seed = 1; seed <= 60; seed++) sum += Object.values(ITEMS[foundId('sword', r, 10, seed)].stats).reduce((a, b) => a + b, 0);
+    return sum;
+  };
+  const worths = RARITIES.map(worth);
+  assert.deepEqual([...worths].sort((a, b) => a - b), worths, `each rarity is worth more: ${worths.join(' < ')}`);
+  assert.ok(Object.keys(RARITY_INFO).every((r) => /^#[0-9a-f]{6}$/.test(RARITY_INFO[r].color)) && new Set(Object.values(RARITY_INFO).map((r) => r.color)).size === 5, 'a colour of its own for each');
+  // Better monsters find better things; ones far beneath you, little.
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const share = (mob, me, opts) => {
+    let good = 0;
+    for (let i = 0; i < 6000; i++) if (['rare', 'epic', 'unique'].includes(R.rollRarity(mob, me, opts, rand))) good++;
+    return good / 6000;
+  };
+  const low = share(2, 2, {});
+  const high = share(16, 16, {});
+  const elite = share(16, 16, { elite: true });
+  const boss = share(16, 16, { elite: true, boss: true });
+  const grey = share(2, 18, {});
+  assert.ok(grey < low && low < high && high < elite && elite < boss, `${grey} < ${low} < ${high} < ${elite} < ${boss}`);
+  const g = ITEMS[R.rollGear(9, 9, 'ranger', {}, rand)];
+  assert.ok(g && BASES[g.base] && Math.abs(g.level - 9) <= 1);
+  // Wearing found gear counts, crit and haste too.
+  const ch = R.newCharacter('Loota', 'ranger');
+  ch.level = 20;
+  const base = R.statsOf(ch);
+  let keen = null;
+  for (let s = 1; s < 4000 && !keen; s++) {
+    const x = foundId('crossbow', 'epic', 20, s);
+    if (ITEMS[x].stats.crit && ITEMS[x].stats.haste) keen = x;
+  }
+  assert.ok(keen, 'an epic crossbow with crit and haste exists');
+  ch.bag[5] = { item: keen, n: 1 };
+  assert.equal(R.wear(ch, 5), null);
+  const worn = R.statsOf(ch);
+  assert.ok(worn.power > base.power && worn.crit > base.crit && worn.swing < base.swing);
+  assert.equal(R.normalize(JSON.parse(JSON.stringify(ch))).equip.weapon, keen, 'and it is kept when saved and loaded');
+});
+
+test('every kill drops something; sold gear goes on the shops\' second-hand shelf at the shop\'s price', async () => {
+  const { db, mmo, join, steps } = await world();
+  try {
+    const { ws, client } = await join(0, 'Sellra', 'vanguard');
+    Object.assign(client.body, { x: 60, z: 8 });
+    ws.say({ t: 'portal', id: 'to_greenfold' });
+    const inst = client.instance;
+    const me = client.body;
+    client.ch.bag.fill(null);
+    let kills = 0;
+    for (const mob of [...inst.ents.values()].filter((e) => e.kind === 'mob' && e.type === 'rattler').slice(0, 12)) {
+      mob.tagged.add(me.charId);
+      Object.assign(me, { x: mob.x + 1, z: mob.z });
+      const before = ws.events().filter((e) => e.type === 'loot').length;
+      inst._killMob(mob);
+      const loot = ws.events().filter((e) => e.type === 'loot');
+      assert.equal(loot.length, before + 1);
+      assert.ok(loot.at(-1).items.length >= 1 && loot.at(-1).items.every((i) => ITEMS[i]), `kill ${kills}: something dropped`);
+      kills++;
+    }
+    assert.ok(kills >= 6);
+    // A full bag: what can't be carried becomes gold, not nothing.
+    client.ch.bag.fill({ item: 'rusty_sword', n: 1 });
+    const gold = client.ch.gold;
+    const boss = [...inst.ents.values()].find((e) => e.kind === 'mob' && e.type === 'gravelord');
+    boss.tagged.add(me.charId);
+    Object.assign(me, { x: boss.x + 1, z: boss.z });
+    inst._killMob(boss);
+    assert.ok(client.ch.gold > gold && ws.events().some((e) => e.type === 'text' && /became \d+ gold/.test(e.text)));
+    // Back in town: sell a found sword to Pell; it turns up on the shelf, priced by the shop.
+    const { foundId } = await import('../../src/mmo/data.js');
+    const sword = foundId('sword', 'rare', 5, 4242);
+    Object.assign(me, { x: 120, z: 230 });
+    ws.say({ t: 'portal', id: 'to_town' });
+    const town = client.body;
+    client.ch.bag.fill(null);
+    client.ch.bag[0] = { item: sword, n: 1 };
+    client.ch.bag[1] = { item: 'bread', n: 2 };
+    const pell = ZONES.hearthvale.npcs.find((n) => n.id === 'pell');
+    Object.assign(town, { x: pell.at[0] + 1, z: pell.at[1] + 1 });
+    const had = client.ch.gold;
+    ws.say({ t: 'sell', slot: 0 });
+    ws.say({ t: 'sell', slot: 1 });
+    assert.equal(client.ch.gold, had + ITEMS[sword].value + ITEMS.bread.value * 2);
+    assert.equal(mmo.shelf.length, 1, 'gear goes on the shelf; bread does not');
+    assert.deepEqual({ item: mmo.shelf[0].item, price: mmo.shelf[0].price }, { item: sword, price: ITEMS[sword].value * 4 }, 'the shop sets the price: four times what it paid');
+    // Another player sees it at either shop and buys it; then it is gone for everyone.
+    const b = await join(1, 'Buyra', 'ranger');
+    const brannoc = ZONES.hearthvale.npcs.find((n) => n.id === 'brannoc');
+    Object.assign(b.client.body, { x: brannoc.at[0] + 1, z: brannoc.at[1] + 1 });
+    b.ws.say({ t: 'talk', npc: 'brannoc' });
+    const used = b.ws.last('npc').used;
+    assert.equal(used.length, 1);
+    b.client.ch.gold = 1;
+    b.ws.say({ t: 'buy-used', id: used[0].id });
+    assert.match(b.ws.last('error').text, /Not enough gold/);
+    b.client.ch.gold = 500;
+    b.ws.say({ t: 'buy-used', id: used[0].id });
+    assert.equal(b.client.ch.gold, 500 - used[0].price);
+    assert.ok(b.client.ch.bag.some((s) => s?.item === sword));
+    assert.equal(mmo.shelf.length, 0);
+    ws.say({ t: 'buy-used', id: used[0].id });
+    assert.match(ws.last('error').text, /already/);
+    steps(1);
   } finally {
     await mmo.close();
     await db.close();

@@ -1,6 +1,6 @@
 import { coverHtml, guardCovers } from './gameCover.js';
 import { popColor } from './pop.js';
-import { CLASSES, ITEMS, SLOTS } from '../mmo/data.js';
+import { CLASSES, ITEMS, SLOTS, RARITY_INFO } from '../mmo/data.js';
 import { lookOf } from '../mmo/looks.js';
 import './heroes.css';
 
@@ -11,7 +11,14 @@ const el = (tag, className, text) => {
   return node;
 };
 const SLOT_NAMES = { weapon: 'Weapon', head: 'Head', chest: 'Chest', legs: 'Legs', feet: 'Feet', trinket: 'Trinket' };
-const statLine = (stats = {}) => Object.entries(stats).map(([k, v]) => `+${v} ${k}`).join(' · ');
+const statLine = (stats = {}) => Object.entries(stats).map(([k, v]) => (k === 'crit' ? `+${v}% crit` : k === 'haste' ? `+${v}% speed` : `+${v} ${k}`)).join(' · ');
+/** An item's name in its rarity's colour (darkened a little to read on paper). */
+const nameOf = (item) => {
+  const b = el('b', '', item?.name ?? '—');
+  const color = RARITY_INFO[item?.rarity]?.color;
+  if (item?.rarity && item.rarity !== 'common' && color) b.style.color = `color-mix(in srgb, ${color} 62%, #1a1030)`;
+  return b;
+};
 
 /**
  * "My heroes": the games you have a hero in, and — a click on one — your
@@ -223,7 +230,7 @@ export class HeroesPanel {
       const item = ITEMS[c.equip?.[slot]];
       const row = el('div', `heroes__slot ${item ? `is-${item.rarity ?? 'plain'}` : 'is-empty'}`);
       row.dataset.slot = slot;
-      row.append(el('span', 'heroes__slot-name', SLOT_NAMES[slot]), el('b', '', item?.name ?? '—'), el('small', '', item ? statLine(item.stats) : ''));
+      row.append(el('span', 'heroes__slot-name', SLOT_NAMES[slot]), nameOf(item), el('small', '', item ? statLine(item.stats) : ''));
       if (item) row.append(this._button('Take off', 'heroes__btn--small', () => change('takeoff', slot)));
       slots.append(row);
     }
@@ -235,7 +242,7 @@ export class HeroesPanel {
       const row = el('div', `heroes__slot is-${item.rarity ?? 'plain'}`);
       row.dataset.bag = i;
       const diff = Object.keys({ ...item.stats, ...(worn?.stats ?? {}) }).map((k) => [k, (item.stats?.[k] ?? 0) - (worn?.stats?.[k] ?? 0)]).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`).join(' · ');
-      row.append(el('span', 'heroes__slot-name', SLOT_NAMES[item.slot]), el('b', '', item.name), el('small', '', worn ? (diff ? `${diff} against what is worn` : 'the same as what is worn') : statLine(item.stats)));
+      row.append(el('span', 'heroes__slot-name', SLOT_NAMES[item.slot]), nameOf(item), el('small', '', worn ? (diff ? `${diff} against what is worn` : 'the same as what is worn') : statLine(item.stats)));
       const can = (item.level ?? 1) <= c.level;
       const b = this._button(can ? 'Wear' : `Needs level ${item.level}`, 'heroes__btn--small heroes__btn--go', () => change('wear', i));
       b.disabled = !can;

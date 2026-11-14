@@ -1,7 +1,7 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, POINTS } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
-import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost } from './rules.js';
+import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods } from './rules.js';
 import { CharacterStage } from './bodies.js';
 import { STYLES, BUILDS, TINTS, cleanLook, lookOf } from './looks.js';
 import { playerBlow, mobBlow, kickBlow, BLOW_COLORS } from './blows.js';
@@ -15,21 +15,28 @@ const el = (tag, className, text) => {
   return n;
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const RARITY = { common: '#e8edf3', uncommon: '#5fe07a', rare: '#5aa7ff', epic: '#c084fc' };
-const itemColor = (id) => RARITY[ITEMS[id]?.rarity] ?? '#e8edf3';
+/** An item's rarity (listed gear without one is common; things that aren't gear have none). */
+const rarityOf = (id) => (ITEMS[id]?.slot ? ITEMS[id].rarity ?? 'common' : null);
+const itemColor = (id) => RARITY_INFO[rarityOf(id)]?.color ?? '#e8edf3';
+const statText = (stats = {}) => Object.entries(stats).map(([k, v]) => (k === 'crit' ? `+${v}% critical chance` : k === 'haste' ? `+${v}% attack speed` : `+${v} ${k}`));
 const itemTip = (id) => {
   const it = ITEMS[id];
   if (!it) return '';
   const bits = [it.name];
-  if (it.slot) bits.push(`${it.slot}${it.level ? ` · level ${it.level}` : ''}`);
-  if (it.stats) bits.push(Object.entries(it.stats).map(([k, v]) => `+${v} ${k}`).join(', '));
+  if (it.slot) bits.push(`${RARITY_INFO[rarityOf(id)].name} ${it.slot}${it.level ? ` · level ${it.level}` : ''}`);
+  if (it.stats) bits.push(statText(it.stats).join('\n'));
   if (it.use) bits.push(`Use: ${it.use.heal ? `restores ${it.use.heal} health ` : ''}${it.use.mana ? `restores ${it.use.mana} mana` : ''}`);
   if (it.mat) bits.push('Material');
+  if (it.value) bits.push(`Sells for ${it.value} gold`);
   return bits.join('\n');
 };
+/** An item's name as HTML, in its rarity's colour. */
+const itemName = (id, n = 1) => `<span class="hv-rarity" style="color:${itemColor(id)}">${esc(ITEMS[id]?.name ?? '?')}${n > 1 ? ` ×${n}` : ''}</span>`;
+const BASE_ICON = { sword: '⚔', axe: '🪓', daggers: '🗡', crossbow: '🏹', staff: '🪄', wand: '✨', helm: '⛑', hauberk: '🥋', greaves: '👖', boots: '👢', charm: '📿' };
 const ICON = (id) => {
   const it = ITEMS[id];
   if (!it) return '';
+  if (it.base) return BASE_ICON[it.base] ?? '🗡';
   if (it.slot === 'weapon') return '🗡';
   if (it.slot === 'head') return '⛑';
   if (it.slot === 'chest') return '🥋';
@@ -490,6 +497,13 @@ export class MmoGame {
       case 'chat':
         this._chatLine(msg);
         return;
+      case 'used':
+        // The second-hand shelf changed while the store is open.
+        if (this.npc?.vendor) {
+          this.npc.used = msg.used;
+          this._renderAll();
+        }
+        return;
       case 'npc':
         this.npc = msg;
         this.panels.add('npc');
@@ -635,7 +649,7 @@ export class MmoGame {
           this._gain(ev.amount);
           break;
         case 'loot':
-          this.toast(`${ev.from}: ${ev.gold} gold${ev.items.length ? `, ${ev.items.map((i) => ITEMS[i].name).join(', ')}` : ''}`, 'good');
+          this._lootToast(ev);
           break;
         case 'quest': {
           const q = QUESTS[ev.id];
@@ -1000,6 +1014,27 @@ export class MmoGame {
     setTimeout(() => t.remove(), 4500);
   }
 
+  /** What a kill dropped: each thing in its rarity's colour; a rare find gets a line of its own. */
+  _lootToast(ev) {
+    const box = this.$?.('[data-toasts]');
+    if (!box) return;
+    const t = el('div', 'hv-toast hv-toast--loot');
+    t.innerHTML = `${esc(ev.from)}: <b class="hv-gold">${ev.gold} gold</b>${ev.items.map((i) => `, ${itemName(i)}`).join('')}`;
+    box.append(t);
+    setTimeout(() => t.remove(), 5500);
+    const order = Object.keys(RARITY_INFO);
+    const best = ev.items.filter((i) => rarityOf(i)).sort((x, y) => order.indexOf(rarityOf(y)) - order.indexOf(rarityOf(x)))[0];
+    if (best && order.indexOf(rarityOf(best)) >= 2) {
+      const d = el('div', `hv-toast hv-toast--find is-${rarityOf(best)}`);
+      d.style.setProperty('--rarity', itemColor(best));
+      d.innerHTML = `<small>${RARITY_INFO[rarityOf(best)].name} find!</small>${itemName(best)}<em>${esc(statText(ITEMS[best].stats).join(' · '))}</em>`;
+      box.append(d);
+      setTimeout(() => d.remove(), 7000);
+      if (order.indexOf(rarityOf(best)) >= 3) confetti(null, 60);
+    }
+    while (box.querySelectorAll('.hv-toast:not(.hv-toast--invite)').length > 6) box.querySelector('.hv-toast:not(.hv-toast--invite)').remove();
+  }
+
   /* --------------------------------------------- combo, hurt, experience */
 
   /** The combo counter: hits in a row, and what they add to your damage. */
@@ -1271,7 +1306,11 @@ export class MmoGame {
     b.type = 'button';
     if (s) {
       b.innerHTML = `<span>${ICON(s.item)}</span>${s.n > 1 ? `<small>${s.n}</small>` : ''}`;
-      b.style.borderColor = itemColor(s.item);
+      const rarity = rarityOf(s.item);
+      if (rarity) {
+        b.classList.add('has-rarity', `is-${rarity}`);
+        b.style.setProperty('--rarity', itemColor(s.item));
+      }
       b.title = `${itemTip(s.item)}${extra}`;
       b.dataset.item = s.item;
     }
@@ -1309,35 +1348,47 @@ export class MmoGame {
   }
 
   _win_char() {
-    const body = el('div', 'hv-charwin');
-    const gear = el('div', 'hv-gear');
-    for (const slot of SLOTS) {
-      const id = this.ch.equip[slot];
-      const row = el('div', 'hv-gear__row');
-      row.append(this._slotButton(id ? { item: id, n: 1 } : null, () => id && this.send({ t: 'unequip', slot }), '\nClick: take off'), el('span', null, id ? ITEMS[id].name : `— ${slot}`));
-      gear.append(row);
-    }
+    const body = el('div', 'hv-sheet');
     const st = this.st ?? {};
     const cls = CLASSES[this.ch.cls];
     const left = attrPointsLeft(this.ch);
-    const stats = el('div', 'hv-stats');
-    stats.innerHTML = `<p><b>${esc(this.ch.name)}</b>, level ${this.ch.level} ${esc(cls.name)}</p>
-      <p>Health ${st.maxHp} · ${esc(cls.resource)} ${st.maxMana} · Power ${st.power} · Armor ${st.armor}</p>
-      <p>Critical chance ${Math.round((st.crit ?? 0.1) * 100)}% · Attack every ${(st.swing ?? 0).toFixed(2)}s</p>
-      <h3>Attributes <span class="hv-points ${left ? 'is-some' : ''}" data-attr-left>${left} point${left === 1 ? '' : 's'} to spend</span></h3>
+    // What you wear, laid out like a body: head, then weapon · chest · trinket, then legs, then feet.
+    const gear = el('div', 'hv-doll');
+    gear.innerHTML = `<div class="hv-doll__plate"><b>${esc(this.ch.name)}</b><small>Level ${this.ch.level} ${esc(cls.name)}</small></div>`;
+    for (const slot of SLOTS) {
+      const id = this.ch.equip[slot];
+      const cell = el('div', `hv-doll__slot hv-doll__slot--${slot}`);
+      const b = this._slotButton(id ? { item: id, n: 1 } : null, () => id && this.send({ t: 'unequip', slot }), '\nClick: take off');
+      b.dataset.gear = slot;
+      cell.append(b, el('small', null, id ? '' : slot));
+      if (id) cell.querySelector('small').innerHTML = itemName(id);
+      gear.append(cell);
+    }
+    const stats = el('div', 'hv-sheet__side');
+    const cut = Math.round((1 - 100 / (100 + (st.armor ?? 0) * 1.5)) * 100);
+    const group = (title, rows) => `<section class="hv-statbox"><h3>${title}</h3>${rows.map(([k, v]) => `<p><span>${k}</span><b>${v}</b></p>`).join('')}</section>`;
+    stats.innerHTML = `
+      <h3 class="hv-sheet__title">Attributes <span class="hv-points ${left ? 'is-some' : ''}" data-attr-left>${left} point${left === 1 ? '' : 's'} to spend</span></h3>
       <div class="hv-attrs" data-attrs></div>
-      <h3>Professions</h3><ul>${Object.entries(PROFESSIONS).map(([k, n]) => `<li>${esc(n)} <b>${this.ch.skills[k] ?? 1}</b></li>`).join('')}</ul>`;
+      <div class="hv-statboxes">
+        ${group('Offense', [['Power', st.power], ['Critical chance', `${Math.round((st.crit ?? 0.1) * 100)}%`], ['Attack every', `${(st.swing ?? 0).toFixed(2)}s`]])}
+        ${group('Defense', [['Health', st.maxHp], ['Armor', st.armor], ['Damage taken', `−${cut}%`]])}
+        ${group(esc(cls.resource), [['Most', st.maxMana], ['Returns', `${(st.regen ?? 0).toFixed(1)}/s`], ['Skills cost', `${Math.round((st.costMult ?? 1) * 100)}%`]])}
+        ${group('Professions', Object.entries(PROFESSIONS).map(([k, n]) => [esc(n), this.ch.skills[k] ?? 1]))}
+      </div>`;
     const attrs = stats.querySelector('[data-attrs]');
     for (const a of ATTR_ORDER) {
       const def = ATTRS[a];
       const row = el('div', `hv-attr ${cls.main === a ? 'is-main' : ''}`);
       row.dataset.attr = a;
-      row.innerHTML = `<span class="hv-attr__icon">${def.icon}</span><div><b>${def.name} <i>${this.ch.attrs?.[a] ?? 0}</i></b><small>${def.does}${cls.main === a ? ` · <em>+${POINTS.mainPower} power (your class's own)</em>` : ''}</small></div>`;
-      const one = el('button', 'hv-btn hv-attr__plus', '+1');
-      const five = el('button', 'hv-btn hv-attr__plus', '+5');
+      row.innerHTML = `<span class="hv-attr__icon">${def.icon}</span><div><b>${def.name}</b><small>${def.does}${cls.main === a ? ` · <em>+${POINTS.mainPower} power</em>` : ''}</small></div><i class="hv-attr__n">${this.ch.attrs?.[a] ?? 0}</i>`;
+      const one = el('button', 'hv-attr__plus', '+');
+      const five = el('button', 'hv-attr__plus hv-attr__plus--five', '+5');
       one.type = five.type = 'button';
       one.title = `Put one point in ${def.name}`;
       five.title = `Put five points in ${def.name}`;
+      one.dataset.plus = '1';
+      five.dataset.plus = '5';
       one.disabled = left < 1;
       five.disabled = left < 5;
       one.addEventListener('click', () => this.send({ t: 'attr', attr: a, n: 1 }));
@@ -1428,6 +1479,7 @@ export class MmoGame {
       ['weapons', 'Weapons', items.filter((id) => ITEMS[id].slot === 'weapon')],
       ['armor', 'Armor', items.filter((id) => ITEMS[id].slot && ITEMS[id].slot !== 'weapon')],
       ['supplies', 'Supplies', items.filter((id) => !ITEMS[id].slot)],
+      ['used', `Second-hand${n.used?.length ? ` (${n.used.length})` : ''}`, null],
       ['sell', 'Sell', null]
     ].filter(([, , list]) => !list || list.length);
     if (!groups.some(([k]) => k === this.storeTab)) this.storeTab = groups[0][0];
@@ -1447,15 +1499,44 @@ export class MmoGame {
     head.append(tabs);
     box.append(head);
     const list = el('div', 'hv-store__list');
-    if (this.storeTab === 'sell') {
+    if (this.storeTab === 'used') {
+      // What other players sold: the shop put it back on sale, at its own price.
+      list.append(el('p', 'hv-muted', 'Gear other adventurers sold. The shop sets the price when it restocks; first come, first served.'));
+      if (!n.used?.length) list.append(el('p', 'hv-muted', 'The shelf is empty just now.'));
+      for (const u of n.used ?? []) {
+        const it = ITEMS[u.item];
+        if (!it) continue;
+        const worn = ITEMS[this.ch.equip[it.slot]];
+        const keys = new Set([...Object.keys(it.stats ?? {}), ...Object.keys(worn?.stats ?? {})]);
+        const diffs = [...keys].map((k) => [k, (it.stats?.[k] ?? 0) - (worn?.stats?.[k] ?? 0)]).filter(([, d]) => d);
+        const low = (it.level ?? 1) > this.ch.level;
+        const row = el('div', 'hv-store__row');
+        row.dataset.used = String(u.id);
+        row.innerHTML = `<span class="hv-store__icon hv-item has-rarity is-${rarityOf(u.item)}" style="--rarity:${itemColor(u.item)}">${ICON(u.item)}</span>
+          <div><b>${itemName(u.item)}</b><small>${esc(RARITY_INFO[rarityOf(u.item)].name)} ${it.slot} · ${esc(statText(it.stats).join(' · '))} · <span class="${low ? 'is-down' : ''}">level ${it.level}</span></small>
+          <span class="hv-store__cmp">${diffs.length ? diffs.map(([k, d]) => `<em class="${d > 0 ? 'is-up' : 'is-down'}">${d > 0 ? '+' : ''}${d} ${k}</em>`).join(' ') : '<em class="hv-store__same">Same as yours</em>'}</span></div>
+          <div class="hv-store__buy"><span class="hv-store__price">${u.price} g</span><button type="button" class="hv-btn" data-buy-used="${u.id}">Buy</button></div>`;
+        const b = row.querySelector('button');
+        b.disabled = this.ch.gold < u.price;
+        b.addEventListener('click', () => this.send({ t: 'buy-used', id: u.id }));
+        list.append(row);
+      }
+    } else if (this.storeTab === 'sell') {
+      const common = this.ch.bag.map((x, i) => [x, i]).filter(([x]) => x && rarityOf(x.item) === 'common');
+      if (common.length) {
+        const all = el('button', 'hv-btn', `Sell all common gear (${common.length}) for ${common.reduce((g, [x]) => g + (ITEMS[x.item].value ?? 0), 0)} gold`);
+        all.type = 'button';
+        all.dataset.sellCommon = '';
+        all.addEventListener('click', () => common.forEach(([, i]) => this.send({ t: 'sell', slot: i })));
+        list.append(all);
+      }
       const sellable = this.ch.bag.map((x, i) => [x, i]).filter(([x]) => x && (ITEMS[x.item].value ?? 0) > 0);
       if (!sellable.length) list.append(el('p', 'hv-muted', 'Nothing in your bag to sell.'));
       for (const [x, i] of sellable) {
         const row = el('div', 'hv-store__row');
         row.innerHTML = `<span class="hv-store__icon">${ICON(x.item)}</span><div><b></b><small></small></div><button type="button" class="hv-btn" data-sell="${i}">Sell</button>`;
-        row.querySelector('b').textContent = `${ITEMS[x.item].name}${x.n > 1 ? ` ×${x.n}` : ''}`;
-        row.querySelector('b').style.color = itemColor(x.item);
-        row.querySelector('small').textContent = `${(ITEMS[x.item].value ?? 0) * x.n} gold`;
+        row.querySelector('b').innerHTML = itemName(x.item, x.n);
+        row.querySelector('small').textContent = `${rarityOf(x.item) ? `${RARITY_INFO[rarityOf(x.item)].name} · ${statText(ITEMS[x.item].stats).join(' · ')} · ` : ''}${(ITEMS[x.item].value ?? 0) * x.n} gold`;
         row.querySelector('button').addEventListener('click', () => this.send({ t: 'sell', slot: i }));
         list.append(row);
       }
@@ -1590,13 +1671,17 @@ export class MmoGame {
     return this._window(`Trade with ${t.them.name}`, 'trade', wrap);
   }
 
-  /** The skill tree: three paths; a point each level; a click puts one in. */
+  /**
+   * The skill tree: three paths side by side, each a grid of tiles joined to
+   * what they hang from. A click picks a tile and shows it on the right; a
+   * second click (or the button there) puts a point in.
+   */
   _win_skills() {
     const cls = CLASSES[this.ch.cls];
     const left = skillPointsLeft(this.ch);
     const body = el('div', 'hv-tree');
     const head = el('div', 'hv-tree__head');
-    head.innerHTML = `<span class="hv-points ${left ? 'is-some' : ''}" data-skill-left>${left} skill point${left === 1 ? '' : 's'} to spend</span><small>One point every level. A skill's rank adds ${POINTS.rank * 100}% to what it does; each node needs the one above it.</small>`;
+    head.innerHTML = `<span class="hv-points ${left ? 'is-some' : ''}" data-skill-left>${left} skill point${left === 1 ? '' : 's'} to spend</span><small>${POINTS.skills} points every level. Click a tile to read it; click it again to put a point in.</small>`;
     const cost = respecCost(this.ch);
     const reset = el('button', 'hv-btn', cost ? `Start over (${cost} gold)` : 'Start over');
     reset.type = 'button';
@@ -1605,42 +1690,113 @@ export class MmoGame {
     reset.disabled = this.ch.gold < cost;
     reset.addEventListener('click', () => this.send({ t: 'respec' }));
     head.append(reset);
+    const nodes = NODES_OF[this.ch.cls];
+    if (!nodes[this.treePick]) this.treePick = cls.skills[0].id;
+    const detail = el('aside', 'hv-tree__detail');
+    detail.dataset.detail = '';
+    const show = (id) => detail.replaceChildren(...this._nodeDetail(nodes[id]));
     const cols = el('div', 'hv-tree__paths');
-    for (const path of TREES[this.ch.cls]) {
-      const col = el('div', 'hv-tree__path');
-      col.append(el('h3', null, path.name));
+    TREES[this.ch.cls].forEach((path, bi) => {
+      const col = el('section', 'hv-path');
+      col.dataset.path = String(bi);
+      col.innerHTML = `<h3>${esc(path.name)} <span>${pointsIn(this.ch, bi)}</span></h3>`;
+      const grid = el('div', 'hv-path__grid');
+      // The joins, drawn under the tiles: lit once the upper node has a rank.
+      grid.innerHTML = `<svg viewBox="0 0 3 5" preserveAspectRatio="none" aria-hidden="true">${path.nodes.filter((n) => n.needs).map((n) => {
+        const up = nodes[n.needs];
+        return `<line x1="${up.col + 0.5}" y1="${up.row + 0.5}" x2="${n.col + 0.5}" y2="${n.row + 0.5}" class="${rankOf(this.ch, up.id) ? 'is-lit' : ''}" />`;
+      }).join('')}</svg>`;
       for (const node of path.nodes) {
         const rank = rankOf(this.ch, node.id);
         const why = cannotLearn(this.ch, node.id);
-        const skill = node.kind === 'skill' ? cls.skills.find((k) => k.id === node.id) : null;
-        const b = el('button', `hv-node hv-node--${node.kind} ${rank ? 'is-known' : ''} ${rank >= node.max ? 'is-full' : ''} ${why ? '' : 'is-open'}`);
+        const b = el('button', `hv-tile hv-tile--${node.kind} ${rank ? 'is-known' : ''} ${rank >= node.max ? 'is-full' : ''} ${why ? '' : 'is-open'} ${this.treePick === node.id ? 'is-picked' : ''}`);
         b.type = 'button';
         b.dataset.node = node.id;
-        const what = skill ? this._skillText(skill, Math.max(1, rank)) : `${node.text} a rank`;
-        b.innerHTML = `<span class="hv-node__icon">${node.icon}</span><span class="hv-node__text"><b></b><small></small></span><span class="hv-node__rank">${rank}/${node.max}</span>`;
-        b.querySelector('b').textContent = node.name;
-        b.querySelector('small').textContent = what;
-        b.title = `${node.name} — ${what}${rank >= node.max ? '' : why ? `\n${why}` : '\nClick: put a point in'}`;
-        b.setAttribute('aria-disabled', String(Boolean(why)));
-        b.addEventListener('click', () => (why ? this.toast(why) : this.send({ t: 'learn', node: node.id })));
-        if (node.row) col.append(el('span', `hv-tree__link ${rankOf(this.ch, node.needs) ? 'is-lit' : ''}`));
-        col.append(b);
+        b.style.gridColumn = String(node.col + 1);
+        b.style.gridRow = String(node.row + 1);
+        const tooLow = (node.level ?? 1) > this.ch.level;
+        b.innerHTML = `<span class="hv-tile__icon">${node.icon}</span><span class="hv-tile__rank">${rank}/${node.max}</span>${tooLow && !rank ? `<span class="hv-tile__lv">Lv ${node.level}</span>` : ''}${node.kind === 'rune' ? '<span class="hv-tile__mark">ᚱ</span>' : ''}`;
+        b.setAttribute('aria-label', `${node.name}, rank ${rank} of ${node.max}`);
+        b.addEventListener('mouseenter', () => show(node.id));
+        b.addEventListener('mouseleave', () => show(this.treePick));
+        b.addEventListener('focus', () => show(node.id));
+        b.addEventListener('click', () => {
+          if (this.treePick === node.id && !why) return this.send({ t: 'learn', node: node.id });
+          this.treePick = node.id;
+          this._renderAll();
+        });
+        grid.append(b);
       }
+      col.append(grid);
       cols.append(col);
-    }
-    body.append(head, cols);
+    });
+    show(this.treePick);
+    const main = el('div', 'hv-tree__main');
+    main.append(cols, detail);
+    body.append(head, main);
     return this._window(`${cls.name} skills`, 'skills', body);
+  }
+
+  /** The panel beside the tree for one node: what it is, what it does now and next, what it needs. */
+  _nodeDetail(node) {
+    const cls = CLASSES[this.ch.cls];
+    const rank = rankOf(this.ch, node.id);
+    const why = cannotLearn(this.ch, node.id);
+    const kinds = { skill: 'Skill', rune: 'Rune', passive: 'Passive', synergy: 'Synergy', mastery: 'Mastery' };
+    const box = el('div', `hv-detail hv-detail--${node.kind}`);
+    box.innerHTML = `<div class="hv-detail__top"><span class="hv-detail__icon">${node.icon}</span><div><h4></h4><small>${kinds[node.kind]} · ${TREES[this.ch.cls][node.branch].name}</small></div></div>
+      <div class="hv-detail__pips">${Array.from({ length: node.max }, (_, i) => `<i class="${i < rank ? 'is-on' : ''}"></i>`).join('')}<span>Rank ${rank} / ${node.max}</span></div>
+      <div class="hv-detail__text"></div><ul class="hv-detail__needs"></ul>`;
+    box.querySelector('h4').textContent = node.name;
+    const text = box.querySelector('.hv-detail__text');
+    const line = (label, value) => {
+      const p = el('p');
+      p.innerHTML = `<span>${label}</span> `;
+      p.append(value);
+      text.append(p);
+    };
+    if (node.kind === 'skill') {
+      const k = cls.skills.find((x) => x.id === node.id);
+      const mod = skillMods(this.ch, k.id);
+      const cost = Math.round(k.cost * (this.st?.costMult ?? 1) * (1 - mod.cost));
+      const cd = k.cd ? Math.round(k.cd * (this.st?.cdMult ?? 1) * (1 - mod.cd) * 10) / 10 : 0;
+      const cast = k.cast ? Math.round(k.cast * (1 - mod.cast) * 10) / 10 : 0;
+      line(rank ? 'Now' : 'At rank 1', this._skillText(k, Math.max(1, rank)));
+      if (rank && rank < node.max) line('Next rank', this._skillText(k, rank + 1));
+      line('Use', `${cast ? `${cast}s cast` : 'instant'} · ${cost} ${cls.resource.toLowerCase()}${cd ? ` · ${cd}s cooldown` : ''} · key ${cls.skills.indexOf(k) + 1}`);
+    } else {
+      line('Each rank', node.text.replace(/ a rank$/, ''));
+      if (node.kind !== 'mastery' && rank) line('Now', `${Math.round(node.per * rank * 10) / 10}${node.effect === 'stun' ? 's' : '%'} in all`);
+    }
+    const needs = box.querySelector('.hv-detail__needs');
+    const need = (ok, label) => {
+      const li = el('li', ok ? 'is-ok' : 'is-missing', `${ok ? '✓' : '✗'} ${label}`);
+      needs.append(li);
+    };
+    if ((node.level ?? 1) > 1) need(this.ch.level >= node.level, `Level ${node.level}`);
+    if (node.needs) need(rankOf(this.ch, node.needs) > 0, NODES_OF[this.ch.cls][node.needs].name);
+    if (node.gate) need(pointsIn(this.ch, node.branch) >= node.gate, `${node.gate} points in ${TREES[this.ch.cls][node.branch].name} (${pointsIn(this.ch, node.branch)})`);
+    const b = el('button', 'hv-btn hv-btn--go hv-detail__learn', rank >= node.max ? 'Highest rank' : why ?? (rank ? `Raise to rank ${rank + 1}` : 'Learn'));
+    b.type = 'button';
+    b.dataset.learn = node.id;
+    b.disabled = Boolean(why);
+    b.addEventListener('click', () => {
+      this.treePick = node.id;
+      this.send({ t: 'learn', node: node.id });
+    });
+    return [box, b];
   }
 
   /** What a skill does, in a line, at a rank. */
   _skillText(s, rank) {
     const k = 1 + (rank - 1) * POINTS.rank;
     const power = this.st?.power ?? 0;
-    const n = (base) => Math.round(((base ?? 0) + power * (s.coef ?? 0)) * k);
+    const mod = skillMods(this.ch, s.id);
+    const n = (base, more = mod.dmg) => Math.round(((base ?? 0) + power * (s.coef ?? 0)) * k * (1 + more));
     const bits = [];
     if (s.damage || (s.coef && !s.heal && !s.shield && s.kind !== 'heal')) bits.push(`${n(s.damage)} damage${s.radius ? ' to all near' : ''}`);
-    if (s.heal) bits.push(`heals ${n(s.heal)}${s.radius ? ' to friends near' : ''}`);
-    if (s.shield) bits.push(`a shield of ${n(s.shield)}`);
+    if (s.heal) bits.push(`heals ${n(s.heal, mod.heal)}${s.radius ? ' to friends near' : ''}`);
+    if (s.shield) bits.push(`a shield of ${n(s.shield, mod.shield)}`);
     if (s.hot) bits.push('heals over time');
     if (s.stun) bits.push(`stuns ${s.stun}s`);
     if (s.slow) bits.push(`slows ${s.slow.time}s`);
@@ -1653,7 +1809,7 @@ export class MmoGame {
     if (s.kind === 'blink') bits.push(s.distance < 0 ? 'rolls back' : `leaps ${s.distance} m`);
     if (s.kind === 'taunt') bits.push('makes the enemy attack you');
     if (s.kind === 'revive') bits.push('brings a fallen friend back');
-    return `${bits.join(', ') || s.name}${s.level > 1 ? ` · level ${s.level}` : ''}`;
+    return bits.join(', ') || s.name;
   }
 
   _win_help() {
@@ -1661,7 +1817,8 @@ export class MmoGame {
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
       <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
       <li><b>Skills</b>: 1–6 (new ones open as you level). One skill a second; some take time to cast — moving stops them.</li>
-      <li><b>Growing</b>: every level brings a skill point and five attribute points. <b>T</b> opens your class's skill tree (three paths; a skill's rank makes it stronger, passives add for good); <b>C</b> has Strength, Agility, Intellect and Vitality. "Start over" in the tree takes them all back for gold.</li>
+      <li><b>Growing</b>: every level brings two skill points and five attribute points. <b>T</b> opens your class's skill tree: three paths of ten tiles — skills, runes that change a skill, passives, a synergy and a mastery — each joined to the one it needs. <b>C</b> has Strength, Agility, Intellect and Vitality. "Start over" in the tree takes them all back for gold.</li>
+      <li><b>Loot</b>: every kill drops something, and often gear. Its colour is its rarity — <span style="color:#e8edf3">common</span>, <span style="color:#5fe07a">uncommon</span>, <span style="color:#5aa7ff">rare</span>, <span style="color:#c084fc">epic</span>, <span style="color:#ff9a3c">unique</span>. Stronger monsters, elites and bosses find better. Gear you sell goes on the shops' Second-hand shelf for others.</li>
       <li><b>Combos</b>: every hit within four seconds of the last adds to your combo — each one hits 2% harder, up to +20%. Every third basic attack in a row is a <b>finisher</b> (40% harder). Keep swinging and weave skills in between.</li>
       <li><b>Experience</b>: the purple gauge under the hotbar fills as you fight and hand in quests; the badge on its left is your level.</li>
       <li><b>F</b>: talk to someone (a ! has a quest, a ? wants one back), gather a node, step through a portal, use a crafting station.</li>

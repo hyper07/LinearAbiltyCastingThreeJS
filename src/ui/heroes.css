@@ -241,9 +241,6 @@
   border-style: dashed;
   opacity: 0.7;
 }
-.heroes__slot.is-uncommon b { color: #0b8a5a; }
-.heroes__slot.is-rare b { color: #1767c9; }
-.heroes__slot.is-epic b { color: #8a2be2; }
 .heroes__slot-name {
   font-size: 12px;
   font-weight: 900;

@@ -1,7 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { RateLimiter, json, pathOf, queryOf, readJson } from '../api/http.js';
 import { Instance } from './instance.js';
-import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX } from '../../src/mmo/data.js';
+import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX, DROPS } from '../../src/mmo/data.js';
 import { ZONES, NPCS } from '../../src/mmo/world.js';
 import { cleanLook } from '../../src/mmo/looks.js';
 import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf, wear, takeOff, raiseAttr, learn, respec } from '../../src/mmo/rules.js';
@@ -36,6 +36,26 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
   const trades = new Map(); // charId → trade
   let nextParty = 1;
   const limits = { create: new RateLimiter(10, 60_000) };
+
+  /* ------------------------------------------------- the second-hand shelf */
+
+  /**
+   * Gear players sell to a shop is put back on sale for everyone, in every
+   * shop. The shop sets the price itself when it restocks — four times what
+   * it pays, like its own stock — never the seller. The shelf holds the
+   * newest pieces, and clears out what nobody wanted after a few hours.
+   */
+  const shelf = [];
+  let nextUsed = 1;
+  function usedStock() {
+    const old = Date.now() - DROPS.shelfHours * 3600_000;
+    for (let i = shelf.length - 1; i >= 0; i--) if (shelf[i].at < old) shelf.splice(i, 1);
+    return shelf;
+  }
+  function restock(item) {
+    usedStock().unshift({ id: nextUsed++, item, price: (ITEMS[item].value ?? 1) * 4, at: Date.now() });
+    if (shelf.length > DROPS.shelf) shelf.length = DROPS.shelf;
+  }
 
   /* -------------------------------------------------------------- HTTP */
 
@@ -265,7 +285,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
       case 'talk': {
         const npc = NPCS[msg.npc];
         if (!npc || !inst.near(p, 'npc', msg.npc)) return err('Too far away');
-        return client.send({ t: 'npc', npc: msg.npc, ...questsAt(ch, msg.npc), vendor: VENDORS[msg.npc] ?? null, bank: Boolean(npc.bank), guild: Boolean(npc.guild), says: npc.says ? npc.says[Math.floor(Math.random() * npc.says.length)] : null });
+        return client.send({ t: 'npc', npc: msg.npc, ...questsAt(ch, msg.npc), vendor: VENDORS[msg.npc] ?? null, used: VENDORS[msg.npc] ? usedStock() : null, bank: Boolean(npc.bank), guild: Boolean(npc.guild), says: npc.says ? npc.says[Math.floor(Math.random() * npc.says.length)] : null });
       }
       case 'quest-accept': {
         const q = QUESTS[msg.id];
@@ -312,11 +332,27 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
         client.send({ t: 'ev', ev: [{ type: 'text', text: `Bought ${ITEMS[item].name}${got > 1 ? ` ×${got}` : ''}` }] });
         return client.dirty();
       }
+      case 'buy-used': {
+        // From the second-hand shelf: what other players sold, at the shop's own price.
+        if (!Object.keys(VENDORS).some((v) => inst.near(p, 'npc', v))) return err('Find a shopkeeper');
+        const at = usedStock().findIndex((u) => u.id === Number(msg.id));
+        if (at < 0) return err('Someone else bought that already');
+        const u = shelf[at];
+        if (ch.gold < u.price) return err('Not enough gold');
+        if (!give(ch, u.item, 1)) return err('Your bag is full');
+        ch.gold -= u.price;
+        shelf.splice(at, 1);
+        client.send({ t: 'ev', ev: [{ type: 'text', text: `Bought ${ITEMS[u.item].name} for ${u.price} gold` }] });
+        client.send({ t: 'used', used: usedStock() });
+        return client.dirty();
+      }
       case 'sell': {
         const s = ch.bag[msg.slot | 0];
         if (!s || !Object.keys(VENDORS).some((v) => inst.near(p, 'npc', v))) return err('Find a shopkeeper to sell to');
         ch.gold += (ITEMS[s.item].value ?? 0) * s.n;
         ch.bag[msg.slot | 0] = null;
+        // Gear sold to a shop goes on its second-hand shelf, for anyone to buy.
+        if (ITEMS[s.item].slot && (ITEMS[s.item].value ?? 0) > 0) restock(s.item);
         client.send({ t: 'ev', ev: [{ type: 'text', text: `Sold ${ITEMS[s.item].name}${s.n > 1 ? ` ×${s.n}` : ''} for ${(ITEMS[s.item].value ?? 0) * s.n} gold` }] });
         return client.dirty();
       }
@@ -730,6 +766,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
     step: tick,
     connect,
     online,
+    shelf,
     close() {
       if (loop) clearInterval(loop);
       for (const c of online.values()) c.ws.close(1001, 'Server going down');

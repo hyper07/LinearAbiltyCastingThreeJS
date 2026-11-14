@@ -158,7 +158,7 @@ export async function run(browser, { shots = null } = {}) {
     // Growing: the skill tree (T) and the attributes (C).
     await page.evaluate(() => window.hearthvale.root.focus());
     await page.keyboard.press('KeyT');
-    t.check('T opens the class\'s skill tree: three paths, twelve nodes, its first skill known', await until(page, () => document.querySelectorAll('.hv-win--skills .hv-tree__path').length === 3 && document.querySelectorAll('.hv-win--skills .hv-node').length === 12 && document.querySelectorAll('.hv-win--skills .hv-node.is-known').length >= 1, null, 5000));
+    t.check('T opens the class\'s skill tree: three paths of ten joined tiles, its first skill known, a panel that explains the pick', await until(page, () => document.querySelectorAll('.hv-win--skills .hv-path').length === 3 && document.querySelectorAll('.hv-win--skills .hv-tile').length === 30 && document.querySelectorAll('.hv-win--skills .hv-tile.is-known').length >= 1 && document.querySelectorAll('.hv-win--skills .hv-path__grid line').length === 27 && Boolean(document.querySelector('.hv-win--skills [data-detail] h4')?.textContent), null, 5000));
     await page.keyboard.press('KeyC');
     t.check('C shows Strength, Agility, Intellect and Vitality, with the class\'s own marked', await until(page, () => document.querySelectorAll('.hv-win--char .hv-attr').length === 4 && document.querySelectorAll('.hv-win--char .hv-attr.is-main').length === 1, null, 5000));
     t.check('the hotbar locks what isn\'t learned yet', await page.evaluate(() => document.querySelectorAll('.hv-hotbar .hv-slot.is-locked').length >= 3 && document.querySelectorAll('.hv-hotbar .hv-slot:not(.is-locked)').length >= 1));

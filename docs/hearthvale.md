@@ -35,7 +35,10 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 </p>
 
 <p>
-  <img src="screenshots/hearthvale-tree.jpg" width="100%" alt="The Vanguard's skill tree — Blade, Bulwark and Command, four nodes each, Heavy Strike at rank 2 of 5 — beside the character sheet with Strength, Agility, Intellect and Vitality and eight points to spend; on the hotbar two skills show their rank and four a lock" />
+  <img src="screenshots/hearthvale-tree.jpg" width="100%" alt="The Vanguard's skill tree: three paths — Blade, Bulwark and Command — each a grid of ten tiles joined by lines (skills square, runes diamonds, passives round, a star for the mastery), Heavy Strike lit at rank 4 of 5, and a panel on the right that explains the picked tile" />
+</p>
+<p>
+  <img src="screenshots/hearthvale-sheet.jpg" width="100%" alt="The character sheet: gear slots laid out like a body on the left; Strength, Agility, Intellect and Vitality with + and +5 buttons and seven points to spend; boxes for offense, defense, resource and professions" />
 </p>
 <p>
   <img src="screenshots/hearthvale-classes.jpg" width="100%" alt="The character maker with eight class cards — Vanguard, Berserker, Templar, Shadowblade, Ranger, Arcanist, Stormcaller, Mender — and a Berserker with a great axe on the stage" />
@@ -60,14 +63,19 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   tank who heals), **Shadowblade** (two knives, quick, slips away), **Ranger** (crossbow, slows),
   **Arcanist** (fire and frost from range), **Stormcaller** (lightning that leaps between foes) and
   **Mender** (heals, shields, revives). Six skills each, three looks each. Levels run to 20.
-- **The skill tree (T).** Every class has three paths of four nodes: a skill, a passive it opens, a
-  second skill, a second passive (a Berserker's are Fury, Blood and Doom). You know your level-1
-  skill from the start; **every level brings one skill point**. A point learns a skill (once you
-  are its level, and have the node above it) or raises one — to rank 5, each rank +10% to what it
-  does — or goes into a passive (to rank 3: power, health, armor, critical chance, attack speed,
-  cheaper skills, shorter cooldowns, more healing, life returned from damage…). Nineteen points by
-  level 20 against forty-seven places to put them, so two characters of a class differ. The hotbar
-  shows each skill's rank, and a lock on what isn't learned.
+- **The skill tree (T).** Every class has three paths (a Berserker's are Fury, Blood and Doom), each
+  a grid of **ten tiles joined to the one they hang from**: the path's two **skills**; two **runes**
+  for each skill, which change it (Brutal: +15% damage; Draining: returns health; Wide: a bigger
+  reach; Swift: a shorter cooldown; Quick, Thrifty, Lasting, Thick, Blessed, Warding, Stunning);
+  two **passives** that are yours for good (power, health, armor, critical chance, attack speed,
+  cheaper skills, shorter cooldowns, more healing, life from damage…); a **synergy** that
+  strengthens both skills; and at the bottom a **mastery** that asks for eight points in the path.
+  You know your level-1 skill from the start; **every level brings two skill points**. A tile needs
+  its own level and a rank in the tile above it. Skills go to rank 5 (+10% a rank), runes to 2,
+  passives and synergies to 3. Thirty-eight points by level 20 against eighty-four places to put
+  them, so two characters of a class differ. Click a tile to read it in the panel beside the tree —
+  what it does now, at the next rank, and what it still needs — and click again to put a point in.
+  The hotbar shows each skill's rank, and a lock on what isn't learned.
 - **Attributes (C).** **Every level also brings five attribute points**, for **Strength** (+1
   armor), **Agility** (+0.25% critical chance, +0.3% attack speed), **Intellect** (+4 mana, faster to
   return) and **Vitality** (+8 health). Each class has one of its own — Strength for the Vanguard,
@@ -124,11 +132,24 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 - **Money and stores.** Every character starts with **100 gold** (characters made before then got it
   once). Hearthvale's stalls have signs, and a 💰 marks each shopkeeper: **Pell** (Provisioner) sells
   bread and draughts; **Brannoc** (Smithy) sells weapons and armor in three tiers (levels 1, 5 and
-  9–10). His store has Weapons, Armor and Sell tabs, compares each piece with what you wear (+2
+  9–10). **Gear you sell goes on the Second-hand shelf** of both shops, for any player to buy: the
+  shop sets the price itself when it restocks (four times what it paid, like its own stock — the
+  seller never names one), keeps the newest thirty pieces, and clears out what nobody wanted after
+  six hours. *Sell all common gear* empties a bag of white items in one click. His store has Weapons, Armor and Sell tabs, compares each piece with what you wear (+2
   power…), shows the level it needs, and has **Buy & wear**. Stores sell at four times an item's
   value and buy at its value.
-- **Loot** is rolled for everyone who fought, straight into their bags; gold too. Kills count for
-  everyone's quests in the party.
+- **Loot.** Every kill drops something for everyone who fought, straight into their bags (gold
+  too), and often **gear**: about four kills in nine, always from an elite, two pieces from a boss.
+  Found gear is made on the spot — a sword, great axe, daggers, crossbow, staff, wand, helm,
+  hauberk, greaves, boots or charm near the monster's level — in one of five rarities, **each with
+  its own colour everywhere it shows** (bag, character sheet, stores, loot lines, My heroes):
+  <b>common</b> (white), <b>uncommon</b> (green, one extra property), <b>rare</b> (blue, two),
+  <b>epic</b> (purple, three) and <b>unique</b> (orange, a name of its own). Properties add
+  stamina, power, armor, critical chance or attack speed ("Keen Helm of the Hawk"). **Rarity
+  depends on the monster**: each monster level adds a little luck, an elite a lot, a boss more;
+  epics hardly drop under level 6 or uniques under 10; a monster five levels beneath you finds
+  little but common gear. A rare or better find gets its own banner. With a full bag, what you
+  can't carry becomes the gold a shop would pay. Kills count for everyone's quests in the party.
 - **Quests** come from the people with a **!** over them; a **?** means one is ready to hand in. Kill
   quests count as you go; gathering quests take the items when you hand them in. Some open others.
 - **Gathering and crafting.** Copper and Iron veins (Mining), Sunleaf and Ghostcap (Herbalism), Ash
@@ -172,7 +193,8 @@ trading, loot, guilds and progress fair.
 - **Tests**: `tests/unit/mmo.test.mjs` (the rules; characters over HTTP; a day of questing and a
   kill; a party with chat, a heal, a trade, a guild and crafting, saved on leaving; the crypt boss's
   warned slam; combos, finishers and the close-range kick; a stacked pack spreading out; the eight
-  classes, their trees, skill and attribute points, ranks and starting over) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
+  classes, their trees, runes, synergies and masteries, attribute points and starting over; found
+  gear made from its id, rarity by monster, a drop from every kill, the second-hand shelf) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).
 
 ## Next

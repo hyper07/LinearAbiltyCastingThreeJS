@@ -1,4 +1,4 @@
-import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF } from './data.js';
+import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, WEAPON_OF, DROPS, foundId } from './data.js';
 
 import { cleanLook } from './looks.js';
 
@@ -49,6 +49,12 @@ export function skillPointsLeft(ch) {
   return (ch.level - 1) * POINTS.skills - spent;
 }
 
+/** Points a character has put in one of its class's paths (the free skill counts for one). */
+export function pointsIn(ch, branch) {
+  const nodes = NODES_OF[ch.cls];
+  return Object.entries(ch.tree ?? {}).reduce((n, [id, r]) => n + (nodes[id]?.branch === branch ? r : 0), 0);
+}
+
 /** Why a node cannot take another rank right now, or null if it can. */
 export function cannotLearn(ch, id) {
   const node = NODES_OF[ch.cls]?.[id];
@@ -56,7 +62,8 @@ export function cannotLearn(ch, id) {
   if (rankOf(ch, id) >= node.max) return 'Already at its highest rank';
   if (node.level && ch.level < node.level) return `Needs level ${node.level}`;
   if (node.needs && !rankOf(ch, node.needs)) return `Learn ${NODES_OF[ch.cls][node.needs].name} first`;
-  if (skillPointsLeft(ch) < 1) return 'No skill points — you earn one each level';
+  if (node.gate && pointsIn(ch, node.branch) < node.gate) return `Needs ${node.gate} points in this path (you have ${pointsIn(ch, node.branch)})`;
+  if (skillPointsLeft(ch) < 1) return `No skill points — you earn ${POINTS.skills} each level`;
   return null;
 }
 
@@ -96,8 +103,32 @@ export function passivesOf(ch) {
   for (const [id, r] of Object.entries(ch.tree ?? {})) {
     const node = NODES_OF[ch.cls]?.[id];
     if (node?.kind === 'passive') sum[node.stat] = (sum[node.stat] ?? 0) + node.per * r;
+    else if (node?.kind === 'mastery') for (const [k, v] of Object.entries(node.stats)) sum[k] = (sum[k] ?? 0) + v * r;
   }
   return sum;
+}
+
+/**
+ * What a character's runes and synergies do to one of its skills, as
+ * shares to add or take (0.3 = 30%): `dmg`, `heal`, `shield`, `radius`,
+ * `last`, `leech`, `ward`; `cd`, `cost`, `cast` (taken off); `stun` (seconds).
+ */
+export function skillMods(ch, skillId) {
+  const m = { dmg: 0, heal: 0, shield: 0, radius: 0, last: 0, leech: 0, ward: 0, cd: 0, cost: 0, cast: 0, stun: 0 };
+  for (const [id, r] of Object.entries(ch.tree ?? {})) {
+    const node = NODES_OF[ch.cls]?.[id];
+    if (!node || !r) continue;
+    if (node.kind === 'rune' && node.skill === skillId) m[node.effect] += node.effect === 'stun' ? node.per * r : (node.per * r) / 100;
+    else if (node.kind === 'synergy' && node.skills.includes(skillId)) {
+      m.dmg += (node.per * r) / 100;
+      m.heal += (node.per * r) / 100;
+      m.shield += (node.per * r) / 100;
+    }
+  }
+  m.cd = Math.min(0.6, m.cd);
+  m.cost = Math.min(0.6, m.cost);
+  m.cast = Math.min(0.6, m.cast);
+  return m;
 }
 
 /** How much more a skill does at the rank a character has it. */
@@ -107,7 +138,7 @@ export const rankMult = (ch, id) => 1 + Math.max(0, rankOf(ch, id) - 1) * POINTS
 export function statsOf(ch) {
   const b = CLASSES[ch.cls].base;
   const l = ch.level - 1;
-  const gear = { power: 0, stamina: 0, armor: 0 };
+  const gear = { power: 0, stamina: 0, armor: 0, crit: 0, haste: 0 };
   for (const slot of SLOTS) {
     const id = ch.equip?.[slot];
     if (!id || !ITEMS[id]?.stats) continue;
@@ -117,7 +148,7 @@ export function statsOf(ch) {
   const p = passivesOf(ch);
   const pct = (k) => 1 + (p[k] ?? 0) / 100;
   const main = CLASSES[ch.cls].main;
-  const haste = Math.min(0.5, a.agi * 0.003 + (p.haste ?? 0) / 100);
+  const haste = Math.min(0.5, a.agi * 0.003 + (p.haste ?? 0) / 100 + gear.haste / 100);
   return {
     maxHp: Math.round((b.hp + b.hpL * l + gear.stamina * 10 + a.vit * 8) * pct('hpPct')),
     maxMana: Math.round((b.mana + b.manaL * l + a.int * 4) * pct('manaPct')),
@@ -127,7 +158,7 @@ export function statsOf(ch) {
     swing: b.speed / (1 + haste),
     regen: (b.regen + a.int * 0.03) * pct('regenPct'),
     ranged: Boolean(CLASSES[ch.cls].ranged),
-    crit: Math.min(0.6, 0.1 + a.agi * 0.0025 + (p.crit ?? 0) / 100),
+    crit: Math.min(0.6, 0.1 + a.agi * 0.0025 + (p.crit ?? 0) / 100 + gear.crit / 100),
     haste,
     costMult: Math.max(0.5, 1 - (p.costCut ?? 0) / 100),
     cdMult: Math.max(0.5, 1 - (p.cdCut ?? 0) / 100),
@@ -247,10 +278,12 @@ export function normalize(raw) {
     ch.tree = { ...freeNodes(ch.cls) };
     for (const [id, r] of Object.entries(raw.tree)) if (nodes[id]) ch.tree[id] = Math.max(nodes[id].free ? 1 : 0, Math.min(nodes[id].max, r | 0));
     for (const id of Object.keys(ch.tree)) if (!ch.tree[id]) delete ch.tree[id];
-    if (skillPointsLeft(ch) < 0) ch.tree = freeNodes(ch.cls);
+    // Overspent, or a node without the one it hangs from (or above its level): start over.
+    const broken = Object.keys(ch.tree).some((id) => (nodes[id].needs && !ch.tree[nodes[id].needs]) || (nodes[id].level ?? 1) > ch.level);
+    if (skillPointsLeft(ch) < 0 || broken) ch.tree = freeNodes(ch.cls);
   } else {
     ch.tree = freeNodes(ch.cls);
-    for (const n of Object.values(nodes).sort((x, y) => (x.level ?? 0) - (y.level ?? 0))) if (n.kind === 'skill' && !n.free && n.level <= ch.level && skillPointsLeft(ch) > 0) ch.tree[n.id] = 1;
+    for (let pass = 0; pass < 2; pass++) for (const n of Object.values(nodes).sort((x, y) => (x.level ?? 0) - (y.level ?? 0))) if (n.kind === 'skill' && !rankOf(ch, n.id)) learn(ch, n.id);
   }
   // Characters made before seed money existed get it once.
   if (!raw.seeded) {
@@ -281,4 +314,33 @@ export function takeOff(ch, slot) {
   if (!give(ch, ch.equip[slot], 1)) return 'Your bag is full';
   delete ch.equip[slot];
   return null;
+}
+
+/* ---- found gear ---- */
+
+/**
+ * How rare a drop is. Better monsters find better things: each monster
+ * level adds a little, an elite a lot, a boss more; a monster far beneath
+ * the player finds little but common gear.
+ * @returns {string} a rarity
+ */
+export function rollRarity(mobLevel, playerLevel, { elite = false, boss = false } = {}, rand = Math.random) {
+  let luck = 1 + mobLevel * 0.08 + (elite ? 1.5 : 0) + (boss ? 3 : 0);
+  if (mobLevel < playerLevel - 4) luck *= 0.25;
+  const w = { ...DROPS.weights };
+  w.uncommon *= Math.sqrt(luck);
+  w.rare *= luck;
+  w.epic *= luck * (mobLevel >= 6 || boss ? 1 : 0.3);
+  w.unique *= luck * (mobLevel >= 10 || boss ? 1 : 0.2);
+  let roll = rand() * RARITIES.reduce((n, r) => n + w[r], 0);
+  for (const r of RARITIES) if ((roll -= w[r]) < 0) return r;
+  return 'common';
+}
+
+/** A piece of found gear from a monster: usually near its level, often the weapon the killer's class uses. */
+export function rollGear(mobLevel, playerLevel, cls, opts = {}, rand = Math.random) {
+  const level = Math.max(1, Math.min(MAX_LEVEL, mobLevel + Math.floor(rand() * 3) - 1));
+  const bases = Object.keys(BASES);
+  const base = rand() < 0.3 && WEAPON_OF[cls] ? WEAPON_OF[cls] : bases[Math.floor(rand() * bases.length)];
+  return foundId(base, rollRarity(mobLevel, playerLevel, opts, rand), level, Math.floor(rand() * 0x7fffffff));
 }

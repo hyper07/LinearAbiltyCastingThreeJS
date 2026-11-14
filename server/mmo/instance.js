@@ -1,6 +1,6 @@
-import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS } from '../../src/mmo/data.js';
+import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS, DROPS } from '../../src/mmo/data.js';
 import { ZONES, NPCS, walkableIn } from '../../src/mmo/world.js';
-import { statsOf, killXp, addXp, give, take, rankOf, rankMult } from '../../src/mmo/rules.js';
+import { statsOf, killXp, addXp, give, take, rankOf, rankMult, rollGear, skillMods } from '../../src/mmo/rules.js';
 
 /**
  * One copy of one zone, run by the server: the players in it (a party, or
@@ -224,8 +224,9 @@ export class Instance {
     if (target === false) return;
     p.gcdUntil = this.time + GCD;
     if (def.cast) {
-      p.cast = { id, target: target?.id ?? null, until: this.time + def.cast, total: def.cast };
-      this.out.push({ type: 'cast', id: p.id, skill: id, time: def.cast });
+      const time = def.cast * (1 - skillMods(p.ch, id).cast);
+      p.cast = { id, target: target?.id ?? null, until: this.time + time, total: time };
+      this.out.push({ type: 'cast', id: p.id, skill: id, time });
       return;
     }
     this._resolve(p, def, target);
@@ -258,17 +259,27 @@ export class Instance {
 
   /** What a skill costs this player (passives make skills cheaper). */
   _cost(p, def) {
-    return Math.round(def.cost * (p.st.costMult ?? 1));
+    return Math.round(def.cost * (p.st.costMult ?? 1) * (1 - skillMods(p.ch, def.id).cost));
   }
 
   _resolve(p, def, target) {
+    // What the player's runes and synergies make of this skill.
+    const mod = skillMods(p.ch, def.id);
     p.mana -= this._cost(p, def);
-    if (def.cd) p.cds[def.id] = this.time + def.cd * (p.st.cdMult ?? 1);
+    if (def.cd) p.cds[def.id] = this.time + def.cd * (p.st.cdMult ?? 1) * (1 - mod.cd);
     const power = p.st.power;
     // Every rank past the first makes the skill do a tenth more.
     const rank = rankMult(p.ch, def.id);
-    const amount = (base) => ((base ?? 0) + power * (def.coef ?? 0)) * rank;
-    this.out.push({ type: 'skill', id: p.id, skill: def.id, target: target?.id ?? null, x: target?.x ?? p.x, z: target?.z ?? p.z });
+    const amount = (base, more = 0) => ((base ?? 0) + power * (def.coef ?? 0)) * rank * (1 + more);
+    const radius = (def.radius ?? 0) * (1 + mod.radius);
+    const lasts = (time) => time * (1 + mod.last);
+    const leech = (def.leech ?? 0) + mod.leech;
+    const hit = (m, base) => {
+      const dealt = this._hurtMob(m, base, p, def.threat ?? 1);
+      if (leech && dealt) this._heal(p, dealt * leech, null);
+    };
+    this.out.push({ type: 'skill', id: p.id, skill: def.id, target: target?.id ?? null, x: target?.x ?? p.x, z: target?.z ?? p.z, r: radius || undefined });
+    if (mod.ward) p.shield = Math.max(p.shield, p.st.maxHp * mod.ward);
     switch (def.kind) {
       case 'strike':
       case 'bolt':
@@ -276,17 +287,16 @@ export class Instance {
         if (def.damage || def.coef) {
           // An executioner's blow lands twice as hard on what is nearly down.
           const finish = def.execute && target.hp <= target.maxHp * def.execute ? 2 : 1;
-          const dealt = this._hurtMob(target, amount(def.damage) * finish, p, def.threat ?? 1);
-          if (def.leech && dealt) this._heal(p, dealt * def.leech, null);
+          hit(target, amount(def.damage, mod.dmg) * finish);
         }
-        if (def.stun) target.stunUntil = this.time + def.stun;
+        if (def.stun || mod.stun) target.stunUntil = this.time + (def.stun ?? 0) + mod.stun;
         if (def.slow) {
           target.slow = def.slow.amount;
-          target.slowUntil = this.time + def.slow.time;
+          target.slowUntil = this.time + lasts(def.slow.time);
         }
         if (def.mark) {
           target.mark = def.mark.more;
-          target.markUntil = this.time + def.mark.time;
+          target.markUntil = this.time + lasts(def.mark.time);
           this._aggro(target, p, 5);
         }
         return;
@@ -300,25 +310,25 @@ export class Instance {
       }
       case 'area': {
         const c = target ?? p;
-        for (const m of this.ents.values()) if (m.kind === 'mob' && !m.dead && dist(m, c) <= def.radius + m.radius) this._hurtMob(m, amount(def.damage), p, def.threat ?? 1);
+        for (const m of [...this.ents.values()]) if (m.kind === 'mob' && !m.dead && dist(m, c) <= radius + m.radius) hit(m, amount(def.damage, mod.dmg));
         return;
       }
       case 'nova':
         if (def.friendly) {
-          for (const f of this.players.values()) if (!f.dead && this.sameSide(p, f) && dist(f, p) <= def.radius) this._heal(f, amount(def.heal), p);
+          for (const f of this.players.values()) if (!f.dead && this.sameSide(p, f) && dist(f, p) <= radius) this._heal(f, amount(def.heal, mod.heal), p);
         } else {
-          for (const m of this.ents.values()) if (m.kind === 'mob' && !m.dead && dist(m, p) <= def.radius + m.radius) this._hurtMob(m, amount(def.damage), p, def.threat ?? 1);
+          for (const m of [...this.ents.values()]) if (m.kind === 'mob' && !m.dead && dist(m, p) <= radius + m.radius) hit(m, amount(def.damage, mod.dmg));
         }
         return;
       case 'aura':
-        if (def.buff) p.buffs.push({ ...def.buff, until: this.time + def.buff.time, id: def.id });
-        if (def.shield) p.shield = Math.max(p.shield, amount(def.shield));
+        if (def.buff) p.buffs.push({ ...def.buff, until: this.time + lasts(def.buff.time), id: def.id });
+        if (def.shield) p.shield = Math.max(p.shield, amount(def.shield, mod.shield));
         return;
       case 'heal': {
         const t = target ?? p;
-        if (def.heal) this._heal(t, amount(def.heal), p);
-        if (def.shield) t.shield = Math.max(t.shield, amount(def.shield));
-        if (def.hot) t.buffs.push({ id: def.id, hot: def.hot.heal + power * def.hot.coef, every: 2, next: this.time + 2, until: this.time + def.hot.time, by: p.id });
+        if (def.heal) this._heal(t, amount(def.heal, mod.heal), p);
+        if (def.shield) t.shield = Math.max(t.shield, amount(def.shield, mod.shield));
+        if (def.hot) t.buffs.push({ id: def.id, hot: (def.hot.heal + power * def.hot.coef) * rank * (1 + mod.heal), every: 2, next: this.time + 2, until: this.time + lasts(def.hot.time), by: p.id });
         return;
       }
       case 'blink': {
@@ -449,7 +459,7 @@ export class Instance {
           p.hp = p.st.maxHp;
           p.mana = p.st.maxMana;
           this.out.push({ type: 'level', id: p.id, level: ch.level });
-          this._say(p, { type: 'text', text: `You reached level ${ch.level}! +${(ch.level - before) * POINTS.skills} skill point${ch.level - before > 1 ? 's' : ''} (T) and +${(ch.level - before) * POINTS.attrs} attribute points (C).${CLASSES[p.cls].skills.filter((k) => k.level > before && k.level <= ch.level).map((k) => ` ${k.name} can now be learned.`).join('')}` });
+          this._say(p, { type: 'text', text: `You reached level ${ch.level}! +${(ch.level - before) * POINTS.skills} skill points (T) and +${(ch.level - before) * POINTS.attrs} attribute points (C).${CLASSES[p.cls].skills.filter((k) => k.level > before && k.level <= ch.level).map((k) => ` ${k.name} can now be learned.`).join('')}` });
         }
       }
       const gold = Math.round(rand(def.gold[0], def.gold[1]));
@@ -457,10 +467,25 @@ export class Instance {
       const got = [];
       for (const [item, chance] of def.loot) {
         if (Math.random() > chance) continue;
-        if (give(ch, item, 1)) got.push(item);
-        else this._say(p, { type: 'text', text: `Your bag is full — ${ITEMS[item].name} was left behind.` });
+        got.push(item);
       }
-      this._say(p, { type: 'loot', gold, items: got, from: def.name });
+      // Found gear: always from an elite (two from a boss), often from anything else.
+      const rolls = def.boss ? 2 : def.elite || Math.random() < DROPS.gear ? 1 : 0;
+      for (let k = 0; k < rolls; k++) got.push(rollGear(m.level, ch.level, p.cls, { elite: def.elite, boss: Boolean(def.boss) }));
+      // And nobody walks away with nothing: a little something from what it carried.
+      if (!got.length) got.push(def.loot[Math.floor(Math.random() * def.loot.length)]?.[0] ?? 'bread');
+      const kept = [];
+      let sold = 0;
+      for (const item of got) {
+        if (give(ch, item, 1)) kept.push(item);
+        else {
+          // No room: it is turned into the gold a shop would pay.
+          sold += ITEMS[item].value ?? 0;
+          ch.gold += ITEMS[item].value ?? 0;
+        }
+      }
+      if (sold) this._say(p, { type: 'text', text: `Your bag is full — what you couldn't carry became ${sold} gold.` });
+      this._say(p, { type: 'loot', gold, items: kept, from: def.name });
       // Kill quests.
       for (const [qid, have] of Object.entries(ch.quests.active)) {
         const q = QUESTS[qid];
