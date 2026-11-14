@@ -32,10 +32,11 @@ const loadPictures = () => (pictures ??= fetch('./work-scenes/index.json').then(
  */
 export class LifeView {
   /** @param {{ call: (path: string, body?: object) => Promise<object>, say: (text: string, kind?: string) => void, share?: (card: object) => void }} deps */
-  constructor({ call, say, share = null }) {
+  constructor({ call, say, share = null, minigame = null }) {
     this.call = call;
     this.say = say;
     this.share = share;
+    this.minigame = minigame; // draws a task's puzzle and hands back the answer (WorkGame's)
     this.life = null;
     this.line = 0; // which line of the scene (or of what came of it) is showing
     this.mode = 'idle'; // 'scene' (lines, then choices) · 'result' (what came of a choice) · 'idle'
@@ -43,7 +44,8 @@ export class LifeView {
 
   async render(body) {
     this.body = body;
-    if (!this.life) this.life = (await this.call('work/life')).life;
+    // Always ask: the game's clock may have moved on since this was last looked at.
+    this.life = (await this.call('work/life')).life;
     this.pics = await loadPictures();
     this._enter();
     this._draw();
@@ -66,15 +68,23 @@ export class LifeView {
       return;
     }
     this._cutDone = false;
-    if (l.scene) {
+    if (l.challenge) {
+      // A hard answer was chosen: there is a task to do before it is known how it went.
+      this.mode = 'task';
+    } else if (l.scene) {
       this.mode = 'scene';
-      this.line = 0;
-      this._opening = true;
+      this.line = this._sameScene === l.scene.id ? this.line : 0;
+      this._opening = this._sameScene !== l.scene.id;
+      this._sameScene = l.scene.id;
     } else if (l.last?.kind === 'scene' && this._fresh) {
       this.mode = 'result';
       this.line = 0;
     } else this.mode = 'idle';
+    if (!l.scene) this._sameScene = null;
     this._fresh = false;
+    // When the next part of the day comes round, look again: it brings new things to do.
+    clearTimeout(this._clock);
+    if (l.nextPart) this._clock = setTimeout(() => this.body?.isConnected && this.body.querySelector('[data-life]') && this.mode === 'idle' && this.render(this.body), Math.max(5_000, l.nextPart - Date.now() + 1500));
   }
 
   async step(body) {
@@ -139,9 +149,11 @@ export class LifeView {
     const l = this.life;
     const stage = el('section', `lf__stage is-${this.mode}`);
     stage.dataset.stage = '';
-    const scene = this.mode === 'scene' ? l.scene : null;
+    const scene = this.mode === 'scene' || this.mode === 'task' ? l.scene : null;
     const result = this.mode === 'result' ? l.last : null;
     const cut = this.mode === 'cut' ? l.last : null;
+    if (this.mode === 'task' && scene) this.line = scene.lines.length - 1;
+    stage.classList.toggle('has-photos', Boolean(this.pics[`${scene?.place ?? result?.place ?? 'home'}-0`]));
     const place = scene?.place ?? result?.place ?? (l.last?.kind === 'activity' ? l.last.place : 'home');
     const part = l.last?.kind === 'night' && this.mode === 'idle' ? 0 : Math.min(3, this.mode === 'idle' && l.part >= 3 ? 3 : Math.max(0, l.part - (scene || result || cut ? 1 : 0)));
     const id = scene?.id ?? result?.id ?? '';
@@ -194,8 +206,9 @@ export class LifeView {
     if (cut) {
       // A moment of you doing what you chose: a run, a nap, an hour at the keys.
       const [move, prop] = MOMENTS[cut.id] ?? ['nod', cut.icon];
-      const you = el('div', `lf__you is-${move}`);
-      you.innerHTML = `${figure(YOU, move === 'sleep' ? 'neutral' : 'happy')}<span class="lf__prop">${prop}</span><span class="lf__prop lf__prop--b">${prop}</span><span class="lf__prop lf__prop--c">${prop}</span>`;
+      const you = el('div', `lf__you is-${move} ${photo ? 'is-photo' : ''}`);
+      // With photographs for places there is no drawn you: the place, and what rises from what you did.
+      you.innerHTML = `${photo ? `<span class="lf__doing">${cut.icon}</span>` : figure(YOU, move === 'sleep' ? 'neutral' : 'happy')}<span class="lf__prop">${prop}</span><span class="lf__prop lf__prop--b">${prop}</span><span class="lf__prop lf__prop--c">${prop}</span>`;
       stage.append(you, el('div', 'lf__title', `${cut.icon} ${cut.name}`));
       return stage;
     }
@@ -222,6 +235,7 @@ export class LifeView {
       box.addEventListener('click', (e) => e.target === box || e.target === text ? this._advance() : null);
       stage.append(box);
       if (result && !more) stage.append(this._chips(result.done, 'lf__chips lf__chips--stage'));
+      if (this.mode === 'task') stage.classList.add('is-waiting');
       if (result && this.line === 0) this._burst(stage, result);
     } else {
       // Nothing happening: what you last did, and what it did to you.
@@ -234,7 +248,7 @@ export class LifeView {
         cap.innerHTML = `<span class="lf__bigicon">🌅</span><div><b>A new day</b><small>${a.week ? `Rent paid: ${a.week.rent}. ` : ''}You slept.</small></div>`;
         cap.append(this._chips(a.done));
       } else if (l.part >= 3) cap.innerHTML = '<span class="lf__bigicon">🌙</span><div><b>The day is done</b><small>Sleep, and see what tomorrow brings.</small></div>';
-      else cap.innerHTML = `<span class="lf__bigicon">☀️</span><div><b>${esc(l.partName)}</b><small>What will you do with it? (Try clicking things in the room.)</small></div>`;
+      else cap.innerHTML = `<span class="lf__bigicon">${l.spent ? '⏳' : '☀️'}</span><div><b>${esc(l.partName)}</b><small>${l.spent ? 'Spent. The day moves at its own pace.' : 'What will you do with it?'}</small></div>`;
       stage.append(cap);
     }
     return stage;
@@ -341,7 +355,7 @@ export class LifeView {
     for (const p of l.people.filter((x) => x.met)) {
       const row = el('div', 'lf__friend');
       row.dataset.person = p.id;
-      row.innerHTML = `<span class="lf__face">${figure(p.look, p.closeness >= 35 ? 'happy' : 'neutral')}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.tier)}</small><i><u style="width:${p.closeness}%"></u></i></div>`;
+      row.innerHTML = `<span class="lf__face ${this.pics[`person-${p.id}-neutral`] ? 'is-photo' : ''}">${this._figure(p, p.closeness >= 35 ? 'happy' : 'neutral')}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.tier)}</small><i><u style="width:${p.closeness}%"></u></i></div>`;
       people.append(row);
     }
     side.append(people);
@@ -370,8 +384,23 @@ export class LifeView {
       box.append(list);
       return box;
     }
+    if (this.mode === 'task') {
+      // The answer you picked has to be done, not just said: a small task, and how well you do it decides.
+      const c = l.challenge;
+      const stat = STATS[c.stat]?.name.toLowerCase() ?? c.stat;
+      box.append(el('h3', null, `To do it: ${c.title}`));
+      box.append(el('p', 'lf__hint', `“${c.choice}” — ${c.how} Reach ${c.pass} to pull it off${c.edge ? `; your ${stat} ${c.edge > 0 ? `adds ${c.edge}` : `takes off ${-c.edge}`}` : ''}.`));
+      if (this.minigame) {
+        const game = this.minigame({ public: c.public }, (answer) => this.step({ do: 'task', answer }));
+        game.classList.add('lf__task');
+        box.append(game);
+      }
+      return box;
+    }
     if (this.mode === 'result') {
-      box.append(el('p', 'lf__hint', `You chose: “${l.last.choice}”${l.last.ok ? '' : ' — and it did not go the way you hoped.'}`));
+      const r = l.last;
+      const how = r.score != null ? ` ${r.task}: you scored ${r.score}${r.edge ? ` ${r.edge > 0 ? '+' : '−'} ${Math.abs(r.edge)}` : ''} against ${r.pass} — ${r.ok ? 'you pulled it off.' : 'not enough, this time.'}` : r.ok ? '' : ' It did not go the way you hoped.';
+      box.append(el('p', `lf__hint ${r.ok ? 'is-good' : 'is-bad'}`, `You chose: “${r.choice}”.${how}`));
       return box;
     }
     if (this.mode === 'cut') {
@@ -379,7 +408,16 @@ export class LifeView {
       return box;
     }
     const acts = l.activities;
-    box.append(el('h3', null, acts.length ? `${l.partName}: what will you do?` : 'The day is done'));
+    const left = Math.max(0, (l.nextPart ?? 0) - Date.now());
+    const when = left > 3_600_000 ? `${Math.floor(left / 3_600_000)} h ${Math.round((left % 3_600_000) / 60_000)} min` : `${Math.max(1, Math.round(left / 60_000))} min`;
+    const nextName = l.part >= 2 ? 'Tomorrow morning' : `The ${['afternoon', 'evening'][l.part] ?? 'next part of the day'}`;
+    box.append(el('h3', null, acts.length ? `${l.partName}: what will you do with it?` : `${l.partName}: spent`));
+    if (!acts.length) {
+      const wait = el('div', 'lf__wait');
+      wait.dataset.wait = '';
+      wait.innerHTML = `<span>⏳</span><div><b>${esc(nextName)} begins in ${when}.</b><small>Life here keeps the game's clock — a day is ${l.speed > 1 ? `${Math.round((24 / l.speed) * 10) / 10} real hours` : 'a real day'} — and cannot be hurried. One thing each part of the day. Meanwhile there are tasks on <u>Today</u>: doing them can set the next scene going.</small></div>`;
+      box.append(wait);
+    }
     const list = el('div', 'lf__acts');
     for (const a of acts) {
       const b = el('button', 'lf__act');
@@ -393,13 +431,9 @@ export class LifeView {
     }
     box.append(list);
     const foot = el('div', 'lf__foot');
-    const sleep = el('button', `mk__btn ${acts.length ? '' : 'mk__btn--primary'}`, acts.length ? '🌙 Call it a day' : '🌙 Sleep');
-    sleep.type = 'button';
-    sleep.dataset.sleep = '';
-    sleep.disabled = !l.canSleep;
-    sleep.addEventListener('click', () => this.step({ do: 'sleep' }));
-    foot.append(sleep);
-    if (l.seasons.length) foot.append(el('small', 'lf__hint', `Seasons so far: ${l.seasons.map((s) => s.title).join(' · ')}`));
+    if (acts.length) foot.append(el('small', 'lf__hint', `One thing this ${l.partName.toLowerCase()}; ${nextName.toLowerCase()} begins in ${when}.`));
+    if (l.seasons.length) foot.append(el('small', 'lf__hint', `Seasons so far: ${l.seasons.map((x) => x.title).join(' · ')}`));
+    if (this.pics.credit) foot.append(el('small', 'lf__hint lf__credit', this.pics.credit));
     const again = el('button', 'lf__restart', 'Start a new life');
     again.type = 'button';
     again.dataset.restart = '';

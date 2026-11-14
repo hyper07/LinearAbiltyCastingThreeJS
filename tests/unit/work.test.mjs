@@ -216,9 +216,10 @@ test('the game clock runs ten times faster by default; odd jobs pay anyone; offe
   }
 });
 
-test('Life: days of three parts, scenes that turn on what you choose and what you have in you, a season with a name', async () => {
+test('Life keeps the game\'s time: one thing a part of the day, nights that come on their own, hard choices settled by a task', async () => {
   const L = await import('../../src/work/life.js');
   const { SCENES, ACTIVITIES, PEOPLE } = await import('../../src/work/lifeStory.js');
+  const { make } = await import('../../src/work/minigames.js');
   // The story is well formed: every person and stat it names exists; a choice that asks something has both outcomes.
   const stats = new Set(Object.keys(L.newLife().stats));
   const fxOk = (fx = {}) => Object.keys(fx).every((k) => k === 'people' || k === 'flag' || stats.has(k)) && Object.keys(fx.people ?? {}).every((id) => PEOPLE[id]);
@@ -227,62 +228,103 @@ test('Life: days of three parts, scenes that turn on what you choose and what yo
     assert.ok(sc.lines.length && sc.choices.length >= 2 && sc.cast.every((id) => PEOPLE[id]), sc.id);
     for (const c of sc.choices) assert.ok(c.ok.lines.length && fxOk(c.ok.fx) && (!c.need || (c.no?.lines.length && fxOk(c.no.fx))), `${sc.id}: ${c.t}`);
   }
-  // Monday morning: work to do; the first scene comes after it.
+  // Day 500 of the game's clock is this life's Monday morning.
   const s = L.newLife(5);
-  let v = L.viewOf(s, { company: 'Acme Corp', role: 'data analyst', title: 'Junior', name: 'Ada' });
-  assert.deepEqual([v.weekday, v.partName, v.weekend], ['Monday', 'Morning', false]);
-  assert.ok(v.activities.some((a) => a.id === 'focus') && !v.activities.some((a) => a.id === 'rest'), 'a weekday morning is for work');
-  assert.match(L.act(s, 'rest'), /can't do that now/);
-  assert.equal(L.act(s, 'steady'), null);
+  L.tick(s, 500, 0);
+  const me = { company: 'Acme Corp', role: 'data analyst', title: 'Junior', name: 'Ada' };
+  let v = L.viewOf(s, me);
+  assert.deepEqual([v.weekday, v.partName, v.weekend, v.spent], ['Monday', 'Morning', false, false]);
+  // A life opens on its first scene; the morning's work waits behind it.
   assert.equal(s.scene, 'first-day');
-  v = L.viewOf(s, { company: 'Acme Corp', role: 'data analyst', title: 'Junior', name: 'Ada' });
+  assert.equal(v.activities.length, 0);
   assert.match(v.scene.lines[0].text, /Welcome to Acme Corp, Ada\. You're our new Junior data analyst/);
   assert.match(L.act(s, 'steady'), /answer it first/);
-  assert.match(L.sleep(s), /answer it first/);
   const before = s.people.mina;
   assert.equal(L.choose(s, 0), null);
   assert.ok(s.people.mina > before && s.scene === null && s.last.kind === 'scene' && s.last.lines.length);
-  // The same moment, two people: one has it in them, one doesn't.
-  const strong = L.newLife(1);
-  const tired = L.newLife(1);
-  for (const x of [strong, tired]) Object.assign(x, { scene: 'mina-deadline', day: 3, part: 2 });
-  tired.stats.energy = 10;
-  L.choose(strong, 0);
-  L.choose(tired, 0);
-  assert.ok(strong.last.ok && strong.flags['mina-owes'] && !tired.last.ok && !tired.flags['mina-owes']);
-  assert.notEqual(strong.last.lines[0].text, tired.last.lines[0].text);
-  // What happened decides what can happen: the lunch comes only to the one who stayed.
-  const lunch = SCENES.find((x) => x.id === 'mina-lunch');
-  assert.equal(lunch.when.flag, 'mina-owes');
-  // An evening, then sleep: energy back, a new day; weekends are free; Sunday the rent goes out.
-  assert.equal(L.act(s, 'learn'), null);
-  assert.ok(L.viewOf(s).activities.some((a) => a.id === 'rest'), 'the evening is yours');
-  const money = s.stats.money;
-  for (let guard = 0; s.day < 8 && guard < 200; guard++) {
-    if (s.scene) L.choose(s, 0);
-    else if (L.activitiesFor(s).length) L.act(s, L.activitiesFor(s).find((a) => !a.locked).id);
-    else {
-      if (L.weekdayOf(s.day) === 5) assert.ok(L.isWeekend(s.day));
-      L.sleep(s);
-    }
+  v = L.viewOf(s, me);
+  assert.ok(v.activities.some((a) => a.id === 'focus') && !v.activities.some((a) => a.id === 'rest'), 'a weekday morning is for work');
+  assert.equal(L.act(s, 'steady'), null);
+  // The morning is spent: nothing more until the clock says afternoon. Nothing can be hurried.
+  assert.equal(L.viewOf(s).spent, true);
+  assert.equal(L.activitiesFor(s).length, 0);
+  assert.match(L.act(s, 'focus'), /spent this morning/);
+  assert.equal(L.tick(s, 500, 0), false, 'the same moment changes nothing');
+  assert.equal(L.tick(s, 500, 1), true);
+  assert.ok(L.activitiesFor(s).some((a) => a.id === 'learn'), 'the afternoon has come round');
+  L.act(s, 'learn');
+  L.tick(s, 500, 2);
+  if (s.scene) L.choose(s, 0);
+  assert.ok(L.viewOf(s).activities.some((a) => a.id === 'rest') || L.viewOf(s).spent, 'the evening is yours');
+  // The night comes on its own; a part left empty was rest.
+  const energy = s.stats.energy;
+  L.tick(s, 501, 0);
+  assert.equal(s.day, 2);
+  assert.ok(s.stats.energy > energy);
+  assert.equal(L.viewOf(s).weekday, 'Tuesday');
+  // A hard choice is a task to do: do it well and it goes well; badly, and it doesn't (unless you had plenty in you).
+  const lives = [L.newLife(1), L.newLife(1), L.newLife(1)];
+  for (const x of lives) Object.assign(x, { scene: 'mina-deadline', day: 3, part: 1 });
+  lives[2].stats.energy = 100; // asked for 30: the most what you are can add is 20
+  for (const x of lives) {
+    assert.equal(L.choose(x, 0), null);
+    assert.ok(x.scene === 'mina-deadline' && x.pending, 'not settled yet: there is a task');
+    assert.match(L.choose(x, 1), /Finish what you started/);
   }
-  assert.equal(s.day, 8);
-  assert.ok(s.last.kind === 'night' || s.scene || s.last.kind === 'scene');
-  assert.notEqual(s.stats.money, money);
+  const c = L.challengeOf(lives[0]);
+  assert.ok(c.public && c.title && c.pass === 60 && !JSON.stringify(c).includes('"secret"'));
+  const secret = make(lives[0].pending.kind, lives[0].pending.seed, 'support').secret;
+  const right = lives[0].pending.kind === 'triage' ? { order: secret.order } : lives[0].pending.kind === 'spot-error' ? { rows: secret.wrong } : { value: secret.answer };
+  assert.equal(L.task(lives[0], right), null);
+  assert.equal(L.task(lives[1], {}), null);
+  assert.ok(lives[0].last.ok && lives[0].last.score >= 90 && lives[0].flags['mina-owes'] && lives[0].scene === null);
+  assert.ok(!lives[1].last.ok && !lives[1].flags['mina-owes']);
+  assert.notEqual(lives[0].last.lines[0].text, lives[1].last.lines[0].text);
+  assert.equal(L.challengeOf(lives[2]).edge, 20);
+  // Where it turns on money or closeness there is no task: it is simply so or not.
+  const poor = L.newLife(2);
+  Object.assign(poor, { scene: 'team-win', day: 26, part: 2 });
+  poor.stats.money = 5;
+  L.choose(poor, 0);
+  assert.ok(!poor.pending && poor.scene === null && !poor.last.ok);
+  // What happened decides what can happen: the lunch comes only to the one who stayed.
+  assert.equal(SCENES.find((x) => x.id === 'mina-lunch').when.flag, 'mina-owes');
+  // Work done elsewhere can set a scene going.
+  const busy = L.newLife(4);
+  L.tick(busy, 10, 0);
+  L.choose(busy, 0);
+  L.tick(busy, 11, 2); // Tuesday evening: the sink is waiting
+  if (busy.scene) L.choose(busy, 0);
+  L.tick(busy, 12, 1); // Wednesday afternoon: one scene has had its turn today already…
+  const was = busy.scene;
+  if (was) L.choose(busy, 1);
+  busy.day = 9;
+  busy.t0 = 12 - 8;
+  busy.sceneToday = 1;
+  assert.equal(busy.scene, null);
+  assert.equal(L.nudge(busy), true, '…but a task done can bring another');
+  assert.ok(busy.scene);
+  assert.equal(L.nudge(busy), false, 'one at a time');
   // Worn out, you get less from the same hours.
   const fresh = L.newLife(2);
   const worn = L.newLife(2);
+  for (const x of [fresh, worn]) {
+    L.tick(x, 0, 0);
+    L.choose(x, 2); // the first scene, answered the same way by both
+  }
   worn.stats.energy = 20;
   L.act(fresh, 'learn');
   L.act(worn, 'learn');
   assert.ok(fresh.last.done.stats.skill > worn.last.done.stats.skill && worn.last.tired);
-  // A whole season, lived two ways, is remembered two ways.
+  // A whole season, lived two ways by the clock, is remembered two ways.
   const live = (pick, answer) => {
     const x = L.newLife(9);
-    for (let guard = 0; !x.review && guard < 3000; guard++) {
-      if (x.scene) L.choose(x, answer(x));
-      else if (L.activitiesFor(x).filter((a) => !a.locked).length) L.act(x, pick(L.activitiesFor(x).filter((a) => !a.locked)).id);
-      else L.sleep(x);
+    for (let step = 0; step < 28 * 3 + 1 && !x.review; step++) {
+      L.tick(x, 1000 + Math.floor(step / 3), step % 3);
+      for (let g = 0; g < 6 && x.scene; g++) x.pending ? L.task(x, {}) : L.choose(x, answer(x));
+      const open = L.activitiesFor(x).filter((a) => !a.locked);
+      if (open.length) L.act(x, pick(open).id);
+      for (let g = 0; g < 6 && x.scene; g++) x.pending ? L.task(x, {}) : L.choose(x, answer(x));
     }
     return x;
   };
@@ -290,13 +332,97 @@ test('Life: days of three parts, scenes that turn on what you choose and what yo
   const idle = live((a) => a.find((x) => x.id === 'coast') ?? a.find((x) => x.id === 'rest') ?? a[0], (x) => L.viewOf(x).scene.choices.length - 1);
   assert.equal(grind.day, 29);
   assert.ok(grind.review.title && idle.review.title && grind.review.id !== idle.review.id, `${grind.review.title} / ${idle.review.title}`);
-  assert.match(L.sleep(grind), /Read how the season went/);
+  assert.equal(L.activitiesFor(grind).length, 0, 'the season\'s review comes first');
   assert.equal(L.nextSeason(grind), null);
   assert.equal(grind.review, null);
   assert.equal(grind.seasons.length, 1);
+  // A long absence is lived through a night at a time, up to two weeks; the rest is just a long time ago.
+  const away = L.newLife(3);
+  L.tick(away, 0, 0);
+  L.tick(away, 400, 1);
+  assert.ok(away.day <= 15 && away.part === 1);
+  L.tick(away, 401, 0);
+  assert.equal(away.day <= 16, true);
   // A saved life comes back as it was; nonsense comes back as a new one.
   const back = L.cleanLife(JSON.parse(JSON.stringify(grind)));
   assert.deepEqual(back.stats, grind.stats);
   assert.equal(L.cleanLife({ nonsense: true }).day, 1);
   assert.equal(L.cleanLife({ ...grind, stats: { ...grind.stats, skill: 9999 } }).stats.skill, 100);
+});
+
+test('Life on the server: it follows the game clock, and a task done at work can start a scene', async () => {
+  const db = await testDatabase();
+  const clock = { t: 8_640_000 * 9000 + 1000 }; // the very start of a game day (WORK_SPEED 10)
+  const now = () => clock.t;
+  const ada = await db.one('INSERT INTO accounts (name, name_key, pass_hash, created) VALUES (?, ?, ?, ?) RETURNING id, name, plan', ['Ada', 'ada', 'x', 0]);
+  const work = createWork({ db, authenticate: async () => ada, env: { WORK_NEWS_PROVIDER: 'fixture', WORK_AI: 'off', MARKET_PROVIDER: 'fixture' }, now, rand: () => 0.99 });
+  try {
+    let l = (await work.life(ada)).life;
+    assert.deepEqual([l.day, l.partName, l.spent], [1, 'Morning', false]);
+    assert.ok(l.nextPart > clock.t && l.nextPart - clock.t <= 2_880_000, 'a part of the day is 48 minutes');
+    assert.equal(l.scene.id, 'first-day', 'a life opens on its first scene');
+    l = (await work.lifeStep(ada, { do: 'choose', choice: 1 })).life;
+    assert.ok(!l.spent && l.activities.length > 0 && l.last.kind === 'scene');
+    l = (await work.lifeStep(ada, { do: 'act', id: 'steady' })).life;
+    if (l.scene) l = (await work.lifeStep(ada, { do: 'choose', choice: 0 })).life;
+    assert.ok(l.spent && l.activities.length === 0);
+    await assert.rejects(() => work.lifeStep(ada, { do: 'act', id: 'focus' }), /spent this morning/);
+    await assert.rejects(() => work.lifeStep(ada, { do: 'sleep' }), /Unknown step/);
+    // 48 minutes later it is the afternoon; a whole game day later, Tuesday.
+    clock.t += 2_880_000;
+    l = (await work.life(ada)).life;
+    assert.deepEqual([l.partName, l.spent, l.activities.length > 0], ['Afternoon', false, true]);
+    clock.t += 8_640_000;
+    l = (await work.life(ada)).life;
+    assert.deepEqual([l.day, l.weekday, l.partName], [2, 'Tuesday', 'Afternoon']);
+    // An odd job done can set the next scene going (the story moves by tasks).
+    if (l.scene) l = (await work.lifeStep(ada, { do: 'choose', choice: 0 })).life;
+    clock.t += 8_640_000 * 2;
+    const done = await work.gigDone(ada, { answer: {} });
+    assert.ok('scene' in done);
+    l = (await work.life(ada)).life;
+    assert.ok(l.scene || l.last, 'life went on');
+  } finally {
+    work.stop();
+    await db.close();
+  }
+});
+
+test('Life has a part-time job and a go at managing, each with its own scenes', async () => {
+  const L = await import('../../src/work/life.js');
+  const { SCENES, PEOPLE } = await import('../../src/work/lifeStory.js');
+  for (const id of ['lang', 'hale', 'becker', 'ana', 'leo', 'kai', 'okoye']) assert.ok(PEOPLE[id]?.role, id);
+  assert.ok(SCENES.filter((x) => x.when.after === 'shift').length >= 5 && SCENES.filter((x) => x.when.after === 'train').length >= 3);
+  // An evening shift at the corner shop pays, tires, and brings the shop's first scene straight after it.
+  const s = L.newLife(8);
+  L.tick(s, 0, 2);
+  L.choose(s, 0);
+  const shift = L.activitiesFor(s).find((a) => a.id === 'shift');
+  assert.ok(shift && shift.fx.money > 0 && shift.fx.energy < 0);
+  assert.ok(!L.activitiesFor(s).some((a) => a.id === 'train'), 'coaching is for work hours, and not in the first days');
+  const money = s.stats.money;
+  assert.equal(L.act(s, 'shift'), null);
+  assert.ok(s.stats.money > money);
+  assert.equal(s.scene, 'shop-first');
+  const v = L.viewOf(s);
+  assert.deepEqual(v.scene.cast.map((c) => c.id), ['okoye', 'kai']);
+  L.choose(s, 0);
+  assert.ok(s.flags['shop-crew'] && s.people.kai > 0);
+  assert.ok(L.viewOf(s).people.find((p) => p.id === 'kai').met, 'someone you have met is someone you know');
+  // The shop's scenes do not turn up at the office.
+  const office = L.newLife(8);
+  L.tick(office, 0, 0);
+  L.choose(office, 0);
+  L.act(office, 'steady');
+  assert.ok(!String(office.scene ?? '').startsWith('shop-'));
+  // From the fifth day, an hour coaching the interns is a thing to do at work — and has scenes of its own once you know them.
+  const m = L.newLife(8);
+  L.tick(m, 0, 0);
+  L.choose(m, 0);
+  Object.assign(m, { day: 5, t0: -4, part: 0, spent: null, sceneToday: 0 });
+  m.flags['interns-friend'] = 4;
+  m.seen['interns-arrive'] = 4;
+  assert.ok(L.activitiesFor(m).some((a) => a.id === 'train'));
+  assert.equal(L.act(m, 'train'), null);
+  assert.ok(['train-feedback', 'train-delegate', 'train-voice'].includes(m.scene), String(m.scene));
 });

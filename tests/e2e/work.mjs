@@ -80,13 +80,14 @@ export async function run(browser, { shots = null } = {}) {
 
     // Life: a day in parts, a stage, things to do; the first thing done brings the first scene.
     await page.click('.wk [data-tab="life"]');
-    t.check('Life opens on Monday morning with a stage, your stats, people and things to do', await until(page, () => /Monday/.test(document.querySelector('.lf__when')?.textContent ?? '') && Boolean(document.querySelector('.lf [data-stage] svg')) && document.querySelectorAll('.lf [data-stat]').length === 6 && document.querySelectorAll('.lf [data-act]').length >= 4, null, 10000));
-    await page.click('.lf [data-act="steady"]');
-    t.check('doing something brings a scene: people on the stage, words, and after them choices', await until(page, () => document.querySelectorAll('.lf .lf__person').length === 2 && Boolean(document.querySelector('.lf [data-say]')) && document.querySelectorAll('.lf [data-choice]').length === 3, null, 12000));
+    t.check('Life opens on its first scene: a place, people on the stage, their words, your stats and the people you know', await until(page, () => /Monday/.test(document.querySelector('.lf__when')?.textContent ?? '') && document.querySelectorAll('.lf .lf__person').length === 2 && Boolean(document.querySelector('.lf [data-say]')) && document.querySelectorAll('.lf [data-stat]').length === 6 && document.querySelectorAll('.lf [data-choice]').length === 3, null, 12000));
     for (let i = 0; i < 6 && !(await page.$('.lf [data-choice]:not(:disabled)')); i++) await page.click('.lf [data-next]', { force: true });
     await page.keyboard.press('1');
     t.check('an answer changes who you are to them, and the scene says what came of it', await until(page, () => Boolean(document.querySelector('.lf .lf__chips--stage .lf__chip, .lf [data-next]')) && /You chose/.test(document.querySelector('.lf__below')?.textContent ?? ''), null, 10000));
     await shot('work-life');
+    t.check('then this part of the day is yours to spend on one thing', await until(page, () => { document.querySelector('.lf [data-next]')?.click(); return document.querySelectorAll('.lf [data-act]').length >= 4; }, null, 10000));
+    await page.click('.lf [data-act]:not(:disabled)');
+    t.check('once spent, there is a wait until the next part of the day — no button to skip it', await until(page, () => { const c = document.querySelector('.lf [data-choice]:not(:disabled)'); if (c) c.click(); else document.querySelector('.lf [data-next]')?.click(); return /begins in \d/.test(document.querySelector('.lf [data-wait]')?.textContent ?? '') && !document.querySelector('.lf [data-sleep]') && document.querySelectorAll('.lf [data-act]').length === 0; }, null, 20000));
     // Odd jobs for anyone; and a card to share.
     await page.click('.wk [data-tab="today"]');
     t.check('Today offers odd jobs, five a day', await until(page, () => /Odd jobs — \d of 5 left today/.test(document.querySelector('.wk [data-gig]')?.textContent ?? ''), null, 10000));

@@ -74,6 +74,7 @@ export class WorkGame {
       <main class="mk__body" data-body></main>
       <p class="mk__status" data-status role="status" aria-live="polite"></p>`;
     host.append(this.root);
+    window.workLife = this;
     this.$ = (s) => this.root.querySelector(s);
     this.$('[data-close]').addEventListener('click', () => this.close());
     this.root.addEventListener('keydown', (e) => {
@@ -141,7 +142,7 @@ export class WorkGame {
   renderTabs() {
     const tabs = this.$('[data-tabs]');
     tabs.replaceChildren();
-    for (const [id, label] of [['today', 'Today'], ['life', '🌱 Life'], ['jobs', 'Job search'], ['career', 'Career']]) {
+    for (const [id, label] of [['today', 'Today'], ['life', this.lifeWaiting && this.tab !== 'life' ? '🌱 Life ●' : '🌱 Life'], ['jobs', 'Job search'], ['career', 'Career']]) {
       const b = button(label, `mk__tab${this.tab === id ? ' is-active' : ''}`, async () => {
         this.tab = id;
         this.renderTabs();
@@ -159,8 +160,9 @@ export class WorkGame {
     body.replaceChildren();
     body.classList.toggle('is-life', this.tab === 'life');
     if (this.tab === 'life') {
+      this.lifeWaiting = false;
       // Your days outside the task list: people, scenes, and what you make of yourself.
-      this.lifeView ??= new LifeView({ call, say: (text, kind) => this.say(text, kind), share: (card) => this.shareCard?.(card) });
+      this.lifeView ??= new LifeView({ call, say: (text, kind) => this.say(text, kind), share: (card) => this.shareCard?.(card), minigame: (m, submit) => this.minigame(m, submit) });
       return this.lifeView.render(body).catch((error) => body.append(this.notice('Life', error.status === 401 ? 'Sign in to live a life here: it is kept on your account.' : error.message)));
     }
     if (this.tab === 'jobs') return this.renderJobs(body);
@@ -302,7 +304,8 @@ export class WorkGame {
         for (const b of buttons) b.disabled = true;
         try {
           const r = await call('work/gig', { answer });
-          this.say(`Score ${r.score}: paid ${money(r.paid)}. ${r.feedback}${r.offer ? ` And — an offer from ${r.offer.company}!` : ''}`, r.score >= 60 ? 'is-good' : '');
+          this.say(`Score ${r.score}: paid ${money(r.paid)}. ${r.feedback}${r.offer ? ` And — an offer from ${r.offer.company}!` : ''}${r.scene ? ` Meanwhile, in your life: “${r.scene}” — open the Life tab.` : ''}`, r.score >= 60 ? 'is-good' : '');
+          this.lifeWaiting = Boolean(r.scene) || this.lifeWaiting;
           await this.reload();
         } catch (error) {
           this.say(error.message, 'is-error');
@@ -428,7 +431,8 @@ export class WorkGame {
       this.say(m.kind === 'written' ? 'Grading…' : '');
       try {
         const r = await call('work/mission', { id: m.id, answer });
-        this.say(`Score ${r.score}.${r.paid ? ` Paid ${money(r.paid)} for today.` : ''}`, 'is-ok');
+        this.say(`Score ${r.score}.${r.paid ? ` Paid ${money(r.paid)} for today.` : ''}${r.scene ? ` Meanwhile, in your life: “${r.scene}” — open the Life tab.` : ''}`, 'is-ok');
+        this.lifeWaiting = Boolean(r.scene) || this.lifeWaiting;
         await this.reload();
       } catch (error) {
         for (const b of buttons) b.disabled = false;

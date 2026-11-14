@@ -23,43 +23,75 @@ Game money only.
 
 ## Life: the days around the job
 
-The **🌱 Life** tab is a life you raise, a day at a time — like a raising or life simulation, about
-an ordinary working life. (The stories, people and places are our own.)
+The **🌱 Life** tab is a life you raise — like a raising or life simulation, about an ordinary
+working life. (The stories, people and places are our own.)
 
-- **A day has three parts** — morning, afternoon, evening — and you spend each on something:
-  deep work, a steady day, helping a teammate, learning from a senior; in the evenings and at
-  weekends rest, exercise, study, friends, an hour at the café, a call home, chores, a side project
-  or overtime. Each moves what you are: **energy, mood, health, skill, how sociable you are**, and
-  your pocket money. Worn out, you get less from the same hours; what you are already good at grows
-  more slowly; fitness and friendships slip a little every day you don't keep them up.
-- **Scenes happen.** After you do something, or when you wake, a scene may begin: the place drawn
-  and moving (clouds, lamps, steam, rain), the people in it walking on, their words typed out a line
-  at a time with their faces showing how they feel. Then **you choose** — and how it goes depends on
-  the choice *and on what you have in you at that moment* (stay late to help Mina, and whether you
-  find the bug depends on your energy). Hearts and sparks when it lands well; a jolt and a cloud
-  when it doesn't.
+<p>
+  <img src="screenshots/work-life-scene.jpg" width="49%" alt="A Life scene with photographs: an office at dusk, two people's portraits on the stage, the one speaking lit and framed in gold, her words in a speech box, your stats and the people you know beside it" />
+  <img src="screenshots/work-life-task.jpg" width="49%" alt="A hard choice being done: under the dimmed scene, a small task to play — put five jobs in order — with the mark to reach and what your energy adds to it" />
+</p>
+
+- **It keeps the game's time, like real life.** A day in Life is a game day (2 hours 24 minutes of
+  real time at the usual speed), in three parts — morning, afternoon, evening — of 48 minutes each.
+  **One thing each part**, and then the next part has to come round: nothing can be skipped or
+  hurried, and the night comes on its own (a part you left empty was rest). Come back after a while
+  and the days in between have been lived.
+- **What you do** with a part: deep work, a steady day, helping a teammate, learning from a senior;
+  in the evenings and at weekends rest, exercise, study, friends, an hour at the café, a call home,
+  chores, a side project or overtime. Each moves what you are — **energy, mood, health, skill, how
+  sociable you are**, and pocket money. Worn out, you get less from the same hours; what you are
+  already good at grows more slowly; fitness and friendships slip a little every day.
+- **Scenes happen** — after something you do, when a new part of the day begins, and **when you
+  finish a task on Today** (a work task or an odd job can set the next scene going, so the story
+  moves on days when you are busy). A scene is a place and the people in it, their words typed out
+  a line at a time, their faces showing how they feel.
+- **Hard choices are done, not picked.** An easy answer just happens. A hard one — stay and fix
+  the bug with Mina, speak up in the meeting, present it your own way — is **a small task to play**
+  (put jobs in order, find the rows that don't add up, work out a number), and **how well you do
+  it decides how the scene turns out**: 60 to pull it off, with what you are counting too (half a
+  point for every point of energy, skill or health above or below what the moment asks, up to 20).
+  Where an answer turns on money or on how close you are to someone, it is simply so or not.
 - **What happened decides what can happen.** Help Mina and she owes you a lunch, where she tells
   you something; hide a mistake and it comes back on Friday; talk to the stranger at your café
-  table and there is a rainy doorway a week later. Six people — a teammate, a mentor, your manager,
-  your flatmate, your mum, someone at the café — each as close to you as you have made them.
-- **Things to click.** The room is alive: the window, the plant, the lamp (it works), the mug, the
-  whiteboard each have something to say. Everything you do gets a short moment of its own — you at
-  the keys, on a run, asleep on the sofa.
-- **A season is 28 days**, and it ends with a name for how you lived it — *The Rising Star*, *The
-  One Everyone Calls*, *A Life in Balance*, *The Quiet Expert*, *Running on Empty*, *Just Getting
-  By* — which you can share, and then the next season begins with everything carried over.
-- Sundays the rent goes out. Life has its own pocket money: it never touches the wallet.
+  table and there is a rainy doorway a week later.
+- **Thirteen people, by where they stand.** Your teammate Mina, Dev the senior who might mentor
+  you, your manager Ms. Alvarez, Tom Becker who manages the team next door (and tries to poach
+  you), Marcus Hale the vice-president who wants a straight answer in ten minutes, **Victoria Lang
+  the chief executive** who asks you one question in a lift — and may remember the answer at the
+  all-hands — and **two interns, Ana and Leo**, who are told to find you. At home your flatmate Jun
+  and your mum; at the café, Sora. Each is as close to you as you have made them, and you only
+  "know" someone once you have met.
+- **A part-time job.** Any evening or weekend you can take **a shift at the corner shop** for real
+  pocket money and sore feet. The shop has its own stories: Mrs. Okoye, who has run it for
+  twenty-two years; **Kai, nineteen**, who films a "day in my life" in the middle of the Friday
+  rush and plans to quit by simply not turning up; a ten-year-old who tries to pay with a game's
+  gift card and is always twenty short; teenagers asking for "the viral one" in words you don't
+  know; a twelve-year-old with a chocolate bar up her sleeve. How you treat people on the other
+  side of the till — younger, older, in a hurry — is the game there.
+- **A first go at managing.** From the fifth day you can spend work hours **coaching the
+  interns**. That has scenes too: Leo's report with the wrong totals (find them with him, say
+  "tighten it up", or fix it yourself after he leaves), Ana asking for a real piece of work, Ana
+  never getting a word in at meetings, Leo wiping the wrong database — and, if you turn out to be
+  good at it, Ms. Alvarez puts you forward for the new-manager course, where the vice-president
+  sets the first exercise.
+- **A season is 28 days**, and ends with a name for how you lived it — *The Rising Star*, *The One
+  Everyone Calls*, *A Life in Balance*, *The Quiet Expert*, *Running on Empty*, *Just Getting By* —
+  which you can share. Sundays the rent goes out. Life has its own pocket money: it never touches
+  the wallet.
 - Keys: **Space** or **Enter** for the next line, **1–3** to answer.
 - If you have a job in Work Life, the scenes speak of that company and your title; otherwise of a
   small studio called Lumen Works.
 
-**Realistic pictures.** The scenes are drawn and animated by the game. If you have an
-image-generating AI, `IMAGE_API_KEY=… npm run work:images` (add `--people` for portraits) makes
-photorealistic rooms for every place and time of day into `public/work-scenes/`, and the game then
-shows those in place of the drawings — invented places and invented people only. The project's own
-AI service has only text models, so no pictures are made unless you run this with your own key.
+**The pictures.** People and places are **photographs made once by an image-generating AI** and
+kept with the game in `public/work-scenes/` (thirteen people in three moods, six places by day and
+by night); nothing is generated while you play. They were made with `npm run work:images -- --free
+--people`, which uses pollinations.ai's free service at its allowed pace (one picture every 45
+seconds; its small mark is left on each picture and it is credited on screen). The people and
+places are invented — no real person is shown. With your own image service
+(`IMAGE_API_KEY`, `IMAGE_API_BASE_URL`, `IMAGE_MODEL`) the same command makes a fuller set (four
+lights a place); `--force` makes them again. Without any pictures the game draws its own.
 
-The rules are in `src/work/life.js`, the story in `src/work/lifeStory.js`, the drawings in
+The rules are in `src/work/life.js`, the story in `src/work/lifeStory.js`, the drawn fallback in
 `src/work/lifeArt.js`; the server keeps each life (`work_life`) and decides every step.
 
 ## How it plays

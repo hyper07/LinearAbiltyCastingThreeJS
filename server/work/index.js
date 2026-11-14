@@ -7,7 +7,7 @@ import { newsProvider } from './newsProvider.js';
 import { EVENT_EFFECTS, classify, cleanText, isAbout, isSafe } from '../../src/work/news.js';
 import { CHOICE_POINTS, INTERVIEW, ROUTINE, SCENARIOS, fill, seededOrder } from '../../src/work/scenarios.js';
 import { MINIGAMES, make as makeGame, score as scoreGame } from '../../src/work/minigames.js';
-import { cleanLife, viewOf as lifeView, act as lifeAct, choose as lifeChoose, sleep as lifeSleep, nextSeason as lifeNext, newLife } from '../../src/work/life.js';
+import { cleanLife, viewOf as lifeView, act as lifeAct, choose as lifeChoose, task as lifeTask, tick as lifeTick, nudge as lifeNudgeScene, nextSeason as lifeNext, newLife } from '../../src/work/life.js';
 import {
   DAY_MS, LEVELS, MISSIONS_PER_DAY, QUARTER_DAYS, RATINGS, ROLES, ROLE_IDS, YEAR_DAYS,
   dayPay, evaluate, layoffRisk, offerLevel, outcome, salaryFor, severance, titleOf
@@ -36,7 +36,7 @@ const BY_SYMBOL = new Map(COMPANIES.map((c) => [c.symbol, c]));
  *   POST /api/work/gig        { answer }                  → score, pay, perhaps an offer
  *   POST /api/work/offer      { id, accept }              → take or decline an offer that arrived
  *   GET  /api/work/life                     your life: the day, what you are, who you know, what you can do
- *   POST /api/work/life       { do: 'act'|'choose'|'sleep'|'next'|'restart', id?, choice? }  → the same, a step on
+ *   POST /api/work/life       { do: 'act'|'choose'|'task'|'next'|'restart', id?, choice?, answer? }  → the same, a step on
  *   GET  /api/wallet                        your game money and its history
  *
  *   The admin API (HTTP Basic, ADMIN_ACCOUNTS + ADMIN_PASSWORD; no screen):
@@ -565,7 +565,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
           // A day well worked gets noticed: now and then, another company writes.
           if (result.score >= 60) await maybeOffer(account, { job, chance: 0.12 });
         }
-        return { ...result, paid, wallet: await wallet.balance(account.id) };
+        return { ...result, paid, wallet: await wallet.balance(account.id), scene: await lifeNudge(account) };
       })
     );
   }
@@ -613,7 +613,7 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
         const job = await activeJob(account.id);
         // Good work is how people hear of you: more so without a job, and more the better it was.
         const offer = score >= 50 ? await maybeOffer(account, { job, chance: job ? 0.08 : 0.25 + score / 400, score }) : null;
-        return { score, paid, wallet: await wallet.balance(account.id), left: GIGS_PER_DAY - n - 1, offer, feedback: score >= 90 ? 'Spot on.' : score >= 60 ? 'Good work — a little off.' : 'Not quite: check the rule and try the next one.' };
+        return { score, paid, wallet: await wallet.balance(account.id), left: GIGS_PER_DAY - n - 1, offer, scene: await lifeNudge(account), feedback: score >= 90 ? 'Spot on.' : score >= 60 ? 'Good work — a little off.' : 'Not quite: check the rule and try the next one.' };
       })
     );
   }
@@ -677,31 +677,62 @@ export function createWork({ db, authenticate, env = process.env, log = () => {}
     return job ? { company: BY_SYMBOL.get(job.symbol)?.name, role: ROLES[job.role]?.name?.toLowerCase(), title: LEVELS[job.level]?.title, name: account.name } : { name: account.name };
   }
 
+  /** Where the game's clock stands for a life: which game day it is, which third of it, and when the next third begins. */
+  const lifeClock = (t = now()) => {
+    const third = GAME_DAY / 3;
+    return { day: Math.floor(t / GAME_DAY), part: Math.min(2, Math.floor((t % GAME_DAY) / third)), next: (Math.floor(t / third) + 1) * third };
+  };
+  const saveLife = (account, state) => db.run('INSERT INTO work_life (account_id, data, updated) VALUES (?, ?, ?) ON CONFLICT (account_id) DO UPDATE SET data = EXCLUDED.data, updated = EXCLUDED.updated', [account.id, JSON.stringify(state), now()]);
+
+  /** A life, brought up to the clock (the days that passed are lived through; nothing can be hurried). */
   async function loadLife(account) {
     const row = await db.one('SELECT data FROM work_life WHERE account_id = ?', [account.id]);
-    return cleanLife(row?.data, Number(account.id) * 2654435761);
+    const state = cleanLife(row?.data, Number(account.id) * 2654435761);
+    const c = lifeClock();
+    const changed = lifeTick(state, c.day, c.part);
+    return { state, changed: changed || !row };
   }
+  const lifeOut = async (account, state) => ({ life: { ...lifeView(state, await lifeContext(account)), nextPart: lifeClock().next, speed } });
 
   async function life(account) {
-    return { life: lifeView(await loadLife(account), await lifeContext(account)) };
+    return db.serial(async () => {
+      const { state, changed } = await loadLife(account);
+      if (changed) await saveLife(account, state);
+      return lifeOut(account, state);
+    });
   }
 
-  /** One step of a life: spend a part of the day, answer a scene, sleep, begin the next season, or start over. */
+  /** One step of a life: spend this part of the day, answer a scene, do the task a hard answer asks, begin the next season, or start over. */
   async function lifeStep(account, body) {
     return db.serial(async () => {
-      let state = await loadLife(account);
+      let { state } = await loadLife(account);
       const what = String(body?.do ?? '');
       let why = null;
       if (what === 'act') why = lifeAct(state, String(body.id ?? ''));
       else if (what === 'choose') why = lifeChoose(state, Number(body.choice));
-      else if (what === 'sleep') why = lifeSleep(state);
+      else if (what === 'task') why = lifeTask(state, body.answer);
       else if (what === 'next') why = lifeNext(state);
-      else if (what === 'restart') state = newLife((Number(account.id) * 2654435761 + now()) >>> 0);
-      else throw Object.assign(new Error('Unknown step'), { status: 400 });
+      else if (what === 'restart') {
+        state = newLife((Number(account.id) * 2654435761 + now()) >>> 0);
+        const c = lifeClock();
+        lifeTick(state, c.day, c.part);
+      } else throw Object.assign(new Error('Unknown step'), { status: 400 });
       if (why) throw Object.assign(new Error(why), { status: 400 });
-      await db.run('INSERT INTO work_life (account_id, data, updated) VALUES (?, ?, ?) ON CONFLICT (account_id) DO UPDATE SET data = EXCLUDED.data, updated = EXCLUDED.updated', [account.id, JSON.stringify(state), now()]);
-      return { life: lifeView(state, await lifeContext(account)) };
+      await saveLife(account, state);
+      return lifeOut(account, state);
     });
+  }
+
+  /** Work done elsewhere (a task, an odd job) can set a scene going in your life. Inside db.serial. Returns its title, or null. */
+  async function lifeNudge(account) {
+    const row = await db.one('SELECT data FROM work_life WHERE account_id = ?', [account.id]);
+    if (!row) return null; // no life begun: nothing to stir
+    const state = cleanLife(row.data, Number(account.id) * 2654435761);
+    const c = lifeClock();
+    lifeTick(state, c.day, c.part);
+    const began = lifeNudgeScene(state);
+    await saveLife(account, state);
+    return began ? lifeView(state, await lifeContext(account)).scene?.title ?? null : null;
   }
 
   async function companies({ q = '', sector = '' } = {}) {

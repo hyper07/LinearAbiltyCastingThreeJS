@@ -1076,3 +1076,120 @@
 .lf:focus {
   outline: none;
 }
+
+/* ---- photographs for people and places; tasks inside scenes; the clock ---- */
+.lf__stage.has-photos .lf__cast,
+.lf__cast:has(.lf__portrait) {
+  bottom: 27%;
+  gap: 3%;
+  align-items: flex-end;
+}
+.lf__person:has(.lf__portrait) {
+  width: 24%;
+  max-width: 250px;
+  border-radius: 18px;
+  border: 3px solid #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  background: #111;
+  filter: brightness(0.62) saturate(0.7);
+  transform: translateY(8%) scale(0.9);
+}
+.lf__person:has(.lf__portrait).is-speaking {
+  filter: none;
+  transform: translateY(0) scale(1.04);
+  border-color: #ffc93c;
+  box-shadow: 0 0 0 3px #2b1d4e, 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+.lf__portrait {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  object-position: center 18%;
+  border-radius: 0;
+  filter: none;
+  animation: lf-alive 9s ease-in-out infinite alternate;
+}
+/* A photograph does not move, so the frame does, a little: it reads as someone breathing. */
+@keyframes lf-alive {
+  from { transform: scale(1.02) translateY(0); }
+  to { transform: scale(1.08) translateY(-1.5%); }
+}
+.is-talking .lf__portrait {
+  animation: lf-speak 0.5s ease-in-out infinite alternate;
+}
+@keyframes lf-speak {
+  from { transform: scale(1.05) translateY(0); }
+  to { transform: scale(1.07) translateY(-1%); }
+}
+.lf__photo {
+  filter: saturate(1.05);
+}
+.lf__face.is-photo {
+  background: #111;
+}
+.lf__face.is-photo .lf__portrait {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  animation: none;
+  object-position: center 22%;
+}
+.lf__you.is-photo {
+  bottom: 30%;
+  width: auto;
+}
+.lf__doing {
+  display: grid;
+  place-items: center;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: rgba(20, 16, 40, 0.55);
+  backdrop-filter: blur(6px);
+  font-size: 64px;
+  animation: lf-bounce 0.9s ease-in-out infinite;
+}
+.lf__stage.is-waiting .lf__cam {
+  filter: blur(2px) brightness(0.8);
+}
+.lf__task {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2.5px dashed #2b1d4e;
+  background: #fffdf8;
+  color: #2b1d4e;
+}
+.lf__task button {
+  color: #2b1d4e;
+}
+.lf__hint.is-good { color: #0b8a5a; opacity: 1; }
+.lf__hint.is-bad { color: #c2412d; opacity: 1; }
+.lf__wait {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 2.5px solid #2b1d4e;
+  background: #ece2ff;
+}
+.lf__wait > span {
+  font-size: 34px;
+  animation: lf-bounce 1.6s ease-in-out infinite;
+}
+.lf__wait b {
+  display: block;
+  font-size: 17px;
+  font-weight: 900;
+}
+.lf__wait small {
+  font-weight: 700;
+  opacity: 0.8;
+}
+.lf__credit {
+  font-size: 11px;
+}
