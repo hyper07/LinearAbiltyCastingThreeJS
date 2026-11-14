@@ -65,9 +65,19 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **Fly** (the start): **W A S D** to move, **Space / C** up and down, **Shift** fast, drag to look,
   the wheel changes height. The higher you are, the farther you see and the faster you go. You
   stay above the ground, hills included.
-- **Walk** (**F**, or the button): a traveller on the street, **Shift** to run, the wheel zooms.
+- **Walk** (**F**, or the button): you on the street as a real person — **Mina** or **Jun**
+  (**V** or the 🧍 button switches) — walking, or running with **Shift**; the wheel zooms.
   Buildings are solid, you climb the hills you walk up, and you stand on the roads — walk onto a
-  bridge from its end and you cross the river on it; from the bank you pass underneath.
+  bridge from its end and you cross the river on it; from the bank you pass underneath. Cars are
+  parked at the roadside near you; **E** beside one gets in.
+- **Drive** (the button, or **E** by a car): **W** to go, **S** to brake and then reverse, **A D**
+  to steer, **Space** for the handbrake (it slides the back round), **H** for the horn, **E** to
+  get out. The camera swings round behind the car unless you look about with the mouse; the speed
+  is shown in km/h. Buildings and other cars stop you — nothing is damaged and nobody is hurt.
+- **The street around you**: traffic on the real roads (OpenStreetMap), keeping to the right,
+  at each road's own pace, slowing for what is ahead and sounding its horn if held up long;
+  people walking the pavements, stepping aside from a car. A map in the corner turns with you:
+  roads, cars, people, and north.
 - **Places** (**M**): the 25 districts and the 400 tallest named buildings, with a search; a click
   takes you there. Names and heights float over the tall buildings in view.
 - **Districts visited** are counted (out of 25) and kept on your device.
@@ -75,6 +85,21 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
   share of every building's windows after dark.
 - **View**: near, far or farthest — how many tiles are kept around you (800 m to 2 km, more when
   flying high).
+
+## On the street: how it is built
+
+- `src/city/street.js` — walking, getting in and out, driving, traffic, people walking, the map
+  in the corner and the engine's sound; `SeoulGame` hands over walking and driving and asks it for
+  the camera.
+- `src/city/drive.js` — the car's handling (engine, brakes, steering that tightens at low speed,
+  skids) and going along a road, as plain numbers; tested in `tests/unit/drive.test.mjs`.
+- `src/city/cars.js` — the Car Concept model in many paints, its glass made plain, its logos left
+  out, our own number plates, wheels that steer and roll, lights at night, a light stand-in far away.
+- `src/city/people.js` — Mina and Jun. Neither file has a walk, so they borrow the soldier's
+  (idle, walk, run): each bone's turn from rest is copied across, in each skeleton's own frame.
+
+The models come from the asset library (`extras`, fetched by `npm run dev` and `npm run build`);
+see [third-party](third-party.md) for their licences.
 
 ## How it works
 

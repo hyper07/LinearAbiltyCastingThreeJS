@@ -288,3 +288,63 @@
   line-height: 1.45;
   opacity: 0.8;
 }
+
+/* ---- On the street (city/street.js): the map, the speed, what E does ---- */
+.seoul__map {
+  position: absolute;
+  left: 18px;
+  bottom: 110px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.seoul__speed {
+  position: absolute;
+  right: 22px;
+  bottom: 118px;
+  display: grid;
+  justify-items: end;
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: rgba(20, 24, 32, 0.78);
+  color: #fff;
+  pointer-events: none;
+}
+.seoul__speed b {
+  font-size: 44px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.seoul__speed small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.seoul__speed i {
+  font-style: normal;
+  font-weight: 800;
+  color: #ffb02e;
+}
+.seoul__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 205px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(20, 24, 32, 0.78);
+  color: #fff;
+  font-weight: 800;
+  pointer-events: none;
+}
+.seoul [hidden] {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  .seoul__map {
+    width: 120px;
+    height: 120px;
+    bottom: 150px;
+  }
+}

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
-import { dress } from '../mmo/bodies.js';
+import { Street } from './street.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
 
@@ -23,6 +23,7 @@ const ROAD_WIDTH = [22, 18, 15, 11, 8];
 const WATER = new THREE.Color('#3f74b3');
 /** Roads are looked up by squares this wide (metres). */
 const ROAD_CELL = 40;
+export { ROAD_CELL };
 
 /**
  * Seoul, for real: every building in the city at its true place and height,
@@ -82,6 +83,8 @@ export class SeoulGame {
         <div class="seoul__group">
           <button type="button" data-mode="fly" title="Fly over the city (F switches)">🛸 Fly</button>
           <button type="button" data-mode="walk" title="Walk the streets (F switches)">🚶 Walk</button>
+          <button type="button" data-mode="drive" title="Drive: into the nearest car, or one brought to the road beside you">🚗 Drive</button>
+          <button type="button" data-who title="Who you are on the street (V)">🧍</button>
           <button type="button" data-open-places title="Districts and tall buildings to go to (M)">🧭 Places</button>
         </div>
         <label class="seoul__time" title="Time of day">🌞<input type="range" min="0" max="24" step="0.25" data-hour aria-label="Time of day" /><span data-clock></span></label>
@@ -109,6 +112,10 @@ export class SeoulGame {
     });
     this._scene($('[data-stage]'));
     this._input($('[data-stage]'));
+    this.street = new Street(this);
+    this.street.whoButton = $('[data-who]');
+    this.street.dress(this.street.who);
+    $('[data-who]').addEventListener('click', () => this.street.switchPerson());
     this.setMode('fly');
     this.setHour(this.hour);
     this._stamps();
@@ -132,7 +139,7 @@ export class SeoulGame {
       }
       for (const l of this.index.landmarks) if (l.tower) this._tower(l);
       // A short credit always on screen; each source's full notice is in the Places panel.
-      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : ''].filter(Boolean).join(' · ');
+      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)'].filter(Boolean).join(' · ');
       this.ready = true;
     } catch {
       this._message('<b>Seoul\'s map isn\'t installed on this server yet.</b><br>Download 국토교통부 GIS건물통합정보 for 서울특별시 (file <code>AL_D010_11_…</code>, free, KOGL type 1) into <code>library/Seoul_Map.zip/</code> or <code>data/geo/seoul/</code>, then run <code>npm run geo:seoul</code> and open this again.');
@@ -149,6 +156,7 @@ export class SeoulGame {
     this.tiles.clear();
     for (const l of this.lands.values()) for (const m of [l.ground, l.roads]) m?.geometry.dispose();
     this.lands.clear();
+    this.street?.dispose();
     this.renderer?.dispose();
     this.root?.remove();
     if (window.seoul === this) delete window.seoul;
@@ -691,43 +699,51 @@ export class SeoulGame {
 
   /* ---------------------------------------------------------------- moving */
 
-  setMode(mode) {
-    this.mode = mode === 'walk' ? 'walk' : 'fly';
-    for (const b of this.root.querySelectorAll('[data-mode]')) b.classList.toggle('is-on', b.dataset.mode === this.mode);
-    if (this.mode === 'walk') {
+  /**
+   * Fly, walk or drive. `keep` (from getting in or out of a car) keeps you
+   * where you are; otherwise walking starts on the ground under you.
+   */
+  setMode(mode, { keep = false } = {}) {
+    const was = this.mode;
+    this.mode = mode === 'walk' || mode === 'drive' ? mode : 'fly';
+    if (this.mode !== 'fly' && was === 'fly' && !keep) {
       // Land where you were hovering — beside a building, not inside one.
       for (let k = 0; k < 40 && this.buildingAt(this.pos.x, this.pos.z); k++) this.pos.x += 6;
       // Landing from the air: on the road if one is under you (a bridge too), else on the ground.
       this.pos.y = this.surfaceAt(this.pos.x, this.pos.z);
       this.pitch = Math.max(-0.5, Math.min(0.3, this.pitch));
-      this._walker();
-    } else {
-      this.pos.y = Math.max(this.pos.y, this.groundAt(this.pos.x, this.pos.z) + 120);
-      if (this.walker) this.walker.visible = false;
+      this.zoom = 4.5;
+      this.street.walk();
     }
-    this.$('[data-help]').textContent = this.mode === 'fly'
-      ? 'W A S D fly · Space / C up and down · Shift fast · drag to look · F walk · M places'
-      : 'W A S D walk · Shift run · drag to look · wheel zooms · F fly · M places';
+    if (this.mode === 'walk' && !keep) this.street.walk();
+    if (this.mode === 'drive' && !keep && !this.street.drive()) {
+      this.mode = 'walk';
+      this.toast('The cars are still on their way — try again in a moment');
+    }
+    if (this.mode === 'fly') {
+      this.street.hide();
+      this.pos.y = Math.max(this.pos.y, this.groundAt(this.pos.x, this.pos.z) + 120);
+      if (this.camera.fov !== 58) {
+        this.camera.fov = 58;
+        this.camera.updateProjectionMatrix();
+      }
+    }
+    for (const b of this.root.querySelectorAll('[data-mode]')) b.classList.toggle('is-on', b.dataset.mode === this.mode);
+    this.$('[data-help]').textContent = {
+      fly: 'W A S D fly · Space / C up and down · Shift fast · drag to look · F walk · M places',
+      walk: 'W A S D walk · Shift run · E get in a car · V who you are · drag to look · wheel zooms · F fly · M places',
+      drive: 'W go · S brake and reverse · A D steer · Space handbrake · H horn · E get out · drag to look · F fly'
+    }[this.mode];
     this.root.focus();
   }
 
-  /** The traveller you walk as: a figure from the asset library if it is there, else a plain marker. */
-  _walker() {
-    if (!this.walker) {
-      this.walker = new THREE.Group();
-      const marker = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1, 4, 10), new THREE.MeshLambertMaterial({ color: '#ff5da2' }));
-      marker.position.y = 0.9;
-      this.walker.add(marker);
-      this.scene.add(this.walker);
-      dress({ body: 'Rogue', show: [], tint: '#ffffff', height: 1.8, hat: false }).then((made) => {
-        if (!made || !this.walker) return;
-        this.walker.remove(marker);
-        this.walker.add(made.model);
-        this.walkerAnim = made;
-      }).catch(() => {});
-    }
-    this.walker.visible = true;
-    this.zoom ??= 9;
+  /** The roads that start in the tiles around a point (for traffic and people walking). */
+  roadsNear(x, z, reach = 1) {
+    if (!this.roadTiles) return [];
+    const [tx, ty] = tileOf(x + ORIGIN.x, -z + ORIGIN.y);
+    const out = [];
+    for (let dx = -reach; dx <= reach; dx++) for (let dy = -reach; dy <= reach; dy++) out.push(...(this.roadTiles.get(tileKey(tx + dx, ty + dy)) ?? []));
+    return out;
   }
 
   /** Jump to a place: above it, looking north across it. */
@@ -767,33 +783,7 @@ export class SeoulGame {
       const floor = this.groundAt(this.pos.x, this.pos.z) + 8;
       this.pos.y = Math.max(floor, Math.min(floor + 2600, this.pos.y + up * speed * 0.7 * dt + f * Math.sin(this.pitch) * speed * dt * 0.6));
       this.speed = Math.hypot(f, s) * speed;
-    } else {
-      const speed = fast ? 9 : 4.2;
-      const l = Math.hypot(f, s) || 1;
-      const nx = this.pos.x + ((fx * f + rx * s) / l) * speed * dt;
-      const nz = this.pos.z + ((fz * f + rz * s) / l) * speed * dt;
-      // Walls stop you; slide along them where you can.
-      if (!this.buildingAt(nx, nz)) {
-        this.pos.x = nx;
-        this.pos.z = nz;
-      } else if (!this.buildingAt(nx, this.pos.z)) this.pos.x = nx;
-      else if (!this.buildingAt(this.pos.x, nz)) this.pos.z = nz;
-      const moving = Boolean(f || s);
-      this.speed = moving ? speed : 0;
-      if (moving) this.walker.rotation.y = Math.atan2(fx * f + rx * s, fz * f + rz * s);
-      this.pos.y = this.surfaceAt(this.pos.x, this.pos.z, this.pos.y);
-      this.walker.position.set(this.pos.x, this.pos.y, this.pos.z);
-      const a = this.walkerAnim;
-      if (a) {
-        const want = a.actions[moving ? (fast ? 'Running_A' : 'Walking_A') : 'Idle'];
-        if (want && this._clip !== want) {
-          want.reset().play();
-          this._clip?.crossFadeTo(want, 0.2, false);
-          this._clip = want;
-        }
-        a.mixer.update(dt);
-      }
-    }
+    } else this.street.update(dt);
     // Stay over the city.
     this.pos.x = Math.max(-21000, Math.min(21000, this.pos.x));
     this.pos.z = Math.max(-17000, Math.min(18000, this.pos.z));
@@ -804,12 +794,7 @@ export class SeoulGame {
     if (this.mode === 'fly') {
       this.camera.position.copy(this.pos);
       this.camera.lookAt(this.pos.clone().add(dir));
-    } else {
-      const head = new THREE.Vector3(this.pos.x, this.pos.y + 1.7, this.pos.z);
-      this.camera.position.copy(head).addScaledVector(dir, -this.zoom);
-      this.camera.position.y = Math.max(this.surfaceAt(this.camera.position.x, this.camera.position.z, this.pos.y) + 0.6, this.camera.position.y);
-      this.camera.lookAt(head);
-    }
+    } else this.street.camera(this.camera);
     this.sun.position.copy(this.camera.position).addScaledVector(this.sunDir, 800);
     this.sun.target.position.copy(this.camera.position);
     this.sun.target.updateMatrixWorld();
@@ -826,6 +811,7 @@ export class SeoulGame {
     stage.addEventListener('pointermove', (e) => {
       if (!drag) return;
       this.yaw -= (e.clientX - drag.x) * 0.0045;
+      this.dragAt = performance.now();
       this.pitch = Math.max(-1.45, Math.min(this.mode === 'fly' ? 0.9 : 0.35, this.pitch - (e.clientY - drag.y) * 0.004));
       drag = { x: e.clientX, y: e.clientY };
     });
@@ -834,7 +820,7 @@ export class SeoulGame {
     stage.addEventListener('pointercancel', end);
     stage.addEventListener('wheel', (e) => {
       e.preventDefault();
-      if (this.mode === 'walk') this.zoom = Math.max(3, Math.min(40, this.zoom * (e.deltaY > 0 ? 1.12 : 0.89)));
+      if (this.mode !== 'fly') this.zoom = Math.max(2.5, Math.min(40, this.zoom * (e.deltaY > 0 ? 1.12 : 0.89)));
       else {
         const g = this.groundAt(this.pos.x, this.pos.z);
         this.pos.y = g + Math.max(8, Math.min(2600, (this.pos.y - g) * (e.deltaY > 0 ? 1.1 : 0.91)));
@@ -853,6 +839,9 @@ export class SeoulGame {
       this.keys.add(e.code);
       if (e.repeat) return;
       if (e.code === 'KeyF') this.setMode(this.mode === 'fly' ? 'walk' : 'fly');
+      else if (e.code === 'KeyE' && this.mode !== 'fly') this.street.use();
+      else if (e.code === 'KeyH' && this.mode === 'drive') this.street.horn();
+      else if (e.code === 'KeyV' && this.mode !== 'fly') this.street.switchPerson();
       else if (e.code === 'KeyM') this.togglePlaces();
       else if (e.code === 'Escape') (this.$('[data-places]').hidden ? this.close() : this.togglePlaces(false));
     };

@@ -271,7 +271,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 2;
+export const EXTRAS_VERSION = 3;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -286,6 +286,37 @@ const EXTRA_MODELS = [
     license: 'Mixamo (free for use in projects, not for redistribution as a standalone asset)',
     author: 'Adobe Mixamo, via the three.js examples',
     page: 'https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf'
+  },
+  {
+    id: 'mina',
+    name: 'Michelle (a woman in casual clothes)',
+    url: 'https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/models/gltf/Michelle.glb',
+    file: 'people/Michelle.glb',
+    tags: ['character', 'human', 'woman', 'casual', 'rigged'],
+    license: 'Mixamo (free for use in projects, not for redistribution as a standalone asset)',
+    author: 'Adobe Mixamo, via the three.js examples',
+    page: 'https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf'
+  },
+  {
+    id: 'jun',
+    name: 'A Ready Player Me avatar (a man in casual clothes)',
+    url: 'https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/models/gltf/readyplayer.me.glb',
+    file: 'people/readyplayer.me.glb',
+    tags: ['character', 'human', 'man', 'casual', 'rigged'],
+    license: 'Ready Player Me avatar, as published in the three.js examples',
+    author: 'Ready Player Me, via the three.js examples',
+    page: 'https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf'
+  },
+  {
+    id: 'car',
+    name: 'Car Concept',
+    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb',
+    file: 'car/CarConcept.glb',
+    tags: ['vehicle', 'car', 'sports car', 'concept'],
+    // The licence excludes the Khronos logos: the game hides the steering-wheel emblem and draws its own number plate.
+    license: 'CC-BY-4.0',
+    author: 'Eric Chadwick, Darmstadt Graphics Group, for the Khronos Group',
+    page: 'https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept'
   }
 ];
 /** ambientCG materials by id: metal and concrete for Breachline's yards. */
