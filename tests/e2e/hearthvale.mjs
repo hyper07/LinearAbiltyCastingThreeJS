@@ -45,7 +45,7 @@ export async function run(browser, { shots = null } = {}) {
       const e = hv.current?.ents.find((x) => x.i === hv.you);
       return e?.lk?.build === 'tall' && e.lk.tint === '#a8c8ff' && e.lk.style === 'raider';
     }, null, 8000));
-        t.check('the hotbar has six skills', (await page.$$('.hv [data-hotbar] .hv-slot')).length === 6);
+        t.check('the hotbar has eight keys', (await page.$$('.hv [data-hotbar] .hv-slot')).length === 8);
 
     // Walk forward with W.
     const start = await me(page);
@@ -125,7 +125,11 @@ export async function run(browser, { shots = null } = {}) {
     await page.waitForTimeout(600);
     if (await page.$('.hv-win--npc .hv__x')) await page.click('.hv-win--npc .hv__x');
     await page.keyboard.press('f');
-    t.check('F at the Smithy opens Brannoc\'s store', await until(page, () => Boolean(document.querySelector('.hv-store [data-buy="militia_sword"]')), null, 6000));
+    t.check('F at the Smithy opens Brannoc\'s store: pictures with price tags', await until(page, () => Boolean(document.querySelector('.hv-store [data-store-item="militia_sword"] .hv-store__tag')), null, 6000));
+    await page.hover('.hv-store [data-store-item="steel_sword"]');
+    t.check('hovering a picture shows its words: name, stats, how it compares', await until(page, () => { const t = document.querySelector('.hv-tip'); return t && !t.hidden && /Steel Longsword/.test(t.textContent) && /power/.test(t.textContent) && /Against|nothing there/.test(t.textContent); }, null, 4000));
+    await page.click('.hv-store [data-store-item="militia_sword"]');
+    await until(page, () => Boolean(document.querySelector('.hv-store [data-buy="militia_sword"][data-wear]')), null, 4000);
     await page.click('.hv-store [data-buy="militia_sword"][data-wear]');
     t.check('Buy & wear: the sword is worn, 20 gold spent', await until(page, () => window.hearthvale.ch.equip.weapon === 'militia_sword' && window.hearthvale.ch.gold === 80, null, 6000));
     await shot(page, 'hearthvale-store');
@@ -161,6 +165,13 @@ export async function run(browser, { shots = null } = {}) {
     t.check('T opens the class\'s skill tree: three paths of ten joined tiles, its first skill known, a panel that explains the pick', await until(page, () => document.querySelectorAll('.hv-win--skills .hv-path').length === 3 && document.querySelectorAll('.hv-win--skills .hv-tile').length === 30 && document.querySelectorAll('.hv-win--skills .hv-tile.is-known').length >= 1 && document.querySelectorAll('.hv-win--skills .hv-path__grid line').length === 27 && Boolean(document.querySelector('.hv-win--skills [data-detail] h4')?.textContent), null, 5000));
     await page.keyboard.press('KeyC');
     t.check('C shows Strength, Agility, Intellect and Vitality, with the class\'s own marked', await until(page, () => document.querySelectorAll('.hv-win--char .hv-attr').length === 4 && document.querySelectorAll('.hv-win--char .hv-attr.is-main').length === 1, null, 5000));
+    // Keys 1–8: draughts on 7 and 8, and a picker to change any key.
+    await page.keyboard.press('Escape');
+    t.check('eight keys: six skills, a health draught and a tonic, each with a count', await page.evaluate(() => document.querySelectorAll('.hv-hotbar .hv-slot').length === 8 && Boolean(document.querySelector('.hv-hotbar .hv-slot--health .hv-slot__count')) && Boolean(document.querySelector('.hv-hotbar .hv-slot--mana .hv-slot__count'))));
+    await page.click('.hv-hotbar .hv-slot[data-i="7"]', { button: 'right' });
+    t.check('a right-click on a key opens the picker: skills, draughts and food', await until(page, () => !document.querySelector('.hv-picker').hidden && document.querySelectorAll('.hv-picker .hv-pick').length >= 9, null, 5000));
+    await page.click('.hv-picker [data-pick="potion:health"]');
+    t.check('picking moves the health draught to key 8 and swaps the tonic to 7; the server keeps it', await until(page, () => window.hearthvale.ch.bars[7] === 'potion:health' && window.hearthvale.ch.bars[6] === 'potion:mana' && document.querySelector('.hv-picker').hidden, null, 5000));
     t.check('the hotbar locks what isn\'t learned yet', await page.evaluate(() => document.querySelectorAll('.hv-hotbar .hv-slot.is-locked').length >= 3 && document.querySelectorAll('.hv-hotbar .hv-slot:not(.is-locked)').length >= 1));
     const all = [...errors, ...other.errors].filter((e) => !/404 GET \/library\/my-models/.test(e));
     t.check('no page errors', all.length === 0, all.join(' | '));

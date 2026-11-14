@@ -1,4 +1,4 @@
-import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, WEAPON_OF, DROPS, foundId } from './data.js';
+import { CLASSES, ITEMS, SLOTS, XP_TO, MAX_LEVEL, BAG_SIZE, BANK_SIZE, STARTER, QUESTS, PROFESSIONS, SEED_GOLD, ATTR_ORDER, POINTS, NODES_OF, RARITIES, BASES, WEAPON_OF, DROPS, foundId, BAR_SIZE } from './data.js';
 
 import { cleanLook } from './looks.js';
 
@@ -21,10 +21,56 @@ export function newCharacter(name, cls, look = null) {
     bag, bank: new Array(BANK_SIZE).fill(null),
     quests: { active: {}, done: [] },
     skills: Object.fromEntries(Object.keys(PROFESSIONS).map((k) => [k, 1])),
-    bars: CLASSES[cls].skills.map((s) => s.id),
+    bars: defaultBars(cls),
     attrs: Object.fromEntries(ATTR_ORDER.map((a) => [a, 0])),
     tree: freeNodes(cls)
   };
+}
+
+/* ---- the keys 1–8 ---- */
+
+/** A class's keys as they start: its six skills, then a health and a mana draught. */
+export function defaultBars(cls) {
+  return [...CLASSES[cls].skills.map((s) => s.id), 'potion:health', 'potion:mana'].slice(0, BAR_SIZE);
+}
+
+/**
+ * A safe copy of what a player put on their keys. Each is a skill of the
+ * class, `potion:health` or `potion:mana` (the draught that fits best, picked
+ * when pressed), `item:<id>` (one thing you can eat or drink), or null.
+ */
+export function cleanBars(cls, raw) {
+  if (!Array.isArray(raw) || raw.length < BAR_SIZE) {
+    // An older save: its skills where they were, the draughts after them.
+    const out = defaultBars(cls);
+    if (Array.isArray(raw)) raw.slice(0, 6).forEach((id, i) => CLASSES[cls].skills.some((k) => k.id === id) && (out[i] = id));
+    return out;
+  }
+  const skills = new Set(CLASSES[cls].skills.map((k) => k.id));
+  return raw.slice(0, BAR_SIZE).map((x) => {
+    if (typeof x !== 'string') return null;
+    if (skills.has(x) || x === 'potion:health' || x === 'potion:mana') return x;
+    if (x.startsWith('item:') && ITEMS[x.slice(5)]?.use) return x;
+    return null;
+  });
+}
+
+/**
+ * The bag slot of the draught to drink for `kind` ('health' or 'mana'):
+ * the smallest one that fills what is `missing`, else the biggest there is.
+ * -1 when the bag has none.
+ */
+export function potionFor(ch, kind, missing = Infinity) {
+  const key = kind === 'mana' ? 'mana' : 'heal';
+  let fit = -1;
+  let big = -1;
+  ch.bag.forEach((s, i) => {
+    const v = s && ITEMS[s.item]?.use?.[key];
+    if (!v) return;
+    if (big < 0 || v > ITEMS[ch.bag[big].item].use[key]) big = i;
+    if (v >= missing && (fit < 0 || v < ITEMS[ch.bag[fit].item].use[key])) fit = i;
+  });
+  return fit >= 0 ? fit : big;
 }
 
 /* ---- attributes and the skill tree ---- */
@@ -269,6 +315,7 @@ export function normalize(raw) {
   ch.level = Math.max(1, Math.min(MAX_LEVEL, raw.level | 0 || 1));
   ch.look = cleanLook(ch.cls, raw.look);
   ch.gold = Math.max(0, Math.floor(Number(raw.gold) || 0));
+  ch.bars = cleanBars(ch.cls, raw.bars);
   // Attributes: whole, not negative, and no more than the levels brought.
   ch.attrs = Object.fromEntries(ATTR_ORDER.map((a) => [a, Math.max(0, Math.floor(Number(raw.attrs?.[a]) || 0))]));
   if (attrPointsLeft(ch) < 0) ch.attrs = Object.fromEntries(ATTR_ORDER.map((a) => [a, 0]));

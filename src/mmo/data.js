@@ -12,6 +12,10 @@ export const BAG_SIZE = 20;
 export const BANK_SIZE = 24;
 export const RUN_SPEED = 7;
 export const PARTY_MAX = 8;
+/** Keys 1–8: skills, potions and food, set as the player likes. */
+export const BAR_SIZE = 8;
+/** Seconds before another draught of the same kind (health and mana each have their own). */
+export const POTION_CD = 15;
 export const XP_TO = Array.from({ length: MAX_LEVEL + 1 }, (_, l) => (l <= 1 ? 0 : Math.round(80 * (l - 1) ** 1.9 + 120 * (l - 1))));
 export const SLOTS = ['weapon', 'head', 'chest', 'legs', 'feet', 'trinket'];
 

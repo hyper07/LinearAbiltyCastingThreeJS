@@ -44,6 +44,14 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   <img src="screenshots/hearthvale-classes.jpg" width="100%" alt="The character maker with eight class cards — Vanguard, Berserker, Templar, Shadowblade, Ranger, Arcanist, Stormcaller, Mender — and a Berserker with a great axe on the stage" />
 </p>
 
+<p>
+  <img src="screenshots/hearthvale-keys.jpg" width="100%" alt="The hotbar's key picker open on key 7: the class's skills (the unlearned ones dimmed), then Health draught, Resolve tonic, Minor Healing Draught and Hearth Bread with how many are in the bag, and Nothing; below, keys 1 to 8 with the health draught on 7 and a tonic on 8, each showing a count" />
+</p>
+
+<p>
+  <img src="screenshots/hearthvale-tooltip.jpg" width="100%" alt="The bag as a grid of item pictures framed in their rarity's colour, with a tooltip on one: Warded Daggers, uncommon weapon, level 3, +6 power, +2 armor, how it compares, what it sells for, Click: wear. Beside it the character sheet with picture-only gear slots, and the eight-key hotbar with a health draught on 7 and a tonic on 8" />
+</p>
+
 ## How it plays
 
 - **Your character.** The maker shows your character live on a stage (drag to turn it) as you
@@ -127,6 +135,18 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   All of it is drawn by the browser (`src/world/LivingLand.js`, set up per zone in
   `src/mmo/landscape.js`); the server's world stays flat and fair — only the baobabs and cliffs are
   walls there too. Where each player's logs have rolled is their own.
+- **Pictures, and words on hover.** Items show as pictures only — in the bag, on the character
+  sheet, in the stores (each with a price tag), the bank and trades — framed in their rarity's
+  colour. **Hold the pointer on one** (or tab to it) for its words: name, rarity, slot and level,
+  what it gives, how it compares with what you wear, what it sells for, and what a click does.
+  In a store, click a picture to pick it; Buy, ×5 and Buy & wear are under the shelf.
+- **Keys 1–8, yours to set.** The hotbar has eight keys: your six skills on 1–6, a **health
+  draught on 7** and a **tonic on 8** to start with. **Right-click a key** (or press **⚙ Keys**, then
+  a number) for a picker with every skill, the two draughts and whatever food is in your bag; what
+  you pick trades places with what was there, and the server keeps your keys with the character. A
+  draught key drinks **the one in your bag that fits what you are missing** (a minor one for a
+  scratch, a greater one for a wound), shows how many you carry, and **glows when you are low**.
+  Health and mana each wait 15 seconds between drinks, on their own clocks.
 - **Bosses** warn before they hit: a red circle grows on the ground where a slam or a burst will land
   — get out of it. Some call adds; some grow enraged when they're nearly down.
 - **Money and stores.** Every character starts with **100 gold** (characters made before then got it
@@ -167,7 +187,7 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
 | | |
 |---|---|
 | Walk · look | **W A S D** (or hold both mouse buttons) · drag the mouse to turn the camera, the wheel zooms |
-| Target · fight | **Left-click** an enemy: target and attack · **right-click**: attack and use your first skill · **Tab**: nearest enemy · **1–6** skills (a line above the hotbar reminds you when enemies are near) |
+| Target · fight | **Left-click** an enemy: target and attack · **right-click**: attack and use your first skill · **Tab**: nearest enemy · **1–8** skills and draughts — right-click a key to change it (a line above the hotbar reminds you when enemies are near) |
 | Use | **F**: talk, gather, step through a portal, use a crafting station |
 | Windows | **I** bag · **C** character and attributes · **T** skill tree · **L** quests · **K** crafting · **P** party · **G** guild · **H** help · **Enter** chat · **Esc** close |
 
@@ -192,7 +212,7 @@ trading, loot, guilds and progress fair.
   KayKit characters, and the HUD.
 - **Tests**: `tests/unit/mmo.test.mjs` (the rules; characters over HTTP; a day of questing and a
   kill; a party with chat, a heal, a trade, a guild and crafting, saved on leaving; the crypt boss's
-  warned slam; combos, finishers and the close-range kick; a stacked pack spreading out; the eight
+  warned slam; combos, finishers and the close-range kick; keys 1–8 and the draught that fits; a stacked pack spreading out; the eight
   classes, their trees, runes, synergies and masteries, attribute points and starting over; found
   gear made from its id, rarity by monster, a drop from every kill, the second-hand shelf) and `tests/e2e/hearthvale.mjs` (two signed-in players in the browser: make
   characters, walk, take a quest, party up, see each other, party chat).

@@ -1,4 +1,4 @@
-import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS, DROPS } from '../../src/mmo/data.js';
+import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS, DROPS, POTION_CD } from '../../src/mmo/data.js';
 import { ZONES, NPCS, walkableIn } from '../../src/mmo/world.js';
 import { statsOf, killXp, addXp, give, take, rankOf, rankMult, rollGear, skillMods } from '../../src/mmo/rules.js';
 
@@ -19,7 +19,6 @@ const CROWD = 1;
 const TICK = 0.1;
 const AGGRO = 9;
 const LEASH = 45;
-const POTION_CD = 20;
 const rand = (a, b) => a + Math.random() * (b - a);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
@@ -91,7 +90,7 @@ export class Instance {
       kind: 'player', client, ch, charId: client.charId, name: ch.name, cls: ch.cls, x, z, a: 0,
       hp: Math.min(st.maxHp, ch.hp ?? st.maxHp), mana: Math.min(st.maxMana, ch.mana ?? st.maxMana), st,
       target: null, attacking: false, cast: null, gather: null, gcdUntil: 0, cds: {}, buffs: [], shield: 0,
-      dead: (ch.hp ?? 1) <= 0, combatUntil: 0, swingAt: 0, potionAt: 0, movedAt: Date.now(), radius: 0.6
+      dead: (ch.hp ?? 1) <= 0, combatUntil: 0, swingAt: 0, potions: {}, movedAt: Date.now(), radius: 0.6
     });
     if (body.dead) body.hp = 0;
     ch.zone = this.zone;
@@ -538,9 +537,13 @@ export class Instance {
     const s = p.ch.bag[slot];
     const use = s && ITEMS[s.item]?.use;
     if (!use || p.dead) return;
-    if (this.time < p.potionAt) return this._err(p, 'Not again so soon');
+    // Health and mana draughts each wait on their own; food that gives both waits on both.
+    const waits = [use.heal && 'heal', use.mana && 'mana'].filter(Boolean);
+    const left = Math.max(...waits.map((k) => (p.potions[k] ?? 0) - this.time));
+    if (left > 0) return this._err(p, `Not again so soon (${Math.ceil(left)}s)`);
     take(p.ch, s.item, 1);
-    p.potionAt = this.time + POTION_CD;
+    for (const k of waits) p.potions[k] = this.time + POTION_CD;
+    this.out.push({ type: 'quaff', id: p.id, heal: Boolean(use.heal), mana: Boolean(use.mana) });
     if (use.heal) this._heal(p, use.heal, null);
     if (use.mana) p.mana = Math.min(p.st.maxMana, p.mana + use.mana);
     p.client.dirty();
@@ -829,6 +832,7 @@ export class Instance {
           mp: Math.round(e.mana), mm: e.st.maxMana, t: e.target, dead: e.dead || undefined, sh: e.shield > 0 ? Math.round(e.shield) : undefined,
           cast: e.cast ? { s: e.cast.id, left: r(e.cast.until - this.time), total: e.cast.total } : e.gather ? { s: 'gather', left: r(e.gather.until - this.time), total: e.gather.total } : undefined,
           party: e.client.party ?? undefined, buffs: e.buffs.length ? e.buffs.map((b) => b.id) : undefined, gcd: e.gcdUntil > this.time ? r(e.gcdUntil - this.time) : undefined,
+          pot: (e.potions.heal ?? 0) > this.time || (e.potions.mana ?? 0) > this.time ? [Math.max(0, r((e.potions.heal ?? 0) - this.time)), Math.max(0, r((e.potions.mana ?? 0) - this.time))] : undefined,
           cds: Object.fromEntries(Object.entries(e.cds).filter(([, v]) => v > this.time).map(([k, v]) => [k, r(v - this.time)]))
         });
       } else if (e.kind === 'mob') {

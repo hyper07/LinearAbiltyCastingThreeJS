@@ -1,7 +1,7 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
-import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods } from './rules.js';
+import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods, potionFor } from './rules.js';
 import { CharacterStage } from './bodies.js';
 import { STYLES, BUILDS, TINTS, cleanLook, lookOf } from './looks.js';
 import { playerBlow, mobBlow, kickBlow, BLOW_COLORS } from './blows.js';
@@ -339,7 +339,8 @@ export class MmoGame {
       <div class="hv-toasts" data-toasts role="status" aria-live="polite"></div>
       <div class="hv-castbar" data-castbar hidden><span></span><b></b></div>
       <div class="hv-bottom">
-        <div class="hv-hotbar" data-hotbar></div>
+        <div class="hv-picker" data-picker hidden></div>
+        <div class="hv-hotrow"><div class="hv-hotbar" data-hotbar></div><button type="button" class="hv-btn hv-keys" data-keys title="Choose what keys 1–8 do (or right-click a key)">⚙ Keys</button></div>
         <div class="hv-xp" data-xp role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax="100">
           <span class="hv-xp__lvl" data-xp-lvl title="Your level"></span>
           <span class="hv-xp__track"><i class="hv-xp__fill" data-xp-fill></i><i class="hv-xp__ticks"></i><b data-xp-text></b></span>
@@ -382,6 +383,8 @@ export class MmoGame {
       b.addEventListener('click', () => (panel === 'leave' ? this.characters() : this.toggle(panel)));
       $('[data-menu]').append(b);
     }
+    this._tipInit();
+    $('[data-keys]').addEventListener('click', () => this._pickKey(this.picking ?? 0));
     $('[data-release]').addEventListener('click', () => this.send({ t: 'release' }));
     const chat = $('[data-chat]');
     chat.addEventListener('keydown', (e) => {
@@ -843,9 +846,11 @@ export class MmoGame {
     if (code === 'Tab' || code === 'Space' || code.startsWith('Arrow')) e.preventDefault();
     this.keys.add(code);
     if (e.repeat) return;
-    const digit = /^Digit([1-6])$/.exec(code)?.[1];
+    const digit = /^Digit([1-8])$/.exec(code)?.[1];
     if (digit) {
-      this.useSkill(Number(digit) - 1);
+      // While choosing keys, a number picks which key to set; otherwise it uses the key.
+      if (this.picking != null) this._pickKey(Number(digit) - 1);
+      else this.useBar(Number(digit) - 1);
       return;
     }
     switch (code) {
@@ -874,6 +879,7 @@ export class MmoGame {
       case 'KeyH':
         return this.toggle('help');
       case 'Escape':
+        if (this.picking != null) return this._pickKey(this.picking);
         if (this.panels.size) {
           this.panels.clear();
           this.npc = null;
@@ -884,6 +890,96 @@ export class MmoGame {
       default:
         return undefined;
     }
+  }
+
+  /** What is on a key: `{ kind: 'skill', def }`, `{ kind: 'potion', what }`, `{ kind: 'item', id }` or null. */
+  _barEntry(i) {
+    const x = this.ch?.bars?.[i];
+    if (!x) return null;
+    if (x === 'potion:health' || x === 'potion:mana') return { kind: 'potion', what: x.slice(7) };
+    if (x.startsWith('item:')) return { kind: 'item', id: x.slice(5) };
+    const def = CLASSES[this.ch.cls].skills.find((k) => k.id === x);
+    return def ? { kind: 'skill', def } : null;
+  }
+
+  /** Press key `i + 1`: its skill, its draught, or its food. */
+  useBar(i) {
+    const e = this._barEntry(i);
+    if (!e) return this.toast(`Key ${i + 1} is empty — right-click it to choose what it does`);
+    if (e.kind === 'skill') return this.useSkill(CLASSES[this.ch.cls].skills.indexOf(e.def));
+    if (e.kind === 'potion') return this.send({ t: 'quaff', kind: e.what });
+    const slot = this.ch.bag.findIndex((s) => s?.item === e.id);
+    if (slot < 0) return this.toast(`No ${ITEMS[e.id].name} left`);
+    return this.send({ t: 'use', slot });
+  }
+
+  /** How many of what a key drinks or eats are in the bag. */
+  _barCount(e) {
+    const key = e.what === 'mana' ? 'mana' : 'heal';
+    return this.ch.bag.reduce((n, s) => n + (s && (e.kind === 'item' ? s.item === e.id : ITEMS[s.item]?.use?.[key]) ? s.n : 0), 0);
+  }
+
+  /* ---- choosing what the keys do ---- */
+
+  /** Open (or move) the picker on a key; the same key again closes it. */
+  _pickKey(i) {
+    this.picking = this.picking === i ? null : i;
+    this._picker();
+    this._hotbar(true);
+  }
+
+  _setKey(i, value) {
+    const bars = [...(this.ch.bars ?? [])];
+    while (bars.length < BAR_SIZE) bars.push(null);
+    // Something already on another key trades places with what was here.
+    const at = value ? bars.indexOf(value) : -1;
+    if (at >= 0 && at !== i) bars[at] = bars[i];
+    bars[i] = value;
+    this.ch.bars = bars;
+    this.send({ t: 'bars', bars });
+    this.picking = null;
+    this._picker();
+    this._hotbar(true);
+  }
+
+  _picker() {
+    const box = this.$('[data-picker]');
+    const i = this.picking;
+    box.hidden = i == null;
+    this.$('[data-keys]').classList.toggle('is-on', i != null);
+    this.$('[data-hint]').hidden = i != null; // the reminder line would lie across the picker
+    if (i == null) return;
+    const cls = CLASSES[this.ch.cls];
+    const now = this.ch.bars?.[i] ?? null;
+    box.innerHTML = `<header><b>Key ${i + 1}</b><span>Pick what it does. Press another number, or click another key, to set that one.</span><button type="button" class="hv__x" data-picker-close aria-label="Close">✕</button></header><div class="hv-picker__groups"></div>`;
+    box.querySelector('[data-picker-close]').addEventListener('click', () => this._pickKey(i));
+    const groups = box.querySelector('.hv-picker__groups');
+    const group = (title, options) => {
+      const g = el('section');
+      g.append(el('h4', null, title));
+      const row = el('div', 'hv-picker__row');
+      for (const o of options) {
+        const b = el('button', `hv-pick ${now === o.value ? 'is-on' : ''} ${o.dim ? 'is-dim' : ''}`);
+        b.type = 'button';
+        b.dataset.pick = o.value ?? '';
+        b.title = o.tip ?? o.name;
+        b.innerHTML = `<span class="hv-pick__icon">${o.icon}</span><span class="hv-pick__name"></span>${o.note ? `<small>${esc(o.note)}</small>` : ''}`;
+        b.querySelector('.hv-pick__name').textContent = o.name;
+        b.addEventListener('click', () => this._setKey(i, o.value));
+        row.append(b);
+      }
+      g.append(row);
+      groups.append(g);
+    };
+    group('Skills', cls.skills.map((k) => ({ value: k.id, icon: k.icon, name: k.name, dim: !rankOf(this.ch, k.id), note: rankOf(this.ch, k.id) ? `rank ${rankOf(this.ch, k.id)}` : 'not learned', tip: `${k.name} — ${this._skillText(k, Math.max(1, rankOf(this.ch, k.id)))}` })));
+    const count = (kind) => this._barCount({ kind: 'potion', what: kind });
+    const food = [...new Set(this.ch.bag.filter((x) => x && ITEMS[x.item]?.use).map((x) => x.item))];
+    group('Draughts and food', [
+      { value: 'potion:health', icon: '❤', name: 'Health draught', note: `${count('health')} in the bag`, dim: !count('health'), tip: 'Drinks the healing draught that best fits what you are missing' },
+      { value: 'potion:mana', icon: '🧪', name: `${cls.resource} tonic`, note: `${count('mana')} in the bag`, dim: !count('mana'), tip: 'Drinks the tonic that best fits what you are missing' },
+      ...food.map((id) => ({ value: `item:${id}`, icon: ICON(id), name: ITEMS[id].name, note: `${this.ch.bag.reduce((n, x) => n + (x?.item === id ? x.n : 0), 0)} in the bag`, tip: itemTip(id) })),
+      { value: null, icon: '∅', name: 'Nothing', note: 'leave it empty' }
+    ]);
   }
 
   useSkill(i) {
@@ -1014,6 +1110,82 @@ export class MmoGame {
     setTimeout(() => t.remove(), 4500);
   }
 
+  /* ---- the tooltip: an item's words, only while the pointer is on its picture ---- */
+
+  _tipInit() {
+    const tip = el('div', 'hv-tip');
+    tip.hidden = true;
+    tip.setAttribute('role', 'tooltip');
+    this.root.append(tip);
+    this.tip = tip;
+    const place = (e) => {
+      const r = this.root.getBoundingClientRect();
+      const w = tip.offsetWidth;
+      const h = tip.offsetHeight;
+      let x = e.clientX - r.left + 16;
+      let y = e.clientY - r.top + 18;
+      if (x + w > r.width - 8) x = e.clientX - r.left - w - 12;
+      if (y + h > r.height - 8) y = Math.max(8, e.clientY - r.top - h - 12);
+      tip.style.left = `${Math.max(8, x)}px`;
+      tip.style.top = `${y}px`;
+    };
+    const show = (target, e) => {
+      const html = target.dataset.tip ? this._tipHtml(target.dataset.tip, target.dataset.tipHint) : `<p>${esc(target.dataset.tipText)}</p>`;
+      if (!html) return;
+      tip.innerHTML = html;
+      tip.hidden = false;
+      this._tipFor = target;
+      place(e);
+    };
+    this.root.addEventListener('mouseover', (e) => {
+      const target = e.target.closest?.('[data-tip], [data-tip-text]');
+      if (target && target !== this._tipFor) show(target, e);
+    });
+    this.root.addEventListener('mousemove', (e) => {
+      if (!this._tipFor) return;
+      if (!this._tipFor.isConnected || !e.target.closest?.('[data-tip], [data-tip-text]')) {
+        this._tipFor = null;
+        tip.hidden = true;
+      } else place(e);
+    });
+    this.root.addEventListener('mouseleave', () => {
+      this._tipFor = null;
+      tip.hidden = true;
+    });
+    // The keyboard gets it too: focus shows the words beside the picture.
+    this.root.addEventListener('focusin', (e) => {
+      const target = e.target.closest?.('[data-tip]');
+      if (!target || !target.matches(':focus-visible')) return;
+      const r = target.getBoundingClientRect();
+      show(target, { clientX: r.right, clientY: r.top });
+    });
+    this.root.addEventListener('focusout', () => {
+      this._tipFor = null;
+      tip.hidden = true;
+    });
+  }
+
+  /** An item's words: name in its rarity's colour, what it is, what it gives, how it compares, what a click does. */
+  _tipHtml(id, hint = '') {
+    const it = ITEMS[id];
+    if (!it) return '';
+    const rarity = rarityOf(id);
+    const out = [`<h5 style="color:${itemColor(id)}">${esc(it.name)}</h5>`];
+    if (it.slot) out.push(`<small>${RARITY_INFO[rarity].name} ${esc(it.slot)}${it.level ? ` · <span class="${it.level > this.ch.level ? 'is-down' : ''}">level ${it.level}</span>` : ''}</small>`);
+    else out.push(`<small>${it.use ? 'To eat or drink' : 'Material'}</small>`);
+    if (it.stats) out.push(`<ul>${statText(it.stats).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`);
+    if (it.use) out.push(`<ul>${it.use.heal ? `<li>Restores ${it.use.heal} health</li>` : ''}${it.use.mana ? `<li>Restores ${it.use.mana} ${esc(CLASSES[this.ch.cls].resource.toLowerCase())}</li>` : ''}</ul>`);
+    const worn = it.slot ? this.ch.equip[it.slot] : null;
+    if (it.slot && worn !== id) {
+      const keys = new Set([...Object.keys(it.stats ?? {}), ...Object.keys(ITEMS[worn]?.stats ?? {})]);
+      const diffs = [...keys].map((k) => [k, (it.stats?.[k] ?? 0) - (ITEMS[worn]?.stats?.[k] ?? 0)]).filter(([, d]) => d);
+      out.push(`<p class="hv-tip__cmp">${worn ? `Against ${esc(ITEMS[worn].name)}: ` : 'You wear nothing there: '}${diffs.length ? diffs.map(([k, d]) => `<em class="${d > 0 ? 'is-up' : 'is-down'}">${d > 0 ? '+' : ''}${d}${k === 'crit' || k === 'haste' ? '%' : ''} ${k}</em>`).join(' ') : 'the same'}</p>`);
+    } else if (it.slot) out.push('<p class="hv-tip__cmp">You are wearing this.</p>');
+    if (it.value) out.push(`<p class="hv-tip__value">Sells for ${it.value} gold</p>`);
+    for (const line of String(hint ?? '').split('\n').filter(Boolean)) out.push(`<p class="hv-tip__hint">${esc(line)}</p>`);
+    return out.join('');
+  }
+
   /** What a kill dropped: each thing in its rarity's colour; a rare find gets a line of its own. */
   _lootToast(ev) {
     const box = this.$?.('[data-toasts]');
@@ -1125,15 +1297,29 @@ export class MmoGame {
       cb.querySelector('span').style.width = `${(1 - meEnt.cast.left / meEnt.cast.total) * 100}%`;
       cb.querySelector('b').textContent = meEnt.cast.s === 'gather' ? 'Gathering…' : CLASSES[this.ch.cls].skills.find((s) => s.id === meEnt.cast.s)?.name ?? '';
     }
-    // Hotbar cooldowns.
-    for (const b of $('[data-hotbar]').children) {
-      const def = CLASSES[this.ch.cls].skills[Number(b.dataset.i)];
-      const cd = Math.max(meEnt.cds?.[def.id] ?? 0, meEnt.gcd ?? 0);
-      const total = (meEnt.cds?.[def.id] ?? 0) > (meEnt.gcd ?? 0) ? def.cd : GCD;
+    // Hotbar cooldowns, and a nudge to drink when you are low.
+    const low = { health: meEnt.hp < meEnt.mh * 0.35, mana: (meEnt.mp ?? 0) < (meEnt.mm ?? this.st?.maxMana ?? 1) * 0.2 };
+    [...$('[data-hotbar]').children].forEach((b, i) => {
+      const e = this._barEntry(i);
+      if (!e) return;
+      let cd = 0;
+      let total = 1;
+      let off = false;
+      if (e.kind === 'skill') {
+        const def = e.def;
+        cd = Math.max(meEnt.cds?.[def.id] ?? 0, meEnt.gcd ?? 0);
+        total = (meEnt.cds?.[def.id] ?? 0) > (meEnt.gcd ?? 0) ? def.cd : GCD;
+        off = !rankOf(this.ch, def.id) || meEnt.mp < Math.round(def.cost * (this.st?.costMult ?? 1) * (1 - skillMods(this.ch, def.id).cost));
+      } else {
+        const use = e.kind === 'item' ? ITEMS[e.id]?.use ?? {} : { [e.what === 'mana' ? 'mana' : 'heal']: 1 };
+        cd = Math.max(use.heal ? meEnt.pot?.[0] ?? 0 : 0, use.mana ? meEnt.pot?.[1] ?? 0 : 0);
+        total = POTION_CD;
+        b.classList.toggle('is-wanted', cd <= 0 && !b.classList.contains('is-none') && ((use.heal && low.health) || (use.mana && !use.heal && low.mana)) && !meEnt.dead);
+      }
       b.querySelector('.hv-slot__cd').style.height = cd > 0 ? `${Math.min(1, cd / Math.max(0.1, total)) * 100}%` : '0';
       b.querySelector('.hv-slot__n').textContent = cd > 1 ? String(Math.ceil(cd)) : '';
-      b.classList.toggle('is-off', !rankOf(this.ch, def.id) || meEnt.mp < Math.round(def.cost * (this.st?.costMult ?? 1)));
-    }
+      b.classList.toggle('is-off', off);
+    });
     $('[data-dead]').hidden = !meEnt.dead;
     // Party health.
     if (this.party) {
@@ -1163,7 +1349,7 @@ export class MmoGame {
     for (const s of ZONES[this.zone].stations) if (near(...s.at) < 6.5) return `F — use the ${s.name}`;
     // Nothing to use: say how to fight when something to fight is near.
     const foe = state.ents.some((e) => e.k === 'm' && !e.dead && near(e.x, e.z) < 28);
-    if (foe) return this._isEnemy(this.target) ? `Fighting — right-click: ${CLASSES[this.ch.cls].skills[0].name} · 1–6: skills · Tab: next enemy` : 'Left-click an enemy to attack · right-click: attack with your first skill · Tab: nearest enemy';
+    if (foe) return this._isEnemy(this.target) ? `Fighting — right-click: ${CLASSES[this.ch.cls].skills[0].name} · 1–8: skills and draughts · Tab: next enemy` : 'Left-click an enemy to attack · right-click: attack with your first skill · Tab: nearest enemy';
     return '';
   }
 
@@ -1258,23 +1444,49 @@ export class MmoGame {
     return w;
   }
 
-  _hotbar() {
+  _hotbar(force = false) {
     const bar = this.$('[data-hotbar]');
-    const skills = CLASSES[this.ch.cls].skills;
-    const key = `${this.ch.cls}|${this.ch.level}|${JSON.stringify(this.ch.tree)}|${this.st?.costMult}|${this.st?.cdMult}`;
-    if (bar.dataset.key === key) return;
+    const cls = CLASSES[this.ch.cls];
+    const bars = Array.from({ length: BAR_SIZE }, (_, i) => this.ch.bars?.[i] ?? null);
+    const key = `${this.ch.cls}|${this.ch.level}|${JSON.stringify(this.ch.tree)}|${this.st?.costMult}|${this.st?.cdMult}|${bars.join()}|${this.picking}|${this.ch.bag.filter((x) => x && ITEMS[x.item]?.use).map((x) => `${x.item}${x.n}`).join()}`;
+    if (!force && bar.dataset.key === key) return;
     bar.dataset.key = key;
-    bar.replaceChildren(...skills.map((s, i) => {
-      const b = el('button', 'hv-slot');
+    bar.replaceChildren(...bars.map((_, i) => {
+      const e = this._barEntry(i);
+      const b = el('button', `hv-slot ${this.picking === i ? 'is-picking' : ''}`);
       b.type = 'button';
       b.dataset.i = String(i);
-      const rank = rankOf(this.ch, s.id);
-      const cost = Math.round(s.cost * (this.st?.costMult ?? 1));
-      const cd = s.cd ? Math.round(s.cd * (this.st?.cdMult ?? 1) * 10) / 10 : 0;
-      b.title = `${s.name} (${i + 1})${rank ? ` · rank ${rank}` : ''} — ${s.cast ? `${s.cast}s cast` : 'instant'}, ${cost} ${CLASSES[this.ch.cls].resource.toLowerCase()}${cd ? `, ${cd}s cooldown` : ''}${rank ? '' : this.ch.level < s.level ? ` · can be learned at level ${s.level}` : ' · not learned: open the skill tree (T)'}`;
-      b.classList.toggle('is-locked', !rank);
-      b.innerHTML = `<kbd>${i + 1}</kbd><span class="hv-slot__icon">${s.icon}</span><span class="hv-slot__cd"></span><span class="hv-slot__n"></span>${rank ? `<span class="hv-slot__rank">${rank}</span>` : '<span class="hv-slot__lock">🔒</span>'}`;
-      b.addEventListener('click', () => this.useSkill(i));
+      let icon = '';
+      let corner = '';
+      if (!e) {
+        b.classList.add('is-empty');
+        b.title = `Key ${i + 1} is empty — right-click to choose what it does`;
+      } else if (e.kind === 'skill') {
+        const s = e.def;
+        const rank = rankOf(this.ch, s.id);
+        const mod = skillMods(this.ch, s.id);
+        const cost = Math.round(s.cost * (this.st?.costMult ?? 1) * (1 - mod.cost));
+        const cd = s.cd ? Math.round(s.cd * (this.st?.cdMult ?? 1) * (1 - mod.cd) * 10) / 10 : 0;
+        b.dataset.skill = s.id;
+        b.title = `${s.name} (${i + 1})${rank ? ` · rank ${rank}` : ''} — ${s.cast ? `${s.cast}s cast` : 'instant'}, ${cost} ${cls.resource.toLowerCase()}${cd ? `, ${cd}s cooldown` : ''}${rank ? '' : this.ch.level < s.level ? ` · can be learned at level ${s.level}` : ' · not learned: open the skill tree (T)'}\nRight-click: change this key`;
+        b.classList.toggle('is-locked', !rank);
+        icon = s.icon;
+        corner = rank ? `<span class="hv-slot__rank">${rank}</span>` : '<span class="hv-slot__lock">🔒</span>';
+      } else {
+        const n = this._barCount(e);
+        b.dataset.potion = e.kind === 'potion' ? e.what : e.id;
+        b.classList.add('hv-slot--potion', e.kind === 'potion' ? `hv-slot--${e.what}` : 'hv-slot--food');
+        b.classList.toggle('is-none', !n);
+        b.title = `${e.kind === 'potion' ? (e.what === 'mana' ? `${cls.resource} tonic` : 'Health draught') : ITEMS[e.id].name} (${i + 1}) — ${n} in the bag${e.kind === 'potion' ? '; drinks the one that fits best' : ''}\nRight-click: change this key`;
+        icon = e.kind === 'potion' ? (e.what === 'mana' ? '🧪' : '❤') : ICON(e.id);
+        corner = `<span class="hv-slot__count">${n}</span>`;
+      }
+      b.innerHTML = `<kbd>${i + 1}</kbd><span class="hv-slot__icon">${icon}</span><span class="hv-slot__cd"></span><span class="hv-slot__n"></span>${corner}`;
+      b.addEventListener('click', () => (this.picking != null ? this._pickKey(i) : this.useBar(i)));
+      b.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        this._pickKey(i);
+      });
       return b;
     }));
   }
@@ -1311,7 +1523,9 @@ export class MmoGame {
         b.classList.add('has-rarity', `is-${rarity}`);
         b.style.setProperty('--rarity', itemColor(s.item));
       }
-      b.title = `${itemTip(s.item)}${extra}`;
+      b.dataset.tip = s.item;
+      if (extra) b.dataset.tipHint = extra.trim();
+      b.setAttribute('aria-label', ITEMS[s.item]?.name ?? 'Item');
       b.dataset.item = s.item;
     }
     b.addEventListener('click', (e) => onClick?.(e));
@@ -1360,8 +1574,13 @@ export class MmoGame {
       const cell = el('div', `hv-doll__slot hv-doll__slot--${slot}`);
       const b = this._slotButton(id ? { item: id, n: 1 } : null, () => id && this.send({ t: 'unequip', slot }), '\nClick: take off');
       b.dataset.gear = slot;
-      cell.append(b, el('small', null, id ? '' : slot));
-      if (id) cell.querySelector('small').innerHTML = itemName(id);
+      if (!id) {
+        // An empty place shows faintly what goes there.
+        b.classList.add('is-vacant');
+        b.innerHTML = `<span>${{ weapon: '🗡', head: '⛑', chest: '🥋', legs: '👖', feet: '👢', trinket: '💍' }[slot]}</span>`;
+        b.dataset.tipText = `${slot[0].toUpperCase()}${slot.slice(1)} — nothing worn`;
+      }
+      cell.append(b);
       gear.append(cell);
     }
     const stats = el('div', 'hv-sheet__side');
@@ -1472,6 +1691,11 @@ export class MmoGame {
    * A shop: what it sells in tabs (weapons, armor, supplies), each with its
    * stats beside what you wear now, and a Sell tab for your bag.
    */
+  /**
+   * A shop: its stock as pictures with a price tag (hover one to read it),
+   * and under them the one you picked, with Buy. Tabs for weapons, armor,
+   * supplies, the second-hand shelf (what other players sold) and selling.
+   */
   _store(n) {
     const box = el('div', 'hv-store');
     const items = n.vendor;
@@ -1492,95 +1716,83 @@ export class MmoGame {
       b.dataset.tab = key;
       b.addEventListener('click', () => {
         this.storeTab = key;
+        this.storePick = null;
         this._renderAll();
       });
       tabs.append(b);
     }
     head.append(tabs);
     box.append(head);
-    const list = el('div', 'hv-store__list');
-    if (this.storeTab === 'used') {
-      // What other players sold: the shop put it back on sale, at its own price.
-      list.append(el('p', 'hv-muted', 'Gear other adventurers sold. The shop sets the price when it restocks; first come, first served.'));
-      if (!n.used?.length) list.append(el('p', 'hv-muted', 'The shelf is empty just now.'));
-      for (const u of n.used ?? []) {
-        const it = ITEMS[u.item];
-        if (!it) continue;
-        const worn = ITEMS[this.ch.equip[it.slot]];
-        const keys = new Set([...Object.keys(it.stats ?? {}), ...Object.keys(worn?.stats ?? {})]);
-        const diffs = [...keys].map((k) => [k, (it.stats?.[k] ?? 0) - (worn?.stats?.[k] ?? 0)]).filter(([, d]) => d);
-        const low = (it.level ?? 1) > this.ch.level;
-        const row = el('div', 'hv-store__row');
-        row.dataset.used = String(u.id);
-        row.innerHTML = `<span class="hv-store__icon hv-item has-rarity is-${rarityOf(u.item)}" style="--rarity:${itemColor(u.item)}">${ICON(u.item)}</span>
-          <div><b>${itemName(u.item)}</b><small>${esc(RARITY_INFO[rarityOf(u.item)].name)} ${it.slot} · ${esc(statText(it.stats).join(' · '))} · <span class="${low ? 'is-down' : ''}">level ${it.level}</span></small>
-          <span class="hv-store__cmp">${diffs.length ? diffs.map(([k, d]) => `<em class="${d > 0 ? 'is-up' : 'is-down'}">${d > 0 ? '+' : ''}${d} ${k}</em>`).join(' ') : '<em class="hv-store__same">Same as yours</em>'}</span></div>
-          <div class="hv-store__buy"><span class="hv-store__price">${u.price} g</span><button type="button" class="hv-btn" data-buy-used="${u.id}">Buy</button></div>`;
-        const b = row.querySelector('button');
-        b.disabled = this.ch.gold < u.price;
-        b.addEventListener('click', () => this.send({ t: 'buy-used', id: u.id }));
-        list.append(row);
+    const grid = el('div', 'hv-store__grid');
+    const foot = el('div', 'hv-store__foot');
+    /** One thing on a shelf: its picture, a price tag, the tooltip on hover. */
+    const tile = (id, count, price, hint, onClick, picked = false) => {
+      const b = this._slotButton({ item: id, n: count }, onClick, hint);
+      b.classList.add('hv-store__tile');
+      b.classList.toggle('is-picked', picked);
+      b.classList.toggle('is-dear', price > this.ch.gold && this.storeTab !== 'sell');
+      b.append(el('em', 'hv-store__tag', `${price}`));
+      return b;
+    };
+    if (this.storeTab === 'sell') {
+      const sellable = this.ch.bag.map((x, i) => [x, i]).filter(([x]) => x && (ITEMS[x.item].value ?? 0) > 0);
+      for (const [x, i] of sellable) {
+        const b = tile(x.item, x.n, (ITEMS[x.item].value ?? 0) * x.n, `\nClick: sell for ${(ITEMS[x.item].value ?? 0) * x.n} gold`, () => this.send({ t: 'sell', slot: i }));
+        b.dataset.sell = String(i);
+        grid.append(b);
       }
-    } else if (this.storeTab === 'sell') {
-      const common = this.ch.bag.map((x, i) => [x, i]).filter(([x]) => x && rarityOf(x.item) === 'common');
+      const common = sellable.filter(([x]) => rarityOf(x.item) === 'common');
+      foot.append(el('span', 'hv-muted', sellable.length ? 'Click something to sell it. Gear you sell goes on the Second-hand shelf.' : 'Nothing in your bag to sell.'));
       if (common.length) {
-        const all = el('button', 'hv-btn', `Sell all common gear (${common.length}) for ${common.reduce((g, [x]) => g + (ITEMS[x.item].value ?? 0), 0)} gold`);
+        const all = el('button', 'hv-btn', `Sell all common gear (${common.length}) · ${common.reduce((g, [x]) => g + (ITEMS[x.item].value ?? 0), 0)} gold`);
         all.type = 'button';
         all.dataset.sellCommon = '';
         all.addEventListener('click', () => common.forEach(([, i]) => this.send({ t: 'sell', slot: i })));
-        list.append(all);
-      }
-      const sellable = this.ch.bag.map((x, i) => [x, i]).filter(([x]) => x && (ITEMS[x.item].value ?? 0) > 0);
-      if (!sellable.length) list.append(el('p', 'hv-muted', 'Nothing in your bag to sell.'));
-      for (const [x, i] of sellable) {
-        const row = el('div', 'hv-store__row');
-        row.innerHTML = `<span class="hv-store__icon">${ICON(x.item)}</span><div><b></b><small></small></div><button type="button" class="hv-btn" data-sell="${i}">Sell</button>`;
-        row.querySelector('b').innerHTML = itemName(x.item, x.n);
-        row.querySelector('small').textContent = `${rarityOf(x.item) ? `${RARITY_INFO[rarityOf(x.item)].name} · ${statText(ITEMS[x.item].stats).join(' · ')} · ` : ''}${(ITEMS[x.item].value ?? 0) * x.n} gold`;
-        row.querySelector('button').addEventListener('click', () => this.send({ t: 'sell', slot: i }));
-        list.append(row);
+        foot.append(all);
       }
     } else {
-      const [, , ids] = groups.find(([k]) => k === this.storeTab);
-      for (const id of ids) {
-        const it = ITEMS[id];
-        const price = it.value * 4;
-        const row = el('div', 'hv-store__row');
-        row.dataset.item = id;
-        const lowLevel = (it.level ?? 1) > this.ch.level;
-        let compare = '';
-        if (it.slot) {
-          const worn = this.ch.equip[it.slot];
-          const keys = new Set([...Object.keys(it.stats ?? {}), ...Object.keys(ITEMS[worn]?.stats ?? {})]);
-          const diffs = [...keys].map((k) => [k, (it.stats?.[k] ?? 0) - (ITEMS[worn]?.stats?.[k] ?? 0)]).filter(([, d]) => d);
-          compare = worn === id ? '<em class="hv-store__same">You wear this</em>' : diffs.length ? diffs.map(([k, d]) => `<em class="${d > 0 ? 'is-up' : 'is-down'}">${d > 0 ? '+' : ''}${d} ${k}</em>`).join(' ') : '<em class="hv-store__same">Same as yours</em>';
-        }
-        const stats = it.stats ? Object.entries(it.stats).map(([k, v]) => `+${v} ${k}`).join(' · ') : it.use ? `${it.use.heal ? `heals ${it.use.heal}` : ''}${it.use.heal && it.use.mana ? ' · ' : ''}${it.use.mana ? `restores ${it.use.mana} mana` : ''}` : '';
-        row.innerHTML = `<span class="hv-store__icon">${ICON(id)}</span>
-          <div><b></b><small>${esc(stats)}${it.slot ? ` · ${it.slot}` : ''}${it.level ? ` · <span class="${lowLevel ? 'is-down' : ''}">level ${it.level}</span>` : ''}</small>${compare ? `<span class="hv-store__cmp">${compare}</span>` : ''}</div>
-          <div class="hv-store__buy"><span class="hv-store__price">${price} g</span></div>`;
-        row.querySelector('b').textContent = it.name;
-        row.querySelector('b').style.color = itemColor(id);
-        const buy = row.querySelector('.hv-store__buy');
+      // What is on this shelf: the shop's own stock, or what other players sold.
+      const used = this.storeTab === 'used';
+      const stock = used ? (n.used ?? []).filter((u) => ITEMS[u.item]).map((u) => ({ key: `u${u.id}`, id: u.item, price: u.price, used: u.id })) : groups.find(([k]) => k === this.storeTab)[2].map((id) => ({ key: id, id, price: ITEMS[id].value * 4 }));
+      if (!stock.some((x) => x.key === this.storePick)) this.storePick = stock[0]?.key ?? null;
+      for (const x of stock) {
+        const b = tile(x.id, 1, x.price, '\nClick: pick it', () => {
+          this.storePick = x.key;
+          this._renderAll();
+        }, x.key === this.storePick);
+        if (used) b.dataset.used = String(x.used);
+        else b.dataset.storeItem = x.id;
+        grid.append(b);
+      }
+      const pick = stock.find((x) => x.key === this.storePick);
+      if (!pick) foot.append(el('span', 'hv-muted', used ? 'The second-hand shelf is empty just now. Gear that players sell turns up here, at the shop\'s price.' : 'Nothing on this shelf.'));
+      else {
+        const it = ITEMS[pick.id];
+        const low = (it.level ?? 1) > this.ch.level;
+        const info = el('div', 'hv-store__pick');
+        info.innerHTML = `<b>${itemName(pick.id)}</b><small>${low ? `<span class="is-down">Needs level ${it.level}</span> · ` : ''}${used ? 'second-hand · ' : ''}${esc(it.slot ?? (it.use ? 'to eat or drink' : 'material'))}</small>`;
+        const buy = el('div', 'hv-store__buy');
+        buy.append(el('span', 'hv-store__price', `${pick.price} g`));
         const add = (label, count, wear = false) => {
           const b = el('button', `hv-btn${wear ? ' hv-btn--go' : ''}`, label);
           b.type = 'button';
-          b.dataset.buy = id;
+          if (used) b.dataset.buyUsed = String(pick.used);
+          else b.dataset.buy = pick.id;
           if (wear) b.dataset.wear = '1';
-          b.disabled = this.ch.gold < price * count;
+          b.disabled = this.ch.gold < pick.price * count;
           b.addEventListener('click', () => {
-            if (wear) this.wearNext = id;
-            this.send({ t: 'buy', npc: n.npc, item: id, n: count });
+            if (wear) this.wearNext = pick.id;
+            this.send(used ? { t: 'buy-used', id: pick.used } : { t: 'buy', npc: n.npc, item: pick.id, n: count });
           });
           buy.append(b);
         };
         add('Buy', 1);
         if (!it.slot) add('×5', 5);
-        else if (!lowLevel && this.ch.equip[it.slot] !== id) add('Buy & wear', 1, true);
-        list.append(row);
+        else if (!low && this.ch.equip[it.slot] !== pick.id) add('Buy & wear', 1, true);
+        foot.append(info, buy);
       }
     }
-    box.append(list);
+    box.append(grid, foot);
     return box;
   }
 
@@ -1816,7 +2028,8 @@ export class MmoGame {
     return this._window('How to play', 'help', `<ul class="hv-help">
       <li><b>Walk</b>: W A S D (or hold both mouse buttons). <b>Look</b>: drag with the mouse; the wheel zooms.</li>
       <li><b>Fight</b>: left-click an enemy to target and attack it (your character keeps swinging or shooting). Right-click attacks and uses your first skill. Tab picks the nearest enemy.</li>
-      <li><b>Skills</b>: 1–6 (new ones open as you level). One skill a second; some take time to cast — moving stops them.</li>
+      <li><b>Keys 1–8</b>: your skills on 1–6, a health draught on 7 and a tonic on 8 to start with. <b>Right-click a key</b> (or press ⚙ Keys) to put any skill, draught or food on it. A draught key drinks the one in your bag that fits what you're missing, shows how many you have, and glows when you're low. Health and mana each wait 15 seconds between drinks.</li>
+      <li><b>Skills</b>: learned in the tree (T). One skill a second; some take time to cast — moving stops them.</li>
       <li><b>Growing</b>: every level brings two skill points and five attribute points. <b>T</b> opens your class's skill tree: three paths of ten tiles — skills, runes that change a skill, passives, a synergy and a mastery — each joined to the one it needs. <b>C</b> has Strength, Agility, Intellect and Vitality. "Start over" in the tree takes them all back for gold.</li>
       <li><b>Loot</b>: every kill drops something, and often gear. Its colour is its rarity — <span style="color:#e8edf3">common</span>, <span style="color:#5fe07a">uncommon</span>, <span style="color:#5aa7ff">rare</span>, <span style="color:#c084fc">epic</span>, <span style="color:#ff9a3c">unique</span>. Stronger monsters, elites and bosses find better. Gear you sell goes on the shops' Second-hand shelf for others.</li>
       <li><b>Combos</b>: every hit within four seconds of the last adds to your combo — each one hits 2% harder, up to +20%. Every third basic attack in a row is a <b>finisher</b> (40% harder). Keep swinging and weave skills in between.</li>

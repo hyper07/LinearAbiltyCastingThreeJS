@@ -849,3 +849,67 @@ test('every kill drops something; sold gear goes on the shops\' second-hand shel
     await db.close();
   }
 });
+
+test('keys 1–8: skills and draughts where the player puts them; a draught key drinks the one that fits', async () => {
+  const R = await import('../../src/mmo/rules.js');
+  const { BAR_SIZE, POTION_CD } = await import('../../src/mmo/data.js');
+  assert.deepEqual(R.defaultBars('vanguard'), ['strike', 'taunt', 'cleave', 'wall', 'slam', 'rally', 'potion:health', 'potion:mana']);
+  assert.equal(R.newCharacter('Keya', 'mender').bars.length, BAR_SIZE);
+  // An older save keeps its six skills and gains the draughts; nonsense is dropped.
+  assert.deepEqual(R.normalize({ name: 'Olda', cls: 'vanguard', level: 3, seeded: true, bars: ['taunt', 'strike', 'cleave', 'wall', 'slam', 'rally'] }).bars.slice(0, 2).concat(R.normalize({ name: 'Olda', cls: 'vanguard', level: 3, seeded: true, bars: ['taunt', 'strike', 'cleave', 'wall', 'slam', 'rally'] }).bars.slice(6)), ['taunt', 'strike', 'potion:health', 'potion:mana']);
+  assert.deepEqual(R.cleanBars('vanguard', ['potion:health', 'firebolt', 'item:bread', 'item:rusty_sword', 'item:nope', 42, null, 'slam']), ['potion:health', null, 'item:bread', null, null, null, null, 'slam']);
+  // The draught that fits: the small one for a scratch, the big one for a wound, the biggest there is if none is enough.
+  const ch = R.newCharacter('Sippa', 'vanguard');
+  ch.bag.fill(null);
+  ch.bag[2] = { item: 'greater_potion', n: 2 };
+  ch.bag[5] = { item: 'minor_potion', n: 3 };
+  ch.bag[7] = { item: 'mana_tonic', n: 1 };
+  assert.equal(R.potionFor(ch, 'health', 50), 5);
+  assert.equal(R.potionFor(ch, 'health', 200), 2);
+  assert.equal(R.potionFor(ch, 'health', 9999), 2);
+  assert.equal(R.potionFor(ch, 'mana', 10), 7);
+  ch.bag[7] = null;
+  assert.equal(R.potionFor(ch, 'mana', 10), -1);
+
+  const { db, mmo, join, steps } = await world();
+  try {
+    const { ws, client } = await join(0, 'Quaffa', 'arcanist');
+    const me = client.body;
+    client.ch.bag.fill(null);
+    client.ch.bag[0] = { item: 'greater_potion', n: 1 };
+    client.ch.bag[1] = { item: 'minor_potion', n: 2 };
+    client.ch.bag[2] = { item: 'mana_tonic', n: 2 };
+    ws.say({ t: 'quaff', kind: 'health' });
+    assert.match(ws.last('error').text, /full health/);
+    me.hp = me.st.maxHp - 30;
+    ws.say({ t: 'quaff', kind: 'health' });
+    assert.equal(client.ch.bag[1].n, 1, 'a scratch: the minor draught');
+    assert.equal(client.ch.bag[0].n, 1);
+    // Health waits on its own clock; mana does not wait for it.
+    me.hp = 1;
+    ws.say({ t: 'quaff', kind: 'health' });
+    assert.match(ws.last('error').text, /Not again so soon \(\d+s\)/);
+    me.mana = 0;
+    ws.say({ t: 'quaff', kind: 'mana' });
+    assert.equal(client.ch.bag[2].n, 1, 'a tonic right after a health draught');
+    assert.ok(me.mana > 0);
+    steps(1);
+    const mine = ws.last('snap').s.ents.find((e) => e.i === me.id);
+    assert.ok(mine.pot[0] > POTION_CD - 2 && mine.pot[1] > POTION_CD - 2, 'the browser is shown both waits');
+    steps(POTION_CD * 10 + 2);
+    me.hp = 1;
+    ws.say({ t: 'quaff', kind: 'health' });
+    assert.equal(client.ch.bag[0], null, 'a wound: the greater draught');
+    client.ch.bag[2] = null;
+    steps(POTION_CD * 10 + 2);
+    me.mana = 0;
+    ws.say({ t: 'quaff', kind: 'mana' });
+    assert.match(ws.last('error').text, /No mana tonics — Pell/);
+    // Setting the keys is kept with the character.
+    ws.say({ t: 'bars', bars: ['potion:health', 'firebolt', 'item:mana_tonic', null, 'strike', 'frost', 'blink', 'meteor'] });
+    assert.deepEqual(client.ch.bars, ['potion:health', 'firebolt', 'item:mana_tonic', null, null, 'frost', 'blink', 'meteor']);
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});

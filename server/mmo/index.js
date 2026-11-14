@@ -4,7 +4,7 @@ import { Instance } from './instance.js';
 import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX, DROPS } from '../../src/mmo/data.js';
 import { ZONES, NPCS } from '../../src/mmo/world.js';
 import { cleanLook } from '../../src/mmo/looks.js';
-import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf, wear, takeOff, raiseAttr, learn, respec } from '../../src/mmo/rules.js';
+import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf, wear, takeOff, raiseAttr, learn, respec, potionFor, cleanBars } from '../../src/mmo/rules.js';
 
 /**
  * Hearthvale's server. Characters live in the database (`mmo_characters`,
@@ -282,6 +282,19 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
     switch (msg.t) {
       case 'move': case 'target': case 'attack': case 'skill': case 'stop': case 'gather': case 'use': case 'release':
         return inst.handle(p, msg);
+      case 'quaff': {
+        // "Drink a health (or mana) draught": the one in the bag that fits what is missing.
+        const kind = msg.kind === 'mana' ? 'mana' : 'health';
+        const missing = kind === 'mana' ? p.st.maxMana - p.mana : p.st.maxHp - p.hp;
+        if (missing < 1 && !p.dead) return err(kind === 'mana' ? 'Already full' : 'Already at full health');
+        const slot = potionFor(ch, kind, missing);
+        if (slot < 0) return err(kind === 'mana' ? 'No mana tonics — Pell the provisioner sells them' : 'No healing draughts — Pell the provisioner sells them');
+        return inst.handle(p, { t: 'use', slot });
+      }
+      case 'bars':
+        // What the player put on keys 1–8.
+        ch.bars = cleanBars(ch.cls, msg.bars);
+        return client.dirty();
       case 'talk': {
         const npc = NPCS[msg.npc];
         if (!npc || !inst.near(p, 'npc', msg.npc)) return err('Too far away');
