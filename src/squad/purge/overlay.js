@@ -1,6 +1,6 @@
 import { RANKS, BUILDINGS, GUARDIANS } from './rules.js';
 import { STRUCTURES, GUARDS, BARRACKS, ARMORY, FORGE, PAD, EXCHANGE_AT, inBase, foeDef } from './map.js';
-import { CAMP, BUNKER } from './rules.js';
+import { CAMP, BUNKER, COLORS } from './rules.js';
 
 /** The camp's places, named on the ground with their keys. */
 const PLACES = [
@@ -91,10 +91,16 @@ export function drawOverlay(view, ctx, state) {
       ctx.font = '800 11px system-ui, sans-serif';
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-      const label = `${e.base ? (e.o === view.mySlot ? 'YOUR BUNKER' : 'BUNKER') : e.built < 1 ? `BUILDING ${Math.round(e.built * 100)}%` : 'BUNKER'} · ${e.n}/${BUNKER.seats}`;
+      const owner = e.o === view.mySlot ? 'YOUR' : `${(state.players[e.o]?.name ?? '').toUpperCase()}'S`;
+      const label = `${owner} BUNKER${e.built < 1 ? ` · BUILDING ${Math.round(e.built * 100)}%` : ''} · ${e.n}/${BUNKER.seats}`;
       ctx.strokeText(label, p.x, p.y - 8);
-      ctx.fillStyle = e.base ? '#8fd0ff' : '#ffd08a';
+      ctx.fillStyle = COLORS[e.o] ?? '#ffffff';
       ctx.fillText(label, p.x, p.y - 8);
+      // A dot in the owner's colour, like their soldiers' rings.
+      ctx.beginPath();
+      ctx.arc(p.x - ctx.measureText(label).width / 2 - 9, p.y - 12, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
       if (!e.base) bar(e.x, 3.2, e.z, e.hp / e.max, 46, '#ffb84d');
       continue;
     }

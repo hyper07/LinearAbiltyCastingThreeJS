@@ -514,20 +514,39 @@ export function drawWorld(view, g, state, dt, seen) {
         g.fillRect(-2, -1.6, 4, 2.6);
       }
       g.restore();
+      // The owner's colour: a ring on the ground, a flag, and (your own unbreakable one) a shield.
+      const color = COLORS[e.o] ?? '#ffffff';
+      const pulse = Math.sin(view.time * 2 + e.i) * 0.5 + 0.5;
+      g.strokeStyle = color;
+      g.lineWidth = 0.22;
+      g.globalAlpha = 0.85;
+      g.beginPath();
+      g.ellipse(e.x, e.z, 3, 2.1, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.globalAlpha = 1;
+      g.fillStyle = '#30343a';
+      g.fillRect(e.x + 1.9, e.z - 4.6, 0.12, 4.4);
+      g.fillStyle = color;
+      g.beginPath();
+      g.moveTo(e.x + 2.02, e.z - 4.6);
+      g.lineTo(e.x + 3.4 + Math.sin(view.time * 4 + e.i) * 0.15, e.z - 4.15);
+      g.lineTo(e.x + 2.02, e.z - 3.7);
+      g.fill();
       if (e.base) {
-        const pulse = Math.sin(view.time * 2 + e.i) * 0.5 + 0.5;
-        g.strokeStyle = `rgba(110,190,255,${0.35 + pulse * 0.25})`;
-        g.fillStyle = 'rgba(110,190,255,0.08)';
-        g.lineWidth = 0.15;
+        g.globalAlpha = 0.18 + pulse * 0.12;
+        g.fillStyle = color;
         g.beginPath();
         g.ellipse(e.x, e.z - 1.2, 3.2, 2.6, 0, 0, Math.PI * 2);
         g.fill();
+        g.globalAlpha = 0.5 + pulse * 0.3;
+        g.strokeStyle = color;
+        g.lineWidth = 0.12;
         g.stroke();
+        g.globalAlpha = 1;
       }
     } });
   }
-  // The camp's guns, and the board by the Forge.
-  for (const e of state.ents) if (e.k === 'gun' && seen(e.x, e.z)) items.push({ z: e.z, draw: () => view._gun(g, e) });
+  // The board by the Forge.
   if (seen(BOARD.x, BOARD.z, 10)) items.push({ z: BOARD.z, draw: () => !view.shadowPass && drawBoard(g, state.players[view.mySlot]?.upg) });
   // Sleeping guards where they stand.
   const awake = new Set(state.ents.map((e) => e.i));

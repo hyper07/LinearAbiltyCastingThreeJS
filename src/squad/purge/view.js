@@ -7,7 +7,7 @@ import { dress } from '../../mmo/bodies.js';
 import { SquadView } from '../view.js';
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS, recipes } from './rules.js';
 import { loadRobot, Robot } from './robot.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, GUNS, HEART, tierAt, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, HEART, tierAt, foeDef } from './map.js';
 import { FORGE_REACH } from './rules.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 
@@ -104,7 +104,7 @@ export class PurgeView extends SquadView {
     yard.position.set((BASE.x0 + BASE.x1) / 2, 0.03, (BASE.z0 + BASE.z1) / 2);
     yard.receiveShadow = true;
     this.scene.add(yard);
-    // A low wall on the camp's edges, open where the guns stand.
+    // A low wall on the camp's edges, open to the east and the south.
     for (const [x, z, w, d] of [[BASE.x1, 0, 1, 14], [BASE.x1, 26, 1, 12.5], [0, BASE.z1, 18, 1], [30, BASE.z1, 18.5, 1]]) {
       const m = new THREE.Mesh(worldBox(w, 1.4, d, 2), surface('wall', { color: '#a8a39a' }));
       m.position.set(x + w / 2, 0, z + d / 2);
@@ -409,8 +409,17 @@ export class PurgeView extends SquadView {
   _bunkerModel(e) {
     const g = new THREE.Group();
     this._place3(LIB + SPACE + 'structure_low.gltf', 0, 0, 4.2, 0, { parent: g });
+    // The owner's colour: a ring, a flag, and (their own unbreakable one) a shield.
+    const color = COLORS[e.o] ?? '#ffffff';
+    const ring = new THREE.Mesh(new THREE.RingGeometry(2.7, 3.1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
+    ring.position.y = 0.06;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 4.4, 6), new THREE.MeshStandardMaterial({ color: '#30343a' }));
+    pole.position.set(1.9, 2.2, -1.2);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.8), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, side: THREE.DoubleSide }));
+    flag.position.set(2.55, 4, -1.2);
+    g.add(ring, pole, flag);
     if (e.base) {
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(3.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#60b8ff', transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(3.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
       g.add(dome);
     }
     g.position.set(e.x, 0, e.z);

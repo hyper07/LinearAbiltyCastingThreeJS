@@ -405,12 +405,11 @@ export class FlatView {
     }
     this.dying = this.dying.filter((d) => d.t < 1.2);
     for (const e of state.ents) if (e.k === 'foe' && seen(e.x, e.z)) this._foe(g, e, dt);
-    for (const e of state.ents) if (e.k === 'gun' && seen(e.x, e.z)) this._gun(g, e);
     for (const e of state.ents) {
       if (e.k !== 'bunker' || !seen(e.x, e.z)) continue;
       g.fillStyle = e.base ? '#5a7088' : '#6a6458';
       g.fillRect(e.x - 2, e.z - 1.5, 4, 3);
-      g.strokeStyle = e.base ? '#8fd0ff' : '#ffd08a';
+      g.strokeStyle = COLORS[e.o] ?? '#ffffff';
       g.lineWidth = 0.2;
       g.strokeRect(e.x - 2, e.z - 1.5, 4, 3);
     }

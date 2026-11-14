@@ -123,14 +123,20 @@ test('time runs out: the bunkers fall and the last stand begins; it is lost when
   assert.equal(g.bunkers.filter((b) => b.base).length, 0, 'the bunkers have fallen');
   assert.ok(!t.inside, 'out in the open');
   for (const x of [...g.troops]) g._hurt(x, 1e9, g.foes[0]);
+  g.players[0].ore = 500;
+  g.step(TICK);
+  assert.equal(g.over, null, 'ore enough for a Recruit: not lost yet');
+  g.players[0].ore = 0;
   g.step(TICK);
   assert.deepEqual(g.over, { won: false, why: 'fallen' });
 });
 
 test('soldiers left alone fight what comes; sleeping guards wake when soldiers come near', () => {
   const g = new Purge({ seats: seats(1, 1), seed: 5 });
+  g.strayT = 1e9; // no stragglers in the way
   const foe = g.foes.find((f) => f.tier === 1 && !f.boss);
   assert.equal(foe.awake, false);
+  for (let n = 0; n < 4; n++) g._troop(0, 'veteran');
   const squad = g.troops.filter((t) => t.o === 0).map((t) => t.i);
   g.order(0, { t: 'amove', ids: squad, x: foe.x, z: foe.z });
   for (let i = 0; i < 20 * 90 && foe.hp > 0; i++) g.step(TICK);
@@ -221,22 +227,23 @@ test('heal sends soldiers to the pad, where they heal fast; patrol goes back and
   assert.ok(far > 10 && back, `out ${far.toFixed(1)} m and back`);
 });
 
-test('stragglers wander into the camp for easy ore; the guns leave them to the soldiers at first', () => {
+test('stragglers wander into the camp for easy points; the camp has no guns — only soldiers’ kills pay', () => {
   const g = new Purge({ seats: seats(1, 1), seed: 14 });
+  assert.ok(!g.snapshot().ents.some((e) => e.k === 'gun'), 'no guns in the camp');
   g.strayT = 0;
   g.step(TICK);
   const strays = g.foes.filter((f) => f.stray);
   assert.ok(strays.length >= 4, 'a few of them');
   assert.ok(strays.every((f) => f.tier === 1 && ['husk', 'ravager'].includes(f.kind)), 'weak ones');
   assert.ok(g.events.some((e) => e.t === 'stray'));
-  // Just in: the guns hold fire; after a while loose in the camp, they shoot.
-  const f = strays[0];
-  [f.x, f.z] = [g.guns[0].x - 4, g.guns[0].z];
-  f.inCamp = g.t;
-  g._hash();
-  assert.equal(g._foeNearAwake(g.guns[0].x, g.guns[0].z, 13), null);
-  f.inCamp = g.t - 20;
-  assert.equal(g._foeNearAwake(g.guns[0].x, g.guns[0].z, 13), f);
+  // Killed by a soldier: points to its owner. Killed by anything else: nothing.
+  const p = g.players[0];
+  g._hurt(strays[0], 1e6, g.troops[0]);
+  assert.equal(p.points, strays[0].bounty * 10);
+  const ore = p.ore;
+  g._hurt(strays[1], 1e6, strays[2]);
+  assert.equal(p.ore, ore);
+  assert.equal(p.points, strays[0].bounty * 10);
   // Never more than the cap at once.
   for (let i = 0; i < 10; i++) {
     g.strayT = 0;
@@ -308,7 +315,6 @@ test('the Exchange: points turn into ore only while one of yours stands on it �
 
 test('healing at the pad costs ore; with none, nothing heals', () => {
   const g = new Purge({ seats: seats(1, 1), seed: 17 });
-  g.guns = []; // no gun kills sharing ore round while we watch
   const p = g.players[0];
   const t = g.troops[0];
   [t.x, t.z] = [27, 22];
@@ -363,4 +369,30 @@ test('one game’s ruins never leak into the next game’s ground', () => {
   const again = b.buildings.find((x) => x.i === b0.i);
   b._hurt(again, 1e9, b.troops[0]);
   assert.ok(!b.grid.blocked(b0.x, b0.z), 'and can fall again');
+});
+
+test('team play: a building broken or a hero killed pays the others half; every two minutes some points are exchanged for everyone', () => {
+  const g = new Purge({ seats: seats(3, 3), seed: 21 });
+  const [a, b, c] = g.players;
+  const t = g.troops.find((x) => x.o === 0);
+  const crypt = g.buildings.find((x) => x.type === 'crypt');
+  g._hurt(crypt, 1e9, t);
+  assert.ok(a.points > 0);
+  assert.equal(b.points, a.points / 2, 'half to each of the others');
+  assert.equal(c.points, a.points / 2);
+  const before = [a.points, b.points];
+  const plain = g.foes.find((f) => !f.boss && f.tier === 1);
+  g._hurt(plain, 1e9, t);
+  assert.ok(a.points > before[0]);
+  assert.equal(b.points, before[1], 'an ordinary kill is the killer’s alone');
+  // The two-minute exchange: the biggest of 500 / 1,000 / 1,500 ore the points cover.
+  a.points = 12000;
+  b.points = 6000;
+  c.points = 3000;
+  const ore = [a.ore, b.ore, c.ore];
+  g.autoT = 0;
+  g.stipendT = 1e9;
+  g.step(TICK);
+  assert.deepEqual([a.ore - ore[0], b.ore - ore[1], c.ore - ore[2]], [1000, 500, 0]);
+  assert.deepEqual([a.points, b.points, c.points], [2000, 1000, 3000]);
 });

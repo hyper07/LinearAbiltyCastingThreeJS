@@ -17,10 +17,13 @@ with four Recruits each. Four broken rings of ridges cut the land into bands tha
 further out they are (tier 1 to 4); each ring has gaps to pass. Everywhere are the dead's
 buildings and camps of guards asleep until soldiers come near — 112 buildings and 344 guards.
 
-- **Points and ore**, the classic way: every kill pays its killer **points**, not ore. Points become
-  ore (10 to 1) at the **Exchange** — the gold ring east of the healing pad — but only while one of
-  yours stands on it; an **Engineer** (**T**, 75 ore, unarmed) is the cheap one to leave there
-  (select it, **X**). The minute's supply drop and ore given by teammates (**G**) are ore already.
+- **Points and ore**, the classic way: every kill pays its killer **points**, not ore. It is a team
+  game: a **building broken or a hero killed** (a guardian, the king) also pays **each teammate half**.
+  Points become ore (10 to 1) at the **Exchange** — the gold ring east of the healing pad — while one
+  of yours stands on it; an **Engineer** (**T**, 75 ore, unarmed) is the cheap one to leave there
+  (select it, **X**). And **every two minutes** some are exchanged for everyone without a visit: the
+  biggest of 500, 1,000 or 1,500 ore that their points cover. The minute's supply drop and ore given
+  by teammates (**G**) are ore already. **The camp has no guns**: only soldiers' kills pay.
 - **The barracks** sells Recruits (150 ore; **R**, **Shift+R** for five). 24 soldiers at most.
 - **The Forge** — on the camp's left side, ringed with blue crystals and named on the ground — is
   where soldiers are raised, the way the classic maps' combining spot works: walk a soldier into its
@@ -62,18 +65,17 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
 - **Healing costs ore**: only the **healing pad** heals, fast, at 1 ore for every 5 health given
   back (green crosses while it does); with no ore, nothing heals. **E** sends the selected there.
 - **Stragglers**: every half a minute a few of the weakest dead wander into the camp from its near
-  edges (more and tougher as time goes on, a dozen at most) — easy kills, half as much ore again as
-  usual, for whoever is home. The camp's guns leave them to the soldiers for twelve seconds.
-- **Bunkers**: each commander has their own bunker in front of the camp's east side. It cannot be
-  broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and
+  edges (more and tougher as time goes on, a dozen at most) — easy kills, half as many points again as
+  usual, for whoever is home.
+- **Bunkers**: each commander has their own bunker inside the camp (three along its east side, one in
+  its south-east corner), in their own colour — ring, flag, name. It cannot be broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and
   still shoot (a little further). **L** empties them. Engineers build more (**B**, then click; 1,500
   ore, two each) — those can be broken.
 - **The time**: when it runs out, every bunker falls and the **last stand** begins: the dead come every
-  minute from the nearest crypts, more each time. It is lost only if all of your side's soldiers
-  are dead; it is still won by killing the king.
+  minute from the nearest crypts, more each time. It is lost only when your side has no soldiers
+  left and nobody the ore for a Recruit; it is still won by killing the king.
 - **Waves**: every few minutes a numbered wave comes for the camp from the crypt nearest it, bigger
-  each time (and bigger the more you have broken); the camp's two guns help, and soldiers in the camp
-  heal. And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
+  each time (and bigger the more you have broken). And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
   it send a wave to where it fell (then on to the camp) — the map shows where they come from.
 - **The clock** (how long the bunkers stand): Casual 90 minutes, Hard 75, Hell 60 (the dead tougher too). **Heroes only** mode
   sells Veterans at the barracks instead of Recruits and gives 3,000 ore to start. The host can run

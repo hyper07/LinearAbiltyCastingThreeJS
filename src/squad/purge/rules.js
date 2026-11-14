@@ -89,16 +89,16 @@ export const FOES = {
 };
 export const TIER = { 1: { hp: 1, dmg: 1, bounty: 1 }, 2: { hp: 2, dmg: 1.6, bounty: 2 }, 3: { hp: 3.5, dmg: 2.2, bounty: 4 }, 4: { hp: 6, dmg: 3, bounty: 7 } };
 
-/** Named guardians: one at each soul node, and more. Big, and worth a lot. */
+/** Named guardians: one at each soul node, and more. Big, and worth a lot (and half as much again to each teammate). */
 export const GUARDIANS = {
-  marrow: { name: 'Marrow Knight', body: 'Skeleton_Warrior', size: 3.4, hp: 5200, dmg: 60, rate: 0.9, range: 2.5, speed: 4.4, armor: 6, bounty: 3000, tint: '#d8c8a0' },
-  ash: { name: 'Ash Witch', body: 'Skeleton_Mage', size: 3.2, hp: 4200, dmg: 55, rate: 0.9, range: 12, speed: 4, armor: 3, bounty: 3000, tint: '#a080e0', ranged: true },
-  hound: { name: 'The Pale Hound', body: 'Skeleton_Rogue', size: 3, hp: 4600, dmg: 48, rate: 1.8, range: 2, speed: 7, armor: 4, bounty: 3500, tint: '#e8e8f0' },
-  bishop: { name: 'Hollow Bishop', body: 'Skeleton_Mage', size: 3.6, hp: 9000, dmg: 90, rate: 0.8, range: 13, speed: 3.8, armor: 6, bounty: 6000, tint: '#80d0c0', ranged: true, summon: { kind: 'husk', count: 5, every: 10 } },
-  rotfather: { name: 'Rotfather', body: 'Skeleton_Warrior', size: 4.4, hp: 16000, dmg: 140, rate: 0.7, range: 3.5, speed: 3.6, armor: 10, bounty: 9000, tint: '#90a060', slam: { radius: 6, dmg: 120, every: 7 } },
-  cinder: { name: 'Cinder Lich', body: 'Skeleton_Mage', size: 4.2, hp: 14000, dmg: 120, rate: 0.9, range: 14, speed: 3.8, armor: 8, bounty: 9000, tint: '#ff8040', ranged: true, summon: { kind: 'wight', count: 3, every: 12 } },
+  marrow: { name: 'Marrow Knight', body: 'Skeleton_Warrior', size: 3.4, hp: 5200, dmg: 60, rate: 0.9, range: 2.5, speed: 4.4, armor: 6, bounty: 1500, tint: '#d8c8a0' },
+  ash: { name: 'Ash Witch', body: 'Skeleton_Mage', size: 3.2, hp: 4200, dmg: 55, rate: 0.9, range: 12, speed: 4, armor: 3, bounty: 1500, tint: '#a080e0', ranged: true },
+  hound: { name: 'The Pale Hound', body: 'Skeleton_Rogue', size: 3, hp: 4600, dmg: 48, rate: 1.8, range: 2, speed: 7, armor: 4, bounty: 1750, tint: '#e8e8f0' },
+  bishop: { name: 'Hollow Bishop', body: 'Skeleton_Mage', size: 3.6, hp: 9000, dmg: 90, rate: 0.8, range: 13, speed: 3.8, armor: 6, bounty: 3000, tint: '#80d0c0', ranged: true, summon: { kind: 'husk', count: 5, every: 10 } },
+  rotfather: { name: 'Rotfather', body: 'Skeleton_Warrior', size: 4.4, hp: 16000, dmg: 140, rate: 0.7, range: 3.5, speed: 3.6, armor: 10, bounty: 4500, tint: '#90a060', slam: { radius: 6, dmg: 120, every: 7 } },
+  cinder: { name: 'Cinder Lich', body: 'Skeleton_Mage', size: 4.2, hp: 14000, dmg: 120, rate: 0.9, range: 14, speed: 3.8, armor: 8, bounty: 4500, tint: '#ff8040', ranged: true, summon: { kind: 'wight', count: 3, every: 12 } },
   // Woken by the Heart's fall: the last fight.
-  king: { name: 'The Grave King', body: 'Skeleton_Warrior', size: 6.4, hp: 70000, dmg: 200, rate: 0.7, range: 4.5, speed: 4, armor: 16, bounty: 50000, tint: '#f0d080', slam: { radius: 7, dmg: 140, every: 7 }, summon: { kind: 'wight', count: 4, every: 11 }, king: true }
+  king: { name: 'The Grave King', body: 'Skeleton_Warrior', size: 6.4, hp: 70000, dmg: 200, rate: 0.7, range: 4.5, speed: 4, armor: 16, bounty: 25000, tint: '#f0d080', slam: { radius: 7, dmg: 140, every: 7 }, summon: { kind: 'wight', count: 4, every: 11 }, king: true }
 };
 
 /**
@@ -107,14 +107,14 @@ export const GUARDIANS = {
  * gives every player (the Forge's top ranks need them).
  */
 export const BUILDINGS = {
-  spire: { name: 'Bone Spire', hp: 700, armor: 2, r: 1.4, bounty: 120, shoots: { dmg: 14, rate: 1, range: 9 } },
-  barrow: { name: 'Barrow', hp: 1200, armor: 1, r: 1.8, bounty: 160 },
-  crypt: { name: 'Crypt', hp: 2600, armor: 3, r: 2.8, bounty: 500, spawns: { kinds: ['husk', 'ravager', 'hexer'], every: 30, keep: 5 } },
-  ossuary: { name: 'Ossuary', hp: 5200, armor: 5, r: 3.2, bounty: 1200, spawns: { kinds: ['brute', 'wight', 'bonecaller'], every: 40, keep: 4 } },
-  cache: { name: 'Relic Cache', hp: 300, armor: 0, r: 1, bounty: 2500, relics: 1, loot: true },
-  node: { name: 'Soul Node', hp: 9000, armor: 6, r: 2.2, bounty: 6000, relics: 2, key: true, shoots: { dmg: 40, rate: 0.8, range: 11 } },
-  shrine: { name: 'Shrine of Bones', hp: 14000, armor: 8, r: 3, bounty: 10000, relics: 3, key: true },
-  heart: { name: 'Heart of the Grave', hp: 60000, armor: 12, r: 5, bounty: 40000, relics: 0, heart: true, shoots: { dmg: 90, rate: 1.2, range: 14 } }
+  spire: { name: 'Bone Spire', hp: 700, armor: 2, r: 1.4, bounty: 60, shoots: { dmg: 14, rate: 1, range: 9 } },
+  barrow: { name: 'Barrow', hp: 1200, armor: 1, r: 1.8, bounty: 80 },
+  crypt: { name: 'Crypt', hp: 2600, armor: 3, r: 2.8, bounty: 250, spawns: { kinds: ['husk', 'ravager', 'hexer'], every: 30, keep: 5 } },
+  ossuary: { name: 'Ossuary', hp: 5200, armor: 5, r: 3.2, bounty: 600, spawns: { kinds: ['brute', 'wight', 'bonecaller'], every: 40, keep: 4 } },
+  cache: { name: 'Relic Cache', hp: 300, armor: 0, r: 1, bounty: 1250, relics: 1, loot: true },
+  node: { name: 'Soul Node', hp: 9000, armor: 6, r: 2.2, bounty: 3000, relics: 2, key: true, shoots: { dmg: 40, rate: 0.8, range: 11 } },
+  shrine: { name: 'Shrine of Bones', hp: 14000, armor: 8, r: 3, bounty: 5000, relics: 3, key: true },
+  heart: { name: 'Heart of the Grave', hp: 60000, armor: 12, r: 5, bounty: 20000, relics: 0, heart: true, shoots: { dmg: 90, rate: 1.2, range: 14 } }
 };
 /** Buildings take tier scaling too, but less than guards. */
 export const BUILD_TIER = { 1: 1, 2: 1.7, 3: 2.6, 4: 3.8 };
@@ -139,10 +139,9 @@ export const DIFFICULTY = {
 /**
  * Stragglers: every so often a few of the weakest dead wander into the camp
  * from the land's near edges — easy kills, easy ore, for whoever is home.
- * The camp's guns leave them to the soldiers (for `grace` seconds once they
- * are in). More of them, and tougher, as time goes on; `cap` at once.
+ * More of them, and tougher, as time goes on; `cap` at once.
  */
-export const STRAGGLERS = { every: 30, first: 45, count: 4, grow: 1 / 8, kinds: ['husk', 'husk', 'ravager'], bonus: 1.5, cap: 12, grace: 12 };
+export const STRAGGLERS = { every: 30, first: 45, count: 4, grow: 1 / 8, kinds: ['husk', 'husk', 'ravager'], bonus: 1.5, cap: 12 };
 
 /** How fast the game runs (the host's to set). */
 export const SPEEDS = [1, 1.5, 2, 3];
@@ -150,8 +149,8 @@ export const SPEEDS = [1, 1.5, 2, 3];
 /** Money: what you start with, and the stipend every minute (it grows by `grow` a minute played). */
 export const ECON = { start: 600, stipend: 300, grow: 25, every: 60, heroesOnly: { bonus: 3000 } };
 
-/** The camp: its healing pad (a share of health a second — paid for, see HEAL) and its guns. */
-export const CAMP = { padHeal: 0.18, padReach: 7, gun: { dmg: 30, rate: 2, range: 13 }, gunHp: 6000 };
+/** The camp: its healing pad (a share of health a second — paid for, see HEAL). No guns: the soldiers do the killing. */
+export const CAMP = { padHeal: 0.18, padReach: 7 };
 
 /** Healing is paid for: ore for every point of health the pad gives back. */
 export const HEAL = { orePerHp: 0.2 };
@@ -159,9 +158,13 @@ export const HEAL = { orePerHp: 0.2 };
 /**
  * Kills pay points, not ore. Points become ore only at the Exchange in the
  * camp, while one of yours stands on it (an Engineer is cheapest): `ratio`
- * points make one ore.
+ * points make one ore. And every two minutes (`auto`) some are exchanged
+ * for everyone without a visit: the biggest of 500, 1,000 or 1,500 ore that
+ * their points cover.
  */
-export const EXCHANGE = { reach: 4, ratio: 10 };
+export const EXCHANGE = { reach: 4, ratio: 10, auto: { every: 120, amounts: [500, 1000, 1500] } };
+/** Team play: a building broken or a hero of the dead killed pays every other player half too. */
+export const TEAM = { share: 0.5 };
 
 /**
  * Bunkers: six seats; those inside fight on (a little further) and cannot

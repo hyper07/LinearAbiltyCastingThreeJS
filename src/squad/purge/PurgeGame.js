@@ -1,7 +1,7 @@
 import { Purge, forgeCheck } from './sim.js';
 import { FlatView } from './flat.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
-import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER } from './rules.js';
+import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER, TEAM } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT } from './map.js';
 import '../squad.css';
 import './purge.css';
@@ -774,6 +774,8 @@ export class PurgeGame {
         this._feed(`Hidden rank found: the ${d.name} (F to see it)`);
         this._panelKey = '';
       } else if (e.t === 'secret') this._feed(`${this.state.players[e.o]?.name} found a secret at the Forge`);
+      else if (e.t === 'ore' && e.shared != null && e.o === this.mySlot) this._feed(`Team: ${this.state.players[e.shared]?.name} made a big kill — +${e.n.toLocaleString()} points for you`);
+      else if (e.t === 'autoExchange' && e.o === this.mySlot) this._feed(`Two-minute exchange: ${(e.n * EXCHANGE.ratio).toLocaleString()} points → +${e.n.toLocaleString()} ore`);
       else if (e.t === 'lastStand') {
         this._banner('The last stand', 'Time is up: the bunkers have fallen. The dead come every minute now, more each time — hold out, and finish the king.', 6);
       } else if (e.t === 'bunkerDown' && !e.base) this._feed('A bunker has fallen');
@@ -926,7 +928,7 @@ export class PurgeGame {
         <li>${s.lastStand ? '⚔ The last stand: the bunkers have fallen — hold out' : `⏱ Your bunkers stand for ${clock(s.left)} — then they fall, and the dead come every minute`}</li>
       </ol>
       <h3>Money</h3>
-      <ul class="gp__mission"><li>Kills pay <b>points</b>: they turn into ore at the <b>Exchange</b> (east of the pad) while one of yours stands there — an Engineer (T, ${RANKS.engineer.cost} ore) is cheapest. Healing on the pad costs ore.</li></ul>
+      <ul class="gp__mission"><li>Kills pay <b>points</b> — and a building broken or a hero killed pays each teammate half too. Points turn into ore (${EXCHANGE.ratio} to 1) at the <b>Exchange</b> while one of yours stands there — an Engineer (T, ${RANKS.engineer.cost} ore) is cheapest — and every two minutes ${EXCHANGE.auto.amounts.map((n) => n.toLocaleString()).join(' / ')} ore worth is exchanged for you anyway. Healing on the pad costs ore. The camp has no guns: your soldiers do the killing.</li></ul>
       <h3>Combinations <small>at the Forge, left of the camp — walk soldiers into the ring (W)</small></h3>
       <ul class="gp__recipes">${rows.map((r) => `<li class="${r.secret ? 'is-secret' : r.state === 'ready' ? 'is-ready' : ''}"><b>${esc(r.name)}</b><span>= ${esc(r.text)}</span>${r.state ? `<em>${r.state === 'ready' ? 'ready — in the ring' : esc(r.state)}</em>` : ''}</li>`).join('')}</ul>
       <p class="gp__hint">O shows or hides this · the board by the Forge says the same</p>`;
@@ -1018,7 +1020,15 @@ export class PurgeGame {
       g.fillRect(e.x * k - r / 2, e.z * k - r / 2, r, r);
     }
     for (const e of s.ents) {
-      if (e.k !== 'troop') continue;
+      if (e.k !== 'bunker') continue;
+      g.fillStyle = COLORS[e.o];
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = 1.5;
+      g.fillRect(e.x * k - 4, e.z * k - 4, 8, 8);
+      g.strokeRect(e.x * k - 4, e.z * k - 4, 8, 8);
+    }
+    for (const e of s.ents) {
+      if (e.k !== 'troop' || e.in) continue;
       g.fillStyle = COLORS[e.o];
       const r = 2.4 + RANKS[e.rank].tier * 0.8;
       g.beginPath();
