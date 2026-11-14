@@ -21,6 +21,8 @@ const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 
 /** Road widths in metres by class (motorway … tertiary); a link road is narrower. */
 const ROAD_WIDTH = [22, 18, 15, 11, 8];
 const WATER = new THREE.Color('#3f74b3');
+/** Roads are looked up by squares this wide (metres). */
+const ROAD_CELL = 40;
 
 /**
  * Seoul, for real: every building in the city at its true place and height,
@@ -291,6 +293,11 @@ export class SeoulGame {
         if (!m) continue;
         this.scene.remove(m);
         m.geometry.dispose();
+        for (const [cell, seg] of m.userData.owned ?? []) {
+          const list = this.roadHash.get(cell);
+          const at = list?.indexOf(seg) ?? -1;
+          if (at >= 0) list.splice(at, 1);
+        }
       }
       this.lands.delete(key);
     }
@@ -548,6 +555,8 @@ export class SeoulGame {
     const pos = [];
     const col = [];
     const c = new THREE.Color();
+    const owned = [];
+    this.roadHash ??= new Map();
     for (const r of list) {
       // Points no more than a cell apart, so the ribbon follows the ground.
       const line = [];
@@ -574,6 +583,7 @@ export class SeoulGame {
       c.set(r.cls <= 1 ? '#3f4350' : '#4c5058');
       const half = r.width / 2;
       let prev = null;
+      let last = null;
       line.forEach(([x, z], i) => {
         const [nx, nz] = line[Math.min(line.length - 1, i + 1)];
         const [px, pz] = line[Math.max(0, i - 1)];
@@ -586,7 +596,14 @@ export class SeoulGame {
         if (prev) {
           pos.push(...prev.left, ...prev.right, ...right, ...prev.left, ...right, ...left);
           for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
+          // Remember the stretch, so someone walking here stands on the road and not under it.
+          const seg = { ax: last[0], ay: last[1], az: last[2], bx: x, by: y, bz: z, half: half + 0.5 };
+          const cell = `${Math.floor((last[0] + x) / 2 / ROAD_CELL)}_${Math.floor((last[2] + z) / 2 / ROAD_CELL)}`;
+          if (!this.roadHash.has(cell)) this.roadHash.set(cell, []);
+          this.roadHash.get(cell).push(seg);
+          owned.push([cell, seg]);
         }
+        last = [x, y, z];
         prev = { left, right };
       });
     }
@@ -596,8 +613,35 @@ export class SeoulGame {
     geo.computeVertexNormals();
     this.roadMaterial ??= new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
     const mesh = new THREE.Mesh(geo, this.roadMaterial);
+    mesh.userData.owned = owned;
     this.scene.add(mesh);
     return mesh;
+  }
+
+  /**
+   * What you stand on at a point: the road's surface if a road passes here
+   * within a step up of where you are (so you walk onto a bridge from its
+   * end, and under it from the bank), else the ground.
+   */
+  surfaceAt(x, z, from = Infinity) {
+    const ground = this.groundAt(x, z);
+    if (!this.roadHash) return ground;
+    let best = ground;
+    const cx = Math.floor(x / ROAD_CELL);
+    const cz = Math.floor(z / ROAD_CELL);
+    for (let i = cx - 1; i <= cx + 1; i++) {
+      for (let j = cz - 1; j <= cz + 1; j++) {
+        for (const s of this.roadHash.get(`${i}_${j}`) ?? []) {
+          const dx = s.bx - s.ax;
+          const dz = s.bz - s.az;
+          const k = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1)));
+          if (Math.hypot(x - (s.ax + dx * k), z - (s.az + dz * k)) > s.half) continue;
+          const y = s.ay + (s.by - s.ay) * k;
+          if (y > best && y <= Math.max(from, ground) + 2.5) best = y;
+        }
+      }
+    }
+    return best;
   }
 
   /** A broadcast tower the register lists only as a point: our own plain shape, to its real height. */
@@ -653,7 +697,8 @@ export class SeoulGame {
     if (this.mode === 'walk') {
       // Land where you were hovering — beside a building, not inside one.
       for (let k = 0; k < 40 && this.buildingAt(this.pos.x, this.pos.z); k++) this.pos.x += 6;
-      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
+      // Landing from the air: on the road if one is under you (a bridge too), else on the ground.
+      this.pos.y = this.surfaceAt(this.pos.x, this.pos.z);
       this.pitch = Math.max(-0.5, Math.min(0.3, this.pitch));
       this._walker();
     } else {
@@ -736,7 +781,7 @@ export class SeoulGame {
       const moving = Boolean(f || s);
       this.speed = moving ? speed : 0;
       if (moving) this.walker.rotation.y = Math.atan2(fx * f + rx * s, fz * f + rz * s);
-      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
+      this.pos.y = this.surfaceAt(this.pos.x, this.pos.z, this.pos.y);
       this.walker.position.set(this.pos.x, this.pos.y, this.pos.z);
       const a = this.walkerAnim;
       if (a) {
@@ -762,7 +807,7 @@ export class SeoulGame {
     } else {
       const head = new THREE.Vector3(this.pos.x, this.pos.y + 1.7, this.pos.z);
       this.camera.position.copy(head).addScaledVector(dir, -this.zoom);
-      this.camera.position.y = Math.max(this.groundAt(this.camera.position.x, this.camera.position.z) + 0.6, this.camera.position.y);
+      this.camera.position.y = Math.max(this.surfaceAt(this.camera.position.x, this.camera.position.z, this.pos.y) + 0.6, this.camera.position.y);
       this.camera.lookAt(head);
     }
     this.sun.position.copy(this.camera.position).addScaledVector(this.sunDir, 800);

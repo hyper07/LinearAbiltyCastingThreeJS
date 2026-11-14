@@ -66,7 +66,8 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
   the wheel changes height. The higher you are, the farther you see and the faster you go. You
   stay above the ground, hills included.
 - **Walk** (**F**, or the button): a traveller on the street, **Shift** to run, the wheel zooms.
-  Buildings are solid, and you climb the hills you walk up.
+  Buildings are solid, you climb the hills you walk up, and you stand on the roads — walk onto a
+  bridge from its end and you cross the river on it; from the bank you pass underneath.
 - **Places** (**M**): the 25 districts and the 400 tallest named buildings, with a search; a click
   takes you there. Names and heights float over the tall buildings in view.
 - **Districts visited** are counted (out of 25) and kept on your device.
