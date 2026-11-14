@@ -24,6 +24,8 @@ person isn't in.
 | Right button | look down a scope (Longwatch) |
 | R | reload |
 | 1 / 2 | main weapon / sidearm |
+| 3 | the knife (you run a little faster with it out) |
+| 4 / 5 | frag grenade / smoke grenade (click to throw; aim higher to throw further) |
 | B | the shop — only in the pause before a round |
 | E (hold) | set the charge in a site (Raiders) / disarm it (Wardens) |
 | Space | jump |
@@ -32,9 +34,11 @@ person isn't in.
 
 A round, as it goes:
 
-1. **Buy** (12 s). Everyone stands at their spawn. Money comes from the last round: 3000 for a
-   win, 1400 for a loss (more for each loss in a row, up to 3400), 300 for each opponent dropped,
-   300 for setting or disarming the charge. What you carry is kept if you live.
+1. **Buy** (12 s). Everyone stands at their spawn, with $4,000 at the start of each half. Money
+   comes from the last round: 3250 for a win, 1900 for a loss (more for each loss in a row, up to
+   3400), 300 for setting or disarming the charge, and for each opponent dropped 300 — 600 with an
+   SMG, 900 with a shotgun, 1500 with the knife, 100 with the Longwatch. What you carry, grenades
+   included, is kept if you live.
 2. **Live** (1:55). One Raider has the charge (a ◆ by their ammo, a yellow mark on the radar).
    Raiders win by setting it and keeping it safe for 35 s, or by dropping every Warden. Wardens
    win by dropping every Raider before it is set, by disarming it (6 s, or 3 s with a kit), or by
@@ -46,13 +50,40 @@ half of each hit until it is used up; a helmet makes a head shot hurt less.
 
 | Weapon | Price | What it is |
 | --- | --- | --- |
+| Knife | everyone has one | 40 a stab; from behind it drops anyone, through armour |
 | P9 Sidearm | free | what everyone starts with |
+| Viper Machine Pistol | 500 | an automatic pistol, for a round of saving |
 | Ram .50 | 700 | a heavy sidearm |
+| Badger SMG | 1050 | slow-firing, hard-hitting, cheap |
 | Wasp SMG | 1200 | fast and cheap, for close quarters |
-| Gavel 12 | 1300 | a shotgun: eight pellets, short range |
+| Hornet PDW | 1500 | the steadiest SMG, 40 rounds |
+| Gavel 12 | 1300 | a pump shotgun: eight pellets, short range |
+| Ripsaw Auto 12 | 2000 | a self-loading shotgun |
+| Sparrow Rifle | 2000 | the budget rifle |
 | Vantage Rifle | 2700 | the all-round rifle |
 | Kestrel Carbine | 2900 | steadier, a little lighter on damage |
+| Bulwark Battle Rifle | 3100 | heavy rounds, 20 to a magazine |
+| Marksman DMR | 3800 | semi-automatic through a scope |
 | Longwatch | 4500 | one shot at a time, through a scope |
+| Anvil LMG | 5200 | 100 rounds, slow to carry and slow to reload |
+| Frag grenade | 300 | up to 98 damage within 7 m, bounces off walls |
+| Smoke grenade | 300 | a cloud nearly 10 m wide for 16 s; nobody sees through it, bots included |
+
+## The bots
+
+Each bot has a part in its team — two riflers, an entry player with a shotgun or SMG, a scope, a
+heavy — and buys for it; when the team is short of money they all save together and buy a better
+pistol instead. In a fight they stop to shoot (moving spoils aim, theirs as yours) and sidestep
+between bursts, rush in close with a shotgun or SMG, and fall back behind the nearest cover to
+reload or when they are hurt and losing. They hear shots and turn to them, go after whoever drops
+a teammate, grenade a group or a corner someone just ducked behind, and run with the knife out
+when nothing is about.
+
+As a team, the Raiders pick a plan each round: a **rush** straight at a site, an **execute** —
+gather at the two ways into a site, then go in together behind smoke and grenades — or a **fake**,
+gathering and making noise at one site before hitting the other. Wardens hold their posts, come
+running when one calls a site, and when the charge is set they regroup and take the site back
+together behind smoke.
 
 ## With friends
 

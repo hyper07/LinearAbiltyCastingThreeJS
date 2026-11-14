@@ -42,7 +42,7 @@ function rail(p, y, z0, z1) {
   for (let z = z0 - 0.01; z > z1 + 0.01; z -= 0.022) p.box(0.026, 0.006, 0.01, M.dark, 0, y + 0.006, z);
 }
 
-function rifle({ length = 1, furniture = M.polymer, scope = false, short = false } = {}) {
+function rifle({ length = 1, furniture = M.polymer, scope = false, short = false, box = false, bipod = false } = {}) {
   const g = new THREE.Group();
   const p = parts(g);
   const k = length;
@@ -59,9 +59,15 @@ function rifle({ length = 1, furniture = M.polymer, scope = false, short = false
   // Pistol grip and trigger guard.
   p.box(0.034, 0.11, 0.046, furniture, 0, -0.105, -0.33, -0.32);
   p.box(0.008, 0.006, 0.07, M.steel, 0, -0.08, -0.4);
-  // Magazine, curved forward.
-  p.box(0.032, 0.11, 0.07, M.dark, 0, -0.105, -0.47, 0.12);
-  p.box(0.032, 0.09, 0.066, M.dark, 0, -0.19, -0.49, 0.32);
+  // Magazine, curved forward — or a box of belted rounds hung under the gun.
+  if (box) {
+    p.box(0.09, 0.12, 0.12, M.tan, 0.02, -0.1, -0.46);
+    p.box(0.02, 0.06, 0.02, M.dark, 0, 0.09, -0.46);
+    p.box(0.02, 0.02, 0.16, M.dark, 0, 0.12, -0.46);
+  } else {
+    p.box(0.032, 0.11, 0.07, M.dark, 0, -0.105, -0.47, 0.12);
+    p.box(0.032, 0.09, 0.066, M.dark, 0, -0.19, -0.49, 0.32);
+  }
   // Handguard with vents, the barrel and its brake.
   const hz0 = -0.58;
   const hz1 = -0.58 - 0.32 * k * (short ? 0.7 : 1);
@@ -69,7 +75,11 @@ function rifle({ length = 1, furniture = M.polymer, scope = false, short = false
   for (let z = hz0 - 0.04; z > hz1 + 0.03; z -= 0.05) p.box(0.066, 0.016, 0.026, M.dark, 0, 0.005, z);
   rail(p, 0.042, hz0, hz1);
   const bz = hz1 - 0.16 * k;
-  p.tube(0.011, hz1, bz, M.steel, 0, 0.005);
+  p.tube(bipod ? 0.015 : 0.011, hz1, bz, M.steel, 0, 0.005);
+  if (bipod) {
+    p.box(0.012, 0.012, 0.22, M.dark, 0.025, -0.04, hz1 + 0.06, 0.3);
+    p.box(0.012, 0.012, 0.22, M.dark, -0.025, -0.04, hz1 + 0.06, 0.3);
+  }
   p.tube(0.017, bz, bz - 0.05, M.dark, 0, 0.005, 8);
   // Sights: a red dot, or a scope.
   if (scope) {
@@ -135,7 +145,95 @@ function pistol({ big = false } = {}) {
   return g;
 }
 
+
+/** A shotgun fed from a box magazine, all polymer. */
+function autoShotgun() {
+  const g = new THREE.Group();
+  const p = parts(g);
+  p.box(0.05, 0.12, 0.22, M.polymer, 0, -0.03, -0.11);
+  p.box(0.06, 0.09, 0.34, M.polymer, 0, 0.0, -0.4);
+  rail(p, 0.05, -0.26, -0.56);
+  p.box(0.034, 0.11, 0.046, M.polymer, 0, -0.1, -0.32, -0.32);
+  p.box(0.05, 0.13, 0.09, M.dark, 0, -0.12, -0.47, 0.08);
+  p.box(0.062, 0.06, 0.24, M.polymer, 0, -0.005, -0.69);
+  p.tube(0.018, -0.57, -0.98, M.steel, 0, 0.015);
+  p.tube(0.024, -0.98, -1.02, M.dark, 0, 0.015, 8);
+  p.box(0.04, 0.04, 0.06, M.dark, 0, 0.08, -0.4);
+  g.userData = { grip: new THREE.Vector3(0, -0.085, -0.32), fore: new THREE.Vector3(0, -0.04, -0.69), muzzle: new THREE.Vector3(0, 0.015, -1.04) };
+  return g;
+}
+
+/** A compact SMG; `pdw` is the longer one with its magazine along the top. */
+function compact({ pdw = false } = {}) {
+  const g = new THREE.Group();
+  const p = parts(g);
+  p.box(0.045, 0.1, 0.18, M.polymer, 0, -0.02, -0.09);
+  p.box(0.06, 0.085, pdw ? 0.4 : 0.3, M.polymer, 0, 0.0, pdw ? -0.38 : -0.33);
+  p.box(0.034, 0.1, 0.045, M.polymer, 0, -0.095, -0.27, -0.25);
+  if (pdw) p.box(0.04, 0.03, 0.3, M.tan, 0, 0.058, -0.38);
+  else p.box(0.03, 0.17, 0.05, M.dark, 0, -0.12, -0.39, 0.05);
+  rail(p, pdw ? 0.08 : 0.046, -0.24, -0.44);
+  p.box(0.05, 0.06, 0.03, M.polymer, 0, -0.08, pdw ? -0.5 : -0.44); // a stub grip at the front
+  p.tube(0.012, pdw ? -0.58 : -0.48, pdw ? -0.64 : -0.56, M.steel, 0, 0.01);
+  p.box(0.04, 0.04, 0.06, M.dark, 0, pdw ? 0.1 : 0.075, -0.3);
+  const front = pdw ? -0.5 : -0.44;
+  g.userData = { grip: new THREE.Vector3(0, -0.08, -0.27), fore: new THREE.Vector3(0, -0.1, front), muzzle: new THREE.Vector3(0, 0.01, pdw ? -0.66 : -0.58) };
+  return g;
+}
+
+/** A machine pistol: a pistol with a long magazine below. */
+function machinePistol() {
+  const g = pistol();
+  const p = parts(g);
+  p.box(0.026, 0.09, 0.034, M.dark, 0, -0.15, -0.39, -0.22);
+  return g;
+}
+
+/** The knife: a blade, a guard and a handle. Held low in the right hand. */
+function knife() {
+  const g = new THREE.Group();
+  const p = parts(g);
+  const z = -0.36;
+  p.box(0.026, 0.03, 0.11, M.polymer, 0, -0.04, z + 0.04);
+  p.box(0.05, 0.012, 0.012, M.steel, 0, -0.04, z - 0.015);
+  // The blade lies flat, so its face catches the light; a clipped point at the end.
+  p.box(0.034, 0.006, 0.19, M.worn, 0, -0.038, z - 0.11);
+  p.box(0.022, 0.006, 0.05, M.worn, -0.006, -0.038, z - 0.225);
+  p.box(0.006, 0.008, 0.19, M.dark, 0.016, -0.034, z - 0.11);
+  g.userData = { grip: new THREE.Vector3(0, -0.04, z + 0.04), fore: new THREE.Vector3(-0.22, -0.32, 0.05), muzzle: new THREE.Vector3(0, -0.03, z - 0.2) };
+  return g;
+}
+
+/** A grenade in the hand: a frag's body, or a smoke's can. */
+function grenade(kind) {
+  const g = new THREE.Group();
+  const p = parts(g);
+  const z = -0.36;
+  const body = new THREE.MeshStandardMaterial({ color: kind === 'frag' ? '#4b5a3a' : '#7d8188', roughness: 0.6, metalness: 0.3 });
+  if (kind === 'frag') {
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.035, 14, 10), body);
+    ball.scale.set(1, 1.2, 1);
+    ball.position.set(0, -0.02, z);
+    g.add(ball);
+  } else p.tube(0.03, z + 0.06, z - 0.06, body, 0, -0.02, 14).rotation.set(0, 0, 0);
+  p.box(0.012, 0.05, 0.01, M.steel, 0.02, 0.025, z + 0.01);
+  p.box(0.02, 0.02, 0.02, M.dark, 0, 0.03, z);
+  g.userData = { grip: new THREE.Vector3(0, -0.03, z + 0.02), fore: new THREE.Vector3(-0.22, -0.32, 0.05), muzzle: new THREE.Vector3(0, 0, z) };
+  return g;
+}
+
 const MAKERS = {
+  knife,
+  frag: () => grenade('frag'),
+  smoke: () => grenade('smoke'),
+  viper: machinePistol,
+  badger: () => compact(),
+  hornet: () => compact({ pdw: true }),
+  ripsaw: autoShotgun,
+  sparrow: () => rifle({ length: 0.8, short: true }),
+  bulwark: () => rifle({ length: 1.15, furniture: M.wood }),
+  marksman: () => rifle({ length: 1.3, furniture: M.tan, scope: true }),
+  anvil: () => rifle({ length: 1.35, box: true, bipod: true }),
   sidearm: () => pistol(),
   ram: () => pistol({ big: true }),
   wasp: smg,

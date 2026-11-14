@@ -67,7 +67,14 @@ export const PLAN = {
   lanes: [['N2', 'S2'], ['M2'], ['M2', 'S2'], ['N2'], []],
   watch: { plant: [90, 52], guard: [130, 52], disarm: [72, 52], idle: [72, 52], hold: { A: [54, 21], B: [54, 83], mid: [54, 52] } },
   alarm: 45,
-  sight: 140
+  sight: 140,
+  /** Where Raiders gather before they hit a site, by the way they come (two ways to each). */
+  stage: { A: ['N3', 'MA'], B: ['S3', 'MB'] },
+  /** Where Raiders smoke off as they hit: the ways Wardens come back from their yard. */
+  smokes: { A: [[121, 25], [124, 15]], B: [[121, 79], [124, 89]] },
+  /** Where Wardens gather to take a site back, and where they smoke the Raiders' guard spots off. */
+  retake: { A: 'CA', B: 'CB' },
+  retakeSmokes: { A: [[101, 21]], B: [[101, 83]] }
 };
 
 const links = new Map(Object.keys(NODES).map((k) => [k, []]));

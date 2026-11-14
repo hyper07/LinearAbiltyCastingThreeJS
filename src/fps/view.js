@@ -467,16 +467,19 @@ export class FpsView {
     if (this.heldModel) this.gun.remove(this.heldModel);
     const model = gunModel(id);
     const { grip, fore, muzzle } = model.userData;
-    const pistol = WEAPONS[id].slot === 2;
+    const slot = WEAPONS[id].slot;
+    const pistol = slot === 2;
+    const inHand = slot >= 3; // the knife or a grenade: one hand, held low
     // Where the right hand sits in front of the eye.
-    const at = pistol ? new THREE.Vector3(0.13, -0.17, -0.42) : new THREE.Vector3(0.21, -0.235, -0.64);
+    const at = inHand ? new THREE.Vector3(0.2, -0.16, -0.5) : pistol ? new THREE.Vector3(0.13, -0.17, -0.42) : new THREE.Vector3(0.21, -0.235, -0.64);
     model.position.copy(at).sub(grip);
     this.gun.add(model);
     this.heldModel = model;
     this.flash.position.copy(muzzle).add(model.position);
     const [right, left] = this.hands;
     right.position.copy(grip).add(model.position);
-    right.rotation.set(0.6, 0.25, 0);
+    right.rotation.set(inHand ? 0.15 : 0.6, inHand ? 0.05 : 0.25, 0);
+    left.visible = !inHand;
     left.position.copy(fore).add(model.position).add(new THREE.Vector3(-0.01, -0.02, 0));
     left.rotation.set(0.95, pistol ? -0.2 : -0.35, pistol ? 0 : 0.35);
     this.draw = 0.3; // it comes up into view
@@ -522,6 +525,22 @@ export class FpsView {
           puff.position.copy(to);
           this.scene.add(puff);
           this.sparks.push({ mesh: puff, t: 0, grow: 5, life: 0.5 });
+        }
+      } else if (e.type === 'slash' && e.id === viewer?.id) {
+        this.swing = 1;
+      } else if (e.type === 'blast') {
+        const flash = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffc46b', transparent: true, opacity: 0.95 }));
+        flash.position.set(e.x, e.y + 0.4, e.z);
+        this.scene.add(flash);
+        this.sparks.push({ mesh: flash, t: 0, grow: 18, life: 0.35 });
+        // Dust and smoke thrown up: soft puffs that rise, swell and thin.
+        for (let i = 0; i < 9; i++) {
+          const puff = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._puffTexture(), color: i < 3 ? '#4a4038' : '#8a8279', transparent: true, depthWrite: false, opacity: 0.85 }));
+          const a = Math.random() * Math.PI * 2;
+          puff.position.set(e.x + Math.cos(a) * 0.6, e.y + 0.4 + Math.random() * 0.8, e.z + Math.sin(a) * 0.6);
+          puff.scale.setScalar(1.2);
+          this.scene.add(puff);
+          this.sparks.push({ mesh: puff, t: 0, grow: 2.2, life: 1.2 + Math.random() * 0.6, rise: 0.8 + Math.random() });
         }
       } else if (e.type === 'boom') {
         const blast = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.9 }));
@@ -569,10 +588,13 @@ export class FpsView {
       const down = (viewer.reloading > 0 ? 0.14 : 0) + this.draw * 0.6;
       const sway = viewer.moving ? Math.cos(this.bob * 0.5) * 0.008 : Math.sin(this.time * 1.3) * 0.002;
       this.gun.position.set(sway, -down + (viewer.moving ? Math.abs(Math.sin(this.bob)) * 0.01 : 0), this.recoil * 0.05);
-      this.gun.rotation.set(this.recoil * 0.1 - down * 1.2, 0, viewer.reloading > 0 ? 0.3 : 0);
+      this.swing = Math.max(0, (this.swing ?? 0) - dt * 4);
+      const cut = Math.sin(this.swing * Math.PI);
+      this.gun.rotation.set(this.recoil * 0.1 - down * 1.2 - cut * 0.6, cut * 0.9, (viewer.reloading > 0 ? 0.3 : 0) + cut * 0.5);
     }
     this._fade(dt);
     this._charge(match);
+    this._grenades(match, dt);
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
     if (this.gun.visible) {
@@ -595,12 +617,87 @@ export class FpsView {
       s.t += dt;
       const life = s.life ?? 0.25;
       s.mesh.material.opacity = Math.max(0, (s.mesh.material.userData.from ??= s.mesh.material.opacity) * (1 - s.t / life));
-      s.mesh.scale.setScalar(1 + s.t * (s.grow ?? 4));
+      s.mesh.scale.setScalar((s.mesh.isSprite ? 1.2 : 1) * (1 + s.t * (s.grow ?? 4)));
+      if (s.rise) s.mesh.position.y += s.rise * dt;
       if (s.t < life) return true;
       this.scene.remove(s.mesh);
-      s.mesh.geometry.dispose();
+      s.mesh.geometry?.dispose();
+      if (s.mesh.isSprite) s.mesh.material.dispose();
       return false;
     });
+  }
+
+  /** A soft round puff, drawn once, for every smoke. */
+  _puffTexture() {
+    if (this.puff) return this.puff;
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+    grad.addColorStop(0, 'rgba(235,235,232,0.95)');
+    grad.addColorStop(0.5, 'rgba(215,215,212,0.6)');
+    grad.addColorStop(1, 'rgba(200,200,198,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    this.puff = new THREE.CanvasTexture(c);
+    this.puff.colorSpace = THREE.SRGBColorSpace;
+    return this.puff;
+  }
+
+  /** Grenades in the air, and smoke where it hangs: a cloud of puffs that swells, drifts and thins. */
+  _grenades(match, dt) {
+    this.nadeMeshes ??= [];
+    const list = match.nades ?? [];
+    while (this.nadeMeshes.length < list.length) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: '#4b5a3a', roughness: 0.6 }));
+      m.castShadow = true;
+      this.scene.add(m);
+      this.nadeMeshes.push(m);
+    }
+    this.nadeMeshes.forEach((m, i) => {
+      m.visible = i < list.length;
+      if (!m.visible) return;
+      m.position.set(list[i].x, list[i].y, list[i].z);
+      m.material.color.set(list[i].kind === 'frag' ? '#4b5a3a' : '#8a8d92');
+    });
+    this.clouds ??= new Map();
+    const live = new Set();
+    for (const s of match.smokes ?? []) {
+      const key = `${s.x}|${s.z}|${s.at}`;
+      live.add(key);
+      let cloud = this.clouds.get(key);
+      if (!cloud) {
+        cloud = new THREE.Group();
+        const rand = seeded(Math.round(s.x * 100 + s.z * 7));
+        for (let i = 0; i < 26; i++) {
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._puffTexture(), color: '#d9d9d6', transparent: true, depthWrite: false, opacity: 0 }));
+          const a = rand() * Math.PI * 2;
+          const r = Math.sqrt(rand());
+          sprite.userData = { x: Math.cos(a) * r, z: Math.sin(a) * r, y: 0.2 + rand() * 0.75, size: 0.7 + rand() * 0.6, spin: (rand() - 0.5) * 0.3 };
+          cloud.add(sprite);
+        }
+        cloud.position.set(s.x, 0, s.z);
+        this.scene.add(cloud);
+        this.clouds.set(key, cloud);
+      }
+      const age = match.time - s.at;
+      const grow = Math.min(1, age / 1.2);
+      const thin = Math.max(0, Math.min(1, (s.until - match.time) / 2.5));
+      for (const sprite of cloud.children) {
+        const u = sprite.userData;
+        const r = s.r * grow;
+        sprite.position.set(u.x * r, u.y * 3.2 * grow + Math.sin(age * 0.3 + u.x) * 0.15, u.z * r);
+        sprite.scale.setScalar(s.r * u.size * (0.5 + 0.5 * grow) * 1.15);
+        sprite.material.opacity = 0.92 * thin * Math.min(1, age * 2);
+        sprite.material.rotation += u.spin * dt;
+      }
+    }
+    for (const [key, cloud] of this.clouds) {
+      if (live.has(key)) continue;
+      this.scene.remove(cloud);
+      for (const sp of cloud.children) sp.material.dispose();
+      this.clouds.delete(key);
+    }
   }
 
   /** The charge: on the ground where it was dropped or set. */
@@ -625,6 +722,7 @@ export class FpsView {
     this.camera.lookAt(CENTER[0] + 10, 0, CENTER[1]);
     this._fade(dt);
     this._charge(match);
+    this._grenades(match, dt);
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
   }

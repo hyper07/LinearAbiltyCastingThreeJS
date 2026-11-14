@@ -1,4 +1,4 @@
-import { PLAYER, WEAPONS } from './rules.js';
+import { PLAYER, WEAPONS, weaponIn } from './rules.js';
 import { clear } from './map.js';
 
 /**
@@ -9,7 +9,7 @@ import { clear } from './map.js';
  * view and the HUD draw either without knowing which.
  */
 
-const KEYS = ['id', 'name', 'bot', 'squad', 'money', 'kills', 'deaths', 'primary', 'secondary', 'armor', 'helmet', 'kit', 'alive', 'hp', 'x', 'y', 'z', 'yaw', 'pitch', 'slot', 'reloading', 'moving', 'scoped', 'hasCharge', 'using'];
+const KEYS = ['id', 'name', 'bot', 'squad', 'money', 'kills', 'deaths', 'primary', 'secondary', 'armor', 'helmet', 'kit', 'alive', 'hp', 'x', 'y', 'z', 'yaw', 'pitch', 'slot', 'reloading', 'moving', 'scoped', 'hasCharge', 'using', 'nades'];
 const round = (v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v);
 
 /** A match, as sent: small arrays, numbers to two places. */
@@ -23,6 +23,8 @@ export function pack(match) {
     attackers: match.attackers,
     charge: match.charge ? { x: round(match.charge.x), z: round(match.charge.z), state: match.charge.state, site: match.charge.site } : null,
     over: match.over,
+    nades: match.nades.map((n) => [round(n.x), round(n.y), round(n.z), n.kind]),
+    smokes: match.smokes.map((s) => [round(s.x), round(s.z), s.r, round(s.at), round(s.until)]),
     players: match.players.map((p) => [...KEYS.map((k) => round(p[k])), p.ammo ?? {}])
   };
 }
@@ -40,6 +42,8 @@ export class Mirror {
     this.attackers = 0;
     this.charge = null;
     this.over = null;
+    this.nades = [];
+    this.smokes = [];
   }
 
   sideOf(squad) {
@@ -47,7 +51,7 @@ export class Mirror {
   }
 
   weaponOf(p) {
-    return p.slot === 1 && p.primary ? p.primary : p.secondary;
+    return weaponIn(p);
   }
 
   living(side) {
@@ -57,6 +61,8 @@ export class Mirror {
   /** Take in what the server sent. Positions are kept aside (`to`) and eased towards in `frame`. */
   apply(snap, myId = null) {
     for (const k of ['time', 'phase', 'timer', 'round', 'score', 'attackers', 'charge', 'over']) this[k] = snap[k];
+    this.nades = (snap.nades ?? []).map(([x, y, z, kind]) => ({ x, y, z, kind }));
+    this.smokes = (snap.smokes ?? []).map(([x, z, r, at, until]) => ({ x, z, r, at, until }));
     snap.players.forEach((row, i) => {
       const p = (this.players[i] ??= {});
       const fresh = p.x == null;
@@ -84,6 +90,7 @@ export class Mirror {
    */
   frame(dt, myId, input) {
     this.timer -= dt;
+    this.time += dt;
     const live = this.phase === 'live' || this.phase === 'planted';
     for (const p of this.players) {
       if (!p.to) continue;

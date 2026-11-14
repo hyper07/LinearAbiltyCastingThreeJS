@@ -32,17 +32,33 @@ export async function run(browser, { shots = null } = {}) {
       const g = window.breachline;
       return g.match?.players.length === 10 && g.me && g.match.sideOf(g.me.squad) === 'def' && g.match.phase === 'buy' && g.match.players.filter((p) => p.bot).length === 9;
     }, null, 10000));
-    t.check('the HUD shows health, money and a weapon', await until(page, () => document.querySelector('.bl [data-hp]').textContent === '100' && document.querySelector('.bl [data-money]').textContent === '$800' && /Sidearm/.test(document.querySelector('.bl [data-weapon]').textContent)));
+    t.check('the HUD shows health, money and a weapon', await until(page, () => document.querySelector('.bl [data-hp]').textContent === '100' && document.querySelector('.bl [data-money]').textContent === '$4000' && /Sidearm/.test(document.querySelector('.bl [data-weapon]').textContent)));
     await page.keyboard.press('b');
-    t.check('B opens the shop', await until(page, () => !document.querySelector('.bl [data-shop]').hidden && document.querySelectorAll('.bl [data-buy]').length === 9));
+    t.check('B opens the shop', await until(page, () => !document.querySelector('.bl [data-shop]').hidden && document.querySelectorAll('.bl [data-buy]').length === 19));
     t.check('what I cannot pay for cannot be bought', await page.evaluate(() => document.querySelector('.bl [data-buy="longwatch"]').disabled && !document.querySelector('.bl [data-buy="ram"]').disabled));
     await shot(page, 'breachline-shop');
     await page.click('.bl [data-buy="ram"]');
-    t.check('buying takes the money and gives the weapon', await until(page, () => window.breachline.me.secondary === 'ram' && window.breachline.me.money === 100 && document.querySelector('.bl [data-buy="ram"]').classList.contains('is-have')));
+    t.check('buying takes the money and gives the weapon', await until(page, () => window.breachline.me.secondary === 'ram' && window.breachline.me.money === 3300 && document.querySelector('.bl [data-buy="ram"]').classList.contains('is-have')));
+    await page.click('.bl [data-buy="frag"]');
+    t.check('a frag grenade can be bought, one at a time', await until(page, () => window.breachline.me.nades.frag === 1 && document.querySelector('.bl [data-buy="frag"]').disabled));
     await page.keyboard.press('b');
+    await page.keyboard.press('3');
+    t.check('3 takes the knife out', await until(page, () => /Knife/.test(document.querySelector('.bl [data-weapon]').textContent)));
+    await page.keyboard.press('4');
+    t.check('4 takes the frag in hand', await until(page, () => /Frag/.test(document.querySelector('.bl [data-weapon]').textContent)));
     // On with the round, and walk.
     await page.evaluate(() => (window.breachline.match.timer = 0.2));
     t.check('the round goes live and the shop shuts', await until(page, () => window.breachline.match.phase === 'live' && document.querySelector('.bl [data-shop]').hidden));
+    // Headless Chrome grants no pointer lock: say the mouse is taken, as it is for a player.
+    await page.evaluate(() => {
+      window.breachline.locked = true;
+      document.querySelector('.bl [data-pause]').hidden = true;
+    });
+    const hit = await page.evaluate(() => document.elementFromPoint(640, 360)?.className);
+    await page.mouse.click(640, 360);
+    t.check('a click throws the frag', await until(page, () => window.breachline.match.nades.length === 1 || window.breachline.me.nades.frag === 0, null, 3000), `clicked ${hit} ` + JSON.stringify(await page.evaluate(() => { const g = window.breachline; return { slot: g.me.slot, w: g.match.weaponOf(g.me), cool: g.me.cool, nades: g.me.nades, alive: g.me.alive, phase: g.match.phase, press: g.press, mouse: g.mouse, locked: g.locked, shop: document.querySelector('.bl [data-shop]').hidden }; })));
+    t.check('…and it goes off', await until(page, () => window.breachline.match.nades.length === 0 && window.breachline.me.nades.frag === 0, null, 5000));
+    await page.keyboard.press('1');
     const before = await me(page);
     await page.keyboard.down('w');
     await page.waitForTimeout(700);

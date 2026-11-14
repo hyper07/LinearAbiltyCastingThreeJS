@@ -2,7 +2,7 @@ import { Match } from './sim.js';
 import { Mirror } from './net.js';
 import { FpsView } from './view.js';
 import { BOXES, SITES, SIZE } from './map.js';
-import { TEAM, TIME, WEAPONS, GEAR, BUY_ORDER, SKILL, WIN_ROUNDS } from './rules.js';
+import { TEAM, TIME, WEAPONS, GEAR, SHOP, SKILL, WIN_ROUNDS, MONEY } from './rules.js';
 import './fps.css';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -19,7 +19,8 @@ const REASON = { eliminated: 'the other side is down', defused: 'the charge was 
  * shows a mirror of it (net.js). The screen is the same either way.
  *
  * Keys: W A S D to walk, the mouse to look, left button to fire, right to
- * look down a scope, R reload, 1 and 2 weapons, B to buy, E to set or
+ * look down a scope, R reload, 1 and 2 weapons, 3 the knife, 4 and 5
+ * grenades, B to buy, E to set or
  * disarm the charge, Space to jump, Tab for the scores, Enter to talk.
  */
 export class FpsGame {
@@ -74,6 +75,7 @@ export class FpsGame {
         <div class="bl__money" data-money>$800</div>
         <div class="bl__gun">
           <span data-charge-mark hidden title="You carry the charge">◆ charge</span>
+          <small data-nades class="bl__nades"></small>
           <small data-weapon>Sidearm</small>
           <b data-ammo>12</b>
         </div>
@@ -135,7 +137,7 @@ export class FpsGame {
     menu.innerHTML = `
       <div class="bl__card bl__card--wide">
         <h1>Breachline</h1>
-        <p class="bl__lead">Five against five. Raiders carry a charge to site A or B and set it; Wardens hold the sites, or disarm it in time. First to ${WIN_ROUNDS} rounds — you change ends after six.</p>
+        <p class="bl__lead">Five against five. Raiders carry a charge to site A or B and set it; Wardens hold the sites, or disarm it in time. First to ${WIN_ROUNDS} rounds — you change ends after six. Everyone starts with $${MONEY.start.toLocaleString()} and a knife.</p>
         <div class="bl__pick" data-side>
           ${Object.entries(TEAM).map(([id, t]) => `<button type="button" data-value="${id}" style="--c:${t.color}"><b>${t.name}</b><small>${id === 'atk' ? 'Attack first: set the charge' : 'Defend first: hold the sites'}</small></button>`).join('')}
         </div>
@@ -152,7 +154,7 @@ export class FpsGame {
           </div>
           <p class="bl__note" data-note role="status">${esc(note)}</p>
         </div>
-        <p class="bl__keys">W A S D walk · mouse look · click fire · right-click scope · R reload · 1 2 weapons · B buy · E charge · Space jump · Tab scores</p>
+        <p class="bl__keys">W A S D walk · mouse look · click fire · right-click scope · R reload · 1 2 weapons · 3 knife · 4 frag · 5 smoke · B buy · E charge · Space jump · Tab scores</p>
       </div>`;
     const mark = () => {
       for (const b of menu.querySelectorAll('[data-side] button')) b.classList.toggle('is-on', b.dataset.value === this.pick.side);
@@ -429,7 +431,7 @@ export class FpsGame {
       this.keys.add(k);
       if (k === ' ') this.press.jump = true;
       else if (k === 'r') this.press.reload = true;
-      else if (k === '1' || k === '2') this.slotKey = { slot: Number(k), until: performance.now() + 300 };
+      else if (['1', '2', '3', '4', '5'].includes(k)) this.slotKey = { slot: Number(k), until: performance.now() + 300 };
       else if (k === 'b') this.toggleShop();
       else if (k === 'Tab') this._board(true);
       else if (k === 'Enter' && !this.solo) this._type();
@@ -540,6 +542,10 @@ export class FpsGame {
     const me = this.me;
     for (const e of events) {
       if (e.type === 'shot') this._bang(e.id === me.id ? 1 : this._near(e.from[0], e.from[2]), WEAPONS[e.weapon]);
+      else if (e.type === 'slash') this._swish(e.id === me.id ? 0.5 : 0.15);
+      else if (e.type === 'blast') this._bang(this._near(e.x, e.z) * 1.8, { dmg: 200 }, 0.6);
+      else if (e.type === 'smoke') this._hiss(this._near(e.x, e.z));
+      else if (e.type === 'throw' && e.id === me.id) this._tip(e.kind === 'frag' ? 'Frag out' : 'Smoke out', 1);
       else if (e.type === 'hurt') {
         if (e.id === me.id) {
           this.hurt = Math.min(1, (this.hurt ?? 0) + 0.25 + e.amount / 80);
@@ -631,7 +637,9 @@ export class FpsGame {
     this._set('[data-armor]', `${Math.ceil(me.armor)}${me.helmet ? ' ⛑' : ''}`);
     this._set('[data-money]', `$${me.money}`);
     this._set('[data-weapon]', me.reloading > 0 ? `${w.name} — reloading` : w.name);
-    this._set('[data-ammo]', me.ammo?.[m.weaponOf(me)] ?? 0);
+    const held = m.weaponOf(me);
+    this._set('[data-ammo]', WEAPONS[held].melee ? '—' : WEAPONS[held].throw ? `×${me.nades?.[held] ?? 0}` : me.ammo?.[held] ?? 0);
+    this._set('[data-nades]', `${me.nades?.frag ? '● frag ' : ''}${me.nades?.smoke ? '◌ smoke' : ''}`);
     this.$('[data-charge-mark]').hidden = !me.hasCharge;
     this._set('[data-clock]', clock(m.timer));
     this.$('[data-clock]').classList.toggle('is-hot', m.phase === 'planted');
@@ -721,6 +729,12 @@ export class FpsGame {
         g.fillRect(p.x * k + 4, p.z * k - 6, 4, 4);
       }
     }
+    g.fillStyle = 'rgba(220,220,220,0.55)';
+    for (const sm of m.smokes ?? []) {
+      g.beginPath();
+      g.arc(sm.x * k, sm.z * k, sm.r * k, 0, Math.PI * 2);
+      g.fill();
+    }
     const ch = m.charge;
     if (ch && (ch.state === 'planted' || (ch.state === 'dropped' && side === 'atk'))) {
       g.fillStyle = ch.state === 'planted' && Math.floor(m.time * 4) % 2 ? '#ff3b30' : '#ffd24a';
@@ -748,22 +762,23 @@ export class FpsGame {
     const m = this.match;
     const me = this.me;
     const side = m.sideOf(me.squad);
-    const key = `${me.money}|${me.primary}|${me.secondary}|${me.armor}|${me.helmet}|${me.kit}|${side}`;
+    const key = `${me.money}|${me.primary}|${me.secondary}|${me.armor}|${me.helmet}|${me.kit}|${me.nades?.frag}|${me.nades?.smoke}|${side}`;
     if (key === this._shopKey) return;
     this._shopKey = key;
     const row = (id) => {
       const it = WEAPONS[id] ?? GEAR[id];
       const w = WEAPONS[id];
-      const have = w ? me.primary === id || me.secondary === id : id === 'kit' ? me.kit : id === 'helmet' ? me.helmet && me.armor >= 100 : me.armor >= 100;
+      const have = w?.throw ? me.nades?.[id] >= 1 : w ? me.primary === id || me.secondary === id : id === 'kit' ? me.kit : id === 'helmet' ? me.helmet && me.armor >= 100 : me.armor >= 100;
       const price = it.price - (id === 'helmet' && me.armor >= 100 && !me.helmet ? GEAR.vest.price : 0);
       const no = have || me.money < price || (it.team && it.team !== side);
-      const text = w ? `${w.dmg}${w.pellets ? `×${w.pellets}` : ''} damage · ${w.rpm} a minute · ${w.mag} rounds${w.zoom ? ' · scope' : ''}` : it.text;
+      const text = w?.throw ? (id === 'frag' ? `up to ${w.dmg} damage within ${w.radius} m` : `a cloud ${w.radius * 2} m wide for ${w.last} s — nobody sees through it`) : w ? `${w.dmg}${w.pellets ? `×${w.pellets}` : ''} damage · ${w.rpm} a minute · ${w.mag} rounds${w.zoom ? ' · scope' : ''}` : it.text;
       return `<button type="button" data-buy="${id}" ${no ? 'disabled' : ''} class="${have ? 'is-have' : ''}"><b>${esc(it.name)}</b><small>${esc(text)}</small><em>${have ? 'yours' : `$${price}`}</em></button>`;
     };
     const shop = this.$('[data-shop]');
     shop.innerHTML = `
       <header><h2>Buy</h2><span>$${me.money}</span><button type="button" data-shop-close aria-label="Close">✕</button></header>
-      <div class="bl__goods"><div><h3>Weapons</h3>${BUY_ORDER.filter((id) => WEAPONS[id]).map(row).join('')}</div><div><h3>Gear</h3>${BUY_ORDER.filter((id) => GEAR[id]).map(row).join('')}<p class="bl__hint">B or click outside to close. What you carry is kept if you live through the round.</p></div></div>`;
+      <div class="bl__goods">${SHOP.map((shelf) => `<div><h3>${shelf.name}</h3>${shelf.items.map(row).join('')}</div>`).join('')}</div>
+      <p class="bl__hint">B or click outside to close. What you carry is kept if you live through the round. Kills pay more with an SMG ($600), a shotgun ($900) or the knife ($1500).</p>`;
     shop.querySelector('[data-shop-close]').onclick = () => this.toggleShop(false);
     for (const b of shop.querySelectorAll('[data-buy]')) b.onclick = () => this.buy(b.dataset.buy);
   }
@@ -824,6 +839,42 @@ export class FpsGame {
     src.connect(filter).connect(gain).connect(a.destination);
     src.start();
     src.stop(a.currentTime + long);
+  }
+
+  /** A knife through the air. */
+  _swish(volume) {
+    const a = this.audio;
+    if (!a) return;
+    const src = a.createBufferSource();
+    src.buffer = this.noise;
+    const filter = a.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(900, a.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(3800, a.currentTime + 0.12);
+    const gain = a.createGain();
+    gain.gain.setValueAtTime(0.25 * volume, a.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.15);
+    src.connect(filter).connect(gain).connect(a.destination);
+    src.start();
+    src.stop(a.currentTime + 0.16);
+  }
+
+  /** Smoke pouring out. */
+  _hiss(volume) {
+    const a = this.audio;
+    if (!a) return;
+    const src = a.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+    const filter = a.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 2500;
+    const gain = a.createGain();
+    gain.gain.setValueAtTime(0.12 * volume, a.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 1.8);
+    src.connect(filter).connect(gain).connect(a.destination);
+    src.start();
+    src.stop(a.currentTime + 1.9);
   }
 
   _beep(freq, long) {

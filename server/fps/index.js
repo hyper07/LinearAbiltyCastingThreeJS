@@ -154,7 +154,7 @@ export function createFps({ authenticate = () => null, log = () => {}, path = '/
         fire: Boolean(msg.fire),
         use: Boolean(msg.use),
         scope: Boolean(msg.scope),
-        slot: msg.slot === 1 || msg.slot === 2 ? msg.slot : undefined,
+        slot: [1, 2, 3, 4, 5].includes(msg.slot) ? msg.slot : undefined,
         // Presses last until the match has stepped once with them.
         shoot: Boolean(msg.shoot) || was.shoot,
         jump: Boolean(msg.jump) || was.jump,

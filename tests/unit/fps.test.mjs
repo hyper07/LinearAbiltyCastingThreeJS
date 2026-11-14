@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Match } from '../../src/fps/sim.js';
 import { Mirror, pack } from '../../src/fps/net.js';
 import { BOXES, EDGES, NODES, SITES, SPAWNS, clear, route, sees } from '../../src/fps/map.js';
-import { MONEY, TIME, WEAPONS, WIN_ROUNDS } from '../../src/fps/rules.js';
+import { MONEY, TIME, WEAPONS, WIN_ROUNDS, BUY_ORDER, SHOP } from '../../src/fps/rules.js';
 import { createFps } from '../../server/fps/index.js';
 
 const run = (m, seconds, input) => {
@@ -56,13 +56,19 @@ test('buying: only in the pause, only with the money, and a kit only for Wardens
   const m = new Match({ seed: 4, team: 'atk' });
   const me = m.me;
   assert.equal(me.money, MONEY.start);
-  assert.equal(m.buy(me, 'vantage'), 'Not enough money');
+  assert.ok(MONEY.start >= 4000, 'a purse that starts big enough for a rifle');
+  assert.equal(m.buy(me, 'anvil'), 'Not enough money');
+  assert.equal(m.buy(me, 'knife'), 'You have that');
   assert.equal(m.buy(me, 'ram'), null);
   assert.equal(me.secondary, 'ram');
   assert.equal(me.money, MONEY.start - WEAPONS.ram.price);
   assert.equal(m.buy(me, 'ram'), 'You have that');
   me.money = 5000;
   assert.equal(m.buy(me, 'kit'), 'Not for your side');
+  assert.equal(m.buy(me, 'smoke'), null);
+  assert.equal(m.buy(me, 'smoke'), 'You have that');
+  assert.equal(me.nades.smoke, 1);
+  me.money = 5000;
   assert.equal(m.buy(me, 'vantage'), null);
   assert.equal(m.weaponOf(me), 'vantage');
   assert.equal(m.buy(me, 'vest'), null);
@@ -137,7 +143,7 @@ test('shooting: a hit takes health, armor takes half, a head is worth more, and 
   assert.ok(sees(8, 1.6, 30, 18, 1.2, 30), 'the test needs an open line');
   hold();
   // Aim at the chest: a little below the eye line.
-  let ev = m.step(1 / 30, { yaw: -Math.PI / 2, pitch: -0.04, shoot: true });
+  let ev = m.step(1 / 30, { yaw: -Math.PI / 2, pitch: -0.07, shoot: true });
   const hurt = ev.find((e) => e.type === 'hurt');
   assert.ok(hurt, 'the shot landed');
   assert.equal(hurt.id, foe.id);
@@ -147,7 +153,7 @@ test('shooting: a hit takes health, armor takes half, a head is worth more, and 
   let dropped = false;
   for (let i = 0; i < 300 && !dropped; i++) {
     hold();
-    ev = m.step(1 / 30, { yaw: -Math.PI / 2, pitch: -0.04, shoot: i % 8 === 0 });
+    ev = m.step(1 / 30, { yaw: -Math.PI / 2, pitch: -0.07, shoot: i % 8 === 0 });
     dropped = ev.some((e) => e.type === 'kill' && e.by === me.id && e.who === foe.id);
   }
   assert.ok(dropped);
@@ -278,4 +284,90 @@ test('rooms: made with a code, joined by it, four at most; the host starts, keys
   for (const p of [ben, cy, eve]) p.ws.close();
   assert.equal(fps.rooms.size, 0, 'an empty room is gone');
   fps.close();
+});
+
+test('the shop: every weapon on a shelf once, with a model of its kind', () => {
+  assert.equal(new Set(BUY_ORDER).size, BUY_ORDER.length);
+  for (const id of Object.keys(WEAPONS)) if (WEAPONS[id].price > 0) assert.ok(BUY_ORDER.includes(id), `${id} is not sold`);
+  assert.ok(SHOP.length >= 6);
+  assert.ok(Object.keys(WEAPONS).length >= 18, 'many weapons to choose from');
+});
+
+test('the knife: everyone has it on 3; a stab from behind drops anyone, from the front it does not', () => {
+  const m = new Match({ seed: 3, team: 'atk' });
+  const me = m.me;
+  run(m, TIME.buy + 0.1, {});
+  const foe = m.players.find((p) => p.squad !== me.squad);
+  for (const p of m.players) if (p !== me && p !== foe) Object.assign(p, { x: 4 + (p.id % 5), z: 96, cool: 1e9 });
+  const place = (foeYaw) => {
+    Object.assign(me, { x: 30, z: 52, yaw: -Math.PI / 2, pitch: 0, cool: 0 });
+    Object.assign(foe, { x: 31.2, z: 52, yaw: foeYaw, cool: 1e9, hp: 100, armor: 100, alive: true });
+  };
+  place(Math.PI / 2); // facing me
+  m.step(1 / 30, { slot: 3 });
+  assert.equal(m.weaponOf(me), 'knife');
+  me.cool = 0; // past the moment it takes to draw
+  let ev = m.step(1 / 30, { slot: 3, yaw: -Math.PI / 2, shoot: true });
+  assert.ok(ev.some((e) => e.type === 'slash'));
+  assert.ok(foe.alive && foe.hp < 100, 'a stab from the front hurts');
+  place(-Math.PI / 2); // facing away
+  const money = me.money;
+  ev = m.step(1 / 30, { slot: 3, yaw: -Math.PI / 2, shoot: true });
+  assert.ok(ev.some((e) => e.type === 'kill' && e.weapon === 'knife'));
+  assert.equal(me.money, money + WEAPONS.knife.bounty);
+});
+
+test('grenades: a frag flies, bounces and hurts whoever is near; smoke hides one from another', () => {
+  const m = new Match({ seed: 8, team: 'atk' });
+  const me = m.me;
+  assert.equal(m.buy(me, 'frag'), null);
+  assert.equal(m.buy(me, 'smoke'), null);
+  run(m, TIME.buy + 0.1, {});
+  const foe = m.players.find((p) => p.squad !== me.squad);
+  for (const p of m.players) if (p !== me && p !== foe) Object.assign(p, { x: 4 + (p.id % 5), z: 96, cool: 1e9 });
+  Object.assign(me, { x: 30, z: 52, yaw: -Math.PI / 2, pitch: 0 });
+  Object.assign(foe, { x: 40, z: 52, hp: 100, armor: 0, cool: 1e9 });
+  const hold = () => {
+    Object.assign(foe, { x: 40, z: 52, cool: 1e9 });
+    for (const p of m.players) if (p !== me) p.cool = 1e9;
+  };
+  m.step(1 / 30, { slot: 4 });
+  hold();
+  assert.equal(m.weaponOf(me), 'frag');
+  me.cool = 0; // past the moment it takes to draw
+  const ev = m.step(1 / 30, { slot: 4, yaw: -Math.PI / 2, pitch: -0.2, shoot: true });
+  assert.ok(ev.some((e) => e.type === 'throw' && e.kind === 'frag'));
+  assert.equal(me.nades.frag, 0);
+  assert.notEqual(m.weaponOf(me), 'frag', 'with none left, back to a gun');
+  const all = run(m, 3, () => (hold(), {}));
+  const blast = all.find((e) => e.type === 'blast');
+  assert.ok(blast, 'it went off');
+  assert.ok(Math.abs(blast.x - 40) < 8, `it landed near them (${blast.x.toFixed(1)})`);
+  assert.ok(foe.hp < 100, 'and hurt them');
+  // Smoke between us: neither can see the other, though nothing solid is in the way.
+  assert.ok(m._see(30, 1.6, 52, 40, 1.6, 52));
+  m.smokes.push({ x: 35, z: 52, r: 4.8, at: m.time - 3, until: m.time + 10 });
+  assert.equal(m._see(30, 1.6, 52, 40, 1.6, 52), false);
+  assert.ok(m._see(30, 1.6, 59, 40, 1.6, 59), 'away from the smoke they still see');
+});
+
+test('bots buy by their part in the team, use grenades, and save together when money is short', () => {
+  const m = new Match({ seed: 12, human: false, skill: 'normal' });
+  const guns = new Set(m.players.map((p) => p.primary).filter(Boolean));
+  assert.ok(guns.size >= 3, `a mix of weapons (${[...guns]})`);
+  assert.ok(m.players.some((p) => p.nades.frag || p.nades.smoke), 'some carry grenades');
+  // A poor team saves: nobody buys a main weapon.
+  const poor = new Match({ seed: 12, human: false });
+  for (const p of poor.players) Object.assign(p, { money: 1500, primary: null, alive: false });
+  poor._newRound();
+  assert.ok(poor.players.every((p) => !p.primary));
+  // Over a few rounds the Raiders gather and go in, and grenades fly.
+  let threw = 0;
+  let went = 0;
+  for (let i = 0; i < 30 * 400 && !m.over; i++) {
+    for (const e of m.step(1 / 30)) if (e.type === 'throw') threw++;
+    if (m.plan.go && m.phase === 'live') went++;
+  }
+  assert.ok(threw > 3, `grenades thrown: ${threw}`);
+  assert.ok(went > 0, 'the Raiders went in');
 });
