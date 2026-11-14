@@ -30,6 +30,7 @@ import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 import { ClassForgePanel } from '../ui/ClassForgePanel.js';
 import { GameBuilderPanel } from '../ui/GameBuilderPanel.js';
 import { PlatformHome } from '../ui/PlatformHome.js';
+import { HeroesPanel } from '../ui/HeroesPanel.js';
 import { RosterPicker } from '../ui/RosterPicker.js';
 import { GameLobby } from '../ui/GameLobby.js';
 import { games } from '../platform/gamesClient.js';
@@ -408,6 +409,7 @@ export class App {
       remove: (id) => games.remove(id),
       create: () => this.builder.toggle(true),
       openHero: (panel) => this.openHero(panel),
+      openHeroes: () => this.heroesPanel.open(),
       openForge: () => this.forge.toggle(true),
       openEditor: () => {
         this.home.hide();
@@ -418,6 +420,21 @@ export class App {
       heroOf: (id) => this.heroOf(id),
       rosterHeroes: (roster) => this.rosterHeroes(roster),
       account: () => this.account?.user ?? null
+    });
+    /** "My heroes": the games you have a hero in; a hero's bag and gear, by game. */
+    this.heroesPanel = new HeroesPanel(hudRoot, {
+      account: () => this.account?.user ?? null,
+      heroes: () => this.allHeroes(),
+      game: (id) => games.get(id),
+      className: (classId) => {
+        const spec = CLASS_SPECS.find((c) => c.id === classId);
+        const design = this.forgedDesigns?.get(classId);
+        return { name: spec?.label ?? design?.name ?? platform.characters.get(classId)?.name ?? `${classId.charAt(0).toUpperCase()}${classId.slice(1)}`, icon: spec?.icon ?? design?.icon };
+      },
+      arena: () => this.arenaHero(),
+      openArena: () => this.openHero('loadout'),
+      openBag: (gameId, classId) => this.editHero(gameId, classId),
+      play: (gameId) => this.openLobby(gameId)
     });
     /** "Choose your character" the first time a player joins a game. */
     this.rosterPicker = new RosterPicker(hudRoot);
@@ -523,6 +540,16 @@ export class App {
       onRead: (item) => this.hud.showToast((item.type === 'bag' ? this.profile.useBagUpgrade(item.uid) : this.profile.read(item.uid)).message, 2600),
       onMessage: (text) => this.hud.showToast(text, 2400),
       onOpenBag: () => (this.phase === 'playing' ? this._openPanel('inventory') : this.inventory.toggle(true)),
+      // A hero's bag opened from "My heroes": closing it puts the arena's hero back, and that page.
+      onToggle: (open) => {
+        if (open || !this._editing) return;
+        const { gameId } = this._editing;
+        this._editing = null;
+        this.leaveGameScope().then(() => {
+          this.openHome();
+          this.heroesPanel.open(gameId);
+        });
+      },
       // Dragging something out of the bag drops it at your feet — only in a fight, where there is ground.
       canDrop: () => this.phase === 'playing',
       onDrop: (item) => {
@@ -1377,6 +1404,50 @@ export class App {
       const next = platform.setAppearance(patch, classId);
       if (platform.getActiveCharacter()?.id === classId) this.character.applyAppearance(next);
     }
+  }
+
+  /** Every hero this player has in any game: from the server signed in, else from this browser. */
+  async allHeroes() {
+    if (this.sync.active) {
+      const response = await fetch('./api/game/heroes');
+      return response.ok ? (await response.json()).heroes ?? [] : [];
+    }
+    const out = [];
+    const prefix = `${Profile.storageKey('arena')}@`;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(prefix)) continue;
+        const scope = key.slice(prefix.length);
+        const at = scope.lastIndexOf('#');
+        if (at < 1 || scope.startsWith('draft#')) continue;
+        const data = JSON.parse(localStorage.getItem(key) ?? 'null');
+        if (!data) continue;
+        out.push({ game: scope.slice(0, at), classId: scope.slice(at + 1), level: data.level ?? 1, gold: data.gold ?? 0, worn: Object.values(data.gear ?? {}).filter((g) => g?.name).map((g) => g.name), bag: Array.isArray(data.bag) ? data.bag.length : 0 });
+      }
+    } catch {
+      /* private mode: nothing kept */
+    }
+    return out;
+  }
+
+  /** The free-play arena's hero, for "My heroes". */
+  arenaHero() {
+    const p = this.profile.scope === 'arena' ? this.profile : null;
+    return { classId: this.mainMenu.getSelection().characterId, level: p?.level ?? 1, gold: p?.gold ?? 0, worn: p ? Object.values(p.gear ?? {}).filter((g) => g?.name).map((g) => g.name) : [] };
+  }
+
+  /**
+   * Open the bag of one of your heroes from "My heroes": become that game's
+   * character (its own bag and gear, never another game's), show the bag;
+   * closing it comes back (the inventory's `onToggle`).
+   */
+  async editHero(gameId, classId) {
+    const game = await games.get(gameId).catch(() => null);
+    if (!(await this.enterGameScope({ id: gameId, title: game?.title ?? '', roster: game?.roster ?? [], hero: classId }))) return;
+    this._editing = { gameId, classId };
+    this.home.hide();
+    this.inventory.toggle(true);
   }
 
   /** This player's characters in a game, one per class: from the server signed in, else this browser. */

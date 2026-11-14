@@ -145,6 +145,7 @@ export class InventoryPanel {
     }
     this.root.classList.toggle('is-stash', Boolean(this.stashMode));
     if (!this.root.hidden) this.render();
+    this.actions.onToggle?.(!this.root.hidden);
   }
 
   /** Open the bag beside the stash. */

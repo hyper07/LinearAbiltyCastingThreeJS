@@ -521,3 +521,37 @@ test('monsters never stand inside one another: a pack spreads out and surrounds 
     await db.close();
   }
 });
+
+test('"My heroes": a character\'s gear is listed, worn and taken off outside the world', async () => {
+  const { db, mmo, as } = await world();
+  try {
+    const made = await call(mmo, 'POST', '/api/mmo/characters', { name: 'Wardra', cls: 'vanguard' }, as?.(0));
+    assert.equal(made.status, 200, JSON.stringify(made.body));
+    const id = made.body.character.id;
+    const list = async () => (await call(mmo, 'GET', '/api/mmo/characters', null, as?.(0))).body.characters.find((c) => c.id === id);
+    let c = await list();
+    assert.ok(c.equip && Array.isArray(c.bag) && c.stats.maxHp > 0, 'what it wears, its bag, its stats');
+    // Put a sword it can use, and one it can't yet, in the bag.
+    const row = await db.one('SELECT data FROM mmo_characters WHERE id = ?', [id]);
+    const data = { ...row.data, bag: [{ item: 'militia_sword', n: 1 }, { item: 'steel_sword', n: 1 }, { item: 'bread', n: 3 }] };
+    await db.run('UPDATE mmo_characters SET data = ? WHERE id = ?', [JSON.stringify(data), id]);
+    c = await list();
+    const before = c.stats.power;
+    const was = c.equip.weapon;
+    const worn = await call(mmo, 'POST', '/api/mmo/characters/wear', { id, slot: 0 }, as?.(0));
+    assert.equal(worn.status, 200, JSON.stringify(worn.body));
+    assert.equal(worn.body.character.equip.weapon, 'militia_sword');
+    assert.equal(worn.body.character.bag[0]?.item ?? null, was ?? null, 'the old weapon went into its place');
+    assert.ok(worn.body.character.stats.power > before || !was, 'and the numbers follow');
+    assert.equal((await call(mmo, 'POST', '/api/mmo/characters/wear', { id, slot: 1 }, as?.(0))).status, 400, 'too high a level');
+    assert.equal((await call(mmo, 'POST', '/api/mmo/characters/wear', { id, slot: 2 }, as?.(0))).status, 400, 'bread is not worn');
+    const off = await call(mmo, 'POST', '/api/mmo/characters/takeoff', { id, slot: 'weapon' }, as?.(0));
+    assert.equal(off.status, 200);
+    assert.equal(off.body.character.equip.weapon, undefined);
+    assert.equal((await list()).equip.weapon, undefined, 'saved');
+    assert.equal((await call(mmo, 'POST', '/api/mmo/characters/wear', { id: id + 999, slot: 0 }, as?.(0))).status, 404, 'not someone else\'s');
+  } finally {
+    await mmo.close();
+    await db.close();
+  }
+});

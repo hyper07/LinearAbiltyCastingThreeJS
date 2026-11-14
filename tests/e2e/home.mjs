@@ -107,6 +107,18 @@ export async function run(browser, { shots = null } = {}) {
     await page.evaluate(() => window.app.exitToMenu());
     await until(page, () => !document.querySelector('.home').hidden, null, 10000);
 
+    // "My heroes": the games you have a hero in, a game's heroes, a hero's bag, and back.
+    await page.click('.home [data-heroes]');
+    t.check('"My heroes" lists the arena and the game just played', await until(page, (id) => document.querySelector('.heroes__game[data-game="arena"]') && document.querySelector(`.heroes__game[data-game="${id}"]`), published, 8000));
+    await page.click(`.heroes__game[data-game="${published}"]`);
+    t.check('a click on the game shows your hero there', await until(page, () => document.querySelectorAll('.heroes__hero').length >= 1 && /Level \d+/.test(document.querySelector('.heroes__meta')?.textContent ?? ''), null, 5000));
+    await page.click('.heroes__hero .heroes__btn--go');
+    t.check('its bag opens as that game\'s character', await until(page, (id) => window.app.inventory.isOpen && window.app.profile.scope.startsWith(`${id}#`), published, 10000));
+    await page.keyboard.press('Escape');
+    t.check('closing the bag returns to its heroes, and to the arena\'s character', await until(page, () => !window.app.inventory.isOpen && window.app.profile.scope === 'arena' && !document.querySelector('.heroes').hidden && document.querySelectorAll('.heroes__hero').length >= 1, null, 10000));
+    await page.click('.heroes [data-close]');
+    t.check('and it closes', await until(page, () => document.querySelector('.heroes').hidden && !document.querySelector('.home').hidden, null, 5000));
+
     // The hero menu and back.
     await page.click('.home [data-hero]');
     t.check('"Your hero" opens the class menu', await until(page, () => !document.querySelector('.main-menu').hidden && document.querySelector('.home').hidden, null, 5000));

@@ -157,3 +157,24 @@ export function normalize(raw) {
 }
 
 export { XP_TO, MAX_LEVEL };
+
+/** Wear what is in a bag slot (what was worn goes back there). Returns why not, or null when done. */
+export function wear(ch, bagSlot) {
+  const i = bagSlot | 0;
+  const s = ch.bag[i];
+  const it = s && ITEMS[s.item];
+  if (!it?.slot) return 'That isn\'t something to wear';
+  if ((it.level ?? 1) > ch.level) return `Needs level ${it.level}`;
+  const old = ch.equip[it.slot];
+  ch.equip[it.slot] = s.item;
+  ch.bag[i] = old ? { item: old, n: 1 } : null;
+  return null;
+}
+
+/** Take off what is worn in a slot, into the bag. Returns why not, or null when done. */
+export function takeOff(ch, slot) {
+  if (!SLOTS.includes(slot) || !ch.equip[slot]) return 'Nothing is worn there';
+  if (!give(ch, ch.equip[slot], 1)) return 'Your bag is full';
+  delete ch.equip[slot];
+  return null;
+}

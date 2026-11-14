@@ -4,7 +4,7 @@ import { Instance } from './instance.js';
 import { CLASSES, ITEMS, VENDORS, QUESTS, RECIPES, SLOTS, PARTY_MAX } from '../../src/mmo/data.js';
 import { ZONES, NPCS } from '../../src/mmo/world.js';
 import { cleanLook } from '../../src/mmo/looks.js';
-import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf } from '../../src/mmo/rules.js';
+import { NAME_RE, newCharacter, normalize, questsAt, questDone, give, take, countOf, freeSlots, addXp, statsOf, wear, takeOff } from '../../src/mmo/rules.js';
 
 /**
  * Hearthvale's server. Characters live in the database (`mmo_characters`,
@@ -39,6 +39,13 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
 
   /* -------------------------------------------------------------- HTTP */
 
+  /** What a saved character wears and carries, and what that adds up to. */
+  function wardrobe(row) {
+    const ch = normalize({ ...row.data, name: row.name, cls: row.cls });
+    const st = statsOf(ch);
+    return { equip: ch.equip, bag: ch.bag, stats: { maxHp: st.maxHp, power: Math.round(st.power), armor: Math.round(st.armor) } };
+  }
+
   async function handler(req, res) {
     const p = pathOf(req);
     if (!p.startsWith('/api/mmo/')) return false;
@@ -48,7 +55,7 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
       if (!account) return send(401, { error: 'Sign in to play Hearthvale: your characters are kept on your account.' }), true;
       if (req.method === 'GET' && p === '/api/mmo/characters') {
         const rows = await db.many('SELECT id, name, cls, level, data FROM mmo_characters WHERE account_id = ? ORDER BY id', [account.id]);
-        return send(200, { characters: rows.map((r) => ({ id: r.id, name: r.name, cls: r.cls, level: r.level, zone: r.data?.zone ?? 'hearthvale', gold: r.data?.gold ?? 0, look: cleanLook(r.cls, r.data?.look), online: online.has(r.id) })) }), true;
+        return send(200, { characters: rows.map((r) => ({ id: r.id, name: r.name, cls: r.cls, level: r.level, zone: r.data?.zone ?? 'hearthvale', gold: r.data?.gold ?? 0, look: cleanLook(r.cls, r.data?.look), online: online.has(r.id), ...wardrobe(r) })) }), true;
       }
       if (req.method === 'POST' && p === '/api/mmo/characters') {
         if (!limits.create.take(`a${account.id}`)) return send(429, { error: 'Slow down' }), true;
@@ -82,6 +89,22 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
           return look;
         });
         return done ? (send(200, { look: done }), true) : (send(404, { error: 'No such character' }), true);
+      }
+      if (req.method === 'POST' && (p === '/api/mmo/characters/wear' || p === '/api/mmo/characters/takeoff')) {
+        // Change what a character wears from the "My heroes" page, while it isn't in the world.
+        const body = await readJson(req, 1024);
+        const id = Number(body.id);
+        if (online.has(id)) return send(409, { error: 'That character is in the world right now — change its gear there (I for the bag)' }), true;
+        const done = await db.serial(async () => {
+          const row = await db.one('SELECT id, name, cls, level, data FROM mmo_characters WHERE id = ? AND account_id = ?', [id, account.id]);
+          if (!row) return { status: 404, error: 'No such character' };
+          const ch = normalize({ ...row.data, name: row.name, cls: row.cls });
+          const why = p.endsWith('/wear') ? wear(ch, Number(body.slot)) : takeOff(ch, String(body.slot));
+          if (why) return { status: 400, error: why };
+          await db.run('UPDATE mmo_characters SET data = ?, updated = ? WHERE id = ?', [JSON.stringify(ch), Date.now(), id]);
+          return { character: { id: row.id, name: row.name, cls: row.cls, level: row.level, gold: ch.gold, look: cleanLook(row.cls, ch.look), online: false, ...wardrobe({ ...row, data: ch }) } };
+        });
+        return send(done.status ?? 200, done.status ? { error: done.error } : done), true;
       }
       if (req.method === 'POST' && p === '/api/mmo/characters/delete') {
         const body = await readJson(req, 1024);
@@ -310,21 +333,14 @@ export function createMmo({ db, authenticate, log = () => {}, path = '/mmo', man
         return client.dirty();
       }
       case 'equip': {
-        const s = ch.bag[msg.slot | 0];
-        const it = s && ITEMS[s.item];
-        if (!it?.slot) return err('That isn\'t something to wear');
-        if ((it.level ?? 1) > ch.level) return err(`Needs level ${it.level}`);
-        const old = ch.equip[it.slot];
-        ch.equip[it.slot] = s.item;
-        ch.bag[msg.slot | 0] = old ? { item: old, n: 1 } : null;
+        const why = wear(ch, msg.slot);
+        if (why) return err(why);
         inst.refresh(p);
         return client.dirty();
       }
       case 'unequip': {
-        const slot = String(msg.slot);
-        if (!SLOTS.includes(slot) || !ch.equip[slot]) return;
-        if (!give(ch, ch.equip[slot], 1)) return err('Your bag is full');
-        delete ch.equip[slot];
+        const why = takeOff(ch, String(msg.slot));
+        if (why) return why === 'Your bag is full' ? err(why) : undefined;
         inst.refresh(p);
         return client.dirty();
       }

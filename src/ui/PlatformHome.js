@@ -30,7 +30,8 @@ const hue = (text) => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(
  * popular or new, a game's own page with Play, and Create.
  *
  * The action RPG's own menu (class, weapon, skills, parties, account) is one
- * click away as "Your hero"; this is what the platform opens on.
+ * click away as "Arena hero", and "My heroes" lists your heroes in every
+ * game (ui/HeroesPanel.js); this is what the platform opens on.
  */
 export class PlatformHome {
   /**
@@ -63,7 +64,8 @@ export class PlatformHome {
         </label>
         <nav class="home__actions">
           <button type="button" class="home__btn home__btn--primary" data-create>＋ Create</button>
-          <button type="button" class="home__btn" data-hero title="Your class, weapon, skills and stash">Your hero</button>
+          <button type="button" class="home__btn" data-heroes title="Your heroes in every game: levels, bags and equipment">🦸 My heroes</button>
+          <button type="button" class="home__btn" data-hero title="The free-play arena's hero: class, weapon, skills and stash">Arena hero</button>
           <button type="button" class="home__btn" data-party title="Make a party or join one with a code">Play together</button>
           <button type="button" class="home__btn home__btn--account" data-account>Sign in</button>
         </nav>
@@ -175,6 +177,7 @@ export class PlatformHome {
     this.$('[data-editor]').addEventListener('click', () => actions.openEditor());
     this.$('[data-library]').addEventListener('click', () => actions.openLibrary());
     this.$('[data-hero]').addEventListener('click', () => actions.openHero('loadout'));
+    this.$('[data-heroes]').addEventListener('click', () => actions.openHeroes?.());
     this.$('[data-party]').addEventListener('click', () => actions.openHero('party'));
     this.$('[data-account]').addEventListener('click', () => actions.openHero('account'));
     // A click on the dimmed space around a game's page closes it.

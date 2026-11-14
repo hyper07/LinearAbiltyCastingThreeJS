@@ -74,7 +74,7 @@ crafting, guilds, chat and trading. The server runs the worlds; characters are k
 
 **Every game keeps its own characters, one per class, per player.** What you earn in one game stays
 in it; a class you have not played there starts at level 1 with nothing, and switching back brings
-your earlier character back. The open arena in **Your hero** keeps its own character too.
+your earlier character back. The open arena in **Arena hero** keeps its own character too.
 
 <p>
   <img src="docs/screenshots/lobby.jpg" width="100%" alt="A game's lobby: the classes it offers, each new and starting at level 1, the Mage chosen with a skeleton-mage body, colour pickers, Invite friends and Start" />
@@ -83,8 +83,17 @@ your earlier character back. The open arena in **Your hero** keeps its own chara
 
 **＋ Create** makes a new game in the
 [Game builder](docs/game-builder.md), and **Publish** puts it on the home page for everyone on the
-server. **Your hero** opens the action RPG's own menu (class, weapon, skills, stash, account), and
+server. **My heroes** lists the games you have a hero in; a click on a game shows your heroes there,
+and what you can change depends on the game — an action game opens that hero's own bag and
+equipment, Hearthvale lets you wear gear from the bag or take it off right on the page (signed in,
+they come from your account; otherwise from this browser). **Arena hero** opens the action RPG's
+own menu (class, weapon, skills, stash, account), and
 **Play together** makes or joins a party — press Play in a party and everyone comes along.
+
+<p>
+  <img src="docs/screenshots/my-heroes.jpg" width="49%" alt="My heroes: a card for each game you have a hero in — Hearthvale with one hero, and the free-play arena" />
+  <img src="docs/screenshots/my-heroes-hearthvale.jpg" width="49%" alt="A Hearthvale character on the My heroes page: level, gold, health, power and armor; a row per slot with Take off; the gear in its bag with how it compares and Wear; and Play" />
+</p>
 
 <p>
   <img src="docs/screenshots/home.jpg" width="100%" alt="The home page: a search bar, Create, Your hero, Play together and Sign in; genre chips; a Create a game card and cards for Frost Hollow, Thistledown, Ember Ruins, The Wyrm's Graveyard, The Dragon's Keep and Study Grove, each with a drawn cover, a genre badge and a goal" />
@@ -104,7 +113,7 @@ in the Game builder. See **[Battle royale](docs/battle-royale.md)**.
 
 ## Playing
 
-In **Your hero**, pick a class and press **Start Game** for the open arena, or play any game from the home page.
+In **Arena hero**, pick a class and press **Start Game** for the open arena, or play any game from the home page.
 Spells cost **mana** (the blue bar; the Mana Potion on key 7 gives half back), and cooldowns and the pause
 between casts shorten as you level up and rank up your skills —
 [Mana, cooldowns and levels](docs/classes-and-skills.md#mana-cooldowns-and-levels). Move with **W A S D**, press **1–9** to arm

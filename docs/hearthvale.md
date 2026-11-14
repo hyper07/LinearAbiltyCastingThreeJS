@@ -44,6 +44,10 @@ are the KayKit Adventurers and Skeletons (CC0, Kay Lousberg) from the asset libr
   the choosing screen reopens the wardrobe for a character you have (not while it's playing). The
   free character pack has no separate male and female bodies, so the choice is by style and build.
 
+  Outside the game, **My heroes** on the home page shows each character's gear slot by slot and the
+  gear in its bag: **Wear** and **Take off** work there too, while the character isn't in the world
+  (`POST /api/mmo/characters/wear`, `/takeoff`).
+
 - **Classes.** **Vanguard** (a tank: holds the monsters' attention), **Ranger** (crossbow, slows),
   **Arcanist** (fire and frost from range) and **Mender** (heals, shields, revives). Six skills each,
   opening from level 1 to 12. Levels run to 20.

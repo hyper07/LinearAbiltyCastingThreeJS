@@ -110,6 +110,23 @@ export class GameAuthority {
     return out;
   }
 
+  /** Every character this account has in any game (not the arena's): the "My heroes" page. */
+  async allCharacters(accountId) {
+    const rows = await this.db.many("SELECT game, state, updated FROM characters WHERE account_id = ? AND game LIKE '%#%' ORDER BY updated DESC", [accountId]);
+    const out = [];
+    for (const row of rows) {
+      try {
+        const data = this.keys.open(row.state, `character:${accountId}:${row.game}`);
+        const at = row.game.lastIndexOf('#');
+        const worn = Object.values(data.gear ?? {}).filter((g) => g?.name).map((g) => g.name);
+        out.push({ game: row.game.slice(0, at), classId: row.game.slice(at + 1), level: data.level ?? 1, gold: data.gold ?? 0, worn, bag: Array.isArray(data.bag) ? data.bag.length : 0, updated: Number(row.updated) });
+      } catch {
+        /* a row that does not open is the audit's business */
+      }
+    }
+    return out;
+  }
+
   /** A blank character — every player starts each game with one. */
   async createCharacter(accountId) {
     const profile = new Profile({ storage: null, data: null });

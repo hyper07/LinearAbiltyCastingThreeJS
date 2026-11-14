@@ -133,6 +133,11 @@ export async function createGameServices({ dataDir, db = null, readLevel = async
     },
     // The lobby: your characters in a game, one per class (level, gold).
     'GET /api/game/characters': ({ account }) => authority.charactersIn(account.id, gameOfScope(authority.game)).then((characters) => ({ characters })),
+    // "My heroes": every character you have, in every game.
+    'GET /api/game/heroes': async ({ account }) => {
+      if (!account) throw new Refusal('Sign in first', 401);
+      return { heroes: await authority.allCharacters(account.id) };
+    },
     'POST /api/game/run/start': ({ account, body }) => authority.startRun(account.id, body),
     'POST /api/game/run/join': ({ account, body }) => authority.joinRun(account.id, body),
     'POST /api/game/run/end': ({ account, body }) => authority.endRun(account.id, body),

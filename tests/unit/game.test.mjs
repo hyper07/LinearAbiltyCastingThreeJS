@@ -536,3 +536,22 @@ test('HTTP: a request names its game, and unknown games are refused', async () =
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('"My heroes": every character an account has, by game and class', async () => {
+  const w = await world();
+  try {
+    const a = (await w.accounts.register({ name: 'Heroa', password: 'many-heroes-1' })).account.id;
+    const b = (await w.accounts.register({ name: 'Other', password: 'many-heroes-2' })).account.id;
+    await w.authority.inGame('arena', () => w.authority.character(a));
+    await w.authority.inGame('official:thistledown#caster', () => w.authority.character(a));
+    await w.authority.inGame('official:thistledown#knight', () => w.authority.character(a));
+    await w.authority.inGame('official:frost-hollow#caster', () => w.authority.character(a));
+    await w.authority.inGame('official:frost-hollow#caster', () => w.authority.character(b));
+    const mine = await w.authority.allCharacters(a);
+    assert.deepEqual(mine.map((h) => `${h.game}#${h.classId}`).sort(), ['official:frost-hollow#caster', 'official:thistledown#caster', 'official:thistledown#knight']);
+    assert.ok(mine.every((h) => h.level === 1 && Array.isArray(h.worn) && typeof h.gold === 'number'), 'level, gold and what is worn');
+    assert.equal((await w.authority.allCharacters(b)).length, 1, 'only your own');
+  } finally {
+    await w.close?.();
+  }
+});
