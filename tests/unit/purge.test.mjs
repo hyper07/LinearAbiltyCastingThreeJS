@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Purge, forgeCheck } from '../../src/squad/purge/sim.js';
-import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS } from '../../src/squad/purge/rules.js';
+import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS, recipes } from '../../src/squad/purge/rules.js';
 import { STRUCTURES, GUARDS, KEYS, Grid, FORGE, SPAWN, HEART, BASE, tierAt } from '../../src/squad/purge/map.js';
 
 const seats = (n = 4, people = 1) => Array.from({ length: n }, (_, i) => ({ name: `P${i}`, bot: i >= people }));
@@ -268,4 +268,14 @@ test('the hidden rank: "???" until Weapons is mastered; then ten Vanguards, a Ph
   assert.equal(drones.length, 4);
   for (let i = 0; i < 20 * 30; i++) g.step(TICK);
   assert.ok(drones.every((d) => !g.ents.has(d.i)), 'the drones are gone');
+});
+
+test('the combinations, as written on the board: the hidden one stays ??? until found', () => {
+  const locked = recipes({ weapons: 0, armor: 0 });
+  assert.equal(locked.length, 6);
+  assert.match(locked[1].text, /Recruit \+ 1,200 ore/);
+  assert.deepEqual([locked[5].name, locked[5].text, locked[5].secret], ['???', '???', true]);
+  const found = recipes({ weapons: 30, armor: 0 });
+  assert.equal(found[5].name, 'Dreadnought');
+  assert.match(found[5].text, /10 Vanguards \+ Phantom \+ Paragon/);
 });

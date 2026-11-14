@@ -43,6 +43,10 @@ buildings and camps of guards asleep until soldiers come near — 112 buildings 
   + 60,000 ore + 16 relics make the **Dreadnought**, a flying gunship (one each). It flies straight
   over the ridges, its cannon bursts, and when the dead come near it launches four attack drones
   that fight for 25 seconds. (Spoiler kept out of the game itself until you find it.)
+- **The combinations are written down**, as the classic maps keep them in the mission objectives: on
+  a wooden **board** standing by the Forge, and in the **Objectives** (open at the start; **O** or
+  **F9** to show or hide, or click the board) — the mission's goals with how far along you are, and
+  every combination with what it still needs right now ("ready — in the ring" when it is).
 - **Relics** come from breaking shrines, soul nodes and relic caches; every commander gets them.
 - **The armoury** (**U**): Weapons (+8% damage a level, to 30) and Plating (+1 armour, to 20), for
   all your soldiers.
@@ -89,7 +93,7 @@ the way) · **M** move · **P** patrol · **S** stop · **H** hold · **E** heal
 quickly: look at it) — the group bar shows them (right-click a slot to save there) · **Tab/F2** all
 your soldiers · **Space** the last alert · **Backspace** the camp · **Shift+F5–F8** save a view,
 **F5–F8** go back to it · **R** a Recruit (**Shift+R** five) · **F** Forge · **U** upgrades · **G**
-give ore · **+/−** speed · **F1** all the keys. The command card at the bottom has the same, to click.
+give ore · **+/−** speed · **O** objectives · **F1** all the keys. The command card at the bottom has the same, to click.
 (On Windows, Ctrl+number may switch browser tabs: use Alt+number.)
 
 | File | What it holds |

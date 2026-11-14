@@ -1,7 +1,7 @@
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, FORGE_REACH, LOOKS } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, foeDef } from './map.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
-import { loadTextures, paintLand, drawWorld, remains, LIFT } from './flatReal.js';
+import { loadTextures, paintLand, drawWorld, remains, drawBoard, LIFT } from './flatReal.js';
 
 /**
  * Grave Purge in 2D: the same game drawn flat on a plain canvas. At first
@@ -374,6 +374,7 @@ export class FlatView {
       this.popups = this.popups.filter((p) => (p.t += dt) < 1.4);
       return;
     }
+    drawBoard(g, state.players[this.mySlot]?.upg, 0.45);
     const down = new Set(state.down);
     for (const s of STRUCTURES) {
       if (!seen(s.x, s.z, 12)) continue;

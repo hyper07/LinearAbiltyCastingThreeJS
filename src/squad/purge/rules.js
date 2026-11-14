@@ -145,3 +145,18 @@ export const ECON = { start: 600, stipend: 300, grow: 25, every: 60, heroesOnly:
 
 /** The camp: soldiers in it heal (a share of their health a second), fast on the healing pad; its guns. */
 export const CAMP = { heal: 0.05, padHeal: 0.18, padReach: 6, gun: { dmg: 30, rate: 2, range: 13 }, gunHp: 6000 };
+
+/**
+ * The combinations, as words: for the board by the Forge and the
+ * objectives. A hidden rank reads "???" until `upg` has found its secret.
+ */
+export function recipes(upg = null) {
+  return RANK_ORDER.map((rank) => {
+    const d = RANKS[rank];
+    if (!d.from) return { rank, name: d.name, text: `the barracks · ${d.cost} ore` };
+    const open = !d.unlock || (upg && Object.entries(d.unlock).every(([k, n]) => (upg[k] ?? 0) >= n));
+    if (!open) return { rank, name: '???', text: '???', secret: true };
+    const from = Object.entries(d.from).map(([k, n]) => `${n > 1 ? `${n} ` : ''}${RANKS[k].name}${n > 1 ? 's' : ''}`).join(' + ');
+    return { rank, name: d.name, text: `${from} + ${d.ore.toLocaleString('en')} ore${d.relics ? ` + ${d.relics} relics` : ''}${d.one ? ' · one' : ''}` };
+  });
+}

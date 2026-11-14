@@ -1,8 +1,8 @@
 import { Purge, forgeCheck } from './sim.js';
 import { FlatView } from './flat.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
-import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART } from './map.js';
+import { TICK, SEATS, BOT_NAMES, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes } from './rules.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD } from './map.js';
 import '../squad.css';
 import './purge.css';
 
@@ -62,6 +62,7 @@ export class PurgeGame {
         <div class="gp__fps" data-fps></div>
         <div class="gp__groups" data-groups></div>
         <div class="gp__help" data-help hidden></div>
+        <aside class="gp__goals" data-goals></aside>
       </div>
       <div class="bs__menu" data-menu></div>
       <button type="button" class="bs__x" data-close aria-label="Leave Grave Purge">✕</button>`;
@@ -142,7 +143,7 @@ export class PurgeGame {
           <div class="bs__row"><button type="button" class="bs__go" data-solo>Play with three bot commanders</button></div>
           <div class="bs__row"><span>With friends</span><button type="button" data-make>Make a room</button><input data-code-in maxlength="5" placeholder="CODE" /><button type="button" data-join>Join</button></div>`}
         <p class="bs__note" data-note>${esc(note)}</p>
-        <p class="bs__keys">Drag or click to select · right-click move / attack · A attack · M move · P patrol · S stop · H hold · E heal · W to the Forge · Ctrl/Alt+0–9 save a group, 0–9 pick it · Tab all · Space last alert · Backspace camp · R Recruit · F Forge · U upgrades · G give · F1 all the keys</p>
+        <p class="bs__keys">Drag or click to select · right-click move / attack · A attack · M move · P patrol · S stop · H hold · E heal · W to the Forge · Ctrl/Alt+0–9 save a group, 0–9 pick it · Tab all · Space last alert · Backspace camp · R Recruit · F Forge · U upgrades · G give · O objectives · F1 all the keys</p>
       </div>`;
     const $ = (q) => m.querySelector(q);
     for (const b of m.querySelectorAll('[data-diff]')) {
@@ -292,6 +293,8 @@ export class PurgeGame {
     this._panel(null);
     this.state = null;
     this.view.target.set(PAD.x, 0, PAD.z + 6);
+    this.goalsOpen = true;
+    this._goalsKey = '';
     this.root.focus();
     this._sound();
     this._banner('Grave Purge', 'Drag to select, right-click to send. R buys Recruits; W walks them to the Forge (left of the camp, blue crystals) to be raised; E sends the hurt to the healing pad. F1: all the keys.', 6);
@@ -349,6 +352,12 @@ export class PurgeGame {
           if (ids.length) this.order({ t: this.aimMode, ids, x: ground.x, z: ground.z });
           this.view._ring(ground.x, ground.z, 0.8, this.aimMode === 'move' ? '#7dffb0' : this.aimMode === 'patrol' ? '#80c0ff' : '#ffb040', 0.35);
           this._aim(null);
+          return;
+        }
+        // The board by the Forge: the combinations.
+        if (ground && Math.abs(ground.x - BOARD.x) < BOARD.w / 2 && ground.z > BOARD.z - 5.5 && ground.z < BOARD.z + 0.5 && !this.view.pick(this.state, p.x, p.y, 'troop', this.mySlot)) {
+          this.goalsOpen = true;
+          this._goalsKey = '';
           return;
         }
         this.drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y, shift: e.shiftKey };
@@ -483,6 +492,11 @@ export class PurgeGame {
       case 'backspace':
         this.view.target.set(PAD.x, 0, PAD.z + 4);
         return true;
+      case 'o':
+      case 'f9':
+        this.goalsOpen = !this.goalsOpen;
+        this._goalsKey = '';
+        return true;
       case 'f1':
       case '?':
         this._help();
@@ -540,7 +554,7 @@ export class PurgeGame {
       ['W', 'To the Forge: walked into its ring, a soldier is raised a rank when you have the ore'],
       ['Ctrl/Alt + 0–9', 'Save the selection as a group'], ['Shift + 0–9', 'Add the selection to a group'], ['0–9', 'Pick a group (twice quickly: look at it)'],
       ['Tab · F2', 'All your soldiers'], ['Space', 'The last alert (else your soldiers)'], ['Backspace', 'Back to the camp'],
-      ['Shift+F5–F8 · F5–F8', 'Save a view · go to it'], ['R · Shift+R', 'A Recruit · five'], ['F · U · G', 'Forge · armoury · give ore'], ['+ −', 'Game speed (the host)'], ['F1 · ?', 'These keys']
+      ['Shift+F5–F8 · F5–F8', 'Save a view · go to it'], ['O · F9', 'Objectives and the combinations'], ['R · Shift+R', 'A Recruit · five'], ['F · U · G', 'Forge · armoury · give ore'], ['+ −', 'Game speed (the host)'], ['F1 · ?', 'These keys']
     ];
     h.innerHTML = `<header><h2>Keys</h2><button type="button" data-help-x>✕</button></header><table>${rows.map(([key, what]) => `<tr><th>${esc(key)}</th><td>${esc(what)}</td></tr>`).join('')}</table><p class="gp__hint">On Windows, Ctrl+number may switch browser tabs — use Alt+number to save a group.</p>`;
     h.querySelector('[data-help-x]').onclick = () => (h.hidden = true);
@@ -844,7 +858,49 @@ export class PurgeGame {
     }
     if (this.panel) this._drawPanel();
     this._groupBar();
+    this._goals();
     this._minimap();
+  }
+
+  /**
+   * The objectives (O): what the mission asks, how far along it is, and the
+   * combinations at the Forge with what each still needs — like the classic
+   * maps' mission objectives.
+   */
+  _goals() {
+    const s = this.state;
+    const me = this.me();
+    const el = this.$('[data-goals]');
+    el.hidden = !this.goalsOpen;
+    if (!this.goalsOpen || !me) return;
+    const troops = s.ents.filter((e) => e.k === 'troop');
+    const rows = recipes(me.upg).map((r) => {
+      const d = RANKS[r.rank];
+      if (!d.from) return { ...r, state: '' };
+      const can = forgeCheck(troops, this.mySlot, me.ore, me.relics, r.rank, me.upg);
+      return { ...r, state: can.secret ? '' : can.ok ? 'ready' : can.why };
+    });
+    const key = `${s.shrines}|${s.nodes}|${s.keysLeft}|${Math.floor(s.left / 10)}|${rows.map((r) => r.name + r.state).join()}`;
+    if (key === this._goalsKey) return;
+    this._goalsKey = key;
+    const king = s.ents.some((e) => e.k === 'foe' && e.kind === 'king');
+    const goal = (done, text) => `<li class="${done ? 'is-done' : ''}">${done ? '✓' : '○'} ${text}</li>`;
+    el.innerHTML = `<header><h3>Objectives</h3><button type="button" data-goals-x title="O">✕</button></header>
+      <ol class="gp__mission">
+        ${goal(s.shrines >= 6, `Break the six Shrines of Bones (${s.shrines}/6) — each makes Veterans and up stronger`)}
+        ${goal(s.nodes >= 6, `Break the six Soul Nodes (${s.nodes}/6)`)}
+        ${goal(!s.keysLeft && !STRUCTURES.some((b) => b.type === 'heart' && !s.down.includes(b.id)), `Break the Heart of the Grave (${s.keysLeft ? 'sealed' : 'open'})`)}
+        ${goal(false, `Kill the Grave King${king ? ' — he has risen' : ''}`)}
+        <li>⏱ Before time runs out: ${clock(s.left)}</li>
+      </ol>
+      <h3>Combinations <small>at the Forge, left of the camp — walk soldiers into the ring (W)</small></h3>
+      <ul class="gp__recipes">${rows.map((r) => `<li class="${r.secret ? 'is-secret' : r.state === 'ready' ? 'is-ready' : ''}"><b>${esc(r.name)}</b><span>= ${esc(r.text)}</span>${r.state ? `<em>${r.state === 'ready' ? 'ready — in the ring' : esc(r.state)}</em>` : ''}</li>`).join('')}</ul>
+      <p class="gp__hint">O shows or hides this · the board by the Forge says the same</p>`;
+    el.querySelector('[data-goals-x]').onclick = () => {
+      this.goalsOpen = false;
+      this._goalsKey = '';
+      el.hidden = true;
+    };
   }
 
   /** The saved groups, 1 to 0: click to pick, right-click to save the selection there. */

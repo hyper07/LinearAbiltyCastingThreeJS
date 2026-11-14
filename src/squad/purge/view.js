@@ -5,9 +5,9 @@ import { loadSoldier, Soldier } from '../../fps/soldier.js';
 import { gunModel } from '../../fps/guns.js';
 import { dress } from '../../mmo/bodies.js';
 import { SquadView } from '../view.js';
-import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS } from './rules.js';
+import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS, recipes } from './rules.js';
 import { loadRobot, Robot } from './robot.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, GUNS, HEART, tierAt, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, GUNS, HEART, tierAt, foeDef } from './map.js';
 import { FORGE_REACH } from './rules.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 
@@ -144,12 +144,65 @@ export class PurgeView extends SquadView {
     this.padRing = new THREE.Mesh(new THREE.RingGeometry(4.6, 5, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#3ddc84', transparent: true, opacity: 0.6, depthWrite: false }));
     this.padRing.position.set(PAD.x, 0.7, PAD.z);
     this.scene.add(this.padRing);
+    // The board by the Forge, the combinations painted on it (repainted when a secret is found).
+    this.boardCanvas = document.createElement('canvas');
+    this.boardCanvas.width = 1024;
+    this.boardCanvas.height = 460;
+    this.boardTex = new THREE.CanvasTexture(this.boardCanvas);
+    this.boardTex.colorSpace = THREE.SRGBColorSpace;
+    const posts = new THREE.MeshStandardMaterial({ color: '#4a3020', roughness: 0.9 });
+    for (const dx of [-BOARD.w / 2 + 0.8, BOARD.w / 2 - 0.8]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.35, 6.4, 0.35), posts);
+      post.position.set(BOARD.x + dx, 3.2, BOARD.z);
+      post.castShadow = true;
+      this.scene.add(post);
+    }
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(BOARD.w, 5, 0.25), [posts, posts, posts, posts, new THREE.MeshStandardMaterial({ map: this.boardTex, roughness: 0.8 }), posts]);
+    panel.position.set(BOARD.x, 3.7, BOARD.z);
+    panel.rotation.x = -0.25;
+    panel.castShadow = true;
+    this.scene.add(panel);
+    this._paintBoard(null);
     // The ridges and boulders: one rocky mesh.
     this._rocks();
     // Stand-ins the parent's frame expects.
     this.rifts = [];
     this.core = new THREE.Mesh();
     this.coreLight = new THREE.PointLight();
+  }
+
+  /** The board's words: the combinations (the hidden one "???" until found). */
+  _paintBoard(upg) {
+    const key = JSON.stringify(recipes(upg).map((r) => r.name));
+    if (key === this.boardKey) return;
+    this.boardKey = key;
+    const c = this.boardCanvas;
+    const g = c.getContext('2d');
+    const wood = g.createLinearGradient(0, 0, 0, c.height);
+    wood.addColorStop(0, '#7a5232');
+    wood.addColorStop(1, '#5a3a22');
+    g.fillStyle = wood;
+    g.fillRect(0, 0, c.width, c.height);
+    g.strokeStyle = 'rgba(0,0,0,0.2)';
+    for (let y = 60; y < c.height; y += 64) {
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(c.width, y);
+      g.stroke();
+    }
+    g.font = '900 44px system-ui, sans-serif';
+    g.fillStyle = '#ffd34d';
+    g.fillText('THE FORGE · COMBINATIONS', 28, 56);
+    recipes(upg).forEach((r, k) => {
+      const y = 120 + k * 62;
+      g.font = '800 36px system-ui, sans-serif';
+      g.fillStyle = r.secret ? '#c080ff' : '#ffffff';
+      g.fillText(r.name, 28, y);
+      g.font = '600 30px system-ui, sans-serif';
+      g.fillStyle = r.secret ? '#c080ff' : '#f0e0c8';
+      g.fillText(`= ${r.text}`, 250, y);
+    });
+    this.boardTex.needsUpdate = true;
   }
 
   _space(name, x, z, width, turn = 0) {
@@ -495,6 +548,7 @@ export class PurgeView extends SquadView {
     }
     this._sleepers(state, seen);
     this._sites(state, dt);
+    this._paintBoard(state.players[this.mySlot]?.upg);
     this.dying = this.dying.filter((d) => {
       d.t += dt;
       d.m.made?.mixer.update(dt);

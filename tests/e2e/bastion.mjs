@@ -52,6 +52,9 @@ export async function run(browser) {
     await page.evaluate(() => { for (const x of window.gravePurge.game.troops) if (x.o === window.gravePurge.mySlot) x.hp = x.max / 2; });
     await page.keyboard.press('e');
     t.check('E sends them to the healing pad, and they heal', await until(page, () => window.gravePurge.game.troops.filter((x) => x.o === window.gravePurge.mySlot).every((x) => x.hp > x.max * 0.8), null, 20000));
+    t.check('the objectives show the mission and the combinations (the hidden one ???)', await page.evaluate(() => !document.querySelector('.gp [data-goals]').hidden && document.querySelectorAll('.gp .gp__recipes li').length === 6 && /\?\?\?/.test(document.querySelector('.gp .gp__recipes').textContent) && /Shrines of Bones/.test(document.querySelector('.gp .gp__mission').textContent)));
+    await page.keyboard.press('o');
+    t.check('O hides the objectives', await until(page, () => document.querySelector('.gp [data-goals]').hidden));
     await page.keyboard.press('F1');
     t.check('F1 shows the keys', await until(page, () => !document.querySelector('.gp [data-help]').hidden && document.querySelectorAll('.gp [data-help] tr').length > 10));
     await page.keyboard.press('Escape');

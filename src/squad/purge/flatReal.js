@@ -1,5 +1,5 @@
-import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, Grid, foeDef } from './map.js';
+import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS, recipes } from './rules.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, Grid, foeDef } from './map.js';
 import { ELEVATION } from './sprites.js';
 
 /**
@@ -401,6 +401,58 @@ export function remains(land, sprites, x, z, kind) {
   g.restore();
 }
 
+/**
+ * The board by the Forge: two posts and a wooden panel with the
+ * combinations painted on it (the hidden one "???" until found). Drawn
+ * standing up from its foot at BOARD, `lift` metres up the screen a metre.
+ */
+export function drawBoard(g, upg, lift = LIFT) {
+  const { x, z, w } = BOARD;
+  const lo = 1 * lift;
+  const hi = 6.2 * lift;
+  const left = x - w / 2;
+  // Shadow, posts, panel.
+  shadow(g, x + 1, z + 0.3, w * 0.55, 0.9, 0.4);
+  g.fillStyle = '#4a3020';
+  g.fillRect(left + 0.6, z - hi - 0.2, 0.35, hi + 0.2);
+  g.fillRect(x + w / 2 - 0.95, z - hi - 0.2, 0.35, hi + 0.2);
+  const wood = g.createLinearGradient(0, z - hi, 0, z - lo);
+  wood.addColorStop(0, '#7a5232');
+  wood.addColorStop(1, '#5a3a22');
+  g.fillStyle = wood;
+  g.fillRect(left, z - hi, w, hi - lo);
+  g.strokeStyle = '#2a1a10';
+  g.lineWidth = 0.12;
+  g.strokeRect(left, z - hi, w, hi - lo);
+  g.strokeStyle = 'rgba(0,0,0,0.18)';
+  g.lineWidth = 0.05;
+  for (let k = 1; k < 6; k++) {
+    g.beginPath();
+    g.moveTo(left, z - hi + ((hi - lo) * k) / 6);
+    g.lineTo(left + w, z - hi + ((hi - lo) * k) / 6);
+    g.stroke();
+  }
+  // The words.
+  const rows = recipes(upg);
+  const line = (hi - lo) / (rows.length + 1.6);
+  g.textAlign = 'left';
+  g.textBaseline = 'middle';
+  g.font = `900 ${line * 0.62}px system-ui, sans-serif`;
+  g.fillStyle = '#ffd34d';
+  g.fillText('THE FORGE · COMBINATIONS', left + 0.4, z - hi + line * 0.75);
+  rows.forEach((r, k) => {
+    const y = z - hi + line * (1.85 + k);
+    g.font = `800 ${line * 0.55}px system-ui, sans-serif`;
+    g.fillStyle = r.secret ? '#c080ff' : '#ffffff';
+    g.fillText(r.name, left + 0.4, y);
+    g.font = `600 ${line * 0.5}px system-ui, sans-serif`;
+    g.fillStyle = r.secret ? '#c080ff' : '#f0e0c8';
+    g.fillText(`= ${r.text}`, left + 3, y);
+  });
+  g.textAlign = 'start';
+  g.textBaseline = 'alphabetic';
+}
+
 /* ------------------------------------------------------------- per frame */
 
 /** Which of the five drawn ways round faces `a` (0 = south, π/2 = east), and whether to mirror it. */
@@ -447,8 +499,9 @@ export function drawWorld(view, g, state, dt, seen) {
     g.globalAlpha = 1;
     items.push({ z: s.z, draw: () => building(view, g, s, state, down.has(s.id)) });
   }
-  // The camp's guns.
+  // The camp's guns, and the board by the Forge.
   for (const e of state.ents) if (e.k === 'gun' && seen(e.x, e.z)) items.push({ z: e.z, draw: () => view._gun(g, e) });
+  if (seen(BOARD.x, BOARD.z, 10)) items.push({ z: BOARD.z, draw: () => !view.shadowPass && drawBoard(g, state.players[view.mySlot]?.upg) });
   // Sleeping guards where they stand.
   const awake = new Set(state.ents.map((e) => e.i));
   for (const gd of GUARDS) {

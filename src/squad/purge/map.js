@@ -25,6 +25,8 @@ export const ARMORY = { x: 34, z: 9, r: 2.6 };
 /** The Forge: on the camp's left side, ringed with blue crystals. Soldiers walked into its ring are raised. */
 export const FORGE = { x: 8, z: 20, r: 2.4 };
 export const PAD = { x: 26, z: 22 };
+/** The board by the Forge, the combinations written on it (its middle, along the ground). */
+export const BOARD = { x: 12.5, z: 33.5, w: 11 };
 export const SPAWN = { x: 22, z: 15 };
 /** The camp's two guns, at its open sides. */
 export const GUNS = [{ x: 46, z: 20 }, { x: 24, z: 36 }];
