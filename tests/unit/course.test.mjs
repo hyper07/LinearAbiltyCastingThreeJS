@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { COURSES, planCourse, locate, buildGraph } from '../../src/city/course.js';
+import { COURSES, planCourse, planRun, locate, buildGraph } from '../../src/city/course.js';
 
 /** A town of straight roads every 200 m (one through 0, 0), big ones every 600 m, 3 km across. */
 function grid() {
@@ -80,5 +80,27 @@ test('following a car round: the nearest point, searched ahead of the last, even
 
 test('the Seoul courses are each round a place, with a name in English and Korean', () => {
   assert.ok(COURSES.length >= 4);
-  for (const c of COURSES) assert.ok(c.id && c.name && c.ko && c.text && c.r > 0);
+  for (const c of COURSES) {
+    assert.ok(c.id && c.name && c.ko && c.text);
+    // A loop is round a place; a run goes district to district.
+    if (c.run) assert.ok(c.stops.length >= 3 && c.stops[0] === c.stops.at(-1), `${c.id} starts and ends in one district`);
+    else assert.ok(c.r > 0);
+  }
+  assert.ok(COURSES.some((c) => c.id === 'run50') && COURSES.some((c) => c.id === 'run100'), 'the 50K and the 100K');
+});
+
+test('a run goes stop to stop on the roads, with a checkpoint at each, in order', () => {
+  const stops = [
+    { name: 'A', x: 0, z: 0 },
+    { name: 'B', x: 1200, z: 0 },
+    { name: 'C', x: 1200, z: 1200 },
+    { name: 'D', x: 0, z: 1200 }
+  ];
+  const run = planRun(grid(), stops);
+  assert.ok(run && run.open, 'an open course');
+  assert.equal(run.checkpoints.length, 3);
+  assert.deepEqual(run.checkpoints.map((c) => c.name), ['B', 'C', 'D']);
+  for (let k = 1; k < run.checkpoints.length; k++) assert.ok(run.checkpoints[k].i > run.checkpoints[k - 1].i, 'checkpoints in order along the way');
+  assert.ok(run.length > 3400 && run.length < 4500, `about 3.6 km, not ${Math.round(run.length)} m`);
+  assert.equal(run.s.length, run.points.length);
 });

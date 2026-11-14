@@ -93,7 +93,11 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **Courses**: five city loops of 4 to 5 km (Gwanghwamun Loop, Namsan Twisties, Dongdaemun Night,
   Gangnam Avenues, Yeouido Island) and three long ones of a single lap across the city — Han River
   Grand Tour (13.8 km, both banks and the bridges), Seoul Marathon (16.2 km) and Downtown Circuit
-  (11.8 km). Each is planned on the spot from the real road network: four points
+  (11.8 km). Then the two runs, start to finish, not round: **Seoul 50K** (about 55 km, Jongno to
+  Mapo, over the river to Yeouido and Gangnam, back by Seongdong) and **Seoul 100K** (about 105 km,
+  fifteen districts, over the river twice). A run has a checkpoint in each district on the way, with
+  a split time at each, the next one named with its distance, and the kilometres left to the
+  finish. Each is planned on the spot from the real road network: four points
   round the place, joined by the best roads, never the same street twice, never turning round on
   itself. The same roads always give the same course, so a room needs only the course's name.
 - **The garage**: five cars of our own — Solenne GT (fast and steady), Noctis R (a drift build with a
@@ -104,6 +108,10 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **The crowd**: people line the course behind red-and-white barriers — both sides of the start, the
   outside of every turn, every half kilometre between — and go wild as the cars come by (arms up,
   waving, bouncing, a roar and whistles as you pass). They come to life as you near them.
+- **Things to hit**: the barriers and the cones on the inside of every turn are solid. Hit one and
+  it flies, tumbles and lies where it lands (the car loses a little speed, a cone less); the crowd
+  behind it jumps back, then comes back to the barrier. Nobody can be driven through: a car that
+  reaches the crowd stops.
 - **Alone**: you against three bots. **Together**: one player makes a room and gives the five-letter
   code; up to three others join; the host picks the course and the laps (1, 2, 3 or 5) and starts.
   Bots take any empty seats (the host's browser drives them).
@@ -129,6 +137,12 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
   skids) and going along a road, as plain numbers; tested in `tests/unit/drive.test.mjs`.
 - `src/city/cars.js` — the Car Concept model in many paints, its glass made plain, its logos left
   out, our own number plates, wheels that steer and roll, lights at night, a light stand-in far away.
+- `SeoulGame.js` — the city itself: asphalt roads with lane lines (dashed between lanes, double
+  yellow down the middle), raised pavements of grey block paving with ginkgos (gold, it being
+  November) and street lamps that light at dusk; buildings drawn by what they are — glass towers
+  (each its own tint) for offices, white blocks with window bands and balcony rails for apartments,
+  shopfronts at street level with a row of shop signs above (pharmacy, convenience store, café,
+  hair salon…) that glow at night.
 - `src/city/people.js` — Mina and Jun. Neither file has a walk, so they borrow the soldier's
   (idle, walk, run): each bone's turn from rest is copied across, in each skeleton's own frame.
 

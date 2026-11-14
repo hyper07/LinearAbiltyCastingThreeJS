@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Session } from '../net/Session.js';
 import { loadCar, makeCar } from './cars.js';
 import { stepCar, RACE, CAR } from './drive.js';
-import { COURSES, planCourse, locate } from './course.js';
+import { COURSES, planCourse, planRun, locate } from './course.js';
 import { GARAGE, GARAGE_ORDER, ratings } from './garage.js';
 import { loadPerson, Person } from './people.js';
 
@@ -108,7 +108,7 @@ export class Race {
     m.innerHTML = `
       <header><h2>🏁 Gangnam Drift</h2><button type="button" data-race-x aria-label="Close">✕</button></header>
       <p class="race__lead">Four cars, a loop of real Seoul streets at night. Drift through the corners to fill your boost, then <b>Shift</b> to spend it. First over the line after the last lap wins.</p>
-      <div class="race__courses">${COURSES.map((c) => `<button type="button" data-course="${c.id}" class="${c.id === this.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><span>${esc(c.ko)}${c.long ? ' · <strong>LONG</strong>' : ''}</span><small>${esc(c.text)}</small><em data-len="${c.id}">${this.plans.get(c.id) ? `${(this.plans.get(c.id).length / 1000).toFixed(1)} km a lap` : ''}</em></button>`).join('')}</div>
+      <div class="race__courses">${COURSES.map((c) => `<button type="button" data-course="${c.id}" class="${c.id === this.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><span>${esc(c.ko)}${c.run ? ' · <strong>RUN</strong>' : c.long ? ' · <strong>LONG</strong>' : ''}</span><small>${esc(c.text)}</small><em data-len="${c.id}">${this.plans.get(c.id) ? `${(this.plans.get(c.id).length / 1000).toFixed(1)} km ${this.plans.get(c.id).open ? `· ${this.plans.get(c.id).checkpoints.length} checkpoints` : 'a lap'}` : c.run ? 'planning…' : ''}</em></button>`).join('')}</div>
       <h3 class="race__label">Your car</h3>
       <div class="race__garage">${GARAGE_ORDER.map((id) => {
         const c = GARAGE[id];
@@ -117,7 +117,7 @@ export class Race {
         return `<button type="button" data-car="${id}" class="${this.car.id === id ? 'is-on' : ''}"><b>${esc(c.name)}</b><em>${esc(c.kind)}</em><small>${esc(c.text)}</small>${bar('Speed', r.speed)}${bar('Pick-up', r.pickup)}${bar('Grip', r.grip)}${bar('Drift', r.drift)}</button>`;
       }).join('')}</div>
       <div class="race__row race__paints"><span>Paint</span>${GARAGE[this.car.id].paints.map((c, i) => `<button type="button" data-paint="${i}" class="${this.car.paint === i ? 'is-on' : ''}" style="background:${c}" aria-label="Paint ${i + 1}"></button>`).join('')}</div>
-      <div class="race__row"><span>Laps</span>${[1, 2, 3, 5].map((n) => `<button type="button" data-laps="${n}" class="${n === this.laps ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div>
+      ${COURSES.find((c) => c.id === this.courseId)?.run ? '<div class="race__row"><span>A run: start to finish, one go — checkpoints in every district on the way.</span></div>' : `<div class="race__row"><span>Laps</span>${[1, 2, 3, 5].map((n) => `<button type="button" data-laps="${n}" class="${n === this.laps ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div>`}
       ${s?.room ? `
         <div class="race__room"><b>Room <span data-race-code>${esc(s.room)}</span></b> — give friends this code (up to four). Bots take any empty seats.
           <ul>${[...s.peers.values()].map((p) => { const pick = p.id === s.id ? this.car : this.picks.get(p.id); return `<li>${pick ? `<i style="background:${GARAGE[pick.id].paints[pick.paint]}"></i>` : ''}${esc(p.name)}${pick ? ` — ${esc(GARAGE[pick.id].name)}` : ''}${p.id === s.host ? ' <em>host</em>' : ''}${p.id === s.id ? ' <em>you</em>' : ''}</li>`; }).join('')}</ul>
@@ -178,12 +178,20 @@ export class Race {
     if (this.plans.has(id)) return this.plans.get(id);
     const def = COURSES.find((c) => c.id === id);
     const roads = [];
-    for (const list of this.g.roadTiles?.values() ?? []) for (const r of list) if (Math.abs(r.pts[0] - def.x) < def.r * 4 && Math.abs(r.pts[1] - def.z) < def.r * 4) roads.push(r);
-    const c = roads.length ? planCourse(roads, def) : null;
+    let c = null;
+    if (def.run) {
+      for (const list of this.g.roadTiles?.values() ?? []) roads.push(...list);
+      const where = new Map((this.g.index?.districts ?? []).map((d) => [d.name, { name: d.name, x: d.x - 198050, z: -(d.y - 551860) }]));
+      const stops = def.stops.map((n) => where.get(n)).filter(Boolean);
+      c = roads.length && stops.length === def.stops.length ? planRun(roads, stops) : null;
+    } else {
+      for (const list of this.g.roadTiles?.values() ?? []) for (const r of list) if (Math.abs(r.pts[0] - def.x) < def.r * 4 && Math.abs(r.pts[1] - def.z) < def.r * 4) roads.push(r);
+      c = roads.length ? planCourse(roads, def) : null;
+    }
     if (c) {
       this.plans.set(id, c);
       const len = this.menuEl.querySelector(`[data-len="${id}"]`);
-      if (len) len.textContent = `${(c.length / 1000).toFixed(1)} km a lap`;
+      if (len) len.textContent = `${(c.length / 1000).toFixed(1)} km ${c.open ? `· ${c.checkpoints.length} checkpoints` : 'a lap'}`;
     }
     return c;
   }
@@ -307,9 +315,15 @@ export class Race {
     this.g.setHour(21.5);
     const n = course.points.length;
     const L = course.length;
+    // A run starts at a gate a little way in (the grid lines up before it) and finishes at its end.
+    this.open = Boolean(course.open);
+    this.gateAt = this.open ? 12 : 0;
+    this.goal = this.open ? L - course.s[this.gateAt] : this.laps * L;
+    if (this.open) this.laps = 1;
+    this.cpFirst = new Map();
     this.racers = grid.map((g, i) => {
       // Two by two behind the line.
-      const back = (n - 3 - Math.floor(i / 2) * 2 + n) % n;
+      const back = this.open ? Math.max(0, this.gateAt - 3 - Math.floor(i / 2) * 2) : (n - 3 - Math.floor(i / 2) * 2 + n) % n;
       const p = course.points[back];
       const q = course.points[(back + 1) % n];
       const heading = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
@@ -333,7 +347,8 @@ export class Race {
         y: this.g.surfaceAt(x, z),
         pitch: 0,
         idx: back,
-        dist: course.s[back] - L,
+        dist: this.open ? course.s[back] - course.s[this.gateAt] : course.s[back] - L,
+        cp: 0,
         lapsDone: 0,
         lapStart: 0,
         lapTimes: [],
@@ -376,7 +391,7 @@ export class Race {
     chev.closePath();
     const geo = new THREE.ShapeGeometry(chev).rotateX(-Math.PI / 2).scale(1.6, 1, 1.6);
     const mat = new THREE.MeshBasicMaterial({ color: '#ff7a1a', transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -16 });
-    const every = 2; // a chevron every 12 m
+    const every = c.open ? 3 : 2; // a chevron every 12 m (18 on a run)
     const count = Math.floor(n / every);
     this.chevrons = new THREE.InstancedMesh(geo, mat, count);
     this.chevrons.frustumCulled = false;
@@ -389,9 +404,10 @@ export class Race {
     }
     this._lift(true);
     this.decor.add(this.chevrons);
-    // The start: two posts and a chequered banner across the road.
-    const p = c.points[0];
-    const q = c.points[1];
+    // The start: two posts and a chequered banner across the road (and for a run, another at its end).
+    if (c.open) this._gate(c.points.length - 2, 'FINISH');
+    const p = c.points[this.gateAt ?? 0];
+    const q = c.points[(this.gateAt ?? 0) + 1];
     const heading = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
     const w = Math.max(14, (p[2] ?? 12) + 4);
     const gate = new THREE.Group();
@@ -415,7 +431,7 @@ export class Race {
     g.font = '900 34px system-ui, sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText('START · FINISH', 256, 33);
+    g.fillText(c.open ? 'START' : 'START · FINISH', 256, 33);
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
     const banner = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.6), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
@@ -538,19 +554,22 @@ export class Race {
     const c = this.course;
     const pts = c.points;
     const n = pts.length;
-    const at = new Set([2, n - 8]);
+    const at = new Set(c.open ? [this.gateAt + 2, n - 6] : [2, n - 8]);
+    const big = new Set(at);
+    for (const cp of c.checkpoints ?? []) {
+      at.add(cp.i);
+      big.add(cp.i);
+    }
     for (const t of this.turns ?? []) at.add(t.at);
-    for (let i = 0; i < n; i += Math.round(500 / 6)) at.add(i);
+    for (let i = 0; i < n; i += Math.round((c.open ? 800 : 500) / 6)) at.add(i);
     const spots = [];
     const used = [];
-    const barrier = new THREE.MeshStandardMaterial({ color: '#e8e8e8', roughness: 0.6 });
-    const stripe = new THREE.MeshStandardMaterial({ color: '#e0261e', roughness: 0.6 });
     for (const i of [...at].sort((a, b) => a - b)) {
       const p = pts[i];
       const q = pts[(i + 1) % n];
       const heading = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
       const turnHere = this.turns?.find((t) => t.at === i);
-      const sides = i === 2 || i === n - 8 ? [1, -1] : turnHere ? [turnHere.bend > 0 ? 1 : -1] : [i % 2 ? 1 : -1];
+      const sides = big.has(i) ? [1, -1] : turnHere ? [turnHere.bend > 0 ? 1 : -1] : [i % 2 ? 1 : -1];
       for (const side of sides) {
         const w = (p[2] ?? 12) / 2 + 2.6;
         const x = p[0] + Math.cos(heading) * side * w;
@@ -558,21 +577,198 @@ export class Race {
         if (used.some(([ux, uz]) => Math.hypot(ux - x, uz - z) < 25)) continue;
         if (this.g.buildingAt?.(x, z)) continue;
         used.push([x, z]);
-        // A run of barriers along the kerb: white, banded red.
-        const fence = new THREE.Group();
-        for (let k = -3; k <= 3; k++) {
-          const b = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.9, 0.35), k % 2 ? stripe : barrier);
-          b.position.set(k * 2, 0.45, 0);
-          b.castShadow = true;
-          fence.add(b);
-        }
-        fence.position.set(x, this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14), z);
-        fence.rotation.y = heading;
-        this.decor.add(fence);
-        spots.push({ x, z, heading, side, fence, people: [], count: i === 2 || i === n - 8 ? 9 : turnHere ? 7 : 5, cheerAt: 0 });
+        // A run of barriers along the kerb (built when you come near): white, banded red.
+        const fence = [];
+        for (let k = -3; k <= 3; k++) fence.push({ x: x - Math.sin(heading) * k * 2, z: z - Math.cos(heading) * k * 2, yaw: heading, kind: k % 2 ? 'red' : 'white' });
+        spots.push({ x, z, heading, side, fence, people: [], count: big.has(i) ? 10 : turnHere ? 7 : 5, cheerAt: 0 });
       }
     }
     this.spots = spots;
+    // Cones down the inside of every turn.
+    this.coneSets = (this.turns ?? []).map((t) => {
+      const p = pts[t.at];
+      const q = pts[(t.at + 1) % n];
+      const heading = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+      const inner = t.bend > 0 ? -1 : 1;
+      const w = (p[2] ?? 12) / 2 - 0.8;
+      const list = [];
+      for (let k = -2; k <= 2; k++) {
+        const along = k * 4;
+        list.push({ x: p[0] + Math.cos(heading) * inner * w - Math.sin(heading) * along, z: p[1] - Math.sin(heading) * inner * w - Math.cos(heading) * along, yaw: heading, kind: 'cone' });
+      }
+      return { x: p[0], z: p[1], fence: list, cones: true };
+    });
+  }
+
+  /* ------------------------------------------------- barriers and cones */
+
+  /**
+   * The things at the roadside you can hit: barrier blocks and cones, built
+   * as you come near and cleared as you leave. A car that hits one sends it
+   * flying (and loses a little speed); it falls, tumbles and comes to rest
+   * where it lands. The crowd behind a barrier that is hit jumps back.
+   */
+  _blocks(dt) {
+    this.blocks ??= [];
+    const me = this.me;
+    this.blockMats ??= {
+      white: new THREE.MeshStandardMaterial({ color: '#ececec', roughness: 0.55 }),
+      red: new THREE.MeshStandardMaterial({ color: '#d8241c', roughness: 0.55 }),
+      cone: new THREE.MeshStandardMaterial({ color: '#ff6a10', roughness: 0.5 }),
+      band: new THREE.MeshStandardMaterial({ color: '#f4f4f4', roughness: 0.4, emissive: '#666', emissiveIntensity: 0.4 })
+    };
+    const make = (b) => {
+      let mesh;
+      if (b.kind === 'cone') {
+        mesh = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.75, 14), this.blockMats.cone);
+        body.position.y = 0.375;
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.19, 0.12, 14), this.blockMats.band);
+        band.position.y = 0.42;
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.5), this.blockMats.cone);
+        foot.position.y = 0.025;
+        mesh.add(body, band, foot);
+      } else {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.9, 0.38).translate(0, 0.45, 0), this.blockMats[b.kind]);
+      }
+      mesh.traverse((o) => (o.castShadow = Boolean(o.isMesh)));
+      this.g.scene.add(mesh);
+      return mesh;
+    };
+    // Build what is near; clear what is far (unless still flying).
+    for (const set of [...(this.spots ?? []), ...(this.coneSets ?? [])]) {
+      const d = Math.hypot(set.x - me.s.x, set.z - me.s.z);
+      if (d < 260 && !set.built) {
+        set.built = set.fence.map((f) => {
+          const b = { ...f, set, y: this.g.surfaceAt(f.x, f.z, this.g.groundAt(f.x, f.z) + 14), vx: 0, vy: 0, vz: 0, rx: 0, rz: 0, spin: [0, 0, 0], flying: false, half: f.kind === 'cone' ? [0.28, 0.28] : [0.95, 0.19] };
+          b.ground = b.y;
+          b.mesh = make(b);
+          this.blocks.push(b);
+          return b;
+        });
+      } else if (d > 380 && set.built && !set.built.some((b) => b.flying)) {
+        for (const b of set.built) this.g.scene.remove(b.mesh);
+        this.blocks = this.blocks.filter((b) => b.set !== set);
+        set.built = null;
+      }
+    }
+    // Cars against blocks.
+    for (const r of this.racers) {
+      if (r.left || (!r.mine && !r.net)) continue;
+      const s = r.s;
+      if (Math.hypot(s.x - me.s.x, s.z - me.s.z) > 280) continue;
+      const fx = -Math.sin(s.heading);
+      const fz = -Math.cos(s.heading);
+      for (const b of this.blocks) {
+        if (Math.abs(b.x - s.x) > 4 || Math.abs(b.z - s.z) > 4) continue;
+        // The car as two circles, nose and tail; the block as a box turned with the road.
+        for (const along of [1.25, -1.25]) {
+          const cx = s.x + fx * along;
+          const cz = s.z + fz * along;
+          const dx = cx - b.x;
+          const dz = cz - b.z;
+          const lx = dx * Math.cos(b.yaw) - dz * Math.sin(b.yaw);
+          const lz = dx * Math.sin(b.yaw) + dz * Math.cos(b.yaw);
+          const px = Math.max(-b.half[0], Math.min(b.half[0], lx));
+          const pz = Math.max(-b.half[1], Math.min(b.half[1], lz));
+          if (Math.hypot(lx - px, lz - pz) > 1.05) continue;
+          const speed = Math.abs(s.v);
+          if (speed < 1.5 && !b.flying) {
+            // Nudged at walking pace: it slides.
+            b.x += -dx * 0.05;
+            b.z += -dz * 0.05;
+            continue;
+          }
+          if (b.hitBy === r && b.flying) continue;
+          // Hit: off it goes, the way the car was going, up and turning; the car loses a little.
+          const tx = -Math.sin(s.travel ?? s.heading);
+          const tz = -Math.cos(s.travel ?? s.heading);
+          const away = Math.hypot(dx, dz) || 1;
+          const light = b.kind === 'cone' ? 1.4 : 1;
+          b.vx = (tx * speed * 0.85 - (dx / away) * 2) * light;
+          b.vz = (tz * speed * 0.85 - (dz / away) * 2) * light;
+          b.vy = (2.5 + speed * 0.16) * light;
+          b.spin = [(Math.random() - 0.5) * speed * 0.6, (Math.random() - 0.5) * speed * 0.4, (Math.random() - 0.5) * speed * 0.6];
+          b.flying = true;
+          b.hitBy = r;
+          if (r.mine) s.v *= b.kind === 'cone' ? 0.97 : 0.86;
+          if (r.me) this._clatter(Math.min(1, speed / 30), b.kind === 'cone');
+          if (b.set.people) b.set.scatter = this.clock + 2.5;
+          break;
+        }
+      }
+    }
+    // The crowd is solid: a car that gets through the barriers stops against the people, who scatter.
+    for (const spot of this.spots ?? []) {
+      if (!spot.people.length || Math.hypot(spot.x - me.s.x, spot.z - me.s.z) > 60) continue;
+      for (const r of this.racers) {
+        if (r.left || !r.mine) continue;
+        const s = r.s;
+        for (const p of spot.people) {
+          const px = p.group.position.x;
+          const pz = p.group.position.z;
+          for (const along of [1.3, -1.3]) {
+            const cx = s.x - Math.sin(s.heading) * along;
+            const cz = s.z - Math.cos(s.heading) * along;
+            const d = Math.hypot(cx - px, cz - pz);
+            if (d > 1.35) continue;
+            // Pushed back out, stopped; everyone near jumps clear.
+            s.x += ((cx - px) / (d || 1)) * (1.35 - d);
+            s.z += ((cz - pz) / (d || 1)) * (1.35 - d);
+            if (Math.abs(s.v) > 2 && r.me) this._clatter(Math.min(1, Math.abs(s.v) / 30), false);
+            s.v *= -0.15;
+            spot.scatter = this.clock + 3;
+          }
+        }
+      }
+    }
+    // Flying blocks: fall, bounce, tumble, rest.
+    for (const b of this.blocks) {
+      if (b.flying) {
+        b.vy -= 18 * dt;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        b.z += b.vz * dt;
+        b.rx += b.spin[0] * dt;
+        b.yaw += b.spin[1] * dt;
+        b.rz += b.spin[2] * dt;
+        const ground = this.g.surfaceAt(b.x, b.z, b.y + 1);
+        if (b.y <= ground) {
+          b.y = ground;
+          b.vy = Math.abs(b.vy) * 0.3;
+          b.vx *= 0.6;
+          b.vz *= 0.6;
+          b.spin = b.spin.map((v) => v * 0.6);
+          if (Math.hypot(b.vx, b.vz) < 0.6 && b.vy < 1) {
+            b.flying = false;
+            b.vy = 0;
+            // Settle lying on a side (or upright, for a cone that lands well).
+            b.rx = Math.round(b.rx / (Math.PI / 2)) * (Math.PI / 2);
+            b.rz = Math.round(b.rz / (Math.PI / 2)) * (Math.PI / 2);
+            b.hitBy = null;
+          }
+        }
+      }
+      b.mesh.position.set(b.x, b.y, b.z);
+      b.mesh.rotation.set(b.rx, b.yaw, b.rz, 'YXZ');
+    }
+  }
+
+  /** The bang and rattle of hitting a barrier (a lighter tock for a cone). */
+  _clatter(volume, light) {
+    const a = this.g.street?._audio?.();
+    if (!a) return;
+    const o = a.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(light ? 420 : 160, a.currentTime);
+    o.frequency.exponentialRampToValueAtTime(light ? 200 : 60, a.currentTime + 0.18);
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.35 * volume, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.3);
+    o.connect(g).connect(a.destination);
+    o.start();
+    o.stop(a.currentTime + 0.3);
+    this.g.street?._thud?.(volume * (light ? 0.3 : 0.8));
   }
 
   /** Bring the crowds near you to life, let the far ones go, and have them cheer as cars come by. */
@@ -611,7 +807,15 @@ export class Race {
       // A car close: they go wild. Otherwise a little restless.
       let near = Infinity;
       for (const r of this.racers) if (!r.left) near = Math.min(near, Math.hypot(r.s.x - s.x, r.s.z - s.z));
-      const cheer = near < 45 ? 1 : 0.15;
+      const scared = (s.scatter ?? 0) > this.clock;
+      const cheer = scared ? 0 : near < 45 ? 1 : 0.15;
+      // Startled: everyone steps back from the barrier, then comes back to it.
+      for (const p of s.people) {
+        p.home ??= p.group.position.clone();
+        const back = scared ? 1.8 : 0;
+        p.away = (p.away ?? 0) + (back - (p.away ?? 0)) * Math.min(1, dt * (scared ? 8 : 1.5));
+        p.group.position.set(p.home.x + Math.cos(s.heading) * s.side * p.away, p.home.y, p.home.z - Math.sin(s.heading) * s.side * p.away);
+      }
       if (d < 30 && near < 30 && this.clock - s.cheerAt > 6 && this.phase === 'racing') {
         s.cheerAt = this.clock;
         this._roar();
@@ -670,11 +874,52 @@ export class Race {
     let best = null;
     for (const t of this.turns) {
       let d = c.s[t.from] - c.s[r.idx];
-      if (d < -10) d += L;
+      if (d < -10 && !c.open) d += L;
       if (d < -10 || d > 300) continue;
       if (!best || d < best.metres) best = { left: t.bend > 0, sharp: t.total > 1.2, hairpin: t.total > 2, metres: Math.max(0, d) };
     }
     return best;
+  }
+
+  /** Another gate across the road at point i (a run's finish). */
+  _gate(i, words) {
+    const c = this.course;
+    const p = c.points[i];
+    const q = c.points[Math.min(c.points.length - 1, i + 1)];
+    const heading = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+    const w = Math.max(14, (p[2] ?? 12) + 4);
+    const gate = new THREE.Group();
+    const post = new THREE.MeshStandardMaterial({ color: '#202226', metalness: 0.6, roughness: 0.4 });
+    for (const sx of [-w / 2, w / 2]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7, 0.5), post);
+      m.position.set(sx, 3.5, 0);
+      gate.add(m);
+    }
+    const cv = document.createElement('canvas');
+    cv.width = 512;
+    cv.height = 64;
+    const g = cv.getContext('2d');
+    for (let x = 0; x < 512; x += 32) for (let y = 0; y < 64; y += 32) {
+      g.fillStyle = (x + y) % 64 ? '#111' : '#f5f5f5';
+      g.fillRect(x, y, 32, 32);
+    }
+    g.fillStyle = 'rgba(0,0,0,0.7)';
+    g.fillRect(170, 10, 172, 44);
+    g.fillStyle = '#ffd400';
+    g.font = '900 34px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(words, 256, 33);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.6), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+    banner.position.y = 6.2;
+    gate.add(banner);
+    gate.position.set(p[0], this.g.surfaceAt(p[0], p[1], this.g.groundAt(p[0], p[1]) + 14), p[1]);
+    gate.rotation.y = heading;
+    gate.userData.at = { x: p[0], z: p[1] };
+    this.finishGate = gate;
+    this.decor.add(gate);
   }
 
   /** Sit the chevrons on the road surface near you (roads and bridges load as you go). */
@@ -694,7 +939,10 @@ export class Race {
     // The turn boards, likewise.
     for (const t of this.turns ?? []) {
       const a = t.sign?.userData.at;
-      if (a && (all || Math.hypot(a.x - p.x, a.z - p.z) < 400)) t.sign.position.y = this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14);
+      if (!a) continue;
+      const d = Math.hypot(a.x - p.x, a.z - p.z);
+      t.sign.visible = d < 700;
+      if (all || d < 400) t.sign.position.y = this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14);
     }
   }
 
@@ -762,6 +1010,7 @@ export class Race {
     this._send(dt);
     this._lift();
     this._crowds(dt);
+    this._blocks(dt);
     this._hudFrame();
   }
 
@@ -847,8 +1096,8 @@ export class Race {
     r.off = loc.off;
     if (loc.off < width / 2 + 30) {
       let d = c.s[loc.i] - c.s[r.idx];
-      if (d > L / 2) d -= L;
-      if (d < -L / 2) d += L;
+      if (!c.open && d > L / 2) d -= L;
+      if (!c.open && d < -L / 2) d += L;
       r.dist += d;
       r.idx = loc.i;
       // Going the wrong way along the course?
@@ -857,6 +1106,7 @@ export class Race {
       const way = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
       r.wrong = Math.abs(turn(r.s.heading, way)) > 2 && r.s.v > 4;
     }
+    if (c.open) return this._runProgress(r);
     // Laps done: the grid is just behind the line, so the first crossing starts lap one.
     const laps = Math.floor(r.dist / L);
     if (this.phase === 'racing' && laps > r.lapsDone) {
@@ -870,6 +1120,29 @@ export class Race {
         r.done = this.clock;
         if (r.me) this._flash(`Finished ${ordinal(this._rank(r))} · ${clock(r.done)}`, 3);
       }
+    }
+  }
+
+  /** A run: checkpoints passed (with a split against whoever passed first), and the finish. */
+  _runProgress(r) {
+    const c = this.course;
+    if (this.phase !== 'racing') return;
+    const at = r.dist + c.s[this.gateAt];
+    while (r.cp < c.checkpoints.length && at >= c.s[c.checkpoints[r.cp].i]) {
+      const cp = c.checkpoints[r.cp];
+      const first = this.cpFirst.get(r.cp);
+      if (first == null) this.cpFirst.set(r.cp, this.clock);
+      if (r.me) {
+        const gap = first == null ? 'first through' : `+${(this.clock - first).toFixed(1)} s on the leader`;
+        this._flash(`Checkpoint ${r.cp + 1}/${c.checkpoints.length} · ${cp.name} · ${clock(this.clock)} · ${gap}`, 3);
+        this._roar();
+      }
+      r.cp++;
+    }
+    if (r.dist >= this.goal && r.done == null) {
+      r.done = this.clock;
+      r.best = this.clock;
+      if (r.me) this._flash(`Finished ${ordinal(this._rank(r))} · ${clock(r.done)}`, 4);
     }
   }
 
@@ -954,7 +1227,7 @@ export class Race {
     const first = Math.min(...left.map((r) => r.done ?? Infinity));
     const all = left.every((r) => r.done != null);
     // Everyone home — or forty-five seconds after the winner — and it is over.
-    if (this.phase === 'racing' && (all || (Number.isFinite(first) && this.clock - first > 45) || (this.me.done != null && left.filter((r) => !r.bot).every((r) => r.done != null)))) {
+    if (this.phase === 'racing' && (all || (Number.isFinite(first) && this.clock - first > (this.open ? 150 : 45)) || (this.me.done != null && left.filter((r) => !r.bot).every((r) => r.done != null)))) {
       this.phase = 'done';
       setTimeout(() => this._results(), all ? 1200 : 0);
     }
@@ -984,8 +1257,16 @@ export class Race {
     const order = this._order();
     const rank = order.indexOf(me) + 1;
     const lap = Math.min(this.laps, Math.max(1, me.lapsDone + 1));
-    this.posEl.innerHTML = `<b>${ordinal(rank)}</b><small>of ${order.length}</small><span>LAP ${lap}/${this.laps}</span><i>${clock(this.phase === 'grid' ? 0 : me.done ?? this.clock - me.lapStart)}</i><em>best ${clock(me.best)} · total ${clock(me.done ?? (this.phase === 'grid' ? 0 : this.clock))}</em>`;
-    this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.name)}${r.bot ? ' <small>bot</small>' : ''}<span>${r.done != null ? clock(r.done) : `lap ${Math.min(this.laps, Math.max(1, Math.floor(r.dist / this.course.length) + 1))}`}</span></p>`).join('');
+    if (this.open) {
+      const c = this.course;
+      const next = c.checkpoints[me.cp];
+      const km = (v) => `${Math.max(0, v / 1000).toFixed(1)} km`;
+      const toNext = next ? c.s[next.i] - (me.dist + c.s[this.gateAt]) : 0;
+      this.posEl.innerHTML = `<b>${ordinal(rank)}</b><small>of ${order.length}</small><span>CP ${Math.min(me.cp + 1, c.checkpoints.length)}/${c.checkpoints.length}${next ? ` · ${esc(next.name)} in ${km(toNext)}` : ''}</span><i>${clock(me.done ?? (this.phase === 'grid' ? 0 : this.clock))}</i><em>${km(this.goal - me.dist)} to the finish</em>`;
+      this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.name)}${r.bot ? ' <small>bot</small>' : ''}<span>${r.done != null ? clock(r.done) : km(this.goal - r.dist)}</span></p>`).join('');
+    }
+    if (!this.open) this.posEl.innerHTML = `<b>${ordinal(rank)}</b><small>of ${order.length}</small><span>LAP ${lap}/${this.laps}</span><i>${clock(this.phase === 'grid' ? 0 : me.done ?? this.clock - me.lapStart)}</i><em>best ${clock(me.best)} · total ${clock(me.done ?? (this.phase === 'grid' ? 0 : this.clock))}</em>`;
+    if (!this.open) this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.name)}${r.bot ? ' <small>bot</small>' : ''}<span>${r.done != null ? clock(r.done) : `lap ${Math.min(this.laps, Math.max(1, Math.floor(r.dist / this.course.length) + 1))}`}</span></p>`).join('');
     const kmh = Math.round(Math.abs(me.s.v) * 3.6);
     this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost"><i style="width:${Math.round(me.boost * 100)}%"></i></div><span>${me.boosting ? 'BOOST' : me.s.drift > 0.22 && Math.abs(me.s.v) > 12 ? 'DRIFT' : me.s.v < -0.3 ? 'R' : ''}</span>`;
     if (me.wrong && this.phase === 'racing') this._flash('WRONG WAY', 0.4);
@@ -1050,14 +1331,20 @@ export class Race {
     g.strokeStyle = 'rgba(255, 122, 26, 0.35)';
     g.lineWidth = 9;
     g.beginPath();
-    pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
-    g.closePath();
+    if (n < 1500) {
+      pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
+      g.closePath();
+    } else for (let k = -120; k <= 220; k++) {
+      const p = pts[Math.max(0, Math.min(n - 1, me.idx + k))];
+      if (k > -120) g.lineTo(p[0], p[1]);
+      else g.moveTo(p[0], p[1]);
+    }
     g.stroke();
     g.strokeStyle = '#ff8a2a';
     g.lineWidth = 13;
     g.beginPath();
     for (let k = 0; k < 90; k++) {
-      const p = pts[(me.idx + k) % n];
+      const p = pts[this.open ? Math.min(n - 1, me.idx + k) : (me.idx + k) % n];
       if (k) g.lineTo(p[0], p[1]);
       else g.moveTo(p[0], p[1]);
     }
@@ -1065,7 +1352,8 @@ export class Race {
     // The line.
     g.fillStyle = '#ffffff';
     g.beginPath();
-    g.arc(pts[0][0], pts[0][1], 9, 0, Math.PI * 2);
+    const line = pts[this.open ? n - 1 : 0];
+    g.arc(line[0], line[1], 9, 0, Math.PI * 2);
     g.fill();
     // The others.
     for (const r of this.racers) {
@@ -1151,6 +1439,9 @@ export class Race {
 
   /** Take the race down (cars, course, HUD), keeping the room. */
   _end() {
+    for (const b of this.blocks ?? []) this.g.scene.remove(b.mesh);
+    this.blocks = [];
+    this.coneSets = null;
     for (const s of this.spots ?? []) for (const p of s.people) this.g.scene.remove(p.group);
     this.spots = null;
     for (const r of this.racers) this.g.scene.remove(r.car.group);

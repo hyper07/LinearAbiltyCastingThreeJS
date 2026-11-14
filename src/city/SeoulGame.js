@@ -13,10 +13,115 @@ const el = (tag, className, text) => {
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+const textureCache = new Map();
+/** One of the library's ambientCG surfaces (`Color`, `NormalGL`, …), repeating; it arrives when it arrives. */
+function texture(id, part) {
+  const key = `${id}|${part}`;
+  if (!textureCache.has(key)) {
+    const t = new THREE.TextureLoader().load(`./library/ambientcg/${id}/${id}_1K-JPG_${part}.jpg`, undefined, undefined, () => {});
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 8;
+    if (part === 'Color') t.colorSpace = THREE.SRGBColorSpace;
+    textureCache.set(key, t);
+  }
+  return textureCache.get(key);
+}
+
+/** Two geometries as one, each in its own colour (per vertex). */
+function mergeTwo(a, b, ca, cb) {
+  const parts = [a, b].map((g, k) => {
+    const n = g.toNonIndexed();
+    const col = new THREE.Color(k ? cb : ca);
+    const c = new Float32Array(n.attributes.position.count * 3);
+    for (let i = 0; i < c.length; i += 3) [c[i], c[i + 1], c[i + 2]] = [col.r, col.g, col.b];
+    n.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    n.deleteAttribute('uv');
+    return n;
+  });
+  const geo = new THREE.BufferGeometry();
+  for (const name of ['position', 'normal', 'color']) {
+    const arrays = parts.map((g) => g.attributes[name].array);
+    const out = new Float32Array(arrays.reduce((s, x) => s + x.length, 0));
+    let at = 0;
+    for (const arr of arrays) {
+      out.set(arr, at);
+      at += arr.length;
+    }
+    geo.setAttribute(name, new THREE.BufferAttribute(out, 3));
+  }
+  return geo;
+}
+
+/**
+ * The shop signs of a Korean street: sixteen of them, generic words (no
+ * names of real businesses), white or coloured letters on strong colours.
+ */
+function signAtlas() {
+  const words = ['편의점', '카페', '약국', '치킨', '분식', '노래방', '부동산', '병원', '안경', '꽃집', '빵집', '세탁', '미용실', '정육점', '식당', 'PC방'];
+  const colors = [['#1d6fd1', '#fff'], ['#e8402a', '#fff'], ['#18a35a', '#fff'], ['#f4c21b', '#1a1a1a'], ['#7a2bd1', '#fff'], ['#ffffff', '#c41a1a'], ['#0f2a55', '#ffd34a'], ['#e3007a', '#fff']];
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 256;
+  const g = c.getContext('2d');
+  words.forEach((w, k) => {
+    const x = (k % 4) * 256;
+    const y = Math.floor(k / 4) * 64;
+    const [bg, fg] = colors[k % colors.length];
+    g.fillStyle = bg;
+    g.fillRect(x, y, 256, 64);
+    g.strokeStyle = 'rgba(0,0,0,0.25)';
+    g.lineWidth = 4;
+    g.strokeRect(x + 2, y + 2, 252, 60);
+    g.fillStyle = fg;
+    g.font = '900 40px "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(w, x + 128, y + 34);
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.flipY = false;
+  return t;
+}
+
+/** Asphalt, with the lines a Korean road has painted on it: a double yellow down the middle, white lane dashes, white edges. */
+function roadMaterial() {
+  const m = new THREE.MeshLambertMaterial({ map: texture('Asphalt031', 'Color'), vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 aPaint;\nvarying vec3 vPaint;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaint = aPaint;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vPaint;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float w = vPaint.z;
+        float x = abs(vPaint.x);
+        float far = smoothstep(150.0, 600.0, length(vViewPosition));
+        float lines = 0.0;
+        vec3 ink = vec3(0.95);
+        if (w > 9.0) {
+          // The middle: two yellow lines.
+          float yellow = step(0.12, x) * step(x, 0.27);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.75, 0.15), yellow * (1.0 - far));
+          // Lanes 3.3 m wide each way, dashed white between them.
+          float lane = abs(fract(x / 3.3 + 0.5) - 0.5) * 3.3;
+          float dash = step(fract(vPaint.y / 12.0), 0.45);
+          lines += step(lane, 0.08) * step(1.0, x) * step(x, w * 0.5 - 1.0) * dash;
+        } else {
+          // A small street: one dashed white line down the middle.
+          lines += step(x, 0.08) * step(fract(vPaint.y / 8.0), 0.5);
+        }
+        // The edges: solid white.
+        lines += step(abs(x - (w * 0.5 - 0.35)), 0.08);
+        diffuseColor.rgb = mix(diffuseColor.rgb, ink, clamp(lines, 0.0, 1.0) * (1.0 - far));`);
+  };
+  return m;
+}
+
 /** Where the game's world begins: Seoul City Hall, in the source's grid (EPSG:5186, metres). */
 const ORIGIN = { x: 198050, y: 551860 };
 /** Wall colours by what a building is for (see tiles.js USES), light to read windows on. */
-const PALETTE = { house: '#d9c4a5', apartment: '#cfd6dd', shop: '#e2b98f', office: '#a9bdd1', public: '#d7b0a0', industry: '#b9b3a6', other: '#c9c2b6' };
+const PALETTE = { house: '#d8c9b4', apartment: '#e4e2dc', shop: '#d9cfc0', office: '#9fb0c0', public: '#d2c4b2', industry: '#b9b3a6', other: '#cfc8bc' };
 const QUALITY = { low: 800, medium: 1300, high: 2000 };
 const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 공공누리 제1유형(출처표시)';
 /** Road widths in metres by class (motorway … tertiary); a link road is narrower. */
@@ -161,7 +266,7 @@ export class SeoulGame {
     window.removeEventListener('keyup', this._up, true);
     for (const t of this.tiles.values()) this._free(t);
     this.tiles.clear();
-    for (const l of this.lands.values()) for (const m of [l.ground, l.roads]) m?.geometry.dispose();
+    for (const l of this.lands.values()) for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps]) m?.geometry?.dispose();
     this.lands.clear();
     this.race?.dispose();
     this.street?.dispose();
@@ -218,28 +323,79 @@ export class SeoulGame {
     // One material for every building: its colour per vertex, windows drawn by the shader.
     this.uniforms = { uNight: { value: 0 } };
     this.material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    this.signs = signAtlas();
     this.material.onBeforeCompile = (shader) => {
       shader.uniforms.uNight = this.uniforms.uNight;
+      shader.uniforms.uSigns = { value: this.signs };
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nvarying vec3 vWall;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;');
+        .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nattribute vec2 aKind;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;\nvKind = aKind;\nvWorldN = normal;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uNight;\nvarying vec3 vWall;\nfloat seoulLit = 0.0;')
+        .replace('#include <common>', '#include <common>\nuniform float uNight;\nuniform sampler2D uSigns;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nfloat seoulLit = 0.0;\nvec3 seoulGlow = vec3(0.0);\nfloat seoulHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
         .replace('#include <color_fragment>', `#include <color_fragment>
           if (vWall.x >= 0.0) {
-            // Windows: a grid along the wall and up it; some lit at night, each building its own.
+            // What it is: 0 house · 1 apartment · 2 shop · 3 office · 4 public · 5 industry · 6 other; and how tall.
+            float kind = vKind.x;
+            float tall = vKind.y;
             float far = smoothstep(350.0, 1300.0, length(vViewPosition));
-            vec2 cell = vec2(vWall.x / 3.2, vWall.y / 3.3);
+            bool curtain = kind != 1.0 && kind != 0.0 && (kind == 3.0 ? tall > 22.0 : tall > 60.0);
+            bool flats = kind == 1.0;
+            float floorH = flats ? 2.8 : curtain ? 3.8 : 3.3;
+            float bay = curtain ? 1.6 : flats ? 3.6 : 3.2;
+            vec2 cell = vec2(vWall.x / bay, vWall.y / floorH);
             vec2 f = fract(cell);
             vec2 id = floor(cell);
-            float win = step(0.2, f.x) * step(f.x, 0.8) * step(0.3, f.y) * step(f.y, 0.78);
-            float r = fract(sin(dot(id + vWall.z * 31.0, vec2(12.9898, 78.233))) * 43758.5453);
-            vec3 glass = mix(vec3(0.42, 0.56, 0.7), vec3(0.08, 0.1, 0.16), uNight);
-            diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * 0.7 * (1.0 - far));
+            float r = seoulHash(id + vWall.z * 31.0);
+            // Glass: the sky in it by day (lighter higher up), dark at night.
+            float tint = fract(vWall.z * 13.7);
+            vec3 tone = tint < 0.3 ? vec3(0.16, 0.24, 0.32) : tint < 0.5 ? vec3(0.17, 0.26, 0.25) : tint < 0.8 ? vec3(0.15, 0.17, 0.2) : vec3(0.24, 0.2, 0.16);
+            vec3 sky = mix(tone * 0.8, tone * 1.6 + vec3(0.05, 0.07, 0.1), clamp(vWall.y / 180.0, 0.0, 1.0));
+            vec3 glass = mix(sky, vec3(0.05, 0.07, 0.11), uNight);
+            float win = 0.0;
+            if (curtain) {
+              // A curtain wall: glass with thin mullions and a band at each floor.
+              float mull = step(0.06, f.x) * step(0.14, f.y);
+              win = mull;
+              // Glass with a frame: the frame the building's own colour, darker; panes vary a little, less far off.
+              vec3 pane = glass * (0.94 + 0.08 * r * (1.0 - far));
+              diffuseColor.rgb = mix(diffuseColor.rgb * 0.7, pane, mull * 0.95);
+            } else if (flats) {
+              // Flats: a long window band with a pale balcony rail below it on every floor.
+              win = step(0.08, f.x) * step(f.x, 0.92) * step(0.38, f.y) * step(f.y, 0.86);
+              float rail = step(0.3, f.y) * step(f.y, 0.36);
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.92, 0.88), 0.55);
+              diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * 0.8 * (1.0 - far));
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.98), rail * 0.6 * (1.0 - far));
+            } else {
+              win = step(0.2, f.x) * step(f.x, 0.8) * step(0.3, f.y) * step(f.y, 0.78);
+              diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * 0.75 * (1.0 - far));
+            }
             float on = step(1.0 - 0.5 * fract(vWall.z * 7.3 + 0.35), r);
-            seoulLit = uNight * mix(win * on, 0.16, far);
+            vec3 warm = mix(vec3(1.0, 0.82, 0.55), vec3(0.85, 0.92, 1.0), step(0.7, r));
+            seoulGlow += warm * uNight * mix(win * on, 0.12, far) * 0.55;
+            // Street level: shopfronts, and the signs above them — the Korean high street.
+            bool street = (kind == 2.0 || kind == 6.0 || kind == 3.0 || (kind == 0.0 && vWall.z > 0.55)) && vWall.y < 5.2 && far < 0.9;
+            if (street) {
+              if (vWall.y < 3.3) {
+                float pane = step(0.06, fract(vWall.x / 2.4)) * step(0.15, vWall.y / 3.3);
+                diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.12, 0.14, 0.16), vec3(0.5, 0.42, 0.3), uNight), pane * 0.9);
+                seoulGlow += vec3(1.0, 0.8, 0.55) * pane * uNight * 0.45;
+              } else if (vWall.y < 4.7) {
+                // Each sign 7 m wide: one of the atlas's sixteen, picked by the building and the place along it.
+                float n = floor(vWall.x / 7.0);
+                float pick = floor(seoulHash(vec2(n, vWall.z * 97.0)) * 16.0);
+                vec2 uv = vec2((mod(pick, 4.0) + fract(vWall.x / 7.0)) / 4.0, (floor(pick / 4.0) + 1.0 - (vWall.y - 3.3) / 1.4) / 4.0);
+                vec3 sign = texture2D(uSigns, uv).rgb;
+                diffuseColor.rgb = sign;
+                seoulGlow += sign * (0.15 + uNight * 0.9);
+              }
+            }
+            seoulLit = 0.0;
+          } else {
+            // A roof: darker, flatter.
+            diffuseColor.rgb *= 0.85;
           }`)
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.8, 0.48) * seoulLit * 1.35;');
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += seoulGlow;');
     };
     this.buildings = new THREE.Group();
     this.scene.add(this.buildings);
@@ -277,6 +433,7 @@ export class SeoulGame {
     this.sun.color.set('#fff3dc').lerp(new THREE.Color('#ff9a5a'), dusk);
     this.hemi.intensity = 0.28 + day * 0.95;
     this.uniforms.uNight.value = night;
+    if (this.lampMat) this.lampMat.emissiveIntensity = night * 3;
     this.ground.material.color.setScalar(0.5 + Math.min(1, day * 1.6) * 0.7);
     const h = Math.floor(this.hour);
     this.$('[data-hour]').value = String(this.hour);
@@ -305,10 +462,13 @@ export class SeoulGame {
     // The land of every tile in view (hills and water have no buildings): a few a frame, nearest first.
     for (const [key, l] of this.lands) {
       if (land.has(key)) continue;
-      for (const m of [l.ground, l.roads]) {
+      for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps]) {
         if (!m) continue;
         this.scene.remove(m);
-        m.geometry.dispose();
+        // Trees and lamps share their shapes across tiles: free only their own instance data.
+        if (m.isInstancedMesh) m.dispose();
+        else if (m.isGroup) m.children.forEach((c) => c.dispose?.());
+        else m.geometry.dispose();
         for (const [cell, seg] of m.userData.owned ?? []) {
           const list = this.roadHash.get(cell);
           const at = list?.indexOf(seg) ?? -1;
@@ -372,6 +532,7 @@ export class SeoulGame {
     const nor = [];
     const col = [];
     const wall = [];
+    const kinds = [];
     const foot = [];
     const color = new THREE.Color();
     const roof = new THREE.Color();
@@ -382,6 +543,8 @@ export class SeoulGame {
       seedBase = (seedBase * 1664525 + 1013904223) | 0;
       const seed = ((seedBase >>> 8) & 0xffff) / 0xffff;
       color.set(PALETTE[USES[b.use]] ?? PALETTE.other).offsetHSL((seed - 0.5) * 0.04, (seed - 0.5) * 0.08, (seed - 0.5) * 0.16 - (h > 60 ? 0.05 : 0));
+      // Low buildings: some brick-red, some stone, some grey render — not all one pale.
+      if (h < 25 && USES[b.use] !== 'apartment') color.lerp(new THREE.Color(['#a65a44', '#8c8478', '#b8b2a8', '#d9d2c4', '#6f6a66'][Math.floor(seed * 5)]), 0.55);
       roof.copy(color).multiplyScalar(0.8).lerp(new THREE.Color('#8a8f96'), 0.35);
       // World points: east is +X, north is −Z.
       const xs = new Float32Array(n);
@@ -404,6 +567,10 @@ export class SeoulGame {
       const base = low - 1.5;
       const top = this.groundAt((minx + maxx) / 2, (minz + maxz) / 2) + b.height;
       foot.push({ minx, maxx, minz, maxz, xs, zs, h: b.height, name: b.name });
+      const kind = Math.max(0, USES.indexOf(USES[b.use] ?? 'other'));
+      let area = 0;
+      for (let i = 0; i < n; i++) area += xs[i] * zs[(i + 1) % n] - xs[(i + 1) % n] * zs[i];
+      const flip = area > 0 ? -1 : 1;
       let along = seed * 3.2;
       for (let i = 0; i < n; i++) {
         const j = (i + 1) % n;
@@ -413,14 +580,15 @@ export class SeoulGame {
         // The ring runs counter-clockwise seen from above (north up), so this points outward.
         const nx = -dz / len;
         const nz = dx / len;
-        const u0 = along;
-        const u1 = along + len;
+        const u0 = along * flip + 1000;
+        const u1 = (along + len) * flip + 1000;
         along = u1;
         pos.push(xs[i], base, zs[i], xs[j], base, zs[j], xs[j], top, zs[j], xs[i], base, zs[i], xs[j], top, zs[j], xs[i], top, zs[i]);
         for (let k = 0; k < 6; k++) nor.push(nx, 0, nz);
         // Darker at the foot: a cheap shadow where walls meet the street.
         for (const top of [0, 0, 1, 0, 1, 1]) col.push(color.r * (top ? 1 : 0.78), color.g * (top ? 1 : 0.78), color.b * (top ? 1 : 0.78));
         wall.push(u0, 0, seed, u1, 0, seed, u1, h, seed, u0, 0, seed, u1, h, seed, u0, h, seed);
+        for (let k = 0; k < 6; k++) kinds.push(kind, h);
       }
       const contour = [];
       for (let i = 0; i < n; i++) contour.push(new THREE.Vector2(xs[i], zs[i]));
@@ -432,6 +600,7 @@ export class SeoulGame {
           nor.push(0, 1, 0);
           col.push(roof.r, roof.g, roof.b);
           wall.push(-1, 0, seed);
+          kinds.push(kind, h);
         }
       }
     }
@@ -440,6 +609,7 @@ export class SeoulGame {
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.setAttribute('aWall', new THREE.Float32BufferAttribute(wall, 3));
+    geo.setAttribute('aKind', new THREE.Float32BufferAttribute(kinds, 2));
     geo.computeBoundingSphere();
     t.mesh = new THREE.Mesh(geo, this.material);
     this.buildings.add(t.mesh);
@@ -498,7 +668,7 @@ export class SeoulGame {
     const col = [];
     const idx = [];
     const c = new THREE.Color();
-    const town = new THREE.Color('#9aa593');
+    const town = new THREE.Color('#8f8b85');
     const wood = new THREE.Color('#4f7d48');
     const rock = new THREE.Color('#8f8f86');
     for (let j = 0; j <= n; j++) {
@@ -529,10 +699,15 @@ export class SeoulGame {
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.setIndex(idx);
     geo.computeVertexNormals();
-    this.landMaterial ??= new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    // Paving underfoot, tiled in the world's metres.
+    const uv = [];
+    for (let k = 0; k < pos.length; k += 3) uv.push(pos[k] / 5, pos[k + 2] / 5);
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    this.landMaterial ??= new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, map: texture('Concrete034', 'Color') });
     const ground = new THREE.Mesh(geo, this.landMaterial);
     this.scene.add(ground);
-    return { ground, roads: this._roadMesh(key) };
+    const roads = this._roadMesh(key);
+    return { ground, roads, ...(roads?.userData.street ?? {}) };
   }
 
   /** Read roads.bin and sort every road into the tiles it crosses. */
@@ -570,6 +745,10 @@ export class SeoulGame {
     if (!list?.length) return null;
     const pos = [];
     const col = [];
+    const paint = []; // per vertex: metres across from the middle, metres along, the road's width
+    const walk = []; // the pavements
+    const trees = [];
+    const lamps = [];
     const c = new THREE.Color();
     const owned = [];
     this.roadHash ??= new Map();
@@ -596,10 +775,13 @@ export class SeoulGame {
         }
         return s / k;
       });
-      c.set(r.cls <= 1 ? '#3f4350' : '#4c5058');
+      c.set(r.cls <= 1 ? '#8c8e94' : '#9a9ca2');
       const half = r.width / 2;
       let prev = null;
       let last = null;
+      let along = 0;
+      let nextTree = 8;
+      const expressway = r.cls === 0;
       line.forEach(([x, z], i) => {
         const [nx, nz] = line[Math.min(line.length - 1, i + 1)];
         const [px, pz] = line[Math.max(0, i - 1)];
@@ -609,9 +791,30 @@ export class SeoulGame {
         const y = this.groundAt(x, z) + 0.9 + eased[i];
         const left = [x - (dz / len) * half, y, z + (dx / len) * half];
         const right = [x + (dz / len) * half, y, z - (dx / len) * half];
+        if (last) along += Math.hypot(x - last[0], z - last[2]);
+        // The pavement each side: a step up, a paving strip 3 m wide (not on an expressway or a bridge).
+        const onBridge = eased[i] > 1;
+        const kerb = 0.14;
+        const outL = [x - (dz / len) * (half + 3), y + kerb, z + (dx / len) * (half + 3)];
+        const outR = [x + (dz / len) * (half + 3), y + kerb, z - (dx / len) * (half + 3)];
+        const inL = [left[0], y + kerb, left[2]];
+        const inR = [right[0], y + kerb, right[2]];
         if (prev) {
           pos.push(...prev.left, ...prev.right, ...right, ...prev.left, ...right, ...left);
           for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
+          const a0 = prev.along;
+          for (const [o, v] of [[-half, a0], [half, a0], [half, along], [-half, a0], [half, along], [-half, along]]) paint.push(o, v, r.width);
+          if (!expressway && !onBridge && !prev.bridge) walk.push(...prev.inL, ...prev.outL, ...outL, ...prev.inL, ...outL, ...inL, ...prev.outR, ...prev.inR, ...inR, ...prev.outR, ...inR, ...outR);
+          // A ginkgo every so often along the pavement, and a lamp at every other.
+          while (!expressway && !onBridge && along >= nextTree) {
+            const side = Math.floor(nextTree / 16) % 2 ? 1 : -1;
+            const off = half + 1.9;
+            const tx = x + (dz / len) * off * side;
+            const tz = z - (dx / len) * off * side;
+            if (Math.floor(nextTree / 16) % 3 === 0) lamps.push([x + (dz / len) * (half + 0.5) * side, y + kerb, z - (dx / len) * (half + 0.5) * side, Math.atan2(-dz * side, dx * side)]);
+            else trees.push([tx, y + kerb, tz, nextTree]);
+            nextTree += 16;
+          }
           // Remember the stretch, so someone walking here stands on the road and not under it.
           const seg = { ax: last[0], ay: last[1], az: last[2], bx: x, by: y, bz: z, half: half + 0.5 };
           const cell = `${Math.floor((last[0] + x) / 2 / ROAD_CELL)}_${Math.floor((last[2] + z) / 2 / ROAD_CELL)}`;
@@ -620,18 +823,93 @@ export class SeoulGame {
           owned.push([cell, seg]);
         }
         last = [x, y, z];
-        prev = { left, right };
+        prev = { left, right, inL, inR, outL, outR, along, bridge: onBridge };
       });
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setAttribute('aPaint', new THREE.Float32BufferAttribute(paint, 3));
+    const uv = [];
+    for (let k = 0; k < pos.length; k += 3) uv.push(pos[k] / 6, pos[k + 2] / 6);
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.computeVertexNormals();
-    this.roadMaterial ??= new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+    this.roadMaterial ??= roadMaterial();
     const mesh = new THREE.Mesh(geo, this.roadMaterial);
     mesh.userData.owned = owned;
+    mesh.receiveShadow = true;
     this.scene.add(mesh);
+    mesh.userData.street = this._street(walk, trees, lamps);
     return mesh;
+  }
+
+  /** A tile's pavements (one mesh), ginkgo trees and street lamps (instanced). */
+  _street(walk, trees, lamps) {
+    const out = {};
+    if (walk.length) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(walk, 3));
+      const uv = [];
+      for (let k = 0; k < walk.length; k += 3) uv.push(walk[k] / 2.2, walk[k + 2] / 2.2);
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.computeVertexNormals();
+      this.walkMaterial ??= new THREE.MeshLambertMaterial({ map: texture('PavingStones128', 'Color'), color: '#d6d2cc', side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
+      out.walks = new THREE.Mesh(geo, this.walkMaterial);
+      out.walks.receiveShadow = true;
+      this.scene.add(out.walks);
+    }
+    const o = new THREE.Object3D();
+    if (trees.length) {
+      // A ginkgo in November: a straight grey trunk, a gold crown.
+      this.treeParts ??= (() => {
+        const trunk = new THREE.CylinderGeometry(0.11, 0.16, 3.0, 6).translate(0, 1.5, 0);
+        const crown = new THREE.IcosahedronGeometry(1, 1).scale(1.05, 2.6, 1.05).translate(0, 4.9, 0);
+        const g = mergeTwo(trunk, crown, '#5c5650', '#e8b931');
+        return { geo: g, mat: new THREE.MeshLambertMaterial({ vertexColors: true }) };
+      })();
+      const mesh = new THREE.InstancedMesh(this.treeParts.geo, this.treeParts.mat, trees.length);
+      const tint = new THREE.Color();
+      trees.forEach(([x, y, z, seed], k) => {
+        const sz = 0.85 + ((seed * 7.31) % 1) * 0.35;
+        o.position.set(x, y, z);
+        o.rotation.set(0, seed, 0);
+        o.scale.set(sz, sz * (0.9 + ((seed * 3.7) % 1) * 0.25), sz);
+        o.updateMatrix();
+        mesh.setMatrixAt(k, o.matrix);
+        mesh.setColorAt(k, tint.setHSL(0.11 + ((seed * 1.3) % 1) * 0.05, 0.55, 0.42 + ((seed * 2.1) % 1) * 0.1));
+      });
+      mesh.castShadow = true;
+      out.trees = mesh;
+      this.scene.add(mesh);
+    }
+    if (lamps.length) {
+      // A tall grey street lamp: a pole, an arm over the road, a lamp that glows after dark.
+      this.lampParts ??= (() => {
+        const pole = new THREE.CylinderGeometry(0.08, 0.12, 8, 6).translate(0, 4, 0);
+        const arm = new THREE.BoxGeometry(0.08, 0.08, 2.2).translate(0, 7.9, -1.1);
+        const head = new THREE.BoxGeometry(0.35, 0.14, 0.7).translate(0, 7.8, -2.1);
+        const metal = mergeTwo(pole, arm, '#7a7f86', '#7a7f86');
+        this.lampMat = new THREE.MeshLambertMaterial({ color: '#fff4d8', emissive: '#ffd58a', emissiveIntensity: 0 });
+        return { geo: metal, mat: new THREE.MeshLambertMaterial({ vertexColors: true }), head, headMat: this.lampMat };
+      })();
+      const poles = new THREE.InstancedMesh(this.lampParts.geo, this.lampParts.mat, lamps.length);
+      const heads = new THREE.InstancedMesh(this.lampParts.head, this.lampParts.headMat, lamps.length);
+      lamps.forEach(([x, y, z, a], k) => {
+        o.position.set(x, y, z);
+        o.rotation.set(0, a, 0);
+        o.scale.set(1, 1, 1);
+        o.updateMatrix();
+        poles.setMatrixAt(k, o.matrix);
+        heads.setMatrixAt(k, o.matrix);
+      });
+      const lampGroup = new THREE.Group();
+      lampGroup.add(poles, heads);
+      lampGroup.geometry = { dispose() {} };
+      out.lamps = lampGroup;
+      this.scene.add(lampGroup);
+      this.lampMat.emissiveIntensity = (this.uniforms.uNight.value ?? 0) * 3;
+    }
+    return out;
   }
 
   /**

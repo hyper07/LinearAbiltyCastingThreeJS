@@ -20,6 +20,9 @@ export const COURSES = [
   // The long ones: across the city, a single lap is a journey.
   { id: 'hangang', name: 'Han River Grand Tour', ko: '한강', x: 1500, z: 4300, r: 3000, target: 15000, min: 8000, max: 26000, reach: 1.6, laps: 1, long: true, text: 'Both banks of the Han and the bridges between: nearly 14 km of the city at night.' },
   { id: 'marathon', name: 'Seoul Marathon', ko: '서울 일주', x: 2500, z: 3800, r: 3500, target: 18000, min: 8000, max: 26000, reach: 1.6, laps: 1, long: true, text: 'The longest: 16 km from the old city south over the river and back.' },
+  // The runs: from district to district across the whole city, start to finish.
+  { id: 'run50', name: 'Seoul 50K', ko: '서울 50K', run: true, long: true, laps: 1, stops: ['종로구', '마포구', '영등포구', '동작구', '서초구', '강남구', '성동구', '동대문구', '종로구'], text: 'A run of some 55 km: Jongno to Mapo, over the river to Yeouido and Gangnam, back by Seongdong — a checkpoint in every district.' },
+  { id: 'run100', name: 'Seoul 100K', ko: '서울 100K', run: true, long: true, laps: 1, stops: ['종로구', '은평구', '마포구', '강서구', '양천구', '구로구', '영등포구', '동작구', '서초구', '강남구', '송파구', '강동구', '광진구', '중랑구', '동대문구', '종로구'], text: 'The whole city, some 105 km: fifteen districts, west to east and back over the river twice.' },
   { id: 'downtown', name: 'Downtown Circuit', ko: '도심', x: 1500, z: -500, r: 2200, target: 12000, min: 8000, max: 26000, reach: 1.6, laps: 1, long: true, text: 'Palaces, markets and towers: 12 km of the old city\'s boulevards.' }
 ];
 
@@ -284,6 +287,80 @@ export function planCourse(roads, def, { step = 6, why = null, target = def.targ
   }
   if (best) delete best.score;
   return best;
+}
+
+/** Cut hairpins out of an open line of points (a run, which does not loop). */
+function cutHairpinsOpen(points) {
+  const pts = points.slice();
+  const heading = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
+  for (let guard = 0; guard < 400; guard++) {
+    let pin = -1;
+    for (let i = 2; i < pts.length - 2; i++) {
+      const t = heading(pts[i], pts[i + 2]) - heading(pts[i - 2], pts[i]);
+      if (Math.abs(Math.atan2(Math.sin(t), Math.cos(t))) > 2.3) {
+        pin = i;
+        break;
+      }
+    }
+    if (pin < 0) break;
+    let k = 1;
+    while (pin - k > 0 && pin + k < pts.length - 1 && Math.hypot(pts[pin - k][0] - pts[pin + k][0], pts[pin - k][1] - pts[pin + k][1]) < 30) k++;
+    pts.splice(pin - k + 1, 2 * k - 1);
+  }
+  return pts;
+}
+
+/**
+ * Plan a run: from one place to the next through a list of them (each moved
+ * onto the nearest big road), by the best roads, never the same street
+ * twice. An open course — it starts at the first place and finishes at the
+ * last. Returns { open: true, points, s, length, checkpoints: [{ i, name }] }.
+ */
+export function planRun(roads, stops, { step = 6 } = {}) {
+  const xs = stops.map((p) => p.x);
+  const zs = stops.map((p) => p.z);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const reach = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) / 2 + 2500;
+  const nodes = buildGraph(roads, cx, cz, reach);
+  const anchors = stops.map((p) => snap(nodes, p.x, p.z, 1500));
+  if (anchors.some((a) => a < 0)) return null;
+  const used = new Set();
+  const route = [anchors[0]];
+  const marks = [{ node: anchors[0], name: stops[0].name }];
+  for (let k = 1; k < anchors.length; k++) {
+    if (anchors[k] === anchors[k - 1]) continue;
+    const leg = path(nodes, anchors[k - 1], anchors[k], used);
+    if (!leg) return null;
+    for (let i = 1; i < leg.length; i++) {
+      used.add(`${leg[i - 1]}>${leg[i]}`);
+      route.push(leg[i]);
+    }
+    marks.push({ node: anchors[k], name: stops[k].name });
+  }
+  const pts = route.map((id) => [nodes[id].x, nodes[id].z, nodes[id].width || 10]);
+  const points = resample(cutHairpinsOpen(resample(pts, step)), step);
+  const s = [0];
+  for (let i = 1; i < points.length; i++) s.push(s[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+  // Each stop is a checkpoint: the nearest point of the run to it, in order along the way.
+  const checkpoints = [];
+  let from = 0;
+  for (const m of marks.slice(1)) {
+    const n = nodes[m.node];
+    let best = from;
+    let bestD = Infinity;
+    for (let i = from; i < points.length; i++) {
+      const d = Math.hypot(points[i][0] - n.x, points[i][1] - n.z);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+      if (d > bestD + 3000) break;
+    }
+    checkpoints.push({ i: best, name: m.name });
+    from = best + 1;
+  }
+  return { open: true, points, s, length: s.at(-1), checkpoints };
 }
 
 /**
