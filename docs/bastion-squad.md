@@ -23,7 +23,7 @@ inside, spires in the corners, a hero and its escort.
 
 - **Points and ore**, the classic way: every kill pays its killer **points**, not ore. It is a team
   game: a **building broken or a hero killed** (a guardian, the king) also pays **each teammate half**.
-  Points become ore (10 to 1) at the **Exchange** — the gold ring east of the healing pad — while one
+  Points become ore (10 to 1) at the **Exchange** — the gold ring in the camp's south-east — while one
   of yours stands on it; an **Engineer** (**Y**, 75 ore, unarmed) is the cheap one to leave there
   (select it, **X**). And **every two minutes** some are exchanged for everyone without a visit: the
   biggest of 500, 1,000 or 1,500 ore that their points cover. The minute's supply drop and ore given
@@ -91,7 +91,7 @@ inside, spires in the corners, a hero and its escort.
   of their health they rage — harder and faster.
 - **Stim Pack** (**T**): the selected soldiers fire and move half again as fast for 10 seconds, for a
   tenth of their most health (Engineers and the flying can't).
-- **Bunkers**: each commander has their own bunker in the middle of the camp (a diamond round the pad,
+- **Bunkers**: each commander has their own bunker in the middle of the camp (a diamond round its middle,
   where the spawned dead and the waves are heading — those inside shoot them as they come), in their
   own colour — ring, flag, name. It cannot be broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and
   still shoot (a little further). **L** empties them. Engineers build more (**B**, then click; 1,500

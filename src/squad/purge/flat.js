@@ -146,14 +146,7 @@ export class FlatView {
     block(ARMORY.x, ARMORY.z, 6, 5, '#e8ecef', '#9aa4ad');
     g.fillStyle = '#4f8cff';
     g.fillRect(ARMORY.x - 2, ARMORY.z - 1.6, 4, 0.8);
-    // The pad, the Forge.
-    g.fillStyle = '#6a6e74';
-    g.beginPath();
-    for (let k = 0; k < 8; k++) g.lineTo(PAD.x + Math.cos((k / 8) * Math.PI * 2 + 0.39) * 5, PAD.z + Math.sin((k / 8) * Math.PI * 2 + 0.39) * 5);
-    g.fill();
-    g.strokeStyle = '#ff9a3a';
-    g.lineWidth = 0.4;
-    g.stroke();
+    // The Forge.
     g.fillStyle = '#5a626e';
     g.beginPath();
     g.arc(FORGE.x, FORGE.z, 2.4, 0, Math.PI * 2);
@@ -468,11 +461,6 @@ export class FlatView {
     g.lineWidth = 0.3;
     g.beginPath();
     g.arc(EXCHANGE_AT.x, EXCHANGE_AT.z, 3.8, 0, Math.PI * 2);
-    g.stroke();
-    g.strokeStyle = `rgba(61,220,132,${0.4 + Math.sin(this.time * 2) * 0.15})`;
-    g.lineWidth = 0.3;
-    g.beginPath();
-    g.arc(PAD.x, PAD.z, 4.8, 0, Math.PI * 2);
     g.stroke();
   }
 

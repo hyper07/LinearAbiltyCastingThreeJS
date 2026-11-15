@@ -295,7 +295,6 @@ export function paintLand(tex, sprites) {
     shadow(g, x, z, st[key].w * 0.55, st[key].w * 0.4, 0.45);
     stamp(g, st[key], x, z);
   };
-  place('pad', PAD.x, PAD.z);
   // The Forge's blue crystals round the back of its ring, like a seam of ore.
   crystals(g, FORGE.x, FORGE.z, FORGE_REACH + 0.4, r);
   place('forge', FORGE.x, FORGE.z);

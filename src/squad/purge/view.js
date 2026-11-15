@@ -115,7 +115,6 @@ export class PurgeView extends SquadView {
     }
     this._space('basemodule_garage', BARRACKS.x, BARRACKS.z, 7);
     this._space('basemodule_E', ARMORY.x, ARMORY.z, 6);
-    this._space('landingpad_large', PAD.x, PAD.z, 10);
     this._space('drill_structure', FORGE.x, FORGE.z, 4.6);
     // The Exchange: a depot with a gold ring round it.
     this._space('cargodepot_A', EXCHANGE_AT.x, EXCHANGE_AT.z, 4);
@@ -148,9 +147,6 @@ export class PurgeView extends SquadView {
     const forgeLight = new THREE.PointLight('#40c0ff', 30, 16, 1.6);
     forgeLight.position.set(FORGE.x, 4, FORGE.z);
     this.scene.add(forgeLight);
-    this.padRing = new THREE.Mesh(new THREE.RingGeometry(4.6, 5, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#3ddc84', transparent: true, opacity: 0.6, depthWrite: false }));
-    this.padRing.position.set(PAD.x, 0.7, PAD.z);
-    this.scene.add(this.padRing);
     // The board by the Forge, the combinations painted on it (repainted when a secret is found).
     this.boardCanvas = document.createElement('canvas');
     this.boardCanvas.width = 1024;
@@ -684,7 +680,6 @@ export class PurgeView extends SquadView {
       return false;
     });
     this.forgeRing.rotation.y = this.time * 0.4;
-    this.padRing.rotation.y = this.time * 0.5;
     this.fx = this.fx.filter((f) => {
       f.t += dt;
       const k = f.t / f.life;

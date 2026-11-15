@@ -470,7 +470,7 @@ export class PurgeGame {
       case 'e':
         if (ids().length) {
           this.order({ t: 'heal', ids: ids() });
-          this._feed(`Home to the camp — it heals everyone in it to full every ${CAMP.pulse} s, for ore (1 for every ${Math.round(1 / HEAL.orePerHp)} health)`);
+          this._feed(`Home to the camp — anywhere in it, everyone is healed to full every ${CAMP.pulse} s, for ore (1 for every ${Math.round(1 / HEAL.orePerHp)} health)`);
         }
         return true;
       case 'w':

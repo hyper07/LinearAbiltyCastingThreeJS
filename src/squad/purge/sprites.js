@@ -48,7 +48,6 @@ export const STILLS = {
   heart: [HALLOWEEN + 'crypt.gltf', 10, '#7a3040'],
   barracks: [SPACE + 'basemodule_garage.gltf', 7],
   armory: [SPACE + 'basemodule_E.gltf', 6],
-  pad: [SPACE + 'landingpad_large.gltf', 10],
   forge: [SPACE + 'drill_structure.gltf', 4.6],
   cargo: [SPACE + 'cargo_A_stacked.gltf', 2.4],
   exchange: [SPACE + 'cargodepot_A.gltf', 4],

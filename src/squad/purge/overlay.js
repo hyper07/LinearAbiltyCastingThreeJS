@@ -5,7 +5,6 @@ import { CAMP, BUNKER, COLORS, BASE_SPAWNS } from './rules.js';
 /** The camp's places, named on the ground with their keys. */
 const PLACES = [
   [FORGE, 'THE FORGE', 'raise soldiers here · W send · F open', '#5cc8ff'],
-  [PAD, 'THE CAMP HEALS', 'everyone in it, to full, every 5 s (for ore) · E come home', '#3ddc84'],
   [EXCHANGE_AT, 'EXCHANGE', 'points → ore while one of yours stands here · X send', '#ffb84d'],
   [BARRACKS, 'BARRACKS', 'R Recruit', '#e8e2d0'],
   [ARMORY, 'ARMOURY', 'U upgrades', '#e8e2d0']
