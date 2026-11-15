@@ -127,6 +127,12 @@ Same game, same rooms (a 2D player and a 3D player can share one). 3D draws mode
 builds them as the camera reaches them (a hitch the first time it sees a new place); 2D is a plain
 canvas, light on older computers. Both show their frames a second at the bottom left.
 
+**Sound**: all made in the browser (no recordings): rifle fire with a crack and a body (heavier for the
+high ranks), the dead's magic, blasts, buildings coming down, the spawn horn, the Forge's bell, the
+Exchange's coins, frost, stim and the camp's heal — and music of our own: a slow, dark piece in D minor
+(a drone, chords, soft drums, sparse bells) that brings in war drums when the fighting starts. **♪ Music**
+and **🔊 Sound** on the top bar switch each on and off (remembered).
+
 **Controls**, the classic way: left-click or drag to select (double-click: that rank on screen;
 Shift adds); right-click moves, or attacks what you click. **A** attack (then click: they fight on
 the way) · **M** move · **P** patrol · **S** stop · **H** hold · **E** heal · **W** to the Forge ·
@@ -147,6 +153,7 @@ give ore · **+/−** speed · **O** objectives · **F1** all the keys. The comm
 | `src/squad/purge/flat.js` | the 2D view: the same game drawn flat on a plain canvas (no WebGL) — the land painted once, shapes for everything that moves |
 | `src/squad/purge/sprites.js` | the sprite baker: our 3D models rendered once into sheets of 2D pictures (then the 3D is let go) |
 | `src/squad/purge/flatReal.js` | the realistic 2D: textured land, cliffs, blight, sprites back to front with shadows, remains |
+| `src/squad/purge/audio.js` | the sound: effects and the music, synthesized (Web Audio), each switchable |
 | `src/squad/purge/overlay.js` | what both views draw and pick alike: health bars, names, ore popups, picking and box-selecting |
 
 Tests: `tests/unit/purge.test.mjs` (the land and its ways, the Forge, pay and relics, shrines,

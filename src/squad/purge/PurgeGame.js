@@ -1,5 +1,6 @@
 import { Purge, forgeCheck } from './sim.js';
 import { FlatView } from './flat.js';
+import { PurgeAudio } from './audio.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
 import { TICK, SEATS, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER, TEAM, STIM, CAMP, BASE_SPAWNS } from './rules.js';
 import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT, BUNKERS, TIER_R } from './map.js';
@@ -41,6 +42,7 @@ export class PurgeGame {
     this.groups = new Map();
     this.panel = null;
     this.pings = [];
+    this.audio = new PurgeAudio();
     window.gravePurge = this;
   }
 
@@ -711,6 +713,13 @@ export class PurgeGame {
       return;
     }
     if (!this.state) return;
+    // How much fighting there is (the dead awake near your soldiers): the music follows.
+    if (this.audio.ctx) {
+      const mine = this.state.ents.filter((e) => e.k === 'troop' && e.o === this.mySlot);
+      let near = 0;
+      for (const f of this.state.ents) if (f.k === 'foe' && mine.some((t) => Math.abs(t.x - f.x) < 20 && Math.abs(t.z - f.z) < 20)) near++;
+      this.audio.setIntensity(near / 8);
+    }
     this._pan(dt);
     this.view.absorb(events, this.state);
     this.view.render(this.state, dt);
@@ -809,8 +818,32 @@ export class PurgeGame {
         this.pings.push({ x: e.x, z: e.z, t: performance.now() });
       } else if (e.t === 'stipend') this._feed(`Supply drop: +${e.n} ore each`);
       else if (e.t === 'over') this._end(e);
-      if (e.t === 'shot' && this.audio) this._pop(e.big ? 0.05 : 0.035);
-      if ((e.t === 'blast' || e.t === 'fall') && this.audio) this._boom();
+      this._noise(e);
+    }
+  }
+
+  /** What each happening sounds like. */
+  _noise(e) {
+    const au = this.audio;
+    const me = this.mySlot;
+    if (e.t === 'shot') au.shot(e.big);
+    else if (e.t === 'bolt') au.bolt(e.slime);
+    else if (e.t === 'blast') au.boom(0.7);
+    else if (e.t === 'slam') au.boom(1);
+    else if (e.t === 'fall') au.fall(e.type === 'shrine' || e.type === 'node' || e.type === 'heart');
+    else if (e.t === 'spawnSoon' || e.t === 'raid' || e.t === 'wrath') au.horn();
+    else if (e.t === 'lastStand' || e.t === 'king' || e.t === 'heart') au.horn(true);
+    else if ((e.t === 'forge' && e.o === me) || (e.t === 'secret' && e.o === me) || e.t === 'shrine') au.chime(e.t !== 'forge');
+    else if (e.t === 'upgrade' && e.o === me) au.chime(false);
+    else if ((e.t === 'exchange' || e.t === 'autoExchange') && e.o === me && e.n >= 5) au.coin();
+    else if (e.t === 'freeze') au.freeze();
+    else if (e.t === 'stim' && e.o === me) au.stim();
+    else if (e.t === 'healPulse' && e.ids?.length) au.heal();
+    else if (e.t === 'kill' && e.troop && e.o === me && !e.expired) au.thud();
+    else if (e.t === 'kill' && !e.troop) au.crack();
+    else if (e.t === 'over') {
+      if (e.won) au.chime(true);
+      else au.horn(true);
     }
   }
 
@@ -871,7 +904,16 @@ export class PurgeGame {
         <div class="bs__wave"><small>The Heart</small><b>${s.keysLeft ? 'sealed' : 'open'}</b></div>
         <div class="bs__wave"><small>Wave ${s.raids + 1} in</small><b>${clock(Math.max(0, s.raidIn))}</b></div>
         <div class="bs__wave"><small>Spawn in</small><b class="${s.spawnIn <= BASE_SPAWNS.warn ? 'gp__late' : ''}">${s.startIn > 0 ? '—' : clock(Math.max(0, s.spawnIn))}</b></div>
-        <div class="gp__speed">${SPEEDS.map((n) => `<button type="button" data-speed="${n}" class="${s.speed === n ? 'is-on' : ''}" ${host ? '' : 'disabled'}>×${n}</button>`).join('')}</div>`;
+        <div class="gp__speed">${SPEEDS.map((n) => `<button type="button" data-speed="${n}" class="${s.speed === n ? 'is-on' : ''}" ${host ? '' : 'disabled'}>×${n}</button>`).join('')}</div>
+        <div class="gp__speed gp__sound"><button type="button" data-music class="${this.audio.musicOn ? 'is-on' : ''}" title="Music on/off">♪ Music</button><button type="button" data-sfx class="${this.audio.sfxOn ? 'is-on' : ''}" title="Sound on/off">🔊 Sound</button></div>`;
+      this.$('[data-top] [data-music]').onclick = () => {
+        this.audio.setMusic(!this.audio.musicOn);
+        this._topKey = '';
+      };
+      this.$('[data-top] [data-sfx]').onclick = () => {
+        this.audio.setSfx(!this.audio.sfxOn);
+        this._topKey = '';
+      };
       for (const b of this.$('[data-top]').querySelectorAll('[data-speed]')) b.onclick = () => this.game && (this.game.speed = Number(b.dataset.speed));
     }
     const boss = s.ents.find((e) => e.k === 'foe' && GUARDIANS[e.kind] && e.hp < e.max);
@@ -1091,50 +1133,7 @@ export class PurgeGame {
   /* ---------------------------------------------------------------- sound */
 
   _sound() {
-    if (this.audio) return;
-    try {
-      this.audio = new (window.AudioContext || window.webkitAudioContext)();
-      const len = this.audio.sampleRate * 0.4;
-      this.noise = this.audio.createBuffer(1, len, this.audio.sampleRate);
-      const d = this.noise.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    } catch {
-      this.audio = null;
-    }
-  }
-
-  _pop(volume) {
-    const a = this.audio;
-    if (!a || (this._lastPop && a.currentTime - this._lastPop < 0.04)) return;
-    this._lastPop = a.currentTime;
-    const src = a.createBufferSource();
-    src.buffer = this.noise;
-    const f = a.createBiquadFilter();
-    f.type = 'bandpass';
-    f.frequency.value = 1800;
-    const gain = a.createGain();
-    gain.gain.setValueAtTime(volume, a.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.07);
-    src.connect(f).connect(gain).connect(a.destination);
-    src.start();
-    src.stop(a.currentTime + 0.08);
-  }
-
-  _boom() {
-    const a = this.audio;
-    if (!a || (this._lastBoom && a.currentTime - this._lastBoom < 0.1)) return;
-    this._lastBoom = a.currentTime;
-    const src = a.createBufferSource();
-    src.buffer = this.noise;
-    const f = a.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 500;
-    const gain = a.createGain();
-    gain.gain.setValueAtTime(0.3, a.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.4);
-    src.connect(f).connect(gain).connect(a.destination);
-    src.start();
-    src.stop(a.currentTime + 0.4);
+    this.audio.start();
   }
 }
 
