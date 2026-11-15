@@ -649,15 +649,23 @@ export class PurgeGame {
         if (ids.length) this.order({ t: 'toForge', ids });
       };
     } else if (this.panel === 'armory') {
+      const total = (k, n) => {
+        let sum = 0;
+        for (let l = me.upg[k]; l < Math.min(UPGRADES[k].max, me.upg[k] + n); l++) sum += upgradeCost(k, l);
+        return sum;
+      };
       el.innerHTML = `<header><h2>Armoury</h2><span>${me.ore.toLocaleString()} ore</span><button type="button" data-x>✕</button></header>
         ${Object.entries(UPGRADES).map(([k, u]) => {
           const lvl = me.upg[k];
-          const cost = upgradeCost(k, lvl);
           const full = lvl >= u.max;
-          return `<button type="button" data-up="${k}" ${full || me.ore < cost ? 'disabled' : ''}><b>${esc(u.name)} · ${lvl}/${u.max}</b><small>${esc(u.text)}</small><em>${full ? 'full' : `${cost.toLocaleString()} ore`}</em></button>`;
+          const next = upgradeCost(k, lvl);
+          const ten = total(k, 10);
+          return `<div class="gp__upg"><b>${esc(u.name)} · ${lvl}/${u.max}</b><small>${esc(u.text)}${k === 'weapons' ? ` — now +${Math.round(lvl * u.per * 100)}%` : ` — now ${lvl} armour`}</small>
+            <i class="gp__upgbar"><i style="width:${(lvl / u.max) * 100}%"></i></i>
+            <div class="bs__row">${full ? '<em>full</em>' : `<button type="button" data-up="${k}" data-n="1" ${me.ore < next ? 'disabled' : ''}>+1 · ${next.toLocaleString()}</button><button type="button" data-up="${k}" data-n="10" ${me.ore < ten ? 'disabled' : ''}>+10 · ${ten.toLocaleString()}</button><button type="button" data-up="${k}" data-n="max" ${me.ore < next ? 'disabled' : ''}>Max</button>`}</div></div>`;
         }).join('')}
         <p class="gp__hint">Shrines broken: ${this.state.shrines}/6 — ${SHRINE_GIFTS.filter((g) => g.at <= this.state.shrines).map((g) => esc(g.text)).join(' · ') || 'none yet'}</p>`;
-      for (const b of el.querySelectorAll('[data-up]')) b.onclick = () => this.order({ t: 'upgrade', key: b.dataset.up });
+      for (const b of el.querySelectorAll('[data-up]')) b.onclick = () => this.order({ t: 'upgrade', key: b.dataset.up, n: b.dataset.n === 'max' ? 'max' : Number(b.dataset.n) });
     } else if (this.panel === 'give') {
       el.innerHTML = `<header><h2>Give ore</h2><span>${me.ore.toLocaleString()} ore</span><button type="button" data-x>✕</button></header>
         ${this.state.players.filter((p) => p.slot !== this.mySlot).map((p) => `<div class="bs__row"><span><i class="gp__dot" style="background:${p.color}"></i>${esc(p.name)}${p.bot ? ' · bot' : ''}</span>${GIFTS.map((n) => `<button type="button" data-give="${p.slot}" data-n="${n}" ${me.ore < n ? 'disabled' : ''}>${n.toLocaleString()}</button>`).join('')}</div>`).join('')}`;

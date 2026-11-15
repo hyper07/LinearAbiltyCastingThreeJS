@@ -48,7 +48,7 @@ inside, spires in the corners, a hero and its escort.
   Phantoms in black with a violet glow — and the Paragon is a gold war robot with shoulder cannons
   (Robot Expressive, CC0). Your team's colour is the ring at their feet (and the arm bands).
 - **The hidden rank**, as in the classic maps: the Forge shows a "???" until its secret is found —
-  your **Weapons upgrade mastered (30/30)**. Then it opens: ten Vanguards, your Phantom and your Paragon
+  your **Weapons upgrade mastered (all 255 levels)**. Then it opens: ten Vanguards, your Phantom and your Paragon
   + 60,000 ore + 16 relics make the **Dreadnought**, a flying gunship (one each). It flies straight
   over the ridges, its cannon bursts, and when the dead come near it launches four attack drones
   that fight for 25 seconds. (Spoiler kept out of the game itself until you find it.)
@@ -57,8 +57,9 @@ inside, spires in the corners, a hero and its escort.
   **F9** to show or hide, or click the board) — the mission's goals with how far along you are, and
   every combination with what it still needs right now ("ready — in the ring" when it is).
 - **Relics** come from breaking shrines, soul nodes and relic caches; every commander gets them.
-- **The armoury** (**U**): Weapons (+8% damage a level, to 30) and Plating (+1 armour, to 20), for
-  all your soldiers.
+- **The armoury** (**U**): Weapons (+2% damage a level, up to **255** levels; the first costs 50 ore,
+  each more 10 more) and Plating (+1 armour a level, up to **100**; 80 ore, each more 20 more), for all
+  your soldiers — +1, +10 or Max (as many as your ore buys) at a time.
 - **The dead's buildings**: Bone Spires shoot; Crypts (up to eight guards, one every 20 s) and Ossuaries
   (up to six, one every 28 s) raise guards while soldiers are about; Barrows just stand; Relic Caches pay ore and a relic.
 - **The wards**: six Shrines of Bones — each one broken makes every Veteran and above stronger

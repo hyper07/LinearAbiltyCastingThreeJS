@@ -158,7 +158,7 @@ export class Purge {
     const lifted = def.tier >= 1;
     let range = def.gun.range;
     let hp = def.hp;
-    let dmg = def.gun.dmg * (1 + 0.08 * p.upg.weapons);
+    let dmg = def.gun.dmg * (1 + UPGRADES.weapons.per * p.upg.weapons);
     if (lifted) {
       for (const g of SHRINE_GIFTS) {
         if (this.shrines < g.at) continue;
@@ -261,16 +261,22 @@ export class Purge {
     } else if (o.t === 'buy') this._buy(p, Math.max(1, Math.min(10, Number(o.n) || 1)), o.rank === 'engineer' ? 'engineer' : null);
     else if (o.t === 'forge') this.forge(slot, o.rank);
     else if (o.t === 'upgrade') {
+      // One level, or several (`n`; 'max' for as many as the ore buys).
       const u = UPGRADES[o.key];
-      if (!u || p.upg[o.key] >= u.max) return;
-      const cost = upgradeCost(o.key, p.upg[o.key]);
-      if (p.ore < cost) return;
-      p.ore -= cost;
-      p.upg[o.key]++;
-      this.events.push({ t: 'upgrade', o: slot, key: o.key, level: p.upg[o.key] });
-      for (const [rank, def] of Object.entries(RANKS)) {
-        if (def.unlock?.[o.key] === p.upg[o.key]) this.events.push({ t: 'secret', o: slot, rank });
+      if (!u) return;
+      const want = o.n === 'max' ? u.max : Math.max(1, Math.min(u.max, Math.floor(Number(o.n) || 1)));
+      let bought = 0;
+      while (bought < want && p.upg[o.key] < u.max) {
+        const cost = upgradeCost(o.key, p.upg[o.key]);
+        if (p.ore < cost) break;
+        p.ore -= cost;
+        p.upg[o.key]++;
+        bought++;
+        for (const [rank, def] of Object.entries(RANKS)) {
+          if (def.unlock?.[o.key] === p.upg[o.key]) this.events.push({ t: 'secret', o: slot, rank });
+        }
       }
+      if (bought) this.events.push({ t: 'upgrade', o: slot, key: o.key, level: p.upg[o.key], n: bought });
     } else if (o.t === 'autoForge') {
       p.autoForge = Boolean(o.on);
     } else if (o.t === 'give') {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Purge, forgeCheck } from '../../src/squad/purge/sim.js';
-import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS, BASE_SPAWNS, recipes } from '../../src/squad/purge/rules.js';
+import { RANKS, BUILDINGS, TICK, SHRINE_GIFTS, BASE_SPAWNS, recipes, upgradeCost } from '../../src/squad/purge/rules.js';
 import { STRUCTURES, GUARDS, KEYS, Grid, FORGE, SPAWN, HEART, BASE, tierAt } from '../../src/squad/purge/map.js';
 
 const seats = (n = 4, people = 1) => Array.from({ length: n }, (_, i) => ({ name: `P${i}`, bot: i >= people }));
@@ -281,7 +281,7 @@ test('the hidden rank: "???" until Weapons is mastered; then ten Vanguards, a Ph
   assert.equal(locked.ok, false);
   assert.ok(locked.secret, 'a secret: shown as ???');
   // Master Weapons: the secret is found.
-  p.upg.weapons = 29;
+  p.upg.weapons = 254;
   g.order(0, { t: 'upgrade', key: 'weapons' });
   assert.ok(g.events.some((e) => e.t === 'secret' && e.rank === 'dreadnought'));
   const ship = g.forge(0, 'dreadnought');
@@ -308,7 +308,7 @@ test('the combinations, as written on the board: the hidden one stays ??? until 
   assert.equal(locked.length, 6);
   assert.match(locked[1].text, /Recruit \+ 1,200 ore/);
   assert.deepEqual([locked[5].name, locked[5].text, locked[5].secret], ['???', '???', true]);
-  const found = recipes({ weapons: 30, armor: 0 });
+  const found = recipes({ weapons: 255, armor: 0 });
   assert.equal(found[5].name, 'Dreadnought');
   assert.match(found[5].text, /10 Vanguards \+ Phantom \+ Paragon/);
 });
@@ -539,3 +539,23 @@ test('pulling a hero: it follows the soldier it picked all the way to the camp; 
   assert.ok(Math.hypot(hero.x - own.x, hero.z - own.z) > near + 10, 'walking home');
 });
 
+test('upgrades: weapons to 255 (+2% a level), plating to 100 (+1 armour a level); several levels at once', () => {
+  const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 33 });
+  const p = g.players[0];
+  const t = g.troops[0];
+  const base = g.troopStat(t).dmg;
+  p.ore = 1e9;
+  g.order(0, { t: 'upgrade', key: 'weapons', n: 10 });
+  assert.equal(p.upg.weapons, 10);
+  assert.ok(Math.abs(g.troopStat(t).dmg - base * 1.2) < 1e-9, '+20% at level 10');
+  g.order(0, { t: 'upgrade', key: 'weapons', n: 'max' });
+  g.order(0, { t: 'upgrade', key: 'armor', n: 'max' });
+  assert.deepEqual([p.upg.weapons, p.upg.armor], [255, 100]);
+  assert.equal(g.troopStat(t).armor, RANKS[t.rank].armor + 100);
+  // Max buys only what the ore covers; the first level is cheap.
+  const h = new Purge({ countdown: 0, seats: seats(1, 1), seed: 34 });
+  h.players[0].ore = 1000;
+  h.order(0, { t: 'upgrade', key: 'weapons', n: 'max' });
+  assert.ok(h.players[0].upg.weapons >= 8 && h.players[0].upg.weapons < 20, `${h.players[0].upg.weapons} levels for 1,000 ore`);
+  assert.ok(h.players[0].ore < upgradeCost('weapons', h.players[0].upg.weapons));
+});

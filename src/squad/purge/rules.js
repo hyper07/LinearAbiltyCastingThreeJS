@@ -30,10 +30,10 @@ export const RANKS = {
   paragon: { name: 'Paragon', hp: 4600, armor: 12, speed: 6.2, gun: { dmg: 170, rate: 2.5, range: 13, splash: 2.6 }, scale: 1.3, weapon: 'falcon', from: { phantom: 1 }, ore: 22000, relics: 10, tier: 4, one: true },
   /**
    * The hidden rank: shown as "???" at the Forge until its secret is
-   * found — Weapons upgraded all the way. A flying gunship: it crosses the
+   * found — Weapons upgraded all the way (all 255 levels). A flying gunship: it crosses the
    * ridges, and launches attack drones when the dead come near.
    */
-  dreadnought: { name: 'Dreadnought', hp: 22000, armor: 20, speed: 5.5, gun: { dmg: 380, rate: 2, range: 15, splash: 3.5 }, scale: 1, from: { vanguard: 10, phantom: 1, paragon: 1 }, ore: 60000, relics: 16, tier: 5, one: true, hidden: true, unlock: { weapons: 30 }, flying: true, drones: { count: 4, every: 12, reach: 16 } },
+  dreadnought: { name: 'Dreadnought', hp: 22000, armor: 20, speed: 5.5, gun: { dmg: 380, rate: 2, range: 15, splash: 3.5 }, scale: 1, from: { vanguard: 10, phantom: 1, paragon: 1 }, ore: 60000, relics: 16, tier: 5, one: true, hidden: true, unlock: { weapons: 255 }, flying: true, drones: { count: 4, every: 12, reach: 16 } },
   /**
    * The Engineer (the workers of the classic maps): cheap and unarmed. Left
    * standing on the Exchange it turns your points into ore; it builds
@@ -66,8 +66,8 @@ export const FORGE_REACH = 7;
 
 /** Upgrades, for all of one player's soldiers: each level costs more. */
 export const UPGRADES = {
-  weapons: { name: 'Weapons', text: '+8% damage a level, for all your soldiers', max: 30, cost: 400, step: 300 },
-  armor: { name: 'Plating', text: '+1 armour a level (each hit taken down by 1)', max: 20, cost: 400, step: 350 }
+  weapons: { name: 'Weapons', text: '+2% damage a level, for all your soldiers', max: 255, cost: 50, step: 10, per: 0.02 },
+  armor: { name: 'Plating', text: '+1 armour a level (each hit taken down by 1, never below a quarter)', max: 100, cost: 80, step: 20 }
 };
 export const upgradeCost = (key, level) => UPGRADES[key].cost + UPGRADES[key].step * level;
 
