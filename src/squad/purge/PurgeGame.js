@@ -470,7 +470,7 @@ export class PurgeGame {
       case 'e':
         if (ids().length) {
           this.order({ t: 'heal', ids: ids() });
-          this._feed(`Home to the camp — anywhere in it, everyone is healed to full every ${CAMP.pulse} s, for ore (1 for every ${Math.round(1 / HEAL.orePerHp)} health)`);
+          this._feed(`Home to the camp — anywhere in it, everyone is healed to full every ${CAMP.pulse} s, for ${HEAL.ore} ore a soldier`);
         }
         return true;
       case 'w':
@@ -632,14 +632,14 @@ export class PurgeGame {
     this._panelKey = key;
     if (this.panel === 'forge') {
       el.innerHTML = `<header><h2>The Forge</h2><span>${me.ore.toLocaleString()} ore · ${me.relics} relics</span><button type="button" data-x>✕</button></header>
-        <p class="gp__hint">The Forge is on the camp's left side, ringed with blue crystals. Walk soldiers into the ring (select them, <b>W</b>): ${me.autoForge ? 'each is raised a rank by itself as soon as you have the ore — one rank a visit (walk it out and back in for the next)' : 'then raise them here'}. Relics come from breaking shrines, soul nodes and relic caches — everyone gets them.</p>
+        <p class="gp__hint">The Forge is on the camp's left side, ringed with blue crystals. Walk soldiers into the ring (select them, <b>W</b>): ${me.autoForge ? 'each is raised a rank by itself as soon as you have the ore — one rank a visit (walk it out and back in for the next)' : 'then raise them here'}. Relics are the team's — found by breaking shrines, soul nodes and relic caches, never spent: the top ranks need so many found (the count is on the top bar).</p>
         <div class="bs__row"><span>Raise in the ring by itself</span><button type="button" data-auto class="${me.autoForge ? 'is-on' : ''}">${me.autoForge ? 'On' : 'Off'}</button></div>
         ${RANK_ORDER.filter((r) => RANKS[r].from).map((r) => {
           const d = RANKS[r];
           const can = forgeCheck(mineAll, this.mySlot, me.ore, me.relics, r, me.upg);
           if (can.secret) return `<button type="button" disabled><b>???</b><small>A hidden rank. Something must be mastered first…</small><i>Its recipe shows here once its secret is found.</i><em>???</em></button>`;
           const from = Object.entries(d.from).map(([k, n]) => `${n > 1 ? `${n} ` : ''}${RANKS[k].name}${n > 1 ? 's' : ''}`).join(' + ');
-          return `<button type="button" data-forge="${r}" class="${can.ok ? 'is-ok' : ''}"><b>${d.name}</b><small>${from} + ${d.ore.toLocaleString()} ore${d.relics ? ` + ${d.relics} relics` : ''}${d.one ? ' · one each' : ''}</small><i>${d.hp} health · ${d.gun.dmg} × ${d.gun.rate}/s · reach ${d.gun.range}${d.gun.splash ? ' · bursts' : ''}</i><em>${can.ok ? 'Raise' : esc(can.why)}</em></button>`;
+          return `<button type="button" data-forge="${r}" class="${can.ok ? 'is-ok' : ''}"><b>${d.name}</b><small>${from} + ${d.ore.toLocaleString()} ore${d.relics ? ` · ${d.relics} relics found` : ''}${d.one ? ' · one each' : ''}</small><i>${d.hp} health · ${d.gun.dmg} × ${d.gun.rate}/s · reach ${d.gun.range}${d.gun.splash ? ' · bursts' : ''}</i><em>${can.ok ? 'Raise' : esc(can.why)}</em></button>`;
         }).join('')}
         <div class="bs__row"><button type="button" data-send-forge>Send selected to the Forge (W)</button></div>`;
       for (const b of el.querySelectorAll('[data-forge]')) b.onclick = () => this.order({ t: 'forge', rank: b.dataset.forge });
@@ -798,9 +798,12 @@ export class PurgeGame {
       else if (e.t === 'countdown') this._banner(`Get ready — ${e.n}`, e.n > 5 ? 'Your soldiers arrive at your bunker when the count is done. F1: all the keys.' : 'Drag to select, right-click to send; R buys Recruits, W walks them to the Forge.', 1.2);
       else if (e.t === 'deploy') this._banner('Go!', 'Your soldiers are here, by your bunker. Spawn events come from the three rune circles round the camp — easy points.', 4);
       else if (e.t === 'spawnSoon') {
-        this._feed(`Spawn in ${e.in} s — the rune circles round the camp`);
+        this._feed(`In ${e.in} s: ${e.name} — ${e.text}`);
         for (const z of e.zones) this.pings.push({ x: z.x, z: z.z, t: performance.now() });
-      } else if (e.t === 'spawn') this._feed(`Spawn ${e.count}: ${e.n} of the dead out of the rune circles — easy points`);
+      } else if (e.t === 'spawn') {
+        this._banner(`${e.name}`, e.hero ? `${GUARDIANS[e.hero]?.name} marches on the camp out of a rune circle — a big bounty` : e.hoarder ? 'A Grave Hoarder with loot, out of a rune circle — catch it before it gets away' : `${e.n} out of the rune circles: ${e.text}`, 3);
+        if (e.x != null) this.pings.push({ x: e.x, z: e.z, t: performance.now() });
+      } else if (e.t === 'escaped') this._feed('The Hoarder got away with its loot');
       else if (e.t === 'stray') {
         this._feed(`Stragglers: ${e.n} of the dead wander towards the camp — easy ore`);
         this.pings.push({ x: e.x, z: e.z, t: performance.now() });
@@ -857,13 +860,14 @@ export class PurgeGame {
     const s = this.state;
     const me = this.me();
     const host = Boolean(this.game);
-    const topKey = `${s.lastStand}|${Math.floor(s.spawnIn)}|${Math.ceil(s.startIn)}|${Math.floor(s.left)}|${s.shrines}|${s.nodes}|${s.keysLeft}|${s.speed}|${Math.floor(s.raidIn)}`;
+    const topKey = `${s.players[0]?.relics}|${s.lastStand}|${Math.floor(s.spawnIn)}|${Math.ceil(s.startIn)}|${Math.floor(s.left)}|${s.shrines}|${s.nodes}|${s.keysLeft}|${s.speed}|${Math.floor(s.raidIn)}`;
     if (topKey !== this._topKey) {
       this._topKey = topKey;
       this.$('[data-top]').innerHTML = `
         ${s.lastStand ? '<div class="bs__wave"><small>The bunkers have fallen</small><b class="gp__late">LAST STAND</b></div>' : `<div class="bs__wave"><small>Bunkers fall in</small><b class="${s.left < 300 ? 'gp__late' : ''}">${clock(s.left)}</b></div>`}
         <div class="bs__wave"><small>Shrines</small><b>${s.shrines}/6</b></div>
         <div class="bs__wave"><small>Soul nodes</small><b>${s.nodes}/6</b></div>
+        <div class="bs__wave" title="The team's relics: found, never spent — the top ranks need so many"><small>Relics</small><b class="gp__relic">${s.players[0]?.relics ?? 0}</b></div>
         <div class="bs__wave"><small>The Heart</small><b>${s.keysLeft ? 'sealed' : 'open'}</b></div>
         <div class="bs__wave"><small>Wave ${s.raids + 1} in</small><b>${clock(Math.max(0, s.raidIn))}</b></div>
         <div class="bs__wave"><small>Spawn in</small><b class="${s.spawnIn <= BASE_SPAWNS.warn ? 'gp__late' : ''}">${s.startIn > 0 ? '—' : clock(Math.max(0, s.spawnIn))}</b></div>
@@ -886,7 +890,7 @@ export class PurgeGame {
         this._barKey = key;
         const recruit = s.heroesOnly ? `Veteran · ${(RANKS.veteran.ore + RANKS.recruit.cost).toLocaleString()}` : `Recruit · ${RANKS.recruit.cost}`;
         this.$('[data-bar]').innerHTML = `
-          <div class="gp__purse"><b>${me.ore.toLocaleString()}</b><small>ore</small><b class="gp__pts">${me.points.toLocaleString()}</b><small>points</small><b>${me.relics}</b><small>relics</small><b>${mine.filter((e) => !RANKS[e.rank].summoned).length}/${SUPPLY}</b><small>soldiers</small></div>
+          <div class="gp__purse"><b>${me.ore.toLocaleString()}</b><small>ore</small><b class="gp__pts">${me.points.toLocaleString()}</b><small>points</small><b>${mine.filter((e) => !RANKS[e.rank].summoned).length}/${SUPPLY}</b><small>soldiers</small></div>
           <div class="gp__sel">${sel.length ? `<b>${sel.length} selected</b><small>${count(sel).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ')}</small>` : `<b>Nothing selected</b><small>${count(mine).map(([r, n]) => `${n} ${RANKS[r].name}`).join(' · ') || 'No soldiers — buy some (R)'} · Tab selects all</small>`}</div>
           <div class="gp__cmds">
             <button type="button" data-key="m" ${sel.length ? '' : 'disabled'}><em>M</em><b>Move</b></button>
@@ -950,7 +954,7 @@ export class PurgeGame {
         <li>${s.lastStand ? '⚔ The last stand: the bunkers have fallen — hold out' : `⏱ Your bunkers stand for ${clock(s.left)} — then they fall, and the dead come every minute`}</li>
       </ol>
       <h3>Money</h3>
-      <ul class="gp__mission"><li>Kills pay <b>points</b> — and a building broken or a hero killed pays each teammate half too. Points turn into ore (${EXCHANGE.ratio} to 1) at the <b>Exchange</b> while one of yours stands there — an Engineer (Y, ${RANKS.engineer.cost} ore) is cheapest — and every two minutes ${EXCHANGE.auto.amounts.map((n) => n.toLocaleString()).join(' / ')} ore worth is exchanged for you anyway. The camp heals everyone in it to full every ${CAMP.pulse} s, for ore — a hard enough beating between heals still kills. The camp has no guns: your soldiers do the killing.</li></ul>
+      <ul class="gp__mission"><li>Kills pay <b>points</b> — and a building broken or a hero killed pays each teammate half too. Points turn into ore (${EXCHANGE.ratio} to 1) at the <b>Exchange</b> while one of yours stands there — an Engineer (Y, ${RANKS.engineer.cost} ore) is cheapest — and every two minutes ${EXCHANGE.auto.amounts.map((n) => n.toLocaleString()).join(' / ')} ore worth is exchanged for you anyway. The camp heals everyone in it to full every ${CAMP.pulse} s, for ${HEAL.ore} ore a soldier (or ${HEAL.points} points) — a hard enough beating between heals still kills. The camp has no guns: your soldiers do the killing.</li></ul>
       <h3>Combinations <small>at the Forge, left of the camp — walk soldiers into the ring (W)</small></h3>
       <ul class="gp__recipes">${rows.map((r) => `<li class="${r.secret ? 'is-secret' : r.state === 'ready' ? 'is-ready' : ''}"><b>${esc(r.name)}</b><span>= ${esc(r.text)}</span>${r.state ? `<em>${r.state === 'ready' ? 'ready — in the ring' : esc(r.state)}</em>` : ''}</li>`).join('')}</ul>
       <p class="gp__hint">O shows or hides this · the board by the Forge says the same</p>`;

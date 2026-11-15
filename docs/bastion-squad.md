@@ -56,7 +56,9 @@ inside, spires in the corners, a hero and its escort.
   a wooden **board** standing by the Forge, and in the **Objectives** (open at the start; **O** or
   **F9** to show or hide, or click the board) — the mission's goals with how far along you are, and
   every combination with what it still needs right now ("ready — in the ring" when it is).
-- **Relics** come from breaking shrines, soul nodes and relic caches; every commander gets them.
+- **Relics** are the **team's**: found by breaking shrines, soul nodes and relic caches, shown on the top
+  bar, and **never spent** — like the classic maps' gas, the top ranks need so many found (a Phantom 4,
+  a Paragon 10, the hidden rank 16).
 - **The armoury** (**U**): Weapons (+2% damage a level, up to **255** levels; the first costs 50 ore,
   each more 10 more) and Plating (+1 armour a level, up to **100**; 80 ore, each more 20 more), for all
   your soldiers — +1, +10 or Max (as many as your ore buys) at a time.
@@ -67,15 +69,18 @@ inside, spires in the corners, a hero and its escort.
   Knight, the Ash Witch, the Pale Hound, the Hollow Bishop, the Cinder Lich, the Rotfather).
 - **The Heart of the Grave**, in its sanctum in the far south-east, is sealed until all twelve
   wards are broken. Break it and **the Grave King** rises from it; kill him to win.
-- **The camp heals**: every 5 seconds every soldier inside the camp is made whole — for ore (1 for
-  every 5 health). Between heals a heavy enough beating still kills, so when the hero monsters come at
-  you together, get home in time. **E** sends the selected home.
+- **The camp heals**: every 5 seconds every soldier inside the camp is made whole — **10 ore** a soldier
+  (or 100 points, out of ore). Between heals a heavy enough beating still kills, so when the hero
+  monsters come at you together, get home in time. **E** sends the selected home.
 - **The start**: a ten-second countdown, then everyone's soldiers arrive at their own bunker.
 - **Spawn events at the base**, as the classic maps have them: three rune circles just outside the camp
-  (north-east, east, south). Every 40 seconds — five seconds' warning, the circles flaring red, a ping on
-  the map — the dead come out of all three and make for the camp: easy points (half as many again), two
-  from each circle to start, more and tougher as time goes on (thirty alive at most). The top bar
-  counts down to the next.
+  (north-east, east, south). Every 40 seconds — five seconds' warning naming what is coming, the circles
+  flaring red, a ping on the map — a named event comes out and makes for the camp, easy points (half as
+  many again): a **Bone Swarm** (twice as many of the weakest), a **Rider Rush**, a **Hex Circle**, from
+  minute 10 a **Brute March**, from minute 15 **Sky Rot** (the dead in the air). Every fifth, **A Hero
+  Walks** — a hero of the dead and its escort out of one circle, for the camp; every seventh, **The
+  Hoarder** — a golden Grave Hoarder with loot that never fights, runs from soldiers and gets away after
+  35 seconds: catch it for a big prize. More, and tougher, as time goes on.
 - **The dead in the air** fly straight over the ridges: the **Frost Wraith** casts grave frost on
   the soldiers round its target — frozen for a minute, unable to act and **unable to be hurt** (so kill
   the wraith, or wait it out); the **Bile Drifter** spits bile that **slows** whoever it splashes (half

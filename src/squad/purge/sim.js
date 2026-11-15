@@ -33,7 +33,7 @@ export function forgeCheck(troops, slot, ore, relics, rank, upg = null) {
     use.push(...have);
   }
   if (ore < def.ore) return { ok: false, why: `Needs ${def.ore} ore` };
-  if ((def.relics ?? 0) > relics) return { ok: false, why: `Needs ${def.relics} relics` };
+  if ((def.relics ?? 0) > relics) return { ok: false, why: `Needs ${def.relics} relics found (the team has ${relics})` };
   return { ok: true, use };
 }
 const HASH = 8;
@@ -79,6 +79,7 @@ export class Purge {
     this.startIn = countdown;
     if (countdown <= 0) this._deploy();
     this.shrines = 0;
+    this.relics = 0;
     this.nodes = 0;
     this.keysLeft = KEYS.length;
     this.raidT = this.diff.raid + 120;
@@ -326,7 +327,7 @@ export class Purge {
   /** What a player could raise at the Forge now, and what stops them if not. */
   canForge(slot, rank) {
     const p = this.players[slot];
-    return p ? forgeCheck(this.troops, slot, p.ore, p.relics, rank, p.upg) : { ok: false, why: 'No such player' };
+    return p ? forgeCheck(this.troops, slot, p.ore, this.relics, rank, p.upg) : { ok: false, why: 'No such player' };
   }
 
   forge(slot, rank) {
@@ -335,7 +336,6 @@ export class Purge {
     const p = this.players[slot];
     const def = RANKS[rank];
     p.ore -= def.ore;
-    p.relics -= def.relics ?? 0;
     for (const t of can.use) this._remove(t);
     const made = this._troop(slot, rank, FORGE);
     made.fresh = true;
@@ -363,11 +363,10 @@ export class Purge {
         const main = Object.keys(def.from).sort((a, b) => RANKS[b].tier - RANKS[a].tier)[0];
         if (!ring.some((t) => t.rank === main)) continue;
         if (def.one && this.troops.some((t) => t.o === p.slot && t.rank === rank)) continue;
-        const can = forgeCheck(ring, p.slot, p.ore, p.relics, rank, p.upg);
+        const can = forgeCheck(ring, p.slot, p.ore, this.relics, rank, p.upg);
         if (!can.ok) continue;
         const from = can.use.map((t) => t.i);
         p.ore -= def.ore;
-        p.relics -= def.relics ?? 0;
         for (const t of can.use) this._remove(t);
         const made = this._troop(p.slot, rank, FORGE);
         made.fresh = true;
@@ -498,7 +497,7 @@ export class Purge {
     }
   }
 
-  /** Every few seconds the camp makes every soldier in it whole, for ore (as much as there is). */
+  /** Every few seconds the camp makes every soldier in it whole: 10 ore a soldier (or 100 points, out of ore). */
   _healPulse(dt) {
     this.healT = (this.healT ?? CAMP.pulse) - dt;
     if (this.healT > 0) return;
@@ -507,11 +506,11 @@ export class Purge {
     for (const t of this.troops) {
       if (t.hp >= t.max || !inBase(t.x, t.z)) continue;
       const p = this.players[t.o];
-      const want = Math.min(t.max - t.hp, p.ore / HEAL.orePerHp);
-      if (want <= 0) continue;
-      t.hp += want;
-      p.ore -= want * HEAL.orePerHp;
-      p.healed = (p.healed ?? 0) + want * HEAL.orePerHp;
+      if (p.ore >= HEAL.ore) p.ore -= HEAL.ore;
+      else if (p.points >= HEAL.points) p.points -= HEAL.points;
+      else continue;
+      p.healed = (p.healed ?? 0) + HEAL.ore;
+      t.hp = t.max;
       healed.push(t.i);
     }
     this.events.push({ t: 'healPulse', ids: healed });
@@ -803,6 +802,7 @@ export class Purge {
   _foeStep(f, dt) {
     const def = foeDef(f.kind);
     f.cd = Math.max(0, f.cd - dt);
+    if (f.flee) return this._hoard(f, def, dt);
     if (!f.awake) {
       // Asleep: an eye open every half second for soldiers coming near.
       f.look -= dt;
@@ -1082,34 +1082,87 @@ export class Purge {
     this.events.push({ t: 'raid', wave: this.raids, x: from.x, z: from.z, n: count });
   }
 
-  /** The base's spawn events: a warning, then the dead out of the three zones round the camp. */
+  /** What the next spawn event will be: a hero every fifth, the Hoarder every seventh, else one of the rest. */
+  _nextEvent() {
+    const S = BASE_SPAWNS;
+    const n = (this.spawns ?? 0) + 1;
+    if (n % S.heroes.every === 0) return { id: 'hero', name: 'A Hero Walks', text: 'a hero of the dead marches on the camp — a big bounty' };
+    if (n % S.hoarder.every === 0) return { id: 'hoarder', name: 'The Hoarder', text: 'a Grave Hoarder with loot — catch it before it gets away' };
+    const minutes = this.t / 60;
+    const open = S.events.filter((e) => minutes >= (e.from ?? 0));
+    return open[Math.floor(this.rand() * open.length)];
+  }
+
+  /** The base's spawn events: a warning (naming what is coming), then it, out of the three zones round the camp. */
   _baseSpawns(dt) {
     const S = BASE_SPAWNS;
     this.spawnIn = (this.spawnIn ?? S.first) - dt;
     if (!this.spawnWarned && this.spawnIn <= S.warn) {
       this.spawnWarned = true;
-      this.events.push({ t: 'spawnSoon', zones: S.zones, in: S.warn });
+      this.nextEvent = this._nextEvent();
+      this.events.push({ t: 'spawnSoon', zones: S.zones, in: S.warn, name: this.nextEvent.name, text: this.nextEvent.text });
     }
     if (this.spawnIn > 0) return;
     this.spawnIn = S.every;
     this.spawnWarned = false;
-    const alive = this.foes.filter((f) => f.stray).length;
-    if (alive >= S.cap) return;
-    const minutes = this.t / 60;
-    const each = Math.max(1, Math.min(Math.round(S.perZone * this.crowd.count), Math.round((S.count + minutes * S.grow) * this.crowd.count), Math.ceil((S.cap * this.crowd.count - alive) / S.zones.length)));
-    const tier = minutes < 20 ? 1 : minutes < 45 ? 2 : 3;
-    const kinds = S.kinds[tier];
-    for (const z of S.zones) {
-      for (let n = 0; n < each; n++) {
-        const a = (n / each) * Math.PI * 2 + this.rand();
-        const f = this._foe(kinds[Math.floor(this.rand() * kinds.length)], z.x + Math.cos(a) * 2, z.z + Math.sin(a) * 2, { tier, raid: true, home: { x: PAD.x, z: PAD.z } });
-        f.stray = true;
-        f.bounty = Math.round(f.bounty * S.bonus);
-        f.since = this.t;
-      }
-    }
+    const ev = this.nextEvent ?? this._nextEvent();
+    this.nextEvent = null;
     this.spawns = (this.spawns ?? 0) + 1;
-    this.events.push({ t: 'spawn', n: each * S.zones.length, zones: S.zones, count: this.spawns });
+    const minutes = this.t / 60;
+    const tier = minutes < 20 ? 1 : minutes < 45 ? 2 : 3;
+    const zone = S.zones[Math.floor(this.rand() * S.zones.length)];
+    const add = (kind, z, k, n, t = tier) => {
+      const a = (k / n) * Math.PI * 2 + this.rand();
+      const f = this._foe(kind, z.x + Math.cos(a) * 2, z.z + Math.sin(a) * 2, { tier: t, raid: true, home: { x: PAD.x, z: PAD.z } });
+      f.stray = true;
+      f.bounty = Math.round(f.bounty * S.bonus);
+      f.since = this.t;
+      return f;
+    };
+    if (ev.id === 'hero') {
+      // One hero of the dead out of one circle, with an escort, for the camp.
+      const list = minutes < 20 ? S.heroes.early : minutes < 45 ? S.heroes.middle : S.heroes.late;
+      const hero = add(list[Math.floor(this.rand() * list.length)], zone, 0, 1);
+      for (let k = 0; k < S.heroes.escort; k++) add(S.kinds[tier][k % S.kinds[tier].length], zone, k + 1, S.heroes.escort + 1);
+      this.events.push({ t: 'spawn', name: ev.name, text: ev.text, count: this.spawns, zones: [zone], n: 1 + S.heroes.escort, hero: hero.kind, x: zone.x, z: zone.z });
+      return;
+    }
+    if (ev.id === 'hoarder') {
+      const f = add('hoarder', zone, 0, 1);
+      f.raid = false;
+      f.flee = this.t + FOES.hoarder.flee.seconds;
+      f.awake = true;
+      this.events.push({ t: 'spawn', name: ev.name, text: ev.text, count: this.spawns, zones: [zone], n: 1, hoarder: f.i, x: zone.x, z: zone.z });
+      return;
+    }
+    const alive = this.foes.filter((f) => f.stray).length;
+    if (alive >= S.cap * this.crowd.count) return;
+    const each = Math.max(1, Math.min(Math.round(S.perZone * this.crowd.count * ev.count), Math.round((S.count + minutes * S.grow) * this.crowd.count * ev.count), Math.ceil((S.cap * this.crowd.count - alive) / S.zones.length)));
+    const t = Math.max(1, tier + (ev.tier ?? 0));
+    for (const z of S.zones) for (let k = 0; k < each; k++) add(ev.kinds[Math.floor(this.rand() * ev.kinds.length)], z, k, each, t);
+    this.events.push({ t: 'spawn', name: ev.name, text: ev.text, n: each * S.zones.length, zones: S.zones, count: this.spawns });
+  }
+
+  /** The Grave Hoarder: away from the nearest soldier, out round the camp, gone when its time is up. */
+  _hoard(f, def, dt) {
+    if (this.t > f.flee) {
+      this._remove(f);
+      this.events.push({ t: 'escaped', id: f.i, x: f.x, z: f.z });
+      return;
+    }
+    const near = this._nearestTroop(f.x, f.z, def.flee.fear);
+    if (near) {
+      const dx = f.x - near.x;
+      const dz = f.z - near.z;
+      const d = Math.hypot(dx, dz) || 1;
+      f.path = [[f.x + (dx / d) * 6, f.z + (dz / d) * 6]];
+    } else if (!f.path?.length) {
+      // Wander round the camp's outskirts.
+      const a = this.rand() * Math.PI * 2;
+      const [x, z] = this.grid.open(PAD.x + Math.cos(a) * 42, PAD.z + Math.abs(Math.sin(a)) * 42);
+      f.path = this.grid.path(f.x, f.z, x, z) ?? [[x, z]];
+    }
+    this._walk(f, def.speed, dt);
   }
 
   /** A wave of `count` from these buildings (shared out), sent to `goal` (or straight at the camp). */
@@ -1205,7 +1258,8 @@ export class Purge {
     this.grid.free(b.i);
     const k = def.key || def.heart ? 1 : BUILD_TIER[b.tier];
     this._pay(by, Math.round(def.bounty * k), b.x, b.z, true);
-    for (const p of this.players) p.relics += def.relics ?? 0;
+    // Relics: the team's, a tally that only grows (the top ranks need so many found, as the classic maps' gas).
+    this.relics += def.relics ?? 0;
     this.events.push({ t: 'fall', id: b.i, type: b.type, x: b.x, z: b.z, relics: def.relics ?? 0 });
     this.fallen++;
     this._wrath(b);
@@ -1360,8 +1414,8 @@ export class Purge {
   _botPlan(p, mine, count) {
     // A body of Veterans first (cheap strength), then saving for the next rank up.
     if (count('recruit') && count('veteran') < 10) return 'veteran';
-    if (count('phantom') && !count('paragon') && p.relics >= RANKS.paragon.relics) return 'paragon';
-    if (count('vanguard') && count('veteran') >= 2 && p.relics >= RANKS.phantom.relics && !count('phantom') && !count('paragon')) return 'phantom';
+    if (count('phantom') && !count('paragon') && this.relics >= RANKS.paragon.relics) return 'paragon';
+    if (count('vanguard') && count('veteran') >= 2 && this.relics >= RANKS.phantom.relics && !count('phantom') && !count('paragon')) return 'phantom';
     if (!count('vanguard') && !count('phantom') && !count('paragon') && count('veteran')) return 'vanguard';
     if (count('recruit') && count('veteran') < 8) return 'veteran';
     return null;
@@ -1429,7 +1483,7 @@ export class Purge {
       startIn: Math.max(0, this.startIn),
       spawnIn: this.spawnIn ?? BASE_SPAWNS.first,
       lastStand: this.lastStand,
-      players: this.players.map((p) => ({ slot: p.slot, name: p.name, bot: p.bot, autoForge: p.autoForge, ore: Math.floor(p.ore), points: Math.floor(p.points), relics: p.relics, upg: { ...p.upg }, kills: p.kills, earned: p.earned, color: p.color, army: this.troops.filter((t) => t.o === p.slot).length })),
+      players: this.players.map((p) => ({ slot: p.slot, name: p.name, bot: p.bot, autoForge: p.autoForge, ore: Math.floor(p.ore), points: Math.floor(p.points), relics: this.relics, upg: { ...p.upg }, kills: p.kills, earned: p.earned, color: p.color, army: this.troops.filter((t) => t.o === p.slot).length })),
       ents,
       hurt,
       down: [...this.down],

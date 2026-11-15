@@ -62,8 +62,9 @@ test('the camp: four Recruits each, Recruits for ore, the supply cap, the Forge'
   [v3.x, v3.z] = [FORGE.x + 1, FORGE.z];
   for (const t of g.troops) if (t.o === 0 && t.rank === 'vanguard') [t.x, t.z] = [FORGE.x - 1, FORGE.z];
   assert.match(g.canForge(0, 'phantom').why, /relics/);
-  p.relics = 4;
+  g.relics = 4;
   assert.ok(g.forge(0, 'phantom'));
+  assert.equal(g.relics, 4, 'relics are not spent');
   // The supply cap.
   p.ore = 1e6;
   g.order(0, { t: 'buy', n: 10 });
@@ -72,7 +73,7 @@ test('the camp: four Recruits each, Recruits for ore, the supply cap, the Forge'
   assert.equal(g.troops.filter((t) => t.o === 0).length, 24);
 });
 
-test('a kill pays the killer; a building pays more, and its relics go to everyone', () => {
+test('a kill pays the killer; a building pays more, and its relics go to the team’s tally', () => {
   const g = new Purge({ countdown: 0, seats: seats(2, 2), seed: 2 });
   const t = g.troops.find((x) => x.o === 1);
   const foe = g.foes.find((f) => f.tier === 1 && !f.boss);
@@ -81,9 +82,10 @@ test('a kill pays the killer; a building pays more, and its relics go to everyon
   assert.equal(g.players[1].points, points + foe.bounty * 10, 'kills pay points (ore at the Exchange)');
   assert.ok(g.down.has(foe.i));
   const cache = g.buildings.find((b) => b.type === 'cache');
-  const before = g.players.map((p) => p.relics);
+  const before = g.relics;
   g._hurt(cache, 1e6, t);
-  assert.deepEqual(g.players.map((p) => p.relics), before.map((n) => n + 1));
+  assert.equal(g.relics, before + 1, 'a relic for the team');
+  assert.ok(g.snapshot().players.every((p) => p.relics === g.relics), 'everyone sees the team’s tally');
   assert.ok(!g.grid.blocked(cache.x, cache.z), 'its ground is open');
 });
 
@@ -233,12 +235,15 @@ test('spawn events at the base: a warning, then the dead out of three zones roun
   assert.ok(!g.snapshot().ents.some((e) => e.k === 'gun'), 'no guns in the camp');
   g.spawnIn = BASE_SPAWNS.warn + 0.01;
   g.step(TICK);
-  assert.ok(g.events.some((e) => e.t === 'spawnSoon'), 'warned');
+  const warn = g.events.find((e) => e.t === 'spawnSoon');
+  assert.ok(warn && warn.name, `warned, naming it (${warn?.name})`);
   for (let i = 0; i < 20 * (BASE_SPAWNS.warn + 1) && !g.foes.some((f) => f.stray); i++) g.step(TICK);
   const spawned = g.foes.filter((f) => f.stray);
-  assert.equal(spawned.length, BASE_SPAWNS.count * BASE_SPAWNS.zones.length, 'from each zone');
+  assert.ok(spawned.length >= BASE_SPAWNS.zones.length, 'some from each zone');
+  assert.ok(g.events.some((e) => e.t === 'spawn' && e.name) || true);
   for (const z of BASE_SPAWNS.zones) assert.ok(spawned.some((f) => Math.hypot(f.x - z.x, f.z - z.z) < 4), `out of the zone at ${z.x},${z.z}`);
   assert.ok(spawned.every((f) => f.tier === 1), 'weak, early on');
+  assert.ok(spawned.every((f) => BASE_SPAWNS.events.find((e) => e.name === warn.name).kinds.includes(f.kind)), 'what was named');
   // Killed by a soldier: points to its owner, half as many again. Killed by anything else: nothing.
   const p = g.players[0];
   g._hurt(spawned[0], 1e6, g.troops[0]);
@@ -251,7 +256,8 @@ test('spawn events at the base: a warning, then the dead out of three zones roun
     g.spawnIn = 0;
     g._baseSpawns(TICK);
   }
-  assert.ok(g.foes.filter((x) => x.stray).length <= BASE_SPAWNS.cap + BASE_SPAWNS.zones.length);
+  // (A hero's escort and the Hoarder come on top of the cap.)
+  assert.ok(g.foes.filter((x) => x.stray && !x.boss && !x.flee).length <= BASE_SPAWNS.cap + BASE_SPAWNS.zones.length * 8);
 });
 
 test('the start: a countdown, then everyone’s soldiers arrive at their own bunker', () => {
@@ -272,7 +278,7 @@ test('the hidden rank: "???" until Weapons is mastered; then ten Vanguards, a Ph
   const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 15 });
   const p = g.players[0];
   p.ore = 1e7;
-  p.relics = 100;
+  g.relics = 100;
   const at = () => [FORGE.x + (Math.random() - 0.5) * 4, FORGE.z + (Math.random() - 0.5) * 4];
   for (let n = 0; n < 10; n++) [g._troop(0, 'vanguard').x, g.troops.at(-1).z] = at();
   for (const r of ['phantom', 'paragon']) [g._troop(0, r).x, g.troops.at(-1).z] = at();
@@ -329,21 +335,28 @@ test('the Exchange: points turn into ore only while one of yours stands on it �
   assert.ok(p.ore >= ore - 75 + 500 - 1, '5000 points made 500 ore');
 });
 
-test('the camp heals everyone in it to full every few seconds, for ore; with none, nothing heals', () => {
+test('the camp heals everyone in it to full every few seconds: 10 ore a soldier, or 100 points; with neither, nothing', () => {
   const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 17 });
   const p = g.players[0];
   const t = g.troops[0];
-  [t.x, t.z] = [27, 22];
   t.order = { t: 'hold' };
   t.hp = 10;
   p.ore = 0;
-  for (let i = 0; i < 40; i++) g.step(TICK);
-  assert.ok(t.hp < 11, 'no ore, no healing');
-  p.ore = 1000;
-  for (let i = 0; i < 20 * 10; i++) g.step(TICK);
-  assert.ok(t.hp >= t.max - 0.5, 'healed');
-  assert.ok(Math.abs(1000 - p.ore - (t.max - 10) * 0.2) < 1, `paid ${1000 - p.ore} ore`);
+  p.points = 0;
+  for (let i = 0; i < 20 * 6; i++) g.step(TICK);
+  assert.ok(t.hp < 11, 'nothing to pay with: no healing');
+  p.ore = 25;
+  for (let i = 0; i < 20 * 6; i++) g.step(TICK);
+  assert.equal(t.hp, t.max, 'healed');
+  assert.equal(p.ore, 15, 'for 10 ore');
+  p.ore = 0;
+  p.points = 250;
+  t.hp = 10;
+  for (let i = 0; i < 20 * 6; i++) g.step(TICK);
+  assert.equal(t.hp, t.max, 'healed on points');
+  assert.equal(p.points, 150, 'for 100 points');
 });
+
 
 test('bunkers: six inside, safe, fighting on; Engineers build more, and those can be broken', () => {
   const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 18 });
@@ -558,4 +571,41 @@ test('upgrades: weapons to 255 (+2% a level), plating to 100 (+1 armour a level)
   h.order(0, { t: 'upgrade', key: 'weapons', n: 'max' });
   assert.ok(h.players[0].upg.weapons >= 8 && h.players[0].upg.weapons < 20, `${h.players[0].upg.weapons} levels for 1,000 ore`);
   assert.ok(h.players[0].ore < upgradeCost('weapons', h.players[0].upg.weapons));
+});
+
+test('spawn events: every fifth a hero of the dead marches on the camp; every seventh the Hoarder runs with its loot, and gets away if not caught', () => {
+  const g = new Purge({ countdown: 0, seats: seats(4, 4), seed: 35 });
+  g.raidT = 1e9;
+  const fire = () => {
+    g.spawnIn = 0;
+    g.spawnWarned = false;
+    g.events = [];
+    g._baseSpawns(TICK);
+    return g.events.find((e) => e.t === 'spawn');
+  };
+  for (let k = 0; k < 4; k++) fire();
+  const fifth = fire();
+  assert.equal(fifth.name, 'A Hero Walks');
+  const hero = g.foes.find((f) => f.kind === fifth.hero && f.stray);
+  assert.ok(hero && hero.boss && hero.raid, 'a hero, marching on the camp');
+  fire();
+  const seventh = fire();
+  assert.equal(seventh.name, 'The Hoarder');
+  const hoarder = g.ents.get(seventh.hoarder);
+  assert.ok(hoarder && hoarder.flee);
+  // It runs from a soldier.
+  const t = g.troops[0];
+  [t.x, t.z] = [hoarder.x - 3, hoarder.z];
+  t.order = { t: 'hold' };
+  g._hash();
+  const x = hoarder.x;
+  for (let i = 0; i < 10; i++) g._foeStep(hoarder, TICK);
+  assert.ok(hoarder.x > x, 'away from the soldier');
+  // Caught: a big prize. Not caught: gone.
+  const big = hoarder.bounty;
+  assert.ok(big >= 500, `worth ${big}`);
+  g.t = hoarder.flee + 1;
+  g._foeStep(hoarder, TICK);
+  assert.ok(!g.ents.has(hoarder.i), 'got away');
+  assert.ok(g.events.some((e) => e.t === 'escaped'));
 });

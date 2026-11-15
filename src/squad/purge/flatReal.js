@@ -887,6 +887,7 @@ function foe(view, g, e, dt, dead = false) {
   }
   else if (e.act === 'run') col = sheet.index.walk[Math.floor(view.time * (8 * def.speed) / 4.4 + e.i) % sheet.index.walk.length];
   if (guardian) view._glow(g, e.x, e.z - def.size * 0.4, def.size * 0.9, guardian.tint, 0.45 + Math.sin(view.time * 3) * 0.1);
+  if (e.kind === 'hoarder') view._glow(g, e.x, e.z - def.size * 0.4, 2.2, '#ffd060', 0.6 + Math.sin(view.time * 8) * 0.2);
   else if ((e.tier ?? 1) >= 3) view._glow(g, e.x, e.z - def.size * 0.35, def.size * 0.6, (e.tier ?? 1) >= 4 ? '#ff3050' : '#8040ff', 0.3);
   if (guardian) {
     // A guardian: its kind's body, bigger and washed in its colour.

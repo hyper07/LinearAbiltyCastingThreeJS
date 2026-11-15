@@ -92,6 +92,8 @@ export const FOES = {
   brute: { name: 'Brute', body: 'Skeleton_Warrior', size: 2.6, hp: 380, dmg: 22, rate: 0.8, range: 2, speed: 3.5, armor: 3, bounty: 70 },
   wight: { name: 'Wight', body: 'Skeleton_Warrior', size: 2.2, hp: 420, dmg: 22, rate: 1, range: 1.8, speed: 4.8, armor: 4, bounty: 110 },
   bonecaller: { name: 'Bonecaller', body: 'Skeleton_Mage', size: 2.2, hp: 320, dmg: 20, rate: 0.9, range: 11, speed: 3.6, armor: 2, bounty: 120, ranged: true },
+  /** The Grave Hoarder: a spawn event's prize — carries loot, never fights, runs from soldiers, and escapes if not caught. */
+  hoarder: { name: 'Grave Hoarder', body: 'Skeleton_Minion', size: 1.5, hp: 260, dmg: 0, rate: 1, range: 1, speed: 6.4, armor: 2, bounty: 500, flee: { seconds: 35, fear: 14 } },
   // The dead in the air: they fly over the ridges.
   /** Frost Wraith: casts grave frost on soldiers — frozen where they stand, unable to act, and unable to be hurt, for a minute. */
   wraith: { name: 'Frost Wraith', body: 'Skeleton_Mage', size: 2, hp: 520, dmg: 16, rate: 0.8, range: 9, speed: 5.4, armor: 2, bounty: 150, ranged: true, flying: true, freeze: { range: 11, radius: 4, every: 40, seconds: 60 } },
@@ -186,7 +188,21 @@ export const START = { countdown: 10 };
 export const BASE_SPAWNS = {
   zones: [{ x: 58, z: 5 }, { x: 59, z: 31 }, { x: 38, z: 47 }],
   every: 40, first: 50, warn: 5, count: 2, grow: 1 / 6, perZone: 8, cap: 30, bonus: 1.5,
-  kinds: { 1: ['husk', 'husk', 'ravager', 'hexer'], 2: ['husk', 'ravager', 'hexer', 'brute'], 3: ['brute', 'wight', 'hexer', 'bonecaller'] }
+  kinds: { 1: ['husk', 'husk', 'ravager', 'hexer'], 2: ['husk', 'ravager', 'hexer', 'brute'], 3: ['brute', 'wight', 'hexer', 'bonecaller'] },
+  /**
+   * What comes out: a named event each time. `count` scales the usual
+   * number; `from` is the minute it can first come; heroes come every fifth
+   * event, the Hoarder every seventh.
+   */
+  events: [
+    { id: 'swarm', name: 'Bone Swarm', text: 'a swarm of the weakest — twice as many', kinds: ['husk', 'husk', 'ravager'], count: 2, tier: -1 },
+    { id: 'riders', name: 'Rider Rush', text: 'fast riders of the dead', kinds: ['ravager'], count: 1.3 },
+    { id: 'casters', name: 'Hex Circle', text: 'casters, hitting from range', kinds: ['hexer', 'hexer', 'bonecaller'], count: 1 },
+    { id: 'brutes', name: 'Brute March', text: 'fewer, but heavy', kinds: ['brute', 'wight'], count: 0.6, from: 10 },
+    { id: 'sky', name: 'Sky Rot', text: 'the dead in the air', kinds: ['mire', 'mire', 'wraith'], count: 0.6, from: 15 }
+  ],
+  heroes: { every: 5, early: ['warden', 'bride', 'stalker'], middle: ['baron', 'seer', 'reaper'], late: ['tyrant', 'oracle'], escort: 3 },
+  hoarder: { every: 7 }
 };
 
 /** How fast the game runs (the host's to set). */
@@ -202,8 +218,8 @@ export const ECON = { start: 600, stipend: 300, grow: 25, every: 60, heroesOnly:
  */
 export const CAMP = { pulse: 5 };
 
-/** Healing is paid for: ore for every point of health the camp gives back. */
-export const HEAL = { orePerHp: 0.2 };
+/** Healing is cheap: each soldier made whole costs 10 ore — or 100 points, when there is no ore. */
+export const HEAL = { ore: 10, points: 100 };
 
 /**
  * Kills pay points, not ore. Points become ore only at the Exchange in the
@@ -238,6 +254,6 @@ export function recipes(upg = null) {
     const open = !d.unlock || (upg && Object.entries(d.unlock).every(([k, n]) => (upg[k] ?? 0) >= n));
     if (!open) return { rank, name: '???', text: '???', secret: true };
     const from = Object.entries(d.from).map(([k, n]) => `${n > 1 ? `${n} ` : ''}${RANKS[k].name}${n > 1 ? 's' : ''}`).join(' + ');
-    return { rank, name: d.name, text: `${from} + ${d.ore.toLocaleString('en')} ore${d.relics ? ` + ${d.relics} relics` : ''}${d.one ? ' · one' : ''}` };
+    return { rank, name: d.name, text: `${from} + ${d.ore.toLocaleString('en')} ore${d.relics ? ` · ${d.relics} relics found` : ''}${d.one ? ' · one' : ''}` };
   });
 }

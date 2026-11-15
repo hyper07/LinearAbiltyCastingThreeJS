@@ -31,11 +31,12 @@ const CLIPS = {
   wight: { walk: 'Walking_A', attack: '1H_Melee_Attack_Slice_Diagonal' },
   bonecaller: { walk: 'Walking_B', attack: 'Spellcast_Shoot' },
   wraith: { walk: 'Idle', attack: 'Spellcast_Shoot', summon: 'Spellcast_Summon' },
+  hoarder: { walk: 'Walking_D_Skeletons', attack: 'Unarmed_Melee_Attack_Punch_A' },
   mire: { walk: 'Idle', attack: '1H_Melee_Attack_Stab' }
 };
 const BOSS_CLIPS = { walk: 'Walking_A', attack: '2H_Melee_Attack_Chop', slam: '2H_Melee_Attack_Spin', summon: 'Spellcast_Summon' };
 const MAGE_CLIPS = { walk: 'Walking_B', attack: 'Spellcast_Shoot', summon: 'Spellcast_Summon' };
-const TINT = { husk: '#d9d4c4', ravager: '#c9b8a8', hexer: '#b9a6d9', brute: '#b8b0a0', wight: '#8a9aa8', bonecaller: '#9a70c0', wraith: '#a8e0ff', mire: '#9ad060' };
+const TINT = { husk: '#d9d4c4', ravager: '#c9b8a8', hexer: '#b9a6d9', brute: '#b8b0a0', wight: '#8a9aa8', bonecaller: '#9a70c0', wraith: '#a8e0ff', mire: '#9ad060', hoarder: '#ffd34d' };
 /** The look of each building: a model, how wide, and a glow. */
 const LOOK = {
   spire: { model: HALLOWEEN + 'post_skull.gltf', width: 1.6, height: 4.4, glow: '#b060ff' },
@@ -424,6 +425,12 @@ export class PurgeView extends SquadView {
     const size = def.size * (guardian ? 1 : 1 + (tier - 1) * 0.06);
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3 * (size / 1.7), size * 0.5, 4, 8).translate(0, size / 2, 0), new THREE.MeshStandardMaterial({ color: tint }));
     m.group.add(stand);
+    if (kind === 'hoarder') {
+      // The Hoarder glints: a gold light on it.
+      const gold = new THREE.PointLight('#ffd060', 10, 7, 2);
+      gold.position.y = 1.2;
+      m.group.add(gold);
+    }
     if (def.flying) {
       // Wings (ragged membranes) and a glow under: one of the dead in the air.
       const glow = kind === 'wraith' ? '#80d8ff' : '#90e050';
