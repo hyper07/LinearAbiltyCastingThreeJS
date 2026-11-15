@@ -129,8 +129,9 @@ canvas, light on older computers. Both show their frames a second at the bottom 
 
 **Sound**: all made in the browser (no recordings): rifle fire with a crack and a body (heavier for the
 high ranks), the dead's magic, blasts, buildings coming down, the spawn horn, the Forge's bell, the
-Exchange's coins, frost, stim and the camp's heal — and music of our own: a slow, dark piece in D minor
-(a drone, chords, soft drums, sparse bells) that brings in war drums when the fighting starts. **♪ Music**
+Exchange's coins, frost, stim and the camp's heal — and an original score: a four-bar loop in A minor (Am – F – C – G) at 96 beats a minute, with a
+calm bed (pad, bass, a theme on the melody, a soft kick) that blends into a battle bed (driving bass,
+kick, snare, hi-hats, an arpeggio) as the fighting starts. **♪ Music**
 and **🔊 Sound** on the top bar switch each on and off (remembered).
 
 **Controls**, the classic way: left-click or drag to select (double-click: that rank on screen;

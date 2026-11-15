@@ -10,7 +10,22 @@
 const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12); // MIDI note → Hz
 /** The chords, a bar each pair: D minor, B flat, G minor, A. */
 const CHORDS = [[50, 53, 57], [46, 50, 53], [43, 46, 50], [45, 49, 52]];
-const BPM = 72;
+/** The score: A minor, a four-bar loop, at 96 beats a minute. Notes are MIDI numbers. */
+const SCORE = {
+  bpm: 96,
+  bars: 4,
+  // Am – F – C – G, one chord a bar.
+  chords: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]],
+  // The bass: the roots, an octave down.
+  bass: [45, 41, 48, 43],
+  // The theme, four bars: [step, note, length in sixteenths].
+  melody: [
+    [[0, 69, 3], [4, 72, 2], [8, 76, 3], [12, 74, 3]],
+    [[0, 77, 2], [4, 76, 2], [8, 72, 3], [12, 69, 3]],
+    [[0, 67, 3], [4, 72, 2], [8, 76, 3], [12, 79, 3]],
+    [[0, 74, 2], [4, 71, 2], [8, 69, 4], [12, 67, 3]]
+  ]
+};
 
 const stored = (key, fallback) => {
   try {
@@ -271,63 +286,163 @@ export class PurgeAudio {
 
   _musicStart() {
     const a = this.ctx;
-    // The drone: two low saws a hair apart, through a slowly breathing filter.
-    const drone = a.createBiquadFilter();
-    drone.type = 'lowpass';
-    drone.frequency.value = 320;
-    drone.Q.value = 3;
+    // Two beds, each through its own gain: the calm one always, the battle one with the fighting.
+    this.calm = a.createGain();
+    this.calm.gain.value = 1;
+    this.calm.connect(this.music);
+    this.battle = a.createGain();
+    this.battle.gain.value = 0;
+    this.battle.connect(this.music);
+    // The pad's warmth: a low-passed, slowly breathing bed under everything.
+    const pad = a.createBiquadFilter();
+    pad.type = 'lowpass';
+    pad.frequency.value = 900;
+    pad.Q.value = 0.7;
     const lfo = a.createOscillator();
-    lfo.frequency.value = 0.05;
+    lfo.frequency.value = 0.07;
     const lfoGain = a.createGain();
-    lfoGain.gain.value = 140;
-    lfo.connect(lfoGain).connect(drone.frequency);
+    lfoGain.gain.value = 300;
+    lfo.connect(lfoGain).connect(pad.frequency);
     lfo.start();
-    const dg = a.createGain();
-    dg.gain.value = 0.05;
-    drone.connect(dg).connect(this.music);
-    const dv = a.createGain();
-    dv.gain.value = 0.2;
-    dg.connect(dv).connect(this.verb);
-    for (const [n, det] of [[38, -6], [38, 6], [26, 0]]) {
-      const o = a.createOscillator();
-      o.type = 'sawtooth';
-      o.frequency.value = NOTE(n);
-      o.detune.value = det;
-      o.connect(drone);
-      o.start();
-    }
-    // The rest, scheduled a little ahead, beat by beat.
-    this.beat = 0;
-    this.nextAt = a.currentTime + 0.2;
-    this.timer = setInterval(() => this._schedule(), 100);
+    pad.connect(this.calm);
+    const pv = a.createGain();
+    pv.gain.value = 0.25;
+    this.calm.connect(pv).connect(this.verb);
+    this.padBus = pad;
+    this.step = 0;
+    this.bar = 0;
+    this.nextAt = a.currentTime + 0.25;
+    this.timer = setInterval(() => this._schedule(), 60);
   }
 
   _schedule() {
     const a = this.ctx;
     if (!a) return;
-    const spb = 60 / BPM;
-    while (this.nextAt < a.currentTime + 0.4) {
+    const battle = this.intensity > 0.25 ? 1 : 0;
+    // Fade the battle bed in and out smoothly.
+    this.battle.gain.setTargetAtTime(battle ? 1 : 0, a.currentTime, 0.6);
+    this.calm.gain.setTargetAtTime(battle ? 0.6 : 1, a.currentTime, 0.6);
+    const stepLen = 60 / SCORE.bpm / 4;
+    while (this.nextAt < a.currentTime + 0.3) {
       const t = this.nextAt;
-      const b = this.beat;
-      const bar = Math.floor(b / 4);
-      const chord = CHORDS[Math.floor(bar / 2) % CHORDS.length];
-      const m = { dest: this.music };
-      // A new chord every two bars: soft pads, slow in and out.
-      if (b % 8 === 0) for (const n of chord) this._tone(t, NOTE(n), spb * 7.5, { type: 'sine', peak: 0.03, attack: spb * 2, verb: 0.25, ...m, detune: (Math.random() - 0.5) * 6 });
-      // The pulse: a low drum on one and three.
-      if (b % 4 === 0 || b % 4 === 2) this._tone(t, 72, 0.35, { type: 'sine', peak: b % 4 === 0 ? 0.13 : 0.08, to: 40, ...m });
-      // In a fight: war drums on the eighths, and a hiss.
-      if (this.intensity > 0.3) {
-        this._tone(t + spb / 2, 96, 0.2, { type: 'sine', peak: 0.08 * this.intensity, to: 50, ...m });
-        if (b % 2 === 1) this._tone(t, 120, 0.16, { type: 'sine', peak: 0.08 * this.intensity, to: 60, ...m });
+      this._beat(t, this.bar, this.step, battle);
+      this.step++;
+      if (this.step === 16) {
+        this.step = 0;
+        this.bar = (this.bar + 1) % SCORE.bars;
       }
-      // Bells, now and then: a note of the chord, high.
-      if (Math.random() < 0.28) {
-        const n = chord[Math.floor(Math.random() * chord.length)] + 24;
-        this._tone(t + (Math.random() < 0.5 ? 0 : spb / 2), NOTE(n), 2.2, { peak: 0.018, verb: 0.3, ...m });
-      }
-      this.beat++;
-      this.nextAt += spb;
+      this.nextAt += stepLen;
     }
+  }
+
+  /** One sixteenth of the score, at time t. */
+  _beat(t, bar, step, battle) {
+    const chord = SCORE.chords[bar % SCORE.chords.length];
+    const stepLen = 60 / SCORE.bpm / 4;
+    // Pad: one chord, held for the bar, on the calm bed.
+    if (step === 0) {
+      for (const n of chord) this._pluck(t, NOTE(n), stepLen * 16, { type: 'sawtooth', peak: 0.012, attack: 0.9, dest: this.padBus, verb: 0.1 });
+    }
+    // Melody: the theme, on the calm bed; in battle, softer and under the drums.
+    for (const [st, n, len] of SCORE.melody[bar % SCORE.melody.length]) {
+      if (st === step) this._pluck(t, NOTE(n), stepLen * len, { type: 'triangle', peak: battle ? 0.035 : 0.06, attack: 0.01, dest: this.calm, verb: 0.2 });
+    }
+    // Bass: the root on the eighths; a driving pulse in battle, a soft one calm.
+    const root = SCORE.bass[bar % SCORE.bass.length];
+    if (battle ? step % 2 === 0 : step % 8 === 0) {
+      const sub = battle && step % 4 === 2 ? 12 : 0;
+      this._pluck(t, NOTE(root + sub), stepLen * (battle ? 1.4 : 3.2), { type: 'sawtooth', peak: battle ? 0.07 : 0.05, attack: 0.005, to: 0.9, dest: battle ? this.battle : this.calm, lp: 380 });
+    }
+    // Drums: a kick on the one and the three, a snare on the two and four; hats on the eighths in battle.
+    if (battle) {
+      if (step === 0 || step === 8 || (step === 10 && bar % 2 === 1)) this._kick(t, 0.3, this.battle);
+      if (step === 4 || step === 12) this._snare(t, 0.16);
+      if (step % 2 === 0) this._hat(t, step % 4 === 2 ? 0.035 : 0.02);
+      if (step === 14 && bar % 4 === 3) this._snare(t, 0.07);
+    } else {
+      if (step === 0 || step === 8) this._kick(t, 0.14, this.calm);
+      if (step === 8) this._hat(t, 0.012);
+    }
+    // Arpeggio in battle: the chord's notes, sixteenths, bright and brief.
+    if (battle && step % 2 === 1) {
+      const n = chord[(step >> 1) % chord.length] + 12;
+      this._pluck(t, NOTE(n), stepLen * 0.9, { type: 'square', peak: 0.012, attack: 0.002, dest: this.battle, lp: 2400 });
+    }
+  }
+
+  /** A plucked or held note: a shaped oscillator through an optional low-pass. */
+  _pluck(t, freq, dur, { type = 'triangle', peak = 0.05, attack = 0.005, to = null, dest = this.calm, verb = 0, lp = null } = {}) {
+    const a = this.ctx;
+    const o = a.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + attack);
+    const release = to != null ? to : 0.6;
+    g.gain.setValueAtTime(peak, t + Math.max(attack, dur * release));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+    let node = o;
+    if (lp) {
+      const f = a.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = lp;
+      o.connect(f);
+      node = f;
+    }
+    node.connect(g).connect(dest);
+    if (verb) {
+      const v = a.createGain();
+      v.gain.value = verb;
+      g.connect(v).connect(this.verb);
+    }
+    o.start(t);
+    o.stop(t + dur + 0.1);
+  }
+
+  _kick(t, peak, dest = this.calm) {
+    const a = this.ctx;
+    const o = a.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(130, t);
+    o.frequency.exponentialRampToValueAtTime(42, t + 0.18);
+    const g = a.createGain();
+    g.gain.setValueAtTime(peak, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.connect(g).connect(dest);
+    o.start(t);
+    o.stop(t + 0.4);
+  }
+
+  _snare(t, peak) {
+    const a = this.ctx;
+    const src = a.createBufferSource();
+    src.buffer = this.noise;
+    const f = a.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1900;
+    f.Q.value = 0.9;
+    const g = a.createGain();
+    g.gain.setValueAtTime(peak, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    src.connect(f).connect(g).connect(this.battle);
+    src.start(t, Math.random() * 0.3);
+    src.stop(t + 0.2);
+    this._pluck(t, 190, 0.1, { type: 'triangle', peak: peak * 0.5, attack: 0.002, dest: this.battle });
+  }
+
+  _hat(t, peak) {
+    const a = this.ctx;
+    const src = a.createBufferSource();
+    src.buffer = this.noise;
+    const f = a.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 7000;
+    const g = a.createGain();
+    g.gain.setValueAtTime(peak, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    src.connect(f).connect(g).connect(this.battle);
+    src.start(t, Math.random() * 0.3);
+    src.stop(t + 0.06);
   }
 }
