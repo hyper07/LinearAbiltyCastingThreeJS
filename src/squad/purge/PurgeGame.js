@@ -2,7 +2,7 @@ import { Purge, forgeCheck } from './sim.js';
 import { FlatView } from './flat.js';
 import { MobaLink, Mirror } from '../../moba/net.js';
 import { TICK, SEATS, COLORS, RANKS, RANK_ORDER, UPGRADES, upgradeCost, DIFFICULTY, SPEEDS, GIFTS, BUILDINGS, GUARDIANS, SUPPLY, SHRINE_GIFTS, recipes, HEAL, EXCHANGE, BUNKER, TEAM, STIM, CAMP, BASE_SPAWNS } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT, BUNKERS } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, BASE, FORGE, PAD, HEART, BOARD, EXCHANGE_AT, BUNKERS, TIER_R } from './map.js';
 import '../squad.css';
 import './purge.css';
 
@@ -998,7 +998,7 @@ export class PurgeGame {
       g.fillStyle = band[r - 1];
       g.beginPath();
       g.moveTo(0, 0);
-      g.arc(0, 0, ([0, 100, 165, 225, 400][r]) * k, 0, Math.PI / 2);
+      g.arc(0, 0, ([0, ...TIER_R, SIZE * 2][r]) * k, 0, Math.PI / 2);
       g.closePath();
       g.fill();
     }

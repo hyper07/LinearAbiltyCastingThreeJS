@@ -1,5 +1,5 @@
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, FORGE_REACH, LOOKS } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, EXCHANGE_AT, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, EXCHANGE_AT, TIER_R, foeDef } from './map.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 import { loadTextures, paintLand, drawWorld, remains, drawBoard, drawZones, LIFT } from './flatReal.js';
 
@@ -12,7 +12,7 @@ import { loadTextures, paintLand, drawWorld, remains, drawBoard, drawZones, LIFT
  * so the game screen can use either.
  */
 
-const PX = 8; // pixels a metre in the painted land
+const PX = 6; // pixels a metre in the painted land
 const TINT = { husk: '#d9d4c4', ravager: '#c9b8a8', hexer: '#b9a6d9', brute: '#b8b0a0', wight: '#8a9aa8', bonecaller: '#9a70c0' };
 
 class Point {
@@ -92,7 +92,8 @@ export class FlatView {
         const wx = x / PX;
         const wz = y / PX;
         const d = Math.hypot(wx, wz);
-        const t = Math.min(3, Math.max(0, d < 100 ? Math.max(0, (d - 90) / 20) : d < 165 ? 1 + Math.max(0, (d - 155) / 20) : d < 225 ? 2 + Math.max(0, (d - 215) / 20) : 3));
+        const [r1, r2, r3] = TIER_R;
+        const t = Math.min(3, Math.max(0, d < r1 ? Math.max(0, (d - r1 + 10) / 20) : d < r2 ? 1 + Math.max(0, (d - r2 + 10) / 20) : d < r3 ? 2 + Math.max(0, (d - r3 + 10) / 20) : 3));
         const a = band[Math.floor(t)];
         const b = band[Math.min(3, Math.floor(t) + 1)];
         const f = t - Math.floor(t);
@@ -180,7 +181,7 @@ export class FlatView {
     }
     for (const [x, z, rad] of ROCKS) lump(x, z, rad);
     // Graves, bones and dead trees.
-    for (let k = 0; k < 300; k++) {
+    for (let k = 0; k < 600; k++) {
       const x = 52 + r() * (SIZE - 56);
       const z = 4 + r() * (SIZE - 8);
       if (x < BASE.x1 + 8 && z < BASE.z1 + 8) continue;

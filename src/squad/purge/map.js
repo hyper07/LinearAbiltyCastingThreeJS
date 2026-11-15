@@ -14,7 +14,9 @@ import { BUILDINGS, FOES, GUARDIANS } from './rules.js';
  * standing buildings block it.
  */
 
-export const SIZE = 256;
+/** How much bigger than the first Gravefield (256 m): more room, as the classic maps have. */
+const SCALE = 1.5;
+export const SIZE = 384;
 export const CELL = 2;
 export const N = SIZE / CELL;
 
@@ -39,10 +41,10 @@ export const inBase = (x, z) => x >= BASE.x0 && x <= BASE.x1 && z >= BASE.z0 && 
 
 /** The rings: radius from the camp's corner, and the arcs (in degrees, 0 = east, 90 = south) that are ridge. */
 const RINGS = [
-  { r: 100, arcs: [[6, 26], [36, 54], [64, 84]] },
-  { r: 165, arcs: [[0, 17], [27, 47], [57, 77], [86, 90]] },
-  { r: 225, arcs: [[8, 30], [40, 62], [72, 90]] },
-  { r: 285, arcs: [[28, 41], [49, 62]] }
+  { r: 100 * SCALE, arcs: [[6, 26], [36, 54], [64, 84]] },
+  { r: 165 * SCALE, arcs: [[0, 17], [27, 47], [57, 77], [86, 90]] },
+  { r: 225 * SCALE, arcs: [[8, 30], [40, 62], [72, 90]] },
+  { r: 285 * SCALE, arcs: [[28, 41], [49, 62]] }
 ];
 const RIDGE_WIDTH = 7;
 
@@ -63,10 +65,13 @@ for (const ring of RINGS) {
   }
 }
 
+/** Where the bands change (metres from the camp's corner): tier 1 inside the first, 4 past the last. */
+export const TIER_R = [100 * SCALE, 165 * SCALE, 225 * SCALE];
+
 /** How far out a place is: 1 (near the camp) to 4 (the far south-east). */
 export function tierAt(x, z) {
   const r = Math.hypot(x, z);
-  return r < 100 ? 1 : r < 165 ? 2 : r < 225 ? 3 : 4;
+  return r < TIER_R[0] ? 1 : r < TIER_R[1] ? 2 : r < TIER_R[2] ? 3 : 4;
 }
 
 function rng(seed) {
@@ -132,8 +137,8 @@ function spot(r0, r1, a0, a1, r) {
 }
 
 // Boulders first, so the rest keeps clear of them.
-for (let i = 0; i < 46; i++) {
-  const p = spot(60, 330, 0, 90, 3);
+for (let i = 0; i < 90; i++) {
+  const p = spot(60, 330 * SCALE, 0, 90, 3);
   if (!p) continue;
   const r = 1.6 + rand() * 2.2;
   ROCKS.push([+p[0].toFixed(1), +p[1].toFixed(1), +r.toFixed(1)]);
@@ -141,9 +146,9 @@ for (let i = 0; i < 46; i++) {
 }
 
 // The six shrines and the six soul nodes (each node with its guardian), and the Heart.
-const SHRINES = [[135, 22], [135, 68], [196, 12], [196, 78], [250, 24], [250, 66]];
-const NODES = [[135, 45, 'marrow'], [140, 5, 'ash'], [140, 85, 'hound'], [200, 33, 'bishop'], [200, 57, 'cinder'], [264, 45, 'rotfather']];
-export const HEART = { x: 232, z: 232 };
+const SHRINES = [[135, 22], [135, 68], [196, 12], [196, 78], [250, 24], [250, 66]].map(([r, a]) => [r * SCALE, a]);
+const NODES = [[135, 45, 'marrow'], [140, 5, 'ash'], [140, 85, 'hound'], [200, 33, 'bishop'], [200, 57, 'cinder'], [264, 45, 'rotfather']].map(([r, a, g]) => [r * SCALE, a, g]);
+export const HEART = { x: 232 * SCALE, z: 232 * SCALE };
 build('heart', HEART.x, HEART.z);
 camp(HEART.x - 9, HEART.z - 9, ['wight', 'bonecaller'], 8, 5);
 for (const [r, a] of SHRINES) {
@@ -171,7 +176,7 @@ for (let i = 0; i < 6; i++) {
 /** Stone walls: [x0, z0, x1, z1], a metre and a half thick. */
 export const WALLS = [];
 const WALL = 1.5;
-const KEEPS = [[125, 30, 'warden'], [130, 62, 'bride'], [190, 20, 'baron'], [192, 70, 'seer'], [252, 36, 'tyrant'], [244, 56, 'oracle']];
+const KEEPS = [[125, 30, 'warden'], [130, 62, 'bride'], [190, 20, 'baron'], [192, 70, 'seer'], [252, 36, 'tyrant'], [244, 56, 'oracle']].map(([r, a, h]) => [r * SCALE, a, h]);
 for (const [r, a, hero] of KEEPS) {
   const [x, z] = polar(r, a);
   const w = 22;
@@ -198,7 +203,7 @@ for (const [r, a, hero] of KEEPS) {
   camp(x - (gateWest ? 6 : -4), z + (gateWest ? 4 : -6), t >= 3 ? ['wight', 'bonecaller', 'brute'] : ['brute', 'hexer', 'ravager'], 4, 3);
 }
 // Heroes out alone, each with an escort: worth pulling home.
-const LONE = [[108, 15, 'stalker'], [110, 75, 'warden'], [150, 45, 'bride'], [168, 8, 'reaper'], [168, 84, 'stalker'], [205, 45, 'reaper'], [235, 15, 'baron'], [232, 78, 'seer'], [270, 20, 'tyrant'], [268, 70, 'oracle']];
+const LONE = [[108, 15, 'stalker'], [110, 75, 'warden'], [150, 45, 'bride'], [168, 8, 'reaper'], [168, 84, 'stalker'], [205, 45, 'reaper'], [235, 15, 'baron'], [232, 78, 'seer'], [270, 20, 'tyrant'], [268, 70, 'oracle'], [125, 50, 'warden'], [185, 30, 'baron'], [190, 62, 'reaper'], [250, 45, 'oracle']].map(([r, a, h]) => [r * SCALE, a, h]);
 for (const [r, a, hero] of LONE) {
   const p = free(...polar(r, a), 4) ? polar(r, a) : spot(r - 12, r + 12, a - 8, a + 8, 4);
   if (!p) continue;
@@ -208,16 +213,16 @@ for (const [r, a, hero] of LONE) {
   camp(x + 2, z + 2, t >= 3 ? ['wight', 'bonecaller'] : t >= 2 ? ['brute', 'hexer'] : ['husk', 'hexer'], 3, 3);
 }
 // Relic caches, out at the edges.
-for (const [x, z] of [[8, 118], [118, 8], [10, 196], [196, 10], [150, 150], [70, 240], [240, 120], [96, 96]]) {
+for (const [x, z] of [[8, 118], [118, 8], [10, 196], [196, 10], [150, 150], [70, 240], [240, 120], [96, 96], [40, 160], [160, 40], [120, 200], [200, 120]].map(([x, z]) => [x * SCALE, z * SCALE])) {
   const p = free(x, z, 1) ? [x, z] : spot(Math.hypot(x, z) - 10, Math.hypot(x, z) + 10, (Math.atan2(z, x) * 180) / Math.PI - 6, (Math.atan2(z, x) * 180) / Math.PI + 6, 1);
   if (p) build('cache', p[0], p[1]);
 }
 // The rest, band by band: [inner, outer radius, spires, barrows, crypts, ossuaries, camps, the guards they keep].
 const BANDS = [
-  [52, 95, 9, 9, 2, 0, 12, ['husk', 'husk', 'ravager', 'hexer'], [4, 6]],
-  [106, 160, 15, 13, 4, 1, 14, ['husk', 'ravager', 'hexer', 'brute', 'mire'], [5, 7]],
-  [171, 220, 18, 12, 3, 3, 13, ['brute', 'hexer', 'wight', 'bonecaller', 'wraith', 'mire'], [4, 6]],
-  [231, 340, 18, 9, 2, 3, 13, ['wight', 'bonecaller', 'brute', 'wraith'], [4, 6]]
+  [55, 95 * SCALE, 14, 14, 4, 0, 20, ['husk', 'husk', 'ravager', 'hexer'], [4, 6]],
+  [106 * SCALE, 160 * SCALE, 26, 22, 7, 2, 24, ['husk', 'ravager', 'hexer', 'brute', 'mire'], [5, 7]],
+  [171 * SCALE, 220 * SCALE, 30, 20, 5, 5, 22, ['brute', 'hexer', 'wight', 'bonecaller', 'wraith', 'mire'], [4, 6]],
+  [231 * SCALE, 340 * SCALE, 28, 15, 4, 5, 22, ['wight', 'bonecaller', 'brute', 'wraith'], [4, 6]]
 ];
 for (const [r0, r1, spires, barrows, crypts, ossuaries, camps, kinds, [c0, c1]] of BANDS) {
   for (const [type, n] of [['crypt', crypts], ['ossuary', ossuaries], ['spire', spires], ['barrow', barrows]]) {
@@ -339,7 +344,7 @@ export class Grid {
         found = true;
         break;
       }
-      if (++expanded > 9000) break;
+      if (++expanded > 40000) break;
       const ci = c % N;
       const cj = (c / N) | 0;
       for (let dj = -1; dj <= 1; dj++) {

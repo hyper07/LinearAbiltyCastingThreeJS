@@ -7,7 +7,7 @@ import { dress } from '../../mmo/bodies.js';
 import { SquadView } from '../view.js';
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, LOOKS, BASE_SPAWNS, recipes } from './rules.js';
 import { loadRobot, Robot } from './robot.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, WALLS, HEART, tierAt, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, WALLS, HEART, TIER_R, tierAt, foeDef } from './map.js';
 import { FORGE_REACH } from './rules.js';
 import { pickAt, boxedIn, drawOverlay } from './overlay.js';
 
@@ -49,7 +49,7 @@ const LOOK = {
   heart: { model: HALLOWEEN + 'crypt.gltf', width: 10, glow: '#ff2040', orb: '#ff3050', dark: true }
 };
 const DECOR = ['tree_dead_large.gltf', 'tree_dead_medium.gltf', 'gravestone.gltf', 'gravemarker_A.gltf', 'grave_B.gltf', 'bone_A.gltf', 'ribcage.gltf', 'fence_broken.gltf', 'post_lantern.gltf', 'tree_dead_small.gltf', 'skull.gltf', 'coffin.gltf'];
-const BUILD_NEAR = 120;
+const BUILD_NEAR = 95;
 const BODY_NEAR = 70;
 const MAX_BODIES = 140;
 
@@ -85,7 +85,8 @@ export class PurgeView extends SquadView {
       uv.setXY(i, x / 7, z / 7);
       const r = Math.hypot(x, z);
       // Blend across each band's edge.
-      const t = Math.min(4, Math.max(1, r < 100 ? 1 + Math.max(0, (r - 90) / 20) : r < 165 ? 2 + Math.max(0, (r - 155) / 20) : r < 225 ? 3 + Math.max(0, (r - 215) / 20) : 4));
+      const [r1, r2, r3] = TIER_R;
+      const t = Math.min(4, Math.max(1, r < r1 ? 1 + Math.max(0, (r - r1 + 10) / 20) : r < r2 ? 2 + Math.max(0, (r - r2 + 10) / 20) : r < r3 ? 3 + Math.max(0, (r - r3 + 10) / 20) : 4));
       c.copy(tint[Math.floor(t)]).lerp(tint[Math.min(4, Math.floor(t) + 1)], t - Math.floor(t));
       if (x >= BASE.x0 && x <= BASE.x1 && z >= BASE.z0 && z <= BASE.z1) c.set('#c8bfb0');
       col.push(c.r, c.g, c.b);
@@ -301,7 +302,7 @@ export class PurgeView extends SquadView {
     this.scene.add(mesh);
     // Scattered dead trees, graves and bones (built when near).
     this.decor = [];
-    for (let i = 0; i < 260; i++) {
+    for (let i = 0; i < 380; i++) {
       const x = 52 + rnd() * (SIZE - 56);
       const z = 4 + rnd() * (SIZE - 8);
       if (x < BASE.x1 + 8 && z < BASE.z1 + 8) continue;

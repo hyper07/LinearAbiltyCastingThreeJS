@@ -137,7 +137,7 @@ test('time runs out: the bunkers fall and the last stand begins; it is lost when
 test('soldiers left alone fight what comes; sleeping guards wake when soldiers come near', () => {
   const g = new Purge({ countdown: 0, seats: seats(1, 1), seed: 5 });
   g.spawnIn = 1e9; // no stragglers in the way
-  const foe = g.foes.find((f) => f.tier === 1 && !f.boss);
+  const foe = g.foes.filter((f) => f.tier === 1 && !f.boss).sort((a, b) => Math.hypot(a.x - SPAWN.x, a.z - SPAWN.z) - Math.hypot(b.x - SPAWN.x, b.z - SPAWN.z))[0];
   assert.equal(foe.awake, false);
   for (let n = 0; n < 4; n++) g._troop(0, 'veteran');
   const squad = g.troops.filter((t) => t.o === 0).map((t) => t.i);

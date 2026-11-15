@@ -649,7 +649,16 @@ export class Purge {
       // Close in.
       if (!t.chase || t.chase.id !== target.i || this.t > t.chase.at) {
         t.chase = { id: target.i, at: this.t + 1 };
-        t.path = RANKS[t.rank].flying || this.grid.line(t.x, t.z, target.x, target.z) ? [[target.x, target.z]] : this.paths++ < 10 ? this.grid.path(t.x, t.z, target.x, target.z) : t.path;
+        // To a firing spot on this side of the target, within reach — not into the target itself.
+        const reach = (target.k === 'bld' ? BUILDINGS[target.type].r : 0.5) + Math.max(1, s.range * 0.6);
+        const dx = t.x - target.x;
+        const dz = t.z - target.z;
+        const d = Math.hypot(dx, dz) || 1;
+        const gx = target.x + (dx / d) * reach;
+        const gz = target.z + (dz / d) * reach;
+        if (RANKS[t.rank].flying || this.grid.line(t.x, t.z, gx, gz)) t.path = [[gx, gz]];
+        else if (this.paths++ < 10) t.path = this.grid.path(t.x, t.z, gx, gz) ?? [[gx, gz]];
+        else t.path ??= [[gx, gz]];
       }
       this._walk(t, s.speed, dt);
       return;
@@ -753,7 +762,8 @@ export class Purge {
     const step = Math.min(d, speed * dt);
     const nx = e.x + (dx / d) * step;
     const nz = e.z + (dz / d) * step;
-    if ((e.k === 'troop' && RANKS[e.rank].flying) || (e.k === 'foe' && foeDef(e.kind).flying)) [e.x, e.z] = [Math.max(1, Math.min(SIZE - 1, nx)), Math.max(1, Math.min(SIZE - 1, nz))];
+    // Flying things go anywhere; so does anything that finds itself standing on blocked ground (it steps off).
+    if ((e.k === 'troop' && RANKS[e.rank].flying) || (e.k === 'foe' && foeDef(e.kind).flying) || this.grid.blocked(e.x, e.z)) [e.x, e.z] = [Math.max(1, Math.min(SIZE - 1, nx)), Math.max(1, Math.min(SIZE - 1, nz))];
     else if (!this.grid.blocked(nx, nz)) [e.x, e.z] = [nx, nz];
     else if (!this.grid.blocked(nx, e.z)) e.x = nx;
     else if (!this.grid.blocked(e.x, nz)) e.z = nz;
@@ -920,6 +930,10 @@ export class Purge {
     }
     if (def.summon && target) {
       f.summon -= dt;
+      // Not past a crowd: no more raising while twenty of the dead already stand round it.
+      let crowd = 0;
+      if (f.summon <= 0) this._near(this.fh, f.x, f.z, 14, () => crowd++);
+      if (f.summon <= 0 && crowd > 20) f.summon = def.summon.every;
       if (f.summon <= 0) {
         f.summon = def.summon.every;
         f.aa++;
@@ -1075,6 +1089,8 @@ export class Purge {
     const spawners = this.buildings.filter((b) => b.alive && BUILDINGS[b.type].spawns).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
     const from = spawners[0];
     if (!from) return;
+    // No endless pile: past this many of the dead already marching, a wave waits.
+    if (this.foes.reduce((n, f) => n + (f.raid ? 1 : 0), 0) > 150) return;
     this.raids++;
     this.standWaves = (this.standWaves ?? 0) + (this.lastStand ? 1 : 0);
     const count = Math.max(3, Math.round(this.crowd.count * (this.lastStand ? Math.min(LAST_STAND.cap, LAST_STAND.count + this.standWaves * LAST_STAND.grow) : Math.min(24, 5 + Math.round(this.raids * 1.5) + Math.floor(this.fallen / 5)))));
@@ -1086,7 +1102,7 @@ export class Purge {
   _nextEvent() {
     const S = BASE_SPAWNS;
     const n = (this.spawns ?? 0) + 1;
-    if (n % S.heroes.every === 0) return { id: 'hero', name: 'A Hero Walks', text: 'a hero of the dead marches on the camp — a big bounty' };
+    if (n % S.heroes.every === 0 && this.foes.filter((f) => f.boss && f.stray).length < 3) return { id: 'hero', name: 'A Hero Walks', text: 'a hero of the dead marches on the camp — a big bounty' };
     if (n % S.hoarder.every === 0) return { id: 'hoarder', name: 'The Hoarder', text: 'a Grave Hoarder with loot — catch it before it gets away' };
     const minutes = this.t / 60;
     const open = S.events.filter((e) => minutes >= (e.from ?? 0));

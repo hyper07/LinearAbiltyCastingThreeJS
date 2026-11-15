@@ -12,13 +12,13 @@ Both are our own games: the setting, maps, soldiers, enemies, numbers and words 
 
 ## Grave Purge
 
-**The Gravefield**, 256 metres square. One to four commanders — **players only, no bots** — start in
+**The Gravefield**, 384 metres square (half as wide again as at first — room, as the classic maps have). One to four commanders — **players only, no bots** — start in
 a camp in its north-west corner, a bunker and four Recruits each. Alone, every resource is yours and
 the dead come fewer and weaker (about 40% as many, at 78% health, growing to the full measure with
 four players). Four broken rings of ridges cut the land into bands that get harder the
 further out they are (tier 1 to 4); each ring has gaps to pass. Everywhere are the dead's
-buildings and camps of guards asleep until soldiers come near — 168 buildings, 349 guards, 22 heroes of
-the dead. Six **keeps** stand behind stone walls with a gate facing the camp — a crypt or ossuary
+buildings and camps of guards asleep until soldiers come near — some 250 buildings, 630 guards, 26 heroes
+of the dead. Six **keeps** stand behind stone walls with a gate facing the camp — a crypt or ossuary
 inside, spires in the corners, a hero and its escort.
 
 - **Points and ore**, the classic way: every kill pays its killer **points**, not ore. It is a team
@@ -108,7 +108,7 @@ inside, spires in the corners, a hero and its escort.
 - **Waves**: every few minutes a numbered wave comes for the camp from the crypt nearest it, bigger
   each time (and bigger the more you have broken). And the dead answer: whenever a crypt, ossuary, shrine or soul node falls, the crypts nearest
   it send a wave to where it fell (then on to the camp) — the map shows where they come from.
-- **The clock** (how long the bunkers stand): Casual 100 minutes, Hard 90, Hell 75 (the dead tougher too). **Heroes only** mode
+- **The clock** (how long the bunkers stand): Casual 120 minutes, Hard 105, Hell 90 (the dead tougher too). **Heroes only** mode
   sells Veterans at the barracks instead of Recruits and gives 3,000 ore to start. The host can run
   the game at ×1, ×1.5, ×2 or ×3.
 - **No bots** in Grave Purge: alone, or with friends in a room (Hold the Outpost still fills empty

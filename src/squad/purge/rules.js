@@ -167,9 +167,9 @@ export const SHRINE_GIFTS = [
 
 /** How hard: the dead's health and damage, the time you have (minutes), and raids. */
 export const DIFFICULTY = {
-  casual: { name: 'Casual', hp: 0.75, dmg: 0.7, minutes: 100, raid: 420 },
-  hard: { name: 'Hard', hp: 1, dmg: 1, minutes: 90, raid: 300 },
-  hell: { name: 'Hell', hp: 1.5, dmg: 1.4, minutes: 75, raid: 220 }
+  casual: { name: 'Casual', hp: 0.75, dmg: 0.7, minutes: 120, raid: 420 },
+  hard: { name: 'Hard', hp: 1, dmg: 1, minutes: 105, raid: 300 },
+  hell: { name: 'Hell', hp: 1.5, dmg: 1.4, minutes: 90, raid: 220 }
 };
 
 /**

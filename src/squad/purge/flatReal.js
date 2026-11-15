@@ -1,5 +1,5 @@
 import { RANKS, BUILDINGS, GUARDIANS, COLORS, FOES, FORGE_REACH, LOOKS, BASE_SPAWNS, recipes } from './rules.js';
-import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, WALLS, Grid, foeDef } from './map.js';
+import { SIZE, RIDGES, ROCKS, STRUCTURES, GUARDS, BASE, BARRACKS, ARMORY, FORGE, PAD, BOARD, EXCHANGE_AT, WALLS, TIER_R, Grid, foeDef } from './map.js';
 import { ELEVATION } from './sprites.js';
 
 /**
@@ -10,7 +10,7 @@ import { ELEVATION } from './sprites.js';
  * every frame. Remains stay where things fell.
  */
 
-export const PX = 10; // pixels a metre in the painted land
+export const PX = 7; // pixels a metre in the painted land
 const LIFT = Math.cos(ELEVATION); // how much a metre of height rises up the screen
 const TEX = { t1: 'Ground078', t2: 'Ground071', t3: 'Ground103', t4: 'Gravel043', rock: 'Rock030', yard: 'Concrete034' };
 const TILE = { t1: 7, t2: 6, t3: 6, t4: 5, rock: 5, yard: 5 };
@@ -109,7 +109,7 @@ export function paintLand(tex, sprites) {
   // The bands, each blended over the last along a ragged edge.
   g.fillStyle = pattern(g, tex.t1, TILE.t1);
   g.fillRect(0, 0, SIZE, SIZE);
-  const edges = [[95, 't2'], [160, 't3'], [220, 't4']];
+  const edges = [[TIER_R[0] - 5, 't2'], [TIER_R[1] - 5, 't3'], [TIER_R[2] - 5, 't4']];
   edges.forEach(([radius, key], idx) => {
     const m = 256;
     const mask = document.createElement('canvas');
@@ -311,7 +311,7 @@ export function paintLand(tex, sprites) {
   const grid = new Grid();
   const bits = [];
   const kinds = ['treeL', 'treeM', 'treeS', 'treeS', 'stone', 'stone', 'marker', 'marker', 'grave', 'ribs', 'bone', 'bone', 'fence', 'lantern', 'coffin', 'pumpkin'];
-  for (let k = 0; k < 520; k++) {
+  for (let k = 0; k < 1100; k++) {
     const x = 4 + r() * (SIZE - 8);
     const z = 4 + r() * (SIZE - 8);
     if ((x < BASE.x1 + 6 && z < BASE.z1 + 6) || grid.blocked(x, z) || grid.blocked(x + 1.5, z) || grid.blocked(x - 1.5, z)) continue;
