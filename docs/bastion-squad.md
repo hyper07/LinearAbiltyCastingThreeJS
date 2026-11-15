@@ -91,8 +91,9 @@ inside, spires in the corners, a hero and its escort.
   of their health they rage — harder and faster.
 - **Stim Pack** (**T**): the selected soldiers fire and move half again as fast for 10 seconds, for a
   tenth of their most health (Engineers and the flying can't).
-- **Bunkers**: each commander has their own bunker inside the camp (three along its east side, one in
-  its south-east corner), in their own colour — ring, flag, name. It cannot be broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and
+- **Bunkers**: each commander has their own bunker in the middle of the camp (a diamond round the pad,
+  where the spawned dead and the waves are heading — those inside shoot them as they come), in their
+  own colour — ring, flag, name. It cannot be broken; six soldiers fit inside (right-click it with them selected), where they cannot be hit and
   still shoot (a little further). **L** empties them. Engineers build more (**B**, then click; 1,500
   ore, two each) — those can be broken.
 - **The time**: when it runs out, every bunker falls and the **last stand** begins: the dead come every

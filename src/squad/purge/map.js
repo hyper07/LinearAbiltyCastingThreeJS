@@ -30,8 +30,11 @@ export const BOARD = { x: 12.5, z: 33.5, w: 11 };
 export const SPAWN = { x: 22, z: 15 };
 /** The Exchange: points become ore while one of yours stands here. */
 export const EXCHANGE_AT = { x: 40, z: 30 };
-/** Each player's own bunker, inside the camp: three along its east side, one in its south-east corner. */
-export const BUNKERS = [{ x: 42, z: 9 }, { x: 42, z: 16 }, { x: 42, z: 23 }, { x: 32, z: 31 }];
+/**
+ * Each player's own bunker: a diamond round the middle of the camp, nine metres out from the pad —
+ * where the spawned dead and the waves are heading, so those inside shoot them as they come.
+ */
+export const BUNKERS = [{ x: 26, z: 13 }, { x: 35, z: 22 }, { x: 26, z: 31 }, { x: 17, z: 22 }];
 export const inBase = (x, z) => x >= BASE.x0 && x <= BASE.x1 && z >= BASE.z0 && z <= BASE.z1;
 
 /** The rings: radius from the camp's corner, and the arcs (in degrees, 0 = east, 90 = south) that are ridge. */
