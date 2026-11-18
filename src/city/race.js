@@ -1,4 +1,3 @@
-import { WEATHERS, WEATHER_ORDER } from './weather.js';
 import * as THREE from 'three';
 import { Session } from '../net/Session.js';
 import { loadCar, makeCar } from './cars.js';
@@ -109,7 +108,7 @@ export class Race {
     m.hidden = false;
     m.innerHTML = `
       <header><h2>🏁 Gangnam Drift</h2><button type="button" data-race-x aria-label="Close">✕</button></header>
-      <p class="race__lead">Four cars, a loop of real Seoul streets at night. Drive fast to fill the turbo gauge — drift with <b>Shift</b> to fill it much faster — and once it is full, <b>Space</b> fires the turbo. First over the line after the last lap wins.</p>
+      <p class="race__lead">Four cars, a loop of real Seoul streets, in whatever the city's time and weather are. Drive fast to fill the turbo gauge — drift with <b>Shift</b> to fill it much faster — and once it is full, <b>Space</b> fires the turbo. First over the line after the last lap wins.</p>
       <div class="race__courses">${COURSES.map((c) => `<button type="button" data-course="${c.id}" class="${c.id === this.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><span>${esc(c.ko)}${c.run ? ' · <strong>RUN</strong>' : c.long ? ' · <strong>LONG</strong>' : ''}</span><small>${esc(c.text)}</small><em data-len="${c.id}">${this.plans.get(c.id) ? `${(this.plans.get(c.id).length / 1000).toFixed(1)} km ${this.plans.get(c.id).open ? `· ${this.plans.get(c.id).checkpoints.length} checkpoints` : 'a lap'}` : c.run ? 'planning…' : ''}</em></button>`).join('')}</div>
       <h3 class="race__label">Your car</h3>
       <div class="race__garage">${GARAGE_ORDER.map((id) => {
@@ -119,7 +118,6 @@ export class Race {
         return `<button type="button" data-car="${id}" class="${this.car.id === id ? 'is-on' : ''}"><b>${esc(c.name)}</b><em>${esc(c.kind)}</em><small>${esc(c.text)}</small>${bar('Speed', r.speed)}${bar('Pick-up', r.pickup)}${bar('Grip', r.grip)}${bar('Drift', r.drift)}</button>`;
       }).join('')}</div>
       <div class="race__row race__paints"><span>Paint</span>${GARAGE[this.car.id].paints.map((c, i) => `<button type="button" data-paint="${i}" class="${this.car.paint === i ? 'is-on' : ''}" style="background:${c}" aria-label="Paint ${i + 1}"></button>`).join('')}</div>
-      <div class="race__row race__weather"><span>Weather</span>${WEATHER_ORDER.map((k) => `<button type="button" data-weather-pick="${k}" class="${this.g.weather?.kind === k ? 'is-on' : ''}">${WEATHERS[k].icon} ${WEATHERS[k].name}</button>`).join('')}</div>
       ${COURSES.find((c) => c.id === this.courseId)?.run ? '<div class="race__row"><span>A run: start to finish, one go — checkpoints in every district on the way.</span></div>' : `<div class="race__row"><span>Laps</span>${[1, 2, 3, 5].map((n) => `<button type="button" data-laps="${n}" class="${n === this.laps ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div>`}
       ${s?.room ? `
         <div class="race__room"><b>Room <span data-race-code>${esc(s.room)}</span></b> — give friends this code (up to four). Bots take any empty seats.
@@ -129,14 +127,10 @@ export class Race {
         <div class="race__row"><button type="button" class="race__go" data-race-solo>Race three bots</button></div>
         <div class="race__row race__together"><span>With friends</span><button type="button" data-race-make>Make a room</button><input data-race-code-in maxlength="5" placeholder="CODE" /><button type="button" data-race-join>Join</button></div>`}
       <p class="race__note" data-race-note>${esc(note)}</p>
-      <p class="race__keys">W go · S brake · A D steer · Shift drift · Space turbo (when the gauge is full) · R back on the course · H horn · N weather</p>`;
+      <p class="race__keys">W go · S brake · A D steer · Shift drift · Space turbo (when the gauge is full) · R back on the course · H horn</p>`;
     const $ = (q) => m.querySelector(q);
     $('[data-race-x]').onclick = () => this.quit();
     for (const b of m.querySelectorAll('[data-course]')) b.onclick = () => this._setup({ course: b.dataset.course });
-    for (const b of m.querySelectorAll('[data-weather-pick]')) b.onclick = () => {
-      while (this.g.weather.kind !== b.dataset.weatherPick) this.g.cycleWeather();
-      this.menu();
-    };
     for (const b of m.querySelectorAll('[data-laps]')) b.onclick = () => this._setup({ laps: Number(b.dataset.laps) });
     for (const b of m.querySelectorAll('[data-car]')) b.onclick = () => {
       this.car = { id: b.dataset.car, paint: 0 };
@@ -318,8 +312,7 @@ export class Race {
     this.resultEl.hidden = true;
     this._show(true);
     this.g.street?.hide();
-    this.hourBefore ??= this.g.hour;
-    this.g.setHour(21.5);
+    // The race runs in whatever time and weather the city has now (both change by themselves).
     const n = course.points.length;
     const L = course.length;
     // A run starts at a gate a little way in (the grid lines up before it) and finishes at its end.
@@ -1481,8 +1474,6 @@ export class Race {
     this.session = null;
     this.menuEl.hidden = true;
     this.phase = 'off';
-    if (this.hourBefore != null) this.g.setHour(this.hourBefore);
-    this.hourBefore = null;
     if (this.g.mode === 'race') this.g.setMode('fly', { fromRace: true });
   }
 

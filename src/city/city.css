@@ -117,20 +117,7 @@
 .seoul__group button.is-on {
   background: #2fd3a0;
 }
-.seoul__weather {
-  padding: 7px 14px;
-  border-radius: 999px;
-  border: 2.5px solid #2b1d4e;
-  background: #dff1ff;
-  color: #2b1d4e;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 3px 0 #2b1d4e;
-  white-space: nowrap;
-}
-.race__weather button {
-  white-space: nowrap;
-}
+
 .seoul__time,
 .seoul__quality {
   display: flex;

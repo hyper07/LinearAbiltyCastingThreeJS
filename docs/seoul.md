@@ -118,14 +118,16 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
   code; up to three others join; the host picks the course and the laps (1, 2, 3 or 5) and starts.
   Bots take any empty seats (the host's browser drives them).
 - **Driving**: **W** go, **S** brake (held on once stopped, it backs up — the camera stays behind), **A D** steer, **Shift** to drift (the
-  handbrake throws the car into a slide), **Space** for the turbo, **R** back onto the course, **H** horn, **N** weather.
+  handbrake throws the car into a slide), **Space** for the turbo, **R** back onto the course, **H** horn.
 - **The turbo gauge** starts empty. Driving fast fills it slowly (about half a minute flat out);
   drifting fills it far faster, and scores drift points. Only a **full** gauge fires the turbo
   (**Space**; the gauge glows orange when it is ready), and a turbo runs until the gauge is empty.
   Bots play by the same rule.
-- **Weather** (**N**, the bar's button, or the race menu): clear, rain, storm (heavier rain and
-  lightning), snow or fog. Rain darkens the roads and makes them shine under the street lamps;
-  fog closes the view in.
+- **Time and weather change by themselves.** The day starts at Seoul's real time of day and runs at
+  an hour a minute (a whole day in 24 minutes), dawn, noon, sunset and night; the weather changes
+  every few minutes — clear, rain, a storm with lightning, fog, and snow in the cold months. Rain
+  darkens the roads and makes them shine under the street lamps; fog closes the view in. A race
+  runs in whatever the city has at the time.
 - **On screen**: the map at the top left turns with you and shows the course ahead in orange over
   the streets, with everyone on it; your place and lap, the lap's time, your best and the total;
   the order of all four; speed and boost. Orange chevrons on the road point the way; every turn has an arrow board on the outside

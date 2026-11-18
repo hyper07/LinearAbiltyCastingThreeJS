@@ -16,7 +16,8 @@ import { stepCar, follow, pointOn, CAR } from './drive.js';
  */
 
 const TRAFFIC = 12;
-const WALKERS = 10;
+/** The full-size people walking about: none now — the street's crowd is life.js (StreetLife). */
+const WALKERS = 0;
 const SPEEDS = [22, 17, 14, 11, 9]; // metres a second by road class (motorway … tertiary)
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 

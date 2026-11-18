@@ -8,17 +8,29 @@ import * as THREE from 'three';
  * shader); fog closes in; a storm flashes the sky now and then (`flash`).
  *
  *   const w = new Weather(scene);
- *   w.set('rain');
+ *   w.set('rain');               // or w.auto = true: it changes by itself every few minutes
  *   w.update(dt, camera);        // every frame
  */
 export const WEATHERS = {
-  clear: { name: 'Clear', icon: '🌙', rain: 0, snow: 0, fog: 1, wet: 0, storm: false },
-  rain: { name: 'Rain', icon: '🌧️', rain: 0.65, snow: 0, fog: 0.62, wet: 1, storm: false },
-  storm: { name: 'Storm', icon: '⛈️', rain: 1, snow: 0, fog: 0.5, wet: 1, storm: true },
-  snow: { name: 'Snow', icon: '❄️', rain: 0, snow: 1, fog: 0.55, wet: 0.35, storm: false },
-  fog: { name: 'Fog', icon: '🌫️', rain: 0, snow: 0, fog: 0.22, wet: 0.25, storm: false }
+  clear: { wind: 0.45, name: 'Clear', icon: '🌙', rain: 0, snow: 0, fog: 1, wet: 0, storm: false },
+  rain: { wind: 0.9, name: 'Rain', icon: '🌧️', rain: 0.65, snow: 0, fog: 0.62, wet: 1, storm: false },
+  storm: { wind: 2.0, name: 'Storm', icon: '⛈️', rain: 1, snow: 0, fog: 0.5, wet: 1, storm: true },
+  snow: { wind: 0.6, name: 'Snow', icon: '❄️', rain: 0, snow: 1, fog: 0.55, wet: 0.35, storm: false },
+  fog: { wind: 0.2, name: 'Fog', icon: '🌫️', rain: 0, snow: 0, fog: 0.22, wet: 0.25, storm: false }
 };
 export const WEATHER_ORDER = ['clear', 'rain', 'storm', 'snow', 'fog'];
+/** How often each comes when the weather changes by itself (snow only in the cold months). */
+const ODDS = { clear: 0.5, rain: 0.22, storm: 0.08, snow: 0.1, fog: 0.1 };
+
+/** The next weather, by the odds, never the same twice running. */
+export function nextWeather(now, month = new Date().getMonth(), random = Math.random) {
+  const cold = month === 11 || month <= 1;
+  const odds = Object.entries(ODDS).filter(([k]) => k !== now && (k !== 'snow' || cold));
+  const total = odds.reduce((s, [, p]) => s + p, 0);
+  let r = random() * total;
+  for (const [k, p] of odds) if ((r -= p) <= 0) return k;
+  return odds[0][0];
+}
 
 const BOX = new THREE.Vector3(90, 46, 90); // metres of falling weather round the camera
 const RAIN = 9000;
@@ -50,6 +62,10 @@ export class Weather {
   constructor(scene) {
     this.scene = scene;
     this.kind = 'clear';
+    /** Changing by itself: every 3–7 minutes, by the odds. */
+    this.auto = false;
+    this.onChange = null;
+    this._nextChange = 180 + Math.random() * 240;
     this.level = { rain: 0, snow: 0, fog: 1, wet: 0 };
     this.flash = 0;
     this._nextBolt = 6;
@@ -149,6 +165,15 @@ export class Weather {
 
   /** @param {number} dt @param {THREE.Camera} camera @param {number} night 0 day … 1 night */
   update(dt, camera, night = 1) {
+    if (this.auto) {
+      this._nextChange -= dt;
+      if (this._nextChange <= 0) {
+        this.set(nextWeather(this.kind));
+        // Bad weather passes sooner than fine.
+        this._nextChange = (this.kind === 'clear' ? 240 : 150) + Math.random() * 180;
+        this.onChange?.(this.kind);
+      }
+    }
     const want = WEATHERS[this.kind];
     const k = Math.min(1, dt * 0.6);
     for (const key of ['rain', 'snow', 'fog', 'wet']) this.level[key] += (want[key] - this.level[key]) * (key === 'wet' ? Math.min(1, dt * 0.25) : k);

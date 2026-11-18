@@ -38,6 +38,41 @@ function plateTexture() {
   return t;
 }
 
+/**
+ * A wheel's axle in the car's frame: the direction its tyre is thinnest in (the smallest spread of
+ * its biggest mesh's points — the brake caliper left out).
+ */
+export function tyreAxle(wheel, car) {
+  let mesh = null;
+  wheel.traverse((o) => {
+    if (o.isMesh && !/BrakePad|Caliper/i.test(o.name) && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o;
+  });
+  if (!mesh) return null;
+  const toCar = car.matrixWorld.clone().invert().multiply(mesh.matrixWorld);
+  const p = mesh.geometry.attributes.position;
+  const step = Math.max(1, Math.floor(p.count / 4000));
+  const pts = [];
+  const c = new THREE.Vector3();
+  for (let i = 0; i < p.count; i += step) {
+    const v = new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(toCar);
+    pts.push(v);
+    c.add(v);
+  }
+  c.multiplyScalar(1 / pts.length);
+  let xx = 0, yy = 0, zz = 0, xy = 0, xz = 0, yz = 0;
+  for (const v of pts) {
+    const dx = v.x - c.x;
+    const dy = v.y - c.y;
+    const dz = v.z - c.z;
+    xx += dx * dx; yy += dy * dy; zz += dz * dz; xy += dx * dy; xz += dx * dz; yz += dy * dz;
+  }
+  // Power iteration on (trace − C) gives the axis of least spread.
+  const tr = xx + yy + zz;
+  let a = new THREE.Vector3(1, 0.2, 0.1).normalize();
+  for (let k = 0; k < 80; k++) a = new THREE.Vector3((tr - xx) * a.x - xy * a.y - xz * a.z, -xy * a.x + (tr - yy) * a.y - yz * a.z, -xz * a.x - yz * a.y + (tr - zz) * a.z).normalize();
+  return a;
+}
+
 function prepare(gltf) {
   const scene = gltf.scene;
   scene.updateMatrixWorld(true);
@@ -85,7 +120,13 @@ function prepare(gltf) {
     const w = scene.getObjectByName(name);
     if (!w) continue;
     const toLocal = carInv.clone().multiply(w.getWorldQuaternion(new THREE.Quaternion())).invert();
-    wheelInfo[name] = { base: w.quaternion.clone(), axle: new THREE.Vector3(1, 0, 0).applyQuaternion(toLocal).normalize(), up: new THREE.Vector3(0, 1, 0).applyQuaternion(toLocal).normalize() };
+    // The tyre's real axle, from its shape: the model's front wheels sit turned about 30° at rest, so
+    // the car's sideways axis is not theirs. Rolling about the wrong axis made them wobble, and the
+    // rest turn made them look steered when driving straight; both are taken out here.
+    const axleCar = tyreAxle(w, wrap) ?? new THREE.Vector3(1, 0, 0);
+    if (axleCar.x < 0) axleCar.negate();
+    const rest = Math.atan2(-axleCar.z, axleCar.x); // its turn about the car's up, at rest
+    wheelInfo[name] = { base: w.quaternion.clone(), rest, axle: axleCar.clone().applyQuaternion(toLocal).normalize(), up: new THREE.Vector3(0, 1, 0).applyQuaternion(toLocal).normalize() };
   }
   return { template: wrap, wheelInfo, length: size.z, width: size.x, height: size.y, wheelbase: wheelbase * k, radius };
 }
@@ -202,7 +243,8 @@ export function makeCar(kind, color, { lite = false, look = null } = {}) {
       spun = (spun + roll) % (Math.PI * 2);
       for (const w of wheels) {
         if (!w.node) continue;
-        qs.setFromAxisAngle(w.up, w.front ? steer : 0);
+        // Steer from straight ahead: the model's own rest turn taken off first.
+        qs.setFromAxisAngle(w.up, (w.front ? steer : 0) - (w.rest ?? 0));
         qt.setFromAxisAngle(w.axle, -spun);
         if (w.parts.length) {
           // Steer the wheel; roll its parts about the axle through its centre.

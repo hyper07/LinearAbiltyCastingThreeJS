@@ -3,6 +3,7 @@ import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
 import { roadPieces } from './bridges.js';
 import { Weather, WEATHERS } from './weather.js';
+import { StreetLife } from './life.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -34,6 +35,33 @@ function texture(id, part) {
 }
 
 /** Two geometries as one, each in its own colour (per vertex). */
+/**
+ * Trees in the wind: the higher up, the more it sways — the whole tree slowly, the leaves
+ * quickly; each tree its own timing (from where it stands), more in a storm.
+ */
+function windy(material, wind, flutter) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = wind.uTime;
+    shader.uniforms.uWind = wind.uWind;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uWind;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+          float ph = instanceMatrix[3][0] * 0.071 + instanceMatrix[3][2] * 0.053;
+        #else
+          float ph = 0.0;
+        #endif
+        float hgt = max(0.0, transformed.y - 1.2);
+        float gust = 0.65 + 0.35 * sin(uTime * 0.31 + ph * 0.4);
+        float sway = (sin(uTime * 1.25 + ph) * 0.7 + sin(uTime * 2.35 + ph * 1.7) * 0.3) * gust;
+        transformed.x += sway * uWind * hgt * hgt * 0.012;
+        transformed.z += cos(uTime * 0.95 + ph * 1.3) * uWind * hgt * hgt * 0.007;
+        float leaf = sin(uTime * 7.3 + position.x * 4.1 + position.y * 3.3 + position.z * 2.7 + ph) * ${flutter.toFixed(2)};
+        transformed += normal * leaf * uWind * 0.045 * step(3.0, transformed.y);`);
+  };
+  return material;
+}
+
 function mergeTwo(a, b, ca, cb) {
   const parts = [a, b].map((g, k) => {
     const n = g.toNonIndexed();
@@ -182,7 +210,9 @@ export class SeoulGame {
     this.pos = new THREE.Vector3(0, 260, 900);
     this.yaw = 0; // 0 looks north (−Z)
     this.pitch = -0.32;
-    this.hour = 15;
+    // The day goes by on its own: it starts at the time it is in Seoul now, and a whole day takes 24 minutes.
+    const kst = new Date(Date.now() + 9 * 3600e3);
+    this.hour = kst.getUTCHours() + kst.getUTCMinutes() / 60;
     this.quality = 'medium';
     this.visited = new Set();
     try {
@@ -219,8 +249,7 @@ export class SeoulGame {
           <button type="button" data-race title="Race at night on real streets — alone against bots, or with up to four friends">🏁 Race</button>
           <button type="button" data-open-places title="Districts and tall buildings to go to (M)">🧭 Places</button>
         </div>
-        <button type="button" class="seoul__weather" data-weather title="Weather: clear, rain, storm, snow or fog (N)"></button>
-        <label class="seoul__time" title="Time of day">🌞<input type="range" min="0" max="24" step="0.25" data-hour aria-label="Time of day" /><span data-clock></span></label>
+        <span class="seoul__time" title="The time and weather in the city: they change by themselves"><span data-weather></span><span data-clock></span></span>
         <label class="seoul__quality">View<select data-quality aria-label="How far you can see"><option value="low">Near</option><option value="medium">Far</option><option value="high">Farthest</option></select></label>
         <span class="seoul__help" data-help></span>
       </footer>
@@ -231,8 +260,6 @@ export class SeoulGame {
     $('[data-close]').addEventListener('click', () => this.close());
     for (const b of this.root.querySelectorAll('[data-mode]')) b.addEventListener('click', () => this.setMode(b.dataset.mode));
     $('[data-open-places]').addEventListener('click', () => this.togglePlaces());
-    $('[data-hour]').value = String(this.hour);
-    $('[data-hour]').addEventListener('input', (e) => this.setHour(Number(e.target.value)));
     $('[data-quality]').value = this.quality;
     $('[data-quality]').addEventListener('change', (e) => {
       this.quality = e.target.value;
@@ -244,11 +271,7 @@ export class SeoulGame {
       this.root.focus();
     });
     this._scene($('[data-stage]'));
-    $('[data-weather]').textContent = `${WEATHERS[this.weather.kind].icon} ${WEATHERS[this.weather.kind].name}`;
-    $('[data-weather]').addEventListener('click', () => {
-      this.cycleWeather();
-      this.root.focus();
-    });
+    this._showWeather();
     this._input($('[data-stage]'));
     this.street = new Street(this);
     this.street.whoButton = $('[data-who]');
@@ -301,6 +324,7 @@ export class SeoulGame {
     this.race?.dispose();
     this.street?.dispose();
     this.weather?.dispose();
+    this.life?.dispose();
     this.composer?.dispose();
     this.renderer?.dispose();
     this.root?.remove();
@@ -341,16 +365,13 @@ export class SeoulGame {
     this.scene.add(this.hemi, this.sun, this.sun.target);
     // Weather: rain, storms, snow and fog, round the camera.
     this.weather = new Weather(this.scene);
-    try {
-      this.weather.set(localStorage.getItem('gamory.seoul.weather') ?? 'clear');
-    } catch {
-      /* private mode */
-    }
+    this.weather.auto = true;
+    this.weather.onChange = () => this._showWeather();
     for (const k of ['rain', 'snow', 'fog', 'wet']) this.weather.level[k] = WEATHERS[this.weather.kind][k];
     // Bright windows, signs, lamps and headlights glow (bloom), most at night.
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 1.0);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 1.05);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     // The ground: flat, with a faint block pattern so speed and distance can be felt.
@@ -369,24 +390,28 @@ export class SeoulGame {
     this.ground = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: tex }));
     this.scene.add(this.ground);
     // One material for every building: its colour per vertex, windows drawn by the shader.
-    this.uniforms = { uNight: { value: 0 }, uWet: { value: 0 } };
+    this.uniforms = { uNight: { value: 0 }, uWet: { value: 0 }, uSkyTop: { value: new THREE.Color('#5b8fd6') }, uSkyLow: { value: new THREE.Color('#bcd4ea') } };
+    this.wind = { uTime: { value: 0 }, uWind: { value: 0.5 } };
     this.material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     this.signs = signAtlas();
     this.material.onBeforeCompile = (shader) => {
       shader.uniforms.uNight = this.uniforms.uNight;
       shader.uniforms.uSigns = { value: this.signs };
+      shader.uniforms.uSkyTop = this.uniforms.uSkyTop;
+      shader.uniforms.uSkyLow = this.uniforms.uSkyLow;
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nattribute vec2 aKind;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;\nvKind = aKind;\nvWorldN = normal;');
+        .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nattribute vec2 aKind;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;\nvKind = aKind;\nvWorldN = normal;\nvWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uNight;\nuniform sampler2D uSigns;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nfloat seoulLit = 0.0;\nvec3 seoulGlow = vec3(0.0);\nfloat seoulHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
+        .replace('#include <common>', '#include <common>\nuniform float uNight;\nuniform sampler2D uSigns;\nuniform vec3 uSkyTop;\nuniform vec3 uSkyLow;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;\nfloat seoulLit = 0.0;\nvec3 seoulGlow = vec3(0.0);\nfloat seoulHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
         .replace('#include <color_fragment>', `#include <color_fragment>
           if (vWall.x >= 0.0) {
             // What it is: 0 house · 1 apartment · 2 shop · 3 office · 4 public · 5 industry · 6 other; and how tall.
             float kind = vKind.x;
             float tall = vKind.y;
             float far = smoothstep(350.0, 1300.0, length(vViewPosition));
-            bool curtain = kind != 1.0 && kind != 0.0 && (kind == 3.0 ? tall > 22.0 : tall > 60.0);
+            // Glass towers: about half the tall offices (the rest stone with punched windows), and the very tallest.
+            bool curtain = kind != 1.0 && kind != 0.0 && ((kind == 3.0 && tall > 22.0 && fract(vWall.z * 5.3) < 0.5) || tall > 90.0);
             bool flats = kind == 1.0;
             float floorH = flats ? 2.8 : curtain ? 3.8 : 3.3;
             float bay = curtain ? 1.6 : flats ? 3.6 : 3.2;
@@ -396,31 +421,71 @@ export class SeoulGame {
             float r = seoulHash(id + vWall.z * 31.0);
             // Glass: the sky in it by day (lighter higher up), dark at night.
             float tint = fract(vWall.z * 13.7);
-            vec3 tone = tint < 0.3 ? vec3(0.16, 0.24, 0.32) : tint < 0.5 ? vec3(0.17, 0.26, 0.25) : tint < 0.8 ? vec3(0.15, 0.17, 0.2) : vec3(0.24, 0.2, 0.16);
-            vec3 sky = mix(tone * 0.8, tone * 1.6 + vec3(0.05, 0.07, 0.1), clamp(vWall.y / 180.0, 0.0, 1.0));
-            vec3 glass = mix(sky, vec3(0.05, 0.07, 0.11), uNight);
+            vec3 tone = tint < 0.3 ? vec3(0.1, 0.17, 0.25) : tint < 0.5 ? vec3(0.1, 0.19, 0.19) : tint < 0.8 ? vec3(0.09, 0.11, 0.14) : vec3(0.17, 0.14, 0.11);
+            // Glass reflects: the sky above, the street and the buildings across it below the horizon,
+            // more of it at a glancing angle — what makes a glass tower look like glass.
+            vec3 V = normalize(vWorldPos - cameraPosition);
+            vec3 N = normalize(vWorldN);
+            vec3 Rf = reflect(V, N);
+            float fres = 0.18 + 0.82 * pow(1.0 - clamp(dot(-V, N), 0.0, 1.0), 3.0);
+            float across = mix(seoulHash(vec2(floor(atan(Rf.z, Rf.x) * 7.0), 3.0)), 0.5, 1.0 - far * 0.0) * 0.6 + 0.2;
+            vec3 city = mix(uSkyLow * 0.45, vec3(0.36, 0.35, 0.33), across) * (0.6 + 0.4 * (1.0 - uNight));
+            float cityTop = 0.03 + 0.1 * across;
+            vec3 refl = mix(city, mix(uSkyLow, uSkyTop, sqrt(clamp((Rf.y - cityTop) / (1.0 - cityTop), 0.0, 1.0))), smoothstep(cityTop - 0.03, cityTop + 0.03, Rf.y));
+            vec3 glass = mix(tone, refl, fres * (curtain ? 0.8 : 0.6));
+            glass = mix(glass, vec3(0.04, 0.05, 0.08) + refl * 0.15, uNight * 0.85);
             float win = 0.0;
+            bool office = !curtain && !flats && kind != 0.0 && tall >= 15.0;
+            // The top: a plain parapet band, no windows.
+            float parapet = step(tall - 1.8, vWall.y);
             if (curtain) {
-              // A curtain wall: glass with thin mullions and a band at each floor.
-              float mull = step(0.06, f.x) * step(0.14, f.y);
-              win = mull;
-              // Glass with a frame: the frame the building's own colour, darker; panes vary a little, less far off.
-              vec3 pane = glass * (0.94 + 0.08 * r * (1.0 - far));
-              diffuseColor.rgb = mix(diffuseColor.rgb * 0.7, pane, mull * 0.95);
+              // A curtain wall: glass with thin mullions and a band at each floor; each pane a touch different.
+              float mull = step(0.05, f.x) * step(0.12, f.y);
+              win = mull * (1.0 - parapet);
+              vec3 pane = glass * (0.92 + 0.12 * r * (1.0 - far));
+              // Mullions and floor bands in aluminium, a little of the building's own colour in them.
+              diffuseColor.rgb = mix(mix(vec3(0.6, 0.62, 0.65), diffuseColor.rgb, 0.3) * 0.85, pane, win * 0.96);
             } else if (flats) {
               // Flats: a long window band with a pale balcony rail below it on every floor.
-              win = step(0.08, f.x) * step(f.x, 0.92) * step(0.38, f.y) * step(f.y, 0.86);
+              win = step(0.08, f.x) * step(f.x, 0.92) * step(0.38, f.y) * step(f.y, 0.86) * (1.0 - parapet);
               float rail = step(0.3, f.y) * step(f.y, 0.36);
               diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.92, 0.88), 0.55);
-              diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * 0.8 * (1.0 - far));
+              diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * 0.85 * (1.0 - far));
               diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.98), rail * 0.6 * (1.0 - far));
+            } else if (office) {
+              // An office tower in stone or precast: rows and rows of small punched windows, 1.5 m apart.
+              vec2 oc = vec2(vWall.x / 1.55, vWall.y / 3.6);
+              vec2 of = fract(oc);
+              id = floor(oc);
+              r = seoulHash(id + vWall.z * 31.0);
+              win = step(0.2, of.x) * step(of.x, 0.8) * step(0.3, of.y) * step(of.y, 0.84) * (1.0 - parapet);
+              // A lintel's shadow on the glass, a sill's light below it.
+              float sill = step(0.24, of.y) * step(of.y, 0.3) * step(0.18, of.x) * step(of.x, 0.82);
+              diffuseColor.rgb = mix(diffuseColor.rgb, glass * (1.0 - 0.35 * step(0.76, of.y)), win * mix(0.95, 0.55, far));
+              diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.18, sill * (1.0 - far));
+              f = of;
             } else {
-              win = step(0.2, f.x) * step(f.x, 0.8) * step(0.3, f.y) * step(f.y, 0.78);
-              diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * 0.75 * (1.0 - far));
+              win = step(0.2, f.x) * step(f.x, 0.8) * step(0.3, f.y) * step(f.y, 0.78) * (1.0 - parapet);
+              diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * 0.8 * (1.0 - far));
+            }
+            diffuseColor.rgb *= 1.0 + 0.07 * parapet;
+            // A big screen on some tall stone towers, as Seoul's main streets have: a poster by day, lit at night.
+            if (office && tall > 45.0 && vWall.z < 0.3) {
+              float face = floor((vWall.x - 1000.0) / 26.0);
+              vec2 bp = vec2(fract((vWall.x - 1000.0) / 26.0), (vWall.y - tall * 0.38) / (tall * 0.22));
+              if (seoulHash(vec2(face, vWall.z * 71.0)) < 0.35 && bp.x > 0.2 && bp.x < 0.72 && bp.y > 0.0 && bp.y < 1.0) {
+                float pick = floor(seoulHash(vec2(face, vWall.z * 13.0)) * 16.0);
+                vec2 uv = vec2((mod(pick, 4.0) + (bp.x - 0.2) / 0.52) / 4.0, (floor(pick / 4.0) + 1.0 - bp.y) / 4.0);
+                vec3 ad = texture2D(uSigns, uv).rgb;
+                float frame = step(0.03, (bp.x - 0.2) / 0.52) * step((bp.x - 0.2) / 0.52, 0.97) * step(0.03, bp.y) * step(bp.y, 0.97);
+                diffuseColor.rgb = mix(vec3(0.1), ad, frame);
+                seoulGlow += ad * frame * (0.12 + uNight * 0.6);
+                win = 0.0;
+              }
             }
             // Depth: a slab edge at every floor, a shadow under each lintel, grime low down.
             if (!curtain) {
-              diffuseColor.rgb *= 1.0 - 0.22 * step(f.y, 0.07);
+              diffuseColor.rgb *= 1.0 - 0.18 * step(f.y, 0.06) * (1.0 - parapet);
               diffuseColor.rgb *= 1.0 - 0.35 * win * step(flats ? 0.76 : 0.68, f.y);
               diffuseColor.rgb *= mix(0.97, 1.03, step(0.5, fract(id.x * 0.25)));
             }
@@ -449,7 +514,7 @@ export class SeoulGame {
                 vec2 uv = vec2((mod(pick, 4.0) + fract(vWall.x / 7.0)) / 4.0, (floor(pick / 4.0) + 1.0 - (vWall.y - 3.3) / 1.4) / 4.0);
                 vec3 sign = texture2D(uSigns, uv).rgb;
                 diffuseColor.rgb = sign;
-                seoulGlow += sign * (0.15 + uNight * 0.9);
+                seoulGlow += sign * (0.08 + uNight * 0.55);
               }
             }
             seoulLit = 0.0;
@@ -503,7 +568,6 @@ export class SeoulGame {
     if (this.lampMat) this.lampMat.emissiveIntensity = night * 3;
     this.ground.material.color.setScalar(0.5 + Math.min(1, day * 1.6) * 0.7);
     const h = Math.floor(this.hour);
-    this.$('[data-hour]').value = String(this.hour);
     this.$('[data-clock]').textContent = `${String(h).padStart(2, '0')}:${String(Math.round((this.hour - h) * 60)).padStart(2, '0')}`;
   }
 
@@ -612,7 +676,9 @@ export class SeoulGame {
       const seed = ((seedBase >>> 8) & 0xffff) / 0xffff;
       color.set(PALETTE[USES[b.use]] ?? PALETTE.other).offsetHSL((seed - 0.5) * 0.04, (seed - 0.5) * 0.08, (seed - 0.5) * 0.16 - (h > 60 ? 0.05 : 0));
       // Low buildings: some brick-red, some stone, some grey render — not all one pale.
-      if (h < 25 && USES[b.use] !== 'apartment') color.lerp(new THREE.Color(['#a65a44', '#8c8478', '#b8b2a8', '#d9d2c4', '#6f6a66'][Math.floor(seed * 5)]), 0.55);
+      // Office towers in stone and precast, as downtown's are: brown, beige, white, grey, sandstone, charcoal.
+      if (h >= 20 && ['office', 'public', 'other', 'shop'].includes(USES[b.use])) color.set(['#8c6b55', '#c8b79f', '#e6e3dc', '#9aa1a8', '#b59a7e', '#6d727a', '#ddd6c8'][Math.floor(seed * 7)]).offsetHSL(0, 0, (seed * 7 % 1 - 0.5) * 0.06);
+      else if (h < 25 && USES[b.use] !== 'apartment') color.lerp(new THREE.Color(['#a65a44', '#8c8478', '#b8b2a8', '#d9d2c4', '#6f6a66'][Math.floor(seed * 5)]), 0.55);
       roof.copy(color).multiplyScalar(0.8).lerp(new THREE.Color('#8a8f96'), 0.35);
       // World points: east is +X, north is −Z.
       const xs = new Float32Array(n);
@@ -971,9 +1037,9 @@ export class SeoulGame {
       // green, some gone gold. Two instanced draws a tile, so the crowns can each take their own colour.
       this.treeParts ??= (() => {
         const trunk = new THREE.CylinderGeometry(0.12, 0.2, 3.4, 7).translate(0, 1.7, 0);
-        const lumps = [[0, 4.6, 0, 1.55], [0.85, 4.1, 0.3, 1.15], [-0.75, 4.25, -0.35, 1.2], [0.15, 5.6, -0.2, 1.1], [-0.3, 3.9, 0.8, 1.0], [0.4, 4.0, -0.85, 1.0]];
+        const lumps = [[0, 4.6, 0, 1.4], [0.9, 4.15, 0.35, 1.0], [-0.8, 4.3, -0.35, 1.05], [0.15, 5.55, -0.2, 1.0], [-0.35, 3.85, 0.85, 0.9], [0.45, 4.0, -0.9, 0.9], [-0.95, 5.0, 0.4, 0.8], [0.8, 5.1, -0.5, 0.8], [0.1, 6.3, 0.15, 0.7]];
         const parts = lumps.map(([x, y, z, r], i) => {
-          const g = new THREE.IcosahedronGeometry(r, 1).toNonIndexed();
+          const g = new THREE.IcosahedronGeometry(r, 2).toNonIndexed();
           // A little roughness, so the crown is not a pile of balls.
           const p = g.attributes.position;
           for (let k = 0; k < p.count; k++) {
@@ -994,10 +1060,14 @@ export class SeoulGame {
         for (const g of parts) {
           pos.set(g.attributes.position.array, at * 3);
           nor.set(g.attributes.normal.array, at * 3);
-          for (let k = 0; k < g.attributes.position.count; k++) {
-            const y = g.attributes.position.getY(k);
-            const shade = 0.55 + 0.45 * Math.min(1, Math.max(0, (y - 3.2) / 3));
-            col.set([shade, shade, shade], (at + k) * 3);
+          // Each little facet its own shade (leaves catching the light or not), darker low and inside.
+          for (let k = 0; k < g.attributes.position.count; k += 3) {
+            const jitter = 0.78 + Math.random() * 0.36;
+            for (let j = 0; j < 3; j++) {
+              const y = g.attributes.position.getY(k + j);
+              const shade = (0.5 + 0.5 * Math.min(1, Math.max(0, (y - 3.2) / 3))) * jitter;
+              col.set([shade, shade * (0.97 + Math.random() * 0.06), shade], (at + k + j) * 3);
+            }
           }
           at += g.attributes.position.count;
         }
@@ -1007,8 +1077,8 @@ export class SeoulGame {
         return {
           trunk,
           crown,
-          bark: new THREE.MeshLambertMaterial({ color: '#57504a' }),
-          leaves: new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })
+          bark: windy(new THREE.MeshLambertMaterial({ color: '#57504a' }), this.wind, 0.35),
+          leaves: windy(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), this.wind, 1)
         };
       })();
       const group = new THREE.Group();
@@ -1182,7 +1252,7 @@ export class SeoulGame {
     this.$('[data-help]').textContent = {
       fly: 'W A S D fly · Space / C up and down · Shift fast · drag to look · F walk · M places',
       walk: 'W A S D walk · Shift run · E get in a car · V who you are · drag to look · wheel zooms · F fly · M places',
-      drive: 'W go · S brake and reverse · A D steer · Shift handbrake · H horn · N weather · E get out · drag to look · F fly'
+      drive: 'W go · S brake and reverse · A D steer · Shift handbrake · H horn · E get out · drag to look · F fly'
     }[this.mode];
     this.root.focus();
   }
@@ -1290,11 +1360,6 @@ export class SeoulGame {
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (e.repeat) return;
-      if (e.code === 'KeyN' && !document.activeElement?.matches?.('input, select, textarea')) {
-        this.cycleWeather();
-        if (this.race?.menuEl && !this.race.menuEl.hidden) this.race.menu();
-        return;
-      }
       if (this.mode === 'race') {
         // A tap of Space between two frames still fires the turbo.
         if (e.code === 'Space') this.race.turboTap = true;
@@ -1424,6 +1489,15 @@ export class SeoulGame {
   /** The weather's part of each frame: the sky under cloud, lightning, wet roads, bloom by night. */
   _weather(dt) {
     const w = this.weather;
+    // The clock: 24 minutes a day (an hour a minute); the light is set again a few times a second.
+    this._hourT = (this._hourT ?? 0) + dt;
+    this._hourAcc = (this._hourAcc ?? 0) + dt / 60;
+    if (this._hourT > 0.25) {
+      this.setHour(this.hour + this._hourAcc);
+      this._showWeather();
+      this._hourT = 0;
+      this._hourAcc = 0;
+    }
     const night = this.uniforms.uNight.value;
     w.update(dt, this.camera, night);
     const cloud = Math.max(w.level.rain, w.level.snow * 0.8, (1 - w.level.fog) * 0.9);
@@ -1435,6 +1509,9 @@ export class SeoulGame {
       sky.lerp(grey, cloud * 0.75);
       if (w.flash > 0) sky.lerp(this._bolt ??= new THREE.Color('#c9c6ff'), w.flash * 0.75);
       this.scene.fog.color.copy(sky);
+      // What glass reflects: the sky overhead deeper than at the horizon.
+      this.uniforms.uSkyTop.value.copy(sky).multiplyScalar(0.8).lerp(this._deep ??= new THREE.Color('#2f6fd0'), 0.35 * (1 - night) * (1 - cloud));
+      this.uniforms.uSkyLow.value.copy(sky).lerp(this._haze ??= new THREE.Color('#e8eef3'), 0.3 * (1 - night));
     }
     // The studio reflections, for the city: a little by day, almost none at night.
     const day = 1 - night;
@@ -1442,22 +1519,17 @@ export class SeoulGame {
     this.hemi.intensity = (this.hemiBase ?? 1) * (1 - cloud * 0.35) + w.flash * 2.4;
     this.sun.intensity = (this.sunBase ?? 1) * (1 - cloud * 0.75);
     this.uniforms.uWet.value = w.level.wet;
+    this.wind.uTime.value += dt;
+    this.wind.uWind.value += ((WEATHERS[w.kind].wind ?? 0.5) - this.wind.uWind.value) * Math.min(1, dt * 0.5);
     if (this.bloom) this.bloom.strength = 0.22 + night * 0.55 + w.level.wet * night * 0.15;
   }
 
-  /** Next weather (N, or the bar's button). */
-  cycleWeather() {
-    const kind = this.weather.next();
-    try {
-      localStorage.setItem('gamory.seoul.weather', kind);
-    } catch {
-      /* private mode */
-    }
-    const info = WEATHERS[kind];
-    const b = this.$('[data-weather]');
-    if (b) b.textContent = `${info.icon} ${info.name}`;
-    this.toast?.(`${info.icon} ${info.name}`);
-    return kind;
+  /** The weather in the bar (it changes by itself: Weather.auto). */
+  _showWeather() {
+    const info = WEATHERS[this.weather?.kind];
+    const b = this.$?.('[data-weather]');
+    const day = (this.uniforms?.uNight.value ?? 1) < 0.5;
+    if (b && info) b.textContent = `${this.weather.kind === 'clear' && day ? '☀️' : info.icon} ${info.name}`;
   }
 
   _frame(now) {
@@ -1469,6 +1541,9 @@ export class SeoulGame {
     this._stream();
     this._where();
     this._weather(dt);
+    // People on the pavements, bikes and scooters (once the roads are in).
+    if (!this.life && this.roadTiles && this.terrain) this.life = new StreetLife(this);
+    this.life?.update(dt);
     if (this.quality === 'low') this.renderer.render(this.scene, this.camera);
     else this.composer.render(dt);
     this._labels();
