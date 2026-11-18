@@ -5,6 +5,7 @@ import { stepCar, RACE, CAR } from './drive.js';
 import { COURSES, planCourse, planRun, locate } from './course.js';
 import { GARAGE, GARAGE_ORDER, ratings } from './garage.js';
 import { loadPerson, Person } from './people.js';
+import { RaceFx } from './racefx.js';
 
 /**
  * Gangnam Drift: night racing for four cars on a loop of real Seoul roads.
@@ -985,12 +986,13 @@ export class Race {
         if (r.me) this.turboTap = false;
         if (r.turbo && r.boost <= 0) r.turbo = false;
         input.boost = Boolean(r.turbo) && racing && r.done == null;
-        if (input.boost) r.boost = Math.max(0, r.boost - dt * 0.26);
+        if (input.boost) r.boost = Math.max(0, r.boost - dt * 0.2); // a full gauge: five seconds
         // Driving fast fills the gauge, slowly (about half a minute flat out); drifting fills it far faster (_drift).
         else if (racing && r.done == null) r.boost = Math.min(1, r.boost + dt * 0.034 * Math.min(1, Math.max(0, r.s.v) / 30));
         const blocked = (x, z) => Boolean(this.g.buildingAt(x, z));
         const { hit } = stepCar(r.s, input, dt, blocked, r.spec);
         if (hit > 6 && r.me) this.g.street?._thud?.(Math.min(1, hit / 30));
+        r.hit = hit;
         r.braking = input.brake && r.s.v > 0.5;
         r.boosting = Boolean(input.boost);
         this._drift(r, dt, racing);
@@ -1004,6 +1006,7 @@ export class Race {
       }
     }
     this._bump();
+    this.fx?.update(dt);
     for (const r of this.racers) {
       if (r.left) continue;
       this._place(r, dt);
@@ -1092,7 +1095,11 @@ export class Race {
     g.rotation.set(r.pitch, s.heading, 0);
     r.car.wheels(s.steer ?? 0, (s.v * dt) / (this.kind.radius || 0.34));
     r.car.near(r.me || Math.hypot(s.x - this.g.pos.x, s.z - this.g.pos.z) < 140);
-    r.car.lights(1, r.braking);
+    r.car.lights(this.g.uniforms?.uNight.value ?? 1, r.braking);
+    // Skid marks, smoke and sparks behind it; flames from the back on the turbo.
+    this.fx ??= new RaceFx(this.g.scene);
+    if (dt > 0) this.fx.car(r, dt, { length: this.kind.length || 4.4, width: this.kind.width || 1.9, hit: r.hit ?? 0 });
+    r.hit = 0;
   }
 
   /** How far round the course a car has gone: following the nearest point of it, laps counted at the line. */
@@ -1453,6 +1460,7 @@ export class Race {
     for (const s of this.spots ?? []) for (const p of s.people) this.g.scene.remove(p.group);
     this.spots = null;
     for (const r of this.racers) this.g.scene.remove(r.car.group);
+    this.fx?.clear();
     this.racers = [];
     if (this.decor) this.g.scene.remove(this.decor);
     this.decor = null;
@@ -1479,6 +1487,7 @@ export class Race {
 
   dispose() {
     this.quit();
+    this.fx?.dispose();
     for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.boardEl, this.speedEl, this.countEl, this.driftEl, this.msgEl, this.resultEl]) n.remove();
   }
 }

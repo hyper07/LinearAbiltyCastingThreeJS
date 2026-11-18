@@ -121,7 +121,7 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
   handbrake throws the car into a slide), **Space** for the turbo, **R** back onto the course, **H** horn.
 - **The turbo gauge** starts empty. Driving fast fills it slowly (about half a minute flat out);
   drifting fills it far faster, and scores drift points. Only a **full** gauge fires the turbo
-  (**Space**; the gauge glows orange when it is ready), and a turbo runs until the gauge is empty.
+  (**Space**; the gauge glows orange when it is ready), and a turbo burns for five seconds, flames from the back, until the gauge is empty. Drifting leaves skid marks and tyre smoke; a hard slide or a wall throws sparks.
   Bots play by the same rule.
 - **Time and weather change by themselves.** The day starts at Seoul's real time of day and runs at
   an hour a minute (a whole day in 24 minutes), dawn, noon, sunset and night; the weather changes
