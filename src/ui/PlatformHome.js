@@ -401,7 +401,7 @@ export class PlatformHome {
         : game.engine === 'stoneball'
         ? 'Pick your tribe\'s leather, the computer\'s skill and the match length when you play'
         : game.engine === 'hd2d'
-        ? 'Pick your hero\'s look when you start a new journey — your journey is kept on this device'
+        ? 'Pick your class — Blade, Warden, Seer or Ranger — and a look; your journey is kept on this device'
         : game.engine === 'squad'
         ? 'Grave Purge or Hold the Outpost — pick when you play, alone with bots or with friends'
         : named
@@ -412,7 +412,7 @@ export class PlatformHome {
       page.querySelector('.home-page__hint').textContent = game.engine === 'stoneball'
         ? 'You against the computer, three a side. WASD to run, Shift to sprint, hold Space to charge a shot, E to pass, Q to switch.'
         : game.engine === 'hd2d'
-        ? 'One player. WASD to move, Space to strike, 1 and 2 for spells, 3 and 4 for potions, F to talk. Best with a keyboard.'
+        ? 'Alone, or with up to three friends: press P in the game to make a party and share its code. WASD to move, Space to strike, 1–4 for skills, I for your bag. Best with a keyboard.'
         : game.engine === 'squad'
         ? 'Play with up to three friends from inside the game: one makes a room, the others join with its code. Bots take the empty places.'
         : game.engine === 'fps'

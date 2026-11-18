@@ -106,7 +106,7 @@ export const ENGINE_GAMES = [
   {
     id: 'official:lanternwood',
     title: 'Lanternwood',
-    summary: 'A night camp in the woods, its lanterns going out one by one. Pixel heroes in a lit 3D forest, the camera behind you: gather ember-herbs, clear the glade and the hollow, light the old braziers of Greyvault and face the Lampwight that eats the light.',
+    summary: 'Pixel heroes made solid in a lit 3D world, the camera behind you. Four classes, four realms — a night forest, sunlit hills, frozen peaks, a burning caldera — hero monsters and bosses, loot you can see on your hero, and co-op for up to four.',
     engine: 'hd2d',
     genre: 'quest',
     card: { genre: 'quest', genreName: 'Adventure RPG', cover: 'hd2d', badge: 'NEW' }
