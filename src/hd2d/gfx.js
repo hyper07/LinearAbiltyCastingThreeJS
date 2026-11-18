@@ -92,6 +92,7 @@ export class SpriteActor {
     this.shadow = shadow ? blobShadow(shadow) : null;
     if (this.shadow) this.group.add(this.shadow);
     this.glow = glow; // 0…: how much it lights itself (wisps, herbs)
+    this.glowColor = null; // a coloured aura (hero monsters)
     this.scale = scale;
     this.sprite = null;
     this.flip = false;
@@ -130,6 +131,12 @@ export class SpriteActor {
       this.material.emissive.setRGB(0, 0, 0);
       this.self.value.copy(light).multiplyScalar(0.55);
       if (this.glow) this.self.value.addScalar(this.glow * 0.8);
+      if (this.glowColor) {
+        const g = 0.45 + 0.2 * Math.sin(performance.now() / 160);
+        this.self.value.r += this.glowColor.r * g;
+        this.self.value.g += this.glowColor.g * g;
+        this.self.value.b += this.glowColor.b * g;
+      }
     }
     if (this.shadow) {
       const s = Math.max(0.35, 1 - this.lift * 0.35);

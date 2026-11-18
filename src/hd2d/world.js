@@ -19,8 +19,9 @@ import { create as lanternPost } from '../../vendor/3dviz/kits/props/lantern-pos
 import { create as barrelKit } from '../../vendor/3dviz/kits/props/barrel.js';
 import { create as crateKit } from '../../vendor/3dviz/kits/props/crate.js';
 import { create as cartKit } from '../../vendor/3dviz/kits/props/cart.js';
+import { ChunkedInstances, buildWaystone, buildChest } from './props.js';
 
-const SPAN = 220; // the ground plane, metres a side
+const SPAN = 300; // the ground plane, metres a side
 const FIRE_RAMP = ['#4a1712', '#8a1f17', '#c9281f', '#f2561d', '#ff8a2a', '#ffc23d', '#ffe26b', '#fff3a6', '#ffffff'];
 
 /* ------------------------------------------------------------ textures */
@@ -96,7 +97,7 @@ function texture(canvas, repeat = true, srgb = true) {
 
 /** Where the dirt, flagstones and moss go: R dirt, G stone, B moss. */
 function splatCanvas() {
-  const S = 512;
+  const S = 1024;
   const at = (v) => ((v + SPAN / 2) / SPAN) * S;
   const m = S / SPAN; // canvas pixels a metre
   return canvasOf(S, S, (g) => {
@@ -143,6 +144,16 @@ function splatCanvas() {
     den.addColorStop(1, 'rgb(0,0,0)');
     g.fillStyle = den;
     g.fillRect(0, 0, S, S);
+    // The waystone circle: old flagstones; Bramblehollow: bare earth; Mistmere: moss.
+    for (const [id, ch, r] of [['waystone', 'rgb(0,255,0)', 7], ['bramble', 'rgb(150,0,0)', 11], ['mere', 'rgb(0,0,220)', 13]]) {
+      const a = WORLD.areas[id];
+      const gr = g.createRadialGradient(at(a.x), at(a.z), 0, at(a.x), at(a.z), r * m);
+      gr.addColorStop(0, ch);
+      gr.addColorStop(0.7, ch);
+      gr.addColorStop(1, 'rgb(0,0,0)');
+      g.fillStyle = gr;
+      g.fillRect(0, 0, S, S);
+    }
   });
 }
 
@@ -213,14 +224,14 @@ function coloured(geometry, top, bottom) {
   return geometry;
 }
 
-/** One stylised spruce, about 8 m tall: a trunk and five drooping tiers of needles. */
-function coniferGeometry() {
-  const parts = [coloured(new THREE.CylinderGeometry(0.16, 0.3, 2.2, 6).translate(0, 1.1, 0), '#4a3428', '#2a1c16')];
-  const tiers = [[2.3, 1.2, 2.7], [1.95, 2.3, 2.5], [1.6, 3.4, 2.3], [1.2, 4.5, 2.1], [0.8, 5.6, 1.9], [0.45, 6.6, 1.5]];
+/** One stylised spruce, about 8 m tall: a trunk and five drooping tiers of needles (`lod`: three tiers, fewer sides). */
+export function coniferGeometry({ lod = false, needles = ['#548a6c', '#4e8266', '#1a3428'], snow = null } = {}) {
+  const parts = [coloured(new THREE.CylinderGeometry(0.16, 0.3, 2.2, lod ? 4 : 6).translate(0, 1.1, 0), '#4a3428', '#2a1c16')];
+  const tiers = lod ? [[2.2, 1.2, 3.2], [1.5, 3.4, 2.8], [0.7, 5.4, 2.4]] : [[2.3, 1.2, 2.7], [1.95, 2.3, 2.5], [1.6, 3.4, 2.3], [1.2, 4.5, 2.1], [0.8, 5.6, 1.9], [0.45, 6.6, 1.5]];
   tiers.forEach(([r, y, h], i) => {
-    const g = new THREE.ConeGeometry(r, h, 8, 1).translate(0, y + h / 2, 0);
+    const g = new THREE.ConeGeometry(r, h, lod ? 6 : 8, 1).translate(0, y + h / 2, 0);
     g.rotateY(i * 0.7);
-    parts.push(coloured(g, i % 2 ? '#548a6c' : '#4e8266', '#1a3428'));
+    parts.push(coloured(g, snow ?? (i % 2 ? needles[0] : needles[1]), needles[2]));
   });
   const merged = mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)));
   parts.forEach((g) => g.dispose());
@@ -412,22 +423,14 @@ void main(){
   /* trees */
   const trees = layoutTrees();
   const treeGeo = own(coniferGeometry());
+  const treeLod = own(coniferGeometry({ lod: true }));
   const treeMat = own(fadingMaterial({ vertexColors: true, flatShading: true }, uniforms, 'ld-tree'));
-  const forest = new THREE.InstancedMesh(treeGeo, treeMat, trees.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), col = new THREE.Color();
   const rand = seeded(21);
-  trees.forEach((t, i) => {
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6.28);
+  const forest = new ChunkedInstances(scene, treeGeo, treeMat, trees.map((t) => {
     const k = t.s * (0.95 + rand() * 0.3);
-    sc.set(k * (0.9 + rand() * 0.25), k * (0.95 + rand() * 0.35), k * (0.9 + rand() * 0.25));
-    m4.compose(pos.set(t.x, 0, t.z), q, sc);
-    forest.setMatrixAt(i, m4);
-    col.setHSL(0.42 + (rand() - 0.5) * 0.08, 0.35 + rand() * 0.2, 0.75 + rand() * 0.35);
-    forest.setColorAt(i, col);
-  });
-  forest.castShadow = true;
-  forest.receiveShadow = true;
-  scene.add(forest);
+    return { x: t.x, z: t.z, rot: rand() * 6.28, s: k, sx: 0.9 + rand() * 0.25, sy: 0.95 + rand() * 0.35, sz: 0.9 + rand() * 0.25, color: new THREE.Color().setHSL(0.42 + (rand() - 0.5) * 0.08, 0.35 + rand() * 0.2, 0.75 + rand() * 0.35) };
+  }), { size: 30, lod: treeLod, lodDist: 55 });
 
   /* grass */
   const grassCanvas = canvasOf(32, 24, (g) => {
@@ -473,7 +476,7 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
   const blades = [];
   const gr = seeded(33);
   const ru = WORLD.areas.ruins;
-  for (let i = 0; i < 26000 && blades.length < 9000; i++) {
+  for (let i = 0; i < 60000 && blades.length < 20000; i++) {
     const a = gr() * Math.PI * 2;
     const r = Math.sqrt(gr()) * (WORLD.radius + 4);
     const [x, z] = [Math.cos(a) * r, Math.sin(a) * r];
@@ -485,16 +488,7 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
     if (gr() > 0.35 + clump * 0.35) continue;
     blades.push([x, z, 0.7 + gr() * 0.7, gr() * 6.28]);
   }
-  const grass = new THREE.InstancedMesh(grassGeo, grassMat, blades.length);
-  blades.forEach(([x, z, s, rot], i) => {
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rot);
-    m4.compose(pos.set(x, 0, z), q, sc.set(s, s * (0.8 + (i % 5) * 0.1), s));
-    grass.setMatrixAt(i, m4);
-    col.setHSL(0.27 + ((i * 13) % 7) * 0.012, 0.4, 0.85 + ((i * 7) % 5) * 0.06);
-    grass.setColorAt(i, col);
-  });
-  grass.receiveShadow = true;
-  scene.add(grass);
+  const grass = new ChunkedInstances(scene, grassGeo, grassMat, blades.map(([x, z, s, rot], i) => ({ x, z, rot, s, sy: 0.8 + (i % 5) * 0.1, color: new THREE.Color().setHSL(0.27 + ((i * 13) % 7) * 0.012, 0.4, 0.85 + ((i * 7) % 5) * 0.06) })), { size: 24, castShadow: false });
 
   /* rocks */
   const kits = [];
@@ -701,6 +695,38 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
   }
   scene.add(shrooms);
 
+  /* the waystone, the chests */
+  const waystone = buildWaystone({ x: WORLD.waystone.x, z: WORLD.waystone.z, tint: '#8ae8ff' });
+  scene.add(waystone.group);
+  const chests = WORLD.chests.map((c, i) => ({ ...c, ...buildChest({ x: c.x, z: c.z, rot: i * 1.7 }) }));
+  for (const c of chests) scene.add(c.group);
+
+  /* Mistmere: still water, reeds; Bramblehollow: thorn thickets */
+  const me = WORLD.areas.mere;
+  const water = new THREE.Mesh(own(new THREE.CircleGeometry(7.5, 40).rotateX(-Math.PI / 2)), own(new THREE.MeshLambertMaterial({ color: '#1a3a4a', emissive: '#0a2a34', transparent: true, opacity: 0.88 })));
+  water.position.set(me.x + 3, 0.04, me.z - 3);
+  water.receiveShadow = true;
+  scene.add(water);
+  const reedGeo = own(mergeGeometries([coloured(new THREE.CylinderGeometry(0.02, 0.03, 1.4, 4).translate(0, 0.7, 0), '#8aa060', '#3a5a30'), coloured(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 5).translate(0, 1.35, 0), '#6a4a2a', '#4a3020')].map((g) => g.toNonIndexed())));
+  const reedMat = own(new THREE.MeshLambertMaterial({ vertexColors: true }));
+  const rr = seeded(91);
+  const reedItems = [];
+  for (let i = 0; i < 90; i++) {
+    const a = rr() * Math.PI * 2, d = 7 + rr() * 2.2;
+    reedItems.push({ x: me.x + 3 + Math.cos(a) * d, z: me.z - 3 + Math.sin(a) * d, rot: rr() * 6, s: 0.7 + rr() * 0.6 });
+  }
+  const reeds = new ChunkedInstances(scene, reedGeo, reedMat, reedItems, { size: 40, castShadow: false });
+  const br = WORLD.areas.bramble;
+  const thornGeo = own(coloured(new THREE.IcosahedronGeometry(1, 0), '#4a6a34', '#2a2a1c'));
+  const thornMat = own(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  const tb = seeded(92);
+  const thornItems = [];
+  for (let i = 0; i < 40; i++) {
+    const a = tb() * Math.PI * 2, d = br.r + 1 + tb() * 5;
+    thornItems.push({ x: br.x + Math.cos(a) * d, z: br.z + Math.sin(a) * d, rot: tb() * 6, s: 0.9 + tb() * 0.8, sy: 0.7, color: new THREE.Color().setHSL(0.22 + tb() * 0.05, 0.4, 0.6 + tb() * 0.3) });
+  }
+  const thorns = new ChunkedInstances(scene, thornGeo, thornMat, thornItems, { size: 40 });
+
   /* herbs */
   const herbs = WORLD.herbs.map(([x, z], i) => {
     const a = new SpriteActor({ shadow: 0.25, glow: 0.35 });
@@ -716,7 +742,7 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
   const flyPos = new Float32Array(FLIES * 3);
   const flyCol = new Float32Array(FLIES * 3);
   const fr = seeded(66);
-  const flyAreas = [[0, 0, 16, 60], [gl.x, gl.z, 15, 60], [ru.x, ru.z, 14, 30], [WORLD.areas.hollow.x, WORLD.areas.hollow.z, 12, 20], [0, 0, 60, 50]];
+  const flyAreas = [[0, 0, 16, 50], [gl.x, gl.z, 15, 50], [ru.x, ru.z, 14, 26], [WORLD.areas.hollow.x, WORLD.areas.hollow.z, 12, 16], [WORLD.areas.mere.x, WORLD.areas.mere.z, 14, 40], [WORLD.areas.waystone.x, WORLD.areas.waystone.z, 10, 18], [0, 0, 100, 60]];
   let fi = 0;
   for (const [cx, cz, r, n] of flyAreas) {
     for (let k = 0; k < n && fi < FLIES; k++, fi++) {
@@ -747,7 +773,8 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
   const sources = () => [
     ...torches.filter((t) => t.lit).map((t) => ({ x: t.x, y: t.y, z: t.z, power: 1, color: '#ff9a4a' })),
     ...lanterns.filter((l) => l.lit).map((l) => ({ x: l.lamp.x, y: l.lamp.y, z: l.lamp.z, power: 0.9, color: '#ffd28a' })),
-    ...braziers.filter((b) => b.lit).map((b) => ({ x: b.x, y: b.y + 0.4, z: b.z, power: 1.6, color: '#ff8a3a' }))
+    ...braziers.filter((b) => b.lit).map((b) => ({ x: b.x, y: b.y + 0.4, z: b.z, power: 1.6, color: '#ff8a3a' })),
+    { x: WORLD.waystone.x, y: 3, z: WORLD.waystone.z, power: world.waystoneOn ? 1.2 : 0.3, color: '#8ae8ff' }
   ];
 
   let hearth = 0.7; // how strong the Hearthlight burns (grows as the quests are done)
@@ -767,6 +794,16 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
     lanterns,
     fireLight: fire,
     uniforms,
+    waystone: WORLD.waystone,
+    chests,
+    gather: herbs,
+    realm: 'lanternwood',
+    look: { far: 110, ambient: 'night' },
+
+    openChest(id) {
+      const c = chests.find((x) => x.id === id);
+      if (c && !c.opened) c.open();
+    },
 
     /** The light a sprite standing at (x, z) gets: moonlight plus nearby flames. */
     lightAt(x, z, out = new THREE.Color()) {
@@ -823,6 +860,7 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
         h.taken = false;
         h.actor.group.visible = true;
       }
+      for (const c of chests) c.opened = false;
       for (const b of braziers) {
         b.lit = false;
         b.coal.material.emissive.set('#000000');
@@ -851,6 +889,13 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
       moon.target.position.set(hero.x, 0, hero.z);
       moon.position.set(hero.x + MOON_DIR.x * 60, MOON_DIR.y * 60, hero.z + MOON_DIR.z * 60);
       sky.position.copy(camera.position);
+      // Only what is near is drawn in full: far trees are cheaper, beyond the fog nothing.
+      forest.update(hero.x, hero.z, 115, 42);
+      grass.update(hero.x, hero.z, 48, 0);
+      reeds.update(hero.x, hero.z, 80, 0);
+      thorns.update(hero.x, hero.z, 100, 40);
+      waystone.update(dt, t, world.waystoneOn);
+      for (const c of chests) c.update(dt);
       // The fire breathes.
       flick = 0.5 + 0.5 * Math.sin(t * 13.1) * Math.sin(t * 7.3 + 1.1) + 0.25 * Math.sin(t * 23.0);
       fire.intensity = (50 + hearth * 40) * (0.86 + 0.14 * flick);
@@ -913,6 +958,10 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
       for (const d of disposables) d.dispose?.();
       forest.dispose();
       grass.dispose();
+      reeds.dispose();
+      thorns.dispose();
+      waystone.dispose();
+      for (const c of chests) c.dispose();
       shrooms.dispose();
       ring.dispose();
       scene.clear();
@@ -922,4 +971,4 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
   return world;
 }
 
-export { distToPath };
+export { distToPath, coloured, fadingMaterial, texture, tile, flagstones, BAYER_GLSL };

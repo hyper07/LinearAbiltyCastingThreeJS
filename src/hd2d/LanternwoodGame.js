@@ -1,39 +1,52 @@
 import * as THREE from 'three';
 import { loadFx, FxPlayer } from '../pixel/fx.js';
 import * as R from './rules.js';
-import { buildSprites } from './sprites.js';
+import { buildSprites, heroSpriteFor } from './sprites.js';
 import { buildWorld } from './world.js';
-import { SpriteActor, FxBillboard, disposeTextures, canvasOf } from './gfx.js';
+import { buildRealmWorld } from './realmWorld.js';
+import { FxBillboard, disposeTextures, canvasOf } from './gfx.js';
 import { RigActor, SwordTrail } from './rig.js';
+import { weaponGeometry, disposeGear } from './gear3d.js';
 import { Post } from './post.js';
-import { Hud, Dialogue, panel, shopHtml, infoHtml, drawMap, titleHtml, CONTROLS_HTML, el, drawMinimap } from './ui.js';
+import { Hud, Dialogue, panel, titleHtml, fillLooks, el, drawMinimap, drawMap } from './ui.js';
+import { HeroPreview, openInventory, openCharacter, openJournal, openRealms, openShop, openParty, openPause } from './panels.js';
+import { CombatMixin } from './combat.js';
+import { FoeMixin } from './foes.js';
+import { Coop } from './coop.js';
 import './hd2d.css';
 
 /**
- * Lanternwood: a small action RPG in the "HD-2D" style — pixel-art people
- * standing upright in a lit 3D night forest, seen from behind and above the
- * hero. The camp's lanterns are going out; five quests lead out into the
- * woods (herbs, slimes, wolves, old braziers) and to the Lampwight in the
- * Greyvault ruins.
+ * Lanternwood: an action RPG in the "HD-2D" style — pixel-art people made
+ * solid, standing in lit 3D worlds, seen from behind and above the hero.
+ * Four classes (Blade, Warden, Seer, Ranger) with their own skills and
+ * gear; four realms linked by waystones (the Lanternwood night forest and
+ * camp, Sunmeadow Hills, Frostpeak Hollows, Emberfall Caldera), each with
+ * its own monsters, hero monsters and a boss; a bag, equipment that shows on
+ * the figure, traders and smiths; and co-op for up to four over the
+ * platform's party rooms.
  *
  *   const game = new LanternwoodGame(document.body, { onClose });
  *   await game.open();   …   game.close();
  *
- * Rules (stats, damage, quests, save shape, world layout) live in rules.js;
- * the sprites in sprites.js; the scene in world.js; the screen in ui.js.
+ * Rules (classes, items, realms, quests, save) are pure modules — rules.js
+ * re-exports them; the fight is split into combat.js (the hero) and foes.js
+ * (the monsters); co-op in coop.js; windows in panels.js; the HUD in ui.js.
  */
 
 const FX_IDS = [
-  'fire/campfire', 'fire/torch', 'fire/spirit-flame', 'impacts/hit-spark', 'impacts/crit-hit', 'ui/level-up', 'pickups/coin-spin', 'pickups/crystal-shard',
-  'pickups/potion', 'spawn/poof', 'holy/heal', 'arcane/mana-burst', 'melee/spin-slash', 'impacts/ground-slam', 'shadow/dark-explosion', 'pickups/collect-burst',
-  'explosions/small-explosion', 'spawn/soul-rise'
+  'fire/campfire', 'fire/torch', 'fire/spirit-flame', 'fire/brazier', 'fire/fire-breath', 'fire/flame-pillar', 'fire/meteor', 'impacts/hit-spark', 'impacts/crit-hit', 'impacts/ground-slam',
+  'impacts/shield-block', 'ui/level-up', 'pickups/coin-spin', 'pickups/crystal-shard', 'pickups/potion', 'pickups/collect-burst', 'spawn/poof', 'spawn/soul-rise', 'holy/heal', 'holy/heal-aoe',
+  'holy/divine-shield', 'holy/blessing', 'arcane/mana-burst', 'arcane/blink-in', 'arcane/blink-out', 'arcane/portal', 'melee/spin-slash', 'melee/heavy-cleave', 'shadow/dark-explosion',
+  'explosions/small-explosion', 'explosions/big-explosion', 'explosions/dirt-explosion', 'moves/dash-strike', 'nature/quake', 'nature/healing-bloom', 'nature/root-snare', 'nature/earth-spike',
+  'ice/frost-nova', 'ice/ice-shatter', 'ice/blizzard-vortex', 'ice/snowflake-burst', 'ice/icicle-fall', 'ice/frost-breath', 'status/stunned', 'status/rage'
 ];
 const FIRE_RAMP = ['#4a1712', '#8a1f17', '#c9281f', '#f2561d', '#ff8a2a', '#ffc23d', '#ffe26b', '#fff3a6', '#ffffff'];
-const WISP_RAMP = ['#0e2a3a', '#14506a', '#1e7a94', '#2aa6b8', '#4ad0d8', '#7ff0ec', '#b8fff6', '#e8fffc', '#ffffff'];
 const TAU = Math.PI * 2;
 const wrap = (a) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 const dirOf = (a) => [Math.sin(a), Math.cos(a)];
 const HERO_R = 0.42;
+const WALKERS = new Set(['wolf', 'icefang', 'thornboar', 'salamander']);
+const FLAPPERS = new Set(['hornet', 'frostbat']);
 
 const storage = {
   load() {
@@ -75,6 +88,7 @@ export class LanternwoodGame {
     window.addEventListener('blur', this._onBlur);
     window.lanternwood = this;
     this.closed = false;
+    this.net = new Coop(this);
   }
 
   /* ================================================================ life */
@@ -82,9 +96,9 @@ export class LanternwoodGame {
   async open() {
     this.root.innerHTML = '<div class="ld-loading"><h1>Lanternwood</h1><p>Lighting the lanterns…</p></div>';
     this.root.focus();
-    // Effects first (each a small module), then the sprites, then the world.
     const mods = new Map();
     await Promise.all(FX_IDS.map(async (id) => mods.set(id, await loadFx(id))));
+    this._fxMods = mods;
     this.makeFx = (id, options = {}) => new FxPlayer(mods.get(id), options);
     await new Promise((r) => setTimeout(r, 0));
     if (this.closed) return;
@@ -106,51 +120,23 @@ export class LanternwoodGame {
     stage.append(this.canvas);
     this.camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 400);
 
-    this.world = buildWorld({ makeFx: this.makeFx, sprites: this.sprites });
-    this.scene = this.world.scene;
-    this.post = new Post(this.renderer, this.scene, this.camera);
-    this._resize = new ResizeObserver(() => this.resize());
-    this._resize.observe(this.root);
-    this.resize();
-
-    this.hud = new Hud(this.root, this.sprites);
-    this.dialogue = new Dialogue(this.root, this.sprites);
-    this.effects = [];
-    this.projectiles = [];
-    this.drops = [];
-    this.enemies = [];
-    this.shake = 0;
-    this.hitstop = 0;
-    this.hurtFx = 0;
-    this.camYaw = 0;
-    this.camDist = 8.4;
-    this.camPos = new THREE.Vector3(0, 6, 16);
-    this.camLook = new THREE.Vector3();
-    this.t = 0;
-    this._fpsAcc = [];
-
-    // Shared looping pickups (one animation, many drops).
-    this.pickupFx = {
-      gold: this.makeFx('pickups/coin-spin'),
-      crystal: this.makeFx('pickups/crystal-shard'),
-      potion: this.makeFx('pickups/potion')
-    };
-
-    // The cast.
-    this.npcs = Object.entries(R.NPCS).map(([id, n]) => {
-      const a = new RigActor({ shadow: 0.42 });
-      a.group.position.set(n.x, 0, n.z);
-      this.scene.add(a.group);
-      return { id, ...n, actor: a, face: n.face, talking: false };
-    });
-    this.heroActor = new RigActor({ shadow: 0.45, sword: true });
-    this.scene.add(this.heroActor.group);
-    this.trail = new SwordTrail(this.scene);
-    this.heroPos = { x: R.WORLD.start.x, z: R.WORLD.start.z, face: R.WORLD.start.face };
-
-    // Telegraph shapes, shared.
+    // Shapes shared by every realm.
     this.ringGeo = new THREE.RingGeometry(0.88, 1, 48).rotateX(-Math.PI / 2);
     this.discGeo = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2);
+    this.rectGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
+    this.orbGeo = new THREE.SphereGeometry(0.2, 10, 8);
+    this.arrowGeo = weaponGeometry({ shape: 'arrow' });
+    this.arrowMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: '#3a2a1a' });
+    this.lanceGeo = new THREE.OctahedronGeometry(0.2, 0).scale(0.7, 0.7, 4);
+    this.lanceMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#bff0ff').multiplyScalar(1.8) });
+    this.totemGeo = new THREE.CylinderGeometry(0.14, 0.2, 1.4, 6).translate(0, 0.7, 0);
+    this.totemMat = new THREE.MeshLambertMaterial({ color: '#7a5434' });
+    this.totemTopGeo = new THREE.OctahedronGeometry(0.28, 0);
+    this.totemTopMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#7aff9a').multiplyScalar(1.8) });
+    this.trapGeo = new THREE.RingGeometry(0.25, 0.6, 8).rotateX(-Math.PI / 2);
+    this.trapMat = new THREE.MeshLambertMaterial({ color: '#9aa4ac', emissive: '#2a2a20', side: THREE.DoubleSide });
+    this.moundGeo = new THREE.SphereGeometry(0.75, 9, 4, 0, TAU, 0, Math.PI / 2);
+    this.moundMat = new THREE.MeshLambertMaterial({ color: '#6a5034', flatShading: true });
     this.arcTex = new THREE.CanvasTexture(canvasOf(64, 16, (g) => {
       const grad = g.createLinearGradient(0, 0, 64, 0);
       grad.addColorStop(0, 'rgba(255,220,150,0)');
@@ -174,11 +160,41 @@ export class LanternwoodGame {
       g.fillStyle = grad;
       g.fillRect(0, 0, 64, 64);
     }));
+    this.pickupFx = { gold: this.makeFx('pickups/coin-spin'), crystal: this.makeFx('pickups/crystal-shard'), potion: this.makeFx('pickups/potion') };
+
+    // What lives across realms: the hero, their trail, two moving lights.
+    this.heroActor = new RigActor({ shadow: 0.45 });
+    this.trail = null;
     this.projLight = new THREE.PointLight('#ff8a3a', 0, 12, 1.8);
-    this.scene.add(this.projLight);
-    // The Lampwight carries its own cold light.
     this.bossLight = new THREE.PointLight('#6ad8ff', 0, 16, 1.6);
-    this.scene.add(this.bossLight);
+    this.heroPos = { x: R.WORLD.start.x, z: R.WORLD.start.z, face: R.WORLD.start.face };
+    this.effects = [];
+    this.projectiles = [];
+    this.drops = [];
+    this.enemies = [];
+    this.zones = [];
+    this.warnings = [];
+    this.pending = [];
+    this.npcs = [];
+    this.buffs = { guard: 0, fury: 0, ward: 0, regen: null };
+    this.cd = {};
+    this.shake = 0;
+    this.hitstop = 0;
+    this.hurtFx = 0;
+    this.camYaw = 0;
+    this.camDist = 8.4;
+    this.camPos = new THREE.Vector3(0, 6, 16);
+    this.camLook = new THREE.Vector3();
+    this.t = 0;
+    this._fpsAcc = [];
+
+    this.buildRealm('lanternwood');
+    this.post = new Post(this.renderer, this.scene, this.camera);
+    this._resize = new ResizeObserver(() => this.resize());
+    this._resize.observe(this.root);
+    this.resize();
+    this.hud = new Hud(this.root, this.sprites);
+    this.dialogue = new Dialogue(this.root, this.sprites);
 
     this._bindPointer();
     this.title();
@@ -196,24 +212,22 @@ export class LanternwoodGame {
     if (this.closed) return;
     this.closed = true;
     if (this.mode === 'play' || this.mode === 'dead') this.save();
+    this.net.close();
     cancelAnimationFrame(this._raf);
     this._resize?.disconnect();
     window.removeEventListener('blur', this._onBlur);
-    for (const e of this.effects ?? []) e.fx.dispose();
-    for (const p of this.projectiles ?? []) this._dropProjectile(p);
-    for (const d of this.drops ?? []) d.fx.dispose();
-    for (const e of this.enemies ?? []) this._disposeEnemy(e);
-    for (const n of this.npcs ?? []) n.actor.dispose();
+    this._clearRealm();
+    this.world?.dispose();
     this.heroActor?.dispose();
     this.trail?.dispose();
+    this.preview?.dispose();
     for (const p of Object.values(this.pickupFx ?? {})) p._texture?.dispose();
-    this.ringGeo?.dispose();
-    this.discGeo?.dispose();
+    for (const g of [this.ringGeo, this.discGeo, this.rectGeo, this.orbGeo, this.lanceGeo, this.totemGeo, this.totemTopGeo, this.trapGeo, this.moundGeo]) g?.dispose();
+    for (const m of [this.arrowMat, this.lanceMat, this.totemMat, this.totemTopMat, this.trapMat, this.moundMat]) m?.dispose();
+    for (const g of this._cones?.values() ?? []) g.dispose();
     this.arcTex?.dispose();
     this.glowTex?.dispose();
-    this._slashGeo?.dispose();
-    this._whirlGeo?.dispose();
-    this.world?.dispose();
+    disposeGear();
     this.post?.dispose();
     disposeTextures();
     this.renderer?.dispose();
@@ -235,6 +249,120 @@ export class LanternwoodGame {
     this.size = { w, h };
   }
 
+  fxReady(id) {
+    return Boolean(this._fxMods?.get(id));
+  }
+
+  rarityColor(r) {
+    return R.RARITIES[r]?.color ?? '#ffffff';
+  }
+
+  /* ============================================================= realms */
+
+  /** Everything that belongs to the realm being left: monsters, missiles, loot on the ground, people. */
+  _clearRealm() {
+    for (const e of this.enemies ?? []) this._disposeEnemy(e);
+    this.enemies = [];
+    this.boss = null;
+    for (const p of this.projectiles ?? []) this._dropProjectile(p);
+    this.projectiles = [];
+    for (const d of this.drops ?? []) this._disposeDrop(d);
+    this.drops = [];
+    for (const e of this.effects ?? []) e.fx.dispose();
+    this.effects = [];
+    for (const z of this.zones ?? []) {
+      z.ring.material.dispose();
+      z.ring.removeFromParent();
+      z.mesh?.removeFromParent();
+      z.light?.removeFromParent();
+    }
+    this.zones = [];
+    this.warnings = [];
+    for (const m of this._warnPool ?? []) {
+      m.ring.material.dispose();
+      m.disc.material.dispose();
+    }
+    this._warnPool = [];
+    for (const n of this.npcs ?? []) n.actor.dispose();
+    this.npcs = [];
+    this.pending = [];
+    this.hud?.clearWorld();
+  }
+
+  /** Build a realm's world and people (the old one goes). */
+  buildRealm(id) {
+    this._clearRealm();
+    this.world?.dispose();
+    this.realm = id;
+    this.realmDef = R.realmLayout(id);
+    this.world = id === 'lanternwood' ? buildWorld({ makeFx: this.makeFx, sprites: this.sprites }) : buildRealmWorld(id, { makeFx: this.makeFx, sprites: this.sprites });
+    this.scene = this.world.scene;
+    if (this.post) this.post.render.scene = this.scene;
+    this.scene.add(this.heroActor.group, this.projLight, this.bossLight);
+    this.trail?.dispose();
+    this.trail = new SwordTrail(this.scene);
+    this._grid = null;
+    this.moundMat.color.set({ lanternwood: '#5a4030', sunmeadow: '#7a5a34', frostpeak: '#c8d4e4', emberfall: '#3a2a26' }[id]);
+    // The people of this realm, on joints, in their own gear.
+    this.npcs = R.npcsIn(id).map((nid) => {
+      const n = R.NPCS[nid];
+      const a = new RigActor({ shadow: n.child ? 0.32 : 0.42, scale: n.child ? 0.74 : 1 });
+      a.show(this.sprites.npcs[nid].front[0]);
+      if (n.look?.gear) a.setGear(n.look.gear);
+      a.group.position.set(n.x, 0, n.z);
+      this.scene.add(a.group);
+      return { id: nid, ...n, actor: a, face: n.face, talking: false };
+    });
+  }
+
+  /** Bring the saved state into the world just built: herbs picked, braziers lit, chests opened. */
+  _applyWorldState() {
+    const s = this.state;
+    if (this.realm === 'lanternwood') {
+      for (const i of s.herbsTaken) this.world.takeHerb(i);
+      for (const bid of s.braziers) this.world.lightBrazier(bid);
+      this.world.setProgress(R.questsDone(s.quests, 'lanternwood'), R.questsIn('lanternwood').length);
+      this.world.waystoneOn = R.realmUnlocked(s.quests, 'sunmeadow');
+    } else for (const i of s.gathered[this.realm] ?? []) this.world.takeHerb(i);
+    for (const c of this.world.chests) if (s.chests.includes(c.id)) c.opened = true;
+  }
+
+  /**
+   * Go to a realm (through a waystone, by a scroll, or following the party's
+   * host): a fade, the new world, the hero at its waystone.
+   */
+  travel(id, { follow = false, toWaystone = false } = {}) {
+    if (!R.REALMS[id]) return;
+    if (!follow && !R.realmUnlocked(this.state.quests, id)) {
+      this.hud.toast('That realm is sealed.', 'warn');
+      return;
+    }
+    if (this.net.isGuest && !follow && id !== this.realm) {
+      this.hud.toast('The party leader chooses the realm.', 'warn');
+      return;
+    }
+    const L = R.realmLayout(id);
+    if (id !== this.realm) {
+      this.save();
+      this.buildRealm(id);
+      this._applyWorldState();
+      if (!this.net.isGuest) this._spawnRealmFoes();
+    }
+    void toWaystone;
+    // Arrive on the hub's side of the waystone, facing the hub.
+    const spot = { x: L.waystone.x, z: L.waystone.z - 8.5, face: Math.PI };
+    this.heroPos.x = spot.x;
+    this.heroPos.z = spot.z;
+    this.heroPos.face = spot.face ?? Math.PI;
+    this.camYaw = wrap(this.heroPos.face + Math.PI);
+    this._snapCamera();
+    this._fade = 1;
+    this.hud.toast(`<small>${R.REALMS[id].sub}</small><b>${R.REALMS[id].name}</b>`, 'realm');
+    this.fx('arcane/blink-in', this.heroPos.x, 0, this.heroPos.z, { pxm: 36, color: 1.4 });
+    this.state.realm = id;
+    this.save();
+  }
+
   /* =============================================================== title */
 
   title() {
@@ -244,33 +372,33 @@ export class LanternwoodGame {
     this.hud.show(false);
     this.hud.clearWorld();
     this.root.querySelector('.ld-overlay')?.remove();
+    if (this.realm !== 'lanternwood') this.buildRealm('lanternwood');
     const save = storage.load();
     const wrapEl = el('div', 'ld-overlay ld-overlay--title');
     wrapEl.innerHTML = titleHtml(save);
     this.root.append(wrapEl);
-    let look = save?.hero.look ?? 'ember';
+    let cls = save?.hero.cls ?? 'blade';
+    let look = save?.hero.look ?? R.defaultLook(cls).id;
+    this.preview ??= new HeroPreview();
     const paint = () => {
-      for (const b of wrapEl.querySelectorAll('[data-look]')) b.setAttribute('aria-checked', String(b.dataset.look === look));
-      this._applyLook(look);
-    };
-    for (const b of wrapEl.querySelectorAll('[data-look]')) {
-      const c = b.querySelector('canvas');
-      const g = c.getContext('2d');
-      g.imageSmoothingEnabled = false;
-      const s = this.sprites.hero[b.dataset.look];
-      const f = s.front[0], k = s.back[0];
-      g.drawImage(f.canvas, 0, 104 - f.height * 1.25, f.width * 1.25, f.height * 1.25);
-      g.drawImage(k.canvas, 88 - k.width * 1.0, 104 - k.height * 1.0 - 2, k.width, k.height);
-      b.addEventListener('click', () => {
-        look = b.dataset.look;
+      for (const b of wrapEl.querySelectorAll('[data-class]')) b.setAttribute('aria-checked', String(b.dataset.class === cls));
+      fillLooks(wrapEl.querySelector('[data-looks]'), cls, look, (id) => {
+        look = id;
         paint();
       });
-    }
+      this.preview.set(look, R.gearLook(R.startingGear(cls)));
+    };
+    for (const b of wrapEl.querySelectorAll('[data-class]')) b.addEventListener('click', () => {
+      cls = b.dataset.class;
+      look = R.defaultLook(cls).id;
+      paint();
+    });
     paint();
+    this._previewCanvas = wrapEl.querySelector('[data-preview]');
     wrapEl.querySelector('[data-close]').addEventListener('click', () => this.close());
     wrapEl.querySelector('[data-new]').addEventListener('click', () => {
       wrapEl.remove();
-      this.start(R.newGame(look), true);
+      this.start(R.newGame(cls, look), true);
     });
     wrapEl.querySelector('[data-continue]')?.addEventListener('click', () => {
       wrapEl.remove();
@@ -279,62 +407,82 @@ export class LanternwoodGame {
     this.titleEl = wrapEl;
   }
 
-  _applyLook(look) {
-    this.look = look;
-    this.heroActor.show(this.sprites.hero[look].back[0]);
-  }
-
   /** Begin play from a game state (fresh or loaded). */
   start(state, fresh) {
     this.state = state;
     this.hero = state.hero;
-    this._applyLook(this.hero.look);
-    this.hud.setLook(this.hero.look);
+    this._previewCanvas = null;
+    if (state.realm !== this.realm) this.buildRealm(state.realm);
+    else {
+      // Rebuild Lanternwood clean, so a different save starts from a clean slate.
+      this.world.reset();
+    }
+    this._applyWorldState();
+    this.gearChanged(true);
     [this.heroPos.x, this.heroPos.z] = state.pos;
     this.heroPos.face = fresh ? R.WORLD.start.face : this.heroPos.face;
     this.camYaw = wrap(this.heroPos.face + Math.PI);
-    this.hv = { kx: 0, kz: 0, roll: 0, rdx: 0, rdz: 0, inv: 0, attack: 0, walkT: 0, moving: false, hurtT: 9 };
-    this.cd = { slash: 0, fireball: 0, whirl: 0, roll: 0 };
-    // World state from the save.
-    for (const i of state.herbsTaken) this.world.takeHerb(i);
-    for (const id of state.braziers) this.world.lightBrazier(id);
-    this.world.setProgress(R.questsDone(state.quests), R.QUESTS.length);
-    // Enemies.
-    for (const e of this.enemies) this._disposeEnemy(e);
-    this.enemies = [];
-    for (const kind of ['slime', 'wolf', 'wisp']) for (const s of R.enemySpawns(kind)) this._spawnEnemy(kind, s.x, s.z);
-    this.boss = null;
+    this.hv = { kx: 0, kz: 0, roll: 0, rdx: 0, rdz: 0, inv: 0, attack: 0, walkT: 0, moving: false, hurtT: 9, pose: null, dash: null };
+    this.cd = { basic: 0, roll: 0 };
+    this.buffs = { guard: 0, fury: 0, ward: 0, regen: null };
+    this.chillT = 0;
+    this._bossDownUntil = 0;
+    this._spawnRealmFoes();
     this.mode = 'play';
     this.overlay = null;
     this.hud.show(true);
-    this.hud.tracker(state.quests);
+    this.hud.tracker(state.quests, this.realm);
     this._autosave = 15;
     this._snapCamera();
     this.root.focus();
+    if (state.migratedFrom) {
+      setTimeout(() => this.hud.toast(`<small>Your journey carried over</small><b>You are a ${R.CLASSES[this.hero.cls].name}</b><span>New: classes, realms, a bag and gear (I)</span>`, 'quest'), 900);
+      delete state.migratedFrom;
+      this.save();
+    }
     if (fresh) {
       this.save();
       setTimeout(() => {
-        if (this.mode === 'play' && !this.dialogue.open) this.dialogue.play(R.INTRO, () => this.hud.tracker(this.state.quests), this.look);
+        if (this.mode === 'play' && !this.dialogue.open) this.dialogue.play(R.INTRO, () => this.hud.tracker(this.state.quests, this.realm), this._heroLine());
       }, 600);
     }
+  }
+
+  _heroLine() {
+    return { name: R.lookById(this.hero.look)?.name ?? 'Wayfarer', role: R.CLASSES[this.hero.cls].name, sprite: this.heroSprite };
+  }
+
+  /** The hero's gear changed: the figure, its look on the rig, the stats, the HUD. */
+  gearChanged(force = false) {
+    this.gearLook = R.gearLook(this.hero.equip);
+    this.heroSprite = heroSpriteFor(this.hero.look, this.gearLook);
+    if (force) this.heroActor.sprite = null;
+    this.heroActor.show(this.heroSprite);
+    this.heroActor.setGear(this.gearLook);
+    this.hud.setHero(this.hero, this.heroSprite);
+    this.stats = R.statsOf(this.hero, this.buffs);
+    this.hero.hp = Math.min(this.hero.hp, this.stats.maxHp);
+    this.hero.mp = Math.min(this.hero.mp, this.stats.maxMp);
   }
 
   save() {
     if (!this.state) return;
     this.state.pos = [this.heroPos.x, this.heroPos.z];
+    this.state.realm = this.realm;
     storage.save(this.state);
   }
 
   /* ============================================================== input */
 
   _key(e) {
+    if (e.target?.tagName === 'INPUT') return;
     e.stopPropagation();
     const code = e.code;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(code)) e.preventDefault();
     if (e.repeat && !['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(code)) return;
     if (this.mode === 'title') {
       if (code === 'Escape') this.close();
-      else if (code === 'Enter') this.titleEl?.querySelector('[data-continue]')?.click() ?? this.titleEl?.querySelector('[data-new]')?.click();
+      else if (code === 'Enter') (this.titleEl?.querySelector('[data-continue]') ?? this.titleEl?.querySelector('[data-new]'))?.click();
       return;
     }
     if (this.mode === 'ending') {
@@ -344,32 +492,43 @@ export class LanternwoodGame {
     if (this.mode !== 'play' && this.mode !== 'dead') return;
     if (this.dialogue.open) {
       if (['Space', 'KeyF', 'Enter', 'NumpadEnter'].includes(code)) this.dialogue.advance();
-      else if (code === 'Escape') while (this.dialogue.open) this.dialogue.advance(), this.dialogue.advance();
+      else if (code === 'Escape') {
+        while (this.dialogue.open) {
+          this.dialogue.advance();
+          this.dialogue.advance();
+        }
+      }
       return;
     }
     if (this.overlay) {
-      if (code === 'Escape' || (code === 'KeyM' && this.overlay === 'map') || (code === 'KeyI' && this.overlay === 'info')) this.closeOverlay();
-      else if (this.overlay === 'shop' && /^Digit[1-4]$/.test(code)) this.buy(R.SHOP[Number(code.slice(5)) - 1].id);
-      else if (this.overlay === 'shop' && code === 'KeyF') this.closeOverlay();
+      const toggles = { inv: ['KeyI', 'KeyB'], char: ['KeyC'], journal: ['KeyJ'], map: ['KeyM'], party: ['KeyP'], shop: ['KeyF'] };
+      if (code === 'Escape' || toggles[this.overlay]?.includes(code)) this.closeOverlay();
+      else if (this.overlay === 'shop' && /^Digit[1-9]$/.test(code)) {
+        const line = R.SHOP[Number(code.slice(5)) - 1];
+        if (line && R.NPCS[this.shopOpen]?.shop === 'general') this.buy(line.id);
+      }
       return;
     }
     this.keys.add(code);
     if (this.mode === 'dead') return;
     switch (code) {
       case 'Space':
-        this.slash();
+        this.basic();
         break;
       case 'Digit1':
-        this.fireball();
-        break;
       case 'Digit2':
-        this.whirl();
-        break;
       case 'Digit3':
+      case 'Digit4':
+        this.castSkill(Number(code.slice(5)));
+        break;
+      case 'Digit5':
         this.drink('hp');
         break;
-      case 'Digit4':
+      case 'Digit6':
         this.drink('mp');
+        break;
+      case 'Digit7':
+        this.eat();
         break;
       case 'ShiftLeft':
       case 'ShiftRight':
@@ -379,13 +538,23 @@ export class LanternwoodGame {
         this.interact();
         break;
       case 'KeyI':
-        this.openInfo();
+      case 'KeyB':
+        openInventory(this);
+        break;
+      case 'KeyC':
+        openCharacter(this);
+        break;
+      case 'KeyJ':
+        openJournal(this);
         break;
       case 'KeyM':
-        this.openMap();
+        openRealms(this);
+        break;
+      case 'KeyP':
+        openParty(this);
         break;
       case 'Escape':
-        this.openPause();
+        openPause(this);
         break;
       default:
     }
@@ -405,7 +574,7 @@ export class LanternwoodGame {
       if (this.overlay) return;
       drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
       c.setPointerCapture?.(e.pointerId);
-      if (e.button === 0) this.slash();
+      if (e.button === 0) this.basic();
     });
     c.addEventListener('pointermove', (e) => {
       if (!drag || drag.id !== e.pointerId) return;
@@ -422,7 +591,7 @@ export class LanternwoodGame {
     c.addEventListener('pointercancel', end);
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.camDist = Math.max(6, Math.min(11, this.camDist + Math.sign(e.deltaY) * 0.5));
+      this.camDist = Math.max(6, Math.min(12, this.camDist + Math.sign(e.deltaY) * 0.5));
     }, { passive: false });
   }
 
@@ -431,72 +600,22 @@ export class LanternwoodGame {
   closeOverlay() {
     this.root.querySelector('.ld-overlay:not(.ld-overlay--title)')?.remove();
     this.overlay = null;
+    this.shopOpen = null;
+    this._previewCanvas = null;
+    this._refreshBag = null;
+    this._paintShop = null;
+    this._paintParty = null;
+    this._mapCanvas = null;
     this.root.focus();
   }
 
-  openPause() {
-    const p = panel(this.root, 'ld-overlay--pause', 'Paused');
-    this.overlay = 'pause';
-    p.body.innerHTML = `<div class="ld-pause">
-      <button type="button" class="ld-btn ld-btn--big ld-btn--go" data-resume>Resume</button>
-      <button type="button" class="ld-btn ld-btn--big" data-title>Save and return to title</button>
-      <button type="button" class="ld-btn ld-btn--big" data-leave>Save and leave Lanternwood</button>
-      ${CONTROLS_HTML}</div>`;
-    p.x.addEventListener('click', () => this.closeOverlay());
-    p.body.querySelector('[data-resume]').addEventListener('click', () => this.closeOverlay());
-    p.body.querySelector('[data-title]').addEventListener('click', () => {
-      this.save();
-      this.closeOverlay();
-      this._resetWorldForTitle();
-      this.title();
-    });
-    p.body.querySelector('[data-leave]').addEventListener('click', () => this.close());
+  refreshParty() {
+    if (this.overlay === 'party') this._paintParty?.();
   }
 
   _resetWorldForTitle() {
-    // Rebuild the world, so a different save starts from a clean slate.
-    for (const e of this.enemies) this._disposeEnemy(e);
-    this.enemies = [];
-    this.boss = null;
-    for (const p of this.projectiles) this._dropProjectile(p);
-    this.projectiles = [];
-    for (const d of this.drops) d.fx.dispose();
-    this.drops = [];
+    this._clearRealm();
     this.world.reset();
-  }
-
-  openInfo() {
-    const p = panel(this.root, 'ld-overlay--info', 'Journal');
-    this.overlay = 'info';
-    p.body.innerHTML = infoHtml(this);
-    p.x.addEventListener('click', () => this.closeOverlay());
-  }
-
-  openMap() {
-    const p = panel(this.root, 'ld-overlay--map', 'Map of Lanternwood');
-    this.overlay = 'map';
-    const c = document.createElement('canvas');
-    c.width = c.height = 620;
-    c.className = 'ld-map';
-    p.body.append(c);
-    const legend = el('p', 'ld-muted');
-    legend.innerHTML = 'White arrow: you · gold ring: where your quest leads · <kbd>M</kbd> closes';
-    p.body.append(legend);
-    drawMap(c, this);
-    this._mapCanvas = c;
-    p.x.addEventListener('click', () => this.closeOverlay());
-  }
-
-  openShop() {
-    const p = panel(this.root, 'ld-overlay--shop', 'Pell’s wares');
-    this.overlay = 'shop';
-    const paint = () => {
-      p.body.innerHTML = shopHtml(this.hero);
-      for (const b of p.body.querySelectorAll('[data-buy]')) b.addEventListener('click', () => this.buy(b.dataset.buy));
-    };
-    this._paintShop = paint;
-    paint();
-    p.x.addEventListener('click', () => this.closeOverlay());
   }
 
   buy(id) {
@@ -504,6 +623,7 @@ export class LanternwoodGame {
     const item = R.SHOP.find((s) => s.id === id);
     if (r.ok) this.hud.log(`Bought: ${item.name}`);
     else this.hud.toast(r.reason, 'warn');
+    if (id === 'charm-hp' || id === 'charm-atk') this.stats = R.statsOf(this.hero, this.buffs);
     this._paintShop?.();
     this.save();
   }
@@ -514,393 +634,38 @@ export class LanternwoodGame {
     return R.npcMarker(this.state.quests, npcId);
   }
 
-  /** Where the current quest points: its area, or the person to hand it to. */
+  /** Where the quest points, in this realm: its area, the person to hand it to — or the waystone, for a quest in another realm. */
   questTarget() {
-    const cur = R.currentQuest(this.state.quests);
-    if (!cur) {
-      const next = R.QUESTS.find((q) => this.state.quests[q.id].state === 'available');
-      return next ? R.NPCS[next.giver] : null;
-    }
-    if (cur.state === 'ready') return R.NPCS[cur.quest.giver];
-    return R.WORLD.areas[cur.quest.area];
+    const log = this.state.quests;
+    const cur = R.currentQuest(log, this.realm);
+    const q = cur?.quest ?? R.QUESTS.find((x) => log[x.id].state === 'available' && x.realm === this.realm) ?? R.QUESTS.find((x) => log[x.id].state === 'available');
+    if (!q) return null;
+    const giverRealm = R.NPCS[q.giver].realm;
+    if (!cur || cur.state === 'ready') return giverRealm === this.realm ? R.NPCS[q.giver] : this.realmDef.waystone;
+    if (q.realm !== this.realm) return this.realmDef.waystone;
+    return this.realmDef.areas[q.area];
   }
 
-  _spawnEnemy(kind, x, z, summoned = false) {
-    const def = R.ENEMIES[kind];
-    const actor = new SpriteActor({ shadow: def.radius * (kind === 'lampwight' ? 1.2 : 0.95), glow: kind === 'wisp' ? 0.55 : kind === 'lampwight' ? 0.4 : 0, scale: kind === 'lampwight' ? 1.4 : 1 });
-    actor.group.position.set(x, 0, z);
-    this.scene.add(actor.group);
-    const e = {
-      kind, def, x, z, hx: x, hz: z, hp: def.hp, alive: true, state: 'idle', timer: Math.random() * 2, cd: 0, kx: 0, kz: 0, vx: 0, vz: 0,
-      tx: x, tz: z, actor, frameT: Math.random(), flip: false, respawn: 0, summoned, phase: 0, lastHit: 99, id: Math.random().toString(36).slice(2)
-    };
-    this.enemies.push(e);
-    return e;
-  }
-
-  _disposeEnemy(e) {
-    e.actor.dispose();
-    if (e.tele) {
-      e.tele.ring.material.dispose();
-      e.tele.disc.material.dispose();
-      e.tele.ring.removeFromParent();
-      e.tele.disc.removeFromParent();
-    }
-  }
-
-  _telegraph(e, x, z, r, k) {
-    if (!e.tele) {
-      const mk = (geo) => {
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4 }));
-        m.renderOrder = 3;
-        this.scene.add(m);
-        return m;
-      };
-      e.tele = { ring: mk(this.ringGeo), disc: mk(this.discGeo) };
-    }
-    const { ring, disc } = e.tele;
-    ring.visible = disc.visible = k != null;
-    if (k == null) return;
-    ring.position.set(x, 0.05, z);
-    disc.position.set(x, 0.045, z);
-    ring.scale.setScalar(r);
-    disc.scale.setScalar(Math.max(0.01, r * k));
-    ring.material.opacity = 0.55 + 0.35 * Math.sin(this.t * 30);
-    disc.material.opacity = 0.35;
+  /** Is a quest asking for what grows here? */
+  gatherWanted() {
+    const kind = this.realm === 'lanternwood' ? 'herb' : this.realmDef.gather.kind;
+    return R.QUESTS.some((q) => q.goal.type === 'gather' && q.goal.target === kind && this.state.quests[q.id].state === 'active');
   }
 
   fx(id, x, y, z, { pxm = 48, additive = true, color = 1.6, speed = 1, palette, flip } = {}) {
+    if (!this.fxReady(id)) return null;
     const f = new FxBillboard(this.makeFx(id, palette ? { palette } : {}), { pxm, additive, color, speed, flip });
     f.mesh.position.set(x, y, z);
     this.scene.add(f.mesh);
     this.effects.push({ fx: f });
+    if (this.effects.length > 90) this.effects.shift().fx.dispose();
     return f;
-  }
-
-  /* ============================================================== combat */
-
-  _nearestEnemy(range, cone = Math.PI) {
-    let best = null, bd = Infinity;
-    const [fx, fz] = dirOf(this.heroPos.face);
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      const dx = e.x - this.heroPos.x, dz = e.z - this.heroPos.z;
-      const d = Math.hypot(dx, dz);
-      if (d > range + e.def.radius) continue;
-      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / (d || 1))));
-      if (ang > cone / 2) continue;
-      if (d < bd) {
-        bd = d;
-        best = e;
-      }
-    }
-    return best;
-  }
-
-  _canAct() {
-    return this.mode === 'play' && !this.overlay && !this.dialogue.open && this.hv.roll <= 0;
-  }
-
-  /**
-   * The sword: three strikes that chain if pressed in time — a sweep from the
-   * right, a backhand from the left, then an overhead smash with a lunge that
-   * hits hardest and knocks back furthest. A pause starts the chain again.
-   */
-  slash() {
-    if (!this._canAct() || this.cd.slash > 0) return;
-    const a = R.ABILITIES.slash;
-    const chain = this.t < (this.comboUntil ?? 0) ? (this.comboStage ?? 0) % 3 : 0;
-    const stage = chain + 1;
-    this.comboStage = stage;
-    const STAGES = {
-      1: { dur: 0.3, cd: 0.26, mult: 1, arc: a.arc, range: a.range, knock: a.knock, color: new THREE.Color(2.4, 2.1, 1.4) },
-      2: { dur: 0.3, cd: 0.26, mult: 1.15, arc: a.arc, range: a.range, knock: a.knock, color: new THREE.Color(1.3, 2.1, 2.6) },
-      3: { dur: 0.46, cd: 0.5, mult: 1.9, arc: Math.PI * 0.5, range: a.range + 0.6, knock: a.knock * 2, color: new THREE.Color(2.8, 1.4, 0.5) }
-    };
-    const st = STAGES[stage];
-    this.cd.slash = st.cd;
-    // The next strike chains if it comes within a moment of this one ending.
-    this.comboUntil = this.t + st.dur + 0.45;
-    // A little aim help: turn toward a foe close in front.
-    const near = this._nearestEnemy(3.4, Math.PI * 0.9);
-    if (near) this.heroPos.face = Math.atan2(near.x - this.heroPos.x, near.z - this.heroPos.z);
-    this.hv.attack = st.dur * 0.8;
-    this.hv.swing = { stage, t: 0, dur: st.dur, color: st.color };
-    const [fx, fz] = dirOf(this.heroPos.face);
-    // The smash lunges forward.
-    if (stage === 3) {
-      this.hv.kx += fx * 7;
-      this.hv.kz += fz * 7;
-    }
-    // Strikes land as the blade comes through, not on the press.
-    setTimeout(() => {
-      if (this.mode !== 'play') return;
-      this._slashArc(this.heroPos.face, st.arc, st.range + 0.1, false, stage);
-      let hits = 0;
-      const [gx, gz] = dirOf(this.heroPos.face);
-      for (const e of this.enemies) {
-        if (!e.alive) continue;
-        const dx = e.x - this.heroPos.x, dz = e.z - this.heroPos.z;
-        const d = Math.hypot(dx, dz);
-        if (d > st.range + e.def.radius) continue;
-        const ang = Math.acos(Math.max(-1, Math.min(1, (dx * gx + dz * gz) / (d || 1))));
-        if (ang <= st.arc / 2 || d < 0.9) {
-          this.hitEnemy(e, a.mult * st.mult, st.knock);
-          hits++;
-        }
-      }
-      if (stage === 3) {
-        this.fx('impacts/ground-slam', this.heroPos.x + gx * 1.6, 0.05, this.heroPos.z + gz * 1.6, { pxm: 60, color: 1.3, speed: 1.6 });
-        this.shake = Math.max(this.shake, hits ? 0.45 : 0.28);
-      }
-    }, st.dur * 1000 * (stage === 3 ? 0.55 : 0.4));
-  }
-
-  fireball() {
-    const a = R.ABILITIES.fireball;
-    if (!this._canAct() || this.cd.fireball > 0) return;
-    if (this.hero.mp < a.mp) {
-      this.hud.toast('Not enough mana', 'warn');
-      return;
-    }
-    this.hero.mp -= a.mp;
-    this.cd.fireball = a.cd;
-    const t = this._nearestEnemy(a.range, Math.PI * 0.45);
-    if (t) this.heroPos.face = Math.atan2(t.x - this.heroPos.x, t.z - this.heroPos.z);
-    const [dx, dz] = dirOf(this.heroPos.face);
-    this.hv.attack = 0.18;
-    this.hv.cast = 0.32;
-    this._projectile('fire', this.heroPos.x + dx * 0.7, 1.0, this.heroPos.z + dz * 0.7, dx, dz, a.speed);
-  }
-
-  whirl() {
-    const a = R.ABILITIES.whirl;
-    if (!this._canAct() || this.cd.whirl > 0) return;
-    if (this.hero.mp < a.mp) {
-      this.hud.toast('Not enough mana', 'warn');
-      return;
-    }
-    this.hero.mp -= a.mp;
-    this.cd.whirl = a.cd;
-    this.hv.attack = 0.35;
-    this.hv.spin = 0.4;
-    this._slashArc(this.heroPos.face, TAU, a.radius, true);
-    this.fx('melee/spin-slash', this.heroPos.x, 0.15, this.heroPos.z, { pxm: 40, color: 1.2, speed: 1.4 });
-    this.shake = Math.max(this.shake, 0.25);
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      if (Math.hypot(e.x - this.heroPos.x, e.z - this.heroPos.z) <= a.radius + e.def.radius) this.hitEnemy(e, a.mult, a.knock);
-    }
-  }
-
-  /** Potions: no cooldown — each press drinks one, if there is one. */
-  drink(kind) {
-    if (this.mode !== 'play' || this.overlay || this.dialogue.open) return;
-    const r = R.drinkPotion(this.hero, kind);
-    if (!r.ok) {
-      this.hud.toast(kind === 'hp' ? 'No health potions — Pell sells them' : 'No mana potions — Pell sells them', 'warn');
-      return;
-    }
-    const p = { x: this.heroPos.x, y: 1.9, z: this.heroPos.z };
-    this.hud.number(`+${r.restored}`, kind === 'hp' ? 'heal' : 'mana', p);
-    if (kind === 'hp') this.fx('holy/heal', this.heroPos.x, 0, this.heroPos.z + 0.05, { pxm: 46, color: 1.5, speed: 1.6 });
-    else this.fx('arcane/mana-burst', this.heroPos.x, 0.1, this.heroPos.z + 0.05, { pxm: 80, color: 1.3, speed: 1.6 });
-  }
-
-  roll() {
-    if (this.mode !== 'play' || this.overlay || this.dialogue.open || this.cd.roll > 0 || this.hv.roll > 0) return;
-    const a = R.ABILITIES.roll;
-    const [mx, mz] = this._moveInput();
-    let dx, dz;
-    if (mx || mz) [dx, dz] = [mx, mz];
-    else [dx, dz] = dirOf(this.heroPos.face);
-    this.heroPos.face = Math.atan2(dx, dz);
-    this.hv.roll = a.time;
-    this.hv.rdx = dx;
-    this.hv.rdz = dz;
-    this.cd.roll = a.cd;
-    this.fx('spawn/poof', this.heroPos.x, 0, this.heroPos.z, { pxm: 140, additive: false, color: 0.7, speed: 2.4 });
-  }
-
-  _slashArc(face, arc, radius, full, stage = 1) {
-    const SEG = 28;
-    const geo = new THREE.BufferGeometry();
-    const pos = [], uv = [], idx = [];
-    const inner = radius * (full ? 0.62 : 0.72);
-    for (let i = 0; i <= SEG; i++) {
-      const u = i / SEG;
-      const a = -arc / 2 + arc * u;
-      for (const [r, v] of [[inner, 0], [radius, 1]]) {
-        pos.push(Math.sin(a) * r, 0, Math.cos(a) * r);
-        uv.push(u, v);
-      }
-      if (i < SEG) {
-        const k = i * 2;
-        idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
-      }
-    }
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    geo.setIndex(idx);
-    const mat = new THREE.MeshBasicMaterial({ map: this.arcTex, color: new THREE.Color(full ? '#a8e8ff' : '#fff0c8').multiplyScalar(full ? 0.8 : 1.2), transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(this.heroPos.x, 0.85, this.heroPos.z);
-    m.rotation.set(0, face, 0);
-    // The arc follows the strike: tilted one way for the sweep, the other for the backhand, standing up for the smash.
-    if (!full && stage === 2) m.scale.x = -1;
-    if (!full && stage === 3) m.rotateZ(Math.PI / 2);
-    m.rotateX(full ? 0 : stage === 3 ? 0 : stage === 2 ? 0.25 : -0.25);
-    m.renderOrder = 6;
-    geo.setDrawRange(0, 0);
-    this.scene.add(m);
-    this.effects.push({ arc: m, t: 0, life: full ? 0.38 : 0.26, seg: SEG, full, fx: { dispose: () => { geo.dispose(); mat.dispose(); m.removeFromParent(); } } });
-  }
-
-  _projectile(kind, x, y, z, dx, dz, speed) {
-    const g = new THREE.Group();
-    const fire = kind === 'fire';
-    const core = new THREE.Mesh(new THREE.SphereGeometry(fire ? 0.2 : 0.17, 10, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(fire ? '#ffb050' : '#7ff0ff').multiplyScalar(fire ? 3 : 2) }));
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glowTex, color: new THREE.Color(fire ? '#ff7a2a' : '#4ad8ff').multiplyScalar(fire ? 1.4 : 1.1), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-    glow.scale.setScalar(fire ? 1.1 : 0.7);
-    g.add(core, glow);
-    g.position.set(x, y, z);
-    this.scene.add(g);
-    const p = { kind, x, y, z, dx, dz, speed, life: fire ? R.ABILITIES.fireball.range / speed : 3.2, group: g, core, glow, trail: 0 };
-    this.projectiles.push(p);
-    return p;
-  }
-
-  _dropProjectile(p) {
-    p.core.geometry.dispose();
-    p.core.material.dispose();
-    p.glow.material.dispose();
-    p.group.removeFromParent();
-  }
-
-  hitEnemy(e, mult, knock) {
-    if (!e.alive) return;
-    const s = R.heroStats(this.hero.level, this.hero.bonus);
-    const { amount, crit } = R.damage(s.atk, e.def.def, mult);
-    e.hp -= amount;
-    e.lastHit = 0;
-    e.actor.flash = 0.1;
-    const dx = e.x - this.heroPos.x, dz = e.z - this.heroPos.z;
-    const d = Math.hypot(dx, dz) || 1;
-    const k = e.def.boss ? knock * 0.15 : knock;
-    e.kx += (dx / d) * k * 3;
-    e.kz += (dz / d) * k * 3;
-    if (e.state === 'idle' || e.state === 'return') e.state = 'chase';
-    if (e.state === 'windup' && !e.def.boss && crit) e.state = 'recover', e.timer = 0.5, this._telegraph(e, 0, 0, 0, null);
-    this.hud.number(String(amount), crit ? 'crit' : 'hit', { x: e.x, y: e.actor.height + 0.4, z: e.z });
-    this.fx(crit ? 'impacts/crit-hit' : 'impacts/hit-spark', e.x - Math.sin(this.camYaw) * 0.3, e.actor.height * 0.45, e.z - Math.cos(this.camYaw) * 0.3, { pxm: crit ? 70 : 52, color: 1.8, speed: 1.5, flip: Math.random() < 0.5 });
-    this.hitstop = Math.max(this.hitstop, crit ? 0.07 : 0.035);
-    this.shake = Math.max(this.shake, crit ? 0.22 : 0.1);
-    this.comboHits = (this.comboHits ?? 0) + 1;
-    this.comboHitT = 1.6;
-    this.hud.combo?.(this.comboHits);
-    // Enemies reel from a hit.
-    e.reel = 1;
-    if (e.hp <= 0) this.killEnemy(e);
-  }
-
-  killEnemy(e) {
-    e.alive = false;
-    e.state = 'dead';
-    e.respawn = e.def.respawn;
-    e.actor.group.visible = false;
-    this._telegraph(e, 0, 0, 0, null);
-    this.hero.kills += 1;
-    const drops = R.rollDrops(e.kind);
-    if (e.summoned) drops.gold = Math.floor(drops.gold / 2);
-    const { levels } = R.gainXp(this.hero, drops.xp);
-    this.hud.log(`${e.def.name} driven off · +${drops.xp} XP`);
-    if (e.def.boss) {
-      this.fx('shadow/dark-explosion', e.x, 0, e.z, { pxm: 40, additive: true, color: 1.5 });
-      this.shake = 0.8;
-      this.state.bossDefeated = true;
-      this.hud.boss(null);
-      this.hud.toast('<b>The Lampwight is undone.</b> The stolen light pours back toward camp.', 'gold');
-      // Every remaining wisp fades with it.
-      for (const o of this.enemies) if (o.alive && o.kind === 'wisp') {
-        o.alive = false;
-        o.state = 'dead';
-        o.respawn = Infinity;
-        o.actor.group.visible = false;
-        this.fx('spawn/soul-rise', o.x, 0, o.z, { pxm: 48, color: 1.6, palette: WISP_RAMP });
-      }
-    } else this.fx('spawn/poof', e.x, 0, e.z, { pxm: 70, additive: false, color: 0.8, speed: 1.6 });
-    // Drops.
-    const spot = (i) => [e.x + Math.cos(i * 2.3) * 0.8, e.z + Math.sin(i * 2.3) * 0.8];
-    let n = 0;
-    if (drops.gold) this._drop('gold', drops.gold, ...spot(n++));
-    for (let i = 0; i < drops.crystals; i++) this._drop('crystal', 1, ...spot(n++));
-    if (drops.potion) this._drop('potion', drops.potion, ...spot(n++));
-    for (const id of R.questEvent(this.state.quests, 'kill', e.kind)) this._questReady(id);
-    if (levels) this._levelUp(levels);
-  }
-
-  _drop(kind, amount, x, z) {
-    const f = new FxBillboard(this.pickupFx[kind], { pxm: kind === 'gold' ? 34 : 52, color: 0.95 });
-    f.owner = false;
-    f.mesh.position.set(x, 0.05, z);
-    this.scene.add(f.mesh);
-    this.drops.push({ kind, amount, x, z, fx: f, t: 0 });
-  }
-
-  _levelUp(levels) {
-    this.fx('ui/level-up', this.heroPos.x, 0, this.heroPos.z + 0.1, { pxm: 64, color: 1.5 });
-    const s = R.heroStats(this.hero.level, this.hero.bonus);
-    this.hud.toast(`<b>Level ${this.hero.level}!</b> Health ${s.maxHp} · Attack ${s.atk}${levels > 1 ? ` (+${levels} levels)` : ''}`, 'gold');
   }
 
   _questReady(id) {
     const q = R.questById(id);
     this.hud.toast(`<b>${q.name}</b> — return to ${R.NPCS[q.giver].name}`, 'gold');
-    this.hud.tracker(this.state.quests);
-    this.save();
-  }
-
-  hurtHero(amount, fromX, fromZ, crit = false) {
-    if (this.mode !== 'play' || this.hv.inv > 0 || this.hv.roll > 0) return false;
-    this.hero.hp -= amount;
-    this.hv.inv = 0.45;
-    this.hv.hurtT = 0;
-    this.hv.hurt = 1;
-    this.heroActor.flash = 0.12;
-    const dx = this.heroPos.x - fromX, dz = this.heroPos.z - fromZ;
-    const d = Math.hypot(dx, dz) || 1;
-    this.hv.kx += (dx / d) * 9;
-    this.hv.kz += (dz / d) * 9;
-    this.hurtFx = 1;
-    this.shake = Math.max(this.shake, crit ? 0.4 : 0.25);
-    this.hud.number(String(amount), 'hurt', { x: this.heroPos.x, y: 1.9, z: this.heroPos.z });
-    if (this.hero.hp <= 0) this.die();
-    return true;
-  }
-
-  die() {
-    this.hero.hp = 0;
-    this.mode = 'dead';
-    this.deadT = 0;
-    this.hud.toast('You fall… the Hearthlight calls you back.', 'warn');
-  }
-
-  _respawn() {
-    const lost = R.deathPenalty(this.hero);
-    this.heroPos.x = 0;
-    this.heroPos.z = 4;
-    this.heroPos.face = Math.PI;
-    this.camYaw = 0;
-    this._snapCamera();
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      e.state = 'return';
-      this._telegraph(e, 0, 0, 0, null);
-    }
-    if (this.boss?.alive) this.boss.hp = this.boss.def.hp;
-    this.mode = 'play';
-    this.post.fade = 0;
-    this.hud.log(`You wake by the fire. ${lost ? `${lost} gold lost in the dark.` : ''}`);
+    this.hud.tracker(this.state.quests, this.realm);
     this.save();
   }
 
@@ -913,15 +678,25 @@ export class LanternwoodGame {
       const d = Math.hypot(n.x - hx, n.z - hz);
       if (d < bd) [best, bd] = [{ type: 'npc', npc: n, label: `Talk to ${n.name}` }, d];
     }
-    for (const h of this.world.herbs) {
+    const kind = this.realm === 'lanternwood' ? 'herb' : this.realmDef.gather.kind;
+    const gname = this.realm === 'lanternwood' ? 'ember-herb' : this.realmDef.gather.name.toLowerCase();
+    for (const h of this.world.gather) {
       if (h.taken) continue;
       const d = Math.hypot(h.x - hx, h.z - hz);
-      if (d < Math.min(bd, 2.2)) [best, bd] = [{ type: 'herb', herb: h, label: this.state.quests.embers.state === 'active' ? 'Gather ember-herb' : 'An ember-herb (Wren wants these)' }, d];
+      if (d < Math.min(bd, 2.2)) [best, bd] = [{ type: 'gather', herb: h, kind, label: this.gatherWanted() ? `Gather ${gname}` : `A ${gname} (someone may want these)` }, d];
     }
     for (const b of this.world.braziers) {
       const d = Math.hypot(b.x - hx, b.z - hz);
       if (d < Math.min(bd, 2.6)) [best, bd] = [{ type: 'brazier', brazier: b, label: b.lit ? 'The brazier burns' : this.state.quests.braziers.state === 'active' ? 'Light the brazier' : 'A cold, old brazier' }, d];
     }
+    for (const c of this.world.chests) {
+      if (c.opened) continue;
+      const d = Math.hypot(c.x - hx, c.z - hz);
+      if (d < Math.min(bd, 2.4)) [best, bd] = [{ type: 'chest', chest: c, label: 'Open the chest' }, d];
+    }
+    const w = this.realmDef.waystone;
+    const dw = Math.hypot(w.x - hx, w.z - hz);
+    if (dw < Math.min(bd + 1, 3.6)) best = { type: 'waystone', label: 'Touch the waystone' };
     return best;
   }
 
@@ -929,19 +704,46 @@ export class LanternwoodGame {
     const it = this._interactable();
     if (!it) return;
     if (it.type === 'npc') return this.talk(it.npc);
-    if (it.type === 'herb') {
-      if (this.state.quests.embers.state !== 'active') {
-        this.hud.toast('It glows like a coal. Maybe someone at camp needs these.');
+    if (it.type === 'waystone') {
+      if (this.realm === 'lanternwood' && !R.realmUnlocked(this.state.quests, 'sunmeadow')) {
+        this.hud.toast('The waystone is cold. Old Hob says it wakes when the woods are safer — help the camp first.');
         return;
       }
-      this.world.takeHerb(it.herb.i);
-      this.state.herbsTaken.push(it.herb.i);
-      this.hero.herbs += 1;
-      R.gainXp(this.hero, 5);
-      this.fx('pickups/collect-burst', it.herb.x, 0.1, it.herb.z, { pxm: 50, color: 1.6, palette: FIRE_RAMP });
-      const e = this.state.quests.embers;
-      this.hud.log(`Ember-herb gathered (${Math.min(6, e.progress + 1)}/6)`);
-      for (const id of R.questEvent(this.state.quests, 'gather', 'herb')) this._questReady(id);
+      openRealms(this, { atWaystone: true });
+      return;
+    }
+    if (it.type === 'chest') {
+      const c = it.chest;
+      this.world.openChest(c.id);
+      this.state.chests.push(c.id);
+      const level = Math.max(R.REALMS[this.realm].levels[0], Math.min(this.hero.level, R.REALMS[this.realm].levels[1]));
+      const loot = R.rollLoot({ level, tier: 'chest', cls: this.hero.cls });
+      let n = 0;
+      const spot = () => [c.x + Math.cos(n * 2.1) * 1.3, c.z + 1.0 + Math.sin(n++ * 2.1) * 0.8];
+      this._drop('gold', 10 + level * 4, ...spot());
+      for (const i of loot.items) this._dropItem(i, ...spot());
+      for (const s of loot.consumables) this._dropItem(s, ...spot());
+      this.fx('pickups/collect-burst', c.x, 0.6, c.z, { pxm: 36, color: 1.6 });
+      this.hud.log('The chest creaks open');
+      this.save();
+      return;
+    }
+    if (it.type === 'gather') {
+      if (!this.gatherWanted()) {
+        this.hud.toast('It glows softly. Maybe someone nearby needs these.');
+        return;
+      }
+      const h = it.herb;
+      this.world.takeHerb(h.i);
+      if (this.realm === 'lanternwood') {
+        this.state.herbsTaken.push(h.i);
+        this.hero.herbs += 1;
+      } else (this.state.gathered[this.realm] ??= []).push(h.i);
+      R.gainXp(this.hero, 5 + R.REALMS[this.realm].tier * 10);
+      this.fx('pickups/collect-burst', h.x, 0.1, h.z, { pxm: 50, color: 1.6, palette: FIRE_RAMP });
+      const q = R.QUESTS.find((x) => x.goal.type === 'gather' && x.goal.target === it.kind && this.state.quests[x.id].state === 'active');
+      this.hud.log(`${this.realm === 'lanternwood' ? 'Ember-herb' : this.realmDef.gather.name} gathered (${Math.min(q.goal.count, this.state.quests[q.id].progress + 1)}/${q.goal.count})`);
+      for (const id of R.questEvent(this.state.quests, 'gather', it.kind)) this._questReady(id);
       return;
     }
     if (it.type === 'brazier') {
@@ -975,18 +777,34 @@ export class LanternwoodGame {
         if (reward) {
           const q = R.questById(action.complete);
           const bits = [`${reward.xp} XP`, reward.gold && `${reward.gold} gold`, reward.crystals && `${reward.crystals} crystal${reward.crystals > 1 ? 's' : ''}`, reward.potions?.hp && `${reward.potions.hp} health potions`, reward.potions?.mp && `${reward.potions.mp} mana potions`].filter(Boolean);
+          if (reward.item) {
+            const loot = R.rollLoot({ level: Math.max(this.hero.level, R.REALMS[q.realm].levels[0]), tier: reward.item === 'epic' ? 'boss' : 'elite', cls: this.hero.cls }, Math.random);
+            const it = loot.items.find((x) => R.canUse(x, this.hero.cls)) ?? loot.items[0];
+            if (it) {
+              it.rarity = reward.item;
+              const fixed = R.makeItem(it.base, reward.item, it.ilvl);
+              if (R.addToBag(this.hero.bag, fixed).ok) bits.push(`<span style="color:${R.RARITIES[fixed.rarity].color}">${fixed.name}</span>`);
+              else this._dropItem(fixed, this.heroPos.x, this.heroPos.z + 1);
+            }
+          }
           this.hud.toast(`<small>Quest complete</small><b>${q.name}</b><span>${bits.join(' · ')}</span>`, 'quest');
           this.fx('pickups/collect-burst', this.heroPos.x, 0.2, this.heroPos.z, { pxm: 40, color: 1.6, palette: FIRE_RAMP });
           if (reward.levels) this._levelUp(reward.levels);
-          this.world.setProgress(R.questsDone(this.state.quests), R.QUESTS.length);
-          const next = R.QUESTS[R.QUESTS.indexOf(q) + 1];
-          if (next?.auto && this.state.quests[next.id].state === 'active') this.hud.toast(`<small>New quest</small><b>${next.name}</b>`, 'quest');
-          if (R.journeyOver(this.state.quests)) this.ending();
+          if (this.realm === 'lanternwood') {
+            this.world.setProgress(R.questsDone(this.state.quests, 'lanternwood'), R.questsIn('lanternwood').length);
+            this.world.waystoneOn = R.realmUnlocked(this.state.quests, 'sunmeadow');
+          }
+          for (const id of reward.opened ?? []) {
+            const nq = R.questById(id);
+            if (nq.auto) this.hud.toast(`<small>New quest</small><b>${nq.name}</b>`, 'quest');
+          }
+          for (const r of R.REALM_ORDER) if (R.REALMS[r].unlock === action.complete) this.hud.toast(`<small>A waystone wakes</small><b>${R.REALMS[r].name} is open</b><span>Travel from any waystone (F)</span>`, 'realm');
+          if (action.complete === 'lampwight') this.ending();
         }
-      } else if (action?.shop) this.openShop();
-      this.hud.tracker(this.state.quests);
+      } else if (action?.shop) openShop(this, npc.id);
+      this.hud.tracker(this.state.quests, this.realm);
       this.save();
-    }, this.look);
+    }, this._heroLine());
   }
 
   ending() {
@@ -997,7 +815,7 @@ export class LanternwoodGame {
         this.mode = 'ending';
         const w = el('div', 'ld-overlay ld-overlay--end');
         w.innerHTML = `<div class="ld-end"><h1>The lanterns burn again</h1>
-          <p>Lanternwood sleeps under its own light tonight, and its fire has a story to tell.</p>
+          <p>Lanternwood sleeps under its own light tonight — and the waystone south of camp opens on other realms.</p>
           <dl class="ld-stats"><dt>Level</dt><dd>${this.hero.level}</dd><dt>Foes driven off</dt><dd>${this.hero.kills}</dd><dt>Falls</dt><dd>${this.hero.deaths}</dd><dt>Time</dt><dd>${Math.round(this.state.time / 60)} min</dd></dl>
           <div class="ld-title__go"><button type="button" class="ld-btn ld-btn--big ld-btn--go" data-keep>Keep exploring</button><button type="button" class="ld-btn ld-btn--big" data-home>Back to title</button></div></div>`;
         this.root.append(w);
@@ -1008,10 +826,11 @@ export class LanternwoodGame {
         });
         w.querySelector('[data-home]').addEventListener('click', () => {
           w.remove();
+          this.net.close();
           this._resetWorldForTitle();
           this.title();
         });
-      }, this.look);
+      }, this._heroLine());
     }, 400);
   }
 
@@ -1035,29 +854,27 @@ export class LanternwoodGame {
 
   frame(dt) {
     this.t += dt;
-    const sim = (this.mode === 'play' || this.mode === 'dead') && !this.overlay && !this.dialogue.open;
+    // Alone, a window or a conversation pauses the world; in a party it goes on.
+    const sim = (this.mode === 'play' || this.mode === 'dead') && ((!this.dialogue.open && !this.overlay) || this.net.room);
     let sdt = dt;
     if (this.hitstop > 0) {
       this.hitstop -= dt;
       sdt = dt * 0.1;
     }
     if (sim) this.simulate(sdt);
-    else if (this.mode === 'title') {
-      this.camYaw = wrap(this.camYaw + dt * 0.05);
-    }
+    else if (this.mode === 'title') this.camYaw = wrap(this.camYaw + dt * 0.05);
+    if (this.mode !== 'title' && this.mode !== 'loading') this.net.update(dt);
     this.dialogue.update(dt);
     this.updateCamera(dt);
     const yaw = this.camYaw;
     this.world.update(dt, { yaw, hero: this.heroPos, camera: this.camera });
     this.updateActors(dt, yaw);
-    // The minimap, ten times a second.
     this._miniT = (this._miniT ?? 0) - dt;
-    if (this._miniT <= 0 && this.mode !== 'title') {
+    if (this._miniT <= 0 && this.mode !== 'title' && this.state) {
       this._miniT = 0.1;
       const mini = this.root.querySelector('[data-mini]');
       if (mini) {
         drawMinimap(mini, this);
-        // The N on the rim, where north is.
         const n = this.root.querySelector('[data-mini-n]');
         if (n) {
           const r = 78;
@@ -1067,9 +884,16 @@ export class LanternwoodGame {
     }
     this.updateEffects(dt, yaw);
     this.updateHud(dt);
-    if (this.overlay === 'map' && this._mapCanvas && Math.floor(this.t * 10) % 3 === 0) drawMap(this._mapCanvas, this);
+    if (this.overlay === 'map' && this._mapCanvas && Math.floor(this.t * 10) % 3 === 0) drawMap(this._mapCanvas, this, this._mapRealm?.() ?? this.realm);
+    if (this._previewCanvas && this.preview) {
+      if (this.mode !== 'title') this.preview.set(this.hero.look, this.gearLook);
+      this.preview.draw(dt, this._previewCanvas, { move: 0, guard: this.mode !== 'title' && Boolean(this.gearLook?.offhand?.kind === 'shield') && Math.sin(this.t * 0.7) > 0.6 });
+    }
     this.hurtFx = Math.max(0, this.hurtFx - dt * 2.2);
-    this.post.hurt = Math.max(this.hurtFx * 0.8, this.mode === 'play' && this.hero ? Math.max(0, 0.3 - this.hero.hp / R.heroStats(this.hero.level, this.hero.bonus).maxHp) * 1.2 : 0);
+    this._fade = Math.max(0, (this._fade ?? 0) - dt * 1.4);
+    const low = this.mode === 'play' && this.hero && this.stats ? Math.max(0, 0.3 - this.hero.hp / this.stats.maxHp) * 1.2 : 0;
+    this.post.hurt = Math.max(this.hurtFx * 0.8, low);
+    if (this.mode !== 'dead') this.post.fade = this._fade;
     this.post.draw();
     this._watchFps(dt);
   }
@@ -1080,7 +904,6 @@ export class LanternwoodGame {
     const avg = this._fpsAcc.reduce((a, b) => a + b, 0) / this._fpsAcc.length;
     this._fpsAcc = [];
     this.fps = Math.round(1 / avg);
-    // Too slow at this resolution: render fewer pixels (never under 1×).
     if (avg > 1 / 45 && this.pixelRatio > 1) {
       this.pixelRatio = Math.max(1, this.pixelRatio - 0.25);
       this.resize();
@@ -1090,7 +913,8 @@ export class LanternwoodGame {
   simulate(dt) {
     const hv = this.hv;
     const hero = this.hero;
-    const stats = R.heroStats(hero.level, hero.bonus);
+    this.stats = R.statsOf(hero, this.buffs);
+    const stats = this.stats;
     for (const k of Object.keys(this.cd)) this.cd[k] = Math.max(0, this.cd[k] - dt);
     hv.inv = Math.max(0, hv.inv - dt);
     hv.attack = Math.max(0, hv.attack - dt);
@@ -1101,10 +925,26 @@ export class LanternwoodGame {
       hv.swing.t += dt / hv.swing.dur;
       if (hv.swing.t >= 1) hv.swing = null;
     }
-    // The hit counter: hits within a moment of each other add up.
+    if (hv.pose) {
+      hv.pose.t += dt / hv.pose.dur;
+      if (hv.pose.t >= 1) hv.pose = null;
+    }
+    for (const k of ['guard', 'fury', 'ward']) this.buffs[k] = Math.max(0, this.buffs[k] - dt);
+    if (this.buffs.regen) {
+      this.buffs.regen.t -= dt;
+      hero.hp = Math.min(stats.maxHp, hero.hp + this.buffs.regen.rate * dt);
+      if (this.buffs.regen.t <= 0) this.buffs.regen = null;
+    }
+    this.chillT = Math.max(0, (this.chillT ?? 0) - dt);
     if (this.comboHits && (this.comboHitT -= dt) <= 0) {
       this.comboHits = 0;
       this.hud.combo?.(0);
+    }
+    // What was scheduled (a blow landing as the blade comes through) runs now.
+    if (this.pending.length) {
+      const due = this.pending.filter((p) => p.at <= this.t);
+      this.pending = this.pending.filter((p) => p.at > this.t);
+      for (const p of due) p.fn();
     }
     hv.hurtT += dt;
     this._dragT = Math.max(0, (this._dragT ?? 0) - dt);
@@ -1114,54 +954,14 @@ export class LanternwoodGame {
       this.deadT += dt;
       this.post.fade = Math.min(0.85, this.deadT * 0.6);
       if (this.deadT > 2.4) this._respawn();
-      return;
-    }
+    } else this._moveHero(dt);
 
-    // Move.
-    let [mx, mz] = this._moveInput();
-    if (this.keys.has('KeyQ')) this.camYaw = wrap(this.camYaw + dt * 1.9);
-    if (this.keys.has('KeyE')) this.camYaw = wrap(this.camYaw - dt * 1.9);
-    let vx = 0, vz = 0;
-    if (hv.roll > 0) {
-      hv.roll -= dt;
-      vx = hv.rdx * R.ABILITIES.roll.speed;
-      vz = hv.rdz * R.ABILITIES.roll.speed;
-    } else if (mx || mz) {
-      const slow = hv.attack > 0 ? 0.45 : 1;
-      vx = mx * stats.speed * slow;
-      vz = mz * stats.speed * slow;
-      if (hv.attack <= 0) {
-        const want = Math.atan2(mx, mz);
-        this.heroPos.face = wrap(this.heroPos.face + wrap(want - this.heroPos.face) * Math.min(1, dt * 14));
-      }
-      // The camera drifts round behind the hero, unless the player is turning it.
-      const fwd = -(mx * Math.sin(this.camYaw) + mz * Math.cos(this.camYaw));
-      if (this._dragT <= 0 && fwd > -0.3 && !this.keys.has('KeyQ') && !this.keys.has('KeyE')) {
-        const behind = wrap(Math.atan2(mx, mz) + Math.PI);
-        this.camYaw = wrap(this.camYaw + wrap(behind - this.camYaw) * Math.min(1, dt * 0.9));
-      }
-    }
-    hv.moving = Math.hypot(vx, vz) > 0.1 && hv.roll <= 0;
-    vx += hv.kx;
-    vz += hv.kz;
-    hv.kx *= Math.exp(-dt * 9);
-    hv.kz *= Math.exp(-dt * 9);
-    const [nx, nz] = R.resolveCollision(this.heroPos.x + vx * dt, this.heroPos.z + vz * dt, HERO_R, this._nearSolids(this.heroPos.x, this.heroPos.z));
-    this.heroPos.x = nx;
-    this.heroPos.z = nz;
-
-    // Regeneration: slow out of combat, fast by the Hearthlight.
-    const nearFire = Math.hypot(nx, nz) < 6.5;
-    const calm = hv.hurtT > 5;
-    hero.mp = Math.min(stats.maxMp, hero.mp + dt * (nearFire ? 12 : 2.2));
-    if (nearFire) hero.hp = Math.min(stats.maxHp, hero.hp + dt * stats.maxHp * 0.1);
-    else if (calm) hero.hp = Math.min(stats.maxHp, hero.hp + dt * stats.maxHp * 0.012);
-    this._resting = nearFire && (hero.hp < stats.maxHp - 0.5 || hero.mp < stats.maxMp - 0.5);
-
-    this.updateEnemies(dt);
+    if (this.net.isGuest) this.net.updateMirrors(dt);
+    else this.updateEnemies(dt);
+    this.updateWarnings(dt);
     this.updateProjectiles(dt);
+    this.updateZones(dt);
     this.updateDrops(dt);
-    this.updateBoss(dt);
 
     this._autosave -= dt;
     if (this._autosave <= 0) {
@@ -1170,7 +970,62 @@ export class LanternwoodGame {
     }
   }
 
-  /** Solid circles near a point (the forest is big; most of it is far away). */
+  _moveHero(dt) {
+    const hv = this.hv;
+    const hero = this.hero;
+    const stats = this.stats;
+    const [mx, mz] = this._moveInput();
+    if (this.keys.has('KeyQ')) this.camYaw = wrap(this.camYaw + dt * 1.9);
+    if (this.keys.has('KeyE')) this.camYaw = wrap(this.camYaw - dt * 1.9);
+    let vx = 0, vz = 0;
+    if (hv.dash) {
+      // The lunge: a burst forward, striking whatever it passes.
+      const d = hv.dash;
+      d.t += dt;
+      vx = d.dx * d.speed;
+      vz = d.dz * d.speed;
+      for (const e of this._foesInRadius(this.heroPos.x, this.heroPos.z, 1.3)) {
+        if (d.hit.has(e)) continue;
+        d.hit.add(e);
+        this._hitFoe(e, d.sk.mult, d.sk.knock);
+      }
+      if (d.t >= d.dur) hv.dash = null;
+    } else if (hv.roll > 0) {
+      hv.roll -= dt;
+      vx = hv.rdx * R.ABILITIES.roll.speed;
+      vz = hv.rdz * R.ABILITIES.roll.speed;
+    } else if (mx || mz) {
+      const slow = (hv.attack > 0 ? 0.45 : 1) * (this.chillT > 0 ? 0.6 : 1) * (this.buffs.guard > 0 ? 0.6 : 1);
+      vx = mx * stats.speed * slow;
+      vz = mz * stats.speed * slow;
+      if (hv.attack <= 0) {
+        const want = Math.atan2(mx, mz);
+        this.heroPos.face = wrap(this.heroPos.face + wrap(want - this.heroPos.face) * Math.min(1, dt * 14));
+      }
+      const fwd = -(mx * Math.sin(this.camYaw) + mz * Math.cos(this.camYaw));
+      if (this._dragT <= 0 && fwd > -0.3 && !this.keys.has('KeyQ') && !this.keys.has('KeyE')) {
+        const behind = wrap(Math.atan2(mx, mz) + Math.PI);
+        this.camYaw = wrap(this.camYaw + wrap(behind - this.camYaw) * Math.min(1, dt * 0.9));
+      }
+    }
+    hv.moving = Math.hypot(vx, vz) > 0.1 && hv.roll <= 0 && !hv.dash;
+    vx += hv.kx;
+    vz += hv.kz;
+    hv.kx *= Math.exp(-dt * 9);
+    hv.kz *= Math.exp(-dt * 9);
+    const [nx, nz] = R.resolveCollision(this.heroPos.x + vx * dt, this.heroPos.z + vz * dt, HERO_R, this._nearSolids(this.heroPos.x, this.heroPos.z), this.realmDef.radius);
+    this.heroPos.x = nx;
+    this.heroPos.z = nz;
+    // Regeneration: slow out of combat, fast by the Hearthlight or a waystone; energy comes back quickly.
+    const rest = this.realm === 'lanternwood' ? Math.hypot(nx, nz) < 6.5 : Math.hypot(nx - this.realmDef.waystone.x, nz - this.realmDef.waystone.z) < 6;
+    const calm = hv.hurtT > 5;
+    hero.mp = Math.min(stats.maxMp, hero.mp + dt * (stats.resource === 'energy' ? 14 : rest ? 12 : 2.2));
+    if (rest) hero.hp = Math.min(stats.maxHp, hero.hp + dt * stats.maxHp * 0.1);
+    else if (calm) hero.hp = Math.min(stats.maxHp, hero.hp + dt * stats.maxHp * 0.012);
+    this._resting = rest && (hero.hp < stats.maxHp - 0.5 || hero.mp < stats.maxMp - 0.5);
+  }
+
+  /** Solid circles near a point (the realms are big; most of it is far away). */
   _nearSolids(x, z) {
     if (!this._grid) {
       this._grid = new Map();
@@ -1187,321 +1042,6 @@ export class LanternwoodGame {
       if (c) out.push(...c);
     }
     return out;
-  }
-
-  updateEnemies(dt) {
-    const hx = this.heroPos.x, hz = this.heroPos.z;
-    for (const e of this.enemies) {
-      const def = e.def;
-      if (!e.alive) {
-        if (e.summoned || def.boss) continue;
-        e.respawn -= dt;
-        if (e.respawn <= 0 && Math.hypot(hx - e.hx, hz - e.hz) > 16) {
-          Object.assign(e, { alive: true, hp: def.hp, x: e.hx, z: e.hz, state: 'idle', timer: 1, kx: 0, kz: 0 });
-          e.actor.group.visible = true;
-          this.fx('spawn/poof', e.x, 0, e.z, { pxm: 90, additive: false, color: 0.7, speed: 1.8 });
-        }
-        continue;
-      }
-      e.lastHit += dt;
-      e.cd = Math.max(0, e.cd - dt);
-      e.frameT += dt;
-      const dx = hx - e.x, dz = hz - e.z;
-      const dh = Math.hypot(dx, dz);
-      const home = Math.hypot(e.x - e.hx, e.z - e.hz);
-      const alive = this.mode === 'play';
-      let mvx = 0, mvz = 0, speed = 0;
-      e.timer -= dt;
-      switch (e.state) {
-        case 'idle': {
-          if (alive && dh < def.sight) {
-            e.state = 'chase';
-            this.hud.number('!', 'alert', { x: e.x, y: e.actor.height + 0.5, z: e.z });
-            break;
-          }
-          if (e.timer <= 0) {
-            const a = Math.random() * TAU, r = Math.random() * 4;
-            e.tx = e.hx + Math.cos(a) * r;
-            e.tz = e.hz + Math.sin(a) * r;
-            e.timer = 2 + Math.random() * 3;
-          }
-          const tx = e.tx - e.x, tz = e.tz - e.z, td = Math.hypot(tx, tz);
-          if (td > 0.3) [mvx, mvz, speed] = [tx / td, tz / td, def.wander];
-          break;
-        }
-        case 'chase': {
-          if (!alive || (home > def.leash && !def.boss) || dh > def.sight * 2.2) {
-            e.state = 'return';
-            break;
-          }
-          if (def.attack === 'orb') {
-            if (dh < def.keep - 1) [mvx, mvz, speed] = [-dx / dh, -dz / dh, def.speed];
-            else if (dh > def.keep + 1.5) [mvx, mvz, speed] = [dx / dh, dz / dh, def.speed];
-            else [mvx, mvz, speed] = [-dz / dh, dx / dh, def.speed * 0.5 * Math.sign(Math.sin(this.t * 0.7 + e.hx))];
-          } else if (dh > (def.boss ? 2.6 : def.reach * 0.7)) [mvx, mvz, speed] = [dx / dh, dz / dh, def.speed];
-          if (def.boss) {
-            // Close: a slam. Further off: now and then a volley of wisp-fire, otherwise it closes in.
-            if (e.cd <= 0 && dh < 5) this._windup(e, dh);
-            else if (e.cd <= 0 && dh < 16) {
-              if (Math.random() < 0.55) this._windup(e, dh);
-              else e.cd = 0.9;
-            }
-          } else if (e.cd <= 0 && dh < def.reach + HERO_R) this._windup(e, dh);
-          break;
-        }
-        case 'windup': {
-          const k = 1 - Math.max(0, e.timer) / e.wind;
-          if (def.attack === 'lunge' || def.attack === 'hop') this._telegraph(e, e.tx, e.tz, def.attack === 'hop' ? 1.4 : 1.2, k);
-          else if (def.attack === 'orb') this._telegraph(e, e.x, e.z, 0.9, k);
-          else if (e.move === 'slam') this._telegraph(e, e.tx, e.tz, 3.4, k);
-          else this._telegraph(e, e.x, e.z, 2.2, k);
-          if (e.timer <= 0) this._strike(e);
-          break;
-        }
-        case 'strike': {
-          const k = 1 - Math.max(0, e.timer) / e.strikeT;
-          if (def.attack === 'hop') {
-            e.x = e.sx + (e.tx - e.sx) * k;
-            e.z = e.sz + (e.tz - e.sz) * k;
-            e.actor.lift = Math.sin(k * Math.PI) * 1.1;
-            if (e.timer <= 0) {
-              e.actor.lift = 0;
-              if (Math.hypot(hx - e.x, hz - e.z) < 1.45) this._enemyHits(e);
-              this.fx('spawn/poof', e.x, 0, e.z, { pxm: 140, additive: false, color: 0.6, speed: 2.5 });
-            }
-          } else if (def.attack === 'lunge') {
-            [mvx, mvz, speed] = [e.ldx, e.ldz, 15 * (1 - k * 0.6)];
-            if (!e.hitDone && Math.hypot(hx - e.x, hz - e.z) < 1.2) {
-              e.hitDone = true;
-              this._enemyHits(e);
-            }
-          }
-          if (e.timer <= 0) {
-            e.state = 'recover';
-            e.timer = def.cooldown;
-            e.cd = def.cooldown;
-          }
-          break;
-        }
-        case 'recover': {
-          if (e.timer <= 0) e.state = 'chase';
-          break;
-        }
-        case 'return': {
-          const td = Math.hypot(e.hx - e.x, e.hz - e.z);
-          if (td < 1) {
-            e.state = 'idle';
-            e.hp = def.hp;
-          } else [mvx, mvz, speed] = [(e.hx - e.x) / td, (e.hz - e.z) / td, def.speed * 1.15];
-          e.hp = Math.min(def.hp, e.hp + def.hp * 0.25 * dt);
-          this._telegraph(e, 0, 0, 0, null);
-          break;
-        }
-        default:
-      }
-      // Move, knockback, keep apart from each other and out of the trees.
-      let nx = e.x + (mvx * speed + e.kx) * dt;
-      let nz = e.z + (mvz * speed + e.kz) * dt;
-      e.kx *= Math.exp(-dt * 7);
-      e.kz *= Math.exp(-dt * 7);
-      e.vx = mvx * speed;
-      e.vz = mvz * speed;
-      for (const o of this.enemies) {
-        if (o === e || !o.alive) continue;
-        const ox = nx - o.x, oz = nz - o.z;
-        const od = Math.hypot(ox, oz), min = def.radius + o.def.radius;
-        if (od < min && od > 0.001) {
-          nx += (ox / od) * (min - od) * 0.5;
-          nz += (oz / od) * (min - od) * 0.5;
-        }
-      }
-      if (def.attack !== 'orb' || !def.float) [nx, nz] = R.resolveCollision(nx, nz, def.radius * 0.8, this._nearSolids(nx, nz));
-      else [nx, nz] = R.resolveCollision(nx, nz, 0.3, []);
-      e.x = nx;
-      e.z = nz;
-    }
-    // Summoned helpers that are gone are removed for good.
-    this.enemies = this.enemies.filter((e) => {
-      if (e.summoned && !e.alive) {
-        this._disposeEnemy(e);
-        return false;
-      }
-      return true;
-    });
-  }
-
-  _windup(e, dh) {
-    const def = e.def;
-    e.state = 'windup';
-    e.wind = def.windup;
-    if (def.boss) {
-      e.move = dh < 5 ? 'slam' : 'volley';
-      e.wind = e.move === 'slam' ? 1.15 : 0.9;
-      if (e.move === 'slam') {
-        const d = Math.hypot(this.heroPos.x - e.x, this.heroPos.z - e.z) || 1;
-        const reach = Math.min(2.4, d);
-        e.tx = e.x + ((this.heroPos.x - e.x) / d) * reach;
-        e.tz = e.z + ((this.heroPos.z - e.z) / d) * reach;
-      }
-    } else if (def.attack === 'hop') {
-      const d = Math.min(3.2, dh);
-      e.tx = e.x + ((this.heroPos.x - e.x) / (dh || 1)) * d;
-      e.tz = e.z + ((this.heroPos.z - e.z) / (dh || 1)) * d;
-    } else if (def.attack === 'lunge') {
-      e.ldx = (this.heroPos.x - e.x) / (dh || 1);
-      e.ldz = (this.heroPos.z - e.z) / (dh || 1);
-      e.tx = e.x + e.ldx * 3.6;
-      e.tz = e.z + e.ldz * 3.6;
-    }
-    e.timer = e.wind;
-  }
-
-  _strike(e) {
-    const def = e.def;
-    this._telegraph(e, 0, 0, 0, null);
-    e.hitDone = false;
-    if (def.attack === 'hop') {
-      e.state = 'strike';
-      e.strikeT = e.timer = 0.38;
-      e.sx = e.x;
-      e.sz = e.z;
-    } else if (def.attack === 'lunge') {
-      e.state = 'strike';
-      e.strikeT = e.timer = 0.3;
-    } else if (def.attack === 'orb') {
-      const dx = this.heroPos.x - e.x, dz = this.heroPos.z - e.z, d = Math.hypot(dx, dz) || 1;
-      const p = this._projectile('orb', e.x, 1.2, e.z, dx / d, dz / d, 9);
-      p.from = e;
-      e.state = 'recover';
-      e.timer = def.cooldown;
-      e.cd = def.cooldown;
-    } else if (def.boss) {
-      if (e.move === 'slam') {
-        this.fx('impacts/ground-slam', e.tx, 0, e.tz, { pxm: 46, additive: false, color: 0.9, speed: 1.5 });
-        this.shake = 0.55;
-        if (Math.hypot(this.heroPos.x - e.tx, this.heroPos.z - e.tz) < 3.4 + HERO_R) this._enemyHits(e, 1.25);
-      } else {
-        const base = Math.atan2(this.heroPos.x - e.x, this.heroPos.z - e.z);
-        for (let i = -2; i <= 2; i++) {
-          const a = base + i * 0.22;
-          const p = this._projectile('orb', e.x, 2.4, e.z, Math.sin(a), Math.cos(a), 10);
-          p.from = e;
-        }
-      }
-      e.state = 'recover';
-      e.timer = def.cooldown + (e.move === 'slam' ? 0.4 : 0);
-      e.cd = def.cooldown;
-    }
-  }
-
-  _enemyHits(e, mult = 1) {
-    const s = R.heroStats(this.hero.level, this.hero.bonus);
-    const { amount, crit } = R.damage(e.def.atk, s.def, mult);
-    this.hurtHero(amount, e.x, e.z, crit);
-  }
-
-  updateBoss(dt) {
-    const q = this.state.quests.lampwight;
-    const ru = R.WORLD.boss;
-    const dist = Math.hypot(this.heroPos.x - ru.x, this.heroPos.z - ru.z);
-    if (q.state === 'active' && !this.state.bossDefeated && !this.boss && dist < 22) {
-      this.boss = this._spawnEnemy('lampwight', ru.x, ru.z);
-      this.boss.state = 'chase';
-      this.fx('shadow/dark-explosion', ru.x, 0, ru.z, { pxm: 40, color: 1.3 });
-      this.shake = 0.6;
-      this.hud.toast('<b>The Lampwight rises from the ruins!</b>', 'warn');
-    }
-    const b = this.boss;
-    this.bossLight.intensity = b?.alive ? 22 + Math.sin(this.t * 5) * 4 : Math.max(0, this.bossLight.intensity - dt * 20);
-    if (b?.alive) {
-      this.bossLight.position.set(b.x, 3.6, b.z);
-      this.hud.boss(dist < 34 ? b.hp / b.def.hp : null);
-      // At two thirds and one third, it calls lampwisps.
-      const frac = b.hp / b.def.hp;
-      const phase = frac < 0.34 ? 2 : frac < 0.67 ? 1 : 0;
-      if (phase > b.phase) {
-        b.phase = phase;
-        for (let i = 0; i < 2; i++) {
-          const a = this.t + i * Math.PI;
-          const w = this._spawnEnemy('wisp', b.x + Math.cos(a) * 4, b.z + Math.sin(a) * 4, true);
-          w.state = 'chase';
-          this.fx('spawn/soul-rise', w.x, 0, w.z, { pxm: 48, color: 1.6, palette: WISP_RAMP });
-        }
-        this.hud.toast('The Lampwight calls its wisps!', 'warn');
-      }
-      if (b.state === 'return') {
-        b.state = 'chase';
-        if (dist > 30) {
-          b.x = ru.x;
-          b.z = ru.z;
-          b.hp = Math.min(b.def.hp, b.hp + b.def.hp * 0.2 * dt);
-        }
-      }
-    } else this.hud.boss(null);
-  }
-
-  updateProjectiles(dt) {
-    this.projectiles = this.projectiles.filter((p) => {
-      p.x += p.dx * p.speed * dt;
-      p.z += p.dz * p.speed * dt;
-      p.life -= dt;
-      p.group.position.set(p.x, p.y + Math.sin(this.t * 20) * 0.03, p.z);
-      p.glow.material.rotation += dt * 4;
-      let hit = p.life <= 0;
-      if (!hit) for (const s of this._nearSolids(p.x, p.z)) if (s.r > 0.3 && Math.hypot(p.x - s.x, p.z - s.z) < s.r + 0.1) hit = true;
-      if (p.kind === 'fire') {
-        if (!hit) for (const e of this.enemies) if (e.alive && Math.hypot(e.x - p.x, e.z - p.z) < 0.55 + e.def.radius) hit = true;
-        if (hit) {
-          const a = R.ABILITIES.fireball;
-          for (const e of this.enemies) if (e.alive && Math.hypot(e.x - p.x, e.z - p.z) < a.radius + e.def.radius) this.hitEnemy(e, a.mult, a.knock);
-          this.fx('explosions/small-explosion', p.x, 0, p.z, { pxm: 80, color: 1.3, speed: 2.6, palette: FIRE_RAMP });
-        }
-      } else if (!hit && Math.hypot(this.heroPos.x - p.x, this.heroPos.z - p.z) < 0.75) {
-        if (p.from) this._enemyHits(p.from, p.from.def.boss ? 0.7 : 1);
-        hit = true;
-      }
-      if (hit) this._dropProjectile(p);
-      return !hit;
-    });
-    // The newest fireball lights the woods as it flies.
-    const fb = [...this.projectiles].reverse().find((p) => p.kind === 'fire');
-    if (fb) {
-      this.projLight.position.set(fb.x, fb.y, fb.z);
-      this.projLight.intensity = 14;
-    } else this.projLight.intensity = Math.max(0, this.projLight.intensity - dt * 60);
-  }
-
-  updateDrops(dt) {
-    const hx = this.heroPos.x, hz = this.heroPos.z;
-    this.drops = this.drops.filter((d) => {
-      d.t += dt;
-      const dist = Math.hypot(hx - d.x, hz - d.z);
-      if (d.t > 0.4 && dist < 3.2) {
-        const k = Math.min(1, dt * 9);
-        d.x += (hx - d.x) * k;
-        d.z += (hz - d.z) * k;
-      }
-      d.fx.mesh.position.set(d.x, 0.05 + Math.max(0, 0.5 - d.t) * Math.sin(d.t * 12) * 0.4, d.z);
-      if (d.t > 0.4 && dist < 0.9) {
-        if (d.kind === 'gold') {
-          this.hero.gold += d.amount;
-          this.hud.number(`+${d.amount}g`, 'gold', { x: hx, y: 1.7, z: hz });
-        } else if (d.kind === 'crystal') {
-          this.hero.crystals += 1;
-          this.hud.number('+1 crystal', 'crystal', { x: hx, y: 1.7, z: hz });
-        } else {
-          this.hero.potions[d.amount] += 1;
-          this.hud.log(d.amount === 'hp' ? 'Found a health potion' : 'Found a mana potion');
-        }
-        d.fx.dispose();
-        return false;
-      }
-      if (d.t > 60) {
-        d.fx.dispose();
-        return false;
-      }
-      return true;
-    });
   }
 
   _snapCamera() {
@@ -1535,110 +1075,122 @@ export class LanternwoodGame {
 
   updateActors(dt, yaw) {
     const light = new THREE.Color();
-    const fwdX = -Math.sin(yaw), fwdZ = -Math.cos(yaw);
-    const rgtX = Math.cos(yaw), rgtZ = -Math.sin(yaw);
-    // The hero: back view walking away (most of the time), front toward, side otherwise.
     const h = this.heroPos;
     const hv = this.hv ?? { moving: false, attack: 0, roll: 0, spin: 0 };
-    const set = this.sprites.hero[this.look ?? 'ember'];
-    const [dx, dz] = dirOf(h.face);
-    const dot = dx * fwdX + dz * fwdZ;
-    const side = dx * rgtX + dz * rgtZ;
-    let view = dot > 0.5 ? 'back' : dot < -0.5 ? 'front' : 'side';
-    if (hv.spin > 0) view = ['back', 'side', 'front', 'side'][Math.floor(hv.spin * 20) % 4];
-    if (hv.moving) hv.walkT = (hv.walkT ?? 0) + dt;
-    const frame = hv.moving ? 1 + (Math.floor(hv.walkT / 0.15) % 2) : 0;
     const a = this.heroActor;
     a.group.position.set(h.x, 0, h.z);
-    a.lift = hv.moving ? Math.abs(Math.sin((hv.walkT / 0.15) * Math.PI)) * 0.05 : 0;
     a.squash = 0;
-    // Lean into an attack: the sprite steps forward a little.
+    const [dx, dz] = dirOf(h.face);
     a.mesh.position.x = hv.attack > 0 ? dx * 0.15 : 0;
     a.mesh.position.z = hv.attack > 0 ? dz * 0.15 : 0;
-    a.facing = h.face;
-    a.show(set.front[0]);
-    void view;
-    void frame;
+    a.facing = hv.roll > 0 && hv.rollFace != null ? hv.rollFace : h.face;
     a.act = {
       move: hv.moving ? 1 : 0,
-      swing: hv.swing ? { stage: hv.swing.stage, t: Math.min(1, hv.swing.t) } : null,
+      swing: hv.swing ? { pose: hv.swing.pose, t: Math.min(1, hv.swing.t) } : null,
+      pose: hv.pose ? { id: hv.pose.id, t: Math.min(1, hv.pose.t) } : null,
       spin: hv.spin > 0 ? 1 - hv.spin / 0.4 : null,
       cast: hv.cast > 0 ? 1 - hv.cast / 0.32 : null,
-      roll: hv.roll > 0 ? 1 - hv.roll / R.ABILITIES.roll.time : null,
+      roll: hv.roll > 0 ? (hv.rollFace != null ? hv.roll / R.ABILITIES.roll.time : 1 - hv.roll / R.ABILITIES.roll.time) : null,
+      guard: this.buffs?.guard > 0,
       hurt: hv.hurt ?? 0,
       dead: this.mode === 'dead'
     };
-    a.group.visible = this.mode !== 'title';
+    a.group.visible = this.mode !== 'title' && this.mode !== 'loading';
     const blink = hv.inv > 0 && Math.floor(this.t * 20) % 2 === 0;
-    a.material.opacity = 1;
     a.mesh.visible = !blink || this.mode === 'dead';
     a.update(dt, yaw, this.world.lightAt(h.x, h.z, light));
     if (this.mode === 'dead') a.material.color.multiplyScalar(0.5);
-    // The blade's trail while it swings (and through the whirl).
-    this.trail?.update(a.tip, a.mid, Boolean(hv.swing && hv.swing.t > 0.12 && hv.swing.t < 0.85) || hv.spin > 0, hv.swing?.color ?? (hv.spin > 0 ? new THREE.Color(1.2, 2.2, 2.8) : null));
+    const swinging = Boolean(hv.swing && hv.swing.t > 0.12 && hv.swing.t < 0.85 && !['bolt', 'bolt3', 'shot', 'power'].includes(hv.swing.pose)) || hv.spin > 0 || Boolean(hv.dash) || (hv.pose && ['overhead', 'lunge'].includes(hv.pose.id) && hv.pose.t > 0.25 && hv.pose.t < 0.8);
+    this.trail?.update(a.tip, a.mid, swinging && Boolean(a.swordTip), hv.swing?.color ?? (hv.spin > 0 ? new THREE.Color(1.2, 2.2, 2.8) : new THREE.Color(2.8, 1.4, 0.5)));
 
     // People: they turn to the hero when near or talking.
     for (const n of this.npcs) {
       const near = Math.hypot(h.x - n.x, h.z - n.z) < 4.5 && this.mode !== 'title';
       const want = near || n.talking ? Math.atan2(h.x - n.x, h.z - n.z) : n.face0 ?? (n.face0 = n.face);
       n.face = wrap(n.face + wrap(want - n.face) * Math.min(1, dt * 6));
-      const [nx, nz] = dirOf(n.face);
-      const toward = nx * fwdX + nz * fwdZ < 0.2;
-      const s = this.sprites.npcs[n.id];
       n.actor.squash = Math.sin(this.t * 2 + n.x) * 0.015 + (n.talking ? Math.abs(Math.sin(this.t * 9)) * 0.02 : 0);
       n.actor.facing = n.face;
       n.actor.act = { move: 0, talk: Boolean(n.talking) };
-      n.actor.show(s.front[0]);
-      void toward;
-      n.actor.update(dt, yaw, this.world.lightAt(n.x, n.z, light));
+      if (Math.hypot(n.x - h.x, n.z - h.z) < 70) n.actor.update(dt, yaw, this.world.lightAt(n.x, n.z, light));
     }
 
-    // Enemies.
+    // Monsters.
     for (const e of this.enemies) {
-      if (!e.alive) continue;
-      const frames = this.sprites.enemies[e.kind];
+      if (!e.alive) {
+        if (e.mound) e.mound.visible = false;
+        this._drawTele(e);
+        continue;
+      }
+      this._drawTele(e);
       const act = e.actor;
+      // Underground: a mound of earth moves instead.
+      if (e.state === 'burrowed') {
+        if (!e.mound) {
+          e.mound = new THREE.Mesh(this.moundGeo, this.moundMat);
+          e.mound.castShadow = true;
+          this.scene.add(e.mound);
+        }
+        e.mound.visible = true;
+        e.mound.position.set(e.x, 0, e.z);
+        e.mound.scale.setScalar(0.8 + Math.sin(this.t * 14) * 0.08);
+        act.group.visible = false;
+        continue;
+      }
+      if (e.mound) e.mound.visible = false;
+      if (!act.group.visible) continue;
       act.group.position.set(e.x, 0, e.z);
       const moving = Math.hypot(e.vx, e.vz) > 0.2;
-      let f = 0;
-      if (e.kind === 'slime') {
-        f = Math.floor(e.frameT / (moving ? 0.18 : 0.4)) % 2;
-        act.squash = e.state === 'windup' ? -0.25 * (1 - e.timer / e.wind) : 0;
-      } else if (e.kind === 'wolf') {
-        f = moving ? 1 + (Math.floor(e.frameT / (e.state === 'strike' ? 0.06 : 0.11)) % 2) : 0;
-        const sx = e.vx * rgtX + e.vz * rgtZ;
-        const ddx = this.heroPos.x - e.x, ddz = this.heroPos.z - e.z;
-        const look = Math.abs(sx) > 0.3 ? sx : ddx * rgtX + ddz * rgtZ;
-        e.flip = look < 0;
-        act.squash = e.state === 'windup' ? -0.15 : 0;
-      } else if (e.kind === 'wisp') {
-        f = Math.floor(e.frameT / 0.2) % 2;
-        act.lift = (e.def.float ?? 1) + Math.sin(this.t * 2.5 + e.hx) * 0.18;
-        act.glow = e.state === 'windup' ? 0.55 + (1 - e.timer / e.wind) * 1.2 : 0.55;
-      } else {
-        f = Math.floor(e.frameT / 0.35) % 2;
-        act.lift = 0.15 + Math.sin(this.t * 1.6) * 0.12;
-        act.squash = e.state === 'windup' ? (e.move === 'slam' ? 0.12 : -0.05) * (1 - e.timer / e.wind) : 0;
-        act.glow = 0.4 + (e.state === 'windup' ? 0.35 * Math.abs(Math.sin(this.t * 12)) : 0);
-      }
-      // Facing: where it is going, or the hero when it stands.
-      const mvx = e.vx, mvz = e.vz;
-      act.facing = Math.hypot(mvx, mvz) > 0.3 ? Math.atan2(mvx, mvz) : Math.atan2(this.heroPos.x - e.x, this.heroPos.z - e.z);
-      act.show(frames[f], e.flip);
-      // Motion: rocked back by a hit, a lope when running, a lean into the strike.
+      const winding = e.state === 'windup';
+      const wk = winding && e.wind ? 1 - Math.max(0, e.timer ?? 0) / e.wind : 0;
       e.reel = Math.max(0, (e.reel ?? 0) - dt * 4);
+      act.facing = e.face;
+      if (e.def.rig) {
+        // People-shaped: they walk, raise a shield or a staff as they wind up, strike with it.
+        const strikePose = e.kind === 'rimeguard' ? 'smash' : 'bolt';
+        act.act = {
+          move: moving ? 1 : 0,
+          guard: e.kind === 'rimeguard' && (e.state === 'chase' || e.state === 'idle') && !moving,
+          pose: winding ? { id: e.kind === 'rimeguard' ? 'overhead' : 'raise', t: Math.min(0.5, wk * 0.5) } : null,
+          swing: e.state === 'recover' && e.timer > e.st.cooldown - 0.35 ? { pose: strikePose, t: 1 - (e.timer - (e.st.cooldown - 0.35)) / 0.35 } : null,
+          hurt: e.reel,
+          dead: false
+        };
+        act.lift = e.lift ?? 0;
+        act.update(dt, yaw, this.world.lightAt(e.x, e.z, light));
+        continue;
+      }
+      const frames = this.sprites.enemies[e.kind];
+      let f = 0;
+      if (WALKERS.has(e.kind)) f = moving ? 1 + (Math.floor(e.frameT / (e.state === 'strike' ? 0.06 : 0.11)) % 2) : 0;
+      else if (FLAPPERS.has(e.kind)) f = Math.floor(e.frameT / 0.07) % frames.length;
+      else f = Math.floor(e.frameT / (moving ? 0.18 : 0.38)) % frames.length;
+      f = Math.min(f, frames.length - 1);
+      const floats = e.def.float != null;
+      act.lift = (e.lift ?? 0) + (floats && e.state !== 'strike' ? Math.sin(this.t * 2.5 + e.hx) * 0.18 : 0);
+      act.squash = winding ? (e.def.attack === 'hop' || e.def.attack === 'bomb' ? -0.25 * wk : e.def.attack === 'nova' ? 0.1 * wk : -0.12 * wk) : 0;
+      if (e.kind === 'wisp' || e.kind === 'cinderling' || e.kind === 'shardling') act.glow = (e.kind === 'cinderling' ? 0.45 : 0.4) + (winding ? wk * 1.2 : 0);
+      if (e.def.boss) act.glow = 0.3 + (winding ? 0.35 * Math.abs(Math.sin(this.t * 12)) : 0);
+      act.show(frames[f], false);
       act.mesh.rotation.order = 'YXZ';
-      const lope = moving && e.kind === 'wolf' ? Math.sin(e.frameT * 14) * 0.12 : 0;
-      act.mesh.rotation.x = -e.reel * 0.5 + lope + (e.state === 'strike' ? 0.25 : e.state === 'windup' ? -0.15 : 0);
+      const lope = moving && WALKERS.has(e.kind) ? Math.sin(e.frameT * 14) * 0.12 : 0;
+      act.mesh.rotation.x = -e.reel * 0.5 + lope + (e.state === 'strike' ? 0.25 : winding ? -0.15 : 0) + (e.stunT > 0 ? Math.sin(this.t * 20) * 0.1 : 0);
       act.mesh.rotation.z = e.reel * Math.sin(this.t * 40) * 0.1;
       act.update(dt, yaw, this.world.lightAt(e.x, e.z, light));
-      if (e.state === 'windup' && Math.floor(this.t * 16) % 2 === 0 && act.flash <= 0) act.material.color.setRGB(1.5, 0.5, 0.4);
+      if (winding && Math.floor(this.t * 16) % 2 === 0 && act.flash <= 0) act.material.color.setRGB(1.5, 0.5, 0.4);
+      if (e.stunT > 0 && act.flash <= 0) act.material.color.setRGB(0.8, 0.8, 1.3);
+    }
+    // The boss's own light.
+    const b = this.boss;
+    this.bossLight.intensity = b?.alive ? 22 + Math.sin(this.t * 5) * 4 : Math.max(0, this.bossLight.intensity - dt * 20);
+    if (b?.alive) {
+      this.bossLight.color.set(b.def.light ?? '#ffffff');
+      this.bossLight.position.set(b.x, 3.6, b.z);
     }
   }
 
   updateEffects(dt, yaw) {
     for (const p of Object.values(this.pickupFx)) p.update(dt);
-    for (const d of this.drops) d.fx.mesh.rotation.y = yaw;
+    for (const d of this.drops) if (d.fx) d.fx.mesh.rotation.y = yaw;
     this.effects = this.effects.filter((e) => {
       if (e.arc) {
         e.t += dt;
@@ -1648,6 +1200,15 @@ export class LanternwoodGame {
         e.arc.material.opacity = k < 0.45 ? 1 : Math.max(0, 1 - (k - 0.45) / 0.55);
         if (e.full) e.arc.rotation.y += dt * 9;
         if (k >= 1) {
+          e.fx.dispose();
+          return false;
+        }
+        return true;
+      }
+      if (e.fall) {
+        e.t += dt;
+        e.fall.position.y = 8 * (1 - e.t / e.life);
+        if (e.t >= e.life) {
           e.fx.dispose();
           return false;
         }
@@ -1673,47 +1234,88 @@ export class LanternwoodGame {
       hud.endWorld();
       return;
     }
-    hud.stats(this.hero, { fireball: this.cd.fireball / R.ABILITIES.fireball.cd, whirl: this.cd.whirl / R.ABILITIES.whirl.cd });
-    const area = R.areaAt(this.heroPos.x, this.heroPos.z);
-    hud.area(area === 'woods' ? 'Lanternwood' : R.WORLD.areas[area].name);
-    hud.resting(this._resting && !this.dialogue.open);
+    const s = this.stats ?? R.statsOf(this.hero, this.buffs);
+    hud.stats(this.hero, s, this.cd, { ...this.buffs, chill: this.chillT });
+    const area = R.areaIn(this.realmDef, this.heroPos.x, this.heroPos.z);
+    hud.area(R.REALMS[this.realm].name, area === 'wilds' ? R.REALMS[this.realm].sub.split(' · ')[0] : this.realmDef.areas[area].name);
+    hud.resting(this._resting && !this.dialogue.open, this.realm === 'lanternwood' ? 'Resting by the Hearthlight' : 'Resting by the waystone');
     hud.beginWorld();
     const h = this.heroPos;
-    // Markers over people.
     for (const n of this.npcs) {
-      const m = this.markerFor(n.id);
       const d = Math.hypot(h.x - n.x, h.z - n.z);
+      if (d > 40) continue;
+      const m = this.markerFor(n.id);
       const p = this._project({ x: n.x, y: n.actor.height + 0.55, z: n.z });
-      if (!p || d > 40) continue;
-      hud.marker(`npc-${n.id}`, m ?? 'talk', p.x, p.y, n.name, d < 6);
+      if (!p) continue;
+      hud.marker(`npc-${n.id}`, m === 'shop' ? (n.shop === 'smith' ? 'smith' : 'shop') : m ?? 'talk', p.x, p.y, n.name, d < 6);
     }
-    // Herbs and braziers, while they matter.
-    if (this.state.quests.embers.state === 'active') {
-      for (const herb of this.world.herbs) {
-        if (herb.taken || Math.hypot(h.x - herb.x, h.z - herb.z) > 26) continue;
+    if (this.gatherWanted()) {
+      for (const herb of this.world.gather) {
+        if (herb.taken || Math.hypot(h.x - herb.x, h.z - herb.z) > 30) continue;
         const p = this._project({ x: herb.x, y: 1.1, z: herb.z });
         if (p) hud.marker(`herb-${herb.i}`, 'herb', p.x, p.y);
       }
     }
-    if (this.state.quests.braziers.state === 'active') {
+    if (this.realm === 'lanternwood' && this.state.quests.braziers.state === 'active') {
       for (const b of this.world.braziers) {
         if (b.lit || Math.hypot(h.x - b.x, h.z - b.z) > 40) continue;
         const p = this._project({ x: b.x, y: 2.4, z: b.z });
         if (p) hud.marker(`brazier-${b.id}`, 'fire', p.x, p.y);
       }
     }
-    // Health bars over hurt or angry foes.
+    const w = this.realmDef.waystone;
+    const dw = Math.hypot(h.x - w.x, h.z - w.z);
+    if (dw < 45) {
+      const p = this._project({ x: w.x, y: 5.4, z: w.z });
+      if (p) hud.marker('waystone', 'portal', p.x, p.y, 'Waystone', dw < 9);
+    }
+    for (const c of this.world.chests) {
+      if (c.opened || Math.hypot(h.x - c.x, h.z - c.z) > 22) continue;
+      const p = this._project({ x: c.x, y: 1.4, z: c.z });
+      if (p) hud.marker(`chest-${c.id}`, 'chest', p.x, p.y);
+    }
+    // Health bars over hurt or angry foes; hero monsters always show their names.
     for (const e of this.enemies) {
-      if (!e.alive || e.def.boss) continue;
-      if (e.hp >= e.def.hp && e.state !== 'chase' && e.state !== 'windup') continue;
-      if (Math.hypot(h.x - e.x, h.z - e.z) > 24) continue;
-      const p = this._project({ x: e.x, y: e.actor.height + e.actor.lift + 0.25, z: e.z });
-      if (p) hud.bar(e.id, p.x, p.y, e.hp / e.def.hp, `Lv${e.def.level} ${e.def.name}`);
+      if (!e.alive || e.def.boss || e.state === 'burrowed') continue;
+      const d = Math.hypot(h.x - e.x, h.z - e.z);
+      if (d > (e.elite ? 30 : 24)) continue;
+      if (!e.elite && e.hp >= e.maxHp && e.state !== 'chase' && e.state !== 'windup') continue;
+      const p = this._project({ x: e.x, y: e.actor.height + (e.lift ?? 0) + 0.25, z: e.z });
+      if (p) hud.bar(e.nid, p.x, p.y, e.hp / e.maxHp, e.elite ? `★ ${e.elite.name}${e.elite.affixes.some((a) => !e.elite.name.includes(R.ELITE_AFFIXES[a].name)) ? ` — ${e.elite.affixes.map((a) => R.ELITE_AFFIXES[a].name).join(', ')}` : ''}` : `Lv${e.def.level} ${e.def.name}`, { elite: Boolean(e.elite), shield: e.st?.shield ? e.shield / e.st.shield : 0 });
+    }
+    const b = this.boss;
+    hud.boss(b?.alive && Math.hypot(h.x - b.x, h.z - b.z) < 40 ? b.hp / b.maxHp : null, b?.def.name ?? '');
+    // Loot on the ground: the good things name themselves from afar.
+    for (const d of this.drops) {
+      if (d.kind !== 'item') continue;
+      const dist = Math.hypot(h.x - d.x, h.z - d.z);
+      const good = d.entry.base && R.RARITIES[d.entry.rarity].glow;
+      if (dist > (good ? 24 : 7)) continue;
+      const p = this._project({ x: d.x, y: 1.25, z: d.z });
+      if (p) hud.label(`loot-${d.id}`, p.x, p.y, d.entry.base ? d.entry.name : `${R.CONSUMABLES[d.entry.kind].name}${d.entry.n > 1 ? ` ×${d.entry.n}` : ''}`, d.entry.base ? R.RARITIES[d.entry.rarity].color : '#e8dcc0', 'ld-wlabel--loot');
+    }
+    // The party: names and health over their heads.
+    const party = [];
+    for (const p of this.net.peers.values()) {
+      const here = p.realm === this.realm;
+      party.push({ name: p.name, cls: p.cls, level: p.level, hp: p.hp, maxHp: p.maxHp, realm: p.realm, here, host: p.id === this.net.session?.host });
+      if (!here || !p.actor) continue;
+      const q = this._project({ x: p.dx, y: p.actor.height + 0.5, z: p.dz });
+      if (q) hud.bar(`peer-${p.id}`, q.x, q.y, p.hp / p.maxHp, `${p.name} · ${R.CLASSES[p.cls].name} ${p.level}`, { ally: true });
+    }
+    this._partyT = (this._partyT ?? 0) - dt;
+    if (this._partyT <= 0) {
+      this._partyT = 0.25;
+      hud.party(party);
     }
     hud.endWorld();
     hud.updateNumbers(dt, (a) => this._project(a));
-    hud.tracker(this.state.quests);
+    hud.tracker(this.state.quests, this.realm);
     const it = this.dialogue.open || this.overlay ? null : this._interactable();
     hud.prompt(it?.label ?? '');
   }
 }
+
+// The fight, from both sides: the hero's (combat.js) and the monsters' (foes.js).
+for (const m of [CombatMixin, FoeMixin]) Object.defineProperties(LanternwoodGame.prototype, Object.getOwnPropertyDescriptors(m));
+void panel;
