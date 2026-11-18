@@ -301,12 +301,26 @@ function kaykitCaveman(gltf, { look, leather, dark }) {
   return {
     model,
     head,
-    update: anim,
+    update(dt, p, speed) {
+      anim(dt, p, speed);
+      slidePose(model, p, dt);
+    },
     dispose() {
       mixer.stopAllAction();
       for (const x of extras) x.dispose();
     }
   };
+}
+
+/**
+ * A sliding tackle: the whole caveman leans back and goes in feet first, low along the grass,
+ * then gets up again. (Turned within his facing, so the lean is always backwards.)
+ */
+function slidePose(model, p, dt) {
+  model.rotation.order = 'YXZ';
+  const want = p.slideT > 0 ? -1.15 : 0;
+  model.rotation.x += (want - model.rotation.x) * Math.min(1, dt * (p.slideT > 0 ? 18 : 8));
+  model.position.y = Math.max(0, -model.rotation.x) * 0.26;
 }
 
 /**
@@ -346,6 +360,12 @@ function animator(mixer, actions) {
       const over = oneShotT <= 0 || ((oneShot === 'cheer' || oneShot === 'sad') && p.act !== oneShot);
       // A long sulk holds its last frame; anything else hands back to running about.
       if (over && !(oneShot === 'sad' && p.act === 'sad')) oneShot = null;
+    }
+    // Sliding: still, the legs out (the lean is slidePose's).
+    if (p.slideT > 0) {
+      play('idle', 0.08);
+      mixer.update(dt);
+      return;
     }
     if (!oneShot) {
       if (speed > 0.6) {
@@ -453,6 +473,11 @@ export function proceduralCaveman({ look, leather, dark }) {
         body.position.y = Math.abs(Math.sin(phase * 3)) * 0.3;
       }
       if (shot === 'sad') body.rotation.x = 0.35;
+      if (p.slideT > 0) {
+        legs[0].rotation.x = legs[1].rotation.x = -1.2;
+        arms[0].rotation.x = arms[1].rotation.x = 0.6;
+      }
+      slidePose(model, p, dt);
     },
     dispose() {
       for (const m of Object.values(mats)) m.dispose();

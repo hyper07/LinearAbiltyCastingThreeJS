@@ -15,6 +15,7 @@ spins, the boulder wall bounces it back in (no throw-ins), and a hard shot knock
 | **W A S D** / arrows | Run (you play the caveman of yours nearest the ball) |
 | **Shift** | Sprint (uses stamina) |
 | **Space** | Hold to charge a shot, let go to kick; near an opponent without the ball, a shove |
+| **C** | Sliding tackle: feet first along the grass, further than a shove; a clean one takes the stone and floors the carrier (head-on works best; a miss leaves you down a moment) |
 | **E** · **F** · **Q** | Pass · shove · switch player |
 | **Esc** · **M** | Pause · sound on/off |
 

@@ -320,3 +320,42 @@ test('constants hang together', () => {
   assert.equal(TICK, 1 / 60);
   for (const k of ['easy', 'normal', 'hard']) assert.ok(R.SKILLS[k]);
 });
+
+test('a sliding tackle reaches further than a shove, takes the stone and floors the carrier; a miss leaves the slider down longer', () => {
+  const trial = (seed) => {
+    const m = freeBall(0, 0, { seed });
+    const owner = m.players[2], t = m.players[5];
+    Object.assign(owner, { x: 0, z: 0, face: Math.PI / 2 });
+    m.ball.owner = owner.id;
+    m.ball.x = R.PLAYER.carry;
+    // From 3.4 m out, facing him: too far for a shove to land in the same time.
+    Object.assign(t, { x: 3.4, z: 0, face: -Math.PI / 2 });
+    let first = true;
+    const ev = R.simulate(m, 0.6, () => (first ? ((first = false), { [t.id]: { slide: true, mx: -1, mz: 0 } }) : {}));
+    assert.ok(ev.some((e) => e.type === 'slide'), 'the slide starts');
+    const tk = ev.find((e) => e.type === 'tackle');
+    assert.ok(tk, 'the slide reached the stone');
+    if (tk.won) {
+      assert.notEqual(m.ball.owner, owner.id, 'the stone is poked away');
+      assert.ok(owner.stun > 0, 'and he is on the grass');
+    }
+    return tk.won;
+  };
+  let won = 0;
+  for (let seed = 1; seed <= 30; seed++) won += trial(seed) ? 1 : 0;
+  assert.ok(won >= 20, `head-on slides win most of the time: ${won}/30`);
+
+  // A slide at nothing: down on the grass for a while afterwards, and not again at once.
+  const m = freeBall(10, 5);
+  const p = m.players[1];
+  Object.assign(p, { x: -5, z: 0, face: Math.PI / 2 });
+  let once = true;
+  R.simulate(m, R.SLIDE.time + 0.05, () => (once ? ((once = false), { [p.id]: { slide: true, mx: 1, mz: 0 } }) : {}));
+  assert.ok(p.stun > 0.4, `a miss: slow to get up (${p.stun.toFixed(2)})`);
+  assert.ok(p.x > -1.5, `it carried him along the grass (${p.x.toFixed(1)})`);
+  assert.ok(p.slideCd > 0, 'and he cannot slide again straight away');
+  // A keeper does not slide.
+  const k = m.players.find((q) => q.role === 'keeper');
+  R.simulate(m, 0.1, () => ({ [k.id]: { slide: true, mx: 1, mz: 0 } }));
+  assert.equal(k.slideT, 0);
+});

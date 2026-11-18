@@ -25,6 +25,7 @@ export const KEYS_HTML = `
   <span><kbd>Shift</kbd> sprint</span>
   <span><kbd>Space</kbd> hold &amp; release to shoot</span>
   <span><kbd>E</kbd> pass</span>
+  <span><kbd>C</kbd> slide tackle</span>
   <span><kbd>F</kbd> shove</span>
   <span><kbd>Q</kbd> switch</span>
   <span><kbd>Esc</kbd> pause</span>`;

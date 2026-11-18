@@ -18,6 +18,8 @@ export const TICK = 1 / 60;
 export const PITCH = { hx: 18, hz: 12, corner: 3, goalHalf: 2.6, bar: 2.1, depth: 1.7, post: 0.3, boxDepth: 5.5, boxHalf: 6, circle: 3.2 };
 /** A heavy stone: low bounce, real rolling friction (roll + drag·speed), a little air drag. */
 export const BALL = { r: 0.32, gravity: 22, bounce: 0.34, wall: 0.55, roll: 2.4, drag: 0.5, air: 0.06, hit: 12.5 };
+/** The sliding tackle: how long it lasts, how far the feet reach, how soon another. */
+export const SLIDE = { time: 0.55, reach: 1.15, cooldown: 1.6 };
 export const PLAYER = { r: 0.42, run: 6.2, sprint: 8.8, accel: 36, reach: 0.95, carry: 0.8, turn: 11, drain: 0.3, regain: 0.15 };
 
 /** How good a team's AI is: reaction (s), speed factor, aim spread (rad), keeper saving, tackling, shooting range. */
@@ -99,7 +101,7 @@ export function createMatch({ seed = 1, length = 180, golden = true, teams = [] 
         x: 0, z: 0, vx: 0, vz: 0,
         face: 0,
         stamina: 1,
-        stun: 0, tackleT: 0, tackleCd: 0, dive: 0, diveV: 0, kickCd: 0, holding: 0,
+        stun: 0, tackleT: 0, tackleCd: 0, slideT: 0, slideCd: 0, dive: 0, diveV: 0, kickCd: 0, holding: 0,
         rolled: -1, rollOk: false,
         act: null, actT: 0, actN: 0,
         ai: { next: rand(state) * 0.2, tx: 0, tz: 0, sprint: false, hold: 0 },
@@ -134,7 +136,7 @@ export function resetKickoff(state, team) {
     if (p.role === 'keeper') [u, z] = [-PITCH.hx + 1.1, 0];
     else if (p.role === 'defender') [u, z] = [kicking ? -6 : -8, p.team === 0 ? 3 : -3];
     else [u, z] = kicking ? [-PLAYER.carry, 0] : [-PITCH.circle - 1, 0];
-    Object.assign(p, { x: u * d, z, vx: 0, vz: 0, face: d > 0 ? Math.PI / 2 : -Math.PI / 2, stun: 0, tackleT: 0, dive: 0, kickCd: 0, holding: 0, act: null, actT: 0 });
+    Object.assign(p, { x: u * d, z, vx: 0, vz: 0, face: d > 0 ? Math.PI / 2 : -Math.PI / 2, stun: 0, tackleT: 0, slideT: 0, dive: 0, kickCd: 0, holding: 0, act: null, actT: 0 });
     p.ai.next = 0;
   }
   const taker = state.players.find((p) => p.team === team && p.role === 'forward');
@@ -290,7 +292,7 @@ function segDist(px, pz, ax, az, bx, bz) {
 
 const IDLE = Object.freeze({ mx: 0, mz: 0 });
 
-/** Advance one tick. `inputs[pid]` drives a caveman (the human's, or anyone's in tests/netplay): { mx, mz, sprint, charge, shoot (0…1, on release), pass, tackle }. */
+/** Advance one tick. `inputs[pid]` drives a caveman (the human's, or anyone's in tests/netplay): { mx, mz, sprint, charge, shoot (0…1, on release), pass, tackle (a shove), slide (a sliding tackle) }. */
 export function step(state, inputs = {}) {
   const dt = TICK;
   state.events = [];
@@ -334,6 +336,7 @@ export function step(state, inputs = {}) {
     movePlayer(state, p, input, dt);
     if (playing) act(state, p, input);
   }
+  slides(state);
   separate(state);
   ballStep(state, dt);
   if (playing) {
@@ -382,6 +385,7 @@ function movePlayer(state, p, input, dt) {
   const human = state.human && p.id === state.human.pid;
   p.kickCd = Math.max(0, p.kickCd - dt);
   p.tackleCd = Math.max(0, p.tackleCd - dt);
+  p.slideCd = Math.max(0, (p.slideCd ?? 0) - dt);
   p.actT = Math.max(0, p.actT - dt);
   if (p.actT <= 0 && p.act && p.act !== 'cheer' && p.act !== 'sad') p.act = null;
   const owner = state.ball.owner === p.id;
@@ -405,6 +409,13 @@ function movePlayer(state, p, input, dt) {
     p.vx *= Math.exp(-1.5 * dt);
     p.vz = p.diveV * Math.max(0, p.dive / 0.55);
     if (p.dive <= 0) p.stun = 0.35; // up off the grass
+  } else if (p.slideT > 0) {
+    // A sliding tackle: feet first along the grass, fast at first, slowing to a stop.
+    p.slideT -= dt;
+    const sp = 2.5 + 10 * Math.max(0, p.slideT / SLIDE.time);
+    p.vx = Math.sin(p.face) * sp;
+    p.vz = Math.cos(p.face) * sp;
+    if (p.slideT <= 0) p.stun = p.slideWon ? 0.3 : 0.6; // back up off the grass (longer after a miss)
   } else if (p.tackleT > 0) {
     p.tackleT -= dt;
     const sp = 10.5;
@@ -465,6 +476,17 @@ function act(state, p, input) {
   }
   // At kick-off the other side keeps off until the stone has been played.
   const settled = state.t - (state.kickoffAt ?? -9) > 0.6 || p.team === state.kickoffTeam;
+  if (input.slide && !owner && p.slideCd <= 0 && p.slideT <= 0 && !p.holding && settled && p.role !== 'keeper') {
+    const m = Math.hypot(input.mx ?? 0, input.mz ?? 0);
+    if (m > 0.2) p.face = Math.atan2(input.mx, input.mz);
+    p.slideT = SLIDE.time;
+    p.slideCd = SLIDE.cooldown;
+    p.slideWon = false;
+    p.tackleT = 0;
+    setAct(p, 'slide', SLIDE.time + 0.2);
+    emit(state, 'slide', { pid: p.id, x: p.x, z: p.z });
+    return;
+  }
   if (input.tackle && !owner && p.tackleCd <= 0 && !p.holding && settled) {
     const m = Math.hypot(input.mx ?? 0, input.mz ?? 0);
     if (m > 0.2) p.face = Math.atan2(input.mx, input.mz);
@@ -472,6 +494,58 @@ function act(state, p, input) {
     p.tackleCd = 1.1;
     setAct(p, 'tackle', 0.5);
     emit(state, 'lunge', { pid: p.id, x: p.x, z: p.z });
+  }
+}
+
+/**
+ * A sliding tackle meeting the stone or the man who has it: the slider's feet reach further than a
+ * shove, and a clean one takes the stone away and puts the carrier on the grass. From behind it
+ * mostly fails (he rides it); anyone else in the way is tripped.
+ */
+function slides(state) {
+  const b = state.ball;
+  for (const p of state.players) {
+    if (!(p.slideT > 0) || p.slideWon) continue;
+    const fx = Math.sin(p.face), fz = Math.cos(p.face);
+    // Where the feet are: out in front, low.
+    const footX = p.x + fx * 0.75, footZ = p.z + fz * 0.75;
+    const owner = b.owner >= 0 ? state.players[b.owner] : null;
+    if (b.y < 0.8 && Math.hypot(b.x - footX, b.z - footZ) < SLIDE.reach && (!owner || (owner.team !== p.team && !owner.holding))) {
+      if (owner) {
+        const headOn = -(fx * Math.sin(owner.face) + fz * Math.cos(owner.face));
+        if (rand(state) > 0.78 + headOn * 0.14) {
+          // He skips over it and keeps the stone.
+          emit(state, 'tackle', { pid: p.id, victim: owner.id, won: false, x: owner.x, z: owner.z });
+          p.slideWon = true;
+          continue;
+        }
+        owner.stun = 0.75;
+        owner.vx += fx * 3;
+        owner.vz += fz * 3;
+        owner.kickCd = 0.6;
+        setAct(owner, 'stun', 0.8);
+      }
+      // The stone is poked on, the way the slide goes.
+      b.owner = -1;
+      const ang = p.face + (rand(state) - 0.5) * 0.5;
+      const v = 6 + Math.hypot(p.vx, p.vz) * 0.3;
+      b.vx = Math.sin(ang) * v;
+      b.vz = Math.cos(ang) * v;
+      b.lastTouch = p.id;
+      p.slideWon = true;
+      p.kickCd = 0.15;
+      emit(state, 'tackle', { pid: p.id, victim: owner?.id ?? -1, won: true, x: b.x, z: b.z, slide: true });
+      continue;
+    }
+    // Anyone else of theirs in the slide's path goes down.
+    for (const q of state.players) {
+      if (q.team === p.team || q.stun > 0 || q.holding) continue;
+      if (Math.hypot(q.x - footX, q.z - footZ) < 0.7) {
+        q.stun = 0.5;
+        setAct(q, 'stun', 0.6);
+        emit(state, 'hit', { pid: q.id, x: q.x, z: q.z });
+      }
+    }
   }
 }
 
@@ -880,6 +954,7 @@ export function aiInput(state, p) {
   const k = d < 0.25 ? 0 : Math.min(1, d / 1.2);
   const input = { mx: d > 1e-6 ? (dx / d) * k : 0, mz: d > 1e-6 ? (dz / d) * k : 0, sprint: ai.sprint && p.stamina > 0.25 && d > 2 };
   if (action?.tackle) input.tackle = true;
+  if (action?.slide) input.slide = true;
   return input;
 }
 
@@ -900,6 +975,12 @@ function think(state, p, skill) {
     if (dist < 1.8 && facing > 0.5 && rand(state) < skill.tackle) {
       p.face = Math.atan2(owner.x - p.x, owner.z - p.z);
       return { tackle: true, mx: Math.sin(p.face), mz: Math.cos(p.face) };
+    }
+    // Or a slide from further out, toward where he is going.
+    if (dist > 1.8 && dist < 3.4 && facing > 0.7 && p.slideCd <= 0 && rand(state) < skill.tackle * 0.35) {
+      const lead = 0.25;
+      p.face = Math.atan2(owner.x + owner.vx * lead - p.x, owner.z + owner.vz * lead - p.z);
+      return { slide: true, mx: Math.sin(p.face), mz: Math.cos(p.face) };
     }
   }
 

@@ -7,7 +7,7 @@ import './stoneball.css';
 /**
  * Stoneball: three-a-side football for cavemen, with a stone. Pick your
  * tribe's leather, the rivals' leather, how well they play and how long;
- * then run, sprint, pass, shove and shoot (hold Space to wind up).
+ * then run, sprint, pass, shove, slide-tackle (C) and shoot (hold Space to wind up).
  *
  *   const game = new StoneballGame(document.body, { onClose, account });
  *   await game.open();   …   game.close();
@@ -223,6 +223,7 @@ export class StoneballGame {
     else if (code === 'Space') this._spaceDown();
     else if (code === 'KeyE') this.pending.pass = true;
     else if (code === 'KeyF') this.pending.tackle = true;
+    else if (code === 'KeyC') this.pending.slide = true;
     else if (code === 'KeyQ') R.switchPlayer(this.match);
     else if (code === 'KeyM') this.hud.flash(this.sound.toggle() ? 'Sound off' : 'Sound on', { ms: 900 });
   }
@@ -268,6 +269,7 @@ export class StoneballGame {
       if (!btn(0) && prev[0] && this.charging) this._release();
       if (edge(2)) this.pending.pass = true;
       if (edge(1)) this.pending.tackle = true;
+      if (edge(3)) this.pending.slide = true;
       if (edge(5)) R.switchPlayer(this.match);
       if (edge(9)) this.pause();
     }

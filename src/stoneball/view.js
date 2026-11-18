@@ -882,6 +882,9 @@ export class StoneballView {
       case 'lunge':
         this.puff(e.x, 0.1, e.z, 0.6, 3);
         break;
+      case 'slide':
+        this.puff(e.x, 0.1, e.z, 0.9, 6);
+        break;
       case 'hit':
         this.puff(e.x, 0.6, e.z, 1, 6);
         this.shake = Math.max(this.shake, 0.3);
@@ -948,6 +951,8 @@ export class StoneballView {
       c.model.rotation.y = lerpAng(pf, p.face);
       const speed = Math.hypot(p.vx, p.vz);
       c.update(dt, p, match.phase === 'kickoff' ? 0 : speed);
+      // A slide throws up grass and dust behind it.
+      if (p.slideT > 0 && Math.random() < dt * 30) this.puff(p.x - Math.sin(p.face) * 0.2, 0.08, p.z - Math.cos(p.face) * 0.2, 0.5, 2);
       this.discs[i]?.position.set(c.model.position.x, 0.02, c.model.position.z);
     });
     // The stone: rolls by how far it went, spins on in the air.
