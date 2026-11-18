@@ -117,6 +117,20 @@
 .seoul__group button.is-on {
   background: #2fd3a0;
 }
+.seoul__weather {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 2.5px solid #2b1d4e;
+  background: #dff1ff;
+  color: #2b1d4e;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #2b1d4e;
+  white-space: nowrap;
+}
+.race__weather button {
+  white-space: nowrap;
+}
 .seoul__time,
 .seoul__quality {
   display: flex;
@@ -491,6 +505,17 @@
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #2ad4ff, #b45bff);
+}
+.race__boost.is-full i {
+  background: linear-gradient(90deg, #ffd23a, #ff6a2a);
+  animation: race-turbo 0.6s ease-in-out infinite alternate;
+}
+@keyframes race-turbo {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .race__boost.is-full i { animation: none; }
 }
 .race__count {
   position: absolute;

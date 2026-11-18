@@ -149,6 +149,12 @@ function bodyKit(kind, look, color) {
  * One car in a paint. `lite` (traffic) leaves the inside out. Returns
  * { group, wheels, steer(angle), spin(radians), near(on) }.
  */
+let carEnv = null;
+/** The reflections cars' paint and glass take, whatever light the city is in. */
+export function setCarEnvironment(texture) {
+  carEnv = texture;
+}
+
 export function makeCar(kind, color, { lite = false, look = null } = {}) {
   const group = new THREE.Group();
   const model = kind.template.clone(true);
@@ -156,6 +162,10 @@ export function makeCar(kind, color, { lite = false, look = null } = {}) {
   model.traverse((o) => {
     if (!o.isMesh) return;
     if (lite && /^(Interior|Engine|Axles)/.test(o.name)) o.visible = false;
+    if (carEnv && o.material?.isMeshStandardMaterial && o.material.envMap !== carEnv) {
+      o.material.envMap = carEnv;
+      o.material.envMapIntensity = 0.4;
+    }
     if (/^Paint/.test(o.material?.name ?? '')) {
       o.material = o.material.clone();
       o.material.color.set(color);
@@ -170,7 +180,13 @@ export function makeCar(kind, color, { lite = false, look = null } = {}) {
   far.visible = false;
   group.add(model, far);
   if (look) model.add(bodyKit(kind, look, color));
-  const wheels = Object.entries(kind.wheelInfo).map(([name, info]) => ({ node: model.getObjectByName(name), front: /Front/.test(name), ...info }));
+  const wheels = Object.entries(kind.wheelInfo).map(([name, info]) => {
+    const node = model.getObjectByName(name);
+    // What rolls: the tyre, the rim and the disc — not the brake caliper, which only steers.
+    // (Rolling the whole node also swung the caliper round with the tyre.)
+    const parts = (node?.children ?? []).filter((c) => !/BrakePad|Caliper/i.test(c.name)).map((c) => ({ c, q: c.quaternion.clone(), p: c.position.clone() }));
+    return { node, front: /Front/.test(name), parts, ...info };
+  });
   if (look?.wheels && look.wheels !== 1) for (const w of wheels) w.node?.scale.multiplyScalar(look.wheels);
   const lights = [];
   model.traverse((o) => o.userData.light && lights.push(o));
@@ -182,12 +198,20 @@ export function makeCar(kind, color, { lite = false, look = null } = {}) {
     color,
     /** Turn the front wheels and roll all four. */
     wheels(steer, roll) {
-      spun += roll;
+      // Kept within a turn, so the angle never grows large enough to lose precision.
+      spun = (spun + roll) % (Math.PI * 2);
       for (const w of wheels) {
         if (!w.node) continue;
         qs.setFromAxisAngle(w.up, w.front ? steer : 0);
         qt.setFromAxisAngle(w.axle, -spun);
-        w.node.quaternion.copy(w.base).multiply(qs).multiply(qt);
+        if (w.parts.length) {
+          // Steer the wheel; roll its parts about the axle through its centre.
+          w.node.quaternion.copy(w.base).multiply(qs);
+          for (const p of w.parts) {
+            p.c.quaternion.copy(qt).multiply(p.q);
+            p.c.position.copy(p.p).applyQuaternion(qt);
+          }
+        } else w.node.quaternion.copy(w.base).multiply(qs).multiply(qt);
       }
     },
     /** The full model near, the stand-in far. */
@@ -199,7 +223,7 @@ export function makeCar(kind, color, { lite = false, look = null } = {}) {
     lights(night, braking) {
       for (const o of lights) {
         const on = o.userData.light === 'head' ? night : braking || night * 0.3;
-        o.material.emissiveIntensity = o.userData.light === 'head' ? 0.4 + on * 6 : 0.3 + on * 5;
+        o.material.emissiveIntensity = o.userData.light === 'head' ? 0.4 + on * 2.6 : 0.25 + on * 1.8;
       }
     }
   };

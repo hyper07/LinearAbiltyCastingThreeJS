@@ -40,7 +40,9 @@ including commercially, **with attribution** — the game shows the credit on sc
   perfectly level, it is the Han, a stream or a lake.
 - **The main roads** (motorways down to tertiary roads; tunnels left out) are from **OpenStreetMap**
   (© OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright)). Roads over water
-  are lifted onto a deck: the bridges. Smaller streets are simply the gaps between buildings.
+  are lifted onto a deck: the bridges. Each bridge ramps down to the roads it meets on the banks, and
+  where a bridge comes in several pieces (as Yanghwa and Dongjak do) they meet level, so every Han
+  crossing drives straight through. Smaller streets are simply the gaps between buildings.
 - **N Seoul Tower** is in the register as a single point, so the game draws its own plain tower
   there, to the real height. No other building is modelled by hand.
 - Heights only shape the ground: **no elevation figure and no coordinate is ever shown.** Parks,
@@ -71,7 +73,7 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
   bridge from its end and you cross the river on it; from the bank you pass underneath. Cars are
   parked at the roadside near you; **E** beside one gets in.
 - **Drive** (the button, or **E** by a car): **W** to go, **S** to brake and then reverse, **A D**
-  to steer, **Space** for the handbrake (it slides the back round), **H** for the horn, **E** to
+  to steer, **Shift** (or **Space**) for the handbrake (it slides the back round), **H** for the horn, **E** to
   get out. The camera swings round behind the car unless you look about with the mouse; the speed
   is shown in km/h. Buildings and other cars stop you — nothing is damaged and nobody is hurt.
 - **The street around you**: traffic on the real roads (OpenStreetMap), keeping to the right,
@@ -115,9 +117,15 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **Alone**: you against three bots. **Together**: one player makes a room and gives the five-letter
   code; up to three others join; the host picks the course and the laps (1, 2, 3 or 5) and starts.
   Bots take any empty seats (the host's browser drives them).
-- **Driving**: **W** go, **S** brake (held on once stopped, it backs up — the camera stays behind), **A D** steer, **Space** handbrake to throw the car into a
-  slide, **Shift** to spend boost, **R** back onto the course, **H** horn. Sliding through a corner
-  scores drift points and fills the boost.
+- **Driving**: **W** go, **S** brake (held on once stopped, it backs up — the camera stays behind), **A D** steer, **Shift** to drift (the
+  handbrake throws the car into a slide), **Space** for the turbo, **R** back onto the course, **H** horn, **N** weather.
+- **The turbo gauge** starts empty. Driving fast fills it slowly (about half a minute flat out);
+  drifting fills it far faster, and scores drift points. Only a **full** gauge fires the turbo
+  (**Space**; the gauge glows orange when it is ready), and a turbo runs until the gauge is empty.
+  Bots play by the same rule.
+- **Weather** (**N**, the bar's button, or the race menu): clear, rain, storm (heavier rain and
+  lightning), snow or fog. Rain darkens the roads and makes them shine under the street lamps;
+  fog closes the view in.
 - **On screen**: the map at the top left turns with you and shows the course ahead in orange over
   the streets, with everyone on it; your place and lap, the lap's time, your best and the total;
   the order of all four; speed and boost. Orange chevrons on the road point the way; every turn has an arrow board on the outside

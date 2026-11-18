@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadPerson, Person, PEOPLE } from './people.js';
-import { loadCar, makeCar, PAINTS } from './cars.js';
+import { loadCar, makeCar, PAINTS, setCarEnvironment } from './cars.js';
 import { stepCar, follow, pointOn, CAR } from './drive.js';
 
 /**
@@ -37,9 +37,13 @@ export class Street {
   constructor(game) {
     this.g = game;
     this.scene = game.scene;
-    // Shiny paint and glass want something to reflect: a soft studio light, only they see it.
+    // Shiny paint and glass want something to reflect: a soft studio light, the cars' own
+    // (set on their materials). The city gets only a little of it, by day (SeoulGame._weather) —
+    // given to everything, it lit the streets like noon at midnight.
     const pmrem = new THREE.PMREMGenerator(game.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    setCarEnvironment(env);
+    this.scene.environment = env;
     this.scene.environmentIntensity = 0.65;
     pmrem.dispose();
     try {
@@ -324,7 +328,7 @@ export class Street {
     const k = this.g.keys;
     const key = (...codes) => codes.some((c) => k.has(c));
     const typing = document.activeElement?.matches?.('input, select');
-    if (this.car) this._driveStep(dt, typing ? {} : { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), handbrake: key('Space') });
+    if (this.car) this._driveStep(dt, typing ? {} : { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), handbrake: key('ShiftLeft', 'ShiftRight', 'Space') });
     else this._walkStep(dt, typing ? {} : { f: (key('KeyW', 'ArrowUp') ? 1 : 0) - (key('KeyS', 'ArrowDown') ? 1 : 0), s: (key('KeyD', 'ArrowRight') ? 1 : 0) - (key('KeyA', 'ArrowLeft') ? 1 : 0), run: key('ShiftLeft', 'ShiftRight') });
     if (this.carKind) this._traffic(dt);
     this._walkers(dt);

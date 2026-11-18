@@ -1,3 +1,4 @@
+import { WEATHERS, WEATHER_ORDER } from './weather.js';
 import * as THREE from 'three';
 import { Session } from '../net/Session.js';
 import { loadCar, makeCar } from './cars.js';
@@ -9,8 +10,9 @@ import { loadPerson, Person } from './people.js';
 /**
  * Gangnam Drift: night racing for four cars on a loop of real Seoul roads.
  * Alone, against three bots; or up to four people in a room (by code, over
- * the party server), with bots in any empty seats. Drift to fill the boost
- * (Shift spends it). The map in the top left shows the course ahead.
+ * the party server), with bots in any empty seats. Driving fast fills the
+ * turbo gauge, drifting (Shift) fills it much faster; once it is full, Space
+ * fires the turbo, which runs until the gauge is empty. The map in the top left shows the course ahead.
  *
  * Each browser drives its own car (the host also drives the bots) and tells
  * the room where it is fifteen times a second; everyone plans the same
@@ -107,7 +109,7 @@ export class Race {
     m.hidden = false;
     m.innerHTML = `
       <header><h2>🏁 Gangnam Drift</h2><button type="button" data-race-x aria-label="Close">✕</button></header>
-      <p class="race__lead">Four cars, a loop of real Seoul streets at night. Drift through the corners to fill your boost, then <b>Shift</b> to spend it. First over the line after the last lap wins.</p>
+      <p class="race__lead">Four cars, a loop of real Seoul streets at night. Drive fast to fill the turbo gauge — drift with <b>Shift</b> to fill it much faster — and once it is full, <b>Space</b> fires the turbo. First over the line after the last lap wins.</p>
       <div class="race__courses">${COURSES.map((c) => `<button type="button" data-course="${c.id}" class="${c.id === this.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><span>${esc(c.ko)}${c.run ? ' · <strong>RUN</strong>' : c.long ? ' · <strong>LONG</strong>' : ''}</span><small>${esc(c.text)}</small><em data-len="${c.id}">${this.plans.get(c.id) ? `${(this.plans.get(c.id).length / 1000).toFixed(1)} km ${this.plans.get(c.id).open ? `· ${this.plans.get(c.id).checkpoints.length} checkpoints` : 'a lap'}` : c.run ? 'planning…' : ''}</em></button>`).join('')}</div>
       <h3 class="race__label">Your car</h3>
       <div class="race__garage">${GARAGE_ORDER.map((id) => {
@@ -117,6 +119,7 @@ export class Race {
         return `<button type="button" data-car="${id}" class="${this.car.id === id ? 'is-on' : ''}"><b>${esc(c.name)}</b><em>${esc(c.kind)}</em><small>${esc(c.text)}</small>${bar('Speed', r.speed)}${bar('Pick-up', r.pickup)}${bar('Grip', r.grip)}${bar('Drift', r.drift)}</button>`;
       }).join('')}</div>
       <div class="race__row race__paints"><span>Paint</span>${GARAGE[this.car.id].paints.map((c, i) => `<button type="button" data-paint="${i}" class="${this.car.paint === i ? 'is-on' : ''}" style="background:${c}" aria-label="Paint ${i + 1}"></button>`).join('')}</div>
+      <div class="race__row race__weather"><span>Weather</span>${WEATHER_ORDER.map((k) => `<button type="button" data-weather-pick="${k}" class="${this.g.weather?.kind === k ? 'is-on' : ''}">${WEATHERS[k].icon} ${WEATHERS[k].name}</button>`).join('')}</div>
       ${COURSES.find((c) => c.id === this.courseId)?.run ? '<div class="race__row"><span>A run: start to finish, one go — checkpoints in every district on the way.</span></div>' : `<div class="race__row"><span>Laps</span>${[1, 2, 3, 5].map((n) => `<button type="button" data-laps="${n}" class="${n === this.laps ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div>`}
       ${s?.room ? `
         <div class="race__room"><b>Room <span data-race-code>${esc(s.room)}</span></b> — give friends this code (up to four). Bots take any empty seats.
@@ -126,10 +129,14 @@ export class Race {
         <div class="race__row"><button type="button" class="race__go" data-race-solo>Race three bots</button></div>
         <div class="race__row race__together"><span>With friends</span><button type="button" data-race-make>Make a room</button><input data-race-code-in maxlength="5" placeholder="CODE" /><button type="button" data-race-join>Join</button></div>`}
       <p class="race__note" data-race-note>${esc(note)}</p>
-      <p class="race__keys">W go · S brake · A D steer · Space handbrake (drift) · Shift boost · R back on the course · H horn</p>`;
+      <p class="race__keys">W go · S brake · A D steer · Shift drift · Space turbo (when the gauge is full) · R back on the course · H horn · N weather</p>`;
     const $ = (q) => m.querySelector(q);
     $('[data-race-x]').onclick = () => this.quit();
     for (const b of m.querySelectorAll('[data-course]')) b.onclick = () => this._setup({ course: b.dataset.course });
+    for (const b of m.querySelectorAll('[data-weather-pick]')) b.onclick = () => {
+      while (this.g.weather.kind !== b.dataset.weatherPick) this.g.cycleWeather();
+      this.menu();
+    };
     for (const b of m.querySelectorAll('[data-laps]')) b.onclick = () => this._setup({ laps: Number(b.dataset.laps) });
     for (const b of m.querySelectorAll('[data-car]')) b.onclick = () => {
       this.car = { id: b.dataset.car, paint: 0 };
@@ -354,7 +361,8 @@ export class Race {
         lapTimes: [],
         best: null,
         done: null,
-        boost: 0.35,
+        boost: 0,
+        turbo: false,
         driftScore: 0,
         combo: 0,
         comboIdle: 0,
@@ -976,10 +984,17 @@ export class Race {
       if (r.mine) {
         let input = {};
         if (racing && r.done == null) {
-          if (r.me) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), handbrake: key('Space'), boost: key('ShiftLeft', 'ShiftRight') && r.boost > 0.02 };
+          if (r.me) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), handbrake: key('ShiftLeft', 'ShiftRight'), boost: key('Space') || this.turboTap };
           else input = this._bot(r, dt);
         } else if (r.done != null) input = { brake: r.s.v > 0.5 };
-        if (input.boost) r.boost = Math.max(0, r.boost - dt * 0.28);
+        // The turbo: only from a full gauge, and once fired it runs until the gauge is empty.
+        if (input.boost && r.boost >= 1 && !r.turbo) r.turbo = true;
+        if (r.me) this.turboTap = false;
+        if (r.turbo && r.boost <= 0) r.turbo = false;
+        input.boost = Boolean(r.turbo) && racing && r.done == null;
+        if (input.boost) r.boost = Math.max(0, r.boost - dt * 0.26);
+        // Driving fast fills the gauge, slowly (about half a minute flat out); drifting fills it far faster (_drift).
+        else if (racing && r.done == null) r.boost = Math.min(1, r.boost + dt * 0.034 * Math.min(1, Math.max(0, r.s.v) / 30));
         const blocked = (x, z) => Boolean(this.g.buildingAt(x, z));
         const { hit } = stepCar(r.s, input, dt, blocked, r.spec);
         if (hit > 6 && r.me) this.g.street?._thud?.(Math.min(1, hit / 30));
@@ -1209,7 +1224,7 @@ export class Race {
       brake: v > target + 3,
       steer,
       handbrake: sharpest > 0.9 && v > 18 && Math.abs(steer) > 0.6,
-      boost: r.boost > 0.4 && sharpest < 0.15 && v > 25 && Math.abs(steer) < 0.2
+      boost: r.boost >= 1 && sharpest < 0.15 && v > 25 && Math.abs(steer) < 0.2
     };
   }
 
@@ -1268,7 +1283,7 @@ export class Race {
     if (!this.open) this.posEl.innerHTML = `<b>${ordinal(rank)}</b><small>of ${order.length}</small><span>LAP ${lap}/${this.laps}</span><i>${clock(this.phase === 'grid' ? 0 : me.done ?? this.clock - me.lapStart)}</i><em>best ${clock(me.best)} · total ${clock(me.done ?? (this.phase === 'grid' ? 0 : this.clock))}</em>`;
     if (!this.open) this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.name)}${r.bot ? ' <small>bot</small>' : ''}<span>${r.done != null ? clock(r.done) : `lap ${Math.min(this.laps, Math.max(1, Math.floor(r.dist / this.course.length) + 1))}`}</span></p>`).join('');
     const kmh = Math.round(Math.abs(me.s.v) * 3.6);
-    this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost"><i style="width:${Math.round(me.boost * 100)}%"></i></div><span>${me.boosting ? 'BOOST' : me.s.drift > 0.22 && Math.abs(me.s.v) > 12 ? 'DRIFT' : me.s.v < -0.3 ? 'R' : ''}</span>`;
+    this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost${me.boost >= 1 && !me.boosting ? ' is-full' : ''}"><i style="width:${Math.round(me.boost * 100)}%"></i></div><span>${me.boosting ? 'TURBO' : me.boost >= 1 ? 'SPACE · TURBO' : me.s.drift > 0.22 && Math.abs(me.s.v) > 12 ? 'DRIFT' : me.s.v < -0.3 ? 'R' : ''}</span>`;
     if (me.wrong && this.phase === 'racing') this._flash('WRONG WAY', 0.4);
     // The next turn, named as it comes up.
     const next = this.phase !== 'done' && me.done == null ? this._nextTurn(me) : null;
