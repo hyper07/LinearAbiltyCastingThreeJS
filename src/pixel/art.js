@@ -94,6 +94,7 @@ const makeCanvas = (w, h) => (typeof OffscreenCanvas !== 'undefined' ? new Offsc
  * @param {Record<string, string[] | string>} ramps a ramp (or a base colour) for each letter
  * @param {{ scale?: number, outline?: boolean, flat?: Record<string, string>, canvas?: (w: number, h: number) => any }} [options]
  *   `scale` 2 draws at twice the detail with rounded stair-steps and a dithered second band;
+ *   `scale` 4 (3 and up) at four times: round corners, light that falls off smoothly over nine shades;
  *   `flat` letters that take one colour as it is (eyes, glints).
  * @returns {{ canvas: any, white: any, width: number, height: number, pixels: (string | null)[][] }}
  *   `white` is the same shape in pure white, for a hit flash.
@@ -112,8 +113,42 @@ export function shadeSprite(rows, ramps, { scale = 1, outline = true, flat = {},
     const ch = cell(cx, cy);
     if (!ch) return null;
     const [ex, ey] = [x % scale === 0 ? -1 : x % scale === scale - 1 ? 1 : 0, y % scale === 0 ? -1 : y % scale === scale - 1 ? 1 : 0];
-    if (ex && ey && !cell(cx + ex, cy) && !cell(cx, cy + ey)) return null;
+    if (ex && ey && !cell(cx + ex, cy) && !cell(cx, cy + ey)) {
+      if (scale < 3) return null;
+      // A quarter circle: keep what lies within the cell's width of the corner opposite.
+      const [u, v] = [ex < 0 ? scale - 1 - (x % scale) : x % scale, ey < 0 ? scale - 1 - (y % scale) : y % scale];
+      if ((u + 0.5) ** 2 + (v + 0.5) ** 2 > (scale - 0.25) ** 2) return null;
+    }
     return ch;
+  };
+  // How near an edge of its own material a pixel is, looking one way: 1 at the edge, 0 a letter's width in.
+  const near = (ch, x, y, dx, dy) => {
+    for (let k = 1; k <= scale; k++) if (at(x + dx * k, y + dy * k) !== ch) return 1 - (k - 1) / scale;
+    return 0;
+  };
+  /**
+   * Shading at 3× detail and up: light falls off smoothly from the top and
+   * left edges and shadow gathers at the bottom and right, on a ramp widened
+   * to nine shades, the steps between shades ordered-dithered.
+   */
+  const wide = new Map();
+  const fineShade = (r, ch, x, y) => {
+    let w9 = wide.get(r);
+    if (!w9) {
+      w9 = [];
+      for (let i = 0; i < r.length; i++) {
+        w9.push(r[i]);
+        if (i < r.length - 1) w9.push(mix(r[i], r[i + 1], 0.5));
+      }
+      wide.set(r, w9);
+    }
+    const [top, bottom] = span[ch];
+    const ty = bottom > top ? (y - top) / (bottom - top) : 0;
+    const [up, left, down, right] = [near(ch, x, y, 0, -1), near(ch, x, y, -1, 0), near(ch, x, y, 0, 1), near(ch, x, y, 1, 0)];
+    const mid = (r.length - 1) / 2;
+    let v = mid + 1.25 * up + 0.85 * left + 0.5 * up * left - 1.05 * down - 0.85 * right - 0.9 * Math.max(0, (ty - 0.5) / 0.5) ** 1.5;
+    v = Math.max(0, Math.min(r.length - 1, v));
+    return w9[Math.max(0, Math.min(w9.length - 1, Math.round(v * 2 + bayer(x, y) * 0.45)))];
   };
   const w = w0 * scale + 2;
   const h = h0 * scale + 2;
@@ -136,6 +171,10 @@ export function shadeSprite(rows, ramps, { scale = 1, outline = true, flat = {},
         continue;
       }
       const r = R[ch] ?? RAMPS.stone;
+      if (scale >= 3) {
+        pixels[y + 1][x + 1] = fineShade(r, ch, x, y);
+        continue;
+      }
       const [up, left, down, right] = [at(x, y - 1), at(x - 1, y), at(x, y + 1), at(x + 1, y)];
       let l = 2;
       if (up !== ch) l++;

@@ -23,11 +23,11 @@ needs reading until a record is chosen.
 | What | How many | Where | Use |
 | --- | --- | --- | --- |
 | Pixel-art effects (fire, ice, lightning, explosions, pickups, whole attack moves…) | 244 | `vendor/pixelfx/` | `playFx('fire/campfire')` from `src/pixel/fx.js` — a canvas to draw, or `.texture(THREE)` for a sprite in 3D |
-| Pixel-art kit and rules | 14 rules | `src/pixel/art.js`, `knowledge/pixel-art-guide.md` | `shadeSprite(rows, ramps)` lights and outlines a letter-map sprite; `ramp()`, `dither()`, `pixelCanvas()`, `paintGround()` |
+| Pixel-art kit and rules | 14 rules | `src/pixel/art.js`, `knowledge/pixel-art-guide.md` | `shadeSprite(rows, ramps, { scale: 4 })` lights and outlines a letter-map sprite at 1×, 2× or 4× detail; `ramp()`, `dither()`, `pixelCanvas()`, `paintGround()` |
 | Ready 3D kits (buildings, nature, props, vehicles) | 22 | `vendor/3dviz/kits/` | `create(params)` → `{ group, sockets, colliders, animate }` |
 | Scene recipes and design knowledge (lighting, materials, motion, composition) | 223 + 440 | `vendor/3dviz/recipes/`, `vendor/3dviz/knowledge/` | Read the record; adapt the code it points to |
 | Rigs | 5 | `vendor/3dviz/rigs/` | Skeleton and animation set-ups |
-| Shader and character templates (pixel-art pass with a 64-colour palette, toon looks, water, procedural people) | 28 + 7 guides | `vendor/diorama/` | `new PixelPost(renderer, maxDim, renderScale)`; the rest is reference to adapt |
+| Shader and character templates (pixel-art pass with a 64-colour palette, toon looks, water, procedural people) | 28 + 7 guides | `vendor/diorama/` | `pixelPass(renderer, { detail: 4 })` from `src/pixel/post.js` (our palette, see-through background); the rest is reference to adapt |
 | Techniques from other games (flow fields, wave budgets, fog of war, formations, cloth, crowds, adaptive music…) | 41 | `knowledge/techniques.json`, some code in `vendor/last-stand/` | Each record says how it works; some point to reference code |
 | Low-poly 3D models | 3,422 | fetched into `library/polyfork/` | `npm run library:polyfork -- <id>` or `--kit "words"` or `--all` (about 1 GB) |
 | Our own modules | 10 | `knowledge/own.json` | Add a record when you write something reusable |

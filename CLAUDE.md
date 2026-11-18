@@ -16,7 +16,7 @@ npm run kb -- --show tech.flowfield    # the full record, with its file path
 
 Open only the file the chosen record points to. Details: [docs/knowledge-base.md](docs/knowledge-base.md).
 
-- Pixel art: `src/pixel/art.js` (ramps, `shadeSprite`, dither, pixel-perfect canvas), `src/pixel/fx.js` (`playFx(id)`), rules in `knowledge/pixel-art-guide.md`.
+- Pixel art: `src/pixel/art.js` (ramps, `shadeSprite` — use `scale: 4` for quality, dither, pixel-perfect canvas), `src/pixel/fx.js` (`playFx(id)`), `src/pixel/post.js` (`pixelPass` for 3D scenes), rules in `knowledge/pixel-art-guide.md`.
 - `vendor/` is other people's code with its licence beside it: read and adapt it, keep the LICENSE files, credit in `docs/third-party.md`.
 - `library/` (downloaded models), `data/`, `source/` and `.env` are never committed.
 

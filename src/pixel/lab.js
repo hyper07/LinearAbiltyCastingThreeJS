@@ -15,14 +15,14 @@ const SAMPLE_FX = ['fire', 'explosions', 'ice', 'lightning', 'holy', 'pickups', 
 
 const HERO = ['....HHHH....', '...HHHHHH...', '..BBBBBBBB..', '..RFFFFFFR..', '..RFEWFEWR..', '..RFFFFFFR..', '...FFFFFF...', '..CCCCCCCC..', '.CCCTTTTCCC.', '.CCCCCCCCCC.', '..CC....CC..', '..SS....SS..'];
 
-export async function openLab(parent = document.body, { fx = SAMPLE_FX, kits = ['buildings/timber-cottage', 'nature/tree-round'] } = {}) {
+export async function openLab(parent = document.body, { fx = SAMPLE_FX, kits = ['buildings/timber-cottage', 'nature/tree-round'], detail = 4 } = {}) {
   const host = document.createElement('div');
   host.className = 'pixel-lab';
   host.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#1a1420;overflow:hidden;';
   parent.append(host);
   const c = document.createElement('canvas');
   c.width = 1280;
-  c.height = 360;
+  c.height = 420;
   c.style.cssText = 'position:absolute;left:0;top:0;image-rendering:pixelated;';
   host.append(c);
   const g = c.getContext('2d');
@@ -42,10 +42,11 @@ export async function openLab(parent = document.body, { fx = SAMPLE_FX, kits = [
   const flat = { E: '#1a1026', W: '#ffffff' };
   const s1 = art.shadeSprite(HERO, ramps, { flat });
   const s2 = art.shadeSprite(HERO, ramps, { flat, scale: 2 });
+  const s4 = art.shadeSprite(HERO, ramps, { flat, scale: 4 });
   const ground = document.createElement('canvas');
-  ground.width = 120;
-  ground.height = 30;
-  art.paintGround(ground.getContext('2d'), 120, 30);
+  ground.width = 480;
+  ground.height = 200;
+  art.paintGround(ground.getContext('2d'), 480, 200);
 
   const draw2d = () => {
     g.clearRect(0, 0, c.width, c.height);
@@ -55,15 +56,17 @@ export async function openLab(parent = document.body, { fx = SAMPLE_FX, kits = [
       const k = z >= 1 ? Math.floor(z) : z;
       g.drawImage(p.canvas, 8 + i * 158 + (150 - p.size[0] * k) / 2, 10 + (170 - p.size[1] * k) / 2, p.size[0] * k, p.size[1] * k);
     });
-    g.drawImage(s1.canvas, 20, 200, s1.width * 10, s1.height * 10);
-    g.drawImage(s2.canvas, 200, 200, s2.width * 5, s2.height * 5);
-    g.drawImage(s2.white, 380, 200, s2.width * 5, s2.height * 5);
-    g.drawImage(ground, 560, 200, 600, 150);
+    // The same letter map at 1×, 2× and 4× detail, and its hit-flash shape.
+    g.drawImage(s1.canvas, 20, 200, s1.width * 14, s1.height * 14);
+    g.drawImage(s2.canvas, 230, 200, s2.width * 7, s2.height * 7);
+    g.drawImage(s4.canvas, 440, 200, s4.width * 4, s4.height * 4);
+    g.drawImage(s4.white, 650, 200, s4.width * 2, s4.height * 2);
+    g.drawImage(ground, 780, 200, 480, 200);
   };
 
   // A 3D kit scene through the pixel pass.
   const c3 = document.createElement('canvas');
-  c3.style.cssText = 'position:absolute;left:0;top:360px;width:640px;height:360px;image-rendering:pixelated;';
+  c3.style.cssText = 'position:absolute;left:0;top:420px;width:640px;height:360px;image-rendering:pixelated;';
   host.append(c3);
   const renderer = new THREE.WebGLRenderer({ canvas: c3, antialias: false, alpha: true });
   const scene = new THREE.Scene();
@@ -89,8 +92,8 @@ export async function openLab(parent = document.body, { fx = SAMPLE_FX, kits = [
   let post = 'plain';
   let pass = null;
   try {
-    const { PixelPost } = await import('../../vendor/diorama/post.js');
-    pass = new PixelPost(renderer, 1600, 0.4);
+    const { pixelPass } = await import('./post.js');
+    pass = pixelPass(renderer, { detail });
     pass.setSize(640, 360);
     post = 'pixel';
   } catch (e) {

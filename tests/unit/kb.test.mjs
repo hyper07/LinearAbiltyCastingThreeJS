@@ -58,4 +58,15 @@ test('pixel art: a ramp runs dark to light, and a shaded sprite is lit from the 
   const body = s.pixels.flat().filter(Boolean);
   assert.ok(body.length > 20);
   assert.ok(lum(s.pixels[2][2]) > lum(s.pixels[s.pixels.length - 3][s.pixels[0].length - 3]));
+  // Four times the detail: four times the pixels each way, round corners, and more shades than the ramp has.
+  const stub = (w, h) => ({ width: w, height: h, getContext: () => ({ fillRect() {}, set fillStyle(v) {} }) });
+  const rows = Array.from({ length: 6 }, () => 'AAAAAA');
+  const fine = art.shadeSprite(rows, { A: art.RAMPS.stone }, { scale: 4, canvas: stub });
+  assert.equal(fine.width, 6 * 4 + 2);
+  // The corner pixel is cut off the body: the outline runs through it, round the corner.
+  const whole = art.shadeSprite(rows, { A: art.RAMPS.stone }, { scale: 4, outline: false, canvas: stub });
+  assert.equal(whole.pixels[1][1], null);
+  assert.ok(whole.pixels[2][2]);
+  assert.ok(new Set(fine.pixels.flat().filter(Boolean)).size > 6);
+  assert.ok(lum(fine.pixels[3][3]) > lum(fine.pixels[13][13]) && lum(fine.pixels[13][13]) > lum(fine.pixels[22][22]));
 });

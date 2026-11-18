@@ -4,7 +4,7 @@
    "id": "own.pixel.art",
    "kind": "module",
    "title": "Pixel-art kit: ramps, auto-shaded sprites, dither, pixel-perfect canvas",
-   "summary": "shadeSprite(rows, ramps) lights and outlines a letter-map sprite (top-left light, selective outline, white hit-flash copy; scale 2 for detail); ramp(base) makes a hue-shifted 5-shade ramp; RAMPS ready-made; dither/bayer; pixelCanvas(screen) low-res layer at whole-number zoom; paintGround; pixelEllipse; hardAlpha.",
+   "summary": "shadeSprite(rows, ramps) lights and outlines a letter-map sprite (top-left light, selective outline, white hit-flash copy; scale 2 for twice the detail, scale 4 for four times: round corners and smooth nine-shade light); ramp(base) makes a hue-shifted 5-shade ramp; RAMPS ready-made; dither/bayer; pixelCanvas(screen) low-res layer at whole-number zoom; paintGround; pixelEllipse; hardAlpha.",
    "tags": [
     "pixel",
     "sprite",
@@ -40,7 +40,7 @@
    "id": "own.sprites.bake",
    "kind": "module",
    "title": "Sprite baker: 3D models rendered once into 2D sprite sheets",
-   "summary": "SpriteBaker renders skinned models (soldier ranks, skeletons, robot) from a three-quarter camera into sheets \u2014 5 directions (mirrored for 8), idle/run/walk/attack frames \u2014 plus still objects; then the 3D is let go. The classic pre-rendered sprite look at 2D cost.",
+   "summary": "SpriteBaker renders skinned models (soldier ranks, skeletons, robot) from a three-quarter camera into sheets — 5 directions (mirrored for 8), idle/run/walk/attack frames — plus still objects; then the 3D is let go. The classic pre-rendered sprite look at 2D cost.",
    "tags": [
     "sprite",
     "sheet",
@@ -90,7 +90,7 @@
    "id": "own.sim.rts",
    "kind": "module",
    "title": "Headless RTS-style simulation with rooms",
-   "summary": "Purge: fixed-step sim with spatial hash, grid A* with corner cutting, group move formations, guard camps that wake and leash, spawners, waves, bunkers, upgrades, bots; snapshot() small enough to send 10\u00d7/s; host-run rooms via MobaLink + Mirror interpolation.",
+   "summary": "Purge: fixed-step sim with spatial hash, grid A* with corner cutting, group move formations, guard camps that wake and leash, spawners, waves, bunkers, upgrades, bots; snapshot() small enough to send 10×/s; host-run rooms via MobaLink + Mirror interpolation.",
    "tags": [
     "rts",
     "simulation",
@@ -108,7 +108,7 @@
    "id": "own.overlay",
    "kind": "module",
    "title": "Shared HUD overlay for 2D and 3D views",
-   "summary": "drawOverlay/pickAt/boxedIn work with any view exposing toScreen(x,y,z): health bars, names, popups, box-select, picking \u2014 so a game can have a 2D and a 3D view of one simulation.",
+   "summary": "drawOverlay/pickAt/boxedIn work with any view exposing toScreen(x,y,z): health bars, names, popups, box-select, picking — so a game can have a 2D and a 3D view of one simulation.",
    "tags": [
     "hud",
     "overlay",
@@ -123,7 +123,7 @@
    "id": "own.covers",
    "kind": "tool",
    "title": "Cover-shot script: real screenshots of every game",
-   "summary": "scripts/covers.mjs opens each game in a browser, stages a good moment, hides HUD and saves an 800\u00d7450 JPEG to public/covers.",
+   "summary": "scripts/covers.mjs opens each game in a browser, stages a good moment, hides HUD and saves an 800×450 JPEG to public/covers.",
    "tags": [
     "screenshot",
     "cover",
@@ -179,7 +179,7 @@
    "id": "rule.pixel.grid",
    "kind": "pixel-rule",
    "title": "Pixel-perfect rendering: draw small, zoom by a whole number",
-   "summary": "Paint the world on a low-resolution canvas (K=2 detail pixels a world unit) and copy it up at an integer zoom with imageSmoothingEnabled=false. Never 2.5\u00d7: uneven scaling makes some pixels wider \u2014 the commonest reason pixel games look cheap. Round every draw position and the camera (after shake) to whole pixels.",
+   "summary": "Paint the world on a low-resolution canvas (K=2 detail pixels a world unit) and copy it up at an integer zoom with imageSmoothingEnabled=false. Never 2.5×: uneven scaling makes some pixels wider — the commonest reason pixel games look cheap. Round every draw position and the camera (after shake) to whole pixels.",
    "tags": [
     "pixel",
     "pixel art",
@@ -196,7 +196,7 @@
    "id": "rule.pixel.ramps",
    "kind": "pixel-rule",
    "title": "Colour ramps with hue shifting",
-   "summary": "Each material gets 5 shades, deep shadow to highlight; shadows shift towards blue-violet and highlights towards yellow instead of only darker/lighter. A palette of 24\u201340 colours in ramps of 4\u20135.",
+   "summary": "Each material gets 5 shades, deep shadow to highlight; shadows shift towards blue-violet and highlights towards yellow instead of only darker/lighter. A palette of 24–40 colours in ramps of 4–5.",
    "tags": [
     "pixel",
     "pixel art",
@@ -241,7 +241,7 @@
    "id": "rule.pixel.dither",
    "kind": "pixel-rule",
    "title": "Dithering only on big shapes",
-   "summary": "A 4\u00d74 Bayer pattern blends two shades without a new colour: add the Bayer value before choosing the shade. Use on grass, shadows and large shapes \u2014 never on small sprites, where it reads as noise.",
+   "summary": "A 4×4 Bayer pattern blends two shades without a new colour: add the Bayer value before choosing the shade. Use on grass, shadows and large shapes — never on small sprites, where it reads as noise.",
    "tags": [
     "pixel",
     "pixel art",
@@ -383,7 +383,7 @@
    "id": "rule.pixel.effects",
    "kind": "pixel-rule",
    "title": "Rules for a good pixel effect",
-   "summary": "Lines and light, not fills; hard ramp steps in colour, softness only in light and smoke; fast in, slow out with a 1\u20132 frame white hero frame; vary every particle; light from one side; let one-shots shrink or dither out; loops seamless; seeded, never Math.random; under 2 ms a frame.",
+   "summary": "Lines and light, not fills; hard ramp steps in colour, softness only in light and smoke; fast in, slow out with a 1–2 frame white hero frame; vary every particle; light from one side; let one-shots shrink or dither out; loops seamless; seeded, never Math.random; under 2 ms a frame.",
    "tags": [
     "pixel",
     "pixel art",
@@ -395,6 +395,25 @@
     "authoring"
    ],
    "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "own.pixel.post",
+   "kind": "module",
+   "title": "Pixel-art pass for 3D scenes (general palette, transparent, detail 1–4)",
+   "summary": "pixelPass(renderer, { detail: 4 }) draws any three.js scene as pixel art: inked edges, ordered dither, snapped to a 64-colour palette built from our ramps; see-through background; detail 1 chunky … 4 fine.",
+   "tags": [
+    "pixel",
+    "3d",
+    "shader",
+    "post",
+    "palette",
+    "dither",
+    "outline",
+    "toon",
+    "render",
+    "pass"
+   ],
+   "path": "src/pixel/post.js"
   }
  ]
 }
