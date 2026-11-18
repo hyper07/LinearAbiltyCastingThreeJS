@@ -2,6 +2,7 @@ import { GENRES } from '../blueprints/genres.js';
 import { cardLine } from '../platform/gameCards.js';
 import { GENRE_ICONS, coverHtml, guardCovers } from './gameCover.js';
 import { tilt, confetti, popColor } from './pop.js';
+import { ChannelPage } from './ChannelPage.js';
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -64,6 +65,7 @@ export class PlatformHome {
         </label>
         <nav class="home__actions">
           <button type="button" class="home__btn home__btn--primary" data-create>＋ Create</button>
+          <button type="button" class="home__btn" data-channel title="Your own space: the games you make, your playlists, your badges — public or private, with a link to share">📺 My channel</button>
           <button type="button" class="home__btn" data-heroes title="Your heroes in every game: levels, bags and equipment">🦸 My heroes</button>
           <button type="button" class="home__btn" data-hero title="The free-play arena's hero: class, weapon, skills and stash">Arena hero</button>
           <button type="button" class="home__btn" data-party title="Make a party or join one with a code">Play together</button>
@@ -182,6 +184,15 @@ export class PlatformHome {
     this.$('[data-library]').addEventListener('click', () => actions.openLibrary());
     this.$('[data-hero]').addEventListener('click', () => actions.openHero('loadout'));
     this.$('[data-heroes]').addEventListener('click', () => actions.openHeroes?.());
+    /** Channels: a maker's own space (ui/ChannelPage.js), over the home page. */
+    this.channel = new ChannelPage(this.root, {
+      account: () => actions.account(),
+      signIn: () => actions.openHero('account'),
+      play: (id) => actions.play(id),
+      create: () => actions.create(),
+      list: (params) => actions.list(params)
+    });
+    this.$('[data-channel]').addEventListener('click', () => this.channel.openMine());
     this.$('[data-party]').addEventListener('click', () => actions.openHero('party'));
     this.$('[data-account]').addEventListener('click', () => actions.openHero('account'));
     // A click on the dimmed space around a game's page closes it.
@@ -203,6 +214,11 @@ export class PlatformHome {
     this.root.hidden = false;
     document.body.classList.add('is-home');
     this.updateAccount();
+    // A channel's link in the address opens it; one already open shows the new time and done marks.
+    if (!this._routed) {
+      this._routed = true;
+      this.channel.route();
+    } else this.channel.onShow();
     return this.refresh();
   }
 

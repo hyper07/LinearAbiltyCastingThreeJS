@@ -5,6 +5,7 @@ import { libraryState, startFetch } from './scripts/library/ensure.mjs';
 import { createModelStore } from './server/modelgen.mjs';
 import { libraryApi } from './server/libraryStore.js';
 import { GamesStore, gamesHandler } from './server/gamesStore.js';
+import { ChannelStore, channelHandler } from './server/channelStore.js';
 import { aiBridge } from './server/api/ai.js';
 import { JsonFileStore, fileApi } from './server/api/files.js';
 import { createRealtime } from './server/realtime.js';
@@ -335,7 +336,12 @@ export default defineConfig(({ mode }) => {
         let store = null;
         const getStore = async () =>
           (store ??= new GamesStore(await getDb(), new JsonFileStore({ builtInDir: levelDir(), userDir: levelDir(), indexKey: 'campaign', label: 'level' })));
-        return mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req) }));
+        let channels = null;
+        const getChannels = async () => (channels ??= new ChannelStore(await getDb(), await getStore()));
+        return [
+          mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req) })),
+          mount('channels', channelHandler(getChannels, { authenticate: async (req) => (await getGame()).authenticate(req) }))
+        ];
       })(),
       gameApi(getGame),
       marketApi({ ...process.env, ...env }, getDb, getGame),

@@ -414,6 +414,27 @@
     "pass"
    ],
    "path": "src/pixel/post.js"
+  },
+  {
+   "id": "own.channels",
+   "kind": "module",
+   "title": "Channels: a maker's space, playlists, play time, badges, mistake reports",
+   "summary": "server/channelStore.js (channels, playlists, play_progress, mistake_reports; public/private with a private-link key; BADGES from stats) and src/ui/ChannelPage.js (video-channel layout: banner, tabs, shelves, play-through view). createPlayTracker counts real play time.",
+   "tags": [
+    "channel",
+    "playlist",
+    "course",
+    "chapters",
+    "achievements",
+    "badges",
+    "progress",
+    "duration",
+    "private",
+    "share",
+    "report",
+    "profile"
+   ],
+   "path": "server/channelStore.js"
   }
  ]
 }

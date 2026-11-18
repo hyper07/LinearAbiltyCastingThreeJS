@@ -510,6 +510,7 @@ flowchart LR
 | [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
 | [The knowledge base](docs/knowledge-base.md) | 244 pixel effects, 3D kits, recipes, techniques and 3,422 models to reuse — `npm run kb -- <words>` |
+| [Channels](docs/channels.md) | Your own space: the games you make (public or private), playlists to play through, time played, badges, mistakes found, a link to share |
 | [The shared library](docs/library.md) | Official, shared and draft content; reuse and similar-asset suggestions; the API and database |
 | [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |
 | [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |

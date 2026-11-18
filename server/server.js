@@ -7,6 +7,7 @@ import { JsonFileStore, fileApi } from './api/files.js';
 import { chain, json, pathOf } from './api/http.js';
 import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { GamesStore, gamesHandler } from './gamesStore.js';
+import { ChannelStore, channelHandler } from './channelStore.js';
 import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
 import { createGameServices } from './game/index.js';
@@ -107,6 +108,7 @@ const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, 
 game.setPartyCheck((a, b) => realtime.sameParty(a, b));
 const library = new LibraryStore(database);
 const games = new GamesStore(database, levels);
+const channels = new ChannelStore(database, games);
 const market = createMarket({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const work = createWork({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const mmo = createMmo({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
@@ -119,6 +121,7 @@ const api = chain([
   fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
   libraryHandler(async () => library),
   gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req) }),
+  channelHandler(async () => channels, { authenticate: (req) => game.authenticate(req) }),
   market.handler,
   work.handler,
   mmo.handler,

@@ -30,6 +30,7 @@ import { SkillTreePanel } from '../ui/SkillTreePanel.js';
 import { ClassForgePanel } from '../ui/ClassForgePanel.js';
 import { GameBuilderPanel } from '../ui/GameBuilderPanel.js';
 import { PlatformHome } from '../ui/PlatformHome.js';
+import { createPlayTracker } from '../platform/channelClient.js';
 import { HeroesPanel } from '../ui/HeroesPanel.js';
 import { RosterPicker } from '../ui/RosterPicker.js';
 import { GameLobby } from '../ui/GameLobby.js';
@@ -399,13 +400,31 @@ export class App {
         await this.mainMenu.refreshCharacters();
       }
     });
+    /** Time really played in each game, kept on the account (the channel's achievements). */
+    this.playTracker = createPlayTracker({
+      playing: () => {
+        const screen = this._engineView?.root;
+        if (screen) return screen.isConnected && !screen.hidden;
+        return !this.home.isVisible && !this.mainMenu.isVisible && this.lobby.root.hidden !== false;
+      },
+      // Back at the menus: an open channel shows the new time.
+      onEnd: () => this.home.channel.onShow(),
+      signedIn: () => Boolean(this.account?.user)
+    });
     /* ---- the platform's front page: every game as a card (ui/PlatformHome.js) ---- */
     /** Which menu screen shows between games: the platform's 'home', or the action RPG's 'hero' menu. */
     this._menuView = 'home';
     this.home = new PlatformHome(hudRoot, {
       list: (params) => games.list(params),
       get: (id) => games.get(id),
-      play: (id) => this.openLobby(id),
+      play: async (id) => {
+        this._engineView = null;
+        this.playTracker.start(id);
+        // A game on its own engine opens its own screen over the home page; the others go through the lobby.
+        const view = await this.openLobby(id);
+        this._engineView = view?.root ? view : null;
+        return view;
+      },
       remove: (id) => games.remove(id),
       create: () => this.builder.toggle(true),
       openHero: (panel) => this.openHero(panel),
