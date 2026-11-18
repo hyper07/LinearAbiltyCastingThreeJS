@@ -115,7 +115,7 @@ export class StreetLife {
     this.group = new THREE.Group();
     game.scene.add(this.group);
     const s = shapes();
-    const all = Object.values(CROWD).reduce((a, b) => a + b, 0) + 30;
+    const all = Object.values(CROWD).reduce((a, b) => a + b, 0) + 30 + 120; // and room for a race's spectators
     const mat = new THREE.MeshLambertMaterial();
     const draw = (geo, n, color = null) => {
       const m = new THREE.InstancedMesh(geo, color ? new THREE.MeshLambertMaterial({ color }) : mat, n);
@@ -151,6 +151,38 @@ export class StreetLife {
     };
     this.time = 0;
     this._spawnT = 0;
+    /** Spectators a race stands at its barriers (addFan): they stay put and cheer. */
+    this.fans = [];
+  }
+
+  /**
+   * A spectator at a race: stands where put, facing `heading`, cheering as much as told (0…1) —
+   * clapping, arms up and hopping as cars come by, some filming on their phones. Returns a handle
+   * the race moves and drives: { group: { position }, update(dt, _, cheer), remove() }.
+   */
+  addFan({ x, y, z, heading }) {
+    const m = this._person('stand', null, null, 0, { x, z, heading });
+    Object.assign(m, { kind: 'fan', heading, y, yGoal: y, cheer: 0.15, phone: Math.random() < 0.3, fixed: true });
+    const position = new THREE.Vector3(x, y, z);
+    m.handlePos = position;
+    this.fans.push(m);
+    const life = this;
+    return {
+      group: { position },
+      person: m,
+      update(dt, _speed, cheer) {
+        m.cheer = cheer;
+      },
+      remove() {
+        const i = life.fans.indexOf(m);
+        if (i >= 0) life.fans.splice(i, 1);
+      },
+      sync() {
+        m.x = position.x;
+        m.y = m.yGoal = position.y;
+        m.z = position.z;
+      }
+    };
   }
 
   /** Roads people may be beside: not motorways, not on bridges. */
@@ -255,6 +287,7 @@ export class StreetLife {
       for (const [k, want] of Object.entries(CROWD)) if ((count[k] ?? 0) < (racing ? (k === 'moto' ? 0 : want * 0.8) : want)) this._spawn(k);
     }
     for (const m of this.people) this._move(m, dt);
+    for (const m of this.fans) m.phase += dt;
     this._pose();
   }
 
@@ -323,7 +356,12 @@ export class StreetLife {
       put('hair', m.hair);
       if (m.long) put('long', m.hair);
     };
-    for (const m of this.people) {
+    for (const m of [...this.people, ...this.fans]) {
+      if (m.handlePos) {
+        m.x = m.handlePos.x;
+        m.y = m.handlePos.y;
+        m.z = m.handlePos.z;
+      }
       tmp.position.set(m.x, m.y, m.z);
       tmp.rotation.set(0, m.heading, 0);
       tmp.scale.setScalar(m.scale);
@@ -331,7 +369,9 @@ export class StreetLife {
       mBase.copy(tmp.matrix);
       const s = Math.sin(m.phase);
       const c = Math.cos(m.phase);
-      if (ON_FOOT.has(m.kind)) {
+      if (m.kind === 'fan') {
+        this._fan(m, put, at, head);
+      } else if (ON_FOOT.has(m.kind)) {
         const stride = m.stride ?? 1;
         const jog = m.kind === 'jog';
         const swing = s * (jog ? 0.75 : 0.42) * stride;
@@ -415,6 +455,43 @@ export class StreetLife {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
+  }
+
+  /** A race spectator: clapping when it is quiet, arms up and hopping as cars come by, or filming. */
+  _fan(m, put, at, head) {
+    const c = m.cheer ?? 0.15;
+    const t = this.time * (6 + c * 4) + m.phase * 3;
+    const hop = c > 0.6 ? Math.abs(Math.sin(t * 0.9)) * 0.14 * c : 0;
+    at(0, 1.2 + hop, 0, -0.05 + c * 0.05, Math.sin(this.time * 0.7 + m.phase) * 0.15);
+    put('torso', m.top);
+    head(m, 1.6 + hop, -0.01, Math.sin(this.time * 0.9 + m.phase) * 0.3 * (1 - c), m.phone ? 0.2 : -0.1 * c);
+    if (m.phone) {
+      // Filming: both hands holding the phone up in front.
+      at(-0.2, 1.47 + hop, 0, 1.7, 0, -0.35);
+      put('armL', m.top);
+      at(0.2, 1.47 + hop, 0, 1.7, 0, 0.35);
+      put('armR', m.top);
+      at(0, 1.7 + hop, -0.42, 0.2);
+      put('phone');
+    } else if (c > 0.6) {
+      // Arms up, waving.
+      const wave = Math.sin(t) * 0.35;
+      at(-0.215, 1.47 + hop, 0, 2.9 + wave, 0, 0.35);
+      put('armL', m.top);
+      at(0.215, 1.47 + hop, 0, 2.9 - wave, 0, -0.35);
+      put('armR', m.top);
+    } else {
+      // Clapping in front.
+      const clap = Math.abs(Math.sin(t * 1.4)) * 0.25;
+      at(-0.215, 1.47, 0, 1.2, 0, -0.45 + clap);
+      put('armL', m.top);
+      at(0.215, 1.47, 0, 1.2, 0, 0.45 - clap);
+      put('armR', m.top);
+    }
+    at(-0.09, 0.93 + hop, 0, 0);
+    put('legL', m.legs);
+    at(0.09, 0.93 + hop, 0, 0);
+    put('legR', m.legs);
   }
 
   /** A small dog trotting ahead and to the right, on a lead to the walker's hand; it stops to sniff. */

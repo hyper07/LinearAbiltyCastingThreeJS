@@ -40,7 +40,10 @@ including commercially, **with attribution** — the game shows the credit on sc
   perfectly level, it is the Han, a stream or a lake.
 - **The main roads** (motorways down to tertiary roads; tunnels left out) are from **OpenStreetMap**
   (© OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright)). Roads over water
-  are lifted onto a deck: the bridges. Each bridge ramps down to the roads it meets on the banks, and
+  are lifted onto a deck: the bridges. Roads are as wide as their lanes (OpenStreetMap's lane count, 3.25 m a lane), with
+  Korean markings — a double yellow in the middle of a two-way road, on the median side of a one-way carriageway —
+  worn wheel tracks, zebra crossings and stop lines at junctions, granite kerbs, the slab's edge, and on bridges a
+  deep girder and a concrete parapet. Each bridge ramps down to the roads it meets on the banks, and
   where a bridge comes in several pieces (as Yanghwa and Dongjak do) they meet level, so every Han
   crossing drives straight through. Smaller streets are simply the gaps between buildings.
 - **N Seoul Tower** is in the register as a single point, so the game draws its own plain tower

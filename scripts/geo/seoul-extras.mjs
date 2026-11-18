@@ -171,7 +171,10 @@ export async function buildExtras(out, tiles, { offline = false, src = resolve('
       if (pts.length < 2 || pts.length > 65535) continue;
       const b = Buffer.alloc(4 + pts.length * 8);
       b.writeUInt8(cls, 0);
-      b.writeUInt8((kind.endsWith('_link') ? 1 : 0) | (way.tags?.bridge && way.tags.bridge !== 'no' ? 2 : 0), 1);
+      // Flags: 1 a link road, 2 a bridge, 4 one way; the top four bits the number of lanes (0: not known).
+      const lanes = Math.max(0, Math.min(15, parseInt(way.tags?.lanes, 10) || 0));
+      const oneway = way.tags?.oneway === 'yes' || way.tags?.oneway === '1' || kind.startsWith('motorway');
+      b.writeUInt8((kind.endsWith('_link') ? 1 : 0) | (way.tags?.bridge && way.tags.bridge !== 'no' ? 2 : 0) | (oneway ? 4 : 0) | (lanes << 4), 1);
       b.writeUInt16LE(pts.length, 2);
       pts.forEach(([x, y], i) => {
         b.writeInt32LE(Math.round((x - x0) * 10), 4 + i * 8);

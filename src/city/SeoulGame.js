@@ -118,45 +118,91 @@ function signAtlas() {
   return t;
 }
 
-/** Asphalt, with the lines a Korean road has painted on it: a double yellow down the middle, white lane dashes, white edges. */
+/**
+ * Asphalt, as a Seoul road has it: lanes as wide as the road really is (from its lane count),
+ * on a two-way road a double yellow down the middle, on a one-way carriageway (half of a big
+ * road) the yellow on the median side; white lane dashes, white edges; wheel tracks worn darker
+ * in every lane, patches of newer asphalt, grime along the kerb; and at the ends of a road (its
+ * junctions) a zebra crossing and a stop line.
+ *
+ * aPaint: metres across from the middle (− the right of the way it runs), metres along, the
+ * width, and its length (negative: one way; 0.5: no crossings — a motorway or a bridge).
+ */
 function roadMaterial(uniforms) {
   const m = new THREE.MeshLambertMaterial({ map: texture('Asphalt031', 'Color'), vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uNight = uniforms.uNight;
     shader.uniforms.uWet = uniforms.uWet;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec3 aPaint;\nvarying vec3 vPaint;')
+      .replace('#include <common>', '#include <common>\nattribute vec4 aPaint;\nvarying vec4 vPaint;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaint = aPaint;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vPaint;\nuniform float uNight;\nuniform float uWet;\nvec3 roadGlow = vec3(0.0);')
+      .replace('#include <common>', '#include <common>\nvarying vec4 vPaint;\nuniform float uNight;\nuniform float uWet;\nvec3 roadGlow = vec3(0.0);\nfloat roadHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat roadNoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(roadHash(i), roadHash(i + vec2(1.0, 0.0)), f.x), mix(roadHash(i + vec2(0.0, 1.0)), roadHash(i + vec2(1.0, 1.0)), f.x), f.y); }')
       .replace('#include <color_fragment>', `#include <color_fragment>
         float w = vPaint.z;
+        float o = vPaint.x;
+        float along = vPaint.y;
+        bool oneway = vPaint.w < 0.0;
+        float total = abs(vPaint.w);
+        float half_ = w * 0.5;
+        float x = abs(o);
+        float far = smoothstep(150.0, 600.0, length(vViewPosition));
+        float near_ = 1.0 - far;
+        // Wear: patches of newer and older asphalt, grime along the kerbs.
+        float patch_ = roadNoise(vec2(along, o) * 0.11);
+        diffuseColor.rgb *= mix(0.9, 1.07, patch_);
+        diffuseColor.rgb *= mix(0.82, 1.0, smoothstep(0.0, 0.9, half_ - x));
+        // The lanes: how many and how wide.
+        float lanesAll = max(1.0, floor((w - (oneway ? 1.0 : 1.6)) / 3.25 + 0.5));
+        float perSide = oneway ? lanesAll : max(1.0, floor(lanesAll / 2.0 + 0.5));
+        float laneW = oneway ? (w - 1.0) / perSide : (half_ - 0.8) / perSide;
+        float start = oneway ? -half_ + 0.5 : 0.0;
+        float lp = oneway ? (o - start) / laneW : x / laneW;
+        float inLane = fract(lp);
+        // Wheel tracks: two darker, smoother bands in every lane.
+        float track = exp(-pow((inLane - 0.27) * 9.0, 2.0)) + exp(-pow((inLane - 0.73) * 9.0, 2.0));
+        diffuseColor.rgb *= 1.0 - 0.1 * track * near_;
         // Wet: the asphalt goes dark.
         diffuseColor.rgb *= 1.0 - 0.45 * uWet;
-        float x = abs(vPaint.x);
-        float far = smoothstep(150.0, 600.0, length(vViewPosition));
         float lines = 0.0;
-        vec3 ink = vec3(0.95);
-        if (w > 9.0) {
-          // The middle: two yellow lines.
-          float yellow = step(0.12, x) * step(x, 0.27);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.75, 0.15), yellow * (1.0 - far));
-          // Lanes 3.3 m wide each way, dashed white between them.
-          float lane = abs(fract(x / 3.3 + 0.5) - 0.5) * 3.3;
-          float dash = step(fract(vPaint.y / 12.0), 0.45);
-          lines += step(lane, 0.08) * step(1.0, x) * step(x, w * 0.5 - 1.0) * dash;
+        float yellow = 0.0;
+        // Crossings at the ends of a road (its junctions), not on motorways and bridges.
+        float toEnd = min(along, total - along);
+        bool crossing = total > 1.0 && w > 6.0 && toEnd > 2.0 && toEnd < 6.0;
+        bool stop = total > 1.0 && w > 6.0 && toEnd > 6.8 && toEnd < 7.25;
+        if (crossing) {
+          // A zebra: long white bars along the road, 0.45 m wide, 0.9 m apart.
+          lines += step(fract((o + 40.0) / 0.9), 0.5) * step(x, half_ - 0.4);
+        } else if (stop) {
+          lines += oneway ? 1.0 : step(o, 0.0);
+        } else if (oneway) {
+          // The median side: double yellow; the kerb side: solid white; dashes between the lanes.
+          float ym = half_ - 0.35 - o;
+          yellow += step(abs(ym - 0.0), 0.08) + step(abs(ym - 0.3), 0.08);
+          lines += step(abs(o + half_ - 0.35), 0.08);
+          float edge = abs(fract(lp + 0.5) - 0.5) * laneW;
+          lines += step(edge, 0.08) * step(0.6, lp) * step(lp, perSide - 0.4) * step(fract(along / 12.0), 0.45);
+        } else if (w > 9.0) {
+          // A two-way road: double yellow in the middle, lanes dashed each way, white edges.
+          yellow += step(0.12, x) * step(x, 0.27);
+          float edge = abs(fract(lp + 0.5) - 0.5) * laneW;
+          lines += step(edge, 0.08) * step(0.6, lp) * step(lp, perSide - 0.4) * step(fract(along / 12.0), 0.45);
+          lines += step(abs(x - (half_ - 0.35)), 0.08);
         } else {
           // A small street: one dashed white line down the middle.
-          lines += step(x, 0.08) * step(fract(vPaint.y / 8.0), 0.5);
+          lines += step(x, 0.08) * step(fract(along / 8.0), 0.5);
+          lines += step(abs(x - (half_ - 0.35)), 0.08);
         }
-        // The edges: solid white.
-        lines += step(abs(x - (w * 0.5 - 0.35)), 0.08);
-        diffuseColor.rgb = mix(diffuseColor.rgb, ink, clamp(lines, 0.0, 1.0) * (1.0 - far));
+        // Paint is a little worn too.
+        float worn = 0.75 + 0.25 * roadNoise(vec2(along, o) * 1.7);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.75, 0.15), clamp(yellow, 0.0, 1.0) * near_ * worn);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95), clamp(lines, 0.0, 1.0) * near_ * worn);
+        float w0 = w;
         // At night, a pool of warm light under every street lamp (one each 48 m, the side changing each time).
-        float n = floor((vPaint.y - 8.0) / 48.0 + 0.5);
+        float n = floor((along - 8.0) / 48.0 + 0.5);
         float side = mod(n, 2.0) < 0.5 ? -1.0 : 1.0;
-        float da = vPaint.y - (8.0 + n * 48.0);
-        float dx = vPaint.x - side * (w * 0.5 + 0.5);
+        float da = along - (8.0 + n * 48.0);
+        float dx = vPaint.x - side * (w0 * 0.5 + 0.5);
         float pool = exp(-(da * da) / 70.0 - (dx * dx) / 55.0);
         vec3 sodium = vec3(1.0, 0.78, 0.5);
         roadGlow = sodium * pool * uNight * (0.32 + 0.5 * uWet);
@@ -178,6 +224,8 @@ const QUALITY = { low: 800, medium: 1300, high: 2000 };
 const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 공공누리 제1유형(출처표시)';
 /** Road widths in metres by class (motorway … tertiary); a link road is narrower. */
 const ROAD_WIDTH = [22, 18, 15, 11, 8];
+/** A one-way carriageway (half of a big road) of no known lane count. */
+const ONE_WAY_WIDTH = [11.5, 10, 8.5, 7.5, 6];
 const WATER = new THREE.Color('#3f74b3');
 /** Roads are looked up by squares this wide (metres). */
 const ROAD_CELL = 40;
@@ -319,7 +367,7 @@ export class SeoulGame {
     window.removeEventListener('keyup', this._up, true);
     for (const t of this.tiles.values()) this._free(t);
     this.tiles.clear();
-    for (const l of this.lands.values()) for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps]) m?.geometry?.dispose();
+    for (const l of this.lands.values()) for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls]) m?.geometry?.dispose();
     this.lands.clear();
     this.race?.dispose();
     this.street?.dispose();
@@ -593,7 +641,7 @@ export class SeoulGame {
     // The land of every tile in view (hills and water have no buildings): a few a frame, nearest first.
     for (const [key, l] of this.lands) {
       if (land.has(key)) continue;
-      for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps]) {
+      for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls]) {
         if (!m) continue;
         this.scene.remove(m);
         // Trees and lamps share their shapes across tiles: free only their own instance data.
@@ -874,7 +922,11 @@ export class SeoulGame {
       o += 4 + n * 8;
       // A road is listed with the tile it starts in (traffic, people, race courses).
       if (!this.roadTiles.has(first)) this.roadTiles.set(first, []);
-      const road = { pts, width: ROAD_WIDTH[cls] * (flags & 1 ? 0.55 : 1), bridge: Boolean(flags & 2), cls };
+      // As wide as its lanes (3.25 m each, and the shoulders), where the map says how many; else by its class.
+      const lanes = flags >> 4;
+      const oneway = Boolean(flags & 4);
+      const width = lanes ? lanes * 3.25 + (oneway ? 1.0 : 1.6) : (oneway ? ONE_WAY_WIDTH[cls] : ROAD_WIDTH[cls]) * (flags & 1 ? 0.55 : 1);
+      const road = { pts, width, bridge: Boolean(flags & 2), cls, oneway, lanes };
       this.roadTiles.get(first).push(road);
       all.push({ road, keys });
     }
@@ -925,6 +977,8 @@ export class SeoulGame {
     const col = [];
     const paint = []; // per vertex: metres across from the middle, metres along, the road's width
     const walk = []; // the pavements
+    const wall = []; // the road's sides: kerbs, the slab's edge, bridge girders and parapets
+    const wallCol = [];
     const trees = [];
     const lamps = [];
     const c = new THREE.Color();
@@ -945,6 +999,8 @@ export class SeoulGame {
       let along = r.along ?? 0;
       let nextTree = Math.ceil(((r.along ?? 0) - 8) / 16) * 16 + 8;
       const expressway = r.cls === 0;
+      // For the paint: the road's length (crossings at its ends; none on a motorway or a bridge), negative if one way.
+      const mark = (expressway || r.bridge ? 0.5 : r.total ?? 0.5) * (r.oneway ? -1 : 1);
       line.forEach(([x, z], i) => {
         const [nx, nz] = line[Math.min(line.length - 1, i + 1)];
         const [px, pz] = line[Math.max(0, i - 1)];
@@ -966,13 +1022,40 @@ export class SeoulGame {
           pos.push(...prev.left, ...prev.right, ...right, ...prev.left, ...right, ...left);
           for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
           const a0 = prev.along;
-          for (const [o, v] of [[-half, a0], [half, a0], [half, along], [-half, a0], [half, along], [-half, along]]) paint.push(o, v, r.width);
+          for (const [o, v] of [[-half, a0], [half, a0], [half, along], [-half, a0], [half, along], [-half, along]]) paint.push(o, v, r.width, mark);
           // (Not where it would lie across another road: the other carriageway, a crossing.)
           const sideL = !this.onRoad((outL[0] + prev.outL[0]) / 2, (outL[2] + prev.outL[2]) / 2) && !this.onRoad((inL[0] + outL[0]) / 2, (inL[2] + outL[2]) / 2, -0.5);
           const sideR = !this.onRoad((outR[0] + prev.outR[0]) / 2, (outR[2] + prev.outR[2]) / 2) && !this.onRoad((inR[0] + outR[0]) / 2, (inR[2] + outR[2]) / 2, -0.5);
-          if (!expressway && !onBridge && !prev.bridge) {
+          const paved = !expressway && !onBridge && !prev.bridge;
+          if (paved) {
             if (sideL) walk.push(...prev.inL, ...prev.outL, ...outL, ...prev.inL, ...outL, ...inL);
             if (sideR) walk.push(...prev.outR, ...prev.inR, ...inR, ...prev.outR, ...inR, ...outR);
+          }
+          // The road is a slab, not a sheet: a granite kerb up to the pavement, the pavement's edge and
+          // the slab's sides down into the ground; on a bridge a deep girder under the deck and a
+          // concrete parapet along it; on a motorway a concrete barrier.
+          const quad = (a, b, ya0, ya1, yb0, yb1, col) => {
+            wall.push(a[0], ya0, a[2], b[0], yb0, b[2], b[0], yb1, b[2], a[0], ya0, a[2], b[0], yb1, b[2], a[0], ya1, a[2]);
+            for (let k = 0; k < 6; k++) wallCol.push(col[0], col[1], col[2]);
+          };
+          const KERB = [0.78, 0.77, 0.74];
+          const SLAB = [0.5, 0.49, 0.47];
+          const GIRDER = [0.6, 0.6, 0.62];
+          const BARRIER = [0.72, 0.71, 0.69];
+          const gA = (p) => this.groundAt(p[0], p[2]) - 0.4;
+          const bridgeDeck = onBridge || prev.bridge;
+          for (const [pe, e, po, oo, pIn, inn, walked] of [[prev.left, left, prev.outL, outL, prev.inL, inL, paved && sideL], [prev.right, right, prev.outR, outR, prev.inR, inR, paved && sideR]]) {
+            if (walked) {
+              quad(pe, e, pe[1], pIn[1], e[1], inn[1], KERB);
+              quad(po, oo, gA(po), po[1], gA(oo), oo[1], SLAB);
+            } else if (bridgeDeck) {
+              // The girder under the deck's edge, then the parapet: outer face, top, inner face.
+              quad(pe, e, pe[1] - 1.7, pe[1], e[1] - 1.7, e[1], GIRDER);
+              quad(pe, e, pe[1], pe[1] + 1.0, e[1], e[1] + 1.0, BARRIER);
+            } else {
+              quad(pe, e, gA(pe), pe[1], gA(e), e[1], SLAB);
+              if (expressway) quad(pe, e, pe[1], pe[1] + 0.85, e[1], e[1] + 0.85, BARRIER);
+            }
           }
           // A ginkgo every so often along the pavement, and a lamp at every other.
           while (!expressway && !onBridge && along >= nextTree) {
@@ -1002,7 +1085,7 @@ export class SeoulGame {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    geo.setAttribute('aPaint', new THREE.Float32BufferAttribute(paint, 3));
+    geo.setAttribute('aPaint', new THREE.Float32BufferAttribute(paint, 4));
     const uv = [];
     for (let k = 0; k < pos.length; k += 3) uv.push(pos[k] / 6, pos[k + 2] / 6);
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
@@ -1013,6 +1096,20 @@ export class SeoulGame {
     mesh.receiveShadow = true;
     this.scene.add(mesh);
     mesh.userData.street = this._street(walk, trees, lamps);
+    if (wall.length) {
+      const wg = new THREE.BufferGeometry();
+      wg.setAttribute('position', new THREE.Float32BufferAttribute(wall, 3));
+      wg.setAttribute('color', new THREE.Float32BufferAttribute(wallCol, 3));
+      const uv = [];
+      for (let k = 0; k < wall.length; k += 3) uv.push((wall[k] + wall[k + 2]) / 3, wall[k + 1] / 3);
+      wg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      wg.computeVertexNormals();
+      this.wallMaterial ??= new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, map: texture('Concrete034', 'Color') });
+      const walls = new THREE.Mesh(wg, this.wallMaterial);
+      walls.receiveShadow = true;
+      this.scene.add(walls);
+      mesh.userData.street.walls = walls;
+    }
     return mesh;
   }
 

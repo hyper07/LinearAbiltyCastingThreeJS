@@ -4,7 +4,6 @@ import { loadCar, makeCar } from './cars.js';
 import { stepCar, RACE, CAR } from './drive.js';
 import { COURSES, planCourse, planRun, locate } from './course.js';
 import { GARAGE, GARAGE_ORDER, ratings } from './garage.js';
-import { loadPerson, Person } from './people.js';
 import { RaceFx } from './racefx.js';
 
 /**
@@ -782,28 +781,20 @@ export class Race {
     for (const s of this.spots) {
       const d = Math.hypot(s.x - me.s.x, s.z - me.s.z);
       if (d > 330 && s.people.length) {
-        for (const p of s.people) this.g.scene.remove(p.group);
+        for (const p of s.people) p.remove();
         alive -= s.people.length;
         s.people = [];
-      } else if (d < 220 && !s.people.length && !s.loading && alive < 70) {
-        s.loading = true;
-        Promise.all([loadPerson('mina'), loadPerson('jun')]).then(([a, b]) => {
-          s.loading = false;
-          if (!a || !b || !this.course || Math.hypot(s.x - this.me.s.x, s.z - this.me.s.z) > 330) return;
-          for (let k = 0; k < s.count; k++) {
-            const person = new Person(k % 2 ? a : b);
-            const along = (k - (s.count - 1) / 2) * 1.35;
-            const back = 1.1 + (k % 3) * 0.8;
-            // In a ragged line behind the barrier, facing the road.
-            const x = s.x - Math.sin(s.heading) * along + Math.cos(s.heading) * s.side * back;
-            const z = s.z - Math.cos(s.heading) * along - Math.sin(s.heading) * s.side * back;
-            person.group.position.set(x, this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14), z);
-            person.group.rotation.y = s.heading + (s.side > 0 ? Math.PI / 2 : -Math.PI / 2) + (Math.random() - 0.5) * 0.4;
-            person.phase = Math.random() * 3;
-            this.g.scene.add(person.group);
-            s.people.push(person);
-          }
-        });
+      } else if (d < 220 && !s.people.length && this.g.life && alive < 110) {
+        // Ordinary people, in a ragged line or two behind the barrier, facing the road (street life's fans).
+        for (let k = 0; k < s.count; k++) {
+          const along = (k - (s.count - 1) / 2) * 1.2 + (Math.random() - 0.5) * 0.4;
+          const back = 1.1 + (k % 3) * 0.75 + Math.random() * 0.2;
+          const x = s.x - Math.sin(s.heading) * along + Math.cos(s.heading) * s.side * back;
+          const z = s.z - Math.cos(s.heading) * along - Math.sin(s.heading) * s.side * back;
+          const fan = this.g.life.addFan({ x, y: this.g.groundAt(x, z) + 1.04, z, heading: s.heading + (s.side > 0 ? Math.PI / 2 : -Math.PI / 2) + (Math.random() - 0.5) * 0.4 });
+          fan.phase = Math.random() * 3;
+          s.people.push(fan);
+        }
       }
       if (!s.people.length) continue;
       // A car close: they go wild. Otherwise a little restless.
@@ -1457,7 +1448,7 @@ export class Race {
     for (const b of this.blocks ?? []) this.g.scene.remove(b.mesh);
     this.blocks = [];
     this.coneSets = null;
-    for (const s of this.spots ?? []) for (const p of s.people) this.g.scene.remove(p.group);
+    for (const s of this.spots ?? []) for (const p of s.people) p.remove?.();
     this.spots = null;
     for (const r of this.racers) this.g.scene.remove(r.car.group);
     this.fx?.clear();
