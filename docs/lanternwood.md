@@ -6,7 +6,10 @@
 
 An adventure RPG in the "HD-2D" style: chibi pixel-art characters standing in a lit 3D world, the
 camera behind and above the hero. The characters are solid — every pixel of their drawing a little
-block, the body rounded in depth — so they turn, catch the firelight and cast shadows. A round
+block, the body rounded in depth — so they turn, catch the firelight and cast shadows. They move on joints: arms and legs swing as
+they walk, they breathe standing, the camp's people gesture as they talk, the hero swings a real
+sword (with a glowing trail), somersaults in a roll, spins in a whirl, thrusts both hands to cast,
+and flinches when hit; monsters reel back when struck. A hit counter climbs as hits chain. A round
 minimap in the corner turns with the camera, shows the paths, the people's quest marks, foes near
 by and points to the quest's target (**M** opens the whole map). A night camp in the woods is losing its lanterns one by one —
 the Lampwight in the old Greyvault ruins is eating the light.
@@ -17,7 +20,7 @@ the Lampwight in the old Greyvault ruins is eating the light.
 | --- | --- |
 | **W A S D** / arrows | Move (relative to the camera, which swings round behind you) |
 | Mouse drag, **Q E** | Turn the camera; the wheel zooms |
-| **Space** / left click | Sword slash |
+| **Space** / left click | Sword — press again in time for a 3-strike combo: a sweep, a backhand, an overhead smash with a lunge |
 | **1** · **2** | Fireball · Whirl (mana) |
 | **3** · **4** | Health · mana potion — no cooldown: every press drinks one |
 | **Shift** | Dodge roll (nothing hits you mid-roll) |
@@ -43,6 +46,7 @@ little poorer. The journey is saved on this device.
 | The screen: input, camera, combat, enemies, quests, loop | `src/hd2d/LanternwoodGame.js` |
 | Rules (no three.js, no DOM): stats, damage, XP, potions, shop, enemies, quests, dialogue, save, world layout | `src/hd2d/rules.js` |
 | Pixel sprites (letter maps, shaded by `src/pixel/art.js`), made solid | `src/hd2d/sprites.js`, `src/hd2d/voxel.js` |
+| The jointed figures, their poses, the sword trail | `src/hd2d/rig.js` |
 | The 3D world, billboards and effects, post-processing, HUD | `src/hd2d/world.js`, `gfx.js`, `post.js`, `ui.js`, `hd2d.css` |
 | Tests | `tests/unit/hd2d.test.mjs` |
 

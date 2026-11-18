@@ -86,6 +86,68 @@ function distances(fill, W, H) {
 export function voxelGeometry(sprite) {
   let geo = cache.get(sprite);
   if (geo) return geo;
+  geo = buildVoxels(sprite).geometry;
+  cache.set(sprite, geo);
+  return geo;
+}
+
+/** The letter-map cell (column, row) a block lies in: sprites are drawn 4× with a 1-pixel outline. */
+const cellOf = (i, j) => [Math.floor((i * STEP + 1 - 1) / 4), Math.floor((j * STEP + 1 - 1) / 4)];
+
+/**
+ * A person's figure in jointed parts, for the animation rig (rig.js): head,
+ * body, the two arms and the two legs, each its own geometry with its joint
+ * (neck, hip, shoulder) at the origin, and where that joint is on the
+ * figure. A person's letter map: rows 0–9 the head, 10–15 the body with the
+ * arms at its sides (columns 0–2 and 13–15), 16–18 the legs.
+ *
+ *   const { parts, joints, size } = voxelParts(sprite);   // parts.head, parts.armNeg …
+ *
+ * `armNeg` / `legNeg` are on the −X side (the figure's right hand: it faces +Z).
+ */
+const partsCache = new WeakMap();
+export function voxelParts(sprite, { headRows = 10, legRow = 16, armCols = 3 } = {}) {
+  let out = partsCache.get(sprite);
+  if (out) return out;
+  const cols = Math.round((sprite.width - 2) / 4);
+  const partOf = (i, j) => {
+    const [c0, r0] = cellOf(i, j);
+    const c = Math.max(0, Math.min(cols - 1, c0));
+    const r = Math.max(0, r0);
+    if (r < headRows) return 'head';
+    if (r >= legRow) return c < cols / 2 ? 'legNeg' : 'legPos';
+    if (c < armCols) return 'armNeg';
+    if (c >= cols - armCols) return 'armPos';
+    return 'torso';
+  };
+  const names = ['head', 'torso', 'armNeg', 'armPos', 'legNeg', 'legPos'];
+  const built = Object.fromEntries(names.map((n) => [n, buildVoxels(sprite, (i, j) => partOf(i, j) === n)]));
+  const v = STEP / PXM;
+  const box = (n) => built[n].bounds;
+  // Joints: the neck at the bottom middle of the head, the hip at the top of the legs, each
+  // shoulder at the top of its arm, each hip joint at the top middle of its leg.
+  const joints = {
+    head: [0, box('head').minY, 0],
+    torso: [0, box('legNeg').maxY, 0],
+    armNeg: [(box('armNeg').minX + box('armNeg').maxX) / 2, box('armNeg').maxY - v, 0],
+    armPos: [(box('armPos').minX + box('armPos').maxX) / 2, box('armPos').maxY - v, 0],
+    legNeg: [(box('legNeg').minX + box('legNeg').maxX) / 2, box('legNeg').maxY, 0],
+    legPos: [(box('legPos').minX + box('legPos').maxX) / 2, box('legPos').maxY, 0]
+  };
+  const parts = {};
+  for (const n of names) {
+    const g = built[n].geometry;
+    g.translate(-joints[n][0], -joints[n][1], -joints[n][2]);
+    parts[n] = g;
+  }
+  out = { parts, joints, size: { height: box('head').maxY, armLength: box('armNeg').maxY - box('armNeg').minY } };
+  partsCache.set(sprite, out);
+  return out;
+}
+
+/** The blocks of a sprite (only those `keep(i, j)` allows, each part closed on its own). */
+function buildVoxels(sprite, keep = null) {
+  let geo;
   const W = Math.floor(sprite.width / STEP);
   const H = Math.floor(sprite.height / STEP);
   const v = STEP / PXM; // a block's size in metres
@@ -136,13 +198,19 @@ export function voxelGeometry(sprite) {
       col.push(rgb[0], rgb[1], rgb[2]);
     }
   };
-  const hAt = (i, j) => (i < 0 || j < 0 || i >= W || j >= H ? -1 : half[j * W + i]);
+  const mine = (i, j) => !keep || keep(i, j);
+  const hAt = (i, j) => (i < 0 || j < 0 || i >= W || j >= H || !mine(i, j) ? -1 : half[j * W + i]);
+  const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
   for (let j = 0; j < H; j++) {
     for (let i = 0; i < W; i++) {
       const k = j * W + i;
       const h = half[k];
-      if (h < 0) continue;
+      if (h < 0 || !mine(i, j)) continue;
       const xa = X(i), xb = X(i + 1), ya = Y(j + 1), yb = Y(j);
+      bounds.minX = Math.min(bounds.minX, xa);
+      bounds.maxX = Math.max(bounds.maxX, xb);
+      bounds.minY = Math.min(bounds.minY, ya);
+      bounds.maxY = Math.max(bounds.maxY, yb);
       const za = Z(-h - 0.5), zb = Z(h + 0.5);
       // Front and back.
       quad([xa, ya, zb], [xb, ya, zb], [xb, yb, zb], [xa, yb, zb], [0, 0, 1], colour(k, true));
@@ -172,6 +240,5 @@ export function voxelGeometry(sprite) {
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.computeBoundingSphere();
-  cache.set(sprite, geo);
-  return geo;
+  return { geometry: geo, bounds };
 }

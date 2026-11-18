@@ -58,6 +58,7 @@ export class Hud {
       <div class="ld-boss" data-boss hidden><span>The Lampwight</span><div class="ld-boss__bar"><i data-boss-fill></i></div></div>
       <div class="ld-world" data-world></div>
       <div class="ld-prompt" data-prompt hidden></div>
+      <div class="ld-combo" data-combo hidden><b data-combo-n>2</b><span>HITS</span></div>
       <div class="ld-toasts" data-toasts></div>
       <div class="ld-log" data-log></div>
       <div class="ld-rest" data-rest hidden>Resting by the Hearthlight</div>
@@ -169,6 +170,19 @@ export class Hud {
 
   resting(on) {
     this.$('[data-rest]').hidden = !on;
+  }
+
+  /** The hit counter: shown from two hits on, bigger and hotter as it climbs. */
+  combo(n) {
+    const box = this.$('[data-combo]');
+    if (!box) return;
+    box.hidden = n < 2;
+    if (n < 2) return;
+    this.$('[data-combo-n]').textContent = String(n);
+    box.style.setProperty('--heat', String(Math.min(1, n / 12)));
+    box.classList.remove('is-pop');
+    void box.offsetWidth;
+    box.classList.add('is-pop');
   }
 
   toast(text, kind = '') {

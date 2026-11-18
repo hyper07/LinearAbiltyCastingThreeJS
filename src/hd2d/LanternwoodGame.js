@@ -4,6 +4,7 @@ import * as R from './rules.js';
 import { buildSprites } from './sprites.js';
 import { buildWorld } from './world.js';
 import { SpriteActor, FxBillboard, disposeTextures, canvasOf } from './gfx.js';
+import { RigActor, SwordTrail } from './rig.js';
 import { Post } from './post.js';
 import { Hud, Dialogue, panel, shopHtml, infoHtml, drawMap, titleHtml, CONTROLS_HTML, el, drawMinimap } from './ui.js';
 import './hd2d.css';
@@ -137,13 +138,14 @@ export class LanternwoodGame {
 
     // The cast.
     this.npcs = Object.entries(R.NPCS).map(([id, n]) => {
-      const a = new SpriteActor({ shadow: 0.42 });
+      const a = new RigActor({ shadow: 0.42 });
       a.group.position.set(n.x, 0, n.z);
       this.scene.add(a.group);
       return { id, ...n, actor: a, face: n.face, talking: false };
     });
-    this.heroActor = new SpriteActor({ shadow: 0.45 });
+    this.heroActor = new RigActor({ shadow: 0.45, sword: true });
     this.scene.add(this.heroActor.group);
+    this.trail = new SwordTrail(this.scene);
     this.heroPos = { x: R.WORLD.start.x, z: R.WORLD.start.z, face: R.WORLD.start.face };
 
     // Telegraph shapes, shared.
@@ -203,6 +205,7 @@ export class LanternwoodGame {
     for (const e of this.enemies ?? []) this._disposeEnemy(e);
     for (const n of this.npcs ?? []) n.actor.dispose();
     this.heroActor?.dispose();
+    this.trail?.dispose();
     for (const p of Object.values(this.pickupFx ?? {})) p._texture?.dispose();
     this.ringGeo?.dispose();
     this.discGeo?.dispose();
@@ -598,24 +601,59 @@ export class LanternwoodGame {
     return this.mode === 'play' && !this.overlay && !this.dialogue.open && this.hv.roll <= 0;
   }
 
+  /**
+   * The sword: three strikes that chain if pressed in time — a sweep from the
+   * right, a backhand from the left, then an overhead smash with a lunge that
+   * hits hardest and knocks back furthest. A pause starts the chain again.
+   */
   slash() {
     if (!this._canAct() || this.cd.slash > 0) return;
     const a = R.ABILITIES.slash;
-    this.cd.slash = a.cd;
+    const chain = this.t < (this.comboUntil ?? 0) ? (this.comboStage ?? 0) % 3 : 0;
+    const stage = chain + 1;
+    this.comboStage = stage;
+    const STAGES = {
+      1: { dur: 0.3, cd: 0.26, mult: 1, arc: a.arc, range: a.range, knock: a.knock, color: new THREE.Color(2.4, 2.1, 1.4) },
+      2: { dur: 0.3, cd: 0.26, mult: 1.15, arc: a.arc, range: a.range, knock: a.knock, color: new THREE.Color(1.3, 2.1, 2.6) },
+      3: { dur: 0.46, cd: 0.5, mult: 1.9, arc: Math.PI * 0.5, range: a.range + 0.6, knock: a.knock * 2, color: new THREE.Color(2.8, 1.4, 0.5) }
+    };
+    const st = STAGES[stage];
+    this.cd.slash = st.cd;
+    // The next strike chains if it comes within a moment of this one ending.
+    this.comboUntil = this.t + st.dur + 0.45;
     // A little aim help: turn toward a foe close in front.
-    const near = this._nearestEnemy(3.2, Math.PI * 0.9);
+    const near = this._nearestEnemy(3.4, Math.PI * 0.9);
     if (near) this.heroPos.face = Math.atan2(near.x - this.heroPos.x, near.z - this.heroPos.z);
-    this.hv.attack = 0.22;
-    this._slashArc(this.heroPos.face, a.arc, 2.5, false);
+    this.hv.attack = st.dur * 0.8;
+    this.hv.swing = { stage, t: 0, dur: st.dur, color: st.color };
     const [fx, fz] = dirOf(this.heroPos.face);
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      const dx = e.x - this.heroPos.x, dz = e.z - this.heroPos.z;
-      const d = Math.hypot(dx, dz);
-      if (d > a.range + e.def.radius) continue;
-      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / (d || 1))));
-      if (ang <= a.arc / 2 || d < 0.9) this.hitEnemy(e, a.mult, a.knock);
+    // The smash lunges forward.
+    if (stage === 3) {
+      this.hv.kx += fx * 7;
+      this.hv.kz += fz * 7;
     }
+    // Strikes land as the blade comes through, not on the press.
+    setTimeout(() => {
+      if (this.mode !== 'play') return;
+      this._slashArc(this.heroPos.face, st.arc, st.range + 0.1, false, stage);
+      let hits = 0;
+      const [gx, gz] = dirOf(this.heroPos.face);
+      for (const e of this.enemies) {
+        if (!e.alive) continue;
+        const dx = e.x - this.heroPos.x, dz = e.z - this.heroPos.z;
+        const d = Math.hypot(dx, dz);
+        if (d > st.range + e.def.radius) continue;
+        const ang = Math.acos(Math.max(-1, Math.min(1, (dx * gx + dz * gz) / (d || 1))));
+        if (ang <= st.arc / 2 || d < 0.9) {
+          this.hitEnemy(e, a.mult * st.mult, st.knock);
+          hits++;
+        }
+      }
+      if (stage === 3) {
+        this.fx('impacts/ground-slam', this.heroPos.x + gx * 1.6, 0.05, this.heroPos.z + gz * 1.6, { pxm: 60, color: 1.3, speed: 1.6 });
+        this.shake = Math.max(this.shake, hits ? 0.45 : 0.28);
+      }
+    }, st.dur * 1000 * (stage === 3 ? 0.55 : 0.4));
   }
 
   fireball() {
@@ -631,6 +669,7 @@ export class LanternwoodGame {
     if (t) this.heroPos.face = Math.atan2(t.x - this.heroPos.x, t.z - this.heroPos.z);
     const [dx, dz] = dirOf(this.heroPos.face);
     this.hv.attack = 0.18;
+    this.hv.cast = 0.32;
     this._projectile('fire', this.heroPos.x + dx * 0.7, 1.0, this.heroPos.z + dz * 0.7, dx, dz, a.speed);
   }
 
@@ -683,7 +722,7 @@ export class LanternwoodGame {
     this.fx('spawn/poof', this.heroPos.x, 0, this.heroPos.z, { pxm: 140, additive: false, color: 0.7, speed: 2.4 });
   }
 
-  _slashArc(face, arc, radius, full) {
+  _slashArc(face, arc, radius, full, stage = 1) {
     const SEG = 28;
     const geo = new THREE.BufferGeometry();
     const pos = [], uv = [], idx = [];
@@ -707,7 +746,10 @@ export class LanternwoodGame {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(this.heroPos.x, 0.85, this.heroPos.z);
     m.rotation.set(0, face, 0);
-    m.rotateX(full ? 0 : -0.25);
+    // The arc follows the strike: tilted one way for the sweep, the other for the backhand, standing up for the smash.
+    if (!full && stage === 2) m.scale.x = -1;
+    if (!full && stage === 3) m.rotateZ(Math.PI / 2);
+    m.rotateX(full ? 0 : stage === 3 ? 0 : stage === 2 ? 0.25 : -0.25);
     m.renderOrder = 6;
     geo.setDrawRange(0, 0);
     this.scene.add(m);
@@ -753,6 +795,11 @@ export class LanternwoodGame {
     this.fx(crit ? 'impacts/crit-hit' : 'impacts/hit-spark', e.x - Math.sin(this.camYaw) * 0.3, e.actor.height * 0.45, e.z - Math.cos(this.camYaw) * 0.3, { pxm: crit ? 70 : 52, color: 1.8, speed: 1.5, flip: Math.random() < 0.5 });
     this.hitstop = Math.max(this.hitstop, crit ? 0.07 : 0.035);
     this.shake = Math.max(this.shake, crit ? 0.22 : 0.1);
+    this.comboHits = (this.comboHits ?? 0) + 1;
+    this.comboHitT = 1.6;
+    this.hud.combo?.(this.comboHits);
+    // Enemies reel from a hit.
+    e.reel = 1;
     if (e.hp <= 0) this.killEnemy(e);
   }
 
@@ -818,6 +865,7 @@ export class LanternwoodGame {
     this.hero.hp -= amount;
     this.hv.inv = 0.45;
     this.hv.hurtT = 0;
+    this.hv.hurt = 1;
     this.heroActor.flash = 0.12;
     const dx = this.heroPos.x - fromX, dz = this.heroPos.z - fromZ;
     const d = Math.hypot(dx, dz) || 1;
@@ -1047,6 +1095,17 @@ export class LanternwoodGame {
     hv.inv = Math.max(0, hv.inv - dt);
     hv.attack = Math.max(0, hv.attack - dt);
     hv.spin = Math.max(0, (hv.spin ?? 0) - dt);
+    hv.cast = Math.max(0, (hv.cast ?? 0) - dt);
+    hv.hurt = Math.max(0, (hv.hurt ?? 0) - dt * 4);
+    if (hv.swing) {
+      hv.swing.t += dt / hv.swing.dur;
+      if (hv.swing.t >= 1) hv.swing = null;
+    }
+    // The hit counter: hits within a moment of each other add up.
+    if (this.comboHits && (this.comboHitT -= dt) <= 0) {
+      this.comboHits = 0;
+      this.hud.combo?.(0);
+    }
     hv.hurtT += dt;
     this._dragT = Math.max(0, (this._dragT ?? 0) - dt);
     this.state.time += dt;
@@ -1492,19 +1551,31 @@ export class LanternwoodGame {
     const a = this.heroActor;
     a.group.position.set(h.x, 0, h.z);
     a.lift = hv.moving ? Math.abs(Math.sin((hv.walkT / 0.15) * Math.PI)) * 0.05 : 0;
-    a.squash = hv.roll > 0 ? -0.3 : hv.attack > 0 ? 0.06 : Math.sin(this.t * 2.4) * 0.012;
+    a.squash = 0;
     // Lean into an attack: the sprite steps forward a little.
     a.mesh.position.x = hv.attack > 0 ? dx * 0.15 : 0;
     a.mesh.position.z = hv.attack > 0 ? dz * 0.15 : 0;
-    a.facing = h.face + (hv.spin > 0 ? hv.spin * 40 : 0);
-    a.show(set.front[frame]);
+    a.facing = h.face;
+    a.show(set.front[0]);
     void view;
+    void frame;
+    a.act = {
+      move: hv.moving ? 1 : 0,
+      swing: hv.swing ? { stage: hv.swing.stage, t: Math.min(1, hv.swing.t) } : null,
+      spin: hv.spin > 0 ? 1 - hv.spin / 0.4 : null,
+      cast: hv.cast > 0 ? 1 - hv.cast / 0.32 : null,
+      roll: hv.roll > 0 ? 1 - hv.roll / R.ABILITIES.roll.time : null,
+      hurt: hv.hurt ?? 0,
+      dead: this.mode === 'dead'
+    };
     a.group.visible = this.mode !== 'title';
     const blink = hv.inv > 0 && Math.floor(this.t * 20) % 2 === 0;
     a.material.opacity = 1;
     a.mesh.visible = !blink || this.mode === 'dead';
     a.update(dt, yaw, this.world.lightAt(h.x, h.z, light));
     if (this.mode === 'dead') a.material.color.multiplyScalar(0.5);
+    // The blade's trail while it swings (and through the whirl).
+    this.trail?.update(a.tip, a.mid, Boolean(hv.swing && hv.swing.t > 0.12 && hv.swing.t < 0.85) || hv.spin > 0, hv.swing?.color ?? (hv.spin > 0 ? new THREE.Color(1.2, 2.2, 2.8) : null));
 
     // People: they turn to the hero when near or talking.
     for (const n of this.npcs) {
@@ -1516,6 +1587,7 @@ export class LanternwoodGame {
       const s = this.sprites.npcs[n.id];
       n.actor.squash = Math.sin(this.t * 2 + n.x) * 0.015 + (n.talking ? Math.abs(Math.sin(this.t * 9)) * 0.02 : 0);
       n.actor.facing = n.face;
+      n.actor.act = { move: 0, talk: Boolean(n.talking) };
       n.actor.show(s.front[0]);
       void toward;
       n.actor.update(dt, yaw, this.world.lightAt(n.x, n.z, light));
@@ -1553,6 +1625,12 @@ export class LanternwoodGame {
       const mvx = e.vx, mvz = e.vz;
       act.facing = Math.hypot(mvx, mvz) > 0.3 ? Math.atan2(mvx, mvz) : Math.atan2(this.heroPos.x - e.x, this.heroPos.z - e.z);
       act.show(frames[f], e.flip);
+      // Motion: rocked back by a hit, a lope when running, a lean into the strike.
+      e.reel = Math.max(0, (e.reel ?? 0) - dt * 4);
+      act.mesh.rotation.order = 'YXZ';
+      const lope = moving && e.kind === 'wolf' ? Math.sin(e.frameT * 14) * 0.12 : 0;
+      act.mesh.rotation.x = -e.reel * 0.5 + lope + (e.state === 'strike' ? 0.25 : e.state === 'windup' ? -0.15 : 0);
+      act.mesh.rotation.z = e.reel * Math.sin(this.t * 40) * 0.1;
       act.update(dt, yaw, this.world.lightAt(e.x, e.z, light));
       if (e.state === 'windup' && Math.floor(this.t * 16) % 2 === 0 && act.flash <= 0) act.material.color.setRGB(1.5, 0.5, 0.4);
     }

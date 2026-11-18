@@ -1001,3 +1001,30 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* The hit counter. */
+.ld-combo {
+  position: absolute;
+  right: 230px;
+  top: 40%;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: hsl(calc(48 - var(--heat, 0) * 40), 100%, 62%);
+  font: italic 900 22px/1 Georgia, serif;
+  text-shadow: 0 2px 0 #2a1406, 0 0 18px rgba(255, 140, 40, calc(0.3 + var(--heat, 0) * 0.6));
+  pointer-events: none;
+}
+.ld-combo b {
+  font-size: calc(46px + var(--heat, 0) * 26px);
+}
+.ld-combo.is-pop {
+  animation: ld-combo-pop 0.22s ease-out;
+}
+@keyframes ld-combo-pop {
+  from { transform: scale(1.45) rotate(-6deg); }
+  to { transform: scale(1) rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ld-combo.is-pop { animation: none; }
+}
