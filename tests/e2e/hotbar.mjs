@@ -55,11 +55,10 @@ export async function run(browser) {
     const drank = await page.evaluate(() => ({ left: window.app.profile.potions.health, health: window.app.director.health / window.app.director.maxHealth }));
     t.check('a click on the potion key drinks it', drank.left === 2 && drank.health > 0.5, JSON.stringify(drank));
     t.check('it stops pulsing once health is back up', await until(page, (sel) => !document.querySelector(sel)?.classList.contains('is-urgent'), key(5), 2000));
-    t.check('the potion key cools down for a moment', await until(page, (sel) => document.querySelector(sel).classList.contains('is-cooling'), key(5), 2000));
+    t.check('potions have no cooldown on the key', await page.evaluate((sel) => !document.querySelector(sel).classList.contains('is-cooling'), key(5)));
 
-    // The number key drinks too, once the cooldown is over (game time: it runs slower in a headless browser).
+    // The number key drinks another straight away: no cooldown.
     await page.evaluate(() => (window.app.director.health = window.app.director.maxHealth * 0.5));
-    await until(page, () => (window.app._potionReadyAt.health ?? 0) <= window.app.elapsed, null, 10000);
     await page.keyboard.press('Digit6');
     t.check('pressing 6 drinks a health potion', await page.evaluate(() => window.app.profile.potions.health === 1), await page.locator('[data-toast]').textContent());
 
@@ -91,7 +90,6 @@ export async function run(browser) {
     await page.evaluate(() => {
       window.app.profile.potions.health = 2;
       window.app.profile.save();
-      window.app._potionReadyAt = {};
       window.app.director.health = window.app.director.maxHealth * 0.2;
     });
     t.check('auto-drink drinks a health potion when health is low', await until(page, () => window.app.profile.potions.health === 1 && window.app.director.health > window.app.director.maxHealth * 0.5, null, 3000));

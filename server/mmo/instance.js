@@ -1,4 +1,4 @@
-import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS, DROPS, POTION_CD, SPRINT } from '../../src/mmo/data.js';
+import { CLASSES, MOBS, NODES, ITEMS, GCD, RUN_SPEED, QUESTS, COMBO, POINTS, DROPS, SPRINT } from '../../src/mmo/data.js';
 import { ZONES, NPCS, walkableIn } from '../../src/mmo/world.js';
 import { statsOf, killXp, addXp, give, take, rankOf, rankMult, rollGear, rollDrops, skillMods } from '../../src/mmo/rules.js';
 
@@ -570,12 +570,8 @@ export class Instance {
     const s = p.ch.bag[slot];
     const use = s && ITEMS[s.item]?.use;
     if (!use || p.dead) return;
-    // Health and mana draughts each wait on their own; food that gives both waits on both.
-    const waits = [use.heal && 'heal', use.mana && 'mana'].filter(Boolean);
-    const left = Math.max(...waits.map((k) => (p.potions[k] ?? 0) - this.time));
-    if (left > 0) return this._err(p, `Not again so soon (${Math.ceil(left)}s)`);
+    // No cooldown: every draught drinks at once.
     take(p.ch, s.item, 1);
-    for (const k of waits) p.potions[k] = this.time + POTION_CD;
     this.out.push({ type: 'quaff', id: p.id, heal: Boolean(use.heal), mana: Boolean(use.mana) });
     if (use.heal) this._heal(p, use.heal, null);
     if (use.mana) p.mana = Math.min(p.st.maxMana, p.mana + use.mana);
@@ -875,7 +871,6 @@ export class Instance {
           mp: Math.round(e.mana), mm: e.st.maxMana, t: e.target, dead: e.dead || undefined, sh: e.shield > 0 ? Math.round(e.shield) : undefined,
           cast: e.cast ? { s: e.cast.id, left: r(e.cast.until - this.time), total: e.cast.total } : e.gather ? { s: 'gather', left: r(e.gather.until - this.time), total: e.gather.total } : undefined,
           party: e.client.party ?? undefined, buffs: e.buffs.length ? e.buffs.map((b) => b.id) : undefined, gcd: e.gcdUntil > this.time ? r(e.gcdUntil - this.time) : undefined,
-          pot: (e.potions.heal ?? 0) > this.time || (e.potions.mana ?? 0) > this.time ? [Math.max(0, r((e.potions.heal ?? 0) - this.time)), Math.max(0, r((e.potions.mana ?? 0) - this.time))] : undefined,
           cds: Object.fromEntries(Object.entries(e.cds).filter(([, v]) => v > this.time).map(([k, v]) => [k, r(v - this.time)]))
         });
       } else if (e.kind === 'mob') {

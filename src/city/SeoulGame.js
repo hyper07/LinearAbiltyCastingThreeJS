@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
+import { roadPieces } from './bridges.js';
 import { Race } from './race.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
@@ -718,30 +719,41 @@ export class SeoulGame {
     const y0 = v.getInt32(8, true) - ORIGIN.y;
     const count = v.getUint32(12, true);
     this.roadTiles = new Map();
+    const all = [];
     let o = 16;
     for (let k = 0; k < count; k++) {
       const cls = v.getUint8(o);
       const flags = v.getUint8(o + 1);
       const n = v.getUint16(o + 2, true);
       const pts = new Float32Array(n * 2);
+      const keys = new Array(n);
       let first = null;
       for (let i = 0; i < n; i++) {
-        const x = x0 + v.getInt32(o + 4 + i * 8, true) / 10;
-        const y = y0 + v.getInt32(o + 8 + i * 8, true) / 10;
+        const xi = v.getInt32(o + 4 + i * 8, true);
+        const yi = v.getInt32(o + 8 + i * 8, true);
+        const x = x0 + xi / 10;
+        const y = y0 + yi / 10;
         pts[i * 2] = x;
         pts[i * 2 + 1] = -y; // world Z
+        keys[i] = `${xi}|${yi}`; // where roads meet: the same point, to the decimetre
         first ??= tileKey(...tileOf(x + ORIGIN.x, y + ORIGIN.y));
       }
       o += 4 + n * 8;
-      // A road is drawn whole with the tile it starts in.
+      // A road is listed with the tile it starts in (traffic, people, race courses).
       if (!this.roadTiles.has(first)) this.roadTiles.set(first, []);
-      this.roadTiles.get(first).push({ pts, width: ROAD_WIDTH[cls] * (flags & 1 ? 0.55 : 1), bridge: Boolean(flags & 2), cls });
+      const road = { pts, width: ROAD_WIDTH[cls] * (flags & 1 ? 0.55 : 1), bridge: Boolean(flags & 2), cls };
+      this.roadTiles.get(first).push(road);
+      all.push({ road, keys });
     }
+    this.roadPieces = roadPieces(all, {
+      water: (x, z) => this.waterAt(x, z),
+      tile: (x, z) => tileKey(...tileOf(x + ORIGIN.x, -z + ORIGIN.y))
+    });
   }
 
-  /** The roads that start in a tile, as ribbons laid on the ground (lifted over water: bridges). */
+  /** The roads drawn with a tile, as ribbons laid on the ground (lifted on bridges). */
   _roadMesh(key) {
-    const list = this.roadTiles?.get(key);
+    const list = this.roadPieces?.get(key);
     if (!list?.length) return null;
     const pos = [];
     const col = [];
@@ -753,34 +765,19 @@ export class SeoulGame {
     const owned = [];
     this.roadHash ??= new Map();
     for (const r of list) {
-      // Points no more than a cell apart, so the ribbon follows the ground.
+      // Points no more than 20 m apart, each with its deck height (worked out for the whole road network).
       const line = [];
-      for (let i = 0; i + 1 < r.pts.length / 2; i++) {
-        const ax = r.pts[i * 2];
-        const az = r.pts[i * 2 + 1];
-        const bx = r.pts[i * 2 + 2];
-        const bz = r.pts[i * 2 + 3];
-        const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 20));
-        for (let s = i ? 1 : 0; s <= steps; s++) line.push([ax + ((bx - ax) * s) / steps, az + ((bz - az) * s) / steps]);
+      const eased = [];
+      for (let i = 0; i < r.line.length; i += 3) {
+        line.push([r.line[i], r.line[i + 1]]);
+        eased.push(r.line[i + 2]);
       }
-      // Height: the ground; over water (or on a bridge), a deck above it, eased in at both ends.
-      const lift = line.map(([x, z]) => (this.waterAt(x, z) ? 11 : r.bridge ? 5 : 0));
-      const eased = lift.map((_, i) => {
-        let s = 0;
-        let k = 0;
-        for (let d = -4; d <= 4; d++) {
-          if (lift[i + d] == null) continue;
-          s += lift[i + d];
-          k++;
-        }
-        return s / k;
-      });
       c.set(r.cls <= 1 ? '#8c8e94' : '#9a9ca2');
       const half = r.width / 2;
       let prev = null;
       let last = null;
-      let along = 0;
-      let nextTree = 8;
+      let along = r.along ?? 0;
+      let nextTree = Math.ceil(((r.along ?? 0) - 8) / 16) * 16 + 8;
       const expressway = r.cls === 0;
       line.forEach(([x, z], i) => {
         const [nx, nz] = line[Math.min(line.length - 1, i + 1)];

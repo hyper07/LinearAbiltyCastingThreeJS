@@ -1,5 +1,5 @@
 import { MmoView } from './view.js';
-import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, POTION_CD, SPRINT, DROPS, BAG_W, BAG_H, sizeOf, SLOT_NAMES, placesFor } from './data.js';
+import { CLASSES, CLASS_ORDER, ITEMS, QUESTS, RECIPES, NODES, MOBS, SLOTS, RUN_SPEED, XP_TO, MAX_LEVEL, PROFESSIONS, GCD, VENDORS, COMBO, ATTRS, ATTR_ORDER, TREES, NODES_OF, POINTS, RARITY_INFO, BAR_SIZE, SPRINT, DROPS, BAG_W, BAG_H, sizeOf, SLOT_NAMES, placesFor } from './data.js';
 import { ZONES, NPCS, walkableIn } from './world.js';
 import { questsAt, questDone, countOf, rankOf, attrPointsLeft, skillPointsLeft, cannotLearn, respecCost, pointsIn, skillMods, potionFor, fitsAt } from './rules.js';
 import { CharacterStage } from './bodies.js';
@@ -1411,9 +1411,8 @@ export class MmoGame {
         total = (meEnt.cds?.[def.id] ?? 0) > (meEnt.gcd ?? 0) ? def.cd : GCD;
         off = !rankOf(this.ch, def.id) || meEnt.mp < Math.round(def.cost * (this.st?.costMult ?? 1) * (1 - skillMods(this.ch, def.id).cost));
       } else {
+        // Draughts have no cooldown.
         const use = e.kind === 'item' ? ITEMS[e.id]?.use ?? {} : { [e.what === 'mana' ? 'mana' : 'heal']: 1 };
-        cd = Math.max(use.heal ? meEnt.pot?.[0] ?? 0 : 0, use.mana ? meEnt.pot?.[1] ?? 0 : 0);
-        total = POTION_CD;
         b.classList.toggle('is-wanted', cd <= 0 && !b.classList.contains('is-none') && ((use.heal && low.health) || (use.mana && !use.heal && low.mana)) && !meEnt.dead);
       }
       b.querySelector('.hv-slot__cd').style.height = cd > 0 ? `${Math.min(1, cd / Math.max(0.1, total)) * 100}%` : '0';

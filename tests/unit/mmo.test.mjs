@@ -902,7 +902,7 @@ test('loot falls on the ground for the one who earned it, and is picked up; sold
 
 test('keys 1–8: skills and draughts where the player puts them; a draught key drinks the one that fits', async () => {
   const R = await import('../../src/mmo/rules.js');
-  const { BAR_SIZE, POTION_CD } = await import('../../src/mmo/data.js');
+  const { BAR_SIZE } = await import('../../src/mmo/data.js');
   assert.deepEqual(R.defaultBars('vanguard'), ['strike', 'taunt', 'cleave', 'wall', 'slam', 'rally', 'potion:health', 'potion:mana']);
   assert.equal(R.newCharacter('Keya', 'mender').bars.length, BAR_SIZE);
   // An older save keeps its six skills and gains the draughts; nonsense is dropped.
@@ -935,23 +935,20 @@ test('keys 1–8: skills and draughts where the player puts them; a draught key 
     ws.say({ t: 'quaff', kind: 'health' });
     assert.equal(client.ch.bag[1].n, 1, 'a scratch: the minor draught');
     assert.equal(client.ch.bag[0].n, 1);
-    // Health waits on its own clock; mana does not wait for it.
+    // No cooldown: another draught right away, and a tonic right after it.
     me.hp = 1;
     ws.say({ t: 'quaff', kind: 'health' });
-    assert.match(ws.last('error').text, /Not again so soon \(\d+s\)/);
+    assert.equal(client.ch.bag[0], null, 'a wound, straight after the last: the greater draught');
     me.mana = 0;
     ws.say({ t: 'quaff', kind: 'mana' });
     assert.equal(client.ch.bag[2].n, 1, 'a tonic right after a health draught');
     assert.ok(me.mana > 0);
+    me.mana = 0;
+    ws.say({ t: 'quaff', kind: 'mana' });
+    assert.equal(client.ch.bag[2], null, 'and another tonic at once');
     steps(1);
     const mine = ws.last('snap').s.ents.find((e) => e.i === me.id);
-    assert.ok(mine.pot[0] > POTION_CD - 2 && mine.pot[1] > POTION_CD - 2, 'the browser is shown both waits');
-    steps(POTION_CD * 10 + 2);
-    me.hp = 1;
-    ws.say({ t: 'quaff', kind: 'health' });
-    assert.equal(client.ch.bag[0], null, 'a wound: the greater draught');
-    client.ch.bag[2] = null;
-    steps(POTION_CD * 10 + 2);
+    assert.equal(mine.pot, undefined, 'no waits to show');
     me.mana = 0;
     ws.say({ t: 'quaff', kind: 'mana' });
     assert.match(ws.last('error').text, /No mana tonics — Pell/);

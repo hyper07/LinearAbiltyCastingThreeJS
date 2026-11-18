@@ -20,7 +20,7 @@ import { describeGoal, normalizeLevel } from '../levels/Level.js';
 import { StoryPanel } from '../ui/StoryPanel.js';
 import { WorldLabels } from '../ui/WorldLabels.js';
 import { PortalSystem } from '../world/Portals.js';
-import { POTION_KINDS, isSkillEntry, potionOf } from '../items/hotbar.js';
+import { isSkillEntry, potionOf } from '../items/hotbar.js';
 import { POTIONS, XP_FOR, makeBagRowOffer, makeBook, makeGear, makeGold, makePotion, makeWeapon, merchantStock, rollLoot } from '../items/Items.js';
 import { NpcSystem, NPC_ROLES } from '../npc/Npcs.js';
 import { NpcBrain } from '../npc/NpcBrain.js';
@@ -94,7 +94,6 @@ import { CUSTOM_LOOKS, lookModel, lookRig, registerCustomLooks, saveLook, savedL
 const HDR_URL = './hdri/spruit_sunrise.hdr';
 
 /** Seconds before the same kind of potion can be drunk again. */
-const POTION_COOLDOWN = 2;
 /** Below this share of health the health potion's key pulses… */
 const LOW_HEALTH = 0.35;
 /** …and below this, with auto-drink on, one is drunk for you. */
@@ -141,8 +140,6 @@ export class App {
     this.canvas = canvas;
     this.time = new Time();
     this.elapsed = 0;
-    /** When each potion can be drunk again (game seconds). */
-    this._potionReadyAt = {};
     this.autoDrink = readFlag(AUTO_DRINK_KEY);
     this.paused = false;
     this._raf = 0;
@@ -2595,17 +2592,11 @@ export class App {
   }
 
   /**
-   * Drink a potion (its key, R/Z, or auto-drink). A short cooldown after
-   * each, per kind, so a double press or a held-down auto-drink never
-   * spends two.
+   * Drink a potion (its key, R/Z, or auto-drink). No cooldown: every press
+   * drinks one (a held key does not repeat — InputManager ignores repeats).
    */
   _drink(kind, { auto = false } = {}) {
     if (this.director.isDowned) return false;
-    const wait = (this._potionReadyAt[kind] ?? 0) - this.elapsed;
-    if (wait > 0) {
-      if (!auto) this.hud.showToast(`${POTIONS[kind].name} — ready in ${wait.toFixed(1)}s`, 900);
-      return false;
-    }
     if (kind === 'health' && this.director.health >= this.director.maxHealth && !auto) {
       this.hud.showToast('Already at full health', 1000);
       return false;
@@ -2614,7 +2605,6 @@ export class App {
       if (!auto) this.hud.showToast(`No ${POTIONS[kind].name.toLowerCase()}s left`);
       return false;
     }
-    this._potionReadyAt[kind] = this.elapsed + POTION_COOLDOWN;
     if (kind === 'health') {
       this.director.health = Math.min(this.director.maxHealth, this.director.health + this.director.maxHealth * 0.45);
       this.flash.trigger?.(getColor('#ff6b7a'), 0.25);
@@ -3268,11 +3258,10 @@ export class App {
   }
 
   /**
-   * Potion keys: the cooldown sweep, the health key pulsing when health is
-   * low (and there is a potion to drink), and auto-drink when it is on.
+   * Potion keys: the health key pulsing when health is low (and there is a
+   * potion to drink), and auto-drink when it is on.
    */
   _updatePotions() {
-    for (const kind of POTION_KINDS) this.hud.setPotionCooldown(kind, Math.max(0, (this._potionReadyAt[kind] ?? 0) - this.elapsed), POTION_COOLDOWN);
     const d = this.director;
     const fighting = this.phase === 'playing' && !this.paused && !d.isDowned;
     const ratio = d.maxHealth ? d.health / d.maxHealth : 1;
