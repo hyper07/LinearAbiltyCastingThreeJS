@@ -145,6 +145,7 @@ export class PlatformHome {
     chip(`${GENRE_ICONS.shooter} Shooter`, 'shooter');
     chip(`${GENRE_ICONS.racing} Racing`, 'racing');
     chip(`${GENRE_ICONS.coop} Co-op`, 'coop');
+    chip(`${GENRE_ICONS.sports} Sports`, 'sports');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -397,6 +398,8 @@ export class PlatformHome {
         ? 'Race at night, or drive, walk and fly the city — no character to make'
         : game.engine === 'fps'
         ? 'Pick your side and the bots\' skill when you play — alone, or in a room with friends'
+        : game.engine === 'stoneball'
+        ? 'Pick your tribe\'s leather, the computer\'s skill and the match length when you play'
         : game.engine === 'hd2d'
         ? 'Pick your hero\'s look when you start a new journey — your journey is kept on this device'
         : game.engine === 'squad'
@@ -404,9 +407,11 @@ export class PlatformHome {
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d'].includes(game.engine)) {
+    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = game.engine === 'hd2d'
+      page.querySelector('.home-page__hint').textContent = game.engine === 'stoneball'
+        ? 'You against the computer, three a side. WASD to run, Shift to sprint, hold Space to charge a shot, E to pass, Q to switch.'
+        : game.engine === 'hd2d'
         ? 'One player. WASD to move, Space to strike, 1 and 2 for spells, 3 and 4 for potions, F to talk. Best with a keyboard.'
         : game.engine === 'squad'
         ? 'Play with up to three friends from inside the game: one makes a room, the others join with its code. Bots take the empty places.'

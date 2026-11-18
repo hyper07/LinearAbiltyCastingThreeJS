@@ -96,6 +96,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'coop', genreName: 'Co-op', cover: 'squad', badge: 'NEW' }
   },
   {
+    id: 'official:stoneball',
+    title: 'Stoneball',
+    summary: 'Three cavemen a side and a ball of stone. Pick your tribe\'s leather, charge your shots, pass, shove and dive — the stone is heavy, the boulders bounce it back, and golden goal settles a draw. Against the computer: easy, normal or hard.',
+    engine: 'stoneball',
+    genre: 'sports',
+    card: { genre: 'sports', genreName: 'Sports', cover: 'stoneball', badge: 'NEW' }
+  },
+  {
     id: 'official:lanternwood',
     title: 'Lanternwood',
     summary: 'A night camp in the woods, its lanterns going out one by one. Pixel heroes in a lit 3D forest, the camera behind you: gather ember-herbs, clear the glade and the hollow, light the old braziers of Greyvault and face the Lampwight that eats the light.',

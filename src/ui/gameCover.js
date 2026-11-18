@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -105,7 +105,7 @@ function skyline(kind, r, color) {
 const PHOTO_COVERS = new Set([
   'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
   // Taken by scripts/covers.mjs (run it again to refresh them).
-  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood'
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball'
 ]);
 
 /**

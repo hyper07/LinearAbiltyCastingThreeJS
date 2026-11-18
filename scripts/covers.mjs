@@ -125,6 +125,16 @@ const SHOTS = {
     await bare(page, '.lb');
     await wait(page, 1500);
   },
+  stoneball: async (page) => {
+    await open(page, 'official:stoneball');
+    await until(page, () => window.stoneball && document.querySelector('.sb'), null, 30000);
+    // Kick off and let the computer play a little, the camera on the ball.
+    await until(page, () => [...document.querySelectorAll('.sb button')].some((b) => /play|kick/i.test(b.textContent)), null, 60000);
+    await page.evaluate(() => [...document.querySelectorAll('.sb button')].find((b) => /play|kick/i.test(b.textContent)).click());
+    await wait(page, 9000);
+    await page.addStyleTag({ content: '.sb [class*="hud"], .sb [class*="keys"], .sb [class*="bar"], .sb [class*="banner"], .sb [class*="hint"] { visibility: hidden !important; }' });
+    await wait(page, 600);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);
