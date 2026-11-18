@@ -125,6 +125,20 @@ const SHOTS = {
     await bare(page, '.lb');
     await wait(page, 1500);
   },
+  lanternwood: async (page) => {
+    await open(page, 'official:lanternwood');
+    await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);
+    // A new journey, the camp by its fire.
+    await page.evaluate(() => localStorage.removeItem('gamory.lanternwood.save'));
+    await until(page, () => [...document.querySelectorAll('.ld button')].some((b) => /New journey/i.test(b.textContent)), null, 60000);
+    await page.evaluate(() => [...document.querySelectorAll('.ld button')].find((b) => /New journey/i.test(b.textContent)).click());
+    await wait(page, 1500);
+    // A hero's look, if it asks.
+    await page.evaluate(() => [...document.querySelectorAll('.ld button')].find((b) => /Begin|Start|Ember/i.test(b.textContent))?.click());
+    await wait(page, 6000);
+    await page.addStyleTag({ content: '.ld [class*="hud"], .ld [class*="hint"], .ld [class*="quest"], .ld [class*="bar"], .ld [class*="top"], .ld [class*="toast"], .ld [class*="dia"], .ld [class*="talk"] { visibility: hidden !important; }' });
+    await wait(page, 800);
+  },
   bastion: (page) => purge(page, 'official:bastion', false),
   gravepurge2d: (page) => purge(page, 'official:gravepurge2d', true),
   seoul: async (page) => {

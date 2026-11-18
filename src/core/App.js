@@ -1495,6 +1495,7 @@ export class App {
     if (game.engine === 'city') return this.openCity(game);
     if (game.engine === 'fps') return this.openFps(game);
     if (game.engine === 'squad') return this.openSquad(game);
+    if (game.engine === 'hd2d') return this.openLanternwood(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1529,6 +1530,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new RtsGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Lanternwood, the HD-2D adventure: its own screen and 3D view, like Shardfront. */
+  async openLanternwood(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { LanternwoodGame } = await import('../hd2d/LanternwoodGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new LanternwoodGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

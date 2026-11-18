@@ -96,6 +96,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'coop', genreName: 'Co-op', cover: 'squad', badge: 'NEW' }
   },
   {
+    id: 'official:lanternwood',
+    title: 'Lanternwood',
+    summary: 'A night camp in the woods, its lanterns going out one by one. Pixel heroes in a lit 3D forest, the camera behind you: gather ember-herbs, clear the glade and the hollow, light the old braziers of Greyvault and face the Lampwight that eats the light.',
+    engine: 'hd2d',
+    genre: 'quest',
+    card: { genre: 'quest', genreName: 'Adventure RPG', cover: 'hd2d', badge: 'NEW' }
+  },
+  {
     id: 'official:breachline',
     title: 'Breachline',
     summary: 'A tactical first-person shooter: five against five over short rounds. Raiders carry a charge to site A or B; Wardens hold the sites or disarm it. Buy before each round, change ends at the half — alone with bots, or with up to four friends in a room.',
