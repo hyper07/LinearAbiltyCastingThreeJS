@@ -509,6 +509,7 @@ flowchart LR
 | [Inspiration catalog](docs/inspiration.md) | 75 games, manhwa and manga and their 685 characters mapped onto our ids, with links; "a game like X" in the builder, "a class like X" in the forge; the features we lack, ranked |
 | [Platform architecture](docs/platform-architecture.md) | Many genres on one platform: engines and modules, saves per player per game, which database and why |
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
+| [The knowledge base](docs/knowledge-base.md) | 244 pixel effects, 3D kits, recipes, techniques and 3,422 models to reuse — `npm run kb -- <words>` |
 | [The shared library](docs/library.md) | Official, shared and draft content; reuse and similar-asset suggestions; the API and database |
 | [Study games for kids](docs/for-parents.md) | Tutor NPCs, your own questions, the AI tutor, the Study Grove sample |
 | [Adaptive monster AI](docs/adaptive-ai.md) | The planned AI LM mode: decision trees for each monster and the boss, and training |

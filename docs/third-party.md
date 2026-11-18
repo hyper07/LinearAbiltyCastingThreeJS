@@ -74,3 +74,17 @@ answers differently.
 
 The ten spells use the game's own particles and shaders (see [Spells](spells.md)); these would
 add more textures and an editor for new spells.
+
+## Collected code and assets (the knowledge base)
+
+Kept in `vendor/` with each licence beside it, and searched with `npm run kb` — see
+[The knowledge base](knowledge-base.md).
+
+| From | What we keep | Licence |
+| --- | --- | --- |
+| [pixelfx](https://github.com/patch-gg/pixelfx) | 244 pixel-art effects and their drawing core (not its font) | MIT |
+| [3dviz-pro-max](https://github.com/viettranx/3dviz-pro-max) | 223 scene recipes, 440 knowledge records, 22 3D kits, rigs | MIT |
+| [diorama](https://github.com/sloemo01/diorama) | Pixel-art and toon shader passes, procedural people, guides | MIT |
+| [last-stand](https://github.com/VictorZakharov/last-stand) | Reference code: flow-field navigation, cloth, crowds, light pool, trails, sound guide | MIT |
+| [polyfork](https://polyfork.dev) | 3,422 low-poly models, fetched on demand into `library/polyfork/` (never committed); credits written to `library/polyfork/CREDITS.md` | CC BY 4.0 — credit the authors where the models are shown |
+| [red-horizon](https://github.com/islamdiaa/red-horizon), [three.ws](https://github.com/nirholas/three.ws), [estella](https://github.com/esengine/estella) | Techniques only, written in our own words — no code copied | GPL-3.0 / Apache-2.0 / Apache-2.0 |

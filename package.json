@@ -2,7 +2,7 @@
   "name": "gamory",
   "version": "1.0.0",
   "private": true,
-  "description": "Gamory — spells, stories and worlds you build. Three.js action RPG with AI-designed classes, a shared content library, and co-op play in the browser.",
+  "description": "Gamory \u2014 spells, stories and worlds you build. Three.js action RPG with AI-designed classes, a shared content library, and co-op play in the browser.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,7 +21,10 @@
     "game:new": "node --disable-warning=ExperimentalWarning scripts/new-game.mjs",
     "work:images": "node scripts/work/scene-images.mjs",
     "geo:seoul": "node scripts/geo/seoul-build.mjs",
-    "db:import": "node --disable-warning=ExperimentalWarning scripts/db-import.mjs"
+    "db:import": "node --disable-warning=ExperimentalWarning scripts/db-import.mjs",
+    "kb": "node scripts/kb.mjs",
+    "kb:build": "node scripts/kb-pixelfx.mjs && node scripts/kb-build.mjs",
+    "library:polyfork": "node scripts/library/polyfork.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.12",

@@ -1,0 +1,400 @@
+{
+ "records": [
+  {
+   "id": "own.pixel.art",
+   "kind": "module",
+   "title": "Pixel-art kit: ramps, auto-shaded sprites, dither, pixel-perfect canvas",
+   "summary": "shadeSprite(rows, ramps) lights and outlines a letter-map sprite (top-left light, selective outline, white hit-flash copy; scale 2 for detail); ramp(base) makes a hue-shifted 5-shade ramp; RAMPS ready-made; dither/bayer; pixelCanvas(screen) low-res layer at whole-number zoom; paintGround; pixelEllipse; hardAlpha.",
+   "tags": [
+    "pixel",
+    "sprite",
+    "ramp",
+    "palette",
+    "dither",
+    "bayer",
+    "outline",
+    "canvas",
+    "2d",
+    "shading"
+   ],
+   "path": "src/pixel/art.js"
+  },
+  {
+   "id": "own.pixel.fx",
+   "kind": "module",
+   "title": "Pixel effect player: any of 244 effects on a canvas or a three.js texture",
+   "summary": "playFx(id, {palette, seed, flip, angle}) loads one effect on demand and returns a player: update(dt), canvas, origin, size, done, stop(), texture(THREE). Find ids with `npm run kb -- <words>` (kind pixel-effect).",
+   "tags": [
+    "pixel",
+    "vfx",
+    "effect",
+    "particles",
+    "canvas",
+    "three",
+    "sprite",
+    "texture"
+   ],
+   "path": "src/pixel/fx.js"
+  },
+  {
+   "id": "own.sprites.bake",
+   "kind": "module",
+   "title": "Sprite baker: 3D models rendered once into 2D sprite sheets",
+   "summary": "SpriteBaker renders skinned models (soldier ranks, skeletons, robot) from a three-quarter camera into sheets \u2014 5 directions (mirrored for 8), idle/run/walk/attack frames \u2014 plus still objects; then the 3D is let go. The classic pre-rendered sprite look at 2D cost.",
+   "tags": [
+    "sprite",
+    "sheet",
+    "bake",
+    "pre-rendered",
+    "2d",
+    "isometric",
+    "animation",
+    "three"
+   ],
+   "path": "src/squad/purge/sprites.js"
+  },
+  {
+   "id": "own.flat.real",
+   "kind": "module",
+   "title": "Realistic 2D land: photo-textured bands, cliffs, blight, depth-sorted sprites",
+   "summary": "paintLand paints a whole map once (texture bands blended on noise masks, piled-boulder cliffs, walls, scattered props); drawWorld draws shadows then everything back to front; remains() leaves bones and rubble on the land.",
+   "tags": [
+    "2d",
+    "terrain",
+    "canvas",
+    "y-sort",
+    "shadow",
+    "texture",
+    "painted",
+    "rts"
+   ],
+   "path": "src/squad/purge/flatReal.js"
+  },
+  {
+   "id": "own.audio.synth",
+   "kind": "module",
+   "title": "Synthesized game sound and adaptive music (Web Audio)",
+   "summary": "PurgeAudio: effects built from shaped noise and tones (shots, blasts, horn, bell, coins, frost) through a compressor and a short reverb; a step-sequenced score (chords, bass, melody, kick/snare/hats, arpeggio) with calm and battle beds that cross-fade on a fight level; music and sound switches.",
+   "tags": [
+    "audio",
+    "sound",
+    "music",
+    "synth",
+    "web audio",
+    "adaptive",
+    "sequencer"
+   ],
+   "path": "src/squad/purge/audio.js"
+  },
+  {
+   "id": "own.sim.rts",
+   "kind": "module",
+   "title": "Headless RTS-style simulation with rooms",
+   "summary": "Purge: fixed-step sim with spatial hash, grid A* with corner cutting, group move formations, guard camps that wake and leash, spawners, waves, bunkers, upgrades, bots; snapshot() small enough to send 10\u00d7/s; host-run rooms via MobaLink + Mirror interpolation.",
+   "tags": [
+    "rts",
+    "simulation",
+    "pathfinding",
+    "a*",
+    "netcode",
+    "snapshot",
+    "ai",
+    "waves",
+    "co-op"
+   ],
+   "path": "src/squad/purge/sim.js"
+  },
+  {
+   "id": "own.overlay",
+   "kind": "module",
+   "title": "Shared HUD overlay for 2D and 3D views",
+   "summary": "drawOverlay/pickAt/boxedIn work with any view exposing toScreen(x,y,z): health bars, names, popups, box-select, picking \u2014 so a game can have a 2D and a 3D view of one simulation.",
+   "tags": [
+    "hud",
+    "overlay",
+    "health bar",
+    "selection",
+    "picking",
+    "view"
+   ],
+   "path": "src/squad/purge/overlay.js"
+  },
+  {
+   "id": "own.covers",
+   "kind": "tool",
+   "title": "Cover-shot script: real screenshots of every game",
+   "summary": "scripts/covers.mjs opens each game in a browser, stages a good moment, hides HUD and saves an 800\u00d7450 JPEG to public/covers.",
+   "tags": [
+    "screenshot",
+    "cover",
+    "thumbnail",
+    "playwright"
+   ],
+   "path": "scripts/covers.mjs"
+  },
+  {
+   "id": "own.library",
+   "kind": "module",
+   "title": "Asset catalog: query models and materials by theme and kind",
+   "summary": "Catalog.query/pick over library/catalog.json (KayKit, Poly Haven, ambientCG, extras), with categories and themes; everything that places a model goes through it.",
+   "tags": [
+    "assets",
+    "catalog",
+    "models",
+    "materials",
+    "library"
+   ],
+   "path": "src/library/Catalog.js"
+  },
+  {
+   "id": "own.city.course",
+   "kind": "module",
+   "title": "Race courses planned on a real road graph",
+   "summary": "buildGraph + planCourse/planRun: Dijkstra with a heap over OSM roads, used-edge penalty, spur and hairpin cutting; deterministic so every player plans the same course.",
+   "tags": [
+    "roads",
+    "graph",
+    "dijkstra",
+    "course",
+    "racing",
+    "osm"
+   ],
+   "path": "src/city/course.js"
+  },
+  {
+   "id": "own.people.retarget",
+   "kind": "module",
+   "title": "Animation retargeting bone by bone",
+   "summary": "Borrow one rig's idle/walk/run for another skeleton: each bone's turn from rest copied across in each skeleton's own frame.",
+   "tags": [
+    "animation",
+    "retarget",
+    "skeleton",
+    "mixamo",
+    "character"
+   ],
+   "path": "src/city/people.js"
+  },
+  {
+   "id": "rule.pixel.grid",
+   "kind": "pixel-rule",
+   "title": "Pixel-perfect rendering: draw small, zoom by a whole number",
+   "summary": "Paint the world on a low-resolution canvas (K=2 detail pixels a world unit) and copy it up at an integer zoom with imageSmoothingEnabled=false. Never 2.5\u00d7: uneven scaling makes some pixels wider \u2014 the commonest reason pixel games look cheap. Round every draw position and the camera (after shake) to whole pixels.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "pixel-perfect",
+    "zoom",
+    "integer scaling",
+    "canvas",
+    "camera",
+    "shimmer"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.ramps",
+   "kind": "pixel-rule",
+   "title": "Colour ramps with hue shifting",
+   "summary": "Each material gets 5 shades, deep shadow to highlight; shadows shift towards blue-violet and highlights towards yellow instead of only darker/lighter. A palette of 24\u201340 colours in ramps of 4\u20135.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "palette",
+    "ramp",
+    "hue shift",
+    "colour",
+    "shading"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.light",
+   "kind": "pixel-rule",
+   "title": "One light source, top-left, everywhere",
+   "summary": "Top and left edges take lighter shades, bottom and right darker, on every sprite, tree and rock. The lower part of a shape is a shade darker.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "lighting",
+    "shading",
+    "consistency"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.outline",
+   "kind": "pixel-rule",
+   "title": "Selective outlines, not black",
+   "summary": "Each outline pixel is the darkest shade of the colour it touches mixed towards a deep ink; top edges get a lighter outline than bottom edges, which reads as rim light.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "outline",
+    "ink",
+    "rim light",
+    "sprite"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.dither",
+   "kind": "pixel-rule",
+   "title": "Dithering only on big shapes",
+   "summary": "A 4\u00d74 Bayer pattern blends two shades without a new colour: add the Bayer value before choosing the shade. Use on grass, shadows and large shapes \u2014 never on small sprites, where it reads as noise.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "dither",
+    "bayer",
+    "gradient",
+    "terrain"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.silhouette",
+   "kind": "pixel-rule",
+   "title": "Silhouette first",
+   "summary": "Block the character in one flat colour: if it reads as a dark shape it reads in the game. Big heads, hats and eyes; a 1-pixel white glint in each eye. Judge at real size and speed, never zoomed in.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "silhouette",
+    "character",
+    "readability",
+    "design"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.text",
+   "kind": "pixel-rule",
+   "title": "Keep text out of the pixel layer",
+   "summary": "Damage numbers, labels and the HUD are drawn at full resolution on top (or in the DOM), so they stay sharp at any zoom.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "text",
+    "hud",
+    "ui",
+    "resolution"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.bake",
+   "kind": "pixel-rule",
+   "title": "Paint the ground once",
+   "summary": "Paint terrain, decorations, contact shadows under trees and sun patches into one big offscreen canvas at load; copy from it each frame. Painting is slow, copying is free.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "terrain",
+    "baking",
+    "offscreen",
+    "performance",
+    "ground"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.ysort",
+   "kind": "pixel-rule",
+   "title": "Y-sorting and a shadow pass",
+   "summary": "Everything that stands (trees, enemies, the player) goes in one list sorted by foot position each frame; draw all shadows first, then sprites in order, so you can walk behind a tree.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "y-sort",
+    "depth",
+    "shadow",
+    "draw order"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.feedback",
+   "kind": "pixel-rule",
+   "title": "Every action answers: flash, number, shake, particles",
+   "summary": "A hit gets a sound, a white flash (a pre-made pure-white copy of the sprite for 0.1 s), a damage number and knockback; big actions get screen shake (decaying fast) and particles; small ones get neither.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "juice",
+    "feedback",
+    "hit flash",
+    "screen shake",
+    "knockback",
+    "damage numbers",
+    "polish"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.additive",
+   "kind": "pixel-rule",
+   "title": "Additive blending for light, normal for matter",
+   "summary": "Fire, glows and flashes use globalCompositeOperation='lighter' so overlaps add to white-hot cores; smoke, dirt and debris use normal blending. Fire colour follows a particle's age: white-hot to deep red.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "additive",
+    "glow",
+    "fire",
+    "particles",
+    "blending"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.cast",
+   "kind": "pixel-rule",
+   "title": "Cast time sells power",
+   "summary": "A 0.45 s wind-up with a growing magic circle and the caster slowed makes the explosion feel earned. Area hits on a ground seen at an angle are ellipses: divide the vertical distance by ~0.6.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "skills",
+    "cast",
+    "telegraph",
+    "area",
+    "ellipse",
+    "game feel"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.grade",
+   "kind": "pixel-rule",
+   "title": "Colour grade and vignette last",
+   "summary": "Three final passes set the mood: a soft-light warm fill over the pixel layer, a slow breathing sunbeam gradient in screen mode, and a radial vignette.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "colour grade",
+    "vignette",
+    "post",
+    "mood"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  },
+  {
+   "id": "rule.pixel.effects",
+   "kind": "pixel-rule",
+   "title": "Rules for a good pixel effect",
+   "summary": "Lines and light, not fills; hard ramp steps in colour, softness only in light and smoke; fast in, slow out with a 1\u20132 frame white hero frame; vary every particle; light from one side; let one-shots shrink or dither out; loops seamless; seeded, never Math.random; under 2 ms a frame.",
+   "tags": [
+    "pixel",
+    "pixel art",
+    "vfx",
+    "effect",
+    "timing",
+    "easing",
+    "particles",
+    "authoring"
+   ],
+   "path": "knowledge/pixel-art-guide.md"
+  }
+ ]
+}

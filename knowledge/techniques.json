@@ -1,0 +1,645 @@
+{
+ "records": [
+  {
+   "id": "tech.flowfield",
+   "kind": "technique",
+   "title": "Flow-field navigation per body size",
+   "summary": "One clearance grid; a Dijkstra cost field per body-size class seeded round the target, at most one field rebuilt per frame; each mover walks downhill to the furthest cell in plain sight, then bends its heading onto obstacle tangents. Cheap for hundreds of chasers.",
+   "tags": [
+    "pathfinding",
+    "flow",
+    "field",
+    "dijkstra",
+    "crowd",
+    "enemies",
+    "navigation",
+    "steering"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/navigation.ts"
+  },
+  {
+   "id": "tech.wave-budget",
+   "kind": "technique",
+   "title": "Wave director on a point budget",
+   "summary": "budget(w)=9+3.2w spent on a weighted enemy pool by cost; split into groups sent on an interval or when the field is empty; max-alive cap; boss every 5th wave with the rest at 55%; party size scales foes and life.",
+   "tags": [
+    "waves",
+    "spawn",
+    "director",
+    "budget",
+    "boss",
+    "survival",
+    "difficulty"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/waves.ts"
+  },
+  {
+   "id": "tech.light-pool",
+   "kind": "technique",
+   "title": "Fixed pool of point lights",
+   "summary": "Eight PointLights made once; flash() takes a free one or steals the oldest, fades by life, can follow an object. The light count never changes, so no shader ever recompiles mid-game.",
+   "tags": [
+    "lights",
+    "pointlight",
+    "pool",
+    "flash",
+    "performance",
+    "shader",
+    "recompile"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/lights.ts"
+  },
+  {
+   "id": "tech.crowd-instancing",
+   "kind": "technique",
+   "title": "Instanced skinned crowds",
+   "summary": "Every creature of a kind is one instanced draw: joint matrices and per-body looks (dissolve, frozen, hit flash, rim colour) are rows of a float texture read with gl_InstanceID, injected through onBeforeCompile.",
+   "tags": [
+    "instancing",
+    "skinned",
+    "crowd",
+    "gpu",
+    "texture",
+    "joints",
+    "performance",
+    "enemies"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/crowd.ts"
+  },
+  {
+   "id": "tech.cloth-pbd",
+   "kind": "technique",
+   "title": "Cloth with position-based dynamics",
+   "summary": "Rings of particles (28×7), verlet at 60 Hz with 3 iterations of distance constraints (ring, down, shear, bend), a tether to the top ring and a capsule collider for the arm. Works for sleeves, capes, banners.",
+   "tags": [
+    "cloth",
+    "verlet",
+    "pbd",
+    "cape",
+    "banner",
+    "sleeve",
+    "physics"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/sleeve.ts"
+  },
+  {
+   "id": "tech.ragdoll",
+   "kind": "technique",
+   "title": "Verlet ragdolls",
+   "summary": "Bodies handed to a small verlet solver on death: points, stick constraints, ground contact, then written back to the bones.",
+   "tags": [
+    "ragdoll",
+    "verlet",
+    "death",
+    "physics"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/ragdoll.ts"
+  },
+  {
+   "id": "tech.sdf-surface-nets",
+   "kind": "technique",
+   "title": "SDF sculpting meshed with surface nets",
+   "summary": "Shapes as signed distance fields (smooth unions), meshed once with surface nets, textured triplanar, skinned with dual quaternions so joints do not collapse.",
+   "tags": [
+    "sdf",
+    "surface",
+    "nets",
+    "triplanar",
+    "dual",
+    "quaternion",
+    "organic",
+    "modelling"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/sdf.ts"
+  },
+  {
+   "id": "tech.swing-trail",
+   "kind": "technique",
+   "title": "Weapon swing trails",
+   "summary": "A ribbon through Catmull-Rom points sampled from the blade tip and base each frame, fading along its length, additive.",
+   "tags": [
+    "trail",
+    "ribbon",
+    "melee",
+    "sword",
+    "swing",
+    "effect",
+    "catmull"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/swingTrail.ts"
+  },
+  {
+   "id": "tech.particle-pool",
+   "kind": "technique",
+   "title": "Pooled CPU particles",
+   "summary": "Fixed-size pools drawn as one instanced mesh or points; emit() overwrites the oldest; no allocation while playing.",
+   "tags": [
+    "particles",
+    "pool",
+    "instanced",
+    "effect"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/particles.ts"
+  },
+  {
+   "id": "tech.frame-pace",
+   "kind": "technique",
+   "title": "Frame pacing and auto quality",
+   "summary": "Measure frame time over a window; step a quality preset down or up with hysteresis; change only what needs no shader change.",
+   "tags": [
+    "performance",
+    "fps",
+    "quality",
+    "adaptive",
+    "pacing"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/framePace.ts"
+  },
+  {
+   "id": "tech.audio-weight",
+   "kind": "technique",
+   "title": "Sound design that carries on laptop speakers",
+   "summary": "Weight goes in the mids, not sub-bass: cut under 120 Hz after the drive stage; a blow needs 0.3 s of decay to read as a blow; spells play no notes (they clash with the music); one generated hall reverb whose noise darkens as it decays; crackle textures from random impulses.",
+   "tags": [
+    "audio",
+    "sound",
+    "sfx",
+    "web",
+    "audio",
+    "synthesis",
+    "reverb",
+    "impact",
+    "design"
+   ],
+   "from": "last-stand",
+   "path": "vendor/last-stand/audio-guide.md"
+  },
+  {
+   "id": "tech.webgl-labels",
+   "kind": "technique",
+   "title": "World labels drawn in WebGL",
+   "summary": "Damage numbers, names and bars painted into one canvas atlas and drawn as a single instanced batch, not DOM nodes.",
+   "tags": [
+    "labels",
+    "damage",
+    "numbers",
+    "health",
+    "bars",
+    "atlas",
+    "hud",
+    "performance"
+   ],
+   "from": "last-stand"
+  },
+  {
+   "id": "tech.see-through",
+   "kind": "technique",
+   "title": "See-through walls and line-of-sight blackout",
+   "summary": "Screen-door dissolve of whatever stands between the camera and the hero; a 360° sight polygon blacks out what the hero cannot see.",
+   "tags": [
+    "occlusion",
+    "dissolve",
+    "line",
+    "of",
+    "sight",
+    "visibility",
+    "dither"
+   ],
+   "from": "last-stand"
+  },
+  {
+   "id": "tech.shader-warmup",
+   "kind": "technique",
+   "title": "Shaders compiled at load, never mid-game",
+   "summary": "Every material variant is rendered once off-screen at load and pinned; loading is cut into short chunks; heavy textures are made in workers.",
+   "tags": [
+    "shader",
+    "compile",
+    "warmup",
+    "loading",
+    "stutter",
+    "workers"
+   ],
+   "from": "last-stand"
+  },
+  {
+   "id": "tech.bank-or-risk",
+   "kind": "technique",
+   "title": "Bank-or-risk loot",
+   "summary": "Loot found in a run stays in a bag until banked between waves; dying forfeits the bag; rarity weights rise each wave.",
+   "tags": [
+    "loot",
+    "economy",
+    "risk",
+    "reward",
+    "roguelike",
+    "waves"
+   ],
+   "from": "last-stand"
+  },
+  {
+   "id": "tech.deterministic-sim",
+   "kind": "technique",
+   "title": "Deterministic fixed-tick simulation",
+   "summary": "Fixed 20 Hz, a seeded generator, never reads render state, the clock or Math.random. The same seed and commands always give the same game, so saves, replays, rewinding, lockstep play and headless tests all come from one sim.",
+   "tags": [
+    "simulation",
+    "deterministic",
+    "tick",
+    "seed",
+    "replay",
+    "rts",
+    "architecture"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.lockstep",
+   "kind": "technique",
+   "title": "Lockstep multiplayer with a desync hash",
+   "summary": "Only commands cross the wire; each runs at tick T+delay (delay adapts 2–15 ticks); a relay closes each tick; clients compare a hash of the state every so often; trig functions replaced by portable versions so engines agree to the last bit.",
+   "tags": [
+    "multiplayer",
+    "lockstep",
+    "netcode",
+    "desync",
+    "hash",
+    "rts"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.replay-branch",
+   "kind": "technique",
+   "title": "Replays you can scrub and take over",
+   "summary": "Store seed + command stream + periodic hashes; scrub by re-simulating from the nearest snapshot; watch through any player's fog; \"take command\" starts a new game from that moment.",
+   "tags": [
+    "replay",
+    "rewind",
+    "spectate",
+    "save"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.astar-generations",
+   "kind": "technique",
+   "title": "Grid A* with generation counters",
+   "summary": "8-connected, no corner cutting; visited/closed arrays stamped with a search number instead of being cleared; remembers the nearest reachable cell as a fallback; path smoothed by line-of-sight string pulling.",
+   "tags": [
+    "pathfinding",
+    "astar",
+    "grid",
+    "performance"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.formations",
+   "kind": "technique",
+   "title": "Formations that keep their shape",
+   "summary": "A virtual centre walks one path; slots laid out in rows (line, box, wedge), sorted by role with armour in front and by current side so nobody crosses; blocked slots squeeze towards the centre; the group waits for stragglers.",
+   "tags": [
+    "formation",
+    "rts",
+    "units",
+    "group",
+    "movement"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.fog-of-war",
+   "kind": "technique",
+   "title": "Fog of war with a soft, drifting edge",
+   "summary": "The sim stamps circles into visible/explored grids; the renderer eases them into a texture (visible 5/s, explored 3/s) and the ground shader samples it with a noise offset: fogged = desaturated cool tint, shroud = dark clouds with a faint rim.",
+   "tags": [
+    "fog",
+    "of",
+    "war",
+    "visibility",
+    "shader",
+    "rts",
+    "minimap"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.trauma-shake",
+   "kind": "technique",
+   "title": "Trauma screen shake",
+   "summary": "trauma 0..1 rises with kicks and decays steadily; amplitude = max × trauma^1.3, scaled by camera distance; the offset is a sum of two unrelated sines per axis; reduced-motion sets it to zero.",
+   "tags": [
+    "screen",
+    "shake",
+    "camera",
+    "juice",
+    "game",
+    "feel"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.juice-director",
+   "kind": "technique",
+   "title": "Game-feel director",
+   "summary": "One place owns shake, a \"clash\" meter fed by nearby fighting that drives music intensity, and brief slow-motion on big moments.",
+   "tags": [
+    "juice",
+    "game",
+    "feel",
+    "music",
+    "intensity",
+    "slow",
+    "motion"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.one-draw-models",
+   "kind": "technique",
+   "title": "Procedural models as one skinned draw",
+   "summary": "Build a model as a node tree; every node with body geometry becomes a bone and all body parts merge into one skinned mesh (one draw call); turrets and doors move by moving bones; ambient occlusion, edge wear, snow and mud baked into vertex colours; a far LOD body.",
+   "tags": [
+    "procedural",
+    "model",
+    "skinned",
+    "merge",
+    "draw",
+    "call",
+    "lod",
+    "vertex",
+    "colour"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.vat-crowds",
+   "kind": "technique",
+   "title": "Vertex-animation-texture crowds",
+   "summary": "Animation clips baked into a texture (one row per frame, one column per vertex); thousands of instanced soldiers play and cross-fade clips in the vertex shader.",
+   "tags": [
+    "vat",
+    "vertex",
+    "animation",
+    "texture",
+    "crowd",
+    "instancing",
+    "infantry"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.gpu-particles",
+   "kind": "technique",
+   "title": "GPU particles",
+   "summary": "Positions and velocities live in float textures stepped by a ping-pong pass; 8k–64k particles in one draw, colliding with a terrain height texture.",
+   "tags": [
+    "gpu",
+    "particles",
+    "texture",
+    "simulation",
+    "effects"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.tiled-lights",
+   "kind": "technique",
+   "title": "Hundreds of lights without THREE.Light",
+   "summary": "Lights binned into a screen-tile grid and applied in one full-screen pass; muzzle flashes and explosions each get one.",
+   "tags": [
+    "lights",
+    "clustered",
+    "tiled",
+    "deferred",
+    "performance"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.destruction",
+   "kind": "technique",
+   "title": "Buildings that break apart",
+   "summary": "Pre-cut a building into Voronoi chunks bound to bones of one skinned mesh; a small rigid-body solver drops them; craters scar the ground texture.",
+   "tags": [
+    "destruction",
+    "voronoi",
+    "fracture",
+    "rigid",
+    "body",
+    "building"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.water-wakes",
+   "kind": "technique",
+   "title": "Gerstner water and ship wakes",
+   "summary": "Sum of Gerstner waves for the surface; Kelvin-V wakes drawn into a texture behind each ship.",
+   "tags": [
+    "water",
+    "gerstner",
+    "waves",
+    "wake",
+    "ocean",
+    "shader"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.weather-volume",
+   "kind": "technique",
+   "title": "Weather in a camera-following volume",
+   "summary": "Rain and snow are a fixed box of points round the camera, wrapped and animated in the vertex shader; lightning bolts by midpoint subdivision.",
+   "tags": [
+    "weather",
+    "rain",
+    "snow",
+    "lightning",
+    "particles"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.town-grammar",
+   "kind": "technique",
+   "title": "Landmarks and towns from a grammar",
+   "summary": "A small kit (walls, storeys, roof types) plus rules builds whole towns; landmarks are hand-written recipes on the same kit.",
+   "tags": [
+    "procedural",
+    "buildings",
+    "town",
+    "grammar",
+    "city"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.fair-mapgen",
+   "kind": "technique",
+   "title": "Fair map generation",
+   "summary": "Generate one sector and mirror it for symmetric skirmish maps; check path lengths and resources per start, re-roll if unfair.",
+   "tags": [
+    "map",
+    "generation",
+    "symmetric",
+    "fairness",
+    "rts",
+    "procedural"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.skirmish-ai",
+   "kind": "technique",
+   "title": "Skirmish AI without cheating",
+   "summary": "Sees only what its fog shows; a personality vector (aggression, greed, tech) weights choices; plans operations (harass, push, defend) and counters what it has scouted; named rivals remember how you played.",
+   "tags": [
+    "ai",
+    "rts",
+    "opponent",
+    "personality",
+    "scouting"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.adaptive-music",
+   "kind": "technique",
+   "title": "Seeded adaptive music",
+   "summary": "Three layers (calm, build, battle) cross-faded by an intensity 0..1; sections generated from tables of progressions, kick/bass/lead rhythms; lead melody = a motif walked in scale degrees, snapped to chord tones on strong beats, varied over four phrases; stingers in the current key on the beat; scheduler looks ahead and skips when the tab was throttled.",
+   "tags": [
+    "music",
+    "adaptive",
+    "procedural",
+    "layers",
+    "intensity",
+    "web",
+    "audio",
+    "bgm"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.offline-sfx",
+   "kind": "technique",
+   "title": "Sound effects rendered once, offline",
+   "summary": "Each effect is a recipe (pitched thump + crack + filtered noise + metal partials) rendered in an OfflineAudioContext with a generated reverb, normalised, kept as buffers in a few variations; one recipe takes a size 0..1 from pistol to howitzer; a mixer steals voices by priority.",
+   "tags": [
+    "sound",
+    "sfx",
+    "offline",
+    "render",
+    "synthesis",
+    "mixer",
+    "web",
+    "audio"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.rts-input",
+   "kind": "technique",
+   "title": "RTS controls on mouse, touch and pad",
+   "summary": "Box select, control groups, layout-aware keys; touch: hold-then-drag selects, radial menu, pinch/twist camera; pad: virtual cursor and radial menu.",
+   "tags": [
+    "input",
+    "rts",
+    "touch",
+    "gamepad",
+    "selection",
+    "controls"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.globe-campaign",
+   "kind": "technique",
+   "title": "3D globe campaign map",
+   "summary": "One shader draws spherical Voronoi territories from a lookup texture of the nearest sites; a 2D canvas overlay carries badges; battle odds computed exactly.",
+   "tags": [
+    "globe",
+    "campaign",
+    "voronoi",
+    "map",
+    "strategy",
+    "shader"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.a11y-games",
+   "kind": "technique",
+   "title": "Accessibility for games",
+   "summary": "Colour-blind-safe team palettes (Okabe–Ito), subtitles for sounds, reduced motion, UI scale, no large flash faster than ~1.5 a second.",
+   "tags": [
+    "accessibility",
+    "colour",
+    "blind",
+    "subtitles",
+    "reduced",
+    "motion"
+   ],
+   "from": "red-horizon (ideas only)"
+  },
+  {
+   "id": "tech.avatar-embed",
+   "kind": "technique",
+   "title": "Talking 3D avatar as a web component",
+   "summary": "A custom element that loads a rigged GLB, plays an idle (breathing, blinks, glances), drives mouth morph targets from audio loudness or visemes, and retargets animations between skeletons by bone-name maps.",
+   "tags": [
+    "avatar",
+    "web",
+    "component",
+    "lipsync",
+    "morph",
+    "target",
+    "retarget",
+    "idle",
+    "character"
+   ],
+   "from": "three.ws (ideas)"
+  },
+  {
+   "id": "tech.ecs",
+   "kind": "technique",
+   "title": "Entity-component-system layout",
+   "summary": "Entities are ids; components are plain arrays per type; systems are functions run in a fixed order over queries; scenes are data. Keeps game rules, rendering and UI apart.",
+   "tags": [
+    "ecs",
+    "architecture",
+    "engine",
+    "entities",
+    "components",
+    "systems"
+   ],
+   "from": "estella (ideas)"
+  },
+  {
+   "id": "tech.pixel-perfect-camera",
+   "kind": "technique",
+   "title": "Pixel-perfect camera",
+   "summary": "Render the world at a fixed low resolution and scale by a whole number; snap the camera to whole pixels and carry the remainder as a sub-pixel offset of the final blit so scrolling stays smooth.",
+   "tags": [
+    "pixel",
+    "perfect",
+    "camera",
+    "2d",
+    "scaling",
+    "snap"
+   ],
+   "from": "estella (ideas)"
+  }
+ ]
+}
