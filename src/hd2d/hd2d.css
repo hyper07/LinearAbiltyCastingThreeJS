@@ -209,10 +209,45 @@
   height: 18px;
 }
 
+.ld-mini {
+  position: absolute;
+  right: 18px;
+  top: 58px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+.ld-mini canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.ld-mini__n {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: #1a1026;
+  border: 1.5px solid var(--ld-gold-2, #e8c478);
+  color: #f4e6c0;
+  font: 700 10px/15px system-ui, sans-serif;
+  text-align: center;
+}
+@media (max-width: 760px) {
+  .ld-mini {
+    width: 120px;
+    height: 120px;
+  }
+}
 .ld-tracker {
   position: absolute;
   right: 18px;
-  top: 60px;
+  top: 252px;
   width: 260px;
   padding: 10px 14px 11px;
   background: linear-gradient(90deg, rgba(8, 10, 22, 0), rgba(8, 10, 22, 0.72) 25%);

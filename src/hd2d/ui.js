@@ -53,6 +53,7 @@ export class Hud {
           <span class="ld-res" title="Gold">${ICON.gold}<b data-gold>0</b></span>
         </div>
       </div>
+      <div class="ld-mini" title="The map round you (M for the whole map)"><canvas width="360" height="360" data-mini></canvas><span class="ld-mini__n" data-mini-n>N</span></div>
       <div class="ld-tracker" data-tracker></div>
       <div class="ld-boss" data-boss hidden><span>The Lampwight</span><div class="ld-boss__bar"><i data-boss-fill></i></div></div>
       <div class="ld-world" data-world></div>
@@ -537,4 +538,138 @@ export function titleHtml(save) {
     <div class="ld-title__go">${cont}<button type="button" class="ld-btn ld-btn--big ld-btn--go" data-new>New journey</button></div>
     <p class="ld-title__keys">${kbd('W')}${kbd('A')}${kbd('S')}${kbd('D')} move · ${kbd('Space')} attack · ${kbd('F')} talk · drag to turn</p>
   </div>`;
+}
+
+/**
+ * The minimap: the woods round the hero, turned with the camera so ahead is
+ * up — paths, places, the camp's people with their quest marks, foes near
+ * by, what the quest wants, and an arrow on the rim to the quest's target
+ * when it is farther than the minimap shows. Every RPG on the platform has one.
+ */
+export function drawMinimap(canvas, game, { range = 34 } = {}) {
+  const g = canvas.getContext('2d');
+  const W = canvas.width;
+  const C = W / 2;
+  const k = (C - 6) / range;
+  const h = game.heroPos;
+  const yaw = game.camYaw ?? 0;
+  g.clearRect(0, 0, W, W);
+  g.save();
+  g.beginPath();
+  g.arc(C, C, C - 4, 0, Math.PI * 2);
+  g.clip();
+  g.fillStyle = '#0c1a14';
+  g.fillRect(0, 0, W, W);
+  g.translate(C, C);
+  g.rotate(yaw);
+  g.scale(k, k);
+  g.translate(-h.x, -h.z);
+  // The open ground inside the woods, the places, the paths, the trees.
+  g.fillStyle = '#16281e';
+  g.beginPath();
+  g.arc(0, 0, WORLD.radius + 2, 0, Math.PI * 2);
+  g.fill();
+  const fills = { camp: '#5a4630', glade: '#1f5c4c', hollow: '#3a3430', ruins: '#4a4a58' };
+  for (const [id, a] of Object.entries(WORLD.areas)) {
+    g.beginPath();
+    g.arc(a.x, a.z, a.r, 0, Math.PI * 2);
+    g.fillStyle = fills[id] ?? '#2a3a30';
+    g.fill();
+  }
+  g.strokeStyle = '#8a6a44';
+  g.lineWidth = 3.2;
+  g.lineCap = g.lineJoin = 'round';
+  for (const p of WORLD.paths) {
+    g.beginPath();
+    p.forEach(([x, z], i) => (i ? g.lineTo(x, z) : g.moveTo(x, z)));
+    g.stroke();
+  }
+  g.fillStyle = '#081510';
+  for (const t of game.world.trees) {
+    if (Math.abs(t.x - h.x) > range * 1.5 || Math.abs(t.z - h.z) > range * 1.5) continue;
+    g.beginPath();
+    g.arc(t.x, t.z, 1.1, 0, Math.PI * 2);
+    g.fill();
+  }
+  const dot = (x, z, r, color) => {
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(x, z, r, 0, Math.PI * 2);
+    g.fill();
+  };
+  dot(0, 0, 1.4, '#ff9a3a');
+  if (game.state.quests.embers.state === 'active') for (const hb of game.world.herbs) if (!hb.taken) dot(hb.x, hb.z, 0.8, '#ff8a2a');
+  if (game.state.quests.braziers.state === 'active') for (const b of game.world.braziers) dot(b.x, b.z, 1.1, b.lit ? '#ff8a2a' : '#9a9ab0');
+  for (const e of game.enemies ?? []) if (e.alive) dot(e.x, e.z, e.kind === 'lampwight' ? 1.6 : 0.85, '#e8504a');
+  for (const [id, n] of Object.entries(NPCS)) dot(n.x, n.z, 0.95, '#f4e6c0');
+  g.restore();
+  // Marks stay upright: drawn where things are, not turned.
+  const toScreen = (x, z) => {
+    const dx = x - h.x;
+    const dz = z - h.z;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    return [C + (dx * c - dz * s) * k, C + (dx * s + dz * c) * k];
+  };
+  g.font = `800 ${Math.round(W / 14)}px system-ui, sans-serif`;
+  g.textAlign = 'center';
+  for (const [id, n] of Object.entries(NPCS)) {
+    const mark = game.markerFor(id);
+    if (mark !== '!' && mark !== '?') continue;
+    const [x, y] = toScreen(n.x, n.z);
+    if (Math.hypot(x - C, y - C) > C - 10) continue;
+    g.fillStyle = '#1a1026';
+    g.fillText(mark, x + 1, y - 5);
+    g.fillStyle = '#ffd25a';
+    g.fillText(mark, x, y - 6);
+  }
+  // The quest's target: a ring if it is in view, else an arrow on the rim pointing to it.
+  const target = game.questTarget?.();
+  if (target) {
+    const [x, y] = toScreen(target.x, target.z);
+    const d = Math.hypot(x - C, y - C);
+    g.strokeStyle = '#ffd25a';
+    g.fillStyle = '#ffd25a';
+    g.lineWidth = W / 90;
+    if (d < C - 14) {
+      g.beginPath();
+      g.arc(x, y, W / 30 + Math.sin(performance.now() / 200) * 2, 0, Math.PI * 2);
+      g.stroke();
+    } else {
+      const a = Math.atan2(y - C, x - C);
+      const r = C - 14;
+      g.save();
+      g.translate(C + Math.cos(a) * r, C + Math.sin(a) * r);
+      g.rotate(a + Math.PI / 2);
+      g.beginPath();
+      g.moveTo(0, -W / 28);
+      g.lineTo(W / 40, W / 50);
+      g.lineTo(-W / 40, W / 50);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+  }
+  // The hero, in the middle: an arrow the way they face.
+  g.save();
+  g.translate(C, C);
+  g.rotate(-h.face + Math.PI + yaw);
+  g.fillStyle = '#ffffff';
+  g.strokeStyle = '#1a1026';
+  g.lineWidth = W / 120;
+  g.beginPath();
+  g.moveTo(0, -W / 26);
+  g.lineTo(W / 36, W / 36);
+  g.lineTo(0, W / 70);
+  g.lineTo(-W / 36, W / 36);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.restore();
+  // The rim.
+  g.strokeStyle = 'rgba(232, 196, 120, 0.9)';
+  g.lineWidth = W / 60;
+  g.beginPath();
+  g.arc(C, C, C - 4, 0, Math.PI * 2);
+  g.stroke();
 }

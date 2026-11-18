@@ -258,6 +258,8 @@ function person(body, ramps, { back = null, side = null, hair = 'H' } = {}) {
     back: LEGS.front.map((legs) => shadeSprite([...(back ?? backOf(body, 10, hair)), ...legs], ramps, opts())),
     side: LEGS.side.map((legs) => shadeSprite([...sideBody, ...legs], ramps, opts()))
   };
+  // Made solid (voxel.js), each front frame wears its back frame behind it.
+  views.front.forEach((f, i) => (f.back = views.back[i]));
   return views;
 }
 
@@ -285,7 +287,13 @@ export function buildSprites() {
     wisp: WISP.map((rows) => shadeSprite(rows, { P: ['#2a7a9a', '#3fb0c8', '#6ad8e0', '#a6f0ec', '#e8fff8'] }, opts({ ...FLAT, E: '#0e2030' }))),
     lampwight: LAMPWIGHT_HEM.map((hem) => shadeSprite([...LAMPWIGHT_TOP, ...hem], { R: ['#120c1c', '#1e1430', '#2c2046', '#3e2e5e', '#56447a'], N: RAMPS.steel, Q: ['#1a2a40', '#244060', '#2e5a80', '#4a7aa0', '#7ab0d0'], C: RAMPS.gold, B: RAMPS.bone, X: RAMPS.bone }, opts()))
   };
+  // How thick each is made (half, in metres), and the wolf drawn from the side.
+  for (const f of enemies.slime) f.depth = 0.32;
+  for (const f of enemies.wolf) Object.assign(f, { depth: 0.2, profile: true });
+  for (const f of enemies.wisp) f.depth = 0.2;
+  for (const f of enemies.lampwight) f.depth = 0.38;
   const herb = shadeSprite(HERB, { G: ramp('#3a6a3a'), O: RAMPS.ember }, opts());
+  herb.depth = 0.06;
   return { hero, npcs, enemies, herb };
 }
 

@@ -5,7 +5,7 @@ import { buildSprites } from './sprites.js';
 import { buildWorld } from './world.js';
 import { SpriteActor, FxBillboard, disposeTextures, canvasOf } from './gfx.js';
 import { Post } from './post.js';
-import { Hud, Dialogue, panel, shopHtml, infoHtml, drawMap, titleHtml, CONTROLS_HTML, el } from './ui.js';
+import { Hud, Dialogue, panel, shopHtml, infoHtml, drawMap, titleHtml, CONTROLS_HTML, el, drawMinimap } from './ui.js';
 import './hd2d.css';
 
 /**
@@ -1002,6 +1002,21 @@ export class LanternwoodGame {
     const yaw = this.camYaw;
     this.world.update(dt, { yaw, hero: this.heroPos, camera: this.camera });
     this.updateActors(dt, yaw);
+    // The minimap, ten times a second.
+    this._miniT = (this._miniT ?? 0) - dt;
+    if (this._miniT <= 0 && this.mode !== 'title') {
+      this._miniT = 0.1;
+      const mini = this.root.querySelector('[data-mini]');
+      if (mini) {
+        drawMinimap(mini, this);
+        // The N on the rim, where north is.
+        const n = this.root.querySelector('[data-mini-n]');
+        if (n) {
+          const r = 78;
+          n.style.transform = `translate(${-Math.sin(-this.camYaw) * r}px, ${-Math.cos(-this.camYaw) * r}px)`;
+        }
+      }
+    }
     this.updateEffects(dt, yaw);
     this.updateHud(dt);
     if (this.overlay === 'map' && this._mapCanvas && Math.floor(this.t * 10) % 3 === 0) drawMap(this._mapCanvas, this);
@@ -1481,7 +1496,9 @@ export class LanternwoodGame {
     // Lean into an attack: the sprite steps forward a little.
     a.mesh.position.x = hv.attack > 0 ? dx * 0.15 : 0;
     a.mesh.position.z = hv.attack > 0 ? dz * 0.15 : 0;
-    a.show(set[view][frame], view === 'side' && side < 0);
+    a.facing = h.face + (hv.spin > 0 ? hv.spin * 40 : 0);
+    a.show(set.front[frame]);
+    void view;
     a.group.visible = this.mode !== 'title';
     const blink = hv.inv > 0 && Math.floor(this.t * 20) % 2 === 0;
     a.material.opacity = 1;
@@ -1498,7 +1515,9 @@ export class LanternwoodGame {
       const toward = nx * fwdX + nz * fwdZ < 0.2;
       const s = this.sprites.npcs[n.id];
       n.actor.squash = Math.sin(this.t * 2 + n.x) * 0.015 + (n.talking ? Math.abs(Math.sin(this.t * 9)) * 0.02 : 0);
-      n.actor.show(toward ? s.front[0] : s.back[0], (nx * rgtX + nz * rgtZ) < -0.2);
+      n.actor.facing = n.face;
+      n.actor.show(s.front[0]);
+      void toward;
       n.actor.update(dt, yaw, this.world.lightAt(n.x, n.z, light));
     }
 
@@ -1530,6 +1549,9 @@ export class LanternwoodGame {
         act.squash = e.state === 'windup' ? (e.move === 'slam' ? 0.12 : -0.05) * (1 - e.timer / e.wind) : 0;
         act.glow = 0.4 + (e.state === 'windup' ? 0.35 * Math.abs(Math.sin(this.t * 12)) : 0);
       }
+      // Facing: where it is going, or the hero when it stands.
+      const mvx = e.vx, mvz = e.vz;
+      act.facing = Math.hypot(mvx, mvz) > 0.3 ? Math.atan2(mvx, mvz) : Math.atan2(this.heroPos.x - e.x, this.heroPos.z - e.z);
       act.show(frames[f], e.flip);
       act.update(dt, yaw, this.world.lightAt(e.x, e.z, light));
       if (e.state === 'windup' && Math.floor(this.t * 16) % 2 === 0 && act.flash <= 0) act.material.color.setRGB(1.5, 0.5, 0.4);

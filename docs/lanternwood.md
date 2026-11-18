@@ -5,7 +5,10 @@
 <p><img src="../public/covers/lanternwood.jpg" width="70%" alt="Lanternwood: the pixel hero seen from behind at the camp's bonfire, tents and the camp's people around it in the night forest" /></p>
 
 An adventure RPG in the "HD-2D" style: chibi pixel-art characters standing in a lit 3D world, the
-camera behind and above the hero. A night camp in the woods is losing its lanterns one by one —
+camera behind and above the hero. The characters are solid — every pixel of their drawing a little
+block, the body rounded in depth — so they turn, catch the firelight and cast shadows. A round
+minimap in the corner turns with the camera, shows the paths, the people's quest marks, foes near
+by and points to the quest's target (**M** opens the whole map). A night camp in the woods is losing its lanterns one by one —
 the Lampwight in the old Greyvault ruins is eating the light.
 
 ## Playing
@@ -39,7 +42,7 @@ little poorer. The journey is saved on this device.
 | --- | --- |
 | The screen: input, camera, combat, enemies, quests, loop | `src/hd2d/LanternwoodGame.js` |
 | Rules (no three.js, no DOM): stats, damage, XP, potions, shop, enemies, quests, dialogue, save, world layout | `src/hd2d/rules.js` |
-| Pixel sprites (letter maps, shaded by `src/pixel/art.js`) | `src/hd2d/sprites.js` |
+| Pixel sprites (letter maps, shaded by `src/pixel/art.js`), made solid | `src/hd2d/sprites.js`, `src/hd2d/voxel.js` |
 | The 3D world, billboards and effects, post-processing, HUD | `src/hd2d/world.js`, `gfx.js`, `post.js`, `ui.js`, `hd2d.css` |
 | Tests | `tests/unit/hd2d.test.mjs` |
 
