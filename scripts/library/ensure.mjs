@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { EXTRAS_VERSION } from './sources.mjs';
+import { RIGGED_VERSION } from './rigged.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
@@ -45,9 +46,12 @@ export function libraryState() {
   const lockPid = Number(readJson(path.join(LIBRARY, '.fetch.lock')));
   if (lockPid && alive(lockPid)) return { needed: false, reason: 'a download is already running', models: status?.models ?? 0 };
   // A finished library from before the extras (named files games need) fetches just those.
-  const extrasDone = Number(readJson(path.join(LIBRARY, 'extras', '.done')) ?? 0) >= EXTRAS_VERSION;
+  // Same for the rigged characters and creatures.
+  const behind = [['extras', EXTRAS_VERSION], ['rigged', RIGGED_VERSION]]
+    .filter(([source, version]) => Number(readJson(path.join(LIBRARY, source, '.done')) ?? 0) < version)
+    .map(([source]) => source);
   const ready = (status?.state === 'done' && status.models > 0) || (!status && readJson(path.join(LIBRARY, 'catalog.json'))?.models?.length);
-  if (ready && !extrasDone) return { needed: true, reason: 'new game assets to add', models: status?.models ?? 0, sources: ['extras'] };
+  if (ready && behind.length) return { needed: true, reason: 'new game assets to add', models: status?.models ?? 0, sources: behind };
   // Only the model count is needed; the catalog can be a few MB, so peek at the status first.
   if (status?.state === 'done' && status.models > 0) return { needed: false, reason: 'ready', models: status.models };
   if (status?.state === 'running') return { needed: true, reason: 'the last download was interrupted — resuming', models: status.models ?? 0 };

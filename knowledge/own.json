@@ -435,6 +435,51 @@
     "profile"
    ],
    "path": "server/channelStore.js"
+  },
+  {
+   "id": "own.library.characters",
+   "kind": "module",
+   "title": "Rigged characters: meshopt loader, shared-rig clips, retargeting, VRM expressions",
+   "summary": "characterLoader() reads meshopt GLBs (Mesh2Motion); rigClips(loader, catalog, model, names) loads clips that ship as separate files on a shared rig; segmentClips(clip, model.segments) cuts Gobkit's one baked track into idle/walk/attack/dead; retargetClip(target, source, clip, BONE_MAPS.mixamo|kaykit) bakes any of Mesh2Motion's 234 CC0 human clips onto Mixamo, VRM or KayKit bodies (handles A-pose vs T-pose); vrmExpressions/setExpression drive VRM blink and mouth shapes. Guide: knowledge/assets-guide.md.",
+   "tags": [
+    "character",
+    "creature",
+    "rigged",
+    "animation",
+    "retarget",
+    "mixamo",
+    "vrm",
+    "skeleton",
+    "gltf",
+    "meshopt",
+    "clips",
+    "avatar",
+    "mesh2motion",
+    "kaykit"
+   ],
+   "path": "src/library/characters.js"
+  },
+  {
+   "id": "own.guide.assets",
+   "kind": "guide",
+   "title": "Assets guide: best ready characters and creatures, how to load and animate them, how to generate new ones",
+   "summary": "What the library holds (rigged humans, animals, beasts, mounts, cute creatures, VRM avatars, HDRIs), the best pick per use, loading with GLTFLoader + meshopt, AnimationMixer, SkeletonUtils.clone and retargeting, packs to drop in by hand, and generation options (Meshy/Tripo, TRELLIS.2 on Mac, SDF sculpting).",
+   "tags": [
+    "asset",
+    "model",
+    "character",
+    "creature",
+    "avatar",
+    "animal",
+    "generate",
+    "ai",
+    "meshy",
+    "tripo",
+    "trellis",
+    "sdf",
+    "guide"
+   ],
+   "path": "knowledge/assets-guide.md"
   }
  ]
 }

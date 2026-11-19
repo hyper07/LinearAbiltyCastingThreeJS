@@ -31,6 +31,7 @@ needs reading until a record is chosen.
 | Techniques from other games (flow fields, wave budgets, fog of war, formations, cloth, crowds, adaptive music…) | 41 | `knowledge/techniques.json`, some code in `vendor/last-stand/` | Each record says how it works; some point to reference code |
 | A live 3D dollhouse, studied (walls and door cuts from a 2D plan, the camera-facing wall cutaway, room lights masked by walls, stairs and floors, real sun, GPU weather, procedural people and pets, street traffic, a primitive furniture kit, render-on-demand, synthesized sound) | 25 techniques + a study guide | `knowledge/homescape-study.md`, records in `knowledge/techniques.json` | Read the section a record names (§1–17); each ends with how to do it in our plain three.js and which of our games can use it |
 | Low-poly 3D models | 3,422 | fetched into `library/polyfork/` | `npm run library:polyfork -- <id>` or `--kit "words"` or `--all` (about 1 GB) |
+| Rigged, animated characters and creatures (KayKit, Mesh2Motion humans and animals with 234 shared clips, Gobkit, VRM avatars, three.js and Kenney), plus HDRIs | 162 | fetched into `library/` on `npm run dev` / build | `npm run kb -- fox --models` shows the clips and licence; load and retarget with `src/library/characters.js`; picks and generation options in `knowledge/assets-guide.md` |
 | Our own modules | 10 | `knowledge/own.json` | Add a record when you write something reusable |
 
 ## The pixel lab

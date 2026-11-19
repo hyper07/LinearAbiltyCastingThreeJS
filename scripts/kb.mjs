@@ -66,7 +66,8 @@ export function search(index, query, { kind = null, limit = 8, models = false, f
         const idf = Math.log(1 + (docs.length - df.get(w) + 0.5) / (df.get(w) + 0.5));
         score += weight * idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + (b * d.len) / avg)));
       }
-      return { r: d.r, score };
+      // Downloaded, rigged and animated models first: they are ready to play, the rest are props to fetch.
+      return { r: d.r, score: d.r.from === 'library' ? score * 1.8 : score };
     })
     .filter((x) => x.score > 0)
     .sort((x, y) => y.score - x.score)

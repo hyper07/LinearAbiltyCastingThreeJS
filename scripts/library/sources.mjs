@@ -23,6 +23,7 @@ import {
   walk,
   exists
 } from './lib.mjs';
+import { rigged } from './rigged.mjs';
 
 const MODEL_EXT = /\.(glb|gltf)$/i;
 const KEEP_EXT = /\.(glb|gltf|bin|png|jpe?g|webp|ktx2)$/i;
@@ -435,4 +436,4 @@ export async function inbox({ budget }) {
   return assets;
 }
 
-export const SOURCES = { polyhaven, kaykit, polygonalmind, ambientcg, extras, inbox };
+export const SOURCES = { polyhaven, kaykit, polygonalmind, ambientcg, extras, rigged, inbox };
