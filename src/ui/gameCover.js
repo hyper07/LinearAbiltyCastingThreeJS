@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽', learning: '🎓'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -139,6 +139,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'drift') return driftCover(game);
   if (game.card?.cover === 'squad') return squadCover(game);
   if (game.card?.cover === 'fps') return fpsCover(game);
+  if (game.card?.cover === 'arcademia') return arcademiaCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -169,6 +170,31 @@ export function coverSvg(game) {
     <path d="M0 140 Q90 128 180 140 T320 136 V180 H0Z" fill="${near}" opacity=".55"/>
     ${lava}
     <rect width="320" height="180" fill="url(#fog-${uid})"/>
+  </svg>`;
+}
+
+/** AI Arcademia: a terraced green mountain, three little buildings a terrace, a waterfall. */
+function arcademiaCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const tiers = [0, 1, 2, 3, 4];
+  const terr = tiers.map((i) => {
+    const y = 160 - i * 24, w = 300 - i * 46, x = 160 - w / 2;
+    return `<path d="M${x} ${y} Q${x + w / 2} ${y - 8} ${x + w} ${y} L${x + w - 6} ${y + 22} L${x + 6} ${y + 22} Z" fill="${['#a6cf8f', '#9fcb86', '#96c48a', '#8fc3a0', '#a9c9bd'][i]}"/><path d="M${x + 6} ${y + 6} L${x + w - 6} ${y + 6} L${x + w - 6} ${y + 22} L${x + 6} ${y + 22} Z" fill="#8a9aab" opacity=".55"/>` +
+      [0, 1, 2].map((k) => {
+        const bx = x + w * (0.25 + k * 0.25), c = ['#e0795b', '#c99a5b', '#6aa7c9'][k];
+        return `<rect x="${bx - 7}" y="${y - 12}" width="14" height="10" fill="#f2e6cc"/><path d="M${bx - 9} ${y - 12} L${bx} ${y - 20} L${bx + 9} ${y - 12} Z" fill="${c}"/><rect x="${bx - 2}" y="${y - 7}" width="4" height="5" fill="#ffd27a"/>`;
+      }).join('');
+  }).join('');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs><linearGradient id="ac-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9d6d2"/><stop offset="1" stop-color="#f3efe0"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#ac-${uid})"/>
+    <path d="M0 120 L50 40 L90 110 L130 30 L170 100 L215 25 L260 105 L300 45 L320 80 V180 H0Z" fill="#9aa8ba"/>
+    <path d="M50 40 L60 56 L42 54Z M130 30 L141 48 L120 46Z M215 25 L226 43 L205 42Z" fill="#f4f7fa"/>
+    ${terr}
+    <rect x="236" y="62" width="7" height="110" fill="#9fe0e6" opacity=".85"/>
+    <circle cx="70" cy="30" r="12" fill="#fff6c8"/>
+    <rect x="12" y="12" width="150" height="34" rx="17" fill="#fcf8ee" opacity=".95"/>
+    <text x="26" y="35" fill="#2c6b62" font-family="system-ui, sans-serif" font-size="17" font-weight="900" letter-spacing="1"><tspan fill="#d98a1f">AI </tspan>ARCADEMIA</text>
   </svg>`;
 }
 

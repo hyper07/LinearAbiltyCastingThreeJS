@@ -1,5 +1,54 @@
 import { RateLimiter, clientIp, json, pathOf, readJson } from './http.js';
 import { CREATION_TASKS, PLAN_IDS, planById, taskOf } from '../../src/platform/plans.js';
+import { lessonById } from '../../src/arcademia/content/index.js';
+import { floorByN } from '../../src/arcademia/floors.js';
+
+/** What a child may type to the tutor, and what of the lesson goes with it. */
+export const TUTOR_LIMITS = { question: 300, context: 400, turns: 4, reading: 1200 };
+
+/** Anything that looks like contact details is taken out before a message leaves the server. */
+export function scrub(text, max) {
+  return String(text ?? '')
+    .replace(/[\u0000-\u001f]+/g, ' ')
+    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[hidden]')
+    .replace(/(\+?\d[\d\s().-]{6,}\d)/g, '[hidden]')
+    .replace(/https?:\/\/\S+/g, '[link]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+
+/**
+ * The tutor's instructions, written here and never by the page: who it is,
+ * who it talks to, and the lesson it may talk about.
+ */
+export function tutorMessages({ lessonId, question, step = '', history = [] }) {
+  const lesson = lessonById(String(lessonId ?? ''));
+  if (!lesson) return null;
+  const ask = scrub(question, TUTOR_LIMITS.question);
+  if (!ask) return null;
+  const floor = floorByN(lesson.floor);
+  const reading = lesson.reading.map((c) => `${c.title}: ${c.text}`).join(' ').slice(0, TUTOR_LIMITS.reading);
+  const system = [
+    'You are Professor Hoot, a kind, patient owl who tutors children inside a learning game called AI Arcademia.',
+    `You are talking with a child of about ${floor?.ages ?? '6–13'} years old. Use short sentences and words they know. Reply in at most 3 short sentences (about 60 words).`,
+    `Today's lesson: "${lesson.title}" (${lesson.subject}, topic: ${lesson.topicName}). What the lesson teaches: ${reading}`,
+    'How you help: give a hint or a guiding question first, and never say the final answer inside a hint. Only give the full answer if the child has already had a hint in this chat and still asks; then explain why it is right, step by step.',
+    'Write plain sentences: no markdown, no lists, no headings, at most one emoji.',
+    'Stay on school learning, and mostly on this lesson. If the child asks about something unsafe, scary, grown-up, personal or off-topic, kindly say it is not something you can help with here and steer back to the lesson; suggest asking a trusted grown-up when that fits.',
+    'Never ask for or repeat personal information (names, age, address, school, phone, photos, passwords). Never give links. Never pretend to be a real person.',
+    'Be accurate. If you are not sure, say so. Be warm and encouraging; praise effort.'
+  ].join('\n');
+  const messages = [{ role: 'system', content: system }];
+  const context = scrub(step, TUTOR_LIMITS.context);
+  for (const turn of (Array.isArray(history) ? history : []).slice(-TUTOR_LIMITS.turns)) {
+    const role = turn?.role === 'tutor' ? 'assistant' : 'user';
+    const content = scrub(turn?.text, TUTOR_LIMITS.question);
+    if (content) messages.push({ role, content });
+  }
+  messages.push({ role: 'user', content: context ? `(I am on this part of the lesson: ${context})\n${ask}` : ask });
+  return messages;
+}
 
 /**
  * The bridge to the OpenAI-compatible models the game talks to (LM Studio,
@@ -124,10 +173,79 @@ export function aiBridge(env = process.env, { identify = async () => null } = {}
     premium: Boolean(premium && plan.model === 'premium')
   });
 
+  /**
+   * GET  /api/ai/tutor   → { plan, allowed, available }
+   * POST /api/ai/tutor   { lessonId, question, step?, history? } → { answer }
+   * Free: 403 with `upgrade`. No model: 503 with `resting` (the game shows the
+   * prebuilt hints instead). The child's words are capped and scrubbed.
+   */
+  const tutorLimiter = new RateLimiter(Number(env.AI_TUTOR_PER_MIN) || 8, { burst: 4 });
+  async function tutor(req, res) {
+    const { who, plan } = await caller(req);
+    const cap = plan.maxTokens.tutor ?? 0;
+    const endpoint = standard.baseUrl ? standard : premium;
+    if (req.method === 'GET') {
+      json(res, 200, { plan: plan.id, allowed: cap > 0, available: Boolean(endpoint) });
+      return true;
+    }
+    if (req.method !== 'POST') {
+      json(res, 404, { error: 'unknown AI route' });
+      return true;
+    }
+    if (!cap) {
+      json(res, 403, { error: 'Professor Hoot, the AI tutor, is part of Plus. The hints and worked answers are always here for you.', upgrade: true });
+      return true;
+    }
+    if (!endpoint) {
+      json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true });
+      return true;
+    }
+    if (!tutorLimiter.take(who)) {
+      json(res, 429, { error: 'Professor Hoot needs a moment to think — try again soon.' });
+      return true;
+    }
+    try {
+      const payload = await readJson(req, 16 * 1024);
+      const messages = tutorMessages(payload ?? {});
+      if (!messages) {
+        json(res, 400, { error: 'Ask a question about this lesson.' });
+        return true;
+      }
+      const response = await upstream(endpoint, '/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: endpoint.model,
+          messages,
+          temperature: 0.4,
+          max_tokens: cap,
+          ...(endpoint.hosted ? {} : { chat_template_kwargs: { enable_thinking: false } })
+        })
+      });
+      if (!response.ok) {
+        json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true });
+        return true;
+      }
+      const body = await response.json().catch(() => ({}));
+      const answer = String(body?.choices?.[0]?.message?.content ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').trim().slice(0, 900);
+      if (!answer) {
+        json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true });
+        return true;
+      }
+      json(res, 200, { answer });
+    } catch (error) {
+      json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true, detail: error?.name === 'AbortError' ? 'timeout' : undefined });
+    }
+    return true;
+  }
+
   return async (req, res) => {
     const path = pathOf(req);
     if (!path.startsWith('/api/ai')) return false;
     const route = path.slice('/api/ai'.length).replace(/\/+$/, '');
+
+    // AI Arcademia's tutor: Plus only, decided here whether or not a model is
+    // running — a free account is told so, not that the model is off.
+    if (route === '/tutor') return tutor(req, res);
 
     if (!standard.baseUrl && !premium) {
       json(res, 503, { error: 'LLM_PLATFORM_BASE_URL is not set — the AI model is off on this server.' });
@@ -164,6 +282,11 @@ export function aiBridge(env = process.env, { identify = async () => null } = {}
         const payload = await readJson(req, 512 * 1024);
         const task = taskOf(payload.task);
         const cap = plan.maxTokens[task] ?? plan.maxTokens.other;
+        if (task === 'tutor' && cap) {
+          // The tutor's prompt is the server's (POST /api/ai/tutor), never the page's.
+          json(res, 400, { error: 'Ask the tutor at /api/ai/tutor.' });
+          return true;
+        }
         if (!cap) {
           json(res, 403, { error: task === 'game-custom' ? 'Custom builds are part of Plus.' : 'Your plan does not include this.', upgrade: true });
           return true;

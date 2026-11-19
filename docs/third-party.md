@@ -83,7 +83,7 @@ Kept in `vendor/` with each licence beside it, and searched with `npm run kb` â€
 | From | What we keep | Licence |
 | --- | --- | --- |
 | [pixelfx](https://github.com/patch-gg/pixelfx) | 244 pixel-art effects and their drawing core (not its font) | MIT |
-| [3dviz-pro-max](https://github.com/viettranx/3dviz-pro-max) | 223 scene recipes, 440 knowledge records, 22 3D kits, rigs | MIT |
+| [3dviz-pro-max](https://github.com/viettranx/3dviz-pro-max) | 223 scene recipes, 440 knowledge records, 22 3D kits, rigs. AI Arcademia's creatures start from its biped and quadruped walker kits, its terrace layout from the village layout kit and the fantasy-village-diorama recipe | MIT |
 | [diorama](https://github.com/sloemo01/diorama) | Pixel-art and toon shader passes, procedural people, guides | MIT |
 | [last-stand](https://github.com/VictorZakharov/last-stand) | Reference code: flow-field navigation, cloth, crowds, light pool, trails, sound guide | MIT |
 | [polyfork](https://polyfork.dev) | 3,422 low-poly models, fetched on demand into `library/polyfork/` (never committed); credits written to `library/polyfork/CREDITS.md` | CC BY 4.0 â€” credit the authors where the models are shown |

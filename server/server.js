@@ -8,6 +8,7 @@ import { chain, json, pathOf } from './api/http.js';
 import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { GamesStore, gamesHandler } from './gamesStore.js';
 import { ChannelStore, channelHandler } from './channelStore.js';
+import { LearningStore, learningHandler } from './learningStore.js';
 import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
 import { createGameServices } from './game/index.js';
@@ -109,6 +110,7 @@ game.setPartyCheck((a, b) => realtime.sameParty(a, b));
 const library = new LibraryStore(database);
 const games = new GamesStore(database, levels);
 const channels = new ChannelStore(database, games);
+const learning = new LearningStore(database);
 const market = createMarket({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const work = createWork({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const mmo = createMmo({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
@@ -122,6 +124,7 @@ const api = chain([
   libraryHandler(async () => library),
   gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req) }),
   channelHandler(async () => channels, { authenticate: (req) => game.authenticate(req) }),
+  learningHandler(async () => learning, { authenticate: (req) => game.authenticate(req) }),
   market.handler,
   work.handler,
   mmo.handler,

@@ -135,6 +135,14 @@ const SHOTS = {
     await page.addStyleTag({ content: '.sb [class*="hud"], .sb [class*="keys"], .sb [class*="bar"], .sb [class*="banner"], .sb [class*="hint"] { visibility: hidden !important; }' });
     await wait(page, 600);
   },
+  arcademia: async (page) => {
+    await open(page, 'official:arcademia');
+    await until(page, () => window.arcademia?.world && window.arcademia.mode === 'world', null, 60000);
+    await page.evaluate(() => window.arcademia.world.showFloor(2));
+    await wait(page, 2500);
+    await bare(page, '.arc');
+    await wait(page, 400);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);

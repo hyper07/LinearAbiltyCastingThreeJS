@@ -6,6 +6,7 @@ import { createModelStore } from './server/modelgen.mjs';
 import { libraryApi } from './server/libraryStore.js';
 import { GamesStore, gamesHandler } from './server/gamesStore.js';
 import { ChannelStore, channelHandler } from './server/channelStore.js';
+import { LearningStore, learningHandler } from './server/learningStore.js';
 import { aiBridge } from './server/api/ai.js';
 import { JsonFileStore, fileApi } from './server/api/files.js';
 import { createRealtime } from './server/realtime.js';
@@ -318,6 +319,8 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       target: 'es2022',
+      // The app, and AI Arcademia's read-only report page for parents (a link that opens without the game).
+      rollupOptions: { input: { main: resolve('index.html'), 'parent-report': resolve('parent-report.html') } },
       sourcemap: true,
       chunkSizeWarningLimit: 2000
     },
@@ -338,7 +341,10 @@ export default defineConfig(({ mode }) => {
           (store ??= new GamesStore(await getDb(), new JsonFileStore({ builtInDir: levelDir(), userDir: levelDir(), indexKey: 'campaign', label: 'level' })));
         let channels = null;
         const getChannels = async () => (channels ??= new ChannelStore(await getDb(), await getStore()));
+        let learning = null;
+        const getLearning = async () => (learning ??= new LearningStore(await getDb()));
         return [
+          mount('learning', learningHandler(getLearning, { authenticate: async (req) => (await getGame()).authenticate(req) })),
           mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req) })),
           mount('channels', channelHandler(getChannels, { authenticate: async (req) => (await getGame()).authenticate(req) }))
         ];

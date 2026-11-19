@@ -1497,6 +1497,7 @@ export class App {
     if (game.engine === 'squad') return this.openSquad(game);
     if (game.engine === 'hd2d') return this.openLanternwood(game);
     if (game.engine === 'stoneball') return this.openStoneball(game);
+    if (game.engine === 'arcademia') return this.openArcademia(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1548,6 +1549,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new StoneballGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** AI Arcademia, the learning mountain: its own screen and 3D view, like Shardfront. */
+  async openArcademia(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { ArcademiaGame } = await import('../arcademia/ArcademiaGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new ArcademiaGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

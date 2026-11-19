@@ -11,7 +11,7 @@
  *
  * Tasks: 'game' (a game spec from the menus), 'game-custom' (a Plus build that
  * goes past the menus), 'map', 'class', 'npc' (helper talk), 'command' (the
- * in-fight commander), 'other'.
+ * in-fight commander), 'tutor' (AI Arcademia's Professor Hoot — Plus only), 'other'.
  */
 export const PLANS = {
   free: {
@@ -19,12 +19,13 @@ export const PLANS = {
     name: 'Free',
     model: 'standard',
     buildsPerDay: 20,
-    maxTokens: { game: 400, 'game-custom': 0, map: 900, class: 1500, npc: 300, command: 600, other: 600 },
+    maxTokens: { game: 400, 'game-custom': 0, map: 900, class: 1500, npc: 300, command: 600, tutor: 0, other: 600 },
     features: {
       quickBuild: true, // build from the menus, no AI needed
       aiBuild: true, // describe a game; the AI picks from the menus
       customBuild: false, // the AI writes its own map, chapter stories, helper lines and questions
-      premiumModel: false
+      premiumModel: false,
+      tutor: false // AI Arcademia's AI tutor; free players get the prebuilt hints and worked answers
     }
   },
   plus: {
@@ -32,18 +33,19 @@ export const PLANS = {
     name: 'Plus',
     model: 'premium',
     buildsPerDay: 300,
-    maxTokens: { game: 600, 'game-custom': 3500, map: 1500, class: 2500, npc: 600, command: 600, other: 1000 },
+    maxTokens: { game: 600, 'game-custom': 3500, map: 1500, class: 2500, npc: 600, command: 600, tutor: 350, other: 1000 },
     features: {
       quickBuild: true,
       aiBuild: true,
       customBuild: true,
-      premiumModel: true
+      premiumModel: true,
+      tutor: true
     }
   }
 };
 
 export const PLAN_IDS = Object.keys(PLANS);
-export const TASKS = ['game', 'game-custom', 'map', 'class', 'npc', 'command', 'other'];
+export const TASKS = ['game', 'game-custom', 'map', 'class', 'npc', 'command', 'tutor', 'other'];
 /** Tasks that count against `buildsPerDay`, and that use the plan's model. */
 export const CREATION_TASKS = new Set(['game', 'game-custom', 'map', 'class']);
 

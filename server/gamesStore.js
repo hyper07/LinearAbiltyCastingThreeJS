@@ -104,6 +104,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'sports', genreName: 'Sports', cover: 'stoneball', badge: 'NEW' }
   },
   {
+    id: 'official:arcademia',
+    title: 'AI Arcademia',
+    summary: 'A learning mountain for kids aged 6 to 13: seven floors, each with a Math school, a History hall and a Physics lab. Watch worked examples written in chalk, talk with history guides, play with physics experiments, earn stars to open the next floor — and parents get a weekly report.',
+    engine: 'arcademia',
+    genre: 'learning',
+    card: { genre: 'learning', genreName: 'Learning', cover: 'arcademia', badge: 'NEW', study: true, calm: true }
+  },
+  {
     id: 'official:lanternwood',
     title: 'Lanternwood',
     summary: 'Pixel heroes made solid in a lit 3D world, the camera behind you. Four classes, four realms — a night forest, sunlit hills, frozen peaks, a burning caldera — hero monsters and bosses, loot you can see on your hero, and co-op for up to four.',

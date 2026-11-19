@@ -146,6 +146,7 @@ export class PlatformHome {
     chip(`${GENRE_ICONS.racing} Racing`, 'racing');
     chip(`${GENRE_ICONS.coop} Co-op`, 'coop');
     chip(`${GENRE_ICONS.sports} Sports`, 'sports');
+    chip(`${GENRE_ICONS.learning} Learning`, 'learning');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -400,6 +401,8 @@ export class PlatformHome {
         ? 'Pick your side and the bots\' skill when you play — alone, or in a room with friends'
         : game.engine === 'stoneball'
         ? 'Pick your tribe\'s leather, the computer\'s skill and the match length when you play'
+        : game.engine === 'arcademia'
+        ? 'Pick a buddy and climb the mountain: stars are kept on your account, or on this device when signed out'
         : game.engine === 'hd2d'
         ? 'Pick your class — Blade, Warden, Seer or Ranger — and a look; your journey is kept on this device'
         : game.engine === 'squad'
@@ -407,9 +410,11 @@ export class PlatformHome {
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball'].includes(game.engine)) {
+    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = game.engine === 'stoneball'
+      page.querySelector('.home-page__hint').textContent = game.engine === 'arcademia'
+        ? 'For ages 6 to 13. Click or tap to walk, or use WASD; walk into a building for a lesson. Grown-ups: the Parents button shows a weekly report behind a PIN. The AI tutor, Professor Hoot, is part of Plus — every lesson has its own hints and worked answers for everyone.'
+        : game.engine === 'stoneball'
         ? 'You against the computer, three a side. WASD to run, Shift to sprint, hold Space to charge a shot, E to pass, Q to switch.'
         : game.engine === 'hd2d'
         ? 'Alone, or with up to three friends: press P in the game to make a party and share its code. WASD to move, Space to strike, 1–4 for skills, I for your bag. Best with a keyboard.'
