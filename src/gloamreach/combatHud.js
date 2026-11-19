@@ -1,7 +1,7 @@
 /**
  * The fight on the HUD, in Gloamreach's quiet gilded style: health, the
  * resource (mana, energy or stamina) and experience at the bottom, the skill
- * bar (left and right mouse, 1–4) with cooldown sweeps and the two potions
+ * bar (left and right mouse, 1–4) with cooldown sweeps and the two potions (5, 6)
  * (Q, R), a frame for the monster under the pointer, a great bar for the
  * boss, health bars over monsters in a fight, damage numbers (crits in gold),
  * loot toasts, the prompt to open or trade, a red edge when hurt, and the
@@ -250,9 +250,10 @@ export class CombatHud {
     const box = this.$.skills;
     box.innerHTML = '';
     this.slots = [];
-    const keys = ['LMB', 'RMB', '1', '2', '3', '4', 'Q', 'R'];
+    // Skills on 1–4, the potions on 5 and 6 (controls.js).
+    const keys = ['LMB', 'RMB', '1', '2', '3', '4', '5', '6'];
     for (const k of keys) {
-      const s = el('div', `gr-slot${k === 'Q' ? ' gr-slot--gap' : ''}`);
+      const s = el('div', `gr-slot${k === '5' ? ' gr-slot--gap' : ''}`);
       s.innerHTML = `<div class="gr-slot__icon"></div><div class="gr-slot__cd"></div><div class="gr-slot__t"></div><div class="gr-slot__key">${esc(KEY_LABEL[k] ?? k)}</div><div class="gr-slot__n"></div>`;
       box.append(s);
       this.slots.push({ key: k, el: s, icon: s.querySelector('.gr-slot__icon'), cd: s.querySelector('.gr-slot__cd'), t: s.querySelector('.gr-slot__t'), n: s.querySelector('.gr-slot__n'), id: null });

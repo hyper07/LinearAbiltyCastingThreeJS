@@ -27,8 +27,21 @@ const EXPECTED_MISSES = [/^\/models\/(walk|run)\.fbx$/, /^\/api\/library\/[a-z]+
  * and then — unless `view: 'home'` — into the hero menu (class, weapon,
  * Start), where most checks begin.
  */
-export async function boot(browser, name = 'page', { view = 'hero' } = {}) {
+export async function boot(browser, name = 'page', { view = 'hero', firstHelp = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  // How to play opens by itself the first time each game is played (shared/helpPanel.js); the checks
+  // start in play unless they're about that panel.
+  if (!firstHelp) {
+    await context.addInitScript(() => {
+      for (const id of ['gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'lanternwood', 'arcademia', 'seoul', 'stoneball']) {
+        try {
+          localStorage.setItem(`gamory.help.${id}.hide`, '1');
+        } catch {
+          /* private mode */
+        }
+      }
+    });
+  }
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(`${name}: ${error.message}`));

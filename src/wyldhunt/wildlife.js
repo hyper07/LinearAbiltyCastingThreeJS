@@ -12,6 +12,7 @@ import { rng } from '../gloamreach/noise.js';
 import { HERDS, NESTS } from './map.js';
 import { Beast, coatMaterial, loadRig } from './beasts.js';
 import { wrap } from './brains.js';
+import { animStride, ticksOn } from '../shared/power.js';
 
 const SKITTER_COAT = { back: ['#0a1416', '#1e4a50', '#5ab0a8'], belly: ['#140c08', '#6a3a1a', '#e88a3a'], stripe: '#e86a2a', stripeK: 0.6 };
 
@@ -107,6 +108,18 @@ export class Wildlife {
 
   update(dt, { hunter, hunterAlive, mount, hurt }) {
     const r = this.r;
+    // Far beasts animate less often, and past the draw distance not at all (power: animNear, drawFar).
+    this._frame = (this._frame ?? 0) + 1;
+    const lod = (t, d, i) => {
+      const stride = animStride(d, { near: this.animNear ?? 45, far: this.drawFar ?? Infinity });
+      t.a.object.visible = stride > 0;
+      t.acc = (t.acc ?? 0) + dt;
+      if (!ticksOn(this._frame, stride, i)) return 0;
+      const step = t.acc;
+      t.acc = 0;
+      return step;
+    };
+    let idx = 0;
     const walk = (t, want, wantYaw, turn = 3) => {
       const d = wrap(wantYaw - t.yaw);
       t.yaw = wrap(t.yaw + Math.max(-turn * dt, Math.min(turn * dt, d)));
@@ -164,12 +177,15 @@ export class Wildlife {
       const o = b.a.object;
       o.position.set(b.x, this.colliders.height(b.x, b.z), b.z);
       o.rotation.y = b.yaw;
-      b.a.move(b.speed);
-      b.a.update(dt);
-      // Grazing: bend the neck down while standing.
-      const neck = b.a.bones.Neck ?? b.a.bones.neck ?? b.a.bones.Head;
       b.graze = (b.graze ?? 0) + ((b.state === 'graze' && b.speed < 0.3 ? 1 : 0) - (b.graze ?? 0)) * Math.min(1, dt * 2);
-      if (neck) neck.rotation.x += b.graze * (0.9 + Math.sin(b.t * 1.3) * 0.08);
+      const step = lod(b, dh, idx++);
+      if (step > 0) {
+        b.a.move(b.speed);
+        b.a.update(step);
+        // Grazing: bend the neck down while standing (on top of the pose just set).
+        const neck = b.a.bones.Neck ?? b.a.bones.neck ?? b.a.bones.Head;
+        if (neck) neck.rotation.x += b.graze * (0.9 + Math.sin(b.t * 1.3) * 0.08);
+      }
     }
     for (const s of this.skitters) {
       s.t += dt;
@@ -228,7 +244,15 @@ export class Wildlife {
       be.object.rotation.y = s.yaw;
       be.move(s.speed);
       if (be.overlay && be.progress() >= 0.99 && !be.overlayHold && s.state !== 'threat') be.rest(0.2);
-      be.update(dt);
+      // A chasing or biting skitter always animates; one idling far off, less often.
+      let step;
+      if (s.state === 'idle' || s.state === 'home') step = lod(s, dh, idx++);
+      else {
+        be.object.visible = true;
+        step = dt + (s.acc ?? 0);
+        s.acc = 0;
+      }
+      if (step > 0) be.update(step);
       const u = be.meshes[0]?.material.userData.coat;
       if (u) u.uFlash.value.setScalar((s.flash = Math.max(0, (s.flash ?? 0) - dt * 4)) * 0.4);
     }

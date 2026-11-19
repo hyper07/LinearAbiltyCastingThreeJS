@@ -165,7 +165,14 @@ export class World {
     this.controls.target.copy(this.kidPos).add(new THREE.Vector3(0, 1, 0));
     this.home();
     this._camTween = null;
-    this.controls.addEventListener('start', () => (this._camTween = null));
+    this.controls.addEventListener('start', () => {
+      this._camTween = null;
+      this.camAssist?.input();
+    });
+    /** Camera assist (ArcademiaGame sets it): keys turn the view round the buddy, and it eases back behind them. */
+    this.camAssist = null;
+    this.kidSpeed = 0;
+    this._sph = new THREE.Spherical();
     this._pointer();
     this.setLocked(new Set());
     this._ensureDetail(1);
@@ -671,6 +678,32 @@ export class World {
   }
   clearKeys() {
     this.keys.clear();
+    this.camAssist?.clear();
+  }
+
+  /** , . turn the view round the buddy, [ ] tilt it, / puts it behind them; after a quiet spell
+   *  it eases back behind a buddy on the move — only when following them close up, never mid-glide. */
+  _assistCamera(dt) {
+    const a = this.camAssist;
+    if (!a) return;
+    const turn = a.steer(dt);
+    const off = this.camera.position.clone().sub(this.controls.target);
+    const s = this._sph.setFromVector3(off);
+    const yaw = s.theta;
+    let next = yaw + turn.yaw;
+    const close = s.radius < 45;
+    next = a.step(dt, next, this.kidHeading + Math.PI, { moving: this.kidSpeed > 0.5 && close, paused: Boolean(this._camTween) || !this._following });
+    if (next === yaw && !turn.pitch) return;
+    s.theta = next;
+    s.phi = THREE.MathUtils.clamp(s.phi - turn.pitch, this.controls.minPolarAngle, this.controls.maxPolarAngle);
+    off.setFromSpherical(s);
+    this.camera.position.copy(this.controls.target).add(off);
+  }
+
+  /** For tests: the view's turn round the buddy, and the turn that would put it behind them. */
+  cameraYaw() {
+    const off = this.camera.position.clone().sub(this.controls.target);
+    return { yaw: Math.atan2(off.x, off.z), behind: this.kidHeading + Math.PI };
   }
 
   nearDoor() {
@@ -706,6 +739,7 @@ export class World {
       this.controls.target.add(delta);
       this.camera.position.add(delta);
     }
+    this._assistCamera(dt);
     this.controls.update();
     const dist = this.camera.position.distanceTo(this.controls.target);
     this._cut.copy(this.kidPos).y += 0.62 * KID_SCALE;
@@ -835,6 +869,7 @@ export class World {
     kp.y = THREE.MathUtils.lerp(kp.y, this.plan.height(kp.x, kp.z), Math.min(1, dt * 18));
     this.kid.group.position.copy(kp);
     this.kid.group.rotation.y = this.kidHeading;
+    this.kidSpeed = speed;
     this.kid.update(dt, { speed });
     const n = this.plan.floorAt(kp.x, kp.z);
     if (n && n !== this.kidFloor) {

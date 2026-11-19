@@ -197,8 +197,8 @@ export const buyPrice = (entry) => (entry?.base ? sellPrice(entry) * 4 : POTIONS
 
 /** Potions: drunk at once, no cooldown (each press drinks one). */
 export const POTIONS = {
-  hp: { name: 'Healing draught', color: '#e8404e', restore: 0.45, price: 14, key: 'Q', desc: 'Restores 45 % of your health at once.' },
-  mp: { name: 'Mana tonic', color: '#4a7cff', restore: 0.6, price: 12, key: 'R', desc: 'Restores 60 % of your mana, energy or stamina at once.' }
+  hp: { name: 'Healing draught', color: '#e8404e', restore: 0.45, price: 14, key: '5', desc: 'Restores 45 % of your health at once.' },
+  mp: { name: 'Mana tonic', color: '#4a7cff', restore: 0.6, price: 12, key: '6', desc: 'Restores 60 % of your mana, energy or stamina at once.' }
 };
 
 /* ------------------------------------------------------------------ loot */

@@ -8,6 +8,7 @@
  * in, little leafy seedlings — instead of meadow grass.
  */
 import * as THREE from 'three';
+import { splitGrid, ChunkCull, CHUNK_PARS, CHUNK_CELL } from '../shared/chunks.js';
 import { EXTENT } from './map.js';
 import { shared, addTranslucency } from '../gloamreach/materials.js';
 import { rng } from '../gloamreach/noise.js';
@@ -57,7 +58,7 @@ function clumpGeometry(blades, segs, { width = 0.06, height = 0.7, spread = 0.22
 }
 
 const PLACE_PARS = /* glsl */ `
-uniform vec3 uOrigin;
+${CHUNK_PARS}uniform vec3 uOrigin;
 uniform float uSpacing;
 uniform float uN;
 uniform float uRadius;
@@ -85,8 +86,7 @@ float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.y
 
 const PLACE_MAIN = /* glsl */ `
 float id = float(gl_InstanceID);
-float ix = mod(id, uN);
-float iz = floor(id / uN);
+${CHUNK_CELL}
 vec2 cell = floor(uOrigin.xz / uSpacing) + vec2(ix, iz) - uN * 0.5;
 float h1 = hash12(cell);
 float h2 = hash12(cell + 17.3);
@@ -165,8 +165,11 @@ function coverMaterial(uniforms) {
 export const coverMount = { value: new THREE.Vector3(0, -100, 0) };
 
 export class Cover {
-  constructor({ heightTex, splat, noise, settings }) {
+  constructor({ heightTex, splat, noise, settings, heightAt = null }) {
     this.group = new THREE.Group();
+    this.cull = new ChunkCull();
+    this.heightAt = heightAt;
+    this.reach = 1;
     const common = (spacing, n, radius, inner, scale) => ({
       uOrigin: { value: new THREE.Vector3() },
       uSpacing: { value: spacing },
@@ -184,37 +187,53 @@ export class Cover {
     });
     const g = settings.grass;
     this.layers = [];
-    const add = (geo, n, uniforms) => {
-      geo.instanceCount = n * n;
-      const mesh = new THREE.Mesh(geo, coverMaterial(uniforms));
-      mesh.frustumCulled = false;
-      mesh.receiveShadow = true;
-      mesh.castShadow = false;
-      this.group.add(mesh);
-      this.layers.push({ mesh, uniforms, n });
+    // Each ring cut into chunks (their own draws): what's behind the camera or past the reach isn't drawn.
+    const add = (geo, n0, spacing, inner, scale) => {
+      const { cw, n, cells } = splitGrid(n0, n0 > 130 ? 6 : 4);
+      const uniforms = common(spacing, n, (n * spacing) / 2, inner, scale);
+      geo.instanceCount = cw * cw;
+      const chunks = cells.map(([cx, cz]) => {
+        const mesh = new THREE.Mesh(geo, coverMaterial({ ...uniforms, uChunk: { value: new THREE.Vector3(cx, cz, cw) } }));
+        mesh.frustumCulled = false;
+        mesh.receiveShadow = true;
+        mesh.castShadow = false;
+        this.group.add(mesh);
+        return { mesh, cx, cz };
+      });
+      this.layers.push({ uniforms, n, cw, chunks, spacing, inner, radius: (n * spacing) / 2, geo });
     };
     const nNear = Math.round(150 * Math.sqrt(g));
     const spNear = 0.22;
-    add(clumpGeometry(6, 3, { width: 0.07, height: 0.24, spread: 0.26, seed: 13 }), nNear, common(spNear, nNear, (nNear * spNear) / 2, 0, 1));
+    add(clumpGeometry(6, 3, { width: 0.07, height: 0.24, spread: 0.26, seed: 13 }), nNear, spNear, 0, 1);
     if (settings.grassFar) {
       const nFar = 110;
       const spFar = 0.6;
-      add(clumpGeometry(5, 2, { width: 0.12, height: 0.3, spread: 0.5, seed: 14 }), nFar, common(spFar, nFar, (nFar * spFar) / 2, (nNear * spNear) / 2 - 3, 1.1));
+      add(clumpGeometry(5, 2, { width: 0.12, height: 0.3, spread: 0.5, seed: 14 }), nFar, spFar, (this.layers[0].n * spNear) / 2 - 3, 1.1);
     }
   }
 
-  setDensity(k) {
-    for (const l of this.layers) l.uniforms.uDensity.value = Math.min(1.2, k);
+  /** Density, and reach (× each ring's radius). */
+  setDensity(k, reach = this.reach) {
+    this.reach = reach;
+    for (const l of this.layers) {
+      l.uniforms.uDensity.value = Math.min(1.2, k);
+      l.uniforms.uRadius.value = l.radius * reach;
+    }
   }
 
   update(camera) {
-    for (const l of this.layers) l.uniforms.uOrigin.value.copy(camera.position);
+    this.cull.setCamera(camera);
+    for (const l of this.layers) {
+      l.uniforms.uOrigin.value.copy(camera.position);
+      const radius = l.uniforms.uRadius.value;
+      for (const c of l.chunks) c.mesh.visible = l.uniforms.uDensity.value > 0 && this.cull.visible(camera.position, l.spacing, l.n, c.cx, c.cz, l.cw, { radius, inner: l.inner, heightAt: this.heightAt, pad: 1 });
+    }
   }
 
   dispose() {
     for (const l of this.layers) {
-      l.mesh.geometry.dispose();
-      l.mesh.material.dispose();
+      l.geo.dispose();
+      for (const c of l.chunks) c.mesh.material.dispose();
     }
   }
 }

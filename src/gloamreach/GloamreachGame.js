@@ -20,6 +20,13 @@ import { TextureBank } from './textures.js';
 import { buildWorld } from './world.js';
 import { Post } from './post.js';
 import { SETTINGS, chooseTier, Governor } from './quality.js';
+import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
+import { PowerKit } from '../shared/powerKit.js';
+import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
+import { WaypointBeam } from '../shared/waypointBeam.js';
+import { HelpPanel, helpButton, codesFor, hintItems } from '../shared/helpPanel.js';
+import { CONTROLS } from './controls.js';
+import { powerSettings } from '../shared/power.js';
 import { Effects } from './fx.js';
 import { Vista } from './vista.js';
 import { Life } from './life.js';
@@ -41,13 +48,15 @@ import { Hero } from './hero.js';
 import { FollowCamera } from './camera.js';
 import { Sound } from './audio.js';
 import { HEROES } from './cast.js';
-import { START, AREAS, areaAt, OVERLOOK } from './map.js';
+import { START, AREAS, areaAt, OVERLOOK, EXTENT } from './map.js';
 import { shared } from './materials.js';
 import { paintMap, Minimap } from './minimap.js';
 import { Loading, StartScreen, Hud, creditsPanel, pauseMenu, el } from './ui.js';
 import './gloamreach.css';
 
 const PREFS = 'gloamreach.prefs';
+/** Quiet runs at 30 while you explore and rises to 60 the moment a fight starts. */
+const POWER_PROFILE = { quietFps: 30, urgentFps: 60 };
 /** Monster voices by kind (elites borrow their base's). */
 const MONSTER_VOICE = { wolf: 'wolf', greymane: 'wolf', boar: 'boar', spider: 'spider', webmother: 'spider', wisp: 'wisp', treant: 'treant', hollowroot: 'treant', gloomcap: 'shroom', grummoch: 'treant', cindermaw: 'drake' };
 const prefs = {
@@ -70,6 +79,8 @@ const prefs = {
 const KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
 const HERO_CLIPS = ['JumpStart', 'JumpAir', 'JumpLand', 'Sprint', 'Slash1', 'Slash2', 'Slash3', 'Block', 'Bash', 'Charge', 'Whirl', 'Slam', 'Shoot', 'Draw', 'SkyShot', 'Roll', 'Cast', 'CastBig', 'Nova', 'Hit', 'Die'];
 const BAR_CODES = { Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4' };
+/** Potions on 5 and 6 (controls.js), never Q or E. */
+const KEY = { hp: codesFor(CONTROLS, 'hpPotion'), mp: codesFor(CONTROLS, 'mpPotion'), help: codesFor(CONTROLS, 'help'), interact: codesFor(CONTROLS, 'interact'), bag: codesFor(CONTROLS, 'bag'), hero: codesFor(CONTROLS, 'hero'), look: codesFor(CONTROLS, 'mouseLook') };
 
 export class GloamreachGame {
   constructor(host, { onClose, account } = {}) {
@@ -91,7 +102,10 @@ export class GloamreachGame {
     this.area = null;
     this._onKey = (e) => this.keyDown(e);
     this._onKeyUp = (e) => this.keyUp(e);
-    this._onBlur = () => this.keys.clear();
+    this._onBlur = () => {
+      this.keys.clear();
+      this.follow?.assist.clear();
+    };
     this._onMouse = (e) => this.mouseMove(e);
     this.pointer = { x: 0, y: 0, on: false, moved: -99 };
     this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -123,11 +137,21 @@ export class GloamreachGame {
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     const gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : '';
     const q = new URLSearchParams(location.search).get('quality');
-    this.tier = SETTINGS[q] ? q : chooseTier({ gpu, memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, pixels: screen.width * screen.height * devicePixelRatio ** 2, mobile: /Mobi|Android/i.test(navigator.userAgent) });
+    const guess = SETTINGS[q] ? q : chooseTier({ gpu, memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, pixels: screen.width * screen.height * devicePixelRatio ** 2, mobile: /Mobi|Android/i.test(navigator.userAgent) });
     this.gpu = gpu;
-    this.governor = new Governor(this.tier, { max: q ? q : 'ultra' });
-    const settings = { ...SETTINGS[this.tier], msaa: this.tier === 'low' ? 0 : 4 };
+    // Two levels: `resTier` keeps the resolution this machine always had (the
+    // old governor still lowers it only if frames really run slow); `tier` is
+    // the detail, which the power governor keeps within the Graphics preset.
+    this.quality = SETTINGS[q] ? q : null;
+    this.resTier = guess;
+    this.governor = new Governor(guess, { max: q ? q : 'ultra' });
+    this.power = new PowerKit('gloamreach', { renderer, profile: POWER_PROFILE, detail: this.quality ? null : guess, onChange: () => this.applyPower() });
+    this.tier = this._detailTier();
+    const settings = { ...powerSettings(SETTINGS, { state: this.power.state, detail: this.tier, res: this.resTier, profile: POWER_PROFILE }), msaa: guess === 'low' ? 0 : 4 };
     this.settings = settings;
+    // The sun's shadow is redrawn when due (power: every few frames on the lighter presets), not every frame.
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2500);
     this.resize();
     this._resize = new ResizeObserver(() => this.resize());
@@ -166,8 +190,10 @@ export class GloamreachGame {
     this.studio = new ItemStudio();
     this._armsStall();
     this.follow = new FollowCamera(this.camera, this.world.colliders);
+    // , . turn the camera, [ ] tilt it, / puts it behind the hero; it eases back by itself after a quiet spell.
+    this.follow.assist = new CameraAssist(loadAssist('gloamreach'), { id: 'gloamreach' });
     this.post = new Post(renderer);
-    this.applyTier(this.tier, true);
+    this.applyPower(true);
     this.minimapCanvas = paintMap(this.world.grid, this.world.scattered);
     this.setHero(this.picked);
     // Compile the shaders now, not at the first glance at something.
@@ -178,31 +204,18 @@ export class GloamreachGame {
     this.loading.hide();
     this.loading = null;
     this.menu();
-    let last = performance.now();
-    let frames = 0;
-    let fpsT = 0;
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
-      const raw = now - last;
-      const dt = Math.min(0.05, raw / 1000);
-      last = now;
-      frames++;
-      fpsT += dt;
-      if (fpsT >= 0.5) {
-        this.fps = Math.round(frames / fpsT);
-        frames = 0;
-        fpsT = 0;
-      }
-      this.frame(dt, raw);
-    };
-    this._raf = requestAnimationFrame(loop);
+    // The loop: capped (60 by default), stopped in a hidden tab, on demand behind the pause menu.
+    this.power.start((raw) => {
+      this.fps = this.power.loop.fps;
+      this.frame(Math.min(0.05, raw / 1000), raw);
+    });
     this.ready = true;
   }
 
   close() {
     if (this.closed) return;
     this.closed = true;
-    cancelAnimationFrame(this._raf);
+    this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._onKey);
     window.removeEventListener('keyup', this._onKeyUp);
@@ -227,6 +240,10 @@ export class GloamreachGame {
     this.post?.dispose();
     this.hud?.dispose();
     this.minimap?.dispose();
+    this.worldMap?.dispose();
+    this.help?.dispose();
+    this.cue?.dispose();
+    this.beam?.dispose();
     this.bank?.dispose();
     this.sound.dispose();
     this.renderer?.dispose();
@@ -245,18 +262,46 @@ export class GloamreachGame {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.post?.resize();
+    this.power?.invalidate();
   }
 
-  /** Switch quality tier: resolution, shadows, post effects, grass, lights. */
-  applyTier(tier, first = false) {
-    this.tier = tier;
-    const s = { ...SETTINGS[tier], msaa: this.settings.msaa };
+  /** The detail level: fixed by ?quality=, the old rule on Ultra (as much as stays smooth), else the power governor's. */
+  _detailTier() {
+    if (this.quality) return this.resTier;
+    if (this.power.preset === 'ultra') return this.resTier;
+    return this.power.detail(this.resTier);
+  }
+
+  /**
+   * Apply the Graphics choice and the levels now (no reload): shadows, post
+   * effects, grass, lights, draw distances, haze. The resolution is the
+   * machine's own (resTier), never lowered by a preset.
+   */
+  applyPower(first = false) {
+    const prev = this.settings;
+    this.tier = this._detailTier();
+    const s = { ...powerSettings(SETTINGS, { state: this.power.state, detail: this.tier, res: this.resTier, profile: POWER_PROFILE }), msaa: this.settings.msaa };
     this.settings = s;
     this.resize();
-    this.post.configure({ ao: s.ao, rays: s.rays, bloom: s.bloom, smaa: s.smaa || !s.msaa, msaa: s.msaa }, s.scale);
-    if (!first) this.world.lighting.setShadow(s.shadow, s.shadowBox);
+    this.post.configure({ ao: s.ao, rays: s.rays, bloom: s.bloom, smaa: (s.smaa && (s.preset === 'ultra' || !s.msaa)) || !s.msaa, msaa: s.msaa, bloomHalf: s.bloomHalf }, s.scale);
+    const lighting = this.world.lighting;
+    if (!first && (prev.shadow !== s.shadow || prev.shadowBox !== s.shadowBox)) lighting.setShadow(s.shadow, s.shadowBox);
+    lighting.sun.castShadow = s.shadowOn;
+    this.renderer.shadowMap.needsUpdate = true;
     this.world.lights.setCount(s.lights);
-    for (const l of this.world.foliage.layers) l.uniforms.uDensity.value = Math.min(1, s.grass);
+    this.world.foliage.setDensity(s.grass, s.grassReach);
+    this.world.limits.treeFar = s.treeFar;
+    this.world.limits.far = s.far;
+    if (this.life) this.life.limits = { far: s.far, animNear: s.animNear };
+    if (this.monsters) this.monsters.drawFar = s.far;
+    this.power.invalidate();
+  }
+
+  /** Kept for tests and the console: force a detail level. */
+  applyTier(tier) {
+    this.quality = tier;
+    this.resTier = tier;
+    this.applyPower();
   }
 
   /* ================================================================ heroes */
@@ -373,6 +418,7 @@ export class GloamreachGame {
 
   menu() {
     this.mode = 'menu';
+    this.power.setMenu('live');
     this.hero.place(1, 26, 0);
     this.start = new StartScreen(this.root, {
       picked: this.picked,
@@ -412,8 +458,37 @@ export class GloamreachGame {
     this.follow.pivot.set(0, 0, 0);
     this.camera.fov = 55;
     this.camera.updateProjectionMatrix();
-    this.hud = new Hud(this.root, { debug: this.debug });
+    this.hud = new Hud(this.root, { debug: this.debug, hint: hintItems(CONTROLS) });
     this.minimap = new Minimap(this.hud.el, this.minimapCanvas);
+    // The full map (O, the pause menu's Map, or the minimap's button) and its waypoint.
+    this.waypoint ??= new Waypoint();
+    this.worldMap = new WorldMap({
+      host: this.root,
+      title: 'Gloamreach',
+      base: this.minimapCanvas,
+      extent: EXTENT,
+      areas: AREAS,
+      legend: [
+        { shape: 'square', color: '#ffcf4a', label: 'Merchant' },
+        { shape: 'dot', color: '#ffd77a', label: 'Villager' },
+        { shape: 'dot', color: '#ff4a3a', label: 'Monster' },
+        { shape: 'diamond', color: '#ff3a2a', label: 'Elite' },
+        { shape: 'skull', color: '#f4e6d0', label: 'Boss' },
+        { shape: 'square', color: '#c98a2a', label: 'Chest' },
+        { shape: 'star', color: '#ff7a3a', label: 'Overlook' }
+      ],
+      markers: () => this.mapMarkers(),
+      player: () => ({ x: this.hero.pos.x, z: this.hero.pos.z, yaw: this.hero.yaw }),
+      waypoint: this.waypoint,
+      onOpen: () => this._mapOpened(),
+      onClose: () => this._mapClosed()
+    });
+    mapButton(this.minimap.el, () => this.openMap());
+    // How to play (H, the ? by the minimap, the pause menu): opens by itself the first time.
+    this.help = new HelpPanel({ host: this.root, id: 'gloamreach', table: CONTROLS, onOpen: () => this._holdOpened('help'), onClose: () => this._mapClosed() });
+    helpButton(this.minimap.el, () => this.openHelp(), { style: 'left:-4px;top:-4px;width:30px;height:30px;font-size:15px' });
+    this.cue = new WaypointCue(this.hud.el);
+    this.beam ??= new WaypointBeam(this.scene);
     this.fightHud = new CombatHud(this.hud, { cls: this.picked, studio: this.studio });
     const game = this;
     this.panels = new Panels(this.root, {
@@ -434,7 +509,63 @@ export class GloamreachGame {
       }
     });
     this.mode = 'play';
+    this.power.setMenu('none');
     this.area = null;
+    this.root.focus();
+    this.help.openFirstTime();
+  }
+
+  /** What the full map shows besides you: merchants, villagers, monsters (elites, the boss), chests, the overlook. */
+  mapMarkers() {
+    const out = [];
+    for (const b of this.life.people) out.push(b.c.merchant ? { x: b.x, z: b.z, shape: 'square', color: '#ffcf4a', label: b.c.name } : { x: b.x, z: b.z, color: '#ffd77a', r: 0.7 });
+    for (const m of this.monsters.list) {
+      if (!m.alive) continue;
+      if (m.boss) out.push({ x: m.x, z: m.z, shape: 'skull', color: '#f4e6d0', r: 1.3, label: m.def?.name });
+      else if (m.elite) out.push({ x: m.x, z: m.z, shape: 'diamond', color: '#ff3a2a', label: m.def?.name });
+      else out.push({ x: m.x, z: m.z, color: '#ff4a3a', r: 0.75 });
+    }
+    for (const c of this.combat.chests) if (!c.opened) out.push({ x: c.x, z: c.z, shape: 'square', color: '#c98a2a', r: 0.8 });
+    out.push({ x: OVERLOOK.x, z: OVERLOOK.z, shape: 'star', color: '#ff7a3a', label: 'Cinder Rift Overlook' });
+    return out;
+  }
+
+  /** Open the full map: the game waits (and the 3D stops drawing) while it's up. */
+  openMap() {
+    if (!this.worldMap || (this.mode !== 'play' && this.mode !== 'paused')) return;
+    if (this.mode === 'paused') {
+      this.pauseEl?.remove();
+      this.pauseEl = null;
+    }
+    this.worldMap.open();
+  }
+
+  /** How to play: the game waits while it's up. */
+  openHelp() {
+    if (!this.help || (this.mode !== 'play' && this.mode !== 'paused')) return;
+    if (this.mode === 'paused') {
+      this.pauseEl?.remove();
+      this.pauseEl = null;
+    }
+    this.help.open();
+  }
+
+  _holdOpened(mode) {
+    this._mapOpened();
+    this.mode = mode;
+  }
+
+  _mapOpened() {
+    this.mode = 'map';
+    this.keys.clear();
+    this.follow.assist.clear();
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.power.setMenu('still');
+  }
+
+  _mapClosed() {
+    this.mode = 'play';
+    this.power.setMenu('none');
     this.root.focus();
   }
 
@@ -452,8 +583,10 @@ export class GloamreachGame {
     this.sound.tick();
     this.creditsOpen = creditsPanel(this.root, () => {
       this.creditsOpen = null;
+      this.power.invalidate();
       this.root.focus();
     });
+    this.power.invalidate();
   }
 
   pause() {
@@ -461,8 +594,12 @@ export class GloamreachGame {
     this.mode = 'paused';
     this.keys.clear();
     if (document.pointerLockElement) document.exitPointerLock();
+    // Nothing moves behind the pause menu: draw only when something changes (a graphics choice, a resize).
+    this.power.setMenu('still');
     this.pauseEl = pauseMenu(this.root, {
-      tier: this.tier,
+      graphics: menuSections(this.power.menu(), cameraMenu(this.follow.assist)),
+      onMap: () => this.openMap(),
+      onHelp: () => this.openHelp(),
       soundOn: this.sound.enabled,
       onResume: () => this.resume(),
       onCredits: () => this.credits(),
@@ -478,6 +615,7 @@ export class GloamreachGame {
     this.pauseEl?.remove();
     this.pauseEl = null;
     this.mode = 'play';
+    this.power.setMenu('none');
     this.root.focus();
   }
 
@@ -485,6 +623,14 @@ export class GloamreachGame {
 
   keyDown(e) {
     if (this.closed) return;
+    if (this.mode === 'map') {
+      if (e.code === 'Escape' || e.code === MAP_KEY) this.worldMap.close();
+      return;
+    }
+    if (this.mode === 'help') {
+      if (e.code === 'Escape' || KEY.help.includes(e.code)) this.help.close();
+      return;
+    }
     if (e.code === 'Escape') {
       if (this.creditsOpen) this.creditsOpen.close();
       else if (this.mode === 'play' && this.panels?.any) this.panels.closeAll();
@@ -493,22 +639,34 @@ export class GloamreachGame {
       return;
     }
     if (this.mode !== 'play') return;
+    if (this.follow.assist.key(e.code, true)) {
+      e.preventDefault();
+      return;
+    }
+    if (e.code === MAP_KEY && !e.repeat) {
+      this.openMap();
+      return;
+    }
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
-    if (e.code === 'KeyH') this.hud?.showHint();
+    if (KEY.help.includes(e.code) && !e.repeat) {
+      this.openHelp();
+      return;
+    }
     if (!e.repeat) {
       if (BAR_CODES[e.code]) this.combat.press(BAR_CODES[e.code]);
-      if (e.code === 'KeyQ') this.combat.drink('hp');
-      if (e.code === 'KeyR') this.combat.drink('mp');
-      if (e.code === 'KeyF') this.interact();
-      if (e.code === 'KeyI' || e.code === 'KeyB') this.panels.toggle('bag');
-      if (e.code === 'KeyC') this.panels.toggle('char');
-      if (e.code === 'KeyV') this.toggleMouseLook();
+      if (KEY.hp.includes(e.code)) this.combat.drink('hp');
+      if (KEY.mp.includes(e.code)) this.combat.drink('mp');
+      if (KEY.interact.includes(e.code)) this.interact();
+      if (KEY.bag.includes(e.code)) this.panels.toggle('bag');
+      if (KEY.hero.includes(e.code)) this.panels.toggle('char');
+      if (KEY.look.includes(e.code)) this.toggleMouseLook();
     }
     this.keys.add(e.code);
   }
 
   keyUp(e) {
     this.keys.delete(e.code);
+    this.follow?.assist.key(e.code, false);
     if (BAR_CODES[e.code]) this.combat?.release(BAR_CODES[e.code]);
   }
 
@@ -601,7 +759,8 @@ export class GloamreachGame {
       this.monsters.update(fdt, this.combat.t, { pos: this.hero.pos, alive: !this.combat.dead }, { hitHero: (m, a, o) => this.combat.hitHero(m, a, o), projectile: (m, a, f, to, off) => this.combat.monsterShot(m, a, f, to, off) }, this.camera);
       this.monsterEvents();
       // In a fight the camera holds still rather than swinging behind.
-      if (this.combat.inCombat > 0 || this.combat.aimHold > 0) this.follow.idle = 0;
+      // No swinging round on its own in a fight, while aiming or blocking, or in mouse-look.
+      this.follow.pause = this.combat.inCombat > 0 || this.combat.aimHold > 0 || this.combat.blocking || Boolean(this._locked);
       this.follow.update(dt, this.hero, { sprinting: inp.sprint && this.hero.speed > 5, moving: this.hero.speed > 0.5 });
       this.shakeCamera(dt);
       this.rig?.update(fdt, this.hero.object);
@@ -643,12 +802,31 @@ export class GloamreachGame {
     const rift = THREE.MathUtils.smoothstep(focus.x, 70, 130) * (1 - this.world.gloam);
     this.sound.update(dt, { gloam: this.world.gloam, rift });
     look.bloom = 0.3 + this.world.gloam * 0.12;
-    this.post.render(this.scene, this.camera, { ...look, lightColor: this.world.lighting.sun.color, gloam: this.world.gloam, fade: 0 });
+    // The sun's shadow: redrawn when due (every frame on High and Ultra; every few, or when the view moves, below).
+    const cam = this.camera.position;
+    const s = this.settings;
+    this.renderer.shadowMap.needsUpdate = s.shadowOn && (this.renderer.shadowMap.needsUpdate || this.power.shadowDue(s.shadowEvery, cam.x, cam.z, this.follow.yaw ?? 0));
+    // The haze thickens a little on the nearer draw distances, so where detail stops reads as distance.
+    this.power.gpuBegin();
+    this.post.render(this.scene, this.camera, { ...look, fogDensity: look.fogDensity * s.fog, lightColor: this.world.lighting.sun.color, gloam: this.world.gloam, fade: 0 });
+    this.power.gpuEnd();
+    if (playing) this.power.setUrgent(this.combat.inCombat > 0 || Boolean(this.combat.aimTarget));
+    // The waypoint: its beam in the world, the cue toward it.
+    const wp = this.waypoint?.point;
+    this.beam?.update(wp, wp ? this.world.colliders.height(wp.x, wp.z) : 0, t);
+    if (playing) this.cue?.update(this.waypoint, this.hero.pos.x, this.hero.pos.z, this.follow.heading());
     if (playing && this.hud) this.hudFrame(dt);
-    // Quality: step down when frames run long, up when there's room.
+    this.power.showFps(this.root);
+    // Quality: the power governor keeps detail within the preset's GPU budget;
+    // the old one still lowers the resolution if frames really run slow.
     if (playing && rawMs > 0 && rawMs < 500) {
-      const next = this.governor.frame(rawMs);
-      if (next && next !== this.tier) this.applyTier(next);
+      const cap = this.power.cap;
+      const res = this.governor.frame(cap && cap < 60 ? rawMs * (cap / 60) : rawMs);
+      const lvl = this.power.sample(rawMs);
+      if (res && res !== this.resTier) {
+        this.resTier = res;
+        this.applyPower();
+      } else if (lvl && lvl !== this.tier && !this.quality) this.applyPower();
     }
   }
 
@@ -796,13 +974,15 @@ export class GloamreachGame {
         else dots.push({ x: m.x, z: m.z, color: '#ff4a3a', r: 1.7, ring: true });
       }
       for (const c of this.combat.chests) if (!c.opened) dots.push({ x: c.x, z: c.z, shape: 'chest' });
+      const wp = this.waypoint?.point;
+      if (wp) dots.push({ x: wp.x, z: wp.z, color: '#ff5ad9', r: 3, ring: true });
       dots.push({ x: OVERLOOK.x + 4, z: OVERLOOK.z, color: '#ff7a3a', r: 2.2 });
       this.minimap.draw({ x: hero.pos.x, z: hero.pos.z, yawMap: Math.atan2(Math.cos(hero.yaw), Math.sin(hero.yaw)) + Math.PI / 2 }, this.follow.heading(), dots);
     }
     if (this.debug && (this._st = (this._st ?? 0) + dt) > 0.5) {
       this._st = 0;
       const s = this.post.stats ?? {};
-      this.hud.setStats(`${this.fps} fps  ${(1000 / Math.max(1, this.fps)).toFixed(1)} ms\ndraws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M\ntier ${this.tier}  ${this.gpu}\npos ${hero.pos.x.toFixed(1)}, ${hero.pos.z.toFixed(1)}`);
+      this.hud.setStats(`${this.fps} fps  ${(1000 / Math.max(1, this.fps)).toFixed(1)} ms\ndraws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M\ntier ${this.tier}  res ${this.resTier}  ${this.gpu}\n${this.power.debugLine()}\npos ${hero.pos.x.toFixed(1)}, ${hero.pos.z.toFixed(1)}`);
     }
   }
 

@@ -7,6 +7,8 @@
  * friend; the journal; the pause menu; the credits. Icons are painted here.
  */
 import { EXTENT, AREAS, areaAt, VILLAGE, SHRINE, POND, GATE, GARDEN } from './map.js';
+import { CONTROLS } from './controls.js';
+import { hintItems } from '../shared/helpPanel.js';
 import { LOOKS } from './cast.js';
 import { TREATS, TREAT_ORDER, SPECIES, SPECIES_ORDER, journalEntry, PARTY_MAX, breathSize } from './rules.js';
 import { PACKS, OWN } from './credits.js';
@@ -161,13 +163,8 @@ export class StartScreen {
 
 /* ------------------------------------------------------------------ the HUD */
 
-const HINT = [
-  'Move <kbd>W A S D</kbd> · run faster <kbd>Shift</kbd> · jump <kbd>Space</kbd>',
-  'Creep quietly <kbd>Ctrl</kbd> (or <kbd>C</kbd> to toggle)',
-  'Pick a treat <kbd>1 2 3</kbd> · toss it <kbd>Q</kbd> or right-click',
-  'Talk, gather, breathe with a creature <kbd>E</kbd>',
-  'Journal <kbd>J</kbd> · menu <kbd>Esc</kbd> · camera: drag or <kbd>V</kbd>'
-];
+/** The rows of controls.js marked `hint` (the same table the keys and How to play use). */
+const HINT = hintItems(CONTROLS).map((h) => `${esc(h.does[0].toUpperCase() + h.does.slice(1))} ${h.keys.map((k) => `<kbd>${esc(k)}</kbd>`).join(' ')}`);
 
 export class Hud {
   constructor(host, { touch = false, debug = false, portraits = {} }) {
@@ -233,7 +230,7 @@ export class Hud {
     TREAT_ORDER.forEach((k, i) => {
       const b = el('button', `kv-slot${k === chosen ? ' on' : ''}${satchel[k] ? '' : ' empty'}`);
       b.setAttribute('aria-label', `${TREATS[k].name}, ${satchel[k]}`);
-      b.innerHTML = `<img alt="" src="${treatIcon(k, 96)}"><kbd>${i + 1}</kbd><span>${satchel[k]}</span><small>${esc(TREATS[k].short)}</small>`;
+      b.innerHTML = `<img alt="" src="${treatIcon(k, 96)}"><kbd>${i + 5}</kbd><span>${satchel[k]}</span><small>${esc(TREATS[k].short)}</small>`;
       b.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         this.onPickTreat?.(k);
@@ -522,6 +519,13 @@ export class Minimap {
         g.beginPath();
         g.arc(x, y, 3 * dpr, 0, Math.PI * 2);
         g.fill();
+      } else if (d.kind === 'pin') {
+        // The waypoint set on the full map.
+        g.fillStyle = '#ff5ad9';
+        g.beginPath();
+        g.arc(x, y, 5 * dpr, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
       } else if (d.kind === 'guide') {
         g.fillStyle = '#ffd890';
         g.beginPath();
@@ -637,11 +641,18 @@ export function creditsPanel(host, onClose) {
     <h3>Made for this game</h3><p>${esc(OWN)}</p>`, onClose);
 }
 
-export function pauseMenu(host, { onResume, onJournal, onCredits, onSound, soundOn, onCycle, cycleOn, onLeave, tier }) {
-  const p = panel(host, 'kv-pause', `<h2>Paused</h2><p class="lead">Quality: ${esc(tier)} — it adjusts itself to keep things smooth. Your friends and journal are saved on this device.</p><div class="kv-menu">
-    <button class="kv-btn kv-btn--go" data-r>Back to the vale</button><button class="kv-btn" data-j>Journal</button><button class="kv-btn" data-d>Day cycle: ${cycleOn ? 'on' : 'off (golden dusk)'}</button><button class="kv-btn" data-s>Sound: ${soundOn ? 'on' : 'off'}</button><button class="kv-btn" data-c>Credits</button><button class="kv-btn" data-l>Leave</button></div>`);
+export function pauseMenu(host, { onResume, onJournal, onCredits, onSound, soundOn, onCycle, cycleOn, onLeave, graphics, onMap, onHelp }) {
+  const p = panel(host, 'kv-pause', `<h2>Paused</h2><p class="lead">Your friends and journal are saved on this device.</p><div class="kv-menu">
+    <button class="kv-btn kv-btn--go" data-r>Back to the vale</button><button class="kv-btn" data-j>Journal</button><button class="kv-btn" data-open-map>Map (O)</button><button class="kv-btn" data-open-help>How to play (H)</button><button class="kv-btn" data-d>Day cycle: ${cycleOn ? 'on' : 'off (golden dusk)'}</button><button class="kv-btn" data-s>Sound: ${soundOn ? 'on' : 'off'}</button><button class="kv-btn" data-c>Credits</button><button class="kv-btn" data-l>Leave</button></div>`);
+  if (graphics) {
+    p.el.querySelector('.kv-menu').after(graphics);
+    p.el.style.maxHeight = '92vh';
+    p.el.style.overflowY = 'auto';
+  }
   p.el.querySelector('[data-r]').addEventListener('click', onResume);
   p.el.querySelector('[data-j]').addEventListener('click', onJournal);
+  p.el.querySelector('[data-open-map]').addEventListener('click', () => onMap?.());
+  p.el.querySelector('[data-open-help]').addEventListener('click', () => onHelp?.());
   p.el.querySelector('[data-c]').addEventListener('click', onCredits);
   p.el.querySelector('[data-l]').addEventListener('click', onLeave);
   p.el.querySelector('[data-s]').addEventListener('click', (e) => (e.target.textContent = `Sound: ${onSound() ? 'on' : 'off'}`));

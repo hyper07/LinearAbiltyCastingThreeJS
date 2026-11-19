@@ -131,17 +131,19 @@ export class PropLibrary {
   }
 
   /** Re-pick the drawn instances for this camera (every few frames). */
-  update(camera, focus) {
+  /** `far`: the draw distance for small things (power); cliffs and other long-range fields (≥ 200 m) keep their own. */
+  update(camera, focus, far = Infinity) {
     if (this._frame++ % 5) return;
     this._pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this._frustum.setFromProjectionMatrix(this._pm);
     for (const f of this.fields) {
       if (f.always) continue;
+      const reach = f.dist >= 200 ? f.dist : Math.min(f.dist, far);
       for (const set of f.sets) {
         let n = 0;
         for (const it of set.items) {
           const d = it.p.distanceTo(camera.position);
-          if (d > f.dist + it.r) continue;
+          if (d > reach + it.r) continue;
           this._sphere.center.copy(it.p);
           this._sphere.radius = it.r * 1.2;
           if (!this._frustum.intersectsSphere(this._sphere) && it.p.distanceTo(focus) > 30) continue;

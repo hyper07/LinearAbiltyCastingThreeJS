@@ -233,6 +233,7 @@ export class Trees {
   constructor(list, heightAt, { variants = 3, msaa = true } = {}) {
     this.group = new THREE.Group();
     this.mats = {};
+    this.sets = [];
     const byKind = {};
     for (const t of list) (byKind[t.kind] ??= []).push(t);
     const tint = new THREE.Color();
@@ -242,34 +243,96 @@ export class Trees {
       vars.forEach((g, v) => {
         const mine = items.filter((t, i) => (t.variant ?? i) % variants === v);
         if (!mine.length) return;
-        const mk = (geo, mat, depth) => {
+        const mk = (geo, mat, depth, shadow) => {
           const m = new THREE.InstancedMesh(geo, mat, mine.length);
           m.customDepthMaterial = depth;
-          m.castShadow = true;
+          m.castShadow = shadow;
           m.receiveShadow = true;
           m.frustumCulled = false;
           this.group.add(m);
           return m;
         };
-        const leaves = mk(g.leaves, mats.leaves, mats.leafDepth);
-        const wood = g.wood ? mk(g.wood, mats.wood, mats.woodDepth) : null;
-        mine.forEach((t, i) => {
+        // Two sets per variant: the near trees cast shadows, the far ones don't (the shadow box is near).
+        const near = [mk(g.leaves, mats.leaves, mats.leafDepth, true), g.wood ? mk(g.wood, mats.wood, mats.woodDepth, true) : null];
+        const far = [mk(g.leaves, mats.leaves, mats.leafDepth, false), g.wood ? mk(g.wood, mats.wood, mats.woodDepth, false) : null];
+        const its = mine.map((t, i) => {
           const m = new THREE.Matrix4().compose(V(t.x, heightAt(t.x, t.z) - 0.15, t.z), new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), ((t.seed ?? i) % 628) / 100), V(t.s, t.s * (0.9 + ((t.seed ?? i) % 20) / 100), t.s));
-          leaves.setMatrixAt(i, m);
-          wood?.setMatrixAt(i, m);
           // Each tree a little warmer or cooler, lighter or darker.
           const h = ((t.seed ?? i) * 0.6180339) % 1;
-          tint.setRGB(0.88 + h * 0.22, 0.9 + ((h * 7) % 1) * 0.18, 0.86 + ((h * 13) % 1) * 0.16);
-          leaves.setColorAt(i, tint);
+          const color = tint.setRGB(0.88 + h * 0.22, 0.9 + ((h * 7) % 1) * 0.18, 0.86 + ((h * 13) % 1) * 0.16).clone();
+          return { t, m, color, y: m.elements[13], r: Math.max(g.height * t.s * 0.6, 3) };
         });
-        leaves.instanceColor.needsUpdate = true;
+        // Until the first update: every tree, near set.
+        its.forEach((it, i) => {
+          near[0].setMatrixAt(i, it.m);
+          near[1]?.setMatrixAt(i, it.m);
+          near[0].setColorAt(i, it.color);
+        });
+        near[0].instanceColor.needsUpdate = true;
+        far[0].setColorAt(0, tint);
+        for (const m of far) if (m) m.count = 0;
         for (const t of mine) t.height = g.height * t.s;
+        this.sets.push({ its, near, far, height: g.height });
       });
+    }
+    this._frame = 0;
+    this._frustum = new THREE.Frustum();
+    this._pm = new THREE.Matrix4();
+    this._sphere = new THREE.Sphere();
+  }
+
+  /**
+   * Re-sort the trees for this camera (every few frames): out of view and not
+   * shadowing into it — not drawn; past `far` — not drawn; within `shadowDist`
+   * of the focus — the shadow-casting set; the rest the far set.
+   */
+  update(camera, focus, { far = Infinity, shadowDist = 60 } = {}) {
+    if (this._frame++ % 4) return;
+    this._pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this._frustum.setFromProjectionMatrix(this._pm);
+    const cx = camera.position.x;
+    const cz = camera.position.z;
+    for (const set of this.sets) {
+      let nn = 0;
+      let nf = 0;
+      for (const it of set.its) {
+        const d = Math.hypot(it.t.x - cx, it.t.z - cz);
+        if (d > far + it.r) continue;
+        const fd = Math.hypot(it.t.x - focus.x, it.t.z - focus.z);
+        this._sphere.center.set(it.t.x, it.y + it.r * 0.6, it.t.z);
+        this._sphere.radius = it.r;
+        const inView = this._frustum.intersectsSphere(this._sphere);
+        if (fd < shadowDist) {
+          set.near[0].setMatrixAt(nn, it.m);
+          set.near[1]?.setMatrixAt(nn, it.m);
+          set.near[0].setColorAt(nn, it.color);
+          nn++;
+        } else if (inView) {
+          set.far[0].setMatrixAt(nf, it.m);
+          set.far[1]?.setMatrixAt(nf, it.m);
+          set.far[0].setColorAt(nf, it.color);
+          nf++;
+        }
+      }
+      for (const [list, n] of [[set.near, nn], [set.far, nf]]) {
+        for (const m of list) {
+          if (!m) continue;
+          m.count = n;
+          m.instanceMatrix.needsUpdate = true;
+        }
+        if (list[0].instanceColor) list[0].instanceColor.needsUpdate = true;
+      }
     }
   }
 
   dispose() {
-    this.group.traverse((o) => o.geometry?.dispose());
+    const seen = new Set();
+    this.group.traverse((o) => {
+      if (o.geometry && !seen.has(o.geometry)) {
+        seen.add(o.geometry);
+        o.geometry.dispose();
+      }
+    });
     for (const m of Object.values(this.mats)) for (const x of Object.values(m)) x.dispose?.();
   }
 }

@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { PowerKit } from '../shared/powerKit.js';
+import { setChoice } from '../shared/power.js';
+import { HelpPanel } from '../shared/helpPanel.js';
+import { CONTROLS, modeHint } from './controls.js';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
 import { roadPieces } from './bridges.js';
@@ -220,6 +224,8 @@ function roadMaterial(uniforms) {
 const ORIGIN = { x: 198050, y: 551860 };
 /** Wall colours by what a building is for (see tiles.js USES), light to read windows on. */
 const PALETTE = { house: '#d8c9b4', apartment: '#e4e2dc', shop: '#d9cfc0', office: '#9fb0c0', public: '#d2c4b2', industry: '#b9b3a6', other: '#cfc8bc' };
+/** Quiet runs the city at 45 frames a second. */
+const POWER_PROFILE = { quietFps: 45 };
 const QUALITY = { low: 800, medium: 1300, high: 2000 };
 const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 공공누리 제1유형(출처표시)';
 /** Road widths in metres by class (motorway … tertiary); a link road is narrower. */
@@ -288,6 +294,7 @@ export class SeoulGame {
       <div class="seoul__toast" data-toast role="status" aria-live="polite" hidden></div>
       <div class="seoul__msg" data-msg hidden></div>
       <aside class="seoul__places" data-places hidden></aside>
+      <aside class="seoul__gfx" data-gfx hidden></aside>
       <footer class="seoul__bar">
         <div class="seoul__group">
           <button type="button" data-mode="fly" title="Fly over the city (F switches)">🛸 Fly</button>
@@ -296,6 +303,8 @@ export class SeoulGame {
           <button type="button" data-who title="Who you are on the street (V)">🧍</button>
           <button type="button" data-race title="Race at night on real streets — alone against bots, or with up to four friends">🏁 Race</button>
           <button type="button" data-open-places title="Districts and tall buildings to go to (M)">🧭 Places</button>
+          <button type="button" data-open-gfx title="Graphics: Quiet keeps your laptop cool (G)">⚙️ Graphics</button>
+          <button type="button" data-help-button title="How to play (H)">❔ Help</button>
         </div>
         <span class="seoul__time" title="The time and weather in the city: they change by themselves"><span data-weather></span><span data-clock></span></span>
         <label class="seoul__quality">View<select data-quality aria-label="How far you can see"><option value="low">Near</option><option value="medium">Far</option><option value="high">Farthest</option></select></label>
@@ -308,6 +317,22 @@ export class SeoulGame {
     $('[data-close]').addEventListener('click', () => this.close());
     for (const b of this.root.querySelectorAll('[data-mode]')) b.addEventListener('click', () => this.setMode(b.dataset.mode));
     $('[data-open-places]').addEventListener('click', () => this.togglePlaces());
+    $('[data-open-gfx]').addEventListener('click', () => this.toggleGraphics());
+    // How to play (H or I, the bar's ❔): the city stops drawing while it's up.
+    this.help = new HelpPanel({
+      host: this.root,
+      id: 'seoul',
+      table: CONTROLS,
+      onOpen: () => {
+        this.keys.clear();
+        this.power?.setMenu('still');
+      },
+      onClose: () => {
+        this.power?.setMenu('none');
+        this.root.focus();
+      }
+    });
+    $('[data-help-button]').addEventListener('click', () => this.help.open());
     $('[data-quality]').value = this.quality;
     $('[data-quality]').addEventListener('change', (e) => {
       this.quality = e.target.value;
@@ -316,6 +341,9 @@ export class SeoulGame {
       } catch {
         /* private mode */
       }
+      // The View list is the Graphics menu's draw distance too.
+      const want = { low: 'near', medium: 'medium', high: 'far' }[this.quality];
+      if (this.power && this.power.choices.distance !== want) this.power.set(setChoice(this.power.state, 'distance', want, POWER_PROFILE));
       this.root.focus();
     });
     this._scene($('[data-stage]'));
@@ -332,7 +360,11 @@ export class SeoulGame {
     this._stamps();
     this.root.focus();
     this._last = performance.now();
-    this._raf = requestAnimationFrame((t) => this._frame(t));
+    // Power: a capped loop (60, or 45 on Quiet), stopped in a hidden tab. The city has no shadow maps
+    // (its shadows are painted), so the Graphics menu offers no shadow row here.
+    this.power = new PowerKit('seoul', { renderer: this.renderer, profile: POWER_PROFILE, features: { grass: false, ao: false, rays: false, shadows: false }, onChange: () => this.applyPower() });
+    this.applyPower();
+    this.power.start((ms, now) => this._frame(now));
     // The index says which tiles exist; without it the map was never converted.
     try {
       const r = await fetch(`${this.base}index.json`);
@@ -354,14 +386,38 @@ export class SeoulGame {
       this.ready = true;
       // Gangnam Drift opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
+      this.help.openFirstTime();
     } catch {
       this._message('<b>Seoul\'s map isn\'t installed on this server yet.</b><br>Download 국토교통부 GIS건물통합정보 for 서울특별시 (file <code>AL_D010_11_…</code>, free, KOGL type 1) into <code>library/Seoul_Map.zip/</code> or <code>data/geo/seoul/</code>, then run <code>npm run geo:seoul</code> and open this again.');
     }
     return this;
   }
 
+  /** Graphics: the draw distance is the View (how far tiles load: the streaming ring), people beyond it aren't drawn, bloom on or off. */
+  applyPower() {
+    const c = this.power.choices;
+    const q = { near: 'low', medium: 'medium', far: 'high' }[c.distance];
+    if (q !== this.quality) {
+      this.quality = q;
+      const sel = this.$?.('[data-quality]');
+      if (sel) sel.value = q;
+    }
+    this.lifeFar = { near: 110, medium: 170, far: 200 }[c.distance];
+    this.bloomOn = c.bloom;
+    this.power.invalidate();
+  }
+
+  /** The Graphics panel (G, or the bar's button). */
+  toggleGraphics(open) {
+    const box = this.$('[data-gfx]');
+    const show = open ?? box.hidden;
+    box.hidden = !show;
+    if (show) box.replaceChildren(this.power.menu());
+    this.root.focus();
+  }
+
   close() {
-    cancelAnimationFrame(this._raf);
+    this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._down, true);
     window.removeEventListener('keyup', this._up, true);
@@ -1346,11 +1402,7 @@ export class SeoulGame {
       }
     }
     for (const b of this.root.querySelectorAll('[data-mode]')) b.classList.toggle('is-on', b.dataset.mode === this.mode);
-    this.$('[data-help]').textContent = {
-      fly: 'W A S D fly · Space / C up and down · Shift fast · drag to look · F walk · M places',
-      walk: 'W A S D walk · Shift run · E get in a car · V who you are · drag to look · wheel zooms · F fly · M places',
-      drive: 'W go · S brake and reverse · A D steer · Shift handbrake · H horn · E get out · drag to look · F fly'
-    }[this.mode];
+    this.$('[data-help]').textContent = modeHint(this.mode);
     this.root.focus();
   }
 
@@ -1454,22 +1506,28 @@ export class SeoulGame {
         return;
       }
       e.stopPropagation();
+      if (this.help?.isOpen) {
+        if (e.code === 'Escape' || e.code === 'KeyH' || e.code === 'KeyI') this.help.close();
+        return;
+      }
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (e.repeat) return;
       if (this.mode === 'race') {
         // A tap of Space between two frames still fires the turbo.
         if (e.code === 'Space') this.race.turboTap = true;
-        if (e.code === 'KeyH') this.race.horn();
+        if (e.code === 'KeyB') this.race.horn();
         else if (e.code === 'Escape') this.race.quit();
         return;
       }
       if (e.code === 'KeyF') this.setMode(this.mode === 'fly' ? 'walk' : 'fly');
       else if (e.code === 'KeyE' && this.mode !== 'fly') this.street.use();
-      else if (e.code === 'KeyH' && this.mode === 'drive') this.street.horn();
+      else if (e.code === 'KeyB' && this.mode === 'drive') this.street.horn();
+      else if (e.code === 'KeyH' || e.code === 'KeyI') this.help.toggle();
       else if (e.code === 'KeyV' && this.mode !== 'fly') this.street.switchPerson();
       else if (e.code === 'KeyM') this.togglePlaces();
-      else if (e.code === 'Escape') (this.$('[data-places]').hidden ? this.close() : this.togglePlaces(false));
+      else if (e.code === 'KeyG') this.toggleGraphics();
+      else if (e.code === 'Escape') (!this.$('[data-gfx]').hidden ? this.toggleGraphics(false) : this.$('[data-places]').hidden ? this.close() : this.togglePlaces(false));
     };
     this._up = (e) => this.keys.delete(e.code);
     window.addEventListener('keydown', this._down, true);
@@ -1630,7 +1688,6 @@ export class SeoulGame {
   }
 
   _frame(now) {
-    this._raf = requestAnimationFrame((t) => this._frame(t));
     const dt = Math.min(0.1, (now - this._last) / 1000);
     this._last = now;
     this._move(dt);
@@ -1641,8 +1698,12 @@ export class SeoulGame {
     // People on the pavements, bikes and scooters (once the roads are in).
     if (!this.life && this.roadTiles && this.terrain) this.life = new StreetLife(this);
     this.life?.update(dt);
-    if (this.quality === 'low') this.renderer.render(this.scene, this.camera);
+    this.power.gpuBegin();
+    if (this.quality === 'low' || this.bloomOn === false) this.renderer.render(this.scene, this.camera);
     else this.composer.render(dt);
+    this.power.gpuEnd();
+    this.power.sample(dt * 1000);
+    this.power.showFps(this.root);
     this._labels();
   }
 }

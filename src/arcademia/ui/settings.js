@@ -8,6 +8,7 @@
  * Changing the language calls game.setLanguage(id), which loads it, saves it
  * and redraws what is on screen.
  */
+import { cameraMenu } from '../../shared/cameraAssist.js';
 import { el, button } from './dom.js';
 import { LOCALES, locale, t } from '../i18n/index.js';
 import { CREDITS } from '../credits.js';
@@ -79,11 +80,27 @@ export function openSettings(game) {
     tog(t(game.prefs.night ? 'hud.night' : 'hud.day'), game.prefs.night, () => game.setNight(!game.prefs.night));
     tog(t('settings.bigText'), game.prefs.bigText, () => game.setBigText(!game.prefs.bigText));
     sec(`🎛️ ${t('settings.play')}`).append(toggles);
+    // Graphics: presets (Quiet keeps a laptop cool), and an Advanced fold — frame cap, shadows, the night glow.
+    if (game.power) {
+      const text = {};
+      for (const k of ['title', 'quiet', 'balanced', 'high', 'ultra', 'custom', 'hint', 'advanced', 'fps', 'unlimited', 'shadows', 'effects', 'bloom', 'showFps', 'off', 'near', 'full']) text[k] = t(`gfx.${k}`);
+      card.append(game.power.menu(text));
+      // Camera: Auto camera, its delay, the turning speed (shared/cameraAssist.js).
+      if (game.world?.camAssist) {
+        const ct = {};
+        for (const k of ['title', 'auto', 'on', 'off', 'delay', 'seconds', 'speed', 'keys']) ct[k] = t(`cam.${k}`);
+        card.append(cameraMenu(game.world.camAssist, { text: ct }));
+      }
+    }
     const more = el('div', 'arc-row arc-settings__more');
     more.append(
       button('arc-btn', t('hud.parents'), () => {
         close();
         game.openParents();
+      }),
+      button('arc-btn', `❔ ${t('help.title')}`, () => {
+        close();
+        game.openHelp();
       }),
       button('arc-btn', t('credits.button'), () => openCredits(game))
     );

@@ -82,7 +82,7 @@ function vista(noise) {
 
 export async function buildWorld({ renderer, bank, settings, save = {}, onProgress = () => {} }) {
   const scene = new THREE.Scene();
-  const world = { scene, updaters: [], disposers: [], spots: {} };
+  const world = { scene, updaters: [], disposers: [], spots: {}, limits: { treeFar: Infinity, far: Infinity, shadowDist: 60 } };
   const step = async (label, k) => {
     onProgress(label, k);
     await tick();
@@ -143,7 +143,7 @@ export async function buildWorld({ renderer, bank, settings, save = {}, onProgre
   });
 
   await step('Growing the meadow', 0.26);
-  const grass = new Grass({ heightTex: world.heightTex, splat, noise, settings });
+  const grass = new Grass({ heightTex: world.heightTex, splat, noise, settings, heightAt: (x, z) => grid.at(x, z) });
   scene.add(grass.group);
   world.grass = grass;
   world.disposers.push(() => grass.dispose());
@@ -154,6 +154,7 @@ export async function buildWorld({ renderer, bank, settings, save = {}, onProgre
   scene.add(trees.group);
   for (const t of list) if (t.kind !== 'bush') colliders.circle(t.x, t.z, t.kind === 'pine' ? 0.4 : 0.45);
   world.trees = list;
+  world.treeField = trees;
   world.disposers.push(() => trees.dispose());
 
   await step('Filling the stream and the pond', 0.42);
@@ -203,6 +204,7 @@ export async function buildWorld({ renderer, bank, settings, save = {}, onProgre
     lighting.follow(focus, camera);
     terrain.update(camera);
     grass.update(camera);
+    trees.update(camera, focus, { far: world.limits?.treeFar ?? Infinity, shadowDist: world.limits?.shadowDist ?? 60 });
     waters.update(t, mood);
     // Lanterns glow at dusk and through the night; the light pool follows you.
     const dark = THREE.MathUtils.smoothstep(Math.abs(((hour - 12 + 24) % 24) - 12), 4.6, 6.8);

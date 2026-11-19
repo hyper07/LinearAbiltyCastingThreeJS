@@ -127,7 +127,7 @@ export class Villagers {
       const dz = player.z - p.z;
       const d = Math.hypot(dx, dz);
       const cam = Math.hypot(camera.position.x - p.x, camera.position.z - p.z);
-      a.object.visible = cam < 90;
+      a.object.visible = cam < Math.min(90, this.drawFar ?? Infinity);
       if (!a.object.visible) continue;
       p.t += dt;
       // Close by: stop, turn, greet once.

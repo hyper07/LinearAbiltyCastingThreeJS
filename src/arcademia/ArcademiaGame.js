@@ -1,3 +1,7 @@
+import { PowerKit } from '../shared/powerKit.js';
+import { CameraAssist, loadAssist } from '../shared/cameraAssist.js';
+import { HelpPanel } from '../shared/helpPanel.js';
+import { controls } from './controls.js';
 import { Stage } from './stage.js';
 import { World } from './world/World.js';
 import { Hud } from './ui/hud.js';
@@ -99,6 +103,7 @@ export class ArcademiaGame {
       }
     });
     this.stage.show(this.world.scene, this.world.camera);
+    this.world.camAssist = new CameraAssist(loadAssist('arcademia'), { id: 'arcademia' });
     this._makeHud();
     this.gs.onChange(() => this.hud?.updateGame(this.gs));
     this.world.setFound(this.gs.s.gems);
@@ -116,14 +121,17 @@ export class ArcademiaGame {
     loading.classList.add('is-done');
     setTimeout(() => loading.remove(), 600);
     this.mode = 'world';
-    let last = performance.now();
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      this.frame(dt);
-    };
-    this._raf = requestAnimationFrame(loop);
+    // Power: a capped loop (60, or 30 on Quiet), stopped in a hidden tab, and only drawn on demand while
+    // a window (settings, the start screen, the parents' page…) covers the mountain.
+    this.power = new PowerKit('arcademia', { renderer: this.stage.renderer, profile: { quietFps: 30 }, features: { grass: false, ao: false, rays: false, distance: false }, onChange: () => this.applyPower() });
+    this.applyPower();
+    this.power.start((ms) => {
+      this.fps = this.power.loop.fps;
+      this.frame(Math.min(0.1, ms / 1000));
+    });
+    this._modals = new MutationObserver(() => this._menuKind());
+    this._modals.observe(this.root, { childList: true });
+    this._menuKind();
     this.root.focus();
     this.root.addEventListener('pointerdown', () => {
       this.sound.wake();
@@ -133,6 +141,7 @@ export class ArcademiaGame {
       }
     });
     await startScreen(this);
+    if (!this.closed) this.openHelp(true);
     if (this.closed) return;
     if (!this.gs.buddy) await this.openBuddy({ first: true });
     if (this.closed) return;
@@ -151,6 +160,7 @@ export class ArcademiaGame {
       parents: () => this.openParents(),
       close: () => this.close(),
       home: () => this.world.home(),
+      help: () => this.openHelp(),
       zoom: (k) => this.world.zoom(k),
       bigText: () => this.setBigText(!this.prefs.bigText),
       continue: () => this.continueLesson(),
@@ -216,7 +226,51 @@ export class ArcademiaGame {
     return { lesson, next: todo[1] ?? null };
   }
 
+  /** Graphics: frame cap, shadows (off / near: a smaller map, redrawn every other frame / full) and the night glow. */
+  applyPower() {
+    const c = this.power.choices;
+    const sun = this.world?.sun;
+    if (sun) {
+      sun.castShadow = c.shadows !== 'off';
+      const size = c.shadows === 'full' ? 2048 : 1024;
+      if (sun.shadow.mapSize.x !== size) {
+        sun.shadow.mapSize.set(size, size);
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
+    }
+    this.shadowEvery = c.shadows === 'full' ? 1 : 2;
+    this.stage.bloomAllowed = c.bloom;
+    this.stage.setGlow(this.stage.glow);
+    this.stage.renderer.shadowMap.needsUpdate = true;
+    this.power.invalidate();
+  }
+
+  /** How to play, in the player's language (H or I, the ? chip, Settings); `first`: only if not turned off. */
+  openHelp(first = false) {
+    this.help?.dispose();
+    this.help = new HelpPanel({
+      host: this.root,
+      id: 'arcademia',
+      table: controls(),
+      text: { title: t('help.title'), close: t('help.close'), dontShow: t('help.dontShow'), touch: t('help.touch'), gamepad: t('help.pad') },
+      onClose: () => this.root.focus()
+    });
+    if (first) this.help.openFirstTime();
+    else this.help.open();
+  }
+
+  /** What the loop should do: a window over the mountain — draw on demand; a lesson — at most 30 a second; else play. */
+  _menuKind() {
+    if (!this.power) return;
+    const covered = this.root.querySelector(':scope > .arc-modal, :scope > .arc-start, :scope > .arc-boss, :scope > .arc-parents, :scope > .hp');
+    this.power.setMenu(covered ? 'still' : this.mode === 'lesson' ? 'live' : 'none');
+  }
+
   frame(dt) {
+    const cam = this.stage.camera?.position;
+    if (cam) this.stage.renderer.shadowMap.needsUpdate ||= this.power.shadowDue(this.shadowEvery ?? 1, cam.x, cam.z, 0);
+    this.power.showFps(this.root);
     if (this.mode === 'world') {
       this.world.update(dt);
       if (this._hudT === undefined || (this._hudT -= dt) < 0) {
@@ -242,6 +296,7 @@ export class ArcademiaGame {
     this.stage.resize(w, h);
     this.world.resize(w, h);
     this.lesson?.resize(w, h);
+    this.power?.invalidate();
   }
 
   /* ---------------------------------------------------------------- the world */
@@ -306,6 +361,7 @@ export class ArcademiaGame {
       return;
     }
     this.mode = 'lesson';
+    this._menuKind();
     this.labels.hidden = true;
     this.hud.root.hidden = true;
   }
@@ -316,6 +372,7 @@ export class ArcademiaGame {
     this.lesson = null;
     this.progress.flush();
     this.mode = 'world';
+    this._menuKind();
     this.labels.hidden = false;
     this.hud.root.hidden = false;
     this.stage.show(this.world.scene, this.world.camera);
@@ -572,8 +629,24 @@ export class ArcademiaGame {
   _keys() {
     this._onKey = (e) => {
       if (e.target.closest?.('input, textarea, [contenteditable]')) return;
+      if (this.help?.isOpen) {
+        if (['KeyH', 'KeyI', 'Escape'].includes(e.code)) {
+          e.preventDefault();
+          this.help.close();
+        }
+        return;
+      }
       if (this.mode === 'lesson') return this.lesson?.key?.(e);
-      if (this.mode !== 'world' || this.parents || this.root.querySelector('.arc-modal, .arc-boss, .arc-side')) return;
+      if (this.mode !== 'world' || this.parents || this.root.querySelector('.arc-modal, .arc-boss, .arc-side, .hp')) return;
+      if (['KeyH', 'KeyI'].includes(e.code)) {
+        e.preventDefault();
+        this.openHelp();
+        return;
+      }
+      if (this.world.camAssist?.key(e.code, true)) {
+        e.preventDefault();
+        return;
+      }
       const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'];
       if (moveKeys.includes(e.code) && !e.target.closest?.('button, a, nav')) {
         e.preventDefault();
@@ -584,14 +657,20 @@ export class ArcademiaGame {
         const b = this.world.nearDoor() ?? this.world.selected;
         if (b) this.world.nearDoor() ? this.enter(b.subject, b.floor) : this.world.select(b, true);
       }
-      if (e.code === 'KeyH') this.world.home();
+      // B: back to your buddy (H is How to play).
+      if (e.code === 'KeyB') this.world.home();
+      // O: the whole mountain (the map key in every 3D game).
+      if (e.code === 'KeyO') this.world.overview();
       if (e.code === 'KeyN') this.setNight(!this.prefs.night);
       if (e.code === 'KeyM') this.setSound(!this.prefs.sound);
       if (e.code === 'Equal' || e.code === 'NumpadAdd') this.world.zoom(0.75);
       if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.world.zoom(1.33);
       if (e.code === 'Escape') this.world.select(null);
     };
-    this._onKeyUp = (e) => this.world?.keyUp(e.code);
+    this._onKeyUp = (e) => {
+      this.world?.keyUp(e.code);
+      this.world?.camAssist?.key(e.code, false);
+    };
     this._onBlur = () => this.world?.clearKeys();
     this.root.addEventListener('keydown', this._onKey);
     this.root.addEventListener('keyup', this._onKeyUp);
@@ -601,13 +680,15 @@ export class ArcademiaGame {
   close() {
     if (this.closed) return;
     this.closed = true;
-    cancelAnimationFrame(this._raf);
+    this.power?.dispose();
+    this._modals?.disconnect();
     this.progress.flush();
     this._resize?.disconnect();
     window.removeEventListener('blur', this._onBlur);
     this.lesson?.dispose();
     this.parents?.close();
     this.world?.dispose();
+    this.help?.dispose();
     this.hud?.dispose();
     this.stage?.dispose();
     this.sound.dispose();

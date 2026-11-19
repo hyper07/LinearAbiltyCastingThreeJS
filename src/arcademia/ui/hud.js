@@ -66,7 +66,8 @@ export class Hud {
     const parents = button('arc-chip arc-chip--btn arc-chip--parents', t('hud.parents'), () => actions.parents());
     const settings = button('arc-chip arc-chip--btn arc-chip--settings', '⚙️', () => actions.settings?.(), { 'aria-label': t('hud.settings'), title: t('hud.settings') });
     const close = button('arc-chip arc-chip--btn arc-chip--close', '✕', () => actions.close(), { 'aria-label': t('hud.leave') });
-    top.append(this.stars, this.dayBtn, this.soundBtn, parents, settings, close);
+    const help = button('arc-chip arc-chip--btn arc-chip--help', '?', () => actions.help?.(), { 'aria-label': t('help.title'), title: `${t('help.title')} (H)`, 'data-help-button': '' });
+    top.append(this.stars, this.dayBtn, this.soundBtn, parents, help, settings, close);
     this.root.append(top);
 
     // Round buttons.

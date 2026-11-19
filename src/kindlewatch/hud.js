@@ -6,6 +6,7 @@
  * minimap of rooms, the boss bar — and the pause, controls, credits, fallen
  * and victory panels. Touch controls on touch screens.
  */
+import { CONTROLS } from './controls.js';
 import { HEROES, HERO_ORDER } from './rules.js';
 import { ROOMS, CORRIDORS, W, H, WALL, roomAt } from './map.js';
 import { PACKS, OWN } from './credits.js';
@@ -107,10 +108,10 @@ export class Hud {
       <canvas class="kw-emblem" width="660" height="280"></canvas>
       <div class="kw-gems"><canvas width="44" height="52"></canvas><span>× 0</span></div>
       <div class="kw-tags">
-        <div class="kw-tag kw-tag--summon" data-t="summon"><i></i><kbd>Q</kbd><span>Summon</span><small></small></div>
+        <div class="kw-tag kw-tag--summon" data-t="summon"><i></i><kbd>1</kbd><span>Summon</span><small></small></div>
         <div class="kw-tag" data-t="ranged"><i></i><kbd>RMB</kbd><span></span><small></small></div>
         <div class="kw-tag" data-t="dash"><i></i><kbd>Space</kbd><span></span><small></small></div>
-        <div class="kw-tag" data-t="potion"><i></i><kbd>R</kbd><span>Hearth draught</span><small></small></div>
+        <div class="kw-tag" data-t="potion"><i></i><kbd>5</kbd><span>Hearth draught</span><small></small></div>
       </div>
       <canvas class="kw-map" width="460" height="372"></canvas>
       <div class="kw-map__name"></div>
@@ -530,21 +531,10 @@ export function creditsHtml() {
   return `<h2>Credits</h2><ul>${items}</ul><p><small>${esc(OWN)}</small></p>`;
 }
 
-export function controlsHtml(touch) {
-  const rows = [
-    ['WASD / arrows', 'Move'],
-    ['Mouse', 'Aim (blows and throws go where you point)'],
-    ['Left click / J', 'Strike — tap three times for the full chain; hold for a charged blow'],
-    ['Right click / K', 'Throw (ammo pips refill over time)'],
-    ['Space / Shift', 'Dash — untouchable for a moment'],
-    ['Q', 'Summon (needs spark: land blows to gather it)'],
-    ['R', 'Drink a hearth draught — no cooldown, ever'],
-    ['E', 'Light or douse a brazier or torch'],
-    ['Esc / P', 'Pause, controls, credits']
-  ];
-  const pad = 'Gamepad: left stick moves, right stick aims; X strikes (hold to charge), RT throws, A dashes, Y summons, LB drinks, B lights, Start pauses.';
-  const tch = 'Touch: a stick under your left thumb; buttons for strike (hold to charge), dash, throw, summon, draught and light. Blows aim at the nearest foe.';
-  return `<h2>Controls</h2><div class="kw-keys">${rows.map(([k, v]) => `<span><kbd>${esc(k)}</kbd></span><span>${esc(v)}</span>`).join('')}</div><p>${pad}</p><p>${tch}</p>`;
+/** The controls as a plain list (a fallback; How to play is shared/helpPanel.js over controls.js). */
+export function controlsHtml() {
+  const rows = CONTROLS.groups.flatMap((g) => g.rows.map((r) => [r.keys.join(' / '), r.does]));
+  return `<h2>Controls</h2><div class="kw-keys">${rows.map(([k, v]) => `<span><kbd>${esc(k)}</kbd></span><span>${esc(v)}</span>`).join('')}</div>`;
 }
 
 export class Panels {
@@ -581,7 +571,7 @@ export class Panels {
       <p class="kw-blurb"></p>
       <div class="kw-btns">
         <button class="kw-btn kw-btn--go" data-go>Light the first fire</button>
-        <button class="kw-btn" data-controls>Controls</button>
+        <button class="kw-btn" data-controls>How to play (H)</button>
         <button class="kw-btn" data-credits>Credits</button>
         <button class="kw-btn kw-btn--quiet" data-leave>Leave</button>
       </div>
@@ -623,7 +613,11 @@ export class Panels {
       <button class="kw-btn kw-btn--quiet" data-leave>Leave Kindlewatch</button></div>`);
     const again = () => this.pause({ onResume, onRestart, onLeave });
     p.querySelector('[data-resume]').addEventListener('click', onResume);
-    p.querySelector('[data-controls]').addEventListener('click', () => this.sub(controlsHtml(), '', again));
+    // How to play: the shared panel (controls.js), the same one H opens.
+    p.querySelector('[data-controls]').addEventListener('click', () => {
+      if (this.game?.openHelp) this.game.openHelp();
+      else this.sub(controlsHtml(), '', again);
+    });
     p.querySelector('[data-credits]').addEventListener('click', () => this.sub(creditsHtml(), 'kw-credits', again));
     p.querySelector('[data-restart]').addEventListener('click', onRestart);
     p.querySelector('[data-leave]').addEventListener('click', onLeave);

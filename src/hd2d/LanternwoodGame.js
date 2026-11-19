@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { PowerKit } from '../shared/powerKit.js';
+import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
+import { HelpPanel, helpButton } from '../shared/helpPanel.js';
+import { CONTROLS } from './controls.js';
 import { loadFx, FxPlayer } from '../pixel/fx.js';
 import * as R from './rules.js';
 import { buildSprites, heroSpriteFor } from './sprites.js';
@@ -93,8 +97,14 @@ export class LanternwoodGame {
     this._onKeyUp = (e) => {
       e.stopPropagation();
       this.keys.delete(e.code);
+      this.camAssist.key(e.code, false);
     };
-    this._onBlur = () => this.keys.clear();
+    this._onBlur = () => {
+      this.keys.clear();
+      this.camAssist.clear();
+    };
+    // Q / E (or , .) turn the camera, / puts it behind the hero; it eases back by itself after a quiet spell.
+    this.camAssist = new CameraAssist(loadAssist('lanternwood'), { id: 'lanternwood' });
     this.root.addEventListener('keydown', this._onKey);
     this.root.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('blur', this._onBlur);
@@ -127,6 +137,9 @@ export class LanternwoodGame {
     this.renderer.toneMappingExposure = 1.15;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // The moon's shadow is redrawn when due (every other frame on the lighter presets).
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     this.canvas = this.renderer.domElement;
     this.canvas.className = 'ld-canvas';
     stage.append(this.canvas);
@@ -210,18 +223,39 @@ export class LanternwoodGame {
     this._resize.observe(this.root);
     this.resize();
     this.hud = new Hud(this.root, this.sprites);
+    // How to play (H, the ? by the minimap, the pause window): a window, so the world waits while it's up (alone).
+    this.help = new HelpPanel({
+      host: this.root,
+      id: 'lanternwood',
+      table: CONTROLS,
+      onOpen: () => {
+        this.overlay = 'help';
+        this.keys.clear();
+      },
+      onClose: () => {
+        if (this.overlay === 'help') this.overlay = null;
+        this.root.focus();
+      }
+    });
+    const mini = this.root.querySelector('.ld-mini');
+    if (mini) helpButton(mini, () => this.openHelp(), { style: 'left:-4px;top:-4px;width:30px;height:30px;font-size:15px' });
     this.dialogue = new Dialogue(this.root, this.sprites);
 
     this._bindPointer();
+    // Power: a capped loop (60 by default), stopped in a hidden tab, on demand behind the pause window.
+    this.power = new PowerKit('lanternwood', { renderer: this.renderer, profile: { quietFps: 45 }, features: { grass: false, ao: false, rays: false, distance: false }, onChange: () => this.applyPower() });
+    this.applyPower();
     this.title();
-    let last = performance.now();
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      this.frame(dt);
-    };
-    this._raf = requestAnimationFrame(loop);
+    this.power.start((ms) => {
+      this._menuKind();
+      this.frame(Math.min(0.05, ms / 1000));
+    });
+    // Windows come and go: re-decide whether the world needs drawing.
+    this._overlays = new MutationObserver(() => {
+      this._menuKind();
+      this.power.invalidate();
+    });
+    this._overlays.observe(this.root, { childList: true });
   }
 
   close() {
@@ -229,7 +263,8 @@ export class LanternwoodGame {
     this.closed = true;
     if (this.mode === 'play' || this.mode === 'dead') this.save();
     this.net.close();
-    cancelAnimationFrame(this._raf);
+    this.power?.dispose();
+    this._overlays?.disconnect();
     this._resize?.disconnect();
     window.removeEventListener('blur', this._onBlur);
     this._clearRealm();
@@ -264,6 +299,7 @@ export class LanternwoodGame {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.post.setSize(w, h);
+    this.power?.invalidate();
     this.post.tiltH.uniforms.uStrength.value = this.post.tiltV.uniforms.uStrength.value = this.pixelRatio;
     this.size = { w, h };
   }
@@ -350,6 +386,43 @@ export class LanternwoodGame {
       setTimeout(run, 40);
     };
     setTimeout(run, 300);
+    if (this.power) this.applyPower();
+  }
+
+  /** How to play (from play, or the pause window). */
+  openHelp() {
+    if (this.mode !== 'play' && this.mode !== 'dead') return;
+    if (this.overlay && this.overlay !== 'help') this.closeOverlay();
+    this.help.open();
+  }
+
+  /** Graphics: frame cap, the moon's shadow (off / near: a smaller map, redrawn every other frame / full) and bloom. */
+  applyPower() {
+    const c = this.power.choices;
+    this.scene?.traverse((o) => {
+      if (!o.isDirectionalLight) return;
+      o.castShadow = c.shadows !== 'off';
+      const size = c.shadows === 'full' ? 2048 : 1024;
+      if (o.shadow.mapSize.x !== size) {
+        o.shadow.mapSize.set(size, size);
+        o.shadow.map?.dispose();
+        o.shadow.map = null;
+      }
+    });
+    this.shadowEvery = c.shadows === 'full' ? 1 : 2;
+    if (this.post) this.post.bloom.enabled = c.bloom;
+    this.renderer.shadowMap.needsUpdate = true;
+    this.power.invalidate();
+  }
+
+  /** What the loop does: the title — at most 30 a second; a window over a paused world — on demand; else play. */
+  _menuKind() {
+    if (!this.power) return;
+    const solo = !this.net?.room;
+    let kind = 'none';
+    if (this.mode === 'title' || this.mode === 'loading') kind = 'live';
+    else if (this.overlay && solo) kind = this.overlay === 'pause' ? 'still' : 'live';
+    this.power.setMenu(kind);
   }
 
   /** Bring the saved state into the world just built: herbs picked, braziers lit, chests opened. */
@@ -487,6 +560,7 @@ export class LanternwoodGame {
         if (this.mode === 'play' && !this.dialogue.open) this.dialogue.play(R.INTRO, () => this.hud.tracker(this.state.quests, this.realm), this._heroLine());
       }, 600);
     }
+    this.help.openFirstTime();
   }
 
   _heroLine() {
@@ -542,7 +616,7 @@ export class LanternwoodGame {
       return;
     }
     if (this.overlay) {
-      const toggles = { inv: ['KeyI', 'KeyB'], char: ['KeyC'], journal: ['KeyJ'], map: ['KeyM'], party: ['KeyP'], shop: ['KeyF'] };
+      const toggles = { inv: ['KeyI', 'KeyB'], char: ['KeyC'], journal: ['KeyJ'], map: ['KeyM', 'KeyO'], party: ['KeyP'], shop: ['KeyF'], help: ['KeyH'] };
       if (code === 'Escape' || toggles[this.overlay]?.includes(code)) this.closeOverlay();
       else if (this.overlay === 'shop' && /^Digit[1-9]$/.test(code)) {
         const line = R.SHOP[Number(code.slice(5)) - 1];
@@ -550,6 +624,7 @@ export class LanternwoodGame {
       }
       return;
     }
+    if (this.camAssist.key(code, true)) return;
     this.keys.add(code);
     if (this.mode === 'dead') return;
     switch (code) {
@@ -589,6 +664,8 @@ export class LanternwoodGame {
         openJournal(this);
         break;
       case 'KeyM':
+      case 'KeyO':
+        // O is the full map in every 3D game; here it is Lanternwood's own realm map (M as before).
         openRealms(this);
         break;
       case 'KeyP':
@@ -596,6 +673,9 @@ export class LanternwoodGame {
         break;
       case 'Escape':
         openPause(this);
+        break;
+      case 'KeyH':
+        this.openHelp();
         break;
       default:
     }
@@ -641,6 +721,7 @@ export class LanternwoodGame {
       drag.y = e.clientY;
       this.camYaw = wrap(this.camYaw - dx * 0.006);
       this._dragT = 0.6;
+      this.camAssist.input();
     });
     const end = (e) => {
       if (drag?.id === e.pointerId) drag = null;
@@ -656,6 +737,7 @@ export class LanternwoodGame {
   /* ============================================================ overlays */
 
   closeOverlay() {
+    if (this.help?.isOpen) this.help.close();
     this.root.querySelector('.ld-overlay:not(.ld-overlay--title)')?.remove();
     this.overlay = null;
     this.shopOpen = null;
@@ -1074,17 +1156,31 @@ export class LanternwoodGame {
     if (this.mode !== 'dead') this.post.fade = this._fade;
     this.pulse = Math.max(0, this.pulse - dt * 5);
     this.post.pulse = this.reducedMotion ? 0 : this.pulse;
+    const sh = this.heroPos;
+    if (sh) this.renderer.shadowMap.needsUpdate ||= this.power.shadowDue(this.shadowEvery ?? 1, sh.x, sh.z, this.camYaw ?? 0);
+    this.power.gpuBegin();
     this.post.draw();
+    this.power.gpuEnd();
+    this.power.sample(dt * 1000);
+    this.power.showFps(this.root);
     this._watchFps(dt);
   }
 
   _watchFps(dt) {
+    // Only judge frames in play: the title and windows run slower on purpose (shared/powerKit.js).
+    if (this.power && this.power.menuKind !== 'none') {
+      this._fpsAcc = [];
+      return;
+    }
     this._fpsAcc.push(dt);
     if (this._fpsAcc.length < 120) return;
     const avg = this._fpsAcc.reduce((a, b) => a + b, 0) / this._fpsAcc.length;
     this._fpsAcc = [];
     this.fps = Math.round(1 / avg);
-    if (avg > 1 / 45 && this.pixelRatio > 1) {
+    // Slow means slower than the frame cap allows (a 30 or 45 cap is a choice, not a struggle).
+    const cap = this.power?.cap || 0;
+    const slow = Math.max(1 / 45, cap ? 1.25 / cap : 0);
+    if (avg > slow && this.pixelRatio > 1) {
       this.pixelRatio = Math.max(1, this.pixelRatio - 0.25);
       this.resize();
     }
@@ -1156,8 +1252,9 @@ export class LanternwoodGame {
     const hero = this.hero;
     const stats = this.stats;
     const [mx, mz] = this._moveInput();
-    if (this.keys.has('KeyQ')) this.camYaw = wrap(this.camYaw + dt * 1.9);
-    if (this.keys.has('KeyE')) this.camYaw = wrap(this.camYaw - dt * 1.9);
+    // Q / E and , . (and a gamepad's right stick) turn the camera.
+    const turn = this.camAssist.steer(dt, { extraLeft: this.keys.has('KeyQ'), extraRight: this.keys.has('KeyE') });
+    if (turn.yaw) this.camYaw = wrap(this.camYaw + turn.yaw);
     let vx = 0, vz = 0;
     if (hv.dash) {
       // The lunge: a burst forward, striking whatever it passes.
@@ -1185,13 +1282,11 @@ export class LanternwoodGame {
         const want = Math.atan2(mx, mz);
         this.heroPos.face = wrap(this.heroPos.face + wrap(want - this.heroPos.face) * Math.min(1, dt * 14));
       }
-      const fwd = -(mx * Math.sin(this.camYaw) + mz * Math.cos(this.camYaw));
-      if (this._dragT <= 0 && fwd > -0.3 && !this.keys.has('KeyQ') && !this.keys.has('KeyE')) {
-        const behind = wrap(Math.atan2(mx, mz) + Math.PI);
-        this.camYaw = wrap(this.camYaw + wrap(behind - this.camYaw) * Math.min(1, dt * 0.9));
-      }
     }
     hv.moving = Math.hypot(vx, vz) > 0.1 && hv.roll <= 0 && !hv.dash;
+    // After a quiet spell with no camera input, ease back behind the hero on the move
+    // (not while aiming, guarding or dragging the view).
+    this.camYaw = wrap(this.camAssist.step(dt, this.camYaw, wrap(this.heroPos.face + Math.PI), { moving: hv.moving, paused: (hv.aimT ?? 0) > 0 || this._dragT > 0 || this.buffs.guard > 0 }));
     // Holding an aim: the upper body stays on it (within its twist) as the legs turn.
     hv.aimT = Math.max(0, (hv.aimT ?? 0) - dt);
     if (hv.aimT > 0 && hv.aimFace != null) {

@@ -4,7 +4,13 @@
  * frame `read()` gives move, aim and this frame's presses.
  */
 
+import { CONTROLS } from './controls.js';
+import { codesFor } from '../shared/helpPanel.js';
+
 const PAD_DEAD = 0.22;
+/** The keys, from the one table (controls.js). */
+const C = Object.fromEntries(['attack', 'ranged', 'dash', 'summon', 'potion', 'interact', 'pause', 'map', 'help'].map((id) => [id, codesFor(CONTROLS, id)]));
+const any = (set, codes) => codes.some((c) => set.has(c));
 
 export class Input {
   constructor(root, { touch = false } = {}) {
@@ -83,15 +89,16 @@ export class Input {
     let aim = null;
     if (this.mouse.moved && heroScreen && !this.touch) aim = Math.atan2(-(this.mouse.y - heroScreen[1]), this.mouse.x - heroScreen[0]);
     const out = {
-      attack: p.has('Mouse0') || p.has('KeyJ') || p.has('TouchAttack'),
-      attackHeld: k.has('Mouse0') || k.has('KeyJ') || k.has('TouchAttack'),
-      ranged: p.has('Mouse2') || p.has('KeyK') || p.has('TouchRanged'),
-      dash: p.has('Space') || p.has('ShiftLeft') || p.has('TouchDash'),
-      summon: p.has('KeyQ') || p.has('TouchSummon'),
-      potion: p.has('KeyR') || p.has('TouchPotion'),
-      interact: p.has('KeyE') || p.has('TouchUse'),
-      pause: p.has('Escape') || p.has('KeyP'),
-      map: p.has('KeyM') || p.has('Tab'),
+      attack: p.has('Mouse0') || any(p, C.attack) || p.has('TouchAttack'),
+      attackHeld: k.has('Mouse0') || any(k, C.attack) || k.has('TouchAttack'),
+      ranged: p.has('Mouse2') || any(p, C.ranged) || p.has('TouchRanged'),
+      dash: any(p, C.dash) || p.has('TouchDash'),
+      summon: any(p, C.summon) || p.has('TouchSummon'),
+      potion: any(p, C.potion) || p.has('TouchPotion'),
+      interact: any(p, C.interact) || p.has('TouchUse'),
+      pause: any(p, C.pause),
+      map: any(p, C.map),
+      help: any(p, C.help),
       any: p.size > 0
     };
     // Gamepad.

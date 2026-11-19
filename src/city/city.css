@@ -50,6 +50,7 @@
 .seoul__stamps,
 .seoul__bar,
 .seoul__places,
+.seoul__gfx,
 .seoul__msg {
   border: 3px solid #2b1d4e;
   background: #fff8ec;
@@ -191,6 +192,21 @@
 }
 .seoul [hidden] {
   display: none !important;
+}
+.seoul__gfx {
+  position: absolute;
+  right: 14px;
+  bottom: 120px;
+  width: min(380px, calc(100vw - 28px));
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  padding: 6px 12px;
+  border-radius: 22px;
+  color: #2b1d4e;
+}
+.seoul__gfx .pw-gfx {
+  background: none;
+  border: 0;
 }
 .seoul__places {
   position: absolute;

@@ -519,14 +519,16 @@ export async function buildFlora(world, { bank, settings }) {
     rootSpots.push(tf(x, H(x, z) - 0.1, z, 0, a, 0, 2, 2, 2));
   }
   jobs.push(props.scatter('root_cluster_01', rootSpots, { dist: 45, shadows: false, onMaterial: (m) => moss(m, 0.5) }));
-  const cover = new Cover({ heightTex: world.heightTex, splat: world.splat, noise: world.noise, settings });
+  const cover = new Cover({ heightTex: world.heightTex, splat: world.splat, noise: world.noise, settings, heightAt: world.grid?.at ?? H });
   scene.add(cover.group);
   world.cover = cover;
   await Promise.all(jobs);
   world.updaters.push((dt, t, camera, focus) => {
     cover.update(camera);
-    props.update(camera, focus);
-    field.update(camera, focus, { nearDist: 90, farDist: 600, shadowDist: 80 });
+    // Draw distances from the power settings (WyldhuntGame.applyPower).
+    const lim = world.limits ?? {};
+    props.update(camera, focus, lim.far ?? Infinity);
+    field.update(camera, focus, { nearDist: 90, farDist: Math.min(600, lim.treeFar ?? Infinity), shadowDist: 80 });
   });
   world.disposers.push(() => {
     props.dispose();

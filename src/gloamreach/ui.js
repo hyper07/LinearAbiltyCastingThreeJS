@@ -58,7 +58,7 @@ export class StartScreen {
       </div>
       <div class="gr-start__actions">
         <button class="gr-btn gr-btn--primary" data-begin>Begin</button>
-        <button class="gr-btn" data-credits>Credits</button>
+      <button class="gr-btn" data-credits>Credits</button>
         <button class="gr-btn gr-btn--quiet" data-close>Leave</button>
       </div>`;
     host.append(this.el);
@@ -118,14 +118,12 @@ export function creditsPanel(host, onClose) {
 }
 
 export class Hud {
-  constructor(host, { debug = false } = {}) {
+  constructor(host, { debug = false, hint = [] } = {}) {
     this.el = el('div', 'gr-hud');
     this.el.innerHTML = `
       <div class="gr-banner" aria-live="polite"><div class="gr-banner__name"></div><div class="gr-banner__sub"></div></div>
       <div class="gr-plates"></div>
-      <div class="gr-hint">
-        <span><b>WASD</b> move</span><span><b>Mouse</b> aim</span><span><b>LMB · RMB · 1–4</b> skills</span><span><b>Q · R</b> potions</span><span><b>F</b> open · trade</span><span><b>I</b> bag · <b>C</b> hero</span><span><b>Middle drag</b> turn · <b>V</b> mouse-look</span><span><b>Space</b> jump · <b>Shift</b> sprint</span><span><b>Esc</b> menu</span>
-      </div>
+      <div class="gr-hint">${(hint ?? []).map((h) => `<span><b>${esc(h.keys.join(' '))}</b> ${esc(h.does)}</span>`).join('')}</div>
       <div class="gr-stats" ${debug ? '' : 'hidden'}></div>`;
     host.append(this.el);
     this.banner = this.el.querySelector('.gr-banner');
@@ -205,7 +203,7 @@ export class Hud {
   }
 }
 
-export function pauseMenu(host, { onResume, onCredits, onSound, soundOn, onLeave, tier }) {
+export function pauseMenu(host, { onResume, onCredits, onSound, soundOn, onLeave, graphics, onMap, onHelp }) {
   const m = el('div', 'gr-panel gr-pause');
   m.setAttribute('role', 'dialog');
   m.setAttribute('aria-label', 'Paused');
@@ -214,13 +212,23 @@ export function pauseMenu(host, { onResume, onCredits, onSound, soundOn, onLeave
       <div class="gr-title gr-title--small">Gloamreach</div>
       <button class="gr-btn gr-btn--primary" data-resume>Resume</button>
       <button class="gr-btn" data-sound>${soundOn ? 'Sound: on' : 'Sound: off'}</button>
+      <button class="gr-btn" data-open-help>How to play (H)</button>
+      <button class="gr-btn" data-open-map>Map (O)</button>
       <button class="gr-btn" data-credits>Credits</button>
       <button class="gr-btn gr-btn--quiet" data-leave>Leave Gloamreach</button>
-      <p class="gr-pause__tier">Picture quality: ${esc(tier)} (set by how the frames run)</p>
     </div>`;
+  // Graphics: presets, Advanced (power.js / graphicsMenu.js).
+  if (graphics) {
+    const card = m.querySelector('.gr-pause__card');
+    card.style.maxHeight = '92vh';
+    card.style.overflowY = 'auto';
+    card.querySelector('[data-leave]').before(graphics);
+  }
   host.append(m);
   m.querySelector('[data-resume]').addEventListener('click', onResume);
   m.querySelector('[data-credits]').addEventListener('click', onCredits);
+  m.querySelector('[data-open-map]').addEventListener('click', () => onMap?.());
+  m.querySelector('[data-open-help]').addEventListener('click', () => onHelp?.());
   m.querySelector('[data-leave]').addEventListener('click', onLeave);
   m.querySelector('[data-sound]').addEventListener('click', (e) => {
     const on = onSound();

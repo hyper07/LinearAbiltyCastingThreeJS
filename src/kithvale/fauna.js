@@ -246,7 +246,7 @@ export class Fauna {
       const from = { x: b.x, z: b.z };
       const ev = b.update(step, { player: ctx.player, treats: lying, calm: ctx.calm, hour: ctx.hour, walkable: (x, z, br) => this.walkable(x, z, br, from), others: this.wild.map((o) => o.brain) });
       for (const e of ev) out.push({ ...e, w });
-      const vis = b.present && d < 120;
+      const vis = b.present && d < Math.min(120, this.drawFar ?? Infinity);
       w.body.group.visible = vis;
       if (!vis || far) continue;
       this.place(w);

@@ -10,6 +10,7 @@
  * the game shows their name and words. Far-off actors are hidden and not
  * animated; middling ones animate at half rate; only near ones cast shadows.
  */
+import { animStride, ticksOn } from '../shared/power.js';
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { PEOPLE, ANIMALS, ROUTES } from './cast.js';
@@ -208,9 +209,13 @@ export class Life {
   update(dt, t, camera, hero) {
     const hp = hero?.pos;
     this.events.length = 0;
+    this._frame = (this._frame ?? 0) + 1;
+    const { far: cull = 95, animNear = 40 } = this.limits ?? {};
+    let k = 0;
     for (const b of [...this.people, ...this.animals]) {
+      k++;
       const d = Math.hypot(b.x - camera.position.x, b.z - camera.position.z);
-      const far = d > 95;
+      const far = d > Math.min(95, cull);
       // Jogging and patrolling carry on out of sight (cheaply); everyone else waits.
       if (far && !['jog', 'patrol', 'stroll'].includes(b.c.does)) {
         b.actor.object.visible = false;
@@ -229,10 +234,11 @@ export class Life {
       b.actor.object.visible = !far;
       if (far) continue;
       b.actor.move(b.speed);
-      // Half-rate animation in the middle distance.
-      b.lod = d > 40 ? 1 : 0;
+      // Animation thins with distance: every 2nd frame past animNear, every 4th past twice that.
+      const stride = animStride(d, { near: Math.min(40, animNear), far: Infinity });
+      b.lod = stride > 1 ? 1 : 0;
       b.acc = (b.acc ?? 0) + dt;
-      if (!b.lod || (b.tick = !b.tick)) {
+      if (ticksOn(this._frame, stride, k)) {
         b.actor.update(b.acc);
         b.acc = 0;
       }

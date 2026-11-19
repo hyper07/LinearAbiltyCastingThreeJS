@@ -356,12 +356,16 @@ export class StreetLife {
       put('hair', m.hair);
       if (m.long) put('long', m.hair);
     };
+    // Past the Graphics draw distance (game.lifeFar), people on the street aren't drawn.
+    const far = this.g.lifeFar ?? Infinity;
+    const cam = this.g.camera?.position ?? this.g.pos;
     for (const m of [...this.people, ...this.fans]) {
       if (m.handlePos) {
         m.x = m.handlePos.x;
         m.y = m.handlePos.y;
         m.z = m.handlePos.z;
       }
+      if (m.kind !== 'fan' && Math.hypot(m.x - cam.x, m.z - cam.z) > far) continue;
       tmp.position.set(m.x, m.y, m.z);
       tmp.rotation.set(0, m.heading, 0);
       tmp.scale.setScalar(m.scale);

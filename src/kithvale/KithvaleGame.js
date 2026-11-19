@@ -25,7 +25,18 @@ import { Cards } from '../gloamreach/fx.js';
 import { buildWorld } from './world.js';
 import { Post } from './post.js';
 import { SETTINGS, chooseTier, Governor, startTier } from './quality.js';
-import { START, GATE, SHRINE, GARDEN, STONE_LANTERNS, HOLLOW, AREAS, areaAt, HABITATS } from './map.js';
+import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
+import { PowerKit } from '../shared/powerKit.js';
+import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
+import { WaypointBeam } from '../shared/waypointBeam.js';
+import { HelpPanel, helpButton, codesFor } from '../shared/helpPanel.js';
+import { CONTROLS } from './controls.js';
+
+/** Treats on 5–7 and How to play on H / I (controls.js). */
+const TREAT_CODES = codesFor(CONTROLS, 'treats');
+const HELP_CODES = codesFor(CONTROLS, 'help');
+import { powerSettings } from '../shared/power.js';
+import { START, GATE, SHRINE, GARDEN, STONE_LANTERNS, HOLLOW, AREAS, EXTENT, areaAt, HABITATS } from './map.js';
 import { groundAt, waterAt, streamDistance, depthAt, inVillage } from './heights.js';
 import { LOOKS, VILLAGERS, AFTER } from './cast.js';
 import { loadLook, Player, makeActor } from './player.js';
@@ -82,6 +93,9 @@ function heartTexture() {
   return t;
 }
 
+/** A calm game: Quiet runs at 45 frames a second. */
+const POWER_PROFILE = { quietFps: 45 };
+
 export class KithvaleGame {
   constructor(host, { onClose, account } = {}) {
     this.onClose = onClose;
@@ -109,7 +123,10 @@ export class KithvaleGame {
     this.sneakToggle = false;
     this._onKey = (e) => this.keyDown(e);
     this._onKeyUp = (e) => this.keyUp(e);
-    this._onBlur = () => this.keys.clear();
+    this._onBlur = () => {
+      this.keys.clear();
+      this.follow?.assist.clear();
+    };
     window.addEventListener('keydown', this._onKey);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('blur', this._onBlur);
@@ -136,10 +153,19 @@ export class KithvaleGame {
     const q = this.params.get('quality');
     const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     const guess = chooseTier({ gpu, memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, pixels: screen.width * screen.height * devicePixelRatio ** 2, mobile });
-    this.tier = SETTINGS[q] ? q : startTier(guess, { mobile, touch: this.touch });
+    const first = SETTINGS[q] ? q : startTier(guess, { mobile, touch: this.touch });
     this.gpu = gpu;
-    this.governor = new Governor(this.tier, { max: q || (mobile ? 'medium' : 'ultra') });
-    this.settings = { ...SETTINGS[this.tier], msaa: this.tier === 'low' ? 0 : 4 };
+    // `resTier`: the resolution this device always had (lowered only if frames really run slow);
+    // `tier`: the detail, kept by the power governor within the Graphics preset.
+    this.quality = SETTINGS[q] ? q : null;
+    this.resTier = first;
+    this.governor = new Governor(first, { max: q || (mobile ? 'medium' : 'ultra') });
+    this.power = new PowerKit('kithvale', { renderer, profile: POWER_PROFILE, detail: this.quality ? null : first, features: { rays: true }, onChange: () => this.applyPower() });
+    this.tier = this._detailTier();
+    this.settings = { ...powerSettings(SETTINGS, { state: this.power.state, detail: this.tier, res: this.resTier, profile: POWER_PROFILE }), msaa: first === 'low' ? 0 : 4 };
+    // The sun's shadow is redrawn when due (every few frames on the lighter presets).
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     this.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 2500);
     this.resize();
     this._resize = new ResizeObserver(() => this.resize());
@@ -176,9 +202,11 @@ export class KithvaleGame {
     step('Painting portraits', 0.9);
     this.portraits = this.paintPortraits();
     this.follow = new FollowCamera(this.camera, world.colliders);
+    // , . turn the camera, [ ] tilt it, / puts it behind you; it eases back by itself after a quiet spell.
+    this.follow.assist = new CameraAssist(loadAssist('kithvale'), { id: 'kithvale' });
     this.follow.fovBase = 50;
     this.post = new Post(renderer);
-    this.applyTier(this.tier, true);
+    this.applyPower(true);
     this.minimapCanvas = paintMap(world.grid, world.trees);
     this.setLook(this.picked);
     this.lumoLight = new THREE.PointLight(0xffc070, 0, 10, 1.6);
@@ -196,24 +224,11 @@ export class KithvaleGame {
     this.loading = null;
     this.bindPointer();
     this.menu();
-    let last = performance.now();
-    let frames = 0;
-    let fpsT = 0;
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
-      const raw = now - last;
-      const dt = Math.min(0.05, raw / 1000);
-      last = now;
-      frames++;
-      fpsT += dt;
-      if (fpsT >= 0.5) {
-        this.fps = Math.round(frames / fpsT);
-        frames = 0;
-        fpsT = 0;
-      }
-      this.frame(dt, raw);
-    };
-    this._raf = requestAnimationFrame(loop);
+    // The loop: capped (60 by default, 45 on Quiet), stopped in a hidden tab, on demand behind the pause menu.
+    this.power.start((raw) => {
+      this.fps = this.power.loop.fps;
+      this.frame(Math.min(0.05, raw / 1000), raw);
+    });
     this.ready = true;
   }
 
@@ -221,7 +236,7 @@ export class KithvaleGame {
     if (this.closed) return;
     this.closed = true;
     this.saveNow();
-    cancelAnimationFrame(this._raf);
+    this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._onKey);
     window.removeEventListener('keyup', this._onKeyUp);
@@ -236,6 +251,10 @@ export class KithvaleGame {
     this.world?.dispose();
     this.post?.dispose();
     this.hud?.dispose();
+    this.worldMap?.dispose();
+    this.help?.dispose();
+    this.cue?.dispose();
+    this.beam?.dispose();
     this.bank?.dispose();
     this.heartCards?.dispose();
     this.sound.dispose();
@@ -256,17 +275,43 @@ export class KithvaleGame {
     this.camera.fov = (this.follow?.fovBase ?? 50) + (w < h ? 14 : 0);
     this.camera.updateProjectionMatrix();
     this.post?.resize();
+    this.power?.invalidate();
   }
 
-  applyTier(tier, first = false) {
-    this.tier = tier;
-    const s = { ...SETTINGS[tier], msaa: this.settings.msaa, sculpt: this.settings.sculpt, texSize: this.settings.texSize, trees: this.settings.trees };
+  /** The detail level: fixed by ?quality=, the old rule on Ultra, else the power governor's. */
+  _detailTier() {
+    if (this.quality || this.power.preset === 'ultra') return this.resTier;
+    return this.power.detail(this.resTier);
+  }
+
+  /** Apply the Graphics choice now (no reload): shadows, effects, grass, distances, haze. Resolution stays the device's own. */
+  applyPower(first = false) {
+    const prev = this.settings;
+    this.tier = this._detailTier();
+    const p = powerSettings(SETTINGS, { state: this.power.state, detail: this.tier, res: this.resTier, profile: POWER_PROFILE });
+    const s = { ...p, msaa: prev.msaa, sculpt: prev.sculpt, texSize: prev.texSize, trees: prev.trees };
     this.settings = s;
     this.resize();
-    this.post.configure({ ao: s.ao, rays: true, bloom: s.bloom, smaa: s.smaa || !s.msaa, msaa: s.msaa, refract: true, paint: s.paint, outline: s.outline }, s.scale);
-    if (!first) this.world.lighting.setShadow(s.shadow, s.shadowBox);
-    this.world.grass.setDensity(s.grass, s.flowers);
-    if (!first) this.fauna.setFur(s.fur);
+    this.post.configure({ ao: s.ao, rays: s.rays, bloom: s.bloom, smaa: (s.smaa && (s.preset === 'ultra' || !s.msaa)) || !s.msaa, msaa: s.msaa, refract: true, paint: s.paint, outline: s.outline, bloomHalf: s.bloomHalf }, s.scale);
+    const lighting = this.world.lighting;
+    if (!first && (prev.shadow !== s.shadow || prev.shadowBox !== s.shadowBox)) lighting.setShadow(s.shadow, s.shadowBox);
+    lighting.sun.castShadow = s.shadowOn;
+    this.renderer.shadowMap.needsUpdate = true;
+    // The grass by density and reach; flowers follow the grass choice.
+    this.world.grass.setDensity(s.grass, s.flowers * (s.grass / Math.max(0.01, SETTINGS[this.tier].grass)), s.grassReach);
+    if (!first && prev.fur !== s.fur) this.fauna.setFur(s.fur);
+    // The vale is a bowl: its ridge woods are the skyline, so trees are culled by view, not distance.
+    Object.assign(this.world.limits, { far: s.far, shadowDist: s.shadowBox * 0.75 });
+    if (this.fauna) this.fauna.drawFar = s.far;
+    if (this.villagers) this.villagers.drawFar = s.far;
+    this.power.invalidate();
+  }
+
+  /** Kept for tests and the console: force a detail level. */
+  applyTier(tier) {
+    this.quality = tier;
+    this.resTier = tier;
+    this.applyPower();
   }
 
   /** Portraits of each species for the journal and the HUD (rendered once, softly lit). */
@@ -360,6 +405,7 @@ export class KithvaleGame {
 
   menu() {
     this.mode = 'menu';
+    this.power.setMenu('live');
     this.player.place(START.x, START.z - 1, Math.PI);
     this.start = new StartScreen(this.root, {
       picked: this.picked,
@@ -405,6 +451,36 @@ export class KithvaleGame {
     this.resize();
     this.hud = new Hud(this.root, { touch: this.touch, debug: this.debug, portraits: this.portraits });
     this.hud.minimap.map = this.minimapCanvas;
+    // The full map (O, the pause menu's Map, the minimap's button or ⟲'s neighbour 🗺 on touch) and its waypoint.
+    this.waypoint ??= new Waypoint();
+    this.worldMap = new WorldMap({
+      host: this.root,
+      title: 'Kithvale',
+      base: this.minimapCanvas,
+      extent: EXTENT,
+      areas: AREAS,
+      legend: [
+        { shape: 'star', color: '#fff3d0', label: 'Gate · shrine · pond · garden' },
+        { shape: 'heart', color: '#ff9ac0', label: 'Your friends' },
+        { shape: 'dot', color: '#c8e070', label: 'Creatures you have met' },
+        { shape: 'dot', color: '#8a8478', label: 'Creatures not met yet' },
+        { shape: 'dot', color: '#ffb050', label: 'Stone lantern (lit)' },
+        { shape: 'dot', color: '#6a6460', label: 'Stone lantern (dark)' },
+        { shape: 'square', color: '#c98a2a', label: 'Buried cache' },
+        { shape: 'dot', color: '#ffe0b0', label: 'Villager' }
+      ],
+      markers: () => this.mapMarkers(),
+      player: () => ({ x: this.player.pos.x, z: this.player.pos.z, yaw: this.player.yaw }),
+      waypoint: this.waypoint,
+      onOpen: () => this._mapOpened(),
+      onClose: () => this._mapClosed()
+    });
+    mapButton(this.hud.minimap.el, () => this.openMap());
+    // How to play (H or I, the ? by the minimap, the pause menu): opens by itself the first time.
+    this.help = new HelpPanel({ host: this.root, id: 'kithvale', table: CONTROLS, text: { close: 'Close (H)' }, onOpen: () => this._holdOpened('help'), onClose: () => this._mapClosed() });
+    helpButton(this.hud.minimap.el, () => this.openHelp(), { style: 'left:-4px;top:-4px;width:30px;height:30px;font-size:15px' });
+    this.cue = new WaypointCue(this.hud.el);
+    this.beam ??= new WaypointBeam(this.scene, { color: '#ff8ad8' });
     this.hud.onPickTreat = (k) => this.pickTreat(k);
     if (this.touch) {
       this.touchUi = new TouchControls(this.root, {
@@ -415,9 +491,11 @@ export class KithvaleGame {
     }
     for (const f of this.fauna.friends) f.brain.x = START.x + (Math.random() - 0.5) * 2, (f.brain.z = START.z - 2);
     this.mode = 'play';
+    this.power.setMenu('none');
     this.area = null;
     this.root.focus();
     this.hud.banner('Lanternrest', this.state.friends.length ? 'welcome back' : 'the vale is waiting beyond the gate', 4.5);
+    this.help.openFirstTime();
     this.refreshHud();
   }
 
@@ -428,13 +506,71 @@ export class KithvaleGame {
     this.hud.setFriends(R.party(this.state));
   }
 
+  /** What the full map shows besides you: the vale's places, your friends, the creatures (met by kind, the rest as unknowns), lanterns, caches, villagers. */
+  mapMarkers() {
+    const out = MAP_POIS.map((p) => ({ x: p.x, z: p.z, shape: 'star', color: '#fff3d0', r: 1.2, label: p.name }));
+    for (const v of this.villagers?.list ?? []) if (Number.isFinite(v.x)) out.push({ x: v.x, z: v.z, color: '#ffe0b0', r: 0.6 });
+    STONE_LANTERNS.forEach(([x, z], i) => out.push({ x, z, color: this.state.lanterns.includes(i) ? '#ffb050' : '#6a6460', r: 0.7 }));
+    for (const c of this.world.caches.list) if (c.found && !c.dug) out.push({ x: c.x, z: c.z, shape: 'square', color: '#c98a2a', r: 0.8 });
+    for (const w of this.fauna.wild) {
+      if (!w.brain.present) continue;
+      const met = this.state.seen.includes(w.species);
+      out.push(met ? { x: w.brain.x, z: w.brain.z, color: R.SPECIES[w.species].color, label: R.SPECIES[w.species].name } : { x: w.brain.x, z: w.brain.z, color: '#8a8478', r: 0.8, label: '?' });
+    }
+    for (const f of this.fauna.friends) out.push({ x: f.brain.x, z: f.brain.z, shape: 'heart', color: R.SPECIES[f.species].color, label: f.name });
+    return out;
+  }
+
+  /** Open the full map: the vale waits (and the 3D stops drawing) while it's up. */
+  openMap() {
+    if (!this.worldMap || (this.mode !== 'play' && this.mode !== 'paused') || this.trust) return;
+    if (this.mode === 'paused') {
+      this.pauseEl?.close();
+      this.pauseEl = null;
+    }
+    this.panel?.close();
+    this.worldMap.open();
+  }
+
+  /** How to play: the vale waits while it's up. */
+  openHelp() {
+    if (!this.help || (this.mode !== 'play' && this.mode !== 'paused') || this.trust) return;
+    if (this.mode === 'paused') {
+      this.pauseEl?.close();
+      this.pauseEl = null;
+    }
+    this.panel?.close();
+    this.help.open();
+  }
+
+  _holdOpened(mode) {
+    this._mapOpened();
+    this.mode = mode;
+  }
+
+  _mapOpened() {
+    this.mode = 'map';
+    this.keys.clear();
+    this.follow.assist.clear();
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.power.setMenu('still');
+  }
+
+  _mapClosed() {
+    this.mode = 'play';
+    this.power.setMenu('none');
+    this.root.focus();
+  }
+
   credits() {
     this.sound.tick();
     this.panel?.close();
     this.panel = creditsPanel(this.root, () => {
       this.panel = null;
+      this.power.invalidate();
       this.root.focus();
     });
+    this.power.invalidate();
   }
 
   journal() {
@@ -470,8 +606,12 @@ export class KithvaleGame {
     this.mode = 'paused';
     this.keys.clear();
     if (document.pointerLockElement) document.exitPointerLock();
+    // Nothing moves behind the pause menu: draw only when something changes.
+    this.power.setMenu('still');
     this.pauseEl = pauseMenu(this.root, {
-      tier: this.tier,
+      graphics: menuSections(this.power.menu(), cameraMenu(this.follow.assist)),
+      onMap: () => this.openMap(),
+      onHelp: () => this.openHelp(),
       soundOn: this.sound.enabled,
       cycleOn: this.state.cycle,
       onResume: () => this.resume(),
@@ -498,6 +638,7 @@ export class KithvaleGame {
     this.pauseEl?.close();
     this.pauseEl = null;
     this.mode = 'play';
+    this.power.setMenu('none');
     this.root.focus();
   }
 
@@ -506,6 +647,14 @@ export class KithvaleGame {
   keyDown(e) {
     if (this.closed) return;
     if (e.target?.tagName === 'INPUT') return;
+    if (this.mode === 'map') {
+      if (e.code === 'Escape' || e.code === MAP_KEY) this.worldMap.close();
+      return;
+    }
+    if (this.mode === 'help') {
+      if (e.code === 'Escape' || HELP_CODES.includes(e.code)) this.help.close();
+      return;
+    }
     if (e.code === 'Escape') {
       if (this.trust) this.endTrust(null);
       else if (this.panel) this.panel.close();
@@ -514,6 +663,14 @@ export class KithvaleGame {
       return;
     }
     if (this.mode !== 'play') return;
+    if (this.follow.assist.key(e.code, true)) {
+      e.preventDefault();
+      return;
+    }
+    if (e.code === MAP_KEY && !e.repeat && !this.trust) {
+      this.openMap();
+      return;
+    }
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
     if (!e.repeat) {
       this.sound.wake();
@@ -521,22 +678,25 @@ export class KithvaleGame {
         this.trustPress();
         return;
       }
-      if (e.code === 'KeyH') this.hud?.showHint();
+      if (HELP_CODES.includes(e.code)) {
+        this.openHelp();
+        return;
+      }
       if (e.code === 'Space') this.jumpQ = true;
       if (e.code === 'KeyE') this.interact();
       if (e.code === 'KeyQ') this.toss();
       if (e.code === 'KeyJ') this.journal();
       if (e.code === 'KeyC') this.sneakToggle = !this.sneakToggle;
       if (e.code === 'KeyV') this.toggleMouseLook();
-      if (e.code === 'Digit1') this.pickTreat('berry');
-      if (e.code === 'Digit2') this.pickTreat('seed');
-      if (e.code === 'Digit3') this.pickTreat('crystal');
+      const treat = TREAT_CODES.indexOf(e.code);
+      if (treat >= 0) this.pickTreat(['berry', 'seed', 'crystal'][treat]);
     }
     this.keys.add(e.code);
   }
 
   keyUp(e) {
     this.keys.delete(e.code);
+    this.follow?.assist.key(e.code, false);
   }
 
   touchButton(id, down) {
@@ -548,6 +708,8 @@ export class KithvaleGame {
     if (id === 'toss') this.toss();
     if (id === 'menu') this.mode === 'play' ? this.pause() : this.resume();
     if (id === 'journal') this.journal();
+    if (id === 'recenter') this.follow.assist.recenter();
+    if (id === 'map') this.openMap();
   }
 
   toggleMouseLook() {
@@ -1009,6 +1171,8 @@ export class KithvaleGame {
       const abilities = { float: R.hasAbility(this.state, 'float') };
       this.player.update(dt, inp, this.follow.heading(), abilities);
       if (this.trust) breath = this.updateTrust(dt);
+      // No swinging round on its own while befriending, on a fixed shot, or in mouse-look.
+      this.follow.pause = Boolean(this.trust) || Boolean(this.camFix) || Boolean(document.pointerLockElement);
       this.follow.update(dt, this.player, { sprinting: inp.sprint && this.player.speed > 5, moving: this.player.speed > 0.5 });
       if (this.camFix) {
         // A fixed camera (for shots and tests).
@@ -1032,11 +1196,30 @@ export class KithvaleGame {
     // Sound by place and hour.
     const dark = THREE.MathUtils.smoothstep(Math.abs(((this.hour - 12 + 24) % 24) - 12), 4.8, 6.6);
     this.sound.update(dt, { stream: streamDistance(focus.x, focus.z).d, dusk: dark, shrine: Math.hypot(SHRINE.x - focus.x, SHRINE.z - focus.z), wind: inVillage(focus.x, focus.z) ? 0.6 : 1 });
-    this.post.render(this.scene, this.camera, { ...mood, ground: focus.y - 6, bloom: 0.42, paint: 0.8, ink: 0.42 });
+    // The sun's shadow: redrawn when due (every frame on High and Ultra; every few, or when the view moves, below).
+    const s = this.settings;
+    const cp = this.camera.position;
+    this.renderer.shadowMap.needsUpdate = s.shadowOn && (this.renderer.shadowMap.needsUpdate || this.power.shadowDue(s.shadowEvery, cp.x, cp.z, this.follow.yaw ?? 0));
+    // The haze a little thicker on the nearer draw distances, so where detail stops reads as distance.
+    this.power.gpuBegin();
+    this.post.render(this.scene, this.camera, { ...mood, fogDensity: mood.fogDensity * s.fog, ground: focus.y - 6, bloom: 0.42, paint: 0.8, ink: 0.42 });
+    this.power.gpuEnd();
     if (playing && this.hud) this.hudFrame(dt);
+    this.power.showFps(this.root);
+    // The waypoint: its beam in the world, the cue toward it.
+    const wp = this.waypoint?.point;
+    this.beam?.update(wp, wp ? groundAt(wp.x, wp.z) : 0, t);
+    if (playing) this.cue?.update(this.waypoint, focus.x, focus.z, this.follow.heading());
+    // Quality: the power governor keeps detail within the preset's GPU budget;
+    // the old one still lowers the resolution if frames really run slow.
     if (playing && rawMs > 0 && rawMs < 500) {
-      const next = this.governor.frame(rawMs);
-      if (next && next !== this.tier) this.applyTier(next);
+      const cap = this.power.cap;
+      const res = this.governor.frame(cap && cap < 60 ? rawMs * (cap / 60) : rawMs);
+      const lvl = this.power.sample(rawMs);
+      if (res && res !== this.resTier) {
+        this.resTier = res;
+        this.applyPower();
+      } else if (lvl && lvl !== this.tier && !this.quality) this.applyPower();
     }
     if (playing && (this._saveT = (this._saveT ?? 0) + dt) > 30) {
       this._saveT = 0;
@@ -1271,12 +1454,13 @@ export class KithvaleGame {
       for (const c of this.world.caches.list) if (c.found && !c.dug) dots.push({ x: c.x, z: c.z, kind: 'cache' });
       STONE_LANTERNS.forEach(([x, z], i) => dots.push({ x, z, kind: 'lantern', lit: this.state.lanterns.includes(i) }));
       if (this.guide) dots.push({ x: this.guide.x, z: this.guide.z, kind: 'guide' });
+      if (this.waypoint?.point) dots.push({ x: this.waypoint.point.x, z: this.waypoint.point.z, kind: 'pin' });
       this.hud.minimap.draw({ x: p.x, z: p.z, yaw: this.player.yaw, stream: sd }, this.follow.heading(), dots);
     }
     if (this.debug && (this._st = (this._st ?? 0) + dt) > 0.5) {
       this._st = 0;
       const s = this.post.stats ?? {};
-      this.hud.setStats(`${this.fps} fps  draws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M  tier ${this.tier}  hour ${this.hour.toFixed(1)}\npos ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`);
+      this.hud.setStats(`${this.fps} fps  draws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M  tier ${this.tier}  res ${this.resTier}  hour ${this.hour.toFixed(1)}\n${this.power.debugLine()}\npos ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`);
     }
   }
 

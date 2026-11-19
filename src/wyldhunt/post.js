@@ -284,6 +284,8 @@ export class Post {
     this.depthMat = sh(DEPTH_FRAG, { tDepth: { value: null }, uNear: { value: 0.1 }, uFar: { value: 2000 } });
     this.mist = [];
     this.gradeMat = sh(GRADE_FRAG, { tColor: { value: null }, uExposure: { value: 1 }, uGloam: { value: 0 }, uVignette: { value: 0.32 }, uFade: { value: 0 } });
+    // It tone-maps itself: when it draws straight to the screen (no SMAA), three mustn't add its own.
+    this.gradeMat.toneMapped = false;
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.32, 0.55, 1.1);
     this.smaa = new SMAAPass();
     this.targets = null;
@@ -291,10 +293,18 @@ export class Post {
 
   configure(opts, scale) {
     const msaaChanged = opts.msaa !== undefined && opts.msaa !== this.opts.msaa;
+    const halfChanged = opts.bloomHalf !== undefined && Boolean(opts.bloomHalf) !== Boolean(this.opts.bloomHalf);
     Object.assign(this.opts, opts);
     this.scale = scale;
     if (msaaChanged) this._dispose();
     this.resize();
+    if (halfChanged && this.targets) this._bloomSize();
+  }
+
+  /** Bloom's blur chain from a half-size copy on the lighter presets (a blur: the difference doesn't show). */
+  _bloomSize() {
+    const k = this.opts.bloomHalf ? 2 : 1;
+    this.bloom.setSize(Math.max(2, Math.round(this.targets.w / k)), Math.max(2, Math.round(this.targets.h / k)));
   }
 
   resize() {
@@ -322,7 +332,7 @@ export class Post {
       copy: new THREE.WebGLRenderTarget(hw, hh, hdr),
       depthLin: new THREE.WebGLRenderTarget(hw, hh, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter })
     };
-    this.bloom.setSize(w, h);
+    this._bloomSize();
     this.smaa.setSize(w, h);
   }
 

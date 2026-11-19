@@ -239,7 +239,7 @@ export class Monsters {
       const dHero = hero ? Math.hypot(hero.pos.x - m.x, hero.pos.z - m.z) : Infinity;
       const far = Math.hypot(camera.position.x - m.x, camera.position.z - m.z);
       // Out of range: frozen in place (and hidden when far).
-      m.holder.visible = far < 140 && m.state !== 'gone';
+      m.holder.visible = far < Math.min(140, this.drawFar ?? Infinity) && m.state !== 'gone';
       if (m.aura) m.aura.mesh.visible = m.holder.visible && m.alive;
       if (m.state === 'gone') {
         if (t >= m.respawnAt && (!hero || dHero > 32)) this._respawn(m);

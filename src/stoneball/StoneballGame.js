@@ -1,3 +1,8 @@
+import { PowerKit } from '../shared/powerKit.js';
+import { HelpPanel, helpButton, codesFor } from '../shared/helpPanel.js';
+import { CONTROLS } from './controls.js';
+
+const HELP_CODES = codesFor(CONTROLS, 'help');
 import * as R from './rules.js';
 import { StoneballView } from './view.js';
 import { Hud, startScreen, endScreen, pauseScreen, el, esc } from './ui.js';
@@ -93,29 +98,39 @@ export class StoneballGame {
     this.root.querySelector('.sb-loading')?.remove();
     this.hud = new Hud(this.root);
     this.hud.show(false);
-    let last = performance.now();
-    let frames = 0, fpsT = 0;
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      frames++;
-      fpsT += dt;
-      if (fpsT >= 1) {
-        this.fps = Math.round(frames / fpsT);
-        frames = 0;
-        fpsT = 0;
+    // Power: a capped loop (60 by default), stopped in a hidden tab, on demand behind the pause screen.
+    this.power = new PowerKit('stoneball', { renderer: this.view.renderer, profile: { quietFps: 45 }, features: { grass: false, ao: false, rays: false, distance: false, bloom: false }, onChange: () => this.applyPower() });
+    this.applyPower();
+    // How to play (H or I, the ? in the corner, the pause screen): the match waits while it's up.
+    this.help = new HelpPanel({
+      host: this.root,
+      id: 'stoneball',
+      table: CONTROLS,
+      onOpen: () => {
+        this._helpFrom = this.mode;
+        if (this.mode === 'play') this.mode = 'paused';
+        this.keys.clear();
+        this.power.setMenu('still');
+      },
+      onClose: () => {
+        if (this._helpFrom === 'play' && this.mode === 'paused' && !this.root.querySelector('.sb-pause')) this.mode = 'play';
+        this.power.setMenu(this.mode === 'menu' ? 'live' : this.mode === 'paused' ? 'still' : 'none');
+        this.root.focus();
       }
-      this.frame(dt);
-    };
-    this._raf = requestAnimationFrame(loop);
+    });
+    helpButton(this.root, () => this.help.open(), { style: 'top:auto;bottom:12px;left:12px' });
+    this.power.start((ms) => {
+      this.fps = this.power.loop.fps;
+      this.frame(Math.min(0.1, ms / 1000));
+      this.power.showFps(this.root);
+    });
     this.menu();
   }
 
   close() {
     if (this.closed) return;
     this.closed = true;
-    cancelAnimationFrame(this._raf);
+    this.power?.dispose();
     clearTimeout(this._endT);
     this._resize?.disconnect();
     window.removeEventListener('blur', this._onBlur);
@@ -135,11 +150,28 @@ export class StoneballGame {
     return R.createMatch({ seed: (Math.random() * 1e9) | 0, length: 600, teams: [{ leather: a, control: 'ai', skill: 'normal' }, { leather: b, control: 'ai', skill: 'normal' }] });
   }
 
+  /** Graphics: frame cap and the sun's shadow (off / near: a smaller map / full). */
+  applyPower() {
+    const c = this.power.choices;
+    const sun = this.view.sun;
+    if (sun) {
+      sun.castShadow = c.shadows !== 'off';
+      const size = c.shadows === 'full' ? 2048 : 1024;
+      if (sun.shadow.mapSize.x !== size) {
+        sun.shadow.mapSize.set(size, size);
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
+    }
+    this.power.invalidate();
+  }
+
   /** The start screen, over a match the AI plays. */
   menu() {
     clearTimeout(this._endT);
     this.root.querySelector('.sb-overlay')?.remove();
     this.mode = 'menu';
+    this.power?.setMenu('live');
     this.hud?.show(false);
     if (!this.match || this.match.teams.some((t) => t.control === 'human')) {
       this.match = this.demoMatch();
@@ -176,8 +208,10 @@ export class StoneballGame {
     this.pending = {};
     this.charging = false;
     this.mode = 'play';
+    this.power.setMenu('none');
     this.root.focus();
     this.hud.flash('Kick-off', { ms: 1300 });
+    this.help.openFirstTime();
   }
 
   rematch() {
@@ -190,9 +224,17 @@ export class StoneballGame {
     this.mode = 'paused';
     this.keys.clear();
     this.charging = false;
+    this.power.setMenu('still');
     pauseScreen(this.root, {
+      graphics: this.power.menu(),
+      onHelp: () => {
+        // From the pause screen: back to the match when How to play closes.
+        this.mode = 'play';
+        this.help.open();
+      },
       onResume: () => {
         this.mode = 'play';
+        this.power.setMenu('none');
         this.root.focus();
       },
       onRestart: () => this.rematch(),
@@ -206,6 +248,14 @@ export class StoneballGame {
   _keyDown(e) {
     e.stopPropagation();
     const code = e.code;
+    if (this.help?.isOpen) {
+      if (code === 'Escape' || HELP_CODES.includes(code)) this.help.close();
+      return;
+    }
+    if (HELP_CODES.includes(code) && !e.repeat && this.mode !== 'loading') {
+      this.help.open();
+      return;
+    }
     if (this.mode === 'menu' || this.mode === 'end') {
       if (code === 'Escape' && this.mode === 'menu') this.close();
       return;

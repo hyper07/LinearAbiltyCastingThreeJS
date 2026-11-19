@@ -25,7 +25,14 @@ import { shared } from '../gloamreach/materials.js';
 import { buildWorld } from './world.js';
 import { Post } from './post.js';
 import { SETTINGS, chooseTier, Governor } from './quality.js';
-import { START, FALLS, CAMP, PATH, DEN, MONSTER_AREAS, AREAS, NODES, areaAt, nearestOnLine, pointAt } from './map.js';
+import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
+import { PowerKit } from '../shared/powerKit.js';
+import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
+import { WaypointBeam } from '../shared/waypointBeam.js';
+import { HelpPanel, helpButton, codesFor } from '../shared/helpPanel.js';
+import { CONTROLS } from './controls.js';
+import { powerSettings } from '../shared/power.js';
+import { START, FALLS, CAMP, PATH, DEN, MONSTER_AREAS, AREAS, NODES, EXTENT, areaAt, nearestOnLine, pointAt } from './map.js';
 import { poolLevel, canyonAt, slopeAt, groundAt, waterAt, riverDistance, surfaceAt } from './heights.js';
 import { Waters } from './water.js';
 import { buildFlora } from './flora.js';
@@ -51,7 +58,9 @@ import './wyldhunt.css';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const PREFS = 'wyldhunt.prefs';
 const KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
-const ITEM_KEYS = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 };
+/** The bar's items on 5–8 (controls.js): numbers for items, never Q or E. */
+const ITEM_KEYS = Object.fromEntries(codesFor(CONTROLS, 'items').map((c, i) => [c, i]));
+const HELP_CODES = codesFor(CONTROLS, 'help');
 const prefs = {
   load() {
     try {
@@ -68,6 +77,9 @@ const prefs = {
     }
   }
 };
+
+/** Quiet runs at 30 while you track and gather, and rises to 60 the moment the hunt is on. */
+const POWER_PROFILE = { quietFps: 30, urgentFps: 60 };
 
 export class WyldhuntGame {
   constructor(host, { onClose, account } = {}) {
@@ -93,7 +105,10 @@ export class WyldhuntGame {
     this.riding = false;
     this._onKey = (e) => this.keyDown(e);
     this._onKeyUp = (e) => this.keyUp(e);
-    this._onBlur = () => this.keys.clear();
+    this._onBlur = () => {
+      this.keys.clear();
+      this.follow?.assist.clear();
+    };
     this._onMouse = (e) => this.mouseMove(e);
     this._onLock = () => this.hud?.crosshair(Boolean(document.pointerLockElement));
     window.addEventListener('keydown', this._onKey);
@@ -122,10 +137,19 @@ export class WyldhuntGame {
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     const gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : '';
     const q = this.params.get('quality');
-    this.tier = SETTINGS[q] ? q : chooseTier({ gpu, memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, pixels: screen.width * screen.height * devicePixelRatio ** 2, mobile: /Mobi|Android/i.test(navigator.userAgent) });
+    const guess = SETTINGS[q] ? q : chooseTier({ gpu, memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, pixels: screen.width * screen.height * devicePixelRatio ** 2, mobile: /Mobi|Android/i.test(navigator.userAgent) });
     this.gpu = gpu;
-    this.governor = new Governor(this.tier, { max: q || 'ultra' });
-    this.settings = { ...SETTINGS[this.tier], msaa: this.tier === 'low' ? 0 : 4 };
+    // `resTier`: the resolution this machine always had (lowered only if frames really run slow);
+    // `tier`: the detail, kept by the power governor within the Graphics preset.
+    this.quality = SETTINGS[q] ? q : null;
+    this.resTier = guess;
+    this.governor = new Governor(guess, { max: q || 'ultra' });
+    this.power = new PowerKit('wyldhunt', { renderer, profile: POWER_PROFILE, detail: this.quality ? null : guess, onChange: () => this.applyPower() });
+    this.tier = this._detailTier();
+    this.settings = { ...powerSettings(SETTINGS, { state: this.power.state, detail: this.tier, res: this.resTier, profile: POWER_PROFILE }), msaa: guess === 'low' ? 0 : 4 };
+    // The sun's shadow is redrawn when due (every few frames on the lighter presets).
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2500);
     this.resize();
     this._resize = new ResizeObserver(() => this.resize());
@@ -193,10 +217,12 @@ export class WyldhuntGame {
     if (this.closed) return;
     this.bag = newKit().bag;
     this.follow = new FollowCamera(this.camera, world.colliders);
+    // , . turn the camera, [ ] tilt it, / puts it behind the hunter; it eases back by itself after a quiet spell.
+    this.follow.assist = new CameraAssist(loadAssist('wyldhunt'), { id: 'wyldhunt' });
     this.follow.fovBase = 52;
     this.post = new Post(renderer);
     this.post.mist = FALLS.map((f) => ({ x: f.pool.x, y: poolLevel(f), z: f.pool.z, r: f.pool.r * (f.id === 'grand' ? 2.0 : 1.6), density: f.id === 'grand' ? 0.011 : 0.01, height: 0.5 }));
-    this.applyTier(this.tier, true);
+    this.applyPower(true);
     this.minimapCanvas = paintMap(world.grid);
     this.setLook(this.picked);
     step('Lighting the mist', 0.94);
@@ -210,31 +236,18 @@ export class WyldhuntGame {
     this.loading.hide();
     this.loading = null;
     this.menu();
-    let last = performance.now();
-    let frames = 0;
-    let fpsT = 0;
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
-      const raw = now - last;
-      const dt = Math.min(0.05, raw / 1000);
-      last = now;
-      frames++;
-      fpsT += dt;
-      if (fpsT >= 0.5) {
-        this.fps = Math.round(frames / fpsT);
-        frames = 0;
-        fpsT = 0;
-      }
-      this.frame(dt, raw);
-    };
-    this._raf = requestAnimationFrame(loop);
+    // The loop: capped (60 by default), stopped in a hidden tab, on demand behind the pause menu.
+    this.power.start((raw) => {
+      this.fps = this.power.loop.fps;
+      this.frame(Math.min(0.05, raw / 1000), raw);
+    });
     this.ready = true;
   }
 
   close() {
     if (this.closed) return;
     this.closed = true;
-    cancelAnimationFrame(this._raf);
+    this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._onKey);
     window.removeEventListener('keyup', this._onKeyUp);
@@ -255,6 +268,10 @@ export class WyldhuntGame {
     this.world?.dispose();
     this.post?.dispose();
     this.hud?.dispose();
+    this.worldMap?.dispose();
+    this.help?.dispose();
+    this.cue?.dispose();
+    this.beam?.dispose();
     this.bank?.dispose();
     this.sound.dispose();
     this.renderer?.dispose();
@@ -272,17 +289,40 @@ export class WyldhuntGame {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.post?.resize();
+    this.power?.invalidate();
   }
 
-  applyTier(tier, first = false) {
-    this.tier = tier;
-    const s = { ...SETTINGS[tier], msaa: this.settings.msaa };
+  /** The detail level: fixed by ?quality=, the old rule on Ultra, else the power governor's. */
+  _detailTier() {
+    if (this.quality || this.power.preset === 'ultra') return this.resTier;
+    return this.power.detail(this.resTier);
+  }
+
+  /** Apply the Graphics choice now (no reload): shadows, effects, grass, rain, draw distances, mist. Resolution stays the machine's own. */
+  applyPower(first = false) {
+    const prev = this.settings;
+    this.tier = this._detailTier();
+    const s = { ...powerSettings(SETTINGS, { state: this.power.state, detail: this.tier, res: this.resTier, profile: POWER_PROFILE }), msaa: this.settings.msaa };
     this.settings = s;
     this.resize();
-    this.post.configure({ ao: s.ao, rays: s.rays, bloom: s.bloom, smaa: s.smaa || !s.msaa, msaa: s.msaa, refract: s.refract }, s.scale);
-    if (!first) this.world.lighting.setShadow(s.shadow, s.shadowBox);
-    this.world.cover?.setDensity(s.grass);
+    this.post.configure({ ao: s.ao, rays: s.rays, bloom: s.bloom, smaa: (s.smaa && (s.preset === 'ultra' || !s.msaa)) || !s.msaa, msaa: s.msaa, refract: s.refract, bloomHalf: s.bloomHalf }, s.scale);
+    const lighting = this.world.lighting;
+    if (!first && (prev.shadow !== s.shadow || prev.shadowBox !== s.shadowBox)) lighting.setShadow(s.shadow, s.shadowBox);
+    lighting.sun.castShadow = s.shadowOn;
+    this.renderer.shadowMap.needsUpdate = true;
+    this.world.cover?.setDensity(s.grass, s.grassReach);
+    this.world.limits.treeFar = s.treeFar;
+    this.world.limits.far = s.far;
+    if (this.wildlife) Object.assign(this.wildlife, { drawFar: s.far, animNear: s.animNear });
     if (this.rain) this.rain.mesh.geometry.instanceCount = Math.min(this.rain.count, s.rain);
+    this.power.invalidate();
+  }
+
+  /** Kept for tests and the console: force a detail level. */
+  applyTier(tier) {
+    this.quality = tier;
+    this.resTier = tier;
+    this.applyPower();
   }
 
   /* ================================================================ the hunter */
@@ -353,6 +393,7 @@ export class WyldhuntGame {
 
   menu() {
     this.mode = 'menu';
+    this.power.setMenu('live');
     this.hunter.place(CAMP.x + 1.5, CAMP.z - 1.5, CAMP.face + Math.PI - 0.3);
     if (this.mount) {
       const b = this.mount.brain;
@@ -406,11 +447,102 @@ export class WyldhuntGame {
     this.camera.updateProjectionMatrix();
     this.hud = new Hud(this.root, { name: LOOKS.find((l) => l.id === this.picked).name, party: COMPANIONS.map((c) => ({ id: c.id, name: c.name, color: c.color })), debug: this.debug });
     this.hud.minimap.map = this.minimapCanvas;
+    // The full map (O, the pause menu's Map, or the minimap's button) and its waypoint.
+    this.waypoint ??= new Waypoint();
+    this.worldMap = new WorldMap({
+      host: this.root,
+      title: 'Mistfall Gorge',
+      base: this.minimapCanvas,
+      extent: EXTENT,
+      areas: AREAS,
+      legend: [
+        { shape: 'tent', color: '#ffb35a', label: 'Camp' },
+        { shape: 'dot', color: '#9ae04a', label: 'Herbs' },
+        { shape: 'dot', color: '#9ad0ff', label: 'Ore' },
+        { shape: 'dot', color: '#ffe070', label: 'Bugs' },
+        { shape: 'dot', color: '#f0e8d8', label: 'Bones' },
+        { shape: 'heart', color: '#7ad0ff', label: 'Companions' },
+        { shape: 'diamond', color: '#d8b07a', label: 'Your mount' },
+        { shape: 'skull', color: '#ff6a4a', label: 'The Gnarlhorn (tracked or near)' },
+        { shape: 'dot', color: '#7aff6a', label: 'Tracks to read' }
+      ],
+      markers: () => this.mapMarkers(),
+      player: () => {
+        const b = this.riding ? this.mount.brain : null;
+        return { x: b ? b.x : this.hunter.pos.x, z: b ? b.z : this.hunter.pos.z, yaw: b ? b.yaw : this.hunter.yaw };
+      },
+      waypoint: this.waypoint,
+      onOpen: () => this._mapOpened(),
+      onClose: () => this._mapClosed()
+    });
+    mapButton(this.hud.minimap.el, () => this.openMap());
+    // How to play (H, the ? by the minimap, the pause menu): opens by itself the first time.
+    this.help = new HelpPanel({ host: this.root, id: 'wyldhunt', table: CONTROLS, onOpen: () => this._holdOpened('help'), onClose: () => this._mapClosed() });
+    helpButton(this.hud.minimap.el, () => this.openHelp(), { style: 'left:-4px;top:-4px;width:30px;height:30px;font-size:15px' });
+    this.cue = new WaypointCue(this.hud.el ?? this.root);
+    this.beam ??= new WaypointBeam(this.scene);
     this.companions.place(START.x, START.z + 3, START.yaw);
     this.mode = 'play';
+    this.power.setMenu('none');
     this.area = null;
     this.root.focus();
     setTimeout(() => this.bark('start', true), 2500);
+    this.help.openFirstTime();
+  }
+
+  /** What the full map shows besides you: the camp, gather nodes, your companions and mount, tracks, and the beast when tracked or near. */
+  mapMarkers() {
+    const out = [{ x: CAMP.x, z: CAMP.z, shape: 'tent', color: '#ffb35a', r: 1.3, label: 'Lantern Camp' }];
+    const NODE = { herb: '#9ae04a', ore: '#9ad0ff', bug: '#ffe070', bone: '#f0e8d8' };
+    for (const n of this.nodes.list) if ((n.left ?? 1) > 0) out.push({ x: n.x, z: n.z, color: NODE[n.kind] ?? '#fff', r: 0.75 });
+    for (const mk of this.tracker.marks) if (!mk.found) out.push({ x: mk.x, z: mk.z, color: '#7aff6a', r: 0.6 });
+    for (const c of this.companions.list) out.push({ x: c.x, z: c.z, shape: 'heart', color: c.c.color, label: c.c.name });
+    if (this.mount && !this.riding && this.mount.brain.state !== 'away') out.push({ x: this.mount.brain.x, z: this.mount.brain.z, shape: 'diamond', color: '#d8b07a', label: 'Mount' });
+    const m = this.monster;
+    const p = this.hunter.pos;
+    if (m && m.brain.alive !== false && (this.tracker.tracked || Math.hypot(m.brain.x - p.x, m.brain.z - p.z) < 50)) out.push({ x: m.brain.x, z: m.brain.z, shape: 'skull', color: '#ff6a4a', r: 1.4, label: 'Gnarlhorn' });
+    return out;
+  }
+
+  /** Open the full map: the hunt waits (and the 3D stops drawing) while it's up. */
+  openMap() {
+    if (!this.worldMap || (this.mode !== 'play' && this.mode !== 'paused')) return;
+    if (this.mode === 'paused') {
+      this.pauseEl?.remove();
+      this.pauseEl = null;
+    }
+    this.panel?.close();
+    this.worldMap.open();
+  }
+
+  /** How to play: the hunt waits while it's up. */
+  openHelp() {
+    if (!this.help || (this.mode !== 'play' && this.mode !== 'paused')) return;
+    if (this.mode === 'paused') {
+      this.pauseEl?.remove();
+      this.pauseEl = null;
+    }
+    this.panel?.close();
+    this.help.open();
+  }
+
+  _holdOpened(mode) {
+    this._mapOpened();
+    this.mode = mode;
+  }
+
+  _mapOpened() {
+    this.mode = 'map';
+    this.keys.clear();
+    this.follow.assist.clear();
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.power.setMenu('still');
+  }
+
+  _mapClosed() {
+    this.mode = 'play';
+    this.power.setMenu('none');
+    this.root.focus();
   }
 
   credits() {
@@ -418,8 +550,10 @@ export class WyldhuntGame {
     this.panel?.close();
     this.panel = creditsPanel(this.root, () => {
       this.panel = null;
+      this.power.invalidate();
       this.root.focus();
     });
+    this.power.invalidate();
   }
 
   toggleBag() {
@@ -439,8 +573,12 @@ export class WyldhuntGame {
     this.mode = 'paused';
     this.keys.clear();
     if (document.pointerLockElement) document.exitPointerLock();
+    // Nothing moves behind the pause menu: draw only when something changes.
+    this.power.setMenu('still');
     this.pauseEl = pauseMenu(this.root, {
-      tier: this.tier,
+      graphics: menuSections(this.power.menu(), cameraMenu(this.follow.assist)),
+      onMap: () => this.openMap(),
+      onHelp: () => this.openHelp(),
       soundOn: this.sound.enabled,
       onResume: () => this.resume(),
       onCredits: () => this.credits(),
@@ -456,6 +594,7 @@ export class WyldhuntGame {
     this.pauseEl?.remove();
     this.pauseEl = null;
     this.mode = 'play';
+    this.power.setMenu('none');
     this.root.focus();
   }
 
@@ -463,6 +602,14 @@ export class WyldhuntGame {
 
   keyDown(e) {
     if (this.closed) return;
+    if (this.mode === 'map') {
+      if (e.code === 'Escape' || e.code === MAP_KEY) this.worldMap.close();
+      return;
+    }
+    if (this.mode === 'help') {
+      if (e.code === 'Escape' || HELP_CODES.includes(e.code)) this.help.close();
+      return;
+    }
     if (e.code === 'Escape') {
       if (this.panel) this.panel.close();
       else if (this.mode === 'play') this.pause();
@@ -470,9 +617,20 @@ export class WyldhuntGame {
       return;
     }
     if (this.mode !== 'play') return;
+    if (this.follow.assist.key(e.code, true)) {
+      e.preventDefault();
+      return;
+    }
+    if (e.code === MAP_KEY && !e.repeat) {
+      this.openMap();
+      return;
+    }
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
     if (!e.repeat) {
-      if (e.code === 'KeyH') this.hud?.showHint();
+      if (HELP_CODES.includes(e.code)) {
+        this.openHelp();
+        return;
+      }
       if (e.code === 'Space') {
         if (this.riding) this.rideJump = true;
         else this.combat.press('Space');
@@ -499,6 +657,7 @@ export class WyldhuntGame {
 
   keyUp(e) {
     this.keys.delete(e.code);
+    this.follow?.assist.key(e.code, false);
   }
 
   toggleMouseLook() {
@@ -813,7 +972,8 @@ export class WyldhuntGame {
         this.follow.wantDist += (2.6 - this.follow.wantDist) * Math.min(1, dt * 6);
         this.follow.shoulder = 0.85;
       } else this.follow.shoulder = 0.55;
-      if (this.combat.busy || this.monster?.brain.state === 'engage') this.follow.idle = 0.5;
+      // No swinging round on its own mid-fight, while the bow is drawn, or in mouse-look.
+      this.follow.pause = Boolean(this.combat.busy) || this.monster?.brain.state === 'engage' || Boolean(this.combat.aiming) || Boolean(document.pointerLockElement);
       const proxy = this.riding ? this._rideProxy() : this.hunter;
       this.follow.update(dt, proxy, { sprinting: (inp.sprint && this.hunter.speed > 5) || (this.riding && this.mount.brain.gait === 3), moving: proxy.speed > 0.5 });
       this.shakeCamera();
@@ -854,11 +1014,31 @@ export class WyldhuntGame {
     let falls = Infinity;
     for (const f of FALLS) falls = Math.min(falls, Math.hypot(f.pool.x - focus.x, f.pool.z - focus.z) - f.pool.r);
     this.sound.update(dt, { falls, river: riverDistance(focus.x, focus.z).d, rain: world.rain, fight: this.monster?.brain.state === 'engage' ? 1 : 0 });
-    this.post.render(this.scene, this.camera, { ...look, lightColor: world.lighting.sun.color, gloam: world.rain, fade: 0, ground: focus.y - 3, bloom: 0.36, mist: 1 + world.rain * 0.4 });
+    // The sun's shadow: redrawn when due (every frame on High and Ultra; every few, or when the view moves, below).
+    const s = this.settings;
+    const cp = this.camera.position;
+    this.renderer.shadowMap.needsUpdate = s.shadowOn && (this.renderer.shadowMap.needsUpdate || this.power.shadowDue(s.shadowEvery, cp.x, cp.z, this.follow.yaw ?? 0));
+    // A little more mist on the nearer draw distances, so where detail stops reads as distance.
+    this.power.gpuBegin();
+    this.post.render(this.scene, this.camera, { ...look, fogDensity: look.fogDensity * s.fog, lightColor: world.lighting.sun.color, gloam: world.rain, fade: 0, ground: focus.y - 3, bloom: 0.36, mist: (1 + world.rain * 0.4) * s.fog });
+    this.power.gpuEnd();
+    // The waypoint: its beam in the world, the cue toward it.
+    const wp = this.waypoint?.point;
+    this.beam?.update(wp, wp ? groundAt(wp.x, wp.z) : 0, t);
+    if (playing) this.cue?.update(this.waypoint, focus.x, focus.z, this.follow.heading());
+    if (playing) this.power.setUrgent(Boolean(this.combat.busy) || ['engage', 'attack', 'alert', 'stagger'].includes(this.monster?.brain.state));
     if (playing && this.hud) this.hudFrame(dt);
+    this.power.showFps(this.root);
+    // Quality: the power governor keeps detail within the preset's GPU budget;
+    // the old one still lowers the resolution if frames really run slow.
     if (playing && rawMs > 0 && rawMs < 500) {
-      const next = this.governor.frame(rawMs);
-      if (next && next !== this.tier) this.applyTier(next);
+      const cap = this.power.cap;
+      const res = this.governor.frame(cap && cap < 60 ? rawMs * (cap / 60) : rawMs);
+      const lvl = this.power.sample(rawMs);
+      if (res && res !== this.resTier) {
+        this.resTier = res;
+        this.applyPower();
+      } else if (lvl && lvl !== this.tier && !this.quality) this.applyPower();
     }
   }
 
@@ -1168,7 +1348,7 @@ export class WyldhuntGame {
       if (what) prompt = `<kbd>E</kbd> ${what.label}`;
     }
     const party = this.companions.list.map((c) => ({ id: c.c.id, frac: c.hp }));
-    const bar = newKit().bar.map((id, i) => ({ id, n: count(this.bag, id), key: String(i + 1) }));
+    const bar = newKit().bar.map((id, i) => ({ id, n: count(this.bag, id), key: String(i + 5) }));
     this.hud.update(dt, {
       ...this.combat.vitals(),
       party,
@@ -1185,13 +1365,14 @@ export class WyldhuntGame {
       if (this.mount && !this.riding && this.mount.brain.state !== 'away') dots.push({ x: this.mount.brain.x, z: this.mount.brain.z, kind: 'mount' });
       if (m && (this.tracker.tracked || Math.hypot(m.brain.x - p.x, m.brain.z - p.z) < 50)) dots.push({ x: m.brain.x, z: m.brain.z, kind: 'monster' });
       for (const mk of this.tracker.marks) if (!mk.found) dots.push({ x: mk.x, z: mk.z, kind: 'track' });
+      if (this.waypoint?.point) dots.push({ x: this.waypoint.point.x, z: this.waypoint.point.z, kind: 'pin', color: '#ff5ad9' });
       const yaw = this.riding ? this.mount.brain.yaw : h.yaw;
       this.hud.minimap.draw({ x: p.x, z: p.z, yawMap: Math.atan2(Math.cos(yaw), Math.sin(yaw)) + Math.PI / 2 }, this.follow.heading(), dots);
     }
     if (this.debug && (this._st = (this._st ?? 0) + dt) > 0.5) {
       this._st = 0;
       const s = this.post.stats ?? {};
-      this.hud.setStats(`${this.fps} fps  ${(1000 / Math.max(1, this.fps)).toFixed(1)} ms  draws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M  tier ${this.tier}\npos ${p.x.toFixed(1)}, ${p.z.toFixed(1)}  monster ${m?.brain.state} ${Math.round((m?.brain.frac ?? 0) * 100)}%`);
+      this.hud.setStats(`${this.fps} fps  ${(1000 / Math.max(1, this.fps)).toFixed(1)} ms  draws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M  tier ${this.tier}  res ${this.resTier}\n${this.power.debugLine()}\npos ${p.x.toFixed(1)}, ${p.z.toFixed(1)}  monster ${m?.brain.state} ${Math.round((m?.brain.frac ?? 0) * 100)}%`);
     }
   }
 

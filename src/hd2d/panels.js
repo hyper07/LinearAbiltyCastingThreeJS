@@ -4,6 +4,7 @@
  * (buy and sell) and the party. Plain DOM over the game; each window opens
  * with panel() from ui.js and closes with the game's closeOverlay().
  */
+import { cameraMenu, menuSections } from '../shared/cameraAssist.js';
 import * as THREE from 'three';
 import * as R from './rules.js';
 import { el, esc, panel, ICON, fmtTime, drawMap, KEY_HINTS } from './ui.js';
@@ -479,11 +480,18 @@ export function openPause(game) {
   game.overlay = 'pause';
   p.body.innerHTML = `<div class="ld-pause">
     <button type="button" class="ld-btn ld-btn--big ld-btn--go" data-resume>Resume</button>
+    <button type="button" class="ld-btn ld-btn--big" data-open-help>How to play (H)</button>
+    <button type="button" class="ld-btn ld-btn--big" data-open-map>Map (O)</button>
     <button type="button" class="ld-btn ld-btn--big" data-title>Save and return to title</button>
     <button type="button" class="ld-btn ld-btn--big" data-leave>Save and leave Lanternwood</button>
     <ul class="ld-controls ld-controls--keys">${KEY_HINTS.replace(/<span>/g, '<li>').replace(/<\/span>/g, '</li>')}</ul></div>`;
   p.x.addEventListener('click', () => game.closeOverlay());
   p.body.querySelector('[data-resume]').addEventListener('click', () => game.closeOverlay());
+  p.body.querySelector('[data-open-help]').addEventListener('click', () => game.openHelp());
+  p.body.querySelector('[data-open-map]').addEventListener('click', () => {
+    game.closeOverlay();
+    openRealms(game);
+  });
   p.body.querySelector('[data-title]').addEventListener('click', () => {
     game.save();
     game.closeOverlay();
@@ -492,5 +500,7 @@ export function openPause(game) {
     game.title();
   });
   p.body.querySelector('[data-leave]').addEventListener('click', () => game.close());
+  // Graphics: presets, and the Advanced fold (frame cap, shadows, bloom, FPS).
+  if (game.power) p.body.querySelector('.ld-controls').before(menuSections(game.power.menu(), cameraMenu(game.camAssist, { text: { keys: 'Q E or , . turn the camera · / behind you now' } })));
   void el;
 }

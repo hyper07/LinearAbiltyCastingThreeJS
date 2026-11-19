@@ -8,6 +8,8 @@
  * calls in. The bigger windows (bag, character, journal, shops, party) are
  * in panels.js.
  */
+import { CONTROLS } from './controls.js';
+import { hintItems } from '../shared/helpPanel.js';
 import { NPCS, QUESTS, REALMS, CLASSES, CLASS_ORDER, SKILLS, LOOKS, statsOf, xpToNext, currentQuest, countOf, lookById, ENEMIES, npcsIn } from './rules.js';
 import { portrait, skillIcon, heroSpriteFor } from './sprites.js';
 
@@ -34,8 +36,10 @@ export { ICON };
 const kbd = (k) => `<kbd>${k}</kbd>`;
 export const fmtTime = (s) => `${Math.floor(s / 3600) ? `${Math.floor(s / 3600)}h ` : ''}${Math.floor((s % 3600) / 60)}m ${Math.floor(s % 60)}s`;
 
-/** The key hints along the bottom (kept in one place, so the HUD and the pause screen agree). */
-export const KEY_HINTS = `<span>${kbd('Esc')} Pause</span><span>${kbd('M')} Realms</span><span>${kbd('I')}/${kbd('B')} Bag</span><span>${kbd('C')} Hero</span><span>${kbd('J')} Journal</span><span>${kbd('P')} Party</span><span>${kbd('F')} Talk</span><span>${kbd('Space')} Attack</span><span>${kbd('Shift')} Roll</span><span>${kbd('Q')}${kbd('E')} Turn</span>`;
+/** The key hints along the bottom: the rows of controls.js marked `hint` (so the HUD, the pause screen and How to play agree). */
+export const KEY_HINTS = hintItems(CONTROLS)
+  .map((h) => `<span>${h.keys.map((k) => kbd(k)).join('')} ${h.does}</span>`)
+  .join('');
 
 export class Hud {
   constructor(root, sprites) {

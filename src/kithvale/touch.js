@@ -18,7 +18,7 @@ export class TouchControls {
         <button class="kv-tb kv-tb--toss" data-b="toss" aria-label="Toss a treat">➶</button>
         <button class="kv-tb kv-tb--sneak" data-b="sneak" aria-label="Creep quietly" aria-pressed="false">🐾</button>
       </div>
-      <div class="kv-ttop"><button class="kv-tb kv-tb--small" data-b="menu" aria-label="Menu">☰</button><button class="kv-tb kv-tb--small" data-b="journal" aria-label="Journal">📖</button></div>`;
+      <div class="kv-ttop"><button class="kv-tb kv-tb--small" data-b="menu" aria-label="Menu">☰</button><button class="kv-tb kv-tb--small" data-b="journal" aria-label="Journal">📖</button><button class="kv-tb kv-tb--small" data-b="recenter" aria-label="Camera behind you">⟲</button><button class="kv-tb kv-tb--small" data-b="map" aria-label="Full map">🗺</button></div>`;
     host.append(this.el);
     this.move = { x: 0, z: 0 };
     this.held = new Set();

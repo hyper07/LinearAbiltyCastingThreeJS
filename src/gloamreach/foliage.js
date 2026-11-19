@@ -12,6 +12,7 @@ import { EXTENT, FLOWER_BEDS, FENCES, PONDS, gloamAt } from './map.js';
 import { shared, addTranslucency, addWind } from './materials.js';
 import { rng } from './noise.js';
 import { tf } from './kit.js';
+import { splitGrid, ChunkCull, CHUNK_PARS, CHUNK_CELL } from '../shared/chunks.js';
 
 /** A clump of `blades` curved blades, `segs` segments each (local, base at the origin). */
 function clumpGeometry(blades, segs, { width = 0.06, height = 0.7, spread = 0.22, seed = 1 } = {}) {
@@ -176,7 +177,7 @@ export function flowerMap() {
 }
 
 const PLACE_PARS = /* glsl */ `
-uniform vec3 uOrigin;
+${CHUNK_PARS}uniform vec3 uOrigin;
 uniform float uSpacing;
 uniform float uN;
 uniform float uRadius;
@@ -205,8 +206,7 @@ float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.y
 
 const PLACE_MAIN = /* glsl */ `
 float id = float(gl_InstanceID);
-float ix = mod(id, uN);
-float iz = floor(id / uN);
+${CHUNK_CELL}
 vec2 cell = floor(uOrigin.xz / uSpacing) + vec2(ix, iz) - uN * 0.5;
 float h1 = hash12(cell);
 float h2 = hash12(cell + 17.3);
@@ -301,7 +301,7 @@ function placementMaterial(kind, uniforms, { gloamGlow = false } = {}) {
 }
 
 export class Foliage {
-  constructor({ heightTex, splat, noise, settings }) {
+  constructor({ heightTex, splat, noise, settings, heightAt = null }) {
     this.group = new THREE.Group();
     this.flowers = flowerMap();
     this.petal = petalTexture();
@@ -324,38 +324,62 @@ export class Foliage {
     });
     const g = settings.grass;
     this.layers = [];
-    const add = (geo, n, uniforms, kind, opts) => {
-      geo.instanceCount = n * n;
-      const mesh = new THREE.Mesh(geo, placementMaterial(kind, uniforms, opts));
-      mesh.frustumCulled = false;
-      mesh.receiveShadow = true;
-      mesh.castShadow = false;
-      this.group.add(mesh);
-      this.layers.push({ mesh, uniforms, n });
+    this.cull = new ChunkCull();
+    this.heightAt = heightAt;
+    this.reach = 1;
+    // Each ring is cut into chunks (their own draws), so what's behind the camera or past the reach isn't drawn at all.
+    const add = (geo, n0, spacing, inner, scale, kind, opts) => {
+      const parts = n0 > 140 ? 6 : 4;
+      const { cw, n, cells } = splitGrid(n0, parts);
+      const uniforms = common(spacing, n, (n * spacing) / 2, inner, 1, scale, kind);
+      geo.instanceCount = cw * cw;
+      const chunks = cells.map(([cx, cz]) => {
+        const mesh = new THREE.Mesh(geo, placementMaterial(kind, { ...uniforms, uChunk: { value: new THREE.Vector3(cx, cz, cw) } }, opts));
+        mesh.frustumCulled = false;
+        mesh.receiveShadow = true;
+        mesh.castShadow = false;
+        this.group.add(mesh);
+        return { mesh, cx, cz };
+      });
+      this.layers.push({ uniforms, n, cw, chunks, spacing, radius: (n * spacing) / 2, inner, geo, mats: chunks.map((c) => c.mesh.material) });
     };
     // Near ring: fine blades.
     const nNear = Math.round(170 * Math.sqrt(g));
     const spNear = 0.2;
-    add(clumpGeometry(7, 3, { width: 0.05, height: 0.3, seed: 3 }), nNear, common(spNear, nNear, (nNear * spNear) / 2, 0, 1, 1, 'grass'), 'grass');
+    add(clumpGeometry(7, 3, { width: 0.05, height: 0.3, seed: 3 }), nNear, spNear, 0, 1, 'grass');
     // Far ring: coarser clumps.
     if (settings.grassFar) {
       const nFar = 120;
       const spFar = 0.55;
-      add(clumpGeometry(5, 2, { width: 0.1, height: 0.36, spread: 0.45, seed: 4 }), nFar, common(spFar, nFar, (nFar * spFar) / 2, (nNear * spNear) / 2 - 3, 1, 1.1, 'grass'), 'grass');
+      add(clumpGeometry(5, 2, { width: 0.1, height: 0.36, spread: 0.45, seed: 4 }), nFar, spFar, (this.layers[0].n * spNear) / 2 - 3, 1.1, 'grass');
     }
     // Flowers.
     const nF = Math.round(90 * Math.sqrt(g));
-    add(flowerGeometry(5), nF, common(0.5, nF, (nF * 0.5) / 2, 0, 1, 1, 'flowers'), 'flowers', { gloamGlow: true });
+    add(flowerGeometry(5), nF, 0.5, 0, 1, 'flowers', { gloamGlow: true });
+  }
+
+  /** Density (0…1) and reach (× each ring's radius) of the grass and flowers. */
+  setDensity(density, reach = this.reach) {
+    this.reach = reach;
+    for (const l of this.layers) {
+      l.uniforms.uDensity.value = Math.min(1, density);
+      l.uniforms.uRadius.value = l.radius * reach;
+    }
   }
 
   update(camera) {
-    for (const l of this.layers) l.uniforms.uOrigin.value.copy(camera.position);
+    this.cull.setCamera(camera);
+    for (const l of this.layers) {
+      l.uniforms.uOrigin.value.copy(camera.position);
+      const radius = l.uniforms.uRadius.value;
+      for (const c of l.chunks) c.mesh.visible = l.uniforms.uDensity.value > 0 && this.cull.visible(camera.position, l.spacing, l.n, c.cx, c.cz, l.cw, { radius, inner: l.inner, heightAt: this.heightAt, pad: 1.2 });
+    }
   }
 
   dispose() {
     for (const l of this.layers) {
-      l.mesh.geometry.dispose();
-      l.mesh.material.dispose();
+      l.geo.dispose();
+      for (const m of l.mats) m.dispose();
     }
     this.flowers.dispose();
   }

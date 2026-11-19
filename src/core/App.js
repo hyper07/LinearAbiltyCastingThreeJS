@@ -2,6 +2,7 @@ import { Vector3, MathUtils } from 'three';
 
 import { Renderer } from './Renderer.js';
 import { Time } from './Time.js';
+import { PowerLoop } from '../shared/power.js';
 import { CameraRig } from './CameraRig.js';
 import { frame } from './FrameUniforms.js';
 
@@ -3173,17 +3174,23 @@ export class App {
     for (const node of culled) node.frustumCulled = true;
   }
 
+  /**
+   * The loop, light on the GPU: at most 60 frames a second in play, 30 behind
+   * the home page and menus (the scene there barely moves), and none in a
+   * hidden tab (shared/power.js).
+   */
   start() {
     this.time.reset();
-    const loop = () => {
-      this._raf = requestAnimationFrame(loop);
+    this._loop?.stop();
+    this._loop = new PowerLoop(() => {
+      this._loop.setFps(this.phase === 'playing' || this.phase === 'editor' ? 60 : 30);
       this.frame();
-    };
-    this._raf = requestAnimationFrame(loop);
+    }, { fps: 60 }).start();
   }
 
   stop() {
-    cancelAnimationFrame(this._raf);
+    this._loop?.stop();
+    this._loop = null;
   }
 
   /* ------------------------------------------------------------------ */

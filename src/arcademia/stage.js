@@ -16,6 +16,11 @@ export class Stage {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Shadows are redrawn when due (ArcademiaGame: every frame, or every other on the lighter presets).
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
+    this.bloomAllowed = true;
+    this.glow = 0;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -38,8 +43,9 @@ export class Stage {
 
   /** 0 = day (a whisper of bloom), 1 = night (windows and lanterns glow). */
   setGlow(k) {
-    // Day: no bloom (the cartoon whites would glow). Night: windows, lanterns and fireflies do.
-    this.bloom.enabled = k > 0.02;
+    this.glow = k;
+    // Day: no bloom (the cartoon whites would glow). Night: windows, lanterns and fireflies do (unless Graphics turned it off).
+    this.bloom.enabled = k > 0.02 && this.bloomAllowed;
     this.bloom.strength = k * 0.8;
     this.bloom.threshold = 0.82;
     this.bloom.radius = 0.55;

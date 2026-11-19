@@ -17,6 +17,7 @@ import { EXTENT } from './map.js';
 import { shared } from '../gloamreach/materials.js';
 import { rng } from '../gloamreach/noise.js';
 import { painterly } from './paint.js';
+import { splitGrid, ChunkCull, CHUNK_PARS, CHUNK_CELL } from '../shared/chunks.js';
 
 /** Up to four creatures that also push the grass aside. */
 export const grassPushers = { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, -100, 0, 0)) };
@@ -107,7 +108,7 @@ function flowerGeometry(n = 3, seed = 2) {
 }
 
 const PLACE_PARS = /* glsl */ `
-uniform vec3 uOrigin;
+${CHUNK_PARS}uniform vec3 uOrigin;
 uniform float uSpacing;
 uniform float uN;
 uniform float uRadius;
@@ -135,8 +136,7 @@ float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.y
 
 const PLACE_MAIN = /* glsl */ `
 float id = float(gl_InstanceID);
-float ix = mod(id, uN);
-float iz = floor(id / uN);
+${CHUNK_CELL}
 vec2 cell = floor(uOrigin.xz / uSpacing) + vec2(ix, iz) - uN * 0.5;
 float h1 = hash12(cell + uKind * 7.1);
 float h2 = hash12(cell + 17.3);
@@ -227,9 +227,12 @@ function material(uniforms, kind) {
 }
 
 export class Grass {
-  constructor({ heightTex, splat, noise, settings }) {
+  constructor({ heightTex, splat, noise, settings, heightAt = null }) {
     this.group = new THREE.Group();
     this.layers = [];
+    this.cull = new ChunkCull();
+    this.heightAt = heightAt;
+    this.reach = 1;
     const common = (spacing, n, radius, inner, scale, kind) => ({
       uOrigin: { value: new THREE.Vector3() },
       uSpacing: { value: spacing },
@@ -245,14 +248,22 @@ export class Grass {
       tNoise: { value: noise },
       uExtent: { value: new THREE.Vector4(EXTENT.x0, EXTENT.z0, EXTENT.x1 - EXTENT.x0, EXTENT.z1 - EXTENT.z0) }
     });
-    const add = (geo, n, uniforms, kind, density) => {
-      geo.instanceCount = n * n;
-      const mesh = new THREE.Mesh(geo, material(uniforms, kind));
-      mesh.frustumCulled = false;
-      mesh.receiveShadow = true;
-      mesh.castShadow = false;
-      this.group.add(mesh);
-      this.layers.push({ mesh, uniforms, n, kind, density });
+    // Each ring cut into chunks (their own draws): what's behind the camera or past the reach isn't drawn.
+    const PARTS = 6;
+    const add = (geo, n0, uniforms, kind, density) => {
+      const { cw, n, cells } = splitGrid(n0, PARTS);
+      uniforms.uN.value = n;
+      geo.instanceCount = cw * cw;
+      const chunks = cells.map(([cx, cz]) => {
+        const uChunk = { value: new THREE.Vector3(cx, cz, cw) };
+        const mesh = new THREE.Mesh(geo, material({ ...uniforms, uChunk }, kind));
+        mesh.frustumCulled = false;
+        mesh.receiveShadow = true;
+        mesh.castShadow = false;
+        this.group.add(mesh);
+        return { mesh, uChunk, i: cx / cw, j: cz / cw };
+      });
+      this.layers.push({ uniforms, n, cw, parts: PARTS, chunks, geo, kind, density, inner: uniforms.uInner.value, radius: uniforms.uRadius.value });
     };
     const g = settings.grass;
     // Built for the fullest tier; setDensity() thins the grid for lighter ones.
@@ -274,29 +285,40 @@ export class Grass {
    * clumps drawn, each a little bigger, over the same reach), above 1 the
    * clumps get fuller.
    */
-  setDensity(k, flowers = k) {
+  setDensity(k, flowers = k, reach = this.reach) {
+    this.reach = reach;
     for (const l of this.layers) {
       const d = l.kind ? flowers : k;
       l.n0 ??= l.n;
       l.sp0 ??= l.uniforms.uSpacing.value;
       l.sc0 ??= l.uniforms.uScale.value;
-      const n = Math.max(24, Math.round(l.n0 * Math.sqrt(Math.min(1, d))));
+      const cw = Math.max(4, Math.round((l.n0 * Math.sqrt(Math.min(1, d))) / l.parts));
+      const n = cw * l.parts;
+      l.n = n;
+      l.cw = cw;
       l.uniforms.uN.value = n;
       l.uniforms.uSpacing.value = (l.sp0 * l.n0) / n;
       l.uniforms.uScale.value = l.sc0 * Math.min(1.25, Math.sqrt(l.n0 / n));
       l.uniforms.uDensity.value = Math.min(1.25, Math.max(1, d));
-      l.mesh.geometry.instanceCount = n * n;
+      l.uniforms.uRadius.value = l.radius * reach;
+      for (const c of l.chunks) c.uChunk.value.set(c.i * cw, c.j * cw, cw);
+      l.geo.instanceCount = cw * cw;
     }
   }
 
   update(camera) {
-    for (const l of this.layers) l.uniforms.uOrigin.value.copy(camera.position);
+    this.cull.setCamera(camera);
+    for (const l of this.layers) {
+      l.uniforms.uOrigin.value.copy(camera.position);
+      const radius = l.uniforms.uRadius.value;
+      for (const c of l.chunks) c.mesh.visible = this.cull.visible(camera.position, l.uniforms.uSpacing.value, l.n, c.uChunk.value.x, c.uChunk.value.y, l.cw, { radius, inner: l.inner, heightAt: this.heightAt, pad: 1 });
+    }
   }
 
   dispose() {
     for (const l of this.layers) {
-      l.mesh.geometry.dispose();
-      l.mesh.material.dispose();
+      l.geo.dispose();
+      for (const c of l.chunks) c.mesh.material.dispose();
     }
   }
 }

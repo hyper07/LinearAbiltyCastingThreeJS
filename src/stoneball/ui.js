@@ -1,3 +1,5 @@
+import { CONTROLS } from './controls.js';
+import { hintItems } from '../shared/helpPanel.js';
 import { LEATHERS, LENGTHS } from './rules.js';
 
 /**
@@ -20,15 +22,10 @@ export const clockText = (s) => {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 };
 
-export const KEYS_HTML = `
-  <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> run</span>
-  <span><kbd>Shift</kbd> sprint</span>
-  <span><kbd>Space</kbd> hold &amp; release to shoot</span>
-  <span><kbd>E</kbd> pass</span>
-  <span><kbd>C</kbd> slide tackle</span>
-  <span><kbd>F</kbd> shove</span>
-  <span><kbd>Q</kbd> switch</span>
-  <span><kbd>Esc</kbd> pause</span>`;
+/** The key hints: the rows of controls.js marked `hint` (the same table the keys and How to play use). */
+export const KEYS_HTML = hintItems(CONTROLS)
+  .map((h) => `<span>${h.keys.map((k) => `<kbd>${esc(k)}</kbd>`).join('')} ${esc(h.does)}</span>`)
+  .join('');
 
 /** The start screen. `onPlay({ mine, rival, skill, length })`, `onClose()`. */
 export function startScreen(root, prefs, { onPlay, onClose }) {
@@ -203,16 +200,19 @@ export function endScreen(root, match, { onRematch, onMenu, onClose }) {
 }
 
 /** Esc: resume, restart, back to the menu, leave. */
-export function pauseScreen(root, { onResume, onRestart, onMenu, onClose }) {
+export function pauseScreen(root, { onResume, onRestart, onMenu, onClose, graphics, onHelp }) {
   const wrap = el('div', 'sb-overlay sb-pause');
   wrap.innerHTML = `
     <div class="sb-card sb-card--pause">
       <h2>Paused</h2>
       <button type="button" class="sb-play" data-resume>Resume</button>
+      <button type="button" class="sb-ghost" data-open-help>How to play (H)</button>
       <button type="button" class="sb-ghost" data-restart>Restart match</button>
       <button type="button" class="sb-ghost" data-menu>Change tribes</button>
       <button type="button" class="sb-ghost" data-close>Leave</button>
     </div>`;
+  // Graphics: presets and the Advanced fold (power.js).
+  if (graphics) wrap.querySelector('[data-close]').before(graphics);
   root.append(wrap);
   const on = (sel, fn) => wrap.querySelector(sel).addEventListener('click', () => {
     wrap.remove();
@@ -220,6 +220,7 @@ export function pauseScreen(root, { onResume, onRestart, onMenu, onClose }) {
   });
   on('[data-resume]', onResume);
   on('[data-restart]', onRestart);
+  on('[data-open-help]', () => onHelp?.());
   on('[data-menu]', onMenu);
   wrap.querySelector('[data-close]').addEventListener('click', () => onClose());
   setTimeout(() => wrap.querySelector('[data-resume]')?.focus(), 0);

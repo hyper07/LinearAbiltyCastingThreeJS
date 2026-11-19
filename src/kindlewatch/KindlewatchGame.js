@@ -11,6 +11,9 @@
  * touch. URL options: ?debug shows frame time and draw calls, ?touch forces
  * touch controls, ?fresh ignores the save, ?scale=0.75 renders smaller.
  */
+import { PowerLoop } from '../shared/power.js';
+import { HelpPanel, helpButton } from '../shared/helpPanel.js';
+import { CONTROLS } from './controls.js';
 import * as THREE from 'three';
 import '@fontsource-variable/nunito/wght.css';
 import './kindlewatch.css';
@@ -108,6 +111,22 @@ export class KindlewatchGame {
     this.fx = new Effects();
     this.input = new Input(this.root, { touch: this.touch });
     this.hud = new Hud(this.root, { touch: this.touch });
+    // How to play (H or I, the ? in the corner, the pause menu): the keep waits while it's up.
+    this.help = new HelpPanel({
+      host: this.root,
+      id: 'kindlewatch',
+      table: CONTROLS,
+      onOpen: () => {
+        this.panels.close();
+        this._helpFrom = this.mode;
+        this.mode = 'help';
+      },
+      onClose: () => {
+        this.mode = this._helpFrom === 'pause' ? 'play' : this._helpFrom ?? 'play';
+        this.root.focus();
+      }
+    });
+    helpButton(this.root, () => this.openHelp(), { style: 'top:auto;bottom:12px;left:12px' });
     this.panels = new Panels(this.root, this);
     if (this.touch) {
       this.touchUi = new TouchControls(this.root, this.input);
@@ -125,8 +144,8 @@ export class KindlewatchGame {
     let frames = 0;
     let acc = 0;
     let cpu = 0;
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
+    // Power: at most 60 frames a second (not the display's 120), and none at all in a hidden tab.
+    this.loop = new PowerLoop((ms, now) => {
       const raw = Math.max(0, Math.min(100, now - last));
       last = now;
       const c0 = performance.now();
@@ -142,15 +161,14 @@ export class KindlewatchGame {
         acc = 0;
         cpu = 0;
       }
-    };
-    this._raf = requestAnimationFrame(loop);
+    }, { fps: 60 }).start();
     this.ready = true;
   }
 
   close() {
     if (this.closed) return;
     this.closed = true;
-    cancelAnimationFrame(this._raf);
+    this.loop?.stop();
     this._resize?.disconnect();
     this.input?.dispose();
     this.touchUi?.dispose();
@@ -262,9 +280,16 @@ export class KindlewatchGame {
     this.hud.show(true);
     this.touchUi?.show(true);
     this.hud.toast('Gatehouse Yard', 'Kindlewatch Keep — light the three beacons to raise the Rime Gate', 4);
+    this.help.openFirstTime();
     this.save.runs++;
     store.save(this.save);
     this.root.focus();
+  }
+
+  /** How to play (from play or the pause menu). */
+  openHelp() {
+    if (this.mode !== 'play' && this.mode !== 'pause') return;
+    this.help.open();
   }
 
   pause() {
@@ -318,7 +343,10 @@ export class KindlewatchGame {
     r.info.reset();
     this.time += dt;
     const inp = this.input.read(this.stage.toScreen(this.hero.x, this.hero.y + 0.6));
-    if (this.mode === 'play' && inp.pause) {
+    if (this.mode === 'help') {
+      if (inp.pause || inp.help) this.help.close();
+    } else if (this.mode === 'play' && inp.help) this.openHelp();
+    else if (this.mode === 'play' && inp.pause) {
       this.pause();
     } else if (this.mode === 'pause' && inp.pause) this.resume();
     if (this.mode === 'play' && this.hero.dead && this.time - this.deadAt > 1.6 && !this.panels.open) {

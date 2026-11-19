@@ -20,6 +20,10 @@ import { run as hearthvale } from './hearthvale.mjs';
 import { run as breachline } from './breachline.mjs';
 import { run as bastion } from './bastion.mjs';
 import { run as channels } from './channels.mjs';
+import { run as graphics } from './graphics.mjs';
+import { run as camera } from './camera.mjs';
+import { run as map } from './map.mjs';
+import { run as help } from './help.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -56,7 +60,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts], ['lanebreak', lanebreak], ['hearthvale', hearthvale], ['breachline', breachline], ['bastion', bastion], ['channels', channels]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts], ['lanebreak', lanebreak], ['hearthvale', hearthvale], ['breachline', breachline], ['bastion', bastion], ['channels', channels], ['graphics', graphics], ['camera', camera], ['map', map], ['help', help]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);

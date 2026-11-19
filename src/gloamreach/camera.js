@@ -3,9 +3,12 @@
  * drag, zooms with the wheel, sits a little right of the hero's shoulder,
  * and never goes through a wall, a trunk, the gate's stone or the ground —
  * it pulls in at once when something comes between, and eases back out.
- * When the hero runs and the mouse is still, it swings gently in behind.
+ * Keys turn and tilt it, and after a quiet spell with no camera input it
+ * eases back behind a hero on the move (shared/cameraAssist.js); setting
+ * `pause` (aiming, a fight's lock, mouse-look) holds that off.
  */
 import * as THREE from 'three';
+import { CameraAssist } from '../shared/cameraAssist.js';
 
 export class FollowCamera {
   constructor(camera, colliders) {
@@ -21,6 +24,9 @@ export class FollowCamera {
     this.shoulder = 0.55;
     this.fovBase = 55;
     this.kick = 0;
+    this.assist = new CameraAssist();
+    /** Set each frame by the game: true while the camera must not swing on its own. */
+    this.pause = false;
   }
 
   /** Mouse movement (pixels). */
@@ -28,6 +34,7 @@ export class FollowCamera {
     this.yaw -= dx * 0.0032;
     this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.0026, -0.6, 1.2);
     this.idle = 0;
+    this.assist.input();
   }
 
   zoom(delta) {
@@ -39,16 +46,16 @@ export class FollowCamera {
     return this.yaw + Math.PI;
   }
 
-  update(dt, hero, { sprinting = false, moving = false } = {}) {
+  update(dt, hero, { sprinting = false, moving = false, paused = false } = {}) {
     this.idle += dt;
-    // Swing in behind a running hero when the mouse has been still.
-    if (moving && this.idle > 1.4) {
-      const behind = hero.yaw + Math.PI;
-      let d = behind - this.yaw;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
-      this.yaw += d * Math.min(1, dt * 0.9) * Math.min(1, hero.speed / 4);
+    // Keys and the right stick turn it; after the quiet spell it eases back behind a hero on the move.
+    const turn = this.assist.steer(dt);
+    if (turn.yaw || turn.pitch) {
+      this.yaw += turn.yaw;
+      this.pitch = THREE.MathUtils.clamp(this.pitch + turn.pitch, -0.6, 1.2);
+      this.idle = 0;
     }
+    this.yaw = this.assist.step(dt, this.yaw, hero.yaw + Math.PI, { moving, paused: paused || this.pause });
     this.dist += (this.wantDist - this.dist) * Math.min(1, dt * 8);
     // The pivot follows the hero with a little lag (weight), never sinking with a landing dip.
     const target = hero.object.position.clone();

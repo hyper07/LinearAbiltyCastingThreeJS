@@ -25,7 +25,8 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 export async function buildWorld({ renderer, bank, settings, onProgress = () => {} }) {
   const scene = new THREE.Scene();
-  const world = { scene, updaters: [], disposers: [], spots: {} };
+  // Draw distances from the power settings (GloamreachGame.applyPower): scattered trees, small things.
+  const world = { scene, updaters: [], disposers: [], spots: {}, limits: { treeFar: 420, far: Infinity } };
   const step = async (label, k) => {
     onProgress(label, k);
     await tick();
@@ -255,7 +256,7 @@ export async function buildWorld({ renderer, bank, settings, onProgress = () => 
 
   /* ---------------------------------------------------------- foliage */
   await step('Sowing grass and flowers', 0.78);
-  const foliage = new Foliage({ heightTex: world.heightTex, splat, noise, settings });
+  const foliage = new Foliage({ heightTex: world.heightTex, splat, noise, settings, heightAt: H });
   scene.add(foliage.group);
   world.foliage = foliage;
   world.disposers.push(() => foliage.dispose());
@@ -300,9 +301,9 @@ export async function buildWorld({ renderer, bank, settings, onProgress = () => 
     sky.update(t, camera, g);
     lighting.follow(focus, camera);
     terrain.update(camera);
-    field.update(camera, focus);
+    field.update(camera, focus, { farDist: Math.min(420, world.limits.treeFar) });
     foliage.update(camera);
-    props.update(camera, focus);
+    props.update(camera, focus, world.limits.far);
     pool.update(focus, t, dt);
     for (const u of world.updaters) u(dt, t, camera, focus);
     return look;

@@ -435,9 +435,12 @@ export class TreeField {
           return m;
         };
         const max = list.length;
+        // Only the near trees cast shadows: the shadow box reaches no farther than they do.
+        const farSet = [mk(far.wood, mats.wood, mats.woodDepth, max), mk(far.leaves, mats.leaves, mats.leafDepth, max)];
+        for (const m of farSet) m.castShadow = false;
         vars.push({
           near: [mk(near.wood, mats.wood, mats.woodDepth, max), mk(near.leaves, mats.leaves, mats.leafDepth, max)],
-          far: [mk(far.wood, mats.wood, mats.woodDepth, max), mk(far.leaves, mats.leaves, mats.leafDepth, max)],
+          far: farSet,
           radius: near.crown.r + 4,
           height: near.height
         });

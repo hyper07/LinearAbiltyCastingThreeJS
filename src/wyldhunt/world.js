@@ -15,7 +15,7 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 
 export async function buildWorld({ renderer, bank, settings, onProgress = () => {}, parts = {} }) {
   const scene = new THREE.Scene();
-  const world = { scene, updaters: [], disposers: [], spots: {}, rain: 0 };
+  const world = { scene, updaters: [], disposers: [], spots: {}, rain: 0, limits: { treeFar: Infinity, far: Infinity } };
   const step = async (label, k) => {
     onProgress(label, k);
     await tick();

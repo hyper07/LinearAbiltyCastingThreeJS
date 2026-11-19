@@ -6,6 +6,8 @@
  * — the field bag, the credits and the pause menu. Icons are drawn here.
  */
 import { EXTENT, AREAS, areaAt, CAMP } from './map.js';
+import { CONTROLS } from './controls.js';
+import { hintItems } from '../shared/helpPanel.js';
 import { LOOKS } from './cast.js';
 import { ITEMS, SHARPNESS, SHARP_MAX, sharpnessLevel, BAG_SIZE } from './rules.js';
 import { PACKS, OWN } from './credits.js';
@@ -247,19 +249,12 @@ export class StartScreen {
 
 /* ------------------------------------------------------------------ the HUD */
 
-const HINT = [
-  'Move <kbd>W A S D</kbd> · sprint <kbd>Shift</kbd>',
-  'Dodge roll <kbd>Space</kbd>',
-  'Light · heavy <kbd>Left</kbd> <kbd>Right</kbd> (hold to charge)',
-  'Blade ↔ bow <kbd>Tab</kbd> · sheathe <kbd>F</kbd>',
-  'Gather · carve · mount <kbd>E</kbd>',
-  'Whistle for Burrow <kbd>X</kbd>',
-  'Items <kbd>1–4</kbd> · field bag <kbd>B</kbd>',
-  'Mouse-look <kbd>V</kbd> · controls <kbd>H</kbd> · menu <kbd>Esc</kbd>'
-];
+/** On foot: the rows of controls.js marked `hint` (the same table the keys and How to play use). */
+const HINT = hintItems(CONTROLS).map((h) => `${esc(h.does[0].toUpperCase() + h.does.slice(1))} ${h.keys.map((k) => `<kbd>${esc(k)}</kbd>`).join(' ')}`);
 
 const RIDE_HINT = [
   'Speed up <kbd>W</kbd> · slow down <kbd>S</kbd>',
+  'Turn the camera <kbd>,</kbd> <kbd>.</kbd> · behind you <kbd>/</kbd>',
   'Gallop <kbd>Shift</kbd>',
   'Steer <kbd>A D</kbd> (or turn the camera)',
   'Let Burrow run the path <kbd>Hold R</kbd>',
@@ -704,14 +699,20 @@ export function creditsPanel(host, onClose) {
   return { el: p, close };
 }
 
-export function pauseMenu(host, { onResume, onCredits, onSound, soundOn, onLeave, tier }) {
+export function pauseMenu(host, { onResume, onCredits, onSound, soundOn, onLeave, graphics, onMap, onHelp }) {
   const p = el('div', 'wh-panel');
   p.style.width = 'min(360px, 90vw)';
-  p.innerHTML = `<h2>Paused</h2><p class="lead">Quality: ${esc(tier)} (it adjusts itself to keep frames quick).</p><div class="wh-menu">
-    <button class="wh-btn wh-btn--go" data-r>Back to the hunt</button><button class="wh-btn" data-s>Sound: ${soundOn ? 'on' : 'off'}</button><button class="wh-btn" data-c>Credits</button><button class="wh-btn" data-l>Leave</button></div>`;
+  p.style.width = 'min(440px, 92vw)';
+  p.style.maxHeight = '92vh';
+  p.style.overflowY = 'auto';
+  p.innerHTML = `<h2>Paused</h2><div class="wh-menu">
+    <button class="wh-btn wh-btn--go" data-r>Back to the hunt</button><button class="wh-btn" data-s>Sound: ${soundOn ? 'on' : 'off'}</button><button class="wh-btn" data-open-help>How to play (H)</button><button class="wh-btn" data-open-map>Map (O)</button><button class="wh-btn" data-c>Credits</button><button class="wh-btn" data-l>Leave</button></div>`;
+  if (graphics) p.querySelector('.wh-menu').after(graphics);
   host.append(p);
   p.querySelector('[data-r]').addEventListener('click', onResume);
   p.querySelector('[data-c]').addEventListener('click', onCredits);
+  p.querySelector('[data-open-map]').addEventListener('click', () => onMap?.());
+  p.querySelector('[data-open-help]').addEventListener('click', () => onHelp?.());
   p.querySelector('[data-l]').addEventListener('click', onLeave);
   p.querySelector('[data-s]').addEventListener('click', (e) => (e.target.textContent = `Sound: ${onSound() ? 'on' : 'off'}`));
   return p;
