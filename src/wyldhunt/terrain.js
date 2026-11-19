@@ -8,7 +8,7 @@
  * everything when it rains, is wet: darker and glossy.
  */
 import * as THREE from 'three';
-import { EXTENT } from './map.js';
+import { EXTENT as WHOLE } from './map.js';
 import { heightAt, canyonAt, pathDistance, pavedAt, riverDistance, waterAt, slopeAt } from './heights.js';
 import { FALLS } from './map.js';
 import { simplex2, smoothstep } from '../gloamreach/noise.js';
@@ -27,8 +27,9 @@ export const LAYERS = [
 const STEP = 1;
 const CHUNK = 64;
 
-/** Heights on the 1 m grid, computed once (the mesh, the grass and the splat all use it). */
-export function heightGrid() {
+/** Heights on the 1 m grid over `extent` (a zone's bounds; the whole map by default), computed once (the mesh, the grass and the splat all use it). */
+export function heightGrid(extent = WHOLE) {
+  const EXTENT = extent;
   const w = Math.round((EXTENT.x1 - EXTENT.x0) / STEP) + 1;
   const h = Math.round((EXTENT.z1 - EXTENT.z0) / STEP) + 1;
   const data = new Float32Array(w * h);
@@ -45,7 +46,7 @@ export function heightGrid() {
     const b = data[k + w] + (data[k + w + 1] - data[k + w]) * tx;
     return a + (b - a) * tz;
   };
-  return { w, h, data, at };
+  return { w, h, data, at, extent: { ...extent } };
 }
 
 /**
@@ -53,6 +54,7 @@ export function heightGrid() {
  * B = moss, pebbles, grass, damp (how wet the place always is).
  */
 export function splatMaps(grid) {
+  const EXTENT = grid.extent ?? WHOLE;
   const CELL = 1;
   const W = Math.round((EXTENT.x1 - EXTENT.x0) / CELL);
   const H = Math.round((EXTENT.z1 - EXTENT.z0) / CELL);
@@ -132,7 +134,7 @@ export function splatMaps(grid) {
     return t;
   };
   void slopeAt;
-  return { a: tex(A), b: tex(B), W, H, raw: { A, B } };
+  return { a: tex(A), b: tex(B), W, H, raw: { A, B }, extent: EXTENT };
 }
 
 /** Heights as a half-float texture for shaders that sit things on the ground (grass, rain splashes). */
@@ -294,6 +296,7 @@ tAO = mix(1.0, arm.r, 0.85);
 `;
 
 export function terrainMaterial(arrays, splat, noise) {
+  const EXTENT = splat.extent ?? WHOLE;
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
   const uniforms = {
     tCol: { value: arrays.color },
@@ -414,6 +417,7 @@ function chunkGeometry(grid, cx0, cz0, sizeX, sizeZ, step) {
 /** The land in chunks, each with a fine and a coarse mesh; the near ones fine. */
 export class Terrain {
   constructor(grid, material, { farStep = 2 } = {}) {
+    const EXTENT = grid.extent ?? WHOLE;
     this.group = new THREE.Group();
     this.chunks = [];
     for (let z = EXTENT.z0; z < EXTENT.z1 - 0.01; z += CHUNK) {

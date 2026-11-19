@@ -10,20 +10,37 @@ import { heightGrid, splatMaps, heightTexture, terrainMaterial, Terrain, LAYERS 
 import { Sky, Lighting } from './sky.js';
 import { groundAt, slopeAt } from './heights.js';
 import { shared } from '../gloamreach/materials.js';
+import { EXTENT } from './map.js';
+import { inZone } from './zones.js';
+
+/** Heights over a zone's grid, cached while the game runs (a return trip skips it). */
+const GRIDS = new Map();
+export function zoneGrid(zone) {
+  const key = zone?.id ?? '*';
+  if (!GRIDS.has(key)) GRIDS.set(key, heightGrid(zone?.bounds ?? EXTENT));
+  return GRIDS.get(key);
+}
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-export async function buildWorld({ renderer, bank, settings, onProgress = () => {}, parts = {} }) {
+/**
+ * `zone` (zones.js): build only its bounds and what belongs to it — `world.keep(x, z)`
+ * for the builders' scatter, `world.has(feature)` for whole parts (the camp, the ruins).
+ */
+export async function buildWorld({ renderer, bank, settings, onProgress = () => {}, parts = {}, zone = null }) {
   const scene = new THREE.Scene();
-  const world = { scene, updaters: [], disposers: [], spots: {}, rain: 0, limits: { treeFar: Infinity, far: Infinity } };
+  const world = { scene, zone, updaters: [], disposers: [], spots: {}, rain: 0, limits: { treeFar: Infinity, far: Infinity } };
+  world.keep = zone ? (x, z) => inZone(zone, x, z) : () => true;
+  world.has = (f) => !zone || zone.features.includes(f);
   const step = async (label, k) => {
     onProgress(label, k);
     await tick();
   };
 
   await step('Cutting the gorge', 0.04);
-  const grid = heightGrid();
+  const grid = zoneGrid(zone);
   world.grid = grid;
+  world.extent = grid.extent;
   const colliders = new CollisionWorld({ height: groundAt, slope: slopeAt, maxSlope: 0.95, maxDrop: 1.6 });
   world.colliders = colliders;
 
@@ -60,7 +77,8 @@ export async function buildWorld({ renderer, bank, settings, onProgress = () => 
   world.disposers.push(() => sky.dispose());
 
   // The rest of the map, each part its own module (added as they are built).
-  for (const [label, k, fn] of parts.list ?? []) {
+  for (const [label, k, fn, feature] of parts.list ?? []) {
+    if (feature && !world.has(feature)) continue;
     await step(label, k);
     await fn(world, { renderer, bank, settings });
   }

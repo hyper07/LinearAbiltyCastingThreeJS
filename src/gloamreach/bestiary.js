@@ -3,7 +3,7 @@
  * stats, how it fights: every attack with its wind-up tell), where they live
  * (wolves and boars in the woods round Brindlewick, spiders, corrupted wisps,
  * treants and gloomcaps in the Gloamwood, four named elites, and the boss on
- * Emberfall Ledge), and how long they take to come back. Pure: tests read it.
+ * Emberfall Ledge, down in the Cinder Rift), and how long they take to come back. Pure: tests read it.
  *
  * Attacks: `kind` melee (a cone in front), charge (a straight rush), proj
  * (a missile), aoe (a ring round a point), breath (a cone that burns while it
@@ -146,8 +146,9 @@ export const SPAWNS = [
   ['webmother', -80, -282, 7],
   ['hollowroot', 60, -322, 8],
   // Emberfall Ledge.
-  ['grummoch', 112, -30, 8],
-  ['cindermaw', 124, -50, 10]
+  // The Cinder Rift (its own zone, down the Cinder Stair: rift.js).
+  ['grummoch', 214, -84, 8],
+  ['cindermaw', 200, -142, 10]
 ];
 
 /** The spawn list as objects. */

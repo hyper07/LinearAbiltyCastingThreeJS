@@ -17,7 +17,7 @@ export const CHESTS = [
   { id: 'c-eastmeadow', x: 96, z: 44, face: -1.2, tier: 'chest' },
   { id: 'c-webhollow', x: -60, z: -224, face: 1.2, tier: 'chest' },
   { id: 'c-rootdeep', x: 72, z: -296, face: -2.2, tier: 'chest' },
-  { id: 'c-ledge', x: 132, z: -60, face: -2.6, tier: 'elite' }
+  { id: 'c-ledge', x: 207, z: -149, face: -2.6, tier: 'elite' }
 ];
 
 /** Open a chest: the first time it opens (true); every time after, nothing (false). */

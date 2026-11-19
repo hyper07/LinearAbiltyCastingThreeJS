@@ -125,7 +125,9 @@ export class Sky {
     for (const [name, w] of [['sun', 0], ['rain', 1]]) {
       m.material.uniforms.uRain.value = w;
       wall.material.color.set(w ? 0x3a4440 : 0x52624a);
-      this.envs[name] = pmrem.fromScene(scene, 0, 0.1, 100).texture;
+      const rt = pmrem.fromScene(scene, 0, 0.1, 100);
+      (this.rts ??= []).push(rt);
+      this.envs[name] = rt.texture;
     }
     pmrem.dispose();
     m.geometry.dispose();
@@ -146,6 +148,7 @@ export class Sky {
     this.mesh.geometry.dispose();
     this.material.dispose();
     for (const e of Object.values(this.envs)) e.dispose();
+    for (const rt of this.rts ?? []) rt.dispose();
   }
 }
 

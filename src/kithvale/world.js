@@ -21,6 +21,16 @@ import { buildLandmarks } from './landmarks.js';
 import { treeList, buildRocks, buildWaterside, Forage, buildBoulders, buildHollow, buildCaches } from './nature.js';
 import { bridgeAt, waterAt } from './heights.js';
 import { paintShared } from './paint.js';
+import { EXTENT } from './map.js';
+import { inZone } from './zones.js';
+
+/** Heights over a zone's grid, cached while the game runs. */
+const GRIDS = new Map();
+export function zoneGrid(zone) {
+  const key = zone?.id ?? '*';
+  if (!GRIDS.has(key)) GRIDS.set(key, heightGrid(zone?.bounds ?? EXTENT));
+  return GRIDS.get(key);
+}
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -80,17 +90,23 @@ function vista(noise) {
   };
 }
 
-export async function buildWorld({ renderer, bank, settings, save = {}, onProgress = () => {} }) {
+/** `zone` (zones.js): only its bounds and what belongs to it are built (the village's inside, or the vale). */
+export async function buildWorld({ renderer, bank, settings, save = {}, zone = null, onProgress = () => {} }) {
   const scene = new THREE.Scene();
-  const world = { scene, updaters: [], disposers: [], spots: {}, limits: { treeFar: Infinity, far: Infinity, shadowDist: 60 } };
+  const world = { scene, zone, updaters: [], disposers: [], spots: {}, limits: { treeFar: Infinity, far: Infinity, shadowDist: 60 } };
+  const keep = zone ? (x, z) => inZone(zone, x, z) : () => true;
+  const has = (f) => !zone || zone.features.includes(f);
+  world.keep = keep;
+  world.has = has;
   const step = async (label, k) => {
     onProgress(label, k);
     await tick();
   };
 
   await step('Shaping the vale', 0.03);
-  const grid = heightGrid();
+  const grid = zoneGrid(zone);
   world.grid = grid;
+  world.extent = grid.extent;
   const ground = (x, z) => {
     const d = bridgeAt(x, z);
     const h = grid.at(x, z);
@@ -149,7 +165,7 @@ export async function buildWorld({ renderer, bank, settings, save = {}, onProgre
   world.disposers.push(() => grass.dispose());
 
   await step('Planting the woods', 0.34);
-  const list = treeList(settings.trees ?? 1);
+  const list = treeList(settings.trees ?? 1).filter((t) => keep(t.x, t.z));
   const trees = new Trees(list, (x, z) => grid.at(x, z), { msaa: (settings.msaa ?? 0) > 0 });
   scene.add(trees.group);
   for (const t of list) if (t.kind !== 'bush') colliders.circle(t.x, t.z, t.kind === 'pine' ? 0.4 : 0.45);
@@ -158,28 +174,30 @@ export async function buildWorld({ renderer, bank, settings, save = {}, onProgre
   world.disposers.push(() => trees.dispose());
 
   await step('Filling the stream and the pond', 0.42);
-  const waters = new Waters(noise);
-  scene.add(waters.group);
+  const waters = has('vale') ? new Waters(noise) : null;
+  if (waters) {
+    scene.add(waters.group);
+    world.disposers.push(() => waters.dispose());
+    scene.add(buildWaterside());
+  }
   world.waters = waters;
-  world.disposers.push(() => waters.dispose());
-  scene.add(buildWaterside());
 
   await step('Raising Lanternrest', 0.5);
-  const village = buildVillage({ colliders, bank });
+  const village = buildVillage({ colliders, bank, inside: has('inside'), outside: has('outside') });
   scene.add(village.group);
   world.village = village;
-  const marks = buildLandmarks({ colliders });
-  scene.add(marks.group);
+  const marks = has('vale') ? buildLandmarks({ colliders }) : null;
+  if (marks) scene.add(marks.group);
   world.landmarks = marks;
-  const rocks = buildRocks(colliders);
+  const rocks = buildRocks(colliders, keep);
   scene.add(rocks.group);
-  world.forage = new Forage();
+  world.forage = new Forage(keep);
   scene.add(world.forage.group);
-  world.boulders = buildBoulders(colliders, save.boulders ?? []);
+  world.boulders = buildBoulders(colliders, save.boulders ?? [], keep);
   scene.add(world.boulders.group);
-  world.hollow = buildHollow();
+  world.hollow = has('vale') ? buildHollow() : { group: new THREE.Group(), mouth: new THREE.Vector3(1e5, 0, 1e5), inside: new THREE.Group(), stub: true };
   scene.add(world.hollow.group);
-  world.caches = buildCaches(save.caches ?? []);
+  world.caches = buildCaches(save.caches ?? [], keep);
   scene.add(world.caches.group);
 
   // Lantern light: a few real lights shared among the nearest lanterns (always the same number, so nothing recompiles).
@@ -205,7 +223,7 @@ export async function buildWorld({ renderer, bank, settings, save = {}, onProgre
     terrain.update(camera);
     grass.update(camera);
     trees.update(camera, focus, { far: world.limits?.treeFar ?? Infinity, shadowDist: world.limits?.shadowDist ?? 60 });
-    waters.update(t, mood);
+    waters?.update(t, mood);
     // Lanterns glow at dusk and through the night; the light pool follows you.
     const dark = THREE.MathUtils.smoothstep(Math.abs(((hour - 12 + 24) % 24) - 12), 4.6, 6.8);
     glow.value = 0.25 + dark * 1.6;

@@ -631,23 +631,31 @@ function addField(kit) {
  * Build the village into a group. Returns { group, lights (lantern spots),
  * signs, materials, setGlow(k) }.
  */
-export function buildVillage({ colliders, bank }) {
+/**
+ * `inside`: the houses, the market, the garden (Lanternrest's own zone);
+ * `outside`: Kemi's sunhead field beyond the gate. The gate and the walls are
+ * built either way — the vale sees them from outside.
+ */
+export function buildVillage({ colliders, bank, inside = true, outside = true }) {
   const kit = new Kit();
-  for (const h of HOUSES) addHouse(kit, h, colliders);
+  if (inside) for (const h of HOUSES) addHouse(kit, h, colliders);
   const gateLights = addGate(kit, colliders);
   addWalls(kit, colliders);
-  for (const st of STALLS) addStall(kit, st, colliders);
-  addWell(kit, colliders);
-  const postLights = addLanePosts(kit, colliders);
-  addGarden(kit, colliders);
-  addField(kit);
-  // Strings of lanterns across the lane and the cross street.
-  const y = groundAt(0, -110);
-  for (const z of [-99, -111.5, -141, -153]) addLanternString(kit, V(-8.6, y + 4.6, z), V(8.6, y + 4.6, z + 0.6), { n: 5, sag: 0.8 });
-  addLanternString(kit, V(-9, y + 4.3, CROSS.z - 4), V(-26, y + 4.0, CROSS.z + 3), { n: 4 });
+  let postLights = [];
+  if (inside) {
+    for (const st of STALLS) addStall(kit, st, colliders);
+    addWell(kit, colliders);
+    postLights = addLanePosts(kit, colliders);
+    addGarden(kit, colliders);
+    // Strings of lanterns across the lane and the cross street.
+    const y = groundAt(0, -110);
+    for (const z of [-99, -111.5, -141, -153]) addLanternString(kit, V(-8.6, y + 4.6, z), V(8.6, y + 4.6, z + 0.6), { n: 5, sag: 0.8 });
+    addLanternString(kit, V(-9, y + 4.3, CROSS.z - 4), V(-26, y + 4.0, CROSS.z + 3), { n: 4 });
+  }
+  if (outside) addField(kit);
   // Banners by the gate, the plaza and the hall.
   const colors = ['#c8553a', '#3a6a8a', '#d8a23a', '#5a8a4a'];
-  [[-5.8, -90], [5.8, -90], [-8.5, -122], [8.5, -134], [-7, -166], [7, -166]].forEach(([x, z], i) => addBanner(kit, x, z, colors[i % 4], 5.4, x < 0 ? 0.3 : -0.3));
+  [[-5.8, -90], [5.8, -90], [-8.5, -122], [8.5, -134], [-7, -166], [7, -166]].forEach(([x, z], i) => (inside || z > -95) && addBanner(kit, x, z, colors[i % 4], 5.4, x < 0 ? 0.3 : -0.3));
   void PLAZA;
   const mats = villageMaterials();
   // Signboards: each its own lettering.

@@ -50,6 +50,17 @@ depth jumps, and a violet-and-gold grade. Golden dusk is the default; a slow
 day cycle (16 minutes a day) can be switched on in the menu, through blue
 evening, a starry night, a pink dawn and a bright noon.
 
+### Zones and hubs
+
+Kithvale is played as **two zones** ([zones.md](zones.md)), one built at a time: **Lanternrest**,
+inside the walls (the plaza, the teahouse, the shop, the Kith Garden), and **the vale**, through
+the big gate (a warm veil fills it while the other side isn't built). Each has a hub: Lanternrest
+itself (the teahouse to rest, Satchel & Seed to trade) and the **Windbell Shrine** up on its hill.
+A hub has a map board (the World tab), a notice board, a stash for treats and **keepsakes** (each
+buried cache holds one now), the journal on its stand, a merchant (petals for keepsakes; treats
+and a satchel refill), a place to rest and a waystone. Friends who follow come through the gate
+with you; the rest wait in the Kith Garden.
+
 ## The characters
 
 **You**: a young adventurer in one of three looks — Sprout, Wren or Pip — with
@@ -99,7 +110,8 @@ toggle, or 🐾) is near silent.
 
 Treats grow back: berries on bushes, seeds on the tall sunheads, crystals in
 the rock. Everything is saved on this device (`localStorage`, versioned,
-repaired on load).
+repaired on load); the world — zones visited, hubs reached, the stash, the
+pouch and petals — in `kithvale.zones` ([zones.md](zones.md)).
 
 ## HUD and controls
 
@@ -127,7 +139,7 @@ triangles). Lighter tiers thin the grass grid itself, not just its density.
 
 ## Files
 
-`src/kithvale/`: `KithvaleGame.js` (the game), `map.js`, `heights.js`,
+`src/kithvale/`: `KithvaleGame.js` (the game), `zones.js` (the zones, keepsakes, petals, the save's migration), `map.js`, `heights.js`,
 `rules.js`, `brains.js`, `quality.js`, `cast.js`, `credits.js` (pure, tested
 in `tests/unit/kithvale.test.mjs`), `world.js`, `terrain.js`, `sky.js`,
 `grass.js`, `trees.js`, `water.js`, `village.js`, `landmarks.js`,

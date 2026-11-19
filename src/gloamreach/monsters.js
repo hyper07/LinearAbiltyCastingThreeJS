@@ -28,7 +28,13 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const HUMANOID_CLIPS = ['Smash', 'Swipe', 'Punch', 'Roar', 'Hit', 'Die'];
 
 export class Monsters {
-  constructor({ scene, world, bank, vfx }) {
+  /**
+   * `spawns`: who lives in the zone being built (bestiary.js's list when absent);
+   * `fence(x, z, r)`: where a monster may stand (a hub's ring keeps them out).
+   */
+  constructor({ scene, world, bank, vfx, spawns = null, fence = null }) {
+    this.spawns = spawns;
+    this.fence = fence;
     this.scene = scene;
     this.world = world;
     this.bank = bank;
@@ -42,7 +48,8 @@ export class Monsters {
 
   async load(onProgress = () => {}) {
     const models = new Map();
-    for (const s of spawnList()) {
+    const spawns = this.spawns ?? spawnList();
+    for (const s of spawns) {
       const d = monsterDef(s.type);
       if (d.model) models.set(d.model, d.rig);
     }
@@ -51,7 +58,7 @@ export class Monsters {
       this.templates[model] = await loadTemplate(model, { detail: this.bank.noise(), borrow: rig === 'humanoid' ? HUMANOID_CLIPS : [], rim: 0.5 });
       onProgress(++k / models.size);
     }));
-    for (const s of spawnList()) this.list.push(this._make(s));
+    for (const s of spawns) this.list.push(this._make(s));
   }
 
   /* ------------------------------------------------------------ making one */
@@ -517,7 +524,8 @@ export class Monsters {
         vz += (dz / d) * (min - d) * 6;
       }
     }
-    const [nx, nz] = this.colliders.move(m.x, m.z, vx * dt, vz * dt, Math.min(0.9, m.r * 0.8), m.y);
+    let [nx, nz] = this.colliders.move(m.x, m.z, vx * dt, vz * dt, Math.min(0.9, m.r * 0.8), m.y);
+    if (this.fence) [nx, nz] = this.fence(nx, nz, m.r);
     m.speed = Math.hypot(nx - m.x, nz - m.z) / Math.max(dt, 1e-4);
     m.x = nx;
     m.z = nz;

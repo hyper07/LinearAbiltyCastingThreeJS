@@ -13,7 +13,7 @@
  * thickest in Hopgrass Meadow.
  */
 import * as THREE from 'three';
-import { EXTENT } from './map.js';
+import { EXTENT as WHOLE } from './map.js';
 import { shared } from '../gloamreach/materials.js';
 import { rng } from '../gloamreach/noise.js';
 import { painterly } from './paint.js';
@@ -228,6 +228,7 @@ function material(uniforms, kind) {
 
 export class Grass {
   constructor({ heightTex, splat, noise, settings, heightAt = null }) {
+    const EXTENT = splat.extent ?? WHOLE;
     this.group = new THREE.Group();
     this.layers = [];
     this.cull = new ChunkCull();

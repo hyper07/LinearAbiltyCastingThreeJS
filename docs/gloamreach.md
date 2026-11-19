@@ -23,10 +23,22 @@ the first of a series; later games add to this world.
   moonwell in a ring of standing stones at the path's end.
 - **The Cinder Rift**, seen from a ruined overlook east of the village: rivers and a lake of lava
   seventy metres down, basalt spires, fire fountains, smoke, and Vaelthrax the Ember Drake
-  circling — sometimes roaring, sometimes breathing fire at the lava. North along the cliff,
-  **Emberfall Ledge**, where her brood nests.
+  circling — sometimes roaring, sometimes breathing fire at the lava. North along the cliff, on
+  the old ledge, **the Cinder Stair** goes down into it.
 
-The map is bounded by nature, not invisible walls: the ridge, steep wooded hills and the cliff.
+**Three zones** ([zones.md](zones.md)), built one at a time and joined by doors:
+**Brindlewick** (the village, its fields and woods, the overlook), **the Gloamwood** (through the
+Warden's Gate's tunnel, its far end a swirling veil) and **the Cinder Rift**, walkable now: down
+the stair to **Ashward Outpost** at the cliff's foot, across the basalt floor between the rivers
+of lava (nothing steps into them), to **Emberfall Ledge**, where Cindermaw and Grummoch wait.
+Each zone has a safe **hub** — Brindlewick Square, the Keepers' Grove at the Gloamwood's mouth,
+Ashward Outpost — with a map board (the World tab), notices, a stash, a stand showing your hero
+in their gear, a merchant (Dorrin, Ysolde, Varra: buy, sell, refill potions), a bed (the Gilded
+Acorn in the village) and a waystone. No monster follows you past a hub's lanterns; a hero who
+falls wakes at the last hub they rested at.
+
+Each zone is bounded by nature, not invisible walls: the ridge, steep wooded hills, the cliff,
+the crags and the lava.
 
 ## Playing
 
@@ -38,7 +50,7 @@ The map is bounded by nature, not invisible walls: the ridge, steep wooded hills
 | **Mouse** | Aim: attacks and spells go at the pointer (snapped to a monster near it), even while backing away. Middle-button drag turns the camera; wheel zooms |
 | **Left · right mouse, 1–4** | The hero's six skills |
 | **Q · R** | Health and mana (energy, stamina) potions — no cooldown |
-| **F** | Open a chest · trade with the armsmonger |
+| **F** | Open a chest · trade with a merchant · in a hub: the map board, notices, stash, stand, bed, waystone |
 | **I** (or **B**) · **C** | The bag · the hero (equipment, a turning preview, their numbers) |
 | **V** | Mouse-look: the mouse steers the camera and you aim at the screen's centre |
 | **H** · **Esc** | Show the controls again · close panels, or the menu (sound, credits, leave) |
@@ -59,12 +71,12 @@ marks monsters (red; elites as diamonds, the boss as a skull) and chests (gold).
 Blows land with a moment's hit-stop, a spray of sparks, damage numbers (critical strikes in gold)
 and a shake of the camera (less with *reduce motion*). Skills pressed during another move go the
 moment it ends. Levels raise health, the resource, attack, spell power and armour. A hero who falls
-wakes by Brindlewick's well.
+wakes at the last hub they rested at (Brindlewick Square at first).
 
 **Monsters.** Timber wolves (in packs) and thornback boars in the woods round the village; gloam
 spiders, corrupted wisps, twisted treants and gloomcaps in the Gloamwood; four named elites —
-Greymane, Mother Vethra, Hollowroot and Grummoch the Ash-Troll; and **Cindermaw, Brood of
-Vaelthrax**, on Emberfall Ledge. They idle, wander, notice you (a pack wakes together), chase, and
+Greymane, Mother Vethra, Hollowroot and Grummoch the Ash-Troll (in the rift); and **Cindermaw,
+Brood of Vaelthrax**, on Emberfall Ledge down in the Cinder Rift. They idle, wander, notice you (a pack wakes together), chase, and
 wind up every attack with a tell — a pose and a mark on the ground that fills as the blow comes —
 bite, gore, charge, spit venom, throw bolts, pound the ground, sweep a tail, breathe fire. They
 flinch and are staggered, stunned, frozen, slowed and burned; give up and go home past their leash;
@@ -105,6 +117,7 @@ calls and triangles.
 | Part | File |
 | --- | --- |
 | The map as data · the land's height, slope and surface · collision and camera rays · quality tiers · the cast · credits (all pure, tested) | `map.js` · `heights.js` · `collide.js` · `quality.js` · `cast.js` · `credits.js` |
+| The zones (data, what belongs where, the save's migration) · the Cinder Rift's floor (pure, tested) | `zones.js` · `rift.js` (framework: `src/shared/zones/`, [zones.md](zones.md)) |
 | The screen, loop, input, tiers | `GloamreachGame.js` |
 | Scene assembly · terrain · sky and light · post-processing | `world.js` · `terrain.js` · `sky.js` · `post.js` |
 | Trees · grass and plants · buildings · props · the gate · the Gloamwood · the rift and drake | `trees.js` · `foliage.js` · `buildings.js`, `kit.js` · `props.js` · `gate.js` · `gloamwood.js` · `vista.js` |

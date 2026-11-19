@@ -5,7 +5,10 @@
  * a red glow on everything from below — and Vaelthrax, the Ember Drake,
  * circling on the updraught, now gliding, now beating its wings, sometimes
  * roaring and breathing fire at the lava (Mesh2Motion dragon, CC0).
- * Spectacle only: the cliff's edge keeps the hero up top.
+ * From Brindlewick it is spectacle (the cliff's edge keeps the hero up top);
+ * in the Cinder Rift zone it is the lava itself: its floor sits just under the
+ * walkable ground there (rift.js), so only the molten channels show, and the
+ * spires that stand where you walk are solid (`spires` lists them).
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
@@ -69,11 +72,15 @@ void main() {
 }`;
 
 export class Vista {
-  constructor() {
+  /** `inRift`: seen from the rift's floor (always shown, its glow always on); `avoid(x, z)`: no spire there. */
+  constructor({ inRift = false, avoid = () => false } = {}) {
     this.group = new THREE.Group();
     this.r = rng(66);
     this.geysers = [];
     this.drake = null;
+    this.inRift = inRift;
+    this.avoid = avoid;
+    this.spires = [];
   }
 
   async build(bank, effects) {
@@ -112,6 +119,8 @@ export class Vista {
     for (const t of [rock.map, rock.normalMap, lava.map, lava.emissiveMap]) if (t) t.wrapS = t.wrapT = THREE.RepeatWrapping;
     const floor = new THREE.Mesh(geo, mat);
     floor.frustumCulled = false;
+    // Down in the rift the walkable ground covers the floor; only the lava shows through.
+    if (this.inRift) floor.position.y = -0.6;
     this.group.add(floor);
     // Jagged spires of basalt.
     const spireMat = mat;
@@ -122,6 +131,8 @@ export class Vista {
       const { h, lava: l } = riftAt(x, z);
       if (l > 0.2) continue;
       const height = 18 + r() * 55;
+      if (this.avoid(x, z)) continue;
+      this.spires.push({ x, z, r: 6 });
       const pts = [];
       for (let i = 0; i <= 8; i++) {
         const t = i / 8;
@@ -198,10 +209,10 @@ export class Vista {
     u.uCam.value.copy(camera.position);
     u.uSun.value.copy(look.toLight);
     u.uSunCol.value.copy(look.lightColor ?? u.uSunCol.value);
-    // Only spend on the rift when it can be seen (from the east side of the village).
-    const near = camera.position.x > 60 && camera.position.z > -120;
-    this.group.visible = camera.position.x > 20 && camera.position.z > -150;
-    this.glow.intensity = near ? 140 : 0;
+    // Only spend on the rift when it can be seen (from the east side of the village; always from below).
+    const near = this.inRift || (camera.position.x > 60 && camera.position.z > -120);
+    this.group.visible = this.inRift || (camera.position.x > 20 && camera.position.z > -150);
+    this.glow.intensity = near ? (this.inRift ? 60 : 140) : 0;
     // Fire fountains: bursts of flame and sparks.
     for (const g of this.geysers) {
       g.next -= dt;
@@ -252,6 +263,11 @@ export class Vista {
     d.flap?.setEffectiveWeight(d.w);
     d.glide?.setEffectiveWeight(1 - d.w);
     d.mixer.update(dt);
+  }
+
+  dispose() {
+    this.drake?.mixer.stopAllAction();
+    this.group.removeFromParent();
   }
 
   takeEvents() {

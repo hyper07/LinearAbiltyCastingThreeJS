@@ -8,7 +8,7 @@
  * is worn. Pictures come from the items' own 3D models.
  */
 import { el, esc } from './ui.js';
-import { BASES, SLOTS, SLOT_NAMES, RARITIES, STAT_NAMES, POTIONS, BAG_SIZE, AFFIXES, slotsFor, canEquip, compareItem, equipFromBag, unequip, moveInBag, sellFromBag, sellPrice, buyPrice, buy, sortBag, isTwoHanded } from './items.js';
+import { BASES, SLOTS, SLOT_NAMES, RARITIES, STAT_NAMES, POTIONS, BAG_SIZE, AFFIXES, slotsFor, canEquip, compareItem, equipFromBag, unequip, moveInBag, sellFromBag, sellPrice, buyPrice, buy, sortBag, isTwoHanded, refillPotions } from './items.js';
 import { RESOURCES } from './rules.js';
 
 const fmt = (k, v) => `${v > 0 ? '+' : ''}${Number.isInteger(v) ? v : v.toFixed(1)} ${STAT_NAMES[k] ?? k}`;
@@ -157,14 +157,27 @@ export class Panels {
 
   _shopWin() {
     const w = el('section', 'gr-win gr-win--shop');
-    w.innerHTML = `<header><h2>Dorrin's Arms <small>Armsmonger of Brindlewick</small></h2><button class="gr-x" data-close="shop" aria-label="Close">×</button></header>
-      <p class="gr-shop__lead">“Steel for the woods, and coin for what you drag back out of them.” Drag your things here to sell.</p>
+    const m = this.g.merchant ?? { title: "Dorrin's Arms", sub: 'Armsmonger of Brindlewick', lead: '“Steel for the woods, and coin for what you drag back out of them.”' };
+    w.innerHTML = `<header><h2>${esc(m.title)} <small>${esc(m.sub)}</small></h2><button class="gr-x" data-close="shop" aria-label="Close">×</button></header>
+      <p class="gr-shop__lead">${esc(m.lead)} Drag your things here to sell.</p>
       <div class="gr-grid gr-grid--shop" data-sell>
         ${['hp', 'mp'].map((k) => this._cell({ kind: k, n: '∞' }, `data-buy="${k}"`)).join('')}
         ${this.stock.map((e, i) => this._cell(e, `data-stock="${i}"`)).join('')}
       </div>
-      <footer><span class="gr-goldline"><i class="gr-coin"></i> ${this.p.gold}</span><span class="gr-shop__note">Click to buy · right-click your bag to sell</span></footer>`;
+      <footer><span class="gr-goldline"><i class="gr-coin"></i> ${this.p.gold}</span><button class="gr-btn gr-btn--small" data-refill title="Buy draughts and tonics until you carry five of each">Refill potions</button><span class="gr-shop__note">Click to buy · right-click your bag to sell</span></footer>`;
     this._wire(w);
+    w.querySelector('[data-refill]').addEventListener('click', () => {
+      const r = refillPotions(this.p, 5);
+      const n = r.bought.hp + r.bought.mp;
+      if (n) {
+        this.g.sfx?.coins?.();
+        this.g.toast?.(`Refilled: ${r.bought.hp} draught${r.bought.hp === 1 ? '' : 's'}, ${r.bought.mp} tonic${r.bought.mp === 1 ? '' : 's'} for ${r.cost} gold`, 'gold');
+      } else {
+        this.g.sfx?.denied?.();
+        this.g.toast?.(r.reason ?? 'Your potions are full.', 'muted');
+      }
+      this._changed();
+    });
     return w;
   }
 

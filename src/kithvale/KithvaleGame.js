@@ -22,7 +22,16 @@ import { CombatFx } from '../gloamreach/vfx.js';
 import { FollowCamera } from '../gloamreach/camera.js';
 import { shared } from '../gloamreach/materials.js';
 import { Cards } from '../gloamreach/fx.js';
-import { buildWorld } from './world.js';
+import { buildWorld, zoneGrid } from './world.js';
+import { ZONES, ZONE_SAVE_KEY, HUB_IDS, inZone, migrateLegacy, cleanEntry, cleanKeeper, KEEPSAKES, keepsakeOf, TREAT_PRICE, REFILL_TO, carried, uncarry, STACK, entryKey } from './zones.js';
+import { ZoneManager } from '../shared/zones/manager.js';
+import { loadZoneSave, writeZoneSave, counters, mark } from '../shared/zones/state.js';
+import { arrivalAt } from '../shared/zones/hub.js';
+import { serviceNear, portalNear, SERVICE_NAMES } from '../shared/zones/zone.js';
+import { disposeTree, compileReady } from '../shared/zones/dispose.js';
+import { hubKit, portalVeil } from '../shared/zones/props.js';
+import { SafeBadge, infoPanel, waystoneMenu, stashPanel, shopPanel } from '../shared/zones/hubUi.js';
+import { move as stashMove, sortSlots, moveAll } from '../shared/zones/stash.js';
 import { Post } from './post.js';
 import { SETTINGS, chooseTier, Governor, startTier } from './quality.js';
 import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
@@ -37,7 +46,7 @@ import { CONTROLS } from './controls.js';
 const TREAT_CODES = codesFor(CONTROLS, 'treats');
 const HELP_CODES = codesFor(CONTROLS, 'help');
 import { powerSettings } from '../shared/power.js';
-import { START, GATE, SHRINE, GARDEN, STONE_LANTERNS, HOLLOW, AREAS, EXTENT, areaAt, HABITATS } from './map.js';
+import { START, GATE, SHRINE, GARDEN, STONE_LANTERNS, HOLLOW, AREAS, areaAt, HABITATS } from './map.js';
 import { groundAt, waterAt, streamDistance, depthAt, inVillage } from './heights.js';
 import { LOOKS, VILLAGERS, AFTER } from './cast.js';
 import { loadLook, Player, makeActor } from './player.js';
@@ -172,54 +181,49 @@ export class KithvaleGame {
     this._resize = new ResizeObserver(() => this.resize());
     this._resize.observe(this.root);
     this.bank = new TextureBank(renderer, { size: this.settings.texSize });
-    this.world = await buildWorld({ renderer, bank: this.bank, settings: this.settings, save: this.state, onProgress: (l, k) => step(l, k * 0.55) });
-    if (this.closed) return;
-    const world = this.world;
-    const scene = world.scene;
-    this.scene = scene;
-    this.vfx = new CombatFx(scene, this.bank, (x, z) => world.ground(x, z));
-    this.heartCards = new Cards(300, heartTexture(), { blend: 'alpha' });
-    scene.add(this.heartCards.mesh);
-    // Restore what the save says is done.
-    for (const i of this.state.lanterns) this.kindle(i, true);
-    if (this.state.hollow) this.lightHollow(true);
-    step('Calling the villagers', 0.6);
+    // What lives across zones: the looks, the friends' portraits, the camera, the picture.
+    step('Calling the villagers', 0.03);
     const detail = this.bank.noise();
     this.templates = {};
     await Promise.all(LOOKS.map(async (l) => (this.templates[l.id] = await loadLook(l, detail))));
     if (this.closed) return;
-    this.villagers = new Villagers({ scene, detail });
-    await this.villagers.load();
-    if (this.closed) return;
-    step('Waking the wild ones', 0.72);
-    const slope = (x, z) => Math.hypot(world.grid.at(x + 0.5, z) - world.grid.at(x - 0.5, z), world.grid.at(x, z + 0.5) - world.grid.at(x, z - 0.5));
-    this.fauna = new Fauna({ scene, settings: this.settings, ground: world.ground, colliders: world.colliders, slope, vfx: this.vfx });
-    await this.fauna.build(async (sp) => {
-      step(`Sculpting the ${R.SPECIES[sp].name}s`, 0.72 + R.SPECIES_ORDER.indexOf(sp) * 0.025);
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    if (this.closed) return;
-    for (const f of this.state.friends) this.fauna.adopt(f.species, { uid: f.uid, name: f.name, follow: f.follow, x: START.x + 1, z: START.z - 2 });
-    step('Painting portraits', 0.9);
-    this.portraits = this.paintPortraits();
-    this.follow = new FollowCamera(this.camera, world.colliders);
+    this.heartCards = new Cards(300, heartTexture(), { blend: 'alpha' });
+    this.follow = new FollowCamera(this.camera, null);
     // , . turn the camera, [ ] tilt it, / puts it behind you; it eases back by itself after a quiet spell.
     this.follow.assist = new CameraAssist(loadAssist('kithvale'), { id: 'kithvale' });
     this.follow.fovBase = 50;
     this.post = new Post(renderer);
-    this.applyPower(true);
-    this.minimapCanvas = paintMap(world.grid, world.trees);
-    this.setLook(this.picked);
-    this.lumoLight = new THREE.PointLight(0xffc070, 0, 10, 1.6);
-    scene.add(this.lumoLight);
-    step('Lighting the lanterns', 0.96);
     this.hour = this.state.hour ?? R.DUSK;
-    this.menuCamera(0);
-    world.update(0.016, 0, this.camera, this.player.pos, this.hour);
-    renderer.compile(scene, this.camera);
-    this.camera.layers.set(1);
-    renderer.compile(scene, this.camera);
-    this.camera.layers.set(0);
+    // The world as zones (zones.js): Lanternrest and the vale, one built at a time.
+    this.zoneSave = loadZoneSave(ZONE_SAVE_KEY, { migrate: () => migrateLegacy(this.state), zones: ZONES.map((z) => z.id), hubs: HUB_IDS, stashSize: 24, cleanItem: cleanEntry, cleanGame: cleanKeeper });
+    this.zoneSave.game.pouch ??= [];
+    this.zoneSave.game.petals ??= 20;
+    this.zones = new ZoneManager({
+      game: 'kithvale',
+      zones: ZONES,
+      save: this.zoneSave,
+      host: this.root,
+      adapter: {
+        load: (zone, at, progress) => this._loadZone(zone, at, progress),
+        unload: () => this._unloadZone(),
+        preload: (zone) => zoneGrid(zone),
+        teleport: (at) => this.teleport(at.x, at.z, at.yaw ?? 0, { pitch: this.follow.pitch, dist: this.follow.wantDist }),
+        persist: () => this.persistZones()
+      },
+      on: {
+        leave: () => this._tripStart(),
+        arrive: () => this._tripEnd(),
+        enter: (zone, via) => this._entered(zone, via),
+        hub: (inside, zone) => this.safeBadge?.set(inside, zone.hub?.name),
+        message: (text) => this.hud?.toast(text),
+        poi: (p) => this.hud?.toast(`Found: ${p.name}`)
+      }
+    });
+    const startZone = this.zones.zone(this.zoneSave.zone) ?? this.zones.zones[0];
+    await this.zones.enter(startZone.id, this._menuSpot(startZone), { via: 'load' });
+    if (this.closed) return;
+    step('Painting portraits', 0.95);
+    this.portraits = this.paintPortraits();
     step('Ready', 1);
     this.loading.hide();
     this.loading = null;
@@ -233,11 +237,307 @@ export class KithvaleGame {
     this.ready = true;
   }
 
+  /* ================================================================ zones */
+
+  _menuSpot(zone) {
+    if (zone.id === 'lanternrest') return { x: START.x, z: START.z - 1, yaw: Math.PI };
+    return arrivalAt(zone);
+  }
+
+  /** Build a zone: the land and its painted sky, the village's inside or the vale, the villagers and creatures, the hub. */
+  async _loadZone(zone, at, progress) {
+    this.zoneReady = false;
+    const t0 = performance.now();
+    const step = (label, k) => (this.loading ? this.loading.set(label, 0.06 + k * 0.86) : progress(label, k));
+    this.world = await buildWorld({ renderer: this.renderer, bank: this.bank, settings: this.settings, save: this.state, zone, onProgress: (l, k) => step(l, k * 0.6) });
+    if (this.closed) return;
+    const world = this.world;
+    const scene = world.scene;
+    this.scene = scene;
+    this.zone = zone;
+    this.vfx = new CombatFx(scene, this.bank, (x, z) => world.ground(x, z));
+    scene.add(this.heartCards.mesh);
+    // Restore what the save says is done.
+    if (world.landmarks) for (const i of this.state.lanterns) this.kindle(i, true);
+    if (this.state.hollow && !world.hollow.stub) this.lightHollow(true);
+    const detail = this.bank.noise();
+    this.villagers = new Villagers({ scene, detail, keep: world.keep });
+    await this.villagers.load();
+    if (this.closed) return;
+    step('Waking the wild ones', 0.72);
+    const slope = (x, z) => Math.hypot(world.grid.at(x + 0.5, z) - world.grid.at(x - 0.5, z), world.grid.at(x, z + 0.5) - world.grid.at(x, z - 0.5));
+    this.fauna = new Fauna({ scene, settings: this.settings, ground: world.ground, colliders: world.colliders, slope, vfx: this.vfx, keep: world.keep });
+    await this.fauna.build(async (sp) => {
+      step(`Sculpting the ${R.SPECIES[sp].name}s`, 0.72 + R.SPECIES_ORDER.indexOf(sp) * 0.025);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    if (this.closed) return;
+    // Friends who follow come along; the rest wait in the Kith Garden (in Lanternrest).
+    for (const f of this.state.friends) {
+      if (f.follow) this.fauna.adopt(f.species, { uid: f.uid, name: f.name, follow: true, x: at.x + 1, z: at.z - 2 });
+      else if (zone.id === 'lanternrest') this.fauna.adopt(f.species, { uid: f.uid, name: f.name, follow: false });
+    }
+    this.follow.colliders = world.colliders;
+    this.applyPower(true);
+    this.minimapCanvas = paintMap(world.grid, world.trees);
+    if (this.hud) {
+      this.hud.minimap.map = this.minimapCanvas;
+      this.hud.minimap.extent = world.extent;
+    }
+    this.setLook(this.picked);
+    this.lumoLight = new THREE.PointLight(0xffc070, 0, 10, 1.6);
+    scene.add(this.lumoLight);
+    this._buildHub(zone);
+    this._buildDoors(zone);
+    this.worldMap?.setZone(this._mapData(zone));
+    this.waypoint?.clear();
+    this.beam = new WaypointBeam(scene, { color: '#ff8ad8' });
+    this.teleport(at.x, at.z, at.yaw ?? 0, { pitch: this.follow.pitch ?? 0.1, dist: this.follow.wantDist ?? 4.4 });
+    this.area = null;
+    world.update(0.016, this.t ?? 0, this.camera, this.player.pos, this.hour);
+    // Compile now (waiting for the GPU to finish, so a quick trip on doesn't pull programs out from under it).
+    await compileReady(this.renderer, scene, this.camera);
+    this.camera.layers.set(1);
+    await compileReady(this.renderer, scene, this.camera);
+    this.camera.layers.set(0);
+    this.renderer.shadowMap.needsUpdate = true;
+    this.zoneReady = true;
+    this.lastLoadMs = Math.round(performance.now() - t0);
+  }
+
+  _unloadZone() {
+    this.zoneReady = false;
+    if (this.trust) this.endTrust?.('cancel');
+    this.panel?.close?.();
+    this.hubPanel?.close();
+    if (this.worldMap?.isOpen) this.worldMap.close();
+    this.heartCards.mesh.removeFromParent();
+    // Everything in the zone's scene first (a module's own dispose takes things out of the scene, and would hide them from this walk).
+    if (this.scene) disposeTree(this.scene, { keep: new Set([this.heartCards.mesh]) });
+    if (this.actor) {
+      this.actor.object.removeFromParent();
+      this.actor.dispose();
+      this.actor = null;
+    }
+    this.villagers?.dispose();
+    this.fauna?.dispose();
+    this.vfx?.dispose?.();
+    this.hubProps?.dispose();
+    this.beam?.dispose();
+    this.world?.dispose();
+    this.renderer.renderLists.dispose();
+    this.villagers = this.fauna = this.vfx = this.hubProps = this.beam = null;
+    this.player = null;
+    this.doors = [];
+    this.world = this.scene = null;
+  }
+
+  _buildHub(zone) {
+    const hub = zone.hub;
+    const H = (x, z) => this.world.ground(x, z);
+    const blocked = (x, z) => !this.world.colliders.walkable(x, z, x, z) || this.world.colliders.pushOut(x, z, 0.6)[0] !== x;
+    // Lanternrest's teahouse and shop are its own; its walls and lanterns are its edge.
+    const skip = zone.id === 'lanternrest' ? ['rest', 'merchant', 'stats'] : ['stats'];
+    const kit = hubKit({ hub, height: H, color: hub.color, skip, blocked, posts: hub.posts !== false, label: zone.name, wood: '#7a4a32', stone: '#8a7a6a' });
+    this.scene.add(kit.group);
+    for (const c of kit.colliders) this.world.colliders.circle(c.x, c.z, c.r, -100, 4);
+    this.hubProps = kit;
+    // The journal's stand: a lectern with the book open.
+    const s = hub.services.stats;
+    if (s) {
+      const g = new THREE.Group();
+      const wood = new THREE.MeshStandardMaterial({ color: 0x6a4a32, roughness: 0.9 });
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.1, 8), wood);
+      post.position.y = 0.55;
+      const top = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.06, 0.5), wood);
+      top.position.y = 1.12;
+      top.rotation.x = -0.4;
+      const book = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.42), new THREE.MeshStandardMaterial({ color: 0xf0e2c0, roughness: 0.8, emissive: 0x3a2a10, emissiveIntensity: 0.3 }));
+      book.position.set(0, 1.16, 0.01);
+      book.rotation.x = -0.4;
+      g.add(post, top, book);
+      g.position.set(s.x, H(s.x, s.z), s.z);
+      g.rotation.y = Math.atan2(hub.x - s.x, hub.z - s.z);
+      kit.group.add(g);
+      this.world.colliders.circle(s.x, s.z, 0.4, -100, 2);
+    }
+  }
+
+  _buildDoors(zone) {
+    const H = (x, z) => this.world.ground(x, z);
+    this.doors = [];
+    for (const p of zone.portals) {
+      if (!p.veil) continue;
+      const v = portalVeil({ w: p.veil.w, h: p.veil.h, a: '#ffe0a8', b: '#e07a5a', round: false, opacity: 0.75 });
+      v.mesh.position.set(p.veil.x, H(p.veil.x, p.veil.z), p.veil.z);
+      v.mesh.rotation.y = p.veil.face;
+      this.scene.add(v.mesh);
+      this.doors.push(v);
+    }
+  }
+
+  _tripStart() {
+    this._modeBefore = this.mode === 'menu' ? 'menu' : 'play';
+    this.mode = 'travel';
+    this.keys.clear();
+    this.follow?.assist.clear();
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.power?.setMenu('live');
+  }
+
+  _tripEnd() {
+    if (this.closed) return;
+    this.mode = this._modeBefore ?? 'play';
+    this.power?.setMenu(this.mode === 'menu' ? 'live' : 'none');
+    this.root.focus();
+  }
+
+  _entered(zone, via) {
+    this.persistZones();
+    if (via !== 'load' && this.hud) this.hud.banner(zone.name, zone.sub);
+  }
+
+  persistZones() {
+    writeZoneSave(ZONE_SAVE_KEY, this.zoneSave);
+  }
+
+  _mapData(zone) {
+    return { title: `Kithvale — ${zone.name}`, base: this.minimapCanvas, extent: this.world.extent, areas: AREAS.filter((a) => !a.line && inZone(zone, a.x, a.z)) };
+  }
+
+  /** In a hub's ring (Kithvale has no fights; the label still tells you where home is). */
+  isSafe() {
+    return Boolean(this.player && this.zone && this.zones?.safeAt(this.player.pos.x, this.player.pos.z));
+  }
+
+  serviceLabel(s) {
+    return { map: 'Read the map board', info: 'Read the notice board', stash: 'Open the stash chest', stats: 'Open the journal', merchant: `Trade at ${s.name ?? 'the stall'}`, rest: `Rest at ${s.name ?? 'the bench'}`, waystone: 'Touch the waystone' }[s.id] ?? s.id;
+  }
+
+  useService(id) {
+    const zone = this.zone;
+    const hold = { onOpen: () => this._holdOpened('hub'), onClose: () => this._mapClosed(), accent: zone.hub.color };
+    const G = this.zoneSave.game;
+    const sat = this.state.satchel;
+    this.sound.tick?.();
+    if (id === 'map') return this.openMap({ world: true });
+    if (id === 'stats') return this.journal();
+    if (id === 'rest') {
+      this.zones.rest();
+      if (this.state.cycle) this.hour = R.DUSK;
+      this.hud.banner('A good rest', `${zone.hub.name}: you'll come back here when you're lost.`);
+      return;
+    }
+    if (id === 'waystone') {
+      this.hubPanel = waystoneMenu(this.root, { rows: this.zones.waystones(), onPick: (hub) => this.zones.fastTravel(hub), ...hold });
+      return;
+    }
+    if (id === 'info') {
+      const r = this.zoneSave.zones[zone.id];
+      const species = Object.entries(R.SPECIES).filter(([sp]) => zone.id === 'vale').map(([, s]) => s.name);
+      this.hubPanel = infoPanel(this.root, {
+        zone: zone.name,
+        sub: zone.sub,
+        about: `${zone.hub.name} is a hub: a waystone, a stash for treats and keepsakes, a map board and a place to rest. ${zone.portals.map((p) => `${p.name} leads to ${this.zones.zone(p.to)?.name}.`).join(' ')}`,
+        counters: counters(this.zoneSave, zone.id, { friends: zone.id === 'vale' ? R.SPECIES_ORDER.length : 0, nodes: zone.id === 'vale' ? 14 : 0, pois: zone.pois.length }),
+        contents: [
+          { label: 'Creatures', items: species },
+          { label: 'Places', items: zone.pois.map((p) => (r?.pois?.includes(p.id) ? p.name : '?')) }
+        ],
+        tips: zone.tips ?? [],
+        story: zone.story.hooks
+      }, hold);
+      return;
+    }
+    if (id === 'merchant') {
+      const sections = () => [
+        { label: 'Buy treats', rows: R.TREAT_ORDER.map((t) => ({ id: `buy:${t}`, name: R.TREATS[t].name, sub: `In your satchel: ${sat[t]}`, price: TREAT_PRICE[t], verb: 'Buy', disabled: G.petals < TREAT_PRICE[t] || sat[t] >= R.SATCHEL_MAX })) },
+        { label: 'Refill', rows: [{ id: 'refill', name: `Fill the satchel to ${REFILL_TO} of each`, sub: 'Petals for what is missing', verb: 'Refill' }] },
+        { label: 'Sell keepsakes', rows: G.pouch.map((e, i) => ({ id: `sell:${i}`, name: `${KEEPSAKES[e.keep].name} ×${e.n}`, sub: KEEPSAKES[e.keep].blurb, price: KEEPSAKES[e.keep].price, verb: 'Sell one' })) }
+      ];
+      this.hubPanel = shopPanel(this.root, {
+        title: zone.hub.services.merchant.name ?? 'The shop',
+        coinsLabel: 'Petals',
+        coins: () => G.petals,
+        sections,
+        act: (rid) => {
+          const [verb, k] = rid.split(':');
+          let msg = '';
+          if (verb === 'buy') {
+            if (G.petals < TREAT_PRICE[k] || !R.addTreat(sat, k, 1)) return 'Not now.';
+            G.petals -= TREAT_PRICE[k];
+            msg = `+1 ${R.TREATS[k].name}`;
+          } else if (verb === 'refill') {
+            let cost = 0;
+            for (const t of R.TREAT_ORDER) while (sat[t] < REFILL_TO && G.petals - cost >= TREAT_PRICE[t]) {
+              R.addTreat(sat, t, 1);
+              cost += TREAT_PRICE[t];
+            }
+            G.petals -= cost;
+            msg = cost ? `Refilled for ${cost} petals.` : 'Your satchel is already full enough.';
+          } else if (verb === 'sell') {
+            const e = G.pouch[Number(k)];
+            if (!e) return '';
+            G.petals += KEEPSAKES[e.keep].price;
+            msg = `Sold a ${KEEPSAKES[e.keep].name}.`;
+            if (--e.n <= 0) G.pouch.splice(Number(k), 1);
+          }
+          this.refreshHud();
+          this.saveSoon();
+          this.persistZones();
+          return msg;
+        },
+        ...hold
+      });
+      return;
+    }
+    if (id === 'stash') {
+      const commit = (slots) => {
+        G.pouch = uncarry(slots, sat);
+        this.refreshHud();
+        this.saveSoon();
+        this.persistZones();
+      };
+      this.hubPanel = stashPanel(this.root, {
+        title: `Stash — ${zone.hub.name}`,
+        note: 'Treats from your satchel and keepsakes from your pouch on the left; the stash, the same chest in every hub, on the right.',
+        bag: () => carried(sat, G.pouch),
+        stash: () => this.zoneSave.stash,
+        view: (e) => (e.treat ? { icon: treatIcon(e.treat, 40), count: e.n, name: R.TREATS[e.treat].name, color: R.TREATS[e.treat].color, tip: R.TREATS[e.treat].blurb } : { icon: KEEPSAKES[e.keep].icon, count: e.n, name: KEEPSAKES[e.keep].name, tip: `${KEEPSAKES[e.keep].blurb} The shop pays ${KEEPSAKES[e.keep].price} petals.` }),
+        move: (side, i) => {
+          const slots = carried(sat, G.pouch);
+          const r = side === 'bag' ? stashMove(slots, i, this.zoneSave.stash, STACK) : stashMove(this.zoneSave.stash, i, slots, STACK);
+          commit(slots);
+          return r.ok ? null : side === 'bag' ? 'The stash is full.' : 'Your satchel is full.';
+        },
+        sort: (side) => {
+          if (side === 'bag') commit(sortSlots(carried(sat, G.pouch), entryKey));
+          else sortSlots(this.zoneSave.stash, entryKey);
+          this.persistZones();
+        },
+        storeAll: () => {
+          const slots = carried(sat, G.pouch);
+          const n = moveAll(slots, this.zoneSave.stash, STACK, (e) => Boolean(e.treat));
+          commit(slots);
+          return `Stored ${n} keepsake${n === 1 ? '' : 's'} (treats stay in your satchel).`;
+        },
+        takeAll: () => {
+          const slots = carried(sat, G.pouch);
+          const n = moveAll(this.zoneSave.stash, slots, STACK);
+          commit(slots);
+          return `Took ${n}.`;
+        },
+        ...hold
+      });
+    }
+  }
+
   close() {
     if (this.closed) return;
     this.closed = true;
     this.music?.dispose();
     this.saveNow();
+    if (this.zoneSave) this.persistZones();
     this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._onKey);
@@ -247,16 +547,14 @@ export class KithvaleGame {
     if (this._onMove) window.removeEventListener('pointermove', this._onMove);
     if (document.pointerLockElement) document.exitPointerLock();
     this.touchUi?.dispose();
-    this.villagers?.dispose();
-    this.fauna?.dispose();
-    this.actor?.dispose();
-    this.world?.dispose();
+    if (this.world) this._unloadZone();
+    this.zones?.dispose();
     this.post?.dispose();
     this.hud?.dispose();
+    this.safeBadge?.dispose();
     this.worldMap?.dispose();
     this.help?.dispose();
     this.cue?.dispose();
-    this.beam?.dispose();
     this.bank?.dispose();
     this.heartCards?.dispose();
     this.sound.dispose();
@@ -389,7 +687,10 @@ export class KithvaleGame {
       onLand: (hard, surface) => this.sound.step(surface === 'cobble' ? 'cobble' : surface === 'wood' ? 'wood' : 'dirt', 4 + hard * 6, 1.4)
     });
     if (old) this.player.place(old.pos.x, old.pos.z, old.yaw);
-    else this.player.place(START.x, START.z, START.yaw);
+    else {
+      const m = this._menuSpot(this.zone ?? ZONES[0]);
+      this.player.place(m.x, m.z, m.yaw);
+    }
   }
 
   footstep(surface, speed, p) {
@@ -412,7 +713,8 @@ export class KithvaleGame {
     // valley by day, Treasure Found when a creature joins; the game's own Sound switch silences it too.
     this.music ??= new GameMusic('kithvale', { muted: () => !this.sound.enabled, settle: 2.5 });
     this.music.jump('lantern-valley');
-    this.player.place(START.x, START.z - 1, Math.PI);
+    const spot = this._menuSpot(this.zone);
+    this.player.place(spot.x, spot.z, spot.yaw);
     this.start = new StartScreen(this.root, {
       picked: this.picked,
       hasSave: this.state.friends.length > 0,
@@ -420,7 +722,7 @@ export class KithvaleGame {
         this.sound.wake();
         this.sound.tick();
         this.setLook(id);
-        this.player.place(START.x, START.z - 1, Math.PI);
+        this.player.place(spot.x, spot.z, spot.yaw);
         this.state.look = id;
         this.saveSoon();
       },
@@ -449,23 +751,27 @@ export class KithvaleGame {
     this.sound.tick();
     this.start?.hide();
     this.start = null;
-    this.player.place(START.x, START.z, START.yaw);
-    this.follow.yaw = START.yaw + Math.PI;
+    const at = this.zone.id === 'lanternrest' ? START : arrivalAt(this.zone);
+    this.player.place(at.x, at.z, at.yaw);
+    this.follow.yaw = at.yaw + Math.PI;
     this.follow.pitch = 0.1;
     this.follow.pivot.set(0, 0, 0);
     this.follow.wantDist = this.follow.dist = this.follow.cur = 4.4;
     this.resize();
     this.hud = new Hud(this.root, { touch: this.touch, debug: this.debug, portraits: this.portraits });
     this.hud.minimap.map = this.minimapCanvas;
-    // The full map (O, the pause menu's Map, the minimap's button or ⟲'s neighbour 🗺 on touch) and its waypoint.
+    this.hud.minimap.extent = this.world.extent;
+    this.safeBadge = new SafeBadge(this.hud.el ?? this.root);
+    this.safeBadge.set(this.isSafe(), this.zone.hub.name);
+    // The full map (O, the pause menu's Map, the minimap's button or ⟲'s neighbour 🗺 on touch) and its waypoint; its World tab shows every zone.
     this.waypoint ??= new Waypoint();
     this.worldMap = new WorldMap({
       host: this.root,
-      title: 'Kithvale',
-      base: this.minimapCanvas,
-      extent: EXTENT,
-      areas: AREAS,
+      ...this._mapData(this.zone),
+      world: () => this.zones.world(),
       legend: [
+        { shape: 'pin', color: '#7ee08f', label: 'Hub' },
+        { shape: 'square', color: '#b98cff', label: 'Gate' },
         { shape: 'star', color: '#fff3d0', label: 'Gate · shrine · pond · garden' },
         { shape: 'heart', color: '#ff9ac0', label: 'Your friends' },
         { shape: 'dot', color: '#c8e070', label: 'Creatures you have met' },
@@ -495,13 +801,13 @@ export class KithvaleGame {
         onZoom: (d) => this.follow.zoom(d)
       });
     }
-    for (const f of this.fauna.friends) f.brain.x = START.x + (Math.random() - 0.5) * 2, (f.brain.z = START.z - 2);
+    for (const f of this.fauna.friends) f.brain.x = at.x + (Math.random() - 0.5) * 2, (f.brain.z = at.z - 2);
     this.mode = 'play';
     this.power.setMenu('none');
     this.area = null;
     this.music.jump(this.musicArea());
     this.root.focus();
-    this.hud.banner('Lanternrest', this.state.friends.length ? 'welcome back' : 'the vale is waiting beyond the gate', 4.5);
+    this.hud.banner(this.zone.name, this.zone.id === 'lanternrest' ? (this.state.friends.length ? 'welcome back' : 'the vale is waiting beyond the gate') : this.zone.sub, 4.5);
     this.help.openFirstTime();
     this.refreshHud();
   }
@@ -515,9 +821,13 @@ export class KithvaleGame {
 
   /** What the full map shows besides you: the vale's places, your friends, the creatures (met by kind, the rest as unknowns), lanterns, caches, villagers. */
   mapMarkers() {
-    const out = MAP_POIS.map((p) => ({ x: p.x, z: p.z, shape: 'star', color: '#fff3d0', r: 1.2, label: p.name }));
+    const zone = this.zone;
+    const out = MAP_POIS.filter((p) => inZone(zone, p.x, p.z)).map((p) => ({ x: p.x, z: p.z, shape: 'star', color: '#fff3d0', r: 1.2, label: p.name }));
+    out.push({ x: zone.hub.x, z: zone.hub.z, shape: 'pin', color: '#7ee08f', r: 1.3, label: `${zone.hub.name} (hub)` });
+    for (const [id, sv] of Object.entries(zone.hub.services)) out.push({ x: sv.x, z: sv.z, color: '#9fe8a8', r: 0.55, label: SERVICE_NAMES[id] });
+    for (const d of zone.portals) out.push({ x: d.x, z: d.z, shape: 'square', color: '#b98cff', r: 1.1, label: `${d.name} → ${this.zones.zone(d.to)?.name}` });
     for (const v of this.villagers?.list ?? []) if (Number.isFinite(v.x)) out.push({ x: v.x, z: v.z, color: '#ffe0b0', r: 0.6 });
-    STONE_LANTERNS.forEach(([x, z], i) => out.push({ x, z, color: this.state.lanterns.includes(i) ? '#ffb050' : '#6a6460', r: 0.7 }));
+    if (this.world.landmarks) STONE_LANTERNS.forEach(([x, z], i) => out.push({ x, z, color: this.state.lanterns.includes(i) ? '#ffb050' : '#6a6460', r: 0.7 }));
     for (const c of this.world.caches.list) if (c.found && !c.dug) out.push({ x: c.x, z: c.z, shape: 'square', color: '#c98a2a', r: 0.8 });
     for (const w of this.fauna.wild) {
       if (!w.brain.present) continue;
@@ -529,14 +839,15 @@ export class KithvaleGame {
   }
 
   /** Open the full map: the vale waits (and the 3D stops drawing) while it's up. */
-  openMap() {
+  openMap({ world = false } = {}) {
     if (!this.worldMap || (this.mode !== 'play' && this.mode !== 'paused') || this.trust) return;
     if (this.mode === 'paused') {
       this.pauseEl?.close();
       this.pauseEl = null;
     }
     this.panel?.close();
-    this.worldMap.open();
+    if (world) this.worldMap.openWorld();
+    else this.worldMap.open();
   }
 
   /** How to play: the vale waits while it's up. */
@@ -662,6 +973,11 @@ export class KithvaleGame {
       if (e.code === 'Escape' || HELP_CODES.includes(e.code)) this.help.close();
       return;
     }
+    if (this.mode === 'hub') {
+      if (e.code === 'Escape') this.hubPanel?.close();
+      return;
+    }
+    if (this.mode === 'travel') return;
     if (e.code === 'Escape') {
       if (this.trust) this.endTrust(null);
       else if (this.panel) this.panel.close();
@@ -857,6 +1173,9 @@ export class KithvaleGame {
     // A creature that trusts you.
     const ready = this.fauna.nearest(p.x, p.z, 3.6, (w) => w.brain.state === 'ready');
     if (ready) return { type: 'trust', w: ready, label: `Breathe with the ${R.SPECIES[ready.species].name}` };
+    // A hub's service (it stands still; people come and go).
+    const sv = serviceNear(this.zone, p.x, p.z, 2.6);
+    if (sv) return { type: 'service', id: sv.id, label: this.serviceLabel(sv) };
     // A villager.
     const vn = this.nearVillager;
     if (vn && vn.d < 2.6) return { type: 'talk', p: vn.p, label: `Talk to ${vn.p.v.name}` };
@@ -924,7 +1243,15 @@ export class KithvaleGame {
           this.state.caches.push(c.id);
           const n = R.addTreat(s, c.treat, c.n);
           this.vfx.smokeAt(V(c.x, groundAt(c.x, c.z), c.z), 6, [0.55, 0.42, 0.3], { size: 0.4, life: 1, speed: 0.6, up: 0.6, alpha: 0.4 });
-          this.hud.toast(`<img src="${treatIcon(c.treat, 40)}" alt=""> A buried cache! +${n} ${R.TREATS[c.treat].name}`);
+          // A keepsake was buried with the treats.
+          const k = keepsakeOf(c.id);
+          const G = this.zoneSave.game;
+          const has = G.pouch.find((e) => e.keep === k);
+          if (has) has.n = Math.min(9, has.n + 1);
+          else if (G.pouch.length < 9) G.pouch.push({ keep: k, n: 1 });
+          mark(this.zoneSave, this.zone.id, 'nodes', `cache:${c.id}`);
+          this.persistZones();
+          this.hud.toast(`<img src="${treatIcon(c.treat, 40)}" alt=""> A buried cache! +${n} ${R.TREATS[c.treat].name} and a keepsake: ${KEEPSAKES[k].icon} ${KEEPSAKES[k].name}`);
           this.sound.pick();
           this.refreshHud();
           this.saveSoon();
@@ -964,6 +1291,9 @@ export class KithvaleGame {
       case 'note':
         this.hud.toast(what.label);
         break;
+      case 'service':
+        this.useService(what.id);
+        break;
       default:
         break;
     }
@@ -974,6 +1304,7 @@ export class KithvaleGame {
     b.mesh.visible = false;
     if (b.collider) b.collider.r = 0;
     this.state.boulders.push(b.id);
+    if (mark(this.zoneSave, this.zone.id, 'nodes', `boulder:${b.id}`)) this.persistZones();
     const at = V(b.x, groundAt(b.x, b.z) + 0.8, b.z);
     this.sound.shatter();
     this.vfx.smokeAt(at, 14, [0.62, 0.58, 0.56], { size: 0.9, grow: 2.4, life: 1.6, speed: 2, up: 1, alpha: 0.5 });
@@ -986,6 +1317,7 @@ export class KithvaleGame {
   }
 
   kindle(i, quiet = false) {
+    if (!this.world.landmarks) return;
     const fire = this.world.landmarks.fires[i];
     fire.emissiveIntensity = 2.4;
     fire.color.set('#ffd8a0');
@@ -1011,6 +1343,7 @@ export class KithvaleGame {
 
   lightHollow(quiet = false) {
     const h = this.world.hollow;
+    if (h.stub) return;
     h.light.intensity = 9;
     h.dark.material.color.set('#3a2418');
     h.inside.visible = !this.state.hollowTaken;
@@ -1101,6 +1434,7 @@ export class KithvaleGame {
     w.body.emote('love', 2);
     this.heartBurst(head, 26);
     this.actor.act('Cheer', { loop: false, fade: 0.2 });
+    if (mark(this.zoneSave, this.zone.id, 'friends', w.species)) this.persistZones();
   }
 
   trustLost() {
@@ -1163,6 +1497,8 @@ export class KithvaleGame {
   /* ================================================================ frame */
 
   frame(dt, rawMs = 16) {
+    // Between zones nothing moves and nothing is drawn: the trip's card covers the view.
+    if (this.mode === 'travel' || !this.zoneReady) return;
     this.t += dt;
     const t = this.t;
     const playing = this.mode === 'play';
@@ -1178,6 +1514,10 @@ export class KithvaleGame {
       this.tossQ = this.tossQ.filter((x) => x.t > 0);
       const abilities = { float: R.hasAbility(this.state, 'float') };
       this.player.update(dt, inp, this.follow.heading(), abilities);
+      if (!this.trust && this.mode === 'play') {
+        this.zones.update(dt, this.player.pos.x, this.player.pos.z);
+        if (this.mode === 'travel' || !this.zoneReady) return;
+      }
       if (this.trust) breath = this.updateTrust(dt);
       // No swinging round on its own while befriending, on a fixed shot, or in mouse-look.
       this.follow.pause = Boolean(this.trust) || Boolean(this.camFix) || Boolean(document.pointerLockElement);
@@ -1453,7 +1793,9 @@ export class KithvaleGame {
     let prompt = null;
     if (!this.trust && !this.panel) {
       const what = this.nearInteract();
+      const door = portalNear(this.zone, p.x, p.z, 5);
       if (what) prompt = `${this.touch ? '✋' : '<kbd>E</kbd>'} ${what.label}`;
+      else if (door) prompt = `${door.portal.name} — to ${this.zones.zone(door.portal.to)?.name}`;
       else if (this.player.sneaking) prompt = '🐾 Creeping quietly';
     }
     this.hud.prompt(prompt);

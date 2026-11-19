@@ -124,12 +124,12 @@ export function rockMaterial() {
 }
 
 /** Outcrops and lone rocks, instanced from a few shapes. Returns the group. */
-export function buildRocks(colliders) {
+export function buildRocks(colliders, keep = () => true) {
   const r = rng(91);
   const shapes = [1, 2, 3, 4, 5].map((s) => rockGeometry(s));
   const mat = rockMaterial();
   const items = [];
-  for (const o of OUTCROPS) {
+  for (const o of OUTCROPS.filter((q) => keep(q.x, q.z))) {
     for (let k = 0; k < o.n; k++) {
       const a = r() * Math.PI * 2;
       const d = k === 0 ? 0 : o.s * (0.8 + r() * 1.4);
@@ -249,9 +249,10 @@ export function buildWaterside() {
  * taken. Spots: { kind, x, z, y, ready, regrow }.
  */
 export class Forage {
-  constructor() {
+  /** `keep(x, z)`: the zone's bushes and rocks only. */
+  constructor(keep = () => true) {
     this.group = new THREE.Group();
-    this.spots = FORAGE.map((f, i) => ({ ...f, i, y: groundAt(f.x, f.z), ready: true, regrow: 0 }));
+    this.spots = FORAGE.map((f, i) => ({ ...f, i, y: groundAt(f.x, f.z), ready: true, regrow: 0 })).filter((f) => keep(f.x, f.z));
     const berry = new THREE.SphereGeometry(0.07, 8, 6);
     const stem = new THREE.CylinderGeometry(0.035, 0.05, 1, 6);
     stem.translate(0, 0.5, 0);
@@ -350,11 +351,11 @@ export class Forage {
 }
 
 /** Cracked boulders (a Pebbleroll can break them). Each its own mesh: { id, mesh, x, z, n }. */
-export function buildBoulders(colliders, done = []) {
+export function buildBoulders(colliders, done = [], keep = () => true) {
   const group = new THREE.Group();
   const mat = rockMaterial();
   const crackMat = new THREE.MeshBasicMaterial({ color: 0x2a2228 });
-  const list = BOULDERS.map((b, i) => {
+  const list = BOULDERS.map((b, i) => [b, i]).filter(([b]) => keep(b.x, b.z)).map(([b, i]) => {
     const geo = rockGeometry(40 + i, { flat: 0.85, rough: 0.22 });
     const mesh = new THREE.Mesh(geo, mat);
     const y = heightAt(b.x, b.z) - 0.2;
@@ -430,12 +431,12 @@ export function buildHollow() {
 }
 
 /** A cache's dig spot: a low mound of turned earth, shown only once a Tuftlet has sniffed it out. */
-export function buildCaches(done = []) {
+export function buildCaches(done = [], keep = () => true) {
   const group = new THREE.Group();
   const geo = new THREE.SphereGeometry(0.5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
   geo.scale(1, 0.35, 1);
   const mat = painterly(new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 1 }));
-  const list = CACHES.map((c) => {
+  const list = CACHES.filter((c) => keep(c.x, c.z)).map((c) => {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(c.x, heightAt(c.x, c.z) - 0.02, c.z);
     m.visible = false;

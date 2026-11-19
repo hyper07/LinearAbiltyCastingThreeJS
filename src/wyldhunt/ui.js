@@ -5,7 +5,7 @@
  * minimap, the gather log and prompt, subtitles, a controls hint that fades
  * — the field bag, the credits and the pause menu. Icons are drawn here.
  */
-import { EXTENT, AREAS, areaAt, CAMP } from './map.js';
+import { EXTENT as WHOLE, AREAS, areaAt, CAMP } from './map.js';
 import { CONTROLS } from './controls.js';
 import { hintItems } from '../shared/helpPanel.js';
 import { LOOKS } from './cast.js';
@@ -465,6 +465,7 @@ export class Hud {
 
 /** The gorge painted once from the heights: rock, floor, path, water, the camp. */
 export function paintMap(grid) {
+  const EXTENT = grid.extent ?? WHOLE;
   const W = grid.w;
   const H = grid.h;
   const c = document.createElement('canvas');
@@ -516,7 +517,8 @@ export function paintMap(grid) {
 }
 
 export class Minimap {
-  constructor(host) {
+  constructor(host, extent = WHOLE) {
+    this.extent = extent;
     this.el = el('div', 'wh-minimap');
     this.canvas = document.createElement('canvas');
     this.label = el('div', 'wh-minimap__label');
@@ -552,7 +554,7 @@ export class Minimap {
     g.translate(R, R);
     g.rotate(rot);
     g.scale(k, k);
-    g.drawImage(this.map, -(me.x - EXTENT.x0), -(me.z - EXTENT.z0));
+    g.drawImage(this.map, -(me.x - this.extent.x0), -(me.z - this.extent.z0));
     g.restore();
     g.save();
     g.beginPath();

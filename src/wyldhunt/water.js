@@ -514,17 +514,32 @@ void main() {
 }`;
 
 export class Waters {
-  constructor(bank, settings) {
+  /** `keep(x, z)`: the zone being built (only its stretch of river, its falls and pools are made). */
+  constructor(bank, settings, keep = () => true) {
     this.group = new THREE.Group();
     this.bank = bank;
     this.mats = [];
-    this.faces = FALLS.map((fl) => findFace(fl));
+    this.keep = keep;
+    this.falls = FALLS.filter((fl) => keep(fl.pool.x, fl.pool.z));
+    this.faces = FALLS.map((fl) => (this.falls.includes(fl) ? findFace(fl) : {}));
+    // The river's stretch inside the zone (a little past its edge, so it runs off the map).
+    let s0 = Infinity;
+    let s1 = -Infinity;
+    for (let s = 0; s <= RIVER.len; s += 4) {
+      const p = pointAt(RIVER, s);
+      if (keep(p.x, p.z)) {
+        s0 = Math.min(s0, s);
+        s1 = Math.max(s1, s);
+      }
+    }
+    const span = s0 <= s1 ? { start: Math.max(0, s0 - 20), end: Math.min(RIVER.len, s1 + 20) } : null;
     const noise = bank.noise();
     // River.
     const mat = waterMaterial(bank);
     this.mats.push(mat);
     const river = new THREE.Mesh(
       ribbon(RIVER, {
+        ...(span ?? { start: 0, end: 0 }),
         half: (s) => riverHalfWidth(s) + 3.2,
         level: (s) => riverLevel(s),
         speed: (s) => 0.6 + 2.6 * Math.max(0, Math.min(1, (riverLevel(Math.max(0, s - 6)) - riverLevel(s + 6)) / 1.2)),
@@ -534,14 +549,19 @@ export class Waters {
       mat
     );
     river.renderOrder = 1;
-    this.group.add(river);
+    if (span) this.group.add(river);
     // Streams from the side pools.
     for (const st of STREAMS) {
+      if (!keep(st.pts[0][0], st.pts[0][1])) continue;
       const g = ribbon(st, { half: () => 1.8, level: (s) => { const p = pointAt(st, s); return heightAt(p.x, p.z) + 0.55; }, speed: () => 1.8, foam: () => 0.5, across: 4, step: 1 });
       this.group.add(new THREE.Mesh(g, mat));
     }
     // Pools, with foam where the falls land.
     FALLS.forEach((fl, i) => {
+      if (!this.falls.includes(fl)) {
+        waterUniforms.uImpacts.value[i].set(0, -999, 0, 0);
+        return;
+      }
       const face = this.faces[i];
       const foot = face.foot ?? { x: fl.pool.x, z: fl.pool.z };
       const land = { x: foot.x - face.dx * 3, z: foot.z - face.dz * 3 };
@@ -555,7 +575,7 @@ export class Waters {
     this.fallMats = [];
     FALLS.forEach((fl, i) => {
       const face = this.faces[i];
-      if (!face.top || !face.foot) return;
+      if (!this.falls.includes(fl) || !face.top || !face.foot) return;
       const geo = fallGeometry(fl, face);
       for (const layer of [0, 1]) {
         const fm = new THREE.ShaderMaterial({
@@ -595,6 +615,7 @@ export class Waters {
     let r = 7;
     const rnd = () => ((r = (r * 16807) % 2147483647) - 1) / 2147483646;
     FALLS.forEach((fl, i) => {
+      if (!this.falls.includes(fl)) return;
       const face = this.faces[i];
       const land = face.land ?? fl.pool;
       const H = face.top ? face.top.h - face.base : 30;
@@ -649,12 +670,13 @@ export class Waters {
     const rnd = () => ((r = (r * 16807) % 2147483647) - 1) / 2147483646;
     // Over the falls' basins and along the path, where the canopy opens.
     const spots = [];
-    for (const fl of FALLS) for (let k = 0; k < (fl.id === 'grand' ? 9 : 4); k++) spots.push([fl.pool.x + (rnd() - 0.5) * fl.pool.r * 2.4, fl.pool.z + (rnd() - 0.5) * fl.pool.r * 2.4, fl.id === 'grand' ? 90 : 60, fl.id === 'grand' ? 8 : 5]);
+    for (const fl of this.falls) for (let k = 0; k < (fl.id === 'grand' ? 9 : 4); k++) spots.push([fl.pool.x + (rnd() - 0.5) * fl.pool.r * 2.4, fl.pool.z + (rnd() - 0.5) * fl.pool.r * 2.4, fl.id === 'grand' ? 90 : 60, fl.id === 'grand' ? 8 : 5]);
     for (let s = 20; s < 720; s += 26) {
       const p = pointAt(RIVER, s);
       spots.push([p.x + (rnd() - 0.5) * 30, p.z + (rnd() - 0.5) * 30, 55 + rnd() * 25, 3 + rnd() * 4]);
     }
     for (const [x, z, L, W] of spots) {
+      if (!this.keep(x, z)) continue;
       sh.push(x, z, L, W);
       seed.push(rnd(), heightAt(x, z) - 2);
     }

@@ -65,6 +65,11 @@ export class HuntCombat {
   press(btn) {
     const g = this.g;
     if (this.dead || g.riding) return;
+    // In a hub nothing is fought (a dodge is still a dodge).
+    if (btn !== 'Space' && g.isSafe?.()) {
+      g.peaceful?.();
+      return;
+    }
     this.held[btn] = true;
     if (btn === 'Space') return this.dodge();
     if (this.state === 'down' || this.state === 'cower' || this.state === 'gather') return;
@@ -413,6 +418,8 @@ export class HuntCombat {
   hit(attack, { enraged = false, from, damage = null } = {}) {
     const g = this.g;
     if (this.dead) return;
+    // Inside a hub's ring no blow lands.
+    if (g.isSafe?.()) return;
     if (this.iframe > 0 || (this.state === 'dodge' && this.t > DODGE.iFrom && this.t < DODGE.iTo)) {
       g.vfx.burst(g.hunter.pos.clone().add(V(0, 1, 0)), 10, [2, 2.4, 2.6], { speed: 3, life: 0.3, size: 0.1, gravity: 0 });
       return;

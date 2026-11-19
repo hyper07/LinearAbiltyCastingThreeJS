@@ -14,6 +14,7 @@ import { CHESTS, openChest, openPlaced, rewardChest, chestGone, CHEST_VANISH } f
 import { SAVE_VERSION, serialize, parseSave, loadSave, writeSave, newSave, profileFor } from '../../src/gloamreach/save.js';
 import { outside } from '../../src/gloamreach/heights.js';
 import { LEDGE, REGIONS, regionSdf } from '../../src/gloamreach/map.js';
+import { riftOutside, riftAreaAt, lavaAt } from '../../src/gloamreach/rift.js';
 
 /** A seeded 0…1 stream. */
 const seeded = (seed = 1) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -97,7 +98,7 @@ test('map: buildings apart, trees off the roads, lamps both sides of the path', 
   assert.equal(areaAt(0, -142), 'gate');
   assert.equal(areaAt(0, -250), 'gloamwood');
   assert.equal(areaAt(126, 0), 'overlook');
-  assert.equal(areaAt(LEDGE.x, LEDGE.z), 'ledge');
+  assert.equal(areaAt(LEDGE.x, LEDGE.z), 'stair', 'the old ledge is now the head of the Cinder Stair');
   assert.ok(trees.every((t) => regionSdf(REGIONS.ledge, t.x, t.z) > 1), 'the ledge is clear of trees');
   assert.equal(gloamAt(0), 0);
   assert.equal(gloamAt(-200), 1);
@@ -401,13 +402,15 @@ test('bestiary: every monster can fight; spawns are on walkable ground, away fro
   for (const s of list) {
     assert.ok(MONSTERS[s.type], s.type);
     assert.ok(Math.hypot(s.x - PLAZA.x, s.z - PLAZA.z) > 55, `${s.type} at ${s.x},${s.z} is not in the village`);
-    assert.ok(outside(s.x, s.z) < 0, `${s.type} at ${s.x},${s.z} stands on walkable ground (${outside(s.x, s.z).toFixed(1)})`);
+    // Down in the Cinder Rift (its own zone) the floor is rift.js's; up top, heights.js's.
+    if (s.x > CLIFF_X) assert.ok(riftOutside(s.x, s.z) < -4 && lavaAt(s.x, s.z) < 0.1, `${s.type} at ${s.x},${s.z} stands on the rift's walkable floor`);
+    else assert.ok(outside(s.x, s.z) < 0, `${s.type} at ${s.x},${s.z} stands on walkable ground (${outside(s.x, s.z).toFixed(1)})`);
     assert.ok(Number.isFinite(heightAt(s.x, s.z)));
   }
   for (const p of PEOPLE) if (Array.isArray(p.at)) for (const s of list) assert.ok(Math.hypot(s.x - p.at[0], s.z - p.at[1]) > 15, `${s.type} near ${p.id}`);
   assert.equal(list.filter((s) => MONSTERS[s.type].boss).length, 1, 'one boss');
   const boss = list.find((s) => MONSTERS[s.type].boss);
-  assert.equal(areaAt(boss.x, boss.z), 'ledge');
+  assert.equal(riftAreaAt(boss.x, boss.z), 'ledge', 'Cindermaw waits on Emberfall Ledge, in the rift');
   assert.ok(list.filter((s) => MONSTERS[s.type].elite).length >= 3);
   assert.ok(RESPAWN.normal < RESPAWN.elite && RESPAWN.elite < RESPAWN.boss);
   assert.equal(tierOf(monsterDef('cindermaw')), 'boss');
@@ -423,7 +426,7 @@ test('chests: placed chests open once per hero; reward chests open once and then
   assert.ok(openPlaced(opened, 'c-ledge'));
   assert.equal(openPlaced(opened, 'c-ledge'), false);
   for (const c of CHESTS) {
-    assert.ok(outside(c.x, c.z) < 0, `${c.id} is reachable`);
+    assert.ok(c.x > CLIFF_X ? riftOutside(c.x, c.z) < -4 : outside(c.x, c.z) < 0, `${c.id} is reachable`);
     assert.ok(Math.hypot(c.x - PLAZA.x, c.z - PLAZA.z) > 40, `${c.id} is out in the wild`);
   }
   assert.equal(rewardChest({}, { id: 'x', x: 0, z: 0 }), null);

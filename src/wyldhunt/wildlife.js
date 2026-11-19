@@ -17,7 +17,9 @@ import { animStride, ticksOn } from '../shared/power.js';
 const SKITTER_COAT = { back: ['#0a1416', '#1e4a50', '#5ab0a8'], belly: ['#140c08', '#6a3a1a', '#e88a3a'], stripe: '#e86a2a', stripeK: 0.6 };
 
 export class Wildlife {
-  constructor({ scene, colliders, detail, vfx }) {
+  /** `keep(x, z)`: only the herds and nests of the zone being built. */
+  constructor({ scene, colliders, detail, vfx, keep = () => true }) {
+    this.keep = keep;
     this.scene = scene;
     this.colliders = colliders;
     this.detail = detail;
@@ -29,12 +31,14 @@ export class Wildlife {
   }
 
   async load() {
+    if (!HERDS.some((h) => this.keep(h.x, h.z)) && !NESTS.some((n) => this.keep(n.x, n.z))) return;
     const [tpl, spider] = await Promise.all([loadTemplate('deer-base', { detail: this.detail }), loadRig('spider')]);
     const r = this.r;
     if (tpl) {
       // One coat for all of them: the deer's own shading, tinted moss-grey.
       let coat = null;
       HERDS.forEach((h, hi) => {
+        if (!this.keep(h.x, h.z)) return;
         for (let i = 0; i < h.n; i++) {
           const a = new Actor(tpl, { height: 1.85 + r() * 0.3, name: 'Velvetbuck' });
           a.model.traverse((o) => {
@@ -55,6 +59,7 @@ export class Wildlife {
     }
     if (spider) {
       NESTS.forEach((n, ni) => {
+        if (!this.keep(n.x, n.z)) return;
         for (let i = 0; i < n.n; i++) {
           const be = new Beast(spider, { height: 0.85, gaits: ['Walk'], speeds: { Idle: 0, Walk: 2.4 }, coat: (src) => coatMaterial(src, { ...SKITTER_COAT, rim: 0.7, rough: 0.35 }), name: 'Thornskitter' });
           const ang = (i / n.n) * Math.PI * 2;

@@ -174,7 +174,9 @@ export class Sky {
     for (const [name, g] of [['village', 0], ['gloamwood', 1]]) {
       m.material.uniforms.uGloam.value = g;
       ground.material.color.set(g ? 0x1a1430 : 0x4a3420);
-      this.envs[name] = pmrem.fromScene(scene, 0, 0.1, 100).texture;
+      const rt = pmrem.fromScene(scene, 0, 0.1, 100);
+      (this.rts ??= []).push(rt);
+      this.envs[name] = rt.texture;
     }
     pmrem.dispose();
     m.geometry.dispose();
@@ -193,6 +195,7 @@ export class Sky {
     this.mesh.geometry.dispose();
     this.material.dispose();
     for (const e of Object.values(this.envs)) e.dispose();
+    for (const rt of this.rts ?? []) rt.dispose();
   }
 }
 

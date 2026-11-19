@@ -24,12 +24,17 @@ export const LAYERS = [
 const STEP = 1; // metres between height samples
 const CHUNK = 64;
 
-/** Heights on the 1 m grid, computed once (the mesh, grass and splat all use it). */
-export function heightGrid() {
+/**
+ * Heights on the 1 m grid, computed once (the mesh, grass and splat all use
+ * it) over `extent` — the zone's bounds (map.js EXTENT is the whole map) —
+ * from `height` (heights.js's land, or a zone's own, like the Cinder Rift's).
+ */
+export function heightGrid(extent = EXTENT, height = heightAt) {
+  const EXTENT = extent;
   const w = Math.round((EXTENT.x1 - EXTENT.x0) / STEP) + 1;
   const h = Math.round((EXTENT.z1 - EXTENT.z0) / STEP) + 1;
   const data = new Float32Array(w * h);
-  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) data[j * w + i] = heightAt(EXTENT.x0 + i * STEP, EXTENT.z0 + j * STEP);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) data[j * w + i] = height(EXTENT.x0 + i * STEP, EXTENT.z0 + j * STEP);
   const at = (x, z) => {
     const fx = Math.min(w - 1.001, Math.max(0, (x - EXTENT.x0) / STEP));
     const fz = Math.min(h - 1.001, Math.max(0, (z - EXTENT.z0) / STEP));
@@ -42,11 +47,12 @@ export function heightGrid() {
     const b = data[k + w] + (data[k + w + 1] - data[k + w]) * tx;
     return a + (b - a) * tz;
   };
-  return { w, h, data, at };
+  return { w, h, data, at, extent: { ...extent } };
 }
 
 /** The splat maps (0.5 m a texel): two RGBA bytes of layer weights, plus puddles. */
 export function splatMaps(grid, trees) {
+  const EXTENT = grid.extent;
   const CELL = 0.5;
   const W = Math.round((EXTENT.x1 - EXTENT.x0) / CELL);
   const H = Math.round((EXTENT.z1 - EXTENT.z0) / CELL);
@@ -128,7 +134,20 @@ export function splatMaps(grid, trees) {
     t.needsUpdate = true;
     return t;
   };
-  return { a: tex(A), b: tex(B), W, H, raw: { A, B } };
+  return { a: tex(A), b: tex(B), W, H, raw: { A, B }, extent: EXTENT };
+}
+
+/** Splat textures from raw layer weights (a zone that paints its own ground, like the Cinder Rift). */
+export function splatTextures(A, B, W, H, extent) {
+  const tex = (data) => {
+    const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.needsUpdate = true;
+    return t;
+  };
+  return { a: tex(A), b: tex(B), W, H, raw: { A, B }, extent };
 }
 
 /** Heights as a half-float texture for shaders that sit things on the ground (grass). */
@@ -301,6 +320,7 @@ tAO = mix(1.0, arm.r, 0.8);
 `;
 
 export function terrainMaterial(arrays, splat, noise) {
+  const EXTENT = splat.extent;
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
   const uniforms = {
     tCol: { value: arrays.color },
@@ -417,6 +437,7 @@ function chunkGeometry(grid, cx0, cz0, sizeX, sizeZ, step) {
 
 export class Terrain {
   constructor(grid, material, { farStep = 4 } = {}) {
+    const EXTENT = grid.extent;
     this.group = new THREE.Group();
     this.chunks = [];
     for (let z = EXTENT.z0; z < EXTENT.z1 - 0.01; z += CHUNK) {
@@ -452,12 +473,12 @@ export class Terrain {
   }
 }
 
-/** Pond water: dark, glossy, rippling, reflecting the sky. */
-export function ponds(textures) {
+/** Pond water: dark, glossy, rippling, reflecting the sky (the ones `keep` allows: the zone's). */
+export function ponds(textures, keep = () => true) {
   const group = new THREE.Group();
   const ripples = textures.ripples();
   const mats = [];
-  for (const p of PONDS) {
+  for (const p of PONDS.filter((q) => keep(q.x, q.z))) {
     const geo = new THREE.CircleGeometry(p.r * 1.25, 48);
     geo.rotateX(-Math.PI / 2);
     const forest = p.zone === 'gloamwood';

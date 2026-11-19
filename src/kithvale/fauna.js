@@ -60,7 +60,9 @@ function treatMesh(kind) {
 }
 
 export class Fauna {
-  constructor({ scene, settings, ground, colliders, slope, vfx }) {
+  /** `keep(x, z)`: only the wild ones whose homes are in the zone being built (shared/zones). */
+  constructor({ scene, settings, ground, colliders, slope, vfx, keep = () => true }) {
+    this.keep = keep;
     this.scene = scene;
     this.settings = settings;
     this.ground = ground;
@@ -83,7 +85,8 @@ export class Fauna {
       await yieldFn(sp);
     }
     let seed = 1;
-    for (const [sp, h] of Object.entries(HABITATS)) for (const home of h.homes) this.spawn(sp, home, h.roam, seed++);
+    for (const [sp, h] of Object.entries(HABITATS)) for (const home of h.homes) if (this.keep(home[0], home[1])) this.spawn(sp, home, h.roam, seed++);
+      else seed++;
   }
 
   makeBody(species, seed) {

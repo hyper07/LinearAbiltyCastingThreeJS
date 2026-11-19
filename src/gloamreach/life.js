@@ -38,7 +38,9 @@ const NEEDS = {
 const HEIGHTS = { 'halfling-hunter-base': 1.32, 'mushroom-druid-base': 1.45, 'black-smith-base': 1.92, 'forest-witch-base': 1.62, 'dryad-priest-base': 1.86 };
 
 export class Life {
-  constructor({ scene, world, bank, effects }) {
+  /** `keep(x, z)`: who belongs to the zone being built (shared/zones; everyone when absent). */
+  constructor({ scene, world, bank, effects, keep = () => true }) {
+    this.keep = keep;
     this.scene = scene;
     this.world = world;
     this.bank = bank;
@@ -74,9 +76,28 @@ export class Life {
     return { x: 0, z: 0, face: 0 };
   }
 
+  /** Where a cast entry lives, or null when its place isn't built in this zone. */
+  homeOf(c) {
+    const s = this.world.spots;
+    if (Array.isArray(c.at)) return { x: c.at[0], z: c.at[1] };
+    if (typeof c.at === 'string') {
+      if (c.at === 'innPorch' || c.at === 'smithy') return s.homes ? this.spot(c.at) : null;
+      if (c.at.startsWith('stall')) return s.stalls?.[Number(c.at.slice(5))] ? this.spot(c.at) : null;
+      if (c.at.startsWith('bench')) return s.benches?.[Number(c.at.slice(5))] ? this.spot(c.at) : null;
+      if (c.at.startsWith('root')) return s.rootHouses?.[Number(c.at.slice(4))] ? this.spot(c.at) : null;
+    }
+    if (c.path) return { x: c.path[0][0], z: c.path[0][1] };
+    if (c.route) return { x: ROUTES[c.route][0][0], z: ROUTES[c.route][0][1] };
+    return null;
+  }
+
   async load(onProgress = () => {}) {
     const detail = this.bank.noise();
-    const all = [...PEOPLE.map((p) => ({ ...p, kind: 'person' })), ...ANIMALS.map((a) => ({ ...a, kind: 'animal' }))];
+    const here = (c) => {
+      const h = this.homeOf(c);
+      return h && this.keep(h.x, h.z);
+    };
+    const all = [...PEOPLE.map((p) => ({ ...p, kind: 'person' })), ...ANIMALS.map((a) => ({ ...a, kind: 'animal' }))].filter(here);
     let done = 0;
     await Promise.all(
       all.map(async (c) => {
@@ -124,7 +145,8 @@ export class Life {
     if (!eagle) return;
     const box = new THREE.Box3().setFromObject(eagle.scene);
     const span = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) || 1;
-    const spots = [[110, 0, 46, 38], [20, -20, 58, 60], [-40, 30, 52, 48]];
+    const spots = [[110, 0, 46, 38], [20, -20, 58, 60], [-40, 30, 52, 48]].filter(([x, z]) => this.keep(x, z));
+    if (!spots.length) return;
     for (const [cx, cz, alt, rad] of spots) {
       const o = SkeletonUtils.clone(eagle.scene);
       o.scale.setScalar(2.1 / span);

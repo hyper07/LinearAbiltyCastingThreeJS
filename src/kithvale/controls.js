@@ -5,7 +5,7 @@
  */
 export const CONTROLS = {
   title: 'How to play — Kithvale',
-  goal: 'Befriend the creatures of the vale. Creep close, toss them the treat they like, then breathe with them until they trust you — and they\'ll follow you (three at a time) and lend you their gifts. Light the stone lanterns and find what\'s buried.',
+  goal: 'Befriend the creatures of the vale. Creep close, toss them the treat they like, then breathe with them until they trust you — and they\'ll follow you (three at a time) and lend you their gifts. Light the stone lanterns and find what\'s buried. Lanternrest and the shrine on the hill are hubs: map board, notices, a stash for treats and keepsakes, the journal, the shop, rest and a waystone; the big gate joins the village to the vale.',
   groups: [
     { name: 'Move', rows: [
       { id: 'move', keys: ['W', 'A', 'S', 'D'], codes: ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'], does: 'Move (or the arrow keys)', short: 'move', hint: true, touch: 'Left stick' },
@@ -24,7 +24,7 @@ export const CONTROLS = {
       { id: 'toss', keys: ['Q'], codes: ['KeyQ'], does: 'Toss the treat (or right-click)', short: 'toss', hint: true, touch: '➶' }
     ] },
     { name: 'Menus', rows: [
-      { id: 'interact', keys: ['E'], codes: ['KeyE'], does: 'Talk · gather · breathe with a creature', short: 'talk · befriend', hint: true, touch: '✋' },
+      { id: 'interact', keys: ['E'], codes: ['KeyE'], does: 'Talk · gather · breathe with a creature · in a hub: map, notices, stash, journal, shop, rest, waystone', short: 'talk · befriend', hint: true, touch: '✋' },
       { id: 'journal', keys: ['J'], codes: ['KeyJ'], does: 'Journal: your friends and who follows', short: 'journal', touch: '📖' },
       { id: 'help', keys: ['H', 'I'], codes: ['KeyH', 'KeyI'], does: 'How to play (this)', short: 'help', hint: true },
       { id: 'pause', keys: ['Esc'], codes: ['Escape'], does: 'Pause: Graphics, Camera, Map, day cycle, sound', short: 'menu', hint: true, touch: '☰' }

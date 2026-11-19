@@ -704,6 +704,12 @@ export class CombatFx {
     this.streaks.mat.dispose();
     this.ribbons.geo.dispose();
     this.ribbons.mat.dispose();
+    // Its own materials (an arrow, a rock, the reticle) may be out of the scene when it goes.
+    for (const m of [this.arrowMat, this.arrowHeadMat, this.fletchMat, this.rockMat]) m?.dispose();
+    this.rockMat?.emissiveMap?.dispose();
+    for (const g of [].concat(this.arrowGeo ?? [])) g?.dispose?.();
+    this.reticle?.mesh?.geometry.dispose();
+    this.reticle?.mesh?.material.dispose();
     this.group.removeFromParent();
   }
 }

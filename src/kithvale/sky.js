@@ -224,7 +224,9 @@ export class Sky {
       this.uniforms = m.material.uniforms;
       this.setHour(h, mood);
       ground.material.color.copy(mood.hemiG).multiplyScalar(1.4);
-      this.envs.push({ h, tex: pmrem.fromScene(scene, 0, 0.1, 100).texture });
+      const rt = pmrem.fromScene(scene, 0, 0.1, 100);
+      (this.rts ??= []).push(rt);
+      this.envs.push({ h, tex: rt.texture });
     }
     this.uniforms = saved;
     pmrem.dispose();
@@ -257,6 +259,7 @@ export class Sky {
     this.mesh.geometry.dispose();
     this.material.dispose();
     for (const e of this.envs) e.tex.dispose();
+    for (const rt of this.rts ?? []) rt.dispose();
   }
 }
 

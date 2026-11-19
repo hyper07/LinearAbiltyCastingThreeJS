@@ -5,7 +5,7 @@
  */
 export const CONTROLS = {
   title: 'How to play — Wyldhunt',
-  goal: 'Hunt the Gnarlhorn in Mistfall Gorge: read its tracks, gather herbs, ore and bugs, ride Burrow up the gorge with your companions, then break its parts and carve your trophies. Lantern Camp is home.',
+  goal: 'Hunt the Gnarlhorn in Mistfall Gorge: read its tracks, gather herbs, ore and bugs, ride Burrow up the gorge with your companions, then break its parts and carve your trophies. Lantern Camp is home: the Hunters\' Gate leads to the gorge, and both camps are safe hubs — map, hunt board, stash, gear stand, provisioner, rest and a waystone.',
   groups: [
     { name: 'Move', rows: [
       { id: 'move', keys: ['W', 'A', 'S', 'D'], codes: ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'], does: 'Move (riding: W faster, S slower, A D steer)', short: 'move', hint: true },
@@ -30,7 +30,7 @@ export const CONTROLS = {
       { id: 'bag', keys: ['I', 'B'], codes: ['KeyI', 'KeyB'], does: 'Field bag', short: 'bag' }
     ] },
     { name: 'Menus', rows: [
-      { id: 'interact', keys: ['E'], codes: ['KeyE'], does: 'Gather · carve · mount and dismount', short: 'gather · mount', hint: true },
+      { id: 'interact', keys: ['E'], codes: ['KeyE'], does: 'Gather · carve · mount and dismount · in a camp: map, hunt board, stash, stand, provisioner, rest, waystone', short: 'gather · mount', hint: true },
       { id: 'whistle', keys: ['X'], codes: ['KeyX'], does: 'Whistle for Burrow' },
       { id: 'help', keys: ['H'], codes: ['KeyH'], does: 'How to play (this)', short: 'help', hint: true },
       { id: 'pause', keys: ['Esc'], codes: ['Escape'], does: 'Pause: Graphics, Camera, Map, sound, leave', short: 'menu' }

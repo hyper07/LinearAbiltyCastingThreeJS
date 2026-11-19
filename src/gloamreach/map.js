@@ -18,7 +18,7 @@ export const AREAS = [
   { id: 'gate', name: "The Warden's Gate", sub: 'carved before the village had a name', x: 0, z: -142 },
   { id: 'gloamwood', name: 'The Gloamwood', sub: 'where the dusk never ends', x: 0, z: -240 },
   { id: 'overlook', name: 'Cinder Rift Overlook', sub: 'mind the edge', x: 126, z: 0 },
-  { id: 'ledge', name: 'Emberfall Ledge', sub: 'where the drake\'s brood nests', x: 122, z: -44 }
+  { id: 'stair', name: 'The Cinder Stair', sub: 'the way down into the rift', x: 122, z: -44 }
 ];
 
 export const START = { x: 1.5, z: 40, yaw: Math.PI }; // yaw π: facing −z (north)
@@ -28,11 +28,11 @@ export const REGIONS = {
   village: { x0: -112, x1: 104, z0: -116, z1: 108, r: 26 },
   promontory: { x0: 92, x1: 139, z0: -20, z1: 20, r: 6 },
   gloamwood: { x0: -96, x1: 96, z0: -330, z1: -164, r: 30 },
-  // A shelf above the rift, north of the overlook along the cliff: the Ember Drake's whelp nests here.
+  // A shelf above the rift, north of the overlook along the cliff: the Cinder Stair goes down from here.
   ledge: { x0: 104, x1: 140, z0: -66, z1: -12, r: 12 }
 };
 
-/** The ledge's arena: where the boss waits, and the scorched ground round it. */
+/** The shelf at the head of the Cinder Stair (the drake's brood now nests below, in the rift: rift.js). */
 export const LEDGE = { x: 123, z: -45, r: 15 };
 
 /** The ridge the Warden's Gate cuts through, and the canyon the road takes. */
@@ -174,7 +174,7 @@ export function gloamAt(z) {
 export function areaAt(x, z) {
   if (z < -160) return 'gloamwood';
   if (z < -118) return 'gate';
-  if (x > 104 && z < -22) return 'ledge';
+  if (x > 104 && z < -22) return 'stair';
   if (x > 104) return 'overlook';
   return 'village';
 }

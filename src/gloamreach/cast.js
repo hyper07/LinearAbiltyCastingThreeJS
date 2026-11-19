@@ -59,13 +59,16 @@ export const PEOPLE = [
   { id: 'tamsin', name: 'Tamsin Hale', title: 'Adventurer', model: 'crossbowman-base', does: 'jog', route: 'grand', offset: 0, greet: 'No time — we\'re for the Gloamwood before the lamps go out!' },
   { id: 'rook', name: 'Rook', title: 'Adventurer', model: 'human-assassin-base', does: 'jog', route: 'grand', offset: 9, greet: 'Keep up, or keep out of the way.' },
   { id: 'garrick', name: 'Garrick Ashveil', title: 'Adventurer', model: 'human-warrior-base', does: 'jog', route: 'grand', offset: 16, greet: 'Race you to the Gate!' },
-  { id: 'kesh', name: 'Kesh Ardent', title: 'Cliff Warden', model: 'slim-knight-base', at: [124, 6, 1.6], does: 'idle', greet: 'Watch the sky over the rift. And the ledge to the north — her brood nests there.' },
-  { id: 'dorrin', name: 'Dorrin Anvilborn', title: 'Armsmonger', model: 'dwarf-knight-base', at: 'stall3', does: 'work', clip: 'Interact', merchant: true, greet: 'Blades, bows and good boots! Press F to trade — I buy what the woods leave you, too.' },
+  { id: 'kesh', name: 'Kesh Ardent', title: 'Cliff Warden', model: 'slim-knight-base', at: [124, 6, 1.6], does: 'idle', greet: 'Watch the sky over the rift. North on the old ledge the Cinder Stair goes down — her brood nests below.' },
+  { id: 'dorrin', name: 'Dorrin Anvilborn', title: 'Armsmonger', model: 'dwarf-knight-base', at: 'stall3', does: 'work', clip: 'Interact', merchant: true, shop: { title: "Dorrin's Arms", sub: 'Armsmonger of Brindlewick', lead: '“Steel for the woods, and coin for what you drag back out of them.”' }, greet: 'Blades, bows and good boots! Press F to trade — I buy what the woods leave you, too.' },
   // The Gloamwood.
   { id: 'sylwen', name: 'Sylwen', title: 'Keeper of Lamps', model: 'dryad-priest-base', at: [6, -248, -1.2], does: 'work', clip: 'Cast', greet: 'Each lamp holds a little of the moon. I only remind them to shine.' },
   { id: 'tumbleroot', name: 'Tumbleroot', title: 'Moss-Elder', model: 'mushroom-druid-base', at: 'root0', does: 'idle', greet: 'Shh. The trees are listening, and they do love to gossip.' },
   { id: 'ithrel', name: 'Ithrel Nightbough', title: 'Warden of the Gloamwood', model: 'elf-assassin-base', does: 'patrol', path: [[-2, -172], [-9, -200], [-6, -226], [8, -250], [2, -282], [-2, -298]], greet: 'You came through the Gate. Few do, at this hour that never ends.' },
   { id: 'liora', name: 'Liora', title: 'Starkeeper', model: 'elf-mage-base', at: 'root1', does: 'sit', clip: 'SitFloor', greet: 'Count the stars with me? There\'s one more than yesterday.' },
+  // The hubs' merchants: the Keepers' Grove (Gloamwood) and Ashward Outpost (the Cinder Rift).
+  { id: 'ysolde', name: 'Ysolde Fernwick', title: 'Grove Keeper', model: 'dryad-hunter-base', at: [3, -199, 0], does: 'idle', merchant: true, shop: { title: "Ysolde's Satchel", sub: "Keeper of the Grove's stores", lead: '“Lamp oil, arrows, a blade or two the wood gave back.”' }, greet: 'Rest under the blue lamps — nothing from the dark crosses them. Press F to trade.' },
+  { id: 'varra', name: 'Varra Cinderhand', title: 'Quartermaster', model: 'village-guard-5f0f6f', at: [172.5, -56, -1.5], does: 'idle', merchant: true, shop: { title: 'Ashward Stores', sub: 'Quartermaster of the outpost', lead: '“Fireproofed, mostly. Coin for anything that survived the drake.”' }, greet: 'Stay inside the banners and the heat can\'t reach you. Press F to trade.' },
   { id: 'fennick', name: 'Fennick', title: 'Moonwell Tender', model: 'hooded-staff-acolyte-base', at: [4.5, -300, 3.6], does: 'work', clip: 'Interact', greet: 'Drink if you like. It tastes of evenings.' }
 ];
 

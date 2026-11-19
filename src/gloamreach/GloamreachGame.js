@@ -17,7 +17,8 @@
  */
 import * as THREE from 'three';
 import { TextureBank } from './textures.js';
-import { buildWorld } from './world.js';
+import { buildWorld, prewarm, zoneTreeKinds } from './world.js';
+import { treeMaterials } from './trees.js';
 import { Post } from './post.js';
 import { SETTINGS, chooseTier, Governor } from './quality.js';
 import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
@@ -41,21 +42,37 @@ import { CombatHud } from './combatHud.js';
 import { Panels } from './panels.js';
 import { ItemStudio, HeroPreview } from './icons.js';
 import { Sfx } from './sfx.js';
-import { loadSave, writeSave, profileFor } from './save.js';
-import { merchantStock, makeItem } from './items.js';
+import { loadSave, writeSave, profileFor, cleanEntry } from './save.js';
+import { merchantStock, makeItem, compareItem, POTIONS, RARITIES, RARITY_ORDER, STAT_NAMES, STACK_MAX } from './items.js';
+import { spawnList, monsterDef } from './bestiary.js';
+import { CHESTS } from './chests.js';
+import { ZoneManager } from '../shared/zones/manager.js';
+import { loadZoneSave, writeZoneSave, mark, counters } from '../shared/zones/state.js';
+import { keepOut, monsterRule, arrivalAt } from '../shared/zones/hub.js';
+import { serviceNear, inBounds, portalNear, SERVICE_NAMES } from '../shared/zones/zone.js';
+import { disposeTree, compileReady } from '../shared/zones/dispose.js';
+import { hubKit, portalVeil, portalArch } from '../shared/zones/props.js';
+import { SafeBadge, infoPanel, waystoneMenu, stashPanel } from '../shared/zones/hubUi.js';
+import { move as stashMove, sortSlots, moveAll } from '../shared/zones/stash.js';
+import { ZONES, ZONE_SAVE_KEY, HUB_IDS, inZone, migrateLegacy } from './zones.js';
+import { RIFT_AREAS, riftAreaAt, lavaAt, riftOutside } from './rift.js';
 import { buildItem } from './gearModels.js';
-import { STALLS, toWorld } from './map.js';
+import { STALLS, toWorld, nearestRoad } from './map.js';
 import { Hero } from './hero.js';
 import { FollowCamera } from './camera.js';
 import { Sound } from './audio.js';
 import { HEROES } from './cast.js';
-import { START, AREAS, areaAt, OVERLOOK, EXTENT } from './map.js';
+import { START, AREAS, areaAt } from './map.js';
 import { shared } from './materials.js';
 import { paintMap, Minimap } from './minimap.js';
 import { Loading, StartScreen, Hud, creditsPanel, pauseMenu, el } from './ui.js';
 import './gloamreach.css';
 
 const PREFS = 'gloamreach.prefs';
+/** The stash's slots (the same chest in every hub). */
+const STASH_SIZE = 48;
+/** A door's veil, by the colours of where it leads. */
+const THEME_VEILS = { golden: ['#ffd27a', '#c86a2a'], dusk: ['#a9c8ff', '#7a3cff'], ember: ['#ffb04a', '#d2361a'] };
 /** A monster in one of these states is after you (monsters.js): the music goes to battle. */
 const FIGHTING = new Set(['alert', 'chase', 'windup', 'strike', 'recover']);
 /** Quiet runs at 30 while you explore and rises to 60 the moment a fight starts. */
@@ -161,48 +178,45 @@ export class GloamreachGame {
     this._resize.observe(this.root);
 
     this.bank = new TextureBank(renderer, { size: this.tier === 'low' ? 512 : 1024 });
-    const progress = (label, k) => this.loading?.set(label, k * 0.7);
-    this.world = await buildWorld({ renderer, bank: this.bank, settings, onProgress: progress });
-    if (this.closed) return;
-    const scene = this.world.scene;
-    this.scene = scene;
-    this.effects = new Effects(this.bank, { fireflies: settings.fireflies });
-    scene.add(this.effects.group);
-    for (const [id, h] of Object.entries(this.world.spots.homes)) this.effects.addChimney(h.chimney, { rate: 1.6, size: 1.1, dark: 0.75 });
-    this.effects.addChimney(this.world.spots.homes.smithy.forge.clone().add(new THREE.Vector3(0, 0.3, 0)), { rate: 3, size: 0.6, dark: 0.35, sparks: 0.5 });
-    for (const [x, z, r] of [[0, -300, 9], [-10, -230, 14], [12, -265, 12], [-20, -190, 10], [30, -210, 8]]) this.effects.addWisp(new THREE.Vector3(x, this.world.grid.at(x, z), z), r, Math.random() < 0.5 ? [0.55, 0.85, 1] : [0.9, 0.6, 1]);
-    this.loading?.set('Lighting the rift', 0.72);
-    this.vista = new Vista();
-    await this.vista.build(this.bank, this.effects);
-    scene.add(this.vista.group);
-    this.loading?.set('Waking the people', 0.78);
-    this.life = new Life({ scene, world: this.world, bank: this.bank, effects: this.effects });
-    await this.life.load((k) => this.loading?.set('Waking the people', 0.78 + k * 0.17));
-    this.loading?.set('Calling the heroes', 0.96);
+    // What lives across zones: the heroes, the fight's sounds, item pictures, the camera, the picture.
+    this.loading?.set('Calling the heroes', 0.03);
     this.heroTemplates = {};
     await Promise.all(HEROES.map(async (h) => (this.heroTemplates[h.id] = await loadTemplate(h.model, { detail: this.bank.noise(), borrow: HERO_CLIPS }))));
     if (this.closed) return;
     learnFrames(Object.values(this.heroTemplates));
-    // The fight: its effects, the monsters, sounds, item pictures.
-    this.loading?.set('Stirring the wilds', 0.965);
-    this.vfx = new CombatFx(scene, this.bank, (x, z) => this.world.colliders.height(x, z));
-    this.monsters = new Monsters({ scene, world: this.world, bank: this.bank, vfx: this.vfx });
-    await this.monsters.load((k) => this.loading?.set('Stirring the wilds', 0.965 + k * 0.03));
-    if (this.closed) return;
     this.sfx = new Sfx(this.sound);
     this.studio = new ItemStudio();
-    this._armsStall();
-    this.follow = new FollowCamera(this.camera, this.world.colliders);
+    this.follow = new FollowCamera(this.camera, null);
     // , . turn the camera, [ ] tilt it, / puts it behind the hero; it eases back by itself after a quiet spell.
     this.follow.assist = new CameraAssist(loadAssist('gloamreach'), { id: 'gloamreach' });
     this.post = new Post(renderer);
+    // The world, zone by zone (zones.js): one loaded at a time, the rest not built at all.
+    this.zoneSave = loadZoneSave(ZONE_SAVE_KEY, { migrate: () => migrateLegacy(this.save), zones: ZONES.map((z) => z.id), hubs: HUB_IDS, stashSize: STASH_SIZE, cleanItem: cleanEntry });
+    this.zones = new ZoneManager({
+      game: 'gloamreach',
+      zones: ZONES,
+      save: this.zoneSave,
+      host: this.root,
+      adapter: {
+        load: (zone, at, progress) => this._loadZone(zone, at, progress),
+        unload: (zone) => this._unloadZone(zone),
+        preload: (zone) => this._preloadZone(zone),
+        teleport: (at) => this.teleport(at.x, at.z, at.yaw ?? 0, { pitch: this.follow.pitch, dist: this.follow.wantDist }),
+        persist: () => this.persistZones()
+      },
+      on: {
+        leave: () => this._tripStart(),
+        arrive: () => this._tripEnd(),
+        enter: (zone, via) => this._entered(zone, via),
+        hub: (inside, zone) => this.safeBadge?.set(inside, zone.hub?.name),
+        message: (text) => this.fightHud?.toast(text, 'muted'),
+        poi: (p) => this.fightHud?.toast(`Found: ${p.name}`, 'item')
+      }
+    });
+    const startZone = this.zones.zone(this.zoneSave.zone) ?? this.zones.zones[0];
+    await this.zones.enter(startZone.id, this._menuSpot(startZone), { via: 'load' });
+    if (this.closed) return;
     this.applyPower(true);
-    this.minimapCanvas = paintMap(this.world.grid, this.world.scattered);
-    this.setHero(this.picked);
-    // Compile the shaders now, not at the first glance at something.
-    this.menuCamera(0);
-    this.world.update(0.016, 0, this.camera, this.heroFocus());
-    renderer.compile(scene, this.camera);
     this.loading.set('Ready', 1);
     this.loading.hide();
     this.loading = null;
@@ -213,6 +227,378 @@ export class GloamreachGame {
       this.frame(Math.min(0.05, raw / 1000), raw);
     });
     this.ready = true;
+  }
+
+  /* ================================================================ zones */
+
+  /** Where the hero stands on the start screen (and starts) in a zone: Brindlewick's lane, or a hub's middle. */
+  _menuSpot(zone) {
+    if (zone.id === 'brindlewick') return { x: 1, z: 26, yaw: 0 };
+    return arrivalAt(zone);
+  }
+
+  /** Build a zone: its land and sky, people, monsters, hub and doors; the hero moved into it at `at`. */
+  async _loadZone(zone, at, progress) {
+    this.zoneReady = false;
+    const t0 = performance.now();
+    // How long each part took (for ?debug and the trip measurements).
+    this.loadSteps = [];
+    let tStep = t0;
+    const report = (label, k) => {
+      const now = performance.now();
+      const last = this.loadSteps.at(-1);
+      if (!last || last[0] !== label) this.loadSteps.push([label, 0]);
+      if (last) last[1] += Math.round(now - tStep);
+      tStep = now;
+      return this.loading ? this.loading.set(label, 0.08 + k * 0.9) : progress(label, k);
+    };
+    const settings = this.settings;
+    this.world = await buildWorld({ renderer: this.renderer, bank: this.bank, settings, zone, onProgress: (l, k) => report(l, k * 0.62) });
+    if (this.closed) return;
+    const world = this.world;
+    const scene = world.scene;
+    this.scene = scene;
+    this.zone = zone;
+    const has = (f) => zone.features.includes(f);
+    this.effects = new Effects(this.bank, { fireflies: settings.fireflies });
+    scene.add(this.effects.group);
+    if (world.spots.homes) {
+      for (const h of Object.values(world.spots.homes)) this.effects.addChimney(h.chimney, { rate: 1.6, size: 1.1, dark: 0.75 });
+      this.effects.addChimney(world.spots.homes.smithy.forge.clone().add(new THREE.Vector3(0, 0.3, 0)), { rate: 3, size: 0.6, dark: 0.35, sparks: 0.5 });
+    }
+    if (has('gloamwood')) for (const [x, z, r] of [[0, -300, 9], [-10, -230, 14], [12, -265, 12], [-20, -190, 10], [30, -210, 8]]) this.effects.addWisp(new THREE.Vector3(x, world.grid.at(x, z), z), r, Math.random() < 0.5 ? [0.55, 0.85, 1] : [0.9, 0.6, 1]);
+    this.vista = null;
+    if (has('vista')) {
+      report('Lighting the rift', 0.64);
+      this.vista = new Vista({ inRift: world.rift, avoid: world.rift ? (x, z) => riftOutside(x, z) < 12 : () => false });
+      await this.vista.build(this.bank, this.effects);
+      scene.add(this.vista.group);
+    }
+    report('Waking the people', 0.7);
+    this.life = new Life({ scene, world, bank: this.bank, effects: this.effects, keep: world.keep });
+    await this.life.load((k) => report('Waking the people', 0.7 + k * 0.12));
+    this.vfx = new CombatFx(scene, this.bank, (x, z) => this.world.colliders.height(x, z));
+    report('Stirring the wilds', 0.84);
+    this.monsters = new Monsters({ scene, world, bank: this.bank, vfx: this.vfx, spawns: spawnList().filter((s) => world.keep(s.x, s.z)), fence: (x, z, r) => keepOut(zone, x, z, r) });
+    await this.monsters.load((k) => report('Stirring the wilds', 0.84 + k * 0.1));
+    if (this.closed) return;
+    this.follow.colliders = world.colliders;
+    // The hero: made the first time, moved in after.
+    if (!this.heroActor) this.setHero(this.picked);
+    else this._rehome();
+    this._buildHub(zone);
+    this._buildDoors(zone);
+    this._armsStall();
+    this.minimapCanvas = paintMap(world.grid, world.scattered, { keep: world.keep, lava: world.rift ? lavaAt : null });
+    if (this.minimap) {
+      this.minimap.map = this.minimapCanvas;
+      this.minimap.extent = world.extent;
+      this.minimap.area = null;
+    }
+    this.worldMap?.setZone(this._mapData(zone));
+    this.waypoint?.clear();
+    this.beam = new WaypointBeam(scene);
+    this.applyPower(true);
+    this.hero.place(at.x, at.z, at.yaw ?? 0);
+    this.teleport(at.x, at.z, at.yaw ?? 0, { pitch: this.follow.pitch ?? 0.16, dist: this.follow.wantDist ?? 4.6 });
+    this.area = null;
+    // Compile now, not at the first glance at something.
+    this.world.update(0.016, this.t, this.camera, this.hero.pos);
+    // Compile now (waiting for the GPU to finish, so a quick trip on doesn't pull programs out from under it).
+    await compileReady(this.renderer, scene, this.camera);
+    this.renderer.shadowMap.needsUpdate = true;
+    report('Ready', 1);
+    this.zoneReady = true;
+    this.lastLoadMs = Math.round(performance.now() - t0);
+  }
+
+  /** Let go of the zone: everything in its scene, its people and monsters, the fight's leftovers; the hero is kept. */
+  _unloadZone() {
+    this.zoneReady = false;
+    this.panels?.closeAll();
+    this.hubPanel?.close();
+    if (this.worldMap?.isOpen) this.worldMap.close();
+    if (this.combat) this._vitals = { hp: this.combat.hp, res: this.combat.res, ward: this.combat.ward };
+    const keep = [this.heroActor?.object, this.rig?.cape?.mesh].filter(Boolean);
+    for (const o of keep) o.removeFromParent();
+    // Everything in the zone's scene first (a module's own dispose takes things out of the scene, and would hide them from this walk).
+    if (this.scene) disposeTree(this.scene);
+    this.combat?.dispose();
+    this.combat = null;
+    this.monsters?.dispose();
+    this.life?.dispose();
+    this.vista?.dispose();
+    this.vfx?.dispose();
+    this.effects?.dispose();
+    this.hubProps?.dispose();
+    if (this.mannequin) {
+      this.mannequin.rig.dispose();
+      this.mannequin.actor.dispose();
+    }
+    this.beam?.dispose();
+    this.world?.dispose();
+    this.renderer.renderLists.dispose();
+    this.monsters = this.life = this.vista = this.vfx = this.effects = this.hubProps = this.mannequin = this.beam = null;
+    this.doors = [];
+    this.world = null;
+    this.scene = null;
+  }
+
+  /** Near a door: warm the next zone's land (and its monsters' models) in idle time. */
+  async _preloadZone(zone) {
+    prewarm(zone);
+    // Paint its trees' bark and leaves now, one kind per idle moment, so the trip doesn't.
+    for (const kind of zoneTreeKinds(zone)) {
+      await new Promise((r) => (globalThis.requestIdleCallback ? requestIdleCallback(r, { timeout: 2000 }) : setTimeout(r, 50)));
+      if (this.closed) return;
+      const m = treeMaterials(this.bank, kind, { msaa: (this.settings.msaa ?? 0) > 0 });
+      for (const x of Object.values(m)) x.dispose();
+    }
+    const keep = (x, z) => inZone(zone, x, z);
+    const models = new Set(spawnList().filter((s) => keep(s.x, s.z)).map((s) => monsterDef(s.type).model).filter(Boolean));
+    await Promise.all([...models].map((m) => loadTemplate(m, { detail: this.bank.noise(), rim: 0.5 }).catch(() => null)));
+  }
+
+  /** The hero moves into the new zone's scene: their actor, cape, collisions; a fresh fight with the same health. */
+  _rehome() {
+    this.scene.add(this.heroActor.object);
+    if (this.rig) {
+      this.rig.scene = this.scene;
+      if (this.rig.cape) this.scene.add(this.rig.cape.mesh);
+    }
+    this.hero.colliders = this.world.colliders;
+    this.combat = new Combat(this.fightApi(), this.profile);
+    if (this._vitals) {
+      this.combat.hp = Math.max(1, Math.min(this.combat.stats.maxHp, this._vitals.hp));
+      this.combat.res = Math.min(this.combat.stats.maxRes, this._vitals.res);
+    }
+  }
+
+  /** A hub's props (its edge, waystone, boards, stash, the hero's stand) and the stand's mannequin. */
+  _buildHub(zone) {
+    const hub = zone.hub;
+    const H = (x, z) => this.world.colliders.height(x, z);
+    const blocked = (x, z) => !this.world.colliders.walkable(x, z, x, z) || this.world.colliders.pushOut(x, z, 0.6)[0] !== x || nearestRoad(x, z).d < 0.5;
+    // Brindlewick rests at the inn; every Gloamreach hub's merchant is a person with a stall or a pack.
+    const skip = zone.id === 'brindlewick' ? ['rest', 'merchant'] : ['merchant'];
+    const kit = hubKit({ hub, height: H, color: hub.color, skip, blocked, label: zone.name });
+    this.scene.add(kit.group);
+    for (const c of kit.colliders) this.world.colliders.circle(c.x, c.z, c.r, -100, 4);
+    this.hubProps = kit;
+    for (const [id, s] of Object.entries(hub.services)) if (id === 'waystone' || id === 'rest') this.world.lights.add(new THREE.Vector3(s.x, H(s.x, s.z) + 2.2, s.z), { color: hub.color, intensity: 6, distance: 10, flicker: 0.15, glow: 1.1, glowSize: 1.2 });
+    // The stand shows the hero as they are dressed now.
+    this._standMannequin();
+  }
+
+  /** Doors: a swirling veil in the gate's tunnel, or an arch standing alone. */
+  _buildDoors(zone) {
+    const H = (x, z) => this.world.colliders.height(x, z);
+    this.doors = [];
+    const theme = (to) => THEME_VEILS[this.zones.zone(to)?.theme] ?? THEME_VEILS.golden;
+    for (const p of zone.portals) {
+      const [a, b] = theme(p.to);
+      if (p.veil) {
+        const v = portalVeil({ w: p.veil.w, h: p.veil.h, a, b, round: true });
+        v.mesh.position.set(p.veil.x, H(p.veil.x, p.veil.z) + 0.1, p.veil.z);
+        v.mesh.rotation.y = p.veil.face;
+        this.scene.add(v.mesh);
+        this.doors.push(v);
+      }
+      if (p.arch) {
+        const arch = portalArch({ x: p.arch.x, y: H(p.arch.x, p.arch.z), z: p.arch.z, face: p.arch.face, w: 3.2, h: 4.4, a, b, glow: a });
+        this.scene.add(arch.group);
+        this.doors.push(arch);
+        const c = Math.cos(p.arch.face);
+        const sn = Math.sin(p.arch.face);
+        for (const k of [-1, 1]) this.world.colliders.circle(p.arch.x + c * k * 2.05, p.arch.z - sn * k * 2.05, 0.65, -100, 8);
+      }
+      this.world.lights.add(new THREE.Vector3(p.x, H(p.x, p.z) + 2.5, p.z), { color: a, intensity: 10, distance: 14, flicker: 0.1, glow: 0.8, glowSize: 1.6 });
+    }
+  }
+
+  /** A trip begins (a door, a waystone, waking after a fall): the game holds still. */
+  _tripStart() {
+    this._modeBefore = this.mode === 'menu' ? 'menu' : 'play';
+    this.mode = 'travel';
+    this.keys.clear();
+    this.follow?.assist.clear();
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.power?.setMenu('live');
+  }
+
+  _tripEnd() {
+    if (this.closed) return;
+    this.mode = this._modeBefore ?? 'play';
+    this.power?.setMenu(this.mode === 'menu' ? 'live' : 'none');
+    this.root.focus();
+  }
+
+  /** Arrived in a zone: the save, the banner, the music. */
+  _entered(zone, via) {
+    this.zoneSave.at = null;
+    this.persistZones();
+    if (via !== 'load' && this.hud) this.hud.bigBanner(zone.name, zone.sub);
+    if (this.music && via !== 'load') this.music.jump(this.musicArea(), { fade: 2 });
+  }
+
+  persistZones() {
+    writeZoneSave(ZONE_SAVE_KEY, this.zoneSave);
+  }
+
+  /** The full map's data for a zone (its painted base, bounds, names). */
+  _mapData(zone) {
+    return { title: `Gloamreach — ${zone.name}`, base: this.minimapCanvas, extent: this.world.extent, areas: this._areas(zone) };
+  }
+
+  _areas(zone) {
+    if (this.world?.rift) return RIFT_AREAS;
+    return AREAS.filter((a) => inBounds(zone.bounds, a.x, a.z) && (zone.id !== 'brindlewick' || a.id !== 'gloamwood') && (zone.id !== 'gloamwood' || a.id === 'gloamwood' || a.id === 'gate'));
+  }
+
+  /** Where the hero stands: the area id (banners, the minimap, the music). */
+  areaHere(x, z) {
+    return this.world?.rift ? riftAreaAt(x, z) : areaAt(x, z);
+  }
+
+  /** In the hub's ring nothing is fought. */
+  isSafe() {
+    return Boolean(this.hero && this.zone && this.zones?.safeAt(this.hero.pos.x, this.hero.pos.z));
+  }
+
+  peaceful() {
+    if (this.t - (this._peaceT ?? -9) < 3) return;
+    this._peaceT = this.t;
+    this.fightHud?.toast(`No fighting in ${this.zone?.hub?.name ?? 'the hub'}.`, 'muted');
+  }
+
+  /** Fallen: wake at the last hub rested at (maybe another zone). */
+  respawnHero() {
+    this.zones.respawn().catch(() => {});
+  }
+
+  chestHere(c) {
+    return Boolean(this.zone && inZone(this.zone, c.x, c.z));
+  }
+
+  onChest(c) {
+    if (this.zone && mark(this.zoneSave, this.zone.id, 'chests', c.id)) this.persistZones();
+  }
+
+  onKill(m) {
+    if (!this.zone || (!m.elite && !m.boss)) return;
+    if (mark(this.zoneSave, this.zone.id, m.boss ? 'bosses' : 'elites', m.type)) this.persistZones();
+  }
+
+  /* ================================================================ hub services */
+
+  /** The hub service (or merchant) within reach, for the prompt and F. */
+  nearService() {
+    if (!this.zone || !this.hero) return null;
+    const s = serviceNear(this.zone, this.hero.pos.x, this.hero.pos.z, 2.6);
+    if (!s || s.id === 'merchant') return null;
+    return s;
+  }
+
+  serviceLabel(s) {
+    const zone = this.zone;
+    switch (s.id) {
+      case 'map': return 'Read the map board';
+      case 'info': return 'Read the notices';
+      case 'stash': return 'Open the stash';
+      case 'stats': return 'Look at yourself on the stand';
+      case 'rest': return `Rest${s.name ? ` at ${s.name}` : ''}`;
+      case 'waystone': return 'Touch the waystone';
+      default: return SERVICE_NAMES[s.id] ?? s.id;
+    }
+    void zone;
+  }
+
+  useService(id) {
+    const zone = this.zone;
+    const accent = zone.hub.color;
+    const hold = { onOpen: () => this._holdOpened('hub'), onClose: () => this._mapClosed(), accent };
+    this.sound.tick();
+    if (id === 'map') return this.openMap({ world: true });
+    if (id === 'stats') {
+      this.panels.toggle('char', true);
+      return;
+    }
+    if (id === 'rest') {
+      this.combat.recalc(true);
+      this.combat.dots = [];
+      this.zones.rest();
+      this.vfx.ring(this.hero.pos, { radius: 2.4, color: [2.6, 2.2, 1.2], life: 0.9 });
+      this.fightHud.toast(`Rested at ${zone.hub.name} — fully healed. You'll wake here if you fall.`, 'gold');
+      this.sfx.potion?.();
+      return;
+    }
+    if (id === 'waystone') {
+      this.hubPanel = waystoneMenu(this.root, { rows: this.zones.waystones(), onPick: (hub) => this.zones.fastTravel(hub), ...hold });
+      return;
+    }
+    if (id === 'info') {
+      const r = this.zoneSave.zones[zone.id];
+      const chests = CHESTS.filter((c) => inZone(zone, c.x, c.z)).length;
+      const spawns = spawnList().filter((s) => inZone(zone, s.x, s.z));
+      const elites = new Set(spawns.filter((s) => monsterDef(s.type).elite).map((s) => s.type));
+      const bosses = new Set(spawns.filter((s) => monsterDef(s.type).boss).map((s) => s.type));
+      const kinds = [...new Set(spawns.map((s) => monsterDef(s.type).name))];
+      this.hubPanel = infoPanel(this.root, {
+        zone: zone.name,
+        sub: zone.sub,
+        about: `${zone.hub.name} is safe ground: no monster crosses its ring and no blow lands inside it. ${zone.portals.map((p) => `${p.name} leads to ${this.zones.zone(p.to)?.name}.`).join(' ')}`,
+        counters: counters(this.zoneSave, zone.id, { chests, elites: elites.size, bosses: bosses.size, pois: zone.pois.length }),
+        contents: [
+          { label: 'What prowls here', items: kinds },
+          { label: 'Places', items: zone.pois.map((p) => (r?.pois?.includes(p.id) ? p.name : '?')) }
+        ],
+        tips: zone.tips ?? [],
+        story: zone.story.hooks
+      }, hold);
+      return;
+    }
+    if (id === 'stash') {
+      const p = this.profile;
+      const rules = { stack: (a, b) => Boolean(a.kind) && a.kind === b.kind, max: STACK_MAX, count: (e) => (e.kind ? e.n : 1), setCount: (e, n) => (e.n = n) };
+      const lists = { bag: () => p.bag, stash: () => this.zoneSave.stash };
+      const key = (e) => (e.kind ? `0${e.kind}` : `1${RARITY_ORDER.length - RARITY_ORDER.indexOf(e.rarity)}${e.name}`);
+      const done = () => {
+        this.gearChanged();
+        this.persistZones();
+      };
+      this.hubPanel = stashPanel(this.root, {
+        title: `Stash — ${zone.hub.name}`,
+        bag: lists.bag,
+        stash: lists.stash,
+        view: (e) => (e.kind ? { icon: '🧪', count: e.n, name: POTIONS[e.kind].name, color: POTIONS[e.kind].color, tip: POTIONS[e.kind].desc } : { icon: this.studio.icon(e), name: e.name, color: RARITIES[e.rarity]?.color, tip: `${RARITIES[e.rarity]?.name ?? ''} · item level ${e.ilvl} · needs level ${e.req}\n${Object.entries(e.stats).map(([k, v]) => `${STAT_NAMES[k] ?? k} ${v > 0 ? '+' : ''}${v}`).join(' · ')}` }),
+        compare: (e) => {
+          if (!e.base) return '';
+          const d = compareItem(e, p.equip);
+          const keys = Object.keys(d);
+          return keys.length ? `If worn: ${keys.map((k) => `${STAT_NAMES[k] ?? k} ${d[k] > 0 ? '+' : ''}${d[k]}`).join(' · ')}` : 'If worn: the same as what you wear.';
+        },
+        move: (side, i) => {
+          const r = side === 'bag' ? stashMove(p.bag, i, this.zoneSave.stash, rules) : stashMove(this.zoneSave.stash, i, p.bag, rules);
+          done();
+          return r.ok ? null : side === 'bag' ? 'The stash is full.' : 'Your bag is full.';
+        },
+        sort: (side) => {
+          sortSlots(side === 'bag' ? p.bag : this.zoneSave.stash, key);
+          done();
+        },
+        storeAll: () => {
+          const n = moveAll(p.bag, this.zoneSave.stash, rules, (e) => Boolean(e.kind));
+          done();
+          return `Stored ${n} thing${n === 1 ? '' : 's'} (potions stay in your bag).`;
+        },
+        takeAll: () => {
+          const n = moveAll(this.zoneSave.stash, p.bag, rules);
+          done();
+          return `Took ${n} thing${n === 1 ? '' : 's'}.`;
+        },
+        ...hold
+      });
+    }
   }
 
   close() {
@@ -228,26 +614,23 @@ export class GloamreachGame {
     document.removeEventListener('pointerlockchange', this._onLock);
     if (this._onUpBtn) window.removeEventListener('pointerup', this._onUpBtn);
     if (document.pointerLockElement) document.exitPointerLock();
-    this.life?.dispose();
     if (this.profile) writeSave(this.save);
-    this.combat?.dispose();
+    if (this.zoneSave) this.persistZones();
+    if (this.world) this._unloadZone();
+    this.zones?.dispose();
     this.rig?.dispose();
-    this.monsters?.dispose();
-    this.vfx?.dispose();
     this.panels?.dispose();
     this.preview?.dispose();
     this.studio?.dispose();
     this.fightHud?.dispose();
     this.heroActor?.dispose();
-    this.effects?.dispose();
-    this.world?.dispose();
     this.post?.dispose();
     this.hud?.dispose();
+    this.safeBadge?.dispose();
     this.minimap?.dispose();
     this.worldMap?.dispose();
     this.help?.dispose();
     this.cue?.dispose();
-    this.beam?.dispose();
     this.bank?.dispose();
     this.sound.dispose();
     this.renderer?.dispose();
@@ -287,13 +670,15 @@ export class GloamreachGame {
     const s = { ...powerSettings(SETTINGS, { state: this.power.state, detail: this.tier, res: this.resTier, profile: POWER_PROFILE }), msaa: this.settings.msaa };
     this.settings = s;
     this.resize();
-    this.post.configure({ ao: s.ao, rays: s.rays, bloom: s.bloom, smaa: (s.smaa && (s.preset === 'ultra' || !s.msaa)) || !s.msaa, msaa: s.msaa, bloomHalf: s.bloomHalf }, s.scale);
+    this.post?.configure({ ao: s.ao, rays: s.rays, bloom: s.bloom, smaa: (s.smaa && (s.preset === 'ultra' || !s.msaa)) || !s.msaa, msaa: s.msaa, bloomHalf: s.bloomHalf }, s.scale);
+    if (!this.world) return;
     const lighting = this.world.lighting;
     if (!first && (prev.shadow !== s.shadow || prev.shadowBox !== s.shadowBox)) lighting.setShadow(s.shadow, s.shadowBox);
+    else if (first && (lighting.sun.shadow.mapSize.x !== s.shadow || lighting.box !== s.shadowBox)) lighting.setShadow(s.shadow, s.shadowBox);
     lighting.sun.castShadow = s.shadowOn;
     this.renderer.shadowMap.needsUpdate = true;
     this.world.lights.setCount(s.lights);
-    this.world.foliage.setDensity(s.grass, s.grassReach);
+    this.world.foliage?.setDensity(s.grass, s.grassReach);
     this.world.limits.treeFar = s.treeFar;
     this.world.limits.far = s.far;
     if (this.life) this.life.limits = { far: s.far, animNear: s.animNear };
@@ -336,7 +721,10 @@ export class GloamreachGame {
     // Capes need their shoulder height in the model's own units.
     if (this.hero.capeU && tpl) this.hero.capeU.value.w = (tpl.natural ?? 1.8) * 0.8;
     if (old && this.mode === 'play') this.hero.place(old.pos.x, old.pos.z, old.yaw);
-    else this.hero.place(1, 26, 0);
+    else {
+      const m = this._menuSpot(this.zone ?? ZONES[0]);
+      this.hero.place(m.x, m.z, m.yaw);
+    }
     // What this hero carries and wears (each class keeps its own), and their side of the fight.
     this.profile = profileFor(this.save, id);
     this.rig?.dispose();
@@ -350,6 +738,34 @@ export class GloamreachGame {
       this.fightHud.cls = id;
       this.fightHud._buildBar();
     }
+    if (this.mannequin && this.mannequin.cls !== id) this._standMannequin();
+  }
+
+  /** The hub stand's figure: the hero as they're dressed now (rebuilt when the hero changes). */
+  _standMannequin() {
+    if (this.mannequin) {
+      this.mannequin.rig.dispose();
+      this.mannequin.actor.object.removeFromParent();
+      this.mannequin.actor.dispose();
+      this.mannequin = null;
+    }
+    const hub = this.zone?.hub;
+    const s = hub?.services.stats;
+    const tpl = this.heroTemplates[this.picked];
+    if (!s || !tpl || !this.scene) return;
+    const H = (x, z) => this.world.colliders.height(x, z);
+    const def = HEROES.find((h) => h.id === this.picked);
+    const actor = new FighterActor(tpl, { height: def.height * 0.94, name: 'stand' });
+    const rig = new GearRig(actor, tpl, { hero: this.picked, scene: this.scene });
+    const face = Math.atan2(hub.x - s.x, hub.z - s.z);
+    actor.object.position.set(s.x + Math.sin(face) * 0.9, H(s.x, s.z) + 0.02, s.z + Math.cos(face) * 0.9);
+    actor.object.rotation.y = face;
+    this.scene.add(actor.object);
+    rig.dress(this.profile?.equip ?? {});
+    rig.settle();
+    actor.move(0);
+    actor.update(0.016);
+    this.mannequin = { actor, rig, cls: this.picked };
   }
 
   /** What the fight, the HUD and the panels see of the game. */
@@ -379,7 +795,14 @@ export class GloamreachGame {
       hud: hudApi,
       teleport: (x, z, yaw) => game.teleport(x, z, yaw, { pitch: game.follow.pitch, dist: game.follow.wantDist }),
       onChange: () => game.gearChanged(),
-      onSave: () => game.persist()
+      onSave: () => game.persist(),
+      // Zones: the hub keeps the peace; chests and kills are remembered per zone; a fall wakes you at the last hub.
+      safe: () => game.isSafe(),
+      peaceful: () => game.peaceful(),
+      respawn: () => game.respawnHero(),
+      chestHere: (c) => game.chestHere(c),
+      onChest: (c) => game.onChest(c),
+      onKill: (m) => game.onKill(m)
     };
     return this._api;
   }
@@ -389,6 +812,10 @@ export class GloamreachGame {
     this.combat?.recalc();
     this.rig?.dress(this.profile.equip);
     this.preview?.dress(this.profile.equip);
+    if (this.mannequin) {
+      this.mannequin.rig.dress(this.profile.equip);
+      this.mannequin.rig.settle();
+    }
     this.persist();
   }
 
@@ -399,7 +826,7 @@ export class GloamreachGame {
   /** The armsmonger's stall shows its wares: blades laid across the crates, a helm, a shield against the counter. */
   _armsStall() {
     const st = STALLS.find((s) => s.goods === 'arms');
-    if (!st) return;
+    if (!st || !this.world.spots.stalls) return;
     const r = () => 0.5;
     const y0 = this.world.grid.at(st.x, st.z);
     // [base, rarity, local x, height, local z, laid flat across?, scale]
@@ -427,14 +854,15 @@ export class GloamreachGame {
     // The soundtrack (docs/music.md): First Light on the start screen; the game's own Sound switch silences it too.
     this.music ??= new GameMusic('gloamreach', { moods: { battle: 'battle', boss: 'boss' }, muted: () => !this.sound.enabled, hold: 5 });
     this.music.jump('title');
-    this.hero.place(1, 26, 0);
+    const spot = this._menuSpot(this.zone);
+    this.hero.place(spot.x, spot.z, spot.yaw);
     this.start = new StartScreen(this.root, {
       picked: this.picked,
       onPick: (id) => {
         this.sound.wake();
         this.sound.tick();
         this.setHero(id);
-        this.hero.place(1, 26, 0);
+        this.hero.place(spot.x, spot.z, spot.yaw);
         this.prefs.hero = id;
         prefs.save(this.prefs);
       },
@@ -460,30 +888,36 @@ export class GloamreachGame {
     this.sound.tick();
     this.start?.hide();
     this.start = null;
-    this.hero.place(START.x, START.z, START.yaw);
-    this.follow.yaw = START.yaw + Math.PI;
+    // Brindlewick starts on the lane south of the square; another zone at its hub.
+    const at = this.zone.id === 'brindlewick' ? START : arrivalAt(this.zone);
+    this.hero.place(at.x, at.z, at.yaw);
+    this.follow.yaw = at.yaw + Math.PI;
     this.follow.pitch = 0.16;
     this.follow.pivot.set(0, 0, 0);
     this.camera.fov = 55;
     this.camera.updateProjectionMatrix();
     this.hud = new Hud(this.root, { debug: this.debug, hint: hintItems(CONTROLS) });
-    this.minimap = new Minimap(this.hud.el, this.minimapCanvas);
-    // The full map (O, the pause menu's Map, or the minimap's button) and its waypoint.
+    this.minimap = new Minimap(this.hud.el, this.minimapCanvas, this.world.extent);
+    this.minimap.areaOf = (x, z) => this.areaHere(x, z);
+    this.minimap.nameOf = (id) => (this.world?.rift ? RIFT_AREAS : AREAS).find((a) => a.id === id)?.name;
+    this.safeBadge = new SafeBadge(this.hud.el);
+    this.safeBadge.set(this.isSafe(), this.zone.hub.name);
+    // The full map (O, the pause menu's Map, or the minimap's button) and its waypoint; its World tab shows every zone.
     this.waypoint ??= new Waypoint();
     this.worldMap = new WorldMap({
       host: this.root,
-      title: 'Gloamreach',
-      base: this.minimapCanvas,
-      extent: EXTENT,
-      areas: AREAS,
+      ...this._mapData(this.zone),
+      world: () => this.zones.world(),
       legend: [
+        { shape: 'pin', color: '#7ee08f', label: 'Hub (safe)' },
+        { shape: 'tent', color: '#b98cff', label: 'Portal' },
         { shape: 'square', color: '#ffcf4a', label: 'Merchant' },
         { shape: 'dot', color: '#ffd77a', label: 'Villager' },
         { shape: 'dot', color: '#ff4a3a', label: 'Monster' },
         { shape: 'diamond', color: '#ff3a2a', label: 'Elite' },
         { shape: 'skull', color: '#f4e6d0', label: 'Boss' },
         { shape: 'square', color: '#c98a2a', label: 'Chest' },
-        { shape: 'star', color: '#ff7a3a', label: 'Overlook' }
+        { shape: 'star', color: '#ff7a3a', label: 'Place' }
       ],
       markers: () => this.mapMarkers(),
       player: () => ({ x: this.hero.pos.x, z: this.hero.pos.z, yaw: this.hero.yaw }),
@@ -510,6 +944,7 @@ export class GloamreachGame {
       drink: (k) => this.combat.drink(k),
       toast: (t, k, i, c) => this.fightHud.toast(t, k, i, c),
       onChange: () => this.gearChanged(),
+      get merchant() { return game._shopBy?.c.shop ?? null; },
       merchantStock: () => {
         const lvl = this.profile.level;
         if (!this._stock || this._stock.level !== lvl || this._stock.cls !== this.picked) this._stock = { level: lvl, cls: this.picked, items: merchantStock({ level: lvl, cls: this.picked }) };
@@ -535,18 +970,27 @@ export class GloamreachGame {
       else out.push({ x: m.x, z: m.z, color: '#ff4a3a', r: 0.75 });
     }
     for (const c of this.combat.chests) if (!c.opened) out.push({ x: c.x, z: c.z, shape: 'square', color: '#c98a2a', r: 0.8 });
-    out.push({ x: OVERLOOK.x, z: OVERLOOK.z, shape: 'star', color: '#ff7a3a', label: 'Cinder Rift Overlook' });
+    // The hub, its services, the doors and the places found.
+    const z = this.zone;
+    if (z) {
+      out.push({ x: z.hub.x, z: z.hub.z, shape: 'pin', color: '#7ee08f', r: 1.3, label: `${z.hub.name} (safe)` });
+      for (const [id, s] of Object.entries(z.hub.services)) if (id !== 'merchant') out.push({ x: s.x, z: s.z, color: '#9fe8a8', r: 0.55, label: SERVICE_NAMES[id] });
+      for (const p of z.portals) out.push({ x: p.x, z: p.z, shape: 'tent', color: '#b98cff', r: 1.2, label: `${p.name} → ${this.zones.zone(p.to)?.name ?? '?'}` });
+      const found = this.zoneSave.zones[z.id]?.pois ?? [];
+      for (const p of z.pois) if (found.includes(p.id) && p.kind !== 'door') out.push({ x: p.x, z: p.z, shape: 'star', color: '#ff7a3a', r: 0.8, label: p.name });
+    }
     return out;
   }
 
-  /** Open the full map: the game waits (and the 3D stops drawing) while it's up. */
-  openMap() {
+  /** Open the full map (`world`: on the World tab, from a hub's map board): the game waits while it's up. */
+  openMap({ world = false } = {}) {
     if (!this.worldMap || (this.mode !== 'play' && this.mode !== 'paused')) return;
     if (this.mode === 'paused') {
       this.pauseEl?.remove();
       this.pauseEl = null;
     }
-    this.worldMap.open();
+    if (world) this.worldMap.openWorld();
+    else this.worldMap.open();
   }
 
   /** How to play: the game waits while it's up. */
@@ -640,6 +1084,11 @@ export class GloamreachGame {
       if (e.code === 'Escape' || KEY.help.includes(e.code)) this.help.close();
       return;
     }
+    if (this.mode === 'hub') {
+      if (e.code === 'Escape') this.hubPanel?.close();
+      return;
+    }
+    if (this.mode === 'travel') return;
     if (e.code === 'Escape') {
       if (this.creditsOpen) this.creditsOpen.close();
       else if (this.mode === 'play' && this.panels?.any) this.panels.closeAll();
@@ -679,16 +1128,21 @@ export class GloamreachGame {
     if (BAR_CODES[e.code]) this.combat?.release(BAR_CODES[e.code]);
   }
 
-  /** F: open the chest in reach, or trade with the armsmonger. */
+  /** F: open the chest in reach, use the hub's service at hand, or trade with its merchant. */
   interact() {
     const c = this.combat.nearestChest();
     if (c) return this.combat.openChest(c);
+    const s = this.nearService();
+    if (s) return this.useService(s.id);
     const m = this.nearMerchant();
-    if (m) this.panels.toggle('shop', !this.panels.open.shop);
+    if (m) {
+      this._shopBy = m;
+      this.panels.toggle('shop', !this.panels.open.shop);
+    }
   }
 
   nearMerchant() {
-    return this.life.people.find((b) => b.c.merchant && Math.hypot(b.x - this.hero.pos.x, b.z - this.hero.pos.z) < 5);
+    return this.life?.people.find((b) => b.c.merchant && Math.hypot(b.x - this.hero.pos.x, b.z - this.hero.pos.z) < 5);
   }
 
   /** V: steer the camera with the mouse (aiming at the screen's centre), or have the pointer back. */
@@ -754,6 +1208,8 @@ export class GloamreachGame {
   /* ================================================================ frame */
 
   frame(dt, rawMs) {
+    // Between zones (or while one builds) nothing moves and nothing is drawn: the trip's card covers the view.
+    if (this.mode === 'travel' || !this.zoneReady) return;
     this.bindPointer();
     this.t += dt;
     const t = this.t;
@@ -765,7 +1221,11 @@ export class GloamreachGame {
       this.combat.setAim(this.aimPoint());
       fdt = this.combat.update(dt);
       this.hero.update(fdt, inp, this.follow.heading());
-      this.monsters.update(fdt, this.combat.t, { pos: this.hero.pos, alive: !this.combat.dead }, { hitHero: (m, a, o) => this.combat.hitHero(m, a, o), projectile: (m, a, f, to, off) => this.combat.monsterShot(m, a, f, to, off) }, this.camera);
+      this.zones.update(dt, this.hero.pos.x, this.hero.pos.z);
+      if (this.mode === 'travel' || !this.zoneReady) return;
+      // Monsters give up on a hero in the hub (they go home past its edge, and can't step inside).
+      const rule = monsterRule(this.zone, this.hero.pos.x, this.hero.pos.z);
+      this.monsters.update(fdt, this.combat.t, { pos: this.hero.pos, alive: !this.combat.dead && rule.chase }, { hitHero: (m, a, o) => this.combat.hitHero(m, a, o), projectile: (m, a, f, to, off) => this.combat.monsterShot(m, a, f, to, off) }, this.camera);
       this.monsterEvents();
       // In a fight the camera holds still rather than swinging behind.
       // No swinging round on its own in a fight, while aiming or blocking, or in mouse-look.
@@ -797,7 +1257,7 @@ export class GloamreachGame {
     shared.uRimColor.value.copy(this.world.lighting.sun.color).multiplyScalar(0.6);
     shared.uWind.value.set(0.8, 0.6, 1, 0.3 + 0.3 * Math.sin(t * 0.13));
     this.life.update(dt, t, this.camera, playing ? this.hero : null);
-    this.vista.update(dt, t, this.camera, { ...look, lightColor: this.world.lighting.sun.color });
+    this.vista?.update(dt, t, this.camera, { ...look, lightColor: this.world.lighting.sun.color });
     this.effects.update(dt, t, this.camera, { gloam: this.world.gloam, lightColor: this.world.lighting.sun.color, toLight: look.toLight, wind: { x: 0.8, y: 0.6 } });
     // Events: greetings, the smith's hammer, the drake.
     for (const ev of this.life.events) {
@@ -807,8 +1267,15 @@ export class GloamreachGame {
         this.sound.clang(ev.at.distanceTo(this.camera.position));
       }
     }
-    for (const ev of this.vista.takeEvents()) if (ev.type === 'roar' || ev.type === 'drakeFire') this.sound.roar(ev.at.distanceTo(this.camera.position));
-    const rift = THREE.MathUtils.smoothstep(focus.x, 70, 130) * (1 - this.world.gloam);
+    for (const d of this.doors ?? []) d.update(t);
+    this.hubProps?.update(t);
+    if (this.mannequin) {
+      this.mannequin.actor.move(0);
+      this.mannequin.actor.update(dt);
+      this.mannequin.rig.update(dt, this.mannequin.actor.object);
+    }
+    for (const ev of this.vista?.takeEvents() ?? []) if (ev.type === 'roar' || ev.type === 'drakeFire') this.sound.roar(ev.at.distanceTo(this.camera.position));
+    const rift = this.world.rift ? 1 : THREE.MathUtils.smoothstep(focus.x, 70, 130) * (1 - this.world.gloam);
     this.sound.update(dt, { gloam: this.world.gloam, rift });
     look.bloom = 0.3 + this.world.gloam * 0.12;
     // The sun's shadow: redrawn when due (every frame on High and Ultra; every few, or when the view moves, below).
@@ -843,7 +1310,7 @@ export class GloamreachGame {
   /** Where the music thinks you are: the hearth among the houses, the fields, the Gloamwood, the drake's ledge. */
   musicArea() {
     const p = this.hero.pos;
-    return gloamreachTrack({ area: areaAt(p.x, p.z), x: p.x, z: p.z, gloam: this.world?.gloam ?? 0 });
+    return gloamreachTrack({ area: this.areaHere(p.x, p.z), x: p.x, z: p.z, gloam: this.world?.gloam ?? 0 });
   }
 
   /**
@@ -958,12 +1425,12 @@ export class GloamreachGame {
   hudFrame(dt) {
     const hero = this.hero;
     // The place's banner.
-    const area = areaAt(hero.pos.x, hero.pos.z);
+    const area = this.areaHere(hero.pos.x, hero.pos.z);
     if (area !== this.area) {
       const first = this.area === null;
       this.area = area;
-      const a = AREAS.find((x) => x.id === area);
-      if (a && (!first || area === 'village')) this.hud.showBanner(a.name, a.sub);
+      const a = (this.world.rift ? RIFT_AREAS : AREAS).find((x) => x.id === area);
+      if (a && !first) this.hud.showBanner(a.name, a.sub);
     }
     // Name plates over the nearest people.
     const plates = [];
@@ -993,8 +1460,13 @@ export class GloamreachGame {
     if (boss && this.follow.wantDist < 8) this.follow.wantDist += (8 - this.follow.wantDist) * Math.min(1, dt * 2);
     let prompt = null;
     const chest = this.combat.nearestChest();
+    const service = this.nearService();
+    const merchant = this.nearMerchant();
+    const door = portalNear(this.zone, hero.pos.x, hero.pos.z, 5);
     if (chest) prompt = '<kbd>F</kbd> Open the chest';
-    else if (this.nearMerchant()) prompt = this.panels.open.shop ? '<kbd>F</kbd> Done trading' : '<kbd>F</kbd> Trade with Dorrin';
+    else if (service) prompt = `<kbd>F</kbd> ${this.serviceLabel(service)}`;
+    else if (merchant) prompt = this.panels.open.shop ? '<kbd>F</kbd> Done trading' : `<kbd>F</kbd> Trade with ${merchant.c.name.split(' ')[0]}`;
+    else if (door) prompt = `${door.portal.name} — to ${this.zones.zone(door.portal.to)?.name ?? '?'}`;
     let target = this.combat.aimTarget ?? (this.combat.lastHit?.alive && this.combat.t - this.combat.lastHitT < 4 ? this.combat.lastHit : null);
     if (target && target === boss) target = null; // the boss has its own great bar
     this.fightHud.update(dt, { vitals: this.combat.vitals(), bar: this.combat.bar(), target, boss, camera: this.camera, w, h, monsters: ms, prompt });
@@ -1012,13 +1484,14 @@ export class GloamreachGame {
       for (const c of this.combat.chests) if (!c.opened) dots.push({ x: c.x, z: c.z, shape: 'chest' });
       const wp = this.waypoint?.point;
       if (wp) dots.push({ x: wp.x, z: wp.z, color: '#ff5ad9', r: 3, ring: true });
-      dots.push({ x: OVERLOOK.x + 4, z: OVERLOOK.z, color: '#ff7a3a', r: 2.2 });
+      for (const p of this.zone.portals) dots.push({ x: p.x, z: p.z, color: '#b98cff', r: 3, ring: true });
+      dots.push({ x: this.zone.hub.x, z: this.zone.hub.z, color: '#7ee08f', r: 2.4 });
       this.minimap.draw({ x: hero.pos.x, z: hero.pos.z, yawMap: Math.atan2(Math.cos(hero.yaw), Math.sin(hero.yaw)) + Math.PI / 2 }, this.follow.heading(), dots);
     }
     if (this.debug && (this._st = (this._st ?? 0) + dt) > 0.5) {
       this._st = 0;
       const s = this.post.stats ?? {};
-      this.hud.setStats(`${this.fps} fps  ${(1000 / Math.max(1, this.fps)).toFixed(1)} ms\ndraws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M\ntier ${this.tier}  res ${this.resTier}  ${this.gpu}\n${this.power.debugLine()}\npos ${hero.pos.x.toFixed(1)}, ${hero.pos.z.toFixed(1)}`);
+      this.hud.setStats(`${this.fps} fps  ${(1000 / Math.max(1, this.fps)).toFixed(1)} ms\ndraws ${s.calls}  tris ${((s.triangles ?? 0) / 1e6).toFixed(2)}M\ntier ${this.tier}  res ${this.resTier}  ${this.gpu}\n${this.power.debugLine()}\npos ${hero.pos.x.toFixed(1)}, ${hero.pos.z.toFixed(1)}  zone ${this.zone.id}`);
     }
   }
 

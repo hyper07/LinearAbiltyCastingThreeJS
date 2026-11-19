@@ -242,6 +242,13 @@ export class TextureBank {
    * one layer each — the terrain blends them all with three samplers.
    */
   async arrays(list, size = 1024) {
+    // Kept: a game made of zones asks again on every trip (24 MB a set at 1024).
+    const key = `arrays:${size}:${list.map((l) => `${l.id}${l.tint ?? ''}`).join(',')}`;
+    if (!this.cache.has(key)) this.cache.set(key, this._arrays(list, size));
+    return this.cache.get(key);
+  }
+
+  async _arrays(list, size) {
     const sets = await Promise.all(list.map((l) => this.ambient(l.id, { fallback: l.fallback })));
     const S = size;
     const layers = sets.length;

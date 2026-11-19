@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { splitGrid, ChunkCull, CHUNK_PARS, CHUNK_CELL } from '../shared/chunks.js';
-import { EXTENT } from './map.js';
+import { EXTENT as WHOLE } from './map.js';
 import { shared, addTranslucency } from '../gloamreach/materials.js';
 import { rng } from '../gloamreach/noise.js';
 
@@ -166,6 +166,7 @@ export const coverMount = { value: new THREE.Vector3(0, -100, 0) };
 
 export class Cover {
   constructor({ heightTex, splat, noise, settings, heightAt = null }) {
+    const EXTENT = splat.extent ?? WHOLE;
     this.group = new THREE.Group();
     this.cull = new ChunkCull();
     this.heightAt = heightAt;

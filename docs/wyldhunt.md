@@ -9,7 +9,16 @@ choose a hunter, ride up the gorge, gather what grows, follow the tracks to the 
 bring it down — then carve it.
 
 **Mistfall Gorge** is a jungle canyon nearly a kilometre long, walled by stepped, mossy cliffs a
-hundred metres high and closed at both ends.
+hundred metres high and closed at both ends. It is played as **two zones** ([zones.md](zones.md)),
+one built at a time: **Lantern Camp**, the guild's base camp, a hub of its own behind a palisade
+of sharpened stakes, and **Mistfall Gorge**, the hunting ground, through the **Hunters' Gate**,
+with a **forward camp** at its mouth. A second trail south of the camp, **the Southern Trail**,
+waits for the next hunting ground (coming soon). Both camps are safe hubs: a map board or the
+map table (the World tab), the hunt board, a stash, a stand with your double in your armour and
+the hunter's sheet, the provisioner (coins for what you gather and carve; draughts, rations, a
+refill), the tent or a bedroll by a fire, and a waystone. The Gnarlhorn won't follow you inside;
+if you faint, your companions carry you to the last camp you rested at. The field bag, coins and
+the stash are kept between sessions now.
 
 - **Lantern Camp** at its mouth: a ridge tent of patched canvas on its guy ropes, a tarp over the
   map table, the supply box (it restocks your potions), a cooking fire, the guild's banner, a
@@ -38,7 +47,7 @@ clearing.
 | **Left mouse** | Greatblade: a three-swing combo · Bow: a shot (hold to draw through three charge levels) |
 | **Right mouse** | Greatblade: a heavy overhead (hold to charge three levels, release to swing) · Bow: hold to aim over the shoulder |
 | **Tab** · **F** | Swap greatblade and bow · sheathe or draw |
-| **E** | Gather, carve, mount and dismount, take from the supply box |
+| **E** | Gather, carve, mount and dismount, take from the supply box · in a camp: the map, the hunt board, stash, gear stand, provisioner, rest, waystone |
 | **X** | Whistle for Burrow, your Shagmane |
 | **Hold R** (riding) | Burrow follows the path on its own, either way along it; **Shift** gallops |
 | **1 – 4** | Healing draught, greater draught, whetstone, trail ration — no cooldown: use them as often as you carry them |
@@ -100,6 +109,7 @@ it; `?debug` shows frame time, draw calls and triangles; `?rain=1` holds the sho
 | Part | File |
 | --- | --- |
 | The map as data · the land's height, water, bridge and surface · quality tiers · the cast · credits · the hunt's numbers (weapons, sharpness, hide, breaks, items, bag, gathering, carving, the weather's cycle) · the minds (monster, tracker, mount) — all pure, tested | `map.js` · `heights.js` · `quality.js` · `cast.js` · `credits.js` · `rules.js` · `brains.js` |
+| The zones (data, what belongs where, the provisioner's prices, the save) · the palisade and the Hunters' Gate | `zones.js` · `palisade.js` (framework: `src/shared/zones/`) |
 | The game: screens, loop, input, riding, interacting | `WyldhuntGame.js` |
 | Scene assembly · terrain · sky and light · water, falls, mist and shafts · plants · the jungle placed · ground cover · ruins · camp · rain | `world.js` · `terrain.js` · `sky.js` · `water.js` · `plants.js` · `flora.js` · `cover.js` · `ruins.js` · `camp.js` · `weather.js` |
 | Creature bodies, coats and fur · the mount · the Gnarlhorn · herds and thornskitters · companions | `beasts.js` · `mount.js` · `monster.js` · `wildlife.js` · `companions.js` |

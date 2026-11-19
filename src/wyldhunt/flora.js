@@ -14,6 +14,7 @@ import { rng } from '../gloamreach/noise.js';
 import { EXTENT, CANYON, PATH, RIVER, FALLS, scatterJungle, pointAt, halfWidthAt, floorAt } from './map.js';
 import { heightAt, canyonAt, isClear, jungleGround, pathDistance, riverDistance, waterAt, stoneTops } from './heights.js';
 import { Cover } from './cover.js';
+import { keepProps, areaScale } from '../shared/zones/keep.js';
 import { palm, treeFern, taro, banana, vineCards, tubeAlong, frondTexture, broadLeafTexture, palmBarkTexture, vineTexture, leafMaterial, woodMaterial } from './plants.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -161,9 +162,25 @@ function depthFor(field) {
   for (const set of field.sets) for (const m of set.meshes) if (m.material.userData.depth) m.customDepthMaterial = m.material.userData.depth;
 }
 
+/** The part of the canyon's floor (where plants grow) that `keep` holds, 0–1. */
+function floorShare(keep) {
+  let all = 0;
+  let mine = 0;
+  for (let z = EXTENT.z0; z < EXTENT.z1; z += 8) {
+    for (let x = EXTENT.x0; x < EXTENT.x1; x += 8) {
+      if (canyonAt(x, z).e > 6) continue;
+      all++;
+      if (keep(x, z)) mine++;
+    }
+  }
+  return all ? mine / all : 1;
+}
+
 export async function buildFlora(world, { bank, settings }) {
   const scene = world.scene;
-  const props = new PropLibrary();
+  const keep = world.keep ?? (() => true);
+  const EXT = world.extent ?? EXTENT;
+  const props = keepProps(new PropLibrary(), keep);
   world.props = props;
   scene.add(props.group);
   const msaa = (settings.msaa ?? 0) > 0;
@@ -171,10 +188,10 @@ export async function buildFlora(world, { bank, settings }) {
   const r = rng(2024);
   const H = heightAt;
   const rainU = (world.rainU = world.rainU ?? { value: 0 });
-  const moss = (m, k = 1) => mossWet(m, { splatB: world.splat.b, extent: EXTENT, rain: rainU, mossAmt: k });
+  const moss = (m, k = 1) => mossWet(m, { splatB: world.splat.b, extent: EXT, rain: rainU, mossAmt: k });
 
   /* -------------------------------------------------------------- trees */
-  const scattered = scatterJungle((x, z, gap) => isClear(x, z, gap * 0.4), jungleGround, 11);
+  const scattered = scatterJungle((x, z, gap) => isClear(x, z, gap * 0.4), jungleGround, 11).filter((t) => keep(t.x, t.z));
   world.trees = scattered;
   const kapoks = scattered.filter((t) => t.kind === 'kapok').map((t) => ({ ...t, kind: t.seed % 3 === 0 ? 'fig' : 'kapok', s: t.s * (jungleGround(t.x, t.z) === 'rim' ? 1.5 : 1.9) }));
   const field = new TreeField(bank, kapoks, H, { lod: settings.treeLod, msaa });
@@ -190,7 +207,7 @@ export async function buildFlora(world, { bank, settings }) {
       const off = 11 + r() * 10;
       const x = p.x + Math.cos(p.yaw) * side * off;
       const z = p.z - Math.sin(p.yaw) * side * off;
-      if (isClear(x, z, 3) && jungleGround(x, z) === 'floor') {
+      if (isClear(x, z, 3) && jungleGround(x, z) === 'floor' && keep(x, z)) {
         giants.push({ x, z, r: 1.3 + r() * 0.5, h: 34 + r() * 14, seed: 700 + giants.length * 13 });
         break;
       }
@@ -238,10 +255,11 @@ export async function buildFlora(world, { bank, settings }) {
   const stemMat = woodMaterial(null, { color: 0x5a7a2a, rough: 0.7 });
   const banStem = woodMaterial(null, { color: 0x6a7a3a, rough: 0.8 });
   const spots = { taro: [], banana: [], fern: [], shrub: [], groundFern: [] };
-  const N = Math.round(17000 * density);
+  const N = areaScale(Math.round(17000 * density), EXT, EXTENT);
   for (let k = 0; k < N; k++) {
-    const x = EXTENT.x0 + r() * (EXTENT.x1 - EXTENT.x0);
-    const z = EXTENT.z0 + r() * (EXTENT.z1 - EXTENT.z0);
+    const x = EXT.x0 + r() * (EXT.x1 - EXT.x0);
+    const z = EXT.z0 + r() * (EXT.z1 - EXT.z0);
+    if (!keep(x, z)) continue;
     const c = canyonAt(x, z);
     if (c.e > 6) continue;
     const pd = pathDistance(x, z);
@@ -278,7 +296,7 @@ export async function buildFlora(world, { bank, settings }) {
       const z = p.z - Math.sin(p.yaw) * side * off + (r() - 0.5) * 0.8;
       const rv = riverDistance(x, z);
       if (rv.d < rv.w + 0.8 || canyonAt(x, z).e > 4 || pathDistance(x, z) < 2.4) continue;
-      if (Math.hypot(x - 4, z - 352) < 13) continue;
+      if (Math.hypot(x - 4, z - 352) < 13 || !keep(x, z)) continue;
       const q = r();
       if (q < 0.62) edge.fern.push([x, z]);
       else if (q < 0.9) edge.taro.push([x, z]);
@@ -331,7 +349,9 @@ export async function buildFlora(world, { bank, settings }) {
       ...opts
     });
   };
-  const cap = (list, n) => list.slice(0, Math.round(n * density));
+  // The caps were for the whole gorge: a zone takes its share of the canyon's floor, so it isn't planted thicker than before.
+  const share = floorShare(keep);
+  const cap = (list, n) => list.slice(0, Math.round(n * density * share));
   jobs.push(prep('fern_02', mats(cap(spots.fern, 6500), 2.8, 0.5), { shadows: false, dist: 75, tintC: new THREE.Color(0.8, 1.0, 0.75) }));
   jobs.push(prep('fern_02', mats(cap(spots.groundFern, 2400), 1.8, 0.4), { shadows: false, dist: 50, tintC: new THREE.Color(0.7, 0.9, 0.6) }));
   jobs.push(prep('shrub_03', mats(cap(spots.shrub, 500), 2.2), { shadows: true, dist: 70, tintC: new THREE.Color(0.75, 0.95, 0.7) }));
@@ -498,6 +518,7 @@ export async function buildFlora(world, { bank, settings }) {
         pts.push(V(x, y, z));
         rad.push(R0 * (1 - t * 0.55) + 0.03);
       }
+      if (!keep(p.x, p.z)) continue;
       rootGeos.push(tubeAlong(pts, rad, 7, { vWorld: 1.2, uRep: 1 }));
       roots.push({ x: p.x, z: p.z, r: half });
     }

@@ -97,6 +97,11 @@ export class Combat {
   /** A bar key pressed: 'LMB', 'RMB', '1'…'4'. */
   press(key) {
     if (this.dead) return;
+    // In a hub nothing is fought (shared/zones/hub.js).
+    if (this.g.safe?.()) {
+      this.g.peaceful?.();
+      return;
+    }
     this.held.add(key);
     this._try(key, true);
   }
@@ -640,6 +645,7 @@ export class Combat {
     for (const it of tier === 'normal' ? drop.items : []) this._dropItem(it, at);
     for (const pot of drop.potions) this._dropPotion(pot.kind, at);
     this._dropGold(drop.gold, at);
+    this.g.onKill?.(m);
     if (tier !== 'normal') {
       const c = rewardChest({ elite: m.elite, boss: m.boss }, { id: `r${m.id}${Math.round(this.t)}`, x: m.x + 1.5, z: m.z + 1.5, now: this.t });
       if (c) this._spawnChest(c);
@@ -667,6 +673,8 @@ export class Combat {
   /** A monster's blow lands on the hero (from monsters.js). */
   hitHero(m, attack, { from = null, knock = 0, stun = 0, root = 0, poison = 0, burn = false } = {}) {
     if (this.dead) return;
+    // Inside a hub's ring no blow lands.
+    if (this.g.safe?.()) return;
     if (this.iframes > 0) {
       this.g.hud?.number(this._heroTop(), 'dodge', 'muted');
       return;
@@ -733,7 +741,9 @@ export class Combat {
     this.dead = false;
     this.recalc(true);
     this.g.actor.rest(0);
-    this.g.teleport(WELL.x + 2.4, WELL.z + 2.6, Math.PI * 0.75);
+    // Wake at the last hub rested at (the game's zones), or by the well.
+    if (this.g.respawn) this.g.respawn();
+    else this.g.teleport(WELL.x + 2.4, WELL.z + 2.6, Math.PI * 0.75);
     this.g.hud?.death(false);
     this.g.vfx.ring(this.g.hero.pos, { radius: 2, color: [2.6, 2.2, 1.4], life: 0.8 });
     this.iframes = 2;
@@ -848,6 +858,7 @@ export class Combat {
   _placeChests() {
     for (const c of CHESTS) {
       if (this.profile.opened.includes(c.id)) continue;
+      if (this.g.chestHere && !this.g.chestHere(c)) continue;
       this._spawnChest({ ...c, opened: false, placed: true });
     }
   }
@@ -909,6 +920,7 @@ export class Combat {
   openChest(c) {
     if (c.placed && !openPlaced(this.profile.opened, c.id)) return;
     if (!openChest(c, this.t)) return;
+    this.g.onChest?.(c);
     const at = V(c.x, c.y + 0.6, c.z);
     const loot = rollLoot({ tier: c.tier === 'chest' ? 'chest' : c.tier, level: Math.max(this.profile.level, c.tier === 'boss' ? 10 : 3), cls: this.cls });
     this._later(0.35, () => {
@@ -959,7 +971,8 @@ export class Combat {
       h.moveScale = 0;
       return fdt;
     }
-    // Damage over time.
+    // Damage over time (a hub's ring puts it out).
+    if (this.g.safe?.()) this.dots = [];
     for (const d of this.dots) {
       if (this.t >= d.next) {
         d.next += d.kind === 'burn' ? 0.5 : 1;

@@ -134,13 +134,15 @@ export class Settle {
 export const band = (v, was, on, off) => (v >= on ? true : v <= off ? false : Boolean(was));
 
 /**
- * Gloamreach: the Warm Hearth among Brindlewick's houses, Sunlit Meadow in the
- * fields and on the overlook, Violet Hollow under the Gloamwood's dusk, Rime
- * Keep on the drake's ledge (it pairs with Crown of Cinders).
+ * Gloamreach: the Warm Hearth among Brindlewick's houses and at Ashward
+ * Outpost's fire, Sunlit Meadow in the fields and on the overlook, Violet
+ * Hollow under the Gloamwood's dusk, Rime Keep down in the Cinder Rift and on
+ * the drake's ledge (it pairs with Crown of Cinders).
  */
 export function gloamreachTrack({ area, x = 0, z = 0, gloam = 0 }) {
   if (area === 'gloamwood' || gloam > 0.6) return 'night-forest';
-  if (area === 'ledge') return 'frozen-fortress';
+  if (area === 'ledge' || area === 'rift') return 'frozen-fortress';
+  if (area === 'outpost') return 'village';
   // The houses stand within ~75 m of the square (map.js PLAZA at 1, 2); past them, the fields.
   if (area === 'village' && Math.hypot(x - 1, z - 2) < 80) return 'village';
   return 'meadow';

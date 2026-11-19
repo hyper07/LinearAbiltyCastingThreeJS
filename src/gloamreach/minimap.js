@@ -5,10 +5,16 @@
  * up is where you look, the hero's arrow in the middle, people and animals
  * as dots, a north mark on the rim and the place's name beneath.
  */
-import { EXTENT, BUILDINGS, ROOT_HOUSES, ELDER_TREES, GLOAM_GIANTS, PONDS, GATE, footprint, areaAt, AREAS } from './map.js';
+import { EXTENT as WHOLE, BUILDINGS, ROOT_HOUSES, ELDER_TREES, GLOAM_GIANTS, PONDS, GATE, footprint, areaAt, AREAS } from './map.js';
 import { roadDistances, plazaAt } from './heights.js';
 
-export function paintMap(grid, trees) {
+/**
+ * The map painted once over the grid's extent (a zone's bounds). `keep(x, z)`
+ * says which buildings and giants belong to this zone; `lava(x, z)` (the
+ * Cinder Rift) paints molten rivers.
+ */
+export function paintMap(grid, trees, { keep = () => true, lava = null } = {}) {
+  const EXTENT = grid.extent ?? WHOLE;
   const W = EXTENT.x1 - EXTENT.x0;
   const H = EXTENT.z1 - EXTENT.z0;
   const c = document.createElement('canvas');
@@ -26,7 +32,8 @@ export function paintMap(grid, trees) {
       let r;
       let gg;
       let b;
-      if (h < -20) [r, gg, b] = [70, 26, 18];
+      if (lava && lava(x, z) > 0.4) [r, gg, b] = [255, 120, 30];
+      else if (h < -20) [r, gg, b] = lava ? [72, 58, 54] : [70, 26, 18];
       else if (h > 12) [r, gg, b] = forest ? [62, 48, 78] : [92, 86, 72];
       else if (forest) [r, gg, b] = [44, 62, 66];
       else [r, gg, b] = [92, 118, 58];
@@ -47,6 +54,7 @@ export function paintMap(grid, trees) {
   const Z = (z) => z - EXTENT.z0;
   g.fillStyle = 'rgba(60, 110, 140, 0.95)';
   for (const p of PONDS) {
+    if (!keep(p.x, p.z)) continue;
     g.beginPath();
     g.arc(X(p.x), Z(p.z), p.r, 0, Math.PI * 2);
     g.fill();
@@ -58,12 +66,14 @@ export function paintMap(grid, trees) {
     g.fill();
   }
   for (const t of [...ELDER_TREES, ...GLOAM_GIANTS]) {
+    if (!keep(t.x, t.z)) continue;
     g.fillStyle = t.z < -160 ? 'rgba(120, 50, 140, 0.7)' : 'rgba(34, 70, 26, 0.7)';
     g.beginPath();
     g.arc(X(t.x), Z(t.z), t.r * 3.2, 0, Math.PI * 2);
     g.fill();
   }
   for (const b of BUILDINGS) {
+    if (!keep(b.x, b.z)) continue;
     const pts = footprint(b, 0.6);
     g.fillStyle = '#7a3e2a';
     g.strokeStyle = '#2a1a12';
@@ -75,11 +85,13 @@ export function paintMap(grid, trees) {
     g.stroke();
   }
   for (const r of ROOT_HOUSES) {
+    if (!keep(r.x, r.z)) continue;
     g.fillStyle = '#6a4a8a';
     g.beginPath();
     g.arc(X(r.x), Z(r.z), 9, 0, Math.PI * 2);
     g.fill();
   }
+  if (!keep(GATE.x ?? 0, (GATE.z0 + GATE.z1) / 2)) return c;
   g.fillStyle = '#b8b0c0';
   g.fillRect(X(-GATE.outerHalfWidth), Z(GATE.z0), GATE.outerHalfWidth * 2, GATE.z1 - GATE.z0);
   g.fillStyle = '#8a8070';
@@ -88,7 +100,8 @@ export function paintMap(grid, trees) {
 }
 
 export class Minimap {
-  constructor(host, mapCanvas) {
+  constructor(host, mapCanvas, extent = WHOLE) {
+    this.extent = extent;
     this.el = document.createElement('div');
     this.el.className = 'gr-minimap';
     this.canvas = document.createElement('canvas');
@@ -127,7 +140,7 @@ export class Minimap {
     g.rotate(rot);
     g.scale(k, k);
     g.imageSmoothingEnabled = true;
-    g.drawImage(this.map, -(hero.x - EXTENT.x0), -(hero.z - EXTENT.z0));
+    g.drawImage(this.map, -(hero.x - this.extent.x0), -(hero.z - this.extent.z0));
     g.restore();
     // Dots and marks, upright whatever the map's turn: people, animals, monsters (red), chests (gold), the boss (a skull).
     g.save();
@@ -218,10 +231,10 @@ export class Minimap {
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText('N', nx, ny);
-    const area = areaAt(hero.x, hero.z);
+    const area = this.areaOf ? this.areaOf(hero.x, hero.z) : areaAt(hero.x, hero.z);
     if (area !== this.area) {
       this.area = area;
-      this.label.textContent = AREAS.find((x) => x.id === area)?.name ?? '';
+      this.label.textContent = this.nameOf?.(area) ?? AREAS.find((x) => x.id === area)?.name ?? '';
     }
   }
 

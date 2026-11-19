@@ -12,8 +12,9 @@
  *
  * It knows nothing of a particular world: a zone hands it its map data —
  * `{ title, base, extent, areas, legend, markers }` — and setZone() swaps
- * them when the player crosses into another zone (a later world-overview page
- * can list zones the same way).
+ * them when the player crosses into another zone. A game made of zones also
+ * passes `world()` (shared/zones/manager.js): a World tab then shows every
+ * zone and how their portals join them, the ones not yet visited as "?".
  *
  * MapView (world ↔ screen, zoom and pan, clamped) and Waypoint are pure and
  * tested in tests/unit/worldMap.test.mjs.
@@ -167,6 +168,8 @@ const CSS = `
 .wm__legend li{display:flex;align-items:center;gap:8px}
 .wm__legend canvas{position:static;width:18px;height:18px;flex:none}
 .wm__tip{margin:0;opacity:.75;font-size:.9em}
+.wm__tabs{display:flex;gap:4px}
+.wm__tabs button[aria-pressed=true]{background:rgba(255,215,122,.3);border-color:#ffd77a}
 .wm-btn{position:absolute;z-index:3;right:-4px;top:-4px;width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,230,180,.7);background:rgba(20,16,10,.85);color:#ffe9b8;font-size:15px;line-height:1;cursor:pointer;pointer-events:auto;display:grid;place-items:center}
 .wm-cue{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(10,8,14,.55);color:#ffd0f6;font:600 13px/1 system-ui,sans-serif;pointer-events:none}
 .wm-cue i{display:inline-block;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid #ff5ad9}
@@ -245,9 +248,10 @@ export function drawMarker(g, kind, x, y, r, color = '#fff') {
  * @param {() => void} [o.onClose] resume it
  */
 export class WorldMap {
-  constructor({ host, title = 'Map', base, extent, areas = [], legend = [], markers = () => [], player, waypoint, onOpen = () => {}, onClose = () => {} }) {
+  constructor({ host, title = 'Map', base, extent, areas = [], legend = [], markers = () => [], player, waypoint, world = null, onOpen = () => {}, onClose = () => {} }) {
     styles();
-    Object.assign(this, { host, title, base, extent, areas, legend, markers, player, waypoint, onOpen, onClose });
+    Object.assign(this, { host, title, base, extent, areas, legend, markers, player, waypoint, world, onOpen, onClose });
+    this.tab = 'zone';
     this.view = new MapView(extent);
     this.el = null;
     this._raf = 0;
@@ -273,8 +277,14 @@ export class WorldMap {
     else this.open();
   }
 
-  open() {
+  /** Open on the World tab (a hub's map board). */
+  openWorld() {
+    this.open({ tab: 'world' });
+  }
+
+  open({ tab = 'zone' } = {}) {
     if (this.el) return;
+    this.tab = this.world && tab === 'world' ? 'world' : 'zone';
     const el = document.createElement('div');
     el.className = 'wm';
     el.dataset.worldMap = '';
@@ -282,6 +292,7 @@ export class WorldMap {
     el.setAttribute('aria-label', this.title);
     el.innerHTML = `<div class="wm__stage" data-map-stage><canvas></canvas></div>
       <aside class="wm__side"><h2></h2>
+        ${this.world ? '<div class="wm__tabs" role="group" aria-label="Map view"><button type="button" data-map-tab="zone">This zone</button><button type="button" data-map-tab="world">World</button></div>' : ''}
         <div class="wm__btns"><button type="button" data-map-zoom="in" aria-label="Zoom in">＋</button><button type="button" data-map-zoom="out" aria-label="Zoom out">－</button><button type="button" data-map-center title="Back to you">⌖ You</button><button type="button" data-map-clear>Clear pin</button><button type="button" data-map-close>Close (${MAP_KEY_LABEL})</button></div>
         <ul class="wm__legend"></ul>
         <p class="wm__tip">Click to set a waypoint, click it again to clear. Wheel or pinch to zoom, drag to pan.</p>
@@ -345,6 +356,8 @@ export class WorldMap {
       this.redraw();
     });
     el.querySelector('[data-map-clear]').addEventListener('click', () => this.waypoint.clear());
+    for (const b of el.querySelectorAll('[data-map-tab]')) b.addEventListener('click', () => this.setTab(b.dataset.mapTab));
+    this._syncTabs();
     for (const b of el.querySelectorAll('[data-map-zoom]')) {
       b.addEventListener('click', () => {
         this.view.zoomAt(b.dataset.mapZoom === 'in' ? 1.5 : 1 / 1.5);
@@ -402,7 +415,7 @@ export class WorldMap {
       const single = pts.size === 1;
       pts.delete(e.pointerId);
       stage.classList.remove('is-drag');
-      if (single && moved < 6 && e.type === 'pointerup') {
+      if (single && moved < 6 && e.type === 'pointerup' && this.tab === 'zone') {
         const r = stage.getBoundingClientRect();
         const [x, z] = this.view.toWorld(e.clientX - r.left, e.clientY - r.top);
         const { x0, x1, z0, z1 } = this.extent;
@@ -427,12 +440,103 @@ export class WorldMap {
     });
   }
 
+  /** 'zone' (this zone's map) or 'world' (every zone and the doors between them). */
+  setTab(tab) {
+    this.tab = this.world && tab === 'world' ? 'world' : 'zone';
+    this._syncTabs();
+    this.redraw();
+  }
+
+  _syncTabs() {
+    if (!this.el) return;
+    for (const b of this.el.querySelectorAll('[data-map-tab]')) b.setAttribute('aria-pressed', String(b.dataset.mapTab === this.tab));
+    this.el.dataset.mapView = this.tab;
+    for (const b of this.el.querySelectorAll('[data-map-zoom],[data-map-center],[data-map-clear]')) b.disabled = this.tab === 'world';
+  }
+
+  /** The World view: zones as named plaques, portals as roads between them; unvisited ones "?". */
+  drawWorld(g, w, h) {
+    const { nodes, links } = this.world();
+    g.fillStyle = '#16130e';
+    g.fillRect(0, 0, w, h);
+    // Faint parchment grain.
+    g.globalAlpha = 0.08;
+    for (let i = 0; i < 60; i++) {
+      g.fillStyle = i % 2 ? '#fff3d6' : '#000';
+      g.fillRect((i * 97) % w, (i * 53) % h, 120, 1);
+    }
+    g.globalAlpha = 1;
+    // Lay the zones out: their own `at` ([0..1, 0..1]) or along a gentle arc in order.
+    const n = nodes.length;
+    const pos = new Map();
+    nodes.forEach((nd, i) => {
+      const a = nd.at ?? [0.14 + (0.72 * i) / Math.max(1, n - 1), 0.5 + Math.sin((i / Math.max(1, n - 1)) * Math.PI) * -0.18];
+      pos.set(nd.id, [a[0] * w, a[1] * h]);
+    });
+    g.lineCap = 'round';
+    for (const l of links) {
+      const [ax, ay] = pos.get(l.a) ?? [0, 0];
+      const [bx, by] = pos.get(l.b) ?? [0, 0];
+      g.setLineDash(l.soon ? [6, 8] : []);
+      g.strokeStyle = l.soon ? 'rgba(255,240,210,0.35)' : 'rgba(255,215,122,0.75)';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(ax, ay);
+      g.lineTo(bx, by);
+      g.stroke();
+      g.setLineDash([]);
+      if (l.name) {
+        g.font = '500 12px system-ui, sans-serif';
+        g.textAlign = 'center';
+        g.fillStyle = 'rgba(255,240,210,0.8)';
+        g.fillText(l.soon ? `${l.name} (coming soon)` : l.name, (ax + bx) / 2, (ay + by) / 2 - 8);
+      }
+    }
+    for (const nd of nodes) {
+      const [x, y] = pos.get(nd.id);
+      const known = nd.visited || nd.current;
+      const label = nd.stub ? nd.name : known ? nd.name : '?';
+      g.font = `600 ${known ? 16 : 22}px Georgia, serif`;
+      const tw = Math.max(90, g.measureText(label).width + 28);
+      g.fillStyle = nd.current ? 'rgba(255,215,122,0.28)' : nd.stub ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)';
+      g.strokeStyle = nd.current ? '#ffd77a' : nd.stub ? 'rgba(255,255,255,0.3)' : 'rgba(255,230,180,0.55)';
+      g.lineWidth = nd.current ? 3 : 1.5;
+      g.beginPath();
+      g.roundRect(x - tw / 2, y - 22, tw, 44, 12);
+      g.fill();
+      g.stroke();
+      g.fillStyle = known || nd.stub ? '#fff3d6' : 'rgba(255,243,214,0.7)';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(label, x, y - (known && nd.hub ? 5 : 0));
+      if (known && nd.hub) {
+        g.font = '500 11px system-ui, sans-serif';
+        g.fillStyle = nd.waystone ? '#9fe8a8' : 'rgba(255,243,214,0.6)';
+        g.fillText(`${nd.waystone ? '◆ ' : ''}${nd.hub}`, x, y + 12);
+      }
+      if (nd.current) {
+        g.font = '600 11px system-ui, sans-serif';
+        g.fillStyle = '#ffd77a';
+        g.fillText('You are here', x, y + 34);
+      }
+    }
+    g.textBaseline = 'alphabetic';
+    g.font = '500 12px system-ui, sans-serif';
+    g.fillStyle = 'rgba(255,243,214,0.65)';
+    g.textAlign = 'left';
+    g.fillText('◆ a waystone you have reached · ? a place not yet visited', 12, h - 12);
+  }
+
   draw() {
     if (!this.el) return;
     const g = this.canvas.getContext('2d');
     const dpr = this.dpr ?? 1;
     const v = this.view;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (this.tab === 'world' && this.world) {
+      this.drawWorld(g, v.w, v.h);
+      return;
+    }
     g.fillStyle = '#11100d';
     g.fillRect(0, 0, v.w, v.h);
     const [ox, oy] = v.toScreen(this.extent.x0, this.extent.z0);

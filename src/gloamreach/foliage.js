@@ -8,7 +8,7 @@
  * ones. Ferns and shrubs are photographed plants, instanced where they suit.
  */
 import * as THREE from 'three';
-import { EXTENT, FLOWER_BEDS, FENCES, PONDS, gloamAt } from './map.js';
+import { EXTENT as WHOLE, FLOWER_BEDS, FENCES, PONDS, gloamAt } from './map.js';
 import { shared, addTranslucency, addWind } from './materials.js';
 import { rng } from './noise.js';
 import { tf } from './kit.js';
@@ -128,7 +128,7 @@ function petalTexture() {
 }
 
 /** Where flowers grow (1 m a texel): R red poppies, G golden marigolds, B the Gloamwood's glowing blooms. */
-export function flowerMap() {
+export function flowerMap(EXTENT = WHOLE) {
   const W = EXTENT.x1 - EXTENT.x0;
   const H = EXTENT.z1 - EXTENT.z0;
   const data = new Uint8Array(W * H * 4);
@@ -301,9 +301,10 @@ function placementMaterial(kind, uniforms, { gloamGlow = false } = {}) {
 }
 
 export class Foliage {
-  constructor({ heightTex, splat, noise, settings, heightAt = null }) {
+  constructor({ heightTex, splat, noise, settings, heightAt = null, extent = WHOLE }) {
+    const EXTENT = extent;
     this.group = new THREE.Group();
-    this.flowers = flowerMap();
+    this.flowers = flowerMap(EXTENT);
     this.petal = petalTexture();
     const common = (spacing, n, radius, inner, density, scale, kind) => ({
       uOrigin: { value: new THREE.Vector3() },

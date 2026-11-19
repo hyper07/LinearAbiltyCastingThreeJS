@@ -6,7 +6,7 @@
  * that fades; the trust moment's breathing ring; the card that names a new
  * friend; the journal; the pause menu; the credits. Icons are painted here.
  */
-import { EXTENT, AREAS, areaAt, VILLAGE, SHRINE, POND, GATE, GARDEN } from './map.js';
+import { EXTENT as WHOLE, AREAS, areaAt, VILLAGE, SHRINE, POND, GATE, GARDEN } from './map.js';
 import { CONTROLS } from './controls.js';
 import { hintItems } from '../shared/helpPanel.js';
 import { LOOKS } from './cast.js';
@@ -375,6 +375,7 @@ export class Hud {
 
 /** The vale painted once from the heights: grass and hills, the road, the water, the village roofs, the trees. */
 export function paintMap(grid, trees = []) {
+  const EXTENT = grid.extent ?? WHOLE;
   const W = grid.w;
   const H = grid.h;
   const c = document.createElement('canvas');
@@ -452,7 +453,8 @@ export class Minimap {
     g.translate(R, R);
     g.rotate(rot);
     g.scale(k, k);
-    g.drawImage(this.map, -(me.x - EXTENT.x0), -(me.z - EXTENT.z0));
+    const E = this.extent ?? WHOLE;
+    g.drawImage(this.map, -(me.x - E.x0), -(me.z - E.z0));
     g.restore();
     g.save();
     g.beginPath();

@@ -90,7 +90,8 @@ function bones(r, mats) {
 }
 
 export class Nodes {
-  constructor(scene, bank) {
+  /** `keep(x, z)`: the zone's spots only. */
+  constructor(scene, bank, keep = () => true) {
     this.group = new THREE.Group();
     scene.add(this.group);
     const r = rng(616);
@@ -106,7 +107,7 @@ export class Nodes {
       bone: new THREE.MeshStandardMaterial({ color: 0xd8ccb0, roughness: 0.6 })
     };
     this.mats = mats;
-    this.list = NODES.map((n) => {
+    this.list = NODES.filter((n) => keep(n.x, n.z)).map((n) => {
       const obj = { herb, ore, bug: bugLog, bone: bones }[n.kind](r, mats);
       obj.position.set(n.x, heightAt(n.x, n.z) - 0.05, n.z);
       obj.rotation.y = r() * 6.28;

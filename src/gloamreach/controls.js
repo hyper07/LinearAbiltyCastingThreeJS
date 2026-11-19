@@ -5,7 +5,7 @@
  */
 export const CONTROLS = {
   title: 'How to play — Gloamreach',
-  goal: 'Explore Brindlewick, the Warden\'s Gate and the violet Gloamwood. Fight what prowls there with your hero\'s skills, open chests, wear what you find (it shows), and trade at the armsmonger\'s stall. The drake waits on Emberfall Ledge.',
+  goal: 'Three zones joined by doors: Brindlewick, the violet Gloamwood through the Warden\'s Gate, and the Cinder Rift down the stair north of the overlook (the drake waits there, on Emberfall Ledge). Each has a safe hub — no monster crosses its ring — with a map board, notices, a stash, a stand to see yourself, a merchant, a bed and a waystone. Fight with your hero\'s skills, open chests, wear what you find.',
   groups: [
     { name: 'Move', rows: [
       { id: 'move', keys: ['W', 'A', 'S', 'D'], codes: ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'], does: 'Move (or the arrow keys)', short: 'move', hint: true },
@@ -30,7 +30,7 @@ export const CONTROLS = {
       { id: 'mpPotion', keys: ['6'], codes: ['Digit6'], does: 'Drink a mana tonic (mana, energy or stamina)', short: 'tonic', hint: true }
     ] },
     { name: 'Menus', rows: [
-      { id: 'interact', keys: ['F'], codes: ['KeyF'], does: 'Open a chest · trade with the armsmonger', short: 'open · trade', hint: true },
+      { id: 'interact', keys: ['F'], codes: ['KeyF'], does: 'Open a chest · trade with a merchant · in a hub: the map board, notices, stash, stand, rest, waystone', short: 'open · use', hint: true },
       { id: 'bag', keys: ['I', 'B'], codes: ['KeyI', 'KeyB'], does: 'Bag and gear', short: 'bag', hint: true },
       { id: 'hero', keys: ['C'], codes: ['KeyC'], does: 'Your hero (stats and what you wear)', short: 'hero', hint: true },
       { id: 'help', keys: ['H'], codes: ['KeyH'], does: 'How to play (this)', short: 'help', hint: true },

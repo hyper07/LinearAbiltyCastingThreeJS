@@ -30,7 +30,8 @@ function cleanItem(it) {
   };
 }
 
-function cleanEntry(e) {
+/** A bag or stash entry from a save, checked (an item, a potion stack, or null). */
+export function cleanEntry(e) {
   if (!e) return null;
   if (e.base) return cleanItem(e);
   if (POTIONS[e.kind] && e.n > 0) return { kind: e.kind, n: Math.min(STACK_MAX, e.n | 0) };

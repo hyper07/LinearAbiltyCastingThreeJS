@@ -55,7 +55,9 @@ function prop(kind) {
 }
 
 export class Villagers {
-  constructor({ scene, detail }) {
+  /** `keep(x, z)`: the villagers whose place is in the zone being built. */
+  constructor({ scene, detail, keep = () => true }) {
+    this.keep = keep;
     this.scene = scene;
     this.detail = detail;
     this.list = [];
@@ -63,17 +65,21 @@ export class Villagers {
   }
 
   async load() {
-    const models = [...new Set(VILLAGERS.map((v) => v.model))];
+    const here = VILLAGERS.filter((v) => {
+      const at = v.at ?? v.path[0];
+      return this.keep(at[0], at[1]);
+    });
+    const models = [...new Set(here.map((v) => v.model))];
     const templates = {};
     await Promise.all(models.map(async (id) => {
       const needs = new Set();
-      for (const v of VILLAGERS.filter((x) => x.model === id)) {
+      for (const v of here.filter((x) => x.model === id)) {
         for (const n of NEEDS[v.does] ?? []) needs.add(n);
         if (v.clip) needs.add(v.clip);
       }
       templates[id] = await loadTemplate(id, { detail: this.detail, borrow: [...needs], rim: 0.7 });
     }));
-    for (const v of VILLAGERS) {
+    for (const v of here) {
       const tpl = templates[v.model];
       if (!tpl) continue;
       const actor = new Actor(tpl, { height: v.height, name: v.name });

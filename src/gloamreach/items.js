@@ -473,6 +473,24 @@ export function buy(p, entry, stock = null) {
   return { ok: true, price };
 }
 
+/**
+ * Refill potions at a merchant: buy healing draughts and tonics until the bag
+ * holds `target` of each (or the gold runs out). Returns what was bought.
+ */
+export function refillPotions(p, target = 5) {
+  const bought = { hp: 0, mp: 0 };
+  let cost = 0;
+  for (const kind of ['hp', 'mp']) {
+    while (countOf(p.bag, kind) < target) {
+      const r = buy(p, { kind });
+      if (!r.ok) return { ok: bought.hp + bought.mp > 0, bought, cost, reason: r.reason };
+      bought[kind]++;
+      cost += r.price;
+    }
+  }
+  return { ok: true, bought, cost };
+}
+
 /** A merchant's wares for this hero: a few items for their class near their level. */
 export function merchantStock({ level = 1, cls = 'knight', count = 8 } = {}, rand = Math.random) {
   const usable = Object.keys(BASES).filter((b) => BASES[b].cls.includes(cls));
