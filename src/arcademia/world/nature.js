@@ -392,3 +392,139 @@ export function buildFireflies(plan, treePositions) {
   points.userData.material = material;
   return points;
 }
+
+/**
+ * The Moon Base's own scenery (it has no trees): craters with raised rims,
+ * glowing crystal clusters, solar-panel arrays, satellite dishes, antenna
+ * masts with blinking lights, little rovers, moon rocks — and the Earth
+ * hanging in the sky above it. Merged into a few meshes; `update(t)` blinks
+ * the lights and turns the dishes.
+ */
+export function buildMoonProps(plan, floors) {
+  const group = new THREE.Group();
+  group.name = 'moon-props';
+  const r = seeded(777);
+  const ok = makeSpotCheck(plan);
+  const parts = new Map();
+  const add = (color, geo, m, opts = {}) => {
+    const key = `${color}|${opts.emissive ?? ''}`;
+    if (!parts.has(key)) parts.set(key, { color, opts, list: [] });
+    geo.applyMatrix4(m);
+    parts.get(key).list.push(geo);
+  };
+  const M = (x, y, z, ry = 0, s = 1) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)), new THREE.Vector3(s, s, s));
+  const blinkers = [];
+  const dishes = [];
+  for (const f of plan.floors) {
+    const look = floors[f.k].look;
+    if (look.theme !== 'moon') continue;
+    let placed = 0;
+    for (let tries = 0; tries < 2400 && placed < 46; tries++) {
+      const x = f.cx + (r() * 2 - 1) * f.rx;
+      const z = f.cz + (r() * 2 - 1.15) * f.rz;
+      if (!ok(x, z, 0.6) || plan.floorAt(x, z) !== f.n) continue;
+      if (f.places?.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + 2.6)) continue;
+      const y = plan.ground(x, z);
+      const ry = r() * Math.PI * 2;
+      const kind = placed % 7;
+      if (kind === 0 || kind === 4) {
+        // a crater: a shallow raised rim and a darker floor
+        const s = 0.9 + r() * 1.3;
+        add('#b9bccf', new THREE.TorusGeometry(1.1, 0.28, 6, 22).rotateX(Math.PI / 2).scale(1, 0.55, 1), M(x, y + 0.05, z, ry, s));
+        add('#9497ad', new THREE.CircleGeometry(1.05, 20).rotateX(-Math.PI / 2), M(x, y + 0.04, z, ry, s));
+      } else if (kind === 1) {
+        // glowing crystals
+        const hue = r() < 0.5 ? '#7ff7ff' : '#c39bff';
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2 + r();
+          const g = new THREE.OctahedronGeometry(0.22 + r() * 0.18, 0).scale(0.6, 1.8 + r(), 0.6);
+          g.rotateZ((r() - 0.5) * 0.7);
+          add(hue, g, M(x + Math.cos(a) * 0.35, y + 0.35, z + Math.sin(a) * 0.35, a), { emissive: hue });
+        }
+      } else if (kind === 2) {
+        // a solar panel array
+        for (let k = -1; k <= 1; k++) {
+          add('#d4d6e2', new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6), M(x + k * 1.0 * Math.cos(ry), y + 0.4, z - k * 1.0 * Math.sin(ry), ry));
+          const panel = new THREE.BoxGeometry(0.9, 0.05, 0.6).rotateX(-0.5);
+          add('#2a4f9e', panel, M(x + k * 1.0 * Math.cos(ry), y + 0.85, z - k * 1.0 * Math.sin(ry), ry));
+          add('#9ec3ff', new THREE.BoxGeometry(0.86, 0.06, 0.04).rotateX(-0.5), M(x + k * 1.0 * Math.cos(ry), y + 0.86, z - k * 1.0 * Math.sin(ry), ry));
+        }
+      } else if (kind === 3) {
+        // a satellite dish that turns slowly
+        const dish = new THREE.Group();
+        dish.position.set(x, y, z);
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 0.5, 10), new THREE.MeshToonMaterial({ color: '#d4d6e2', gradientMap: toonRamp() }));
+        base.position.y = 0.25;
+        const head = new THREE.Group();
+        head.position.y = 0.7;
+        const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.75, 20, 8, 0, Math.PI * 2, 0, Math.PI / 3), new THREE.MeshToonMaterial({ color: '#f4f5fa', gradientMap: toonRamp(), side: THREE.DoubleSide }));
+        bowl.rotation.x = Math.PI / 2 + 0.6;
+        const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6), base.material);
+        horn.rotation.x = 0.6 + Math.PI / 2;
+        horn.position.set(0, 0.2, 0.25);
+        head.add(bowl, horn);
+        dish.add(base, head);
+        group.add(dish);
+        dishes.push(head);
+      } else if (kind === 5) {
+        // an antenna mast with a blinking light
+        add('#c9ccd9', new THREE.CylinderGeometry(0.06, 0.1, 2.6, 6), M(x, y + 1.3, z));
+        for (let k = 0; k < 3; k++) add('#c9ccd9', new THREE.BoxGeometry(0.5 - k * 0.12, 0.04, 0.04), M(x, y + 1.6 + k * 0.35, z, ry));
+        const light = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), new THREE.MeshBasicMaterial({ color: '#ff5f5f' }));
+        light.position.set(x, y + 2.7, z);
+        group.add(light);
+        blinkers.push(light);
+      } else {
+        // a little rover
+        add('#f4f5fa', new THREE.BoxGeometry(0.9, 0.35, 0.6), M(x, y + 0.45, z, ry));
+        add('#ffb347', new THREE.BoxGeometry(0.5, 0.25, 0.45), M(x, y + 0.75, z, ry));
+        for (const [dx, dz] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
+          const c = Math.cos(ry), s = Math.sin(ry);
+          add('#3a3f55', new THREE.CylinderGeometry(0.16, 0.16, 0.12, 12).rotateX(Math.PI / 2), M(x + dx * c + dz * s, y + 0.18, z - dx * s + dz * c, ry));
+        }
+        add('#7cc6ff', new THREE.SphereGeometry(0.1, 8, 6), M(x, y + 0.95, z, ry));
+      }
+      // moon rocks round about
+      if (r() < 0.6) add('#a3a6bd', new THREE.DodecahedronGeometry(0.25 + r() * 0.3, 0), M(x + (r() - 0.5) * 3, y + 0.1, z + (r() - 0.5) * 3, r() * 6));
+      placed++;
+    }
+    // The Earth in the sky above the Moon Base.
+    const earth = new THREE.Group();
+    earth.position.set(f.cx - 30, f.y + 34, f.cz - 70);
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(7, 40, 28), new THREE.MeshBasicMaterial({ color: '#3f8fe0', fog: false }));
+    earth.add(globe);
+    const land = new THREE.Mesh(new THREE.SphereGeometry(7.04, 40, 28), new THREE.MeshBasicMaterial({ color: '#6fcf7a', fog: false, transparent: true, opacity: 0.95 }));
+    // paint continents: keep only some faces of the outer shell
+    const idx = land.geometry.index.array, keep = [];
+    const pos = land.geometry.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < idx.length; i += 3) {
+      v.fromBufferAttribute(pos, idx[i]);
+      const n = Math.sin(v.x * 0.55) * Math.cos(v.y * 0.7) + Math.sin(v.z * 0.45 + v.y * 0.3);
+      if (n > 0.55) keep.push(idx[i], idx[i + 1], idx[i + 2]);
+    }
+    land.geometry.setIndex(keep);
+    earth.add(land);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(7.8, 32, 20), new THREE.MeshBasicMaterial({ color: '#9fd4ff', transparent: true, opacity: 0.18, side: THREE.BackSide, fog: false }));
+    earth.add(glow);
+    earth.rotation.z = 0.4;
+    group.add(earth);
+    group.userData.earth = globe;
+  }
+  for (const { color, opts, list } of parts.values()) {
+    const geo = mergeAll(list);
+    const mat = new THREE.MeshToonMaterial({ color, gradientMap: toonRamp() });
+    if (opts.emissive) {
+      mat.emissive = new THREE.Color(opts.emissive);
+      mat.emissiveIntensity = 0.8;
+    }
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  group.userData.update = (t) => {
+    blinkers.forEach((b, i) => (b.visible = Math.sin(t * 3 + i * 1.7) > 0));
+    dishes.forEach((d, i) => (d.rotation.y = Math.sin(t * 0.3 + i) * 1.2));
+    if (group.userData.earth) group.userData.earth.parent.rotation.y = t * 0.03;
+  };
+  return group;
+}

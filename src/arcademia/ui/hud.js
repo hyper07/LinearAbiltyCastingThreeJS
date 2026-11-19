@@ -8,6 +8,7 @@ import { el, button, SUBJECT_ICON, SUBJECT_LABEL, sparkle } from './dom.js';
 import { FLOORS } from '../floors.js';
 import { floorStars, neededOn } from '../rules.js';
 import { lessonsOn } from '../content/index.js';
+import { t, num, localizeLesson } from '../i18n/index.js';
 
 export class Hud {
   constructor(root, actions) {
@@ -29,80 +30,82 @@ export class Hud {
 
     // The player card: buddy, level and XP, coins, streak flame, today's quests.
     this.player = el('div', 'arc-player');
-    this.buddyBtn = button('arc-player__buddy', '🦊', () => actions.buddy(), { 'aria-label': 'Your buddy and hats' });
+    this.buddyBtn = button('arc-player__buddy', '🦊', () => actions.buddy(), { 'aria-label': t('hud.buddyAria') });
     const stats = el('div', 'arc-player__stats');
-    this.levelEl = el('span', 'arc-player__lv', 'Lv 1');
+    this.levelEl = el('span', 'arc-player__lv', t('hud.level', { n: 1 }));
     this.xpBar = el('i', 'arc-player__xp');
     this.coinsEl = el('span', 'arc-player__coins', '🪙 0');
-    this.streakEl = el('span', 'arc-player__streak', '🔥 0', { title: 'Days in a row' });
+    this.streakEl = el('span', 'arc-player__streak', '🔥 0', { title: t('hud.streak') });
     const lvRow = el('div', 'arc-player__row');
     lvRow.append(this.levelEl, this.xpBar);
     const moneyRow = el('div', 'arc-player__row');
     moneyRow.append(this.coinsEl, this.streakEl);
     stats.append(lvRow, moneyRow);
-    this.questBtn = button('arc-player__quests', '📋 0/3', () => actions.questbook(), { 'aria-label': 'Today’s quests and stickers' });
+    this.questBtn = button('arc-player__quests', '📋 0/3', () => actions.questbook(), { 'aria-label': t('hud.questsAria') });
     this.player.append(this.buddyBtn, stats, this.questBtn);
     this.root.append(this.player);
 
     // Floor list.
-    this.nav = el('nav', 'arc-nav', null, { 'aria-label': 'Floors' });
+    this.nav = el('nav', 'arc-nav', null, { 'aria-label': t('hud.floors') });
     this.navItems = FLOORS.map((f) => {
       const b = button('arc-nav__item', null, () => actions.goFloor(f.n));
-      b.append(el('span', 'arc-nav__icon', f.icon, { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', `${f.n}. ${f.name}`), el('span', 'arc-nav__meta', ''));
+      b.append(el('span', 'arc-nav__icon', f.icon, { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', t('hud.navFloor', { n: f.n, name: f.name })), el('span', 'arc-nav__meta', ''));
       this.nav.append(b);
       return b;
     });
     const all = button('arc-nav__item arc-nav__item--all', null, () => actions.overview());
-    all.append(el('span', 'arc-nav__icon', '⛰️', { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', 'Whole mountain'));
+    all.append(el('span', 'arc-nav__icon', '⛰️', { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', t('hud.whole')));
     this.nav.prepend(all);
     this.root.append(this.nav);
 
     // Top right.
     const top = el('div', 'arc-top');
-    this.stars = el('div', 'arc-chip arc-chip--stars', '⭐ 0', { role: 'status', 'aria-label': 'Stars' });
-    this.dayBtn = button('arc-chip arc-chip--btn', '☀️ Day', () => actions.toggleNight(), { 'aria-pressed': 'false' });
-    this.soundBtn = button('arc-chip arc-chip--btn', '🔊', () => actions.toggleSound(), { 'aria-label': 'Sound on', 'aria-pressed': 'true' });
-    const parents = button('arc-chip arc-chip--btn arc-chip--parents', '👪 Parents', () => actions.parents());
-    const close = button('arc-chip arc-chip--btn arc-chip--close', '✕', () => actions.close(), { 'aria-label': 'Leave AI Arcademia' });
-    top.append(this.stars, this.dayBtn, this.soundBtn, parents, close);
+    this.stars = el('div', 'arc-chip arc-chip--stars', '⭐ 0', { role: 'status', 'aria-label': t('hud.stars') });
+    this.dayBtn = button('arc-chip arc-chip--btn arc-chip--day', t('hud.day'), () => actions.toggleNight(), { 'aria-pressed': 'false' });
+    this.soundBtn = button('arc-chip arc-chip--btn arc-chip--sound', '🔊', () => actions.toggleSound(), { 'aria-label': t('hud.soundOn'), 'aria-pressed': 'true' });
+    const parents = button('arc-chip arc-chip--btn arc-chip--parents', t('hud.parents'), () => actions.parents());
+    const settings = button('arc-chip arc-chip--btn arc-chip--settings', '⚙️', () => actions.settings?.(), { 'aria-label': t('hud.settings'), title: t('hud.settings') });
+    const close = button('arc-chip arc-chip--btn arc-chip--close', '✕', () => actions.close(), { 'aria-label': t('hud.leave') });
+    top.append(this.stars, this.dayBtn, this.soundBtn, parents, settings, close);
     this.root.append(top);
 
     // Round buttons.
     const round = el('div', 'arc-round');
     round.append(
-      button('arc-round__btn', '⌂', () => actions.home(), { 'aria-label': 'Back to my kid', title: 'Home (H)' }),
-      button('arc-round__btn', '+', () => actions.zoom(0.75), { 'aria-label': 'Zoom in' }),
-      button('arc-round__btn', '−', () => actions.zoom(1.33), { 'aria-label': 'Zoom out' }),
-      (this.textBtn = button('arc-round__btn arc-round__btn--text', 'Aa', () => actions.bigText(), { 'aria-label': 'Bigger text', 'aria-pressed': 'false' }))
+      button('arc-round__btn', '⌂', () => actions.home(), { 'aria-label': t('hud.homeAria'), title: t('hud.homeTitle') }),
+      button('arc-round__btn', '+', () => actions.zoom(0.75), { 'aria-label': t('hud.zoomIn') }),
+      button('arc-round__btn', '−', () => actions.zoom(1.33), { 'aria-label': t('hud.zoomOut') }),
+      (this.textBtn = button('arc-round__btn arc-round__btn--text', 'Aa', () => actions.bigText(), { 'aria-label': t('hud.bigText'), 'aria-pressed': 'false' }))
     );
     this.root.append(round);
 
     // The current-lesson card.
-    this.card = el('section', 'arc-quest', null, { 'aria-label': 'Current lesson' });
+    this.card = el('section', 'arc-quest', null, { 'aria-label': t('hud.current') });
     this.card.innerHTML = `
-      <div class="arc-quest__head"><span class="arc-quest__kicker">Current lesson</span><span class="arc-quest__floor"></span></div>
+      <div class="arc-quest__head"><span class="arc-quest__kicker"></span><span class="arc-quest__floor"></span></div>
       <div class="arc-quest__row"><span class="arc-quest__icon" aria-hidden="true"></span><div class="arc-quest__text"><strong class="arc-quest__title"></strong><span class="arc-quest__next"></span></div></div>
       <div class="arc-quest__bar" role="progressbar" aria-valuemin="0"><div class="arc-quest__fill"></div></div>
       <div class="arc-quest__foot"><span class="arc-quest__count"></span><span class="arc-quest__actions"></span></div>`;
-    this.continueBtn = button('arc-btn arc-btn--primary', '▶ Continue', () => actions.continue());
-    this.enterBtn = button('arc-btn arc-btn--enter', '🚪 Go inside', () => actions.enterNear());
+    this.card.querySelector('.arc-quest__kicker').textContent = t('hud.current');
+    this.continueBtn = button('arc-btn arc-btn--primary', t('hud.continue'), () => actions.continue());
+    this.enterBtn = button('arc-btn arc-btn--enter', t('hud.goInside'), () => actions.enterNear());
     this.enterBtn.hidden = true;
     this.card.querySelector('.arc-quest__actions').append(this.enterBtn, this.continueBtn);
     this.root.append(this.card);
 
     // Minimap and help line.
-    this.mini = el('div', 'arc-mini', null, { 'aria-label': 'Mountain map' });
+    this.mini = el('div', 'arc-mini', null, { 'aria-label': t('hud.map') });
     this.root.append(this.mini);
-    this.root.append(el('p', 'arc-help', 'Drag to look around · scroll or pinch to zoom · click to walk · WASD to move · Enter to go inside'));
+    this.root.append(el('p', 'arc-help', t('hud.help')));
     this.toasts = el('div', 'arc-toasts', null, { role: 'status', 'aria-live': 'polite' });
     this.root.append(this.toasts);
   }
 
   /** Refresh everything from progress. */
   update({ stars, open, kidFloor, focusFloor, current, total }) {
-    this.stars.textContent = `⭐ ${total}`;
+    this.stars.textContent = `⭐ ${num(total)}`;
     const f = FLOORS[kidFloor - 1];
-    this.sub.textContent = `Floor ${f.n} · ${f.name} · ages ${f.ages}`;
+    this.sub.textContent = t('hud.sub', { n: f.n, name: f.name, ages: f.ages });
     FLOORS.forEach((fl, i) => {
       const b = this.navItems[i];
       const fs = floorStars(stars, fl.n);
@@ -110,30 +113,31 @@ export class Hud {
       b.classList.toggle('is-locked', locked);
       b.classList.toggle('is-here', fl.n === kidFloor);
       b.classList.toggle('is-focus', fl.n === focusFloor);
-      b.querySelector('.arc-nav__meta').textContent = locked ? '🔒' : `${fs.have}/${fs.of}★`;
-      b.setAttribute('aria-label', `Floor ${fl.n}, ${fl.name}${locked ? ', locked' : `, ${fs.have} of ${fs.of} stars`}`);
+      b.querySelector('.arc-nav__meta').textContent = locked ? '🔒' : `${num(fs.have)}/${num(fs.of)}★`;
+      b.setAttribute('aria-label', locked ? t('hud.navLocked', { n: fl.n, name: fl.name }) : t('hud.navStars', { n: fl.n, name: fl.name, have: fs.have, of: fs.of }));
       b.setAttribute('aria-current', fl.n === kidFloor ? 'location' : 'false');
     });
     // The card: the next lesson on the kid's floor.
     const fs = floorStars(stars, kidFloor);
-    this.card.querySelector('.arc-quest__floor').textContent = `Floor ${kidFloor}`;
+    this.card.querySelector('.arc-quest__floor').textContent = t('hud.floor', { n: kidFloor });
     const bar = this.card.querySelector('.arc-quest__bar');
     bar.setAttribute('aria-valuemax', String(fs.of));
     bar.setAttribute('aria-valuenow', String(fs.have));
-    bar.setAttribute('aria-label', `${fs.have} of ${fs.of} stars on this floor`);
+    bar.setAttribute('aria-label', t('hud.barAria', { have: fs.have, of: fs.of }));
     this.card.querySelector('.arc-quest__fill').style.width = `${(100 * fs.have) / Math.max(1, fs.of)}%`;
     const need = neededOn(kidFloor);
     const above = FLOORS[kidFloor];
     this.card.querySelector('.arc-quest__count').textContent = above
       ? open.has(above.n)
-        ? `${fs.done}/${fs.lessons} lessons · Floor ${above.n} is open`
-        : `${fs.done}/${need} lessons to open Floor ${above.n}`
-      : `${fs.done}/${fs.lessons} lessons · the top of the mountain!`;
+        ? t('hud.countOpen', { done: fs.done, all: fs.lessons, n: above.n })
+        : t('hud.countNeed', { done: fs.done, need, n: above.n })
+      : t('hud.countTop', { done: fs.done, all: fs.lessons });
     if (current) {
       this.card.querySelector('.arc-quest__icon').textContent = SUBJECT_ICON[current.lesson.subject];
-      this.card.querySelector('.arc-quest__title').textContent = current.lesson.title;
-      this.card.querySelector('.arc-quest__next').textContent = current.next ? `Next: ${current.next.title} (${SUBJECT_LABEL[current.next.subject]})` : `${SUBJECT_LABEL[current.lesson.subject]} · ${current.lesson.blurb}`;
-      this.continueBtn.textContent = (stars[current.lesson.id] ?? 0) > 0 ? '▶ Play again' : '▶ Continue';
+      const cur = localizeLesson(current.lesson), next = current.next && localizeLesson(current.next);
+      this.card.querySelector('.arc-quest__title').textContent = cur.title;
+      this.card.querySelector('.arc-quest__next').textContent = next ? t('hud.next', { title: next.title, subject: SUBJECT_LABEL[next.subject] }) : `${SUBJECT_LABEL[cur.subject]} · ${cur.blurb}`;
+      this.continueBtn.textContent = t((stars[current.lesson.id] ?? 0) > 0 ? 'hud.playAgain' : 'hud.continue');
     }
     this._minimap({ stars, open, kidFloor, focusFloor });
   }
@@ -144,17 +148,17 @@ export class Hud {
     const b = gs.buddy;
     this.buddyBtn.textContent = { fox: '🦊', robot: '🤖', dragon: '🐲', puff: '☁️', bunny: '🐰' }[b?.species] ?? '🦊';
     if (b?.color) this.buddyBtn.style.setProperty('--buddy', b.color);
-    this.levelEl.textContent = `Lv ${lv.level}`;
+    this.levelEl.textContent = t('hud.level', { n: lv.level });
     this.xpBar.style.setProperty('--k', String(lv.into / lv.need));
-    this.xpBar.setAttribute('aria-label', `${lv.into} of ${lv.need} XP to level ${lv.level + 1}`);
+    this.xpBar.setAttribute('aria-label', t('hud.xpAria', { into: lv.into, need: lv.need, n: lv.level + 1 }));
     if (this._coins !== undefined && gs.s.coins > this._coins) {
       this.coinsEl.classList.remove('is-bump');
       void this.coinsEl.offsetWidth;
       this.coinsEl.classList.add('is-bump');
     }
     this._coins = gs.s.coins;
-    this.coinsEl.textContent = `🪙 ${gs.s.coins}`;
-    this.streakEl.textContent = `🔥 ${gs.streak}`;
+    this.coinsEl.textContent = `🪙 ${num(gs.s.coins)}`;
+    this.streakEl.textContent = `🔥 ${num(gs.streak)}`;
     this.streakEl.classList.toggle('is-lit', gs.streak > 0);
     const qs = gs.quests;
     const done = qs.filter((q) => q.have >= q.goal).length;
@@ -165,18 +169,18 @@ export class Hud {
 
   setNear(b) {
     this.enterBtn.hidden = !b;
-    if (b) this.enterBtn.textContent = `🚪 Go into the ${SUBJECT_LABEL[b.subject]} ${b.subject === 'math' ? 'school' : b.subject === 'history' ? 'hall' : 'lab'}`;
+    if (b) this.enterBtn.textContent = t(`hud.goInto.${b.subject}`);
   }
 
   setNight(on) {
-    this.dayBtn.textContent = on ? '🌙 Night' : '☀️ Day';
+    this.dayBtn.textContent = t(on ? 'hud.night' : 'hud.day');
     this.dayBtn.setAttribute('aria-pressed', String(on));
-    this.dayBtn.setAttribute('aria-label', on ? 'Night — switch to day' : 'Day — switch to night');
+    this.dayBtn.setAttribute('aria-label', t(on ? 'hud.nightAria' : 'hud.dayAria'));
   }
   setSound(on) {
     this.soundBtn.textContent = on ? '🔊' : '🔇';
     this.soundBtn.setAttribute('aria-pressed', String(on));
-    this.soundBtn.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
+    this.soundBtn.setAttribute('aria-label', t(on ? 'hud.soundOn' : 'hud.soundOff'));
   }
 
   bumpStars() {
@@ -198,7 +202,7 @@ export class Hud {
   _minimap({ stars, open, kidFloor, focusFloor }) {
     const n = FLOORS.length;
     const W = 168, H = 150, rowH = (H - 20) / n;
-    const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mountain map: you are on floor ${kidFloor}">`];
+    const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('hud.mapAria', { n: kidFloor })}">`];
     svg.push(`<path d="M6 ${H - 6} L${W / 2} 6 L${W - 6} ${H - 6} Z" fill="var(--arc-mini-peak)"/>`);
     FLOORS.forEach((f, i) => {
       const y = H - 10 - (i + 1) * rowH;

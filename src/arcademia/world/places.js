@@ -8,6 +8,7 @@
  * poke() is what happens when the child taps it — it always reacts.
  */
 import * as THREE from 'three';
+import { t as tr } from '../i18n/index.js';
 import { add, batch, box, cone, cyl, ico, mat, seeded, signTexture, sphere, toon } from './kit.js';
 import { door, window as win, lantern, palette, windowMat } from './buildings.js';
 
@@ -49,7 +50,7 @@ export function shop(look) {
   for (const sx of [-1.7, 1.7]) add(g, box(0.18, 2.8, 0.18), wood, [sx, 1.75, -0.6]);
   const stripes = [look.banner, '#ffffff'];
   for (let i = 0; i < 8; i++) add(g, box(0.48, 0.12, 2.2), mat(stripes[i % 2]), [-1.7 + 0.24 + i * 0.48, 3.2, 0.15], [-0.25, 0, 0]);
-  sign(g, '🎩 SHOP', [0, 2.6, 0.95], { w: 2.0, h: 0.5, bg: '#ff6fb5' });
+  sign(g, `🎩 ${tr('sign.shop')}`, [0, 2.6, 0.95], { w: 2.0, h: 0.5, bg: '#ff6fb5' });
   const items = [['#ff6fb5', 'cone'], ['#7cc6ff', 'dome'], ['#ffd23f', 'crown'], ['#7ee08a', 'cone']];
   items.forEach(([c, k], i) => {
     const x = -1.2 + i * 0.8;
@@ -81,7 +82,7 @@ export function arcade(look) {
   g.add(neon);
   const lights = [];
   for (let i = 0; i < 9; i++) lights.push(add(neon, sphere(0.1, 6, 4), new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffe066', emissiveIntensity: 1 }), [-2 + i * 0.5, 3.75, 1.3]));
-  const s = sign(g, '🕹️ ARCADE', [0, 3.0, 1.24], { w: 2.6, h: 0.55, bg: '#1d1a2a', fg: '#7ff7ff' });
+  const s = sign(g, `🕹️ ${tr('sign.arcade')}`, [0, 3.0, 1.24], { w: 2.6, h: 0.55, bg: '#1d1a2a', fg: '#7ff7ff' });
   s.userData.live = true;
   batch(g);
   const b = bouncer(g);
@@ -120,7 +121,7 @@ export function museum(look) {
   }
   add(star, new THREE.ExtrudeGeometry(shape, { depth: 0.25, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: '#ffd23f', emissive: '#ffb020', emissiveIntensity: 0.5 }), [0, 0, -0.12]);
   g.add(star);
-  sign(g, '🌈 STICKERS', [0, 1.9, 2.2], { w: 2.4, h: 0.5, bg: '#9b7be0' });
+  sign(g, `🌈 ${tr('sign.stickers')}`, [0, 1.9, 2.2], { w: 2.4, h: 0.5, bg: '#9b7be0' });
   batch(g);
   const b = bouncer(g);
   let spin = 0;
@@ -148,7 +149,7 @@ export function board(look) {
   add(g, cone(1.6, 0.6, 4), mat(look.roof.history), [0, 2.95, 0], [0, Math.PI / 4, 0], [1, 1, 0.35]);
   const notes = ['#fff6a8', '#ffd1e8', '#c9f0ff', '#d9ffd1'];
   notes.forEach((c, i) => add(g, box(0.5, 0.55, 0.02), mat(c), [-0.75 + i * 0.5, 1.8 + (i % 2) * 0.25, 0.09], [0, 0, (i - 1.5) * 0.12]));
-  sign(g, '📋 QUESTS', [0, 1.1, 0.09], { w: 1.6, h: 0.36, bg: '#2c6b62' });
+  sign(g, `📋 ${tr('sign.quests')}`, [0, 1.1, 0.09], { w: 1.6, h: 0.36, bg: '#2c6b62' });
   batch(g);
   const b = bouncer(g);
   Object.assign(g.userData, { top: 3.5, ...b });
@@ -196,9 +197,30 @@ const LANDMARKS = {
   windmill(look) {
     const g = new THREE.Group();
     pad(g, look, 4);
-    add(g, cyl(1.4, 2.1, 5.6, 10), mat('#fff1d6'), [0, 3.1, 0]);
-    add(g, cone(1.8, 2.0, 10), mat('#ff7a5c'), [0, 6.9, 0]);
-    door(g, palette(look, 'math'), [0, 0.35, 1.95], 0.9, 1.6);
+    // A round stone foundation: a ring of cut stones under a smooth plaster tower.
+    add(g, cyl(2.45, 2.6, 0.5, 32), mat('#d9cdb8'), [0, 0.5, 0]);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 + (i % 2) * 0.1;
+      const stone = add(g, box(0.95, 0.4, 0.3), mat(i % 3 ? '#cbbd9f' : '#bfae8e'), [Math.sin(a) * 2.56, 0.5, Math.cos(a) * 2.56]);
+      stone.rotation.y = a;
+    }
+    add(g, cyl(2.6, 2.6, 0.12, 32), mat('#efe4cf'), [0, 0.78, 0]);
+    add(g, cyl(1.45, 2.05, 5.2, 28), mat('#fff1d6'), [0, 3.4, 0]);
+    // A wooden gallery round the middle, with posts and flower boxes.
+    add(g, cyl(2.05, 2.05, 0.16, 28), mat('#b9835a'), [0, 3.05, 0]);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      add(g, box(0.08, 0.55, 0.08), mat('#a8714a'), [Math.sin(a) * 1.98, 3.4, Math.cos(a) * 1.98]);
+    }
+    add(g, new THREE.TorusGeometry(1.98, 0.05, 6, 40), mat('#a8714a'), [0, 3.66, 0], [Math.PI / 2, 0, 0]);
+    for (const a of [-0.7, 0.7]) {
+      add(g, box(0.7, 0.22, 0.3), mat('#a8714a'), [Math.sin(a) * 1.75, 2.55, Math.cos(a) * 1.75], [0, a, 0]);
+      for (let k = -1; k <= 1; k++) add(g, sphere(0.13, 8, 6), mat(['#ff8fa3', '#ffd23f', '#ffffff'][k + 1]), [Math.sin(a) * 1.75 + Math.cos(a) * k * 0.22, 2.74, Math.cos(a) * 1.75 - Math.sin(a) * k * 0.22]);
+    }
+    add(g, cone(1.85, 2.0, 28), mat('#ff7a5c'), [0, 7.2, 0]);
+    add(g, cyl(1.62, 1.62, 0.14, 28), mat('#fff6e6'), [0, 6.22, 0]);
+    add(g, box(1.3, 0.3, 0.6), mat('#d9cdb8'), [0, 0.3, 2.85]);
+    door(g, palette(look, 'math'), [0, 0.84, 2.0], 0.9, 1.6);
     win(g, palette(look, 'math'), [0, 4.2, 1.6], 0, 0.6, 0.7, { arch: true });
     const sails = new THREE.Group();
     sails.position.set(0, 5.6, 1.9);

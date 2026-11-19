@@ -26,6 +26,7 @@ import { bubblePop, feedMonster, launch, whoSaid } from './minigames.js';
 import { TutorPanel, tutorStatus } from '../ui/tutor.js';
 import { speech } from '../sound.js';
 import { levelOf } from '../gamestate.js';
+import { t as tr, localizeLesson } from '../i18n/index.js';
 
 const ROOMS = { math: buildClassroom, history: buildHall, physics: buildLab };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -54,7 +55,7 @@ class Runner {
     game.stage.setGlow(0);
     // The player's buddy comes inside too, to cheer and wobble along.
     this.buddy = makeCreature({ ...(game.gs.buddy ?? { species: 'fox' }), scale: 1.0 });
-    const spot = { math: [-3.0, 0, -2.8, 0.7], history: [-4.2, 0, -2.6, 0.5], physics: [-2.6, 0, 0.4, 0.5] }[subject];
+    const spot = { math: [2.4, 0, -1.6, -0.45], history: [3.4, 0, -1.2, -0.5], physics: [3.0, 0, -2.0, -0.5] }[subject];
     this.buddy.group.position.set(spot[0], spot[1], spot[2]);
     this.buddy.group.rotation.y = spot[3];
     this.room.scene.add(this.buddy.group);
@@ -70,28 +71,28 @@ class Runner {
     const t = this.teacher;
     this.root = el('div', `arc-lesson arc-lesson--${this.subject}`);
     const top = el('div', 'arc-lesson__top');
-    this.backBtn = button('arc-chip arc-chip--btn', '⬅ Mountain', () => this.leave(), { 'aria-label': 'Back to the mountain' });
+    this.backBtn = button('arc-chip arc-chip--btn', tr('lesson.back'), () => this.leave(), { 'aria-label': tr('lesson.backAria') });
     this.titleEl = el('div', 'arc-lesson__title');
-    this.stepsEl = el('ol', 'arc-lesson__steps', null, { 'aria-label': 'Quest steps' });
-    this.voiceBtn = button('arc-chip arc-chip--btn', this.voice ? '🗣️ Voice on' : '🔇 Voice off', () => {
+    this.stepsEl = el('ol', 'arc-lesson__steps', null, { 'aria-label': tr('lesson.stepsAria') });
+    this.voiceBtn = button('arc-chip arc-chip--btn', tr(this.voice ? 'lesson.voiceOn' : 'lesson.voiceOff'), () => {
       this.voice = !this.voice;
       this.game.prefs.voice = this.voice;
       this.game.savePrefs();
-      this.voiceBtn.textContent = this.voice ? '🗣️ Voice on' : '🔇 Voice off';
+      this.voiceBtn.textContent = tr(this.voice ? 'lesson.voiceOn' : 'lesson.voiceOff');
       this.voiceBtn.setAttribute('aria-pressed', String(this.voice));
       if (!this.voice) speech.stop();
     }, { 'aria-pressed': String(this.voice), hidden: !speech.available });
-    this.hootBtn = button('arc-chip arc-chip--btn arc-hoot', null, () => this.tutor.open(), { 'aria-label': 'Ask Professor Hoot' });
-    this.hootBtn.append(el('span', null, '🦉 Ask Hoot'), el('span', 'arc-plus', 'Plus'));
+    this.hootBtn = button('arc-chip arc-chip--btn arc-hoot', null, () => this.tutor.open(), { 'aria-label': tr('lesson.askHootAria', { name: TEACHERS.math.name }) });
+    this.hootBtn.append(el('span', null, tr('lesson.askHoot')), el('span', 'arc-plus', tr('lesson.badgePlus')));
     tutorStatus().then((st) => {
       this.hootBtn.classList.toggle('is-locked', !st.allowed);
-      this.hootBtn.querySelector('.arc-plus').textContent = st.allowed ? 'AI' : '🔒 Plus';
-      this.hootBtn.title = st.allowed ? 'Ask Professor Hoot (AI tutor)' : 'Professor Hoot the AI tutor is part of Plus — tap for the free hints';
+      this.hootBtn.querySelector('.arc-plus').textContent = tr(st.allowed ? 'lesson.badgeAi' : 'lesson.badgeLocked');
+      this.hootBtn.title = tr(st.allowed ? 'lesson.hootTitle' : 'lesson.hootLockedTitle', { name: TEACHERS.math.name });
     });
     top.append(this.backBtn, this.titleEl, this.stepsEl, this.voiceBtn, this.hootBtn);
     this.main = el('div', 'arc-lesson__main');
     this.sayEl = el('div', 'arc-say', null, { 'aria-live': 'polite' });
-    this.sayEl.append(el('span', 'arc-say__who', t.emoji, { 'aria-hidden': 'true' }), el('p', 'arc-say__text', ''));
+    this.sayEl.append(el('span', 'arc-say__who arc-portrait', t.emoji, { 'aria-hidden': 'true', 'data-who': 'teacher' }), el('p', 'arc-say__text', ''));
     this.sayEl.hidden = true;
     this.combo = el('div', 'arc-combo', null, { hidden: true, 'aria-live': 'polite' });
     this.root.append(top, this.main, this.sayEl, this.combo);
@@ -114,6 +115,57 @@ class Runner {
     this.buddy.update(dt, {});
     this.board?.update(dt);
     this.sim?.frame(dt);
+  }
+
+  /**
+   * The speaker's face, live: the teacher (or the history guide) drawn up close
+   * into the little frame by their speech bubble, so they are always in view,
+   * talking and reacting, whatever the room camera shows.
+   */
+  portrait(renderer) {
+    const frames = [...this.root.querySelectorAll('.arc-portrait')].filter((f) => f.offsetParent && !f.closest('[hidden]'));
+    if (!frames.length) return;
+    const canvas = renderer.domElement.getBoundingClientRect();
+    this._pcam ??= new THREE.PerspectiveCamera(28, 1, 0.05, 60);
+    const v = new THREE.Vector3(), fwd = new THREE.Vector3();
+    const size = renderer.getSize(new THREE.Vector2());
+    const kx = size.x / Math.max(1, canvas.width), ky = size.y / Math.max(1, canvas.height);
+    renderer.setScissorTest(true);
+    for (const f of frames) {
+      const who = f.dataset.who === 'guide' ? this.room.guide : this.room.teacher ?? this.room.tock;
+      if (!who?.bones) continue;
+      const r = f.getBoundingClientRect();
+      const x = (r.left - canvas.left) * kx, y = (canvas.bottom - r.bottom) * ky, w = r.width * kx, h = r.height * ky;
+      if (w < 8 || h < 8) continue;
+      f.textContent = '';
+      f.classList.add('is-live');
+      const scale = who.group.children[0]?.scale.x ?? 1;
+      who.bones.head.getWorldPosition(v);
+      who.group.getWorldDirection(fwd);
+      fwd.y = 0;
+      fwd.normalize();
+      const look = v.clone().add(new THREE.Vector3(0, 0.24 * scale, 0));
+      this._pcam.aspect = w / h;
+      this._pcam.updateProjectionMatrix();
+      this._pcam.position.copy(look).addScaledVector(fwd, 2.0 * scale).add(new THREE.Vector3(0, 0.18 * scale, 0));
+      this._pcam.lookAt(look);
+      renderer.setViewport(x, y, w, h);
+      renderer.setScissor(x, y, w, h);
+      renderer.clearDepth();
+      renderer.render(this.room.scene, this._pcam);
+      // Inside an opaque card the canvas can't show through: copy the face into the frame's own picture.
+      if (f.dataset.copy) {
+        let pic = f.querySelector('canvas');
+        if (!pic) f.append((pic = document.createElement('canvas')));
+        const pr = renderer.getPixelRatio();
+        pic.width = Math.round(w * pr);
+        pic.height = Math.round(h * pr);
+        const H = renderer.domElement.height;
+        pic.getContext('2d').drawImage(renderer.domElement, x * pr, H - (y + h) * pr, w * pr, h * pr, 0, 0, pic.width, pic.height);
+      }
+    }
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, size.x, size.y);
   }
 
   resize(w, h) {
@@ -181,21 +233,21 @@ class Runner {
     if (start) return this.run(start);
     const list = lessonsOn(this.floor, this.subject);
     const card = el('section', 'arc-card arc-lobby');
-    card.append(el('h2', null, `${this.teacher.emoji} Pick a quest!`));
+    card.append(el('h2', null, tr('lesson.pick', { emoji: this.teacher.emoji })));
     const grid = el('div', 'arc-lobby__grid');
-    for (const l of list) {
+    for (const l of list.map((x) => localizeLesson(x))) {
       const q = questFor(l);
       const stars = this.game.progress.stars[l.id] ?? 0;
       const b = button('arc-quest-card', null, () => this.run(l));
-      b.append(el('span', 'arc-quest-card__stars', '★'.repeat(stars) + '☆'.repeat(3 - stars), { 'aria-label': `${stars} of 3 stars` }), el('strong', null, q.title), el('span', null, l.title));
+      b.append(el('span', 'arc-quest-card__stars', '★'.repeat(stars) + '☆'.repeat(3 - stars), { 'aria-label': tr('lesson.starsAria', { n: stars }) }), el('strong', null, q.title), el('span', null, l.title));
       grid.append(b);
     }
     const arcade = button('arc-quest-card arc-quest-card--arcade', null, () => this.arcade());
-    arcade.append(el('span', 'arc-quest-card__stars', '🕹️'), el('strong', null, ARCADE_NAMES[this.subject](this.floor)), el('span', null, 'Arcade practice · quick and fun'));
+    arcade.append(el('span', 'arc-quest-card__stars', '🕹️'), el('strong', null, ARCADE_NAMES[this.subject](this.floor)), el('span', null, tr('lesson.arcadeSub')));
     grid.append(arcade);
     card.append(grid);
     this.main.append(card);
-    this.say(this.subject === 'math' ? 'Hoo-hoo! Welcome to my classroom. Which puzzle shall we solve?' : this.subject === 'history' ? 'Tick-tock, welcome to the Hall of Time! Where shall we travel?' : 'Welcome to my lab! Goggles on. What shall we test today?');
+    this.say(tr(`lesson.hello.${this.subject}`));
   }
 
   async arcade() {
@@ -216,9 +268,9 @@ class Runner {
     this.game.sound.fanfare();
     this.clear();
     const card = el('section', 'arc-card arc-results');
-    card.append(el('h2', null, `🕹️ ${score} points!`), rewardsLine(got));
+    card.append(el('h2', null, tr('lesson.points', { count: score })), rewardsLine(got));
     const row = el('div', 'arc-row');
-    row.append(button('arc-btn arc-btn--primary', '🔁 Play again', () => this.arcade()), button('arc-btn', '📋 Quests', () => this.lobby()), button('arc-btn', '⬅ Mountain', () => this.leave()));
+    row.append(button('arc-btn arc-btn--primary', tr('lesson.playAgain'), () => this.arcade()), button('arc-btn', tr('lesson.quests'), () => this.lobby()), button('arc-btn', tr('lesson.back'), () => this.leave()));
     card.append(row);
     this.main.append(card);
     this.celebrateRewards(got, card);
@@ -227,6 +279,8 @@ class Runner {
   /* ---------------------------------------------------------------- one lesson */
 
   async run(lesson) {
+    // The lesson in the player's language (it keeps that language until it is left).
+    lesson = localizeLesson(lesson);
     this.lesson = lesson;
     this.quest = questFor(lesson);
     this.titleEl.textContent = `${SUBJECT_ICON[lesson.subject]} ${this.quest.title}`;
@@ -277,8 +331,8 @@ class Runner {
     this.clear();
     this.shot(this.subject === 'math' ? 'teacher' : 'wide');
     const card = el('section', 'arc-card arc-story');
-    const go = button('arc-btn arc-btn--primary arc-btn--big', 'Let’s go! ▶', null);
-    card.append(el('div', 'arc-story__who', this.teacher.emoji, { 'aria-hidden': 'true' }), el('p', 'arc-story__kicker', `Floor ${this.floor} quest · ${this.teacher.name}`), el('h2', null, this.quest.title), el('p', 'arc-story__text', this.quest.intro), go);
+    const go = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.go'), null);
+    card.append(el('div', 'arc-story__who', this.teacher.emoji, { 'aria-hidden': 'true' }), el('p', 'arc-story__kicker', tr('lesson.storyKicker', { floor: this.floor, teacher: this.teacher.name })), el('h2', null, this.quest.title), el('p', 'arc-story__text', this.quest.intro), go);
     this.main.append(card);
     this.say(this.quest.intro);
     this.room.teacher?.wave(1.5);
@@ -296,12 +350,12 @@ class Runner {
       const c = cards[i];
       const card = el('section', 'arc-card arc-read');
       card.append(el('div', 'arc-read__emoji', c.emoji ?? '📘', { 'aria-hidden': 'true' }), el('h2', null, c.title), el('p', 'arc-read__text', c.text));
-      const dots = el('div', 'arc-dots', null, { 'aria-label': `Card ${i + 1} of ${cards.length}` });
+      const dots = el('div', 'arc-dots', null, { 'aria-label': tr('lesson.cardOf', { n: i + 1, total: cards.length }) });
       cards.forEach((_, k) => dots.append(el('i', k === i ? 'is-on' : '')));
       const row = el('div', 'arc-row');
-      const back = button('arc-btn', '◀ Back', null, { disabled: i === 0 });
-      const read = button('arc-btn', '🔊 Read to me', () => speech.say(`${c.title}. ${c.text}`), { hidden: !speech.available });
-      const next = button('arc-btn arc-btn--primary arc-btn--big', i === cards.length - 1 ? 'Got it! ✔' : 'Next ▶', null);
+      const back = button('arc-btn', tr('lesson.prev'), null, { disabled: i === 0 });
+      const read = button('arc-btn', tr('lesson.readToMe'), () => speech.say(`${c.title}. ${c.text}`), { hidden: !speech.available });
+      const next = button('arc-btn arc-btn--primary arc-btn--big', tr(i === cards.length - 1 ? 'lesson.gotIt' : 'lesson.next'), null);
       row.append(back, read, next);
       card.append(dots, row);
       this.main.append(card);
@@ -325,12 +379,12 @@ class Runner {
     this.clear();
     this.shot('board');
     const wrap = el('section', 'arc-boardwrap');
-    const canvas = el('canvas', 'arc-board', null, { role: 'img', 'aria-label': 'Chalkboard with a worked example' });
+    const canvas = el('canvas', 'arc-board', null, { role: 'img', 'aria-label': tr('lesson.boardAria') });
     const caption = el('p', 'arc-board__caption', '', { 'aria-live': 'polite' });
     const row = el('div', 'arc-row');
-    const replay = button('arc-btn', '🔁 Again', null);
-    const another = button('arc-btn', '✨ Another example', null);
-    const ready = button('arc-btn arc-btn--primary arc-btn--big', 'I’m ready! ▶', null);
+    const replay = button('arc-btn', tr('lesson.again'), null);
+    const another = button('arc-btn', tr('lesson.another'), null);
+    const ready = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.ready'), null);
     row.append(replay, another, ready);
     wrap.append(canvas, caption, row);
     this.main.append(wrap);
@@ -347,7 +401,7 @@ class Runner {
     let seed = (Math.random() * 1e6) | 0;
     const play = () => {
       const p = makeProblem(this.lesson.board.gen, seed);
-      this.ctx = { step: `Worked example: ${p.q}`, hint: p.hint, worked: p.explain };
+      this.ctx = { step: tr('lesson.ctxWorked', { q: p.q }), hint: p.hint, worked: p.explain };
       this.board.play(p.board);
     };
     play();
@@ -366,16 +420,16 @@ class Runner {
       this.clear();
       this.shot('wide');
       const p = makeProblem(this.lesson.practice.gen, (Math.random() * 1e6) | 0);
-      this.ctx = { step: `Practice: ${p.q}`, hint: p.hint, worked: p.explain };
+      this.ctx = { step: tr('lesson.ctxPractice', { q: p.q }), hint: p.hint, worked: p.explain };
       const card = el('section', 'arc-card arc-practice');
-      card.append(el('p', 'arc-card__kicker', `Try it yourself · ${round + 1} of 2`), el('h2', 'arc-q', p.q.replace(/\s*[🍎⭐🐟🌸🍪🎈🐞🦆]{2,}/u, '')));
+      card.append(el('p', 'arc-card__kicker', tr('lesson.tryKicker', { n: round + 1, total: 2 })), el('h2', 'arc-q', p.q.replace(/\s*[🍎⭐🐟🌸🍪🎈🐞🦆]{2,}/u, '')));
       const area = el('div', 'arc-practice__area');
       card.append(area);
       const w = mountPractice(this.lesson.practice.kind, p, area, { sound: this.game.sound });
       const fb = el('p', 'arc-feedback', '', { 'aria-live': 'polite' });
-      const next = button('arc-btn arc-btn--primary', round ? 'On to the challenge! ▶' : 'Next one ▶', null, { hidden: true });
+      const next = button('arc-btn arc-btn--primary', tr(round ? 'lesson.toChallenge' : 'lesson.nextOne'), null, { hidden: true });
       if (w.value) {
-        const check = button('arc-btn arc-btn--primary arc-btn--big', '✔ Check', () => {
+        const check = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.check'), () => {
           if (w.value() === w.right) {
             this.good(check, fb, p.explain);
             check.hidden = true;
@@ -386,7 +440,7 @@ class Runner {
       } else card.append(this.choices(p, fb, () => (next.hidden = false), { practice: true }));
       card.append(fb, next);
       this.main.append(card);
-      this.say(round ? 'One more! You can do it.' : 'Your turn! Play with it, then pick the answer.');
+      this.say(tr(round ? 'lesson.oneMore' : 'lesson.yourTurn'));
       await this.until(next);
     }
   }
@@ -401,8 +455,8 @@ class Runner {
     const name = d.npc.name;
     const box = el('section', 'arc-dialog');
     const who = el('div', 'arc-dialog__who');
-    who.append(el('strong', null, name), el('span', null, d.npc.role));
-    if (d.npc.portrayal === 'portrayal') who.append(el('span', 'arc-dialog__tag', 'An educational portrayal'));
+    who.append(el('span', 'arc-dialog__face arc-portrait', null, { 'aria-hidden': 'true', 'data-who': 'guide', 'data-copy': '1' }), el('strong', null, name), el('span', null, d.npc.role));
+    if (d.npc.portrayal === 'portrayal') who.append(el('span', 'arc-dialog__tag', tr('lesson.portrayal')));
     const line = el('p', 'arc-dialog__line', '', { 'aria-live': 'polite' });
     const opts = el('div', 'arc-dialog__opts');
     box.append(who, line, opts);
@@ -422,7 +476,7 @@ class Runner {
     };
     await speak(d.intro);
     const asked = new Set();
-    this.ctx = { step: `Talking with ${name}`, hint: 'Ask every question — the answers help in the challenge!' };
+    this.ctx = { step: tr('lesson.ctxTalking', { name }), hint: tr('lesson.chatHint') };
     while (asked.size < d.topics.length) {
       opts.replaceChildren();
       const bs = d.topics.map((t, i) => button(`arc-dialog__opt${asked.has(i) ? ' is-asked' : ''}`, `${asked.has(i) ? '✔ ' : '💬 '}${t.ask}`, null));
@@ -436,11 +490,11 @@ class Runner {
     }
     // The guide's own question.
     const c = d.challenge;
-    await speak(`Now a question for you! ${c.q}`);
+    await speak(tr('lesson.guideAsks', { q: c.q }));
     const fb = el('p', 'arc-feedback', '', { 'aria-live': 'polite' });
     opts.replaceChildren();
-    const next = button('arc-btn arc-btn--primary', 'Thank you! ▶', null, { hidden: true });
-    opts.append(this.choices({ ...c, hint: c.hint ?? 'Think about what they told you.' }, fb, () => (next.hidden = false), { practice: true }), fb, next);
+    const next = button('arc-btn arc-btn--primary', tr('lesson.thanks'), null, { hidden: true });
+    opts.append(this.choices({ ...c, hint: c.hint ?? tr('lesson.thinkHint') }, fb, () => (next.hidden = false), { practice: true }), fb, next);
     await this.until(next);
     await speak(d.farewell);
     guide.wave(2);
@@ -458,15 +512,15 @@ class Runner {
     const okSet = new Set();
     let held = null;
     const card = el('section', 'arc-card arc-timeline');
-    card.append(el('p', 'arc-card__kicker', 'Fix the timeline'), el('h2', null, t.title), el('p', 'arc-hint', 'Tap a card, then tap its spot. Oldest goes on the left!'));
+    card.append(el('p', 'arc-card__kicker', tr('lesson.tlKicker')), el('h2', null, t.title), el('p', 'arc-hint', tr('lesson.tlHow')));
     const slotsEl = el('ol', 'arc-tl__slots');
     const trayEl = el('div', 'arc-tl__tray');
     const fb = el('p', 'arc-feedback', '', { 'aria-live': 'polite' });
-    const check = button('arc-btn arc-btn--primary arc-btn--big', '✔ Check my timeline', null);
+    const check = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.tlCheck'), null);
     card.append(slotsEl, trayEl, check, fb);
     this.main.append(card);
-    this.say('Oh no, my timeline got jumbled! Can you put it back in order?', TEACHERS.history.emoji);
-    this.ctx = { step: `Timeline: ${t.title}`, hint: 'Look for clues like "first", "later", or very old things like stone tools.', worked: right.map((e) => `${e.when}: ${e.label}`).join(' → ') };
+    this.say(tr('lesson.tlSay'), TEACHERS.history.emoji);
+    this.ctx = { step: tr('lesson.ctxTimeline', { title: t.title }), hint: tr('lesson.tlHint'), worked: right.map((e) => `${e.when}: ${e.label}`).join(' → ') };
     const draw = () => {
       slotsEl.replaceChildren();
       placed.forEach((e, i) => {
@@ -482,7 +536,7 @@ class Runner {
           }
           this.game.sound.tap();
           draw();
-        }, { 'aria-label': e ? `Spot ${i + 1}: ${e.label}. Tap to take it back` : `Empty spot ${i + 1}` });
+        }, { 'aria-label': e ? tr('lesson.tlSpot', { n: i + 1, label: e.label }) : tr('lesson.tlEmpty', { n: i + 1 }) });
         if (e && okSet.has(e)) s.classList.add('is-right');
         const li = el('li');
         li.append(s);
@@ -499,7 +553,7 @@ class Runner {
     for (;;) {
       await this.until(check);
       if (placed.some((e) => !e)) {
-        fb.textContent = 'Put every card on the line first!';
+        fb.textContent = tr('lesson.tlFill');
         continue;
       }
       const wrong = placed.filter((e, i) => e !== right[i]);
@@ -509,9 +563,9 @@ class Runner {
         const years = el('div', 'arc-tl__years');
         right.forEach((e) => years.append(el('span', null, e.when)));
         card.insertBefore(years, trayEl);
-        this.good(check, fb, 'Perfect order! History is back on track.');
+        this.good(check, fb, tr('lesson.tlPerfect'));
         check.hidden = true;
-        const next = button('arc-btn arc-btn--primary', 'Next ▶', null);
+        const next = button('arc-btn arc-btn--primary', tr('lesson.next'), null);
         card.append(next);
         await this.until(next);
         return;
@@ -523,7 +577,7 @@ class Runner {
           placed[i] = null;
         } else okSet.add(e);
       });
-      this.oops(check, fb, `${wrong.length} ${wrong.length === 1 ? 'card is' : 'cards are'} in the wrong spot — try again!`);
+      this.oops(check, fb, tr('lesson.tlWrong', { count: wrong.length }));
       draw();
     }
   }
@@ -534,10 +588,10 @@ class Runner {
     this.room.setArtifact(a.model);
     this.shot('artifact');
     const card = el('section', 'arc-card arc-artifact');
-    card.append(el('p', 'arc-card__kicker', '🧰 Treasure found!'), el('h2', null, a.name), el('p', 'arc-read__text', a.text));
+    card.append(el('p', 'arc-card__kicker', tr('lesson.treasure')), el('h2', null, a.name), el('p', 'arc-read__text', a.text));
     const row = el('div', 'arc-row');
-    row.append(button('arc-btn', '⟲ Turn', () => this.room.spinBy(-0.6)), button('arc-btn', '⟳ Turn', () => this.room.spinBy(0.6)));
-    const next = button('arc-btn arc-btn--primary arc-btn--big', 'To the challenge! ▶', null);
+    row.append(button('arc-btn', tr('lesson.turnLeft'), () => this.room.spinBy(-0.6)), button('arc-btn', tr('lesson.turnRight'), () => this.room.spinBy(0.6)));
+    const next = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.toChallengeBig'), null);
     row.append(next);
     card.append(row);
     this.main.append(card);
@@ -554,7 +608,7 @@ class Runner {
     canvas.addEventListener('pointerdown', down);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-    this.say(`Look what we found: ${a.name}! Drag to turn it around.`, TEACHERS.history.emoji);
+    this.say(tr('lesson.lookFound', { name: a.name }), TEACHERS.history.emoji);
     try {
       await this.until(next);
     } finally {
@@ -571,14 +625,14 @@ class Runner {
     this.shot('screen');
     const s = this.lesson.sim;
     const wrap = el('section', 'arc-simwrap');
-    const canvas = el('canvas', 'arc-sim', null, { role: 'img', 'aria-label': 'Experiment' });
+    const canvas = el('canvas', 'arc-sim', null, { role: 'img', 'aria-label': tr('lesson.simAria') });
     const controls = el('div', 'arc-sim__controls');
     const panel = el('div', 'arc-card arc-predict');
     wrap.append(canvas, panel);
     this.main.append(wrap);
     this.sim = createSim(s.id, s.setup ?? {}, { canvas, controls, sound: this.game.sound });
     // 1. Guess.
-    panel.append(el('p', 'arc-card__kicker', '🤔 Guess first!'), el('h2', 'arc-q', s.predict.q));
+    panel.append(el('p', 'arc-card__kicker', tr('lesson.guessFirst')), el('h2', 'arc-q', s.predict.q));
     const fb = el('p', 'arc-feedback', '', { 'aria-live': 'polite' });
     let guess = -1;
     const opts = el('div', 'arc-choices');
@@ -589,31 +643,32 @@ class Runner {
     }));
     opts.append(...bs);
     panel.append(opts, fb);
-    this.say('What do you think will happen? Make a guess — scientists always guess first!');
+    this.say(tr('lesson.guessSay'));
     if (this.voice) speech.say(s.predict.q);
-    this.ctx = { step: `Predict: ${s.predict.q}`, hint: 'Think about what you read on the cards.', worked: s.predict.explain };
+    this.ctx = { step: tr('lesson.ctxPredict', { q: s.predict.q }), hint: tr('lesson.predictHint'), worked: s.predict.explain };
     await this.until(...bs);
     this.game.sound.tap();
     // 2. Watch.
-    fb.textContent = '👀 Let’s test it!';
-    this.say('Let’s test it! Watch closely…');
+    fb.textContent = tr('lesson.testIt');
+    this.say(tr('lesson.testSay'));
     await this.sim.watch();
     if (!this.root.isConnected) throw LEFT;
     const ok = guess === s.predict.answer;
-    fb.textContent = `${ok ? '🎉 You guessed right! ' : '😮 Surprise! '}${s.predict.explain}`;
+    fb.textContent = tr(ok ? 'lesson.guessRight' : 'lesson.guessSurprise', { explain: s.predict.explain });
     bs[s.predict.answer].classList.add('is-right');
     if (ok) {
       this.game.sound.right();
       this.buddy.cheer(1.4);
     } else this.buddy.sad(1);
-    this.say(ok ? 'Great guess! ' + s.predict.explain : 'Wow, surprising! ' + s.predict.explain);
+    this.teacherReact(ok);
+    this.say(tr(ok ? 'lesson.guessRightSay' : 'lesson.guessSurpriseSay', { explain: s.predict.explain }));
     // 3. Play.
     this.steps(this.quest.steps, 3);
-    const play = button('arc-btn arc-btn--primary', 'Now I try it! 🔧', null);
+    const play = button('arc-btn arc-btn--primary', tr('lesson.tryIt'), null);
     panel.append(play);
     await this.until(play);
-    panel.replaceChildren(el('p', 'arc-card__kicker', '🔧 Your experiment'), el('p', 'arc-hint', 'Change things and test again. What happens?'), controls);
-    const done = button('arc-btn arc-btn--primary arc-btn--big', 'To the challenge! ▶', null);
+    panel.replaceChildren(el('p', 'arc-card__kicker', tr('lesson.yourExperiment')), el('p', 'arc-hint', tr('lesson.changeThings')), controls);
+    const done = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.toChallengeBig'), null);
     panel.append(done);
     await this.until(done);
   }
@@ -644,9 +699,9 @@ class Runner {
         if (misses >= 2 || bs.filter((b) => !b.disabled).length <= 1) {
           for (const b of bs) b.disabled = true;
           bs[q.answer].classList.add('is-right');
-          this.oops(bs[i], fb, `The answer is “${q.choices[q.answer]}”. ${q.explain}`);
+          this.oops(bs[i], fb, tr('lesson.answerIs', { answer: q.choices[q.answer], explain: q.explain }));
           done();
-        } else this.oops(bs[i], fb, `💡 Hint: ${q.hint}`);
+        } else this.oops(bs[i], fb, tr('lesson.hintIs', { hint: q.hint }));
       }
     }));
     box.append(...bs);
@@ -655,10 +710,23 @@ class Runner {
 
   good(from, fb, text) {
     fb.className = 'arc-feedback is-good';
-    fb.textContent = `🎉 ${PRAISE[Math.floor(Math.random() * PRAISE.length)]} ${text ?? ''}`;
+    fb.textContent = `🎉 ${tr(`lesson.praise.${Math.floor(Math.random() * PRAISES)}`)} ${text ?? ''}`;
     this.game.sound.right();
     sparkle(from);
     this.buddy.cheer(1.4);
+    this.teacherReact(true);
+  }
+  /** The teacher (or the history guide) reacts too: a happy hop when right, a thoughtful, encouraging look when not. */
+  teacherReact(right) {
+    const who = this.room.guide ?? this.room.teacher ?? this.room.tock;
+    if (!who) return;
+    if (right) {
+      who.react(true);
+      if (Math.random() < 0.4) who.cheer(1.2);
+    } else {
+      who.surprise(0.5);
+      setTimeout(() => who.think(1.6), 450);
+    }
   }
   oops(from, fb, text) {
     fb.className = 'arc-feedback is-oops';
@@ -668,6 +736,7 @@ class Runner {
     void from?.offsetWidth;
     from?.classList.add('is-shake');
     this.buddy.sad(1.1);
+    this.teacherReact(false);
   }
 
   async challenge() {
@@ -680,20 +749,20 @@ class Runner {
       this.combo.hidden = false;
       this.shot(this.subject === 'math' ? 'board' : this.subject === 'history' ? 'wide' : 'screen');
       const q = qs[i];
-      this.ctx = { step: `Challenge question: ${q.q} Choices: ${q.choices.join(' / ')}`, hint: q.hint, worked: q.explain };
+      this.ctx = { step: tr('lesson.ctxChallenge', { q: q.q, choices: q.choices.join(' / ') }), hint: q.hint, worked: q.explain };
       const card = el('section', 'arc-card arc-quiz');
-      const dots = el('div', 'arc-dots', null, { 'aria-label': `Question ${i + 1} of ${qs.length}` });
+      const dots = el('div', 'arc-dots', null, { 'aria-label': tr('lesson.questionOf', { n: i + 1, total: qs.length }) });
       qs.forEach((_, k) => dots.append(el('i', k < i ? 'is-done' : k === i ? 'is-on' : '')));
-      card.append(dots, el('p', 'arc-card__kicker', `⚔️ Challenge ${i + 1} of ${qs.length}`), el('h2', 'arc-q', q.q));
+      card.append(dots, el('p', 'arc-card__kicker', tr('lesson.challengeOf', { n: i + 1, total: qs.length })), el('h2', 'arc-q', q.q));
       const fb = el('p', 'arc-feedback', '', { 'aria-live': 'polite' });
-      const next = button('arc-btn arc-btn--primary arc-btn--big', i === qs.length - 1 ? 'Finish! 🏁' : 'Next ▶', null, { hidden: true });
+      const next = button('arc-btn arc-btn--primary arc-btn--big', tr(i === qs.length - 1 ? 'lesson.finish' : 'lesson.next'), null, { hidden: true });
       const help = el('div', 'arc-row arc-quiz__help');
-      const hintBtn = button('arc-btn arc-btn--ghost', '💡 Hint', () => {
+      const hintBtn = button('arc-btn arc-btn--ghost', tr('lesson.hint'), () => {
         fb.className = 'arc-feedback';
         fb.textContent = `💡 ${q.hint}`;
         if (this.voice) speech.say(q.hint);
       });
-      const how = button('arc-btn arc-btn--ghost', '📖 Show me how', () => {
+      const how = button('arc-btn arc-btn--ghost', tr('lesson.showHow'), () => {
         fb.className = 'arc-feedback';
         fb.textContent = `📖 ${q.explain}`;
         if (q.board?.length) this.miniBoard(card, q.board);
@@ -725,7 +794,7 @@ class Runner {
   /** A small chalkboard with the worked answer of a generated question. */
   miniBoard(card, steps) {
     if (card.querySelector('.arc-miniboard')) return;
-    const c = el('canvas', 'arc-board arc-miniboard', null, { role: 'img', 'aria-label': 'Worked answer on the chalkboard' });
+    const c = el('canvas', 'arc-board arc-miniboard', null, { role: 'img', 'aria-label': tr('lesson.miniBoardAria') });
     card.append(c);
     this.board = new Chalkboard(c, { sound: this.game.sound, reducedMotion: this.game.reducedMotion });
     this.board.play(steps);
@@ -733,7 +802,7 @@ class Runner {
 
   drawCombo() {
     const n = this.comboN;
-    this.combo.replaceChildren(el('span', 'arc-combo__flame', n >= 5 ? '☄️' : n >= 3 ? '🔥' : '✨', { 'aria-hidden': 'true' }), el('strong', null, `Combo ×${n}`), el('i', 'arc-combo__bar'));
+    this.combo.replaceChildren(el('span', 'arc-combo__flame', n >= 5 ? '☄️' : n >= 3 ? '🔥' : '✨', { 'aria-hidden': 'true' }), el('strong', null, tr('lesson.combo', { n })), el('i', 'arc-combo__bar'));
     this.combo.querySelector('.arc-combo__bar').style.setProperty('--k', String(Math.min(1, n / 5)));
     this.combo.classList.toggle('is-hot', n >= 3);
     if (n >= 2) {
@@ -745,7 +814,7 @@ class Runner {
 
   flashCoins(got) {
     if (!got.coins) return;
-    const f = el('div', 'arc-coinpop', `+${got.coins} 🪙`, { 'aria-hidden': 'true' });
+    const f = el('div', 'arc-coinpop', tr('lesson.coins', { n: got.coins }), { 'aria-hidden': 'true' });
     this.root.append(f);
     setTimeout(() => f.remove(), 1100);
     this.game.refreshGame();
@@ -763,22 +832,22 @@ class Runner {
     this.game.refreshGame();
     this.shot('wide');
     const card = el('section', 'arc-card arc-results');
-    const row = el('div', 'arc-results__stars', null, { 'aria-label': `${stars} of 3 stars` });
+    const row = el('div', 'arc-results__stars', null, { 'aria-label': tr('lesson.starsAria', { n: stars }) });
     for (let i = 0; i < 3; i++) row.append(el('span', `arc-bigstar${i < stars ? ' is-on' : ''}`, '★'));
-    card.append(el('p', 'arc-card__kicker', 'Quest complete!'), el('h2', null, stars === 3 ? 'Amazing! Perfect score!' : stars === 2 ? 'Great job!' : 'You did it!'), row, el('p', 'arc-results__score', `${this.score} of ${quizLength(l)} right on the first try`), rewardsLine(got));
+    card.append(el('p', 'arc-card__kicker', tr('lesson.complete')), el('h2', null, tr(stars === 3 ? 'lesson.perfect' : stars === 2 ? 'lesson.great' : 'lesson.didIt')), row, el('p', 'arc-results__score', tr('lesson.firstTry', { score: this.score, total: quizLength(l) })), rewardsLine(got));
     const lv = levelOf(this.game.gs.s.xp);
-    const xp = el('div', 'arc-xp', null, { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(lv.need), 'aria-valuenow': String(lv.into), 'aria-label': `Level ${lv.level}` });
-    xp.append(el('span', null, `Level ${lv.level}`), el('i', null));
+    const xp = el('div', 'arc-xp', null, { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(lv.need), 'aria-valuenow': String(lv.into), 'aria-label': tr('lesson.level', { n: lv.level }) });
+    xp.append(el('span', null, tr('lesson.level', { n: lv.level })), el('i', null));
     xp.querySelector('i').style.setProperty('--k', String(lv.into / lv.need));
     card.append(xp);
     const next = this.nextLesson();
     const btns = el('div', 'arc-row');
-    btns.append(button('arc-btn', '🔁 Play again', () => this.run(l)));
-    if (next) btns.append(button('arc-btn arc-btn--primary arc-btn--big', `Next quest ▶`, () => this.run(next)));
-    btns.append(button('arc-btn', '⬅ Mountain', () => this.leave()));
+    btns.append(button('arc-btn', tr('lesson.playAgain'), () => this.run(l)));
+    if (next) btns.append(button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.nextQuest'), () => this.run(next)));
+    btns.append(button('arc-btn', tr('lesson.back'), () => this.leave()));
     card.append(btns);
     this.main.append(card);
-    this.say(stars === 3 ? 'Hoo-ray! Three stars! You are a superstar!' : stars === 2 ? 'Wonderful work! Can you get three stars next time?' : 'Well done for finishing! Practice makes perfect.');
+    this.say(tr(stars === 3 ? 'lesson.say3' : stars === 2 ? 'lesson.say2' : 'lesson.say1'));
     this.buddy.cheer(2.5);
     this.game.sound.fanfare();
     confetti(this.root, stars * 40);
@@ -793,14 +862,14 @@ class Runner {
   celebrateRewards(got, card) {
     if (got.levelUp) {
       const b = el('div', 'arc-levelup', null, { role: 'status' });
-      b.append(el('strong', null, `⬆️ Level ${got.levelUp}!`), el('span', null, 'Your buddy grew stronger!'));
+      b.append(el('strong', null, tr('lesson.levelUp', { n: got.levelUp })), el('span', null, tr('lesson.stronger')));
       card.prepend(b);
       setTimeout(() => this.game.sound.fanfare(), 1500);
     }
     if (got.stickers?.length) {
       const s = el('div', 'arc-stickers-new');
-      s.append(el('span', null, 'New sticker!'));
-      for (const st of got.stickers) s.append(el('span', 'arc-sticker', st.emoji, { title: st.name, 'aria-label': `Sticker: ${st.name}` }));
+      s.append(el('span', null, tr('lesson.newSticker')));
+      for (const st of got.stickers) s.append(el('span', 'arc-sticker', st.emoji, { title: st.name, 'aria-label': tr('lesson.stickerAria', { name: st.name }) }));
       card.append(s);
     }
   }
@@ -826,15 +895,16 @@ class Runner {
 }
 
 const LEFT = Symbol('left the lesson');
-const PRAISE = ['Yes!', 'Brilliant!', 'You got it!', 'Super!', 'Hoo-ray!', 'Correct!', 'Awesome!', 'Nailed it!'];
-const ARCADE_NAMES = { math: (f) => (f <= 2 ? 'Bubble Pop & Hungry Monster' : 'Bubble Pop'), physics: () => 'Launch to the Basket', history: () => 'Who Said It?' };
+/** How many praise words there are (lesson.praise.0 …). */
+const PRAISES = 8;
+const ARCADE_NAMES = { math: (f) => tr(f <= 2 ? 'lesson.arcade.mathSmall' : 'lesson.arcade.math'), physics: () => tr('lesson.arcade.physics'), history: () => tr('lesson.arcade.history') };
 function quizLength(l) {
   return Array.isArray(l.quiz) ? l.quiz.length : l.quiz.count;
 }
 function rewardsLine(got) {
   const p = el('p', 'arc-rewards');
-  if (got.coins) p.append(el('span', 'arc-rewards__coins', `+${got.coins} 🪙`));
-  if (got.xp) p.append(el('span', 'arc-rewards__xp', `+${got.xp} XP`));
+  if (got.coins) p.append(el('span', 'arc-rewards__coins', tr('lesson.coins', { n: got.coins })));
+  if (got.xp) p.append(el('span', 'arc-rewards__xp', tr('lesson.xp', { n: got.xp })));
   return p;
 }
 export { lessonById };

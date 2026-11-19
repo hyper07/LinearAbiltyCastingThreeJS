@@ -9,6 +9,7 @@ import { el, button, sparkle, confetti } from '../ui/dom.js';
 import { lessonsOn, quizFor } from '../content/index.js';
 import { WORLDS } from '../quests.js';
 import { speech } from '../sound.js';
+import { t as tr } from '../i18n/index.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
@@ -28,12 +29,12 @@ export function bossBattle(game, floor) {
     const boss = game.world.bosses.find((b) => b.floor === floor);
     game.world.showBoss(floor);
     const qs = bossQuestions(floor);
-    const box = el('div', 'arc-boss', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': `Puzzle boss: ${w.name}` });
+    const box = el('div', 'arc-boss', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('puzzle.aria', { name: w.name }) });
     const card = el('div', 'arc-card arc-boss__card');
-    const meter = el('div', 'arc-boss__meter', null, { role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '6', 'aria-label': 'Cheer-up meter' });
+    const meter = el('div', 'arc-boss__meter', null, { role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '6', 'aria-label': tr('puzzle.meter') });
     const body = el('div', 'arc-boss__body');
-    const close = button('arc-boss__x', '✕', () => finish(false, true), { 'aria-label': 'Leave the boss' });
-    card.append(close, el('p', 'arc-card__kicker', `${w.emoji} Puzzle boss · Floor ${floor}`), el('h2', null, w.name), meter, body);
+    const close = button('arc-boss__x', '✕', () => finish(false, true), { 'aria-label': tr('puzzle.leave') });
+    card.append(close, el('p', 'arc-card__kicker', tr('puzzle.kicker', { emoji: w.emoji, floor })), el('h2', null, w.name), meter, body);
     box.append(card);
     game.root.append(box);
     let happy = 0, i = 0, done = false;
@@ -43,7 +44,7 @@ export function bossBattle(game, floor) {
     };
     drawMeter();
     const say = (t) => {
-      body.replaceChildren(el('p', 'arc-boss__line', `“${t}”`));
+      body.replaceChildren(el('p', 'arc-boss__line', tr('mg.quote', { line: t })));
       if (game.prefs.voice) speech.say(t);
     };
     const finish = async (won, quit = false) => {
@@ -60,13 +61,13 @@ export function bossBattle(game, floor) {
         game.sound.fanfare();
         confetti(game.root, 140);
         const got = game.gs.event('boss', { floor });
-        body.append(el('p', 'arc-boss__line', `“Hee hee! You did it — I feel SO much better! Thank you, friend!”`), el('p', 'arc-rewards', `+${got.coins} 🪙  +${got.xp} XP`));
-        if (got.stickers.length) body.append(el('p', 'arc-rewards', `New sticker: ${got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ')}`));
+        body.append(el('p', 'arc-boss__line', tr('mg.quote', { line: tr('puzzle.won') })), el('p', 'arc-rewards', tr('puzzle.rewards', { coins: got.coins, xp: got.xp })));
+        if (got.stickers.length) body.append(el('p', 'arc-rewards', tr('puzzle.sticker', { list: got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ') })));
       } else {
         boss.fig.sad(2);
-        body.append(el('p', 'arc-boss__line', `“Hmph… almost! Come back after a little practice and try again.”`), el('p', 'arc-hint', `${happy} of 6 — you need 4 to cheer me up.`));
+        body.append(el('p', 'arc-boss__line', tr('mg.quote', { line: tr('puzzle.lost') })), el('p', 'arc-hint', tr('puzzle.score', { n: happy })));
       }
-      const ok = button('arc-btn arc-btn--primary arc-btn--big', won ? 'Yay! ▶' : 'OK', () => {
+      const ok = button('arc-btn arc-btn--primary arc-btn--big', tr(won ? 'puzzle.yay' : 'puzzle.ok'), () => {
         box.remove();
         game.world.home();
         resolve(won);
@@ -81,7 +82,7 @@ export function bossBattle(game, floor) {
       const q = qs[i++];
       body.replaceChildren();
       const fb = el('p', 'arc-feedback', '', { 'aria-live': 'polite' });
-      body.append(el('p', 'arc-card__kicker', `Riddle ${i} of ${qs.length}`), el('h3', 'arc-q', q.q));
+      body.append(el('p', 'arc-card__kicker', tr('puzzle.riddleOf', { n: i, total: qs.length })), el('h3', 'arc-q', q.q));
       const opts = el('div', 'arc-choices');
       const bs = q.choices.map((c, k) => button('arc-choice', c, async () => {
         for (const b of bs) b.disabled = true;
@@ -101,12 +102,12 @@ export function bossBattle(game, floor) {
           bs[k].classList.add('is-wrong');
           bs[q.answer].classList.add('is-right');
           fb.className = 'arc-feedback is-oops';
-          fb.textContent = `The answer was “${q.choices[q.answer]}”. ${q.explain}`;
+          fb.textContent = tr('puzzle.answerWas', { answer: q.choices[q.answer], explain: q.explain });
           game.sound.wrong();
           boss.fig.sad(1);
           game.world.kid.sad(1);
         }
-        const next = button('arc-btn arc-btn--primary', 'Next riddle ▶', ask);
+        const next = button('arc-btn arc-btn--primary', tr('puzzle.nextRiddle'), ask);
         body.append(next);
         next.focus();
       }));
@@ -115,7 +116,7 @@ export function bossBattle(game, floor) {
       if (game.prefs.voice) speech.say(q.q);
     };
     say(w.line);
-    const go = button('arc-btn arc-btn--primary arc-btn--big', '😤 Bring it on!', ask);
+    const go = button('arc-btn arc-btn--primary arc-btn--big', tr('puzzle.go'), ask);
     body.append(go);
     go.focus();
   });

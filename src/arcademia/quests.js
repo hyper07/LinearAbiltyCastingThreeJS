@@ -5,59 +5,60 @@
  * and a friendly puzzle boss to cheer up at the end.
  */
 import { TEACHERS } from './world/figures.js';
+import { t as tr, localizeLesson } from './i18n/index.js';
 
-const MATH = {
-  count: ['Count the runaway stars', 'Oh dear! My stars rolled out of the jar. Help me count them all back in!'],
-  add10: ['The berry basket', 'The squirrels are bringing berries. Help me add them up so nobody goes hungry!'],
-  sub10: ['The cookie thief', 'Some cookies vanished from the plate! Work out how many are left.'],
-  'tens-ones': ['Bundle the sticks', 'The beavers bundle sticks in tens. Help them sort a big pile!'],
-  'add-carry': ['The carrying crane', 'My counting crane carries tens up the column. Help it with big sums!'],
-  'skip-count': ['Hop-along bridge', 'The frog bridge only lets you hop in twos, fives or tens. Find the next stone!'],
-  times: ['The egg-box factory', 'The hens lay eggs in neat rows. Help me count them fast with times tables!'],
-  'sub-borrow': ['Borrow a ten', 'The bank of tens can lend you one when the ones run out. Let’s go!'],
-  fractions: ['Pizza party', 'Everyone wants a fair slice. Help me cut and share the pizzas!'],
-  'mult-2x1': ['The grid garden', 'Plant big rows of flowers and work out how many with the grid trick!'],
-  division: ['Fair shares', 'The sweets must be shared equally among friends. Can you split them?'],
-  'fraction-of': ['The treasure split', 'Pirate mice found coins! Help them take their fraction of the treasure.'],
-  balance: ['The wobbly scale', 'My magic scale is wobbling! Find the mystery x that makes it level.'],
-  decimals: ['Tiny steps', 'The ants walk in tenths of a step. Help them add up their tiny hops!'],
-  area: ['Fence the meadow', 'The sheep need a fence and a lawn. Work out the perimeter and the area!'],
-  negatives: ['The frosty thermometer', 'Brrr! The snow cave thermometer goes below zero. Help read it!'],
-  percent: ['The sale at the shop', 'Everything is on sale! Help the shopkeeper work out the percentages.'],
-  'two-step': ['The locked vault', 'Two locks guard the vault. Undo them in the right order to find x!'],
-  squares: ['The square garden', 'Build square gardens with tiles — and work backwards to find their sides!']
-};
+/** Math quests by generator: their title and intro are i18n keys quest.math.<gen>.title / .intro. */
+const MATH = new Set(['count', 'add10', 'sub10', 'tens-ones', 'add-carry', 'skip-count', 'times', 'sub-borrow', 'fractions', 'mult-2x1', 'division', 'fraction-of', 'balance', 'decimals', 'area', 'negatives', 'percent', 'two-step', 'squares']);
 
 /** The quest framing of a lesson. */
-export function questFor(lesson) {
+export function questFor(lesson0) {
+  const lesson = localizeLesson(lesson0);
   const t = TEACHERS[lesson.subject];
+  const steps = (list) => list.map((k) => tr(`quest.step.${k}`));
   if (lesson.subject === 'math') {
-    const [title, intro] = MATH[lesson.topic] ?? [lesson.title, 'Let’s solve some puzzles together!'];
-    return { title, intro, teacher: t, steps: ['Story', 'Learn', 'Watch the board', 'Try it', 'Challenge'] };
+    const known = MATH.has(lesson.topic);
+    return {
+      title: known ? tr(`quest.math.${lesson.topic}.title`) : lesson.title,
+      intro: known ? tr(`quest.math.${lesson.topic}.intro`) : tr('quest.math.default'),
+      teacher: t,
+      steps: steps(['story', 'learn', 'board', 'try', 'challenge'])
+    };
   }
   if (lesson.subject === 'history') {
     return {
-      title: `Time trip: ${lesson.title}`,
-      intro: `Tick-tock! My time clock can take us back. Meet ${lesson.dialogue.npc.name.split(',')[0]}, ask them everything, then fix the timeline!`,
+      title: tr('quest.history.title', { title: lesson.title }),
+      intro: tr('quest.history.intro', { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }),
       teacher: t,
-      steps: ['Story', 'Learn', 'Chat', 'Timeline', 'Treasure', 'Challenge']
+      steps: steps(['story', 'learn', 'chat', 'timeline', 'treasure', 'challenge'])
     };
   }
   return {
-    title: `Experiment: ${lesson.title}`,
-    intro: 'Goggles on! First guess what will happen, then we test it. Real scientists do it this way!',
+    title: tr('quest.physics.title', { title: lesson.title }),
+    intro: tr('quest.physics.intro'),
     teacher: t,
-    steps: ['Story', 'Learn', 'Guess', 'Experiment', 'Challenge']
+    steps: steps(['story', 'learn', 'guess', 'experiment', 'challenge'])
   };
 }
 
 /** Each floor's world story and its puzzle boss (friendly: you cheer them up). */
+/** A floor's world: its story and its boss's name and line come from the current language (world.<n>.*). */
+function world(n, boss) {
+  return {
+    get story() {
+      return tr(`world.${n}.story`);
+    },
+    boss: Object.defineProperties(boss, {
+      name: { get: () => tr(`world.${n}.boss`), enumerable: true },
+      line: { get: () => tr(`world.${n}.line`), enumerable: true }
+    })
+  };
+}
 export const WORLDS = {
-  1: { story: 'Spring has come to Meadow Village! The windmill is turning and the bunnies are counting on you.', boss: { name: 'Grumble Cloud', species: 'puff', color: '#a9b4c8', emoji: '☁️', line: 'Hmph! Nobody can cheer me up… unless you can answer my puzzles!' } },
-  2: { story: 'Hot sand, tall pyramids and a cool oasis. The desert holds secrets from long, long ago.', boss: { name: 'Sir Sulky Sphinx', species: 'bear', color: '#f2c46b', emoji: '🦁', line: 'I am the Sphinx! Answer my riddles, or I will sulk all day.' } },
-  3: { story: 'In the Mushroom Grove the toadstools bounce and the spores glow. Every right answer makes one shine.', boss: { name: 'Fizzlewick', species: 'dragon', color: '#ffb35c', emoji: '🐉', line: 'My fire went out! Only clever answers can relight it.' } },
-  4: { story: 'Brrr! Snowy Peaks has igloos, ice and penguins who love puzzles.', boss: { name: 'The Riddle Yeti', species: 'bear', color: '#eef5ff', emoji: '❄️', line: 'Brrr-illiant! Answer my riddles and I will melt into a smile.' } },
-  5: { story: 'Cloud Sky City floats on rainbows. Even the bees here do sums!', boss: { name: 'Mopey Moth', species: 'bunny', color: '#e0c3ff', emoji: '🦋', line: 'I lost my sparkle… help me find it with your brain!' } },
-  6: { story: 'Ships come and go at Seaside Harbor. Explorers set sail from here to map the world!', boss: { name: 'Captain Crabby', species: 'crab', color: '#ff7a5c', emoji: '🦀', line: 'Arr! No ship leaves my harbor until you solve my puzzles!' } },
-  7: { story: 'The Moon Base at the top of the mountain! Only the bravest thinkers reach the stars.', boss: { name: 'Robo-Gloom 3000', species: 'robot', color: '#9aa3b5', emoji: '🤖', line: 'BEEP. My circuits feel gloomy. Compute the answers to reboot my smile.' } }
+  1: world(1, { species: 'puff', color: '#a9b4c8', emoji: '☁️' }),
+  2: world(2, { species: 'lion', color: '#f2c46b', emoji: '🦁' }),
+  3: world(3, { species: 'dragon', color: '#ffb35c', emoji: '🐉' }),
+  4: world(4, { species: 'yeti', color: '#eef5ff', emoji: '❄️' }),
+  5: world(5, { species: 'bunny', color: '#e0c3ff', emoji: '🦋' }),
+  6: world(6, { species: 'crab', color: '#ff7a5c', emoji: '🦀' }),
+  7: world(7, { species: 'robot', color: '#9aa3b5', emoji: '🤖' })
 };

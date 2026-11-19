@@ -3,6 +3,48 @@ import { CREATION_TASKS, PLAN_IDS, planById, taskOf } from '../../src/platform/p
 import { lessonById } from '../../src/arcademia/content/index.js';
 import { floorByN } from '../../src/arcademia/floors.js';
 
+/** The languages the tutor speaks (the game's languages), and how to tell the model. */
+export const TUTOR_LANGUAGES = {
+  en: 'English',
+  ko: 'Korean (한국어)',
+  es: 'Spanish (español)',
+  ja: 'Japanese (日本語)',
+  zh: 'Simplified Chinese (简体中文)'
+};
+export const tutorLocale = (lc) => (Object.hasOwn(TUTOR_LANGUAGES, String(lc)) ? String(lc) : 'en');
+/** What the tutor route says when it can't answer, in each language (`code` lets the page use its own words). */
+export const TUTOR_TEXT = {
+  plus: {
+    en: 'Professor Hoot, the AI tutor, is part of Plus. The hints and worked answers are always here for you.',
+    ko: 'AI 선생님 후트 교수님은 Plus에서 만날 수 있어요. 힌트와 풀이는 언제나 여기 있어요.',
+    es: 'El profesor Hoot, el tutor con IA, es parte de Plus. Las pistas y las soluciones paso a paso siempre están aquí.',
+    ja: 'AIの先生、フート教授はPlusで使えます。ヒントと解き方はいつでもここにありますよ。',
+    zh: 'AI 小老师胡特教授属于 Plus 功能。提示和解题步骤一直都在这里哦。'
+  },
+  resting: {
+    en: 'Professor Hoot is resting right now. Try the hint and worked answer.',
+    ko: '후트 교수님은 지금 쉬고 있어요. 힌트와 풀이를 먼저 봐요.',
+    es: 'El profesor Hoot está descansando ahora. Prueba la pista y la solución paso a paso.',
+    ja: 'フート教授はいま休けい中です。ヒントと解き方を見てみてね。',
+    zh: '胡特教授正在休息。先看看提示和解题步骤吧。'
+  },
+  busy: {
+    en: 'Professor Hoot needs a moment to think — try again soon.',
+    ko: '후트 교수님이 잠깐 생각 중이에요. 조금 뒤에 다시 물어봐요.',
+    es: 'El profesor Hoot necesita un momento para pensar. Vuelve a intentarlo pronto.',
+    ja: 'フート教授はちょっと考え中です。すこししてからもう一度きいてね。',
+    zh: '胡特教授需要想一想，过一会儿再问吧。'
+  },
+  ask: {
+    en: 'Ask a question about this lesson.',
+    ko: '이 수업에 대해 질문해 봐요.',
+    es: 'Haz una pregunta sobre esta lección.',
+    ja: 'このレッスンについて質問してね。',
+    zh: '问一个关于这节课的问题吧。'
+  }
+};
+const tutorText = (code, lc) => TUTOR_TEXT[code][tutorLocale(lc)];
+
 /** What a child may type to the tutor, and what of the lesson goes with it. */
 export const TUTOR_LIMITS = { question: 300, context: 400, turns: 4, reading: 1200 };
 
@@ -22,7 +64,7 @@ export function scrub(text, max) {
  * The tutor's instructions, written here and never by the page: who it is,
  * who it talks to, and the lesson it may talk about.
  */
-export function tutorMessages({ lessonId, question, step = '', history = [] }) {
+export function tutorMessages({ lessonId, question, step = '', history = [], locale = 'en' }) {
   const lesson = lessonById(String(lessonId ?? ''));
   if (!lesson) return null;
   const ask = scrub(question, TUTOR_LIMITS.question);
@@ -37,7 +79,8 @@ export function tutorMessages({ lessonId, question, step = '', history = [] }) {
     'Write plain sentences: no markdown, no lists, no headings, at most one emoji.',
     'Stay on school learning, and mostly on this lesson. If the child asks about something unsafe, scary, grown-up, personal or off-topic, kindly say it is not something you can help with here and steer back to the lesson; suggest asking a trusted grown-up when that fits.',
     'Never ask for or repeat personal information (names, age, address, school, phone, photos, passwords). Never give links. Never pretend to be a real person.',
-    'Be accurate. If you are not sure, say so. Be warm and encouraging; praise effort.'
+    'Be accurate. If you are not sure, say so. Be warm and encouraging; praise effort.',
+    `Always answer in ${TUTOR_LANGUAGES[tutorLocale(locale)]}, in simple, natural words a child who speaks it understands, even if the lesson text above is in English.`
   ].join('\n');
   const messages = [{ role: 'system', content: system }];
   const context = scrub(step, TUTOR_LIMITS.context);
@@ -180,7 +223,10 @@ export function aiBridge(env = process.env, { identify = async () => null } = {}
    * prebuilt hints instead). The child's words are capped and scrubbed.
    */
   const tutorLimiter = new RateLimiter(Number(env.AI_TUTOR_PER_MIN) || 8, { burst: 4 });
+  /** The language a request asks for: ?locale= on the URL (the body's locale is read with the body). */
+  const lcOf = (req) => tutorLocale(new URL(req.url ?? '/', 'http://x').searchParams.get('locale'));
   async function tutor(req, res) {
+    let lc = lcOf(req);
     const { who, plan } = await caller(req);
     const cap = plan.maxTokens.tutor ?? 0;
     const endpoint = standard.baseUrl ? standard : premium;
@@ -193,22 +239,23 @@ export function aiBridge(env = process.env, { identify = async () => null } = {}
       return true;
     }
     if (!cap) {
-      json(res, 403, { error: 'Professor Hoot, the AI tutor, is part of Plus. The hints and worked answers are always here for you.', upgrade: true });
+      json(res, 403, { error: tutorText('plus', lcOf(req)), code: 'plus', upgrade: true });
       return true;
     }
     if (!endpoint) {
-      json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true });
+      json(res, 503, { error: tutorText('resting', lcOf(req)), code: 'resting', resting: true });
       return true;
     }
     if (!tutorLimiter.take(who)) {
-      json(res, 429, { error: 'Professor Hoot needs a moment to think — try again soon.' });
+      json(res, 429, { error: tutorText('busy', lcOf(req)), code: 'busy' });
       return true;
     }
     try {
       const payload = await readJson(req, 16 * 1024);
-      const messages = tutorMessages(payload ?? {});
+      lc = tutorLocale(payload?.locale);
+      const messages = tutorMessages({ ...(payload ?? {}), locale: lc });
       if (!messages) {
-        json(res, 400, { error: 'Ask a question about this lesson.' });
+        json(res, 400, { error: tutorText('ask', lc), code: 'ask' });
         return true;
       }
       const response = await upstream(endpoint, '/chat/completions', {
@@ -222,18 +269,18 @@ export function aiBridge(env = process.env, { identify = async () => null } = {}
         })
       });
       if (!response.ok) {
-        json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true });
+        json(res, 503, { error: tutorText('resting', lc), code: 'resting', resting: true });
         return true;
       }
       const body = await response.json().catch(() => ({}));
       const answer = String(body?.choices?.[0]?.message?.content ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').trim().slice(0, 900);
       if (!answer) {
-        json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true });
+        json(res, 503, { error: tutorText('resting', lc), code: 'resting', resting: true });
         return true;
       }
       json(res, 200, { answer });
     } catch (error) {
-      json(res, 503, { error: 'Professor Hoot is resting right now. Try the hint and worked answer.', resting: true, detail: error?.name === 'AbortError' ? 'timeout' : undefined });
+      json(res, 503, { error: tutorText('resting', lc), code: 'resting', resting: true, detail: error?.name === 'AbortError' ? 'timeout' : undefined });
     }
     return true;
   }

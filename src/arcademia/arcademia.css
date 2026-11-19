@@ -580,3 +580,63 @@
   .arc-round { bottom: 296px; }
   .arc-quest__actions .arc-btn { flex: 1; }
 }
+
+/* the buddy picker's 3D turntable and picture cards */
+.arc-turntable { position: relative; height: clamp(190px, 32vh, 280px); margin: 4px -6px 2px; border-radius: 22px; background: radial-gradient(ellipse at 50% 40%, #ffffff 0%, #fff4fa 45%, #f3e8ff 100%); overflow: hidden; touch-action: pan-y; cursor: grab; }
+.arc-turntable__canvas { display: block; width: 100%; height: 100%; }
+.arc-turntable__hint { position: absolute; right: 12px; top: 10px; padding: 4px 10px; border-radius: 99px; background: rgba(255, 255, 255, 0.85); color: var(--arc-muted); font-weight: 800; font-size: 12px; pointer-events: none; transition: opacity 0.4s; }
+.arc-turntable__hint.is-gone { opacity: 0; }
+.arc-pick__pic { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; }
+.arc-pick__img { width: 72px; height: 72px; object-fit: contain; margin: -4px; pointer-events: none; animation: arc-pop-in 0.3s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes arc-pop-in { from { transform: scale(0.6); opacity: 0; } }
+.arc-pick__name { text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
+.arc-pick__own { color: var(--arc-muted); font-size: 11px; }
+.arc-pick__none { font-size: 30px; color: var(--arc-muted); }
+@media (max-width: 520px) { .arc-turntable { height: 200px; } .arc-pickgrid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); } }
+
+/* start screen, settings, credits, language picker */
+.arc-start { position: absolute; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.55), rgba(255, 240, 250, 0.3) 60%, rgba(40, 60, 80, 0.25)); transition: opacity 0.35s; }
+.arc-start.is-out { opacity: 0; pointer-events: none; }
+.arc-start__card { width: min(460px, 100%); max-height: 100%; overflow: auto; padding: 26px 24px 20px; border-radius: 30px; background: var(--arc-card-solid); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25); text-align: center; animation: arc-pop-in 0.4s cubic-bezier(0.3, 1.5, 0.5, 1); }
+.arc-start__owl { font-size: 54px; line-height: 1; }
+.arc-start__title { margin: 6px 0 2px; font-size: clamp(30px, 8vw, 42px); font-weight: 900; letter-spacing: 0.04em; color: var(--arc-teal); }
+.arc-start__tag { margin: 0 0 18px; color: var(--arc-muted); font-weight: 800; }
+.arc-start__play { width: 100%; font-size: 22px; }
+.arc-start__label { margin: 18px 0 8px; font-weight: 900; color: var(--arc-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 13px; }
+.arc-start__credits { margin-top: 14px; }
+.arc-langs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.arc-lang { min-width: 0; padding: 9px 14px; border-radius: 99px; border: 3px solid var(--arc-line); background: #fff; font-weight: 900; font-size: 15px; }
+.arc-lang.is-on { border-color: var(--arc-pink); background: #fff0f8; }
+.arc-settings, .arc-credits { width: min(520px, 100%); position: relative; max-height: calc(100% - 32px); overflow: auto; }
+.arc-settings h2, .arc-credits h2 { font-weight: 900; margin-top: 0; }
+.arc-settings__sec h3 { margin: 16px 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--arc-muted); }
+.arc-settings .arc-langs { justify-content: flex-start; }
+.arc-settings__toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+.arc-toggle { padding: 10px 14px; border-radius: 16px; border: 3px solid var(--arc-line); background: #fff; font-weight: 800; }
+.arc-toggle.is-on { border-color: var(--arc-teal); background: #e9f8f5; }
+.arc-settings__more { margin-top: 18px; flex-wrap: wrap; }
+.arc-credits__lead { color: var(--arc-muted); font-weight: 700; }
+.arc-credits__list { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.arc-credits__list li { display: grid; gap: 2px; padding: 10px 12px; border-radius: 14px; background: #fff; border: 2px solid var(--arc-line); }
+.arc-credits__list a { color: var(--arc-teal); font-weight: 900; }
+.arc-credits__what { font-weight: 700; }
+.arc-credits__meta { color: var(--arc-muted); font-size: 13px; font-weight: 700; }
+.arc-credits__note { color: var(--arc-muted); font-size: 13px; font-weight: 700; }
+.arc-chip--settings { width: 40px; justify-content: center; padding: 0; font-size: 18px; }
+/* phone: fold day, sound and Parents into Settings so the top bar breathes */
+@media (max-width: 560px) {
+  .arc-top .arc-chip--day, .arc-top .arc-chip--sound, .arc-top .arc-chip--parents { display: none; }
+  .arc-top { max-width: none; flex-wrap: nowrap; }
+}
+/* Korean, Japanese, Chinese: their own fonts first and kinder line breaking */
+.arc:lang(ko), .arc :lang(ko) { font-family: 'Nunito Variable', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere; }
+.arc:lang(ja), .arc :lang(ja) { font-family: 'Nunito Variable', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif; line-break: strict; overflow-wrap: anywhere; }
+.arc:lang(zh), .arc :lang(zh) { font-family: 'Nunito Variable', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; line-break: strict; overflow-wrap: anywhere; }
+.arc:lang(ko) .arc-btn, .arc:lang(ja) .arc-btn, .arc:lang(zh) .arc-btn, .arc:lang(ko) .arc-choice, .arc:lang(ja) .arc-choice, .arc:lang(zh) .arc-choice { letter-spacing: 0; }
+.arc .arc-btn, .arc .arc-choice, .arc .arc-chip { min-width: 0; overflow-wrap: anywhere; }
+
+/* the speaker's live 3D face beside the speech bubble and in the history chat */
+.arc-say__who.is-live { width: 108px; height: 108px; border-radius: 22px; background: transparent; box-shadow: 0 0 0 4px #fff, 0 8px 20px rgba(0, 0, 0, 0.22); border: 3px solid var(--arc-sun); }
+.arc-dialog__face { display: block; width: 96px; height: 96px; flex: none; align-self: center; border-radius: 20px; border: 3px solid var(--arc-sun); box-shadow: 0 0 0 4px #fff; }
+@media (max-width: 700px) { .arc-say__who.is-live { width: 76px; height: 76px; border-radius: 16px; } .arc-dialog__face { width: 68px; height: 68px; } }
+.arc-dialog__face canvas { display: block; width: 100%; height: 100%; border-radius: 17px; }

@@ -14,7 +14,19 @@ export function button(cls, text, onClick, attrs = {}) {
   return el('button', cls, text, { type: 'button', onclick: onClick, ...attrs });
 }
 export const SUBJECT_ICON = { math: '🔢', history: '🏛️', physics: '🔭' };
-export const SUBJECT_LABEL = { math: 'Math', history: 'History', physics: 'Physics' };
+import { t } from '../i18n/index.js';
+/** Subject names in the current language. */
+export const SUBJECT_LABEL = {
+  get math() {
+    return t('subject.math');
+  },
+  get history() {
+    return t('subject.history');
+  },
+  get physics() {
+    return t('subject.physics');
+  }
+};
 export const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** A burst of sparkles from an element (skipped for reduced motion). */

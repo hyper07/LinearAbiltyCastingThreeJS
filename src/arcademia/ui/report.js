@@ -8,13 +8,27 @@
  * and on the read-only share page (parent-report.html).
  */
 import './report.css';
+import { t as tr, num, date, minutes, localizeLesson } from '../i18n/index.js';
+import { LESSONS, lessonById } from '../content/index.js';
 
-const SUBJECTS = [
-  { id: 'math', name: 'Math' },
-  { id: 'history', name: 'History' },
-  { id: 'physics', name: 'Physics' }
-];
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const subject = (id) => ({ id, get name() {
+  return tr(`subject.${id}`);
+} });
+const SUBJECTS = [subject('math'), subject('history'), subject('physics')];
+/** Short weekday names, Monday first, in the current language. */
+const days = () => Array.from({ length: 7 }, (_, i) => date(new Date(2024, 0, 1 + i), { weekday: 'short' }));
+/** A topic key or a lesson id, as it reads in the current language. */
+const topicName = (topic, fallback) => {
+  const l = LESSONS.find((x) => x.topic === topic);
+  return l ? localizeLesson(l).topicName : fallback ?? topic;
+};
+const lessonTitle = (id, fallback) => {
+  const l = lessonById(id);
+  return l ? localizeLesson(l).title : fallback ?? id;
+};
+/** (tableView has a local `tr` for table rows.) */
+const tableLabel = () => tr('rep.table');
+const pct = (v) => num(v / 100, { style: 'percent' });
 const h = (tag, cls = '', text = null, attrs = {}) => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -27,8 +41,8 @@ const svgEl = (tag, attrs = {}) => {
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
   return e;
 };
-const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${Math.round(m % 60)} min` : m > 0 && m < 1 ? 'under 1 min' : `${Math.round(m)} min`);
-const fmtVal = (m) => (m > 0 && m < 0.5 ? '<1' : m < 10 ? String(Math.round(m * 10) / 10) : String(Math.round(m)));
+const fmtMin = (m) => (m > 0 && m < 1 ? tr('rep.underMin') : minutes(m));
+const fmtVal = (m) => (m > 0 && m < 0.5 ? '<1' : m < 10 ? num(Math.round(m * 10) / 10) : num(Math.round(m)));
 
 /** One tooltip per report, values first, labels second (dataviz interaction rules). */
 function tooltip(root) {
@@ -71,12 +85,13 @@ function bindTip(el, tip, title, rows) {
   el.addEventListener('blur', hide);
 }
 
-export function renderReport(host, report, { title = 'Weekly learning report', share = null } = {}) {
+export function renderReport(host, report, { title = tr('rep.title'), share = null } = {}) {
+  const DAYS = days();
   const root = h('section', 'arc-report');
   const tip = tooltip(root);
   const head = h('header', 'rep-head');
-  const weekLabel = new Date(`${report.weekOf}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
-  head.append(h('h2', null, title), h('p', 'rep-sub', `Week of ${weekLabel}`));
+  const weekLabel = date(new Date(`${report.weekOf}T12:00:00`), { day: 'numeric', month: 'long' });
+  head.append(h('h2', null, title), h('p', 'rep-sub', tr('rep.weekOf', { date: weekLabel })));
   root.append(head);
 
   // Stat tiles: the numbers that are the story.
@@ -87,15 +102,15 @@ export function renderReport(host, report, { title = 'Weekly learning report', s
     if (sub) t.append(h('span', 'rep-tile__sub', sub));
     tiles.append(t);
   };
-  tile(fmtMin(report.minutes), 'studied this week');
-  tile(String(report.lessonsThisWeek), 'lessons finished', report.lessonsLastWeek != null ? `${report.lessonsLastWeek} last week` : '');
-  tile(`${report.stars} ★`, 'stars earned', `of ${report.starsOf}`);
-  tile(`Floor ${report.floorReached}`, 'reached', `of ${report.floorsOf}`);
-  tile(`${report.streak} 🔥`, report.streak === 1 ? 'day streak' : 'days in a row');
+  tile(fmtMin(report.minutes), tr('rep.studied'));
+  tile(num(report.lessonsThisWeek), tr('rep.lessons'), report.lessonsLastWeek != null ? tr('rep.lastWeekN', { n: report.lessonsLastWeek }) : '');
+  tile(`${num(report.stars)} ★`, tr('rep.stars'), tr('rep.of', { n: report.starsOf }));
+  tile(tr('hud.floor', { n: report.floorReached }), tr('rep.reached'), tr('rep.of', { n: report.floorsOf }));
+  tile(`${num(report.streak)} 🔥`, tr('rep.streak', { count: report.streak }));
   root.append(tiles);
 
   // Legend (always, for 3 series), shared by both charts.
-  const legend = h('ul', 'rep-legend', null, { 'aria-label': 'Subjects' });
+  const legend = h('ul', 'rep-legend', null, { 'aria-label': tr('rep.subjects') });
   for (const s of SUBJECTS) {
     const li = h('li');
     li.append(h('i', `rep-key rep-key--${s.id} rep-key--box`), h('span', null, s.name));
@@ -104,18 +119,18 @@ export function renderReport(host, report, { title = 'Weekly learning report', s
 
   // Minutes per day, stacked by subject.
   const c1 = h('figure', 'rep-card');
-  c1.append(h('figcaption', 'rep-card__title', 'Minutes studied each day'), legend.cloneNode(true));
+  c1.append(h('figcaption', 'rep-card__title', tr('rep.minutesTitle')), legend.cloneNode(true));
   // Narrow screens get a narrower drawing, so the labels stay readable.
   const W = Math.max(330, Math.min(560, (host.clientWidth || 560) - 40)), H = 220, padL = 34, padB = 26, padT = 10;
   const max = Math.max(4, ...report.days.map((d) => SUBJECTS.reduce((s, x) => s + d[x.id], 0)));
   const step = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120].find((v) => v * 4 >= max) ?? Math.ceil(max / 4);
   const nice = step * 4;
-  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'rep-chart', role: 'img', 'aria-label': 'Minutes studied each day this week, by subject' });
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'rep-chart', role: 'img', 'aria-label': tr('rep.minutesAria') });
   for (let k = 0; k <= 4; k++) {
     const y = padT + (H - padT - padB) * (1 - k / 4);
     svg.append(svgEl('line', { x1: padL, x2: W - 6, y1: y, y2: y, class: k ? 'rep-grid' : 'rep-axis' }));
     const t = svgEl('text', { x: padL - 6, y: y + 4, class: 'rep-tick', 'text-anchor': 'end' });
-    t.textContent = String(Math.round((nice * k) / 4));
+    t.textContent = num(Math.round((nice * k) / 4));
     svg.append(t);
   }
   const band = (W - padL - 6) / 7;
@@ -124,7 +139,7 @@ export function renderReport(host, report, { title = 'Weekly learning report', s
     const x = padL + band * i + (band - bw) / 2;
     let y = H - padB;
     const total = SUBJECTS.reduce((s, x2) => s + d[x2.id], 0);
-    const g = svgEl('g', { class: 'rep-col', tabindex: '0', role: 'img', 'aria-label': `${DAYS[i]}: ${Math.round(total)} minutes` });
+    const g = svgEl('g', { class: 'rep-col', tabindex: '0', role: 'img', 'aria-label': tr('rep.dayAria', { day: DAYS[i], n: Math.round(total) }) });
     const visible = SUBJECTS.filter((s) => d[s.id] > 0);
     visible.forEach((s, k) => {
       const hgt = ((H - padT - padB) * d[s.id]) / nice;
@@ -143,79 +158,79 @@ export function renderReport(host, report, { title = 'Weekly learning report', s
       v.textContent = fmtVal(total);
       g.append(v);
     }
-    bindTip(g, tip, `${DAYS[i]} · ${fmtVal(total)} min`, SUBJECTS.map((s) => ({ id: s.id, value: `${fmtVal(d[s.id])} min`, label: s.name })));
+    bindTip(g, tip, tr('rep.dayTip', { day: DAYS[i], n: fmtVal(total) }), SUBJECTS.map((s) => ({ id: s.id, value: tr('rep.min', { n: fmtVal(d[s.id]) }), label: s.name })));
     svg.append(g);
   });
   c1.append(svg);
-  c1.append(tableView(['Day', ...SUBJECTS.map((s) => `${s.name} (min)`)], report.days.map((d, i) => [DAYS[i], ...SUBJECTS.map((s) => fmtVal(d[s.id]))])));
+  c1.append(tableView([tr('rep.day'), ...SUBJECTS.map((s) => tr('rep.subjectMin', { subject: s.name }))], report.days.map((d, i) => [DAYS[i], ...SUBJECTS.map((s) => fmtVal(d[s.id]))])));
   root.append(c1);
 
   // Accuracy: this week (filled) against last week (ring), one 0–100 % axis.
   const c2 = h('figure', 'rep-card');
-  c2.append(h('figcaption', 'rep-card__title', 'Quiz accuracy — this week (●) and last week (○)'));
+  c2.append(h('figcaption', 'rep-card__title', tr('rep.accTitle')));
   const W2 = W, rowH = 46, H2 = rowH * 3 + 30, x0 = 90, x1 = W2 - 20;
-  const s2 = svgEl('svg', { viewBox: `0 0 ${W2} ${H2}`, class: 'rep-chart', role: 'img', 'aria-label': 'Quiz accuracy by subject, this week compared with last week' });
+  const s2 = svgEl('svg', { viewBox: `0 0 ${W2} ${H2}`, class: 'rep-chart', role: 'img', 'aria-label': tr('rep.accAria') });
   for (let k = 0; k <= 4; k++) {
     const x = x0 + ((x1 - x0) * k) / 4;
     s2.append(svgEl('line', { x1: x, x2: x, y1: 6, y2: H2 - 22, class: 'rep-grid' }));
     const t = svgEl('text', { x, y: H2 - 6, class: 'rep-tick', 'text-anchor': 'middle' });
-    t.textContent = `${k * 25}%`;
+    t.textContent = pct(k * 25);
     s2.append(t);
   }
   const X = (p) => x0 + ((x1 - x0) * p) / 100;
   report.accuracy.forEach((a, i) => {
     const y = 26 + i * rowH;
-    const g = svgEl('g', { class: 'rep-col', tabindex: '0', role: 'img', 'aria-label': `${a.name}: ${a.this == null ? 'no answers' : `${a.this}%`} this week, ${a.last == null ? 'none' : `${a.last}%`} last week` });
+    const g = svgEl('g', { class: 'rep-col', tabindex: '0', role: 'img', 'aria-label': tr('rep.accRowAria', { subject: tr(`subject.${a.subject}`), now: a.this == null ? tr('rep.noAnswers') : pct(a.this), last: a.last == null ? tr('rep.none') : pct(a.last) }) });
     const lab = svgEl('text', { x: x0 - 10, y: y + 5, class: 'rep-label', 'text-anchor': 'end' });
-    lab.textContent = a.name;
+    lab.textContent = tr(`subject.${a.subject}`);
     g.append(lab);
     if (a.this != null && a.last != null) g.append(svgEl('line', { x1: X(a.last), x2: X(a.this), y1: y, y2: y, class: `rep-link rep-stroke--${a.subject}` }));
     if (a.last != null) g.append(svgEl('circle', { cx: X(a.last), cy: y, r: 6, class: `rep-dot-last rep-stroke--${a.subject}` }));
     if (a.this != null) {
       g.append(svgEl('circle', { cx: X(a.this), cy: y, r: 7, class: `rep-dot rep-fill--${a.subject}` }));
       const v = svgEl('text', { x: X(a.this), y: y - 13, class: 'rep-val', 'text-anchor': 'middle' });
-      v.textContent = `${a.this}%`;
+      v.textContent = pct(a.this);
       g.append(v);
     } else {
       const v = svgEl('text', { x: x0 + 6, y: y + 5, class: 'rep-tick' });
-      v.textContent = 'no questions yet this week';
+      v.textContent = tr('rep.noQuestions');
       g.append(v);
     }
     g.append(svgEl('rect', { x: 0, y: y - rowH / 2, width: W2, height: rowH, class: 'rep-hit' }));
-    bindTip(g, tip, a.name, [
-      { id: a.subject, value: a.this == null ? '—' : `${a.this}%`, label: `this week (${a.answers} answers)` },
-      { id: 'none', value: a.last == null ? '—' : `${a.last}%`, label: 'last week' }
+    bindTip(g, tip, tr(`subject.${a.subject}`), [
+      { id: a.subject, value: a.this == null ? '—' : pct(a.this), label: tr('rep.thisWeekN', { count: a.answers }) },
+      { id: 'none', value: a.last == null ? '—' : pct(a.last), label: tr('rep.lastWeek') }
     ]);
     s2.append(g);
   });
   c2.append(s2);
-  c2.append(tableView(['Subject', 'This week', 'Last week', 'Answers'], report.accuracy.map((a) => [a.name, a.this == null ? '—' : `${a.this}%`, a.last == null ? '—' : `${a.last}%`, String(a.answers)])));
+  c2.append(tableView([tr('rep.subject'), tr('rep.thisWeek'), tr('rep.lastWeekCap'), tr('rep.answers')], report.accuracy.map((a) => [tr(`subject.${a.subject}`), a.this == null ? '—' : pct(a.this), a.last == null ? '—' : pct(a.last), num(a.answers)])));
   root.append(c2);
 
   // Worth practising, and recent activity.
   const two = h('div', 'rep-two');
   const c3 = h('section', 'rep-card');
-  c3.append(h('h3', 'rep-card__title', 'Worth practising'));
-  if (!report.practice.length) c3.append(h('p', 'rep-empty', 'Nothing stands out — every topic tried this fortnight went well.'));
+  c3.append(h('h3', 'rep-card__title', tr('rep.practice')));
+  if (!report.practice.length) c3.append(h('p', 'rep-empty', tr('rep.practiceNone')));
   else {
     const ul = h('ul', 'rep-list');
     for (const p of report.practice) {
       const li = h('li');
       const total = p.right + p.wrong;
-      li.append(h('i', `rep-key rep-key--${p.subject} rep-key--box`), h('strong', null, p.name), h('span', null, `${p.subjectName} · ${p.wrong} of ${total} missed`));
+      li.append(h('i', `rep-key rep-key--${p.subject} rep-key--box`), h('strong', null, topicName(p.topic, p.name)), h('span', null, tr('rep.missed', { subject: tr(`subject.${p.subject}`), n: p.wrong, total })));
       ul.append(li);
     }
     c3.append(ul);
   }
   const c4 = h('section', 'rep-card');
-  c4.append(h('h3', 'rep-card__title', 'Recent activity'));
-  if (!report.recent.length) c4.append(h('p', 'rep-empty', 'No lessons yet. They will show up here.'));
+  c4.append(h('h3', 'rep-card__title', tr('rep.recent')));
+  if (!report.recent.length) c4.append(h('p', 'rep-empty', tr('rep.recentNone')));
   else {
     const ul = h('ul', 'rep-list');
     for (const r of report.recent) {
       const li = h('li');
-      const when = new Date(r.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-      li.append(h('i', `rep-key rep-key--${r.subject} rep-key--box`), h('strong', null, r.title), h('span', null, `${r.kind === 'lesson' ? `finished · ${'★'.repeat(r.stars ?? 0)}${'☆'.repeat(3 - (r.stars ?? 0))} · ${r.score}/${r.total}` : 'read the cards'} · ${when}`));
+      const when = date(new Date(r.at), { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+      li.append(h('i', `rep-key rep-key--${r.subject} rep-key--box`), h('strong', null, lessonTitle(r.lesson, r.title)), h('span', null, `${r.kind === 'lesson' ? tr('rep.finished', { stars: `${'★'.repeat(r.stars ?? 0)}${'☆'.repeat(3 - (r.stars ?? 0))}`, score: r.score ?? 0, total: r.total ?? 0 }) : tr('rep.read')} · ${when}`));
       ul.append(li);
     }
     c4.append(ul);
@@ -235,7 +250,7 @@ function roundTop(x, y, w, hgt, r) {
 
 function tableView(headers, rows) {
   const d = h('details', 'rep-table');
-  d.append(h('summary', null, 'Show as a table'));
+  d.append(h('summary', null, tableLabel()));
   const t = h('table');
   const tr = h('tr');
   for (const c of headers) tr.append(h('th', null, c, { scope: 'col' }));

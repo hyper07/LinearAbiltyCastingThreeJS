@@ -10,9 +10,11 @@
  * The themes follow the history taught there: the Desert floor is ancient
  * Egypt, the Harbor is the age of exploration, the top is the Moon landing.
  */
+import { t } from './i18n/index.js';
+
 export const FLOORS = [
   {
-    n: 1, name: 'Meadow Village', ages: '6–7', icon: '🌼',
+    n: 1, ages: '6–7', icon: '🌼',
     look: {
       theme: 'meadow', grass: '#9fe38a', grassDark: '#86d474', rock: ['#b7c0ea', '#a3aee0', '#c9d0f2'], path: '#ffe9c2',
       stone: '#e8dcc8', trim: '#fff6e6', wall: '#fff1d6', roof: { math: '#ff7a5c', history: '#ffb347', physics: '#6fb8ff' },
@@ -22,7 +24,7 @@ export const FLOORS = [
     }
   },
   {
-    n: 2, name: 'Desert Pyramids', ages: '7–8', icon: '🐫',
+    n: 2, ages: '7–8', icon: '🐫',
     look: {
       theme: 'desert', grass: '#ffd98a', grassDark: '#f6c96e', rock: ['#f2b36b', '#e59f58', '#ffc98a'], path: '#fff0cf',
       stone: '#f3d7a2', trim: '#fff3d9', wall: '#ffe7b8', roof: { math: '#ffcf5c', history: '#e98a4f', physics: '#4fb0c6' },
@@ -32,7 +34,7 @@ export const FLOORS = [
     }
   },
   {
-    n: 3, name: 'Mushroom Grove', ages: '8–9', icon: '🍄',
+    n: 3, ages: '8–9', icon: '🍄',
     look: {
       theme: 'mushroom', grass: '#8fe0c4', grassDark: '#74d0b0', rock: ['#b59ee8', '#a18ad9', '#c7b5f0'], path: '#f7e4ff',
       stone: '#e6d9f2', trim: '#ffffff', wall: '#fff6ea', roof: { math: '#ff5f7e', history: '#9b7be0', physics: '#ffb347' },
@@ -42,7 +44,7 @@ export const FLOORS = [
     }
   },
   {
-    n: 4, name: 'Snowy Peaks', ages: '9–10', icon: '❄️',
+    n: 4, ages: '9–10', icon: '❄️',
     look: {
       theme: 'snow', grass: '#f2f8ff', grassDark: '#e1eefc', rock: ['#a9c4f0', '#94b3e6', '#c3d6f6'], path: '#d9e8ff',
       stone: '#dfe9f7', trim: '#ffffff', wall: '#f4f8ff', roof: { math: '#7cc6ff', history: '#ff7a7a', physics: '#9b7be0' },
@@ -52,7 +54,7 @@ export const FLOORS = [
     }
   },
   {
-    n: 5, name: 'Cloud Sky City', ages: '10–11', icon: '☁️',
+    n: 5, ages: '10–11', icon: '☁️',
     look: {
       theme: 'cloud', grass: '#ffe3f4', grassDark: '#f9d0ea', rock: ['#d9d4ff', '#c9c2fb', '#ebe8ff'], path: '#ffffff',
       stone: '#f3efff', trim: '#ffffff', wall: '#ffffff', roof: { math: '#ff9ed2', history: '#ffd23f', physics: '#7cc6ff' },
@@ -62,7 +64,7 @@ export const FLOORS = [
     }
   },
   {
-    n: 6, name: 'Seaside Harbor', ages: '11–12', icon: '⚓',
+    n: 6, ages: '11–12', icon: '⚓',
     look: {
       theme: 'harbor', grass: '#a6e8a0', grassDark: '#8fdc8a', rock: ['#9fc2e0', '#8ab3d6', '#b5d2ea'], path: '#ffeccc',
       stone: '#e6e1d6', trim: '#ffffff', wall: '#f2f8ff', roof: { math: '#ff9a8a', history: '#3f7fd6', physics: '#ff5f5f' },
@@ -72,7 +74,7 @@ export const FLOORS = [
     }
   },
   {
-    n: 7, name: 'Moon Base', ages: '12–13', icon: '🚀',
+    n: 7, ages: '12–13', icon: '🚀',
     look: {
       theme: 'moon', grass: '#c9cbd8', grassDark: '#b7bacb', rock: ['#9a9db5', '#8a8da8', '#adb0c6'], path: '#e8e9f2',
       stone: '#d4d6e2', trim: '#ffffff', wall: '#eef0f8', roof: { math: '#7cc6ff', history: '#ffb347', physics: '#ff6f6f' },
@@ -82,5 +84,8 @@ export const FLOORS = [
     }
   }
 ];
+
+/** Floor names come from the current language (i18n ui.js: floor.<n>). */
+for (const f of FLOORS) Object.defineProperty(f, 'name', { get: () => t(`floor.${f.n}`), enumerable: true });
 
 export const floorByN = (n) => FLOORS.find((f) => f.n === n) ?? null;

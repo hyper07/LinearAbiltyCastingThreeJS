@@ -10,6 +10,7 @@
  */
 import { el, button, sparkle } from '../ui/dom.js';
 import { makeProblem } from '../content/math.js';
+import { t as tr, num, localizeLesson } from '../i18n/index.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -70,7 +71,7 @@ export function bubblePop(host, { floor = 1, sound, reducedMotion = false, secon
       if (left <= 0) {
         over = true;
         cancelAnimationFrame(raf);
-        q.textContent = `Time! You popped ${score}.`;
+        q.textContent = tr('mg.timeUp', { n: score });
         setTimeout(() => {
           box.remove();
           resolve(score);
@@ -95,8 +96,8 @@ export function feedMonster(host, { floor = 1, sound, rounds = 5 }) {
     const mon = el('div', 'arc-monster__mon', '👾', { 'aria-hidden': 'true' });
     const belly = el('div', 'arc-monster__belly', '');
     const fruits = el('div', 'arc-mg__row');
-    const done = button('arc-btn arc-btn--primary', '✋ Done!', () => check());
-    const undo = button('arc-btn', '↩ Take one back', () => {
+    const done = button('arc-btn arc-btn--primary', tr('mg.done'), () => check());
+    const undo = button('arc-btn', tr('mg.takeBack'), () => {
       if (fed > 0) fed--;
       show();
     });
@@ -111,26 +112,26 @@ export function feedMonster(host, { floor = 1, sound, rounds = 5 }) {
       void mon.offsetWidth;
       mon.classList.add('is-chomp');
       show();
-    }, { 'aria-label': `Feed one ${f}` }));
+    }, { 'aria-label': tr('mg.feedOne', { fruit: f }) }));
     const show = () => {
-      belly.textContent = fed ? `Fed: ${fed}` : 'Tap a fruit to feed me!';
+      belly.textContent = fed ? tr('mg.fed', { n: fed }) : tr('mg.tapFruit');
     };
     const ask = () => {
       round++;
       fed = 0;
-      roundEl.textContent = `Round ${round}/${rounds}`;
+      roundEl.textContent = tr('mg.round', { n: round, total: rounds });
       let text;
       if (floor <= 1) {
         want = 3 + Math.floor(Math.random() * 8);
-        text = `Feed me ${want}!`;
+        text = tr('mg.feedMe', { what: num(want) });
       } else if (floor <= 2) {
         const a = 2 + Math.floor(Math.random() * 7), b = 1 + Math.floor(Math.random() * 6);
         want = a + b;
-        text = `Feed me ${a} + ${b}!`;
+        text = tr('mg.feedMe', { what: `${num(a)} + ${num(b)}` });
       } else if (floor <= 4) {
         const a = 2 + Math.floor(Math.random() * 4), b = 2 + Math.floor(Math.random() * 3);
         want = a * b;
-        text = `Feed me ${a} × ${b}!`;
+        text = tr('mg.feedMe', { what: `${num(a)} × ${num(b)}` });
       } else {
         const b = 2 + Math.floor(Math.random() * 4), q = 2 + Math.floor(Math.random() * 4);
         want = b * q - (floor > 5 ? 3 : 0);
@@ -146,11 +147,11 @@ export function feedMonster(host, { floor = 1, sound, rounds = 5 }) {
         sound?.right();
         sparkle(mon);
         mon.textContent = '😋';
-        sign.textContent = 'Yum! Just right!';
+        sign.textContent = tr('mg.yum');
       } else {
         sound?.wrong();
         mon.textContent = fed > want ? '🤢' : '🥺';
-        sign.textContent = fed > want ? `Too many! I wanted ${want}.` : `Still hungry! I wanted ${want}.`;
+        sign.textContent = tr(fed > want ? 'mg.tooMany' : 'mg.stillHungry', { n: want });
       }
       done.disabled = true;
       await wait(1300);
@@ -189,16 +190,16 @@ export function launch(host, { sound, shots = 6 }) {
       w.append(el('span', null, label), i, o);
       return w;
     };
-    const fire = button('arc-btn arc-btn--primary', '🚀 Launch!', () => {
+    const fire = button('arc-btn arc-btn--primary', tr('mg.launch'), () => {
       if (ball || shot >= shots) return;
       const a = (angle * Math.PI) / 180;
       ball = { x: 60, y: 360, vx: Math.cos(a) * power * 1.6, vy: -Math.sin(a) * power * 1.6, trail: [] };
       shot++;
-      shotEl.textContent = `Shot ${shot}/${shots}`;
+      shotEl.textContent = tr('mg.shot', { n: shot, total: shots });
       sound?.tap();
     });
-    row.append(sl('Angle °', 10, 80, angle, (v) => (angle = v)), sl('Power', 20, 100, power, (v) => (power = v)), fire);
-    const msg = el('p', 'arc-mg__q', 'Land the ball in the basket!', { 'aria-live': 'polite' });
+    row.append(sl(tr('mg.angle'), 10, 80, angle, (v) => (angle = v)), sl(tr('mg.power'), 20, 100, power, (v) => (power = v)), fire);
+    const msg = el('p', 'arc-mg__q', tr('mg.land'), { 'aria-live': 'polite' });
     box.append(hud, msg, canvas, row);
     host.append(box);
     const place = () => (target = 380 + Math.random() * 440);
@@ -217,11 +218,11 @@ export function launch(host, { sound, shots = 6 }) {
           if (hit) {
             score++;
             scoreEl.textContent = `⭐ ${score}`;
-            msg.textContent = '🎯 In the basket!';
+            msg.textContent = tr('mg.inBasket');
             sound?.right();
             place();
           } else {
-            msg.textContent = ball.x < target ? 'Too short — more power or a higher angle?' : 'Too far — less power?';
+            msg.textContent = tr(ball.x < target ? 'mg.tooShort' : 'mg.tooFar');
             sound?.wrong();
           }
           ball = null;
@@ -271,7 +272,7 @@ export function launch(host, { sound, shots = 6 }) {
 
 export function whoSaid(host, { lessons, sound, rounds = 6 }) {
   return new Promise((resolve) => {
-    const guides = lessons.map((l) => ({ name: l.dialogue.npc.name.split(',')[0], role: l.dialogue.npc.role, lines: l.dialogue.topics.map((t) => t.answer) }));
+    const guides = lessons.map((l0) => localizeLesson(l0)).map((l) => ({ name: l.dialogue.npc.name.split(',')[0], role: l.dialogue.npc.role, lines: l.dialogue.topics.map((t) => t.answer) }));
     const box = el('div', 'arc-mg arc-who');
     const hud = el('div', 'arc-mg__hud');
     const scoreEl = el('span', 'arc-mg__score', '⭐ 0');
@@ -279,15 +280,15 @@ export function whoSaid(host, { lessons, sound, rounds = 6 }) {
     hud.append(scoreEl, roundEl);
     const bubble = el('blockquote', 'arc-who__line', '', { 'aria-live': 'polite' });
     const row = el('div', 'arc-who__guides');
-    box.append(hud, el('p', 'arc-mg__q', 'Who said it? 🤔'), bubble, row);
+    box.append(hud, el('p', 'arc-mg__q', tr('mg.whoSaid')), bubble, row);
     host.append(box);
     let score = 0, round = 0;
     const ask = () => {
       round++;
-      roundEl.textContent = `Round ${round}/${rounds}`;
+      roundEl.textContent = tr('mg.round', { n: round, total: rounds });
       const gi = Math.floor(Math.random() * guides.length);
       const line = guides[gi].lines[Math.floor(Math.random() * guides[gi].lines.length)];
-      bubble.textContent = `“${line}”`;
+      bubble.textContent = tr('mg.quote', { line });
       row.replaceChildren();
       guides.forEach((gd, i) => {
         const b = button('arc-who__guide', null, async () => {

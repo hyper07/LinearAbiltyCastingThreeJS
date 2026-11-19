@@ -6,6 +6,7 @@
  * server when signed in). Pure functions are exported for the tests.
  */
 import { BUDDIES, HATS } from './world/figures.js';
+import { t } from './i18n/index.js';
 
 const KEY = (who) => `arcademia.game.${who}`;
 const today = () => {
@@ -26,39 +27,58 @@ export function levelOf(xp) {
   return { level: n, into: xp - from, need: to - from };
 }
 
+/** Stickers and quests read their words from the current language (ui.js sticker.* / dq.*). */
+const sticker = (id, emoji) => ({
+  id,
+  emoji,
+  get name() {
+    return t(`sticker.${id}`);
+  },
+  get what() {
+    return t(`sticker.${id}.what`);
+  }
+});
+const quest = (id, goal, icon) => ({
+  id,
+  goal,
+  icon,
+  get text() {
+    return t(`dq.${id}`);
+  }
+});
 export const STICKERS = [
-  { id: 'first-quest', emoji: '🌱', name: 'First quest', what: 'Finish your first lesson' },
-  { id: 'three-stars', emoji: '🌟', name: 'Superstar', what: 'Get three stars on a lesson' },
-  { id: 'combo-5', emoji: '🔥', name: 'On fire', what: '5 right answers in a row' },
-  { id: 'combo-10', emoji: '☄️', name: 'Unstoppable', what: '10 right answers in a row' },
-  { id: 'math-5', emoji: '🔢', name: 'Number wizard', what: 'Finish 5 math lessons' },
-  { id: 'history-5', emoji: '🏺', name: 'Time traveller', what: 'Finish 5 history lessons' },
-  { id: 'physics-5', emoji: '🧲', name: 'Mad scientist', what: 'Finish 5 physics lessons' },
-  { id: 'floor-2', emoji: '🍎', name: 'Orchard opener', what: 'Open floor 2' },
-  { id: 'floor-4', emoji: '💎', name: 'Crystal climber', what: 'Open floor 4' },
-  { id: 'floor-7', emoji: '🏔️', name: 'Summit seeker', what: 'Open floor 7' },
-  { id: 'boss', emoji: '😊', name: 'Cloud cheerer', what: 'Cheer up a puzzle boss' },
-  { id: 'boss-3', emoji: '🏆', name: 'Boss buddy', what: 'Cheer up three puzzle bosses' },
-  { id: 'chest', emoji: '🧰', name: 'Treasure hunter', what: 'Open a treasure chest' },
-  { id: 'streak-3', emoji: '📅', name: 'Three in a row', what: 'Learn three days in a row' },
-  { id: 'streak-7', emoji: '🗓️', name: 'Week warrior', what: 'Learn seven days in a row' },
-  { id: 'dress-up', emoji: '🎩', name: 'Snappy dresser', what: 'Get a new hat' },
-  { id: 'arcade', emoji: '🕹️', name: 'Arcade ace', what: 'Score 10 in an arcade game' },
-  { id: 'level-5', emoji: '⭐', name: 'Level 5', what: 'Your buddy reaches level 5' },
-  { id: 'gem-1', emoji: '💎', name: 'Shiny!', what: 'Find a hidden gem' },
-  { id: 'gem-9', emoji: '👑', name: 'Gem hunter', what: 'Find 9 hidden gems' },
-  { id: 'curious', emoji: '🔔', name: 'Curious critter', what: 'Play with 8 different toys' }
+  sticker('first-quest', '🌱'),
+  sticker('three-stars', '🌟'),
+  sticker('combo-5', '🔥'),
+  sticker('combo-10', '☄️'),
+  sticker('math-5', '🔢'),
+  sticker('history-5', '🏺'),
+  sticker('physics-5', '🧲'),
+  sticker('floor-2', '🍎'),
+  sticker('floor-4', '💎'),
+  sticker('floor-7', '🏔️'),
+  sticker('boss', '😊'),
+  sticker('boss-3', '🏆'),
+  sticker('chest', '🧰'),
+  sticker('streak-3', '📅'),
+  sticker('streak-7', '🗓️'),
+  sticker('dress-up', '🎩'),
+  sticker('arcade', '🕹️'),
+  sticker('level-5', '⭐'),
+  sticker('gem-1', '💎'),
+  sticker('gem-9', '👑'),
+  sticker('curious', '🔔')
 ];
 
 const QUEST_POOL = [
-  { id: 'lesson', text: 'Finish a lesson', goal: 1, icon: '📘' },
-  { id: 'right', text: 'Get 8 answers right', goal: 8, icon: '✅' },
-  { id: 'combo', text: 'Get 4 right in a row', goal: 4, icon: '🔥' },
-  { id: 'stars', text: 'Earn 3 stars', goal: 3, icon: '⭐' },
-  { id: 'arcade', text: 'Play an arcade game', goal: 1, icon: '🕹️' },
-  { id: 'math', text: 'Do a math lesson', goal: 1, icon: '🔢' },
-  { id: 'history', text: 'Do a history lesson', goal: 1, icon: '🏛️' },
-  { id: 'physics', text: 'Do a physics lesson', goal: 1, icon: '🔭' }
+  quest('lesson', 1, '📘'),
+  quest('right', 8, '✅'),
+  quest('combo', 4, '🔥'),
+  quest('stars', 3, '⭐'),
+  quest('arcade', 1, '🕹️'),
+  quest('math', 1, '🔢'),
+  quest('history', 1, '🏛️'),
+  quest('physics', 1, '🔭')
 ];
 /** Today's three quests, the same all day (seeded by the date). */
 export function dailyQuests(day) {

@@ -14,12 +14,20 @@
       .brand span { color: #d98a1f; }
       @media (prefers-color-scheme: dark) { .brand { color: #8fd6c9; } }
       .msg { padding: 20px; border-radius: 16px; background: rgba(127, 127, 127, 0.1); font-weight: 700; }
+      .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+      .lang { font: inherit; font-weight: 800; padding: 6px 10px; border-radius: 12px; border: 2px solid rgba(127, 127, 127, 0.35); background: transparent; color: inherit; }
+      :lang(ko) body, body:lang(ko) { font-family: 'Nunito Variable', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif; word-break: keep-all; }
+      :lang(ja) body, body:lang(ja) { font-family: 'Nunito Variable', 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif; line-break: strict; }
+      :lang(zh) body, body:lang(zh) { font-family: 'Nunito Variable', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; line-break: strict; }
     </style>
   </head>
   <body>
     <main>
-      <p class="brand">🦉 <span>AI</span> ARCADEMIA · for parents</p>
-      <div id="report"><p class="msg">Loading the report…</p></div>
+      <div class="top">
+        <p class="brand">🦉 <span>AI</span> ARCADEMIA · <span class="brand__for">for parents</span></p>
+        <select id="lang" class="lang" aria-label="Language"></select>
+      </div>
+      <div id="report"><p class="msg">…</p></div>
     </main>
     <script type="module" src="./src/arcademia/sharedReport.js"></script>
   </body>

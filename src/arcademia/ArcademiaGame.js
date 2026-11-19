@@ -9,6 +9,8 @@ import { WORLDS } from './quests.js';
 import { FLOORS } from './floors.js';
 import { LESSONS, lessonsOn } from './content/index.js';
 import { floorStars, totalStars } from './rules.js';
+import { t, num, loadLocale, setLocale, pickLocale, isLocale, localizeLesson, localeInfo } from './i18n/index.js';
+import { startScreen, openSettings } from './ui/settings.js';
 import './arcademia.css';
 
 /**
@@ -46,6 +48,8 @@ export class ArcademiaGame {
     this.root = el('div', 'arc', null, { role: 'application', 'aria-label': 'AI Arcademia', tabindex: '-1' });
     this.host.append(this.root);
     this.prefs = { night: false, sound: true, bigText: false, ...prefs.load() };
+    // The language: saved, else the browser's own (navigator.languages), else English.
+    if (!isLocale(this.prefs.lang)) this.prefs.lang = pickLocale(typeof navigator !== 'undefined' ? navigator.languages ?? [navigator.language] : []);
     this.reducedMotion = prefersReducedMotion();
     this.sound = new Sound();
     this.sound.setMuted(!this.prefs.sound);
@@ -57,8 +61,11 @@ export class ArcademiaGame {
   }
 
   async open() {
+    await loadLocale(this.prefs.lang).catch(() => (this.prefs.lang = 'en'));
+    setLocale(this.prefs.lang);
+    this.root.lang = this.prefs.lang;
     const loading = el('div', 'arc-loading');
-    loading.append(el('div', 'arc-loading__owl', '🦉', { 'aria-hidden': 'true' }), el('p', null, 'Climbing the mountain…'));
+    loading.append(el('div', 'arc-loading__owl', '🦉', { 'aria-hidden': 'true' }), el('p', null, t('game.loading')));
     this.root.append(loading);
     this.root.classList.toggle('is-big-text', this.prefs.bigText);
     await new Promise((r) => requestAnimationFrame(r));
@@ -92,26 +99,11 @@ export class ArcademiaGame {
       }
     });
     this.stage.show(this.world.scene, this.world.camera);
-    this.hud = new Hud(this.root, {
-      goFloor: (n) => this.goFloor(n),
-      overview: () => this.world.overview(),
-      toggleNight: () => this.setNight(!this.prefs.night),
-      toggleSound: () => this.setSound(!this.prefs.sound),
-      parents: () => this.openParents(),
-      close: () => this.close(),
-      home: () => this.world.home(),
-      zoom: (k) => this.world.zoom(k),
-      bigText: () => this.setBigText(!this.prefs.bigText),
-      continue: () => this.continueLesson(),
-      enterNear: () => this.enterNear(),
-      buddy: () => this.openBuddy(),
-      questbook: () => this.openQuestbook()
-    });
+    this._makeHud();
     this.gs.onChange(() => this.hud?.updateGame(this.gs));
     this.world.setFound(this.gs.s.gems);
     this.setNight(this.prefs.night, true);
     this.setSound(this.prefs.sound);
-    this.hud.textBtn.setAttribute('aria-pressed', String(this.prefs.bigText));
     this.progress.onChange(() => this.refresh());
     this.openBefore = new Set(this.progress.floorsOpen);
     this.world.setLocked(this.lockedSet());
@@ -140,10 +132,52 @@ export class ArcademiaGame {
         this.sound.ambient(true, this.prefs.night ? 1 : 0, FLOORS[this.world.kidFloor - 1].look.mood);
       }
     });
+    await startScreen(this);
+    if (this.closed) return;
     if (!this.gs.buddy) await this.openBuddy({ first: true });
     if (this.closed) return;
     if (this.progress.guestToImport) this.offerImport();
-    if (!Object.keys(this.progress.stars).length) setTimeout(() => this.hud?.toast(`${WORLDS[1].story} Press Continue to start your first quest!`, { icon: '🌼', ms: 7000 }), 900);
+    if (!Object.keys(this.progress.stars).length) setTimeout(() => this.hud?.toast(t('game.firstQuest', { story: WORLDS[1].story }), { icon: '🌼', ms: 7000 }), 900);
+  }
+
+  /** The HUD (built again when the language changes). */
+  _makeHud() {
+    this.hud?.dispose();
+    this.hud = new Hud(this.root, {
+      goFloor: (n) => this.goFloor(n),
+      overview: () => this.world.overview(),
+      toggleNight: () => this.setNight(!this.prefs.night),
+      toggleSound: () => this.setSound(!this.prefs.sound),
+      parents: () => this.openParents(),
+      close: () => this.close(),
+      home: () => this.world.home(),
+      zoom: (k) => this.world.zoom(k),
+      bigText: () => this.setBigText(!this.prefs.bigText),
+      continue: () => this.continueLesson(),
+      enterNear: () => this.enterNear(),
+      buddy: () => this.openBuddy(),
+      questbook: () => this.openQuestbook(),
+      settings: () => openSettings(this)
+    });
+    this.hud.textBtn.setAttribute('aria-pressed', String(this.prefs.bigText));
+    this.hud.setNight(this.prefs.night);
+    this.hud.setSound(this.prefs.sound);
+  }
+
+  /** Switch the game's language: load it, save it, redraw what is on screen. */
+  async setLanguage(id) {
+    if (!isLocale(id)) return;
+    await loadLocale(id);
+    setLocale(id);
+    this.prefs.lang = id;
+    prefs.save(this.prefs);
+    this.root.lang = id;
+    if (this.world) {
+      this.world.relabel?.();
+      this._makeHud();
+      this.refresh();
+      this.refreshGame();
+    }
   }
 
   lockedSet() {
@@ -194,9 +228,11 @@ export class ArcademiaGame {
       }
       this.stage.render();
     } else if (this.mode === 'lesson' && this.lesson) {
+      this.world.cutOff();
       this.lesson.frame(dt);
       if (document.visibilityState === 'visible' && this.lesson.lesson) this.progress.tick(this.lesson.subject, dt);
       this.stage.render();
+      this.lesson.portrait?.(this.stage.renderer);
     }
   }
 
@@ -226,25 +262,14 @@ export class ArcademiaGame {
     const below = n - 1;
     const fs = floorStars(this.progress.stars, below);
     const need = Math.ceil(fs.lessons * (2 / 3));
-    this.hud.toast(`Floor ${n} opens when you finish ${need} lessons on Floor ${below}. You have done ${fs.done}.`, { icon: '🔒' });
+    this.hud.toast(t('game.gate', { n, need, below, done: fs.done }), { icon: '🔒' });
   }
 
   npcHello(n) {
     this.sound.toy(n.species === 'robot' ? 'beep' : 'squeak');
     const left = this.world.gems.filter((g) => g.floor === n.floor && !this.gs.s.gems[g.id]).length;
-    const lines = [
-      'Psst! There are shiny gems hidden on every floor. Look behind the buildings!',
-      'Have you rung the bell? It sounds lovely!',
-      'Professor Hoot draws on a real chalkboard. Go and see!',
-      'In the Physics lab you guess first, then test it. So fun!',
-      'The Arcade Hall has Bubble Pop! Try to beat my score!',
-      'Spend your coins on hats at the Hat Shop!',
-      `${WORLDS[n.floor].boss.name} looks grumpy… answer their riddles to cheer them up!`,
-      'Tap the toys around here. They all do something!',
-      'Three stars on a lesson? That’s a superstar!',
-      'The treasure chest is hidden behind a big rock…'
-    ];
-    const tip = left && Math.random() < 0.35 ? `I saw something sparkly on this floor… ${left} gem${left > 1 ? 's' : ''} still hidden!` : lines[Math.floor(Math.random() * lines.length)];
+    const lines = Array.from({ length: 10 }, (_, i) => t(`npc.${i}`, { boss: WORLDS[n.floor].boss.name }));
+    const tip = left && Math.random() < 0.35 ? t('npc.gems', { count: left }) : lines[Math.floor(Math.random() * lines.length)];
     this.hud.toast(tip, { icon: { bunny: '🐰', mouse: '🐭', duck: '🦆', fox: '🦊', hedgehog: '🦔', frog: '🐸', penguin: '🐧', bear: '🐻', puff: '☁️', crab: '🦀', robot: '🤖' }[n.species] ?? '💬', ms: 4200 });
   }
 
@@ -307,11 +332,11 @@ export class ArcademiaGame {
   celebrateUnlock(n) {
     const f = FLOORS[n - 1];
     const got = this.gs.event('floor', { floor: n });
-    if (got.stickers.length) setTimeout(() => this.hud.toast(`New sticker: ${got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ')}`, { icon: '🌈' }), 1800);
+    if (got.stickers.length) setTimeout(() => this.hud.toast(t('game.newSticker', { list: got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ') }), { icon: '🌈' }), 1800);
     this.sound.fanfare();
     confetti(this.root, 120);
     const banner = el('div', 'arc-banner', null, { role: 'status' });
-    banner.append(el('span', 'arc-banner__icon', f.icon, { 'aria-hidden': 'true' }), el('strong', null, `Floor ${n} is open!`), el('span', null, `${f.name} — ${WORLDS[n].story}`));
+    banner.append(el('span', 'arc-banner__icon', f.icon, { 'aria-hidden': 'true' }), el('strong', null, t('game.floorOpen', { n })), el('span', null, t('game.floorOpenStory', { name: f.name, story: WORLDS[n].story })));
     this.root.append(banner);
     setTimeout(() => banner.classList.add('is-out'), 4200);
     setTimeout(() => banner.remove(), 4800);
@@ -326,7 +351,7 @@ export class ArcademiaGame {
     for (const c of this.world.chests) c.group.userData.setOpen(Boolean(this.gs.s.chests[c.floor]), true);
     for (const b of this.world.bosses) {
       b.happy = Boolean(this.gs.s.bosses[b.floor]);
-      b.label.querySelector('.arc-pill__meta').textContent = b.happy ? '😊' : 'Boss';
+      b.label.querySelector('.arc-pill__meta').textContent = b.happy ? '😊' : t('place.boss');
     }
   }
 
@@ -348,18 +373,18 @@ export class ArcademiaGame {
     }
   }
 
-  pokeToy(sound, t) {
+  pokeToy(sound, toyAt) {
     this.sound.wake();
     this.sound.toy(sound);
-    const got = this.gs.event('toy', { id: `${t.floor}-${t.kind}-${Math.round(t.x)}` });
-    if (got.coins) this.hud.toast(`+${got.coins} 🪙 for playing!${got.stickers.length ? ` New sticker: ${got.stickers[0].emoji} ${got.stickers[0].name}` : ''}`, { icon: '🎉', ms: 1800 });
+    const got = this.gs.event('toy', { id: `${toyAt.floor}-${toyAt.kind}-${Math.round(toyAt.x)}` });
+    if (got.coins) this.hud.toast(`${t('game.toyCoins', { n: got.coins })}${got.stickers.length ? ` ${t('game.newSticker', { list: `${got.stickers[0].emoji} ${got.stickers[0].name}` })}` : ''}`, { icon: '🎉', ms: 1800 });
   }
 
   foundGem(n, id) {
     this.sound.toy('gem');
     const got = this.gs.event('gem', { id });
     const left = this.world.gems.filter((g) => g.floor === n && !this.gs.s.gems[g.id]).length;
-    this.hud.toast(`You found a hidden gem! +${got.coins} 🪙 ${left ? `${left} more on this floor…` : 'That’s every gem on this floor!'}${got.stickers.length ? ` New sticker: ${got.stickers.map((s) => s.emoji).join(' ')}` : ''}`, { icon: '💎' });
+    this.hud.toast(`${t('game.gem', { n: got.coins })} ${left ? t('game.gemsLeft', { count: left }) : t('game.gemsAll')}${got.stickers.length ? ` ${t('game.newSticker', { list: got.stickers.map((s) => s.emoji).join(' ') })}` : ''}`, { icon: '💎' });
     this.refreshGame();
   }
 
@@ -367,36 +392,37 @@ export class ArcademiaGame {
   async openArcadeHall(n) {
     const { bubblePop, feedMonster, launch, whoSaid } = await import('./lesson/minigames.js');
     const games = [
-      ['🫧', 'Bubble Pop', 'Pop the right answer!', (host) => bubblePop(host, { floor: n, sound: this.sound, reducedMotion: this.reducedMotion })],
-      ['👾', 'Hungry Monster', 'Feed it the right number', (host) => feedMonster(host, { floor: n, sound: this.sound })],
-      ['🧺', 'Launch to the Basket', 'Angle + power = score', (host) => launch(host, { sound: this.sound })],
-      ['💬', 'Who Said It?', 'Match the guide to the words', (host) => whoSaid(host, { lessons: lessonsOn(n, 'history'), sound: this.sound })]
+      ['🫧', 'bubbles', (host) => bubblePop(host, { floor: n, sound: this.sound, reducedMotion: this.reducedMotion })],
+      ['👾', 'monster', (host) => feedMonster(host, { floor: n, sound: this.sound })],
+      ['🧺', 'launch', (host) => launch(host, { sound: this.sound })],
+      ['💬', 'who', (host) => whoSaid(host, { lessons: lessonsOn(n, 'history'), sound: this.sound })]
     ];
     this.world.clearKeys();
-    const box = el('div', 'arc-modal', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Arcade Hall' });
+    const box = el('div', 'arc-modal', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': t('arcade.title') });
     const card = el('div', 'arc-modal__card arc-book');
     const close = () => box.remove();
-    const x = el('button', 'arc-boss__x', '✕', { type: 'button', 'aria-label': 'Close' });
+    const x = el('button', 'arc-boss__x', '✕', { type: 'button', 'aria-label': t('settings.close') });
     x.addEventListener('click', close);
-    card.append(x, el('h2', null, '🕹️ Arcade Hall'));
+    card.append(x, el('h2', null, `🕹️ ${t('arcade.title')}`));
     const grid = el('div', 'arc-lobby__grid');
-    for (const [icon, name, what, run] of games) {
+    for (const [icon, id, run] of games) {
+      const name = t(`arcade.${id}`), what = t(`arcade.${id}.what`);
       const b = el('button', 'arc-quest-card arc-quest-card--arcade', null, { type: 'button' });
       b.append(el('span', 'arc-quest-card__stars', icon), el('strong', null, name), el('span', null, what));
       b.addEventListener('click', async () => {
         card.replaceChildren(el('h2', null, `${icon} ${name}`));
         const score = await run(card);
         if (!box.isConnected) return;
-        const got = this.gs.event('arcade', { game: `${name}-${n}`, score });
+        const got = this.gs.event('arcade', { game: `${id}-${n}`, score });
         this.sound.fanfare();
         this.world.kid.cheer(1.5);
-        card.replaceChildren(el('h2', null, `${icon} ${score} points!`), el('p', 'arc-rewards', `+${got.coins} 🪙  +${got.xp} XP`));
-        const again = el('button', 'arc-btn arc-btn--primary arc-btn--big', 'Back to the arcade', { type: 'button' });
+        card.replaceChildren(el('h2', null, `${icon} ${t('arcade.points', { count: score })}`), el('p', 'arc-rewards', t('arcade.rewards', { coins: got.coins, xp: got.xp })));
+        const again = el('button', 'arc-btn arc-btn--primary arc-btn--big', t('arcade.again'), { type: 'button' });
         again.addEventListener('click', () => {
           close();
           this.openArcadeHall(n);
         });
-        const done = el('button', 'arc-btn', 'Done', { type: 'button' });
+        const done = el('button', 'arc-btn', t('arcade.done'), { type: 'button' });
         done.addEventListener('click', close);
         const row = el('div', 'arc-row');
         row.append(done, again);
@@ -432,15 +458,15 @@ export class ArcademiaGame {
 
   /** A floor's chest opens once, after a lesson on that floor. */
   openChest(n) {
-    if (this.gs.s.chests[n]) return this.hud.toast('This chest is empty — you already found its treasure!', { icon: '🧰' });
+    if (this.gs.s.chests[n]) return this.hud.toast(t('game.chestEmpty'), { icon: '🧰' });
     const done = lessonsOn(n).some((l) => (this.progress.stars[l.id] ?? 0) > 0);
-    if (!done) return this.hud.toast('The chest is locked tight! Finish a lesson on this floor to open it.', { icon: '🔐' });
+    if (!done) return this.hud.toast(t('game.chestLocked'), { icon: '🔐' });
     const got = this.gs.event('chest', { floor: n });
     this.world.chests.find((c) => c.floor === n)?.group.userData.setOpen(true);
     this.world.kid.cheer(1.6);
     this.sound.fanfare();
     confetti(this.root, 60);
-    this.hud.toast(`Treasure! +${got.coins} coins${got.stickers.length ? ` and a sticker: ${got.stickers[0].emoji} ${got.stickers[0].name}` : ''}`, { icon: '🪙' });
+    this.hud.toast(got.stickers.length ? t('game.treasureSticker', { n: got.coins, sticker: `${got.stickers[0].emoji} ${got.stickers[0].name}` }) : t('game.treasure', { n: got.coins }), { icon: '🪙' });
     this.refreshGame();
   }
 
@@ -452,9 +478,9 @@ export class ArcademiaGame {
     const w = WORLDS[n].boss;
     if (this.gs.s.bosses[n]) {
       this.world.bosses.find((b) => b.floor === n)?.fig.hop();
-      return this.hud.toast(`${w.name} is happy now! “Thank you for cheering me up!”`, { icon: w.emoji });
+      return this.hud.toast(t('game.bossHappy', { name: w.name }), { icon: w.emoji });
     }
-    if (fs.done < need) return this.hud.toast(`${w.name}: “Come back when you have finished ${need} lessons on this floor (${fs.done} so far)!”`, { icon: w.emoji, ms: 5000 });
+    if (fs.done < need) return this.hud.toast(t('game.bossWait', { name: w.name, need, done: fs.done }), { icon: w.emoji, ms: 5000 });
     this.mode = 'boss';
     this.world.clearKeys();
     const { bossBattle } = await import('./lesson/boss.js');
@@ -514,17 +540,17 @@ export class ArcademiaGame {
 
   offerImport() {
     const g = this.progress.guestToImport;
-    const card = el('div', 'arc-modal', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Bring in progress from this device' });
+    const card = el('div', 'arc-modal', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': t('import.aria') });
     const box = el('div', 'arc-modal__card');
-    box.append(el('h2', null, 'Bring your stars along?'), el('p', null, `This device has ${g.stars} stars from ${g.lessons} lessons played without signing in. Add them to your account?`));
+    box.append(el('h2', null, t('import.title')), el('p', null, t('import.text', { stars: g.stars, lessons: g.lessons })));
     const row = el('div', 'arc-modal__row');
-    const yes = el('button', 'arc-btn arc-btn--primary', 'Yes, add them', { type: 'button' });
-    const no = el('button', 'arc-btn', 'Not now', { type: 'button' });
+    const yes = el('button', 'arc-btn arc-btn--primary', t('import.yes'), { type: 'button' });
+    const no = el('button', 'arc-btn', t('import.no'), { type: 'button' });
     yes.addEventListener('click', async () => {
       yes.disabled = true;
       try {
         await this.progress.importGuest();
-        this.hud.toast('Your stars are on your account now.', { icon: '⭐' });
+        this.hud.toast(t('import.done'), { icon: '⭐' });
       } catch (error) {
         this.hud.toast(error.message, { icon: '⚠️' });
       }

@@ -20,24 +20,28 @@ import { planMountain, buildNavGrid, PLINTH_R, FLOOR_H } from './layout.js';
 import { buildTerrain, buildPeaks, buildWater, buildSky, waterClock } from './terrain.js';
 import { buildBuilding, BUILDING_NAMES, SUBJECT_ICONS, windowMat, lampMat } from './buildings.js';
 import { buildStairs, buildBridge, buildGate, buildChest } from './structures.js';
-import { buildTrees, buildGround, buildClouds, buildBirds, buildFireflies, windClock, makeSpotCheck } from './nature.js';
+import { buildTrees, buildGround, buildClouds, buildBirds, buildFireflies, buildMoonProps, windClock, makeSpotCheck } from './nature.js';
 import { shop, arcade, museum, board, portal, landmark, toy, gem, silhouette, TOYS_BY_THEME } from './places.js';
 import { makeCreature, BUDDY_COLORS } from './figures.js';
 import { buildParticles } from './particles.js';
 import { WORLDS } from '../quests.js';
 import { seeded } from './kit.js';
+import { t as tr } from '../i18n/index.js';
+import { patchCutout, updateCutout } from './cutout.js';
+
+/** The buddy is a bit bigger than the townsfolk, so it reads from the play camera. */
+const KID_SCALE = 1.4;
 
 const DAY = { top: '#8fd3ff', mid: '#d9f3ff', bottom: '#fff4dc', fog: '#d6efff', hemiSky: '#f2fbff', hemiGround: '#9fc79a', hemi: 1.05, sun: '#fff6e0', sunI: 1.9, amb: 0.12 };
 const NIGHT = { top: '#0b1636', mid: '#24397a', bottom: '#33478a', fog: '#1d2f66', hemiSky: '#6f84d8', hemiGround: '#1a2350', hemi: 0.9, sun: '#b3c4ff', sunI: 0.6, amb: 0.22 };
 const c = (v) => new THREE.Color(v);
-export const PLACE_INFO = {
-  shop: { icon: '🎩', name: 'Hat Shop' },
-  arcade: { icon: '🕹️', name: 'Arcade Hall' },
-  museum: { icon: '🌈', name: 'Sticker Museum' },
-  board: { icon: '📋', name: 'Quest Board' },
-  portal: { icon: '🌀', name: 'Portal up' }
-};
-const LANDMARK_NAMES = { windmill: '🌬️ Windmill', oasis: '🌴 Oasis', shrooms: '🍄 Bouncy Toadstools', snowman: '⛄ Mr. Frost', rainbow: '🌈 Rainbow Arch', boat: '⛵ The Harbor Boat', rocket: '🚀 Launch Pad' };
+/** The places on a floor; names come from the current language (ui.js place.*). */
+const placeInfo = (icon, id) => ({ icon, get name() {
+  return tr(`place.${id}`);
+} });
+export const PLACE_INFO = { shop: placeInfo('🎩', 'shop'), arcade: placeInfo('🕹️', 'arcade'), museum: placeInfo('🌈', 'museum'), board: placeInfo('📋', 'board'), portal: placeInfo('🌀', 'portal') };
+const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀' };
+const landmarkName = (id) => `${LANDMARK_ICONS[id] ?? ''} ${tr(`landmark.${id}`)}`;
 const SUBJECTS = ['math', 'history', 'physics'];
 
 export class World {
@@ -53,6 +57,7 @@ export class World {
     this.scene.fog = new THREE.Fog(DAY.fog, 160, 600);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.5, 2000);
     this.time = 0;
+    this._cut = new THREE.Vector3();
     this.night = 0;
     this.nightTarget = 0;
     this.locked = new Set();
@@ -124,6 +129,10 @@ export class World {
     // Nature.
     const trees = buildTrees(plan, floors);
     scene.add(trees);
+    patchCutout(trees);
+    this.moonProps = buildMoonProps(plan, floors);
+    scene.add(this.moonProps);
+    patchCutout(this.moonProps);
     scene.add(buildGround(plan, floors));
     this.clouds = buildClouds();
     this.birds = buildBirds();
@@ -141,7 +150,7 @@ export class World {
     scene.add(this.marker);
 
     // The buddy.
-    this.kid = makeCreature(this.buddy);
+    this.kid = makeCreature({ ...this.buddy, scale: KID_SCALE, lod: 'high' });
     scene.add(this.kid.group);
     const start = plan.floors[0].plinths[1];
     this.kidPos = new THREE.Vector3(start.door.x + 1.5, 0, start.door.z + 3.2);
@@ -152,7 +161,7 @@ export class World {
 
     const dom = this.renderer.domElement;
     this.controls = new OrbitControls(this.camera, dom);
-    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 9, maxDistance: 260, minPolarAngle: 0.35, maxPolarAngle: 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
+    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 5, maxDistance: 260, minPolarAngle: 0.35, maxPolarAngle: 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
     this.controls.target.copy(this.kidPos).add(new THREE.Vector3(0, 1, 0));
     this.home();
     this._camTween = null;
@@ -179,7 +188,8 @@ export class World {
     el.className = `arc-pill${subject ? '' : ' arc-pill--place'}`;
     el.innerHTML = '<span class="arc-pill__icon" aria-hidden="true"></span><span class="arc-pill__name"></span><span class="arc-pill__meta"></span>';
     el.querySelector('.arc-pill__icon').textContent = subject ? SUBJECT_ICONS[p.kind] : p.kind === 'landmark' ? '' : PLACE_INFO[p.kind].icon;
-    el.querySelector('.arc-pill__name').textContent = subject ? BUILDING_NAMES[p.kind] : p.kind === 'landmark' ? LANDMARK_NAMES[look.look.landmark] : PLACE_INFO[p.kind].name;
+    const nameOf = () => (subject ? BUILDING_NAMES[p.kind] : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
+    el.querySelector('.arc-pill__name').textContent = nameOf();
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       this.select(entry, true);
@@ -187,7 +197,7 @@ export class World {
     this.labelsEl.append(el);
     entry.label = el;
     const top = subject ? 8.5 : p.kind === 'landmark' ? 9.5 : 4.6;
-    this.labels.push({ el, entry, extra: !subject, pos: new THREE.Vector3(p.x, f.y + top, p.z) });
+    this.labels.push({ el, entry, extra: !subject, nameOf, pos: new THREE.Vector3(p.x, f.y + top, p.z) });
     this.places.push(entry);
     if (subject) this.buildings.push(entry);
   }
@@ -252,6 +262,7 @@ export class World {
       this.gems.push({ id, floor: n, group: m, x, z });
     });
     this.scene.add(g);
+    patchCutout(g);
     st.detail = g;
     if (this.locked.has(n)) this._dim(g, true);
   }
@@ -306,7 +317,7 @@ export class World {
         bz = f.plinths[1].z;
       }
       const w = WORLDS[f.n];
-      const boss = makeCreature({ species: w.boss.species, color: w.boss.color, scale: 2.3, hat: f.n === 7 ? 'crown' : 'none' });
+      const boss = makeCreature({ species: w.boss.species, color: w.boss.color, scale: 2.3, hat: f.n === 7 ? 'crown' : 'none', lod: 'mid', seed: f.n });
       boss.group.position.set(bx, this.plan.height(bx, bz), bz);
       boss.group.rotation.y = 0.3;
       this.scene.add(boss.group);
@@ -322,13 +333,14 @@ export class World {
       label.innerHTML = '<span class="arc-pill__icon" aria-hidden="true"></span><span class="arc-pill__name"></span><span class="arc-pill__meta"></span>';
       label.querySelector('.arc-pill__icon').textContent = w.boss.emoji;
       label.querySelector('.arc-pill__name').textContent = w.boss.name;
+      label.querySelector('.arc-pill__meta').textContent = tr('place.boss');
       label.addEventListener('click', (e) => {
         e.stopPropagation();
         this.goTo(entry.at, () => this.on.boss?.(f.n));
       });
       this.labelsEl.append(label);
       entry.label = label;
-      this.labels.push({ el: label, entry: { floor: f.n }, extra: true, pos: new THREE.Vector3(bx, boss.group.position.y + 3.3, bz) });
+      this.labels.push({ el: label, entry: { floor: f.n }, extra: true, nameOf: () => w.boss.name, pos: new THREE.Vector3(bx, boss.group.position.y + 3.3, bz) });
     }
   }
 
@@ -340,7 +352,7 @@ export class World {
       const kinds = this.floors[f.k].look.critters ?? ['bunny'];
       for (let i = 0; i < 5; i++) {
         const species = kinds[i % kinds.length];
-        const fig = makeCreature({ species, color: ['fox', 'puff', 'bunny'].includes(species) ? BUDDY_COLORS[Math.floor(r() * BUDDY_COLORS.length)] : null, hat: hats[Math.floor(r() * hats.length)], scale: 0.7 + r() * 0.25, seed: i });
+        const fig = makeCreature({ species, color: ['fox', 'puff', 'bunny'].includes(species) ? BUDDY_COLORS[Math.floor(r() * BUDDY_COLORS.length)] : null, hat: hats[Math.floor(r() * hats.length)], scale: 0.75 + r() * 0.25, seed: i + f.n * 7, lod: 'low' });
         this.npcs.push(this._walker(fig, f, 0.9 + r() * 0.8, species));
       }
     }
@@ -363,13 +375,14 @@ export class World {
     el.className = 'arc-pill arc-pill--floor';
     el.innerHTML = '<span class="arc-pill__icon" aria-hidden="true"></span><span class="arc-pill__name"></span><span class="arc-pill__meta"></span>';
     el.querySelector('.arc-pill__icon').textContent = look.icon;
-    el.querySelector('.arc-pill__name').textContent = `${f.n}. ${look.name}`;
+    const nameOf = () => tr('hud.navFloor', { n: f.n, name: look.name });
+    el.querySelector('.arc-pill__name').textContent = nameOf();
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       this.on.floorPick?.(f.n);
     });
     this.labelsEl.append(el);
-    this.labels.push({ el, floor: f.n, entry: { floor: f.n }, isFloor: true, icon: look.icon, pos: new THREE.Vector3(f.cx, f.y + 12, f.plinths[1].z + 6) });
+    this.labels.push({ el, floor: f.n, entry: { floor: f.n }, isFloor: true, icon: look.icon, nameOf, pos: new THREE.Vector3(f.cx, f.y + 12, f.plinths[1].z + 6) });
   }
 
   /* ================================================================ state */
@@ -416,11 +429,21 @@ export class World {
     if (floorFn) for (const L of this.labels) if (L.isFloor) L.el.querySelector('.arc-pill__meta').textContent = floorFn(L.floor) ?? '';
   }
 
+  /** The language changed: write every floating label again. */
+  relabel() {
+    for (const L of this.labels) if (L.nameOf) L.el.querySelector('.arc-pill__name').textContent = L.nameOf();
+  }
+
+  /** Turn the see-through circle round the buddy off (lessons and panels use other cameras). */
+  cutOff() {
+    updateCutout(this.camera, this.renderer, this._cut, 1, false);
+  }
+
   /** Change the player's buddy (species, colour, hat). */
   setBuddy(buddy) {
     this.buddy = buddy;
     this.scene.remove(this.kid.group);
-    this.kid = makeCreature(buddy);
+    this.kid = makeCreature({ ...buddy, scale: KID_SCALE, lod: 'high' });
     this.scene.add(this.kid.group);
     this.kid.group.position.copy(this.kidPos);
     this.kid.hop();
@@ -441,7 +464,7 @@ export class World {
 
   home() {
     const t = this.kidPos.clone().add(new THREE.Vector3(0, 1, 0));
-    this._tweenCam(t, new THREE.Vector3(18, 25, 37), 0.9);
+    this._tweenCam(t, new THREE.Vector3(6.2, 7.6, 12.6), 0.9);
   }
   zoom(by) {
     const off = this.camera.position.clone().sub(this.controls.target);
@@ -685,6 +708,8 @@ export class World {
     }
     this.controls.update();
     const dist = this.camera.position.distanceTo(this.controls.target);
+    this._cut.copy(this.kidPos).y += 0.62 * KID_SCALE;
+    updateCutout(this.camera, this.renderer, this._cut, 1.1 * KID_SCALE, dist < 70 && !this.paused);
     this.scene.fog.near = 80 + dist * 1.2;
     this.scene.fog.far = 360 + dist * 3;
     const tf = Math.max(1, Math.min(this.floors.length, Math.round(this.controls.target.y / FLOOR_H) + 1));
@@ -714,6 +739,7 @@ export class World {
     windClock.uTime.value = this.reducedMotion ? 0 : t;
     this.water.userData.update(this.reducedMotion ? 0 : t);
     this.particles.userData.update(this.reducedMotion ? 0 : dt);
+    this.moonProps.userData.update(this.reducedMotion ? 0 : t);
     if (!this.reducedMotion) {
       this.clouds.userData.update(dt);
       this.birds.userData.update(dt, t);

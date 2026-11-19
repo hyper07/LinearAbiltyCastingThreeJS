@@ -235,7 +235,7 @@ export function buildHall(look) {
     scene,
     shots: {
       wide: { pos: [0, 4.2, 9], look: [0, 2.3, -4] },
-      guide: { pos: [-1.2, 2.2, 2.8], look: [0.2, 1.7, -1.6] },
+      guide: { pos: [1.2, 2.3, 3.6], look: [-1.0, 1.4, -1.6] },
       artifact: { pos: [3, 2.2, 1.6], look: [3, 1.65, -2] },
       timeline: { pos: [0, 3, 3.5], look: [0, 2.5, -D / 2] }
     },

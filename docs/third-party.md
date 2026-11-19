@@ -91,3 +91,12 @@ Kept in `vendor/` with each licence beside it, and searched with `npm run kb` �
 | [red-horizon](https://github.com/islamdiaa/red-horizon), [three.ws](https://github.com/nirholas/three.ws), [estella](https://github.com/esengine/estella) | Techniques only, written in our own words — no code copied | GPL-3.0 / Apache-2.0 / Apache-2.0 |
 | [Mesh2Motion](https://github.com/Mesh2Motion/mesh2motion-app), [Gobkit](https://github.com/Ariescar/gobkit-free-assets), [Kenney starter kits](https://github.com/KenneyNL), [Khronos Fox](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox), [three.js example models](https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf), [100Avatars](https://opensourceavatars.com), [Poly Haven HDRIs](https://polyhaven.com/hdris) | Rigged, animated characters and creatures (234 shared human clips), VRM avatars and HDRIs, fetched into `library/rigged/` (never committed), each with its licence file; see `knowledge/assets-guide.md` | CC0, except as noted per model in `library/CREDITS.md`: Khronos Fox rig, Jay, Sintel, Bunny and Carrot the cat (CC BY 4.0), Sophia (CC BY-SA 4.0), ro.me birds and horse (Apache-2.0), X Bot (Mixamo) |
 | [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) via [trellis-mac](https://github.com/shivampkumar/trellis-mac), with [DINOv3](https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m) and [BiRefNet](https://github.com/ZhengPeng7/BiRefNet) | Free local picture-to-3D on Apple silicon (`npm run modelgen:setup`, `npm run modelgen:local`), installed into `library/tools/trellis-mac/` (never committed); each generated model stores a `credit` line in `my-models/index.json`; parts listed in `library/CREDITS.md` | MIT (TRELLIS.2 code and weights, trellis-mac, BiRefNet, Metal backends); DINOv3 License — show "Built with DINOv3" |
+
+### AI Arcademia
+
+| What | Used for | Licence |
+| --- | --- | --- |
+| [Nunito](https://fonts.google.com/specimen/Nunito) via [Fontsource](https://fontsource.org/fonts/nunito) (`@fontsource-variable/nunito`) | AI Arcademia's round, friendly type (Korean, Japanese and Chinese fall back to the device's own fonts) | SIL Open Font License 1.1 (font), MIT (package) |
+
+AI Arcademia shows its credits (three.js, the 3dviz kits, Nunito) in its Credits panel, from
+`src/arcademia/credits.js`.

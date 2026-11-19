@@ -20,6 +20,45 @@ weekly report behind a PIN, and a read-only link they can open on their own phon
 | 6 | Seaside Harbor ⚓ (a seashell school, a lighthouse lab, a boat) | 11–12 | the age of exploration, the Industrial Revolution |
 | 7 | Moon Base 🚀 (domes, a launch pad) | 12–13 | the first flight, Apollo 11 |
 
+## Languages
+
+The game speaks **English, 한국어 (Korean), Español, 日本語 (Japanese) and 简体中文 (Chinese)**. The
+first time, the language follows the browser; the start screen and **Settings** (⚙️) change it, and
+the choice is saved in the browser. Everything is translated: the HUD, places, quests, stickers, the
+hat shop, the puzzle bosses' riddles, the townsfolk, all 51 lessons (stories, reading cards, the
+chalkboard, history chats, timelines and treasures, the physics experiments, quizzes, hints and
+worked answers), the parents' PIN and report, and the share page (which has its own picker; a share
+link opens in the language the parent was using). Math questions are generated in the language,
+with its own number formats (Spanish writes 0,3) and counting words (사과 3개, 3只鸭子). **Read to
+me** uses a voice for the language when the device has one. Professor Hoot, the Plus tutor, answers
+in the chosen language: the page sends the locale and the server puts it into the tutor's
+instructions.
+
+Korean, Japanese and Chinese use the device's own fonts (Apple SD Gothic Neo, Hiragino, PingFang,
+Noto CJK…) with their line-breaking rules.
+
+**Adding a language** is a data change: copy `src/arcademia/i18n/locales/en/` (ui, lesson, parents,
+chars, math), translate it, add `lessons-math.js`, `lessons-history.js` and `lessons-physics.js`
+overlays (the lesson text only, shaped like the lesson), and add one line to `LOCALES` and `LOADERS`
+in `src/arcademia/i18n/index.js`. `tests/unit/arcademia-i18n.test.mjs` fails on any missing key,
+placeholder or lesson field, and `tests/unit/arcademia-math-i18n.test.mjs` checks every math
+generator's answer in every language.
+
+## Characters
+
+Every creature is a soft-vinyl toy sculpted when the game loads: smooth signed-distance shapes
+blended together, polygonised with surface nets and pulled onto the true surface, painted by region
+(white muzzles, dark ear tips, bellies), toon-shaded with a fur rim or glossy paint, and outlined.
+Each is auto-skinned to a small skeleton (hips, chest, head, ears, arms, legs, two tail bones,
+wings) and animated in code: a squash-and-stretch walk, breathing, ear flicks, a wagging tail, a
+happy hop, a cheer dance, a sad droop, a wave, thinking and surprise. Faces have glossy eyes with
+highlights and real eyelids that blink, brows, blush, and mouths and eye shapes that change with
+the expression. Meshes are built once per species (and costume) and level of detail; townsfolk use
+a low-detail mesh. Hats are little 3D models seated on each head; in the shop they show as 3D
+pictures, and the buddy picker is a live turntable (tap the buddy and it reacts). In lessons the
+teacher's face is drawn live beside their speech bubble and reacts to right and wrong answers.
+A soft see-through circle keeps the buddy visible behind trees and buildings.
+
 ## Playing
 
 | Input | |
@@ -122,17 +161,22 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
-| The diorama (lazy per-floor detail, silhouettes far away), terrain, buildings, places, creatures, rooms | `src/arcademia/world/` |
+| The diorama (lazy per-floor detail, silhouettes far away), terrain, buildings, places, rooms | `src/arcademia/world/` |
+| The creatures: sculpting, species recipes, faces, hats, materials; the creature API | `src/arcademia/world/creatures/`, `src/arcademia/world/figures.js` |
+| Languages: the i18n core, string tables and lesson overlays | `src/arcademia/i18n/` |
+| Start screen, settings, credits (and the credits list) | `src/arcademia/ui/settings.js`, `src/arcademia/credits.js` |
 | Lessons, chalkboard, practice, sims, mini-games, puzzle boss | `src/arcademia/lesson/` |
 | HUD, buddy wardrobe, quest book, tutor panel, parents, report charts | `src/arcademia/ui/` |
 | Coins, XP, stickers, quests (browser) · learning record (browser or server) | `src/arcademia/gamestate.js` · `src/arcademia/progress.js` |
 | Learning API and its caps | `server/learningStore.js` (wired in `server/server.js` and `vite.config.js`) |
 | The tutor route | `server/api/ai.js` |
 | The share page | `parent-report.html`, `src/arcademia/sharedReport.js` |
-| Tests | `tests/unit/arcademia.test.mjs` |
+| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs` |
 
 To add a floor, add an entry to `FLOORS`, a world to `WORLDS` and at least two lessons per subject:
 the mountain, nav, minimap and unlock rules follow.
 
 The creatures' proportions and walk started from the walker kits in `vendor/3dviz`, and the terrace
-layout from its village kit and diorama recipe.
+layout from its village kit and diorama recipe. The sculpting follows `knowledge/assets-guide.md`
+§5.3. Credits (three.js, the 3dviz kits, the Nunito font) are listed in the game's Credits panel
+from `src/arcademia/credits.js`.

@@ -22,6 +22,8 @@
  * The board is 1600 × 800. Chalk colours: w white, y yellow, p pink, b blue, g green.
  */
 
+import { tIn, num, locale } from '../i18n/index.js';
+
 /** mulberry32: the same seed gives the same questions everywhere. */
 export function rng(seed) {
   let a = (Number(seed) >>> 0) || 1;
@@ -40,13 +42,17 @@ const pick = (r, list) => list[Math.floor(r() * list.length)];
  * never negative unless the answer may be, all different, shuffled.
  */
 function numberChoices(r, answer, misses = [], { allowNegative = false, step = 1, decimals = 0 } = {}) {
-  const fmt = (v) => (decimals ? Number(v).toFixed(decimals) : String(Math.round(v)));
+  const fmt = (v) => W.S(decimals ? Number(Number(v).toFixed(decimals)) : Math.round(v), decimals);
   const out = [fmt(answer)];
+  const values = new Map([[out[0], answer]]);
   const add = (v) => {
     if (!Number.isFinite(v)) return;
     if (!allowNegative && v < 0) return;
     const s = fmt(v);
-    if (!out.includes(s)) out.push(s);
+    if (!out.includes(s)) {
+      out.push(s);
+      values.set(s, decimals ? Number(Number(v).toFixed(decimals)) : Math.round(v));
+    }
   };
   for (const m of misses) if (out.length < 4) add(m);
   let k = 1;
@@ -55,7 +61,8 @@ function numberChoices(r, answer, misses = [], { allowNegative = false, step = 1
     add(answer + step * (k + 1));
     k++;
   }
-  return shuffle(r, out.slice(0, 4), fmt(answer));
+  const res = shuffle(r, out.slice(0, 4), fmt(answer));
+  return { ...res, values: res.choices.map((c) => values.get(c)) };
 }
 /** Shuffle choices, keeping track of the right one. */
 function shuffle(r, choices, right) {
@@ -66,10 +73,6 @@ function shuffle(r, choices, right) {
   }
   return { choices: list, answer: list.indexOf(right) };
 }
-
-const THINGS = [
-  ['🍎', 'apples'], ['⭐', 'stars'], ['🐟', 'fish'], ['🌸', 'flowers'], ['🍪', 'cookies'], ['🎈', 'balloons'], ['🐞', 'ladybirds'], ['🦆', 'ducks']
-];
 
 /* ---------------------------------------------------------- chalk helpers */
 
@@ -98,415 +101,486 @@ function columns(rows, { right = 900, top = 200, gap = 120, digitW = 90, sign = 
   return { steps, lineY, digitW, right };
 }
 
+/* ---------------------------------------------------------- language */
+
+/**
+ * The words of one language for the generators: T(key, vars) reads
+ * i18n/locales/<lc>/math.js; N(n, digits) writes a number in that language's
+ * format (Intl), so Spanish shows 0,3 and the answers stay right.
+ */
+function words(lc) {
+  const T = (key, vars) => tIn(lc, `math.${key}`, vars);
+  const N = (n, digits = 0) => num(n === 0 ? 0 : n, { minimumFractionDigits: digits, maximumFractionDigits: digits }, lc);
+  /** Negative numbers with a real minus sign. */
+  const S = (n, digits = 0) => (n < 0 ? `−${N(-n, digits)}` : N(n, digits));
+  return { T, N, S, lc };
+}
+let W = words('en');
+
+/** Things to count: [emoji, key]. */
+const THINGS = [
+  ['🍎', 'apples'], ['⭐', 'stars'], ['🐟', 'fish'], ['🌸', 'flowers'], ['🍪', 'cookies'], ['🎈', 'balloons'], ['🐞', 'ladybirds'], ['🦆', 'ducks']
+];
+const thing = (key) => ({ name: W.T(`thing.${key}`), counter: W.T(`counter.${key}`) });
+
 /* ---------------------------------------------------------- generators */
 
 export const GENERATORS = {
   /* ---- floor 1 ---- */
   count(r) {
+    const { T, N } = W;
     const n = int(r, 5, 20);
-    const [emoji, name] = pick(r, THINGS);
+    const [emoji, key] = pick(r, THINGS);
     return {
-      q: `How many ${name}? ${emoji.repeat(n)}`,
+      q: T('count.q', { ...thing(key), emojis: emoji.repeat(n) }),
       ...numberChoices(r, n, [n + 1, n - 1, n + 2]),
-      hint: 'Touch each one as you count. Count in fives if you can!',
-      explain: `There are ${n} ${name}. Counting in fives: ${fives(n)}.`,
-      data: { n, emoji, name }
+      hint: T('count.hint'),
+      explain: T('count.explain', { n: N(n), ...thing(key), fives: fives(n) }),
+      data: { n, emoji, name: key }
     };
   },
   add10(r) {
+    const { T, N } = W;
     const a = int(r, 1, 8);
     const b = int(r, 1, 10 - a);
-    const [emoji, name] = pick(r, THINGS);
+    const [emoji, key] = pick(r, THINGS);
     return {
-      q: `${a} ${name} and ${b} more. How many now? (${a} + ${b})`,
+      q: T('add10.q', { a: N(a), b: N(b), ...thing(key) }),
       ...numberChoices(r, a + b, [a + b + 1, a + b - 1, a]),
-      hint: `Start at ${a} on the number line and hop forward ${b}.`,
-      explain: `${a} + ${b} = ${a + b}. From ${a}, hop ${b} times: you land on ${a + b}.`,
+      hint: T('add10.hint', { a: N(a), b: N(b) }),
+      explain: T('add10.explain', { a: N(a), b: N(b), sum: N(a + b) }),
       data: { a, b, op: '+', emoji }
     };
   },
   sub10(r) {
+    const { T, N } = W;
     const a = int(r, 3, 10);
     const b = int(r, 1, a - 1);
-    const [emoji, name] = pick(r, THINGS);
+    const [emoji, key] = pick(r, THINGS);
     return {
-      q: `${a} ${name}. ${b} go away. How many are left? (${a} − ${b})`,
+      q: T('sub10.q', { a: N(a), b: N(b), ...thing(key) }),
       ...numberChoices(r, a - b, [a - b + 1, a - b - 1, a + b]),
-      hint: `Start at ${a} and hop back ${b}. Or cross out ${b} of them.`,
-      explain: `${a} − ${b} = ${a - b}. Take ${b} away from ${a} and ${a - b} are left.`,
+      hint: T('sub10.hint', { a: N(a), b: N(b) }),
+      explain: T('sub10.explain', { a: N(a), b: N(b), d: N(a - b) }),
       data: { a, b, op: '-', emoji }
     };
   },
   /* ---- floor 2 ---- */
   'tens-ones'(r) {
+    const { T, N } = W;
     const tens = int(r, 1, 9);
     const ones = int(r, 0, 9);
     const n = tens * 10 + ones;
     if (r() < 0.5) {
       return {
-        q: `Which number has ${tens} tens and ${ones} ones?`,
+        q: T('tensOnes.qNumber', { tens: N(tens), ones: N(ones) }),
         ...numberChoices(r, n, [ones * 10 + tens, tens + ones, n + 10]),
-        hint: 'The tens digit goes on the left, the ones digit on the right.',
-        explain: `${tens} tens is ${tens * 10}, and ${ones} more ones makes ${n}.`,
+        hint: T('tensOnes.hintNumber'),
+        explain: T('tensOnes.explainNumber', { tens: N(tens), tensValue: N(tens * 10), ones: N(ones), n: N(n) }),
         data: { tens, ones, n, ask: 'number' }
       };
     }
     return {
-      q: `How many tens are in ${n}?`,
+      q: T('tensOnes.qTens', { n: N(n) }),
       ...numberChoices(r, tens, [ones, n, tens + 1].filter((v) => v !== tens)),
-      hint: `Look at the left digit of ${n}.`,
-      explain: `${n} is ${tens} tens and ${ones} ones, so it has ${tens} tens.`,
+      hint: T('tensOnes.hintTens', { n: N(n) }),
+      explain: T('tensOnes.explainTens', { n: N(n), tens: N(tens), ones: N(ones) }),
       data: { tens, ones, n, ask: 'tens' }
     };
   },
   'add-carry'(r) {
+    const { T, N } = W;
     let a, b;
     do {
       a = int(r, 12, 68);
       b = int(r, 11, 89 - a);
     } while ((a % 10) + (b % 10) < 10 || a + b > 99);
     const s = a + b;
+    const v = { a: N(a), b: N(b), s: N(s), oa: N(a % 10), ob: N(b % 10), os: N((a % 10) + (b % 10)), ow: N(s % 10), ta: N(Math.floor(a / 10)), tb: N(Math.floor(b / 10)), ts: N(Math.floor(s / 10)) };
     return {
-      q: `Add them up: ${a} + ${b} = ?`,
+      q: T('addCarry.q', v),
       ...numberChoices(r, s, [s - 10, s + 10, s + 1]),
-      hint: `Add the ones first: ${a % 10} + ${b % 10}. If you get 10 or more, carry 1 ten.`,
-      explain: `Ones: ${a % 10} + ${b % 10} = ${(a % 10) + (b % 10)}, write ${s % 10}, carry 1. Tens: ${Math.floor(a / 10)} + ${Math.floor(b / 10)} + 1 = ${Math.floor(s / 10)}. So ${a} + ${b} = ${s}.`,
+      hint: T('addCarry.hint', v),
+      explain: T('addCarry.explain', v),
       data: { a, b, op: '+' }
     };
   },
   'skip-count'(r) {
+    const { T, N } = W;
     const by = pick(r, [2, 5, 10]);
     const start = by * int(r, 0, by === 10 ? 5 : 8);
     const seq = [0, 1, 2, 3].map((k) => start + k * by);
     const next = start + 4 * by;
     return {
-      q: `What comes next? ${seq.join(', ')}, …`,
+      q: T('skip.q', { seq: seq.map((x) => N(x)).join(', ') }),
       ...numberChoices(r, next, [next + 1, next - by + 1, next + by]),
-      hint: `How much bigger is each number than the one before?`,
-      explain: `The numbers go up by ${by} each time: ${seq.at(-1)} + ${by} = ${next}.`,
+      hint: T('skip.hint'),
+      explain: T('skip.explain', { by: N(by), last: N(seq.at(-1)), next: N(next) }),
       data: { by, start, next }
     };
   },
   /* ---- floor 3 ---- */
   times(r) {
+    const { T, N } = W;
     const a = int(r, 2, 10);
     const b = int(r, 2, 10);
     return {
-      q: `${a} rows of ${b}. How many in all? (${a} × ${b})`,
+      q: T('times.q', { a: N(a), b: N(b) }),
       ...numberChoices(r, a * b, [a + b, a * b + a, a * b - b]),
-      hint: `Count up in ${b}s, ${a} times.`,
-      explain: `${a} × ${b} = ${a * b}: ${a} rows with ${b} in each row.`,
+      hint: T('times.hint', { a: N(a), b: N(b) }),
+      explain: T('times.explain', { a: N(a), b: N(b), p: N(a * b) }),
       data: { a, b, op: '×' }
     };
   },
   'sub-borrow'(r) {
+    const { T, N } = W;
     let a, b;
     do {
       a = int(r, 31, 98);
       b = int(r, 12, a - 5);
     } while (a % 10 >= b % 10);
     const d = a - b;
+    const v = { a: N(a), b: N(b), d: N(d), oa: N(a % 10), ob: N(b % 10), oa10: N((a % 10) + 10), od: N((a % 10) + 10 - (b % 10)), ta: N(Math.floor(a / 10) - 1), tb: N(Math.floor(b / 10)), td: N(Math.floor(a / 10) - 1 - Math.floor(b / 10)) };
     return {
-      q: `Take away: ${a} − ${b} = ?`,
+      q: T('subBorrow.q', v),
       ...numberChoices(r, d, [d + 10, Math.abs(Math.floor(a / 10) - Math.floor(b / 10)) * 10 + Math.abs((a % 10) - (b % 10)), d - 10]),
-      hint: `You can't take ${b % 10} from ${a % 10}, so borrow 1 ten: ${a % 10} becomes ${(a % 10) + 10}.`,
-      explain: `Borrow a ten: ${(a % 10) + 10} − ${b % 10} = ${((a % 10) + 10) - (b % 10)}. Tens: ${Math.floor(a / 10) - 1} − ${Math.floor(b / 10)} = ${Math.floor(a / 10) - 1 - Math.floor(b / 10)}. So ${a} − ${b} = ${d}.`,
+      hint: T('subBorrow.hint', v),
+      explain: T('subBorrow.explain', v),
       data: { a, b, op: '-' }
     };
   },
   fractions(r) {
+    const { T, N } = W;
     const parts = pick(r, [2, 3, 4, 6, 8]);
     const shaded = int(r, 1, parts - 1);
-    const right = `${shaded}/${parts}`;
-    const opts = [right, `${parts - shaded}/${parts}`, `${shaded}/${parts + 1}`, `${parts}/${shaded}`];
+    const F = (top, bottom) => `${N(top)}/${N(bottom)}`;
+    const right = F(shaded, parts);
+    const opts = [right, F(parts - shaded, parts), F(shaded, parts + 1), F(parts, shaded)];
     const unique = [...new Set(opts)];
-    while (unique.length < 4) unique.push(`${shaded + unique.length}/${parts + 2}`);
+    while (unique.length < 4) unique.push(F(shaded + unique.length, parts + 2));
     return {
-      q: `A pizza is cut into ${parts} equal slices. ${shaded} ${shaded === 1 ? 'slice has' : 'slices have'} cheese. What fraction has cheese?`,
+      q: T('fractions.q', { parts: N(parts), count: shaded }),
       ...shuffle(r, unique.slice(0, 4), right),
-      hint: 'The bottom number is how many equal slices in all. The top number is how many we mean.',
-      explain: `${shaded} out of ${parts} equal slices is ${right}.`,
+      hint: T('fractions.hint'),
+      explain: T('fractions.explain', { shaded: N(shaded), parts: N(parts), frac: right }),
       data: { parts, shaded }
     };
   },
   /* ---- floor 4 ---- */
   'mult-2x1'(r) {
+    const { T, N } = W;
     const a = int(r, 12, 49);
     const b = int(r, 3, 9);
     const p = a * b;
     const t = Math.floor(a / 10) * 10;
+    const v = { a: N(a), b: N(b), t: N(t), o: N(a % 10), tb: N(t * b), ob: N((a % 10) * b), p: N(p) };
     return {
-      q: `${a} × ${b} = ?`,
+      q: T('mult.q', v),
       ...numberChoices(r, p, [t * b + (a % 10), p + b, p - 10]),
-      hint: `Split ${a} into ${t} and ${a % 10}. Multiply each by ${b}, then add.`,
-      explain: `${t} × ${b} = ${t * b} and ${a % 10} × ${b} = ${(a % 10) * b}. ${t * b} + ${(a % 10) * b} = ${p}.`,
+      hint: T('mult.hint', v),
+      explain: T('mult.explain', v),
       data: { a, b, op: '×' }
     };
   },
   division(r) {
+    const { T, N } = W;
     const b = int(r, 2, 9);
     const q = int(r, 2, 9);
     const a = b * q;
+    const v = { a: N(a), b: N(b), q: N(q) };
     return {
-      q: `Share ${a} sweets equally between ${b} friends. How many does each get? (${a} ÷ ${b})`,
+      q: T('division.q', v),
       ...numberChoices(r, q, [q + 1, q - 1, a - b]),
-      hint: `Which number times ${b} makes ${a}?`,
-      explain: `${b} × ${q} = ${a}, so ${a} ÷ ${b} = ${q}. Each friend gets ${q}.`,
+      hint: T('division.hint', v),
+      explain: T('division.explain', v),
       data: { a, b, op: '÷' }
     };
   },
   'fraction-of'(r) {
+    const { T, N } = W;
     const d = pick(r, [2, 3, 4, 5, 10]);
     const n = int(r, 1, d - 1);
     const whole = d * int(r, 2, 10);
-    const v = (whole / d) * n;
+    const val = (whole / d) * n;
+    const v = { n: N(n), d: N(d), whole: N(whole), part: N(whole / d), v: N(val) };
     return {
-      q: `What is ${n}/${d} of ${whole}?`,
-      ...numberChoices(r, v, [whole / d, whole - v, v + n]),
-      hint: `First find 1/${d}: split ${whole} into ${d} equal groups.`,
-      explain: `1/${d} of ${whole} is ${whole / d}. ${n}/${d} is ${n} of those groups: ${n} × ${whole / d} = ${v}.`,
+      q: T('fracOf.q', v),
+      ...numberChoices(r, val, [whole / d, whole - val, val + n]),
+      hint: T('fracOf.hint', v),
+      explain: T('fracOf.explain', v),
       data: { n, d, whole }
     };
   },
   /* ---- floor 5 ---- */
   balance(r) {
+    const { T, N } = W;
     const x = int(r, 2, 15);
     const a = int(r, 2, 20);
     const b = x + a;
+    const v = { a: N(a), b: N(b), x: N(x) };
     return {
-      q: `Balance the scale: x + ${a} = ${b}. What is x?`,
+      q: T('balance.q', v),
       ...numberChoices(r, x, [b + a, x + 1, a]),
-      hint: `Take ${a} off both sides so the scale stays level.`,
-      explain: `x + ${a} = ${b}. Take ${a} from both sides: x = ${b} − ${a} = ${x}.`,
+      hint: T('balance.hint', v),
+      explain: T('balance.explain', v),
       data: { a, b, x }
     };
   },
   decimals(r) {
+    const { T, N } = W;
     const a = int(r, 1, 6);
     const b = int(r, 1, 9 - a);
     const s = (a + b) / 10;
     return {
-      q: `${(a / 10).toFixed(1)} + ${(b / 10).toFixed(1)} = ?`,
+      q: T('decimals.q', { a: N(a / 10, 1), b: N(b / 10, 1) }),
       ...numberChoices(r, s, [s + 0.1, s - 0.1, s + 0.2], { step: 0.1, decimals: 1 }),
-      hint: `Count in tenths: ${a} tenths and ${b} more tenths.`,
-      explain: `${a} tenths + ${b} tenths = ${a + b} tenths = ${s.toFixed(1)}.`,
+      hint: T('decimals.hint', { ta: N(a), tb: N(b) }),
+      explain: T('decimals.explain', { ta: N(a), tb: N(b), ts: N(a + b), s: N(s, 1) }),
       data: { a: a / 10, b: b / 10, s }
     };
   },
   area(r) {
+    const { T, N } = W;
     const w = int(r, 3, 12);
     const h = int(r, 2, 9);
     const askArea = r() < 0.6;
     const v = askArea ? w * h : 2 * (w + h);
+    const unit = askArea ? 'cm2' : 'cm';
+    const U = (x) => T(`unit.${unit}`, { v: N(x) });
+    const vars = { w: N(w), h: N(h), v: N(v) };
     return {
-      q: askArea ? `A rectangle is ${w} cm long and ${h} cm wide. What is its area?` : `A rectangle is ${w} cm long and ${h} cm wide. What is its perimeter?`,
-      ...shuffle(r, unitChoices(r, v, askArea ? [2 * (w + h), w + h, v + w] : [w * h, w + h, v + 2], askArea ? 'cm²' : 'cm'), `${v} ${askArea ? 'cm²' : 'cm'}`),
-      hint: askArea ? 'Area = length × width: count the squares inside.' : 'Perimeter = the distance all the way round: add all four sides.',
-      explain: askArea ? `${w} × ${h} = ${v} squares, so the area is ${v} cm².` : `${w} + ${h} + ${w} + ${h} = ${v}, so the perimeter is ${v} cm.`,
+      q: T(askArea ? 'area.qArea' : 'area.qPerimeter', vars),
+      ...shuffle(r, unitChoices(r, v, askArea ? [2 * (w + h), w + h, v + w] : [w * h, w + h, v + 2]).map(U), U(v)),
+      hint: T(askArea ? 'area.hintArea' : 'area.hintPerimeter'),
+      explain: T(askArea ? 'area.explainArea' : 'area.explainPerimeter', vars),
       data: { w, h, ask: askArea ? 'area' : 'perimeter' }
     };
   },
   /* ---- floor 6 ---- */
   negatives(r) {
+    const { T, S: fmt } = W;
     const a = int(r, -9, 4);
     const b = int(r, 2, 9);
     const up = r() < 0.6;
     const v = up ? a + b : a - b;
-    const fmt = (n) => (n < 0 ? `−${-n}` : String(n));
     const res = numberChoices(r, v, [up ? a - b : a + b, -v, v + 1], { allowNegative: true });
+    const vars = { a: fmt(a), b: fmt(b), v: fmt(v) };
     return {
-      q: `It is ${fmt(a)} °C. The temperature ${up ? 'rises' : 'falls'} by ${b} degrees. What is it now?`,
-      choices: res.choices.map((c) => `${fmt(Number(c))} °C`),
+      q: T(up ? 'neg.qUp' : 'neg.qDown', vars),
+      choices: res.values.map((c) => T('unit.deg', { v: fmt(c) })),
       answer: res.answer,
-      hint: `Start at ${fmt(a)} on the number line and move ${b} ${up ? 'up (right)' : 'down (left)'}.`,
-      explain: `${fmt(a)} ${up ? '+' : '−'} ${b} = ${fmt(v)}. ${up ? 'Rising' : 'Falling'} ${b} degrees from ${fmt(a)} °C lands on ${fmt(v)} °C.`,
+      hint: T(up ? 'neg.hintUp' : 'neg.hintDown', vars),
+      explain: T(up ? 'neg.explainUp' : 'neg.explainDown', vars),
       data: { a, b, up }
     };
   },
   percent(r) {
+    const { T, N } = W;
     const p = pick(r, [10, 20, 25, 50, 75]);
     const whole = pick(r, [20, 40, 60, 80, 100, 120, 200]);
     const v = (whole * p) / 100;
     return {
-      q: `What is ${p}% of ${whole}?`,
+      q: T('percent.q', { p: N(p), whole: N(whole) }),
       ...numberChoices(r, v, [whole - v, p, v * 2].filter((x) => x !== v)),
-      hint: p === 25 ? '25% is a quarter: divide by 4.' : p === 50 ? '50% is a half.' : p === 75 ? '75% is three quarters: find a quarter, then times 3.' : `10% is a tenth: divide by 10.${p === 20 ? ' Then double it.' : ''}`,
-      explain: `${p}% means ${p} out of every 100. ${p}% of ${whole} = ${whole} × ${p} ÷ 100 = ${v}.`,
+      hint: T(`percent.hint${p}`),
+      explain: T('percent.explain', { p: N(p), whole: N(whole), v: N(v) }),
       data: { p, whole }
     };
   },
   /* ---- floor 7 ---- */
   'two-step'(r) {
+    const { T, N } = W;
     const x = int(r, 2, 12);
     const a = int(r, 2, 9);
     const b = int(r, 1, 20);
     const c = a * x + b;
+    const v = { a: N(a), b: N(b), c: N(c), cb: N(c - b), x: N(x) };
     return {
-      q: `Solve: ${a}x + ${b} = ${c}`,
-      ...numberChoices(r, x, [(c - b) - a, c / a, x + 1].map((v) => Math.round(v))),
-      hint: `Undo the + ${b} first (take ${b} from both sides), then undo the × ${a}.`,
-      explain: `${a}x + ${b} = ${c} → ${a}x = ${c - b} → x = ${c - b} ÷ ${a} = ${x}.`,
+      q: T('twoStep.q', v),
+      ...numberChoices(r, x, [(c - b) - a, c / a, x + 1].map((y) => Math.round(y))),
+      hint: T('twoStep.hint', v),
+      explain: T('twoStep.explain', v),
       data: { a, b, c, x }
     };
   },
   squares(r) {
+    const { T, N } = W;
     const n = int(r, 2, 12);
+    const v = { n: N(n), sq: N(n * n) };
     if (r() < 0.5) {
       return {
-        q: `What is ${n}² (${n} squared)?`,
+        q: T('squares.qSquare', v),
         ...numberChoices(r, n * n, [n * 2, n * n + n, (n + 1) * (n + 1)]),
-        hint: `${n}² means ${n} × ${n}: a square with ${n} tiles on each side.`,
-        explain: `${n}² = ${n} × ${n} = ${n * n}.`,
+        hint: T('squares.hintSquare', v),
+        explain: T('squares.explainSquare', v),
         data: { n, ask: 'square' }
       };
     }
     return {
-      q: `What is the square root of ${n * n}? (√${n * n})`,
-      ...numberChoices(r, n, [n * n / 2, n + 1, n - 1].map((v) => Math.round(v))),
-      hint: `Which number times itself makes ${n * n}?`,
-      explain: `${n} × ${n} = ${n * n}, so √${n * n} = ${n}.`,
+      q: T('squares.qRoot', v),
+      ...numberChoices(r, n, [n * n / 2, n + 1, n - 1].map((y) => Math.round(y))),
+      hint: T('squares.hintRoot', v),
+      explain: T('squares.explainRoot', v),
       data: { n, ask: 'root' }
     };
   }
 };
 
-function unitChoices(r, v, misses, unit) {
+function unitChoices(r, v, misses) {
   const out = [v, ...misses].filter((x, i, all) => x > 0 && all.indexOf(x) === i).slice(0, 4);
   let k = 1;
   while (out.length < 4) {
     if (!out.includes(v + k)) out.push(v + k);
     k++;
   }
-  return out.map((x) => `${x} ${unit}`);
+  return out;
 }
 function fives(n) {
+  const { T, N } = W;
   const out = [];
   for (let v = 5; v <= n; v += 5) out.push(v);
   const rest = n - out.length * 5;
-  return out.length ? `${out.join(', ')}${rest ? `, then ${rest} more makes ${n}` : ''}` : `1 to ${n}`;
+  const list = out.map((x) => N(x)).join(', ');
+  return out.length ? (rest ? T('fives.then', { list, rest: N(rest), n: N(n) }) : list) : T('fives.upTo', { n: N(n) });
 }
 
 /* ---------------------------------------------------------- chalkboard examples */
 
-/** A worked example for a generator's problem, as chalk steps. */
+const B = (key, vars) => tIn(W.lc, `board.${key}`, vars);
+
+/** A worked example for a generator's problem, as chalk steps (in the language of `words`). */
 export const BOARDS = {
   count({ n, emoji }) {
-    const steps = [{ t: 'text', s: 'Counting in fives', x: 800, y: 110, size: 1.1, c: 'y', align: 'center' }, { t: 'say', s: `Let's count them. Groups of five make it quick!` }];
+    const { N } = W;
+    const steps = [{ t: 'text', s: B('count.title'), x: 800, y: 110, size: 1.1, c: 'y', align: 'center' }, { t: 'say', s: B('count.say1') }];
     for (let i = 0; i < n; i++) {
       const g = Math.floor(i / 5), k = i % 5;
       const x = 180 + g * 330 + k * 52, y = 360;
       if (k < 4) steps.push({ t: 'line', pts: [[x, y - 60], [x + 4, y + 60]] });
       else steps.push({ t: 'line', pts: [[x - 230, y + 40], [x + 10, y - 50]], c: 'y' });
-      if (k === 4 || i === n - 1) steps.push({ t: 'text', s: String(i + 1), x: 180 + g * 330 + 100, y: 520, size: 0.9, c: 'p', align: 'center' });
+      if (k === 4 || i === n - 1) steps.push({ t: 'text', s: N(i + 1), x: 180 + g * 330 + 100, y: 520, size: 0.9, c: 'p', align: 'center' });
     }
-    steps.push({ t: 'say', s: `${fives(n)}. There are ${n}!` });
-    steps.push({ t: 'text', s: `${n} ${emoji}`, x: 800, y: 680, size: 1.3, align: 'center' });
+    steps.push({ t: 'say', s: B('count.say2', { fives: fives(n), n: N(n) }) });
+    steps.push({ t: 'text', s: `${N(n)} ${emoji}`, x: 800, y: 680, size: 1.3, align: 'center' });
     return steps;
   },
   add10({ a, b }) {
-    const { steps, at } = numberLine(0, 10, {});
-    const out = [{ t: 'text', s: `${a} + ${b} = ?`, x: 800, y: 130, size: 1.4, align: 'center' }, { t: 'say', s: `Start at ${a}, then hop forward ${b}.` }, ...steps, { t: 'circle', x: at(a), y: 470, r: 20, c: 'y', fill: true }];
+    const { N } = W;
+    const { steps, at } = numberLine(0, 10, { label: (v) => N(v) });
+    const out = [{ t: 'text', s: `${N(a)} + ${N(b)} = ?`, x: 800, y: 130, size: 1.4, align: 'center' }, { t: 'say', s: B('add10.say1', { a: N(a), b: N(b) }) }, ...steps, { t: 'circle', x: at(a), y: 470, r: 20, c: 'y', fill: true }];
     for (let k = 0; k < b; k++) out.push({ t: 'hop', x1: at(a + k), x2: at(a + k + 1), y: 450, h: 70, c: 'p' });
-    out.push({ t: 'circle', x: at(a + b), y: 470, r: 22, c: 'g', fill: true }, { t: 'say', s: `We land on ${a + b}.` }, { t: 'text', s: `${a} + ${b} = ${a + b}`, x: 800, y: 680, size: 1.4, c: 'y', align: 'center' });
+    out.push({ t: 'circle', x: at(a + b), y: 470, r: 22, c: 'g', fill: true }, { t: 'say', s: B('add10.say2', { sum: N(a + b) }) }, { t: 'text', s: `${N(a)} + ${N(b)} = ${N(a + b)}`, x: 800, y: 680, size: 1.4, c: 'y', align: 'center' });
     return out;
   },
   sub10({ a, b }) {
-    const out = [{ t: 'text', s: `${a} − ${b} = ?`, x: 800, y: 130, size: 1.4, align: 'center' }, { t: 'say', s: `Draw ${a}, then cross out ${b}.` }];
+    const { N } = W;
+    const out = [{ t: 'text', s: `${N(a)} − ${N(b)} = ?`, x: 800, y: 130, size: 1.4, align: 'center' }, { t: 'say', s: B('sub10.say1', { a: N(a), b: N(b) }) }];
     const x0 = 800 - ((a - 1) * 120) / 2;
     for (let i = 0; i < a; i++) out.push({ t: 'circle', x: x0 + i * 120, y: 380, r: 38 });
     for (let i = 0; i < b; i++) out.push({ t: 'cross', x: x0 + (a - 1 - i) * 120, y: 380, s: 44, c: 'p' });
-    out.push({ t: 'say', s: `Count what's left: ${a - b}.` }, { t: 'text', s: `${a} − ${b} = ${a - b}`, x: 800, y: 640, size: 1.4, c: 'y', align: 'center' });
+    out.push({ t: 'say', s: B('sub10.say2', { d: N(a - b) }) }, { t: 'text', s: `${N(a)} − ${N(b)} = ${N(a - b)}`, x: 800, y: 640, size: 1.4, c: 'y', align: 'center' });
     return out;
   },
   'tens-ones'({ tens, ones, n }) {
-    const out = [{ t: 'text', s: `${n} = ${tens} tens and ${ones} ones`, x: 800, y: 110, size: 1.1, align: 'center' }, { t: 'say', s: `A tall stick is ten. A little square is one.` }];
+    const { N } = W;
+    const v = { tens: N(tens), ones: N(ones), n: N(n) };
+    const out = [{ t: 'text', s: B('tensOnes.title', v), x: 800, y: 110, size: 1.1, align: 'center' }, { t: 'say', s: B('tensOnes.say1') }];
     for (let i = 0; i < tens; i++) {
       out.push({ t: 'rect', x: 200 + i * 70, y: 220, w: 40, h: 300, c: 'b' });
       for (let k = 1; k < 10; k++) out.push({ t: 'line', pts: [[200 + i * 70, 220 + k * 30], [240 + i * 70, 220 + k * 30]], c: 'b' });
     }
     for (let i = 0; i < ones; i++) out.push({ t: 'rect', x: 1000 + (i % 5) * 60, y: 400 + Math.floor(i / 5) * 60, w: 40, h: 40, c: 'y' });
-    out.push({ t: 'text', s: `${tens}`, x: 650, y: 680, size: 1.6, c: 'b', align: 'center' }, { t: 'text', s: `${ones}`, x: 760, y: 680, size: 1.6, c: 'y', align: 'center' });
-    out.push({ t: 'say', s: `${tens} tens and ${ones} ones make ${n}.` });
+    out.push({ t: 'text', s: N(tens), x: 650, y: 680, size: 1.6, c: 'b', align: 'center' }, { t: 'text', s: N(ones), x: 760, y: 680, size: 1.6, c: 'y', align: 'center' });
+    out.push({ t: 'say', s: B('tensOnes.say2', v) });
     return out;
   },
   'add-carry'({ a, b }) {
+    const { N } = W;
     const s = a + b;
     const c = columns([a, b], { right: 900, top: 230 });
-    const out = [{ t: 'text', s: 'Column addition', x: 800, y: 90, size: 1, c: 'y', align: 'center' }, ...c.steps];
+    const out = [{ t: 'text', s: B('addCarry.title'), x: 800, y: 90, size: 1, c: 'y', align: 'center' }, ...c.steps];
     const ones = (a % 10) + (b % 10);
-    out.push({ t: 'say', s: `Ones first: ${a % 10} + ${b % 10} = ${ones}. Write ${ones % 10}, carry the 1.` });
+    out.push({ t: 'say', s: B('addCarry.say1', { oa: N(a % 10), ob: N(b % 10), os: N(ones), ow: N(ones % 10) }) });
     out.push({ t: 'text', s: String(ones % 10), x: c.right, y: c.lineY + 90, size: 1.3, c: 'g', align: 'center' });
     out.push({ t: 'text', s: '1', x: c.right - c.digitW, y: 160, size: 0.7, c: 'p', align: 'center' });
-    out.push({ t: 'say', s: `Tens: ${Math.floor(a / 10)} + ${Math.floor(b / 10)} + the carried 1 = ${Math.floor(s / 10)}.` });
+    out.push({ t: 'say', s: B('addCarry.say2', { ta: N(Math.floor(a / 10)), tb: N(Math.floor(b / 10)), ts: N(Math.floor(s / 10)) }) });
     out.push({ t: 'text', s: String(Math.floor(s / 10)), x: c.right - c.digitW, y: c.lineY + 90, size: 1.3, c: 'g', align: 'center' });
-    out.push({ t: 'text', s: `${a} + ${b} = ${s}`, x: 1300, y: 700, size: 0.9, c: 'y', align: 'center' });
+    out.push({ t: 'text', s: `${N(a)} + ${N(b)} = ${N(s)}`, x: 1300, y: 700, size: 0.9, c: 'y', align: 'center' });
     return out;
   },
   'skip-count'({ by, start, next }) {
+    const { N } = W;
     const lo = start, hi = next;
-    const { steps, at } = numberLine(lo, hi, { every: by });
-    const out = [{ t: 'text', s: `Count in ${by}s`, x: 800, y: 130, size: 1.3, align: 'center' }, ...steps, { t: 'say', s: `Each hop is ${by}.` }];
+    const { steps, at } = numberLine(lo, hi, { every: by, label: (v) => N(v) });
+    const out = [{ t: 'text', s: B('skip.title', { by: N(by) }), x: 800, y: 130, size: 1.3, align: 'center' }, ...steps, { t: 'say', s: B('skip.say1', { by: N(by) }) }];
     for (let v = lo; v < hi; v += by) out.push({ t: 'hop', x1: at(v), x2: at(v + by), y: 450, h: 90, c: v + by === hi ? 'g' : 'p' });
-    out.push({ t: 'say', s: `${start + 3 * by} + ${by} = ${next}.` }, { t: 'circle', x: at(hi), y: 470, r: 22, c: 'g', fill: true });
+    out.push({ t: 'say', s: B('skip.say2', { last: N(start + 3 * by), by: N(by), next: N(next) }) }, { t: 'circle', x: at(hi), y: 470, r: 22, c: 'g', fill: true });
     return out;
   },
   times({ a, b }) {
-    const out = [{ t: 'text', s: `${a} × ${b}`, x: 800, y: 100, size: 1.3, align: 'center' }, { t: 'say', s: `${a} rows, ${b} in each row.` }];
+    const { N } = W;
+    const out = [{ t: 'text', s: `${N(a)} × ${N(b)}`, x: 800, y: 100, size: 1.3, align: 'center' }, { t: 'say', s: B('times.say1', { a: N(a), b: N(b) }) }];
     const gap = Math.min(70, 520 / Math.max(a, b));
     const x0 = 800 - ((b - 1) * gap) / 2, y0 = 190;
     for (let i = 0; i < a; i++) {
       for (let j = 0; j < b; j++) out.push({ t: 'circle', x: x0 + j * gap, y: y0 + i * gap, r: gap * 0.3, c: i % 2 ? 'b' : 'w', fill: true });
-      out.push({ t: 'text', s: String((i + 1) * b), x: x0 + b * gap + 40, y: y0 + i * gap + 14, size: 0.6, c: 'y' });
+      out.push({ t: 'text', s: N((i + 1) * b), x: x0 + b * gap + 40, y: y0 + i * gap + 14, size: 0.6, c: 'y' });
     }
-    out.push({ t: 'say', s: `Count in ${b}s: ${Array.from({ length: a }, (_, i) => (i + 1) * b).join(', ')}.` });
-    out.push({ t: 'text', s: `${a} × ${b} = ${a * b}`, x: 800, y: 750, size: 1.1, c: 'y', align: 'center' });
+    out.push({ t: 'say', s: B('times.say2', { b: N(b), list: Array.from({ length: a }, (_, i) => N((i + 1) * b)).join(', ') }) });
+    out.push({ t: 'text', s: `${N(a)} × ${N(b)} = ${N(a * b)}`, x: 800, y: 750, size: 1.1, c: 'y', align: 'center' });
     return out;
   },
   'sub-borrow'({ a, b }) {
+    const { N } = W;
     const d = a - b;
     const c = columns([a, b], { right: 900, top: 230, sign: '−' });
-    const out = [{ t: 'text', s: 'Column subtraction', x: 800, y: 90, size: 1, c: 'y', align: 'center' }, ...c.steps];
-    out.push({ t: 'say', s: `${a % 10} take away ${b % 10}? Not enough! Borrow a ten.` });
+    const out = [{ t: 'text', s: B('subBorrow.title'), x: 800, y: 90, size: 1, c: 'y', align: 'center' }, ...c.steps];
+    out.push({ t: 'say', s: B('subBorrow.say1', { oa: N(a % 10), ob: N(b % 10) }) });
     out.push({ t: 'cross', x: c.right - c.digitW, y: 210, s: 34, c: 'p' }, { t: 'text', s: String(Math.floor(a / 10) - 1), x: c.right - c.digitW - 10, y: 150, size: 0.7, c: 'p', align: 'center' });
     out.push({ t: 'text', s: '1', x: c.right - 48, y: 150, size: 0.7, c: 'p', align: 'center' });
-    out.push({ t: 'say', s: `${(a % 10) + 10} − ${b % 10} = ${(a % 10) + 10 - (b % 10)}.` });
+    out.push({ t: 'say', s: B('subBorrow.say2', { oa10: N((a % 10) + 10), ob: N(b % 10), od: N((a % 10) + 10 - (b % 10)) }) });
     out.push({ t: 'text', s: String(d % 10), x: c.right, y: c.lineY + 90, size: 1.3, c: 'g', align: 'center' });
-    out.push({ t: 'say', s: `Tens: ${Math.floor(a / 10) - 1} − ${Math.floor(b / 10)} = ${Math.floor(d / 10)}.` });
+    out.push({ t: 'say', s: B('subBorrow.say3', { ta: N(Math.floor(a / 10) - 1), tb: N(Math.floor(b / 10)), td: N(Math.floor(d / 10)) }) });
     if (d >= 10) out.push({ t: 'text', s: String(Math.floor(d / 10)), x: c.right - c.digitW, y: c.lineY + 90, size: 1.3, c: 'g', align: 'center' });
-    out.push({ t: 'text', s: `${a} − ${b} = ${d}`, x: 1300, y: 700, size: 0.9, c: 'y', align: 'center' });
+    out.push({ t: 'text', s: `${N(a)} − ${N(b)} = ${N(d)}`, x: 1300, y: 700, size: 0.9, c: 'y', align: 'center' });
     return out;
   },
   fractions({ parts, shaded }) {
+    const { N } = W;
+    const frac = `${N(shaded)}/${N(parts)}`;
     return [
-      { t: 'text', s: 'Fractions of a pizza', x: 800, y: 100, size: 1.1, c: 'y', align: 'center' },
-      { t: 'say', s: `Cut the pizza into ${parts} equal slices.` },
+      { t: 'text', s: B('fractions.title'), x: 800, y: 100, size: 1.1, c: 'y', align: 'center' },
+      { t: 'say', s: B('fractions.say1', { parts: N(parts) }) },
       { t: 'pizza', x: 560, y: 420, r: 230, parts, shaded: 0 },
-      { t: 'say', s: `Colour ${shaded} of them.` },
+      { t: 'say', s: B('fractions.say2', { shaded: N(shaded) }) },
       { t: 'pizza', x: 560, y: 420, r: 230, parts, shaded, c: 'p' },
-      { t: 'text', s: String(shaded), x: 1180, y: 360, size: 1.8, c: 'p', align: 'center' },
+      { t: 'text', s: N(shaded), x: 1180, y: 360, size: 1.8, c: 'p', align: 'center' },
       { t: 'line', pts: [[1110, 400], [1250, 400]] },
-      { t: 'text', s: String(parts), x: 1180, y: 520, size: 1.8, align: 'center' },
-      { t: 'say', s: `${shaded} out of ${parts} slices: ${shaded}/${parts}.` }
+      { t: 'text', s: N(parts), x: 1180, y: 520, size: 1.8, align: 'center' },
+      { t: 'say', s: B('fractions.say3', { shaded: N(shaded), parts: N(parts), frac }) }
     ];
   },
   'mult-2x1'({ a, b }) {
+    const { N } = W;
     const t = Math.floor(a / 10) * 10, o = a % 10;
-    const W = 900, w1 = (W * t) / a;
+    const Wd = 900, w1 = (Wd * t) / a;
+    const v = { a: N(a), b: N(b), t: N(t), o: N(o), tb: N(t * b), ob: N(o * b), p: N(a * b) };
     return [
-      { t: 'text', s: `${a} × ${b} — the grid method`, x: 800, y: 90, size: 1, c: 'y', align: 'center' },
-      { t: 'say', s: `Split ${a} into ${t} and ${o}.` },
-      { t: 'rect', x: 350, y: 220, w: w1, h: 300 }, { t: 'rect', x: 350 + w1, y: 220, w: W - w1, h: 300 },
-      { t: 'text', s: String(t), x: 350 + w1 / 2, y: 190, size: 0.9, align: 'center' }, { t: 'text', s: String(o), x: 350 + w1 + (W - w1) / 2, y: 190, size: 0.9, align: 'center' },
-      { t: 'text', s: String(b), x: 300, y: 390, size: 0.9, align: 'center' },
-      { t: 'say', s: `${t} × ${b} = ${t * b}, and ${o} × ${b} = ${o * b}.` },
-      { t: 'text', s: String(t * b), x: 350 + w1 / 2, y: 390, size: 1.2, c: 'b', align: 'center' }, { t: 'text', s: String(o * b), x: 350 + w1 + (W - w1) / 2, y: 390, size: 1, c: 'p', align: 'center' },
-      { t: 'say', s: `Add them: ${t * b} + ${o * b} = ${a * b}.` },
-      { t: 'text', s: `${a} × ${b} = ${t * b} + ${o * b} = ${a * b}`, x: 800, y: 660, size: 1, c: 'y', align: 'center' }
+      { t: 'text', s: B('mult.title', v), x: 800, y: 90, size: 1, c: 'y', align: 'center' },
+      { t: 'say', s: B('mult.say1', v) },
+      { t: 'rect', x: 350, y: 220, w: w1, h: 300 }, { t: 'rect', x: 350 + w1, y: 220, w: Wd - w1, h: 300 },
+      { t: 'text', s: N(t), x: 350 + w1 / 2, y: 190, size: 0.9, align: 'center' }, { t: 'text', s: N(o), x: 350 + w1 + (Wd - w1) / 2, y: 190, size: 0.9, align: 'center' },
+      { t: 'text', s: N(b), x: 300, y: 390, size: 0.9, align: 'center' },
+      { t: 'say', s: B('mult.say2', v) },
+      { t: 'text', s: N(t * b), x: 350 + w1 / 2, y: 390, size: 1.2, c: 'b', align: 'center' }, { t: 'text', s: N(o * b), x: 350 + w1 + (Wd - w1) / 2, y: 390, size: 1, c: 'p', align: 'center' },
+      { t: 'say', s: B('mult.say3', v) },
+      { t: 'text', s: `${N(a)} × ${N(b)} = ${N(t * b)} + ${N(o * b)} = ${N(a * b)}`, x: 800, y: 660, size: 1, c: 'y', align: 'center' }
     ];
   },
   division({ a, b }) {
+    const { N } = W;
     const q = a / b;
-    const out = [{ t: 'text', s: `${a} ÷ ${b}: share into ${b} groups`, x: 800, y: 90, size: 1, c: 'y', align: 'center' }, { t: 'say', s: `Draw ${b} plates and deal the sweets one at a time.` }];
+    const out = [{ t: 'text', s: B('division.title', { a: N(a), b: N(b) }), x: 800, y: 90, size: 1, c: 'y', align: 'center' }, { t: 'say', s: B('division.say1', { b: N(b) }) }];
     const gw = 1400 / b;
     for (let g = 0; g < b; g++) out.push({ t: 'circle', x: 100 + gw * (g + 0.5), y: 400, r: Math.min(90, gw * 0.42) });
     for (let k = 0; k < q; k++) for (let g = 0; g < b; g++) {
@@ -514,106 +588,124 @@ export const BOARDS = {
       const rr = Math.min(55, gw * 0.26);
       out.push({ t: 'circle', x: 100 + gw * (g + 0.5) + Math.cos(ang) * rr * (q > 1 ? 1 : 0), y: 400 + Math.sin(ang) * rr * (q > 1 ? 1 : 0), r: 10, c: 'p', fill: true });
     }
-    out.push({ t: 'say', s: `Each plate has ${q}.` }, { t: 'text', s: `${a} ÷ ${b} = ${q}`, x: 800, y: 660, size: 1.3, c: 'y', align: 'center' });
+    out.push({ t: 'say', s: B('division.say2', { q: N(q) }) }, { t: 'text', s: `${N(a)} ÷ ${N(b)} = ${N(q)}`, x: 800, y: 660, size: 1.3, c: 'y', align: 'center' });
     return out;
   },
   'fraction-of'({ n, d, whole }) {
-    const per = whole / d, W = 1100, x0 = 250;
-    const out = [{ t: 'text', s: `${n}/${d} of ${whole}`, x: 800, y: 110, size: 1.3, align: 'center' }, { t: 'say', s: `Draw a bar for ${whole}, cut into ${d} equal parts.` }, { t: 'rect', x: x0, y: 260, w: W, h: 120 }];
-    for (let k = 1; k < d; k++) out.push({ t: 'line', pts: [[x0 + (W * k) / d, 260], [x0 + (W * k) / d, 380]] });
-    for (let k = 0; k < d; k++) out.push({ t: 'text', s: String(per), x: x0 + (W * (k + 0.5)) / d, y: 340, size: 0.8, c: k < n ? 'p' : 'w', align: 'center' });
-    out.push({ t: 'say', s: `Each part is ${whole} ÷ ${d} = ${per}. Take ${n} parts.` });
-    out.push({ t: 'line', pts: [[x0, 420], [x0 + (W * n) / d, 420]], c: 'p' });
-    out.push({ t: 'text', s: `${n} × ${per} = ${n * per}`, x: 800, y: 600, size: 1.3, c: 'y', align: 'center' });
+    const { N } = W;
+    const per = whole / d, Wd = 1100, x0 = 250;
+    const v = { n: N(n), d: N(d), whole: N(whole), part: N(per) };
+    const out = [{ t: 'text', s: B('fracOf.title', v), x: 800, y: 110, size: 1.3, align: 'center' }, { t: 'say', s: B('fracOf.say1', v) }, { t: 'rect', x: x0, y: 260, w: Wd, h: 120 }];
+    for (let k = 1; k < d; k++) out.push({ t: 'line', pts: [[x0 + (Wd * k) / d, 260], [x0 + (Wd * k) / d, 380]] });
+    for (let k = 0; k < d; k++) out.push({ t: 'text', s: N(per), x: x0 + (Wd * (k + 0.5)) / d, y: 340, size: 0.8, c: k < n ? 'p' : 'w', align: 'center' });
+    out.push({ t: 'say', s: B('fracOf.say2', v) });
+    out.push({ t: 'line', pts: [[x0, 420], [x0 + (Wd * n) / d, 420]], c: 'p' });
+    out.push({ t: 'text', s: `${N(n)} × ${N(per)} = ${N(n * per)}`, x: 800, y: 600, size: 1.3, c: 'y', align: 'center' });
     return out;
   },
   balance({ a, b, x }) {
+    const { N } = W;
     return [
-      { t: 'text', s: `x + ${a} = ${b}`, x: 800, y: 100, size: 1.4, align: 'center' },
-      { t: 'say', s: 'An equation is a balanced scale: both sides weigh the same.' },
+      { t: 'text', s: `x + ${N(a)} = ${N(b)}`, x: 800, y: 100, size: 1.4, align: 'center' },
+      { t: 'say', s: B('balance.say1') },
       { t: 'line', pts: [[800, 560], [760, 640], [840, 640], [800, 560]] },
       { t: 'line', pts: [[400, 380], [1200, 380]] },
       { t: 'line', pts: [[800, 380], [800, 560]] },
       { t: 'rect', x: 430, y: 270, w: 110, h: 110, c: 'y' }, { t: 'text', s: 'x', x: 485, y: 345, size: 1, c: 'y', align: 'center' },
-      { t: 'rect', x: 560, y: 300, w: 140, h: 80, c: 'b' }, { t: 'text', s: String(a), x: 630, y: 360, size: 0.8, c: 'b', align: 'center' },
-      { t: 'rect', x: 940, y: 290, w: 200, h: 90, c: 'p' }, { t: 'text', s: String(b), x: 1040, y: 355, size: 0.9, c: 'p', align: 'center' },
-      { t: 'say', s: `Take ${a} off both sides — it still balances.` },
+      { t: 'rect', x: 560, y: 300, w: 140, h: 80, c: 'b' }, { t: 'text', s: N(a), x: 630, y: 360, size: 0.8, c: 'b', align: 'center' },
+      { t: 'rect', x: 940, y: 290, w: 200, h: 90, c: 'p' }, { t: 'text', s: N(b), x: 1040, y: 355, size: 0.9, c: 'p', align: 'center' },
+      { t: 'say', s: B('balance.say2', { a: N(a) }) },
       { t: 'cross', x: 630, y: 340, s: 60, c: 'p' },
-      { t: 'text', s: `x = ${b} − ${a} = ${x}`, x: 800, y: 740, size: 1.2, c: 'y', align: 'center' }
+      { t: 'text', s: `x = ${N(b)} − ${N(a)} = ${N(x)}`, x: 800, y: 740, size: 1.2, c: 'y', align: 'center' }
     ];
   },
   decimals({ a, b, s }) {
-    const { steps, at } = numberLine(0, 1, { every: 0.1, label: (v) => v.toFixed(1) });
-    const out = [{ t: 'text', s: `${a.toFixed(1)} + ${b.toFixed(1)}`, x: 800, y: 130, size: 1.3, align: 'center' }, { t: 'say', s: 'Between 0 and 1 there are ten tenths.' }, ...steps, { t: 'circle', x: at(a), y: 470, r: 18, c: 'y', fill: true }];
+    const { N } = W;
+    const { steps, at } = numberLine(0, 1, { every: 0.1, label: (v) => N(v, 1) });
+    const out = [{ t: 'text', s: `${N(a, 1)} + ${N(b, 1)}`, x: 800, y: 130, size: 1.3, align: 'center' }, { t: 'say', s: B('decimals.say1') }, ...steps, { t: 'circle', x: at(a), y: 470, r: 18, c: 'y', fill: true }];
     for (let k = 0; k < Math.round(b * 10); k++) out.push({ t: 'hop', x1: at(a + k / 10), x2: at(a + (k + 1) / 10), y: 450, h: 60, c: 'p' });
-    out.push({ t: 'circle', x: at(s), y: 470, r: 20, c: 'g', fill: true }, { t: 'say', s: `${Math.round(a * 10)} tenths + ${Math.round(b * 10)} tenths = ${s.toFixed(1)}.` }, { t: 'text', s: `= ${s.toFixed(1)}`, x: 800, y: 680, size: 1.3, c: 'y', align: 'center' });
+    out.push({ t: 'circle', x: at(s), y: 470, r: 20, c: 'g', fill: true }, { t: 'say', s: B('decimals.say2', { ta: N(Math.round(a * 10)), tb: N(Math.round(b * 10)), s: N(s, 1) }) }, { t: 'text', s: `= ${N(s, 1)}`, x: 800, y: 680, size: 1.3, c: 'y', align: 'center' });
     return out;
   },
   area({ w, h, ask }) {
+    const { N, T } = W;
     const cell = Math.min(80, 900 / w, 440 / h);
     const x0 = 800 - (w * cell) / 2, y0 = 170;
-    const out = [{ t: 'say', s: `A ${w} by ${h} rectangle, drawn in 1 cm squares.` }, { t: 'rect', x: x0, y: y0, w: w * cell, h: h * cell }];
+    const v = { w: N(w), h: N(h), v: N(w * h) };
+    const out = [{ t: 'say', s: B('area.say1', v) }, { t: 'rect', x: x0, y: y0, w: w * cell, h: h * cell }];
     for (let i = 1; i < w; i++) out.push({ t: 'line', pts: [[x0 + i * cell, y0], [x0 + i * cell, y0 + h * cell]], c: 'b' });
     for (let j = 1; j < h; j++) out.push({ t: 'line', pts: [[x0, y0 + j * cell], [x0 + w * cell, y0 + j * cell]], c: 'b' });
-    out.push({ t: 'text', s: `${w} cm`, x: 800, y: y0 - 20, size: 0.7, align: 'center' }, { t: 'text', s: `${h} cm`, x: x0 - 70, y: y0 + (h * cell) / 2, size: 0.7, align: 'center' });
-    if (ask === 'area') out.push({ t: 'say', s: `Area: count the squares. ${h} rows of ${w} = ${w * h}.` }, { t: 'text', s: `Area = ${w} × ${h} = ${w * h} cm²`, x: 800, y: 740, size: 1, c: 'y', align: 'center' });
-    else out.push({ t: 'say', s: `Perimeter: walk round the edge.` }, { t: 'line', pts: [[x0, y0], [x0 + w * cell, y0], [x0 + w * cell, y0 + h * cell], [x0, y0 + h * cell], [x0, y0]], c: 'p' }, { t: 'text', s: `${w} + ${h} + ${w} + ${h} = ${2 * (w + h)} cm`, x: 800, y: 740, size: 1, c: 'y', align: 'center' });
+    out.push({ t: 'text', s: T('unit.cm', { v: N(w) }), x: 800, y: y0 - 20, size: 0.7, align: 'center' }, { t: 'text', s: T('unit.cm', { v: N(h) }), x: x0 - 70, y: y0 + (h * cell) / 2, size: 0.7, align: 'center' });
+    if (ask === 'area') out.push({ t: 'say', s: B('area.sayArea', v) }, { t: 'text', s: B('area.lineArea', v), x: 800, y: 740, size: 1, c: 'y', align: 'center' });
+    else out.push({ t: 'say', s: B('area.sayPerimeter') }, { t: 'line', pts: [[x0, y0], [x0 + w * cell, y0], [x0 + w * cell, y0 + h * cell], [x0, y0 + h * cell], [x0, y0]], c: 'p' }, { t: 'text', s: `${N(w)} + ${N(h)} + ${N(w)} + ${N(h)} = ${T('unit.cm', { v: N(2 * (w + h)) })}`, x: 800, y: 740, size: 1, c: 'y', align: 'center' });
     return out;
   },
   negatives({ a, b, up }) {
+    const { S: fmt, N } = W;
     const v = up ? a + b : a - b;
     const lo = Math.min(-10, v), hi = Math.max(10, v);
-    const fmt = (n) => (n < 0 ? `−${-n}` : String(n));
     const { steps, at } = numberLine(lo, hi, { every: 1, label: (n) => (n % 2 === 0 ? fmt(n) : '') });
-    const out = [{ t: 'text', s: `${fmt(a)} ${up ? '+' : '−'} ${b}`, x: 800, y: 130, size: 1.3, align: 'center' }, { t: 'say', s: 'Numbers below zero sit to the left of 0.' }, ...steps, { t: 'circle', x: at(a), y: 470, r: 18, c: 'y', fill: true }];
+    const out = [{ t: 'text', s: `${fmt(a)} ${up ? '+' : '−'} ${N(b)}`, x: 800, y: 130, size: 1.3, align: 'center' }, { t: 'say', s: B('neg.say1') }, ...steps, { t: 'circle', x: at(a), y: 470, r: 18, c: 'y', fill: true }];
     for (let k = 0; k < b; k++) out.push({ t: 'hop', x1: at(up ? a + k : a - k), x2: at(up ? a + k + 1 : a - k - 1), y: 450, h: 50, c: 'p' });
-    out.push({ t: 'circle', x: at(v), y: 470, r: 20, c: 'g', fill: true }, { t: 'text', s: `= ${fmt(v)}`, x: 800, y: 680, size: 1.3, c: 'y', align: 'center' }, { t: 'say', s: `We land on ${fmt(v)}.` });
+    out.push({ t: 'circle', x: at(v), y: 470, r: 20, c: 'g', fill: true }, { t: 'text', s: `= ${fmt(v)}`, x: 800, y: 680, size: 1.3, c: 'y', align: 'center' }, { t: 'say', s: B('neg.say2', { v: fmt(v) }) });
     return out;
   },
   percent({ p, whole }) {
-    const out = [{ t: 'text', s: `${p}% of ${whole}`, x: 800, y: 100, size: 1.3, align: 'center' }, { t: 'say', s: 'Per cent means "out of 100". Here is a 100-square.' }];
+    const { N } = W;
+    const out = [{ t: 'text', s: B('percent.title', { p: N(p), whole: N(whole) }), x: 800, y: 100, size: 1.3, align: 'center' }, { t: 'say', s: B('percent.say1') }];
     const c = 42, x0 = 590, y0 = 150;
     out.push({ t: 'rect', x: x0, y: y0, w: c * 10, h: c * 10 });
     for (let i = 1; i < 10; i++) out.push({ t: 'line', pts: [[x0 + i * c, y0], [x0 + i * c, y0 + 10 * c]], c: 'b' }, { t: 'line', pts: [[x0, y0 + i * c], [x0 + 10 * c, y0 + i * c]], c: 'b' });
     out.push({ t: 'rect', x: x0, y: y0, w: (c * 10 * p) / 100, h: c * 10, c: 'p', fill: true });
-    out.push({ t: 'say', s: `${p} squares out of 100 are coloured.` }, { t: 'text', s: `${whole} × ${p} ÷ 100 = ${(whole * p) / 100}`, x: 800, y: 700, size: 1, c: 'y', align: 'center' });
+    out.push({ t: 'say', s: B('percent.say2', { p: N(p) }) }, { t: 'text', s: `${N(whole)} × ${N(p)} ÷ 100 = ${N((whole * p) / 100)}`, x: 800, y: 700, size: 1, c: 'y', align: 'center' });
     return out;
   },
   'two-step'({ a, b, c, x }) {
+    const { N } = W;
+    const v = { a: N(a), b: N(b), c: N(c), x: N(x) };
     return [
-      { t: 'text', s: `${a}x + ${b} = ${c}`, x: 800, y: 140, size: 1.4, align: 'center' },
-      { t: 'say', s: `Undo the adding first: take ${b} from both sides.` },
-      { t: 'text', s: `${a}x = ${c} − ${b} = ${c - b}`, x: 800, y: 330, size: 1.2, c: 'b', align: 'center' },
-      { t: 'say', s: `Now undo the times ${a}: divide both sides by ${a}.` },
-      { t: 'text', s: `x = ${c - b} ÷ ${a} = ${x}`, x: 800, y: 500, size: 1.2, c: 'g', align: 'center' },
-      { t: 'say', s: `Check: ${a} × ${x} + ${b} = ${a * x + b}. ✓` },
-      { t: 'text', s: `check: ${a}×${x} + ${b} = ${c}`, x: 800, y: 680, size: 0.9, c: 'y', align: 'center' }
+      { t: 'text', s: `${N(a)}x + ${N(b)} = ${N(c)}`, x: 800, y: 140, size: 1.4, align: 'center' },
+      { t: 'say', s: B('twoStep.say1', v) },
+      { t: 'text', s: `${N(a)}x = ${N(c)} − ${N(b)} = ${N(c - b)}`, x: 800, y: 330, size: 1.2, c: 'b', align: 'center' },
+      { t: 'say', s: B('twoStep.say2', v) },
+      { t: 'text', s: `x = ${N(c - b)} ÷ ${N(a)} = ${N(x)}`, x: 800, y: 500, size: 1.2, c: 'g', align: 'center' },
+      { t: 'say', s: B('twoStep.say3', v) },
+      { t: 'text', s: B('twoStep.check', v), x: 800, y: 680, size: 0.9, c: 'y', align: 'center' }
     ];
   },
   squares({ n, ask }) {
+    const { N } = W;
     const cell = Math.min(46, 480 / n), x0 = 260, y0 = 180;
-    const out = [{ t: 'say', s: `A square ${n} tiles wide and ${n} tiles tall.` }, { t: 'rect', x: x0, y: y0, w: n * cell, h: n * cell }];
+    const v = { n: N(n), sq: N(n * n) };
+    const out = [{ t: 'say', s: B('squares.say1', v) }, { t: 'rect', x: x0, y: y0, w: n * cell, h: n * cell }];
     for (let i = 1; i < n; i++) out.push({ t: 'line', pts: [[x0 + i * cell, y0], [x0 + i * cell, y0 + n * cell]], c: 'b' }, { t: 'line', pts: [[x0, y0 + i * cell], [x0 + n * cell, y0 + i * cell]], c: 'b' });
-    out.push({ t: 'text', s: `${n}² = ${n} × ${n} = ${n * n}`, x: 1120, y: 360, size: 1.1, c: 'y', align: 'center' });
-    if (ask === 'root') out.push({ t: 'say', s: `So the square root of ${n * n} is ${n}: the length of one side.` }, { t: 'text', s: `√${n * n} = ${n}`, x: 1120, y: 520, size: 1.3, c: 'g', align: 'center' });
-    else out.push({ t: 'say', s: `Count the tiles: ${n * n}.` });
+    out.push({ t: 'text', s: `${N(n)}² = ${N(n)} × ${N(n)} = ${N(n * n)}`, x: 1120, y: 360, size: 1.1, c: 'y', align: 'center' });
+    if (ask === 'root') out.push({ t: 'say', s: B('squares.sayRoot', v) }, { t: 'text', s: `√${N(n * n)} = ${N(n)}`, x: 1120, y: 520, size: 1.3, c: 'g', align: 'center' });
+    else out.push({ t: 'say', s: B('squares.sayCount', v) });
     return out;
   }
 };
 
-/** One problem from a generator, with its worked chalkboard steps. */
-export function makeProblem(gen, seed) {
-  const r = rng(seed);
-  const p = GENERATORS[gen](r);
-  return { ...p, gen, seed, topic: gen, board: BOARDS[gen]?.(p.data) ?? [] };
+/** One problem from a generator, with its worked chalkboard steps, in a language (default: the current one). */
+export function makeProblem(gen, seed, lc = locale()) {
+  const before = W;
+  W = words(lc);
+  try {
+    const r = rng(seed);
+    const { values, ...p } = GENERATORS[gen](r);
+    void values;
+    return { ...p, gen, seed, topic: gen, board: BOARDS[gen]?.(p.data) ?? [] };
+  } finally {
+    W = before;
+  }
 }
 
 /** `count` questions for a quiz, all different. */
-export function makeQuiz(gen, seed, count) {
+export function makeQuiz(gen, seed, count, lc = locale()) {
   const out = [];
   const seen = new Set();
   for (let k = 0; out.length < count && k < count * 20; k++) {
-    const p = makeProblem(gen, (seed + k * 7919) >>> 0);
+    const p = makeProblem(gen, (seed + k * 7919) >>> 0, lc);
     if (seen.has(p.q)) continue;
     seen.add(p.q);
     out.push(p);

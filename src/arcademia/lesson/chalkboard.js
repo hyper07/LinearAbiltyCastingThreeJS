@@ -8,7 +8,8 @@
  */
 const W = 1600, H = 800;
 const CHALK = { w: '#f4f1e8', y: '#ffe48a', p: '#ffadc0', b: '#a9d8ff', g: '#b8f0a8' };
-const FONT = '"Chalkboard SE", "Chalkboard", "Comic Sans MS", "Marker Felt", "Segoe Print", cursive';
+/** Chalk handwriting; Korean, Japanese and Chinese fall back to rounded system fonts. */
+const FONT = '"Chalkboard SE", "Chalkboard", "Comic Sans MS", "Marker Felt", "Segoe Print", "Hiragino Maru Gothic ProN", "Apple SD Gothic Neo", "PingFang SC", "Noto Sans CJK KR", "Noto Sans CJK JP", "Noto Sans CJK SC", "Microsoft YaHei", cursive';
 
 /** A tile of grain, punched out of every stroke so chalk looks dusty. */
 function grainTile() {

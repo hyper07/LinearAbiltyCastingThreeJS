@@ -12,9 +12,13 @@
  */
 import { el, button } from '../ui/dom.js';
 import { MAGNET_ITEMS, CIRCUIT_ITEMS, FLOAT_ITEMS } from '../content/schema.js';
+import { t as tr, num } from '../i18n/index.js';
 
 const W = 900, H = 500;
-const LABEL = (id) => id.replace(/-/g, ' ');
+/** A thing's name in the current language. */
+const LABEL = (id) => tr(`lab.item.${id}`);
+/** A number with a unit, in the language's format: U('m', 1.5, 1) → '1.5 m' / '1,5 m'. */
+const U = (unit, v, digits = 0) => tr(`lab.unit.${unit}`, { v: num(v, { minimumFractionDigits: digits, maximumFractionDigits: digits }) });
 const ICON = {
   ball: '⚽', feather: '🪶', paper: '📄', 'crumpled-paper': '🗞️', 'bowling-ball': '🎳', hammer: '🔨',
   'paper-clip': '📎', 'iron-nail': '🔩', 'steel-bolt': '🔩', eraser: '🧽', 'wooden-block': '🪵', 'aluminium-can': '🥫', 'glass-marble': '🔮', 'plastic-toy': '🧸', pencil: '✏️', 'rubber-band': '➰',
@@ -38,7 +42,7 @@ function bg(g, top = '#e9f4f6', bottom = '#d6e9ec') {
   g.fillRect(0, 0, W, H);
 }
 function text(g, s, x, y, { size = 22, color = '#1f3b36', align = 'center', weight = 800 } = {}) {
-  g.font = `${weight} ${size}px "Nunito Variable", system-ui, sans-serif`;
+  g.font = `${weight} ${size}px "Nunito Variable", "Hiragino Maru Gothic ProN", "Apple SD Gothic Neo", "PingFang SC", "Noto Sans CJK KR", "Microsoft YaHei", system-ui, sans-serif`;
   g.fillStyle = color;
   g.textAlign = align;
   g.textBaseline = 'middle';
@@ -70,12 +74,15 @@ function chips(host, options, value, onPick, label) {
   host.append(wrap);
   return wrap;
 }
+/** `unit` is a unit id from lab.unit.* ('m', 's', 'deg', 'mps') or '' for a bare number. */
 function slider(host, label, min, max, step, value, onInput, unit = '') {
   const wrap = el('label', 'arc-slider');
-  const out = el('output', null, `${value}${unit}`);
+  const digits = String(step).includes('.') ? String(step).split('.')[1].length : 0;
+  const show = (v) => (unit ? U(unit, Number(v), digits) : num(Number(v), { minimumFractionDigits: digits, maximumFractionDigits: digits }));
+  const out = el('output', null, show(value));
   const input = el('input', null, null, { type: 'range', min, max, step, value });
   input.addEventListener('input', () => {
-    out.textContent = `${input.value}${unit}`;
+    out.textContent = show(input.value);
     onInput(Number(input.value));
   });
   wrap.append(el('span', null, label), input, out);
@@ -105,8 +112,8 @@ const SIMS = {
       sound?.tap();
       return new Promise((r) => (done = r));
     };
-    if (setup.air === 'toggle') chips(controls, [[false, '🫙 No air (vacuum)'], [true, '💨 With air']], air, (v) => ((air = v), reset()), 'Air');
-    controls.append(button('arc-btn arc-btn--primary', '⬇ Drop them!', () => go()));
+    if (setup.air === 'toggle') chips(controls, [[false, tr('lab.noAir')], [true, tr('lab.withAir')]], air, (v) => ((air = v), reset()), tr('lab.air'));
+    controls.append(button('arc-btn arc-btn--primary', tr('lab.drop'), () => go()));
     return {
       watch: () => go().then(() => wait(900)),
       frame(dt) {
@@ -133,13 +140,13 @@ const SIMS = {
         if (!air) for (let i = 0; i < 30; i++) g.fillRect((i * 97) % W, (i * 53) % 300, 2, 2);
         g.fillStyle = air ? '#b98f5f' : '#7a7f8a';
         g.fillRect(0, floor + 22, W, H - floor);
-        text(g, air ? 'With air' : moon ? 'On the Moon: no air' : 'Vacuum: no air at all', W / 2, 30, { color: air ? '#1f3b36' : '#ffe9a8' });
+        text(g, tr(air ? 'lab.airTitle' : moon ? 'lab.moonTitle' : 'lab.vacuumTitle'), W / 2, 30, { color: air ? '#1f3b36' : '#ffe9a8' });
         for (const b of bodies) {
           const y = top + b.y * scale;
           const wob = b.o === 'feather' && air && b.landed == null ? Math.sin(t * 6) * 18 : 0;
           emoji(g, ICON[b.o], b.x + wob, y, 54);
           text(g, LABEL(b.o), b.x, floor + 60, { size: 18, color: air ? '#1f3b36' : '#fff' });
-          if (b.landed != null) text(g, `${b.landed.toFixed(2)} s`, b.x, floor + 86, { size: 17, color: air ? '#2c6b62' : '#9fe0c8' });
+          if (b.landed != null) text(g, U('s', b.landed, 2), b.x, floor + 86, { size: 17, color: air ? '#2c6b62' : '#9fe0c8' });
         }
         g.strokeStyle = air ? '#6b8f88' : '#6f86b8';
         g.setLineDash([6, 8]);
@@ -167,9 +174,9 @@ const SIMS = {
       sound?.tap();
       return new Promise((r) => (done = r));
     };
-    const pick = chips(controls, surfaces.map((s) => [s, `${s[0].toUpperCase()}${s.slice(1)}`]), surface, (v) => (surface = v), 'Floor');
-    slider(controls, 'Ramp tilt', 10, 45, 1, angle, (v) => (angle = v), '°');
-    controls.append(button('arc-btn arc-btn--primary', '▶ Let go', () => start()));
+    const pick = chips(controls, surfaces.map((s) => [s, tr(`lab.surface.${s}`)]), surface, (v) => (surface = v), tr('lab.floor'));
+    slider(controls, tr('lab.tilt'), 10, 45, 1, angle, (v) => (angle = v), 'deg');
+    controls.append(button('arc-btn arc-btn--primary', tr('lab.letGo'), () => start()));
     const rampLen = 3; // m
     const px = 80; // px per m
     return {
@@ -213,7 +220,7 @@ const SIMS = {
         g.fill();
         g.fillStyle = COL[surface];
         g.fillRect(footX, baseY, W - footX, 20);
-        text(g, `Floor: ${surface}`, footX + 120, baseY + 50, { size: 20 });
+        text(g, tr('lab.floorIs', { surface: tr(`lab.surface.${surface}`) }), footX + 120, baseY + 50, { size: 20 });
         for (const [s, d] of Object.entries(marks)) {
           const mx = footX + d * px;
           g.fillStyle = COL[s];
@@ -222,7 +229,7 @@ const SIMS = {
           rrect(g, mx - 34, baseY - 92, 68, 30, 8);
           g.fill();
           g.stroke();
-          text(g, `${s} ${d.toFixed(1)} m`, mx, baseY - 77, { size: 13 });
+          text(g, tr('lab.mark', { surface: tr(`lab.surface.${s}`), d: U('m', d, 1) }), mx, baseY - 77, { size: 13 });
         }
         let cx, cy, rot = 0;
         if (!car) {
@@ -268,14 +275,14 @@ const SIMS = {
       sound?.tap();
     };
     const right = el('div', 'arc-sim__group');
-    right.append(el('strong', null, 'Pendulum B'));
-    slider(right, 'String', 0.3, 2.5, 0.1, bobs[1].L, (v) => (bobs[1].L = v), ' m');
-    chips(right, [['small', 'Light weight'], ['big', 'Heavy weight']], 'big', (v) => (bobs[1].m = v), 'Weight');
+    right.append(el('strong', null, tr('lab.pendulum', { n: 'B' })));
+    slider(right, tr('lab.string'), 0.3, 2.5, 0.1, bobs[1].L, (v) => (bobs[1].L = v), 'm');
+    chips(right, [['small', tr('lab.light')], ['big', tr('lab.heavy')]], 'big', (v) => (bobs[1].m = v), tr('lab.weight'));
     const left = el('div', 'arc-sim__group');
-    left.append(el('strong', null, 'Pendulum A'));
-    slider(left, 'String', 0.3, 2.5, 0.1, bobs[0].L, (v) => (bobs[0].L = v), ' m');
-    chips(left, [['small', 'Light weight'], ['big', 'Heavy weight']], 'small', (v) => (bobs[0].m = v), 'Weight');
-    controls.append(left, right, button('arc-btn arc-btn--primary', '▶ Let go', go));
+    left.append(el('strong', null, tr('lab.pendulum', { n: 'A' })));
+    slider(left, tr('lab.string'), 0.3, 2.5, 0.1, bobs[0].L, (v) => (bobs[0].L = v), 'm');
+    chips(left, [['small', tr('lab.light')], ['big', tr('lab.heavy')]], 'small', (v) => (bobs[0].m = v), tr('lab.weight'));
+    controls.append(left, right, button('arc-btn arc-btn--primary', tr('lab.letGo'), go));
     return {
       async watch() {
         go();
@@ -310,8 +317,8 @@ const SIMS = {
           g.arc(x, y, b.m === 'big' ? 26 : 15, 0, Math.PI * 2);
           g.fill();
           const T = 2 * Math.PI * Math.sqrt(b.L / 9.8);
-          text(g, `${i ? 'B' : 'A'}: ${b.L.toFixed(1)} m · one swing ≈ ${T.toFixed(1)} s`, ox, 450, { size: 18 });
-          text(g, `swings: ${b.swings}`, ox, 478, { size: 16, color: '#5b6f69' });
+          text(g, tr('lab.swingTime', { n: i ? 'B' : 'A', len: U('m', b.L, 1), t: U('s', T, 1) }), ox, 450, { size: 18 });
+          text(g, tr('lab.swings', { n: b.swings }), ox, 478, { size: 16, color: '#5b6f69' });
         });
       }
     };
@@ -325,13 +332,13 @@ const SIMS = {
     let tilt = 0;
     let picked = 1;
     const sideOf = (s) => (s < 0 ? 'left' : 'right');
-    chips(controls, [[1, '1 kg'], [2, '2 kg'], [3, '3 kg']], 1, (v) => (picked = v), 'Weight to place');
+    chips(controls, [[1, U('kg', 1)], [2, U('kg', 2)], [3, U('kg', 3)]], 1, (v) => (picked = v), tr('lab.place'));
     const pegs = el('div', 'arc-sim__pegs');
     for (const s of slots) pegs.append(button('arc-chipbtn', `${s < 0 ? '◀' : ''}${Math.abs(s)}${s > 0 ? '▶' : ''}`, () => {
       weights[s] = weights[s] ? 0 : picked;
       sound?.tap();
-    }, { 'aria-label': `Put or take a weight ${Math.abs(s)} steps to the ${sideOf(s)} of the middle` }));
-    controls.append(el('span', 'arc-sim__note', 'Tap a spot to put a weight there (tap again to take it off):'), pegs, button('arc-btn', '↺ Clear', () => (weights = Object.fromEntries(Object.keys(weights).map((k) => [k, 0])))));
+    }, { 'aria-label': tr('lab.pegAria', { n: Math.abs(s), side: tr(`lab.${sideOf(s)}`) }) }));
+    controls.append(el('span', 'arc-sim__note', tr('lab.pegNote')), pegs, button('arc-btn', tr('lab.clear'), () => (weights = Object.fromEntries(Object.keys(weights).map((k) => [k, 0])))));
     return {
       async watch() {
         weights = { '-4': 0, '-3': 0, '-2': 2, '-1': 0, 1: 0, 2: 0, 3: 0, 4: 1 };
@@ -371,14 +378,14 @@ const SIMS = {
             const hgt = 26 + wgt * 14;
             rrect(g, x - 28, -14 - hgt, 56, hgt, 6);
             g.fill();
-            text(g, `${wgt} kg`, x, -14 - hgt / 2, { size: 16, color: '#fff' });
+            text(g, U('kg', wgt), x, -14 - hgt / 2, { size: 16, color: '#fff' });
           }
         }
         g.restore();
         const L = slots.filter((s) => s < 0).reduce((m, s) => m + -s * weights[s], 0);
         const R = slots.filter((s) => s > 0).reduce((m, s) => m + s * weights[s], 0);
-        text(g, `Left turning: ${L}   ·   Right turning: ${R}   ${L === R && L > 0 ? '⚖️ Balanced!' : ''}`, W / 2, 460, { size: 20 });
-        text(g, 'weight × distance from the middle', W / 2, 488, { size: 15, color: '#5b6f69' });
+        text(g, `${tr('lab.turning', { l: L, r: R })}   ${L === R && L > 0 ? tr('lab.balanced') : ''}`, W / 2, 460, { size: 20 });
+        text(g, tr('lab.moment'), W / 2, 488, { size: 15, color: '#5b6f69' });
       }
     };
   },
@@ -390,7 +397,7 @@ const SIMS = {
     let mx = 80;
     let target = 80;
     const move = (to) => (target = Math.max(60, Math.min(W - 60, to)));
-    controls.append(button('arc-btn', '◀ Move magnet', () => move(target - 110)), button('arc-btn', 'Move magnet ▶', () => move(target + 110)), button('arc-btn', '↺ Put things back', () => items.forEach((it, i) => Object.assign(it, { stuck: false, x: 140 + i * (620 / Math.max(1, items.length - 1)), y: 380 }))));
+    controls.append(button('arc-btn', tr('lab.magnetLeft'), () => move(target - 110)), button('arc-btn', tr('lab.magnetRight'), () => move(target + 110)), button('arc-btn', tr('lab.putBack'), () => items.forEach((it, i) => Object.assign(it, { stuck: false, x: 140 + i * (620 / Math.max(1, items.length - 1)), y: 380 }))));
     canvas.addEventListener('pointermove', (e) => {
       if (e.buttons !== 1) return;
       const r = canvas.getBoundingClientRect();
@@ -441,7 +448,7 @@ const SIMS = {
           if (!it.stuck) text(g, LABEL(it.id), it.x, 440, { size: 15 });
         }
         const n = items.filter((i) => i.stuck).length;
-        text(g, `Stuck to the magnet: ${n}`, W / 2, 476, { size: 18 });
+        text(g, tr('lab.stuck', { n }), W / 2, 476, { size: 18 });
       }
     };
   },
@@ -450,7 +457,7 @@ const SIMS = {
   shadow(canvas, controls, setup, { sound }) {
     const g = base(canvas);
     let lx = 200, ly = 300, want = 200;
-    slider(controls, 'Torch: far ↔ near', 60, 420, 1, lx, (v) => (want = v));
+    slider(controls, tr('lab.torch'), 60, 420, 1, lx, (v) => (want = v));
     const wallX = 820, toyX = 520, toyH = 120, floorY = 420;
     return {
       async watch() {
@@ -488,7 +495,7 @@ const SIMS = {
         emoji(g, '🧸', toyX, floorY - toyH / 2, 110);
         emoji(g, '🔦', lx, ly, 52);
         const big = (sBot - sTop) / toyH;
-        text(g, `Shadow is ${big.toFixed(1)}× as tall as the bear`, W / 2 - 60, 470, { size: 20, color: '#fff' });
+        text(g, tr('lab.shadowSize', { k: num(big, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }), W / 2 - 60, 470, { size: 20, color: '#fff' });
       }
     };
   },
@@ -502,7 +509,7 @@ const SIMS = {
       inGap = id;
       sound?.tap();
     }));
-    controls.append(el('span', 'arc-sim__note', 'Put something in the gap:'), tray, button('arc-btn', '🔘 Switch on / off', () => {
+    controls.append(el('span', 'arc-sim__note', tr('lab.gapNote')), tray, button('arc-btn', tr('lab.switch'), () => {
       closed = !closed;
       sound?.tap();
     }));
@@ -534,7 +541,7 @@ const SIMS = {
         g.fill();
         g.fillStyle = '#e2a33a';
         g.fillRect(520, B - 14, 12, 28);
-        text(g, '+  BATTERY  −', 450, B, { size: 16, color: '#fff' });
+        text(g, tr('lab.battery'), 450, B, { size: 16, color: '#fff' });
         // Bulb.
         if (lit) {
           const glow = g.createRadialGradient(R, T + 130, 4, R, T + 130, 120);
@@ -559,7 +566,7 @@ const SIMS = {
         if (inGap) {
           emoji(g, ICON[inGap] ?? '❔', 450, T, 40);
           text(g, LABEL(inGap), 450, T + 52, { size: 15 });
-        } else text(g, 'gap', 450, T, { size: 16, color: '#7a6a5a' });
+        } else text(g, tr('lab.gap'), 450, T, { size: 16, color: '#7a6a5a' });
         // Switch.
         g.strokeStyle = '#2b2b33';
         g.lineWidth = 6;
@@ -567,7 +574,7 @@ const SIMS = {
         g.moveTo(L, 230);
         g.lineTo(L + (closed ? 0 : 40), closed ? 290 : 280);
         g.stroke();
-        text(g, closed ? 'switch ON' : 'switch OFF', L + 70, 260, { size: 15, align: 'left' });
+        text(g, tr(closed ? 'lab.switchOn' : 'lab.switchOff'), L + 70, 260, { size: 15, align: 'left' });
         if (lit) for (let k = 0; k < 6; k++) {
           const p = ((t * 0.25 + k / 6) % 1) * 4;
           const pt = p < 1 ? [L, B - p * (B - T)] : p < 2 ? [L + (p - 1) * (R - L), T] : p < 3 ? [R, T + (p - 2) * (B - T)] : [R - (p - 3) * (R - L), B];
@@ -576,7 +583,7 @@ const SIMS = {
           g.arc(pt[0], pt[1], 6, 0, Math.PI * 2);
           g.fill();
         }
-        text(g, lit ? '💡 The bulb lights up! The circuit is complete.' : inGap && !CIRCUIT_ITEMS[inGap] ? `No light: ${LABEL(inGap)} does not let electricity through.` : !closed ? 'The switch is off: the loop is broken.' : 'The loop has a gap.', W / 2, 460, { size: 19 });
+        text(g, lit ? tr('lab.lit') : inGap && !CIRCUIT_ITEMS[inGap] ? tr('lab.noLight', { item: LABEL(inGap) }) : !closed ? tr('lab.switchedOff') : tr('lab.hasGap'), W / 2, 460, { size: 19 });
       }
     };
   },
@@ -592,7 +599,7 @@ const SIMS = {
     };
     const tray = el('div', 'arc-sim__chips');
     items.forEach((it) => tray.append(button('arc-chipbtn', `${ICON[it.id]} ${LABEL(it.id)}`, () => drop(it))));
-    controls.append(el('span', 'arc-sim__note', 'Drop something in:'), tray, button('arc-btn', '↺ Take them out', () => items.forEach((it) => Object.assign(it, { y: 70, v: 0, dropped: false, inWater: false }))));
+    controls.append(el('span', 'arc-sim__note', tr('lab.dropIn')), tray, button('arc-btn', tr('lab.takeOut'), () => items.forEach((it) => Object.assign(it, { y: 70, v: 0, dropped: false, inWater: false }))));
     let t = 0;
     return {
       async watch() {
@@ -634,7 +641,7 @@ const SIMS = {
         for (const it of items) {
           const bob = it.floats && it.inWater ? Math.sin(t * 3 + it.x) * 3 : 0;
           emoji(g, ICON[it.id], it.x, it.y + bob, 42);
-          if (it.inWater && Math.abs(it.v) < 20) text(g, it.floats ? 'floats' : 'sinks', it.x, it.floats ? surface - 40 : bottom + 30, { size: 15, color: it.floats ? '#2c6b62' : '#9a3b2b' });
+          if (it.inWater && Math.abs(it.v) < 20) text(g, tr(it.floats ? 'lab.floats' : 'lab.sinks'), it.x, it.floats ? surface - 40 : bottom + 30, { size: 15, color: it.floats ? '#2c6b62' : '#9a3b2b' });
         }
       }
     };
@@ -649,9 +656,9 @@ const SIMS = {
       amp = strength;
       sound?.pluck(Math.min(1400, f), strength);
     };
-    slider(controls, 'How far it sticks out', 0.1, 0.35, 0.01, len, (v) => (len = v), ' m');
-    slider(controls, 'How hard you twang', 0.1, 1, 0.1, strength, (v) => (strength = v));
-    controls.append(button('arc-btn arc-btn--primary', '🎵 Twang!', pluck));
+    slider(controls, tr('lab.sticksOut'), 0.1, 0.35, 0.01, len, (v) => (len = v), 'm');
+    slider(controls, tr('lab.howHard'), 0.1, 1, 0.1, strength, (v) => (strength = v));
+    controls.append(button('arc-btn arc-btn--primary', tr('lab.twang'), pluck));
     return {
       async watch() {
         len = 0.33;
@@ -690,7 +697,7 @@ const SIMS = {
           g.arc(420 + out, 258, 30 + k * 30 + ((t * 120) % 30), -0.6, 0.6);
           g.stroke();
         }
-        text(g, `Sticking out: ${(len * 100).toFixed(0)} cm · ${f ? (len < 0.2 ? 'high note' : len > 0.28 ? 'low note' : 'middle note') : 'twang it!'}${f ? ` · ${amp > 0.55 ? 'loud' : amp > 0.2 ? 'medium' : 'soft'}` : ''}`, W / 2, 460, { size: 20 });
+        text(g, `${tr('lab.sticking', { len: U('cm', Math.round(len * 100)) })} · ${tr(f ? (len < 0.2 ? 'lab.high' : len > 0.28 ? 'lab.low' : 'lab.middle') : 'lab.twangIt')}${f ? ` · ${tr(amp > 0.55 ? 'lab.loud' : amp > 0.2 ? 'lab.medium' : 'lab.soft')}` : ''}`, W / 2, 460, { size: 20 });
       }
     };
   },
@@ -701,7 +708,7 @@ const SIMS = {
     let temp = -10, heat = 0;
     let latent = 0; // energy soaked up while melting or boiling
     const parts = Array.from({ length: 60 }, (_, i) => ({ gx: (i % 10) * 26, gy: Math.floor(i / 10) * 26, x: 0, y: 0, vx: (Math.random() - 0.5) * 40, vy: (Math.random() - 0.5) * 40 }));
-    slider(controls, 'Heat (− cool, + heat)', -3, 3, 1, heat, (v) => (heat = v));
+    slider(controls, tr('lab.heat'), -3, 3, 1, heat, (v) => (heat = v));
     return {
       async watch() {
         temp = -10;
@@ -766,14 +773,14 @@ const SIMS = {
         const level = ((temp + 20) / 140) * 280;
         g.fillStyle = '#d23b3b';
         g.fillRect(648, 400 - level, 24, level);
-        for (const [v, lab] of [[0, '0 °C'], [100, '100 °C']]) {
+        for (const [v, lab] of [[0, U('c', 0)], [100, U('c', 100)]]) {
           const y = 400 - ((v + 20) / 140) * 280;
           g.fillStyle = '#5b6f69';
           g.fillRect(684, y - 1, 16, 2);
           text(g, lab, 706, y, { size: 15, align: 'left' });
         }
-        text(g, `${temp.toFixed(0)} °C`, 660, 440, { size: 20 });
-        text(g, melting ? 'Melting… the ice takes in heat' : boiling ? 'Boiling! Water turns to steam' : state === 'ice' ? 'Ice: a solid' : state === 'water' ? 'Water: a liquid' : 'Steam: a gas', 370, 70, { size: 24 });
+        text(g, U('c', Math.round(temp)), 660, 440, { size: 20 });
+        text(g, tr(melting ? 'lab.melting' : boiling ? 'lab.boiling' : state === 'ice' ? 'lab.ice' : state === 'water' ? 'lab.water' : 'lab.steam'), 370, 70, { size: 24 });
       }
     };
   },
@@ -782,15 +789,15 @@ const SIMS = {
   orbit(canvas, controls, setup, { sound }) {
     const g = base(canvas);
     const GM = 3.2e6, cx = W / 2, cy = H / 2 + 10, R = 60;
-    let speed = 230, moon = null, trail = [], status = 'Set a speed and launch.';
+    let speed = 230, moon = null, trail = [], status = tr('lab.setSpeed');
     const launch = () => {
       moon = { x: cx, y: cy - 170, vx: speed, vy: 0, t: 0 };
       trail = [];
-      status = 'Flying…';
+      status = tr('lab.flying');
       sound?.tap();
     };
-    slider(controls, 'Launch speed', 80, 260, 5, speed, (v) => (speed = v));
-    controls.append(button('arc-btn arc-btn--primary', '🚀 Launch', launch));
+    slider(controls, tr('lab.speed'), 80, 260, 5, speed, (v) => (speed = v));
+    controls.append(button('arc-btn arc-btn--primary', tr('lab.launch'), launch));
     const run = async (v, ms) => {
       speed = v;
       launch();
@@ -814,13 +821,13 @@ const SIMS = {
             moon.y += moon.vy * h;
             moon.t += h;
             if (r < R + 10) {
-              status = 'Too slow — it fell to the planet!';
+              status = tr('lab.tooSlow');
               moon = null;
               sound?.step();
             } else if (r > 700) {
-              status = 'Too fast — it flew off into space!';
+              status = tr('lab.tooFast');
               moon = null;
-            } else if (moon.t > 3.2) status = 'In orbit! Falling all the way round.';
+            } else if (moon.t > 3.2) status = tr('lab.inOrbit');
           }
           if (moon && (trail.push([moon.x, moon.y]), trail.length > 260)) trail.shift();
         }
@@ -849,7 +856,7 @@ const SIMS = {
           g.fill();
         }
         text(g, status, W / 2, 470, { size: 20, color: '#fff' });
-        text(g, `speed ${speed}`, 90, 30, { size: 16, color: '#9fb4d6' });
+        text(g, tr('lab.speedIs', { n: speed }), 90, 30, { size: 16, color: '#9fb4d6' });
       }
     };
   },
@@ -859,7 +866,7 @@ const SIMS = {
     const g = base(canvas);
     let angle = 30; // degrees of the incoming beam from the normal
     let shown = 30;
-    slider(controls, 'Beam angle (from the normal)', 10, 70, 1, angle, (v) => (angle = v), '°');
+    slider(controls, tr('lab.beam'), 10, 70, 1, angle, (v) => (angle = v), 'deg');
     return {
       async watch() {
         angle = 30;
@@ -899,10 +906,10 @@ const SIMS = {
         g.shadowBlur = 0;
         emoji(g, '🔦', inX - 10, inY - 10, 40);
         emoji(g, '⭐', mx + Math.sin((angle * Math.PI) / 180) * L, my - Math.cos((angle * Math.PI) / 180) * L - 10, 40);
-        text(g, `in: ${shown.toFixed(0)}°`, mx - 90, my - 60, { size: 18, color: '#ffe9a8' });
-        text(g, `out: ${shown.toFixed(0)}°`, mx + 90, my - 60, { size: 18, color: '#ffe9a8' });
-        text(g, 'normal', mx, my - 345, { size: 14, color: '#8aa0b8' });
-        text(g, 'The angle in equals the angle out', W / 2, 460, { size: 20, color: '#fff' });
+        text(g, tr('lab.in', { a: U('deg', shown) }), mx - 90, my - 60, { size: 18, color: '#ffe9a8' });
+        text(g, tr('lab.out', { a: U('deg', shown) }), mx + 90, my - 60, { size: 18, color: '#ffe9a8' });
+        text(g, tr('lab.normal'), mx, my - 345, { size: 14, color: '#8aa0b8' });
+        text(g, tr('lab.law'), W / 2, 460, { size: 20, color: '#fff' });
       }
     };
   },
@@ -918,10 +925,10 @@ const SIMS = {
       running = true;
       sound?.tap();
     };
-    slider(controls, 'Cart A speed', 1, 8, 1, carts[0].v, (v) => (carts[0].v = v), ' m/s');
-    slider(controls, 'Cart B speed', 1, 8, 1, carts[1].v, (v) => (carts[1].v = v), ' m/s');
-    slider(controls, 'Time', 1, 8, 1, T, (v) => (T = v), ' s');
-    controls.append(button('arc-btn arc-btn--primary', '🏁 Go!', go));
+    slider(controls, tr('lab.cartSpeed', { n: 'A' }), 1, 8, 1, carts[0].v, (v) => (carts[0].v = v), 'mps');
+    slider(controls, tr('lab.cartSpeed', { n: 'B' }), 1, 8, 1, carts[1].v, (v) => (carts[1].v = v), 'mps');
+    slider(controls, tr('lab.time'), 1, 8, 1, T, (v) => (T = v), 's');
+    controls.append(button('arc-btn arc-btn--primary', tr('lab.go'), go));
     return {
       async watch() {
         carts[0].v = 4;
@@ -949,9 +956,9 @@ const SIMS = {
           g.fillStyle = c.c;
           rrect(g, 40 + c.x * px - 20, y, 44, 26, 6);
           g.fill();
-          text(g, `${c.n}: ${c.v} m/s × ${t.toFixed(1)} s = ${(c.v * t).toFixed(1)} m`, W - 60, y - 22, { size: 18, align: 'right' });
+          text(g, tr('lab.raceLine', { n: c.n, v: U('mps', c.v), t: U('s', t, 1), d: U('m', c.v * t, 1) }), W - 60, y - 22, { size: 18, align: 'right' });
         });
-        text(g, `distance = speed × time   (metres)`, W / 2, 470, { size: 20 });
+        text(g, tr('lab.raceLaw'), W / 2, 470, { size: 20 });
       }
     };
   }

@@ -14,6 +14,7 @@
  * Parts that move are marked `userData.live` and keep out of the batch.
  */
 import * as THREE from 'three';
+import { t as tr } from '../i18n/index.js';
 import { PLINTH_H, PLINTH_R } from './layout.js';
 import { add, batch, box, cone, cyl, gable, ico, mat, seeded, signTexture, sphere } from './kit.js';
 
@@ -497,7 +498,18 @@ function moonDome(g, P, floor, subject) {
 const SHAPES = { house: schoolhouse, hall, tower: observatory, pyramid, mushroom: mushroomHouse, igloo, cloudhouse: cloudHouse, shell, lighthouse, dome: moonDome };
 const BUILDERS = { math: schoolhouse, history: hall, physics: observatory };
 export { door, window, lanternPost as lantern, palette, bench };
-export const BUILDING_NAMES = { math: 'Math School', history: 'History Hall', physics: 'Physics Lab' };
+/** The schools' names in the current language (ui.js building.*). */
+export const BUILDING_NAMES = {
+  get math() {
+    return tr('building.math');
+  },
+  get history() {
+    return tr('building.history');
+  },
+  get physics() {
+    return tr('building.physics');
+  }
+};
 export const SUBJECT_ICONS = { math: '🔢', history: '🏛️', physics: '🔭' };
 
 /**
