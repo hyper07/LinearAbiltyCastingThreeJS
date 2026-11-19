@@ -128,9 +128,12 @@ export class ModelStudio {
       /* built game without the server */
     }
     const names = { tripo: 'Tripo3D', meshy: 'Meshy', mock: 'the test generator (no network)' };
-    this.$('[data-gen-provider]').textContent = data.provider
-      ? `Uses ${names[data.provider]}. Characters are rigged and animated automatically. Takes 1–3 minutes.`
-      : 'Not set up yet: add TRIPO_API_KEY (or MESHY_API_KEY) to .env and restart `npm run dev`.';
+    this.$('[data-gen-provider]').textContent =
+      data.provider === 'local'
+        ? 'Uses TRELLIS.2 on this computer: free, one model at a time, 3–6 minutes each. Models come out static; rig characters at mesh2motion.org.'
+        : data.provider
+          ? `Uses ${names[data.provider]}. Characters are rigged and animated automatically. Takes 1–3 minutes.`
+          : `Not set up yet: add TRIPO_API_KEY (or MESHY_API_KEY) to .env and restart \`npm run dev\`, or run \`npm run modelgen:setup\` for the free local generator${data.local?.reason ? ` (${data.local.reason})` : ''}.`;
     this.$('[data-gen-go]').disabled = !data.provider;
     const list = this.$('[data-list]');
     list.replaceChildren();
@@ -239,7 +242,7 @@ export class ModelStudio {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
       let job = body.job;
-      while (job.state === 'running') {
+      while (job.state === 'running' || job.state === 'queued') {
         this._status('gen', `${job.step}… ${Math.round(job.progress * 100)}%`);
         bar.firstElementChild.style.width = `${Math.max(2, job.progress * 100)}%`;
         await new Promise((r) => setTimeout(r, 1500));

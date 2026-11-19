@@ -10,11 +10,13 @@
  * The catalog is what the game and the AI map planner choose from, so a model
  * that is not in it does not exist as far as they are concerned.
  */
+import { existsSync } from 'node:fs';
 import { open, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LIBRARY, MANIFESTS, walk } from './lib.mjs';
 import { SOURCES_LIST, categorize, normalizeWords, themesFor, surfaceFor } from '../../src/library/categories.js';
+import { withToolCredits } from '../../server/modelgen-local.mjs';
 
 /* ---------------------------------------------------------------------- */
 /* glTF inspection                                                         */
@@ -214,7 +216,9 @@ export async function buildCatalog() {
     rigs
   };
   await writeFile(path.join(LIBRARY, 'catalog.json'), JSON.stringify(catalog));
-  await writeFile(path.join(LIBRARY, 'CREDITS.md'), credits(models, materials));
+  // The local model generator, when installed (npm run modelgen:setup), keeps its credits here too.
+  const creditsText = credits(models, materials);
+  await writeFile(path.join(LIBRARY, 'CREDITS.md'), existsSync(path.join(LIBRARY, 'tools', 'trellis-mac')) ? withToolCredits(creditsText) : creditsText);
   // A library indexed by hand (no fetch run) still reports itself as ready.
   const statusFile = path.join(LIBRARY, 'status.json');
   try {

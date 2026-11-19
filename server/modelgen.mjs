@@ -13,6 +13,10 @@
  *                    names and given idle / walk / run, so they use the game's
  *                    own cast animations)
  *   MESHY_API_KEY  → Meshy    (image → model; humanoids rigged + idle/walk/run)
+ *   local          → TRELLIS.2 on this Mac (free, MIT; modelgen-local.mjs),
+ *                    once `npm run modelgen:setup` has installed it. Chosen
+ *                    when no cloud key is set, or with MODELGEN_PROVIDER=local.
+ *                    One job at a time; static textured models (no rig).
  *   MODELGEN_PROVIDER=mock → no network: copies a bundled character, for testing
  *
  * Results are downloaded immediately: Tripo's links expire after minutes,
@@ -21,11 +25,14 @@
  *   GET    /api/models              → { models, provider }
  *   POST   /api/models/upload       { name, category, kind, glb (base64) }
  *   POST   /api/models/generate     { name, image (data URI), kind: 'object'|'character', category }
+ *                                    → 202 { job } (state 'queued' while another local job runs)
  *   GET    /api/models/jobs/<id>    → job status
  *   DELETE /api/models/<id>
  */
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+
+import { LOCAL_CREDIT, createSerialQueue, localStatus as findLocal, runLocal } from './modelgen-local.mjs';
 
 const ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const MAX_UPLOAD = 120 * 1024 * 1024;
@@ -105,7 +112,18 @@ export function inspectGlb(buffer) {
 /* Storage                                                                 */
 /* ---------------------------------------------------------------------- */
 
-export function createModelStore({ libraryRoot, env = process.env, log = console.log }) {
+/** Credit lines stored with each generated model (shown in a game's credits). */
+export const GENERATOR_CREDITS = {
+  local: LOCAL_CREDIT,
+  tripo: { tool: 'Tripo3D', license: 'Tripo terms (paid plans: commercial use)', url: 'https://www.tripo3d.ai', text: 'Generated with Tripo3D (https://www.tripo3d.ai).' },
+  meshy: { tool: 'Meshy', license: 'Meshy terms (paid plans: you own the output)', url: 'https://www.meshy.ai', text: 'Generated with Meshy (https://www.meshy.ai).' }
+};
+
+/**
+ * `local` overrides the local generator for tests:
+ * { status: () => ({ ready, reason }), run: (job, input) => Promise<Buffer> }.
+ */
+export function createModelStore({ libraryRoot, env = process.env, log = console.log, local: localOverride = null }) {
   const dir = resolve(libraryRoot, 'my-models');
   const indexFile = join(dir, 'index.json');
   const jobs = new Map();
@@ -127,7 +145,7 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
     `${String(name || 'model').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'model'}-${Date.now().toString(36)}`;
 
   /** Save a GLB and list it in the index. */
-  async function saveModel(buffer, { name, category, kind, source, prompt = null }) {
+  async function saveModel(buffer, { name, category, kind, source, prompt = null, generator = null }) {
     const facts = inspectGlb(buffer);
     const id = slug(name);
     await mkdir(join(dir, id), { recursive: true });
@@ -154,6 +172,8 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
       author: source,
       kind: isCharacter ? 'character' : 'object',
       prompt,
+      // Who made it, for the game's credits: { tool, license, url, text }.
+      ...(generator ? { generator, credit: generator.text } : {}),
       createdAt: new Date().toISOString()
     };
     const index = await readIndex();
@@ -175,13 +195,17 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
   /* Providers                                                             */
   /* -------------------------------------------------------------------- */
 
+  const localStatus = localOverride?.status ?? (() => findLocal(libraryRoot));
+  /** Forced choice first; else a cloud key; else the local install if it's ready. */
   const provider = () => {
     const forced = env.MODELGEN_PROVIDER;
     if (forced === 'mock') return 'mock';
+    if (forced === 'local') return localStatus().ready ? 'local' : null;
     if (forced === 'tripo' && env.TRIPO_API_KEY) return 'tripo';
     if (forced === 'meshy' && env.MESHY_API_KEY) return 'meshy';
     if (env.TRIPO_API_KEY) return 'tripo';
     if (env.MESHY_API_KEY) return 'meshy';
+    if (forced !== 'none' && localStatus().ready) return 'local';
     return null;
   };
 
@@ -317,28 +341,69 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
     }
   };
 
-  const PROVIDERS = { tripo, meshy, mock };
+  /* Free, on this Mac: TRELLIS.2 (modelgen-local.mjs). No rig. */
+  const local = {
+    run: localOverride?.run ?? ((job, input) => runLocal(job, input, { libraryRoot, env, log })),
+    async wrap(job, input) {
+      const buffer = await this.run(job, input);
+      if (input.kind === 'character') {
+        job.note = 'Made as a static model (the local generator does not rig). Rig it free at https://app.mesh2motion.org, then upload the GLB as a character.';
+      }
+      return buffer;
+    }
+  };
+  // One local generation at a time: each one wants most of the GPU.
+  const localQueue = createSerialQueue();
 
-  function startJob({ name, image, kind = 'object', category = 'misc' }) {
+  const PROVIDERS = {
+    tripo,
+    meshy,
+    mock,
+    local: { run: (job, input) => local.wrap(job, input) }
+  };
+
+  function startJob({ name, image, imagePath, kind = 'object', category = 'misc', seed }) {
     const which = provider();
-    if (!which) throw new Error('No 3D generator configured — add TRIPO_API_KEY or MESHY_API_KEY to .env and restart.');
+    if (!which) {
+      const status = localStatus();
+      throw new Error(
+        `No 3D generator configured — add TRIPO_API_KEY or MESHY_API_KEY to .env and restart, or set up the free local one: ${status.reason ?? 'npm run modelgen:setup'}.`
+      );
+    }
     const id = `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const job = { id, provider: which, state: 'running', step: 'Starting', progress: 0, note: null, error: null, model: null };
     jobs.set(id, job);
-    (async () => {
-      try {
-        const buffer = await PROVIDERS[which].run(job, { image, kind });
-        job.step = 'Saving';
-        job.model = await saveModel(buffer, { name, category, kind, source: which, prompt: 'image' });
-        if (kind === 'character' && !job.model.rigged) job.note ??= 'It came back without a skeleton, so it is a map object rather than a character.';
-        job.progress = 1;
-        job.state = 'done';
-      } catch (error) {
-        job.state = 'failed';
-        job.error = String(error?.message ?? error);
-        log(`[models] job ${id} failed: ${job.error}`);
+    const work = async () => {
+      job.state = 'running';
+      job.step = 'Starting';
+      const buffer = await PROVIDERS[which].run(job, { image, imagePath, kind, seed });
+      job.step = 'Saving';
+      job.model = await saveModel(buffer, { name, category, kind, source: which, prompt: 'image', generator: GENERATOR_CREDITS[which] ?? null });
+      if (kind === 'character' && !job.model.rigged) job.note ??= 'It came back without a skeleton, so it is a map object rather than a character.';
+      job.progress = 1;
+      job.state = 'done';
+    };
+    let ran;
+    if (which === 'local') {
+      const token = {};
+      ran = localQueue.push(work, token);
+      const ahead = localQueue.position(token);
+      if (ahead > 0) {
+        job.state = 'queued';
+        job.step = `Waiting for ${ahead} model${ahead > 1 ? 's' : ''} ahead`;
       }
-    })();
+    } else {
+      ran = work();
+    }
+    ran.catch((error) => {
+      job.state = 'failed';
+      job.error = String(error?.message ?? error);
+      log(`[models] job ${id} failed: ${job.error}`);
+    });
+    job.done = ran.then(
+      () => job,
+      () => job
+    );
     return job;
   }
 
@@ -346,6 +411,7 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
   /* HTTP                                                                  */
   /* -------------------------------------------------------------------- */
 
+  const publicJob = ({ done, ...job }) => job;
   const send = (res, status, body) => {
     res.statusCode = status;
     res.setHeader('Content-Type', 'application/json');
@@ -375,7 +441,10 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
     const url = (req.url ?? '').split('?')[0];
     if (!url.startsWith('/api/models')) return false;
     try {
-      if (url === '/api/models' && req.method === 'GET') return send(res, 200, { ...(await readIndex()), provider: provider() }), true;
+      if (url === '/api/models' && req.method === 'GET') {
+        const status = localStatus();
+        return send(res, 200, { ...(await readIndex()), provider: provider(), local: { ready: Boolean(status.ready), reason: status.reason ?? null } }), true;
+      }
       if (url === '/api/models/upload' && req.method === 'POST') {
         const body = await readBody(req);
         if (!body.glb) return send(res, 400, { error: 'no model in the request' }), true;
@@ -385,13 +454,13 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
       if (url === '/api/models/generate' && req.method === 'POST') {
         const body = await readBody(req);
         if (!/^data:image\/(png|jpe?g|webp);base64,/.test(body.image ?? '')) return send(res, 400, { error: 'send a PNG, JPEG or WebP image' }), true;
-        const job = startJob(body);
-        return send(res, 202, { job }), true;
+        const job = startJob({ name: body.name, image: body.image, kind: body.kind, category: body.category });
+        return send(res, 202, { job: publicJob(job) }), true;
       }
       const jobMatch = url.match(/^\/api\/models\/jobs\/([\w-]+)$/);
       if (jobMatch && req.method === 'GET') {
         const job = jobs.get(jobMatch[1]);
-        return send(res, job ? 200 : 404, job ? { job } : { error: 'no such job' }), true;
+        return send(res, job ? 200 : 404, job ? { job: publicJob(job) } : { error: 'no such job' }), true;
       }
       const delMatch = url.match(/^\/api\/models\/([a-z0-9-]+)$/);
       if (delMatch && req.method === 'DELETE') {
@@ -404,6 +473,6 @@ export function createModelStore({ libraryRoot, env = process.env, log = console
     }
   }
 
-  return { handle, saveModel, readIndex, provider, startJob, jobs };
+  return { handle, saveModel, readIndex, provider, startJob, jobs, localStatus };
 }
 

@@ -24,7 +24,9 @@
     "db:import": "node --disable-warning=ExperimentalWarning scripts/db-import.mjs",
     "kb": "node scripts/kb.mjs",
     "kb:build": "node scripts/kb-pixelfx.mjs && node scripts/kb-build.mjs",
-    "library:polyfork": "node scripts/library/polyfork.mjs"
+    "library:polyfork": "node scripts/library/polyfork.mjs",
+    "modelgen:setup": "node scripts/modelgen-setup.mjs",
+    "modelgen:local": "node scripts/modelgen-local.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.12",

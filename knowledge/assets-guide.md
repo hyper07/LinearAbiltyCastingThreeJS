@@ -213,8 +213,9 @@ humanoids and four-legged animals.
 
 | Model | Runs on Apple silicon? | Licence | Verdict |
 | --- | --- | --- | --- |
-| **TRELLIS.2** (Microsoft, 4B) | Yes, through the community port [trellis-mac](https://github.com/shivampkumar/trellis-mac) (MPS; Metal rasteriser in place of nvdiffrast). About 18 GB peak, about 3–5 min per model on an M4 Pro | MIT. **But** the port's background remover, RMBG-2.0, is CC BY-NC. Feed it pre-cut transparent PNGs or swap in another remover, and check DINOv3's licence | **Best local option**: textured PBR GLBs, free per model |
-| Stable Fast 3D / SPAR3D (Stability) | Official experimental MPS (`PYTORCH_ENABLE_MPS_FALLBACK=1`). About 6–10 GB, seconds per model | Stability Community License: free under $1M a year in revenue | Quick props; lower detail |
+| **TRELLIS.2** (Microsoft, 4B) | Yes, through the community port [trellis-mac](https://github.com/shivampkumar/trellis-mac) (MPS; Metal rasteriser in place of nvdiffrast). **Installed here, see §5.2.1** | Code and weights MIT. Needs Meta's **DINOv3** (DINOv3 License: commercial use allowed, show "Built with DINOv3"; gated on Hugging Face). The port's default remover RMBG-2.0 is CC BY-NC, so we use **BiRefNet (MIT)** instead | **Best local option**: textured PBR GLBs, free per model |
+| Stable Fast 3D / SPAR3D (Stability) | Official experimental MPS (`PYTORCH_ENABLE_MPS_FALLBACK=1`). About 6–10 GB, seconds per model | Stability Community License: free only under $1M a year in revenue, "Powered by Stability AI" credit; weights gated (click-through) | Not installed: lower detail, and the revenue cap |
+| TRELLIS.2 on MLX ([mlx-spatial](https://github.com/appautomaton/mlx-spatial), MIT) | Yes, no torch; about 2.5 min and 3.5 GB at 8-bit | Its ready bundle re-hosts DINOv3 and RMBG-2.0 (non-commercial) outside their official repos | Watch it; not used |
 | Hunyuan3D-2 / 2.1 (Tencent) | Shape on MPS; texturing through a Mac port at low settings | **Its licence does not cover South Korea, the EU or the UK.** Don't use it here | Avoid |
 | TripoSR, TripoSG, InstantMesh, Step1X-3D, Direct3D-S2, Hi3DGen, PartCrafter | CUDA only, or no Mac path | MIT / Apache | Not practical on this Mac |
 | Auto-rigging (UniRig, Puppeteer, Make-It-Animatable) | CUDA only | MIT / Apache | Rig in the cloud, Mixamo, or **Mesh2Motion** instead |
@@ -225,6 +226,62 @@ skeleton to the mesh and it paints the skin weights. It has human, fox, bird,
 dragon, horse, kaiju, spider, snake and shark rigs, and the result plays all of
 that rig's clips. A free local pipeline is TRELLIS.2 for the mesh, then Mesh2Motion
 for the rig and clips, then `characters.js` in the game.
+
+### 5.2.1 The local generator here: TRELLIS.2 with `npm run modelgen:setup`
+
+One command installs it (idempotent, re-run it to repair), about 18 GB, all under
+`library/tools/trellis-mac/` (git-ignored): pinned checkouts of trellis-mac,
+TRELLIS.2 and the Metal backends, a Python 3.11 venv (uv) with torch 2.11 (2.12+
+needs C++20 and breaks the Metal extensions; versions in
+`scripts/modelgen/constraints.txt`), and the weights in `hf-cache/`. Dev and
+build never run it.
+
+```bash
+hf auth login                      # once
+# once, in a browser: accept the DINOv3 licence (Meta reviews it)
+#   https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m
+npm run modelgen:setup             # install / repair; prints what's missing
+npm run modelgen:setup -- --check  # report only
+npm run modelgen:local -- picture.png --name "Treasure chest"            # → library/my-models
+npm run modelgen:local -- hero.png --name Witch --kind character --json  # JSON for scripts / agents
+```
+
+- **In the game:** Model Studio uses it automatically when no `TRIPO_API_KEY` /
+  `MESHY_API_KEY` is set (or force it with `MODELGEN_PROVIDER=local`; opt out with
+  `MODELGEN_PROVIDER=none`). Jobs run one at a time (`state: 'queued'` while
+  waiting, and a lock file stops the dev server and the CLI running two at once).
+  Each child process has a 30-minute timeout.
+- **Pictures:** a PNG with a transparent background is used as is; anything else
+  is cut out with BiRefNet. One object, front or three-quarter view, centred, with
+  limbs apart from the body. T- or A-pose for characters you'll rig.
+- **Knobs** (env): `MODELGEN_LOCAL_PIPELINE` `512` (default) | `1024` |
+  `1024_cascade`; `MODELGEN_LOCAL_TEXTURE` `512` | `1024` | `2048`;
+  `MODELGEN_LOCAL_FACES` (default 100000); `MODELGEN_LOCAL_TIMEOUT_MIN` (30);
+  `MODELGEN_LOCAL_KEEP_LOADED` (`1` by default with 64 GB of RAM or more: faster,
+  more memory).
+- **Credits:** every model it makes gets `generator` and `credit` in
+  `my-models/index.json` ("Generated with TRELLIS.2 (MIT, …) … Built with
+  DINOv3 …"); show `credit` in the game's credits. Install credits are in
+  `library/CREDITS.md`.
+- **Output:** one static mesh with baked PBR textures (base colour, metallic,
+  roughness), centred in a unit cube, Y up. No skeleton, so `kind: 'character'`
+  still saves it as a map object until it's rigged.
+- **Rigging it for free:** open https://app.mesh2motion.org, load the GLB, pick
+  the Human rig (or fox, bird, dragon, horse, spider, snake, shark, kaiju), fit the
+  skeleton, let it paint the weights, and export a GLB with the clips you want.
+  Upload that in Model Studio as a character. Its skeleton is the Mesh2Motion one
+  our 234 human clips are made for, so `rigClips(..., { rig: 'mesh2motion-human' })`
+  plays them without retargeting (§3.5). Works best on T/A-pose bodies with clear
+  gaps between arms and torso; chunky chibis rig fine with the fox or human rig.
+- **Measured on the M5 Max (Nov 2026):** loading the pipeline takes about 100 s
+  per job (each job is a fresh process). A stress run with a random stand-in for
+  DINOv3, which fills the whole voxel grid (20M raw triangles, the worst case),
+  took 14 min and peaked at 84 GB; the Metal bake down to 100k triangles took
+  17 s. Real objects fill far less of the grid, and trellis-mac reports about
+  18 GB and 3–5 min on an M4 Pro. Fill in real numbers once DINOv3 is in.
+- **Runner:** `scripts/modelgen/trellis_run.py` (spawned by
+  `server/modelgen-local.mjs`) reports JSON progress lines and runs offline
+  (`HF_HUB_OFFLINE=1`): setup does all the downloading.
 
 ### 5.3 Sculpting cute creatures in the browser with SDFs
 
@@ -270,7 +327,8 @@ To make it a game asset:
    for winged, serpentine and many-legged creatures. Both are wired into
    `modelgen.mjs` already. Allow quadruped rigs there.
 4. **Local and free per model:** TRELLIS.2 through trellis-mac on the M5 Max,
-   without RMBG-2.0, then Mesh2Motion for the rig.
+   with BiRefNet in place of RMBG-2.0 (`npm run modelgen:setup`, §5.2.1), then
+   Mesh2Motion for the rig.
 5. **A house style for cute creatures:** the SDF sculpting route above, built
    into a small creature maker.
 
@@ -286,3 +344,7 @@ a credit line where they are shown:
 - **Carrot the cat**: David Revoy (CC BY 4.0).
 - **Parrot, Flamingo, Stork, Horse**: mirada / ro.me (Apache-2.0).
 - **Soldier, Michelle, X Bot**: Mixamo terms; ship them inside the game only.
+- **Models from the local generator** (§5.2.1): show each one's `credit` from
+  `my-models/index.json`. It names TRELLIS.2 (MIT) and must keep
+  "Built with DINOv3" (the DINOv3 License asks for it). Tripo and Meshy models get
+  a `credit` line with the service's website too.

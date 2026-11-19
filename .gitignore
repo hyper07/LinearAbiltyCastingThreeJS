@@ -148,3 +148,4 @@ dist
 /source/
 *.scx
 *.scm
+__pycache__/
