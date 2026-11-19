@@ -92,6 +92,17 @@ Kept in `vendor/` with each licence beside it, and searched with `npm run kb` â€
 | [Mesh2Motion](https://github.com/Mesh2Motion/mesh2motion-app), [Gobkit](https://github.com/Ariescar/gobkit-free-assets), [Kenney starter kits](https://github.com/KenneyNL), [Khronos Fox](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox), [three.js example models](https://github.com/mrdoob/three.js/tree/r170/examples/models/gltf), [100Avatars](https://opensourceavatars.com), [Poly Haven HDRIs](https://polyhaven.com/hdris) | Rigged, animated characters and creatures (234 shared human clips), VRM avatars and HDRIs, fetched into `library/rigged/` (never committed), each with its licence file; see `knowledge/assets-guide.md`. Gloamreach retargets the human clips onto its heroes and humanoid monsters for every fight (sword combos, shield bash and block, bow draws, spells, rolls, hits, deaths, ground pounds). Kithvale borrows the human clips for its adventurer's jump, sprint, creep, throw, kneel and pick-up and its villagers' work. Wyldhunt rebuilds the horse as its Shagmane mount (fur shells, tack), the T-Rex as the Gnarlhorn (horns, plates, ruff, tail club) and the spider as its thornskitters, and borrows the human clips for greatblade swings, bow draws, riding, gathering, carving and drinking | CC0, except as noted per model in `library/CREDITS.md`: Khronos Fox rig, Jay, Sintel, Bunny and Carrot the cat (CC BY 4.0), Sophia (CC BY-SA 4.0), ro.me birds and horse (Apache-2.0), X Bot (Mixamo) |
 | [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) via [trellis-mac](https://github.com/shivampkumar/trellis-mac), with [DINOv3](https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m) and [BiRefNet](https://github.com/ZhengPeng7/BiRefNet) | Free local picture-to-3D on Apple silicon (`npm run modelgen:setup`, `npm run modelgen:local`), installed into `library/tools/trellis-mac/` (never committed); each generated model stores a `credit` line in `my-models/index.json`; parts listed in `library/CREDITS.md` | MIT (TRELLIS.2 code and weights, trellis-mac, BiRefNet, Metal backends); DINOv3 License â€” show "Built with DINOv3" |
 
+### Kindlewatch
+
+| What | Used for | Licence |
+| --- | --- | --- |
+| [three.js](https://threejs.org) | The WebGL renderer and the bloom pass under Kindlewatch's lit, painted 2D picture | MIT |
+| [Nunito](https://fonts.google.com/specimen/Nunito) via [Fontsource](https://fontsource.org/fonts/nunito) (`@fontsource-variable/nunito`) | The menus, HUD and painted damage numbers | SIL Open Font License 1.1 (font), MIT (package) |
+
+Every sprite, texture, effect and sound in Kindlewatch is made in code for it (`src/kindlewatch/art/`,
+`paint.js`, `audio.js`); its colour ramps come from the platform's own pixel-art kit (`src/pixel/art.js`).
+No pixelfx effects or library models are used. Its Credits panel reads `src/kindlewatch/credits.js`.
+
 ### AI Arcademia
 
 | What | Used for | Licence |

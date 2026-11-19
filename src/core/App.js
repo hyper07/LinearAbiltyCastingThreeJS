@@ -1501,6 +1501,7 @@ export class App {
     if (game.engine === 'gloamreach') return this.openGloamreach(game);
     if (game.engine === 'wyldhunt') return this.openWyldhunt(game);
     if (game.engine === 'kithvale') return this.openKithvale(game);
+    if (game.engine === 'kindlewatch') return this.openKindlewatch(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1586,6 +1587,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new WyldhuntGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Kindlewatch, the hand-painted top-down action game's first map: its own screen and lit 2D view, like Kithvale. */
+  async openKindlewatch(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { KindlewatchGame } = await import('../kindlewatch/KindlewatchGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new KindlewatchGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

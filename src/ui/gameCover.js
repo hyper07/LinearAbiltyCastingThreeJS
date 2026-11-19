@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', creatures: '🐾', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽', learning: '🎓', rpg: '🗡️'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', creatures: '🐾', action: '🔥', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽', learning: '🎓', rpg: '🗡️'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -105,7 +105,7 @@ function skyline(kind, r, color) {
 const PHOTO_COVERS = new Set([
   'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
   // Taken by scripts/covers.mjs (run it again to refresh them).
-  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt', 'kithvale'
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch'
 ]);
 
 /**
@@ -143,6 +143,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'gloamreach') return gloamreachCover(game);
   if (game.card?.cover === 'wyldhunt') return wyldhuntCover(game);
   if (game.card?.cover === 'kithvale') return kithvaleCover(game);
+  if (game.card?.cover === 'kindlewatch') return kindlewatchCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -266,6 +267,33 @@ function kithvaleCover(game) {
     <circle cx="128" cy="150" r="13" fill="#a8c87a"/><path d="M124 138 L120 126 M128 137 L129 124 M132 138 L138 127" stroke="#5a8a34" stroke-width="3" stroke-linecap="round"/>
     <circle cx="124" cy="148" r="2.6" fill="#2a1a10"/><circle cx="132" cy="148" r="2.6" fill="#2a1a10"/>
     <text x="14" y="28" fill="#fff4dc" font-family="system-ui, sans-serif" font-weight="800" font-size="20" letter-spacing="1">Kithvale</text>
+  </svg>`;
+}
+
+/** Kindlewatch: a snowy courtyard seen from above at night, a brazier's warm pool against the blue, snow-capped blocks, a horned knight. */
+function kindlewatchCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs>
+      <radialGradient id="kw-pool-${uid}" cx="0.42" cy="0.5" r="0.55"><stop offset="0" stop-color="#f2b070"/><stop offset="0.45" stop-color="#8a6a7a"/><stop offset="1" stop-color="#22264a"/></radialGradient>
+      <radialGradient id="kw-fire-${uid}" cx="0.5" cy="0.6" r="0.5"><stop offset="0" stop-color="#fff6c8"/><stop offset="0.5" stop-color="#ffb040"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#kw-pool-${uid})"/>
+    <g stroke="#1a1222" stroke-width="3">
+      <rect x="0" y="0" width="320" height="34" fill="#2a2e4c"/>
+      <rect x="10" y="6" width="40" height="22" rx="6" fill="#dfe6f8"/><rect x="56" y="6" width="40" height="22" rx="6" fill="#cfd8f0"/><rect x="230" y="6" width="40" height="22" rx="6" fill="#dfe6f8"/><rect x="276" y="6" width="40" height="22" rx="6" fill="#cfd8f0"/>
+      <rect x="226" y="96" width="34" height="46" rx="4" fill="#3c4266"/><rect x="226" y="80" width="34" height="22" rx="6" fill="#e6ecfa"/>
+      <rect x="116" y="88" width="30" height="48" rx="4" fill="#4a4e72"/><path d="M106 84 Q131 104 156 84 Z" fill="#8a5426"/>
+      <path d="M260 120 Q280 112 300 124 Q296 150 268 150 Z" fill="#9ad0f2"/>
+    </g>
+    <ellipse cx="131" cy="70" rx="22" ry="30" fill="url(#kw-fire-${uid})"/>
+    <g stroke="#1a1222" stroke-width="2.5">
+      <path d="M180 132 h22 v18 h-22z" fill="#5c6c8c"/><circle cx="191" cy="122" r="11" fill="#8c9ebc"/>
+      <path d="M181 116 q-12 -10 -8 -20 q4 10 10 12z M201 116 q12 -10 8 -20 q-4 10 -10 12z" fill="#e2d6b4"/>
+      <path d="M203 140 l26 -14" stroke="#dce6f0" stroke-width="4"/>
+      <path d="M78 150 q6 -12 14 -4 q6 -14 12 2 z" fill="#e05a2a"/>
+    </g>
+    <text x="14" y="168" fill="#ffe2a8" stroke="#1a1222" stroke-width="3" paint-order="stroke" font-family="system-ui, sans-serif" font-weight="900" font-size="22" letter-spacing="2">KINDLEWATCH</text>
   </svg>`;
 }
 

@@ -136,6 +136,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'creatures', genreName: 'Creatures', cover: 'kithvale', badge: 'NEW' }
   },
   {
+    id: 'official:kindlewatch',
+    title: 'Kindlewatch',
+    summary: 'The opening map of a hand-painted top-down action game: Kindlewatch Keep, a fortress snowed in and gone cold. Fight through its courtyards — a gatehouse yard, the Brazier Court, a frozen garden, a cloister of bones, a fallen rampart — relighting braziers whose warm light pushes back the blue dark, and climb to the frost giant on the Rime Throne. Two heroes, five kinds of foe, combos, charged blows, dashes, summons.',
+    engine: 'kindlewatch',
+    genre: 'action',
+    card: { genre: 'action', genreName: 'Action', cover: 'kindlewatch', badge: 'NEW' }
+  },
+  {
     id: 'official:lanternwood',
     title: 'Lanternwood',
     summary: 'Pixel heroes made solid in a lit 3D world, the camera behind you. Four classes, four realms — a night forest, sunlit hills, frozen peaks, a burning caldera — hero monsters and bosses, loot you can see on your hero, and co-op for up to four.',

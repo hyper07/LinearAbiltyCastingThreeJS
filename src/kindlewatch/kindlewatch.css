@@ -1,0 +1,112 @@
+.kw { position: fixed; inset: 0; background: #07060c; color: #f4ead8; font-family: 'Nunito Variable', 'Nunito', system-ui, sans-serif; overflow: hidden; user-select: none; -webkit-user-select: none; outline: none; z-index: 50; touch-action: none; cursor: crosshair;
+  --ink: #1a1222; --paper: #f1e6cf; --ember: #ff9a3c; --ember2: #ffcf7a; --frost: #bcd8ff; --plate: rgba(22, 16, 30, 0.82); }
+.kw canvas.kw-view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.kw canvas.kw-over { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
+.kw button { font: inherit; }
+.kw kbd { display: inline-block; min-width: 1.6em; padding: 0 0.42em; border-radius: 6px; border: 2px solid var(--ink); background: #e9dcc0; color: var(--ink); font: 800 0.78em/1.5 system-ui, sans-serif; text-align: center; box-shadow: 0 2px 0 var(--ink); }
+
+/* Loading */
+.kw-load { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 62%, #5a2a1a 0%, #241426 40%, #07060c 80%); transition: opacity 0.7s; }
+.kw-load__box { text-align: center; width: min(460px, 86vw); }
+.kw-bar { margin-top: 30px; height: 10px; border: 3px solid var(--ink); border-radius: 8px; background: #1e1626; overflow: hidden; box-shadow: 0 0 0 2px #6a4a3a; }
+.kw-bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ff7a2a, #ffd27a); transition: width 0.25s; }
+.kw-load__label { margin-top: 12px; font-size: 14px; letter-spacing: 0.04em; color: #e8d4b8; }
+
+/* Title lettering: thick ink, warm fill */
+.kw-title { font: 900 clamp(34px, 4.4vw, 60px)/0.95 'Nunito Variable', system-ui, sans-serif; letter-spacing: 0.06em; color: #ffe2a8; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 4px 0 var(--ink), 0 0 28px rgba(255, 140, 50, 0.55), 0 10px 40px rgba(0, 0, 0, 0.6); }
+.kw-sub { margin-top: 10px; font: 700 clamp(14px, 1.6vw, 18px) 'Nunito Variable', system-ui, sans-serif; color: #cfe0ff; letter-spacing: 0.08em; text-shadow: 0 2px 6px #000; }
+
+/* Panels: dark painted plates with an ink border and a warm rim */
+.kw-panel { position: absolute; z-index: 30; background: linear-gradient(160deg, rgba(40, 28, 44, 0.96), rgba(18, 13, 24, 0.97)); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 0 0 2px #7a5a3a, 0 18px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 220, 160, 0.15); padding: 22px 24px; color: #f1e6cf; }
+.kw-panel h2 { margin: 0 0 12px; font: 900 26px 'Nunito Variable', system-ui, sans-serif; letter-spacing: 0.04em; color: #ffd890; -webkit-text-stroke: 1px var(--ink); paint-order: stroke fill; }
+.kw-panel p { margin: 6px 0; line-height: 1.5; color: #e2d6c2; font-size: 14px; }
+.kw-center { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px)); max-height: calc(100% - 32px); overflow: auto; }
+.kw-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.kw-btn { cursor: pointer; padding: 11px 20px; border: 3px solid var(--ink); border-radius: 12px; background: linear-gradient(180deg, #4a3a4e, #2c2232); color: #f4e6cc; font-weight: 800; font-size: 15px; letter-spacing: 0.02em; box-shadow: 0 3px 0 var(--ink); transition: transform 0.08s, filter 0.15s; }
+.kw-btn:hover, .kw-btn:focus-visible { filter: brightness(1.2); outline: none; }
+.kw-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.kw-btn--go { background: linear-gradient(180deg, #ffb35a, #e0642a); color: #2a1206; text-shadow: 0 1px 0 rgba(255, 230, 180, 0.6); }
+.kw-btn--quiet { background: transparent; border-color: rgba(240, 220, 190, 0.35); box-shadow: none; }
+
+/* Start screen */
+.kw-start { position: absolute; inset: 0; z-index: 20; pointer-events: none; background: linear-gradient(90deg, rgba(8, 6, 14, 0.82) 0%, rgba(8, 6, 14, 0.5) 38%, rgba(8, 6, 14, 0) 62%); }
+.kw-start__panel { position: absolute; left: clamp(16px, 5vw, 80px); top: 50%; transform: translateY(-50%); width: min(470px, calc(100vw - 32px)); max-height: calc(100% - 24px); overflow: auto; pointer-events: auto; }
+.kw-heroes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 6px; }
+.kw-hero { cursor: pointer; position: relative; text-align: left; padding: 10px 10px 12px; border: 3px solid var(--ink); border-radius: 16px; background: linear-gradient(170deg, rgba(56, 40, 58, 0.95), rgba(24, 18, 30, 0.95)); color: #f4e6cc; box-shadow: 0 3px 0 var(--ink); transition: transform 0.12s; }
+.kw-hero:hover { transform: translateY(-2px); }
+.kw-hero[aria-pressed='true'] { box-shadow: 0 0 0 3px #ffb35a, 0 3px 0 var(--ink), 0 0 24px rgba(255, 150, 60, 0.35); }
+.kw-hero canvas { display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; background: radial-gradient(circle at 50% 70%, #6a3a24 0%, #241a2c 60%, #120e18 100%); border: 2px solid var(--ink); }
+.kw-hero b { display: block; margin-top: 8px; font-size: 17px; font-weight: 900; color: #ffd890; }
+.kw-hero span { display: block; margin-top: 2px; font-size: 12px; color: #c8bca8; line-height: 1.35; }
+.kw-blurb { min-height: 64px; font-size: 13px !important; }
+.kw-start__note { margin-top: 14px; font-size: 12px !important; color: #a89c8c !important; }
+
+/* HUD */
+.kw-hud { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.kw-emblem { position: absolute; left: 14px; top: 10px; width: 330px; height: 140px; }
+.kw-gems { position: absolute; left: 22px; top: 150px; display: flex; align-items: center; gap: 6px; padding: 3px 14px 3px 8px; border: 3px solid var(--ink); border-radius: 999px; background: var(--plate); font-weight: 900; font-size: 18px; color: #ffe2a8; box-shadow: 0 2px 0 var(--ink); }
+.kw-gems canvas { width: 22px; height: 26px; }
+.kw-tags { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 7px; }
+.kw-tag { position: relative; display: flex; align-items: center; gap: 8px; min-width: 190px; padding: 5px 16px 5px 6px; border: 3px solid var(--ink); background: var(--plate); color: #f1e6cf; font-weight: 800; font-size: 13.5px; clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%); box-shadow: 0 2px 0 var(--ink); overflow: hidden; }
+.kw-tag > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, rgba(255, 120, 40, 0.5), rgba(255, 190, 90, 0.35)); z-index: -1; transition: width 0.1s; }
+.kw-tag.ready { color: #ffe9b8; }
+.kw-tag.ready > i { background: linear-gradient(90deg, rgba(255, 120, 40, 0.75), rgba(255, 200, 100, 0.55)); }
+.kw-tag kbd { flex: none; }
+.kw-tag small { margin-left: auto; color: #ffcf8a; font-weight: 900; }
+.kw-tag--summon { background: linear-gradient(90deg, rgba(120, 30, 90, 0.85), rgba(40, 18, 40, 0.9)); }
+.kw-map { position: absolute; right: 14px; top: 12px; width: 230px; height: 186px; border: 3px solid var(--ink); border-radius: 14px; background: rgba(14, 11, 20, 0.78); box-shadow: 0 0 0 2px #6a4a3a, 0 6px 20px rgba(0, 0, 0, 0.5); }
+.kw-map__name { position: absolute; right: 14px; top: 204px; width: 230px; text-align: center; font-weight: 900; font-size: 13px; letter-spacing: 0.06em; color: #e6d4b4; text-shadow: 0 2px 0 var(--ink), 0 0 8px #000; }
+.kw-boss { position: absolute; left: 50%; bottom: 22px; width: min(620px, calc(100vw - 260px)); transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity 0.6s; }
+.kw-boss.on { opacity: 1; }
+.kw-boss b { display: block; font: 900 18px 'Nunito Variable', system-ui, sans-serif; letter-spacing: 0.12em; color: #d8f0ff; -webkit-text-stroke: 1px var(--ink); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink), 0 0 16px rgba(120, 200, 255, 0.6); }
+.kw-boss__bar { position: relative; margin-top: 6px; height: 20px; border: 3px solid var(--ink); border-radius: 10px; background: #160f1c; overflow: hidden; box-shadow: 0 0 0 2px #5a7aa8; }
+.kw-boss__bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #b8ecff, #4a8ad8 55%, #2a4a98); transition: width 0.25s; }
+.kw-boss__bar > u { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 255, 255, 0.6); transition: width 0.9s 0.25s; }
+.kw-boss__bar > s { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--ink); }
+.kw-toast { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+.kw-toast.on { opacity: 1; }
+.kw-toast b { display: block; font: 900 clamp(26px, 3.4vw, 42px) 'Nunito Variable', system-ui, sans-serif; letter-spacing: 0.08em; color: #ffe2a8; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink), 0 0 26px rgba(255, 140, 50, 0.5); }
+.kw-toast span { display: block; margin-top: 4px; font-weight: 800; font-size: 15px; color: #d0dcf0; text-shadow: 0 2px 4px #000; }
+.kw-note { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); padding: 6px 14px; border: 3px solid var(--ink); border-radius: 10px; background: var(--plate); font-weight: 800; font-size: 14px; color: #f1e6cf; opacity: 0; transition: opacity 0.3s; white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+.kw-note.on { opacity: 1; }
+.kw-prompt { position: absolute; transform: translate(-50%, -100%); padding: 3px 9px; border: 2px solid var(--ink); border-radius: 8px; background: var(--plate); font-weight: 800; font-size: 13px; white-space: nowrap; opacity: 0; transition: opacity 0.2s; }
+.kw-prompt.on { opacity: 1; }
+.kw-perf { position: absolute; right: 14px; bottom: 10px; font: 600 11px ui-monospace, monospace; color: #b8c4d8; text-shadow: 0 1px 2px #000; }
+
+/* Credits and controls */
+.kw-credits ul { list-style: none; padding: 0; margin: 10px 0; }
+.kw-credits li { margin: 0 0 12px; font-size: 14px; line-height: 1.45; color: #e2d6c2; }
+.kw-credits a { color: #ffcf8a; }
+.kw-credits small { color: #a89c8c; }
+.kw-keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; align-items: center; }
+
+/* Touch */
+.kw-touch { position: absolute; inset: 0; z-index: 12; pointer-events: none; }
+.kw-stick { position: absolute; left: 0; top: 0; width: 120px; height: 120px; transform: translate(-200px, -200px); }
+.kw-stick__base { position: absolute; inset: 0; border-radius: 50%; border: 3px solid rgba(255, 230, 200, 0.4); background: rgba(20, 14, 26, 0.35); }
+.kw-stick__knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255, 200, 140, 0.6); border: 3px solid var(--ink); }
+.kw-tbtns { position: absolute; right: 14px; bottom: 16px; width: 214px; height: 200px; pointer-events: none; }
+.kw-tb { position: absolute; pointer-events: auto; width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--ink); background: rgba(40, 28, 44, 0.75); color: #ffe2a8; font-weight: 900; font-size: 12px; box-shadow: 0 3px 0 var(--ink); touch-action: none; }
+.kw-tb.down { filter: brightness(1.5); transform: translateY(2px); }
+.kw-tb--attack { right: 0; bottom: 0; width: 84px; height: 84px; background: rgba(140, 60, 30, 0.8); font-size: 14px; }
+.kw-tb--dash { right: 96px; bottom: 0; }
+.kw-tb--ranged { right: 4px; bottom: 98px; }
+.kw-tb--summon { right: 80px; bottom: 76px; }
+.kw-tb--potion { right: 150px; bottom: 120px; width: 52px; height: 52px; }
+.kw-tb--use { right: 164px; bottom: 54px; width: 52px; height: 52px; }
+.kw-tb--menu { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: 46px; height: 46px; }
+@media (max-width: 760px) {
+  .kw-emblem { width: 250px; height: 106px; left: 8px; top: 6px; }
+  .kw-gems { top: 110px; left: 12px; font-size: 15px; }
+  .kw-map { width: 132px; height: 108px; right: 8px; top: 8px; }
+  .kw-map__name { width: 132px; right: 8px; top: 120px; font-size: 11px; }
+  .kw-tags { display: none; }
+  .kw-boss { width: calc(100vw - 32px); bottom: 230px; }
+  .kw-heroes { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kw-start { background: linear-gradient(0deg, rgba(8, 6, 14, 0.9) 30%, rgba(8, 6, 14, 0.3) 100%); }
+  .kw-start__panel { left: 16px; right: 16px; width: auto; top: auto; bottom: 12px; transform: none; max-height: 72%; }
+  .kw-blurb { min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kw * { transition: none !important; }
+}

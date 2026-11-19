@@ -150,6 +150,7 @@ export class PlatformHome {
     chip(`${GENRE_ICONS.rpg} Fantasy RPG`, 'rpg');
     chip(`${GENRE_ICONS['monster-hunt']} Monster hunt`, 'monster-hunt');
     chip(`${GENRE_ICONS.creatures} Creatures`, 'creatures');
+    chip(`${GENRE_ICONS.action} Action`, 'action');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -412,6 +413,8 @@ export class PlatformHome {
         ? 'Choose your hunter\'s armour when you play: Ironbark, Mosscale or Fernstalker — every hunter carries a greatblade and a bow'
         : game.engine === 'kithvale'
         ? 'Choose your look when you play: Sprout, Wren or Pip — your friends and journal are kept on this device'
+        : game.engine === 'kindlewatch'
+        ? 'Choose your hero when you play: the Hornwarden (sword and shield) or the Veilrunner (spear and lantern)'
         : game.engine === 'hd2d'
         ? 'Pick your class — Blade, Warden, Seer or Ranger — and a look; your journey is kept on this device'
         : game.engine === 'squad'
@@ -419,9 +422,11 @@ export class PlatformHome {
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale'].includes(game.engine)) {
+    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = game.engine === 'kithvale'
+      page.querySelector('.home-page__hint').textContent = game.engine === 'kindlewatch'
+        ? 'A top-down action game\'s first map: no story yet. WASD to move, the mouse to aim; left click strikes (tap three times for a chain, hold for a charged blow), right click throws, Space dashes, Q summons, R drinks a draught (no cooldown), E lights or douses a fire, Esc for the menu and credits. Gamepads work too, and on a phone there\'s a stick and buttons.'
+        : game.engine === 'kithvale'
         ? 'A creature-befriending adventure\'s first map: no story yet. WASD to move, Shift to run faster, Space to jump, hold Ctrl to creep up quietly; 1–3 to pick a treat and Q (or right-click) to toss it, E to talk, gather and breathe with a creature that trusts you, J for your journal, Esc for the menu and credits. On a phone: a stick, buttons and a drag to look. It lowers its own detail if frames run slow.'
         : game.engine === 'wyldhunt'
         ? 'A monster hunt\'s first map: no story yet. WASD to move, Shift to sprint, Space to roll; left and right mouse to strike (hold to charge), Tab for the bow, E to gather, carve and mount, X to whistle for your mount, hold R to let it run the path, 1–4 for items, B for your bag, Esc for the menu and credits. Best with a mouse and keyboard on a computer with a good graphics card; it lowers its own detail if frames run slow.'

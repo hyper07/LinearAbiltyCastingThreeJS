@@ -182,6 +182,15 @@ const SHOTS = {
     await bare(page, '.kv');
     await wait(600);
   },
+  kindlewatch: async (page) => {
+    await open(page, 'official:kindlewatch');
+    await until(page, () => window.kindlewatch?.ready && window.kindlewatch.mode === 'menu', null, 120000);
+    // A swing by the great brazier, imps in its light, a slime in the cold.
+    await page.evaluate(() => window.kindlewatch.coverShot());
+    await wait(page, 600);
+    await bare(page, '.kw');
+    await wait(page, 300);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);
