@@ -1387,6 +1387,7 @@ export class Race {
   _results() {
     if (this.phase !== 'done') return;
     const order = this._order();
+    if (this.me?.done != null && order.indexOf(this.me) === 0) this.g.music?.cue('victory');
     const s = this.session;
     const host = !s?.room || s.isHost;
     this.resultEl.hidden = false;

@@ -459,6 +459,8 @@ export class HuntCombat {
     this.t = 0;
     g.kit.actor.act('Die', { loop: false, fade: 0.1, clamp: true });
     g.hud.banner('You fainted', 'Your companions carry you back to camp', { secs: 4 });
+    g.music?.calm();
+    g.music?.cue('defeat');
   }
 
   _shake(k) {

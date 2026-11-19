@@ -265,7 +265,7 @@ class Runner {
     if (!this.root.isConnected) return;
     const got = this.game.gs.event('arcade', { game: `${this.subject}-${this.floor}`, score });
     this.buddy.cheer(1.6);
-    this.game.sound.fanfare();
+    this.game.celebrate ? this.game.celebrate('level-up') : this.game.sound.fanfare();
     this.clear();
     const card = el('section', 'arc-card arc-results');
     card.append(el('h2', null, tr('lesson.points', { count: score })), rewardsLine(got));
@@ -849,7 +849,7 @@ class Runner {
     this.main.append(card);
     this.say(tr(stars === 3 ? 'lesson.say3' : stars === 2 ? 'lesson.say2' : 'lesson.say1'));
     this.buddy.cheer(2.5);
-    this.game.sound.fanfare();
+    this.game.celebrate ? this.game.celebrate('level-up') : this.game.sound.fanfare();
     confetti(this.root, stars * 40);
     [...row.children].forEach((s, i) => i < stars && setTimeout(() => {
       s.classList.add('is-pop');
@@ -864,9 +864,11 @@ class Runner {
       const b = el('div', 'arc-levelup', null, { role: 'status' });
       b.append(el('strong', null, tr('lesson.levelUp', { n: got.levelUp })), el('span', null, tr('lesson.stronger')));
       card.prepend(b);
-      setTimeout(() => this.game.sound.fanfare(), 1500);
+      // With the music on, the results' Level Up stinger already sings it.
+      if (!this.game.music?.audible) setTimeout(() => this.game.sound.fanfare(), 1500);
     }
     if (got.stickers?.length) {
+      if (this.game.music?.audible) setTimeout(() => this.game.celebrate?.('discovery'), got.levelUp ? 3000 : 2000);
       const s = el('div', 'arc-stickers-new');
       s.append(el('span', null, tr('lesson.newSticker')));
       for (const st of got.stickers) s.append(el('span', 'arc-sticker', st.emoji, { title: st.name, 'aria-label': tr('lesson.stickerAria', { name: st.name }) }));

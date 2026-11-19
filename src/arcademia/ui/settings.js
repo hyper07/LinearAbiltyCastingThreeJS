@@ -9,6 +9,7 @@
  * and redraws what is on screen.
  */
 import { cameraMenu } from '../../shared/cameraAssist.js';
+import { musicMenu } from '../../shared/gameMusic.js';
 import { el, button } from './dom.js';
 import { LOCALES, locale, t } from '../i18n/index.js';
 import { CREDITS } from '../credits.js';
@@ -85,6 +86,8 @@ export function openSettings(game) {
       const text = {};
       for (const k of ['title', 'quiet', 'balanced', 'high', 'ultra', 'custom', 'hint', 'advanced', 'fps', 'unlimited', 'shadows', 'effects', 'bloom', 'showFps', 'off', 'near', 'full']) text[k] = t(`gfx.${k}`);
       card.append(game.power.menu(text));
+      // Music: on/off, its volume, the song-name toast (shared/gameMusic.js), saved for every game.
+      card.append(musicMenu({ text: { title: t('music.title'), on: t('music.on'), off: t('music.off'), volume: t('music.volume'), names: t('music.names') } }));
       // Camera: Auto camera, its delay, the turning speed (shared/cameraAssist.js).
       if (game.world?.camAssist) {
         const ct = {};

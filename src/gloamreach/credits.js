@@ -3,6 +3,8 @@
  * each pack with its website and licence, and each CC BY model by name.
  * Pure data.
  */
+import { gameMusicPack } from '../shared/gameMusic.js';
+
 
 /** polyfork models (CC BY 4.0): id → title. Each is credited by name, with its page. */
 export const POLYFORK_MODELS = [
@@ -84,5 +86,7 @@ export const PACKS = [
     site: 'https://threejs.org',
     licence: 'MIT',
     licenceUrl: 'https://github.com/mrdoob/three.js/blob/dev/LICENSE'
-  }
+  },
+  // The background music (docs/music.md): ACE-Step 1.5, MIT, with the titles this game plays.
+  gameMusicPack('gloamreach')
 ];

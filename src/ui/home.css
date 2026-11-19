@@ -447,9 +447,6 @@
     margin-left: auto;
     gap: 6px;
   }
-  .home__actions [data-party] {
-    display: none;
-  }
   .home__btn {
     padding: 0 11px;
   }
@@ -1198,3 +1195,4 @@
     grid-template-areas: 'head' 'look' 'mine' 'side';
   }
 }
+

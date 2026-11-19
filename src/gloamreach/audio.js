@@ -126,7 +126,8 @@ export class Sound {
   _drone() {
     const ctx = this.ctx;
     const out = ctx.createGain();
-    out.gain.value = 0.05;
+    // Half what it was: Violet Hollow (A minor) plays over the Gloamwood now, and this A–E hum sits under it.
+    out.gain.value = 0.025;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.value = 1200;

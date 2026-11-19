@@ -58,7 +58,7 @@ export function bossBattle(game, floor) {
       if (won) {
         boss.happy = true;
         boss.fig.cheer(3);
-        game.sound.fanfare();
+        game.celebrate ? game.celebrate('level-up') : game.sound.fanfare();
         confetti(game.root, 140);
         const got = game.gs.event('boss', { floor });
         body.append(el('p', 'arc-boss__line', tr('mg.quote', { line: tr('puzzle.won') })), el('p', 'arc-rewards', tr('puzzle.rewards', { coins: got.coins, xp: got.xp })));

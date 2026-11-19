@@ -53,15 +53,38 @@ well).
 
 ## Which game uses what
 
-| Game | Calm | Tense / battle | Boss | Also |
-| --- | --- | --- | --- | --- |
-| Gloamreach (violet-dusk fantasy RPG) | `night-forest`, `meadow`, `village` in town | `battle` | `boss` | `title` on its menu; stingers |
-| Wyldhunt (jungle monster hunt) | `jungle` | `jungle-hunt` | `boss` | `victory`, `discovery` |
-| Kithvale (befriending creatures, dusk village) | `lantern-valley`, `meadow` | `jungle-hunt` (rare) | — | `discovery` when a creature trusts you |
-| Kindlewatch (frozen fortress fight) | `frozen-fortress` | `battle` | `boss` | `victory`, `defeat`, `level-up` |
-| AI Arcademia (kids, learning) | `playful` | — | — | `level-up`, `discovery` |
-| Seoul city | `city-night` | — | — | — |
-| Stoneball, HD-2D | `village`; `meadow` | — | — | `title`, `victory` |
+As wired (`src/shared/gameMusic.js`: `GAME_TRACKS`, the area → track rules,
+and each game's `music` — a `GameMusic`):
+
+| Game | Where (calm) | Fight | Boss | Stingers | Mute |
+| --- | --- | --- | --- | --- | --- |
+| Gloamreach | `title` on the start screen; `village` among Brindlewick's houses, `meadow` in the fields and at the overlook, `night-forest` in the Gloamwood (and where its dusk is thick), `frozen-fortress` on the drake's ledge | `battle` | `boss` (Cindermaw) | `victory` (boss or elite down), `defeat`, `level-up`, `discovery` (a chest, a legendary drop) | Sound |
+| Wyldhunt | `jungle` | `jungle-hunt` (the pair, in step) | `boss` while the Gnarlhorn rages | `victory` (slain), `discovery` (a part breaks), `defeat` (you faint) | Sound |
+| Kithvale | `lantern-valley` in Lanternrest and at dusk, `meadow` out in the vale by day (softer under the trust moment) | — | — | `discovery` when a creature joins | Sound |
+| Kindlewatch | `frozen-fortress` | `battle` | `boss` (Hrimgar, in the throne room) | `victory`, `defeat`, `level-up` (a beacon lit) | the pause menu's Sound |
+| AI Arcademia | `playful`, at 40 % under a lesson | — | — | `level-up` (stars, a level, a floor, a puzzle boss), `discovery` (a chest, a sticker); the old fanfare when the music is off | Sound |
+| Gangnam Drift | `city-night` while racing, and driving at night; otherwise quiet (the engine and the city) | — | — | `victory` (first past the line) | the Graphics panel's Music |
+| Lanternwood | `title` on the title; by realm: `village` round the camp fire, `night-forest` in the Lanternwood, `meadow` in Sunmeadow, `frozen-fortress` in Frostpeak and Emberfall | `battle` | `boss` | `victory` (boss or hero monster), `defeat`, `level-up`, `discovery` (chests) | the pause menu's Music |
+| Stoneball | quiet on the start screen; `battle` at 45 % in a match | — | — | `victory` or `defeat` at full time | M |
+| Home page | `title` at 35 %, from the first click or key | — | — | — | ♪ in the bar |
+
+**Moods** come from game state with hysteresis (`MoodHold`): into the fight at
+once (a monster alert, chasing or striking near you), out of it only after 5–6
+s without one; a boss raises it at once and steps down through `battle`. **Places**
+must hold for 2–2.5 s (`Settle`) before their track crossfades in (3 s), so
+walking along an edge doesn't flap; a new screen or realm (`music.jump`) changes
+at once. The fight's state is read in the game's own frame, so a paused game
+(a menu, the map) holds the music where it is; music.js keeps it playing, and
+suspends it in a hidden tab.
+
+**Settings.** Every game's pause or settings menu has a Music section beside
+Graphics (`musicMenu()`): on/off, the music volume, and the track-name toast
+— one setting for all games (`gamory.music`). The home page's ♪ button (a
+crossed ♪ when off) is that same switch, with the volume under its ▾: music
+off there starts every game with its music off, and On in any game's Music
+menu turns it back on everywhere. A game's own Sound switch is separate and
+only adds to it: it silences the music while that game's sound is off
+(`linkMute`), without changing the saved music setting.
 
 ## Wiring it into a game
 

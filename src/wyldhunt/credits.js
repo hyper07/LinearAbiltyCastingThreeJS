@@ -2,6 +2,8 @@
  * Everything third-party in Wyldhunt, for the Credits panel and the docs:
  * each pack with its site and licence, and each CC BY model by name. Pure.
  */
+import { gameMusicPack } from '../shared/gameMusic.js';
+
 
 /** polyfork models (CC BY 4.0): id → title, each credited by name with its page. */
 export const POLYFORK_MODELS = [
@@ -57,8 +59,10 @@ export const PACKS = [
     site: 'https://threejs.org',
     licence: 'MIT',
     licenceUrl: 'https://github.com/mrdoob/three.js/blob/dev/LICENSE'
-  }
+  },
+  // The background music (docs/music.md): ACE-Step 1.5, MIT, with the titles this game plays.
+  gameMusicPack('wyldhunt')
 ];
 
 /** Made here, owing no one: the land, water, falls, mist, rain, plants, ruins, camp, fur, armour and weapons (Gloamreach's, modelled in code), the sounds. */
-export const OWN = 'The gorge, its river, falls, mist and rain, the palms, ferns, taro, bananas, vines and roots, the ruins, the camp, the fur, the tack, the horns and plates, the armour and weapons, the icons and every sound are made in code for this game (some of it shared with Gloamreach).';
+export const OWN = 'The gorge, its river, falls, mist and rain, the palms, ferns, taro, bananas, vines and roots, the ruins, the camp, the fur, the tack, the horns and plates, the armour and weapons, the icons and every sound effect are made in code for this game (some of it shared with Gloamreach); the music is credited above.';

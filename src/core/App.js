@@ -134,6 +134,9 @@ const _castDirection = new Vector3();
  * `Combat.open()` makes the consequences. Neither knows about the other, and no
  * ability class has any idea that monsters exist.
  */
+/** The games that open over the home page (their own screens), not through the lobby. */
+const OVER_HOME = new Set(['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch']);
+
 export class App {
   constructor(canvas) {
     platform.bootstrap();
@@ -1488,6 +1491,8 @@ export class App {
   /** The home page's Play: the game's lobby. */
   async openLobby(id) {
     const game = await games.get(id);
+    // A game that opens over the home page: the home page's music steps aside (the game may bring its own).
+    if (OVER_HOME.has(game.engine)) this.home.musicAway?.();
     if (game.engine === 'market') return this.openMarket(game);
     if (game.engine === 'work') return this.openWork(game);
     if (game.engine === 'rts') return this.openRts(game);
@@ -1511,7 +1516,7 @@ export class App {
     games.play?.(game.id)?.catch?.(() => {});
     const { MarketGame } = await import('../market/MarketGame.js');
     this.home.closePage();
-    const view = new MarketGame(document.body, { account: this.account?.user ?? null, onClose: () => this.home.refresh?.() });
+    const view = new MarketGame(document.body, { account: this.account?.user ?? null, onClose: () => (this.home.musicBack?.(), this.home.refresh?.()) });
     await view.open();
     return view;
   }
@@ -1521,7 +1526,7 @@ export class App {
     games.play?.(game.id)?.catch?.(() => {});
     const { WorkGame } = await import('../work/WorkGame.js');
     this.home.closePage();
-    const view = new WorkGame(document.body, { account: this.account?.user ?? null, onClose: () => this.home.refresh?.() });
+    const view = new WorkGame(document.body, { account: this.account?.user ?? null, onClose: () => (this.home.musicBack?.(), this.home.refresh?.()) });
     await view.open();
     return view;
   }
@@ -1540,6 +1545,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1557,6 +1563,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1574,6 +1581,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1591,6 +1599,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1608,6 +1617,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1625,6 +1635,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1642,6 +1653,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1659,6 +1671,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1676,6 +1689,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1693,6 +1707,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1710,6 +1725,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
@@ -1731,6 +1747,7 @@ export class App {
         account: this.account?.user ?? null,
         onClose: () => {
           this.start();
+          this.home.musicBack?.();
           this.home.refresh?.();
         },
         onSwap: (next) => {
@@ -1754,6 +1771,7 @@ export class App {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();
+        this.home.musicBack?.();
         this.home.refresh?.();
       }
     });

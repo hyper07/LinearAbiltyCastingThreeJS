@@ -1116,3 +1116,391 @@ body :is(.hv-mini, .lb-mini, .rts-mini) {
     transition: none !important;
   }
 }
+
+/* ==========================================================================
+ * The home bar: logo, search, Create, then ♪, My space (a dropdown) and
+ * Sign in — one height, one baseline. On a phone: logo, ⌕, ♪ and ☰ (a
+ * drawer with everything, Create first). Then the genre chips: one scrolling
+ * row with fading edges and ‹ › arrows, and Popular / New beside it.
+ * ========================================================================== */
+.home .home__bar {
+  --bar-h: 40px;
+  position: relative;
+  z-index: 30;
+  gap: 12px;
+}
+.home .home__bar .home__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+  height: var(--bar-h);
+  padding: 0 15px;
+  font-size: 14px;
+  line-height: 1;
+}
+.home .home__ico {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
+  line-height: 1;
+  flex: none;
+}
+.home .home__icon-btn {
+  width: var(--bar-h);
+  padding: 0 !important;
+}
+.home .home__actions {
+  display: contents;
+}
+.home .home__search {
+  order: 1;
+  min-width: 0;
+}
+.home .home__brand {
+  order: 0;
+}
+.home .home__create {
+  order: 2;
+}
+.home .home__music-toggle {
+  order: 3;
+}
+.home .home__space {
+  order: 4;
+}
+.home .home__btn--account {
+  order: 5;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home .home__bar .home__search-open,
+.home .home__bar .home__nav-toggle,
+.home .home__bar .home__nav-close,
+.home .home__scrim {
+  display: none;
+}
+
+/* ♪, and a crossed ♪ when the music is off. */
+.home .home__music-toggle {
+  background: var(--pop-mint);
+}
+.home .home__music-toggle.is-off {
+  background: var(--pop-card);
+  color: var(--pop-ink-2);
+}
+.home .home__music-note {
+  position: relative;
+  font-size: 18px;
+  font-weight: 900;
+}
+.home .home__music-toggle.is-off .home__music-note::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 50%;
+  border-top: 2.5px solid currentColor;
+  border-radius: 2px;
+  transform: rotate(-45deg);
+}
+
+/* My space: the dropdown. */
+.home .home__space {
+  position: relative;
+}
+.home .home__caret {
+  width: 7px;
+  height: 7px;
+  margin: -3px 0 0 2px;
+  border-right: 2.5px solid currentColor;
+  border-bottom: 2.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+.home .home__space.is-open .home__caret {
+  margin-top: 4px;
+  transform: rotate(225deg);
+}
+.home .home__space-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  display: none;
+  min-width: 240px;
+  padding: 8px;
+  border: var(--pop-border);
+  border-radius: var(--pop-r-sm);
+  background: var(--pop-card);
+  box-shadow: var(--pop-shadow-sm);
+}
+.home .home__space.is-open .home__space-menu {
+  display: grid;
+  gap: 2px;
+  animation: home-menu-in 0.16s ease-out;
+}
+@keyframes home-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.home .home__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--pop-ink);
+  font-weight: 700;
+  font-size: 14px;
+  text-align: left;
+}
+.home .home__menu-item:hover,
+.home .home__menu-item:focus-visible {
+  background: var(--pop-paper-2);
+  outline: none;
+}
+.home .home__menu-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--pop-grape);
+}
+.home .home__menu-music {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 10px 12px 6px;
+  border-top: 2px dashed var(--pop-soft-line);
+  font-size: 13px;
+  font-weight: 700;
+}
+.home .home__menu-music label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.home .home__menu-music input {
+  width: 100%;
+  accent-color: var(--pop-grape);
+}
+.home .home__menu-music small {
+  color: var(--pop-ink-3);
+  font-weight: 600;
+}
+
+/* The chips: one row that scrolls, fading where there's more. */
+.home .home__filters {
+  gap: 14px;
+}
+.home .home__chipwrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.home .home__chips {
+  flex: 1;
+  min-width: 0;
+  scroll-padding-inline: 40px;
+  -webkit-mask-image: linear-gradient(90deg, var(--fade-l, #000) 0, #000 36px, #000 calc(100% - 36px), var(--fade-r, #000) 100%);
+  mask-image: linear-gradient(90deg, var(--fade-l, #000) 0, #000 36px, #000 calc(100% - 36px), var(--fade-r, #000) 100%);
+}
+.home .home__chipwrap.can-left .home__chips {
+  --fade-l: transparent;
+}
+.home .home__chipwrap.can-right .home__chips {
+  --fade-r: transparent;
+}
+.home .home__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 14px;
+  line-height: 1;
+}
+.home .home__chip-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-top: -17px;
+  padding: 0;
+  border: 2.5px solid var(--pop-line);
+  border-radius: 50%;
+  background: var(--pop-card);
+  box-shadow: 0 2px 0 var(--pop-line);
+  font: 900 18px/1 var(--pop-font);
+}
+.home .home__chip-arrow--left {
+  left: -6px;
+}
+.home .home__chip-arrow--right {
+  right: -6px;
+}
+.home .home__chipwrap.can-left .home__chip-arrow--left,
+.home .home__chipwrap.can-right .home__chip-arrow--right {
+  display: grid;
+}
+.home .home__sort {
+  flex: none;
+  display: inline-flex;
+  margin-left: 4px;
+}
+.home .home__sort button {
+  height: 36px;
+  padding: 0 14px;
+}
+
+/* A tablet: the search takes a row of its own under the buttons. */
+@media (min-width: 641px) and (max-width: 960px) {
+  .home .home__bar {
+    flex-wrap: wrap;
+    border-radius: 26px;
+  }
+  .home .home__brand {
+    margin-right: auto;
+  }
+  .home .home__search {
+    order: 9;
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .home .home__bar .home__btn--account {
+    max-width: 140px;
+  }
+}
+
+/* A phone: logo, ⌕, ♪, ☰; everything else in the drawer. */
+@media (max-width: 640px) {
+  .home .home__bar {
+    --bar-h: 44px;
+    flex-wrap: wrap;
+    margin: 10px 10px 0;
+    padding: 8px 10px 8px 14px;
+    border-radius: 24px;
+    gap: 8px;
+  }
+  .home .home__brand {
+    margin-right: auto;
+    font-size: 21px;
+  }
+  .home .home__search {
+    display: none;
+    order: 9;
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .home .home__bar.is-searching .home__search {
+    display: flex;
+  }
+  .home .home__bar .home__search-open,
+  .home .home__bar .home__nav-toggle {
+    display: inline-flex;
+  }
+  .home .home__bar .home__nav-close {
+    display: inline-flex;
+    align-self: flex-end;
+    order: -1;
+  }
+  .home .home__search-open {
+    order: 1;
+  }
+  .home .home__music-toggle {
+    order: 2;
+  }
+  .home .home__nav-toggle {
+    order: 3;
+  }
+  .home .home__actions {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: min(320px, 86vw);
+    padding: 18px 16px;
+    border-left: var(--pop-border);
+    background: var(--pop-paper);
+    box-shadow: -6px 0 0 var(--pop-line);
+    overflow-y: auto;
+    transform: translateX(105%);
+    visibility: hidden;
+    transition: transform 0.22s ease-out, visibility 0s 0.22s;
+  }
+  .home .home__bar.is-nav-open .home__actions {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.22s ease-out;
+  }
+  .home .home__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    display: block;
+    background: rgba(43, 33, 64, 0.35);
+  }
+  .home .home__scrim[hidden] {
+    display: none;
+  }
+  .home .home__actions .home__btn:not(.home__icon-btn) {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-start;
+  }
+  .home .home__create {
+    order: 0;
+  }
+  .home .home__space {
+    order: 1;
+  }
+  .home .home__btn--account {
+    order: 2;
+  }
+  .home .home__space-toggle {
+    display: none !important;
+  }
+  .home .home__space-menu {
+    position: static;
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 6px;
+    box-shadow: none;
+    animation: none;
+  }
+  .home .home__menu-item {
+    min-height: 44px;
+  }
+  .home .home__filters {
+    gap: 8px;
+    padding: 12px 10px 4px;
+  }
+  .home .home__chip,
+  .home .home__sort button {
+    height: 44px;
+  }
+  .home .home__chip-arrow {
+    display: none !important;
+  }
+}
+@media (hover: none) {
+  .home .home__chip-arrow {
+    display: none !important;
+  }
+}

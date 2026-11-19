@@ -1,6 +1,7 @@
 import { CONTROLS } from './controls.js';
 import { hintItems } from '../shared/helpPanel.js';
 import { LEATHERS, LENGTHS } from './rules.js';
+import { musicCreditHtml } from '../shared/gameMusic.js';
 
 /**
  * Stoneball's screens: the start screen (tribe colours, difficulty, match
@@ -56,6 +57,7 @@ export function startScreen(root, prefs, { onPlay, onClose }) {
       </div>
       <button type="button" class="sb-play" data-play>Play</button>
       <div class="sb-keys sb-keys--card">${KEYS_HTML}</div>
+      ${creditsHtml()}
     </div>`;
   root.append(wrap);
   const paint = () => {
@@ -200,7 +202,12 @@ export function endScreen(root, match, { onRematch, onMenu, onClose }) {
 }
 
 /** Esc: resume, restart, back to the menu, leave. */
-export function pauseScreen(root, { onResume, onRestart, onMenu, onClose, graphics, onHelp }) {
+/** Credits: the music and the cavemen's model; the rest of Stoneball is made in code. */
+function creditsHtml() {
+  return `<details class="sb-credits" data-credits><summary>Credits</summary><p>${musicCreditHtml('stoneball', esc)}</p><p><b>KayKit</b> — the cavemen, from the Barbarian by Kay Lousberg, re-skinned for each tribe.<br><a href="https://github.com/KayKit-Game-Assets" target="_blank" rel="noopener">https://github.com/KayKit-Game-Assets</a> · <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener">CC0 1.0</a></p><p>The stone, the pitch and every sound effect are made in code for this game.</p></details>`;
+}
+
+export function pauseScreen(root, { onResume, onRestart, onMenu, onClose, graphics, music, onHelp }) {
   const wrap = el('div', 'sb-overlay sb-pause');
   wrap.innerHTML = `
     <div class="sb-card sb-card--pause">
@@ -210,9 +217,11 @@ export function pauseScreen(root, { onResume, onRestart, onMenu, onClose, graphi
       <button type="button" class="sb-ghost" data-restart>Restart match</button>
       <button type="button" class="sb-ghost" data-menu>Change tribes</button>
       <button type="button" class="sb-ghost" data-close>Leave</button>
+      ${creditsHtml()}
     </div>`;
-  // Graphics: presets and the Advanced fold (power.js).
+  // Graphics: presets and the Advanced fold (power.js); Music beside it (shared/gameMusic.js).
   if (graphics) wrap.querySelector('[data-close]').before(graphics);
+  if (music) wrap.querySelector('[data-close]').before(music);
   root.append(wrap);
   const on = (sel, fn) => wrap.querySelector(sel).addEventListener('click', () => {
     wrap.remove();

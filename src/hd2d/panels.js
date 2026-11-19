@@ -5,6 +5,7 @@
  * with panel() from ui.js and closes with the game's closeOverlay().
  */
 import { cameraMenu, menuSections } from '../shared/cameraAssist.js';
+import { musicMenu, musicCreditHtml } from '../shared/gameMusic.js';
 import * as THREE from 'three';
 import * as R from './rules.js';
 import { el, esc, panel, ICON, fmtTime, drawMap, KEY_HINTS } from './ui.js';
@@ -484,7 +485,8 @@ export function openPause(game) {
     <button type="button" class="ld-btn ld-btn--big" data-open-map>Map (O)</button>
     <button type="button" class="ld-btn ld-btn--big" data-title>Save and return to title</button>
     <button type="button" class="ld-btn ld-btn--big" data-leave>Save and leave Lanternwood</button>
-    <ul class="ld-controls ld-controls--keys">${KEY_HINTS.replace(/<span>/g, '<li>').replace(/<\/span>/g, '</li>')}</ul></div>`;
+    <ul class="ld-controls ld-controls--keys">${KEY_HINTS.replace(/<span>/g, '<li>').replace(/<\/span>/g, '</li>')}</ul>
+    <section class="ld-credits" data-credits aria-label="Credits"><h3>Credits</h3><p>${musicCreditHtml('lanternwood', esc)}</p></section></div>`;
   p.x.addEventListener('click', () => game.closeOverlay());
   p.body.querySelector('[data-resume]').addEventListener('click', () => game.closeOverlay());
   p.body.querySelector('[data-open-help]').addEventListener('click', () => game.openHelp());
@@ -501,6 +503,8 @@ export function openPause(game) {
   });
   p.body.querySelector('[data-leave]').addEventListener('click', () => game.close());
   // Graphics: presets, and the Advanced fold (frame cap, shadows, bloom, FPS).
-  if (game.power) p.body.querySelector('.ld-controls').before(menuSections(game.power.menu(), cameraMenu(game.camAssist, { text: { keys: 'Q E or , . turn the camera · / behind you now' } })));
+  // Music: on/off, its volume, the track-name toast (shared/gameMusic.js).
+  if (game.power) p.body.querySelector('.ld-controls').before(menuSections(game.power.menu(), musicMenu(), cameraMenu(game.camAssist, { text: { keys: 'Q E or , . turn the camera · / behind you now' } })));
+  else p.body.querySelector('.ld-controls').before(musicMenu());
   void el;
 }

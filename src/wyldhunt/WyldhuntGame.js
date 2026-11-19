@@ -30,6 +30,7 @@ import { PowerKit } from '../shared/powerKit.js';
 import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
 import { WaypointBeam } from '../shared/waypointBeam.js';
 import { HelpPanel, helpButton, codesFor } from '../shared/helpPanel.js';
+import { GameMusic, musicMenu } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
 import { powerSettings } from '../shared/power.js';
 import { START, FALLS, CAMP, PATH, DEN, MONSTER_AREAS, AREAS, NODES, EXTENT, areaAt, nearestOnLine, pointAt } from './map.js';
@@ -247,6 +248,7 @@ export class WyldhuntGame {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.music?.dispose();
     this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._onKey);
@@ -394,6 +396,10 @@ export class WyldhuntGame {
   menu() {
     this.mode = 'menu';
     this.power.setMenu('live');
+    // The soundtrack (docs/music.md): Over the Falls ⇄ The Gorge Hunt (a pair, crossfaded in step), Crown of
+    // Cinders when the Gnarlhorn rages; the game's own Sound switch silences it too.
+    this.music ??= new GameMusic('wyldhunt', { moods: { battle: 'jungle-hunt', boss: 'boss' }, muted: () => !this.sound.enabled, hold: 6 });
+    this.music.jump('jungle');
     this.hunter.place(CAMP.x + 1.5, CAMP.z - 1.5, CAMP.face + Math.PI - 0.3);
     if (this.mount) {
       const b = this.mount.brain;
@@ -485,6 +491,7 @@ export class WyldhuntGame {
     this.mode = 'play';
     this.power.setMenu('none');
     this.area = null;
+    this.music.jump('jungle');
     this.root.focus();
     setTimeout(() => this.bark('start', true), 2500);
     this.help.openFirstTime();
@@ -576,7 +583,7 @@ export class WyldhuntGame {
     // Nothing moves behind the pause menu: draw only when something changes.
     this.power.setMenu('still');
     this.pauseEl = pauseMenu(this.root, {
-      graphics: menuSections(this.power.menu(), cameraMenu(this.follow.assist)),
+      graphics: menuSections(this.power.menu(), musicMenu(), cameraMenu(this.follow.assist)),
       onMap: () => this.openMap(),
       onHelp: () => this.openHelp(),
       soundOn: this.sound.enabled,
@@ -838,6 +845,7 @@ export class WyldhuntGame {
       this.vfx.explode(p, 2.5, { color: 'dust' });
       this.sound.thud(5, 1.4);
       this.hud.banner(b === 'head' ? 'Broke its horns!' : 'Severed its tail club!', '', { secs: 2.5 });
+      this.music?.cue('discovery');
       this.bark(b === 'head' ? 'horn' : 'tailcut', true);
       if (b === 'head') addItem(this.bag, 'gnarlHorn', 1), this.hud.log('gnarlHorn', 1, 'Part broken');
     }
@@ -908,6 +916,7 @@ export class WyldhuntGame {
           this.sound.bellow(dist, 0.8);
           setTimeout(() => this.sound.thud(dist, 2), 1800);
           this.hud.banner('HUNT COMPLETE', `${GNARLHORN.name} slain — carve it (E)`, { big: true, secs: 6 });
+          this.music?.cue('victory');
           this.bark('win', true);
           break;
         default:
@@ -1027,6 +1036,7 @@ export class WyldhuntGame {
     this.beam?.update(wp, wp ? groundAt(wp.x, wp.z) : 0, t);
     if (playing) this.cue?.update(this.waypoint, focus.x, focus.z, this.follow.heading());
     if (playing) this.power.setUrgent(Boolean(this.combat.busy) || ['engage', 'attack', 'alert', 'stagger'].includes(this.monster?.brain.state));
+    if (playing) this.musicFrame(dt, focus);
     if (playing && this.hud) this.hudFrame(dt);
     this.power.showFps(this.root);
     // Quality: the power governor keeps detail within the preset's GPU budget;
@@ -1040,6 +1050,17 @@ export class WyldhuntGame {
         this.applyPower();
       } else if (lvl && lvl !== this.tier && !this.quality) this.applyPower();
     }
+  }
+
+  /**
+   * The soundtrack's mood: The Gorge Hunt from the Gnarlhorn's roar of
+   * notice (alert, engaging, attacking, staggered, within 90 m), Crown of
+   * Cinders while it rages, Over the Falls again 6 s after it breaks off.
+   */
+  musicFrame(dt, at) {
+    const b = this.monster?.brain;
+    const fight = Boolean(b) && !this.combat.dead && ['alert', 'engage', 'attack', 'stagger'].includes(b.state) && Math.hypot(b.x - at.x, b.z - at.z) < 90;
+    this.music.update(dt, { area: 'jungle', fight, boss: fight && Boolean(b.enraged) });
   }
 
   /** The mount: its mind and body; when ridden, the hunter sits the saddle. */

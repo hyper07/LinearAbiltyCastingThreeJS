@@ -205,6 +205,12 @@ export default {
   'credits.fontsource': 'How the Nunito font is packaged for the web',
   'credits.cjk': 'Korean, Japanese and Chinese text uses your device’s own fonts (such as Noto CJK)',
   'credits.made': 'The creatures, hats, buildings, lessons and sounds are made for this game.',
+  'credits.music': 'Background music: Paper Kites, Level Up and Treasure Found, generated with the ACE-Step 1.5 model',
+  'music.title': 'Music',
+  'music.on': 'On',
+  'music.off': 'Off',
+  'music.volume': 'Music volume',
+  'music.names': 'Show song names',
   // The game around the lessons
   'game.loading': 'Climbing the mountain…',
   'game.firstQuest': '{story} Press Continue to start your first quest!',

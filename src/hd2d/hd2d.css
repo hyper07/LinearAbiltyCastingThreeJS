@@ -1695,3 +1695,20 @@
 .ld [hidden] {
   display: none !important;
 }
+/* The pause menu's Credits: the music (shared/gameMusic.js). */
+.ld-credits {
+  border-top: 1px solid var(--ld-line);
+  padding-top: 10px;
+  color: var(--ld-muted);
+  font-size: 13px;
+}
+.ld-credits h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.ld-credits p {
+  margin: 0;
+}
+.ld-credits a {
+  color: inherit;
+}

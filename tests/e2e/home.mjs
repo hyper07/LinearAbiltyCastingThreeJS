@@ -1,4 +1,4 @@
-import { boot, pickHero, tally, until } from './lib.mjs';
+import { boot, homeNav, pickHero, tally, until } from './lib.mjs';
 
 /**
  * The platform's home page, by mouse: it opens on the games (not the hero
@@ -109,7 +109,7 @@ export async function run(browser, { shots = null } = {}) {
     await until(page, () => !document.querySelector('.home').hidden, null, 10000);
 
     // "My heroes": the games you have a hero in, a game's heroes, a hero's bag, and back.
-    await page.click('.home [data-heroes]');
+    await homeNav(page, '[data-heroes]');
     t.check('"My heroes" lists the arena and the game just played', await until(page, (id) => document.querySelector('.heroes__game[data-game="arena"]') && document.querySelector(`.heroes__game[data-game="${id}"]`), published, 8000));
     await page.click(`.heroes__game[data-game="${published}"]`);
     t.check('a click on the game shows your hero there', await until(page, () => document.querySelectorAll('.heroes__hero').length >= 1 && /Level \d+/.test(document.querySelector('.heroes__meta')?.textContent ?? ''), null, 5000));
@@ -121,7 +121,7 @@ export async function run(browser, { shots = null } = {}) {
     t.check('and it closes', await until(page, () => document.querySelector('.heroes').hidden && !document.querySelector('.home').hidden, null, 5000));
 
     // The hero menu and back.
-    await page.click('.home [data-hero]');
+    await homeNav(page, '[data-hero]');
     t.check('"Your hero" opens the class menu', await until(page, () => !document.querySelector('.main-menu').hidden && document.querySelector('.home').hidden, null, 5000));
     await page.click('.main-menu [data-home]');
     t.check('"← Games" goes back home', await until(page, () => document.querySelector('.main-menu').hidden && !document.querySelector('.home').hidden, null, 5000));

@@ -2,6 +2,8 @@
  * Everything third-party in Kithvale, for the Credits panel and the docs:
  * each pack with its site and licence, each CC BY model by name. Pure.
  */
+import { gameMusicPack } from '../shared/gameMusic.js';
+
 
 /** polyfork models (CC BY 4.0): id → title, each credited by name with its page. */
 export const POLYFORK_MODELS = [
@@ -65,8 +67,10 @@ export const PACKS = [
     site: 'https://threejs.org',
     licence: 'MIT',
     licenceUrl: 'https://github.com/mrdoob/three.js/blob/dev/LICENSE'
-  }
+  },
+  // The background music (docs/music.md): ACE-Step 1.5, MIT, with the titles this game plays.
+  gameMusicPack('kithvale')
 ];
 
 /** Made here, owing no one. */
-export const OWN = 'The six creatures (sculpted from smooth shapes in code, with their faces, fur and shells), the vale, its sky, grass, trees, water, the village and its gate, the shrine, the painted look, the icons, the music of the trust moment and every sound are made in code for this game — some of it shared with Gloamreach, Wyldhunt and AI Arcademia.';
+export const OWN = 'The six creatures (sculpted from smooth shapes in code, with their faces, fur and shells), the vale, its sky, grass, trees, water, the village and its gate, the shrine, the painted look, the icons, the chimes of the trust moment and every sound effect are made in code for this game — some of it shared with Gloamreach, Wyldhunt and AI Arcademia. The background music is credited above.';

@@ -22,6 +22,7 @@ import { Post } from './post.js';
 import { SETTINGS, chooseTier, Governor } from './quality.js';
 import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
 import { PowerKit } from '../shared/powerKit.js';
+import { GameMusic, musicMenu, gloamreachTrack } from '../shared/gameMusic.js';
 import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
 import { WaypointBeam } from '../shared/waypointBeam.js';
 import { HelpPanel, helpButton, codesFor, hintItems } from '../shared/helpPanel.js';
@@ -55,6 +56,8 @@ import { Loading, StartScreen, Hud, creditsPanel, pauseMenu, el } from './ui.js'
 import './gloamreach.css';
 
 const PREFS = 'gloamreach.prefs';
+/** A monster in one of these states is after you (monsters.js): the music goes to battle. */
+const FIGHTING = new Set(['alert', 'chase', 'windup', 'strike', 'recover']);
 /** Quiet runs at 30 while you explore and rises to 60 the moment a fight starts. */
 const POWER_PROFILE = { quietFps: 30, urgentFps: 60 };
 /** Monster voices by kind (elites borrow their base's). */
@@ -215,6 +218,7 @@ export class GloamreachGame {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.music?.dispose();
     this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._onKey);
@@ -366,6 +370,7 @@ export class GloamreachGame {
       get monsters() { return game.monsters; },
       get vfx() { return game.vfx; },
       get sfx() { return game.sfx; },
+      get music() { return game.music; },
       get world() { return game.world; },
       get scene() { return game.scene; },
       get follow() { return game.follow; },
@@ -419,6 +424,9 @@ export class GloamreachGame {
   menu() {
     this.mode = 'menu';
     this.power.setMenu('live');
+    // The soundtrack (docs/music.md): First Light on the start screen; the game's own Sound switch silences it too.
+    this.music ??= new GameMusic('gloamreach', { moods: { battle: 'battle', boss: 'boss' }, muted: () => !this.sound.enabled, hold: 5 });
+    this.music.jump('title');
     this.hero.place(1, 26, 0);
     this.start = new StartScreen(this.root, {
       picked: this.picked,
@@ -511,6 +519,7 @@ export class GloamreachGame {
     this.mode = 'play';
     this.power.setMenu('none');
     this.area = null;
+    this.music.jump(this.musicArea(), { fade: 2.5 });
     this.root.focus();
     this.help.openFirstTime();
   }
@@ -597,7 +606,7 @@ export class GloamreachGame {
     // Nothing moves behind the pause menu: draw only when something changes (a graphics choice, a resize).
     this.power.setMenu('still');
     this.pauseEl = pauseMenu(this.root, {
-      graphics: menuSections(this.power.menu(), cameraMenu(this.follow.assist)),
+      graphics: menuSections(this.power.menu(), musicMenu(), cameraMenu(this.follow.assist)),
       onMap: () => this.openMap(),
       onHelp: () => this.openHelp(),
       soundOn: this.sound.enabled,
@@ -811,6 +820,7 @@ export class GloamreachGame {
     this.post.render(this.scene, this.camera, { ...look, fogDensity: look.fogDensity * s.fog, lightColor: this.world.lighting.sun.color, gloam: this.world.gloam, fade: 0 });
     this.power.gpuEnd();
     if (playing) this.power.setUrgent(this.combat.inCombat > 0 || Boolean(this.combat.aimTarget));
+    if (playing) this.musicFrame(dt);
     // The waypoint: its beam in the world, the cue toward it.
     const wp = this.waypoint?.point;
     this.beam?.update(wp, wp ? this.world.colliders.height(wp.x, wp.z) : 0, t);
@@ -828,6 +838,32 @@ export class GloamreachGame {
         this.applyPower();
       } else if (lvl && lvl !== this.tier && !this.quality) this.applyPower();
     }
+  }
+
+  /** Where the music thinks you are: the hearth among the houses, the fields, the Gloamwood, the drake's ledge. */
+  musicArea() {
+    const p = this.hero.pos;
+    return gloamreachTrack({ area: areaAt(p.x, p.z), x: p.x, z: p.z, gloam: this.world?.gloam ?? 0 });
+  }
+
+  /**
+   * The soundtrack's mood: Steel Rain the moment a monster comes for you
+   * (alert, chasing, striking, within 40 m), Crown of Cinders for Cindermaw,
+   * back to the place's own track 5 s after the last one breaks off.
+   */
+  musicFrame(dt) {
+    const h = this.hero.pos;
+    let fight = false;
+    let boss = false;
+    if (!this.combat.dead) {
+      for (const m of this.monsters.list) {
+        if (!m.alive || !FIGHTING.has(m.state)) continue;
+        const d = Math.hypot(m.x - h.x, m.z - h.z);
+        if (d < 40) fight = true;
+        if (m.boss && d < 50) boss = true;
+      }
+    }
+    this.music.update(dt, { area: this.musicArea(), fight, boss });
   }
 
   /** The ground under the pointer (or the screen's centre in mouse-look): a ray marched over the land. */

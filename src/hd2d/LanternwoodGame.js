@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PowerKit } from '../shared/powerKit.js';
 import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
 import { HelpPanel, helpButton } from '../shared/helpPanel.js';
+import { GameMusic, lanternwoodTrack } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
 import { loadFx, FxPlayer } from '../pixel/fx.js';
 import * as R from './rules.js';
@@ -80,6 +81,9 @@ const storage = {
     }
   }
 };
+
+/** A foe in one of these states is after someone (foes.js): the music goes to battle. */
+const FIGHTING = new Set(['chase', 'windup', 'strike', 'recover', 'burrowed']);
 
 export class LanternwoodGame {
   constructor(host, { onClose, account } = {}) {
@@ -245,6 +249,10 @@ export class LanternwoodGame {
     // Power: a capped loop (60 by default), stopped in a hidden tab, on demand behind the pause window.
     this.power = new PowerKit('lanternwood', { renderer: this.renderer, profile: { quietFps: 45 }, features: { grass: false, ao: false, rays: false, distance: false }, onChange: () => this.applyPower() });
     this.applyPower();
+    // The soundtrack (docs/music.md): First Light on the title; in play, by realm — the camp's hearth, the
+    // night forest, the sunlit hills, Rime Keep in the snow and the ash — Steel Rain in a fight, Crown of
+    // Cinders for a boss. On/off and volume are in the pause menu.
+    this.music = new GameMusic('lanternwood', { moods: { battle: 'battle', boss: 'boss' }, hold: 5 });
     this.title();
     this.power.start((ms) => {
       this._menuKind();
@@ -261,6 +269,7 @@ export class LanternwoodGame {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.music?.dispose();
     if (this.mode === 'play' || this.mode === 'dead') this.save();
     this.net.close();
     this.power?.dispose();
@@ -472,15 +481,46 @@ export class LanternwoodGame {
     this._snapCamera();
     this._fade = 1;
     this.hud.toast(`<small>${R.REALMS[id].sub}</small><b>${R.REALMS[id].name}</b>`, 'realm');
+    this.music?.jump(this.musicArea(), { fade: 2.5 });
     this.fx('arcane/blink-in', this.heroPos.x, 0, this.heroPos.z, { pxm: 36, color: 1.4 });
     this.state.realm = id;
     this.save();
+  }
+
+  /* =============================================================== music */
+
+  /** The realm's track, the camp's hearth while you're round the fire in Lanternwood. */
+  musicArea() {
+    const camp = this.realm === 'lanternwood' ? this.realmDef?.areas?.camp : null;
+    const inCamp = camp && Math.hypot(this.heroPos.x - camp.x, this.heroPos.z - camp.z) < camp.r + 6;
+    return lanternwoodTrack({ realm: this.realm, area: inCamp ? 'camp' : null });
+  }
+
+  /**
+   * The soundtrack's mood: Steel Rain as soon as a foe within 20 m is after
+   * you, Crown of Cinders while the realm's boss fights within 32 m, the
+   * realm's own track 5 s after the last one breaks off.
+   */
+  musicFrame(dt) {
+    let fight = false;
+    let boss = false;
+    if (this.mode === 'play') {
+      const h = this.heroPos;
+      for (const e of this.enemies ?? []) {
+        if (!e.alive || !FIGHTING.has(e.state)) continue;
+        const d = Math.hypot(e.x - h.x, e.z - h.z);
+        if (d < 20) fight = true;
+        if (e === this.boss && d < 32) boss = true;
+      }
+    }
+    this.music?.update(dt, { area: this.musicArea(), fight: fight || boss, boss });
   }
 
   /* =============================================================== title */
 
   title() {
     this.mode = 'title';
+    this.music?.jump('title');
     this.overlay = null;
     this.dialogue.close();
     this.hud.show(false);
@@ -543,6 +583,7 @@ export class LanternwoodGame {
     this._bossDownUntil = 0;
     this._spawnRealmFoes();
     this.mode = 'play';
+    this.music?.jump(this.musicArea(), { fade: 2.5 });
     this.overlay = null;
     this.hud.show(true);
     this.hud.tracker(state.quests, this.realm);
@@ -869,6 +910,7 @@ export class LanternwoodGame {
       const loot = R.rollLoot({ level, tier: 'chest', cls: this.hero.cls });
       this._spill(c, [['gold', 10 + level * 4], ...loot.items, ...loot.consumables]);
       this.hud.log('The chest creaks open');
+      this.music?.cue('discovery');
       return;
     }
     if (it.type === 'lootchest') return this._openLootChest(it.chest);
@@ -934,6 +976,7 @@ export class LanternwoodGame {
     const level = Math.max(this.hero.level, R.REALMS[this.realm].levels[0]);
     const loot = chestLoot(c, { level, cls: this.hero.cls }, R.rollLoot);
     this._spill(c, [['gold', loot.gold], ...loot.items, ...loot.consumables], true);
+    this.music?.cue('discovery');
     this.vfx.burst(c.x, 0.8, c.z, { n: 30, color: c.color, color2: '#ffffff', speed: [1, 4], up: 5, life: [0.5, 1.1], size: [0.08, 0.03], shape: 1, grav: 6, drag: 1 });
     this.vfx.ring(c.x, c.z, { color: c.color, r0: 0.3, r1: 2.6, life: 0.6, width: 0.3 });
     this.vfx.flash(c.x, 1.2, c.z, c.color, 30, 0.5);
@@ -1121,8 +1164,10 @@ export class LanternwoodGame {
       this.hitstop -= dt;
       sdt = dt * 0.1;
     }
-    if (sim) this.simulate(sdt);
-    else if (this.mode === 'title') this.camYaw = wrap(this.camYaw + dt * 0.05);
+    if (sim) {
+      this.simulate(sdt);
+      this.musicFrame(dt);
+    } else if (this.mode === 'title') this.camYaw = wrap(this.camYaw + dt * 0.05);
     if (this.mode !== 'title' && this.mode !== 'loading') this.net.update(dt);
     this.dialogue.update(dt);
     this.updateCamera(dt);

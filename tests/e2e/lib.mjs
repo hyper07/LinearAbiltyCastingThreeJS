@@ -63,12 +63,34 @@ export async function boot(browser, name = 'page', { view = 'hero', firstHelp = 
       const b = document.querySelector(sel)?.getBoundingClientRect();
       return b && b.width && document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2)?.closest(sel);
     }, selector, { timeout: 30000 });
-  await clickable('.home [data-hero]');
+  await clickable('.home [data-create]');
   if (view !== 'home') {
-    await page.click('.home [data-hero]');
+    await homeNav(page, '[data-hero]');
     await clickable('[data-start]');
   }
   return { context, page, errors, name };
+}
+
+/**
+ * Click one of the home bar's own items (My channel, My heroes, Arena hero,
+ * Play together, Create, Sign in): they live in the "My space" dropdown, or
+ * in the menu drawer on a phone, so open that first when the item isn't showing.
+ */
+export async function homeNav(page, selector) {
+  const sel = `.home ${selector}`;
+  const shown = () => page.evaluate((s) => {
+    const b = document.querySelector(s);
+    const r = b?.getBoundingClientRect();
+    return Boolean(r && r.width && r.right <= innerWidth && r.left >= 0 && getComputedStyle(b).visibility !== 'hidden');
+  }, sel);
+  if (!(await shown())) {
+    const phone = await page.evaluate(() => getComputedStyle(document.querySelector('.home [data-nav-toggle]')).display !== 'none');
+    if (phone) await page.click('.home [data-nav-toggle]');
+    if (!(await shown())) await page.click('.home [data-space-toggle]');
+    await page.waitForFunction((s) => document.querySelector(s)?.getBoundingClientRect().width > 0, sel, { timeout: 5000 });
+    await page.waitForTimeout(250);
+  }
+  await page.click(sel);
 }
 
 /** `check(name, condition)` with a tally, so a run prints every failure, not the first. */

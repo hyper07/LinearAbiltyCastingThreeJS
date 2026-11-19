@@ -1,4 +1,4 @@
-import { boot, tally, until } from './lib.mjs';
+import { boot, homeNav, tally, until } from './lib.mjs';
 
 /**
  * Channels, by mouse: a maker's own space from the home page, a playlist made
@@ -24,13 +24,13 @@ export async function run(browser, { shots = null } = {}) {
   const shot = (name, p = page) => shots && p.screenshot({ path: `${shots}/${name}.png` });
   try {
     // Signed out: the button explains and offers to sign in.
-    await page.click('.home [data-channel]');
+    await homeNav(page, '[data-channel]');
     t.check('signed out, My channel asks you to sign in', await until(page, () => /Sign in/.test(document.querySelector('.chan__message')?.textContent ?? ''), null, 5000));
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.app.home.channel.close());
 
     await signUp(page, `Maker${tag}`);
-    await page.click('.home [data-channel]');
+    await homeNav(page, '[data-channel]');
     await page.waitForSelector('.chan .chan__name');
     t.check('your channel opens with your name, a handle and Public', /Maker/.test(await text(page, '.chan__name')) && new RegExp(`@maker${tag}`).test(await text(page, '.chan__meta')) && /Public/.test(await text(page, '.chan__vis')));
     t.check('an empty channel says how to start', /Make a game/.test(await text(page, '.chan__body')));
@@ -67,7 +67,7 @@ export async function run(browser, { shots = null } = {}) {
     }, null, 30000));
     await page.reload({ waitUntil: 'load' });
     await page.waitForFunction(() => window.app?.phase === 'menu' && window.app.account?.user, null, { timeout: 120000 });
-    await page.click('.home [data-channel]');
+    await homeNav(page, '[data-channel]');
     await page.waitForSelector('.chan .chan__name');
     t.check('back on the channel, Keep going offers the next game', await until(page, () => /Keep going/i.test(document.querySelector('.chan-next')?.textContent ?? ''), null, 8000));
     await page.click('.chan [data-tab="achievements"]');

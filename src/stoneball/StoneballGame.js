@@ -1,5 +1,6 @@
 import { PowerKit } from '../shared/powerKit.js';
 import { HelpPanel, helpButton, codesFor } from '../shared/helpPanel.js';
+import { GameMusic, musicMenu } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
 
 const HELP_CODES = codesFor(CONTROLS, 'help');
@@ -46,6 +47,9 @@ const prefs = {
     }
   }
 };
+
+/** The music under a match, against the player's volume: low, so the thuds and the crowd stay in front. */
+const MATCH_MUSIC = 0.45;
 
 export class StoneballGame {
   constructor(host, { onClose, account } = {}) {
@@ -130,6 +134,7 @@ export class StoneballGame {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.music?.dispose();
     this.power?.dispose();
     clearTimeout(this._endT);
     this._resize?.disconnect();
@@ -171,6 +176,10 @@ export class StoneballGame {
     clearTimeout(this._endT);
     this.root.querySelector('.sb-overlay')?.remove();
     this.mode = 'menu';
+    // The soundtrack (docs/music.md): Steel Rain, low, under a match; quiet on the start screen; Victory or
+    // Retreat at full time. M (the game's own mute) silences it too.
+    this.music ??= new GameMusic('stoneball', { muted: () => this.sound.muted, level: MATCH_MUSIC });
+    this.music.jump(null);
     this.power?.setMenu('live');
     this.hud?.show(false);
     if (!this.match || this.match.teams.some((t) => t.control === 'human')) {
@@ -209,6 +218,7 @@ export class StoneballGame {
     this.charging = false;
     this.mode = 'play';
     this.power.setMenu('none');
+    this.music.jump('battle', { fade: 2 });
     this.root.focus();
     this.hud.flash('Kick-off', { ms: 1300 });
     this.help.openFirstTime();
@@ -227,6 +237,7 @@ export class StoneballGame {
     this.power.setMenu('still');
     pauseScreen(this.root, {
       graphics: this.power.menu(),
+      music: musicMenu(),
       onHelp: () => {
         // From the pause screen: back to the match when How to play closes.
         this.mode = 'play';
@@ -432,6 +443,12 @@ export class StoneballGame {
         this.mode = 'end';
         this.charging = false;
         this.hud.flash('Full time', { ms: 2000, big: true });
+        {
+          // Full time: the bed fades, Victory or Retreat (nothing for a draw) plays over it.
+          const human = m.human?.team ?? 0;
+          if (m.winner >= 0) this.music.cue(m.winner === human ? 'victory' : 'defeat', { gain: 1 / MATCH_MUSIC });
+          this.music.jump(null, { fade: 3 });
+        }
         this._endT = setTimeout(() => {
           if (this.closed || this.mode !== 'end') return;
           endScreen(this.root, m, { onRematch: () => this.rematch(), onMenu: () => this.menu(), onClose: () => this.close() });

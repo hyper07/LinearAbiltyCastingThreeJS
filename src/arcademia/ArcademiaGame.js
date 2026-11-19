@@ -1,6 +1,7 @@
 import { PowerKit } from '../shared/powerKit.js';
 import { CameraAssist, loadAssist } from '../shared/cameraAssist.js';
 import { HelpPanel } from '../shared/helpPanel.js';
+import { GameMusic } from '../shared/gameMusic.js';
 import { controls } from './controls.js';
 import { Stage } from './stage.js';
 import { World } from './world/World.js';
@@ -43,6 +44,9 @@ const prefs = {
     }
   }
 };
+
+/** The music's level under a lesson (reading and checks want quiet), against 1 on the mountain. */
+const LESSON_MUSIC = 0.4;
 
 export class ArcademiaGame {
   constructor(host, { account = null, onClose } = {}) {
@@ -125,6 +129,10 @@ export class ArcademiaGame {
     // a window (settings, the start screen, the parents' page…) covers the mountain.
     this.power = new PowerKit('arcademia', { renderer: this.stage.renderer, profile: { quietFps: 30 }, features: { grass: false, ao: false, rays: false, distance: false }, onChange: () => this.applyPower() });
     this.applyPower();
+    // The soundtrack (docs/music.md): Paper Kites over the mountain, softer under a lesson; Level Up and
+    // Treasure Found for stars and stickers. The Sound switch silences it too.
+    this.music = new GameMusic('arcademia', { muted: () => !this.prefs.sound });
+    this.music.jump('playful');
     this.power.start((ms) => {
       this.fps = this.power.loop.fps;
       this.frame(Math.min(0.1, ms / 1000));
@@ -361,6 +369,7 @@ export class ArcademiaGame {
       return;
     }
     this.mode = 'lesson';
+    this.music?.setLevel(LESSON_MUSIC, { fade: 1.2 });
     this._menuKind();
     this.labels.hidden = true;
     this.hud.root.hidden = true;
@@ -372,6 +381,7 @@ export class ArcademiaGame {
     this.lesson = null;
     this.progress.flush();
     this.mode = 'world';
+    this.music?.setLevel(1, { fade: 1.5 });
     this._menuKind();
     this.labels.hidden = false;
     this.hud.root.hidden = false;
@@ -390,7 +400,7 @@ export class ArcademiaGame {
     const f = FLOORS[n - 1];
     const got = this.gs.event('floor', { floor: n });
     if (got.stickers.length) setTimeout(() => this.hud.toast(t('game.newSticker', { list: got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ') }), { icon: '🌈' }), 1800);
-    this.sound.fanfare();
+    this.celebrate('level-up');
     confetti(this.root, 120);
     const banner = el('div', 'arc-banner', null, { role: 'status' });
     banner.append(el('span', 'arc-banner__icon', f.icon, { 'aria-hidden': 'true' }), el('strong', null, t('game.floorOpen', { n })), el('span', null, t('game.floorOpenStory', { name: f.name, story: WORLDS[n].story })));
@@ -471,7 +481,7 @@ export class ArcademiaGame {
         const score = await run(card);
         if (!box.isConnected) return;
         const got = this.gs.event('arcade', { game: `${id}-${n}`, score });
-        this.sound.fanfare();
+        this.celebrate('level-up');
         this.world.kid.cheer(1.5);
         card.replaceChildren(el('h2', null, `${icon} ${t('arcade.points', { count: score })}`), el('p', 'arc-rewards', t('arcade.rewards', { coins: got.coins, xp: got.xp })));
         const again = el('button', 'arc-btn arc-btn--primary arc-btn--big', t('arcade.again'), { type: 'button' });
@@ -521,7 +531,7 @@ export class ArcademiaGame {
     const got = this.gs.event('chest', { floor: n });
     this.world.chests.find((c) => c.floor === n)?.group.userData.setOpen(true);
     this.world.kid.cheer(1.6);
-    this.sound.fanfare();
+    this.celebrate('discovery');
     confetti(this.root, 60);
     this.hud.toast(got.stickers.length ? t('game.treasureSticker', { n: got.coins, sticker: `${got.stickers[0].emoji} ${got.stickers[0].name}` }) : t('game.treasure', { n: got.coins }), { icon: '🪙' });
     this.refreshGame();
@@ -677,9 +687,20 @@ export class ArcademiaGame {
     window.addEventListener('blur', this._onBlur);
   }
 
+  /**
+   * A moment to cheer: the soundtrack's stinger (Level Up for stars, a level
+   * or a new floor; Treasure Found for a chest or a sticker) over the music,
+   * or the old synthesized fanfare when the music is off.
+   */
+  celebrate(kind = 'level-up') {
+    if (this.music?.audible) this.music.cue(kind, { gain: 1 / Math.max(0.4, this.music.level) });
+    else this.sound.fanfare();
+  }
+
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.music?.dispose();
     this.power?.dispose();
     this._modals?.disconnect();
     this.progress.flush();

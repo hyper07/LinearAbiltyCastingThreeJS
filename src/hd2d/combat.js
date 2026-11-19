@@ -787,6 +787,8 @@ export const CombatMixin = {
     this.mode = 'dead';
     this.deadT = 0;
     this.hud.toast(this.realm === 'lanternwood' ? 'You fall… the Hearthlight calls you back.' : 'You fall… the waystone calls you back.', 'warn');
+    this.music?.calm();
+    this.music?.cue('defeat');
   },
 
   _respawn() {
@@ -833,6 +835,7 @@ export const CombatMixin = {
     const { levels } = R.gainXp(this.hero, drops.xp);
     const name = ev.elite ? '<b>a hero monster</b>' : def.name;
     this.hud.log(`${name} driven off · +${drops.xp} XP`);
+    if (ev.elite && !def.boss) this.music?.cue('victory');
     if (def.boss) {
       this.fx('shadow/dark-explosion', ev.x, 0, ev.z, { pxm: 40, additive: true, color: 1.5 });
       this.shake = 0.8;
@@ -840,6 +843,7 @@ export const CombatMixin = {
       if (ev.kind === 'lampwight') this.state.bossDefeated = true;
       this.hud.boss(null);
       this.hud.toast(`<b>${def.name} is undone.</b>`, 'gold');
+      this.music?.cue('victory');
     } else this.fx('spawn/poof', ev.x, 0, ev.z, { pxm: 70, additive: false, color: 0.8, speed: 1.6 });
     const spot = (i) => [ev.x + Math.cos(i * 2.3) * 1.5, ev.z + Math.sin(i * 2.3) * 1.5];
     let n = 0;
@@ -972,6 +976,7 @@ export const CombatMixin = {
     this.pulse = Math.max(this.pulse ?? 0, 0.5);
     const s = R.statsOf(this.hero);
     this.hud.toast(`<b>Level ${this.hero.level}!</b> Health ${s.maxHp} · Attack ${s.atk}${levels > 1 ? ` (+${levels} levels)` : ''}`, 'gold');
+    this.music?.cue('level-up');
   },
 
   wrapAngle: wrap

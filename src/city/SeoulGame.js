@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PowerKit } from '../shared/powerKit.js';
 import { setChoice } from '../shared/power.js';
 import { HelpPanel } from '../shared/helpPanel.js';
+import { GameMusic, musicMenu, seoulTrack, band, musicCreditHtml } from '../shared/gameMusic.js';
 import { CONTROLS, modeHint } from './controls.js';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
@@ -364,6 +365,9 @@ export class SeoulGame {
     // (its shadows are painted), so the Graphics menu offers no shadow row here.
     this.power = new PowerKit('seoul', { renderer: this.renderer, profile: POWER_PROFILE, features: { grass: false, ao: false, rays: false, shadows: false }, onChange: () => this.applyPower() });
     this.applyPower();
+    // The soundtrack (docs/music.md): Neon Overpass while racing and while driving at night; otherwise the
+    // city is left to its own sounds (the engine, the horn). On/off and volume are in the Graphics panel.
+    this.music = new GameMusic('seoul', { settle: 2.5, hold: 0 });
     this.power.start((ms, now) => this._frame(now));
     // The index says which tiles exist; without it the map was never converted.
     try {
@@ -412,11 +416,12 @@ export class SeoulGame {
     const box = this.$('[data-gfx]');
     const show = open ?? box.hidden;
     box.hidden = !show;
-    if (show) box.replaceChildren(this.power.menu());
+    if (show) box.replaceChildren(this.power.menu(), musicMenu());
     this.root.focus();
   }
 
   close() {
+    this.music?.dispose();
     this.power?.dispose();
     this._resize?.disconnect();
     window.removeEventListener('keydown', this._down, true);
@@ -1577,7 +1582,8 @@ export class SeoulGame {
     box.innerHTML = `<header><b>Places</b><input type="search" placeholder="Search towers and districts" data-find aria-label="Search places" /><button type="button" class="seoul__x" data-places-close aria-label="Close">✕</button></header>
       <h4>Districts <small>${this.visited.size} of ${this.index.districts.length} visited</small></h4><div class="seoul__chips" data-districts></div>
       <h4>Tallest named buildings</h4><div class="seoul__list" data-landmarks></div>
-      <h4>Where the map comes from</h4><p class="seoul__sources">${[`${ATTRIBUTION} (KOGL type 1)`, ...(this.index.credits ?? [])].map(esc).join('<br>')}</p>`;
+      <h4>Where the map comes from</h4><p class="seoul__sources">${[`${ATTRIBUTION} (KOGL type 1)`, ...(this.index.credits ?? [])].map(esc).join('<br>')}</p>
+      <h4>Music</h4><p class="seoul__sources" data-music-credit>${musicCreditHtml('seoul', esc)}</p>`;
     box.querySelector('[data-places-close]').addEventListener('click', () => this.togglePlaces(false));
     const fill = (q = '') => {
       const d = box.querySelector('[data-districts]');
@@ -1687,6 +1693,14 @@ export class SeoulGame {
     if (b && info) b.textContent = `${this.weather.kind === 'clear' && day ? '☀️' : info.icon} ${info.name}`;
   }
 
+  /** Neon Overpass on the grid and in the race, and in a car after dark (a dead band so dusk doesn't flap it). */
+  _music(dt) {
+    if (!this.music) return;
+    this._night = band(this.uniforms?.uNight?.value ?? 0, this._night, 0.6, 0.4);
+    const racing = this.mode === 'race' && ['grid', 'racing', 'done'].includes(this.race?.phase);
+    this.music.update(dt, { area: seoulTrack({ mode: this.mode, racing, night: this._night }) });
+  }
+
   _frame(now) {
     const dt = Math.min(0.1, (now - this._last) / 1000);
     this._last = now;
@@ -1698,6 +1712,7 @@ export class SeoulGame {
     // People on the pavements, bikes and scooters (once the roads are in).
     if (!this.life && this.roadTiles && this.terrain) this.life = new StreetLife(this);
     this.life?.update(dt);
+    this._music(dt);
     this.power.gpuBegin();
     if (this.quality === 'low' || this.bloomOn === false) this.renderer.render(this.scene, this.camera);
     else this.composer.render(dt);

@@ -644,6 +644,7 @@ export class Combat {
       const c = rewardChest({ elite: m.elite, boss: m.boss }, { id: `r${m.id}${Math.round(this.t)}`, x: m.x + 1.5, z: m.z + 1.5, now: this.t });
       if (c) this._spawnChest(c);
       this.g.hud?.banner(m.boss ? `${m.name} has fallen` : `${m.name} is slain`, m.title, true);
+      this.g.music?.cue('victory');
       this._shake(m.boss ? 0.8 : 0.4);
     }
     this.g.onChange?.();
@@ -658,6 +659,7 @@ export class Combat {
     this.g.vfx.flash(h.clone().add(V(0, 2, 0)), 0xffd070, 50, 0.8, 12);
     this.g.hud?.banner(`Level ${level}`, 'Your strength grows', true);
     this.g.sfx?.levelUp();
+    this.g.music?.cue('level-up');
   }
 
   /* ------------------------------------------------------------ being hit */
@@ -722,6 +724,8 @@ export class Combat {
     this.g.actor.act('Die', { loop: false, fade: 0.1, clamp: true, upper: false });
     this.g.hud?.death(true);
     this.g.sfx?.death();
+    this.g.music?.calm();
+    this.g.music?.cue('defeat');
     this.g.monsters.resetAll();
   }
 
@@ -826,6 +830,7 @@ export class Combat {
       if (!r.ok) return this._full(l);
       this.g.hud?.toast(l.item.name, 'item', l.item);
       this.g.sfx?.pickup(l.item.rarity);
+      if (l.item.rarity === 'legendary') this.g.music?.cue('discovery');
     }
     l.obj.removeFromParent();
     l.gone = true;
@@ -914,6 +919,7 @@ export class Combat {
       this.g.vfx.flash(at.clone().add(V(0, 1, 0)), 0xffd070, 40, 0.6, 10);
     });
     this.g.sfx?.chest();
+    this.g.music?.cue('discovery');
     this.save();
   }
 

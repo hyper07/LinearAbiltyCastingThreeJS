@@ -13,6 +13,7 @@
  */
 import { PowerLoop } from '../shared/power.js';
 import { HelpPanel, helpButton } from '../shared/helpPanel.js';
+import { GameMusic } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
 import * as THREE from 'three';
 import '@fontsource-variable/nunito/wght.css';
@@ -168,6 +169,7 @@ export class KindlewatchGame {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.music?.dispose();
     this.loop?.stop();
     this._resize?.disconnect();
     this.input?.dispose();
@@ -247,6 +249,10 @@ export class KindlewatchGame {
 
   menu() {
     this.mode = 'menu';
+    // The soundtrack (docs/music.md): Rime Keep through the keep, Steel Rain in a fight, Crown of Cinders for
+    // Hrimgar (it pairs with Rime Keep); the pause menu's Sound switch silences it too.
+    this.music ??= new GameMusic('kindlewatch', { moods: { battle: 'battle', boss: 'boss' }, muted: () => !(this.sound.volume > 0), hold: 5 });
+    this.music.jump('frozen-fortress');
     this.hud.show(false);
     this.touchUi?.show(false);
     this.menuT = 0;
@@ -277,6 +283,7 @@ export class KindlewatchGame {
     this.reset();
     this.panels.close();
     this.mode = 'play';
+    this.music?.jump('frozen-fortress', { fade: 2 });
     this.hud.show(true);
     this.touchUi?.show(true);
     this.hud.toast('Gatehouse Yard', 'Kindlewatch Keep — light the three beacons to raise the Rime Gate', 4);
@@ -298,7 +305,9 @@ export class KindlewatchGame {
     this.panels.pause({
       onResume: () => this.resume(),
       onRestart: () => this.begin(),
-      onLeave: () => this.close()
+      onLeave: () => this.close(),
+      soundOn: this.sound.volume > 0,
+      onSound: () => this.setSound(!(this.sound.volume > 0))
     });
   }
 
@@ -310,6 +319,40 @@ export class KindlewatchGame {
 
   heroDied() {
     this.deadAt = this.time;
+    this.music?.calm();
+    this.music?.cue('defeat');
+  }
+
+  /** The pause menu's Sound switch: the effects (and, linked, the music) on or off; kept in the save. */
+  setSound(on) {
+    const v = on ? (this._soundWas > 0 ? this._soundWas : 0.8) : 0;
+    if (!on) this._soundWas = this.sound.volume;
+    this.sound.setVolume(v);
+    this.save.settings.sound = v;
+    store.save(this.save);
+    return on;
+  }
+
+  /**
+   * The soundtrack's mood: Steel Rain as soon as a foe near you is awake and
+   * after you (within 12 tiles), Crown of Cinders while Hrimgar fights in his
+   * throne room; Rime Keep again 5 s after the last one stands down.
+   */
+  musicFrame(dt) {
+    const h = this.hero;
+    let fight = false;
+    if (!h.dead) {
+      for (const e of this.enemies) {
+        if (e.dead || e.brain.state === 'idle' || e.brain.state === 'dead') continue;
+        if (Math.hypot(e.x - h.x, e.y - h.y) < 12) {
+          fight = true;
+          break;
+        }
+      }
+    }
+    const j = this.jarl;
+    const boss = !h.dead && Boolean(j && !j.dead && j.brain.state !== 'idle' && this.room === 'throne');
+    this.music.update(dt, { fight: fight || boss, boss });
   }
 
   rise() {
@@ -458,9 +501,14 @@ export class KindlewatchGame {
     this.hud.prompt(near && !h.dead ? `<kbd>E</kbd> ${near.lit ? 'Douse' : 'Light'}${near.beacon ? ' the beacon' : ''}` : null, near ? this.stage.toScreen(near.x + 0.5, near.y + (near.kind === 'torch' ? 2.2 : 2.4)) : null);
     this.hurtPulse = Math.max(0, this.hurtPulse - dt * 2.5);
     this.shakeAmt = Math.max(0, this.shakeAmt - dt * 1.6);
+    this.musicFrame(dt);
     if (this.jarl?.dead && !this.won) {
       this.won = true;
-      this.sound.play('victory');
+      // The Victory stinger, or the old chime if the music is off.
+      if (this.music?.audible) {
+        this.music.calm();
+        this.music.cue('victory');
+      } else this.sound.play('victory');
       this.save.jarl = true;
       this.save.gems += this.gems;
       store.save(this.save);
@@ -1055,6 +1103,7 @@ export class KindlewatchGame {
       const lit = this.level.props.filter((q) => q.beacon && q.lit).length;
       if (on) {
         this.hud.toast(`Beacon ${lit} of 3`, lit === 3 ? 'The Rime Gate stirs' : 'The gate in the Brazier Court remembers it', 3);
+        if (sound) this.music?.cue('level-up');
         this.checkpoint = { x: p.x + 0.5, y: p.y - 0.8 };
       }
       if (lit === 3 && !this.gateOpen) this.openGate();

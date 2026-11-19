@@ -10,6 +10,7 @@ import { CONTROLS } from './controls.js';
 import { HEROES, HERO_ORDER } from './rules.js';
 import { ROOMS, CORRIDORS, W, H, WALL, roomAt } from './map.js';
 import { PACKS, OWN } from './credits.js';
+import { musicMenu } from '../shared/gameMusic.js';
 import { RIGS, heroPose, ordered } from './puppet.js';
 
 export const el = (tag, cls, html) => {
@@ -604,14 +605,24 @@ export class Panels {
     p.querySelector('[data-back]').focus();
   }
 
-  pause({ onResume, onRestart, onLeave }) {
+  pause({ onResume, onRestart, onLeave, soundOn = true, onSound = null }) {
     const p = this.panel(`<h2>Paused</h2><p>The fires keep burning while you rest.</p><div class="kw-btns" style="flex-direction:column;align-items:stretch">
       <button class="kw-btn kw-btn--go" data-resume>Resume</button>
       <button class="kw-btn" data-controls>Controls</button>
+      <button class="kw-btn" data-sound aria-pressed="${soundOn}">${soundOn ? 'Sound: on' : 'Sound: off'}</button>
       <button class="kw-btn" data-credits>Credits</button>
       <button class="kw-btn" data-restart>Start the keep again</button>
       <button class="kw-btn kw-btn--quiet" data-leave>Leave Kindlewatch</button></div>`);
-    const again = () => this.pause({ onResume, onRestart, onLeave });
+    const again = () => this.pause({ onResume, onRestart, onLeave, soundOn: this.game?.sound ? this.game.sound.volume > 0 : soundOn, onSound });
+    // Music: on/off, its volume, the track-name toast (shared/gameMusic.js), under the buttons.
+    const music = musicMenu();
+    music.style.margin = '12px auto 0';
+    p.append(music);
+    p.querySelector('[data-sound]').addEventListener('click', (e) => {
+      const on = onSound?.() ?? false;
+      e.currentTarget.textContent = on ? 'Sound: on' : 'Sound: off';
+      e.currentTarget.setAttribute('aria-pressed', String(on));
+    });
     p.querySelector('[data-resume]').addEventListener('click', onResume);
     // How to play: the shared panel (controls.js), the same one H opens.
     p.querySelector('[data-controls]').addEventListener('click', () => {

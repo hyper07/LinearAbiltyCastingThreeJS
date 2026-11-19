@@ -30,6 +30,7 @@ import { PowerKit } from '../shared/powerKit.js';
 import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
 import { WaypointBeam } from '../shared/waypointBeam.js';
 import { HelpPanel, helpButton, codesFor } from '../shared/helpPanel.js';
+import { GameMusic, musicMenu, kithvaleTrack, duskAt } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
 
 /** Treats on 5–7 and How to play on H / I (controls.js). */
@@ -235,6 +236,7 @@ export class KithvaleGame {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.music?.dispose();
     this.saveNow();
     this.power?.dispose();
     this._resize?.disconnect();
@@ -406,6 +408,10 @@ export class KithvaleGame {
   menu() {
     this.mode = 'menu';
     this.power.setMenu('live');
+    // The soundtrack (docs/music.md): Lantern Valley in Lanternrest and at dusk, Sunlit Meadow out in the
+    // valley by day, Treasure Found when a creature joins; the game's own Sound switch silences it too.
+    this.music ??= new GameMusic('kithvale', { muted: () => !this.sound.enabled, settle: 2.5 });
+    this.music.jump('lantern-valley');
     this.player.place(START.x, START.z - 1, Math.PI);
     this.start = new StartScreen(this.root, {
       picked: this.picked,
@@ -493,6 +499,7 @@ export class KithvaleGame {
     this.mode = 'play';
     this.power.setMenu('none');
     this.area = null;
+    this.music.jump(this.musicArea());
     this.root.focus();
     this.hud.banner('Lanternrest', this.state.friends.length ? 'welcome back' : 'the vale is waiting beyond the gate', 4.5);
     this.help.openFirstTime();
@@ -609,7 +616,7 @@ export class KithvaleGame {
     // Nothing moves behind the pause menu: draw only when something changes.
     this.power.setMenu('still');
     this.pauseEl = pauseMenu(this.root, {
-      graphics: menuSections(this.power.menu(), cameraMenu(this.follow.assist)),
+      graphics: menuSections(this.power.menu(), musicMenu(), cameraMenu(this.follow.assist)),
       onMap: () => this.openMap(),
       onHelp: () => this.openHelp(),
       soundOn: this.sound.enabled,
@@ -1126,6 +1133,7 @@ export class KithvaleGame {
           const friend = R.befriend(this.state, { species: w.species, name: R.cleanName(typed, name), uid: `k${Date.now().toString(36)}` });
           this.fauna.befriend(w, { uid: friend.uid, name: friend.name, follow: friend.follow });
           for (const o of this.fauna.friends) if (o.uid !== friend.uid) o.body.cheer(1.2);
+          this.music?.cue('discovery');
           this.hud.banner(`${friend.name} joined you!`, friend.follow ? R.SPECIES[w.species].ability.desc : 'Three friends already follow you — they\'ll wait in the Kith Garden.', 5);
           this.heartBurst(w.body.headWorld(V()), 14);
           this.refreshHud();
@@ -1196,6 +1204,13 @@ export class KithvaleGame {
     // Sound by place and hour.
     const dark = THREE.MathUtils.smoothstep(Math.abs(((this.hour - 12 + 24) % 24) - 12), 4.8, 6.6);
     this.sound.update(dt, { stream: streamDistance(focus.x, focus.z).d, dusk: dark, shrine: Math.hypot(SHRINE.x - focus.x, SHRINE.z - focus.z), wind: inVillage(focus.x, focus.z) ? 0.6 : 1 });
+    this._dusk = duskAt(this.hour, this._dusk);
+    if (playing || this.mode === 'naming') {
+      this.music.update(dt, { area: this.musicArea() });
+      // Softer under the trust moment's breathing bells.
+      const lvl = this.trust ? 0.5 : 1;
+      if (this.music.level !== lvl) this.music.setLevel(lvl, { fade: 1.2 });
+    }
     // The sun's shadow: redrawn when due (every frame on High and Ultra; every few, or when the view moves, below).
     const s = this.settings;
     const cp = this.camera.position;
@@ -1515,6 +1530,12 @@ export class KithvaleGame {
     this.coverRun = 0.55;
   }
 
+  /** Lantern Valley in the village and at dusk, Sunlit Meadow out in the valley by day. */
+  musicArea() {
+    const p = this.player.pos;
+    return kithvaleTrack({ village: inVillage(p.x, p.z), dusk: this._dusk ?? duskAt(this.hour) });
+  }
+
   /** The wild creature of a species nearest its first home (for shots and tests). */
   wildOf(species) {
     return this.fauna.wild.find((w) => w.species === species);
@@ -1526,6 +1547,7 @@ export class KithvaleGame {
     if (!w) w = this.fauna.spawn(species, HABITATS[species].homes[0], 8, 999);
     const friend = R.befriend(this.state, { species, name: name ?? R.pickName(species, this.state.friends.map((f) => f.name)), uid: `k${Math.random().toString(36).slice(2, 8)}` });
     this.fauna.befriend(w, { uid: friend.uid, name: friend.name, follow: friend.follow });
+    this.music?.cue('discovery');
     this.refreshHud();
     return friend;
   }

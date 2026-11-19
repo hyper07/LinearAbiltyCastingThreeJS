@@ -282,6 +282,7 @@ export class Music {
     this.pending = null; // a play request waiting for the first gesture
     this.muteLinks = [];
     this.linkedMute = false;
+    this.trim = 1; // a game's own level under the volume (a quiet home page, a lesson)
     this.toastEl = null;
     this._ready = null;
   }
@@ -348,14 +349,37 @@ export class Music {
       saveSettings(this.settings, this.storage);
     }
   }
-  /** Follow a game's own sound toggle: music is silent while any getter returns true. */
+  /** Follow a game's own sound toggle: music is silent while any getter returns true. Returns an unlink. */
   linkMute(getter) {
     this.muteLinks.push(getter);
     if (!this._muteTimer) this._muteTimer = setInterval(() => this._pollMute(), 300);
     this._pollMute();
     return () => {
       this.muteLinks = this.muteLinks.filter((g) => g !== getter);
+      if (!this.muteLinks.length) {
+        clearInterval(this._muteTimer);
+        this._muteTimer = null;
+      }
+      this._pollMute(); // a closed game's switch no longer holds the music silent
     };
+  }
+
+  /** A game's own level under the volume (0–1): quieter on a home page, ducked under a lesson. */
+  setTrim(k, { fade = 0.8 } = {}) {
+    const v = Math.min(1, Math.max(0, Number(k)));
+    if (!Number.isFinite(v) || v === this.trim) return;
+    this.trim = v;
+    this._applyMaster(false, fade);
+  }
+
+  /** Whether anything would be heard now (playing, not muted, a volume above 0). */
+  get audible() {
+    return Boolean(this.voice) && this._level() > 0;
+  }
+
+  /** For tests and the console: what is playing and how loud. */
+  debug() {
+    return { id: this.current?.id ?? null, title: this.current?.title ?? null, mood: this.mood, volume: this.settings.volume, muted: this.settings.muted, linkedMute: this.linkedMute, trim: this.trim, level: this._level(), gain: this.master?.gain.value ?? null, ctx: this.ctx?.state ?? null, pending: this.pending?.track.id ?? null };
   }
 
   /** Play a track by id or tag; `fade` seconds (default 2). Resolves when it starts. */
@@ -406,6 +430,7 @@ export class Music {
   /** Fade out and stop. */
   stop({ fade = 1.5 } = {}) {
     this.pending = null;
+    this._token = (this._token ?? 0) + 1; // a track still loading doesn't start after this
     if (this.voice) this._release(this.voice, fade);
     this.voice = null;
   }
@@ -447,15 +472,15 @@ export class Music {
   }
 
   _level() {
-    return this.settings.muted || this.linkedMute ? 0 : this.settings.volume;
+    return this.settings.muted || this.linkedMute ? 0 : this.settings.volume * this.trim;
   }
 
-  _applyMaster(now = false) {
+  _applyMaster(now = false, fade = 0.24) {
     if (!this.master) return;
     const t = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(t);
     if (now) this.master.gain.value = this._level();
-    else this.master.gain.setTargetAtTime(this._level(), t, 0.08);
+    else this.master.gain.setTargetAtTime(this._level(), t, Math.max(0.02, fade / 3));
   }
 
   _pollMute() {
@@ -604,5 +629,6 @@ export class Music {
   }
 }
 
-/** The one player every game shares. */
+/** The one player every game shares (also `window.gamoryMusic`, for the console and tests). */
 export const music = new Music();
+if (typeof window !== 'undefined') window.gamoryMusic = music;

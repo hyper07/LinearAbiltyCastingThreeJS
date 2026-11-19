@@ -3,6 +3,17 @@ import { cardLine } from '../platform/gameCards.js';
 import { GENRE_ICONS, coverHtml, guardCovers } from './gameCover.js';
 import { tilt, confetti, popColor } from './pop.js';
 import { ChannelPage } from './ChannelPage.js';
+import { music } from '../shared/music.js';
+
+/**
+ * The home page's music: First Light, quiet (this share of the player's music
+ * volume), starting only on the first click or key (music.js waits for one).
+ * The ♪ button in the bar switches music off and on — the global setting
+ * (music.js, localStorage 'gamory.music'), so off here starts every game with
+ * its music off too; a game's own Music menu can turn it back on, which is the
+ * same switch. The ▾ beside it opens the music volume (also global).
+ */
+const HOME_MUSIC = { track: 'title', level: 0.35 };
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -57,23 +68,42 @@ export class PlatformHome {
     this.root = el('div', 'home');
     this.root.hidden = true;
     this.root.innerHTML = `
-      <header class="home__bar">
-        <div class="home__brand"><span class="home__logo">◆</span> Gamory</div>
-        <label class="home__search">
+      <header class="home__bar" data-bar>
+        <div class="home__brand"><span class="home__logo" aria-hidden="true">◆</span> Gamory</div>
+        <label class="home__search" data-search-box>
           <span class="home__search-icon" aria-hidden="true">⌕</span>
           <input type="search" placeholder="Search games, worlds and makers" aria-label="Search games" data-search />
         </label>
-        <nav class="home__actions">
-          <button type="button" class="home__btn home__btn--primary" data-create>＋ Create</button>
-          <button type="button" class="home__btn" data-channel title="Your own space: the games you make, your playlists, your badges — public or private, with a link to share">📺 My channel</button>
-          <button type="button" class="home__btn" data-heroes title="Your heroes in every game: levels, bags and equipment">🦸 My heroes</button>
-          <button type="button" class="home__btn" data-hero title="The free-play arena's hero: class, weapon, skills and stash">Arena hero</button>
-          <button type="button" class="home__btn" data-party title="Make a party or join one with a code">Play together</button>
-          <button type="button" class="home__btn home__btn--account" data-account>Sign in</button>
+        <button type="button" class="home__btn home__icon-btn home__search-open" data-search-open aria-label="Search games" title="Search games"><span class="home__ico" aria-hidden="true">⌕</span></button>
+        <button type="button" class="home__btn home__icon-btn home__music-toggle" data-music-toggle aria-pressed="true" aria-label="Music on" title="Music on or off — here and in every game (saved)"><span class="home__ico home__music-note" aria-hidden="true">♪</span></button>
+        <button type="button" class="home__btn home__icon-btn home__nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="home-nav" aria-label="Menu" title="Menu"><span class="home__ico" aria-hidden="true">☰</span></button>
+        <div class="home__scrim" data-nav-scrim hidden></div>
+        <nav class="home__actions" id="home-nav" data-nav aria-label="Gamory">
+          <button type="button" class="home__btn home__icon-btn home__nav-close" data-nav-close aria-label="Close the menu" title="Close (Esc)"><span class="home__ico" aria-hidden="true">✕</span></button>
+          <button type="button" class="home__btn home__btn--primary home__create" data-create><span class="home__ico" aria-hidden="true">＋</span><span>Create</span></button>
+          <div class="home__space" data-space>
+            <button type="button" class="home__btn home__space-toggle" data-space-toggle aria-haspopup="true" aria-expanded="false" aria-controls="home-space-menu" title="Your channel, your heroes, the arena and parties"><span class="home__ico" aria-hidden="true">🙂</span><span>My space</span><span class="home__caret" aria-hidden="true"></span></button>
+            <div class="home__space-menu" id="home-space-menu" data-space-menu role="menu" aria-label="My space">
+              <button type="button" class="home__menu-item" role="menuitem" data-channel title="Your own space: the games you make, your playlists, your badges — public or private, with a link to share"><span class="home__ico" aria-hidden="true">📺</span><span>My channel</span></button>
+              <button type="button" class="home__menu-item" role="menuitem" data-heroes title="Your heroes in every game: levels, bags and equipment"><span class="home__ico" aria-hidden="true">🦸</span><span>My heroes</span></button>
+              <button type="button" class="home__menu-item" role="menuitem" data-hero title="The free-play arena's hero: class, weapon, skills and stash"><span class="home__ico" aria-hidden="true">⚔️</span><span>Arena hero</span></button>
+              <button type="button" class="home__menu-item" role="menuitem" data-party title="Make a party or join one with a code"><span class="home__ico" aria-hidden="true">🤝</span><span>Play together</span></button>
+              <div class="home__menu-music" role="group" aria-label="Music">
+                <label for="home-music-volume"><span class="home__ico" aria-hidden="true">♪</span> Music volume</label>
+                <input id="home-music-volume" type="range" min="0" max="100" step="5" data-home-music-volume />
+                <small>Music: ACE-Step 1.5 (MIT)</small>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="home__btn home__btn--account" data-account title="Sign in, or your account">Sign in</button>
         </nav>
       </header>
       <div class="home__filters">
-        <div class="home__chips" data-chips role="toolbar" aria-label="Filter by genre"></div>
+        <div class="home__chipwrap" data-chipwrap>
+          <button type="button" class="home__chip-arrow home__chip-arrow--left" data-chips-left aria-label="Scroll the genres left" title="More genres" tabindex="-1">‹</button>
+          <div class="home__chips" data-chips role="toolbar" aria-label="Filter by genre"></div>
+          <button type="button" class="home__chip-arrow home__chip-arrow--right" data-chips-right aria-label="Scroll the genres right" title="More genres" tabindex="-1">›</button>
+        </div>
         <div class="home__sort" role="group" aria-label="Sort">
           <button type="button" data-sort="popular" class="is-active">Popular</button>
           <button type="button" data-sort="new">New</button>
@@ -127,7 +157,11 @@ export class PlatformHome {
       b.addEventListener('click', () => {
         this.query.genre = kids ? '' : genre;
         this.query.kids = kids;
-        for (const c of chips.children) c.classList.toggle('is-active', c === b);
+        for (const c of chips.children) {
+          c.classList.toggle('is-active', c === b);
+          c.setAttribute('aria-pressed', String(c === b));
+        }
+        b.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
         this.refresh();
       });
       chips.appendChild(b);
@@ -201,6 +235,14 @@ export class PlatformHome {
     this.$('[data-channel]').addEventListener('click', () => this.channel.openMine());
     this.$('[data-party]').addEventListener('click', () => actions.openHero('party'));
     this.$('[data-account]').addEventListener('click', () => actions.openHero('account'));
+    this.$('[data-music-toggle]').addEventListener('click', () => {
+      music.toggleMute();
+      this._musicButton();
+      if (!music.muted) this._music();
+    });
+    this.$('[data-home-music-volume]').addEventListener('input', (e) => music.setVolume(Number(e.target.value) / 100));
+    this._navMenus();
+    this._chipScroller();
     // A click on the dimmed space around a game's page closes it.
     this.$('[data-page]').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) this.closePage();
@@ -219,6 +261,7 @@ export class PlatformHome {
   show() {
     this.root.hidden = false;
     document.body.classList.add('is-home');
+    this._music();
     this.updateAccount();
     // A channel's link in the address opens it; one already open shows the new time and done marks.
     if (!this._routed) {
@@ -229,9 +272,179 @@ export class PlatformHome {
   }
 
   hide() {
+    this._closeMenus?.();
     this.root.hidden = true;
     document.body.classList.remove('is-home');
+    // A game brings its own music (or none): the home page's fades out.
+    this._musicStop();
     this.closePage();
+  }
+
+  /** A game opened over the home page (App.openLobby): its music, or quiet, until musicBack(). */
+  musicAway() {
+    this._away = true;
+    this._musicStop();
+  }
+
+  /** That game closed: First Light again, if the home page is what's showing. */
+  musicBack() {
+    this._away = false;
+    if (this.isVisible) this._music();
+  }
+
+  _musicStop() {
+    if (!this._musicOn) return;
+    this._musicOn = false;
+    if (!music.current || music.current.id === HOME_MUSIC.track) music.stop({ fade: 0.8 });
+  }
+
+  /** First Light, quietly, while the home page is up (after the first click or key: music.js waits for one). */
+  _music() {
+    this._musicButton();
+    if (music.muted || this._away) return;
+    this._musicOn = true;
+    music.setTrim(HOME_MUSIC.level, { fade: 0.3 });
+    music.play(HOME_MUSIC.track, { fade: 2.5 }).catch(() => (this._musicOn = false));
+  }
+
+  _musicButton() {
+    const b = this.$('[data-music-toggle]');
+    const on = !music.muted;
+    b.setAttribute('aria-pressed', String(on));
+    b.setAttribute('aria-label', on ? 'Music on' : 'Music off');
+    b.title = on ? 'Music is on — click to turn it off, here and in every game' : 'Music is off — click to turn it on, here and in every game';
+    b.classList.toggle('is-off', !on);
+    this.$('[data-home-music-volume]').value = String(Math.round(music.volume * 100));
+  }
+
+  /**
+   * The bar's menus: "My space" (a dropdown: arrow keys, Esc closes and puts
+   * focus back) and, on a phone, ☰ (a drawer with everything, Create first)
+   * and ⌕ (the search, full width). Picking an item closes them.
+   */
+  _navMenus() {
+    const bar = this.$('[data-bar]');
+    const space = this.$('[data-space]');
+    const toggle = this.$('[data-space-toggle]');
+    const items = () => [...this.$('[data-space-menu]').querySelectorAll('[role="menuitem"]')];
+    const navBtn = this.$('[data-nav-toggle]');
+    const nav = this.$('[data-nav]');
+    const scrim = this.$('[data-nav-scrim]');
+    const drawer = () => getComputedStyle(navBtn).display !== 'none';
+    const openSpace = (on, focus = false) => {
+      space.classList.toggle('is-open', on);
+      toggle.setAttribute('aria-expanded', String(on));
+      if (on) this._musicButton();
+      if (on && focus) items()[0]?.focus();
+    };
+    const openNav = (on) => {
+      bar.classList.toggle('is-nav-open', on);
+      navBtn.setAttribute('aria-expanded', String(on));
+      scrim.hidden = !on;
+      if (on) {
+        this._musicButton();
+        this.$('[data-create]').focus();
+      } else if (nav.contains(document.activeElement)) navBtn.focus();
+    };
+    this._closeMenus = () => {
+      openSpace(false);
+      if (bar.classList.contains('is-nav-open')) openNav(false);
+      bar.classList.remove('is-searching');
+    };
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSpace(!space.classList.contains('is-open'), e.detail === 0);
+    });
+    toggle.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        openSpace(true, true);
+      }
+    });
+    this.$('[data-space-menu]').addEventListener('keydown', (e) => {
+      const list = items();
+      const i = list.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const n = i < 0 ? 0 : (i + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+        list[n].focus();
+      } else if (e.key === 'Home' || e.key === 'End') {
+        e.preventDefault();
+        list[e.key === 'Home' ? 0 : list.length - 1].focus();
+      }
+    });
+    for (const b of items()) b.addEventListener('click', () => this._closeMenus());
+    this.$('[data-create]').addEventListener('click', () => this._closeMenus());
+    this.$('[data-account]').addEventListener('click', () => this._closeMenus());
+    navBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openNav(!bar.classList.contains('is-nav-open'));
+    });
+    scrim.addEventListener('click', () => openNav(false));
+    this.$('[data-nav-close]').addEventListener('click', () => openNav(false));
+    this.$('[data-search-open]').addEventListener('click', () => {
+      bar.classList.add('is-searching');
+      this.$('[data-search]').focus();
+    });
+    this.$('[data-search]').addEventListener('blur', (e) => {
+      if (!e.target.value) bar.classList.remove('is-searching');
+    });
+    // A click elsewhere closes the dropdown (not the drawer: its scrim does that).
+    document.addEventListener('pointerdown', (e) => {
+      if (space.classList.contains('is-open') && !e.target.closest?.('[data-space]') && !drawer()) openSpace(false);
+    });
+    // Esc: the innermost thing open closes, and focus goes back to what opened it.
+    this.root.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (space.classList.contains('is-open') && !drawer()) {
+        openSpace(false);
+        toggle.focus();
+        e.stopImmediatePropagation();
+      } else if (bar.classList.contains('is-nav-open')) {
+        openNav(false);
+        e.stopImmediatePropagation();
+      } else if (bar.classList.contains('is-searching')) {
+        bar.classList.remove('is-searching');
+        this.$('[data-search-open]').focus();
+        e.stopImmediatePropagation();
+      }
+    });
+    // Tab stays inside the open drawer.
+    nav.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab' || !bar.classList.contains('is-nav-open')) return;
+      const f = [...nav.querySelectorAll('button, input')].filter((x) => x.offsetParent);
+      if (!f.length) return;
+      if (e.shiftKey && document.activeElement === f[0]) {
+        e.preventDefault();
+        f[f.length - 1].focus();
+      } else if (!e.shiftKey && document.activeElement === f[f.length - 1]) {
+        e.preventDefault();
+        f[0].focus();
+      }
+    });
+  }
+
+  /** The genre chips: one scrolling row, soft fading edges where there's more, ‹ › to page through it. */
+  _chipScroller() {
+    const wrap = this.$('[data-chipwrap]');
+    const chips = this.$('[data-chips]');
+    const edges = () => {
+      wrap.classList.toggle('can-left', chips.scrollLeft > 2);
+      wrap.classList.toggle('can-right', chips.scrollLeft + chips.clientWidth < chips.scrollWidth - 2);
+    };
+    const page = (dir) => chips.scrollBy({ left: dir * Math.max(160, chips.clientWidth * 0.7), behavior: 'smooth' });
+    this.$('[data-chips-left]').addEventListener('click', () => page(-1));
+    this.$('[data-chips-right]').addEventListener('click', () => page(1));
+    chips.addEventListener('scroll', edges, { passive: true });
+    new ResizeObserver(edges).observe(chips);
+    // A mouse wheel scrolls the row sideways.
+    chips.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && chips.scrollWidth > chips.clientWidth) {
+        chips.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive: false });
+    this._chipEdges = edges;
   }
 
   updateAccount() {
