@@ -1500,6 +1500,7 @@ export class App {
     if (game.engine === 'arcademia') return this.openArcademia(game);
     if (game.engine === 'gloamreach') return this.openGloamreach(game);
     if (game.engine === 'wyldhunt') return this.openWyldhunt(game);
+    if (game.engine === 'kithvale') return this.openKithvale(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1585,6 +1586,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new WyldhuntGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Kithvale, the creature-befriending adventure's first map: its own screen and 3D view, like Wyldhunt. */
+  async openKithvale(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { KithvaleGame } = await import('../kithvale/KithvaleGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new KithvaleGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

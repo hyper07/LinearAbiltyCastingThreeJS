@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽', learning: '🎓', rpg: '🗡️'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', creatures: '🐾', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽', learning: '🎓', rpg: '🗡️'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -105,7 +105,7 @@ function skyline(kind, r, color) {
 const PHOTO_COVERS = new Set([
   'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
   // Taken by scripts/covers.mjs (run it again to refresh them).
-  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt'
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt', 'kithvale'
 ]);
 
 /**
@@ -142,6 +142,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'arcademia') return arcademiaCover(game);
   if (game.card?.cover === 'gloamreach') return gloamreachCover(game);
   if (game.card?.cover === 'wyldhunt') return wyldhuntCover(game);
+  if (game.card?.cover === 'kithvale') return kithvaleCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -241,6 +242,30 @@ function wyldhuntCover(game) {
     <path d="M110 134 Q104 116 112 108 M122 132 Q130 112 126 104" stroke="#e8dcc0" stroke-width="3" fill="none"/>
     <path d="M0 160 Q40 150 80 164 T160 160 T240 164 T320 158 V180 H0Z" fill="#2a4a1e"/>
     <text x="14" y="30" fill="#f4f0dc" font-family="Georgia, serif" font-size="20" letter-spacing="3">WYLDHUNT</text>
+  </svg>`;
+}
+
+/** Kithvale: a timber gate with a curved tile roof and two paper lanterns, framing green hills under a dusk sky; a little round creature with a crown of grass. */
+function kithvaleCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs>
+      <linearGradient id="kv-sky-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a7cc0"/><stop offset="0.55" stop-color="#c8a6c8"/><stop offset="1" stop-color="#f8cc9c"/></linearGradient>
+      <radialGradient id="kv-lamp-${uid}" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff6d8"/><stop offset="1" stop-color="#f0c070"/></radialGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#kv-sky-${uid})"/>
+    <ellipse cx="250" cy="52" rx="44" ry="12" fill="#fff0dc" opacity=".7"/><ellipse cx="70" cy="40" rx="36" ry="9" fill="#fff0dc" opacity=".6"/>
+    <path d="M0 118 Q60 92 130 108 T250 96 T320 104 V180 H0Z" fill="#6a9a4a"/>
+    <path d="M0 140 Q90 120 170 136 T320 128 V180 H0Z" fill="#7aaa52"/>
+    <path d="M150 180 Q160 150 172 132 L178 132 Q176 150 196 180Z" fill="#d8b47c"/>
+    <rect x="70" y="36" width="16" height="144" fill="#4a3124"/><rect x="234" y="36" width="16" height="144" fill="#4a3124"/>
+    <rect x="54" y="44" width="212" height="10" fill="#3e2a1e"/><rect x="62" y="60" width="196" height="6" fill="#3e2a1e"/>
+    <path d="M36 44 Q160 30 284 44 L292 34 Q160 14 28 34Z" fill="#d6a858"/><path d="M28 34 Q160 14 292 34" stroke="#8a5a2a" stroke-width="3" fill="none"/>
+    <line x1="116" y1="66" x2="116" y2="78" stroke="#2a2018"/><ellipse cx="116" cy="88" rx="8" ry="10" fill="url(#kv-lamp-${uid})"/>
+    <line x1="204" y1="66" x2="204" y2="78" stroke="#2a2018"/><ellipse cx="204" cy="88" rx="8" ry="10" fill="url(#kv-lamp-${uid})"/>
+    <circle cx="128" cy="150" r="13" fill="#a8c87a"/><path d="M124 138 L120 126 M128 137 L129 124 M132 138 L138 127" stroke="#5a8a34" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="124" cy="148" r="2.6" fill="#2a1a10"/><circle cx="132" cy="148" r="2.6" fill="#2a1a10"/>
+    <text x="14" y="28" fill="#fff4dc" font-family="system-ui, sans-serif" font-weight="800" font-size="20" letter-spacing="1">Kithvale</text>
   </svg>`;
 }
 

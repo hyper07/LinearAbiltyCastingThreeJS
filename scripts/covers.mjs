@@ -169,6 +169,19 @@ const SHOTS = {
     await bare(page, '.wh');
     await wait(page, 600);
   },
+  kithvale: async (page) => {
+    await open(page, 'official:kithvale');
+    await until(page, () => window.kithvale?.ready && window.kithvale.mode === 'menu', null, 240000);
+    // Running out of the gate toward the hills, a friend at your heels.
+    await page.evaluate(() => {
+      const g = window.kithvale;
+      g.begin();
+      g.coverShot();
+    });
+    await wait(4200);
+    await bare(page, '.kv');
+    await wait(600);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);

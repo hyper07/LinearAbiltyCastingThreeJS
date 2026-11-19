@@ -272,7 +272,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 8;
+export const EXTRAS_VERSION = 9;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -336,6 +336,7 @@ const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027'
   'Grass004', 'PavingStones141', 'PavingStones142', 'Rock051', 'Rock035', 'Moss002', 'Bricks106A', 'Bricks112A', 'Bricks113A', 'RoofingTiles012B', 'RoofingTiles013A', 'RoofingTiles014B', 'WoodFloor041', 'WoodFloor043', 'Planks037A', 'Lava004',
   // Wyldhunt's jungle floor, mud, river pebbles, ruin flagstones and mossy rock.
   'Ground068', 'Ground106', 'Ground108', 'Bricks113A', 'Rock063'];
+// (Kithvale's painted ground uses Grass004, Ground068, Ground106, PavingStones141, Rock051 and Moss002, all above.)
 
 /** polyfork models a game needs (CC BY 4.0, credited in the game), fetched by id from polyfork's CDN. */
 const EXTRA_POLYFORK = [
@@ -347,7 +348,10 @@ const EXTRA_POLYFORK = [
   // Gloamreach's armsmonger and monsters.
   'dwarf-knight-base', 'wolf-base', 'thorn-boar-base', 'tarantula-base', 'iridescent-treegolem-base', 'fungus-host-base', 'root-colossus-base', 'ashen-troll-base', 'red-fire-dragon-base',
   // Wyldhunt's hunters (the rest are Gloamreach's above).
-  'orc-hunter-base'
+  'orc-hunter-base',
+  // Kithvale: your three looks and the people of Lanternrest.
+  'kite-kid-base', 'village-child-bef09e', 'waving-child-dfada0', 'ashigaru-foot-soldier-806707', 'porter-e4e566', 'farmer-363820', 'townswoman-5ca8b5',
+  'buddhist-monk-39f498', 'village-gardener-9f7af6', 'shopkeeper-be5547', 'crossing-keeper-e13207', 'daimyo-lord-78364a'
 ];
 
 export async function extras({ budget }) {

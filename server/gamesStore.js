@@ -128,6 +128,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'monster-hunt', genreName: 'Monster hunt', cover: 'wyldhunt', badge: 'NEW' }
   },
   {
+    id: 'official:kithvale',
+    title: 'Kithvale',
+    summary: 'The first map of a creature-befriending adventure: Lanternrest, a walled village of tile roofs and paper lanterns, and the vale beyond its gate at golden dusk — rolling hills, a wildflower meadow, a stream under a little bridge, a quiet wood, a pond, warm crags and a hilltop shrine. Six wild species live there. Creep up softly, toss a treat it loves, breathe with it in time — and it follows you home, lending you a gift of its own.',
+    engine: 'kithvale',
+    genre: 'creatures',
+    card: { genre: 'creatures', genreName: 'Creatures', cover: 'kithvale', badge: 'NEW' }
+  },
+  {
     id: 'official:lanternwood',
     title: 'Lanternwood',
     summary: 'Pixel heroes made solid in a lit 3D world, the camera behind you. Four classes, four realms — a night forest, sunlit hills, frozen peaks, a burning caldera — hero monsters and bosses, loot you can see on your hero, and co-op for up to four.',
