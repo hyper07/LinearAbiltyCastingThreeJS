@@ -10,6 +10,9 @@
  * The challenge has a combo meter, a hint after a miss, the worked answer
  * after two, and Professor Hoot (Plus) on call. Every reading, answer and
  * finished lesson goes to progress.js; coins, XP and stickers to gamestate.js.
+ *
+ * Voices are real people's recordings only (voice/player.js), played by line
+ * id with the voice on; a line nobody has recorded yet is just its text.
  */
 import * as THREE from 'three';
 import { el, button, sparkle, confetti, SUBJECT_ICON } from '../ui/dom.js';
@@ -27,6 +30,7 @@ import { TutorPanel, tutorStatus } from '../ui/tutor.js';
 import { speech } from '../sound.js';
 import { levelOf } from '../gamestate.js';
 import { t as tr, localizeLesson } from '../i18n/index.js';
+import { TEACHER_OF } from '../voice/script.js';
 
 const ROOMS = { math: buildClassroom, history: buildHall, physics: buildLab };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -60,6 +64,8 @@ class Runner {
     this.buddy.group.rotation.y = spot[3];
     this.room.scene.add(this.buddy.group);
     this.voice = game.prefs.voice ?? floor <= 2;
+    this.teacherChar = TEACHER_OF[subject];
+    this.buddyChar = `buddy-${game.gs.buddy?.species ?? 'fox'}`;
     this.time = 0;
     this._ui();
     this.resize(game.root.clientWidth, game.root.clientHeight);
@@ -194,16 +200,38 @@ class Runner {
     }
   }
 
-  /** The teacher (or a guide) speaks: a bubble, and the voice if it is on. */
-  say(text, who = null) {
+  /**
+   * The teacher speaks: a bubble, and their recorded voice for `line` if it
+   * is on and someone recorded it (the text stays either way).
+   * `opts`: { line, who (an emoji for the bubble), char }.
+   */
+  say(text, opts = {}) {
+    const { who = null, line = null, char = this.teacherChar } = typeof opts === 'string' ? { who: opts } : opts;
     this.sayEl.hidden = false;
     this.sayEl.querySelector('.arc-say__who').textContent = who ?? this.teacher.emoji;
     this.sayEl.querySelector('.arc-say__text').textContent = text;
     this.sayEl.classList.remove('is-pop');
     void this.sayEl.offsetWidth;
     this.sayEl.classList.add('is-pop');
-    (this.room.teacher ?? this.room.tock)?.talk(Math.min(4, 0.8 + text.length * 0.04));
-    if (this.voice) speech.say(text);
+    const speaker = this.room.teacher ?? this.room.tock;
+    speaker?.talk(Math.min(4, 0.8 + text.length * 0.04));
+    this.speak(line ?? text, { char, face: speaker, bubble: this.sayEl });
+  }
+  /** A recorded line, if the voice is on: `face` lip-syncs, `bubble` lights up. Silent without a recording. */
+  speak(lineOrText, { char = this.teacherChar, face = this.room.teacher ?? this.room.tock, bubble = null, queue = false } = {}) {
+    if (!this.voice) return false;
+    speech.say(lineOrText, { char, face, bubble, queue });
+    return true;
+  }
+  /** The teacher's recorded line when there is one, else the buddy's (both silent without recordings). */
+  react(teacherLine, buddyLine, { queue = false } = {}) {
+    if (!this.voice) return;
+    if (teacherLine && speech.has(teacherLine, this.teacherChar)) this.speak(teacherLine, { queue });
+    else if (buddyLine) this.bark(buddyLine, { queue });
+  }
+  /** The buddy says something (a bark), after what is playing. */
+  bark(line, { queue = true } = {}) {
+    if (this.voice) speech.say(line, { char: this.buddyChar, face: this.buddy, queue });
   }
   hush() {
     this.sayEl.hidden = true;
@@ -247,7 +275,8 @@ class Runner {
     grid.append(arcade);
     card.append(grid);
     this.main.append(card);
-    this.say(tr(`lesson.hello.${this.subject}`));
+    this.say(tr(`lesson.hello.${this.subject}`), { line: `t.lesson.hello.${this.subject}` });
+    speech.preloadFloor(this.floor, this.buddyChar);
   }
 
   async arcade() {
@@ -265,6 +294,7 @@ class Runner {
     if (!this.root.isConnected) return;
     const got = this.game.gs.event('arcade', { game: `${this.subject}-${this.floor}`, score });
     this.buddy.cheer(1.6);
+    this.bark('t.voice.buddy.end', { queue: false });
     this.game.celebrate ? this.game.celebrate('level-up') : this.game.sound.fanfare();
     this.clear();
     const card = el('section', 'arc-card arc-results');
@@ -280,6 +310,7 @@ class Runner {
 
   async run(lesson) {
     // The lesson in the player's language (it keeps that language until it is left).
+    speech.preloadLesson(lesson, this.buddyChar);
     lesson = localizeLesson(lesson);
     this.lesson = lesson;
     this.quest = questFor(lesson);
@@ -334,7 +365,8 @@ class Runner {
     const go = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.go'), null);
     card.append(el('div', 'arc-story__who', this.teacher.emoji, { 'aria-hidden': 'true' }), el('p', 'arc-story__kicker', tr('lesson.storyKicker', { floor: this.floor, teacher: this.teacher.name })), el('h2', null, this.quest.title), el('p', 'arc-story__text', this.quest.intro), go);
     this.main.append(card);
-    this.say(this.quest.intro);
+    this.say(this.quest.intro, { line: this.quest.introLine });
+    this.bark('t.voice.buddy.start');
     this.room.teacher?.wave(1.5);
     go.focus();
     await this.until(go);
@@ -354,13 +386,14 @@ class Runner {
       cards.forEach((_, k) => dots.append(el('i', k === i ? 'is-on' : '')));
       const row = el('div', 'arc-row');
       const back = button('arc-btn', tr('lesson.prev'), null, { disabled: i === 0 });
-      const read = button('arc-btn', tr('lesson.readToMe'), () => speech.say(`${c.title}. ${c.text}`), { hidden: !speech.available });
+      const line = `l.${this.lesson.id}.reading.${i}`;
+      const read = button('arc-btn', tr('lesson.readToMe'), () => speech.say(line, { char: this.teacherChar, face: this.room.teacher ?? this.room.tock, bubble: card }), { hidden: !speech.available });
       const next = button('arc-btn arc-btn--primary arc-btn--big', tr(i === cards.length - 1 ? 'lesson.gotIt' : 'lesson.next'), null);
       row.append(back, read, next);
       card.append(dots, row);
       this.main.append(card);
       this.hush();
-      if (this.voice) speech.say(`${c.title}. ${c.text}`);
+      this.speak(line, { bubble: card });
       next.focus();
       const pick = await this.until(back, next);
       this.game.sound.page();
@@ -395,7 +428,8 @@ class Runner {
       onSay: (s) => {
         caption.textContent = `🦉 ${s}`;
         this.room.teacher?.talk(1.2);
-        if (this.voice) speech.say(s);
+        // Worked examples are generated, so there is no recorded line for them (text only).
+        this.speak(s);
       }
     });
     let seed = (Math.random() * 1e6) | 0;
@@ -440,7 +474,7 @@ class Runner {
       } else card.append(this.choices(p, fb, () => (next.hidden = false), { practice: true }));
       card.append(fb, next);
       this.main.append(card);
-      this.say(tr(round ? 'lesson.oneMore' : 'lesson.yourTurn'));
+      this.say(tr(round ? 'lesson.oneMore' : 'lesson.yourTurn'), { line: round ? 't.lesson.oneMore' : 't.lesson.yourTurn' });
       await this.until(next);
     }
   }
@@ -462,10 +496,12 @@ class Runner {
     box.append(who, line, opts);
     this.main.append(box);
     this.hush();
-    const speak = async (text) => {
+    const at = `l.${this.lesson.id}.dialogue`;
+    const guideChar = `guide-${this.lesson.id}`;
+    const speak = async (text, id = null) => {
       line.textContent = '';
       guide.talk(Math.min(5, 0.6 + text.length * 0.035));
-      if (this.voice) speech.say(text);
+      this.speak(id ?? text, { char: guideChar, face: guide, bubble: box });
       if (this.game.reducedMotion) line.textContent = text;
       else for (let i = 0; i <= text.length; i += 2) {
         line.textContent = text.slice(0, i);
@@ -474,7 +510,7 @@ class Runner {
       }
       line.textContent = text;
     };
-    await speak(d.intro);
+    await speak(d.intro, `${at}.intro`);
     const asked = new Set();
     this.ctx = { step: tr('lesson.ctxTalking', { name }), hint: tr('lesson.chatHint') };
     while (asked.size < d.topics.length) {
@@ -485,18 +521,18 @@ class Runner {
       const i = await this.until(...bs);
       asked.add(i);
       this.game.sound.tap();
-      await speak(d.topics[i].answer);
+      await speak(d.topics[i].answer, `${at}.topics.${i}.answer`);
       guide[i % 2 ? 'wave' : 'hop']();
     }
     // The guide's own question.
     const c = d.challenge;
-    await speak(tr('lesson.guideAsks', { q: c.q }));
+    await speak(tr('lesson.guideAsks', { q: c.q }), `${at}.challenge`);
     const fb = el('p', 'arc-feedback', '', { 'aria-live': 'polite' });
     opts.replaceChildren();
     const next = button('arc-btn arc-btn--primary', tr('lesson.thanks'), null, { hidden: true });
     opts.append(this.choices({ ...c, hint: c.hint ?? tr('lesson.thinkHint') }, fb, () => (next.hidden = false), { practice: true }), fb, next);
     await this.until(next);
-    await speak(d.farewell);
+    await speak(d.farewell, `${at}.farewell`);
     guide.wave(2);
     await wait(this.game.reducedMotion ? 200 : 1200);
   }
@@ -519,7 +555,7 @@ class Runner {
     const check = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.tlCheck'), null);
     card.append(slotsEl, trayEl, check, fb);
     this.main.append(card);
-    this.say(tr('lesson.tlSay'), TEACHERS.history.emoji);
+    this.say(tr('lesson.tlSay'), { who: TEACHERS.history.emoji, line: 't.lesson.tlSay' });
     this.ctx = { step: tr('lesson.ctxTimeline', { title: t.title }), hint: tr('lesson.tlHint'), worked: right.map((e) => `${e.when}: ${e.label}`).join(' → ') };
     const draw = () => {
       slotsEl.replaceChildren();
@@ -608,7 +644,7 @@ class Runner {
     canvas.addEventListener('pointerdown', down);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-    this.say(tr('lesson.lookFound', { name: a.name }), TEACHERS.history.emoji);
+    this.say(tr('lesson.lookFound', { name: a.name }), { who: TEACHERS.history.emoji, line: `t.lesson.lookFound~${this.lesson.id}` });
     try {
       await this.until(next);
     } finally {
@@ -643,14 +679,14 @@ class Runner {
     }));
     opts.append(...bs);
     panel.append(opts, fb);
-    this.say(tr('lesson.guessSay'));
-    if (this.voice) speech.say(s.predict.q);
+    this.say(tr('lesson.guessSay'), { line: 't.lesson.guessSay' });
+    this.speak(`l.${this.lesson.id}.sim.predict.q`, { bubble: panel, queue: true });
     this.ctx = { step: tr('lesson.ctxPredict', { q: s.predict.q }), hint: tr('lesson.predictHint'), worked: s.predict.explain };
     await this.until(...bs);
     this.game.sound.tap();
     // 2. Watch.
     fb.textContent = tr('lesson.testIt');
-    this.say(tr('lesson.testSay'));
+    this.say(tr('lesson.testSay'), { line: 't.lesson.testSay' });
     await this.sim.watch();
     if (!this.root.isConnected) throw LEFT;
     const ok = guess === s.predict.answer;
@@ -661,7 +697,7 @@ class Runner {
       this.buddy.cheer(1.4);
     } else this.buddy.sad(1);
     this.teacherReact(ok);
-    this.say(tr(ok ? 'lesson.guessRightSay' : 'lesson.guessSurpriseSay', { explain: s.predict.explain }));
+    this.say(tr(ok ? 'lesson.guessRightSay' : 'lesson.guessSurpriseSay', { explain: s.predict.explain }), { line: `t.lesson.${ok ? 'guessRightSay' : 'guessSurpriseSay'}~${this.lesson.id}` });
     // 3. Play.
     this.steps(this.quest.steps, 3);
     const play = button('arc-btn arc-btn--primary', tr('lesson.tryIt'), null);
@@ -710,7 +746,9 @@ class Runner {
 
   good(from, fb, text) {
     fb.className = 'arc-feedback is-good';
-    fb.textContent = `🎉 ${tr(`lesson.praise.${Math.floor(Math.random() * PRAISES)}`)} ${text ?? ''}`;
+    const k = Math.floor(Math.random() * PRAISES);
+    fb.textContent = `🎉 ${tr(`lesson.praise.${k}`)} ${text ?? ''}`;
+    this.react(`t.lesson.praise.${k}`, this.comboN >= 3 ? 't.voice.buddy.wow' : 't.voice.buddy.great');
     this.game.sound.right();
     sparkle(from);
     this.buddy.cheer(1.4);
@@ -731,6 +769,7 @@ class Runner {
   oops(from, fb, text) {
     fb.className = 'arc-feedback is-oops';
     fb.textContent = text;
+    this.react('t.voice.teacher.tryAgain', 't.voice.buddy.tryAgain');
     this.game.sound.wrong();
     from?.classList.remove('is-shake');
     void from?.offsetWidth;
@@ -760,7 +799,8 @@ class Runner {
       const hintBtn = button('arc-btn arc-btn--ghost', tr('lesson.hint'), () => {
         fb.className = 'arc-feedback';
         fb.textContent = `💡 ${q.hint}`;
-        if (this.voice) speech.say(q.hint);
+        this.react('t.voice.teacher.hint', 't.voice.buddy.hint');
+        if (q.line) this.speak(`${q.line}.hint`, { bubble: fb, queue: true });
       });
       const how = button('arc-btn arc-btn--ghost', tr('lesson.showHow'), () => {
         fb.className = 'arc-feedback';
@@ -785,7 +825,7 @@ class Runner {
         }
       }), fb, help, next);
       this.main.append(card);
-      if (this.voice) speech.say(q.q);
+      this.speak(q.line ? `${q.line}.q` : q.q, { bubble: card });
       await this.until(next);
     }
     this.combo.hidden = true;
@@ -847,7 +887,9 @@ class Runner {
     btns.append(button('arc-btn', tr('lesson.back'), () => this.leave()));
     card.append(btns);
     this.main.append(card);
-    this.say(tr(stars === 3 ? 'lesson.say3' : stars === 2 ? 'lesson.say2' : 'lesson.say1'));
+    const sayKey = stars === 3 ? 'lesson.say3' : stars === 2 ? 'lesson.say2' : 'lesson.say1';
+    this.say(tr(sayKey), { line: `t.${sayKey}` });
+    this.bark('t.voice.buddy.end');
     this.buddy.cheer(2.5);
     this.game.celebrate ? this.game.celebrate('level-up') : this.game.sound.fanfare();
     confetti(this.root, stars * 40);
@@ -866,6 +908,7 @@ class Runner {
       card.prepend(b);
       // With the music on, the results' Level Up stinger already sings it.
       if (!this.game.music?.audible) setTimeout(() => this.game.sound.fanfare(), 1500);
+      this.bark('t.voice.buddy.levelUp');
     }
     if (got.stickers?.length) {
       if (this.game.music?.audible) setTimeout(() => this.game.celebrate?.('discovery'), got.levelUp ? 3000 : 2000);
@@ -873,6 +916,7 @@ class Runner {
       s.append(el('span', null, tr('lesson.newSticker')));
       for (const st of got.stickers) s.append(el('span', 'arc-sticker', st.emoji, { title: st.name, 'aria-label': tr('lesson.stickerAria', { name: st.name }) }));
       card.append(s);
+      this.bark('t.voice.buddy.sticker');
     }
   }
 

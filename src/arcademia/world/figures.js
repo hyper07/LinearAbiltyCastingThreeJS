@@ -18,7 +18,7 @@
  *
  *   const c = makeCreature({ species: 'fox', color: '#ff9b54', hat: 'party' });
  *   c.update(dt, { speed })   c.hop()  c.cheer()  c.sad()  c.wave()  c.talk(s)
- *   c.surprise()  c.think()  c.happy()  c.react(right)
+ *   c.surprise()  c.think()  c.happy()  c.react(right)  c.lipSync(level)
  *
  * Meshes are built once per species (and costume) and level of detail, then
  * shared; the body colour is a material uniform. `lod: 'low'` is for
@@ -213,7 +213,7 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
   group.add(blob);
 
   const rnd = mulberry(seed * 9973 + species.length);
-  const st = { phase: rnd(), t: rnd() * 10, look: 0, lookT: 2, waveT: 0, cheerT: 0, hopT: 0, sadT: 0, talkT: 0, surpriseT: 0, thinkT: 0, happyT: 0, flickT: 1 + rnd() * 3, flick: 0, flickSide: 1 };
+  const st = { phase: rnd(), t: rnd() * 10, look: 0, lookT: 2, waveT: 0, cheerT: 0, hopT: 0, sadT: 0, talkT: 0, surpriseT: 0, thinkT: 0, happyT: 0, flickT: 1 + rnd() * 3, flick: 0, flickSide: 1, voiceT: 0, voice: 0, lipFrames: 0 };
   const B = byName;
   const eased = (o, k, v, dt, rate = 10) => (o[k] += (v - o[k]) * Math.min(1, dt * rate));
   function update(dt, { speed = 0 } = {}) {
@@ -298,7 +298,12 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
       st.lookT = 1.5 + rnd() * 3;
     }
     eased(B.head.rotation, 'y', cheer ? 0 : st.look * (think ? 0.4 : 1), dt, 3);
-    eased(B.head.rotation, 'x', sad ? 0.32 : think ? -0.16 : surprise ? -0.12 : walking ? -Math.abs(Math.sin(p)) * 0.05 : Math.sin(t * 0.8) * 0.04, dt, 6);
+    // A recorded voice (voice/player.js) drives lipSync: the head nods a little with its loudness
+    // (beaked faces like Hoot's have no mouth to move), and the mouth opens below.
+    st.voiceT = Math.max(0, st.voiceT - dt);
+    const voiced = st.voiceT > 0;
+    const nod = voiced ? -st.voice * 0.09 : 0;
+    eased(B.head.rotation, 'x', (sad ? 0.32 : think ? -0.16 : surprise ? -0.12 : walking ? -Math.abs(Math.sin(p)) * 0.05 : Math.sin(t * 0.8) * 0.04) + nod, dt, voiced ? 14 : 6);
     eased(B.head.rotation, 'z', think ? 0.2 : cheer ? Math.sin(t * 8.5) * 0.12 : 0, dt, 6);
     face.look(st.look * 0.8, 0);
     // Ears: a flick now and then; droop when sad; folded under a space helmet.
@@ -329,7 +334,10 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     // Face.
     const expr = cheer ? 'cheer' : sad ? 'sad' : surprise ? 'surprised' : think ? 'thinking' : st.happyT > 0 || st.hopT > 0 || wave ? 'happy' : 'neutral';
     face.setExpression(expr);
-    face.talk(st.talkT > 0);
+    if (voiced) {
+      face.talk(true, st.voice);
+      if (st.voice > 0.15) st.lipFrames++;
+    } else face.talk(st.talkT > 0);
     face.update(dt, t);
   }
   update(0);
@@ -344,6 +352,12 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     sad: (s = 1.4) => ((st.cheerT = 0), (st.happyT = 0), (st.sadT = s)),
     wave: (s = 1.6) => (st.waveT = s),
     talk: (s = 2) => (st.talkT = s),
+    /** Lip-sync lite: a recorded voice's loudness now (0–1); it lapses on its own when the calls stop. */
+    lipSync(level, hold = 0.2) {
+      st.voice = Math.max(0, Math.min(1, Number(level) || 0));
+      st.voiceT = hold;
+      st.talkT = 0;
+    },
     surprise: (s = 0.9) => (st.surpriseT = s),
     think: (s = 2) => (st.thinkT = s),
     happy: (s = 1.5) => (st.happyT = s),

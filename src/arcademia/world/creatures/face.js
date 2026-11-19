@@ -226,8 +226,9 @@ export function buildFace({ sdf, f, headBone, headPos, body, lowDetail = false }
   }
 
   // ---- expressions
-  let expr = 'neutral', talking = false, blinkT = 2 + Math.random() * 3, lookX = 0, lookY = 0;
+  let expr = 'neutral', talking = false, voice = null, shown = null, blinkT = 2 + Math.random() * 3, lookX = 0, lookY = 0;
   const show = (name) => {
+    shown = mouths[name] ? name : null;
     for (const [k, m] of Object.entries(mouths)) m.visible = k === name;
   };
   function apply(t, shut) {
@@ -239,7 +240,9 @@ export function buildFace({ sdf, f, headBone, headPos, body, lowDetail = false }
       e.open.scale.set(big, big * (shut && !e.lid ? 0.12 : 1), 1);
     }
     let mouth = { neutral: 'smile', happy: 'grin', cheer: 'open', surprised: 'oh', thinking: 'flat', sad: 'frown' }[expr] ?? 'smile';
-    if (talking && Math.sin(t * 16) > -0.2) mouth = expr === 'sad' ? 'oh' : 'open';
+    // Talking: with a recorded voice, the mouth follows its loudness (lip-sync lite); else a steady flap.
+    if (talking && voice != null) mouth = voice > 0.45 ? 'open' : voice > 0.15 ? 'oh' : mouth;
+    else if (talking && Math.sin(t * 16) > -0.2) mouth = expr === 'sad' ? 'oh' : 'open';
     show(mouth);
     for (const b of brows) {
       const up = expr === 'surprised' ? 0.035 : expr === 'thinking' && b.s > 0 ? 0.03 : expr === 'happy' || expr === 'cheer' ? 0.015 : 0;
@@ -256,8 +259,14 @@ export function buildFace({ sdf, f, headBone, headPos, body, lowDetail = false }
     get expression() {
       return expr;
     },
-    talk(on) {
+    /** Talk (a flapping mouth); with `level` (0–1, a recorded voice's loudness) the mouth follows it. */
+    talk(on, level = null) {
       talking = on;
+      voice = on && level != null ? level : null;
+    },
+    /** The mouth shown now ('smile', 'open', 'oh' …), or null for a face without one. */
+    get mouth() {
+      return shown;
     },
     /** Blinks, lid poses and glances; call every frame. */
     update(dt, t) {

@@ -7,6 +7,7 @@ import { libraryApi } from './server/libraryStore.js';
 import { GamesStore, gamesHandler } from './server/gamesStore.js';
 import { ChannelStore, channelHandler } from './server/channelStore.js';
 import { LearningStore, learningHandler } from './server/learningStore.js';
+import { VoiceStore, voiceHandler } from './server/voiceStore.js';
 import { aiBridge } from './server/api/ai.js';
 import { JsonFileStore, fileApi } from './server/api/files.js';
 import { createRealtime } from './server/realtime.js';
@@ -101,6 +102,57 @@ function gameServices(env, levelDir, getDb) {
       log: (line) => console.log(line)
     })));
   return get;
+}
+
+/**
+ * AI Arcademia's voice studio (/api/voice, voice-studio.html) and the
+ * recordings at /audio/voice/ — from VOICE_DIR (default public/audio/voice,
+ * so what is recorded under `npm run dev` ships with the next build). With no
+ * ADMIN_ACCOUNTS / ADMIN_PASSWORD set, the dev server lets this machine in;
+ * `vite preview` and production always ask for the admin.
+ */
+function voiceStudio(env, getDb) {
+  const voiceDir = resolve(env.VOICE_DIR ?? process.env.VOICE_DIR ?? resolve('public', 'audio', 'voice'));
+  let store = null;
+  const getStore = async () => (store ??= new VoiceStore(await getDb(), { voiceDir }));
+  const files = (server) => {
+    server.middlewares.use((req, res, next) => {
+      const path = (req.url ?? '').split('?')[0];
+      if (!path.startsWith('/audio/voice/')) return next();
+      let file;
+      try {
+        file = resolve(voiceDir, `.${decodeURIComponent(path.slice('/audio/voice'.length))}`);
+      } catch {
+        return next();
+      }
+      if (!file.startsWith(voiceDir + sep)) return next();
+      let info;
+      try {
+        info = statSync(file);
+      } catch {
+        return next();
+      }
+      if (!info.isFile()) return next();
+      const type = { '.json': 'application/json; charset=utf-8', '.webm': 'audio/webm', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg' }[extname(file)] ?? 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': type, 'Content-Length': info.size, 'Cache-Control': 'no-cache' });
+      createReadStream(file).pipe(res);
+    });
+  };
+  const api = (allowLocal) => (server) => {
+    const handler = voiceHandler(getStore, { env: { ...process.env, ...env }, allowLocal });
+    server.middlewares.use((req, res, next) => handler(req, res).then((handled) => handled || next(), next));
+  };
+  return {
+    name: 'voice-studio',
+    configureServer: (server) => {
+      files(server);
+      api(true)(server);
+    },
+    configurePreviewServer: (server) => {
+      files(server);
+      api(false)(server);
+    }
+  };
 }
 
 /** The game's routes (/api/account, /api/game) over the shared services. */
@@ -316,13 +368,14 @@ export default defineConfig(({ mode }) => {
         // The asset library is gigabytes of files nobody edits by hand, and a
         // saved level must not reload the page out from under the editor.
         // Absolute paths: a bare `**/library/**` would also ignore src/library.
-        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('data')}/**`]
+        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('public', 'audio', 'voice')}/**`, `${resolve('data')}/**`]
       }
     },
     build: {
       target: 'es2022',
-      // The app, and AI Arcademia's read-only report page for parents (a link that opens without the game).
-      rollupOptions: { input: { main: resolve('index.html'), 'parent-report': resolve('parent-report.html') } },
+      // The app, AI Arcademia's read-only report page for parents (a link that opens without the game)
+      // and its voice studio (admin only: real people record the game's lines there).
+      rollupOptions: { input: { main: resolve('index.html'), 'parent-report': resolve('parent-report.html'), 'voice-studio': resolve('voice-studio.html') } },
       sourcemap: true,
       chunkSizeWarningLimit: 2000
     },
@@ -352,6 +405,7 @@ export default defineConfig(({ mode }) => {
         ];
       })(),
       gameApi(getGame),
+      voiceStudio(env, getDb),
       marketApi({ ...process.env, ...env }, getDb, getGame),
       workApi({ ...process.env, ...env }, getDb, getGame),
       ...mmoApi({ ...process.env, ...env }, getDb, getGame),

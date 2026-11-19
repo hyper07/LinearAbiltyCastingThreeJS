@@ -12,7 +12,8 @@ import { cameraMenu } from '../../shared/cameraAssist.js';
 import { musicMenu } from '../../shared/gameMusic.js';
 import { el, button } from './dom.js';
 import { LOCALES, locale, t } from '../i18n/index.js';
-import { CREDITS } from '../credits.js';
+import { CREDITS, voiceCreditRows } from '../credits.js';
+import { speech } from '../sound.js';
 
 /** A row of language buttons, each in its own language. */
 export function languagePicker(game, { onPick = null } = {}) {
@@ -44,7 +45,24 @@ export function openCredits(game) {
     li.firstChild.append(a);
     list.append(li);
   }
-  card.append(list, el('p', 'arc-credits__note', t('credits.made')));
+  card.append(list);
+  // Voices: real people, credited by the name they chose (from the recordings' manifest).
+  const voices = el('section', 'arc-credits__voices', null, { 'data-voices': '' });
+  const drawVoices = () => {
+    const rows = voiceCreditRows(speech.manifest, locale());
+    voices.replaceChildren();
+    if (!rows.length) return;
+    const ul = el('ul', 'arc-credits__list');
+    for (const r of rows) {
+      const li = el('li');
+      li.append(el('strong', null, r.name), el('span', 'arc-credits__what', r.characters), el('span', 'arc-credits__meta', r.languages));
+      ul.append(li);
+    }
+    voices.append(el('h3', null, `🎙️ ${t('credits.voices')}`), el('p', 'arc-credits__lead', t('credits.voicesLead')), ul);
+  };
+  drawVoices();
+  speech.load().then(() => box.isConnected && drawVoices());
+  card.append(voices, el('p', 'arc-credits__note', t('credits.made')));
   box.append(card);
   box.addEventListener('click', (e) => e.target === box && close());
   box.addEventListener('keydown', (e) => e.key === 'Escape' && (e.stopPropagation(), close()));

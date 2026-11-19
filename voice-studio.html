@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Voice studio · AI Arcademia</title>
+    <!--
+      AI Arcademia's voice studio: real people record the game's lines here (no synthesized or
+      AI voices anywhere). Admin only: the production server asks for the admin id and password
+      before it serves this page, and every /api/voice call is checked again. See docs/arcademia.md.
+    -->
+  </head>
+  <body>
+    <div id="studio" class="vs"><p class="vs-loading">Loading the voice studio…</p></div>
+    <script type="module" src="./src/arcademia/voice/studio.js"></script>
+  </body>
+</html>

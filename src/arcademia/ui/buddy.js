@@ -8,6 +8,7 @@ import { el, button, sparkle } from './dom.js';
 import { BUDDIES, BUDDY_COLORS, COLOR_NAMES, HATS } from '../world/figures.js';
 import { Turntable } from './turntable.js';
 import { t } from '../i18n/index.js';
+import { speech } from '../sound.js';
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 const pictures = new Map();
@@ -32,6 +33,8 @@ export function openBuddy(game, { first = false } = {}) {
         tt.tickle();
         game.sound.toy?.('squeak');
         hint.classList.add('is-gone');
+        // "Hee hee! That tickles!" in this buddy's recorded voice, if someone recorded it.
+        if (game.voiceOn?.()) speech.say('t.voice.buddy.tap', { char: `buddy-${pick.species}`, face: tt.fig });
       };
     } catch {
       stage.remove(); // no WebGL here: the world behind shows the buddy up close instead

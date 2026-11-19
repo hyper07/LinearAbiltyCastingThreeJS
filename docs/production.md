@@ -97,6 +97,7 @@ docker compose exec -T db pg_restore -U gamory -d gamory --clean < gamory-2026-1
 | `ACCOUNTS_PER_ADDRESS_PER_DAY` | New accounts one address may make in a day (raise it for a LAN party behind one address) | `5` |
 | `STATIC_ROOT` | The built client | `./dist` |
 | `LIBRARY_ROOT` | The 3D asset library, served at `/library/` | `./library` |
+| `VOICE_DIR` | AI Arcademia's recorded voices (the voice studio writes here), served at `/audio/voice/` ahead of the build's copy; put it on a persistent volume | `./public/audio/voice` |
 | `MAX_PLAYERS` | Players per party (2–8) | `4` |
 | `MAX_ROOMS` | Parties at once | `500` |
 | `TRUST_PROXY` | `1` behind a reverse proxy: rate limits then see the real client address from `X-Forwarded-For` | `0` |

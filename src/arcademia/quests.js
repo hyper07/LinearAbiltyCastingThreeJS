@@ -10,7 +10,7 @@ import { t as tr, localizeLesson } from './i18n/index.js';
 /** Math quests by generator: their title and intro are i18n keys quest.math.<gen>.title / .intro. */
 const MATH = new Set(['count', 'add10', 'sub10', 'tens-ones', 'add-carry', 'skip-count', 'times', 'sub-borrow', 'fractions', 'mult-2x1', 'division', 'fraction-of', 'balance', 'decimals', 'area', 'negatives', 'percent', 'two-step', 'squares']);
 
-/** The quest framing of a lesson. */
+/** The quest framing of a lesson (`introLine`: the intro's voice line id, voice/script.js). */
 export function questFor(lesson0) {
   const lesson = localizeLesson(lesson0);
   const t = TEACHERS[lesson.subject];
@@ -20,6 +20,7 @@ export function questFor(lesson0) {
     return {
       title: known ? tr(`quest.math.${lesson.topic}.title`) : lesson.title,
       intro: known ? tr(`quest.math.${lesson.topic}.intro`) : tr('quest.math.default'),
+      introLine: known ? `t.quest.math.${lesson.topic}.intro` : 't.quest.math.default',
       teacher: t,
       steps: steps(['story', 'learn', 'board', 'try', 'challenge'])
     };
@@ -28,6 +29,7 @@ export function questFor(lesson0) {
     return {
       title: tr('quest.history.title', { title: lesson.title }),
       intro: tr('quest.history.intro', { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }),
+      introLine: `t.quest.history.intro~${lesson.id}`,
       teacher: t,
       steps: steps(['story', 'learn', 'chat', 'timeline', 'treasure', 'challenge'])
     };
@@ -35,6 +37,7 @@ export function questFor(lesson0) {
   return {
     title: tr('quest.physics.title', { title: lesson.title }),
     intro: tr('quest.physics.intro'),
+    introLine: 't.quest.physics.intro',
     teacher: t,
     steps: steps(['story', 'learn', 'guess', 'experiment', 'challenge'])
   };

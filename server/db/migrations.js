@@ -25,6 +25,8 @@
  *   learning_profile   AI Arcademia: the parent PIN (scrypt), the read-only share link, the guest import mark
  *   learning_lessons   AI Arcademia: best stars and attempts per lesson
  *   learning_events    AI Arcademia: readings, answers, lessons finished and study time, for the weekly report
+ *   voice_actors       AI Arcademia: the people who record the voices — the name they are credited by,
+ *                      what they voice, and their consent (what they agreed to, when, and who took it)
  */
 export const MIGRATIONS = [
   {
@@ -514,6 +516,29 @@ export const MIGRATIONS = [
         at BIGINT NOT NULL
       );
       CREATE INDEX learning_events_account ON learning_events (account_id, at);
+    `
+  },
+  {
+    // AI Arcademia's recorded voices (server/voiceStore.js): real people, never
+    // synthesized. The recordings and the public manifest live in VOICE_DIR;
+    // here is each actor's consent record, kept private. "Remove all my
+    // recordings" deletes their files and keeps this row with removed_at.
+    id: '011-voice',
+    sql: `
+      CREATE TABLE voice_actors (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        characters JSONB NOT NULL DEFAULT '[]',
+        languages JSONB NOT NULL DEFAULT '[]',
+        consent_version INTEGER NOT NULL,
+        consent_text TEXT NOT NULL,
+        consented_at BIGINT NOT NULL,
+        consent_by TEXT NOT NULL,
+        removed_at BIGINT,
+        removed_by TEXT,
+        created BIGINT NOT NULL,
+        updated BIGINT NOT NULL
+      );
     `
   }
 ];

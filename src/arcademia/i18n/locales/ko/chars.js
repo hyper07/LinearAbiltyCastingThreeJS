@@ -38,5 +38,17 @@ export default {
   'picker.dragTurn': '끌어서 돌려 봐요',
   'picker.owned': '내 거',
   'picker.dialogChoose': '내 친구 고르기',
-  'picker.dialogYours': '내 친구'
+  'picker.dialogYours': '내 친구',
+  'voice.buddy.hello': '안녕! 네가 와서 정말 기뻐. 같이 산에 오르자!',
+  'voice.buddy.start': '새 퀘스트다! 가 보자!',
+  'voice.buddy.great': '야호! 정말 잘했어!',
+  'voice.buddy.wow': '우와, 너 정말 똑똑하다!',
+  'voice.buddy.tryAgain': '앗! 괜찮아. 다시 해 보자!',
+  'voice.buddy.hint': '오, 힌트다! 같이 읽어 보자.',
+  'voice.buddy.end': '우리가 해냈어! 하이파이브!',
+  'voice.buddy.levelUp': '레벨 업! 더 크고 튼튼해진 것 같아!',
+  'voice.buddy.sticker': '새 스티커다! 엄청 반짝반짝해!',
+  'voice.buddy.tap': '히히! 간지러워!',
+  'voice.teacher.tryAgain': '조금 아쉬워요. 다시 한번 해 봐요. 할 수 있어요!',
+  'voice.teacher.hint': '도움이 되는 작은 힌트를 줄게요.'
 };

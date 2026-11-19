@@ -38,5 +38,17 @@ export default {
   'picker.dragTurn': 'Arrastra para girar',
   'picker.owned': 'Tuyo',
   'picker.dialogChoose': 'Elige a tu compañero',
-  'picker.dialogYours': 'Tu compañero'
+  'picker.dialogYours': 'Tu compañero',
+  'voice.buddy.hello': '¡Hola! Qué alegría que estés aquí. ¡Vamos a subir la montaña!',
+  'voice.buddy.start': '¡Una misión nueva! ¡Vamos!',
+  'voice.buddy.great': '¡Bien! ¡Buen trabajo!',
+  'voice.buddy.wow': '¡Guau, qué bien lo haces!',
+  'voice.buddy.tryAgain': '¡Uy! No pasa nada. ¡Probemos otra vez!',
+  'voice.buddy.hint': '¡Oh, una pista! Vamos a leerla juntos.',
+  'voice.buddy.end': '¡Lo logramos! ¡Choca esos cinco!',
+  'voice.buddy.levelUp': '¡Subí de nivel! ¡Me siento más grande y más fuerte!',
+  'voice.buddy.sticker': '¡Una pegatina nueva! ¡Cómo brilla!',
+  'voice.buddy.tap': '¡Ji, ji! ¡Me haces cosquillas!',
+  'voice.teacher.tryAgain': 'Casi. Inténtalo otra vez, ¡tú puedes!',
+  'voice.teacher.hint': 'Aquí tienes una pequeña pista.'
 };

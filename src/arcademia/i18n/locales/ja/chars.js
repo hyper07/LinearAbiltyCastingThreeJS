@@ -38,5 +38,17 @@ export default {
   'picker.dragTurn': 'ドラッグで まわせるよ',
   'picker.owned': 'もってる',
   'picker.dialogChoose': 'あいぼうを えらぶ',
-  'picker.dialogYours': 'きみの あいぼう'
+  'picker.dialogYours': 'きみの あいぼう',
+  'voice.buddy.hello': 'やあ！きてくれてうれしいな。いっしょに山をのぼろう！',
+  'voice.buddy.start': 'あたらしいクエストだ！いこう！',
+  'voice.buddy.great': 'やったね！すごいよ！',
+  'voice.buddy.wow': 'わあ、かしこいね！',
+  'voice.buddy.tryAgain': 'おっと！だいじょうぶ。もういちどやってみよう！',
+  'voice.buddy.hint': 'あ、ヒントだ！いっしょによんでみよう。',
+  'voice.buddy.end': 'できたね！ハイタッチ！',
+  'voice.buddy.levelUp': 'レベルアップ！おおきく、つよくなったよ！',
+  'voice.buddy.sticker': 'あたらしいシールだ！キラキラしてる！',
+  'voice.buddy.tap': 'えへへ！くすぐったいよ！',
+  'voice.teacher.tryAgain': 'おしい！もういちどやってみよう。きみならできるよ！',
+  'voice.teacher.hint': 'ちょっとしたヒントをあげよう。'
 };

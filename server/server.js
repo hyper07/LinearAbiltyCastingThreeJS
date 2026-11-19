@@ -9,6 +9,8 @@ import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { GamesStore, gamesHandler } from './gamesStore.js';
 import { ChannelStore, channelHandler } from './channelStore.js';
 import { LearningStore, learningHandler } from './learningStore.js';
+import { VoiceStore, voiceHandler } from './voiceStore.js';
+import { adminAuth } from './api/adminAuth.js';
 import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
 import { createGameServices } from './game/index.js';
@@ -30,6 +32,8 @@ import { createFps } from './fps/index.js';
  *   /api/game/*       characters, loot, shops — the server decides (game/authority.js)
  *   /api/ai/*         the AI bridge: the model key stays here (api/ai.js)
  *   /api/library/*    the shared content library (libraryStore.js)
+ *   /api/voice/*      AI Arcademia's voice studio: real people's recordings, admin only (voiceStore.js)
+ *   /audio/voice/*    those recordings and their manifest (VOICE_DIR, default public/audio/voice)
  *   /api/games/*      the games on the home page: official and published (gamesStore.js)
  *   /api/market/*     the stock market game and its admin API (market/index.js)
  *   /api/work/*       the work game and its admin API; /api/wallet (work/index.js, wallet.js)
@@ -58,6 +62,8 @@ const STATIC_ROOT = resolve(process.env.STATIC_ROOT ?? './dist');
 const DATA_DIR = resolve(process.env.DATA_DIR ?? './data');
 /** The downloaded 3D asset library (`npm run library:fetch`), served at /library/. */
 const LIBRARY_ROOT = resolve(process.env.LIBRARY_ROOT ?? './library');
+/** AI Arcademia's recorded voices (the voice studio writes here; served at /audio/voice/). */
+const VOICE_DIR = resolve(process.env.VOICE_DIR ?? './public/audio/voice');
 const MAX_PLAYERS = Math.max(2, Math.min(8, Number(process.env.MAX_PLAYERS) || 4));
 const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 500;
 /** Comma-separated origins allowed to call the API cross-site. Empty = none. */
@@ -90,6 +96,8 @@ const MIME = {
   '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg',
   '.wav': 'audio/wav',
+  '.webm': 'audio/webm',
+  '.m4a': 'audio/mp4',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.wasm': 'application/wasm',
@@ -111,6 +119,8 @@ const library = new LibraryStore(database);
 const games = new GamesStore(database, levels);
 const channels = new ChannelStore(database, games);
 const learning = new LearningStore(database);
+const voice = new VoiceStore(database, { voiceDir: VOICE_DIR });
+const admin = adminAuth(process.env);
 const market = createMarket({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const work = createWork({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const mmo = createMmo({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
@@ -125,6 +135,7 @@ const api = chain([
   gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req) }),
   channelHandler(async () => channels, { authenticate: (req) => game.authenticate(req) }),
   learningHandler(async () => learning, { authenticate: (req) => game.authenticate(req) }),
+  voiceHandler(async () => voice),
   market.handler,
   work.handler,
   mmo.handler,
@@ -229,6 +240,16 @@ async function serveLibrary(req, res, pathname) {
   return sendFile(req, res, file, info, { cacheControl: file.endsWith('catalog.json') ? 'no-cache' : 'public, max-age=86400' });
 }
 
+/** A recorded voice line or the voice manifest: VOICE_DIR first (the studio writes there), then the build's copy. */
+async function serveVoice(req, res, pathname) {
+  const file = safeJoin(VOICE_DIR, pathname);
+  if (!file) return json(res, 403, { error: 'forbidden' });
+  const info = await fileInfo(file);
+  if (!info) return serveStatic(req, res, `/audio/voice${pathname}`);
+  // Re-takes keep their file name: always revalidate (the ETag makes that a 304).
+  return sendFile(req, res, file, info, { cacheControl: 'no-cache' });
+}
+
 /* ---- the server ---- */
 
 const server = http.createServer(async (req, res) => {
@@ -257,6 +278,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (await api(req, res)) return;
     if (pathname.startsWith('/library/')) return serveLibrary(req, res, pathname.slice('/library'.length));
+    if (pathname.startsWith('/audio/voice/')) return serveVoice(req, res, pathname.slice('/audio/voice'.length));
+    // The voice studio is for the site's admins only (its API checks again on every call).
+    if (pathname === '/voice-studio.html' && admin.refuse(req, res, (status, body) => json(res, status, body))) return;
     // Map tiles made from public data (scripts/geo/seoul-build.mjs), kept in DATA_DIR/geo.
     if (pathname.startsWith('/geo/seoul/')) return serveGeo(req, res, pathname.slice('/geo/seoul'.length));
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method not allowed' });
@@ -280,6 +304,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[gamory] data     ${DATA_DIR}`);
   console.log(`[gamory] database ${database.kind === 'postgres' ? 'PostgreSQL (DATABASE_URL)' : `PGlite in ${join(DATA_DIR, 'postgres')} (set DATABASE_URL for a PostgreSQL server)`}`);
   console.log(`[gamory] library  ${LIBRARY_ROOT}`);
+  console.log(`[gamory] voices   ${VOICE_DIR}`);
   console.log(`[gamory] model    ${process.env.LLM_MODEL1 || '(unset)'} @ ${process.env.LLM_PLATFORM_BASE_URL || '(unset — AI off)'}`);
   console.log(`[gamory] parties  up to ${MAX_PLAYERS} players, ${MAX_ROOMS} rooms`);
 });

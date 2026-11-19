@@ -43,5 +43,18 @@ export default {
   'picker.dragTurn': 'Drag to turn',
   'picker.owned': 'Yours',
   'picker.dialogChoose': 'Choose your buddy',
-  'picker.dialogYours': 'Your buddy'
+  'picker.dialogYours': 'Your buddy',
+  // Buddy and teacher barks: spoken only by real recorded voices (docs/arcademia.md, Voices); no recording, no sound
+  'voice.buddy.hello': 'Hi! I’m so happy you’re here. Let’s climb the mountain!',
+  'voice.buddy.start': 'A new quest! Let’s go!',
+  'voice.buddy.great': 'Yay! Great job!',
+  'voice.buddy.wow': 'Wow, you’re so clever!',
+  'voice.buddy.tryAgain': 'Oops! That’s okay. Let’s try again!',
+  'voice.buddy.hint': 'Ooh, a hint! Let’s read it together.',
+  'voice.buddy.end': 'We did it! High five!',
+  'voice.buddy.levelUp': 'Level up! I feel bigger and stronger!',
+  'voice.buddy.sticker': 'A new sticker! It’s so shiny!',
+  'voice.buddy.tap': 'Hee hee! That tickles!',
+  'voice.teacher.tryAgain': 'Not quite. Have another go — you can do it!',
+  'voice.teacher.hint': 'Here’s a little hint to help you.'
 };

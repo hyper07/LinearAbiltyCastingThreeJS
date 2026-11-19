@@ -30,8 +30,9 @@ chalkboard, history chats, timelines and treasures, the physics experiments, qui
 worked answers), the parents' PIN and report, and the share page (which has its own picker; a share
 link opens in the language the parent was using). Math questions are generated in the language,
 with its own number formats (Spanish writes 0,3) and counting words (사과 3개, 3只鸭子). There are no
-synthesized or AI voices anywhere on the platform: lines will be spoken only by real human
-recordings (none are recorded yet, so **Read to me** stays hidden). Professor Hoot, the Plus tutor, answers
+synthesized or AI voices anywhere on the platform: lines are spoken only by real people's recordings
+(see [Voices](#voices)); **Read to me** and **Voice on** show only in a language that has recordings,
+and a line nobody has recorded yet is just its text. Professor Hoot, the Plus tutor, answers
 in the chosen language: the page sends the locale and the server puts it into the tutor's
 instructions.
 
@@ -81,8 +82,8 @@ Every lesson is a quest from a teacher — Professor Hoot the owl (math), Tock t
 tortoise (history) or Gizmo the raccoon inventor (physics) — and runs:
 
 1. **Story** — who needs help, and why.
-2. **Learn** — two to four reading cards, big text; **Read to me** will play real human
-   recordings once they exist (no text-to-speech).
+2. **Learn** — two to four reading cards, big text; **Read to me** plays the teacher's recorded
+   reading of the card where one exists (real people only, no text-to-speech).
 3. **The hands-on part**
    - Math: a worked example written in chalk on a real-looking chalkboard (grain, smudges, the
      chalk stick moving), mirrored onto the classroom's 3D board; then two practice problems with a
@@ -110,6 +111,113 @@ flame for days in a row; a puzzle boss on every floor (six riddles from that flo
 with four right; no fighting); arcade games (Bubble Pop, Hungry Monster, Launch to the Basket, Who
 Said It?). All of this lives in the browser per player (`arcademia.game.<player>`); the learning
 record is the server's.
+
+## Voices
+
+Every voice in AI Arcademia is a real person. There is no text-to-speech and no AI voice anywhere on
+the platform (a unit test fails if the browser's speech synthesis API appears in `src/`, `server/` or
+a page). People record the lines in the **voice studio**, and the game plays those recordings.
+
+### The line script
+
+Every spoken line has a **line id** taken from where its text lives, never from the text, so editing
+a sentence or a translation keeps the id:
+
+| Id | What | Example |
+| --- | --- | --- |
+| `t.<i18n key>` | a string-table line | `t.lesson.hello.math` |
+| `t.<i18n key>~<variant>` | the same, filled in for one lesson or floor | `t.quest.history.intro~h1-long-ago`, `t.npc.6~3` |
+| `l.<lesson id>.<path>` | a lesson's own text | `l.h1-long-ago.reading.2`, `l.p1-float-or-sink.quiz.0.hint` |
+
+The characters are the teachers (`hoot`, `tock`, `gizmo`), one guide per history lesson
+(`guide-<lesson id>`), the floor bosses (`boss-1` … `boss-7`), the `townsfolk`, and the buddies
+(`buddy-fox`, `buddy-robot`, `buddy-dragon`, `buddy-puff`, `buddy-bunny`). Each line has a kind:
+**barks** (greetings, "great job", "try again", the hint intro, lesson start and end, level up,
+sticker found, the townsfolk's tips), then **story** lines, **reading** cards and **quiz** prompts. The
+script puts barks first, then floor 1, 2 and so on, which is the order to record in. The buddies'
+barks and the teachers' "try again" and hint intro are the `voice.*` keys in each language's `chars.js`.
+Generated math questions and the chalkboard's worked examples change every time, so they have no line
+and stay text only, as does the AI tutor's answer.
+
+Each language has 991 lines (131 of them barks), about two hours of speech:
+
+| Character | Barks / all lines (every language) |
+| --- | --- |
+| Professor Hoot | 16 / 92 |
+| Tock | 15 / 263 |
+| Gizmo | 17 / 271 |
+| each of the 17 history guides | 0 / 8 |
+| bosses 1–7 | 2 / 33, 33, 19, 20, 20, 22, 21 |
+| the townsfolk | 19 / 19 |
+| each of the five buddies | 10 / 10 |
+
+A printable script and a CSV per character and language, with each line's id, text, the
+character's direction ("warm, encouraging, slow and clear for 6–8 year-olds"), where it is heard and
+an estimated length:
+
+```bash
+npm run voice:script                       # everything → data/voice-script/<lang>/<char>.csv and .html
+npm run voice:script -- --lang ko --char hoot
+npm run voice:script -- --kind bark --missing   # barks nobody has recorded yet
+npm run voice:script -- --stats            # the counts
+```
+
+### The voice studio
+
+`voice-studio.html` — on the dev server `http://127.0.0.1:5173/voice-studio.html`, in production
+`https://<site>/voice-studio.html`. It is for the site's admins: the production server asks for the
+admin id and password (`ADMIN_ACCOUNTS`, `ADMIN_PASSWORD`, as for the other admin APIs) before it
+serves the page, and every `/api/voice` call checks again. The dev server asks too when those are set
+in `.env`; with neither set it lets the local machine in.
+
+1. **Choose a voice actor.** A new actor gives the name they want in the credits, the characters and
+   languages they voice, and ticks the **consent** box: their voice will be used in the game and
+   credited by that name, and they can ask for removal. The server stores the consent text, its
+   version, the date and which admin took it. **Remove all my recordings** deletes every file of
+   theirs and their credit, and records the date of the removal.
+2. **Pick a character and a language.** The teleprompter shows the line big, with its direction and
+   where it is heard. **Space** (or the button) counts in 3-2-1 and records; **Space** stops. A level
+   meter (with peak hold and a clip light) runs while the microphone is open.
+3. **Takes.** Record as many as you like (**R** retakes), play them back (**P**), choose one and keep
+   it (**Enter**). **←/→** move between lines. Filters show missing lines only, a kind or a floor, and
+   the progress card counts done / total (and barks) per character and language.
+4. **Processing,** in the browser with plain WebAudio maths (`src/arcademia/voice/dsp.js`): an 80 Hz
+   high-pass, trimmed silence (80 ms kept before, 150 ms after), an optional gentle noise gate (−12 dB
+   between words, never muted), loudness to **−18 LUFS** (ITU-R BS.1770 integrated loudness) with a
+   look-ahead limiter keeping peaks at **−1 dBFS** or under, and short fades. A take warns about
+   clipping, a very quiet or noisy recording, or peaks that kept it from reaching −18 LUFS.
+5. **Saving.** The kept take is uploaded to `/api/voice` (`server/voiceStore.js`), which writes
+   `public/audio/voice/<lang>/<char>/<line id>.<ext>` and `public/audio/voice/manifest.json` (line →
+   files, duration, actor, take date, loudness and peak). Recorded under `npm run dev`, the files are
+   the repo's own and ship with the next build. Production writes to `VOICE_DIR` (default
+   `public/audio/voice`; point it at a persistent volume) and serves that folder at `/audio/voice/`
+   ahead of the built copy.
+
+The server checks everything: the language, character and line must be in the script, the actor must
+have agreed and voice that character in that language, the type must be WebM, MP4 or Ogg audio and
+start like one, a file is at most 2 MB and a line at most 60 s, and the path is built from checked
+parts and checked again to be inside `VOICE_DIR`.
+
+**The format.** Browsers record Opus in WebM (Chrome, Edge, Firefox) or AAC in MP4 (Safari), and there
+is no encoder in the browser without a dependency other than MediaRecorder itself. So the studio
+records at 256 kb/s, decodes to PCM, processes it, and plays the result silently into
+MediaRecorder again: **Opus in WebM at 64 kb/s** (every current browser plays it, Safari since 18),
+plus an **AAC in MP4** copy at 96 kb/s where the browser can record AAC (Safari), so older Safari has
+something to play. The game picks the first format the browser says it can play. Re-encoding takes as
+long as the line (it happens in the background while the next line is recorded); the high first
+recording rate keeps the second generation clean.
+
+### In the game
+
+`speech` (`src/arcademia/sound.js`, the player in `src/arcademia/voice/player.js`) plays a line by id:
+`speech.say('t.lesson.hello.math', { char: 'hoot', face, bubble })`. It plays only the recording for the
+current language and that character; with no recording it does nothing (never another language's or
+another character's voice, never a synthesized one). Text from an older call is looked up in the
+current language's script as a fallback. While a line plays, the music ducks a little
+(`music.duckVoice`), the speaker's mouth follows the voice's loudness (`creature.lipSync`; Hoot,
+whose face has a beak, nods instead) and the speech bubble glows. A floor's barks are fetched when
+the floor opens and a lesson's lines when it starts; the rest load when first heard. The Credits panel
+lists the actors under **Voices**, by their chosen name, with the characters they recorded.
 
 ## Progress and the parents' report
 
@@ -166,13 +274,14 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | The creatures: sculpting, species recipes, faces, hats, materials; the creature API | `src/arcademia/world/creatures/`, `src/arcademia/world/figures.js` |
 | Languages: the i18n core, string tables and lesson overlays | `src/arcademia/i18n/` |
 | Start screen, settings, credits (and the credits list) | `src/arcademia/ui/settings.js`, `src/arcademia/credits.js` |
+| Voices: the line script, take processing, the manifest, the player, the studio | `src/arcademia/voice/`, `voice-studio.html`, `server/voiceStore.js`, `scripts/voice-script.mjs` |
 | Lessons, chalkboard, practice, sims, mini-games, puzzle boss | `src/arcademia/lesson/` |
 | HUD, buddy wardrobe, quest book, tutor panel, parents, report charts | `src/arcademia/ui/` |
 | Coins, XP, stickers, quests (browser) · learning record (browser or server) | `src/arcademia/gamestate.js` · `src/arcademia/progress.js` |
 | Learning API and its caps | `server/learningStore.js` (wired in `server/server.js` and `vite.config.js`) |
 | The tutor route | `server/api/ai.js` |
 | The share page | `parent-report.html`, `src/arcademia/sharedReport.js` |
-| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs` |
+| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs`, `voice.test.mjs`; `tests/e2e/voice.mjs` |
 
 To add a floor, add an entry to `FLOORS`, a world to `WORLDS` and at least two lessons per subject:
 the mountain, nav, minimap and unlock rules follow.

@@ -25,6 +25,7 @@ import { run as camera } from './camera.mjs';
 import { run as map } from './map.mjs';
 import { run as help } from './help.mjs';
 import { run as zones } from './zones.mjs';
+import { run as voice } from './voice.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -44,10 +45,12 @@ if (!process.env.BASE_URL) {
   dataDir = await mkdtemp(join(tmpdir(), 'gamory-e2e-'));
   server = spawn(process.execPath, [resolve('server/server.js')], {
     // The stock game on made-up prices, with a test admin id and password, so the tests need no keys.
-    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '', MARKET_PROVIDER: 'fixture', WORK_NEWS_PROVIDER: 'fixture', WORK_AI: 'off', WORK_SPEED: '1', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'test-admin-pass', ACCOUNTS_PER_ADDRESS_PER_DAY: '50' },
+    // VOICE_DIR: the voice studio's recordings go to this run's own folder, never public/audio/voice.
+    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, VOICE_DIR: join(dataDir, 'voice'), STATIC_ROOT: resolve('dist'), LLM_PLATFORM_BASE_URL: '', MARKET_PROVIDER: 'fixture', WORK_NEWS_PROVIDER: 'fixture', WORK_AI: 'off', WORK_SPEED: '1', ADMIN_ACCOUNTS: 'siteadmin', ADMIN_PASSWORD: 'test-admin-pass', ACCOUNTS_PER_ADDRESS_PER_DAY: '50' },
     stdio: ['ignore', 'pipe', 'inherit']
   });
   process.env.BASE_URL = `http://127.0.0.1:${port}/`;
+  process.env.E2E_VOICE_DIR = join(dataDir, 'voice');
   await new Promise((ready, fail) => {
     server.stdout.on('data', (chunk) => {
       process.stdout.write(`  ${chunk}`);
@@ -61,7 +64,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts], ['lanebreak', lanebreak], ['hearthvale', hearthvale], ['breachline', breachline], ['bastion', bastion], ['channels', channels], ['graphics', graphics], ['camera', camera], ['map', map], ['help', help], ['zones', zones]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts], ['lanebreak', lanebreak], ['hearthvale', hearthvale], ['breachline', breachline], ['bastion', bastion], ['channels', channels], ['graphics', graphics], ['camera', camera], ['map', map], ['help', help], ['zones', zones], ['voice', voice]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);

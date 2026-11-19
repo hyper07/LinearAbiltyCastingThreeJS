@@ -19,7 +19,8 @@ export const quizLength = (lesson) => (Array.isArray(lesson.quiz) ? lesson.quiz.
 
 /** The quiz questions for one run of a lesson, in a language: fixed ones, or fresh ones from a seed. */
 export function quizFor(lesson, seed = 1, lc = locale()) {
-  if (Array.isArray(lesson.quiz)) return localizeLesson(lesson, lc).quiz.map((q) => ({ ...q, topic: lesson.topic }));
+  // Written questions carry their voice line's stem (l.<lesson>.quiz.<i>; voice/script.js); generated ones have none.
+  if (Array.isArray(lesson.quiz)) return localizeLesson(lesson, lc).quiz.map((q, i) => ({ ...q, topic: lesson.topic, line: `l.${lesson.id}.quiz.${i}` }));
   return makeQuiz(lesson.quiz.gen, seed, lesson.quiz.count, lc).map((q) => ({ ...q, topic: lesson.topic }));
 }
 

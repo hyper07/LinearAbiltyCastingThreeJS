@@ -201,17 +201,10 @@ export class Sound {
 
 /**
  * Voices. The platform never uses synthesized or AI voices (the user's rule):
- * no speechSynthesis, no text-to-speech. Lines are spoken only by real human
- * recordings, which are not recorded yet, so `available` is false and the
- * read-aloud buttons stay hidden. Callers keep using say()/stop(); when
- * recordings exist this will play them by line id instead.
+ * no text-to-speech of any kind. Lines are spoken only by real people's
+ * recordings, made in the voice studio (voice-studio.html) and played by
+ * line id (voice/player.js). `speech.available` is true only when the
+ * current language has recordings, so the read-aloud buttons show only then;
+ * a line with no recording is silent and the game shows its text.
  */
-export const speech = {
-  get available() {
-    return false;
-  },
-  say() {
-    return false;
-  },
-  stop() {}
-};
+export { voicePlayer as speech } from './voice/player.js';

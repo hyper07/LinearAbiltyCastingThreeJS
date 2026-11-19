@@ -8,7 +8,7 @@ import { World } from './world/World.js';
 import { Hud } from './ui/hud.js';
 import { el, confetti, prefersReducedMotion } from './ui/dom.js';
 import { Progress } from './progress.js';
-import { Sound } from './sound.js';
+import { Sound, speech } from './sound.js';
 import { GameState } from './gamestate.js';
 import { WORLDS } from './quests.js';
 import { FLOORS } from './floors.js';
@@ -61,6 +61,10 @@ export class ArcademiaGame {
     this.reducedMotion = prefersReducedMotion();
     this.sound = new Sound();
     this.sound.setMuted(!this.prefs.sound);
+    // Real people's recorded voices (voice/player.js): the manifest says which lines exist.
+    speech.setMuted(!this.prefs.sound);
+    speech.load();
+    this.speech = speech; // for the console and the end-to-end checks
     this.progress = new Progress({ account });
     this.gs = new GameState(account ? `a${account.id}` : 'guest');
     this.closed = false;
@@ -92,6 +96,7 @@ export class ArcademiaGame {
         enter: (subject, floor) => this.enter(subject, floor),
         floor: (n) => {
           this.refresh();
+          speech.preloadFloor(n, this.buddyChar);
           if (this._amb) this.sound.ambient(this.prefs.sound, this.prefs.night ? 1 : 0, FLOORS[n - 1].look.mood);
         },
         near: (b) => this.hud?.setNear(b),
@@ -153,6 +158,8 @@ export class ArcademiaGame {
     if (this.closed) return;
     if (!this.gs.buddy) await this.openBuddy({ first: true });
     if (this.closed) return;
+    // The buddy says hello in its recorded voice (if someone recorded it in this language).
+    if (this.voiceOn()) speech.say('t.voice.buddy.hello', { char: this.buddyChar, face: this.world.kid });
     if (this.progress.guestToImport) this.offerImport();
     if (!Object.keys(this.progress.stars).length) setTimeout(() => this.hud?.toast(t('game.firstQuest', { story: WORLDS[1].story }), { icon: '🌼', ms: 7000 }), 900);
   }
@@ -331,9 +338,26 @@ export class ArcademiaGame {
   npcHello(n) {
     this.sound.toy(n.species === 'robot' ? 'beep' : 'squeak');
     const left = this.world.gems.filter((g) => g.floor === n.floor && !this.gs.s.gems[g.id]).length;
-    const lines = Array.from({ length: 10 }, (_, i) => t(`npc.${i}`, { boss: WORLDS[n.floor].boss.name }));
-    const tip = left && Math.random() < 0.35 ? t('npc.gems', { count: left }) : lines[Math.floor(Math.random() * lines.length)];
+    const i = Math.floor(Math.random() * 10);
+    const gems = left && Math.random() < 0.35;
+    const tip = gems ? t('npc.gems', { count: left }) : t(`npc.${i}`, { boss: WORLDS[n.floor].boss.name });
+    // Its voice line (voice/script.js): npc.6 names the floor's boss, npc.gems the gems left.
+    const line = gems ? `t.npc.gems~${Math.min(3, left)}` : i === 6 ? `t.npc.6~${n.floor}` : `t.npc.${i}`;
     this.hud.toast(tip, { icon: { bunny: '🐰', mouse: '🐭', duck: '🦆', fox: '🦊', hedgehog: '🦔', frog: '🐸', penguin: '🐧', bear: '🐻', puff: '☁️', crab: '🦀', robot: '🤖' }[n.species] ?? '💬', ms: 4200 });
+    if (this.voiceOn()) speech.say(line, { char: 'townsfolk', face: n.fig });
+  }
+
+  /** The player's buddy as a voice character (voice/script.js). */
+  get buddyChar() {
+    return `buddy-${this.gs.buddy?.species ?? 'fox'}`;
+  }
+  /** Voices on: the lesson's Voice switch (prefs.voice), on by default. */
+  voiceOn() {
+    return this.prefs.voice ?? true;
+  }
+  /** The buddy's bark for a sticker (a recorded voice, or nothing). */
+  stickerBark(got) {
+    if (got?.stickers?.length && this.voiceOn()) speech.say('t.voice.buddy.sticker', { char: this.buddyChar, face: this.world.kid, queue: true });
   }
 
   enterNear() {
@@ -399,7 +423,10 @@ export class ArcademiaGame {
   celebrateUnlock(n) {
     const f = FLOORS[n - 1];
     const got = this.gs.event('floor', { floor: n });
-    if (got.stickers.length) setTimeout(() => this.hud.toast(t('game.newSticker', { list: got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ') }), { icon: '🌈' }), 1800);
+    if (got.stickers.length) setTimeout(() => {
+      this.hud.toast(t('game.newSticker', { list: got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ') }), { icon: '🌈' });
+      this.stickerBark(got);
+    }, 1800);
     this.celebrate('level-up');
     confetti(this.root, 120);
     const banner = el('div', 'arc-banner', null, { role: 'status' });
@@ -445,6 +472,7 @@ export class ArcademiaGame {
     this.sound.toy(sound);
     const got = this.gs.event('toy', { id: `${toyAt.floor}-${toyAt.kind}-${Math.round(toyAt.x)}` });
     if (got.coins) this.hud.toast(`${t('game.toyCoins', { n: got.coins })}${got.stickers.length ? ` ${t('game.newSticker', { list: `${got.stickers[0].emoji} ${got.stickers[0].name}` })}` : ''}`, { icon: '🎉', ms: 1800 });
+    this.stickerBark(got);
   }
 
   foundGem(n, id) {
@@ -452,6 +480,7 @@ export class ArcademiaGame {
     const got = this.gs.event('gem', { id });
     const left = this.world.gems.filter((g) => g.floor === n && !this.gs.s.gems[g.id]).length;
     this.hud.toast(`${t('game.gem', { n: got.coins })} ${left ? t('game.gemsLeft', { count: left }) : t('game.gemsAll')}${got.stickers.length ? ` ${t('game.newSticker', { list: got.stickers.map((s) => s.emoji).join(' ') })}` : ''}`, { icon: '💎' });
+    this.stickerBark(got);
     this.refreshGame();
   }
 
@@ -534,6 +563,7 @@ export class ArcademiaGame {
     this.celebrate('discovery');
     confetti(this.root, 60);
     this.hud.toast(got.stickers.length ? t('game.treasureSticker', { n: got.coins, sticker: `${got.stickers[0].emoji} ${got.stickers[0].name}` }) : t('game.treasure', { n: got.coins }), { icon: '🪙' });
+    this.stickerBark(got);
     this.refreshGame();
   }
 
@@ -585,6 +615,7 @@ export class ArcademiaGame {
     this.prefs.sound = on;
     prefs.save(this.prefs);
     this.sound.setMuted(!on);
+    speech.setMuted(!on);
     this.hud?.setSound(on);
     if (this._amb) this.sound.ambient(on, this.prefs.night ? 1 : 0, FLOORS[this.world.kidFloor - 1].look.mood);
   }
@@ -701,6 +732,7 @@ export class ArcademiaGame {
     if (this.closed) return;
     this.closed = true;
     this.music?.dispose();
+    speech.stop();
     this.power?.dispose();
     this._modals?.disconnect();
     this.progress.flush();

@@ -7,6 +7,7 @@
  *   music.setMood('battle');         // crossfades (into its calm/tense pair when there is one)
  *   music.stinger('victory');        // a short jingle over the bed, which ducks under it
  *   music.linkMute(() => sound.muted); // follow the game's own sound toggle
+ *   music.duckVoice(true);           // a recorded voice line is playing: the bed dips; false lifts it
  *
  * The tracks are in public/audio/bgm (Ogg Vorbis) and described by its
  * manifest.json: loop points (seconds), mood, tags, BPM, key, the calm/tense
@@ -283,6 +284,7 @@ export class Music {
     this.muteLinks = [];
     this.linkedMute = false;
     this.trim = 1; // a game's own level under the volume (a quiet home page, a lesson)
+    this.voiceDuck = 1; // under a recorded voice line (duckVoice), else 1
     this.toastEl = null;
     this._ready = null;
   }
@@ -372,6 +374,21 @@ export class Music {
     this._applyMaster(false, fade);
   }
 
+  /**
+   * A recorded voice is speaking: dip the bed to `level` (quickly), and lift
+   * it back (slowly) when it stops. Stingers duck the same node and return to
+   * this level, not to full.
+   */
+  duckVoice(on, { level = 0.45 } = {}) {
+    this.voiceDuck = on ? Math.min(1, Math.max(0, Number(level))) : 1;
+    if (!this.duck || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const d = this.duck.gain;
+    d.cancelScheduledValues(now);
+    d.setValueAtTime(d.value, now);
+    d.setTargetAtTime(this.voiceDuck, now, on ? 0.04 : 0.25);
+  }
+
   /** Whether anything would be heard now (playing, not muted, a volume above 0). */
   get audible() {
     return Boolean(this.voice) && this._level() > 0;
@@ -379,7 +396,7 @@ export class Music {
 
   /** For tests and the console: what is playing and how loud. */
   debug() {
-    return { id: this.current?.id ?? null, title: this.current?.title ?? null, mood: this.mood, volume: this.settings.volume, muted: this.settings.muted, linkedMute: this.linkedMute, trim: this.trim, level: this._level(), gain: this.master?.gain.value ?? null, ctx: this.ctx?.state ?? null, pending: this.pending?.track.id ?? null };
+    return { id: this.current?.id ?? null, title: this.current?.title ?? null, mood: this.mood, volume: this.settings.volume, muted: this.settings.muted, linkedMute: this.linkedMute, trim: this.trim, level: this._level(), gain: this.master?.gain.value ?? null, voiceDuck: this.voiceDuck, duck: this.duck?.gain.value ?? null, ctx: this.ctx?.state ?? null, pending: this.pending?.track.id ?? null };
   }
 
   /** Play a track by id or tag; `fade` seconds (default 2). Resolves when it starts. */
@@ -422,7 +439,7 @@ export class Music {
     d.setValueAtTime(d.value, now);
     d.linearRampToValueAtTime(duck, now + 0.15);
     d.setValueAtTime(duck, now + Math.max(0.2, buffer.duration - 0.6));
-    d.linearRampToValueAtTime(1, now + buffer.duration + 0.6);
+    d.linearRampToValueAtTime(this.voiceDuck, now + buffer.duration + 0.6);
     src.start(now + 0.05);
     return track;
   }
@@ -444,6 +461,7 @@ export class Music {
     this.ctx = new AC();
     this.master = this.ctx.createGain();
     this.duck = this.ctx.createGain();
+    this.duck.gain.value = this.voiceDuck;
     this.duck.connect(this.master);
     this.master.connect(this.ctx.destination);
     this._applyMaster(true);

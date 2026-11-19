@@ -38,5 +38,17 @@ export default {
   'picker.dragTurn': '拖动来转一转',
   'picker.owned': '已拥有',
   'picker.dialogChoose': '挑选小伙伴',
-  'picker.dialogYours': '我的小伙伴'
+  'picker.dialogYours': '我的小伙伴',
+  'voice.buddy.hello': '你好！你来了我真开心。我们一起爬山吧！',
+  'voice.buddy.start': '新任务！出发吧！',
+  'voice.buddy.great': '耶！做得真棒！',
+  'voice.buddy.wow': '哇，你真聪明！',
+  'voice.buddy.tryAgain': '哎呀！没关系，我们再试一次！',
+  'voice.buddy.hint': '哦，有提示！我们一起读一读。',
+  'voice.buddy.end': '我们成功了！击个掌！',
+  'voice.buddy.levelUp': '升级啦！我变得更大更强了！',
+  'voice.buddy.sticker': '新贴纸！亮晶晶的！',
+  'voice.buddy.tap': '嘻嘻！好痒呀！',
+  'voice.teacher.tryAgain': '差一点点。再试一次吧，你一定行！',
+  'voice.teacher.hint': '给你一个小提示。'
 };

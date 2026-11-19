@@ -30,7 +30,8 @@
     "music:setup": "node scripts/music-setup.mjs",
     "music:gen": "node scripts/music-gen.mjs",
     "music:soundtrack": "node scripts/music-soundtrack.mjs",
-    "music:preview": "node scripts/music-preview.mjs"
+    "music:preview": "node scripts/music-preview.mjs",
+    "voice:script": "node scripts/voice-script.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.12",
