@@ -203,6 +203,26 @@ def main(argv=None):
     )
 
 
+
+def _srgb_lut():
+    """TRELLIS.2 bakes base colour in linear light, but glTF reads baseColorTexture as sRGB:
+    without this the models come out dark and over-saturated."""
+    out = []
+    for v in range(256):
+        c = v / 255
+        c = c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+        out.append(max(0, min(255, round(c * 255))))
+    return out
+
+
+def encode_srgb(image):
+    """A PIL image's RGB channels, linear -> sRGB (alpha untouched)."""
+    lut = _srgb_lut()
+    bands = image.split()
+    rgb = [b.point(lut) for b in bands[:3]]
+    from PIL import Image
+    return Image.merge(image.mode, rgb + list(bands[3:]))
+
 def bake(mesh, out, args, torch):
     """PBR textures through the Metal baker when built, else trellis-mac's KDTree baker."""
     import fast_simplification
@@ -239,6 +259,9 @@ def bake(mesh, out, args, torch):
                 texture_size=args.texture_size,
                 verbose=False,
             )
+            material = getattr(getattr(glb, "visual", None), "material", None)
+            if material is not None and getattr(material, "baseColorTexture", None) is not None:
+                material.baseColorTexture = encode_srgb(material.baseColorTexture)
             glb.export(out)
             return "metal"
         except RuntimeError as error:
@@ -255,6 +278,11 @@ def bake(mesh, out, args, torch):
         mesh.origin.cpu().float().numpy(), mesh.voxel_size,
         texture_size=args.texture_size,
     )
+    import numpy as np
+    from PIL import Image
+
+    if isinstance(base_color, np.ndarray) and base_color.dtype == np.uint8:
+        base_color = np.asarray(encode_srgb(Image.fromarray(base_color)))
     export_glb_with_texture(new_verts, new_faces, uvs, base_color, metallic_roughness, out)
     return "kdtree"
 
