@@ -300,8 +300,10 @@ export default defineConfig(({ mode }) => {
   // Dev saves levels in the repo; `vite preview` plays the built set like production.
   let levelDir = () => resolve('public', 'levels');
   // One database for the accounts and the library (PGlite lets one opener use a folder).
-  let db = null;
-  const getDb = () => (db ??= openDatabase({ url: env.DATABASE_URL ?? process.env.DATABASE_URL, dataDir: resolve('data'), log: (line) => console.log(line) }));
+  // Kept on globalThis, not in this function: Vite re-runs the config when a server file it
+  // imports changes, and a second PGlite opened on the same folder overwrites the first one's
+  // write-ahead log (that corrupted data/postgres once).
+  const getDb = () => (globalThis.__gamoryDb ??= openDatabase({ url: env.DATABASE_URL ?? process.env.DATABASE_URL, dataDir: resolve('data'), log: (line) => console.log(line) }));
   const getGame = gameServices({ ...process.env, ...env }, () => levelDir(), getDb);
 
   return {
