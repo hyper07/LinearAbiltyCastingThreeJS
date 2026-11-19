@@ -9,7 +9,7 @@ import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { GamesStore, gamesHandler } from './gamesStore.js';
 import { ChannelStore, channelHandler } from './channelStore.js';
 import { LearningStore, learningHandler } from './learningStore.js';
-import { VoiceStore, voiceHandler } from './voiceStore.js';
+import { VoiceStore, voiceHandler, voiceStudioAuth } from './voiceStore.js';
 import { adminAuth } from './api/adminAuth.js';
 import { createModelStore } from './modelgen.mjs';
 import { createRealtime } from './realtime.js';
@@ -121,6 +121,7 @@ const channels = new ChannelStore(database, games);
 const learning = new LearningStore(database);
 const voice = new VoiceStore(database, { voiceDir: VOICE_DIR });
 const admin = adminAuth(process.env);
+const voiceAdmin = voiceStudioAuth(process.env);
 const market = createMarket({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const work = createWork({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const mmo = createMmo({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
@@ -280,7 +281,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname.startsWith('/library/')) return serveLibrary(req, res, pathname.slice('/library'.length));
     if (pathname.startsWith('/audio/voice/')) return serveVoice(req, res, pathname.slice('/audio/voice'.length));
     // The voice studio is for the site's admins only (its API checks again on every call).
-    if (pathname === '/voice-studio.html' && admin.refuse(req, res, (status, body) => json(res, status, body))) return;
+    if (pathname === '/voice-studio.html' && voiceAdmin.refuse(req, res, (status, body) => json(res, status, body))) return;
     // Map tiles made from public data (scripts/geo/seoul-build.mjs), kept in DATA_DIR/geo.
     if (pathname.startsWith('/geo/seoul/')) return serveGeo(req, res, pathname.slice('/geo/seoul'.length));
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method not allowed' });

@@ -98,6 +98,7 @@ docker compose exec -T db pg_restore -U gamory -d gamory --clean < gamory-2026-1
 | `STATIC_ROOT` | The built client | `./dist` |
 | `LIBRARY_ROOT` | The 3D asset library, served at `/library/` | `./library` |
 | `VOICE_DIR` | AI Arcademia's recorded voices (the voice studio writes here), served at `/audio/voice/` ahead of the build's copy; put it on a persistent volume | `./public/audio/voice` |
+| `VOICE_STUDIO_ADMIN_ID` / `VOICE_STUDIO_ADMIN_PASSWORD` | The voice studio's own login (`/voice-studio.html` and `/api/voice`), separate from the platform admin; when either is unset the studio falls back to `ADMIN_ACCOUNTS` / `ADMIN_PASSWORD` | unset |
 | `MAX_PLAYERS` | Players per party (2–8) | `4` |
 | `MAX_ROOMS` | Parties at once | `500` |
 | `TRUST_PROXY` | `1` behind a reverse proxy: rate limits then see the real client address from `X-Forwarded-For` | `0` |

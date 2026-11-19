@@ -108,7 +108,7 @@ function gameServices(env, levelDir, getDb) {
  * AI Arcademia's voice studio (/api/voice, voice-studio.html) and the
  * recordings at /audio/voice/ — from VOICE_DIR (default public/audio/voice,
  * so what is recorded under `npm run dev` ships with the next build). With no
- * ADMIN_ACCOUNTS / ADMIN_PASSWORD set, the dev server lets this machine in;
+ * VOICE_STUDIO_ADMIN_ID / _PASSWORD (else ADMIN_ACCOUNTS / ADMIN_PASSWORD) set, the dev server lets this machine in;
  * `vite preview` and production always ask for the admin.
  */
 function voiceStudio(env, getDb) {

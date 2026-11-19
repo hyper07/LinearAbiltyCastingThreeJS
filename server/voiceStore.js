@@ -296,8 +296,22 @@ const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
  * @param {{ env?: object, allowLocal?: boolean }} options  allowLocal: the dev server lets the
  *   local machine in when no admin id and password are configured (never in production)
  */
+/**
+ * The voice studio's own login: VOICE_STUDIO_ADMIN_ID + VOICE_STUDIO_ADMIN_PASSWORD
+ * when set (a separate account for whoever records voices), otherwise the
+ * platform admin (ADMIN_ACCOUNTS + ADMIN_PASSWORD).
+ */
+export function voiceStudioAuth(env = process.env) {
+  const own = env.VOICE_STUDIO_ADMIN_ID && env.VOICE_STUDIO_ADMIN_PASSWORD;
+  return adminAuth(
+    own
+      ? { ADMIN_ACCOUNTS: env.VOICE_STUDIO_ADMIN_ID, ADMIN_PASSWORD: env.VOICE_STUDIO_ADMIN_PASSWORD }
+      : { ADMIN_ACCOUNTS: env.ADMIN_ACCOUNTS, ADMIN_PASSWORD: env.ADMIN_PASSWORD }
+  );
+}
+
 export function voiceHandler(getStore, { env = process.env, allowLocal = false } = {}) {
-  const admin = adminAuth(env);
+  const admin = voiceStudioAuth(env);
   const writes = new RateLimiter(240, { burst: 60 });
   return async (req, res) => {
     const path = pathOf(req);
