@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { surfaceAt } from './heights.js';
 import { characterMaterial } from './actors.js';
+import { twistSplit, legMotion } from '../hd2d/aim.js';
 
 export const SPEEDS = { walk: 1.6, run: 4.8, sprint: 7.6 };
 const GRAVITY = 19;
@@ -43,6 +44,14 @@ export class Hero {
     this.speed = 0;
     this.feet = { L: false, R: false };
     this.lastPos = new THREE.Vector3();
+    // Combat: an aim the body turns to (twisting at the waist, or backpedalling), forced motion
+    // (a charge, a roll, a leap), a lift off the ground, and a cap on speed while attacking.
+    this.aimYaw = null;
+    this.force = null;
+    this.lift = 0;
+    this.moveScale = 1;
+    this.spin = 0;
+    this.backpedal = false;
     // The inner pivot carries lean and pitch, so the root stays upright for the camera.
     this.tilt = new THREE.Group();
     this.object.add(this.tilt);
@@ -79,7 +88,7 @@ export class Hero {
     // Wanted velocity in the world.
     let ix = input.x;
     let iz = input.z;
-    const mag = Math.min(1, Math.hypot(ix, iz));
+    const mag = Math.min(1, Math.hypot(ix, iz)) * (this.moveScale > 0.01 ? 1 : 0);
     let want = 0;
     let dirYaw = this.yaw;
     if (mag > 0.05) {
@@ -90,7 +99,21 @@ export class Hero {
       const wx = -ix * c + iz * s;
       const wz = ix * s + iz * c;
       dirYaw = Math.atan2(wx, wz);
-      want = (input.walk ? SPEEDS.walk : input.sprint ? SPEEDS.sprint : SPEEDS.run) * mag;
+      want = (input.walk ? SPEEDS.walk : input.sprint && this.aimYaw == null ? SPEEDS.sprint : SPEEDS.run) * mag * Math.min(1, this.moveScale) * (this.speedK ?? 1);
+    }
+    // Aiming: within the twist the legs keep their way and the chest turns; past it the body turns and the legs backpedal.
+    let aimTwist = 0;
+    let bodyYaw = dirYaw;
+    this.backpedal = false;
+    if (this.aimYaw != null) {
+      if (mag > 0.05) {
+        const split = twistSplit(dirYaw, this.aimYaw);
+        if (split.full) {
+          bodyYaw = this.aimYaw;
+          this.backpedal = legMotion(this.aimYaw, dirYaw).back;
+          if (this.backpedal) want *= 0.72;
+        } else aimTwist = split.twist;
+      } else bodyYaw = this.aimYaw;
     }
     // Ease the speed (quicker to stop than to start), less control in the air.
     const control = this.grounded ? 1 : 0.25;
@@ -98,22 +121,35 @@ export class Hero {
     const accel = want > cur ? (cur < 2 ? 9 : 5.5) : 11;
     let sp = cur + (want - cur) * (1 - Math.exp(-accel * dt * control));
     // Turn: fast when slow, wide arcs at a sprint; a hard reversal at speed slows us first.
-    const diff = wrap(dirYaw - this.yaw);
-    if (mag > 0.05) {
-      const rate = THREE.MathUtils.lerp(13, 4.2, THREE.MathUtils.clamp(sp / SPEEDS.sprint, 0, 1)) * (this.grounded ? 1 : 0.4);
+    const diff = wrap(bodyYaw - this.yaw);
+    if (mag > 0.05 || this.aimYaw != null) {
+      const rate = this.aimYaw != null ? 16 : THREE.MathUtils.lerp(13, 4.2, THREE.MathUtils.clamp(sp / SPEEDS.sprint, 0, 1)) * (this.grounded ? 1 : 0.4);
       const turn = THREE.MathUtils.clamp(diff, -rate * dt, rate * dt);
       this.yaw = wrap(this.yaw + turn);
       this.yawRate += (turn / Math.max(dt, 1e-4) - this.yawRate) * Math.min(1, dt * 10);
-      if (Math.abs(diff) > 2.2 && sp > 3) sp *= Math.exp(-6 * dt);
+      if (Math.abs(diff) > 2.2 && sp > 3 && this.aimYaw == null) sp *= Math.exp(-6 * dt);
     } else {
       this.yawRate *= Math.exp(-8 * dt);
     }
-    // Velocity follows the body's heading (no moonwalking).
-    const travelYaw = mag > 0.05 && Math.abs(diff) < 1.2 ? this.yaw + diff * 0.35 : this.yaw;
+    // Velocity follows the body's heading (no moonwalking) — except when aiming, when the legs go where the keys say.
+    const travelYaw = this.aimYaw != null ? dirYaw : mag > 0.05 && Math.abs(diff) < 1.2 ? this.yaw + diff * 0.35 : this.yaw;
     this.vel.set(Math.sin(travelYaw) * sp, Math.cos(travelYaw) * sp);
+    if (this.force) {
+      // A charge, a roll, a leap or a knock: the body is carried.
+      const f = this.force;
+      this.vel.set(f.vx, f.vz);
+      sp = Math.hypot(f.vx, f.vz);
+      f.t -= dt;
+      if (f.yaw != null) this.yaw = f.yaw;
+      if (f.t <= 0) this.force = null;
+    }
+    if (this.actor.twist !== undefined) {
+      this.actor.twist = aimTwist;
+      this.actor.reverse = this.backpedal;
+    }
 
     // Jump.
-    if (input.jump && this.grounded && this.land < 0.35) {
+    if (input.jump && this.grounded && this.land < 0.35 && !this.force && this.moveScale > 0.5) {
       this.vy = JUMP_V;
       this.grounded = false;
       this.airT = 0;
@@ -154,9 +190,10 @@ export class Hero {
       if (this.land <= 0 && a.overlay === 'JumpLand') a.rest(0.25);
     }
     if (this.grounded && a.overlay === 'JumpStart' && a.done()) a.rest(0.15);
+    if (a.overlay === 'JumpAir' && this.grounded) a.rest(0.2);
     // The body: speed for the gait, lean into turns, pitch on push-off and sprint.
     this.speed = this.grounded ? Math.min(sp, moved + 0.2) : sp;
-    a.move(this.grounded ? this.speed : this.speed * 0.6);
+    a.move(this.force?.still ? 0 : this.grounded ? this.speed : this.speed * 0.6);
     const wantLean = THREE.MathUtils.clamp(-this.yawRate * this.speed * 0.022, -0.32, 0.32);
     this.lean += (wantLean - this.lean) * Math.min(1, dt * 6);
     const push = THREE.MathUtils.clamp((want - cur) * 0.03, -0.08, 0.1);
@@ -164,8 +201,9 @@ export class Hero {
     this.pitch += (push + sprintLean - this.pitch) * Math.min(1, dt * 5);
     const dip = this.land > 0 ? Math.sin((this.land / 0.45) * Math.PI) * 0.06 : 0;
     this.object.position.copy(this.pos);
+    this.object.position.y += this.lift;
     this.object.rotation.y = this.yaw;
-    this.tilt.rotation.set(this.pitch, 0, this.lean);
+    this.tilt.rotation.set(this.pitch, this.spin, this.lean);
     this.tilt.position.y = -dip;
     // Cape streams back.
     if (this.capeU) {

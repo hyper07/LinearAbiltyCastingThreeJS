@@ -100,7 +100,7 @@ function boxSdf(b, x, z, pad) {
 
 /** How far outside every walkable region a point is (negative inside one). */
 export function outside(x, z) {
-  const dV = Math.min(regionSdf(REGIONS.village, x, z), regionSdf(REGIONS.promontory, x, z));
+  const dV = Math.min(regionSdf(REGIONS.village, x, z), regionSdf(REGIONS.promontory, x, z), regionSdf(REGIONS.ledge, x, z));
   const dF = regionSdf(REGIONS.gloamwood, x, z);
   return Math.min(dV, dF) + N2(x / 28, z / 28) * 7 + N3(x / 9, z / 9) * 1.6;
 }
@@ -139,6 +139,9 @@ export function heightAt(x, z) {
     const crags = Math.abs(fbm(N4, x / 11, z / 11, 3)) * 7 * smoothstep(4, 22, d);
     h += rise + crags;
   }
+
+  // Emberfall Ledge: a shelf raised a little above the overlook, a ramp up from the south.
+  if (x > 98 && z < -18 && z > -90) h += 3.2 * smoothstep(-20, -38, z) * smoothstep(99, 112, x);
 
   // The ridge, and the road's canyon through it.
   const { ridge, canyon } = ridgeAndCanyon(x, z);

@@ -58,7 +58,7 @@ void RE_Direct_Char( const in IncidentLight directLight, const in vec3 geometryP
  * class from the vertex colour (skin, metal, gold, cloth), a fine relief,
  * light-wrap on skin and a rim.
  */
-export function characterMaterial(src, { detail, rim = 0.6, emissive = null } = {}) {
+export function characterMaterial(src, { detail, rim = 0.6, emissive = null, parts = false, fx = false } = {}) {
   const m = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.8,
@@ -68,10 +68,24 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null } = 
     emissiveIntensity: src.emissiveIntensity ?? 1
   });
   const u = { uRim: { value: rim }, tDetail: { value: detail }, uDetail: { value: 1 }, uCape: { value: new THREE.Vector4(0, 0, 0, 1.5) }, uTime: shared.uTime };
+  if (parts) {
+    // Per garment: hide it, or recolour it (a different colour above and below a height, for suits that run to the feet).
+    Object.assign(u, {
+      uPartHide: { value: new Float32Array(MAX_PARTS) },
+      uPartTint: { value: Array.from({ length: MAX_PARTS }, () => new THREE.Vector4(1, 1, 1, 0)) },
+      uPartTint2: { value: Array.from({ length: MAX_PARTS }, () => new THREE.Vector4(1, 1, 1, 0)) },
+      uPartSplit: { value: new Float32Array(MAX_PARTS).fill(-99) }
+    });
+  }
+  if (fx) {
+    // Hits flash, death dissolves into embers at a glowing edge; a monster's own tint.
+    Object.assign(u, { uFlash: { value: new THREE.Color(0, 0, 0) }, uDissolve: { value: 0 }, uEdge: { value: new THREE.Color(3, 1.2, 0.3) }, uTintMul: { value: new THREE.Color(1, 1, 1) }, uMetalK: { value: 1 } });
+  }
   m.userData.char = u;
+  const defs = (parts ? '#define CHAR_PARTS\n#define MAX_PARTS ' + MAX_PARTS + '\n' : '') + (fx ? '#define CHAR_FX\n' : '');
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u, { uRimColor: shared.uRimColor });
-    sh.vertexShader = 'varying vec3 vRest;\nattribute float aCape;\nuniform vec4 uCape;\nuniform float uTime;\n' + sh.vertexShader
+    sh.vertexShader = defs + 'varying vec3 vRest;\nattribute float aCape;\nuniform vec4 uCape;\nuniform float uTime;\n' + PARTS_VERT_PARS + sh.vertexShader
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position;')
       .replace(
         '#include <skinning_vertex>',
@@ -83,12 +97,14 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null } = 
           float ripple = sin(uTime * 9.0 + position.y * 6.0 + position.x * 3.0) * 0.5 + 0.5;
           transformed += vec3(0.0, uCape.y * w, -uCape.z * w * (0.85 + ripple * 0.3)) + vec3(uCape.x * w, 0.0, 0.0);
         }`
-      );
-    sh.fragmentShader = sh.fragmentShader
+      )
+      .replace('#include <project_vertex>', PARTS_VERT_MAIN);
+    sh.fragmentShader = defs + PARTS_FRAG_PARS + sh.fragmentShader
       .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>\n${CHAR_FRAG_PARS}\n#undef RE_Direct\n#define RE_Direct RE_Direct_Char`)
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
+        ${PARTS_FRAG_COLOR}
         {
           vec3 c = diffuseColor.rgb;
           float mx = max(c.r, max(c.g, c.b));
@@ -100,6 +116,9 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null } = 
           charMetal = smoothstep(0.16, 0.06, sat) * smoothstep(0.32, 0.55, mx);
           charGold = smoothstep(0.35, 0.55, sat) * smoothstep(0.45, 0.7, mx) * smoothstep(0.05, 0.15, c.r - c.b) * smoothstep(0.55, 0.85, c.g / max(c.r, 1e-3));
           charSkin *= 1.0 - charGold;
+          #ifdef CHAR_FX
+          charMetal *= uMetalK; charGold *= uMetalK;
+          #endif
         }`
       )
       .replace(
@@ -135,11 +154,83 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null } = 
           float fr = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 4.0);
           outgoingLight += uRimColor * fr * uRim * 0.15;
         }
+        ${PARTS_FRAG_END}
         #include <opaque_fragment>`
       );
   };
-  m.customProgramCacheKey = () => 'gloam-char';
+  const key = `gloam-char${parts ? '-parts' : ''}${fx ? '-fx' : ''}`;
+  m.customProgramCacheKey = () => key;
   return m;
+}
+
+/** How many garments a character can have (each can be hidden or recoloured). */
+export const MAX_PARTS = 16;
+
+const PARTS_VERT_PARS = /* glsl */ `
+attribute float aPart;
+varying float vPart;
+#ifdef CHAR_PARTS
+uniform float uPartHide[MAX_PARTS];
+#endif
+`;
+const PARTS_VERT_MAIN = /* glsl */ `#include <project_vertex>
+vPart = aPart;
+#ifdef CHAR_PARTS
+if (uPartHide[int(aPart + 0.5)] > 0.5) gl_Position = vec4(0.0, 0.0, -2.0, 1.0);
+#endif
+`;
+const PARTS_FRAG_PARS = /* glsl */ `
+varying float vPart;
+#ifdef CHAR_PARTS
+uniform vec4 uPartTint[MAX_PARTS];
+uniform vec4 uPartTint2[MAX_PARTS];
+uniform float uPartSplit[MAX_PARTS];
+#endif
+#ifdef CHAR_FX
+uniform vec3 uFlash;
+uniform float uDissolve;
+uniform vec3 uEdge;
+uniform vec3 uTintMul;
+uniform float uMetalK;
+#endif
+`;
+const PARTS_FRAG_COLOR = /* glsl */ `
+#ifdef CHAR_PARTS
+{
+  int pi = int(vPart + 0.5);
+  vec4 tt = vRest.y > uPartSplit[pi] ? uPartTint[pi] : uPartTint2[pi];
+  if (tt.a > 0.0) {
+    float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    diffuseColor.rgb = mix(diffuseColor.rgb, tt.rgb * lum, tt.a);
+  }
+}
+#endif
+#ifdef CHAR_FX
+diffuseColor.rgb *= uTintMul;
+float dissolveN = texture2D(tDetail, vRest.xz * 1.7 + vRest.y * 0.6).g * 0.7 + texture2D(tDetail, vRest.zy * 4.1).g * 0.3;
+if (uDissolve > 0.0 && dissolveN < uDissolve * 1.15 - 0.05) discard;
+#endif
+`;
+const PARTS_FRAG_END = /* glsl */ `
+#ifdef CHAR_FX
+outgoingLight += uFlash;
+if (uDissolve > 0.0) outgoingLight += uEdge * smoothstep(uDissolve * 1.15 + 0.06, uDissolve * 1.15 - 0.05, dissolveN);
+#endif
+`;
+
+/**
+ * A depth material for a character's shadow that leaves hidden garments out
+ * (shares the main material's uniforms).
+ */
+export function partsDepthMaterial(main) {
+  const u = main.userData.char;
+  const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  d.onBeforeCompile = (sh) => {
+    sh.uniforms.uPartHide = u.uPartHide;
+    sh.vertexShader = '#define CHAR_PARTS\n#define MAX_PARTS ' + MAX_PARTS + '\nattribute float aPart;\nvarying float vPart;\nuniform float uPartHide[MAX_PARTS];\n' + sh.vertexShader.replace('#include <project_vertex>', PARTS_VERT_MAIN);
+  };
+  d.customProgramCacheKey = () => 'gloam-char-depth';
+  return d;
 }
 
 /** Smooth a low-poly mesh's facets, keeping hard edges (creases over `angle`). */
@@ -176,8 +267,37 @@ export const BORROWED = {
   FoldArms: 'idle-foldarms',
   Cheer: 'victory-fist-pump',
   Clap: 'clapping',
-  LookAround: 'idle-subtle'
+  LookAround: 'idle-subtle',
+  // Combat: the heroes' swings, shots and spells, and the hurt and the fallen.
+  Slash1: 'sword-regular-a',
+  Slash2: 'sword-regular-b',
+  Slash3: 'sword-regular-c',
+  Block: 'sword-block',
+  Bash: 'shield-oneshot',
+  Charge: 'sword-dash-rm',
+  Whirl: 'two-handed-horizontal-swing',
+  Slam: 'sword-attack-air-vertical',
+  Shoot: 'bow',
+  Draw: 'bow-pull-hold',
+  SkyShot: 'bow-pull',
+  Roll: 'roll',
+  Cast: 'spell-simple-shoot',
+  CastBig: 'two-hand-blast',
+  Nova: 'power-burst',
+  Hit: 'hit-chest',
+  Knock: 'hit-knockback',
+  Die: 'death-a',
+  FightIdle: 'fighting-idle',
+  WalkBack: 'walk-backwards',
+  // For humanoid monsters.
+  Smash: 'attack-ground-pound',
+  Swipe: 'melee-hook',
+  Punch: 'punch-cross',
+  Roar: 'angry'
 };
+
+/** Clips whose root (hips) should not travel: the game moves the body itself. */
+const IN_PLACE = new Set(['Charge', 'Roll', 'Slam', 'Slash3', 'Knock', 'Die', 'Smash']);
 
 const clipFiles = new Map();
 function m2mClip(file) {
@@ -200,12 +320,28 @@ export async function bakeBorrowed(targetGltf, names) {
     const clip = await m2mClip(file);
     if (!clip) continue;
     try {
-      out.push(retargetClip(targetGltf.scene, source, clip, QMAP, { name }));
+      const baked = retargetClip(targetGltf.scene, source, clip, QMAP, { name });
+      if (IN_PLACE.has(name)) pinRoot(baked);
+      out.push(baked);
     } catch {
       /* a rig the map doesn't fit */
     }
   }
   return out;
+}
+
+/** Keep a clip's hips over the feet: take out their travel across the ground (the height stays). */
+function pinRoot(clip) {
+  for (const t of clip.tracks) {
+    if (!t.name.endsWith('.position')) continue;
+    const v = t.values;
+    const x0 = v[0];
+    const z0 = v[2];
+    for (let i = 0; i < v.length; i += 3) {
+      v[i] = x0;
+      v[i + 2] = z0;
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ templates & actors */
@@ -236,12 +372,12 @@ export async function loadTemplate(id, { detail, borrow = [], height = null, rim
     o.receiveShadow = true;
     o.frustumCulled = false;
   });
-  mergeSkinned(gltf.scene);
+  const { parts, partLum } = mergeSkinned(gltf.scene) ?? { parts: [], partLum: [] };
   const clips = [...gltf.animations];
   if (borrow.length) clips.push(...(await bakeBorrowed(gltf, borrow)));
   const box = new THREE.Box3().setFromObject(gltf.scene, true);
   const natural = box.max.y - box.min.y;
-  const t = { id, gltf, clips, natural, scale: height ? height / natural : 1 };
+  const t = { id, gltf, clips, natural, scale: height ? height / natural : 1, parts, partLum };
   t.strides = measureStrides(t);
   resolve(t);
   return t;
@@ -266,9 +402,14 @@ function mergeSkinned(root) {
   root.traverse((o) => {
     if (o.isSkinnedMesh) skinned.push(o);
   });
+  const parts = skinned.map((m) => m.name || 'body').slice(0, MAX_PARTS);
+  const partLum = skinned.map((m) => meanLum(m.geometry));
   if (skinned.length < 2) {
-    for (const m of skinned) if (!m.geometry.attributes.aCape) m.geometry.setAttribute('aCape', new THREE.BufferAttribute(new Float32Array(m.geometry.attributes.position.count).fill(/cape|cloak/i.test(m.name) ? 1 : 0), 1));
-    return;
+    for (const m of skinned) {
+      if (!m.geometry.attributes.aCape) m.geometry.setAttribute('aCape', new THREE.BufferAttribute(new Float32Array(m.geometry.attributes.position.count).fill(/cape|cloak/i.test(m.name) ? 1 : 0), 1));
+      m.geometry.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(m.geometry.attributes.position.count), 1));
+    }
+    return { parts, partLum };
   }
   // One skeleton holding every bone any part uses.
   const bones = [];
@@ -303,6 +444,7 @@ function mergeSkinned(root) {
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(idx, 4));
     g.setAttribute('skinWeight', asFloat(src.attributes.skinWeight));
     g.setAttribute('aCape', new THREE.BufferAttribute(new Float32Array(si.count).fill(/cape|cloak/i.test(m.name) ? 1 : 0), 1));
+    g.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(si.count).fill(Math.min(MAX_PARTS - 1, skinned.indexOf(m))), 1));
     if (!m.bindMatrix.equals(base.bindMatrix)) g.applyMatrix4(baseBindInv.clone().multiply(m.bindMatrix));
     if (src.index) g.setIndex(src.index.clone());
     const key = m.material.uuid;
@@ -325,6 +467,16 @@ function mergeSkinned(root) {
     parent.add(mesh);
     mesh.bind(skeleton, base.bindMatrix);
   }
+  return { parts, partLum };
+}
+
+/** The mean brightness of a mesh's vertex colours (a garment's, so a recolour keeps its shading). */
+function meanLum(geo) {
+  const c = geo.attributes.color;
+  if (!c) return 0.5;
+  let s = 0;
+  for (let i = 0; i < c.count; i++) s += 0.2126 * c.getX(i) + 0.7152 * c.getY(i) + 0.0722 * c.getZ(i);
+  return Math.max(0.05, s / c.count);
 }
 
 /** Speed (m/s at scale 1) each locomotion clip's feet move at, from the feet themselves. */

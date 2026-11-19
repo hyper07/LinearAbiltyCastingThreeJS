@@ -40,7 +40,7 @@ void main() {
 }`;
 
 /** A pool of `max` cards; `blend`: 'add' (glows) or 'alpha' (smoke, leaves). */
-class Cards {
+export class Cards {
   constructor(max, tex, { blend = 'add', lit = 0, depthTest = true } = {}) {
     const quad = new THREE.PlaneGeometry(1, 1);
     const g = new THREE.InstancedBufferGeometry();

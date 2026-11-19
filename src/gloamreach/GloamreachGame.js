@@ -1,15 +1,19 @@
 /**
  * Gloamreach: the starting map of a fantasy RPG — the golden-hour village
  * of Brindlewick, the carved Warden's Gate, the violet Gloamwood beyond, and
- * the Cinder Rift seen from the cliffs — with its people and creatures.
- * No quests yet: walk, run, jump, meet people, look.
+ * the Cinder Rift seen from the cliffs — with its people and creatures, and
+ * its monsters: fight them with each hero's skills, gather what they drop,
+ * wear it (and look it), trade at the armsmonger's stall. No quests yet.
  *
  *   const game = new GloamreachGame(document.body, { onClose, account });
  *   await game.open();   …   game.close();
  *
- * map.js / heights.js / collide.js / quality.js / cast.js are pure (tested);
- * world.js builds the scene; life.js runs the people; hero.js and camera.js
- * the player; post.js the look; audio.js the sound; ui.js the screens.
+ * map.js / heights.js / collide.js / quality.js / cast.js / rules.js /
+ * skills.js / items.js / bestiary.js / chests.js / save.js are pure (tested);
+ * world.js builds the scene; life.js runs the people; monsters.js the
+ * monsters; hero.js, fighter.js, gearRig.js and camera.js the player;
+ * combat.js the fight; vfx.js its look; post.js the picture; audio.js and
+ * sfx.js the sound; ui.js, combatHud.js and panels.js the screens.
  */
 import * as THREE from 'three';
 import { TextureBank } from './textures.js';
@@ -19,7 +23,20 @@ import { SETTINGS, chooseTier, Governor } from './quality.js';
 import { Effects } from './fx.js';
 import { Vista } from './vista.js';
 import { Life } from './life.js';
-import { loadTemplate, Actor, FallbackActor } from './actors.js';
+import { loadTemplate, FallbackActor } from './actors.js';
+import { FighterActor } from './fighter.js';
+import { GearRig, learnFrames } from './gearRig.js';
+import { Monsters } from './monsters.js';
+import { CombatFx } from './vfx.js';
+import { Combat } from './combat.js';
+import { CombatHud } from './combatHud.js';
+import { Panels } from './panels.js';
+import { ItemStudio, HeroPreview } from './icons.js';
+import { Sfx } from './sfx.js';
+import { loadSave, writeSave, profileFor } from './save.js';
+import { merchantStock, makeItem } from './items.js';
+import { buildItem } from './gearModels.js';
+import { STALLS, toWorld } from './map.js';
 import { Hero } from './hero.js';
 import { FollowCamera } from './camera.js';
 import { Sound } from './audio.js';
@@ -31,6 +48,8 @@ import { Loading, StartScreen, Hud, creditsPanel, pauseMenu, el } from './ui.js'
 import './gloamreach.css';
 
 const PREFS = 'gloamreach.prefs';
+/** Monster voices by kind (elites borrow their base's). */
+const MONSTER_VOICE = { wolf: 'wolf', greymane: 'wolf', boar: 'boar', spider: 'spider', webmother: 'spider', wisp: 'wisp', treant: 'treant', hollowroot: 'treant', gloomcap: 'shroom', grummoch: 'treant', cindermaw: 'drake' };
 const prefs = {
   load() {
     try {
@@ -49,7 +68,8 @@ const prefs = {
 };
 
 const KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
-const HERO_CLIPS = ['JumpStart', 'JumpAir', 'JumpLand', 'Sprint'];
+const HERO_CLIPS = ['JumpStart', 'JumpAir', 'JumpLand', 'Sprint', 'Slash1', 'Slash2', 'Slash3', 'Block', 'Bash', 'Charge', 'Whirl', 'Slam', 'Shoot', 'Draw', 'SkyShot', 'Roll', 'Cast', 'CastBig', 'Nova', 'Hit', 'Die'];
+const BAR_CODES = { Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4' };
 
 export class GloamreachGame {
   constructor(host, { onClose, account } = {}) {
@@ -70,9 +90,13 @@ export class GloamreachGame {
     this.t = 0;
     this.area = null;
     this._onKey = (e) => this.keyDown(e);
-    this._onKeyUp = (e) => this.keys.delete(e.code);
+    this._onKeyUp = (e) => this.keyUp(e);
     this._onBlur = () => this.keys.clear();
     this._onMouse = (e) => this.mouseMove(e);
+    this.pointer = { x: 0, y: 0, on: false, moved: -99 };
+    this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    this.save = loadSave();
+    this._saveT = 0;
     this._onLock = () => this.lockChanged();
     window.addEventListener('keydown', this._onKey);
     window.addEventListener('keyup', this._onKeyUp);
@@ -131,6 +155,16 @@ export class GloamreachGame {
     this.heroTemplates = {};
     await Promise.all(HEROES.map(async (h) => (this.heroTemplates[h.id] = await loadTemplate(h.model, { detail: this.bank.noise(), borrow: HERO_CLIPS }))));
     if (this.closed) return;
+    learnFrames(Object.values(this.heroTemplates));
+    // The fight: its effects, the monsters, sounds, item pictures.
+    this.loading?.set('Stirring the wilds', 0.965);
+    this.vfx = new CombatFx(scene, this.bank, (x, z) => this.world.colliders.height(x, z));
+    this.monsters = new Monsters({ scene, world: this.world, bank: this.bank, vfx: this.vfx });
+    await this.monsters.load((k) => this.loading?.set('Stirring the wilds', 0.965 + k * 0.03));
+    if (this.closed) return;
+    this.sfx = new Sfx(this.sound);
+    this.studio = new ItemStudio();
+    this._armsStall();
     this.follow = new FollowCamera(this.camera, this.world.colliders);
     this.post = new Post(renderer);
     this.applyTier(this.tier, true);
@@ -175,8 +209,18 @@ export class GloamreachGame {
     window.removeEventListener('blur', this._onBlur);
     window.removeEventListener('mousemove', this._onMouse);
     document.removeEventListener('pointerlockchange', this._onLock);
+    if (this._onUpBtn) window.removeEventListener('pointerup', this._onUpBtn);
     if (document.pointerLockElement) document.exitPointerLock();
     this.life?.dispose();
+    if (this.profile) writeSave(this.save);
+    this.combat?.dispose();
+    this.rig?.dispose();
+    this.monsters?.dispose();
+    this.vfx?.dispose();
+    this.panels?.dispose();
+    this.preview?.dispose();
+    this.studio?.dispose();
+    this.fightHud?.dispose();
     this.heroActor?.dispose();
     this.effects?.dispose();
     this.world?.dispose();
@@ -226,7 +270,7 @@ export class GloamreachGame {
       this.scene.remove(this.heroActor.object);
       this.heroActor.dispose();
     }
-    this.heroActor = tpl ? new Actor(tpl, { height: def.height, name: def.name }) : new FallbackActor(def.accent);
+    this.heroActor = tpl ? new FighterActor(tpl, { height: def.height, name: def.name }) : new FallbackActor(def.accent);
     this.scene.add(this.heroActor.object);
     this.hero = new Hero(this.heroActor, {
       colliders: this.world.colliders,
@@ -244,6 +288,81 @@ export class GloamreachGame {
     if (this.hero.capeU && tpl) this.hero.capeU.value.w = (tpl.natural ?? 1.8) * 0.8;
     if (old && this.mode === 'play') this.hero.place(old.pos.x, old.pos.z, old.yaw);
     else this.hero.place(1, 26, 0);
+    // What this hero carries and wears (each class keeps its own), and their side of the fight.
+    this.profile = profileFor(this.save, id);
+    this.rig?.dispose();
+    this.rig = tpl ? new GearRig(this.heroActor, tpl, { hero: id, scene: this.scene }) : null;
+    this.rig?.dress(this.profile.equip);
+    this.combat?.dispose();
+    this.combat = new Combat(this.fightApi(), this.profile);
+    this.preview?.dispose();
+    this.preview = null;
+    if (this.fightHud) {
+      this.fightHud.cls = id;
+      this.fightHud._buildBar();
+    }
+  }
+
+  /** What the fight, the HUD and the panels see of the game. */
+  fightApi() {
+    if (this._api) return this._api;
+    const game = this;
+    const hudApi = {
+      number: (at, v, kind) => game.fightHud?.number(at, v, kind),
+      toast: (text, kind, item, color) => game.fightHud?.toast(text, kind, item, color),
+      hurt: (k) => game.fightHud?.hurt(k),
+      death: (on) => game.fightHud?.death(on),
+      banner: (a, b, big) => game.hud?.bigBanner(a, b, big)
+    };
+    this._api = {
+      get hero() { return game.hero; },
+      get actor() { return game.heroActor; },
+      get rig() { return game.rig; },
+      get monsters() { return game.monsters; },
+      get vfx() { return game.vfx; },
+      get sfx() { return game.sfx; },
+      get world() { return game.world; },
+      get scene() { return game.scene; },
+      get follow() { return game.follow; },
+      get lastInput() { return game.lastInput; },
+      get reducedMotion() { return game.reducedMotion; },
+      hud: hudApi,
+      teleport: (x, z, yaw) => game.teleport(x, z, yaw, { pitch: game.follow.pitch, dist: game.follow.wantDist }),
+      onChange: () => game.gearChanged(),
+      onSave: () => game.persist()
+    };
+    return this._api;
+  }
+
+  /** Gear or level changed: numbers, looks, the preview, the save. */
+  gearChanged() {
+    this.combat?.recalc();
+    this.rig?.dress(this.profile.equip);
+    this.preview?.dress(this.profile.equip);
+    this.persist();
+  }
+
+  persist() {
+    this._dirty = true;
+  }
+
+  /** The armsmonger's stall shows its wares: blades laid across the crates, a helm, a shield against the counter. */
+  _armsStall() {
+    const st = STALLS.find((s) => s.goods === 'arms');
+    if (!st) return;
+    const r = () => 0.5;
+    const y0 = this.world.grid.at(st.x, st.z);
+    // [base, rarity, local x, height, local z, laid flat across?, scale]
+    const ware = [['longsword', 'uncommon', -1.1, 1.3, 0.62, true], ['axe', 'common', 0.05, 1.3, 0.55, true], ['greathelm', 'rare', 1.05, 1.42, 0.62, false, 0.13], ['kite', 'rare', -1.0, 0.5, 1.22, false], ['bow', 'common', 1.0, 0.75, 1.15, false]];
+    for (const [base, rarity, lx, y, lz, flat, sc] of ware) {
+      const g = buildItem(makeItem(base, rarity, 3, r));
+      if (sc) g.scale.setScalar(sc);
+      const [x, z] = toWorld(st, lx, lz);
+      g.position.set(x, y0 + y, z);
+      if (flat) g.rotation.set(Math.PI / 2, st.face, -Math.PI / 2, 'YXZ');
+      else g.rotation.set(base === 'kite' || base === 'bow' ? -0.22 : 0, st.face + (base === 'greathelm' ? 0.5 : 0), base === 'bow' ? 0.15 : 0, 'YXZ');
+      this.scene.add(g);
+    }
   }
 
   heroFocus() {
@@ -295,9 +414,38 @@ export class GloamreachGame {
     this.camera.updateProjectionMatrix();
     this.hud = new Hud(this.root, { debug: this.debug });
     this.minimap = new Minimap(this.hud.el, this.minimapCanvas);
+    this.fightHud = new CombatHud(this.hud, { cls: this.picked, studio: this.studio });
+    const game = this;
+    this.panels = new Panels(this.root, {
+      get profile() { return game.profile; },
+      get preview() { return game.heroPreview(); },
+      get heroName() { return HEROES.find((h) => h.id === game.picked)?.name ?? 'Hero'; },
+      studio: this.studio,
+      sfx: { tick: () => this.sound.tick(), coins: () => this.sfx.coins(), denied: () => this.sfx.denied(), equip: () => this.sfx.raise() },
+      vitals: () => this.combat.vitals(),
+      stats: () => this.combat.stats,
+      drink: (k) => this.combat.drink(k),
+      toast: (t, k, i, c) => this.fightHud.toast(t, k, i, c),
+      onChange: () => this.gearChanged(),
+      merchantStock: () => {
+        const lvl = this.profile.level;
+        if (!this._stock || this._stock.level !== lvl || this._stock.cls !== this.picked) this._stock = { level: lvl, cls: this.picked, items: merchantStock({ level: lvl, cls: this.picked }) };
+        return this._stock.items;
+      }
+    });
     this.mode = 'play';
     this.area = null;
     this.root.focus();
+  }
+
+  /** The character panel's hero on a plinth (made when first shown). */
+  heroPreview() {
+    if (!this.preview && this.heroTemplates[this.picked]) {
+      const def = HEROES.find((h) => h.id === this.picked);
+      this.preview = new HeroPreview(this.heroTemplates[this.picked], this.picked, def.height);
+      this.preview.dress(this.profile.equip);
+    }
+    return this.preview;
   }
 
   credits() {
@@ -339,6 +487,7 @@ export class GloamreachGame {
     if (this.closed) return;
     if (e.code === 'Escape') {
       if (this.creditsOpen) this.creditsOpen.close();
+      else if (this.mode === 'play' && this.panels?.any) this.panels.closeAll();
       else if (this.mode === 'play') this.pause();
       else if (this.mode === 'paused') this.resume();
       return;
@@ -346,28 +495,74 @@ export class GloamreachGame {
     if (this.mode !== 'play') return;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (e.code === 'KeyH') this.hud?.showHint();
+    if (!e.repeat) {
+      if (BAR_CODES[e.code]) this.combat.press(BAR_CODES[e.code]);
+      if (e.code === 'KeyQ') this.combat.drink('hp');
+      if (e.code === 'KeyR') this.combat.drink('mp');
+      if (e.code === 'KeyF') this.interact();
+      if (e.code === 'KeyI' || e.code === 'KeyB') this.panels.toggle('bag');
+      if (e.code === 'KeyC') this.panels.toggle('char');
+      if (e.code === 'KeyV') this.toggleMouseLook();
+    }
     this.keys.add(e.code);
+  }
+
+  keyUp(e) {
+    this.keys.delete(e.code);
+    if (BAR_CODES[e.code]) this.combat?.release(BAR_CODES[e.code]);
+  }
+
+  /** F: open the chest in reach, or trade with the armsmonger. */
+  interact() {
+    const c = this.combat.nearestChest();
+    if (c) return this.combat.openChest(c);
+    const m = this.nearMerchant();
+    if (m) this.panels.toggle('shop', !this.panels.open.shop);
+  }
+
+  nearMerchant() {
+    return this.life.people.find((b) => b.c.merchant && Math.hypot(b.x - this.hero.pos.x, b.z - this.hero.pos.z) < 5);
+  }
+
+  /** V: steer the camera with the mouse (aiming at the screen's centre), or have the pointer back. */
+  toggleMouseLook() {
+    const c = this.renderer.domElement;
+    if (document.pointerLockElement) document.exitPointerLock();
+    else c.requestPointerLock?.()?.catch?.(() => {});
   }
 
   mouseMove(e) {
     if (this.mode !== 'play') return;
-    if (document.pointerLockElement === this.renderer.domElement || e.buttons & 3) this.follow.look(e.movementX, e.movementY);
+    const r = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = e.clientX - r.left;
+    this.pointer.y = e.clientY - r.top;
+    this.pointer.moved = this.t;
+    // Mouse-look, or a middle-button drag, turns the camera.
+    if (document.pointerLockElement === this.renderer.domElement || e.buttons & 4) this.follow.look(e.movementX, e.movementY);
   }
 
   lockChanged() {
-    // Esc that leaves pointer lock opens the menu, as players expect.
-    if (!document.pointerLockElement && this.mode === 'play' && this._locked) this.pause();
     this._locked = Boolean(document.pointerLockElement);
+    this.fightHud?.crosshair(this._locked);
   }
 
   bindPointer() {
     const c = this.renderer.domElement;
     if (this._bound) return;
     this._bound = true;
-    c.addEventListener('click', () => {
+    const BTN = { 0: 'LMB', 2: 'RMB' };
+    c.addEventListener('pointerdown', (e) => {
       this.sound.wake();
-      if (this.mode === 'play' && !document.pointerLockElement) c.requestPointerLock?.()?.catch?.(() => {});
+      if (this.mode !== 'play') return;
+      this.pointer.on = true;
+      if (BTN[e.button]) this.combat.press(BTN[e.button]);
+      if (e.button === 1) e.preventDefault();
     });
+    window.addEventListener('pointerup', (this._onUpBtn = (e) => {
+      if (BTN[e.button]) this.combat?.release(BTN[e.button]);
+    }));
+    c.addEventListener('pointerenter', () => (this.pointer.on = true));
+    c.addEventListener('pointerleave', () => (this.pointer.on = false));
     c.addEventListener('wheel', (e) => {
       if (this.mode === 'play') this.follow.zoom(e.deltaY);
     }, { passive: true });
@@ -386,7 +581,7 @@ export class GloamreachGame {
       if (v === 'l') x -= 1;
       if (v === 'r') x += 1;
     }
-    return { x: Math.sign(x), z: Math.sign(z), sprint: has('ShiftLeft') || has('ShiftRight'), walk: has('ControlLeft') || has('ControlRight') || has('KeyC'), jump: has('Space') };
+    return { x: Math.sign(x), z: Math.sign(z), sprint: has('ShiftLeft') || has('ShiftRight'), walk: has('ControlLeft') || has('ControlRight'), jump: has('Space') };
   }
 
   /* ================================================================ frame */
@@ -396,10 +591,30 @@ export class GloamreachGame {
     this.t += dt;
     const t = this.t;
     const playing = this.mode === 'play';
+    let fdt = dt;
     if (playing) {
       const inp = this.input();
-      this.hero.update(dt, inp, this.follow.heading());
+      this.lastInput = inp;
+      this.combat.setAim(this.aimPoint());
+      fdt = this.combat.update(dt);
+      this.hero.update(fdt, inp, this.follow.heading());
+      this.monsters.update(fdt, this.combat.t, { pos: this.hero.pos, alive: !this.combat.dead }, { hitHero: (m, a, o) => this.combat.hitHero(m, a, o), projectile: (m, a, f, to, off) => this.combat.monsterShot(m, a, f, to, off) }, this.camera);
+      this.monsterEvents();
+      // In a fight the camera holds still rather than swinging behind.
+      if (this.combat.inCombat > 0 || this.combat.aimHold > 0) this.follow.idle = 0;
       this.follow.update(dt, this.hero, { sprinting: inp.sprint && this.hero.speed > 5, moving: this.hero.speed > 0.5 });
+      this.shakeCamera(dt);
+      this.rig?.update(fdt, this.hero.object);
+      const t2 = this.combat.aimTarget;
+      this.vfx.setReticle(this.pointer.on || this._locked ? this.combat.aim : null, t2 ? { radius: t2.r * 1.5 + 0.4, locked: true } : { radius: 0.8 });
+      if (t2) this.vfx.placeDecal(this.vfx.reticle, t2.x, t2.z, 0, t2.r * 1.5 + 0.4);
+      this.vfx.update(dt, this.camera);
+      if (this.panels.open.char) this.preview?.frame(dt);
+      if ((this._saveT += dt) > 15 && this._dirty) {
+        this._saveT = 0;
+        this._dirty = false;
+        writeSave(this.save);
+      }
     } else if (this.mode === 'menu') {
       this.hero.actor.move(0);
       this.hero.actor.update(dt);
@@ -407,6 +622,7 @@ export class GloamreachGame {
     } else {
       this.hero.actor.update(0);
     }
+    void fdt;
     shared.uPlayer.value.copy(this.hero.pos);
     const focus = this.hero.pos;
     const look = this.world.update(dt, t, this.camera, focus);
@@ -433,6 +649,95 @@ export class GloamreachGame {
     if (playing && rawMs > 0 && rawMs < 500) {
       const next = this.governor.frame(rawMs);
       if (next && next !== this.tier) this.applyTier(next);
+    }
+  }
+
+  /** The ground under the pointer (or the screen's centre in mouse-look): a ray marched over the land. */
+  aimPoint() {
+    const w = this.root.clientWidth;
+    const h = this.root.clientHeight;
+    const nx = this._locked ? 0 : (this.pointer.x / w) * 2 - 1;
+    const ny = this._locked ? 0 : -(this.pointer.y / h) * 2 + 1;
+    if (!this._locked && !this.pointer.on && this.t - this.pointer.moved > 20) return null;
+    const ray = (this._ray ??= new THREE.Raycaster());
+    ray.setFromCamera({ x: nx, y: ny }, this.camera);
+    const o = ray.ray.origin;
+    const d = ray.ray.direction;
+    const H = (x, z) => this.world.colliders.height(x, z);
+    let prev = 0;
+    for (let s = 0.5; s < 90; s *= 1.08) {
+      const x = o.x + d.x * s;
+      const z = o.z + d.z * s;
+      const y = o.y + d.y * s;
+      if (y <= H(x, z)) {
+        // Refine between the last two steps.
+        let a = prev;
+        let b = s;
+        for (let i = 0; i < 8; i++) {
+          const m = (a + b) / 2;
+          if (o.y + d.y * m <= H(o.x + d.x * m, o.z + d.z * m)) b = m;
+          else a = m;
+        }
+        return { x: o.x + d.x * b, y: o.y + d.y * b, z: o.z + d.z * b };
+      }
+      prev = s;
+    }
+    // Looking at the sky: a point far out at the hero's height.
+    const k = 30;
+    return { x: this.hero.pos.x + d.x * k, y: this.hero.pos.y, z: this.hero.pos.z + d.z * k };
+  }
+
+  shakeCamera(dt) {
+    const k = this.combat.shake;
+    if (k <= 0.001) return;
+    const a = k * k * 0.28;
+    const t = this.t * 47;
+    this.camera.position.x += (Math.sin(t) + Math.sin(t * 2.3)) * a * 0.5;
+    this.camera.position.y += (Math.sin(t * 1.7 + 1) + Math.sin(t * 3.1)) * a * 0.5;
+    this.camera.position.z += Math.sin(t * 1.3 + 2) * a * 0.5;
+    void dt;
+  }
+
+  /** What the monsters did this frame: sounds, the look of their blows, burning. */
+  monsterEvents() {
+    const cam = this.camera.position;
+    for (const ev of this.monsters.takeEvents()) {
+      const m = ev.m;
+      const dist = Math.hypot(m.x - cam.x, m.z - cam.z);
+      const voice = m.def.voice ?? MONSTER_VOICE[m.type] ?? 'beast';
+      if (ev.type === 'aggro') this.sfx.voice(voice, 'aggro', dist);
+      else if (ev.type === 'death') {
+        this.sfx.voice(voice, 'death', dist);
+        this.vfx.burst(ev.at, 16, m.def.family === 'fey' || m.def.family === 'spider' ? [2, 0.8, 3] : [2.4, 1.2, 0.4], { speed: 3, life: 0.8, size: 0.12, gravity: -1 });
+      } else if (ev.type === 'windup') {
+        if (m.boss || m.elite || ev.attack.kind === 'charge') this.sfx.voice(voice, 'windup', dist);
+        if (m.wisp) this.vfx.burst(this.monsters.centre(m), 8, [2, 0.6, 3], { speed: 2, life: 0.4, size: 0.1, gravity: 0 });
+      } else if (ev.type === 'strike' && ev.attack.kind === 'melee') {
+        const p = this.monsters.centre(m).add(new THREE.Vector3(Math.sin(m.yaw), 0, Math.cos(m.yaw)).multiplyScalar(m.r + 0.6));
+        this.vfx.slash(p, m.yaw, { radius: ev.attack.range * 0.8 + m.r * 0.5, arc: ev.attack.arc, color: [2.4, 0.6, 0.4], life: 0.16, tilt: 0.5 });
+        this.sfx.swing(0.8);
+      } else if (ev.type === 'aoe') {
+        const a = ev.attack;
+        this.vfx.explode(ev.at.clone().add(new THREE.Vector3(0, 0.3, 0)), a.radius * 0.8, { color: a.fire ? 'fire' : a.poison ? 'poison' : m.def.family === 'fey' ? 'arcane' : 'dust' });
+        this.vfx.smokeAt(ev.at, 8, a.poison ? [0.3, 0.6, 0.2] : [0.5, 0.45, 0.4], { size: 0.7, grow: 2, life: 1.2, speed: 2.5, up: 0.4 });
+        if (Math.hypot(ev.at.x - this.hero.pos.x, ev.at.z - this.hero.pos.z) < a.radius + 6) this.combat._shake(m.boss ? 0.5 : 0.25);
+        this.sfx.boom(m.boss ? 1 : 0.6);
+      } else if (ev.type === 'breath') {
+        const head = this.monsters.centre(m).add(new THREE.Vector3(Math.sin(m.yaw), 0.4, Math.cos(m.yaw)).multiplyScalar(m.r * 1.4));
+        for (let i = 0; i < 14; i++) {
+          const spread = (Math.random() - 0.5) * m.attack.arc;
+          const dir = new THREE.Vector3(Math.sin(m.yaw + spread), -0.12 + Math.random() * 0.1, Math.cos(m.yaw + spread));
+          this.vfx.parts.push({ p: head.clone(), v: dir.multiplyScalar(10 + Math.random() * 6), life: 0, max: 0.8, size: 0.5 + Math.random() * 0.5, color: Math.random() < 0.5 ? [3.4, 1.3, 0.25] : [2.8, 0.7, 0.1], gravity: -2, drag: 1.4, grow: 2.2 });
+        }
+        this.vfx.flash(head, 0xff7a2a, 30, 0.2, 14);
+        if (Math.random() < 0.4) this.sfx.fire();
+      } else if (ev.type === 'burn') {
+        if (!m.alive) continue;
+        const died = this.monsters.damage(m, { amount: ev.amount, from: { x: m.x, z: m.z } }, null);
+        this.fightHud.number(this.monsters.centre(m), ev.amount, 'dmg');
+        this.vfx.fire(this.monsters.centre(m), 3);
+        if (died) this.combat._killed(m);
+      }
     }
   }
 
@@ -463,11 +768,34 @@ export class GloamreachGame {
     const shown = plates.filter((p) => p.name).slice(0, 2);
     if (shown.length === 2 && Math.abs(shown[0].x - shown[1].x) < 170 && Math.abs(shown[0].y - shown[1].y) < 50) shown[1].y = Math.min(shown[1].y, shown[0].y) - 52;
     this.hud.update(dt, shown);
+    // The fight's HUD.
+    const ms = this.monsters.list;
+    for (const m of ms) {
+      m.top = this.monsters.top(m);
+      m.dist = Math.hypot(m.x - hero.pos.x, m.z - hero.pos.z);
+    }
+    const boss = ms.find((m) => m.boss && m.alive && m.engaged > 0 && !['idle', 'patrol', 'return'].includes(m.state) && m.dist < 45);
+    // Draw the camera back for the boss, so the whole drake is in the picture.
+    if (boss && this.follow.wantDist < 8) this.follow.wantDist += (8 - this.follow.wantDist) * Math.min(1, dt * 2);
+    let prompt = null;
+    const chest = this.combat.nearestChest();
+    if (chest) prompt = '<kbd>F</kbd> Open the chest';
+    else if (this.nearMerchant()) prompt = this.panels.open.shop ? '<kbd>F</kbd> Done trading' : '<kbd>F</kbd> Trade with Dorrin';
+    let target = this.combat.aimTarget ?? (this.combat.lastHit?.alive && this.combat.t - this.combat.lastHitT < 4 ? this.combat.lastHit : null);
+    if (target && target === boss) target = null; // the boss has its own great bar
+    this.fightHud.update(dt, { vitals: this.combat.vitals(), bar: this.combat.bar(), target, boss, camera: this.camera, w, h, monsters: ms, prompt });
     // The minimap, every other frame.
     if ((this._mm = !this._mm)) {
       const dots = [];
       for (const b of this.life.people) dots.push({ x: b.x, z: b.z, color: '#ffd77a', r: 1.8 });
       for (const b of this.life.animals) dots.push({ x: b.x, z: b.z, color: '#e8e8e8', r: 1.4 });
+      for (const m of this.monsters.list) {
+        if (!m.alive) continue;
+        if (m.boss) dots.push({ x: m.x, z: m.z, shape: 'skull' });
+        else if (m.elite) dots.push({ x: m.x, z: m.z, color: '#ff3a2a', shape: 'elite', r: 2.6 });
+        else dots.push({ x: m.x, z: m.z, color: '#ff4a3a', r: 1.7, ring: true });
+      }
+      for (const c of this.combat.chests) if (!c.opened) dots.push({ x: c.x, z: c.z, shape: 'chest' });
       dots.push({ x: OVERLOOK.x + 4, z: OVERLOOK.z, color: '#ff7a3a', r: 2.2 });
       this.minimap.draw({ x: hero.pos.x, z: hero.pos.z, yawMap: Math.atan2(Math.cos(hero.yaw), Math.sin(hero.yaw)) + Math.PI / 2 }, this.follow.heading(), dots);
     }
@@ -497,6 +825,7 @@ export class GloamreachGame {
   /** Put the hero somewhere, facing `yaw`, the camera behind (pitch, distance optional). */
   teleport(x, z, yaw = Math.PI, { pitch = 0.16, dist = 4.6 } = {}) {
     this.hero.place(x, z, yaw);
+    this.rig?.settle();
     this.follow.yaw = yaw + Math.PI;
     this.follow.pitch = pitch;
     this.follow.wantDist = this.follow.dist = this.follow.cur = dist;

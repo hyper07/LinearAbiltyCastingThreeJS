@@ -17,7 +17,8 @@ export const AREAS = [
   { id: 'village', name: 'Brindlewick', sub: 'a village at the turn of the light', x: 0, z: 0 },
   { id: 'gate', name: "The Warden's Gate", sub: 'carved before the village had a name', x: 0, z: -142 },
   { id: 'gloamwood', name: 'The Gloamwood', sub: 'where the dusk never ends', x: 0, z: -240 },
-  { id: 'overlook', name: 'Cinder Rift Overlook', sub: 'mind the edge', x: 126, z: 0 }
+  { id: 'overlook', name: 'Cinder Rift Overlook', sub: 'mind the edge', x: 126, z: 0 },
+  { id: 'ledge', name: 'Emberfall Ledge', sub: 'where the drake\'s brood nests', x: 122, z: -44 }
 ];
 
 export const START = { x: 1.5, z: 40, yaw: Math.PI }; // yaw π: facing −z (north)
@@ -26,8 +27,13 @@ export const START = { x: 1.5, z: 40, yaw: Math.PI }; // yaw π: facing −z (no
 export const REGIONS = {
   village: { x0: -112, x1: 104, z0: -116, z1: 108, r: 26 },
   promontory: { x0: 92, x1: 139, z0: -20, z1: 20, r: 6 },
-  gloamwood: { x0: -96, x1: 96, z0: -330, z1: -164, r: 30 }
+  gloamwood: { x0: -96, x1: 96, z0: -330, z1: -164, r: 30 },
+  // A shelf above the rift, north of the overlook along the cliff: the Ember Drake's whelp nests here.
+  ledge: { x0: 104, x1: 140, z0: -66, z1: -12, r: 12 }
 };
+
+/** The ledge's arena: where the boss waits, and the scorched ground round it. */
+export const LEDGE = { x: 123, z: -45, r: 15 };
 
 /** The ridge the Warden's Gate cuts through, and the canyon the road takes. */
 export const RIDGE = { z0: -162, z1: -124, height: 46 };
@@ -81,7 +87,9 @@ export const WELL = { x: -4, z: 5, r: 1.7 };
 export const STALLS = [
   { x: 14, z: -8, face: -1.9, cloth: 'crimson', goods: 'apples' },
   { x: 17, z: 5, face: -1.55, cloth: 'ochre', goods: 'cloth' },
-  { x: 11, z: 16, face: -0.9, cloth: 'teal', goods: 'pumpkins' }
+  { x: 11, z: 16, face: -0.9, cloth: 'teal', goods: 'pumpkins' },
+  // The armsmonger's stall, across the square: blades on a rack, potions on the counter.
+  { x: -15, z: 9, face: 1.75, cloth: 'crimson', goods: 'arms' }
 ];
 export const SIGNPOST = { x: -6.5, z: -20, face: 0.15 };
 export const OVERLOOK = { x: 129, z: 0, face: Math.PI / 2 };
@@ -166,6 +174,7 @@ export function gloamAt(z) {
 export function areaAt(x, z) {
   if (z < -160) return 'gloamwood';
   if (z < -118) return 'gate';
+  if (x > 104 && z < -22) return 'ledge';
   if (x > 104) return 'overlook';
   return 'village';
 }
@@ -251,7 +260,7 @@ export function scatterTrees(seed = 5) {
     if (!taken.has(k)) taken.set(k, []);
     taken.get(k).push(t);
   }
-  return out;
+  return out.filter((t) => regionSdf(REGIONS.ledge, t.x, t.z) > 1.5);
 }
 
 /** Lamp posts along the Gloamwood path, every ~13 m, side to side. */

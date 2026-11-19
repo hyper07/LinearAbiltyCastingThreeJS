@@ -124,7 +124,7 @@ export class Hud {
       <div class="gr-banner" aria-live="polite"><div class="gr-banner__name"></div><div class="gr-banner__sub"></div></div>
       <div class="gr-plates"></div>
       <div class="gr-hint">
-        <span><b>WASD</b> move</span><span><b>Shift</b> sprint</span><span><b>Ctrl</b> walk</span><span><b>Space</b> jump</span><span><b>Mouse</b> look · wheel zoom</span><span><b>Esc</b> menu</span>
+        <span><b>WASD</b> move</span><span><b>Mouse</b> aim</span><span><b>LMB · RMB · 1–4</b> skills</span><span><b>Q · R</b> potions</span><span><b>F</b> open · trade</span><span><b>I</b> bag · <b>C</b> hero</span><span><b>Middle drag</b> turn · <b>V</b> mouse-look</span><span><b>Space</b> jump · <b>Shift</b> sprint</span><span><b>Esc</b> menu</span>
       </div>
       <div class="gr-stats" ${debug ? '' : 'hidden'}></div>`;
     host.append(this.el);
@@ -143,6 +143,12 @@ export class Hud {
     this.banner.classList.remove('is-on');
     void this.banner.offsetWidth;
     this.banner.classList.add('is-on');
+  }
+
+  /** A big banner (a level, a fallen elite). */
+  bigBanner(name, sub = '', big = false) {
+    this.showBanner(name, sub);
+    this.banner.classList.toggle('is-big', big);
   }
 
   /** Say something over someone's head for a few seconds. */

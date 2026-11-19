@@ -35,13 +35,23 @@ export const POLYFORK_MODELS = [
   ['dog-base', 'Dog'],
   ['chicken-base', 'Chicken'],
   ['spectral-stag-base', 'Spectral stag'],
-  ['rabbit-base', 'Rabbit']
+  ['rabbit-base', 'Rabbit'],
+  ['dwarf-knight-base', 'Dwarf knight'],
+  // The monsters.
+  ['wolf-base', 'Wolf'],
+  ['thorn-boar-base', 'Thorn-Backed Boar'],
+  ['tarantula-base', 'Tarantula'],
+  ['iridescent-treegolem-base', 'Star-Barked Tree Golem'],
+  ['fungus-host-base', 'Pit-Eyed Fungus Host'],
+  ['root-colossus-base', 'Root colossus'],
+  ['ashen-troll-base', 'Ember-Cracked Troll'],
+  ['red-fire-dragon-base', 'Red fire dragon']
 ];
 
 export const PACKS = [
   {
     name: 'polyfork',
-    what: 'The heroes, the villagers, the Gloamwood folk and the animals (rigged and animated low-poly models)',
+    what: 'The heroes, the villagers, the Gloamwood folk, the animals and the monsters — wolves, boars, spiders, treants, gloomcaps, the ash-troll and Cindermaw (rigged and animated low-poly models)',
     site: 'https://polyfork.dev',
     licence: 'CC BY 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by/4.0/',
@@ -49,7 +59,7 @@ export const PACKS = [
   },
   {
     name: 'Mesh2Motion',
-    what: 'Animations borrowed onto every person (talking, sitting, greeting, hammering, jumping, sprinting…), the eagles and Vaelthrax the drake; human base rig by Quaternius',
+    what: 'Animations borrowed onto every person (talking, sitting, greeting, hammering, jumping, sprinting…) and every fight (sword combos, shield bash and block, bow draws, spell casts, rolls, hits and deaths, the treants\' ground pounds), the eagles and Vaelthrax the drake; human base rig by Quaternius',
     site: 'https://github.com/Mesh2Motion/mesh2motion-app',
     licence: 'CC0 1.0',
     licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/'

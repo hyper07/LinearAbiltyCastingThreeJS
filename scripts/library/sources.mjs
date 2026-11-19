@@ -341,7 +341,9 @@ const EXTRA_POLYFORK = [
   'human-knight-base', 'elf-hunter-base', 'elf-mage-base', 'tradesman-1707b9', 'black-smith-base', 'merchant-6f606b', 'halfling-hunter-base', 'farmer-base',
   'village-guard-5f0f6f', 'human-priest-base', 'forest-witch-base', 'villager-40255c', 'dryad-hunter-base', 'shopper-base', 'crossbowman-base', 'human-assassin-base',
   'human-warrior-base', 'slim-knight-base', 'dryad-priest-base', 'mushroom-druid-base', 'elf-assassin-base', 'hooded-staff-acolyte-base',
-  'bear-base', 'deer-base', 'fox-base', 'cat-base', 'dog-base', 'chicken-base', 'spectral-stag-base', 'rabbit-base'
+  'bear-base', 'deer-base', 'fox-base', 'cat-base', 'dog-base', 'chicken-base', 'spectral-stag-base', 'rabbit-base',
+  // Gloamreach's armsmonger and monsters.
+  'dwarf-knight-base', 'wolf-base', 'thorn-boar-base', 'tarantula-base', 'iridescent-treegolem-base', 'fungus-host-base', 'root-colossus-base', 'ashen-troll-base', 'red-fire-dragon-base'
 ];
 
 export async function extras({ budget }) {

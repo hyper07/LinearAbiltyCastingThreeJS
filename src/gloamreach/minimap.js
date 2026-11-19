@@ -128,11 +128,69 @@ export class Minimap {
     g.scale(k, k);
     g.imageSmoothingEnabled = true;
     g.drawImage(this.map, -(hero.x - EXTENT.x0), -(hero.z - EXTENT.z0));
+    g.restore();
+    // Dots and marks, upright whatever the map's turn: people, animals, monsters (red), chests (gold), the boss (a skull).
+    g.save();
+    g.beginPath();
+    g.arc(R, R, R - 2 * dpr, 0, Math.PI * 2);
+    g.clip();
+    const cr = Math.cos(rot);
+    const sr = Math.sin(rot);
     for (const d of dots) {
-      g.fillStyle = d.color;
-      g.beginPath();
-      g.arc(d.x - hero.x, d.z - hero.z, d.r ?? 1.8, 0, Math.PI * 2);
-      g.fill();
+      const lx = (d.x - hero.x) * k;
+      const lz = (d.z - hero.z) * k;
+      const x = R + lx * cr - lz * sr;
+      const y = R + lx * sr + lz * cr;
+      if (Math.hypot(x - R, y - R) > R + 8) continue;
+      const r = (d.r ?? 1.8) * dpr * (d.shape ? 1 : this.zoom);
+      if (d.shape === 'skull') {
+        const s = 7 * dpr;
+        g.fillStyle = '#f4e6d0';
+        g.strokeStyle = '#3a0a06';
+        g.lineWidth = 1.5 * dpr;
+        g.beginPath();
+        g.arc(x, y - s * 0.15, s * 0.75, Math.PI * 0.85, Math.PI * 2.15);
+        g.lineTo(x + s * 0.45, y + s * 0.7);
+        g.lineTo(x - s * 0.45, y + s * 0.7);
+        g.closePath();
+        g.fill();
+        g.stroke();
+        g.fillStyle = '#5a0a06';
+        for (const sx of [-1, 1]) {
+          g.beginPath();
+          g.arc(x + sx * s * 0.3, y - s * 0.1, s * 0.2, 0, Math.PI * 2);
+          g.fill();
+        }
+      } else if (d.shape === 'chest') {
+        const s = 4.5 * dpr;
+        g.fillStyle = '#ffcf4a';
+        g.strokeStyle = '#4a2a06';
+        g.lineWidth = 1.2 * dpr;
+        g.fillRect(x - s, y - s * 0.7, s * 2, s * 1.4);
+        g.strokeRect(x - s, y - s * 0.7, s * 2, s * 1.4);
+      } else if (d.shape === 'elite') {
+        g.fillStyle = d.color;
+        g.strokeStyle = '#ffd76a';
+        g.lineWidth = 1.5 * dpr;
+        g.beginPath();
+        g.moveTo(x, y - r * 1.6);
+        g.lineTo(x + r * 1.4, y);
+        g.lineTo(x, y + r * 1.6);
+        g.lineTo(x - r * 1.4, y);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      } else {
+        g.fillStyle = d.color;
+        g.beginPath();
+        g.arc(x, y, r, 0, Math.PI * 2);
+        g.fill();
+        if (d.ring) {
+          g.strokeStyle = 'rgba(0,0,0,0.6)';
+          g.lineWidth = 1 * dpr;
+          g.stroke();
+        }
+      }
     }
     g.restore();
     // The hero's arrow (always up: the map turns), and north on the rim.

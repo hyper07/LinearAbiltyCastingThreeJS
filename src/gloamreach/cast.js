@@ -59,7 +59,8 @@ export const PEOPLE = [
   { id: 'tamsin', name: 'Tamsin Hale', title: 'Adventurer', model: 'crossbowman-base', does: 'jog', route: 'grand', offset: 0, greet: 'No time — we\'re for the Gloamwood before the lamps go out!' },
   { id: 'rook', name: 'Rook', title: 'Adventurer', model: 'human-assassin-base', does: 'jog', route: 'grand', offset: 9, greet: 'Keep up, or keep out of the way.' },
   { id: 'garrick', name: 'Garrick Ashveil', title: 'Adventurer', model: 'human-warrior-base', does: 'jog', route: 'grand', offset: 16, greet: 'Race you to the Gate!' },
-  { id: 'kesh', name: 'Kesh Ardent', title: 'Cliff Warden', model: 'slim-knight-base', at: [124, 6, 1.6], does: 'idle', greet: 'Watch the sky over the rift. Vaelthrax circles at this hour.' },
+  { id: 'kesh', name: 'Kesh Ardent', title: 'Cliff Warden', model: 'slim-knight-base', at: [124, 6, 1.6], does: 'idle', greet: 'Watch the sky over the rift. And the ledge to the north — her brood nests there.' },
+  { id: 'dorrin', name: 'Dorrin Anvilborn', title: 'Armsmonger', model: 'dwarf-knight-base', at: 'stall3', does: 'work', clip: 'Interact', merchant: true, greet: 'Blades, bows and good boots! Press F to trade — I buy what the woods leave you, too.' },
   // The Gloamwood.
   { id: 'sylwen', name: 'Sylwen', title: 'Keeper of Lamps', model: 'dryad-priest-base', at: [6, -248, -1.2], does: 'work', clip: 'Cast', greet: 'Each lamp holds a little of the moon. I only remind them to shine.' },
   { id: 'tumbleroot', name: 'Tumbleroot', title: 'Moss-Elder', model: 'mushroom-druid-base', at: 'root0', does: 'idle', greet: 'Shh. The trees are listening, and they do love to gossip.' },
