@@ -1,0 +1,241 @@
+{
+ "about": "The shared game soundtrack: one entry per track. npm run music:soundtrack generates takes for each (seeds), judges them, loops and masters the best into public/audio/bgm/ and writes manifest.json. 'pick' pins a seed once a take has been chosen. Styles only: never name a composer, artist or game.",
+ "model": "acestep-v15-xl-sft",
+ "lm": "acestep-5Hz-lm-1.7B",
+ "tracks": [
+  {
+   "id": "battle",
+   "title": "Steel Rain",
+   "kind": "loop",
+   "tags": [
+    "battle"
+   ],
+   "mood": "battle",
+   "pair": "meadow",
+   "bpm": 150,
+   "key": "D minor",
+   "seconds": 170,
+   "prompt": "epic orchestral battle music, urgent and driving, fast staccato string ostinato, pounding taiko and war drums, sharp brass stabs and horn calls, cinematic action video game soundtrack, high energy, instrumental"
+  },
+  {
+   "id": "boss",
+   "title": "Crown of Cinders",
+   "kind": "loop",
+   "tags": [
+    "battle",
+    "boss"
+   ],
+   "mood": "boss",
+   "pair": "frozen-fortress",
+   "bpm": 140,
+   "key": "C minor",
+   "seconds": 170,
+   "prompt": "dark epic orchestral boss battle music, massive wordless choir, heavy low brass, pounding timpani and taiko, relentless heavy percussion, dark minor harmony, menacing and intense, cinematic video game soundtrack, instrumental"
+  },
+  {
+   "id": "meadow",
+   "title": "Sunlit Meadow",
+   "kind": "loop",
+   "tags": [
+    "calm",
+    "nature"
+   ],
+   "mood": "calm",
+   "pair": "battle",
+   "bpm": 75,
+   "key": "D major",
+   "seconds": 170,
+   "prompt": "peaceful pastoral acoustic music, fingerpicked acoustic guitar, warm wooden flute melody, soft light strings, gentle and calm, sunny daytime meadow, relaxing video game exploration soundtrack, instrumental"
+  },
+  {
+   "id": "night-forest",
+   "title": "Violet Hollow",
+   "kind": "loop",
+   "tags": [
+    "calm",
+    "nature",
+    "night"
+   ],
+   "mood": "calm",
+   "bpm": 66,
+   "key": "A minor",
+   "seconds": 170,
+   "prompt": "ethereal ambient fantasy music, slow and gentle, harp arpeggios, glassy shimmering pads, soft celesta, airy and mysterious, magical forest at violet dusk, video game ambient soundtrack, instrumental"
+  },
+  {
+   "id": "village",
+   "title": "The Warm Hearth",
+   "kind": "loop",
+   "tags": [
+    "town",
+    "calm"
+   ],
+   "mood": "calm",
+   "bpm": 104,
+   "key": "G major",
+   "seconds": 170,
+   "prompt": "warm cheerful folk music, lively fiddle melody, plucked lute, accordion, soft hand percussion and frame drum, cozy medieval village town square, video game soundtrack, instrumental"
+  },
+  {
+   "id": "lantern-valley",
+   "title": "Lantern Valley",
+   "kind": "loop",
+   "tags": [
+    "calm",
+    "nature",
+    "town"
+   ],
+   "mood": "calm",
+   "bpm": 72,
+   "key": "A minor",
+   "seconds": 170,
+   "prompt": "gentle East Asian pastoral music, bamboo flute melody, plucked zither strings, soft string ensemble, pentatonic, calm and nostalgic, dusk village with paper lanterns, peaceful video game soundtrack, instrumental"
+  },
+  {
+   "id": "jungle",
+   "title": "Over the Falls",
+   "kind": "loop",
+   "tags": [
+    "nature",
+    "calm"
+   ],
+   "mood": "calm",
+   "pair": "jungle-hunt",
+   "bpm": 110,
+   "key": "E minor",
+   "seconds": 170,
+   "prompt": "adventurous orchestral exploration music, tribal hand drums, marimba, sweeping strings and french horns, sense of wonder and awe, riding through jungle canyons and waterfalls, cinematic video game soundtrack, instrumental",
+   "takes": 6
+  },
+  {
+   "id": "jungle-hunt",
+   "title": "The Gorge Hunt",
+   "kind": "loop",
+   "tags": [
+    "battle",
+    "nature"
+   ],
+   "mood": "battle",
+   "pair": "jungle",
+   "bpm": 110,
+   "key": "E minor",
+   "seconds": 170,
+   "prompt": "relentless tribal action music in a minor key, continuous pounding tribal drums and taiko, fast urgent marimba ostinato, driving staccato strings, brass hits, dark and tense, monster hunt in a jungle gorge, cinematic video game battle soundtrack, constant energy without breaks, instrumental",
+   "takes": 4
+  },
+  {
+   "id": "frozen-fortress",
+   "title": "Rime Keep",
+   "kind": "loop",
+   "tags": [
+    "dungeon",
+    "night"
+   ],
+   "mood": "tense",
+   "pair": "boss",
+   "bpm": 70,
+   "key": "C minor",
+   "seconds": 170,
+   "prompt": "tense dark ambient dungeon music, deep low drones, icy glass bells, distant wordless choir, sparse low percussion, cold and ominous frozen fortress, slow suspense, video game soundtrack, instrumental"
+  },
+  {
+   "id": "playful",
+   "title": "Paper Kites",
+   "kind": "loop",
+   "tags": [
+    "kids",
+    "calm"
+   ],
+   "mood": "calm",
+   "bpm": 116,
+   "key": "C major",
+   "seconds": 150,
+   "prompt": "cheerful playful children's music, bouncy ukulele, glockenspiel melody, hand claps, pizzicato strings, bright, happy and light, gentle educational video game soundtrack, instrumental"
+  },
+  {
+   "id": "city-night",
+   "title": "Neon Overpass",
+   "kind": "loop",
+   "tags": [
+    "city",
+    "night"
+   ],
+   "mood": "calm",
+   "bpm": 120,
+   "key": "A minor",
+   "seconds": 170,
+   "prompt": "upbeat synthwave, driving pulsing synth bass, retro analog synthesizers, punchy drum machine with gated snare, shimmering arpeggios, night city drive under neon lights, electronic video game soundtrack, instrumental"
+  },
+  {
+   "id": "title",
+   "title": "First Light",
+   "kind": "loop",
+   "tags": [
+    "menu"
+   ],
+   "mood": "calm",
+   "bpm": 96,
+   "key": "D major",
+   "seconds": 170,
+   "prompt": "heroic hopeful orchestral main theme, memorable soaring french horn melody, full string section, warm choir pads, timpani, uplifting fantasy adventure, video game title screen music, instrumental"
+  },
+  {
+   "id": "victory",
+   "title": "Victory",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "victory",
+   "bpm": 120,
+   "key": "C major",
+   "seconds": 12,
+   "prompt": "short triumphant orchestral victory fanfare, bright trumpets and horns, timpani roll, ends on a held major chord, video game victory jingle, instrumental",
+   "takes": 4,
+   "pick": 180637
+  },
+  {
+   "id": "defeat",
+   "title": "Retreat",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "defeat",
+   "bpm": 70,
+   "key": "D minor",
+   "seconds": 12,
+   "prompt": "short sad orchestral defeat jingle, slow descending strings and a low horn, minor key, fades softly, video game game over sting, instrumental",
+   "takes": 4
+  },
+  {
+   "id": "level-up",
+   "title": "Level Up",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "levelup",
+   "bpm": 120,
+   "key": "F major",
+   "seconds": 10,
+   "prompt": "short bright magical level up jingle, rising harp glissando, sparkling glockenspiel and bright brass, triumphant and joyful, video game sting, instrumental",
+   "takes": 8,
+   "pick": 665215
+  },
+  {
+   "id": "discovery",
+   "title": "Treasure Found",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "discovery",
+   "bpm": 90,
+   "key": "E major",
+   "seconds": 12,
+   "prompt": "short wondrous discovery jingle, shimmering harp, celesta and a soft string swell, magical and mysterious, treasure found, video game sting, instrumental",
+   "takes": 4
+  }
+ ]
+}

@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { LIBRARY, MANIFESTS, walk } from './lib.mjs';
 import { SOURCES_LIST, categorize, normalizeWords, themesFor, surfaceFor } from '../../src/library/categories.js';
 import { withToolCredits } from '../../server/modelgen-local.mjs';
+import { musicTracks, withMusicCredits } from '../music/lib.mjs';
 
 /* ---------------------------------------------------------------------- */
 /* glTF inspection                                                         */
@@ -218,7 +219,9 @@ export async function buildCatalog() {
   await writeFile(path.join(LIBRARY, 'catalog.json'), JSON.stringify(catalog));
   // The local model generator, when installed (npm run modelgen:setup), keeps its credits here too.
   const creditsText = credits(models, materials);
-  await writeFile(path.join(LIBRARY, 'CREDITS.md'), existsSync(path.join(LIBRARY, 'tools', 'trellis-mac')) ? withToolCredits(creditsText) : creditsText);
+  // So does the local music generator (npm run music:setup), with the tracks in public/audio/bgm.
+  const withMusic = existsSync(path.join(LIBRARY, 'tools', 'ace-step')) ? withMusicCredits(creditsText, musicTracks()) : creditsText;
+  await writeFile(path.join(LIBRARY, 'CREDITS.md'), existsSync(path.join(LIBRARY, 'tools', 'trellis-mac')) ? withToolCredits(withMusic) : withMusic);
   // A library indexed by hand (no fetch run) still reports itself as ready.
   const statusFile = path.join(LIBRARY, 'status.json');
   try {

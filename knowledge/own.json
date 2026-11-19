@@ -480,6 +480,55 @@
     "guide"
    ],
    "path": "knowledge/assets-guide.md"
+  },
+  {
+   "id": "own.music.player",
+   "kind": "module",
+   "title": "Shared background music: mood crossfades, seamless loops, stingers, credit toast",
+   "summary": "music.play(idOrTag), music.setMood('calm'|'tense'|'battle'|'boss') with equal-power crossfades (1.5 s into battle, 3 s out; calm/tense pairs start in step with the bar), music.stinger(id) ducking the bed, sample-accurate loops from the manifest's loop points, lazy decode with an LRU cache (and <audio> streaming fallback), autoplay unlock on the first gesture, pause in hidden tabs, saved volume/mute, linkMute(() => sound.muted) to follow a game's own toggle, a '♪ title · Music: ACE-Step 1.5 (MIT)' toast the first time each track plays, credit() and musicCredits(ids) for Credits panels. Tracks: public/audio/bgm (battle, boss, meadow, night forest, village, lantern valley, jungle explore/hunt, frozen fortress, playful kids, synthwave city night, title, and victory/defeat/level-up/discovery stingers). Guide: docs/music.md.",
+   "tags": [
+    "music",
+    "bgm",
+    "audio",
+    "soundtrack",
+    "loop",
+    "crossfade",
+    "mood",
+    "battle",
+    "boss",
+    "calm",
+    "ambient",
+    "stinger",
+    "jingle",
+    "fanfare",
+    "webaudio",
+    "credits",
+    "sound"
+   ],
+   "path": "src/shared/music.js"
+  },
+  {
+   "id": "own.music.generator",
+   "kind": "guide",
+   "title": "Making more music: ACE-Step 1.5 on this Mac (free, MIT), looped and mastered",
+   "summary": "npm run music:setup installs ACE-Step 1.5 (MIT code and weights, ungated) into library/tools/ace-step with a uv venv from its lockfile and the 4B XL SFT model; npm run music:gen -- --prompt '…' --seconds 150 --out x.ogg makes takes, judges them (clipping, flat tops, drop-outs, tempo and key vs. the prompt), finds bar-aligned loop points, crossfades the seam, masters to -16 LUFS and writes Ogg Vorbis; npm run music:soundtrack rebuilds public/audio/bgm from scripts/music/soundtrack.json; npm run music:preview to listen.",
+   "tags": [
+    "music",
+    "generate",
+    "ai",
+    "ace-step",
+    "bgm",
+    "soundtrack",
+    "loop",
+    "mastering",
+    "loudness",
+    "lufs",
+    "ogg",
+    "local",
+    "mac",
+    "guide"
+   ],
+   "path": "docs/music.md"
   }
  ]
 }

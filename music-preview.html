@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Music preview</title>
+<!-- Dev-only: npm run music:preview, then http://127.0.0.1:5200/music-preview.html. Not part of the build. -->
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #ffffff; --ink: #1d1f24; --muted: #6a6d75; --line: #e3e0d8;
+    --accent: #3b5bdb; --accent-ink: #fff; --calm: #2f9e44; --tense: #e8590c; --battle: #c92a2a; --boss: #862e9c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161b; --panel: #1d2027; --ink: #eceae4; --muted: #9a9ea8; --line: #2c3039; --accent: #748ffc; --accent-ink: #0b0d12; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  p.lede { color: var(--muted); margin: 0 0 16px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; position: sticky; top: 8px; z-index: 5; }
+  .bar .now { flex: 1 1 260px; min-width: 0; }
+  .bar .now b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .now small { color: var(--muted); }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button[data-mood="calm"] { border-left: 4px solid var(--calm); }
+  button[data-mood="tense"] { border-left: 4px solid var(--tense); }
+  button[data-mood="battle"] { border-left: 4px solid var(--battle); }
+  button[data-mood="boss"] { border-left: 4px solid var(--boss); }
+  button.on { outline: 2px solid var(--accent); }
+  label { color: var(--muted); font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .card.playing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card h3 { margin: 0; font-size: 17px; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .credit { font-size: 12px; color: var(--muted); }
+  .credit a { color: inherit; }
+  details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  details img { width: 100%; border-radius: 8px; margin-top: 6px; background: #000; }
+  .style { font-size: 12px; color: var(--muted); font-style: italic; }
+  footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  footer a { color: inherit; }
+  .err { color: var(--battle); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Shared soundtrack</h1>
+  <p class="lede">Every background track and stinger in <code>public/audio/bgm</code>, played through <code>src/shared/music.js</code> exactly as a game would. Click anything to start (browsers wait for a click before playing sound).</p>
+
+  <div class="bar" id="bar">
+    <div class="now"><b id="now">Nothing playing</b><small id="pos"></small></div>
+    <div class="row" id="moods"></div>
+    <button id="stop">Stop</button>
+    <label>Volume <input id="vol" type="range" min="0" max="1" step="0.01" /></label>
+    <label><input id="mute" type="checkbox" /> Mute</label>
+    <label>Credit toast
+      <select id="toast"><option value="first">first time</option><option value="always">always</option><option value="off">off</option></select>
+    </label>
+  </div>
+
+  <h2>Mood crossfade demo</h2>
+  <p class="meta" id="pairs-note">Pick a calm/tense pair, then switch moods: into battle fades in 1.5 s, out of it in 3 s, and a pair starts in step with the bar.</p>
+  <div class="row" id="pairs"></div>
+
+  <h2>Stingers</h2>
+  <div class="row" id="stingers"></div>
+
+  <h2>Background tracks</h2>
+  <div class="grid" id="tracks"></div>
+
+  <footer id="credits"></footer>
+</main>
+
+<script type="module">
+  import { music, musicCredits, MOODS } from './src/shared/music.js';
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, props = {}, kids = []) => {
+    const e = Object.assign(document.createElement(tag), props);
+    for (const k of [].concat(kids)) e.append(k);
+    return e;
+  };
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const creditLine = (c) => {
+    const span = el('span', { className: 'credit' });
+    span.append('Music generated with ', el('a', { href: c.url, target: '_blank', rel: 'noopener', textContent: c.model }), ' (', el('a', { href: c.licenceUrl, target: '_blank', rel: 'noopener', textContent: `${c.licence} licence` }), ')');
+    return span;
+  };
+
+  let manifest;
+  try {
+    manifest = await music.load();
+  } catch (e) {
+    $('tracks').append(el('p', { className: 'err', textContent: `Could not load public/audio/bgm/manifest.json (${e.message}). Run npm run music:soundtrack first.` }));
+    throw e;
+  }
+
+  const beds = manifest.tracks.filter((t) => t.kind !== 'stinger');
+  const stingers = manifest.tracks.filter((t) => t.kind === 'stinger');
+  const cards = new Map();
+
+  for (const t of beds) {
+    const card = el('div', { className: 'card' });
+    const play = el('button', { className: 'primary', textContent: 'Play' });
+    play.onclick = () => { music.stop({ fade: 0.3 }); music.play(t.id, { fade: 1 }); };
+    const seam = el('button', { textContent: 'Loop-seam test', title: 'Start 6 s before the loop end and hear it wrap to the loop start' });
+    seam.onclick = async () => { music.stop({ fade: 0.2 }); await new Promise((r) => setTimeout(r, 250)); music.play(t.id, { fade: 0.3, offset: t.loopEnd - 6 }); };
+    const intro = el('button', { textContent: 'From the top' });
+    intro.onclick = () => { music.stop({ fade: 0.3 }); music.play(t.id, { fade: 0.05, offset: 0 }); };
+    const pair = t.pair ? manifest.tracks.find((x) => x.id === t.pair) : null;
+    card.append(
+      el('h3', { textContent: t.title }),
+      el('div', { className: 'meta', textContent: `${t.id} · ${t.mood} · ${t.bpm} BPM · ${t.key} · ${fmt(t.duration)} · loop ${t.loopStart.toFixed(2)}–${t.loopEnd.toFixed(2)} s · ${(t.bytes / 1e6).toFixed(1)} MB` }),
+      el('div', { className: 'meta', textContent: `Measured: ${t.measured?.tempo ?? '?'} BPM, ${t.measured?.key ?? '?'}${pair ? ` · pair: ${pair.title}` : ''}` }),
+      el('div', { className: 'tags' }, t.tags.map((g) => el('span', { className: 'tag', textContent: g }))),
+      el('div', { className: 'row' }, [play, seam, intro]),
+      el('div', { className: 'style', textContent: t.style }),
+      creditLine(t.credit),
+      el('details', {}, [el('summary', { textContent: 'Spectrogram and loudness (green: loop start, red: loop end)' }), el('img', { loading: 'lazy', alt: `Spectrogram of ${t.title}`, src: `/__music-report/${t.id}.png` })])
+    );
+    cards.set(t.id, card);
+    $('tracks').append(card);
+  }
+
+  for (const t of stingers) {
+    const b = el('button', { textContent: `▶ ${t.title} (${t.duration.toFixed(1)} s)` });
+    b.onclick = async () => {
+      if (!music.current) await music.play(beds[0].id, { fade: 0.5 });
+      music.stinger(t.id);
+    };
+    $('stingers').append(b);
+  }
+
+  // One button per calm/tense pair, starting from its quieter side.
+  const pairs = beds.filter((t) => t.pair && ['calm', 'tense'].includes(t.mood) && beds.some((x) => x.id === t.pair));
+  for (const t of pairs) {
+    const p = manifest.tracks.find((x) => x.id === t.pair);
+    const b = el('button', { textContent: `${t.title} ⇄ ${p.title}` });
+    b.onclick = () => { music.stop({ fade: 0.3 }); music.play(t.id, { fade: 0.8 }); };
+    $('pairs').append(b);
+  }
+  for (const mood of MOODS) {
+    const b = el('button', { textContent: mood });
+    b.dataset.mood = mood;
+    b.onclick = () => music.setMood(mood);
+    $('moods').append(b);
+  }
+
+  $('stop').onclick = () => music.stop();
+  $('vol').value = music.volume;
+  $('vol').oninput = (e) => music.setVolume(Number(e.target.value));
+  $('mute').checked = music.muted;
+  $('mute').onchange = (e) => music.setMuted(e.target.checked);
+  $('toast').value = music.settings.toast;
+  $('toast').onchange = (e) => music.setToast(e.target.value);
+
+  const all = musicCredits();
+  $('credits').append(...all.map((c) => {
+    const p = el('p');
+    p.append(c.text.replace(/\(.*\)$/, '').trim(), ' (', el('a', { href: c.licenceUrl, target: '_blank', rel: 'noopener', textContent: `${c.licence} licence` }), ', ', el('a', { href: c.site, target: '_blank', rel: 'noopener', textContent: c.site }), '): ', c.items.map((i) => i.name).join(', '), '.');
+    return p;
+  }));
+
+  function tick() {
+    const t = music.current;
+    for (const [id, card] of cards) card.classList.toggle('playing', id === t?.id);
+    for (const b of $('moods').children) b.classList.toggle('on', b.dataset.mood === music.mood);
+    if (t) {
+      $('now').textContent = `♪ ${t.title} (${t.mood}, ${t.bpm} BPM, ${t.key})`;
+      const pos = music._position();
+      $('pos').textContent = `${pos.toFixed(1)} s / loop ${t.loopStart.toFixed(1)}–${t.loopEnd.toFixed(1)} s · ${music.credit().text}`;
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+</script>
+</body>
+</html>

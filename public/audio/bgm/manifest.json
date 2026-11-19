@@ -1,0 +1,554 @@
+{
+ "version": 1,
+ "about": "Shared background music. Loop points are in seconds of the decoded file; play [0, loopEnd) then loop [loopStart, loopEnd). See docs/music.md.",
+ "generator": {
+  "model": "ACE-Step 1.5",
+  "modelUrl": "https://github.com/ace-step/ACE-Step-1.5",
+  "weights": "ACE-Step/acestep-v15-xl-sft",
+  "weightsUrl": "https://huggingface.co/ACE-Step/acestep-v15-xl-sft",
+  "licence": "MIT",
+  "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+  "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+  "line": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+ },
+ "tracks": [
+  {
+   "id": "battle",
+   "title": "Steel Rain",
+   "file": "battle.ogg",
+   "kind": "loop",
+   "tags": [
+    "battle"
+   ],
+   "mood": "battle",
+   "bpm": 150,
+   "key": "D minor",
+   "measured": {
+    "tempo": 152,
+    "key": "D minor"
+   },
+   "duration": 157.026,
+   "loopStart": 57.237187,
+   "loopEnd": 156.525708,
+   "pair": "meadow",
+   "lufs": -16,
+   "bytes": 2066325,
+   "style": "epic orchestral battle music, urgent and driving, fast staccato string ostinato, pounding taiko and war drums, sharp brass stabs and horn calls, cinematic action video game soundtrack, high energy, instrumental",
+   "seed": 372575,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "boss",
+   "title": "Crown of Cinders",
+   "file": "boss.ogg",
+   "kind": "loop",
+   "tags": [
+    "battle",
+    "boss"
+   ],
+   "mood": "boss",
+   "bpm": 140,
+   "key": "C minor",
+   "measured": {
+    "tempo": 143.6,
+    "key": "C major"
+   },
+   "duration": 141.143,
+   "loopStart": 15.487708,
+   "loopEnd": 140.643271,
+   "pair": "frozen-fortress",
+   "lufs": -16.38,
+   "bytes": 1730446,
+   "style": "dark epic orchestral boss battle music, massive wordless choir, heavy low brass, pounding timpani and taiko, relentless heavy percussion, dark minor harmony, menacing and intense, cinematic video game soundtrack, instrumental",
+   "seed": 104594,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "meadow",
+   "title": "Sunlit Meadow",
+   "file": "meadow.ogg",
+   "kind": "loop",
+   "tags": [
+    "calm",
+    "nature"
+   ],
+   "mood": "calm",
+   "bpm": 75,
+   "key": "D major",
+   "measured": {
+    "tempo": 76,
+    "key": "D major"
+   },
+   "duration": 138.937,
+   "loopStart": 36.037375,
+   "loopEnd": 138.437375,
+   "pair": "battle",
+   "lufs": -16,
+   "bytes": 1563545,
+   "style": "peaceful pastoral acoustic music, fingerpicked acoustic guitar, warm wooden flute melody, soft light strings, gentle and calm, sunny daytime meadow, relaxing video game exploration soundtrack, instrumental",
+   "seed": 75880,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "night-forest",
+   "title": "Violet Hollow",
+   "file": "night-forest.ogg",
+   "kind": "loop",
+   "tags": [
+    "calm",
+    "nature",
+    "night"
+   ],
+   "mood": "calm",
+   "bpm": 66,
+   "key": "A minor",
+   "measured": {
+    "tempo": 66.3,
+    "key": "A minor"
+   },
+   "duration": 156.886,
+   "loopStart": 7.3375,
+   "loopEnd": 156.386396,
+   "lufs": -16,
+   "bytes": 1945464,
+   "style": "ethereal ambient fantasy music, slow and gentle, harp arpeggios, glassy shimmering pads, soft celesta, airy and mysterious, magical forest at violet dusk, video game ambient soundtrack, instrumental",
+   "seed": 739093,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "village",
+   "title": "The Warm Hearth",
+   "file": "village.ogg",
+   "kind": "loop",
+   "tags": [
+    "town",
+    "calm"
+   ],
+   "mood": "calm",
+   "bpm": 104,
+   "key": "G major",
+   "measured": {
+    "tempo": 103.4,
+    "key": "D major"
+   },
+   "duration": 120.269,
+   "loopStart": 39.775792,
+   "loopEnd": 119.768521,
+   "lufs": -16,
+   "bytes": 1532506,
+   "style": "warm cheerful folk music, lively fiddle melody, plucked lute, accordion, soft hand percussion and frame drum, cozy medieval village town square, video game soundtrack, instrumental",
+   "seed": 401946,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "lantern-valley",
+   "title": "Lantern Valley",
+   "file": "lantern-valley.ogg",
+   "kind": "loop",
+   "tags": [
+    "calm",
+    "nature",
+    "town"
+   ],
+   "mood": "calm",
+   "bpm": 72,
+   "key": "A minor",
+   "measured": {
+    "tempo": 71.8,
+    "key": "A major"
+   },
+   "duration": 149.735,
+   "loopStart": 39.241729,
+   "loopEnd": 149.234646,
+   "lufs": -16,
+   "bytes": 1743990,
+   "style": "gentle East Asian pastoral music, bamboo flute melody, plucked zither strings, soft string ensemble, pentatonic, calm and nostalgic, dusk village with paper lanterns, peaceful video game soundtrack, instrumental",
+   "seed": 552296,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "jungle",
+   "title": "Over the Falls",
+   "file": "jungle.ogg",
+   "kind": "loop",
+   "tags": [
+    "nature",
+    "calm"
+   ],
+   "mood": "calm",
+   "bpm": 110,
+   "key": "E minor",
+   "measured": {
+    "tempo": 73.8,
+    "key": "E minor"
+   },
+   "duration": 141.515,
+   "loopStart": 37.778875,
+   "loopEnd": 141.014792,
+   "pair": "jungle-hunt",
+   "lufs": -16,
+   "bytes": 1836570,
+   "style": "adventurous orchestral exploration music, tribal hand drums, marimba, sweeping strings and french horns, sense of wonder and awe, riding through jungle canyons and waterfalls, cinematic video game soundtrack, instrumental",
+   "seed": 330728,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "jungle-hunt",
+   "title": "The Gorge Hunt",
+   "file": "jungle-hunt.ogg",
+   "kind": "loop",
+   "tags": [
+    "battle",
+    "nature"
+   ],
+   "mood": "battle",
+   "bpm": 110,
+   "key": "E minor",
+   "measured": {
+    "tempo": 112.3,
+    "key": "E minor"
+   },
+   "duration": 144.348,
+   "loopStart": 58.119542,
+   "loopEnd": 143.847625,
+   "pair": "jungle",
+   "lufs": -16,
+   "bytes": 1983891,
+   "style": "relentless tribal action music in a minor key, continuous pounding tribal drums and taiko, fast urgent marimba ostinato, driving staccato strings, brass hits, dark and tense, monster hunt in a jungle gorge, cinematic video game battle soundtrack, constant energy without breaks, instrumental",
+   "seed": 789508,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "frozen-fortress",
+   "title": "Rime Keep",
+   "file": "frozen-fortress.ogg",
+   "kind": "loop",
+   "tags": [
+    "dungeon",
+    "night"
+   ],
+   "mood": "tense",
+   "bpm": 70,
+   "key": "C minor",
+   "measured": {
+    "tempo": 69.8,
+    "key": "C minor"
+   },
+   "duration": 159.278,
+   "loopStart": 59.350208,
+   "loopEnd": 158.778042,
+   "pair": "boss",
+   "lufs": -16.44,
+   "bytes": 1954425,
+   "style": "tense dark ambient dungeon music, deep low drones, icy glass bells, distant wordless choir, sparse low percussion, cold and ominous frozen fortress, slow suspense, video game soundtrack, instrumental",
+   "seed": 532258,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "playful",
+   "title": "Paper Kites",
+   "file": "playful.ogg",
+   "kind": "loop",
+   "tags": [
+    "kids",
+    "calm"
+   ],
+   "mood": "calm",
+   "bpm": 116,
+   "key": "C major",
+   "measured": {
+    "tempo": 117.5,
+    "key": "C major"
+   },
+   "duration": 139.704,
+   "loopStart": 39.03275,
+   "loopEnd": 139.203625,
+   "lufs": -16.14,
+   "bytes": 1814859,
+   "style": "cheerful playful children's music, bouncy ukulele, glockenspiel melody, hand claps, pizzicato strings, bright, happy and light, gentle educational video game soundtrack, instrumental",
+   "seed": 3612,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "city-night",
+   "title": "Neon Overpass",
+   "file": "city-night.ogg",
+   "kind": "loop",
+   "tags": [
+    "city",
+    "night"
+   ],
+   "mood": "calm",
+   "bpm": 120,
+   "key": "A minor",
+   "measured": {
+    "tempo": 117.5,
+    "key": "A minor"
+   },
+   "duration": 134.061,
+   "loopStart": 29.559,
+   "loopEnd": 133.561187,
+   "lufs": -16,
+   "bytes": 1594647,
+   "style": "upbeat synthwave, driving pulsing synth bass, retro analog synthesizers, punchy drum machine with gated snare, shimmering arpeggios, night city drive under neon lights, electronic video game soundtrack, instrumental",
+   "seed": 461505,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "title",
+   "title": "First Light",
+   "file": "title.ogg",
+   "kind": "loop",
+   "tags": [
+    "menu"
+   ],
+   "mood": "calm",
+   "bpm": 96,
+   "key": "D major",
+   "measured": {
+    "tempo": 95.7,
+    "key": "F# minor"
+   },
+   "duration": 141.492,
+   "loopStart": 28.723083,
+   "loopEnd": 140.991562,
+   "lufs": -16,
+   "bytes": 1695866,
+   "style": "heroic hopeful orchestral main theme, memorable soaring french horn melody, full string section, warm choir pads, timpani, uplifting fantasy adventure, video game title screen music, instrumental",
+   "seed": 803313,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "victory",
+   "title": "Victory",
+   "file": "victory.ogg",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "victory",
+   "bpm": 120,
+   "key": "C major",
+   "measured": {
+    "tempo": 161.5,
+    "key": "C major"
+   },
+   "duration": 8.746,
+   "lufs": -14,
+   "bytes": 113489,
+   "style": "short triumphant orchestral victory fanfare, bright trumpets and horns, timpani roll, ends on a held major chord, video game victory jingle, instrumental",
+   "seed": 180637,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "defeat",
+   "title": "Retreat",
+   "file": "defeat.ogg",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "defeat",
+   "bpm": 70,
+   "key": "D minor",
+   "measured": {
+    "tempo": 103.4,
+    "key": "D minor"
+   },
+   "duration": 7.167,
+   "lufs": -14.06,
+   "bytes": 76918,
+   "style": "short sad orchestral defeat jingle, slow descending strings and a low horn, minor key, fades softly, video game game over sting, instrumental",
+   "seed": 289109,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "level-up",
+   "title": "Level Up",
+   "file": "level-up.ogg",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "levelup",
+   "bpm": 120,
+   "key": "F major",
+   "measured": {
+    "tempo": 117.5,
+    "key": "C major"
+   },
+   "duration": 6.908,
+   "lufs": -14,
+   "bytes": 88778,
+   "style": "short bright magical level up jingle, rising harp glissando, sparkling glockenspiel and bright brass, triumphant and joyful, video game sting, instrumental",
+   "seed": 665215,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "discovery",
+   "title": "Treasure Found",
+   "file": "discovery.ogg",
+   "kind": "stinger",
+   "tags": [
+    "stinger"
+   ],
+   "mood": "discovery",
+   "bpm": 90,
+   "key": "E major",
+   "measured": {
+    "tempo": 44.6,
+    "key": "E major"
+   },
+   "duration": 7.788,
+   "lufs": -14.46,
+   "bytes": 97007,
+   "style": "short wondrous discovery jingle, shimmering harp, celesta and a soft string swell, magical and mysterious, treasure found, video game sting, instrumental",
+   "seed": 108379,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  }
+ ]
+}

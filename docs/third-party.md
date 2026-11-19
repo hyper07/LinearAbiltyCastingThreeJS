@@ -111,3 +111,9 @@ No pixelfx effects or library models are used. Its Credits panel reads `src/kind
 
 AI Arcademia shows its credits (three.js, the 3dviz kits, Nunito) in its Credits panel, from
 `src/arcademia/credits.js`.
+
+### Shared music
+
+| What | Used for | Licence |
+| --- | --- | --- |
+| [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) (ACE Studio and StepFun), with its [XL SFT](https://huggingface.co/ACE-Step/acestep-v15-xl-sft) model, run on this Mac (`npm run music:setup`, installed into `library/tools/ace-step/`, never committed) | Generated every track in `public/audio/bgm/` (battle, boss, meadow, night forest, village, lantern valley, jungle explore and hunt, frozen fortress, playful, city night, title, and four stingers), played by `src/shared/music.js`; see `docs/music.md`. Each track's credit is in `public/audio/bgm/manifest.json`; players see it in a "♪ title · Music: ACE-Step 1.5 (MIT)" toast and in each game's Credits panel (`musicCredits()`): "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)" | MIT (code and weights); its model card says the output may be used commercially |
