@@ -73,9 +73,12 @@ export function restAt(save, hubId) {
 
 /**
  * Text → a zone save (or null: not JSON, not one, a version this game can't
- * read). `zones` (ids) and `hubs` (ids) keep out what no longer exists.
+ * read). `zones` (ids) and `hubs` (ids) keep out what no longer exists;
+ * `upgrade(raw)` first maps a save made for an older layout of the game's
+ * zones onto the current one (a zone split in two, say), before anything
+ * unknown is dropped.
  */
-export function parseZoneSave(text, { zones = null, hubs = null, stashSize = 24, cleanItem = (x) => x, cleanGame = (g) => g ?? {} } = {}) {
+export function parseZoneSave(text, { zones = null, hubs = null, stashSize = 24, cleanItem = (x) => x, cleanGame = (g) => g ?? {}, upgrade = null } = {}) {
   if (typeof text !== 'string' || !text) return null;
   let raw;
   try {
@@ -83,6 +86,7 @@ export function parseZoneSave(text, { zones = null, hubs = null, stashSize = 24,
   } catch {
     return null;
   }
+  if (upgrade && raw && typeof raw === 'object') raw = upgrade(raw) ?? raw;
   return cleanZoneSave(raw, { zones, hubs, stashSize, cleanItem, cleanGame });
 }
 
@@ -136,7 +140,8 @@ export function loadZoneSave(key, { migrate, ...opts }) {
   const parsed = parseZoneSave(text, opts);
   if (parsed) return parsed;
   const fresh = migrate?.() ?? null;
-  return fresh ? cleanZoneSave(fresh, opts) ?? fresh : null;
+  const { upgrade, ...rest } = opts;
+  return fresh ? cleanZoneSave(fresh, rest) ?? fresh : null;
 }
 
 export function writeZoneSave(key, save) {

@@ -45,6 +45,7 @@ export function disposeTree(root, { keep = new Set(), detach = true } = {}) {
     const m = o.material;
     if (Array.isArray(m)) m.forEach((x) => x && materials.add(x));
     else if (m) materials.add(m);
+    // (A shared, kept depth material — props.js PLAIN_DEPTH — is safe to pass: disposing frees only its program.)
     if (o.customDepthMaterial) materials.add(o.customDepthMaterial);
     if (o.customDistanceMaterial) materials.add(o.customDistanceMaterial);
     if (o.skeleton) skeletons.add(o.skeleton);

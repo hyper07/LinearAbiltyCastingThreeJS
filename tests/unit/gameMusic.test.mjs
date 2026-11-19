@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   TRACK_TITLES, GAME_TRACKS, musicPack, gameMusicPack, MoodHold, Settle, band,
-  gloamreachTrack, kithvaleTrack, lanternwoodTrack, seoulTrack, duskAt
+  gloamreachTrack, kithvaleTrack, lanternwoodTrack, seoulTrack, wyldhuntTrack, duskAt
 } from '../../src/shared/gameMusic.js';
 import { MUSIC_CREDIT } from '../../src/shared/music.js';
 
@@ -75,6 +75,16 @@ test('Gloamreach: hearth in the village, meadow in the fields, Violet Hollow in 
   assert.equal(gloamreachTrack({ area: 'ledge', x: 123, z: -45 }), 'frozen-fortress');
 });
 
+test('Wyldhunt, zone by zone: the hearth at camp, the falls down the gorge, the hunt once tracked up in the Heights', () => {
+  assert.equal(wyldhuntTrack({ zone: 'base-camp' }), 'village');
+  assert.equal(wyldhuntTrack({ zone: 'base-camp', hunting: true }), 'village');
+  assert.equal(wyldhuntTrack({ zone: 'veilfall-reach' }), 'jungle');
+  assert.equal(wyldhuntTrack({ zone: 'veilfall-reach', hunting: true }), 'jungle', 'no beast lives below the stair');
+  assert.equal(wyldhuntTrack({ zone: 'hollow-heights' }), 'jungle');
+  assert.equal(wyldhuntTrack({ zone: 'hollow-heights', hunting: true }), 'jungle-hunt');
+  assert.equal(wyldhuntTrack({ zone: 'somewhere-new' }), 'jungle', 'a new zone plays the gorge');
+});
+
 test('Kithvale, Lanternwood and Gangnam Drift', () => {
   assert.equal(duskAt(17.8), true, 'the vale\'s own golden hour is dusk');
   assert.equal(duskAt(12), false);
@@ -102,6 +112,7 @@ test('every game\'s tracks exist and every mapping lands on one of them', () => 
   for (const realm of ['lanternwood', 'sunmeadow', 'frostpeak', 'emberfall']) has('lanternwood', lanternwoodTrack({ realm, area: 'camp' }));
   for (const v of [true, false]) for (const d of [true, false]) has('kithvale', kithvaleTrack({ village: v, dusk: d }));
   has('seoul', seoulTrack({ mode: 'race' }));
+  for (const zone of ['base-camp', 'veilfall-reach', 'hollow-heights']) for (const hunting of [true, false]) has('wyldhunt', wyldhuntTrack({ zone, hunting }));
 });
 
 test('credits: ACE-Step 1.5, MIT, the link, and the titles a game uses', () => {
@@ -110,7 +121,7 @@ test('credits: ACE-Step 1.5, MIT, the link, and the titles a game uses', () => {
   assert.equal(p.licence, 'MIT');
   assert.equal(p.site, MUSIC_CREDIT.url);
   assert.equal(p.licenceUrl, MUSIC_CREDIT.licenceUrl);
-  assert.match(p.what, /Over the Falls, The Gorge Hunt, Crown of Cinders/);
+  assert.match(p.what, /Over the Falls, The Gorge Hunt, The Warm Hearth, Crown of Cinders/);
   assert.ok(!('items' in p), 'no item list (the Credits panels link items by url)');
   assert.deepEqual(musicPack(['title']).titles, ['First Light']);
 });

@@ -5,7 +5,8 @@ import { boot, tally, until } from './lib.mjs';
  * every door walked through and back, the full map's World view, every hub
  * service used with the game's own key, fast travel by waystone, a monster
  * that chases you stops at a hub's edge, a fall wakes you at the last hub
- * rested at, memory comes back after round trips, and the console stays clean.
+ * rested at, memory comes back after five round trips, Wyldhunt's hunt carries
+ * across the Stair of Roots, and the console stays clean.
  *
  *   npm run test:e2e -- zones          (SHOTS=<dir> saves the screenshots)
  */
@@ -25,12 +26,17 @@ const GAMES = [
   {
     id: 'wyldhunt',
     key: 'KeyE',
-    doors: [{ from: 'base-camp', at: [-6, 308, Math.PI], to: 'mistfall-gorge', back: [-6, 293, 0] }],
+    doors: [
+      { from: 'base-camp', at: [-6, 308, Math.PI], to: 'veilfall-reach', back: [-6, 293, 0] },
+      // The Stair of Roots: up through the root arch, and back down.
+      { from: 'veilfall-reach', at: [3.5, 35, 2.648], to: 'hollow-heights', back: [15.9, 11.9, 2.648 - Math.PI] }
+    ],
     soon: { zone: 'base-camp', at: [4, 386, 0] },
     services: {},
-    chase: { zone: 'mistfall-gorge', kind: 'gnarlhorn' },
-    fall: { home: 'base-camp', away: 'mistfall-gorge' },
-    leak: { a: 'base-camp', b: 'mistfall-gorge', door: 0 }
+    chase: { zone: 'hollow-heights', kind: 'gnarlhorn' },
+    fall: { home: 'base-camp', away: 'hollow-heights' },
+    leak: { a: 'veilfall-reach', b: 'hollow-heights', door: 1 },
+    split: true
   },
   {
     id: 'kithvale',
@@ -90,7 +96,7 @@ export async function run(browser, { only = null } = {}) {
       // Every door and back.
       for (const [i, d] of G.doors.entries()) {
         if ((await ev((g) => window[g].zone.id, n)) !== d.from) await ev(([g, z]) => window[g].zones.travel(z, 'default'), [n, d.from]).then(() => zoneIs(d.from));
-        const there = await walkThrough(d.at, d.to, { midShot: i === 0 ? `${n}-portal-mid` : null });
+        const there = await walkThrough(d.at, d.to, { midShot: i === 0 ? `${n}-portal-mid` : i === 1 ? `${n}-portal-mid-2` : null });
         t.check(`${n}: through ${d.from} → ${d.to}`, there);
         if (!there) continue;
         const trip = await ev((g) => window[g].zones.trips.at(-1), n);
@@ -108,8 +114,67 @@ export async function run(browser, { only = null } = {}) {
         t.check(`${n}: ${d.to}'s hub reached, its waystone awake`, reached);
         t.check(`${n}: back ${d.to} → ${d.from}`, await walkThrough(d.back, d.from));
       }
+      // Wyldhunt's gorge, split at the Stair of Roots: the hunt carries across it.
+      if (G.split) {
+        // Tracked below the stair, the scout flies lead up the path to the root arch.
+        await ev(([g, z]) => window[g].zone.id === z || window[g].zones.travel(z, 'default'), [n, 'veilfall-reach']);
+        await zoneIs('veilfall-reach');
+        const way = await ev((g) => {
+          const w = window[g];
+          w.teleport(-8, 150, Math.PI);
+          w.tracker.found = 3;
+          w.trackState.found = 3;
+          const lead = w._huntWay(w.hunter.pos);
+          return lead && { x: lead.x, z: lead.z, door: lead.door.id, track: w._track() };
+        }, n);
+        t.check(`${n}: tracked in Veilfall Reach, the scout flies lead up the path to the Stair of Roots`, way?.door === 'root-stair' && way.z < 150, JSON.stringify(way));
+        // Riding through the arch: you arrive in the saddle, the party with you; tracking carries over.
+        await go([3.5, 35, 2.648]);
+        await ev((g) => {
+          const w = window[g];
+          const b = w.mount.brain;
+          b.state = 'waiting';
+          b.x = w.hunter.pos.x;
+          b.z = w.hunter.pos.z;
+          b.yaw = w.hunter.yaw;
+          w.mountUp();
+        }, n);
+        await page.evaluate((g) => window[g].root.focus(), n);
+        await page.keyboard.down('KeyW');
+        const rode = await until(page, (g) => window[g].mode === 'travel', n, 15000);
+        await page.keyboard.up('KeyW');
+        t.check(`${n}: ridden through the Stair of Roots, you arrive riding in the Hollow Heights`, rode && (await zoneIs('hollow-heights')) && (await ev((g) => window[g].riding && window[g].tracker.tracked && window[g].companions.list.length === 2, n)));
+        await ev((g) => window[g].riding && window[g].dismount(), n);
+        // The Gnarlhorn's wounds and a broken horn are still there when you come back up.
+        const before = await ev((g) => {
+          const w = window[g];
+          const m = w.monster;
+          m.brain.hp = Math.round(m.brain.maxHp * 0.55);
+          m.broken.push('head');
+          m.view.breakPart('head');
+          return { hp: m.brain.hp, broken: [...m.broken] };
+        }, n);
+        await ev((g) => window[g].zones.travel('veilfall-reach', 'stair'), n);
+        await zoneIs('veilfall-reach');
+        await ev((g) => window[g].zones.travel('hollow-heights', 'stair'), n);
+        await zoneIs('hollow-heights');
+        const after = await ev((g) => ({ hp: window[g].monster.brain.hp, broken: [...window[g].monster.broken], horns: window[g].monster.view.hidden.head }), n);
+        t.check(`${n}: the Gnarlhorn keeps its wounds and broken horns across the stair (${before.hp} → ${after.hp} hp)`, after.hp === before.hp && after.broken.includes('head') && after.horns, JSON.stringify({ before, after }));
+        // Kestrel Lookout, the new hub: safe, all seven services.
+        const lk = await ev(async (g) => {
+          const w = window[g];
+          const h = w.zone.hub;
+          w.teleport(h.x, h.z, 0);
+          await new Promise((r) => setTimeout(r, 500));
+          return { name: h.name, safe: w.isSafe(), services: Object.keys(h.services).length, waystone: w.zoneSave.hubs.includes(h.id) };
+        }, n);
+        t.check(`${n}: ${lk.name} is a safe hub with every service and a waystone`, lk.safe && lk.services === 7 && lk.waystone, JSON.stringify(lk));
+        await shot(page, `${n}-hub-lookout`);
+      }
+
       // A "coming soon" door says so and stays shut.
       if (G.soon) {
+        if ((await ev((g) => window[g].zone.id, n)) !== G.soon.zone) await ev(([g, z]) => window[g].zones.travel(z, 'default'), [n, G.soon.zone]).then(() => zoneIs(G.soon.zone));
         await go(G.soon.at);
         await page.keyboard.down('KeyW');
         await page.waitForTimeout(1600);
@@ -261,10 +326,15 @@ export async function run(browser, { only = null } = {}) {
         const { a, b } = G.leak;
         await ev(([g, z]) => window[g].zone.id === z || window[g].zones.travel(z, 'default'), [n, a]);
         await zoneIs(a);
+        // One trip first, so both counts are taken at the same arrival, the same things in view.
+        await ev(([g, z]) => window[g].zones.travel(z, 'default'), [n, b]);
+        await zoneIs(b);
+        await ev(([g, z]) => window[g].zones.travel(z, 'default'), [n, a]);
+        await zoneIs(a);
         await page.waitForTimeout(1500);
         const mem = () => ev((g) => ({ ...window[g].renderer.info.memory, programs: window[g].renderer.info.programs?.length ?? 0 }), n);
         const m0 = await mem();
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 5; i++) {
           await ev(([g, z]) => window[g].zones.travel(z, 'default'), [n, b]);
           await zoneIs(b);
           await ev(([g, z]) => window[g].zones.travel(z, 'default'), [n, a]);
@@ -272,7 +342,7 @@ export async function run(browser, { only = null } = {}) {
         }
         await page.waitForTimeout(1500);
         const m1 = await mem();
-        t.check(`${n}: after 3 round trips GPU memory is back (${m0.geometries}→${m1.geometries} geometries, ${m0.textures}→${m1.textures} textures)`, m1.geometries <= m0.geometries * 1.1 + 4 && m1.textures <= m0.textures * 1.1 + 2, JSON.stringify({ m0, m1 }));
+        t.check(`${n}: after 5 round trips GPU memory is back (${m0.geometries}→${m1.geometries} geometries, ${m0.textures}→${m1.textures} textures)`, m1.geometries <= m0.geometries + 4 && m1.textures <= m0.textures + 1, JSON.stringify({ m0, m1 }));
       }
       t.check(`${n}: the console stays clean`, errors.length === 0, errors.slice(0, 5).join(' | '));
     } catch (err) {

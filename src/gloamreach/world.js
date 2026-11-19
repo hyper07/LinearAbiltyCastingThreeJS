@@ -8,7 +8,7 @@
  * as it goes and returns the pieces the game drives each frame.
  */
 import * as THREE from 'three';
-import { ROADS, ELDER_TREES, GLOAM_GIANTS, ROOT_HOUSES, BUILDINGS, STALLS, WELL, SIGNPOST, FENCES, LANTERNS, GATE, OVERLOOK, EXTENT, scatterTrees, gloamAt, isClear, footprint } from './map.js';
+import { ROADS, ELDER_TREES, GLOAM_GIANTS, ROOT_HOUSES, BUILDINGS, STALLS, WELL, SIGNPOST, FENCES, LANTERNS, GATE, OVERLOOK, EXTENT, CLIFF_X, scatterTrees, gloamAt, isClear, footprint } from './map.js';
 import { CollisionWorld } from './collide.js';
 import { heightGrid, splatMaps, splatTextures, heightTexture, terrainMaterial, Terrain, LAYERS, ponds } from './terrain.js';
 import { heightAt } from './heights.js';
@@ -325,11 +325,61 @@ export async function buildWorld({ renderer, bank, settings, zone = null, onProg
   /* ---------------------------------------------------------- the rift floor */
   if (rift) {
     await step('Cooling the basalt', 0.54);
-    // Light thrown up from the lava onto everything (the cliff shades the floor from the low sun).
-    const fill = new THREE.HemisphereLight('#8a7088', '#ff7a32', 1.1);
+    // Light thrown up from the lava onto everything (the cliff shades the floor from the low sun):
+    // a soft fill (dusky sky above, ember-warm below), and the lava's bounce — a warm, shadowless light
+    // from low in the east and south, where the rivers of fire run, that catches the cliff's face and
+    // everything turned toward the lava, but not the tops of things (so the ash floor stays dark and matte).
+    const fill = new THREE.HemisphereLight('#9a8094', '#ff8a42', 1.3);
     scene.add(fill);
+    const bounce = new THREE.DirectionalLight('#ff7436', 1.5);
+    bounce.position.set(RIFT.outpost.x + 60, -98, RIFT.outpost.z + 26);
+    bounce.target.position.set(RIFT.outpost.x - 30, -64, RIFT.outpost.z - 4);
+    bounce.castShadow = false;
+    scene.add(bounce, bounce.target);
     // Warm light from the lava near where you walk.
     for (const p of lavaLights()) pool.add(new THREE.Vector3(p.x, -74, p.z), { color: '#ff6a1a', intensity: 22, distance: 34, flicker: 0.25, glow: 0, glowSize: 0 });
+    // Embers along the cliff's foot: beds of coals in the ash, glowing and breathing, a little light each.
+    const coals = [];
+    const er = (() => {
+      let a = 977;
+      return () => ((a = (a * 16807) % 2147483647) / 2147483647);
+    })();
+    for (let z = RIFT.region.z0 + 8; z < RIFT.region.z1 + 4; z += 11 + er() * 8) {
+      // Find the foot: the first walkable ground east of the cliff.
+      let x = CLIFF_X + 4;
+      while (x < CLIFF_X + 30 && (riftOutside(x, z) > -1 || Math.abs(H(x + 1, z) - H(x - 1, z)) > 1.2)) x += 0.7;
+      x += 1 + er() * 3;
+      if (lavaAt(x, z) > 0.05 || Math.hypot(x - RIFT.stair.x, z - RIFT.stair.z) < 6) continue;
+      const y = H(x, z);
+      pool.add(new THREE.Vector3(x, y + 0.5, z), { color: '#ff5a1c', intensity: 7, distance: 11, flicker: 0.45, glow: 0.9, glowSize: 1.1 });
+      for (let k = 0; k < 9; k++) {
+        const a = er() * Math.PI * 2;
+        const d = er() * 1.6;
+        const cx = x + Math.cos(a) * d;
+        const cz = z + Math.sin(a) * d;
+        coals.push([cx, H(cx, cz), cz, 0.07 + er() * 0.11, er() * 6]);
+      }
+    }
+    if (coals.length) {
+      const geo = new THREE.DodecahedronGeometry(1, 0);
+      const coalMat = new THREE.MeshStandardMaterial({ color: '#1e120c', roughness: 0.9, emissive: new THREE.Color('#d8380c'), emissiveIntensity: 1.1 });
+      const mesh = new THREE.InstancedMesh(geo, coalMat, coals.length);
+      const m = new THREE.Matrix4();
+      const q = new THREE.Quaternion();
+      coals.forEach(([x, y, z, sz, rot], i) => {
+        q.setFromEuler(new THREE.Euler(rot, rot * 1.7, 0));
+        m.compose(new THREE.Vector3(x, y - sz * 0.15, z), q, new THREE.Vector3(sz, sz * 0.55, sz));
+        mesh.setMatrixAt(i, m);
+      });
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      world.updaters.push((dt, t) => (coalMat.emissiveIntensity = 0.95 + 0.35 * Math.sin(t * 1.7) * Math.sin(t * 0.63 + 1)));
+      world.disposers.push(() => {
+        geo.dispose();
+        coalMat.dispose();
+        mesh.dispose();
+      });
+    }
     // The outpost: crates, barrels and a watch-fire's light.
     const O = RIFT.outpost;
     const ring = (n, rad, off = 0) => Array.from({ length: n }, (_, i) => {

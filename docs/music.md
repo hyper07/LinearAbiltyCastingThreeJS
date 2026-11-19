@@ -59,7 +59,7 @@ and each game's `music` — a `GameMusic`):
 | Game | Where (calm) | Fight | Boss | Stingers | Mute |
 | --- | --- | --- | --- | --- | --- |
 | Gloamreach | `title` on the start screen; `village` among Brindlewick's houses, `meadow` in the fields and at the overlook, `night-forest` in the Gloamwood (and where its dusk is thick), `frozen-fortress` on the drake's ledge | `battle` | `boss` (Cindermaw) | `victory` (boss or elite down), `defeat`, `level-up`, `discovery` (a chest, a legendary drop) | Sound |
-| Wyldhunt | `jungle` | `jungle-hunt` (the pair, in step) | `boss` while the Gnarlhorn rages | `victory` (slain), `discovery` (a part breaks), `defeat` (you faint) | Sound |
+| Wyldhunt | by zone (`wyldhuntTrack`): `village` at Lantern Camp, `jungle` down Veilfall Reach and in the Hollow Heights, `jungle-hunt` as the bed up in the Heights once the Gnarlhorn is tracked and within 140 m; it carries on through a gate when the next zone's rule gives the same track | `jungle-hunt` (the pair, in step) | `boss` while the Gnarlhorn rages | `victory` (slain), `discovery` (a part breaks), `defeat` (you faint) | Sound |
 | Kithvale | `lantern-valley` in Lanternrest and at dusk, `meadow` out in the vale by day (softer under the trust moment) | — | — | `discovery` when a creature joins | Sound |
 | Kindlewatch | `frozen-fortress` | `battle` | `boss` (Hrimgar, in the throne room) | `victory`, `defeat`, `level-up` (a beacon lit) | the pause menu's Sound |
 | AI Arcademia | `playful`, at 40 % under a lesson | — | — | `level-up` (stars, a level, a floor, a puzzle boss), `discovery` (a chest, a sticker); the old fanfare when the music is off | Sound |

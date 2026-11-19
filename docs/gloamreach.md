@@ -31,6 +31,9 @@ the first of a series; later games add to this world.
 Warden's Gate's tunnel, its far end a swirling veil) and **the Cinder Rift**, walkable now: down
 the stair to **Ashward Outpost** at the cliff's foot, across the basalt floor between the rivers
 of lava (nothing steps into them), to **Emberfall Ledge**, where Cindermaw and Grummoch wait.
+Down there the lava lights everything from below: a warm bounce off the rivers catches the cliff's
+face and whatever is turned toward the fire, beds of coals glow along the cliff's foot, and a dusky
+fill keeps the shadows readable.
 Each zone has a safe **hub** — Brindlewick Square, the Keepers' Grove at the Gloamwood's mouth,
 Ashward Outpost — with a map board (the World tab), notices, a stash, a stand showing your hero
 in their gear, a merchant (Dorrin, Ysolde, Varra: buy, sell, refill potions), a bed (the Gilded

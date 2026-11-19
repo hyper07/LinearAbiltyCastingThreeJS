@@ -214,14 +214,15 @@ export const DEN = { x: -86, z: -236, r: 16, name: 'Old Throne Hollow' };
 export const MONSTER_AREAS = [
   { id: 'basin', x: 10, z: -312, r: 26 },
   { id: 'den', x: DEN.x + 10, z: DEN.z + 4, r: 12 },
-  { id: 'ford', x: -40, z: 150, r: 20 },
-  { id: 'meadow', x: 24, z: 6, r: 24 },
+  // It drinks in the shallows below its den now (the ford is below the Stair of Roots, another zone).
+  { id: 'shallows', x: -20, z: -192, r: 12 },
+  { id: 'meadow', x: 34, z: -30, r: 20 },
   { id: 'fern', x: 50, z: -124, r: 14 }
 ];
 
 /** Herds of velvetbucks and the thornskitter nests. */
 export const HERDS = [
-  { x: 28, z: 18, r: 18, n: 6 },
+  { x: 40, z: -34, r: 15, n: 6 },
   { x: -72, z: 176, r: 12, n: 5 },
   { x: -48, z: -192, r: 12, n: 4 }
 ];
@@ -262,9 +263,9 @@ export function areaAt(x, z) {
  * item a few times before it is spent (it grows back after a while).
  */
 export const NODES = [
-  ['herb', 14, 318], ['herb', -18, 248], ['herb', -36, 190], ['herb', -44, 134], ['herb', 6, 30], ['herb', 44, 8], ['herb', 18, -118], ['herb', -36, -178], ['herb', -30, -300], ['herb', -10, 330],
+  ['herb', 14, 318], ['herb', -18, 248], ['herb', -36, 190], ['herb', -44, 134], ['herb', -12, 40], ['herb', 44, 8], ['herb', 18, -118], ['herb', -36, -178], ['herb', -30, -300], ['herb', -10, 330],
   ['ore', -24, 274], ['ore', -70, 170], ['ore', 30, -36], ['ore', -6, -152], ['ore', -40, -250], ['ore', 44, -330],
-  ['bug', -26, 292], ['bug', -46, 96], ['bug', 54, 30], ['bug', 6, -150], ['bug', -24, -320],
+  ['bug', -26, 292], ['bug', -46, 96], ['bug', 50, 42], ['bug', 6, -150], ['bug', -24, -320],
   ['bone', -30, 214], ['bone', 46, -30], ['bone', -74, -228], ['bone', -60, -244], ['bone', -4, -280]
 ].map(([kind, x, z], i) => ({ id: `${kind}${i}`, kind, x, z }));
 

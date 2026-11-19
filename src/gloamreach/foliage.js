@@ -382,7 +382,9 @@ export class Foliage {
       l.geo.dispose();
       for (const m of l.mats) m.dispose();
     }
+    // Both live only in the placement shaders' uniforms (a closure the zone's dispose walk can't see).
     this.flowers.dispose();
+    this.petal.dispose();
   }
 }
 

@@ -286,10 +286,10 @@ export class GloamreachGame {
     // The hero: made the first time, moved in after.
     if (!this.heroActor) this.setHero(this.picked);
     else this._rehome();
+    this.minimapCanvas = paintMap(world.grid, world.scattered, { keep: world.keep, lava: world.rift ? lavaAt : null });
     this._buildHub(zone);
     this._buildDoors(zone);
     this._armsStall();
-    this.minimapCanvas = paintMap(world.grid, world.scattered, { keep: world.keep, lava: world.rift ? lavaAt : null });
     if (this.minimap) {
       this.minimap.map = this.minimapCanvas;
       this.minimap.extent = world.extent;
@@ -381,7 +381,7 @@ export class GloamreachGame {
     const blocked = (x, z) => !this.world.colliders.walkable(x, z, x, z) || this.world.colliders.pushOut(x, z, 0.6)[0] !== x || nearestRoad(x, z).d < 0.5;
     // Brindlewick rests at the inn; every Gloamreach hub's merchant is a person with a stall or a pack.
     const skip = zone.id === 'brindlewick' ? ['rest', 'merchant'] : ['merchant'];
-    const kit = hubKit({ hub, height: H, color: hub.color, skip, blocked, label: zone.name });
+    const kit = hubKit({ hub, height: H, color: hub.color, style: 'timber', skip, blocked, label: zone.name, sub: hub.name, mapImage: this.minimapCanvas, mapExtent: this.world.extent, reached: () => this.zoneSave.hubs.includes(hub.id) });
     this.scene.add(kit.group);
     for (const c of kit.colliders) this.world.colliders.circle(c.x, c.z, c.r, -100, 4);
     this.hubProps = kit;
@@ -558,6 +558,12 @@ export class GloamreachGame {
       return;
     }
     if (id === 'stash') {
+      // The chest's lid swings open while you use it.
+      this.hubProps?.setChest?.(true);
+      hold.onClose = () => {
+        this.hubProps?.setChest?.(false);
+        this._mapClosed();
+      };
       const p = this.profile;
       const rules = { stack: (a, b) => Boolean(a.kind) && a.kind === b.kind, max: STACK_MAX, count: (e) => (e.kind ? e.n : 1), setCount: (e, n) => (e.n = n) };
       const lists = { bag: () => p.bag, stash: () => this.zoneSave.stash };
@@ -1268,7 +1274,7 @@ export class GloamreachGame {
       }
     }
     for (const d of this.doors ?? []) d.update(t);
-    this.hubProps?.update(t);
+    this.hubProps?.update(t, dt);
     if (this.mannequin) {
       this.mannequin.actor.move(0);
       this.mannequin.actor.update(dt);

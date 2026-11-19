@@ -9,7 +9,7 @@ import * as GR from '../../src/gloamreach/zones.js';
 import * as WH from '../../src/wyldhunt/zones.js';
 import * as KV from '../../src/kithvale/zones.js';
 import { EXTENT as GR_EXTENT } from '../../src/gloamreach/map.js';
-import { EXTENT as WH_EXTENT, NODES, HERDS, NESTS } from '../../src/wyldhunt/map.js';
+import { EXTENT as WH_EXTENT, NODES, HERDS, NESTS, MONSTER_AREAS, DEN } from '../../src/wyldhunt/map.js';
 import { EXTENT as KV_EXTENT, HABITATS, FORAGE, CACHES, BOULDERS } from '../../src/kithvale/map.js';
 import { spawnList } from '../../src/gloamreach/bestiary.js';
 import { CHESTS } from '../../src/gloamreach/chests.js';
@@ -173,6 +173,78 @@ test('save: migrations from each game\'s save before zones', () => {
   assert.equal(k.zone, 'lanternrest');
   assert.ok(has(k, 'vale', 'friends', 'tuftlet') && has(k, 'vale', 'nodes', 'cache:c1') && has(k, 'vale', 'nodes', 'boulder:b1') && has(k, 'vale', 'pois', 'hollow'));
   assert.equal(k.game.pouch.reduce((n, e) => n + e.n, 0), 2);
+});
+
+test('save: a Wyldhunt save from the single gorge maps onto Veilfall Reach and the Hollow Heights', () => {
+  const opts = { zones: WH.ZONES.map((z) => z.id), hubs: WH.HUB_IDS, stashSize: 24, upgrade: WH.upgradeSave };
+  const lower = NODES.find((n) => n.z > 100 && n.z < 300);
+  const upper = NODES.find((n) => n.z < -100);
+  const v1 = {
+    v: 1,
+    zone: 'mistfall-gorge',
+    at: { x: 12, z: -330, yaw: 0 },
+    lastHub: 'forward-camp',
+    hubs: ['lantern-camp', 'forward-camp'],
+    visited: ['base-camp', 'mistfall-gorge'],
+    zones: {
+      'base-camp': { chests: [], elites: [], bosses: [], nodes: [], friends: [], pois: ['camp'] },
+      'mistfall-gorge': { chests: [], elites: [], bosses: ['gnarlhorn@812'], nodes: [lower.id, upper.id], friends: [], pois: ['forward', 'colonnade', 'grandfall', 'meadow'] }
+    },
+    stash: [{ id: 'potion', n: 2 }],
+    flags: {},
+    game: { coins: 90 }
+  };
+  const s = parseZoneSave(JSON.stringify(v1), opts);
+  assert.ok(s, 'still read');
+  assert.equal(s.zone, 'hollow-heights', 'standing by the Grand Fall: the Heights');
+  assert.ok(has(s, 'veilfall-reach', 'nodes', lower.id) && has(s, 'hollow-heights', 'nodes', upper.id), 'each gathered spot in the zone that holds it');
+  assert.ok(!has(s, 'veilfall-reach', 'nodes', upper.id));
+  assert.ok(has(s, 'veilfall-reach', 'pois', 'forward') && has(s, 'veilfall-reach', 'pois', 'colonnade') && has(s, 'hollow-heights', 'pois', 'grandfall') && has(s, 'hollow-heights', 'pois', 'meadow'), 'places found, by where they are now');
+  assert.ok(has(s, 'hollow-heights', 'bosses', 'gnarlhorn@812'), 'hunts count where the beast lives');
+  assert.ok(has(s, 'base-camp', 'pois', 'camp'), 'other zones untouched');
+  assert.deepEqual([...s.visited].sort(), ['base-camp', 'hollow-heights', 'veilfall-reach']);
+  assert.equal(s.lastHub, 'forward-camp', 'the forward camp keeps its id: where you wake carries over');
+  assert.deepEqual(s.hubs, ['lantern-camp', 'forward-camp']);
+  assert.equal(s.game.coins, 90);
+  assert.ok(!('mistfall-gorge' in s.zones));
+  // Somewhere lower down (or nowhere known): the Reach; and a save already on the new layout passes as it is.
+  assert.equal(parseZoneSave(JSON.stringify({ ...v1, at: { x: -42, z: 160 } }), opts).zone, 'veilfall-reach');
+  assert.equal(parseZoneSave(JSON.stringify({ ...v1, at: null }), opts).zone, 'veilfall-reach');
+  const again = parseZoneSave(serializeZoneSave(s), opts);
+  assert.deepEqual(again.zones, s.zones);
+  const current = JSON.parse(serializeZoneSave(s));
+  assert.equal(WH.upgradeSave(current), current, 'nothing to do: the same object back');
+});
+
+test('wyldhunt: the gorge is split at the Stair of Roots — the gate, its arrivals, the Gnarlhorn in one zone', () => {
+  const reach = WH.zoneById('veilfall-reach');
+  const heights = WH.zoneById('hollow-heights');
+  const up = reach.portals.find((p) => p.to === 'hollow-heights');
+  const down = heights.portals.find((p) => p.to === 'veilfall-reach');
+  assert.ok(up && down, 'a door each way');
+  assert.ok(Math.hypot(up.x - WH.ROOTWALL.gate.x, up.z - WH.ROOTWALL.gate.z) < 4 && Math.hypot(down.x - WH.ROOTWALL.gate.x, down.z - WH.ROOTWALL.gate.z) < 4, 'both at the Root Stair');
+  assert.ok(up.z < WH.rootLine(up.x) && down.z > WH.rootLine(down.x), 'each just past the roots, on the far side');
+  const a = heights.spawns[up.arrive];
+  const b = reach.spawns[down.arrive];
+  assert.equal(WH.zoneAt(a.x, a.z), 'hollow-heights');
+  assert.equal(WH.zoneAt(b.x, b.z), 'veilfall-reach');
+  for (const z of [reach, heights]) {
+    const { w, d } = sizeOf(z.bounds);
+    assert.ok(w <= 300, `${z.id} is ${w} m wide`);
+    assert.ok(WH.zoneAt(z.hub.x, z.hub.z) === z.id, `${z.hub.name} stands in its zone`);
+  }
+  assert.ok(sizeOf(reach.bounds).d <= 300, 'the Reach is a medium map');
+  // The Gnarlhorn's haunts and den are all above the stair; the scout flies below lead to the way up.
+  for (const h of MONSTER_AREAS) assert.equal(WH.zoneAt(h.x, h.z), WH.HUNT_ZONE, h.id);
+  assert.equal(WH.zoneAt(DEN.x, DEN.z), WH.HUNT_ZONE);
+  assert.ok(heights.features.includes('hunt') && !reach.features.includes('hunt'));
+  assert.equal(reach.huntWay, up.id);
+  assert.equal(WH.zoneById('base-camp').huntWay, 'hunters-gate');
+  // The World view joins the three, and the coming-soon trail still leaves from the camp.
+  const g = zoneGraph(WH.ZONES);
+  assert.ok(g.links.some((l) => [l.a, l.b].sort().join() === 'hollow-heights,veilfall-reach' && l.both));
+  assert.ok(g.links.some((l) => [l.a, l.b].sort().join() === 'base-camp,veilfall-reach' && l.both));
+  assert.ok(g.links.some((l) => l.a === 'base-camp' && l.b === 'emberwilds' && l.soon));
 });
 
 /* ------------------------------------------------------------------ hub safety */

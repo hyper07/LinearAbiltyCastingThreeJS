@@ -210,17 +210,21 @@ export async function buildRuins(world, { bank }) {
   const stone = triplanarRock(sets, { splatB: world.splat.b, rain: (world.rainU ??= { value: 0 }) });
   const geos = [];
   const roots = [];
+  const keep = world.keep ?? (() => true);
   world.spots.pillarTops = [];
   for (const p of RUINS.pillars) {
+    if (!keep(p.x, p.z)) continue;
     const { top } = pillar(p, geos, roots);
     world.spots.pillarTops.push(top);
     world.colliders.circle(p.x, p.z, p.w * 0.85, -50, top.y + 1);
   }
   for (const c of RUINS.colossi) {
+    if (!keep(c.x, c.z)) continue;
     colossus(c, geos);
     world.colliders.circle(c.x, c.z, c.w * 0.95, -50, 200);
   }
   for (const a of RUINS.arches) {
+    if (!keep(a.x, a.z)) continue;
     const { half } = arch(a, geos, roots);
     for (const s of [-1, 1]) world.colliders.box(a.x + Math.cos(a.face) * s * (half + 0.9), a.z - Math.sin(a.face) * s * (half + 0.9), 0.95, 1.15, a.face, -50, 40);
   }
@@ -230,10 +234,14 @@ export async function buildRuins(world, { bank }) {
     const q = pointAt(PATH, s + 1.3);
     const h0 = heightAt(p.x, p.z);
     const h1 = heightAt(q.x, q.z);
-    if (h1 - h0 < 0.12) continue;
+    if (h1 - h0 < 0.12 || !keep(p.x, p.z)) continue;
     const g = block(4.2, 0.45, 1.5, Math.round(s * 7));
     g.applyMatrix4(new THREE.Matrix4().compose(V(p.x, h0 - 0.3, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, p.yaw, 0)), V(1, 1, 1)));
     geos.push(g);
+  }
+  if (!geos.length) {
+    stone.dispose();
+    return;
   }
   const merged = mergeGeometries(geos, false);
   for (const g of geos) g.dispose();
@@ -241,14 +249,18 @@ export async function buildRuins(world, { bank }) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   scene.add(mesh);
-  const bark = bank.bark(41, ['#1a1810', '#4a4838', '#7e7a62', '#3a5a22'], { mossy: 0.7, twist: 0.04 });
-  const rootMesh = new THREE.Mesh(mergeGeometries(roots, false), new THREE.MeshStandardMaterial({ map: bark.map, normalMap: bark.normalMap, roughness: 0.9, color: 0xa89880 }));
-  rootMesh.castShadow = true;
-  rootMesh.receiveShadow = true;
-  scene.add(rootMesh);
+  let rootMesh = null;
+  if (roots.length) {
+    const bark = bank.bark(41, ['#1a1810', '#4a4838', '#7e7a62', '#3a5a22'], { mossy: 0.7, twist: 0.04 });
+    rootMesh = new THREE.Mesh(mergeGeometries(roots, false), new THREE.MeshStandardMaterial({ map: bark.map, normalMap: bark.normalMap, roughness: 0.9, color: 0xa89880 }));
+    for (const g of roots) g.dispose();
+    rootMesh.castShadow = true;
+    rootMesh.receiveShadow = true;
+    scene.add(rootMesh);
+  }
   world.disposers.push(() => {
     merged.dispose();
-    rootMesh.geometry.dispose();
+    rootMesh?.geometry.dispose();
     stone.dispose();
   });
 }

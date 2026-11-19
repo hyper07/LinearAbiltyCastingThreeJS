@@ -9,16 +9,36 @@ choose a hunter, ride up the gorge, gather what grows, follow the tracks to the 
 bring it down — then carve it.
 
 **Mistfall Gorge** is a jungle canyon nearly a kilometre long, walled by stepped, mossy cliffs a
-hundred metres high and closed at both ends. It is played as **two zones** ([zones.md](zones.md)),
-one built at a time: **Lantern Camp**, the guild's base camp, a hub of its own behind a palisade
-of sharpened stakes, and **Mistfall Gorge**, the hunting ground, through the **Hunters' Gate**,
-with a **forward camp** at its mouth. A second trail south of the camp, **the Southern Trail**,
-waits for the next hunting ground (coming soon). Both camps are safe hubs: a map board or the
-map table (the World tab), the hunt board, a stash, a stand with your double in your armour and
-the hunter's sheet, the provisioner (coins for what you gather and carve; draughts, rations, a
-refill), the tent or a bedroll by a fire, and a waystone. The Gnarlhorn won't follow you inside;
-if you faint, your companions carry you to the last camp you rested at. The field bag, coins and
-the stash are kept between sessions now.
+hundred metres high and closed at both ends. It is played as **three zones** ([zones.md](zones.md)),
+one built at a time:
+
+- **Lantern Camp**, the guild's base camp, a hub of its own behind a palisade of sharpened stakes;
+- **Veilfall Reach**, the lower gorge, through the **Hunters' Gate**: the Green Cleft, the Drowned
+  Colonnade, the ford, Veilfall and the Root Gate, with the **forward camp** at its mouth;
+- **the Hollow Heights**, above the **Stair of Roots**: Velvet Meadow, Ropewalk Gorge, Fernspill,
+  Old Throne Hollow and the Grand Fall, with **Kestrel Lookout**, a hunters' watch-platform of
+  lashed bamboo, at the stair's head.
+
+The Reach and the Heights are joined where the roots of the giants above spill down the step in the
+canyon's floor from wall to wall: the old stone stair climbs through **the Root Stair**, an arch of
+two twisted roots with the gorge's mist swirling in it. A second trail south of the camp, **the
+Southern Trail**, waits for the next hunting ground (coming soon). Every camp is a safe hub: a map
+board or the map table (the World tab), the hunt board, a stash (its lid swings open while you use
+it), a stand with your double in your armour and the hunter's sheet, the provisioner (coins for what
+you gather and carve; draughts, rations, a refill), the tent or a bedroll by a fire, and a waystone
+(dim until you reach it, then its runes glow). The Gnarlhorn won't follow you inside; if you faint,
+your companions carry you to the last camp you rested at. The field bag, coins and the stash are
+kept between sessions now. Burrow and your companions come through every gate with you — ride
+through and you arrive in the saddle — and the music carries on unless the new zone's rule changes
+it.
+
+**The Gnarlhorn lives in the Hollow Heights**: its den and every haunt (the basin, the meadow, the
+shallows below its den, Fernspill) are above the stair. Below it, its old prints lie up the path;
+read three in Veilfall Reach and it is tracked: the scout flies lead up the path to the Stair of
+Roots (from Lantern Camp, to the Hunters' Gate), and the map marks the way. Tracking carries through the gates, and so does the hunt:
+leave the Heights and come back, and its wounds, its broken horns and a severed club where it fell
+are as you left them (it will have calmed down, and wandered off if it was by the stair). A slain
+Gnarlhorn is gone the next time you climb the stair; another has taken its place.
 
 - **Lantern Camp** at its mouth: a ridge tent of patched canvas on its guy ropes, a tarp over the
   map table, the supply box (it restocks your potions), a cooking fire, the guild's banner, a
@@ -27,8 +47,8 @@ the stash are kept between sessions now.
   road, some broken and tumbled, roots coiling down them; an arch over the road.
 - **The ford**, with stepping stones, and **Ropewalk Gorge**, where the river runs in a slot five
   metres deep under a rope bridge.
-- **The Stair of Roots**, an old stair up a step in the canyon floor, the river tumbling beside it,
-  through **the Root Gate**.
+- **The Stair of Roots**, an old stair up a step in the canyon floor, the river tumbling beside it
+  under the roots, past **the Root Gate** and up through the Root Stair's arch into the Heights.
 - **Velvet Meadow**, where the herds graze; **Fernspill** and **Veilfall**, falls off the walls;
   **Old Throne Hollow**, the Gnarlhorn's den, bones in a bay of the west wall.
 - **The Grand Fall**, a hundred and twenty metres high, and the colossi — stepped towers sixty
@@ -75,7 +95,7 @@ each gives a few times and grows back later. What you gather and carve goes in t
 up the gorge. Walk over three and it is tracked — the scout flies, a stream of green motes, lead
 to it from then on, and it shows on the minimap.
 
-**The Gnarlhorn** roams between its haunts (the basin, the meadow, the ford, Fernspill, its den),
+**The Gnarlhorn** roams between its haunts (the basin, the meadow, the shallows, Fernspill, its den),
 lingers, notices you, turns and roars — a roar that makes you cover your ears — and fights:
 bites, tail sweeps, charges, each wound up first. There is no health bar: it shows its wear (scars,
 a duller coat), its eyes burn and its breath steams when it is enraged, it limps when it is weak
@@ -109,7 +129,7 @@ it; `?debug` shows frame time, draw calls and triangles; `?rain=1` holds the sho
 | Part | File |
 | --- | --- |
 | The map as data · the land's height, water, bridge and surface · quality tiers · the cast · credits · the hunt's numbers (weapons, sharpness, hide, breaks, items, bag, gathering, carving, the weather's cycle) · the minds (monster, tracker, mount) — all pure, tested | `map.js` · `heights.js` · `quality.js` · `cast.js` · `credits.js` · `rules.js` · `brains.js` |
-| The zones (data, what belongs where, the provisioner's prices, the save) · the palisade and the Hunters' Gate | `zones.js` · `palisade.js` (framework: `src/shared/zones/`) |
+| The zones (data, what belongs where, the provisioner's prices, the save and its upgrade from the single gorge) · the palisade and the Hunters' Gate · the root wall and the Root Stair · Kestrel Lookout | `zones.js` · `palisade.js` · `rootwall.js` · `lookout.js` (framework: `src/shared/zones/`) |
 | The game: screens, loop, input, riding, interacting | `WyldhuntGame.js` |
 | Scene assembly · terrain · sky and light · water, falls, mist and shafts · plants · the jungle placed · ground cover · ruins · camp · rain | `world.js` · `terrain.js` · `sky.js` · `water.js` · `plants.js` · `flora.js` · `cover.js` · `ruins.js` · `camp.js` · `weather.js` |
 | Creature bodies, coats and fur · the mount · the Gnarlhorn · herds and thornskitters · companions | `beasts.js` · `mount.js` · `monster.js` · `wildlife.js` · `companions.js` |

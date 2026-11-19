@@ -338,7 +338,7 @@ export class KithvaleGame {
     const blocked = (x, z) => !this.world.colliders.walkable(x, z, x, z) || this.world.colliders.pushOut(x, z, 0.6)[0] !== x;
     // Lanternrest's teahouse and shop are its own; its walls and lanterns are its edge.
     const skip = zone.id === 'lanternrest' ? ['rest', 'merchant', 'stats'] : ['stats'];
-    const kit = hubKit({ hub, height: H, color: hub.color, skip, blocked, posts: hub.posts !== false, label: zone.name, wood: '#7a4a32', stone: '#8a7a6a' });
+    const kit = hubKit({ hub, height: H, color: hub.color, style: 'lacquer', skip, blocked, posts: hub.posts !== false, label: zone.name, sub: hub.name, mapImage: this.minimapCanvas, mapExtent: this.world.extent, reached: () => this.zoneSave.hubs.includes(hub.id) });
     this.scene.add(kit.group);
     for (const c of kit.colliders) this.world.colliders.circle(c.x, c.z, c.r, -100, 4);
     this.hubProps = kit;
@@ -492,6 +492,12 @@ export class KithvaleGame {
       return;
     }
     if (id === 'stash') {
+      // The chest's lid swings open while you use it.
+      this.hubProps?.setChest?.(true);
+      hold.onClose = () => {
+        this.hubProps?.setChest?.(false);
+        this._mapClosed();
+      };
       const commit = (slots) => {
         G.pouch = uncarry(slots, sat);
         this.refreshHud();
@@ -1540,6 +1546,8 @@ export class KithvaleGame {
     shared.uWind.value.set(0.8, 0.5, 0.75, 0.3 + 0.3 * Math.sin(t * 0.13));
     const focus = this.player.pos;
     const mood = world.update(dt, t, this.camera, focus, this.hour);
+    for (const d of this.doors ?? []) d.update(t);
+    this.hubProps?.update(t, dt);
     this.heartsFrame(dt);
     // Sound by place and hour.
     const dark = THREE.MathUtils.smoothstep(Math.abs(((this.hour - 12 + 24) % 24) - 12), 4.8, 6.6);

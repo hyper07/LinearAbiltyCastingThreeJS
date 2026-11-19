@@ -38,7 +38,7 @@ export const TRACK_TITLES = Object.freeze({
 /** The tracks (beds, then stingers) each game plays: its Credits panel lists these. */
 export const GAME_TRACKS = Object.freeze({
   gloamreach: ['title', 'village', 'meadow', 'night-forest', 'frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up', 'discovery'],
-  wyldhunt: ['jungle', 'jungle-hunt', 'boss', 'victory', 'defeat', 'discovery'],
+  wyldhunt: ['jungle', 'jungle-hunt', 'village', 'boss', 'victory', 'defeat', 'discovery'],
   kithvale: ['lantern-valley', 'meadow', 'discovery'],
   kindlewatch: ['frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up'],
   arcademia: ['playful', 'level-up', 'discovery'],
@@ -146,6 +146,19 @@ export function gloamreachTrack({ area, x = 0, z = 0, gloam = 0 }) {
   // The houses stand within ~75 m of the square (map.js PLAZA at 1, 2); past them, the fields.
   if (area === 'village' && Math.hypot(x - 1, z - 2) < 80) return 'village';
   return 'meadow';
+}
+
+/**
+ * Wyldhunt, zone by zone: the Warm Hearth at Lantern Camp, Over the Falls
+ * down Veilfall Reach and up in the Hollow Heights — until the Gnarlhorn is
+ * tracked there and near (`hunting`), when the Gorge Hunt takes over the bed
+ * (the pair crossfades in step). Zones without a rule of their own play the
+ * gorge's. The fights' moods (the Gorge Hunt, Crown of Cinders) ride on top.
+ */
+export function wyldhuntTrack({ zone, hunting = false }) {
+  if (zone === 'base-camp') return 'village';
+  if (zone === 'hollow-heights' && hunting) return 'jungle-hunt';
+  return 'jungle';
 }
 
 /**

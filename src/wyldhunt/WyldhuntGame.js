@@ -30,14 +30,16 @@ import { PowerKit } from '../shared/powerKit.js';
 import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
 import { WaypointBeam } from '../shared/waypointBeam.js';
 import { HelpPanel, helpButton, codesFor } from '../shared/helpPanel.js';
-import { GameMusic, musicMenu } from '../shared/gameMusic.js';
+import { GameMusic, musicMenu, wyldhuntTrack } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
 import { powerSettings } from '../shared/power.js';
-import { START, FALLS, CAMP, PATH, DEN, MONSTER_AREAS, AREAS, NODES, areaAt, nearestOnLine, pointAt } from './map.js';
+import { START, FALLS, CAMP, PATH, DEN, MONSTER_AREAS, AREAS, NODES, HERDS, NESTS, areaAt, nearestOnLine, pointAt } from './map.js';
 import { poolLevel, canyonAt, slopeAt, groundAt, waterAt, riverDistance, surfaceAt, pathDistance } from './heights.js';
 import { buildPalisade } from './palisade.js';
 import { zoneGrid } from './world.js';
-import { ZONES, ZONE_SAVE_KEY, HUB_IDS, inZone, migrateLegacy, cleanHunter, SELL, BUY, sellAll, refill, toSlots, fromSlots } from './zones.js';
+import { ZONES, ZONE_SAVE_KEY, HUB_IDS, inZone, zoneAt, migrateLegacy, upgradeSave, cleanHunter, SELL, BUY, sellAll, refill, toSlots, fromSlots } from './zones.js';
+import { buildRootwall } from './rootwall.js';
+import { buildLookout } from './lookout.js';
 import { ZoneManager } from '../shared/zones/manager.js';
 import { loadZoneSave, writeZoneSave, counters } from '../shared/zones/state.js';
 import { arrivalAt, monsterRule } from '../shared/zones/hub.js';
@@ -183,8 +185,8 @@ export class WyldhuntGame {
     this.follow.assist = new CameraAssist(loadAssist('wyldhunt'), { id: 'wyldhunt' });
     this.follow.fovBase = 52;
     this.post = new Post(renderer);
-    // The world as zones (zones.js): the base camp and the gorge, one built at a time.
-    this.zoneSave = loadZoneSave(ZONE_SAVE_KEY, { migrate: () => migrateLegacy(this.prefs), zones: ZONES.map((z) => z.id), hubs: HUB_IDS, stashSize: BAG_SIZE, cleanItem: (e) => (e && ITEMS[e.id] && e.n > 0 ? { id: e.id, n: Math.min(ITEMS[e.id].stack, Math.floor(e.n)) } : null), cleanGame: cleanHunter });
+    // The world as zones (zones.js): the base camp, Veilfall Reach and the Hollow Heights, one built at a time.
+    this.zoneSave = loadZoneSave(ZONE_SAVE_KEY, { migrate: () => migrateLegacy(this.prefs), upgrade: upgradeSave, zones: ZONES.map((z) => z.id), hubs: HUB_IDS, stashSize: BAG_SIZE, cleanItem: (e) => (e && ITEMS[e.id] && e.n > 0 ? { id: e.id, n: Math.min(ITEMS[e.id].stack, Math.floor(e.n)) } : null), cleanGame: cleanHunter });
     this.bag = this.zoneSave.game.bag ?? newKit().bag;
     this.zoneSave.game.bag = this.bag;
     this.zoneSave.game.coins ??= 60;
@@ -248,7 +250,9 @@ export class WyldhuntGame {
         ['Growing the jungle', 0.4, buildFlora],
         ['Raising the ruins', 0.52, buildRuins, 'ruins'],
         ['Pitching the camp', 0.58, buildCamp, 'camp'],
-        ["Driving the palisade's stakes", 0.6, (world) => buildPalisade(world, { heightAt: groundAt }), 'palisade']
+        ["Driving the palisade's stakes", 0.6, (world) => buildPalisade(world, { heightAt: groundAt }), 'palisade'],
+        ['Twisting the Stair of Roots', 0.61, buildRootwall, 'rootwall'],
+        ['Lashing the lookout', 0.62, buildLookout, 'lookout']
       ]
     };
     this.world = await buildWorld({ renderer: this.renderer, bank: this.bank, settings: this.settings, parts, zone, onProgress: (l, k) => step(l, k * 0.6) });
@@ -272,20 +276,10 @@ export class WyldhuntGame {
       scene.add(this.fireLight);
     }
     this.tracks = new Tracks(scene, this.bank);
-    this.tracker = new Tracker();
     step('Waking the beasts', 0.64);
     this.mount = this.horseRig ? { brain: new MountBrain(), view: new Mount(this.horseRig, { scene, furLayers: this.settings.furShells }) } : null;
     if (this.mount) scene.add(this.mount.view.object);
-    this.monster = null;
-    if (zone.features.includes('hunt') && this.trexRig) {
-      this.monster = { brain: new MonsterBrain({ areas: MONSTER_AREAS, den: DEN, start: 0 }), view: new Gnarlhorn(this.trexRig, { furLayers: this.settings.furShells }), parts: {}, broken: [], carves: CARVES, tailCarves: 0, drops: [] };
-      scene.add(this.monster.view.object);
-      // Old sign along the path up the gorge, pointing north to its haunts.
-      for (const s of [205, 300, 395, 470]) {
-        const p = pointAt(PATH, s);
-        this.tracker.add(p.x + Math.cos(p.yaw) * 3, p.z - Math.sin(p.yaw) * 3, { yaw: p.yaw + Math.PI, kind: 'print' });
-      }
-    }
+    this._wakeHunt(zone, at);
     const detail = this.bank.noise();
     this.companions = new Companions({ scene, colliders: world.colliders, detail });
     this.wildlife = new Wildlife({ scene, colliders: world.colliders, detail, vfx: this.vfx, keep });
@@ -295,9 +289,9 @@ export class WyldhuntGame {
     this.follow.colliders = world.colliders;
     this.post.mist = FALLS.filter((f) => keep(f.pool.x, f.pool.z)).map((f) => ({ x: f.pool.x, y: poolLevel(f), z: f.pool.z, r: f.pool.r * (f.id === 'grand' ? 2.0 : 1.6), density: f.id === 'grand' ? 0.011 : 0.01, height: 0.5 }));
     this.setLook(this.picked);
+    this.minimapCanvas = paintMap(world.grid);
     this._buildHub(zone);
     this._buildDoors(zone);
-    this.minimapCanvas = paintMap(world.grid);
     if (this.hud) {
       this.hud.minimap.map = this.minimapCanvas;
       this.hud.minimap.extent = world.extent;
@@ -315,7 +309,17 @@ export class WyldhuntGame {
       b.z = hp ? hp.z : at.z - Math.sin(at.yaw ?? 0) * 4;
       b.yaw = (at.yaw ?? 0) + 1.4;
       b.y = groundAt(b.x, b.z);
+      // Ridden through the gate: you arrive in the saddle.
+      if (this._rideThrough) {
+        b.x = at.x;
+        b.z = at.z;
+        b.yaw = at.yaw ?? 0;
+        b.y = groundAt(at.x, at.z);
+        this.mountUp();
+        this.teleport(at.x, at.z, at.yaw ?? 0, { pitch: 0.2, dist: 7.2 });
+      }
     }
+    this._rideThrough = false;
     this.area = null;
     world.update(0.016, this.t, this.camera, this.hunter.pos);
     // Compile now (waiting for the GPU to finish, so a quick trip on doesn't pull programs out from under it).
@@ -336,6 +340,13 @@ export class WyldhuntGame {
     this.hubPanel?.close();
     if (this.worldMap?.isOpen) this.worldMap.close();
     this._vitals = this.combat ? { hp: this.combat.hp, sharp: this.combat.sharp } : null;
+    // The hunt goes on while you're away: its wounds, broken parts, a severed club where it fell.
+    const m = this.monster;
+    if (m && this.hunt) {
+      this.hunt.carves = m.carves;
+      this.hunt.tailCarves = m.tailCarves;
+      this.hunt.tailAt = m.tailPiece ? m.tailPiece.position.clone() : null;
+    }
     // Everything in the zone's scene first (a module's own dispose takes things out of the scene, and would hide them from this walk).
     if (this.scene) disposeTree(this.scene);
     this.combat?.dispose();
@@ -370,7 +381,7 @@ export class WyldhuntGame {
     const blocked = (x, z) => !this.world.colliders.walkable(x, z, x, z) || this.world.colliders.pushOut(x, z, 0.6)[0] !== x || pathDistance(x, z) < 2 || riverDistance(x, z).d < riverDistance(x, z).w + 1;
     // Lantern Camp's map table and tent are its own.
     const skip = zone.id === 'base-camp' ? ['map', 'rest'] : [];
-    const kit = hubKit({ hub, height: H, color: hub.color, skip, blocked, label: zone.name, wood: '#5a4430' });
+    const kit = hubKit({ hub, height: H, color: hub.color, style: 'bamboo', skip, blocked, label: zone.name, sub: hub.name, mapImage: this.minimapCanvas, mapExtent: this.world.extent, reached: () => this.zoneSave.hubs.includes(hub.id) });
     this.scene.add(kit.group);
     for (const c of kit.colliders) this.world.colliders.circle(c.x, c.z, c.r, -100, 4);
     this.hubProps = kit;
@@ -425,6 +436,7 @@ export class WyldhuntGame {
   }
 
   _tripStart() {
+    this._rideThrough = this.riding && this.mode === 'play';
     this._modeBefore = this.mode === 'menu' ? 'menu' : 'play';
     this.mode = 'travel';
     this.keys.clear();
@@ -443,7 +455,84 @@ export class WyldhuntGame {
   _entered(zone, via) {
     this.persistZones();
     if (via !== 'load' && this.hud) this.hud.banner(zone.name, zone.sub, { secs: 3 });
-    if (this.music && via !== 'load') this.music.jump('jungle', { fade: 2 });
+    // The music carries through a gate; it changes only if the new zone's rule says so (gameMusic.js).
+    const track = this._track();
+    if (this.music && via !== 'load' && track !== this.music.area.value) this.music.jump(track, { fade: 2.5 });
+  }
+
+  /** This zone's track (gameMusic.js wyldhuntTrack): the camp's hearth, the gorge, the hunt once it's tracked and near. */
+  _track(at = this.hunter?.pos) {
+    const b = this.monster?.brain;
+    const hunting = Boolean(b?.alive && this.tracker?.tracked && at && Math.hypot(b.x - at.x, b.z - at.z) < 140);
+    return wyldhuntTrack({ zone: this.zone?.id, hunting });
+  }
+
+  /**
+   * The Gnarlhorn: in the zone that has the hunt, the one you left (its wounds and broken parts kept)
+   * or a new one; elsewhere only its old prints up the path. Tracking carries between zones.
+   */
+  _wakeHunt(zone, at) {
+    const scene = this.scene;
+    if (this.hunt && !this.hunt.brain.alive) this.hunt = null;
+    if (!this.hunt) this.trackState = { found: 0, spotted: false, read: new Set() };
+    this.trackState ??= { found: 0, spotted: false, read: new Set() };
+    this.tracker = new Tracker();
+    this.tracker.found = this.trackState.found;
+    this.tracker.spotted = this.trackState.spotted;
+    this.monster = null;
+    // Old sign along the path up the gorge, pointing north to its haunts (the zone's own stretch, not yet read).
+    for (const s of [205, 245, 300, 330, 420, 470]) {
+      const p = pointAt(PATH, s);
+      const x = p.x + Math.cos(p.yaw) * 3;
+      const z = p.z - Math.sin(p.yaw) * 3;
+      if (!inZone(zone, x, z) || this.trackState.read.has(s)) continue;
+      this.tracker.add(x, z, { yaw: p.yaw + Math.PI, kind: 'print' }).sign = s;
+    }
+    if (!zone.features.includes('hunt') || !this.trexRig) return;
+    const fresh = !this.hunt;
+    this.hunt ??= { brain: new MonsterBrain({ areas: MONSTER_AREAS, den: DEN, start: 0 }), parts: {}, broken: [], carves: CARVES, tailCarves: 0, tailAt: null };
+    const H = this.hunt;
+    const view = new Gnarlhorn(this.trexRig, { furLayers: this.settings.furShells });
+    const m = { brain: H.brain, view, parts: H.parts, broken: H.broken, carves: H.carves, tailCarves: H.tailCarves, drops: [] };
+    this.monster = m;
+    scene.add(view.object);
+    if (fresh) return;
+    // Back again: what was broken stays broken; it has calmed down, and wandered off if it was by the stair.
+    for (const part of H.broken) {
+      const piece = view.breakPart(part);
+      if (part === 'tail' && piece && H.tailAt && H.tailCarves > 0) {
+        piece.position.copy(H.tailAt);
+        scene.add(piece);
+        m.tailPiece = piece;
+      }
+    }
+    const b = H.brain;
+    b.attack = null;
+    b.state = 'linger';
+    b.stateT = 0;
+    b.lingerFor = 6 + Math.random() * 8;
+    if (Math.hypot(b.x - at.x, b.z - at.z) < 70) {
+      const far = MONSTER_AREAS.filter((a) => Math.hypot(a.x - at.x, a.z - at.z) > 90);
+      const a = far[Math.floor(Math.random() * far.length)] ?? MONSTER_AREAS[0];
+      b.x = a.x;
+      b.z = a.z;
+      b.area = MONSTER_AREAS.indexOf(a);
+    }
+  }
+
+  /** Where the scout flies lead when the beast is tracked but lives in another zone: up the path to this zone's way there. */
+  _huntWay(p) {
+    if (this.monster || !this.tracker?.tracked || !this.zone?.huntWay) return null;
+    const door = this.zone.portals.find((d) => d.id === this.zone.huntWay);
+    if (!door) return null;
+    door._s ??= nearestOnLine(PATH, door.x, door.z).s;
+    const n = nearestOnLine(PATH, p.x, p.z);
+    if (n.d < 30) {
+      const s = door._s > n.s ? Math.min(door._s, n.s + 22) : Math.max(door._s, n.s - 22);
+      const q = pointAt(PATH, s);
+      if (Math.hypot(q.x - door.x, q.z - door.z) > 4) return { x: q.x, z: q.z, door };
+    }
+    return { x: door.x, z: door.z, door };
   }
 
   persistZones() {
@@ -509,7 +598,7 @@ export class WyldhuntGame {
         about: `${zone.hub.name} is safe ground: no beast crosses its lanterns and no blow lands inside. ${zone.portals.map((p) => `${p.name}: ${p.soon ? 'coming soon' : `to ${this.zones.zone(p.to)?.name}`}.`).join(' ')}`,
         counters: counters(this.zoneSave, zone.id, { nodes: nodes.length, bosses: zone.features.includes('hunt') ? 1 : 0, pois: zone.pois.length }),
         contents: [
-          { label: 'Quarry', items: zone.features.includes('hunt') ? [GNARLHORN.name, 'Thornskitters (nests)', 'Velvetbucks (herds)'] : [] },
+          { label: 'Quarry', items: [...(zone.features.includes('hunt') ? [GNARLHORN.name] : []), ...(NESTS.some((q) => inZone(zone, q.x, q.z)) ? ['Thornskitters (nests)'] : []), ...(HERDS.some((q) => inZone(zone, q.x, q.z)) ? ['Velvetbucks (herds)'] : [])] },
           { label: 'Gathering', items: [...new Set(nodes.map((n) => GATHER[n.kind].label))] },
           { label: 'Places', items: zone.pois.map((p) => (r?.pois?.includes(p.id) ? p.name : '?')) }
         ],
@@ -532,7 +621,7 @@ export class WyldhuntGame {
           ['Bow', 'Thornwood · three charge levels'],
           ['Draughts', `${count(this.bag, 'potion')} + ${count(this.bag, 'mega')} greater`],
           ['Coins', String(G.coins)],
-          ['Gnarlhorns hunted', String(this.zoneSave.zones['mistfall-gorge']?.bosses?.length ?? 0)]
+          ['Gnarlhorns hunted', String(Object.values(this.zoneSave.zones).reduce((n, r) => n + (r?.bosses?.length ?? 0), 0))]
         ],
         note: 'Your double on the stand wears what you wear.',
         ...hold
@@ -576,6 +665,12 @@ export class WyldhuntGame {
       return;
     }
     if (id === 'stash') {
+      // The chest's lid swings open while you use it.
+      this.hubProps?.setChest?.(true);
+      hold.onClose = () => {
+        this.hubProps?.setChest?.(false);
+        this._mapClosed();
+      };
       const rules = { stack: (a, b) => a.id === b.id, max: 99, count: (e) => e.n, setCount: (e, n) => (e.n = n) };
       const commit = (slots) => {
         this.bag.length = 0;
@@ -863,7 +958,7 @@ export class WyldhuntGame {
     this.mode = 'play';
     this.power.setMenu('none');
     this.area = null;
-    this.music.jump('jungle');
+    this.music.jump(this._track());
     this.root.focus();
     setTimeout(() => this.bark('start', true), 2500);
     this.help.openFirstTime();
@@ -884,6 +979,8 @@ export class WyldhuntGame {
     const m = this.monster;
     const p = this.hunter.pos;
     if (m && m.brain.alive !== false && (this.tracker.tracked || Math.hypot(m.brain.x - p.x, m.brain.z - p.z) < 50)) out.push({ x: m.brain.x, z: m.brain.z, shape: 'skull', color: '#ff6a4a', r: 1.4, label: 'Gnarlhorn' });
+    const way = this._huntWay(p);
+    if (way) out.push({ x: way.door.x, z: way.door.z, shape: 'skull', color: '#ff6a4a', r: 1.2, label: `Gnarlhorn — beyond ${way.door.name}` });
     return out;
   }
 
@@ -1404,7 +1501,7 @@ export class WyldhuntGame {
     this.nodes.update(dt, t, focus);
     const fire = world.spots.camp?.fire;
     for (const d of this.doors ?? []) d.update(t);
-    this.hubProps?.update(t);
+    this.hubProps?.update(t, dt);
     if (this.mannequin) {
       this.mannequin.actor.move(0);
       this.mannequin.actor.update(dt);
@@ -1461,7 +1558,7 @@ export class WyldhuntGame {
   musicFrame(dt, at) {
     const b = this.monster?.brain;
     const fight = Boolean(b) && !this.combat.dead && ['alert', 'engage', 'attack', 'stagger'].includes(b.state) && Math.hypot(b.x - at.x, b.z - at.z) < 90;
-    this.music.update(dt, { area: 'jungle', fight, boss: fight && Boolean(b.enraged) });
+    this.music.update(dt, { area: this._track(at), fight, boss: fight && Boolean(b.enraged) });
   }
 
   /** The mount: its mind and body; when ridden, the hunter sits the saddle. */
@@ -1499,7 +1596,8 @@ export class WyldhuntGame {
       input: { forward, steer, gallop: inp.sprint, jump: this.rideJump, auto: inp.auto },
       pathHeading,
       ground: (x, z) => groundAt(x, z),
-      walkable: (x, z) => slopeAt(x, z) < 0.72 && canyonAt(x, z).e < 2 && waterAt(x, z) - groundAt(x, z) < 1.1
+      // On the path it takes the old stair's steps too (they're steeper than the slopes it won't climb).
+      walkable: (x, z) => slopeAt(x, z) < (pathDistance(x, z) < 3 ? 0.95 : 0.72) && canyonAt(x, z).e < 2 && waterAt(x, z) - groundAt(x, z) < 1.1
     });
     this.rideJump = false;
     for (const e of ev) {
@@ -1562,7 +1660,7 @@ export class WyldhuntGame {
       const rule = monsterRule(this.zone, h.pos.x, h.pos.z);
       const ev = b.update(dt, {
         hunter: menu ? null : { x: h.pos.x, z: h.pos.z, alive: !this.combat.dead && rule.chase },
-        walkable: (x, z) => slopeAt(x, z) < 0.85 && canyonAt(x, z).e < -1 && waterAt(x, z) - groundAt(x, z) < 2.5 && !inHub(this.zone, x, z, 3)
+        walkable: (x, z) => slopeAt(x, z) < 0.85 && canyonAt(x, z).e < -1 && waterAt(x, z) - groundAt(x, z) < 2.5 && !inHub(this.zone, x, z, 3) && zoneAt(x, z) === this.zone.id
       });
       if (!menu) this.monsterEvents(ev);
       else for (const e of ev) if (e.type === 'track') this.tracker.add(e.x, e.z, { yaw: e.yaw });
@@ -1622,6 +1720,8 @@ export class WyldhuntGame {
       const mk = this.tracker.nearest(h.pos.x, h.pos.z, this.riding ? 3.5 : 2.6);
       if (mk) {
         const done = this.tracker.collect(mk);
+        if (mk.sign) this.trackState.read.add(mk.sign);
+        this.trackState.found = this.tracker.found;
         this.hud?.log('gnarlScale', 1, done ? 'Tracked!' : `Footprint ${this.tracker.found}/${TRACK_GOAL}`);
         this.sfx.pickup('uncommon');
         if (done) {
@@ -1630,7 +1730,9 @@ export class WyldhuntGame {
         } else this.bark('track');
       }
     }
-    const lead = this.tracker.lead(h.pos.x, h.pos.z, m?.brain.alive ? m.brain : null);
+    this.trackState.spotted = this.tracker.spotted;
+    // Tracked, but it lives in another zone: the flies lead up the path to the way there.
+    const lead = this.tracker.lead(h.pos.x, h.pos.z, m?.brain.alive ? m.brain : this._huntWay(h.pos));
     this.tracks.update(dt, this.t, h.pos, lead, Boolean(lead && Math.hypot(lead.x - h.pos.x, lead.z - h.pos.z) < 20));
     // Spent gathering spots grow back.
     for (const n of this.nodes.list) if (regrow(n, n.kind, dt)) this.nodes.setSpent(n, false);
@@ -1793,6 +1895,8 @@ export class WyldhuntGame {
       for (const c of this.companions.list) dots.push({ x: c.x, z: c.z, kind: 'ally', color: c.c.color });
       if (this.mount && !this.riding && this.mount.brain.state !== 'away') dots.push({ x: this.mount.brain.x, z: this.mount.brain.z, kind: 'mount' });
       if (m && (this.tracker.tracked || Math.hypot(m.brain.x - p.x, m.brain.z - p.z) < 50)) dots.push({ x: m.brain.x, z: m.brain.z, kind: 'monster' });
+      const way = this._huntWay(p);
+      if (way) dots.push({ x: way.door.x, z: way.door.z, kind: 'monster' });
       for (const mk of this.tracker.marks) if (!mk.found) dots.push({ x: mk.x, z: mk.z, kind: 'track' });
       if (this.waypoint?.point) dots.push({ x: this.waypoint.point.x, z: this.waypoint.point.z, kind: 'pin', color: '#ff5ad9' });
       const yaw = this.riding ? this.mount.brain.yaw : h.yaw;
@@ -1843,8 +1947,9 @@ export class WyldhuntGame {
     return pointAt(PATH, s);
   }
 
-  /** The cover shot: riding up the old stair through the colonnade, toward the Root Gate. */
-  coverShot() {
+  /** The cover shot: riding up the old stair through the colonnade, toward the Root Gate (in Veilfall Reach). */
+  async coverShot() {
+    if (this.zone?.id !== 'veilfall-reach') await this.zones.travel('veilfall-reach', { x: 2, z: 60, yaw: Math.PI * 1.1 }, { via: 'load', cover: false });
     const b = this.mount.brain;
     b.state = 'waiting';
     b.x = 2;
@@ -1854,7 +1959,7 @@ export class WyldhuntGame {
     this.keys.add('KeyR');
     this.weatherT = 10;
     // The beast asleep in its den, out of the picture.
-    this.placeMonster(DEN.x, DEN.z, 0.5, 'linger');
+    if (this.monster) this.placeMonster(DEN.x, DEN.z, 0.5, 'linger');
   }
 
   /** Put the monster somewhere, in a state (for shots and tests). */

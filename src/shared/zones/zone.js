@@ -65,7 +65,7 @@ export const inShape = (p, x, z) => shapeDistance(p, x, z) <= 0;
 
 /** Fill in defaults and freeze nothing: a zone ready for the manager and the checks. */
 export function defineZone(d) {
-  if (d.stub) return { id: d.id, name: d.name ?? 'Coming soon', sub: d.sub ?? '', stub: true, theme: d.theme ?? 'mist', portals: [], pois: [], spawns: {}, story: { hooks: [] } };
+  if (d.stub) return { id: d.id, name: d.name ?? 'Coming soon', sub: d.sub ?? '', stub: true, theme: d.theme ?? 'mist', world: d.world ?? null, portals: [], pois: [], spawns: {}, story: { hooks: [] } };
   const z = {
     theme: 'golden',
     terrain: {},

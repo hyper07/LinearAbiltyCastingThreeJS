@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { riftAt } from './heights.js';
+import { riftHeight } from './rift.js';
 import { CLIFF_X } from './map.js';
 import { rng } from './noise.js';
 import { characterLoader } from '../library/characters.js';
@@ -98,7 +99,9 @@ export class Vista {
       const x = pos.getX(i);
       const z = pos.getZ(i);
       const { h, lava: l } = riftAt(x, z);
-      pos.setY(i, h);
+      // Down in the rift the walkable ground is smoother than this coarse floor: keep the floor's rock
+      // under it (it showed through as dark wedges), so only the lava's channels come up through it.
+      pos.setY(i, this.inRift && l < 0.35 && x > CLIFF_X + 2 ? Math.min(h, riftHeight(x, z) - 0.4) : h);
       lavaA[i] = l;
     }
     geo.setAttribute('aLava', new THREE.BufferAttribute(lavaA, 1));
