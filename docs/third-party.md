@@ -87,4 +87,5 @@ Kept in `vendor/` with each licence beside it, and searched with `npm run kb` �
 | [diorama](https://github.com/sloemo01/diorama) | Pixel-art and toon shader passes, procedural people, guides | MIT |
 | [last-stand](https://github.com/VictorZakharov/last-stand) | Reference code: flow-field navigation, cloth, crowds, light pool, trails, sound guide | MIT |
 | [polyfork](https://polyfork.dev) | 3,422 low-poly models, fetched on demand into `library/polyfork/` (never committed); credits written to `library/polyfork/CREDITS.md` | CC BY 4.0 — credit the authors where the models are shown |
+| [Homescape](https://github.com/muratozturkdev/homescape) | Rendering and simulation ideas for interiors, weather, people, pets and street life, studied, not copied — written in our own words in `knowledge/homescape-study.md` | — |
 | [red-horizon](https://github.com/islamdiaa/red-horizon), [three.ws](https://github.com/nirholas/three.ws), [estella](https://github.com/esengine/estella) | Techniques only, written in our own words — no code copied | GPL-3.0 / Apache-2.0 / Apache-2.0 |

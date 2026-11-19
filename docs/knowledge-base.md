@@ -29,6 +29,7 @@ needs reading until a record is chosen.
 | Rigs | 5 | `vendor/3dviz/rigs/` | Skeleton and animation set-ups |
 | Shader and character templates (pixel-art pass with a 64-colour palette, toon looks, water, procedural people) | 28 + 7 guides | `vendor/diorama/` | `pixelPass(renderer, { detail: 4 })` from `src/pixel/post.js` (our palette, see-through background); the rest is reference to adapt |
 | Techniques from other games (flow fields, wave budgets, fog of war, formations, cloth, crowds, adaptive music…) | 41 | `knowledge/techniques.json`, some code in `vendor/last-stand/` | Each record says how it works; some point to reference code |
+| A live 3D dollhouse, studied (walls and door cuts from a 2D plan, the camera-facing wall cutaway, room lights masked by walls, stairs and floors, real sun, GPU weather, procedural people and pets, street traffic, a primitive furniture kit, render-on-demand, synthesized sound) | 25 techniques + a study guide | `knowledge/homescape-study.md`, records in `knowledge/techniques.json` | Read the section a record names (§1–17); each ends with how to do it in our plain three.js and which of our games can use it |
 | Low-poly 3D models | 3,422 | fetched into `library/polyfork/` | `npm run library:polyfork -- <id>` or `--kit "words"` or `--all` (about 1 GB) |
 | Our own modules | 10 | `knowledge/own.json` | Add a record when you write something reusable |
 

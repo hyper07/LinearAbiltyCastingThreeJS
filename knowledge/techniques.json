@@ -640,6 +640,482 @@
     "snap"
    ],
    "from": "estella (ideas)"
+  },
+  {
+   "id": "tech.plan-wall-runs",
+   "kind": "technique",
+   "title": "Walls and rooms from a 2D plan",
+   "summary": "Rooms are unions of rectangles; split every edge at all room coordinates, probe 5 cm outside each piece (same room: no wall, other room: interior, empty: exterior), merge. Walls centred on the boundary, half per room, ends extended by half the thickness so corners close. Per-wall open and half-wall (1.05 m) flags. §1.",
+   "tags": [
+    "walls",
+    "rooms",
+    "floor",
+    "plan",
+    "interior",
+    "building",
+    "house",
+    "layout",
+    "open",
+    "procedural"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.wall-openings",
+   "kind": "technique",
+   "title": "Door and window holes as wall pieces",
+   "summary": "No CSG: each door/window gives an opening {a0,a1,y0,y1} on its wall line (door 1 m x 2.23, window from 0.9 to 2.1 m); the run becomes unit boxes before, below (sill), above (lintel) and after each opening, all one shared geometry scaled. §1.",
+   "tags": [
+    "door",
+    "window",
+    "opening",
+    "wall",
+    "cut",
+    "hole",
+    "lintel",
+    "sill",
+    "interior"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.dollhouse-cutaway",
+   "kind": "technique",
+   "title": "Dollhouse cutaway: walls facing the camera sink",
+   "summary": "Each exterior wall eases toward 0.16 m when dot(outward normal, room-centre-to-camera) > 0.2, else full 2.6 m; interior walls full or 0.38 m; h += (t-h)*min(1,dt*8), redraw and shadows only while moving. Walls that block clicks stop the ray. §2.",
+   "tags": [
+    "dollhouse",
+    "cutaway",
+    "walls",
+    "camera",
+    "interior",
+    "isometric",
+    "see",
+    "through",
+    "room",
+    "house"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.hip-roof-chamfer",
+   "kind": "technique",
+   "title": "Hip roof from a distance transform",
+   "summary": "Grid over the indoor area (step dividing every room coordinate: 25/12.5/10/5 cm), chessboard distance to the eaves by two-pass chamfer, height = 0.62 x distance capped at 3.2 m: right hips and valleys for any L/T/U plan. Lifts and fades like a lid when the camera comes inside the home's diagonal (15% hysteresis). §2.",
+   "tags": [
+    "roof",
+    "hip",
+    "procedural",
+    "distance",
+    "chamfer",
+    "house",
+    "dollhouse",
+    "lid",
+    "building"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.stairs-floors",
+   "kind": "technique",
+   "title": "Stairs as a height function, floors as stacked groups",
+   "summary": "Stairs are a ramp function of local z (straight 1x3.2 m, U with landing; 14 steps of 0.2 m to 2.8 m); the walker switches floor past height 2.8-0.35 and eases the eye. Stairwell = hole cut in the slab above with railings except the arrival edge. All floors stay built; changing floor only moves groups and flips a still flag. §3.",
+   "tags": [
+    "stairs",
+    "floors",
+    "storey",
+    "multi-level",
+    "stairwell",
+    "building",
+    "walk",
+    "first-person",
+    "height"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.room-lights-shader",
+   "kind": "technique",
+   "title": "Room lights: 24 lamps in one shader loop, masked by walls",
+   "summary": "Patch MeshStandardMaterial via onBeforeCompile: a fragment loop over shared uniform arrays (pos, colour, up to 4 room rectangles, y range) adds diffuse light only inside the lamp's own room - no point lights, no shadows, no recompiles when lamps change. Point/spot/ceiling-strip/LED-line kinds; L-room corner darkening. §4.",
+   "tags": [
+    "lights",
+    "lamps",
+    "room",
+    "night",
+    "shader",
+    "onbeforecompile",
+    "interior",
+    "glow",
+    "performance",
+    "uniforms",
+    "lighting"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.door-light-spill",
+   "kind": "technique",
+   "title": "Light spilling through an open door",
+   "summary": "A second room-light entry masked to the neighbour room that counts only where the source-to-fragment ray crosses the door plane inside the opening (6 cm soft edges), so a door-shaped patch falls into the hall. Spills through one door merge; own-room lamps take slots first, spill fills the rest. §4.",
+   "tags": [
+    "door",
+    "light",
+    "spill",
+    "portal",
+    "room",
+    "interior",
+    "night",
+    "lighting"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.window-daylight",
+   "kind": "technique",
+   "title": "Daylight through windows",
+   "summary": "Ceilings cast shadow (via an invisible 30 cm thick shadow-only block, not the thin plane, to avoid bias leaks), so the sun enters only through windows; a window light (nearest point of the opening, spreading along its inward normal, scaled by blinds) fills the room; the sun is placed max(45, r+10) m out so walls stay inside the shadow camera. §4-5.",
+   "tags": [
+    "daylight",
+    "window",
+    "sun",
+    "indoor",
+    "shadow",
+    "leak",
+    "interior",
+    "lighting"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.real-sun",
+   "kind": "technique",
+   "title": "Sun from date, time and latitude",
+   "summary": "Declination 23.44 sin(2pi(day-81)/365), hour angle (h-12.5)*15deg, elevation/azimuth by the usual formulas; scene direction from compass bearing minus the plan's up. Smoothsteps of elevation: sky level -6..14 deg, direct sun 0..7, warmth (orange to white) 2..32. One light rig blended day/night, eye adaptation 1.0 out / 0.6 in. §5.",
+   "tags": [
+    "sun",
+    "day",
+    "night",
+    "time",
+    "sky",
+    "cycle",
+    "lighting",
+    "azimuth",
+    "elevation",
+    "dawn",
+    "dusk"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.precip-gpu",
+   "kind": "technique",
+   "title": "Rain, snow and hail moved entirely on the GPU",
+   "summary": "One InstancedBufferGeometry quad per kind with a seeded vec4 per drop; fall, wind drift (wind*age), sway and wrapping in a box around the play area are all in the vertex shader, density culls by seed.w. Rain 4/m2 cap 16k at 9 m/s; streak width max(w, dist*0.0011) so far rain stays visible. §6.",
+   "tags": [
+    "rain",
+    "snow",
+    "hail",
+    "weather",
+    "particles",
+    "gpu",
+    "instanced",
+    "shader",
+    "storm"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.rain-roof-mask",
+   "kind": "technique",
+   "title": "No rain indoors: a height texture",
+   "summary": "A float RG DataTexture on a 0.5 m grid stores wall top and roof height; the rain vertex shader samples it and fades drops below the cover, near the floor and close to the eye. Rebuilt only when rooms change. Works for arcades, bridges, shelters. §6.",
+   "tags": [
+    "rain",
+    "roof",
+    "mask",
+    "indoor",
+    "shelter",
+    "weather",
+    "heightmap",
+    "texture"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.lightning-envelope",
+   "kind": "technique",
+   "title": "Storm lightning: three flickers and late thunder",
+   "summary": "Strikes every 6-20 s; flash = max of three tents at 0.03, 0.18 and 0.4 s (peaks 1, 0.7, 0.85) driving a pale ambient light (1.6 day, 2.2 night) and the sky toward white; thunder 0.7-2.2 s later from 25 m off. Cloud and fog ease at 0.6/s; wetness 20 s up / 60 s down; never remove scene.fog (recompiles). §6.",
+   "tags": [
+    "lightning",
+    "storm",
+    "thunder",
+    "flash",
+    "weather",
+    "fog",
+    "sky"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.baked-figure",
+   "kind": "technique",
+   "title": "Procedural person: primitives baked per bone",
+   "summary": "Spheres, capsules, tori and rounded boxes with transforms and flat vertex colours are merged per bone (toNonIndexed + drop uv so attributes match), one shared vertex-colour material, about 20 draws per person. Faces placed on a two-ellipsoid head by solving its surface; builds vary widths only. §7.",
+   "tags": [
+    "human",
+    "person",
+    "character",
+    "procedural",
+    "vertex",
+    "colors",
+    "merge",
+    "npc",
+    "body",
+    "chibi"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.procedural-pose-blend",
+   "kind": "technique",
+   "title": "Walk, sit, sleep and chores without clips",
+   "summary": "A pose is ~45 named angles; stand -> sit -> lie -> walk blended by smoothstep weights, activity layer on top. Walk: thighs 0.52 sin a, knee 0.08+1.05 max(0,cos(a+0.6))^1.4, double hip bob. Sit at any seat height with a two-link solve; gestures by gated sine smooth(max(0,sin(ft)-thr)/(1-thr)). §8.",
+   "tags": [
+    "animation",
+    "walk",
+    "cycle",
+    "sit",
+    "sleep",
+    "procedural",
+    "pose",
+    "npc",
+    "gesture",
+    "idle"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.daily-life-planner",
+   "kind": "technique",
+   "title": "NPC daily life from weighted spots",
+   "summary": "Spots (seats, desks, counter, basin, bed) weighted by hour and context (sofa 4 with TV on, dining 4 at mealtimes, lit rooms x3); the spot decides the activity (counter=cook, desk=type); re-plan every 200 s staggered per person, no two on one spot; walk to an approach point, turn, then slide into the seat. §8.",
+   "tags": [
+    "npc",
+    "schedule",
+    "daily",
+    "life",
+    "ai",
+    "routine",
+    "activity",
+    "sims",
+    "utility"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.grid-astar-doors",
+   "kind": "technique",
+   "title": "Indoor routing: clearance grid, A*, auto-opening doors",
+   "summary": "12 cm grid per floor and body size (person 0.18, cat 0.10, dog 0.15 clearance), door gaps cut in walls, A* 8-way with no corner cutting then line-of-sight shortening; blocked start snaps within the same room. Doors within 1.4 m open for 1.6 s, checked at 5 Hz. §9.",
+   "tags": [
+    "pathfinding",
+    "astar",
+    "grid",
+    "doors",
+    "indoor",
+    "npc",
+    "navigation",
+    "rooms"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.quadruped-gaits",
+   "kind": "technique",
+   "title": "Quadruped gaits from a phase table",
+   "summary": "Leg phases (HR, HL, FR, FL): walk 0/.5/.25/.75, trot 0/.5/.5/0, run 0/.12/.55/.67; swing and knee lift per gait, a continuous gait value lerps rows; speeds and strides scale with sqrt(size) so feet don't slide. Needs (food, energy, fun, love) drive a weighted goal; click reactions (purr, roll, bark, spin). §10.",
+   "tags": [
+    "pet",
+    "cat",
+    "dog",
+    "animal",
+    "quadruped",
+    "gait",
+    "walk",
+    "trot",
+    "beast",
+    "creature",
+    "animation"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.traffic-rules",
+   "kind": "technique",
+   "title": "Street traffic: curvature speed, braking ahead, yielding",
+   "summary": "Track rounded (r 5 m) and resampled at 0.5 m; limit = clamp(sqrt(3.2 r), 2.2, 7.5), allowed speed = min over 14 m ahead of sqrt(limit^2 + 2*3*ds). Pose from two axle points 1.35 m apart. Follow: v <= v_ahead + sqrt(10 (gap-5.2)); stop 2.8 m before an occupied crosswalk; walkers wait for cars. Spawn gaps by hour and rain. §11.",
+   "tags": [
+    "traffic",
+    "cars",
+    "road",
+    "street",
+    "pedestrians",
+    "crosswalk",
+    "city",
+    "driving",
+    "ai",
+    "spawn"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.home-flight",
+   "kind": "technique",
+   "title": "Camera flight between places without a loading screen",
+   "summary": "Take-off 1.1 s (rise toward a top-down tilt, glide sideways), swap the scene once the old place's box has left the frustum, teleport since the ground looks the same, land 1.5 s into the normal framing. Framing fits rooms to the screen area not covered by panels. §12.",
+   "tags": [
+    "camera",
+    "flight",
+    "transition",
+    "travel",
+    "framing",
+    "orbit",
+    "cinematic"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.walk-collide-resolve",
+   "kind": "technique",
+   "title": "First-person walk inside buildings",
+   "summary": "Eye 1.62 m, radius 0.24, walk 2.1 / run 4 m/s; push the circle out of wall segments (door gaps left open) and furniture boxes in 3 passes; head bob 0.025 sin(5.2 stride) with a footstep sound per floor material at each low; aim ray at 10 Hz, 7 m, active floor only. §12.",
+   "tags": [
+    "first-person",
+    "walk",
+    "collision",
+    "fps",
+    "controller",
+    "indoor",
+    "stairs",
+    "footsteps"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.pixel-outline-hull",
+   "kind": "technique",
+   "title": "Constant-pixel selection outline (inverted hull)",
+   "summary": "Back-face shell per mesh with creased normals, pushed along the view-space normal by k*depth where k = px*2tan(fov/2)/canvasHeight, polygonOffset behind the body: a 3.5 px silhouette at any distance. Bounds ignore glows and effects. §13.",
+   "tags": [
+    "outline",
+    "selection",
+    "hover",
+    "hull",
+    "shader",
+    "highlight",
+    "silhouette"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.placement-ghost",
+   "kind": "technique",
+   "title": "Build-mode placement ghost",
+   "summary": "Ray to floor, snap 5 cm, wall items snap to the nearest real wall's inner face (into a corner within 30 cm), stackables climb onto surfaces; materials cloned to 0.62 opacity, a plate 12 cm larger turns green/red with the rule's reason, slight bob. §13.",
+   "tags": [
+    "placement",
+    "build",
+    "ghost",
+    "editor",
+    "snap",
+    "furniture",
+    "grid",
+    "preview"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.primitive-kit-caches",
+   "kind": "technique",
+   "title": "248 props from three primitives and two caches",
+   "summary": "Box (RoundedBox with 2 segments), Cyl, Ball; geometry cached by size in mm, material cached by JSON of colour+options; static outdoor models merged to one vertex-coloured geometry per kind; parametric length lays out repeats (sofa cushions, TV-unit doors). Seeded random for details; per-pixel DataTexture glows, never canvas gradients. §14.",
+   "tags": [
+    "furniture",
+    "props",
+    "procedural",
+    "primitives",
+    "catalog",
+    "cache",
+    "merge",
+    "interior",
+    "materials",
+    "draw",
+    "calls"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.demand-render-shadows",
+   "kind": "technique",
+   "title": "Zero frames when idle: demand rendering and a shadow countdown",
+   "summary": "Render only when asked; animations ask until settled; ambient animations on a 24 fps ticker (12 for slow ones, none when hidden); shadowMap.autoUpdate=false and markShadows(n) for n frames after a change. Took idle from 60 fps / 680 draws to 0 fps. §15.",
+   "tags": [
+    "performance",
+    "render",
+    "on-demand",
+    "shadows",
+    "idle",
+    "fps",
+    "battery",
+    "optimization"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.soundscape-budget",
+   "kind": "technique",
+   "title": "Synthesized soundscape with a loop budget",
+   "summary": "Score every wanted loop by gain*ref/(ref+1.15(d-ref))*muffle every 300 ms, play the top 14, fade in/out with setTargetAtTime; muffle through walls with a lowpass at 18000*(450/18000)^m. Noise buffers with a 20 ms crossfaded seam; recipes for rain, wind, birds, crickets, thunder, footsteps per floor, purr, TV speech. §16.",
+   "tags": [
+    "audio",
+    "sound",
+    "synth",
+    "webaudio",
+    "ambience",
+    "rain",
+    "wind",
+    "footsteps",
+    "occlusion",
+    "budget"
+   ],
+   "from": "homescape",
+   "path": "knowledge/homescape-study.md"
   }
  ]
 }
