@@ -588,3 +588,160 @@ test('co-op messages: monsters and heroes round-trip, and junk is refused', () =
   assert.equal(tick.events.length, 1);
   assert.equal(N.readTick({ r: 'nowhere' }), null);
 });
+
+/* ------------------------------------------------- aiming at the pointer */
+
+import * as AIM from '../../src/hd2d/aim.js';
+
+test('aim: the pointer meets the ground; ground spells are clamped to their reach', () => {
+  // From 10 m up, looking down at 45° toward −Z: the ground 10 m ahead.
+  const p = AIM.rayToGround([0, 10, 0], [0, -Math.SQRT1_2, -Math.SQRT1_2]);
+  assert.ok(Math.abs(p.x) < 1e-9 && Math.abs(p.z + 10) < 1e-9);
+  assert.equal(AIM.rayToGround([0, 10, 0], [0, 1, 0]), null, 'looking up never meets it');
+  assert.equal(AIM.rayToGround([0, 10, 0], [1, 0, 0]), null, 'level never meets it');
+  const near = AIM.clampToRange({ x: 0, z: 0 }, { x: 3, z: 4 }, 8);
+  assert.deepEqual(near, { x: 3, z: 4, d: 5 }, 'within reach: where the pointer is');
+  const far = AIM.clampToRange({ x: 0, z: 0 }, { x: 30, z: 40 }, 8);
+  assert.ok(Math.abs(far.x - 4.8) < 1e-9 && Math.abs(far.z - 6.4) < 1e-9 && far.d === 8, 'beyond: at the edge of reach, same way');
+  assert.ok(Math.abs(AIM.headingTo({ x: 0, z: 0 }, { x: 0, z: 5 })) < 1e-9, 'heading 0 is toward +Z');
+});
+
+test('aim: a pointer within 1.5 m of a monster snaps to it (the nearest), not further', () => {
+  const foes = [{ x: 5, z: 0, alive: true }, { x: 5.8, z: 0.4, alive: true }, { x: 2, z: 2, alive: false }];
+  assert.equal(AIM.snapToFoe({ x: 5.2, z: 0 }, foes), foes[0]);
+  assert.equal(AIM.snapToFoe({ x: 5.9, z: 0.5 }, foes), foes[1]);
+  assert.equal(AIM.snapToFoe({ x: 4.6, z: 1.4 }, foes), foes[0], 'just inside the radius');
+  assert.equal(AIM.snapToFoe({ x: 5, z: 1.7 }, [foes[0]]), null, 'just outside it');
+  assert.equal(AIM.snapToFoe({ x: 2, z: 2 }, foes), null, 'the dead are not aimed at');
+  assert.equal(AIM.AIM_SNAP, 1.5);
+});
+
+test('aim: the body twists up to about 100° from the legs; past that the whole figure turns and backpedals', () => {
+  const legs = 0; // walking toward +Z
+  const side = AIM.twistSplit(legs, Math.PI / 2); // aim 90° to the left of the way
+  assert.equal(side.full, false);
+  assert.equal(side.face, legs, 'the legs keep their way');
+  assert.ok(Math.abs(side.twist - Math.PI / 2) < 1e-9, 'the body turns the rest');
+  const edge = AIM.twistSplit(legs, AIM.MAX_TWIST - 0.01);
+  assert.equal(edge.full, false);
+  const behind = AIM.twistSplit(legs, Math.PI); // aiming straight back
+  assert.equal(behind.full, true);
+  assert.ok(Math.abs(Math.abs(behind.face) - Math.PI) < 1e-9 && behind.twist === 0, 'faces the aim whole');
+  assert.ok(Math.abs(AIM.MAX_TWIST - (100 * Math.PI) / 180) < 1e-12);
+  // Facing the aim while walking the other way: the legs backpedal.
+  const back = AIM.legMotion(Math.PI, 0);
+  assert.equal(back.back, true);
+  assert.ok(Math.abs(back.moveYaw) < 1e-9);
+  const fwd = AIM.legMotion(0, 0.3);
+  assert.equal(fwd.back, false);
+  assert.ok(Math.abs(fwd.moveYaw - 0.3) < 1e-9);
+});
+
+test('aim: ranged attacks use a moving pointer; melee only if it moved just now; no pointer, the old auto-aim', () => {
+  assert.equal(AIM.usesPointer({ ranged: true, onCanvas: true, lastMove: 10, now: 12 }), true);
+  assert.equal(AIM.usesPointer({ ranged: true, onCanvas: true, lastMove: 10, now: 10 + AIM.RANGED_MOUSE_WINDOW + 1 }), false, 'a mouse left resting is keyboard play');
+  assert.equal(AIM.usesPointer({ ranged: false, onCanvas: true, lastMove: 10, now: 11 }), true);
+  assert.equal(AIM.usesPointer({ ranged: false, onCanvas: true, lastMove: 10, now: 14 }), false);
+  assert.equal(AIM.usesPointer({ ranged: true, onCanvas: false, lastMove: 10, now: 10 }), false, 'off the canvas');
+  assert.equal(AIM.usesPointer({ ranged: true, onCanvas: true, lastMove: null, now: 10 }), false, 'never moved');
+});
+
+/* --------------------------------------------------------------- chests */
+
+import * as CH from '../../src/hd2d/chests.js';
+
+test('chests: hero monsters and bosses leave one, of their tier; ordinary and summoned kills do not', () => {
+  assert.equal(CH.chestTierFor({ elite: 1 }), 'elite');
+  assert.equal(CH.chestTierFor({ boss: 1, elite: 0 }), 'boss');
+  assert.equal(CH.chestTierFor({ elite: 1, summoned: 1 }), null);
+  assert.equal(CH.chestTierFor({}), null);
+  assert.equal(CH.rewardChest({ elite: 0 }, { id: 'a', x: 0, z: 0 }), null);
+  const c = CH.rewardChest({ boss: 1 }, { id: 'b', x: 3, z: 4, now: 100 });
+  assert.equal(c.tier, 'boss');
+  assert.equal(c.opened, false);
+  assert.ok(CH.CHEST_TIERS.boss.rolls > CH.CHEST_TIERS.elite.rolls && CH.CHEST_TIERS.boss.scale > CH.CHEST_TIERS.elite.scale, 'a boss chest is bigger and richer');
+  // Their loot comes from the elite and boss tables.
+  const tiers = [];
+  const fake = ({ tier }) => (tiers.push(tier), { items: [{ base: 'x' }], consumables: [] });
+  const loot = CH.chestLoot(c, { level: 10, cls: 'seer' }, fake, () => 0.5);
+  assert.deepEqual(tiers, ['boss', 'boss', 'boss']);
+  assert.equal(loot.items.length, 3);
+  assert.ok(loot.gold > 0);
+  tiers.length = 0;
+  CH.chestLoot(CH.rewardChest({ elite: 1 }, { id: 'e', x: 0, z: 0 }), { level: 10, cls: 'seer' }, fake, () => 0.5);
+  assert.deepEqual(tiers, ['elite', 'elite']);
+  // The real tables: an elite chest beats an ordinary drop on average.
+  const avg = (tier) => {
+    let n = 0;
+    for (let i = 0; i < 200; i++) n += R.rollLoot({ level: 10, tier, cls: 'blade' }).items.length;
+    return n / 200;
+  };
+  assert.ok(avg('elite') * CH.CHEST_TIERS.elite.rolls > avg('normal'));
+});
+
+test('chests: open exactly once, then vanish; unopened ones despawn after a while', () => {
+  const c = CH.rewardChest({ elite: 1 }, { id: 'e', x: 0, z: 0, now: 10 });
+  assert.equal(CH.openChest(c, 20).ok, true);
+  assert.equal(CH.openChest(c, 20.1).ok, false, 'a second press gives nothing');
+  assert.equal(CH.openChest(c, 50).ok, false);
+  assert.equal(CH.chestGone(c, 20 + CH.CHEST_VANISH - 0.01), false, 'stays a moment, lid open');
+  assert.equal(CH.chestGone(c, 20 + CH.CHEST_VANISH + 0.001), true, 'then it is gone');
+  const left = CH.rewardChest({ boss: 1 }, { id: 'b', x: 0, z: 0, now: 0 });
+  assert.equal(CH.chestGone(left, CH.CHEST_DESPAWN - 1), false);
+  assert.equal(CH.chestGone(left, CH.CHEST_DESPAWN), true, 'left unopened too long, it fades');
+  assert.equal(CH.openChest(null).ok, false);
+});
+
+test('chests: a placed chest opens once per journey, and stays opened through a save', () => {
+  const s = R.newGame('blade', 'blade-a');
+  assert.equal(CH.openPlaced(s.chests, 'sm1'), true);
+  assert.equal(CH.openPlaced(s.chests, 'sm1'), false);
+  assert.equal(CH.openPlaced(s.chests, 'lw2'), true);
+  const back = R.deserialize(R.serialize(s));
+  assert.deepEqual(back.chests.sort(), ['lw2', 'sm1']);
+  assert.equal(CH.openPlaced(back.chests, 'lw2'), false, 'still opened after loading');
+});
+
+/* --------------------------------------------------- figures, rounded */
+
+import { distanceField, profileDepth } from '../../src/hd2d/voxel.js';
+import { blinkRows } from '../../src/hd2d/sprites.js';
+import { springStep } from '../../src/hd2d/rig.js';
+
+test('figures: rounded depth — thin at the edge, thickest in the middle; a dome rounds the whole part', () => {
+  const W = 9, H = 9;
+  const fill = new Uint8Array(W * H).fill(1);
+  const d = distanceField(fill, W, H);
+  assert.equal(d[0], 1, 'a corner is at the edge');
+  assert.equal(d[4 * W + 4], 5, 'the centre is deepest');
+  const max = 5, cap = 0.3;
+  const edge = profileDepth(1, max, cap, 'dome');
+  const mid = profileDepth(5, max, cap, 'dome');
+  assert.ok(edge > 0 && edge < mid);
+  assert.ok(Math.abs(mid - cap) < 1e-9);
+  // A box rounds only its rim: a block in from the edge it is already at full depth.
+  assert.ok(profileDepth(3, 40, 0.1, 'box', 1 / 48) > profileDepth(3, 40, 0.1, 'dome', 1 / 48));
+});
+
+test('figures: a blink closes the eyes to a line of lashes; a face with no eyes has none', () => {
+  const rows = personRows({ eyes: 'wide' });
+  const shut = blinkRows(rows);
+  assert.ok(shut);
+  assert.ok(!shut.slice(0, 10).join('').includes('W'), 'no whites showing');
+  const open = rows.slice(0, 10).join('').split('E').length - 1;
+  const lashes = shut.slice(0, 10).join('').split('E').length - 1;
+  assert.ok(lashes > 0 && lashes < open, 'a line of lashes');
+  assert.deepEqual(shut.slice(10), rows.slice(10), 'the body is unchanged');
+  assert.equal(blinkRows(['FFFF', 'FFFF']), null);
+});
+
+test('figures: joints are damped springs — they reach the pose, overshoot a little, and never blow up', () => {
+  const s = { x: 0, v: 0 };
+  let peak = 0;
+  for (let i = 0; i < 120; i++) peak = Math.max(peak, springStep(s, 1, 1 / 60, 24, 0.55));
+  assert.ok(peak > 1 && peak < 1.25, 'a little follow-through');
+  assert.ok(Math.abs(s.x - 1) < 0.01, 'settles on the pose');
+  const t = { x: 0, v: 0 };
+  springStep(t, 1, 5, 40, 0.5); // a long stall
+  assert.ok(Number.isFinite(t.x) && Math.abs(t.x) < 2);
+});

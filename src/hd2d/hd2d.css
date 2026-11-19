@@ -422,16 +422,33 @@
 }
 
 .ld-num {
-  font: 900 22px/1 var(--ld-serif);
-  color: #fff;
-  text-shadow: 0 2px 0 #3a0a0a, 0 0 6px rgba(0, 0, 0, 0.8);
+  font: 900 23px/1 var(--ld-serif);
+  color: #fffaf0;
+  letter-spacing: 0.01em;
+  -webkit-text-stroke: 1px rgba(40, 10, 10, 0.55);
+  text-shadow: 0 2px 0 #3a0a0a, 0 3px 0 rgba(0, 0, 0, 0.35), 0 0 8px rgba(0, 0, 0, 0.7);
   white-space: nowrap;
   translate: -50% -50%;
 }
+.ld-num--spell {
+  color: #e2f4ff;
+  text-shadow: 0 2px 0 #0a1a3a, 0 0 10px rgba(90, 180, 255, 0.7);
+}
 .ld-num--crit {
-  font-size: 30px;
-  color: #ffd25a;
-  text-shadow: 0 2px 0 #6a2a00, 0 0 12px rgba(255, 140, 40, 0.9);
+  font-size: 34px;
+  font-style: italic;
+  color: #ffe27a;
+  background: linear-gradient(180deg, #fffbe0 0%, #ffd24a 45%, #ff8a2a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1px rgba(90, 30, 0, 0.6);
+  filter: drop-shadow(0 2px 0 #6a2a00) drop-shadow(0 0 8px rgba(255, 140, 40, 0.85));
+  text-shadow: none;
+}
+.ld-num--crit::after {
+  content: '!';
+  margin-left: 1px;
 }
 .ld-num--hurt {
   color: #ff6a5a;

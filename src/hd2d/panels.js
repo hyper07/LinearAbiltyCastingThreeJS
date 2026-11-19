@@ -34,7 +34,7 @@ export class HeroPreview {
     plinth.position.y = -0.08;
     this.scene.add(plinth);
     this.plinth = plinth;
-    this.actor = new RigActor({ shadow: 0 });
+    this.actor = new RigActor({ shadow: 0, detail: 1 });
     this.scene.add(this.actor.group);
     this.angle = 0.4;
     this.key = '';

@@ -9,8 +9,8 @@
  */
 import * as THREE from 'three';
 import * as R from './rules.js';
-import { SpriteActor } from './gfx.js';
 import { RigActor } from './rig.js';
+import { BeastActor } from './beasts.js';
 import { MONSTER_PEOPLE } from './sprites.js';
 
 const TAU = Math.PI * 2;
@@ -48,8 +48,11 @@ export const FoeMixin = {
       a.show(this.sprites.enemies[kind][0]);
       a.setGear(m.gear);
     } else {
-      const glow = { wisp: 0.55, lampwight: 0.4, shardling: 0.35, cinderling: 0.45, golem: 0.15, frostbat: 0.1, tyrant: 0.15 }[kind] ?? 0;
-      a = new SpriteActor({ shadow: def.radius * (def.boss ? 1.2 : 0.95), glow, scale: k });
+      const glow = { wisp: 0.4, lampwight: 0.25, shardling: 0.2, cinderling: 0.3, golem: 0.08, frostbat: 0.08, tyrant: 0.1 }[kind] ?? 0;
+      a = new BeastActor(kind, this.sprites.enemies[kind][0], { shadow: def.radius * (def.boss ? 1.2 : 0.95), glow, scale: k });
+      // Heavy ones shake the ground a little as they walk.
+      if (['golem', 'gnarlroot', 'tyrant', 'mossback'].includes(kind)) a.onStep = () => this._footDust(a.group.position.x, a.group.position.z, def.boss ? 2.2 : 1.5);
+      else if (['wolf', 'icefang', 'thornboar', 'salamander'].includes(kind)) a.onStep = () => Math.random() < 0.5 && this._footDust(a.group.position.x, a.group.position.z, 0.8);
     }
     if (elite) a.glowColor = new THREE.Color(R.ELITE_AFFIXES[elite.affixes[0]]?.color ?? '#ffd27a').multiplyScalar(0.8);
     return a;
@@ -65,7 +68,11 @@ export const FoeMixin = {
     if (elite && !elite.name) elite.name = R.eliteName(kind, elite.affixes);
     const st = this._foeStats(kind, elite, small);
     const actor = this._foeActor(kind, elite);
-    if (small) actor.scale *= 0.7;
+    if (small) {
+      actor.scale *= 0.7;
+      actor.inner?.scale.setScalar(actor.scale);
+      actor.body?.scale.setScalar(actor.scale);
+    }
     actor.group.position.set(x, 0, z);
     this.scene.add(actor.group);
     const e = {
@@ -88,6 +95,11 @@ export const FoeMixin = {
   },
 
   _disposeEnemy(e) {
+    if (e.aura) {
+      e.aura.geometry.dispose();
+      e.aura.material.dispose();
+      e.aura = null;
+    }
     e.actor.dispose();
     this._clearTele(e);
     if (e.mound) {
@@ -416,6 +428,7 @@ export const FoeMixin = {
     Object.assign(e, { alive: true, hp: e.st.hp, maxHp: e.st.hp, x: e.hx, z: e.hz, state: 'idle', timer: 1, kx: 0, kz: 0, shield: e.st.shield, stunT: 0, rootT: 0, slowT: 0, burnT: 0, tele: null });
     e.actor.group.visible = true;
     this.fx('spawn/poof', e.x, 0, e.z, { pxm: 90, additive: false, color: 0.7, speed: 1.8 });
+    this.vfx?.dust(e.x, e.z, { n: 6, size: 0.7, alpha: 0.35, speed: 1.4 });
   },
 
   _inReach(e, dh) {
@@ -554,6 +567,8 @@ export const FoeMixin = {
         e.alive = false;
         e.state = 'dead';
         e.respawn = def.respawn;
+        this._shatterFoe(e);
+        this.vfx?.explosion(tele.x, 0.4, tele.z, { radius: 2.4, ground: [new THREE.Color('#3a2a26'), new THREE.Color('#5a4038')] });
         e.actor.group.visible = false;
         e.actor.glow = 0.45;
         this.net?.event({ k: 'gone', nid: e.nid });
@@ -853,7 +868,8 @@ export const FoeMixin = {
     }
     e.hp -= amt;
     e.lastHit = 0;
-    e.actor.flash = 0.1;
+    e.actor.flash = 0.12;
+    if (o) e.actor.hitFrom?.(Math.atan2(o.x - e.x, o.z - e.z), e.def.boss ? 0.3 : crit ? 1.4 : 1);
     if (!e.def.boss) {
       e.kx += kx;
       e.kz += kz;
@@ -877,11 +893,27 @@ export const FoeMixin = {
     if (e.hp <= 0) this.killEnemy(e, by);
   },
 
+  /** A monster breaks apart into its own blocks (they fly away from the last blow, bounce and settle). */
+  _shatterFoe(e) {
+    if (!this.vfx || !e.actor.group.visible) return;
+    const pal = e.actor.palette?.() ?? [new THREE.Color('#8a7a6a')];
+    const from = this.heroPos;
+    const ang = Math.atan2(e.x - from.x, e.z - from.z);
+    const glowC = { wisp: '#7ff0ff', cinderling: '#ffb040', shardling: '#bff4ff', golem: '#ff8a2a', lampwight: '#7ff0ff', tyrant: '#ff6a2a', gnarlroot: '#c8ff8a', acolyte: '#ffb040', matron: '#bff4ff' }[e.kind] ?? (e.elite ? R.ELITE_AFFIXES[e.elite.affixes[0]]?.color : null);
+    this.vfx.shatterFigure(e.x, e.z, pal, { height: e.actor.height, scale: Math.max(0.8, e.actor.scale ?? 1), angle: ang, glowColor: glowC, big: Boolean(e.def.boss) });
+    if (e.def.boss) {
+      this.vfx.ring(e.x, e.z, { color: e.def.light ?? '#ffd27a', r0: 0.5, r1: 9, life: 0.9, width: 0.3 });
+      this.vfx.flash(e.x, 2, e.z, e.def.light ?? '#ffd27a', 60, 0.8);
+      this.pulse = Math.max(this.pulse ?? 0, 1);
+    }
+  },
+
   /** A monster dies: rewards for everyone in the party here (each rolls their own loot), splitting, the boss. */
   killEnemy(e, by = 'me') {
     e.alive = false;
     e.state = 'dead';
     e.respawn = e.def.respawn;
+    this._shatterFoe(e);
     e.actor.group.visible = false;
     e.tele = null;
     this._drawTele(e);

@@ -326,7 +326,7 @@ export class Hud {
   number(text, kind, anchor) {
     const n = el('div', `ld-num ld-num--${kind}`, text);
     this.world.append(n);
-    this.numbers.push({ n, anchor, t: 0, dx: (Math.random() - 0.5) * 30 });
+    this.numbers.push({ n, anchor, t: 0, dx: (Math.random() - 0.5) * 30, crit: kind === 'crit', rot: kind === 'crit' ? (Math.random() - 0.5) * 12 : 0 });
     if (this.numbers.length > 60) this.numbers.shift().n.remove();
   }
 
@@ -339,8 +339,10 @@ export class Hud {
         return false;
       }
       const rise = 40 * (1 - (1 - Math.min(1, o.t / 0.6)) ** 3);
-      const s = o.t < 0.1 ? 0.6 + o.t * 6 : 1;
-      o.n.style.transform = `translate(${(p.x + o.dx).toFixed(1)}px, ${(p.y - rise).toFixed(1)}px) scale(${s})`;
+      // A pop: numbers overshoot as they appear (crits more), then settle; a crit is tilted a little.
+      const k = Math.min(1, o.t / (o.crit ? 0.16 : 0.1));
+      const s = o.t < (o.crit ? 0.16 : 0.1) ? 0.5 + k * (o.crit ? 1.15 : 0.7) : o.crit ? 1.65 - Math.min(0.5, (o.t - 0.16) * 3) : 1.2 - Math.min(0.2, (o.t - 0.1) * 2);
+      o.n.style.transform = `translate(${(p.x + o.dx).toFixed(1)}px, ${(p.y - rise).toFixed(1)}px) scale(${s.toFixed(3)}) rotate(${o.rot.toFixed(1)}deg)`;
       o.n.style.opacity = o.t > 0.75 ? String(1 - (o.t - 0.75) / 0.35) : '1';
       return true;
     });
@@ -560,7 +562,15 @@ export function drawMinimap(canvas, game, { range = 34 } = {}) {
   g.lineTo(L.waystone.x, L.waystone.z + 2);
   g.lineTo(L.waystone.x - 1.4, L.waystone.z);
   g.fill();
-  for (const c of game.world.chests ?? []) if (!c.opened) dot(c.x, c.z, 0.9, '#f0c040');
+  for (const c of game.world.chests ?? []) if (!c.opened && c.group?.visible !== false) dot(c.x, c.z, 0.9, '#f0c040');
+  // Reward chests (from hero monsters and bosses): a small gold square.
+  for (const c of game.lootChests ?? []) {
+    if (c.opened) continue;
+    g.fillStyle = '#3a2408';
+    g.fillRect(c.x - 1.3, c.z - 1.3, 2.6, 2.6);
+    g.fillStyle = '#ffd24a';
+    g.fillRect(c.x - 1, c.z - 1, 2, 2);
+  }
   const gatherWanted = game.gatherWanted?.();
   if (gatherWanted) for (const hb of game.world.gather ?? []) if (!hb.taken) dot(hb.x, hb.z, 0.8, '#ff8a2a');
   if (realm === 'lanternwood' && game.state.quests.braziers.state === 'active') for (const b of game.world.braziers) dot(b.x, b.z, 1.1, b.lit ? '#ff8a2a' : '#9a9ab0');
@@ -662,6 +672,7 @@ export function drawMap(canvas, game, realm = game.realm) {
   for (const id of npcsIn(realm)) sq(NPCS[id].x, NPCS[id].z, 2.4, '#f4e6c0');
   if (realm === game.realm) {
     for (const c of game.world.chests ?? []) if (!c.opened) sq(c.x, c.z, 2.4, '#f0c040');
+    for (const c of game.lootChests ?? []) if (!c.opened) sq(c.x, c.z, 2.6, '#ffd24a');
     for (const p of game.net?.peersHere?.() ?? []) sq(p.x, p.z, 3, '#6ab8ff');
   }
   g.restore();

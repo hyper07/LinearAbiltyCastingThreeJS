@@ -188,7 +188,7 @@ export class Coop {
       x: r2(g.heroPos.x),
       z: r2(g.heroPos.z),
       f: r2(g.heroPos.face),
-      a: [r2(a.move ?? 0), a.swing?.pose ?? 0, r2(a.swing?.t ?? 0), a.spin == null ? -1 : r2(a.spin), a.cast == null ? -1 : r2(a.cast), a.roll == null ? -1 : r2(a.roll), r2(a.hurt ?? 0), a.dead ? 1 : 0, a.pose?.id ?? 0, r2(a.pose?.t ?? 0), a.guard ? 1 : 0],
+      a: [r2(a.move ?? 0), a.swing?.pose ?? 0, r2(a.swing?.t ?? 0), a.spin == null ? -1 : r2(a.spin), a.cast == null ? -1 : r2(a.cast), a.roll == null ? -1 : r2(a.roll), r2(a.hurt ?? 0), a.dead ? 1 : 0, a.pose?.id ?? 0, r2(a.pose?.t ?? 0), a.guard ? 1 : 0, r2(a.twist ?? 0), a.back ? 1 : 0, r2(a.moveYaw ?? 0)],
       g: packGear(g.gearLook),
       bq: ['lampwight'].filter((k) => g.state.quests[k]?.state === 'active'),
       h: this.hits.splice(0, 24),
@@ -310,6 +310,7 @@ export class Coop {
       case 'kill': {
         const e = g.enemies.find((x) => x.nid === ev.nid);
         if (e) {
+          if (e.alive) g._shatterFoe(e);
           e.alive = false;
           e.actor.group.visible = false;
           e.tele = null;

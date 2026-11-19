@@ -698,7 +698,8 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
   /* the waystone, the chests */
   const waystone = buildWaystone({ x: WORLD.waystone.x, z: WORLD.waystone.z, tint: '#8ae8ff' });
   scene.add(waystone.group);
-  const chests = WORLD.chests.map((c, i) => ({ ...c, ...buildChest({ x: c.x, z: c.z, rot: i * 1.7 }) }));
+  // One object per chest (its id and place on the chest itself): open() must flip the very `opened` the game reads.
+  const chests = WORLD.chests.map((c, i) => Object.assign(buildChest({ x: c.x, z: c.z, rot: i * 1.7 }), c));
   for (const c of chests) scene.add(c.group);
 
   /* Mistmere: still water, reeds; Bramblehollow: thorn thickets */
@@ -860,7 +861,12 @@ transformed.z += cos(uTime * 1.3 + ph) * 0.05 * uv.y;
         h.taken = false;
         h.actor.group.visible = true;
       }
-      for (const c of chests) c.opened = false;
+      for (const c of chests) {
+        c.opened = false;
+        c.group.visible = true;
+        c.group.position.y = 0;
+        c.vanishAt = null;
+      }
       for (const b of braziers) {
         b.lit = false;
         b.coal.material.emissive.set('#000000');

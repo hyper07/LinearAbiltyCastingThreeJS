@@ -20,10 +20,11 @@ of the camp opens on three more realms as you help the world.
 | **W A S D** / arrows | Move (relative to the camera, which swings round behind you) |
 | Mouse drag, **Q E** | Turn the camera; the wheel zooms |
 | **Space** / left click | Your weapon's attack — press again in time to chain its combo |
+| Mouse pointer | Aim. Bolts, arrows, lances and fireballs fly at the pointer; Blizzard and Arrow Rain land on it (within reach); Blink goes toward it. A pointer within 1.5 m of a monster locks onto it. Walking one way and aiming another, your legs keep walking and your body turns to shoot (past about 100° you turn round and backpedal). With no mouse, attacks aim at the nearest foe ahead as before |
 | **1 2 3 4** | Your class's four skills (they cost mana or energy and have cooldowns) |
 | **5** · **6** · **7** | Health potion · mana potion · eat — potions have **no cooldown**: every press drinks one |
 | **Shift** | Dodge roll (nothing hits you mid-roll) |
-| **F** | Talk, gather, light, open a chest, touch a waystone to travel |
+| **F** / click a chest | Talk, gather, light, open a chest, touch a waystone to travel |
 | **I** or **B** · **C** · **J** | Bag and equipment · your hero · journal |
 | **M** · **P** · **Esc** | Realms map · play together · pause |
 
@@ -57,8 +58,11 @@ quiet; each later realm when the one before has lost its boss. Travel by touchin
 
 Every monster shows what it is about to do on the ground — a circle, a line or a cone — before it
 strikes. **Hero monsters** are rarer, bigger and glow; they carry a name and one or two affixes
-(Frenzied, Shielded, Splitting, Burning, Chilling, Vampiric) and drop better loot. Bosses have three
-phases and call for help.
+(Frenzied, Shielded, Splitting, Burning, Chilling, Vampiric). Bosses have three phases and call for
+help. A hero monster or a boss drops a **treasure chest** where it falls — one for each player in a
+party, rolled for your class when you open it (a boss's is bigger and richer). It gives its loot once,
+then sinks away; left unopened it stays until you leave the realm, or five minutes. The chests placed
+around the realms open once per journey and are gone for good afterwards.
 
 ### Items
 
@@ -95,10 +99,24 @@ a Blade, Moss a Warden, Frost a Seer, the potions move into the bag.
 | Co-op messages, packed and checked | `src/hd2d/netcode.js` |
 | People as letter maps (hair, face, build, outfit) | `src/hd2d/people.js` |
 | Pixel sprites (shaded by `src/pixel/art.js`), item and skill icons | `src/hd2d/sprites.js` |
-| Sprites made solid; jointed figures, poses, gear on the joints | `src/hd2d/voxel.js`, `rig.js`, `gear3d.js` |
+| Sprites made solid (rounded per part, smooth-shaded, baked occlusion); jointed people on springs (walk, combos, skills, idles, blinks, look-at, aim twist); gear with metal sheen, hands and shoes | `src/hd2d/voxel.js`, `rig.js`, `gear3d.js` |
+| Monsters cut into jointed parts (legs, wings, heads, tails, arms) and animated by kind | `src/hd2d/beasts.js` |
+| Combat effects: pooled particles, voxel debris, rings, pillars, a flash light | `src/hd2d/vfx.js` |
+| Aiming at the pointer; reward and placed chests (pure rules) | `src/hd2d/aim.js`, `chests.js` |
 | The Lanternwood forest; the other three realms; waystones, chests, chunked instancing | `src/hd2d/world.js`, `realmWorld.js`, `props.js` |
-| Billboards, post-processing, HUD and minimap, windows (bag, hero, journal, realms, shops, party) | `src/hd2d/gfx.js`, `post.js`, `ui.js`, `panels.js`, `hd2d.css` |
+| The figure material (rim light, glow, hit flash, metal), billboards, post-processing, HUD and minimap, windows | `src/hd2d/gfx.js`, `post.js`, `ui.js`, `panels.js`, `hd2d.css` |
 | Tests | `tests/unit/hd2d.test.mjs` |
+
+**Figures and effects.** People and monsters are their pixel drawings made solid: near the camera
+every pixel is a block (`detail` 1), further away four pixels a block (`detail` 2); the fine versions are
+built in the background when a realm loads. Each body part is rounded on its own (a domed head with a
+nose, cheeks and hair standing proud of it), lit through smooth normals so the steps do not stripe, with
+ambient occlusion baked into the colours and a soft rim light. Joints are damped springs, so strikes
+follow through and heads lag a step. Monsters break into their own blocks when they die. Every combat
+effect draws from shared pools — one instanced draw for glowing particles, one for smoke and dust, one
+for debris — with a budget, and dims in the daylight realms so bloom never washes them out. Crits pulse
+the screen briefly (colour fringe, a lift of light); with *reduce motion* set, the pulse is off and
+shake is small.
 
 **Performance.** Each realm's trees, rocks, grass and props are instanced in spatial chunks: whole
 chunks are culled by the camera, far chunks switch to a cheaper model or hide beyond the fog, and only

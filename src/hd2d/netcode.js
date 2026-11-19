@@ -111,7 +111,7 @@ export function readHero(msg) {
     x: clamp(fin(msg.x), -400, 400),
     z: clamp(fin(msg.z), -400, 400),
     face: fin(msg.f),
-    act: { move: clamp(fin(a[0]), 0, 1), swing: a[1] ? { pose: str(a[1], 12), t: clamp(fin(a[2]), 0, 1) } : null, spin: a[3] == null || a[3] < 0 ? null : clamp(fin(a[3]), 0, 1), cast: a[4] == null || a[4] < 0 ? null : clamp(fin(a[4]), 0, 1), roll: a[5] == null || a[5] < 0 ? null : clamp(fin(a[5]), 0, 1), hurt: clamp(fin(a[6]), 0, 1), dead: a[7] === 1, pose: a[8] ? str(a[8], 12) : null, poseT: clamp(fin(a[9]), 0, 1), guard: a[10] === 1 },
+    act: { move: clamp(fin(a[0]), 0, 1), swing: a[1] ? { pose: str(a[1], 12), t: clamp(fin(a[2]), 0, 1) } : null, spin: a[3] == null || a[3] < 0 ? null : clamp(fin(a[3]), 0, 1), cast: a[4] == null || a[4] < 0 ? null : clamp(fin(a[4]), 0, 1), roll: a[5] == null || a[5] < 0 ? null : clamp(fin(a[5]), 0, 1), hurt: clamp(fin(a[6]), 0, 1), dead: a[7] === 1, pose: a[8] ? str(a[8], 12) : null, poseT: clamp(fin(a[9]), 0, 1), guard: a[10] === 1, twist: clamp(fin(a[11]), -2, 2), back: a[12] === 1, moveYaw: clamp(fin(a[13]), -2, 2) },
     gear: unpackGear(msg.g),
     bossQuest: Array.isArray(msg.bq) ? msg.bq.filter((k) => ENEMIES[k]?.boss).slice(0, 4) : [],
     hits: readHits(msg.h),

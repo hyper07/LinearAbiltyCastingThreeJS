@@ -1,7 +1,9 @@
 /**
  * Lanternwood's look after the render: bloom on the flames, then a cheap
  * tilt-shift (blur that grows toward the top of the screen, a little at the
- * very bottom), a vignette and a warm-and-teal grade.
+ * very bottom), a vignette and a warm-and-teal grade — and, for a moment on
+ * a critical hit or a boss falling, a pulse: a touch of colour fringing at
+ * the edges and a lift of light (the game turns it off for reduced motion).
  */
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -37,13 +39,19 @@ void main() {
 };
 
 const GradeShader = {
-  uniforms: { tDiffuse: { value: null }, uHurt: { value: 0 }, uFade: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, uHurt: { value: 0 }, uFade: { value: 0 }, uPulse: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: /* glsl */ `
-uniform sampler2D tDiffuse; uniform float uHurt; uniform float uFade;
+uniform sampler2D tDiffuse; uniform float uHurt; uniform float uFade; uniform float uPulse;
 varying vec2 vUv;
 void main() {
-  vec3 c = texture2D(tDiffuse, vUv).rgb;
+  vec3 c;
+  if (uPulse > 0.001) {
+    // Colour fringing, strongest toward the edges.
+    vec2 off = (vUv - 0.5) * 0.012 * uPulse;
+    c = vec3(texture2D(tDiffuse, vUv + off).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - off).b);
+    c += c * 0.12 * uPulse;
+  } else c = texture2D(tDiffuse, vUv).rgb;
   // Lift the shadows toward deep blue, warm the highlights a touch.
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(c, c * vec3(1.06, 1.0, 0.92), smoothstep(0.35, 0.9, l));
@@ -88,6 +96,10 @@ export class Post {
 
   set hurt(v) {
     this.grade.uniforms.uHurt.value = v;
+  }
+
+  set pulse(v) {
+    this.grade.uniforms.uPulse.value = v;
   }
 
   set fade(v) {

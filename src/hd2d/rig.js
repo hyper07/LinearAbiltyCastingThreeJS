@@ -3,13 +3,26 @@
  * head, body, arms, legs — on joints, posed every frame from what they are
  * doing, wearing their gear (gear3d.js: weapon, shield or tome or bow, hat or
  * helmet, pauldrons, a cape that sways), each in its item's colour with a glint
- * for rare and better.
+ * for rare and better and a metal sheen on bare metal; fists that close round
+ * what they hold, and shoes.
+ *
+ * The joints are springs, not snaps: a pose is a target each joint swings
+ * toward, overshooting a little (follow-through after a strike, a head that
+ * lags a step behind the body). The walk has weight — the body dips as each
+ * foot plants, sways over the standing leg, the shoulders counter-turn — and
+ * reports each footfall (`onStep`) for dust. Idle figures blink, look about,
+ * stretch or shift their weight; a hit knocks them away from the blow.
  *
  * Same surface as SpriteActor (gfx.js), so the game drives either:
  *   actor.show(sprite); actor.setGear(look); actor.update(dt, yaw, light); actor.facing, lift, flash, tint …
  * plus `actor.act` — what the body is doing this frame:
- *   { move: 0…1, swing: { pose, t: 0…1 } | null, pose: { id, t } | null, spin: 0…1 | null,
- *     cast: 0…1 | null, roll: 0…1 | null, guard: bool, hurt: 0…1, dead: bool, talk: bool }
+ *   { move: 0…1, back: bool (walking backward), moveYaw: radians (where the legs go, from the facing),
+ *     twist: radians (upper body turned from the legs, for aiming), swing: { pose, t: 0…1 } | null,
+ *     pose: { id, t } | null, spin: 0…1 | null, cast: 0…1 | null, roll: 0…1 | null, guard: bool,
+ *     hurt: 0…1, dead: bool, talk: bool }
+ * and `actor.lookAt` ({ x, z } in the world, or null): the head turns toward it;
+ * `actor.hitFrom(angle)`: the direction a blow came from (the flinch goes away from it);
+ * `actor.detail` 1 (every pixel a block, near the camera) or 2 (far): set it, the rig swaps.
  *
  * Swing poses follow the weapon: sweepR / sweepL / smash (sword), heavyR / heavyL
  * (axe, mace, long sword — bigger, slower arcs), jabR / jabL / stab (dagger),
@@ -18,33 +31,74 @@
  */
 import * as THREE from 'three';
 import { voxelParts } from './voxel.js';
-import { blobShadow } from './gfx.js';
-import { weaponGeometry, offhandGeometry, headGeometry, pauldronGeometry, capeGeometry } from './gear3d.js';
+import { blobShadow, figureUniforms, figureMaterial, lightFigure } from './gfx.js';
+import { weaponGeometry, offhandGeometry, headGeometry, pauldronGeometry, capeGeometry, handGeometry, footGeometry } from './gear3d.js';
 
 const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const out = (t) => 1 - Math.pow(1 - t, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
+const TAU = Math.PI * 2;
+const wrap = (a) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+const hexOf = (rgb, fallback) => (rgb ? `#${new THREE.Color().setRGB(rgb[0], rgb[1], rgb[2]).getHexString()}` : fallback);
 
-/** A Lambert material that keeps its own colours readable in the dark (lit by `self`), as the figures do. */
-function selfLit(self, params = {}) {
-  const m = new THREE.MeshLambertMaterial({ vertexColors: true, ...params });
-  m.onBeforeCompile = (shader) => {
-    shader.uniforms.uSelf = self;
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uSelf;')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * uSelf;');
-  };
-  return m;
+/**
+ * A damped spring toward a target (one number): `k` stiffness (rad/s), `z`
+ * damping (1 none over, below 1 a little overshoot). Steps in small slices so
+ * a slow frame cannot blow it up.
+ */
+export function springStep(state, target, dt, k = 24, z = 0.6) {
+  let t = Math.min(dt, 0.1);
+  while (t > 0) {
+    const h = Math.min(t, 1 / 120);
+    const acc = k * k * (target - state.x) - 2 * z * k * state.v;
+    state.v += acc * h;
+    state.x += state.v * h;
+    t -= h;
+  }
+  return state.x;
+}
+
+/** Springs for a joint's three rotations. */
+class JointSpring {
+  constructor(obj, k, z) {
+    this.obj = obj;
+    this.k = k;
+    this.z = z;
+    this.s = [{ x: 0, v: 0 }, { x: 0, v: 0 }, { x: 0, v: 0 }];
+  }
+
+  /** Swing toward a target; `kick` adds a sudden push (a hit). */
+  to([x, y, zr], dt, k = this.k) {
+    const r = this.obj.rotation;
+    r.x = springStep(this.s[0], x, dt, k, this.z);
+    r.y = springStep(this.s[1], y, dt, k, this.z);
+    r.z = springStep(this.s[2], zr, dt, k, this.z);
+  }
+
+  kick(vx, vy = 0, vz = 0) {
+    this.s[0].v += vx;
+    this.s[1].v += vy;
+    this.s[2].v += vz;
+  }
+
+  snap([x, y, z]) {
+    this.s[0].x = x;
+    this.s[1].x = y;
+    this.s[2].x = z;
+    for (const s of this.s) s.v = 0;
+  }
 }
 
 export class RigActor {
-  /** @param {{ shadow?: number, scale?: number, sword?: boolean, glow?: number }} options */
-  constructor({ shadow = 0.45, scale = 1, sword = false, glow = 0 } = {}) {
+  /** @param {{ shadow?: number, scale?: number, sword?: boolean, glow?: number, detail?: number }} options */
+  constructor({ shadow = 0.45, scale = 1, sword = false, glow = 0, detail = 2 } = {}) {
     this.group = new THREE.Group();
-    this.self = { value: new THREE.Color(0.4, 0.4, 0.4) };
-    this.material = selfLit(this.self, { side: THREE.DoubleSide });
-    this.gearMat = selfLit(this.self);
+    this.u = figureUniforms();
+    this.self = this.u.uSelf;
+    this.material = figureMaterial(this.u, { side: THREE.DoubleSide });
+    this.gearMat = figureMaterial(this.u);
+    this.metalMat = figureMaterial(this.u, { metal: 0.72 });
     // body: turns and lifts; hips: the joint the whole upper body and the legs hang from.
     this.mesh = new THREE.Group(); // (named as SpriteActor's, for the game's lean and blink)
     this.body = new THREE.Group();
@@ -71,14 +125,28 @@ export class RigActor {
     this.pieces = [];
     this.glowMats = [];
     this.glowColor = null;
+    this.detail = detail;
+    this._detail = detail;
+    this.lookAt = null;
+    this.onStep = null;
+    this.steps = 0;
+    this._stepPhase = 0;
+    this._blink = 2 + Math.random() * 3;
+    this._idle = { t: 0, next: 4 + Math.random() * 5, kind: null, k: 0, dur: 1 };
+    this._hit = { x: 0, z: 0 };
+    this._prevFacing = null;
+    this._turnRate = 0;
   }
 
   /** Dress the rig in a figure (the rig walks it — walk frames are not needed). Gear is hung again. */
   show(sprite) {
     if (this.sprite === sprite) return;
     this.sprite = sprite;
-    const { parts, joints, size } = voxelParts(sprite);
+    const vp = voxelParts(sprite, { step: this.detail });
+    const { parts, joints, size } = vp;
+    this._detail = this.detail;
     this.body.clear();
+    this.partMeshes = {};
     const mk = (name) => {
       const pivot = new THREE.Group();
       pivot.position.set(...joints[name]);
@@ -86,6 +154,7 @@ export class RigActor {
       m.castShadow = true;
       m.receiveShadow = true;
       pivot.add(m);
+      this.partMeshes[name] = m;
       return pivot;
     };
     const hips = mk('torso');
@@ -100,9 +169,25 @@ export class RigActor {
     const legNeg = mk('legNeg');
     const legPos = mk('legPos');
     this.body.add(hips, legNeg, legPos);
-    this.joints = { hips, torso: hips, head, armNeg, armPos, legNeg, legPos, hipY: joints.torso[1], height: size.height, armLength: size.armLength, shoulderY: joints.armNeg[1] - joints.torso[1] };
+    const legLen = joints.legNeg[1];
+    this.joints = { hips, torso: hips, head, armNeg, armPos, legNeg, legPos, hipY: joints.torso[1], height: size.height, armLength: size.armLength, shoulderY: joints.armNeg[1] - joints.torso[1], legLen };
+    this.springs = {
+      armNeg: new JointSpring(armNeg, 26, 0.55), armPos: new JointSpring(armPos, 26, 0.55),
+      legNeg: new JointSpring(legNeg, 30, 0.75), legPos: new JointSpring(legPos, 30, 0.75),
+      hips: new JointSpring(hips, 20, 0.62), head: new JointSpring(head, 13, 0.5)
+    };
+    this._palette = vp.palette;
     this.body.scale.setScalar(this.scale);
     this._hang();
+  }
+
+  /** Swap every part to another detail (1: each pixel a block; 2: far away, a quarter of the blocks). */
+  _swapDetail() {
+    if (!this.sprite || this._detail === this.detail) return;
+    this._detail = this.detail;
+    const vp = voxelParts(this.sprite, { step: this.detail });
+    for (const [n, m] of Object.entries(this.partMeshes ?? {})) m.geometry = vp.parts[n];
+    this._blinkGeo = null;
   }
 
   /**
@@ -115,14 +200,12 @@ export class RigActor {
   }
 
   _glowMat(hex, strength = 0.7) {
-    const m = selfLit(this.self);
-    m.emissive.set(hex);
-    m.userData.base = strength;
+    const m = figureMaterial(this.u, { emissive: hex, strength });
     this.glowMats.push(m);
     return m;
   }
 
-  /** Hang the gear meshes on the joints (after show(), and whenever the gear changes). */
+  /** Hang the gear meshes on the joints (after show(), and whenever the gear changes); hands and feet too. */
   _hang() {
     for (const p of this.pieces) p.removeFromParent();
     this.pieces = [];
@@ -132,9 +215,9 @@ export class RigActor {
     this.swordTip = this.swordMid = null;
     this.cape = null;
     const J = this.joints;
-    const L = this.look;
-    if (!J || !L) return;
-    const mats = (glow, strength) => [this.gearMat, glow ? this._glowMat(glow, strength) : this.gearMat];
+    if (!J) return;
+    const L = this.look ?? {};
+    const mats = (glow, strength) => [this.gearMat, glow ? this._glowMat(glow, strength) : this.gearMat, this.metalMat];
     const hand = J.armLength - 0.06;
     const piece = (geo, parent, glow, strength = 0.7) => {
       const m = new THREE.Mesh(geo, mats(glow, strength));
@@ -143,6 +226,18 @@ export class RigActor {
       this.pieces.push(m);
       return m;
     };
+    // Hands (skin or gloves) at the ends of the arms, closed round whatever they hold; shoes.
+    const P = this._palette ?? {};
+    const skin = hexOf(P.J ?? P.F, '#d8a080');
+    for (const arm of [J.armNeg, J.armPos]) {
+      const h = piece(handGeometry(skin), arm);
+      h.position.set(0, -hand, 0.03);
+    }
+    const shoe = hexOf(P.S, '#5a3a24');
+    for (const leg of [J.legNeg, J.legPos]) {
+      const f = piece(footGeometry(shoe), leg);
+      f.position.set(0, -J.legLen, -0.02);
+    }
     const w = L.weapon;
     if (w) {
       const shape = w.shape ?? w.type;
@@ -202,10 +297,10 @@ export class RigActor {
         hinge.position.set(0, i === 0 ? J.shoulderY + 0.02 : -0.24, i === 0 ? -0.34 : 0);
         parent.add(hinge);
         if (i === 0) this.pieces.push(hinge);
-        const m = new THREE.Mesh(capeGeometry(L.cape, i), [this.gearMat, L.cape.hem ? this._glowMat(L.cape.hem, 0.35) : this.gearMat]);
+        const m = new THREE.Mesh(capeGeometry(L.cape, i), [this.gearMat, L.cape.hem ? this._glowMat(L.cape.hem, 0.35) : this.gearMat, this.metalMat]);
         m.castShadow = true;
         hinge.add(m);
-        strips.push(hinge);
+        strips.push({ hinge, s: { x: 0, v: 0 }, sz: { x: 0, v: 0 } });
         parent = hinge;
       }
       this.cape = strips;
@@ -216,26 +311,99 @@ export class RigActor {
     return (this.joints?.height ?? 1.6) * this.scale;
   }
 
+  /** A blow came from this world direction (radians, as headings): the next flinch goes away from it. */
+  hitFrom(angle, strength = 1) {
+    const rel = wrap(angle - (this.mesh.rotation.y ?? 0));
+    this._hit.x = Math.cos(rel) * strength;
+    this._hit.z = Math.sin(rel) * strength;
+    if (this.springs) {
+      this.springs.hips.kick(-Math.cos(rel) * 9 * strength, 0, Math.sin(rel) * 7 * strength);
+      this.springs.head.kick(-Math.cos(rel) * 12 * strength, Math.sin(rel) * 4 * strength, 0);
+    }
+  }
+
   /** Per frame: pose from `act`, turn, light. */
   update(dt, yaw, light) {
     this.time += dt;
     const J = this.joints;
     if (!J) return;
+    this._swapDetail();
     const a = this.act ?? {};
     const move = a.move ?? 0;
-    if (move > 0.05) this.walk += dt * (6.5 + move * 5);
+    const back = Boolean(a.back);
+    // The stride: faster when running; backward, the cycle runs the other way (a backpedal).
+    if (move > 0.05) this.walk += dt * (7 + move * 4.5) * (back ? -0.85 : 1);
     const s = Math.sin(this.walk);
+    const c2 = Math.cos(this.walk);
+    // Footfalls: when a leg reaches the front of its swing, it plants.
+    const phase = Math.floor(this.walk / Math.PI + 0.5);
+    if (move > 0.05 && phase !== this._stepPhase) {
+      this.steps++;
+      this.onStep?.(phase & 1 ? 'neg' : 'pos');
+    }
+    this._stepPhase = phase;
     const breathe = Math.sin(this.time * 2.2);
     const shape = this.weaponShape;
-    // Rest pose, holding whatever is held, then the walk on top.
-    let hipsRx = move * 0.12, hipsRy = 0, hipsRz = 0, bodyRx = 0, bodyRy = 0, lift = this.lift + Math.abs(Math.cos(this.walk)) * 0.05 * move;
-    let headRx = breathe * 0.02, headRy = 0;
-    let aN = [s * 0.55 * move + breathe * 0.03, 0, -0.08];
-    let aP = [-s * 0.55 * move - breathe * 0.03, 0, 0.08];
-    let lN = [-s * 0.7 * move, 0, 0];
-    let lP = [s * 0.7 * move, 0, 0];
+    // Weight: the body is lowest just as a foot plants, highest as the legs pass; it sways over the standing leg.
+    const plant = 1 - Math.abs(s);
+    let hipsRx = move * (back ? -0.05 : 0.1), hipsRy = s * 0.13 * move, hipsRz = -s * 0.05 * move, bodyRx = 0, bodyRy = 0;
+    let lift = this.lift + (plant * plant) * 0.07 * move - 0.015 * move;
+    let headRx = breathe * 0.02 - move * 0.04, headRy = -hipsRy * 0.7;
+    // Legs: a fast swing forward, a slower push back (the foot stays down longer).
+    const stride = (x) => (x > 0 ? Math.pow(x, 0.8) : -Math.pow(-x, 1.15));
+    const legYaw = Math.max(-0.9, Math.min(0.9, (a.moveYaw ?? 0) * 0.55));
+    let aN = [s * 0.6 * move + breathe * 0.03, 0, -0.1 - move * 0.06];
+    let aP = [-s * 0.6 * move - breathe * 0.03, 0, 0.1 + move * 0.06];
+    let lN = [-stride(s) * 0.75 * move, legYaw, 0];
+    let lP = [stride(s) * 0.75 * move, legYaw, 0];
+    void c2;
     let grip = -0.35;
-    let squash = this.squash + breathe * 0.008;
+    let squash = this.squash + breathe * 0.008 - plant * 0.02 * move;
+    // Idle: now and then a look round, a stretch, a weight shift, a glance at the weapon.
+    const idle = move < 0.05 && !a.swing && !a.pose && !a.talk && !a.guard && a.spin == null && a.cast == null && a.roll == null && !a.dead && !(a.hurt > 0) && !a.twist;
+    const I = this._idle;
+    if (idle) {
+      I.t += dt;
+      if (!I.kind && I.t > I.next) {
+        const kinds = this.weaponShape ? ['look', 'stretch', 'shift', 'weapon'] : ['look', 'stretch', 'shift', 'look'];
+        I.kind = kinds[Math.floor(Math.random() * kinds.length)];
+        I.dur = { look: 2.6, stretch: 1.9, shift: 2.2, weapon: 1.8 }[I.kind];
+        I.k = 0;
+      }
+    } else {
+      I.t = 0;
+      I.kind = null;
+    }
+    if (I.kind) {
+      I.k += dt / I.dur;
+      const k = clamp01(I.k);
+      const bell = Math.sin(k * Math.PI);
+      if (I.kind === 'look') {
+        headRy += Math.sin(k * TAU) * 0.75;
+        headRx += -0.08 * bell;
+      } else if (I.kind === 'stretch') {
+        aN = [lerp(aN[0], -2.9, bell), 0, -0.35 * bell];
+        aP = [lerp(aP[0], -2.9, bell), 0, 0.35 * bell];
+        hipsRx -= 0.14 * bell;
+        headRx -= 0.25 * bell;
+        squash += 0.03 * bell;
+      } else if (I.kind === 'shift') {
+        hipsRz += 0.07 * bell;
+        lift -= 0.02 * bell;
+        lN = [0.12 * bell, 0, -0.08 * bell];
+        headRx += 0.05 * bell;
+      } else if (I.kind === 'weapon') {
+        aN = [lerp(aN[0], -1.25, bell), 0.35 * bell, -0.1];
+        grip = lerp(grip, 0.6, bell);
+        headRy += 0.35 * bell;
+        headRx += 0.25 * bell;
+      }
+      if (I.k >= 1) {
+        I.kind = null;
+        I.t = 0;
+        I.next = 5 + Math.random() * 6;
+      }
+    }
     if (shape === 'bow') aP = [-0.35 - s * 0.2 * move, 0, 0.12];
     else if (shape === 'staff') {
       aN = [-0.3 + s * 0.15 * move, 0, -0.12];
@@ -465,7 +633,8 @@ export class RigActor {
     }
     // Hit: a flinch back.
     if (a.hurt > 0) {
-      hipsRx -= a.hurt * 0.5;
+      hipsRx -= a.hurt * 0.45 * (this._hit.x || 1);
+      hipsRz += a.hurt * 0.35 * this._hit.z;
       headRx -= a.hurt * 0.3;
     }
     // Beaten: down on the back.
@@ -475,29 +644,52 @@ export class RigActor {
       lift = out(this._deadT) * 0.15;
     } else this._deadT = 0;
 
-    // Apply, eased a little so poses blend.
-    const k = Math.min(1, dt * 22);
-    const set = (o, [x, y, z]) => {
-      o.rotation.x += (x - o.rotation.x) * k;
-      o.rotation.y += (y - o.rotation.y) * k;
-      o.rotation.z += (z - o.rotation.z) * k;
-    };
-    set(J.armNeg, aN);
-    set(J.armPos, aP);
-    set(J.legNeg, lN);
-    set(J.legPos, lP);
-    set(J.hips, [hipsRx, hipsRy, hipsRz]);
-    set(J.head, [headRx, headRy, 0]);
-    if (this.weapon) this.weapon.rotation.x += (grip - this.weapon.rotation.x) * k;
+    // Aiming: the upper body turns from the legs toward the aim (the legs keep stepping their own way).
+    if (a.twist) hipsRy += a.twist;
+    // The head turns toward what it looks at (a foe, someone talking), within reason.
+    if (this.lookAt && !a.dead) {
+      const wx = this.lookAt.x - this.group.position.x, wz = this.lookAt.z - this.group.position.z;
+      if (wx * wx + wz * wz > 0.25) {
+        const rel = wrap(Math.atan2(wx, wz) - this.mesh.rotation.y - bodyRy - hipsRy);
+        headRy = Math.max(-1.05, Math.min(1.05, rel)) * 0.85 + headRy * 0.2;
+        if (Math.abs(rel) > 0.9 && !a.swing && !a.pose) hipsRy += Math.sign(rel) * Math.min(0.35, Math.abs(rel) - 0.9);
+      }
+    }
+    // Turning quickly: the body leans into the turn.
+    const f = this.facing ?? yaw;
+    if (this._prevFacing != null && dt > 0) this._turnRate += (wrap(f - this._prevFacing) / dt - this._turnRate) * Math.min(1, dt * 10);
+    this._prevFacing = f;
+    hipsRz += Math.max(-0.12, Math.min(0.12, -this._turnRate * 0.02)) * move;
+
+    // Apply: each joint springs toward its pose (fast for strikes, softer for the head).
+    const S = this.springs;
+    const fast = a.swing || a.pose || a.spin != null || a.roll != null ? 34 : undefined;
+    S.armNeg.to(aN, dt, fast);
+    S.armPos.to(aP, dt, fast);
+    S.legNeg.to(lN, dt, fast);
+    S.legPos.to(lP, dt, fast);
+    S.hips.to([hipsRx, hipsRy, hipsRz], dt, a.spin != null ? 40 : fast ? 28 : undefined);
+    S.head.to([headRx, headRy, 0], dt);
+    if (this.weapon) this.weapon.rotation.x += (grip - this.weapon.rotation.x) * Math.min(1, dt * 24);
     // A bow stays upright in the hand (tipped back to shoot at the sky).
     if (this.bow) this.bow.rotation.x = -J.armPos.rotation.x + (p?.id === 'skyshot' ? -0.9 : 0);
-    // The cape trails behind: more when moving, a ripple always.
+    // The cape trails behind: more when moving, swinging out on turns, a ripple always.
     if (this.cape) {
       this.speed += ((move > 0.05 ? 1 : 0) - this.speed) * Math.min(1, dt * 4);
-      this.cape.forEach((hinge, i) => {
-        const want = -(0.12 + this.speed * 0.35 + (a.roll != null ? 0.6 : 0)) * (i === 0 ? 1 : 0.35) + Math.sin(this.time * 3.1 + i * 0.9) * 0.05 * (1 + this.speed) - (i === 0 ? hipsRx * 0.8 : 0);
-        hinge.rotation.x += (Math.min(0.2, want) * -1 - hinge.rotation.x) * Math.min(1, dt * 8);
+      this.cape.forEach((strip, i) => {
+        const want = -(0.12 + this.speed * 0.38 + (a.roll != null ? 0.6 : 0)) * (i === 0 ? 1 : 0.35) + Math.sin(this.time * 3.1 + i * 0.9) * 0.05 * (1 + this.speed) - (i === 0 ? J.hips.rotation.x * 0.8 : 0);
+        strip.hinge.rotation.x = springStep(strip.s, Math.min(0.2, want) * -1, dt, 9 - i, 0.35);
+        strip.hinge.rotation.z = springStep(strip.sz, Math.max(-0.4, Math.min(0.4, this._turnRate * 0.05)) * (i + 1) * 0.6, dt, 7, 0.4);
       });
+    }
+    // Blink.
+    this._blink -= dt;
+    if (this.partMeshes?.head) {
+      if (this._blink < 0.11 && !a.dead) {
+        this._blinkGeo ??= voxelParts(this.sprite, { step: this._detail }).blinkHead;
+        if (this._blinkGeo) this.partMeshes.head.geometry = this._blinkGeo;
+      } else this.partMeshes.head.geometry = voxelParts(this.sprite, { step: this._detail }).parts.head;
+      if (this._blink < 0) this._blink = 2.2 + Math.random() * 3.5;
     }
     // Somersaults and spins turn the body whole, straight away.
     this.body.rotation.order = 'YXZ';
@@ -513,28 +705,11 @@ export class RigActor {
     this.body.scale.set(this.scale * (1 - squash * 0.6), this.scale * (1 + squash), this.scale * (1 - squash * 0.6));
     this.mesh.rotation.y = this.facing ?? yaw;
     // Light, flash, the gear's glint.
-    const mats = [this.material, this.gearMat, ...this.glowMats];
-    if (this.flash > 0) {
-      this.flash -= dt;
-      for (const m of mats) {
-        m.color.setRGB(1, 1, 1);
-        if (!m.userData.base) m.emissive.setRGB(1.2, 1.1, 1.0);
-      }
-      this.self.value.setRGB(0, 0, 0);
-    } else {
-      this.material.color.copy(this.tint);
-      this.gearMat.color.copy(this.tint);
-      this.material.emissive.setRGB(0, 0, 0);
-      this.gearMat.emissive.setRGB(0, 0, 0);
-      this.self.value.copy(light).multiplyScalar(0.55);
-      if (this.glow) this.self.value.addScalar(this.glow * 0.8);
-      if (this.glowColor) {
-        const g = 0.45 + 0.2 * Math.sin(this.time * 6);
-        this.self.value.r += this.glowColor.r * g;
-        this.self.value.g += this.glowColor.g * g;
-        this.self.value.b += this.glowColor.b * g;
-      }
-    }
+    if (this.flash > 0) this.flash -= dt;
+    this.material.color.copy(this.tint);
+    this.gearMat.color.copy(this.tint);
+    this.metalMat.color.copy(this.tint);
+    lightFigure(this.u, light, { glow: this.glow, glowColor: this.glowColor, flash: this.flash, time: this.time });
     for (const m of this.glowMats) m.emissiveIntensity = m.userData.base * (0.75 + 0.35 * Math.sin(this.time * 4 + m.id));
     if (this.shadow) this.shadow.material.opacity = Math.max(0.3, 1 - lift * 0.5) * 0.7;
     // Where the weapon's tip and middle are (for its trail).
@@ -545,6 +720,10 @@ export class RigActor {
     } else if (this.bow) {
       this.group.updateMatrixWorld(true);
       this.bow.getWorldPosition(this.tip);
+      this.mid.copy(this.tip);
+    } else if (this.joints) {
+      this.group.updateMatrixWorld(true);
+      J.armNeg.localToWorld(this.tip.set(0, -J.armLength, 0.1));
       this.mid.copy(this.tip);
     }
   }
@@ -557,6 +736,7 @@ export class RigActor {
   dispose() {
     this.material.dispose();
     this.gearMat.dispose();
+    this.metalMat.dispose();
     for (const m of this.glowMats) m.dispose();
     this.shadow?.material.dispose();
     this.group.removeFromParent();

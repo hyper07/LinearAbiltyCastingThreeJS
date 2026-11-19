@@ -679,7 +679,8 @@ transformed.z += cos(uTime * 1.4 + ph) * 0.06 * uv.y;
   const waystone = buildWaystone({ x: L.waystone.x, z: L.waystone.z, tint: look.waystone, stone: realmId === 'emberfall' ? '#3a3036' : realmId === 'frostpeak' ? '#8a98b0' : '#9a9488' });
   scene.add(waystone.group);
   sources.push({ x: L.waystone.x, y: 3, z: L.waystone.z, power: 1, color: look.waystone });
-  const chests = L.chests.map((c, i) => ({ ...c, ...buildChest({ x: c.x, z: c.z, rot: i * 1.3, wood: realmId === 'emberfall' ? '#3a2a24' : '#7a4a2a', metal: realmId === 'frostpeak' ? '#a8c8e8' : '#d8a83a' }) }));
+  // One object per chest (its id and place on the chest itself): open() must flip the very `opened` the game reads.
+  const chests = L.chests.map((c, i) => Object.assign(buildChest({ x: c.x, z: c.z, rot: i * 1.3, wood: realmId === 'emberfall' ? '#3a2a24' : '#7a4a2a', metal: realmId === 'frostpeak' ? '#a8c8e8' : '#d8a83a' }), c));
   for (const c of chests) scene.add(c.group);
   const gsprite = sprites.gather[L.gather.kind];
   const gather = L.gather.points.map(([x, z], i) => {
@@ -772,7 +773,12 @@ transformed.z += cos(uTime * 1.4 + ph) * 0.06 * uv.y;
         h.taken = false;
         h.actor.group.visible = true;
       }
-      for (const c of chests) c.opened = false;
+      for (const c of chests) {
+        c.opened = false;
+        c.group.visible = true;
+        c.group.position.y = 0;
+        c.vanishAt = null;
+      }
     },
 
     update(dt, { yaw, hero, camera }) {

@@ -11,6 +11,8 @@ import * as R from './rules.js';
 import { FxBillboard } from './gfx.js';
 import { iconCanvas } from './sprites.js';
 import { lootBeam } from './props.js';
+import { snapToFoe, clampToRange, headingTo, twistSplit, usesPointer } from './aim.js';
+import { rewardChest } from './chests.js';
 
 const TAU = Math.PI * 2;
 const HERO_R = 0.42;
@@ -19,6 +21,7 @@ const wrap = (a) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 const FIRE_RAMP = ['#4a1712', '#8a1f17', '#c9281f', '#f2561d', '#ff8a2a', '#ffc23d', '#ffe26b', '#fff3a6', '#ffffff'];
 const ICE_RAMP = ['#0e1a3a', '#14306a', '#1e5a94', '#2a86c8', '#4ab0e8', '#7fd8ff', '#b8f0ff', '#e8fcff', '#ffffff'];
 const ARCANE_RAMP = ['#1a0e3a', '#2a1a6a', '#4a2a9a', '#6a44c8', '#8a6ae8', '#b09aff', '#d8c8ff', '#f0e8ff', '#ffffff'];
+const ORB_SPARK = { orb: '#9ff4ff', shard: '#e8fcff', fireorb: '#ffb050', spore: '#c8ff8a' };
 const STRIKE_COLORS = [new THREE.Color(2.4, 2.1, 1.4), new THREE.Color(1.3, 2.1, 2.6), new THREE.Color(2.8, 1.4, 0.5), new THREE.Color(2.2, 2.4, 1.2)];
 
 export const CombatMixin = {
@@ -40,6 +43,48 @@ export const CombatMixin = {
     const near = this._nearestEnemy(range, cone);
     if (near) this.heroPos.face = Math.atan2(near.x - this.heroPos.x, near.z - this.heroPos.z);
     return near;
+  },
+
+  /**
+   * Aim an attack. With the mouse on the game (ranged: always; melee: if it
+   * moved lately) at the pointer — snapped to a monster under it — else the
+   * old way, at the nearest foe ahead. Ranged: the body twists toward the aim
+   * while the legs walk on (a full turn past about 100°); melee turns whole.
+   * Returns { angle, point, target, mouse }.
+   */
+  _aimAt(range, { ranged = true, cone = Math.PI * 0.5, hold = 0.7 } = {}) {
+    const h = this.heroPos;
+    if (this.aimPoint && usesPointer({ ranged, onCanvas: this.mouse?.on, lastMove: this.mouse?.t, now: this.t })) {
+      const target = snapToFoe(this.aimPoint, this.enemies.filter((e) => e.alive && e.state !== 'burrowed'));
+      const point = target ? { x: target.x, z: target.z } : { ...this.aimPoint };
+      const angle = headingTo(h, point);
+      if (ranged) this._faceAim(angle, hold);
+      else h.face = angle;
+      return { angle, point, target, mouse: true };
+    }
+    const target = this._aim(range, cone);
+    return { angle: h.face, point: target ? { x: target.x, z: target.z } : null, target, mouse: false };
+  },
+
+  /** Turn toward an aim: the upper body if walking (the legs keep their way), the whole figure past the twist limit or standing. */
+  _faceAim(angle, hold = 0.7) {
+    const hv = this.hv;
+    // Walking: measured from where the legs are going. Within the twist the legs keep that way and the body
+    // turns; past it the whole figure faces the aim and backpedals while the aim is held.
+    const walking = hv.moving && hv.moveAngle != null;
+    const split = walking ? twistSplit(hv.moveAngle, angle) : { face: angle, twist: 0, full: true };
+    this.heroPos.face = split.full ? angle : walking ? hv.moveAngle : split.face;
+    hv.twist = split.full ? 0 : split.twist;
+    hv.aimFull = split.full && walking;
+    hv.aimFace = angle;
+    hv.aimT = hold;
+  },
+
+  /** The heading of an aim now (a snapped foe may have moved; the hero too). */
+  _aimNow(aim) {
+    if (aim?.target?.alive) return headingTo(this.heroPos, aim.target);
+    if (aim?.mouse && aim.point && Math.hypot(aim.point.x - this.heroPos.x, aim.point.z - this.heroPos.z) > 0.5) return headingTo(this.heroPos, aim.point);
+    return aim?.mouse ? aim.angle : this.heroPos.face;
   },
 
   _nearestEnemy(range, cone = Math.PI) {
@@ -86,8 +131,16 @@ export const CombatMixin = {
     const dx = e.x - from.x, dz = e.z - from.z;
     const d = Math.hypot(dx, dz) || 1;
     const kx = (dx / d) * knock * 3, kz = (dz / d) * knock * 3;
-    this.hud.number(String(amount), crit ? 'crit' : 'hit', { x: e.x, y: e.actor.height + 0.4, z: e.z });
-    this.fx(crit ? 'impacts/crit-hit' : 'impacts/hit-spark', e.x - Math.sin(this.camYaw) * 0.3, e.actor.height * 0.45, e.z - Math.cos(this.camYaw) * 0.3, { pxm: crit ? 70 : 52, color: 1.8, speed: 1.5, flip: Math.random() < 0.5 });
+    this.hud.number(String(amount), crit ? 'crit' : spell ? 'spell' : 'hit', { x: e.x, y: e.actor.height + 0.4, z: e.z });
+    // Sparks fly on from the blow, a flash and a ring at the point of impact (golden for a crit).
+    const ix = e.x - (dx / d) * Math.min(0.5, e.def.radius) - Math.sin(this.camYaw) * 0.15, iz = e.z - (dz / d) * Math.min(0.5, e.def.radius) - Math.cos(this.camYaw) * 0.15;
+    const iy = Math.min(1.6, e.actor.height * 0.5 + (e.lift ?? 0));
+    if (spell) this.vfx.hit(ix, iy, iz, { angle: Math.atan2(dx, dz), crit, color: '#e8f4ff', color2: effect === 'burn' ? '#ff7a2a' : '#8ad8ff' });
+    else this.vfx.hit(ix, iy, iz, { angle: Math.atan2(dx, dz), crit });
+    if (crit) {
+      this.fx('impacts/crit-hit', ix, iy, iz, { pxm: 80, color: 1.5, speed: 1.6, flip: Math.random() < 0.5 });
+      this.pulse = Math.max(this.pulse ?? 0, 0.7);
+    }
     this.hitstop = Math.max(this.hitstop, crit ? 0.07 : 0.035);
     this.shake = Math.max(this.shake, crit ? 0.22 : 0.1);
     this.comboHits = (this.comboHits ?? 0) + 1;
@@ -98,7 +151,8 @@ export const CombatMixin = {
     if (this.net?.isGuest) {
       this.net.hit(e, amount, crit, kx, kz, effect, effectT);
       e.hp = Math.max(1, e.hp - amount);
-      e.actor.flash = 0.1;
+      e.actor.flash = 0.12;
+      e.actor.hitFrom?.(Math.atan2(from.x - e.x, from.z - e.z), crit ? 1.4 : 1);
       e.reel = 1;
     } else this._applyDamage(e, amount, crit, kx, kz, effect, effectT, null, 'me');
   },
@@ -117,27 +171,31 @@ export const CombatMixin = {
     this.comboUntil = this.t + st.dur + 0.45;
     const color = STRIKE_COLORS[chain % STRIKE_COLORS.length];
     if (st.proj) {
-      const target = this._aim(st.range, Math.PI * 0.5);
-      void target;
+      const aim = this._aimAt(st.range, { ranged: true, hold: st.dur + 0.5 });
       this.hv.attack = st.dur * 0.7;
       this.hv.swing = { pose: st.pose, t: 0, dur: st.dur, color };
       const loose = st.proj === 'arrow' ? st.dur * (st.pose === 'power' ? 0.72 : 0.55) : st.dur * 0.4;
       this._later(loose, () => {
         if (this.mode !== 'play') return;
         const n = st.count ?? 1;
+        const base = this._aimNow(aim);
         for (let i = 0; i < n; i++) {
-          const a = this.heroPos.face + (n > 1 ? (i - (n - 1) / 2) * st.spread : 0);
+          const a = base + (n > 1 ? (i - (n - 1) / 2) * st.spread : 0);
           const [dx, dz] = dirOf(a);
           const tip = this.heroActor.tip;
           const y = st.proj === 'bolt' ? Math.max(0.9, Math.min(1.8, tip.y)) : 1.15;
           this._projectile(st.proj, this.heroPos.x + dx * 0.6, y, this.heroPos.z + dz * 0.6, dx, dz, st.speed, { owner: 'me', mult: st.mult, pierce: Boolean(st.pierce), life: st.range / st.speed, spell: st.proj === 'bolt', knock: 2.5 });
         }
-        if (st.proj === 'bolt') this.fx('arcane/mana-burst', this.heroActor.tip.x, this.heroActor.tip.y - 0.4, this.heroActor.tip.z, { pxm: 140, color: 1.2, speed: 2.4 });
+        if (st.proj === 'bolt') {
+          this.fx('arcane/mana-burst', this.heroActor.tip.x, this.heroActor.tip.y - 0.4, this.heroActor.tip.z, { pxm: 140, color: 1.2, speed: 2.4 });
+          this.vfx.glow(this.heroActor.tip.x, this.heroActor.tip.y, this.heroActor.tip.z, '#b08aff', 1.1, 0.14);
+          this.vfx.burst(this.heroActor.tip.x, this.heroActor.tip.y, this.heroActor.tip.z, { n: 8, color: '#e0c8ff', color2: '#8a5aff', speed: [1, 3], up: 1, life: [0.2, 0.4], size: [0.05, 0.02], shape: 1, grav: 0, drag: 3 });
+        }
       });
       this.net?.mine({ k: 'swing', p: st.pose });
       return;
     }
-    this._aim(Math.max(3.4, st.range + 0.6), Math.PI * 0.9);
+    this._aimAt(Math.max(3.4, st.range + 0.6), { ranged: false, cone: Math.PI * 0.9 });
     this.hv.attack = st.dur * 0.8;
     this.hv.swing = { pose: st.pose, t: 0, dur: st.dur, color };
     const [fx, fz] = dirOf(this.heroPos.face);
@@ -155,7 +213,11 @@ export const CombatMixin = {
       for (const e of hits) this._hitFoe(e, st.mult, st.knock);
       if (st.pose === 'smash') {
         const [gx, gz] = dirOf(this.heroPos.face);
-        this.fx('impacts/ground-slam', this.heroPos.x + gx * 1.6, 0.05, this.heroPos.z + gz * 1.6, { pxm: 60, color: 1.3, speed: 1.6 });
+        const sx = this.heroPos.x + gx * 1.6, sz = this.heroPos.z + gz * 1.6;
+        this.fx('impacts/ground-slam', sx, 0.05, sz, { pxm: 60, color: 1.3, speed: 1.6 });
+        this.vfx.ring(sx, sz, { color: '#ffd8a0', r0: 0.2, r1: 2.2, life: 0.35, width: 0.35, alpha: 0.8 });
+        this.vfx.blocks(sx, 0.1, sz, this._groundPalette(), { n: 10, size: [0.05, 0.12], speed: [1, 3], up: [2.5, 5] });
+        this._footDust(sx, sz, 2);
         this.shake = Math.max(this.shake, hits.length ? 0.45 : 0.28);
       }
     });
@@ -189,7 +251,7 @@ export const CombatMixin = {
     this.net?.mine({ k: 'skill', id });
     switch (id) {
       case 'lunge': {
-        this._aim(sk.range, Math.PI * 0.5);
+        this._aimAt(sk.range, { ranged: false });
         const [dx, dz] = face();
         pose('lunge', 0.34);
         this.hv.dash = { t: 0, dur: 0.24, dx, dz, speed: sk.range / 0.24, hit: new Set(), sk };
@@ -205,7 +267,7 @@ export const CombatMixin = {
         for (const e of this._foesInRadius(h.x, h.z, sk.radius)) this._hitFoe(e, sk.mult, sk.knock);
         break;
       case 'cleave':
-        this._aim(sk.range, Math.PI * 0.7);
+        this._aimAt(sk.range, { ranged: false, cone: Math.PI * 0.7 });
         pose('overhead', 0.55);
         this._later(0.3, () => {
           const [dx, dz] = face();
@@ -218,15 +280,16 @@ export const CombatMixin = {
         });
         break;
       case 'fireball': {
-        this._aim(sk.range, Math.PI * 0.45);
-        const [dx, dz] = face();
+        const aim = this._aimAt(sk.range, { ranged: true, cone: Math.PI * 0.45 });
+        const [dx, dz] = dirOf(aim.angle);
+        this.vfx.glow(h.x + dx * 0.7, 1.0, h.z + dz * 0.7, '#ff9a3a', 1.4, 0.15);
         this.hv.attack = 0.18;
         this.hv.cast = 0.32;
         this._projectile('fire', h.x + dx * 0.7, 1.0, h.z + dz * 0.7, dx, dz, sk.speed, { owner: 'me', mult: sk.mult, spell: true, radius: sk.radius, knock: sk.knock, life: sk.range / sk.speed });
         break;
       }
       case 'bash':
-        this._aim(sk.range + 1, Math.PI * 0.6);
+        this._aimAt(sk.range + 1, { ranged: false, cone: Math.PI * 0.6 });
         pose('bash', 0.4);
         this._later(0.15, () => {
           const hits = this._foesInArc(h.x, h.z, h.face, sk.range, sk.arc);
@@ -254,6 +317,9 @@ export const CombatMixin = {
         this._later(0.42, () => {
           this.fx('impacts/ground-slam', h.x, 0.05, h.z, { pxm: 30, color: 1.2, speed: 1.4 });
           this.fx('nature/quake', h.x, 0, h.z, { pxm: 26, additive: false, color: 0.9, speed: 1.4 });
+          this.vfx.ring(h.x, h.z, { color: '#ffcf8a', r0: 0.4, r1: sk.radius, life: 0.5, width: 0.3 });
+          this.vfx.blocks(h.x, 0.1, h.z, this._groundPalette(), { n: 26, size: [0.06, 0.16], speed: [2, 5], up: [3, 7], spread: 1.2 });
+          this._footDust(h.x, h.z, 3);
           this.shake = Math.max(this.shake, 0.5);
           for (const e of this._foesInRadius(h.x, h.z, sk.radius)) this._hitFoe(e, sk.mult, sk.knock, { effect: 'slow', effectT: sk.slowT });
           this.net?.mine({ k: 'fx', id: 'impacts/ground-slam', x: h.x, z: h.z, p: 30 });
@@ -261,16 +327,21 @@ export const CombatMixin = {
         break;
       case 'nova':
         pose('nova', 0.45);
-        this.fx('ice/frost-nova', h.x, 0, h.z, { pxm: 24, color: 1.3, speed: 1.3, palette: ICE_RAMP });
+        this.fx('ice/frost-nova', h.x, 0, h.z, { pxm: 24, color: 1.1, speed: 1.3, palette: ICE_RAMP });
+        this.vfx.frost(h.x, h.z, sk.radius);
+        if (this.aimPoint && usesPointer({ ranged: true, onCanvas: this.mouse?.on, lastMove: this.mouse?.t, now: this.t })) this._faceAim(headingTo(h, this.aimPoint), 0.5);
         this.shake = Math.max(this.shake, 0.25);
         for (const e of this._foesInRadius(h.x, h.z, sk.radius)) this._hitFoe(e, sk.mult, sk.knock, { spell: true, effect: 'slow', effectT: sk.slowT });
         break;
       case 'blink': {
         pose('cast', 0.3);
-        const [dx, dz] = face();
+        const aim = this._aimAt(sk.range, { ranged: true, hold: 0.3 });
+        const [dx, dz] = dirOf(aim.angle);
+        const reach = aim.mouse && aim.point ? Math.max(1, clampToRange(h, aim.point, sk.range).d) : sk.range;
         this.fx('arcane/blink-out', h.x, 0, h.z, { pxm: 40, color: 1.4, palette: ARCANE_RAMP });
+        this.vfx.burst(h.x, 1, h.z, { n: 24, color: '#d8c8ff', color2: '#8a6ae8', speed: [1, 4], up: 1, life: [0.3, 0.6], size: [0.06, 0.02], shape: 1, grav: 0, drag: 2.5 });
         let best = [h.x, h.z];
-        for (let d = sk.range; d > 0.5; d -= 0.5) {
+        for (let d = reach; d > 0.5; d -= 0.5) {
           const [nx, nz] = R.resolveCollision(h.x + dx * d, h.z + dz * d, HERO_R, this._nearSolids(h.x + dx * d, h.z + dz * d), this.realmDef.radius);
           if (Math.hypot(nx - (h.x + dx * d), nz - (h.z + dz * d)) < 0.05) {
             best = [nx, nz];
@@ -280,41 +351,60 @@ export const CombatMixin = {
         [h.x, h.z] = best;
         this.hv.inv = Math.max(this.hv.inv, 0.3);
         this.fx('arcane/blink-in', h.x, 0, h.z, { pxm: 40, color: 1.4, palette: ARCANE_RAMP });
+        this.vfx.ring(h.x, h.z, { color: '#b09aff', r0: 1.2, r1: 0.2, life: 0.35, width: 0.4 });
+        this.hv.aimFull = false;
         break;
       }
       case 'lance': {
-        this._aim(sk.range, Math.PI * 0.4);
-        pose('thrust', 0.32);
-        const [dx, dz] = face();
-        this._later(0.1, () => this._projectile('lance', h.x + dx * 0.8, 1.2, h.z + dz * 0.8, dx, dz, sk.speed, { owner: 'me', mult: sk.mult, spell: true, pierce: true, knock: sk.knock, life: sk.range / sk.speed, effect: 'slow', effectT: 1 }));
+        const aim = this._aimAt(sk.range, { ranged: true, cone: Math.PI * 0.4 });
+        if (!this.hv.moving || this.hv.aimFull) pose('thrust', 0.32);
+        else this.hv.cast = 0.32;
+        this.hv.attack = Math.max(this.hv.attack, 0.26);
+        this._later(0.1, () => {
+          const [dx, dz] = dirOf(this._aimNow(aim));
+          this._projectile('lance', h.x + dx * 0.8, 1.2, h.z + dz * 0.8, dx, dz, sk.speed, { owner: 'me', mult: sk.mult, spell: true, pierce: true, knock: sk.knock, life: sk.range / sk.speed, effect: 'slow', effectT: 1 });
+          this.vfx.burst(h.x + dx, 1.2, h.z + dz, { n: 10, color: '#e8fcff', color2: '#7ad8ff', speed: [1, 3], up: 0.5, life: [0.2, 0.4], size: [0.06, 0.02], shape: 1, grav: 0, drag: 3 });
+        });
         break;
       }
       case 'blizzard':
       case 'rain': {
-        const t = this._aim(sk.range + 2, Math.PI * 0.6);
-        const [dx, dz] = face();
-        const d = t ? Math.min(sk.range, Math.hypot(t.x - h.x, t.z - h.z)) : sk.range * 0.7;
-        pose(id === 'blizzard' ? 'raise' : 'skyshot', 0.5);
-        this._zone({ kind: id, x: h.x + dx * d, z: h.z + dz * d, r: sk.radius, life: sk.time, tick: sk.tick, mult: sk.mult, slow: sk.slow, slowT: sk.slowT, owner: 'me', spell: id === 'blizzard' });
+        const aim = this._aimAt(sk.range + 2, { ranged: true, cone: Math.PI * 0.6, hold: 0.6 });
+        let spot;
+        if (aim.mouse && aim.point) spot = clampToRange(h, aim.point, sk.range);
+        else {
+          const [dx, dz] = dirOf(aim.angle);
+          const d = aim.target ? Math.min(sk.range, Math.hypot(aim.target.x - h.x, aim.target.z - h.z)) : sk.range * 0.7;
+          spot = { x: h.x + dx * d, z: h.z + dz * d };
+        }
+        if (!this.hv.moving || this.hv.aimFull) pose(id === 'blizzard' ? 'raise' : 'skyshot', 0.5);
+        else this.hv.cast = 0.32;
+        this._zone({ kind: id, x: spot.x, z: spot.z, r: sk.radius, life: sk.time, tick: sk.tick, mult: sk.mult, slow: sk.slow, slowT: sk.slowT, owner: 'me', spell: id === 'blizzard' });
         break;
       }
-      case 'volley':
-        this._aim(sk.range, Math.PI * 0.5);
-        pose('draw', 0.4);
+      case 'volley': {
+        const aim = this._aimAt(sk.range, { ranged: true, hold: 0.8 });
+        if (!this.hv.moving || this.hv.aimFull) pose('draw', 0.4);
+        else this.hv.swing = { pose: 'shot', t: 0.2, dur: 0.4, color: STRIKE_COLORS[3] };
+        this.hv.attack = Math.max(this.hv.attack, 0.3);
         this._later(0.22, () => {
+          const base = this._aimNow(aim);
           for (let i = 0; i < sk.count; i++) {
-            const a = h.face + (i - (sk.count - 1) / 2) * (sk.spread / (sk.count - 1));
+            const a = base + (i - (sk.count - 1) / 2) * (sk.spread / (sk.count - 1));
             const [dx, dz] = dirOf(a);
             this._projectile('arrow', h.x + dx * 0.6, 1.15, h.z + dz * 0.6, dx, dz, sk.speed, { owner: 'me', mult: sk.mult, knock: sk.knock, life: sk.range / sk.speed });
           }
         });
         break;
+      }
       case 'trap':
         pose('plant', 0.45);
         this._zone({ kind: 'trap', x: h.x, z: h.z, r: sk.radius, life: sk.life, tick: 0.1, mult: sk.mult, root: sk.root, owner: 'me' });
         break;
       case 'rollshot': {
-        const [fx, fz] = face();
+        const aim0 = this._aimAt(sk.range, { ranged: true, hold: 0.1 });
+        h.face = aim0.angle;
+        const [fx, fz] = dirOf(aim0.angle);
         this.hv.roll = R.ABILITIES.roll.time;
         this.hv.rdx = -fx;
         this.hv.rdz = -fz;
@@ -322,9 +412,9 @@ export const CombatMixin = {
         this.fx('spawn/poof', h.x, 0, h.z, { pxm: 140, additive: false, color: 0.7, speed: 2.4 });
         this._later(R.ABILITIES.roll.time + 0.02, () => {
           if (this.mode !== 'play') return;
-          this._aim(sk.range, Math.PI * 0.5);
+          const aim = this._aimAt(sk.range, { ranged: true, hold: 0.5 });
           this.hv.swing = { pose: 'power', t: 0.72, dur: 0.3, color: STRIKE_COLORS[3] };
-          const [dx, dz] = dirOf(h.face);
+          const [dx, dz] = dirOf(this._aimNow(aim));
           this._projectile('arrow', h.x + dx * 0.6, 1.15, h.z + dz * 0.6, dx, dz, sk.speed, { owner: 'me', mult: sk.mult, pierce: true, knock: 4, life: sk.range / sk.speed });
         });
         break;
@@ -346,7 +436,10 @@ export const CombatMixin = {
     this.hv.rdz = dz;
     this.hv.rollFace = null;
     this.cd.roll = a.cd;
+    this.hv.aimT = 0;
+    this.hv.aimFull = false;
     this.fx('spawn/poof', this.heroPos.x, 0, this.heroPos.z, { pxm: 140, additive: false, color: 0.7, speed: 2.4 });
+    this._footDust(this.heroPos.x, this.heroPos.z, 2);
   },
 
   /** Potions: no cooldown — each press drinks one, if there is one. */
@@ -359,8 +452,13 @@ export const CombatMixin = {
     }
     const p = { x: this.heroPos.x, y: 1.9, z: this.heroPos.z };
     this.hud.number(`+${r.restored}`, kind === 'hp' ? 'heal' : 'mana', p);
-    if (kind === 'hp') this.fx('holy/heal', this.heroPos.x, 0, this.heroPos.z + 0.05, { pxm: 46, color: 1.5, speed: 1.6 });
-    else this.fx('arcane/mana-burst', this.heroPos.x, 0.1, this.heroPos.z + 0.05, { pxm: 80, color: 1.3, speed: 1.6 });
+    if (kind === 'hp') {
+      this.fx('holy/heal', this.heroPos.x, 0, this.heroPos.z + 0.05, { pxm: 46, color: 1.2, speed: 1.6 });
+      this.vfx.heal(this.heroPos.x, this.heroPos.z);
+    } else {
+      this.fx('arcane/mana-burst', this.heroPos.x, 0.1, this.heroPos.z + 0.05, { pxm: 80, color: 1.1, speed: 1.6 });
+      this.vfx.heal(this.heroPos.x, this.heroPos.z, '#6ab8ff', '#d8f0ff');
+    }
     this._refreshBag?.();
   },
 
@@ -372,6 +470,7 @@ export const CombatMixin = {
     if (!r.ok) return;
     if (r.effect === 'regen') {
       this.buffs.regen = { rate: r.amount / r.time, t: r.time };
+      this.vfx.heal(this.heroPos.x, this.heroPos.z, '#ffd27a', '#7aff9a');
       this.hud.log(`${R.CONSUMABLES[kind].name}: healing over ${r.time} s`);
       this.fx('holy/heal', this.heroPos.x, 0, this.heroPos.z + 0.05, { pxm: 56, color: 1.2, speed: 1.2 });
     } else if (r.effect === 'fury' || r.effect === 'ward') {
@@ -393,37 +492,66 @@ export const CombatMixin = {
 
   /* ---------------------------------------------------------- visuals */
 
+  /**
+   * A slash, in layers: a wide soft glow sweeping round, a thin white-hot
+   * core along its outer edge, and sparks thrown off the blade's path.
+   */
   _slashArc(face, arc, radius, full, stage = 1, thrust = false, at = this.heroPos) {
-    const SEG = 28;
-    const geo = new THREE.BufferGeometry();
-    const pos = [], uv = [], idx = [];
-    const inner = radius * (full ? 0.62 : thrust ? 0.3 : 0.72);
-    for (let i = 0; i <= SEG; i++) {
-      const u = i / SEG;
-      const a = -arc / 2 + arc * u;
-      for (const [r, v] of [[inner, 0], [radius, 1]]) {
-        pos.push(Math.sin(a) * r, 0, Math.cos(a) * r);
-        uv.push(u, v);
+    const SEG = 32;
+    const band = (inner, outer) => {
+      const geo = new THREE.BufferGeometry();
+      const pos = [], uv = [], idx = [];
+      for (let i = 0; i <= SEG; i++) {
+        const u = i / SEG;
+        const a = -arc / 2 + arc * u;
+        for (const [r, v] of [[inner, 0], [outer, 1]]) {
+          pos.push(Math.sin(a) * r, 0, Math.cos(a) * r);
+          uv.push(u, v);
+        }
+        if (i < SEG) {
+          const k = i * 2;
+          idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+        }
       }
-      if (i < SEG) {
-        const k = i * 2;
-        idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
-      }
-    }
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    geo.setIndex(idx);
-    const mat = new THREE.MeshBasicMaterial({ map: this.arcTex, color: new THREE.Color(full ? '#a8e8ff' : '#fff0c8').multiplyScalar(full ? 0.8 : 1.2), transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(at.x, 0.85, at.z);
-    m.rotation.set(0, face, 0);
-    if (!full && stage === 2) m.scale.x = -1;
-    if (!full && stage === 3) m.rotateZ(Math.PI / 2);
-    m.rotateX(full ? 0 : stage === 3 ? 0 : stage === 2 ? 0.25 : -0.25);
-    m.renderOrder = 6;
-    geo.setDrawRange(0, 0);
-    this.scene.add(m);
-    this.effects.push({ arc: m, t: 0, life: full ? 0.38 : 0.26, seg: SEG, full, fx: { dispose: () => { geo.dispose(); mat.dispose(); m.removeFromParent(); } } });
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.setIndex(idx);
+      geo.setDrawRange(0, 0);
+      return geo;
+    };
+    const inner = radius * (full ? 0.62 : thrust ? 0.3 : 0.62);
+    const tint = full ? '#a8e8ff' : stage === 3 ? '#ffd090' : '#fff0c8';
+    const glowGeo = band(inner, radius * 1.04);
+    const coreGeo = band(radius * 0.9, radius * 1.0);
+    const glowMat = new THREE.MeshBasicMaterial({ map: this.arcTex, color: new THREE.Color(tint).multiplyScalar(full ? 0.7 : 0.9), transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const coreMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(full ? '#d8f6ff' : '#fffaf0').multiplyScalar(this.vfx.day > 0.5 ? 1.3 : 2.2), transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(glowGeo, glowMat), new THREE.Mesh(coreGeo, coreMat));
+    g.position.set(at.x, 0.85, at.z);
+    g.rotation.set(0, face, 0);
+    if (!full && stage === 2) g.scale.x = -1;
+    if (!full && stage === 3) g.rotateZ(Math.PI / 2);
+    g.rotateX(full ? 0 : stage === 3 ? 0 : stage === 2 ? 0.25 : -0.25);
+    g.renderOrder = 6;
+    this.scene.add(g);
+    this.vfx.slashSparks(at.x, at.z, face, Math.min(arc, Math.PI * 1.2), radius * 0.95, full ? '#c8f0ff' : '#ffe2a0');
+    const arcFx = {
+      arc: { geometry: glowGeo, material: glowMat, rotation: g.rotation },
+      core: coreGeo,
+      coreMat,
+      t: 0,
+      life: full ? 0.38 : 0.26,
+      seg: SEG,
+      full,
+      fx: { dispose: () => { glowGeo.dispose(); coreGeo.dispose(); glowMat.dispose(); coreMat.dispose(); g.removeFromParent(); } }
+    };
+    this.effects.push(arcFx);
+  },
+
+  /** Colours of the ground here (rubble kicked up by a slam). */
+  _groundPalette() {
+    const c = { lanternwood: ['#4a3a2c', '#5a4636', '#3a2c22'], sunmeadow: ['#7a5a34', '#5a8a3a', '#8a6a40'], frostpeak: ['#e8f0fa', '#c8d4e4', '#a8b8cc'], emberfall: ['#3a2a26', '#4a3430', '#2a1e1c'] }[this.realm] ?? ['#6a5a4a'];
+    return (this._gp ??= {})[this.realm] ??= c.map((x) => new THREE.Color(x));
   },
 
   /* ---------------------------------------------------------- missiles */
@@ -459,6 +587,10 @@ export const CombatMixin = {
       p.life -= dt;
       p.group.position.set(p.x, p.y + Math.sin(this.t * 20) * 0.03, p.z);
       if (p.group.userData.glow) p.group.userData.glow.material.rotation += dt * 4;
+      if (p.kind !== 'arrow' && (p.trailAcc = (p.trailAcc ?? 0) + dt) > 0.016) {
+        p.trailAcc = 0;
+        this.vfx.trail(p.x, p.y, p.z, p.kind);
+      }
       let hit = p.life <= 0;
       if (!hit) for (const s of this._nearSolids(p.x, p.z)) if (s.r > 0.3 && Math.hypot(p.x - s.x, p.z - s.z) < s.r + 0.1) hit = true;
       if (p.owner === 'me' || p.owner === 'peer') {
@@ -472,7 +604,10 @@ export const CombatMixin = {
                 break;
               }
               this._hitFoe(e, p.mult, p.knock, { spell: p.spell, effect: p.effect, effectT: p.effectT, from: { x: p.x - p.dx, z: p.z - p.dz } });
-              if (p.kind === 'lance') this.fx('ice/ice-shatter', e.x, 0.6, e.z, { pxm: 50, color: 1.4, palette: ICE_RAMP });
+              if (p.kind === 'lance') {
+                this.fx('ice/ice-shatter', e.x, 0.6, e.z, { pxm: 50, color: 1.2, palette: ICE_RAMP });
+                this.vfx.shatter(e.x, 0.8, e.z, Math.atan2(p.dx, p.dz));
+              }
             }
             if (!p.pierce) {
               hit = true;
@@ -482,14 +617,23 @@ export const CombatMixin = {
         }
         if (hit && p.kind === 'fire') {
           if (p.owner === 'me') for (const e of this._foesInRadius(p.x, p.z, p.radius)) this._hitFoe(e, p.mult, p.knock, { spell: true, from: { x: p.x, z: p.z } });
-          this.fx('explosions/small-explosion', p.x, 0, p.z, { pxm: 80, color: 1.3, speed: 2.6, palette: FIRE_RAMP });
+          this.fx('explosions/small-explosion', p.x, 0, p.z, { pxm: 80, color: 1.1, speed: 2.6, palette: FIRE_RAMP });
+          this.vfx.explosion(p.x, Math.max(0.4, p.y * 0.7), p.z, { radius: p.radius || 1.6, ground: this._groundPalette() });
+          this.shake = Math.max(this.shake, 0.22);
         }
-        if (hit && p.kind === 'bolt') this.fx('impacts/hit-spark', p.x, p.y, p.z, { pxm: 60, color: 1.6, palette: ARCANE_RAMP });
+        if (hit && p.kind === 'bolt') {
+          this.fx('impacts/hit-spark', p.x, p.y, p.z, { pxm: 60, color: 1.3, palette: ARCANE_RAMP });
+          this.vfx.burst(p.x, p.y, p.z, { n: 12, color: '#e0c8ff', color2: '#8a5aff', speed: [2, 5], up: 1.5, life: [0.2, 0.45], size: [0.06, 0.02], shape: 1, grav: 4, drag: 2 });
+          this.vfx.glow(p.x, p.y, p.z, '#b08aff', 1.2, 0.12);
+        }
+        if (hit && p.kind === 'lance') this.vfx.shatter(p.x, p.y, p.z, Math.atan2(p.dx, p.dz));
       } else if (!hit) {
         // A monster's missile: alone or hosting, it hurts whoever it reaches; as a guest it only flies.
         for (const h of simulate ? this._heroes() : [{ id: 'me', x: this.heroPos.x, z: this.heroPos.z }]) {
           if (Math.hypot(h.x - p.x, h.z - p.z) > 0.75) continue;
           if (simulate && p.from) this._foeHits(p.from, h, p.from.def.boss ? 0.7 : 1);
+          this.vfx.trail(p.x, p.y, p.z, p.kind);
+          this.vfx.burst(p.x, p.y, p.z, { n: 10, color: ORB_SPARK[p.kind] ?? '#ffffff', speed: [2, 5], up: 1.5, life: [0.2, 0.4], size: [0.06, 0.02], shape: 1, grav: 5, drag: 2 });
           hit = true;
           break;
         }
@@ -553,6 +697,7 @@ export const CombatMixin = {
       if (tick) z.acc = 0;
       if (z.kind === 'totem') {
         z.mesh.children[1].rotation.y += dt * 2;
+        if (Math.random() < dt * 10) this.vfx.motes(z.x, z.z, '#7aff9a', { r: z.r * 0.9, h: 1.5 });
         z.light.intensity = 6 + Math.sin(this.t * 3) * 2;
         // It heals whoever stands near: every player heals themselves from their own copy.
         if (tick && this.mode === 'play' && Math.hypot(this.heroPos.x - z.x, this.heroPos.z - z.z) < z.r) {
@@ -561,7 +706,8 @@ export const CombatMixin = {
             this.hero.hp = Math.min(this.stats.maxHp, this.hero.hp + amt);
             this.hud.number(`+${amt}`, 'heal', { x: this.heroPos.x, y: 1.9, z: this.heroPos.z });
           }
-          if (Math.random() < 0.5) this.fx('holy/heal', this.heroPos.x, 0, this.heroPos.z + 0.05, { pxm: 56, color: 1.1, speed: 1.6 });
+          if (Math.random() < 0.5) this.fx('holy/heal', this.heroPos.x, 0, this.heroPos.z + 0.05, { pxm: 56, color: 0.9, speed: 1.6 });
+          this.vfx.heal(this.heroPos.x, this.heroPos.z);
         }
       } else if (z.kind === 'trap' && z.owner === 'me') {
         const caught = this._foesInRadius(z.x, z.z, z.r);
@@ -572,7 +718,11 @@ export const CombatMixin = {
         }
       } else if ((z.kind === 'blizzard' || z.kind === 'rain') && tick) {
         const rx = z.x + (Math.random() - 0.5) * z.r * 1.4, rz = z.z + (Math.random() - 0.5) * z.r * 1.4;
-        if (z.kind === 'blizzard') this.fx('ice/snowflake-burst', rx, 0.2, rz, { pxm: 60, color: 1.3, palette: ICE_RAMP });
+        if (z.kind === 'blizzard') {
+          this.fx('ice/snowflake-burst', rx, 0.2, rz, { pxm: 60, color: 1.1, palette: ICE_RAMP });
+          this.vfx.shatter(rx, 0.3, rz);
+          this.vfx.burst(z.x, 2.5, z.z, { n: 14, color: '#e8fcff', color2: '#9ae8ff', speed: [1, z.r], up: -2, life: [0.4, 0.8], size: [0.05, 0.03], shape: 2, grav: 6, drag: 0.5 });
+        }
         else this._fallingArrow(rx, rz);
         if (z.owner === 'me') for (const e of this._foesInRadius(z.x, z.z, z.r)) this._hitFoe(e, z.mult, 0.5, { spell: z.spell, effect: z.slow ? 'slow' : null, effectT: z.slowT ?? 0, from: z });
       }
@@ -617,6 +767,8 @@ export const CombatMixin = {
     this.hv.hurtT = 0;
     this.hv.hurt = 1;
     this.heroActor.flash = 0.12;
+    this.heroActor.hitFrom(Math.atan2(fromX - this.heroPos.x, fromZ - this.heroPos.z), crit ? 1.3 : 1);
+    this.vfx?.hit(this.heroPos.x, 1.0, this.heroPos.z, { angle: Math.atan2(this.heroPos.x - fromX, this.heroPos.z - fromZ), color: '#ffb0a0', color2: '#ff3a2a' });
     if (chill) this.chillT = 2;
     const dx = this.heroPos.x - fromX, dz = this.heroPos.z - fromZ;
     const d = Math.hypot(dx, dz) || 1;
@@ -689,16 +841,21 @@ export const CombatMixin = {
       this.hud.boss(null);
       this.hud.toast(`<b>${def.name} is undone.</b>`, 'gold');
     } else this.fx('spawn/poof', ev.x, 0, ev.z, { pxm: 70, additive: false, color: 0.8, speed: 1.6 });
-    const spot = (i) => [ev.x + Math.cos(i * 2.3) * 0.9, ev.z + Math.sin(i * 2.3) * 0.9];
+    const spot = (i) => [ev.x + Math.cos(i * 2.3) * 1.5, ev.z + Math.sin(i * 2.3) * 1.5];
     let n = 0;
     if (drops.gold) this._drop('gold', drops.gold, ...spot(n++));
     for (let i = 0; i < drops.crystals; i++) this._drop('crystal', 1, ...spot(n++));
     if (drops.potion) this._drop('potion', drops.potion, ...spot(n++));
     if (!weak || def.boss) {
-      const tier = def.boss ? 'boss' : ev.elite ? 'elite' : 'normal';
-      const loot = R.rollLoot({ level: def.level, tier, cls: this.hero.cls });
-      for (const it of loot.items) this._dropItem(it, ...spot(n++));
-      for (const c of loot.consumables) this._dropItem(c, ...spot(n++));
+      // A hero monster or a boss leaves a chest (this player's own: each in the party gets one);
+      // anything else drops its loot on the ground.
+      const chest = rewardChest(ev, { id: `${ev.kind}-${ev.nid}-${Math.round(this.t * 10)}`, x: ev.x, z: ev.z, now: this.t });
+      if (chest) this._spawnLootChest(chest);
+      else {
+        const loot = R.rollLoot({ level: def.level, tier: 'normal', cls: this.hero.cls });
+        for (const it of loot.items) this._dropItem(it, ...spot(n++));
+        for (const c of loot.consumables) this._dropItem(c, ...spot(n++));
+      }
     }
     for (const id of R.questEvent(this.state.quests, 'kill', ev.kind)) this._questReady(id);
     if (ev.elite) for (const id of R.questEvent(this.state.quests, 'elite', this.realm)) this._questReady(id);
@@ -728,7 +885,9 @@ export const CombatMixin = {
       beam = lootBeam(rarity.color, entry.rarity === 'rare' ? 0.6 : entry.rarity === 'epic' ? 0.85 : 1.15);
       beam.group.position.set(x, 0, z);
       this.scene.add(beam.group);
-      if (entry.rarity !== 'rare') this.fx('pickups/collect-burst', x, 0.3, z, { pxm: 40, color: 1.5 });
+      if (entry.rarity !== 'rare') this.fx('pickups/collect-burst', x, 0.3, z, { pxm: 40, color: 1.3 });
+      this.vfx.column(x, z, rarity.color, { h: entry.rarity === 'legendary' ? 6 : 4, r: 0.45, life: 1.1 });
+      this.vfx.ring(x, z, { color: rarity.color, r0: 0.2, r1: 1.6, life: 0.6, width: 0.3 });
     }
     this.drops.push({ kind: 'item', entry, x, z, sprite, tex, beam, t: 0, id: Math.random().toString(36).slice(2) });
   },
@@ -750,14 +909,20 @@ export const CombatMixin = {
       const dist = Math.hypot(hx - d.x, hz - d.z);
       if (d.kind === 'item') {
         d.sprite.position.set(d.x, 0.55 + Math.sin(d.t * 3 + d.x) * 0.08 + Math.max(0, 0.5 - d.t) * Math.sin(d.t * 12) * 0.4, d.z);
-        if (d.beam) d.beam.material.opacity = 0.65 + Math.sin(d.t * 4) * 0.25;
+        if (d.beam) {
+          d.beam.material.opacity = 0.65 + Math.sin(d.t * 4) * 0.25;
+          // Motes of the rarity's colour rise round good loot (more for better).
+          const rate = { rare: 3, epic: 6, legendary: 11 }[d.entry.rarity] ?? 2;
+          if (dist < 30 && Math.random() < dt * rate) this.vfx.motes(d.x, d.z, R.RARITIES[d.entry.rarity].color, { r: 0.45, h: 2.2 });
+        }
         if (d.t > 0.5 && dist < 1.1 && this.mode === 'play') {
           const r = R.addToBag(this.hero.bag, d.entry.base ? d.entry : { ...d.entry });
           if (r.ok) {
             const label = d.entry.base ? `<span style="color:${R.RARITIES[d.entry.rarity].color}">${d.entry.name}</span>` : `${R.CONSUMABLES[d.entry.kind].name}${d.entry.n > 1 ? ` ×${d.entry.n}` : ''}`;
             this.hud.log(`Picked up ${label}`);
             if (d.entry.base && ['epic', 'legendary'].includes(d.entry.rarity)) this.hud.toast(`<small>${R.RARITIES[d.entry.rarity].name} find!</small><b style="color:${R.RARITIES[d.entry.rarity].color}">${d.entry.name}</b>`, 'loot');
-            this.fx('pickups/collect-burst', d.x, 0.3, d.z, { pxm: 50, color: 1.4 });
+            this.fx('pickups/collect-burst', d.x, 0.3, d.z, { pxm: 50, color: 1.2 });
+            if (d.entry.base) this.vfx.burst(d.x, 0.5, d.z, { n: 14, color: R.RARITIES[d.entry.rarity].color, color2: '#ffffff', speed: [1, 3], up: 3, life: [0.3, 0.6], size: [0.06, 0.02], shape: 1, grav: 4, drag: 2 });
             this._disposeDrop(d);
             this._refreshBag?.();
             return false;
@@ -802,7 +967,9 @@ export const CombatMixin = {
   },
 
   _levelUp(levels) {
-    this.fx('ui/level-up', this.heroPos.x, 0, this.heroPos.z + 0.1, { pxm: 64, color: 1.5 });
+    this.fx('ui/level-up', this.heroPos.x, 0, this.heroPos.z + 0.1, { pxm: 64, color: 1.3 });
+    this.vfx.levelUp(this.heroPos.x, this.heroPos.z);
+    this.pulse = Math.max(this.pulse ?? 0, 0.5);
     const s = R.statsOf(this.hero);
     this.hud.toast(`<b>Level ${this.hero.level}!</b> Health ${s.maxHp} · Attack ${s.atk}${levels > 1 ? ` (+${levels} levels)` : ''}`, 'gold');
   },

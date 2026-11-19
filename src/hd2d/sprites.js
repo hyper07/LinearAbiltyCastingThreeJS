@@ -18,6 +18,8 @@ export const PXM = 48;
 
 const FLAT = { E: '#1a1026', W: '#ffffff', Y: '#ffe9a8', O: '#ffb347', U: '#9ff4ff', V: '#5fe3ff', Z: '#ffd27a' };
 const opts = (flat = FLAT) => ({ scale: 4, flat });
+/** A shaded sprite that remembers its letter map (voxel.js rounds and lights by material). */
+const shade = (rows, ramps, o) => Object.assign(shadeSprite(rows, ramps, o), { rows });
 const mirror = (rows) => rows.map((r) => r.split('').reverse().join(''));
 
 /* ----------------------------------------------------------- people */
@@ -31,8 +33,34 @@ function backOf(rows, headRows = 10, hair = 'H', bald = false) {
 /** A person's front figure (its back drawn behind it, for the voxel figure). */
 function personSprite(rows, ramps, { hair = 'H', bald = false, flat = FLAT } = {}) {
   const front = shadeSprite(rows, ramps, opts(flat));
-  front.back = shadeSprite(backOf(rows, 10, hair, bald), ramps, opts(flat));
+  front.rows = rows;
+  const backRows = backOf(rows, 10, hair, bald);
+  front.back = shadeSprite(backRows, ramps, opts(flat));
+  front.back.rows = backRows;
+  // The same face with the eyes shut (the rig blinks), and the eyes' catch-light glowing a touch.
+  const shut = blinkRows(rows);
+  if (shut) {
+    front.blink = shadeSprite(shut, ramps, opts(flat));
+    front.blink.rows = shut;
+    front.blink.back = front.back;
+  }
+  front.glow = { W: 0.12 };
   return front;
+}
+
+/** A face with its eyes closed: each eye column keeps only its lowest dark pixel (the lashes), the rest is skin. */
+export function blinkRows(rows, headRows = 10) {
+  const out = rows.map((r) => r.split(''));
+  let changed = false;
+  for (let c = 0; c < (rows[0]?.length ?? 0); c++) {
+    const eye = [];
+    for (let r = 0; r < Math.min(headRows, out.length); r++) if (out[r][c] === 'E' || out[r][c] === 'W') eye.push(r);
+    if (!eye.length) continue;
+    for (const r of eye) out[r][c] = 'F';
+    out[eye[eye.length - 1]][c] = 'E';
+    changed = true;
+  }
+  return changed ? out.map((r) => r.join('')) : null;
 }
 
 const darker = (c, k = 0.35) => mix(c, '#141020', k);
@@ -223,24 +251,24 @@ export function buildSprites() {
   const violet = ['#1c1430', '#2e2050', '#463478', '#6a52a8', '#9a84d8'];
   const ice = ['#2a5a9a', '#4a8ac8', '#7ab8e8', '#b0e0ff', '#eaffff'];
   const enemies = {
-    slime: SLIME.map((rows) => shadeSprite(rows, { G: violet }, opts())),
-    wolf: WOLF_LEGS.map((legs) => shadeSprite([...WOLF_TOP, ...legs], { A: ramp('#5a5a6a'), R: RAMPS.ember, B: RAMPS.bone, M: RAMPS.bone, N: ['#101018', '#181820', '#202028', '#282830', '#303038'], D: ramp('#3a3a48') }, opts({ ...FLAT, O: '#ffb347' }))),
-    wisp: WISP.map((rows) => shadeSprite(rows, { P: ['#2a7a9a', '#3fb0c8', '#6ad8e0', '#a6f0ec', '#e8fff8'] }, opts({ ...FLAT, E: '#0e2030' }))),
-    lampwight: LAMPWIGHT_HEM.map((hem) => shadeSprite([...LAMPWIGHT_TOP, ...hem], { R: ['#120c1c', '#1e1430', '#2c2046', '#3e2e5e', '#56447a'], N: RAMPS.steel, Q: ['#1a2a40', '#244060', '#2e5a80', '#4a7aa0', '#7ab0d0'], C: RAMPS.gold, B: RAMPS.bone, X: RAMPS.bone }, opts())),
-    thornling: THORNLING.map((rows) => shadeSprite(rows, { G: ramp('#4a7a34'), K: RAMPS.bone, B: RAMPS.wood, R: RAMPS.blood }, opts())),
-    mossback: [shadeSprite(MOSSBACK, { M: ramp('#4a8a4a'), G: ramp('#8ac050'), S: ramp('#6a6a5a'), K: RAMPS.bone, B: ramp('#3a3a34') }, opts())],
-    burrowmole: MOLE.map((rows) => shadeSprite(rows, { B: ramp('#7a5a44'), P: ramp('#e0a090'), N: ramp('#d06070'), C: RAMPS.bone }, opts())),
-    hornet: HORNET.map((rows) => shadeSprite(rows, { Y: ramp('#f0c030'), K: ['#140c08', '#1e140c', '#2a1c12', '#3a2a1a', '#4a3a28'] }, opts({ ...FLAT, W: '#dff4ff' }))),
-    thornboar: BOAR_L.map((rows) => shadeSprite(mirror(rows), { B: ramp('#7a4a34'), K: ramp('#5a8a3a'), T: ramp('#5a3424'), P: ramp('#c08070'), W: RAMPS.bone, D: ramp('#3a2a20') }, opts())),
-    shroomkin: [shadeSprite(SHROOM, { R: ramp('#d04a3a'), S: ramp('#e8c8a0'), F: ramp('#f0e0c0'), G: ramp('#5aa04a'), B: RAMPS.wood }, opts({ ...FLAT, W: '#fff4e0' }))],
-    gnarlroot: [shadeSprite(GNARLROOT, { G: ramp('#4a8a3a'), L: ramp('#f0a0c0'), B: ramp('#6a4a32'), D: ramp('#1a1010'), M: ramp('#5a8a4a') }, opts({ ...FLAT, Y: '#ffe060' }))],
-    shardling: SHARDLING.map((rows) => shadeSprite(rows, { I: ice }, opts({ ...FLAT, U: '#ffffff', E: '#1a3a6a' }))),
-    icefang: WOLF_LEGS.map((legs) => shadeSprite([...ICEFANG_TOP, ...legs], { A: ramp('#c8d8e8'), I: ice, R: ramp('#9ad0f0'), B: RAMPS.bone, M: RAMPS.bone, N: ramp('#2a3a5a'), D: ramp('#6a7a9a') }, opts({ ...FLAT, O: '#7ae8ff' }))),
-    frostbat: FROSTBAT.map((rows) => shadeSprite(rows, { W: ramp('#5a8ac0'), B: ramp('#3a4a6a'), K: RAMPS.bone }, opts({ ...FLAT, E: '#9ae8ff' }))),
-    cinderling: CINDERLING.map((rows) => shadeSprite(rows, { O: RAMPS.ember, D: ['#140c0c', '#1e1210', '#2a1a14', '#3a2418', '#4a2e1c'] }, opts({ ...FLAT, E: '#fff4a0', Y: '#ffe060' }))),
-    golem: [shadeSprite(GOLEM, { S: ramp('#3a3438', { contrast: 0.16 }) }, opts({ ...FLAT, L: '#ff8a2a', Y: '#ffe060' }))],
-    salamander: SALAMANDER_L.map((rows) => shadeSprite(mirror(rows), { R: ramp('#c03a24'), Y: RAMPS.gold, K: RAMPS.blood, C: RAMPS.bone }, opts({ ...FLAT, E: '#ffe060' }))),
-    tyrant: [shadeSprite(TYRANT, { H: RAMPS.bone, W: ramp('#4a2030'), R: ramp('#5a1e1a'), B: RAMPS.ember, D: ['#0c0606', '#140a08', '#1c0e0a', '#24120c', '#2c160e'], K: RAMPS.bone, C: RAMPS.bone }, opts({ ...FLAT, Y: '#ffe060' }))]
+    slime: SLIME.map((rows) => shade(rows, { G: violet }, opts())),
+    wolf: WOLF_LEGS.map((legs) => shade([...WOLF_TOP, ...legs], { A: ramp('#5a5a6a'), R: RAMPS.ember, B: RAMPS.bone, M: RAMPS.bone, N: ['#101018', '#181820', '#202028', '#282830', '#303038'], D: ramp('#3a3a48') }, opts({ ...FLAT, O: '#ffb347' }))),
+    wisp: WISP.map((rows) => shade(rows, { P: ['#2a7a9a', '#3fb0c8', '#6ad8e0', '#a6f0ec', '#e8fff8'] }, opts({ ...FLAT, E: '#0e2030' }))),
+    lampwight: LAMPWIGHT_HEM.map((hem) => shade([...LAMPWIGHT_TOP, ...hem], { R: ['#120c1c', '#1e1430', '#2c2046', '#3e2e5e', '#56447a'], N: RAMPS.steel, Q: ['#1a2a40', '#244060', '#2e5a80', '#4a7aa0', '#7ab0d0'], C: RAMPS.gold, B: RAMPS.bone, X: RAMPS.bone }, opts())),
+    thornling: THORNLING.map((rows) => shade(rows, { G: ramp('#4a7a34'), K: RAMPS.bone, B: RAMPS.wood, R: RAMPS.blood }, opts())),
+    mossback: [shade(MOSSBACK, { M: ramp('#4a8a4a'), G: ramp('#8ac050'), S: ramp('#6a6a5a'), K: RAMPS.bone, B: ramp('#3a3a34') }, opts())],
+    burrowmole: MOLE.map((rows) => shade(rows, { B: ramp('#7a5a44'), P: ramp('#e0a090'), N: ramp('#d06070'), C: RAMPS.bone }, opts())),
+    hornet: HORNET.map((rows) => shade(rows, { Y: ramp('#f0c030'), K: ['#140c08', '#1e140c', '#2a1c12', '#3a2a1a', '#4a3a28'] }, opts({ ...FLAT, W: '#dff4ff' }))),
+    thornboar: BOAR_L.map((rows) => shade(mirror(rows), { B: ramp('#7a4a34'), K: ramp('#5a8a3a'), T: ramp('#5a3424'), P: ramp('#c08070'), W: RAMPS.bone, D: ramp('#3a2a20') }, opts())),
+    shroomkin: [shade(SHROOM, { R: ramp('#d04a3a'), S: ramp('#e8c8a0'), F: ramp('#f0e0c0'), G: ramp('#5aa04a'), B: RAMPS.wood }, opts({ ...FLAT, W: '#fff4e0' }))],
+    gnarlroot: [shade(GNARLROOT, { G: ramp('#4a8a3a'), L: ramp('#f0a0c0'), B: ramp('#6a4a32'), D: ramp('#1a1010'), M: ramp('#5a8a4a') }, opts({ ...FLAT, Y: '#ffe060' }))],
+    shardling: SHARDLING.map((rows) => shade(rows, { I: ice }, opts({ ...FLAT, U: '#ffffff', E: '#1a3a6a' }))),
+    icefang: WOLF_LEGS.map((legs) => shade([...ICEFANG_TOP, ...legs], { A: ramp('#c8d8e8'), I: ice, R: ramp('#9ad0f0'), B: RAMPS.bone, M: RAMPS.bone, N: ramp('#2a3a5a'), D: ramp('#6a7a9a') }, opts({ ...FLAT, O: '#7ae8ff' }))),
+    frostbat: FROSTBAT.map((rows) => shade(rows, { W: ramp('#5a8ac0'), B: ramp('#3a4a6a'), K: RAMPS.bone }, opts({ ...FLAT, W: null, E: '#9ae8ff' }))),
+    cinderling: CINDERLING.map((rows) => shade(rows, { O: RAMPS.ember, D: ['#140c0c', '#1e1210', '#2a1a14', '#3a2418', '#4a2e1c'] }, opts({ ...FLAT, E: '#fff4a0', Y: '#ffe060' }))),
+    golem: [shade(GOLEM, { S: ramp('#3a3438', { contrast: 0.16 }) }, opts({ ...FLAT, L: '#ff8a2a', Y: '#ffe060' }))],
+    salamander: SALAMANDER_L.map((rows) => shade(mirror(rows), { R: ramp('#c03a24'), Y: RAMPS.gold, K: RAMPS.blood, C: RAMPS.bone }, opts({ ...FLAT, E: '#ffe060' }))),
+    tyrant: [shade(TYRANT, { H: RAMPS.bone, W: ramp('#4a2030'), R: ramp('#5a1e1a'), B: RAMPS.ember, D: ['#0c0606', '#140a08', '#1c0e0a', '#24120c', '#2c160e'], K: RAMPS.bone, C: RAMPS.bone }, opts({ ...FLAT, W: null, Y: '#ffe060' }))]
   };
   // People-shaped monsters: a person figure each, in monster colours.
   for (const [kind, m] of Object.entries(MONSTER_PEOPLE)) {
@@ -251,6 +279,13 @@ export function buildSprites() {
   const depth = { slime: 0.32, wisp: 0.2, lampwight: 0.38, thornling: 0.24, mossback: 0.5, burrowmole: 0.32, hornet: 0.16, shroomkin: 0.28, gnarlroot: 0.6, shardling: 0.22, frostbat: 0.12, cinderling: 0.24, golem: 0.55, tyrant: 0.55, rimeguard: 0.3, acolyte: 0.3, matron: 0.3 };
   for (const [k, frames] of Object.entries(enemies)) for (const f of frames) f.depth = depth[k] ?? 0.25;
   for (const k of ['wolf', 'icefang', 'thornboar', 'salamander']) for (const f of enemies[k]) Object.assign(f, { depth: k === 'thornboar' ? 0.32 : 0.2, profile: true });
+  // What glows on each (lit from within: eyes, cores, magma cracks, lanterns), 0…1.
+  const glows = {
+    slime: { W: 0.5, V: 0.6 }, wolf: { O: 1, R: 0.35 }, wisp: { P: 0.5, E: 0 }, lampwight: { Q: 0.3, U: 0.55, V: 0.75, C: 0.2 }, shroomkin: { W: 0.2 },
+    gnarlroot: { Y: 1.1, L: 0.3 }, shardling: { U: 1, I: 0.04 }, icefang: { O: 1, I: 0.06 }, frostbat: { E: 1 }, cinderling: { O: 0.06, E: 1, Y: 0.7, D: 0 },
+    golem: { L: 1.3, Y: 1.3 }, salamander: { Y: 0.55, E: 1 }, tyrant: { B: 0.85, Y: 1.3 }, acolyte: { E: 1, W: 0.12 }, matron: { E: 0.7, W: 0.12 }, rimeguard: { W: 0.12 }
+  };
+  for (const [k, frames] of Object.entries(enemies)) for (const f of frames) if (glows[k]) f.glow = glows[k];
   const gather = {
     herb: shadeSprite(HERB, { G: ramp('#3a6a3a'), O: RAMPS.ember }, opts()),
     sunpetal: shadeSprite(SUNPETAL, { Y: RAMPS.gold, O: RAMPS.ember, G: ramp('#4a8a3a') }, opts()),

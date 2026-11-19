@@ -8,6 +8,12 @@ import { FxBillboard, disposeTextures, canvasOf } from './gfx.js';
 import { RigActor, SwordTrail } from './rig.js';
 import { weaponGeometry, disposeGear } from './gear3d.js';
 import { Post } from './post.js';
+import { Vfx, auraMesh } from './vfx.js';
+import { rayToGround, snapToFoe, usesPointer, legMotion, MAX_TWIST } from './aim.js';
+import { openPlaced, openChest, chestGone, chestLoot, CHEST_TIERS, CHEST_VANISH } from './chests.js';
+import { buildChest, lootBeam } from './props.js';
+import { prewarmBeast } from './beasts.js';
+import { voxelParts } from './voxel.js';
 import { Hud, Dialogue, panel, titleHtml, fillLooks, el, drawMinimap, drawMap } from './ui.js';
 import { HeroPreview, openInventory, openCharacter, openJournal, openRealms, openShop, openParty, openPause } from './panels.js';
 import { CombatMixin } from './combat.js';
@@ -45,8 +51,14 @@ const TAU = Math.PI * 2;
 const wrap = (a) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 const dirOf = (a) => [Math.sin(a), Math.cos(a)];
 const HERO_R = 0.42;
-const WALKERS = new Set(['wolf', 'icefang', 'thornboar', 'salamander']);
-const FLAPPERS = new Set(['hornet', 'frostbat']);
+/** How much daylight each realm has (the additive effects tone down in the sun). */
+/** The aim reticle's colour, by class. */
+const CLASS_AIM = { seer: '#8ad8ff', ranger: '#c8f07a', blade: '#ffb070', warden: '#a8e070' };
+const DAYLIGHT = { lanternwood: 0, sunmeadow: 1, frostpeak: 0.25, emberfall: 0.3 };
+/** Footstep dust: its colour and how much shows, per realm. */
+const DUST = { lanternwood: ['#6a5848', 0.22], sunmeadow: ['#c8b080', 0.3], frostpeak: ['#eef4ff', 0.45], emberfall: ['#4a3a36', 0.35] };
+/** Screen flashes and shake are softened for players who ask for less motion. */
+const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const storage = {
   load() {
@@ -163,7 +175,8 @@ export class LanternwoodGame {
     this.pickupFx = { gold: this.makeFx('pickups/coin-spin'), crystal: this.makeFx('pickups/crystal-shard'), potion: this.makeFx('pickups/potion') };
 
     // What lives across realms: the hero, their trail, two moving lights.
-    this.heroActor = new RigActor({ shadow: 0.45 });
+    this.heroActor = new RigActor({ shadow: 0.45, detail: 1 });
+    this.heroActor.onStep = () => this._footDust(this.heroPos.x, this.heroPos.z);
     this.trail = null;
     this.projLight = new THREE.PointLight('#ff8a3a', 0, 12, 1.8);
     this.bossLight = new THREE.PointLight('#6ad8ff', 0, 16, 1.6);
@@ -171,6 +184,7 @@ export class LanternwoodGame {
     this.effects = [];
     this.projectiles = [];
     this.drops = [];
+    this.lootChests = [];
     this.enemies = [];
     this.zones = [];
     this.warnings = [];
@@ -179,6 +193,8 @@ export class LanternwoodGame {
     this.buffs = { guard: 0, fury: 0, ward: 0, regen: null };
     this.cd = {};
     this.shake = 0;
+    this.pulse = 0;
+    this.reducedMotion = REDUCED;
     this.hitstop = 0;
     this.hurtFx = 0;
     this.camYaw = 0;
@@ -220,6 +236,7 @@ export class LanternwoodGame {
     this.world?.dispose();
     this.heroActor?.dispose();
     this.trail?.dispose();
+    this.vfx?.dispose();
     this.preview?.dispose();
     for (const p of Object.values(this.pickupFx ?? {})) p._texture?.dispose();
     for (const g of [this.ringGeo, this.discGeo, this.rectGeo, this.orbGeo, this.lanceGeo, this.totemGeo, this.totemTopGeo, this.trapGeo, this.moundGeo]) g?.dispose();
@@ -227,6 +244,8 @@ export class LanternwoodGame {
     for (const g of this._cones?.values() ?? []) g.dispose();
     this.arcTex?.dispose();
     this.glowTex?.dispose();
+    this.reticle?.g.children.forEach((m) => m.geometry.dispose());
+    this.reticle?.mat.dispose();
     disposeGear();
     this.post?.dispose();
     disposeTextures();
@@ -268,6 +287,9 @@ export class LanternwoodGame {
     this.projectiles = [];
     for (const d of this.drops ?? []) this._disposeDrop(d);
     this.drops = [];
+    // Reward chests left unopened stay behind in the realm being left (gone).
+    for (const c of this.lootChests ?? []) this._disposeLootChest(c);
+    this.lootChests = [];
     for (const e of this.effects ?? []) e.fx.dispose();
     this.effects = [];
     for (const z of this.zones ?? []) {
@@ -277,6 +299,7 @@ export class LanternwoodGame {
       z.light?.removeFromParent();
     }
     this.zones = [];
+    this.vfx?.clear();
     this.warnings = [];
     for (const m of this._warnPool ?? []) {
       m.ring.material.dispose();
@@ -301,18 +324,32 @@ export class LanternwoodGame {
     this.scene.add(this.heroActor.group, this.projLight, this.bossLight);
     this.trail?.dispose();
     this.trail = new SwordTrail(this.scene);
+    if (this.vfx) this.vfx.attach(this.scene);
+    else this.vfx = new Vfx(this.scene);
+    this.vfx.day = DAYLIGHT[id] ?? 0;
     this._grid = null;
     this.moundMat.color.set({ lanternwood: '#5a4030', sunmeadow: '#7a5a34', frostpeak: '#c8d4e4', emberfall: '#3a2a26' }[id]);
     // The people of this realm, on joints, in their own gear.
     this.npcs = R.npcsIn(id).map((nid) => {
       const n = R.NPCS[nid];
-      const a = new RigActor({ shadow: n.child ? 0.32 : 0.42, scale: n.child ? 0.74 : 1 });
+      const a = new RigActor({ shadow: n.child ? 0.32 : 0.42, scale: n.child ? 0.74 : 1, detail: 2 });
       a.show(this.sprites.npcs[nid].front[0]);
       if (n.look?.gear) a.setGear(n.look.gear);
       a.group.position.set(n.x, 0, n.z);
       this.scene.add(a.group);
       return { id: nid, ...n, actor: a, face: n.face, talking: false };
     });
+    // Build the fine (near-camera) figures of this realm's people and monsters a few at a time in the
+    // background, so none stalls a frame the first time it comes close.
+    const jobs = [...this.npcs.map((n) => () => voxelParts(n.actor.sprite, { step: 1 })), ...Object.keys(R.ENEMIES).filter((k) => R.ENEMIES[k].realm === id).map((k) => () => prewarmBeast(k, this.sprites.enemies[k]?.[0]))];
+    const realmNow = id;
+    const run = () => {
+      const job = jobs.shift();
+      if (!job || this.closed || this.realm !== realmNow) return;
+      job();
+      setTimeout(run, 40);
+    };
+    setTimeout(run, 300);
   }
 
   /** Bring the saved state into the world just built: herbs picked, braziers lit, chests opened. */
@@ -324,7 +361,11 @@ export class LanternwoodGame {
       this.world.setProgress(R.questsDone(s.quests, 'lanternwood'), R.questsIn('lanternwood').length);
       this.world.waystoneOn = R.realmUnlocked(s.quests, 'sunmeadow');
     } else for (const i of s.gathered[this.realm] ?? []) this.world.takeHerb(i);
-    for (const c of this.world.chests) if (s.chests.includes(c.id)) c.opened = true;
+    // Placed chests opened on this journey are gone (they sank away when opened).
+    for (const c of this.world.chests) if (s.chests.includes(c.id)) {
+      c.opened = true;
+      c.group.visible = false;
+    }
   }
 
   /**
@@ -572,11 +613,28 @@ export class LanternwoodGame {
         return;
       }
       if (this.overlay) return;
+      if (e.pointerType !== 'touch') track(e, false);
       drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
       c.setPointerCapture?.(e.pointerId);
-      if (e.button === 0) this.basic();
+      if (e.button === 0) {
+        this._updateReticle(0);
+        if (!this._clickChest()) this.basic();
+      }
     });
+    // The pointer over the game: where it is, and when the player last moved it (a pointer that only
+    // happens to rest on the canvas — keyboard play — never counts as aiming).
+    const track = (e, moving = true) => {
+      const b = c.getBoundingClientRect();
+      const x = e.clientX - b.left, y = e.clientY - b.top;
+      const moved = moving && this.mouse && Math.hypot(x - this.mouse.x, y - this.mouse.y) > 2;
+      this.mouse = { x, y, on: true, t: moved ? this.t : this.mouse?.t ?? null };
+    };
+    c.addEventListener('pointerleave', () => {
+      if (this.mouse) this.mouse.on = false;
+    });
+    c.addEventListener('pointerenter', (e) => track(e, false));
     c.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'touch') track(e);
       if (!drag || drag.id !== e.pointerId) return;
       const dx = e.clientX - drag.x;
       drag.x = e.clientX;
@@ -690,9 +748,14 @@ export class LanternwoodGame {
       if (d < Math.min(bd, 2.6)) [best, bd] = [{ type: 'brazier', brazier: b, label: b.lit ? 'The brazier burns' : this.state.quests.braziers.state === 'active' ? 'Light the brazier' : 'A cold, old brazier' }, d];
     }
     for (const c of this.world.chests) {
-      if (c.opened) continue;
+      if (c.opened || this.state.chests.includes(c.id)) continue;
       const d = Math.hypot(c.x - hx, c.z - hz);
       if (d < Math.min(bd, 2.4)) [best, bd] = [{ type: 'chest', chest: c, label: 'Open the chest' }, d];
+    }
+    for (const c of this.lootChests) {
+      if (c.opened || !c.landed) continue;
+      const d = Math.hypot(c.x - hx, c.z - hz);
+      if (d < Math.min(bd, 2.6)) [best, bd] = [{ type: 'lootchest', chest: c, label: c.tier === 'boss' ? 'Open the boss’s hoard' : 'Open the hero monster’s chest' }, d];
     }
     const w = this.realmDef.waystone;
     const dw = Math.hypot(w.x - hx, w.z - hz);
@@ -714,20 +777,19 @@ export class LanternwoodGame {
     }
     if (it.type === 'chest') {
       const c = it.chest;
+      // Once per journey: marked opened (and saved) before anything is rolled, so it can never give twice.
+      if (!openPlaced(this.state.chests, c.id)) return;
       this.world.openChest(c.id);
-      this.state.chests.push(c.id);
+      c.opened = true;
+      c.vanishAt = this.t + CHEST_VANISH;
+      this.save();
       const level = Math.max(R.REALMS[this.realm].levels[0], Math.min(this.hero.level, R.REALMS[this.realm].levels[1]));
       const loot = R.rollLoot({ level, tier: 'chest', cls: this.hero.cls });
-      let n = 0;
-      const spot = () => [c.x + Math.cos(n * 2.1) * 1.3, c.z + 1.0 + Math.sin(n++ * 2.1) * 0.8];
-      this._drop('gold', 10 + level * 4, ...spot());
-      for (const i of loot.items) this._dropItem(i, ...spot());
-      for (const s of loot.consumables) this._dropItem(s, ...spot());
-      this.fx('pickups/collect-burst', c.x, 0.6, c.z, { pxm: 36, color: 1.6 });
+      this._spill(c, [['gold', 10 + level * 4], ...loot.items, ...loot.consumables]);
       this.hud.log('The chest creaks open');
-      this.save();
       return;
     }
+    if (it.type === 'lootchest') return this._openLootChest(it.chest);
     if (it.type === 'gather') {
       if (!this.gatherWanted()) {
         this.hud.toast('It glows softly. Maybe someone nearby needs these.');
@@ -761,6 +823,122 @@ export class LanternwoodGame {
       this.hud.log(`A brazier roars to life (${Math.min(3, e.progress + 1)}/3)`);
       for (const id of R.questEvent(this.state.quests, 'light', 'brazier')) this._questReady(id);
     }
+  }
+
+  /* ============================================================== chests */
+
+  /** A reward chest drops where a hero monster or a boss fell: it falls, bounces, and glows in its colour. */
+  _spawnLootChest(chest) {
+    const T = CHEST_TIERS[chest.tier];
+    const color = R.RARITIES[T.rarity].color;
+    const prop = buildChest({ x: chest.x, z: chest.z, rot: Math.random() * Math.PI * 2, wood: chest.tier === 'boss' ? '#4a2a1a' : '#6a3a24', metal: color });
+    prop.group.scale.setScalar(T.scale);
+    prop.group.position.y = 2.6;
+    this.scene.add(prop.group);
+    const beam = lootBeam(color, chest.tier === 'boss' ? 0.9 : 0.6);
+    beam.group.position.set(chest.x, 0, chest.z);
+    beam.group.visible = false;
+    this.scene.add(beam.group);
+    const c = Object.assign(chest, { prop, beam, color, y: 2.6, vy: 0, landed: false, bounces: 0 });
+    this.lootChests.push(c);
+    this.vfx.column(chest.x, chest.z, color, { h: chest.tier === 'boss' ? 7 : 4.5, r: 0.5, life: 1.2 });
+    return c;
+  }
+
+  /** Open a reward chest: once. The lid opens, its loot pops out round it, and soon it sinks away. */
+  _openLootChest(c) {
+    if (!openChest(c, this.t).ok) return;
+    c.prop.open();
+    const level = Math.max(this.hero.level, R.REALMS[this.realm].levels[0]);
+    const loot = chestLoot(c, { level, cls: this.hero.cls }, R.rollLoot);
+    this._spill(c, [['gold', loot.gold], ...loot.items, ...loot.consumables], true);
+    this.vfx.burst(c.x, 0.8, c.z, { n: 30, color: c.color, color2: '#ffffff', speed: [1, 4], up: 5, life: [0.5, 1.1], size: [0.08, 0.03], shape: 1, grav: 6, drag: 1 });
+    this.vfx.ring(c.x, c.z, { color: c.color, r0: 0.3, r1: 2.6, life: 0.6, width: 0.3 });
+    this.vfx.flash(c.x, 1.2, c.z, c.color, 30, 0.5);
+    this.hud.log(c.tier === 'boss' ? 'The hoard spills open' : 'The chest springs open');
+  }
+
+  /** Loot comes out of a chest one piece after another, landing round it. */
+  _spill(c, list, pop = false) {
+    const n = list.length;
+    list.forEach((entry, i) => {
+      this._later(0.18 + i * 0.12, () => {
+        if (this.closed) return;
+        const a = (i / Math.max(1, n)) * Math.PI * 2 + 0.6;
+        const r = 1.3 + (i % 2) * 0.4;
+        const x = c.x + Math.cos(a) * r, z = c.z + 0.6 + Math.sin(a) * r * 0.8;
+        if (Array.isArray(entry)) this._drop(entry[0], entry[1], x, z);
+        else this._dropItem(entry, x, z);
+        this.vfx.burst(c.x, 0.7, c.z, { n: pop ? 8 : 5, color: '#fff2c0', color2: c.color ?? '#ffd27a', speed: [1, 3], up: 3, life: [0.3, 0.6], size: [0.06, 0.02], shape: 1, grav: 5, drag: 1.5 });
+      });
+    });
+    if (!pop) this.fx('pickups/collect-burst', c.x, 0.6, c.z, { pxm: 36, color: 1.3 });
+  }
+
+  _disposeLootChest(c) {
+    c.prop.dispose();
+    c.beam.dispose();
+  }
+
+  /** Reward chests fall and bounce, glow while closed, sink away once opened (or when left too long); placed chests sink once opened. */
+  _updateChests(dt) {
+    for (const c of this.world.chests) {
+      if (c.vanishAt == null || !c.group.visible) continue;
+      const k = this.t - c.vanishAt;
+      if (k > 0) {
+        c.group.position.y = -k * k * 1.6;
+        if (Math.random() < dt * 20) this.vfx.dust(c.x, c.z, { n: 1, size: 0.5, alpha: 0.35 });
+        if (k > 0.9) c.group.visible = false;
+      }
+    }
+    this.lootChests = this.lootChests.filter((c) => {
+      if (!c.landed) {
+        c.vy -= 22 * dt;
+        c.y += c.vy * dt;
+        if (c.y <= 0) {
+          c.y = 0;
+          if (c.bounces < 2 && Math.abs(c.vy) > 2) {
+            c.vy = -c.vy * 0.35;
+            c.bounces++;
+            this._footDust(c.x, c.z, 1.6);
+          } else {
+            c.landed = true;
+            c.beam.group.visible = true;
+            this.vfx.ring(c.x, c.z, { color: c.color, r0: 0.3, r1: 1.8, life: 0.5, width: 0.3 });
+          }
+        }
+        c.prop.group.position.y = c.y;
+      }
+      if (c.landed && !c.opened) {
+        c.beam.material.opacity = 0.55 + Math.sin(this.t * 4) * 0.2;
+        if (Math.random() < dt * (c.tier === 'boss' ? 10 : 5)) this.vfx.motes(c.x, c.z, c.color, { r: 0.6, h: 2 });
+      }
+      if (c.opened) c.beam.material.opacity = Math.max(0, c.beam.material.opacity - dt * 2);
+      if (chestGone(c, this.t)) {
+        // Sinks into the ground and is gone.
+        const k = c.opened ? this.t - c.openedAt - CHEST_VANISH : this.t - c.despawnAt;
+        c.prop.group.position.y = -k * k * 1.8;
+        if (Math.random() < dt * 20) this.vfx.dust(c.x, c.z, { n: 1, size: 0.55, alpha: 0.35 });
+        if (k > 0.9) {
+          this._disposeLootChest(c);
+          return false;
+        }
+      }
+      c.prop.update(dt);
+      return true;
+    });
+  }
+
+  /** A click on (or right by) a chest the hero stands near opens it instead of swinging. */
+  _clickChest() {
+    const p = this.aimPoint;
+    if (!p) return false;
+    const h = this.heroPos;
+    const it = this._interactable();
+    if (!it || (it.type !== 'chest' && it.type !== 'lootchest')) return false;
+    if (Math.hypot(it.chest.x - p.x, it.chest.z - p.z) > 1.4 || Math.hypot(it.chest.x - h.x, it.chest.z - h.z) > 3.2) return false;
+    this.interact();
+    return true;
   }
 
   talk(npc) {
@@ -894,6 +1072,8 @@ export class LanternwoodGame {
     const low = this.mode === 'play' && this.hero && this.stats ? Math.max(0, 0.3 - this.hero.hp / this.stats.maxHp) * 1.2 : 0;
     this.post.hurt = Math.max(this.hurtFx * 0.8, low);
     if (this.mode !== 'dead') this.post.fade = this._fade;
+    this.pulse = Math.max(0, this.pulse - dt * 5);
+    this.post.pulse = this.reducedMotion ? 0 : this.pulse;
     this.post.draw();
     this._watchFps(dt);
   }
@@ -962,6 +1142,7 @@ export class LanternwoodGame {
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateDrops(dt);
+    this._updateChests(dt);
 
     this._autosave -= dt;
     if (this._autosave <= 0) {
@@ -998,7 +1179,9 @@ export class LanternwoodGame {
       const slow = (hv.attack > 0 ? 0.45 : 1) * (this.chillT > 0 ? 0.6 : 1) * (this.buffs.guard > 0 ? 0.6 : 1);
       vx = mx * stats.speed * slow;
       vz = mz * stats.speed * slow;
-      if (hv.attack <= 0) {
+      hv.moveAngle = Math.atan2(mx, mz);
+      // The legs turn the way the keys say — unless the hero has turned right round to shoot (a backpedal).
+      if (hv.attack <= 0 && !(hv.aimT > 0 && hv.aimFull)) {
         const want = Math.atan2(mx, mz);
         this.heroPos.face = wrap(this.heroPos.face + wrap(want - this.heroPos.face) * Math.min(1, dt * 14));
       }
@@ -1009,6 +1192,12 @@ export class LanternwoodGame {
       }
     }
     hv.moving = Math.hypot(vx, vz) > 0.1 && hv.roll <= 0 && !hv.dash;
+    // Holding an aim: the upper body stays on it (within its twist) as the legs turn.
+    hv.aimT = Math.max(0, (hv.aimT ?? 0) - dt);
+    if (hv.aimT > 0 && hv.aimFace != null) {
+      const tw = wrap(hv.aimFace - this.heroPos.face);
+      hv.twist = Math.max(-MAX_TWIST, Math.min(MAX_TWIST, tw));
+    } else hv.aimFull = false;
     vx += hv.kx;
     vz += hv.kz;
     hv.kx *= Math.exp(-dt * 9);
@@ -1066,26 +1255,33 @@ export class LanternwoodGame {
     this.camLook.lerp(look, snap ? 1 : 1 - Math.exp(-dt * 9));
     this.camera.position.copy(this.camPos);
     if (this.shake > 0) {
-      this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.5;
-      this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.5;
+      const k = this.reducedMotion ? 0.15 : 0.5;
+      this.camera.position.x += (Math.random() - 0.5) * this.shake * k;
+      this.camera.position.y += (Math.random() - 0.5) * this.shake * k;
       this.shake = Math.max(0, this.shake - dt * 2.5);
     }
     this.camera.lookAt(this.camLook);
   }
 
   updateActors(dt, yaw) {
-    const light = new THREE.Color();
+    const light = this._lightTmp ?? (this._lightTmp = new THREE.Color());
     const h = this.heroPos;
     const hv = this.hv ?? { moving: false, attack: 0, roll: 0, spin: 0 };
     const a = this.heroActor;
+    const cam = this.camera.position;
     a.group.position.set(h.x, 0, h.z);
     a.squash = 0;
     const [dx, dz] = dirOf(h.face);
     a.mesh.position.x = hv.attack > 0 ? dx * 0.15 : 0;
     a.mesh.position.z = hv.attack > 0 ? dz * 0.15 : 0;
     a.facing = hv.roll > 0 && hv.rollFace != null ? hv.rollFace : h.face;
+    // Walking one way, aiming another: the legs go where the keys say, the body twists to the aim.
+    const legs = hv.moving && hv.moveAngle != null ? legMotion(a.facing, hv.moveAngle) : { back: false, moveYaw: 0 };
     a.act = {
       move: hv.moving ? 1 : 0,
+      back: legs.back,
+      moveYaw: legs.moveYaw,
+      twist: hv.aimT > 0 ? hv.twist ?? 0 : 0,
       swing: hv.swing ? { pose: hv.swing.pose, t: Math.min(1, hv.swing.t) } : null,
       pose: hv.pose ? { id: hv.pose.id, t: Math.min(1, hv.pose.t) } : null,
       spin: hv.spin > 0 ? 1 - hv.spin / 0.4 : null,
@@ -1095,6 +1291,15 @@ export class LanternwoodGame {
       hurt: hv.hurt ?? 0,
       dead: this.mode === 'dead'
     };
+    // The head turns to the nearest foe close by (or whoever is talking).
+    let near = null, nd = 8;
+    for (const e of this.enemies) {
+      if (!e.alive || e.state === 'burrowed') continue;
+      const d = Math.hypot(e.x - h.x, e.z - h.z);
+      if (d < nd) [near, nd] = [e, d];
+    }
+    const talking = this.npcs.find((n) => n.talking);
+    a.lookAt = talking ? { x: talking.x, z: talking.z } : near ? { x: near.x, z: near.z } : null;
     a.group.visible = this.mode !== 'title' && this.mode !== 'loading';
     const blink = hv.inv > 0 && Math.floor(this.t * 20) % 2 === 0;
     a.mesh.visible = !blink || this.mode === 'dead';
@@ -1102,16 +1307,21 @@ export class LanternwoodGame {
     if (this.mode === 'dead') a.material.color.multiplyScalar(0.5);
     const swinging = Boolean(hv.swing && hv.swing.t > 0.12 && hv.swing.t < 0.85 && !['bolt', 'bolt3', 'shot', 'power'].includes(hv.swing.pose)) || hv.spin > 0 || Boolean(hv.dash) || (hv.pose && ['overhead', 'lunge'].includes(hv.pose.id) && hv.pose.t > 0.25 && hv.pose.t < 0.8);
     this.trail?.update(a.tip, a.mid, swinging && Boolean(a.swordTip), hv.swing?.color ?? (hv.spin > 0 ? new THREE.Color(1.2, 2.2, 2.8) : new THREE.Color(2.8, 1.4, 0.5)));
+    this._updateReticle(dt);
 
-    // People: they turn to the hero when near or talking.
+    // People: they turn to the hero when near or talking, and look at them; fine detail close to the camera.
     for (const n of this.npcs) {
-      const near = Math.hypot(h.x - n.x, h.z - n.z) < 4.5 && this.mode !== 'title';
-      const want = near || n.talking ? Math.atan2(h.x - n.x, h.z - n.z) : n.face0 ?? (n.face0 = n.face);
+      const dHero = Math.hypot(h.x - n.x, h.z - n.z);
+      const close = dHero < 4.5 && this.mode !== 'title';
+      const want = close || n.talking ? Math.atan2(h.x - n.x, h.z - n.z) : n.face0 ?? (n.face0 = n.face);
       n.face = wrap(n.face + wrap(want - n.face) * Math.min(1, dt * 6));
-      n.actor.squash = Math.sin(this.t * 2 + n.x) * 0.015 + (n.talking ? Math.abs(Math.sin(this.t * 9)) * 0.02 : 0);
+      n.actor.squash = n.talking ? Math.abs(Math.sin(this.t * 9)) * 0.02 : 0;
       n.actor.facing = n.face;
+      n.actor.lookAt = dHero < 7 && this.mode !== 'title' ? { x: h.x, z: h.z } : null;
       n.actor.act = { move: 0, talk: Boolean(n.talking) };
-      if (Math.hypot(n.x - h.x, n.z - h.z) < 70) n.actor.update(dt, yaw, this.world.lightAt(n.x, n.z, light));
+      const dc = Math.hypot(cam.x - n.x, cam.z - n.z);
+      n.actor.detail = dc < 15 ? 1 : 2;
+      if (dHero < 70) n.actor.update(dt, yaw, this.world.lightAt(n.x, n.z, light));
     }
 
     // Monsters.
@@ -1134,16 +1344,21 @@ export class LanternwoodGame {
         e.mound.position.set(e.x, 0, e.z);
         e.mound.scale.setScalar(0.8 + Math.sin(this.t * 14) * 0.08);
         act.group.visible = false;
+        if (Math.random() < dt * 8) this.vfx.dust(e.x, e.z, { n: 1, color: DUST[this.realm]?.[0] ?? '#8a7a6a', size: 0.5, alpha: 0.4 });
         continue;
       }
       if (e.mound) e.mound.visible = false;
       if (!act.group.visible) continue;
       act.group.position.set(e.x, 0, e.z);
-      const moving = Math.hypot(e.vx, e.vz) > 0.2;
+      const sp = Math.hypot(e.vx, e.vz);
+      const moving = sp > 0.2;
       const winding = e.state === 'windup';
       const wk = winding && e.wind ? 1 - Math.max(0, e.timer ?? 0) / e.wind : 0;
       e.reel = Math.max(0, (e.reel ?? 0) - dt * 4);
       act.facing = e.face;
+      const dc = Math.hypot(cam.x - e.x, cam.z - e.z);
+      act.detail = dc < (e.def.boss ? 26 : 16) ? 1 : 2;
+      act.lookAt = e.target ? { x: e.target.x, z: e.target.z } : null;
       if (e.def.rig) {
         // People-shaped: they walk, raise a shield or a staff as they wind up, strike with it.
         const strikePose = e.kind === 'rimeguard' ? 'smash' : 'bolt';
@@ -1156,28 +1371,33 @@ export class LanternwoodGame {
           dead: false
         };
         act.lift = e.lift ?? 0;
-        act.update(dt, yaw, this.world.lightAt(e.x, e.z, light));
-        continue;
+      } else {
+        const floats = e.def.float != null;
+        act.lift = (e.lift ?? 0) + (floats && e.state !== 'strike' ? Math.sin(this.t * 2.5 + e.hx) * 0.18 : 0);
+        act.act = { move: moving ? Math.min(1, sp / Math.max(1, e.st.speed * 0.8)) : 0, wind: wk, strike: e.state === 'strike', stun: e.stunT > 0, hurt: e.reel, air: (e.lift ?? 0) - (e.def.float ?? 0) };
+        if (e.kind === 'wisp' || e.kind === 'cinderling' || e.kind === 'shardling') act.glow = (e.kind === 'wisp' ? 0.3 : e.kind === 'cinderling' ? 0.04 : 0.12) + (winding ? wk * 0.8 : 0);
+        if (e.def.boss) act.glow = 0.2 + (winding ? 0.35 * Math.abs(Math.sin(this.t * 12)) : 0);
+        if (e.def.attack === 'bomb') act.squash = winding ? 0.2 * wk + Math.sin(this.t * 30) * 0.05 * wk : 0;
       }
-      const frames = this.sprites.enemies[e.kind];
-      let f = 0;
-      if (WALKERS.has(e.kind)) f = moving ? 1 + (Math.floor(e.frameT / (e.state === 'strike' ? 0.06 : 0.11)) % 2) : 0;
-      else if (FLAPPERS.has(e.kind)) f = Math.floor(e.frameT / 0.07) % frames.length;
-      else f = Math.floor(e.frameT / (moving ? 0.18 : 0.38)) % frames.length;
-      f = Math.min(f, frames.length - 1);
-      const floats = e.def.float != null;
-      act.lift = (e.lift ?? 0) + (floats && e.state !== 'strike' ? Math.sin(this.t * 2.5 + e.hx) * 0.18 : 0);
-      act.squash = winding ? (e.def.attack === 'hop' || e.def.attack === 'bomb' ? -0.25 * wk : e.def.attack === 'nova' ? 0.1 * wk : -0.12 * wk) : 0;
-      if (e.kind === 'wisp' || e.kind === 'cinderling' || e.kind === 'shardling') act.glow = (e.kind === 'cinderling' ? 0.45 : 0.4) + (winding ? wk * 1.2 : 0);
-      if (e.def.boss) act.glow = 0.3 + (winding ? 0.35 * Math.abs(Math.sin(this.t * 12)) : 0);
-      act.show(frames[f], false);
-      act.mesh.rotation.order = 'YXZ';
-      const lope = moving && WALKERS.has(e.kind) ? Math.sin(e.frameT * 14) * 0.12 : 0;
-      act.mesh.rotation.x = -e.reel * 0.5 + lope + (e.state === 'strike' ? 0.25 : winding ? -0.15 : 0) + (e.stunT > 0 ? Math.sin(this.t * 20) * 0.1 : 0);
-      act.mesh.rotation.z = e.reel * Math.sin(this.t * 40) * 0.1;
       act.update(dt, yaw, this.world.lightAt(e.x, e.z, light));
       if (winding && Math.floor(this.t * 16) % 2 === 0 && act.flash <= 0) act.material.color.setRGB(1.5, 0.5, 0.4);
       if (e.stunT > 0 && act.flash <= 0) act.material.color.setRGB(0.8, 0.8, 1.3);
+      // Hero monsters and bosses: an aura on the ground and motes rising, in their colour.
+      if ((e.elite || e.def.boss) && dc < 40) {
+        const c = e.def.boss ? e.def.light ?? '#ffd27a' : R.ELITE_AFFIXES[e.elite.affixes[0]]?.color ?? '#ffd27a';
+        const r = (e.def.radius ?? 0.6) * (e.def.boss ? 2.2 : 2.4);
+        if (!e.aura) {
+          e.aura = auraMesh(c, r);
+          act.group.add(e.aura);
+        }
+        e.aura.material.uniforms.uTime.value = this.t;
+        e.auraAcc = (e.auraAcc ?? 0) + dt;
+        const every = e.def.boss ? 0.04 : 0.09;
+        while (e.auraAcc > every) {
+          e.auraAcc -= every;
+          this.vfx.motes(e.x, e.z, c, { r: r * 0.8, h: e.def.boss ? 3.5 : 2.2, size: e.def.boss ? 0.08 : 0.06 });
+        }
+      }
     }
     // The boss's own light.
     const b = this.boss;
@@ -1188,7 +1408,57 @@ export class LanternwoodGame {
     }
   }
 
+  /** Dust at a footfall (the realm's own ground colour). */
+  _footDust(x, z, k = 1) {
+    if (!this.vfx) return;
+    const [c, alpha] = DUST[this.realm] ?? ['#8a7a6a', 0.3];
+    this.vfx.dust(x, z, { color: c, n: Math.round(2 * k), size: 0.32 * k, alpha: alpha * Math.min(1.4, k), speed: 0.7 * k });
+  }
+
+  /* --------------------------------------------------------- the pointer */
+
+  /** Where the pointer meets the ground (each frame), and the reticle there for ranged play. */
+  _updateReticle(dt) {
+    const m = this.mouse;
+    this.aimPoint = null;
+    if (m?.on && this.size) {
+      const v = this._rv ?? (this._rv = new THREE.Vector3());
+      v.set((m.x / this.size.w) * 2 - 1, -(m.y / this.size.h) * 2 + 1, 0.5).unproject(this.camera).sub(this.camera.position).normalize();
+      this.aimPoint = rayToGround(this.camera.position, v, 0);
+    }
+    if (!this.reticle) {
+      const mat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4 });
+      const g = new THREE.Group();
+      const outer = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 4, 1).rotateX(-Math.PI / 2), mat);
+      const inner = new THREE.Mesh(new THREE.RingGeometry(0.08, 0.13, 4, 1).rotateX(-Math.PI / 2), mat);
+      g.add(outer, inner);
+      g.renderOrder = 6;
+      this.reticle = { g, mat, outer };
+    }
+    const r = this.reticle;
+    if (r.g.parent !== this.scene) this.scene.add(r.g);
+    const ranged = this.mode === 'play' && this.hero && this._rangedHero();
+    const show = ranged && this.aimPoint && usesPointer({ ranged: true, onCanvas: this.mouse?.on, lastMove: this.mouse?.t, now: this.t }) && !this.overlay && !this.dialogue.open;
+    r.g.visible = Boolean(show);
+    if (!show) return;
+    const foe = snapToFoe(this.aimPoint, this.enemies.filter((e) => e.alive && e.state !== 'burrowed'));
+    const p = foe ?? this.aimPoint;
+    r.g.position.set(p.x, 0.07, p.z);
+    r.g.rotation.y += dt * 0.8;
+    const k = foe ? 1.25 + Math.sin(this.t * 10) * 0.06 : 1;
+    r.g.scale.setScalar(k * (foe ? Math.max(1, (foe.def.radius ?? 0.6) * 1.6) : 1));
+    r.mat.color.set(CLASS_AIM[this.hero.cls] ?? '#ffffff').multiplyScalar(foe ? 1.4 : 0.9);
+    r.mat.opacity = foe ? 0.85 : 0.5;
+  }
+
+  /** Does the hero fight from range (a staff or a bow, or a ranged class)? */
+  _rangedHero() {
+    const w = this.weaponType;
+    return w === 'staff' || w === 'bow' || this.hero.cls === 'seer' || this.hero.cls === 'ranger';
+  }
+
   updateEffects(dt, yaw) {
+    this.vfx.update(dt);
     for (const p of Object.values(this.pickupFx)) p.update(dt);
     for (const d of this.drops) if (d.fx) d.fx.mesh.rotation.y = yaw;
     this.effects = this.effects.filter((e) => {
@@ -1198,7 +1468,15 @@ export class LanternwoodGame {
         const reveal = Math.min(1, k / 0.45);
         e.arc.geometry.setDrawRange(0, Math.ceil(reveal * e.seg) * 6);
         e.arc.material.opacity = k < 0.45 ? 1 : Math.max(0, 1 - (k - 0.45) / 0.55);
+        if (e.core) {
+          // The white-hot core rides the leading edge of the sweep, then fades fast.
+          const front = Math.ceil(reveal * e.seg);
+          const tail = k < 0.45 ? 12 : Math.max(0, Math.round(12 * (1 - (k - 0.45) / 0.3)));
+          e.core.setDrawRange(Math.max(0, front - tail) * 6, Math.min(front, tail) * 6);
+          e.coreMat.opacity = k < 0.45 ? 1 : Math.max(0, 1 - (k - 0.45) / 0.3);
+        }
         if (e.full) e.arc.rotation.y += dt * 9;
+        if (e.full && e.core) e.core.setDrawRange(0, e.seg * 6);
         if (k >= 1) {
           e.fx.dispose();
           return false;

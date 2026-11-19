@@ -65,25 +65,102 @@ export function blobShadow(radius = 0.5) {
 }
 
 /**
- * A character: its pixel sprite made solid (voxel.js) — a 3D figure of
- * blocks that turns to face where it is going (`facing`, radians; unset, it
- * faces the camera), lit by the scene's lights and casting a shadow, with a
- * warm or cold cast from the light nearby, a hit flash and a blob shadow.
- * (The name stays: the game shows sprite frames on it as before.)
+ * The material every solid figure shares (people, monsters, their gear):
+ * lit by the scene, with its own colours kept readable in the dark (`self`,
+ * warmed or cooled by the light nearby), blocks that glow from within (the
+ * geometry's `aGlow`: eyes, cores, magma cracks), a soft rim light so the
+ * figure stands out from the dark behind it, and a hit flash that fades.
+ * `gloss` gives a wet or icy shine (a slime, a crystal); `metal` a metal
+ * sheen — a highlight from the lights and a sky-and-ground reflection that
+ * slides over the faces as the figure turns.
+ *
+ *   const u = figureUniforms();                       // one set per actor, shared by its materials
+ *   const m = figureMaterial(u, { metal: 0.8 });
+ *   u.uFlash.value = 1; u.uRim.value.set(…); u.uGlowK.value = 1.2;
+ */
+export function figureUniforms() {
+  return {
+    uSelf: { value: new THREE.Color(0.4, 0.4, 0.4) },
+    uRim: { value: new THREE.Color(0.1, 0.12, 0.16) },
+    uFlash: { value: 0 },
+    uFlashColor: { value: new THREE.Color(1.8, 1.7, 1.55) },
+    uGlowK: { value: 1 },
+    uEnvHigh: { value: new THREE.Color(0.75, 0.8, 0.95) },
+    uEnvLow: { value: new THREE.Color(0.06, 0.05, 0.06) }
+  };
+}
+
+export function figureMaterial(u, { gloss = 0, metal = 0, side = THREE.FrontSide, emissive = null, strength = 0 } = {}) {
+  const m = new THREE.MeshPhongMaterial({
+    vertexColors: true,
+    side,
+    shininess: metal ? 60 : gloss ? 70 : 12,
+    specular: new THREE.Color().setScalar(metal ? 0.55 : gloss ? 0.5 * gloss : 0.02)
+  });
+  if (emissive) {
+    m.emissive.set(emissive);
+    m.userData.base = strength;
+  }
+  m.userData.metal = metal;
+  m.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, u, { uMetal: { value: metal } });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aGlow;\nvarying float vGlow;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = aGlow;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform vec3 uSelf; uniform vec3 uRim; uniform float uFlash; uniform vec3 uFlashColor; uniform float uGlowK;
+uniform vec3 uEnvHigh; uniform vec3 uEnvLow; uniform float uMetal; varying float vGlow;`)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * (uSelf + vec3(vGlow * uGlowK * 1.6));')
+      .replace('#include <opaque_fragment>', `{
+  vec3 vdir = normalize(vViewPosition);
+  vec3 nrm = normalize(normal);
+  float facing = clamp(abs(dot(nrm, vdir)), 0.0, 1.0);
+  outgoingLight += uRim * pow(1.0 - facing, 3.0);
+  if (uMetal > 0.0) {
+    vec3 r = reflect(-vdir, nrm);
+    vec3 env = mix(uEnvLow, uEnvHigh, smoothstep(-0.2, 0.7, r.y));
+    float fres = 0.55 + 0.45 * pow(1.0 - facing, 3.0);
+    outgoingLight = mix(outgoingLight, outgoingLight * 0.6 + env * diffuseColor.rgb * 0.75, uMetal * fres * 0.85);
+  }
+  outgoingLight = mix(outgoingLight, uFlashColor, clamp(uFlash, 0.0, 1.0));
+}
+#include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => `fig|${metal ? 1 : 0}`;
+  return m;
+}
+
+/** Each frame: an actor's light (`self` from the light nearby, the rim, the flash fading). */
+export function lightFigure(u, light, { glow = 0, glowColor = null, flash = 0, time = 0 } = {}) {
+  u.uSelf.value.copy(light).multiplyScalar(0.5);
+  if (glow) u.uSelf.value.addScalar(glow * 0.8);
+  if (glowColor) {
+    const g = 0.35 + 0.15 * Math.sin(time * 6);
+    u.uSelf.value.r += glowColor.r * g;
+    u.uSelf.value.g += glowColor.g * g;
+    u.uSelf.value.b += glowColor.b * g;
+  }
+  // The rim: a cool edge in the dark, warmed by fire nearby; brighter for a figure that glows.
+  const rim = u.uRim.value;
+  rim.setRGB(0.08 + light.r * 0.12, 0.095 + light.g * 0.12, 0.13 + light.b * 0.12);
+  if (glowColor) rim.setRGB(rim.r + glowColor.r * 0.35, rim.g + glowColor.g * 0.35, rim.b + glowColor.b * 0.35);
+  u.uFlash.value = Math.max(0, Math.min(1, flash / 0.1)) * 0.85;
+  u.uEnvHigh.value.setRGB(0.42 + light.r * 0.25, 0.46 + light.g * 0.25, 0.56 + light.b * 0.25);
+}
+
+/**
+ * A plain solid figure from a sprite (herbs, crystals): its pixel sprite
+ * made solid (voxel.js), turned to face where it is going (`facing`,
+ * radians; unset, it faces the camera), lit like the figures, with a hit
+ * flash and a blob shadow. Monsters use beasts.js, people rig.js.
  */
 export class SpriteActor {
   constructor({ shadow = 0.45, glow = 0, scale = 1 } = {}) {
     this.group = new THREE.Group();
-    this.material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: false });
-    // Its own colours stay readable in the dark (as the drawn sprites were), warmed or cooled by the
-    // light nearby; the scene's lights add the 3D shading on top.
-    this.self = { value: new THREE.Color(0.4, 0.4, 0.4) };
-    this.material.onBeforeCompile = (shader) => {
-      shader.uniforms.uSelf = this.self;
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform vec3 uSelf;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * uSelf;');
-    };
+    this.u = figureUniforms();
+    this.self = this.u.uSelf;
+    this.material = figureMaterial(this.u, { side: THREE.DoubleSide });
     this.mesh = new THREE.Mesh(EMPTY, this.material);
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
@@ -102,6 +179,7 @@ export class SpriteActor {
     this.squash = 0; // + taller and thinner, − wider and flatter
     /** Which way it faces (radians, as the game's headings: 0 toward +Z); null: toward the camera. */
     this.facing = null;
+    this.time = 0;
   }
 
   /** Show a sprite frame (made solid). `flip` turns a side-drawn figure round when no facing is set. */
@@ -115,29 +193,14 @@ export class SpriteActor {
 
   /** Per frame: turn, apply the light's cast and the flash. */
   update(dt, yaw, light) {
-    // A side-drawn figure (the wolf) is drawn facing +X; the rest face +Z.
+    this.time += dt;
     const turn = this.sprite?.profile ? -Math.PI / 2 : 0;
     const facing = this.facing ?? (this.sprite?.profile ? yaw + (this.flip ? Math.PI : 0) + Math.PI / 2 : yaw);
     this.mesh.rotation.y = facing + turn;
     this.mesh.position.y = this.lift;
-    if (this.flash > 0) {
-      this.flash -= dt;
-      this.material.color.setRGB(1, 1, 1);
-      this.material.emissive.setRGB(1.2, 1.1, 1.0);
-      this.self.value.setRGB(0, 0, 0);
-    } else {
-      // The scene's lights do the lighting; the light nearby (torches, the moon) adds its cast.
-      this.material.color.copy(this.tint);
-      this.material.emissive.setRGB(0, 0, 0);
-      this.self.value.copy(light).multiplyScalar(0.55);
-      if (this.glow) this.self.value.addScalar(this.glow * 0.8);
-      if (this.glowColor) {
-        const g = 0.45 + 0.2 * Math.sin(performance.now() / 160);
-        this.self.value.r += this.glowColor.r * g;
-        this.self.value.g += this.glowColor.g * g;
-        this.self.value.b += this.glowColor.b * g;
-      }
-    }
+    if (this.flash > 0) this.flash -= dt;
+    this.material.color.copy(this.tint);
+    lightFigure(this.u, light, { glow: this.glow, glowColor: this.glowColor, flash: this.flash, time: this.time });
     if (this.shadow) {
       const s = Math.max(0.35, 1 - this.lift * 0.35);
       this.shadow.material.opacity = s * 0.7;
