@@ -511,6 +511,7 @@ flowchart LR
 | [Class forge](docs/class-forge.md) | Describe a class, the AI designs its skills; editing, saving, how it stays balanced |
 | [The knowledge base](docs/knowledge-base.md) | 244 pixel effects, 3D kits, recipes, techniques and 3,422 models to reuse — `npm run kb -- <words>` |
 | [Stoneball](docs/stoneball.md) | Caveman soccer, three a side, with a ball of stone |
+| [Gloamreach](docs/gloamreach.md) | The opening map of a fantasy RPG at its most finely drawn: a golden-hour village under giant oaks, a carved gate, a violet forest of lamps and fireflies, a lava rift with a circling drake; a knight, ranger or mage, villagers, animals and spirits |
 | [AI Arcademia](docs/arcademia.md) | A learning mountain for kids 6–13: seven themed floors of math, history and physics quests, a buddy to dress up, puzzle bosses, a weekly report for parents, and a Plus AI tutor |
 | [Lanternwood](docs/lanternwood.md) | An HD-2D adventure RPG: pixel heroes in a lit 3D night forest, the camera behind you |
 | [Channels](docs/channels.md) | Your own space: the games you make (public or private), playlists to play through, time played, badges, mistakes found, a link to share |

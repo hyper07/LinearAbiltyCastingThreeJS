@@ -143,6 +143,19 @@ const SHOTS = {
     await bare(page, '.arc');
     await wait(page, 400);
   },
+  gloamreach: async (page) => {
+    await open(page, 'official:gloamreach');
+    await until(page, () => window.gloamreach?.ready && window.gloamreach.mode === 'menu', null, 180000);
+    // Into the square at the golden hour, the hero's back to us, the Elder Oak ahead.
+    await page.evaluate(() => {
+      const g = window.gloamreach;
+      g.begin();
+      g.teleport(1.5, 30, Math.PI, { pitch: 0.12, dist: 5 });
+    });
+    await wait(page, 4000);
+    await bare(page, '.gr');
+    await wait(page, 600);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);

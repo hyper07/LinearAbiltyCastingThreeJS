@@ -16,7 +16,7 @@ const GROUND = {
   gravel: '#9a948a', moss: '#5f7d3a', ice: '#bfe3f2', lava: '#3a2420', paving: '#8d8f96', asphalt: '#3d4046'
 };
 export const GENRE_ICONS = {
-  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽', learning: '🎓'
+  survival: '🛡️', 'battle-royale': '🌀', 'squad-royale': '🤝', 'boss-hunt': '🐉', 'monster-hunt': '⚔️', quest: '📜', 'dungeon-crawl': '🗝️', study: '📚', 'calm-study': '🌱', 'market-sim': '📈', 'work-sim': '💼', strategy: '♜', arena: '⚔', mmorpg: '🏰', travel: '🗺️', shooter: '🎯', racing: '🏎️', coop: '🪖', sports: '⚽', learning: '🎓', rpg: '🗡️'
 };
 
 /** A small seeded random, so a game's skyline never changes between visits. */
@@ -105,7 +105,7 @@ function skyline(kind, r, color) {
 const PHOTO_COVERS = new Set([
   'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
   // Taken by scripts/covers.mjs (run it again to refresh them).
-  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball'
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach'
 ]);
 
 /**
@@ -140,6 +140,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'squad') return squadCover(game);
   if (game.card?.cover === 'fps') return fpsCover(game);
   if (game.card?.cover === 'arcademia') return arcademiaCover(game);
+  if (game.card?.cover === 'gloamreach') return gloamreachCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -195,6 +196,28 @@ function arcademiaCover(game) {
     <circle cx="70" cy="30" r="12" fill="#fff6c8"/>
     <rect x="12" y="12" width="150" height="34" rx="17" fill="#fcf8ee" opacity=".95"/>
     <text x="26" y="35" fill="#2c6b62" font-family="system-ui, sans-serif" font-size="17" font-weight="900" letter-spacing="1"><tspan fill="#d98a1f">AI </tspan>ARCADEMIA</text>
+  </svg>`;
+}
+
+/** Gloamreach: a golden sky, a giant oak, a timber house with lit windows, the gate's arch glowing violet. */
+function gloamreachCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs>
+      <linearGradient id="gr-sky-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4a7a"/><stop offset="0.55" stop-color="#e8a060"/><stop offset="1" stop-color="#ffd08a"/></linearGradient>
+      <radialGradient id="gr-arch-${uid}" cx="0.5" cy="0.6" r="0.6"><stop offset="0" stop-color="#e48cff"/><stop offset="1" stop-color="#4a1a6a"/></radialGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#gr-sky-${uid})"/>
+    <circle cx="44" cy="96" r="16" fill="#fff0c0" opacity=".9"/>
+    <path d="M150 180 V120 H210 V180Z M156 120 a24 24 0 0 1 48 0Z" fill="#6a6070"/>
+    <path d="M168 180 V128 a12 12 0 0 1 24 0 V180Z" fill="url(#gr-arch-${uid})"/>
+    <path d="M232 180 V96 Q240 70 252 40 Q262 70 268 96 V180Z" fill="#3a2414"/>
+    <ellipse cx="252" cy="40" rx="62" ry="40" fill="#3e5a1e"/><ellipse cx="226" cy="58" rx="34" ry="24" fill="#5a7a26"/><ellipse cx="282" cy="56" rx="30" ry="22" fill="#4a6a22"/>
+    <path d="M40 180 V128 H112 V180Z" fill="#efe0c0"/><path d="M32 130 L76 96 L120 130Z" fill="#7a3a24"/>
+    <path d="M40 128 H112 M56 128 V180 M76 128 V180 M96 128 V180 M40 152 H112" stroke="#4a2e1c" stroke-width="3"/>
+    <rect x="61" y="136" width="10" height="10" fill="#ffc060"/><rect x="81" y="136" width="10" height="10" fill="#ffc060"/>
+    <rect x="0" y="168" width="320" height="12" fill="#8a7050"/>
+    <text x="14" y="30" fill="#fff4d6" font-family="Georgia, serif" font-size="20" letter-spacing="3">GLOAMREACH</text>
   </svg>`;
 }
 

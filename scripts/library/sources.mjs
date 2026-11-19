@@ -272,7 +272,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 6;
+export const EXTRAS_VERSION = 7;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -331,7 +331,18 @@ const EXTRA_MODELS = [
   }
 ];
 /** ambientCG materials by id: metal and concrete for Breachline's yards. */
-const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027', 'PaintedMetal004', 'Concrete034', 'Concrete047A', 'MetalPlates006', 'Metal063', 'PavingStones128', 'Asphalt031', 'Ground078', 'Ground071', 'Ground103', 'Gravel043', 'Rock030'];
+const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027', 'PaintedMetal004', 'Concrete034', 'Concrete047A', 'MetalPlates006', 'Metal063', 'PavingStones128', 'Asphalt031', 'Ground078', 'Ground071', 'Ground103', 'Gravel043', 'Rock030',
+  // Gloamreach's ground, stone, roofs and lava.
+  'Grass004', 'PavingStones141', 'PavingStones142', 'Rock051', 'Rock035', 'Moss002', 'Bricks106A', 'Bricks112A', 'Bricks113A', 'RoofingTiles012B', 'RoofingTiles013A', 'RoofingTiles014B', 'WoodFloor041', 'WoodFloor043', 'Planks037A', 'Lava004'];
+
+/** polyfork models a game needs (CC BY 4.0, credited in the game), fetched by id from polyfork's CDN. */
+const EXTRA_POLYFORK = [
+  // Gloamreach: heroes, villagers, the Gloamwood's folk, animals.
+  'human-knight-base', 'elf-hunter-base', 'elf-mage-base', 'tradesman-1707b9', 'black-smith-base', 'merchant-6f606b', 'halfling-hunter-base', 'farmer-base',
+  'village-guard-5f0f6f', 'human-priest-base', 'forest-witch-base', 'villager-40255c', 'dryad-hunter-base', 'shopper-base', 'crossbowman-base', 'human-assassin-base',
+  'human-warrior-base', 'slim-knight-base', 'dryad-priest-base', 'mushroom-druid-base', 'elf-assassin-base', 'hooded-staff-acolyte-base',
+  'bear-base', 'deer-base', 'fox-base', 'cat-base', 'dog-base', 'chicken-base', 'spectral-stag-base', 'rabbit-base'
+];
 
 export async function extras({ budget }) {
   const SRC = 'extras';
@@ -348,6 +359,21 @@ export async function extras({ budget }) {
     } catch (error) {
       if (error.budget) break;
       log(SRC, `skip ${m.id}: ${error.message}`);
+    }
+  }
+  for (const id of EXTRA_POLYFORK) {
+    const dest = path.join(LIBRARY, 'polyfork', `${id}.glb`);
+    try {
+      const head = await readFile(dest).then((b) => b.subarray(0, 4).toString('latin1')).catch(() => '');
+      if (head !== 'glTF') {
+        await rm(dest, { force: true });
+        await download(`https://polyfork.dev/cdn/${id}.glb`, dest, budget);
+        if ((await readFile(dest)).subarray(0, 4).toString('latin1') !== 'glTF') throw new Error('not a binary glTF');
+      }
+      assets.push({ id: `polyfork/${id}`, name: id, source: 'polyfork', pack: 'polyfork', file: rel(dest), files: [rel(dest)], tags: ['character', 'rigged', 'animated'], license: 'CC-BY-4.0', author: 'polyfork.dev', url: `https://polyfork.dev/asset/${id}` });
+    } catch (error) {
+      if (error.budget) break;
+      log(SRC, `skip polyfork ${id}: ${error.message}`);
     }
   }
   for (const id of EXTRA_MATERIALS) {

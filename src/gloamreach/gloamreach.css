@@ -1,0 +1,99 @@
+/* Gloamreach: quiet, gilded, serif — the HUD stays out of the picture's way. */
+.gr {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #0b0710;
+  color: #f4e9d2;
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  overflow: hidden;
+  outline: none;
+  user-select: none;
+}
+.gr canvas.gr-view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.gr button { font-family: inherit; }
+
+.gr-title {
+  font-size: clamp(40px, 6.4vw, 92px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 400;
+  background: linear-gradient(180deg, #fff6dc 0%, #f1c879 52%, #b8813a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 30px rgba(255, 170, 80, 0.25);
+  line-height: 1;
+}
+.gr-title--small { font-size: clamp(26px, 3.2vw, 40px); }
+
+/* Loading */
+.gr-loading { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 60%, #2a1630 0%, #0b0710 70%); transition: opacity 0.9s ease; z-index: 5; }
+.gr-loading.is-gone { opacity: 0; pointer-events: none; }
+.gr-loading__inner { width: min(420px, 80vw); text-align: center; }
+.gr-loading__bar { margin: 28px 0 12px; height: 3px; background: rgba(255, 230, 180, 0.15); border-radius: 2px; overflow: hidden; }
+.gr-loading__bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #b8813a, #ffe6a8); transition: width 0.3s ease; }
+.gr-loading__what { font-style: italic; opacity: 0.75; font-size: 15px; margin: 0; }
+
+/* Start screen */
+.gr-start { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(24px, 4vh, 56px) clamp(20px, 4vw, 64px); background: linear-gradient(180deg, rgba(10, 6, 14, 0.55) 0%, rgba(10, 6, 14, 0) 30%, rgba(10, 6, 14, 0) 55%, rgba(10, 6, 14, 0.75) 100%); transition: opacity 0.8s ease; }
+.gr-start.is-gone { opacity: 0; pointer-events: none; }
+.gr-start__sub { margin-top: 14px; letter-spacing: 0.3em; text-transform: uppercase; font-size: 12px; opacity: 0.8; }
+.gr-start__heroes { display: flex; gap: 14px; flex-wrap: wrap; margin-top: auto; }
+.gr-hero { flex: 1 1 220px; max-width: 320px; text-align: left; padding: 16px 18px 18px; border-radius: 4px; border: 1px solid rgba(255, 230, 180, 0.22); background: rgba(16, 10, 20, 0.55); backdrop-filter: blur(6px); color: inherit; cursor: pointer; transition: border-color 0.2s, background 0.2s, transform 0.2s; display: flex; flex-direction: column; gap: 4px; }
+.gr-hero:hover { border-color: rgba(255, 230, 180, 0.5); transform: translateY(-2px); }
+.gr-hero.is-on { border-color: var(--accent); background: rgba(30, 18, 30, 0.75); box-shadow: 0 0 0 1px var(--accent), 0 10px 40px rgba(0, 0, 0, 0.4); }
+.gr-hero__name { font-size: 22px; letter-spacing: 0.08em; color: var(--accent); }
+.gr-hero__title { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.75; }
+.gr-hero__blurb { font-size: 14px; line-height: 1.45; opacity: 0.85; margin-top: 6px; font-style: italic; }
+.gr-start__actions { display: flex; gap: 12px; margin-top: 18px; align-items: center; }
+.gr-btn { padding: 11px 22px; border-radius: 3px; border: 1px solid rgba(255, 230, 180, 0.35); background: rgba(16, 10, 20, 0.6); color: #f4e9d2; font-size: 15px; letter-spacing: 0.1em; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+.gr-btn:hover, .gr-btn:focus-visible { border-color: #f1c879; background: rgba(60, 36, 30, 0.7); outline: none; }
+.gr-btn--primary { background: linear-gradient(180deg, #d9a650, #9c6a2a); border-color: #f6d898; color: #1c1008; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; }
+.gr-btn--primary:hover, .gr-btn--primary:focus-visible { background: linear-gradient(180deg, #ecbd68, #b07a34); }
+.gr-btn--quiet { border-color: transparent; background: transparent; opacity: 0.7; }
+
+/* HUD */
+.gr-hud { position: absolute; inset: 0; pointer-events: none; }
+.gr-banner { position: absolute; top: 15vh; left: 0; right: 0; text-align: center; opacity: 0; }
+.gr-banner.is-on { animation: gr-banner 5.5s ease forwards; }
+.gr-banner__name { font-size: clamp(28px, 3.6vw, 48px); letter-spacing: 0.18em; text-transform: uppercase; color: #ffeec8; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.7); }
+.gr-banner__sub { margin-top: 8px; font-style: italic; opacity: 0.85; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); }
+@keyframes gr-banner { 0% { opacity: 0; transform: translateY(8px); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; } }
+.gr-plates { position: absolute; inset: 0; }
+.gr-plate { position: absolute; left: 0; top: 0; text-align: center; white-space: nowrap; transition: opacity 0.3s; }
+.gr-plate__name { font-size: 15px; color: #fff1c9; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0, 0, 0, 0.6); letter-spacing: 0.03em; }
+.gr-plate__title { font-size: 12px; color: #d9c7a0; text-shadow: 0 1px 3px #000; }
+.gr-plate__bubble { display: none; max-width: 300px; white-space: normal; margin: 0 auto 8px; padding: 9px 13px; background: rgba(250, 242, 222, 0.94); color: #2a1c10; border-radius: 10px; font-size: 14px; line-height: 1.35; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); position: relative; font-style: italic; }
+.gr-plate__bubble.is-on { display: block; animation: gr-pop 0.25s ease; }
+.gr-plate__bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-top-color: rgba(250, 242, 222, 0.94); border-bottom: 0; }
+@keyframes gr-pop { from { transform: scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.gr-hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; font-size: 13px; padding: 9px 18px; border-radius: 20px; background: rgba(12, 8, 14, 0.45); backdrop-filter: blur(4px); transition: opacity 1.2s ease; opacity: 0.9; }
+.gr-hint b { color: #f1c879; font-weight: 600; }
+.gr-hint.is-faded { opacity: 0; }
+.gr-minimap { position: absolute; top: 18px; right: 18px; width: clamp(140px, 15vw, 190px); aspect-ratio: 1; border-radius: 50%; box-shadow: 0 0 0 2px #b8813a, 0 0 0 5px rgba(20, 12, 10, 0.75), 0 8px 26px rgba(0, 0, 0, 0.55); }
+.gr-minimap canvas { width: 100%; height: 100%; border-radius: 50%; display: block; }
+.gr-minimap__label { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 12px); white-space: nowrap; font-size: 13px; letter-spacing: 0.08em; color: #ffeec8; text-shadow: 0 1px 4px #000; }
+.gr-stats { position: absolute; left: 12px; top: 12px; font: 12px/1.4 ui-monospace, Menlo, monospace; background: rgba(0, 0, 0, 0.55); padding: 6px 9px; border-radius: 4px; white-space: pre; color: #cfe; }
+
+/* Panels */
+.gr-panel { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8, 5, 10, 0.6); backdrop-filter: blur(4px); z-index: 10; }
+.gr-panel__card { width: min(640px, 92vw); max-height: 86vh; overflow: auto; padding: 26px 30px; background: rgba(22, 14, 22, 0.95); border: 1px solid rgba(241, 200, 121, 0.4); border-radius: 6px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+.gr-panel h2 { margin: 0 0 6px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: #f1c879; }
+.gr-panel a { color: #f6d898; }
+.gr-credits__lead { opacity: 0.8; font-style: italic; }
+.gr-credits__pack { margin: 18px 0; }
+.gr-credits__pack h3 { margin: 0 0 4px; font-size: 17px; font-weight: 400; }
+.gr-credits__pack p { margin: 0; opacity: 0.85; font-size: 14px; line-height: 1.4; }
+.gr-credits__lic { font-size: 12px; margin-left: 6px; opacity: 0.85; }
+.gr-credits__items { columns: 2; font-size: 13px; padding-left: 18px; margin: 8px 0 0; }
+.gr-pause__card { width: min(360px, 90vw); display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.gr-pause__tier { font-size: 12px; opacity: 0.6; margin: 6px 0 0; }
+
+@media (max-width: 640px) {
+  .gr-hero__blurb { display: none; }
+  .gr-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gr-banner.is-on { animation-duration: 0.01s; opacity: 1; }
+}

@@ -1498,6 +1498,7 @@ export class App {
     if (game.engine === 'hd2d') return this.openLanternwood(game);
     if (game.engine === 'stoneball') return this.openStoneball(game);
     if (game.engine === 'arcademia') return this.openArcademia(game);
+    if (game.engine === 'gloamreach') return this.openGloamreach(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1549,6 +1550,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new StoneballGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Gloamreach, the fantasy RPG's starting map: its own screen and 3D view, like Shardfront. */
+  async openGloamreach(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { GloamreachGame } = await import('../gloamreach/GloamreachGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new GloamreachGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

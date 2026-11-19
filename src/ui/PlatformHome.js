@@ -147,6 +147,7 @@ export class PlatformHome {
     chip(`${GENRE_ICONS.coop} Co-op`, 'coop');
     chip(`${GENRE_ICONS.sports} Sports`, 'sports');
     chip(`${GENRE_ICONS.learning} Learning`, 'learning');
+    chip(`${GENRE_ICONS.rpg} Fantasy RPG`, 'rpg');
 
     let typing = null;
     this.$('[data-search]').addEventListener('input', (e) => {
@@ -403,6 +404,8 @@ export class PlatformHome {
         ? 'Pick your tribe\'s leather, the computer\'s skill and the match length when you play'
         : game.engine === 'arcademia'
         ? 'Pick a buddy and climb the mountain: stars are kept on your account, or on this device when signed out'
+        : game.engine === 'gloamreach'
+        ? 'Choose your hero when you play: a knight, a ranger or a mage'
         : game.engine === 'hd2d'
         ? 'Pick your class — Blade, Warden, Seer or Ranger — and a look; your journey is kept on this device'
         : game.engine === 'squad'
@@ -410,9 +413,11 @@ export class PlatformHome {
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia'].includes(game.engine)) {
+    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = game.engine === 'arcademia'
+      page.querySelector('.home-page__hint').textContent = game.engine === 'gloamreach'
+        ? 'The first map of a fantasy RPG — explore it, no quests yet. WASD to move, Shift to sprint, Ctrl to walk, Space to jump; click to steer with the mouse, wheel to zoom, Esc for the menu and credits. Best with a mouse and keyboard on a computer with a good graphics card; it lowers its own detail if frames run slow.'
+        : game.engine === 'arcademia'
         ? 'For ages 6 to 13. Click or tap to walk, or use WASD; walk into a building for a lesson. Grown-ups: the Parents button shows a weekly report behind a PIN. The AI tutor, Professor Hoot, is part of Plus — every lesson has its own hints and worked answers for everyone.'
         : game.engine === 'stoneball'
         ? 'You against the computer, three a side. WASD to run, Shift to sprint, hold Space to charge a shot, E to pass, Q to switch.'
