@@ -4,7 +4,6 @@
  * sparkle per star, a fanfare for a finished lesson or a new floor, chalk
  * scratching, page turns, and a quiet bed of water and birds (crickets at night).
  */
-import { localeInfo } from './i18n/index.js';
 export class Sound {
   constructor() {
     this.ctx = null;
@@ -201,60 +200,18 @@ export class Sound {
 }
 
 /**
- * The best installed voice for a BCP 47 tag ('ko-KR'): the exact language and
- * region, then the same language anywhere (ko, ko-KP …); local voices first.
- * null when there is none (then the browser picks from utterance.lang alone).
- * Voices load late in some browsers, so the list is re-read on voiceschanged.
+ * Voices. The platform never uses synthesized or AI voices (the user's rule):
+ * no speechSynthesis, no text-to-speech. Lines are spoken only by real human
+ * recordings, which are not recorded yet, so `available` is false and the
+ * read-aloud buttons stay hidden. Callers keep using say()/stop(); when
+ * recordings exist this will play them by line id instead.
  */
-let voices = [];
-const readVoices = () => {
-  try {
-    voices = speechSynthesis.getVoices() ?? [];
-  } catch {
-    voices = [];
-  }
-};
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  readVoices();
-  speechSynthesis.addEventListener?.('voiceschanged', readVoices);
-}
-export function voiceFor(tag, list = voices) {
-  const norm = (s) => String(s ?? '').toLowerCase().replace('_', '-');
-  const want = norm(tag), base = want.split('-')[0];
-  const rank = (v) => (v.localService ? 0 : 1) + (v.default ? 0 : 0.5);
-  const pick = (vs) => vs.sort((a, b) => rank(a) - rank(b))[0] ?? null;
-  return pick(list.filter((v) => norm(v.lang) === want)) ?? pick(list.filter((v) => norm(v.lang).split('-')[0] === base));
-}
-
-/** Read text aloud, if the browser can, in the game's language. */
 export const speech = {
   get available() {
-    return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance === 'function';
+    return false;
   },
-  say(text, { rate = 0.95, onEnd } = {}) {
-    if (!this.available) return false;
-    try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(String(text).replace(/[\u{1F300}-\u{1FAFF}]/gu, ''));
-      u.rate = rate;
-      u.pitch = 1.05;
-      const tag = localeInfo().speech;
-      u.lang = tag;
-      if (!voices.length) readVoices();
-      const voice = voiceFor(tag);
-      if (voice) u.voice = voice;
-      if (onEnd) u.onend = onEnd;
-      speechSynthesis.speak(u);
-      return true;
-    } catch {
-      return false;
-    }
+  say() {
+    return false;
   },
-  stop() {
-    try {
-      if (this.available) speechSynthesis.cancel();
-    } catch {
-      /* nothing playing */
-    }
-  }
+  stop() {}
 };

@@ -29,8 +29,9 @@ hat shop, the puzzle bosses' riddles, the townsfolk, all 51 lessons (stories, re
 chalkboard, history chats, timelines and treasures, the physics experiments, quizzes, hints and
 worked answers), the parents' PIN and report, and the share page (which has its own picker; a share
 link opens in the language the parent was using). Math questions are generated in the language,
-with its own number formats (Spanish writes 0,3) and counting words (사과 3개, 3只鸭子). **Read to
-me** uses a voice for the language when the device has one. Professor Hoot, the Plus tutor, answers
+with its own number formats (Spanish writes 0,3) and counting words (사과 3개, 3只鸭子). There are no
+synthesized or AI voices anywhere on the platform: lines will be spoken only by real human
+recordings (none are recorded yet, so **Read to me** stays hidden). Professor Hoot, the Plus tutor, answers
 in the chosen language: the page sends the locale and the server puts it into the tutor's
 instructions.
 
@@ -80,8 +81,8 @@ Every lesson is a quest from a teacher — Professor Hoot the owl (math), Tock t
 tortoise (history) or Gizmo the raccoon inventor (physics) — and runs:
 
 1. **Story** — who needs help, and why.
-2. **Learn** — two to four reading cards, big text; **Read to me** (and an automatic voice on floors
-   1–2) uses the browser's speech when it has one.
+2. **Learn** — two to four reading cards, big text; **Read to me** will play real human
+   recordings once they exist (no text-to-speech).
 3. **The hands-on part**
    - Math: a worked example written in chalk on a real-looking chalkboard (grain, smudges, the
      chalk stick moving), mirrored onto the classroom's 3D board; then two practice problems with a
