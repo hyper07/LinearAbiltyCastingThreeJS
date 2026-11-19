@@ -283,6 +283,19 @@ npm run modelgen:local -- hero.png --name Witch --kind character --json  # JSON 
   `server/modelgen-local.mjs`) reports JSON progress lines and runs offline
   (`HF_HUB_OFFLINE=1`): setup does all the downloading.
 
+**What it is good at (first real runs, Nov 2026, M5 Max):**
+
+| Input | Result | Time |
+|---|---|---|
+| A shaded 3D render of a prop (treasure chest) | Clean, solid model with the right shape and colours | 4–4½ min |
+| A shaded 3D render of a figure in T-pose | Right shape and pose; colours partly lost on thin limbs | 2 min |
+| A flat cartoon drawing with a bold ink outline (chibi fox) | **Fails**: a flat card with the picture on it, even with a clean cut-out | 2–3½ min |
+
+- Feed it pictures with real shading and depth (3D renders, photos, painted concept art with form). Flat cartoon art with outlines reads as a 2D picture and comes back as a card.
+- Cut the background out first when it is not plain white (a transparent PNG skips background removal).
+- Base colour is baked in linear light; `trellis_run.py` encodes it to sRGB before export (without that, models came out dark with skewed hues).
+- For cute toon creatures, sculpt them with SDFs (5.3) instead.
+
 ### 5.3 Sculpting cute creatures in the browser with SDFs
 
 A proof is in the session scratchpad (`sheet/fox.html`, render `assets/sdf-fox.png`).
