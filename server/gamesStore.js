@@ -120,6 +120,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'rpg', genreName: 'Fantasy RPG', cover: 'gloamreach', badge: 'NEW' }
   },
   {
+    id: 'official:wyldhunt',
+    title: 'Wyldhunt',
+    summary: 'The first hunting ground of a monster hunt: Mistfall Gorge, a jungle canyon of mossy cliffs, three great waterfalls and their mist, a river with a ford and a rope bridge, and ruins older than the river. Ride your shaggy Shagmane up the path, gather what grows, follow the scout flies to the Gnarlhorn\'s tracks — then fight it with a greatblade or a bow, break its horns, sever its tail, and carve it.',
+    engine: 'wyldhunt',
+    genre: 'monster-hunt',
+    card: { genre: 'monster-hunt', genreName: 'Monster hunt', cover: 'wyldhunt', badge: 'NEW' }
+  },
+  {
     id: 'official:lanternwood',
     title: 'Lanternwood',
     summary: 'Pixel heroes made solid in a lit 3D world, the camera behind you. Four classes, four realms — a night forest, sunlit hills, frozen peaks, a burning caldera — hero monsters and bosses, loot you can see on your hero, and co-op for up to four.',

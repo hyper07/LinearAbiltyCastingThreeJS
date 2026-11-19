@@ -105,7 +105,7 @@ function skyline(kind, r, color) {
 const PHOTO_COVERS = new Set([
   'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
   // Taken by scripts/covers.mjs (run it again to refresh them).
-  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach'
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt'
 ]);
 
 /**
@@ -141,6 +141,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'fps') return fpsCover(game);
   if (game.card?.cover === 'arcademia') return arcademiaCover(game);
   if (game.card?.cover === 'gloamreach') return gloamreachCover(game);
+  if (game.card?.cover === 'wyldhunt') return wyldhuntCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -218,6 +219,28 @@ function gloamreachCover(game) {
     <rect x="61" y="136" width="10" height="10" fill="#ffc060"/><rect x="81" y="136" width="10" height="10" fill="#ffc060"/>
     <rect x="0" y="168" width="320" height="12" fill="#8a7050"/>
     <text x="14" y="30" fill="#fff4d6" font-family="Georgia, serif" font-size="20" letter-spacing="3">GLOAMREACH</text>
+  </svg>`;
+}
+
+/** Wyldhunt: a jungle canyon, a waterfall in mist between dark cliffs, ruined pillars, a horned beast's silhouette. */
+function wyldhuntCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs>
+      <linearGradient id="wh-sky-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ab8c0"/><stop offset="1" stop-color="#d8e2d8"/></linearGradient>
+      <linearGradient id="wh-fall-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8f2f0"/><stop offset="1" stop-color="#ffffff" stop-opacity=".2"/></linearGradient>
+      <radialGradient id="wh-mist-${uid}" cx="0.5" cy="0.8" r="0.5"><stop offset="0" stop-color="#ffffff" stop-opacity=".85"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#wh-sky-${uid})"/>
+    <path d="M128 20 H176 L184 150 H120Z" fill="url(#wh-fall-${uid})"/>
+    <ellipse cx="152" cy="146" rx="90" ry="40" fill="url(#wh-mist-${uid})"/>
+    <path d="M0 0 H118 L126 40 L112 90 L120 180 H0Z" fill="#3a4a3a"/><path d="M320 0 H188 L180 50 L196 100 L186 180 H320Z" fill="#344434"/>
+    <path d="M0 40 H110 M0 90 H112 M196 70 H320 M190 120 H320" stroke="#5a7a3a" stroke-width="5" opacity=".8"/>
+    <rect x="92" y="60" width="16" height="110" fill="#2a322a" opacity=".75"/><rect x="214" y="80" width="14" height="90" fill="#2a322a" opacity=".7"/>
+    <path d="M60 180 Q66 150 92 146 Q104 128 118 136 L126 128 L124 140 Q140 142 146 156 L160 180Z" fill="#1c2414"/>
+    <path d="M110 134 Q104 116 112 108 M122 132 Q130 112 126 104" stroke="#e8dcc0" stroke-width="3" fill="none"/>
+    <path d="M0 160 Q40 150 80 164 T160 160 T240 164 T320 158 V180 H0Z" fill="#2a4a1e"/>
+    <text x="14" y="30" fill="#f4f0dc" font-family="Georgia, serif" font-size="20" letter-spacing="3">WYLDHUNT</text>
   </svg>`;
 }
 

@@ -1499,6 +1499,7 @@ export class App {
     if (game.engine === 'stoneball') return this.openStoneball(game);
     if (game.engine === 'arcademia') return this.openArcademia(game);
     if (game.engine === 'gloamreach') return this.openGloamreach(game);
+    if (game.engine === 'wyldhunt') return this.openWyldhunt(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1567,6 +1568,23 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new GloamreachGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Wyldhunt, the monster hunt's first hunting ground: its own screen and 3D view, like Gloamreach. */
+  async openWyldhunt(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { WyldhuntGame } = await import('../wyldhunt/WyldhuntGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new WyldhuntGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

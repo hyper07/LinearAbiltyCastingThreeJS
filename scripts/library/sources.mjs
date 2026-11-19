@@ -272,7 +272,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 7;
+export const EXTRAS_VERSION = 8;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -333,7 +333,9 @@ const EXTRA_MODELS = [
 /** ambientCG materials by id: metal and concrete for Breachline's yards. */
 const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027', 'PaintedMetal004', 'Concrete034', 'Concrete047A', 'MetalPlates006', 'Metal063', 'PavingStones128', 'Asphalt031', 'Ground078', 'Ground071', 'Ground103', 'Gravel043', 'Rock030',
   // Gloamreach's ground, stone, roofs and lava.
-  'Grass004', 'PavingStones141', 'PavingStones142', 'Rock051', 'Rock035', 'Moss002', 'Bricks106A', 'Bricks112A', 'Bricks113A', 'RoofingTiles012B', 'RoofingTiles013A', 'RoofingTiles014B', 'WoodFloor041', 'WoodFloor043', 'Planks037A', 'Lava004'];
+  'Grass004', 'PavingStones141', 'PavingStones142', 'Rock051', 'Rock035', 'Moss002', 'Bricks106A', 'Bricks112A', 'Bricks113A', 'RoofingTiles012B', 'RoofingTiles013A', 'RoofingTiles014B', 'WoodFloor041', 'WoodFloor043', 'Planks037A', 'Lava004',
+  // Wyldhunt's jungle floor, mud, river pebbles, ruin flagstones and mossy rock.
+  'Ground068', 'Ground106', 'Ground108', 'Bricks113A', 'Rock063'];
 
 /** polyfork models a game needs (CC BY 4.0, credited in the game), fetched by id from polyfork's CDN. */
 const EXTRA_POLYFORK = [
@@ -343,7 +345,9 @@ const EXTRA_POLYFORK = [
   'human-warrior-base', 'slim-knight-base', 'dryad-priest-base', 'mushroom-druid-base', 'elf-assassin-base', 'hooded-staff-acolyte-base',
   'bear-base', 'deer-base', 'fox-base', 'cat-base', 'dog-base', 'chicken-base', 'spectral-stag-base', 'rabbit-base',
   // Gloamreach's armsmonger and monsters.
-  'dwarf-knight-base', 'wolf-base', 'thorn-boar-base', 'tarantula-base', 'iridescent-treegolem-base', 'fungus-host-base', 'root-colossus-base', 'ashen-troll-base', 'red-fire-dragon-base'
+  'dwarf-knight-base', 'wolf-base', 'thorn-boar-base', 'tarantula-base', 'iridescent-treegolem-base', 'fungus-host-base', 'root-colossus-base', 'ashen-troll-base', 'red-fire-dragon-base',
+  // Wyldhunt's hunters (the rest are Gloamreach's above).
+  'orc-hunter-base'
 ];
 
 export async function extras({ budget }) {

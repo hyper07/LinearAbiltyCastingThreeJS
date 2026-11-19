@@ -156,6 +156,19 @@ const SHOTS = {
     await bare(page, '.gr');
     await wait(page, 600);
   },
+  wyldhunt: async (page) => {
+    await open(page, 'official:wyldhunt');
+    await until(page, () => window.wyldhunt?.ready && window.wyldhunt.mode === 'menu', null, 240000);
+    // Riding up the path toward the Grand Fall, the colossi in its mist.
+    await page.evaluate(() => {
+      const g = window.wyldhunt;
+      g.begin();
+      g.coverShot();
+    });
+    await wait(page, 5000);
+    await bare(page, '.wh');
+    await wait(page, 600);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);
