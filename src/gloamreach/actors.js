@@ -575,6 +575,7 @@ export class Actor {
     this.model.traverse((o) => {
       if (o.isBone) this.bones[o.name] = o;
     });
+    for (const n of ['LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg']) if (this.bones[n]) this.bones[n].userData.restQ = this.bones[n].quaternion.clone();
     // Where gear goes: the bones, or anchors under them (`<bone>_gear`) on bodies whose bone frames differ from polyfork's.
     this.gearBones = { ...this.bones };
     this.model.traverse((o) => {
@@ -656,7 +657,19 @@ export class Actor {
       }
     }
     this.mixer.update(dt);
+    this.shortStride();
     this.stoop();
+  }
+
+  /** Smaller steps (robe-wearers, folkModels.js): the thighs and knees eased part way back to rest after the clip. */
+  shortStride() {
+    const k = this.template.stride;
+    if (!k) return;
+    if (!this._strideRest) {
+      // The clone's bones start in the rest pose.
+      this._strideRest = ['LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg'].map((n) => [this.bones[n], this.bones[n]?.userData.restQ ?? null]).filter(([b, q]) => b && q);
+    }
+    for (const [b, q] of this._strideRest) b.quaternion.slerp(q, 1 - k);
   }
 
   /** Age in the back: bend the spine forward (and lift the head to look ahead), on top of whatever plays. */

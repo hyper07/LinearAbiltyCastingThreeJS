@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { folkRecipe, recipeKey, folkFiles, partName, gameBoneName, sourceBoneMap, HAIR_STYLES, OUTFIT_VARIANTS, SKIN_TONES, FOLK_FILES, ATLAS, TILES, tileFor, atlasUv, robeWeights, CLOTH_SHADES } from '../../src/gloamreach/folk.js';
+import { folkRecipe, recipeKey, folkFiles, partName, gameBoneName, sourceBoneMap, HAIR_STYLES, OUTFIT_VARIANTS, SKIN_TONES, FOLK_FILES, ATLAS, TILES, tileFor, atlasUv, robeWeights, CLOTH_SHADES, hiddenUnderRobe, robeProfile, ROBE_STRIDE } from '../../src/gloamreach/folk.js';
 import { loadFolk, folkAvailable } from '../../src/gloamreach/folkModels.js';
 import { HEROES, PEOPLE } from '../../src/gloamreach/cast.js';
 import { POLYFORK_MODELS, PACKS } from '../../src/gloamreach/credits.js';
@@ -139,4 +139,82 @@ test('folk in the cast: heroes and the first villagers have recipes and a polyfo
   assert.ok(GREYISH(nan.hairColour));
   assert.ok(PACKS.some((p) => p.name === 'Quaternius' && /CC0/.test(p.licence) && p.site === 'https://quaternius.com'), 'Quaternius packs in the credits');
   assert.ok(POLYFORK_MODELS.length > 0);
+});
+
+test('robes: nothing under a robe is drawn (legs, boots), so nothing can poke through it', () => {
+  const robed = folkRecipe('aldous', { robe: '#d8cfb8' });
+  assert.ok(hiddenUnderRobe('garment-leggings', robed));
+  assert.ok(hiddenUnderRobe('garment-boots', robed));
+  assert.ok(!hiddenUnderRobe('garment-armour', robed), 'the top still shows');
+  assert.ok(!hiddenUnderRobe('garment-boots', folkRecipe('tobin')), 'boots show without a robe');
+  for (const p of [...PEOPLE, ...HEROES]) if (p.folk?.robe) assert.ok(hiddenUnderRobe('garment-boots', folkRecipe(p.id, p.folk)), p.id);
+});
+
+/**
+ * Skin the robe's hem through a stride (linear blend skinning, as the GPU
+ * does): the thighs swing ±0.45 rad about the hip joints (a walk; the
+ * Universal Animation Library's swings about ±0.4), shortened as robed
+ * characters walk (ROBE_STRIDE), and the shins bend back from the knees. The hem must stay one clean loop round the body —
+ * no vertex crossing its neighbours (that is a fold, the bright crease) —
+ * and stay outside the legs' path.
+ */
+test('robes: through a whole stride the hem never folds over itself or cuts inside the legs', () => {
+  const hx = 0.17;
+  const hipY = 0.95;
+  const kneeY = 0.5;
+  const joints = { thigh_l: [0.09, hipY], thigh_r: [-0.09, hipY], calf_l: [0.09, kneeY], calf_r: [-0.09, kneeY] };
+  const rot = (p, pivot, a) => {
+    // About the x axis through the pivot (y, z plane).
+    const y = p[1] - pivot[1];
+    const z = p[2];
+    return [p[0], pivot[1] + y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)];
+  };
+  const segs = 32;
+  const [rx, rz] = robeProfile(1, hx);
+  for (let f = 0; f < 16; f++) {
+    const swing = Math.sin((f / 16) * Math.PI * 2) * 0.45 * ROBE_STRIDE;
+    const bend = (k) => Math.max(0, Math.sin((f / 16) * Math.PI * 2 + k)) * 0.9 * ROBE_STRIDE;
+    const pose = { pelvis: (p) => p, thigh_l: (p) => rot(p, joints.thigh_l, swing), thigh_r: (p) => rot(p, joints.thigh_r, -swing) };
+    pose.calf_l = (p) => pose.thigh_l(rot(p, joints.calf_l, -bend(0)));
+    pose.calf_r = (p) => pose.thigh_r(rot(p, joints.calf_r, -bend(Math.PI)));
+    const ring = [];
+    for (let j = 0; j < segs; j++) {
+      const a = (j / segs) * Math.PI * 2;
+      const p = [Math.sin(a) * rx, 0.02, Math.cos(a) * rz];
+      const s = Math.max(0, Math.min(1, 0.5 + (p[0] / rx) * 0.75));
+      const out = [0, 0, 0];
+      for (const [bone, w] of robeWeights(1, s)) {
+        const q = pose[bone](p);
+        for (let k = 0; k < 3; k++) out[k] += q[k] * w;
+      }
+      ring.push(out);
+    }
+    // One clean loop: going round, the angle about the centre only ever increases (no vertex doubles back).
+    const cx = ring.reduce((a, p) => a + p[0], 0) / segs;
+    const cz = ring.reduce((a, p) => a + p[2], 0) / segs;
+    let total = 0;
+    for (let j = 0; j < segs; j++) {
+      const a0 = Math.atan2(ring[j][0] - cx, ring[j][2] - cz);
+      const a1 = Math.atan2(ring[(j + 1) % segs][0] - cx, ring[(j + 1) % segs][2] - cz);
+      let d = a1 - a0;
+      while (d <= -Math.PI) d += Math.PI * 2;
+      while (d > Math.PI) d -= Math.PI * 2;
+      assert.ok(d > 0, `frame ${f}: the hem doubles back at vertex ${j}`);
+      total += d;
+    }
+    assert.ok(Math.abs(total - Math.PI * 2) < 1e-6, `frame ${f}: the hem winds once`);
+    // The feet's path (each ankle, swung with its thigh and shin) stays inside the hem's loop.
+    for (const side of ['l', 'r']) {
+      const ankle = pose[`calf_${side}`]([joints[`thigh_${side}`][0], 0.08, 0.04]);
+      const ang = Math.atan2(ankle[0] - cx, ankle[2] - cz);
+      // The hem's distance from the centre in the ankle's direction.
+      let best = null;
+      for (const p of ring) {
+        const a = Math.atan2(p[0] - cx, p[2] - cz);
+        const d = Math.abs(Math.atan2(Math.sin(a - ang), Math.cos(a - ang)));
+        if (!best || d < best.d) best = { d, r: Math.hypot(p[0] - cx, p[2] - cz) };
+      }
+      assert.ok(Math.hypot(ankle[0] - cx, ankle[2] - cz) < best.r, `frame ${f}: the ${side} foot reaches past the hem`);
+    }
+  }
 });

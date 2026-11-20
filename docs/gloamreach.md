@@ -155,7 +155,9 @@ person's id seeds the rest — hairstyle, hair and skin colour, beard, outfit te
 the clothes); `folk.js` makes recipes and names, `folkModels.js` assembles them. Villagers share
 one texture atlas and one material (each is one draw; their colours ride in the vertices);
 heroes keep the packs' full-size textures, and their gear recolours their clothes. Robes are a
-mesh of our own, skinned to the hips and legs so they swing as people walk.
+mesh of our own: a bell to the ground that hangs from the hips and sways a little with the
+thighs; the trousers and boots under it aren't drawn, and robe-wearers take smaller steps, so
+nothing can poke through (checked across the stride in `tests/unit/folk.test.mjs`).
 
 Credits for everything third-party, with links and licences, are in the game's Credits panel
 (start screen and Esc menu). The arms and armour are modelled in code, with their metal, leather,

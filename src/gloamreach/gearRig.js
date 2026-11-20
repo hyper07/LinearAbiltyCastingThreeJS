@@ -281,7 +281,9 @@ export class GearRig {
     }
     // Knees and thighs.
     const legs = equip.legs;
-    if (legs && BASES[legs.base].look !== 'leggings') {
+    // Under a robe (folkModels.js) the legs and feet are hidden: no knee cops or sabatons to poke through it.
+    const robed = Boolean(this.template.folk?.robe);
+    if (legs && BASES[legs.base].look !== 'leggings' && !robed) {
       const P = itemPalette(legs);
       const heavy = BASES[legs.base].look === 'cuisses';
       const r = Math.min(radiusXZ(fit.LeftLeg, 0.85), fit.shoulderX * 0.34);
@@ -300,7 +302,7 @@ export class GearRig {
     }
     // Feet.
     const feet = equip.feet;
-    if (feet && BASES[feet.base].look !== 'slippers') {
+    if (feet && BASES[feet.base].look !== 'slippers' && !robed) {
       const P = itemPalette(feet);
       const ff = fit.LeftFoot?.box;
       const len = Math.max(0.12, (ff ? ff.max.z - ff.min.z : 0.2) * 0.9);

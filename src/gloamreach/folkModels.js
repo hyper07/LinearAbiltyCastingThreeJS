@@ -27,7 +27,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { characterLoader, retargetClip } from '../library/characters.js';
 import { characterMaterial, bakeBorrowed, measureStrides, loadFile, polyUrl, MAX_PARTS } from './actors.js';
-import { FOLK_FILES, folkFiles, recipeKey, partName, gameBoneName, sourceBoneMap, ATLAS, TILES, tileFor, atlasUv, robeWeights } from './folk.js';
+import { FOLK_FILES, folkFiles, recipeKey, partName, gameBoneName, sourceBoneMap, ATLAS, TILES, tileFor, atlasUv, robeWeights, hiddenUnderRobe, robeProfile, ROBE_STRIDE } from './folk.js';
 
 // The base bodies' glTF ask for two normal maps under names the pack doesn't have ("T_Eye_Normal_png.png"): use the real files.
 const manager = new THREE.LoadingManager();
@@ -222,7 +222,7 @@ async function build(recipe, { detail, rim }) {
     return p.cowl ? 'garment-cowl' : n;
   };
   // No hood unless worn; no trousers under a robe (they'd show through it).
-  const keep = (p, name) => !(name === 'garment-hood' && !recipe.hood) && !(recipe.robe && name === 'garment-leggings');
+  const keep = (p, name) => !(name === 'garment-hood' && !recipe.hood) && !hiddenUnderRobe(name, recipe);
   const robe = recipe.robe ? robeGeometry(skeleton, base.mesh, recipe) : null;
   const partLum = [];
   const parent = base.mesh.parent;
@@ -323,7 +323,7 @@ async function build(recipe, { detail, rim }) {
   const box = new THREE.Box3().setFromObject(scene, true);
   const natural = box.max.y - box.min.y;
   // Helmets were fitted to polyfork's big heads: on these smaller, rounder ones they sit a little higher and larger.
-  const t = { id: recipeKey(recipe), gltf, clips, natural, scale: 1, parts, partLum: parts.map((_, i) => partLum[i] ?? 0.5), folk: recipe, stoop: recipe.stoop ? stoopAxes(scene, recipe.stoop) : null, gearTune: { helmUp: 0.24, helmScale: 1.14, helmBack: -0.02 } };
+  const t = { id: recipeKey(recipe), gltf, clips, natural, scale: 1, parts, partLum: parts.map((_, i) => partLum[i] ?? 0.5), folk: recipe, stoop: recipe.stoop ? stoopAxes(scene, recipe.stoop) : null, stride: recipe.robe ? ROBE_STRIDE : null, gearTune: { helmUp: 0.24, helmScale: 1.14, helmBack: -0.02 } };
   t.strides = measureStrides(t);
   // Gear anchors: the polyfork frames the gear was made for, turned onto these bones.
   const ref = await loadFile(polyUrl('human-knight-base'));
@@ -537,7 +537,8 @@ function robeGeometry(skeleton, mesh, recipe) {
   const hx = Math.abs(tl.x - tr.x) / 2 + 0.07;
   const side = Math.sign(tl.x - cx) || 1;
   const top = pelvis.y + 0.07;
-  const hem = fl.y + 0.02;
+  // To the ground: the feet are hidden under it.
+  const hem = Math.min(fl.y - 0.07, 0.015);
   const rows = 12;
   const segs = 32;
   const base = new THREE.Color(recipe.robe);
@@ -550,9 +551,7 @@ function robeGeometry(skeleton, mesh, recipe) {
   const sw = [];
   for (let r = 0; r <= rows; r++) {
     const t = r / rows;
-    const flare = t * t * 0.75 + t * 0.2;
-    const rx = hx + flare * 0.15;
-    const rz = 0.12 + flare * 0.17;
+    const [rx, rz] = robeProfile(t, hx);
     const y = top + (hem - top) * t;
     const c = t < 0.07 ? trim : t > 0.9 ? base.clone().multiplyScalar(0.62) : base;
     for (let j = 0; j <= segs; j++) {
@@ -560,7 +559,7 @@ function robeGeometry(skeleton, mesh, recipe) {
       const x = Math.sin(a) * rx;
       const z = Math.cos(a) * rz + (t * 0.02);
       pos.push(cx + x, y, pelvis.z + z);
-      const n = new THREE.Vector3(Math.sin(a) / rx, 0.25 * flare, Math.cos(a) / rz).normalize();
+      const n = new THREE.Vector3(Math.sin(a) / rx, 0.25 * t, Math.cos(a) / rz).normalize();
       nrm.push(n.x, n.y, n.z);
       uvs.push(j / segs, t);
       col.push(c.r, c.g, c.b);

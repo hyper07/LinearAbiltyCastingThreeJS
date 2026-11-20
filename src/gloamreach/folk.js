@@ -190,6 +190,13 @@ export function atlasUv(u, v, i, { cols, rows, cell, pad } = ATLAS) {
   return [(c + pad / cell + fu * inner) / cols, (r + pad / cell + fv * inner) / rows];
 }
 
+/** Robe-wearers walk with smaller steps: how much of the clip's hip and knee swing they keep. */
+export const ROBE_STRIDE = 0.7;
+
+/** What a robe covers, and so is never drawn under one (nothing can poke through what isn't there). */
+export const UNDER_ROBE = ['garment-leggings', 'garment-boots'];
+export const hiddenUnderRobe = (part, recipe) => Boolean(recipe?.robe) && UNDER_ROBE.includes(part);
+
 /**
  * Robe skin weights for a point at height t (0 at the waist, 1 at the hem)
  * and side s (0 right … 1 left): the hips at the top, handing over to each
@@ -201,13 +208,20 @@ export function robeWeights(t, s) {
     const k = Math.max(0, Math.min(1, (x - a) / (b - a)));
     return k * k * (3 - 2 * k);
   };
-  // The front and back middle stay with the hips (no splitting down the centre); the sides follow the legs.
-  const sideness = Math.pow(Math.min(1, Math.abs(s - 0.5) * 2), 0.8);
-  const hip = 1 - smooth(0.05, 0.6, t) * 0.5 * sideness;
+  // A bell that hangs from the hips: the front and back middle stay with them, the sides only sway a
+  // little with the thighs (and hardly the shins), so a stride never folds the cloth or splits it.
+  const sideness = Math.pow(Math.min(1, Math.abs(s - 0.5) * 2), 1.2);
+  const hip = 1 - smooth(0.1, 0.7, t) * 0.3 * sideness;
   const rest = 1 - hip;
-  const shin = smooth(0.55, 1, t) * 0.35;
+  const shin = smooth(0.6, 1, t) * 0.15;
   const w = [['pelvis', hip], ['thigh_l', rest * s * (1 - shin)], ['calf_l', rest * s * shin], ['thigh_r', rest * (1 - s) * (1 - shin)], ['calf_r', rest * (1 - s) * shin]];
   const top = w.filter((x) => x[1] > 1e-4).sort((a, b) => b[1] - a[1]).slice(0, 4);
   const sum = top.reduce((a, x) => a + x[1], 0) || 1;
   return top.map(([b, x]) => [b, x / sum]);
+}
+
+/** The robe's half-widths (x across, z front to back) at height t (0 waist … 1 hem): a bell, wide enough at the hem for a stride. */
+export function robeProfile(t, hx) {
+  const flare = t * t * 0.8 + t * 0.25;
+  return [hx + flare * 0.2, 0.12 + flare * 0.27];
 }
