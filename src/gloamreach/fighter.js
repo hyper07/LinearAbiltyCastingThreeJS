@@ -146,6 +146,8 @@ export class FighterActor extends Actor {
     }
     this.mixer.update(dt);
     this.shortStride();
+    this.robeSway(dt);
+    this.cloakSway(dt);
     // Twist the chest toward the aim, shared between the two upper spine bones.
     this._twist += (this.twist - this._twist) * Math.min(1, dt * 14);
     if (Math.abs(this._twist) > 0.002) {

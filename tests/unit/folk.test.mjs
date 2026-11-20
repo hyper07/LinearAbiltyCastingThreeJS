@@ -145,7 +145,7 @@ test('robes: nothing under a robe is drawn (legs, boots), so nothing can poke th
   const robed = folkRecipe('aldous', { robe: '#d8cfb8' });
   assert.ok(hiddenUnderRobe('garment-leggings', robed));
   assert.ok(hiddenUnderRobe('garment-boots', robed));
-  assert.ok(!hiddenUnderRobe('garment-armour', robed), 'the top still shows');
+  assert.ok(hiddenUnderRobe('garment-armour', robed), 'the robe covers the top too (shoulders to ankles)');
   assert.ok(!hiddenUnderRobe('garment-boots', folkRecipe('tobin')), 'boots show without a robe');
   for (const p of [...PEOPLE, ...HEROES]) if (p.folk?.robe) assert.ok(hiddenUnderRobe('garment-boots', folkRecipe(p.id, p.folk)), p.id);
 });

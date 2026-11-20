@@ -72,6 +72,20 @@ const pick = (r, list) => list[Math.floor(r() * list.length) % list.length];
  * robe (a hex colour: a long robe over the legs, skinned to hips and legs),
  * cowl (a hex colour: the ranger's hood worn as a hood or shawl, on any
  * outfit), stoop (radians the spine bends forward: age), cane (true).
+ *
+ * With a robe, its make (robeStyle; pins win, the seed picks the rest):
+ * trim (a hex: the bands at the hem, cuffs, collar and front), pattern
+ * (the trims' embroidery, ROBE_PATTERNS), sleeves (ROBE_SLEEVES), collar
+ * (ROBE_COLLARS), open (a front opening over an under-robe), over (ROBE_OVERS:
+ * a stole, a mantle on the shoulders, or a scapular), overColour, sash (a hex),
+ * inner (the under-robe at the neck and the front). A cowl on a robe is drawn
+ * as a hood lying down on the shoulders.
+ *
+ * A cloak (knights, guards, captains — never a robe with it unless asked):
+ * cloak (a hex: its wool), and its make (cloakStyle): cloakTrim (the edge
+ * band and clasps), cloakFur (a hex for a fur collar, or null for a cloth
+ * one), emblem (the Gilded Acorn on the back), cloakBack (metres it stands
+ * off the back, for a quiver under it).
  */
 export function folkRecipe(seed, pins = {}) {
   const r = stream(`folk:${seed}`);
@@ -96,20 +110,148 @@ export function folkRecipe(seed, pins = {}) {
     stoop: age === 'elder' ? 0.22 : 0,
     cane: false
   };
-  const out = { ...recipe, ...pins };
+  const out = { ...recipe, ...ROBE_NONE, cloak: null, ...CLOAK_NONE, ...pins };
   if (out.sex === 'female') out.beard = false;
   if (!HAIR_STYLES[out.sex].includes(out.hair) && out.hair !== 'none') out.hair = HAIR_STYLES[out.sex][0];
+  if (out.robe) Object.assign(out, robeStyle(seed, out.robe, pins));
+  if (out.cloak) Object.assign(out, cloakStyle(seed, pins));
   return out;
 }
 
+/* ------------------------------------------------------------------ cloaks */
+
+const CLOAK_NONE = { cloakTrim: null, cloakFur: null, emblem: false, cloakBack: 0 };
+/** Fur collars: pale, grey, brown. */
+export const FUR_COLOURS = ['#d8cfc0', '#8a8278', '#6a5240'];
+
+/** A cloak's make from a seed; `pins` fix any field. */
+export function cloakStyle(seed, pins = {}) {
+  const r = stream(`cloak:${seed}`);
+  const style = { cloakTrim: pick(r, ['#c9a24a', '#c4c8d0', '#a8743e']), cloakFur: r() < 0.4 ? pick(r, FUR_COLOURS) : null, emblem: false, cloakBack: 0 };
+  for (const k of Object.keys(style)) if (pins[k] !== undefined) style[k] = pins[k];
+  return style;
+}
+
+/** The garments a cloak is drawn as (gearRig.js PART_RULES: the cape slot shows, dyes and trims them). */
+export const CLOAK_PARTS = ['garment-cloak', 'garment-cloak-trim', 'garment-cloak-collar'];
+
+/** What a cloaked recipe's cloak is made of; null without one. */
+export function cloakKit(recipe) {
+  if (!recipe?.cloak) return null;
+  const pieces = ['back', 'lining', 'collar', 'clasp-l', 'clasp-r', 'chain', 'hem-trim', 'edge-l', 'edge-r'];
+  if (recipe.emblem) pieces.push('emblem');
+  return { pieces, fur: Boolean(recipe.cloakFur), metal: isMetalTrim(recipe.cloakTrim), colours: { 'garment-cloak': recipe.cloak, 'garment-cloak-trim': recipe.cloakTrim, 'garment-cloak-collar': recipe.cloakFur ?? recipe.cloak } };
+}
+
+/**
+ * How far a cloak's swing bone turns toward hanging plumb (1) rather than
+ * with the upper back (0): mostly plumb, so leaning into a blow doesn't
+ * press the cloak into the legs behind.
+ */
+export const CLOAK_PLUMB = 0.6;
+/** Hanging from the shoulders: how far it trails (radians per m/s of ground speed) and its limits back and forward. */
+export const CLOAK_TRAIL = { perSpeed: 0.075, max: 0.5, min: -0.04 };
+
+/* ------------------------------------------------------------------ robes */
+
+/** The trims' embroidery: a row each of the cloth tile (matte thread and metal thread). */
+export const ROBE_PATTERNS = ['plain', 'key', 'vine', 'stars', 'runes', 'leaves'];
+/** Bell (wide at the wrist), angel (wide and long, hanging below the arm), fitted. */
+export const ROBE_SLEEVES = ['bell', 'angel', 'fitted'];
+/** A V with the under-robe showing, a round neckband, a standing collar. */
+export const ROBE_COLLARS = ['v', 'round', 'high'];
+/** Over the robe: nothing, a stole (a long band round the neck and down the front), a short mantle, a scapular (panels front and back). */
+export const ROBE_OVERS = ['none', 'stole', 'mantle', 'scapular'];
+/** Trim colours: gold, silver, bronze (metal thread), ivory, wine, night blue. */
+export const TRIM_COLOURS = ['#c9a24a', '#c4c8d0', '#a8743e', '#e2d6b6', '#7a2a2e', '#2a3a5a'];
+/** Trims in these colours are stitched in metal thread (they shine). */
+const METAL_TRIMS = new Set(['#c9a24a', '#c4c8d0', '#a8743e', '#d8b45a']);
+export const isMetalTrim = (hex) => METAL_TRIMS.has(String(hex).toLowerCase());
+/** Sashes and cords. */
+export const SASH_COLOURS = ['#c9a24a', '#6a3a24', '#7a2a2e', '#e2d6b6', '#2a2a3a', '#4a5a3a'];
+/** Under-robes. */
+export const INNER_COLOURS = ['#e8e0cc', '#d8cfb8', '#c8b898', '#a89878'];
+const ROBE_NONE = { trim: null, pattern: null, sleeves: null, collar: null, open: false, over: null, overColour: null, sash: null, inner: null };
+
+/** A hex colour scaled toward black (k < 1) or white (k > 1). */
+export function shadeHex(hex, k) {
+  const c = [1, 3, 5].map((i) => parseInt(String(hex).slice(i, i + 2), 16));
+  const out = c.map((x) => Math.round(Math.max(0, Math.min(255, k <= 1 ? x * k : x + (255 - x) * (k - 1)))));
+  return `#${out.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** A robe's make from a seed (the person's id) and its colour; `pins` fix any field. */
+export function robeStyle(seed, robe, pins = {}) {
+  const r = stream(`robe:${seed}`);
+  const style = {
+    trim: pick(r, TRIM_COLOURS),
+    pattern: pick(r, ROBE_PATTERNS),
+    sleeves: pick(r, ROBE_SLEEVES.slice(0, 2)),
+    collar: pick(r, ROBE_COLLARS),
+    open: r() < 0.4,
+    over: pick(r, ROBE_OVERS),
+    overColour: shadeHex(robe, 0.62),
+    sash: pick(r, SASH_COLOURS),
+    inner: pick(r, INNER_COLOURS)
+  };
+  for (const k of Object.keys(style)) if (pins[k] !== undefined && pins[k] !== null) style[k] = pins[k];
+  if (!ROBE_PATTERNS.includes(style.pattern)) style.pattern = 'plain';
+  if (!ROBE_SLEEVES.includes(style.sleeves)) style.sleeves = 'bell';
+  if (!ROBE_COLLARS.includes(style.collar)) style.collar = 'round';
+  if (!ROBE_OVERS.includes(style.over)) style.over = 'none';
+  return style;
+}
+
+/** The garments a robe is drawn as (gearRig.js PART_RULES colour or hide each). */
+export const ROBE_PARTS = ['garment-robe', 'garment-robe-trim', 'garment-robe-inner', 'garment-robe-over', 'garment-robe-sash', 'garment-robe-cowl'];
+
+/**
+ * What a robed recipe is built from (folkModels.js robeModels builds it):
+ * which pieces, and which garment each colour goes to. Null without a robe.
+ */
+export function robeKit(recipe) {
+  if (!recipe?.robe) return null;
+  const pieces = ['body', 'skirt', 'sleeve-l', 'sleeve-r', 'hem-trim', 'cuff-l', 'cuff-r', 'sash', 'sash-tails'];
+  pieces.push(recipe.collar === 'v' ? 'v-neck' : 'collar');
+  if (recipe.collar === 'v' || recipe.open) pieces.push('inner');
+  if (recipe.open) pieces.push('front-trim');
+  if (recipe.over && recipe.over !== 'none') pieces.push(recipe.over);
+  if (recipe.cowl) pieces.push('cowl');
+  return {
+    pieces,
+    sleeves: recipe.sleeves,
+    metal: isMetalTrim(recipe.trim),
+    colours: { 'garment-robe': recipe.robe, 'garment-robe-trim': recipe.trim, 'garment-robe-inner': recipe.inner, 'garment-robe-over': recipe.overColour, 'garment-robe-sash': recipe.sash, 'garment-robe-cowl': recipe.cowl ?? null }
+  };
+}
+
+/**
+ * The 'cloth' tile of the atlas, split: the woven cloth on top (robes, cowls,
+ * sashes), then a row per embroidered trim, matte thread first, then metal
+ * thread. v ranges inside the tile (0 top … 1 bottom).
+ */
+export const CLOTH_WEAVE = [0, 0.18];
+/** A square for an embroidered device (the Gilded Acorn) on a cloak's back: [u0, u1, v0, v1] of the cloth tile. */
+export const EMBLEM = [0.01, 0.125, 0.19, 0.305];
+export const TRIM_ROWS = [0.32, 1];
+export function trimRow(pattern, metal = false) {
+  const n = ROBE_PATTERNS.length * 2;
+  const i = Math.max(0, ROBE_PATTERNS.indexOf(pattern)) + (metal ? ROBE_PATTERNS.length : 0);
+  const h = (TRIM_ROWS[1] - TRIM_ROWS[0]) / n;
+  // A little inside the row, so filtering never reaches the next one.
+  return [TRIM_ROWS[0] + h * i + h * 0.1, TRIM_ROWS[0] + h * (i + 1) - h * 0.1];
+}
+/** Motifs across one trim row (each quad of a trim strip shows one). */
+export const TRIM_MOTIFS = 16;
+
 /** One key per distinct look (people who'd look the same share a template). */
 export function recipeKey(r) {
-  return ['folk', r.sex, r.skin, r.hair, r.hairColour, r.beard ? 'beard' : '-', r.outfit, r.variant, r.cloth ?? '-', r.shade ?? '-', r.hood ? 'hood' : '-', r.idle ?? '-', r.robe ?? '-', r.cowl ?? '-', r.stoop ?? 0, r.cane ? 'cane' : '-', r.atlas ? 'atlas' : 'full'].join('|');
+  return ['folk', r.sex, r.skin, r.hair, r.hairColour, r.beard ? 'beard' : '-', r.outfit, r.variant, r.cloth ?? '-', r.shade ?? '-', r.hood ? 'hood' : '-', r.idle ?? '-', r.robe ?? '-', r.cowl ?? '-', r.stoop ?? 0, r.cane ? 'cane' : '-', r.atlas ? 'atlas' : 'full', ...(r.robe ? [r.trim, r.pattern, r.sleeves, r.collar, r.open ? 'open' : 'closed', r.over, r.overColour, r.sash, r.inner] : []), ...(r.cloak ? ['cloak', r.cloak, r.cloakTrim, r.cloakFur ?? '-', r.emblem ? 'emblem' : '-', r.cloakBack ?? 0] : [])].join('|');
 }
 
 /** Every file a recipe needs (to check the packs are there before building). */
 export function folkFiles(r) {
-  return [FOLK_FILES.body(r.sex), FOLK_FILES.outfit(r.sex, r.outfit), r.hair !== 'none' ? FOLK_FILES.hair(r.hair) : null, r.beard ? FOLK_FILES.hair('Beard') : null, FOLK_FILES.animations, r.cowl && r.outfit !== 'ranger' ? FOLK_FILES.outfit(r.sex, 'ranger') : null].filter(Boolean);
+  return [FOLK_FILES.body(r.sex), FOLK_FILES.outfit(r.sex, r.outfit), r.hair !== 'none' ? FOLK_FILES.hair(r.hair) : null, r.beard ? FOLK_FILES.hair('Beard') : null, FOLK_FILES.animations, r.cowl && !r.robe && r.outfit !== 'ranger' ? FOLK_FILES.outfit(r.sex, 'ranger') : null].filter(Boolean);
 }
 
 /**
@@ -193,8 +335,8 @@ export function atlasUv(u, v, i, { cols, rows, cell, pad } = ATLAS) {
 /** Robe-wearers walk with smaller steps: how much of the clip's hip and knee swing they keep. */
 export const ROBE_STRIDE = 0.7;
 
-/** What a robe covers, and so is never drawn under one (nothing can poke through what isn't there). */
-export const UNDER_ROBE = ['garment-leggings', 'garment-boots'];
+/** What a robe covers, and so is never drawn under one (nothing can poke through what isn't there): the top, trousers and boots. */
+export const UNDER_ROBE = ['garment-armour', 'garment-leggings', 'garment-boots'];
 export const hiddenUnderRobe = (part, recipe) => Boolean(recipe?.robe) && UNDER_ROBE.includes(part);
 
 /**
@@ -215,6 +357,33 @@ export function robeWeights(t, s) {
   const rest = 1 - hip;
   const shin = smooth(0.6, 1, t) * 0.15;
   const w = [['pelvis', hip], ['thigh_l', rest * s * (1 - shin)], ['calf_l', rest * s * shin], ['thigh_r', rest * (1 - s) * (1 - shin)], ['calf_r', rest * (1 - s) * shin]];
+  const top = w.filter((x) => x[1] > 1e-4).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const sum = top.reduce((a, x) => a + x[1], 0) || 1;
+  return top.map(([b, x]) => [b, x / sum]);
+}
+
+/**
+ * The skirt's skin weights below the hip joints, at height t (0 at the hip
+ * joints, 1 at the hem), side s (0 right … 1 left) and front f (0 back … 1
+ * front). Two bones of the robe's own (folkModels.js adds them; Actor.robeSway
+ * turns them each frame) carry it: RobeLap, at the hip joints, turned with
+ * the thighs' average (so the front lies over the lap when sitting, and a
+ * stride, one leg forward and one back, leaves it be), and RobeHem, at the
+ * knees under it, kept hanging plumb and swinging on a spring. The sides keep
+ * a little of each thigh (robeWeights), so the cloth moves with the stride.
+ * Returns [[bone, weight]…], the strongest four, summing to 1.
+ */
+export function skirtWeights(t, s, f) {
+  const smooth = (a, b, x) => {
+    const k = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return k * k * (3 - 2 * k);
+  };
+  const legs = robeWeights(Math.max(0, t), s).filter(([b]) => b !== 'pelvis');
+  const legW = legs.reduce((a, x) => a + x[1], 0);
+  const hem = smooth(0.32, 0.8, t) * 0.92;
+  const lap = (1 - hem) * Math.pow(Math.max(0, f), 1.6) * smooth(-0.05, 0.3, t) * 0.95;
+  const rest = Math.max(0, 1 - hem - lap);
+  const w = [['RobeHem', hem], ['RobeLap', lap], ['pelvis', rest * (1 - legW)], ...legs.map(([b, x]) => [b, rest * x])];
   const top = w.filter((x) => x[1] > 1e-4).sort((a, b) => b[1] - a[1]).slice(0, 4);
   const sum = top.reduce((a, x) => a + x[1], 0) || 1;
   return top.map(([b, x]) => [b, x / sum]);

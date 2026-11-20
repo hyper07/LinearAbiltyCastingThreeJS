@@ -4,8 +4,10 @@
  * (hiding the hair, or the model's own helmet, as it should), pauldrons,
  * a gorget, gauntlet cuffs, knee cops and sabatons following the arm, leg
  * and foot bones, the model's own clothes recoloured to the armour's metal,
- * leather or cloth, and a cloth cape that swings and settles as the hero
- * moves. Epic and legendary pieces glow, trail their swings and shed motes.
+ * leather or cloth, and a cape: on the Quaternius bodies their own cloak
+ * (robeModels.js), shown, dyed and trimmed by the cape slot; on polyfork's,
+ * a cloth cape that swings and settles as the hero moves. Epic and legendary
+ * pieces glow, trail their swings and shed motes.
  *
  *   const rig = new GearRig(actor, template);
  *   rig.dress(profile.equip);
@@ -15,6 +17,7 @@ import * as THREE from 'three';
 import { BASES, METALS, glows, RARITIES } from './items.js';
 import { buildItem, itemPalette, pauldron, cuff, knee, foot, gorget, cuisse } from './gearModels.js';
 import { characterMaterial, partsDepthMaterial } from './actors.js';
+import { shadeHex } from './folk.js';
 import { heraldryMaterial, gearMaterial } from './gearMaterials.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -68,7 +71,10 @@ export function fitBody(template) {
   const bodyPart = template.parts?.indexOf('body') ?? -1;
   // Quaternius bodies (folkModels.js): a model's own pauldrons, hood, hair and beard don't count toward the body's size.
   const skip = new Set(template.folk ? (template.parts ?? []).map((p, i) => (/pauldron|hood|hair|beard/.test(p) ? i : -1)).filter((i) => i >= 0) : []);
+  // A robe's wide sleeves aren't the arm (gloves' cuffs fit the arm under them); its body still counts (a cape hangs outside it).
+  const robeParts = new Set((template.parts ?? []).map((p, i) => (/^garment-robe/.test(p) ? i : -1)).filter((i) => i >= 0));
   for (const name of FIT_BONES) {
+    const skipHere = /Arm|Hand/.test(name) ? new Set([...skip, ...robeParts]) : skip;
     const bi = sk.bones.findIndex((b) => b.name === name);
     if (bi < 0) continue;
     const box = new THREE.Box3();
@@ -84,7 +90,7 @@ export function fitBody(template) {
         let bw = 0;
         for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > bw) [bw, best] = [sw.getComponent(i, k), si.getComponent(i, k)];
         if (best !== bi) continue;
-        if (skip.size && part && skip.has(Math.round(part.getX(i)))) continue;
+        if (skipHere.size && part && skipHere.has(Math.round(part.getX(i)))) continue;
         const v = V(p.getX(i), p.getY(i), p.getZ(i)).sub(restPos.get(name));
         box.expandByPoint(v);
         if (part && Math.round(part.getX(i)) === bodyPart) bodyBox.expandByPoint(v);
@@ -122,7 +128,17 @@ const PART_RULES = {
   'garment-cape': { hide: () => true },
   'garment-book': { hide: () => true },
   'garment-armour': { tint: (e, fit, hero) => (hero === 'ranger' ? { upper: surface(e.chest, 'chest', 'metal'), mix: 0.85 } : { upper: surface(e.chest, 'chest'), lower: surface(e.legs, 'legs'), split: fit.hipY * 1.02, mix: 0.88 }) },
-  'garment-robe': { tint: (e, fit) => ({ upper: surface(e.chest, 'chest'), lower: surface(e.legs, 'legs'), split: fit.hipY * 0.96, mix: 0.8 }) },
+  // A robe (robeModels.js), shoulders to ankles, is the chest's: dyed its cloth; bare, it's undyed linen without its finery.
+  'garment-robe': { tint: (e) => ({ upper: surface(e.chest, 'chest'), mix: 0.85 }) },
+  'garment-robe-trim': { hide: (e) => !e.chest, tint: (e) => ({ upper: robeTrim(e.chest), mix: 0.9 }) },
+  'garment-robe-over': { hide: (e) => !e.chest, tint: (e) => ({ upper: e.chest && shadeHex(e.chest.look.cloth ?? '#4a3a8a', 0.6), mix: 0.85 }) },
+  'garment-robe-inner': { tint: (e) => ({ upper: e.legs?.look.cloth ? shadeHex(e.legs.look.cloth, 1.5) : '#d8d0c0', mix: 0.85 }) },
+  'garment-robe-sash': { tint: (e) => ({ upper: e.chest ? robeTrim(e.chest) : '#6a4a30', mix: 0.85 }) },
+  // A cloak sewn into the body (robeModels.js buildCloak): the cape slot shows it, in the cape's wool; its bands and clasps in the cape's metal; a fur collar for a mantle, a cloth one for a cloak, none under a hood.
+  'garment-cloak': { hide: (e) => !e.cape, tint: (e) => ({ upper: e.cape?.look.cloth, mix: 0.85 }) },
+  'garment-cloak-trim': { hide: (e) => !e.cape, tint: (e) => ({ upper: robeTrim(e.cape), mix: 0.9 }) },
+  'garment-cloak-collar': { hide: (e) => !e.cape || BASES[e.head?.base]?.look === 'hood', tint: (e) => ({ upper: BASES[e.cape?.base]?.look === 'mantle' ? '#d8cfc0' : e.cape && shadeHex(e.cape.look.cloth ?? '#2e4a8a', 0.8), mix: 0.85 }) },
+  'garment-robe-cowl': { hide: (e) => BASES[e.head?.base]?.look === 'hood', tint: (e) => ({ upper: e.chest ? shadeHex(e.chest.look.cloth ?? '#4a3a8a', 1.12) : '#8a7a60', mix: 0.85 }) },
   'garment-tunic': { tint: (e) => ({ upper: e.chest?.look.cloth ?? surface(null, 'chest'), mix: 0.8 }) },
   // Quaternius outfits (folkModels.js): sleeves follow the chest, a model's own pauldrons give way to plate's.
   'garment-sleeves': { tint: (e) => ({ upper: surface(e.chest, 'chest'), mix: 0.82 }) },
@@ -136,6 +152,15 @@ const PART_RULES = {
   'garment-boots': { tint: (e) => ({ upper: surface(e.feet, 'feet'), mix: 0.88 }) },
   'garment-shoes': { tint: (e) => ({ upper: surface(e.feet, 'feet'), mix: 0.85 }) }
 };
+
+/** A robe's trims: gold on legendary, silver on epic, the item's own metal otherwise. */
+function robeTrim(item) {
+  if (!item) return null;
+  if (item.rarity === 'legendary') return METALS.gilded.color;
+  if (item.rarity === 'epic' || item.rarity === 'rare') return METALS.silver.color;
+  // Plainer robes: bronze-gold thread.
+  return '#b8924a';
+}
 
 /** Bare, when nothing is worn: undyed linen, old leather. */
 const BARE = { chest: '#b9a988', legs: '#7d6a50', hands: '#6a4a30', feet: '#4e3a2a' };
@@ -355,6 +380,8 @@ export class GearRig {
       this.cape = null;
     }
     if (!item) return;
+    // A body with its own cloak (Quaternius heroes, robeModels.js): the part rules show it; no cloth to simulate.
+    if (this.template.cloak) return;
     const W = 8;
     const H = 12;
     const fit = this.fit;

@@ -95,8 +95,11 @@ brigandine, leather and robes. Items carry stats, affixes and a level requiremen
 leave no hand for a shield. Drag to wear, swap and sell; hovering compares with what is worn.
 Dorrin's stall on the square buys and sells. The hero shows what they wear: weapons in the hand
 bones, helmets on the head (hiding the hair), pauldrons, gorgets, gauntlet cuffs, knee cops and
-sabatons on the bones, the clothes recoloured to the armour's metal, leather or cloth, and a cloth
-cape that swings; epic and legendary pieces glow, shed motes and trail their swings. The bag's
+sabatons on the bones, the clothes recoloured to the armour's metal, leather or cloth, and a cloak
+that hangs from the shoulders and swings (see robes and cloaks below); the mage's Spellwoven robe
+takes the robe's cloth for its colour and its rarity for its trims (bronze-gold, silver on rare and
+epic, gold on legendary), and without one the mage is in undyed linen with no finery; epic and
+legendary pieces glow, shed motes and trail their swings. The bag's
 pictures are rendered from the items' own models. Each hero is saved (in this browser) as they go.
 
 The game picks a quality level from the graphics card and then adjusts it to keep frames
@@ -127,6 +130,7 @@ calls and triangles.
 | Trees · grass and plants · buildings · props · the gate · the Gloamwood · the rift and drake | `trees.js` · `foliage.js` · `buildings.js`, `kit.js` · `props.js` · `gate.js` · `gloamwood.js` · `vista.js` |
 | Characters (materials, merging, retargeting, locomotion) · the hero · the camera · people and animals | `actors.js` · `hero.js` · `camera.js` · `life.js` |
 | Quaternius people: recipes, garment and bone names (pure, tested) · assembling them, their clips and gear anchors | `folk.js` · `folkModels.js` |
+| Robes and cloaks, made in code: fitted, skinned, embroidered; the cloth tile's weave, trims and device | `robeModels.js` (makes in `folk.js`, springs in `actors.js`) |
 | The fight as numbers: damage, crits, armour, levels, cooldowns · skills · items, loot, the bag, equipment, trade · monsters and where they live · chests · the save (all pure, tested) | `rules.js` · `skills.js` · `items.js` · `bestiary.js` · `chests.js` · `save.js` |
 | The hero's side of a fight · monsters (minds, poses, dissolve, respawn) · its effects · its sounds | `combat.js` · `monsters.js` · `vfx.js` · `sfx.js` |
 | A hero who fights while walking (upper-body clips, backpedal, torso twist; aim maths from Lanternwood's `aim.js`) · gear on the bones · gear modelled in code · its textures · item pictures and the hero preview | `fighter.js` · `gearRig.js` · `gearModels.js` · `gearMaterials.js` · `icons.js` |
@@ -154,10 +158,39 @@ uses the polyfork characters, as before. Who wears what is the `folk` recipe on 
 person's id seeds the rest — hairstyle, hair and skin colour, beard, outfit texture, a shade over
 the clothes); `folk.js` makes recipes and names, `folkModels.js` assembles them. Villagers share
 one texture atlas and one material (each is one draw; their colours ride in the vertices);
-heroes keep the packs' full-size textures, and their gear recolours their clothes. Robes are a
-mesh of our own: a bell to the ground that hangs from the hips and sways a little with the
-thighs; the trousers and boots under it aren't drawn, and robe-wearers take smaller steps, so
-nothing can poke through (checked across the stride in `tests/unit/folk.test.mjs`).
+heroes keep the packs' full-size textures, and their gear recolours their clothes.
+
+**Robes and cloaks** (`robeModels.js`) are made in code, fitted to whoever wears them, and drawn
+in the same single mesh and material as the rest of the person (their cloth, embroidery and
+device are a tile of the people's atlas), so a robed or cloaked villager is still one draw.
+
+- *Robes* (priests, mages, elders, acolytes): a robe from the neck to the ankles, measured round
+  the outfit it covers, hanging straight from the chest and shoulder blades, cinched at the sash
+  and belling out to a slightly uneven hem, with folds that deepen toward it. Bell, angel or
+  fitted sleeves, lined; embroidered bands (key, vine, stars, runes, leaves or plain, in matte or
+  metal thread) at the hem, cuffs, collar or V-neck and front opening; the under-robe at the V and
+  in the front split; a sash or cord with hanging ends; a stole, a short mantle or a scapular; a
+  cowl lying on the shoulders. Each wearer's make is in their recipe (`cast.js`: trim, pattern,
+  sleeves, collar, open, over, sash, inner — the seed fills in anything unpinned). The top,
+  trousers and boots under a robe aren't drawn. The skirt hangs on two bones of the robe's own: one
+  turned with the thighs' average (the front lies over the lap when sitting; a stride leaves it
+  be), one at the knees kept hanging plumb and swinging on a spring as they walk, start, stop and
+  turn; wide sleeves hang under a raised arm, fall back down a lifted one and rest against the
+  robe rather than sinking into it (all in the vertex shader). Robe-wearers take smaller steps.
+- *Cloaks* (knights, guards, captains): heavy wool from a cloth or fur collar, clasped at the front
+  of the shoulders with a chain between, to the calves, lined, with an embroidered edge and hem; the
+  Gilded Acorn on the back for the knight's order and the Village Watch. Its top is skinned like
+  the clothes under it; below the shoulder blades it hangs, mostly plumb, from a bone of its own on
+  a spring — trailing as they run, swinging on turns, settling when they stand — and it stands off
+  the armour, robe and legs beneath it. Every hero's body has one, shown by the cape slot: the
+  cape's wool, its rarity's metal on the bands, a fur collar for the Fur-trimmed mantle, and no
+  collar under a hood. (Polyfork stand-ins, without the packs, keep the simulated cloth cape.)
+
+Checked in `tests/unit/robes.test.mjs`: makes are seeded and each wearer's differs; nothing worn
+under a robe is drawn; robes and cloaks built on a stand-in mannequin are skinned and whole, their
+sleeves on the forearms, the hem at the ground and the feet inside it through a stride, the lap over
+the thighs when sitting; cloaks behind the body and clear of the legs, over a robe too; knights and
+guards wear cloaks, never robes.
 
 Credits for everything third-party, with links and licences, are in the game's Credits panel
 (start screen and Esc menu). The arms and armour are modelled in code, with their metal, leather,

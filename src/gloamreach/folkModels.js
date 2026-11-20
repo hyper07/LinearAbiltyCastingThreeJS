@@ -9,6 +9,8 @@
  *    skin light-wrap; hair, brows and beard coloured; the skin toned (head
  *    and arms matched first, as their textures differ); outfit textures
  *    swapped for the pack's alternates;
+ *  - a robe or a cloak of our own when the recipe has one (robeModels.js),
+ *    on the same mesh, with the bones they swing on;
  *  - bones renamed to the names the rest of the game uses (Hips, LeftHand…),
  *    so gear, the fighter's split body and footsteps work unchanged; gear
  *    anchors under the bones turn the polyfork frames the gear was made for
@@ -27,7 +29,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { characterLoader, retargetClip } from '../library/characters.js';
 import { characterMaterial, bakeBorrowed, measureStrides, loadFile, polyUrl, MAX_PARTS } from './actors.js';
-import { FOLK_FILES, folkFiles, recipeKey, partName, gameBoneName, sourceBoneMap, ATLAS, TILES, tileFor, atlasUv, robeWeights, hiddenUnderRobe, robeProfile, ROBE_STRIDE } from './folk.js';
+import { FOLK_FILES, folkFiles, recipeKey, partName, gameBoneName, sourceBoneMap, ATLAS, TILES, tileFor, atlasUv, hiddenUnderRobe, ROBE_STRIDE, CLOTH_WEAVE } from './folk.js';
+import { buildRobe, buildCloak, paintClothTile } from './robeModels.js';
 
 // The base bodies' glTF ask for two normal maps under names the pack doesn't have ("T_Eye_Normal_png.png"): use the real files.
 const manager = new THREE.LoadingManager();
@@ -122,6 +125,7 @@ function pieceGeometry(mesh, boneIndex, part, cut = null) {
   const n = src.attributes.position.count;
   g.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(n).fill(part), 1));
   g.setAttribute('aCape', new THREE.BufferAttribute(new Float32Array(n), 1));
+  g.setAttribute('aHang', new THREE.BufferAttribute(new Float32Array(n), 1));
   let index = src.index ? Array.from(src.index.array) : Array.from({ length: n }, (_, i) => i);
   if (cut) index = cut(index, src);
   g.setIndex(index);
@@ -175,7 +179,8 @@ async function build(recipe, { detail, rim }) {
   const [bodyG, outfitG] = loaded;
   const hairG = recipe.hair !== 'none' ? await source(FOLK_FILES.hair(recipe.hair)) : null;
   const beardG = recipe.beard ? await source(FOLK_FILES.hair('Beard')) : null;
-  const rangerG = recipe.cowl ? await source(FOLK_FILES.outfit(recipe.sex, 'ranger')) : null;
+  // A cowl on a robe is the robe's own (robeModels.js); on anything else, the ranger's hood dyed.
+  const rangerG = recipe.cowl && !recipe.robe ? await source(FOLK_FILES.outfit(recipe.sex, 'ranger')) : null;
   const ual = await source(FOLK_FILES.animations);
   const variantTex = recipe.variant > 1 ? await texture(FOLK_FILES.outfitTexture(recipe.outfit, recipe.variant)) : null;
 
@@ -183,7 +188,7 @@ async function build(recipe, { detail, rim }) {
   const scene = SkeletonUtils.clone(bodyG.scene);
   const bodyPieces = skinnedOf(scene);
   const base = bodyPieces.find((p) => /SuperHero/i.test(p.name)) ?? bodyPieces[0];
-  const skeleton = base.mesh.skeleton;
+  let skeleton = base.mesh.skeleton;
   const boneIndex = new Map(skeleton.bones.map((b, i) => [b.name, i]));
   const pieces = [];
   for (const p of bodyPieces) pieces.push({ ...p, cut: p === base ? headOnly(skeleton.bones) : null });
@@ -221,9 +226,37 @@ async function build(recipe, { detail, rim }) {
     const n = partName(p.name, p.material?.name ?? '');
     return p.cowl ? 'garment-cowl' : n;
   };
-  // No hood unless worn; no trousers under a robe (they'd show through it).
+  // No hood unless worn; no top, trousers or boots under a robe (they'd show through it).
   const keep = (p, name) => !(name === 'garment-hood' && !recipe.hood) && !hiddenUnderRobe(name, recipe);
-  const robe = recipe.robe ? robeGeometry(skeleton, base.mesh, recipe) : null;
+  const clothTile = TILES.indexOf('cloth');
+  // The robe (robeModels.js): fitted round the outfit it covers, on the atlas's cloth tile, with two bones of its own.
+  const robe = recipe.robe
+    ? buildRobe({
+        skeleton,
+        mesh: base.mesh,
+        sources: pieces.filter((p) => ['body', 'garment-armour', 'garment-sleeves', 'garment-leggings'].includes(named(p))).map((p) => ({ geo: pieceGeometry(p.mesh, boneIndex, 0, p.cut), part: named(p) })),
+        recipe,
+        partOf,
+        uvOf: (u, v) => atlasUv(u, v, clothTile)
+      })
+    : null;
+  if (robe) skeleton = robe.skeleton;
+  // A cloak (robeModels.js): over the outfit (and any robe), hung from the shoulders on a bone of its own.
+  const cloak = recipe.cloak
+    ? buildCloak({
+        skeleton,
+        mesh: base.mesh,
+        sources: [
+          ...pieces.filter((p) => ['body', 'garment-armour', 'garment-sleeves', 'garment-leggings', 'garment-pauldrons', 'garment-belt', 'garment-boots'].includes(named(p))).map((p) => ({ geo: pieceGeometry(p.mesh, boneIndex, 0, p.cut), part: named(p) })),
+          ...(robe ? [{ geo: robe.geometry, part: 'robe' }] : [])
+        ],
+        recipe,
+        partOf,
+        uvOf: (u, v) => atlasUv(u, v, clothTile)
+      })
+    : null;
+  if (cloak) skeleton = cloak.skeleton;
+  const sewn = [robe, cloak].filter(Boolean);
   const partLum = [];
   const parent = base.mesh.parent;
   const bind = base.mesh.bindMatrix.clone();
@@ -237,17 +270,15 @@ async function build(recipe, { detail, rim }) {
       if (!keep(p, name)) continue;
       const part = partOf(name);
       // A cowl is plain dyed cloth (the ranger's green hood won't dye to every colour).
-      const tile = p.cowl ? TILES.indexOf('cloth') : tileFor(p.material?.name ?? '', recipe);
+      const tile = p.cowl ? clothTile : tileFor(p.material?.name ?? '', recipe);
       atlas.draw(tile, p.cowl ? null : p.material, tile === TILES.indexOf(`${recipe.outfit}-${recipe.variant}`) ? variantTex : null);
       const g = pieceGeometry(p.mesh, boneIndex, part, p.cut);
-      toAtlas(g, tile, tintFor(p, name));
+      toAtlas(g, tile, tintFor(p, name), tile === clothTile ? CLOTH_WEAVE : null);
       geos.push(g);
     }
-    if (robe) {
-      atlas.draw(TILES.indexOf('cloth'), null);
-      toAtlas(robe, TILES.indexOf('cloth'), null);
-      robe.attributes.aPart.array.fill(partOf('garment-robe'));
-      geos.push(robe);
+    for (const x of sewn) {
+      atlas.draw(clothTile, null);
+      geos.push(x.geometry);
     }
     for (const p of bodyPieces) p.mesh.removeFromParent();
     const mesh = new THREE.SkinnedMesh(mergeGeometries(geos, false), atlas.material);
@@ -287,13 +318,15 @@ async function build(recipe, { detail, rim }) {
         return mean ? Math.max(0.05, lum(mean) * lum(m.color)) : 0.5;
       })();
     }
-    if (robe) {
-      // The robe: our own cloth (vertex colours, the woven relief), dyed by the game like any robe.
-      const part = partOf('garment-robe');
-      robe.attributes.aPart.array.fill(part);
-      const m = characterMaterial(new THREE.MeshStandardMaterial({ side: THREE.DoubleSide }), { detail, rim });
-      groups.set(m, [robe]);
-      partLum[part] = lum(new THREE.Color(recipe.robe));
+    if (sewn.length) {
+      // The robe and cloak: the people's atlas (its cloth tile: weave and embroidered trims), their colours in the vertices; the game dyes them like any garment.
+      const atlas = folkAtlas({ detail, rim });
+      atlas.draw(clothTile, null);
+      const src = new THREE.MeshStandardMaterial({ map: atlas.maps.colour, normalMap: atlas.maps.normal, roughnessMap: atlas.maps.orm, metalnessMap: atlas.maps.orm, roughness: 1, metalness: 1, vertexColors: true });
+      src.name = 'robe';
+      const m = characterMaterial(src, { detail, rim, textured: true, atlas: true });
+      groups.set(m, sewn.map((x) => x.geometry));
+      for (const x of sewn) for (const [part, l] of Object.entries(x.partLum)) partLum[part] = Math.max(0.05, l);
     }
     for (const p of bodyPieces) p.mesh.removeFromParent();
     for (const [m, geos] of groups) {
@@ -323,7 +356,7 @@ async function build(recipe, { detail, rim }) {
   const box = new THREE.Box3().setFromObject(scene, true);
   const natural = box.max.y - box.min.y;
   // Helmets were fitted to polyfork's big heads: on these smaller, rounder ones they sit a little higher and larger.
-  const t = { id: recipeKey(recipe), gltf, clips, natural, scale: 1, parts, partLum: parts.map((_, i) => partLum[i] ?? 0.5), folk: recipe, stoop: recipe.stoop ? stoopAxes(scene, recipe.stoop) : null, stride: recipe.robe ? ROBE_STRIDE : null, gearTune: { helmUp: 0.24, helmScale: 1.14, helmBack: -0.02 } };
+  const t = { id: recipeKey(recipe), gltf, clips, natural, scale: 1, parts, partLum: parts.map((_, i) => partLum[i] ?? 0.5), folk: recipe, stoop: recipe.stoop ? stoopAxes(scene, recipe.stoop) : null, stride: recipe.robe ? ROBE_STRIDE : null, robe: robe?.rig ?? null, cloak: cloak?.rig ?? null, gearTune: { helmUp: 0.24, helmScale: 1.14, helmBack: -0.02 } };
   t.strides = measureStrides(t);
   // Gear anchors: the polyfork frames the gear was made for, turned onto these bones.
   const ref = await loadFile(polyUrl('human-knight-base'));
@@ -404,11 +437,13 @@ export function addGearAnchors(scene, refScene) {
 
 /* ------------------------------------------------------------------ the atlas */
 
-/** Move a piece's uvs into its atlas tile, and give it a colour (its tint; null keeps the colour it has). */
-function toAtlas(g, tile, tint) {
+/** Move a piece's uvs into its atlas tile (or a band of it, [v0, v1]), and give it a colour (its tint; null keeps the colour it has). */
+function toAtlas(g, tile, tint, band = null) {
   const uv = g.attributes.uv;
   for (let i = 0; i < uv.count; i++) {
-    const [u, v] = atlasUv(uv.getX(i), uv.getY(i), tile);
+    let v0 = uv.getY(i);
+    if (band) v0 = band[0] + (v0 - Math.floor(v0 === 1 ? 0 : v0)) * (band[1] - band[0]);
+    const [u, v] = atlasUv(uv.getX(i), v0, tile);
     uv.setXY(i, u, v);
   }
   if (tint) {
@@ -479,18 +514,8 @@ export function folkAtlas({ detail = null, rim = 0.6 } = {}) {
       if (drawn.has(i) || i < 0) return;
       drawn.add(i);
       if (!m) {
-        // Plain undyed cloth for robes: a soft weave in light grey, matte.
-        const g = colour.getContext('2d');
-        const x0 = (i % cols) * cell;
-        const y0 = Math.floor(i / cols) * cell;
-        g.fillStyle = '#d8d4cc';
-        g.fillRect(x0, y0, cell, cell);
-        for (let k = 0; k < cell; k += 4) {
-          g.fillStyle = `rgba(0,0,0,${0.03 + ((k * 7) % 5) * 0.008})`;
-          g.fillRect(x0 + k, y0, 2, cell);
-          g.fillRect(x0, y0 + k, cell, 1);
-        }
-        fill(orm, small, i, `rgb(255,${ch(0.88)},0)`);
+        // Undyed cloth for robes and cowls: a fine weave, and the embroidered trims (robeModels.js).
+        paintClothTile({ colour, normal, orm, x0: (i % cols) * cell, y0: Math.floor(i / cols) * cell, cell, nx0: (i % cols) * small, ny0: Math.floor(i / cols) * small, small });
       } else {
         const name = m.name ?? '';
         const img = (override ?? m.map)?.image;
@@ -513,82 +538,7 @@ export function folkAtlas({ detail = null, rim = 0.6 } = {}) {
   return bank;
 }
 
-/* ------------------------------------------------------------------ robes and stooping */
-
-/**
- * A long robe from the waist to the ankles, flaring toward the hem, with a
- * darker hem band and a trim at the waist; skinned to the hips and, lower
- * down, each side's thigh and shin (folk.js robeWeights), so it swings
- * with the legs. In the mesh's bind space, on its Unreal-named bones.
- */
-function robeGeometry(skeleton, mesh, recipe) {
-  const index = new Map(skeleton.bones.map((b, i) => [b.name, i]));
-  const inv = mesh.bindMatrixInverse;
-  const at = (name) => {
-    const i = index.get(name);
-    return i === undefined ? null : new THREE.Vector3().setFromMatrixPosition(inv.clone().multiply(skeleton.boneInverses[i].clone().invert()));
-  };
-  const pelvis = at('pelvis');
-  const tl = at('thigh_l');
-  const tr = at('thigh_r');
-  const fl = at('foot_l');
-  if (!pelvis || !tl || !tr || !fl) return null;
-  const cx = (tl.x + tr.x) / 2;
-  const hx = Math.abs(tl.x - tr.x) / 2 + 0.07;
-  const side = Math.sign(tl.x - cx) || 1;
-  const top = pelvis.y + 0.07;
-  // To the ground: the feet are hidden under it.
-  const hem = Math.min(fl.y - 0.07, 0.015);
-  const rows = 12;
-  const segs = 32;
-  const base = new THREE.Color(recipe.robe);
-  const trim = base.clone().lerp(new THREE.Color('#e8d8a8'), 0.45);
-  const pos = [];
-  const nrm = [];
-  const uvs = [];
-  const col = [];
-  const si = [];
-  const sw = [];
-  for (let r = 0; r <= rows; r++) {
-    const t = r / rows;
-    const [rx, rz] = robeProfile(t, hx);
-    const y = top + (hem - top) * t;
-    const c = t < 0.07 ? trim : t > 0.9 ? base.clone().multiplyScalar(0.62) : base;
-    for (let j = 0; j <= segs; j++) {
-      const a = (j / segs) * Math.PI * 2;
-      const x = Math.sin(a) * rx;
-      const z = Math.cos(a) * rz + (t * 0.02);
-      pos.push(cx + x, y, pelvis.z + z);
-      const n = new THREE.Vector3(Math.sin(a) / rx, 0.25 * t, Math.cos(a) / rz).normalize();
-      nrm.push(n.x, n.y, n.z);
-      uvs.push(j / segs, t);
-      col.push(c.r, c.g, c.b);
-      const s = Math.max(0, Math.min(1, 0.5 + ((x * side) / rx) * 0.75));
-      const w = robeWeights(t, s);
-      for (let k = 0; k < 4; k++) {
-        si.push(index.get(w[k]?.[0]) ?? 0);
-        sw.push(w[k]?.[1] ?? 0);
-      }
-    }
-  }
-  const idx = [];
-  for (let r = 0; r < rows; r++) for (let j = 0; j < segs; j++) {
-    const a = r * (segs + 1) + j;
-    const b = a + segs + 1;
-    idx.push(a, b, a + 1, a + 1, b, b + 1);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
-  g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
-  g.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(pos.length / 3), 1));
-  g.setAttribute('aCape', new THREE.BufferAttribute(new Float32Array(pos.length / 3), 1));
-  g.setIndex(idx);
-  return g;
-}
+/* ------------------------------------------------------------------ stooping */
 
 /** For a stoop: each spine bone's local axis that is the body's left-right in the rest pose (bend about it). */
 function stoopAxes(scene, angle) {

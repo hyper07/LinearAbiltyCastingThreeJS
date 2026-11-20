@@ -19,6 +19,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { toCreasedNormals, mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { shared } from './materials.js';
 import { characterLoader, retargetClip, BONE_MAPS } from '../library/characters.js';
+import { CLOAK_PLUMB, CLOAK_TRAIL } from './folk.js';
 
 const POLY = './library/polyfork/';
 const M2M = './library/rigged/mesh2motion/human/';
@@ -110,7 +111,7 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
   const defs = (parts ? '#define CHAR_PARTS\n#define MAX_PARTS ' + MAX_PARTS + '\n' : '') + (fx ? '#define CHAR_FX\n' : '') + (textured ? '#define CHAR_TEX\n' : '') + (atlas ? '#define CHAR_ATLAS\n' : '');
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u, { uRimColor: shared.uRimColor });
-    sh.vertexShader = defs + 'varying vec3 vRest;\nattribute float aCape;\nuniform vec4 uCape;\nuniform float uTime;\n' + PARTS_VERT_PARS + sh.vertexShader
+    sh.vertexShader = defs + 'varying vec3 vRest;\nattribute float aCape;\nattribute float aHang;\nuniform vec4 uCape;\nuniform float uTime;\n' + PARTS_VERT_PARS + sh.vertexShader
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position;')
       .replace(
         '#include <skinning_vertex>',
@@ -121,7 +122,8 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
           float w = aCape * below * below;
           float ripple = sin(uTime * 9.0 + position.y * 6.0 + position.x * 3.0) * 0.5 + 0.5;
           transformed += vec3(0.0, uCape.y * w, -uCape.z * w * (0.85 + ripple * 0.3)) + vec3(uCape.x * w, 0.0, 0.0);
-        }`
+        }
+        ${HANG_VERT}`
       )
       .replace('#include <project_vertex>', PARTS_VERT_MAIN);
     sh.fragmentShader = defs + PARTS_FRAG_PARS + sh.fragmentShader
@@ -198,6 +200,37 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
   m.customProgramCacheKey = () => key;
   return m;
 }
+
+/**
+ * Wide sleeves hang (robeModels.js marks them: aHang, metres, negative on the
+ * lining): with the arm out, the cloth under it drops; with the arm down, the
+ * opening slides a little over the hand; with it raised, the sleeve falls back
+ * down the arm; kept off the hips (a sleeve hanging
+ * at the side rests against the robe instead of sinking into it); and a
+ * slow sway. Model space: y up, the character facing +z.
+ */
+const HANG_VERT = /* glsl */ `
+#ifdef USE_SKINNING
+if (abs(aHang) > 0.0005) {
+  float hang = abs(aHang);
+  vec3 along = (skinMatrix * vec4(sign(position.x), 0.0, 0.0, 0.0)).xyz;
+  along /= max(length(along), 1e-4);
+  vec3 nrm = normalize(objectNormal) * sign(aHang);
+  float under = 0.5 - 0.5 * nrm.y;
+  float level = 1.0 - abs(along.y);
+  transformed.y -= hang * level * under * 1.1;
+  transformed += along * hang * max(0.0, -along.y) * 0.35;
+  // Arm raised: the sleeve falls back down the arm.
+  transformed -= along * hang * max(0.0, along.y) * 1.1;
+  transformed.xz += vec2(sin(uTime * 1.7 + position.x * 9.0), cos(uTime * 1.3 + position.y * 7.0)) * hang * 0.04;
+  // Off the hips: out of an ellipse round the body below the waist.
+  vec2 q = vec2(transformed.x / 0.24, (transformed.z + 0.04) / 0.19);
+  float e = length(q);
+  float low = smoothstep(1.12, 0.95, transformed.y);
+  if (e < 1.0 && low > 0.0) transformed.xz = mix(transformed.xz, vec2(q.x / e * 0.24, q.y / e * 0.19 - 0.04), low * min(1.0, hang * 30.0));
+}
+#endif
+`;
 
 /** How many garments a character can have (each can be hidden or recoloured). */
 export const MAX_PARTS = 16;
@@ -659,6 +692,151 @@ export class Actor {
     this.mixer.update(dt);
     this.shortStride();
     this.stoop();
+    this.robeSway(dt);
+    this.cloakSway(dt);
+  }
+
+  /** How the body moves over the ground this frame, in its own frame (x side, y forward), and its turn rate: for the cloak's spring. */
+  _groundMotion(dt) {
+    const m = (this._ground ??= { last: null, vel: new THREE.Vector2(), acc: new THREE.Vector2(), turn: 0, v: new THREE.Vector2() });
+    const o = this.object;
+    const h = Math.max(1e-3, Math.min(dt, 0.1));
+    const yaw = o.rotation.y;
+    const p = o.position;
+    if (m.last && dt > 0) {
+      const c = Math.cos(yaw);
+      const sn = Math.sin(yaw);
+      const dx = (p.x - m.last.x) / h;
+      const dz = (p.z - m.last.z) / h;
+      m.v.set(dx * c - dz * sn, dx * sn + dz * c);
+      // A teleport is not a gust.
+      if (m.v.length() > 25) m.v.set(0, 0);
+      m.turn = Math.atan2(Math.sin(yaw - m.last.yaw), Math.cos(yaw - m.last.yaw)) / h;
+      m.acc.copy(m.v).sub(m.vel).divideScalar(h);
+      m.vel.lerp(m.v, Math.min(1, h * 12));
+    } else {
+      m.acc.set(0, 0);
+      m.turn = 0;
+    }
+    m.last = { x: p.x, z: p.z, yaw };
+    return m;
+  }
+
+  /**
+   * A cloak's swing bone (robeModels.js buildCloak): mostly plumb from the
+   * shoulders whatever the back does (CLOAK_PLUMB), trailing with speed,
+   * kicked by starts, stops and turns, settling on a damped spring.
+   */
+  cloakSway(dt) {
+    const rr = this.template.cloak;
+    if (!rr) return;
+    let s = this._cloak;
+    if (!s) {
+      const bone = this.bones[rr.swing];
+      const parent = this.bones[rr.parent];
+      if (!bone || !parent) return;
+      const Q = () => new THREE.Quaternion();
+      s = this._cloak = { bone, parent, ang: new THREE.Vector2(), spin: new THREE.Vector2(), back: Q(), model: Q(), swing: Q(), roll: Q(), plumb: Q(), follow: Q(), restInv: rr.rest.clone().invert(), x: new THREE.Vector3(1, 0, 0), z: new THREE.Vector3(0, 0, 1) };
+    }
+    const g = this._groundMotion(dt);
+    const h = Math.max(1e-3, Math.min(dt, 0.1));
+    if (dt > 0) {
+      // Pitch (x, + is back) and roll (y, + toward the left).
+      const tx = Math.max(CLOAK_TRAIL.min, Math.min(CLOAK_TRAIL.max, g.vel.y * CLOAK_TRAIL.perSpeed));
+      const ty = Math.max(-0.3, Math.min(0.3, -g.turn * 0.045 - g.vel.x * 0.06));
+      const w = 5.5;
+      const fx = w * w * (tx - s.ang.x) - 2 * 0.3 * w * s.spin.x + Math.max(-8, Math.min(8, g.acc.y)) * 0.1;
+      const fy = w * w * (ty - s.ang.y) - 2 * 0.3 * w * s.spin.y - Math.max(-8, Math.min(8, g.acc.x)) * 0.1;
+      s.spin.x += fx * h;
+      s.spin.y += fy * h;
+      s.ang.x = Math.max(CLOAK_TRAIL.min - 0.05, Math.min(CLOAK_TRAIL.max + 0.1, s.ang.x + s.spin.x * h));
+      s.ang.y = Math.max(-0.35, Math.min(0.35, s.ang.y + s.spin.y * h));
+    }
+    // The swing, about the model's axes.
+    s.swing.setFromAxisAngle(s.x, s.ang.x).multiply(s.roll.setFromAxisAngle(s.z, s.ang.y));
+    // Plumb: (upper back's world turn)⁻¹ × model's × swing × the back's rest turn. Following the back: the swing in the back's rest frame.
+    s.parent.updateWorldMatrix(true, false);
+    s.parent.getWorldQuaternion(s.back).invert();
+    this.model.getWorldQuaternion(s.model);
+    s.plumb.copy(s.back).multiply(s.model).multiply(s.swing).multiply(rr.rest);
+    s.follow.copy(s.restInv).multiply(s.swing).multiply(rr.rest);
+    s.bone.quaternion.copy(s.follow).slerp(s.plumb, CLOAK_PLUMB);
+  }
+
+  /**
+   * A robe's own bones (folkModels.js, robeModels.js): RobeLap follows the
+   * thighs' average (the front over the lap when sitting, still when one leg
+   * is forward and one back), RobeHem under it hangs plumb from the knees and
+   * swings on a spring — trailing a little as they walk, swaying as they
+   * start, stop and turn, settling when they stand.
+   */
+  robeSway(dt) {
+    const rr = this.template.robe;
+    if (!rr) return;
+    let s = this._robe;
+    if (!s) {
+      const b = this.bones;
+      if (!b.RobeLap || !b.RobeHem || !b.LeftUpLeg || !b.RightUpLeg || !b.LeftLeg || !b.RightLeg) return;
+      s = this._robe = {
+        lap: b.RobeLap,
+        hem: b.RobeHem,
+        legs: [[b.LeftUpLeg, b.LeftLeg.position.clone().normalize()], [b.RightUpLeg, b.RightLeg.position.clone().normalize()]],
+        hips: b.Hips,
+        hipY: b.Hips?.position.y ?? 1,
+        rest: new THREE.Vector3(),
+        cur: new THREE.Vector3(),
+        tmp: new THREE.Vector3(),
+        q: new THREE.Quaternion(),
+        q2: new THREE.Quaternion(),
+        last: null,
+        vel: new THREE.Vector2(),
+        ang: new THREE.Vector2(),
+        spin: new THREE.Vector2()
+      };
+      for (const [thigh, dir] of s.legs) s.rest.add(s.tmp.copy(dir).applyQuaternion(thigh.userData.restQ ?? thigh.quaternion));
+      s.rest.normalize();
+    }
+    // The lap: from the thighs' average direction at rest to now (in the pelvis's frame).
+    s.cur.set(0, 0, 0);
+    for (const [thigh, dir] of s.legs) s.cur.add(s.tmp.copy(dir).applyQuaternion(thigh.quaternion));
+    if (s.cur.lengthSq() < 1e-6) s.cur.copy(s.rest);
+    s.cur.normalize();
+    s.q.setFromUnitVectors(s.rest, s.cur);
+    s.lap.quaternion.copy(s.q);
+    // The hem's spring: driven by how the body moves over the ground (its own frame: x side, y forward).
+    const o = this.object;
+    const h = Math.max(1e-3, Math.min(dt, 0.1));
+    const yaw = o.rotation.y;
+    const p = o.position;
+    if (s.last && dt > 0) {
+      const dx = (p.x - s.last.x) / h;
+      const dz = (p.z - s.last.z) / h;
+      const c = Math.cos(yaw);
+      const sn = Math.sin(yaw);
+      const v = new THREE.Vector2(dx * c - dz * sn, dx * sn + dz * c);
+      const turn = Math.atan2(Math.sin(yaw - s.last.yaw), Math.cos(yaw - s.last.yaw)) / h;
+      const acc = v.clone().sub(s.vel).divideScalar(h);
+      s.vel.lerp(v, Math.min(1, h * 12));
+      // Trails behind with speed; kicked back by speeding up, forward by stopping; flung out on a turn.
+      const target = new THREE.Vector2(-turn * 0.03 - s.vel.x * 0.04, -s.vel.y * 0.055);
+      const w = 6.5;
+      const fx = w * w * (target.x - s.ang.x) - 2 * 0.32 * w * s.spin.x - Math.max(-6, Math.min(6, acc.x)) * 0.12;
+      const fy = w * w * (target.y - s.ang.y) - 2 * 0.32 * w * s.spin.y - Math.max(-6, Math.min(6, acc.y)) * 0.12;
+      s.spin.x += fx * h;
+      s.spin.y += fy * h;
+      s.ang.x = Math.max(-0.22, Math.min(0.22, s.ang.x + s.spin.x * h));
+      s.ang.y = Math.max(-0.25, Math.min(0.25, s.ang.y + s.spin.y * h));
+    }
+    s.last = { x: p.x, z: p.z, yaw };
+    // Hanging plumb from the knees (undo the lap's turn) — unless the hips are down near the floor (sitting on it):
+    // then it lies along the legs rather than sinking into the ground. Then the swing: about the body's side axis
+    // (fore and aft) and front axis (sideways).
+    const ax = rr.axes;
+    const low = s.hips ? Math.max(0, Math.min(1, (s.hips.position.y / s.hipY - 0.28) / 0.22)) : 1;
+    s.q2.setFromAxisAngle(ax.side, -s.ang.y);
+    s.hem.quaternion.copy(s.q).invert().slerp(s.q3 ??= new THREE.Quaternion(), 1 - low).multiply(s.q2);
+    s.q2.setFromAxisAngle(ax.front, s.ang.x);
+    s.hem.quaternion.multiply(s.q2);
   }
 
   /** Smaller steps (robe-wearers, folkModels.js): the thighs and knees eased part way back to rest after the clip. */
