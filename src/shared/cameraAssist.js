@@ -174,6 +174,97 @@ export class CameraAssist {
   }
 }
 
+/* ------------------------------------------------------------------ click or drag */
+
+/** Movement (px) past which a press becomes a drag, and the time (ms) after which a still press is a hold. */
+export const DRAG_PX = 6;
+export const HOLD_MS = 180;
+
+/**
+ * What a press is so far: 'drag' once it has moved DRAG_PX from where it
+ * went down (before it became a hold); 'click' if it came up first; 'hold'
+ * once it has stayed put HOLD_MS; else still 'pending'.
+ */
+export function pressKind({ dist = 0, ms = 0, up = false } = {}) {
+  if (dist >= DRAG_PX) return 'drag';
+  if (up) return 'click';
+  if (ms >= HOLD_MS) return 'hold';
+  return 'pending';
+}
+
+/**
+ * Left mouse (or one finger) in a game where it also attacks: a quick
+ * press is a click (attack), a press held still is a hold (a held attack:
+ * keep shooting, draw), a press that moves first is a drag that turns the
+ * camera — and fires nothing. Once a hold has begun, moving the pointer
+ * aims it (no turning), so held attacks still work.
+ *
+ *   down(x, y, t) · move(x, y, t) → { kind: 'drag', dx, dy } while dragging
+ *   tick(t) → 'hold' the moment a press becomes a hold
+ *   up(t) → 'click' | 'release' (a hold ends) | 'drag-end'
+ */
+export class PressDrag {
+  constructor({ px = DRAG_PX, ms = HOLD_MS } = {}) {
+    this.px = px;
+    this.ms = ms;
+    this.state = 'idle';
+  }
+
+  get dragging() {
+    return this.state === 'drag';
+  }
+
+  get active() {
+    return this.state !== 'idle';
+  }
+
+  down(x, y, t) {
+    this.state = 'pending';
+    this.x0 = this.x = x;
+    this.y0 = this.y = y;
+    this.t0 = t;
+  }
+
+  move(x, y, t) {
+    if (this.state === 'pending') {
+      const dist = Math.hypot(x - this.x0, y - this.y0);
+      if (dist >= this.px && t - this.t0 < this.ms) {
+        // Turning starts from where it went down, so the first few pixels count too.
+        this.state = 'drag';
+        this.x = this.x0;
+        this.y = this.y0;
+      } else if (t - this.t0 >= this.ms) this.state = 'hold';
+    }
+    if (this.state !== 'drag') return { kind: this.state, dx: 0, dy: 0 };
+    const dx = x - this.x;
+    const dy = y - this.y;
+    this.x = x;
+    this.y = y;
+    return { kind: 'drag', dx, dy };
+  }
+
+  tick(t) {
+    if (this.state === 'pending' && t - this.t0 >= this.ms) {
+      this.state = 'hold';
+      return 'hold';
+    }
+    return null;
+  }
+
+  up(t) {
+    const was = this.state;
+    this.state = 'idle';
+    if (was === 'pending') return t - this.t0 >= this.ms ? 'release-late' : 'click';
+    if (was === 'hold') return 'release';
+    if (was === 'drag') return 'drag-end';
+    return null;
+  }
+
+  cancel() {
+    this.state = 'idle';
+  }
+}
+
 /* ------------------------------------------------------------------ the settings section */
 
 /** Every word the section shows (a game may pass translations). */

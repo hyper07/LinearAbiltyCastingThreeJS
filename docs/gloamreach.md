@@ -50,9 +50,10 @@ the crags and the lava.
 | **W A S D** / arrows | Run (the way the camera looks) |
 | **Shift** · **Ctrl** | Sprint · walk |
 | **Space** | Jump |
-| **Mouse** | Aim: attacks and spells go at the pointer (snapped to a monster near it), even while backing away. Middle-button drag turns the camera; wheel zooms |
+| **Mouse** | Aim: attacks and spells go at the pointer (snapped to a monster near it), even while backing away. **Hold left mouse and drag: turn the camera** (a press that moves turns the view and fires nothing; a click still attacks; a press held still is a held attack). Middle-button drag turns it too; wheel zooms. On a touch screen a one-finger drag turns it |
+| **Q · E** (or **, .**) · **[ ]** · **/** | Turn the camera left / right (hold) · tilt it · put it behind you (it also eases back by itself after a quiet spell) |
 | **Left · right mouse, 1–4** | The hero's six skills |
-| **Q · R** | Health and mana (energy, stamina) potions — no cooldown |
+| **5 · 6** | Health and mana (energy, stamina) potions — no cooldown |
 | **F** | Open a chest · trade with a merchant · in a hub: the map board, notices, stash, stand, bed, waystone |
 | **I** (or **B**) · **C** | The bag · the hero (equipment, a turning preview, their numbers) |
 | **V** | Mouse-look: the mouse steers the camera and you aim at the screen's centre |

@@ -13,6 +13,7 @@ export const CONTROLS = {
     ] },
     { name: 'Camera', rows: [
       { id: 'camTurn', keys: ['Q', 'E', ',', '.'], codes: ['KeyQ', 'KeyE', 'Comma', 'Period'], does: 'Turn the camera left / right (hold); or drag', short: 'Turn', hint: true, pad: 'Right stick' },
+      { id: 'camLeftDrag', keys: ['Hold left mouse and drag'], codes: [], does: 'Turn the camera (a click still attacks); right or middle drag too', touch: 'One-finger drag' },
       { id: 'camBehind', keys: ['/'], codes: ['Slash'], does: 'Camera behind you now (it also eases back by itself after a quiet spell)', short: 'Behind you', hint: true, pad: 'Right-stick click' }
     ] },
     { name: 'Skills', rows: [

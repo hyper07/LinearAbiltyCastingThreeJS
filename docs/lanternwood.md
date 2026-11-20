@@ -18,7 +18,7 @@ of the camp opens on three more realms as you help the world.
 | Key | |
 | --- | --- |
 | **W A S D** / arrows | Move (relative to the camera, which swings round behind you) |
-| Mouse drag, **Q E** | Turn the camera; the wheel zooms |
+| Hold left mouse and drag, **Q E** | Turn the camera (a left press that moves only turns the view; a click still attacks); right or middle drag too; a one-finger drag on a touch screen; the wheel zooms |
 | **Space** / left click | Your weapon's attack — press again in time to chain its combo |
 | Mouse pointer | Aim. Bolts, arrows, lances and fireballs fly at the pointer; Blizzard and Arrow Rain land on it (within reach); Blink goes toward it. A pointer within 1.5 m of a monster locks onto it. Walking one way and aiming another, your legs keep walking and your body turns to shoot (past about 100° you turn round and backpedal). With no mouse, attacks aim at the nearest foe ahead as before |
 | **1 2 3 4** | Your class's four skills (they cost mana or energy and have cooldowns) |

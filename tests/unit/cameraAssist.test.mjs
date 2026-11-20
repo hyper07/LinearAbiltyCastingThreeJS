@@ -130,3 +130,49 @@ test('settings: sane ranges, saved per game, storage that throws falls back', ()
   fast.key(CAMERA_KEYS.right, true);
   assert.ok(Math.abs(fast.steer(0.1, { pad: null }).yaw) > 3 * Math.abs(slow.steer(0.1, { pad: null }).yaw));
 });
+
+test('click or drag: a quick press is a click, a moved press a drag (no attack), a still press a hold', async () => {
+  const { pressKind, PressDrag, DRAG_PX, HOLD_MS } = await import('../../src/shared/cameraAssist.js');
+  assert.equal(DRAG_PX, 6);
+  assert.equal(HOLD_MS, 180);
+  assert.equal(pressKind({ dist: 2, ms: 90, up: true }), 'click');
+  assert.equal(pressKind({ dist: 7, ms: 90 }), 'drag');
+  assert.equal(pressKind({ dist: 7, ms: 90, up: true }), 'drag');
+  assert.equal(pressKind({ dist: 1, ms: 200 }), 'hold');
+  assert.equal(pressKind({ dist: 1, ms: 50 }), 'pending');
+
+  // A click: down, a twitch under the threshold, up.
+  const p = new PressDrag();
+  p.down(100, 100, 0);
+  assert.equal(p.move(103, 102, 40).kind, 'pending');
+  assert.equal(p.up(90), 'click');
+  assert.equal(p.active, false);
+
+  // A drag: past 6 px inside 180 ms; the turn counts from where it went down; up fires nothing.
+  p.down(100, 100, 0);
+  const m = p.move(108, 100, 50);
+  assert.equal(m.kind, 'drag');
+  assert.equal(m.dx, 8);
+  assert.ok(p.dragging);
+  assert.deepEqual(p.move(120, 95, 300), { kind: 'drag', dx: 12, dy: -5 });
+  assert.equal(p.tick(400), null, 'a drag never turns into a hold');
+  assert.equal(p.up(500), 'drag-end');
+
+  // A hold: still for 180 ms (the frame tick says so once); moving after that aims, it doesn't turn.
+  p.down(100, 100, 0);
+  assert.equal(p.tick(100), null);
+  assert.equal(p.tick(190), 'hold');
+  assert.equal(p.tick(250), null);
+  assert.equal(p.move(160, 100, 300).kind, 'hold');
+  assert.equal(p.dragging, false);
+  assert.equal(p.up(400), 'release');
+
+  // Held still past the hold time with no frame in between: still an attack on release.
+  p.down(0, 0, 0);
+  assert.equal(p.up(300), 'release-late');
+  // A slow move that starts after the hold time aims (hold), not turns.
+  p.down(0, 0, 0);
+  assert.equal(p.move(20, 0, 250).kind, 'hold');
+  p.cancel();
+  assert.equal(p.active, false);
+});

@@ -27,6 +27,9 @@ export class FollowCamera {
     this.assist = new CameraAssist();
     /** Set each frame by the game: true while the camera must not swing on its own. */
     this.pause = false;
+    /** Set each frame by a game with extra turn keys (Gloamreach's Q / E). */
+    this.extraLeft = false;
+    this.extraRight = false;
   }
 
   /** Mouse movement (pixels). */
@@ -49,7 +52,7 @@ export class FollowCamera {
   update(dt, hero, { sprinting = false, moving = false, paused = false } = {}) {
     this.idle += dt;
     // Keys and the right stick turn it; after the quiet spell it eases back behind a hero on the move.
-    const turn = this.assist.steer(dt);
+    const turn = this.assist.steer(dt, { extraLeft: this.extraLeft, extraRight: this.extraRight });
     if (turn.yaw || turn.pitch) {
       this.yaw += turn.yaw;
       this.pitch = THREE.MathUtils.clamp(this.pitch + turn.pitch, -0.6, 1.2);

@@ -1,7 +1,7 @@
 /**
  * Gloamreach's controls: the one table the key handler reads, the HUD hint
  * shows (rows marked `hint`) and the How to play panel lists (shared/helpPanel.js).
- * Skills on 1–4, potions on 5–6 (never Q or E), the camera on , . [ ] /, the map on O.
+ * Skills on 1–4, potions on 5–6 (never Q or E), the camera on Q E (or , .) [ ] / and a left-drag, the map on O.
  */
 export const CONTROLS = {
   title: 'How to play — Gloamreach',
@@ -14,10 +14,11 @@ export const CONTROLS = {
       { id: 'jump', keys: ['Space'], codes: ['Space'], does: 'Jump', short: 'jump', hint: true }
     ] },
     { name: 'Camera', rows: [
-      { id: 'camTurn', keys: [',', '.'], codes: ['Comma', 'Period'], does: 'Turn the camera left / right (hold)', short: 'turn', hint: true, pad: 'Right stick' },
+      { id: 'camTurn', keys: ['Q', 'E', ',', '.'], codes: ['KeyQ', 'KeyE', 'Comma', 'Period'], does: 'Turn the camera left / right (hold)', short: 'turn', hint: true, pad: 'Right stick', touch: 'Drag' },
+      { id: 'camLeftDrag', keys: ['Hold left mouse and drag'], codes: [], does: 'Turn the camera (a click still attacks; a press held still is a held attack)', touch: 'One-finger drag' },
       { id: 'camTilt', keys: ['[', ']'], codes: ['BracketLeft', 'BracketRight'], does: 'Tilt the camera down / up (hold)', pad: 'Right stick' },
       { id: 'camBehind', keys: ['/'], codes: ['Slash'], does: 'Camera behind you now (it also eases back by itself after a quiet spell)', short: 'behind you', hint: true, pad: 'Right-stick click' },
-      { id: 'camDrag', keys: ['Middle drag'], codes: [], does: 'Turn the camera with the mouse; wheel zooms' },
+      { id: 'camDrag', keys: ['Middle drag'], codes: [], does: 'Turn the camera with the mouse too; wheel zooms' },
       { id: 'mouseLook', keys: ['V'], codes: ['KeyV'], does: 'Mouse-look (aim at the screen\'s centre)', short: 'mouse-look', hint: true }
     ] },
     { name: 'Skills', rows: [

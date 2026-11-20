@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PowerKit } from '../shared/powerKit.js';
-import { CameraAssist, loadAssist, cameraMenu, menuSections } from '../shared/cameraAssist.js';
+import { CameraAssist, loadAssist, cameraMenu, menuSections, PressDrag } from '../shared/cameraAssist.js';
 import { HelpPanel, helpButton } from '../shared/helpPanel.js';
 import { GameMusic, lanternwoodTrack } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
@@ -725,6 +725,14 @@ export class LanternwoodGame {
   _bindPointer() {
     const c = this.canvas;
     let drag = null;
+    // Left mouse (or a finger): a click (or a press held still) attacks; a press that moves first only turns
+    // the camera (shared/cameraAssist.js PressDrag). The other buttons drag the camera as before.
+    const lmb = (this.lmb = new PressDrag());
+    const attack = () => {
+      this._updateReticle(0);
+      if (!this._clickChest()) this.basic();
+    };
+    c.style.touchAction = 'none';
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
       this.root.focus();
@@ -735,12 +743,9 @@ export class LanternwoodGame {
       }
       if (this.overlay) return;
       if (e.pointerType !== 'touch') track(e, false);
-      drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
       c.setPointerCapture?.(e.pointerId);
-      if (e.button === 0) {
-        this._updateReticle(0);
-        if (!this._clickChest()) this.basic();
-      }
+      if (e.button === 0) lmb.down(e.clientX, e.clientY, performance.now());
+      else drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
     });
     // The pointer over the game: where it is, and when the player last moved it (a pointer that only
     // happens to rest on the canvas — keyboard play — never counts as aiming).
@@ -754,18 +759,41 @@ export class LanternwoodGame {
       if (this.mouse) this.mouse.on = false;
     });
     c.addEventListener('pointerenter', (e) => track(e, false));
+    const turn = (dx) => {
+      this.camYaw = wrap(this.camYaw - dx * 0.006);
+      this._dragT = 0.6;
+      this.camAssist.input();
+    };
     c.addEventListener('pointermove', (e) => {
+      if (lmb.active) {
+        const m = lmb.move(e.clientX, e.clientY, performance.now());
+        if (m.kind === 'drag') return turn(m.dx);          // the aim holds still while the view turns
+        if (m.kind === 'hold' && !lmb.fired) {
+          lmb.fired = true;
+          attack();
+        }
+      }
       if (e.pointerType !== 'touch') track(e);
       if (!drag || drag.id !== e.pointerId) return;
       const dx = e.clientX - drag.x;
       drag.x = e.clientX;
       drag.y = e.clientY;
-      this.camYaw = wrap(this.camYaw - dx * 0.006);
-      this._dragT = 0.6;
-      this.camAssist.input();
+      turn(dx);
     });
+    // A press held still attacks once it's a hold (as a press used to at once).
+    this._lmbTick = () => {
+      if (lmb.tick(performance.now()) === 'hold' && !lmb.fired) {
+        lmb.fired = true;
+        attack();
+      }
+    };
     const end = (e) => {
       if (drag?.id === e.pointerId) drag = null;
+      if (e.button === 0 || e.type === 'pointercancel') {
+        const k = lmb.up(performance.now());
+        if ((k === 'click' || k === 'release-late') && e.type !== 'pointercancel') attack();
+        lmb.fired = false;
+      }
     };
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
@@ -1269,6 +1297,7 @@ export class LanternwoodGame {
     }
     hv.hurtT += dt;
     this._dragT = Math.max(0, (this._dragT ?? 0) - dt);
+    this._lmbTick?.();
     this.state.time += dt;
 
     if (this.mode === 'dead') {
@@ -1579,7 +1608,7 @@ export class LanternwoodGame {
     if (r.g.parent !== this.scene) this.scene.add(r.g);
     const ranged = this.mode === 'play' && this.hero && this._rangedHero();
     const show = ranged && this.aimPoint && usesPointer({ ranged: true, onCanvas: this.mouse?.on, lastMove: this.mouse?.t, now: this.t }) && !this.overlay && !this.dialogue.open;
-    r.g.visible = Boolean(show);
+    r.g.visible = Boolean(show) && !this.lmb?.dragging;
     if (!show) return;
     const foe = snapToFoe(this.aimPoint, this.enemies.filter((e) => e.alive && e.state !== 'burrowed'));
     const p = foe ?? this.aimPoint;

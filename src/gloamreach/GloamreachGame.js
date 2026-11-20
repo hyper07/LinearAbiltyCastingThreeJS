@@ -27,6 +27,7 @@ import { GameMusic, musicMenu, gloamreachTrack } from '../shared/gameMusic.js';
 import { WorldMap, Waypoint, WaypointCue, mapButton, MAP_KEY } from '../shared/worldMap.js';
 import { WaypointBeam } from '../shared/waypointBeam.js';
 import { HelpPanel, helpButton, codesFor, hintItems } from '../shared/helpPanel.js';
+import { PressDrag } from '../shared/cameraAssist.js';
 import { CONTROLS } from './controls.js';
 import { powerSettings } from '../shared/power.js';
 import { Effects } from './fx.js';
@@ -619,6 +620,8 @@ export class GloamreachGame {
     window.removeEventListener('mousemove', this._onMouse);
     document.removeEventListener('pointerlockchange', this._onLock);
     if (this._onUpBtn) window.removeEventListener('pointerup', this._onUpBtn);
+    if (this._onDrag) window.removeEventListener('pointermove', this._onDrag);
+    if (this._onCancel) window.removeEventListener('pointercancel', this._onCancel);
     if (document.pointerLockElement) document.exitPointerLock();
     if (this.profile) writeSave(this.save);
     if (this.zoneSave) this.persistZones();
@@ -1107,6 +1110,13 @@ export class GloamreachGame {
       e.preventDefault();
       return;
     }
+    // Q / E turn the camera too (held: read each frame).
+    if (e.code === 'KeyQ' || e.code === 'KeyE') {
+      this.keys.add(e.code);
+      this.follow.assist.input();
+      e.preventDefault();
+      return;
+    }
     if (e.code === MAP_KEY && !e.repeat) {
       this.openMap();
       return;
@@ -1160,6 +1170,8 @@ export class GloamreachGame {
 
   mouseMove(e) {
     if (this.mode !== 'play') return;
+    // While a left-drag turns the camera the aim stays where it was (the reticle hides).
+    if (this.lmb?.dragging) return;
     const r = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = e.clientX - r.left;
     this.pointer.y = e.clientY - r.top;
@@ -1178,15 +1190,46 @@ export class GloamreachGame {
     if (this._bound) return;
     this._bound = true;
     const BTN = { 0: 'LMB', 2: 'RMB' };
+    // Left mouse (or a finger): a click attacks, a press held still is a held attack, a press that moves
+    // first turns the camera like Kithvale's and fires nothing (shared/cameraAssist.js PressDrag).
+    // In mouse-look it attacks at once, as before.
+    this.lmb = new PressDrag();
+    c.style.touchAction = 'none';
     c.addEventListener('pointerdown', (e) => {
       this.sound.wake();
       if (this.mode !== 'play') return;
       this.pointer.on = true;
+      if (e.button === 0 && !this._locked) {
+        const r = c.getBoundingClientRect();
+        this.pointer.x = e.clientX - r.left;
+        this.pointer.y = e.clientY - r.top;
+        this.pointer.moved = this.t;
+        this.lmb.down(e.clientX, e.clientY, performance.now());
+        return;
+      }
       if (BTN[e.button]) this.combat.press(BTN[e.button]);
       if (e.button === 1) e.preventDefault();
     });
+    window.addEventListener('pointermove', (this._onDrag = (e) => {
+      if (!this.lmb.active || this.mode !== 'play') return;
+      const m = this.lmb.move(e.clientX, e.clientY, performance.now());
+      if (m.kind === 'drag') this.follow.look(m.dx, m.dy);
+      else if (m.kind === 'hold' && !this.combat.held.has('LMB')) this.combat.press('LMB');
+    }));
     window.addEventListener('pointerup', (this._onUpBtn = (e) => {
+      if (e.button === 0 && this.lmb.active) {
+        const k = this.lmb.up(performance.now());
+        if (k === 'click' || k === 'release-late') {
+          this.combat?.press('LMB');
+          this.combat?.release('LMB');
+        } else if (k === 'release') this.combat?.release('LMB');
+        return;
+      }
       if (BTN[e.button]) this.combat?.release(BTN[e.button]);
+    }));
+    window.addEventListener('pointercancel', (this._onCancel = () => {
+      if (this.lmb.state === 'hold') this.combat?.release('LMB');
+      this.lmb.cancel();
     }));
     c.addEventListener('pointerenter', () => (this.pointer.on = true));
     c.addEventListener('pointerleave', () => (this.pointer.on = false));
@@ -1236,11 +1279,15 @@ export class GloamreachGame {
       // In a fight the camera holds still rather than swinging behind.
       // No swinging round on its own in a fight, while aiming or blocking, or in mouse-look.
       this.follow.pause = this.combat.inCombat > 0 || this.combat.aimHold > 0 || this.combat.blocking || Boolean(this._locked);
+      // A left press held still becomes a held attack (keep shooting); Q / E turn the camera.
+      if (this.lmb?.tick(performance.now()) === 'hold') this.combat.press('LMB');
+      this.follow.extraLeft = this.keys.has('KeyQ');
+      this.follow.extraRight = this.keys.has('KeyE');
       this.follow.update(dt, this.hero, { sprinting: inp.sprint && this.hero.speed > 5, moving: this.hero.speed > 0.5 });
       this.shakeCamera(dt);
       this.rig?.update(fdt, this.hero.object);
       const t2 = this.combat.aimTarget;
-      this.vfx.setReticle(this.pointer.on || this._locked ? this.combat.aim : null, t2 ? { radius: t2.r * 1.5 + 0.4, locked: true } : { radius: 0.8 });
+      this.vfx.setReticle((this.pointer.on || this._locked) && !this.lmb?.dragging ? this.combat.aim : null, t2 ? { radius: t2.r * 1.5 + 0.4, locked: true } : { radius: 0.8 });
       if (t2) this.vfx.placeDecal(this.vfx.reticle, t2.x, t2.z, 0, t2.r * 1.5 + 0.4);
       this.vfx.update(dt, this.camera);
       if (this.panels.open.char) this.preview?.frame(dt);
