@@ -400,6 +400,7 @@ export class Coop {
       p.dface += g.wrapAngle(p.face - p.dface) * k;
       p.actor.group.position.set(p.dx, 0, p.dz);
       p.actor.facing = p.dface;
+      p.actor.detail = Math.hypot(g.camera.position.x - p.dx, g.camera.position.z - p.dz) < 15 ? 1 : 2;
       p.actor.act = { ...p.act, swing: p.act.swing ? { pose: p.act.swing.pose, t: p.act.swing.t } : null, pose: p.act.pose ? { id: p.act.pose, t: p.act.poseT } : null };
       p.actor.update(dt, g.camYaw, g.world.lightAt(p.dx, p.dz, light));
     }

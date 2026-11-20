@@ -18,6 +18,9 @@ import { rayToGround, snapToFoe, usesPointer, legMotion, MAX_TWIST } from './aim
 import { openPlaced, openChest, chestGone, chestLoot, CHEST_TIERS, CHEST_VANISH } from './chests.js';
 import { buildChest, lootBeam } from './props.js';
 import { prewarmBeast } from './beasts.js';
+import { prewarmSculptedBeast } from './sculpt/beastActor.js';
+import { isSculptedBeast } from './sculpt/beasts.js';
+import { SCULPTED_FIGURES } from './sculpt/build.js';
 import { voxelParts } from './voxel.js';
 import { Hud, Dialogue, panel, titleHtml, fillLooks, el, drawMinimap, drawMap } from './ui.js';
 import { HeroPreview, openInventory, openCharacter, openJournal, openRealms, openShop, openParty, openPause } from './panels.js';
@@ -386,7 +389,10 @@ export class LanternwoodGame {
     });
     // Build the fine (near-camera) figures of this realm's people and monsters a few at a time in the
     // background, so none stalls a frame the first time it comes close.
-    const jobs = [...this.npcs.map((n) => () => voxelParts(n.actor.sprite, { step: 1 })), ...Object.keys(R.ENEMIES).filter((k) => R.ENEMIES[k].realm === id).map((k) => () => prewarmBeast(k, this.sprites.enemies[k]?.[0]))];
+    const jobs = [
+      ...this.npcs.map((n) => () => (n.actor.sprite?.person && SCULPTED_FIGURES ? n.actor.prewarm() : voxelParts(n.actor.sprite, { step: 1 }))),
+      ...Object.keys(R.ENEMIES).filter((k) => R.ENEMIES[k].realm === id).map((k) => () => (SCULPTED_FIGURES && isSculptedBeast(k) ? prewarmSculptedBeast(k) : prewarmBeast(k, this.sprites.enemies[k]?.[0])))
+    ];
     const realmNow = id;
     const run = () => {
       const job = jobs.shift();

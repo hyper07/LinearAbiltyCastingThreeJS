@@ -71,7 +71,12 @@ const lighter = (c, k = 0.3) => mix(c, '#ffffff', k);
  * chest armour recolours the coat and tunic (heavy armour as metal), gloves
  * the hands, boots the feet, a hood or full helm the hair.
  */
-function lookRamps(look, gear = null) {
+/**
+ * The colours of a look ({ skin, hairColor, cloth, tunic, trim }) with gear on:
+ * chest armour recolours the coat and tunic, gloves the hands, boots the feet,
+ * a hood or full helm the hair. The sculpted figures take these as their slots.
+ */
+export function lookColors(look, gear = null) {
   const skin = typeof look.skin === 'number' ? SKINS[look.skin] ?? SKINS[1] : look.skin ?? SKINS[1];
   let cloth = look.cloth ?? '#6a5a4a';
   let tunic = look.tunic ?? '#c8b090';
@@ -93,14 +98,26 @@ function lookRamps(look, gear = null) {
     }
     if (ch.glow) trim = RARITIES[ch.rarity].color;
   }
+  const natural = look.hairColor ?? hair;
   if (gear?.head?.hidesHair) hair = gear.head.color;
+  return { skin, hair, natural, cloth, tunic, trim, legs, apron: look.apron ?? '#7a5a3a', hands: gear?.hands ?? skin, shoes: gear?.feet ?? null, heavy: ch?.weight === 'heavy' };
+}
+
+function lookRamps(look, gear = null) {
+  const c = lookColors(look, gear);
   const r = {
-    H: ramp(hair), F: ramp(skin), D: ramp(look.hairColor ?? hair), R: ramp(mix(skin, '#e05a6a', 0.45)), C: ramp(cloth), T: ramp(tunic), G: ramp(trim),
-    B: RAMPS.wood, A: ramp(look.apron ?? '#7a5a3a'), J: gear?.hands ? ramp(gear.hands) : ramp(skin), L: ramp(legs), S: gear?.feet ? ramp(gear.feet) : RAMPS.wood
+    H: ramp(c.hair), F: ramp(c.skin), D: ramp(c.natural), R: ramp(mix(c.skin, '#e05a6a', 0.45)), C: ramp(c.cloth), T: ramp(c.tunic), G: ramp(c.trim),
+    B: RAMPS.wood, A: ramp(c.apron), J: gear?.hands ? ramp(gear.hands) : ramp(c.skin), L: ramp(c.legs), S: gear?.feet ? ramp(gear.feet) : RAMPS.wood
   };
-  if (ch?.weight === 'heavy') r.C = ramp(ch.color, { contrast: 0.28 });
+  if (c.heavy) r.C = ramp(gear.chest.color, { contrast: 0.28 });
   return r;
 }
+
+/** What the sculpted rig needs of a person (sculpt/people.js): their look, colours, class and temper. */
+function personOf(look, colors, { cls = null, hostile = false, eyeGlow = null, gear = null, extra = null } = {}) {
+  return { look, cls, hostile, eyeGlow, gear, extra, palette: [colors.skin, colors.natural ?? colors.hair, colors.cloth, colors.tunic, colors.trim, colors.legs, colors.shoes ?? '#6a4428', colors.hands ?? colors.skin] };
+}
+const classOfLook = (id) => (/^(blade|warden|seer|ranger)-/.exec(String(id ?? ''))?.[1] ?? null);
 
 const heroCache = new Map();
 /** A hero (or any person with a look) in their gear: built once per look and outfit. */
@@ -112,6 +129,7 @@ export function heroSprite(look, gear = null) {
     const rows = personRows({ ...look, outfit });
     s = personSprite(rows, lookRamps(look, gear), { bald: look.hair === 'bald' && !gear?.head?.hidesHair });
     s.depth = 0.3;
+    s.person = personOf({ ...look, outfit }, lookColors(look, gear), { cls: classOfLook(look.id) });
     heroCache.set(key, s);
     if (heroCache.size > 60) heroCache.delete(heroCache.keys().next().value);
   }
@@ -126,6 +144,16 @@ const HANDMADE_RAMPS = {
   pell: { P: ramp('#8a5a3a'), A: ramp('#a8743e'), H: ramp('#a06a3a'), F: RAMPS.skin, Q: ramp('#6e5a3a'), C: ramp('#b0503c'), T: ramp('#d8c090'), B: RAMPS.wood, G: RAMPS.gold, L: ramp('#4a3a5a'), S: RAMPS.wood },
   tamsin: { H: ramp('#d0603a'), F: RAMPS.skin, G: ramp('#e8c040'), C: ramp('#4e7a9a'), T: ramp('#c0a070'), B: RAMPS.wood, L: ramp('#5a4a3a'), S: RAMPS.wood, R: ramp('#f09080') }
 };
+
+/** The camp's first four as sculpted figures (sculpt/people.js): their cut, clothes and colours. */
+const HANDMADE_PEOPLE = {
+  odile: { look: { hair: 'bun', build: 'slim', sex: 'f', eyes: 'wide', outfit: 'robe' }, colors: { skin: '#f0c8a4', hair: '#e8e0d4', cloth: '#3b6f6a', tunic: '#a8845a', trim: '#e0b040', legs: '#4a4058', shoes: '#6a4428' }, gear: { weapon: { shape: 'staff', color: '#6a4a2a', glow: '#ffd27a' } } },
+  wren: { look: { hair: 'long', build: 'slim', sex: 'f', eyes: 'wide', outfit: 'dress' }, colors: { skin: '#f0c8a4', hair: '#7a4a2a', cloth: '#6f9a5c', tunic: '#8f7aa8', trim: '#e8dcc8', legs: '#5a4a40', shoes: '#6a4428' }, extra: { headwear: 'hood' } },
+  pell: { look: { hair: 'short', build: 'broad', sex: 'm', eyes: 'wide', beard: 'stubble' }, colors: { skin: '#e6ae86', hair: '#a06a3a', cloth: '#b0503c', tunic: '#d8c090', trim: '#e0b040', legs: '#4a3a5a', shoes: '#6a4428' }, extra: { headwear: 'brim', hat: '#8a5a3a', pack: '#6e5a3a' } },
+  tamsin: { look: { hair: 'pigtails', build: 'slim', sex: 'f', eyes: 'wide' }, colors: { skin: '#f0c8a4', hair: '#d0603a', cloth: '#4e7a9a', tunic: '#c0a070', trim: '#e8c040', legs: '#5a4a3a', shoes: '#6a4428' } }
+};
+/** People-shaped monsters' eyes glow (their sculpted figures). */
+const MONSTER_EYES = { rimeguard: '#9ae8ff', acolyte: '#ffb040', matron: '#9ae8ff' };
 
 /** People-shaped monsters: drawn as people in monster colours, wearing monster gear. */
 export const MONSTER_PEOPLE = {
@@ -245,7 +273,12 @@ const EMBERSTONE = ['...OO....', '..OZZO...', '.OZZYZO..', 'OOZYYZOO.', 'SOOZZOO
 export function buildSprites() {
   const npcs = {};
   for (const [id, n] of Object.entries(NPCS)) {
-    if (NPC_ROWS_HANDMADE[id]) npcs[id] = { front: [personSprite(NPC_ROWS_HANDMADE[id], HANDMADE_RAMPS[id], { hair: id === 'wren' ? 'A' : 'H' })] };
+    if (NPC_ROWS_HANDMADE[id]) {
+      const sp = personSprite(NPC_ROWS_HANDMADE[id], HANDMADE_RAMPS[id], { hair: id === 'wren' ? 'A' : 'H' });
+      const h = HANDMADE_PEOPLE[id];
+      if (h) sp.person = personOf(h.look, h.colors, { gear: h.gear ?? null, extra: h.extra ?? null });
+      npcs[id] = { front: [sp] };
+    }
     else npcs[id] = { front: [heroSprite({ ...n.look, id: `npc-${id}` }, n.look.gear?.chest ? n.look.gear : null)] };
   }
   const violet = ['#1c1430', '#2e2050', '#463478', '#6a52a8', '#9a84d8'];
@@ -273,7 +306,9 @@ export function buildSprites() {
   // People-shaped monsters: a person figure each, in monster colours.
   for (const [kind, m] of Object.entries(MONSTER_PEOPLE)) {
     const rows = personRows(m.look);
-    enemies[kind] = [personSprite(rows, lookRamps(m.look, m.gear), { bald: m.look.hair === 'bald' && !m.gear.head?.hidesHair, flat: m.flat ?? FLAT })];
+    const sp = personSprite(rows, lookRamps(m.look, m.gear), { bald: m.look.hair === 'bald' && !m.gear.head?.hidesHair, flat: m.flat ?? FLAT });
+    sp.person = personOf(m.look, lookColors(m.look, m.gear), { hostile: true, eyeGlow: MONSTER_EYES[kind] ?? '#ff5a3a' });
+    enemies[kind] = [sp];
   }
   // How thick each is made (half, in metres), and the ones drawn from the side.
   const depth = { slime: 0.32, wisp: 0.2, lampwight: 0.38, thornling: 0.24, mossback: 0.5, burrowmole: 0.32, hornet: 0.16, shroomkin: 0.28, gnarlroot: 0.6, shardling: 0.22, frostbat: 0.12, cinderling: 0.24, golem: 0.55, tyrant: 0.55, rimeguard: 0.3, acolyte: 0.3, matron: 0.3 };

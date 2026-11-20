@@ -4,10 +4,11 @@
 
 <p><img src="../public/covers/lanternwood.jpg" width="70%" alt="Lanternwood: the pixel hero seen from behind at the camp's bonfire, tents and the camp's people around it in the night forest" /></p>
 
-An adventure RPG in the "HD-2D" style: chibi pixel-art characters standing in lit 3D worlds, the
-camera behind and above the hero. The characters are solid — every pixel of their drawing a little
-block, the body rounded in depth — and move on joints: they walk, swing, thrust, draw a bow, raise
-a shield, cast, roll and fall. Whatever the hero wears shows on the figure. A round minimap in the
+An adventure RPG in the "HD-2D" style: chibi characters standing in lit 3D worlds, the camera
+behind and above the hero. The characters, people and monsters are soft vinyl toys, sculpted the
+way AI Arcademia's creatures are — round from every angle, glossy eyes that blink, faces that
+change with the fight — and move on joints: they walk, swing, thrust, draw a bow, raise a shield,
+cast, roll and fall. Whatever the hero wears shows on the figure. A round minimap in the
 corner turns with the camera in every realm.
 
 It starts in a night camp in the woods that is losing its lanterns one by one. An old waystone south
@@ -97,26 +98,38 @@ a Blade, Moss a Warden, Frost a Seer, the potions move into the bag.
 | Items: bases, rarities, affixes, loot tables, the bag, equipment, prices, gear → look | `src/hd2d/items.js` |
 | The realms' layouts, unlocks, flora layout, collision | `src/hd2d/realms.js` |
 | Co-op messages, packed and checked | `src/hd2d/netcode.js` |
-| People as letter maps (hair, face, build, outfit) | `src/hd2d/people.js` |
-| Pixel sprites (shaded by `src/pixel/art.js`), item and skill icons | `src/hd2d/sprites.js` |
-| Sprites made solid (rounded per part, smooth-shaded, baked occlusion); jointed people on springs (walk, combos, skills, idles, blinks, look-at, aim twist); gear with metal sheen, hands and shoes | `src/hd2d/voxel.js`, `rig.js`, `gear3d.js` |
-| Monsters cut into jointed parts (legs, wings, heads, tails, arms) and animated by kind | `src/hd2d/beasts.js` |
+| People as letter maps (hair, face, build, outfit) — the portraits and icons still use them | `src/hd2d/people.js` |
+| Pixel sprites (shaded by `src/pixel/art.js`), item and skill icons; each person's look and colours for the sculpted figure | `src/hd2d/sprites.js` |
+| Jointed people on springs (walk, combos, skills, idles, look-at, aim twist, backpedal), the gear hung on them | `src/hd2d/rig.js` |
+| The sculpted figures: signed-distance sculpting with colour slots (`sdf.js`), the vinyl material and outline (`material.js`), faces and expressions (`face.js`), people (`people.js`), monsters (`beasts.js`, `beastActor.js`), smooth gear and capes (`gear.js`), how game calls map onto them (`mapping.js`), shared meshes and detail levels (`build.js`) | `src/hd2d/sculpt/` |
+| The old voxel figures (kept behind `SCULPTED_FIGURES` in `sculpt/build.js`) | `src/hd2d/voxel.js`, `beasts.js`, `gear3d.js` |
 | Combat effects: pooled particles, voxel debris, rings, pillars, a flash light | `src/hd2d/vfx.js` |
 | Aiming at the pointer; reward and placed chests (pure rules) | `src/hd2d/aim.js`, `chests.js` |
 | The Lanternwood forest; the other three realms; waystones, chests, chunked instancing | `src/hd2d/world.js`, `realmWorld.js`, `props.js` |
 | The figure material (rim light, glow, hit flash, metal), billboards, post-processing, HUD and minimap, windows | `src/hd2d/gfx.js`, `post.js`, `ui.js`, `panels.js`, `hd2d.css` |
-| Tests | `tests/unit/hd2d.test.mjs` |
+| Tests | `tests/unit/hd2d.test.mjs`, `hd2d-sculpt.test.mjs`, `hd2d-blizzard.test.mjs` |
 
-**Figures and effects.** People and monsters are their pixel drawings made solid: near the camera
-every pixel is a block (`detail` 1), further away four pixels a block (`detail` 2); the fine versions are
-built in the background when a realm loads. Each body part is rounded on its own (a domed head with a
-nose, cheeks and hair standing proud of it), lit through smooth normals so the steps do not stripe, with
-ambient occlusion baked into the colours and a soft rim light. Joints are damped springs, so strikes
-follow through and heads lag a step. Monsters break into their own blocks when they die. Every combat
-effect draws from shared pools — one instanced draw for glowing particles, one for smoke and dust, one
-for debris — with a budget, and dims in the daylight realms so bloom never washes them out. Crits pulse
-the screen briefly (colour fringe, a lift of light); with *reduce motion* set, the pulse is off and
-shake is small.
+**Figures and effects.** Heroes, villagers and monsters are sculpted at load from smooth shapes —
+spheres, ellipsoids, capsules, rounded boxes — blended into one body, polygonised and skinned to a
+small skeleton (the AI Arcademia method; `src/hd2d/sculpt/`). People use the very joints the rig
+always posed, so every walk, combo, skill pose, aim twist and backpedal plays as before; monsters'
+bones carry the roles the old parts had (legs that trot, arms raised on a wind-up, wings, heads that
+look at their target, tails, circling shards) with squash and stretch on top. Colours are slots in
+the mesh (skin, hair, coat, tunic … or body, belly, accents), so one mesh serves every palette: a
+hero's armour colour, a villager's coat, a hero monster's affix colour. Faces have glossy eyes with
+highlights and lids that blink; heroes look fierce when they strike, concentrate when they cast,
+wince when hit; monsters glare under angry brows with glowing eyes, snarl on the wind-up, roar in
+the strike and go dizzy when stunned. A class shows on a bare head (the Warden's helm, the Seer's
+cowl, the Ranger's hood, the Blade's pauldron); gear — every weapon, shield, hat and helm — is
+sculpted in the same style to fit the round heads and mitten hands. The material takes the
+figure's own light (readable in the dark, warmed by fires), the rim, the hit flash and glows, with
+soft toon bands and a thin outline; hero monsters and bosses are outlined in their colour. Each
+mesh is built once per shape and shared, near the camera finely and further away coarsely (the fine
+ones in the background as a realm loads). Monsters still break into pieces of their colours when
+they die. Every combat effect draws from shared pools — one instanced draw for glowing particles,
+one for smoke and dust, one for debris — with a budget, and dims in the daylight realms so bloom
+never washes them out. Crits pulse the screen briefly (colour fringe, a lift of light); with
+*reduce motion* set, the pulse is off and shake is small.
 
 **Performance.** Each realm's trees, rocks, grass and props are instanced in spatial chunks: whole
 chunks are culled by the camera, far chunks switch to a cheaper model or hide beyond the fog, and only

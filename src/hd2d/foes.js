@@ -11,6 +11,9 @@ import * as THREE from 'three';
 import * as R from './rules.js';
 import { RigActor } from './rig.js';
 import { BeastActor } from './beasts.js';
+import { SculptBeastActor } from './sculpt/beastActor.js';
+import { isSculptedBeast } from './sculpt/beasts.js';
+import { SCULPTED_FIGURES } from './sculpt/build.js';
 import { MONSTER_PEOPLE } from './sprites.js';
 
 const TAU = Math.PI * 2;
@@ -49,7 +52,8 @@ export const FoeMixin = {
       a.setGear(m.gear);
     } else {
       const glow = { wisp: 0.4, lampwight: 0.25, shardling: 0.2, cinderling: 0.3, golem: 0.08, frostbat: 0.08, tyrant: 0.1 }[kind] ?? 0;
-      a = new BeastActor(kind, this.sprites.enemies[kind][0], { shadow: def.radius * (def.boss ? 1.2 : 0.95), glow, scale: k });
+      const Actor = SCULPTED_FIGURES && isSculptedBeast(kind) ? SculptBeastActor : BeastActor;
+      a = new Actor(kind, this.sprites.enemies[kind][0], { shadow: def.radius * (def.boss ? 1.2 : 0.95), glow, scale: k });
       // Heavy ones shake the ground a little as they walk.
       if (['golem', 'gnarlroot', 'tyrant', 'mossback'].includes(kind)) a.onStep = () => this._footDust(a.group.position.x, a.group.position.z, def.boss ? 2.2 : 1.5);
       else if (['wolf', 'icefang', 'thornboar', 'salamander'].includes(kind)) a.onStep = () => Math.random() < 0.5 && this._footDust(a.group.position.x, a.group.position.z, 0.8);

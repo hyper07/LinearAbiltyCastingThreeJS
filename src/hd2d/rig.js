@@ -28,11 +28,24 @@
  * (axe, mace, long sword — bigger, slower arcs), jabR / jabL / stab (dagger),
  * thrust (spear), bolt / bolt3 (staff), shot / power (bow). Skill poses: lunge,
  * overhead, bash, guard, plant, slam, nova, raise, draw, skyshot.
+ *
+ * Sculpted figures (sculpt/): a sprite that carries a `person` (sprites.js) is
+ * drawn as a soft vinyl toy instead of blocks — one skinned mesh on these
+ * same joints (so every pose above plays on it unchanged), a face that
+ * blinks and changes with what the body does (sculpt/mapping.js), gear hung
+ * where sculpt/mapping.js gearSockets() says. `SCULPTED_FIGURES` (sculpt/
+ * build.js) turns it off.
  */
 import * as THREE from 'three';
 import { voxelParts } from './voxel.js';
 import { blobShadow, figureUniforms, figureMaterial, lightFigure } from './gfx.js';
 import { weaponGeometry, offhandGeometry, headGeometry, pauldronGeometry, capeGeometry, handGeometry, footGeometry } from './gear3d.js';
+import { SCULPTED_FIGURES, modelFor, geometryFor, geometryReady, requestGeometry } from './sculpt/build.js';
+import { personDesc, personRecipe, personFace, shapeKey, faceKey } from './sculpt/people.js';
+import { sculptMaterial, setPalette, outlineMaterial, inkFor } from './sculpt/material.js';
+import { buildFace } from './sculpt/face.js';
+import { gearSockets, heroExpression, weaponLength } from './sculpt/mapping.js';
+import { smoothCapeGeometry, sculptedGear } from './sculpt/gear.js';
 
 const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const out = (t) => 1 - Math.pow(1 - t, 3);
@@ -97,6 +110,11 @@ export class RigActor {
     this.u = figureUniforms();
     this.self = this.u.uSelf;
     this.material = figureMaterial(this.u, { side: THREE.DoubleSide });
+    this.voxelMat = this.material;
+    this.skinMat = null;
+    this.face = null;
+    this._sculptKey = null;
+    this._sculptDirty = false;
     this.gearMat = figureMaterial(this.u);
     this.metalMat = figureMaterial(this.u, { metal: 0.72 });
     // body: turns and lifts; hips: the joint the whole upper body and the legs hang from.
@@ -127,6 +145,7 @@ export class RigActor {
     this.glowColor = null;
     this.detail = detail;
     this._detail = detail;
+    this.syncNear = detail === 1; // the hero's own figure: its fine mesh is built straight away
     this.lookAt = null;
     this.onStep = null;
     this.steps = 0;
@@ -142,6 +161,15 @@ export class RigActor {
   show(sprite) {
     if (this.sprite === sprite) return;
     this.sprite = sprite;
+    if (SCULPTED_FIGURES && sprite?.person) {
+      // Built when first needed (after setGear, which may change the shape): see _sculpt().
+      this._sculptDirty = true;
+      return;
+    }
+    this._sculptKey = null;
+    this.face?.dispose();
+    this.face = null;
+    this.material = this.voxelMat ?? this.material;
     const vp = voxelParts(sprite, { step: this.detail });
     const { parts, joints, size } = vp;
     this._detail = this.detail;
@@ -184,6 +212,10 @@ export class RigActor {
   /** Swap every part to another detail (1: each pixel a block; 2: far away, a quarter of the blocks). */
   _swapDetail() {
     if (!this.sprite || this._detail === this.detail) return;
+    if (this._sculptKey) {
+      this._sculptLod();
+      return;
+    }
     this._detail = this.detail;
     const vp = voxelParts(this.sprite, { step: this.detail });
     for (const [n, m] of Object.entries(this.partMeshes ?? {})) m.geometry = vp.parts[n];
@@ -196,7 +228,124 @@ export class RigActor {
    */
   setGear(look) {
     this.look = look;
+    if (this._sculptKey || this._sculptDirty) {
+      this._sculptDirty = true;
+      return;
+    }
     this._hang();
+  }
+
+  /* ------------------------------------------------------------ sculpted figures */
+
+  /** Build (or re-dress) the sculpted figure from the sprite's person and the gear worn. */
+  _sculpt() {
+    this._sculptDirty = false;
+    const P = this.sprite.person;
+    const gear = this.look ?? P.gear ?? null;
+    if (!this.look && P.gear) this.look = P.gear;
+    const desc = personDesc(P.look, gear, { cls: P.cls, hostile: P.hostile, eyeGlow: P.eyeGlow, extra: P.extra });
+    if (!this.skinMat) this.skinMat = sculptMaterial(this.u, { gloss: 0.16 });
+    this.material = this.skinMat;
+    setPalette(this.skinMat, P.palette);
+    const key = shapeKey(desc);
+    const fkey = faceKey(desc);
+    if (key === this._sculptKey && fkey === this._faceKey && this.joints) {
+      this._hang();
+      return;
+    }
+    this._sculptKey = key;
+    this._faceKey = fkey;
+    this._desc = desc;
+    this._make = () => personRecipe(desc);
+    const model = modelFor(key, this._make);
+    const plan = model.recipe.plan;
+    const J0 = plan.joints;
+    this.body.clear();
+    this.partMeshes = {};
+    const joint = (name) => {
+      const o = new THREE.Group();
+      o.name = name;
+      o.position.set(...J0[name]);
+      return o;
+    };
+    const hips = joint('torso'), head = joint('head'), armNeg = joint('armNeg'), armPos = joint('armPos'), legNeg = joint('legNeg'), legPos = joint('legPos');
+    for (const o of [head, armNeg, armPos]) {
+      o.position.sub(hips.position);
+      hips.add(o);
+    }
+    this.body.add(hips, legNeg, legPos);
+    const byName = { torso: hips, head, armNeg, armPos, legNeg, legPos };
+    // One skinned mesh on the joints themselves: bind-space is the body's frame, each bone's inverse its rest offset.
+    const bones = model.recipe.bones.map(([n]) => byName[n]);
+    const inverses = model.recipe.bones.map(([, , x, y, z]) => new THREE.Matrix4().makeTranslation(-x, -y, -z));
+    this.skeleton?.dispose(); // its bone texture
+    this.skeleton = new THREE.Skeleton(bones, inverses);
+    this._lod = null;
+    this.skin = this.hull = null;
+    this.joints = {
+      hips, torso: hips, head, armNeg, armPos, legNeg, legPos, hipY: J0.torso[1], height: plan.height, armLength: plan.armLength,
+      shoulderY: J0.armNeg[1] - J0.torso[1], legLen: plan.legLen, fist: plan.hand, backZ: plan.backZ, headLift: plan.headLift, sculpted: true, headPos: new THREE.Vector3(...J0.head)
+    };
+    this.springs = {
+      armNeg: new JointSpring(armNeg, 26, 0.55), armPos: new JointSpring(armPos, 26, 0.55),
+      legNeg: new JointSpring(legNeg, 30, 0.75), legPos: new JointSpring(legPos, 30, 0.75),
+      hips: new JointSpring(hips, 20, 0.62), head: new JointSpring(head, 13, 0.5)
+    };
+    this._palette = {};
+    this._detail = this.detail;
+    this._sculptLod(true);
+    this.body.scale.setScalar(this.scale);
+    this._hang();
+  }
+
+  /** Build this figure's fine mesh ahead of time, in the background (sculpted figures). */
+  prewarm() {
+    if (this._sculptDirty) this._sculpt();
+    if (this._sculptKey) requestGeometry(this._sculptKey, this._make, 'near');
+  }
+
+  /** The sculpted mesh at this detail (the far one meanwhile, if the near one is still being built) and its face. */
+  _sculptLod(first = false) {
+    const want = this.detail === 1 ? 'near' : 'far';
+    const key = this._sculptKey;
+    let lod = want;
+    let geo = geometryReady(key, want);
+    if (!geo) {
+      // The near mesh is built now only for the hero's own figure (and the first time); others wait for the background.
+      if (want === 'near' && !(first && this.syncNear)) {
+        requestGeometry(key, this._make, 'near');
+        geo = geometryReady(key, 'far') ?? geometryFor(key, this._make, 'far');
+        lod = 'far';
+      } else geo = geometryFor(key, this._make, want);
+    }
+    // Not the detail wanted yet (the near mesh is still building): look again next frame.
+    this._detail = lod === want ? this.detail : -1;
+    if (this._lod === lod && this.skin) return;
+    this._lod = lod;
+    if (!this.skin) {
+      const skin = new THREE.SkinnedMesh(geo, this.skinMat);
+      skin.bind(this.skeleton, new THREE.Matrix4());
+      skin.castShadow = true;
+      skin.receiveShadow = true;
+      skin.name = 'sculpt';
+      // The outline, as Arcademia's toys have: the same mesh on the same skeleton, inside out.
+      const hull = new THREE.SkinnedMesh(geo, outlineMaterial(inkFor(this.sprite.person.palette[2] ?? '#3a2a24'), 0.016));
+      hull.bind(this.skeleton, new THREE.Matrix4());
+      hull.raycast = () => {};
+      this.body.add(skin, hull);
+      this.skin = skin;
+      this.hull = hull;
+    } else {
+      this.skin.geometry = geo;
+      this.hull.geometry = geo;
+    }
+    this.hull.boundingSphere = this.skin.boundingSphere = geo.boundingSphere.clone();
+    // Posed limbs reach past the rest shape: cull by a roomier sphere.
+    this.skin.boundingSphere.radius *= 1.35;
+    this.face?.dispose();
+    const model = modelFor(key, this._make);
+    this.face = buildFace({ sdf: model.sdf, f: personFace(this._desc), headBone: this.joints.head, headPos: this.joints.headPos, lidMaterial: this.skinMat, lidSlot: 0, key: this._faceKey, low: lod === 'far' });
+    this.face.root.visible = this.look?.head?.shape !== 'full';
   }
 
   _glowMat(hex, strength = 0.7) {
@@ -217,40 +366,46 @@ export class RigActor {
     const J = this.joints;
     if (!J) return;
     const L = this.look ?? {};
+    const K = gearSockets(J);
     const mats = (glow, strength) => [this.gearMat, glow ? this._glowMat(glow, strength) : this.gearMat, this.metalMat];
-    const hand = J.armLength - 0.06;
-    const piece = (geo, parent, glow, strength = 0.7) => {
-      const m = new THREE.Mesh(geo, mats(glow, strength));
+    // A sculpted figure wears gear3d's pieces sculpted smooth (sculpt/gear.js): one material, an outline.
+    const smooth = Boolean(J.sculpted);
+    if (smooth && !this.gearSculptMat) this.gearSculptMat = sculptMaterial(this.u, { gloss: 0.45 });
+    const piece = (geo, socket, glow, strength = 0.7, gear = null) => {
+      let m;
+      if (smooth && gear) {
+        const g = sculptedGear(gear[0], gear[1]);
+        m = new THREE.Mesh(g, this.gearSculptMat);
+        const ink = new THREE.Mesh(g, outlineMaterial('#20160f', 0.011));
+        ink.raycast = () => {};
+        m.add(ink);
+      } else m = new THREE.Mesh(geo, mats(glow, strength));
       m.castShadow = true;
-      parent.add(m);
+      J[socket.joint].add(m);
+      m.position.set(...socket.pos);
+      if (socket.rot) m.rotation.set(...socket.rot);
       this.pieces.push(m);
       return m;
     };
-    // Hands (skin or gloves) at the ends of the arms, closed round whatever they hold; shoes.
-    const P = this._palette ?? {};
-    const skin = hexOf(P.J ?? P.F, '#d8a080');
-    for (const arm of [J.armNeg, J.armPos]) {
-      const h = piece(handGeometry(skin), arm);
-      h.position.set(0, -hand, 0.03);
-    }
-    const shoe = hexOf(P.S, '#5a3a24');
-    for (const leg of [J.legNeg, J.legPos]) {
-      const f = piece(footGeometry(shoe), leg);
-      f.position.set(0, -J.legLen, -0.02);
+    // Hands (skin or gloves) at the ends of the arms, closed round whatever they hold; shoes. (A sculpted figure has its own.)
+    if (!J.sculpted) {
+      const P = this._palette ?? {};
+      const skin = hexOf(P.J ?? P.F, '#d8a080');
+      for (const side of ['handNeg', 'handPos']) piece(handGeometry(skin), K[side]);
+      const shoe = hexOf(P.S, '#5a3a24');
+      for (const side of ['footNeg', 'footPos']) piece(footGeometry(shoe), K[side]);
     }
     const w = L.weapon;
     if (w) {
       const shape = w.shape ?? w.type;
       if (shape === 'bow') {
-        const b = piece(weaponGeometry({ shape: 'bow', color: w.color, glow: w.glow }), J.armPos, w.glow);
-        b.position.set(0.02, -hand, 0.06);
-        this.bow = b;
+        const args = { shape: 'bow', color: w.color, glow: w.glow };
+        this.bow = piece(smooth ? null : weaponGeometry(args), K.bow, w.glow, 0.7, ['weapon', args]);
       } else {
-        const m = piece(weaponGeometry({ shape, color: w.color, glow: w.glow }), J.armNeg, w.glow ?? (shape === 'staff' ? '#7ad8ff' : null), shape === 'staff' && !w.glow ? 0.45 : 0.7);
-        m.position.set(0, -hand, 0.04);
-        m.rotation.x = -0.35;
+        const args = { shape, color: w.color, glow: w.glow };
+        const m = piece(smooth ? null : weaponGeometry(args), K.weapon, w.glow ?? (shape === 'staff' ? '#7ad8ff' : null), shape === 'staff' && !w.glow ? 0.45 : 0.7, ['weapon', shape === 'staff' && !w.glow ? { ...args, glow: '#7ad8ff' } : args]);
         this.weapon = this.sword = m;
-        const len = { longsword: 1.3, dagger: 0.48, axe: 0.82, mace: 0.72, hammer: 0.9, spear: 1.55, staff: 1.45 }[shape] ?? 0.86;
+        const len = weaponLength(shape);
         this.swordTip = new THREE.Object3D();
         this.swordTip.position.set(0, 0, len);
         this.swordMid = new THREE.Object3D();
@@ -262,31 +417,26 @@ export class RigActor {
     } else this.weaponShape = null;
     const o = L.offhand;
     if (o) {
-      const geo = offhandGeometry({ shape: o.shape, color: o.color, glow: o.glow });
-      if (o.shape === 'quiver') {
-        const q = piece(geo, J.torso, o.glow);
-        q.position.set(0.18, J.shoulderY - 0.1, -0.34);
-        q.rotation.z = -0.35;
-      } else {
-        const s = piece(geo, J.armPos, o.glow);
-        if (o.shape === 'tome') s.position.set(0.1, -hand + 0.05, 0.08);
-        else {
-          s.position.set(0.15, -hand * 0.62, 0.02);
-          this.shield = s;
-        }
-      }
+      const args = { shape: o.shape, color: o.color, glow: o.glow };
+      const geo = smooth ? null : offhandGeometry(args);
+      const g = ['offhand', args];
+      if (o.shape === 'quiver') piece(geo, K.quiver, o.glow, 0.7, g);
+      else if (o.shape === 'tome') piece(geo, K.tome, o.glow, 0.7, g);
+      else this.shield = piece(geo, K.shield, o.glow, 0.7, g);
     }
     const h = L.head;
     if (h) {
-      const m = piece(headGeometry({ shape: h.shape, color: h.color, glow: h.glow }), J.head, h.glow, 0.5);
-      m.position.set(0, 0, 0.0);
+      const args = { shape: h.shape, color: h.color, glow: h.glow };
+      const m = piece(smooth ? null : headGeometry(args), K.head, h.glow, 0.5, ['head', args]);
+      // A great helm closes over the face.
+      if (this.face) this.face.root.visible = h.shape !== 'full';
+      m.scale.setScalar(K.head.scale ?? 1);
     }
     const c = L.chest;
-    if (c?.weight === 'heavy') {
-      const pr = piece(pauldronGeometry(c, -1), J.armNeg, c.glow, 0.4);
-      pr.position.set(-0.04, 0.0, 0);
-      const pl = piece(pauldronGeometry(c, 1), J.armPos, c.glow, 0.4);
-      pl.position.set(0.04, 0.0, 0);
+    // Heavy armour's pauldrons (a sculpted figure has them in its own shape).
+    if (c?.weight === 'heavy' && !J.sculpted) {
+      piece(pauldronGeometry(c, -1), K.pauldronNeg, c.glow, 0.4);
+      piece(pauldronGeometry(c, 1), K.pauldronPos, c.glow, 0.4);
     }
     if (L.cape) {
       // Three strips on hinges, from the shoulders down the back.
@@ -294,10 +444,12 @@ export class RigActor {
       const strips = [];
       for (let i = 0; i < 3; i++) {
         const hinge = new THREE.Group();
-        hinge.position.set(0, i === 0 ? J.shoulderY + 0.02 : -0.24, i === 0 ? -0.34 : 0);
+        if (i === 0) hinge.position.set(...K.cape.pos);
+        else hinge.position.set(0, J.sculpted ? -0.2 : -0.24, 0);
         parent.add(hinge);
         if (i === 0) this.pieces.push(hinge);
-        const m = new THREE.Mesh(capeGeometry(L.cape, i), [this.gearMat, L.cape.hem ? this._glowMat(L.cape.hem, 0.35) : this.gearMat, this.metalMat]);
+        const geo = J.sculpted ? smoothCapeGeometry(L.cape, i) : capeGeometry(L.cape, i);
+        const m = new THREE.Mesh(geo, [this.gearMat, L.cape.hem ? this._glowMat(L.cape.hem, 0.35) : this.gearMat, this.metalMat]);
         m.castShadow = true;
         hinge.add(m);
         strips.push({ hinge, s: { x: 0, v: 0 }, sz: { x: 0, v: 0 } });
@@ -308,6 +460,7 @@ export class RigActor {
   }
 
   get height() {
+    if (this._sculptDirty) this._sculpt();
     return (this.joints?.height ?? 1.6) * this.scale;
   }
 
@@ -325,6 +478,7 @@ export class RigActor {
   /** Per frame: pose from `act`, turn, light. */
   update(dt, yaw, light) {
     this.time += dt;
+    if (this._sculptDirty) this._sculpt();
     const J = this.joints;
     if (!J) return;
     this._swapDetail();
@@ -682,6 +836,11 @@ export class RigActor {
         strip.hinge.rotation.z = springStep(strip.sz, Math.max(-0.4, Math.min(0.4, this._turnRate * 0.05)) * (i + 1) * 0.6, dt, 7, 0.4);
       });
     }
+    // The face (sculpted): it shows what the body is doing; the eyes follow what the head looks at.
+    if (this.face) {
+      this.face.set(heroExpression(a, { hostile: this._desc?.hostile }));
+      this.face.update(dt);
+    }
     // Blink.
     this._blink -= dt;
     if (this.partMeshes?.head) {
@@ -709,6 +868,7 @@ export class RigActor {
     this.material.color.copy(this.tint);
     this.gearMat.color.copy(this.tint);
     this.metalMat.color.copy(this.tint);
+    this.gearSculptMat?.color.copy(this.tint);
     lightFigure(this.u, light, { glow: this.glow, glowColor: this.glowColor, flash: this.flash, time: this.time });
     for (const m of this.glowMats) m.emissiveIntensity = m.userData.base * (0.75 + 0.35 * Math.sin(this.time * 4 + m.id));
     if (this.shadow) this.shadow.material.opacity = Math.max(0.3, 1 - lift * 0.5) * 0.7;
@@ -734,7 +894,11 @@ export class RigActor {
   }
 
   dispose() {
-    this.material.dispose();
+    this.voxelMat.dispose();
+    this.skinMat?.dispose();
+    this.gearSculptMat?.dispose();
+    this.skeleton?.dispose();
+    this.face?.dispose();
     this.gearMat.dispose();
     this.metalMat.dispose();
     for (const m of this.glowMats) m.dispose();
