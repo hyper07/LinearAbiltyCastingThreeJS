@@ -77,6 +77,11 @@ function quadruped(o = {}) {
       E([-legX, 0.055, -len * 0.72 + 0.04], [legR * 1.2, 0.055, legR * 1.4], { k: 0.04, bone: 'legBL', col: 'dark' })
     )
   ];
+  // Claws: three little points at the front of each foot (hooves get a split instead).
+  for (const [bone, z] of [['legFL', len * 0.6 + 0.04], ['legBL', -len * 0.72 + 0.04]]) {
+    if (o.hooves) parts.push(...both(B([-legX, 0.05, z + legR * 1.3], [0.008, 0.05, 0.03], 0.004, { sub: true, k: 0.008 })));
+    else for (const dx of [-0.035, 0, 0.035]) parts.push(...both(T([-legX + dx, 0.05, z + legR * 1.2], [-legX + dx * 1.3, 0.012, z + legR * 1.2 + 0.06], 0.022, 0.006, { k: 0.008, bone, col: 'horn' })));
+  }
   if (o.tail === 'long') parts.push(T([0, h, -len - 0.05], [0, h - 0.18, -len - 0.62], 0.13, 0.03, { k: 0.06, bone: 'tail' }));
   else if (o.tail === 'stub') parts.push(S([0, h + 0.08, -len - 0.06], 0.08, { k: 0.04, bone: 'tail' }));
   else parts.push(C([0, h + 0.05, -len - 0.04], [0, h + 0.32, -len - 0.24], 0.1, { k: 0.06, bone: 'tail' }), S([0, h + 0.38, -len - 0.28], 0.12, { k: 0.06, bone: 'tail', col: 'belly' }));
@@ -102,13 +107,19 @@ export const BEAST_RECIPES = {
         ...both(E([-0.22, hy - 0.08, hz + 0.08], [0.13, 0.11, 0.12], { k: 0.07, bone: 'head', col: 'belly' })),
         ...both(T([-0.18, hy + 0.2, hz - 0.08], [-0.26 - rnd() * 0.02, hy + 0.47, hz - 0.12], 0.11, 0.022, { k: 0.05, bone: 'head' })),
         // The ember ridge: flame tufts down the neck and back.
-        ...[0, 1, 2, 3].map((i) => T([0, q.h + 0.2 - i * 0.02, 0.22 - i * 0.16], [0, q.h + 0.36 - i * 0.04, 0.12 - i * 0.18], 0.07, 0.015, { k: 0.04, bone: i ? 'body' : 'head', col: 'accent', glow: 0.5 }))
+        ...[0, 1, 2, 3].map((i) => T([0, q.h + 0.2 - i * 0.02, 0.22 - i * 0.16], [0, q.h + 0.36 - i * 0.04, 0.12 - i * 0.18], 0.07, 0.015, { k: 0.04, bone: i ? 'body' : 'head', col: 'accent', glow: 0.5 })),
+        // Fangs over the lip, a ruff of fur at the chest, tufts on the cheeks.
+        ...both(T([-0.055, hy - 0.15, hz + 0.37], [-0.06, hy - 0.25, hz + 0.355], 0.022, 0.005, { k: 0.006, bone: 'head', col: 'horn', fab: null })),
+        ...[-0.14, -0.05, 0.05, 0.14].map((x, i) => T([x, q.h + 0.12, 0.3], [x * 1.2, q.h - 0.12 - (i % 2) * 0.04, 0.42], 0.075, 0.018, { k: 0.03, bone: 'body', col: 'belly' })),
+        ...both(T([-0.28, hy - 0.06, hz + 0.02], [-0.4, hy - 0.14, hz - 0.02], 0.06, 0.015, { k: 0.025, bone: 'head', col: 'belly' }), T([-0.27, hy - 0.12, hz + 0.0], [-0.37, hy - 0.24, hz - 0.03], 0.05, 0.012, { k: 0.02, bone: 'head', col: 'belly' }))
       ],
       paint: [
         S([0, hy - 0.04, hz + 0.39], 0.05, { col: 'dark', soft: 0.004 }),
-        ...both(E([-0.22, hy + 0.37, hz - 0.05], [0.045, 0.08, 0.04], { col: 'dark' })),
-        E([0, q.h - 0.12, 0.05], [0.2, 0.12, 0.34], { col: 'belly', soft: 0.02 })
+        ...both(E([-0.22, hy + 0.35, hz - 0.03], [0.05, 0.09, 0.05], { col: 'extra', soft: 0.01 })),
+        E([0, q.h - 0.12, 0.05], [0.2, 0.12, 0.34], { col: 'belly', soft: 0.02 }),
+        S([0.015, hy - 0.025, hz + 0.43], 0.014, { tone: 1.4, sheen: 1, soft: 0.006 })
       ],
+      fabSlots: { body: 'strands', belly: 'strands', extra: 'strands' }, hairC: [0, 0.6, 0.3],
       face: { eyeX: 0.135, eyeY: hy + 0.06, eyeR: 0.072, mouthY: hy - 0.17, mouthW: 0.9, browY: hy + 0.2, hostile: true, eyeGlow: '#ffb347', fangs: true },
       res: 1
     };
@@ -143,7 +154,9 @@ export const BEAST_RECIPES = {
       ],
       paint: [
         E([-0.17, 0.62, 0.22], [0.12, 0.08, 0.12], { col: 'accent', tone: 1.1, soft: 0.04 }),
-        E([0, 0.08, 0], [0.56, 0.06, 0.52], { col: 'dark', soft: 0.05 })
+        E([0, 0.08, 0], [0.56, 0.06, 0.52], { col: 'dark', soft: 0.05 }),
+        // Bubbles inside the jelly.
+        ...[[0.28, 0.3, 0.3, 0.05], [0.33, 0.5, 0.14, 0.035], [-0.3, 0.25, 0.3, 0.04], [0.1, 0.18, 0.44, 0.03], [-0.36, 0.45, -0.1, 0.045]].map(([x, y, z, r]) => S([x, y, z], r, { col: 'belly', tone: 1.2, sheen: 1, soft: 0.012 }))
       ],
       face: { eyeX: 0.16, eyeY: 0.42, eyeR: 0.09, mouthY: 0.27, mouthW: 0.8, browY: 0.56, hostile: true, eyeGlow: '#ffe14a', fangs: true },
       res: 0.8
@@ -154,14 +167,15 @@ export const BEAST_RECIPES = {
     const cracks = [];
     for (let i = 0; i < 7; i++) {
       const y = 0.75 + rnd() * 0.9, x = (rnd() - 0.5) * 0.9;
-      cracks.push(E([x, y, 0.42], [0.18 + rnd() * 0.12, 0.022, 0.12], { rot: [0, 0, (rnd() - 0.5) * 1.6], col: 'glow', glow: 1.2, soft: 0.006 }));
-      cracks.push(E([x * 0.9, y, -0.4], [0.16 + rnd() * 0.1, 0.022, 0.12], { rot: [0, 0, (rnd() - 0.5) * 1.6], col: 'glow', glow: 1.2, soft: 0.006 }));
+      cracks.push(E([x, y, 0.42], [0.18 + rnd() * 0.12, 0.016, 0.12], { rot: [0, 0, (rnd() - 0.5) * 1.6], col: 'glow', glow: 0.9, soft: 0.005 }));
+      cracks.push(E([x * 0.9, y, -0.4], [0.16 + rnd() * 0.1, 0.016, 0.12], { rot: [0, 0, (rnd() - 0.5) * 1.6], col: 'glow', glow: 0.9, soft: 0.005 }));
     }
     return {
-      type: 'walker', heavy: true, height: 2.2, gloss: 0.15, fur: 0,
+      type: 'walker', heavy: true, height: 2.2, gloss: 0.08, fur: 0, rimK: 0.35, selfK: 0.22, fabScale: 0.5,
       slots: BEAST_SLOTS,
-      palette: ['#4a4046', '#5e5258', '#2a2228', '#ff8a2a', '#3a3034', '#ff8a2a', '#ffe060', '#ffe060'],
-      glows: [0, 0, 0, 0.7, 0, 1.3, 1.3, 0],
+      palette: ['#5a5058', '#6e6268', '#2a2228', '#ff8a2a', '#3a3034', '#ff8a2a', '#ffe060', '#ffe060'],
+      glows: [0, 0, 0, 0.7, 0, 1.1, 1.0, 0],
+      fabSlots: { body: 'grain', belly: 'grain', dark: 'grain' },
       bones: [
         ['body', null, 0, 0.7, 0],
         ['head', 'body', 0, 1.62, 0.08],
@@ -179,12 +193,20 @@ export const BEAST_RECIPES = {
           T([-0.72, 1.4, 0], [-0.8, 0.9, 0.08], 0.2, 0.17, { k: 0.08, bone: 'armL' }),
           S([-0.82, 0.68, 0.12], 0.28, { k: 0.08, bone: 'armL', col: 'belly' }),
           C([-0.29, 0.55, 0], [-0.3, 0.17, 0.02], 0.2, { k: 0.08, bone: 'legL' }),
-          E([-0.3, 0.11, 0.08], [0.25, 0.12, 0.3], { k: 0.06, bone: 'legL', col: 'dark' })
-        )
+          E([-0.3, 0.11, 0.08], [0.25, 0.12, 0.3], { k: 0.06, bone: 'legL', col: 'dark' }),
+          // Rock plates on the shoulders and fists, with a crag on top; stubby stone toes.
+          B([-0.7, 1.72, -0.02], [0.2, 0.08, 0.22], 0.06, { k: 0.03, bone: 'armL', col: 'belly', rot: [0.2, 0.3, 0.35] }),
+          T([-0.62, 1.8, -0.05], [-0.66, 1.98, -0.1], 0.09, 0.03, { k: 0.03, bone: 'armL', col: 'dark' }),
+          B([-0.86, 0.72, 0.28], [0.12, 0.1, 0.06], 0.04, { k: 0.03, bone: 'armL', col: 'dark', rot: [0.3, 0.2, 0.1] }),
+          ...[-0.1, 0.0, 0.1].map((dx) => S([-0.3 + dx, 0.06, 0.36], 0.065, { k: 0.02, bone: 'legL', col: 'dark' }))
+        ),
+        // Slabs over the chest and back, a brow of rock.
+        ...[[0.28, 1.4, 0.36, 0.3], [-0.26, 1.02, 0.4, -0.2], [0.2, 0.95, -0.4, 0.5], [-0.25, 1.45, -0.38, -0.4]].map(([x, y, z, r]) => B([x, y, z], [0.2, 0.15, 0.06], 0.05, { k: 0.04, bone: 'body', col: 'belly', rot: [0, 0, r] })),
+        B([0, 1.94, 0.3], [0.3, 0.05, 0.1], 0.04, { k: 0.03, bone: 'head', col: 'dark', rot: [0.3, 0, 0] })
       ],
       paint: [
         ...cracks,
-        S([0, 1.22, 0.44], 0.13, { col: 'extra', glow: 1.4, soft: 0.02 }),
+        S([0, 1.22, 0.44], 0.1, { col: 'extra', glow: 1.0, soft: 0.02 }),
         ...both(E([-0.82, 0.68, 0.36], [0.16, 0.02, 0.1], { col: 'glow', glow: 1.1, rot: [0, 0, 0.5], soft: 0.006 }))
       ],
       face: { eyeX: 0.11, eyeY: 1.79, eyeR: 0.075, mouthY: 1.66, mouthW: 1.0, browY: 1.92, hostile: true, eyeGlow: '#ffe060', fangs: true },
@@ -235,6 +257,7 @@ export const BEAST_RECIPES = {
         ...both(C([-0.12, 0.22, 0], [-0.13, 0.06, 0.02], 0.055, { k: 0.04, bone: 'legL', col: 'extra' }), E([-0.13, 0.04, 0.05], [0.07, 0.04, 0.09], { k: 0.03, bone: 'legL', col: 'dark' }))
       ],
       paint: [E([0, 0.38, 0.2], [0.18, 0.14, 0.12], { col: 'belly', soft: 0.04 })],
+      fabSlots: { body: 'grain', extra: 'grain', horn: 'grain' },
       face: { eyeX: 0.11, eyeY: 0.5, eyeR: 0.07, mouthY: 0.37, mouthW: 0.8, browY: 0.62, hostile: true, eyeGlow: '#ffd27a', fangs: true },
       res: 0.85
     };
@@ -253,6 +276,13 @@ export const BEAST_RECIPES = {
         E([0, 0.86, -0.05], [0.66, 0.46, 0.62], { k: 0.06, bone: 'body', col: 'accent' }),
         E([0, 0.58, 0.05], [0.6, 0.24, 0.56], { k: 0.08, bone: 'body' }),
         ...tufts,
+        // Plates on the shell, a beak-like brow, claws.
+        ...Array.from({ length: 7 }, (_, i) => {
+          const a = (i / 7) * Math.PI * 2;
+          return E([Math.sin(a) * 0.42, 1.0 + (i % 2) * 0.06, Math.cos(a) * 0.38 - 0.05], [0.2, 0.08, 0.2], { k: 0.04, bone: 'body', col: 'body', tone: 1.1, rot: [Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5] });
+        }),
+        E([0, 0.86, 0.78], [0.26, 0.05, 0.1], { k: 0.05, bone: 'head', col: 'dark', rot: [0.3, 0, 0] }),
+        ...[['legFL', 0.36], ['legBL', -0.28]].flatMap(([bone, z]) => both(...[-0.07, 0, 0.07].map((dx) => T([-0.44 + dx, 0.06, z + 0.16], [-0.44 + dx * 1.3, 0.015, z + 0.24], 0.03, 0.008, { k: 0.01, bone, col: 'horn' })))),
         E([0, 0.74, 0.62], [0.32, 0.27, 0.27], { k: 0.1, bone: 'head' }),
         ...both(
           C([-0.42, 0.45, 0.3], [-0.44, 0.1, 0.32], 0.15, { k: 0.06, bone: 'legFL' }), E([-0.44, 0.07, 0.36], [0.17, 0.08, 0.2], { k: 0.04, bone: 'legFL', col: 'dark' }),
@@ -263,6 +293,7 @@ export const BEAST_RECIPES = {
         ...Array.from({ length: 7 }, (_, i) => S([Math.sin(i * 0.9) * 0.45, 1.05 + Math.cos(i * 1.7) * 0.12, 0.3 * Math.cos(i * 0.9) - 0.1], 0.12, { col: 'extra', soft: 0.02 })),
         E([0, 0.66, 0.8], [0.14, 0.08, 0.1], { col: 'belly', soft: 0.03 })
       ],
+      fabSlots: { accent: 'strands', body: 'grain', extra: 'strands' }, fabScale: 0.7, hairC: [0, 1.0, 0],
       face: { eyeX: 0.13, eyeY: 0.8, eyeR: 0.07, mouthY: 0.64, mouthW: 0.9, browY: 0.93, hostile: true, eyeGlow: '#ffd27a', fangs: true },
       res: 0.9
     };
@@ -273,6 +304,7 @@ export const BEAST_RECIPES = {
       slots: BEAST_SLOTS,
       palette: ['#2c2046', '#3e2e5e', '#120c1c', '#d8a83a', '#8a92a0', '#7ab0d0', '#e8fff8', '#e8fffc'],
       glows: [0, 0, 0, 0.2, 0, 0.45, 1, 0], outline: '#6ad8ff',
+      fabSlots: { body: 'weave', belly: 'weave' },
       bones: [['body', null, 0, 1.3, 0], ['head', 'body', 0, 1.7, 0], ['hem', 'body', 0, 0.8, 0], ...boneBoth('armL', 'body', 0.48, 1.5, 0)],
       roles: { head: { role: 'head' }, hem: { role: 'sway' }, armL: { role: 'arm' }, armR: { role: 'arm' } },
       parts: [
@@ -283,6 +315,9 @@ export const BEAST_RECIPES = {
         T([0, 2.38, 0.03], [0, 2.72, 0.03], 0.44, 0.05, { k: 0.04, bone: 'head', col: 'dark' }),
         D([0, 2.82, 0.03], 0.1, 0.03, { k: 0.02, bone: 'head', col: 'accent', sheen: 0.8 }),
         D([0, 1.66, 0.03], 0.42, 0.04, { k: 0.04, bone: 'head', col: 'accent', sheen: 0.8, rot: [Math.PI / 2, 0, 0] }),
+        // The lantern's frame: corner posts and a band, riveted.
+        ...[[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([sx, sz]) => C([sx * 0.37, 1.66, 0.03 + sz * 0.35], [sx * 0.37, 2.38, 0.03 + sz * 0.35], 0.035, { k: 0.015, bone: 'head', col: 'accent', sheen: 0.8 })),
+        ...[[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([sx, sz]) => S([sx * 0.4, 2.36, 0.03 + sz * 0.38], 0.03, { k: 0.01, bone: 'head', col: 'accent', sheen: 0.9 })),
         ...both(
           T([-0.5, 1.5, 0], [-0.82, 0.95, 0.18], 0.1, 0.07, { k: 0.06, bone: 'armL', col: 'belly' }),
           E([-0.86, 0.86, 0.2], [0.13, 0.15, 0.13], { k: 0.05, bone: 'armL', col: 'horn' })
@@ -310,6 +345,9 @@ export const BEAST_RECIPES = {
         E([0, 0.7, 0.1], [0.32, 0.26, 0.28], { k: 0.12, bone: 'head' }),
         E([0, 0.6, 0.36], [0.16, 0.12, 0.14], { k: 0.06, bone: 'head', col: 'accent' }),
         S([0, 0.63, 0.5], 0.055, { k: 0.03, bone: 'head', col: 'extra' }),
+        // Whiskers, and buck teeth.
+        ...both(...[0.0, 0.04].map((dy) => C([-0.08, 0.61 + dy, 0.46], [-0.26, 0.6 + dy * 2, 0.44], 0.008, { k: 0.004, bone: 'head', col: 'horn' }))),
+        ...both(B([-0.022, 0.53, 0.46], [0.02, 0.03, 0.012], 0.008, { k: 0.006, bone: 'head', col: 'horn' })),
         ...both(
           C([-0.36, 0.52, 0.1], [-0.5, 0.36, 0.26], 0.1, { k: 0.05, bone: 'armL' }),
           E([-0.52, 0.33, 0.3], [0.13, 0.08, 0.12], { k: 0.04, bone: 'armL', col: 'accent' }),
@@ -318,6 +356,7 @@ export const BEAST_RECIPES = {
         )
       ],
       paint: [E([0, 0.38, 0.28], [0.26, 0.24, 0.14], { col: 'belly', soft: 0.04 }), ...both(E([-0.04, 0.5, 0.42], [0.025, 0.04, 0.03], { col: 'horn', soft: 0.004 }))],
+      fabSlots: { body: 'strands', belly: 'strands' }, hairC: [0, 0.5, 0],
       face: { eyeX: 0.13, eyeY: 0.76, eyeR: 0.06, mouthY: 0.52, mouthW: 0.8, browY: 0.86, hostile: true, eyeGlow: '#ffd27a', fangs: true },
       res: 1
     };
@@ -342,15 +381,18 @@ export const BEAST_RECIPES = {
       ],
       paint: [
         ...[-0.14, -0.3].map((z) => E([0, 0.42, z], [0.3, 0.3, 0.045], { col: 'dark', soft: 0.008 })),
-        E([0, 0.38, 0.28], [0.18, 0.12, 0.08], { col: 'belly', soft: 0.03 })
+        E([0, 0.38, 0.28], [0.18, 0.12, 0.08], { col: 'belly', soft: 0.03 }),
+        // Veins across the wings.
+        ...both(...[0.1, 0.25, 0.4].map((t) => E([-0.2 - t * 0.5, 0.74 + t * 0.12, -0.12 + t * 0.02], [0.006, 0.12, 0.05], { col: 'dark', tone: 0.7, rot: [0.2, 0.2, 0.45 + t], soft: 0.006 })))
       ],
+      fabSlots: { body: 'strands', belly: 'strands' }, hairC: [0, 0.45, 0],
       face: { eyeX: 0.115, eyeY: 0.57, eyeR: 0.072, mouthY: 0.42, mouthW: 0.8, browY: 0.7, hostile: true, eyeGlow: '#ff8a3a', fangs: true },
       res: 1
     };
   },
   thornboar(seed = 7) {
     const rnd = seeded(seed);
-    const q = quadruped({ len: 0.52, h: 0.56, headR: [0.38, 0.33, 0.32], legR: 0.09, legX: 0.22, tail: 'stub' });
+    const q = quadruped({ len: 0.52, h: 0.56, headR: [0.38, 0.33, 0.32], legR: 0.09, legX: 0.22, tail: 'stub', hooves: true });
     const [, hy, hz] = q.head.c;
     return {
       type: 'quad', height: 1.3, gloss: 0.2, fur: 0.9,
@@ -368,6 +410,7 @@ export const BEAST_RECIPES = {
         ...Array.from({ length: 6 }, (_, i) => T([0, q.h + 0.2 - Math.abs(i - 1) * 0.02, 0.3 - i * 0.16], [(rnd() - 0.5) * 0.08, q.h + 0.42, 0.22 - i * 0.17], 0.065, 0.01, { k: 0.03, bone: i ? 'body' : 'head', col: 'accent' }))
       ],
       paint: [...both(E([-0.06, hy - 0.08, hz + 0.43], [0.03, 0.04, 0.03], { col: 'dark', soft: 0.004 })), E([0, q.h - 0.15, 0.05], [0.24, 0.12, 0.4], { col: 'belly', soft: 0.03 })],
+      fabSlots: { body: 'strands', belly: 'strands' }, hairC: [0, 0.7, 0.2],
       face: { eyeX: 0.16, eyeY: hy + 0.08, eyeR: 0.07, mouthY: hy - 0.26, mouthW: 1.0, browY: hy + 0.22, hostile: true, eyeGlow: '#ff8a3a', fangs: true },
       res: 1
     };
@@ -397,7 +440,15 @@ export const BEAST_RECIPES = {
           E([-0.12, 0.05, 0.05], [0.09, 0.05, 0.11], { k: 0.03, bone: 'legL', col: 'dark', tone: 0.8 })
         )
       ],
-      paint: spots,
+      paint: [
+        ...spots,
+        // Gills under the cap.
+        ...Array.from({ length: 18 }, (_, i) => {
+          const a = (i / 18) * Math.PI;
+          return E([0, 0.85, 0], [0.5, 0.012, 0.006], { col: 'extra', tone: 0.7, rot: [0, a, 0], soft: 0.006 });
+        })
+      ],
+      fabSlots: { belly: 'grain', accent: 'grain' },
       face: { eyeX: 0.12, eyeY: 0.72, eyeR: 0.07, mouthY: 0.58, mouthW: 0.8, browY: 0.82, hostile: true, eyeGlow: '#9aff6a', fangs: false },
       res: 0.85
     };
@@ -420,14 +471,31 @@ export const BEAST_RECIPES = {
         T([0, 1.0, 0], [0, 2.1, 0], 0.72, 0.62, { k: 0.15, bone: 'body' }),
         E([0, 2.6, 0.08], [0.72, 0.62, 0.62], { k: 0.2, bone: 'head' }),
         ...leaves,
+        // Bark: ridges up the trunk, a knothole, roots spreading at the feet.
+        ...Array.from({ length: 10 }, (_, i) => {
+          const a = (i / 10) * Math.PI * 2 + 0.3;
+          if (Math.cos(a) > 0.75) return null;
+          return T([Math.sin(a) * 0.66, 1.05, Math.cos(a) * 0.66], [Math.sin(a) * 0.58, 2.15, Math.cos(a) * 0.58], 0.07, 0.05, { k: 0.06, bone: 'body', col: 'dark', tone: 1.2 });
+        }).filter(Boolean),
+        E([0.36, 2.05, 0.5], [0.09, 0.12, 0.08], { sub: true, k: 0.04 }),
+        E([0, 1.55, 0.6], [0.36, 0.46, 0.12], { k: 0.08, bone: 'body', col: 'belly' }),
         ...both(
           T([-0.62, 2.05, 0], [-1.25, 1.35, 0.25], 0.24, 0.13, { k: 0.1, bone: 'armL' }),
           ...[-1, 0, 1].map((i) => T([-1.25, 1.35, 0.25], [-1.42 + i * 0.12, 1.08, 0.38 + i * 0.05], 0.09, 0.03, { k: 0.04, bone: 'armL' })),
           T([-0.4, 1.0, 0], [-0.5, 0.2, 0.06], 0.3, 0.24, { k: 0.12, bone: 'legL' }),
-          E([-0.52, 0.12, 0.2], [0.32, 0.13, 0.42], { k: 0.08, bone: 'legL', col: 'belly' })
+          E([-0.52, 0.12, 0.2], [0.32, 0.13, 0.42], { k: 0.08, bone: 'legL', col: 'belly' }),
+          ...[-1, 0, 1].map((i) => T([-0.52 + i * 0.14, 0.1, 0.4], [-0.56 + i * 0.26, 0.04, 0.66], 0.08, 0.03, { k: 0.04, bone: 'legL', col: 'belly' }))
         )
       ],
-      paint: [...flowers, E([0, 1.6, 0.6], [0.4, 0.5, 0.2], { col: 'horn', soft: 0.08 }), ...both(E([-0.45, 1.3, 0.55], [0.15, 0.3, 0.12], { col: 'dark', tone: 0.8, soft: 0.04 }))],
+      paint: [
+        ...flowers,
+        // The heartwood: a pale oval where the bark has worn away, with growth rings round a knot.
+        // (Each ring line is a darker oval with a slightly smaller pale one painted over it.)
+        E([0, 1.55, 0.62], [0.34, 0.44, 0.3], { col: 'belly', tone: 1.3, soft: 0.012 }),
+        ...[0.25, 0.15].flatMap((r) => [E([0, 1.55, 0.62], [r, r * 1.3, 0.3], { tone: 0.78, soft: 0.006 }), E([0, 1.55, 0.62], [r - 0.022, (r - 0.022) * 1.3, 0.3], { tone: 1.3, soft: 0.006 })]),
+        E([0, 1.53, 0.62], [0.05, 0.065, 0.3], { col: 'dark', soft: 0.01 })
+      ],
+      fabSlots: { body: 'grain', belly: 'grain', dark: 'grain' }, fabScale: 0.4,
       face: { eyeX: 0.26, eyeY: 2.62, eyeR: 0.14, mouthY: 2.3, mouthW: 1.3, browY: 2.9, hostile: true, eyeGlow: '#ffe060', fangs: true },
       res: 1.3
     };
@@ -470,10 +538,13 @@ export const BEAST_RECIPES = {
           T([-0.16, 0.66, 0], [-0.3, 1.0, -0.06], 0.13, 0.02, { k: 0.06, bone: 'head' }),
           E([-0.58, 0.5, -0.06], [0.38, 0.22, 0.022], { k: 0.04, bone: 'wingL', col: 'accent', rot: [0, 0, 0.15] }),
           ...[0, 1, 2].map((i) => T([-0.3 - i * 0.13, 0.6 - i * 0.04, -0.06], [-0.38 - i * 0.16, 0.3 - i * 0.02, -0.06], 0.035, 0.012, { k: 0.02, bone: 'wingL', col: 'dark' })),
-          C([-0.09, 0.2, 0], [-0.1, 0.1, 0.02], 0.03, { k: 0.02, bone: 'body', col: 'dark' })
+          C([-0.09, 0.2, 0], [-0.1, 0.1, 0.02], 0.03, { k: 0.02, bone: 'body', col: 'dark' }),
+          T([-0.05, 0.37, 0.28], [-0.055, 0.29, 0.27], 0.018, 0.004, { k: 0.005, bone: 'head', col: 'horn' }),
+          T([-0.12, 0.62, 0.22], [-0.2, 0.56, 0.24], 0.04, 0.01, { k: 0.02, bone: 'head', col: 'belly' })
         )
       ],
       paint: [E([0, 0.4, 0.22], [0.18, 0.15, 0.1], { col: 'belly', soft: 0.03 }), ...both(E([-0.26, 0.86, 0.0], [0.04, 0.1, 0.04], { col: 'extra', soft: 0.01 }))],
+      fabSlots: { body: 'strands', belly: 'strands' }, hairC: [0, 0.5, 0],
       face: { eyeX: 0.12, eyeY: 0.53, eyeR: 0.075, mouthY: 0.39, mouthW: 0.85, browY: 0.66, hostile: true, eyeGlow: '#9ae8ff', fangs: true },
       res: 1
     };
@@ -495,6 +566,7 @@ export const BEAST_RECIPES = {
         ...both(S([-0.34, 0.4, 0.05], 0.08, { k: 0.05, bone: 'armL', col: 'belly' }), C([-0.13, 0.18, 0], [-0.13, 0.07, 0.02], 0.065, { k: 0.04, bone: 'legL', col: 'belly' }))
       ],
       paint: cracks,
+      fabSlots: { body: 'grain', belly: 'grain' }, rimK: 0.6,
       face: { eyeX: 0.12, eyeY: 0.5, eyeR: 0.075, mouthY: 0.36, mouthW: 0.9, browY: 0.63, hostile: true, eyeGlow: '#fff4a0', fangs: true },
       res: 1
     };
@@ -505,7 +577,8 @@ export const BEAST_RECIPES = {
     const [, hy, hz] = q.head.c;
     const spots = Array.from({ length: 9 }, (_, i) => S([(rnd() - 0.5) * 0.4, q.h + 0.2, 0.4 - i * 0.12], 0.05 + rnd() * 0.03, { col: 'glow', glow: 0.8, soft: 0.01 }));
     return {
-      type: 'quad', height: 1.0, gloss: 0.6, fur: 0,
+      type: 'quad', height: 1.0, gloss: 0.6, fur: 0, scales: true,
+      fabSlots: { body: 'weave', dark: 'weave' },
       slots: BEAST_SLOTS,
       palette: ['#c03a24', '#f0a060', '#5a1a14', '#ffc23d', '#f4ecd8', '#ffc23d', '#8a2018', '#ffe060'],
       glows: [0, 0.1, 0, 0.6, 0, 1, 0, 0],
@@ -513,7 +586,9 @@ export const BEAST_RECIPES = {
       parts: [
         ...q.parts.map((p) => (p.bone === 'head' ? { ...p, c: [0, hy - 0.12, hz + 0.08] } : p)),
         E([0, hy - 0.16, hz + 0.3], [0.2, 0.1, 0.16], { k: 0.08, bone: 'head' }),
-        ...both(S([-0.14, hy + 0.0, hz + 0.08], 0.09, { k: 0.05, bone: 'head' }))
+        ...both(S([-0.14, hy + 0.0, hz + 0.08], 0.09, { k: 0.05, bone: 'head' })),
+        // A crest of little spines down the back.
+        ...Array.from({ length: 7 }, (_, i) => T([0, q.h + 0.18, 0.3 - i * 0.14], [0, q.h + 0.27 - i * 0.008, 0.26 - i * 0.14], 0.04, 0.008, { k: 0.02, bone: i ? 'body' : 'head', col: 'accent' }))
       ],
       paint: [...spots, E([0, q.h - 0.14, 0.05], [0.22, 0.08, 0.42], { col: 'belly', soft: 0.03 })],
       face: { eyeX: 0.14, eyeY: hy - 0.03, eyeR: 0.07, mouthY: hy - 0.22, mouthW: 1.1, browY: hy + 0.1, hostile: true, eyeGlow: '#ffe060', fangs: true },
@@ -522,7 +597,8 @@ export const BEAST_RECIPES = {
   },
   tyrant() {
     return {
-      type: 'walker', heavy: true, flap: 4, amp: 0.3, height: 3.25, gloss: 0.4, fur: 0,
+      type: 'walker', heavy: true, flap: 4, amp: 0.3, height: 3.25, gloss: 0.4, fur: 0, scales: true, fabScale: 0.6,
+      fabSlots: { body: 'weave', dark: 'weave' },
       slots: BEAST_SLOTS,
       palette: ['#6a2420', '#ff8a2a', '#1c0e0a', '#4a2030', '#e8dcc0', '#ffe060', '#ffc23d', '#ffe060'],
       glows: [0, 0.3, 0, 0, 0, 1.3, 1, 0], outline: '#ff8a3a',
@@ -542,7 +618,10 @@ export const BEAST_RECIPES = {
           C([-0.42, 0.95, 0], [-0.46, 0.3, 0.05], 0.27, { k: 0.1, bone: 'legL' }),
           E([-0.47, 0.15, 0.2], [0.3, 0.13, 0.38], { k: 0.06, bone: 'legL', col: 'dark' })
         ),
-        ...[0, 1, 2, 3].map((i) => T([0, 2.0 - i * 0.35, -0.55 + i * 0.02], [0, 2.18 - i * 0.35, -0.82], 0.1, 0.015, { k: 0.04, bone: i ? 'body' : 'head', col: 'horn' }))
+        ...[0, 1, 2, 3].map((i) => T([0, 2.0 - i * 0.35, -0.55 + i * 0.02], [0, 2.18 - i * 0.35, -0.82], 0.1, 0.015, { k: 0.04, bone: i ? 'body' : 'head', col: 'horn' })),
+        // Belly plates, ridged; fangs at the corners of the jaw; a ridge of horn over each brow.
+        ...[1.0, 1.2, 1.4, 1.6].map((y) => E([0, y, 0.6 - Math.abs(y - 1.3) * 0.15], [0.42 - Math.abs(y - 1.3) * 0.25, 0.085, 0.08], { k: 0.04, bone: 'body', col: 'belly' })),
+        ...both(T([-0.18, 2.2, 0.95], [-0.19, 2.06, 0.93], 0.035, 0.008, { k: 0.008, bone: 'head', col: 'horn' }), T([-0.24, 2.84, 0.55], [-0.38, 2.9, 0.3], 0.05, 0.02, { k: 0.03, bone: 'head', col: 'horn' }))
       ],
       paint: [E([0, 1.3, 0.48], [0.5, 0.55, 0.22], { col: 'belly', glow: 0.25, soft: 0.02 }), ...[1.05, 1.3, 1.55].map((y) => E([0, y, 0.62], [0.45, 0.02, 0.1], { col: 'dark', soft: 0.006 }))],
       face: { eyeX: 0.21, eyeY: 2.6, eyeR: 0.11, mouthY: 2.18, mouthW: 1.2, browY: 2.82, hostile: true, eyeGlow: '#ffe060', fangs: true },

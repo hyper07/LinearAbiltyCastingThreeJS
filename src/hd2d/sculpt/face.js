@@ -158,10 +158,19 @@ function faceGeometries(sdf, f, headPos, key, low) {
     const toLine = new THREE.Matrix4().makeTranslation(0, -cy, -cz);
     for (const e of eyes) e[1] = toLine.clone().multiply(e[1]);
     out.eyes = bake(eyes);
-    // Lids: shells of the body's skin that roll down over each eye, about the eye line.
+    // Lids: shells of the body's skin that roll down over each eye, about the eye line, just bigger than
+    // the eye (so a blink never shows a lid much bigger than the eye it closes) and deeper than its highlights
+    // (so none shows through), with a dark lash line on the edge.
     const lidShell = new THREE.SphereGeometry(1, seg, Math.round(seg / 2), 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2);
-    out.lids = bake(frames.map((fr) => [lidShell, toLine.clone().multiply(local(fr, new THREE.Vector3(), new THREE.Vector3(r * 1.14, r * 1.38 * sq, r * 0.76))), '#ffffff']));
+    // Only the lid's leading edge (the lower half of its rim): the rest would ring the eye mid-blink.
+    const lash = new THREE.TorusGeometry(1, 0.075, 4, seg, Math.PI).rotateZ(Math.PI);
+    const lidScale = new THREE.Vector3(r * 1.06, r * 1.3 * sq, r * 0.88);
+    out.lids = bake(frames.flatMap((fr) => [
+      [lidShell, toLine.clone().multiply(local(fr, new THREE.Vector3(), lidScale)), '#ffffff'],
+      [lash, toLine.clone().multiply(local(fr, new THREE.Vector3(0, 0, r * 0.03), lidScale)), '#2a1a14']
+    ]));
     lidShell.dispose();
+    lash.dispose();
     const ink = '#2a1a14';
     const hp = [], hu = [];
     for (const fr of frames) {
@@ -234,15 +243,18 @@ export function buildFace({ sdf, f, headBone, headPos, lidMaterial, lidSlot = 0,
   const hurt = new THREE.Mesh(G.hurt, flat);
   happy.visible = hurt.visible = false;
   line.add(eyes, happy, hurt);
-  // Lids carry the body material's slot attributes: all skin (slot 0, or the body for a creature).
+  // Lids carry the body material's attributes: the shell all skin (slot 0, or the body for a creature),
+  // the lash line its own dark colour.
   if (!G.lids.attributes.aSlotA) {
     const n = G.lids.attributes.position.count;
+    const col = G.lids.attributes.color;
     const a = new Float32Array(n * 4), b = new Float32Array(n * 4);
-    for (let i = 0; i < n; i++) (lidSlot < 4 ? a : b)[i * 4 + (lidSlot % 4)] = 1;
+    for (let i = 0; i < n; i++) if (col.getX(i) > 0.5) (lidSlot < 4 ? a : b)[i * 4 + (lidSlot % 4)] = 1;
     G.lids.setAttribute('aSlotA', new THREE.BufferAttribute(a, 4));
     G.lids.setAttribute('aSlotB', new THREE.BufferAttribute(b, 4));
     G.lids.setAttribute('aTone', new THREE.BufferAttribute(new Float32Array(n * 2).fill(1).map((v, i) => (i % 2 ? 0.1 : 1)), 2));
     G.lids.setAttribute('aGlow', new THREE.BufferAttribute(new Float32Array(n), 1));
+    G.lids.setAttribute('aFab', new THREE.BufferAttribute(new Float32Array(n * 4), 4));
   }
   const lids = low ? null : new THREE.Mesh(G.lids, lidMaterial);
   if (lids) {

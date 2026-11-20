@@ -20,7 +20,18 @@
  * (material.js). Each vertex also keeps a tone (darker or lighter folds), a
  * sheen (metal, gloss) and a glow (eyes, cores, magma cracks).
  *
- * Pure geometry: three.js only for BufferGeometry.
+ * Detail on top of the shapes:
+ *   - creases are shaded: an ambient occlusion read from the sampled field
+ *     (how much of the body is just outside each point) darkens the tone, so
+ *     a collar, a belt, a fringe or a fold reads as sculpted at any distance;
+ *   - surface patterns: a shape or paint's `fab` ('weave' cloth, 'grain'
+ *     leather / wood / bark, 'strands' hair and fur, 'stitch' a seam — or an
+ *     object of weights) goes to the aFab attribute, which the material turns
+ *     into fine relief (material.js). A recipe's `fabSlots` gives each colour
+ *     slot its default pattern.
+ *
+ * `sculptArrays()` is the pure core (no three.js: it runs in the sculpting
+ * worker, worker.js); `sculpt()` wraps its arrays in a BufferGeometry.
  */
 import * as THREE from 'three';
 
@@ -35,11 +46,24 @@ export const smin = (a, b, k) => {
 };
 const smax = (a, b, k) => -smin(-a, -b, k);
 
-/** A 3×3 rotation (row-major) undoing Euler XYZ, or null. */
+/** A 3×3 rotation (row-major) undoing Euler angles (three.js's convention, default order 'XYZ'), or null. */
 function rotation(rot, order = 'XYZ') {
   if (!rot || (!rot[0] && !rot[1] && !rot[2])) return null;
-  const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rot[0], rot[1], rot[2], order)).invert().elements;
-  return [m[0], m[4], m[8], m[1], m[5], m[9], m[2], m[6], m[10]];
+  const axis = (k, a) => {
+    const c = Math.cos(a), s = Math.sin(a);
+    if (k === 'X') return [1, 0, 0, 0, c, -s, 0, s, c];
+    if (k === 'Y') return [c, 0, s, 0, 1, 0, -s, 0, c];
+    return [c, -s, 0, s, c, 0, 0, 0, 1];
+  };
+  const mul = (A, B) => {
+    const o = new Array(9);
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) o[r * 3 + c] = A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c];
+    return o;
+  };
+  const ang = { X: rot[0], Y: rot[1], Z: rot[2] };
+  const M = mul(mul(axis(order[0], ang[order[0]]), axis(order[1], ang[order[1]])), axis(order[2], ang[order[2]]));
+  // The inverse of a rotation is its transpose.
+  return [M[0], M[3], M[6], M[1], M[4], M[7], M[2], M[5], M[8]];
 }
 
 /**
@@ -54,61 +78,84 @@ function rotation(rot, order = 'XYZ') {
  */
 export function compileShape(sh) {
   const R = rotation(sh.rot, sh.order);
-  const local = (x, y, z, c) => {
-    let px = x - c[0], py = y - c[1], pz = z - c[2];
-    if (R) {
-      const qx = R[0] * px + R[1] * py + R[2] * pz, qy = R[3] * px + R[4] * py + R[5] * pz, qz = R[6] * px + R[7] * py + R[8] * pz;
-      px = qx; py = qy; pz = qz;
-    }
-    return [px, py, pz];
-  };
+  const R0 = R?.[0], R1 = R?.[1], R2 = R?.[2], R3 = R?.[3], R4 = R?.[4], R5 = R?.[5], R6 = R?.[6], R7 = R?.[7], R8 = R?.[8];
   let d, box;
   if (sh.s === 'sph') {
     const [cx, cy, cz] = sh.c, r = sh.r;
-    d = (x, y, z) => Math.hypot(x - cx, y - cy, z - cz) - r;
+    d = (x, y, z) => Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz)) - r;
     box = [cx - r, cy - r, cz - r, cx + r, cy + r, cz + r];
   } else if (sh.s === 'ell') {
-    const c = sh.c, [rx, ry, rz] = sh.r;
-    d = (x, y, z) => {
-      const [px, py, pz] = local(x, y, z, c);
-      const k0 = Math.hypot(px / rx, py / ry, pz / rz);
-      const k1 = Math.hypot(px / (rx * rx), py / (ry * ry), pz / (rz * rz));
-      return k1 > 1e-9 ? (k0 * (k0 - 1)) / k1 : -Math.min(rx, ry, rz);
-    };
+    const [cx, cy, cz] = sh.c, [rx, ry, rz] = sh.r;
+    const irx = 1 / rx, iry = 1 / ry, irz = 1 / rz, irx2 = irx * irx, iry2 = iry * iry, irz2 = irz * irz, mr = -Math.min(rx, ry, rz);
+    d = R
+      ? (x, y, z) => {
+          const ux = x - cx, uy = y - cy, uz = z - cz;
+          const px = R0 * ux + R1 * uy + R2 * uz, py = R3 * ux + R4 * uy + R5 * uz, pz = R6 * ux + R7 * uy + R8 * uz;
+          const k0 = Math.sqrt(px * px * irx2 + py * py * iry2 + pz * pz * irz2);
+          const k1 = Math.sqrt(px * px * irx2 * irx2 + py * py * iry2 * iry2 + pz * pz * irz2 * irz2);
+          return k1 > 1e-9 ? (k0 * (k0 - 1)) / k1 : mr;
+        }
+      : (x, y, z) => {
+          const px = x - cx, py = y - cy, pz = z - cz;
+          const k0 = Math.sqrt(px * px * irx2 + py * py * iry2 + pz * pz * irz2);
+          const k1 = Math.sqrt(px * px * irx2 * irx2 + py * py * iry2 * iry2 + pz * pz * irz2 * irz2);
+          return k1 > 1e-9 ? (k0 * (k0 - 1)) / k1 : mr;
+        };
     const m = Math.max(rx, ry, rz);
-    box = R ? [c[0] - m, c[1] - m, c[2] - m, c[0] + m, c[1] + m, c[2] + m] : [c[0] - rx, c[1] - ry, c[2] - rz, c[0] + rx, c[1] + ry, c[2] + rz];
+    box = R ? [cx - m, cy - m, cz - m, cx + m, cy + m, cz + m] : [cx - rx, cy - ry, cz - rz, cx + rx, cy + ry, cz + rz];
   } else if (sh.s === 'cap' || sh.s === 'taper') {
     const [ax, ay, az] = sh.a, [bx, by, bz] = sh.b;
     const ra = sh.s === 'cap' ? sh.r : sh.r[0], rb = sh.s === 'cap' ? sh.r : sh.r[1];
-    const bax = bx - ax, bay = by - ay, baz = bz - az, bb = bax * bax + bay * bay + baz * baz || 1e-9;
+    const bax = bx - ax, bay = by - ay, baz = bz - az, ibb = 1 / (bax * bax + bay * bay + baz * baz || 1e-9), dr = rb - ra;
     d = (x, y, z) => {
       const pax = x - ax, pay = y - ay, paz = z - az;
-      const h = clamp((pax * bax + pay * bay + paz * baz) / bb, 0, 1);
-      return Math.hypot(pax - bax * h, pay - bay * h, paz - baz * h) - (ra + (rb - ra) * h);
+      let h = (pax * bax + pay * bay + paz * baz) * ibb;
+      h = h < 0 ? 0 : h > 1 ? 1 : h;
+      const qx = pax - bax * h, qy = pay - bay * h, qz = paz - baz * h;
+      return Math.sqrt(qx * qx + qy * qy + qz * qz) - (ra + dr * h);
     };
     const m = Math.max(ra, rb);
     box = [Math.min(ax, bx) - m, Math.min(ay, by) - m, Math.min(az, bz) - m, Math.max(ax, bx) + m, Math.max(ay, by) + m, Math.max(az, bz) + m];
   } else if (sh.s === 'box') {
-    const c = sh.c, [hx, hy, hz] = sh.r, rr = sh.round ?? 0.05;
+    const [cx, cy, cz] = sh.c, [hx, hy, hz] = sh.r, rr = sh.round ?? 0.05;
     d = (x, y, z) => {
-      const [px, py, pz] = local(x, y, z, c);
+      let px = x - cx, py = y - cy, pz = z - cz;
+      if (R) {
+        const qx = R0 * px + R1 * py + R2 * pz, qy = R3 * px + R4 * py + R5 * pz, qz = R6 * px + R7 * py + R8 * pz;
+        px = qx; py = qy; pz = qz;
+      }
       const qx = Math.abs(px) - hx + rr, qy = Math.abs(py) - hy + rr, qz = Math.abs(pz) - hz + rr;
-      return Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qy, qz), 0) - rr;
+      const ox = qx > 0 ? qx : 0, oy = qy > 0 ? qy : 0, oz = qz > 0 ? qz : 0;
+      const inside = Math.max(qx, qy, qz);
+      return Math.sqrt(ox * ox + oy * oy + oz * oz) + (inside < 0 ? inside : 0) - rr;
     };
     const m = Math.hypot(hx, hy, hz);
-    box = [c[0] - m, c[1] - m, c[2] - m, c[0] + m, c[1] + m, c[2] + m];
+    box = R ? [cx - m, cy - m, cz - m, cx + m, cy + m, cz + m] : [cx - hx, cy - hy, cz - hz, cx + hx, cy + hy, cz + hz];
   } else if (sh.s === 'disc') {
-    const c = sh.c, [rad, th] = sh.r;
+    const [cx, cy, cz] = sh.c, [rad, th] = sh.r;
     d = (x, y, z) => {
-      const [px, py, pz] = local(x, y, z, c);
-      const q = Math.hypot(px, py) - rad;
-      return Math.hypot(Math.max(q, 0), pz) - th;
+      let px = x - cx, py = y - cy, pz = z - cz;
+      if (R) {
+        const qx = R0 * px + R1 * py + R2 * pz, qy = R3 * px + R4 * py + R5 * pz, qz = R6 * px + R7 * py + R8 * pz;
+        px = qx; py = qy; pz = qz;
+      }
+      const q = Math.sqrt(px * px + py * py) - rad;
+      const o = q > 0 ? q : 0;
+      return Math.sqrt(o * o + pz * pz) - th;
     };
     const m = rad + th;
-    box = [c[0] - m, c[1] - m, c[2] - m, c[0] + m, c[1] + m, c[2] + m];
+    box = [cx - m, cy - m, cz - m, cx + m, cy + m, cz + m];
   } else throw new Error(`unknown shape ${sh.s}`);
   return { d, box };
 }
+
+/** How far a point is from a box at least (0 inside it). */
+const boxDist = (b, x, y, z) => {
+  const dx = x < b[0] ? b[0] - x : x > b[3] ? x - b[3] : 0;
+  const dy = y < b[1] ? b[1] - y : y > b[4] ? y - b[4] : 0;
+  const dz = z < b[2] ? b[2] - z : z > b[5] ? z - b[5] : 0;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+};
 
 /* ---------------------------------------------------------------- a compiled recipe */
 
@@ -119,16 +166,23 @@ export function compileShape(sh) {
  *   parts: [{ …shape, k, bone, col, tone, sheen, glow, sub }]  the body
  *   paint: [{ …shape, col, tone, sheen, glow, soft }]      colour only: wins where the surface is inside it
  *   blend                                                 how far colours mix across a seam (m)
+ *   fabSlots: { cloth: 'weave', … }                      each slot's default surface pattern
+ *   ao                                                    how strongly creases darken (default 1)
  * }
  */
 export function compile(recipe) {
   const parts = recipe.parts.map((p) => ({ ...p, ...compileShape(p), k: p.k ?? 0.06 }));
   const paint = (recipe.paint ?? []).map((p) => ({ ...p, ...compileShape(p) }));
+  // The field: every shape blended in, skipping those too far away to change it (their box tells).
+  const n = parts.length;
   const sdf = (x, y, z) => {
     let acc = 1e9;
-    for (const p of parts) {
-      const d = p.d(x, y, z);
-      acc = p.sub ? smax(acc, -d, p.k) : smin(acc, d, p.k);
+    for (let i = 0; i < n; i++) {
+      const p = parts[i];
+      const lb = boxDist(p.box, x, y, z);
+      if (p.sub) {
+        if (acc < p.k + 0.08 - lb) acc = smax(acc, -p.d(x, y, z), p.k);
+      } else if (lb - p.k - 0.08 < acc) acc = smin(acc, p.d(x, y, z), p.k);
     }
     return acc;
   };
@@ -163,23 +217,50 @@ export function trace(sdf, o, dir, max = 3) {
 
 /* ---------------------------------------------------------------- polygonise */
 
+/** sRGB '#rgb' / '#rrggbb' → linear RGB (as three.js's Color does with colour management on). */
+export function hexToLinear(hex) {
+  let h = String(hex).trim().replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h.slice(0, 6), 16);
+  if (!Number.isFinite(n)) throw new Error(`not a colour: ${hex}`);
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return [lin(((n >> 16) & 255) / 255), lin(((n >> 8) & 255) / 255), lin((n & 255) / 255)];
+}
+
 /** How a shape's colour reads: a slot index (0–7) or a fixed colour. */
 function colourOf(col, slots, cache) {
   if (col == null) return { slot: 0 };
   if (typeof col === 'number') return { slot: col };
   const i = slots.indexOf(col);
   if (i >= 0) return { slot: i };
-  if (!cache.has(col)) cache.set(col, { fixed: new THREE.Color(col) });
+  if (!cache.has(col)) cache.set(col, { fixed: hexToLinear(col) });
   return cache.get(col);
 }
 
+/** The surface patterns, in aFab order. */
+export const FAB = ['weave', 'grain', 'strands', 'stitch'];
+/** A shape's `fab` ('weave' … or { weave: 0.5, … } or null) as four weights; `undefined` if it has none. */
+function fabOf(fab) {
+  if (fab === undefined) return undefined;
+  const out = [0, 0, 0, 0];
+  if (fab == null) return out;
+  if (typeof fab === 'string') {
+    const i = FAB.indexOf(fab);
+    if (i >= 0) out[i] = 1;
+    return out;
+  }
+  FAB.forEach((k, i) => (out[i] = fab[k] ?? 0));
+  return out;
+}
+
 /**
- * The figure's skinned geometry. `res` is the number of grid cells along the
- * longest side. Attributes: position, normal, color (the fixed colour),
- * aSlotA / aSlotB (weights of slots 0–3 and 4–7), aTone (brightness, sheen),
- * aGlow, skinIndex, skinWeight.
+ * The figure's surface as plain arrays (no three.js — the sculpting worker
+ * runs this). `res` is the number of grid cells along the longest side.
+ * Returns { position, normal, color (the fixed colour), slotA / slotB
+ * (weights of slots 0–3 and 4–7), tone (brightness × crease shade, sheen),
+ * glow, fab (weave, grain, strands, stitch), skinIndex, skinWeight, index }.
  */
-export function sculpt(model, { res = 56 } = {}) {
+export function sculptArrays(model, { res = 56 } = {}) {
   const { parts, paint, sdf, box, recipe } = model;
   const slots = recipe.slots ?? [];
   const pad = 0.04;
@@ -274,34 +355,61 @@ export function sculpt(model, { res = 56 } = {}) {
       index[t + 2] = tmp;
     }
   }
-  // Colour slots, tone, sheen, glow and bone weights from the shapes.
+  // Creases: how much of the body sits just outside each point (the sampled field, read along the normal).
+  const fieldAt = (x, y, z) => {
+    const fx = clamp((x - min[0]) / h, 0, nx - 1.001), fy = clamp((y - min[1]) / h, 0, ny - 1.001), fz = clamp((z - min[2]) / h, 0, nz - 1.001);
+    const i = fx | 0, j = fy | 0, k = fz | 0, tx = fx - i, ty = fy - j, tz = fz - k;
+    const c00 = field[at(i, j, k)] * (1 - tx) + field[at(i + 1, j, k)] * tx;
+    const c10 = field[at(i, j + 1, k)] * (1 - tx) + field[at(i + 1, j + 1, k)] * tx;
+    const c01 = field[at(i, j, k + 1)] * (1 - tx) + field[at(i + 1, j, k + 1)] * tx;
+    const c11 = field[at(i, j + 1, k + 1)] * (1 - tx) + field[at(i + 1, j + 1, k + 1)] * tx;
+    return (c00 * (1 - ty) + c10 * ty) * (1 - tz) + (c01 * (1 - ty) + c11 * ty) * tz;
+  };
+  const aoK = recipe.ao ?? 1;
+  const aoStep = Math.max(h * 0.85, 0.016);
+  const AO_W = [1, 0.75, 0.5, 0.3];
+  // Colour slots, tone, sheen, glow, patterns and bone weights from the shapes.
   const boneIndex = new Map(recipe.bones.map((b, i) => [b[0], i]));
   const cache = new Map();
+  const fabSlots = recipe.fabSlots ?? {};
+  const slotFab = (col) => (typeof col === 'string' && fabSlots[col] !== undefined ? fabOf(fabSlots[col]) : undefined);
   const pc = parts.map((p) => colourOf(p.col, slots, cache));
   const qc = paint.map((p) => colourOf(p.col, slots, cache));
+  const pf = parts.map((p) => fabOf(p.fab) ?? slotFab(p.col) ?? [0, 0, 0, 0]);
+  const qf = paint.map((p) => fabOf(p.fab) ?? slotFab(p.col));
   const colors = new Float32Array(count * 3), slotA = new Float32Array(count * 4), slotB = new Float32Array(count * 4);
-  const tone = new Float32Array(count * 2), glow = new Float32Array(count);
+  const tone = new Float32Array(count * 2), glow = new Float32Array(count), fabA = new Float32Array(count * 4);
   const skinIndex = new Uint16Array(count * 4), skinWeight = new Float32Array(count * 4);
   const blend = recipe.blend ?? 0.012;
   const boneW = new Float32Array(recipe.bones.length);
-  const ds = new Float32Array(parts.length);
+  const ds = new Float32Array(parts.length), lbs = new Float32Array(parts.length);
   const sw = new Float32Array(9); // eight slots, then the fixed colour
+  const fw = new Float32Array(4);
   const order = [];
   for (let vi = 0; vi < count; vi++) {
     const x = P[vi * 3], y = P[vi * 3 + 1], z = P[vi * 3 + 2];
     let best = 1e9;
+    // Shapes whose box is much further than the nearest shape cannot colour or move this point: skip them.
+    let near = 1e9;
+    for (let i = 0; i < parts.length; i++) if (!parts[i].sub) near = Math.min(near, (lbs[i] = boxDist(parts[i].box, x, y, z)) > 0 ? lbs[i] : 1e9);
+    for (let i = 0; i < parts.length; i++) {
+      if (!parts[i].sub && lbs[i] === 0) near = Math.min(near, parts[i].d(x, y, z));
+    }
+    const reach = near + 0.2;
     for (let i = 0; i < parts.length; i++) {
       if (!parts[i].sub) {
-        ds[i] = parts[i].d(x, y, z);
+        ds[i] = lbs[i] > reach ? 1e9 : parts[i].d(x, y, z);
         continue;
       }
       // A carve hides the shapes listed before it (as it does in the field), so they do not colour its hollow.
-      const dc = -parts[i].d(x, y, z);
       ds[i] = 1e9;
+      if (boxDist(parts[i].box, x, y, z) > 0.2) continue;
+      const dc = -parts[i].d(x, y, z);
       for (let j = 0; j < i; j++) if (!parts[j].sub && dc > ds[j]) ds[j] = dc;
     }
     for (let i = 0; i < parts.length; i++) if (ds[i] < best) best = ds[i];
     sw.fill(0);
+    fw.fill(0);
     boneW.fill(0);
     let fr = 0, fg = 0, fb = 0, W = 0, tn = 0, sh = 0, gl = 0;
     for (let i = 0; i < parts.length; i++) {
@@ -312,41 +420,61 @@ export function sculpt(model, { res = 56 } = {}) {
         const c = pc[i];
         if (c.fixed) {
           sw[8] += w;
-          fr += w * c.fixed.r; fg += w * c.fixed.g; fb += w * c.fixed.b;
+          fr += w * c.fixed[0]; fg += w * c.fixed[1]; fb += w * c.fixed[2];
         } else sw[c.slot] += w;
         W += w;
         tn += w * (p.tone ?? 1);
         sh += w * (p.sheen ?? 0);
         gl += w * (p.glow ?? 0);
+        const f = pf[i];
+        fw[0] += w * f[0]; fw[1] += w * f[1]; fw[2] += w * f[2]; fw[3] += w * f[3];
       }
       if (p.bone != null) boneW[boneIndex.get(p.bone)] += Math.exp(-Math.max(0, ds[i] - best) / (p.k * 0.15 + 0.006));
     }
     for (let s = 0; s < 9; s++) sw[s] /= W || 1;
+    for (let s = 0; s < 4; s++) fw[s] /= W || 1;
     let r = sw[8] ? fr / (sw[8] * W) : 1, gg = sw[8] ? fg / (sw[8] * W) : 1, b = sw[8] ? fb / (sw[8] * W) : 1;
     tn /= W || 1; sh /= W || 1; gl /= W || 1;
     // Paint: crisp but anti-aliased over a hair of distance.
     for (let i = 0; i < paint.length; i++) {
       const p = paint[i];
-      const d = p.d(x, y, z);
       const soft = p.soft ?? 0.008;
+      if (boxDist(p.box, x, y, z) > soft) continue;
+      const d = p.d(x, y, z);
       if (d > soft) continue;
       const a = clamp(0.5 - d / (2 * soft), 0, 1);
       if (a <= 0) continue;
-      for (let s = 0; s < 9; s++) sw[s] *= 1 - a;
       const c = qc[i];
-      if (c.fixed) {
-        const wf = sw[8];
-        r = (r * wf + c.fixed.r * a) / (wf + a); gg = (gg * wf + c.fixed.g * a) / (wf + a); b = (b * wf + c.fixed.b * a) / (wf + a);
-        sw[8] += a;
-      } else sw[c.slot] += a;
+      if (p.col !== undefined) {
+        for (let s = 0; s < 9; s++) sw[s] *= 1 - a;
+        if (c.fixed) {
+          const wf = sw[8];
+          r = (r * wf + c.fixed[0] * a) / (wf + a); gg = (gg * wf + c.fixed[1] * a) / (wf + a); b = (b * wf + c.fixed[2] * a) / (wf + a);
+          sw[8] += a;
+        } else sw[c.slot] += a;
+      }
       if (p.tone != null) tn += (p.tone - tn) * a;
       if (p.sheen != null) sh += (p.sheen - sh) * a;
       if (p.glow != null) gl += (p.glow - gl) * a;
+      const f = qf[i];
+      if (f) for (let s = 0; s < 4; s++) fw[s] += (f[s] - fw[s]) * a;
+    }
+    // Crease shade.
+    if (aoK > 0) {
+      const nx3 = Nrm[vi * 3], ny3 = Nrm[vi * 3 + 1], nz3 = Nrm[vi * 3 + 2];
+      let occ = 0;
+      for (let s = 1; s <= 4; s++) {
+        const dd = s * aoStep;
+        const f = fieldAt(x + nx3 * dd, y + ny3 * dd, z + nz3 * dd);
+        occ += AO_W[s - 1] * clamp((dd - f) / dd, 0, 1);
+      }
+      tn *= 1 - clamp(occ * 0.32 * aoK, 0, 0.45);
     }
     colors[vi * 3] = r; colors[vi * 3 + 1] = gg; colors[vi * 3 + 2] = b;
     for (let s = 0; s < 4; s++) {
       slotA[vi * 4 + s] = sw[s];
       slotB[vi * 4 + s] = sw[s + 4];
+      fabA[vi * 4 + s] = fw[s];
     }
     tone[vi * 2] = tn; tone[vi * 2 + 1] = sh;
     glow[vi] = gl;
@@ -362,18 +490,39 @@ export function sculpt(model, { res = 56 } = {}) {
     }
     if (!order.length) skinWeight[vi * 4] = 1;
   }
+  return {
+    position: P, normal: Nrm, color: colors, slotA, slotB, tone, glow, fab: fabA, skinIndex, skinWeight,
+    index: count > 65535 ? new Uint32Array(index) : new Uint16Array(index)
+  };
+}
+
+/** The arrays sculptArrays() made, as a BufferGeometry (skinned, unless `rigid`). */
+export function toGeometry(a, { rigid = false } = {}) {
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
-  geo.setAttribute('normal', new THREE.BufferAttribute(Nrm, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.setAttribute('aSlotA', new THREE.BufferAttribute(slotA, 4));
-  geo.setAttribute('aSlotB', new THREE.BufferAttribute(slotB, 4));
-  geo.setAttribute('aTone', new THREE.BufferAttribute(tone, 2));
-  geo.setAttribute('aGlow', new THREE.BufferAttribute(glow, 1));
-  geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
-  geo.setAttribute('skinWeight', new THREE.BufferAttribute(skinWeight, 4));
-  geo.setIndex(count > 65535 ? new THREE.Uint32BufferAttribute(index, 1) : new THREE.Uint16BufferAttribute(index, 1));
+  geo.setAttribute('position', new THREE.BufferAttribute(a.position, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(a.normal, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(a.color, 3));
+  geo.setAttribute('aSlotA', new THREE.BufferAttribute(a.slotA, 4));
+  geo.setAttribute('aSlotB', new THREE.BufferAttribute(a.slotB, 4));
+  geo.setAttribute('aTone', new THREE.BufferAttribute(a.tone, 2));
+  geo.setAttribute('aGlow', new THREE.BufferAttribute(a.glow, 1));
+  geo.setAttribute('aFab', new THREE.BufferAttribute(a.fab, 4));
+  if (!rigid) {
+    geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(a.skinIndex, 4));
+    geo.setAttribute('skinWeight', new THREE.BufferAttribute(a.skinWeight, 4));
+  }
+  geo.setIndex(new THREE.BufferAttribute(a.index, 1));
   geo.computeBoundingSphere();
   geo.computeBoundingBox();
   return geo;
+}
+
+/**
+ * The figure's skinned geometry. `res` is the number of grid cells along the
+ * longest side. Attributes: position, normal, color (the fixed colour),
+ * aSlotA / aSlotB (weights of slots 0–3 and 4–7), aTone (brightness, sheen),
+ * aGlow, aFab (weave, grain, strands, stitch), skinIndex, skinWeight.
+ */
+export function sculpt(model, { res = 56, rigid = false } = {}) {
+  return toGeometry(sculptArrays(model, { res }), { rigid });
 }

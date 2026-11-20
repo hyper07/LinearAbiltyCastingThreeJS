@@ -101,7 +101,7 @@ a Blade, Moss a Warden, Frost a Seer, the potions move into the bag.
 | People as letter maps (hair, face, build, outfit) — the portraits and icons still use them | `src/hd2d/people.js` |
 | Pixel sprites (shaded by `src/pixel/art.js`), item and skill icons; each person's look and colours for the sculpted figure | `src/hd2d/sprites.js` |
 | Jointed people on springs (walk, combos, skills, idles, look-at, aim twist, backpedal), the gear hung on them | `src/hd2d/rig.js` |
-| The sculpted figures: signed-distance sculpting with colour slots (`sdf.js`), the vinyl material and outline (`material.js`), faces and expressions (`face.js`), people (`people.js`), monsters (`beasts.js`, `beastActor.js`), smooth gear and capes (`gear.js`), how game calls map onto them (`mapping.js`), shared meshes and detail levels (`build.js`) | `src/hd2d/sculpt/` |
+| The sculpted figures: signed-distance sculpting with colour slots, crease shading and surface patterns (`sdf.js`), the vinyl material, its detail pass and the outline (`material.js`), faces and expressions (`face.js`), people (`people.js`), monsters (`beasts.js`, `beastActor.js`), smooth gear and capes (`gear.js`), how game calls map onto them (`mapping.js`), shared meshes, detail levels and the background build queue (`build.js`, `worker.js`) | `src/hd2d/sculpt/` |
 | The old voxel figures (kept behind `SCULPTED_FIGURES` in `sculpt/build.js`) | `src/hd2d/voxel.js`, `beasts.js`, `gear3d.js` |
 | Combat effects: pooled particles, voxel debris, rings, pillars, a flash light | `src/hd2d/vfx.js` |
 | Aiming at the pointer; reward and placed chests (pure rules) | `src/hd2d/aim.js`, `chests.js` |
@@ -119,13 +119,34 @@ the mesh (skin, hair, coat, tunic … or body, belly, accents), so one mesh serv
 hero's armour colour, a villager's coat, a hero monster's affix colour. Faces have glossy eyes with
 highlights and lids that blink; heroes look fierce when they strike, concentrate when they cast,
 wince when hit; monsters glare under angry brows with glowing eyes, snarl on the wind-up, roar in
-the strike and go dizzy when stunned. A class shows on a bare head (the Warden's helm, the Seer's
-cowl, the Ranger's hood, the Blade's pauldron); gear — every weapon, shield, hat and helm — is
-sculpted in the same style to fit the round heads and mitten hands. The material takes the
+the strike and go dizzy when stunned. A class shows on a bare head (the Warden's riveted helm, the
+Seer's cowl, the Ranger's hood and leaf-cut mantle, the Blade's strapped pauldron); gear — every
+weapon, shield, hat and helm — is sculpted in the same style to fit the round heads and mitten hands.
+
+The toys are detailed the way a sculpted figure is, not painted on: hair in locks and clumps (bangs,
+side locks, a parting, ponytails and pigtails tied off and ending in points, buns wound round, curls),
+small ears with a hollow, a soft nose, blush; collars, cuffs, buttons down a tunic panel, a belt with a
+buckle and a pouch, a coat skirt with a stitched hem, boots with a folded cuff and a sole, mitten hands
+with a thumb; robes with folds and a knotted sash, dresses with a frilled hem, aprons with a pocket;
+breastplates with rivets over heavy armour, layered pauldrons. Villagers differ — scarves, kerchiefs,
+head bands, a flower in the hair, elders' long beards (`wear` and `elder` on a look in `rules.js`).
+Weapons have fullers, curled crossguards and wrapped grips; shields rims, bosses and rivets; helms
+brow bands, rivets, visors, cheek plates and feathered plumes; staves a wound strap and prongs round
+the orb; bows a wrapped grip and a string. Monsters have fangs, claws, chest ruffs, crests, shell
+plates, whiskers, gills under a mushroom cap, ridged belly plates, Gnarlroot's bark and heartwood, the
+golem's rock slabs. Creases are shaded from the sculpt itself (an ambient occlusion read from the
+distance field), and a detail pass in the material gives cloth a weave and soft folds, leather and
+wood a grain, hair and fur strands, seams stitches, beasts scales, metal a soft reflection and bright
+bevelled edges — each fading out before it is smaller than a pixel. The material takes the
 figure's own light (readable in the dark, warmed by fires), the rim, the hit flash and glows, with
-soft toon bands and a thin outline; hero monsters and bosses are outlined in their colour. Each
-mesh is built once per shape and shared, near the camera finely and further away coarsely (the fine
-ones in the background as a realm loads). Monsters still break into pieces of their colours when
+soft toon bands and a thin outline; hero monsters and bosses are outlined in their colour.
+
+Kept cheap to draw: each mesh is built once per shape and shared; the fine mesh is drawn only near the
+camera, and even then the outline and the shadow use the coarse one (gear too has a fine and a coarse
+version). Everything a person wears is one skinned mesh (each piece rides its own bone) and the cape
+one soft sheet on its three hinges, in the same vinyl material. Meshes are sculpted in a worker
+(`sculpt/worker.js`), so dressing, pre-warming a realm and a monster coming close never stall a frame;
+a figure shows its coarse mesh, or the gear it wore, until the new one arrives. Monsters still break into pieces of their colours when
 they die. Every combat effect draws from shared pools — one instanced draw for glowing particles,
 one for smoke and dust, one for debris — with a budget, and dims in the daylight realms so bloom
 never washes them out. Crits pulse the screen briefly (colour fringe, a lift of light); with

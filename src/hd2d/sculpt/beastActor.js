@@ -31,7 +31,7 @@ const recipeOf = (kind) => BEAST_RECIPES[kind]((SEEDS[kind] ??= kind.length * 7 
 export function prewarmSculptedBeast(kind) {
   if (!BEAST_RECIPES[kind]) return;
   const make = () => recipeOf(kind);
-  geometryFor(`beast|${kind}`, make, 'far');
+  requestGeometry(`beast|${kind}`, make, 'far');
   requestGeometry(`beast|${kind}`, make, 'near');
 }
 
@@ -46,7 +46,7 @@ export class SculptBeastActor {
     this.group = new THREE.Group();
     this.u = figureUniforms();
     this.self = this.u.uSelf;
-    this.material = sculptMaterial(this.u, { gloss: R.gloss ?? 0.3, fur: R.fur ?? 0 });
+    this.material = sculptMaterial(this.u, { gloss: R.gloss ?? 0.3, fur: R.fur ?? 0, scales: Boolean(R.scales), fabScale: R.fabScale ?? 1, hairC: R.hairC ?? [0, (R.height ?? 1) * 0.5, 0], rimK: R.rimK ?? 1, selfK: R.selfK ?? 0.45 });
     setPalette(this.material, R.palette, R.glows);
     this.mesh = new THREE.Group(); // turns to face (the game leans it)
     this.tilt = new THREE.Group(); // flinches
@@ -117,37 +117,38 @@ export class SculptBeastActor {
     this._swapDetail(true);
   }
 
-  /** The mesh at this detail (the far one while the near one builds) and its face. */
+  /**
+   * The mesh at this detail and its face. What is missing is built in the
+   * background (urgently: it is on screen) — the coarse one first; until then
+   * the one it has stays (a monster spawned before its realm's pre-warm is
+   * done gets its coarse mesh built on the spot, so it is never invisible).
+   * The outline and the shadow always use the coarse mesh.
+   */
   _swapDetail(first = false) {
     if (!first && this._detail === this.detail) return;
     const want = this.detail === 1 ? 'near' : 'far';
-    let lod = want;
-    let geo = geometryReady(this.key, want);
-    if (!geo) {
-      if (want === 'near') {
-        requestGeometry(this.key, this._make, 'near');
-        geo = geometryFor(this.key, this._make, 'far');
-        lod = 'far';
-      } else geo = geometryFor(this.key, this._make, 'far');
-    }
+    let far = geometryReady(this.key, 'far');
+    const near = want === 'near' ? geometryReady(this.key, 'near') : null;
+    if (want === 'near' && !near) requestGeometry(this.key, this._make, 'near', { urgent: true });
+    if (!far) far = geometryFor(this.key, this._make, 'far');
+    const geo = near ?? far;
+    const lod = near ? 'near' : 'far';
     this._detail = lod === want ? this.detail : -1;
     if (this._lod === lod) return;
     this._lod = lod;
     if (!this.skin) {
       this.skin = new THREE.SkinnedMesh(geo, this.material);
       this.skin.bind(this.skeleton, new THREE.Matrix4());
-      this.skin.castShadow = true;
       this.skin.receiveShadow = true;
-      this.hull = new THREE.SkinnedMesh(geo, this._outline());
+      this.hull = new THREE.SkinnedMesh(far, this._outline());
       this.hull.bind(this.skeleton, new THREE.Matrix4());
+      this.hull.castShadow = true;
       this.hull.raycast = () => {};
       this.inner.add(this.skin, this.hull);
-    } else {
-      this.skin.geometry = geo;
-      this.hull.geometry = geo;
-    }
-    this.skin.boundingSphere = this.hull.boundingSphere = geo.boundingSphere.clone();
+    } else this.skin.geometry = geo;
+    this.skin.boundingSphere = far.boundingSphere.clone();
     this.skin.boundingSphere.radius *= 1.4;
+    this.hull.boundingSphere = this.skin.boundingSphere;
     this.face?.dispose();
     this.face = buildFace({ sdf: this.model.sdf, f: this.recipe.face, headBone: this.headBone, headPos: this.headPos, lidMaterial: this.material, lidSlot: 0, key: this.key, low: lod === 'far' });
   }

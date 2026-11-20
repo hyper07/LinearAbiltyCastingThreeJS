@@ -6,9 +6,10 @@ import { NPCS, startingGear } from '../../src/hd2d/rules.js';
 import { RIG_POSES, JOINT_BONES, heroExpression, beastExpression, gearSockets, weaponLength } from '../../src/hd2d/sculpt/mapping.js';
 import { personDesc, personRecipe, shapeKey, faceKey, bodyPlan, HAIRS } from '../../src/hd2d/sculpt/people.js';
 import { BEAST_RECIPES, seeded } from '../../src/hd2d/sculpt/beasts.js';
-import { compile, sculpt } from '../../src/hd2d/sculpt/sdf.js';
+import { compile, sculpt, sculptArrays, smin, hexToLinear, FAB } from '../../src/hd2d/sculpt/sdf.js';
 import { EXPRESSIONS } from '../../src/hd2d/sculpt/face.js';
-import { sculptedGear, GEAR_SHAPES } from '../../src/hd2d/sculpt/gear.js';
+import { sculptedGear, GEAR_SHAPES, smoothCapeGeometry, CAPE_STEP } from '../../src/hd2d/sculpt/gear.js';
+import { readFileSync } from 'node:fs';
 
 /* ------------------------------------------------------------ poses → the new rig */
 
@@ -167,4 +168,94 @@ test('sculpt: every piece of gear sculpts smooth', () => {
     assert.ok(!g.attributes.skinIndex, `${kind} ${shape}: rigid`);
     assert.equal(sculptedGear(kind, { shape, color: '#a8b4c0', glow: shape === 'staff' ? '#7ad8ff' : null }), g, 'built once');
   }
+});
+
+/* ------------------------------------------------------------ detail */
+
+test('sculpt detail: skipping far shapes leaves the surface exactly where the full field puts it', () => {
+  const smax = (a, b, k) => -smin(-a, -b, k);
+  for (const look of [{ hair: 'short', beard: 'beard' }, { hair: 'ponytail', sex: 'f', outfit: 'apron' }]) {
+    const m = compile(personRecipe(personDesc(look)));
+    const full = (x, y, z) => {
+      let acc = 1e9;
+      for (const p of m.parts) acc = p.sub ? smax(acc, -p.d(x, y, z), p.k) : smin(acc, p.d(x, y, z), p.k);
+      return acc;
+    };
+    const rnd = seeded(11);
+    let n = 0;
+    for (let i = 0; i < 40000; i++) {
+      const x = rnd() * 1.2 - 0.6, y = rnd() * 1.9, z = rnd() * 1.2 - 0.6;
+      const f = full(x, y, z);
+      if (Math.abs(f) > 0.015) continue;
+      n++;
+      assert.ok(Math.abs(f - m.sdf(x, y, z)) < 0.002, `${look.hair}: ${f} vs ${m.sdf(x, y, z)} at ${x},${y},${z}`);
+    }
+    assert.ok(n > 500, 'enough points near the surface');
+  }
+});
+
+test('sculpt detail: creases are shaded and every surface carries its pattern (cloth, leather, hair)', () => {
+  const r = personRecipe(personDesc({ hair: 'short' }));
+  const a = sculptArrays(compile(r), { res: 40 });
+  const n = a.position.length / 3;
+  let creased = 0, weave = 0, grain = 0, strands = 0;
+  for (let i = 0; i < n; i++) {
+    if (a.tone[i * 2] < 0.85) creased++;
+    if (a.fab[i * 4] > 0.5) weave++;
+    if (a.fab[i * 4 + 1] > 0.5) grain++;
+    if (a.fab[i * 4 + 2] > 0.5) strands++;
+  }
+  assert.equal(FAB.length, 4);
+  for (const [what, c] of Object.entries({ creased, weave, grain, strands })) assert.ok(c > n * 0.01, `${what}: ${c} of ${n}`);
+  // The hair is strands, the face is not patterned.
+  assert.ok(strands < n * 0.6 && weave < n * 0.8);
+  // Colours are linear, as three.js's are.
+  assert.deepEqual(hexToLinear('#ffffff'), [1, 1, 1]);
+  assert.ok(Math.abs(hexToLinear('#7a5030')[0] - 0.19462) < 1e-4);
+});
+
+test('sculpt detail: the worker builds without three.js and gear has a coarse detail for far away', () => {
+  const src = readFileSync(new URL('../../src/hd2d/sculpt/worker.js', import.meta.url), 'utf8');
+  assert.ok(!/from 'three'/.test(src), 'the worker does not load three.js');
+  for (const [kind, shape] of [['head', 'full'], ['weapon', 'longsword'], ['offhand', 'tower']]) {
+    const near = sculptedGear(kind, { shape, color: '#a8b4c0' }, 'near'), far = sculptedGear(kind, { shape, color: '#a8b4c0' }, 'far');
+    assert.ok(far.index.count < near.index.count / 3, `${kind} ${shape}: far ${far.index.count / 3} vs near ${near.index.count / 3}`);
+    assert.ok(near.index.count / 3 < 30000, `${kind} ${shape}: ${near.index.count / 3} triangles`);
+  }
+});
+
+test('sculpt detail: the cape is one sheet on its three hinges, bending at the seams', () => {
+  const g = smoothCapeGeometry({ color: '#8a2a3a', hem: '#c070ff' });
+  const si = g.attributes.skinIndex, sw = g.attributes.skinWeight, p = g.attributes.position;
+  let blended = 0;
+  for (let i = 0; i < si.count; i++) {
+    assert.ok(Math.abs(sw.getX(i) + sw.getY(i) - 1) < 1e-5, 'weights sum to one');
+    assert.ok(si.getX(i) <= 2 && si.getY(i) <= 2);
+    if (sw.getY(i) > 0.05) blended++;
+    // Each vertex rides the hinge of the strip it hangs in (or the one above, across a seam).
+    assert.ok(si.getX(i) <= Math.floor(-p.getY(i) / CAPE_STEP + 0.3) + 0.01);
+  }
+  assert.ok(blended > 20, 'the seams blend');
+  for (const a of ['aSlotA', 'aSlotB', 'aTone', 'aGlow', 'aFab']) assert.ok(g.attributes[a], `${a} for the vinyl material`);
+  assert.ok(Math.max(...g.attributes.aGlow.array) > 0, 'the hem of a rare cape glows');
+});
+
+test('sculpt detail: villagers differ — scarves, kerchiefs, bands, flowers, elders\' beards', () => {
+  const keys = new Set();
+  for (const id of Object.keys(NPCS)) {
+    const look = NPCS[id].look;
+    if (look) keys.add(shapeKey(personDesc(look, look.gear)));
+  }
+  assert.ok(keys.size >= 18, `${keys.size} different villager shapes`);
+  const plain = personDesc({ hair: 'short' });
+  const scarf = personDesc({ hair: 'short', wear: [['scarf', '#c84a3a']] });
+  assert.notEqual(shapeKey(plain), shapeKey(scarf));
+  assert.ok(personRecipe(scarf).parts.length > personRecipe(plain).parts.length);
+  // A kerchief or band does not go under a helm; a bad colour is ignored.
+  assert.deepEqual(personDesc({ wear: [['kerchief', '#ffffff']] }, { head: { shape: 'full', hidesHair: true } }).wear, []);
+  assert.deepEqual(personDesc({ wear: [['scarf', 'red; x']] }).wear, []);
+  // An elder (white hair and a beard) gets the long beard.
+  assert.ok(personDesc({ beard: 'beard', hairColor: '#f0f0f0' }).elder);
+  assert.ok(!personDesc({ beard: 'beard', hairColor: '#3a2a1a' }).elder);
+  assert.notEqual(shapeKey(personDesc({ beard: 'beard', hairColor: '#f0f0f0' })), shapeKey(personDesc({ beard: 'beard', hairColor: '#3a2a1a' })));
 });

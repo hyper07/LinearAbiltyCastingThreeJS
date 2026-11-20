@@ -123,7 +123,7 @@ const heroCache = new Map();
 /** A hero (or any person with a look) in their gear: built once per look and outfit. */
 export function heroSprite(look, gear = null) {
   const outfit = gear?.chest?.robe ? 'robe' : look.outfit ?? 'tunic';
-  const key = JSON.stringify([look.id ?? look.name, look.hair, look.skin, look.hairColor, look.cloth, outfit, gear?.chest && [gear.chest.color, gear.chest.weight, gear.chest.rarity], gear?.hands, gear?.feet, gear?.head?.hidesHair && gear.head.color]);
+  const key = JSON.stringify([look.id ?? look.name, look.wear, look.elder, look.hair, look.skin, look.hairColor, look.cloth, outfit, gear?.chest && [gear.chest.color, gear.chest.weight, gear.chest.rarity], gear?.hands, gear?.feet, gear?.head?.hidesHair && gear.head.color]);
   let s = heroCache.get(key);
   if (!s) {
     const rows = personRows({ ...look, outfit });
@@ -147,10 +147,10 @@ const HANDMADE_RAMPS = {
 
 /** The camp's first four as sculpted figures (sculpt/people.js): their cut, clothes and colours. */
 const HANDMADE_PEOPLE = {
-  odile: { look: { hair: 'bun', build: 'slim', sex: 'f', eyes: 'wide', outfit: 'robe' }, colors: { skin: '#f0c8a4', hair: '#e8e0d4', cloth: '#3b6f6a', tunic: '#a8845a', trim: '#e0b040', legs: '#4a4058', shoes: '#6a4428' }, gear: { weapon: { shape: 'staff', color: '#6a4a2a', glow: '#ffd27a' } } },
+  odile: { look: { hair: 'bun', build: 'slim', sex: 'f', eyes: 'wide', outfit: 'robe', elder: true, wear: [['scarf', '#c8a868']] }, colors: { skin: '#f0c8a4', hair: '#e8e0d4', cloth: '#3b6f6a', tunic: '#a8845a', trim: '#e0b040', legs: '#4a4058', shoes: '#6a4428' }, gear: { weapon: { shape: 'staff', color: '#6a4a2a', glow: '#ffd27a' } } },
   wren: { look: { hair: 'long', build: 'slim', sex: 'f', eyes: 'wide', outfit: 'dress' }, colors: { skin: '#f0c8a4', hair: '#7a4a2a', cloth: '#6f9a5c', tunic: '#8f7aa8', trim: '#e8dcc8', legs: '#5a4a40', shoes: '#6a4428' }, extra: { headwear: 'hood' } },
-  pell: { look: { hair: 'short', build: 'broad', sex: 'm', eyes: 'wide', beard: 'stubble' }, colors: { skin: '#e6ae86', hair: '#a06a3a', cloth: '#b0503c', tunic: '#d8c090', trim: '#e0b040', legs: '#4a3a5a', shoes: '#6a4428' }, extra: { headwear: 'brim', hat: '#8a5a3a', pack: '#6e5a3a' } },
-  tamsin: { look: { hair: 'pigtails', build: 'slim', sex: 'f', eyes: 'wide' }, colors: { skin: '#f0c8a4', hair: '#d0603a', cloth: '#4e7a9a', tunic: '#c0a070', trim: '#e8c040', legs: '#5a4a3a', shoes: '#6a4428' } }
+  pell: { look: { hair: 'short', build: 'broad', sex: 'm', eyes: 'wide', beard: 'stubble' }, colors: { skin: '#e6ae86', hair: '#a06a3a', cloth: '#b0503c', tunic: '#d8c090', trim: '#e0b040', legs: '#4a3a5a', shoes: '#6a4428' }, extra: { headwear: 'brim', hat: '#8a5a3a', pack: '#6e5a3a', wear: [['scarf', '#c8603a']] } },
+  tamsin: { look: { hair: 'pigtails', build: 'slim', sex: 'f', eyes: 'wide', wear: [['scarf', '#6a8a4a'], ['flower', '#f8f0f0']] }, colors: { skin: '#f0c8a4', hair: '#d0603a', cloth: '#4e7a9a', tunic: '#c0a070', trim: '#e8c040', legs: '#5a4a3a', shoes: '#6a4428' } }
 };
 /** People-shaped monsters' eyes glow (their sculpted figures). */
 const MONSTER_EYES = { rimeguard: '#9ae8ff', acolyte: '#ffb040', matron: '#9ae8ff' };
