@@ -407,7 +407,9 @@ export async function extras({ budget }) {
 /** Pack-name hints for licences of well-known hand-downloaded packs. */
 const KNOWN_LICENSES = [
   [/kenney/i, 'CC0-1.0', 'Kenney'],
-  [/quaternius/i, 'CC0-1.0', 'Quaternius'],
+  [/quaternius/i, 'CC0-1.0', 'Quaternius', 'https://quaternius.com'],
+  // Quaternius packs keep their own names when unzipped (no "quaternius" in them).
+  [/universal (base characters|animation library)|modular character outfits|ultimate modular (men|women)/i, 'CC0-1.0', 'Quaternius', 'https://quaternius.com'],
   [/kaykit/i, 'CC0-1.0', 'Kay Lousberg'],
   [/poly ?pizza/i, 'see pack', 'Poly Pizza'],
   [/sketchfab/i, 'see pack', 'Sketchfab']
@@ -460,7 +462,7 @@ export async function inbox({ budget }) {
         tags: [...pack.toLowerCase().split(/[\W_]+/), ...folders.map((f) => f.toLowerCase())],
         license: hint?.[1] ?? (licenseFile ? `see ${rel(licenseFile)}` : 'unknown — check before sharing'),
         author: hint?.[2] ?? pack,
-        url: ''
+        url: hint?.[3] ?? ''
       });
     }
     log(SRC, `${pack}: ${models.length} models`);

@@ -52,6 +52,18 @@ export const POLYFORK_MODELS = [
 
 export const PACKS = [
   {
+    name: 'Quaternius',
+    what: 'Everyone\'s bodies, faces, hairstyles and outfits — the heroes and all the people of Brindlewick, the Gloamwood and Ashward Outpost (Universal Base Characters, Modular Character Outfits – Fantasy, both the free Standard editions) and their walks, runs, idles, talking, sitting and jumps (Universal Animation Library); downloaded into the asset library by hand',
+    site: 'https://quaternius.com',
+    licence: 'CC0 1.0',
+    licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    items: [
+      { name: 'Universal Base Characters', url: 'https://quaternius.com/packs/universalbasecharacters.html' },
+      { name: 'Modular Character Outfits – Fantasy', url: 'https://quaternius.com/packs/modularcharacteroutfitsfantasy.html' },
+      { name: 'Universal Animation Library', url: 'https://quaternius.com/packs/universalanimationlibrary.html' }
+    ]
+  },
+  {
     name: 'polyfork',
     what: 'The heroes, the villagers, the Gloamwood folk, the animals and the monsters — wolves, boars, spiders, treants, gloomcaps, the ash-troll and Cindermaw (rigged and animated low-poly models)',
     site: 'https://polyfork.dev',

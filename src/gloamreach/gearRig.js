@@ -42,7 +42,7 @@ export function learnFrames(templates) {
 }
 
 /** The matrix that puts an item (grip at its origin) in a hand: `kind` sword, shield, bow, wand. */
-function handMatrix(side, kind) {
+export function handMatrix(side, kind) {
   const f = FRAMES[`${side}:${kind}`] ?? (side === 'L' ? FRAMES['L:shield'] : FRAMES['R:sword']);
   if (!f) return new THREE.Matrix4();
   const off = kind === 'shield' ? V(0, f.palm.y, f.palm.z) : V(f.palm.x, f.palm.y, f.palm.z);
@@ -66,6 +66,8 @@ export function fitBody(template) {
   const restPos = new Map();
   sk.bones.forEach((b, i) => restPos.set(b.name, V().setFromMatrixPosition(sk.boneInverses[i].clone().invert())));
   const bodyPart = template.parts?.indexOf('body') ?? -1;
+  // Quaternius bodies (folkModels.js): a model's own pauldrons, hood, hair and beard don't count toward the body's size.
+  const skip = new Set(template.folk ? (template.parts ?? []).map((p, i) => (/pauldron|hood|hair|beard/.test(p) ? i : -1)).filter((i) => i >= 0) : []);
   for (const name of FIT_BONES) {
     const bi = sk.bones.findIndex((b) => b.name === name);
     if (bi < 0) continue;
@@ -82,6 +84,7 @@ export function fitBody(template) {
         let bw = 0;
         for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > bw) [bw, best] = [sw.getComponent(i, k), si.getComponent(i, k)];
         if (best !== bi) continue;
+        if (skip.size && part && skip.has(Math.round(part.getX(i)))) continue;
         const v = V(p.getX(i), p.getY(i), p.getZ(i)).sub(restPos.get(name));
         box.expandByPoint(v);
         if (part && Math.round(part.getX(i)) === bodyPart) bodyBox.expandByPoint(v);
@@ -121,6 +124,10 @@ const PART_RULES = {
   'garment-armour': { tint: (e, fit, hero) => (hero === 'ranger' ? { upper: surface(e.chest, 'chest', 'metal'), mix: 0.85 } : { upper: surface(e.chest, 'chest'), lower: surface(e.legs, 'legs'), split: fit.hipY * 1.02, mix: 0.88 }) },
   'garment-robe': { tint: (e, fit) => ({ upper: surface(e.chest, 'chest'), lower: surface(e.legs, 'legs'), split: fit.hipY * 0.96, mix: 0.8 }) },
   'garment-tunic': { tint: (e) => ({ upper: e.chest?.look.cloth ?? surface(null, 'chest'), mix: 0.8 }) },
+  // Quaternius outfits (folkModels.js): sleeves follow the chest, a model's own pauldrons give way to plate's.
+  'garment-sleeves': { tint: (e) => ({ upper: surface(e.chest, 'chest'), mix: 0.82 }) },
+  'garment-cowl': { tint: (e) => ({ upper: e.chest?.look.cloth ?? e.head?.look.cloth, mix: 0.8 }) },
+  'garment-pauldrons': { hide: (e) => BASES[e.chest?.base]?.look === 'plate' || BASES[e.chest?.base]?.look === 'brigandine', tint: (e) => ({ upper: surface(e.chest, 'chest', 'metal'), mix: 0.8 }) },
   'garment-capelet': { tint: (e) => ({ upper: e.head?.look.cloth ?? e.chest?.look.cloth ?? '#4a4a3a', mix: 0.8 }) },
   'garment-tabard': { tint: (e) => ({ upper: e.cape?.look.cloth ?? '#9a8a6a', mix: 0.85 }) },
   'garment-leggings': { tint: (e) => ({ upper: surface(e.legs, 'legs'), mix: 0.85 }) },
@@ -183,7 +190,7 @@ export class GearRig {
     this.tipLocal = null;
     this.emit = [];
     this._parts(equip);
-    const bones = this.actor.bones;
+    const bones = this.actor.gearBones ?? this.actor.bones;
     const fit = this.fit;
     const put = (obj, bone, m = null) => {
       const b = bones[bone];
@@ -229,9 +236,10 @@ export class GearRig {
       const c = hf.getCenter(V());
       const r = Math.max(hf.max.x - hf.min.x, hf.max.z - hf.min.z) / 2;
       const look = BASES[head.base].look;
-      const k = look === 'circlet' ? 0.98 : look === 'hood' ? 0.95 : 1.0;
+      const tune = this.template.gearTune ?? {};
+      const k = (look === 'circlet' ? 0.98 : look === 'hood' ? 0.95 : 1.0) * (tune.helmScale ?? 1);
       const g = buildItem(head);
-      g.position.copy(c).add(V(0, r * (look === 'hood' ? -0.12 : look === 'circlet' ? 0.0 : look === 'nasal' ? -0.26 : -0.16), r * (look === 'circlet' ? 0.02 : -0.04)));
+      g.position.copy(c).add(V(0, r * ((look === 'hood' ? -0.12 : look === 'circlet' ? 0.0 : look === 'nasal' ? -0.26 : -0.16) + (tune.helmUp ?? 0)), r * ((look === 'circlet' ? 0.02 : -0.04) + (tune.helmBack ?? 0))));
       g.scale.setScalar(r * k);
       put(g, 'Head');
       if (glows(head.rarity)) this.emit.push({ obj: g, from: V(-0.8, 1.1, 0), to: V(0.8, 1.1, 0), color: head.look.gem });
@@ -378,14 +386,14 @@ export class GearRig {
       const clasp = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.007, 6, 14), P.trim);
       clasp.position.set(s * sw * 0.42, 0.13, -depthZ(this.fit.Spine2) * 0.6);
       clasp.castShadow = false;
-      this.actor.bones.Spine2?.add(clasp);
+      (this.actor.gearBones ?? this.actor.bones).Spine2?.add(clasp);
       this.attached.push(clasp);
     }
   }
 
   /** The cape's pinned edge in the world: across the upper back, under the collar. */
   _anchors(out) {
-    const b = this.actor.bones.Spine2;
+    const b = (this.actor.gearBones ?? this.actor.bones).Spine2;
     if (!b) return;
     const back = depthZ(this.fit.Spine2) + 0.03;
     const W = this.cape.W;
@@ -501,7 +509,7 @@ export class GearRig {
   motes(n = 2) {
     const out = [];
     for (const e of this.emit) {
-      const holder = e.obj ?? this.actor.bones[e.bone];
+      const holder = e.obj ?? (this.actor.gearBones ?? this.actor.bones)[e.bone];
       if (!holder) continue;
       holder.updateWorldMatrix(true, false);
       for (let i = 0; i < n; i++) {

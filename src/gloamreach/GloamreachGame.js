@@ -33,7 +33,9 @@ import { powerSettings } from '../shared/power.js';
 import { Effects } from './fx.js';
 import { Vista } from './vista.js';
 import { Life } from './life.js';
-import { loadTemplate, FallbackActor } from './actors.js';
+import { loadTemplate, FallbackActor, loadFile, polyUrl } from './actors.js';
+import { folkRecipe } from './folk.js';
+import { loadFolk } from './folkModels.js';
 import { FighterActor } from './fighter.js';
 import { GearRig, learnFrames } from './gearRig.js';
 import { Monsters } from './monsters.js';
@@ -182,9 +184,14 @@ export class GloamreachGame {
     // What lives across zones: the heroes, the fight's sounds, item pictures, the camera, the picture.
     this.loading?.set('Calling the heroes', 0.03);
     this.heroTemplates = {};
-    await Promise.all(HEROES.map(async (h) => (this.heroTemplates[h.id] = await loadTemplate(h.model, { detail: this.bank.noise(), borrow: HERO_CLIPS }))));
+    // Quaternius bodies (folkModels.js) when the packs are in library/inbox, else polyfork's.
+    await Promise.all(HEROES.map(async (h) => {
+      const folk = h.folk ? await loadFolk(folkRecipe(h.id, h.folk), { detail: this.bank.noise(), borrow: HERO_CLIPS }) : null;
+      this.heroTemplates[h.id] = folk ?? (await loadTemplate(h.model, { detail: this.bank.noise(), borrow: HERO_CLIPS }));
+    }));
     if (this.closed) return;
-    learnFrames(Object.values(this.heroTemplates));
+    // Where hands hold things: learnt from polyfork's heroes (gear anchors carry it onto the Quaternius bodies).
+    learnFrames((await Promise.all(HEROES.map((h) => loadFile(polyUrl(h.model))))).filter(Boolean).map((gltf) => ({ gltf })));
     this.sfx = new Sfx(this.sound);
     this.studio = new ItemStudio();
     this.follow = new FollowCamera(this.camera, null);

@@ -35,6 +35,7 @@ export const polyUrl = (id) => `${POLY}${id}.glb`;
 
 const CHAR_FRAG_PARS = /* glsl */ `
 uniform float uRim;
+uniform float uSkinK;
 uniform vec3 uRimColor;
 uniform sampler2D tDetail;
 uniform float uDetail;
@@ -58,16 +59,40 @@ void RE_Direct_Char( const in IncidentLight directLight, const in vec3 geometryP
  * class from the vertex colour (skin, metal, gold, cloth), a fine relief,
  * light-wrap on skin and a rim.
  */
-export function characterMaterial(src, { detail, rim = 0.6, emissive = null, parts = false, fx = false } = {}) {
-  const m = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 0.8,
-    metalness: 0,
-    side: src.side ?? THREE.FrontSide,
-    emissive: emissive ?? src.emissive ?? new THREE.Color(0),
-    emissiveIntensity: src.emissiveIntensity ?? 1
-  });
-  const u = { uRim: { value: rim }, tDetail: { value: detail }, uDetail: { value: 1 }, uCape: { value: new THREE.Vector4(0, 0, 0, 1.5) }, uTime: shared.uTime };
+export function characterMaterial(src, { detail, rim = 0.6, emissive = null, parts = false, fx = false, textured = undefined, skin = undefined, atlas = undefined } = {}) {
+  // Textured bodies (folkModels.js, Quaternius): keep the pack's own maps; skin is a property of the material.
+  textured ??= src.userData?.charOpts?.textured ?? false;
+  skin ??= src.userData?.charOpts?.skin ?? 0;
+  // The shared people atlas (folkModels.js): colours in the vertices, skin is the body part (0).
+  atlas ??= src.userData?.charOpts?.atlas ?? false;
+  const m = textured
+    ? new THREE.MeshStandardMaterial({
+        map: src.map,
+        normalMap: src.normalMap,
+        normalScale: src.normalScale?.clone(),
+        roughnessMap: src.roughnessMap,
+        metalnessMap: src.metalnessMap,
+        aoMap: src.aoMap,
+        color: src.color?.clone(),
+        roughness: src.roughness ?? 0.8,
+        metalness: src.metalness ?? 0,
+        transparent: src.transparent,
+        alphaTest: src.alphaTest,
+        vertexColors: atlas,
+        side: src.side ?? THREE.FrontSide,
+        emissive: emissive ?? src.emissive ?? new THREE.Color(0),
+        emissiveIntensity: src.emissiveIntensity ?? 1
+      })
+    : new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.8,
+        metalness: 0,
+        side: src.side ?? THREE.FrontSide,
+        emissive: emissive ?? src.emissive ?? new THREE.Color(0),
+        emissiveIntensity: src.emissiveIntensity ?? 1
+      });
+  m.name = src.name;
+  const u = { uRim: { value: rim }, tDetail: { value: detail }, uDetail: { value: 1 }, uCape: { value: new THREE.Vector4(0, 0, 0, 1.5) }, uTime: shared.uTime, uSkinK: { value: skin } };
   if (parts) {
     // Per garment: hide it, or recolour it (a different colour above and below a height, for suits that run to the feet).
     Object.assign(u, {
@@ -82,7 +107,7 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
     Object.assign(u, { uFlash: { value: new THREE.Color(0, 0, 0) }, uDissolve: { value: 0 }, uEdge: { value: new THREE.Color(3, 1.2, 0.3) }, uTintMul: { value: new THREE.Color(1, 1, 1) }, uMetalK: { value: 1 } });
   }
   m.userData.char = u;
-  const defs = (parts ? '#define CHAR_PARTS\n#define MAX_PARTS ' + MAX_PARTS + '\n' : '') + (fx ? '#define CHAR_FX\n' : '');
+  const defs = (parts ? '#define CHAR_PARTS\n#define MAX_PARTS ' + MAX_PARTS + '\n' : '') + (fx ? '#define CHAR_FX\n' : '') + (textured ? '#define CHAR_TEX\n' : '') + (atlas ? '#define CHAR_ATLAS\n' : '');
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u, { uRimColor: shared.uRimColor });
     sh.vertexShader = defs + 'varying vec3 vRest;\nattribute float aCape;\nuniform vec4 uCape;\nuniform float uTime;\n' + PARTS_VERT_PARS + sh.vertexShader
@@ -105,6 +130,12 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
         '#include <color_fragment>',
         `#include <color_fragment>
         ${PARTS_FRAG_COLOR}
+        #ifdef CHAR_TEX
+        charSkin = uSkinK; charMetal = 0.0; charGold = 0.0;
+        #ifdef CHAR_ATLAS
+        charSkin = 1.0 - step( 0.5, vPart );
+        #endif
+        #else
         {
           vec3 c = diffuseColor.rgb;
           float mx = max(c.r, max(c.g, c.b));
@@ -119,13 +150,14 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
           #ifdef CHAR_FX
           charMetal *= uMetalK; charGold *= uMetalK;
           #endif
-        }`
+        }
+        #endif`
       )
       .replace(
         '#include <roughnessmap_fragment>',
-        `float roughnessFactor = mix(mix(0.82, 0.55, charSkin), 0.3, max(charMetal, charGold));`
+        textured ? '#include <roughnessmap_fragment>' : `float roughnessFactor = mix(mix(0.82, 0.55, charSkin), 0.3, max(charMetal, charGold));`
       )
-      .replace('#include <metalnessmap_fragment>', `float metalnessFactor = max(charMetal * 0.85, charGold * 0.9);`)
+      .replace('#include <metalnessmap_fragment>', textured ? '#include <metalnessmap_fragment>' : `float metalnessFactor = max(charMetal * 0.85, charGold * 0.9);`)
       .replace(
         '#include <normal_fragment_maps>',
         `#include <normal_fragment_maps>
@@ -136,6 +168,9 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
           bw = pow(bw, vec3(3.0)); bw /= (bw.x + bw.y + bw.z + 1e-4);
           float h = texture2D(tDetail, p.zy).g * bw.x + texture2D(tDetail, p.xz).g * bw.y + texture2D(tDetail, p.xy).g * bw.z;
           float k = uDetail * (1.0 - max(charMetal, charGold) * 0.85) * (1.0 - charSkin * 0.95) * 0.006;
+          #ifdef CHAR_TEX
+          k = 0.0;   // the pack's own normal maps
+          #endif
           vec3 dpdx = dFdx(-vViewPosition);
           vec3 dpdy = dFdy(-vViewPosition);
           float dhdx = dFdx(h);
@@ -158,7 +193,8 @@ export function characterMaterial(src, { detail, rim = 0.6, emissive = null, par
         #include <opaque_fragment>`
       );
   };
-  const key = `gloam-char${parts ? '-parts' : ''}${fx ? '-fx' : ''}`;
+  const key = `gloam-char${parts ? '-parts' : ''}${fx ? '-fx' : ''}${textured ? '-tex' : ''}${atlas ? '-atlas' : ''}`;
+  m.userData.charOpts = { detail, rim, emissive, parts, fx, textured, skin, atlas };
   m.customProgramCacheKey = () => key;
   return m;
 }
@@ -480,7 +516,7 @@ function meanLum(geo) {
 }
 
 /** Speed (m/s at scale 1) each locomotion clip's feet move at, from the feet themselves. */
-function measureStrides(t) {
+export function measureStrides(t) {
   const out = {};
   const root = SkeletonUtils.clone(t.gltf.scene);
   const mixer = new THREE.AnimationMixer(root);
@@ -538,6 +574,11 @@ export class Actor {
     this.bones = {};
     this.model.traverse((o) => {
       if (o.isBone) this.bones[o.name] = o;
+    });
+    // Where gear goes: the bones, or anchors under them (`<bone>_gear`) on bodies whose bone frames differ from polyfork's.
+    this.gearBones = { ...this.bones };
+    this.model.traverse((o) => {
+      if (!o.isBone && o.name.endsWith('_gear')) this.gearBones[o.name.slice(0, -5)] = o;
     });
   }
 
@@ -615,6 +656,19 @@ export class Actor {
       }
     }
     this.mixer.update(dt);
+    this.stoop();
+  }
+
+  /** Age in the back: bend the spine forward (and lift the head to look ahead), on top of whatever plays. */
+  stoop() {
+    const st = this.template.stoop;
+    if (!st) return;
+    const q = (this._sq ??= new THREE.Quaternion());
+    for (const [name, k] of [['Spine', 0.25], ['Spine1', 0.35], ['Spine2', 0.4], ['Neck', -0.35], ['Head', -0.35]]) {
+      const b = this.bones[name];
+      const axis = st.axes[name];
+      if (b && axis) b.quaternion.multiply(q.setFromAxisAngle(axis, st.angle * k));
+    }
   }
 
   dispose() {

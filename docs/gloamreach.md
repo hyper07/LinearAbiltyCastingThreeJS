@@ -126,6 +126,7 @@ calls and triangles.
 | Scene assembly · terrain · sky and light · post-processing | `world.js` · `terrain.js` · `sky.js` · `post.js` |
 | Trees · grass and plants · buildings · props · the gate · the Gloamwood · the rift and drake | `trees.js` · `foliage.js` · `buildings.js`, `kit.js` · `props.js` · `gate.js` · `gloamwood.js` · `vista.js` |
 | Characters (materials, merging, retargeting, locomotion) · the hero · the camera · people and animals | `actors.js` · `hero.js` · `camera.js` · `life.js` |
+| Quaternius people: recipes, garment and bone names (pure, tested) · assembling them, their clips and gear anchors | `folk.js` · `folkModels.js` |
 | The fight as numbers: damage, crits, armour, levels, cooldowns · skills · items, loot, the bag, equipment, trade · monsters and where they live · chests · the save (all pure, tested) | `rules.js` · `skills.js` · `items.js` · `bestiary.js` · `chests.js` · `save.js` |
 | The hero's side of a fight · monsters (minds, poses, dissolve, respawn) · its effects · its sounds | `combat.js` · `monsters.js` · `vfx.js` · `sfx.js` |
 | A hero who fights while walking (upper-body clips, backpedal, torso twist; aim maths from Lanternwood's `aim.js`) · gear on the bones · gear modelled in code · its textures · item pictures and the hero preview | `fighter.js` · `gearRig.js` · `gearModels.js` · `gearMaterials.js` · `icons.js` |
@@ -137,6 +138,24 @@ All in `src/gloamreach/`. The models and materials come from the asset library (
 `npm run dev` / `npm run build`; the polyfork models and the ambientCG sets it needs are in the
 library's extras list). Without the library the land, sky, trees, buildings and effects still
 draw (painted stand-ins for the materials); people and props appear once it has downloaded.
+
+**The people's bodies (Quaternius packs, a manual step).** The heroes and every villager,
+merchant, adventurer, warden and keeper in the three zones are put together from Quaternius's
+free CC0 packs — a
+Universal Base Characters head (modelled face, eyes, brows), a hairstyle rigged to the head bone,
+an outfit from Modular Character Outfits – Fantasy, and the Universal Animation Library's walks,
+runs and idles (the fights still borrow Mesh2Motion's clips). Quaternius doesn't allow automated
+downloads, so on a fresh clone: download *Universal Base Characters [Standard]*, *Modular Character
+Outfits – Fantasy [Standard]* and *Universal Animation Library [Standard]* from
+https://quaternius.com, unzip each into `library/inbox/` (folder names as they come), then run
+`npm run library:fetch -- --sources inbox` and `npm run library:index`. Without them the game
+uses the polyfork characters, as before. Who wears what is the `folk` recipe on each cast entry
+(`cast.js`: identity pins such as sex, outfit, a robe or cowl, an elder's stoop and cane; the
+person's id seeds the rest — hairstyle, hair and skin colour, beard, outfit texture, a shade over
+the clothes); `folk.js` makes recipes and names, `folkModels.js` assembles them. Villagers share
+one texture atlas and one material (each is one draw; their colours ride in the vertices);
+heroes keep the packs' full-size textures, and their gear recolours their clothes. Robes are a
+mesh of our own, skinned to the hips and legs so they swing as people walk.
 
 Credits for everything third-party, with links and licences, are in the game's Credits panel
 (start screen and Esc menu). The arms and armour are modelled in code, with their metal, leather,

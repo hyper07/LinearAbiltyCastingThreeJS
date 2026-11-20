@@ -15,6 +15,9 @@ import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { PEOPLE, ANIMALS, ROUTES } from './cast.js';
 import { loadTemplate, Actor, loadFile } from './actors.js';
+import { folkRecipe } from './folk.js';
+import { loadFolk } from './folkModels.js';
+import { handMatrix } from './gearRig.js';
 import { rng } from './noise.js';
 import { characterLoader } from '../library/characters.js';
 
@@ -102,12 +105,15 @@ export class Life {
     await Promise.all(
       all.map(async (c) => {
         const borrow = c.kind === 'person' ? [...new Set([...(NEEDS[c.does] ?? []), ...(c.clip ? [c.clip] : [])])] : [];
-        const tpl = await loadTemplate(c.model, { detail, borrow });
+        // A Quaternius body for those the cast gives one (folk), polyfork's otherwise or when the packs are missing.
+        const folk = c.folk ? await loadFolk(folkRecipe(c.id, { ...c.folk, atlas: true }), { detail, borrow }) : null;
+        const tpl = folk ?? (await loadTemplate(c.model, { detail, borrow }));
         onProgress(++done / all.length);
         if (!tpl) return;
         const height = c.height ?? HEIGHTS[c.model] ?? 1.74 + (this.r() - 0.5) * 0.12;
         const actor = new Actor(tpl, { height, name: c.name ?? c.id });
         if (c.spirit) spiritLook(actor.model);
+        if (tpl.folk?.cane) holdCane(actor);
         this.scene.add(actor.object);
         const home = c.at ? this.spot(c.at) : c.path ? { x: c.path[0][0], z: c.path[0][1], face: 0 } : { x: 0, z: 0, face: 0 };
         const being = { c, actor, x: home.x, z: home.z, yaw: home.face, home, speed: 0, wantSpeed: 0, timer: this.r() * 4, state: 'start', leg: 0, dir: 1, target: null, faceHero: 0, lod: 0 };
@@ -474,4 +480,20 @@ function spiritLook(model) {
       );
     };
   });
+}
+
+/** A walking stick in the right hand (old folk), held where a sword's grip would be, pointing down. */
+export function holdCane(actor) {
+  const hand = actor.gearBones?.RightHand ?? actor.bones.RightHand;
+  if (!hand) return;
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3e26, roughness: 0.75 });
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.011, 0.92, 7), wood);
+  stick.position.y = -0.42;
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 6), wood);
+  knob.position.y = 0.05;
+  const cane = new THREE.Group();
+  cane.add(stick, knob);
+  cane.applyMatrix4(handMatrix('R', 'sword'));
+  cane.traverse((o) => (o.castShadow = true));
+  hand.add(cane);
 }
