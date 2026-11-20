@@ -674,7 +674,10 @@ export const CombatMixin = {
       this.scene.add(m);
       zone.mesh = m;
     } else if (z.kind === 'blizzard') {
-      this.fx('ice/blizzard-vortex', z.x, 0, z.z, { pxm: 16, color: 1.2, speed: 0.9, palette: ICE_RAMP });
+      // The vortex loops, so the zone owns it and removes it when the blizzard ends
+      // (left alone, every cast used to leave another whirlwind spinning forever).
+      const vortex = this.fx('ice/blizzard-vortex', z.x, 0, z.z, { pxm: 16, color: 1.2, speed: 0.9, palette: ICE_RAMP });
+      if (vortex) zone.fx.push(vortex);
     }
     // A ring shows where it reaches.
     const ring = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ color: { totem: '#6aff8a', trap: '#ffd27a', blizzard: '#8ae8ff', rain: '#ffe0a0' }[z.kind] ?? '#ffffff', transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -727,6 +730,7 @@ export const CombatMixin = {
         if (z.owner === 'me') for (const e of this._foesInRadius(z.x, z.z, z.r)) this._hitFoe(e, z.mult, 0.5, { spell: z.spell, effect: z.slow ? 'slow' : null, effectT: z.slowT ?? 0, from: z });
       }
       if (z.t >= z.life) {
+        this._endZoneFx(z);
         z.ring.material.dispose();
         z.ring.removeFromParent();
         z.mesh?.removeFromParent();
@@ -736,6 +740,18 @@ export const CombatMixin = {
       }
       return true;
     });
+  },
+
+  /** Stop and remove the looping effects a zone owns (its blizzard vortex). */
+  _endZoneFx(z) {
+    if (!z.fx?.length) return;
+    const ended = new Set(z.fx);
+    this.effects = this.effects.filter((e) => !ended.has(e.fx));
+    for (const f of z.fx) {
+      f.mesh?.removeFromParent();
+      f.dispose();
+    }
+    z.fx.length = 0;
   },
 
   _fallingArrow(x, z) {
