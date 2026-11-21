@@ -70,6 +70,7 @@ body { margin: 0; background: var(--vs-bg); color: var(--vs-ink); font: 15px/1.4
 .vs-lines__t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--vs-muted); flex: none; }
 .vs-lines li.is-done .vs-dot { background: var(--vs-good); border-color: var(--vs-good); }
+.vs-lines li.is-gen .vs-dot { background: linear-gradient(90deg, var(--vs-muted) 50%, transparent 50%); border-color: var(--vs-muted); }
 .vs-prompter-wrap { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .vs-prompter { background: var(--vs-card); border: 1px solid var(--vs-line); border-radius: 18px; padding: 16px 20px; position: relative; }
 .vs-prompter__top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -94,6 +95,8 @@ body { margin: 0; background: var(--vs-bg); color: var(--vs-ink); font: 15px/1.4
 .vs-take { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--vs-line); }
 .vs-take > span { flex: 1 1 260px; font-variant-numeric: tabular-nums; }
 .vs-take.is-chosen { border-color: var(--vs-accent); box-shadow: 0 0 0 1px var(--vs-accent); }
+.vs-chip--gen { border-style: dashed; }
+.vs-take--gen { border-style: dashed; }
 .vs-take--saved { background: color-mix(in srgb, var(--vs-good) 10%, transparent); }
 .vs-warn { flex-basis: 100%; margin: 0; padding: 0; list-style: none; color: var(--vs-warn); font-weight: 700; font-size: 13px; }
 .vs-empty { text-align: center; padding: 40px 16px; }

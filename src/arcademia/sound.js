@@ -200,11 +200,11 @@ export class Sound {
 }
 
 /**
- * Voices. The platform never uses synthesized or AI voices (the user's rule):
- * no text-to-speech of any kind. Lines are spoken only by real people's
- * recordings, made in the voice studio (voice-studio.html) and played by
- * line id (voice/player.js). `speech.available` is true only when the
- * current language has recordings, so the read-aloud buttons show only then;
- * a line with no recording is silent and the game shows its text.
+ * Voices, played by line id (voice/player.js): a real person's recording
+ * from the voice studio (voice-studio.html) when there is one, else the
+ * character's pre-generated voice (voice/generated.js, made offline with a
+ * local model), else silence and the line's text. The browser's speech
+ * synthesis is never used. `speech.available` is true when the current
+ * language has any voice, so the read-aloud buttons show only then.
  */
 export { voicePlayer as speech } from './voice/player.js';

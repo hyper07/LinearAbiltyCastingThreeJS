@@ -1,10 +1,11 @@
 /**
- * AI Arcademia's voice script: every line a real person can record, by
- * character and language, with a stable line id.
+ * AI Arcademia's voice script: every spoken line, by character and
+ * language, with a stable line id.
  *
- * The platform never uses synthesized or AI voices. A line is heard only when
- * a real person has recorded it in the voice studio (voice-studio.html);
- * otherwise the game shows the text alone.
+ * A line is heard as a real person's recording from the voice studio
+ * (voice-studio.html) when there is one, else as the character's generated
+ * voice (generated.js; npm run voice:gen), else the game shows the text
+ * alone. The browser's speech synthesis is never used.
  *
  * Line ids come from where the text lives, never from the text itself, so
  * they don't change when a translation or a sentence is edited:

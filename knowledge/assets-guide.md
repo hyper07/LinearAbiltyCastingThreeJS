@@ -345,6 +345,18 @@ To make it a game asset:
 5. **A house style for cute creatures:** the SDF sculpting route above, built
    into a small creature maker.
 
+### 5.5 Voices on this Mac: Qwen3-TTS with `npm run voice:setup`
+
+Not models, but installed the same way: `npm run voice:setup` puts
+[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0 code and weights,
+not gated, pinned commit and revisions) and Whisper large-v3-turbo (MIT, to
+check each take) under `library/tools/qwen3-tts/` (git-ignored, about 11 GB) in
+their own Python 3.12 venv (uv; no gradio, no system ffmpeg: PyAV encodes
+WebM/Opus). `npm run voice:gen` makes AI Arcademia's character voices; see
+`docs/arcademia.md` → Generated voices. Run it in float32 on MPS: bfloat16 and
+float16 make the model miss its end of speech. Voices are designed from written
+descriptions (VoiceDesign), never cloned from a real, identifiable person.
+
 ## 6. Credits owed
 
 CC0 needs no credit, but list the packs in the game's credits anyway. These need
@@ -357,6 +369,8 @@ a credit line where they are shown:
 - **Carrot the cat**: David Revoy (CC BY 4.0).
 - **Parrot, Flamingo, Stork, Horse**: mirada / ro.me (Apache-2.0).
 - **Soldier, Michelle, X Bot**: Mixamo terms; ship them inside the game only.
+- **Generated voices** (§5.5): "Character voices generated with Qwen3-TTS
+  (Apache-2.0, https://github.com/QwenLM/Qwen3-TTS)", in the game's Credits panel.
 - **Models from the local generator** (§5.2.1): show each one's `credit` from
   `my-models/index.json`. It names TRELLIS.2 (MIT) and must keep
   "Built with DINOv3" (the DINOv3 License asks for it). Tripo and Meshy models get

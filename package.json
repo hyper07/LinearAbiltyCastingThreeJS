@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/library/ensure.mjs",
+    "prebuild": "node scripts/library/ensure.mjs && node scripts/voice/ensure.mjs",
     "build": "vite build",
     "postbuild": "node scripts/precompress.mjs",
     "preview": "vite preview",
@@ -31,7 +31,10 @@
     "music:gen": "node scripts/music-gen.mjs",
     "music:soundtrack": "node scripts/music-soundtrack.mjs",
     "music:preview": "node scripts/music-preview.mjs",
-    "voice:script": "node scripts/voice-script.mjs"
+    "voice:script": "node scripts/voice-script.mjs",
+    "voice:setup": "node scripts/voice-setup.mjs",
+    "voice:gen": "node scripts/voice-gen.mjs",
+    "voice:remote": "node scripts/voice-remote.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.12",

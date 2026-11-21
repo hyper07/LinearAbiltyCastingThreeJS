@@ -109,9 +109,12 @@ No pixelfx effects or library models are used. Its Credits panel reads `src/kind
 | What | Used for | Licence |
 | --- | --- | --- |
 | [Nunito](https://fonts.google.com/specimen/Nunito) via [Fontsource](https://fontsource.org/fonts/nunito) (`@fontsource-variable/nunito`) | AI Arcademia's round, friendly type (Korean, Japanese and Chinese fall back to the device's own fonts) | SIL Open Font License 1.1 (font), MIT (package) |
+| [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Alibaba Qwen team): [Qwen3-TTS-12Hz-1.7B-VoiceDesign](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign) and [Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base), run on this Mac (`npm run voice:setup`, installed into `library/tools/qwen3-tts/`, never committed) | Generated the characters' voices in `public/audio/voice-gen/` (`npm run voice:gen`), each designed from a written description (no real person's voice cloned), in English, Korean, Spanish, Japanese and Chinese. Each line's credit is in `public/audio/voice-gen/manifest.json`; players see "Character voices generated with Qwen3-TTS (Apache-2.0)" with the link under **Voices** in the Credits panel. A person's recording always replaces a generated line | Apache-2.0 (code and weights); not gated, no restriction on the use of the output or by territory |
+| [Whisper large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo) (OpenAI), local, in the same venv | Listens to every generated take to check its words against the script (it is not shipped) | MIT |
+| [fugashi](https://github.com/polm/fugashi) with [unidic-lite](https://github.com/polm/unidic-lite) (UniDic 2.1.2), local, in the same venv | Reads Japanese into kana so a take is checked on pronunciation, not kana-or-kanji spelling (not shipped) | MIT; UniDic under its BSD licence |
 
-AI Arcademia shows its credits (three.js, the 3dviz kits, Nunito) in its Credits panel, from
-`src/arcademia/credits.js`.
+AI Arcademia shows its credits (three.js, the 3dviz kits, Nunito, the music and the voices) in its
+Credits panel, from `src/arcademia/credits.js`.
 
 ### Shared music
 

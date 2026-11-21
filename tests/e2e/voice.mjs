@@ -10,7 +10,10 @@ import { base, boot, tally, until } from './lib.mjs';
  * meter), keeps a take; the file and the manifest appear in the test
  * server's own VOICE_DIR (never the repo); then the game plays that line —
  * the speaker's mouth moves, the bubble lights up and the music ducks — and
- * the Credits panel lists the actor under Voices.
+ * the Credits panel lists the actor under Voices. The recording wins over
+ * the character's generated voice; the generated voices (public/audio/voice-gen)
+ * play in all five languages, with the mouth moving, where nobody recorded.
+ * The studio shows which lines have a recording, a generated take or nothing.
  *
  * Only against the test server run.mjs starts (it sets E2E_VOICE_DIR): a dev
  * server would write into public/audio/voice. VOICE_SHOTS=<dir> saves screenshots.
@@ -42,6 +45,9 @@ export async function run(_browser) {
     t.check('studio: refused without the admin id and password', refused.status() === 401, `status ${refused.status()}`);
     await anon.close();
     await page.goto(`${base()}voice-studio.html`, { waitUntil: 'load' });
+    // It opens in listening mode (no actor needed to hear the voices); adding an actor asks for consent first.
+    t.check('studio: opens in listening mode', await until(page, () => document.querySelector('[data-actor]')?.value === '' || Boolean(document.querySelector('[data-listen-play]')) || Boolean(document.querySelector('[data-new-actor]')), null, 20000));
+    await page.click('[data-new-actor]');
     t.check('studio: a new actor is asked for consent first', await until(page, () => Boolean(document.querySelector('[data-consent-panel]')), null, 20000));
     await page.fill('[data-actor-name]', 'Robin Test-Voice');
     for (const c of ['tock', 'buddy-fox']) await page.check(`[data-char-pick="${c}"]`);
@@ -59,6 +65,17 @@ export async function run(_browser) {
       return p && p.querySelector('[data-line]').textContent.length > 10 && p.querySelector('.vs-direction').textContent.includes('Direction') && p.querySelector('.vs-context').textContent.length > 10;
     }));
     await shot(page, '2-teleprompter');
+    // A line with only a generated take says so, and the take plays for reference; then back to the greeting.
+    const tlStatus = await page.evaluate(() => document.querySelector('.vs-lines li [title^="t.lesson.tlSay"]')?.closest('li')?.dataset.status ?? null);
+    await page.click('.vs-lines li [title^="t.lesson.tlSay"]');
+    await until(page, () => document.querySelector('[data-line]')?.dataset.line === 't.lesson.tlSay', null, 5000);
+    const genStatus = await page.evaluate(() => ({
+      take: Boolean(document.querySelector('[data-generated-take] [data-play-generated]')),
+      chip: Boolean(document.querySelector('[data-prompter] [data-generated]'))
+    }));
+    t.check('studio: a line with only a generated voice is marked, and its generated take can be played', tlStatus === 'generated' && genStatus.take && genStatus.chip, JSON.stringify({ tlStatus, ...genStatus }));
+    await page.click('.vs-lines li [title^="t.lesson.hello.history"]');
+    await until(page, () => document.querySelector('[data-line]')?.dataset.line === 't.lesson.hello.history', null, 5000);
 
     // Record: Space → 3-2-1 → recording with a live meter → Space stops.
     const record = async (seconds, name = null) => {
@@ -153,9 +170,9 @@ export async function run(_browser) {
           out.voiceDuck = Math.min(out.voiceDuck, m.voiceDuck);
         } else if (out.speaking) break;
       }
-      return { ...out, mouths: [...out.mouths], lipFrames: r.room.tock.state.lipFrames, voiceBtn: !r.voiceBtn.hidden };
+      return { ...out, mouths: [...out.mouths], lipFrames: r.room.tock.state.lipFrames, voiceBtn: !r.voiceBtn.hidden, source: a.speech.state.source };
     });
-    t.check('game: the recorded line plays for Tock, by its line id', sampled.speaking && sampled.line === 't.lesson.hello.history' && sampled.char === 'tock', JSON.stringify(sampled));
+    t.check('game: the recorded line plays for Tock, by its line id — the person’s take, not the generated one', sampled.speaking && sampled.line === 't.lesson.hello.history' && sampled.char === 'tock' && sampled.source === 'human', JSON.stringify(sampled));
     t.check('game: Tock’s mouth moves with the voice (lip-sync)', sampled.lipFrames > 0 && sampled.mouths.some((m) => m === 'open' || m === 'oh') && sampled.mouths.length >= 2, JSON.stringify(sampled.mouths));
     t.check('game: the speech bubble lights up while it plays', sampled.bubble);
     t.check('game: the music ducks under the voice', sampled.voiceDuck < 1 && (sampled.duck == null || sampled.duck < 0.95), `voiceDuck ${sampled.voiceDuck}, duck ${sampled.duck}`);
@@ -166,16 +183,45 @@ export async function run(_browser) {
     await until(g, () => window.arcademia.speech.state.speaking, null, 3000);
     await g.waitForTimeout(500);
     await game.page.screenshot({ path: shots ? join(shots, '6-game-playing-recorded-line.png') : undefined });
-    // A line nobody recorded: silence, nothing else.
+    // Generated voices: a bark nobody recorded plays in each of the five languages, Tock's mouth moving with it.
+    const generated = await g.evaluate(async () => {
+      const a = window.arcademia, r = a.lesson;
+      const out = {};
+      for (const lang of ['en', 'ko', 'es', 'ja', 'zh']) {
+        a.speech.stop();
+        const before = r.room.tock.state.lipFrames;
+        const mouths = new Set();
+        let source = null, speaking = false, peak = 0;
+        const done = a.speech.say('t.lesson.tlSay', { char: 'tock', lang, face: r.room.tock });
+        const t0 = performance.now();
+        while (performance.now() - t0 < 8000) {
+          await new Promise((res) => requestAnimationFrame(res));
+          const st = a.speech.state;
+          if (st.speaking) {
+            speaking = true;
+            source = st.source;
+            peak = Math.max(peak, st.peakLevel);
+            mouths.add(r.room.tock.face.mouth);
+          } else if (speaking) break;
+        }
+        out[lang] = { played: await done, speaking, source, peak, mouths: [...mouths], lipFrames: r.room.tock.state.lipFrames - before };
+      }
+      return out;
+    });
+    for (const lang of ['en', 'ko', 'es', 'ja', 'zh']) {
+      const x = generated[lang];
+      t.check(`game: a generated bark plays in ${lang}, with Tock's mouth moving`, x.played && x.source === 'generated' && x.peak > 0.2 && x.lipFrames > 0 && x.mouths.some((m) => m === 'open' || m === 'oh') && x.mouths.length >= 2, JSON.stringify(x));
+    }
+    // With neither a recording nor a generated take: silence, nothing else.
     const silent = await g.evaluate(async () => {
       const a = window.arcademia;
       a.speech.stop();
-      const played = await a.speech.say('t.lesson.tlSay', { char: 'tock' });
       const other = await a.speech.say('t.lesson.hello.history', { char: 'hoot' });
-      const korean = await a.speech.say('t.lesson.hello.history', { char: 'tock', lang: 'ko' });
-      return [played, other, korean];
+      const german = await a.speech.say('t.lesson.hello.history', { char: 'tock', lang: 'de' });
+      const unknown = await a.speech.say('t.no.such.line', { char: 'tock' });
+      return [other, german, unknown];
     });
-    t.check('game: unrecorded lines, other voices and other languages stay silent', silent.every((x) => x === false), JSON.stringify(silent));
+    t.check('game: another character’s line, a language with no voices and an unknown line stay silent', silent.every((x) => x === false), JSON.stringify(silent));
     // The Credits panel names the actor under Voices.
     await g.evaluate(() => window.arcademia.leaveLesson());
     await g.waitForTimeout(800);
@@ -185,6 +231,10 @@ export async function run(_browser) {
       const v = document.querySelector('[data-voices]');
       return v && v.textContent.includes('Robin Test-Voice') && v.textContent.includes('Tock');
     }, null, 6000));
+    t.check('game: Credits credits the generated voices: the model, its licence and link', await g.evaluate(() => {
+      const li = document.querySelector('[data-voices-generated]');
+      return Boolean(li && li.textContent.includes('Qwen3-TTS') && li.textContent.includes('Apache-2.0') && li.querySelector('a')?.href === 'https://github.com/QwenLM/Qwen3-TTS');
+    }));
     await g.evaluate(() => {
       document.querySelector('.arc-modal--settings')?.remove();
       document.querySelector('[data-voices]').scrollIntoView();

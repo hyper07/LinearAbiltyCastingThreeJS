@@ -12,7 +12,7 @@ import { cameraMenu } from '../../shared/cameraAssist.js';
 import { musicMenu } from '../../shared/gameMusic.js';
 import { el, button } from './dom.js';
 import { LOCALES, locale, t } from '../i18n/index.js';
-import { CREDITS, voiceCreditRows } from '../credits.js';
+import { CREDITS, generatedVoiceCredit, voiceCreditRows } from '../credits.js';
 import { speech } from '../sound.js';
 
 /** A row of language buttons, each in its own language. */
@@ -46,19 +46,32 @@ export function openCredits(game) {
     list.append(li);
   }
   card.append(list);
-  // Voices: real people, credited by the name they chose (from the recordings' manifest).
+  // Voices: the generated character voices (the model, its licence and link), and the real
+  // people who recorded lines, by the name each chose (from the recordings' manifest).
   const voices = el('section', 'arc-credits__voices', null, { 'data-voices': '' });
   const drawVoices = () => {
     const rows = voiceCreditRows(speech.manifest, locale());
+    const gen = generatedVoiceCredit(speech.generated);
     voices.replaceChildren();
-    if (!rows.length) return;
-    const ul = el('ul', 'arc-credits__list');
-    for (const r of rows) {
-      const li = el('li');
-      li.append(el('strong', null, r.name), el('span', 'arc-credits__what', r.characters), el('span', 'arc-credits__meta', r.languages));
+    if (!rows.length && !gen) return;
+    voices.append(el('h3', null, `🎙️ ${t('credits.voices')}`));
+    if (gen) {
+      const ul = el('ul', 'arc-credits__list');
+      const li = el('li', null, null, { 'data-voices-generated': '' });
+      li.append(el('strong', null, null), el('span', 'arc-credits__what', t('credits.voicesGen', { model: gen.name, licence: gen.licence })), el('span', 'arc-credits__meta', `${gen.by} · ${gen.licence}`));
+      li.firstChild.append(el('a', null, gen.name, { href: gen.url, target: '_blank', rel: 'noopener noreferrer' }));
       ul.append(li);
+      voices.append(ul);
     }
-    voices.append(el('h3', null, `🎙️ ${t('credits.voices')}`), el('p', 'arc-credits__lead', t('credits.voicesLead')), ul);
+    if (rows.length) {
+      const ul = el('ul', 'arc-credits__list');
+      for (const r of rows) {
+        const li = el('li');
+        li.append(el('strong', null, r.name), el('span', 'arc-credits__what', r.characters), el('span', 'arc-credits__meta', r.languages));
+        ul.append(li);
+      }
+      voices.append(el('p', 'arc-credits__lead', t('credits.voicesLead')), ul);
+    }
   };
   drawVoices();
   speech.load().then(() => box.isConnected && drawVoices());

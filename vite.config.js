@@ -368,7 +368,7 @@ export default defineConfig(({ mode }) => {
         // The asset library is gigabytes of files nobody edits by hand, and a
         // saved level must not reload the page out from under the editor.
         // Absolute paths: a bare `**/library/**` would also ignore src/library.
-        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('public', 'audio', 'voice')}/**`, `${resolve('data')}/**`]
+        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('public', 'audio', 'voice')}/**`, `${resolve('public', 'audio', 'voice-gen')}/**`, `${resolve('data')}/**`]
       }
     },
     build: {

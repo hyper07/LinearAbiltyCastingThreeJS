@@ -29,10 +29,10 @@ hat shop, the puzzle bosses' riddles, the townsfolk, all 51 lessons (stories, re
 chalkboard, history chats, timelines and treasures, the physics experiments, quizzes, hints and
 worked answers), the parents' PIN and report, and the share page (which has its own picker; a share
 link opens in the language the parent was using). Math questions are generated in the language,
-with its own number formats (Spanish writes 0,3) and counting words (사과 3개, 3只鸭子). There are no
-synthesized or AI voices anywhere on the platform: lines are spoken only by real people's recordings
-(see [Voices](#voices)); **Read to me** and **Voice on** show only in a language that has recordings,
-and a line nobody has recorded yet is just its text. Professor Hoot, the Plus tutor, answers
+with its own number formats (Spanish writes 0,3) and counting words (사과 3개, 3只鸭子). Every
+character speaks every language (see [Voices](#voices)): a real person's recording where one exists,
+else the character's pre-generated voice; **Read to me** and **Voice on** show in any language that
+has voices, and the voice is on by default on floors 1–2. Professor Hoot, the Plus tutor, answers
 in the chosen language: the page sends the locale and the server puts it into the tutor's
 instructions.
 
@@ -114,9 +114,17 @@ record is the server's.
 
 ## Voices
 
-Every voice in AI Arcademia is a real person. There is no text-to-speech and no AI voice anywhere on
-the platform (a unit test fails if the browser's speech synthesis API appears in `src/`, `server/` or
-a page). People record the lines in the **voice studio**, and the game plays those recordings.
+Every character talks, in all five languages. A line plays, in this order:
+
+1. **a real person's recording** of it, made in the **voice studio** (`public/audio/voice/`), which
+   always wins;
+2. else the character's **generated voice** (`public/audio/voice-gen/`), made ahead of time on a Mac
+   with a free, local model, [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0) — see
+   [Generated voices](#generated-voices);
+3. else nothing: the line is just its text.
+
+Nothing is synthesized in the browser: a unit test fails if the browser's speech synthesis API appears
+in `src/`, `server/` or a page.
 
 ### The line script
 
@@ -137,7 +145,7 @@ sticker found, the townsfolk's tips), then **story** lines, **reading** cards an
 script puts barks first, then floor 1, 2 and so on, which is the order to record in. The buddies'
 barks and the teachers' "try again" and hint intro are the `voice.*` keys in each language's `chars.js`.
 Generated math questions and the chalkboard's worked examples change every time, so they have no line
-and stay text only, as does the AI tutor's answer.
+and stay text only, as does the AI tutor's answer (see [Generated voices](#generated-voices) for why).
 
 Each language has 991 lines (131 of them barks), about two hours of speech:
 
@@ -146,7 +154,7 @@ Each language has 991 lines (131 of them barks), about two hours of speech:
 | Professor Hoot | 16 / 92 |
 | Tock | 15 / 263 |
 | Gizmo | 17 / 271 |
-| each of the 17 history guides | 0 / 8 |
+| each of the 16 history guides | 0 / 8 |
 | bosses 1–7 | 2 / 33, 33, 19, 20, 20, 22, 21 |
 | the townsfolk | 19 / 19 |
 | each of the five buddies | 10 / 10 |
@@ -178,8 +186,10 @@ in `.env`; with neither set it lets the local machine in.
 2. **Pick a character and a language.** The teleprompter shows the line big, with its direction and
    where it is heard. **Space** (or the button) counts in 3-2-1 and records; **Space** stops. A level
    meter (with peak hold and a clip light) runs while the microphone is open.
-3. **Takes.** Record as many as you like (**R** retakes), play them back (**P**), choose one and keep
-   it (**Enter**). **←/→** move between lines. Filters show missing lines only, a kind or a floor, and
+3. **Takes.** Each line in the list shows whether it has a recording (a full dot), only a generated
+   voice (a half dot, and a **🤖 Generated** row with **▶ Play** for reference) or nothing. Record as
+   many takes as you like (**R** retakes), play them back (**P**), choose one and keep it (**Enter**);
+   a kept take replaces the generated voice for that line. **←/→** move between lines. Filters show missing lines only, a kind or a floor, and
    the progress card counts done / total (and barks) per character and language.
 4. **Processing,** in the browser with plain WebAudio maths (`src/arcademia/voice/dsp.js`): an 80 Hz
    high-pass, trimmed silence (80 ms kept before, 150 ms after), an optional gentle noise gate (−12 dB
@@ -211,13 +221,118 @@ recording rate keeps the second generation clean.
 
 `speech` (`src/arcademia/sound.js`, the player in `src/arcademia/voice/player.js`) plays a line by id:
 `speech.say('t.lesson.hello.math', { char: 'hoot', face, bubble })`. It plays only the recording for the
-current language and that character; with no recording it does nothing (never another language's or
-another character's voice, never a synthesized one). Text from an older call is looked up in the
-current language's script as a fallback. While a line plays, the music ducks a little
+current language and that character — a person's recording first, else the generated take — and with
+neither it does nothing (never another language's or another character's voice). Text from an older
+call is looked up in the current language's script as a fallback. While a line plays, the music ducks a little
 (`music.duckVoice`), the speaker's mouth follows the voice's loudness (`creature.lipSync`; Hoot,
 whose face has a beak, nods instead) and the speech bubble glows. A floor's barks are fetched when
-the floor opens and a lesson's lines when it starts; the rest load when first heard. The Credits panel
-lists the actors under **Voices**, by their chosen name, with the characters they recorded.
+the floor opens and a lesson's lines when it starts; the rest load when first heard. The Credits panel's
+**Voices** entry credits the generated voices ("Character voices generated with Qwen3-TTS
+(Apache-2.0)", with its link) and lists the actors by their chosen name, with the characters they
+recorded.
+
+### Generated voices
+
+Until a person records a line, the character speaks it in a **generated voice**, made ahead of time on
+a Mac and shipped as audio files: nothing is generated in the browser or on the game server.
+
+**The model.** [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Alibaba Qwen team, January 2026):
+Apache-2.0 code and weights, not gated, no limits on using the output and no territory exclusions,
+natural and expressive in all five of our languages (it covers ten), and it runs on Apple silicon.
+Checked in November 2026 against the other free options: Chatterbox Multilingual (MIT, 23
+languages, but it stamps every output with Resemble's Perth watermark and its voices come from
+reference recordings), CosyVoice 2/3 (Apache-2.0; voices from reference recordings, which we would
+need the rights to), MeloTTS (MIT, all five languages but flatter) and Kokoro (Apache-2.0, no Korean);
+F5-TTS weights, XTTS-v2 (Coqui CPML) and Fish/OpenAudio are non-commercial. Two of its models are used:
+**VoiceDesign** makes a voice from a written description, so no real person's voice is ever cloned,
+and **Base** speaks any line in a voice from a short reference clip. Whisper large-v3-turbo (MIT)
+listens to every take to check the words.
+
+**Install** (once; idempotent, `-- --check` only reports):
+
+```bash
+npm run voice:setup     # library/tools/qwen3-tts: pinned source, a uv venv (Python 3.12), weights (~11 GB)
+```
+
+**The cast.** Each character's voice is a written description in `src/arcademia/voice/generated.js`
+(`CAST`): Professor Hoot a warm, clear, gently enthusiastic teacher; Tock an old, slow, cosy
+storyteller; Gizmo a quick, playful young inventor; the townsfolk a cheerful, chatty villager; the
+five buddies real children's voices (never sped up or pitched); the bosses playful and theatrical,
+never scary; the 16 history guides nine varied adult voices, one per guide. For each character,
+VoiceDesign renders a short reference clip: first in English (the **anchor**), then in each other
+language, where three candidates are made and the one whose speaker embedding is closest to the
+anchor's is kept, so the accent is native and the character is recognisably the same person in all
+five languages. Lessons on floors 1–2 (ages 6–7) use a second, slower and clearer reference of the
+same voice. The reference clips stay in `library/tools/qwen3-tts/refs/`.
+
+**Generating** (resumable: stop it any time; a line already made for the same text is skipped):
+
+```bash
+npm run voice:gen -- --tier core             # barks + floors 1–2, all languages (committed)
+npm run voice:gen -- --tier extra            # floors 3–7 (git-ignored; regenerate on each machine)
+npm run voice:gen -- --lang ko --char hoot   # one language / character; --kind bark; --floor 3-4
+npm run voice:gen -- --force                 # make them again
+npm run voice:gen -- --samples <dir>         # a listening page: one line per character per language
+npm run voice:gen -- --encode-only --bitrate 20000   # re-encode from the kept masters
+```
+
+**On another Mac** (a Mac Studio, so a laptop stays cool): `npm run voice:remote` does the same over
+SSH, with your own ssh config and key only (`BatchMode`: it never asks for or keeps a password).
+
+```bash
+H="--host <user>@<mac-studio> --identity ~/.ssh/id_ed25519"   # or VOICE_REMOTE_HOST / VOICE_REMOTE_IDENTITY
+npm run voice:remote -- $H                 # sync, voice:setup there, start everything (detached, --missing)
+npm run voice:remote -- $H --lang es,ja,zh # any voice:gen arguments; e.g. split languages between Macs
+npm run voice:remote -- $H --status        # running or not, clips so far, the end of its log
+npm run voice:remote -- $H --pull          # fetch finished clips and merge them in (newer takes win)
+npm run voice:remote -- $H --stop          # stop after the current batch; run the first command to resume
+npm run voice:remote -- $H --dry-run       # print the ssh / rsync commands, run nothing
+```
+
+It sends only what the generator needs (`scripts/voice/remote.mjs` walks the generator's imports: its
+scripts, the voice modules, the lessons and string tables), a dependency-free `package.json`, the
+voice manifests and clips, and the designed reference voices, so every Mac speaks with the same
+voices — never `.env`, `data/` or the asset library. There it lives in `~/gamory-voice`, installs the
+model into its own `library/tools/qwen3-tts`, and runs under `nohup caffeinate -i`, so it survives the
+ssh session ending and the Mac idling. The remote needs Remote Login on (System Settings → General →
+Sharing), your public key in its `~/.ssh/authorized_keys`, and Node 22+, git and uv (Homebrew; remote
+commands run in a login shell so `/opt/homebrew/bin` is on PATH). Re-running only sends what the
+remote lacks (`--ignore-existing`), so its finished lines are never overwritten, and `--pull` merges
+back line by line (the newer take wins). Batches are 48 takes on a newer Mac with 96 GB or more and 24
+on M1/M2 chips or smaller Macs; on M1/M2 Whisper checks one take at a time (in batches it took 87 GB
+of GPU memory there). Measured: M5 Max 2.5–3.9× real time, M1 Ultra about 2.4×.
+
+Per line: the text is normalised for speech (`src/arcademia/voice/normalize.js`: emoji out; sums,
+fractions, decimals, percentages, money, degrees, units and years in words the way a teacher reads
+them — "3 + 7 = ?" → "three plus seven equals what?", 1492 → "fourteen ninety-two", 사과 3개 → 사과
+세 개, 3/4 → 四分の三, 1492年 → 一四九二年), two takes are generated, each runs through the studio's
+own chain (`dsp.js`: high-pass, trim, fades, −18 LUFS, peaks ≤ −1 dBFS), Whisper transcribes it, and
+the take with the fewest word errors (English, Spanish) or character errors (Korean, Japanese,
+Chinese) wins, as long as it has no clipping, no long silence and a plausible length for its text.
+Japanese is compared on its pronunciation in kana (fugashi with UniDic), since Whisper may write 座って
+where the script has すわって. A line over the threshold (15 % WER; 12 % CER; 15 % for Japanese kana) is tried
+again, twice; the best take is then kept and marked `rough` in the manifest, or the line stays
+silent. The chosen take is encoded as **Opus in WebM at 22 kb/s mono** (PyAV; no system ffmpeg) and
+its processed WAV is kept in `library/tools/qwen3-tts/masters/` for re-encoding. Lines with a
+person's recording are skipped.
+
+**Where they go.** `public/audio/voice-gen/<lang>/<char>/<line id>.webm`, listed in
+`public/audio/voice-gen/manifest.json` (**core**: every bark and every floor 1–2 line, committed) and
+`manifest.local.json` (**extra**: floors 3–7, git-ignored, as are their files). Both manifests say
+`"generated": true` with the model, its licence and link; each line has its duration, take date, the
+voice it was made from, its error rate and a hash of its text (so an edited line is made again).
+`public/audio/voice-gen/.gitignore` is written by the generator: it ignores everything there except
+the core files. `npm run build` checks the core (`scripts/voice/ensure.mjs`); with
+`VOICE_AUTO_GEN=1` and the generator installed it also generates whatever is missing before
+building. The game loads both manifests and plays whichever has the line.
+
+**Not voiced.** Generated math questions and the chalkboard's worked examples change every time.
+Splicing them from pre-made number words was tried on paper and rejected: Korean particles change
+with the number before them (7은, 2는), Japanese and Korean counters change the reading of the number
+(いっぽん, 한 개), and stitched words sound robotic next to the natural lines. They stay text, as does
+the Plus tutor's answer: one line takes the model about 2.5 s per second of speech unbatched on an M5
+Max (it needs batches to be fast), the production server has no Apple GPU, and an 11 GB model is no
+fit for it.
 
 ## Progress and the parents' report
 

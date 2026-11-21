@@ -1,0 +1,244 @@
+/**
+ * AI Arcademia's generated character voices: the model's credit, the cast
+ * (one designed voice per character, the same in every language), and the
+ * generated-voice manifest (public/audio/voice-gen/manifest.json).
+ *
+ * A generated line plays only when no real person has recorded that line:
+ * human recording (public/audio/voice) → generated voice → silence. The
+ * browser's speech synthesis is never used.
+ *
+ * Voices are designed from a written description with Qwen3-TTS VoiceDesign
+ * (Apache-2.0): no real person's voice is cloned or imitated. Each designed
+ * voice is rendered once as a short English reference clip; every line in
+ * every language is then spoken from that clip (Qwen3-TTS Base, voice
+ * prompt), so a character sounds like the same person in all five languages.
+ *
+ *   {
+ *     "version": 1, "generated": true, "updated": "…",
+ *     "model": { "name": "Qwen3-TTS", "weights": "Qwen/Qwen3-TTS-12Hz-1.7B-Base", "licence": "Apache-2.0", "url": "…" },
+ *     "voices": { "hoot": { "design": "…", "seed": 11 } },
+ *     "lines": { "en": { "hoot": { "t.lesson.hello.math": {
+ *       "files": { "webm": "en/hoot/t.lesson.hello.math.webm" }, "duration": 2.4,
+ *       "take": "2026-11-19T…", "text": "<hash>", "cer": 0.02, "lufs": -18, "peak": -1.2
+ *     } } } }
+ *   }
+ */
+import { FORMATS, MAX_SECONDS, selectRecording } from './manifest.js';
+import { isCharId, isLineId } from './script.js';
+
+export const GEN_MANIFEST_VERSION = 1;
+
+/** The credit every generated line carries (the Credits panel, docs/third-party.md, library/CREDITS.md). */
+export const GEN_CREDIT = Object.freeze({
+  model: 'Qwen3-TTS',
+  url: 'https://github.com/QwenLM/Qwen3-TTS',
+  weights: 'Qwen/Qwen3-TTS-12Hz-1.7B-Base',
+  design: 'Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign',
+  licence: 'Apache-2.0',
+  licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
+  by: 'Alibaba Qwen team',
+  attribution: 'Character voices generated with Qwen3-TTS (Apache-2.0, https://github.com/QwenLM/Qwen3-TTS), designed from written descriptions; no real person\'s voice is cloned.'
+});
+
+/* ---------------------------------------------------------------- the cast */
+
+/**
+ * One designed voice per character: `design` is the VoiceDesign description
+ * (English), `ref` the sentence the reference clip says, `seed` fixes the
+ * take, `f0` the speaking pitch (median, Hz) a reference must land in. The
+ * model sometimes over-acts a description into a squeaky or strained voice;
+ * the pitch window keeps the cast sounding like real people (adult men about
+ * 95–165 Hz, women 165–255 Hz, children 220–340 Hz).
+ */
+const V = (design, seed, ref = null, f0 = null) => ({ design, seed, ref, f0 });
+/** What each reference clip says, per language (a character's voice is designed once per language). */
+export const REF_TEXT = {
+  adult: {
+    en: 'Hello there, my friend! Today we are going to learn something new together. Are you ready? Let\'s begin.',
+    ko: '안녕, 친구야! 오늘은 함께 새로운 것을 배워 볼 거예요. 준비됐나요? 그럼 시작해 볼까요?',
+    es: '¡Hola, amigo! Hoy vamos a aprender algo nuevo juntos. ¿Estás listo? ¡Empecemos!',
+    ja: 'こんにちは、おともだち！きょうは、いっしょに新しいことを学びましょう。じゅんびはいいかな？では、はじめましょう。',
+    zh: '你好呀，我的朋友！今天我们一起来学一点新东西。准备好了吗？我们开始吧。'
+  },
+  child: {
+    en: 'Hi! I\'m so happy to see you. Come on, let\'s go and play together, it will be so much fun!',
+    ko: '안녕! 너를 만나서 정말 기뻐. 어서 같이 놀러 가자, 진짜 재미있을 거야!',
+    es: '¡Hola! Estoy muy contento de verte. ¡Vamos a jugar juntos, va a ser muy divertido!',
+    ja: 'やあ！会えてすごくうれしいな。ねえ、いっしょにあそびに行こうよ。ぜったい楽しいよ！',
+    zh: '嗨！见到你我好开心呀。快来，我们一起去玩吧，一定会特别好玩！'
+  },
+  guide: {
+    en: 'Welcome, traveller. Sit with me a while, and I will tell you how we lived in my time.',
+    ko: '어서 와요, 여행자님. 잠시 내 곁에 앉아 봐요. 내가 살던 시대 이야기를 들려줄게요.',
+    es: 'Bienvenido, viajero. Siéntate conmigo un rato y te contaré cómo vivíamos en mi época.',
+    ja: 'ようこそ、旅の人。しばらくここにすわって。わたしの時代のくらしを話してあげよう。',
+    zh: '欢迎你，远方的旅人。来，坐一会儿，我给你讲讲我们那个时代的生活。'
+  },
+  boss: {
+    en: 'Hmph! Nobody ever solves my riddles. But maybe… just maybe… you could be the one?',
+    ko: '흥! 아무도 내 수수께끼를 못 풀었다고. 그런데 혹시… 정말 혹시… 네가 풀 수 있을까?',
+    es: '¡Hmpf! Nadie resuelve nunca mis acertijos. Pero quizás… solo quizás… ¿tú podrías?',
+    ja: 'ふん！だれもわたしのなぞなぞをとけたことがないのだ。でも、もしかして…きみなら、とけるかな？',
+    zh: '哼！从来没有人能解开我的谜语。不过，也许……也许你可以？'
+  }
+};
+const REF_ADULT = 'adult';
+const REF_CHILD = 'child';
+const REF_GUIDE = 'guide';
+const REF_BOSS = 'boss';
+
+/** Pitch windows (median Hz). */
+const MAN = [95, 165];
+const OLD_MAN = [85, 150];
+const WOMAN = [165, 255];
+const CHILD = [220, 340];
+/** Said of every voice: what makes it sound like a person rather than a performance. */
+const REAL = ' Natural, relaxed everyday speech with a real human voice at a comfortable, natural pitch; not exaggerated, not high-pitched, not cartoonish.';
+const KID = ' A real child chatting calmly and naturally with a friend, at a child\'s ordinary speaking pitch; not shouting, not an adult imitating a child, not cartoonish, not squeaky or shrill.';
+
+export const CAST = {
+  hoot: V('A warm, clear, friendly male teacher in his thirties with a soft, rounded mid-range voice. Kind and patient, smiling as he speaks, never rushed; a primary-school teacher talking to young children.' + REAL, 11, null, MAN),
+  tock: V('An elderly male storyteller in his sixties with a deep, cosy and slightly gravelly voice. Unhurried and warm, like a grandfather telling a story by the fire, with a twinkle of wonder.' + REAL, 23, null, OLD_MAN),
+  gizmo: V('A playful young female inventor in her twenties with a clear, friendly, natural voice in a comfortable mid range. Curious and cheerful, talks with a grin, always clear and easy to follow.' + REAL, 37, null, WOMAN),
+  townsfolk: V('A cheerful, chatty young woman in her twenties with a light, friendly voice, like a kind shopkeeper in a small village who loves to share tips.' + REAL, 41, null, WOMAN),
+  'buddy-fox': V('A cheeky, energetic boy about eight years old, proud and excited.' + KID, 51, REF_CHILD, CHILD),
+  'buddy-robot': V('A cheerful, careful boy about nine years old with clear, tidy diction; a real child, not robotic.' + KID, 53, REF_CHILD, CHILD),
+  'buddy-dragon': V('A brave, enthusiastic girl about eight years old with a confident, slightly husky voice and a happy laugh.' + KID, 59, REF_CHILD, CHILD),
+  'buddy-puff': V('A soft, sweet, gentle girl about six years old who giggles a little; shy and kind.' + KID, 61, REF_CHILD, CHILD),
+  'buddy-bunny': V('A happy, friendly girl about seven years old.' + KID, 67, REF_CHILD, CHILD),
+  'boss-1': V('A grumpy but cuddly cloud character spoken by a girl about nine years old: pouty, sulky and sighing, playful and never scary; delighted and giggly when cheered up.' + KID, 71, REF_BOSS, CHILD),
+  'boss-2': V('A pompous, theatrical sphinx: a grand, rich baritone man\'s voice, dramatic and a little sulky, playful and never menacing.' + REAL, 73, REF_BOSS, [85, 170]),
+  'boss-3': V('A fizzy, excitable little wizard spoken by a boy about ten years old: proud, dramatic and silly, never scary.' + KID, 79, REF_BOSS, CHILD),
+  'boss-4': V('A big, gentle yeti: a deep, warm but soft and friendly man\'s voice, grumbly and theatrical, more cuddly than scary.' + REAL, 83, REF_BOSS, [80, 150]),
+  'boss-5': V('A mopey, dreamy moth: a soft, breathy, melancholy woman\'s voice in a low-mid range that sighs a lot, gentle and funny, never scary.' + REAL, 89, REF_BOSS, WOMAN),
+  'boss-6': V('A crabby sea captain: a gruff, salty middle-aged man\'s voice with comic grumbling, playful and never menacing.' + REAL, 97, REF_BOSS, [85, 175]),
+  'boss-7': V('A gloomy little robot spoken by a boy about ten years old: flat and deadpan with comic sighs, playful and never menacing; no robotic effects.' + KID, 101, REF_BOSS, CHILD)
+};
+
+/**
+ * Per-language voices, where a language's listeners expect someone
+ * different: Korean children's content uses younger, brighter adult voices,
+ * so the Korean cast is younger. A character with its own design here is its
+ * own anchor in that language (it is not matched to the English voice).
+ */
+export const CAST_BY_LANG = {
+  ko: {
+    hoot: V('A friendly young Korean male teacher in his mid-twenties, like a kind after-school or kindergarten teacher: a clear, warm, natural young man\'s voice in a comfortable mid-low range, smiling and gentle, calm and patient.' + REAL, 111, null, [105, 175]),
+    tock: V('A gentle Korean man in his late forties with a warm, soft, calm storyteller\'s voice, kind and unhurried, with a twinkle of wonder.' + REAL, 123, null, MAN),
+    gizmo: V('A cheerful Korean university student in her early twenties who loves gadgets: a clear, friendly, natural voice in a comfortable mid range, curious and cheerful.' + REAL, 137, null, [175, 260]),
+    townsfolk: V('A friendly Korean young woman of about twenty with a soft, friendly, chatty voice in a comfortable mid range, like a kind girl helping at her family\'s village shop.' + REAL, 141, null, [175, 260])
+  }
+};
+
+/** History guides: a varied cast, picked by lesson so each guide keeps one voice. */
+const GUIDE_VOICES = [
+  ['A friendly woman in her thirties with a warm, clear, calm voice.', WOMAN],
+  ['A cheerful man in his twenties with a bright, open, lively voice.', MAN],
+  ['A gentle older woman in her sixties with a soft, kind, wise voice.', WOMAN],
+  ['A confident man in his forties with a rich, steady, warm voice.', MAN],
+  ['A cheerful woman in her twenties with a warm, curious, natural voice.', WOMAN],
+  ['A thoughtful older man in his sixties with a mellow, calm, kindly voice.', OLD_MAN],
+  ['A lively woman in her forties with a strong, warm, expressive voice.', WOMAN],
+  ['A shy, gentle young man in his twenties with a soft, light voice.', MAN],
+  ['A proud, friendly man in his fifties with a deep, resonant, welcoming voice.', MAN]
+];
+/** The Korean guides are a decade or two younger. */
+const YOUNGER = { sixties: 'forties', fifties: 'thirties', forties: 'thirties' };
+const younger = (d) => d.replace(/in (his|her) (sixties|fifties|forties)/, (_, p, a) => `in ${p} ${YOUNGER[a]}`).replace('older ', '');
+const GUIDE_SUFFIX = ' A storyteller from long ago talking to a child, natural with no put-on accent, warm and clear.' + REAL;
+
+/** The guide's index among the history lessons decides their voice. */
+export function guideVoice(index, lang = null) {
+  const [d, f0] = GUIDE_VOICES[index % GUIDE_VOICES.length];
+  const v = V((lang === 'ko' ? younger(d) : d) + GUIDE_SUFFIX, 200 + index, REF_GUIDE, f0);
+  return lang === 'ko' ? { ...v, own: true } : v;
+}
+
+/**
+ * The voice for a character id in a language (guides need their index among
+ * the history lessons). `own` is true when the language has its own design,
+ * so it is not matched to the English anchor.
+ */
+export function castFor(char, guideIndex = null, lang = null) {
+  const mine = lang && CAST_BY_LANG[lang]?.[char];
+  if (mine) return { ...mine, ref: mine.ref ?? REF_ADULT, own: true };
+  if (CAST[char]) return { ...CAST[char], ref: CAST[char].ref ?? REF_ADULT, own: false };
+  if (char.startsWith('guide-') && guideIndex != null) return guideVoice(guideIndex, lang);
+  return null;
+}
+
+/** A short spoken-style instruction for a line's delivery (the model takes it as a hint). */
+export function paceInstruction(floor) {
+  if (floor && floor <= 2) return 'Speak a little slower than usual, relaxed and clear, for a six-year-old.';
+  if (floor && floor <= 4) return 'Speak at an easy, clear pace for an eight-year-old.';
+  return 'Speak naturally and clearly.';
+}
+
+/** Which reference a line is spoken from: a slower, clearer one for the lessons of floors 1–2 (ages 6–7). */
+export const paceVariant = (line) => (line.kind !== 'bark' && line.floor && line.floor <= 2 ? 'slow' : 'normal');
+
+/**
+ * The committed set: every bark, and every line of floors 1–2. The rest is
+ * generated locally (npm run voice:gen -- --tier extra) and git-ignored.
+ */
+export const isCoreLine = (line) => line.kind === 'bark' || (line.floor >= 1 && line.floor <= 2);
+
+/* ---------------------------------------------------------------- the manifest */
+
+export const emptyGenManifest = () => ({ version: GEN_MANIFEST_VERSION, generated: true, updated: null, model: { name: GEN_CREDIT.model, weights: GEN_CREDIT.weights, licence: GEN_CREDIT.licence, url: GEN_CREDIT.url }, voices: {}, lines: {} });
+
+const LANG_RE = /^[a-z]{2}$/;
+/** Problems with a generated-voice manifest ([] when it is fine). `exists(path)` checks a file (optional). */
+export function validateGenManifest(m, { exists = null } = {}) {
+  const out = [];
+  if (!m || typeof m !== 'object') return ['not an object'];
+  if (m.version !== GEN_MANIFEST_VERSION) out.push(`version must be ${GEN_MANIFEST_VERSION}`);
+  if (m.generated !== true) out.push('generated must be true');
+  if (!m.model || typeof m.model.name !== 'string' || typeof m.model.licence !== 'string' || typeof m.model.url !== 'string') out.push('model: name, licence and url');
+  if (!m.lines || typeof m.lines !== 'object') return [...out, 'no lines'];
+  for (const [lang, chars] of Object.entries(m.lines)) {
+    if (!LANG_RE.test(lang)) out.push(`language ${lang}`);
+    for (const [char, lines] of Object.entries(chars ?? {})) {
+      if (!isCharId(char)) out.push(`${lang}: character ${char}`);
+      for (const [line, e] of Object.entries(lines ?? {})) {
+        const at = `${lang}/${char}/${line}`;
+        if (!isLineId(line)) out.push(`${at}: line id`);
+        const files = Object.entries(e?.files ?? {});
+        if (!files.length) out.push(`${at}: no files`);
+        for (const [ext, p] of files) {
+          if (!FORMATS[ext]) out.push(`${at}: format ${ext}`);
+          if (p !== `${lang}/${char}/${line}.${ext}`) out.push(`${at}: file path ${p}`);
+          else if (exists && !exists(p)) out.push(`${at}: missing file ${p}`);
+        }
+        if (!(e?.duration > 0 && e.duration <= MAX_SECONDS)) out.push(`${at}: duration`);
+        if (!Number.isFinite(Date.parse(e?.take))) out.push(`${at}: take date`);
+      }
+    }
+  }
+  return out;
+}
+
+/** Merge a second generated manifest's lines into a first (the local, git-ignored extras into the committed core). */
+export function mergeGenManifests(core, extra) {
+  const out = { ...(core ?? emptyGenManifest()), lines: {} };
+  for (const m of [core, extra]) {
+    for (const [lang, chars] of Object.entries(m?.lines ?? {})) {
+      for (const [char, lines] of Object.entries(chars ?? {})) Object.assign(((out.lines[lang] ??= {})[char] ??= {}), lines);
+    }
+  }
+  return out;
+}
+
+/**
+ * Which voice plays a line: a person's recording (`human`, the voice studio's
+ * manifest) always wins; else the generated voice (`generated`); else null,
+ * silence. Same language and character only, as for recordings.
+ * @returns {{ source: 'human' | 'generated', char: string, line: string, entry: object } | null}
+ */
+export function selectVoice(human, generated, query) {
+  const h = selectRecording(human, query);
+  if (h) return { source: 'human', ...h };
+  // With no character asked for, a recording by anyone beats a generated voice.
+  const g = selectRecording(generated, query);
+  return g ? { source: 'generated', ...g } : null;
+}

@@ -123,7 +123,7 @@ export class TutorPanel {
       const answer = String(body.answer).replace(/\*\*|__|^#+\s*/gm, '').replace(/\s+/g, ' ').trim();
       this.history.push({ role: 'tutor', text: answer });
       this.log.append(el('p', 'arc-tutor__bubble', answer));
-      // Only a recorded line (the same words as a lesson's hint, say) can be heard; an AI answer is text.
+      // Only a line from the script (the same words as a lesson's hint, say) can be heard; an AI answer is text.
       if (this.opts.voice()) speech.say(answer, { char: 'hoot' });
     } catch {
       thinking.remove();

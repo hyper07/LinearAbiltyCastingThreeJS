@@ -11,8 +11,9 @@
  * after two, and Professor Hoot (Plus) on call. Every reading, answer and
  * finished lesson goes to progress.js; coins, XP and stickers to gamestate.js.
  *
- * Voices are real people's recordings only (voice/player.js), played by line
- * id with the voice on; a line nobody has recorded yet is just its text.
+ * Voices (voice/player.js) are played by line id with the voice on: a real
+ * person's recording, else the character's generated voice, else just the
+ * text. On floors 1–2 the voice is on by default (prefs.voice).
  */
 import * as THREE from 'three';
 import { el, button, sparkle, confetti, SUBJECT_ICON } from '../ui/dom.js';
@@ -387,7 +388,7 @@ class Runner {
       const row = el('div', 'arc-row');
       const back = button('arc-btn', tr('lesson.prev'), null, { disabled: i === 0 });
       const line = `l.${this.lesson.id}.reading.${i}`;
-      const read = button('arc-btn', tr('lesson.readToMe'), () => speech.say(line, { char: this.teacherChar, face: this.room.teacher ?? this.room.tock, bubble: card }), { hidden: !speech.available });
+      const read = button('arc-btn', tr('lesson.readToMe'), () => speech.say(line, { char: this.teacherChar, face: this.room.teacher ?? this.room.tock, bubble: card }), { hidden: !speech.available || !speech.has(line, this.teacherChar) });
       const next = button('arc-btn arc-btn--primary arc-btn--big', tr(i === cards.length - 1 ? 'lesson.gotIt' : 'lesson.next'), null);
       row.append(back, read, next);
       card.append(dots, row);

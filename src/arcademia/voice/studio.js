@@ -1,7 +1,10 @@
 /**
  * The voice studio (voice-studio.html): where real people record AI
- * Arcademia's lines. Admin only. No synthesized or AI voices: what is kept
- * here is a person's own recording, cleaned up with plain signal processing.
+ * Arcademia's lines. Admin only. What is kept here is a person's own
+ * recording, cleaned up with plain signal processing, and it always replaces
+ * the character's generated voice for that line (generated.js). Each line
+ * shows whether it has a recording, only a generated voice, or nothing, and
+ * the generated take can be played for reference.
  *
  *   choose    a voice actor (their credited name, characters, languages),
  *             then a character and a language; a new actor agrees to the
@@ -25,6 +28,7 @@ import { LOCALES, LOCALE_IDS } from '../i18n/index.js';
 import { registerAllLocales } from './locales.js';
 import { buildScript, voiceCharacters, VOICE_KINDS } from './script.js';
 import { FORMATS, recordingFor, progressOf, setRecording, removeRecording } from './manifest.js';
+import { emptyGenManifest, mergeGenManifests } from './generated.js';
 import { DEFAULT_OPTIONS, WARNING_TEXT, db as toDb, processTake, toMono } from './dsp.js';
 import './studio.css';
 
@@ -74,6 +78,7 @@ const S = {
     }
   })(),
   data: null,
+  gen: emptyGenManifest(), // the generated voices (public/audio/voice-gen), for reference
   actor: store.get('actor'),
   char: store.get('char'),
   lang: store.get('lang', 'en'),
@@ -101,6 +106,13 @@ const chars = (lang = S.lang) => voiceCharacters(lang);
 const charOf = (id, lang = S.lang) => chars(lang).find((c) => c.id === id);
 const langName = (id) => LOCALES.find((l) => l.id === id)?.name ?? id;
 const actor = () => S.data?.actors.find((a) => a.id === S.actor && !a.removedAt) ?? null;
+/**
+ * Listening mode: with no voice actor chosen, every character and language can
+ * still be browsed and its generated voice played. Recording needs a real
+ * person (an actor who agreed to the consent text), so it stays off here.
+ */
+const listener = () => ({ id: null, listen: true, name: 'Listening', characters: chars().map((c) => c.id), languages: [...LOCALE_IDS] });
+const who = () => actor() ?? listener();
 const keyOf = (line) => `${S.lang}/${S.char}/${line.id}`;
 
 /* ---------------------------------------------------------------- the server */
@@ -122,21 +134,33 @@ async function api(path, { method = 'GET', json, body, headers = {} } = {}) {
   return out;
 }
 
+/** The generated voices' manifests (static files; a missing one is no generated voices). */
+async function loadGenerated() {
+  const get = (name) =>
+    fetch(`./audio/voice-gen/${name}`, { cache: 'no-cache' })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  const [core, local] = await Promise.all([get('manifest.json'), get('manifest.local.json')]);
+  S.gen = mergeGenManifests(core ?? emptyGenManifest(), local);
+}
+const generatedFor = (lang, char, id) => recordingFor(S.gen, lang, char, id);
+
 async function load() {
+  const gen = loadGenerated();
   S.data = await api('');
+  await gen;
   const a = actor();
   if (!a) S.actor = S.data.actors.find((x) => !x.removedAt)?.id ?? null;
   fixChoice();
   draw();
-  if (!S.data.actors.some((x) => !x.removedAt)) openActor(null);
 }
 
 /** Keep the character and language within what the actor voices. */
 function fixChoice() {
-  const a = actor();
-  if (!a) return;
-  if (!a.characters.includes(S.char)) S.char = a.characters[0];
+  const a = who();
   if (!a.languages.includes(S.lang)) S.lang = a.languages[0];
+  if (!a.characters.includes(S.char)) S.char = a.characters[0];
+  if (a.listen) S.actor = null;
   store.set('actor', S.actor);
   store.set('char', S.char);
   store.set('lang', S.lang);
@@ -191,6 +215,8 @@ function lines() {
     if (S.kind !== 'all' && l.kind !== S.kind) return false;
     if (S.floor !== 'all' && String(l.floor) !== String(S.floor)) return false;
     const done = Boolean(recordingFor(m, S.lang, S.char, l.id));
+    // Listening mode (no actor): only lines that have a voice to play, so Space always plays something.
+    if (!actor() && !done && !generatedFor(S.lang, S.char, l.id)) return false;
     if (S.show === 'missing' && done) return false;
     if (S.show === 'done' && !done) return false;
     return true;
@@ -201,14 +227,15 @@ function lines() {
 
 let els = {};
 function draw() {
-  const a = actor();
+  const real = actor();
+  const a = real ?? listener();
   const list = lines();
   S.i = Math.max(0, Math.min(S.i, list.length - 1));
   root.replaceChildren();
   // Header.
   const head = h('header', { class: 'vs-head' },
     h('h1', {}, '🎙️ AI Arcademia · Voice studio'),
-    h('span', { class: 'vs-muted' }, 'Real people’s voices only — no synthesized or AI voices.'),
+    h('span', { class: 'vs-muted' }, 'A recorded take always replaces the character’s generated voice.'),
     h('span', { class: 'vs-spacer' }),
     h('span', { class: 'vs-chip', title: 'Signed in as' }, `👤 ${S.data.admin}`),
     S.auth ? h('button', { class: 'vs-btn vs-btn--ghost', onclick: () => {
@@ -223,23 +250,21 @@ function draw() {
   // Side: actor, character, language, filters, processing, progress, line list.
   const side = h('aside', { class: 'vs-side' });
   const actorSel = h('select', { 'aria-label': 'Voice actor', 'data-actor': '', onchange: (e) => {
-    S.actor = e.target.value;
+    S.actor = e.target.value || null;
     S.i = 0;
     fixChoice();
     draw();
-  } }, S.data.actors.filter((x) => !x.removedAt).map((x) => h('option', { value: x.id, selected: x.id === S.actor }, x.name)));
+  } }, [h('option', { value: '', selected: !S.actor }, '🎧 Listening (no recording)'), ...S.data.actors.filter((x) => !x.removedAt).map((x) => h('option', { value: x.id, selected: x.id === S.actor }, x.name))]);
   side.append(h('section', { class: 'vs-card' },
     h('h2', {}, 'Voice actor'),
-    a ? actorSel : h('p', { class: 'vs-muted' }, 'No voice actor yet.'),
+    S.data.actors.some((x) => !x.removedAt)
+      ? h('div', {}, actorSel, real ? null : h('p', { class: 'vs-muted vs-small' }, 'Listening mode — choose an actor to record.'))
+      : h('p', { class: 'vs-muted' }, 'Listening mode: play every character’s generated voice. Add a voice actor (a real person who agrees to the consent text) to record.'),
     h('div', { class: 'vs-row' },
       h('button', { class: 'vs-btn', 'data-new-actor': '', onclick: () => openActor(null) }, '＋ New actor'),
-      a ? h('button', { class: 'vs-btn', onclick: () => openActor(a) }, 'Edit') : null),
-    a ? h('p', { class: 'vs-muted vs-small', 'data-consent': '' }, `Consent ${new Date(a.consent.at).toLocaleDateString()} (v${a.consent.version}, taken by ${a.consent.by}). Credited as “${a.name}”.`) : null,
-    a ? h('button', { class: 'vs-btn vs-btn--danger vs-small', 'data-remove-actor': '', onclick: () => removeAll(a) }, 'Remove all my recordings') : null));
-  if (!a) {
-    root.append(head, h('main', { class: 'vs-main' }, side, h('section', { class: 'vs-card vs-empty' }, h('h2', {}, 'Add a voice actor to start'), h('p', {}, 'Each person who records agrees to the consent text first and chooses the name they are credited by.'))));
-    return;
-  }
+      real ? h('button', { class: 'vs-btn', onclick: () => openActor(real) }, 'Edit') : null),
+    real ? h('p', { class: 'vs-muted vs-small', 'data-consent': '' }, `Consent ${new Date(a.consent.at).toLocaleDateString()} (v${a.consent.version}, taken by ${a.consent.by}). Credited as “${a.name}”.`) : null,
+    real ? h('button', { class: 'vs-btn vs-btn--danger vs-small', 'data-remove-actor': '', onclick: () => removeAll(real) }, 'Remove all my recordings') : null));
   const charSel = h('select', { 'aria-label': 'Character', 'data-char': '', onchange: (e) => {
     S.char = e.target.value;
     S.i = 0;
@@ -290,22 +315,27 @@ function draw() {
       h('p', { class: 'vs-muted vs-small' }, 'Every take: silence trimmed, faded, −18 LUFS, peaks ≤ −1 dBFS.')));
   const listEl = h('ol', { class: 'vs-lines', 'aria-label': 'Lines' }, list.map((l, k) => {
     const done = recordingFor(S.data.manifest, S.lang, S.char, l.id);
+    const gen = !done && generatedFor(S.lang, S.char, l.id);
     const takes = S.takes.get(`${S.lang}/${S.char}/${l.id}`)?.list.length ?? 0;
-    return h('li', { class: `${k === S.i ? 'is-now' : ''} ${done ? 'is-done' : ''}` }, h('button', { onclick: () => go(k), title: l.id }, h('span', { class: 'vs-dot', 'aria-label': done ? 'recorded' : 'missing' }), h('span', { class: 'vs-lines__t' }, l.text), takes ? h('span', { class: 'vs-chip' }, `${takes}`) : null));
+    const status = done ? 'recorded' : gen ? 'generated voice only' : 'missing';
+    return h('li', { class: `${k === S.i ? 'is-now' : ''} ${done ? 'is-done' : ''} ${gen ? 'is-gen' : ''}`, 'data-status': done ? 'human' : gen ? 'generated' : 'none' }, h('button', { onclick: () => go(k), title: `${l.id} · ${status}` }, h('span', { class: 'vs-dot', 'aria-label': status }), h('span', { class: 'vs-lines__t' }, l.text), takes ? h('span', { class: 'vs-chip' }, `${takes}`) : null));
   }));
   side.append(h('section', { class: 'vs-card vs-card--list' }, h('h2', {}, `Lines (${list.length})`), listEl));
   // Main: the teleprompter, the meter, the takes.
   const main = h('section', { class: 'vs-prompter-wrap' });
   const line = list[S.i];
   if (!line) {
-    main.append(h('section', { class: 'vs-card vs-empty' }, h('h2', {}, S.show === 'missing' ? '🎉 Every line here is recorded!' : 'No lines match these filters.')));
+    main.append(h('section', { class: 'vs-card vs-empty' }, h('h2', {}, !real ? 'No voice for this character in this language yet' : S.show === 'missing' ? '🎉 Every line here is recorded!' : 'No lines match these filters.'),
+      !real ? h('p', { class: 'vs-muted' }, 'The voices are still being generated. Try another character or language, or pull the newest clips later.') : null));
   } else {
     const recorded = recordingFor(S.data.manifest, S.lang, S.char, line.id);
     const c = charOf(S.char);
     els.meter = h('div', { class: 'vs-meter', role: 'meter', 'aria-label': 'Input level', 'aria-valuemin': '-60', 'aria-valuemax': '0' }, h('i', { class: 'vs-meter__rms' }), h('i', { class: 'vs-meter__peak' }), h('i', { class: 'vs-meter__clip' }), h('span', { class: 'vs-meter__db' }, '—'));
     els.count = h('div', { class: 'vs-count', 'aria-live': 'assertive' });
     els.timer = h('span', { class: 'vs-timer' }, '');
-    els.rec = h('button', { class: 'vs-btn vs-btn--rec', 'data-record': '', onclick: () => toggleRecord() }, S.rec ? '■ Stop (Space)' : '● Record (Space)');
+    els.rec = real
+      ? h('button', { class: 'vs-btn vs-btn--rec', 'data-record': '', onclick: () => toggleRecord() }, S.rec ? '■ Stop (Space)' : '● Record (Space)')
+      : h('button', { class: 'vs-btn', 'data-listen-play': '', disabled: !generatedFor(S.lang, S.char, line.id), onclick: () => playGenerated(line) }, '▶ Play generated (Space)');
     main.append(h('article', { class: 'vs-prompter', 'data-prompter': '' },
       h('div', { class: 'vs-prompter__top' },
         h('span', { class: 'vs-chip' }, `${S.i + 1} / ${list.length}`),
@@ -313,7 +343,7 @@ function draw() {
         h('span', { class: 'vs-chip' }, line.floor ? `floor ${line.floor}` : 'every floor'),
         h('span', { class: 'vs-chip' }, `≈ ${line.seconds} s`),
         h('span', { class: 'vs-chip' }, `${c?.emoji ?? ''} ${c?.name ?? S.char} · ${langName(S.lang)}`),
-        recorded ? h('span', { class: 'vs-chip vs-chip--ok', 'data-saved': '' }, '✓ saved') : null,
+        recorded ? h('span', { class: 'vs-chip vs-chip--ok', 'data-saved': '' }, '✓ saved') : generatedFor(S.lang, S.char, line.id) ? h('span', { class: 'vs-chip vs-chip--gen', 'data-generated': '' }, '🤖 generated voice') : h('span', { class: 'vs-chip' }, 'silent'),
         h('span', { class: 'vs-spacer' }),
         h('code', { class: 'vs-id' }, line.id)),
       h('p', { class: 'vs-line', lang: S.lang, 'data-line': line.id }, line.text),
@@ -324,7 +354,7 @@ function draw() {
         h('button', { class: 'vs-btn', onclick: () => go(S.i - 1), disabled: S.i === 0, 'aria-label': 'Previous line' }, '◀'),
         els.rec, els.meter, els.timer,
         h('button', { class: 'vs-btn', onclick: () => go(S.i + 1), disabled: S.i >= list.length - 1, 'aria-label': 'Next line' }, '▶')),
-      h('p', { class: 'vs-keys vs-muted vs-small' }, 'Space record / stop · Enter keep · R retake · P play · ← → previous / next · Esc cancel')));
+      h('p', { class: 'vs-keys vs-muted vs-small' }, real ? 'Space record / stop · Enter keep · R retake · P play · ← → previous / next · Esc cancel' : 'Listening mode · Space or P play the generated voice · ← → previous / next · add a voice actor to record')));
     main.append(takesCard(line, recorded));
   }
   root.append(head, h('main', { class: 'vs-main' }, side, main), uploadsBar());
@@ -358,8 +388,17 @@ function takesCard(line, recorded) {
       h('button', { class: 'vs-btn', onclick: () => new Audio(url).play() }, '▶ Play'),
       h('button', { class: 'vs-btn vs-btn--ghost', onclick: () => deleteSaved(line) }, '🗑 Remove')));
   }
+  // The character's generated take, for reference: it plays in the game until a person records the line.
+  const gen = generatedFor(S.lang, S.char, line.id);
+  if (gen) {
+    const url = `./audio/voice-gen/${Object.values(gen.files)[0]}?t=${encodeURIComponent(gen.take)}`;
+    card.append(h('div', { class: 'vs-take vs-take--gen', 'data-generated-take': '' },
+      h('strong', {}, '🤖 Generated'),
+      h('span', {}, `${gen.duration.toFixed(2)} s · ${fmtDb(gen.lufs)} LUFS · ${recorded ? 'not played: the recording above wins' : 'plays in the game until someone records this line'}${gen.rough ? ' · ⚠️ rough take' : ''}`),
+      h('button', { class: 'vs-btn', 'data-play-generated': '', onclick: () => new Audio(url).play() }, '▶ Play')));
+  }
   if (!t?.list.length) {
-    card.append(h('p', { class: 'vs-muted' }, recorded ? 'Record again to replace it.' : 'No takes yet — press Space to record.'));
+    card.append(h('p', { class: 'vs-muted' }, recorded ? 'Record again to replace it.' : gen ? 'Record a take to replace the generated voice — press Space.' : 'No takes yet — press Space to record.'));
     return card;
   }
   t.list.forEach((take, k) => {
@@ -539,7 +578,16 @@ function captureType() {
   return '';
 }
 
+/** Play a line's generated voice (listening mode, and P on a line with no takes). */
+function playGenerated(line) {
+  const gen = line && generatedFor(S.lang, S.char, line.id);
+  if (!gen) return false;
+  new Audio(`./audio/voice-gen/${Object.values(gen.files)[0]}?t=${encodeURIComponent(gen.take)}`).play();
+  return true;
+}
+
 async function toggleRecord() {
+  if (!actor()) return playGenerated(lines()[S.i]);
   if (S.rec?.phase === 'recording') return stopRecording();
   if (S.rec) return stopRecording(true);
   const list = lines();
@@ -755,10 +803,11 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     const t = S.takes.get(keyOf(line));
     if (t?.list.length) keep(line, t.chosen);
-  } else if ((e.key === 'r' || e.key === 'R') && !S.rec) toggleRecord();
+  } else if ((e.key === 'r' || e.key === 'R') && !S.rec && actor()) toggleRecord();
   else if ((e.key === 'p' || e.key === 'P') && line) {
     const t = S.takes.get(keyOf(line));
-    play(t?.list[t.chosen]);
+    if (t?.list.length) play(t.list[t.chosen]);
+    else playGenerated(line);
   } else if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && !S.rec) {
     e.preventDefault();
     go(S.i + 1);
