@@ -11,6 +11,47 @@ where students build and test their own circuits.
   teaches, and course level 1–3. Search: `npm run kb -- led --kind circuit-part`.
 - **Skill:** `.claude/skills/circuit-lab/SKILL.md` loads this guide.
 
+## Start here: adopt two MIT projects instead of building from zero
+
+Found and checked on 2026-11-23 (both MIT, both run in the browser with
+three.js). Together they already cover most of §4–§9; build on them.
+
+| | [ohmlet](https://github.com/JENW1N/ohmlet) | [OpenCircuit 3D](https://github.com/gabrieleviolait/opencircuit) ([live](https://opencircuit.pages.dev/)) |
+| --- | --- | --- |
+| Strength | **The look and the circuit core.** Photo-real breadboards (400 to 1660 points, ganged benches), parts reworked against product photos, collision-free wire and lead routing, three render modes (raster, HDRI + post, path-traced studio via three-gpu-pathtracer), bench supply, scope. Custom MNA solver (Norton stamps, LU with pivoting, Newton–Raphson, backward-Euler reactives), behavioural 74xx / CD4xxx / NE555 / LM358, layout validator, tests | **The boards and features.** Arduino Uno/Nano/Mega on avr8js with **C++ → HEX compiled in the browser** (avr-gcc WASM from a CDN), a fast Arduino runtime, ESP32 and Pico as behavioural boards, multimeter, scope, logic analyser, LCD 16×2, OLED, NeoPixels, DHT22, HC-SR04, servo, buzzer, optional ngspice WASM, presets, share links, embeddable iframes |
+| Gap | **No microcontrollers** by design; React 18 + TypeScript + zustand; three 0.170; its AI panel calls the Anthropic API from the browser with the user's key | Plain boxy 3D, cluttered UI, debug gizmos; one big `app.bundle.js` plus `src/` |
+| Use | **The base app** | **Source of the board runtimes, displays and instruments**, ported into ohmlet's chip bridge |
+
+**Why they fit together:** ohmlet's chip bridge (`src/sim/chip-api.ts`)
+steps behavioural chips before each solve and lets them drive pins as
+`{v, rout}` Norton stamps — exactly the pin interface a microcontroller needs
+(§6). So an Arduino on avr8js becomes "a chip" whose GPIO port writes become
+pin drives and whose input pins read node voltages.
+
+**How to bring it onto the platform**
+1. Put ohmlet in `apps/circuitlab/` (own `package.json`, React + TS kept;
+   keep its LICENSE; credit both projects in `docs/third-party.md` and a
+   visible in-app credits panel). Build it to static files the platform
+   serves; open it from a platform card like the games, with our help panel
+   (H) and back-to-home.
+2. Move it to our three version (0.185) or keep its own pinned three inside
+   its own bundle — whichever keeps the path tracer working.
+3. Replace the browser-side Anthropic key with a call through our server, or
+   hide the AI panel until that exists. Never ship an API key to the browser.
+4. Port from OpenCircuit: avr8js boards + in-browser compile, the fast
+   Arduino runtime and its ESP32 / Pico boards, LCD / OLED / NeoPixel / servo /
+   buzzer / sensor helpers, the multimeter and logic analyser, presets. Keep
+   OpenCircuit's MIT notice beside the ported code. The avr-gcc WASM and
+   ngspice packages stay loaded from their CDN (their own licences), as
+   OpenCircuit does.
+5. Then continue with this guide: more of the 142 catalogue parts, boards
+   by tier (rp2040js for a real Pico, the micro:bit simulator, Pyodide +
+   gpiozero for Raspberry Pi), lessons with auto-checked goals (§10), the
+   server tier last.
+
+Not usable: *Circuit Sim 3D Mobile Lab* (no licence = all rights reserved);
+Velxio (AGPL) and CircuitJS (GPL) stay idea-only.
+
 ## Contents
 
 1. [The reference, studied](#1-the-reference-studied)

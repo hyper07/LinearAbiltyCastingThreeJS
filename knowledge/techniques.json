@@ -1586,6 +1586,28 @@
    ],
    "from": "circuit-lab",
    "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.adopt-ohmlet-opencircuit",
+   "kind": "technique",
+   "title": "Circuit lab base: adopt ohmlet (3D + MNA) and OpenCircuit (boards) — both MIT",
+   "summary": "ohmlet: photo-real three.js breadboard simulator, MNA solver, 74xx/555/LM358 chips, routing, path-traced studio, React+TS, no MCUs. OpenCircuit: Uno/Nano/Mega on avr8js with in-browser C++→HEX, ESP32/Pico behavioural, displays, instruments, ngspice. Plan: ohmlet as base in apps/circuitlab, port boards via its chip bridge.",
+   "tags": [
+    "circuit",
+    "simulator",
+    "open source",
+    "ohmlet",
+    "opencircuit",
+    "breadboard",
+    "arduino",
+    "esp32",
+    "avr8js",
+    "3d",
+    "mit",
+    "adopt"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
   }
  ]
 }
