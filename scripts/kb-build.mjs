@@ -82,6 +82,22 @@ for (const file of ['knowledge/own.json', 'knowledge/techniques.json']) {
   for (const r of read(file).records) add({ ...r, from: r.from ?? path.basename(file, '.json') });
 }
 
+// 4a. Electronics parts for the circuit lab (knowledge/circuit-components.json; plan in knowledge/circuit-lab.md).
+const PARTS = 'knowledge/circuit-components.json';
+if (existsSync(path.join(ROOT, PARTS))) {
+  for (const p of read(PARTS).parts) {
+    add({
+      id: `part.${p.id}`,
+      kind: 'circuit-part',
+      title: `${p.name} (${p.category}, level ${p.level})`,
+      summary: `Teaches ${p.teach}. Sim: ${p.sim}. Looks like: ${p.look}.`,
+      tags: [p.category, 'electronics', 'circuit', ...p.id.split('-'), ...p.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1)],
+      path: 'knowledge/circuit-lab.md',
+      from: 'circuit-lab',
+    });
+  }
+}
+
 // 4b. Reference screenshots studied from images/ (kept out of git): HUDs, skill bars, effects,
 // menus, scenes and game concepts. The record points at the study; `image` is the local file.
 // Ones rated 1 (blurry, duplicate, off-topic) stay in the catalogue but out of search.

@@ -1,0 +1,283 @@
+# Circuit lab: 3D electronics parts, real simulation, students build their own circuits
+
+How to build an electronics / electrical-engineering class lab in three.js:
+every common part as a clean 3D model, circuits that are actually solved (not
+scripted), instruments, code running on a microcontroller, and a breadboard
+where students build and test their own circuits.
+
+- **Parts:** [circuit-components.json](circuit-components.json) — 125 parts
+  (power, passives, switches, semiconductors, ICs, boards, sensors, outputs,
+  instruments, modules) with pins, simulation model, 3D look, what each one
+  teaches, and course level 1–3. Search: `npm run kb -- led --kind circuit-part`.
+- **Skill:** `.claude/skills/circuit-lab/SKILL.md` loads this guide.
+
+## Contents
+
+1. [The reference, studied](#1-the-reference-studied)
+2. [What we build, and how it differs](#2-what-we-build-and-how-it-differs)
+3. [Architecture](#3-architecture)
+4. [The circuit solver](#4-the-circuit-solver)
+5. [Digital parts and mixed signal](#5-digital-parts-and-mixed-signal)
+6. [Running student code on a microcontroller](#6-running-student-code-on-a-microcontroller)
+7. [3D parts and the look](#7-3d-parts-and-the-look)
+8. [Showing what the circuit is doing](#8-showing-what-the-circuit-is-doing)
+9. [The builder: breadboard, wires, probes](#9-the-builder-breadboard-wires-probes)
+10. [Lessons and auto-checked goals](#10-lessons-and-auto-checked-goals)
+11. [Open-source pieces](#11-open-source-pieces)
+12. [Build order](#12-build-order)
+
+---
+
+## 1. The reference, studied
+
+The reference (learn-esp32.vercel.app, three.js r186, viewed 2026-11-23) shows
+20 ESP32 lessons, each a finished machine on a breadboard (Flash two LEDs,
+Fridge alarm, Mini piano, Mood lamp, Distance meter, Water pump, Keypad lock,
+Solar tracker, Radar, Pick and place…). What makes it feel good:
+
+- **One isometric 3D scene** on a warm cream background with a faint
+  grid-paper pattern; orthographic-looking camera; clean, slightly toy-like
+  parts (ESP32, breadboard, NEMA 17 on a lead screw, A4988, buttons,
+  electromagnet) and colourful jumper wires with real bends.
+- **Callout cards with leader lines**: a white card per key part ("STEPPER ·
+  A4988 — STEP on GPIO 19, DIR on 18: 25 steps a millimetre") joined by a
+  dotted coloured line to a dot on the part. They collapse into small pill
+  labels when the components list is open.
+- **A live readout tag on the moving part** while running
+  (`61.4 mm · step 1535`).
+- **Schematic inset** in the corner of the 3D view, matching the build.
+- **Right column:** tabs Overview / Pinout / Example / Specifications; a lesson
+  write-up with "what you'll learn" rows; a code panel ("Try it yourself") with
+  run/stop, copy and full screen; **the line being executed is highlighted**
+  while it runs; a serial monitor under it (`Home`, `Ball into bin 1`).
+- **Components panel** ("18 in view"): each part with a one-paragraph plain
+  explanation; clicking focuses the camera on it; a guided toggle "Press the
+  buttons in turn while running".
+- **Lessons carousel** along the bottom with 3D thumbnails and a check mark
+  when done; a progress pill "BASICS 1/20".
+- Controls hint: drag / WASD pan, Q / E rotate, scroll zoom; view buttons
+  (reset, undo, zoom ±, schematic, info).
+- Its "Compiling… Writing 100 %" is theatre: the sketch runs as a scripted
+  JS mirror of the C++ shown. Nothing is solved electrically, and students
+  can't change the wiring.
+
+## 2. What we build, and how it differs
+
+Keep the reference's clarity and look, and add the three things a class needs:
+
+1. **A real solver**: every voltage and current comes from solving the
+   circuit, so a wrong resistor really makes the LED dim or burn, and a
+   missing ground really breaks the circuit.
+2. **A builder**: students place parts on a breadboard, wire them, and press
+   run. Mistakes are safe and visible (smoke, a popped LED, a blown fuse,
+   friendly messages).
+3. **Instruments and code**: a multimeter, oscilloscope, function generator
+   and logic analyser; student code that really drives the pins.
+
+Name suggestion: **Circuit Lab** (a platform app, like the games; it can also
+be opened from AI Arcademia's physics floor for younger students later).
+
+## 3. Architecture
+
+```
+src/circuitlab/
+  parts/        catalogue → part definitions (pins, footprint, sim model, 3D builder)
+  board/        breadboard grid, placement, wires → netlist (union-find over holes)
+  sim/          MNA solver, device models, transient stepping, damage
+  digital/      logic-level parts, edge events, protocol devices (I²C, SPI, UART, 1-Wire)
+  mcu/          board runtimes: instant (sketch → JS), avr8js (Uno), rp2040js (Pico)
+  instruments/  multimeter, scope, generator, logic analyser
+  view/         three.js scene, part meshes, wires, glow, current dots, callouts, schematic
+  ui/           parts bin, code editor, serial monitor, lesson panel, help (H)
+  lessons/      lesson data + goal checks
+```
+
+Data flow each frame: builder edits → netlist (only when it changes) → solver
+steps N times (sim time per frame = real dt × time scale) → device states
+(LED brightness, motor speed, servo angle, display buffers) → view and
+instruments. Student code runs in its own loop against the same pin model.
+
+## 4. The circuit solver
+
+Modified nodal analysis (MNA), the textbook method every SPICE uses. Ours is
+written from the maths, not copied from any GPL simulator.
+
+- **Unknowns:** node voltages + currents through voltage sources (and
+  inductors in the voltage form). Ground is node 0.
+- **Stamps:** resistor (conductance), current source, voltage source (extra
+  row), switch (tiny R closed / huge R open), VCVS/VCCS for behavioural parts.
+- **Time:** capacitors and inductors become companion models (a conductance in
+  parallel with a current source) using trapezoidal integration, backward
+  Euler for the first step and after a switch event (kills ringing).
+  Default step 5–20 µs; the time-scale slider lets slow things (555 blink,
+  RC charge) run in real time and fast things (PWM) run in slow motion.
+- **Nonlinear parts** (diodes, LEDs, BJTs, MOSFETs): Newton–Raphson each step,
+  with junction-voltage limiting (as SPICE does), at most ~30 iterations,
+  then a gmin step-down / source-stepping fallback. Models: Shockley diode
+  with per-colour LED Vf; Ebers–Moll BJT (β, Is); square-law MOSFET (Vth, k,
+  λ); op-amps and comparators as behavioural macro-models with rail limits
+  and slew.
+- **Size:** a class circuit is < 200 nodes, so a dense LU with partial
+  pivoting is fine; reuse the factorisation while only sources change. Move
+  the solver to a Web Worker once circuits get big.
+- **Friendly errors**, never a silent NaN: a floating part ("this LED isn't
+  connected to anything on one side"), a loop of voltage sources or a short
+  across a supply ("the 9 V battery is shorted — it would get hot fast"), a
+  missing ground reference.
+- **Damage, for teaching:** each part has ratings (resistor W, LED mA,
+  capacitor V and polarity, regulator heat, fuse I·t). Over the rating, it
+  smokes, pops or bulges in 3D, becomes an open circuit, and the panel says
+  why. A reset button repairs everything.
+- **Accuracy check:** export the netlist as SPICE and compare with ngspice
+  (WASM) in tests, for a set of reference circuits.
+
+## 5. Digital parts and mixed signal
+
+- Logic ICs and protocol devices run as event-driven models at logic level.
+- **The boundary:** a digital output is a voltage source with an output
+  resistance (≈ 25 Ω for MCU pins, ≈ 50 Ω for 74HC) into the analog net; a
+  digital input reads its node voltage with thresholds (low < 30 % Vcc,
+  high > 70 %, in between = undefined, shown as a warning), plus an internal
+  pull-up when enabled. This is what makes "forgot the pull-up" and "button
+  floating" behave like real life.
+- **Buses as device models:** I²C (address + registers), SPI, UART, 1-Wire,
+  NeoPixel and HD44780 are modelled at transaction level, not per edge, and
+  shown on the logic analyser as decoded frames.
+
+## 6. Running student code on a microcontroller
+
+Three runtimes behind one pin interface (`pinMode`, levels, ADC, PWM, buses):
+
+| Mode | Boards | How | When |
+| --- | --- | --- | --- |
+| **Instant** (default) | ESP32, Uno, Nano, Pico | Transpile an Arduino-C++ subset (types, functions, arrays, `for/while/if`, `#define`) to JS generator code that yields at every statement and at `delay()`. Gives the reference's current-line highlight and step/pause. Library shims: Serial, Wire, SPI, Servo, AccelStepper, Adafruit_NeoPixel, LiquidCrystal_I2C, ESP32 `ledcWrite`, `WiFi` (mocked), `tone`. | All lessons; instant start, no server |
+| **Real chip** | Arduino Uno / Nano | `avr8js` (MIT) runs the real compiled `.hex`. Compile with `arduino-cli` on our server, cached by source hash, time and size limits. | Advanced classes; exact timing |
+| **MicroPython** | Raspberry Pi Pico (and ESP32 style) | `rp2040js` (MIT) runs the official MicroPython firmware; or the MicroPython WebAssembly port with a JS-backed `machine` module (check its JS bridge before relying on it) | Python classes |
+
+A full ESP32 emulator in the browser does not exist in a light form (Velxio
+uses QEMU on a server, AGPL), so ESP32 code runs in Instant mode.
+
+Serial monitor: Serial output streams to the panel; input box sends lines
+back. A plotter tab graphs `Serial.println` numbers.
+
+## 7. 3D parts and the look
+
+- **Units:** 1 unit = 1 mm; the breadboard grid is exactly 2.54 mm, so real
+  part footprints fit.
+- **Parametric, procedural models** from the catalogue's `look`: resistor
+  colour bands generated from the value; electrolytic with a − stripe and a
+  longer + leg; LEDs with a domed lens, a flat on the cathode side and a
+  longer anode; TO-92 / TO-220 / DIP packages with pin-1 notch and printed
+  part numbers (canvas texture); boards with headers, chips, USB ports and
+  silkscreen labels. One builder per package family covers most of the 125.
+  Bigger modules (motors, sensors, displays) are modelled once, procedurally,
+  or come from CC0/CC-BY models (credited).
+- **Look (matching the reference):** warm cream background with a faint grid,
+  soft key light + ambient from an HDRI, ambient occlusion, very soft shadows,
+  slightly saturated clean materials, thin dark outlines on selection, glow
+  only from emissive parts. WebGL2 + EffectComposer (GTAO, SMAA, selective
+  bloom) is enough; see render-quality.md §4. Render on demand when nothing
+  moves.
+- **Wires:** tube geometry along a smooth curve that rises from each hole,
+  sags slightly, and avoids parts; DuPont ends; colour picked by the student
+  (convention: red = +, black = GND, others for signals).
+- **Camera:** orthographic-style isometric by default, with orbit
+  (left-drag on empty space; a click-vs-drag threshold so clicks still select),
+  Q / E rotate, scroll zoom, double-click a part to focus.
+
+## 8. Showing what the circuit is doing
+
+The teaching value is in making invisible things visible:
+
+- **Current dots** flowing along wires and through parts, speed ∝ current,
+  direction = conventional current (toggle to electron flow).
+- **Voltage colouring:** wires and pins tinted on a scale from GND (blue)
+  through mid (grey/green) to supply (red); toggle on and off.
+- **LEDs** glow with brightness ∝ current (emissive + bloom), lamps warm up,
+  motors spin at the simulated speed, servos turn to the simulated angle,
+  buzzers play the real drive frequency through WebAudio, displays show the
+  real buffer, relays click.
+- **Hover any pin or wire:** voltage, current, and the net name.
+- **Callouts** like the reference (cards + leader lines, CSS2D) for lesson
+  parts; **live readout tags** on moving parts.
+- **Schematic view** generated from the netlist (2D SVG, auto-layout), shown
+  as an inset like the reference or full screen; click a symbol to highlight
+  the 3D part.
+- **Damage effects:** smoke puff, LED pop with a dark lens, capacitor bulge,
+  blown-fuse wire — each with a one-line reason.
+
+## 9. The builder: breadboard, wires, probes
+
+- **Parts bin** on the left: search, categories, course level filter, a
+  thumbnail and one-line "what it does" per part; drag into the scene.
+- **Placing:** legs snap into breadboard holes (pitch-checked); parts can
+  straddle the centre channel (DIP ICs); rotate with R; delete with Delete;
+  undo/redo with Ctrl+Z / Ctrl+Y.
+- **Wiring:** drag from a hole or pin to another; the wire follows the cursor;
+  colour from a small palette.
+- **Netlist** from union-find over breadboard strips (5-hole half-columns,
+  full-length rails) + wires + part pins; it rebuilds only on edits, and the
+  solver restarts from the last operating point.
+- **Probes:** drag the multimeter's red/black probes onto any two points; the
+  ammeter must be put in series (and using it in parallel blows its fuse, the
+  classic mistake); scope probes on any node.
+- **Save and share** circuits to the platform database (PostgreSQL, already in
+  place); a link opens the same build; export SPICE netlist and an image.
+- **Help (H)** lists every key and mouse action.
+
+## 10. Lessons and auto-checked goals
+
+Each lesson = a starting build (maybe empty), an explanation (Overview,
+Pinout, Example, Specifications tabs like the reference), and **goals the
+simulator checks**: "LED current between 5 and 20 mA", "output toggles at
+1 Hz ± 10 %", "the motor reverses when the button is pressed", "the divider
+gives 2.5 V ± 0.1". A goal turns green live as the student builds.
+
+Suggested course (levels match the catalogue):
+
+1. Level 1 — circuits: what a circuit is (battery, switch, lamp/LED); Ohm's
+   law with the multimeter; series and parallel; the LED and its resistor;
+   the voltage divider and the potentiometer; the LDR night light; buttons
+   with pull-up and pull-down; capacitors charging (RC); the breadboard.
+2. Level 2 — electronics: the diode and rectifier; the transistor as a
+   switch; the MOSFET driving a motor; relays and flyback diodes; the 555
+   blinker and the 555 one-shot; op-amp follower, inverting and non-inverting
+   amplifiers; comparators and thresholds; logic gates and a half adder; the
+   counter and shift register; first microcontroller: blink, button, PWM fade,
+   analog read, servo, buzzer melody, serial plotter.
+3. Level 3 — systems: RC and LC filters with the function generator and the
+   scope (Bode-style sweep); H-bridge and PWM speed control; steppers and
+   microstepping; I²C and SPI sensors with the logic analyser; power
+   (regulators, heat, efficiency, batteries); projects like the reference's
+   (alarm, piano, radar, solar tracker, pick-and-place).
+
+## 11. Open-source pieces
+
+| What | For | Licence / note |
+| --- | --- | --- |
+| Our own MNA solver | All analog simulation | Ours |
+| [ngspice](https://ngspice.sourceforge.io) via [EEcircuit-engine](https://github.com/eelab-dev/EEcircuit) (WASM) | Accuracy checks in tests, optional "SPICE mode" for advanced students | ngspice BSD-3; EEcircuit MIT (check the npm package's licence field) |
+| [avr8js](https://github.com/wokwi/avr8js) | Real ATmega328P (Uno/Nano) running compiled code | MIT |
+| [rp2040js](https://github.com/wokwi/rp2040js) | Raspberry Pi Pico; runs MicroPython firmware | MIT |
+| [wokwi-elements](https://github.com/wokwi/wokwi-elements) | 2D part graphics for the parts bin thumbnails or schematic look | MIT |
+| [MicroPython WebAssembly port](https://www.npmjs.com/package/@micropython/micropython-webassembly-pyscript) | Python in the browser with a JS-backed `machine` module | MIT |
+| arduino-cli | Server-side compile for real-chip mode | Run as a tool on our server |
+| CircuitJS1 (Falstad) | Ideas for interaction and visual language | GPL-2: read only, never copy code |
+| Velxio | How others bridge emulators and parts | AGPL-3: read only |
+| KiCad symbol / 3D libraries, Fritzing parts | Pinouts and reference shapes | CC-BY-SA: reference for shapes and pinouts; we model our own |
+
+## 12. Build order
+
+1. **Core:** catalogue → part definitions for ~25 level-1 parts; breadboard,
+   placing, wiring, netlist; MNA solver (R, sources, switches, C, diode/LED);
+   LED glow, current dots, voltage colours; multimeter; damage; help panel.
+   Unit tests against hand-solved circuits and ngspice.
+2. **Microcontroller:** Instant runtime with the Arduino subset and the ESP32
+   and Uno boards; code panel with line highlight; serial monitor and plotter;
+   servo, buzzer, potentiometer, button, PWM.
+3. **Level 2 parts:** BJT, MOSFET, relay, 555, op-amps, logic ICs, motors,
+   steppers and drivers; scope and function generator; schematic view.
+4. **Lessons:** the level 1 and 2 course with auto-checked goals; progress;
+   save/share.
+5. **Level 3:** I²C/SPI/UART devices, logic analyser, displays, NeoPixels;
+   avr8js real-chip mode with server compile; Pico + MicroPython.

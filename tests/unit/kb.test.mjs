@@ -35,6 +35,8 @@ test('search finds the right thing first for plain words', () => {
   assert.ok(top('bunny snowboard').slice(0, 3).includes('ref.img-0252'));
   assert.ok(top('render quality unreal').slice(0, 3).includes('tech.render-engine-grade'));
   assert.ok(top('dress up', { kind: 'visual-ref' }).every((id) => id.startsWith('ref.img-')));
+  assert.ok(top('stepper driver', { kind: 'circuit-part' })[0] === 'part.stepper-driver-a4988');
+  assert.ok(top('mna circuit solver').slice(0, 3).includes('tech.circuit-mna-solver'));
   // Models only when asked for.
   assert.ok(top('tank').every((id) => !id.startsWith('model.')));
   assert.ok(top('tank', { models: true }).some((id) => id.startsWith('model.')));

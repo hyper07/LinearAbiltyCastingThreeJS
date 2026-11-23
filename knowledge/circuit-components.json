@@ -1,0 +1,1814 @@
+{
+ "note": "Components for the circuit lab: every part an electronics / electrical-engineering class uses, with pins, how to simulate it, how it should look in 3D, and what it teaches. level 1 = first weeks, 2 = core course, 3 = advanced. See knowledge/circuit-lab.md.",
+ "parts": [
+  {
+   "id": "battery-9v",
+   "name": "9 V battery",
+   "category": "power",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "voltage source 9 V with 1.5 Ω internal resistance; drains with charge (mAh) in long runs",
+   "look": "rectangular blue/black can with snap terminals on top",
+   "teach": "voltage, polarity, internal resistance"
+  },
+  {
+   "id": "battery-aa-holder",
+   "name": "AA battery holder (2×/4×)",
+   "category": "power",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "series cells 1.5 V each, 0.15 Ω each",
+   "look": "black plastic tray with red/black leads, cells visible",
+   "teach": "series cells add voltage"
+  },
+  {
+   "id": "coin-cell",
+   "name": "CR2032 coin cell",
+   "category": "power",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "3 V source, 15 Ω internal (sags under LED load)",
+   "look": "silver disc in a holder",
+   "teach": "why coin cells can light an LED without a resistor (internal R)"
+  },
+  {
+   "id": "dc-supply",
+   "name": "Bench power supply",
+   "category": "power",
+   "level": 2,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "adjustable voltage source with current limit (CV/CC modes)",
+   "look": "grey box, two 7-seg displays, knobs, banana jacks",
+   "teach": "constant voltage vs constant current"
+  },
+  {
+   "id": "usb-power",
+   "name": "USB 5 V supply",
+   "category": "power",
+   "level": 1,
+   "pins": [
+    "VBUS",
+    "GND"
+   ],
+   "sim": "5 V source, 0.5 Ω, 500 mA limit",
+   "look": "USB cable with breadboard power adapter",
+   "teach": "5 V logic power"
+  },
+  {
+   "id": "dc-jack",
+   "name": "DC barrel jack + 12 V adapter",
+   "category": "power",
+   "level": 2,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "12 V source",
+   "look": "black barrel jack on the board, wall adapter brick",
+   "teach": "powering motors from a separate supply, common ground"
+  },
+  {
+   "id": "breadboard-psu",
+   "name": "Breadboard power module (3.3/5 V)",
+   "category": "power",
+   "level": 1,
+   "pins": [
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "two fixed regulators feeding the rails; jumpers pick per rail",
+   "look": "small PCB on the rail ends with yellow jumpers, green LED",
+   "teach": "rails and supply selection"
+  },
+  {
+   "id": "solar-panel",
+   "name": "Small solar panel",
+   "category": "power",
+   "level": 2,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "current source ∝ light level in parallel with a diode (I–V curve)",
+   "look": "dark blue cells in an aluminium frame",
+   "teach": "light to electricity, I–V curve"
+  },
+  {
+   "id": "lipo-tp4056",
+   "name": "LiPo cell + TP4056 charger",
+   "category": "power",
+   "level": 3,
+   "pins": [
+    "B+",
+    "B-",
+    "OUT+",
+    "OUT-",
+    "IN+",
+    "IN-"
+   ],
+   "sim": "3.0–4.2 V cell with SoC; CC/CV charge model",
+   "look": "silver pouch cell and blue charger PCB with red/blue LEDs",
+   "teach": "charging, protection"
+  },
+  {
+   "id": "reg-7805",
+   "name": "7805 linear regulator",
+   "category": "power",
+   "level": 2,
+   "pins": [
+    "IN",
+    "GND",
+    "OUT"
+   ],
+   "sim": "output min(5 V, Vin−2 V); dissipates (Vin−Vout)·I as heat",
+   "look": "TO-220 black body with metal tab",
+   "teach": "regulation, dropout, heat"
+  },
+  {
+   "id": "reg-ams1117",
+   "name": "AMS1117-3.3 LDO",
+   "category": "power",
+   "level": 2,
+   "pins": [
+    "IN",
+    "GND",
+    "OUT"
+   ],
+   "sim": "3.3 V out with 1.1 V dropout",
+   "look": "SOT-223 on a breakout",
+   "teach": "LDO regulators"
+  },
+  {
+   "id": "buck-converter",
+   "name": "Buck converter module (LM2596)",
+   "category": "power",
+   "level": 3,
+   "pins": [
+    "IN+",
+    "IN-",
+    "OUT+",
+    "OUT-"
+   ],
+   "sim": "averaged model: Vout set by trim pot, efficiency ~85 %",
+   "look": "blue PCB with big inductor and trim pot",
+   "teach": "switching vs linear regulation"
+  },
+  {
+   "id": "resistor",
+   "name": "Resistor (any value, E12/E24)",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "R; power rating 1/4 W — overheats (smoke) above it",
+   "look": "beige or blue body with colour bands generated from the value",
+   "teach": "Ohm's law, colour code, power"
+  },
+  {
+   "id": "potentiometer",
+   "name": "Potentiometer 10 kΩ",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "1",
+    "W",
+    "2"
+   ],
+   "sim": "two resistors set by knob angle (linear or log taper)",
+   "look": "round body, knurled shaft, three legs",
+   "teach": "voltage divider, analog input"
+  },
+  {
+   "id": "trimpot",
+   "name": "Trimmer potentiometer",
+   "category": "passive",
+   "level": 2,
+   "pins": [
+    "1",
+    "W",
+    "2"
+   ],
+   "sim": "as potentiometer, screwdriver slot",
+   "look": "small blue square with brass screw",
+   "teach": "calibration"
+  },
+  {
+   "id": "slide-pot",
+   "name": "Slide potentiometer",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "1",
+    "W",
+    "2"
+   ],
+   "sim": "as potentiometer, linear position",
+   "look": "long black body with a sliding knob",
+   "teach": "position sensing"
+  },
+  {
+   "id": "ldr",
+   "name": "Photoresistor (LDR)",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "R = 1 MΩ dark → ~1 kΩ bright (power law of light level slider)",
+   "look": "orange zig-zag window on a white disc",
+   "teach": "light sensing, divider"
+  },
+  {
+   "id": "ntc",
+   "name": "NTC thermistor 10 kΩ",
+   "category": "passive",
+   "level": 2,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "β model, β = 3950, R25 = 10 kΩ",
+   "look": "black bead on two legs",
+   "teach": "temperature sensing, nonlinearity"
+  },
+  {
+   "id": "cap-ceramic",
+   "name": "Ceramic capacitor",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "C (pF–µF), companion model in transient",
+   "look": "small orange/blue disc with printed code (104)",
+   "teach": "RC timing, filtering, decoupling"
+  },
+  {
+   "id": "cap-electrolytic",
+   "name": "Electrolytic capacitor",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "C with ESR; reverse voltage or over-voltage → bulge and pop",
+   "look": "blue/black can with a grey − stripe, longer + leg",
+   "teach": "polarity, smoothing, energy storage"
+  },
+  {
+   "id": "cap-supercap",
+   "name": "Supercapacitor 1 F",
+   "category": "passive",
+   "level": 3,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "C = 1 F, 5.5 V max",
+   "look": "coin-shaped black can",
+   "teach": "energy storage vs batteries"
+  },
+  {
+   "id": "inductor",
+   "name": "Inductor",
+   "category": "passive",
+   "level": 2,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "L with series R, companion model; current can't change instantly",
+   "look": "green-banded axial or toroid with copper winding",
+   "teach": "inductance, back-EMF"
+  },
+  {
+   "id": "transformer",
+   "name": "Transformer",
+   "category": "passive",
+   "level": 3,
+   "pins": [
+    "P1",
+    "P2",
+    "S1",
+    "S2"
+   ],
+   "sim": "coupled inductors, turns ratio, AC only",
+   "look": "laminated iron core with two windings",
+   "teach": "AC voltage transformation"
+  },
+  {
+   "id": "crystal",
+   "name": "Crystal 16 MHz",
+   "category": "passive",
+   "level": 3,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "shown only; MCU clock is implicit",
+   "look": "silver HC-49 can",
+   "teach": "clocks"
+  },
+  {
+   "id": "fuse",
+   "name": "Fuse",
+   "category": "passive",
+   "level": 2,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "0 Ω until I > rating for t → open, visible blown wire",
+   "look": "glass tube with a thin wire in holders",
+   "teach": "overcurrent protection"
+  },
+  {
+   "id": "wire",
+   "name": "Jumper wire",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "a",
+    "b"
+   ],
+   "sim": "0 Ω ideal (tiny R for solver stability)",
+   "look": "flexible coloured wire with black DuPont ends, smooth bend",
+   "teach": "connections, colour conventions"
+  },
+  {
+   "id": "breadboard",
+   "name": "Breadboard (full / half)",
+   "category": "passive",
+   "level": 1,
+   "pins": [
+    "holes"
+   ],
+   "sim": "connectivity only: 5-hole strips per half-column, rails along the length",
+   "look": "cream plastic, 2.54 mm grid, red/blue rail lines, centre channel",
+   "teach": "how breadboards connect"
+  },
+  {
+   "id": "push-button",
+   "name": "Tactile push button",
+   "category": "switch",
+   "level": 1,
+   "pins": [
+    "1a",
+    "1b",
+    "2a",
+    "2b"
+   ],
+   "sim": "switch closed while pressed; pairs 1a–1b and 2a–2b always joined",
+   "look": "12 mm black square with round cap (colour caps)",
+   "teach": "inputs, pull-up/pull-down, bounce"
+  },
+  {
+   "id": "slide-switch",
+   "name": "Slide switch SPDT",
+   "category": "switch",
+   "level": 1,
+   "pins": [
+    "A",
+    "COM",
+    "B"
+   ],
+   "sim": "COM to A or B",
+   "look": "small black slider on a blue body",
+   "teach": "SPDT, selecting paths"
+  },
+  {
+   "id": "toggle-switch",
+   "name": "Toggle switch",
+   "category": "switch",
+   "level": 1,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "SPST",
+   "look": "metal lever on a hex nut",
+   "teach": "on/off"
+  },
+  {
+   "id": "dip-switch",
+   "name": "DIP switch ×4/×8",
+   "category": "switch",
+   "level": 2,
+   "pins": [
+    "1..n",
+    "1'..n'"
+   ],
+   "sim": "n independent SPST",
+   "look": "red block with white levers",
+   "teach": "binary input"
+  },
+  {
+   "id": "reed-switch",
+   "name": "Reed switch",
+   "category": "switch",
+   "level": 2,
+   "pins": [
+    "1",
+    "2"
+   ],
+   "sim": "closes when a magnet is within range",
+   "look": "glass capsule with two reeds",
+   "teach": "magnetic sensing"
+  },
+  {
+   "id": "limit-switch",
+   "name": "Limit switch",
+   "category": "switch",
+   "level": 2,
+   "pins": [
+    "COM",
+    "NO",
+    "NC"
+   ],
+   "sim": "actuated by a moving part reaching it",
+   "look": "black body with a metal lever and roller",
+   "teach": "end stops, homing"
+  },
+  {
+   "id": "relay",
+   "name": "Relay 5 V SPDT",
+   "category": "switch",
+   "level": 2,
+   "pins": [
+    "COIL+",
+    "COIL-",
+    "COM",
+    "NO",
+    "NC"
+   ],
+   "sim": "coil L+R; contacts switch after ~10 ms when coil I > pull-in; needs flyback diode (spike otherwise)",
+   "look": "blue cube with click animation",
+   "teach": "isolation, inductive kickback"
+  },
+  {
+   "id": "relay-module",
+   "name": "Relay module",
+   "category": "switch",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "GND",
+    "IN",
+    "COM",
+    "NO",
+    "NC"
+   ],
+   "sim": "relay + transistor driver + diode + LED, active-low input",
+   "look": "blue relay on a PCB with screw terminals",
+   "teach": "switching big loads safely"
+  },
+  {
+   "id": "keypad-4x4",
+   "name": "Membrane keypad 4×4",
+   "category": "switch",
+   "level": 2,
+   "pins": [
+    "R1..R4",
+    "C1..C4"
+   ],
+   "sim": "pressing joins a row to a column",
+   "look": "flat membrane with 16 labelled keys and ribbon",
+   "teach": "matrix scanning"
+  },
+  {
+   "id": "led",
+   "name": "LED (red/green/blue/yellow/white)",
+   "category": "semiconductor",
+   "level": 1,
+   "pins": [
+    "A",
+    "K"
+   ],
+   "sim": "diode Shockley model with colour-specific Vf (red 1.8, green 2.1, blue 3.0 V); brightness ∝ current; > 30 mA → pop + smoke",
+   "look": "5 mm domed lens, emissive glow and bloom ∝ current, longer anode leg, flat on the cathode side",
+   "teach": "forward voltage, current limiting"
+  },
+  {
+   "id": "led-rgb",
+   "name": "RGB LED (common cathode/anode)",
+   "category": "semiconductor",
+   "level": 1,
+   "pins": [
+    "R",
+    "G",
+    "B",
+    "COM"
+   ],
+   "sim": "three LEDs sharing a pin; colour mixes",
+   "look": "diffused white lens mixing colour",
+   "teach": "PWM colour mixing"
+  },
+  {
+   "id": "diode-1n4148",
+   "name": "Signal diode 1N4148",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "A",
+    "K"
+   ],
+   "sim": "Shockley, Is = 4 nA, n = 2",
+   "look": "small glass body with a black band",
+   "teach": "one-way current"
+  },
+  {
+   "id": "diode-1n4007",
+   "name": "Rectifier diode 1N4007",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "A",
+    "K"
+   ],
+   "sim": "Shockley, 1 A, flyback use",
+   "look": "black body with a grey band",
+   "teach": "rectification, flyback"
+  },
+  {
+   "id": "zener",
+   "name": "Zener diode 5.1 V",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "A",
+    "K"
+   ],
+   "sim": "diode with reverse breakdown at Vz",
+   "look": "glass body, black band",
+   "teach": "voltage reference"
+  },
+  {
+   "id": "schottky",
+   "name": "Schottky diode 1N5819",
+   "category": "semiconductor",
+   "level": 3,
+   "pins": [
+    "A",
+    "K"
+   ],
+   "sim": "low Vf ≈ 0.3 V",
+   "look": "black body, grey band",
+   "teach": "low-drop rectification"
+  },
+  {
+   "id": "bridge-rectifier",
+   "name": "Bridge rectifier",
+   "category": "semiconductor",
+   "level": 3,
+   "pins": [
+    "~",
+    "~",
+    "+",
+    "-"
+   ],
+   "sim": "four diodes",
+   "look": "black square with ~ + − marks",
+   "teach": "full-wave rectification"
+  },
+  {
+   "id": "npn",
+   "name": "NPN transistor 2N2222 / BC547",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "C",
+    "B",
+    "E"
+   ],
+   "sim": "Ebers–Moll (β ≈ 150), saturation and cutoff",
+   "look": "TO-92 black half-cylinder with flat face labels",
+   "teach": "transistor as a switch and amplifier"
+  },
+  {
+   "id": "pnp",
+   "name": "PNP transistor 2N2907",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "C",
+    "B",
+    "E"
+   ],
+   "sim": "Ebers–Moll PNP",
+   "look": "TO-92",
+   "teach": "high-side switching"
+  },
+  {
+   "id": "nmos",
+   "name": "N-MOSFET IRLZ44N (logic level)",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "G",
+    "D",
+    "S"
+   ],
+   "sim": "square-law with Vth ≈ 1.5 V, Rds(on) 22 mΩ, gate capacitance",
+   "look": "TO-220 with metal tab",
+   "teach": "switching motors and strips"
+  },
+  {
+   "id": "pmos",
+   "name": "P-MOSFET",
+   "category": "semiconductor",
+   "level": 3,
+   "pins": [
+    "G",
+    "D",
+    "S"
+   ],
+   "sim": "square-law PMOS",
+   "look": "TO-220",
+   "teach": "high-side switches"
+  },
+  {
+   "id": "darlington-uln2003",
+   "name": "ULN2003 Darlington array",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "IN1..7",
+    "OUT1..7",
+    "GND",
+    "COM"
+   ],
+   "sim": "7 Darlington sinks with flyback diodes",
+   "look": "DIP-16 black chip",
+   "teach": "driving steppers and relays"
+  },
+  {
+   "id": "phototransistor",
+   "name": "Phototransistor",
+   "category": "semiconductor",
+   "level": 2,
+   "pins": [
+    "C",
+    "E"
+   ],
+   "sim": "NPN with base current ∝ light",
+   "look": "clear or black 3 mm lens",
+   "teach": "light detection"
+  },
+  {
+   "id": "optocoupler",
+   "name": "Optocoupler PC817",
+   "category": "semiconductor",
+   "level": 3,
+   "pins": [
+    "A",
+    "K",
+    "C",
+    "E"
+   ],
+   "sim": "LED → phototransistor with CTR ≈ 100 %",
+   "look": "DIP-4 white chip",
+   "teach": "isolation"
+  },
+  {
+   "id": "triac",
+   "name": "Triac + opto (AC dimming)",
+   "category": "semiconductor",
+   "level": 3,
+   "pins": [
+    "MT1",
+    "MT2",
+    "G"
+   ],
+   "sim": "latching switch, AC only (advanced)",
+   "look": "TO-220",
+   "teach": "AC control (advanced)"
+  },
+  {
+   "id": "timer-555",
+   "name": "555 timer",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "GND",
+    "TRIG",
+    "OUT",
+    "RESET",
+    "CTRL",
+    "THR",
+    "DIS",
+    "VCC"
+   ],
+   "sim": "comparators at 1/3 and 2/3 Vcc + SR latch + discharge transistor (behavioural)",
+   "look": "DIP-8 with pin-1 dot",
+   "teach": "astable and monostable timing"
+  },
+  {
+   "id": "opamp-lm358",
+   "name": "Op-amp LM358 (dual)",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "OUT1",
+    "IN1-",
+    "IN1+",
+    "GND",
+    "IN2+",
+    "IN2-",
+    "OUT2",
+    "VCC"
+   ],
+   "sim": "behavioural: gain 1e5, rail limits (not rail-to-rail), slew 0.3 V/µs",
+   "look": "DIP-8",
+   "teach": "amplifiers, followers, filters"
+  },
+  {
+   "id": "comparator-lm393",
+   "name": "Comparator LM393",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "OUT1",
+    "IN1-",
+    "IN1+",
+    "GND",
+    "IN2+",
+    "IN2-",
+    "OUT2",
+    "VCC"
+   ],
+   "sim": "open-collector comparator",
+   "look": "DIP-8",
+   "teach": "thresholds, need for pull-up"
+  },
+  {
+   "id": "gate-74hc00",
+   "name": "74HC00 quad NAND",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "1A",
+    "1B",
+    "1Y",
+    "…",
+    "GND",
+    "VCC"
+   ],
+   "sim": "digital gates with thresholds 30/70 % Vcc, ~10 ns delay",
+   "look": "DIP-14",
+   "teach": "logic gates"
+  },
+  {
+   "id": "gate-74hc08",
+   "name": "74HC08 quad AND",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "…"
+   ],
+   "sim": "digital",
+   "look": "DIP-14",
+   "teach": "logic gates"
+  },
+  {
+   "id": "gate-74hc32",
+   "name": "74HC32 quad OR",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "…"
+   ],
+   "sim": "digital",
+   "look": "DIP-14",
+   "teach": "logic gates"
+  },
+  {
+   "id": "gate-74hc86",
+   "name": "74HC86 quad XOR",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "…"
+   ],
+   "sim": "digital",
+   "look": "DIP-14",
+   "teach": "adders"
+  },
+  {
+   "id": "gate-74hc04",
+   "name": "74HC04 hex inverter",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "…"
+   ],
+   "sim": "digital",
+   "look": "DIP-14",
+   "teach": "inverters, oscillators"
+  },
+  {
+   "id": "ff-74hc74",
+   "name": "74HC74 dual D flip-flop",
+   "category": "ic",
+   "level": 3,
+   "pins": [
+    "…"
+   ],
+   "sim": "edge-triggered D with set/reset",
+   "look": "DIP-14",
+   "teach": "memory, dividers"
+  },
+  {
+   "id": "counter-4017",
+   "name": "CD4017 decade counter",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "Q0..Q9",
+    "CLK",
+    "EN",
+    "RST",
+    "CO",
+    "VDD",
+    "VSS"
+   ],
+   "sim": "Johnson counter, one output high at a time",
+   "look": "DIP-16",
+   "teach": "chasers, counting"
+  },
+  {
+   "id": "shift-74hc595",
+   "name": "74HC595 shift register",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "QA..QH",
+    "SER",
+    "SRCLK",
+    "RCLK",
+    "OE",
+    "SRCLR",
+    "QH'",
+    "VCC",
+    "GND"
+   ],
+   "sim": "8-bit serial-in parallel-out with latch",
+   "look": "DIP-16",
+   "teach": "more outputs from few pins"
+  },
+  {
+   "id": "decoder-74hc138",
+   "name": "74HC138 3-to-8 decoder",
+   "category": "ic",
+   "level": 3,
+   "pins": [
+    "A0..A2",
+    "Y0..Y7",
+    "E1..E3"
+   ],
+   "sim": "digital",
+   "look": "DIP-16",
+   "teach": "addressing"
+  },
+  {
+   "id": "mux-cd4051",
+   "name": "CD4051 analog mux",
+   "category": "ic",
+   "level": 3,
+   "pins": [
+    "X0..X7",
+    "X",
+    "A",
+    "B",
+    "C",
+    "INH"
+   ],
+   "sim": "analog switch with Ron ≈ 125 Ω",
+   "look": "DIP-16",
+   "teach": "more analog inputs"
+  },
+  {
+   "id": "adc-ads1115",
+   "name": "ADS1115 16-bit ADC (I²C)",
+   "category": "ic",
+   "level": 3,
+   "pins": [
+    "VDD",
+    "GND",
+    "SCL",
+    "SDA",
+    "A0..A3"
+   ],
+   "sim": "I²C device model, 16-bit samples of node voltages",
+   "look": "purple breakout",
+   "teach": "precision measurement, I²C"
+  },
+  {
+   "id": "dac-mcp4725",
+   "name": "MCP4725 DAC (I²C)",
+   "category": "ic",
+   "level": 3,
+   "pins": [
+    "VCC",
+    "GND",
+    "SCL",
+    "SDA",
+    "OUT"
+   ],
+   "sim": "12-bit voltage output",
+   "look": "breakout",
+   "teach": "analog output"
+  },
+  {
+   "id": "motor-driver-l298n",
+   "name": "L298N dual H-bridge",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "IN1..IN4",
+    "ENA",
+    "ENB",
+    "OUT1..OUT4",
+    "12V",
+    "5V",
+    "GND"
+   ],
+   "sim": "H-bridge switches with ~2 V drop; PWM on EN",
+   "look": "red module with big black heatsink",
+   "teach": "motor direction and speed"
+  },
+  {
+   "id": "motor-driver-tb6612",
+   "name": "TB6612FNG driver",
+   "category": "ic",
+   "level": 3,
+   "pins": [
+    "…"
+   ],
+   "sim": "MOSFET H-bridge, low drop",
+   "look": "small purple breakout",
+   "teach": "efficient motor drive"
+  },
+  {
+   "id": "stepper-driver-a4988",
+   "name": "A4988 stepper driver",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "STEP",
+    "DIR",
+    "EN",
+    "MS1..3",
+    "RST",
+    "SLP",
+    "VMOT",
+    "VDD",
+    "1A",
+    "1B",
+    "2A",
+    "2B",
+    "GND"
+   ],
+   "sim": "each STEP rising edge advances the coil phase table (microstep option); current limit pot",
+   "look": "green/purple PCB with tiny heatsink and pot",
+   "teach": "steppers, microstepping"
+  },
+  {
+   "id": "esp32-devkit",
+   "name": "ESP32 DevKit (WROOM-32)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "GPIO0..39",
+    "3V3",
+    "5V/VIN",
+    "GND",
+    "EN"
+   ],
+   "sim": "sketch runtime (Arduino-style JS transpiled code or MicroPython) driving pins: outputs as voltage sources with ~25 Ω, inputs with thresholds, ADC 12-bit, LEDC PWM, touch, Wi-Fi mocked",
+   "look": "black PCB, metal shield with antenna, USB-C, two pin rows, BOOT/EN buttons, blue LED on GPIO 2",
+   "teach": "GPIO, ADC, PWM, Wi-Fi"
+  },
+  {
+   "id": "arduino-uno",
+   "name": "Arduino Uno (ATmega328P)",
+   "category": "microcontroller",
+   "level": 1,
+   "pins": [
+    "D0..D13",
+    "A0..A5",
+    "5V",
+    "3V3",
+    "GND",
+    "VIN",
+    "AREF"
+   ],
+   "sim": "real-chip mode: avr8js runs compiled .hex; instant mode: transpiled sketch",
+   "look": "teal PCB, USB-B, barrel jack, female headers, ON/L/TX/RX LEDs",
+   "teach": "first microcontroller"
+  },
+  {
+   "id": "arduino-nano",
+   "name": "Arduino Nano",
+   "category": "microcontroller",
+   "level": 1,
+   "pins": [
+    "D0..D13",
+    "A0..A7",
+    "5V",
+    "3V3",
+    "GND",
+    "VIN"
+   ],
+   "sim": "as Uno",
+   "look": "small blue PCB that sits on the breadboard",
+   "teach": "breadboard-friendly MCU"
+  },
+  {
+   "id": "pico",
+   "name": "Raspberry Pi Pico (RP2040)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "GP0..GP28",
+    "3V3",
+    "VSYS",
+    "GND",
+    "RUN"
+   ],
+   "sim": "rp2040js running real MicroPython firmware, or transpiled sketch",
+   "look": "green PCB with castellated edges, micro-USB, BOOTSEL",
+   "teach": "MicroPython on hardware"
+  },
+  {
+   "id": "pir",
+   "name": "PIR motion sensor HC-SR501",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "OUT",
+    "GND"
+   ],
+   "sim": "OUT high for a hold time when a moving thing is in the detection cone (interactive)",
+   "look": "white Fresnel dome on a green PCB",
+   "teach": "digital sensors"
+  },
+  {
+   "id": "ultrasonic",
+   "name": "Ultrasonic HC-SR04",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "TRIG",
+    "ECHO",
+    "GND"
+   ],
+   "sim": "TRIG pulse → ECHO high for 58 µs per cm to the nearest object in the 3D scene",
+   "look": "blue PCB with two silver transducer \"eyes\"",
+   "teach": "timing, distance"
+  },
+  {
+   "id": "dht22",
+   "name": "DHT22 temperature/humidity",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "DATA",
+    "GND"
+   ],
+   "sim": "one-wire protocol model; values from scene sliders",
+   "look": "white grilled box",
+   "teach": "digital protocols, environment"
+  },
+  {
+   "id": "ds18b20",
+   "name": "DS18B20 temperature probe",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "DQ",
+    "GND"
+   ],
+   "sim": "1-Wire model, 4.7 kΩ pull-up required",
+   "look": "TO-92 or steel probe on a cable",
+   "teach": "1-Wire bus"
+  },
+  {
+   "id": "tmp36",
+   "name": "TMP36 analog temperature",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VS",
+    "VOUT",
+    "GND"
+   ],
+   "sim": "Vout = 0.5 V + 10 mV/°C",
+   "look": "TO-92",
+   "teach": "analog sensing"
+  },
+  {
+   "id": "mpu6050",
+   "name": "MPU6050 IMU (I²C)",
+   "category": "sensor",
+   "level": 3,
+   "pins": [
+    "VCC",
+    "GND",
+    "SCL",
+    "SDA",
+    "INT"
+   ],
+   "sim": "I²C registers fed from the part's 3D orientation (tilt it in the scene)",
+   "look": "small blue breakout",
+   "teach": "I²C, acceleration, rotation"
+  },
+  {
+   "id": "bmp280",
+   "name": "BMP280 pressure (I²C)",
+   "category": "sensor",
+   "level": 3,
+   "pins": [
+    "VCC",
+    "GND",
+    "SCL",
+    "SDA"
+   ],
+   "sim": "I²C model from a slider",
+   "look": "purple breakout",
+   "teach": "pressure, altitude"
+  },
+  {
+   "id": "bh1750",
+   "name": "BH1750 light (I²C)",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "GND",
+    "SCL",
+    "SDA",
+    "ADDR"
+   ],
+   "sim": "I²C lux from the scene light slider",
+   "look": "blue breakout with a small window",
+   "teach": "I²C sensors"
+  },
+  {
+   "id": "soil-moisture",
+   "name": "Soil moisture probe",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "GND",
+    "AO",
+    "DO"
+   ],
+   "sim": "analog voltage from a moisture slider; comparator DO",
+   "look": "fork-shaped PCB in a plant pot",
+   "teach": "analog thresholds"
+  },
+  {
+   "id": "water-level",
+   "name": "Water level sensor",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "S",
+    "+",
+    "-"
+   ],
+   "sim": "analog ∝ immersion depth",
+   "look": "red PCB with exposed traces dipping in a cup",
+   "teach": "analog input"
+  },
+  {
+   "id": "gas-mq2",
+   "name": "Gas sensor MQ-2",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "GND",
+    "AO",
+    "DO"
+   ],
+   "sim": "analog ∝ gas slider, heater warm-up time",
+   "look": "mesh cylinder on a blue PCB",
+   "teach": "sensors with warm-up"
+  },
+  {
+   "id": "flame",
+   "name": "Flame sensor",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "GND",
+    "AO",
+    "DO"
+   ],
+   "sim": "IR level from a candle in the scene",
+   "look": "black receiver on a small PCB",
+   "teach": "IR sensing"
+  },
+  {
+   "id": "sound",
+   "name": "Sound sensor KY-038",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "GND",
+    "AO",
+    "DO"
+   ],
+   "sim": "amplitude from the computer mic or a clap button",
+   "look": "electret mic capsule on a PCB",
+   "teach": "audio levels"
+  },
+  {
+   "id": "hall",
+   "name": "Hall effect sensor A3144",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "GND",
+    "OUT"
+   ],
+   "sim": "open-collector low near a magnet",
+   "look": "TO-92",
+   "teach": "magnetic sensing"
+  },
+  {
+   "id": "rotary-encoder",
+   "name": "Rotary encoder KY-040",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "CLK",
+    "DT",
+    "SW",
+    "+",
+    "GND"
+   ],
+   "sim": "quadrature A/B pulses on rotation, push switch",
+   "look": "knurled shaft on a PCB",
+   "teach": "quadrature, interrupts"
+  },
+  {
+   "id": "joystick",
+   "name": "Analog joystick",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VRx",
+    "VRy",
+    "SW",
+    "+5V",
+    "GND"
+   ],
+   "sim": "two pots + switch",
+   "look": "thumb stick on a PCB",
+   "teach": "2-axis analog"
+  },
+  {
+   "id": "ir-receiver",
+   "name": "IR receiver + remote",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "OUT",
+    "GND",
+    "VCC"
+   ],
+   "sim": "NEC protocol frames when a remote key is clicked",
+   "look": "black domed receiver; small remote",
+   "teach": "protocols"
+  },
+  {
+   "id": "load-cell-hx711",
+   "name": "Load cell + HX711",
+   "category": "sensor",
+   "level": 3,
+   "pins": [
+    "…"
+   ],
+   "sim": "bridge mV ∝ weight; HX711 24-bit clocked readout",
+   "look": "aluminium bar and green amplifier PCB",
+   "teach": "bridges, amplification"
+  },
+  {
+   "id": "ina219",
+   "name": "INA219 current sensor",
+   "category": "sensor",
+   "level": 3,
+   "pins": [
+    "VCC",
+    "GND",
+    "SCL",
+    "SDA",
+    "VIN+",
+    "VIN-"
+   ],
+   "sim": "I²C reads of real simulated shunt current",
+   "look": "purple breakout with shunt resistor",
+   "teach": "measuring power"
+  },
+  {
+   "id": "touch",
+   "name": "Capacitive touch TTP223",
+   "category": "sensor",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "GND",
+    "SIG"
+   ],
+   "sim": "output high while the pad is clicked",
+   "look": "small red pad",
+   "teach": "touch input"
+  },
+  {
+   "id": "rfid-rc522",
+   "name": "RFID RC522 (SPI)",
+   "category": "sensor",
+   "level": 3,
+   "pins": [
+    "SDA",
+    "SCK",
+    "MOSI",
+    "MISO",
+    "IRQ",
+    "GND",
+    "RST",
+    "3.3V"
+   ],
+   "sim": "SPI model returning a card UID when a tag is held over it",
+   "look": "blue PCB with antenna coil, white card and fob",
+   "teach": "SPI, IDs"
+  },
+  {
+   "id": "line-tcrt5000",
+   "name": "Line sensor TCRT5000",
+   "category": "sensor",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "GND",
+    "AO",
+    "DO"
+   ],
+   "sim": "reflectance from the surface under it",
+   "look": "IR emitter/receiver pair",
+   "teach": "line following"
+  },
+  {
+   "id": "color-tcs34725",
+   "name": "Colour sensor TCS34725",
+   "category": "sensor",
+   "level": 3,
+   "pins": [
+    "VIN",
+    "GND",
+    "SCL",
+    "SDA",
+    "LED"
+   ],
+   "sim": "RGBC from the object colour under it",
+   "look": "breakout with a white LED",
+   "teach": "colour sensing"
+  },
+  {
+   "id": "gps-neo6m",
+   "name": "GPS NEO-6M (UART)",
+   "category": "sensor",
+   "level": 3,
+   "pins": [
+    "VCC",
+    "RX",
+    "TX",
+    "GND"
+   ],
+   "sim": "NMEA sentences over UART at 9600 baud",
+   "look": "PCB with a ceramic patch antenna",
+   "teach": "UART, parsing"
+  },
+  {
+   "id": "buzzer-active",
+   "name": "Active buzzer",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "fixed-tone beep while powered (WebAudio)",
+   "look": "black cylinder with a sticker",
+   "teach": "digital output, sound"
+  },
+  {
+   "id": "buzzer-passive",
+   "name": "Passive buzzer / piezo",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "plays the frequency of the drive waveform (tone())",
+   "look": "black cylinder, open bottom",
+   "teach": "frequency, PWM"
+  },
+  {
+   "id": "speaker",
+   "name": "Small speaker 8 Ω",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "resistive load; audio of the drive signal",
+   "look": "paper cone in a metal frame",
+   "teach": "audio, impedance"
+  },
+  {
+   "id": "seven-seg",
+   "name": "7-segment display (CA/CC)",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "a..g",
+    "dp",
+    "COM"
+   ],
+   "sim": "8 LEDs",
+   "look": "red digit block with glowing segments",
+   "teach": "multiplexing, encoding"
+  },
+  {
+   "id": "seven-seg-tm1637",
+   "name": "4-digit 7-seg TM1637",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "CLK",
+    "DIO",
+    "VCC",
+    "GND"
+   ],
+   "sim": "2-wire protocol model",
+   "look": "4 red digits on a blue PCB with colon",
+   "teach": "serial displays"
+  },
+  {
+   "id": "led-bar",
+   "name": "LED bar graph ×10",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "A1..A10",
+    "K1..K10"
+   ],
+   "sim": "10 LEDs",
+   "look": "rectangular block with 10 slots",
+   "teach": "level meters"
+  },
+  {
+   "id": "neopixel",
+   "name": "WS2812 NeoPixel strip/ring",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "DIN",
+    "5V",
+    "GND",
+    "DOUT"
+   ],
+   "sim": "protocol model: colours set from the sketch library calls",
+   "look": "ring or strip of RGB LEDs with glow and bloom",
+   "teach": "addressable LEDs"
+  },
+  {
+   "id": "matrix-max7219",
+   "name": "8×8 LED matrix MAX7219",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "GND",
+    "DIN",
+    "CS",
+    "CLK"
+   ],
+   "sim": "SPI model, 64 LEDs",
+   "look": "red dot matrix on a module",
+   "teach": "SPI displays"
+  },
+  {
+   "id": "lcd-1602-i2c",
+   "name": "LCD 16×2 (I²C backpack)",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "GND",
+    "VCC",
+    "SDA",
+    "SCL"
+   ],
+   "sim": "HD44780 + PCF8574 model; text from the sketch",
+   "look": "green/blue backlit glass with 5×8 dot characters",
+   "teach": "I²C displays, text"
+  },
+  {
+   "id": "oled-ssd1306",
+   "name": "OLED 128×64 SSD1306",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "GND",
+    "VCC",
+    "SCL",
+    "SDA"
+   ],
+   "sim": "I²C frame buffer rendered as a canvas texture",
+   "look": "tiny black glass with crisp white/blue pixels",
+   "teach": "graphics displays"
+  },
+  {
+   "id": "dc-motor",
+   "name": "DC motor (hobby)",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "R + L + back-EMF ∝ speed; torque ∝ current; inertia; spins in 3D with a propeller",
+   "look": "yellow TT gear motor or silver can motor",
+   "teach": "motors, back-EMF, need for a driver"
+  },
+  {
+   "id": "servo-sg90",
+   "name": "Servo SG90",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "PWM",
+    "+",
+    "-"
+   ],
+   "sim": "angle = map(pulse 1–2 ms) with slew 0.1 s/60°",
+   "look": "blue plastic case, white horn that rotates",
+   "teach": "PWM pulse width"
+  },
+  {
+   "id": "stepper-28byj48",
+   "name": "Stepper 28BYJ-48 + ULN2003",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "IN1..IN4",
+    "+",
+    "-"
+   ],
+   "sim": "4-phase sequence advances 1/2048 turn",
+   "look": "silver can with a blue cap and white connector",
+   "teach": "stepping sequences"
+  },
+  {
+   "id": "stepper-nema17",
+   "name": "Stepper NEMA 17",
+   "category": "output",
+   "level": 3,
+   "pins": [
+    "1A",
+    "1B",
+    "2A",
+    "2B"
+   ],
+   "sim": "2-phase bipolar, 200 steps/turn, holding torque",
+   "look": "black square motor with silver end caps",
+   "teach": "precision motion"
+  },
+  {
+   "id": "vibration-motor",
+   "name": "Vibration motor",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "DC motor with eccentric mass; shakes the scene",
+   "look": "coin motor",
+   "teach": "haptics"
+  },
+  {
+   "id": "solenoid",
+   "name": "Solenoid",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "L + R; plunger pulls in above a current; needs flyback diode",
+   "look": "metal frame with a plunger",
+   "teach": "electromagnetism"
+  },
+  {
+   "id": "electromagnet",
+   "name": "Electromagnet module",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "SIG",
+    "+",
+    "-"
+   ],
+   "sim": "pulls steel objects within range when on",
+   "look": "round steel pot on a PCB",
+   "teach": "magnetism"
+  },
+  {
+   "id": "fan",
+   "name": "5 V fan",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "DC motor load",
+   "look": "black square fan with spinning blades",
+   "teach": "loads"
+  },
+  {
+   "id": "water-pump",
+   "name": "Mini water pump",
+   "category": "output",
+   "level": 2,
+   "pins": [
+    "+",
+    "-"
+   ],
+   "sim": "DC motor load; water flows in the scene",
+   "look": "white submersible pump with tube",
+   "teach": "loads and drivers"
+  },
+  {
+   "id": "multimeter",
+   "name": "Multimeter",
+   "category": "instrument",
+   "level": 1,
+   "pins": [
+    "COM",
+    "VΩ",
+    "A"
+   ],
+   "sim": "V (between probes), Ω (power off), A (in series; wrong use blows the fuse)",
+   "look": "yellow handheld with dial, LCD, red/black probes you drag onto pins",
+   "teach": "measuring, series vs parallel"
+  },
+  {
+   "id": "oscilloscope",
+   "name": "Oscilloscope (2 channels)",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "CH1",
+    "CH2",
+    "GND"
+   ],
+   "sim": "samples node voltages each sim step; trigger, time/div, volts/div",
+   "look": "panel with a green grid; probes in the scene",
+   "teach": "waveforms, timing"
+  },
+  {
+   "id": "function-generator",
+   "name": "Function generator",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "OUT",
+    "GND"
+   ],
+   "sim": "sine/square/triangle source with frequency, amplitude, offset",
+   "look": "panel with a big knob",
+   "teach": "AC signals, filters"
+  },
+  {
+   "id": "logic-analyzer",
+   "name": "Logic analyser (8 ch)",
+   "category": "instrument",
+   "level": 3,
+   "pins": [
+    "D0..D7",
+    "GND"
+   ],
+   "sim": "records digital edges; decodes I²C/SPI/UART",
+   "look": "panel with timing lanes",
+   "teach": "protocols"
+  },
+  {
+   "id": "ammeter-probe",
+   "name": "Current probe (inline)",
+   "category": "instrument",
+   "level": 1,
+   "pins": [
+    "in",
+    "out"
+   ],
+   "sim": "0 Ω, shows current with an arrow",
+   "look": "small labelled clip on a wire",
+   "teach": "current direction"
+  },
+  {
+   "id": "bluetooth-hc05",
+   "name": "Bluetooth HC-05 (UART)",
+   "category": "module",
+   "level": 3,
+   "pins": [
+    "VCC",
+    "GND",
+    "TXD",
+    "RXD",
+    "STATE",
+    "EN"
+   ],
+   "sim": "UART bridge to an on-screen phone chat",
+   "look": "blue PCB with antenna trace",
+   "teach": "wireless serial"
+  },
+  {
+   "id": "nrf24l01",
+   "name": "nRF24L01 radio (SPI)",
+   "category": "module",
+   "level": 3,
+   "pins": [
+    "…"
+   ],
+   "sim": "SPI model linking two boards in the scene",
+   "look": "green PCB with antenna",
+   "teach": "radio links"
+  },
+  {
+   "id": "sd-card",
+   "name": "microSD module (SPI)",
+   "category": "module",
+   "level": 3,
+   "pins": [
+    "CS",
+    "SCK",
+    "MOSI",
+    "MISO",
+    "VCC",
+    "GND"
+   ],
+   "sim": "SPI + FAT model (files appear in a side panel)",
+   "look": "blue PCB with card slot",
+   "teach": "data logging"
+  },
+  {
+   "id": "rtc-ds3231",
+   "name": "RTC DS3231 (I²C)",
+   "category": "module",
+   "level": 3,
+   "pins": [
+    "VCC",
+    "GND",
+    "SDA",
+    "SCL",
+    "SQW"
+   ],
+   "sim": "I²C clock from the page time",
+   "look": "PCB with a coin cell",
+   "teach": "real-time clocks"
+  }
+ ]
+}

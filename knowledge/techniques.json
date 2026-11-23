@@ -1424,6 +1424,142 @@
    ],
    "from": "visual-study",
    "path": "knowledge/visual-study.md"
+  },
+  {
+   "id": "tech.circuit-mna-solver",
+   "kind": "technique",
+   "title": "Circuit solver: modified nodal analysis with companion models and Newton–Raphson",
+   "summary": "Node voltages + source currents; stamps for R, V, I, switches, controlled sources; trapezoidal companion models for C and L (backward Euler after events); Newton–Raphson with junction limiting for diodes, LEDs, BJTs, MOSFETs; gmin/source stepping; dense LU for < 200 nodes; friendly errors; damage over ratings. §4.",
+   "tags": [
+    "circuit",
+    "simulation",
+    "mna",
+    "spice",
+    "solver",
+    "electronics",
+    "resistor",
+    "capacitor",
+    "diode",
+    "transistor",
+    "transient",
+    "newton"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.circuit-mixed-signal",
+   "kind": "technique",
+   "title": "Mixed signal: digital pins into an analog circuit, buses as transactions",
+   "summary": "Digital outputs as voltage sources with output resistance, inputs read node voltage with 30/70 % thresholds and optional pull-ups; I²C, SPI, UART, 1-Wire, NeoPixel modelled per transaction and decoded on a logic analyser. §5.",
+   "tags": [
+    "digital",
+    "logic",
+    "gpio",
+    "pull-up",
+    "i2c",
+    "spi",
+    "uart",
+    "mixed signal",
+    "microcontroller"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.mcu-code-runtimes",
+   "kind": "technique",
+   "title": "Running student microcontroller code: Instant transpiler, avr8js real chip, MicroPython",
+   "summary": "Arduino-C subset → JS generators yielding per statement (line highlight, step) with library shims for ESP32/Uno/Pico; avr8js runs real Uno .hex compiled by arduino-cli on the server; rp2040js runs MicroPython firmware. §6.",
+   "tags": [
+    "arduino",
+    "esp32",
+    "pico",
+    "micropython",
+    "avr8js",
+    "rp2040js",
+    "emulator",
+    "sketch",
+    "code",
+    "serial monitor"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.circuit-visualization",
+   "kind": "technique",
+   "title": "Making electricity visible: current dots, voltage colours, glow, damage",
+   "summary": "Dots along wires with speed ∝ current, voltage colour scale, LED emissive ∝ current, motors/servos/buzzers driven by the sim, hover readouts, callout cards with leader lines, live readout tags, synced schematic, smoke/pop/bulge with reasons. §8.",
+   "tags": [
+    "current",
+    "voltage",
+    "visualization",
+    "led glow",
+    "schematic",
+    "callout",
+    "electronics",
+    "teaching",
+    "3d"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.breadboard-builder",
+   "kind": "technique",
+   "title": "Breadboard circuit builder: snap, wire, netlist, probes",
+   "summary": "2.54 mm grid, legs snap into holes, DIP straddles the channel, drag wires hole to hole with colour, union-find netlist over strips and rails, multimeter probes (ammeter in parallel blows its fuse), save/share, SPICE export, undo. §9.",
+   "tags": [
+    "breadboard",
+    "builder",
+    "wiring",
+    "netlist",
+    "multimeter",
+    "oscilloscope",
+    "probes",
+    "students",
+    "circuit"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.electronics-lessons",
+   "kind": "technique",
+   "title": "Electronics course with auto-checked goals",
+   "summary": "Lessons like the reference (Overview, Pinout, Example, Specifications) with goals the simulator checks live (current in range, blink frequency, divider voltage); a level 1–3 course from Ohm’s law to I²C sensors and machines. §10.",
+   "tags": [
+    "lessons",
+    "course",
+    "electrical engineering",
+    "class",
+    "goals",
+    "curriculum",
+    "ohm",
+    "education"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.learn-esp32-reference",
+   "kind": "technique",
+   "title": "Reference study: interactive 3D ESP32 lessons",
+   "summary": "Isometric three.js scene on cream grid paper, callout cards with dotted leader lines, live readout tags, schematic inset, Overview/Pinout/Example/Specifications tabs, code panel with run and current-line highlight, serial monitor, 20-lesson carousel. Its simulation is scripted, not solved. §1.",
+   "tags": [
+    "esp32",
+    "reference",
+    "lesson",
+    "ui",
+    "callout",
+    "schematic",
+    "code panel",
+    "serial",
+    "isometric"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
   }
  ]
 }
