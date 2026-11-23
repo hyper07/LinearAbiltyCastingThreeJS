@@ -112,6 +112,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'learning', genreName: 'Learning', cover: 'arcademia', badge: 'NEW', study: true, calm: true }
   },
   {
+    id: 'official:circuitlab',
+    title: 'Circuit Lab',
+    summary: 'An electronics lab for the electrical-engineering class: put real-looking parts on a 3D breadboard, wire them and press Run — every voltage and current comes from a real circuit simulation. Program an Arduino Uno, Nano or Mega, an ESP32 or a Raspberry Pi Pico in Arduino C++ (the Uno and Nano can compile it for a real ATmega328P right in the browser), and drive servos, an LCD, an OLED, NeoPixels, an ultrasonic and a temperature sensor. Lessons from Blink to a distance meter; mistakes like 5 V on a 3.3 V pin break things safely and say why.',
+    engine: 'circuitlab',
+    genre: 'learning',
+    card: { genre: 'learning', genreName: 'Learning · Electronics', cover: 'circuitlab', badge: 'NEW', study: true, calm: true }
+  },
+  {
     id: 'official:gloamreach',
     title: 'Gloamreach',
     summary: 'The opening of a fantasy RPG, drawn as finely as a browser allows: Brindlewick, a timber-framed village held at the golden hour under hundred-foot oaks; a carved stone gate through the ridge; the violet Gloamwood beyond, lit by blue lamps and fireflies; and from the cliffs, a rift of lava where a drake circles. Choose a knight, a ranger or a mage, and wander — meet the smith, the sellers, the storyteller and the forest\'s keepers, the village bear and the Pale Stag.',

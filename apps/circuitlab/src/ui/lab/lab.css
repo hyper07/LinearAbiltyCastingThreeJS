@@ -1,0 +1,408 @@
+/* Circuit Lab additions (lab- prefix), in ohmlet's dark Liquid Glass language. */
+
+/* the code and lesson panels need more room than ohmlet's 360px panels */
+.lg-panel.lab-wide {
+  width: min(560px, calc(100vw - 140px));
+}
+
+.lab-code,
+.lab-lessons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.lab-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lab-badge {
+  font: 600 12px/1 var(--lg-font);
+  color: var(--label-2, #c7c7cc);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+.lab-dim {
+  color: var(--label-2, #aeaeb2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.lab-empty {
+  padding: 18px 4px;
+  font-size: 15px;
+}
+
+/* ---- editor ---- */
+.lab-editor {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  height: 300px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0d1016;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  font: 13px/var(--lh) ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (min-width: 900px) and (min-height: 820px) {
+  .lg-panel .lab-editor {
+    height: 380px;
+  }
+}
+.lab-gutter {
+  padding: 8px 6px 8px 0;
+  text-align: right;
+  color: #5b6371;
+  background: #0a0c11;
+  user-select: none;
+  will-change: transform;
+}
+.lab-ln {
+  height: var(--lh);
+  line-height: var(--lh);
+}
+.lab-ln.is-cur {
+  color: #ffd60a;
+  font-weight: 700;
+}
+.lab-ln.is-err {
+  color: #ff453a;
+  font-weight: 700;
+}
+.lab-text {
+  position: relative;
+  min-width: 0;
+}
+.lab-curline,
+.lab-errline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--lh);
+  pointer-events: none;
+}
+.lab-curline {
+  background: rgba(255, 214, 10, 0.16);
+  box-shadow: inset 3px 0 0 #ffd60a;
+}
+.lab-errline {
+  background: rgba(255, 69, 58, 0.18);
+  box-shadow: inset 3px 0 0 #ff453a;
+}
+.lab-ta {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #e6edf3;
+  caret-color: #64d2ff;
+  font: inherit;
+  line-height: var(--lh);
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+/* ---- buttons ---- */
+.lab-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lab-btn {
+  font: 600 14px/1 var(--lg-font);
+  color: var(--label, #fff);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.lab-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.lab-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.lab-btn.is-primary {
+  background: #0a84ff;
+  border-color: #0a84ff;
+}
+.lab-btn.is-primary:hover {
+  background: #2a95ff;
+}
+.lab-link {
+  font: 600 13px var(--lg-font);
+  color: #64d2ff;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.lab-status {
+  font: 500 13px/1.35 var(--lg-font);
+  color: #8ee6a8;
+}
+.lab-status.is-err {
+  color: #ff8a80;
+}
+.lab-errors {
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  border-radius: 12px;
+  background: rgba(255, 69, 58, 0.12);
+  color: #ffb3ad;
+  font: 13px/1.4 var(--lg-font);
+}
+.lab-errors.is-damage {
+  background: rgba(255, 159, 10, 0.14);
+  color: #ffd29a;
+  list-style: none;
+  padding-left: 12px;
+}
+
+/* ---- pins ---- */
+.lab-pins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lab-pin {
+  font: 600 11px/1 ui-monospace, Menlo, monospace;
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #c7c7cc;
+}
+.lab-pin b {
+  margin-left: 3px;
+}
+.lab-pin.is-h b {
+  color: #ff6b5e;
+}
+.lab-pin.is-l b {
+  color: #64d2ff;
+}
+.lab-pin.is-pwm b {
+  color: #ffd60a;
+}
+.lab-pin.is-in b {
+  color: #30d158;
+}
+.lab-pin.is-x {
+  background: rgba(255, 69, 58, 0.3);
+  color: #fff;
+}
+
+/* ---- serial ---- */
+.lab-serial {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lab-serial-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 600 13px var(--lg-font);
+  color: var(--label-2, #c7c7cc);
+}
+.lab-serial-out {
+  margin: 0;
+  height: 128px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #07090c;
+  color: #9ef0a6;
+  font: 12px/1.45 ui-monospace, 'SF Mono', Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.lab-serial-in {
+  display: flex;
+  gap: 8px;
+}
+.lab-serial-in input {
+  flex: 1;
+  min-width: 0;
+  font: 13px ui-monospace, Menlo, monospace;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 9px 10px;
+  outline: none;
+}
+
+/* ---- lessons ---- */
+.lab-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.lab-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 0;
+  cursor: pointer;
+  color: var(--label, #fff);
+  background: rgba(255, 255, 255, 0.06);
+}
+.lab-card:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+.lab-card.is-on {
+  box-shadow: inset 0 0 0 2px #0a84ff;
+}
+.lab-card-title {
+  font: 700 15px var(--lg-font);
+}
+.lab-card-board {
+  font: 600 11px var(--lg-font);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64d2ff;
+}
+.lab-card-sum {
+  font: 13px/1.35 var(--lg-font);
+  color: var(--label-2, #aeaeb2);
+}
+.lab-current {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(10, 132, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lab-current-title {
+  font: 700 16px var(--lg-font);
+}
+.lab-learn {
+  margin: 0;
+  padding-left: 18px;
+  font: 13px/1.45 var(--lg-font);
+  color: var(--label-2, #d1d1d6);
+}
+.lab-ctl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font: 13px var(--lg-font);
+}
+.lab-ctl input[type='range'] {
+  flex: 1;
+  max-width: 260px;
+  accent-color: #0a84ff;
+}
+
+/* ---- corner (Home / ? / Credits) ---- */
+.lab-corner {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lab-corner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(22, 24, 30, 0.72);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  color: #f2f2f7;
+  font: 600 13px var(--lg-font, system-ui);
+  cursor: pointer;
+}
+.lab-corner-btn:hover {
+  background: rgba(40, 44, 54, 0.85);
+}
+.lab-corner-q .hp-q {
+  width: 34px;
+  height: 34px;
+}
+
+/* ---- credits modal ---- */
+.lab-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 6, 10, 0.6);
+  backdrop-filter: blur(3px);
+}
+.lab-modal-card {
+  width: min(680px, 94vw);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: rgba(24, 26, 32, 0.97);
+  color: #f2f2f7;
+  font: 14px/1.45 var(--lg-font, system-ui);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.lab-modal-card h2 {
+  margin: 0 0 4px;
+}
+.lab-credits {
+  list-style: none;
+  margin: 12px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lab-credits li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+}
+.lab-credits a {
+  color: #64d2ff;
+  font-weight: 600;
+}
+.lab-credits .lab-dim {
+  grid-column: 1 / -1;
+}
+.lab-lic {
+  font: 600 12px var(--lg-font, system-ui);
+  color: #ffd60a;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .lab-corner-btn span {
+    display: none;
+  }
+  .lab-editor {
+    height: 240px;
+  }
+}

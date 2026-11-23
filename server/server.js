@@ -207,18 +207,24 @@ async function sendFile(req, res, file, info, { cacheControl }) {
 
 /** The built client. Unknown paths without an extension fall back to the entry page. */
 async function serveStatic(req, res, pathname) {
-  const file = safeJoin(STATIC_ROOT, pathname === '/' ? '/index.html' : pathname);
+  // Circuit Lab is its own app at /circuitlab/ (apps/circuitlab, built into dist/circuitlab).
+  if (pathname === '/circuitlab') {
+    res.writeHead(302, { Location: '/circuitlab/' });
+    return res.end();
+  }
+  const app = pathname.startsWith('/circuitlab/') ? '/circuitlab/' : '/';
+  const file = safeJoin(STATIC_ROOT, pathname.endsWith('/') ? `${pathname}index.html` : pathname);
   if (!file) return json(res, 403, { error: 'forbidden' });
   let info = await fileInfo(file);
   let target = file;
   if (!info) {
     if (extname(pathname)) return json(res, 404, { error: 'not found' });
-    target = join(STATIC_ROOT, 'index.html');
+    target = join(STATIC_ROOT, app, 'index.html');
     info = await fileInfo(target);
     if (!info) return json(res, 404, { error: 'The game is not built yet — run `npm run build`.' });
   }
   const ext = extname(target).toLowerCase();
-  const immutable = pathname.startsWith('/assets/');
+  const immutable = pathname.startsWith('/assets/') || pathname.startsWith('/circuitlab/assets/');
   const cacheControl = ext === '.html' ? 'no-cache' : immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600';
   return sendFile(req, res, target, info, { cacheControl });
 }

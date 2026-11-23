@@ -695,6 +695,32 @@
     "websocket"
    ],
    "path": "src/snowpuff/net.js"
+  },
+  {
+   "id": "own.circuitlab.board-bridge",
+   "kind": "module",
+   "title": "Circuit Lab board bridge: microcontroller boards as chips in the circuit solver",
+   "summary": "Arduino Uno/Nano/Mega, ESP32 DevKit and Raspberry Pi Pico as one chip each in ohmlet’s MNA solver (apps/circuitlab). Every step a board reads its pins’ node voltages, runs its program for exactly that step of simulated time (Instant mode: Arduino C++ transpiled to generator JS with line highlight; Compiled mode: AVR-GCC WASM → HEX → avr8js with timers, ADC, USART, TWI), then drives outputs as {v: Vcc·fraction-high, rout ≈ 25 Ω}. Schmitt inputs, pull-ups, ADC, PWM/servo/tone waves with exact edges for fast parts (pinEdges/peers in the chip bridge), I²C at transaction level, 5 V-on-3.3 V and over-current damage with a reason. Parts: servo, LCD 16×2 I²C (PCF8574+HD44780), OLED SSD1306, NeoPixel, HC-SR04, DHT22, multimeter; lessons in src/lessons/presets.ts.",
+   "tags": [
+    "circuit",
+    "electronics",
+    "arduino",
+    "esp32",
+    "pico",
+    "avr8js",
+    "microcontroller",
+    "gpio",
+    "pwm",
+    "adc",
+    "i2c",
+    "simulation",
+    "mna",
+    "breadboard",
+    "servo",
+    "lcd",
+    "oled"
+   ],
+   "path": "apps/circuitlab/src/mcu/board-chip.ts"
   }
  ]
 }

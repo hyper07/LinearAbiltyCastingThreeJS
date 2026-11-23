@@ -7,12 +7,12 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "node scripts/library/ensure.mjs && node scripts/voice/ensure.mjs",
-    "build": "vite build",
+    "build": "vite build && node scripts/circuitlab.mjs build",
     "postbuild": "node scripts/precompress.mjs",
     "preview": "vite preview",
     "start": "node --disable-warning=ExperimentalWarning server/server.js",
     "serve": "node server/server.js",
-    "test": "node --test \"tests/unit/**/*.test.mjs\"",
+    "test": "node --test \"tests/unit/**/*.test.mjs\" && node scripts/circuitlab.mjs test",
     "test:e2e": "node tests/e2e/run.mjs",
     "fetch-characters": "node scripts/fetch-character-models.mjs",
     "library:fetch": "node scripts/library/fetch.mjs",
@@ -34,7 +34,8 @@
     "voice:script": "node scripts/voice-script.mjs",
     "voice:setup": "node scripts/voice-setup.mjs",
     "voice:gen": "node scripts/voice-gen.mjs",
-    "voice:remote": "node scripts/voice-remote.mjs"
+    "voice:remote": "node scripts/voice-remote.mjs",
+    "circuitlab:test": "node scripts/circuitlab.mjs test"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.12",

@@ -145,6 +145,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'kithvale') return kithvaleCover(game);
   if (game.card?.cover === 'kindlewatch') return kindlewatchCover(game);
   if (game.card?.cover === 'snowpuff') return snowpuffCover(game);
+  if (game.card?.cover === 'circuitlab') return circuitlabCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -300,6 +301,37 @@ function snowpuffCover(game) {
     <path d="M260 40 l4 9 10 1 -8 6 3 10 -9 -6 -9 6 3 -10 -8 -6 10 -1z" fill="#ffd23f" stroke="#c99a10" stroke-width="1.5"/>
     <text x="14" y="34" fill="#ffffff" stroke="#ff6fb4" stroke-width="5" paint-order="stroke" font-family="system-ui, sans-serif" font-weight="900" font-size="26">Snowpuff</text>
     <text x="16" y="54" fill="#ffffff" stroke="#3a86ff" stroke-width="4" paint-order="stroke" font-family="system-ui, sans-serif" font-weight="900" font-size="14" letter-spacing="4">PEAKS</text>
+  </svg>`;
+}
+
+/** Circuit Lab: a teal board wired to a breadboard, a lit LED and a sine on the scope, on a warm bench. */
+function circuitlabCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  const holes = [];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 14; c++) holes.push(`<rect x="${176 + c * 9}" y="${62 + r * 9}" width="4" height="4" rx="1" fill="#3a3a40"/>`);
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 14; c++) holes.push(`<rect x="${176 + c * 9}" y="${116 + r * 9}" width="4" height="4" rx="1" fill="#3a3a40"/>`);
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs>
+      <linearGradient id="cl-bench-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b3530"/><stop offset="1" stop-color="#1e1a17"/></linearGradient>
+      <radialGradient id="cl-glow-${uid}" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff6a4a" stop-opacity="0.9"/><stop offset="1" stop-color="#ff3b1a" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#cl-bench-${uid})"/>
+    <g stroke="#101214" stroke-width="2.5">
+      <rect x="22" y="48" width="128" height="98" rx="6" fill="#0e8a93"/>
+      <rect x="14" y="62" width="22" height="26" rx="2" fill="#a8aeb6"/>
+      <rect x="16" y="108" width="24" height="20" rx="2" fill="#1a1a1a"/>
+      <rect x="44" y="52" width="96" height="9" fill="#151515"/>
+      <rect x="64" y="134" width="74" height="9" fill="#151515"/>
+      <rect x="70" y="104" width="62" height="14" rx="1" fill="#1b1b1d"/>
+      <rect x="168" y="52" width="136" height="108" rx="5" fill="#f1efe8"/>
+    </g>
+    ${holes.join('')}
+    <path d="M78 52 C 100 18, 160 20, 206 70" fill="none" stroke="#f5c400" stroke-width="3.5"/>
+    <path d="M58 52 C 90 26, 200 26, 248 70" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
+    <circle cx="236" cy="88" r="26" fill="url(#cl-glow-${uid})"/>
+    <g stroke="#101214" stroke-width="2"><path d="M229 92 a7 7 0 0 1 14 0 v6 h-14z" fill="#ff4d36"/><rect x="211" y="96" width="16" height="6" rx="3" fill="#d8b98a"/></g>
+    <path d="M182 150 q8 -12 16 0 t16 0 t16 0 t16 0 t16 0" fill="none" stroke="#4fd1ff" stroke-width="2.5"/>
+    <text x="14" y="30" fill="#e8fbff" stroke="#0b2a30" stroke-width="3" paint-order="stroke" font-family="system-ui, sans-serif" font-weight="900" font-size="22" letter-spacing="2">CIRCUIT LAB</text>
   </svg>`;
 }
 

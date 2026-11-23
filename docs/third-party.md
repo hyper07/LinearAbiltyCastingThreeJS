@@ -131,6 +131,25 @@ Credits panel reads `src/snowpuff/credits.js`.
 AI Arcademia shows its credits (three.js, the 3dviz kits, Nunito, the music and the voices) in its
 Credits panel, from `src/arcademia/credits.js`.
 
+### Circuit Lab
+
+Circuit Lab is its own app in `apps/circuitlab/` (licence and `NOTICE` beside it).
+
+| What | Used for | Licence |
+| --- | --- | --- |
+| [ohmlet](https://github.com/JENW1N/ohmlet) | The base app: 3D breadboards and parts, wire routing, the three render modes, the MNA circuit solver, behavioural chips, the validator and its tests | MIT |
+| [OpenCircuit 3D](https://github.com/gabrieleviolait/opencircuit) | Ported into ohmlet's chip bridge: the avr8js board runner, the fast Arduino runtime, the in-browser compile flow, the LCD / OLED / NeoPixel / servo / sensor helpers, the lesson presets | MIT |
+| [avr8js](https://github.com/wokwi/avr8js) (Wokwi) | The ATmega328P emulator for the Uno and Nano in Compiled mode (bundled from npm) | MIT |
+| [@horang-corp/avr-gcc-wasm](https://github.com/horang-corp/avr-gcc-wasm) 0.2.0 | AVR-GCC + binutils as WebAssembly with the Arduino core, Servo, Wire, DHT and Adafruit SSD1306 objects: compiles a sketch to HEX in the student's browser. Loaded from the jsDelivr CDN only when someone compiles, never copied into the repo | GPL-3.0 toolchain; the Arduino core and libraries under their own licences (LGPL-2.1 / MIT / BSD) — see the package's `THIRD_PARTY_NOTICES.md` |
+| [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer), [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) | The path-traced Studio render mode (with its own pinned three 0.170 inside the lab's bundle) | MIT |
+| [React](https://react.dev), [zustand](https://github.com/pmndrs/zustand) | The lab's interface | MIT |
+| [Studio Small 03](https://polyhaven.com/a/studio_small_03) (Poly Haven) | Studio lighting for the Enhanced and Studio modes | CC0 |
+| [ngspice](https://ngspice.sourceforge.io) / `@o.z/ngspice-wasm` | Not used yet: OpenCircuit loads it from a CDN for an optional SPICE check; planned the same way | BSD-3-Clause (ngspice); package terms apply |
+
+The boards and parts are modelled in code (`apps/circuitlab/src/three/meshes/boards.ts`, `modules.ts`);
+the 5×7 display font is the classic public-domain dot-matrix table. Players see all of this in the lab's
+Credits panel (`apps/circuitlab/src/ui/lab/credits.ts`).
+
 ### Shared music
 
 | What | Used for | Licence |

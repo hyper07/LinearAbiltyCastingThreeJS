@@ -49,6 +49,38 @@ pin drives and whose input pins read node voltages.
    gpiozero for Raspberry Pi), lessons with auto-checked goals (§10), the
    server tier last.
 
+### Status (2026-11-23): phase 1 + boards built
+
+The app lives in `apps/circuitlab/` (see its README and NOTICE) and opens from
+the **Circuit Lab** card. Built so far:
+
+- ohmlet on the platform (its own React + TS + three 0.170 bundle, served at
+  `/circuitlab/`, built into `dist/circuitlab/`); the AI panel is hidden
+  until it goes through our server (TODO in `src/llm/client.ts`).
+- **The board bridge** (`src/mcu/board-chip.ts`): each board is one chip;
+  outputs drive `{v: Vcc·fraction, rout ≈ 25 Ω}`, inputs read node voltages
+  with Schmitt thresholds and pull-ups, ADC, PWM / servo / tone waves with
+  exact edges published to fast parts (`ChipStepCtx.pinEdges`, `peers`),
+  5 V-on-3.3 V and over-current damage with reasons, USB-powered 5V/3V3 pins.
+- **Runtimes**: Instant mode (Arduino C++ → generator JS in sim time, line
+  highlight, library shims) for every board; Compiled mode for Uno / Nano
+  (AVR-GCC WASM from the CDN → HEX → avr8js with timers, ADC, USART, TWI).
+- **Parts**: servo, buzzer pitch, LCD 16×2 I²C, OLED 128×64, NeoPixel ×8,
+  HC-SR04, DHT22, multimeter (V / mA with a fuse / Ω); the scope gets the
+  probes as before.
+- **Lessons**: Blink, Button → LED, Fade, Pot → Servo, Sensor → LCD,
+  555 blinker, Distance meter, ESP32 5 V trap, Pico blink.
+
+**Next steps** (not built yet):
+
+1. rp2040js for a real Pico (MicroPython firmware / `.uf2`), the micro:bit
+   simulator, Pyodide + gpiozero / RPi.GPIO for the Raspberry Pi Linux boards.
+2. The server tier: QEMU (ESP32, Raspberry Pi OS) and Renode (STM32, nRF52)
+   on the Mac Studio, pins bridged over the WebSocket.
+3. Lessons with auto-checked goals (§10), a logic-analyser view with I²C
+   decoding, DHT22 timing in Compiled mode, NeoPixels in Compiled mode, an
+   in-app SPICE check (ngspice WASM), and the remaining catalogue parts.
+
 Not usable: *Circuit Sim 3D Mobile Lab* (no licence = all rights reserved);
 Velxio (AGPL) and CircuitJS (GPL) stay idea-only.
 

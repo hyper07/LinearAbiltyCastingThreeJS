@@ -135,7 +135,7 @@ const _castDirection = new Vector3();
  * ability class has any idea that monsters exist.
  */
 /** The games that open over the home page (their own screens), not through the lobby. */
-const OVER_HOME = new Set(['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff']);
+const OVER_HOME = new Set(['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'circuitlab']);
 
 export class App {
   constructor(canvas) {
@@ -1509,6 +1509,7 @@ export class App {
     if (game.engine === 'kithvale') return this.openKithvale(game);
     if (game.engine === 'kindlewatch') return this.openKindlewatch(game);
     if (game.engine === 'snowpuff') return this.openSnowpuff(game);
+    if (game.engine === 'circuitlab') return this.openCircuitLab(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1598,6 +1599,23 @@ export class App {
     this.stop();
     const view = new WyldhuntGame(document.body, {
       account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.musicBack?.();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Circuit Lab, the electronics lab (apps/circuitlab, its own React app at /circuitlab/): full screen over the home page. */
+  async openCircuitLab(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { CircuitLabView } = await import('../circuitlab/CircuitLabView.js');
+    this.home.closePage();
+    this.stop();
+    const view = new CircuitLabView(document.body, {
       onClose: () => {
         this.start();
         this.home.musicBack?.();

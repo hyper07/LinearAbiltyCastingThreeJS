@@ -339,6 +339,49 @@ function assetLibrary() {
   };
 }
 
+/**
+ * Circuit Lab (apps/circuitlab): its own React + TypeScript app with its own
+ * dependencies (scripts/circuitlab.mjs installs them). `npm run dev` serves it
+ * at /circuitlab/ through a nested Vite dev server in middleware mode, started
+ * on the first request; `npm run build` writes it to dist/circuitlab, which
+ * `vite preview` and the production server serve as plain files.
+ */
+function circuitLab() {
+  const app = resolve('apps/circuitlab');
+  let nested = null;
+  const start = (server) =>
+    (nested ??= (async () => {
+      const { ensure } = await import('./scripts/circuitlab.mjs');
+      ensure();
+      const { pathToFileURL } = await import('node:url');
+      const vite = await import(pathToFileURL(resolve(app, 'node_modules/vite/dist/node/index.js')).href);
+      const inner = await vite.createServer({
+        configFile: resolve(app, 'vite.config.ts'),
+        root: app,
+        base: '/circuitlab/',
+        appType: 'spa',
+        logLevel: 'warn',
+        server: { middlewareMode: true, hmr: { port: Number(process.env.CIRCUITLAB_HMR_PORT) || 24679 } }
+      });
+      server.httpServer?.on('close', () => inner.close());
+      return inner;
+    })());
+  return {
+    name: 'circuit-lab',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? '').split('?')[0];
+        if (path === '/circuitlab') {
+          res.writeHead(302, { Location: '/circuitlab/' });
+          return res.end();
+        }
+        if (!path.startsWith('/circuitlab/')) return next();
+        start(server).then((inner) => inner.middlewares(req, res, next), next);
+      });
+    }
+  };
+}
+
 export default defineConfig(({ mode }) => {
   // Third argument '' loads *every* variable, not just the VITE_ prefixed ones —
   // these must stay server-side, so they are deliberately not exposed to client
@@ -368,7 +411,7 @@ export default defineConfig(({ mode }) => {
         // The asset library is gigabytes of files nobody edits by hand, and a
         // saved level must not reload the page out from under the editor.
         // Absolute paths: a bare `**/library/**` would also ignore src/library.
-        ignored: [`${resolve('library')}/**`, `${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('public', 'audio', 'voice')}/**`, `${resolve('public', 'audio', 'voice-gen')}/**`, `${resolve('data')}/**`]
+        ignored: [`${resolve('library')}/**`, `${resolve('apps')}/**`,`${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('public', 'audio', 'voice')}/**`, `${resolve('public', 'audio', 'voice-gen')}/**`, `${resolve('data')}/**`]
       }
     },
     build: {
@@ -381,7 +424,10 @@ export default defineConfig(({ mode }) => {
     },
     // Large binary assets (FBX / HDR) live in /public and are served untouched.
     assetsInclude: ['**/*.fbx', '**/*.hdr'],
+    // Circuit Lab (apps/) is a separate app with its own dependencies: keep it out of the platform's dep scan.
+    optimizeDeps: { entries: ['**/*.html', '!apps/**'] },
     plugins: [
+      circuitLab(),
       // The AI bridge: the same handler the production server runs, with the key from .env.
       mount('llm-bridge', aiBridge({ ...process.env, ...env }, { identify: async (req) => (await getGame()).authenticate(req) })),
       assetLibrary(),

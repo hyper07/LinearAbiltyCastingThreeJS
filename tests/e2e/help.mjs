@@ -14,6 +14,8 @@ const GAMES = [
   { id: 'lanternwood', global: 'lanternwood', start: 'lanternwood', pauseKey: 'Escape' },
   { id: 'stoneball', global: 'stoneball', start: 'stoneball', pauseKey: 'Escape' },
   { id: 'arcademia', global: 'arcademia', start: 'arcademia' },
+  // Circuit Lab is its own app in a frame: its panel and keys live inside the frame
+  { id: 'circuitlab', global: 'circuitlab', start: 'circuitlab', frame: '/circuitlab/' },
   { id: 'seoul', global: 'seoul', start: null }
 ];
 
@@ -36,6 +38,7 @@ export async function run(browser, { only = null, shots = null } = {}) {
         if (how === 'lanternwood') return Boolean(x.titleEl);
         if (how === 'stoneball') return x.mode === 'menu';
         if (how === 'arcademia') return x.mode === 'world';
+        if (how === 'circuitlab') return x.ready === true;
         return Boolean(x.power && x.help);
       }, [g.global, g.start], 240000);
       t.check(`${g.id}: opens`, ready);
@@ -54,18 +57,22 @@ export async function run(browser, { only = null, shots = null } = {}) {
         await until(page, () => Boolean(document.querySelector('.arc-start__play')), null, 30000);
         await page.click('.arc-start__play');
       }
-      const auto = await until(page, () => Boolean(document.querySelector('[data-help-panel]')), null, g.id === 'seoul' ? 60000 : 10000);
+      // the document the game's HUD lives in (a frame for Circuit Lab)
+      const doc = g.frame ? page.frames().find((f) => f.url().includes(g.frame)) : page;
+      if (g.frame) await page.focus('.circuitlab-host iframe');
+      const auto = await until(doc, () => Boolean(document.querySelector('[data-help-panel]')), null, g.id === 'seoul' ? 60000 : 10000);
       t.check(`${g.id}: How to play opens by itself the first time`, auto);
       if (!auto) continue;
-      t.check(`${g.id}: …with a goal and the keys by group, H among them`, await page.evaluate(() => {
+      t.check(`${g.id}: …with a goal and the keys by group, H among them`, await doc.evaluate(() => {
         const h = document.querySelector('[data-help-panel]');
         return h.querySelector('.hp__goal').textContent.length > 30 && h.querySelectorAll('.hp__group').length >= 3 && Boolean(h.querySelector('[data-help-row="help"]'));
       }));
       if (shots) await page.screenshot({ path: `${shots}/help-${g.id}.png` });
       await page.keyboard.press('KeyH');
-      t.check(`${g.id}: H closes it`, await until(page, () => !document.querySelector('[data-help-panel]'), null, 4000));
+      t.check(`${g.id}: H closes it`, await until(doc, () => !document.querySelector('[data-help-panel]'), null, 4000));
       await page.waitForTimeout(400);
-      await page.evaluate((n) => (window[n].root ?? document.body).focus?.(), g.global);
+      if (g.frame) await doc.evaluate(() => document.body.focus());
+      else await page.evaluate((n) => (window[n].root ?? document.body).focus?.(), g.global);
       if (g.id === 'lanternwood') while (await page.evaluate(() => window.lanternwood.dialogue.open)) await page.keyboard.press('Escape');
       if (g.id === 'arcademia') {
         const buddy = await page.$('.arc-side--buddy .arc-btn--primary');
@@ -74,10 +81,10 @@ export async function run(browser, { only = null, shots = null } = {}) {
         await page.evaluate(() => window.arcademia.root.focus());
       }
       await page.keyboard.press('KeyH');
-      t.check(`${g.id}: H opens it again`, await until(page, () => Boolean(document.querySelector('[data-help-panel]')), null, 4000));
+      t.check(`${g.id}: H opens it again`, await until(doc, () => Boolean(document.querySelector('[data-help-panel]')), null, 4000));
       await page.keyboard.press('Escape');
-      t.check(`${g.id}: Esc closes it`, await until(page, () => !document.querySelector('[data-help-panel]'), null, 4000));
-      t.check(`${g.id}: a ? button in the HUD`, Boolean(await page.$('[data-help-button]')));
+      t.check(`${g.id}: Esc closes it`, await until(doc, () => !document.querySelector('[data-help-panel]'), null, 4000));
+      t.check(`${g.id}: a ? button in the HUD`, Boolean(await doc.$('[data-help-button]')));
       if (g.pauseKey) {
         await page.waitForTimeout(300);
         await page.evaluate((n) => window[n].root?.focus?.(), g.global);

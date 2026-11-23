@@ -1,0 +1,46 @@
+Circuit Lab
+===========
+
+Circuit Lab is built on two MIT-licensed projects. Their notices are kept here
+and in the app's Credits panel.
+
+1. ohmlet — https://github.com/JENW1N/ohmlet
+   The base of this folder: the app shell, 3D breadboards and parts, wire
+   routing, render modes, the MNA circuit solver, behavioural chips, the
+   validator and their tests. Its licence is in ./LICENSE:
+
+   MIT License — Copyright (c) 2026 JENW1N
+
+   Circuit Lab changes: the microcontroller boards and the parts that need
+   them, the Code / Lessons / Credits / How-to-play UI, the AI panel switched
+   off (no model key in the browser), storage keys renamed, framing tweaks.
+
+2. OpenCircuit 3D — https://github.com/gabrieleviolait/opencircuit
+   The microcontroller side was ported from it and rebuilt for ohmlet's chip
+   bridge: the avr8js board runner (src/mcu/avr/runtime.ts), the fast Arduino
+   runtime (src/mcu/fast/*), the in-browser compile flow through a blob
+   worker (src/mcu/avr/compile.ts), the display / NeoPixel / servo / sensor
+   helpers (src/sim/chips/peripherals.ts) and the lesson presets
+   (src/lessons/presets.ts).
+
+   MIT License
+
+   Copyright (c) 2026 OpenCircuit 3D contributors
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, subject to the conditions of the MIT License.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+Loaded at run time, not bundled
+-------------------------------
+- avr8js (Wokwi, MIT) — bundled from npm (dependency `avr8js`).
+- @horang-corp/avr-gcc-wasm 0.2.0 — AVR-GCC and binutils as WebAssembly
+  (GPL-3.0) with precompiled Arduino core and library objects under their
+  own licences (see the package's THIRD_PARTY_NOTICES.md). Loaded lazily from
+  the jsDelivr CDN only when a student compiles; never copied into this repo.
+- The studio HDRI (public/hdri/studio_small_03_1k.hdr) is Poly Haven's
+  "Studio Small 03", CC0.
