@@ -144,21 +144,54 @@ written from the maths, not copied from any GPL simulator.
   NeoPixel and HD44780 are modelled at transaction level, not per edge, and
   shown on the logic analyser as decoded frames.
 
-## 6. Running student code on a microcontroller
+## 6. Every open-hardware board: how each one runs
 
-Three runtimes behind one pin interface (`pinMode`, levels, ADC, PWM, buses):
+The user wants one simulator for all the open hardware a class uses:
+Arduino, ESP, Raspberry Pi (Pico and the Linux computers), micro:bit, STM32,
+nRF52 and the small XIAO / Feather / Teensy boards. 21 boards are in the
+catalogue (`category: microcontroller`), each with a `runtime` saying how it
+runs. Every runtime talks to the circuit through **one pin interface**
+(levels with drive strength, pull-ups, ADC, PWM, I²C/SPI/UART transactions),
+so a board can switch runtime without the circuit noticing.
 
-| Mode | Boards | How | When |
+**Three tiers of faithfulness**
+
+| Tier | What runs | Boards | Cost |
 | --- | --- | --- | --- |
-| **Instant** (default) | ESP32, Uno, Nano, Pico | Transpile an Arduino-C++ subset (types, functions, arrays, `for/while/if`, `#define`) to JS generator code that yields at every statement and at `delay()`. Gives the reference's current-line highlight and step/pause. Library shims: Serial, Wire, SPI, Servo, AccelStepper, Adafruit_NeoPixel, LiquidCrystal_I2C, ESP32 `ledcWrite`, `WiFi` (mocked), `tone`. | All lessons; instant start, no server |
-| **Real chip** | Arduino Uno / Nano | `avr8js` (MIT) runs the real compiled `.hex`. Compile with `arduino-cli` on our server, cached by source hash, time and size limits. | Advanced classes; exact timing |
-| **MicroPython** | Raspberry Pi Pico (and ESP32 style) | `rp2040js` (MIT) runs the official MicroPython firmware; or the MicroPython WebAssembly port with a JS-backed `machine` module (check its JS bridge before relying on it) | Python classes |
+| **Chip** (in the browser) | The real chip is emulated instruction by instruction, running the real compiled program | Arduino Uno, Nano, Mega (`avr8js`, MIT; ATmega2560 partly supported but runs most programs); Raspberry Pi Pico and Pico W (`rp2040js`, MIT; runs the official MicroPython firmware or a compiled `.uf2`); micro:bit v2 (the micro:bit Foundation's MicroPython simulator, WASM, MIT; needs a bridge from its pins to our circuit) | Free per student; works offline after load |
+| **Server** (real firmware, remote emulator) | The real firmware runs in an emulator process on our server; pin changes stream over the existing WebSocket to the browser circuit and back | ESP32 / S3 / C3 / C6 (QEMU: Espressif's fork, or a fork with full GPIO such as the one Velxio uses); Raspberry Pi 3/4 running real Raspberry Pi OS (QEMU raspi3b, GPIO through qtest or a serial shim); STM32 and nRF52 (Renode, MIT) | One emulator process per running student: run on the Mac Studio, cap sessions, stop when idle. GPL QEMU runs as a separate unmodified tool, never bundled into our code |
+| **Code** (in the browser, the default where no chip tier exists) | The student's code runs in the browser against a faithful model of the board's pins and libraries | ESP32 family and ESP8266 (Arduino transpiler, or MicroPython WASM with a JS `machine` module); Raspberry Pi 4/5/Zero (Python in Pyodide with `gpiozero` and `RPi.GPIO` built on our pin model, plus a small shell-like panel); Uno R4, Leonardo, Pico 2, XIAO SAMD21, Teensy, STM32 when no server is available | Free, instant, scales to a whole class |
 
-A full ESP32 emulator in the browser does not exist in a light form (Velxio
-uses QEMU on a server, AGPL), so ESP32 code runs in Instant mode.
+So every board works in the browser for a class, and some can switch to
+"exact mode" (chip or server) for advanced students. The UI shows which
+tier a board is in with a small badge.
 
-Serial monitor: Serial output streams to the panel; input box sends lines
-back. A plotter tab graphs `Serial.println` numbers.
+**The code tier, in detail**
+- **Arduino C++ (all Arduino-style boards, ESP32, ESP8266):** transpile an
+  Arduino-C++ subset (types, functions, arrays, structs, `for/while/if/switch`,
+  `#define`, simple classes) to JS generator code that yields at every
+  statement and at `delay()`. This gives the reference's current-line
+  highlight, pause and step. Library shims: Serial, Wire, SPI, Servo,
+  AccelStepper, Adafruit_NeoPixel, LiquidCrystal_I2C, the ESP32 LEDC and
+  `WiFi`/`WebServer` (mocked, with a pretend phone/browser panel), `tone`.
+- **MicroPython (ESP32, Pico in code mode):** the MicroPython WebAssembly
+  port with a JS-backed `machine` module (`Pin`, `PWM`, `ADC`, `I2C`, `SPI`,
+  `UART`, `time`). Check the port's JS bridge before relying on it.
+- **Raspberry Pi Linux boards:** Pyodide (CPython in WASM) with our own
+  `gpiozero` pin factory and an `RPi.GPIO` module that call the pin model;
+  `time.sleep` yields. Show a terminal-like panel with `python3 app.py`.
+
+**Compiling for the chip and server tiers:** `arduino-cli` on our server
+with the AVR, RP2040 and ESP32 cores, cached by source hash, time and size
+limits. MicroPython needs no compile.
+
+**Board pages:** each board gets the reference's tabs (Overview, Pinout,
+Example, Specifications): a pinout diagram generated from its pin list,
+voltage level (3.3 V boards are damaged by 5 V on a pin — the simulator
+shows it), current limits per pin, and an example per runtime.
+
+Serial monitor: Serial output streams to the panel; an input box sends
+lines back. A plotter tab graphs `Serial.println` numbers.
 
 ## 7. 3D parts and the look
 
@@ -261,7 +294,11 @@ Suggested course (levels match the catalogue):
 | [rp2040js](https://github.com/wokwi/rp2040js) | Raspberry Pi Pico; runs MicroPython firmware | MIT |
 | [wokwi-elements](https://github.com/wokwi/wokwi-elements) | 2D part graphics for the parts bin thumbnails or schematic look | MIT |
 | [MicroPython WebAssembly port](https://www.npmjs.com/package/@micropython/micropython-webassembly-pyscript) | Python in the browser with a JS-backed `machine` module | MIT |
-| arduino-cli | Server-side compile for real-chip mode | Run as a tool on our server |
+| arduino-cli | Server-side compile for the chip and server tiers | Run as a tool on our server |
+| [micro:bit MicroPython simulator](https://github.com/microbit-foundation/micropython-microbit-v2-simulator) | micro:bit v2 in the browser | MIT (WASM build of MicroPython's codal port) |
+| [Pyodide](https://pyodide.org) | Python for the Raspberry Pi Linux boards in the browser | MPL-2.0 |
+| [QEMU](https://www.qemu.org) (+ [Espressif fork](https://github.com/espressif/qemu)) | ESP32 family and Raspberry Pi OS on the server; a WASM build of QEMU can boot a Pi image in the browser but loads slowly | GPL-2: run as a separate unmodified process, never bundled |
+| [Renode](https://github.com/renode/renode) | STM32 and nRF52 real firmware on the server, GPIO driven from outside | MIT |
 | CircuitJS1 (Falstad) | Ideas for interaction and visual language | GPL-2: read only, never copy code |
 | Velxio | How others bridge emulators and parts | AGPL-3: read only |
 | KiCad symbol / 3D libraries, Fritzing parts | Pinouts and reference shapes | CC-BY-SA: reference for shapes and pinouts; we model our own |
@@ -272,12 +309,19 @@ Suggested course (levels match the catalogue):
    placing, wiring, netlist; MNA solver (R, sources, switches, C, diode/LED);
    LED glow, current dots, voltage colours; multimeter; damage; help panel.
    Unit tests against hand-solved circuits and ngspice.
-2. **Microcontroller:** Instant runtime with the Arduino subset and the ESP32
-   and Uno boards; code panel with line highlight; serial monitor and plotter;
-   servo, buzzer, potentiometer, button, PWM.
-3. **Level 2 parts:** BJT, MOSFET, relay, 555, op-amps, logic ICs, motors,
+2. **Boards, code tier:** the one pin interface; the Arduino transpiler for
+   every Arduino-style board, ESP32 and ESP8266; Pyodide + gpiozero/RPi.GPIO
+   for the Raspberry Pi Linux boards; code panel with line highlight; serial
+   monitor and plotter; servo, buzzer, potentiometer, button, PWM. All 21
+   boards placeable, with pinouts and 3.3 V / 5 V damage.
+3. **Boards, chip tier:** avr8js for Uno/Nano/Mega and rp2040js for Pico/Pico W
+   with server compile (arduino-cli) and MicroPython firmware; the micro:bit
+   simulator bridged to our pins.
+4. **Level 2 parts:** BJT, MOSFET, relay, 555, op-amps, logic ICs, motors,
    steppers and drivers; scope and function generator; schematic view.
-4. **Lessons:** the level 1 and 2 course with auto-checked goals; progress;
+5. **Lessons:** the level 1 and 2 course with auto-checked goals; progress;
    save/share.
-5. **Level 3:** I²C/SPI/UART devices, logic analyser, displays, NeoPixels;
-   avr8js real-chip mode with server compile; Pico + MicroPython.
+6. **Level 3:** I²C/SPI/UART devices, logic analyser, displays, NeoPixels.
+7. **Boards, server tier:** an emulator service on the Mac Studio — QEMU for
+   the ESP32 family and Raspberry Pi OS, Renode for STM32 and nRF52 — with
+   pins bridged over the WebSocket, session caps and idle shutdown.

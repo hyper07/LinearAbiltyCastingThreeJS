@@ -1,5 +1,5 @@
 {
- "note": "Components for the circuit lab: every part an electronics / electrical-engineering class uses, with pins, how to simulate it, how it should look in 3D, and what it teaches. level 1 = first weeks, 2 = core course, 3 = advanced. See knowledge/circuit-lab.md.",
+ "note": "Components for the circuit lab: every part an electronics / electrical-engineering class uses, with pins, how to simulate it, how it should look in 3D, and what it teaches. level 1 = first weeks, 2 = core course, 3 = advanced. See knowledge/circuit-lab.md. Boards carry `runtime`: chip = the real chip emulated in the browser; server = real firmware in an emulator on our server with pins bridged over WebSocket; code = the student's code runs in the browser against a model of the board.",
  "parts": [
   {
    "id": "battery-9v",
@@ -991,73 +991,6 @@
    "teach": "steppers, microstepping"
   },
   {
-   "id": "esp32-devkit",
-   "name": "ESP32 DevKit (WROOM-32)",
-   "category": "microcontroller",
-   "level": 2,
-   "pins": [
-    "GPIO0..39",
-    "3V3",
-    "5V/VIN",
-    "GND",
-    "EN"
-   ],
-   "sim": "sketch runtime (Arduino-style JS transpiled code or MicroPython) driving pins: outputs as voltage sources with ~25 Ω, inputs with thresholds, ADC 12-bit, LEDC PWM, touch, Wi-Fi mocked",
-   "look": "black PCB, metal shield with antenna, USB-C, two pin rows, BOOT/EN buttons, blue LED on GPIO 2",
-   "teach": "GPIO, ADC, PWM, Wi-Fi"
-  },
-  {
-   "id": "arduino-uno",
-   "name": "Arduino Uno (ATmega328P)",
-   "category": "microcontroller",
-   "level": 1,
-   "pins": [
-    "D0..D13",
-    "A0..A5",
-    "5V",
-    "3V3",
-    "GND",
-    "VIN",
-    "AREF"
-   ],
-   "sim": "real-chip mode: avr8js runs compiled .hex; instant mode: transpiled sketch",
-   "look": "teal PCB, USB-B, barrel jack, female headers, ON/L/TX/RX LEDs",
-   "teach": "first microcontroller"
-  },
-  {
-   "id": "arduino-nano",
-   "name": "Arduino Nano",
-   "category": "microcontroller",
-   "level": 1,
-   "pins": [
-    "D0..D13",
-    "A0..A7",
-    "5V",
-    "3V3",
-    "GND",
-    "VIN"
-   ],
-   "sim": "as Uno",
-   "look": "small blue PCB that sits on the breadboard",
-   "teach": "breadboard-friendly MCU"
-  },
-  {
-   "id": "pico",
-   "name": "Raspberry Pi Pico (RP2040)",
-   "category": "microcontroller",
-   "level": 2,
-   "pins": [
-    "GP0..GP28",
-    "3V3",
-    "VSYS",
-    "GND",
-    "RUN"
-   ],
-   "sim": "rp2040js running real MicroPython firmware, or transpiled sketch",
-   "look": "green PCB with castellated edges, micro-USB, BOOTSEL",
-   "teach": "MicroPython on hardware"
-  },
-  {
    "id": "pir",
    "name": "PIR motion sensor HC-SR501",
    "category": "sensor",
@@ -1809,6 +1742,403 @@
    "sim": "I²C clock from the page time",
    "look": "PCB with a coin cell",
    "teach": "real-time clocks"
+  },
+  {
+   "id": "arduino-uno",
+   "name": "Arduino Uno R3 (ATmega328P)",
+   "category": "microcontroller",
+   "level": 1,
+   "pins": [
+    "D0..D13",
+    "A0..A5",
+    "5V",
+    "3V3",
+    "GND",
+    "VIN",
+    "AREF"
+   ],
+   "sim": "browser: chip: avr8js runs the compiled .hex / fallback: code: Arduino transpiler",
+   "runtime": {
+    "browser": "chip: avr8js runs the compiled .hex",
+    "fallback": "code: Arduino transpiler"
+   },
+   "look": "teal PCB, USB-B, barrel jack, female headers, ON/L/TX/RX LEDs",
+   "teach": "first microcontroller"
+  },
+  {
+   "id": "arduino-nano",
+   "name": "Arduino Nano (ATmega328P)",
+   "category": "microcontroller",
+   "level": 1,
+   "pins": [
+    "D0..D13",
+    "A0..A7",
+    "5V",
+    "3V3",
+    "GND",
+    "VIN"
+   ],
+   "sim": "browser: chip: avr8js",
+   "runtime": {
+    "browser": "chip: avr8js"
+   },
+   "look": "small blue PCB that sits across the breadboard",
+   "teach": "breadboard-friendly MCU"
+  },
+  {
+   "id": "arduino-mega",
+   "name": "Arduino Mega 2560",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D53",
+    "A0..A15",
+    "5V",
+    "3V3",
+    "GND",
+    "VIN"
+   ],
+   "sim": "browser: chip: avr8js (ATmega2560 partly supported; runs most Arduino programs) / fallback: code",
+   "runtime": {
+    "browser": "chip: avr8js (ATmega2560 partly supported; runs most Arduino programs)",
+    "fallback": "code"
+   },
+   "look": "long teal PCB with a double header row at the end",
+   "teach": "many pins, big projects"
+  },
+  {
+   "id": "arduino-leonardo",
+   "name": "Arduino Leonardo / Micro (ATmega32u4)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D13",
+    "A0..A5",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code (native USB not emulated)",
+   "runtime": {
+    "browser": "code (native USB not emulated)"
+   },
+   "look": "teal PCB with micro-USB",
+   "teach": "USB keyboard/mouse projects"
+  },
+  {
+   "id": "arduino-uno-r4",
+   "name": "Arduino Uno R4 Minima/WiFi (Renesas RA4M1)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D13",
+    "A0..A5",
+    "5V",
+    "3V3",
+    "GND"
+   ],
+   "sim": "browser: code (no open emulator for RA4M1)",
+   "runtime": {
+    "browser": "code (no open emulator for RA4M1)"
+   },
+   "look": "teal PCB, USB-C, 12×8 LED matrix on the WiFi model",
+   "teach": "modern Uno"
+  },
+  {
+   "id": "arduino-nano-esp32",
+   "name": "Arduino Nano ESP32 (ESP32-S3)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D13",
+    "A0..A7",
+    "3V3",
+    "GND",
+    "VIN"
+   ],
+   "sim": "browser: code / server: QEMU (ESP32-S3)",
+   "runtime": {
+    "browser": "code",
+    "server": "QEMU (ESP32-S3)"
+   },
+   "look": "small teal PCB, USB-C",
+   "teach": "Wi-Fi in a Nano"
+  },
+  {
+   "id": "esp32-devkit",
+   "name": "ESP32 DevKit (WROOM-32)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "GPIO0..39",
+    "3V3",
+    "5V/VIN",
+    "GND",
+    "EN"
+   ],
+   "sim": "browser: code: Arduino transpiler or MicroPython (WASM) with a JS machine module / server: QEMU running real firmware (Espressif fork or a GPIO-complete fork), pins bridged over WebSocket",
+   "runtime": {
+    "browser": "code: Arduino transpiler or MicroPython (WASM) with a JS machine module",
+    "server": "QEMU running real firmware (Espressif fork or a GPIO-complete fork), pins bridged over WebSocket"
+   },
+   "look": "black PCB, metal shield with antenna, USB, two pin rows, BOOT/EN, blue LED on GPIO 2",
+   "teach": "GPIO, ADC, PWM, Wi-Fi"
+  },
+  {
+   "id": "esp32-s3",
+   "name": "ESP32-S3 DevKitC",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "GPIO0..48",
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code / server: QEMU (ESP32-S3)",
+   "runtime": {
+    "browser": "code",
+    "server": "QEMU (ESP32-S3)"
+   },
+   "look": "black PCB, two USB-C, RGB LED",
+   "teach": "camera/AI-capable ESP32"
+  },
+  {
+   "id": "esp32-c3",
+   "name": "ESP32-C3 (RISC-V) / XIAO ESP32-C3",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "GPIO0..21",
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code / server: QEMU (ESP32-C3)",
+   "runtime": {
+    "browser": "code",
+    "server": "QEMU (ESP32-C3)"
+   },
+   "look": "tiny PCB, USB-C, external antenna",
+   "teach": "RISC-V microcontroller"
+  },
+  {
+   "id": "esp8266-nodemcu",
+   "name": "ESP8266 NodeMCU",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D8",
+    "A0",
+    "3V3",
+    "VIN",
+    "GND"
+   ],
+   "sim": "browser: code (no maintained open emulator)",
+   "runtime": {
+    "browser": "code (no maintained open emulator)"
+   },
+   "look": "black PCB, ESP-12 module with antenna trace, CP2102",
+   "teach": "cheap Wi-Fi boards"
+  },
+  {
+   "id": "pico",
+   "name": "Raspberry Pi Pico (RP2040)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "GP0..GP28",
+    "3V3",
+    "VSYS",
+    "VBUS",
+    "GND",
+    "RUN"
+   ],
+   "sim": "browser: chip: rp2040js runs the official MicroPython firmware or a compiled C/Arduino .uf2",
+   "runtime": {
+    "browser": "chip: rp2040js runs the official MicroPython firmware or a compiled C/Arduino .uf2"
+   },
+   "look": "green PCB with castellated edges, micro-USB, BOOTSEL, LED on GP25",
+   "teach": "MicroPython and C on real silicon behaviour"
+  },
+  {
+   "id": "pico-w",
+   "name": "Raspberry Pi Pico W",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "GP0..GP28",
+    "3V3",
+    "VSYS",
+    "GND"
+   ],
+   "sim": "browser: chip: rp2040js (Wi-Fi chip mocked)",
+   "runtime": {
+    "browser": "chip: rp2040js (Wi-Fi chip mocked)"
+   },
+   "look": "as Pico with a silver Wi-Fi can",
+   "teach": "Wi-Fi projects"
+  },
+  {
+   "id": "pico-2",
+   "name": "Raspberry Pi Pico 2 (RP2350)",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "GP0..GP28",
+    "3V3",
+    "VSYS",
+    "GND"
+   ],
+   "sim": "browser: code until rp2040js supports RP2350 (check)",
+   "runtime": {
+    "browser": "code until rp2040js supports RP2350 (check)"
+   },
+   "look": "green PCB like Pico",
+   "teach": "newer Pico"
+  },
+  {
+   "id": "microbit-v2",
+   "name": "BBC micro:bit v2",
+   "category": "microcontroller",
+   "level": 1,
+   "pins": [
+    "P0..P20",
+    "3V",
+    "GND"
+   ],
+   "sim": "browser: chip-level: the micro:bit Foundation MicroPython simulator (WASM, MIT) — needs a bridge from its pins to our circuit",
+   "runtime": {
+    "browser": "chip-level: the micro:bit Foundation MicroPython simulator (WASM, MIT) — needs a bridge from its pins to our circuit"
+   },
+   "look": "small purple/green board, 5×5 LED matrix, A/B buttons, edge connector, speaker",
+   "teach": "first coding for young students"
+  },
+  {
+   "id": "raspberry-pi-4",
+   "name": "Raspberry Pi 4 / 5 (Linux computer)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "GPIO2..27 (40-pin header)",
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code: Python (Pyodide) with gpiozero and RPi.GPIO backed by our pin model; a terminal-like panel / server: QEMU raspi3b booting Raspberry Pi OS, GPIO through a qtest or serial bridge",
+   "runtime": {
+    "browser": "code: Python (Pyodide) with gpiozero and RPi.GPIO backed by our pin model; a terminal-like panel",
+    "server": "QEMU raspi3b booting Raspberry Pi OS, GPIO through a qtest or serial bridge"
+   },
+   "look": "green credit-card PCB, 40-pin header, USB/Ethernet block, micro-HDMI, fan",
+   "teach": "Linux + Python + GPIO"
+  },
+  {
+   "id": "raspberry-pi-zero",
+   "name": "Raspberry Pi Zero 2 W",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "40-pin header"
+   ],
+   "sim": "browser: code: Pyodide + gpiozero / server: QEMU",
+   "runtime": {
+    "browser": "code: Pyodide + gpiozero",
+    "server": "QEMU"
+   },
+   "look": "tiny green PCB with 40-pin header",
+   "teach": "small Linux projects"
+  },
+  {
+   "id": "stm32-bluepill",
+   "name": "STM32 Blue Pill (STM32F103)",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "PA0..PA15",
+    "PB0..PB15",
+    "PC13..15",
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code / server: Renode (MIT) running real firmware, GPIO driven from outside",
+   "runtime": {
+    "browser": "code",
+    "server": "Renode (MIT) running real firmware, GPIO driven from outside"
+   },
+   "look": "blue PCB, micro-USB, yellow jumpers",
+   "teach": "ARM Cortex-M, registers"
+  },
+  {
+   "id": "stm32-nucleo",
+   "name": "STM32 Nucleo-64",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "Arduino header",
+    "Morpho headers"
+   ],
+   "sim": "browser: code / server: Renode",
+   "runtime": {
+    "browser": "code",
+    "server": "Renode"
+   },
+   "look": "white PCB with ST-LINK on top",
+   "teach": "industry MCUs"
+  },
+  {
+   "id": "nrf52840",
+   "name": "nRF52840 (Feather / XIAO BLE)",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "P0.xx",
+    "3V3",
+    "GND"
+   ],
+   "sim": "browser: code / server: Renode (no PWM/ADC there yet)",
+   "runtime": {
+    "browser": "code",
+    "server": "Renode (no PWM/ADC there yet)"
+   },
+   "look": "small PCB with BLE antenna",
+   "teach": "Bluetooth LE"
+  },
+  {
+   "id": "xiao-samd21",
+   "name": "Seeed XIAO SAMD21",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D10",
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code",
+   "runtime": {
+    "browser": "code"
+   },
+   "look": "thumb-size PCB, USB-C",
+   "teach": "tiny boards"
+  },
+  {
+   "id": "teensy-4",
+   "name": "Teensy 4.0",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "0..23",
+    "3V3",
+    "GND",
+    "VIN"
+   ],
+   "sim": "browser: code (no open emulator)",
+   "runtime": {
+    "browser": "code (no open emulator)"
+   },
+   "look": "small green PCB, micro-USB",
+   "teach": "fast audio/USB projects"
   }
  ]
 }

@@ -1560,6 +1560,32 @@
    ],
    "from": "circuit-lab",
    "path": "knowledge/circuit-lab.md"
+  },
+  {
+   "id": "tech.board-runtime-tiers",
+   "kind": "technique",
+   "title": "Simulating every open-hardware board: chip, server and code tiers",
+   "summary": "One pin interface for 21 boards. Chip tier in the browser: avr8js (Uno/Nano/Mega), rp2040js (Pico/Pico W), micro:bit WASM. Server tier: QEMU for ESP32 family and Raspberry Pi OS, Renode for STM32/nRF52, pins over WebSocket. Code tier: Arduino transpiler, MicroPython WASM, Pyodide + gpiozero. §6.",
+   "tags": [
+    "arduino",
+    "esp32",
+    "esp8266",
+    "raspberry pi",
+    "pico",
+    "microbit",
+    "stm32",
+    "nrf52",
+    "emulator",
+    "qemu",
+    "renode",
+    "avr8js",
+    "rp2040js",
+    "pyodide",
+    "boards",
+    "open hardware"
+   ],
+   "from": "circuit-lab",
+   "path": "knowledge/circuit-lab.md"
   }
  ]
 }
