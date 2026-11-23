@@ -138,8 +138,8 @@
 @keyframes sp-bonk { 0% { transform: translate(-50%, -50%) scale(0.2) rotate(-12deg); } 25% { transform: translate(-50%, -60%) scale(1.2) rotate(6deg); } 100% { transform: translate(-50%, -140%) scale(1); opacity: 0; } }
 .sp-toast { position: absolute; left: 50%; top: 86px; transform: translateX(-50%); padding: 8px 18px; border-radius: 99px; background: rgba(255, 255, 255, 0.92); font-weight: 800; box-shadow: 0 4px 0 rgba(42, 47, 74, 0.18); opacity: 0; transition: opacity 0.3s; }
 .sp-toast.on { opacity: 1; }
-.sp-hint { position: absolute; left: 14px; bottom: 66px; font-weight: 700; font-size: 13px; color: #3a4270; background: rgba(255, 255, 255, 0.7); border-radius: 14px; padding: 6px 10px; max-width: 38vw; }
-.sp-hint kbd { font-size: 11px; }
+.sp-hint { position: absolute; left: 18px; top: 118px; font-weight: 700; font-size: 11px; line-height: 1.7; color: #3a4270; background: rgba(255, 255, 255, 0.72); border-radius: 12px; padding: 4px 9px; max-width: 220px; }
+.sp-hint kbd { font-size: 10px; }
 
 /* touch */
 .sp-touch { position: absolute; inset: 0; z-index: 12; pointer-events: none; }

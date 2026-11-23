@@ -128,7 +128,7 @@ export function think(brain, racer, course, racers, dt) {
   // ---- steering: a damped pursuit of the target line, with a little skill noise
   const noise = (1 - p.skill) * Math.sin(brain.phase * 2.3 + r.s * 0.05) * 0.6;
   const err = target - predLat;
-  out.steer = clamp(err * 0.32 - r.yaw * 1.1 + noise, -1, 1);
+  out.steer = clamp(err * 0.22 - r.yaw * 0.85 - (r.head - r.yaw) * 0.4 + noise, -1, 1);
   if (Math.abs(out.steer) < 0.08) out.steer = 0;
   out.tuck = !danger && Math.abs(out.steer) < 0.35 && brain.rand() < p.tuck + 0.2;
 

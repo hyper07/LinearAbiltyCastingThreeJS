@@ -37,7 +37,7 @@ export async function run(browser) {
     await page.click('.sp [data-go]');
     t.check('the race counts down and starts', await until(page, () => window.snowpuff.mode === 'race', null, 120000));
     t.check('rivals line up beside you', await page.evaluate(() => window.snowpuff.racers.length === 4 && window.snowpuff.racers.filter((r) => !r.human).length === 3));
-    t.check('your nickname rides with you (name tag, strip)', await until(page, () => window.snowpuff.me.name === 'Snowy bJo' && [...document.querySelectorAll('.sp-nametag')].some((d) => d.textContent === 'Snowy bJo'), null, 4000));
+    t.check('your nickname rides with you (course strip; no tag over your own head)', await until(page, () => window.snowpuff.me.name === 'Snowy bJo' && document.querySelector('.sp-face.me')?.title === 'Snowy bJo (you)' && ![...document.querySelectorAll('.sp-nametag')].some((d) => d.textContent === 'Snowy bJo' && d.style.display !== 'none'), null, 4000));
     const s0 = await page.evaluate(() => window.snowpuff.me.rider.s);
     await page.keyboard.down('KeyS');
     await page.waitForTimeout(1500);
@@ -64,6 +64,7 @@ export async function run(browser) {
     t.check('a snowball (1) flies at the rider ahead and bonks them', await until(page, () => window.snowpuff.racers.some((r) => !r.me && r.rider.spinout > 0), null, 3000));
     await page.evaluate(() => window.snowpuff.debugFinish());
     t.check('the finish shows the podium and the standings', await until(page, () => window.snowpuff.mode === 'results' && document.querySelectorAll('.sp-standing').length === 4, null, 8000));
+    t.check('…with name tags on the podium, yours among them', await until(page, () => [...document.querySelectorAll('.sp-nametag')].some((d) => d.textContent === 'Snowy bJo' && d.style.display !== 'none'), null, 4000));
     t.check('…and remembers your best time', await page.evaluate(() => Boolean(JSON.parse(localStorage.getItem('snowpuff.save')).best.marshmallow)));
     await page.evaluate(() => window.snowpuff.close());
     await until(page, () => window.app?.home?.isVisible, null, 15000);

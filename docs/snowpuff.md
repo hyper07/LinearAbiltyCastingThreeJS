@@ -33,8 +33,9 @@ mountains. Your name and best times are kept on this device.
 **Nicknames** (`src/snowpuff/names.js`): up to 12 characters of letters (any
 alphabet), digits, spaces and `- ' .`; anything on a small kid-safety block
 list (checked on the letters only, so `sh1t` doesn't slip through) becomes a
-random cute name instead. Your name rides above you on a name tag and shows on
-the course strip, the minimap tooltip, the results and the podium; in a room it
+random cute name instead. Your name shows on the course strip, the minimap tooltip, the
+results and over you on the podium (while you ride, only the other riders carry
+name tags; tags that would overlap are lifted and faded); in a room it
 is the name your friends see, and every remote name is cleaned again on arrival.
 Computer riders keep their character names.
 
@@ -97,6 +98,18 @@ interpolated state), so motion is smooth at any frame rate.
   **skids** sideways — scrubbing speed and throwing spray from the tail.
   Gravity pulls along the real slope under the board (pitch, rollers, banks,
   kickers), so berms carry you round and rollers lift you.
+- **Quick, not twitchy**: a steer key ramps in over about 65 ms (a stick or a
+  touch drag stays proportional), the board turns fastest at low and mid speed,
+  and switching from one edge to the other (heelside ↔ toeside) does a tiny
+  unweight hop so a reversed turn bites at once. A carving edge grips hard, so
+  the motion follows the board instead of drifting; skids come from very hard
+  turns at high speed — or on purpose, from a hard turn just as you come out of
+  a tuck. Measured by `node tests/unit/steering.harness.mjs` (and held to limits
+  by a unit test): at 60 km/h the turn builds to 63 % in about 140 ms, the board
+  itself in about 85 ms, and a slalom edge change flips your line in about
+  0.3 s. The rider's lean, the board's tilt and the camera follow at once, and
+  the camera looks a little toward where you steer while keeping you framed in
+  the bottom-centre third, even through berms.
 - **Steer** (A/D, ←/→), **tuck** (S, ↓ or Shift).
 - **Jump** (Space): it pops the moment you press it; holding it adds a little
   height. Pressed on a kicker, you crouch and get an extra kick at the lip;

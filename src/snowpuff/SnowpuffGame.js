@@ -539,7 +539,7 @@ export class SnowpuffGame {
     if (hint) {
       hint.style.display = this.racesRun ? 'none' : '';
       clearTimeout(this._hintT);
-      this._hintT = setTimeout(() => (hint.style.display = 'none'), 14000);
+      this._hintT = setTimeout(() => (hint.style.display = 'none'), 6000);
     }
     this.racesRun = (this.racesRun ?? 0) + 1;
     this.probe = { t: 0, frames: 0, acc: 0 };
@@ -1320,7 +1320,8 @@ export class SnowpuffGame {
       root.position.set(x, rd.y, z);
       root.rotation.order = 'YXZ';
       // the board follows its own heading (a skid shows as the board crossing its line)
-      const lean = clamp(Math.atan2(rd.latAcc, 9.8), -0.6, 0.6) * (rd.air ? 0.3 : 1);
+      // lean: the turn's sideways pull, plus the edge itself so the tilt starts the instant you steer
+      const lean = clamp(Math.atan2(rd.latAcc, 9.8) * 0.7 + rd.edge * 0.32, -0.62, 0.62) * (rd.air ? 0.3 : 1);
       rc.model.pose(dt, {
         heading: f.heading, yaw: rd.head ?? rd.yaw, spin: rd.spin, flip: rd.flip, edge: rd.edge, lean, compress: rd.compress, skid: rd.skid, tuck: rd.tuck, charge: rd.charge, speed: rd.speed, air: rd.air,
         tumbleK: rd.tumble > 0 ? clamp(rd.tumble / 0.95, 0, 1) : 0, spinoutK: rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0, wobble: rd.wobble, landed: rc.landed ?? 0
@@ -1370,8 +1371,9 @@ export class SnowpuffGame {
     const speed = rd.speed;
     const k = clamp((speed - 8) / 22, 0, 1);
     r.airK = (r.airK ?? 0) + ((rd.air ? 1 : 0) - (r.airK ?? 0)) * Math.min(1, dt * 2.5);
-    // follow the run's direction, partly the rider's
-    const yawW = f.heading + rd.yaw * 0.3;
+    // follow the run's direction and, more, the rider's own (turns should look quick)
+    const steerR = me.rider.steerR ?? 0;
+    const yawW = f.heading + rd.yaw * 0.55 + steerR * 0.08;
     const fx = Math.sin(yawW), fz = -Math.cos(yawW);
     const dist = 4.3 + k * 0.9 + r.airK * 0.7;
     const height = 1.7 + k * 0.25 + r.airK * 0.35;
@@ -1399,15 +1401,30 @@ export class SnowpuffGame {
     const dv = r.prevDesired && dt > 0 ? desired.clone().sub(r.prevDesired).divideScalar(dt) : new THREE.Vector3();
     r.prevDesired = desired.clone();
     r.desiredVel = (r.desiredVel ?? dv.clone()).lerp(dv, 1 - Math.exp(-dt * 12));
-    const w = 6.5;
-    const acc = desired.clone().sub(r.camPos).multiplyScalar(w * w).add(r.desiredVel.clone().sub(r.camVel).multiplyScalar(2 * w));
+    // stiffer sideways than up and down: it swings round with you, but bumps stay soft
+    const acc = new THREE.Vector3();
+    for (const [k, w] of [['x', 9.5], ['y', 6.5], ['z', 9.5]]) acc[k] = (desired[k] - r.camPos[k]) * w * w + (r.desiredVel[k] - r.camVel[k]) * 2 * w;
     r.camVel.addScaledVector(acc, dt);
     r.camPos.addScaledVector(r.camVel, dt);
     // look ahead along the run itself
     const ahead = frameAt(c, rd.s + 10 + speed * 0.25, {});
-    const la = new THREE.Vector3(ahead.x + ahead.rx * rd.lat * 0.7, me.pos.y + 0.4 - k * 0.3, ahead.z + ahead.rz * rd.lat * 0.7);
+    // look ahead along the run, nudged toward where you're steering
+    const latLook = rd.lat * 0.7 + steerR * 2.5 + Math.sin(rd.yaw) * 4;
+    const la = new THREE.Vector3(ahead.x + ahead.rx * latLook, me.pos.y + 0.4 - k * 0.3, ahead.z + ahead.rz * latLook);
     const look = target.clone().lerp(la, 0.55);
-    r.camLook.lerp(look, 1 - Math.exp(-dt * 7));
+    r.camLook.lerp(look, 1 - Math.exp(-dt * 11));
+    // keep your own rider framed (bottom-centre third) through berms and tight turns
+    const camP = r.camPos;
+    const toRider = Math.atan2(target.x - camP.x, -(target.z - camP.z));
+    const toLook = Math.atan2(r.camLook.x - camP.x, -(r.camLook.z - camP.z));
+    let off = Math.atan2(Math.sin(toLook - toRider), Math.cos(toLook - toRider));
+    const lim = 0.2;
+    if (Math.abs(off) > lim) {
+      const want = toRider + Math.sign(off) * lim;
+      const d = Math.hypot(r.camLook.x - camP.x, r.camLook.z - camP.z);
+      r.camLook.x = camP.x + Math.sin(want) * d;
+      r.camLook.z = camP.z - Math.cos(want) * d;
+    }
     // shake: a hum at top speed, kicks on bumps and landings
     r.shake = Math.max(0, r.shake - dt * 1.8);
     const hum = k > 0.6 ? (k - 0.6) * 0.04 : 0;
@@ -1492,18 +1509,33 @@ export class SnowpuffGame {
     this.pipe.render();
   }
 
-  /** Name tags over the riders near you (yours in yellow). */
+  /**
+   * Name tags over the other riders near you (yours shows on the podium and on
+   * your friends' screens, not over your own head while you ride). Tags that
+   * would sit on top of each other: the farther one is lifted and faded.
+   */
   nameTags() {
     const list = [];
     for (const rc of this.racers) {
-      if (rc.gone || !rc.model.root.visible) continue;
+      if (rc.me || rc.gone || !rc.model.root.visible) continue;
       const d = Math.hypot(rc.pos.x - this.camera.position.x, rc.pos.z - this.camera.position.z);
       if (d > 45) continue;
       const at = this.toScreen(rc.pos.x, rc.pos.y + 1.55, rc.pos.z);
       if (!at) continue;
-      list.push({ key: rc.slot, name: rc.name, x: at[0], y: at[1], me: rc.me, alpha: rc.me ? 0.95 : Math.min(1, (45 - d) / 15) });
+      list.push({ key: rc.slot, name: rc.name, x: at[0], y: at[1], d, alpha: Math.min(1, (45 - d) / 15) });
     }
-    this.hud.tags(list);
+    list.sort((a, b) => a.d - b.d);
+    const placed = [];
+    for (const t of list) {
+      for (let tries = 0; tries < 3; tries++) {
+        const hit = placed.find((p) => Math.abs(p.x - t.x) < 70 && Math.abs(p.y - t.y) < 20);
+        if (!hit) break;
+        t.y = hit.y - 22;
+        t.alpha *= 0.7;
+      }
+      placed.push(t);
+    }
+    this.hud.tags(placed);
   }
 
   /** Name tags over the podium. */

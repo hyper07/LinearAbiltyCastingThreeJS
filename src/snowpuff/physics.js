@@ -106,28 +106,43 @@ export function step(r, inp, course, dt, o = {}) {
   const pressed = jumpHeld && !r.jumpWas;
   r.jumpWas = jumpHeld;
 
-  // Steering ramps in and out (no instant yaw); the carve deepens while a direction is held.
-  const ramp = Math.abs(steer) > Math.abs(r.steerR ?? 0) ? 3.4 : 5.5;
+  // Steering ramps in and out quickly (~65 ms: keys are on/off, so they need a short ramp; a stick
+  // or a touch drag stays proportional); the carve deepens while a direction is held.
+  const ramp = Math.abs(steer) > Math.abs(r.steerR ?? 0) ? 15 : 18;
+  const flipping = steer !== 0 && Math.sign(steer) !== Math.sign(r.steerR ?? 0) && Math.abs(r.steerR ?? 0) > 0.3;
   r.steerR = (r.steerR ?? 0) + clamp(steer - (r.steerR ?? 0), -ramp * dt, ramp * dt);
   const want = Math.abs(r.steerR);
-  r.carve += (want - r.carve) * Math.min(1, dt * (want > r.carve ? 2.6 : 7));
+  r.carve += (want - r.carve) * Math.min(1, dt * (want > r.carve ? 9 : 12));
+  const tuckWas = r.tuck;
   r.tuck += (tuckIn - r.tuck) * Math.min(1, dt * 6);
   r.onIce = !r.air && onIce(course, r.s, r.lat);
+  r.unweight = Math.max(0, (r.unweight ?? 0) - dt);
+  r.skidT = Math.max(0, (r.skidT ?? 0) - dt);
 
   if (!r.air) {
     // ---- on the snow: a board with a heading, a velocity, an edge
     const ice = r.onIce;
-    // edge angle: how hard the board is tipped onto its edge (more at speed)
-    const edgeGoal = r.steerR * (0.35 + 0.65 * clamp(r.speed / 14, 0, 1)) * (r.wobble > 0 ? 0.5 : 1);
-    r.edge += (edgeGoal - r.edge) * Math.min(1, dt * 7);
-    // the board turns with the steer; let go and it lines up with its motion and the fall line
-    const turnMax = (0.75 + 1.45 * r.carve) * (1 - 0.35 * r.tuck) * (ice ? 0.5 : 1) * (r.wobble > 0 ? 0.6 : 1);
-    const slow = 1 - clamp(r.speed / 7, 0, 1);
-    r.head += r.steerR * turnMax * (1 - slow * 0.75) * dt;
+    // edge to edge (heelside ↔ toeside): a tiny unweight hop lets the board swing through quickly
+    if (flipping && r.unweight <= 0 && r.speed > 5) {
+      r.unweight = 0.2;
+      r.compress = -0.5;
+      ev.push({ type: 'edge' });
+    }
+    // a hard turn just as you come out of a tuck: a sharp, sprayey skid turn
+    if (want > 0.8 && tuckIn === 0 && tuckWas > 0.55 && r.speed > 12 && r.skidT <= 0) r.skidT = 0.4;
+    // edge angle: how hard the board is tipped onto its edge (more at speed), almost at once
+    const edgeGoal = r.steerR * (0.55 + 0.45 * clamp(r.speed / 10, 0, 1)) * (r.wobble > 0 ? 0.5 : 1);
+    r.edge += (edgeGoal - r.edge) * Math.min(1, dt * (r.unweight > 0 ? 30 : 18));
+    // the board turns with the steer — fastest at low and mid speed; let go and it lines up with
+    // its motion and the fall line
+    const speedK = clamp(1.32 - r.speed / 45, 0.78, 1.25);
+    const turnMax = (1.05 + 1.5 * r.carve) * speedK * (1 - 0.3 * r.tuck) * (ice ? 0.5 : 1) * (r.wobble > 0 ? 0.6 : 1) * (r.unweight > 0 ? 2.6 : 1) * (r.skidT > 0 ? 1.35 : 1);
+    const slow = 1 - clamp(r.speed / 6, 0, 1);
+    r.head += r.steerR * turnMax * (1 - slow * 0.6) * dt;
     // nearly stopped, a board swings back down the fall line (no getting stuck crossways)
     r.head -= r.head * Math.min(1, dt * slow * 3);
-    r.head += (r.yaw - r.head) * Math.min(1, dt * (1.2 + (1 - want) * 2.2));
-    r.head -= r.head * Math.min(1, dt * (1 - want) * (ice ? 0.4 : 2.2));
+    r.head += (r.yaw - r.head) * Math.min(1, dt * (0.25 + (1 - want) * 2.8));
+    r.head -= r.head * Math.min(1, dt * (1 - want) * (ice ? 0.4 : 2.4));
     if (r.spinout > 0) r.head += Math.sin(r.spinout * 9) * dt * 1.2;
     r.head = clamp(r.head, -1.35, 1.35);
     // velocity in course space
@@ -143,7 +158,11 @@ export function step(r, inp, course, dt, o = {}) {
     // edge grip: a carving edge holds (little slip); a flat or crossed board skids and scrubs
     const slip = Math.atan2(Math.abs(vL), Math.max(0.5, Math.abs(vF)));
     const edgeGrip = Math.abs(r.edge);
-    const grip = ice ? 1.4 + edgeGrip * 1.5 : 2.6 + 9 * edgeGrip * (1 - 0.55 * smooth01((slip - 0.3) / 0.6));
+    // a carving edge grips hard, so the motion follows the board almost at once; a crossed board at
+    // high speed, a skid turn or the unweight moment let it slide
+    let grip = ice ? 1.6 + edgeGrip * 1.8 : 4 + 17 * edgeGrip * (1 - 0.6 * smooth01((slip - 0.32) / 0.6) * smooth01((r.speed - 18) / 10));
+    if (r.skidT > 0) grip *= 0.3;
+    if (r.unweight > 0) grip *= 0.7;
     r.skid = clamp(smooth01((slip - 0.18) / 0.5) + (ice ? 0.15 : 0), 0, 1);
     const vL0 = vL;
     vL *= Math.exp(-grip * dt);
@@ -176,7 +195,7 @@ export function step(r, inp, course, dt, o = {}) {
     if (v > 0.05) r.yaw = clamp(Math.atan2(vl, Math.max(0.05, vs)), -1.3, 1.3);
     // lean from the turn (lateral acceleration), for the rider's roll
     const latAcc = (v * (r.yaw - yaw0)) / Math.max(dt, 1e-4);
-    r.latAcc = (r.latAcc ?? 0) + (latAcc - (r.latAcc ?? 0)) * Math.min(1, dt * 8);
+    r.latAcc = (r.latAcc ?? 0) + (latAcc - (r.latAcc ?? 0)) * Math.min(1, dt * 20);
 
     const s0 = r.s, lat0 = r.lat, y0 = r.y;
     const k0 = kickerAt(course, s0, lat0);
@@ -188,7 +207,7 @@ export function step(r, inp, course, dt, o = {}) {
     // knees: compression from the ground's vertical acceleration (rollers, landings)
     const ay = (vyGround - (r.vyG ?? vyGround)) / Math.max(dt, 1e-4);
     r.compress = clamp((r.compress ?? 0) + (clamp(ay / 40, -0.6, 1) - (r.compress ?? 0)) * Math.min(1, dt * 10), -0.6, 1);
-    const crest = r.vyG != null && r.vyG - vyGround > G * 1.35 * dt && v > 14 && !k0;
+    const crest = r.vyG != null && r.vyG - vyGround > G * 1.6 * dt && v > 16 && Math.abs(r.yaw) < 0.45 && want < 0.5 && !k0;
     // jump: crouch the moment it's pressed; a tap pops at once, holding lifts higher
     if (pressed) r.charge = 1;
     if (k0 && jumpHeld) r.kickerCharge = Math.min(1, (r.kickerCharge ?? 0) + dt / 0.4);

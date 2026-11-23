@@ -493,3 +493,15 @@ test('names: nicknames are cleaned, capped and kept kind; remote names too', asy
   }
   assert.equal(cleanMember({ id: 1, name: 'b!tch', species: 'cat' }, ALL_SPECIES).name === 'b!tch', false);
 });
+
+test('steering is quick: the turn builds in well under 0.2 s and a slalom edge change flips your line in under 0.4 s', async () => {
+  const { measureSteering } = await import('./steering.harness.mjs');
+  for (const speed of [8.3, 16.7, 25]) {
+    const m = measureSteering({ speed });
+    assert.ok(m.rise63 < 0.2, `${speed} m/s: turn rate to 63 % in ${m.rise63}`);
+    assert.ok(m.head63 < 0.12, `${speed} m/s: the board itself turns in ${m.head63}`);
+    assert.ok(m.slalom < 0.4, `${speed} m/s: slalom edge change in ${m.slalom}`);
+    assert.ok(m.swap < 0.7, `${speed} m/s: full-lock reversal in ${m.swap}`);
+    assert.ok(m.peakYawRate > 1.8 && m.peakYawRate < 3.2, `${speed} m/s: turn rate ${m.peakYawRate} (quick, not twitchy)`);
+  }
+});
