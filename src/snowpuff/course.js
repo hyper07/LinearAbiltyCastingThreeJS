@@ -1,7 +1,7 @@
 /**
  * A downhill course, built from a mountain record (mountains.js): a centre
  * line sampled every metre, the ground's shape across it, and everything
- * placed along it — kickers, barriers, slalom gates, stars, snowball piles,
+ * placed along it — kickers, barriers, slalom gates, gift boxes, snowball piles,
  * ice, ski lifts and arches. Pure and deterministic: the same mountain makes
  * the same course on every machine, which is what lets online players race
  * on it without sending it (tests/unit/snowpuff.test.mjs checks this).
@@ -65,30 +65,56 @@ export function buildCourse(m) {
   const px = new Float32Array(n), py = new Float32Array(n), pz = new Float32Array(n);
   const heading = new Float32Array(n), pitch = new Float32Array(n), width = new Float32Array(n), bank = new Float32Array(n);
 
-  // Winding: three slow sines, sized so the tightest turn stays wide (radius ≳ 90 m).
-  const waves = [
-    { l: 260 + rand() * 120, a: 0.34, p: rand() * 6.28 },
-    { l: 150 + rand() * 60, a: 0.2, p: rand() * 6.28 },
-    { l: 95 + rand() * 30, a: 0.1, p: rand() * 6.28 }
-  ];
-  let kmax = 0;
-  for (const w of waves) kmax += (w.a * 2 * Math.PI) / w.l;
-  const turn = Math.min(1, (0.0105 * m.curve) / kmax) * m.curve;
-  // Steepness: sections that swing between the mountain's two slopes.
+  // Winding: a chain of straights and arcs — S-bends that alternate, a few banked berms
+  // (boardercross style) — with the curvature eased in and out so every turn is a smooth sweep.
+  const T = m.turns ?? { radius: [110, 160], angle: [0.4, 0.8], straight: [45, 80], berm: 0.2 };
+  const curv = new Float32Array(n);
+  const berm = new Float32Array(n);
+  const turnsList = [];
+  let s0 = START_FLAT + 25;
+  let side = rand() < 0.5 ? -1 : 1;
+  let h = 0;
+  while (s0 < L - 90) {
+    const R = lerp(T.radius[0], T.radius[1], rand());
+    let ang = lerp(T.angle[0], T.angle[1], rand());
+    // keep the run heading downhill overall: turn back toward the fall line when far off it
+    if (Math.abs(h + side * ang) > 0.9) side = -Math.sign(h) || 1;
+    const len = Math.min(ang * R, L - 90 - s0);
+    ang = len / R;
+    const isBerm = rand() < T.berm;
+    for (let i = Math.floor(s0); i < Math.min(n, s0 + len); i++) {
+      curv[i] = side / R;
+      if (isBerm) berm[i] = side;
+    }
+    turnsList.push({ s0, s1: s0 + len, side, R, berm: isBerm });
+    h += side * ang;
+    side = -side;
+    if (rand() < 0.2) side = -side; // now and then two the same way
+    s0 += len + lerp(T.straight[0], T.straight[1], rand());
+  }
+  // smooth the curvature (eased entries and exits), and the berm mask
+  const smoothArr = (a, w) => {
+    const out = new Float32Array(a.length);
+    let acc = 0;
+    const q = [];
+    for (let i = 0; i < a.length + w; i++) {
+      const v = i < a.length ? a[i] : 0;
+      q.push(v);
+      acc += v;
+      if (q.length > 2 * w + 1) acc -= q.shift();
+      const j = i - w;
+      if (j >= 0 && j < a.length) out[j] = acc / (2 * w + 1);
+    }
+    return out;
+  };
+  const k1 = smoothArr(smoothArr(curv, 9), 9);
+  const b1 = smoothArr(smoothArr(berm, 8), 8);
   const sp = [rand() * 6.28, rand() * 6.28];
   const wp = [rand() * 6.28, rand() * 6.28];
-  const theta = (s) => {
-    let t = 0;
-    for (const w of waves) t += w.a * turn * Math.sin((2 * Math.PI * s) / w.l + w.p);
-    return t;
-  };
-  const theta0 = theta(0);
   let x = 0, y = 0, z = 0;
+  h = 0;
   for (let i = 0; i < n; i++) {
     const s = i;
-    // Ease the turns in from a straight start, and out into the run-out.
-    const ease = smooth(clamp(s / 120, 0, 1)) * (1 - smooth(clamp((s - L + 60) / 120, 0, 1)) * 0.7);
-    const h = (theta(s) - theta0) * ease;
     let deg = lerp(m.slope[0], m.slope[1], 0.5 + 0.35 * Math.sin(s / 140 + sp[0]) + 0.15 * Math.sin(s / 61 + sp[1]));
     // A gentle start ramp, a calmer last stretch, and a nearly flat run-out.
     if (s < START_FLAT) deg = lerp(7, deg, smooth(s / START_FLAT));
@@ -105,15 +131,38 @@ export function buildCourse(m) {
     x += Math.sin(h);
     z -= Math.cos(h);
     y -= Math.tan(pr);
+    h += k1[i];
   }
-  // Bank into the turns a little (outside edge higher): from the heading's rate of change.
+  // Bank into the turns (outside edge higher); berms bank hard, like a boardercross wall.
   for (let i = 0; i < n; i++) {
-    const a = heading[Math.max(0, i - 4)], b = heading[Math.min(n - 1, i + 4)];
-    const k = (b - a) / 8; // rad per metre (+ = turning right)
-    bank[i] = clamp(-k * 6, -0.09, 0.09); // slope of the cross-section: lat → height
+    const k = k1[i];
+    const soft = clamp(-k * 7, -0.1, 0.1);
+    const wall = -Math.sign(k || 1) * Math.abs(b1[i]) * 0.3;
+    bank[i] = Math.abs(b1[i]) > 0.02 ? wall + soft * (1 - Math.abs(b1[i])) : soft;
   }
-  const course = { id: m.id, mountain: m, length: L, finish: L, n, px, py, pz, heading, pitch, width, bank, seed: m.seed };
+  const course = { dynIce: [], burst: new Set(), id: m.id, mountain: m, length: L, finish: L, n, px, py, pz, heading, pitch, width, bank, curvature: k1, turns: turnsList, seed: m.seed, rollers: m.rollers ?? 0.2 };
+  // The racing line: toward the inside of the turn coming up, smoothed.
+  const line = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let k = 0;
+    for (let j = 6; j <= 30; j += 4) k += k1[Math.min(n - 1, i + j)];
+    k /= 7;
+    line[i] = 0.5 * width[i] * Math.tanh(k * 95);
+  }
+  course.line = smoothArr(line, 10);
+  course.roll = new Float32Array(n);
   placeFeatures(course, m, rand);
+  // Rollers: gentle waves in the snow (the knees take them; fast riders get a little air),
+  // calmed at the start, round the kickers and near the finish.
+  const lam = 26 + rand() * 6, ph = rand() * 6.28;
+  for (let i = 0; i < n; i++) {
+    let fade = smooth(clamp((i - 70) / 40, 0, 1)) * (1 - smooth(clamp((i - L + 60) / 40, 0, 1)));
+    for (const k of course.kickers) {
+      const d = i < k.s ? k.s - i : i - (k.s + k.len);
+      if (d < 32) fade *= smooth(clamp((d - 8) / 24, 0, 1));
+    }
+    course.roll[i] = course.rollers * fade * Math.sin((2 * Math.PI * i) / lam + ph) * (0.75 + 0.25 * Math.sin(i / 83 + ph));
+  }
   return course;
 }
 
@@ -136,6 +185,9 @@ export function frameAt(c, s, out = {}) {
   out.pitch = lerp(c.pitch[i], c.pitch[i + 1], f);
   out.width = lerp(c.width[i], c.width[i + 1], f);
   out.bank = lerp(c.bank[i], c.bank[i + 1], f);
+  out.curv = c.curvature ? lerp(c.curvature[i], c.curvature[i + 1], f) : 0;
+  out.line = c.line ? lerp(c.line[i], c.line[i + 1], f) : 0;
+  out.roll = c.roll ? lerp(c.roll[i], c.roll[i + 1], f) : 0;
   return out;
 }
 
@@ -165,6 +217,7 @@ export function groundAt(c, s, lat, kickers = true) {
   // Soft rolls in the snow: tiny on the groomed run, bigger outside it.
   const inside = a < W ? 0.12 : Math.min(1.6, 0.12 + (a - W) * 0.06);
   y += noise2(s * 0.045, lat * 0.07, c.seed) * inside + noise2(s * 0.13, lat * 0.2, c.seed + 7) * inside * 0.35;
+  y += f.roll * (a < W + 4 ? 1 : Math.max(0, 1 - (a - W - 4) / 10));
   return kickers ? y + kickerHeight(c, s, lat) : y;
 }
 
@@ -276,16 +329,29 @@ function placeFeatures(c, m, rand) {
   c.kickers = [];
   const kn = m.kickers.count;
   for (let i = 0; i < kn; i++) {
-    const s = Math.round(lerp(110, L - 130, (i + 0.25 + rand() * 0.5) / kn));
+    let s = Math.round(lerp(110, L - 130, (i + 0.25 + rand() * 0.5) / kn));
+    // the straightest spot nearby: a clear run-up and landing
+    let best = s, bestK = Infinity;
+    for (let t = s - 50; t <= s + 50; t += 5) {
+      if (t < 100 || t > L - 120) continue;
+      let k = 0;
+      for (let j = t - 45; j <= t + 40; j += 5) k = Math.max(k, Math.abs(c.curvature[Math.max(0, Math.min(c.n - 1, j))]));
+      if (k < bestK - 1e-5 && !c.kickers.some((kk) => Math.abs(kk.s - t) < 70)) {
+        bestK = k;
+        best = t;
+      }
+    }
+    s = best;
     const size = lerp(m.kickers.size[0], m.kickers.size[1], rand());
     const w = W(s);
     const kw = 4.2 + size * 1.2;
-    const lat = (rand() * 2 - 1) * Math.max(0, w - kw * 0.5 - 2.5) * 0.7;
+    const room = Math.max(0, w - kw * 0.5 - 2.5);
+    const lat = clamp(frameAt(c, s, _f).line + (rand() * 2 - 1) * 2.5, -room, room);
     c.kickers.push({ id: id(), s, len: 5 + size * 2.2, h: size, w: kw, lat, power: 0.85 + size * 0.18 });
   }
   const nearKicker = (s, pad0 = 18, pad1 = 34) => c.kickers.some((k) => s > k.s - pad0 && s < k.s + k.len + pad1);
 
-  // Slalom gate runs: alternating sides, a star between each pair of poles.
+  // Slalom gate runs: alternating sides.
   c.gates = [];
   const gateRuns = [];
   for (let g = 0; g < m.gates; g++) {
@@ -310,7 +376,7 @@ function placeFeatures(c, m, rand) {
     if (nearKicker(s) || inGates(s)) continue;
     const w = W(s);
     const count = rand() < 0.45 ? 2 : 1;
-    const gapCentre = (rand() * 2 - 1) * (w - 4);
+    const gapCentre = rand() < 0.65 ? clamp(frameAt(c, s, _f).line, -w + 4, w - 4) : (rand() * 2 - 1) * (w - 4);
     for (let k = 0; k < count; k++) {
       const kind = pickWeighted(m.obstacles.kinds, rand);
       const b = BARRIERS[kind];
@@ -343,26 +409,30 @@ function placeFeatures(c, m, rand) {
   }
   c.ice.sort((a, b) => a.s - b.s);
 
-  // Stars: short sinuous lines down the run, a few up over the kickers (the risky lines).
-  c.stars = [];
-  for (let s = 60; s < L - 40; s += 48 + Math.floor(rand() * 30)) {
-    if (nearKicker(s, 6, 20) && rand() < 0.5) continue;
+  // Gift boxes: in pairs and threes across the racing line every so often (pick one!), and a
+  // high one floating over the landing of some kickers (the risky line).
+  c.gifts = [];
+  for (let s = 70; s < L - 50; s += 62 + Math.floor(rand() * 34)) {
+    if (nearKicker(s, 8, 24)) s += 30;
+    if (s > L - 50) break;
     const w = W(s);
-    const lat0 = (rand() * 2 - 1) * (w - 3);
-    const dl = (rand() * 2 - 1) * 1.2;
-    for (let i = 0; i < 5; i++) {
-      const ss = s + i * 4.5;
-      const lat = clamp(lat0 + dl * i + Math.sin(i * 0.9) * 1.2, -w + 1.5, w - 1.5);
-      if (c.obstacles.some((o) => Math.abs(o.s - ss) < o.r + 1.2 && Math.abs(o.lat - lat) < o.w + 1)) continue;
-      c.stars.push({ id: id(), s: ss, lat, h: 0.9 });
+    const line = frameAt(c, s, _f).line;
+    const count = 2 + (rand() < 0.4 ? 1 : 0);
+    for (let i = 0; i < count; i++) {
+      const lat = clamp(line + (i - (count - 1) / 2) * 3.2, -w + 1.8, w - 1.8);
+      if (c.obstacles.some((o) => Math.abs(o.s - s) < o.r + 1.5 && Math.abs(o.lat - lat) < o.w + 1.2)) continue;
+      c.gifts.push({ id: id(), s, lat, h: 0.75 });
     }
   }
-  for (const k of c.kickers) {
-    const air = k.h * 2.2 + 1.2;
-    for (let i = 0; i < 3; i++) c.stars.push({ id: id(), s: k.s + k.len + 5 + i * 4, lat: k.lat, h: air * (1 - Math.abs(i - 1) * 0.12), risky: true });
-  }
-  for (const g of c.gates) c.stars.push({ id: id(), s: g.s, lat: g.lat, h: 0.9, gate: true });
-  c.stars.sort((a, b) => a.s - b.s);
+  c.kickers.forEach((k, i) => {
+    if (i % 2) return;
+    c.gifts.push({ id: id(), s: k.s + k.len + 7, lat: k.lat, h: k.h * 2 + 1.6, risky: true });
+  });
+  c.gifts.sort((a, b) => a.s - b.s);
+
+  // Bell arches over some landings: jump through and the bell rings (a little boost).
+  c.bells = c.kickers.filter((_, i) => i % 2 === 1 || c.kickers.length < 4).map((k) => ({ id: id(), s: k.s + k.len + 9, lat: k.lat, w: Math.max(5, k.w + 1.5), h: k.h * 1.4 + 2.2, kicker: k.id }));
+  c.stars = []; // (no stars any more: gifts and the mountain itself are the fun)
 
   // Snowball piles (and, now and then, a shield).
   c.piles = [];
@@ -372,9 +442,9 @@ function placeFeatures(c, m, rand) {
     const w = W(s);
     const count = 1 + (rand() < 0.6 ? 1 : 0);
     for (let k = 0; k < count; k++) {
-      const lat = (rand() * 2 - 1) * (w - 2.5);
+      const lat = clamp(frameAt(c, s + k * 3, _f).line + (k ? 1 : -1) * (1.6 + rand() * 1.6), -w + 2, w - 2);
       if (c.obstacles.some((o) => Math.abs(o.s - s) < 4 && Math.abs(o.lat - lat) < o.w + 1.5)) continue;
-      c.piles.push({ id: id(), s: s + k * 3, lat, kind: slot % 4 === 3 && k === 0 ? 'shield' : 'snow' });
+      c.piles.push({ id: id(), s: s + k * 3, lat, kind: 'snow' });
     }
     slot++;
   }

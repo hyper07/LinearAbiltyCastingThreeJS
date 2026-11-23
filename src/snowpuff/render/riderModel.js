@@ -99,6 +99,28 @@ const RECIPES = {
       accent: 'goggles'
     };
   },
+  bunny(sp) {
+    const b = plushBody({ light: sp.light });
+    return {
+      bones: skeleton({ earL: ['head', -0.11, 0.9, -0.03], earR: ['head', 0.11, 0.9, -0.03] }),
+      parts: [
+        head(),
+        E([0, 0.585, 0.21], [0.13, 0.085, 0.09], { k: 0.08, bone: 'head', col: sp.light }),
+        // long floppy ears that lean back and out
+        ...both(T([-0.11, 0.86, -0.03], [-0.2, 1.33, -0.1], 0.085, 0.07, { k: 0.06, bone: 'earL' })),
+        ...b.parts,
+        S([0, 0.22, -0.21], 0.1, { k: 0.04, bone: 'tail', col: '#ffffff' })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.165, 1.1, 0.02], [0.042, 0.18, 0.04], { col: '#ffc2dc', rot: [0, 0, -0.18] })),
+        ...both(E([-0.2, 0.59, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.02 })),
+        E([0, 0.615, 0.3], [0.03, 0.02, 0.03], { col: '#e0447e', soft: 0.004 })
+      ],
+      face: { eyeX: 0.12, eyeY: 0.66, eyeR: 0.04, mouthY: 0.565 },
+      accent: 'goggles'
+    };
+  },
   bear(sp) {
     const b = plushBody({ light: sp.light, bodyR: [0.22, 0.21, 0.2] });
     return {
@@ -249,6 +271,7 @@ function boardGeometry() {
 /* ---------------------------------------------------------------- the rider */
 
 const _v = new THREE.Vector3();
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
 export class RiderModel {
   /**
@@ -470,6 +493,12 @@ export class RiderModel {
     }
   }
 
+  /** A reaction: 'ouch' (a head shake, eyes squeezed), 'laugh' (a happy bounce, ^ ^ eyes), 'wave'. */
+  react(kind, secs = 0.9) {
+    this.reaction = kind;
+    this.reactT = secs;
+  }
+
   /** Remove from the scene and free what is only ours. */
   dispose() {
     this.root.removeFromParent();
@@ -495,8 +524,11 @@ export class RiderModel {
     this.air.position.y = st.tumbleK > 0 ? Math.sin((1 - st.tumbleK) * Math.PI) * 0.6 : 0;
     // lean into the carve (around the travel axis), crouch, tuck
     const edge = st.edge ?? 0;
-    const crouch = Math.max(st.charge ?? 0, (st.tuck ?? 0) * 0.85, st.wobble > 0 ? 0.4 : 0);
-    this.lean.rotation.z = -edge * 0.42 + (st.wobble > 0 ? Math.sin(t * 22) * 0.12 * st.wobble : 0);
+    // knees: crouch to jump, tuck, soak up rollers and landings
+    const crouch = clamp01(Math.max(st.charge ?? 0, (st.tuck ?? 0) * 0.85, st.wobble > 0 ? 0.4 : 0) + Math.max(0, st.compress ?? 0) * 0.7 - Math.max(0, -(st.compress ?? 0)) * 0.3);
+    // lean into the turn (from the turn's sideways pull), wobble when a landing goes crooked
+    const lean = st.lean != null ? st.lean : edge * 0.42;
+    this.lean.rotation.z = -lean + (st.wobble > 0 ? Math.sin(t * 22) * 0.12 * st.wobble : 0);
     this.lean.rotation.x = -(st.tuck ?? 0) * 0.08;
     // squash on landing
     if (st.landed) this.squashT = Math.min(1, 0.3 + st.landed * 0.12);
@@ -514,8 +546,29 @@ export class RiderModel {
     // arms out for balance, flailing in a tumble, up for a cheer
     const flail = st.tumbleK > 0 || st.spinoutK > 0 ? Math.sin(t * 18) * 0.5 : 0;
     const arms = menu ? (st.cheer ? 2.2 + Math.sin(t * 9) * 0.4 : 0.25 + Math.sin(t * 1.4) * 0.05) : 0.85 + Math.sin(t * 2.1) * 0.08 + (st.air ? 0.5 : 0) + crouch * 0.2;
-    B.get('armL').rotation.set(0, 0, -arms - flail - (menu ? 0 : edge * 0.3));
-    B.get('armR').rotation.set(0, 0, arms + flail - (menu ? 0 : edge * 0.3));
+    // arms balance against the lean
+    const bal = menu ? 0 : (st.lean ?? edge * 0.4) * 0.9;
+    B.get('armL').rotation.set(0, 0, -arms - flail + bal);
+    B.get('armR').rotation.set(0, 0, arms + flail + bal);
+    // reactions
+    if (this.reactT > 0) {
+      this.reactT -= dt;
+      const k = Math.min(1, this.reactT * 3);
+      if (this.reaction === 'ouch') {
+        B.get('head').rotation.y += Math.sin(t * 30) * 0.35 * k;
+        B.get('head').rotation.z += 0.25 * k;
+      } else if (this.reaction === 'laugh') {
+        this.squash.position.y = Math.abs(Math.sin(t * 14)) * 0.08 * k;
+        B.get('head').rotation.x -= 0.2 * k;
+      } else if (this.reaction === 'wave') {
+        B.get('armR').rotation.set(0, 0, 2.6 + Math.sin(t * 16) * 0.5 * k);
+      }
+    } else this.squash.position.y = 0;
+    for (const e of this.eyes) {
+      const happy = this.reactT > 0 && (this.reaction === 'laugh' || this.reaction === 'wave');
+      const ouch = this.reactT > 0 && this.reaction === 'ouch';
+      e.userData.sy = happy ? 0.3 : ouch ? 0.15 : 1;
+    }
     // ears: a spring that leans back with speed and bounces on landings
     const sp = this.spring;
     const earTarget = menu ? Math.sin(t * 1.1) * 0.08 : -Math.min(0.85, (st.speed ?? 0) * 0.028) + (st.air ? -0.25 : 0);
@@ -530,7 +583,7 @@ export class RiderModel {
     // tail: a springy swish that swings against the carve, lifts with speed and bounces on landings
     const tb = B.get('tail'), t2 = B.get('tail2');
     if (tb) {
-      const wagGoal = menu ? Math.sin(t * 1.8) * 0.35 : -edge * 0.7 + Math.sin(t * 3.2) * 0.08;
+      const wagGoal = menu ? Math.sin(t * 1.8) * 0.35 : -(st.lean ?? edge * 0.4) * 1.4 + Math.sin(t * 3.2) * 0.08;
       if (st.landed) sp.tailLV = (sp.tailLV ?? 0) - 5 - st.landed;
       sp.wagV = (sp.wagV ?? 0) + ((wagGoal - (sp.wag ?? 0)) * 45 - (sp.wagV ?? 0) * 4.5) * dt;
       sp.wag = (sp.wag ?? 0) + sp.wagV * dt;
@@ -563,7 +616,7 @@ export class RiderModel {
     this.blink -= dt;
     const shut = this.blink < 0.12 && this.blink > 0;
     if (this.blink < 0) this.blink = 2.5 + Math.random() * 3;
-    for (const e of this.eyes) e.scale.y = shut ? 0.15 : 1;
+    for (const e of this.eyes) e.scale.y = shut ? 0.15 : e.userData.sy ?? 1;
   }
 }
 

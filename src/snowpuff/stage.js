@@ -146,7 +146,7 @@ export class Stage {
       ped.castShadow = ped.receiveShadow = true;
       g.add(ped);
       // the mountain: a soft noisy cone, snow above, rock streaks
-      const geo = new THREE.ConeGeometry(1.45, 2.2 + m.stars * 0.35, 48, 24);
+      const geo = new THREE.ConeGeometry(1.45, 2.2 + m.difficulty * 0.35, 48, 24);
       const p = geo.attributes.position;
       for (let k = 0; k < p.count; k++) {
         const x = p.getX(k), y = p.getY(k), z = p.getZ(k);
@@ -155,7 +155,7 @@ export class Stage {
         p.setXYZ(k, x * n, y, z * n);
       }
       geo.computeVertexNormals();
-      geo.translate(0, 0.7 + (2.2 + m.stars * 0.35) / 2, 0);
+      geo.translate(0, 0.7 + (2.2 + m.difficulty * 0.35) / 2, 0);
       const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.8 });
       const rock = m.time === 'night' ? color('#3a4470') : m.time === 'sunset' ? color('#8a6a70') : color('#7a8aa8');
       const streak = mx_noise_float(positionLocal.mul(vec3(6, 1.2, 6)));
@@ -165,7 +165,7 @@ export class Stage {
       g.add(mtn);
       // a winding run down its face
       const pts = [];
-      const H = 2.2 + m.stars * 0.35;
+      const H = 2.2 + m.difficulty * 0.35;
       for (let k = 0; k <= 30; k++) {
         const u = k / 30;
         const y = 0.72 + H * (1 - u) * 0.92;
@@ -177,7 +177,7 @@ export class Stage {
       g.add(run);
       // trees
       const trees = [];
-      for (let k = 0; k < 22 + m.stars * 10; k++) {
+      for (let k = 0; k < 22 + m.difficulty * 10; k++) {
         const u = 0.35 + r() * 0.6;
         const a = r() * Math.PI * 2;
         const y = 0.7 + H * (1 - u);
@@ -283,6 +283,7 @@ export class Stage {
       if (i >= 3) m.root.scale.setScalar(0.85);
       m.cheer = i < 3;
       m.me = r.slot === meSlot;
+      m.label = r.name;
       this.podiumSet.add(m.root);
       this.podiumRiders.push(m);
     });

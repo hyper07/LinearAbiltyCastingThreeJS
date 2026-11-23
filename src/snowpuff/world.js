@@ -8,11 +8,12 @@
  * you; lifts, flags, stars and lantern lights move every frame.
  */
 import * as THREE from 'three/webgpu';
-import { uniform, vec3, float, mix, smoothstep, positionLocal, positionWorld, instanceIndex, sin, time, hash, uv, step, fract, mx_noise_float, abs, normalWorld, max, dot, pow, positionViewDirection, normalView, attribute, color } from 'three/tsl';
-import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT } from './course.js';
+import { uniform, vec3, float, mix, smoothstep, positionLocal, positionWorld, instanceIndex, sin, time, hash, uv, step, fract, mx_noise_float, abs, normalWorld, max, dot, pow, positionViewDirection, normalView, attribute, color, vec4, mrt, texture, cameraPosition } from 'three/tsl';
+import { instanceColor as instanceColorNode } from './render/instanceColor.js';
+import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT, project } from './course.js';
 import { snowMaterial, iceMaterial } from './render/snow.js';
 import { loadKit, instance } from './render/models.js';
-import { starGeometry, RiderModel } from './render/riderModel.js';
+import { RiderModel } from './render/riderModel.js';
 import { ALL_SPECIES } from './riders.js';
 import { KEEP_BUFFERS } from './fx.js';
 
@@ -58,6 +59,7 @@ export class World {
     progress('Laying the snow', 0.05);
     await idle();
     this.buildTerrain();
+    this.buildBackdrop();
     progress('Shaping the jumps', 0.25);
     await idle();
     this.buildKickers();
@@ -90,9 +92,88 @@ export class World {
     await idle();
     this.buildPickups();
     this.buildSpectators();
+    this.buildBells();
+    this.buildFans();
   }
 
   /* ---------------------------------------------------------------- snow */
+
+  /** How far the course-space ground may reach on one side at s without folding over itself in a turn. */
+  reach(s, side) {
+    const c = this.course;
+    let k = 0;
+    for (let j = -30; j <= 30; j += 6) k = Math.max(k, side * c.curvature[Math.max(0, Math.min(c.n - 1, Math.round(s + j)))]);
+    if (k <= 1e-4) return 63;
+    const W = frameAt(c, s, _f).width;
+    return Math.max(8, Math.min(63, 0.78 / k - W));
+  }
+
+  /** Is a world point really beside the run at s (not across a bend, nearer another stretch)? */
+  valid(x, z, s, lat) {
+    const c = this.course;
+    if (lat !== 0 && Math.abs(lat) > frameAt(c, s, _f).width + this.reach(s, Math.sign(lat))) return false;
+    const p = project(c, x, z, s, 260);
+    return Math.abs(p.s - s) < 12;
+  }
+
+  /** A world-space ground under everything: fills the inside of tight turns and the far slopes. */
+  buildBackdrop() {
+    const c = this.course;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let i = 0; i < c.n; i += 5) {
+      x0 = Math.min(x0, c.px[i]); x1 = Math.max(x1, c.px[i]);
+      z0 = Math.min(z0, c.pz[i]); z1 = Math.max(z1, c.pz[i]);
+    }
+    const M = 140, cell = 8;
+    x0 -= M; z0 -= M; x1 += M; z1 += M;
+    const nx = Math.ceil((x1 - x0) / cell) + 1, nz = Math.ceil((z1 - z0) / cell) + 1;
+    const pos = new Float32Array(nx * nz * 3), crs = new Float32Array(nx * nz * 3), side = new Float32Array(nx * nz * 2);
+    let hint = 0;
+    for (let j = 0; j < nz; j++) {
+      for (let i = 0; i < nx; i++) {
+        const x = x0 + i * cell, z = z0 + j * cell;
+        const p = project(c, x, z, hint, i === 0 ? 3000 : 220);
+        hint = p.s;
+        const f = frameAt(c, p.s, _f);
+        const W = f.width;
+        const a = Math.abs(p.lat);
+        // beyond the run's own ground keep rising like the mountainside; under the run, tuck away
+        let y = groundAt(c, p.s, Math.sign(p.lat) * Math.min(a, W + 95), false) - 0.7;
+        if (a < W + 6) y -= 3;
+        const o = (j * nx + i) * 3;
+        pos[o] = x; pos[o + 1] = y; pos[o + 2] = z;
+        crs[o] = p.s; crs[o + 1] = p.lat; crs[o + 2] = W;
+        side[(j * nx + i) * 2] = f.rx;
+        side[(j * nx + i) * 2 + 1] = f.rz;
+      }
+    }
+    const idx = [];
+    for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      const a = j * nx + i, b = a + 1, d = a + nx, e = d + 1;
+      idx.push(a, d, b, b, d, e);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('course', new THREE.BufferAttribute(crs, 3));
+    g.setAttribute('side', new THREE.BufferAttribute(side, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    // keep the normals pointing up whichever way the grid winds
+    const nrm = g.attributes.normal;
+    let flip = 0;
+    for (let i = 0; i < nrm.count; i += 50) flip += nrm.getY(i);
+    if (flip < 0) {
+      for (let t = 0; t < idx.length; t += 3) [idx[t + 1], idx[t + 2]] = [idx[t + 2], idx[t + 1]];
+      g.setIndex(idx);
+      g.computeVertexNormals();
+    }
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, this.snow);
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+    this.root.add(mesh);
+    this.backdrop = mesh;
+  }
 
   buildTerrain() {
     const c = this.course;
@@ -101,7 +182,11 @@ export class World {
     for (let i = OUT.length - 1; i >= 0; i--) cols.push({ out: -OUT[i] });
     for (let i = 0; i < IN_COLS; i++) cols.push({ t: -1 + (2 * i) / (IN_COLS - 1) });
     for (const d of OUT) cols.push({ out: d });
-    const latOf = (col, W) => (col.t != null ? col.t * W : Math.sign(col.out) * (W + Math.abs(col.out)));
+    const latOf = (col, W, s) => {
+      if (col.t != null) return col.t * W;
+      const side = Math.sign(col.out);
+      return side * (W + Math.abs(col.out) * this.reach(s, side) / 63);
+    };
     const CH = 50;
     for (let s0 = -20; s0 < total; s0 += CH) {
       const s1 = Math.min(total, s0 + CH);
@@ -120,7 +205,7 @@ export class World {
         const f = frameAt(c, Math.max(0, s), {});
         const W = f.width;
         for (let k = 0; k < nc; k++) {
-          const lat = latOf(cols[k], W);
+          const lat = latOf(cols[k], W, Math.max(0, s));
           const p = P(s, lat);
           const o = (r * nc + k) * 3;
           pos[o] = p[0]; pos[o + 1] = p[1]; pos[o + 2] = p[2];
@@ -367,14 +452,20 @@ export class World {
       const p = toWorld(c, o.s, o.lat, 0, _p);
       return { x: p.x, y: p.y - 0.05, z: p.z, ry: -f.heading + (extra.ry ?? 0), ...extra };
     };
+    this.snowmen = new Map();
     const groups = (list, kit, opts) => {
       const bySec = new Map();
       for (const o of list) {
         const sec = this.section(o.s);
         if (!bySec.has(sec)) bySec.set(sec, []);
-        bySec.get(sec).push(opts(o));
+        bySec.get(sec).push(o);
       }
-      for (const [sec, items] of bySec) sec.add(instance(kit, items));
+      for (const [sec, obs] of bySec) {
+        const items = obs.map(opts);
+        const g = instance(kit, items);
+        sec.add(g);
+        if (kit === K.snowman) obs.forEach((o, i) => this.snowmen.set(o.id, { g, i }));
+      }
     };
     if (by.snowman) groups(by.snowman, K.snowman, (o) => place(o, { ry: o.rot * 0.3 - 0.3, s: 1.05 }));
     if (by.hay) groups(by.hay, K.hay, (o) => place(o, { ry: 0, sx: 2.0, sy: 1.9, sz: 2.2 }));
@@ -420,6 +511,7 @@ export class World {
           if (r() < m.trees.near * 0.32) {
             const lat = sd * (f.width + 4.6 + r() * 4);
             const p = toWorld(c, s + r() * 2, lat, 0, _p);
+            if (!this.valid(p.x, p.z, s, lat)) continue;
             (r() < 0.75 ? spruce : pine).push({ x: p.x, y: p.y - 0.2, z: p.z, ry: r() * 6.28, s: 0.75 + r() * 0.55 });
           }
           // the forest on the mountainside
@@ -427,6 +519,7 @@ export class World {
           for (let i = 0; i < n; i++) {
             const lat = sd * (f.width + 9 + r() ** 0.8 * 52);
             const p = toWorld(c, s + r() * 2.5, lat, 0, _p);
+            if (!this.valid(p.x, p.z, s, lat)) continue;
             const near = Math.abs(lat) < f.width + 16;
             (r() < 0.7 ? (near ? spruce : farSpruce) : near ? pine : farPine).push({ x: p.x, y: p.y - 0.3, z: p.z, ry: r() * 6.28, s: 0.9 + r() * 0.9 });
           }
@@ -445,6 +538,7 @@ export class World {
         const f = frameAt(c, s, _f);
         const lat = (r() < 0.5 ? -1 : 1) * (f.width + 12 + r() * 40);
         const p = toWorld(c, s, lat, 0, _p);
+        if (!this.valid(p.x, p.z, s, lat)) continue;
         rocks.push({ x: p.x, y: p.y - 0.6, z: p.z, ry: r() * 6.28, s: 1 + r() * 1.6 });
       }
       if (rocks.length) sec.add(instance(K.outcrop, rocks));
@@ -627,55 +721,95 @@ export class World {
 
   buildPickups() {
     const c = this.course;
-    // stars: gold, glowing a little, spinning
-    const starMat = new THREE.MeshStandardNodeMaterial({ color: '#ffcf3a', roughness: 0.25, metalness: 0.5 });
-    starMat.emissiveNode = vec3(1.0, 0.72, 0.18).mul(0.9).add(vec3(1, 0.9, 0.5).mul(pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2)).mul(1.2));
-    this.stars = new THREE.InstancedMesh(starGeometry(), starMat, c.stars.length);
-    this.stars.frustumCulled = false;
-    this.stars.castShadow = true;
-    this.starPos = c.stars.map((st) => {
-      const p = toWorld(c, st.s, st.lat, st.h, {});
-      return { ...st, x: p.x, y: p.y, z: p.z, ph: this.rand() * 6.28 };
-    });
-    this.root.add(this.stars);
-    // snowball piles: a heap of snowballs; shields: a glowing bubble
-    const pileGeo = pileGeometry();
-    const pileMat = new THREE.MeshStandardNodeMaterial({ color: '#f6f9ff', roughness: 0.75 });
-    const piles = c.piles.filter((p) => p.kind === 'snow');
-    const shields = c.piles.filter((p) => p.kind === 'shield');
-    this.pileMesh = new THREE.InstancedMesh(pileGeo, pileMat, Math.max(1, piles.length));
-    this.pileMesh.castShadow = true;
-    this.pileMesh.receiveShadow = true;
-    this.pileMesh.frustumCulled = false;
+    // Every item reads from far away: a coloured beam of light, a glowing ring on the snow,
+    // and the item itself floating, bobbing and spinning — gold stars, icy-blue snowballs, mint shields.
+    this.items = [];
+    for (const gf of c.gifts) this.items.push({ id: gf.id, kind: 'gift', s: gf.s, lat: gf.lat, h: gf.h, risky: Boolean(gf.risky) });
+    for (const p of c.piles) this.items.push({ id: p.id, kind: 'pile', s: p.s, lat: p.lat, h: 1.25 });
+    this.items.sort((x, y) => x.s - y.s);
+    for (const it of this.items) {
+      const g = toWorld(c, it.s, it.lat, 0, {});
+      it.x = g.x;
+      it.gy = g.y;
+      it.z = g.z;
+      it.ph = this.rand() * 6.28;
+    }
+    const COL = { gift: new THREE.Color('#ff5fa2'), pile: new THREE.Color('#5ec8ff') };
+    this.itemCol = COL;
+    const byKind = (k) => this.items.filter((it) => it.kind === k);
+    const fresnel = pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2);
+    // gift boxes: wrapped presents in bright paper with a ribbon, glowing round the edges
+    const gifts = byKind('gift');
+    const camFade = smoothstep(2.5, 9, positionWorld.sub(cameraPosition).length()).mul(0.7).add(0.3);
+    const boxMat = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.35, clearcoat: 0.6 });
+    boxMat.emissiveNode = vec3(1, 0.45, 0.7).mul(fresnel.mul(1.4).add(0.18)).mul(camFade);
+    const ribMat = new THREE.MeshPhysicalNodeMaterial({ color: '#fff4b0', roughness: 0.3, clearcoat: 1 });
+    ribMat.emissiveNode = vec3(1, 0.85, 0.35).mul(fresnel.mul(1.2).add(0.35)).mul(camFade);
+    this.giftBoxes = new THREE.InstancedMesh(giftBoxGeometry(), boxMat, Math.max(1, gifts.length));
+    this.giftBoxes.userData.list = gifts;
+    const paper = ['#ff4b8b', '#3a86ff', '#3fd0b0', '#ffb020', '#a970ff'].map((c) => new THREE.Color(c));
+    gifts.forEach((it, i) => this.giftBoxes.setColorAt(i, paper[it.id % paper.length]));
+    this.ribbons = new THREE.InstancedMesh(giftRibbonGeometry(), ribMat, Math.max(1, gifts.length));
+    this.ribbons.userData.list = gifts;
+    // snowballs floating over each pile (the heap stays on the snow)
+    const ballMat = new THREE.MeshStandardNodeMaterial({ color: '#f4fbff', roughness: 0.45 });
+    ballMat.emissiveNode = vec3(0.35, 0.75, 1.0).mul(fresnel.mul(2.2).add(0.25));
+    const piles = byKind('pile');
+    this.pileBalls = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.42, 3), ballMat, Math.max(1, piles.length));
+    this.pileBalls.userData.list = piles;
+    this.pileMesh = new THREE.InstancedMesh(pileGeometry(), new THREE.MeshStandardNodeMaterial({ color: '#f6f9ff', roughness: 0.75 }), Math.max(1, piles.length));
     const m4 = new THREE.Matrix4();
-    this.pileIndex = new Map();
-    piles.forEach((p, i) => {
-      const w = toWorld(c, p.s, p.lat, 0, {});
-      this.pileMesh.setMatrixAt(i, m4.makeTranslation(w.x, w.y - 0.05, w.z));
-      this.pileIndex.set(p.id, { mesh: this.pileMesh, i, w });
-    });
-    this.root.add(this.pileMesh);
-    // a little blue flag on each pile so it reads from far away
-    const flagList = piles.map((p) => {
-      const w = toWorld(c, p.s, p.lat + 0.7, 0, {});
-      return { x: w.x, y: w.y, z: w.z };
-    });
-    const pf = new THREE.Group();
-    for (const fl of flagList) this.addFlagPole(pf, fl, '#5ac8ff', 1.5);
-    this.root.add(pf);
-    this.pileFlags = pf;
-    const shieldMat = new THREE.MeshPhysicalNodeMaterial({ color: '#7fe8ff', roughness: 0.1, transparent: true, opacity: 0.55, clearcoat: 1 });
-    shieldMat.emissiveNode = vec3(0.3, 0.85, 1.0).mul(pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.5)).mul(2.2);
+    piles.forEach((p, i) => this.pileMesh.setMatrixAt(i, m4.compose(new THREE.Vector3(p.x, p.gy - 0.05, p.z), new THREE.Quaternion(), new THREE.Vector3(1.3, 1.3, 1.3))));
+    this.pileMesh.castShadow = this.pileMesh.receiveShadow = true;
+    // (shields come from gifts now; this mesh stays empty)
+    const shieldMat = new THREE.MeshPhysicalNodeMaterial({ color: '#7fffe0', roughness: 0.1, transparent: true, opacity: 0.55, clearcoat: 1 });
+    shieldMat.emissiveNode = vec3(0.2, 1.0, 0.8).mul(pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.5)).mul(2.6);
     shieldMat.depthWrite = false;
     shieldMat.mrtNode = KEEP_BUFFERS();
-    this.shieldMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 3), shieldMat, Math.max(1, shields.length));
-    this.shieldMesh.frustumCulled = false;
-    this.shieldPos = shields.map((p) => {
-      const w = toWorld(c, p.s, p.lat, 1.1, {});
-      return { ...p, x: w.x, y: w.y, z: w.z };
+    const shields = [];
+    this.shieldMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.75, 3), shieldMat, Math.max(1, shields.length));
+    this.shieldMesh.userData.list = shields;
+    // beams of light and rings on the snow (one draw each for all items)
+    const beamGeo = new THREE.CylinderGeometry(0.32, 0.55, 1, 16, 1, true).translate(0, 0.5, 0);
+    const beamMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const by = uv().y;
+    const beamA = float(1).sub(by).pow(1.6).mul(0.55).mul(sin(time.mul(3).add(by.mul(6))).mul(0.15).add(0.85));
+    beamMat.colorNode = vec4(1, 1, 1, beamA); // the instance colour multiplies in
+    beamMat.mrtNode = mrt({ normal: vec4(0), velocity: vec4(0), emissive: vec4(instanceColorNode().mul(beamA).mul(0.9), beamA) });
+    beamMat.fog = false;
+    this.beams = new THREE.InstancedMesh(beamGeo, beamMat, this.items.length);
+    const ringGeo = new THREE.RingGeometry(0.75, 1.05, 40).rotateX(-Math.PI / 2);
+    const ringMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const ringA = sin(time.mul(4)).mul(0.25).add(0.75);
+    ringMat.colorNode = vec4(1, 1, 1, ringA);
+    ringMat.mrtNode = mrt({ normal: vec4(0), velocity: vec4(0), emissive: vec4(instanceColorNode().mul(ringA).mul(0.6), ringA) });
+    this.rings = new THREE.InstancedMesh(ringGeo, ringMat, this.items.length);
+    this.items.forEach((it, i) => {
+      this.beams.setColorAt(i, COL[it.kind]);
+      this.rings.setColorAt(i, COL[it.kind]);
     });
-    shields.forEach((p, i) => this.pileIndex.set(p.id, { mesh: this.shieldMesh, i, shield: true }));
-    this.root.add(this.shieldMesh);
+    for (const im of [this.giftBoxes, this.ribbons, this.pileBalls, this.pileMesh, this.shieldMesh, this.beams, this.rings]) {
+      im.frustumCulled = false;
+      this.root.add(im);
+    }
+    this.giftBoxes.castShadow = true;
+    this.pileBalls.castShadow = true;
+    // risky bonus lines: a glowing chevron on the snow before the kicker, pointing at the stars
+    const arrowTex = chevronTexture();
+    const arrowMat = new THREE.MeshBasicNodeMaterial({ map: arrowTex, transparent: true, depthWrite: false });
+    arrowMat.emissiveNode = color('#ffd23f').mul(texture(arrowTex).a).mul(1.2);
+    arrowMat.mrtNode = mrt({ normal: vec4(0), velocity: vec4(0) });
+    for (const k of c.kickers) {
+      if (!c.gifts.some((g) => g.risky && Math.abs(g.s - k.s - k.len) < 20)) continue;
+      for (const d of [16, 9]) {
+        const f = frameAt(c, k.s - d, {});
+        const p = toWorld(c, k.s - d, k.lat, 0.04, {});
+        const ar = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2).rotateX(-Math.PI / 2), arrowMat);
+        ar.position.set(p.x, p.y + 0.03, p.z);
+        ar.rotation.y = -f.heading;
+        this.section(k.s).add(ar);
+      }
+    }
     this.taken = new Set();
   }
 
@@ -742,41 +876,42 @@ export class World {
       }
       for (const im of mv.chairs.children) im.instanceMatrix.needsUpdate = true;
     }
-    // stars: spin and bob the ones near you; hide the rest and the taken
+    // items: bob and spin the ones near you; hide the rest and the taken
     const t = (this.time = (this.time ?? 0) + dt);
-    if (this.stars) {
-      for (let i = 0; i < this.starPos.length; i++) {
-        const st = this.starPos[i];
-        const show = st.s > focusS - 15 && st.s < focusS + 220 && !this.taken.has(st.id);
-        e.set(0, t * 2.4 + st.ph, 0);
-        q.setFromEuler(e);
-        p.set(st.x, st.y + Math.sin(t * 2 + st.ph) * 0.12, st.z);
-        m4.compose(p, q, sc.setScalar(show ? 0.42 : 0));
-        this.stars.setMatrixAt(i, m4);
+    if (this.items) {
+      const show = (it) => it.s > focusS - 15 && it.s < focusS + 240 && !this.taken.has(it.id);
+      for (const im of [this.giftBoxes, this.ribbons, this.pileBalls, this.shieldMesh]) {
+        im.userData.list.forEach((it, i) => {
+          const on = show(it);
+          const big = it.kind === 'gift' ? (it.risky ? 1.25 : 1.05) : 1;
+          e.set(it.kind === 'gift' ? 0.18 : 0.3, t * (it.kind === 'gift' ? 1.8 : 1.4) + it.ph, 0);
+          q.setFromEuler(e);
+          p.set(it.x, it.gy + it.h + Math.sin(t * 2.2 + it.ph) * 0.18, it.z);
+          m4.compose(p, q, sc.setScalar(on ? big * (1 + Math.sin(t * 5 + it.ph) * 0.05) : 0));
+          im.setMatrixAt(i, m4);
+        });
+        im.instanceMatrix.needsUpdate = true;
       }
-      this.stars.instanceMatrix.needsUpdate = true;
-      let dirty = false;
-      for (const [id, ref] of this.pileIndex) {
-        if (ref.shield) {
-          const sp = this.shieldPos[ref.i];
-          const show = !this.taken.has(id) && sp.s > focusS - 15 && sp.s < focusS + 220;
-          p.set(sp.x, sp.y + Math.sin(t * 2.2 + ref.i) * 0.15, sp.z);
-          m4.compose(p, q.identity(), sc.setScalar(show ? 1 + Math.sin(t * 4) * 0.05 : 0));
-          ref.mesh.setMatrixAt(ref.i, m4);
-          dirty = true;
-        } else if (this.taken.has(id) && !ref.hidden) {
-          ref.hidden = true;
-          m4.compose(p.set(0, -999, 0), q.identity(), sc.setScalar(0));
-          ref.mesh.setMatrixAt(ref.i, m4);
-          ref.mesh.instanceMatrix.needsUpdate = true;
-        } else if (!this.taken.has(id) && ref.hidden) {
-          ref.hidden = false;
-          m4.makeTranslation(ref.w.x, ref.w.y - 0.05, ref.w.z);
-          ref.mesh.setMatrixAt(ref.i, m4);
-          ref.mesh.instanceMatrix.needsUpdate = true;
+      this.pileBalls.userData.list.forEach((it, i) => {
+        if (this.taken.has(it.id) !== Boolean(it.hidden)) {
+          it.hidden = this.taken.has(it.id);
+          m4.compose(p.set(it.x, it.gy - 0.05, it.z), q.identity(), sc.setScalar(it.hidden ? 0 : 1.3));
+          this.pileMesh.setMatrixAt(i, m4);
+          this.pileMesh.instanceMatrix.needsUpdate = true;
         }
-      }
-      if (dirty) this.shieldMesh.instanceMatrix.needsUpdate = true;
+      });
+      this.items.forEach((it, i) => {
+        const on = show(it);
+        const d = it.s - focusS;
+        // beams fade in from far away and thin out right in front of you
+        const k = on ? Math.min(1, Math.max(0, (d - 6) / 30)) : 0;
+        m4.compose(p.set(it.x, it.gy, it.z), q.identity(), sc.set(k, on ? (it.risky ? 16 : 11) : 0, k));
+        this.beams.setMatrixAt(i, m4);
+        m4.compose(p.set(it.x, it.gy + 0.06, it.z), q.setFromEuler(e.set(0, t + it.ph, 0)), sc.setScalar(on && it.h < 2 ? 1 + Math.sin(t * 4 + it.ph) * 0.08 : 0));
+        this.rings.setMatrixAt(i, m4);
+      });
+      this.beams.instanceMatrix.needsUpdate = true;
+      this.rings.instanceMatrix.needsUpdate = true;
     }
     // lantern lights: the six nearest ahead
     if (this.lights) {
@@ -793,8 +928,137 @@ export class World {
     for (const sp of this.spectators) {
       const near = Math.abs(sp.s - focusS) < 90;
       sp.fan.root.visible = near;
-      if (near) sp.fan.pose(dt, { menu: true, cheer: Math.sin(t * 2 + sp.phase) > -0.3 });
+      sp.cheerT = Math.max(0, (sp.cheerT ?? 0) - dt);
+      const passing = Math.abs(sp.s - focusS) < 18;
+      if (near) sp.fan.pose(dt, { menu: true, cheer: sp.cheerT > 0 || passing || (sp.s > this.course.length - 40 && Math.sin(t * 2 + sp.phase) > -0.3) });
     }
+    // bells swing when rung
+    if (this.bellMap) for (const b of this.bellMap.values()) {
+      b.v += (-b.swing * 30 - b.v * 1.6) * dt;
+      b.swing += b.v * dt;
+      b.pivot.rotation.x = b.swing * 0.4;
+    }
+  }
+
+  /* ---------------------------------------------------------------- the interactive mountain */
+
+  /** Little arches with a brass bell over some landings (rung by jumping through). */
+  buildBells() {
+    const c = this.course;
+    this.bellMap = new Map();
+    const bellGeo = new THREE.SphereGeometry(0.42, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62).translate(0, -0.42, 0);
+    const bellMat = new THREE.MeshPhysicalNodeMaterial({ color: '#ffc94a', roughness: 0.25, metalness: 0.85, clearcoat: 1 });
+    bellMat.emissiveNode = vec3(0.6, 0.4, 0.05).mul(pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2));
+    for (const b of c.bells) {
+      const f = frameAt(c, b.s, {});
+      const pts = [];
+      for (let i = 0; i <= 24; i++) {
+        const a = (i / 24) * Math.PI;
+        const lat = b.lat - Math.cos(a) * (b.w / 2);
+        const base = groundAt(c, b.s, lat, false);
+        const p = toWorld(c, b.s, lat, 0, {});
+        pts.push(new THREE.Vector3(p.x, base + Math.sin(a) * b.h, p.z));
+      }
+      const arch = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.16, 8), stripeVinyl(this.mountain.fence.alt, '#ffffff', 10));
+      arch.castShadow = true;
+      this.section(b.s).add(arch);
+      const pivot = new THREE.Group();
+      pivot.position.copy(pts[12]).add(new THREE.Vector3(0, -0.12, 0));
+      pivot.rotation.y = -f.heading;
+      const bell = new THREE.Mesh(bellGeo, bellMat);
+      const clap = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), bellMat);
+      clap.position.y = -0.82;
+      pivot.add(bell, clap);
+      this.section(b.s).add(pivot);
+      this.bellMap.set(b.id, { pivot, swing: 0, v: 0 });
+    }
+  }
+
+  ringBell(id) {
+    const b = this.bellMap?.get(id);
+    if (b) b.v += 6;
+  }
+
+  /** Burst a snowman (any rider rode through it): it vanishes in a poof for everyone here. */
+  burstSnowman(id) {
+    const ref = this.snowmen?.get(id);
+    if (!ref) return;
+    const m4 = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (const im of ref.g.children) {
+      im.setMatrixAt(ref.i, m4);
+      im.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  /** Dropped ice patches: show the live ones. */
+  syncIce(list) {
+    this.iceMeshes ??= new Map();
+    const live = new Set(list.map((x) => x.id));
+    for (const [id, m] of this.iceMeshes) if (!live.has(id)) {
+      m.removeFromParent();
+      m.geometry.dispose();
+      this.iceMeshes.delete(id);
+    }
+    for (const p of list) {
+      if (this.iceMeshes.has(p.id)) continue;
+      const mesh = this.patch(p.s, p.s + p.len, p.lat - p.w / 2, p.lat + p.w / 2, 10, 8, (s, lat) => groundAt(this.course, s, lat) + 0.04, this.iceMat ??= iceMaterial());
+      const pos = mesh.geometry.attributes.position, crs = mesh.geometry.attributes.course;
+      for (let i = 0; i < pos.count; i++) {
+        const u = (crs.getX(i) - p.s - p.len / 2) / (p.len / 2), v = (crs.getY(i) - p.lat) / (p.w / 2);
+        if (u * u + v * v > 1) pos.setY(i, pos.getY(i) - 0.12);
+      }
+      mesh.receiveShadow = true;
+      this.root.add(mesh);
+      this.iceMeshes.set(p.id, mesh);
+    }
+  }
+
+  /** A clump of snow falling from a chair (i = its index; -1 tidies spares). */
+  dropSnow(i, d, w) {
+    this.clumps ??= [];
+    if (i < 0) {
+      for (const m of this.clumps.splice(0)) m.visible = false;
+      return;
+    }
+    let m = this.clumps[i];
+    if (!m) {
+      m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 2), new THREE.MeshStandardNodeMaterial({ color: '#f4f8ff', roughness: 0.8 }));
+      m.castShadow = true;
+      this.root.add(m);
+      this.clumps[i] = m;
+    }
+    m.visible = true;
+    const fall = Math.min(1, d.t / 0.9);
+    m.position.set(w.x, w.y + 8.5 * (1 - fall * fall), w.z);
+    const sq = d.landed ? Math.max(0.2, 1 - (d.t - 0.9) * 0.3) : 1;
+    m.scale.set(1.3, d.landed ? 0.45 * sq : 1, 1.3);
+  }
+
+  /** Fans along the fences that cheer when you pass or land a trick near them. */
+  buildFans() {
+    const c = this.course, r = this.rand;
+    const L = c.length;
+    for (const s0 of [L * 0.2, L * 0.42, L * 0.6, L * 0.82]) {
+      const sd = r() < 0.5 ? -1 : 1;
+      for (let i = 0; i < 3; i++) {
+        const s = s0 + i * 2.2;
+        const f = frameAt(c, s, _f);
+        const lat = sd * (f.width + 4.6 + r() * 0.8);
+        const p = toWorld(c, s, lat, 0, _p);
+        if (!this.valid(p.x, p.z, s, lat)) continue;
+        const fan = new RiderModel(ALL_SPECIES[(i + Math.floor(s0)) % ALL_SPECIES.length], { fur: 0, res: 40, shadow: false });
+        fan.root.position.set(p.x, p.y + 0.02, p.z);
+        fan.root.rotation.y = -f.heading + (sd > 0 ? Math.PI / 2 : -Math.PI / 2) + Math.PI;
+        fan.board.visible = false;
+        this.section(s).add(fan.root);
+        this.spectators.push({ fan, s, phase: r() * 6 });
+      }
+    }
+  }
+
+  /** Make the fans near `s` jump and wave for a while. */
+  cheer(s, secs = 2) {
+    for (const sp of this.spectators) if (Math.abs(sp.s - s) < 60) sp.cheerT = Math.max(sp.cheerT ?? 0, secs);
   }
 
   dispose() {
@@ -877,6 +1141,65 @@ function bannerTexture(text, colour) {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   return tex;
+}
+
+function giftBoxGeometry() {
+  const g = new THREE.BoxGeometry(0.8, 0.7, 0.8, 4, 4, 4);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    // soften the corners: a plump, rounded present
+    const v = new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i));
+    const c = new THREE.Vector3(Math.max(-0.3, Math.min(0.3, v.x)), Math.max(-0.25, Math.min(0.25, v.y)), Math.max(-0.3, Math.min(0.3, v.z)));
+    const d = v.clone().sub(c);
+    if (d.length() > 1e-5) v.copy(c.add(d.setLength(0.1)));
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+function giftRibbonGeometry() {
+  const parts = [new THREE.BoxGeometry(0.84, 0.74, 0.16), new THREE.BoxGeometry(0.16, 0.74, 0.84)];
+  for (const sd of [-1, 1]) parts.push(new THREE.TorusGeometry(0.13, 0.05, 8, 16).rotateY(sd * 0.6).translate(sd * 0.12, 0.45, 0));
+  const flat = parts.map((x) => (x.index ? x.toNonIndexed() : x));
+  let n = 0;
+  for (const x of flat) n += x.attributes.position.count;
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+  let o = 0;
+  for (const x of flat) {
+    pos.set(x.attributes.position.array, o);
+    nor.set(x.attributes.normal.array, o);
+    o += x.attributes.position.array.length;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  return out;
+}
+
+function chevronTexture() {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#ffd23f';
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 8;
+  g.lineJoin = 'round';
+  for (const y of [18, 62]) {
+    g.beginPath();
+    g.moveTo(18, y + 42);
+    g.lineTo(64, y);
+    g.lineTo(110, y + 42);
+    g.lineTo(110, y + 62);
+    g.lineTo(64, y + 22);
+    g.lineTo(18, y + 62);
+    g.closePath();
+    g.fill();
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 function pileGeometry() {

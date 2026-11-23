@@ -12,12 +12,14 @@ export const MOUNTAINS = [
     id: 'marshmallow',
     name: 'Marshmallow Hill',
     blurb: 'Wide, gentle runs in the sunshine, a resort village at the bottom — fences, flags and little jumps.',
-    stars: 1,
+    difficulty: 1,
     seed: 1307,
     length: 1320,
     width: [17, 21], // half-width of the groomed run: min, max
     slope: [12, 17], // degrees: easy
     curve: 0.6, // how much the run winds (0–1)
+    turns: { radius: [105, 160], angle: [0.45, 0.85], straight: [45, 85], berm: 0.25 }, // wide sweeping curves
+    rollers: 0.14,
     rivals: 3,
     time: 'noon',
     music: 'meadow',
@@ -42,12 +44,14 @@ export const MOUNTAINS = [
     id: 'pinecone',
     name: 'Pinecone Ridge',
     blurb: 'A golden-hour slalom through the pines — chairlifts overhead, bigger jumps and a frozen creek with slippery ice.',
-    stars: 2,
+    difficulty: 2,
     seed: 2903,
     length: 1460,
     width: [13, 17],
     slope: [14, 21],
     curve: 0.85,
+    turns: { radius: [68, 105], angle: [0.55, 1.0], straight: [30, 60], berm: 0.45 }, // S-bends through the pines
+    rollers: 0.18,
     rivals: 4,
     time: 'sunset',
     music: 'lantern-valley',
@@ -73,12 +77,14 @@ export const MOUNTAINS = [
     id: 'aurora',
     name: 'Aurora Peak',
     blurb: 'Night on the high peak: aurora overhead, warm lanterns down the run, steep drops, big kickers and narrow gaps.',
-    stars: 3,
+    difficulty: 3,
     seed: 4111,
     length: 1600,
     width: [10, 14],
     slope: [17, 25],
     curve: 0.75,
+    turns: { radius: [46, 72], angle: [0.6, 1.15], straight: [26, 50], berm: 0.55 }, // tight and steep
+    rollers: 0.2,
     rivals: 5,
     time: 'night',
     music: 'night-forest',

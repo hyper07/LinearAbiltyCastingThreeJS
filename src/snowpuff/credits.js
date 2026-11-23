@@ -41,4 +41,4 @@ export const PACKS = [
 
 /** Made here, owing no one. */
 export const OWN =
-  'The plush riders (Pip the fox, Toffee, Mochi, Pickle, Peaches and Pebble) are original characters, sculpted in code from soft shapes with the platform\'s sculptor (from AI Arcademia) and dressed in fur and plush made here. The snow, the trails, the kickers, the fences, flags, poles, gates and arches, the sky and aurora, every effect and every sound are made in code for this game.';
+  'The plush riders (Pip the fox, Mallow the bunny, Toffee, Mochi, Pickle, Peaches and Pebble) are original characters, sculpted in code from soft shapes with the platform\'s sculptor (from AI Arcademia) and dressed in fur and plush made here. The snow, the trails, the kickers, the gift boxes, bells, fences, flags, poles, gates and arches, the sky and aurora, every effect and every sound are made in code for this game.';

@@ -629,7 +629,7 @@ export class PlatformHome {
         : game.engine === 'kindlewatch'
         ? 'Choose your hero when you play: the Hornwarden (sword and shield) or the Veilrunner (spear and lantern)'
         : game.engine === 'snowpuff'
-        ? 'Choose your rider and mountain when you play: Pip the fox, Toffee the bear, Mochi the cat or Pickle the frog'
+        ? 'Choose your rider, nickname and mountain when you play: Pip the fox, Mallow the bunny, Toffee the bear, Mochi the cat or Pickle the frog'
         : game.engine === 'circuitlab'
         ? 'No character: open the lab and pick a lesson — your bench is kept on this device'
         : game.engine === 'hd2d'
@@ -642,7 +642,7 @@ export class PlatformHome {
     if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'circuitlab'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
       page.querySelector('.home-page__hint').textContent = game.engine === 'snowpuff'
-        ? 'For kids: a snowboard race down three mountains. A/D or the arrows to steer, S or Shift to tuck, hold Space to crouch and let go to jump (spin and flip in the air), 1 or a click throws a snowball, 2 puts up a shield, H for How to play, Esc to pause. Race with friends from inside the game with a five-letter room code. Touch and gamepads work too; it picks its own detail level.'
+        ? 'For kids: a snowboard race down three mountains. A/D or the arrows to steer, S or Shift to tuck, Space to jump (hold for more air; spin and flip in the air), 1 and 2 use the items from gift boxes (snowballs, a giant snowball, a shield, a rocket sled, an ice patch), H for How to play, Esc to pause. Race with friends from inside the game with a five-letter room code. Touch and gamepads work too; it picks its own detail level.'
         : game.engine === 'circuitlab'
         ? 'For an electrical-engineering class. Pick parts from Parts, click holes to place them, W to wire, Space to run; the Code panel (C) holds a board\'s sketch and its serial monitor, Lessons (L) loads a ready circuit, H lists every key. Left-drag orbits, Q and E turn the view. Best on a computer; Studio mode ray-traces the bench.'
         : game.engine === 'kindlewatch'

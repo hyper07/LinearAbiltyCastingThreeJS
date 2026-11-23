@@ -5,7 +5,7 @@
  */
 export const CONTROLS = {
   title: 'How to play — Snowpuff Peaks',
-  goal: 'Race your plush friends down the mountain! Steer round the snowmen and hay bales, jump the kickers and spin in the air, grab stars, scoop up snowballs and bonk the rider ahead. Land a trick cleanly for a speed boost. Bumping into things never ends your run — you just tumble and pop back up.',
+  goal: 'Race your plush friends down the mountain! Open gift boxes for snowballs, a giant snowball, a shield, a rocket sled or an ice patch. Bonk the riders ahead, shove the one beside you by carving harder, ride close behind someone to draft, burst the snowmen, jump through the bell arches, and land tricks cleanly for a speed boost. Bumping into things never ends your run — you just tumble and pop back up.',
   groups: [
     { name: 'Ride', rows: [
       { id: 'steer', keys: ['A', 'D'], codes: ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight'], does: 'Steer (or ← →). Hold longer to carve harder: sharper, more spray, a bit slower', pad: 'Left stick', touch: 'Drag on the left side of the screen', hint: true, short: 'steer' },
@@ -17,8 +17,8 @@ export const CONTROLS = {
       { id: 'flip', keys: ['W', 'S'], codes: ['KeyW', 'ArrowUp'], does: 'In the air: flip forward or back (or ↑ ↓). Land straight for a boost!', pad: 'Left stick up/down', touch: 'Drag up or down while in the air' }
     ] },
     { name: 'Items', rows: [
-      { id: 'throw', keys: ['1', 'LMB'], codes: ['Digit1', 'Numpad1'], does: 'Throw a snowball at the rider just ahead (it aims itself). Carry up to 3', pad: 'X', touch: 'Snowball button', hint: true, short: 'snowball' },
-      { id: 'shield', keys: ['2'], codes: ['Digit2', 'Numpad2'], does: 'Snow shield: snowballs bounce off for a few seconds (from the blue bubbles)', pad: 'Y', touch: 'Shield button' }
+      { id: 'item1', keys: ['1', 'LMB'], codes: ['Digit1', 'Numpad1'], does: 'Use item 1 — snowballs fly at the rider just ahead by themselves (or at whoever bonked you last)', pad: 'X', touch: 'Left item button', hint: true, short: 'item 1' },
+      { id: 'item2', keys: ['2'], codes: ['Digit2', 'Numpad2'], does: 'Use item 2 (you can hold two): giant snowball, snow shield, rocket sled or an ice patch dropped behind you', pad: 'Y', touch: 'Right item button', hint: true, short: 'item 2' }
     ] },
     { name: 'Menus', rows: [
       { id: 'help', keys: ['H'], codes: ['KeyH'], does: 'How to play (this)', hint: true, short: 'help' },

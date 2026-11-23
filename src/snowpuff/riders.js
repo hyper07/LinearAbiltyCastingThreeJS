@@ -10,6 +10,11 @@ export const SPECIES = {
     blurb: 'A round, fuzzy orange fox with a huge fluffy tail and sky-teal goggles. Loves big air.',
     accentName: 'Teal goggles', selectable: true
   },
+  bunny: {
+    name: 'Mallow', animal: 'bunny', color: '#ff6fb4', light: '#ffd3e6', accent: '#ff8c1a', board: '#ffffff', boardTrim: '#ff6fb4',
+    blurb: 'A hot-pink puffball with long floppy ears and chunky orange goggles. Never stops bouncing.',
+    accentName: 'Orange goggles', selectable: true
+  },
   bear: {
     name: 'Toffee', animal: 'bear', color: '#a86d3f', light: '#f3dcb8', accent: '#3fd0b0', board: '#2f4a8a', boardTrim: '#ffd166',
     blurb: 'A caramel bear in a long mint scarf that flaps behind him. Steady and strong.',
@@ -44,6 +49,7 @@ export function faceSvg(species, size = 40) {
   const c = sp.color, l = sp.light, a = sp.accent;
   const ears = {
     fox: `<path d="M4 20 L7 1 L19 11Z M36 20 L33 1 L21 11Z" fill="${c}"/><path d="M6.4 9 L7 1 L11.5 5Z M33.6 9 L33 1 L28.5 5Z" fill="${sp.dark}"/><path d="M8 17 L9 7 L15 12Z M32 17 L31 7 L25 12Z" fill="${l}"/>`,
+    bunny: `<ellipse cx="14" cy="9" rx="5" ry="12" fill="${c}" transform="rotate(-12 14 9)"/><ellipse cx="26" cy="9" rx="5" ry="12" fill="${c}" transform="rotate(12 26 9)"/><ellipse cx="14" cy="10" rx="2.4" ry="8" fill="${l}" transform="rotate(-12 14 9)"/><ellipse cx="26" cy="10" rx="2.4" ry="8" fill="${l}" transform="rotate(12 26 9)"/>`,
     bear: `<circle cx="9" cy="12" r="6" fill="${c}"/><circle cx="31" cy="12" r="6" fill="${c}"/><circle cx="9" cy="12" r="3" fill="${l}"/><circle cx="31" cy="12" r="3" fill="${l}"/>`,
     cat: `<path d="M5 18 L8 3 L17 12Z M35 18 L32 3 L23 12Z" fill="${c}"/>`,
     frog: `<circle cx="12" cy="13" r="7" fill="${c}"/><circle cx="28" cy="13" r="7" fill="${c}"/>`,
@@ -51,7 +57,7 @@ export function faceSvg(species, size = 40) {
     penguin: ''
   }[sp.animal] ?? '';
   const hat = sp.animal === 'cat' || sp.animal === 'penguin' ? `<path d="M8 16 Q20 1 32 16Z" fill="${a}"/><circle cx="20" cy="5" r="4" fill="${a}" stroke="#fff" stroke-width="1"/>` : '';
-  const goggles = sp.animal === 'fox' || sp.animal === 'pig' ? `<rect x="8" y="14" width="24" height="7" rx="3.5" fill="${a}"/><ellipse cx="15" cy="17.5" rx="4" ry="2.6" fill="#fff" opacity=".55"/><ellipse cx="25" cy="17.5" rx="4" ry="2.6" fill="#fff" opacity=".55"/>` : '';
+  const goggles = sp.animal === 'fox' || sp.animal === 'pig' || sp.animal === 'bunny' ? `<rect x="8" y="14" width="24" height="7" rx="3.5" fill="${a}"/><ellipse cx="15" cy="17.5" rx="4" ry="2.6" fill="#fff" opacity=".55"/><ellipse cx="25" cy="17.5" rx="4" ry="2.6" fill="#fff" opacity=".55"/>` : '';
   const scarf = sp.animal === 'bear' ? `<rect x="9" y="33" width="22" height="5" rx="2.5" fill="${a}"/>` : '';
   const snout = sp.animal === 'pig' ? `<ellipse cx="20" cy="28" rx="5" ry="3.6" fill="${l}"/><circle cx="18.3" cy="28" r="1" fill="#7a3a3a"/><circle cx="21.7" cy="28" r="1" fill="#7a3a3a"/>` : sp.animal === 'penguin' ? `<path d="M17 27 L23 27 L20 31Z" fill="#ff9f1c"/>` : sp.animal === 'fox' ? `<path d="M6 24 Q20 40 34 24 Q27 31 20 31 Q13 31 6 24Z" fill="${l}"/><ellipse cx="20" cy="28.5" rx="2.6" ry="1.9" fill="#2a1a14"/>` : `<ellipse cx="20" cy="28" rx="6" ry="4.2" fill="${l}"/>`;
   const eyesY = sp.animal === 'frog' ? 13 : 23;

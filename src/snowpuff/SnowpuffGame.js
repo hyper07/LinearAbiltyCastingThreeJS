@@ -1,7 +1,8 @@
 /**
  * Snowpuff Peaks — a cute, fast snowboard race for kids. Pick a plush rider
  * and a mountain, then race the others down: carve, tuck, jump the kickers,
- * spin and flip, grab stars, bonk rivals with snowballs. Alone against
+ * spin and flip, open gift boxes, bonk rivals with snowballs and giant
+ * snowballs, shove and draft, burst snowmen and ring bells. Alone against
  * computer riders, or with up to three friends in a room (net.js).
  *
  *   const game = new SnowpuffGame(document.body, { onClose });
@@ -23,7 +24,7 @@ import { MOUNTAINS, mountainById } from './mountains.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES } from './riders.js';
 import { buildCourse, frameAt, groundAt, toWorld, rng } from './course.js';
 import { newRider, step, settle } from './physics.js';
-import { newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, estimateFinish } from './race.js';
+import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor } from './race.js';
 import { newBrain, think } from './ai.js';
 import { makeRenderer, Pipeline, TIERS, TIER_ORDER, backendName } from './render/pipeline.js';
 import { Sky, distantPeaks } from './render/sky.js';
@@ -35,8 +36,17 @@ import { SnowSound } from './audio.js';
 import { Stage } from './stage.js';
 import { Hud, Menus, Loading, TouchControls, el } from './hud.js';
 import { OnlineRace } from './net.js';
+import { cleanName, randomName } from './names.js';
 
 const SAVE_KEY = 'snowpuff.save';
+const ITEM_NAMES = { snowballs: 'Snowballs!', giant: 'Giant snowball!', shield: 'Snow shield!', boost: 'Rocket sled!', ice: 'Ice patch!' };
+const STEP = 1 / 120;
+const VIS_KEYS = ['s', 'lat', 'y', 'yaw', 'head', 'spin', 'flip', 'edge', 'latAcc', 'compress', 'tuck', 'charge', 'speed', 'carve', 'skid', 'vy'];
+/** Keep a racer's state before a physics step (for drawing in between). */
+function snap(rc) {
+  const p = (rc.prevState ??= {});
+  for (const k of VIS_KEYS) p[k] = rc.rider[k] ?? 0;
+}
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 function loadSave() {
@@ -82,7 +92,7 @@ class Input {
   }
 
   hit(id) {
-    return this.codes[id].some((c) => this.pressed.has(c)) || (id === 'throw' && this.pressed.has('throw'));
+    return this.codes[id].some((c) => this.pressed.has(c));
   }
 
   pad() {
@@ -110,8 +120,8 @@ class Input {
       flip: clamp(flip, -1, 1),
       tuck: this.held('tuck') || Boolean(this.touch.tuck) || Boolean(pad?.tuck),
       jump: this.held('jump') || Boolean(this.touch.jump) || Boolean(pad?.jump),
-      throw: this.hit('throw') || Boolean(pad?.throw),
-      shield: this.hit('shield') || Boolean(pad?.shield),
+      throw: this.hit('item1') || this.pressed.has('throw') || Boolean(pad?.throw),
+      shield: this.hit('item2') || this.pressed.has('item2') || Boolean(pad?.shield),
       help: this.hit('help'),
       pause: this.hit('pause') || Boolean(pad?.pause)
     };
@@ -197,8 +207,7 @@ export class SnowpuffGame {
     this.stagePipe.render();
     this.input = new Input(this.root);
     this.hud = new Hud(this.root, { touch: this.touch });
-    this.hud.onThrow = () => this.input.pressed.add('throw');
-    this.hud.onShield = () => this.input.pressed.add('Digit2');
+    this.hud.onUse = (i) => this.input.pressed.add(i ? 'item2' : 'throw');
     this.menus = new Menus(this.root, this);
     this.help = new HelpPanel({
       host: this.root,
@@ -335,11 +344,27 @@ export class SnowpuffGame {
     });
   }
 
+  /** Your nickname (cleaned; your rider's name until you pick one). */
+  nickname() {
+    return cleanName(this.save.name, SPECIES[this.picked].name);
+  }
+
+  setNickname(raw) {
+    const clean = String(raw ?? '').trim() ? cleanName(raw, '') : '';
+    this.save.name = clean;
+    this.persist();
+    this.net?.setName(this.nickname());
+    return clean;
+  }
+
   showRiders(after = () => this.showMountains()) {
     this.mode = 'menu';
     this.screen = 'riders';
     this.stage.focus('riders');
     this.menus.riders({
+      name: this.save.name,
+      onName: (v) => this.setNickname(v),
+      onDice: () => this.setNickname(randomName()),
       picked: this.picked,
       onPick: (id) => {
         this.picked = id;
@@ -374,7 +399,7 @@ export class SnowpuffGame {
     this.screen = 'lobby';
     this.stage.focus('lobby');
     this.net ??= new OnlineRace({
-      name: this.save.name || SPECIES[this.picked].name,
+      name: this.nickname(),
       species: this.picked,
       onChange: () => this.screen === 'lobby' && this.mode === 'menu' && this.renderLobby(),
       onGo: (g) => this.startRace({ mountain: g.mountain, slots: g.slots, online: true }),
@@ -459,7 +484,7 @@ export class SnowpuffGame {
     if (!slots) {
       const others = ALL_SPECIES.filter((s) => s !== this.picked);
       const kinds = ['careful', 'reckless', 'thrower', 'careful', 'reckless'];
-      slots = [{ slot: 0, id: 'me', name: SPECIES[this.picked].name, species: this.picked, human: true }];
+      slots = [{ slot: 0, id: 'me', name: this.nickname(), species: this.picked, human: true }];
       for (let i = 0; i < m.rivals; i++) slots.push({ slot: i + 1, id: `ai${i + 1}`, name: null, species: others[i % others.length], human: false, kind: kinds[i] });
     }
     const rand = rng(course.seed + 99);
@@ -487,7 +512,7 @@ export class SnowpuffGame {
     });
     this.me = racers.find((r) => r.me);
     this.racers = racers;
-    this.race = { course, mountain: m, online, clock: 0, count: 3.2, projectiles: [], pid: 0, finishedAt: null, results: null, finAt: new Map(), passT: 0, shake: 0, fov: 60, camPos: null, camLook: new THREE.Vector3(), passed: new Set() };
+    this.race = { course, mountain: m, online, clock: 0, count: 3.2, projectiles: [], giants: [], dumps: [], pid: 0, finishedAt: null, results: null, finAt: new Map(), passT: 0, shake: 0, fov: 60, camPos: null, camLook: new THREE.Vector3(), passed: new Set() };
     this.hud.start(racers, course, this.me.slot);
     // the post chain
     this.pipe = new Pipeline(this.renderer, scene, camera, this.tier);
@@ -500,7 +525,7 @@ export class SnowpuffGame {
     } catch {
       /* first frames compile */
     }
-    for (let i = 0; i < 2; i++) this.pipe.render();
+    await this.warmUp();
     if (this.closed) return;
     this.loadingEl.hide();
     this.hud.show(true);
@@ -523,6 +548,55 @@ export class SnowpuffGame {
     if (!online) this.help.openFirstTime();
   }
 
+  /**
+   * Draw everything once behind the loading card — every section, every
+   * effect pool, the snowballs and shields, off-screen things too — so no
+   * shader or pipeline is first built mid-race (the hitch before a jump was
+   * the sparkle and snow-puff pipelines being made on first use).
+   */
+  async warmUp() {
+    const culled = [];
+    this.scene.traverse((o) => {
+      if ((o.isMesh || o.isPoints) && o.frustumCulled) {
+        culled.push(o);
+        o.frustumCulled = false;
+      }
+    });
+    const cam = this.camera.position;
+    const fx = this.fx;
+    // several each: a pool drawn with one particle and with many are different pipelines
+    for (const pool of [fx.powder, fx.sparkle, fx.motes, fx.confetti]) for (let i = 0; i < 4; i++) pool.add(cam.x + i * 0.3, cam.y - 0.5, cam.z - 6, 0, 0, 0, { life: 5, size: 0.2 });
+    fx.update(0.001);
+    fx.balls.forEach((b, i) => {
+      b.visible = true;
+      b.position.set(cam.x + i * 0.2, cam.y, cam.z - 6);
+    });
+    for (const rc of this.racers) rc.shieldMesh.visible = true;
+    // the things made on first use: a giant snowball, a dropped ice patch, a falling clump of snow
+    fx.giant(0, cam.x, cam.y - 1, cam.z - 8, 1, 0, 0);
+    const c = this.race.course;
+    const s0 = this.me.rider.s + 6;
+    this.world.syncIce([{ id: 'warm', s: s0, lat: 0, len: 6, w: 4 }]);
+    this.world.dropSnow(0, { t: 0.2, landed: false }, { x: cam.x, y: cam.y - 9, z: cam.z - 8 });
+    const keepShadow = this.sky.sun.shadow.camera.right;
+    // a wide shadow box too, so every caster's shadow pipeline is made now
+    // real frames apart: the scene pass draws once per frame, however often it is asked
+    const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+    this.sky.follow(new THREE.Vector3(cam.x, cam.y, cam.z), 900);
+    await nextFrame();
+    this.pipe.render();
+    this.sky.follow(new THREE.Vector3(cam.x, cam.y, cam.z), keepShadow);
+    await nextFrame();
+    this.pipe.render();
+    for (const o of culled) o.frustumCulled = true;
+    fx.clear();
+    this.world.syncIce(c.dynIce);
+    this.world.dropSnow(-1);
+    for (const rc of this.racers) rc.shieldMesh.visible = false;
+    await nextFrame();
+    this.pipe.render();
+  }
+
   /* ---------------------------------------------------------------- per frame */
 
   frame(dt) {
@@ -535,16 +609,20 @@ export class SnowpuffGame {
         else if (this.screen === 'results') this.showMountains();
       }
       this.stage.update(dt, this.w / this.h);
+      this.hud?.tags([]);
       this.stagePipe.render();
       this.input?.endFrame();
       return;
     }
-    if (!this.race) {
+    if (!this.race || this.mode === 'loading') {
+      this.hud?.tags([]);
+      // building or warming up a race: its own code draws behind the loading card
       this.input?.endFrame();
       return;
     }
     if (this.mode === 'results') {
       this.stage.update(dt, this.w / this.h);
+      this.podiumTags();
       this.stagePipe.render();
       this.input?.endFrame();
       return;
@@ -592,7 +670,10 @@ export class SnowpuffGame {
       }
     }
     // hold still, but let the board settle
-    for (const rc of this.racers) settle(rc.rider, r.course);
+    for (const rc of this.racers) {
+      settle(rc.rider, r.course);
+      snap(rc);
+    }
     this.updateRiders(dt);
     if (r.count <= 0) {
       this.mode = 'race';
@@ -601,47 +682,96 @@ export class SnowpuffGame {
     }
   }
 
+  /**
+   * Physics at a fixed 120 Hz, whatever the frame rate: the frame's time is cut
+   * into equal steps, and drawing interpolates between the last two (vis()),
+   * so motion is smooth at 30, 60 or 144 frames a second.
+   */
   simulate(dt, inp) {
+    const r = this.race;
+    r.acc = Math.min(0.25, (r.acc ?? 0) + dt);
+    let first = true;
+    while (r.acc >= STEP) {
+      for (const rc of this.racers) if (rc.local) snap(rc);
+      this.tick(STEP, inp, first);
+      first = false;
+      r.acc -= STEP;
+    }
+    r.alpha = r.acc / STEP;
+    for (const rc of this.racers) if (!rc.local) {
+      this.applyRemote(rc);
+      snap(rc);
+    }
+    // online: send states; the host closes the race
+    if (r.online && this.net?.active) {
+      this.net.tick(dt, this.me, this.racers.filter((x) => x.local && !x.human));
+      if (this.net.isHost) this.hostFinishCheck();
+    }
+    if (!r.online) this.localFinishCheck();
+  }
+
+  tick(dt, inp, first) {
     const r = this.race;
     const c = r.course;
     r.clock += dt;
     const me = this.me;
     const online = r.online;
+    const order = standings(this.racers);
+    const placeOf = (rc) => (this.racers.length > 1 ? order.indexOf(rc) / (this.racers.length - 1) : 0.5);
     // ---- you
     if (!me.finished) {
-      const ev = step(me.rider, { steer: inp.steer ?? 0, tuck: inp.tuck, jump: inp.jump, flip: inp.flip ?? 0 }, c, dt);
+      const ev = step(me.rider, { steer: inp.steer ?? 0, tuck: inp.tuck, jump: inp.jump, flip: inp.flip ?? 0 }, c, dt, { draft: draftFactor(me, this.racers) });
       this.riderEvents(me, ev);
-      if (inp.throw) this.tryThrow(me);
-      if (inp.shield && useShield(me)) {
-        this.sound.shieldOn();
-        this.fx.shieldBurst(me.pos.x, me.pos.y, me.pos.z);
-      }
-      for (const e of pickups(me, c, r.clock)) this.pickupEvent(me, e);
+      if (first && inp.throw) this.useItem(me, 0);
+      if (first && inp.shield) this.useItem(me, 1);
+      for (const e of pickups(me, c, r.clock, placeOf(me))) this.pickupEvent(me, e);
       if (checkFinish(me, c, r.clock)) this.onFinish(me);
     } else {
       step(me.rider, {}, c, dt, { brake: true });
     }
     tickRacer(me, dt);
     // ---- the AI riders I run (single player, or the host)
+    const humanS = online ? Math.max(...this.racers.filter((x) => x.human).map((x) => x.rider.s)) : me.rider.s;
     for (const rc of this.racers) {
-      if (rc === me) continue;
-      if (rc.local) {
-        if (rc.finished) {
-          step(rc.rider, {}, c, dt, { brake: true });
-          continue;
-        }
-        const ai = think(rc.brain, rc, c, this.racers, dt);
-        const humanS = online ? Math.max(...this.racers.filter((x) => x.human).map((x) => x.rider.s)) : me.rider.s;
-        const ev = step(rc.rider, ai, c, dt, { pull: rubberBand(rc.rider.s, humanS) });
-        this.riderEvents(rc, ev);
-        if (ai.throw) this.tryThrow(rc);
-        if (ai.shield && useShield(rc)) this.fx.shieldBurst(rc.pos.x, rc.pos.y, rc.pos.z);
-        pickups(rc, c, r.clock);
-        tickRacer(rc, dt);
-        if (checkFinish(rc, c, r.clock)) this.onFinish(rc);
-      } else {
-        this.applyRemote(rc);
+      if (rc === me || !rc.local) continue;
+      if (rc.finished) {
+        step(rc.rider, {}, c, dt, { brake: true });
+        continue;
       }
+      const ai = think(rc.brain, rc, c, this.racers, dt);
+      const ev = step(rc.rider, ai, c, dt, { pull: rubberBand(rc.rider.s, humanS), draft: draftFactor(rc, this.racers) });
+      this.riderEvents(rc, ev);
+      if (ai.use != null) this.useItem(rc, ai.use);
+      for (const e of pickups(rc, c, r.clock, placeOf(rc))) if (e.type === 'gift' && this.near(rc, 40)) this.fx.giftBurst(rc.pos.x, rc.pos.y + 0.8, rc.pos.z);
+      tickRacer(rc, dt);
+      if (checkFinish(rc, c, r.clock)) this.onFinish(rc);
+    }
+    // ---- shoves between riders side by side (the harder carver wins)
+    for (const [a, b, winner] of separate(this.racers, (x) => x.local && !x.finished)) {
+      const loser = winner === a ? b : a;
+      if (this.time - (loser._shoveT ?? 0) < 0.8) continue;
+      loser._shoveT = this.time;
+      loser.bumps += 1;
+      if (this.near(loser, 45)) {
+        this.fx.poof((a.pos.x + b.pos.x) / 2, loser.pos.y + 0.3, (a.pos.z + b.pos.z) / 2, { n: 8, size: 0.3, speed: 1.6, up: 1 });
+        this.sound.shove(this.near(loser, 12) ? 1 : 0.4);
+        loser.model.react('ouch');
+        winner.model.react('laugh');
+        this.emote(loser, ['Hey!', 'Whoa!', 'Oof!'][Math.floor(Math.random() * 3)]);
+        this.emote(winner, 'Hee hee!', 0.25);
+      }
+      if (loser.me) this.race.shake = Math.max(this.race.shake, 0.25);
+    }
+    // ---- drafting: wind lines and a word when you tuck in behind someone
+    if (me.draftBehind && !me.rider.air) {
+      me.draftT = (me.draftT ?? 0) + dt;
+      if (me.draftT > 0.6 && !me.draftTold) {
+        me.draftTold = true;
+        this.hud.say('Drafting!', 'trick');
+      }
+    } else {
+      me.draftT = 0;
+      me.draftTold = false;
     }
     // ---- snowballs
     for (let i = r.projectiles.length - 1; i >= 0; i--) {
@@ -651,12 +781,166 @@ export class SnowpuffGame {
         this.arrive(p);
       }
     }
-    // ---- online: send states; the host closes the race
-    if (online && this.net?.active) {
-      this.net.tick(dt, me, this.racers.filter((x) => x.local && !x.human));
-      if (this.net.isHost) this.hostFinishCheck();
+    // ---- giant snowballs: roll on, bowl riders over (only the host decides, online)
+    for (let i = r.giants.length - 1; i >= 0; i--) {
+      const g = r.giants[i];
+      const alive = rollGiant(g, c, dt);
+      if (!online || this.net?.isHost) {
+        for (const rc of giantHits(g, this.racers, c)) {
+          if (online && this.net?.active) this.net.sendHit(g.id, rc.slot, true, 'giant');
+          this.resolveBowl(g.from, rc);
+        }
+      }
+      if (!alive) {
+        r.giants.splice(i, 1);
+        this.giantBurst(g);
+      }
     }
-    if (!online) this.localFinishCheck();
+    // ---- the mountain: ice melts, chairlift chairs drop snow on Aurora Peak
+    meltIce(c, r.clock);
+    if (this.world.syncIce) this.world.syncIce(c.dynIce);
+    if (r.mountain.id === 'aurora') this.snowDumps(dt);
+  }
+
+  /** Is this racer within `d` metres of the camera? */
+  near(rc, d) {
+    return Math.hypot(rc.pos.x - this.camera.position.x, rc.pos.z - this.camera.position.z) < d;
+  }
+
+  /** A little word bubble over a rider (shoves, hits, waves). */
+  emote(rc, text, delay = 0) {
+    if (!this.near(rc, 30)) return;
+    setTimeout(() => {
+      const at = this.toScreen(rc.pos.x, rc.pos.y + 1.9, rc.pos.z);
+      if (at) this.hud.bubble(at[0], at[1], text);
+    }, delay * 1000);
+  }
+
+  /** Use the item in slot i (key 1 or 2; the AI too). */
+  useItem(rc, i) {
+    const res = useSlot(rc, i);
+    if (!res) return;
+    const r = this.race;
+    const p = rc.pos;
+    if (res.kind === 'snowball') this.tryThrow(rc);
+    else if (res.kind === 'giant') {
+      const g = newGiant(rc, `${rc.slot}-g${++r.pid}`);
+      r.giants.push(g);
+      if (r.online && this.net?.active) this.net.sendItem({ k: 'giant', id: g.id, from: rc.slot, s: g.s, lat: g.lat, v: g.v });
+      if (rc.me) this.hud.say('Giant snowball!', 'trick');
+      if (this.near(rc, 50)) this.sound.rumble();
+    } else if (res.kind === 'ice') {
+      const ice = dropIce(r.course, rc, r.clock, `${rc.slot}-i${++r.pid}`);
+      if (r.online && this.net?.active) this.net.sendItem({ k: 'ice', id: ice.id, from: rc.slot, s: ice.s, lat: ice.lat, until: ice.until });
+      if (this.near(rc, 40)) this.sound.iceDrop();
+      if (rc.me) this.hud.say('Slippery!', 'info');
+    } else if (res.kind === 'boost') {
+      if (this.near(rc, 50)) {
+        this.fx.boostBurst(p.x, p.y, p.z);
+        this.sound.boost();
+      }
+      if (rc.me) this.hud.say('Rocket sled!', 'boost');
+      if (r.online && this.net?.active) this.net.sendItem({ k: 'boost', from: rc.slot });
+    } else if (res.kind === 'shield') {
+      if (this.near(rc, 40)) {
+        this.fx.shieldBurst(p.x, p.y, p.z);
+        this.sound.shieldOn();
+      }
+    }
+  }
+
+  resolveBowl(fromSlot, rc) {
+    const shielded = rc.shieldT > 0;
+    if (rc.local) applyBowl(rc, fromSlot);
+    else if (!shielded) rc.bonks += 1;
+    const from = this.racers.find((x) => x.slot === fromSlot);
+    if (from && !shielded) from.hits += 1;
+    const p = rc.pos;
+    if (this.near(rc, 50)) {
+      this.fx.poof(p.x, p.y + 0.6, p.z, { n: 30, size: 0.5, speed: 4, up: 3 });
+      this.sound.bonk(1);
+      const at = this.toScreen(p.x, p.y + 1.6, p.z);
+      if (at) this.hud.bonk(at[0], at[1], shielded ? 'BLOCKED!' : 'BOWLED!', from?.me);
+      if (!shielded) {
+        rc.model.react('ouch');
+        this.emote(rc, rc.me ? 'Waaah!' : 'Nooo!', 0.2);
+      }
+    }
+    if (rc.me) this.race.shake = 0.55;
+  }
+
+  giantBurst(g) {
+    const r = this.race;
+    const w = toWorld(r.course, g.s, g.lat, g.rad, {});
+    if (g.burstOn) r.course.burst.add(g.burstOn.id);
+    if (Math.hypot(w.x - this.camera.position.x, w.z - this.camera.position.z) < 80) {
+      this.fx.poof(w.x, w.y - g.rad * 0.5, w.z, { n: 40, size: 0.7, speed: 5, up: 3.5 });
+      this.sound.bump();
+    }
+  }
+
+  /** Aurora Peak: chairs on the lifts crossing the run drop clumps of snow (a soft hazard). */
+  snowDumps(dt) {
+    const r = this.race;
+    const c = r.course;
+    r.dumps ??= [];
+    const period = 2.6;
+    const k = Math.floor(r.clock / period);
+    if (k !== r.dumpK) {
+      r.dumpK = k;
+      for (const lf of c.lifts) {
+        if (lf.kind !== 'cross') continue;
+        const W = frameAt(c, lf.s).width;
+        const u = ((Math.imul(k + 1, 2654435761) ^ Math.imul(lf.id, 40503)) >>> 0) / 4294967296;
+        r.dumps.push({ s: lf.s, lat: (u * 2 - 1) * (W - 1.5), t: 0, landed: false, hit: new Set() });
+      }
+    }
+    for (let i = r.dumps.length - 1; i >= 0; i--) {
+      const d = r.dumps[i];
+      d.t += dt;
+      const w = toWorld(c, d.s, d.lat, 0, {});
+      if (!d.landed && d.t > 0.9) {
+        d.landed = true;
+        if (Math.hypot(w.x - this.camera.position.x, w.z - this.camera.position.z) < 70) {
+          this.fx.poof(w.x, w.y, w.z, { n: 18, size: 0.5, speed: 2.5, up: 1.5 });
+          this.sound.splat();
+        }
+      }
+      if (d.landed && d.t < 3.5) {
+        for (const rc of this.racers) {
+          if (!rc.local || d.hit.has(rc.slot) || rc.rider.air) continue;
+          if (Math.abs(rc.rider.s - d.s) < 1.4 && Math.abs(rc.rider.lat - d.lat) < 1.4) {
+            d.hit.add(rc.slot);
+            rc.rider.wobble = Math.max(rc.rider.wobble, 0.5);
+            rc.rider.speed *= 0.82;
+            this.fx.poof(rc.pos.x, rc.pos.y + 0.3, rc.pos.z, { n: 12, size: 0.35, speed: 2, up: 1.5 });
+            if (rc.me) this.hud.say('Splat!', 'info');
+          }
+        }
+      }
+      this.world.dropSnow?.(i, d, w);
+      if (d.t > 3.5) {
+        r.dumps.splice(i, 1);
+        this.world.dropSnow?.(-1);
+      }
+    }
+  }
+
+  /** A racer's state for drawing: between the last two physics steps. */
+  vis(rc) {
+    const a = rc.prevState, b = rc.rider;
+    const v = (rc.visState ??= {});
+    const t = this.race?.alpha ?? 1;
+    for (const k of VIS_KEYS) {
+      const x = b[k] ?? 0;
+      v[k] = a && a[k] != null ? a[k] + (x - a[k]) * t : x;
+    }
+    v.air = b.air;
+    v.tumble = b.tumble;
+    v.spinout = b.spinout;
+    v.wobble = b.wobble;
+    v.boost = b.boost;
+    return v;
   }
 
   /** Copy a remote racer's interpolated state into its rider (for drawing, the strip and aiming). */
@@ -673,7 +957,7 @@ export class SnowpuffGame {
     rd.boost = st.boost ? 0.2 : 0;
     rd.carve = Math.abs(st.edge);
     rc.shieldT = st.shield ? 1 : 0;
-    rc.stars = st.stars;
+    rc.gifts = st.gifts;
     rc.ammo = st.ammo;
     if (st.finished && !rc.finished) {
       rc.finished = true;
@@ -699,6 +983,12 @@ export class SnowpuffGame {
         if (e.clean && e.tricks > 0) {
           rc.tricks += 1;
           if (near) this.fx.boostBurst(rc.pos.x, rc.pos.y, rc.pos.z);
+          // a wave and a cheer when you land one with others around
+          if (this.racers.some((o) => o !== rc && !o.gone && Math.hypot(o.pos.x - rc.pos.x, o.pos.z - rc.pos.z) < 16)) {
+            rc.model.react('wave');
+            this.emote(rc, ['Woo!', 'Yay!', 'Ta-da!'][rc.tricks % 3], 0.15);
+          }
+          if (rc.me) this.world.cheer?.(rc.rider.s, 2.5);
           if (rc.me) {
             this.hud.say(e.name || 'Nice!', 'trick');
             this.hud.say('Boost!', 'boost');
@@ -712,12 +1002,29 @@ export class SnowpuffGame {
           this.race.shake = Math.max(this.race.shake, Math.min(0.35, e.impact * 0.04));
         }
       } else if (e.type === 'bump') {
-        if (near) this.fx.poof(rc.pos.x, rc.pos.y + 0.3, rc.pos.z, { n: 34, size: 0.55, speed: 4, up: 3 });
+        if (near) this.fx.poof(rc.pos.x, rc.pos.y + 0.3, rc.pos.z, { n: 22, size: 0.42, speed: 3.5, up: 2.4 });
+        rc.model.react('ouch');
         if (rc.me) {
           this.sound.bump();
           this.hud.say(['Boing!', 'Oopsie!', 'Bumpity!'][Math.floor(Math.random() * 3)], 'info');
           this.race.shake = 0.5;
         }
+      } else if (e.type === 'burst') {
+        this.world.burstSnowman?.(e.id);
+        if (near) {
+          this.fx.poof(rc.pos.x, rc.pos.y + 0.6, rc.pos.z, { n: 46, size: 0.6, speed: 5, up: 4 });
+          this.fx.sparkles(rc.pos.x, rc.pos.y + 1, rc.pos.z, { n: 10, col: new THREE.Color('#ffffff'), speed: 3 });
+          this.sound.snowmanPoof(rc.me ? 1 : 0.5);
+        }
+        if (rc.me) {
+          this.hud.say('POOF!', 'trick');
+          this.race.shake = Math.max(this.race.shake, 0.3);
+        }
+        rc.model.react('laugh');
+      } else if (e.type === 'bell') {
+        this.world.ringBell?.(e.id);
+        if (near) this.sound.bell(rc.me ? 1 : 0.45);
+        if (rc.me) this.hud.say('Ding! Boost!', 'boost');
       } else if (e.type === 'rail' && rc.me) {
         if (!this._railT || this.time - this._railT > 0.4) {
           this.sound.rail(e.side);
@@ -729,27 +1036,28 @@ export class SnowpuffGame {
 
   pickupEvent(rc, e) {
     const p = rc.pos;
-    if (e.type === 'star') {
+    const at = this.toScreen(p.x, p.y + 1.2, p.z);
+    if (e.type === 'gift') {
       this.world.take(e.id);
-      this.fx.starBurst(p.x, p.y + 0.8, p.z);
-      this.sound.star(Math.min(8, rc.streak.length * 2));
-    } else if (e.type === 'streak') {
-      this.hud.say('Star streak! Boost!', 'boost');
-      this.sound.boost();
-      this.fx.boostBurst(p.x, p.y, p.z);
+      this.fx.giftBurst(p.x, p.y + 0.8, p.z);
+      this.sound.gift();
+      if (at) this.hud.fly(e.kind, at[0], at[1]);
+      this.hud.say(ITEM_NAMES[e.kind], 'trick');
+      if (!this.race.told?.[e.kind]) {
+        this.race.told = { ...this.race.told, [e.kind]: true };
+        const i = rc.slots.findIndex((x) => x.kind === e.kind) + 1;
+        this.hud.toast(this.touch ? `${ITEM_NAMES[e.kind]} — tap its button to use it.` : `${ITEM_NAMES[e.kind]} — press ${i || 1} to use it.`);
+      }
     } else if (e.type === 'pile') {
       this.world.take(e.id);
       this.sound.pile();
       this.fx.poof(p.x, p.y, p.z, { n: 12, size: 0.35, speed: 2, up: 2 });
+      if (at) this.hud.fly('snowballs', at[0], at[1]);
       if (!this.race.ammoTold) {
         this.race.ammoTold = true;
-        this.hud.toast(this.touch ? 'Snowballs! Tap the snowball button to throw.' : 'Snowballs! Press 1 (or click) to throw at the rider ahead.');
+        const i = rc.slots.findIndex((x) => x.kind === 'snowballs') + 1;
+        this.hud.toast(this.touch ? 'Snowballs! Tap the snowball button to throw.' : `Snowballs! Press ${i || 1} (or click) to throw at the rider ahead.`);
       }
-    } else if (e.type === 'shield-item') {
-      this.world.take(e.id);
-      this.sound.shieldItem();
-      this.fx.shieldBurst(p.x, p.y, p.z);
-      this.hud.toast(this.touch ? 'A snow shield! Tap the blue button.' : 'A snow shield! Press 2 to put it up.');
     }
   }
 
@@ -793,7 +1101,7 @@ export class SnowpuffGame {
       this.fx.poof(p.x, p.y + 0.6, p.z, { n: 8, size: 0.25 });
       return;
     }
-    if (tgt.local) applyHit(tgt);
+    if (tgt.local) applyHit(tgt, fromSlot);
     else tgt.bonks += 1;
     const from = this.racers.find((x) => x.slot === fromSlot);
     if (from) from.hits += 1;
@@ -803,6 +1111,9 @@ export class SnowpuffGame {
     this.sound.bonk(clamp(1.4 - near / 40, 0.2, 1));
     const sp = this.toScreen(p.x, p.y + 1.6, p.z);
     if (sp) this.hud.bonk(sp[0], sp[1], tgt.me ? 'BONK! Spin!' : 'BONK!', from?.me);
+    tgt.model.react('ouch');
+    this.emote(tgt, ['Hey!!', 'Grrr!', 'Ow ow!'][Math.floor(Math.random() * 3)], 0.3);
+    if (from) from.model.react('laugh');
     if (tgt.me) this.race.shake = 0.45;
   }
 
@@ -811,6 +1122,16 @@ export class SnowpuffGame {
     if (m.t === 'throw' && r) {
       if (!r.projectiles.some((p) => p.id === m.p.id)) r.projectiles.push(m.p);
       this.sound.throwBall();
+    } else if (m.t === 'item' && r) {
+      const it = m.it;
+      const from = this.racers.find((x) => x.slot === it.from);
+      if (it.k === 'giant' && from) r.giants.push({ id: it.id, from: it.from, s: it.s, lat: it.lat, v: it.v, rad: 0.85, t: 0, life: 9, hit: new Set() });
+      else if (it.k === 'ice') r.course.dynIce.push({ id: it.id, s: it.s, lat: it.lat, len: 7, w: 4.5, until: it.until, from: it.from });
+      else if (it.k === 'boost' && from && this.near(from, 50)) this.fx.boostBurst(from.pos.x, from.pos.y, from.pos.z);
+    } else if (m.t === 'hit' && r && m.kind === 'giant') {
+      const tgt = this.racers.find((x) => x.slot === m.target);
+      const g = r.giants.find((x) => x.id === m.p);
+      if (tgt) this.resolveBowl(g?.from ?? -1, tgt);
     } else if (m.t === 'hit' && r) {
       const tgt = this.racers.find((x) => x.slot === m.target);
       if (!tgt) return;
@@ -899,7 +1220,7 @@ export class SnowpuffGame {
     r.results = order;
     const rows = order.map((o) => {
       const rc = this.racers.find((x) => x.slot === o.slot);
-      return rc ? { slot: rc.slot, name: rc.name, species: rc.species, me: rc.me, human: rc.human, time: o.time, stars: rc.stars, tricks: rc.tricks, bonks: rc.hits } : null;
+      return rc ? { slot: rc.slot, name: rc.name, species: rc.species, me: rc.me, human: rc.human, time: o.time, gifts: rc.gifts, tricks: rc.tricks, hits: rc.hits, bumps: rc.bumps } : null;
     }).filter(Boolean);
     const meRow = rows.find((x) => x.me) ?? rows[0];
     const place = rows.indexOf(meRow) + 1;
@@ -922,7 +1243,7 @@ export class SnowpuffGame {
     const idx = MOUNTAINS.findIndex((x) => x.id === m.id);
     const next = MOUNTAINS[(idx + 1) % MOUNTAINS.length];
     this.menus.results({
-      rows, mountain: m, me: { place, time: meRow.time, stars: meRow.stars, newBest }, online: r.online,
+      rows, mountain: m, me: { place, time: meRow.time, tricks: meRow.tricks, hits: meRow.hits, newBest }, online: r.online,
       nextName: next.name,
       onRetry: () => this.startRace({ mountain: m.id }),
       onNext: () => {
@@ -987,8 +1308,9 @@ export class SnowpuffGame {
   updateRiders(dt) {
     const c = this.race.course;
     const strokes = [];
+    const cam = this.camera.position;
     for (const rc of this.racers) {
-      const rd = rc.rider;
+      const rd = this.vis(rc);
       const f = frameAt(c, rd.s, rc.f ??= {});
       const x = f.x + f.rx * rd.lat, z = f.z + f.rz * rd.lat;
       rc.pos.x = x;
@@ -996,25 +1318,37 @@ export class SnowpuffGame {
       rc.pos.z = z;
       const root = rc.model.root;
       root.position.set(x, rd.y, z);
-      // tilt the rider with the slope underfoot
       root.rotation.order = 'YXZ';
+      // the board follows its own heading (a skid shows as the board crossing its line)
+      const lean = clamp(Math.atan2(rd.latAcc, 9.8), -0.6, 0.6) * (rd.air ? 0.3 : 1);
       rc.model.pose(dt, {
-        heading: f.heading, yaw: rd.yaw, spin: rd.spin, flip: rd.flip, edge: rd.edge, tuck: rd.tuck, charge: rd.charge, speed: rd.speed, air: rd.air,
+        heading: f.heading, yaw: rd.head ?? rd.yaw, spin: rd.spin, flip: rd.flip, edge: rd.edge, lean, compress: rd.compress, skid: rd.skid, tuck: rd.tuck, charge: rd.charge, speed: rd.speed, air: rd.air,
         tumbleK: rd.tumble > 0 ? clamp(rd.tumble / 0.95, 0, 1) : 0, spinoutK: rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0, wobble: rd.wobble, landed: rc.landed ?? 0
       });
-      root.rotation.x = rd.air ? 0 : -f.pitch * 0.85;
+      // pitch with the snow underfoot (rollers, kickers), with the flight path in the air — eased, never snapped
+      let pitchGoal;
+      if (rd.air) pitchGoal = Math.atan2(rd.vy, Math.max(4, rd.speed)) * 0.7;
+      else {
+        const gs = groundAt(c, rd.s + 0.6, rd.lat) - groundAt(c, rd.s - 0.6, rd.lat);
+        pitchGoal = Math.atan2(gs, 1.2);
+      }
+      rc.pitchVis = (rc.pitchVis ?? pitchGoal) + (pitchGoal - (rc.pitchVis ?? pitchGoal)) * Math.min(1, dt * (rd.air ? 5 : 14));
+      root.rotation.x = rc.pitchVis;
       rc.landed = 0;
       rc.shieldMesh.visible = rc.shieldT > 0;
       if (rc.shieldT > 0) rc.shieldMesh.rotation.y += dt * 1.5;
+      // keep riders out of the lens: hide one that is almost on the camera
+      if (!rc.me) root.visible = !rc.gone && Math.hypot(x - cam.x, rd.y + 0.6 - cam.y, z - cam.z) > 1.3;
       // spray and trails (only on the snow, moving)
       if (!rd.air && rd.speed > 3 && !rc.gone) {
-        const side = Math.sign(rd.edge || 0.0001);
         const yawW = f.heading + rd.yaw;
         const fwd = [Math.sin(yawW), -Math.cos(yawW)];
         const right = [-fwd[1], fwd[0]];
-        const camD = Math.hypot(x - this.camera.position.x, z - this.camera.position.z);
-        if (camD < 70) this.fx.spray(x, rd.y, z, [right[0] * side, right[1] * side], fwd, rd.speed, rd.carve, dt);
-        strokes.push({ s0: rc.prev.s, lat0: rc.prev.lat, s1: rd.s, lat1: rd.lat, width: 0.17 + rd.carve * 0.14 });
+        // a carve throws from the downhill edge; a skid sprays from the sliding tail
+        const side = rd.skid > 0.3 ? -Math.sign((rd.head ?? 0) - rd.yaw || 1) : Math.sign(rd.edge || 0.0001);
+        const camD = Math.hypot(x - cam.x, z - cam.z);
+        if (camD < 70) this.fx.spray(x, rd.y, z, [right[0] * side, right[1] * side], fwd, rd.speed, Math.max(rd.carve * 0.7, rd.skid), dt);
+        strokes.push({ s0: rc.prev.s, lat0: rc.prev.lat, s1: rd.s, lat1: rd.lat, width: 0.15 + Math.abs(rd.edge) * 0.1 + rd.skid * 0.12 });
       }
       rc.prev.s = rd.s;
       rc.prev.lat = rd.lat;
@@ -1022,37 +1356,69 @@ export class SnowpuffGame {
     this.strokes = strokes;
   }
 
-  placeCamera(dt, snap = false) {
+  /**
+   * The chase camera: a damped spring behind you, looking ahead along the run's
+   * own direction, banking a little into turns, easing (never snapping) into
+   * jumps and out of them, and keeping clear of other riders.
+   */
+  placeCamera(dt, snapCam = false) {
     const r = this.race;
     const me = this.me;
-    const rd = me.rider;
+    const rd = this.vis(me);
     const c = r.course;
     const f = frameAt(c, rd.s, {});
     const speed = rd.speed;
     const k = clamp((speed - 8) / 22, 0, 1);
-    const yawW = f.heading + rd.yaw * 0.35;
+    r.airK = (r.airK ?? 0) + ((rd.air ? 1 : 0) - (r.airK ?? 0)) * Math.min(1, dt * 2.5);
+    // follow the run's direction, partly the rider's
+    const yawW = f.heading + rd.yaw * 0.3;
     const fx = Math.sin(yawW), fz = -Math.cos(yawW);
-    const dist = 4.4 + k * 0.9 + (rd.air ? 0.8 : 0);
-    const height = 1.75 + k * 0.25 + (rd.air ? 0.4 : 0);
+    const dist = 4.3 + k * 0.9 + r.airK * 0.7;
+    const height = 1.7 + k * 0.25 + r.airK * 0.35;
     const target = new THREE.Vector3(me.pos.x, me.pos.y + 0.85, me.pos.z);
     const behindS = rd.s - dist * 0.95;
     const groundBehind = groundAt(c, Math.max(0, behindS), rd.lat * 0.9);
     const desired = new THREE.Vector3(target.x - fx * dist, Math.max(target.y + height - (target.y - groundBehind) * 0.15, groundBehind + 1.1), target.z - fz * dist);
-    if (snap || !r.camPos) {
-      r.camPos = desired.clone();
-      r.camLook.copy(target);
+    // keep clear of riders close to the lens
+    for (const o of this.racers) {
+      if (o === me || o.gone) continue;
+      const dx = desired.x - o.pos.x, dy = desired.y - (o.pos.y + 0.6), dz = desired.z - o.pos.z;
+      const d = Math.hypot(dx, dy, dz);
+      if (d < 2.2 && d > 1e-3) desired.addScaledVector(new THREE.Vector3(dx, Math.max(dy, 0.4), dz).normalize(), (2.2 - d) * 0.8);
     }
-    const kp = 1 - Math.exp(-dt * (rd.air ? 4 : 7.5));
-    r.camPos.lerp(desired, kp);
-    const look = new THREE.Vector3(target.x + fx * 7, target.y - 0.4 - k * 0.3, target.z + fz * 7);
-    r.camLook.lerp(look, 1 - Math.exp(-dt * 9));
+    if (snapCam || !r.camPos) {
+      r.camPos = desired.clone();
+      r.camVel = new THREE.Vector3();
+      r.prevDesired = null;
+      r.desiredVel = null;
+      r.camLook.copy(target);
+      r.roll = 0;
+    }
+    // critically damped spring that also matches the target's own velocity (no lag that grows with speed,
+    // no snapping, no overshoot)
+    const dv = r.prevDesired && dt > 0 ? desired.clone().sub(r.prevDesired).divideScalar(dt) : new THREE.Vector3();
+    r.prevDesired = desired.clone();
+    r.desiredVel = (r.desiredVel ?? dv.clone()).lerp(dv, 1 - Math.exp(-dt * 12));
+    const w = 6.5;
+    const acc = desired.clone().sub(r.camPos).multiplyScalar(w * w).add(r.desiredVel.clone().sub(r.camVel).multiplyScalar(2 * w));
+    r.camVel.addScaledVector(acc, dt);
+    r.camPos.addScaledVector(r.camVel, dt);
+    // look ahead along the run itself
+    const ahead = frameAt(c, rd.s + 10 + speed * 0.25, {});
+    const la = new THREE.Vector3(ahead.x + ahead.rx * rd.lat * 0.7, me.pos.y + 0.4 - k * 0.3, ahead.z + ahead.rz * rd.lat * 0.7);
+    const look = target.clone().lerp(la, 0.55);
+    r.camLook.lerp(look, 1 - Math.exp(-dt * 7));
     // shake: a hum at top speed, kicks on bumps and landings
     r.shake = Math.max(0, r.shake - dt * 1.8);
-    const hum = k > 0.6 ? (k - 0.6) * 0.05 : 0;
-    const s = hum + r.shake * 0.18;
+    const hum = k > 0.6 ? (k - 0.6) * 0.04 : 0;
+    const sh = hum + r.shake * 0.16;
     const t = this.time;
     const cam = this.camera;
-    cam.position.set(r.camPos.x + Math.sin(t * 37) * s, r.camPos.y + Math.sin(t * 43 + 1) * s, r.camPos.z + Math.cos(t * 31) * s);
+    cam.position.set(r.camPos.x + Math.sin(t * 37) * sh, r.camPos.y + Math.sin(t * 43 + 1) * sh, r.camPos.z + Math.cos(t * 31) * sh);
+    // bank a touch into the turn
+    const rollGoal = clamp(-rd.latAcc / 9.8, -0.5, 0.5) * 0.09;
+    r.roll += (rollGoal - r.roll) * Math.min(1, dt * 3);
+    cam.up.set(Math.sin(r.roll) * Math.cos(yawW), Math.cos(r.roll), Math.sin(r.roll) * Math.sin(yawW));
     cam.lookAt(r.camLook);
     // FOV widens with speed: 60 → 78
     const fov = 60 + 18 * clamp((speed - 6) / 24, 0, 1) + (rd.boost > 0 ? 4 : 0);
@@ -1099,18 +1465,60 @@ export class SnowpuffGame {
         this.fx.ball(i, w.x, at.y, w.z);
       });
       this.fx.hideBalls(r.projectiles.length);
+      // giant snowballs: rolling, growing, throwing snow off their sides
+      r.giants.forEach((g, i) => {
+        const w = toWorld(r.course, g.s, g.lat, 0, {});
+        this.fx.giant(i, w.x, w.y + g.rad * 0.92, w.z, g.rad, frameAt(r.course, g.s).heading, simDt * g.v / Math.max(0.5, g.rad));
+        if (Math.random() < 0.7) this.fx.poof(w.x, w.y, w.z, { n: 2, size: 0.4, speed: 1.5, up: 1.2 });
+      });
+      this.fx.hideGiants(r.giants.length);
+      // drafting: wind lines streaming past you
+      if (this.me.draftBehind && !this.me.rider.air) {
+        const hd = frameAt(r.course, this.me.rider.s).heading + this.me.rider.yaw;
+        this.fx.draftLines(this.me.pos.x, this.me.pos.y, this.me.pos.z, [Math.sin(hd), -Math.cos(hd)], this.me.rider.speed, simDt);
+      }
       const fwd = [Math.sin(frameAt(r.course, this.me.rider.s).heading), 0, -Math.cos(frameAt(r.course, this.me.rider.s).heading)];
       this.fx.speedMotes(this.camera.position, fwd, this.me.rider.speed, simDt, r.mountain.time === 'night');
       this.fx.update(simDt);
-      this.sound.ride(this.me.rider.speed, this.me.rider.carve, !this.me.rider.air, this.mode !== 'countdown');
+      this.sound.ride(this.me.rider.speed, Math.abs(this.me.rider.edge), !this.me.rider.air, this.mode !== 'countdown', this.me.rider.skid ?? 0);
     } else if (!r.camPos) this.placeCamera(0, true);
     this.world.update(simDt, this.me.rider.s, this.me.pos);
     this.sky.follow(new THREE.Vector3(this.me.pos.x, this.me.pos.y, this.me.pos.z), 24);
     if (this.trails && simDt > 0) this.trails.update(this.me.rider.s - 60, this.strokes ?? []);
     const st = standings(this.racers);
     const place = st.indexOf(this.me) + 1;
-    this.hud.update(simDt, { racers: this.racers, me: this.me, place, total: this.racers.length, time: r.clock, speed: this.me.rider.speed, ammo: this.me.ammo, shieldItem: this.me.shieldItem, course: r.course, world: this.world });
+    this.nameTags();
+    this.hud.update(simDt, { racers: this.racers, me: this.me, place, total: this.racers.length, time: r.clock, speed: this.me.rider.speed, slots: this.me.slots, course: r.course, world: this.world });
     this.pipe.render();
+  }
+
+  /** Name tags over the riders near you (yours in yellow). */
+  nameTags() {
+    const list = [];
+    for (const rc of this.racers) {
+      if (rc.gone || !rc.model.root.visible) continue;
+      const d = Math.hypot(rc.pos.x - this.camera.position.x, rc.pos.z - this.camera.position.z);
+      if (d > 45) continue;
+      const at = this.toScreen(rc.pos.x, rc.pos.y + 1.55, rc.pos.z);
+      if (!at) continue;
+      list.push({ key: rc.slot, name: rc.name, x: at[0], y: at[1], me: rc.me, alpha: rc.me ? 0.95 : Math.min(1, (45 - d) / 15) });
+    }
+    this.hud.tags(list);
+  }
+
+  /** Name tags over the podium. */
+  podiumTags() {
+    const cam = this.stage.camera;
+    const list = [];
+    const v = new THREE.Vector3();
+    (this.stage.podiumRiders ?? []).forEach((m, i) => {
+      m.root.getWorldPosition(v);
+      v.y += 1.25 * m.root.scale.y;
+      v.project(cam);
+      if (v.z > 1) return;
+      list.push({ key: `pod${i}`, name: m.label ?? '', x: (v.x * 0.5 + 0.5) * this.w, y: (-v.y * 0.5 + 0.5) * this.h, me: m.me });
+    });
+    this.hud.tags(list);
   }
 
   toScreen(x, y, z) {
@@ -1152,17 +1560,39 @@ export class SnowpuffGame {
     rd.speed = speed;
     rd.yaw = yaw;
     rd.edge = edge;
+    rd.head = yaw;
     settle(rd, this.race.course);
+    snap(this.me);
     this.me.prev = { s, lat };
     this.race.camPos = null;
     // bring the rivals near so they're in the picture
     this.racers.filter((x) => !x.me).forEach((x, i) => {
-      x.rider.s = s + 6 + i * 5;
-      x.rider.lat = lat + (i % 2 ? 3 : -3) * (1 + i * 0.3);
+      x.rider.s = s + 12 + i * 7;
+      x.rider.lat = clamp(lat + (i % 2 ? 1 : -1) * (3.5 + i), -frameAt(this.race.course, s).width + 1, frameAt(this.race.course, s).width - 1);
       x.rider.speed = speed;
+      x.rider.head = x.rider.yaw;
       settle(x.rider, this.race.course);
+      snap(x);
       x.prev = { s: x.rider.s, lat: x.rider.lat };
     });
+  }
+
+  /** Put rival i at (your s + ds, your lat + dl), on the snow (for staged screenshots and videos). */
+  debugPin(i, ds, dl, speed = null) {
+    const o = this.racers.filter((x) => !x.me)[i];
+    if (!o) return;
+    const me = this.me.rider, rd = o.rider;
+    rd.s = me.s + ds;
+    rd.lat = me.lat + dl;
+    rd.speed = speed ?? me.speed;
+    rd.yaw = me.yaw;
+    rd.head = me.head;
+    rd.tumble = rd.spinout = 0;
+    rd.air = false;
+    rd.vyG = null;
+    settle(rd, this.race.course);
+    snap(o);
+    o.prev = { s: rd.s, lat: rd.lat };
   }
 
   /** Throw a snowball from you at the rider just ahead (for the hit screenshot). */
@@ -1172,7 +1602,7 @@ export class SnowpuffGame {
     tgt.rider.invuln = 0;
     tgt.rider.s = this.me.rider.s + 9;
     tgt.rider.lat = this.me.rider.lat + 1;
-    this.me.ammo = Math.max(1, this.me.ammo);
+    if (!this.me.ammo) giveItem(this.me, 'snowballs', 1);
     this.tryThrow(this.me);
     return true;
   }

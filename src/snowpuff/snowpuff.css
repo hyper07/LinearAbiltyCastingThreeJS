@@ -97,10 +97,14 @@
 .sp-pos.first b, .sp-pos.first sup { color: var(--sun); }
 .sp-pos.bump { animation: sp-bump 0.4s; }
 @keyframes sp-bump { 40% { transform: scale(1.25) rotate(-4deg); } }
-.sp-strip { position: absolute; left: 50%; top: 22px; width: min(46vw, 620px); transform: translateX(-50%); height: 48px; }
+.sp-strip { position: absolute; left: 50%; top: 14px; width: min(46vw, 620px); transform: translateX(-50%); height: 48px; }
+.sp-strip__path { position: absolute; left: 0; top: 0; width: 100%; height: 48px; }
+.sp-fly { position: absolute; z-index: 15; margin: -22px 0 0 -22px; width: 44px; height: 44px; display: grid; place-items: center; font-size: 40px; pointer-events: none; transition: transform 0.55s cubic-bezier(.5,-0.3,.6,1), opacity 0.55s; filter: drop-shadow(0 3px 0 rgba(42,47,74,.3)); }
+.sp-fly svg { width: 44px; height: 44px; }
+.sp-fly .sp-star { color: var(--sun); -webkit-text-stroke: 2px #c99a10; }
 .sp-strip__track { position: absolute; left: 0; right: 30px; top: 18px; height: 14px; border-radius: 99px; background: rgba(255, 255, 255, 0.75); box-shadow: 0 3px 0 rgba(42, 47, 74, 0.2), inset 0 2px 3px rgba(42, 47, 74, 0.15); }
 .sp-strip__fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, var(--pink2), var(--pink)); width: 0; }
-.sp-strip__flag { position: absolute; right: -2px; top: 2px; width: 34px; height: 40px; }
+.sp-strip__flag { position: absolute; right: -8px; top: -2px; width: 34px; height: 40px; }
 .sp-face { position: absolute; top: 4px; width: 40px; height: 40px; margin-left: -20px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 rgba(42, 47, 74, 0.25); display: grid; place-items: center; transition: left 0.1s linear; }
 .sp-face.me { width: 48px; height: 48px; margin-left: -24px; top: 0; box-shadow: 0 0 0 4px var(--sun), 0 3px 0 rgba(42, 47, 74, 0.25); z-index: 2; }
 .sp-face.fin { opacity: 0.75; }
@@ -146,9 +150,11 @@
 .sp-tbtn { position: absolute; pointer-events: auto; border: 0; border-radius: 50%; font-weight: 900; color: #fff; box-shadow: var(--shadow); -webkit-text-stroke: 3px rgba(42, 47, 74, 0.6); paint-order: stroke fill; font-size: 15px; }
 .sp-tbtn--jump { right: 26px; bottom: 150px; width: 110px; height: 110px; background: linear-gradient(180deg, #ff86c4, var(--pink)); font-size: 20px; }
 .sp-tbtn--throw { right: 150px; bottom: 120px; width: 84px; height: 84px; background: radial-gradient(circle at 35% 30%, #fff, #b9cdf0); color: var(--ink); -webkit-text-stroke: 0; }
+.sp-tbtn--item2 { right: 250px; bottom: 80px; width: 76px; height: 76px; background: radial-gradient(circle at 35% 30%, #fff, #ffc2dc); color: var(--ink); -webkit-text-stroke: 0; font-size: 22px; }
 .sp-tbtn--tuck { right: 60px; bottom: 278px; width: 74px; height: 74px; background: linear-gradient(180deg, #6aa8ff, var(--sky)); }
 .sp-tbtn.held { transform: scale(0.92); filter: brightness(1.1); }
-.sp.touch .sp-ammo { left: auto; right: 26px; bottom: 270px; transform: none; display: none; }
+.sp.touch .sp-ammo { left: auto; right: 150px; bottom: 210px; transform: none; }
+.sp.touch .sp-ammo .sp-ball { width: 56px; height: 56px; }
 .sp.touch .sp-speed { display: none; }
 .sp.touch .sp-hint { display: none; }
 
@@ -166,3 +172,23 @@
   .sp-about { display: none; }
 }
 .sp-lobby, .sp-panel, .sp-results { position: absolute; }
+
+/* item slots, word bubbles */
+.sp-ball svg { width: 46px; height: 46px; }
+.sp-ball .sp-count { position: absolute; left: -6px; bottom: -4px; min-width: 26px; height: 26px; border-radius: 13px; background: var(--sky); color: #fff; font: 900 16px/26px 'Nunito Variable', system-ui, sans-serif; box-shadow: 0 2px 0 rgba(42,47,74,.3); }
+.sp-ball.item-giant { background: radial-gradient(circle at 35% 30%, #fff, #dbe7ff 60%, #a9c2f0); }
+.sp-ball.item-boost { background: radial-gradient(circle at 35% 30%, #fff4e0, #ffc27a 60%, #ff8a3d); }
+.sp-ball.item-shield { background: radial-gradient(circle at 35% 30%, #e6fffb, #7fffe0 60%, #38d6b0); }
+.sp-ball.item-ice { background: radial-gradient(circle at 35% 30%, #f0fbff, #bfe9ff 60%, #5ec8ff); }
+.sp-ball { width: 78px; height: 78px; }
+.sp-bubble { position: absolute; z-index: 9; transform: translate(-50%, -100%); padding: 4px 12px; border-radius: 16px; background: #fff; color: var(--ink); font: 900 18px 'Nunito Variable', system-ui, sans-serif; box-shadow: 0 3px 0 rgba(42,47,74,.25); pointer-events: none; animation: sp-bubble 1.1s ease-out forwards; white-space: nowrap; }
+.sp-bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-top-color: #fff; border-bottom: 0; }
+@keyframes sp-bubble { 0% { transform: translate(-50%, -60%) scale(0.3); opacity: 0; } 15% { transform: translate(-50%, -100%) scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, -150%) scale(1); opacity: 0; } }
+
+/* nickname field and name tags */
+.sp-name { left: 3%; top: 18%; width: min(270px, 26vw); gap: 6px; }
+.sp-name label { font-weight: 900; font-size: 16px; }
+.sp-input--name { font: 800 20px 'Nunito Variable', system-ui, sans-serif; letter-spacing: 0.02em; text-transform: none; width: 100%; min-width: 0; padding: 8px 12px; }
+.sp-nametag { position: absolute; left: 0; top: 0; z-index: 8; padding: 2px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.88); color: var(--ink); font: 800 13px 'Nunito Variable', system-ui, sans-serif; box-shadow: 0 2px 0 rgba(42,47,74,.2); pointer-events: none; white-space: nowrap; will-change: transform; }
+.sp-nametag.me { background: var(--sun); font-size: 14px; }
+@media (max-width: 760px) { .sp-name { left: 50%; transform: translateX(-50%); top: 12%; width: 80vw; } }

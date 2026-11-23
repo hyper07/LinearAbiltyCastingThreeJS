@@ -154,7 +154,7 @@ export const ENGINE_GAMES = [
   {
     id: 'official:snowpuff',
     title: 'Snowpuff Peaks',
-    summary: 'A cute, fast snowboard race for kids. Pick a plush rider — Pip the fox, Toffee the bear, Mochi the cat or Pickle the frog — and a mountain: sunny Marshmallow Hill, Pinecone Ridge at sunset, or Aurora Peak at night. Carve past fences, flags and ski lifts, jump the kickers, spin and flip, grab stars and bonk the riders ahead with snowballs. Alone against computer riders, or with up to three friends.',
+    summary: 'A cute, fast snowboard race for kids. Pick a plush rider — Pip the fox, Mallow the bunny, Toffee the bear, Mochi the cat or Pickle the frog — give yourself a nickname, and choose a mountain: sunny Marshmallow Hill, Pinecone Ridge at sunset, or Aurora Peak at night. Carve the bends, jump the kickers and ring the bells, burst the snowmen, open gift boxes for snowballs, giant snowballs, shields and rocket sleds, shove and draft the other riders. Alone against computer riders, or with up to three friends.',
     engine: 'snowpuff',
     genre: 'racing',
     card: { genre: 'racing', genreName: 'Racing', cover: 'snowpuff', badge: 'NEW' }

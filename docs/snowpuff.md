@@ -2,11 +2,13 @@
 
 [← Back to the README](../README.md)
 
-A cute, fast snowboard race for kids. Pick a plush rider and a mountain,
-then race the others down it: carve, tuck, jump the kickers, spin and flip,
-grab stars and bonk the rider ahead with snowballs. Bumping into things never
-ends your run — you tumble, poof, and pop back up. Alone against computer
-riders, or with up to three friends in a room.
+A cute, fast snowboard race for kids. Pick a plush rider, give yourself a
+nickname, choose a mountain, then race the others down it: carve the bends,
+tuck, jump the kickers and ring the bells, spin and flip, burst the snowmen,
+open gift boxes for snowballs, giant snowballs, shields, rocket sleds and ice
+patches, shove the rider beside you and draft the one ahead. Bumping into
+things never ends your run — you tumble, poof, and pop back up. Alone against
+computer riders, or with up to three friends in a room.
 
 Open it from the home page (the **Racing** chip), or in code:
 
@@ -22,10 +24,19 @@ controls, `?notrails` turns the snow trails off (for comparing).
 
 ## The flow
 
-Title → **choose your rider** on a turning snow stage → **choose a mountain**
-from three little dioramas with difficulty stars → the race (3‑2‑1‑GO) →
-the **podium** with times, stars, tricks and snowball hits → race again, the
-next mountain, or back to the mountains. Best times are kept on this device.
+Title → **choose your rider** on a turning snow stage and type **your name**
+(or roll a 🎲 cute one) → **choose a mountain** from three little dioramas with
+difficulty stars → the race (3‑2‑1‑GO) → the **podium** with names, times,
+tricks, hits and gifts → race again, the next mountain, or back to the
+mountains. Your name and best times are kept on this device.
+
+**Nicknames** (`src/snowpuff/names.js`): up to 12 characters of letters (any
+alphabet), digits, spaces and `- ' .`; anything on a small kid-safety block
+list (checked on the letters only, so `sh1t` doesn't slip through) becomes a
+random cute name instead. Your name rides above you on a name tag and shows on
+the course strip, the minimap tooltip, the results and the podium; in a room it
+is the name your friends see, and every remote name is cleaned again on arrival.
+Computer riders keep their character names.
 
 ## The riders
 
@@ -35,6 +46,7 @@ read at a glance — from behind, at speed (`src/snowpuff/riders.js`):
 | Rider | Look | Accent |
 | --- | --- | --- |
 | **Pip** the fox (the hero) | Round fuzzy orange, cream muzzle, chest and tail tip, dark paws and ear tips, a huge springy tail | Teal goggles |
+| **Mallow** the bunny | Round fuzzy hot pink, a lighter belly and inner ears, long floppy springy ears | Chunky orange goggles |
 | **Toffee** the bear | Caramel brown, cream muzzle | Mint scarf |
 | **Mochi** the cat | Blue-grey tabby | Sunny bobble hat |
 | **Pickle** the frog | Lime green | Orange backpack |
@@ -60,46 +72,83 @@ Add a mountain by adding a record.
 | **Pinecone Ridge** ★★ | Golden hour | A slalom through dense pines, red and blue gates, chairlifts overhead, bigger jumps, a frozen creek with ice patches |
 | **Aurora Peak** ★★★ | Night | Aurora curtains and stars, warm lanterns down the run (real lights near you), steep drops, big kickers, narrow gaps |
 
-A course is a centre line sampled every metre (winding gently, steepness
-varying by section), a cross-section (groomed dish, soft berms, rising
-mountainside, rolls in the snow, banked turns), and everything placed along
-it: kickers, barriers in rows that always leave a gap, slalom gates, star
-lines (some up over the kickers), snowball piles and shields, ice, lifts and
-arches. The snow is built in 50 m chunks in course space; props live in 100 m
-sections shown only near you.
+A course is a winding centre line sampled every metre — straights and eased
+arcs: S-bends, a few **banked berms** (boardercross style), wide sweeping curves
+on Marshmallow Hill, tighter ones on Aurora Peak — with a cross-section
+(groomed dish, soft berms, rising mountainside, gentle **rollers**, banking into
+turns) and everything placed along it: kickers on straight run-ups, barrier rows
+that always leave a gap, slalom gates, **gift boxes** on the racing line (and
+risky ones floating over kicker landings, marked with glowing chevrons),
+snowball piles, **bell arches** over landings, ice, lifts and arches. Terrain,
+fences, poles, gates, lift lines and trees all follow the curve; a world-space
+ground fills the inside of tight turns. The snow is built in 50 m chunks in
+course space; props live in 100 m sections shown only near you.
 
 ## Riding
 
-`src/snowpuff/physics.js` — one pure step shared by you, the rivals and the tests.
+`src/snowpuff/physics.js` — one pure step shared by you, the rivals and the
+tests, run at a fixed **120 Hz** whatever the frame rate, with drawing
+interpolated between steps (and the camera placed after, from the same
+interpolated state), so motion is smooth at any frame rate.
 
-- **Steer** (A/D, ←/→): hold to carve harder — a sharper turn, more spray, a bit slower.
-  Let go and the board settles back down the fall line.
-- **Tuck** (S, ↓ or Shift): less drag, more speed, wider turns.
-- **Jump** (Space): hold to crouch, let go to pop; a longer hold jumps higher.
-  Kickers launch you by their own lip.
+- **A real board**: it has a heading and a velocity. Steering ramps in and out,
+  turns the board and tips it onto its **edge**; a tipped edge grips, so the
+  velocity follows the board in a clean **carve**; a flat or crossed board
+  **skids** sideways — scrubbing speed and throwing spray from the tail.
+  Gravity pulls along the real slope under the board (pitch, rollers, banks,
+  kickers), so berms carry you round and rollers lift you.
+- **Steer** (A/D, ←/→), **tuck** (S, ↓ or Shift).
+- **Jump** (Space): it pops the moment you press it; holding it adds a little
+  height. Pressed on a kicker, you crouch and get an extra kick at the lip;
+  kickers launch with the ramp's own upward speed (no snap).
 - **Tricks**: in the air, ←/→ spin and ↑/↓ flip. Let go and the board eases
-  toward a clean angle; land near one for a speed boost and a sparkle
-  ("360", "Back Flip"…). Land crooked and you wobble — never fall.
-- **Barriers** (snowmen, hay bales, fence sections, logs, rocks, gate poles):
-  a soft bounce, a poof and a one-second tumble. Jump high enough and you clear them.
-- **Ice** is slippery: turning is half as strong, and you keep your speed.
-- **Stars**: three in a row in quick succession give a boost.
+  toward a clean angle; land near one for a speed boost and a sparkle. Little
+  airs off rollers aren't tricks — steering just nudges your line. Land crooked
+  and you wobble — never fall.
+- **Barriers** (hay bales, fence sections, logs, rocks, gate poles): a soft
+  bounce, a poof and a one-second tumble. **Snowmen** burst into snow when you
+  ride through them (a tiny slow-down, a big poof).
+- **Ice** is slippery; so are the patches riders drop.
+- The rider leans into turns from the turn's sideways pull, the knees soak up
+  rollers and landings, the arms balance, ears and tail swing with momentum.
 
-## Snowballs
+## Items and rider play
 
-Snowball piles (the little heaps with a blue flag) give two snowballs; you
-carry up to three. **1** (or a click, or the big snowball button) throws one:
-it aims itself at the nearest rider ahead in a cone and lobs over in an arc.
-A hit spins them out for 1.2 s with a "BONK!". Blue bubbles give a **snow
-shield** — **2** puts it up for five seconds and the next snowball bounces off.
-Rivals throw at you too. Rules in `src/snowpuff/race.js`.
+**Gift boxes** (bright wrapped presents with a beam of light and a ring on the
+snow; dots on the course strip) give a random item — kinder to the back of the
+pack, and the same gift always holds the same thing for the same rider:
+
+| Item | What it does |
+| --- | --- |
+| **Snowballs ×3** | Thrown at the nearest rider ahead (or at whoever bonked you last) |
+| **Giant snowball** | Rolls down your lane, growing, and bowls over riders in its way (jump it!) |
+| **Snow shield** | Snowballs and giant snowballs bounce off for five seconds |
+| **Rocket sled** | A short boost |
+| **Ice patch** | Dropped behind you: slippery for whoever follows |
+
+You hold **two** at once — **1** uses the first, **2** the second (a click uses
+the first; touch has two buttons). Snowball piles add snowballs.
+
+- **Shoves**: side by side, the rider carving harder shoves the other out (a
+  wobble, a puff, "Hey!").
+- **Drafting**: ride close behind someone at speed for less drag — wind lines
+  stream past and "Drafting!" pops up.
+- **Bells**: jump through a bell arch and it rings — a little boost.
+- **Fans** along the fences cheer when you pass or land a trick near them; land
+  one near other riders and you wave.
+- **Reactions**: every rider shakes off a hit or a bump, laughs when they land
+  one, says so in a word bubble — and rivals throw back at whoever hit them last.
+- **Aurora Peak**: chairlift chairs drop clumps of snow onto the run — a soft
+  splat that slows you if you ride into it.
 
 ## Rivals
 
 Three to five computer riders (`src/snowpuff/ai.js`) with personalities —
-careful, reckless, thrower — follow wandering lines, steer round barriers,
-hop logs, go for stars and piles, spin off kickers and throw. A gentle rubber
-band (±7 % pull) keeps the race close.
+careful, reckless, thrower — follow the racing line, steer round barriers,
+hop logs, burst snowmen, go for gift boxes and piles, tuck in to draft, spin
+off kickers, and use every item: snowballs, giant snowballs at riders in their
+lane, ice when someone is right behind, shields after a hit, boosts on
+straights. A gentle rubber band (±7 % pull) keeps the race close.
 
 ## Racing with friends
 
@@ -109,12 +158,13 @@ picks the mountain and starts. Computer riders fill the empty places.
 
 It goes through the platform's relay (`server/realtime.js`, `src/net/Session.js`;
 see [Playing together](multiplayer.md)). The host's browser is the race's
-authority: it runs the rivals, decides every snowball hit, and sends the final
-order. Each player sends their own rider about 15 times a second; the others
+authority: it runs the rivals, decides every snowball and giant-snowball hit,
+and sends the final order. Each player sends their own rider about 15 times a second; the others
 glide between those states about a tenth of a second behind
-(`src/snowpuff/netproto.js`, `net.js`). Throws are drawn by everyone; the host
-says whether they hit. Stars and piles are personal, so nothing about them is
-sent. If the server can't be reached, racing alone still works; if the host
+(`src/snowpuff/netproto.js`, `net.js`). Throws, giant snowballs, ice patches
+and boosts are relayed and drawn by everyone; the host says what they hit. Gift
+boxes and piles are personal and what a gift holds comes from a hash of the gift
+and the rider, so nothing about them is sent. If the server can't be reached, racing alone still works; if the host
 leaves mid-race, you finish the run on your own.
 
 ## The feeling of speed
@@ -137,7 +187,7 @@ falls back to its WebGL2 backend by itself (tested with `?webgl`).
 
 - **One scene pass with MRT** (colour, view normals, velocity, emissive), then
   **GTAO** (half resolution, faded out with distance), **bloom from emissive
-  only** (stars, lanterns, aurora, sun, snow sparkles), **TRAA** (high) /
+  only** (gift boxes and their beams, lanterns, aurora, sun, snow sparkles), **TRAA** (high) /
   **SMAA** (medium) / **FXAA** (low), the speed blur, **Neutral** tone mapping
   and a per-mountain grade (saturation, warm highlights, cool shadows,
   vignette) — `src/snowpuff/render/pipeline.js`. See-through things (snow
@@ -158,7 +208,11 @@ falls back to its WebGL2 backend by itself (tested with `?webgl`).
 - **Quality tiers**: high (TRAA, GTAO, 2048 shadows, fur on everyone, trails),
   medium (SMAA, 1024 shadows, fur on you), low (FXAA, no AO, no fur, no
   trails, DPR 1). Auto picks from the first seconds of riding and steps down if
-  frames run long; shaders are compiled behind the loading card.
+  frames run long. Behind the loading card every pipeline is built ahead of
+  play: the whole course is drawn once with culling off and a wide shadow box,
+  across real frames, with every effect pool, a giant snowball, an ice patch
+  and a falling clump shown once — so nothing is compiled mid-race (a hitch of
+  50–115 ms before a jump came from exactly that).
 
 ## Props
 
@@ -171,16 +225,19 @@ model is missing, a simple stand-in is drawn instead.
 ## Controls
 
 One table, `src/snowpuff/controls.js`, read by the key handler, the hint line
-and How to play (**H**). Gamepad: left stick, A jump, X throw, Y shield, RT
+and How to play (**H**). Gamepad: left stick, A jump, X item 1, Y item 2, RT
 tuck, Start pause. Touch: the left 35 % of the screen steers (drag up/down in
-the air to flip); big round Jump, Snowball and Tuck buttons on the right.
+the air to flip); big round Jump, Tuck and two item buttons on the right.
 
 ## Tests
 
-- `tests/unit/snowpuff.test.mjs` — course determinism and layout, the rider
-  (gravity, tuck, carve, jump height, kickers, tricks, barriers, ice), the race
-  (standings, finish, pickups, snowballs, shields, rubber band), AI riders
-  finishing every mountain, the network messages and interpolation, the cast,
-  controls and credits.
-- `tests/e2e/snowpuff.mjs` — the menus, a race, a snowball, the podium, and
-  two browsers racing in one room. `tests/e2e/help.mjs` covers How to play.
+- `tests/unit/snowpuff.test.mjs` — course determinism, curves, berms and
+  layout; the rider (slope gravity, tuck, carve vs skid, instant ollie and held
+  lift, kickers, tricks, barriers, snowman bursts, bells, ice); the race
+  (standings, finish, gifts and their odds, items, giant snowball, dropped ice,
+  drafting, shoves, snowballs, revenge, shields, rubber band); AI riders
+  finishing every mountain in about 65–90 s; the network messages and
+  interpolation; the cast; nicknames; controls and credits.
+- `tests/e2e/snowpuff.mjs` — the menus (five riders, the nickname), a race with
+  your name tag, a giant snowball and a snowball, the podium, and two browsers
+  racing in one room. `tests/e2e/help.mjs` covers How to play.

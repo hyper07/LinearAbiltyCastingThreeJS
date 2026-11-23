@@ -10,10 +10,13 @@
  *           'sp-st'    any → all      { k: packed rider state }   ~15 Hz (the host also sends 'sp-ai')
  *           'sp-ai'    host → all     { k: [packed, …] }          the AI rivals, ~15 Hz
  *           'sp-th'    thrower → all  { p: projectile }           a throw (everyone draws it)
- *           'sp-hit'   host → all     { p: id, target, ok }       the host's call on a throw
+ *           'sp-it'    user → all     { it: { k, id, from, … } }  a giant snowball rolled, ice dropped, a boost lit
+ *           'sp-hit'   host → all     { p: id, target, ok, kind }  the host's call on a throw (or a giant snowball)
  *           'sp-fin'   any → host     { slot, time }
  *           'sp-res'   host → all     { order: [{ slot, time }] }  final standings
  */
+
+import { cleanName } from './names.js';
 
 export const MSG = Object.freeze({
   hi: 'sp-hi',
@@ -24,7 +27,8 @@ export const MSG = Object.freeze({
   throw: 'sp-th',
   hit: 'sp-hit',
   fin: 'sp-fin',
-  result: 'sp-res'
+  result: 'sp-res',
+  item: 'sp-it'
 });
 
 export const SEND_HZ = 15;
@@ -46,7 +50,7 @@ export function packState(racer) {
   if (racer.finished) flags |= F_FIN;
   if (r.wobble > 0) flags |= F_WOBBLE;
   if (r.boost > 0) flags |= F_BOOST;
-  return [racer.slot, r2(r.s), r2(r.lat), r2(r.y), r3(r.yaw), r2(r.speed), flags, r2(r.spin), r2(r.flip), r2(r.edge), r2(r.charge), racer.ammo, racer.stars, r2(racer.time)];
+  return [racer.slot, r2(r.s), r2(r.lat), r2(r.y), r3(r.yaw), r2(r.speed), flags, r2(r.spin), r2(r.flip), r2(r.edge), r2(r.charge), racer.ammo, racer.gifts ?? 0, r2(racer.time)];
 }
 
 /** The inverse of packState: a plain object (not a full racer). */
@@ -57,7 +61,7 @@ export function unpackState(a) {
     slot: a[0] | 0, s: +a[1], lat: +a[2], y: +a[3], yaw: +a[4], speed: +a[5],
     air: Boolean(flags & F_AIR), tumble: Boolean(flags & F_TUMBLE), spinout: Boolean(flags & F_SPIN), tuck: Boolean(flags & F_TUCK),
     shield: Boolean(flags & F_SHIELD), finished: Boolean(flags & F_FIN), wobble: Boolean(flags & F_WOBBLE), boost: Boolean(flags & F_BOOST),
-    spin: +a[7], flip: +a[8], edge: +a[9], charge: +a[10], ammo: a[11] | 0, stars: a[12] | 0, time: +a[13]
+    spin: +a[7], flip: +a[8], edge: +a[9], charge: +a[10], ammo: a[11] | 0, gifts: a[12] | 0, time: +a[13]
   };
 }
 
@@ -72,7 +76,7 @@ export function unpackThrow(a) {
 
 /** Clean up a lobby member record from the wire. */
 export function cleanMember(m, species) {
-  const name = String(m?.name ?? 'Rider').replace(/[\u0000-\u001f]/g, '').slice(0, 24) || 'Rider';
+  const name = cleanName(m?.name, 'Rider');
   return { id: String(m?.id ?? ''), name, species: species.includes(m?.species) ? m.species : species[0] };
 }
 

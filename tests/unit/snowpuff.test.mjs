@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { MOUNTAINS, mountainById } from '../../src/snowpuff/mountains.js';
 import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt } from '../../src/snowpuff/course.js';
 import { newRider, step, settle, trickName, onIce, VMAX } from '../../src/snowpuff/physics.js';
-import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_AMMO, SPINOUT } from '../../src/snowpuff/race.js';
+import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_SNOWBALLS, SPINOUT, giveItem, useSlot, rollGift, ITEMS, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor } from '../../src/snowpuff/race.js';
 import { newBrain, think } from '../../src/snowpuff/ai.js';
 import { packState, unpackState, packThrow, unpackThrow, assignSlots, cleanMember, InterpBuffer, MSG } from '../../src/snowpuff/netproto.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES, faceSvg } from '../../src/snowpuff/riders.js';
@@ -37,7 +37,7 @@ test('courses are deterministic: the same mountain builds the same course', () =
     assert.deepEqual([...a.px.slice(0, 200)], [...b.px.slice(0, 200)]);
     assert.deepEqual(a.obstacles, b.obstacles);
     assert.deepEqual(a.kickers, b.kickers);
-    assert.deepEqual(a.stars.map((s) => s.id), b.stars.map((s) => s.id));
+    assert.deepEqual(a.gifts.map((s) => [s.id, s.s, s.lat]), b.gifts.map((s) => [s.id, s.s, s.lat]));
     assert.equal(groundAt(a, 333.3, 4.2), groundAt(b, 333.3, 4.2));
   }
 });
@@ -46,14 +46,22 @@ test('courses run downhill, wind gently, and have room to ride', () => {
   for (const m of MOUNTAINS) {
     const c = buildCourse(m);
     assert.ok(c.py[0] - c.py[c.length] > c.length * 0.15, `${m.id} drops`);
+    let winding = 0;
     for (let s = 1; s < c.n - 1; s += 1) {
       assert.ok(c.py[s] < c.py[s - 1] + 1e-6, `${m.id} goes down at ${s}`);
       const turn = Math.abs(c.heading[s + 1] - c.heading[s - 1]) / 2;
-      assert.ok(turn < 1 / 70, `${m.id}: no hairpins (${turn.toFixed(4)} at ${s})`);
+      assert.ok(turn < 1 / 40, `${m.id}: no hairpins (${turn.toFixed(4)} at ${s})`);
+      assert.ok(Math.abs(c.heading[s]) < 1.35, `${m.id}: keeps heading down the mountain`);
+      winding += turn;
     }
+    assert.ok(winding > 3, `${m.id} winds: S-bends, not a straight (${winding.toFixed(2)} rad of turning)`);
+    assert.ok(c.turns.some((t) => t.berm), `${m.id} has a banked berm`);
+    // kickers sit on straight stretches
+    for (const k of c.kickers) assert.ok(Math.abs(c.curvature[Math.round(k.s)]) < 1 / 60, `${m.id}: kicker at ${k.s} on a straight`);
     assert.ok(c.kickers.length >= m.kickers.count - 1);
-    assert.ok(c.obstacles.length > 10 && c.stars.length > 50 && c.piles.length > 5, m.id);
-    assert.ok(c.piles.some((p) => p.kind === 'shield'), `${m.id} has shields`);
+    assert.ok(c.obstacles.length > 10 && c.gifts.length > 25 && c.piles.length > 5, m.id);
+    assert.equal(c.stars.length, 0, `${m.id}: no stars any more`);
+    assert.ok(c.bells.length > 0 && c.gifts.some((g) => g.risky), `${m.id} has bell arches and risky gifts`);
     assert.equal(c.arches.at(-1).kind, 'finish');
   }
 });
@@ -127,9 +135,9 @@ test('rider: carving turns harder the longer you hold, sprays (carve) and costs 
 test('rider: hold jump longer, jump higher; spins land clean for a boost, a crooked one wobbles', () => {
   const peak = (hold) => {
     const r = clearRider(15);
-    ride(r, { jump: true }, hold);
-    const ev = step(r, {}, course, DT);
-    assert.ok(ev.some((e) => e.type === 'jump'));
+    const ev = ride(r, { jump: true }, hold);
+    assert.ok(ev.some((e) => e.type === 'jump'), 'pops the moment it is pressed');
+    assert.ok(r.air);
     let top = 0;
     for (let t = 0; t < 3 && r.air; t += DT) {
       step(r, {}, course, DT);
@@ -137,12 +145,12 @@ test('rider: hold jump longer, jump higher; spins land clean for a boost, a croo
     }
     return top;
   };
-  assert.ok(peak(0.6) > peak(0.05) + 0.3, 'longer hold, more air');
+  assert.ok(peak(0.4) > peak(0.02) + 0.25, 'holding lifts higher');
+  const tap = clearRider(15);
+  assert.ok(step(tap, { jump: true }, course, DT).some((e) => e.type === 'jump') && tap.air, 'a tap ollies on the very first step');
   // a 360: spin until near 2π, then let go — the magnet settles it straight
   const r = clearRider(16);
-  ride(r, { jump: true }, 0.55);
-  step(r, {}, course, DT);
-  let ev = [];
+  let ev = ride(r, { jump: true, steer: 1 }, 0.3);
   while (r.air && Math.abs(r.spin) < Math.PI * 2 - 0.9) ev.push(...step(r, { steer: 1 }, course, DT));
   while (r.air) ev.push(...step(r, {}, course, DT));
   const land = ev.find((e) => e.type === 'land');
@@ -183,6 +191,23 @@ test('rider: barriers bounce you into a short tumble — never a game over', () 
   assert.ok(r.speed > 5, 'riding again');
 });
 
+test('mountain: ride through a snowman and it bursts (a tiny slow-down, no tumble); jump through a bell arch and it rings', () => {
+  const c2 = buildCourse(mountainById('marshmallow'));
+  const sm = c2.obstacles.find((o) => o.kind === 'snowman');
+  const r = newRider({ s: sm.s - 3, lat: sm.lat, speed: 16 });
+  settle(r, c2);
+  let ev = [];
+  for (let t = 0; t < 1 && !ev.some((e) => e.type === 'burst'); t += DT) ev = ev.concat(step(r, {}, c2, DT));
+  assert.ok(ev.some((e) => e.type === 'burst') && r.tumble === 0 && r.speed > 12 && c2.burst.has(sm.id));
+  const b = c2.bells[0];
+  const k = c2.kickers.find((x) => x.id === b.kicker);
+  const j = newRider({ s: k.s - 25, lat: k.lat, speed: 19 });
+  settle(j, c2);
+  let rang = false;
+  for (let t = 0; t < 4 && !rang; t += DT) rang = step(j, {}, c2, DT).some((e) => e.type === 'bell');
+  assert.ok(rang, 'the bell rang');
+});
+
 test('rider: ice is slippery (turns less)', () => {
   const c2 = buildCourse(mountainById('pinecone'));
   const p = c2.ice[0];
@@ -220,31 +245,75 @@ test('race: the rubber band is gentle', () => {
   assert.ok(rubberBand(900, 100) >= 0.93 && rubberBand(900, 100) < 1);
 });
 
-test('race: stars, snowball piles (up to 3) and shields are picked up', () => {
-  const st = course.stars.find((x) => !x.risky);
-  const r = racerAt(0, st.s, st.lat);
-  const ev = pickups(r, course, 1);
-  assert.ok(ev.some((e) => e.type === 'star' && e.id === st.id) && r.stars === 1);
-  assert.equal(pickups(r, course, 1).filter((e) => e.type === 'star' && e.id === st.id).length, 0, 'once each');
-  const pile = course.piles.find((p) => p.kind === 'snow');
-  const q = racerAt(0, pile.s, pile.lat);
+test('race: gift boxes give an item (kinder to the back of the pack); piles give snowballs; two slots at most', () => {
+  const gf = course.gifts.find((g) => !g.risky);
+  const r = racerAt(0, gf.s, gf.lat);
+  const ev = pickups(r, course, 1, 0.5);
+  assert.ok(ev.some((e) => e.type === 'gift' && e.id === gf.id) && r.slots.length === 1 && r.gifts === 1);
+  assert.equal(pickups(r, course, 1).filter((e) => e.id === gf.id).length, 0, 'once each');
+  const pile = course.piles[0];
+  const q = racerAt(1, pile.s, pile.lat);
   pickups(q, course, 1);
+  assert.deepEqual(q.slots.find((x) => x.kind === 'snowballs'), { kind: 'snowballs', n: 2 });
+  q.slots = q.slots.filter((x) => x.kind === 'snowballs');
   assert.equal(q.ammo, 2);
-  q.ammo = MAX_AMMO;
-  const pile2 = course.piles.filter((p) => p.kind === 'snow')[1];
-  q.rider.s = pile2.s;
-  q.rider.lat = pile2.lat;
-  pickups(q, course, 2);
-  assert.equal(q.ammo, MAX_AMMO, 'carry at most 3');
-  const sh = course.piles.find((p) => p.kind === 'shield');
-  const z = racerAt(0, sh.s, sh.lat);
-  pickups(z, course, 1);
-  assert.equal(z.shieldItem, 1);
-  assert.ok(useShield(z) && z.shieldT > 0 && !useShield(z));
+  giveItem(q, 'snowballs', 10);
+  assert.equal(q.ammo, MAX_SNOWBALLS, 'snowballs stack, up to a cap');
+  assert.ok(giveItem(q, 'shield') && !giveItem(q, 'boost'), 'two slots at most');
+  // the same gift always holds the same thing for the same racer; the back of the pack gets more giants and boosts
+  assert.equal(rollGift(42, 3, 0.2), rollGift(42, 3, 0.2));
+  const tally = (place) => {
+    const n = Object.fromEntries(ITEMS.map((k) => [k, 0]));
+    for (let g = 0; g < 2000; g++) n[rollGift(g, g % 6, place)]++;
+    return n;
+  };
+  const front = tally(0), back = tally(1);
+  assert.ok(back.giant + back.boost > (front.giant + front.boost) * 3);
+  assert.ok(front.snowballs > back.snowballs);
+});
+
+test('race: items — shield, boost, giant snowball and ice patch', () => {
+  const r = racerAt(0, 300, 0);
+  giveItem(r, 'shield');
+  giveItem(r, 'boost');
+  assert.equal(useSlot(r, 0).kind, 'shield');
+  assert.ok(r.shieldT > 0 && r.slots.length === 1 && r.slots[0].kind === 'boost', 'used items leave, the next moves up');
+  tickRacer(r, 1);
+  assert.equal(useSlot(r, 0).kind, 'boost');
+  assert.ok(r.rider.boost > 1);
+  // a giant snowball rolls down and bowls over the rider in its lane (not one who jumps it)
+  const thrower = racerAt(1, 400, 0), victim = racerAt(2, 430, 0.4), jumper = racerAt(3, 430, -6);
+  const g = newGiant(thrower, 'g1');
+  const all = [thrower, victim, jumper];
+  let bowled = [];
+  for (let t = 0; t < 3 && !bowled.length; t += DT) {
+    if (!rollGiant(g, course, DT)) break;
+    bowled = giantHits(g, all, course);
+  }
+  assert.deepEqual(bowled.map((x) => x.slot), [2]);
+  assert.ok(applyBowl(victim, 1) && victim.rider.tumble > 0 && victim.lastHitBy === 1);
+  // an ice patch dropped behind you makes the snow there slippery until it melts
+  const iceR = racerAt(4, 500, 2);
+  const p = dropIce(course, iceR, 10, 'i1', 5);
+  assert.ok(onIce(course, p.s + p.len / 2, p.lat));
+  meltIce(course, 20);
+  assert.ok(!onIce(course, p.s + p.len / 2, p.lat));
+});
+
+test('race: drafting close behind someone cuts your drag', () => {
+  const lead = racerAt(0, 300, 0), tail = racerAt(1, 294, 0.3), side = racerAt(2, 294, 5);
+  for (const x of [lead, tail, side]) x.rider.speed = 20;
+  assert.ok(draftFactor(tail, [lead, tail, side]) < 0.85 && tail.draftBehind === lead);
+  assert.equal(draftFactor(side, [lead, tail, side]), 1);
+  const a = clearRider(22), b = clearRider(22);
+  ride(a, {}, 2, course, { draft: 0.65 });
+  ride(b, {}, 2);
+  assert.ok(a.speed > b.speed, 'faster in the slipstream');
 });
 
 test('race: a snowball aims at the nearest rider ahead in the cone, hits, and spins them out', () => {
-  const me = racerAt(0, 300, 0, { ammo: 2 }), ahead = racerAt(1, 318, 2), far = racerAt(2, 330, 1), behind = racerAt(3, 290, 0), wide = racerAt(4, 305, 14);
+  const me = racerAt(0, 300, 0), ahead = racerAt(1, 318, 2), far = racerAt(2, 330, 1), behind = racerAt(3, 290, 0), wide = racerAt(4, 305, 14);
+  giveItem(me, 'snowballs', 2);
   const all = [me, ahead, far, behind, wide];
   assert.equal(pickTarget(me, all), ahead);
   assert.ok(canThrow(me));
@@ -268,8 +337,13 @@ test('race: a snowball aims at the nearest rider ahead in the cone, hits, and sp
   assert.ok(ahead.rider.speed < v && ahead.bonks === 1);
   ride(ahead.rider, { steer: 1 }, 0.3);
   assert.ok(Math.abs(ahead.rider.carve) < 0.05, 'no steering while spinning');
+  // revenge: whoever hit you last is the one you aim at, ahead or behind
+  ahead.lastHitBy = 3;
+  giveItem(ahead, 'snowballs', 1);
+  assert.equal(pickTarget(ahead, all), behind);
   // a shield takes it instead
-  const s = racerAt(5, 320, 0, { shieldItem: 1 });
+  const s = racerAt(5, 320, 0);
+  giveItem(s, 'shield');
   useShield(s);
   assert.ok(!hittable(s, course));
   assert.equal(applyHit(s), false);
@@ -306,7 +380,7 @@ test('AI riders get down every mountain in about a minute or so, collecting and 
     for (const rc of racers) {
       assert.ok(rc.finished, `${m.id}: ${rc.brain.kind} finished`);
       assert.ok(rc.time > 45 && rc.time < 110, `${m.id}: ${rc.brain.kind} in ${rc.time.toFixed(1)} s`);
-      assert.ok(rc.stars > 5, `${m.id}: ${rc.brain.kind} collected stars`);
+      assert.ok(rc.gifts > 2, `${m.id}: ${rc.brain.kind} opened gifts`);
     }
     assert.ok(racers.some((x) => x.jumps > 0), `${m.id}: someone jumped`);
   }
@@ -315,7 +389,7 @@ test('AI riders get down every mountain in about a minute or so, collecting and 
 /* ---------------------------------------------------------------- online */
 
 test('netproto: rider states and throws pack and unpack', () => {
-  const r = racerAt(2, 123.456, -3.21, { ammo: 2, stars: 7, shieldT: 1 });
+  const r = racerAt(2, 123.456, -3.21, { ammo: 2, gifts: 7, shieldT: 1 });
   r.rider.air = true;
   r.rider.spin = 3.3;
   r.rider.tumble = 0.4;
@@ -325,7 +399,7 @@ test('netproto: rider states and throws pack and unpack', () => {
   assert.equal(st.lat, -3.21);
   assert.ok(st.air && st.tumble && st.shield && !st.finished);
   assert.equal(st.ammo, 2);
-  assert.equal(st.stars, 7);
+  assert.equal(st.gifts, 7);
   assert.equal(unpackState('nope'), null);
   const me = racerAt(0, 300, 0, { ammo: 1 });
   const p = makeThrow(me, racerAt(1, 320), 'abc');
@@ -361,9 +435,10 @@ test('netproto: the interpolation buffer glides between states and holds when la
 
 /* ---------------------------------------------------------------- the cast and the table */
 
-test('riders: four to choose (the fox first), six in all, faces for the HUD', () => {
-  assert.deepEqual(SELECTABLE, ['fox', 'bear', 'cat', 'frog']);
-  assert.equal(ALL_SPECIES.length, 6);
+test('riders: five to choose (the fox first, the pink bunny back), seven in all, faces for the HUD', () => {
+  assert.deepEqual(SELECTABLE, ['fox', 'bunny', 'bear', 'cat', 'frog']);
+  assert.equal(ALL_SPECIES.length, 7);
+  assert.equal(SPECIES.bunny.name, 'Mallow');
   for (const id of ALL_SPECIES) {
     assert.ok(SPECIES[id].name && SPECIES[id].accent && SPECIES[id].color);
     assert.match(faceSvg(id), /^<svg/);
@@ -374,8 +449,8 @@ test('riders: four to choose (the fox first), six in all, faces for the HUD', ()
 test('controls: nothing bound twice, numbers for items, H for How to play', () => {
   assert.deepEqual(collisions(CONTROLS), []);
   assert.ok(codesFor(CONTROLS, 'help').includes('KeyH'));
-  assert.ok(codesFor(CONTROLS, 'throw').includes('Digit1'));
-  assert.ok(codesFor(CONTROLS, 'shield').includes('Digit2'));
+  assert.ok(codesFor(CONTROLS, 'item1').includes('Digit1'));
+  assert.ok(codesFor(CONTROLS, 'item2').includes('Digit2'));
   for (const g of CONTROLS.groups) for (const r of g.rows) for (const c of r.codes) assert.ok(!['KeyQ', 'KeyE'].includes(c), `${r.id} on ${c}`);
 });
 
@@ -384,4 +459,37 @@ test('credits: every library model is named with its page, and the music is cred
   assert.equal(pf.items.length, Object.keys(POLYFORK).length);
   assert.ok(pf.items.every((i) => i.url.startsWith('https://polyfork.dev/asset/')));
   assert.ok(PACKS.some((p) => p.name === 'ACE-Step 1.5' && p.licence === 'MIT'));
+});
+
+test('race: riders side by side shove — the harder carver wins; never stuck together', async () => {
+  const { separate } = await import('../../src/snowpuff/race.js');
+  const a = racerAt(0, 300, 0.1), b = racerAt(1, 300.3, 0.3);
+  a.rider.speed = 20;
+  b.rider.speed = 10;
+  a.rider.edge = 0.9;
+  const t = separate([a, b]);
+  assert.equal(t.length, 1);
+  assert.equal(t[0][2], a, 'the harder carver wins');
+  assert.ok(b.rider.wobble > 0);
+  assert.ok(Math.abs(b.rider.lat - a.rider.lat) > 0.6);
+  assert.ok(a.rider.speed < 20 && b.rider.speed > 10);
+  const far = racerAt(2, 330, 0);
+  assert.equal(separate([a, far]).length, 0);
+});
+
+test('names: nicknames are cleaned, capped and kept kind; remote names too', async () => {
+  const { cleanName, isClean, randomName, NAME_MAX } = await import('../../src/snowpuff/names.js');
+  assert.equal(cleanName('  Momo  the   Great!!  '), 'Momo the Gre');
+  assert.equal(cleanName('<script>x</script>'), 'scriptxscrip');
+  assert.equal(cleanName('', 'Pip'), 'Pip');
+  assert.equal(cleanName('지우'), '지우', 'any alphabet is fine');
+  assert.ok(cleanName('xxxxxxxxxxxxxxxxxxxxxx').length <= NAME_MAX);
+  assert.ok(!isClean('sh1t head') && !isClean('F.U.C.K') && isClean('Sunny Bean') && isClean('Cassie'));
+  const swapped = cleanName('Shit Lord');
+  assert.ok(isClean(swapped) && swapped !== 'Shit Lord');
+  for (let i = 0; i < 50; i++) {
+    const n = randomName();
+    assert.ok(n.length <= NAME_MAX && isClean(n));
+  }
+  assert.equal(cleanMember({ id: 1, name: 'b!tch', species: 'cat' }, ALL_SPECIES).name === 'b!tch', false);
 });

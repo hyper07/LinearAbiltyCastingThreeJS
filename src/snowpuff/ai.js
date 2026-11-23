@@ -1,6 +1,6 @@
 /**
  * The rivals' brains, pure: each one picks a line down the run, steers
- * round barriers, goes for stars and snowball piles, pops over low logs,
+ * round barriers, goes for gift boxes and snowball piles, drafts, bursts snowmen, hops low logs,
  * spins off kickers, and throws snowballs at whoever is just ahead. Three
  * personalities — careful, reckless, thrower — and a little skill noise so
  * they don't ride like robots. The input they return is the same one a
@@ -54,16 +54,31 @@ export function think(brain, racer, course, racers, dt) {
   }
   brain.plan = null;
 
-  // ---- choose where to be: a wandering line, pulled toward stars, piles and kickers
+  // ---- choose where to be: the racing line (with a personal wander), pulled toward gifts,
+  // piles, kickers, snowmen to burst, and the slipstream of whoever is just ahead
   brain.phase += dt;
-  let target = clamp(Math.sin(r.s / 90 + brain.phase * 0.05) * W * 0.45 * p.wander + brain.lineBias * W * 0.4, -W + 2, W - 2);
+  let target = clamp(f.line + Math.sin(r.s / 90 + brain.phase * 0.05) * W * 0.3 * p.wander + brain.lineBias * W * 0.25, -W + 2, W - 2);
   let pull = 0;
-  for (const st of between(course.stars, r.s + 4, r.s + look * 1.4)) {
-    if (racer.taken.has(st.id) || (st.risky && brain.rand() > p.risk + 0.3)) continue;
-    if (Math.abs(st.lat - r.lat) > 9) continue;
-    target = st.lat;
-    pull = 1;
-    break;
+  if (racer.slots.length < 2) {
+    for (const gf of between(course.gifts ?? [], r.s + 4, r.s + look * 1.4)) {
+      if (racer.taken.has(gf.id) || (gf.risky && brain.rand() > p.risk + 0.3)) continue;
+      if (Math.abs(gf.lat - r.lat) > 9) continue;
+      target = gf.lat;
+      pull = 1;
+      break;
+    }
+  }
+  if (!pull && p.wander > 0.4) {
+    // draft: tuck in behind a rider just ahead
+    for (const o of racers) {
+      if (o === racer || o.finished || o.gone) continue;
+      const ds = o.rider.s - r.s;
+      if (ds > 3 && ds < 22 && Math.abs(o.rider.lat - r.lat) < 6) {
+        target = o.rider.lat;
+        pull = 0.5;
+        break;
+      }
+    }
   }
   if (racer.ammo < 3 && !pull) {
     for (const pl of between(course.piles, r.s + 4, r.s + look * 1.5)) {
@@ -85,6 +100,9 @@ export function think(brain, racer, course, racers, dt) {
   const predLat = r.lat + Math.sin(r.yaw) * r.speed * 0.45;
   let danger = false;
   for (const ob of between(course.obstacles, r.s + 1, r.s + look)) {
+    // snowmen just burst — the reckless ride straight through them
+    if (ob.kind === 'snowman' && (p.risk > 0.5 || course.burst?.has(ob.id))) continue;
+    if (course.burst?.has(ob.id)) continue;
     const t = (ob.s - r.s) / Math.max(4, r.speed);
     const latAt = r.lat + Math.sin(r.yaw) * r.speed * t;
     const clear = ob.w + 1.4;
@@ -116,19 +134,28 @@ export function think(brain, racer, course, racers, dt) {
 
   // ---- snowballs
   brain.throwWait -= dt;
-  if (canThrow(racer) && brain.throwWait <= 0) {
+  brain.itemWait = (brain.itemWait ?? 1) - dt;
+  const sbIdx = racer.slots.findIndex((x) => x.kind === 'snowballs');
+  if (sbIdx >= 0 && canThrow(racer) && brain.throwWait <= 0) {
     const tgt = pickTarget(racer, racers);
     if (tgt) {
       out.throw = true;
+      out.use = sbIdx;
       brain.throwWait = (2.2 + brain.rand() * 3.5) / p.throwRate;
     } else brain.throwWait = 0.4;
   }
-  if (racer.shieldItem) {
-    brain.shieldWait += dt;
-    if (brain.shieldWait > 3 + brain.rand() * 6) {
-      out.shield = true;
-      brain.shieldWait = 0;
-    }
+  // the other items, each when it makes sense
+  if (out.use == null && brain.itemWait <= 0) {
+    racer.slots.forEach((it, i) => {
+      if (out.use != null) return;
+      let go = false;
+      if (it.kind === 'giant') go = racers.some((o) => o !== racer && !o.finished && o.rider.s - r.s > 6 && o.rider.s - r.s < 38 && Math.abs(o.rider.lat - r.lat) < 2.5);
+      else if (it.kind === 'ice') go = racers.some((o) => o !== racer && !o.finished && r.s - o.rider.s > 3 && r.s - o.rider.s < 14 && Math.abs(o.rider.lat - r.lat) < 2.5);
+      else if (it.kind === 'boost') go = !danger && Math.abs(f.curv) < 1 / 120;
+      else if (it.kind === 'shield') go = racer.lastHitBy >= 0 || brain.rand() < dt * 0.15;
+      if (go) out.use = i;
+    });
+    brain.itemWait = 0.3 + brain.rand() * 0.7;
   }
-  return out;
+  if (out.use != null && racer.slots[out.use]?.kind === 'shield') out.shield = true;  return out;
 }

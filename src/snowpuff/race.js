@@ -1,25 +1,29 @@
 /**
- * The race's rules, pure: who is where, pickups (stars, snowball piles,
- * shields), snowballs (aim, flight, hit, spin-out), the finish and the
- * standings, and the gentle rubber band that keeps the rivals close.
+ * The race's rules, pure: who is where, gift boxes and the items in them,
+ * snowball piles, snowballs (aim, flight, hit, spin-out), the giant snowball,
+ * dropped ice, shields and boosts, shoves and drafting between riders, the
+ * finish and the standings, and the gentle rubber band that keeps rivals close.
  *
  * A racer is a rider (physics.js) plus what the race keeps about it:
- *   { slot, id, name, species, human, rider, stars, ammo, shieldItem, shieldT,
- *     hits, bonks, finished, time, taken: Set, streak: [] }
+ *   { slot, id, name, species, human, rider, slots: [{ kind, n }], ammo,
+ *     shieldT, hits, bonks, bumps, gifts, tricks, lastHitBy, finished, time, taken: Set }
  *
- * Stars and piles are personal (each racer has its own), so nothing about
- * them has to be agreed online.
+ * Held items live in up to two slots (keys 1 and 2). Gifts and piles are
+ * personal (each racer has its own) and what a gift holds comes from a hash
+ * of the gift and the racer, so nothing about them has to be agreed online.
  */
-import { between, groundAt } from './course.js';
+import { between, groundAt, frameAt } from './course.js';
 
-export const MAX_AMMO = 3;
+export const MAX_SLOTS = 2;
+export const MAX_SNOWBALLS = 6;
 export const SPINOUT = 1.2;
 export const SHIELD_TIME = 5;
-export const THROW_COOLDOWN = 0.6;
+export const THROW_COOLDOWN = 0.5;
 export const PILE_GIVES = 2;
+export const ITEMS = ['snowballs', 'giant', 'shield', 'boost', 'ice'];
 
 export function newRacer({ slot, id = `ai${slot}`, name = 'Rider', species = 'fox', human = false, rider }) {
-  return { slot, id, name, species, human, rider, stars: 0, ammo: 0, shieldItem: 0, shieldT: 0, throwCd: 0, hits: 0, bonks: 0, tricks: 0, best: '', finished: false, time: 0, taken: new Set(), streak: [] };
+  return { slot, id, name, species, human, rider, slots: [], ammo: 0, shieldT: 0, throwCd: 0, itemCd: 0, hits: 0, bonks: 0, bumps: 0, gifts: 0, tricks: 0, lastHitBy: -1, best: '', finished: false, time: 0, taken: new Set(), draft: 0 };
 }
 
 /* ------------------------------------------------------------------ standings */
@@ -65,50 +69,191 @@ export function checkFinish(racer, course, now) {
   return true;
 }
 
-/* ------------------------------------------------------------------ pickups */
+/* ------------------------------------------------------------------ gifts, items, pickups */
+
+const hashU = (a, b) => {
+  let h = Math.imul(a | 0, 2654435761) ^ Math.imul((b | 0) + 0x9e37, 1597334677);
+  h = Math.imul(h ^ (h >>> 15), 2246822519);
+  return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
+};
 
 /**
- * Stars, piles and shields within reach. Returns events
- * ({ type: 'star' | 'pile' | 'shield-item' | 'streak', id }).
+ * What's in a gift box for this racer: random, but kinder to the back of the
+ * pack (place 0 = leading … 1 = last). Deterministic per gift and racer.
  */
-export function pickups(racer, course, now) {
+export function rollGift(giftId, slot, place = 0.5) {
+  const front = { snowballs: 45, shield: 25, ice: 20, boost: 6, giant: 4 };
+  const back = { snowballs: 18, shield: 10, ice: 8, boost: 32, giant: 32 };
+  const w = ITEMS.map((k) => front[k] + (back[k] - front[k]) * Math.max(0, Math.min(1, place)));
+  let r = hashU(giftId, slot) * w.reduce((x, y) => x + y, 0);
+  for (let i = 0; i < ITEMS.length; i++) {
+    r -= w[i];
+    if (r <= 0) return ITEMS[i];
+  }
+  return ITEMS[0];
+}
+
+/** Add an item to a racer's slots (snowballs stack). False if there's no room. */
+export function giveItem(racer, kind, n = kind === 'snowballs' ? 3 : 1) {
+  const have = racer.slots.find((x) => x.kind === kind && kind === 'snowballs');
+  if (have) have.n = Math.min(MAX_SNOWBALLS, have.n + n);
+  else if (racer.slots.length < MAX_SLOTS) racer.slots.push({ kind, n });
+  else return false;
+  syncAmmo(racer);
+  return true;
+}
+
+function syncAmmo(racer) {
+  racer.slots = racer.slots.filter((x) => x.n > 0);
+  racer.ammo = racer.slots.find((x) => x.kind === 'snowballs')?.n ?? 0;
+}
+
+/**
+ * Gift boxes and snowball piles within reach. `place` is 0 (leading) … 1 (last).
+ * Returns events ({ type: 'gift', id, kind } | { type: 'pile', id }).
+ */
+export function pickups(racer, course, now, place = 0.5) {
   const r = racer.rider;
   const ev = [];
   if (racer.finished) return ev;
   const g = groundAt(course, r.s, r.lat);
   const above = r.y - g;
-  for (const st of between(course.stars, r.s - 1.6, r.s + 1.6)) {
-    if (racer.taken.has(st.id)) continue;
-    if (Math.abs(st.lat - r.lat) > 1.5 || Math.abs(st.h - (above + 0.6)) > 1.7) continue;
-    racer.taken.add(st.id);
-    racer.stars += 1;
-    racer.streak.push(now);
-    while (racer.streak.length && now - racer.streak[0] > 2.6) racer.streak.shift();
-    ev.push({ type: 'star', id: st.id, risky: Boolean(st.risky) });
-    if (racer.streak.length >= 3) {
-      racer.streak.length = 0;
-      r.boost = Math.max(r.boost, 0.9);
-      ev.push({ type: 'streak' });
-    }
+  for (const gf of between(course.gifts ?? [], r.s - 1.8, r.s + 1.8)) {
+    if (racer.taken.has(gf.id)) continue;
+    if (Math.abs(gf.lat - r.lat) > 1.6 || Math.abs(gf.h - (above + 0.6)) > 1.9) continue;
+    if (racer.slots.length >= MAX_SLOTS && !racer.slots.some((x) => x.kind === 'snowballs')) continue;
+    const kind = rollGift(gf.id, racer.slot, place);
+    if (!giveItem(racer, kind)) continue;
+    racer.taken.add(gf.id);
+    racer.gifts += 1;
+    ev.push({ type: 'gift', id: gf.id, kind });
   }
   if (above < 1.4) {
     for (const p of between(course.piles, r.s - 1.8, r.s + 1.8)) {
-      if (racer.taken.has(p.id)) continue;
-      if (Math.abs(p.lat - r.lat) > 1.7) continue;
-      if (p.kind === 'snow') {
-        if (racer.ammo >= MAX_AMMO) continue;
-        racer.taken.add(p.id);
-        racer.ammo = Math.min(MAX_AMMO, racer.ammo + PILE_GIVES);
-        ev.push({ type: 'pile', id: p.id });
-      } else {
-        if (racer.shieldItem) continue;
-        racer.taken.add(p.id);
-        racer.shieldItem = 1;
-        ev.push({ type: 'shield-item', id: p.id });
-      }
+      if (racer.taken.has(p.id) || Math.abs(p.lat - r.lat) > 1.7) continue;
+      if (!giveItem(racer, 'snowballs', PILE_GIVES)) continue;
+      racer.taken.add(p.id);
+      ev.push({ type: 'pile', id: p.id });
     }
   }
   return ev;
+}
+
+/** The item in slot i (0 or 1), or null. */
+export const slotItem = (racer, i) => racer.slots[i] ?? null;
+
+/**
+ * Use slot i: spends one and says what happens ({ kind } — the caller throws,
+ * rolls the giant snowball, drops the ice). Shields and boosts act here.
+ */
+export function useSlot(racer, i) {
+  const it = racer.slots[i];
+  if (!it || racer.finished || racer.itemCd > 0) return null;
+  if (racer.rider.tumble > 0 || racer.rider.spinout > 0) return null;
+  if (it.kind === 'snowballs') return canThrow(racer) ? { kind: 'snowball' } : null;
+  it.n -= 1;
+  racer.itemCd = 0.35;
+  if (it.kind === 'shield') {
+    racer.shieldT = SHIELD_TIME;
+  } else if (it.kind === 'boost') {
+    racer.rider.boost = Math.max(racer.rider.boost, 1.7);
+  }
+  syncAmmo(racer);
+  return { kind: it.kind };
+}
+
+/* ------------------------------------------------------------------ the giant snowball */
+
+/** A giant snowball rolled from a racer: it runs down your lane, growing, and bowls riders over. */
+export function newGiant(racer, id) {
+  const r = racer.rider;
+  return { id, from: racer.slot, s: r.s + 2.5, lat: r.lat, v: Math.max(r.speed + 5, 17), rad: 0.85, t: 0, life: 9, hit: new Set() };
+}
+
+/** Roll it on; returns false when it's done (burst on a barrier, run out, or off the end). */
+export function rollGiant(g, course, dt) {
+  const f = frameAt(course, g.s);
+  g.t += dt;
+  g.v = Math.min(36, g.v + (9.8 * Math.sin(f.pitch) * 0.85 - 0.004 * g.v * g.v) * dt);
+  g.s += g.v * dt;
+  g.rad = Math.min(1.35, g.rad + dt * 0.06);
+  g.lat = Math.max(-f.width + g.rad, Math.min(f.width - g.rad, g.lat));
+  if (g.t > g.life || g.s > course.finish + 20) return false;
+  for (const o of between(course.obstacles, g.s - 1, g.s + 1)) {
+    if (course.burst?.has(o.id)) continue;
+    if (Math.abs(o.lat - g.lat) < o.w + g.rad * 0.7) {
+      g.burstOn = o;
+      return false;
+    }
+  }
+  return true;
+}
+
+/** The racers a giant snowball runs into now (not its roller for the first second; each once). */
+export function giantHits(g, racers, course) {
+  const out = [];
+  for (const rc of racers) {
+    if (rc.finished || rc.gone || g.hit.has(rc.slot)) continue;
+    if (rc.slot === g.from && g.t < 1.2) continue;
+    const r = rc.rider;
+    if (Math.abs(r.s - g.s) > g.rad + 0.6 || Math.abs(r.lat - g.lat) > g.rad + 0.55) continue;
+    if (r.y - groundAt(course, r.s, r.lat) > g.rad * 1.8) continue; // jumped over it!
+    g.hit.add(rc.slot);
+    out.push(rc);
+  }
+  return out;
+}
+
+/** Bowled over by a giant snowball: a big tumble (a shield pops instead). */
+export function applyBowl(target, fromSlot) {
+  if (target.shieldT > 0) {
+    target.shieldT = 0;
+    return false;
+  }
+  const r = target.rider;
+  r.tumble = 1.1;
+  r.speed *= 0.45;
+  r.invuln = Math.max(r.invuln, 1.6);
+  target.bonks += 1;
+  target.lastHitBy = fromSlot;
+  return true;
+}
+
+/** Drop a slippery ice patch behind you (it melts after `life` seconds of race time). */
+export function dropIce(course, racer, now, id, life = 30) {
+  const r = racer.rider;
+  const p = { id, s: r.s - 5, lat: r.lat, len: 7, w: 4.5, until: now + life, from: racer.slot };
+  course.dynIce.push(p);
+  return p;
+}
+
+export function meltIce(course, now) {
+  for (let i = course.dynIce.length - 1; i >= 0; i--) if (course.dynIce[i].until < now) course.dynIce.splice(i, 1);
+}
+
+/* ------------------------------------------------------------------ drafting */
+
+/**
+ * Riding close behind someone at speed: less drag. Returns the drag factor
+ * (1 = none, down to 0.6) and remembers who you are tucked in behind.
+ */
+export function draftFactor(racer, racers) {
+  const r = racer.rider;
+  racer.draftBehind = null;
+  if (r.air || r.speed < 11 || racer.finished) return 1;
+  let best = 1;
+  for (const o of racers) {
+    if (o === racer || o.finished || o.gone || o.rider.air) continue;
+    const ds = o.rider.s - r.s, dl = Math.abs(o.rider.lat - r.lat);
+    if (ds < 2 || ds > 11 || dl > 1.5) continue;
+    const k = 1 - (ds - 2) / 9;
+    const f = 1 - 0.4 * k * (1 - dl / 1.5);
+    if (f < best) {
+      best = f;
+      racer.draftBehind = o;
+    }
+  }
+  return best;
 }
 
 /* ------------------------------------------------------------------ snowballs */
@@ -117,8 +262,13 @@ export function pickups(racer, course, now) {
  * The rival a snowball would fly at: the nearest one ahead, inside a cone
  * around where you are heading, within 48 m. Null if nobody is there.
  */
-export function pickTarget(thrower, racers, { range = 48, cone = 0.62 } = {}) {
+export function pickTarget(thrower, racers, { range = 48, cone = 0.62, revenge = true } = {}) {
   const t = thrower.rider;
+  // whoever hit you last, if they're near (ahead or behind): get them back!
+  if (revenge && thrower.lastHitBy >= 0) {
+    const o = racers.find((x) => x.slot === thrower.lastHitBy);
+    if (o && !o.finished && !o.gone && Math.hypot(o.rider.s - t.s, o.rider.lat - t.lat) < 40 && Math.abs(o.rider.s - t.s) > 1.5) return o;
+  }
   let best = null, bestD = Infinity;
   for (const o of racers) {
     if (o === thrower || o.finished) continue;
@@ -136,7 +286,7 @@ export function pickTarget(thrower, racers, { range = 48, cone = 0.62 } = {}) {
 }
 
 export function canThrow(racer) {
-  return racer.ammo > 0 && racer.throwCd <= 0 && racer.rider.tumble <= 0 && racer.rider.spinout <= 0 && !racer.finished;
+  return racer.slots.some((x) => x.kind === 'snowballs' && x.n > 0) && racer.throwCd <= 0 && racer.rider.tumble <= 0 && racer.rider.spinout <= 0 && !racer.finished;
 }
 
 /** Flight time of a lobbed snowball over `dist` metres. */
@@ -148,7 +298,9 @@ export const flightTime = (dist) => Math.max(0.32, Math.min(1.05, dist / 30));
  */
 export function makeThrow(thrower, target, pid) {
   const t = thrower.rider;
-  thrower.ammo -= 1;
+  const sb = thrower.slots.find((x) => x.kind === 'snowballs');
+  if (sb) sb.n -= 1;
+  syncAmmo(thrower);
   thrower.throwCd = THROW_COOLDOWN;
   const dist = target ? Math.hypot(target.rider.s - t.s, target.rider.lat - t.lat) : 24;
   return {
@@ -173,7 +325,7 @@ export function hittable(target, course) {
 }
 
 /** A snowball hit: a cute spin-out. Returns false if a shield took it instead. */
-export function applyHit(target) {
+export function applyHit(target, fromSlot = -1) {
   if (target.shieldT > 0) {
     target.shieldT = 0;
     return false;
@@ -183,20 +335,21 @@ export function applyHit(target) {
   r.speed *= 0.62;
   r.invuln = Math.max(r.invuln, 1.3);
   target.bonks += 1;
+  target.lastHitBy = fromSlot;
   return true;
 }
 
 /** Turn a held shield on (key 2). */
 export function useShield(racer) {
-  if (!racer.shieldItem || racer.shieldT > 0) return false;
-  racer.shieldItem = 0;
-  racer.shieldT = SHIELD_TIME;
-  return true;
+  const i = racer.slots.findIndex((x) => x.kind === 'shield');
+  if (i < 0 || racer.shieldT > 0) return false;
+  return Boolean(useSlot(racer, i));
 }
 
 /** Timers that belong to the race, not the rider. */
 export function tickRacer(racer, dt) {
   racer.throwCd = Math.max(0, racer.throwCd - dt);
+  racer.itemCd = Math.max(0, racer.itemCd - dt);
   racer.shieldT = Math.max(0, racer.shieldT - dt);
 }
 
@@ -220,4 +373,42 @@ export function projectilePos(p, racers, course, out = {}) {
   const dist = Math.hypot(s1 - p.s0, lat1 - p.lat0);
   out.y = p.y0 + (y1 - p.y0) * u + (1.2 + dist * 0.07) * 4 * u * (1 - u);
   return out;
+}
+
+/**
+ * Soft rider–rider bumps: two riders that overlap are eased apart sideways
+ * and share a little speed. Only riders this machine runs (`movable`) are moved.
+ * Returns the pairs that touched (for a soft sound and a puff).
+ */
+export function separate(racers, movable = () => true) {
+  const touched = [];
+  for (let i = 0; i < racers.length; i++) {
+    const A = racers[i], a = A.rider;
+    if (A.gone) continue;
+    for (let j = i + 1; j < racers.length; j++) {
+      const B = racers[j], b = B.rider;
+      if (B.gone) continue;
+      const ds = b.s - a.s, dl = b.lat - a.lat;
+      if (Math.abs(ds) > 1.1 || Math.abs(dl) > 0.95 || Math.abs(a.y - b.y) > 1) continue;
+      // side by side: whoever carves harder (and faster) shoves the other out
+      const pa = Math.abs(a.edge ?? 0) + a.speed * 0.02 + (A.shieldT > 0 ? 1 : 0);
+      const pb = Math.abs(b.edge ?? 0) + b.speed * 0.02 + (B.shieldT > 0 ? 1 : 0);
+      const winner = pa >= pb ? A : B, loser = winner === A ? B : A;
+      const push = (0.95 - Math.abs(dl)) * 0.5 + 0.03;
+      const side = Math.sign(dl) || (i % 2 ? 1 : -1);
+      const ma = movable(A), mb = movable(B);
+      const la = winner === A ? 0.6 : 1.6, lb = winner === B ? 0.6 : 1.6;
+      if (ma) a.lat -= side * push * la * (mb ? 1 : 1.6);
+      if (mb) b.lat += side * push * lb * (ma ? 1 : 1.6);
+      const avg = (a.speed + b.speed) / 2;
+      if (ma) a.speed += (avg - a.speed) * 0.2;
+      if (mb) b.speed += (avg - b.speed) * 0.2;
+      if (movable(loser) && loser.rider.invuln <= 0) {
+        loser.rider.wobble = Math.max(loser.rider.wobble, 0.35);
+        loser.rider.speed *= 0.93;
+      }
+      touched.push([A, B, winner]);
+    }
+  }
+  return touched;
 }

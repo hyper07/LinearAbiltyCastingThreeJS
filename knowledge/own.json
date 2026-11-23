@@ -622,7 +622,7 @@
    "id": "own.snowpuff.course",
    "kind": "module",
    "title": "Spline downhill course generator: deterministic run, cross-section, features (pure)",
-   "summary": "buildCourse(mountainRecord) → centre line every metre (gentle winding, sectioned steepness, banked turns), groundAt(s, lat) cross-section (dish, berms, mountainside, rolls, kickers), and placed features: kickers, barrier rows that always leave a gap, slalom gates, star lines, pickups, ice patches, ski lifts (crossing and alongside, towers kept off the run), arches. frameAt/toWorld/project/between helpers. Seeded, so online players share it without sending it.",
+   "summary": "buildCourse(mountainRecord) → a winding centre line every metre (straights and eased arcs: S-bends, banked boardercross berms, radius per mountain), groundAt(s, lat) cross-section (dish, berms, mountainside, rollers, banks, kickers), a racing line toward each turn's inside, and placed features: kickers on straight run-ups, barrier rows that always leave a gap, slalom gates, gift boxes on the line (risky ones over kickers), snowball piles, bell arches over landings, ice, ski lifts (towers kept off the run), arches. frameAt/toWorld/project/between helpers. Seeded, so online players share it without sending it.",
    "tags": [
     "course",
     "track",
@@ -634,7 +634,10 @@
     "snowboard",
     "terrain",
     "deterministic",
-    "seed"
+    "seed",
+    "curves",
+    "berm",
+    "racing line"
    ],
    "path": "src/snowpuff/course.js"
   },
@@ -642,7 +645,7 @@
    "id": "own.snowpuff.speedkit",
    "kind": "technique",
    "title": "Speed-feel kit for a racer: near-edge props, motes, lines, FOV, shake, whooshes",
-   "summary": "What sells speed in Snowpuff: fence panels/posts at the edge, piste poles every 10 m, feather flags every ~40 m, arches and lift cables overhead with moving chairs, trees at the fence; spray scaled by carve×speed, camera-rushing snow motes stretched radially, 2D speed lines at the edges, radial blur only near top speed, FOV 60→78 smoothed, damped-spring chase cam with a hum of shake, wind gain ∝ speed², a panned whoosh per pole/gate/arch/lift passed (s crossing test).",
+   "summary": "What sells speed in Snowpuff: fence panels/posts at the edge, piste poles every 10 m, feather flags every ~40 m, arches and lift cables overhead with moving chairs, trees at the fence; spray scaled by carve×speed, camera-rushing snow motes stretched radially, 2D speed lines at the edges, radial blur only near top speed, FOV 60→78 smoothed, damped-spring chase cam with a hum of shake, wind gain ∝ speed², a panned whoosh per pole/gate/arch/lift passed (s crossing test). Camera: a critically damped spring that also matches the target's velocity (no lag growing with speed), look-ahead along the run, a slight bank into turns, kept clear of other riders.",
    "tags": [
     "speed",
     "racing",
@@ -721,6 +724,43 @@
     "oled"
    ],
    "path": "apps/circuitlab/src/mcu/board-chip.ts"
+  },
+  {
+   "id": "own.snowpuff.items",
+   "kind": "module",
+   "title": "Kart-style items and rider play for a kids' racer (gift boxes, giant snowball, ice, shields, shoves, drafting)",
+   "summary": "Pure rules in src/snowpuff/race.js: rollGift(giftId, slot, place) deterministic and kinder to the back of the pack; two held slots (keys 1/2); useSlot → snowball / giant snowball (newGiant/rollGiant/giantHits/applyBowl: rolls down your lane, bowls riders over, jumpable) / shield / boost / dropIce (melts); separate() side-by-side shoves where the harder carver wins; draftFactor() slipstream; revenge targeting (lastHitBy). Physics: snowmen burst through, bell arches ring when jumped. Host confirms hits online; items relayed.",
+   "tags": [
+    "items",
+    "powerups",
+    "kart",
+    "racing",
+    "snowball",
+    "drafting",
+    "slipstream",
+    "bump",
+    "shove",
+    "gift",
+    "multiplayer",
+    "kids"
+   ],
+   "path": "src/snowpuff/race.js"
+  },
+  {
+   "id": "own.snowpuff.names",
+   "kind": "module",
+   "title": "Kid-safe player nicknames: clean, cap, filter, random cute names",
+   "summary": "cleanName(raw, fallback) keeps letters (any alphabet), digits, space - ' . only, caps at 12, and swaps anything on a small leetspeak-aware block list for a random cute name; randomName(); isClean(). Used for your own nickname and for every remote player's name on arrival.",
+   "tags": [
+    "names",
+    "nickname",
+    "filter",
+    "profanity",
+    "kids",
+    "safety",
+    "multiplayer"
+   ],
+   "path": "src/snowpuff/names.js"
   }
  ]
 }

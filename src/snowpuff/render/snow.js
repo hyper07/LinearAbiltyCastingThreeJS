@@ -171,7 +171,7 @@ export function snowMaterial({ trails = null, sun, sunColor, sparkle = 1, tintSh
   // colour: cool white; grooves a touch darker and bluer; powder off the run brighter
   const base = mix(vec3(0.9, 0.93, 0.975), vec3(0.97, 0.98, 1.0), float(1).sub(P.onRun).mul(0.6));
   const varied = base.mul(P.macro.mul(0.035).add(1)).mul(P.micro.mul(0.02).add(1));
-  m.colorNode = mix(varied, vec3(shadowTint).mul(0.95), P.groove.mul(0.42));
+  m.colorNode = mix(varied, vec3(shadowTint).mul(0.95), P.groove.mul(0.3));
   m.roughnessNode = clamp(mix(float(0.55), float(0.82), float(1).sub(P.onRun)).sub(P.groove.mul(0.22)).add(P.micro.mul(0.06)), 0.25, 1);
   // sparkle: a few cells mirror the sun to the eye
   const V = normalize(cameraPosition.sub(positionWorld));

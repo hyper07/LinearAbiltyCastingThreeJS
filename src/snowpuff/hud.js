@@ -3,8 +3,8 @@
  * menus (title, choose a rider, choose a mountain, race with friends,
  * pause, results, credits) and the race HUD — big position top-left, the
  * course strip with every racer's face across the top (it doubles as the
- * map), a corner course minimap, the timer and stars top-right, snowball
- * buttons bottom-centre with their keys, the speed dial bottom-right, pop
+ * map), a corner course minimap, the timer top-right, two big item
+ * slots bottom-centre with their keys (1, 2), the speed dial bottom-right, pop
  * text in the centre, speed lines at the edges — plus the touch controls.
  */
 import { SPECIES, SELECTABLE, faceSvg } from './riders.js';
@@ -30,6 +30,12 @@ export const fmtTime = (t) => {
 const diffStars = (n) => `${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i>`;
 const SNOWBALL = '<svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="15" fill="#fff"/><circle cx="15" cy="15" r="5" fill="#fff" opacity=".9"/><path d="M8 24 Q20 32 32 24" stroke="#c9d8f2" stroke-width="3" fill="none"/></svg>';
 const SHIELD = '<svg viewBox="0 0 40 40"><path d="M20 4 L34 10 V20 C34 29 27 34 20 37 C13 34 6 29 6 20 V10Z" fill="#fff" stroke="#3ab8e8" stroke-width="3"/><path d="M20 12 L22.5 18 L29 18.5 L24 22.5 L25.6 29 L20 25.5 L14.4 29 L16 22.5 L11 18.5 L17.5 18Z" fill="#7fe8ff"/></svg>';
+const GIANT = '<svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="16" fill="#fff" stroke="#9db8e8" stroke-width="2"/><path d="M8 26 Q20 34 32 24 M10 16 Q18 12 26 14" stroke="#c9d8f2" stroke-width="3" fill="none"/><path d="M30 6 l2 4 4 1 -3 3 1 4 -4 -2 -4 2 1 -4 -3 -3 4 -1z" fill="#ffd23f"/></svg>';
+const BOOST = '<svg viewBox="0 0 40 40"><path d="M6 26 Q20 30 34 24 L36 28 Q20 36 4 30Z" fill="#ff5a5f"/><path d="M10 25 L14 14 Q20 8 26 14 L30 23Z" fill="#ff8a3d"/><path d="M4 30 L-2 26 M4 32 L-3 33" stroke="#ffd23f" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="17" r="3" fill="#fff"/></svg>';
+const ICE = '<svg viewBox="0 0 40 40"><ellipse cx="20" cy="26" rx="16" ry="8" fill="#bfe9ff" stroke="#5ec8ff" stroke-width="2"/><path d="M12 25 L16 22 L20 27 L25 23 L28 26" stroke="#fff" stroke-width="2" fill="none"/><path d="M20 4 v12 M14 7 l12 6 M26 7 l-12 6" stroke="#5ec8ff" stroke-width="2.5" stroke-linecap="round"/></svg>';
+const GIFT = '<svg viewBox="0 0 40 40"><rect x="7" y="16" width="26" height="20" rx="4" fill="#ff4b8b"/><rect x="5" y="12" width="30" height="7" rx="3" fill="#ff6fa8"/><rect x="18" y="12" width="5" height="24" fill="#ffe27a"/><path d="M20 12 Q12 3 9 9 Q10 13 20 12 Q28 3 31 9 Q30 13 20 12Z" fill="#ffe27a"/></svg>';
+const ITEM_ICON = { snowballs: SNOWBALL, giant: GIANT, shield: SHIELD, boost: BOOST, ice: ICE, gift: GIFT, pile: SNOWBALL };
+const ITEM_LABEL = { snowballs: 'Snowballs', giant: 'Giant snowball', shield: 'Snow shield', boost: 'Rocket sled', ice: 'Ice patch' };
 const FLAG = '<svg viewBox="0 0 34 40"><path d="M4 2 V38" stroke="#2a2f4a" stroke-width="3" stroke-linecap="round"/><path d="M5 3 H31 V19 H5Z" fill="#fff" stroke="#2a2f4a" stroke-width="2"/><path d="M5 3h6.5v5.3H5zM18 3h6.5v5.3H18zM11.5 8.3H18v5.3h-6.5zM24.5 8.3H31v5.3h-6.5zM5 13.6h6.5V19H5zM18 13.6h6.5V19H18z" fill="#2a2f4a"/></svg>';
 
 /* ---------------------------------------------------------------- loading */
@@ -106,9 +112,23 @@ export class Menus {
     setTimeout(() => this.el.querySelector('[data-race]')?.focus({ preventScroll: true }), 50);
   }
 
-  riders({ picked, onPick, onNext, onBack }) {
+  riders({ picked, onPick, onNext, onBack, name = '', onName, onDice }) {
     this.clear();
     this.el.append(el('div', 'sp-heading', 'Choose your rider'));
+    const nameBox = el('div', 'sp-card sp-col sp-name', `<label for="sp-nick">Your name</label><div class="sp-row" style="margin:0;flex-wrap:nowrap"><input id="sp-nick" class="sp-input sp-input--name" maxlength="12" autocomplete="off" spellcheck="false" data-name value="${esc(name)}" placeholder="${esc(SPECIES[picked].name)}"><button class="sp-btn sp-btn--small" data-dice title="A random name" aria-label="A random name">🎲</button></div>`);
+    this.el.append(nameBox);
+    const input = nameBox.querySelector('[data-name]');
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') input.blur();
+    });
+    input.addEventListener('change', () => (input.value = onName?.(input.value) ?? input.value));
+    input.addEventListener('blur', () => (input.value = onName?.(input.value) ?? input.value));
+    nameBox.querySelector('[data-dice]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.game.sound.click();
+      input.value = onDice?.() ?? input.value;
+    });
     const row = el('div', 'sp-col sp-riders');
     for (const id of SELECTABLE) {
       const sp = SPECIES[id];
@@ -121,6 +141,7 @@ export class Menus {
         onPick(id);
         for (const x of row.children) x.setAttribute('aria-pressed', String(x.dataset.rider === id));
         about.innerHTML = aboutHtml(id);
+        input.placeholder = SPECIES[id].name;
       });
       row.append(b);
     }
@@ -139,7 +160,7 @@ export class Menus {
     this.el.append(el('div', 'sp-heading', 'Choose a mountain'));
     const row = el('div', 'sp-col sp-mountains');
     for (const m of MOUNTAINS) {
-      const b = el('button', 'sp-mtn', `<h3>${esc(m.name)}</h3><div class="sp-diff">${diffStars(m.stars)}</div><p>${esc(m.blurb)}</p><div class="sp-best">${best[m.id] ? `Best: ${fmtTime(best[m.id].time)} · ${ordinal(best[m.id].place)}` : 'Not raced yet'}</div>`);
+      const b = el('button', 'sp-mtn', `<h3>${esc(m.name)}</h3><div class="sp-diff">${diffStars(m.difficulty)}</div><p>${esc(m.blurb)}</p><div class="sp-best">${best[m.id] ? `Best: ${fmtTime(best[m.id].time)} · ${ordinal(best[m.id].place)}` : 'Not raced yet'}</div>`);
       b.dataset.mountain = m.id;
       b.setAttribute('aria-pressed', String(m.id === picked));
       b.addEventListener('click', () => {
@@ -178,7 +199,7 @@ export class Menus {
       const mtn = MOUNTAINS.find((x) => x.id === s.mountain) ?? MOUNTAINS[0];
       card.innerHTML = `<h2>Your room</h2><p>Share this code:</p><div class="sp-code" data-room>${esc(s.room)}</div>
         <div class="sp-members">${members}</div>
-        <p><b>Mountain:</b> ${esc(mtn.name)} ${'★'.repeat(mtn.stars)}</p>
+        <p><b>Mountain:</b> ${esc(mtn.name)} ${'★'.repeat(mtn.difficulty)}</p>
         ${s.isHost ? `<div class="sp-row">${MOUNTAINS.map((m) => `<button class="sp-btn sp-btn--small${m.id === s.mountain ? ' sp-btn--blue' : ''}" data-m="${m.id}">${esc(m.name)}</button>`).join('')}</div>
         <div class="sp-row"><button class="sp-btn sp-btn--go" data-start>Start the race</button></div>` : '<p class="sp-note">Waiting for the host to start…</p>'}
         ${s.error ? `<p class="sp-err">${esc(s.error)}</p>` : ''}
@@ -227,9 +248,9 @@ export class Menus {
 
   results({ rows, mountain, me, onRetry, onNext, onMenu, online, nextName }) {
     this.clear();
-    const list = rows.map((r, i) => `<div class="sp-standing${r.me ? ' me' : ''}"><b>${ordinal(i + 1)}</b>${faceSvg(r.species, 42)}<span>${esc(r.name)}${r.human && !r.me ? ' <small>friend</small>' : ''}<small>★ ${r.stars} · ${r.tricks} tricks · bonked ${r.bonks} ${r.bonks === 1 ? 'rider' : 'riders'}</small></span><span class="sp-t">${fmtTime(r.time)}</span></div>`).join('');
+    const list = rows.map((r, i) => `<div class="sp-standing${r.me ? ' me' : ''}"><b>${ordinal(i + 1)}</b>${faceSvg(r.species, 42)}<span>${esc(r.name)}${r.human && !r.me ? ' <small>friend</small>' : ''}<small>${r.tricks} tricks · ${r.hits} hits · ${r.gifts} gifts</small></span><span class="sp-t">${fmtTime(r.time)}</span></div>`).join('');
     const card = el('div', 'sp-card sp-results', `<h2>${me.place === 1 ? 'You won!' : me.place <= 3 ? `${ordinal(me.place)} place!` : 'You made it!'}</h2>
-      <p>${esc(mountain.name)} · ${fmtTime(me.time)} · ★ ${me.stars}${me.newBest ? ' · <b style="color:#ff6fb4">New best!</b>' : ''}</p>
+      <p>${esc(mountain.name)} · ${fmtTime(me.time)} · ${me.tricks} tricks · ${me.hits} hits${me.newBest ? ' · <b style="color:#ff6fb4">New best!</b>' : ''}</p>
       <div>${list}</div>
       <div class="sp-row">${online ? '' : '<button class="sp-btn sp-btn--go" data-retry>Race again</button>'}${!online && nextName ? `<button class="sp-btn sp-btn--blue" data-next>${esc(nextName)} ›</button>` : ''}<button class="sp-btn sp-btn--small" data-menu>${online ? 'Back to the room' : 'Mountains'}</button></div>`);
     this.el.append(card);
@@ -272,8 +293,8 @@ export class Hud {
     this.el = el('div', 'sp-hud off');
     this.el.innerHTML = `
       <div class="sp-pos"><b>1</b><sup>st</sup><span>/4</span></div>
-      <div class="sp-strip"><div class="sp-strip__track"><div class="sp-strip__fill"></div></div><div class="sp-strip__flag">${FLAG}</div><div class="sp-strip__faces"></div></div>
-      <div class="sp-tr"><div class="sp-pill sp-time">0:00.0</div><div class="sp-pill sp-stars"><span class="sp-star">★</span><span>0</span></div><canvas class="sp-mini" width="300" height="300" aria-label="Course map"></canvas></div>
+      <div class="sp-strip"><canvas class="sp-strip__path" width="1240" height="96" data-overlay aria-hidden="true"></canvas><div class="sp-strip__flag">${FLAG}</div><div class="sp-strip__faces"></div></div>
+      <div class="sp-tr"><div class="sp-pill sp-time">0:00.0</div><canvas class="sp-mini" width="300" height="300" aria-label="Course map"></canvas></div>
       <div class="sp-ammo"></div>
       <div class="sp-speed"><svg viewBox="0 0 170 120">
         <path d="M18 104 A68 68 0 0 1 152 104" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="18" stroke-linecap="round"/>
@@ -292,9 +313,10 @@ export class Hud {
     this.q = (s) => this.el.querySelector(s);
     this.posEl = this.q('.sp-pos');
     this.faces = this.q('.sp-strip__faces');
-    this.fill = this.q('.sp-strip__fill');
+    this.path = this.q('.sp-strip__path');
+    this.pg = this.path.getContext('2d');
     this.timeEl = this.q('.sp-time');
-    this.starEl = this.q('.sp-stars');
+
     this.mini = this.q('.sp-mini');
     this.mg = this.mini.getContext('2d');
     this.ammoEl = this.q('.sp-ammo');
@@ -305,14 +327,11 @@ export class Hud {
     this.toastEl = this.q('.sp-toast');
     this.last = {};
     this.faceEls = new Map();
-    this.onThrow = null;
-    this.onShield = null;
+    this.onUse = null;
     this.ammoEl.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       const b = e.target.closest('button');
-      if (!b) return;
-      if (b.dataset.shield) this.onShield?.();
-      else this.onThrow?.();
+      if (b) this.onUse?.(Number(b.dataset.slot) || 0);
     });
   }
 
@@ -327,12 +346,29 @@ export class Hud {
     this.faceEls.clear();
     for (const r of racers) {
       const f = el('div', `sp-face${r.slot === meSlot ? ' me' : ''}`, faceSvg(r.species, r.slot === meSlot ? 40 : 34));
-      f.title = r.name;
+      f.title = r.me ? `${r.name} (you)` : r.name;
       this.faces.append(f);
       this.faceEls.set(r.slot, f);
     }
     this.course = course;
     this.meSlot = meSlot;
+    this.mini.title = racers.map((r) => (r.slot === meSlot ? `${r.name} (you)` : r.name)).join(' · ');
+    // the strip draws the run's own bends: the centre line's distance from the start→finish chord
+    const L = course.finish;
+    const i1 = Math.min(course.n - 1, Math.round(L));
+    const ax = course.px[0], az = course.pz[0], bx = course.px[i1], bz = course.pz[i1];
+    const cl = Math.hypot(bx - ax, bz - az) || 1;
+    const nx = -(bz - az) / cl, nz = (bx - ax) / cl;
+    const wave = new Float32Array(121);
+    let mx = 1;
+    for (let i = 0; i <= 120; i++) {
+      const j = Math.min(i1, Math.round((i / 120) * L));
+      wave[i] = (course.px[j] - ax) * nx + (course.pz[j] - az) * nz;
+      mx = Math.max(mx, Math.abs(wave[i]));
+    }
+    for (let i = 0; i <= 120; i++) wave[i] /= mx;
+    this.wave = wave;
+    this.items = null;
     // minimap outline, fitted
     const pts = [];
     for (let i = 0; i < course.n; i += 8) pts.push([course.px[i], course.pz[i]]);
@@ -349,7 +385,7 @@ export class Hud {
     return [m.ox + (x - m.x0) * m.k, m.oz + (z - m.z0) * m.k];
   }
 
-  update(dt, { racers, me, place, total, time, speed, ammo, shieldItem, course, world }) {
+  update(dt, { racers, me, place, total, time, speed, slots, course, world }) {
     // position
     if (place !== this.last.place || total !== this.last.total) {
       this.posEl.innerHTML = `<b>${place}</b><sup>${ordinal(place).replace(String(place), '')}</sup><span>/${total}</span>`;
@@ -362,37 +398,40 @@ export class Hud {
       this.last.place = place;
       this.last.total = total;
     }
-    // strip
+    // strip: the bendy run, your progress, upcoming items as dots, every racer's face on it
     const L = course.finish;
+    const sw = this.path.clientWidth || 620;
+    const waveAt = (k) => {
+      const x = Math.max(0, Math.min(120, k * 120));
+      const i = Math.floor(x), f = x - i;
+      return this.wave[i] + ((this.wave[Math.min(120, i + 1)] ?? 0) - this.wave[i]) * f;
+    };
     for (const r of racers) {
       const f = this.faceEls.get(r.slot);
       if (!f) continue;
       const k = Math.max(0, Math.min(1, r.rider.s / L));
-      f.style.left = `calc(${(k * 100).toFixed(2)}% * (1 - 30 / 620))`;
+      f.style.left = `${(5 + k * (sw - 30)).toFixed(1)}px`;
+      f.style.transform = `translateY(${(waveAt(k) * 11).toFixed(1)}px)`;
       f.classList.toggle('fin', r.finished);
     }
-    this.fill.style.width = `${Math.max(0, Math.min(100, (me.rider.s / L) * 100)).toFixed(1)}%`;
-    // time & stars
+    this.frameN = (this.frameN ?? 0) + 1;
+    if (this.frameN % 2 === 0) this.drawStrip(me, world, L, waveAt);
+    // time
     const ts = fmtTime(time);
     if (ts !== this.last.ts) {
       this.timeEl.textContent = ts;
       this.last.ts = ts;
     }
-    if (me.stars !== this.last.stars) {
-      this.starEl.lastChild.textContent = me.stars;
-      if (this.last.stars != null) {
-        this.starEl.classList.remove('pop');
-        void this.starEl.offsetWidth;
-        this.starEl.classList.add('pop');
-      }
-      this.last.stars = me.stars;
-    }
-    // ammo
-    const ak = `${ammo}|${shieldItem}`;
+    // the two item slots: big round picture buttons, the key on each, a count for snowballs
+    const ak = (slots ?? []).map((x) => `${x.kind}${x.n}`).join('|');
     if (ak !== this.last.ammo) {
       let h = '';
-      for (let i = 0; i < 3; i++) h += `<button class="sp-ball${i < ammo ? ' ready' : ' empty'}" aria-label="Snowball">${i < ammo ? SNOWBALL : ''}${i === 0 ? '<kbd>1</kbd>' : ''}</button>`;
-      if (shieldItem) h += `<button class="sp-ball shield" data-shield="1" aria-label="Shield">${SHIELD}<kbd>2</kbd></button>`;
+      for (let i = 0; i < 2; i++) {
+        const it = slots?.[i];
+        h += it
+          ? `<button class="sp-ball ready item-${it.kind}" data-slot="${i}" aria-label="${ITEM_LABEL[it.kind]}">${ITEM_ICON[it.kind]}${it.kind === 'snowballs' ? `<b class="sp-count">${it.n}</b>` : ''}<kbd>${i + 1}</kbd></button>`
+          : `<button class="sp-ball empty" data-slot="${i}" aria-label="Empty slot"><kbd>${i + 1}</kbd></button>`;
+      }
       this.ammoEl.innerHTML = h;
       this.last.ammo = ak;
     }
@@ -406,6 +445,95 @@ export class Hud {
       this.last.kmh = kmh;
     }
     this.drawMini(racers, world);
+  }
+
+  drawStrip(me, world, L, waveAt) {
+    const g = this.pg;
+    const W = this.path.width, H = this.path.height;
+    const sx = (W - 60) / 1, cy = H / 2, amp = 22;
+    g.clearRect(0, 0, W, H);
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    const line = (k0, k1, width, style) => {
+      g.strokeStyle = style;
+      g.lineWidth = width;
+      g.beginPath();
+      for (let k = k0; k <= k1 + 1e-6; k += 1 / 120) {
+        const x = 10 + k * sx, y = cy + waveAt(k) * amp;
+        if (k === k0) g.moveTo(x, y);
+        else g.lineTo(x, y);
+      }
+      g.stroke();
+    };
+    line(0, 1, 26, 'rgba(42,47,74,0.18)');
+    line(0, 1, 18, 'rgba(255,255,255,0.92)');
+    const km = Math.max(0, Math.min(1, me.rider.s / L));
+    if (km > 0.002) line(0, km, 12, '#ff6fb4');
+    // items still to come, as dots in their colours
+    if (world?.items) {
+      const col = { gift: '#ff5fa2', pile: '#5ec8ff' };
+      for (const it of world.items) {
+        if (it.s < me.rider.s || it.s > me.rider.s + 420 || world.taken.has(it.id)) continue;
+        const k = it.s / L;
+        g.fillStyle = col[it.kind];
+        g.strokeStyle = 'rgba(42,47,74,0.55)';
+        g.lineWidth = 2;
+        g.beginPath();
+        g.arc(10 + k * sx, cy + waveAt(k) * amp, it.kind === 'gift' ? 6.5 : 5, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+    }
+  }
+
+  /** Name tags over riders: [{ key, name, x, y, me }] in screen pixels (others are hidden). */
+  tags(list) {
+    this.tagEls ??= new Map();
+    const seen = new Set();
+    for (const t of list) {
+      let d = this.tagEls.get(t.key);
+      if (!d) {
+        d = el('div', `sp-nametag${t.me ? ' me' : ''}`);
+        this.root.append(d);
+        this.tagEls.set(t.key, d);
+      }
+      if (d.textContent !== t.name) d.textContent = t.name;
+      d.style.transform = `translate(${t.x.toFixed(0)}px, ${t.y.toFixed(0)}px) translate(-50%, -100%)`;
+      d.style.opacity = String(t.alpha ?? 1);
+      d.style.display = '';
+      seen.add(t.key);
+    }
+    for (const [k, d] of this.tagEls) if (!seen.has(k)) d.style.display = 'none';
+  }
+
+  /** A word bubble over a rider ("Hey!", "Woo!"), at screen (x, y). */
+  bubble(x, y, text) {
+    const d = el('div', 'sp-bubble');
+    d.textContent = text;
+    d.style.left = `${x}px`;
+    d.style.top = `${y}px`;
+    this.root.append(d);
+    setTimeout(() => d.remove(), 1100);
+  }
+
+  /** An item's icon flying from where you took it to its place in the HUD. */
+  fly(kind, x, y) {
+    const target = this.ammoEl;
+    const r = target.getBoundingClientRect();
+    const icon = el('div', 'sp-fly', ITEM_ICON[kind] ?? SNOWBALL);
+    icon.style.left = `${x}px`;
+    icon.style.top = `${y}px`;
+    this.root.append(icon);
+    requestAnimationFrame(() => {
+      icon.style.transform = `translate(${r.left + r.width / 2 - x}px, ${r.top + r.height / 2 - y}px) scale(0.6)`;
+      icon.style.opacity = '0.2';
+    });
+    setTimeout(() => {
+      icon.remove();
+      target.classList.remove('pop');
+      void target.offsetWidth;
+      target.classList.add('pop');
+    }, 560);
   }
 
   drawMini(racers, world) {
@@ -521,6 +649,7 @@ export class Hud {
   dispose() {
     this.el.remove();
     this.lines.remove();
+    for (const d of this.tagEls?.values() ?? []) d.remove();
   }
 }
 
@@ -531,7 +660,8 @@ export class TouchControls {
     this.input = input;
     this.el = el('div', 'sp-touch off', `<div class="sp-steer"><div class="sp-steer__knob"><i></i></div></div>
       <button class="sp-tbtn sp-tbtn--tuck" data-t="tuck">TUCK</button>
-      <button class="sp-tbtn sp-tbtn--throw" data-t="throw">${SNOWBALL}</button>
+      <button class="sp-tbtn sp-tbtn--throw" data-t="throw" aria-label="Item 1">1</button>
+      <button class="sp-tbtn sp-tbtn--item2" data-t="item2" aria-label="Item 2">2</button>
       <button class="sp-tbtn sp-tbtn--jump" data-t="jump">JUMP</button>`);
     root.append(this.el);
     const zone = this.el.querySelector('.sp-steer');
@@ -570,7 +700,7 @@ export class TouchControls {
         e.stopPropagation();
         b.classList.add('held');
         input.touch[t] = true;
-        if (t === 'throw') input.pressed.add('throw');
+        if (t === 'throw' || t === 'item2') input.pressed.add(t);
       });
       const up = () => {
         b.classList.remove('held');

@@ -23,7 +23,12 @@ export async function run(browser) {
     t.check('opens from its card to the title', await openGame(page));
     t.check('renders with WebGPURenderer (or its WebGL2 backend)', await page.evaluate(() => ['WebGPU', 'WebGL2'].includes(window.snowpuff.backend)));
     await page.click('.sp [data-race]');
-    t.check('rider select shows the four plush riders, the fox chosen', await until(page, () => document.querySelectorAll('[data-rider]').length === 4 && document.querySelector('[data-rider="fox"]').getAttribute('aria-pressed') === 'true', null, 5000));
+    t.check('rider select shows the five plush riders, the fox chosen', await until(page, () => document.querySelectorAll('[data-rider]').length === 5 && document.querySelector('[data-rider="fox"]').getAttribute('aria-pressed') === 'true', null, 5000));
+    await page.fill('.sp [data-name]', 'Sh1t Kid');
+    await page.click('.sp [data-dice]');
+    await page.fill('.sp [data-name]', 'Snowy <b>Jo</b>');
+    await page.press('.sp [data-name]', 'Enter');
+    t.check('a nickname is cleaned and kept on this device', await until(page, () => document.querySelector('.sp [data-name]').value === 'Snowy bJo' && JSON.parse(localStorage.getItem('snowpuff.save')).name === 'Snowy bJo', null, 3000), await page.evaluate(() => [document.querySelector('.sp [data-name]').value, localStorage.getItem('snowpuff.save')].join(' ')));
     await page.click('.sp [data-rider="bear"]');
     t.check('…and a click picks another', await page.evaluate(() => window.snowpuff.picked === 'bear'));
     await page.click('.sp [data-rider="fox"]');
@@ -32,6 +37,7 @@ export async function run(browser) {
     await page.click('.sp [data-go]');
     t.check('the race counts down and starts', await until(page, () => window.snowpuff.mode === 'race', null, 120000));
     t.check('rivals line up beside you', await page.evaluate(() => window.snowpuff.racers.length === 4 && window.snowpuff.racers.filter((r) => !r.human).length === 3));
+    t.check('your nickname rides with you (name tag, strip)', await until(page, () => window.snowpuff.me.name === 'Snowy bJo' && [...document.querySelectorAll('.sp-nametag')].some((d) => d.textContent === 'Snowy bJo'), null, 4000));
     const s0 = await page.evaluate(() => window.snowpuff.me.rider.s);
     await page.keyboard.down('KeyS');
     await page.waitForTimeout(1500);
@@ -48,6 +54,13 @@ export async function run(browser) {
     await until(page, () => !window.snowpuff.me.rider.air, null, 4000);
     t.check('the HUD shows place, the course strip, the minimap and the speed dial', await page.evaluate(() => Boolean(document.querySelector('.sp-pos b') && document.querySelectorAll('.sp-face').length === 4 && document.querySelector('.sp-mini') && document.querySelector('.sp-speed'))));
     await page.evaluate(() => window.snowpuff.debugBonk());
+    await page.evaluate(() => {
+      const g = window.snowpuff;
+      g.me.slots = [{ kind: 'giant', n: 1 }];
+      g.debugPin(0, 20, 0, 12);
+    });
+    await page.keyboard.press('Digit1');
+    t.check('a giant snowball (an item on 1) rolls down your lane', await until(page, () => window.snowpuff.race.giants.length > 0 || window.snowpuff.racers.some((r) => !r.me && r.rider.tumble > 0), null, 2000));
     t.check('a snowball (1) flies at the rider ahead and bonks them', await until(page, () => window.snowpuff.racers.some((r) => !r.me && r.rider.spinout > 0), null, 3000));
     await page.evaluate(() => window.snowpuff.debugFinish());
     t.check('the finish shows the podium and the standings', await until(page, () => window.snowpuff.mode === 'results' && document.querySelectorAll('.sp-standing').length === 4, null, 8000));

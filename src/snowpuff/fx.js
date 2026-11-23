@@ -13,7 +13,7 @@
  * Snowballs in flight are little lit spheres; shields are fresnel bubbles.
  */
 import * as THREE from 'three/webgpu';
-import { attribute, instancedDynamicBufferAttribute, vec3, vec4, float, uv, smoothstep, length, cameraViewMatrix, positionLocal, mix, pow, abs, dot, normalView, positionViewDirection, color, sin, cos, mrt } from 'three/tsl';
+import { attribute, instancedDynamicBufferAttribute, vec3, vec4, float, uv, smoothstep, length, cameraViewMatrix, positionLocal, mix, pow, abs, dot, normalView, positionViewDirection, color, sin, cos, mrt, cameraPosition, varying, clamp, viewportLinearDepth, linearDepth, cameraFar, cameraNear } from 'three/tsl';
 
 /** See-through things leave the normal and velocity buffers alone (else AO and TRAA smear round them). */
 export const KEEP_BUFFERS = () => mrt({ normal: vec4(0, 0, 0, 0), velocity: vec4(0, 0, 0, 0) });
@@ -47,15 +47,22 @@ class Pool {
     const ca = cos(ang), sa = sin(ang);
     const lx = positionLocal.x.mul(float(1).add(ib.z)), ly = positionLocal.y;
     const rx = lx.mul(ca).sub(ly.mul(sa)), ry = lx.mul(sa).add(ly.mul(ca));
-    m.positionNode = ia.xyz.add(right.mul(rx.mul(ia.w))).add(up.mul(ry.mul(ia.w)));
+    // shrink and fade what comes close to the lens (no grey veil over the screen)
+    const camD = length(ia.xyz.sub(cameraPosition));
+    const near = smoothstep(0.9, 3.2, camD);
+    const vNear = varying(near, 'vNearFade');
+    m.positionNode = ia.xyz.add(right.mul(rx.mul(ia.w).mul(near.mul(0.6).add(0.4)))).add(up.mul(ry.mul(ia.w).mul(near.mul(0.6).add(0.4))));
     m.vertexNode = null;
     const d = length(uv().sub(0.5)).mul(2);
     const shape = streak ? smoothstep(1, 0.2, d) : smoothstep(1, soft, d);
     const col = vec3(ic.x, ic.y, ic.z);
-    m.colorNode = vec4(lit ? col : col, shape.mul(ib.x));
-    if (glow) m.emissiveNode = col.mul(shape.mul(ib.x).mul(glow));
+    // soft particles: fade where they meet the snow or a rider behind them
+    const soft2 = clamp(viewportLinearDepth.sub(linearDepth()).mul(cameraFar.sub(cameraNear)).div(0.45), 0, 1);
+    const alpha = shape.mul(ib.x).mul(vNear).mul(soft2);
+    m.colorNode = vec4(lit ? col : col, alpha);
+    if (glow) m.emissiveNode = col.mul(alpha.mul(glow));
     m.fog = !additive;
-    m.mrtNode = glow ? mrt({ normal: vec4(0, 0, 0, 0), velocity: vec4(0, 0, 0, 0), emissive: vec4(col.mul(shape.mul(ib.x).mul(glow)), shape.mul(ib.x)) }) : KEEP_BUFFERS();
+    m.mrtNode = glow ? mrt({ normal: vec4(0, 0, 0, 0), velocity: vec4(0, 0, 0, 0), emissive: vec4(col.mul(alpha.mul(glow)), alpha) }) : KEEP_BUFFERS();
     this.mesh = new THREE.Mesh(geo, m);
     this.mesh.count = 0;
     this.mesh.frustumCulled = false;
@@ -118,7 +125,7 @@ export class Effects {
   constructor(scene, { scale = 1 } = {}) {
     this.scene = scene;
     this.scale = scale;
-    this.powder = new Pool(scene, Math.round(1400 * scale), { soft: 0.15, tint: '#dde8fa' });
+    this.powder = new Pool(scene, Math.round(900 * scale), { soft: 0.15, tint: '#dde8fa' });
     this.sparkle = new Pool(scene, Math.round(500 * scale), { additive: true, glow: 2.2, tint: '#ffe08a', soft: 0.05 });
     this.motes = new Pool(scene, Math.round(260 * scale), { additive: false, tint: '#ffffff', streak: true });
     this.confetti = new Pool(scene, 400, { soft: 0.9, tint: '#ffffff' });
@@ -145,19 +152,19 @@ export class Effects {
   spray(x, y, z, side, fwd, speed, carve, dt) {
     const k = Math.min(1.6, (speed / 20) * (0.25 + carve * 1.4));
     const n = Math.round(k * 95 * dt * this.scale * 10) / 10;
-    let count = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
+    let count = Math.min(4, Math.floor(n) + (Math.random() < n % 1 ? 1 : 0));
     while (count-- > 0) {
       const sv = (2 + Math.random() * 3) * (0.5 + carve);
       this.powder.add(
         x + side[0] * 0.35 + (Math.random() - 0.5) * 0.3, y + 0.05, z + side[1] * 0.35 + (Math.random() - 0.5) * 0.3,
         side[0] * sv + fwd[0] * speed * 0.35, 1.2 + Math.random() * 2.2 * (0.4 + carve), side[1] * sv + fwd[1] * speed * 0.35,
-        { life: 0.45 + Math.random() * 0.5, size: 0.18 + Math.random() * 0.22, grow: 2.6, alpha: 0.75, drag: 2.4, grav: -5 }
+        { life: 0.4 + Math.random() * 0.45, size: 0.16 + Math.random() * 0.18, grow: 2.3, alpha: 0.7, drag: 2.4, grav: -5 }
       );
     }
   }
 
   /** A big soft poof (bump, tumble, landing, snowball impact). */
-  poof(x, y, z, { n = 26, size = 0.5, speed = 3.5, up = 2.5, alpha = 0.9 } = {}) {
+  poof(x, y, z, { n = 20, size = 0.42, speed = 3.2, up = 2.2, alpha = 0.8 } = {}) {
     for (let i = 0; i < n * this.scale; i++) {
       const a = Math.random() * Math.PI * 2, r = Math.random();
       this.powder.add(x, y + 0.2, z, Math.cos(a) * speed * r, up * (0.4 + Math.random()), Math.sin(a) * speed * r, { life: 0.6 + Math.random() * 0.6, size: size * (0.6 + Math.random() * 0.6), grow: 2.2, alpha, drag: 2.2, grav: -3 });
@@ -172,8 +179,26 @@ export class Effects {
     }
   }
 
-  starBurst(x, y, z) {
-    this.sparkles(x, y, z, { n: 18, col: GOLD, speed: 3.5 });
+  /** A gift box popping open: ribbon-coloured sparkles and paper confetti. */
+  giftBurst(x, y, z) {
+    this.sparkles(x, y, z, { n: 16, col: PINK, speed: 3.5 });
+    this.sparkles(x, y, z, { n: 10, col: GOLD, speed: 2.5 });
+    const cols = ['#ff4b8b', '#ffd23f', '#3fd0b0', '#ffffff'].map((c) => new THREE.Color(c));
+    for (let i = 0; i < 24 * this.scale; i++) {
+      const a = Math.random() * Math.PI * 2, v = 1.5 + Math.random() * 3;
+      this.confetti.add(x, y, z, Math.cos(a) * v, 2 + Math.random() * 3, Math.sin(a) * v, { life: 1.2, size: 0.08, alpha: 1, drag: 1.5, grav: -5, col: cols[i % 4], rot: Math.random() * 6, rv: 10, stretch: 0.8 });
+    }
+  }
+
+  /** Wind lines streaming past a rider who is drafting. */
+  draftLines(x, y, z, fwd, speed, dt) {
+    this.draftT = (this.draftT ?? 0) + dt * 30 * this.scale;
+    while (this.draftT > 1) {
+      this.draftT -= 1;
+      const side = (Math.random() - 0.5) * 1.6, up = 0.3 + Math.random() * 1.2;
+      const rx = -fwd[1], rz = fwd[0];
+      this.motes.add(x + fwd[0] * 2.5 + rx * side, y + up, z + fwd[1] * 2.5 + rz * side, -fwd[0] * speed * 0.6, 0, -fwd[1] * speed * 0.6, { life: 0.45, size: 0.03, alpha: 0.9, drag: 0, grav: 0, stretch: 7, rot: Math.atan2(up - 0.8, side) });
+    }
   }
 
   boostBurst(x, y, z) {
@@ -219,6 +244,29 @@ export class Effects {
     if (Math.random() < 0.6) this.powder.add(x, y, z, 0, 0, 0, { life: 0.35, size: 0.12, grow: 2, alpha: 0.6, drag: 3, grav: 0 });
   }
 
+  /** Show giant snowball i rolling at (x, y, z). */
+  giant(i, x, y, z, rad, heading, roll) {
+    this.giants ??= [];
+    let m = this.giants[i];
+    if (!m) {
+      const mat = new THREE.MeshStandardNodeMaterial({ color: '#f6faff', roughness: 0.7 });
+      m = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 4), mat);
+      m.castShadow = true;
+      m.userData.spin = 0;
+      this.scene.add(m);
+      this.giants[i] = m;
+    }
+    m.visible = true;
+    m.position.set(x, y, z);
+    m.scale.setScalar(rad);
+    m.userData.spin -= roll;
+    m.rotation.set(m.userData.spin, -heading, 0, 'YXZ');
+  }
+
+  hideGiants(from = 0) {
+    for (let i = from; i < (this.giants?.length ?? 0); i++) this.giants[i].visible = false;
+  }
+
   hideBalls(from = 0) {
     for (let i = from; i < this.balls.length; i++) this.balls[i].visible = false;
   }
@@ -239,6 +287,7 @@ export class Effects {
   }
 
   clear() {
+    this.hideGiants();
     this.powder.clear();
     this.sparkle.clear();
     this.motes.clear();

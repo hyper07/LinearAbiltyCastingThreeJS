@@ -10,6 +10,7 @@
 import { Session } from '../net/Session.js';
 import { MSG, SEND_HZ, packState, unpackState, packThrow, unpackThrow, cleanMember, assignSlots, InterpBuffer } from './netproto.js';
 import { ALL_SPECIES } from './riders.js';
+import { cleanName } from './names.js';
 
 export class OnlineRace {
   constructor({ name = 'Rider', species = 'fox', onChange = () => {}, onGo = () => {}, onMessage = () => {}, onClosed = () => {} } = {}) {
@@ -29,7 +30,7 @@ export class OnlineRace {
     const s = this.session;
     s.on('message', (m) => this.receive(m));
     s.on('peer', (p) => {
-      this.members.set(p.id, { id: p.id, name: p.name, species: 'fox' });
+      this.members.set(p.id, { id: p.id, name: cleanName(p.name), species: 'fox' });
       if (this.isHost) this.sendLobby();
       this.onChange();
     });
@@ -99,7 +100,7 @@ export class OnlineRace {
     this.onChange();
     try {
       const j = await this.session.join(String(code).toUpperCase().trim(), this.name);
-      for (const p of j.peers ?? []) this.members.set(p.id, { id: p.id, name: p.name, species: 'fox' });
+      for (const p of j.peers ?? []) this.members.set(p.id, { id: p.id, name: cleanName(p.name), species: 'fox' });
       this.members.set(this.you, { id: this.you, name: this.name, species: this.species });
       this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: this.species });
     } catch (e) {
@@ -121,6 +122,13 @@ export class OnlineRace {
     } catch {
       /* gone */
     }
+  }
+
+  /** Your nickname (already cleaned): used when you make or join a room. */
+  setName(name) {
+    this.name = name;
+    const me = this.members.get(this.you);
+    if (me) me.name = name;
   }
 
   setSpecies(sp) {
@@ -161,7 +169,7 @@ export class OnlineRace {
       case MSG.hi: {
         if (!this.isHost) return;
         const mem = cleanMember({ id: m.from, name: m.name, species: m.species }, ALL_SPECIES);
-        this.members.set(m.from, { ...mem, name: this.session.peers.get(m.from)?.name ?? mem.name });
+        this.members.set(m.from, { ...mem, name: cleanName(this.session.peers.get(m.from)?.name ?? mem.name) });
         this.sendLobby();
         this.onChange();
         return;
@@ -178,7 +186,7 @@ export class OnlineRace {
       }
       case MSG.go: {
         if (m.from !== this.session.host) return;
-        this.slots = (m.slots ?? []).map((s) => ({ slot: s.slot | 0, id: String(s.id), name: s.name ?? null, species: ALL_SPECIES.includes(s.species) ? s.species : 'fox', human: Boolean(s.human), kind: s.kind ?? null }));
+        this.slots = (m.slots ?? []).map((s) => ({ slot: s.slot | 0, id: String(s.id), name: s.name == null ? null : cleanName(s.name), species: ALL_SPECIES.includes(s.species) ? s.species : 'fox', human: Boolean(s.human), kind: s.kind ?? null }));
         this.mountain = String(m.mountain);
         this.remote.clear();
         this.onGo({ mountain: this.mountain, slots: this.slots });
@@ -205,8 +213,14 @@ export class OnlineRace {
       }
       case MSG.hit:
         if (m.from !== this.session.host) return;
-        this.onMessage({ t: 'hit', p: String(m.p), target: m.target | 0, ok: Boolean(m.ok) });
+        this.onMessage({ t: 'hit', p: String(m.p), target: m.target | 0, ok: Boolean(m.ok), kind: m.kind === 'giant' ? 'giant' : 'snowball' });
         return;
+      case MSG.item: {
+        const it = m.it ?? {};
+        if (!['giant', 'ice', 'boost'].includes(it.k)) return;
+        this.onMessage({ t: 'item', it: { k: it.k, id: String(it.id ?? ''), from: it.from | 0, s: +it.s || 0, lat: +it.lat || 0, v: +it.v || 18, until: +it.until || 0 } });
+        return;
+      }
       case MSG.fin:
         this.onMessage({ t: 'fin', slot: m.slot | 0, time: +m.time });
         return;
@@ -242,8 +256,12 @@ export class OnlineRace {
     this.session.send({ t: MSG.throw, p: packThrow(p) });
   }
 
-  sendHit(pid, target, ok) {
-    this.session.send({ t: MSG.hit, p: pid, target, ok });
+  sendHit(pid, target, ok, kind = 'snowball') {
+    this.session.send({ t: MSG.hit, p: pid, target, ok, kind });
+  }
+
+  sendItem(it) {
+    this.session.send({ t: MSG.item, it });
   }
 
   sendFinish(slot, time) {
