@@ -82,6 +82,27 @@ for (const file of ['knowledge/own.json', 'knowledge/techniques.json']) {
   for (const r of read(file).records) add({ ...r, from: r.from ?? path.basename(file, '.json') });
 }
 
+// 4b. Reference screenshots studied from images/ (kept out of git): HUDs, skill bars, effects,
+// menus, scenes and game concepts. The record points at the study; `image` is the local file.
+// Ones rated 1 (blurry, duplicate, off-topic) stay in the catalogue but out of search.
+const REFS = 'knowledge/visual-refs.json';
+if (existsSync(path.join(ROOT, REFS))) {
+  for (const r of read(REFS).refs) {
+    if (r.quality < 2) continue;
+    const fx = r.fx?.shape ? ` FX: ${r.fx.shape}.` : '';
+    add({
+      id: r.id,
+      kind: 'visual-ref',
+      title: `${r.title} (${r.type}, ${r.quality}/5)`,
+      summary: `${r.concept ? `Concept: ${r.concept} ` : ''}${r.lessons[0] ?? r.summary}${fx}`,
+      tags: [r.type, ...r.useFor, ...(r.concept ? ['concept'] : []), ...r.tags],
+      path: 'knowledge/visual-study.md',
+      image: r.image,
+      from: 'visual-study',
+    });
+  }
+}
+
 // 5. Free low-poly models to fetch (polyfork, CC BY 4.0): searched with --models.
 const poly = read('knowledge/polyfork.json');
 for (const [id, title, type, kit, triangles] of poly.models) {

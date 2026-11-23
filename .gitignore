@@ -149,3 +149,6 @@ dist
 *.scx
 *.scm
 __pycache__/
+
+# Reference screenshots a person brings to study (knowledge/visual-refs.json describes them): never committed
+/images/

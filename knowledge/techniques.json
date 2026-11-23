@@ -1116,6 +1116,314 @@
    ],
    "from": "homescape",
    "path": "knowledge/homescape-study.md"
+  },
+  {
+   "id": "tech.render-engine-grade",
+   "kind": "technique",
+   "title": "Engine-grade look: the ten things that make three.js look like Unity or Unreal",
+   "summary": "HDRI image-based light plus one shadowed sun, AgX/Neutral tone mapping, ambient occlusion, soft fitted shadows, TRAA/SMAA, bloom only on emissive, height fog and godrays, per-zone LUT grade, varied roughness, sheen/clearcoat, animation crossfades, hit-stop and a steady 60 fps. §2.",
+   "tags": [
+    "render",
+    "quality",
+    "unreal",
+    "unity",
+    "aaa",
+    "lighting",
+    "hdri",
+    "tonemapping",
+    "ao",
+    "bloom",
+    "fog",
+    "grade",
+    "realistic"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.render-webgpu-pipeline",
+   "kind": "technique",
+   "title": "WebGPU render pipeline: SSGI, TRAA and emissive-only bloom",
+   "summary": "three r0.185 WebGPURenderer + RenderPipeline: pass() with MRT (output, normal, velocity, emissive) → ssgi (bounce light + AO) → bloom on emissive → traa. Also ao, ssr, sss (contact shadows, not subsurface), godrays, dof, lut3D, outline, fsr1. TSL only, no GLSL. For new games. §3.",
+   "tags": [
+    "webgpu",
+    "tsl",
+    "renderpipeline",
+    "ssgi",
+    "gi",
+    "traa",
+    "gtao",
+    "ssr",
+    "godrays",
+    "dof",
+    "postprocessing",
+    "node"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.render-webgl-upgrade",
+   "kind": "technique",
+   "title": "WebGL2 upgrade path for Gloamreach, Lanternwood and Arcademia",
+   "summary": "Keep EffectComposer and GLSL materials; add GTAOPass at half res, try AgX over ACES, selective bloom on an emissive layer, SMAAPass, BokehPass on select/dialogue screens, keep throttled shadows. §4.",
+   "tags": [
+    "webgl",
+    "effectcomposer",
+    "gtao",
+    "agx",
+    "bloom",
+    "smaa",
+    "bokeh",
+    "upgrade",
+    "gloamreach",
+    "lanternwood",
+    "arcademia"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.render-quality-tiers",
+   "kind": "technique",
+   "title": "Quality tiers and frame budgets",
+   "summary": "High/medium/low tiers chosen by a 2 s frame-time probe: DPR, AO, AA, bloom resolution, shadow size; under 300 draw calls, 1.5 M tris, KTX2 + meshopt, compileAsync warm-up so nothing compiles mid-play. Chromebooks get baked AO and blob shadows. §5.",
+   "tags": [
+    "performance",
+    "tiers",
+    "budget",
+    "draw calls",
+    "chromebook",
+    "mobile",
+    "dpr",
+    "ktx2",
+    "meshopt",
+    "compile"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.cute-doll-characters",
+   "kind": "technique",
+   "title": "Cute doll and toy characters for kids: shape, plush, vinyl, light",
+   "summary": "Head ≥ body, eyes big and low, soft bevels; MeshPhysicalMaterial plush (sheen 1, roughness .9) + fur shells, felt, vinyl (clearcoat), clay; warm key, rim light, strong AO; squash/stretch, spring-bone ears. Ready: Mesh2Motion bunny (234 clips), VRM rabbit. §6.",
+   "tags": [
+    "cute",
+    "kids",
+    "doll",
+    "toy",
+    "plush",
+    "chibi",
+    "bunny",
+    "sheen",
+    "clearcoat",
+    "felt",
+    "rim light",
+    "squash",
+    "stretch",
+    "character"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.fur-shells",
+   "kind": "technique",
+   "title": "Shell fur for fuzzy plush characters",
+   "summary": "Draw the mesh 8–16 times pushed along the normal, noise alpha thinning to the tips, depth write off, discard on face and paw pads; sheen alone for crowds. §6.",
+   "tags": [
+    "fur",
+    "shells",
+    "plush",
+    "fuzzy",
+    "hair",
+    "bunny",
+    "shader"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.snow-trails",
+   "kind": "technique",
+   "title": "Snow slope, persistent board trails and powder spray",
+   "summary": "Streamed heightfield chunks along a spline course; ping-pong float render target stamped by a top-down ortho camera for trails (displace + groove normal, slow refill); blue-tinted shadows, glint sparkle; edge spray scaled by carve × speed with soft particles. §7.",
+   "tags": [
+    "snow",
+    "snowboard",
+    "ski",
+    "trail",
+    "deformation",
+    "rendertarget",
+    "heightmap",
+    "powder",
+    "particles",
+    "slope",
+    "winter"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.skill-fx-layers",
+   "kind": "technique",
+   "title": "Skill effect layer stack: anticipation to ground decal",
+   "summary": "Wind-up 100–250 ms, white-hot core, emissive glow, element-coloured body, outliving particles, ribbon trail, fading ground decal, 1–2 frame flash + shake + 50–90 ms hit-stop, short point light. One hue family per element; enemy vs player colours differ. §8.",
+   "tags": [
+    "vfx",
+    "skill",
+    "spell",
+    "effect",
+    "hit",
+    "impact",
+    "hitstop",
+    "decal",
+    "trail",
+    "glow",
+    "telegraph",
+    "combat"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.render-cheap-mistakes",
+   "kind": "technique",
+   "title": "What makes a three.js game look cheap",
+   "summary": "Whole-frame bloom, black shadows with no environment light, one roughness everywhere, shimmering edges and shadow acne, grey fog, every hit flashing the screen, mid-play shader compiles and GC hitches. §10.",
+   "tags": [
+    "mistakes",
+    "quality",
+    "bloom",
+    "shadows",
+    "aliasing",
+    "fog",
+    "hitches",
+    "polish"
+   ],
+   "from": "render-quality",
+   "path": "knowledge/render-quality.md"
+  },
+  {
+   "id": "tech.hud-layouts",
+   "kind": "technique",
+   "title": "HUD layouts measured from 295 reference screenshots",
+   "summary": "PC/MMO (HP and MP split by a level badge, hotbar bottom-centre ~25%, boss bar top-centre), souls-like (stacked bars top-left, thin boss bar bottom), mobile (joystick in left 35%, skill arc bottom-right, minimap top-right 8–13%), HD-2D hearts + clock-orb minimap. §3.",
+   "tags": [
+    "hud",
+    "ui",
+    "layout",
+    "minimap",
+    "health bar",
+    "boss bar",
+    "mobile",
+    "joystick",
+    "interface",
+    "screen"
+   ],
+   "from": "visual-study",
+   "path": "knowledge/visual-study.md"
+  },
+  {
+   "id": "tech.skill-bar-alignment",
+   "kind": "technique",
+   "title": "Aligning skills: hotbar row, arc around an attack button, grid with an evade pill",
+   "summary": "Hotbar 6–10 slots bottom-centre; touch arc: attack button 7–10% wide with 4–9 round skills ~4% on 1–2 arcs; radial sweep + big seconds for cooldowns, < 1/6 > pager, + on empty slots, selected skill enlarged and named. Kids: 2–4 big picture buttons. §4.",
+   "tags": [
+    "skill bar",
+    "hotbar",
+    "skill wheel",
+    "cooldown",
+    "abilities",
+    "buttons",
+    "touch",
+    "mobile",
+    "alignment",
+    "slots",
+    "ui"
+   ],
+   "from": "visual-study",
+   "path": "knowledge/visual-study.md"
+  },
+  {
+   "id": "tech.dress-up-stage",
+   "kind": "technique",
+   "title": "Dress-up and character-select screens",
+   "summary": "Character centred ~55% on an empty soft-lit stage, item grid left (3 columns, category rail), locked items shown with a padlock, gold border for equipped, score badge top-right, sparkles on new; character sheet with a ring of sockets to fill. §6.",
+   "tags": [
+    "character select",
+    "dress up",
+    "wardrobe",
+    "costume",
+    "menu",
+    "buddy",
+    "customization",
+    "ui",
+    "locked",
+    "turntable"
+   ],
+   "from": "visual-study",
+   "path": "knowledge/visual-study.md"
+  },
+  {
+   "id": "tech.route-map",
+   "kind": "technique",
+   "title": "Route map and fast-travel screens",
+   "summary": "Diamond nodes coloured by type climbing bottom to top, only the next 2–3 reachable linked by dotted lines, hover previews the encounter in the world view; fast travel: parchment map left, list right, ??? for undiscovered. §7.",
+   "tags": [
+    "map",
+    "route",
+    "roguelite",
+    "nodes",
+    "fast travel",
+    "world map",
+    "ui"
+   ],
+   "from": "visual-study",
+   "path": "knowledge/visual-study.md"
+  },
+  {
+   "id": "tech.scene-mood-recipes",
+   "kind": "technique",
+   "title": "Scene mood recipes with palettes: golden hour, violet lamp forest, glowing mushrooms, lava, HD-2D, snow, plush studio",
+   "summary": "Hex palettes and light rules from the best references: one cool base with 1–2 warm lights marking the path, glow objects as path markers, lamp orbs every 4–6 m, giant trunks 5–10× player height, hero beside the warm light. §8.",
+   "tags": [
+    "scene",
+    "mood",
+    "palette",
+    "lighting",
+    "night",
+    "forest",
+    "golden hour",
+    "lava",
+    "fog",
+    "colour",
+    "environment"
+   ],
+   "from": "visual-study",
+   "path": "knowledge/visual-study.md"
+  },
+  {
+   "id": "tech.kids-game-concepts",
+   "kind": "technique",
+   "title": "Game concepts from the user: plush bunny snowboarding and cute doll worlds for kids",
+   "summary": "35 concept images: a pink plush bunny snowboarder, plush animal friends in pyjamas, snowball roller, seaside skate runner, creature riding, chibi dress-up, maths battles, cute monster hordes. What cute doll characters share: big head, minimal low face, touchable material, one bold accent. §2.",
+   "tags": [
+    "concept",
+    "kids",
+    "cute",
+    "plush",
+    "doll",
+    "bunny",
+    "snowboard",
+    "game idea",
+    "toy",
+    "chibi",
+    "children"
+   ],
+   "from": "visual-study",
+   "path": "knowledge/visual-study.md"
   }
  ]
 }

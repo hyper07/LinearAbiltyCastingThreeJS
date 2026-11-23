@@ -30,6 +30,11 @@ test('search finds the right thing first for plain words', () => {
   assert.ok(top('flow field navigation crowd').slice(0, 3).includes('tech.flowfield'));
   assert.ok(top('pixel sprite ramp outline').slice(0, 3).includes('own.pixel.art'));
   assert.ok(top('explosion', { kind: 'pixel-effect' }).length > 0);
+  // The studied screenshots and the rendering guide.
+  assert.ok(top('skill wheel mobile cooldown').slice(0, 3).includes('tech.skill-bar-alignment'));
+  assert.ok(top('bunny snowboard').slice(0, 3).includes('ref.img-0252'));
+  assert.ok(top('render quality unreal').slice(0, 3).includes('tech.render-engine-grade'));
+  assert.ok(top('dress up', { kind: 'visual-ref' }).every((id) => id.startsWith('ref.img-')));
   // Models only when asked for.
   assert.ok(top('tank').every((id) => !id.startsWith('model.')));
   assert.ok(top('tank', { models: true }).some((id) => id.startsWith('model.')));
