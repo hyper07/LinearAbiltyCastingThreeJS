@@ -135,7 +135,7 @@ const _castDirection = new Vector3();
  * ability class has any idea that monsters exist.
  */
 /** The games that open over the home page (their own screens), not through the lobby. */
-const OVER_HOME = new Set(['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch']);
+const OVER_HOME = new Set(['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff']);
 
 export class App {
   constructor(canvas) {
@@ -1508,6 +1508,7 @@ export class App {
     if (game.engine === 'wyldhunt') return this.openWyldhunt(game);
     if (game.engine === 'kithvale') return this.openKithvale(game);
     if (game.engine === 'kindlewatch') return this.openKindlewatch(game);
+    if (game.engine === 'snowpuff') return this.openSnowpuff(game);
     await this.lobby.open({ id, title: game.title, roster: game.roster ?? [], genre: game.genre });
   }
 
@@ -1614,6 +1615,24 @@ export class App {
     this.home.closePage();
     this.stop();
     const view = new KindlewatchGame(document.body, {
+      account: this.account?.user ?? null,
+      onClose: () => {
+        this.start();
+        this.home.musicBack?.();
+        this.home.refresh?.();
+      }
+    });
+    await view.open();
+    return view;
+  }
+
+  /** Snowpuff Peaks, the plush snowboard race: its own screen and WebGPU view, like Kindlewatch. */
+  async openSnowpuff(game) {
+    games.play?.(game.id)?.catch?.(() => {});
+    const { SnowpuffGame } = await import('../snowpuff/SnowpuffGame.js');
+    this.home.closePage();
+    this.stop();
+    const view = new SnowpuffGame(document.body, {
       account: this.account?.user ?? null,
       onClose: () => {
         this.start();

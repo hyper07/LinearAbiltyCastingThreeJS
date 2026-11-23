@@ -1,0 +1,387 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { MOUNTAINS, mountainById } from '../../src/snowpuff/mountains.js';
+import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt } from '../../src/snowpuff/course.js';
+import { newRider, step, settle, trickName, onIce, VMAX } from '../../src/snowpuff/physics.js';
+import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_AMMO, SPINOUT } from '../../src/snowpuff/race.js';
+import { newBrain, think } from '../../src/snowpuff/ai.js';
+import { packState, unpackState, packThrow, unpackThrow, assignSlots, cleanMember, InterpBuffer, MSG } from '../../src/snowpuff/netproto.js';
+import { SPECIES, SELECTABLE, ALL_SPECIES, faceSvg } from '../../src/snowpuff/riders.js';
+import { CONTROLS } from '../../src/snowpuff/controls.js';
+import { collisions, codesFor } from '../../src/shared/helpPanel.js';
+import { PACKS } from '../../src/snowpuff/credits.js';
+import { POLYFORK } from '../../src/snowpuff/assets.js';
+
+const DT = 1 / 60;
+const course = buildCourse(mountainById('marshmallow'));
+const ride = (r, inp, secs, c = course, o) => {
+  const ev = [];
+  for (let t = 0; t < secs; t += DT) ev.push(...step(r, inp, c, DT, o));
+  return ev;
+};
+/** A rider on a clear stretch (no barriers within 60 m). */
+function clearRider(speed = 15) {
+  let s = 200;
+  while (between(course.obstacles, s - 5, s + 60).length || course.kickers.some((k) => k.s > s - 10 && k.s < s + 70)) s += 7;
+  const r = newRider({ s, lat: 0, speed });
+  settle(r, course);
+  return r;
+}
+
+/* ---------------------------------------------------------------- courses */
+
+test('courses are deterministic: the same mountain builds the same course', () => {
+  for (const m of MOUNTAINS) {
+    const a = buildCourse(m), b = buildCourse(m);
+    assert.equal(a.n, b.n);
+    assert.deepEqual([...a.px.slice(0, 200)], [...b.px.slice(0, 200)]);
+    assert.deepEqual(a.obstacles, b.obstacles);
+    assert.deepEqual(a.kickers, b.kickers);
+    assert.deepEqual(a.stars.map((s) => s.id), b.stars.map((s) => s.id));
+    assert.equal(groundAt(a, 333.3, 4.2), groundAt(b, 333.3, 4.2));
+  }
+});
+
+test('courses run downhill, wind gently, and have room to ride', () => {
+  for (const m of MOUNTAINS) {
+    const c = buildCourse(m);
+    assert.ok(c.py[0] - c.py[c.length] > c.length * 0.15, `${m.id} drops`);
+    for (let s = 1; s < c.n - 1; s += 1) {
+      assert.ok(c.py[s] < c.py[s - 1] + 1e-6, `${m.id} goes down at ${s}`);
+      const turn = Math.abs(c.heading[s + 1] - c.heading[s - 1]) / 2;
+      assert.ok(turn < 1 / 70, `${m.id}: no hairpins (${turn.toFixed(4)} at ${s})`);
+    }
+    assert.ok(c.kickers.length >= m.kickers.count - 1);
+    assert.ok(c.obstacles.length > 10 && c.stars.length > 50 && c.piles.length > 5, m.id);
+    assert.ok(c.piles.some((p) => p.kind === 'shield'), `${m.id} has shields`);
+    assert.equal(c.arches.at(-1).kind, 'finish');
+  }
+});
+
+test('barriers always leave a gap of at least 4 m across the run', () => {
+  for (const m of MOUNTAINS) {
+    const c = buildCourse(m);
+    for (const o of c.obstacles) {
+      const W = frameAt(c, o.s).width;
+      const row = c.obstacles.filter((x) => Math.abs(x.s - o.s) < 2.5).map((x) => [x.lat - x.w, x.lat + x.w]).sort((a, b) => a[0] - b[0]);
+      let best = row[0][0] + W, at = row[0][1];
+      for (const [a, b] of row.slice(1)) {
+        best = Math.max(best, a - at);
+        at = Math.max(at, b);
+      }
+      best = Math.max(best, W - at);
+      assert.ok(best >= 3.2, `${m.id}: gap ${best.toFixed(1)} m at s=${o.s}`);
+    }
+  }
+});
+
+test('lift towers stand off the run; kickers sit on it', () => {
+  for (const m of MOUNTAINS) {
+    const c = buildCourse(m);
+    for (const lf of c.lifts) for (const t of lf.towers) assert.ok(Math.abs(t.lat) > frameAt(c, Math.max(0, Math.min(c.n - 1, t.s))).width + 4, `${m.id} tower at lat ${t.lat}`);
+    for (const k of c.kickers) {
+      assert.ok(Math.abs(k.lat) + k.w / 2 < frameAt(c, k.s).width, `${m.id} kicker inside`);
+      assert.equal(kickerAt(c, k.s + k.len / 2, k.lat), k);
+      assert.ok(groundAt(c, k.s + k.len * 0.9, k.lat) > groundAt(c, k.s + k.len * 0.9, k.lat, false) + k.h * 0.5);
+    }
+  }
+});
+
+test('course space ↔ world space round-trips', () => {
+  for (const [s, lat] of [[100, 3], [500, -8], [900, 12]]) {
+    const w = toWorld(course, s, lat);
+    const back = project(course, w.x, w.z, s, 50);
+    assert.ok(Math.abs(back.s - s) < 0.6 && Math.abs(back.lat - lat) < 0.6, `${s},${lat} → ${back.s},${back.lat}`);
+  }
+  assert.ok(profile(25, 18) > profile(10, 18) + 2, 'berms rise past the edge');
+});
+
+/* ---------------------------------------------------------------- the rider */
+
+test('rider: gravity speeds you up, tuck goes faster, VMAX holds', () => {
+  const a = clearRider(10), b = clearRider(10);
+  const s0 = a.s;
+  ride(a, {}, 3);
+  ride(b, { tuck: true }, 3);
+  assert.ok(a.speed > 12, `speeds up (${a.speed})`);
+  assert.ok(b.speed > a.speed, `tuck is faster (${b.speed} > ${a.speed})`);
+  assert.ok(a.s > s0 + 30);
+  const c = clearRider(VMAX + 10);
+  step(c, {}, course, DT);
+  assert.ok(c.speed <= VMAX + 1e-6);
+});
+
+test('rider: carving turns harder the longer you hold, sprays (carve) and costs speed', () => {
+  const a = clearRider(18), b = clearRider(18);
+  ride(a, { steer: 1 }, 0.25);
+  const early = a.yaw;
+  ride(a, { steer: 1 }, 0.5);
+  ride(b, {}, 0.75);
+  assert.ok(a.carve > 0.7 && a.yaw > early, 'carve deepens');
+  assert.ok(a.lat > b.lat + 1, 'turned right');
+  assert.ok(a.speed < b.speed, 'carving is slower');
+  ride(a, {}, 2);
+  assert.ok(Math.abs(a.yaw) < 0.2, 'lets go back to the fall line');
+});
+
+test('rider: hold jump longer, jump higher; spins land clean for a boost, a crooked one wobbles', () => {
+  const peak = (hold) => {
+    const r = clearRider(15);
+    ride(r, { jump: true }, hold);
+    const ev = step(r, {}, course, DT);
+    assert.ok(ev.some((e) => e.type === 'jump'));
+    let top = 0;
+    for (let t = 0; t < 3 && r.air; t += DT) {
+      step(r, {}, course, DT);
+      top = Math.max(top, r.y - groundAt(course, r.s, r.lat));
+    }
+    return top;
+  };
+  assert.ok(peak(0.6) > peak(0.05) + 0.3, 'longer hold, more air');
+  // a 360: spin until near 2π, then let go — the magnet settles it straight
+  const r = clearRider(16);
+  ride(r, { jump: true }, 0.55);
+  step(r, {}, course, DT);
+  let ev = [];
+  while (r.air && Math.abs(r.spin) < Math.PI * 2 - 0.9) ev.push(...step(r, { steer: 1 }, course, DT));
+  while (r.air) ev.push(...step(r, {}, course, DT));
+  const land = ev.find((e) => e.type === 'land');
+  assert.ok(land && land.clean, 'clean landing');
+  assert.ok(land.tricks > 0 && r.boost > 0, 'a trick and a boost');
+  assert.equal(trickName(2, 0), '360');
+  assert.equal(trickName(0, -1), 'Back Flip');
+  // crooked: still spinning hard when the snow arrives
+  const w = clearRider(16);
+  ride(w, { jump: true }, 0.2);
+  step(w, {}, course, DT);
+  ev = [];
+  while (w.air) ev.push(...step(w, { steer: 1 }, course, DT));
+  const l2 = ev.find((e) => e.type === 'land');
+  if (!l2.clean) assert.ok(w.wobble > 0, 'wobble, not a crash');
+});
+
+test('rider: a kicker launches you into the air', () => {
+  const k = course.kickers[0];
+  const r = newRider({ s: k.s - 6, lat: k.lat, speed: 18 });
+  settle(r, course);
+  let launched = false;
+  for (let t = 0; t < 2 && !launched; t += DT) launched = step(r, {}, course, DT).some((e) => e.type === 'launch');
+  assert.ok(launched && r.air && r.vy > 0);
+});
+
+test('rider: barriers bounce you into a short tumble — never a game over', () => {
+  const o = course.obstacles.find((x) => x.kind !== 'pole' && x.kind !== 'log');
+  const r = newRider({ s: o.s - 4, lat: o.lat, speed: 16 });
+  settle(r, course);
+  let bump = null;
+  for (let t = 0; t < 1.5 && !bump; t += DT) bump = step(r, {}, course, DT).find((e) => e.type === 'bump');
+  assert.ok(bump, 'bumped');
+  assert.ok(r.tumble > 0 && r.speed < 16 * 0.5 && r.invuln > 0);
+  ride(r, {}, 1.2);
+  assert.equal(r.tumble, 0, 'back up within ~1 s');
+  ride(r, {}, 2);
+  assert.ok(r.speed > 5, 'riding again');
+});
+
+test('rider: ice is slippery (turns less)', () => {
+  const c2 = buildCourse(mountainById('pinecone'));
+  const p = c2.ice[0];
+  assert.ok(onIce(c2, p.s + p.len / 2, p.lat));
+  const r = newRider({ s: p.s + 0.5, lat: p.lat, speed: 15 });
+  settle(r, c2);
+  step(r, { steer: 1 }, c2, DT);
+  const dry = clearRider(15);
+  step(dry, { steer: 1 }, course, DT);
+  assert.ok(r.onIce && r.yaw < dry.yaw);
+});
+
+/* ---------------------------------------------------------------- the race */
+
+const racerAt = (slot, s, lat = 0, extra = {}) => {
+  const r = newRider({ s, lat, speed: 15 });
+  settle(r, course);
+  return Object.assign(newRacer({ slot, rider: r }), extra);
+};
+
+test('race: standings, ordinals, the finish', () => {
+  const a = racerAt(0, 100), b = racerAt(1, 120), c = racerAt(2, 80);
+  assert.deepEqual(standings([a, b, c]).map((x) => x.slot), [1, 0, 2]);
+  c.rider.s = course.finish + 1;
+  assert.ok(checkFinish(c, course, 61.5));
+  assert.ok(!checkFinish(c, course, 70));
+  assert.equal(c.time, 61.5);
+  assert.deepEqual(standings([a, b, c]).map((x) => x.slot), [2, 1, 0]);
+  assert.deepEqual([1, 2, 3, 4, 11, 21].map(ordinal), ['1st', '2nd', '3rd', '4th', '11th', '21st']);
+});
+
+test('race: the rubber band is gentle', () => {
+  assert.equal(rubberBand(500, 500), 1);
+  assert.ok(rubberBand(100, 400) > 1 && rubberBand(100, 400) <= 1.07);
+  assert.ok(rubberBand(900, 100) >= 0.93 && rubberBand(900, 100) < 1);
+});
+
+test('race: stars, snowball piles (up to 3) and shields are picked up', () => {
+  const st = course.stars.find((x) => !x.risky);
+  const r = racerAt(0, st.s, st.lat);
+  const ev = pickups(r, course, 1);
+  assert.ok(ev.some((e) => e.type === 'star' && e.id === st.id) && r.stars === 1);
+  assert.equal(pickups(r, course, 1).filter((e) => e.type === 'star' && e.id === st.id).length, 0, 'once each');
+  const pile = course.piles.find((p) => p.kind === 'snow');
+  const q = racerAt(0, pile.s, pile.lat);
+  pickups(q, course, 1);
+  assert.equal(q.ammo, 2);
+  q.ammo = MAX_AMMO;
+  const pile2 = course.piles.filter((p) => p.kind === 'snow')[1];
+  q.rider.s = pile2.s;
+  q.rider.lat = pile2.lat;
+  pickups(q, course, 2);
+  assert.equal(q.ammo, MAX_AMMO, 'carry at most 3');
+  const sh = course.piles.find((p) => p.kind === 'shield');
+  const z = racerAt(0, sh.s, sh.lat);
+  pickups(z, course, 1);
+  assert.equal(z.shieldItem, 1);
+  assert.ok(useShield(z) && z.shieldT > 0 && !useShield(z));
+});
+
+test('race: a snowball aims at the nearest rider ahead in the cone, hits, and spins them out', () => {
+  const me = racerAt(0, 300, 0, { ammo: 2 }), ahead = racerAt(1, 318, 2), far = racerAt(2, 330, 1), behind = racerAt(3, 290, 0), wide = racerAt(4, 305, 14);
+  const all = [me, ahead, far, behind, wide];
+  assert.equal(pickTarget(me, all), ahead);
+  assert.ok(canThrow(me));
+  const p = makeThrow(me, ahead, 'p1');
+  assert.equal(me.ammo, 1);
+  assert.ok(!canThrow(me), 'a short cooldown');
+  tickRacer(me, 1);
+  assert.ok(canThrow(me));
+  let state;
+  for (let t = 0; t < 2; t += DT) {
+    state = flyProjectile(p, DT);
+    const pos = projectilePos(p, all, course);
+    assert.ok(Number.isFinite(pos.y));
+    if (state === 'arrived') break;
+  }
+  assert.equal(state, 'arrived');
+  assert.ok(hittable(ahead, course));
+  const v = ahead.rider.speed;
+  assert.ok(applyHit(ahead));
+  assert.equal(ahead.rider.spinout, SPINOUT);
+  assert.ok(ahead.rider.speed < v && ahead.bonks === 1);
+  ride(ahead.rider, { steer: 1 }, 0.3);
+  assert.ok(Math.abs(ahead.rider.carve) < 0.05, 'no steering while spinning');
+  // a shield takes it instead
+  const s = racerAt(5, 320, 0, { shieldItem: 1 });
+  useShield(s);
+  assert.ok(!hittable(s, course));
+  assert.equal(applyHit(s), false);
+  assert.equal(s.shieldT, 0);
+  // nobody ahead: no target
+  assert.equal(pickTarget(far, all), null);
+});
+
+test('AI riders get down every mountain in about a minute or so, collecting and jumping', () => {
+  for (const m of MOUNTAINS) {
+    const c = buildCourse(m);
+    const rand = rng(7);
+    const racers = ['careful', 'reckless', 'thrower'].map((k, i) => {
+      const r = newRider({ s: 4, lat: (i - 1) * 2.5 });
+      settle(r, c);
+      const rc = newRacer({ slot: i, rider: r });
+      rc.brain = newBrain(k, rand);
+      rc.jumps = 0;
+      return rc;
+    });
+    let t = 0;
+    while (t < 180 && !racers.every((x) => x.finished)) {
+      t += DT;
+      for (const rc of racers) {
+        if (rc.finished) continue;
+        const inp = think(rc.brain, rc, c, racers, DT);
+        for (const e of step(rc.rider, inp, c, DT)) if (e.type === 'jump' || e.type === 'launch') rc.jumps++;
+        if (inp.throw && canThrow(rc)) makeThrow(rc, pickTarget(rc, racers), 'x');
+        pickups(rc, c, t);
+        tickRacer(rc, DT);
+        checkFinish(rc, c, t);
+      }
+    }
+    for (const rc of racers) {
+      assert.ok(rc.finished, `${m.id}: ${rc.brain.kind} finished`);
+      assert.ok(rc.time > 45 && rc.time < 110, `${m.id}: ${rc.brain.kind} in ${rc.time.toFixed(1)} s`);
+      assert.ok(rc.stars > 5, `${m.id}: ${rc.brain.kind} collected stars`);
+    }
+    assert.ok(racers.some((x) => x.jumps > 0), `${m.id}: someone jumped`);
+  }
+});
+
+/* ---------------------------------------------------------------- online */
+
+test('netproto: rider states and throws pack and unpack', () => {
+  const r = racerAt(2, 123.456, -3.21, { ammo: 2, stars: 7, shieldT: 1 });
+  r.rider.air = true;
+  r.rider.spin = 3.3;
+  r.rider.tumble = 0.4;
+  const st = unpackState(JSON.parse(JSON.stringify(packState(r))));
+  assert.equal(st.slot, 2);
+  assert.equal(st.s, 123.46);
+  assert.equal(st.lat, -3.21);
+  assert.ok(st.air && st.tumble && st.shield && !st.finished);
+  assert.equal(st.ammo, 2);
+  assert.equal(st.stars, 7);
+  assert.equal(unpackState('nope'), null);
+  const me = racerAt(0, 300, 0, { ammo: 1 });
+  const p = makeThrow(me, racerAt(1, 320), 'abc');
+  const q = unpackThrow(JSON.parse(JSON.stringify(packThrow(p))));
+  assert.equal(q.id, 'abc');
+  assert.equal(q.target, 1);
+  assert.equal(q.t, 0);
+  assert.ok(Math.abs(q.T - p.T) < 0.01);
+  assert.ok(Object.values(MSG).every((t) => t.length <= 32));
+});
+
+test('netproto: slots put humans first and fill the rest with AI riders of other species', () => {
+  const slots = assignSlots([{ id: '1', name: 'A', species: 'fox' }, { id: '2', name: 'B', species: 'cat' }], 5, ALL_SPECIES);
+  assert.equal(slots.length, 5);
+  assert.deepEqual(slots.slice(0, 2).map((s) => s.human), [true, true]);
+  assert.ok(slots.slice(2).every((s) => !s.human && s.kind && !['fox', 'cat'].includes(s.species)));
+  assert.deepEqual(slots.map((s) => s.slot), [0, 1, 2, 3, 4]);
+  assert.equal(cleanMember({ id: 7, name: 'x\u0001y', species: 'dragon' }, ALL_SPECIES).species, ALL_SPECIES[0]);
+});
+
+test('netproto: the interpolation buffer glides between states and holds when late', () => {
+  const b = new InterpBuffer(0.1);
+  assert.equal(b.sample(1), null);
+  b.push(1.0, { s: 10, lat: 0, y: 0, yaw: 0, speed: 10, spin: 0, flip: 0, edge: 0 });
+  b.push(1.1, { s: 11, lat: 1, y: 0, yaw: 0, speed: 10, spin: 0, flip: 0, edge: 0 });
+  const mid = b.sample(1.15);
+  assert.ok(Math.abs(mid.s - 10.5) < 1e-6 && Math.abs(mid.lat - 0.5) < 1e-6);
+  const late = b.sample(2);
+  assert.ok(late.s > 11 && late.s <= 13.5);
+  b.push(1.05, { s: 0 });
+  assert.equal(b.items.length, 2, 'out-of-order states are dropped');
+});
+
+/* ---------------------------------------------------------------- the cast and the table */
+
+test('riders: four to choose (the fox first), six in all, faces for the HUD', () => {
+  assert.deepEqual(SELECTABLE, ['fox', 'bear', 'cat', 'frog']);
+  assert.equal(ALL_SPECIES.length, 6);
+  for (const id of ALL_SPECIES) {
+    assert.ok(SPECIES[id].name && SPECIES[id].accent && SPECIES[id].color);
+    assert.match(faceSvg(id), /^<svg/);
+  }
+  assert.notEqual(SPECIES.fox.accent.toLowerCase(), SPECIES.fox.color.toLowerCase());
+});
+
+test('controls: nothing bound twice, numbers for items, H for How to play', () => {
+  assert.deepEqual(collisions(CONTROLS), []);
+  assert.ok(codesFor(CONTROLS, 'help').includes('KeyH'));
+  assert.ok(codesFor(CONTROLS, 'throw').includes('Digit1'));
+  assert.ok(codesFor(CONTROLS, 'shield').includes('Digit2'));
+  for (const g of CONTROLS.groups) for (const r of g.rows) for (const c of r.codes) assert.ok(!['KeyQ', 'KeyE'].includes(c), `${r.id} on ${c}`);
+});
+
+test('credits: every library model is named with its page, and the music is credited', () => {
+  const pf = PACKS.find((p) => p.name === 'polyfork');
+  assert.equal(pf.items.length, Object.keys(POLYFORK).length);
+  assert.ok(pf.items.every((i) => i.url.startsWith('https://polyfork.dev/asset/')));
+  assert.ok(PACKS.some((p) => p.name === 'ACE-Step 1.5' && p.licence === 'MIT'));
+});

@@ -529,6 +529,172 @@
     "guide"
    ],
    "path": "docs/music.md"
+  },
+  {
+   "id": "own.snowpuff.pipeline",
+   "kind": "module",
+   "title": "WebGPU render pipeline: one MRT scene pass, GTAO, emissive-only bloom, TRAA/SMAA/FXAA tiers, speed blur, grade (TSL)",
+   "summary": "Pipeline(renderer, scene, camera, TIERS.high|medium|low) on three r0.185 WebGPURenderer + RenderPipeline, verified in a browser: pass() with mrt({output, normal, velocity, emissive}) where normal/velocity/emissive are BLENDED targets (so transparent particles writing alpha 0 leave AO/TRAA alone), GTAO half-res faded out past ~35 m (depth too coarse far away), bloom(emissive) only, traa/smaa/fxaa by tier, a radial speed blur, renderOutput (Neutral) then saturation/split-tone/vignette grade via uniforms; makeRenderer() falls back to WebGL2 by itself (?webgl forces it).",
+   "tags": [
+    "webgpu",
+    "tsl",
+    "render",
+    "pipeline",
+    "gtao",
+    "ao",
+    "traa",
+    "smaa",
+    "bloom",
+    "emissive",
+    "mrt",
+    "postprocessing",
+    "quality",
+    "tiers",
+    "grade"
+   ],
+   "path": "src/snowpuff/render/pipeline.js"
+  },
+  {
+   "id": "own.snowpuff.plush",
+   "kind": "module",
+   "title": "TSL plush material and shell fur for sculpted toy characters (WebGPU)",
+   "summary": "plushMaterial({color}) MeshPhysicalNodeMaterial with sheen, fibre noise in colour/roughness, fresnel rim kept out of bloom (material mrtNode); furShells(skinnedMesh, {count, length, wind}) draws the same skinned body N times in ONE draw (mesh.count = N, instanceIndex = layer), pushed along the skinned normal, strands cut by cell noise on the REST position (attribute('position')) so they don't swim, thinning toward tips, root shells darker, combed by a wind uniform; fur only where the sculpt's tint says body colour. Also vinylMaterial (clearcoat) and knitMaterial.",
+   "tags": [
+    "plush",
+    "fur",
+    "shells",
+    "tsl",
+    "webgpu",
+    "toy",
+    "cute",
+    "character",
+    "sheen",
+    "material",
+    "kids"
+   ],
+   "path": "src/snowpuff/render/plush.js"
+  },
+  {
+   "id": "own.snowpuff.riders",
+   "kind": "module",
+   "title": "Sculpted plush animal riders (fox, bear, cat, frog, pig, penguin) with springs and squash",
+   "summary": "RiderModel(species, {fur}) sculpts a recipe with the Arcademia SDF sculptor into one skinned body, adds bead eyes lifted above the fur, a stitched mouth, accents (goggles, scarf chain, bobble hat, backpack) and a snowboard; pose(dt, state) leans into carves, crouches, squashes on landing, spins/flips/tumbles, breathes, and swings ears, tail, scarf and pompom on springs. Recipes are easy to add.",
+   "tags": [
+    "character",
+    "plush",
+    "cute",
+    "sculpt",
+    "sdf",
+    "fox",
+    "bear",
+    "cat",
+    "frog",
+    "snowboard",
+    "spring",
+    "squash",
+    "rig"
+   ],
+   "path": "src/snowpuff/render/riderModel.js"
+  },
+  {
+   "id": "own.snowpuff.snow",
+   "kind": "module",
+   "title": "Snow material and persistent board trails in course space (TSL, ping-pong render targets)",
+   "summary": "SnowTrails(renderer): two HalfFloat render targets over a window of the run in (lat, s) course space; each frame a QuadMesh copies the old map in scrolled as the window slides, fades it, and stamps every rider's board sweep (segment distance in a uniformArray loop) — no ortho camera; clear the targets first (garbage × 0 = NaN). snowMaterial({trails, sun, sunColor}): cool white, corduroy that fades before aliasing, groove normals from the map's gradient, macro/micro noise, roughness variation, sparkle glints to bloom. iceMaterial(). Terrain needs attributes course(s, lat, W) and side(rx, rz).",
+   "tags": [
+    "snow",
+    "trail",
+    "trails",
+    "ping-pong",
+    "render target",
+    "tsl",
+    "webgpu",
+    "material",
+    "sparkle",
+    "ice",
+    "terrain",
+    "snowboard",
+    "ski"
+   ],
+   "path": "src/snowpuff/render/snow.js"
+  },
+  {
+   "id": "own.snowpuff.course",
+   "kind": "module",
+   "title": "Spline downhill course generator: deterministic run, cross-section, features (pure)",
+   "summary": "buildCourse(mountainRecord) → centre line every metre (gentle winding, sectioned steepness, banked turns), groundAt(s, lat) cross-section (dish, berms, mountainside, rolls, kickers), and placed features: kickers, barrier rows that always leave a gap, slalom gates, star lines, pickups, ice patches, ski lifts (crossing and alongside, towers kept off the run), arches. frameAt/toWorld/project/between helpers. Seeded, so online players share it without sending it.",
+   "tags": [
+    "course",
+    "track",
+    "spline",
+    "procedural",
+    "race",
+    "downhill",
+    "ski",
+    "snowboard",
+    "terrain",
+    "deterministic",
+    "seed"
+   ],
+   "path": "src/snowpuff/course.js"
+  },
+  {
+   "id": "own.snowpuff.speedkit",
+   "kind": "technique",
+   "title": "Speed-feel kit for a racer: near-edge props, motes, lines, FOV, shake, whooshes",
+   "summary": "What sells speed in Snowpuff: fence panels/posts at the edge, piste poles every 10 m, feather flags every ~40 m, arches and lift cables overhead with moving chairs, trees at the fence; spray scaled by carve×speed, camera-rushing snow motes stretched radially, 2D speed lines at the edges, radial blur only near top speed, FOV 60→78 smoothed, damped-spring chase cam with a hum of shake, wind gain ∝ speed², a panned whoosh per pole/gate/arch/lift passed (s crossing test).",
+   "tags": [
+    "speed",
+    "racing",
+    "camera",
+    "fov",
+    "shake",
+    "speed lines",
+    "motion blur",
+    "whoosh",
+    "audio",
+    "props",
+    "feel",
+    "juice"
+   ],
+   "path": "src/snowpuff/SnowpuffGame.js"
+  },
+  {
+   "id": "own.snowpuff.particles",
+   "kind": "module",
+   "title": "TSL billboard particle pools from instanced dynamic buffers (one draw per kind)",
+   "summary": "Effects(scene): powder (soft puffs), sparkle (additive, emissive → bloom), motes (stretched streaks), confetti; each a PlaneGeometry Mesh with mesh.count = live particles, positions/size/alpha/rotation/colour in instancedDynamicBufferAttribute, billboarded with the camera's right/up from cameraViewMatrix; writes alpha 0 to the normal/velocity MRT targets so GTAO/TRAA stay clean. Plus snowball meshes and fresnel shield bubbles.",
+   "tags": [
+    "particles",
+    "vfx",
+    "tsl",
+    "webgpu",
+    "billboard",
+    "instancing",
+    "spray",
+    "sparkle",
+    "confetti",
+    "powder"
+   ],
+   "path": "src/snowpuff/fx.js"
+  },
+  {
+   "id": "own.snowpuff.netrace",
+   "kind": "module",
+   "title": "Host-authoritative online race over the party relay: packed states, interpolation, relayed throws",
+   "summary": "OnlineRace wraps src/net/Session.js rooms (5-letter codes): lobby picks, host start with slots (humans + AI fill), ~15 Hz packed rider states (netproto.packState), InterpBuffer reading ~110 ms behind, throws relayed to all, the host decides hits and the final order; falls back cleanly when the server is unreachable.",
+   "tags": [
+    "multiplayer",
+    "online",
+    "network",
+    "netcode",
+    "interpolation",
+    "relay",
+    "race",
+    "host",
+    "websocket"
+   ],
+   "path": "src/snowpuff/net.js"
   }
  ]
 }

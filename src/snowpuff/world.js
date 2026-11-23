@@ -1,0 +1,919 @@
+/**
+ * The mountain in 3D, built from a course (course.js): the snow (streamed
+ * chunks along the run, kickers, ice), everything that sells speed — fence
+ * panels and posts close on both sides, piste poles, feather flags, slalom
+ * gates, ski lifts with moving chairs crossing overhead and running beside
+ * the run, arches, lanterns at night, trees right at the edge — and the
+ * pickups. Static things live in 100 m sections that are shown only near
+ * you; lifts, flags, stars and lantern lights move every frame.
+ */
+import * as THREE from 'three/webgpu';
+import { uniform, vec3, float, mix, smoothstep, positionLocal, positionWorld, instanceIndex, sin, time, hash, uv, step, fract, mx_noise_float, abs, normalWorld, max, dot, pow, positionViewDirection, normalView, attribute, color } from 'three/tsl';
+import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT } from './course.js';
+import { snowMaterial, iceMaterial } from './render/snow.js';
+import { loadKit, instance } from './render/models.js';
+import { starGeometry, RiderModel } from './render/riderModel.js';
+import { ALL_SPECIES } from './riders.js';
+import { KEEP_BUFFERS } from './fx.js';
+
+const SECTION = 100;
+const IN_COLS = 46;
+const OUT = [0.6, 1.4, 2.4, 3.6, 5, 6.6, 8.6, 11, 14, 18, 23, 29, 36, 44, 53, 63];
+
+const _f = {};
+const _p = {};
+
+export class World {
+  constructor({ scene, course, mountain, tier, trails, sky }) {
+    this.scene = scene;
+    this.course = course;
+    this.mountain = mountain;
+    this.tier = tier;
+    this.trails = trails;
+    this.sky = sky;
+    this.root = new THREE.Group();
+    this.root.name = 'world';
+    scene.add(this.root);
+    this.sections = [];
+    this.movers = [];
+    this.rand = rng(course.seed * 7 + 3);
+    this.lanternSpots = [];
+    this.spectators = [];
+  }
+
+  section(s) {
+    const i = Math.max(0, Math.floor(s / SECTION));
+    while (this.sections.length <= i) {
+      const g = new THREE.Group();
+      g.userData.s0 = this.sections.length * SECTION;
+      this.root.add(g);
+      this.sections.push(g);
+    }
+    return this.sections[i];
+  }
+
+  async build(progress = () => {}) {
+    const c = this.course, m = this.mountain;
+    this.snow = snowMaterial({ trails: this.trails, sun: this.sky.u.sun, sunColor: this.sky.u.sunColor, sparkle: m.time === 'night' ? 0.5 : 1 });
+    progress('Laying the snow', 0.05);
+    await idle();
+    this.buildTerrain();
+    progress('Shaping the jumps', 0.25);
+    await idle();
+    this.buildKickers();
+    this.buildIce();
+    progress('Fetching trees, lifts and chalets', 0.32);
+    const want = ['spruce', 'pine', 'pylon', 'chair', 'snowman', 'hay', 'snowFence', 'boulders', 'outcrop', 'startHut', 'hut'];
+    if (m.village) want.push('chalet', 'barn', 'fir', 'baseStation', 'cannon', 'bunting', 'present');
+    if (m.lanterns) want.push('lantern');
+    const kits = {};
+    await Promise.all(want.map(async (k) => {
+      kits[k] = await loadKit(k, k === 'lantern' ? { emissiveTest: (mat) => isWarm(mat.color), emissive: '#ffb050' } : {});
+    }));
+    this.kits = kits;
+    progress('Putting up fences and flags', 0.55);
+    await idle();
+    this.buildFences();
+    this.buildPoles();
+    this.buildFlags();
+    this.buildBarriers();
+    progress('Planting the forest', 0.65);
+    await idle();
+    this.buildTrees();
+    progress('Hanging the ski lifts', 0.75);
+    await idle();
+    this.buildLifts();
+    this.buildArches();
+    this.buildEnds();
+    if (m.lanterns) this.buildLanterns();
+    progress('Scattering stars and snowballs', 0.85);
+    await idle();
+    this.buildPickups();
+    this.buildSpectators();
+  }
+
+  /* ---------------------------------------------------------------- snow */
+
+  buildTerrain() {
+    const c = this.course;
+    const total = c.n - 1;
+    const cols = [];
+    for (let i = OUT.length - 1; i >= 0; i--) cols.push({ out: -OUT[i] });
+    for (let i = 0; i < IN_COLS; i++) cols.push({ t: -1 + (2 * i) / (IN_COLS - 1) });
+    for (const d of OUT) cols.push({ out: d });
+    const latOf = (col, W) => (col.t != null ? col.t * W : Math.sign(col.out) * (W + Math.abs(col.out)));
+    const CH = 50;
+    for (let s0 = -20; s0 < total; s0 += CH) {
+      const s1 = Math.min(total, s0 + CH);
+      const rows = Math.round(s1 - s0) + 1;
+      const nc = cols.length;
+      const pos = new Float32Array(rows * nc * 3), nor = new Float32Array(rows * nc * 3), crs = new Float32Array(rows * nc * 3), side = new Float32Array(rows * nc * 2);
+      const P = (s, lat) => {
+        const f = frameAt(c, Math.max(0, s), _f);
+        // before the start the run continues up a little (the start ramp)
+        const back = Math.min(0, s);
+        const y = groundAt(c, Math.max(0, s), lat, false) - back * Math.tan(f.pitch);
+        return [f.x + f.rx * lat + f.tx * back, y, f.z + f.rz * lat + f.tz * back];
+      };
+      for (let r = 0; r < rows; r++) {
+        const s = s0 + r;
+        const f = frameAt(c, Math.max(0, s), {});
+        const W = f.width;
+        for (let k = 0; k < nc; k++) {
+          const lat = latOf(cols[k], W);
+          const p = P(s, lat);
+          const o = (r * nc + k) * 3;
+          pos[o] = p[0]; pos[o + 1] = p[1]; pos[o + 2] = p[2];
+          // normal from neighbours (exact, so chunks meet without seams)
+          const e = 0.5;
+          const a = P(s, lat - e), b = P(s, lat + e), d0 = P(s - e, lat), d1 = P(s + e, lat);
+          const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+          const vx = d1[0] - d0[0], vy = d1[1] - d0[1], vz = d1[2] - d0[2];
+          let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+          if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; }
+          const l = Math.hypot(nx, ny, nz) || 1;
+          nor[o] = nx / l; nor[o + 1] = ny / l; nor[o + 2] = nz / l;
+          crs[o] = s; crs[o + 1] = lat; crs[o + 2] = W;
+          side[(r * nc + k) * 2] = f.rx;
+          side[(r * nc + k) * 2 + 1] = f.rz;
+        }
+      }
+      const idx = [];
+      for (let r = 0; r < rows - 1; r++) for (let k = 0; k < nc - 1; k++) {
+        const a = r * nc + k, b = a + 1, d = a + nc, e = d + 1;
+        idx.push(a, b, d, b, e, d);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      g.setAttribute('course', new THREE.BufferAttribute(crs, 3));
+      g.setAttribute('side', new THREE.BufferAttribute(side, 2));
+      g.setIndex(idx);
+      g.computeBoundingSphere();
+      const mesh = new THREE.Mesh(g, this.snow);
+      mesh.receiveShadow = true;
+      mesh.castShadow = false;
+      this.section(Math.max(0, s0)).add(mesh);
+    }
+  }
+
+  /** A snow mesh over a patch of course space: (s, lat) → height via fn. */
+  patch(s0, s1, l0, l1, ns, nl, heightFn, material) {
+    const c = this.course;
+    const pos = [], nor = [], crs = [], side = [], idx = [];
+    const H = (s, lat) => {
+      const p = toWorld(c, s, lat, 0, {});
+      p.y = heightFn(s, lat) + 0.004;
+      return p;
+    };
+    for (let i = 0; i <= ns; i++) {
+      const s = s0 + ((s1 - s0) * i) / ns;
+      const f = frameAt(c, s, {});
+      for (let j = 0; j <= nl; j++) {
+        const lat = l0 + ((l1 - l0) * j) / nl;
+        const p = H(s, lat);
+        const e = 0.15;
+        const a = H(s, lat - e), b = H(s, lat + e), d0 = H(s - e, lat), d1 = H(s + e, lat);
+        const u = [b.x - a.x, b.y - a.y, b.z - a.z], v = [d1.x - d0.x, d1.y - d0.y, d1.z - d0.z];
+        let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        if (n[1] < 0) n = n.map((x) => -x);
+        const l = Math.hypot(...n) || 1;
+        pos.push(p.x, p.y, p.z);
+        nor.push(n[0] / l, n[1] / l, n[2] / l);
+        crs.push(s, lat, f.width);
+        side.push(f.rx, f.rz);
+      }
+    }
+    for (let i = 0; i < ns; i++) for (let j = 0; j < nl; j++) {
+      const a = i * (nl + 1) + j, b = a + 1, d = a + nl + 1, e = d + 1;
+      idx.push(a, b, d, b, e, d);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.setAttribute('course', new THREE.Float32BufferAttribute(crs, 3));
+    g.setAttribute('side', new THREE.Float32BufferAttribute(side, 2));
+    g.setIndex(idx);
+    g.computeBoundingSphere();
+    return new THREE.Mesh(g, material);
+  }
+
+  buildKickers() {
+    const c = this.course;
+    const lipM = new THREE.MeshStandardNodeMaterial({ color: this.mountain.fence.colour, roughness: 0.5 });
+    for (const k of c.kickers) {
+      const back = 1.3;
+      const hw = k.w * 0.5 * 1.18;
+      const mesh = this.patch(k.s - 0.4, k.s + k.len + back, k.lat - hw, k.lat + hw, 36, 18, (s, lat) => {
+        const base = groundAt(c, s, lat, false);
+        if (s <= k.s + k.len) return base + rampShape(k, s, lat);
+        // the back of the lip falls away steeply, rounded
+        const u = (s - k.s - k.len) / back;
+        const top = rampShape(k, k.s + k.len - 0.001, lat);
+        return base + top * Math.max(0, 1 - u * u) ** 0.7;
+      }, this.snow);
+      mesh.receiveShadow = true;
+      mesh.castShadow = true;
+      this.section(k.s).add(mesh);
+      // the painted lip line and two little marker flags
+      const f = frameAt(c, k.s + k.len - 0.15, {});
+      const p = toWorld(c, k.s + k.len - 0.15, k.lat, 0, {});
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(k.w * 0.78, 0.05, 0.22), lipM);
+      lip.position.set(p.x, groundAt(c, k.s + k.len - 0.15, k.lat) + 0.01, p.z);
+      lip.rotation.set(-Math.atan(k.h * 1.75 / k.len) * 0.9, -f.heading, 0, 'YXZ');
+      this.section(k.s).add(lip);
+      for (const sd of [-1, 1]) {
+        const q = toWorld(c, k.s + k.len - 0.3, k.lat + sd * (k.w * 0.5 + 0.5), 0, {});
+        this.addFlagPole(this.section(k.s), q, sd < 0 ? '#ff5a5f' : '#3a86ff', 1.6);
+      }
+    }
+  }
+
+  buildIce() {
+    const c = this.course;
+    if (!c.ice.length) return;
+    const mat = iceMaterial();
+    for (const p of c.ice) {
+      const mesh = this.patch(p.s, p.s + p.len, p.lat - p.w / 2, p.lat + p.w / 2, 12, 10, (s, lat) => groundAt(c, s, lat, false) + 0.025, mat);
+      // round the patch: squash the corners down under the snow
+      const pos = mesh.geometry.attributes.position, crs = mesh.geometry.attributes.course;
+      for (let i = 0; i < pos.count; i++) {
+        const u = (crs.getX(i) - p.s - p.len / 2) / (p.len / 2), v = (crs.getY(i) - p.lat) / (p.w / 2);
+        if (u * u + v * v > 1) pos.setY(i, pos.getY(i) - 0.12);
+      }
+      mesh.receiveShadow = true;
+      this.section(p.s).add(mesh);
+    }
+    if (c.creek) {
+      const s = c.creek.s;
+      const W = frameAt(c, s, _f).width;
+      const mesh = this.patch(s - 2.2, s + 2.2, -W - 22, W + 22, 6, 60, (ss, lat) => groundAt(c, ss, lat, false) + 0.02, mat);
+      mesh.receiveShadow = true;
+      this.section(s).add(mesh);
+    }
+  }
+
+  /* ---------------------------------------------------------------- the speed kit */
+
+  buildFences() {
+    const c = this.course, m = this.mountain;
+    const L = c.n - 1;
+    const postGeo = new THREE.CylinderGeometry(0.045, 0.055, 1.25, 8).translate(0, 0.62, 0);
+    const postMat = new THREE.MeshStandardNodeMaterial({ color: '#e9edf3', roughness: 0.5, metalness: 0.2 });
+    const fabric = fenceMaterial(m.fence.colour, m.fence.alt);
+    const step = 3;
+    for (let s0 = 0; s0 < L; s0 += SECTION) {
+      const s1 = Math.min(L, s0 + SECTION);
+      const posts = [];
+      for (const sd of [-1, 1]) {
+        const verts = [], uvs = [], nrm = [], idx = [];
+        let along = 0;
+        for (let s = s0; s <= s1; s += 1) {
+          const f = frameAt(c, s, _f);
+          const lat = sd * (f.width + 3.4);
+          const p = toWorld(c, s, lat, 0, _p);
+          const sag = Math.sin(((s % step) / step) * Math.PI) * 0.05;
+          const base = verts.length / 3;
+          verts.push(p.x, p.y + 0.16 + sag, p.z, p.x, p.y + 1.04 - sag, p.z);
+          uvs.push(along, 0, along, 1);
+          nrm.push(-f.rx * sd, 0, -f.rz * sd, -f.rx * sd, 0, -f.rz * sd);
+          if (s > s0) idx.push(base - 2, base, base - 1, base - 1, base, base + 1);
+          along += 1;
+          if (s % step === 0) posts.push({ x: p.x, y: p.y - 0.05, z: p.z });
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        g.setIndex(idx);
+        g.computeBoundingSphere();
+        const mesh = new THREE.Mesh(g, fabric);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.section(s0).add(mesh);
+      }
+      const im = new THREE.InstancedMesh(postGeo, postMat, posts.length);
+      const m4 = new THREE.Matrix4();
+      posts.forEach((p, i) => im.setMatrixAt(i, m4.makeTranslation(p.x, p.y, p.z)));
+      im.castShadow = true;
+      im.computeBoundingSphere();
+      this.section(s0).add(im);
+    }
+  }
+
+  buildPoles() {
+    // Piste marker poles just off the run's edge: orange and white, every 10 m both sides.
+    const c = this.course;
+    const L = c.n - 1;
+    const geo = new THREE.CylinderGeometry(0.035, 0.04, 1.9, 8).translate(0, 0.95, 0);
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.4 });
+    const band = step(0.5, fract(positionLocal.y.mul(2.4)));
+    mat.colorNode = mix(vec3(1.0, 0.42, 0.08), vec3(0.97, 0.97, 0.97), band);
+    for (let s0 = 0; s0 < L; s0 += SECTION) {
+      const list = [];
+      for (let s = s0 + 5; s < Math.min(L, s0 + SECTION); s += 10) for (const sd of [-1, 1]) {
+        const f = frameAt(c, s, _f);
+        const p = toWorld(c, s, sd * (f.width + 0.9), 0, _p);
+        list.push({ x: p.x, y: p.y - 0.1, z: p.z, rz: sd * 0.04 });
+      }
+      this.section(s0).add(instance({ parts: [{ geometry: geo, material: mat }] }, list));
+    }
+  }
+
+  addFlagPole(parent, p, colour, h = 2.2) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, h, 6).translate(0, h / 2, 0), new THREE.MeshStandardNodeMaterial({ color: '#f2f2f2', roughness: 0.4 }));
+    pole.position.set(p.x, p.y, p.z);
+    pole.castShadow = true;
+    const flag = new THREE.Mesh(this.flagGeo ??= new THREE.PlaneGeometry(0.5, 0.34, 6, 2).translate(0.25, 0, 0), wavyMaterial(colour));
+    flag.position.y = h - 0.2;
+    pole.add(flag);
+    parent.add(pole);
+    return pole;
+  }
+
+  buildFlags() {
+    // Tall feather flags every ~40 m, alternating sides: the colours of the mountain.
+    const c = this.course, m = this.mountain;
+    const L = c.n - 1;
+    const poleGeo = new THREE.CylinderGeometry(0.04, 0.05, 3.8, 6).translate(0, 1.9, 0);
+    const poleMat = new THREE.MeshStandardNodeMaterial({ color: '#dfe4ea', roughness: 0.4, metalness: 0.3 });
+    const flagGeo = new THREE.PlaneGeometry(0.8, 2.6, 4, 10);
+    flagGeo.translate(0.4, 2.3, 0);
+    const cols = [m.fence.colour, m.fence.alt, '#ff6fb4', '#3fd0b0'];
+    const mats = cols.map((col) => wavyMaterial(col, 0.25));
+    let k = 0;
+    for (let s = 20; s < L - 10; s += 38) {
+      const sd = k % 2 ? 1 : -1;
+      const f = frameAt(c, s, _f);
+      const p = toWorld(c, s, sd * (f.width + 2.3), 0, _p);
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(p.x, p.y - 0.1, p.z);
+      pole.rotation.y = -f.heading + (sd > 0 ? Math.PI : 0) + Math.PI / 2;
+      pole.castShadow = true;
+      const flag = new THREE.Mesh(flagGeo, mats[k % mats.length]);
+      flag.castShadow = true;
+      pole.add(flag);
+      this.section(s).add(pole);
+      k++;
+    }
+  }
+
+  buildBarriers() {
+    const c = this.course, K = this.kits;
+    const by = {};
+    for (const o of c.obstacles) (by[o.kind] ??= []).push(o);
+    const place = (o, extra = {}) => {
+      const f = frameAt(c, o.s, _f);
+      const p = toWorld(c, o.s, o.lat, 0, _p);
+      return { x: p.x, y: p.y - 0.05, z: p.z, ry: -f.heading + (extra.ry ?? 0), ...extra };
+    };
+    const groups = (list, kit, opts) => {
+      const bySec = new Map();
+      for (const o of list) {
+        const sec = this.section(o.s);
+        if (!bySec.has(sec)) bySec.set(sec, []);
+        bySec.get(sec).push(opts(o));
+      }
+      for (const [sec, items] of bySec) sec.add(instance(kit, items));
+    };
+    if (by.snowman) groups(by.snowman, K.snowman, (o) => place(o, { ry: o.rot * 0.3 - 0.3, s: 1.05 }));
+    if (by.hay) groups(by.hay, K.hay, (o) => place(o, { ry: 0, sx: 2.0, sy: 1.9, sz: 2.2 }));
+    if (by.fence) groups(by.fence, K.snowFence, (o) => place(o, { ry: 0, sx: 1.4, sy: 0.72, sz: 1 }));
+    if (by.rock) groups(by.rock, K.boulders, (o) => place(o, { ry: o.rot, s: 0.82 }));
+    if (by.log) {
+      const logKit = logKitMake();
+      groups(by.log, logKit, (o) => place(o, { ry: 0.08 * Math.sin(o.rot) }));
+    }
+    // slalom gates: two poles and a waving banner between them
+    const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 8).translate(0, 1.15, 0);
+    const red = new THREE.MeshStandardNodeMaterial({ color: '#ff4b5c', roughness: 0.35 });
+    const blue = new THREE.MeshStandardNodeMaterial({ color: '#3a86ff', roughness: 0.35 });
+    for (const gt of c.gates) {
+      const sec = this.section(gt.s);
+      const mat = gt.colour === 'red' ? red : blue;
+      const f = frameAt(c, gt.s, _f);
+      for (const sd of [-1, 1]) {
+        const p = toWorld(c, gt.s, gt.lat + sd * gt.gap, 0, _p);
+        const pole = new THREE.Mesh(poleGeo, mat);
+        pole.position.set(p.x, p.y - 0.05, p.z);
+        pole.castShadow = true;
+        sec.add(pole);
+      }
+      const p = toWorld(c, gt.s, gt.lat, 0, _p);
+      const banner = new THREE.Mesh(new THREE.PlaneGeometry(gt.gap * 2, 0.55, 8, 2), wavyMaterial(gt.colour === 'red' ? '#ff4b5c' : '#3a86ff', 0.12, true));
+      banner.position.set(p.x, p.y + 1.85, p.z);
+      banner.rotation.y = -f.heading;
+      banner.castShadow = true;
+      sec.add(banner);
+    }
+  }
+
+  buildTrees() {
+    const c = this.course, m = this.mountain, r = this.rand, K = this.kits;
+    const L = c.n - 1;
+    for (let s0 = -20; s0 < L; s0 += SECTION) {
+      const spruce = [], pine = [], farSpruce = [], farPine = [];
+      for (let s = Math.max(0, s0); s < Math.min(L, s0 + SECTION); s += 2.5) {
+        const f = frameAt(c, s, _f);
+        for (const sd of [-1, 1]) {
+          // near the fence: trees right at the edge sell the speed
+          if (r() < m.trees.near * 0.32) {
+            const lat = sd * (f.width + 4.6 + r() * 4);
+            const p = toWorld(c, s + r() * 2, lat, 0, _p);
+            (r() < 0.75 ? spruce : pine).push({ x: p.x, y: p.y - 0.2, z: p.z, ry: r() * 6.28, s: 0.75 + r() * 0.55 });
+          }
+          // the forest on the mountainside
+          const n = Math.floor(m.trees.density * 2.4 + r());
+          for (let i = 0; i < n; i++) {
+            const lat = sd * (f.width + 9 + r() ** 0.8 * 52);
+            const p = toWorld(c, s + r() * 2.5, lat, 0, _p);
+            const near = Math.abs(lat) < f.width + 16;
+            (r() < 0.7 ? (near ? spruce : farSpruce) : near ? pine : farPine).push({ x: p.x, y: p.y - 0.3, z: p.z, ry: r() * 6.28, s: 0.9 + r() * 0.9 });
+          }
+        }
+      }
+      const sec = this.section(Math.max(0, s0));
+      if (spruce.length) sec.add(instance(K.spruce, spruce, { shadow: true }));
+      if (pine.length) sec.add(instance(K.pine, pine, { shadow: true }));
+      if (farSpruce.length) sec.add(instance(K.spruce, farSpruce, { shadow: false }));
+      if (farPine.length) sec.add(instance(K.pine, farPine, { shadow: false }));
+      // a few rocks poking out of the snow up the sides
+      const rocks = [];
+      for (let i = 0; i < 4; i++) {
+        const s = Math.max(0, s0) + r() * SECTION;
+        if (s > L) continue;
+        const f = frameAt(c, s, _f);
+        const lat = (r() < 0.5 ? -1 : 1) * (f.width + 12 + r() * 40);
+        const p = toWorld(c, s, lat, 0, _p);
+        rocks.push({ x: p.x, y: p.y - 0.6, z: p.z, ry: r() * 6.28, s: 1 + r() * 1.6 });
+      }
+      if (rocks.length) sec.add(instance(K.outcrop, rocks));
+    }
+  }
+
+  /* ---------------------------------------------------------------- lifts */
+
+  buildLifts() {
+    const c = this.course, K = this.kits;
+    const pylonH = K.pylon.size.y;
+    const cableMat = new THREE.MeshStandardNodeMaterial({ color: '#30343c', roughness: 0.4, metalness: 0.6 });
+    for (const lf of c.lifts) {
+      // tower base heights
+      const towers = lf.towers.map((t) => ({ ...t, y: groundAt(c, Math.max(0, Math.min(c.n - 1, t.s)), t.lat, false) - 0.2 }));
+      if (towers.length < 2) continue;
+      // direction of each span (for tower orientation)
+      const list = towers.map((t, i) => {
+        const a = towers[Math.max(0, i - 1)], b = towers[Math.min(towers.length - 1, i + 1)];
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const l = Math.hypot(dx, dz) || 1;
+        const px = -dz / l, pz = dx / l;
+        return { x: t.x, y: t.y, z: t.z, ry: Math.atan2(-pz, px) };
+      });
+      const sec = this.section(Math.max(0, Math.min(c.n - 1, lf.s)));
+      sec.add(instance(K.pylon, list));
+      // two cables (up and down), sagging between towers
+      const lines = [-1.75, 1.75].map((off) => towers.map((t, i) => {
+        const L0 = list[i];
+        const px = Math.cos(L0.ry), pz = -Math.sin(L0.ry);
+        return new THREE.Vector3(t.x + px * off, t.y + pylonH - 0.55, t.z + pz * off);
+      }));
+      const tubes = [];
+      const paths = [];
+      for (const pts of lines) {
+        const dense = [];
+        for (let i = 0; i < pts.length - 1; i++) {
+          const a = pts[i], b = pts[i + 1];
+          const span = a.distanceTo(b);
+          for (let k = 0; k < 12; k++) {
+            const u = k / 12;
+            const p = a.clone().lerp(b, u);
+            p.y -= Math.sin(u * Math.PI) * span * 0.018;
+            dense.push(p);
+          }
+        }
+        dense.push(pts.at(-1).clone());
+        paths.push(dense);
+        tubes.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(dense), dense.length * 2, 0.035, 5, false));
+      }
+      for (const g of tubes) {
+        const cable = new THREE.Mesh(g, cableMat);
+        cable.castShadow = false;
+        sec.add(cable);
+      }
+      // chairs: up one cable, down the other, a steady loop
+      const loop = [...paths[0], ...paths[1].slice().reverse()];
+      const cum = [0];
+      for (let i = 1; i < loop.length; i++) cum.push(cum[i - 1] + loop[i].distanceTo(loop[i - 1]));
+      const total = cum.at(-1);
+      const n = Math.max(4, Math.floor(total / 13));
+      const chairKit = lf.kind === 'along' && this.mountain.id === 'aurora' && K.gondola ? K.gondola : K.chair;
+      const chairs = instance(chairKit, new Array(n).fill(0).map(() => ({ x: 0, y: -999, z: 0 })), { shadow: true });
+      chairs.children.forEach((im) => (im.frustumCulled = false));
+      this.root.add(chairs);
+      this.movers.push({ type: 'lift', s: lf.s, chairs, loop, cum, total, n, hang: chairKit.size.y - 0.1, speed: 2.6, t: this.rand() * 100 });
+    }
+  }
+
+  /* ---------------------------------------------------------------- arches, start, finish, village */
+
+  buildArches() {
+    const c = this.course, m = this.mountain;
+    for (const a of c.arches) {
+      const f = frameAt(c, a.s, {});
+      const W = f.width + 2.6;
+      const H = a.kind === 'check' ? 6.5 : 7.5;
+      const pts = [];
+      for (let i = 0; i <= 40; i++) {
+        const t = (i / 40) * Math.PI;
+        const lat = -Math.cos(t) * W;
+        const base = groundAt(c, a.s, lat, false);
+        const mid = groundAt(c, a.s, 0, false);
+        const y = (base + (mid - base) * Math.sin(t)) + Math.sin(t) * H - 0.3;
+        pts.push(new THREE.Vector3(f.x + f.rx * lat, y, f.z + f.rz * lat));
+      }
+      const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 80, a.kind === 'check' ? 0.55 : 0.85, 14, false);
+      const cols = a.kind === 'finish' ? ['#ffffff', '#1d2233'] : a.kind === 'start' ? [m.fence.colour, '#ffffff'] : [m.fence.alt, m.fence.colour];
+      const arch = new THREE.Mesh(tube, stripeVinyl(cols[0], cols[1], a.kind === 'finish' ? 40 : 14));
+      arch.castShadow = true;
+      arch.receiveShadow = true;
+      this.section(a.s).add(arch);
+      // the banner: hanging under the top, facing up the run
+      const label = a.kind === 'finish' ? 'FINISH' : a.kind === 'start' ? 'SNOWPUFF PEAKS' : a.s < c.length / 2 ? '★ 1/3 ★' : '★ 2/3 ★';
+      const tex = bannerTexture(label, a.kind === 'finish' ? '#1d2233' : m.fence.colour);
+      const banner = new THREE.Mesh(new THREE.PlaneGeometry(a.kind === 'start' ? 11 : 8, 1.6), new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.6, side: THREE.DoubleSide }));
+      const top = pts[20];
+      banner.position.set(top.x, top.y - 1.7, top.z);
+      banner.rotation.y = -f.heading;
+      banner.castShadow = true;
+      this.section(a.s).add(banner);
+      if (a.kind === 'finish') {
+        // a checkered line across the snow
+        const line = this.patch(a.s - 0.6, a.s + 0.6, -f.width, f.width, 2, 48, (s, lat) => groundAt(c, s, lat, false) + 0.02, checkerMaterial());
+        this.section(a.s).add(line);
+      }
+    }
+  }
+
+  buildEnds() {
+    const c = this.course, K = this.kits, m = this.mountain, r = this.rand;
+    // the start: a hut behind the gate
+    const f0 = frameAt(c, 0, {});
+    const sh = toWorld(c, 0, f0.width + 5, 0, {});
+    this.section(0).add(instance(K.startHut, [{ x: sh.x, y: sh.y - 0.1, z: sh.z, ry: -f0.heading + Math.PI / 2, s: 1.3 }]));
+    const L = c.length;
+    const fe = frameAt(c, L + 40, {});
+    if (m.village) {
+      const items = { chalet: [], barn: [], fir: [], present: [], cannon: [] };
+      for (let s = L - 30; s < L + RUNOUT - 10; s += 18) {
+        const f = frameAt(c, s, _f);
+        for (const sd of [-1, 1]) {
+          if (s > L - 5 && r() < 0.8) {
+            const lat = sd * (f.width + 15 + r() * 14);
+            const p = toWorld(c, s, lat, 0, _p);
+            (r() < 0.8 ? items.chalet : items.barn).push({ x: p.x, y: p.y - 0.4, z: p.z, ry: -f.heading + (sd > 0 ? -Math.PI / 2 : Math.PI / 2) + (r() - 0.5) * 0.3, s: 1 + r() * 0.2 });
+          }
+          const q = toWorld(c, s + 6, sd * (f.width + 6.5 + r() * 3), 0, _p);
+          items.fir.push({ x: q.x, y: q.y - 0.1, z: q.z, ry: r() * 6.28, s: 1.3 + r() * 0.5 });
+          if (r() < 0.35) {
+            const g = toWorld(c, s + 3, sd * (f.width + 4.5), 0, _p);
+            items.present.push({ x: g.x, y: g.y - 0.05, z: g.z, ry: r() * 6.28, s: 0.8 + r() * 0.4 });
+          }
+        }
+      }
+      const fc = toWorld(c, L - 60, -(frameAt(c, L - 60, _f).width + 6), 0, {});
+      items.cannon.push({ x: fc.x, y: fc.y, z: fc.z, ry: -frameAt(c, L - 60, _f).heading + 0.6, s: 0.7 });
+      const sec = this.section(L);
+      for (const [k, list] of Object.entries(items)) if (list.length && K[k]) sec.add(instance(K[k], list));
+      const bs = toWorld(c, L + 90, fe.width + 26, 0, {});
+      sec.add(instance(K.baseStation, [{ x: bs.x, y: bs.y - 0.5, z: bs.z, ry: -fe.heading - Math.PI / 2 }]));
+    } else {
+      // a refuge hut and a few huts by the finish
+      const sec = this.section(L);
+      const list = [];
+      for (const sd of [-1, 1]) {
+        const p = toWorld(c, L + 30 + r() * 30, sd * (fe.width + 14), 0, {});
+        list.push({ x: p.x, y: p.y - 0.4, z: p.z, ry: -fe.heading + (sd > 0 ? -Math.PI / 2 : Math.PI / 2), s: 1.2 });
+      }
+      sec.add(instance(K.hut, list));
+    }
+  }
+
+  buildLanterns() {
+    const c = this.course, K = this.kits;
+    const L = c.n - 1;
+    for (let s0 = 0; s0 < L; s0 += SECTION) {
+      const list = [];
+      for (let s = s0 + 8; s < Math.min(L, s0 + SECTION); s += 16) {
+        const sd = Math.floor(s / 16) % 2 ? 1 : -1;
+        const f = frameAt(c, s, _f);
+        const lat = sd * (f.width + 1.6);
+        const p = toWorld(c, s, lat, 0, _p);
+        list.push({ x: p.x, y: p.y - 0.1, z: p.z, ry: -f.heading + (sd > 0 ? Math.PI : 0), s: 1.25 });
+        this.lanternSpots.push({ s, x: p.x, y: p.y + 3.1, z: p.z });
+      }
+      this.section(s0).add(instance(K.lantern, list));
+    }
+    // a pool of real lights, moved to the lanterns just ahead
+    this.lights = [];
+    for (let i = 0; i < 6; i++) {
+      const l = new THREE.PointLight('#ffb35a', 9, 14, 1.8);
+      l.castShadow = false;
+      this.root.add(l);
+      this.lights.push(l);
+    }
+  }
+
+  /* ---------------------------------------------------------------- pickups */
+
+  buildPickups() {
+    const c = this.course;
+    // stars: gold, glowing a little, spinning
+    const starMat = new THREE.MeshStandardNodeMaterial({ color: '#ffcf3a', roughness: 0.25, metalness: 0.5 });
+    starMat.emissiveNode = vec3(1.0, 0.72, 0.18).mul(0.9).add(vec3(1, 0.9, 0.5).mul(pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2)).mul(1.2));
+    this.stars = new THREE.InstancedMesh(starGeometry(), starMat, c.stars.length);
+    this.stars.frustumCulled = false;
+    this.stars.castShadow = true;
+    this.starPos = c.stars.map((st) => {
+      const p = toWorld(c, st.s, st.lat, st.h, {});
+      return { ...st, x: p.x, y: p.y, z: p.z, ph: this.rand() * 6.28 };
+    });
+    this.root.add(this.stars);
+    // snowball piles: a heap of snowballs; shields: a glowing bubble
+    const pileGeo = pileGeometry();
+    const pileMat = new THREE.MeshStandardNodeMaterial({ color: '#f6f9ff', roughness: 0.75 });
+    const piles = c.piles.filter((p) => p.kind === 'snow');
+    const shields = c.piles.filter((p) => p.kind === 'shield');
+    this.pileMesh = new THREE.InstancedMesh(pileGeo, pileMat, Math.max(1, piles.length));
+    this.pileMesh.castShadow = true;
+    this.pileMesh.receiveShadow = true;
+    this.pileMesh.frustumCulled = false;
+    const m4 = new THREE.Matrix4();
+    this.pileIndex = new Map();
+    piles.forEach((p, i) => {
+      const w = toWorld(c, p.s, p.lat, 0, {});
+      this.pileMesh.setMatrixAt(i, m4.makeTranslation(w.x, w.y - 0.05, w.z));
+      this.pileIndex.set(p.id, { mesh: this.pileMesh, i, w });
+    });
+    this.root.add(this.pileMesh);
+    // a little blue flag on each pile so it reads from far away
+    const flagList = piles.map((p) => {
+      const w = toWorld(c, p.s, p.lat + 0.7, 0, {});
+      return { x: w.x, y: w.y, z: w.z };
+    });
+    const pf = new THREE.Group();
+    for (const fl of flagList) this.addFlagPole(pf, fl, '#5ac8ff', 1.5);
+    this.root.add(pf);
+    this.pileFlags = pf;
+    const shieldMat = new THREE.MeshPhysicalNodeMaterial({ color: '#7fe8ff', roughness: 0.1, transparent: true, opacity: 0.55, clearcoat: 1 });
+    shieldMat.emissiveNode = vec3(0.3, 0.85, 1.0).mul(pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.5)).mul(2.2);
+    shieldMat.depthWrite = false;
+    shieldMat.mrtNode = KEEP_BUFFERS();
+    this.shieldMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 3), shieldMat, Math.max(1, shields.length));
+    this.shieldMesh.frustumCulled = false;
+    this.shieldPos = shields.map((p) => {
+      const w = toWorld(c, p.s, p.lat, 1.1, {});
+      return { ...p, x: w.x, y: w.y, z: w.z };
+    });
+    shields.forEach((p, i) => this.pileIndex.set(p.id, { mesh: this.shieldMesh, i, shield: true }));
+    this.root.add(this.shieldMesh);
+    this.taken = new Set();
+  }
+
+  /** Hide a pickup the local player took (pickups are personal). */
+  take(id) {
+    this.taken.add(id);
+  }
+
+  resetPickups() {
+    this.taken.clear();
+  }
+
+  buildSpectators() {
+    // Plush fans behind the finish fence, cheering everyone home.
+    const c = this.course;
+    const L = c.length;
+    const r = this.rand;
+    for (let i = 0; i < 8; i++) {
+      const sp = ALL_SPECIES[i % ALL_SPECIES.length];
+      const fan = new RiderModel(sp, { fur: 0, res: 46, shadow: true });
+      const sd = i % 2 ? 1 : -1;
+      const s = L - 28 + i * 3.2;
+      const f = frameAt(c, s, _f);
+      const p = toWorld(c, s, sd * (f.width + 4.4 + r() * 1.2), 0, _p);
+      fan.root.position.set(p.x, p.y + 0.02, p.z);
+      fan.root.rotation.y = -f.heading + (sd > 0 ? Math.PI / 2 : -Math.PI / 2) + Math.PI;
+      fan.board.visible = false;
+      this.section(L).add(fan.root);
+      this.spectators.push({ fan, s, phase: r() * 6 });
+    }
+  }
+
+  /* ---------------------------------------------------------------- per frame */
+
+  update(dt, focusS, focus) {
+    const c = this.course;
+    // sections near you only
+    for (const g of this.sections) {
+      const s0 = g.userData.s0;
+      g.visible = s0 + SECTION > focusS - 60 && s0 < focusS + 430;
+    }
+    const m4 = this.m4 ??= new THREE.Matrix4();
+    const q = this.q ??= new THREE.Quaternion();
+    const e = this.e ??= new THREE.Euler();
+    const sc = this.sc ??= new THREE.Vector3();
+    const p = this.pv ??= new THREE.Vector3();
+    // lifts
+    for (const mv of this.movers) {
+      mv.t += dt * mv.speed;
+      const near = Math.abs(mv.s - focusS) < 600;
+      mv.chairs.visible = near;
+      if (!near) continue;
+      for (let i = 0; i < mv.n; i++) {
+        const d = (mv.t + (i / mv.n) * mv.total) % mv.total;
+        let k = 1;
+        while (k < mv.cum.length - 1 && mv.cum[k] < d) k++;
+        const a = mv.loop[k - 1], b = mv.loop[k];
+        const u = (d - mv.cum[k - 1]) / Math.max(1e-4, mv.cum[k] - mv.cum[k - 1]);
+        p.set(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u - mv.hang, a.z + (b.z - a.z) * u);
+        e.set(Math.sin(mv.t * 0.7 + i) * 0.03, Math.atan2(b.x - a.x, b.z - a.z), 0);
+        q.setFromEuler(e);
+        m4.compose(p, q, sc.set(1, 1, 1));
+        for (const im of mv.chairs.children) im.setMatrixAt(i, m4);
+      }
+      for (const im of mv.chairs.children) im.instanceMatrix.needsUpdate = true;
+    }
+    // stars: spin and bob the ones near you; hide the rest and the taken
+    const t = (this.time = (this.time ?? 0) + dt);
+    if (this.stars) {
+      for (let i = 0; i < this.starPos.length; i++) {
+        const st = this.starPos[i];
+        const show = st.s > focusS - 15 && st.s < focusS + 220 && !this.taken.has(st.id);
+        e.set(0, t * 2.4 + st.ph, 0);
+        q.setFromEuler(e);
+        p.set(st.x, st.y + Math.sin(t * 2 + st.ph) * 0.12, st.z);
+        m4.compose(p, q, sc.setScalar(show ? 0.42 : 0));
+        this.stars.setMatrixAt(i, m4);
+      }
+      this.stars.instanceMatrix.needsUpdate = true;
+      let dirty = false;
+      for (const [id, ref] of this.pileIndex) {
+        if (ref.shield) {
+          const sp = this.shieldPos[ref.i];
+          const show = !this.taken.has(id) && sp.s > focusS - 15 && sp.s < focusS + 220;
+          p.set(sp.x, sp.y + Math.sin(t * 2.2 + ref.i) * 0.15, sp.z);
+          m4.compose(p, q.identity(), sc.setScalar(show ? 1 + Math.sin(t * 4) * 0.05 : 0));
+          ref.mesh.setMatrixAt(ref.i, m4);
+          dirty = true;
+        } else if (this.taken.has(id) && !ref.hidden) {
+          ref.hidden = true;
+          m4.compose(p.set(0, -999, 0), q.identity(), sc.setScalar(0));
+          ref.mesh.setMatrixAt(ref.i, m4);
+          ref.mesh.instanceMatrix.needsUpdate = true;
+        } else if (!this.taken.has(id) && ref.hidden) {
+          ref.hidden = false;
+          m4.makeTranslation(ref.w.x, ref.w.y - 0.05, ref.w.z);
+          ref.mesh.setMatrixAt(ref.i, m4);
+          ref.mesh.instanceMatrix.needsUpdate = true;
+        }
+      }
+      if (dirty) this.shieldMesh.instanceMatrix.needsUpdate = true;
+    }
+    // lantern lights: the six nearest ahead
+    if (this.lights) {
+      let j = 0;
+      for (const sp of this.lanternSpots) {
+        if (sp.s < focusS - 12) continue;
+        if (j >= this.lights.length) break;
+        this.lights[j].position.set(sp.x, sp.y, sp.z);
+        this.lights[j].intensity = 9 * (0.92 + Math.sin(t * 7 + j) * 0.05);
+        j++;
+      }
+    }
+    // spectators cheer when you come near
+    for (const sp of this.spectators) {
+      const near = Math.abs(sp.s - focusS) < 90;
+      sp.fan.root.visible = near;
+      if (near) sp.fan.pose(dt, { menu: true, cheer: Math.sin(t * 2 + sp.phase) > -0.3 });
+    }
+  }
+
+  dispose() {
+    this.root.traverse((o) => {
+      o.geometry?.dispose?.();
+    });
+    this.root.removeFromParent();
+  }
+}
+
+/* ---------------------------------------------------------------- helpers */
+
+const idle = () => new Promise((r) => setTimeout(r, 0));
+
+function isWarm(col) {
+  if (!col) return false;
+  const hsl = {};
+  col.getHSL(hsl);
+  return hsl.h > 0.08 && hsl.h < 0.18 && hsl.s > 0.5 && hsl.l > 0.45;
+}
+
+/** Fabric fence panels: the mountain's colour with a band and a row of stars, a soft fold shading. */
+function fenceMaterial(colour, alt) {
+  const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, side: THREE.DoubleSide });
+  const u = uv();
+  const band = step(0.78, u.y).add(step(u.y, 0.1)).clamp(0, 1);
+  const dots = step(0.82, fract(u.x.mul(0.5)).sub(0.5).abs().mul(-1).add(1)).mul(step(0.38, u.y)).mul(step(u.y, 0.62));
+  const fold = sin(u.x.mul(Math.PI * 2 / 3)).mul(0.06);
+  const base = mix(color(colour), color(alt), band);
+  m.colorNode = mix(base, vec3(1, 1, 1), dots.mul(0.85)).mul(fold.add(1));
+  return m;
+}
+
+/** A flag that waves (vertex sway grows away from the pole). */
+function wavyMaterial(colour, amp = 0.18, both = false) {
+  const m = new THREE.MeshStandardNodeMaterial({ color: colour, roughness: 0.7, side: THREE.DoubleSide });
+  const u = uv();
+  const ph = hash(instanceIndex).mul(6.28);
+  const wave = sin(time.mul(7).add(u.x.mul(5)).add(positionWorld.x.mul(0.3)).add(ph)).mul(u.x.mul(amp)).add(sin(time.mul(11).add(u.y.mul(3))).mul(both ? amp * 0.4 : amp * 0.25).mul(u.x));
+  m.positionNode = positionLocal.add(vec3(0, 0, wave));
+  m.colorNode = color(colour).mul(float(1).sub(abs(wave).mul(0.8)));
+  return m;
+}
+
+/** Glossy inflatable vinyl in two-colour stripes along the tube. */
+function stripeVinyl(a, b, count) {
+  const m = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.15 });
+  const k = step(0.5, fract(uv().x.mul(count)));
+  m.colorNode = mix(color(a), color(b), k);
+  return m;
+}
+
+function checkerMaterial() {
+  const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.6 });
+  const c = attributeCourse();
+  const k = step(0.5, fract(c.x.mul(0.8))).add(step(0.5, fract(c.y.mul(0.8)))).mod(2);
+  m.colorNode = mix(vec3(0.08, 0.09, 0.12), vec3(0.97, 0.97, 0.99), k);
+  return m;
+}
+const attributeCourse = () => attribute('course', 'vec3');
+
+function bannerTexture(text, colour) {
+  const cv = document.createElement('canvas');
+  cv.width = 1024;
+  cv.height = 160;
+  const g = cv.getContext('2d');
+  g.fillStyle = colour;
+  g.fillRect(0, 0, 1024, 160);
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 10, 1024, 6);
+  g.fillRect(0, 144, 1024, 6);
+  g.font = '900 96px "Nunito Variable", Nunito, system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineWidth = 10;
+  g.strokeStyle = 'rgba(0,0,0,.25)';
+  g.strokeText(text, 512, 84);
+  g.fillText(text, 512, 84);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function pileGeometry() {
+  const parts = [new THREE.SphereGeometry(0.75, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1)];
+  const balls = [[0, 0.42, 0, 0.2], [0.26, 0.3, 0.1, 0.17], [-0.24, 0.3, 0.12, 0.17], [0.05, 0.3, -0.27, 0.17], [0.08, 0.6, 0.05, 0.15]];
+  for (const [x, y, z, r] of balls) parts.push(new THREE.SphereGeometry(r, 14, 10).translate(x, y, z));
+  const flat = parts.map((g) => g.toNonIndexed());
+  let count = 0;
+  for (const g of flat) count += g.attributes.position.count;
+  const pos = new Float32Array(count * 3), nor = new Float32Array(count * 3);
+  let o = 0;
+  for (const g of flat) {
+    pos.set(g.attributes.position.array, o);
+    nor.set(g.attributes.normal.array, o);
+    o += g.attributes.position.array.length;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  return out;
+}
+
+let logKitCache = null;
+/** A jumpable log: bark, pale end rings and a cap of snow. */
+function logKitMake() {
+  if (logKitCache) return logKitCache;
+  const bark = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
+  const p = positionLocal;
+  bark.colorNode = mix(vec3(0.36, 0.24, 0.16), vec3(0.5, 0.35, 0.22), mx_noise_float(p.mul(vec3(8, 2, 2))).mul(0.5).add(0.5));
+  const body = new THREE.CylinderGeometry(0.3, 0.32, 3.4, 16, 1).rotateZ(Math.PI / 2).translate(0, 0.3, 0);
+  const ends = new THREE.CylinderGeometry(0.29, 0.29, 3.42, 16, 1, false).rotateZ(Math.PI / 2).translate(0, 0.3, 0);
+  ends.deleteAttribute('uv');
+  const ring = new THREE.MeshStandardNodeMaterial({ color: '#e0c49a', roughness: 0.8 });
+  const snowCap = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1.75, 0.16, 0.34).translate(0, 0.56, 0);
+  const snowM = new THREE.MeshStandardNodeMaterial({ color: '#f4f7fc', roughness: 0.8 });
+  logKitCache = { parts: [{ geometry: body, material: bark }, { geometry: ends, material: ring }, { geometry: snowCap, material: snowM }], size: new THREE.Vector3(3.4, 0.7, 0.64) };
+  return logKitCache;
+}
+
+export { max, smoothstep, normalWorld, uniform };

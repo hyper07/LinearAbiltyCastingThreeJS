@@ -41,6 +41,7 @@ export const GAME_TRACKS = Object.freeze({
   wyldhunt: ['jungle', 'jungle-hunt', 'village', 'boss', 'victory', 'defeat', 'discovery'],
   kithvale: ['lantern-valley', 'meadow', 'discovery'],
   kindlewatch: ['frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up'],
+  snowpuff: ['playful', 'meadow', 'lantern-valley', 'night-forest', 'victory', 'level-up'],
   arcademia: ['playful', 'level-up', 'discovery'],
   seoul: ['city-night', 'victory'],
   lanternwood: ['title', 'village', 'night-forest', 'meadow', 'frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up', 'discovery'],

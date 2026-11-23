@@ -628,6 +628,8 @@ export class PlatformHome {
         ? 'Choose your look when you play: Sprout, Wren or Pip — your friends and journal are kept on this device'
         : game.engine === 'kindlewatch'
         ? 'Choose your hero when you play: the Hornwarden (sword and shield) or the Veilrunner (spear and lantern)'
+        : game.engine === 'snowpuff'
+        ? 'Choose your rider and mountain when you play: Pip the fox, Toffee the bear, Mochi the cat or Pickle the frog'
         : game.engine === 'hd2d'
         ? 'Pick your class — Blade, Warden, Seer or Ranger — and a look; your journey is kept on this device'
         : game.engine === 'squad'
@@ -635,9 +637,11 @@ export class PlatformHome {
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch'].includes(game.engine)) {
+    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
-      page.querySelector('.home-page__hint').textContent = game.engine === 'kindlewatch'
+      page.querySelector('.home-page__hint').textContent = game.engine === 'snowpuff'
+        ? 'For kids: a snowboard race down three mountains. A/D or the arrows to steer, S or Shift to tuck, hold Space to crouch and let go to jump (spin and flip in the air), 1 or a click throws a snowball, 2 puts up a shield, H for How to play, Esc to pause. Race with friends from inside the game with a five-letter room code. Touch and gamepads work too; it picks its own detail level.'
+        : game.engine === 'kindlewatch'
         ? 'A top-down action game\'s first map: no story yet. WASD to move, the mouse to aim; left click strikes (tap three times for a chain, hold for a charged blow), right click throws, Space dashes, Q summons, R drinks a draught (no cooldown), E lights or douses a fire, Esc for the menu and credits. Gamepads work too, and on a phone there\'s a stick and buttons.'
         : game.engine === 'kithvale'
         ? 'A creature-befriending adventure\'s first map: no story yet. WASD to move, Shift to run faster, Space to jump, hold Ctrl to creep up quietly; 1–3 to pick a treat and Q (or right-click) to toss it, E to talk, gather and breathe with a creature that trusts you, J for your journal, Esc for the menu and credits. On a phone: a stick, buttons and a drag to look. It lowers its own detail if frames run slow.'

@@ -105,7 +105,7 @@ function skyline(kind, r, color) {
 const PHOTO_COVERS = new Set([
   'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
   // Taken by scripts/covers.mjs (run it again to refresh them).
-  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch'
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff'
 ]);
 
 /**
@@ -144,6 +144,7 @@ export function coverSvg(game) {
   if (game.card?.cover === 'wyldhunt') return wyldhuntCover(game);
   if (game.card?.cover === 'kithvale') return kithvaleCover(game);
   if (game.card?.cover === 'kindlewatch') return kindlewatchCover(game);
+  if (game.card?.cover === 'snowpuff') return snowpuffCover(game);
   const look = game.card?.look ?? {};
   const r = rng(game.id);
   // Gradient ids must be plain: `official:frost-hollow` would break url(#…).
@@ -267,6 +268,38 @@ function kithvaleCover(game) {
     <circle cx="128" cy="150" r="13" fill="#a8c87a"/><path d="M124 138 L120 126 M128 137 L129 124 M132 138 L138 127" stroke="#5a8a34" stroke-width="3" stroke-linecap="round"/>
     <circle cx="124" cy="148" r="2.6" fill="#2a1a10"/><circle cx="132" cy="148" r="2.6" fill="#2a1a10"/>
     <text x="14" y="28" fill="#fff4dc" font-family="system-ui, sans-serif" font-weight="800" font-size="20" letter-spacing="1">Kithvale</text>
+  </svg>`;
+}
+
+/** Snowpuff Peaks: a round orange plush fox carving down a bright slope, a blue fence and a chairlift behind, spray off the board. */
+function snowpuffCover(game) {
+  const uid = String(game.id).replace(/[^a-z0-9-]/gi, '-');
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${String(game.title).replace(/"/g, '&quot;')}">
+    <defs>
+      <linearGradient id="sp-sky-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5aa2ff"/><stop offset="1" stop-color="#e8f4ff"/></linearGradient>
+      <linearGradient id="sp-snow-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe9fa"/></linearGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#sp-sky-${uid})"/>
+    <path d="M0 92 L60 40 L110 80 L170 30 L240 84 L290 50 L320 70 V180 H0Z" fill="#eef4fd"/>
+    <path d="M0 100 Q160 80 320 104 V180 H0Z" fill="url(#sp-snow-${uid})"/>
+    <path d="M0 104 Q160 86 320 108" stroke="#2f7fe0" stroke-width="7" fill="none"/>
+    <path d="M10 30 L310 10" stroke="#30343c" stroke-width="1.5"/>
+    <g fill="#3a4f8a"><rect x="80" y="22" width="14" height="8" rx="2"/><rect x="200" y="14" width="14" height="8" rx="2"/></g>
+    <ellipse cx="170" cy="160" rx="48" ry="7" fill="#9db8e8" opacity=".7"/>
+    <g stroke="#2a2f4a" stroke-width="2.5">
+      <path d="M112 126 Q92 104 118 98 Q132 112 128 130Z" fill="#ff8a3d"/><path d="M110 104 Q114 96 120 98 Q118 104 114 106Z" fill="#fff1dc" stroke-width="0"/>
+      <rect x="128" y="152" width="84" height="9" rx="4.5" fill="#ffffff"/>
+      <ellipse cx="168" cy="132" rx="26" ry="22" fill="#ff8a3d"/>
+      <path d="M142 96 L146 64 L162 84Z M194 96 L190 64 L174 84Z" fill="#ff8a3d"/>
+      <circle cx="168" cy="100" r="29" fill="#ff8a3d"/>
+      <path d="M143 102 Q168 132 193 102 Q182 118 168 118 Q154 118 143 102Z" fill="#fff1dc" stroke-width="0"/>
+      <rect x="145" y="86" width="46" height="11" rx="5.5" fill="#2ec4d6"/>
+    </g>
+    <circle cx="160" cy="104" r="3" fill="#21160f"/><circle cx="176" cy="104" r="3" fill="#21160f"/><ellipse cx="168" cy="112" rx="3.2" ry="2.2" fill="#21160f"/>
+    <g fill="#ffffff" opacity=".9"><circle cx="218" cy="150" r="6"/><circle cx="230" cy="142" r="4"/><circle cx="240" cy="152" r="5"/><circle cx="250" cy="146" r="3"/></g>
+    <path d="M260 40 l4 9 10 1 -8 6 3 10 -9 -6 -9 6 3 -10 -8 -6 10 -1z" fill="#ffd23f" stroke="#c99a10" stroke-width="1.5"/>
+    <text x="14" y="34" fill="#ffffff" stroke="#ff6fb4" stroke-width="5" paint-order="stroke" font-family="system-ui, sans-serif" font-weight="900" font-size="26">Snowpuff</text>
+    <text x="16" y="54" fill="#ffffff" stroke="#3a86ff" stroke-width="4" paint-order="stroke" font-family="system-ui, sans-serif" font-weight="900" font-size="14" letter-spacing="4">PEAKS</text>
   </svg>`;
 }
 

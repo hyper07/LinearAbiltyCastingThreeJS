@@ -33,7 +33,7 @@ export async function boot(browser, name = 'page', { view = 'hero', firstHelp = 
   // start in play unless they're about that panel.
   if (!firstHelp) {
     await context.addInitScript(() => {
-      for (const id of ['gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'lanternwood', 'arcademia', 'seoul', 'stoneball']) {
+      for (const id of ['gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'lanternwood', 'arcademia', 'seoul', 'stoneball']) {
         try {
           localStorage.setItem(`gamory.help.${id}.hide`, '1');
         } catch {

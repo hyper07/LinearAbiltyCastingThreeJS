@@ -1,0 +1,592 @@
+/**
+ * Snowpuff's screens, in plain DOM over the 3D view: the loading card, the
+ * menus (title, choose a rider, choose a mountain, race with friends,
+ * pause, results, credits) and the race HUD — big position top-left, the
+ * course strip with every racer's face across the top (it doubles as the
+ * map), a corner course minimap, the timer and stars top-right, snowball
+ * buttons bottom-centre with their keys, the speed dial bottom-right, pop
+ * text in the centre, speed lines at the edges — plus the touch controls.
+ */
+import { SPECIES, SELECTABLE, faceSvg } from './riders.js';
+import { MOUNTAINS } from './mountains.js';
+import { ordinal } from './race.js';
+import { hintItems } from '../shared/helpPanel.js';
+import { CONTROLS } from './controls.js';
+import { PACKS, OWN } from './credits.js';
+import { musicMenu } from '../shared/gameMusic.js';
+
+export const el = (tag, cls, html) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+};
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+export const fmtTime = (t) => {
+  if (!Number.isFinite(t)) return '—';
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return `${m}:${s < 10 ? '0' : ''}${s.toFixed(1)}`;
+};
+const diffStars = (n) => `${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i>`;
+const SNOWBALL = '<svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="15" fill="#fff"/><circle cx="15" cy="15" r="5" fill="#fff" opacity=".9"/><path d="M8 24 Q20 32 32 24" stroke="#c9d8f2" stroke-width="3" fill="none"/></svg>';
+const SHIELD = '<svg viewBox="0 0 40 40"><path d="M20 4 L34 10 V20 C34 29 27 34 20 37 C13 34 6 29 6 20 V10Z" fill="#fff" stroke="#3ab8e8" stroke-width="3"/><path d="M20 12 L22.5 18 L29 18.5 L24 22.5 L25.6 29 L20 25.5 L14.4 29 L16 22.5 L11 18.5 L17.5 18Z" fill="#7fe8ff"/></svg>';
+const FLAG = '<svg viewBox="0 0 34 40"><path d="M4 2 V38" stroke="#2a2f4a" stroke-width="3" stroke-linecap="round"/><path d="M5 3 H31 V19 H5Z" fill="#fff" stroke="#2a2f4a" stroke-width="2"/><path d="M5 3h6.5v5.3H5zM18 3h6.5v5.3H18zM11.5 8.3H18v5.3h-6.5zM24.5 8.3H31v5.3h-6.5zM5 13.6h6.5V19H5zM18 13.6h6.5V19H18z" fill="#2a2f4a"/></svg>';
+
+/* ---------------------------------------------------------------- loading */
+
+export class Loading {
+  constructor(root) {
+    this.el = el('div', 'sp-load', `<div class="sp-load__box"><div class="sp-logo">Snowpuff<small>PEAKS</small></div><div class="sp-load__bar"><i></i></div><div class="sp-load__label">Fluffing the snow…</div></div>`);
+    root.append(this.el);
+  }
+
+  set(label, k) {
+    this.el.querySelector('i').style.width = `${Math.round(k * 100)}%`;
+    this.el.querySelector('.sp-load__label').textContent = label;
+  }
+
+  show(label = 'Building the mountain…') {
+    this.el.style.display = '';
+    this.el.style.opacity = '1';
+    this.set(label, 0);
+  }
+
+  hide() {
+    this.el.style.opacity = '0';
+    setTimeout(() => (this.el.style.display = 'none'), 600);
+  }
+}
+
+/* ---------------------------------------------------------------- menus */
+
+export class Menus {
+  constructor(root, game) {
+    this.root = root;
+    this.game = game;
+    this.el = el('div', 'sp-menu');
+    root.append(this.el);
+  }
+
+  clear() {
+    this.el.innerHTML = '';
+  }
+
+  click(sel, fn) {
+    const b = this.el.querySelector(sel);
+    b?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.game.sound.wake();
+      this.game.sound.click();
+      fn(e);
+    });
+    return b;
+  }
+
+  title({ onRace, onFriends, onHelp, onCredits, onLeave, quality, onQuality, soundOn, onSound }) {
+    this.clear();
+    this.el.append(el('div', 'sp-title', '<div class="sp-logo">Snowpuff<small>PEAKS</small></div>'));
+    const col = el('div', 'sp-col sp-home', `
+      <button class="sp-btn sp-btn--go" data-race>Race!</button>
+      <button class="sp-btn sp-btn--blue" data-friends>Race with friends</button>
+      <div class="sp-row" style="justify-content:center;margin:0">
+        <button class="sp-btn sp-btn--small" data-open-help>How to play</button>
+        <button class="sp-btn sp-btn--small" data-credits>Credits</button>
+      </div>`);
+    this.el.append(col);
+    const corner = el('div', 'sp-corner', `<button class="sp-btn sp-btn--small sp-btn--ghost" data-q>Quality: ${esc(quality)}</button><button class="sp-btn sp-btn--small sp-btn--ghost" data-s>Sound: ${soundOn ? 'on' : 'off'}</button><button class="sp-btn sp-btn--small sp-btn--ghost" data-leave>Leave</button>`);
+    corner.style.cssText = 'right:18px;top:16px';
+    this.el.append(corner);
+    this.click('[data-race]', onRace);
+    this.click('[data-friends]', onFriends);
+    this.click('[data-open-help]', onHelp);
+    this.click('[data-credits]', onCredits);
+    this.click('[data-leave]', onLeave);
+    this.click('[data-q]', (e) => (e.currentTarget.textContent = `Quality: ${onQuality()}`));
+    this.click('[data-s]', (e) => (e.currentTarget.textContent = `Sound: ${onSound() ? 'on' : 'off'}`));
+    setTimeout(() => this.el.querySelector('[data-race]')?.focus({ preventScroll: true }), 50);
+  }
+
+  riders({ picked, onPick, onNext, onBack }) {
+    this.clear();
+    this.el.append(el('div', 'sp-heading', 'Choose your rider'));
+    const row = el('div', 'sp-col sp-riders');
+    for (const id of SELECTABLE) {
+      const sp = SPECIES[id];
+      const b = el('button', 'sp-rider', `${faceSvg(id, 72)}${esc(sp.name)}<small>${esc(sp.animal)}</small>`);
+      b.dataset.rider = id;
+      b.setAttribute('aria-pressed', String(id === picked));
+      b.addEventListener('click', () => {
+        this.game.sound.wake();
+        this.game.sound.click();
+        onPick(id);
+        for (const x of row.children) x.setAttribute('aria-pressed', String(x.dataset.rider === id));
+        about.innerHTML = aboutHtml(id);
+      });
+      row.append(b);
+    }
+    this.el.append(row);
+    const about = el('div', 'sp-card sp-col sp-about', aboutHtml(picked));
+    this.el.append(about);
+    this.el.append(el('div', 'sp-col sp-nav', '<button class="sp-btn sp-btn--go" data-next>Next ›</button>'));
+    this.el.append(el('div', 'sp-col sp-back', '<button class="sp-btn sp-btn--small" data-back>‹ Back</button>'));
+    this.click('[data-next]', onNext);
+    this.click('[data-back]', onBack);
+    setTimeout(() => this.el.querySelector('[data-next]')?.focus({ preventScroll: true }), 50);
+  }
+
+  mountains({ picked, best, onPick, onGo, onBack, goLabel = 'Race! ›' }) {
+    this.clear();
+    this.el.append(el('div', 'sp-heading', 'Choose a mountain'));
+    const row = el('div', 'sp-col sp-mountains');
+    for (const m of MOUNTAINS) {
+      const b = el('button', 'sp-mtn', `<h3>${esc(m.name)}</h3><div class="sp-diff">${diffStars(m.stars)}</div><p>${esc(m.blurb)}</p><div class="sp-best">${best[m.id] ? `Best: ${fmtTime(best[m.id].time)} · ${ordinal(best[m.id].place)}` : 'Not raced yet'}</div>`);
+      b.dataset.mountain = m.id;
+      b.setAttribute('aria-pressed', String(m.id === picked));
+      b.addEventListener('click', () => {
+        this.game.sound.wake();
+        this.game.sound.click();
+        onPick(m.id);
+        for (const x of row.children) x.setAttribute('aria-pressed', String(x.dataset.mountain === m.id));
+      });
+      b.addEventListener('dblclick', () => onGo());
+      row.append(b);
+    }
+    this.el.append(row);
+    this.el.append(el('div', 'sp-col sp-nav', `<button class="sp-btn sp-btn--go" data-go>${esc(goLabel)}</button>`));
+    this.el.querySelector('.sp-nav').style.bottom = 'auto';
+    this.el.querySelector('.sp-nav').style.top = '16px';
+    this.el.append(el('div', 'sp-col sp-back', '<button class="sp-btn sp-btn--small" data-back>‹ Back</button>'));
+    this.el.querySelector('.sp-back').style.cssText = 'left:3%;top:16px;bottom:auto';
+    this.click('[data-go]', onGo);
+    this.click('[data-back]', onBack);
+    setTimeout(() => this.el.querySelector('[data-go]')?.focus({ preventScroll: true }), 50);
+  }
+
+  /** Race with friends: make a room or join one by its five-letter code. */
+  lobby(state, { onCreate, onJoin, onStart, onBack, onMountain }) {
+    this.clear();
+    const s = state;
+    const card = el('div', 'sp-card sp-lobby');
+    if (!s.room) {
+      card.innerHTML = `<h2>Race with friends</h2><p>One of you makes a room and shares its code; up to four can race. Empty places get computer riders.</p>
+        <div class="sp-row"><button class="sp-btn sp-btn--go" data-create>Make a room</button></div>
+        <div class="sp-row"><input class="sp-input" maxlength="5" placeholder="CODE" data-code aria-label="Room code"><button class="sp-btn sp-btn--blue" data-join>Join</button></div>
+        ${s.error ? `<p class="sp-err">${esc(s.error)}</p>` : ''}${s.busy ? '<p class="sp-note">Connecting…</p>' : ''}
+        <div class="sp-row"><button class="sp-btn sp-btn--small" data-back>‹ Back</button></div>`;
+    } else {
+      const members = s.members.map((m) => `<span class="sp-member">${faceSvg(m.species, 34)}${esc(m.name)}${m.id === s.host ? ' ★' : ''}${m.id === s.you ? ' (you)' : ''}</span>`).join('');
+      const mtn = MOUNTAINS.find((x) => x.id === s.mountain) ?? MOUNTAINS[0];
+      card.innerHTML = `<h2>Your room</h2><p>Share this code:</p><div class="sp-code" data-room>${esc(s.room)}</div>
+        <div class="sp-members">${members}</div>
+        <p><b>Mountain:</b> ${esc(mtn.name)} ${'★'.repeat(mtn.stars)}</p>
+        ${s.isHost ? `<div class="sp-row">${MOUNTAINS.map((m) => `<button class="sp-btn sp-btn--small${m.id === s.mountain ? ' sp-btn--blue' : ''}" data-m="${m.id}">${esc(m.name)}</button>`).join('')}</div>
+        <div class="sp-row"><button class="sp-btn sp-btn--go" data-start>Start the race</button></div>` : '<p class="sp-note">Waiting for the host to start…</p>'}
+        ${s.error ? `<p class="sp-err">${esc(s.error)}</p>` : ''}
+        <div class="sp-row"><button class="sp-btn sp-btn--small" data-back>‹ Leave the room</button></div>`;
+    }
+    this.el.append(card);
+    const code = card.querySelector('[data-code]');
+    this.click('[data-create]', onCreate);
+    this.click('[data-join]', () => onJoin(code?.value ?? ''));
+    code?.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') onJoin(code.value);
+    });
+    this.click('[data-start]', onStart);
+    this.click('[data-back]', onBack);
+    for (const b of card.querySelectorAll('[data-m]')) b.addEventListener('click', () => onMountain(b.dataset.m));
+  }
+
+  pause({ onResume, onRestart, onHelp, onCredits, onLeave, onQuality, quality, onSound, soundOn, online }) {
+    this.clear();
+    this.el.append(el('div', 'sp-dim'));
+    const card = el('div', 'sp-card sp-panel', `<h2>Paused</h2>${online ? '<p class="sp-note">Racing with friends: the race keeps going while this is open.</p>' : ''}
+      <div class="sp-col" style="gap:10px">
+        <button class="sp-btn sp-btn--go" data-resume>Keep riding</button>
+        ${online ? '' : '<button class="sp-btn" data-restart>Start again</button>'}
+        <button class="sp-btn" data-open-help>How to play (H)</button>
+        <div class="sp-switches"><button class="sp-btn sp-btn--small" data-q>Quality: ${esc(quality)}</button><button class="sp-btn sp-btn--small" data-s>Sound: ${soundOn ? 'on' : 'off'}</button><button class="sp-btn sp-btn--small" data-credits>Credits</button></div>
+        <div data-music></div>
+        <button class="sp-btn sp-btn--small sp-btn--ghost" data-leave>Leave the race</button>
+      </div>`);
+    this.el.append(card);
+    try {
+      card.querySelector('[data-music]').append(musicMenu());
+    } catch {
+      /* no music menu */
+    }
+    this.click('[data-resume]', onResume);
+    this.click('[data-restart]', onRestart);
+    this.click('[data-open-help]', onHelp);
+    this.click('[data-credits]', onCredits);
+    this.click('[data-leave]', onLeave);
+    this.click('[data-q]', (e) => (e.currentTarget.textContent = `Quality: ${onQuality()}`));
+    this.click('[data-s]', (e) => (e.currentTarget.textContent = `Sound: ${onSound() ? 'on' : 'off'}`));
+    setTimeout(() => card.querySelector('[data-resume]')?.focus({ preventScroll: true }), 30);
+  }
+
+  results({ rows, mountain, me, onRetry, onNext, onMenu, online, nextName }) {
+    this.clear();
+    const list = rows.map((r, i) => `<div class="sp-standing${r.me ? ' me' : ''}"><b>${ordinal(i + 1)}</b>${faceSvg(r.species, 42)}<span>${esc(r.name)}${r.human && !r.me ? ' <small>friend</small>' : ''}<small>★ ${r.stars} · ${r.tricks} tricks · bonked ${r.bonks} ${r.bonks === 1 ? 'rider' : 'riders'}</small></span><span class="sp-t">${fmtTime(r.time)}</span></div>`).join('');
+    const card = el('div', 'sp-card sp-results', `<h2>${me.place === 1 ? 'You won!' : me.place <= 3 ? `${ordinal(me.place)} place!` : 'You made it!'}</h2>
+      <p>${esc(mountain.name)} · ${fmtTime(me.time)} · ★ ${me.stars}${me.newBest ? ' · <b style="color:#ff6fb4">New best!</b>' : ''}</p>
+      <div>${list}</div>
+      <div class="sp-row">${online ? '' : '<button class="sp-btn sp-btn--go" data-retry>Race again</button>'}${!online && nextName ? `<button class="sp-btn sp-btn--blue" data-next>${esc(nextName)} ›</button>` : ''}<button class="sp-btn sp-btn--small" data-menu>${online ? 'Back to the room' : 'Mountains'}</button></div>`);
+    this.el.append(card);
+    this.click('[data-retry]', onRetry);
+    this.click('[data-next]', onNext);
+    this.click('[data-menu]', onMenu);
+    setTimeout(() => card.querySelector('[data-retry], [data-menu]')?.focus({ preventScroll: true }), 30);
+  }
+
+  credits(onBack) {
+    const old = [...this.el.children];
+    for (const c of old) c.style.display = 'none';
+    const dim = el('div', 'sp-dim');
+    const items = PACKS.map((p) => `<li><b><a href="${esc(p.site)}" target="_blank" rel="noopener">${esc(p.name)}</a></b> — ${esc(p.what)} · <a href="${esc(p.licenceUrl ?? p.site)}" target="_blank" rel="noopener">${esc(p.licence)}</a>${p.items ? `<br><small>${p.items.map((i) => `<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.name)}</a>`).join(', ')}</small>` : ''}${p.titles ? `<br><small>Tracks: ${p.titles.map(esc).join(', ')}</small>` : ''}</li>`).join('');
+    const card = el('div', 'sp-card sp-panel sp-credits', `<h2>Credits</h2><ul style="padding-left:18px">${items}</ul><p>${esc(OWN)}</p><div class="sp-row"><button class="sp-btn" data-cback>Back</button></div>`);
+    card.dataset.creditsPanel = '';
+    this.el.append(dim, card);
+    const back = () => {
+      dim.remove();
+      card.remove();
+      for (const c of old) c.style.display = '';
+      onBack?.();
+    };
+    card.querySelector('[data-cback]').addEventListener('click', back);
+    card.querySelector('[data-cback]').focus({ preventScroll: true });
+    this.closeCredits = back;
+  }
+}
+
+function aboutHtml(id) {
+  const sp = SPECIES[id];
+  return `<h2>${esc(sp.name)}</h2><p>${esc(sp.blurb)}</p><span class="sp-tag" style="background:${sp.accent}">${esc(sp.accentName)}</span>`;
+}
+
+/* ---------------------------------------------------------------- the race HUD */
+
+export class Hud {
+  constructor(root, { touch = false } = {}) {
+    this.root = root;
+    this.el = el('div', 'sp-hud off');
+    this.el.innerHTML = `
+      <div class="sp-pos"><b>1</b><sup>st</sup><span>/4</span></div>
+      <div class="sp-strip"><div class="sp-strip__track"><div class="sp-strip__fill"></div></div><div class="sp-strip__flag">${FLAG}</div><div class="sp-strip__faces"></div></div>
+      <div class="sp-tr"><div class="sp-pill sp-time">0:00.0</div><div class="sp-pill sp-stars"><span class="sp-star">★</span><span>0</span></div><canvas class="sp-mini" width="300" height="300" aria-label="Course map"></canvas></div>
+      <div class="sp-ammo"></div>
+      <div class="sp-speed"><svg viewBox="0 0 170 120">
+        <path d="M18 104 A68 68 0 0 1 152 104" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="18" stroke-linecap="round"/>
+        <path class="sp-arc" d="M18 104 A68 68 0 0 1 152 104" fill="none" stroke="url(#spg)" stroke-width="18" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>
+        <defs><linearGradient id="spg" x1="0" x2="1"><stop offset="0" stop-color="#3fd0b0"/><stop offset=".6" stop-color="#ffd23f"/><stop offset="1" stop-color="#ff6fb4"/></linearGradient></defs>
+        <g class="sp-needle" transform="rotate(-90 85 104)"><path d="M85 104 L81 100 L85 44 L89 100Z" fill="#2a2f4a"/><circle cx="85" cy="104" r="9" fill="#fff" stroke="#2a2f4a" stroke-width="4"/></g>
+      </svg><div class="sp-kmh">0<small> km/h</small></div></div>
+      <div class="sp-pop"></div>
+      <div class="sp-toast"></div>
+      <div class="sp-hint">${hintItems(CONTROLS).map((h) => h.html).join(' · ')}</div>`;
+    root.append(this.el);
+    this.lines = el('canvas', 'sp-lines');
+    this.lines.dataset.overlay = '';
+    root.append(this.lines);
+    this.lg = this.lines.getContext('2d');
+    this.q = (s) => this.el.querySelector(s);
+    this.posEl = this.q('.sp-pos');
+    this.faces = this.q('.sp-strip__faces');
+    this.fill = this.q('.sp-strip__fill');
+    this.timeEl = this.q('.sp-time');
+    this.starEl = this.q('.sp-stars');
+    this.mini = this.q('.sp-mini');
+    this.mg = this.mini.getContext('2d');
+    this.ammoEl = this.q('.sp-ammo');
+    this.needle = this.q('.sp-needle');
+    this.arc = this.q('.sp-arc');
+    this.kmh = this.q('.sp-kmh');
+    this.pop = this.q('.sp-pop');
+    this.toastEl = this.q('.sp-toast');
+    this.last = {};
+    this.faceEls = new Map();
+    this.onThrow = null;
+    this.onShield = null;
+    this.ammoEl.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.shield) this.onShield?.();
+      else this.onThrow?.();
+    });
+  }
+
+  show(on) {
+    this.el.classList.toggle('off', !on);
+    this.lines.style.display = on ? '' : 'none';
+  }
+
+  /** Set up for a race: one face per racer on the strip; the course outline on the minimap. */
+  start(racers, course, meSlot) {
+    this.faces.innerHTML = '';
+    this.faceEls.clear();
+    for (const r of racers) {
+      const f = el('div', `sp-face${r.slot === meSlot ? ' me' : ''}`, faceSvg(r.species, r.slot === meSlot ? 40 : 34));
+      f.title = r.name;
+      this.faces.append(f);
+      this.faceEls.set(r.slot, f);
+    }
+    this.course = course;
+    this.meSlot = meSlot;
+    // minimap outline, fitted
+    const pts = [];
+    for (let i = 0; i < course.n; i += 8) pts.push([course.px[i], course.pz[i]]);
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const [x, z] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    const pad = 26, S = 300;
+    const k = Math.min((S - pad * 2) / Math.max(1, x1 - x0), (S - pad * 2) / Math.max(1, z1 - z0));
+    this.map = { x0, z0, k, ox: (S - (x1 - x0) * k) / 2, oz: (S - (z1 - z0) * k) / 2, pts };
+    this.last = {};
+  }
+
+  mapXY(x, z) {
+    const m = this.map;
+    return [m.ox + (x - m.x0) * m.k, m.oz + (z - m.z0) * m.k];
+  }
+
+  update(dt, { racers, me, place, total, time, speed, ammo, shieldItem, course, world }) {
+    // position
+    if (place !== this.last.place || total !== this.last.total) {
+      this.posEl.innerHTML = `<b>${place}</b><sup>${ordinal(place).replace(String(place), '')}</sup><span>/${total}</span>`;
+      this.posEl.classList.toggle('first', place === 1);
+      if (this.last.place) {
+        this.posEl.classList.remove('bump');
+        void this.posEl.offsetWidth;
+        this.posEl.classList.add('bump');
+      }
+      this.last.place = place;
+      this.last.total = total;
+    }
+    // strip
+    const L = course.finish;
+    for (const r of racers) {
+      const f = this.faceEls.get(r.slot);
+      if (!f) continue;
+      const k = Math.max(0, Math.min(1, r.rider.s / L));
+      f.style.left = `calc(${(k * 100).toFixed(2)}% * (1 - 30 / 620))`;
+      f.classList.toggle('fin', r.finished);
+    }
+    this.fill.style.width = `${Math.max(0, Math.min(100, (me.rider.s / L) * 100)).toFixed(1)}%`;
+    // time & stars
+    const ts = fmtTime(time);
+    if (ts !== this.last.ts) {
+      this.timeEl.textContent = ts;
+      this.last.ts = ts;
+    }
+    if (me.stars !== this.last.stars) {
+      this.starEl.lastChild.textContent = me.stars;
+      if (this.last.stars != null) {
+        this.starEl.classList.remove('pop');
+        void this.starEl.offsetWidth;
+        this.starEl.classList.add('pop');
+      }
+      this.last.stars = me.stars;
+    }
+    // ammo
+    const ak = `${ammo}|${shieldItem}`;
+    if (ak !== this.last.ammo) {
+      let h = '';
+      for (let i = 0; i < 3; i++) h += `<button class="sp-ball${i < ammo ? ' ready' : ' empty'}" aria-label="Snowball">${i < ammo ? SNOWBALL : ''}${i === 0 ? '<kbd>1</kbd>' : ''}</button>`;
+      if (shieldItem) h += `<button class="sp-ball shield" data-shield="1" aria-label="Shield">${SHIELD}<kbd>2</kbd></button>`;
+      this.ammoEl.innerHTML = h;
+      this.last.ammo = ak;
+    }
+    // speed dial: 0–110 km/h
+    const kmh = Math.round(speed * 3.6);
+    if (kmh !== this.last.kmh) {
+      const k = Math.min(1, kmh / 110);
+      this.needle.setAttribute('transform', `rotate(${-90 + k * 180} 85 104)`);
+      this.arc.setAttribute('stroke-dasharray', `${(k * 100).toFixed(1)} 100`);
+      this.kmh.innerHTML = `${kmh}<small> km/h</small>`;
+      this.last.kmh = kmh;
+    }
+    this.drawMini(racers, world);
+  }
+
+  drawMini(racers, world) {
+    const g = this.mg;
+    const m = this.map;
+    if (!m) return;
+    g.clearRect(0, 0, 300, 300);
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(255,255,255,0.95)';
+    g.lineWidth = 16;
+    g.beginPath();
+    m.pts.forEach(([x, z], i) => {
+      const [a, b] = this.mapXY(x, z);
+      if (i) g.lineTo(a, b);
+      else g.moveTo(a, b);
+    });
+    g.stroke();
+    g.strokeStyle = 'rgba(58,134,255,0.35)';
+    g.lineWidth = 6;
+    g.stroke();
+    // finish flag
+    const c = this.course;
+    const fi = Math.min(c.n - 1, Math.round(c.finish));
+    const [fx, fz] = this.mapXY(c.px[fi], c.pz[fi]);
+    g.fillStyle = '#2a2f4a';
+    g.fillRect(fx - 6, fz - 6, 12, 12);
+    // lifts
+    g.strokeStyle = 'rgba(42,47,74,0.4)';
+    g.lineWidth = 2;
+    for (const lf of c.lifts) {
+      g.beginPath();
+      lf.towers.forEach((t, i) => {
+        const [a, b] = this.mapXY(t.x, t.z);
+        if (i) g.lineTo(a, b);
+        else g.moveTo(a, b);
+      });
+      g.stroke();
+    }
+    // racers (you last, on top)
+    const order = [...racers].sort((a, b) => (a.slot === this.meSlot) - (b.slot === this.meSlot));
+    for (const r of order) {
+      const p = r.pos;
+      if (!p) continue;
+      const [a, b] = this.mapXY(p.x, p.z);
+      const me = r.slot === this.meSlot;
+      g.fillStyle = SPECIES[r.species]?.color ?? '#fff';
+      g.strokeStyle = me ? '#ffd23f' : '#ffffff';
+      g.lineWidth = me ? 5 : 3;
+      g.beginPath();
+      g.arc(a, b, me ? 11 : 8, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+  }
+
+  /** Centre pop text: kind = trick | boost | count | go | info. */
+  say(text, kind = 'info', html = false) {
+    const d = el('div', kind);
+    if (html) d.innerHTML = text;
+    else d.textContent = text;
+    if (kind === 'count' || kind === 'go') this.pop.innerHTML = '';
+    if (kind === 'go') d.classList.add('count');
+    this.pop.append(d);
+    while (this.pop.children.length > 3) this.pop.firstChild.remove();
+    setTimeout(() => d.remove(), kind === 'count' || kind === 'go' ? 950 : 1250);
+  }
+
+  /** "BONK!" over a rider, at screen (x, y) in CSS pixels. */
+  bonk(x, y, text = 'BONK!', mine = false) {
+    const d = el('div', `sp-bonk${mine ? ' mine' : ''}`);
+    d.textContent = text;
+    d.style.left = `${x}px`;
+    d.style.top = `${y}px`;
+    this.root.append(d);
+    setTimeout(() => d.remove(), 950);
+  }
+
+  toast(text, secs = 2.5) {
+    this.toastEl.textContent = text;
+    this.toastEl.classList.add('on');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.toastEl.classList.remove('on'), secs * 1000);
+  }
+
+  /** Speed lines at the screen edges, only when fast. */
+  drawLines(k, w, h, dpr) {
+    const cv = this.lines;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+    }
+    const g = this.lg;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    if (k <= 0.01) return;
+    const cx = w / 2, cy = h * 0.46;
+    const R = Math.hypot(w, h) * 0.5;
+    const n = Math.round(10 + k * 26);
+    g.strokeStyle = `rgba(255,255,255,${0.12 + k * 0.32})`;
+    g.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r0 = R * (0.62 + Math.random() * 0.25), len = R * (0.08 + Math.random() * 0.22) * k;
+      g.lineWidth = 1 + Math.random() * 3 * k;
+      g.beginPath();
+      g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0 * 0.8);
+      g.lineTo(cx + Math.cos(a) * (r0 + len), cy + Math.sin(a) * (r0 + len) * 0.8);
+      g.stroke();
+    }
+  }
+
+  dispose() {
+    this.el.remove();
+    this.lines.remove();
+  }
+}
+
+/* ---------------------------------------------------------------- touch */
+
+export class TouchControls {
+  constructor(root, input) {
+    this.input = input;
+    this.el = el('div', 'sp-touch off', `<div class="sp-steer"><div class="sp-steer__knob"><i></i></div></div>
+      <button class="sp-tbtn sp-tbtn--tuck" data-t="tuck">TUCK</button>
+      <button class="sp-tbtn sp-tbtn--throw" data-t="throw">${SNOWBALL}</button>
+      <button class="sp-tbtn sp-tbtn--jump" data-t="jump">JUMP</button>`);
+    root.append(this.el);
+    const zone = this.el.querySelector('.sp-steer');
+    const knob = this.el.querySelector('.sp-steer__knob');
+    let id = null, ox = 0, oy = 0;
+    zone.addEventListener('pointerdown', (e) => {
+      id = e.pointerId;
+      ox = e.clientX;
+      oy = e.clientY;
+      zone.setPointerCapture(id);
+      knob.style.display = 'block';
+      knob.style.left = `${e.offsetX}px`;
+      knob.style.top = `${e.offsetY}px`;
+      knob.firstChild.style.transform = '';
+    });
+    zone.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id) return;
+      const dx = Math.max(-60, Math.min(60, e.clientX - ox)), dy = Math.max(-60, Math.min(60, e.clientY - oy));
+      input.touchSteer = Math.abs(dx) < 8 ? 0 : dx / 60;
+      input.touchFlip = Math.abs(dy) < 14 ? 0 : -dy / 60;
+      knob.firstChild.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    const end = (e) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      input.touchSteer = 0;
+      input.touchFlip = 0;
+      knob.style.display = 'none';
+    };
+    zone.addEventListener('pointerup', end);
+    zone.addEventListener('pointercancel', end);
+    for (const b of this.el.querySelectorAll('[data-t]')) {
+      const t = b.dataset.t;
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        b.classList.add('held');
+        input.touch[t] = true;
+        if (t === 'throw') input.pressed.add('throw');
+      });
+      const up = () => {
+        b.classList.remove('held');
+        input.touch[t] = false;
+      };
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointercancel', up);
+      b.addEventListener('pointerleave', up);
+    }
+  }
+
+  show(on) {
+    this.el.classList.toggle('off', !on);
+  }
+
+  dispose() {
+    this.el.remove();
+  }
+}

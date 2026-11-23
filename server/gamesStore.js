@@ -144,6 +144,14 @@ export const ENGINE_GAMES = [
     card: { genre: 'action', genreName: 'Action', cover: 'kindlewatch', badge: 'NEW' }
   },
   {
+    id: 'official:snowpuff',
+    title: 'Snowpuff Peaks',
+    summary: 'A cute, fast snowboard race for kids. Pick a plush rider — Pip the fox, Toffee the bear, Mochi the cat or Pickle the frog — and a mountain: sunny Marshmallow Hill, Pinecone Ridge at sunset, or Aurora Peak at night. Carve past fences, flags and ski lifts, jump the kickers, spin and flip, grab stars and bonk the riders ahead with snowballs. Alone against computer riders, or with up to three friends.',
+    engine: 'snowpuff',
+    genre: 'racing',
+    card: { genre: 'racing', genreName: 'Racing', cover: 'snowpuff', badge: 'NEW' }
+  },
+  {
     id: 'official:lanternwood',
     title: 'Lanternwood',
     summary: 'Pixel heroes made solid in a lit 3D world, the camera behind you. Four classes, four realms — a night forest, sunlit hills, frozen peaks, a burning caldera — hero monsters and bosses, loot you can see on your hero, and co-op for up to four.',

@@ -138,7 +138,7 @@ test('the titles match the shipped manifest', { skip: !existsSync(MANIFEST) }, (
 });
 
 test('each game\'s Credits data carries the music entry', async () => {
-  for (const g of ['gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch']) {
+  for (const g of ['gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff']) {
     const { PACKS } = await import(`../../src/${g}/credits.js`);
     const e = PACKS.find((p) => p.name === 'ACE-Step 1.5');
     assert.ok(e, g);

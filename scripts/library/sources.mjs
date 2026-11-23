@@ -24,6 +24,7 @@ import {
   exists
 } from './lib.mjs';
 import { rigged } from './rigged.mjs';
+import { POLYFORK as SNOWPUFF_MODELS } from '../../src/snowpuff/assets.js';
 
 const MODEL_EXT = /\.(glb|gltf)$/i;
 const KEEP_EXT = /\.(glb|gltf|bin|png|jpe?g|webp|ktx2)$/i;
@@ -272,7 +273,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 9;
+export const EXTRAS_VERSION = 10;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -351,7 +352,9 @@ const EXTRA_POLYFORK = [
   'orc-hunter-base',
   // Kithvale: your three looks and the people of Lanternrest.
   'kite-kid-base', 'village-child-bef09e', 'waving-child-dfada0', 'ashigaru-foot-soldier-806707', 'porter-e4e566', 'farmer-363820', 'townswoman-5ca8b5',
-  'buddhist-monk-39f498', 'village-gardener-9f7af6', 'shopkeeper-be5547', 'crossing-keeper-e13207', 'daimyo-lord-78364a'
+  'buddhist-monk-39f498', 'village-gardener-9f7af6', 'shopkeeper-be5547', 'crossing-keeper-e13207', 'daimyo-lord-78364a',
+  // Snowpuff Peaks: the props on its mountains (src/snowpuff/assets.js).
+  ...Object.values(SNOWPUFF_MODELS).map(([id]) => id)
 ];
 
 export async function extras({ budget }) {

@@ -104,6 +104,21 @@ Every sprite, texture, effect and sound in Kindlewatch is made in code for it (`
 `paint.js`, `audio.js`); its colour ramps come from the platform's own pixel-art kit (`src/pixel/art.js`).
 No pixelfx effects or library models are used. Its Credits panel reads `src/kindlewatch/credits.js`.
 
+### Snowpuff Peaks
+
+| What | Used for | Licence |
+| --- | --- | --- |
+| [three.js](https://threejs.org) | WebGPURenderer, TSL node materials, the render pipeline and its GTAO, TRAA, SMAA, FXAA and bloom nodes, the glTF and HDR loaders, RoomEnvironment | MIT |
+| [polyfork](https://polyfork.dev) | The props on the mountains, each named with its page in the Credits panel: Snow-Laden Spruce, Young Pine, Front-Yard Fir Tree, Lift Pylon, Chairlift Chair, Gondola Cabin, Ski Lift Base Station, Lift Top Station, Alpine Chalet, Alpine Hay Barn, Mountain Refuge Hut, Race Start Hut, Snowman, Hay Bale, Snow Fence Run, Boulder Field Cluster, Rock Outcrop, Snow-Capped Log Pile, Dock Lantern Post, Snow Cannon, Bunting Run, Big Wrapped Present (`src/snowpuff/assets.js`; fetched into `library/polyfork/`, never committed) | CC BY 4.0 |
+| [Poly Haven HDRIs](https://polyhaven.com/hdris) | Image-based light: Kloofendal 48d Partly Cloudy (Pure Sky) at noon, Spruit Sunrise at sunset (from `library/rigged/hdri/`) | CC0 1.0 |
+| [Nunito](https://fonts.google.com/specimen/Nunito) via [Fontsource](https://fontsource.org/fonts/nunito) | The menus and HUD | SIL Open Font License 1.1 (font), MIT (package) |
+| ACE-Step 1.5 (see the soundtrack above) | The music: Paper Kites, Sunlit Meadow, Lantern Valley, Violet Hollow and the stingers | MIT |
+
+The plush riders are original characters sculpted in code with the platform's own sculptor
+(`src/arcademia/world/creatures/sculpt.js`); the snow, trails, kickers, fences, flags, poles, gates,
+arches, sky, aurora, effects and every sound are made in code for the game (`src/snowpuff/`). Its
+Credits panel reads `src/snowpuff/credits.js`.
+
 ### AI Arcademia
 
 | What | Used for | Licence |

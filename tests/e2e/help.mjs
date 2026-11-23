@@ -10,6 +10,7 @@ const GAMES = [
   { id: 'wyldhunt', global: 'wyldhunt', start: 'begin', pauseKey: 'Escape' },
   { id: 'kithvale', global: 'kithvale', start: 'begin', pauseKey: 'Escape' },
   { id: 'kindlewatch', global: 'kindlewatch', start: 'begin', pauseKey: 'Escape' },
+  { id: 'snowpuff', global: 'snowpuff', start: 'begin', pauseKey: 'Escape' },
   { id: 'lanternwood', global: 'lanternwood', start: 'lanternwood', pauseKey: 'Escape' },
   { id: 'stoneball', global: 'stoneball', start: 'stoneball', pauseKey: 'Escape' },
   { id: 'arcademia', global: 'arcademia', start: 'arcademia' },

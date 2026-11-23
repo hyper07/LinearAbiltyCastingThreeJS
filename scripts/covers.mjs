@@ -191,6 +191,20 @@ const SHOTS = {
     await bare(page, '.kw');
     await wait(page, 300);
   },
+  snowpuff: async (page) => {
+    await open(page, 'official:snowpuff');
+    await until(page, () => window.snowpuff?.ready && window.snowpuff.mode === 'menu', null, 120000);
+    // Carving down Marshmallow Hill with the rivals just ahead, fences and a chairlift close by.
+    await page.evaluate(() => {
+      localStorage.setItem('gamory.help.snowpuff.hide', '1');
+      return window.snowpuff.begin();
+    });
+    await until(page, () => window.snowpuff.mode === 'race', null, 120000);
+    await page.evaluate(() => window.snowpuff.coverShot());
+    await wait(page, 2500);
+    await bare(page, '.sp');
+    await wait(page, 300);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);
