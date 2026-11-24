@@ -1,40 +1,36 @@
 /**
- * The side mirror: when another rider comes up behind you, or draws level to
- * pass, a small rear view slides in on the left of the screen, like a car's
- * wing mirror, turned toward them, with their name and how far back they are.
- * It slides away a moment after nobody is there.
+ * The rival panel: when another rider comes up behind you, or draws level to
+ * pass, a manga-style panel slides in on the left — ONE still picture of
+ * them (snapped from just in front, looking back at their face), in a tilted
+ * ink frame with radiating speed lines and a halftone edge, their name and
+ * how far back they are.
  *
- * It costs nothing while hidden. While shown it draws the scene once more,
- * small (384×216), from a camera at your shoulder looking back up the run,
- * 20 times a second (12 on the low tier), without redrawing shadows; the picture is laid into its frame each frame (one
- * quad), mirrored left to right as a real mirror is.
+ * Why a still: a live rear view meant drawing the scene twice; on the first
+ * look it also built a whole new set of GPU pipelines, so the race hitched
+ * (frames of 150–300 ms) just as someone came past. Now the 3D cost is one
+ * small render when the rider changes (at most about once a second), read
+ * back to a plain 2D canvas; everything that moves — the slide, the wiggle,
+ * the speed lines — is CSS. The snapshot's pipelines are built
+ * behind the loading card (warm()).
  *
- * `mirrorTarget` (who the mirror shows) is pure and tested in
+ * `mirrorTarget` (who the panel shows) is pure and tested in
  * tests/unit/snowpuff-mirror.test.mjs.
  */
 import * as THREE from 'three/webgpu';
-import { texture, uv, vec2, vec4, float, uniform, positionGeometry, abs, max, min, length, clamp, smoothstep, mix, vec3, mrt, output } from 'three/tsl';
+import { mrt, output } from 'three/tsl';
 
 /** How near a rider must be, and how far round behind you (cosine of the angle off straight ahead). */
 export const MIRROR_RANGE = 18;
 export const MIRROR_BEHIND = 0.3;
-/** Seconds the mirror stays after the last rider has gone (so a pass reads as one moment). */
+/** Seconds the panel stays after the last rider has gone (so a pass reads as one moment). */
 export const MIRROR_LINGER = 1.6;
-const RT_W = 384;
-const RT_H = 216;
-/** How far the view may turn from straight back toward a rider (radians). */
-const MAX_TURN = 1.1;
+/** At most one new still this often (seconds), even for the same rider. */
+export const SNAP_EVERY = 1;
+const RT_W = 320;
+const RT_H = 240;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-/**
- * Who the mirror shows: the nearest rider behind or beside me (within
- * `range` m, more than about 72° off the way I'm heading), or null. `me` is
- * { x, z, fx, fz } with (fx, fz) my heading as a unit vector on the ground;
- * `others` are { x, z, ... }. Returns { rider, d, side: 'left' | 'right',
- * bearing } where bearing is the angle from straight behind me (positive =
- * my left).
- */
 export function mirrorTarget(me, others, { range = MIRROR_RANGE, behind = MIRROR_BEHIND } = {}) {
   let best = null;
   for (const o of others) {
@@ -52,33 +48,48 @@ export function mirrorTarget(me, others, { range = MIRROR_RANGE, behind = MIRROR
   return best;
 }
 
+/** Half-float (as Uint16) → float, through a table for the exponent. */
+const H = new Float32Array(1);
+const HI = new Uint32Array(H.buffer);
+function halfToFloat(h) {
+  const s = (h & 0x8000) << 16, e = (h >> 10) & 0x1f, m = h & 0x3ff;
+  if (e === 0) return (s ? -1 : 1) * m * 5.960464477539063e-8;
+  if (e === 31) return m ? NaN : s ? -Infinity : Infinity;
+  HI[0] = s | ((e + 112) << 23) | (m << 13);
+  return H[0];
+}
+
+/** The game's look on a still: exposure, a neutral filmic curve, sRGB. */
+function toneByte(v, exposure) {
+  let x = Math.max(0, v * exposure);
+  x = (x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14); // ACES-style fit, soft highlights
+  x = x <= 0.0031308 ? x * 12.92 : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(255, Math.round(x * 255)));
+}
+
 export class SideMirror {
-  /** `root`: the HUD element the frame goes in. */
+  /** `root`: the HUD element the panel goes in. */
   constructor(renderer, root) {
     this.renderer = renderer;
     this.scene = null;
-    // Far enough to take in the sky dome (4.2 km); behind you is mostly the run you've come down.
-    this.camera = new THREE.PerspectiveCamera(50, RT_W / RT_H, 0.2, 4600);
+    this.camera = new THREE.PerspectiveCamera(42, RT_W / RT_H, 0.2, 4600);
     this.rt = null;
-    this.quad = null;
-    this.quadScene = null;
-    this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     this.on = false;
-    this.opacity = 0;
     this.linger = 0;
-    this.drawT = 0;
-    this.hz = 20;
-    this.turn = 0;
+    this.sinceSnap = 99;
     this.target = null;
-    this.drawn = false;
-    this.look = new THREE.Vector3();
-    this.hasLook = false;
-    this._size = new THREE.Vector2();
-    this._vp = new THREE.Vector4();
+    this.shownId = null;
+    this.wantSnap = false;
+    this.busy = false;
+    this.snaps = 0;
+    this.textT = 0;
     this.el = document.createElement('div');
-    this.el.className = 'sp-mirror';
-    this.el.innerHTML = '<div class="sp-mirror__glass" data-mirror-glass></div><div class="sp-mirror__tag" data-mirror-tag></div>';
-    this.glass = this.el.querySelector('[data-mirror-glass]');
+    this.el.className = 'sp-manga';
+    this.el.innerHTML = `<div class="sp-manga__panel"><canvas class="sp-manga__pic" width="${RT_W}" height="${RT_H}" data-overlay></canvas><div class="sp-manga__lines"></div><div class="sp-manga__dots"></div></div>
+      <div class="sp-manga__tag" data-mirror-tag></div>`;
+    this.canvas = this.el.querySelector('canvas');
+    this.g2 = this.canvas.getContext('2d');
+    this.img = this.g2.createImageData(RT_W, RT_H);
     this.tag = this.el.querySelector('[data-mirror-tag]');
     root.append(this.el);
   }
@@ -90,43 +101,50 @@ export class SideMirror {
     // buffers (normals, velocity, glow) then simply draw nothing here, instead of failing.
     this.rt.texture.name = 'output';
     this.mrt = mrt({ output });
-    this.uSize = uniform(new THREE.Vector2(RT_W, RT_H));
-    this.uRadius = uniform(18);
-    this.uOpacity = uniform(0);
-    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthTest: false, depthWrite: false });
-    m.vertexNode = vec4(positionGeometry.xy, 0, 1);
-    const st = uv();
-    // mirrored left to right, as a real mirror is; three/webgpu's render targets run top down on
-    // both of its backends, so the picture is turned the right way up too
-    const c = texture(this.rt.texture, vec2(st.x.oneMinus(), st.y.oneMinus())).rgb;
-    // rounded glass, soft at the edge
-    const p = st.sub(0.5).mul(this.uSize);
-    const q = abs(p).sub(this.uSize.mul(0.5).sub(this.uRadius));
-    const dist = length(max(q, 0)).add(min(max(q.x, q.y), 0)).sub(this.uRadius);
-    const a = clamp(float(0.5).sub(dist), 0, 1).mul(this.uOpacity);
-    // a touch of glass: darker toward the rim, faintly cool, a soft sheen across the top
-    const v = smoothstep(0.85, 0.25, length(st.sub(0.5).mul(vec2(1, 1.4))));
-    const glass = c.mul(mix(0.74, 1, v)).mul(vec3(0.96, 0.99, 1.04)).add(vec3(0.05, 0.06, 0.07).mul(smoothstep(0.55, 1, st.y)).mul(st.x.mul(0.6).oneMinus()));
-    m.colorNode = glass;
-    m.opacityNode = a;
-    this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m);
-    this.quad.frustumCulled = false;
-    this.quadScene = new THREE.Scene();
-    this.quadScene.add(this.quad);
+  }
+
+  /** Render the snapshot camera once with every object drawn, so its pipelines exist before the race. */
+  warm(scene, fromCamera) {
+    this.scene = scene;
+    this._ensure();
+    this.camera.position.copy(fromCamera.position);
+    this.camera.quaternion.copy(fromCamera.quaternion);
+    this._render();
+  }
+
+  _render() {
+    const r = this.renderer;
+    const sm = r.shadowMap;
+    const auto = sm.autoUpdate;
+    sm.autoUpdate = false;
+    const prev = r.getRenderTarget();
+    const prevMrt = r.getMRT();
+    r.setRenderTarget(this.rt);
+    r.setMRT(this.mrt);
+    r.render(this.scene, this.camera);
+    r.setMRT(prevMrt);
+    r.setRenderTarget(prev);
+    sm.autoUpdate = auto;
   }
 
   /**
    * Each frame, after the riders have moved. `me` { pos, heading } (heading:
    * the world yaw my board runs along, x = sin, z = −cos); `others` the other
-   * riders { pos, name }. `active` false hides it (countdown, pause, help).
+   * riders { pos, name, slot }. `active` false hides it (countdown, pause, help).
    */
-  update(dt, me, others, { active = true, reducedMotion = false, scene = null, hz = 20 } = {}) {
+  update(dt, me, others, { active = true, scene = null, exposure = 1 } = {}) {
     if (scene) this.scene = scene;
-    this.hz = hz;
+    this.exposure = exposure;
+    this.sinceSnap += dt;
     const fx = Math.sin(me.heading);
     const fz = -Math.cos(me.heading);
-    const flat = others.map((o) => ({ x: o.pos.x, z: o.pos.z, y: o.pos.y, name: o.name }));
-    const t = active ? mirrorTarget({ x: me.pos.x, z: me.pos.z, fx, fz }, flat) : null;
+    let t = null;
+    if (active) {
+      const flat = (this._flat ??= []);
+      flat.length = 0;
+      for (const o of others) flat.push({ x: o.pos.x, z: o.pos.z, y: o.pos.y, name: o.name, id: o.slot });
+      t = mirrorTarget({ x: me.pos.x, z: me.pos.z, fx, fz }, flat);
+    }
     if (t) {
       this.target = t;
       this.linger = MIRROR_LINGER;
@@ -135,84 +153,62 @@ export class SideMirror {
     if (want !== this.on) {
       this.on = want;
       this.el.classList.toggle('is-on', want);
-      if (want) {
-        this.drawT = 0;
-        this.hasLook = false;
-      }
+      if (!want) this.shownId = null;
     }
-    this.opacity = reducedMotion ? (want ? 1 : 0) : Math.max(0, Math.min(1, this.opacity + (want ? dt * 5 : -dt * 4)));
-    if (!this.opacity) {
-      this.drawn = false;
-      return;
+    if (!t) return;
+    // a new rider, or a second has passed: a new still (taken next frame, after drawing)
+    const id = t.rider.id;
+    if (id !== this.shownId || this.sinceSnap >= SNAP_EVERY) {
+      this.shownId = id;
+      this.sinceSnap = 0;
+      // from just in front of them (toward me), looking back at their face
+      const o = t.rider;
+      const dx = me.pos.x - o.x, dz = me.pos.z - o.z;
+      const l = Math.hypot(dx, dz) || 1;
+      const sx = dx / l, sz = dz / l;
+      this.camera.position.set(o.x + sx * 3.2 - sz * 0.9, o.y + 1.25, o.z + sz * 3.2 + sx * 0.9);
+      this.camera.lookAt(o.x, o.y + 0.55, o.z);
+      this.wantSnap = true;
     }
-    if (t) this.tag.innerHTML = `<i class="sp-mirror__arrow">${t.side === 'left' ? '◤' : '◥'}</i><b>${esc(t.rider.name ?? 'Rider')}</b><span>${t.d.toFixed(0)} m behind</span>`;
-    // From my left shoulder, looking back up the run, turned toward the rider (smoothly).
-    const want0 = t ? Math.max(-MAX_TURN, Math.min(MAX_TURN, t.bearing)) : 0;
-    this.turn += (want0 - this.turn) * (1 - Math.exp(-dt * 6));
-    const cam = this.camera;
-    cam.position.set(me.pos.x + fz * 0.4 + fx * 0.2, me.pos.y + 1.25, me.pos.z - fx * 0.4 + fz * 0.2);
-    // Back is −f; turning toward my left (positive bearing) swings the view toward +left = (fz, −fx).
-    const bx = -fx * Math.cos(this.turn) + fz * Math.sin(this.turn);
-    const bz = -fz * Math.cos(this.turn) - fx * Math.sin(this.turn);
-    const ty = t ? t.rider.y + 0.7 : me.pos.y + 2.2;
-    const goal = new THREE.Vector3(cam.position.x + bx * 10, ty + (t ? 0 : 1.2), cam.position.z + bz * 10);
-    if (!this.hasLook) this.look.copy(goal);
-    else this.look.lerp(goal, 1 - Math.exp(-dt * 8));
-    this.hasLook = true;
-    cam.lookAt(this.look);
-    this.drawT -= dt;
+    // the words update a few times a second
+    this.textT -= dt;
+    if (this.textT <= 0) {
+      this.textT = 0.2;
+      this.tag.innerHTML = `<b>${esc(t.rider.name ?? 'Rider')}</b><span>${t.d.toFixed(0)} m ${t.d < 2.5 ? 'beside you' : 'behind'}</span>`;
+      this.el.classList.toggle('is-left', t.side === 'left');
+    }
   }
 
-  /** After the frame is drawn: refresh the rear view when due, then lay it into the frame. */
+  /** After the frame is drawn: take the still if one is due, and hand it to the 2D canvas. */
   draw() {
-    if (!this.opacity || !this.scene) return;
+    if (!this.wantSnap || this.busy || !this.scene) return;
+    this.wantSnap = false;
     this._ensure();
-    const r = this.renderer;
-    if (this.drawT <= 0 || !this.drawn) {
-      this.drawT = 1 / this.hz;
-      const sm = r.shadowMap;
-      const auto = sm.autoUpdate;
-      sm.autoUpdate = false;
-      const prev = r.getRenderTarget();
-      const prevMrt = r.getMRT();
-      r.setRenderTarget(this.rt);
-      r.setMRT(this.mrt);
-      r.render(this.scene, this.camera);
-      r.setMRT(prevMrt);
-      r.setRenderTarget(prev);
-      sm.autoUpdate = auto;
-      this.drawn = true;
-    }
-    // Where the glass is on the canvas, in the renderer's (CSS) pixels, from the top (three/webgpu counts y down on both backends).
-    const canvas = r.domElement.getBoundingClientRect();
-    const g = this.glass.getBoundingClientRect();
-    if (!g.width || !canvas.width) return;
-    r.getSize(this._size);
-    const s = this._size.x / canvas.width;
-    const x = (g.left - canvas.left) * s;
-    const y = (g.top - canvas.top) * s;
-    const w = g.width * s;
-    const h = g.height * s;
-    this.uOpacity.value = this.opacity;
-    this.uSize.value.set(w, h);
-    this.uRadius.value = Math.min(18 * s, h / 2);
-    r.getViewport(this._vp);
-    const autoClear = r.autoClear;
-    r.autoClear = false;
-    r.setRenderTarget(null);
-    r.setViewport(x, y, w, h);
-    r.setScissor(x, y, w, h);
-    r.setScissorTest(true);
-    r.render(this.quadScene, this.quadCam);
-    r.setScissorTest(false);
-    r.setViewport(this._vp);
-    r.autoClear = autoClear;
+    this._render();
+    this.snaps++;
+    this.busy = true;
+    this.renderer
+      .readRenderTargetPixelsAsync(this.rt, 0, 0, RT_W, RT_H)
+      .then((px) => {
+        const d = this.img.data;
+        const half = px instanceof Uint16Array;
+        const e = this.exposure ?? 1;
+        for (let i = 0; i < RT_W * RT_H * 4; i += 4) {
+          const r = half ? halfToFloat(px[i]) : px[i] / 255, g = half ? halfToFloat(px[i + 1]) : px[i + 1] / 255, b = half ? halfToFloat(px[i + 2]) : px[i + 2] / 255;
+          d[i] = toneByte(r, e);
+          d[i + 1] = toneByte(g, e);
+          d[i + 2] = toneByte(b, e);
+          d[i + 3] = 255;
+        }
+        this.g2.putImageData(this.img, 0, 0);
+        this.el.classList.add('has-pic');
+      })
+      .catch(() => {})
+      .finally(() => (this.busy = false));
   }
 
   dispose() {
     this.rt?.dispose();
-    this.quad?.geometry.dispose();
-    this.quad?.material.dispose();
     this.el.remove();
   }
 }

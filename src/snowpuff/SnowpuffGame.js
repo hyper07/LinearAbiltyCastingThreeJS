@@ -587,6 +587,11 @@ export class SnowpuffGame {
     this.sky.follow(new THREE.Vector3(cam.x, cam.y, cam.z), 900);
     await nextFrame();
     this.pipe.render();
+    // the rival panel's snapshot camera has its own pipelines (another target, another buffer set)
+    this.mirror?.dispose();
+    this.mirror = new SideMirror(this.renderer, this.hud.el);
+    await nextFrame();
+    this.mirror.warm(this.scene, this.camera);
     this.sky.follow(new THREE.Vector3(cam.x, cam.y, cam.z), keepShadow);
     await nextFrame();
     this.pipe.render();
@@ -1546,7 +1551,10 @@ export class SnowpuffGame {
     // the side mirror: a rear view on the left while someone is right behind you or passing
     this.mirror ??= new SideMirror(this.renderer, this.hud.el);
     const heading = frameAt(r.course, this.me.rider.s).heading + this.me.rider.yaw;
-    this.mirror.update(dt, { pos: this.me.pos, heading }, this.racers.filter((x) => x !== this.me && !x.gone), { active: this.mode === 'race', scene: this.scene, hz: this.tierName === 'low' ? 12 : 20, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches });
+    const others = (this._others ??= []);
+    others.length = 0;
+    for (const x of this.racers) if (x !== this.me && !x.gone) others.push(x);
+    this.mirror.update(dt, { pos: this.me.pos, heading }, others, { active: this.mode === 'race', scene: this.scene, exposure: (r.mountain.grade?.exposure ?? 1) * 0.82 });
     this.pipe.render();
     this.mirror.draw();
   }

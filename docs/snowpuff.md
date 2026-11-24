@@ -139,6 +139,19 @@ interpolated state), so motion is smooth at any frame rate.
 - The rider leans into turns from the turn's sideways pull, the knees soak up
   rollers and landings, the arms balance, ears and tail swing with momentum.
 
+## The rival panel
+
+When a rider comes up close behind you or draws level to pass, a manga-style
+panel slides in on the left (`src/snowpuff/sideMirror.js`): one still picture
+of them, snapped from just in front, in a tilted ink frame with radiating
+speed lines and a halftone edge, with their name and how far back they are.
+It takes a new still only when the rider changes (at most about once a
+second); the still is read back to a plain 2D canvas, and the slide, wiggle
+and speed lines are CSS — so it costs no frame time. (An earlier live rear
+view drew the scene a second time at 20 Hz and built new GPU pipelines the
+first time it opened: frames of 150–300 ms just as someone came past. The
+snapshot's pipelines are now built behind the loading card.)
+
 ## Items and rider play
 
 **Gift boxes** (bright wrapped presents with a beam of light and a ring on the
