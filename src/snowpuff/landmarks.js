@@ -126,20 +126,20 @@ export const SHAPES = {
   // (x along the crest, z across it; best built on a grid: see `grid` in scenery.js)
   ulsan: (x, z) => {
     const ax = Math.abs(x);
-    const shoulder = Math.pow(clamp(1 - Math.hypot(x / 1.0, z / 0.42), 0, 1), 0.9) * 0.34;
+    const shoulder = Math.pow(clamp(1 - Math.hypot(x / 1.0, z / 0.42), 0, 1), 0.9) * 0.24;
     let crown = 0;
     for (let i = 0; i < 30; i++) {
       const px = -0.78 + i * 0.054 + (hash(i, 7) - 0.5) * 0.02;
       const group = Math.exp(-(((px + 0.34) / 0.2) ** 2)) * 0.95 + Math.exp(-(((px - 0.3) / 0.22) ** 2)) * 0.9 + 0.35;
       const hh = (0.55 + hash(i, 11) * 0.45) * group * clamp(1 - Math.abs(px) * 0.9, 0.2, 1);
-      const w = 0.016 + hash(i, 5) * 0.018, d = 0.05 + hash(i, 9) * 0.04;
+      const w = 0.011 + hash(i, 5) * 0.014, d = 0.045 + hash(i, 9) * 0.035;
       const pz = (hash(i, 13) - 0.5) * 0.08;
       const q = Math.hypot((x - px) / w, (z - pz) / d);
       // a rounded knob on a tapering column
       crown = Math.max(crown, hh * Math.pow(clamp(1 - q * q * 0.08, 0, 1), 0.35) * clamp(1.6 - q * 0.22, 0, 1));
     }
     crown *= smooth(clamp((0.92 - ax) / 0.15, 0, 1)) * smooth(clamp((0.3 - Math.abs(z)) / 0.2, 0, 1));
-    return clamp(Math.max(shoulder, 0.2 + crown * 0.8 * (z < 0.25 ? 1 : 0)) * (shoulder > 0.01 || crown > 0.02 ? 1 : 0) + (ridge(x, z, 18) - 0.45) * 0.02, 0, 1);
+    return clamp(Math.max(shoulder, 0.1 + crown * 0.92 * (z < 0.25 ? 1 : 0)) * (shoulder > 0.01 || crown > 0.02 ? 1 : 0) + (ridge(x, z, 18) - 0.45) * 0.02, 0, 1);
   },
   // a canyon rim landscape: flat-topped walls either side of a gorge (Yellowstone)
   canyon: (x, z) => {

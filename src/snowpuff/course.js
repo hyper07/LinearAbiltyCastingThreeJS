@@ -119,7 +119,24 @@ export function buildCourse(m, { mode = 'quick' } = {}) {
   let s0 = START_FLAT + 25;
   let side = rand() < 0.5 ? -1 : 1;
   let h = 0;
+  let switched = !m.switchback;
   while (s0 < L - 90) {
+    // a switchback (Baekdusan): a banked hairpin that turns you to face back up at the crater,
+    // a straight looking at it, and a hairpin back down the mountain
+    if (!switched && s0 > m.switchback.at * L) {
+      switched = true;
+      const R = m.switchback.radius ?? 70, sd = m.switchback.side ?? 1;
+      for (const [dir, gap] of [[sd, m.switchback.straight ?? 80], [-sd, 50]]) {
+        const len = Math.PI * R;
+        for (let i = Math.floor(s0); i < Math.min(n, s0 + len); i++) {
+          curv[i] = dir / R;
+          berm[i] = dir;
+        }
+        turnsList.push({ s0, s1: s0 + len, side: dir, R, berm: true, hairpin: true });
+        s0 += len + gap;
+      }
+      continue;
+    }
     const R = lerp(T.radius[0], T.radius[1], rand());
     let ang = lerp(T.angle[0], T.angle[1], rand());
     // keep the run heading downhill overall: turn back toward the fall line when far off it
@@ -412,7 +429,25 @@ function placeFeatures(c, m, rand) {
     c.kickers.push({ id: id(), s, len: 5 + size * 2.2, h: size, w: kw, lat, power: 0.85 + size * 0.18 });
   }
   c.kickers.sort((a, b) => a.s - b.s);
-  const nearKicker = (s, pad0 = 18, pad1 = 34) => c.kickers.some((k) => s > k.s - pad0 && s < k.s + k.len + pad1);
+  const nearKicker = (s, pad0 = 18, pad1 = 34) => [...c.kickers, ...(c.bonusKicker ? [c.bonusKicker] : [])].some((k) => s > k.s - pad0 && s < k.s + k.len + pad1);
+
+  // 3 Laps: a bonus kicker that opens from lap 2 (a straight spot with no kicker near)
+  if (c.laps > 1) {
+    let best = null, bestK = Infinity;
+    for (let s = Math.round(L * 0.3); s < L - 150; s += 10) {
+      if (c.kickers.some((kk) => Math.abs(kk.s - s) < 60)) continue;
+      let k = 0;
+      for (let j = s - 40; j <= s + 40; j += 5) k = Math.max(k, Math.abs(c.curvature[Math.max(0, Math.min(c.n - 1, j))]));
+      if (k < bestK) {
+        bestK = k;
+        best = s;
+      }
+    }
+    if (best != null) {
+      const size = m.kickers.size[1];
+      c.bonusKicker = { id: id(), s: best, len: 5 + size * 2.2, h: size, w: 4.2 + size * 1.2, lat: 0, power: 0.85 + size * 0.18, bonus: true };
+    }
+  }
 
   // Slalom gate runs: alternating sides.
   c.gates = [];
@@ -551,3 +586,25 @@ function placeFeatures(c, m, rand) {
     { s: L, kind: 'finish' }
   ];
 }
+
+/**
+ * 3 Laps: what changes on a lap — the slalom gates swap sides (every other lap) and the bonus
+ * kicker opens from lap 2. Pure on the course data; returns true if anything changed.
+ */
+export function lapVariant(c, lap) {
+  let changed = false;
+  const flip = lap % 2 === 0;
+  if ((c.gatesFlipped ?? false) !== flip) {
+    c.gatesFlipped = flip;
+    for (const g of c.gates) g.lat = -g.lat;
+    for (const o of c.obstacles) if (o.gate != null) o.lat = -o.lat;
+    changed = true;
+  }
+  if (c.bonusKicker && lap >= 2 && !c.kickers.includes(c.bonusKicker)) {
+    c.kickers.push(c.bonusKicker);
+    c.kickers.sort((a, b) => a.s - b.s);
+    changed = true;
+  }
+  return changed;
+}
+

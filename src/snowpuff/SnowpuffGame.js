@@ -1667,6 +1667,7 @@ export class SnowpuffGame {
     rc.rider.speed = 0;
     if (rc.me) {
       this.world.resetPickups?.();
+      this.world.lapVariant?.(rc.lap);
       this.hud.say(`Lap ${rc.lap}!`, 'trick');
       this.sound.bell?.(1);
       this.liftChair ??= this.makeLiftChair();
@@ -1724,12 +1725,11 @@ export class SnowpuffGame {
     this.liftSeat.set((dx / l) * 0.32, 0.62, (dz / l) * 0.32);
     const cam = this.camera;
     cam.up.set(0, 1, 0);
-    // behind and to one side, above: your rider on the chair, boards dangling, and the view beyond
-    cam.position.set(ch.position.x - (dx / l) * 4.6 - (dz / l) * 3.6, ch.position.y + 3.6, ch.position.z - (dz / l) * 4.6 + (dx / l) * 3.6);
-    const hero = this.world.hero?.userData.place;
-    const look = hero ? new THREE.Vector3(hero.x, hero.y + hero.height * 0.55, hero.z) : new THREE.Vector3(ch.position.x + (dx / l) * 60, ch.position.y - 18, ch.position.z + (dz / l) * 60);
-    const toward = look.sub(cam.position).normalize();
-    cam.lookAt(cam.position.x + toward.x * 10, cam.position.y + toward.y * 10 - 1.2, cam.position.z + toward.z * 10);
+    // a slow swing from the front to the side: your rider on the chair, board dangling, the mountainside beyond
+    const ang = 0.45 + u * 1.0;
+    const fx = dx / l, fz = dz / l, sx = -fz, sz = fx;
+    cam.position.set(ch.position.x + (fx * Math.cos(ang) + sx * Math.sin(ang)) * 5.2, ch.position.y + this.liftSeat.y + 1.5, ch.position.z + (fz * Math.cos(ang) + sz * Math.sin(ang)) * 5.2);
+    cam.lookAt(ch.position.x + this.liftSeat.x, ch.position.y + this.liftSeat.y + 0.55, ch.position.z + this.liftSeat.z);
     if (Math.abs(cam.fov - 58) > 0.01) {
       cam.fov = 58;
       cam.updateProjectionMatrix();

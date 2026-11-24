@@ -134,7 +134,10 @@ export function worldMap(host, { picked, best = {}, onPick, onGo, fmt = (t) => t
     }
     const m = MOUNTAINS.find((x) => x.id === current) ?? MOUNTAINS[0];
     const b = best[m.id];
-    card.innerHTML = `<svg class="sp-world__sil" viewBox="0 0 120 60" aria-hidden="true"><path d="${silhouette(m)}"/></svg>
+    // a crater lake shows on the card (Cheonji, Baengnokdam): a deep-blue pool in the top, mirroring the walls
+    const lakeY = m.peak?.lake ? 60 - profile(m.peak.shape)(0, 0) * 60 * 0.92 : 0;
+    const lake = m.peak?.lake ? `<ellipse cx="60" cy="${(lakeY + 1.5).toFixed(1)}" rx="${m.peak.shape === 'caldera' ? 15 : 7}" ry="2.6" fill="${m.peak.lake}"/><ellipse cx="57" cy="${(lakeY + 1).toFixed(1)}" rx="5" ry="0.7" fill="#9cc6f2" opacity=".8"/>` : '';
+    card.innerHTML = `<svg class="sp-world__sil" viewBox="0 0 120 60" aria-hidden="true"><path d="${silhouette(m)}"/>${lake}</svg>
       <h2>${esc(m.name)}</h2><div class="sp-world__local">${esc(m.local ?? '')}</div>
       <div class="sp-diff">${stars(m.difficulty)}</div>
       <p class="sp-world__fact">${esc(m.fact ?? '')}</p>

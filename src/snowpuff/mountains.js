@@ -187,7 +187,7 @@ export const MOUNTAINS = [
     fence: { colour: '#5a5fb0', alt: '#ffffff' },
     grade: { saturation: 1.02, warm: [1.0, 0.99, 1.0], cool: [0.95, 0.96, 1.08], vignette: 0.2, exposure: 0.96 },
     palette: { sky: ['#4b5aa0', '#a9acd8', '#e6e4f4'], fog: '#cfcde6', sun: '#fff0de', sunI: 2.9, sunAlt: 20, sunAz: -35, hemi: ['#b9bde8', '#f3f0ff'], envI: 0.85 },
-    peak: { shape: 'ulsan', grid: true, height: 700, radius: 1600, dist: 2100, rock: '#8f8fc4', rime: '#8a8cc8', snowLine: 0, steep: 0.2, cliffs: 0.1, clouds: 0.5, behind: { shape: 'shield', scale: 0.85, height: 1.35, back: 1.05, side: -0.15 } },
+    peak: { shape: 'ulsan', grid: true, elev: 23, height: 700, radius: 1500, dist: 2000, rock: '#8f8fc4', rime: '#7679bd', snowLine: 0, steep: 0.2, cliffs: 0.1, clouds: 0.5, behind: { shape: 'shield', scale: 0.85, height: 1.35, back: 1.05, side: -0.15 } },
     farForest: '#aeb3cf',
     scenery: [
       { kind: 'temple', every: 9999, zone: 'side', from: 0.6, to: 0.61, off: [70, 90], scale: [1, 1], side: -1 },
@@ -201,7 +201,7 @@ export const MOUNTAINS = [
     region: 'asia',
     coords: { lat: 42.0, lon: 128.06 },
     fact: 'Cheonji, the lake in Baekdusan\'s crater, is one of the highest crater lakes in the world — about 2,190 m up.',
-    blurb: 'Start on the crater rim above Cheonji, a still, deep-blue lake mirroring the jagged volcanic walls, then drop down the outer flank into birch and larch woods.',
+    blurb: 'A high neighbouring ridge facing the great snowy volcano — its jagged, dark, banded crater rim along the top hides Cheonji, the deep-blue lake — through birch and larch woods.',
     difficulty: 3,
     seed: 5809,
     length: 1400,
@@ -218,13 +218,13 @@ export const MOUNTAINS = [
     gates: 2,
     lifts: [],
     ice: [],
-    trees: { density: 0.9, near: 0.6 },
     lanterns: false,
     village: false,
     fence: { colour: '#3a86ff', alt: '#ffffff' },
     grade: { saturation: 1.06, warm: [1.02, 1.0, 0.98], cool: [0.93, 0.98, 1.08], vignette: 0.18, exposure: 0.94 },
     palette: { sky: ['#3c78d8', '#9cc6f2', '#e8f3ff'], fog: '#d6e6f7', sun: '#fff8ec', sunI: 3.4, sunAlt: 48, sunAz: 20, hemi: ['#b8d4fb', '#ffffff'], envI: 0.9 },
-    peak: { shape: 'caldera', at: 'start', height: 1700, radius: 4500, rim: 0.2, rock: '#3a3536', strata: true, snowLine: 0.25, steep: 0.66, cliffs: 0.92, lake: '#0f2f6e', lakeLevel: 0.02, clouds: 0 }
+    peak: { shape: 'caldera', height: 1100, radius: 1900, dist: 2450, rock: '#3a3536', strata: true, snowLine: 0.3, steep: 0.6, cliffs: 0.85, lake: '#0f2f6e', clouds: 0.25 },
+    trees: { density: 1.0, near: 0.7, tint: 'birch' },
   },
   {
     id: 'fuji',

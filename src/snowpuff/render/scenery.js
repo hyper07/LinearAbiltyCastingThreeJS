@@ -122,7 +122,7 @@ export function buildBackdrop(course, m, sky) {
   // rime ice (상고대) on every spire: white where the sun is, blue-violet in the clefts
   if (pk.rime) {
     const lit = max(dot(normalize(normalWorld), sky.u.sun), 0);
-    mat.colorNode = mix(color(pk.rime), vec3(0.97, 0.97, 1.0), smoothstep(0.05, 0.55, lit).mul(0.85).add(snow.mul(0.15)));
+    mat.colorNode = mix(color(pk.rime), vec3(0.97, 0.97, 1.0), smoothstep(0.12, 0.6, lit).mul(0.9).add(smoothstep(0.85, 1, normalWorld.y).mul(0.3)).clamp(0, 1));
   }
   // crisp snow catching the sun: sunlit snow faces glow a little in the sun's colour
   const sunK = max(dot(normalize(normalWorld), sky.u.sun), 0);
@@ -167,7 +167,7 @@ export function buildBackdrop(course, m, sky) {
     const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.9, side: THREE.DoubleSide });
     mm.colorNode = mat.colorNode;
     mm.fog = false;
-    mm.outputNode = vec4(mix(output.rgb, color('#163a80'), 0.55), 1);
+    mm.outputNode = vec4(mix(output.rgb, color('#163a80'), 0.3), 1);
     // (only the crater's inside: rings out to just past the rim)
     const inner = discGeometry(pk.shape, (pk.rim ?? 0.2) * 1.08, b.radius, b.height, level + 4);
     const mirror = new THREE.Mesh(inner, mm);
@@ -303,7 +303,7 @@ function lakeMaterial(col) {
   const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
   const d = uv().sub(0.5).length().mul(2);
   const deep = mix(color(col), color('#3d7ec2'), smoothstep(0.5, 1, d));
-  m.colorNode = vec4(deep, mix(float(0.86), float(0.62), smoothstep(0.4, 1, d)));
+  m.colorNode = vec4(deep, mix(float(0.62), float(0.42), smoothstep(0.4, 1, d)));
   m.fog = false;
   return m;
 }

@@ -154,7 +154,8 @@ in the room, and every peer builds the same course from it):
 - **3 Laps** — the run three times. At the line you ride a **chairlift** back
   up (9 s, Space or a tap skips it after 3 s): your rider on the chair with
   the mountain view ahead and the order chair by chair; gifts are restocked
-  for the next lap. The lift's time doesn't count toward your race time, so
+  for the next lap, the slalom gates swap sides and from lap 2 a bonus
+  kicker opens. The lift's time doesn't count toward your race time, so
   skipping it is fair. The strip shows "Lap 2/3".
 
 Best times are kept per mountain and race length.
@@ -163,7 +164,7 @@ Best times are kept per mountain and race length.
 | --- | --- | --- | --- |
 | **Hallasan** 한라산 ❄ | Jeju, Korea | Morning | A broad shield volcano with its crater lake, the sea, basalt field walls, stone grandfather statues, tangerine trees, canola flowers by the finish |
 | **Seoraksan** 설악산 ❄❄ | Korea | Deep winter, lavender light | Ulsanbawi's long crown of rime-coated granite spires (built on a grid so every needle and cleft shows) with a snowy dome behind in cloud, frosted forest ridges in hazy layers, rime "snow flower" trees, a cable car and small temple roofs down in the valley |
-| **Baekdusan** 백두산 ❄❄❄ | — | Clear high day | You start on the crater rim: the countdown looks out over Cheonji, a still deep-blue lake mirroring the dark, banded crater walls; then down the outer flank. Only nature — no flags, signs or buildings |
+| **Baekdusan** 백두산 ❄❄❄ | — | Clear high day | From a high neighbouring ridge: the great, broad snowy volcano with its jagged, dark, banded crater rim along the top (Cheonji's deep-blue lake is shown on its map card); birch and larch woods by the run. Only nature — no flags, signs or buildings |
 | **Mount Fuji** 富士山 ❄❄ | Japan | Sunrise beside the summit | The snow-capped cone, a lake, torii gates over the run, stone lanterns, a pagoda, a red bridge, cedars |
 | **Matterhorn** ❄❄❄ | Switzerland / Italy | Clear day | The pyramid, cowbells to ring, a red mountain train on a viaduct, gondolas, a village |
 | **Mount Everest** ❄❄❄ | Nepal / China | High and blue | The summit plume, prayer flags, a stupa, yaks, cairns |

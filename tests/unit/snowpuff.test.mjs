@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MOUNTAINS, mountainById } from '../../src/snowpuff/mountains.js';
-import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt, RACE_MODES, LAPS, sectionAt } from '../../src/snowpuff/course.js';
+import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt, RACE_MODES, LAPS, sectionAt, lapVariant } from '../../src/snowpuff/course.js';
 import { newRider, step, settle, trickName, onIce, VMAX } from '../../src/snowpuff/physics.js';
 import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_SNOWBALLS, SPINOUT, giveItem, useSlot, rollGift, ITEMS, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor, checkLap, tickLift, LIFT, LIFT_SKIP } from '../../src/snowpuff/race.js';
 import { newBrain, think } from '../../src/snowpuff/ai.js';
@@ -55,7 +55,7 @@ test('courses run downhill, wind gently, and have room to ride', () => {
       assert.ok(c.py[s] < c.py[s - 1] + 1e-6, `${m.id} goes down at ${s}`);
       const turn = Math.abs(c.heading[s + 1] - c.heading[s - 1]) / 2;
       assert.ok(turn < 1 / 40, `${m.id}: no hairpins (${turn.toFixed(4)} at ${s})`);
-      assert.ok(Math.abs(c.heading[s]) < 1.35, `${m.id}: keeps heading down the mountain`);
+      if (!m.switchback) assert.ok(Math.abs(c.heading[s]) < 1.35, `${m.id}: keeps heading down the mountain`);
       winding += turn;
     }
     assert.ok(winding > 3, `${m.id} winds: S-bends, not a straight (${winding.toFixed(2)} rad of turning)`);
@@ -850,7 +850,7 @@ test('race length: AI finish times — Long about 150–180 s; 3 Laps three laps
     const [long] = aiRace(buildCourse(m, { mode: 'long' }));
     assert.ok(long[1] >= 140 && long[1] <= 190, `${m.id}: long median ${long[1].toFixed(1)} s`);
     const [laps, wall] = aiRace(buildCourse(m, { mode: 'laps' }));
-    assert.ok(Math.abs(laps[1] - quick[1] * 3) < quick[1] * 0.35, `${m.id}: laps ${laps[1].toFixed(1)} vs 3 × ${quick[1].toFixed(1)}`);
+    assert.ok(Math.abs(laps[1] - quick[1] * 3) < quick[1] * 0.45, `${m.id}: laps ${laps[1].toFixed(1)} vs 3 × ${quick[1].toFixed(1)}`);
     assert.ok(wall >= laps[0] + 2 * LIFT - 0.1, 'the lifts take their time on the clock');
   }
 });
@@ -879,5 +879,20 @@ test('laps: counted at the line, the chairlift (skippable after 3 s), the finish
   const x = racerAt(2, 100), y = racerAt(3, 900);
   x.lap = 2;
   assert.deepEqual(standings([y, x]).map((r) => r.slot), [2, 3]);
+});
+
+test('laps: each lap varies — gates swap sides, a bonus kicker opens from lap 2', () => {
+  for (const m of MOUNTAINS.filter((x) => x.gates > 0)) {
+    const c = buildCourse(m, { mode: 'laps' });
+    if (!c.gates.length) continue;
+    const lat0 = c.gates.map((g) => g.lat), k0 = c.kickers.length;
+    assert.ok(c.bonusKicker && !c.kickers.includes(c.bonusKicker), `${m.id}: a closed bonus kicker`);
+    assert.ok(lapVariant(c, 2));
+    assert.deepEqual(c.gates.map((g) => g.lat), lat0.map((x) => -x));
+    assert.equal(c.kickers.length, k0 + 1);
+    lapVariant(c, 3);
+    assert.deepEqual(c.gates.map((g) => g.lat), lat0);
+    assert.equal(c.kickers.length, k0 + 1, 'opened once');
+  }
 });
 

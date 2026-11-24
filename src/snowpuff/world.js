@@ -10,7 +10,7 @@
 import * as THREE from 'three/webgpu';
 import { uniform, vec3, float, mix, smoothstep, positionLocal, positionWorld, instanceIndex, sin, time, hash, uv, step, fract, mx_noise_float, abs, normalWorld, max, dot, pow, positionViewDirection, normalView, attribute, color, vec4, mrt, texture, cameraPosition } from 'three/tsl';
 import { instanceColor as instanceColorNode } from './render/instanceColor.js';
-import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT, project, sectionAt } from './course.js';
+import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT, project, sectionAt, lapVariant } from './course.js';
 import { snowMaterial, iceMaterial } from './render/snow.js';
 import { loadKit, instance, fadeNearLens } from './render/models.js';
 import { RiderModel } from './render/riderModel.js';
@@ -357,7 +357,16 @@ export class World {
   buildKickers() {
     const c = this.course;
     const lipM = new THREE.MeshStandardNodeMaterial({ color: this.mountain.fence.colour, roughness: 0.5 });
+    // 3 Laps: the bonus kicker is built now but hidden until lap 2
+    const bonus = c.bonusKicker && !c.kickers.includes(c.bonusKicker) ? c.bonusKicker : null;
+    if (bonus) {
+      c.kickers.push(bonus);
+      this.bonusGroup = new THREE.Group();
+      this.bonusGroup.visible = false;
+      this.section(bonus.s).add(this.bonusGroup);
+    }
     for (const k of c.kickers) {
+      const sec = k.bonus ? this.bonusGroup : this.section(k.s);
       const back = 1.3;
       const hw = k.w * 0.5 * 1.18;
       const mesh = this.patch(k.s - 0.4, k.s + k.len + back, k.lat - hw, k.lat + hw, 36, 18, (s, lat) => {
@@ -370,19 +379,20 @@ export class World {
       }, this.snow);
       mesh.receiveShadow = true;
       mesh.castShadow = true;
-      this.section(k.s).add(mesh);
+      sec.add(mesh);
       // the painted lip line and two little marker flags
       const f = frameAt(c, k.s + k.len - 0.15, {});
       const p = toWorld(c, k.s + k.len - 0.15, k.lat, 0, {});
       const lip = new THREE.Mesh(new THREE.BoxGeometry(k.w * 0.78, 0.05, 0.22), lipM);
       lip.position.set(p.x, groundAt(c, k.s + k.len - 0.15, k.lat) + 0.01, p.z);
       lip.rotation.set(-Math.atan(k.h * 1.75 / k.len) * 0.9, -f.heading, 0, 'YXZ');
-      this.section(k.s).add(lip);
+      sec.add(lip);
       for (const sd of [-1, 1]) {
         const q = toWorld(c, k.s + k.len - 0.3, k.lat + sd * (k.w * 0.5 + 0.5), 0, {});
-        this.addFlagPole(this.section(k.s), q, sd < 0 ? '#ff5a5f' : '#3a86ff', 1.6);
+        this.addFlagPole(sec, q, sd < 0 ? '#ff5a5f' : '#3a86ff', 1.6);
       }
     }
+    if (bonus) c.kickers.splice(c.kickers.indexOf(bonus), 1);
   }
 
   buildIce() {
@@ -554,20 +564,40 @@ export class World {
       const sec = this.section(gt.s);
       const mat = gt.colour === 'red' ? red : blue;
       const f = frameAt(c, gt.s, _f);
+      const g = new THREE.Group();
       for (const sd of [-1, 1]) {
-        const p = toWorld(c, gt.s, gt.lat + sd * gt.gap, 0, _p);
         const pole = new THREE.Mesh(poleGeo, mat);
-        pole.position.set(p.x, p.y - 0.05, p.z);
         pole.castShadow = true;
-        sec.add(pole);
+        pole.userData.sd = sd;
+        g.add(pole);
       }
-      const p = toWorld(c, gt.s, gt.lat, 0, _p);
       const banner = new THREE.Mesh(new THREE.PlaneGeometry(gt.gap * 2, 0.55, 8, 2), wavyMaterial(gt.colour === 'red' ? '#ff4b5c' : '#3a86ff', 0.12, true));
-      banner.position.set(p.x, p.y + 1.85, p.z);
       banner.rotation.y = -f.heading;
       banner.castShadow = true;
-      sec.add(banner);
+      g.add(banner);
+      sec.add(g);
+      (this.gateMeshes ??= []).push({ gt, g, banner });
+      this.placeGate(gt, g, banner);
     }
+  }
+
+  /** Put a slalom gate's poles and banner where the gate is (it can swap sides between laps). */
+  placeGate(gt, g, banner) {
+    const c = this.course;
+    for (const pole of g.children) {
+      if (pole === banner) continue;
+      const p = toWorld(c, gt.s, gt.lat + pole.userData.sd * gt.gap, 0, _p);
+      pole.position.set(p.x, p.y - 0.05, p.z);
+    }
+    const p = toWorld(c, gt.s, gt.lat, 0, _p);
+    banner.position.set(p.x, p.y + 1.85, p.z);
+  }
+
+  /** 3 Laps: show this lap's course (gates swapped, the bonus kicker open). */
+  lapVariant(lap) {
+    if (!lapVariant(this.course, lap)) return;
+    for (const { gt, g, banner } of this.gateMeshes ?? []) this.placeGate(gt, g, banner);
+    if (this.bonusGroup) this.bonusGroup.visible = this.course.kickers.includes(this.course.bonusKicker);
   }
 
   buildTrees() {
@@ -586,6 +616,8 @@ export class World {
           if (tint === 'rime') mm.color = leafy || hsl.l > 0.7 ? new THREE.Color('#e9f1fb') : col.clone();
           else if (tint === 'cedar') mm.color = leafy ? col.clone().multiplyScalar(0.62).lerp(new THREE.Color('#1f4a36'), 0.35) : col.clone();
           else if (tint === 'dark') mm.color = leafy ? col.clone().multiplyScalar(0.55).lerp(new THREE.Color('#163b2c'), 0.4) : col.clone();
+          // birch and larch: pale bark, the larches' needles a winter gold
+          else if (tint === 'birch') mm.color = leafy ? col.clone().lerp(new THREE.Color('#b58a3c'), 0.6) : hsl.l < 0.5 ? new THREE.Color('#e6e1d6') : col.clone();
           if (mm.map && tint === 'rime') mm.map = null;
           return { geometry: p.geometry, material: mm };
         })
