@@ -26,6 +26,8 @@ Then read only the section you need of `knowledge/racing-study.md`:
 §8 racing HUD · §9 RC miniature game · §10 FPV drones · §11 game ideas ·
 §12 what the repo already has · §13 verified free models, HDRIs, physics libs and
 examples · §14 checklist.
+City streets and buildings (Seoul): `knowledge/seoul-buildings.md` — building types,
+proportions, where Korean signs really go, materials, order of work.
 
 ## 2. Look at the real image when the look matters
 

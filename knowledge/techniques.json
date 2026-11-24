@@ -1797,6 +1797,46 @@
    ],
    "from": "racing-study",
    "path": "knowledge/racing-study.md"
+  },
+  {
+   "id": "tech.seoul-sign-placement",
+   "kind": "technique",
+   "title": "Where Korean shop signs really go (seoul-buildings §4)",
+   "summary": "One sign per tenant per floor: horizontal sign above each 1F shopfront spanning that shop, upper-floor horizontal signs on the band between floors, big vinyl lettering on 2F+ window glass (학원, 치과), projecting vertical sign boxes stacked on the front corner from 2F up, top sign only on big towers, small standing signs on the pavement. Never a continuous band at pedestrian height or signs floating free.",
+   "tags": [
+    "sign",
+    "signage",
+    "korean",
+    "seoul",
+    "shop",
+    "간판",
+    "street",
+    "building",
+    "storefront"
+   ],
+   "from": "seoul-buildings",
+   "path": "knowledge/seoul-buildings.md"
+  },
+  {
+   "id": "tech.seoul-building-realism",
+   "kind": "technique",
+   "title": "Real-looking Seoul buildings: types, proportions, recessed windows, grime, clutter (seoul-buildings §1-6)",
+   "summary": "Six building types (small shop building, white-fin office tower, glass tower, older concrete office, brick villa, apartment slab); floor heights 3.3-4.0 commercial / 2.8-3.0 residential; recessed windows 10-25 cm with frames; plain side walls; interior-mapped glass; photo textures at true scale; base grime and sill streaks; AC units, pipes, rooftop tanks; GTAO, sky-tinted haze. Real textured Seoul 3D data is restricted (V-World, S-Map).",
+   "tags": [
+    "building",
+    "facade",
+    "realistic",
+    "seoul",
+    "city",
+    "window",
+    "interior mapping",
+    "glass",
+    "brick",
+    "villa",
+    "office tower"
+   ],
+   "from": "seoul-buildings",
+   "path": "knowledge/seoul-buildings.md"
   }
  ]
 }

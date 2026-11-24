@@ -30,6 +30,7 @@ Then read only the section a record names:
   §9 open-source picks, §10 what looks cheap.
 - `images2/` (93 more, `ref.img2-*`): scene moods in `visual-study.md` §11; racing cars,
   RC cars and FPV drones in `knowledge/racing-study.md` (use the `racing-rc` skill).
+- `knowledge/seoul-buildings.md` — real-looking city buildings and Korean shop-sign placement.
 - `knowledge/visual-refs.json` — the full per-image catalogue (HUD element positions,
   effect layers, hex palettes, lighting, concept notes). Grep it; don't read it whole.
 
