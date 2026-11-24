@@ -9,7 +9,7 @@ import { getEntry } from '../src/model/catalog'
 import { offboardBodyRect, offboardGeometry, offboardTerminalPosition } from '../src/model/breadboard'
 import { ARDUINO_HEADER_Y, ESP32_PIN_Y } from '../src/model/boards'
 import type { CircuitLayout, ComponentInstance, Wire } from '../src/model/types'
-import { DUPONT, dupontRise, planRoutes, plannedWireRoute, wireBundles, wireEndStyle } from '../src/three/internal/wires'
+import { DUPONT, dupontRise, endKinds, planRoutes, plannedWireRoute, wireBundles, wireEndStyle } from '../src/three/internal/wires'
 
 const BOARDS: { type: string; pos: { x: number; z: number }; top: number; kind: 'socket' | 'pin' }[] = [
   { type: 'arduino_uno', pos: { x: -31, z: -1.5 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
@@ -49,7 +49,7 @@ describe('wires on board headers', () => {
           // first segment: straight up from the socket / pin top
           expect(Math.hypot(p1.x - p0.x, p1.z - p0.z), `${pin} riser is vertical`).toBeLessThan(1e-6)
           // straight up past the DuPont housing top before any bend
-          const housingTop = b.kind === 'socket' ? DUPONT.h : DUPONT.h - DUPONT.overPin
+          const housingTop = b.kind === 'socket' ? DUPONT.gap + DUPONT.h : DUPONT.h - DUPONT.overPin
           expect(p1.y - b.top, `${pin} rises`).toBeCloseTo(dupontRise(b.kind), 6)
           expect(p1.y - b.top).toBeGreaterThan(housingTop + 0.5)
           // never below the header top while over the board (no PCB / header-body contact)
@@ -82,5 +82,19 @@ describe('wires on board headers', () => {
       expect(Math.abs(lead.y - r.yb), 'level lead-in').toBeLessThan(1e-6)
       expect(Math.hypot(lead.x - end.x, lead.z - end.z)).toBeCloseTo(dupontRise('side'), 6)
     }
+  })
+})
+
+describe('each jumper end is the right sex for its header', () => {
+  it('Arduino top (female) gets a male end, ESP32 pins get a female end, the breadboard end is a male plug', () => {
+    const uno = boardLayout('arduino_uno', { x: -31, z: -1.5 }, ['D13'])
+    expect(endKinds(uno, 'B1:D13', 'a5')).toEqual({ ka: 'socket', kb: 'plug' })
+    const esp = boardLayout('esp32_devkit', { x: -25, z: 2 }, ['GPIO2'])
+    expect(endKinds(esp, 'B1:GPIO2', 'a5')).toEqual({ ka: 'pin', kb: 'plug' })
+    // a breadboard-only jumper keeps its stripped solid-core tips
+    expect(endKinds(uno, 'a5', 'a9')).toEqual({ ka: 'hole', kb: 'hole' })
+    // a male end stands above the socket: the wire leaves above housing + bare pin
+    expect(dupontRise('socket')).toBeGreaterThan(DUPONT.gap + DUPONT.h)
+    expect(dupontRise('plug')).toBe(dupontRise('socket'))
   })
 })

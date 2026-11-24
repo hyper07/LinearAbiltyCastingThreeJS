@@ -75,6 +75,7 @@ import {
   wireColorFor,
   wireGeometry,
   wireEndStyle,
+  endKinds,
   DUPONT,
 } from './internal/wires'
 import {
@@ -2415,14 +2416,20 @@ export class BreadboardScene implements IBreadboardScene {
     const insulationParts: THREE.BufferGeometry[] = [tubeGeo]
     const tipParts: THREE.BufferGeometry[] = []
     const housingParts: THREE.BufferGeometry[] = []
-    // DuPont ends on board / module headers: a housing on top of a female
-    // socket (its male pin hidden in the hole), over a male pin, or slid
-    // sideways onto a module pin — always perpendicular to the header
+    // DuPont ends, the right sex for each header: a MALE end into a female
+    // socket (Arduino top) or a breadboard hole — housing standing above it,
+    // bare metal pin running in — a FEMALE end over a male pin, or slid
+    // sideways onto a module pin; always perpendicular to the header
+    const kinds = endKinds(this.layout, wire.from, wire.to)
+    const plugEnds = new Set<THREE.Vector3>()
     ;[wire.from, wire.to].forEach((ref, i) => {
       const p = i === 0 ? a : b
       const st = wireEndStyle(this.layout, ref)
-      if (st.kind === 'hole' || st.kind === 'post') return
-      const { w, h, collar, overPin, pinDepth } = DUPONT
+      const kind = i === 0 ? kinds.ka : kinds.kb
+      if (kind === 'hole' || kind === 'post') return
+      if (kind === 'plug') plugEnds.add(p)
+      const male = kind === 'socket' || kind === 'plug'
+      const { w, h, collar, overPin, pinDepth, gap } = DUPONT
       // body (black) + collar (wire colour), built upright with the base at 0
       const body = new THREE.BoxGeometry(w, h - collar, w)
       body.translate(0, (h - collar) / 2, 0)
@@ -2435,21 +2442,24 @@ export class BreadboardScene implements IBreadboardScene {
           g.rotateY(-Math.atan2(st.dir.z, st.dir.x))
           g.translate(p.x - st.dir.x * overPin, p.y, p.z - st.dir.z * overPin)
         } else {
-          g.translate(p.x, p.y - (st.kind === 'pin' ? overPin : -0.02), p.z)
+          g.translate(p.x, p.y - (st.kind === 'pin' ? overPin : -gap), p.z)
         }
       }
       place(body)
       place(ring)
       housingParts.push(body)
       insulationParts.push(ring) // indexed like the tube and caps, so they merge
-      if (st.kind === 'socket') {
-        // the male DuPont's gold pin, pushed into the socket hole from above
-        const pin = new THREE.CylinderGeometry(0.11, 0.11, pinDepth + 0.25, 8)
-        pin.translate(p.x, p.y - pinDepth / 2 + 0.12, p.z)
+      if (male) {
+        // the male DuPont's bare pin: out of the housing, across the gap and
+        // down into the socket / breadboard hole
+        const len = pinDepth + gap + 0.3
+        const pin = new THREE.CylinderGeometry(0.11, 0.11, len, 8)
+        pin.translate(p.x, p.y - pinDepth + len / 2, p.z)
         tipParts.push(pin)
       }
     })
     for (const p of [a, b]) {
+      if (plugEnds.has(p)) continue // the plug's housing and pin replace the stripped tip
       // board-hole ends (y = 0) are stripped: the insulation stops
       // WIRE_TIP_LEN up and a bare tinned pin runs down into the socket;
       // terminal-post ends keep the classic insulated cap at the post top

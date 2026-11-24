@@ -492,15 +492,27 @@ const RIBBON_PATHS = new WeakSet<readonly RoutePoint[]>()
 /**
  * DuPont jumper ends (plan units, 1 = 2.54 mm): a black housing one pitch
  * square, with a collar in the wire's colour at the top where the wire exits.
- * Over a male pin the housing slides down onto the plastic strip; on a female
- * socket it sits just above the socket with its gold pin pushed into the hole.
+ * The right end for each header, like real jumper cables:
+ *  - a female header (Arduino Uno / Mega top) takes a MALE end: the housing
+ *    stands `gap` above the socket and its bare metal pin runs down into it;
+ *  - a male pin (ESP32, Pico, module headers) takes a FEMALE end: the housing
+ *    slides down over the pin;
+ *  - the breadboard end of a cable from a header is a male plug too (a
+ *    male-male or female-male jumper); breadboard-to-breadboard wires stay
+ *    plain solid-core jumpers with a stripped tip.
  */
-export const DUPONT = { w: 0.9, h: 4.2, collar: 0.55, overPin: 2.0, pinDepth: 1.2 }
+export const DUPONT = { w: 0.9, h: 4.2, collar: 0.55, overPin: 2.0, pinDepth: 1.2, gap: 0.8 }
+/** how a jumper end is drawn: a male plug into a breadboard hole is 'plug' */
+export type WireEndKind = 'socket' | 'pin' | 'side' | 'hole' | 'post' | 'plug'
+/** the tube starts this far above a male end's anchor (inside the housing, above the bare pin) */
+export function maleTubeStart(kind: WireEndKind): number {
+  return kind === 'socket' || kind === 'plug' ? DUPONT.gap + 0.5 : 0
+}
 /** how far the wire runs straight out of the housing top before it bends */
 const EXIT_RUN = 1.3
 /** riser height above the anchor for each end kind */
-export function dupontRise(kind: 'socket' | 'pin' | 'side' | 'hole' | 'post'): number {
-  if (kind === 'socket') return DUPONT.h + EXIT_RUN
+export function dupontRise(kind: WireEndKind): number {
+  if (kind === 'socket' || kind === 'plug') return DUPONT.gap + DUPONT.h + EXIT_RUN
   if (kind === 'pin' || kind === 'side') return DUPONT.h - DUPONT.overPin + EXIT_RUN
   return RIBBON_RISE
 }
@@ -577,7 +589,7 @@ function applyRibbons(
       const b = resolve(flip ? w.from : w.to)!
       const ra = flip ? w.to : w.from
       const rb = flip ? w.from : w.to
-      return { id, a, b, flip, ea: leadDir(layout, ra), eb: leadDir(layout, rb), ka: wireEndStyle(layout, ra).kind, kb: wireEndStyle(layout, rb).kind }
+      return { id, a, b, flip, ea: leadDir(layout, ra), eb: leadDir(layout, rb), ...endKinds(layout, ra, rb) }
     })
     const k = ends.length
     const ca = ends.reduce((s, e) => ({ x: s.x + e.a.x / k, y: Math.max(s.y, e.a.y), z: s.z + e.a.z / k }), { x: 0, y: 0, z: 0 })
@@ -613,11 +625,11 @@ function applyRibbons(
       // the pin for a sideways module header (both perpendicular to the header)
       const leadIn = (P: { x: number; y: number; z: number }, d: { x: number; z: number } | null, kind: Parameters<typeof dupontRise>[0]): RoutePoint => {
         const r = dupontRise(kind)
-        return d ? { x: P.x + d.x * r, y: P.y, z: P.z + d.z * r } : { x: P.x, y: P.y > 0 ? P.y + r : 1.0, z: P.z }
+        return d ? { x: P.x + d.x * r, y: P.y, z: P.z + d.z * r } : { x: P.x, y: P.y > 0 || kind === 'plug' ? P.y + r : 1.0, z: P.z }
       }
       const LA = leadIn(A, e.ea, e.ka)
       const LB = leadIn(B, e.eb, e.kb)
-      const pts: RoutePoint[] = [{ x: A.x, y: 0, z: A.z }, LA]
+      const pts: RoutePoint[] = [{ x: A.x, y: maleTubeStart(e.ka), z: A.z }, LA]
       const N = 9
       const lift = apex - Math.max(LA.y, LB.y) + 0.6
       for (let i = 1; i < N; i++) {
@@ -630,7 +642,7 @@ function applyRibbons(
         const base = LA.y + (LB.y - LA.y) * u
         pts.push({ x: px + (lx - px) * w, y: base + lift * Math.sin(Math.PI * u), z: pz + (lz - pz) * w })
       }
-      pts.push(LB, { x: B.x, y: 0, z: B.z })
+      pts.push(LB, { x: B.x, y: maleTubeStart(e.kb), z: B.z })
       if (e.flip) pts.reverse()
       const rec = wireRouteCache.get(e.id)
       RIBBON_PATHS.add(pts)
@@ -657,6 +669,19 @@ export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole'
   if (e.category === 'board') return { kind: SOCKET_BOARDS.has(c.type) ? 'socket' : 'pin' }
   const d = leadDir(layout, ref)
   return d ? { kind: 'side', dir: d } : { kind: 'pin' }
+}
+
+/**
+ * Both ends of a wire: a breadboard hole whose other end is a header becomes a
+ * male DuPont plug (the cable is a male-male or female-male jumper).
+ */
+export function endKinds(layout: CircuitLayout, from: string, to: string): { ka: WireEndKind; kb: WireEndKind } {
+  const header = (k: WireEndKind) => k === 'socket' || k === 'pin' || k === 'side'
+  let ka: WireEndKind = wireEndStyle(layout, from).kind
+  let kb: WireEndKind = wireEndStyle(layout, to).kind
+  if (ka === 'hole' && header(kb)) ka = 'plug'
+  if (kb === 'hole' && header(ka)) kb = 'plug'
+  return { ka, kb }
 }
 
 /** plan direction a sideways module pin points (null = the wire leaves vertically) */
@@ -767,15 +792,15 @@ function routedCurve(
     if (ya !== 0) {
       pts[0].y += ya
       if (!ribbon || Math.hypot(pts[1].x - pts[0].x, pts[1].z - pts[0].z) < 0.05) pts[1].y = Math.max(pts[1].y, ya + ENTRY_RISE)
-    } else {
-      pts[0].y = WIRE_TIP_LEN // stripped tip below the insulation
+    } else if (pts[0].y === 0) {
+      pts[0].y = WIRE_TIP_LEN // stripped tip below the insulation (a male plug keeps its start)
     }
     if (yb !== 0) {
       pts[pts.length - 1].y += yb
       const q = pts[pts.length - 1]
       const r = pts[pts.length - 2]
       if (!ribbon || Math.hypot(r.x - q.x, r.z - q.z) < 0.05) r.y = Math.max(r.y, yb + ENTRY_RISE)
-    } else {
+    } else if (pts[pts.length - 1].y === 0) {
       pts[pts.length - 1].y = WIRE_TIP_LEN
     }
   }
