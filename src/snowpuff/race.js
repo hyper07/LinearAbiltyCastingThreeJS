@@ -229,11 +229,14 @@ export function newGiant(racer, id) {
   let h = 0;
   for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
   const nudge = (h & 1 ? 1 : -1) * (1.2 + (h >>> 1) % 5 * 0.15);
-  return { id, from: racer.slot, s: r.s + 2.5, lat: r.lat, vl: r.speed * Math.sin(r.yaw) * 0.5 + nudge, v: Math.max(r.speed + 5, 17), rad: 0.85, t: 0, life: GIANT_LIFE, hit: new Set(), y: null, vy: 0, air: false, dist: 0, bump: 0 };
+  return { id, from: racer.slot, s: r.s + 2.5, lat: r.lat, vl: r.speed * Math.sin(r.yaw) * 0.5 + nudge, v: Math.max(r.speed + GIANT_KICK, 24), rad: 0.85, t: 0, life: GIANT_LIFE, hit: new Set(), y: null, vy: 0, air: false, dist: 0, bump: 0 };
 }
 
 /** How long a giant snowball rolls before it breaks apart (s). */
 export const GIANT_LIFE = 7;
+/** How much faster than you a giant snowball leaves your hands, and the fastest it can roll (m/s). */
+export const GIANT_KICK = 9;
+export const GIANT_VMAX = 42;
 
 /**
  * Roll it on over the real terrain — pure and deterministic (online peers
@@ -256,13 +259,13 @@ export function rollGiant(g, course, dt) {
   if (!g.air) {
     const gs = ground(g.s + 0.6, g.lat) - ground(g.s - 0.6, g.lat);
     const gl = ground(g.s, g.lat + 0.6) - ground(g.s, g.lat - 0.6);
-    g.v += (-9.8 * (gs / 1.2) / Math.sqrt(1 + (gs / 1.2) ** 2) * 0.9 - 0.0035 * g.v * g.v - 0.45) * dt;
+    g.v += (-9.8 * (gs / 1.2) / Math.sqrt(1 + (gs / 1.2) ** 2) * 1.1 - 0.002 * g.v * g.v - 0.25) * dt;
     g.vl += (-9.8 * (gl / 1.2) / Math.sqrt(1 + (gl / 1.2) ** 2) * 0.75) * dt;
   }
   // the run bends beneath it; it keeps on straight, so it swings to the outside of the turn
   g.vl -= (f.curv ?? 0) * g.v * g.v * dt;
   g.vl *= Math.exp(-0.35 * dt);
-  g.v = Math.max(4, Math.min(34, g.v));
+  g.v = Math.max(6, Math.min(GIANT_VMAX, g.v));
   g.s += g.v * dt;
   g.lat += g.vl * dt;
   g.dist += Math.hypot(g.v, g.vl) * dt;
