@@ -224,7 +224,11 @@ interpolated state), so motion is smooth at any frame rate.
 - **Barriers** (hay bales, fence sections, logs, rocks, gate poles): a soft
   bounce, a poof and a one-second tumble. **Snowmen** burst into snow when you
   ride through them (a tiny slow-down, a big poof).
-- **Ice** is slippery; so are the patches riders drop.
+- **Ice** (the frozen creek, and the patches riders drop) is the only
+  slippery thing: riding onto it takes the edge's grip away for a moment —
+  you slide sideways, skate slowly round with windmilling arms, goggles
+  jiggling, a scrape and a glint of ice; steering barely works. It lasts at
+  most 1.1 s, never twice back to back, and then you have it back.
 - The rider leans into turns from the turn's sideways pull, the knees soak up
   rollers and landings, the arms balance, ears and tail swing with momentum.
 
@@ -249,8 +253,8 @@ pack, and the same gift always holds the same thing for the same rider:
 
 | Item | What it does |
 | --- | --- |
-| **Snowballs ×3** | Thrown at the nearest rider ahead (or at whoever bonked you last) |
-| **Giant snowball** | Rolls down your lane, growing, and bowls over riders in its way (jump it!) |
+| **Snowballs ×3** | Thrown at the nearest rider ahead (or at whoever bonked you last); a hit rolls them over sideways once, snow puffing off, and they pop back up (0.85 s, a fair speed loss) |
+| **Giant snowball** | Leaves your hands in your lane and rolls over the real terrain: faster on steeps, slower on flats, swinging up the banks and to the outside of turns, bouncing off the fences, hopping off rollers, growing and picking up chunks as it goes (spinning exactly as far as it rolls), a groove and spray behind it, a rumble and a little shake when it's near. It ends in a big poof on a barrier or snowman, or breaks apart after 7 s. A rider it catches is rolled up inside it for a moment — ears, paws and board poking out — then bursts free (jump it!) |
 | **Snow shield** | Snowballs and giant snowballs bounce off for five seconds |
 | **Rocket sled** | A short boost |
 | **Ice patch** | Dropped behind you: slippery for whoever follows |

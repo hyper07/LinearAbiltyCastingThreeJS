@@ -157,6 +157,19 @@ export class PoseRig {
         lR = 1.5 + Math.sin(t * 18) * 0.6; rR = 1.5 + Math.sin(t * 18 + 2) * 0.6;
         T[J.headYaw] += Math.sin(t * 14) * 0.4;
       }
+      if (s.slipK > 0) {
+        // skating on ice: windmilling arms, leaning back, eyes wide
+        const k = Math.sin(s.slipK * Math.PI);
+        lR = 1.2 + Math.sin(t * 16) * 0.9 * k + 0.6 * k; rR = 1.2 + Math.sin(t * 16 + Math.PI) * 0.9 * k + 0.6 * k;
+        lS = Math.sin(t * 16) * 0.8 * k; rS = -Math.sin(t * 16) * 0.8 * k;
+        T[J.chestPitch] -= 0.25 * k;
+      }
+      if (s.rolledK > 0) {
+        // rolled up in a snowball: paws poking out, waving
+        lR = 2.4 + Math.sin(t * 20) * 0.35; rR = 2.4 + Math.sin(t * 20 + 2) * 0.35;
+        lS = 0.4; rS = 0.4;
+        T[J.hipsDrop] = 0.8;
+      }
       if (s.wobble > 0) {
         lR += Math.sin(t * 15) * 0.5 * s.wobble;
         rR += Math.sin(t * 13 + 1) * 0.5 * s.wobble;
@@ -167,7 +180,7 @@ export class PoseRig {
       } else {
         T[J.armLRaise] = lR; T[J.armLSwing] = lS; T[J.armRRaise] = rR; T[J.armRSwing] = rS;
       }
-      T[J.eyes] = skid > 0.5 ? 1.35 : 1;
+      T[J.eyes] = skid > 0.5 || s.slipK > 0 ? 1.35 : 1;
     }
     // a landing: compress, then the arms flap to rebalance
     if (s.landed) {

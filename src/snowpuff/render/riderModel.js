@@ -344,6 +344,13 @@ export class RiderModel {
     this.setGoggles(goggles);
     this.setBoard(board);
     // Springs: ears, accent tail, pompom.
+    // the giant snowball shell (shown only while rolled up)
+    this.shell = new THREE.Mesh(shellGeometry(), shellMaterial());
+    this.shell.visible = false;
+    this.shell.castShadow = shadow;
+    this.air.add(this.shell);
+    this.slipSpin = 0;
+    this.rollA = 0;
     this.spring = { earA: 0, earV: 0, earB: 0, earBV: 0, tail: 0, tailV: 0, bob: 0, bobV: 0 };
     this.t = Math.random() * 10;
     this.squashT = 0;
@@ -596,15 +603,37 @@ export class RiderModel {
     let spin = st.spin ?? 0, flip = st.flip ?? 0, roll = 0;
     if (st.tumbleK > 0) roll = (1 - st.tumbleK) * Math.PI * 2;
     if (st.spinoutK > 0) spin += (1 - st.spinoutK) * Math.PI * 4;
-    this.air.rotation.set(-flip, -spin, roll, 'YXZ');
-    this.air.position.y = st.tumbleK > 0 ? Math.sin((1 - st.tumbleK) * Math.PI) * 0.6 : 0;
+    // an ice slip: a slow cartoon skate round (about one turn), settling back square after
+    if (st.slipK > 0) {
+      if (!this.slipping) this.slipDir = (st.yawRate ?? 0) >= 0 ? 1 : -1;
+      this.slipping = true;
+      this.slipSpin += this.slipDir * dt * 9 * Math.sin(st.slipK * Math.PI);
+    } else {
+      this.slipping = false;
+      const home = Math.round(this.slipSpin / (Math.PI * 2)) * Math.PI * 2;
+      this.slipSpin += (home - this.slipSpin) * Math.min(1, dt * 7);
+    }
+    spin += this.slipSpin;
+    // rolled up in a giant snowball: the ball (and you in it) rolls on, ears, paws and board poking out
+    const rolled = (st.rolledK ?? 0) > 0;
+    const lift = rolled ? 0.58 : 0;
+    if (rolled) this.rollA += (dt * Math.max(4, st.speed ?? 8)) / 0.6;
+    else this.rollA *= Math.max(0, 1 - dt * 10);
+    this.shell.visible = rolled;
+    if (rolled) {
+      const k = st.rolledK;
+      this.shell.scale.setScalar(0.5 * Math.min(1, (1 - k) * 8) * (k < 0.08 ? 1 + (0.08 - k) * 6 : 1));
+    }
+    this.air.rotation.set(-flip - this.rollA, -spin, roll, 'YXZ');
+    this.air.position.y = (st.tumbleK > 0 ? Math.sin((1 - st.tumbleK) * Math.PI) * 0.6 : 0) + lift;
+    this.lean.position.y = -lift;
     // the full body: layered poses and springs (poseRig.js), then onto the bones
     const P = this.rig.update(dt, st);
     const edge = st.edge ?? 0;
     this.body.rotation.y = menu ? 0 : this.rig.bodyYaw;
     this.lean.rotation.z = -P[J.lean] + (st.wobble > 0 ? Math.sin(t * 22) * 0.12 * st.wobble : 0);
     this.lean.rotation.x = -(st.tuck ?? 0) * 0.06;
-    this.lean.position.y = P[J.hop];
+    this.lean.position.y = P[J.hop] - lift;
     // squash on landing
     if (st.landed) this.squashT = Math.min(1, 0.3 + st.landed * 0.12);
     this.squashT = Math.max(0, this.squashT - dt * 5);
@@ -696,7 +725,7 @@ export class RiderModel {
       sp.bob += sp.bobV * dt;
       this.extras.pom.rotation.z = sp.bob * 0.6 + w * 0.3;
     }
-    this.goggles?.update(dt, { jolt: st.landed ? Math.min(1.5, 0.3 + st.landed * 0.1) : 0, yawRate: st.yawRate ?? 0, wind: w });
+    this.goggles?.update(dt, { jolt: (st.landed ? Math.min(1.5, 0.3 + st.landed * 0.1) : 0) + ((st.slipK ?? 0) > 0 || (st.rolledK ?? 0) > 0 ? 0.35 : 0), yawRate: st.yawRate ?? 0, wind: w });
     this.deck?.update(dt, { speed: menu ? 0 : st.speed ?? 0, carve: menu ? Math.sin(t * 1.3) * 0.4 : edge, boost: Boolean(st.boost), air: Boolean(st.air) });
     if (this.extras.pack) this.extras.pack.position.y = 0.32 - 0.33 + Math.sin(t * 6) * 0.004 - this.squashT * 0.02;
     // blink
@@ -725,3 +754,25 @@ function starGeometry() {
   return G.star;
 }
 export { starGeometry };
+
+/** A lumpy snowball shell (shared). */
+function shellGeometry() {
+  if (G.shell) return G.shell;
+  const g = new THREE.IcosahedronGeometry(1, 5);
+  const p = g.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i).normalize();
+    const r = 1 + Math.sin(v.x * 6.3 + v.y * 2.9) * 0.05 + Math.sin(v.z * 8.1 - v.y * 3.7) * 0.04;
+    p.setXYZ(i, v.x * r, v.y * r, v.z * r);
+  }
+  g.computeVertexNormals();
+  G.shell = g;
+  return g;
+}
+
+let _shellMat = null;
+function shellMaterial() {
+  return (_shellMat ??= new THREE.MeshStandardNodeMaterial({ color: '#f6faff', roughness: 0.8, emissive: '#c8d8f0', emissiveIntensity: 0.18 }));
+}
+

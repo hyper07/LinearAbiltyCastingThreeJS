@@ -305,7 +305,7 @@ export class Effects {
     let m = this.giants[i];
     if (!m) {
       const mat = new THREE.MeshStandardNodeMaterial({ color: '#f6faff', roughness: 0.7 });
-      m = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 4), mat);
+      m = new THREE.Mesh(lumpyBall(), mat);
       m.castShadow = true;
       m.userData.spin = 0;
       this.scene.add(m);
@@ -352,3 +352,27 @@ export class Effects {
 }
 
 export { attribute, mix };
+
+/** A snowball that has picked up snow as it rolled: lumpy, with a few chunks stuck on. */
+function lumpyBall() {
+  const g = new THREE.IcosahedronGeometry(1, 4);
+  const p = g.attributes.position;
+  const v = new THREE.Vector3();
+  const chunks = [];
+  for (let i = 0; i < 14; i++) {
+    const a = i * 2.399, z = 1 - (2 * (i + 0.5)) / 14;
+    chunks.push(new THREE.Vector3(Math.cos(a) * Math.sqrt(1 - z * z), z, Math.sin(a) * Math.sqrt(1 - z * z)));
+  }
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i).normalize();
+    let r = 1 + Math.sin(v.x * 7.1 + v.y * 3.3) * 0.025 + Math.sin(v.z * 9.7 - v.x * 4.1) * 0.02;
+    for (const c of chunks) {
+      const d = v.distanceTo(c);
+      if (d < 0.28) r += (1 - d / 0.28) ** 2 * 0.09;
+    }
+    p.setXYZ(i, v.x * r, v.y * r, v.z * r);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+

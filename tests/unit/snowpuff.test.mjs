@@ -286,7 +286,11 @@ test('race: items — shield, boost, giant snowball and ice patch', () => {
   assert.equal(useSlot(r, 0).kind, 'boost');
   assert.ok(r.rider.boost > 1);
   // a giant snowball rolls down and bowls over the rider in its lane (not one who jumps it)
-  const thrower = racerAt(1, 400, 0), victim = racerAt(2, 430, 0.4), jumper = racerAt(3, 430, -6);
+  const thrower = racerAt(1, 400, 0);
+  // where will it be 30 m on? (it follows the terrain, so not always the lane it left in)
+  const probe = newGiant(thrower, 'probe');
+  while (probe.s < 430 && rollGiant(probe, course, DT));
+  const victim = racerAt(2, 430, probe.lat + 0.3), jumper = racerAt(3, 430, probe.lat > 0 ? probe.lat - 6 : probe.lat + 6);
   const g = newGiant(thrower, 'g1');
   const all = [thrower, victim, jumper];
   let bowled = [];
@@ -295,7 +299,7 @@ test('race: items — shield, boost, giant snowball and ice patch', () => {
     bowled = giantHits(g, all, course);
   }
   assert.deepEqual(bowled.map((x) => x.slot), [2]);
-  assert.ok(applyBowl(victim, 1) && victim.rider.tumble > 0 && victim.lastHitBy === 1);
+  assert.ok(applyBowl(victim, 1) && victim.rider.rolled > 0 && victim.lastHitBy === 1, 'rolled up inside the snowball');
   // an ice patch dropped behind you makes the snow there slippery until it melts
   const iceR = racerAt(4, 500, 2);
   const p = dropIce(course, iceR, 10, 'i1', 5);
@@ -337,10 +341,10 @@ test('race: a snowball aims at the nearest rider ahead in the cone, hits, and sp
   assert.ok(hittable(ahead, course));
   const v = ahead.rider.speed;
   assert.ok(applyHit(ahead));
-  assert.equal(ahead.rider.spinout, SPINOUT);
+  assert.ok(ahead.rider.tumble > 0 && ahead.rider.tumble <= 1.5 && ahead.rider.tumbleSoft, 'a quick sideways tumble');
   assert.ok(ahead.rider.speed < v && ahead.bonks === 1);
   ride(ahead.rider, { steer: 1 }, 0.3);
-  assert.ok(Math.abs(ahead.rider.carve) < 0.05, 'no steering while spinning');
+  assert.ok(Math.abs(ahead.rider.carve) < 0.05, 'no steering while tumbling');
   // revenge: whoever hit you last is the one you aim at, ahead or behind
   ahead.lastHitBy = 3;
   giveItem(ahead, 'snowballs', 1);
@@ -707,5 +711,81 @@ test('boards are cosmetic: the same ride whatever the board', () => {
   };
   const ref = run('classic');
   for (const id of BOARD_IDS) assert.equal(run(id), ref, `${id} rides differently`);
+});
+
+test('giant snowball: rolls over the real terrain — swings across, bounces off the edges, grows, ends in 7 s', () => {
+  for (const m of MOUNTAINS) {
+    const c = buildCourse(m);
+    for (const s0 of [200, 500]) {
+      const thrower = racerAt(1, s0, 0);
+      const g = newGiant(thrower, 'g');
+      const a = newGiant(thrower, 'g');
+      let minLat = 0, maxLat = 0, t = 0;
+      while (rollGiant(g, c, DT)) {
+        rollGiant(a, c, DT);
+        minLat = Math.min(minLat, g.lat);
+        maxLat = Math.max(maxLat, g.lat);
+        const f = frameAt(c, g.s);
+        assert.ok(Math.abs(g.lat) <= f.width + 0.5, `${m.id}: stays on the run`);
+        assert.ok(Number.isFinite(g.y) && g.y >= groundAt(c, g.s, g.lat) - 1e-6, `${m.id}: never under the snow`);
+        t += DT;
+      }
+      rollGiant(a, c, DT);
+      assert.ok(t <= 7.05, `${m.id}: done within its life`);
+      assert.equal(g.s, a.s, 'deterministic');
+      if (t < 2.5) continue; // smashed into something early
+      assert.ok(maxLat - minLat > 1.5, `${m.id}@${s0}: it doesn't just roll down one line (${(maxLat - minLat).toFixed(2)} m)`);
+      assert.ok(g.rad > 0.9, 'it grows as it rolls');
+    }
+  }
+});
+
+test('ice: riding onto it slips you for a moment (≤ 1.2 s), steering barely works, then you have it back', () => {
+  const c = buildCourse(mountainById('pinecone'));
+  const patch = c.ice[0] ?? { s: 300, lat: 0, len: 10, w: 6 };
+  if (!c.ice.length) c.ice.push(patch);
+  const r = newRider({ s: patch.s - 8, lat: patch.lat, speed: 16 });
+  settle(r, c);
+  let run = 0, gap = 99, longest = 0, slips = 0;
+  for (let i = 0; i < 480; i++) {
+    for (const e of step(r, { steer: r.s < patch.s + 2 ? 0 : 1 }, c, DT)) {
+      if (e.type === 'slip') {
+        slips++;
+        assert.ok(gap > 1, 'never two slips back to back');
+      }
+    }
+    if (r.slip > 0) {
+      run += DT;
+      gap = 0;
+    } else {
+      longest = Math.max(longest, run);
+      run = 0;
+      gap += DT;
+    }
+  }
+  assert.ok(slips >= 1, 'it slips');
+  assert.ok(longest > 0.5 && longest <= 1.2, `slip ${longest.toFixed(2)} s`);
+  assert.equal(r.slip, 0);
+});
+
+test('hits: a snowball tumbles you once (≤ 1.5 s, fair speed loss); a giant one rolls you up, then you burst free', () => {
+  const a = racerAt(1, 300, 0, { speed: 20 });
+  assert.ok(applyHit(a));
+  let t = 0;
+  while (a.rider.tumble > 0) {
+    step(a.rider, { steer: 1 }, course, DT);
+    t += DT;
+  }
+  assert.ok(t <= 1.5 && a.rider.speed > 9, `tumble ${t.toFixed(2)} s, ${a.rider.speed.toFixed(1)} m/s after`);
+  const b = racerAt(2, 300, 0, { speed: 20 });
+  assert.ok(applyBowl(b, 1));
+  const ev = [];
+  t = 0;
+  while (b.rider.rolled > 0) {
+    ev.push(...step(b.rider, {}, course, DT));
+    t += DT;
+  }
+  assert.ok(t <= 1.5 && b.rider.speed > 7, `rolled ${t.toFixed(2)} s`);
+  assert.ok(ev.some((e) => e.type === 'unroll'), 'bursts free');
 });
 

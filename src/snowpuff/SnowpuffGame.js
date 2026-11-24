@@ -23,8 +23,8 @@ import { CONTROLS } from './controls.js';
 import { MOUNTAINS, mountainById } from './mountains.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES } from './riders.js';
 import { buildCourse, frameAt, groundAt, toWorld, rng } from './course.js';
-import { newRider, step, settle } from './physics.js';
-import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor } from './race.js';
+import { newRider, step, settle, SLIP } from './physics.js';
+import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, ROLLED, dropIce, meltIce, draftFactor } from './race.js';
 import { newBrain, think } from './ai.js';
 import { makeRenderer, Pipeline, TIERS, TIER_ORDER, backendName } from './render/pipeline.js';
 import { Sky, distantPeaks } from './render/sky.js';
@@ -888,7 +888,7 @@ export class SnowpuffGame {
     else if (res.kind === 'giant') {
       const g = newGiant(rc, `${rc.slot}-g${++r.pid}`);
       r.giants.push(g);
-      if (r.online && this.net?.active) this.net.sendItem({ k: 'giant', id: g.id, from: rc.slot, s: g.s, lat: g.lat, v: g.v });
+      if (r.online && this.net?.active) this.net.sendItem({ k: 'giant', id: g.id, from: rc.slot, s: g.s, lat: g.lat, v: g.v, vl: g.vl });
       if (rc.me) this.hud.say('Giant snowball!', 'trick');
       if (this.near(rc, 50)) this.sound.rumble();
     } else if (res.kind === 'ice') {
@@ -1002,6 +1002,9 @@ export class SnowpuffGame {
     v.spinout = b.spinout;
     v.wobble = b.wobble;
     v.boost = b.boost;
+    v.slip = b.slip ?? 0;
+    v.rolled = b.rolled ?? 0;
+    v.tumbleLen = b.tumbleLen ?? 0.95;
     return v;
   }
 
@@ -1015,6 +1018,8 @@ export class SnowpuffGame {
     rd.spin = st.spin; rd.flip = st.flip; rd.edge = st.edge; rd.charge = st.charge; rd.tuck = st.tuck ? 1 : 0;
     rd.tumble = st.tumble ? Math.max(rd.tumble, 0.01) : 0;
     rd.spinout = st.spinout ? Math.max(rd.spinout, 0.01) : 0;
+    rd.slip = st.slip ? Math.max(rd.slip ?? 0, 0.5) : 0;
+    rd.rolled = st.rolled ? Math.max(rd.rolled ?? 0, 0.6) : 0;
     rd.wobble = st.wobble ? 0.3 : 0;
     rd.boost = st.boost ? 0.2 : 0;
     rd.carve = Math.abs(st.edge);
@@ -1073,6 +1078,22 @@ export class SnowpuffGame {
           this.hud.say(['Boing!', 'Oopsie!', 'Bumpity!'][Math.floor(Math.random() * 3)], 'info');
           this.race.shake = 0.5;
         }
+      } else if (e.type === 'slip') {
+        // onto ice: a skate — a scrape and a glint of ice
+        if (near) {
+          this.fx.sparkles(rc.pos.x, rc.pos.y + 0.15, rc.pos.z, { n: 10, col: new THREE.Color('#d8f6ff'), speed: 2.5, life: 0.5, size: 0.14 });
+          this.sound.iceScrape(rc.me ? 1 : 0.5);
+        }
+        this.emote(rc, ['Whoa!', 'Wheee!', 'Slippy!'][Math.floor(Math.random() * 3)], 0.1);
+        if (rc.me) this.hud.say('Ice!', 'info');
+      } else if (e.type === 'unroll') {
+        // bursting free of the giant snowball
+        if (near) {
+          this.fx.poof(rc.pos.x, rc.pos.y + 0.6, rc.pos.z, { n: 44, size: 0.6, speed: 5, up: 3.6 });
+          this.sound.snowmanPoof(rc.me ? 1 : 0.5);
+        }
+        rc.model.react('laugh');
+        if (rc.me) this.race.shake = Math.max(this.race.shake, 0.25);
       } else if (e.type === 'burst') {
         this.world.burstSnowman?.(e.id);
         if (near) {
@@ -1189,7 +1210,7 @@ export class SnowpuffGame {
     } else if (m.t === 'item' && r) {
       const it = m.it;
       const from = this.racers.find((x) => x.slot === it.from);
-      if (it.k === 'giant' && from) r.giants.push({ id: it.id, from: it.from, s: it.s, lat: it.lat, v: it.v, rad: 0.85, t: 0, life: 9, hit: new Set() });
+      if (it.k === 'giant' && from) r.giants.push({ id: it.id, from: it.from, s: it.s, lat: it.lat, vl: it.vl, v: it.v, rad: 0.85, t: 0, life: GIANT_LIFE, hit: new Set(), y: null, vy: 0, air: false, dist: 0, bump: 0 });
       else if (it.k === 'ice') r.course.dynIce.push({ id: it.id, s: it.s, lat: it.lat, len: 7, w: 4.5, until: it.until, from: it.from });
       else if (it.k === 'boost' && from && this.near(from, 50)) this.fx.boostBurst(from.pos.x, from.pos.y, from.pos.z);
     } else if (m.t === 'hit' && r && m.kind === 'giant') {
@@ -1406,7 +1427,9 @@ export class SnowpuffGame {
       const ps = (rc.poseState ??= {});
       ps.heading = f.heading; ps.yaw = head; ps.spin = rd.spin; ps.flip = rd.flip; ps.edge = rd.edge; ps.lean = lean;
       ps.compress = rd.compress; ps.skid = rd.skid; ps.tuck = rd.tuck; ps.charge = rd.charge; ps.speed = rd.speed; ps.air = rd.air;
-      ps.tumbleK = rd.tumble > 0 ? clamp(rd.tumble / 0.95, 0, 1) : 0; ps.spinoutK = rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0;
+      ps.tumbleK = rd.tumble > 0 ? clamp(rd.tumble / (rd.tumbleLen || 0.95), 0, 1) : 0;
+      ps.slipK = rd.slip > 0 ? clamp(rd.slip / SLIP, 0, 1) : 0;
+      ps.rolledK = rd.rolled > 0 ? clamp(rd.rolled / ROLLED, 0, 1) : 0; ps.spinoutK = rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0;
       ps.wobble = rd.wobble; ps.landed = rc.landed ?? 0; ps.steerIn = rc.rider.steerIn ?? 0; ps.steer = rc.rider.steerR ?? 0;
       ps.unweight = rc.rider.unweight ?? 0; ps.spinV = rc.rider.spinV ?? 0; ps.latAcc = rd.latAcc; ps.yawRate = yawRate; ps.lookYaw = lookYaw;
       ps.idle = this.mode === 'countdown';
@@ -1627,13 +1650,35 @@ export class SnowpuffGame {
         this.fx.ball(i, w.x, at.y, w.z);
       });
       this.fx.hideBalls(r.projectiles.length);
-      // giant snowballs: rolling, growing, throwing snow off their sides
+      // giant snowballs: rolling over the snow (spinning exactly as far as they roll), growing, a
+      // little wobble, a groove behind and spray off their sides; a rumble and a shake when close
+      let rumble = 0;
       r.giants.forEach((g, i) => {
         const w = toWorld(r.course, g.s, g.lat, 0, {});
-        this.fx.giant(i, w.x, w.y + g.rad * 0.92, w.z, g.rad, frameAt(r.course, g.s).heading, simDt * g.v / Math.max(0.5, g.rad));
-        if (Math.random() < 0.7) this.fx.poof(w.x, w.y, w.z, { n: 2, size: 0.4, speed: 1.5, up: 1.2 });
+        const y = (g.y ?? w.y) + g.rad * 0.92;
+        const wob = Math.sin(g.t * 9) * 0.05 * g.rad;
+        const f = frameAt(r.course, g.s);
+        const sp = Math.hypot(g.v, g.vl ?? 0);
+        this.fx.giant(i, w.x + f.rx * wob, y, w.z + f.rz * wob, g.rad, f.heading + Math.atan2(g.vl ?? 0, g.v), (simDt * sp) / Math.max(0.5, g.rad));
+        if (!g.air && Math.random() < 0.8) {
+          this.fx.poof(w.x - f.rx * g.rad * 0.8, w.y, w.z - f.rz * g.rad * 0.8, { n: 2, size: 0.45, speed: 1.8, up: 1.4 });
+          this.fx.poof(w.x + f.rx * g.rad * 0.8, w.y, w.z + f.rz * g.rad * 0.8, { n: 2, size: 0.45, speed: 1.8, up: 1.4 });
+        }
+        if (!g.air) (this.giantStrokes ??= []).push({ s0: g.ps ?? g.s, lat0: g.pl ?? g.lat, s1: g.s, lat1: g.lat, width: g.rad * 0.75 });
+        g.ps = g.s;
+        g.pl = g.lat;
+        // a thump off a fence or a landing
+        if (g.bump > (g.bumpSeen ?? 0)) {
+          g.bumpSeen = g.bump;
+          this.fx.poof(w.x, (g.y ?? w.y), w.z, { n: 14, size: 0.6, speed: 3.5, up: 2.4 });
+          if (this.near({ pos: w }, 45)) this.sound.bump();
+        }
+        const d = Math.hypot(w.x - this.me.pos.x, w.z - this.me.pos.z);
+        rumble = Math.max(rumble, Math.max(0, 1 - d / 45) * Math.min(1, g.rad));
       });
       this.fx.hideGiants(r.giants.length);
+      this.sound.rumble?.(rumble);
+      if (rumble > 0.4) r.shake = Math.max(r.shake, (rumble - 0.4) * 0.25);
       // drafting: wind lines streaming past you
       if (this.me.draftBehind && !this.me.rider.air) {
         const hd = frameAt(r.course, this.me.rider.s).heading + this.me.rider.yaw;
@@ -1648,7 +1693,11 @@ export class SnowpuffGame {
     } else if (!r.camPos) this.placeCamera(0, true);
     this.world.update(simDt, this.me.rider.s, this.me.pos);
     this.sky.follow(new THREE.Vector3(this.me.pos.x, this.me.pos.y, this.me.pos.z), 24);
-    if (this.trails && simDt > 0) this.trails.update(this.me.rider.s - 60, this.strokes ?? []);
+    if (this.trails && simDt > 0) {
+      const strokes = this.giantStrokes?.length ? (this.strokes ?? []).concat(this.giantStrokes) : this.strokes ?? [];
+      this.trails.update(this.me.rider.s - 60, strokes);
+    }
+    if (this.giantStrokes) this.giantStrokes.length = 0;
     const st = standings(this.racers);
     const place = st.indexOf(this.me) + 1;
     this.nameTags();

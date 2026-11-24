@@ -246,7 +246,7 @@ export class OnlineRace {
       case MSG.item: {
         const it = m.it ?? {};
         if (!['giant', 'ice', 'boost'].includes(it.k)) return;
-        this.onMessage({ t: 'item', it: { k: it.k, id: String(it.id ?? ''), from: it.from | 0, s: +it.s || 0, lat: +it.lat || 0, v: +it.v || 18, until: +it.until || 0 } });
+        this.onMessage({ t: 'item', it: { k: it.k, id: String(it.id ?? ''), from: it.from | 0, s: +it.s || 0, lat: +it.lat || 0, v: +it.v || 18, vl: Math.max(-12, Math.min(12, +it.vl || 0)), until: +it.until || 0 } });
         return;
       }
       case MSG.fin:

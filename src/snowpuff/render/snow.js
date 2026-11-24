@@ -19,6 +19,7 @@ import * as THREE from 'three/webgpu';
 import {
   Fn, uniform, uniformArray, attribute, varying, texture, vec2, vec3, vec4, float, int, Loop, max, min, abs, clamp, mix, smoothstep,
   color, positionWorld, cameraPosition, cameraViewMatrix, normalLocal, sin, cos, pow, dot, reflect, normalize, length, uv, mx_noise_float, mx_cell_noise_float, step
+, reflectView
 } from 'three/tsl';
 
 export const TRAIL = { lat: 26, len: 200, back: 60, w: 384, h: 1536, riders: 8 };
@@ -203,6 +204,8 @@ export function iceMaterial() {
   const deep = mx_noise_float(p.mul(0.25)).mul(0.5).add(0.5);
   m.colorNode = mix(mix(vec3(0.55, 0.78, 0.95), vec3(0.75, 0.9, 1.0), deep), vec3(0.95, 0.98, 1.0), crack);
   m.roughnessNode = mix(float(0.06), float(0.5), crack);
+  // a glossy sheen: the bright sky caught in the ice
+  m.emissiveNode = vec3(0.55, 0.72, 0.9).mul(smoothstep(0.25, 0.85, reflectView.y).mul(0.35).add(crack.mul(0.08)));
   return m;
 }
 

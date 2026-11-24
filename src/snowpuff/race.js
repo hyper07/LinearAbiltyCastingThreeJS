@@ -17,6 +17,9 @@ import { between, groundAt, frameAt } from './course.js';
 export const MAX_SLOTS = 2;
 export const MAX_SNOWBALLS = 6;
 export const SPINOUT = 1.2;
+/** A snowball hit's tumble, and how long a giant snowball keeps you rolled up (s). */
+export const TUMBLE = 0.85;
+export const ROLLED = 1.35;
 export const SHIELD_TIME = 5;
 export const THROW_COOLDOWN = 0.5;
 export const PILE_GIVES = 2;
@@ -167,17 +170,87 @@ export function useSlot(racer, i) {
 /** A giant snowball rolled from a racer: it runs down your lane, growing, and bowls riders over. */
 export function newGiant(racer, id) {
   const r = racer.rider;
-  return { id, from: racer.slot, s: r.s + 2.5, lat: r.lat, v: Math.max(r.speed + 5, 17), rad: 0.85, t: 0, life: 9, hit: new Set() };
+  // a little sideways nudge as it leaves your hands (from its id, so every peer rolls it alike)
+  let h = 0;
+  for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  const nudge = (h & 1 ? 1 : -1) * (1.2 + (h >>> 1) % 5 * 0.15);
+  return { id, from: racer.slot, s: r.s + 2.5, lat: r.lat, vl: r.speed * Math.sin(r.yaw) * 0.5 + nudge, v: Math.max(r.speed + 5, 17), rad: 0.85, t: 0, life: GIANT_LIFE, hit: new Set(), y: null, vy: 0, air: false, dist: 0, bump: 0 };
 }
 
-/** Roll it on; returns false when it's done (burst on a barrier, run out, or off the end). */
+/** How long a giant snowball rolls before it breaks apart (s). */
+export const GIANT_LIFE = 7;
+
+/**
+ * Roll it on over the real terrain — pure and deterministic (online peers
+ * roll it the same way): gravity along the slope under it (faster on the
+ * steeps, slower on the flats), the cross-slope swinging it up the berms and
+ * back, the course bending away beneath it (so it drifts to the outside of
+ * turns), bounces off the fences, little hops off rollers; it grows with the
+ * distance rolled. `g.bump` counts bounces and landings (for a thump).
+ * Returns false when it's done: smashed on a barrier (g.burstOn), broken
+ * apart after GIANT_LIFE, or past the finish.
+ */
 export function rollGiant(g, course, dt) {
   const f = frameAt(course, g.s);
   g.t += dt;
-  g.v = Math.min(36, g.v + (9.8 * Math.sin(f.pitch) * 0.85 - 0.004 * g.v * g.v) * dt);
+  const ground = (s, l) => groundAt(course, s, l);
+  if (g.y == null) {
+    g.y = ground(g.s, g.lat);
+    g.vyG = null;
+  }
+  if (!g.air) {
+    const gs = ground(g.s + 0.6, g.lat) - ground(g.s - 0.6, g.lat);
+    const gl = ground(g.s, g.lat + 0.6) - ground(g.s, g.lat - 0.6);
+    g.v += (-9.8 * (gs / 1.2) / Math.sqrt(1 + (gs / 1.2) ** 2) * 0.9 - 0.0035 * g.v * g.v - 0.45) * dt;
+    g.vl += (-9.8 * (gl / 1.2) / Math.sqrt(1 + (gl / 1.2) ** 2) * 0.75) * dt;
+  }
+  // the run bends beneath it; it keeps on straight, so it swings to the outside of the turn
+  g.vl -= (f.curv ?? 0) * g.v * g.v * dt;
+  g.vl *= Math.exp(-0.35 * dt);
+  g.v = Math.max(4, Math.min(34, g.v));
   g.s += g.v * dt;
-  g.rad = Math.min(1.35, g.rad + dt * 0.06);
-  g.lat = Math.max(-f.width + g.rad, Math.min(f.width - g.rad, g.lat));
+  g.lat += g.vl * dt;
+  g.dist += Math.hypot(g.v, g.vl) * dt;
+  // the fences at the run's edges (it can climb a berm a little first): a bounce
+  const lim = f.width + 0.4 - g.rad * 0.6;
+  if (Math.abs(g.lat) > lim) {
+    const sd = Math.sign(g.lat);
+    g.lat = sd * lim;
+    if (g.vl * sd > 0) {
+      g.vl = -g.vl * 0.55;
+      g.v *= 0.94;
+      g.bump++;
+    }
+  }
+  // up and down: it follows the snow, but leaves it where the snow drops away faster than it can fall
+  const gy = ground(g.s, g.lat);
+  if (g.air) {
+    g.vy -= 9.8 * dt;
+    g.y += g.vy * dt;
+    if (g.y <= gy) {
+      g.y = gy;
+      g.bump++;
+      // how hard it meets the snow (the snow itself is sloping away under it)
+      const vyGround = (ground(g.s + 0.5, g.lat) - ground(g.s - 0.5, g.lat)) * g.v;
+      const impact = g.vy - vyGround;
+      if (impact < -4) g.vy = vyGround - impact * 0.3;
+      else {
+        g.air = false;
+        g.vyG = null;
+      }
+    }
+  } else {
+    const vyG = (gy - g.y) / Math.max(dt, 1e-4);
+    if (g.vyG != null && vyG < g.vyG - 9.8 * dt * 2.4 && g.v > 12) {
+      g.air = true;
+      g.vy = g.vyG ?? 0;
+      g.y += g.vy * dt;
+    } else {
+      g.y = gy;
+      g.vyG = vyG;
+    }
+  }
+  g.rad = Math.min(1.55, 0.85 + g.dist * 0.0055);
   if (g.t > g.life || g.s > course.finish + 20) return false;
   for (const o of between(course.obstacles, g.s - 1, g.s + 1)) {
     if (course.burst?.has(o.id)) continue;
@@ -211,9 +284,10 @@ export function applyBowl(target, fromSlot) {
     return false;
   }
   const r = target.rider;
-  r.tumble = 1.1;
-  r.speed *= 0.45;
-  r.invuln = Math.max(r.invuln, 1.6);
+  // rolled up inside the snowball for a moment (arms, legs and ears poking out), then burst free
+  r.rolled = ROLLED;
+  r.speed *= 0.72;
+  r.invuln = Math.max(r.invuln, ROLLED + 0.5);
   target.bonks += 1;
   target.lastHitBy = fromSlot;
   return true;
@@ -331,8 +405,11 @@ export function applyHit(target, fromSlot = -1) {
     return false;
   }
   const r = target.rider;
-  r.spinout = SPINOUT;
-  r.speed *= 0.62;
+  // a quick cartoon tumble: one roll over sideways, a puff of snow, and back on the board
+  r.tumble = TUMBLE;
+  r.tumbleLen = TUMBLE;
+  r.tumbleSoft = true;
+  r.speed *= 0.8;
   r.invuln = Math.max(r.invuln, 1.3);
   target.bonks += 1;
   target.lastHitBy = fromSlot;

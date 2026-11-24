@@ -101,6 +101,7 @@ export class SnowSound {
 
   quiet() {
     this.ride(0, 0, false, false, 0);
+    this.rumble(0);
   }
 
   /* ---------------------------------------------------------------- one-shots */
@@ -233,6 +234,33 @@ export class SnowSound {
 
   click() {
     this.tone(880, { dur: 0.05, gain: 0.05, type: 'triangle' });
+  }
+
+  /** A giant snowball's low rumble (0 = far away, 1 = right on top of you). */
+  rumble(k) {
+    if (!this.ctx) return;
+    if (!this.rumbleBed) {
+      if (k <= 0) return;
+      const n = this.loopNoise();
+      const f = this.ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 140;
+      f.Q.value = 2;
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      n.connect(f).connect(g).connect(this.master);
+      this.rumbleBed = { f, g };
+    }
+    const t = this.ctx.currentTime;
+    this.rumbleBed.g.gain.setTargetAtTime(Math.min(1, k) * 0.55, t, 0.12);
+    this.rumbleBed.f.frequency.setTargetAtTime(90 + k * 120, t, 0.2);
+  }
+
+  /** A skate on ice: a bright scrape. */
+  iceScrape() {
+    if (!this.ctx) return;
+    this.noiseBurst({ dur: 0.7, gain: 0.16, f0: 5200, f1: 2600, q: 3, type: 'bandpass' });
+    this.tone(1400, { dur: 0.35, gain: 0.03, type: 'sawtooth', slide: 900 });
   }
 
   /** A board swap: a whoosh and a wooden clack as it lands under the feet. */
