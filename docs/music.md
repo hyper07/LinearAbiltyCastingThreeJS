@@ -63,7 +63,7 @@ and each game's `music` — a `GameMusic`):
 | Kithvale | `lantern-valley` in Lanternrest and at dusk, `meadow` out in the vale by day (softer under the trust moment) | — | — | `discovery` when a creature joins | Sound |
 | Kindlewatch | `frozen-fortress` | `battle` | `boss` (Hrimgar, in the throne room) | `victory`, `defeat`, `level-up` (a beacon lit) | the pause menu's Sound |
 | AI Arcademia | `playful`, at 40 % under a lesson | — | — | `level-up` (stars, a level, a floor, a puzzle boss), `discovery` (a chest, a sticker); the old fanfare when the music is off | Sound |
-| Gangnam Drift | `city-night` while racing, and driving at night; otherwise quiet (the engine and the city) | — | — | `victory` (first past the line) | the Graphics panel's Music |
+| Gangnam Jarani | `city-night` while racing, and driving at night; otherwise quiet (the engine and the city) | — | — | `victory` (first past the line) | the Graphics panel's Music |
 | Lanternwood | `title` on the title; by realm: `village` round the camp fire, `night-forest` in the Lanternwood, `meadow` in Sunmeadow, `frozen-fortress` in Frostpeak and Emberfall | `battle` | `boss` | `victory` (boss or hero monster), `defeat`, `level-up`, `discovery` (chests) | the pause menu's Music |
 | Stoneball | quiet on the start screen; `battle` at 45 % in a match | — | — | `victory` or `defeat` at full time | M |
 | Home page | `title` at 35 %, from the first click or key | — | — | — | ♪ in the bar |

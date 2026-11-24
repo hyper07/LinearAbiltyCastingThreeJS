@@ -7,7 +7,7 @@ import { GARAGE, GARAGE_ORDER, ratings } from './garage.js';
 import { RaceFx } from './racefx.js';
 
 /**
- * Gangnam Drift: night racing for four cars on a loop of real Seoul roads.
+ * Gangnam Jarani: night racing for four cars on a loop of real Seoul roads.
  * Alone, against three bots; or up to four people in a room (by code, over
  * the party server), with bots in any empty seats. Driving fast fills the
  * turbo gauge, drifting (Shift) fills it much faster; once it is full, Space
@@ -107,7 +107,7 @@ export class Race {
     const m = this.menuEl;
     m.hidden = false;
     m.innerHTML = `
-      <header><h2>🏁 Gangnam Drift</h2><button type="button" data-race-x aria-label="Close">✕</button></header>
+      <header><h2>🏁 Gangnam Jarani</h2><button type="button" data-race-x aria-label="Close">✕</button></header>
       <p class="race__lead">Four cars, a loop of real Seoul streets, in whatever the city's time and weather are. Drive fast to fill the turbo gauge — drift with <b>Shift</b> to fill it much faster — and once it is full, <b>Space</b> fires the turbo. First over the line after the last lap wins.</p>
       <div class="race__courses">${COURSES.map((c) => `<button type="button" data-course="${c.id}" class="${c.id === this.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><span>${esc(c.ko)}${c.run ? ' · <strong>RUN</strong>' : c.long ? ' · <strong>LONG</strong>' : ''}</span><small>${esc(c.text)}</small><em data-len="${c.id}">${this.plans.get(c.id) ? `${(this.plans.get(c.id).length / 1000).toFixed(1)} km ${this.plans.get(c.id).open ? `· ${this.plans.get(c.id).checkpoints.length} checkpoints` : 'a lap'}` : c.run ? 'planning…' : ''}</em></button>`).join('')}</div>
       <h3 class="race__label">Your car</h3>

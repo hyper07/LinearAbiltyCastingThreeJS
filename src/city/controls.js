@@ -1,10 +1,10 @@
 /**
- * Gangnam Drift's controls: the one table the key handler reads, the bar's
+ * Gangnam Jarani's controls: the one table the key handler reads, the bar's
  * line of hints is built from (by mode) and How to play lists
  * (shared/helpPanel.js). The horn is B (H is How to play).
  */
 export const CONTROLS = {
-  title: 'How to play — Gangnam Drift',
+  title: 'How to play — Gangnam Jarani',
   goal: 'Seoul, from its real building register: fly over the city, walk its streets, borrow a car and drive — or race on real roads, alone against bots or with up to four friends. Visit all 25 districts to fill your stamps.',
   groups: [
     { name: 'Fly', rows: [
@@ -28,7 +28,7 @@ export const CONTROLS = {
       { id: 'places', keys: ['M'], codes: ['KeyM'], does: 'Places: districts and tall buildings to go to', modes: { fly: 'places', walk: 'places' } },
       { id: 'graphics', keys: ['G'], codes: ['KeyG'], does: 'Graphics: Quiet keeps your laptop cool' },
       { id: 'help', keys: ['H', 'I'], codes: ['KeyH', 'KeyI'], does: 'How to play (this)', modes: { fly: 'help', walk: 'help', drive: 'help' } },
-      { id: 'close', keys: ['Esc'], codes: ['Escape'], does: 'Close a panel · leave Gangnam Drift' }
+      { id: 'close', keys: ['Esc'], codes: ['Escape'], does: 'Close a panel · leave Gangnam Jarani' }
     ] }
   ]
 };

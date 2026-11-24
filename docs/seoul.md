@@ -1,4 +1,4 @@
-# Gangnam Drift (Seoul, for real)
+# Gangnam Jarani (Seoul, for real)
 
 [← Back to the README](../README.md)
 
@@ -60,7 +60,7 @@ including commercially, **with attribution** — the game shows the credit on sc
    about 80 MB) and the roads (about 20 MB) into `data/geo/seoul/src/` once, then writes 2,285
    building tiles (23 MB), `terrain.bin` (7 MB), `roads.bin` (1 MB) and an index. `--offline` skips
    the downloads; without them the ground is flat and there are no roads.
-3. Open **Gangnam Drift** from the home page (it opens on the race menu; close it to explore the city). Without the tiles, the game says how to install them.
+3. Open **Gangnam Jarani** from the home page (it opens on the race menu; close it to explore the city). Without the tiles, the game says how to install them.
 
 For a newer register file, repeat both steps. On a deployed server the tiles go in
 `DATA_DIR/geo/seoul/tiles/`; they are served at `/geo/seoul/*`.
@@ -91,9 +91,9 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **View**: near, far or farthest — how many tiles are kept around you (800 m to 2 km, more when
   flying high).
 
-## Gangnam Drift: racing at night
+## Gangnam Jarani: racing at night
 
-**🏁 Gangnam Drift** (the button) is a night race for four cars on a loop of real Seoul streets.
+**🏁 Gangnam Jarani** (the button) is a night race for four cars on a loop of real Seoul streets.
 
 - **Courses**: five city loops of 4 to 5 km (Gwanghwamun Loop, Namsan Twisties, Dongdaemun Night,
   Gangnam Avenues, Yeouido Island) and three long ones of a single lap across the city — Han River

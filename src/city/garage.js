@@ -1,5 +1,5 @@
 /**
- * Gangnam Drift's garage: five cars of our own to choose from. They share
+ * Gangnam Jarani's garage: five cars of our own to choose from. They share
  * the one licensed body (Car Concept, CC BY 4.0) but not much else — each
  * has its own stance and proportions, its own parts (a wing, a scoop, skirts,
  * bigger wheels) and above all its own handling: some fast, some quick off

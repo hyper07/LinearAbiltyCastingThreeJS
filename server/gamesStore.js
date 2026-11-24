@@ -73,7 +73,7 @@ export const ENGINE_GAMES = [
   },
   {
     id: 'official:seoul',
-    title: 'Gangnam Drift',
+    title: 'Gangnam Jarani',
     summary: 'Night racing on the real streets of Seoul: drift through Gangnam, Namsan, Gwanghwamun and more — against three bots, or with up to four friends. Between races, drive, walk or fly through the whole city, every building at its true place and height.',
     engine: 'city',
     genre: 'racing',

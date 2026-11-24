@@ -48,7 +48,7 @@ test('controls: the camera and map keys are the shared ones, and clash with noth
     assert.ok(codesFor(t, 'map').includes(MAP_KEY), `${id}: O is the map`);
   }
   assert.ok(codesFor(KW, 'map').includes(MAP_KEY));
-  // Gangnam Drift: the horn moved off H.
+  // Gangnam Jarani: the horn moved off H.
   assert.deepEqual(codesFor(SE, 'horn'), ['KeyB']);
 });
 

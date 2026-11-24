@@ -239,7 +239,7 @@ const ROAD_CELL = 40;
 export { ROAD_CELL };
 
 /**
- * Gangnam Drift (Seoul, for real): every building in the city at its true place and height,
+ * Gangnam Jarani (Seoul, for real): every building in the city at its true place and height,
  * from the national building register (public data, KOGL type 1), streamed
  * as map tiles while you fly over it or walk its streets.
  *
@@ -290,7 +290,7 @@ export class SeoulGame {
       <header class="seoul__top">
         <div class="seoul__where"><b data-place>Seoul</b><small data-sub>서울특별시</small></div>
         <div class="seoul__stamps" data-stamps title="Districts you have visited"></div>
-        <button type="button" class="seoul__x" data-close aria-label="Leave Gangnam Drift">✕</button>
+        <button type="button" class="seoul__x" data-close aria-label="Leave Gangnam Jarani">✕</button>
       </header>
       <div class="seoul__toast" data-toast role="status" aria-live="polite" hidden></div>
       <div class="seoul__msg" data-msg hidden></div>
@@ -388,7 +388,7 @@ export class SeoulGame {
       // A short credit always on screen; each source's full notice is in the Places panel.
       this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)'].filter(Boolean).join(' · ');
       this.ready = true;
-      // Gangnam Drift opens on its races; close the menu to fly, walk and drive the city.
+      // Gangnam Jarani opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
       this.help.openFirstTime();
     } catch {

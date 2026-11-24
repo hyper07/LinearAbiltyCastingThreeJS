@@ -83,7 +83,7 @@ of the Grave and kill the king it wakes before time runs out. **Hold the Outpost
 Gunner and Engineer keep a reactor alive through fifteen waves. Alone with bots, or with up to three
 friends. Grave Purge also comes in **2D** (its own card), for lighter computers. [More →](docs/bastion-squad.md)
 
-**🏎️ Gangnam Drift**: night racing on the real streets of Seoul — five courses planned on the real road
+**🏎️ Gangnam Jarani**: night racing on the real streets of Seoul — five courses planned on the real road
 network (Gangnam, Namsan, Gwanghwamun, Dongdaemun, Yeouido), drifting to fill your boost, against three
 bots or with up to four friends in a room. Between races, drive, walk or fly through the whole city —
 every building at its true place and height, from Korea's public building register. You download the data yourself (free, attribution

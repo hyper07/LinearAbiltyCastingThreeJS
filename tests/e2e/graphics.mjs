@@ -64,7 +64,7 @@ export async function run(browser, { shots = null, only = null } = {}) {
         await page.keyboard.press('Escape');
       } else if (g.menu === 'arcademia') await page.click('.arc-chip--settings');
       else if (g.menu === 'seoul') {
-        // Gangnam Drift opens on its race menu: close it, then the bar's Graphics button.
+        // Gangnam Jarani opens on its race menu: close it, then the bar's Graphics button.
         const x = await page.$('[data-race-x]');
         if (x) await x.click();
         await page.click('[data-open-gfx]');
