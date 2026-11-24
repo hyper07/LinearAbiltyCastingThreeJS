@@ -7,7 +7,10 @@ import { follow, pointOn } from './drive.js';
  * twos and threes or on the phone — people on bikes (a good share on the
  * city's green share-bikes, with a basket) along the pavement's edge, and
  * delivery riders on motorbikes with a box on the back, along the edge of
- * the road (not in a race: the course is closed).
+ * the road. In the small streets (alleys.bin) people walk down the middle,
+ * there being no pavement. A bike race asks who is near (`near`), rings its
+ * bell or blasts its horn at them (`shoo`: they step aside), and knocks
+ * into them (`bump`).
  *
  * Hundreds of them cost little: every body part is one instanced draw for
  * all of them (a torso for everyone, a head for everyone…), posed each frame
@@ -202,11 +205,13 @@ export class StreetLife {
       const at = { i: Math.floor(Math.random() * n), t: Math.random(), dir: Math.random() < 0.5 ? 1 : -1 };
       const half = r.width / 2;
       // On foot, anywhere across the pavement (3 m); bikes along its road-side edge; motorbikes in the road, by the kerb.
-      const side = ON_FOOT.has(kind) ? half + 0.9 + Math.random() * 1.9 : kind === 'bike' ? half + 0.75 : half - 1.1;
+      // A small street has no pavement: people walk anywhere across it, bikes and motorbikes keep right.
+      if (r.small && kind === 'moto') continue;
+      const side = r.small ? (ON_FOOT.has(kind) ? (Math.random() * 2 - 1) * Math.max(0.2, half - 0.45) : Math.max(0, half - 0.7)) : ON_FOOT.has(kind) ? half + 0.9 + Math.random() * 1.9 : kind === 'bike' ? half + 0.75 : half - 1.1;
       const pt = pointOn(r.pts, at, side);
       const d = Math.hypot(pt.x - p.x, pt.z - p.z);
       if (d < NEAR || d > FAR) continue;
-      if (kind === 'moto' ? this.g.buildingAt?.(pt.x, pt.z) || r.width < 9 : !this._free(pt.x, pt.z) || this._median(r.pts, at, side)) continue;
+      if (kind === 'moto' ? this.g.buildingAt?.(pt.x, pt.z) || r.width < 9 : !this._free(pt.x, pt.z) || (!r.small && this._median(r.pts, at, side))) continue;
       const m = this._person(kind, r, at, side, pt);
       this.people.push(m);
       // Friends: two walk together; those standing about are in twos and threes, facing each other.
@@ -276,19 +281,58 @@ export class StreetLife {
     const high = this.g.mode === 'fly' && p.y - this.g.groundAt(p.x, p.z) > 150;
     this.group.visible = !high;
     if (high) return;
-    const racing = this.g.mode === 'race';
-    // Too far: gone (and the motorbikes, when a race closes the roads). Too few: more, a handful a second.
-    this.people = this.people.filter((m) => Math.hypot(m.x - p.x, m.z - p.z) < GONE && !(racing && m.kind === 'moto'));
+    // Too far: gone. Too few: more, a handful a second.
+    this.people = this.people.filter((m) => Math.hypot(m.x - p.x, m.z - p.z) < GONE);
     this._spawnT -= dt;
     if (this._spawnT <= 0) {
       this._spawnT = 0.03;
       const count = {};
       for (const m of this.people) count[m.kind] = (count[m.kind] ?? 0) + 1;
-      for (const [k, want] of Object.entries(CROWD)) if ((count[k] ?? 0) < (racing ? (k === 'moto' ? 0 : want * 0.8) : want)) this._spawn(k);
+      for (const [k, want] of Object.entries(CROWD)) if ((count[k] ?? 0) < want) this._spawn(k);
     }
     for (const m of this.people) this._move(m, dt);
     for (const m of this.fans) m.phase += dt;
     this._pose();
+  }
+
+  /** People within `r` metres of a point (everyone moving or standing about; not a race's fans). */
+  near(x, z, r) {
+    return this.people.filter((m) => Math.abs(m.x - x) < r && Math.abs(m.z - z) < r);
+  }
+
+  /**
+   * Make way: people ahead of (x, z, heading) within `range` step to the side away from the line,
+   * hurrying; with `loud` (an air horn) further, and the bikes and scooters pull over too.
+   */
+  shoo(x, z, heading, range, loud = false) {
+    const fx = -Math.sin(heading);
+    const fz = -Math.cos(heading);
+    for (const m of this.near(x, z, range)) {
+      if (!loud && !ON_FOOT.has(m.kind)) continue;
+      const dx = m.x - x;
+      const dz = m.z - z;
+      const along = dx * fx + dz * fz;
+      const side = dx * -fz + dz * fx;
+      if (along < 0 || along > range || Math.abs(side) > (loud ? 5 : 3)) continue;
+      const s = side >= 0 ? 1 : -1;
+      const by = (loud ? 2.4 : 1.5) - Math.abs(side) * 0.3;
+      if (by <= 0) continue;
+      m.tx = -fz * s * by;
+      m.tz = fx * s * by;
+      m.aside = loud ? 3.5 : 2.5;
+      m.waiting = Math.max(m.waiting ?? 0, 0.8);
+    }
+  }
+
+  /** Knocked by a bike at (x, z): a stagger back, and a moment stood still. */
+  bump(m, x, z) {
+    const dx = m.x - x;
+    const dz = m.z - z;
+    const d = Math.hypot(dx, dz) || 1;
+    m.tx = (m.ox ?? 0) + (dx / d) * 1.2;
+    m.tz = (m.oz ?? 0) + (dz / d) * 1.2;
+    m.aside = 3;
+    m.waiting = 3;
   }
 
   _move(m, dt) {
@@ -304,23 +348,33 @@ export class StreetLife {
       const next = follow(m.road.pts, m.at, m.speed * dt);
       if (next.end) next.dir = -next.dir;
       const pt = pointOn(m.road.pts, next, m.side);
-      const blocked = m.kind === 'moto' ? this.g.buildingAt?.(pt.x, pt.z) : !this._free(pt.x, pt.z) || (ON_FOOT.has(m.kind) && this._median(m.road.pts, next, m.side));
+      const blocked = m.kind === 'moto' ? this.g.buildingAt?.(pt.x, pt.z) : !this._free(pt.x, pt.z) || (ON_FOOT.has(m.kind) && !m.road.small && this._median(m.road.pts, next, m.side));
       if (blocked) {
         // Something in the way (a crossing, a building, the other road): back the way they came.
         m.at = { ...m.at, dir: -m.at.dir };
         if (m.kind === 'moto') m.side = -m.side;
       } else {
         m.at = next;
-        m.x = pt.x;
-        m.z = pt.z;
+        m.bx = pt.x;
+        m.bz = pt.z;
         m.heading += angle(m.heading, pt.heading) * Math.min(1, dt * (ON_FOOT.has(m.kind) ? 5 : 3));
       }
     }
+    // Stepping aside (a bell, a horn, a bump), and back again after.
+    m.bx ??= m.x;
+    m.bz ??= m.z;
+    m.aside = Math.max(0, (m.aside ?? 0) - dt);
+    const k = Math.min(1, dt * (m.aside > 0 ? 6 : 0.8));
+    m.ox = (m.ox ?? 0) + ((m.aside > 0 ? m.tx : 0) - (m.ox ?? 0)) * k;
+    m.oz = (m.oz ?? 0) + ((m.aside > 0 ? m.tz : 0) - (m.oz ?? 0)) * k;
+    m.x = m.bx + m.ox;
+    m.z = m.bz + m.oz;
     // On the pavement: as high as the road beside it and the kerb; a motorbike on the road.
     m.yT = (m.yT ?? 0) - dt;
     if (m.yT <= 0 || m.y == null) {
       m.yT = 0.35;
-      m.yGoal = this.g.groundAt(m.x, m.z) + (m.kind === 'moto' ? 0.9 : m.kind === 'bike' ? 0.92 : 1.04);
+      // (In a small street, at road level: there is no kerb.)
+      m.yGoal = this.g.groundAt(m.x, m.z) + (m.road?.small ? 0.9 : m.kind === 'moto' ? 0.9 : m.kind === 'bike' ? 0.92 : 1.04);
       m.y ??= m.yGoal;
     }
     m.y += (m.yGoal - m.y) * Math.min(1, dt * 6);

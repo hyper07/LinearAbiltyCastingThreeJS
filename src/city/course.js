@@ -340,3 +340,35 @@ export function locate(course, x, z, near = null) {
   else for (let i = near - 15; i <= near + 60; i++) look(i);
   return { i: best, off: bestD };
 }
+
+/**
+ * Start a loop where a grid of four fits: the straightest stretch of the
+ * widest road on it (never in an alley). Returns the course turned round so
+ * that point is index 0 (distances counted again from there).
+ */
+export function startOnBigRoad(course) {
+  const pts = course.points;
+  const n = pts.length;
+  const head = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
+  let best = 0;
+  let bestScore = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const a = pts[(i - 6 + n) % n];
+    const b = pts[i];
+    const c = pts[(i + 6) % n];
+    const t = head(b, c) - head(a, b);
+    const bend = Math.abs(Math.atan2(Math.sin(t), Math.cos(t)));
+    // Wide, straight, and the grid behind it (a few points back) on the same road.
+    let narrow = Infinity;
+    for (let k = -5; k <= 3; k++) narrow = Math.min(narrow, pts[(i + k + n) % n][2] ?? 8);
+    const score = narrow - bend * 20 - (isSmall(pts[i][3] ?? 4) ? 50 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  }
+  const points = pts.slice(best).concat(pts.slice(0, best));
+  const s = [0];
+  for (let i = 1; i < n; i++) s.push(s[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+  return { ...course, points, s };
+}

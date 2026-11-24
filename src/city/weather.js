@@ -32,6 +32,36 @@ export function nextWeather(now, month = new Date().getMonth(), random = Math.ra
   return odds[0][0];
 }
 
+/** The times of day a bike race can start at (hours, Seoul time), for the race menu. */
+export const TIME_PICKS = {
+  random: { name: 'Random', icon: '🎲' },
+  day: { name: 'Day', icon: '☀️', hours: [9.5, 15.5] },
+  golden: { name: 'Golden hour', icon: '🌇', hours: [17.6, 18.4] },
+  night: { name: 'Night', icon: '🌙', hours: [20.5, 23.8] }
+};
+export const WEATHER_PICKS = ['random', 'clear', 'rain', 'storm', 'snow', 'fog'];
+/** How often each weather comes for a race on "random" (a little more fine weather than the city's own). */
+const RACE_ODDS = { clear: 0.46, rain: 0.2, storm: 0.09, snow: 0.13, fog: 0.12 };
+
+/**
+ * A race's sky: { hour, weather } — what was picked, or random (a random
+ * time of day; weather by the odds, snow only in the cold months).
+ */
+export function raceSky(time = 'random', weather = 'random', { month = new Date().getMonth(), random = Math.random } = {}) {
+  const kinds = ['day', 'golden', 'night'];
+  const t = TIME_PICKS[time]?.hours ? time : kinds[Math.floor(random() * kinds.length)];
+  const [a, b] = TIME_PICKS[t].hours;
+  const hour = a + (b - a) * random();
+  let w = weather;
+  if (!WEATHERS[w]) {
+    const cold = month === 11 || month <= 1;
+    const odds = Object.entries(RACE_ODDS).filter(([k]) => k !== 'snow' || cold);
+    let r = random() * odds.reduce((s, [, p]) => s + p, 0);
+    w = odds.find(([, p]) => (r -= p) <= 0)?.[0] ?? 'clear';
+  }
+  return { hour: Math.round(hour * 100) / 100, weather: w, time: t };
+}
+
 const BOX = new THREE.Vector3(90, 46, 90); // metres of falling weather round the camera
 const RAIN = 9000;
 const SNOW = 7000;

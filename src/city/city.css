@@ -886,3 +886,261 @@
   margin-right: 6px;
   border-radius: 50%;
 }
+
+/* ---- Gangnam Jarani, the bike race HUD: the map top left with your place beside it, the lap top right,
+   the board under it, time and the three item slots bottom centre, speed and the sprint gauge bottom right.
+   One thin line style, one warm gold accent; the middle of the screen stays clear. ---- */
+.race__map {
+  width: 196px;
+  height: 196px;
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.race__pos {
+  left: 222px;
+  top: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 14px 6px;
+  background: rgba(16, 14, 26, 0.72);
+  border: 1px solid rgba(255, 210, 58, 0.55);
+}
+.race__pos b {
+  font-size: 54px;
+  color: #ffd23a;
+  text-shadow: 0 2px 0 #2a2030;
+}
+.race__pos small {
+  font-size: 18px;
+  font-weight: 800;
+}
+.race__pos.is-bump {
+  animation: race-bump 0.35s ease-out;
+}
+@keyframes race-bump {
+  0% { transform: scale(1.35); }
+  60% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+.race__lap {
+  position: absolute;
+  top: 14px;
+  right: 64px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 14px;
+  background: rgba(16, 14, 26, 0.72);
+  border: 1px solid rgba(255, 210, 58, 0.55);
+  color: #fff;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.race__lap b {
+  font-size: 34px;
+  color: #ffd23a;
+}
+.race__lap small {
+  font-weight: 800;
+  opacity: 0.8;
+}
+.race__board {
+  top: 72px;
+  background: rgba(16, 14, 26, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.race__board p.is-me {
+  color: #ffd23a;
+}
+.race__time {
+  position: absolute;
+  left: 50%;
+  bottom: 110px;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  color: #fff;
+  pointer-events: none;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+.race__time b {
+  font-size: 26px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.race__time small {
+  color: #ffd23a;
+  font-weight: 700;
+}
+.race__items {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  pointer-events: none;
+}
+.race__slot {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 18px;
+  background: rgba(16, 14, 26, 0.6);
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  display: grid;
+  place-items: center;
+}
+.race__slot.is-full {
+  border: 2px solid #ffd23a;
+  background: rgba(255, 246, 214, 0.16);
+}
+.race__slot.is-new {
+  animation: race-bump 0.45s ease-out;
+}
+.race__slot img {
+  width: 64px;
+  height: 64px;
+}
+.race__slot kbd {
+  position: absolute;
+  top: -9px;
+  left: -9px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ffd23a;
+  color: #2a2030;
+  font: 900 13px system-ui, sans-serif;
+  border: 2px solid #2a2030;
+}
+.race__slot small {
+  position: absolute;
+  bottom: -18px;
+  white-space: nowrap;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.race__speed {
+  background: rgba(16, 14, 26, 0.72);
+  border: 1px solid rgba(255, 210, 58, 0.45);
+}
+.race__speed span {
+  color: #ffd23a;
+}
+.race__boost {
+  height: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.race__boost i {
+  background: linear-gradient(90deg, #3fd0a8, #9ef07a);
+}
+.race__boost.is-full i {
+  background: linear-gradient(90deg, #ffd23a, #ff8a2a);
+}
+.race__boost.is-tired i {
+  background: #8a8f98;
+}
+.race__shield {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffd23a;
+}
+.race__count {
+  font-size: 140px;
+  color: #ffd23a;
+  -webkit-text-stroke: 4px #2a2030;
+  animation: race-bump 0.5s ease-out;
+}
+.race__count.is-go {
+  color: #9ef07a;
+}
+.race__msg {
+  top: 30%;
+  background: rgba(16, 14, 26, 0.78);
+  border: 1px solid rgba(255, 210, 58, 0.5);
+}
+/* Speed lines round the edge of the screen while sprinting. */
+.race__lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg at 50% 52%, rgba(255, 255, 255, 0) 0deg 3.4deg, rgba(255, 255, 255, 0.26) 3.6deg 3.9deg, rgba(255, 255, 255, 0) 4.1deg 7deg);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 52%, transparent 38%, #000 78%);
+  mask-image: radial-gradient(ellipse at 50% 52%, transparent 38%, #000 78%);
+  animation: race-lines 0.18s steps(2) infinite;
+}
+@keyframes race-lines {
+  from { transform: rotate(0deg) scale(1.05); }
+  to { transform: rotate(2.5deg) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .race__lines,
+  .race__pos.is-bump,
+  .race__slot.is-new,
+  .race__count { animation: none; }
+}
+.race__garage {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+}
+.race__garage img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #9fd0f0, #f2e4c4);
+}
+.race__garage b span {
+  opacity: 0.7;
+  font-weight: 600;
+}
+.race__garage button.is-on,
+.race__courses button.is-on,
+.race__row button.is-on {
+  border-color: #ffd23a;
+}
+.race__room li img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 6px;
+  background: #9fd0f0;
+}
+@media (max-width: 760px) {
+  .race__map {
+    width: 132px;
+    height: 132px;
+  }
+  .race__pos {
+    left: 156px;
+  }
+  .race__board {
+    display: none;
+  }
+  .race__slot {
+    width: 60px;
+    height: 60px;
+  }
+  .race__slot img {
+    width: 48px;
+    height: 48px;
+  }
+}
+.seoul.is-racing .seoul__credit {
+  font-size: 9px;
+  opacity: 0.75;
+}
+.seoul.is-racing .race__items {
+  bottom: 40px;
+}
+.seoul.is-racing .race__time {
+  bottom: 136px;
+}

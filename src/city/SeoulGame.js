@@ -14,6 +14,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Race } from './race.js';
+import { readAlleys } from './alleys.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
 
@@ -302,7 +303,7 @@ export class SeoulGame {
           <button type="button" data-mode="walk" title="Walk the streets (F switches)">🚶 Walk</button>
           <button type="button" data-mode="drive" title="Drive: into the nearest car, or one brought to the road beside you">🚗 Drive</button>
           <button type="button" data-who title="Who you are on the street (V)">🧍</button>
-          <button type="button" data-race title="Race at night on real streets — alone against bots, or with up to four friends">🏁 Race</button>
+          <button type="button" data-race title="Race bikes through real streets and alleys — alone against bots, or with up to four friends">🚲 Race</button>
           <button type="button" data-open-places title="Districts and tall buildings to go to (M)">🧭 Places</button>
           <button type="button" data-open-gfx title="Graphics: Quiet keeps your laptop cool (G)">⚙️ Graphics</button>
           <button type="button" data-help-button title="How to play (H)">❔ Help</button>
@@ -380,13 +381,16 @@ export class SeoulGame {
       const [terrain, roads] = await Promise.all([this.index.terrain ? bin('terrain.bin') : null, this.index.roads ? bin('roads.bin') : null]);
       if (terrain) this._terrain(terrain);
       if (roads) this._roads(roads);
+      // The small streets round the bike courses (alleys.bin, if converted): planned on and walked, not drawn here.
+      const alleys = this.roadTiles ? await bin('alleys.bin') : null;
+      if (alleys) this._alleys(alleys);
       if (this.terrain) {
         this.ground.visible = false;
         this.pos.y += this.groundAt(this.pos.x, this.pos.z);
       }
       for (const l of this.index.landmarks) if (l.tower) this._tower(l);
       // A short credit always on screen; each source's full notice is in the Places panel.
-      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)'].filter(Boolean).join(' · ');
+      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '버스·스쿠터 bus, scooter: polyfork.dev (CC BY 4.0)'].filter(Boolean).join(' · ');
       this.ready = true;
       // Gangnam Jarani opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
@@ -508,11 +512,14 @@ export class SeoulGame {
       shader.uniforms.uSigns = { value: this.signs };
       shader.uniforms.uSkyTop = this.uniforms.uSkyTop;
       shader.uniforms.uSkyLow = this.uniforms.uSkyLow;
+      // Near walls in real materials: red brick, small tiles, render (ambientCG, CC0).
+      shader.uniforms.uBrick = { value: texture('Bricks105', 'Color') };
+      shader.uniforms.uRender = { value: texture('Concrete034', 'Color') };
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nattribute vec2 aKind;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;\nvKind = aKind;\nvWorldN = normal;\nvWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uNight;\nuniform sampler2D uSigns;\nuniform vec3 uSkyTop;\nuniform vec3 uSkyLow;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;\nfloat seoulLit = 0.0;\nvec3 seoulGlow = vec3(0.0);\nfloat seoulHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
+        .replace('#include <common>', '#include <common>\nuniform float uNight;\nuniform sampler2D uSigns;\nuniform sampler2D uBrick;\nuniform sampler2D uRender;\nuniform vec3 uSkyTop;\nuniform vec3 uSkyLow;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;\nfloat seoulLit = 0.0;\nvec3 seoulGlow = vec3(0.0);\nfloat seoulHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
         .replace('#include <color_fragment>', `#include <color_fragment>
           if (vWall.x >= 0.0) {
             // What it is: 0 house · 1 apartment · 2 shop · 3 office · 4 public · 5 industry · 6 other; and how tall.
@@ -522,6 +529,24 @@ export class SeoulGame {
             // Glass towers: about half the tall offices (the rest stone with punched windows), and the very tallest.
             bool curtain = kind != 1.0 && kind != 0.0 && ((kind == 3.0 && tall > 22.0 && fract(vWall.z * 5.3) < 0.5) || tall > 90.0);
             bool flats = kind == 1.0;
+            // Close up, the wall is a real material: the low red buildings brick, the grey-brown ones small
+            // tiles, the rest render — its grain and colour, fading out with distance.
+            float nearT = 1.0 - smoothstep(50.0, 240.0, length(vViewPosition));
+            if (nearT > 0.0 && !curtain && tall < 25.0 && kind != 1.0) {
+              float seedW = vWall.z;
+              vec2 wuv = vec2(vWall.x, vWall.y);
+              if (seedW < 0.2) {
+                vec3 brick = texture2D(uBrick, wuv / 1.6).rgb;
+                diffuseColor.rgb = mix(diffuseColor.rgb, brick * vec3(1.18, 1.05, 1.0), nearT * 0.85);
+              } else if (seedW < 0.4) {
+                vec3 tile = texture2D(uBrick, wuv / 0.7).rgb;
+                float l = dot(tile, vec3(0.333));
+                diffuseColor.rgb *= mix(1.0, 0.55 + l * 1.3, nearT * 0.7);
+              } else {
+                float l = dot(texture2D(uRender, wuv / 3.0).rgb, vec3(0.333));
+                diffuseColor.rgb *= mix(1.0, 0.6 + l * 0.9, nearT * 0.6);
+              }
+            }
             float floorH = flats ? 2.8 : curtain ? 3.8 : 3.3;
             float bay = curtain ? 1.6 : flats ? 3.6 : 3.2;
             vec2 cell = vec2(vWall.x / bay, vWall.y / floorH);
@@ -809,11 +834,13 @@ export class SeoulGame {
       for (let i = 0; i < n; i++) low = Math.min(low, this.groundAt(xs[i], zs[i]));
       const base = low - 1.5;
       const top = this.groundAt((minx + maxx) / 2, (minz + maxz) / 2) + b.height;
-      foot.push({ minx, maxx, minz, maxz, xs, zs, h: b.height, name: b.name });
+      // (base, top, kind, seed, where its walls' u starts and which way: for the near facades, facades.js)
+      foot.push({ minx, maxx, minz, maxz, xs, zs, h: b.height, name: b.name, base, top, kind: Math.max(0, USES.indexOf(USES[b.use] ?? 'other')), seed, start: seed * 3.2, flip: 0 });
       const kind = Math.max(0, USES.indexOf(USES[b.use] ?? 'other'));
       let area = 0;
       for (let i = 0; i < n; i++) area += xs[i] * zs[(i + 1) % n] - xs[(i + 1) % n] * zs[i];
       const flip = area > 0 ? -1 : 1;
+      foot.at(-1).flip = flip;
       let along = seed * 3.2;
       for (let i = 0; i < n; i++) {
         const j = (i + 1) % n;
@@ -1010,6 +1037,43 @@ export class SeoulGame {
         }
       }
     }
+  }
+
+  /**
+   * The small streets (alleys.bin): each listed with the tile it starts in, beside the
+   * main roads, so the bike courses can be planned through them and people walk them.
+   * They are not drawn with the city: the race lays the ones its course uses (golmok.js).
+   */
+  _alleys(buf) {
+    const list = readAlleys(buf, ORIGIN);
+    for (const road of list) {
+      const key = tileKey(...tileOf(road.pts[0] + ORIGIN.x, -road.pts[1] + ORIGIN.y));
+      if (!this.roadTiles.has(key)) this.roadTiles.set(key, []);
+      this.roadTiles.get(key).push(road);
+    }
+    this.alleyCount = list.length;
+  }
+
+  /**
+   * A race's own time and weather: the clock stops at `hour` and the weather is set (at
+   * once, not eased in). `null` gives the city its own clock and changing weather back.
+   */
+  raceSky(hour, weather) {
+    if (hour == null) {
+      if (this.clockPaused) {
+        this.clockPaused = false;
+        if (this.weather) this.weather.auto = true;
+      }
+      return;
+    }
+    this.clockPaused = true;
+    this.setHour(hour);
+    if (this.weather && WEATHERS[weather]) {
+      this.weather.auto = false;
+      this.weather.set(weather);
+      for (const k of ['rain', 'snow', 'fog', 'wet']) this.weather.level[k] = WEATHERS[weather][k];
+    }
+    this._showWeather();
   }
 
   /** Whether a point is on any road's surface (with `margin` metres more each side). */
@@ -1519,9 +1583,10 @@ export class SeoulGame {
       this.keys.add(e.code);
       if (e.repeat) return;
       if (this.mode === 'race') {
-        // A tap of Space between two frames still fires the turbo.
-        if (e.code === 'Space') this.race.turboTap = true;
+        // A tap of Space between two frames still sprints.
+        if (e.code === 'Space') this.race.sprintTap = true;
         if (e.code === 'KeyB') this.race.horn();
+        else if (e.code === 'KeyH' || e.code === 'KeyI') this.help.toggle();
         else if (e.code === 'Escape') this.race.quit();
         return;
       }
@@ -1652,7 +1717,7 @@ export class SeoulGame {
     const w = this.weather;
     // The clock: 24 minutes a day (an hour a minute); the light is set again a few times a second.
     this._hourT = (this._hourT ?? 0) + dt;
-    this._hourAcc = (this._hourAcc ?? 0) + dt / 60;
+    this._hourAcc = (this._hourAcc ?? 0) + (this.clockPaused ? 0 : dt / 60);
     if (this._hourT > 0.25) {
       this.setHour(this.hour + this._hourAcc);
       this._showWeather();
