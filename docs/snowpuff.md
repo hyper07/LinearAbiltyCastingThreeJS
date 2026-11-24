@@ -55,9 +55,26 @@ read at a glance — from behind, at speed (`src/snowpuff/riders.js`):
 
 They are sculpted in code from soft shapes (the Arcademia sculptor,
 `src/arcademia/world/creatures/sculpt.js`) into one smooth skinned body each,
-then dressed in a TSL plush material with sheen and a fresnel rim, and
-**shell fur** (12 shells on your rider on the high tier, 6 on the rivals),
-bead eyes with a catchlight, a stitched mouth and blush. They squash on
+sculpted finely (110 cells across for you and the turntable, 90 for rivals)
+so no silhouette shows facets, then dressed in a TSL plush material with
+sheen, a warm fresnel rim against the snow, a fine woven fabric on the suit
+panels and a **contact shadow baked per vertex** from the sculpt's distance
+field (under the arms and chin, between the legs, where the feet meet the
+board). The **shell fur** is long and shaggy: strands gather into clumps
+toward the tips, lie down and back along the body, roots dark and tips
+lighter and catching the light, and more strands survive at the silhouette
+for a fuzzy fringe; it grows everywhere — fuzzy mittens and socks too — but
+short and velvety round the eyes, nose and mouth (a baked `furry` mask).
+**Fur LOD**: 20 shells on your rider (high tier), 12 on rivals close by,
+about half from 7 m, 4 from 16 m and none beyond 40 m — the same fur length,
+only fewer instances (no new pipelines). Eyes have depth: a glossy iris (a
+colour per rider), a black pupil and two catchlights (seen when the goggles are
+pushed up); a stitched embroidery mouth, soft blush and coloured inner ears.
+Boots have soles with a tread line, criss-cross laces and a bow; Mallow's belly
+pocket is woven cotton with a stitched seam; boards show their printed
+topsheet over a coloured sidewall and a steel edge. Measured on the high tier
+(Marshmallow Hill, the pack together) the frame time stayed the same:
+8.3 ms mean, 9.3 ms p99. They squash on
 landing, lean into carves, crouch to jump, breathe when idle; ears, tail,
 scarf and pompom swing on springs.
 

@@ -21,8 +21,8 @@ import { smaa } from 'three/addons/tsl/display/SMAANode.js';
 import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
 
 export const TIERS = {
-  high: { name: 'high', dpr: 2, ao: 1, aoScale: 0.5, aa: 'traa', bloom: 1, shadow: 2048, fur: 12, rivalFur: 6, particles: 1, trails: 1 },
-  medium: { name: 'medium', dpr: 1.5, ao: 1, aoScale: 0.5, aa: 'smaa', bloom: 1, shadow: 1024, fur: 8, rivalFur: 0, particles: 0.7, trails: 1 },
+  high: { name: 'high', dpr: 2, ao: 1, aoScale: 0.5, aa: 'traa', bloom: 1, shadow: 2048, fur: 20, rivalFur: 12, particles: 1, trails: 1 },
+  medium: { name: 'medium', dpr: 1.5, ao: 1, aoScale: 0.5, aa: 'smaa', bloom: 1, shadow: 1024, fur: 12, rivalFur: 0, particles: 0.7, trails: 1 },
   low: { name: 'low', dpr: 1, ao: 0, aoScale: 0.5, aa: 'fxaa', bloom: 0.6, shadow: 1024, fur: 0, rivalFur: 0, particles: 0.45, trails: 0 }
 };
 export const TIER_ORDER = ['low', 'medium', 'high'];

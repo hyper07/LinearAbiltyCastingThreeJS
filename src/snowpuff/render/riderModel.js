@@ -18,7 +18,7 @@ import * as THREE from 'three/webgpu';
 import { uniform } from 'three/tsl';
 import { compile, sculpt, trace, gradient } from '../../arcademia/world/creatures/sculpt.js';
 import { SPECIES } from '../riders.js';
-import { plushMaterial, furShells, vinylMaterial, knitMaterial } from './plush.js';
+import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial, fabricMaterial } from './plush.js';
 import { PoseRig, J, STANCE, SPIN_T, PLANT_T, iceSpin, plantPitch } from './poseRig.js';
 import { buildGoggles } from './goggles.js';
 import { buildBoard } from './boards.js';
@@ -99,9 +99,9 @@ const RECIPES = {
         // dark socks and mittens
         ...both(E([-0.11, 0.045, 0.06], [0.1, 0.06, 0.13], { col: D }), S([-0.3, 0.255, 0.06], 0.08, { col: D })),
         E([0, 0.63, 0.335], [0.04, 0.028, 0.03], { col: '#2a1a14', soft: 0.004 }),
-        ...both(E([-0.22, 0.6, 0.25], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.02 }))
+        ...both(E([-0.22, 0.6, 0.25], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.034 }))
       ],
-      face: { eyeX: 0.125, eyeY: 0.7, eyeR: 0.04, mouthY: 0.555 },
+      face: { iris: '#6a3412', eyeX: 0.125, eyeY: 0.7, eyeR: 0.04, mouthY: 0.555 },
       accent: null,
       topsheet: 'stars'
     };
@@ -121,13 +121,13 @@ const RECIPES = {
       paint: [
         ...b.paint,
         ...both(E([-0.165, 1.1, 0.02], [0.042, 0.18, 0.04], { col: '#ffc2dc', rot: [0, 0, -0.18] })),
-        ...both(E([-0.2, 0.59, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.02 })),
+        ...both(E([-0.2, 0.59, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.034 })),
         E([0, 0.615, 0.3], [0.03, 0.02, 0.03], { col: '#e0447e', soft: 0.004 }),
         // a lighter-pink belly panel with a little front pocket
         E([0, 0.25, 0.15], [0.15, 0.17, 0.1], { col: sp.light, soft: 0.008 }),
         E([0, 0.2, 0.19], [0.085, 0.05, 0.05], { col: '#ffb3d4', soft: 0.003 })
       ],
-      face: { eyeX: 0.12, eyeY: 0.66, eyeR: 0.04, mouthY: 0.565 },
+      face: { iris: '#4a2236', eyeX: 0.12, eyeY: 0.66, eyeR: 0.04, mouthY: 0.565 },
       accent: null,
       pocket: [0, 0.2, 0.19],
       topsheet: 'hearts'
@@ -148,9 +148,9 @@ const RECIPES = {
         ...b.paint,
         ...both(S([-0.235, 0.91, 0.05], 0.05, { col: sp.light })),
         E([0, 0.635, 0.325], [0.045, 0.03, 0.03], { col: '#3a2418', soft: 0.004 }),
-        ...both(E([-0.21, 0.6, 0.25], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.02 }))
+        ...both(E([-0.21, 0.6, 0.25], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.034 }))
       ],
-      face: { eyeX: 0.13, eyeY: 0.69, eyeR: 0.04, mouthY: 0.565 },
+      face: { iris: '#3e2414', eyeX: 0.13, eyeY: 0.69, eyeR: 0.04, mouthY: 0.565 },
       accent: 'scarf',
       topsheet: 'paws'
     };
@@ -174,9 +174,9 @@ const RECIPES = {
         ...both(E([-0.31, 0.68, 0.06], [0.03, 0.015, 0.06], { col: stripe, soft: 0.006 }), E([-0.33, 0.62, 0.04], [0.03, 0.015, 0.06], { col: stripe, soft: 0.006 })),
         ...both(E([-0.215, 0.95, 0.03], [0.04, 0.06, 0.03], { col: '#ffc6d2' })),
         E([0, 0.62, 0.3], [0.028, 0.02, 0.03], { col: '#e86a8a', soft: 0.004 }),
-        ...both(E([-0.21, 0.59, 0.24], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.02 }))
+        ...both(E([-0.21, 0.59, 0.24], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.034 }))
       ],
-      face: { eyeX: 0.13, eyeY: 0.67, eyeR: 0.04, mouthY: 0.57 },
+      face: { iris: '#33592a', eyeX: 0.13, eyeY: 0.67, eyeR: 0.04, mouthY: 0.57 },
       accent: 'beanie',
       topsheet: 'fish'
     };
@@ -193,9 +193,9 @@ const RECIPES = {
       paint: [
         ...b.paint,
         ...both(S([-0.155, 0.87, 0.16], 0.07, { col: '#ffffff', soft: 0.006 })),
-        ...both(E([-0.24, 0.6, 0.23], [0.06, 0.035, 0.04], { col: BLUSH, soft: 0.02 }))
+        ...both(E([-0.24, 0.6, 0.23], [0.06, 0.035, 0.04], { col: BLUSH, soft: 0.034 }))
       ],
-      face: { eyeX: 0.155, eyeY: 0.875, eyeR: 0.04, mouthY: 0.58, wide: true, eyeZ: 0.24 },
+      face: { iris: '#3a2a14', eyeX: 0.155, eyeY: 0.875, eyeR: 0.04, mouthY: 0.58, wide: true, eyeZ: 0.24 },
       accent: 'backpack',
       topsheet: 'dots'
     };
@@ -214,7 +214,7 @@ const RECIPES = {
       paint: [
         ...b.paint,
         ...both(E([-0.035, 0.6, 0.36], [0.018, 0.026, 0.02], { col: '#8a3a3a', soft: 0.004 })),
-        ...both(E([-0.22, 0.6, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.02 }))
+        ...both(E([-0.22, 0.6, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.034 }))
       ],
       face: { eyeX: 0.13, eyeY: 0.7, eyeR: 0.038, mouthY: 0.52 },
       accent: null,
@@ -233,7 +233,7 @@ const RECIPES = {
       paint: [
         E([0, 0.32, 0.12], [0.17, 0.2, 0.12], { col: sp.light, soft: 0.012 }),
         E([0, 0.62, 0.2], [0.25, 0.17, 0.16], { col: sp.light, soft: 0.01 }),
-        ...both(E([-0.21, 0.58, 0.24], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.02 }))
+        ...both(E([-0.21, 0.58, 0.24], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.034 }))
       ],
       face: { eyeX: 0.12, eyeY: 0.68, eyeR: 0.038, mouthY: null },
       accent: 'beanie',
@@ -247,16 +247,62 @@ const RECIPES = {
 const sculpted = new Map();
 
 /** The sculpted body of a species: { geometry, model (sdf), recipe }. */
-export function sculptSpecies(species, res = 74) {
+export function sculptSpecies(species, res = 110) {
   const key = `${species}|${res}`;
   if (sculpted.has(key)) return sculpted.get(key);
   const sp = SPECIES[species];
   const recipe = RECIPES[sp.animal](sp);
   const model = compile(recipe);
   const geometry = sculpt(model, { res });
+  bakeContact(geometry, model.sdf);
+  bakeFurry(geometry, recipe);
   const out = { geometry, model, recipe };
   sculpted.set(key, out);
   return out;
+}
+
+/**
+ * Contact shadow per vertex (attribute `ao`, 1 = open), from the distance
+ * field: march a few steps out along the normal and see how soon the body is
+ * there again (under the arms and chin, between the legs); the feet darken
+ * where they meet the board.
+ */
+function bakeContact(geo, sdf) {
+  const P = geo.attributes.position, N = geo.attributes.normal;
+  const ao = new Float32Array(P.count);
+  const steps = [0.018, 0.04, 0.07, 0.11, 0.16];
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i), nx = N.getX(i), ny = N.getY(i), nz = N.getZ(i);
+    let occ = 0, w = 1;
+    for (const d of steps) {
+      occ += (Math.max(0, d - sdf(x + nx * d, y + ny * d, z + nz * d)) / d) * w;
+      w *= 0.62;
+    }
+    const feet = 0.55 + 0.45 * Math.min(1, Math.max(0, (y - 0.01) / 0.09));
+    ao[i] = Math.max(0, Math.min(1, 1 - occ * 0.5)) * feet;
+  }
+  geo.setAttribute('ao', new THREE.BufferAttribute(ao, 1));
+}
+
+/**
+ * Where fur grows (attribute `furry`, 0..1): all over — the dark mittens and
+ * socks, the cream belly and muzzle too — but short and velvety round the
+ * eyes, nose and mouth so the face stays crisp.
+ */
+function bakeFurry(geo, recipe) {
+  const P = geo.attributes.position, N = geo.attributes.normal;
+  const f = recipe.face;
+  const hc = recipe.parts[0].c;
+  const cy = (f.eyeY + (f.mouthY ?? f.eyeY - 0.12)) / 2, ry = Math.abs(f.eyeY - (f.mouthY ?? f.eyeY - 0.12)) / 2 + 0.075, rx = f.eyeX + 0.085;
+  const out = new Float32Array(P.count);
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+    const front = Math.min(1, Math.max(0, (N.getZ(i) - 0.25) / 0.35)) * (z > hc[2] ? 1 : 0);
+    const e = Math.hypot(x / rx, (y - cy) / ry);
+    const face = front * Math.min(1, Math.max(0, (1.25 - e) / 0.35));
+    out[i] = 1 - face * 0.7;
+  }
+  geo.setAttribute('furry', new THREE.BufferAttribute(out, 1));
 }
 
 /* ---------------------------------------------------------------- shared little geometries */
@@ -275,7 +321,7 @@ export class RiderModel {
    * @param {string} species
    * @param {{ fur?: number, res?: number, shadow?: boolean, goggles?: string, label?: string }} o
    */
-  constructor(species, { fur = 0, res = 74, shadow = true, goggles = 'classic', board = 'classic', label = '' } = {}) {
+  constructor(species, { fur = 0, res = 110, shadow = true, goggles = 'classic', board = 'classic', label = '' } = {}) {
     this.species = species;
     const sp = SPECIES[species];
     this.sp = sp;
@@ -329,7 +375,7 @@ export class RiderModel {
     this.body.add(mesh);
     this.wind = uniform(new THREE.Vector3());
     // long shaggy fur (shorter on the penguin's sleek feathers)
-    this.furLen = fur > 0 ? (species === 'penguin' ? 0.014 : 0.04) : 0;
+    this.furLen = fur > 0 ? (species === 'penguin' ? 0.016 : 0.052) : 0;
     if (fur > 0) {
       this.fur = furShells(mesh, { color: sp.color, count: fur, length: this.furLen, wind: this.wind });
       this.body.add(this.fur);
@@ -361,7 +407,9 @@ export class RiderModel {
   addFace(model, f, headBone) {
     const hp = this.rest.get('head');
     const sdf = model.sdf;
-    const eyeMat = vinylMaterial('#1a1210', { roughness: 0.12, clearcoat: 1 });
+    // eyes with depth: a glossy dark iris, a black pupil sitting in it, two catchlights
+    const eyeMat = vinylMaterial(f.iris ?? '#4a2a1a', { roughness: 0.1, clearcoat: 1 });
+    const pupilMat = vinylMaterial('#0b0807', { roughness: 0.08, clearcoat: 1 });
     const glint = new THREE.MeshBasicNodeMaterial({ color: '#ffffff' });
     this.eyes = [];
     for (const s of [-1, 1]) {
@@ -376,10 +424,16 @@ export class RiderModel {
       eye.lookAt(_v.set(eye.position.x + g[0], eye.position.y + g[1] * 0.4, eye.position.z + g[2]));
       const ball = new THREE.Mesh(sphere(), eyeMat);
       ball.scale.set(f.eyeR, f.eyeR * 1.15, f.eyeR * 0.6);
+      const pupil = new THREE.Mesh(sphere(), pupilMat);
+      pupil.scale.set(f.eyeR * 0.66, f.eyeR * 0.78, f.eyeR * 0.45);
+      pupil.position.z = f.eyeR * 0.2;
       const gl = new THREE.Mesh(lowSphere(), glint);
-      gl.scale.setScalar(f.eyeR * 0.32);
-      gl.position.set(f.eyeR * 0.3, f.eyeR * 0.38, f.eyeR * 0.5);
-      eye.add(ball, gl);
+      gl.scale.setScalar(f.eyeR * 0.3);
+      gl.position.set(f.eyeR * 0.32 * -s, f.eyeR * 0.4, f.eyeR * 0.6);
+      const gl2 = new THREE.Mesh(lowSphere(), glint);
+      gl2.scale.setScalar(f.eyeR * 0.13);
+      gl2.position.set(-f.eyeR * 0.3 * -s, -f.eyeR * 0.36, f.eyeR * 0.58);
+      eye.add(ball, pupil, gl, gl2);
       headBone.add(eye);
       this.eyes.push(eye);
     }
@@ -395,8 +449,15 @@ export class RiderModel {
         if (hit) pts.push(new THREE.Vector3(hit[0] - hp.x, hit[1] - hp.y, hit[2] - hp.z + 0.003 + this.furLen * 0.5));
       }
       if (pts.length > 3) {
-        const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.0065, 6, false), vinylMaterial('#3a2420', { roughness: 0.6, clearcoat: 0 }));
-        headBone.add(tube);
+        // stitched: short thread stitches with little gaps, like embroidery on a plush
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const n = f.wide ? 7 : 4;
+        const thread = vinylMaterial('#3a2420', { roughness: 0.7, clearcoat: 0 });
+        for (let i = 0; i < n; i++) {
+          const a = i / n + 0.12 / n, b = (i + 1) / n - 0.12 / n;
+          const seg = [0, 0.5, 1].map((k) => curve.getPoint(a + (b - a) * k));
+          headBone.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(seg), 4, 0.0058, 5, false), thread));
+        }
       }
     }
   }
@@ -449,6 +510,16 @@ export class RiderModel {
     this.board.add(this.deck.group);
   }
 
+  /**
+   * Fur level of detail from the camera distance (m): every shell close up,
+   * fewer further away, none in the distance — the same fur length throughout.
+   */
+  furLod(dist) {
+    if (!this.fur) return;
+    const max = this.fur.userData.count;
+    setFurLod(this.fur, dist < 7 ? max : dist < 16 ? max * 0.55 : dist < 40 ? Math.min(max, 4) : 0);
+  }
+
   /** Goggles down (0) over the eyes, or pushed up (1) onto the forehead. */
   gogglesUp(k = 1) {
     this.goggles?.setUp(k);
@@ -483,10 +554,23 @@ export class RiderModel {
       const bottom = new THREE.Mesh(sphere(), sole);
       bottom.scale.set(0.1 + pad, 0.026, 0.132 + pad);
       bottom.position.y = -0.04;
-      const lace = new THREE.Mesh(sphere(), vinylMaterial(this.sp.accent, { roughness: 0.45 }));
-      lace.scale.set(0.05, 0.022, 0.05);
-      lace.position.set(0, 0.045 + pad * 0.6, 0.06);
-      boot.add(shell, cuff, bottom, lace);
+      // criss-cross laces up the front, a bow at the top, a tread line round the sole
+      const laceM = vinylMaterial(this.sp.accent, { roughness: 0.5, clearcoat: 0.2 });
+      for (let k = 0; k < 3; k++) {
+        for (const d of [-1, 1]) {
+          const l = new THREE.Mesh(G.lace ??= new THREE.CapsuleGeometry(0.006, 0.06, 3, 6).rotateZ(Math.PI / 2), laceM);
+          l.position.set(0, 0.03 + k * 0.022 + pad * 0.5, 0.085 + pad - k * 0.018);
+          l.rotation.set(-0.7, d * 0.55, 0);
+          boot.add(l);
+        }
+      }
+      const bow = new THREE.Mesh(sphere(), laceM);
+      bow.scale.set(0.022, 0.012, 0.012);
+      bow.position.set(0, 0.098 + pad * 0.5, 0.045 + pad);
+      const tread = new THREE.Mesh(G.tread ??= new THREE.TorusGeometry(1, 0.06, 6, 28).rotateX(Math.PI / 2), vinylMaterial('#c9c3b8', { roughness: 0.8, clearcoat: 0 }));
+      tread.scale.set(0.1 + pad, 0.1, 0.132 + pad);
+      tread.position.y = -0.052;
+      boot.add(shell, cuff, bottom, tread, bow);
       b.add(boot);
     }
   }
@@ -496,8 +580,17 @@ export class RiderModel {
     const cp = this.rest.get('chest');
     const g = new THREE.Group();
     g.position.set(at[0] - cp.x, at[1] - cp.y + 0.035, at[2] - cp.z + this.furLen + 0.015);
-    const flap = new THREE.Mesh(sphere(), vinylMaterial('#ffa0c8', { roughness: 0.7, clearcoat: 0 }));
+    const cloth = fabricMaterial('#ffa0c8');
+    const flap = new THREE.Mesh(sphere(), cloth);
     flap.scale.set(0.085, 0.022, 0.025);
+    // the pocket itself: a soft woven patch with a stitched seam round it
+    const patch = new THREE.Mesh(sphere(), fabricMaterial('#ffb8d6'));
+    patch.scale.set(0.09, 0.07, 0.022);
+    patch.position.set(0, -0.055, -0.008);
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(1, 0.018, 4, 40), vinylMaterial('#e8659e', { roughness: 0.85, clearcoat: 0 }));
+    seam.scale.set(0.082, 0.064, 0.4);
+    seam.position.set(0, -0.055, 0.012);
+    g.add(patch, seam);
     const button = new THREE.Mesh(lowSphere(), vinylMaterial('#ffffff', { roughness: 0.3 }));
     button.scale.setScalar(0.013);
     button.position.set(0, -0.006, 0.022);
@@ -542,12 +635,14 @@ export class RiderModel {
       hat.position.set(0, top - hp.y, -0.02);
       hat.rotation.x = -0.12;
       const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), m);
-      dome.scale.set(0.3, 0.2, 0.27);
+      // sized over the fur, so the long plush doesn't poke through the knit
+      const fp = this.furLen * 0.85;
+      dome.scale.set(0.3 + fp, 0.2 + fp, 0.27 + fp);
       const rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.17, 10, 36), knitMaterial('#ffffff'));
-      rim.scale.set(0.3, 0.27, 0.2);
+      rim.scale.set(0.3 + fp, 0.27 + fp, 0.2);
       rim.rotation.x = Math.PI / 2;
       const pom = new THREE.Group();
-      pom.position.y = 0.2;
+      pom.position.y = 0.2 + fp;
       const ball = new THREE.Mesh(sphere(), knitMaterial('#ffffff'));
       ball.scale.setScalar(0.075);
       ball.position.y = 0.05;

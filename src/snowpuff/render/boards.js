@@ -11,7 +11,7 @@
  * Board space: x along the board (nose +x), y up, z across.
  */
 import * as THREE from 'three/webgpu';
-import { uniform, vec3, float, sin, time } from 'three/tsl';
+import { uniform, vec3, float, sin, time, uv, mix, color, smoothstep } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cleanBoard, BOARD_IDS } from '../boardList.js';
 
@@ -328,10 +328,22 @@ function printMaterial(id, opts) {
   });
 }
 
+/** The board's side: a coloured sidewall over a thin steel edge along the bottom. */
+function sideEdge(c) {
+  return cached(`side${c}`, () => {
+    const m = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.15 });
+    const steel = smoothstep(0.34, 0.26, uv().y);
+    m.colorNode = mix(color(c), color('#aeb6c0'), steel);
+    m.metalnessNode = steel.mul(0.85);
+    m.roughnessNode = mix(float(0.35), float(0.22), steel);
+    return m;
+  });
+}
+
 /** BoxGeometry's top face is group 2: put the print there and base/edge elsewhere. */
 function deckMesh(geo, id, opts) {
   const st = STYLE[id];
-  const edge = vinyl(st.edge, 0.35);
+  const edge = sideEdge(st.edge);
   const base = vinyl(st.base, 0.4);
   // [ +x, −x, +y (top), −y (base), +z, −z ]
   return new THREE.Mesh(geo, [edge, edge, printMaterial(id, opts), base, edge, edge]);

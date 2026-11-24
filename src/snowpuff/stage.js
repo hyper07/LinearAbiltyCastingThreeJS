@@ -28,7 +28,7 @@ const POD = new THREE.Vector3(-40, 0, 0);
 export class Stage {
   constructor(renderer, { fur = 0 } = {}) {
     this.renderer = renderer;
-    this.fur = fur;
+    this.fur = Math.min(16, fur);
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(36, 16 / 9, 0.1, 400);
     this.camPos = new THREE.Vector3(0, 1.6, 6.4);

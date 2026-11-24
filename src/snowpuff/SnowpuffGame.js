@@ -559,7 +559,7 @@ export class SnowpuffGame {
       const fur = r.me ? this.tier.fur : this.tier.rivalFur;
       r.goggles = r.me ? this.goggles : cleanGoggle(sl.goggles);
       r.board = r.me ? this.boardId : cleanBoard(sl.board);
-      r.model = new RiderModel(sl.species, { fur, res: r.me ? 74 : 60, goggles: r.goggles, board: r.board, label: name });
+      r.model = new RiderModel(sl.species, { fur, res: r.me ? 110 : 90, goggles: r.goggles, board: r.board, label: name });
       scene.add(r.model.root);
       r.shieldMesh = this.fx.shieldMesh();
       r.model.root.add(r.shieldMesh);
@@ -1472,6 +1472,7 @@ export class SnowpuffGame {
         root.position.copy(this.liftChair.position).add(this.liftSeat);
         root.rotation.set(0, this.liftChair.rotation.y, 0);
       }
+      rc.model.furLod(rc.me ? 0 : Math.hypot(rc.pos.x - this.camera.position.x, rc.pos.y - this.camera.position.y, rc.pos.z - this.camera.position.z));
       rc.model.pose(dt, ps);
       // the glove dragging in the snow on a hard toeside carve leaves a little spray
       if (rc.model.handDrag > 0.4 && this.near(rc, 40) && Math.random() < rc.model.handDrag * 0.9) {
