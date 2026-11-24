@@ -81,7 +81,7 @@ const stars = (n) => `<span aria-label="difficulty ${n} of 3">${'❄'.repeat(n)}
  * Build the picker into `host`. Returns { el, select(id), dispose() }.
  * `onPick(id)`, `onGo()`; `best` the saved best times; `fmt` formats a time.
  */
-export function worldMap(host, { picked, best = {}, onPick, onGo, fmt = (t) => t.toFixed(1), ordinal = (n) => n }) {
+export function worldMap(host, { picked, best = {}, onPick, onGo, fmt = (t) => t.toFixed(1), ordinal = (n) => n, footer = '' }) {
   const root = document.createElement('div');
   root.className = 'sp-world';
   const pins = MOUNTAINS.map((m) => {
@@ -139,7 +139,7 @@ export function worldMap(host, { picked, best = {}, onPick, onGo, fmt = (t) => t
       <div class="sp-diff">${stars(m.difficulty)}</div>
       <p class="sp-world__fact">${esc(m.fact ?? '')}</p>
       <p class="sp-world__blurb">${esc(m.blurb)}</p>
-      <div class="sp-best">${b ? `Best: ${fmt(b.time)} · ${ordinal(b.place)}` : 'Not raced yet'}</div>`;
+      <div class="sp-best">${b ? `Best: ${fmt(b.time)} · ${ordinal(b.place)}` : 'Not raced yet'}</div>${footer}`;
   };
   const select = (id, { zoom = false } = {}) => {
     current = id;

@@ -18,6 +18,7 @@
 
 import { cleanName } from './names.js';
 import { cleanGoggle, randomGoggle } from './goggleList.js';
+import { cleanBoard, randomBoard } from './boardList.js';
 
 export const MSG = Object.freeze({
   hi: 'sp-hi',
@@ -78,7 +79,7 @@ export function unpackThrow(a) {
 /** Clean up a lobby member record from the wire. */
 export function cleanMember(m, species) {
   const name = cleanName(m?.name, 'Rider');
-  return { id: String(m?.id ?? ''), name, species: species.includes(m?.species) ? m.species : species[0], goggles: cleanGoggle(m?.goggles) };
+  return { id: String(m?.id ?? ''), name, species: species.includes(m?.species) ? m.species : species[0], goggles: cleanGoggle(m?.goggles), board: cleanBoard(m?.board) };
 }
 
 /**
@@ -86,13 +87,13 @@ export function cleanMember(m, species) {
  * empty places (up to `total`), each with a species no human took where possible.
  */
 export function assignSlots(members, total, species, aiKinds = ['careful', 'reckless', 'thrower'], rand = Math.random) {
-  const slots = members.slice(0, 4).map((m, i) => ({ slot: i, id: m.id, name: m.name, species: m.species, goggles: cleanGoggle(m.goggles), human: true, kind: null }));
+  const slots = members.slice(0, 4).map((m, i) => ({ slot: i, id: m.id, name: m.name, species: m.species, goggles: cleanGoggle(m.goggles), board: cleanBoard(m.board), human: true, kind: null }));
   const taken = new Set(slots.map((s) => s.species));
   const free = species.filter((s) => !taken.has(s));
   let i = 0;
   while (slots.length < total) {
     const sp = free.length ? free.shift() : species[(i + slots.length) % species.length];
-    slots.push({ slot: slots.length, id: `ai${slots.length}`, name: null, species: sp, goggles: randomGoggle(rand), human: false, kind: aiKinds[i % aiKinds.length] });
+    slots.push({ slot: slots.length, id: `ai${slots.length}`, name: null, species: sp, goggles: randomGoggle(rand), board: randomBoard(rand), human: false, kind: aiKinds[i % aiKinds.length] });
     i++;
   }
   return slots;

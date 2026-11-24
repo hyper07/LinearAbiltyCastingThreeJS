@@ -94,6 +94,28 @@ ones do their trick. Every pair is drawn once behind the loading card (menu and
 race) so trying them on or a rival's random pick never builds a pipeline
 mid-play.
 
+### Boards
+
+Beside Goggles is a **Board** tab: the same chips and 🎲, an instant swap on
+the turntable (the rider hops and the new board slides in, with a whoosh and
+a clack), remembered on this device (`snowpuff.board`), synced online and
+checked on arrival (unknown → Classic), random for the computer rivals, and
+shown on the podium, in the results and on the mountain card. **Boards are
+cosmetic only — every board rides with exactly the same physics** (a unit test
+rides the same inputs on each and compares).
+
+14 original boards (`src/snowpuff/boardList.js`, built in `render/boards.js`):
+Classic (a doodle print in your rider's colours), Rainbow (a faint rainbow
+trail), Pizza slice (cheese drips; cheese strings on jumps), Surfboard (a fin;
+surf spray), Banana (just a banana-shaped board), Fish (its tail wiggles as you
+carve), Rocket (a flame and smoke on boosts), Cardboard box ("THIS SIDE UP"),
+Gingerbread (sprinkles fall off on landings), Cloud (little cloud puffs), Neon
+(edges glowing with speed, flashing on a clean landing), Dragon (a head at the
+nose that blinks), Watermelon (seeds pop out on tricks) and a Wooden sled. Each
+has its shape, a printed topsheet (painted once to a canvas, one print material
+per design), a coloured base and edges and matching bindings; all are drawn
+once behind the loading card.
+
 Snow cannons (snowmaking guns) stand beside every run, blowing soft particle
 plumes away over the slope.
 

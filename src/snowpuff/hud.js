@@ -9,6 +9,7 @@
  */
 import { SPECIES, SELECTABLE, faceSvg } from './riders.js';
 import { GOGGLES, goggleChip, randomGoggle } from './goggleList.js';
+import { BOARDS, boardChip, randomBoard, boardInfo } from './boardList.js';
 import { MOUNTAINS } from './mountains.js';
 import { worldMap } from './worldMap.js';
 import { ordinal } from './race.js';
@@ -116,7 +117,7 @@ export class Menus {
     setTimeout(() => this.el.querySelector('[data-race]')?.focus({ preventScroll: true }), 50);
   }
 
-  riders({ picked, onPick, onNext, onBack, name = '', onName, onDice, goggles = 'classic', onGoggles }) {
+  riders({ picked, onPick, onNext, onBack, name = '', onName, onDice, goggles = 'classic', onGoggles, board = 'classic', onBoard }) {
     this.clear();
     this.el.append(el('div', 'sp-heading', 'Choose your rider'));
     const nameBox = el('div', 'sp-card sp-col sp-name', `<label for="sp-nick">Your name</label><div class="sp-row" style="margin:0;flex-wrap:nowrap"><input id="sp-nick" class="sp-input sp-input--name" maxlength="12" autocomplete="off" spellcheck="false" data-name value="${esc(name)}" placeholder="${esc(SPECIES[picked].name)}"><button class="sp-btn sp-btn--small" data-dice title="A random name" aria-label="A random name">🎲</button></div>`);
@@ -133,49 +134,69 @@ export class Menus {
       this.game.sound.click();
       input.value = onDice?.() ?? input.value;
     });
-    // goggles: a strip of round chips; a pick goes on at once (with a try-on bounce)
-    const gName = (id) => GOGGLES.find((g) => g.id === id)?.name ?? 'Classic';
-    const gBox = el('div', 'sp-goggles', `<div class="sp-goggles__head"><span>Goggles</span><b data-gname>${esc(gName(goggles))}</b></div><div class="sp-row sp-goggles__row"><button class="sp-btn sp-btn--small" data-gdice title="Random goggles" aria-label="Random goggles">🎲</button><div class="sp-goggles__strip" role="listbox" aria-label="Goggles"></div></div>`);
+    // goggles and boards: tabs, each a strip of round chips and a 🎲; a pick goes on at once
+    const kinds = [
+      { key: 'goggles', label: 'Goggles', list: GOGGLES, chip: goggleChip, rand: randomGoggle, now: goggles, pick: onGoggles },
+      { key: 'board', label: 'Board', list: BOARDS, chip: boardChip, rand: randomBoard, now: board, pick: onBoard }
+    ];
+    const gBox = el('div', 'sp-goggles', `<div class="sp-goggles__head"><span class="sp-tabs" role="tablist">${kinds.map((k, i) => `<button class="sp-tab" role="tab" data-tab="${k.key}" aria-selected="${i === 0}">${k.label}</button>`).join('')}</span><b data-gname></b></div>${kinds.map((k, i) => `<div class="sp-row sp-goggles__row" data-panel="${k.key}"${i ? ' hidden' : ''}><button class="sp-btn sp-btn--small" data-${k.key}-dice title="Random ${k.label.toLowerCase()}" aria-label="Random ${k.label.toLowerCase()}">🎲</button><div class="sp-goggles__strip" role="listbox" aria-label="${k.label}"></div></div>`).join('')}`);
     nameBox.append(gBox);
-    const strip = gBox.querySelector('.sp-goggles__strip');
-    const choose = (id, scroll = true) => {
-      const got = onGoggles?.(id) ?? id;
-      gBox.querySelector('[data-gname]').textContent = gName(got);
-      for (const c of strip.children) {
-        const on = c.dataset.goggles === got;
-        c.setAttribute('aria-selected', String(on));
-        if (on && scroll) c.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    const nameOf = (k, id) => k.list.find((g) => g.id === id)?.name ?? k.list[0].name;
+    let tab = kinds[0];
+    const showName = () => (gBox.querySelector('[data-gname]').textContent = nameOf(tab, tab.now));
+    for (const k of kinds) {
+      const strip = gBox.querySelector(`[data-panel="${k.key}"] .sp-goggles__strip`);
+      k.strip = strip;
+      const choose = (id, scroll = true) => {
+        k.now = k.pick?.(id) ?? id;
+        showName();
+        for (const c of strip.children) {
+          const on = c.dataset[k.key] === k.now;
+          c.setAttribute('aria-selected', String(on));
+          if (on && scroll) c.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+        }
+      };
+      for (const g of k.list) {
+        const c = el('button', 'sp-gchip', k.chip(g.id, 40));
+        c.dataset[k.key] = g.id;
+        c.title = g.name;
+        c.setAttribute('role', 'option');
+        c.setAttribute('aria-label', g.name);
+        c.setAttribute('aria-selected', String(g.id === k.now));
+        c.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.game.sound.wake();
+          choose(g.id, false);
+        });
+        strip.append(c);
       }
-    };
-    for (const g of GOGGLES) {
-      const c = el('button', 'sp-gchip', goggleChip(g.id, 40));
-      c.dataset.goggles = g.id;
-      c.title = g.name;
-      c.setAttribute('role', 'option');
-      c.setAttribute('aria-label', g.name);
-      c.setAttribute('aria-selected', String(g.id === goggles));
-      c.addEventListener('click', (e) => {
+      strip.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          strip.scrollLeft += e.deltaY;
+          e.preventDefault();
+        }
+      }, { passive: false });
+      gBox.querySelector(`[data-${k.key}-dice]`).addEventListener('click', (e) => {
         e.stopPropagation();
         this.game.sound.wake();
-        choose(g.id, false);
+        let id = k.rand();
+        if (id === k.now) id = k.list[(k.list.findIndex((g) => g.id === id) + 1) % k.list.length].id;
+        choose(id);
       });
-      strip.append(c);
     }
-    strip.addEventListener('wheel', (e) => {
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        strip.scrollLeft += e.deltaY;
-        e.preventDefault();
-      }
-    }, { passive: false });
-    gBox.querySelector('[data-gdice]').addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.game.sound.wake();
-      let id = randomGoggle();
-      const now = strip.querySelector('[aria-selected="true"]')?.dataset.goggles;
-      if (id === now) id = GOGGLES[(GOGGLES.findIndex((g) => g.id === id) + 1) % GOGGLES.length].id;
-      choose(id);
-    });
-    setTimeout(() => strip.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' }), 0);
+    for (const t of gBox.querySelectorAll('[data-tab]')) {
+      t.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.game.sound.click();
+        tab = kinds.find((k) => k.key === t.dataset.tab);
+        for (const x of gBox.querySelectorAll('[data-tab]')) x.setAttribute('aria-selected', String(x === t));
+        for (const k of kinds) gBox.querySelector(`[data-panel="${k.key}"]`).hidden = k !== tab;
+        showName();
+        tab.strip.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+      });
+    }
+    showName();
+    setTimeout(() => kinds[0].strip.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' }), 0);
     const row = el('div', 'sp-col sp-riders');
     for (const id of SELECTABLE) {
       const sp = SPECIES[id];
@@ -202,11 +223,12 @@ export class Menus {
     setTimeout(() => this.el.querySelector('[data-next]')?.focus({ preventScroll: true }), 50);
   }
 
-  mountains({ picked, best, onPick, onGo, onBack, goLabel = 'Race! ›' }) {
+  mountains({ picked, best, onPick, onGo, onBack, goLabel = 'Race! ›', board = 'classic' }) {
     this.clear();
     this.el.append(el('div', 'sp-heading sp-heading--map', 'Choose a mountain'));
     const map = worldMap(this.el, {
       picked, best, fmt: fmtTime, ordinal,
+      footer: `<div class="sp-world__ride">${boardChip(board, 30)}<span>Riding the <b>${esc(boardInfo(board).name)}</b> board</span></div>`,
       onPick: (id) => {
         this.game.sound.wake();
         this.game.sound.click();
@@ -344,7 +366,7 @@ export class Menus {
 
   results({ rows, mountain, me, onRetry, onNext, onMenu, online, nextName }) {
     this.clear();
-    const list = rows.map((r, i) => `<div class="sp-standing${r.me ? ' me' : ''}"><b>${ordinal(i + 1)}</b>${faceSvg(r.species, 42)}<span>${esc(r.name)}${r.human && !r.me ? ' <small>friend</small>' : ''}<small>${r.tricks} tricks · ${r.hits} hits · ${r.gifts} gifts</small></span><span class="sp-t">${fmtTime(r.time)}</span></div>`).join('');
+    const list = rows.map((r, i) => `<div class="sp-standing${r.me ? ' me' : ''}"><b>${ordinal(i + 1)}</b>${faceSvg(r.species, 42)}<i class="sp-standing__board" title="${esc(boardInfo(r.board).name)}">${boardChip(r.board, 30)}</i><span>${esc(r.name)}${r.human && !r.me ? ' <small>friend</small>' : ''}<small>${r.tricks} tricks · ${r.hits} hits · ${r.gifts} gifts</small></span><span class="sp-t">${fmtTime(r.time)}</span></div>`).join('');
     const card = el('div', 'sp-card sp-results', `<h2>${me.place === 1 ? 'You won!' : me.place <= 3 ? `${ordinal(me.place)} place!` : 'You made it!'}</h2>
       <p>${esc(mountain.name)} · ${fmtTime(me.time)} · ${me.tricks} tricks · ${me.hits} hits${me.newBest ? ' · <b style="color:#ff6fb4">New best!</b>' : ''}</p>
       <div>${list}</div>

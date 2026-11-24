@@ -195,6 +195,12 @@
 .sp-goggles { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .sp-goggles__head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 900; font-size: 16px; }
 .sp-goggles__head b { font-weight: 800; font-size: 14px; color: var(--pink, #ff4b8b); }
+.sp-standing__board { display: inline-grid; place-items: center; margin: 0 4px 0 -6px; font-style: normal; }
+.sp-world__ride { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; color: #5a6078; }
+.sp-tabs { display: inline-flex; gap: 4px; background: #eef1f8; border-radius: 99px; padding: 3px; }
+.sp-tab { border: 0; background: transparent; font: 900 14px 'Nunito Variable', system-ui, sans-serif; color: var(--ink); padding: 4px 12px; border-radius: 99px; cursor: pointer; }
+.sp-tab[aria-selected="true"] { background: #fff; box-shadow: 0 2px 0 rgba(42,47,74,.15); color: var(--pink); }
+.sp-goggles__row[hidden] { display: none; }
 .sp-goggles__row { margin: 0; flex-wrap: nowrap; gap: 6px; align-items: center; }
 .sp-goggles__strip { display: flex; gap: 6px; overflow-x: auto; overscroll-behavior: contain; scroll-snap-type: x proximity; padding: 4px 2px 8px; min-width: 0; flex: 1; scrollbar-width: thin; }
 .sp-gchip { flex: 0 0 auto; width: 50px; height: 50px; border-radius: 50%; border: 3px solid transparent; background: #fff; box-shadow: 0 2px 0 rgba(42,47,74,.18); display: grid; place-items: center; padding: 0; cursor: pointer; scroll-snap-align: center; transition: transform .12s ease, border-color .12s ease; }

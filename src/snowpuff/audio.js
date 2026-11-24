@@ -235,6 +235,14 @@ export class SnowSound {
     this.tone(880, { dur: 0.05, gain: 0.05, type: 'triangle' });
   }
 
+  /** A board swap: a whoosh and a wooden clack as it lands under the feet. */
+  boardSwap() {
+    if (!this.ctx) return;
+    this.noiseBurst({ dur: 0.22, gain: 0.1, f0: 600, f1: 2200, q: 0.8 });
+    this.tone(220, { at: 0.24, dur: 0.08, gain: 0.12, type: 'square', slide: 140 });
+    this.tone(660, { at: 0.27, dur: 0.12, gain: 0.05, type: 'triangle' });
+  }
+
   /** Goggles on: a stretchy strap snap and a happy two-note boing. */
   tryOn() {
     if (!this.ctx) return;

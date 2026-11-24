@@ -21,6 +21,8 @@ import { SPECIES } from '../riders.js';
 import { plushMaterial, furShells, vinylMaterial, knitMaterial } from './plush.js';
 import { PoseRig, J, STANCE } from './poseRig.js';
 import { buildGoggles } from './goggles.js';
+import { buildBoard } from './boards.js';
+import { cleanBoard } from '../boardList.js';
 import { cleanGoggle } from '../goggleList.js';
 
 /* ---------------------------------------------------------------- recipe helpers */
@@ -263,26 +265,6 @@ const G = {};
 const sphere = () => (G.sphere ??= new THREE.SphereGeometry(1, 24, 16));
 const lowSphere = () => (G.low ??= new THREE.SphereGeometry(1, 12, 8));
 
-function boardGeometry() {
-  if (G.board) return G.board;
-  // A board along x: rounded tips that turn up, a slight camber.
-  const len = 1.12, wid = 0.29, th = 0.028;
-  const g = new THREE.BoxGeometry(len, th, wid, 40, 1, 8);
-  const p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), z = p.getZ(i);
-    const u = Math.abs(x) / (len / 2);
-    // round the ends: pull the corners in along an ellipse
-    const end = Math.max(0, (u - 0.78) / 0.22);
-    const pinch = Math.sqrt(Math.max(0, 1 - end * end));
-    p.setZ(i, z * (0.92 + 0.08 * pinch) * (end > 0 ? 0.55 + 0.45 * pinch : 1));
-    p.setY(i, p.getY(i) + (u > 0.72 ? ((u - 0.72) / 0.28) ** 2 * 0.075 : 0) + (1 - u * u) * 0.006);
-  }
-  g.computeVertexNormals();
-  G.board = g;
-  return g;
-}
-
 /* ---------------------------------------------------------------- the rider */
 
 const _v = new THREE.Vector3();
@@ -293,7 +275,7 @@ export class RiderModel {
    * @param {string} species
    * @param {{ fur?: number, res?: number, shadow?: boolean, goggles?: string, label?: string }} o
    */
-  constructor(species, { fur = 0, res = 74, shadow = true, goggles = 'classic', label = '' } = {}) {
+  constructor(species, { fur = 0, res = 74, shadow = true, goggles = 'classic', board = 'classic', label = '' } = {}) {
     this.species = species;
     const sp = SPECIES[species];
     this.sp = sp;
@@ -308,27 +290,6 @@ export class RiderModel {
     this.lean.add(this.squash);
     // The board, then the body turned side-on (regular stance: left foot forward, facing right of travel).
     this.board = new THREE.Group();
-    const deck = new THREE.Mesh(boardGeometry(), vinylMaterial(sp.board, { roughness: 0.28 }));
-    deck.castShadow = shadow;
-    deck.receiveShadow = true;
-    const stripe = new THREE.Mesh(boardGeometry(), vinylMaterial(sp.boardTrim, { roughness: 0.3 }));
-    stripe.scale.set(0.84, 1.15, 0.32);
-    stripe.position.y = 0.002;
-    const base = new THREE.Mesh(boardGeometry(), vinylMaterial('#2b2f3a', { roughness: 0.4, clearcoat: 0.3 }));
-    base.scale.set(1.005, 0.6, 1.02);
-    base.position.y = -0.008;
-    this.board.add(deck, stripe, base);
-    // the topsheet picture: a few shapes printed along the deck (one draw)
-    const art = topsheetGeometry(recipe.topsheet);
-    if (art) this.board.add(new THREE.Mesh(art, vinylMaterial(sp.boardArt ?? sp.boardTrim, { roughness: 0.32 })));
-    // bindings: a base plate and a high-back each side
-    const bindM = vinylMaterial('#2b2f3a', { roughness: 0.5, clearcoat: 0.2 });
-    for (const sx of [-0.2, 0.2]) {
-      const bind = new THREE.Mesh(sphere(), bindM);
-      bind.scale.set(0.09, 0.035, 0.14);
-      bind.position.set(sx, 0.035, 0);
-      this.board.add(bind);
-    }
     this.board.rotation.y = Math.PI / 2; // board's x → along travel (z)
     this.board.position.y = 0.03;
     this.squash.add(this.board);
@@ -379,7 +340,9 @@ export class RiderModel {
     if (recipe.pocket) this.addPocket(recipe.pocket, byName.get('chest'));
     this.fit = this.measureFit(model.sdf, recipe);
     this.label = label;
+    this.topsheet = recipe.topsheet;
     this.setGoggles(goggles);
+    this.setBoard(board);
     // Springs: ears, accent tail, pompom.
     this.spring = { earA: 0, earV: 0, earB: 0, earBV: 0, tail: 0, tailV: 0, bob: 0, bobV: 0 };
     this.t = Math.random() * 10;
@@ -469,6 +432,18 @@ export class RiderModel {
     if (was) this.goggles.setUp(was.upGoal ?? 0, true);
   }
 
+  /** Ride another board (cosmetic only; any id from boardList.js, unknown ones are Classic). */
+  setBoard(id) {
+    id = cleanBoard(id);
+    if (this.deck?.id === id) return;
+    if (this.deck) {
+      this.deck.group.removeFromParent();
+      this.deck.group.traverse((o) => o.isMesh && !o.geometry.userData.shared && o.geometry.dispose());
+    }
+    this.deck = buildBoard(id, { trim: this.sp.boardTrim, deck: this.sp.board, art: this.topsheet });
+    this.board.add(this.deck.group);
+  }
+
   /** Goggles down (0) over the eyes, or pushed up (1) onto the forehead. */
   gogglesUp(k = 1) {
     this.goggles?.setUp(k);
@@ -483,6 +458,7 @@ export class RiderModel {
   /** A trick landed: silly goggles do their thing (the pixel shades drop in). */
   trickLanded() {
     this.goggles?.trick();
+    this.deck?.trick();
   }
 
   /** Chunky dark boots over the feet, in the bindings. */
@@ -647,6 +623,7 @@ export class RiderModel {
     this.handDrag = P[J.drag];
     if (this.handDrag > 0.05) (this.rig.leadIsR ? B.get('armL') : B.get('armR')).localToWorld(this.handPos.set(this.rig.leadIsR ? -0.15 : 0.15, -0.1, 0.05));
     // reactions
+    this.body.position.y = 0.045;
     if (this.reactT > 0) {
       this.reactT -= dt;
       const k = Math.min(1, this.reactT * 3);
@@ -656,6 +633,10 @@ export class RiderModel {
       } else if (this.reaction === 'laugh') {
         this.squash.position.y = Math.abs(Math.sin(t * 14)) * 0.08 * k;
         B.get('head').rotation.x -= 0.2 * k;
+      } else if (this.reaction === 'hop') {
+        // a hop off the board (a new one slides in underneath)
+        const u = 1 - this.reactT / 0.7;
+        this.body.position.y = 0.045 + Math.max(0, Math.sin(Math.min(1, u * 1.25) * Math.PI)) * 0.32;
       } else if (this.reaction === 'tryon') {
         // goggles on: a quick head shake, then a bounce
         B.get('head').rotation.y += Math.sin(t * 26) * 0.3 * k * k;
@@ -716,6 +697,7 @@ export class RiderModel {
       this.extras.pom.rotation.z = sp.bob * 0.6 + w * 0.3;
     }
     this.goggles?.update(dt, { jolt: st.landed ? Math.min(1.5, 0.3 + st.landed * 0.1) : 0, yawRate: st.yawRate ?? 0, wind: w });
+    this.deck?.update(dt, { speed: menu ? 0 : st.speed ?? 0, carve: menu ? Math.sin(t * 1.3) * 0.4 : edge, boost: Boolean(st.boost), air: Boolean(st.air) });
     if (this.extras.pack) this.extras.pack.position.y = 0.32 - 0.33 + Math.sin(t * 6) * 0.004 - this.squashT * 0.02;
     // blink
     this.blink -= dt;
@@ -743,90 +725,3 @@ function starGeometry() {
   return G.star;
 }
 export { starGeometry };
-
-/** The topsheet pictures, in board space (x along the board, y up): a few flat shapes in a row. */
-const TOPSHEET = {
-  stars: () => [0.5, 0.36, 0.26].map((r, i) => starShape(r)),
-  hearts: () => [0, 1, 2].map(() => heartShape()),
-  paws: () => [0, 1, 2].map(() => pawShape()),
-  fish: () => [0, 1, 2].map(() => fishShape()),
-  dots: () => [0, 1, 2].map(() => new THREE.Shape().absarc(0, 0, 0.5, 0, Math.PI * 2)),
-  flakes: () => [0, 1, 2].map(() => starShape(0.2, 6))
-};
-
-function topsheetGeometry(kind) {
-  if (!kind || !TOPSHEET[kind]) return null;
-  const key = `top-${kind}`;
-  if (G[key]) return G[key];
-  const shapes = TOPSHEET[kind]();
-  // nose, middle (between the feet), tail; sizes grow toward the nose
-  const at = [[0.37, 0.085, 0.35], [0, 0.07, 0], [-0.37, 0.06, -0.25]];
-  const parts = shapes.map((sh, i) => {
-    const g = new THREE.ShapeGeometry(sh, 8);
-    const [x, sc, rot] = at[i];
-    g.scale(sc, sc, 1);
-    g.rotateZ(rot);
-    g.rotateX(-Math.PI / 2);
-    const u = Math.abs(x) / 0.56;
-    g.translate(x, 0.0145 + (1 - u * u) * 0.006 + 0.0012, 0);
-    return g;
-  });
-  const merged = new THREE.BufferGeometry();
-  const pos = [];
-  for (const g of parts) {
-    const n = g.index ? g.toNonIndexed() : g;
-    pos.push(...n.attributes.position.array);
-  }
-  merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  merged.computeVertexNormals();
-  G[key] = merged;
-  return merged;
-}
-
-function starShape(inner = 0.45, points = 5) {
-  const s = new THREE.Shape();
-  for (let i = 0; i < points * 2; i++) {
-    const a = (i / (points * 2)) * Math.PI * 2 + Math.PI / 2;
-    const r = i % 2 ? inner : 1;
-    if (i === 0) s.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    else s.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-  }
-  return s;
-}
-
-function heartShape() {
-  const s = new THREE.Shape();
-  s.moveTo(0, -0.9);
-  s.bezierCurveTo(-0.3, -0.55, -1.05, -0.15, -0.95, 0.35);
-  s.bezierCurveTo(-0.85, 0.85, -0.2, 0.9, 0, 0.45);
-  s.bezierCurveTo(0.2, 0.9, 0.85, 0.85, 0.95, 0.35);
-  s.bezierCurveTo(1.05, -0.15, 0.3, -0.55, 0, -0.9);
-  return s;
-}
-
-function pawShape() {
-  // a pad and four toes, as one shape with the toes as separate islands is not possible — use a scalloped pad
-  const s = new THREE.Shape();
-  const n = 40;
-  for (let i = 0; i <= n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    const toe = Math.max(0, Math.sin(a)) ** 3 * (0.35 + 0.25 * Math.cos(a * 4) ** 2);
-    const r = 0.6 + toe;
-    const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.85 - 0.1;
-    if (i === 0) s.moveTo(x, y);
-    else s.lineTo(x, y);
-  }
-  return s;
-}
-
-function fishShape() {
-  const s = new THREE.Shape();
-  s.moveTo(-1, 0);
-  s.quadraticCurveTo(-0.3, 0.65, 0.45, 0.05);
-  s.lineTo(1, 0.45);
-  s.lineTo(0.85, 0);
-  s.lineTo(1, -0.45);
-  s.lineTo(0.45, -0.05);
-  s.quadraticCurveTo(-0.3, -0.65, -1, 0);
-  return s;
-}

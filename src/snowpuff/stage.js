@@ -131,6 +131,18 @@ export class Stage {
     this.picked = id;
   }
 
+  /** Your board under every rider on the turntable (`swap`: the chosen one hops and the new board slides in). */
+  setBoard(id, swap = false) {
+    this.boardId = id;
+    for (const [rid, e] of this.turnRiders) {
+      e.m.setBoard(id);
+      if (swap && rid === this.picked) {
+        e.m.react('hop', 0.7);
+        e.slide = 1;
+      }
+    }
+  }
+
   /** Your goggles on every rider on the turntable (`tryOn`: the chosen one tries them on with a little bounce). */
   setGoggles(id, tryOn = false) {
     this.goggles = id;
@@ -293,7 +305,7 @@ export class Stage {
     for (const m of this.podiumRiders) m.dispose();
     this.podiumRiders = [];
     order.slice(0, 6).forEach((r, i) => {
-      const m = new RiderModel(r.species, { fur: i < 3 ? this.fur : 0, goggles: r.goggles, label: r.name });
+      const m = new RiderModel(r.species, { fur: i < 3 ? this.fur : 0, goggles: r.goggles, board: r.board, label: r.name });
       m.body.rotation.y = 0;
       // the winner pushes their goggles up to celebrate (and silly ones do their trick)
       if (i === 0) {
@@ -404,6 +416,17 @@ export class Stage {
       const ms = (e.st ??= { menu: true, cheer: false });
       ms.cheer = id === this.picked && this.view === 'riders' && this.t % 4 < 0.9;
       e.m.pose(dt, ms);
+      // a new board slides in under a hop
+      if (e.slide > 0) {
+        e.slide = Math.max(0, e.slide - dt * 2.6);
+        const k = e.slide * e.slide;
+        e.m.board.position.x = k * 1.4;
+        e.m.board.rotation.z = k * 0.6;
+      } else if (e.slide === 0) {
+        e.m.board.position.x = 0;
+        e.m.board.rotation.z = 0;
+        e.slide = -1;
+      }
     }
     // dioramas: the chosen one rises and turns
     for (const [id, d] of this.dioramas) {

@@ -122,6 +122,13 @@ const CYAN = new THREE.Color('#7fe8ff');
 const PINK = new THREE.Color('#ff7ac0');
 
 const PLUME = new THREE.Color('#ffffff');
+const RAINBOW = ['#ff4b5c', '#ffa52e', '#ffe14d', '#3fd06a', '#3a86ff', '#8a5cff'].map((c) => new THREE.Color(c));
+const CHEESE = new THREE.Color('#ffd84a');
+const SURF = new THREE.Color('#bff4ff');
+const FLAME = new THREE.Color('#ff8a2e');
+const SMOKE = new THREE.Color('#c8ccd6');
+const SPRINKLES = ['#ff4b8b', '#3fd0b0', '#ffd23f', '#3a86ff'].map((c) => new THREE.Color(c));
+const SEED = new THREE.Color('#1a1414');
 
 export class Effects {
   constructor(scene, { scale = 1 } = {}) {
@@ -173,6 +180,40 @@ export class Effects {
       const v = 8 + Math.random() * 5, spread = 0.3;
       const sx = (Math.random() - 0.5) * spread, sy = Math.random() * spread;
       this.powder.add(cn.x, cn.y, cn.z, (cn.dx - cn.dz * sx) * v, (0.3 + sy) * v, (cn.dz + cn.dx * sx) * v, { life: 2.4 + Math.random() * 1.2, size: 0.7 + Math.random() * 0.6, grow: 3.2, alpha: 1, drag: 0.75, grav: -0.9, col: PLUME });
+    }
+  }
+
+  /**
+   * The fun boards' trails: a faint rainbow ribbon, cheese strings on jumps,
+   * surf spray, a rocket flame and smoke on boosts, sprinkles falling off on
+   * landings, little cloud puffs, watermelon seeds on tricks. Cosmetic only.
+   */
+  boardTrail(kind, x, y, z, fwd, s, dt) {
+    const bx = x - fwd[0] * 0.55, bz = z - fwd[1] * 0.55;
+    const rate = (n) => {
+      this.trailAcc = (this.trailAcc ?? 0) + n * dt * this.scale;
+      const k = Math.floor(this.trailAcc);
+      this.trailAcc -= k;
+      return k;
+    };
+    if (kind === 'rainbow' && !s.air && s.speed > 4) {
+      for (let i = rate(40); i > 0; i--) {
+        const c = RAINBOW[Math.floor(Math.random() * RAINBOW.length)];
+        this.sparkle.add(bx + (Math.random() - 0.5) * 0.2, y + 0.06, bz + (Math.random() - 0.5) * 0.2, 0, 0.15, 0, { life: 1.2, size: 0.13, grow: 1.4, alpha: 0.7, drag: 3, grav: 0, col: c });
+      }
+    } else if (kind === 'pizza' && s.air) {
+      for (let i = rate(14); i > 0; i--) this.motes.add(bx, y - 0.02, bz, (Math.random() - 0.5) * 0.4, -0.6, (Math.random() - 0.5) * 0.4, { life: 0.6, size: 0.025, alpha: 1, drag: 1, grav: -3, stretch: 4, rot: Math.PI / 2, col: CHEESE });
+    } else if (kind === 'surf' && !s.air && s.speed > 6) {
+      for (let i = rate(10 + s.carve * 40); i > 0; i--) this.powder.add(bx, y + 0.05, bz, (Math.random() - 0.5) * 2, 1.5 + Math.random() * 1.5, (Math.random() - 0.5) * 2, { life: 0.7, size: 0.18, grow: 2, alpha: 0.6, drag: 2, grav: -5, col: SURF });
+    } else if (kind === 'rocket' && s.boost) {
+      for (let i = rate(50); i > 0; i--) this.sparkle.add(bx, y + 0.06, bz, -fwd[0] * 3 + (Math.random() - 0.5), 0.3, -fwd[1] * 3 + (Math.random() - 0.5), { life: 0.35, size: 0.14, grow: 0.4, alpha: 1, drag: 2, grav: 0, col: FLAME });
+      for (let i = rate(12); i > 0; i--) this.powder.add(bx, y + 0.1, bz, -fwd[0] * 1.5, 0.6, -fwd[1] * 1.5, { life: 0.9, size: 0.2, grow: 3, alpha: 0.45, drag: 1.5, grav: 0.4, col: SMOKE });
+    } else if (kind === 'cookie' && s.landed) {
+      for (let i = 0; i < 14 * this.scale; i++) this.confetti.add(x, y + 0.1, z, (Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3, { life: 1, size: 0.05, alpha: 1, drag: 1.2, grav: -6, col: SPRINKLES[i % SPRINKLES.length], rot: Math.random() * 6, rv: 8, stretch: 1.5 });
+    } else if (kind === 'cloud' && s.speed > 4) {
+      for (let i = rate(6); i > 0; i--) this.powder.add(bx, y + 0.1, bz, (Math.random() - 0.5) * 0.4, 0.3, (Math.random() - 0.5) * 0.4, { life: 1.4, size: 0.25, grow: 2.2, alpha: 0.7, drag: 2, grav: 0.2, col: PLUME });
+    } else if (kind === 'melon' && s.trick) {
+      for (let i = 0; i < 12 * this.scale; i++) this.confetti.add(x, y + 0.3, z, (Math.random() - 0.5) * 4, 2 + Math.random() * 2, (Math.random() - 0.5) * 4, { life: 1, size: 0.05, alpha: 1, drag: 1, grav: -7, col: SEED, rot: Math.random() * 6, rv: 6, stretch: 0.6 });
     }
   }
 

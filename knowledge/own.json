@@ -800,6 +800,25 @@
     "snowpuff"
    ],
    "path": "src/snowpuff/render/goggles.js"
+  },
+  {
+   "id": "own.snowpuff.boards",
+   "kind": "module",
+   "title": "Cosmetic snowboards: 14 shaped decks with canvas-printed topsheets, animated extras and board trails",
+   "summary": "buildBoard(id, {trim, deck, art}) → { group, update(dt,{speed,carve,boost,air}), trick() } in board space (x = nose): deckGeometry (rounded, upturned tips, camber, pinch/bend options) with BoxGeometry face groups so the top gets a canvas print material and the base/edges plain vinyl; special shapes (pizza slice extrude + cheese drips, cloud puffs, sled slats + rope, fish tail, rocket fins + flame, dragon head with blinking eyes, neon rim uniform glow). boardRack() for warm-up; boardList.js is pure (ids, SVG chips, clean/load/save/random). Effects.boardTrail() adds rainbow/cheese/surf/flame/sprinkle/cloud/seed particles.",
+   "tags": [
+    "snowboard",
+    "board",
+    "cosmetic",
+    "picker",
+    "customization",
+    "canvas",
+    "texture",
+    "trail",
+    "particles",
+    "snowpuff"
+   ],
+   "path": "src/snowpuff/render/boards.js"
   }
  ]
 }

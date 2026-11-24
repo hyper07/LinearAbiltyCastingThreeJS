@@ -12,13 +12,15 @@ import { MSG, SEND_HZ, packState, unpackState, packThrow, unpackThrow, cleanMemb
 import { ALL_SPECIES } from './riders.js';
 import { cleanName } from './names.js';
 import { cleanGoggle } from './goggleList.js';
+import { cleanBoard } from './boardList.js';
 
 export class OnlineRace {
-  constructor({ name = 'Rider', species = 'fox', goggles = 'classic', onChange = () => {}, onGo = () => {}, onMessage = () => {}, onClosed = () => {} } = {}) {
+  constructor({ name = 'Rider', species = 'fox', goggles = 'classic', board = 'classic', onChange = () => {}, onGo = () => {}, onMessage = () => {}, onClosed = () => {} } = {}) {
     this.session = new Session();
     this.name = name;
     this.species = species;
     this.goggles = cleanGoggle(goggles);
+    this.board = cleanBoard(board);
     this.onChange = onChange;
     this.onGo = onGo;
     this.onMessage = onMessage;
@@ -32,7 +34,7 @@ export class OnlineRace {
     const s = this.session;
     s.on('message', (m) => this.receive(m));
     s.on('peer', (p) => {
-      this.members.set(p.id, { id: p.id, name: cleanName(p.name), species: 'fox', goggles: 'classic' });
+      this.members.set(p.id, { id: p.id, name: cleanName(p.name), species: 'fox', goggles: 'classic', board: 'classic' });
       if (this.isHost) this.sendLobby();
       this.onChange();
     });
@@ -88,7 +90,7 @@ export class OnlineRace {
     this.onChange();
     try {
       await this.session.create(this.name);
-      this.members.set(this.you, { id: this.you, name: this.name, species: this.species, goggles: this.goggles });
+      this.members.set(this.you, { id: this.you, name: this.name, species: this.species, goggles: this.goggles, board: this.board });
     } catch (e) {
       this.error = friendly(e);
     }
@@ -102,9 +104,9 @@ export class OnlineRace {
     this.onChange();
     try {
       const j = await this.session.join(String(code).toUpperCase().trim(), this.name);
-      for (const p of j.peers ?? []) this.members.set(p.id, { id: p.id, name: cleanName(p.name), species: 'fox', goggles: 'classic' });
-      this.members.set(this.you, { id: this.you, name: this.name, species: this.species, goggles: this.goggles });
-      this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: this.species, goggles: this.goggles });
+      for (const p of j.peers ?? []) this.members.set(p.id, { id: p.id, name: cleanName(p.name), species: 'fox', goggles: 'classic', board: 'classic' });
+      this.members.set(this.you, { id: this.you, name: this.name, species: this.species, goggles: this.goggles, board: this.board });
+      this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: this.species, goggles: this.goggles, board: this.board });
     } catch (e) {
       this.error = friendly(e);
     }
@@ -139,7 +141,7 @@ export class OnlineRace {
     if (me) me.species = sp;
     if (!this.active) return;
     if (this.isHost) this.sendLobby();
-    else this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: sp, goggles: this.goggles });
+    else this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: sp, goggles: this.goggles, board: this.board });
   }
 
   /** Your goggles (any id; unknown ones become Classic). */
@@ -149,7 +151,17 @@ export class OnlineRace {
     if (me) me.goggles = this.goggles;
     if (!this.active) return;
     if (this.isHost) this.sendLobby();
-    else this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: this.species, goggles: this.goggles });
+    else this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: this.species, goggles: this.goggles, board: this.board });
+  }
+
+  /** Your board (cosmetic; unknown ids become Classic). */
+  setBoard(id) {
+    this.board = cleanBoard(id);
+    const me = this.members.get(this.you);
+    if (me) me.board = this.board;
+    if (!this.active) return;
+    if (this.isHost) this.sendLobby();
+    else this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: this.species, goggles: this.goggles, board: this.board });
   }
 
   setMountain(id) {
@@ -180,7 +192,7 @@ export class OnlineRace {
     switch (m.t) {
       case MSG.hi: {
         if (!this.isHost) return;
-        const mem = cleanMember({ id: m.from, name: m.name, species: m.species, goggles: m.goggles }, ALL_SPECIES);
+        const mem = cleanMember({ id: m.from, name: m.name, species: m.species, goggles: m.goggles, board: m.board }, ALL_SPECIES);
         this.members.set(m.from, { ...mem, name: cleanName(this.session.peers.get(m.from)?.name ?? mem.name) });
         this.sendLobby();
         this.onChange();
@@ -195,13 +207,14 @@ export class OnlineRace {
         if (me) {
           me.species = this.species;
           me.goggles = this.goggles;
+          me.board = this.board;
         }
         this.onChange();
         return;
       }
       case MSG.go: {
         if (m.from !== this.session.host) return;
-        this.slots = (m.slots ?? []).map((s) => ({ slot: s.slot | 0, id: String(s.id), name: s.name == null ? null : cleanName(s.name), species: ALL_SPECIES.includes(s.species) ? s.species : 'fox', goggles: cleanGoggle(s.goggles), human: Boolean(s.human), kind: s.kind ?? null }));
+        this.slots = (m.slots ?? []).map((s) => ({ slot: s.slot | 0, id: String(s.id), name: s.name == null ? null : cleanName(s.name), species: ALL_SPECIES.includes(s.species) ? s.species : 'fox', goggles: cleanGoggle(s.goggles), board: cleanBoard(s.board), human: Boolean(s.human), kind: s.kind ?? null }));
         this.mountain = String(m.mountain);
         this.remote.clear();
         this.onGo({ mountain: this.mountain, slots: this.slots });

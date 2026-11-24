@@ -13,6 +13,8 @@ import { PACKS } from '../../src/snowpuff/credits.js';
 import { POLYFORK } from '../../src/snowpuff/assets.js';
 import { GOGGLES, GOGGLE_IDS, DEFAULT_GOGGLES, cleanGoggle, randomGoggle, loadGoggles, saveGoggles, goggleChip } from '../../src/snowpuff/goggleList.js';
 import { buildGoggles, ROUND_FIT, goggleRack } from '../../src/snowpuff/render/goggles.js';
+import { BOARDS, BOARD_IDS, cleanBoard, randomBoard, loadBoard, saveBoard, boardChip } from '../../src/snowpuff/boardList.js';
+import { buildBoard, boardRack } from '../../src/snowpuff/render/boards.js';
 
 const DT = 1 / 60;
 const course = buildCourse(mountainById('marshmallow'));
@@ -650,3 +652,60 @@ test('famous mountains: AI riders take about 60–90 s', () => {
     assert.ok(times[1] >= 58 && times[1] <= 92, `${m.id}: median AI time ${times[1].toFixed(1)} s`);
   }
 });
+
+test('boards: at least 12 original boards, every one builds and animates, chips draw', () => {
+  assert.ok(BOARDS.length >= 12);
+  assert.equal(new Set(BOARD_IDS).size, BOARDS.length);
+  for (const id of BOARD_IDS) {
+    const b = buildBoard(id, { trim: '#ff6fb4', art: 'hearts', deck: '#ffffff' });
+    assert.equal(b.id, id);
+    let meshes = 0;
+    b.group.traverse((o) => o.isMesh && meshes++);
+    assert.ok(meshes >= 2 && meshes <= 10, `${id}: ${meshes} meshes`);
+    for (let i = 0; i < 60; i++) b.update(1 / 60, { speed: 20, carve: Math.sin(i / 5), boost: i > 30, air: i % 20 < 5 });
+    b.trick();
+    b.group.traverse((o) => assert.ok(Number.isFinite(o.position.x + o.scale.x + o.rotation.y), `${id}: finite`));
+    assert.ok(boardChip(id).startsWith('<svg'));
+  }
+  assert.equal(buildBoard('nope').id, 'classic');
+  assert.equal(boardRack().children.length, BOARD_IDS.length);
+});
+
+test('boards: the choice persists, unknown ids fall back to Classic, online carries them cleaned', () => {
+  const mem = new Map();
+  const storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)) };
+  assert.equal(loadBoard(storage), 'classic');
+  assert.ok(saveBoard('pizza', storage));
+  assert.equal(loadBoard(storage), 'pizza');
+  mem.set('snowpuff.board', '../etc');
+  assert.equal(loadBoard(storage), 'classic');
+  assert.equal(loadBoard({ getItem: () => { throw new Error('x'); } }), 'classic');
+  for (const bad of [undefined, null, '', 'Pizza', 7, {}]) assert.equal(cleanBoard(bad), 'classic');
+  assert.equal(cleanMember({ id: 1, name: 'A', species: 'fox', board: 'dragon' }, ALL_SPECIES).board, 'dragon');
+  assert.equal(cleanMember({ id: 1, name: 'A', species: 'fox', board: 'hoverboard' }, ALL_SPECIES).board, 'classic');
+  const slots = assignSlots([{ id: '1', name: 'A', species: 'fox', board: 'neon' }], 4, ALL_SPECIES);
+  assert.equal(slots[0].board, 'neon');
+  for (const sl of slots) assert.ok(BOARD_IDS.includes(sl.board));
+  const seen = new Set();
+  for (let i = 0; i < 300; i++) seen.add(randomBoard());
+  assert.equal(seen.size, BOARD_IDS.length);
+});
+
+test('boards are cosmetic: the same ride whatever the board', () => {
+  const m = MOUNTAINS[0];
+  const c = buildCourse(m);
+  const run = (board) => {
+    const r = newRider({ s: 6, lat: 0 });
+    r.board = board; // nothing in the physics may read it
+    settle(r, c);
+    const trace = [];
+    for (let i = 0; i < 600; i++) {
+      step(r, { steer: Math.sin(i / 40), tuck: i % 90 < 40, jump: i % 150 === 0 }, c, 1 / 120);
+      if (i % 50 === 0) trace.push(r.s.toFixed(6), r.lat.toFixed(6), r.speed.toFixed(6), r.y.toFixed(6));
+    }
+    return trace.join(',');
+  };
+  const ref = run('classic');
+  for (const id of BOARD_IDS) assert.equal(run(id), ref, `${id} rides differently`);
+});
+
