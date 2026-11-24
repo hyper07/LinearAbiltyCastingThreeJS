@@ -24,6 +24,7 @@ import {
   exists
 } from './lib.mjs';
 import { rigged } from './rigged.mjs';
+import { streetfolk } from './streetfolk.mjs';
 import { POLYFORK as SNOWPUFF_MODELS } from '../../src/snowpuff/assets.js';
 
 const MODEL_EXT = /\.(glb|gltf)$/i;
@@ -273,7 +274,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 12;
+export const EXTRAS_VERSION = 13;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -404,6 +405,12 @@ export async function extras({ budget }) {
       if (error.budget) break;
       log(SRC, `skip ${id}: ${error.message}`);
     }
+  }
+  // Gangnam Jarani's realistic people (Rocketbox, MIT) and vehicles (Sketchfab CC BY 4.0, via Objaverse).
+  try {
+    assets.push(...(await streetfolk({ budget })));
+  } catch (error) {
+    if (!error.budget) log(SRC, `skip streetfolk: ${error.message}`);
   }
   if (assets.length) await writeFile(path.join(LIBRARY, SRC, '.done'), String(EXTRAS_VERSION));
   return assets;

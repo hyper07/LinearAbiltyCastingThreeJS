@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { makeVehicle, pickKind } from './vehicles.js';
+import { loadFleet, makeFleetVehicle, pickFleetKind } from './fleet.js';
 import { follow, pointOn } from './drive.js';
 import { isSmall } from './course.js';
 
@@ -12,6 +13,10 @@ import { isSmall } from './course.js';
  * if they see it in time — blinking before they turn, honking when held up.
  * Scooters also take the small streets. An air horn (items.js) stops the
  * cars ahead and sends the scooters to the kerb.
+ *
+ * The cars, the one-tonne trucks and the buses are real models (fleet.js:
+ * Sketchfab, CC BY 4.0) once they have loaded; until then, and for anything
+ * that didn't load, the built ones (vehicles.js).
  *
  * Each vehicle has a box ({ x, z, heading, halfLength, halfWidth }) for the
  * race to test bikes against (ride.js bikeGap), and a speed v.
@@ -109,6 +114,7 @@ export class RaceTraffic {
     game.scene.add(this.group);
     this._spawnT = 0;
     loadModel('scooter').then((m) => (this.scooterModel = m));
+    loadFleet();
   }
 
   /** Roads a vehicle of a kind may drive: cars and buses the main roads, scooters also the small streets. */
@@ -128,12 +134,14 @@ export class RaceTraffic {
       group.add(rider);
       size = SIZE.scooter;
     } else {
-      view = makeVehicle(kind === 'bus' ? 'bus' : pickKind());
+      // a real model when it's in; else one of ours
+      view = kind === 'bus' ? makeFleetVehicle('bus') : makeFleetVehicle(pickFleetKind() ?? '');
+      view ??= makeVehicle(kind === 'bus' ? 'bus' : pickKind());
       group.add(view.group);
-      size = [view.size.length / 2, view.size.width / 2];
+      size = [view.size.length / 2, view.size.width / 2 - 0.05];
     }
     this.group.add(group);
-    return { group, view, kind, size };
+    return { group, view, kind, size, model: view?.model ?? kind };
   }
 
   /** A new vehicle on a road a little way from someone riding (mostly ahead of them, out of sight). */

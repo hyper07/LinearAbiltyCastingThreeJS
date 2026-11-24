@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { follow, pointOn } from './drive.js';
+import { Folk } from './folk.js';
 
 /**
  * Street life: ordinary people on Seoul's pavements — walking, jogging,
@@ -12,9 +13,11 @@ import { follow, pointOn } from './drive.js';
  * bell or blasts its horn at them (`shoo`: they step aside), and knocks
  * into them (`bump`).
  *
- * Hundreds of them cost little: every body part is one instanced draw for
- * all of them (a torso for everyone, a head for everyone…), posed each frame
- * from a few numbers (a stride, a pedal stroke).
+ * Near you, people on foot are real: rigged, textured Rocketbox men and
+ * women with motion-captured walks, idles, texting and cheering (folk.js).
+ * Further off, hundreds of them cost little: every body part is one
+ * instanced draw for all of them (a torso for everyone, a head for
+ * everyone…), posed each frame from a few numbers (a stride, a pedal stroke).
  *
  *   const life = new StreetLife(game);   // game: the SeoulGame
  *   life.update(dt);                       // every frame
@@ -23,6 +26,8 @@ import { follow, pointOn } from './drive.js';
 /** How many of each, near you. */
 export const CROWD = { walk: 70, jog: 12, dog: 14, shop: 24, stand: 26, bike: 14, moto: 10 };
 const ON_FOOT = new Set(['walk', 'jog', 'dog', 'shop', 'stand']);
+/** Who becomes a real person near you (joggers and riders stay figures). */
+const REAL = new Set(['walk', 'dog', 'shop', 'stand']);
 const NEAR = 12;
 const FAR = 150;
 const GONE = 200;
@@ -119,9 +124,11 @@ export class StreetLife {
     game.scene.add(this.group);
     const s = shapes();
     const all = Object.values(CROWD).reduce((a, b) => a + b, 0) + 30 + 120; // and room for a race's spectators
-    const mat = new THREE.MeshLambertMaterial();
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, envMapIntensity: 0.8 });
     const draw = (geo, n, color = null) => {
-      const m = new THREE.InstancedMesh(geo, color ? new THREE.MeshLambertMaterial({ color }) : mat, n);
+      const m = new THREE.InstancedMesh(geo, color ? new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0 }) : mat, n);
+      m.castShadow = false;
+      m.receiveShadow = true;
       m.count = 0;
       m.frustumCulled = false;
       if (!color) m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3);
@@ -156,6 +163,8 @@ export class StreetLife {
     this._spawnT = 0;
     /** Spectators a race stands at its barriers (addFan): they stay put and cheer. */
     this.fans = [];
+    /** The real people near you (Rocketbox avatars), dressed over the nearest of these. */
+    this.folk = new Folk(game);
   }
 
   /**
@@ -282,7 +291,8 @@ export class StreetLife {
     this.group.visible = !high;
     if (high) return;
     // Too far: gone. Too few: more, a handful a second.
-    this.people = this.people.filter((m) => Math.hypot(m.x - p.x, m.z - p.z) < GONE);
+    for (const m of this.people) if (Math.hypot(m.x - p.x, m.z - p.z) >= GONE) m.gone = true;
+    this.people = this.people.filter((m) => !m.gone);
     this._spawnT -= dt;
     if (this._spawnT <= 0) {
       this._spawnT = 0.03;
@@ -292,6 +302,11 @@ export class StreetLife {
     }
     for (const m of this.people) this._move(m, dt);
     for (const m of this.fans) m.phase += dt;
+    this._all = this.people.concat(this.fans);
+    // Who is near enough to be a real person (on foot, or a fan at the barriers).
+    for (const m of this.people) m.onFoot = REAL.has(m.kind);
+    for (const m of this.fans) m.onFoot = true;
+    this.folk.update(dt, this._all ?? (this._all = []), this.g.camera ?? { position: p });
     this._pose();
   }
 
@@ -421,6 +436,17 @@ export class StreetLife {
       }
       if (m.kind !== 'fan' && Math.hypot(m.x - cam.x, m.z - cam.z) > far) continue;
       tmp.position.set(m.x, m.y, m.z);
+      if (m.real) {
+        // A real person (folk.js): only their dog is ours to draw.
+        if (m.kind === 'dog') {
+          tmp.rotation.set(0, m.heading, 0);
+          tmp.scale.setScalar(m.scale);
+          tmp.updateMatrix();
+          mBase.copy(tmp.matrix);
+          this._dog(m, put, at, m.stride ?? 1);
+        }
+        continue;
+      }
       tmp.rotation.set(0, m.heading, 0);
       tmp.scale.setScalar(m.scale);
       tmp.updateMatrix();
@@ -585,6 +611,7 @@ export class StreetLife {
   }
 
   dispose() {
+    this.folk.dispose();
     this.g.scene.remove(this.group);
     for (const m of Object.values(this.parts)) {
       m.geometry.dispose();
