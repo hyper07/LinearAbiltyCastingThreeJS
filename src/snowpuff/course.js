@@ -140,7 +140,7 @@ export function buildCourse(m) {
     const wall = -Math.sign(k || 1) * Math.abs(b1[i]) * 0.3;
     bank[i] = Math.abs(b1[i]) > 0.02 ? wall + soft * (1 - Math.abs(b1[i])) : soft;
   }
-  const course = { dynIce: [], burst: new Set(), id: m.id, mountain: m, length: L, finish: L, n, px, py, pz, heading, pitch, width, bank, curvature: k1, turns: turnsList, seed: m.seed, rollers: m.rollers ?? 0.2 };
+  const course = { open: Boolean(m.peak), dynIce: [], burst: new Set(), id: m.id, mountain: m, length: L, finish: L, n, px, py, pz, heading, pitch, width, bank, curvature: k1, turns: turnsList, seed: m.seed, rollers: m.rollers ?? 0.2 };
   // The racing line: toward the inside of the turn coming up, smoothed.
   const line = new Float32Array(n);
   for (let i = 0; i < n; i++) {
@@ -198,21 +198,25 @@ const _f = {};
  * groomed run, a soft berm past its edge, then the mountainside rising.
  * Returns height above the centre line (before bank and bumps).
  */
-export function profile(lat, W) {
+export function profile(lat, W, open = false) {
   const a = Math.abs(lat);
   const dish = 0.012 * W * Math.min(1, (a / W) ** 2);
   if (a <= W) return dish;
   const t = Math.min(1, (a - W) / 7);
   const berm = 2.4 * t * t * (1.6 - 0.6 * t);
   if (a <= W + 7) return dish + berm;
-  return dish + 2.4 + (a - W - 7) * 0.32 + ((a - W - 7) ** 2) * 0.0035;
+  const d = a - W - 7;
+  // an open ridge (the famous mountains): beyond the berm the hillside falls gently away, so
+  // the view stays open to the skyline; otherwise the mountainside rises either side
+  if (open) return dish + 2.4 + Math.min(d, 12) * 0.08 - Math.max(0, d - 12) * 0.22 - Math.max(0, d - 40) ** 2 * 0.002;
+  return dish + 2.4 + d * 0.32 + (d ** 2) * 0.0035;
 }
 
 /** Ground height at (s, lat): centre line + profile + bank + bumps + kickers. */
 export function groundAt(c, s, lat, kickers = true) {
   const f = frameAt(c, s, _f);
   const W = f.width;
-  let y = f.y + profile(lat, W) + lat * f.bank;
+  let y = f.y + profile(lat, W, c.open) + lat * f.bank;
   const a = Math.abs(lat);
   // Soft rolls in the snow: tiny on the groomed run, bigger outside it.
   const inside = a < W ? 0.12 : Math.min(1.6, 0.12 + (a - W) * 0.06);
@@ -466,7 +470,7 @@ function placeFeatures(c, m, rand) {
         if (Math.abs(p.lat) < frameAt(c, p.s, _f).width + 6) continue;
         towers.push({ x: tx, z: tz, s: p.s, lat: p.lat });
       }
-      c.lifts.push({ id: id(), kind: 'cross', s, ax: f.x - dx * half, az: f.z - dz * half, bx: f.x + dx * half, bz: f.z + dz * half, towers, dir: [dx, dz] });
+      c.lifts.push({ id: id(), cabin: lf.cabin, kind: 'cross', s, ax: f.x - dx * half, az: f.z - dz * half, bx: f.x + dx * half, bz: f.z + dz * half, towers, dir: [dx, dz] });
     } else {
       const s1 = Math.min(L - 10, s + lf.span * L);
       const towers = [];
@@ -475,7 +479,7 @@ function placeFeatures(c, m, rand) {
         const p = toWorld(c, ss, lat);
         towers.push({ x: p.x, z: p.z, s: ss, lat });
       }
-      c.lifts.push({ id: id(), kind: 'along', s, s1, side: lf.side, towers });
+      c.lifts.push({ id: id(), kind: 'along', s, s1, side: lf.side, towers, cabin: lf.cabin });
     }
   }
 

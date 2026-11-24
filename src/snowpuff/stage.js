@@ -15,6 +15,7 @@ import * as THREE from 'three/webgpu';
 import { vec3, float, mix, smoothstep, positionLocal, normalize, uniform, time, sin, mx_noise_float, pow, max, abs, color, positionWorld } from 'three/tsl';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RiderModel } from './render/riderModel.js';
+import { peakGeometry } from './render/scenery.js';
 import { SELECTABLE } from './riders.js';
 import { MOUNTAINS } from './mountains.js';
 import { loadKit, instance } from './render/models.js';
@@ -155,20 +156,29 @@ export class Stage {
       ped.castShadow = ped.receiveShadow = true;
       g.add(ped);
       // the mountain: a soft noisy cone, snow above, rock streaks
-      const geo = new THREE.ConeGeometry(1.45, 2.2 + m.difficulty * 0.35, 48, 24);
-      const p = geo.attributes.position;
-      for (let k = 0; k < p.count; k++) {
-        const x = p.getX(k), y = p.getY(k), z = p.getZ(k);
-        const a = Math.atan2(z, x);
-        const n = 1 + Math.sin(a * 3 + m.seed) * 0.08 + Math.sin(a * 7 + y * 3) * 0.05;
-        p.setXYZ(k, x * n, y, z * n);
-      }
-      geo.computeVertexNormals();
-      geo.translate(0, 0.7 + (2.2 + m.difficulty * 0.35) / 2, 0);
+      let geo;
       const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.8 });
-      const rock = m.time === 'night' ? color('#3a4470') : m.time === 'sunset' ? color('#8a6a70') : color('#7a8aa8');
-      const streak = mx_noise_float(positionLocal.mul(vec3(6, 1.2, 6)));
-      mm.colorNode = mix(color('#f8fbff'), rock, smoothstep(0.35, 0.6, streak).mul(smoothstep(2.6, 1.2, positionLocal.y)).mul(0.6));
+      if (m.peak) {
+        // a famous mountain: its own silhouette in miniature, snow above its snow line
+        const ph = Math.min(3.2, 1.45 * (m.peak.height / m.peak.radius) * 1.6 + 1.2);
+        geo = peakGeometry(m.peak.shape, { radius: 1.5, height: ph, rings: 30, spokes: 72 }).translate(0, 0.7, 0);
+        const hk = positionLocal.y.sub(0.7).div(ph);
+        mm.colorNode = mix(color(m.peak.rock ?? '#666070'), color('#f8fbff'), smoothstep(float(m.peak.snowLine ?? 0.4).sub(0.05), float(m.peak.snowLine ?? 0.4).add(0.05), hk.add(mx_noise_float(positionLocal.mul(5)).mul(0.08))));
+      } else {
+        geo = new THREE.ConeGeometry(1.45, 2.2 + m.difficulty * 0.35, 48, 24);
+        const p = geo.attributes.position;
+        for (let k = 0; k < p.count; k++) {
+          const x = p.getX(k), y = p.getY(k), z = p.getZ(k);
+          const a = Math.atan2(z, x);
+          const n = 1 + Math.sin(a * 3 + m.seed) * 0.08 + Math.sin(a * 7 + y * 3) * 0.05;
+          p.setXYZ(k, x * n, y, z * n);
+        }
+        geo.computeVertexNormals();
+        geo.translate(0, 0.7 + (2.2 + m.difficulty * 0.35) / 2, 0);
+        const rock = m.time === 'night' ? color('#3a4470') : m.time === 'sunset' ? color('#8a6a70') : color('#7a8aa8');
+        const streak = mx_noise_float(positionLocal.mul(vec3(6, 1.2, 6)));
+        mm.colorNode = mix(color('#f8fbff'), rock, smoothstep(0.35, 0.6, streak).mul(smoothstep(2.6, 1.2, positionLocal.y)).mul(0.6));
+      }
       const mtn = new THREE.Mesh(geo, mm);
       mtn.castShadow = mtn.receiveShadow = true;
       g.add(mtn);
@@ -314,8 +324,8 @@ export class Stage {
       this.goalPos.set(TURN.x + 0.55, 1.55, TURN.z + 6.1);
       this.goalLook.set(TURN.x + 0.75, 0.9, TURN.z + 1.0);
     } else if (view === 'mountains') {
-      this.goalPos.set(DIO.x, 4.2, DIO.z + 15.5);
-      this.goalLook.set(DIO.x, 2.4, DIO.z);
+      this.goalPos.set(DIO.x, 4.4, DIO.z + 13.5);
+      this.goalLook.set(DIO.x, 0.6, DIO.z);
     } else if (view === 'podium') {
       this.goalPos.set(POD.x + 1.5, 2.3, POD.z + 7.8);
       this.goalLook.set(POD.x + 1.7, 1.2, POD.z + 0.2);
@@ -368,8 +378,9 @@ export class Stage {
     // on the mountains, the camera glides along the row to the one chosen (there are more than fit)
     const chosen = this.view === 'mountains' && this.dioramas?.get(this.mountain);
     if (chosen) {
-      this.goalPos.x = chosen.g.position.x;
-      this.goalLook.x = chosen.g.position.x;
+      // the map covers the left: the chosen mountain stands on the right
+      this.goalPos.x = chosen.g.position.x - 3.2;
+      this.goalLook.x = chosen.g.position.x - 3.0;
     }
     this.camPos.lerp(this.goalPos, k);
     this.camLook.lerp(this.goalLook, k);

@@ -16,6 +16,8 @@ import { loadKit, instance } from './render/models.js';
 import { RiderModel } from './render/riderModel.js';
 import { ALL_SPECIES } from './riders.js';
 import { KEEP_BUFFERS } from './fx.js';
+import { sceneryPlan } from './landmarks.js';
+import { buildBackdrop as buildHeroPeak, buildWater, faceClouds, BUILDERS, prayerFlags, toriiGate, buildTrain } from './render/scenery.js';
 
 const SECTION = 100;
 const IN_COLS = 46;
@@ -55,7 +57,12 @@ export class World {
 
   async build(progress = () => {}) {
     const c = this.course, m = this.mountain;
-    this.snow = snowMaterial({ trails: this.trails, sun: this.sky.u.sun, sunColor: this.sky.u.sunColor, sparkle: m.time === 'night' ? 0.5 : 1 });
+    const L = c.length;
+    this.snow = snowMaterial({
+      trails: this.trails, sun: this.sky.u.sun, sunColor: this.sky.u.sunColor, sparkle: m.time === 'night' ? 0.5 : 1,
+      land: m.land ? { colour: m.land.colour, from: m.land.from * L, beyond: m.land.beyond ?? 8 } : null,
+      sand: m.sand ? { colour: m.sand.colour, from: m.sand.from * L } : null
+    });
     progress('Laying the snow', 0.05);
     await idle();
     this.buildTerrain();
@@ -68,6 +75,9 @@ export class World {
     const want = ['spruce', 'pine', 'pylon', 'chair', 'snowman', 'hay', 'snowFence', 'boulders', 'outcrop', 'startHut', 'hut', 'cannon'];
     if (m.village) want.push('chalet', 'barn', 'fir', 'baseStation', 'bunting', 'present');
     if (m.lanterns) want.push('lantern');
+    if (m.lifts?.some((l) => l.cabin === 'gondola')) want.push('gondola');
+    this.plan = sceneryPlan(c, m);
+    for (const k of new Set(this.plan.map((p) => p.kind))) if (!BUILDERS[k] && k !== 'prayer' && !want.includes(k)) want.push(k);
     const kits = {};
     await Promise.all(want.map(async (k) => {
       kits[k] = await loadKit(k, k === 'lantern' ? { emissiveTest: (mat) => isWarm(mat.color), emissive: '#ffb050' } : k === 'cannon' ? { skip: (n) => /^(plume|streak)/.test(n) } : {});
@@ -95,6 +105,58 @@ export class World {
     this.buildSpectators();
     this.buildBells();
     this.buildFans();
+    progress('Raising the famous mountain on the skyline', 0.9);
+    await idle();
+    this.buildLandmarks();
+  }
+
+  /* ---------------------------------------------------------------- the famous mountain and its place */
+
+  buildLandmarks() {
+    const c = this.course, m = this.mountain;
+    if (m.peak) {
+      this.hero = buildHeroPeak(c, m, this.sky);
+      this.root.add(this.hero);
+    }
+    const water = buildWater(c, m);
+    if (water) this.root.add(water);
+    // the scenery beside the run, one instanced group per kind per section
+    const byKey = new Map();
+    const over = [];
+    for (const it of this.plan ?? []) {
+      if (it.kind === 'prayer') {
+        over.push(it);
+        continue;
+      }
+      const sec = this.section(it.s);
+      const key = `${it.kind}|${sec.id}`;
+      if (!byKey.has(key)) byKey.set(key, { kind: it.kind, sec, list: [] });
+      const p = toWorld(c, it.s, it.lat, 0, {});
+      if (!this.valid(p.x, p.z, it.s, it.lat)) continue;
+      byKey.get(key).list.push({ x: p.x, y: p.y - 0.08, z: p.z, ry: it.ry, s: it.scale });
+    }
+    this.sceneryKits ??= {};
+    for (const { kind, sec, list } of byKey.values()) {
+      if (!list.length) continue;
+      const kit = this.kits[kind] ?? (this.sceneryKits[kind] ??= BUILDERS[kind]?.());
+      if (!kit) continue;
+      sec.add(instance(kit, list));
+    }
+    if (over.length) this.root.add(prayerFlags(c, over));
+    // the mountain railway over the run (the Matterhorn)
+    if (m.train) {
+      let best = c.length * 0.45, bk = Infinity;
+      for (let s = c.length * 0.3; s < c.length * 0.7; s += 10) {
+        const k = Math.abs(c.curvature[Math.round(s)]) + (c.kickers.some((kk) => Math.abs(kk.s - s) < 30) ? 1 : 0);
+        if (k < bk) {
+          bk = k;
+          best = s;
+        }
+      }
+      this.train = buildTrain(c, best);
+      this.section(best).add(this.train);
+      c.trainS = best;
+    }
   }
 
   /* ---------------------------------------------------------------- snow */
@@ -501,7 +563,28 @@ export class World {
   }
 
   buildTrees() {
-    const c = this.course, m = this.mountain, r = this.rand, K = this.kits;
+    const c = this.course, m = this.mountain, r = this.rand;
+    const K = { ...this.kits };
+    // tinted forests: rime-frosted "snow flower" trees, dark cedar, deep spruce
+    const tint = m.trees?.tint;
+    if (tint) {
+      const recolour = (kit) => ({
+        ...kit,
+        parts: kit.parts.map((p) => {
+          const mm = p.material.clone();
+          const col = mm.color ?? new THREE.Color('#ffffff');
+          const hsl = col.getHSL({});
+          const leafy = hsl.h > 0.18 && hsl.h < 0.5;
+          if (tint === 'rime') mm.color = leafy || hsl.l > 0.7 ? new THREE.Color('#e9f1fb') : col.clone();
+          else if (tint === 'cedar') mm.color = leafy ? col.clone().multiplyScalar(0.62).lerp(new THREE.Color('#1f4a36'), 0.35) : col.clone();
+          else if (tint === 'dark') mm.color = leafy ? col.clone().multiplyScalar(0.55).lerp(new THREE.Color('#163b2c'), 0.4) : col.clone();
+          if (mm.map && tint === 'rime') mm.map = null;
+          return { geometry: p.geometry, material: mm };
+        })
+      });
+      K.spruce = recolour(K.spruce);
+      K.pine = recolour(K.pine);
+    }
     const L = c.n - 1;
     for (let s0 = -20; s0 < L; s0 += SECTION) {
       const spruce = [], pine = [], farSpruce = [], farPine = [];
@@ -601,7 +684,7 @@ export class World {
       for (let i = 1; i < loop.length; i++) cum.push(cum[i - 1] + loop[i].distanceTo(loop[i - 1]));
       const total = cum.at(-1);
       const n = Math.max(4, Math.floor(total / 13));
-      const chairKit = lf.kind === 'along' && this.mountain.id === 'aurora' && K.gondola ? K.gondola : K.chair;
+      const chairKit = (lf.cabin === 'gondola' || (lf.kind === 'along' && this.mountain.id === 'aurora')) && K.gondola ? K.gondola : K.chair;
       const chairs = instance(chairKit, new Array(n).fill(0).map(() => ({ x: 0, y: -999, z: 0 })), { shadow: true });
       chairs.children.forEach((im) => (im.frustumCulled = false));
       this.root.add(chairs);
@@ -617,6 +700,12 @@ export class World {
       const f = frameAt(c, a.s, {});
       const W = f.width + 2.6;
       const H = a.kind === 'check' ? 6.5 : 7.5;
+      if (m.arches === 'torii') {
+        // red torii gates over the run instead of the inflatable arches
+        this.section(a.s).add(toriiGate(c, a.s));
+        if (a.kind === 'finish') this.section(a.s).add(this.patch(a.s - 0.6, a.s + 0.6, -f.width, f.width, 2, 48, (s, lat) => groundAt(c, s, lat, false) + 0.02, checkerMaterial()));
+        continue;
+      }
       const pts = [];
       for (let i = 0; i <= 40; i++) {
         const t = (i / 40) * Math.PI;
@@ -892,6 +981,13 @@ export class World {
   /* ---------------------------------------------------------------- per frame */
 
   update(dt, focusS, focus) {
+    if (this.hero && this.camera) faceClouds(this.hero, this.camera);
+    if (this.train) {
+      this.trainT = (this.trainT ?? 0) + dt;
+      const span = this.train.userData.span;
+      const u = (Math.sin(this.trainT * 0.18) * 0.5 + 0.5);
+      this.train.userData.train.position.x = -span + 6 + u * (span * 2 - 36);
+    }
     const c = this.course;
     // sections near you only
     for (const g of this.sections) {
@@ -1004,8 +1100,10 @@ export class World {
   buildBells() {
     const c = this.course;
     this.bellMap = new Map();
-    const bellGeo = new THREE.SphereGeometry(0.42, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62).translate(0, -0.42, 0);
-    const bellMat = new THREE.MeshPhysicalNodeMaterial({ color: '#ffc94a', roughness: 0.25, metalness: 0.85, clearcoat: 1 });
+    const cow = this.mountain.bells === 'cowbell';
+    // a round brass bell, or (in the Alps) a big square-shouldered cowbell on a red-and-white strap
+    const bellGeo = cow ? new THREE.CylinderGeometry(0.3, 0.46, 0.7, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 0.7).translate(0, -0.45, 0) : new THREE.SphereGeometry(0.42, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62).translate(0, -0.42, 0);
+    const bellMat = new THREE.MeshPhysicalNodeMaterial({ color: cow ? '#c98b3a' : '#ffc94a', roughness: cow ? 0.4 : 0.25, metalness: 0.85, clearcoat: 1 });
     bellMat.emissiveNode = vec3(0.6, 0.4, 0.05).mul(pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2));
     for (const b of c.bells) {
       const f = frameAt(c, b.s, {});

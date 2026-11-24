@@ -11,6 +11,7 @@ import {
   mx_noise_float, mx_cell_noise_float, fog, exp, clamp, time, abs
 } from 'three/tsl';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import { summitDir, backdropPlace } from '../landmarks.js';
 
 const HDRI = {
   noon: 'kloofendal_48d_partly_cloudy_puresky_1k.hdr',
@@ -25,20 +26,24 @@ const dirFrom = (altDeg, azDeg) => {
 };
 
 export class Sky {
-  constructor(scene, mountain) {
+  constructor(scene, mountain, course = null) {
     this.scene = scene;
     const P = mountain.palette;
     this.night = mountain.time === 'night';
+    // sunrise just beside the summit: the sky glows round the peak and its snow catches the light side-on
+    const sunDir = P.sunOnPeak && course && mountain.peak ? new THREE.Vector3(...summitDir(course, mountain)).applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.6).add(new THREE.Vector3(0, 0.06, 0)).normalize() : dirFrom(P.sunAlt, P.sunAz);
     this.u = {
       zenith: uniform(new THREE.Color(P.sky[0])),
       mid: uniform(new THREE.Color(P.sky[1])),
       horizon: uniform(new THREE.Color(P.sky[2])),
       fog: uniform(new THREE.Color(P.fog)),
-      sun: uniform(dirFrom(P.sunAlt, P.sunAz)),
+      sun: uniform(sunDir),
       sunColor: uniform(new THREE.Color(P.sun)),
       aurora: uniform(this.night ? 1 : 0),
       stars: uniform(this.night ? 1 : 0),
-      fogDensity: uniform(this.night ? 0.0019 : mountain.time === 'sunset' ? 0.0010 : 0.0011),
+      fogDensity: uniform(P.fogD ?? (this.night ? 0.0019 : mountain.time === 'sunset' ? 0.001 : 0.0011)),
+      auroraA: uniform(new THREE.Color(P.auroraA ?? '#33ff8c')),
+      auroraB: uniform(new THREE.Color(P.auroraB ?? '#9e59ff')),
       fogBase: uniform(0)
     };
     const u = this.u;
@@ -68,7 +73,7 @@ export class Sky {
       const n1 = mx_noise_float(vec2(az.mul(2.6).add(time.mul(0.03)), y.mul(1.5)));
       const n2 = mx_noise_float(vec2(az.mul(7.0).sub(time.mul(0.05)), y.mul(9.0)));
       const curtain = pow(max(n1.mul(0.7).add(n2.mul(0.3)).add(0.15), 0), 2).mul(band).mul(2.2);
-      const hue = mix(vec3(0.2, 1.0, 0.55), vec3(0.62, 0.35, 1.0), smoothstep(0.25, 0.65, y).add(n2.mul(0.3)));
+      const hue = mix(u.auroraA, u.auroraB, smoothstep(0.25, 0.65, y).add(n2.mul(0.3)));
       out.addAssign(hue.mul(curtain).mul(u.aurora));
       // stars
       const cell = mx_cell_noise_float(dir.mul(420));
@@ -164,10 +169,19 @@ export function distantPeaks(course, mountain, rand) {
   const bottom = course.py[course.n - 1];
   const geos = [];
   const count = 26;
+  // a famous mountain on the skyline: leave its side of the ring open and keep the rest low,
+  // so nothing stands in front of the hero
+  const hero = mountain.peak ? backdropPlace(course, mountain) : null;
+  const heroA = hero ? Math.atan2(hero.z - cz, hero.x - cx) : 0;
   for (let i = 0; i < count; i++) {
     const a = (i / count) * Math.PI * 2 + rand() * 0.2;
     const r = 1500 + rand() * 1100;
-    const h = (top - bottom) * (0.7 + rand() * 0.9) + 250;
+    let h = (top - bottom) * (0.7 + rand() * 0.9) + 250;
+    if (hero) {
+      const off = Math.abs(Math.atan2(Math.sin(a - heroA), Math.cos(a - heroA)));
+      if (off < 1.15) continue;
+      h *= 0.55;
+    }
     const base = bottom - 120;
     const g = new THREE.ConeGeometry(500 + rand() * 500, h + (top - base) * 0.2, 9, 6);
     const p = g.attributes.position;

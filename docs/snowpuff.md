@@ -109,6 +109,37 @@ Add a mountain by adding a record.
 | **Pinecone Ridge** ❄❄ | Golden hour | A slalom through dense pines, red and blue gates, chairlifts overhead, bigger jumps, a frozen creek with ice patches |
 | **Aurora Peak** ❄❄❄ | Night | Aurora curtains and stars, warm lanterns down the run (real lights near you), steep drops, big kickers, narrow gaps |
 
+These three are the fictional **Snowpuff Islands**. The rest are **famous
+mountains of the world**: you ride a nearby slope while the famous peak stands
+far off as the hero of the skyline — big (seen from mid-run its summit stands
+about 19° up with its foot just under the horizon, a third of the view), crisp
+snow catching the sun, almost no haze on the peak itself and a thick haze and
+cloud bank round its foot; the run's curves swing it from side to side and it
+is ahead for most of the race. One mountain is loaded at a time; each race is
+about 60–90 s for the computer riders.
+
+| Mountain | Where | Mood | Around the run |
+| --- | --- | --- | --- |
+| **Hallasan** 한라산 ❄ | Jeju, Korea | Morning | A broad shield volcano with its crater lake, the sea, basalt field walls, stone grandfather statues, tangerine trees, canola flowers by the finish |
+| **Mount Fuji** 富士山 ❄❄ | Japan | Sunrise beside the summit | The snow-capped cone, a lake, torii gates over the run, stone lanterns, a pagoda, a red bridge, cedars |
+| **Matterhorn** ❄❄❄ | Switzerland / Italy | Clear day | The pyramid, cowbells to ring, a red mountain train on a viaduct, gondolas, a village |
+| **Mount Everest** ❄❄❄ | Nepal / China | High and blue | The summit plume, prayer flags, a stupa, yaks, cairns |
+| **Banff** ❄❄ | Canada | Crisp day | Layered jagged peaks, a turquoise lake, moose, a lodge, gondolas |
+| **Kilimanjaro** ❄❄ | Tanzania | Sunset | The flat-topped giant with its snow cap, savanna beyond the run, acacias, giraffes, elephants, a sandy finish |
+
+The pick is a **world map** (`src/snowpuff/worldMap.js`): pins on a stylised
+map, region tabs (World, Asia, Europe, the Americas, Africa, Snowpuff Islands)
+that zoom in, difficulty filters, and a card with the name in English and its
+local name under it, the difficulty and a short checked fact for kids. Cultural,
+religious and wildlife things are only scenery. The pure parts are
+`src/snowpuff/landmarks.js` (peak shapes, where the hero stands, the scenery
+plan, always off the run) and `render/scenery.js` builds them.
+
+**Next mountains** (wave 2, in progress): Artesonraju (Peru), Yellowstone
+(geysers you can ride), Baekdusan 백두산 (the crater lake, kept neutral),
+Seoraksan 설악산, Mont Blanc, Denali, Kirkjufell. Later candidates: Aconcagua,
+Kangchenjunga, Aoraki / Mount Cook, a table mountain or desert dunes.
+
 A course is a winding centre line sampled every metre — straights and eased
 arcs: S-bends, a few **banked berms** (boardercross style), wide sweeping curves
 on Marshmallow Hill, tighter ones on Aurora Peak — with a cross-section

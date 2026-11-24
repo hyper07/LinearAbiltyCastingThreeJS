@@ -25,6 +25,12 @@ export const POLYFORK = {
   lantern: ['dock-lantern-post-5e58a4', 'Dock Lantern Post'],
   cannon: ['snow-cannon-cc3ea5', 'Snow Cannon'],
   bunting: ['bunting-run-2ac207', 'Bunting Run'],
-  present: ['big-wrapped-present-57b639', 'Big Wrapped Present']
+  present: ['big-wrapped-present-57b639', 'Big Wrapped Present'],
+  // the famous mountains' scenery
+  snowLantern: ['stone-lantern-d56d0a', 'Stone Lantern'],
+  pagoda: ['tiered-pagoda-f4ade0', 'Tiered Pagoda'],
+  batdam: ['basalt-field-wall-run-d0917e', 'Basalt Field Wall Run'],
+  giraffe: ['giraffe-base', 'Giraffe'],
+  elephant: ['elephant-base', 'Elephant']
 };
 

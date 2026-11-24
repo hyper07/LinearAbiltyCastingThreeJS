@@ -33,7 +33,7 @@ export async function run(browser) {
     t.check('…and a click picks another', await page.evaluate(() => window.snowpuff.picked === 'bear'));
     await page.click('.sp [data-rider="fox"]');
     await page.click('.sp [data-next]');
-    t.check('mountain select shows three mountains with difficulty stars', await until(page, () => document.querySelectorAll('[data-mountain]').length === 3 && document.querySelectorAll('.sp-diff').length === 3, null, 5000));
+    t.check('mountain select is a world map with a pin for every mountain (the famous ones and the Snowpuff Islands)', await until(page, () => document.querySelectorAll('.sp-world [data-pin]').length >= 9 && document.querySelector('.sp-world [data-pin="fuji"]') && document.querySelector('.sp-world [data-pin="marshmallow"]'), null, 5000));
     await page.click('.sp [data-go]');
     t.check('the race counts down and starts', await until(page, () => window.snowpuff.mode === 'race', null, 120000));
     t.check('rivals line up beside you', await page.evaluate(() => window.snowpuff.racers.length === 4 && window.snowpuff.racers.filter((r) => !r.human).length === 3));

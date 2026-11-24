@@ -10,6 +10,7 @@
 import { SPECIES, SELECTABLE, faceSvg } from './riders.js';
 import { GOGGLES, goggleChip, randomGoggle } from './goggleList.js';
 import { MOUNTAINS } from './mountains.js';
+import { worldMap } from './worldMap.js';
 import { ordinal } from './race.js';
 import { hintItems } from '../shared/helpPanel.js';
 import { CONTROLS } from './controls.js';
@@ -75,9 +76,9 @@ export class Menus {
   }
 
   clear() {
-    this.el.innerHTML = '';
     for (const off of this._offs ?? []) off();
     this._offs = [];
+    this.el.innerHTML = '';
   }
 
   click(sel, fn) {
@@ -203,43 +204,22 @@ export class Menus {
 
   mountains({ picked, best, onPick, onGo, onBack, goLabel = 'Race! ›' }) {
     this.clear();
-    this.el.append(el('div', 'sp-heading', 'Choose a mountain'));
-    const row = el('div', 'sp-col sp-mountains');
-    for (const m of MOUNTAINS) {
-      const b = el('button', 'sp-mtn', `<h3>${esc(m.name)}</h3><div class="sp-diff">${diffStars(m.difficulty)}</div><p>${esc(m.blurb)}</p><div class="sp-best">${best[m.id] ? `Best: ${fmtTime(best[m.id].time)} · ${ordinal(best[m.id].place)}` : 'Not raced yet'}</div>`);
-      b.dataset.mountain = m.id;
-      b.setAttribute('aria-pressed', String(m.id === picked));
-      b.addEventListener('click', () => {
+    this.el.append(el('div', 'sp-heading sp-heading--map', 'Choose a mountain'));
+    const map = worldMap(this.el, {
+      picked, best, fmt: fmtTime, ordinal,
+      onPick: (id) => {
         this.game.sound.wake();
         this.game.sound.click();
-        onPick(m.id);
-        for (const x of row.children) x.setAttribute('aria-pressed', String(x.dataset.mountain === m.id));
-      });
-      b.addEventListener('dblclick', () => onGo());
-      row.append(b);
-    }
-    this.el.append(row);
-    // ◀ ▶ (and ← →) step through the mountains; the row and the camera glide to the one chosen
-    let current = picked;
-    const show = (id, smooth = true) => row.querySelector(`[data-mountain="${id}"]`)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant', inline: 'center', block: 'nearest' });
-    const step = (dir) => {
-      const i = Math.max(0, MOUNTAINS.findIndex((m) => m.id === current));
-      current = MOUNTAINS[(i + dir + MOUNTAINS.length) % MOUNTAINS.length].id;
-      onPick(current);
-      for (const x of row.children) x.setAttribute('aria-pressed', String(x.dataset.mountain === current));
-      show(current);
-    };
-    for (const b of row.children) b.addEventListener('click', () => {
-      current = b.dataset.mountain;
-      show(current);
+        onPick(id);
+      },
+      onGo
     });
-    requestAnimationFrame(() => show(current, false));
-    this.turnControls({ step });
+    this._offs.push(() => map.dispose());
+    this.turnControls({ step: (dir) => map.step(dir) });
+    this.el.querySelector('.sp-turn')?.classList.add('sp-turn--side');
     this.el.append(el('div', 'sp-col sp-nav', `<button class="sp-btn sp-btn--go" data-go>${esc(goLabel)}</button>`));
-    this.el.querySelector('.sp-nav').style.bottom = 'auto';
-    this.el.querySelector('.sp-nav').style.top = '16px';
     this.el.append(el('div', 'sp-col sp-back', '<button class="sp-btn sp-btn--small" data-back>‹ Back</button>'));
-    this.el.querySelector('.sp-back').style.cssText = 'left:3%;top:16px;bottom:auto';
+    this.el.querySelector('.sp-back').style.cssText = 'left:2%;top:14px;bottom:auto';
     this.click('[data-go]', onGo);
     this.click('[data-back]', onBack);
     setTimeout(() => this.el.querySelector('[data-go]')?.focus({ preventScroll: true }), 50);

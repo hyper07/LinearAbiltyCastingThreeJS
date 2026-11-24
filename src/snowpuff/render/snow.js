@@ -18,7 +18,7 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, uniform, uniformArray, attribute, varying, texture, vec2, vec3, vec4, float, int, Loop, max, min, abs, clamp, mix, smoothstep,
-  positionWorld, cameraPosition, cameraViewMatrix, normalLocal, sin, cos, pow, dot, reflect, normalize, length, uv, mx_noise_float, mx_cell_noise_float, step
+  color, positionWorld, cameraPosition, cameraViewMatrix, normalLocal, sin, cos, pow, dot, reflect, normalize, length, uv, mx_noise_float, mx_cell_noise_float, step
 } from 'three/tsl';
 
 export const TRAIL = { lat: 26, len: 200, back: 60, w: 384, h: 1536, riders: 8 };
@@ -125,7 +125,7 @@ export class SnowTrails {
  * The snow. `trails` may be null (low tier). `sun` is a uniform vec3 (direction
  * toward the sun) and `sunColor` a uniform colour, shared with the sky.
  */
-export function snowMaterial({ trails = null, sun, sunColor, sparkle = 1, tintShadow = '#9db8e8' } = {}) {
+export function snowMaterial({ trails = null, sun, sunColor, sparkle = 1, tintShadow = '#9db8e8', land = null, sand = null } = {}) {
   const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.7, metalness: 0 });
   const course = attribute('course', 'vec3'); // s, lat, half-width
   const side = attribute('side', 'vec2'); // world right vector (x, z) of the run here
@@ -171,13 +171,27 @@ export function snowMaterial({ trails = null, sun, sunColor, sparkle = 1, tintSh
   // colour: cool white; grooves a touch darker and bluer; powder off the run brighter
   const base = mix(vec3(0.9, 0.93, 0.975), vec3(0.97, 0.98, 1.0), float(1).sub(P.onRun).mul(0.6));
   const varied = base.mul(P.macro.mul(0.035).add(1)).mul(P.micro.mul(0.02).add(1));
-  m.colorNode = mix(varied, vec3(shadowTint).mul(0.95), P.groove.mul(0.3));
+  let snowCol = mix(varied, vec3(shadowTint).mul(0.95), P.groove.mul(0.3));
+  let landK = float(0);
+  // the run turning to sand near the finish (sand-boarding, black-sand beaches)
+  if (sand) {
+    const k = smoothstep(sand.from - 25, sand.from + 25, vCourse.x).mul(float(1).sub(smoothstep(vCourse.z.add(2), vCourse.z.add(8), abs(vCourse.y))).mul(0.9).add(0.1));
+    snowCol = mix(snowCol, color(sand.colour).mul(P.micro.mul(0.08).add(1)), k);
+    landK = landK.add(k);
+  }
+  // beyond the run lower down: savanna, tundra, canola fields…
+  if (land) {
+    const k = smoothstep(land.from - 40, land.from + 40, vCourse.x).mul(smoothstep(vCourse.z.add(land.beyond), vCourse.z.add(land.beyond + 10), abs(vCourse.y)));
+    snowCol = mix(snowCol, color(land.colour).mul(P.macro.mul(0.12).add(1)).mul(P.micro.mul(0.06).add(1)), k);
+    landK = landK.add(k);
+  }
+  m.colorNode = snowCol;
   m.roughnessNode = clamp(mix(float(0.55), float(0.82), float(1).sub(P.onRun)).sub(P.groove.mul(0.22)).add(P.micro.mul(0.06)), 0.25, 1);
   // sparkle: a few cells mirror the sun to the eye
   const V = normalize(cameraPosition.sub(positionWorld));
   const cell = mx_cell_noise_float(positionWorld.mul(22));
   const glint = step(0.955, cell).mul(pow(max(dot(reflect(V.negate(), nW), sun), 0), 90)).mul(float(1).sub(smoothstep(10, 60, P.dist)));
-  m.emissiveNode = vec3(sunColor).mul(glint).mul(sparkleU).mul(float(1).sub(P.groove)).mul(3.5);
+  m.emissiveNode = vec3(sunColor).mul(glint).mul(sparkleU).mul(float(1).sub(P.groove)).mul(float(1).sub(clamp(landK, 0, 1))).mul(3.5);
   return m;
 }
 

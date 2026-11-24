@@ -490,10 +490,10 @@ export class SnowpuffGame {
     await new Promise((r) => setTimeout(r, 30));
     const course = buildCourse(m);
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(62, this.w / this.h, 0.25, 5200);
+    const camera = new THREE.PerspectiveCamera(62, this.w / this.h, 0.25, m.peak ? 7000 : 5200);
     this.camera = camera;
     this.scene = scene;
-    const sky = new Sky(scene, m);
+    const sky = new Sky(scene, m, course);
     this.sky = sky;
     sky.setShadowSize(this.tier.shadow);
     this.loadingEl.set('Lighting the sky…', 0.05);
@@ -1477,7 +1477,7 @@ export class SnowpuffGame {
     const ahead = frameAt(c, rd.s + 10 + speed * 0.25, {});
     // look ahead along the run, nudged toward where you're steering
     const latLook = rd.lat * 0.7 + steerR * 2.5 + Math.sin(rd.yaw) * 4;
-    const la = new THREE.Vector3(ahead.x + ahead.rx * latLook, me.pos.y + 0.4 - k * 0.3, ahead.z + ahead.rz * latLook);
+    const la = new THREE.Vector3(ahead.x + ahead.rx * latLook, me.pos.y + 0.4 - k * 0.3 + (r.mountain.peak ? 1.1 : 0), ahead.z + ahead.rz * latLook);
     const look = target.clone().lerp(la, 0.55);
     r.camLook.lerp(look, 1 - Math.exp(-dt * 11));
     // keep your own rider framed (bottom-centre third) through berms and tight turns
@@ -1521,6 +1521,12 @@ export class SnowpuffGame {
       cam.up.set(0, 1, 0);
       cam.position.set(me.pos.x + fx2 * 1.9 - rx * 1.1 * sd, me.pos.y + 1.0, me.pos.z + fz2 * 1.9 - rz * 1.1 * sd);
       cam.lookAt(me.pos.x + fx2 * 0.1, me.pos.y + 0.72, me.pos.z + fz2 * 0.1);
+    }
+    if (this.debugCam === 'hero' && this.world.hero) {
+      const b = this.world.hero.userData.place;
+      cam.up.set(0, 1, 0);
+      cam.position.set(me.pos.x, me.pos.y + 40, me.pos.z);
+      cam.lookAt(b.x, b.y + b.height * 0.5, b.z);
     }
     // FOV widens with speed: 60 → 78
     const fov = 60 + 18 * clamp((speed - 6) / 24, 0, 1) + (rd.boost > 0 ? 4 : 0);
