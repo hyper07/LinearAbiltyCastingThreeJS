@@ -38,6 +38,8 @@ import { patchCutout, updateCutout } from './cutout.js';
 
 /** The buddy is a bit bigger than the townsfolk, so it reads from the play camera. */
 const KID_SCALE = 1.4;
+/** The mountain's teachers as the classroom shows them (interiors.js), for the cover photo. */
+const TEACHERS_LOOK = { math: { species: 'owl' }, history: { species: 'tortoise' }, physics: { species: 'raccoon', hat: 'goggles' } };
 
 const DAY = { top: '#8fd3ff', mid: '#d9f3ff', bottom: '#fff4dc', fog: '#d6efff', hemiSky: '#f2fbff', hemiGround: '#9fc79a', hemi: 1.05, sun: '#fff6e0', sunI: 1.9, amb: 0.12 };
 const NIGHT = { top: '#0b1636', mid: '#24397a', bottom: '#33478a', fog: '#1d2f66', hemiSky: '#6f84d8', hemiGround: '#1a2350', hemi: 0.9, sun: '#b3c4ff', sunI: 0.6, amb: 0.22 };
@@ -525,6 +527,52 @@ export class World {
     this.kid.hop();
   }
 
+  /**
+   * The home page's cover photo (scripts/covers.mjs): the buddy in a graduation cap at the door of a
+   * school, its three teachers round it, the school behind. For the photograph only; nothing is saved.
+   * `o` tunes the framing: dist and up of the camera, lift of its aim, side (sideways shift), subject.
+   */
+  coverShot(o = {}) {
+    const { dist = 4.2, up = 0.2, lift = 1.9, side = 0, subject = 'math', spread = 0.75, back = 1.1, out = 3.6, fov = 58 } = o;
+    this.camera.fov = fov;
+    this.camera.updateProjectionMatrix();
+    const b = this.buildings.find((e) => e.subject === subject && e.floor === 1);
+    const p = b.p, y = b.at.y;
+    let fx = b.at.x - p.x, fz = b.at.z - p.z;
+    const L = Math.hypot(fx, fz) || 1;
+    fx /= L;
+    fz /= L;
+    const sx = -fz, sz = fx;
+    const kx = b.at.x + fx * out, kz = b.at.z + fz * out;
+    this.setBuddy({ ...this.buddy, hat: 'mortarboard' });
+    this.kidPos.set(kx, this.plan.height(kx, kz, y), kz);
+    this.path = null;
+    this.kidHeading = Math.atan2(fx, fz);
+    this.kid.group.position.copy(this.kidPos);
+    this.kid.group.rotation.y = this.kidHeading;
+    this.kid.cheer(30);
+    this._coverCast?.forEach((c) => this.scene.remove(c.group));
+    // Left to right as the camera sees them: a classmate, Gizmo, (the buddy), Hoot, Tock.
+    this._coverCast = [
+      [{ species: 'bunny', color: '#ffc2dc', hat: 'party' }, 4.3, 1.7],
+      [TEACHERS_LOOK.physics, 2.2, 0.9],
+      [TEACHERS_LOOK.math, -2.2, 0.9],
+      [TEACHERS_LOOK.history, -4.3, 1.7]
+    ].map(([look, s, bk], i) => {
+      const c = makeCreature({ ...look, scale: look.species === 'bunny' ? KID_SCALE * 0.9 : 1.35, seed: 7 + i });
+      const x = kx - fx * bk * back + sx * s * spread, z = kz - fz * bk * back + sz * s * spread;
+      c.group.position.set(x, this.plan.height(x, z, y), z);
+      c.group.rotation.y = this.kidHeading + Math.sign(s) * 0.3;
+      c.wave(30);
+      this.scene.add(c.group);
+      return c;
+    });
+    this._camTween = null;
+    this._following = false;
+    this.controls.target.set(kx - fx * 2 + sx * side, this.kidPos.y + lift, kz - fz * 2 + sz * side);
+    this.camera.position.set(kx + fx * dist + sx * side * 0.6, this.kidPos.y + up + 1.2, kz + fz * dist + sz * side * 0.6);
+  }
+
   /** Gems already found (ids like "3-1"). */
   setFound(found) {
     this.found = { ...found };
@@ -902,6 +950,7 @@ export class World {
       b.fig.update(dt, {});
     }
     this._npcs(dt);
+    for (const c of this._coverCast ?? []) c.update(dt, { speed: 0 });
     this.ring.material.opacity = 0.55 + Math.sin(t * 3) * 0.25;
     this.ring.rotation.z = t * 0.2;
     if (this.marker.visible) this.marker.scale.setScalar(1 + Math.sin(t * 6) * 0.12);
@@ -1003,7 +1052,7 @@ export class World {
 
   _npcs(dt) {
     for (const n of this.npcs) {
-      const near = Math.abs(n.floor - this.focusFloor) <= 1;
+      const near = Math.abs(n.floor - this.focusFloor) <= 1 && !this._coverCast;
       n.fig.group.visible = near;
       if (!near) continue;
       const g = n.fig.group;
