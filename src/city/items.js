@@ -7,16 +7,16 @@ import { isSmall } from './course.js';
  * alley); ride through one to fill an empty slot, and use it with 1, 2 or 3.
  * What you get depends on where you are: the further back, the better.
  *
- *   energy drink — the sprint gauge full again
+ *   battery pack — the boost gauge full again
  *   air horn     — people and scooters ahead clear out, cars stop
  *   gold helmet  — the next crash doesn't knock you off
- *   tailwind     — five seconds of free, faster sprinting
+ *   tailwind     — five seconds of free, faster boosting
  */
 export const ITEMS = {
-  drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Your sprint gauge, full again.', pop: 'DRINK!', color: '#9ef07a' },
+  drink: { name: 'Battery pack', ko: '보조 배터리', text: 'Your boost gauge, full again.', pop: 'CHARGE!', color: '#9ef07a' },
   horn: { name: 'Air horn', ko: '에어혼', text: 'BWAAMP: people and scooters ahead clear out, cars stop.', pop: 'HORN!', color: '#ff7aa8' },
   helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'The next crash bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
-  tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster sprinting.', pop: 'WIND!', color: '#8fd8ff' }
+  tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster boosting.', pop: 'WIND!', color: '#8fd8ff' }
 };
 export const ITEM_ORDER = ['drink', 'horn', 'helmet', 'tailwind'];
 

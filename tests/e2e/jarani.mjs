@@ -26,18 +26,18 @@ export async function run(browser) {
       t.check('no Seoul map on this server: the race is not run', true);
       return t;
     }
-    t.check('seven short bike courses and six riders (three women, three men)', await page.evaluate(() => document.querySelectorAll('[data-course]').length === 7 && document.querySelectorAll('[data-char]').length === 6));
+    t.check('seven short courses and seven plush riders (girls and boys)', await page.evaluate(() => document.querySelectorAll('[data-course]').length === 7 && document.querySelectorAll('[data-char]').length === 7));
     t.check('time and weather rows, Random by default', await page.evaluate(() => document.querySelector('[data-time="random"]').classList.contains('is-on') && document.querySelector('[data-weather="random"]').classList.contains('is-on') && Boolean(document.querySelector('[data-time="dusk"]'))));
-    await page.click('[data-char="taeo"]');
+    await page.click('[data-char="fox"]');
     await page.click('[data-time="night"]');
     await page.click('[data-weather="rain"]');
     await page.click('[data-course="ikseon"]');
     t.check('a course is planned on the real streets, partly through alleys', await until(page, () => /km · \d+% alleys/.test(document.querySelector('[data-len="ikseon"]')?.textContent ?? ''), null, 20000), await page.evaluate(() => document.querySelector('[data-len="ikseon"]')?.textContent));
     await page.click('[data-race-solo]');
     t.check('the race lines up four riders and counts down', await until(page, () => window.seoul.race.racers.length === 4 && ['grid', 'racing'].includes(window.seoul.race.phase), null, 120000));
-    t.check('you ride Taeo; the bots are the others, women and men both', await page.evaluate(() => {
+    t.check('you ride Pip the fox on a scooter; the bots are the others, girls and boys both', await page.evaluate(() => {
       const rs = window.seoul.race.racers;
-      return rs.find((r) => r.me).char === 'taeo' && new Set(rs.map((r) => r.char)).size === 4 && rs.some((r) => r.ch.she) && rs.some((r) => !r.ch.she);
+      return rs.find((r) => r.me).char === 'fox' && new Set(rs.map((r) => r.char)).size === 4 && rs.some((r) => r.ch.she) && rs.some((r) => !r.ch.she) && rs.every((r) => r.view?.scooter && r.view.mesh.isSkinnedMesh);
     }));
     t.check('the race has its own sky: night and rain, the city clock stopped', await page.evaluate(() => window.seoul.weather.kind === 'rain' && (window.seoul.hour >= 20 || window.seoul.hour < 1) && window.seoul.clockPaused === true));
     t.check('the HUD: map, place, lap, time, three item slots, speed and the sprint gauge', await page.evaluate(() => ['.race__map', '.race__pos', '.race__lap', '.race__time', '.race__speed'].every((s) => !document.querySelector(s).hidden) && document.querySelectorAll('.race__slot').length === 3 && Boolean(document.querySelector('.race__boost'))));
@@ -63,11 +63,11 @@ export async function run(browser) {
       window.seoul.race.me.s.stamina = 0.1;
     });
     await page.keyboard.press('Digit1');
-    t.check('1 uses it: the energy drink fills the sprint gauge', await until(page, () => window.seoul.race.me.s.stamina > 0.95 && window.seoul.race.me.items[0] === null, null, 3000));
+    t.check('1 uses it: the battery pack fills the boost gauge', await until(page, () => window.seoul.race.me.s.stamina > 0.95 && window.seoul.race.me.items[0] === null, null, 3000));
     // A crash: off the bike, and back on.
     await page.evaluate(() => window.seoul.race._crash(window.seoul.race.me, 'car'));
-    t.check('a crash throws you off', await page.evaluate(() => window.seoul.race.me.mode === 'tumble'));
-    t.check('…and you are back on the bike a moment later', await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000));
+    t.check('a crash throws you off the scooter', await page.evaluate(() => window.seoul.race.me.mode === 'tumble'));
+    t.check('…and you are back on a moment later', await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000));
     await page.keyboard.press('KeyH');
     t.check('H opens How to play in the race', await until(page, () => Boolean(document.querySelector('[data-help-panel]')), null, 3000));
     await page.keyboard.press('KeyH');

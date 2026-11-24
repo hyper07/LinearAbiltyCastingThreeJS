@@ -6,7 +6,7 @@
  */
 export const CONTROLS = {
   title: 'How to play — Gangnam Jarani',
-  goal: 'A bike race through Seoul\'s real streets and alleys, open to traffic: pedal, lean through the corners, sprint while your gauge lasts, and weave past cars, buses, scooters and people — hit one and you\'re off the bike for a moment. Close calls fill your sprint; item boxes give you an energy drink, an air horn, a gold helmet or a tailwind. Race three bots or up to four friends. Outside a race: fly over the city, walk its streets, borrow a car, and visit all 25 districts.',
+  goal: 'Snowpuff\'s plush friends race electric scooters through Seoul\'s real streets and alleys, open to traffic: throttle up to 25 km/h, lean through the corners, boost while your battery gauge lasts, hop kerbs at an angle, and weave past cars, buses, scooters and people — hit one and you\'re off for a moment. Close calls charge your boost; item boxes give you a battery pack, an air horn, a gold helmet or a tailwind. Race three bots or up to four friends. Outside a race: fly over the city, walk its streets, borrow a car, and visit all 25 districts.',
   groups: [
     { name: 'Fly', rows: [
       { id: 'move', keys: ['W', 'A', 'S', 'D'], codes: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], does: 'Fly · walk · drive (W go, S brake and reverse, A D steer)', modes: { fly: 'fly', walk: 'walk', drive: 'drive' } },
@@ -18,13 +18,12 @@ export const CONTROLS = {
       { id: 'flyWalk', keys: ['F'], codes: ['KeyF'], does: 'Fly ↔ walk', modes: { fly: 'walk', walk: 'fly', drive: 'fly' } },
       { id: 'use', keys: ['E'], codes: ['KeyE'], does: 'Get in a car · get out', modes: { walk: 'get in a car', drive: 'get out' } },
       { id: 'who', keys: ['V'], codes: ['KeyV'], does: 'Who you are on the street', modes: { walk: 'who you are' } },
-      { id: 'horn', keys: ['B'], codes: ['KeyB'], does: 'Horn when driving · the bike\'s bell in a race (people just ahead step aside)', modes: { drive: 'horn' } }
+      { id: 'horn', keys: ['B'], codes: ['KeyB'], does: 'Horn when driving · the scooter\'s bell in a race (people just ahead step aside)', modes: { drive: 'horn' } }
     ] },
-    { name: 'Racing (bike)', rows: [
-      { id: 'pedal', context: 'race', keys: ['W', 'S'], codes: ['KeyW', 'KeyS'], does: 'Pedal · brake (held when stopped: walk it back)' },
-      { id: 'lean', context: 'race', keys: ['A', 'D'], codes: ['KeyA', 'KeyD'], does: 'Lean left and right — a bike turns by leaning; slow down for a tight alley corner' },
-      { id: 'sprint', context: 'race', keys: ['Space'], codes: ['Space'], does: 'Sprint, standing on the pedals, while the gauge lasts (it refills riding, faster in a slipstream or after a close call)' },
-      { id: 'skid', context: 'race', keys: ['Shift'], codes: ['ShiftLeft', 'ShiftRight'], does: 'Skid the back wheel round a corner' },
+    { name: 'Racing (scooter)', rows: [
+      { id: 'pedal', context: 'race', keys: ['W', 'S'], codes: ['KeyW', 'KeyS'], does: 'Throttle (the motor tops out at 25 km/h) · brake — gently on a wet road, or the back steps out' },
+      { id: 'lean', context: 'race', keys: ['A', 'D'], codes: ['KeyA', 'KeyD'], does: 'Lean left and right — a scooter turns by leaning; slow down for a tight alley corner. Meet a kerb at an angle and you hop it; glancing, you scrape' },
+      { id: 'sprint', context: 'race', keys: ['Space'], codes: ['Space'], does: 'Boost to about 32 km/h, crouched low, while the battery gauge lasts (it charges riding, faster in a slipstream or after a close call)' },
       { id: 'items', context: 'race', keys: ['1', '2', '3'], codes: ['Digit1', 'Digit2', 'Digit3'], does: 'Use the item in that slot (ride through the ? boxes to get them)' },
       { id: 'respawn', context: 'race', keys: ['R'], codes: ['KeyR'], does: 'Back on the course' },
       { id: 'quit', context: 'race', keys: ['Esc'], codes: ['Escape'], does: 'Leave the race' }
