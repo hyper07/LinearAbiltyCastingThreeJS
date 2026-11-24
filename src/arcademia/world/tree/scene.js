@@ -11,7 +11,8 @@
  * greyed. The glow (vines, bulbs, shelf fungus) brightens at night.
  */
 import * as THREE from 'three';
-import { add, batch, box, cone, cyl, ico, mat, seeded, sphere, toonRamp } from '../kit.js';
+import { add, batch, box, cone, cyl, ico, limb, mat, seeded, sphere, toonRamp } from '../kit.js';
+import { glowMat, glowPink, setGlow } from '../glow.js';
 import { lampMat } from '../buildings.js';
 import { buildGate } from '../structures.js';
 import { TREE } from './plan.js';
@@ -20,31 +21,7 @@ const BARK = new THREE.Color('#7b5236');
 const BARK_DARK = new THREE.Color('#5a3a26');
 const MOSS = new THREE.Color('#6fae5c');
 
-/** The glow of vines and fungus: soft by day, bright at night (setNight). */
-const glowMat = new THREE.MeshToonMaterial({ color: '#8ff7e0', gradientMap: toonRamp(), emissive: new THREE.Color('#3fe6c8'), emissiveIntensity: 0.25 });
-const glowPink = new THREE.MeshToonMaterial({ color: '#ffc2ec', gradientMap: toonRamp(), emissive: new THREE.Color('#ff7ad9'), emissiveIntensity: 0.25 });
-
 const polar = (r, a) => [r * Math.sin(a), r * Math.cos(a)];
-
-/** A tube along a curve that tapers from r0 to r1 (a branch, a root). */
-function limb(points, r0, r1, { radial = 8, segs = 14 } = {}) {
-  const curve = new THREE.CatmullRomCurve3(points);
-  const g = new THREE.TubeGeometry(curve, segs, 1, radial, false);
-  const pos = g.attributes.position;
-  const c = new THREE.Vector3(), v = new THREE.Vector3();
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    curve.getPointAt(t, c);
-    const r = r0 + (r1 - r0) * t;
-    for (let j = 0; j <= radial; j++) {
-      const k = i * (radial + 1) + j;
-      v.fromBufferAttribute(pos, k).sub(c).multiplyScalar(r).add(c);
-      pos.setXYZ(k, v.x, v.y, v.z);
-    }
-  }
-  g.computeVertexNormals();
-  return g;
-}
 
 /** The trunk's radius at a height (before the bark's ridges). */
 function trunkRadius(y) {
@@ -496,8 +473,7 @@ export function buildTreeWorld(plan, floors) {
     gates,
     fireflySpots,
     setNight(k) {
-      glowMat.emissiveIntensity = 0.25 + k * 2.2;
-      glowPink.emissiveIntensity = 0.25 + k * 2.0;
+      setGlow(k);
     }
   };
 }

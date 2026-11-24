@@ -25,6 +25,7 @@ import { shop, arcade, museum, board, portal, worldGate, landmark, toy, gem, sil
 import { planTree } from './tree/plan.js';
 import { buildLayerNav } from './tree/nav.js';
 import { buildTreeWorld } from './tree/scene.js';
+import { leafCanopy } from './grown.js';
 import { makeCreature, BUDDY_COLORS } from './figures.js';
 import { buildParticles } from './particles.js';
 import { WORLDS } from '../quests.js';
@@ -224,7 +225,9 @@ export class World {
     });
     this.labelsEl.append(el);
     entry.label = el;
-    const top = subject ? 8.5 : p.kind === 'landmark' ? 9.5 : 4.6;
+    // Grown buildings (the Great Tree) are taller, and the small places wear a canopy: lift their labels.
+    const tall = Boolean(look.look.grown);
+    const top = subject ? (tall ? 11.2 : 8.5) : p.kind === 'landmark' ? 9.5 : tall && p.kind !== 'worlds' ? 6.6 : 4.6;
     this.labels.push({ el, entry, extra: !subject, nameOf, pos: new THREE.Vector3(p.x, f.y + top, p.z) });
     this.places.push(entry);
     if (subject) this.buildings.push(entry);
@@ -247,6 +250,13 @@ export class World {
       }
       m.rotation.y = e.p.yaw ?? 0;
       m.userData.yaw = m.rotation.y;
+      // On the Great Tree the shop, arcade, museum and board sit under a grown canopy of roots and leaves.
+      if (look.look.grown && ['shop', 'arcade', 'museum', 'board'].includes(e.kind)) {
+        const c = leafCanopy(look.look, e.p.r, n * 31 + e.kind.length);
+        c.position.copy(m.position);
+        c.rotation.y = m.rotation.y;
+        g.add(c);
+      }
       e.group = m;
       e.top = m.userData.top;
       g.add(m);

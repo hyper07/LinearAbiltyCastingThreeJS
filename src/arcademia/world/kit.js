@@ -67,6 +67,72 @@ export function mat(color, { rough = 0.85, metal = 0, flat = true, emissive = nu
   return m;
 }
 
+/** A cartoon material that takes its colours from the mesh (woven walls, leaves). Cached. */
+export function vcMat({ side = THREE.FrontSide, key = '' } = {}) {
+  const id = JSON.stringify(['vc', side, key]);
+  if (cache.has(id)) return cache.get(id);
+  const m = new THREE.MeshToonMaterial({ color: '#ffffff', vertexColors: true, gradientMap: toonRamp(), side });
+  m.userData.base = new THREE.Color('#ffffff');
+  cache.set(id, m);
+  return m;
+}
+
+/** Paint a geometry one colour per vertex: fn(x, y, z, i) → THREE.Color. */
+export function paint(geometry, fn) {
+  const pos = geometry.attributes.position;
+  const col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const c = fn(pos.getX(i), pos.getY(i), pos.getZ(i), i);
+    col[i * 3] = c.r;
+    col[i * 3 + 1] = c.g;
+    col[i * 3 + 2] = c.b;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geometry;
+}
+
+/** A tube along a curve that tapers from r0 to r1 (a branch, a root, a rib). Points: THREE.Vector3 or [x, y, z]. */
+export function limb(points, r0, r1, { radial = 8, segs = 14 } = {}) {
+  const curve = new THREE.CatmullRomCurve3(points.map((p) => (Array.isArray(p) ? new THREE.Vector3(...p) : p)));
+  const g = new THREE.TubeGeometry(curve, segs, 1, radial, false);
+  const pos = g.attributes.position;
+  const c = new THREE.Vector3(), v = new THREE.Vector3();
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    curve.getPointAt(t, c);
+    const r = r0 + (r1 - r0) * t;
+    for (let j = 0; j <= radial; j++) {
+      const k = i * (radial + 1) + j;
+      v.fromBufferAttribute(pos, k).sub(c).multiplyScalar(r).add(c);
+      pos.setXYZ(k, v.x, v.y, v.z);
+    }
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * A big leaf, from its stalk at the origin out along +Z: pointed at both ends, cupped across,
+ * drooping towards the tip; darker down the midrib, lighter at the edges and tip.
+ */
+export function leafGeo(len = 3, width = 1, { droop = 0.5, cup = 0.3, color = '#5fbf6a', segL = 9, segW = 3 } = {}) {
+  const g = new THREE.PlaneGeometry(1, 1, segW * 2, segL);
+  const pos = g.attributes.position;
+  const base = new THREE.Color(color);
+  const rib = base.clone().multiplyScalar(0.62), edge = base.clone().lerp(new THREE.Color('#ffffff'), 0.18);
+  const col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const u = pos.getY(i) + 0.5, v = pos.getX(i) * 2;
+    const w = width * Math.pow(Math.sin(Math.PI * (0.04 + u * 0.96)), 0.75);
+    pos.setXYZ(i, v * w * 0.5, cup * v * v * w - droop * u * u * len * 0.35, u * len);
+    const c = rib.clone().lerp(edge, Math.min(1, Math.abs(v) * 1.2 + u * 0.25));
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 export function seeded(seed) {
   let a = seed >>> 0 || 1;
   return () => {
@@ -135,8 +201,10 @@ export function batch(group) {
     }
     if (!o.isMesh || o.isInstancedMesh || Array.isArray(o.material)) return;
     let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
-    for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
+    const keep = o.material.vertexColors ? ['position', 'normal', 'uv', 'color'] : ['position', 'normal', 'uv'];
+    for (const name of Object.keys(g.attributes)) if (!keep.includes(name)) g.deleteAttribute(name);
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array((g.attributes.position.count) * 2), 2));
+    if (o.material.vertexColors && !g.attributes.color) g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3));
     g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
     const list = byMat.get(o.material) ?? [];
     list.push(g);

@@ -39,6 +39,16 @@ ring's school. A spiral stair winds up the trunk from each ring's landing to the
 that stays shut until that floor opens. Glowing vines hang under the decks and light up at night,
 with fireflies, and a leafy crown sits on top.
 
+The tree grows its own buildings (`src/arcademia/world/grown.js`, original designs): the **Math
+School** is a woven seed pod held by two living-wood ribs under a canopy of big leaves, with a round
+door and porthole windows; the **History Hall** is a woven dome wrapped in arching roots that meet in
+a crown of drooping leaves, with a root-arch doorway, banners and a carved spiral; the **Physics Lab**
+is a little woven pod at the foot of three braided strands that hold up a cup of petals and a glowing
+lens, seeds orbiting it on tilted rings. They stand on mossy discs of living wood with roots over the
+rim and glow-bulb lamps; the shop, arcade, museum and quest board sit under canopies of roots and
+leaves. The weave is a painted basket-weave texture; the glowing dots, spirals, bulbs and seeds
+(`world/glow.js`) brighten at night, and the windows and seed lanterns glow warm.
+
 **Travelling.** A **World Portal** 🌍 stands on floor 1 of every world; walk into it, or press
 **🌍 Worlds** at the top of the floor list, to choose a world. The choice is saved in the browser
 (`arcademia.prefs`) and the next visit starts there.
@@ -418,6 +428,7 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
 | Study worlds: the list, the Great Tree's floors | `src/arcademia/maps.js` |
 | The Great Tree: plan (rings, decks, bridges, spiral stair), layered walking grid, 3D scene | `src/arcademia/world/tree/plan.js`, `nav.js`, `scene.js` |
+| Grown buildings (seed pod, root hall, star seed observatory, leaf canopies) and the night glow | `src/arcademia/world/grown.js`, `src/arcademia/world/glow.js` |
 | The diorama (lazy per-floor detail, silhouettes far away), terrain, buildings, places, rooms | `src/arcademia/world/` |
 | The creatures: sculpting, species recipes, faces, hats, materials; the creature API | `src/arcademia/world/creatures/`, `src/arcademia/world/figures.js` |
 | Languages: the i18n core, string tables and lesson overlays | `src/arcademia/i18n/` |

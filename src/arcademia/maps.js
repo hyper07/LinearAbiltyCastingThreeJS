@@ -16,7 +16,9 @@
 import { FLOORS } from './floors.js';
 import { t } from './i18n/index.js';
 
-const WOOD = { stone: '#b88a5c', trim: '#fff3dc', wall: '#fbecd0', path: '#f0dcb4', rock: ['#9c7a5a', '#8a6a4c', '#b08e6c'] };
+/** Every ring's schools are grown by the tree (world/grown.js): a woven seed pod, a root hall, a star seed observatory. */
+const GROWN = { math: 'seedpod', history: 'roothall', physics: 'starspire' };
+const WOOD = { grown: true, stone: '#b88a5c', trim: '#fff3dc', wall: '#fbecd0', path: '#f0dcb4', rock: ['#9c7a5a', '#8a6a4c', '#b08e6c'] };
 
 /** The Great Tree's rings, bottom to top: the same floors, in treehouse dress. */
 export const TREE_FLOORS = [
@@ -24,7 +26,7 @@ export const TREE_FLOORS = [
     icon: '🍄',
     look: {
       ...WOOD, theme: 'mushroom', grass: '#8fd6a0', grassDark: '#76c28a', roof: { math: '#ff7a5c', history: '#9b7be0', physics: '#4fb0c6' },
-      shapes: { math: 'mushroom', history: 'mushroom', physics: 'treehouse' }, landmark: 'shrooms',
+      shapes: GROWN, landmark: 'shrooms',
       tree: 'shroom', leaf: '#5fbf6a', flowers: ['#ffd166', '#ff8fa3', '#ffffff'], banner: '#9b7be0',
       critters: ['frog', 'hedgehog', 'mouse'], particles: 'spores', mood: 'crickets'
     }
@@ -33,7 +35,7 @@ export const TREE_FLOORS = [
     icon: '🌿',
     look: {
       ...WOOD, theme: 'meadow', grass: '#9fe38a', grassDark: '#86d474', roof: { math: '#4fbf6a', history: '#ffb347', physics: '#6fb8ff' },
-      shapes: { math: 'treehouse', history: 'hall', physics: 'tower' }, landmark: 'windmill',
+      shapes: GROWN, landmark: 'windmill',
       tree: 'round', leaf: '#4fbf6a', flowers: ['#ffd166', '#c39bff', '#ffffff'], banner: '#ffb347',
       critters: ['bunny', 'mouse', 'duck'], particles: 'petals', mood: 'birds'
     }
@@ -42,7 +44,7 @@ export const TREE_FLOORS = [
     icon: '🏮',
     look: {
       ...WOOD, theme: 'desert', grass: '#b9e08a', grassDark: '#a3d074', roof: { math: '#ff9f4a', history: '#e98a4f', physics: '#ffcf5c' },
-      shapes: { math: 'treehouse', history: 'hall', physics: 'tower' }, landmark: 'oasis',
+      shapes: GROWN, landmark: 'oasis',
       tree: 'round', leaf: '#62c46a', flowers: ['#ff9f4a', '#ff5f7e', '#ffd23f'], banner: '#ff5f5f',
       critters: ['fox', 'hedgehog', 'mouse'], particles: 'sparkles', mood: 'bells'
     }
@@ -51,7 +53,7 @@ export const TREE_FLOORS = [
     icon: '🌸',
     look: {
       ...WOOD, theme: 'cloud', grass: '#c9efb0', grassDark: '#b2e29a', roof: { math: '#ff9ed2', history: '#ff7aa8', physics: '#c39bff' },
-      shapes: { math: 'treehouse', history: 'hall', physics: 'tower' }, landmark: 'rainbow',
+      shapes: GROWN, landmark: 'rainbow',
       tree: 'candy', leaf: '#ff9ec7', flowers: ['#ffffff', '#ffd1e8', '#ffe066'], banner: '#ff7aa8',
       critters: ['bunny', 'puff', 'bunny'], particles: 'petals', mood: 'birds'
     }
@@ -60,7 +62,7 @@ export const TREE_FLOORS = [
     icon: '🪺',
     look: {
       ...WOOD, theme: 'harbor', grass: '#a6e8a0', grassDark: '#8fdc8a', roof: { math: '#3f7fd6', history: '#ff9a8a', physics: '#ffd23f' },
-      shapes: { math: 'treehouse', history: 'hall', physics: 'lighthouse' }, landmark: 'boat',
+      shapes: GROWN, landmark: 'boat',
       tree: 'round', leaf: '#3fbf7a', flowers: ['#ffffff', '#ffd23f', '#7cc6ff'], banner: '#3f7fd6',
       critters: ['duck', 'puff', 'duck'], particles: 'sparkles', mood: 'wind'
     }
@@ -69,7 +71,7 @@ export const TREE_FLOORS = [
     icon: '🌼',
     look: {
       ...WOOD, theme: 'cloud', grass: '#d8f5c8', grassDark: '#c5ebb3', roof: { math: '#7cc6ff', history: '#ffd23f', physics: '#9b7be0' },
-      shapes: { math: 'cloudhouse', history: 'hall', physics: 'treehouse' }, landmark: 'glowbloom',
+      shapes: GROWN, landmark: 'glowbloom',
       tree: 'round', leaf: '#7fd88a', flowers: ['#ffe066', '#9fe0ff', '#ffffff'], banner: '#ffb347',
       critters: ['puff', 'bunny', 'puff'], particles: 'sparkles', mood: 'chimes'
     }
@@ -78,7 +80,7 @@ export const TREE_FLOORS = [
     icon: '✨',
     look: {
       ...WOOD, theme: 'moon', grass: '#b8e6c8', grassDark: '#a2d8b4', roof: { math: '#7f8cff', history: '#ffb347', physics: '#5a6fd6' },
-      shapes: { math: 'treehouse', history: 'dome', physics: 'tower' }, landmark: 'rocket',
+      shapes: GROWN, landmark: 'rocket',
       tree: 'round', leaf: '#5fc79a', flowers: ['#7ff7ff', '#c39bff', '#ffffff'], banner: '#7f8cff',
       critters: ['puff', 'robot', 'bunny'], particles: 'twinkles', mood: 'chimes'
     }
