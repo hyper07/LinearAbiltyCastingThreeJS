@@ -154,11 +154,26 @@ export const SHAPES = {
     crown *= smooth(clamp((0.92 - ax) / 0.15, 0, 1)) * smooth(clamp((0.3 - Math.abs(z)) / 0.2, 0, 1));
     return clamp(Math.max(shoulder, 0.1 + crown * 0.92 * (z < 0.25 ? 1 : 0)) * (shoulder > 0.01 || crown > 0.02 ? 1 : 0) + (ridge(x, z, 18) - 0.45) * 0.02, 0, 1);
   },
-  // a canyon rim landscape: flat-topped walls either side of a gorge (Yellowstone)
+  // Yellowstone's Grand Canyon: a snowy forested plateau cut by a deep V of yellow rock that opens
+  // toward you (+z faces the run on a grid), the upper river falling into it at the waterfall (z = 0)
   canyon: (x, z) => {
-    const gorge = Math.abs(z) < 0.12 ? 0 : 1;
-    const plateau = clamp(1 - Math.abs(x) * 0.9, 0, 1) * clamp(1 - Math.abs(z) * 0.9, 0, 1);
-    return clamp(gorge * (0.55 + vnoise(x * 6, z * 6) * 0.1) * smooth(plateau * 2.5), 0, 1);
+    const ax = Math.abs(x);
+    const plateau = smooth(clamp((0.98 - ax) / 0.3, 0, 1)) * smooth(clamp((0.98 - Math.abs(z)) / 0.3, 0, 1));
+    const top = 0.5 + ridge(x, z, 5) * 0.12 + vnoise(x * 40, z * 40) * 0.03;
+    // the gorge: narrow at the falls, widening toward you; the rim drops back to a low lip at the near end
+    const w = z < 0 ? 0.035 : 0.06 + z * 0.3;
+    const floor = z < -0.02 ? 0.4 : z < 0.0 ? 0.4 - (z + 0.02) * 15 : 0.1 - z * 0.05;
+    const g = ax / w;
+    const wall = g < 1 ? floor + (top - floor) * Math.pow(g, 1.6) * (0.92 + vnoise(x * 60, z * 30) * 0.16) : top;
+    const gorge = z < -0.55 ? top : wall;
+    return clamp(gorge * plateau, 0, 1);
+  },
+  // Kirkjufell: a steep, near-symmetric arrowhead with a sharp top and a long ridge running back
+  arrowhead: (x, z) => {
+    const r = Math.hypot(x * 1.15, z + Math.max(0, -z) * -0.45);
+    const cone = Math.pow(clamp(1 - r / 0.62, 0, 1), 0.95);
+    const tail = Math.pow(clamp(1 - Math.hypot(x * 1.4, (z + 0.35) * 0.7) / 0.6, 0, 1), 1.3) * 0.55;
+    return clamp(Math.max(cone, tail) * (0.96 + ridge(x, z, 9) * 0.06), 0, 1);
   }
 };
 
@@ -300,8 +315,10 @@ export function placeGeysers(course, m) {
   const r = rng(m.seed * 13 + 5);
   const out = [];
   const L = course.length;
-  for (let s = 160; s < L - 120; s += 150 + r() * 80) {
-    if (course.kickers.some((k) => Math.abs(k.s - s) < 40)) continue;
+  for (let s = 160; s < L - 120; s += 140 + r() * 70) {
+    // never on a kicker's run-up or landing: slide on past it
+    while (s < L - 120 && course.kickers.some((k) => Math.abs(k.s - s) < 40)) s += 20;
+    if (s >= L - 120) break;
     const f = frameAt(course, s);
     const lat = clamp(f.line + (r() < 0.5 ? -1 : 1) * (2.5 + r() * 3), -f.width + 2, f.width - 2);
     out.push({ id: 9000 + out.length, s, lat, phase: r() * GEYSER_CYCLE, y: groundAt(course, s, lat, false) });

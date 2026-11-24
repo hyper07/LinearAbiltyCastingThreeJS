@@ -23,6 +23,7 @@ import { CONTROLS } from './controls.js';
 import { MOUNTAINS, mountainById } from './mountains.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES } from './riders.js';
 import { buildCourse, frameAt, groundAt, toWorld, rng, cleanMode } from './course.js';
+import { placeGeysers } from './landmarks.js';
 import { newRider, step, settle, SLIP } from './physics.js';
 import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, checkLap, tickLift, LIFT, LIFT_SKIP, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, dropIce, meltIce, draftFactor } from './race.js';
 import { newBrain, think } from './ai.js';
@@ -517,6 +518,8 @@ export class SnowpuffGame {
     this.disposeRace();
     await new Promise((r) => setTimeout(r, 30));
     const course = buildCourse(m, { mode: cleanMode(mode) });
+    // Yellowstone's geysers: on the run, on a timer (deterministic, so every player has the same ones)
+    course.geysers = placeGeysers(course, m);
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(62, this.w / this.h, 0.25, m.peak ? 7000 : 5200);
     this.camera = camera;
@@ -801,7 +804,7 @@ export class SnowpuffGame {
       // on the chairlift between laps (Space or a tap skips it after a few seconds)
       if (tickLift(me, dt, Boolean(first && inp.skip))) this.respawn(me);
     } else if (!me.finished) {
-      const ev = step(me.rider, { steer: inp.steer ?? 0, tuck: inp.tuck, jump: inp.jump, flip: inp.flip ?? 0 }, c, dt, { draft: draftFactor(me, this.racers) });
+      const ev = step(me.rider, { steer: inp.steer ?? 0, tuck: inp.tuck, jump: inp.jump, flip: inp.flip ?? 0 }, c, dt, { draft: draftFactor(me, this.racers), geysers: c.geysers, t: r.clock });
       this.riderEvents(me, ev);
       if (first && inp.throw) this.useItem(me, 0);
       if (first && inp.shield) this.useItem(me, 1);
@@ -825,7 +828,7 @@ export class SnowpuffGame {
         continue;
       }
       const ai = think(rc.brain, rc, c, this.racers, dt);
-      const ev = step(rc.rider, ai, c, dt, { pull: rubberBand(rc.rider.s, humanS), draft: draftFactor(rc, this.racers) });
+      const ev = step(rc.rider, ai, c, dt, { pull: rubberBand(rc.rider.s, humanS), draft: draftFactor(rc, this.racers), geysers: c.geysers, t: r.clock });
       this.riderEvents(rc, ev);
       if (ai.use != null) this.useItem(rc, ai.use);
       for (const e of pickups(rc, c, r.clock, placeOf(rc))) if (e.type === 'gift' && this.near(rc, 40)) this.fx.giftBurst(rc.pos.x, rc.pos.y + 0.8, rc.pos.z);
@@ -1115,6 +1118,14 @@ export class SnowpuffGame {
         }
         this.emote(rc, ['Whoa!', 'Wheee!', 'Slippy!'][Math.floor(Math.random() * 3)], 0.1);
         if (rc.me) this.hud.say('Ice!', 'info');
+      } else if (e.type === 'geyser') {
+        // up on a geyser's steam: a whoosh of warm mist and a boost
+        if (near) {
+          this.fx.poof(rc.pos.x, rc.pos.y + 0.4, rc.pos.z, { n: 36, size: 0.8, speed: 3, up: 6 });
+          this.sound.boost?.();
+        }
+        this.emote(rc, ['Wheee!', 'Steamy!', 'Up we go!'][Math.floor(Math.random() * 3)], 0.1);
+        if (rc.me) this.hud.say('Geyser lift!', 'boost');
       } else if (e.type === 'popup') {
         // popping back up after being squashed flat by a giant snowball
         if (near) {
@@ -1810,6 +1821,7 @@ export class SnowpuffGame {
       this.fx.update(simDt);
       this.sound.ride(this.me.rider.speed, Math.abs(this.me.rider.edge), !this.me.rider.air, this.mode !== 'countdown', this.me.rider.skid ?? 0);
     } else if (!r.camPos) this.placeCamera(0, true);
+    this.world.clock = this.race.clock;
     this.world.update(simDt, this.me.rider.s, this.me.pos);
     this.sky.follow(new THREE.Vector3(this.me.pos.x, this.me.pos.y, this.me.pos.z), 24);
     if (this.trails && simDt > 0) {

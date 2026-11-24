@@ -41,7 +41,7 @@ function gridGeometry(shape, { nx = 300, nz = 110, radius = 1, height = 1 } = {}
 
 /** A height-field disc for a silhouette: rings × spokes, the profile as height. */
 export function peakGeometry(shape, { rings = 70, spokes = 140, radius = 1, height = 1, grid = false } = {}) {
-  if (grid) return gridGeometry(shape, { radius, height, nx: 520, nz: 170 });
+  if (grid) return gridGeometry(shape, { radius, height, nx: Array.isArray(grid) ? grid[0] : 520, nz: Array.isArray(grid) ? grid[1] : 170 });
   const h = profile(shape);
   const pos = [];
   const idx = [];
@@ -80,7 +80,7 @@ export function peakGeometry(shape, { rings = 70, spokes = 140, radius = 1, heig
 export function buildBackdrop(course, m, sky) {
   const pk = m.peak;
   const b = backdropPlace(course, m);
-  const g = peakGeometry(pk.shape, { radius: b.radius, height: b.height, grid: Boolean(pk.grid) });
+  const g = peakGeometry(pk.shape, { radius: b.radius, height: b.height, grid: pk.grid ?? false });
   const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0, flatShading: Boolean(pk.facets) });
   mat.fog = false;
   const hk = positionLocal.y.div(b.height);
@@ -166,6 +166,39 @@ export function buildBackdrop(course, m, sky) {
   }
   group.userData.clouds = clouds;
   group.userData.place = b;
+  // a point on the peak, from its own (unit-disc) coordinates, in the world
+  mesh.updateMatrixWorld(true);
+  const on = (u, w, lift = 0) => mesh.localToWorld(new THREE.Vector3(u * b.radius, profile(pk.shape)(u, w) * b.height + lift, w * b.radius));
+  // Yellowstone's Lower Falls: white water pouring into the yellow gorge (local z = 0 faces you)
+  if (pk.falls) {
+    const top = on(0, -0.03), foot = on(0, 0.02);
+    const fm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    fm.fog = false;
+    const fu = uv();
+    const streak = mx_noise_float(vec2(fu.x.mul(14), fu.y.mul(3).add(time.mul(1.6)))).mul(0.35).add(0.75);
+    fm.colorNode = vec4(mix(vec3(0.86, 0.92, 0.98), vec3(1, 1, 1), streak), smoothstep(0, 0.3, fu.x).mul(smoothstep(1, 0.7, fu.x)).mul(smoothstep(0, 0.15, fu.y)).mul(smoothstep(1, 0.9, fu.y)).mul(0.9));
+    const H = Math.max(20, top.y - foot.y);
+    const fall = new THREE.Mesh(new THREE.PlaneGeometry(b.radius * 0.03, H), fm);
+    fall.position.set((top.x + foot.x) / 2, (top.y + foot.y) / 2, (top.z + foot.z) / 2);
+    fall.rotation.y = -b.yaw;
+    fall.renderOrder = -3;
+    fall.frustumCulled = false;
+    group.add(fall);
+  }
+  // the Aiguille du Midi's cable car: a cable from the valley up to the needle's top, a cabin riding it
+  if (pk.cable) {
+    const tip = on(0.62, -0.1, 4), base = on(0.62, 0.75, 0);
+    const cable = new THREE.Mesh(new THREE.TubeGeometry(new THREE.LineCurve3(base, tip), 1, b.radius * 0.0016, 5), std('#2a2d33', { roughness: 0.5 }));
+    cable.frustumCulled = false;
+    cable.renderOrder = -4;
+    group.add(cable);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.8).translate(0, -0.55, 0), std('#d62828', { roughness: 0.5 }));
+    cabin.scale.setScalar(b.radius * 0.012);
+    cabin.frustumCulled = false;
+    cabin.renderOrder = -3;
+    group.add(cabin);
+    group.userData.cabin = { mesh: cabin, a: base, b: tip };
+  }
   // Everest's summit plume: a long streak of blown snow
   if (m.plume) {
     const pm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
@@ -203,6 +236,7 @@ export function buildFarLand(course, m, sky) {
   const back = 900, ahead = D + b.radius * 1.8;
   const half = Math.max(2600, b.radius * 2.4 + D * 0.9);
   const valley = Math.min(b.y + b.height * 0.02, end.y - 70);
+  const lake = m.peak.footLake ? { x: mid.x + (b.x - mid.x) * 0.8, z: mid.z + (b.z - mid.z) * 0.8, rx: b.radius * 0.75, rz: b.radius * 0.75, y: valley + 25 } : null;
   const NU = 120, NV = 90;
   const pos = new Float32Array((NU + 1) * (NV + 1) * 3), tone = new Float32Array((NU + 1) * (NV + 1));
   const ridge = (t, c, w) => Math.exp(-(((t - c) / w) ** 2));
@@ -217,6 +251,8 @@ export function buildFarLand(course, m, sky) {
       let h = valley + ridge(t, 0.42, 0.06) * (60 + 35 * n) + ridge(t, 0.62, 0.07) * (95 + 50 * n) + ridge(t, 0.8, 0.06) * (130 + 60 * n);
       const dp = Math.hypot(x - b.x, z - b.z) / b.radius; // the peak's own flanks spreading into foothills
       h += Math.max(0, 1 - dp / 1.9) ** 2 * b.height * 0.18 * (1 + 0.3 * n);
+      // a lake at the peak's foot (Artesonraju's turquoise lagunas): the land dips under it
+      if (lake && Math.hypot((x - lake.x) / lake.rx, (z - lake.z) / lake.rz) < 1.15) h = Math.min(h, lake.y - 4);
       // near the run, keep well under its snow (the run's own mountainside covers the rest)
       const near = Math.max(0, 1 - Math.abs(t) / 0.32) * Math.max(0, 1 - Math.abs(c) / 900);
       h = Math.min(h, valley + 400 * (1 - near)) - near * 120;
@@ -256,7 +292,20 @@ export function buildFarLand(course, m, sky) {
   mesh.receiveShadow = false;
   mesh.renderOrder = -6;
   mesh.userData.ground = true;
-  return mesh;
+  if (!lake) return mesh;
+  const g2 = new THREE.Group();
+  g2.add(mesh);
+  const lm = new THREE.MeshStandardNodeMaterial({ color: m.peak.footLake, roughness: 0.15, metalness: 0.1 });
+  lm.fog = false;
+  lm.outputNode = vec4(mix(output.rgb, sky.u.fog, smoothstep(300, D * 1.3, length(positionWorld.sub(cameraPosition))).mul(0.45)), 1);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(1, 64).rotateX(-Math.PI / 2), lm);
+  water.scale.set(lake.rx, 1, lake.rz * 0.55);
+  water.rotation.y = Math.atan2(ux, uz);
+  water.position.set(lake.x, lake.y, lake.z);
+  water.frustumCulled = false;
+  water.renderOrder = -5;
+  g2.add(water);
+  return g2;
 }
 
 /** Keep the cloud banks turned to the camera. */
@@ -316,6 +365,10 @@ const kit = (parts) => {
 };
 const merge = (list) => mergeGeometries(list.map((g) => (g.index ? g.toNonIndexed() : g)).map((g) => {
   for (const k of Object.keys(g.attributes)) if (!['position', 'normal'].includes(k)) g.deleteAttribute(k);
+  return g;
+}));
+const mergeUV = (list) => mergeGeometries(list.map((g) => (g.index ? g.toNonIndexed() : g)).map((g) => {
+  for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
   return g;
 }));
 const sph = (r, x, y, z, sx = 1, sy = 1, sz = 1, seg = 14) => new THREE.SphereGeometry(r, seg, Math.round(seg * 0.7)).scale(sx, sy, sz).translate(x, y, z);
@@ -448,7 +501,108 @@ export function birch() {
   return kit([{ geometry: merge(trunks), material: bark }, { geometry: merge(twigs), material: twigMat }]);
 }
 
-export const BUILDERS = { birch, hareubang, tangerine, stupa, cairn, yak, moose, acacia, lodge, redbridge: redBridge, temple };
+/** A dry-stone Andean hut: rough stone walls, a thick straw (ichu grass) roof, a little wooden door. */
+function stoneHut() {
+  const stones = [];
+  for (let k = 0; k < 26; k++) {
+    const a = (k / 26) * Math.PI * 2, row = k % 3;
+    stones.push(new THREE.IcosahedronGeometry(0.42, 0).scale(1.2, 0.7, 0.8).rotateY(-a).translate(Math.cos(a) * 2.2, 0.35 + row * 0.6, Math.sin(a) * 2.2));
+  }
+  return kit([
+    { geometry: merge([cyl(2.3, 2.4, 1.9, 0, 0, 0, 14), ...stones]), material: std('#8b8172', { roughness: 1, flatShading: true }) },
+    { geometry: new THREE.ConeGeometry(3.1, 2.4, 14).translate(0, 3.0, 0), material: std('#c9a85a', { roughness: 1 }) },
+    { geometry: box(0.9, 1.4, 0.2, 0, 0, 2.3), material: std('#6b4a2e') }
+  ]);
+}
+
+/** A woolly alpaca: a fluffy body, a long neck, a small head with banana ears. */
+function alpaca() {
+  const wool = std('#efe3cf', { roughness: 1 });
+  return kit([
+    { geometry: merge([sph(0.55, 0, 1.05, 0, 1.4, 0.95, 0.9, 12), sph(0.26, 0.62, 1.75, 0, 0.9, 1.9, 0.9, 10), sph(0.22, 0.75, 2.25, 0, 1.2, 0.95, 0.9, 10), ...[[-0.45, -0.22], [-0.45, 0.22], [0.45, -0.22], [0.45, 0.22]].map(([x, z]) => cyl(0.1, 0.09, 0.75, x, 0, z, 8))]), material: wool },
+    { geometry: merge([cyl(0.04, 0.03, 0.28, 0.72, 2.4, 0.12, 6), cyl(0.04, 0.03, 0.28, 0.72, 2.4, -0.12, 6), sph(0.06, 0.98, 2.22, 0, 1, 0.8, 0.9, 8)]), material: std('#5a4330') },
+    { geometry: merge([sph(0.035, 0.9, 2.32, 0.12, 1, 1, 1, 6), sph(0.035, 0.9, 2.32, -0.12, 1, 1, 1, 6)]), material: std('#1a1412', { roughness: 0.3 }) }
+  ]);
+}
+
+/**
+ * A steaming rainbow hot spring: rings of colour from deep blue in the middle
+ * through turquoise, green and yellow to an orange rim, and a column of steam
+ * curling up from it (all scenery: well off the run).
+ */
+function hotSpring() {
+  const pool = new THREE.MeshStandardNodeMaterial({ roughness: 0.12, metalness: 0.05 });
+  const r = uv().sub(0.5).length().mul(2);
+  const rings = [['#1d4fa0', 0], ['#2fb5c8', 0.35], ['#3fc27a', 0.55], ['#f1d23a', 0.72], ['#f08a24', 0.86], ['#e9e2d0', 0.97]];
+  let c = color(rings[0][0]);
+  for (let i = 1; i < rings.length; i++) c = mix(c, color(rings[i][0]), smoothstep(rings[i][1] - 0.06, rings[i][1] + 0.04, r));
+  pool.colorNode = c;
+  const steam = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  const su = uv();
+  const curl = mx_noise_float(vec3(su.x.mul(3), su.y.mul(2).sub(time.mul(0.35)), time.mul(0.1)));
+  steam.colorNode = vec4(1, 1, 1, smoothstep(0, 0.35, su.x).mul(smoothstep(1, 0.65, su.x)).mul(smoothstep(1, 0.15, su.y)).mul(smoothstep(0, 0.1, su.y)).mul(curl.mul(0.5).add(0.5)).mul(0.55));
+  const plume = new THREE.PlaneGeometry(4.5, 9, 1, 1).translate(0, 4.6, 0);
+  return kit([
+    { geometry: new THREE.CircleGeometry(3.2, 40).rotateX(-Math.PI / 2).translate(0, 0.06, 0), material: pool },
+    { geometry: merge([new THREE.TorusGeometry(3.25, 0.18, 6, 40).rotateX(Math.PI / 2).translate(0, 0.05, 0)]), material: std('#e7dcc4', { roughness: 0.9 }) },
+    { geometry: mergeUV([plume.clone(), plume.clone().rotateY(Math.PI / 2)]), material: steam }
+  ]);
+}
+
+/** A bison standing in the snow: a big dark hump, shaggy front, short horns, snow on its back. */
+function bison() {
+  const fur = std('#3a2a1f', { roughness: 1 });
+  return kit([
+    { geometry: merge([sph(0.85, -0.35, 1.05, 0, 1.3, 0.8, 0.8, 12), sph(0.95, 0.45, 1.25, 0, 1.0, 1.05, 0.95, 12), sph(0.5, 1.25, 0.95, 0, 0.9, 1.0, 0.85, 10), ...[[-0.8, -0.3], [-0.8, 0.3], [0.6, -0.35], [0.6, 0.35]].map(([x, z]) => cyl(0.13, 0.11, 0.6, x, 0, z, 8))]), material: fur },
+    { geometry: merge([sph(0.55, 0.35, 1.95, 0, 1.2, 0.35, 0.85, 10), sph(0.45, -0.4, 1.6, 0, 1.2, 0.3, 0.7, 10)]), material: std('#f4f7fb', { roughness: 0.8 }) },
+    { geometry: merge([cyl(0.05, 0.02, 0.25, 1.35, 1.25, 0.32, 6).rotateX(0.6), cyl(0.05, 0.02, 0.25, 1.35, 1.25, -0.32, 6).rotateX(-0.6)]), material: std('#d9cbb0') }
+  ]);
+}
+
+/** Blue glacier seracs: a jumble of tilted ice blocks, glowing blue in their cracks. */
+function serac() {
+  const ice = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.25, metalness: 0, clearcoat: 0.6, flatShading: true });
+  ice.colorNode = mix(color('#5fb3e6'), color('#e8f6ff'), smoothstep(-0.2, 0.9, normalWorld.y));
+  const blocks = [];
+  for (let k = 0; k < 6; k++) {
+    const a = k * 1.9, rr = 0.6 + (k % 3) * 0.7, h = 1.6 + ((k * 7) % 5) * 0.5;
+    blocks.push(new THREE.BoxGeometry(1.4, h, 1.2).translate(0, h / 2, 0).rotateZ(Math.sin(k * 3.1) * 0.25).rotateX(Math.cos(k * 2.3) * 0.2).rotateY(a).translate(Math.cos(a) * rr, -0.2, Math.sin(a) * rr));
+  }
+  return kit([{ geometry: merge(blocks), material: ice }, { geometry: merge(blocks.map((g, i) => g.clone().scale(1.02, 0.12, 1.02).translate(0, 1.5 + (i % 3) * 0.6, 0))), material: std('#f6faff', { roughness: 0.9 }) }]);
+}
+
+/** A sled-dog team resting beside the run, watching: six huskies in pairs and a wooden sled. */
+function sledDogs() {
+  const grey = std('#5f646c', { roughness: 1 }), white = std('#f1f1ee', { roughness: 1 });
+  const bodies = [], bellies = [];
+  for (let k = 0; k < 6; k++) {
+    const x = 1.2 + Math.floor(k / 2) * 1.25, z = (k % 2 ? 1 : -1) * 0.45;
+    bodies.push(sph(0.32, x, 0.55, z, 1.5, 0.85, 0.85, 10), sph(0.2, x + 0.5, 0.82, z, 1, 1, 0.9, 9), cyl(0.04, 0.01, 0.16, x + 0.5, 0.98, z + 0.08, 5), cyl(0.04, 0.01, 0.16, x + 0.5, 0.98, z - 0.08, 5), cyl(0.06, 0.04, 0.4, x - 0.45, 0.55, z, 6).rotateZ(0.9).translate(x * 0.0, 0, 0));
+    bellies.push(sph(0.24, x + 0.05, 0.45, z, 1.3, 0.6, 0.8, 9), sph(0.11, x + 0.66, 0.76, z, 1, 0.8, 0.9, 8));
+    for (const [lx, lz] of [[-0.25, -0.12], [-0.25, 0.12], [0.25, -0.12], [0.25, 0.12]]) bellies.push(cyl(0.06, 0.05, 0.4, x + lx, 0, z + lz, 6));
+  }
+  const wood = std('#7a5230');
+  return kit([
+    { geometry: merge(bodies), material: grey },
+    { geometry: merge(bellies), material: white },
+    { geometry: merge([box(1.8, 0.12, 0.9, -0.6, 0.3, 0), box(0.1, 0.9, 0.9, -1.45, 0.3, 0), box(2.2, 0.05, 0.08, -0.5, 0.02, 0.42), box(2.2, 0.05, 0.08, -0.5, 0.02, -0.42), box(6.6, 0.04, 0.04, 2.6, 0.5, 0)]), material: wood }
+  ]);
+}
+
+/** Kirkjufellsfoss: a little two-step waterfall over dark rock ledges, white water falling. */
+function falls() {
+  const water = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  const fu = uv();
+  water.colorNode = vec4(vec3(0.92, 0.96, 1).mul(mx_noise_float(vec2(fu.x.mul(10), fu.y.mul(4).add(time.mul(2.2)))).mul(0.15).add(0.95)), smoothstep(0, 0.15, fu.x).mul(smoothstep(1, 0.85, fu.x)).mul(0.92));
+  const rock = std('#2e302c', { roughness: 1, flatShading: true });
+  return kit([
+    { geometry: merge([new THREE.IcosahedronGeometry(3.2, 1).scale(1.6, 0.9, 1).translate(-2, 1.2, -1.5), new THREE.IcosahedronGeometry(2.6, 1).scale(1.4, 0.8, 1).translate(2.6, 0.6, -1.2), new THREE.IcosahedronGeometry(2.2, 1).scale(1.8, 0.9, 1).translate(0, 3.4, -3.2)]), material: rock },
+    { geometry: mergeUV([new THREE.PlaneGeometry(1.6, 2.6).translate(0, 4.4, -1.6), new THREE.PlaneGeometry(2.2, 2.4).translate(0.4, 1.5, 0.2)]), material: water },
+    { geometry: merge([new THREE.CircleGeometry(2.4, 24).rotateX(-Math.PI / 2).translate(0.4, 0.15, 1.4)]), material: std('#bfe3ff', { roughness: 0.2 }) }
+  ]);
+}
+
+export const BUILDERS = { stoneHut, alpaca, hotSpring, bison, serac, sledDogs, falls, birch, hareubang, tangerine, stupa, cairn, yak, moose, acacia, lodge, redbridge: redBridge, temple };
 
 /* ---------------------------------------------------------------- over-the-run pieces */
 

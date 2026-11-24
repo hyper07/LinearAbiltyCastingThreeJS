@@ -72,8 +72,17 @@ export class Sky {
       const band = smoothstep(0.1, 0.28, y).mul(smoothstep(0.85, 0.4, y));
       const n1 = mx_noise_float(vec2(az.mul(2.6).add(time.mul(0.03)), y.mul(1.5)));
       const n2 = mx_noise_float(vec2(az.mul(7.0).sub(time.mul(0.05)), y.mul(9.0)));
-      const curtain = pow(max(n1.mul(0.7).add(n2.mul(0.3)).add(0.15), 0), 2).mul(band).mul(2.2);
-      const hue = mix(u.auroraA, u.auroraB, smoothstep(0.25, 0.65, y).add(n2.mul(0.3)));
+      let curtain = pow(max(n1.mul(0.7).add(n2.mul(0.3)).add(0.15), 0), 2).mul(band).mul(2.2);
+      let hue = mix(u.auroraA, u.auroraB, smoothstep(0.25, 0.65, y).add(n2.mul(0.3)));
+      if (P.aurora === 'ribbon') {
+        // Iceland's: one long ribbon snaking across the sky, fine vertical rays, green at its foot fading to purple tops
+        const centre = sin(az.mul(1.6).add(time.mul(0.04))).mul(0.07).add(sin(az.mul(4.1).sub(time.mul(0.06))).mul(0.025)).add(0.3);
+        const d = y.sub(centre);
+        const rays = mx_noise_float(vec2(az.mul(60).add(time.mul(0.2)), 0.5)).mul(0.5).add(0.5);
+        const foot = smoothstep(-0.05, 0.0, d).mul(smoothstep(0.2, 0.02, d));
+        curtain = foot.mul(rays.mul(0.7).add(0.3)).mul(n1.mul(0.4).add(0.8)).mul(1.1);
+        hue = mix(u.auroraA, u.auroraB, smoothstep(0.0, 0.09, d));
+      }
       out.addAssign(hue.mul(curtain).mul(u.aurora));
       // stars
       const cell = mx_cell_noise_float(dir.mul(420));

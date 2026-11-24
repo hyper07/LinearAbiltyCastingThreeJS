@@ -639,6 +639,74 @@ test('famous mountains: every course is deterministic, has its facts and names, 
   }
 });
 
+test('wave 2: Artesonraju, Yellowstone, Mont Blanc, Denali and Kirkjufell — deterministic in every length, facts, pins, scenery off the run, the hero ahead', async () => {
+  const { sceneryPlan, backdropPlace } = await import('../../src/snowpuff/landmarks.js');
+  const { pinXY, regionView } = await import('../../src/snowpuff/worldMap.js').catch(() => ({}));
+  const ids = ['artesonraju', 'yellowstone', 'montblanc', 'denali', 'kirkjufell'];
+  for (const id of ids) {
+    const m = MOUNTAINS.find((x) => x.id === id);
+    assert.ok(m, `${id}: in the list`);
+    assert.ok(m.fact.length > 40 && m.local && m.local !== m.name && m.coords, `${id}: a fact, a local name and a pin`);
+    if (pinXY) assert.ok(pinXY(m).every(Number.isFinite), `${id}: a pin on the world map`);
+    if (id === 'artesonraju') assert.ok(!/paramount/i.test(m.fact + m.blurb), 'the logo is never named');
+    for (const mode of RACE_MODES) {
+      const a = buildCourse(m, { mode }), b = buildCourse(m, { mode });
+      assert.equal(a.length, b.length);
+      for (const i of [0, 333, Math.floor(a.n / 2), a.n - 1]) assert.equal(a.pz[i], b.pz[i], `${id} ${mode}: deterministic`);
+      assert.deepEqual(sceneryPlan(a, m), sceneryPlan(b, m), `${id} ${mode}: scenery deterministic`);
+      // no prop crosses the racing line (nor the run itself)
+      for (const it of sceneryPlan(a, m)) {
+        const f = frameAt(a, it.s);
+        assert.ok(Math.abs(it.lat) >= f.width + 5.9 && Math.abs(it.lat - f.line) >= 5.9, `${id} ${mode}: ${it.kind} off the run`);
+      }
+      // the famous peak is ahead (within ±43° of where you face) for 90 %+ of the run
+      const p = backdropPlace(a, m);
+      let k = 0, n = 0;
+      for (let s = 0; s < a.length; s += 10) {
+        const f = frameAt(a, s);
+        const ang = Math.atan2(p.x - f.x, -(p.z - f.z)) - f.heading;
+        if (Math.abs(Math.atan2(Math.sin(ang), Math.cos(ang))) < 0.75) k++;
+        n++;
+      }
+      assert.ok(k / n >= 0.9, `${id} ${mode}: the hero ahead ${((k / n) * 100).toFixed(0)} % of the run`);
+    }
+  }
+});
+
+test('geysers (Yellowstone): placed the same every time beside the racing line, bubble before they blow, lift and boost you only while erupting', async () => {
+  const { placeGeysers, geyserPhase, GEYSER_CYCLE } = await import('../../src/snowpuff/landmarks.js');
+  const { geyserLift } = await import('../../src/snowpuff/physics.js');
+  const m = mountainById('yellowstone');
+  for (const mode of RACE_MODES) {
+    const c = buildCourse(m, { mode });
+    const a = placeGeysers(c, m), b = placeGeysers(c, m);
+    assert.ok(a.length >= 4, `${mode}: ${a.length} geysers`);
+    assert.deepEqual(a, b, `${mode}: deterministic`);
+    for (const g of a) {
+      const f = frameAt(c, g.s);
+      assert.ok(Math.abs(g.lat - f.line) >= 2.4 && Math.abs(g.lat) <= f.width - 2, 'beside the racing line, on the run');
+      assert.ok(!c.kickers.some((k) => Math.abs(k.s - g.s) < 40), 'not on a kicker');
+    }
+  }
+  assert.equal(placeGeysers(buildCourse(mountainById('fuji')), mountainById('fuji')).length, 0, 'only where there are geysers');
+  // the timer: idle, then 1.6 s of warning bubbles, then a 2.2 s eruption, every 9 s
+  const g = { id: 1, s: 300, lat: 0, phase: 0, y: 0 };
+  const phases = [];
+  for (let t = 0; t < GEYSER_CYCLE * 2; t += 0.05) phases.push(geyserPhase(g, t));
+  const first = (p) => phases.indexOf(p) * 0.05;
+  assert.ok(first('warn') < first('erupt') && Math.abs(first('erupt') - first('warn') - 1.6) < 0.06, 'bubbles 1.6 s before it blows');
+  assert.ok(Math.abs(phases.filter((p) => p === 'erupt').length * 0.05 - 4.4) < 0.15, 'erupts 2.2 s each cycle');
+  // riding into the column: idle does nothing; erupting lifts you up and boosts you, once per eruption
+  const r = newRider({ s: 300, lat: 0, speed: 18 });
+  r.y = 0;
+  assert.equal(geyserLift(r, [g], 1).length, 0, 'idle: nothing');
+  const tE = GEYSER_CYCLE - 1;
+  const ev = geyserLift(r, [g], tE);
+  assert.ok(ev.length === 1 && r.air && r.vy >= 8 && r.boost > 0, 'erupting: up you go, with a boost');
+  assert.equal(geyserLift(r, [g], tE + 0.1).length, 0, 'once per eruption');
+  assert.equal(geyserLift({ ...newRider({ s: 310, lat: 0 }), y: 0 }, [g], tE).length, 0, 'only in the column');
+});
+
 test('famous mountains: AI riders take about 60–90 s', () => {
   for (const m of MOUNTAINS) {
     const c = buildCourse(m);

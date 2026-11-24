@@ -18,6 +18,7 @@
  */
 
 import { frameAt, groundAt, kickerAt, between, BARRIERS } from './course.js';
+import { geyserPhase, GEYSER_CYCLE } from './landmarks.js';
 
 /** How long an ice spin lasts (s). */
 export const SLIP = 1.1;
@@ -78,7 +79,8 @@ export function trickName(halfSpins, flips) {
  * @param {object} inp   { steer −1..1, tuck bool, jump bool (held), flip −1..1 (↑ = +1) }
  * @param {object} course
  * @param {number} dt
- * @param {object} [o]   { pull: gravity multiplier (gentle rubber band), brake: slow to a stop, draft: drag factor behind another rider }
+ * @param {object} [o]   { pull: gravity multiplier (gentle rubber band), brake: slow to a stop, draft: drag factor behind another rider,
+ *                         geysers + t: the course's geysers and the race clock (their steam lifts you) }
  * @returns {object[]} events: jump, launch, land, bump, rail, finish-line crossings are race.js's
  */
 export function step(r, inp, course, dt, o = {}) {
@@ -342,7 +344,34 @@ export function step(r, inp, course, dt, o = {}) {
       }
     }
   }
+  // geysers (Yellowstone): ride into an erupting steam column and it lifts you up and on
+  if (o.geysers?.length) geyserLift(r, o.geysers, o.t ?? 0, ev);
   r.lastS = r.s;
+  return ev;
+}
+
+/** The steam column's reach: within this many metres of the vent (along, across) and this high. */
+export const GEYSER_R = { s: 2.6, lat: 2.4, h: 9 };
+
+/** Riding through an erupting geyser: a lift into the air (or more lift if already up) and a boost — once per eruption. */
+export function geyserLift(r, geysers, t, ev = []) {
+  for (const g of geysers) {
+    if (Math.abs(r.s - g.s) > GEYSER_R.s || Math.abs(r.lat - g.lat) > GEYSER_R.lat || r.y - g.y > GEYSER_R.h) continue;
+    if (geyserPhase(g, t) !== 'erupt') continue;
+    const key = `${g.id}:${Math.floor((t + g.phase) / GEYSER_CYCLE)}`;
+    if (r.geyserKey === key) continue;
+    r.geyserKey = key;
+    if (!r.air) {
+      r.air = true;
+      r.airTime = 0;
+      r.lift = 0;
+      r.spin = r.flip = r.spinV = r.flipV = 0;
+      r.trickable = true;
+    }
+    r.vy = Math.max(r.vy ?? 0, 8.5);
+    r.boost = Math.max(r.boost, 1.0);
+    ev.push({ type: 'geyser', id: g.id });
+  }
   return ev;
 }
 

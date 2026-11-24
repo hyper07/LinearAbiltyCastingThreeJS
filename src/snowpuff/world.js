@@ -16,7 +16,7 @@ import { loadKit, instance, fadeNearLens } from './render/models.js';
 import { RiderModel } from './render/riderModel.js';
 import { ALL_SPECIES } from './riders.js';
 import { KEEP_BUFFERS } from './fx.js';
-import { sceneryPlan } from './landmarks.js';
+import { sceneryPlan, geyserPhase, GEYSER_CYCLE } from './landmarks.js';
 import { buildBackdrop as buildHeroPeak, buildFarLand, buildWater, faceClouds, BUILDERS, prayerFlags, toriiGate, buildTrain } from './render/scenery.js';
 
 const SECTION = 100;
@@ -147,6 +147,8 @@ export class World {
       sec.add(instance(kit, list));
     }
     if (over.length) this.root.add(prayerFlags(c, over));
+    if (c.geysers?.length) this.buildGeysers();
+    if (m.plane) this.buildPlane();
     // the mountain railway over the run (the Matterhorn)
     if (m.train) {
       let best = c.length * 0.45, bk = Infinity;
@@ -161,6 +163,77 @@ export class World {
       this.section(best).add(this.train);
       c.trainS = best;
     }
+  }
+
+  /**
+   * Yellowstone's geysers, on the run: a pale sinter vent with a blue pool;
+   * before each eruption it bubbles and an orange ring pulses on the snow,
+   * then a tall column of steam and spray shoots up (ride into it for a lift).
+   * Everything is always drawn (only scaled away when idle), so nothing
+   * builds a pipeline mid-race.
+   */
+  buildGeysers() {
+    const c = this.course;
+    const sinter = new THREE.MeshStandardNodeMaterial({ color: '#d8d0bf', roughness: 0.9 });
+    const pool = new THREE.MeshStandardNodeMaterial({ color: '#2a8fd0', roughness: 0.1 });
+    const ringM = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+    const ru = uv().sub(0.5).length().mul(2);
+    ringM.colorNode = vec4(1, 0.55, 0.15, smoothstep(0.7, 0.85, ru).mul(smoothstep(1, 0.92, ru)).mul(sin(time.mul(14)).mul(0.35).add(0.65)));
+    ringM.mrtNode = mrt({ emissive: vec4(1, 0.5, 0.1, 1) });
+    const steam = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    const su = uv();
+    const billow = mx_noise_float(vec3(su.x.mul(6), su.y.mul(5).sub(time.mul(2.4)), time.mul(0.4)));
+    const edge = smoothstep(0, 0.2, su.x).mul(smoothstep(1, 0.8, su.x)).add(0.55).clamp(0, 1);
+    steam.colorNode = vec4(mix(vec3(0.82, 0.9, 0.98), vec3(1, 1, 1), billow.mul(0.5).add(0.5)), smoothstep(1, 0.5, su.y).mul(billow.mul(0.3).add(0.75)).mul(edge));
+    const bubbleM = new THREE.MeshStandardNodeMaterial({ color: '#cfeeff', roughness: 0.1, transparent: true, opacity: 0.85 });
+    const moundG = new THREE.CylinderGeometry(1.1, 1.7, 0.22, 20).translate(0, 0.08, 0);
+    const poolG = new THREE.CircleGeometry(0.85, 20).rotateX(-Math.PI / 2).translate(0, 0.2, 0);
+    const ringG = new THREE.PlaneGeometry(6, 6).rotateX(-Math.PI / 2).translate(0, 0.05, 0);
+    const colG = new THREE.CylinderGeometry(1.5, 0.7, 11, 18, 1, true).translate(0, 5.5, 0);
+    const bubbleG = new THREE.SphereGeometry(0.14, 10, 8);
+    this.geysers = [];
+    for (const g of c.geysers) {
+      const p = toWorld(c, g.s, g.lat, 0, {});
+      const grp = new THREE.Group();
+      grp.position.set(p.x, p.y - 0.06, p.z);
+      const ring = new THREE.Mesh(ringG, ringM);
+      const col = new THREE.Mesh(colG, steam);
+      col.frustumCulled = false;
+      const bubbles = new THREE.Group();
+      for (let i = 0; i < 7; i++) {
+        const b = new THREE.Mesh(bubbleG, bubbleM);
+        b.userData.k = i;
+        bubbles.add(b);
+      }
+      grp.add(new THREE.Mesh(moundG, sinter), new THREE.Mesh(poolG, pool), ring, col, bubbles);
+      this.section(g.s).add(grp);
+      this.geysers.push({ g, ring, col, bubbles });
+    }
+  }
+
+  /** Denali's bush plane: a little red float plane looping over the run ahead of you. */
+  buildPlane() {
+    const red = new THREE.MeshStandardNodeMaterial({ color: '#d62828', roughness: 0.5 });
+    const white = new THREE.MeshStandardNodeMaterial({ color: '#f4f4f0', roughness: 0.5 });
+    const plane = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 5, 4, 10).rotateZ(Math.PI / 2), red);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.15, 11), white);
+    wing.position.set(0.6, 0.6, 0);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.12, 3.6), white);
+    tail.position.set(-2.8, 0.3, 0);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.5, 0.12), red);
+    fin.position.set(-2.9, 1.0, 0);
+    const floats = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 4, 3, 8).rotateZ(Math.PI / 2), white);
+    floats.position.set(0.3, -1.3, 1.1);
+    const floats2 = floats.clone();
+    floats2.position.z = -1.1;
+    const prop = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.6, 0.25), new THREE.MeshStandardNodeMaterial({ color: '#2a2a2e' }));
+    prop.position.x = 3.2;
+    plane.add(body, wing, tail, fin, floats, floats2, prop);
+    plane.scale.setScalar(1.6);
+    plane.userData.prop = prop;
+    this.plane = plane;
+    this.root.add(plane);
   }
 
   /* ---------------------------------------------------------------- snow */
@@ -671,6 +744,12 @@ export class World {
         }
       }
       const sec = this.section(Math.max(0, s0));
+      // lodgepole pines (Yellowstone): tall and slim
+      const slim = m.trees?.slim;
+      if (slim) for (const it of [...spruce, ...pine, ...farSpruce, ...farPine]) {
+        it.sx = it.sz = it.s * 0.72;
+        it.sy = it.s * slim;
+      }
       if (spruce.length) sec.add(instance(K.spruce, spruce, { shadow: true }));
       if (pine.length) sec.add(instance(K.pine, pine, { shadow: true }));
       if (farSpruce.length) sec.add(instance(K.spruce, farSpruce, { shadow: false }));
@@ -1043,6 +1122,37 @@ export class World {
 
   update(dt, focusS, focus) {
     if (this.hero && this.camera) faceClouds(this.hero, this.camera);
+    const clock = this.clock ?? 0;
+    // geysers: idle, bubbling (warning), erupting
+    for (const gy of this.geysers ?? []) {
+      const ph = geyserPhase(gy.g, clock);
+      const u = (((clock + gy.g.phase) % GEYSER_CYCLE) + GEYSER_CYCLE) % GEYSER_CYCLE;
+      const warn = ph === 'warn', erupt = ph === 'erupt';
+      gy.ring.scale.setScalar(warn || erupt ? 1 : 0.001);
+      const e = erupt ? Math.min(1, (u - (GEYSER_CYCLE - 2.2)) / 0.25) * Math.min(1, (GEYSER_CYCLE - u) / 0.5) : 0;
+      gy.col.scale.set(0.6 + e * 0.5, Math.max(0.001, e), 0.6 + e * 0.5);
+      for (const b of gy.bubbles.children) {
+        const k = b.userData.k;
+        const t = (clock * 2.2 + k * 0.37) % 1;
+        b.scale.setScalar(warn ? 0.6 + t * 0.8 : 0.001);
+        b.position.set(Math.cos(k * 2.4) * 0.45 * (1 - t * 0.3), 0.25 + t * 0.9, Math.sin(k * 2.4) * 0.45 * (1 - t * 0.3));
+      }
+    }
+    // the cable car on the Aiguille du Midi, up and down
+    const cab = this.hero?.userData.cabin;
+    if (cab) cab.mesh.position.lerpVectors(cab.a, cab.b, Math.sin(clock * 0.08) * 0.5 + 0.5);
+    // the bush plane: a wide loop ahead of you, banking
+    if (this.plane) {
+      const c = this.course;
+      const t = (this.planeT = (this.planeT ?? 0) + dt);
+      const ps = Math.min(c.n - 2, focusS + 160 + Math.sin(t * 0.21) * 90);
+      const f = frameAt(c, ps, {});
+      const lat = Math.cos(t * 0.21) * 60;
+      const p = toWorld(c, ps, lat, 0, {});
+      this.plane.position.set(p.x, p.y + 38, p.z);
+      this.plane.rotation.set(Math.sin(t * 0.21) * 0.35, Math.PI / 2 - f.heading + Math.atan2(-Math.sin(t * 0.21) * 0.6, 1), 0, 'YXZ');
+      this.plane.userData.prop.rotation.x = t * 40;
+    }
     if (this.train) {
       this.trainT = (this.trainT ?? 0) + dt;
       const span = this.train.userData.span;

@@ -187,6 +187,20 @@ Best times are kept per mountain and race length.
 | **Mount Everest** ❄❄❄ | Nepal / China | High and blue | The summit plume, prayer flags, a stupa, yaks, cairns |
 | **Banff** ❄❄ | Canada | Crisp day | Layered jagged peaks, a turquoise lake, moose, a lodge, gondolas |
 | **Kilimanjaro** ❄❄ | Tanzania | Sunset | The flat-topped giant with its snow cap, savanna beyond the run, acacias, giraffes, elephants, a sandy finish |
+| **Artesonraju** ❄❄❄ | Peru | High and blue | The sharp snow pyramid with fluted ice faces over a turquoise lake at its foot (the land dips under it), stone huts with straw roofs, woolly alpacas, cairns, a turquoise laguna at the finish. Its card says it is widely believed to have inspired a famous film-studio logo — the logo itself is never drawn or named |
+| **Yellowstone** ❄ | USA | Winter noon | The yellow Grand Canyon with its waterfall pouring into the gorge (the gorge opens toward you), tall slim snowy lodgepole pines, steaming rainbow hot springs, bison in the snow — and **geysers on the run** (below) |
+| **Mont Blanc** ❄❄ | France / Italy | Clear day | The big white dome with the Aiguille du Midi's granite needle beside it and a red cable car riding up to its top, blue glacier seracs beside the run |
+| **Denali** ❄❄❄ | Alaska, USA | Clear arctic day | The massive white massif over snowy tundra and dark spruce, a resting sled-dog team watching, a red bush plane on floats looping overhead |
+| **Kirkjufell** ❄❄ | Iceland | Night | The arrowhead "Church Mountain" lit by the moon, green-and-purple northern lights as one long snaking ribbon with fine rays (not Aurora Peak's curtains), the sea, the little Kirkjufellsfoss waterfall and a black-sand finish |
+
+**Geysers (Yellowstone)** are a mechanic, not scenery: four to six on the run,
+beside the racing line and never on a kicker, each on its own 9 s timer
+(`landmarks.js` `placeGeysers`, `geyserPhase` — deterministic, so every player
+has the same ones). For 1.6 s before it blows it bubbles and an orange ring
+pulses on the snow; then for 2.2 s a column of steam shoots up. Ride into the
+column and it lifts you into the air (you can trick) with a boost — once per
+eruption (`physics.js` `geyserLift`). Their vents, rings, bubbles and columns
+are always drawn (only scaled away when idle), so nothing compiles mid-race.
 
 On the mountain card the chosen diorama turns as one piece — pedestal, peak,
 run, trees, lift and flag together (drag, the arrows or its own slow idle turn);
@@ -200,9 +214,12 @@ religious and wildlife things are only scenery. The pure parts are
 `src/snowpuff/landmarks.js` (peak shapes, where the hero stands, the scenery
 plan, always off the run) and `render/scenery.js` builds them.
 
-**Next mountains** (wave 2, in progress): Artesonraju (Peru), Yellowstone
-(geysers you can ride), Mont Blanc, Denali, Kirkjufell. Later candidates: Aconcagua,
-Kangchenjunga, Aoraki / Mount Cook, a table mountain or desert dunes.
+Every famous mountain follows the same rule: you ride a nearby slope and
+the famous peak is the distant hero of the skyline — about a third of the
+frame, ahead (within ±43° of where you face) for 90 %+ of the run in every race
+length (a unit test checks it), standing on its own land with a valley,
+foothills and layered ridges, haze thinning upward. Later candidates:
+Aconcagua, Kangchenjunga, Aoraki / Mount Cook, a table mountain or desert dunes.
 
 A course is a winding centre line sampled every metre — straights and eased
 arcs: S-bends, a few **banked berms** (boardercross style), wide sweeping curves
