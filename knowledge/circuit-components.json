@@ -2467,6 +2467,375 @@
    "sim": "four 2-input NOR gates with TTL levels (outputs on the first pin of each gate)",
    "look": "DIP-14",
    "teach": "NOR as a universal gate, SR latches"
+  },
+  {
+   "id": "instr-freq-counter",
+   "name": "Frequency counter (reciprocal)",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "IN",
+    "GND"
+   ],
+   "sim": "reciprocal counter: times interpolated rising crossings over a gate (10 ms / 0.1 s / 1 s), 1 MΩ input; frequency, period, count, duty",
+   "look": "bench box with a seven-segment frequency readout and a BNC input",
+   "teach": "frequency vs period, gate time and resolution, trigger level and hysteresis"
+  },
+  {
+   "id": "instr-spectrum-analyzer",
+   "name": "Spectrum analyzer",
+   "category": "instrument",
+   "level": 3,
+   "pins": [
+    "IN",
+    "GND"
+   ],
+   "sim": "FFT of the simulated waveform up to 1 MHz (Hann window, RBW = 1.5·fs/N, boxcar anti-alias); RF carriers 1 MHz–3.2 GHz from the link-budget model over a −135 dBm/100 Hz floor; +20 dBm max",
+   "look": "dark bench box with a spectrum screen and an SMA input",
+   "teach": "dBm and dBV, RBW and noise floor, harmonics, hum, ripple, carriers"
+  },
+  {
+   "id": "instr-rms-voltmeter",
+   "name": "True-RMS voltmeter",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "HI",
+    "LO"
+   ],
+   "sim": "10 MΩ floating input; AC+DC rms, AC rms, DC, dBV, dBm (600 Ω), Hz, duty over a 0.2 s gate",
+   "look": "bench box with a seven-segment readout",
+   "teach": "true RMS vs average-reading, crest factor, dB units"
+  },
+  {
+   "id": "instr-lcr-meter",
+   "name": "LCR meter",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "HI",
+    "LO"
+   ],
+   "sim": "small-signal AC solve with 1 V through 100 Ω at 100 Hz–100 kHz: |Z|, θ, Ls/Cs/Rs, Lp/Cp/Rp, ESR, D, Q",
+   "look": "bench box with a readout and Kelvin-clip sockets",
+   "teach": "impedance, reactance, series vs parallel models, ESR, D and Q"
+  },
+  {
+   "id": "instr-vna",
+   "name": "Vector network analyzer",
+   "category": "instrument",
+   "level": 3,
+   "pins": [
+    "PORT1",
+    "PORT2",
+    "GND"
+   ],
+   "sim": "two 50 Ω ports; AC sweeps 10 Hz–6 GHz give S11 (return loss, VSWR, Zin, Smith chart) and S21 (or V2/V1 with a high-Z port 2)",
+   "look": "dark box with a Smith-chart screen and two SMA ports",
+   "teach": "reflection, matching, VSWR, Smith chart, filter transfer functions"
+  },
+  {
+   "id": "instr-rf-power-meter",
+   "name": "RF power meter (diode sensor)",
+   "category": "instrument",
+   "level": 3,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "50 Ω sensor, −30…+20 dBm (+23 dBm damage), average power from a cable or an antenna via the link model; attenuator offset",
+   "look": "bench box with a dBm readout and an SMA sensor input",
+   "teach": "dBm and mW, attenuators, transmitter power"
+  },
+  {
+   "id": "instr-noise-source",
+   "name": "Noise / hum / ripple source",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "IN",
+    "OUT",
+    "GND"
+   ],
+   "sim": "VCVS OUT = IN + interference behind 50 Ω: Gaussian white noise (set bandwidth), 60/50 Hz hum with 3rd/5th harmonics, switching ripple (triangle + edge spikes)",
+   "look": "bench box showing a noisy trace",
+   "teach": "interference, signal-to-noise, why filters and shielding matter"
+  },
+  {
+   "id": "filter-ferrite-bead",
+   "name": "Ferrite bead (600 Ω @ 100 MHz)",
+   "category": "passive",
+   "level": 2,
+   "pins": [
+    "p1",
+    "p2"
+   ],
+   "sim": "Rdc + (R ∥ L) in time, ∥ C in AC: inductive below ≈ 30 MHz, resistive 30–500 MHz; current rating checked",
+   "look": "dark grey bead on a wire",
+   "teach": "EMI suppression, lossy vs reactive filtering, decoupling"
+  },
+  {
+   "id": "filter-cm-choke",
+   "name": "Common-mode choke (2 × 10 mH)",
+   "category": "passive",
+   "level": 3,
+   "pins": [
+    "L1a",
+    "L1b",
+    "L2a",
+    "L2b"
+   ],
+   "sim": "two coupled inductors (k = 0.995, inverse-inductance companion): differential signal sees the leakage, common-mode noise the full L",
+   "look": "black toroid with two copper windings straddling the channel",
+   "teach": "common vs differential mode, mutual inductance"
+  },
+  {
+   "id": "filter-pi-module",
+   "name": "EMI π filter module (C-L-C)",
+   "category": "passive",
+   "level": 2,
+   "pins": [
+    "IN",
+    "GND",
+    "OUT"
+   ],
+   "sim": "R-C and R-L branches with ESR and DCR (10 µF – 10 µH – 10 µF, f₀ ≈ 16 kHz, −60 dB/dec); inductor saturation and capacitor voltage checked",
+   "look": "small blue PCB with two ceramic caps and a power inductor",
+   "teach": "supply filtering, decoupling, ripple attenuation"
+  },
+  {
+   "id": "filter-lc-lowpass",
+   "name": "LC low-pass module",
+   "category": "passive",
+   "level": 2,
+   "pins": [
+    "IN",
+    "GND",
+    "OUT"
+   ],
+   "sim": "series L (with DCR) and shunt C (with ESR), second order, −40 dB/dec, peaks at f₀ when lightly loaded",
+   "look": "small blue PCB with an inductor and a capacitor",
+   "teach": "second-order filters, resonance, Q and damping"
+  },
+  {
+   "id": "rf-usrp-b210",
+   "name": "USRP B210 software-defined radio",
+   "category": "rf",
+   "level": 4,
+   "pins": [
+    "TX/RX A",
+    "RX2 A",
+    "TX/RX B",
+    "RX2 B",
+    "GND"
+   ],
+   "sim": "link-level SDR: CW tone on TX/RX A up to +10 dBm; RX2 A/B show carriers from the link model over kT·B·NF (NF 8 dB); 70 MHz–6 GHz, 56 MHz; damage above 0 dBm input (−15 dBm working max)",
+   "look": "dark ribbed enclosure with four gold SMA ports and status LEDs",
+   "teach": "SDR, spectrum, gain staging, input power limits"
+  },
+  {
+   "id": "rf-nrf24l01",
+   "name": "nRF24L01+ 2.4 GHz radio",
+   "category": "rf",
+   "level": 3,
+   "pins": [
+    "GND",
+    "VCC",
+    "CE",
+    "CSN",
+    "SCK",
+    "MOSI",
+    "MISO",
+    "IRQ"
+   ],
+   "sim": "link level: channel, 0/−6/−12/−18 dBm, sensitivity −94/−85/−82 dBm at 250k/1M/2M; VCC 3.6 V abs max (5 V burns it); SPI not emulated",
+   "look": "green module with a 2×4 header and a meander PCB antenna",
+   "teach": "link budget, data rate vs range, 3.3 V supplies"
+  },
+  {
+   "id": "rf-hc05",
+   "name": "HC-05 Bluetooth serial module",
+   "category": "rf",
+   "level": 2,
+   "pins": [
+    "EN",
+    "VCC",
+    "GND",
+    "TXD",
+    "RXD",
+    "STATE"
+   ],
+   "sim": "two modules (master + slave) form a wireless UART: RXD of one appears on TXD of the other while the link closes (+4 dBm, −80 dBm); STATE high when linked",
+   "look": "blue breakout with a green radio board and a 6-pin header",
+   "teach": "wireless serial, pairing, 3.3 V logic"
+  },
+  {
+   "id": "rf-rfm95",
+   "name": "RFM95W LoRa radio (SX1276)",
+   "category": "rf",
+   "level": 3,
+   "pins": [
+    "3.3V",
+    "GND",
+    "SCK",
+    "MISO",
+    "MOSI",
+    "NSS",
+    "RESET",
+    "DIO0",
+    "ANT"
+   ],
+   "sim": "link level: 868/915 MHz, +2…+20 dBm, SF7–SF12 sensitivity −123…−136 dBm (125 kHz), decodes below the noise floor; 3.9 V abs max",
+   "look": "dark breakout with a metal shield can and a wire whip",
+   "teach": "spread spectrum, sensitivity vs SNR, long-range links"
+  },
+  {
+   "id": "rf-433-tx",
+   "name": "433 MHz ASK transmitter (FS1000A)",
+   "category": "rf",
+   "level": 2,
+   "pins": [
+    "DATA",
+    "VCC",
+    "GND",
+    "ANT"
+   ],
+   "sim": "carrier on while DATA is high; ≈ +10 dBm at 12 V, ≈ +2 dBm at 5 V; λ/4 whip, bare pad or external antenna",
+   "look": "small green board with a SAW resonator and a 17 cm wire whip",
+   "teach": "OOK/ASK, antennas, link budget"
+  },
+  {
+   "id": "rf-433-rx",
+   "name": "433 MHz ASK receiver (XY-MK-5V)",
+   "category": "rf",
+   "level": 2,
+   "pins": [
+    "VCC",
+    "DATA",
+    "DATA2",
+    "GND",
+    "ANT"
+   ],
+   "sim": "DATA follows the carrier above −105 dBm (bit errors near the edge); with no carrier for 20 ms it chatters like a real super-regenerative receiver",
+   "look": "long green board with a coil, a trimmer and a wire whip",
+   "teach": "receivers, sensitivity, why decoders need a preamble"
+  },
+  {
+   "id": "ant-dipole",
+   "name": "Half-wave dipole antenna",
+   "category": "rf",
+   "level": 2,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "2.15 dBi, exact λ/2 pattern, linear along the arms, series-RLC Zin (73 Ω at f₀ = 0.95·c/2L); tilt and quarter-turn rotation set its orientation",
+   "look": "two thin arms on a stand with an SMA feed",
+   "teach": "resonance, length vs frequency, polarization, VSWR"
+  },
+  {
+   "id": "ant-monopole",
+   "name": "Quarter-wave monopole / whip",
+   "category": "rf",
+   "level": 2,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "≈ 3 dBi over 4 radials (5.15 dBi ideal), 36.5 Ω, f₀ = 0.95·c/4L",
+   "look": "vertical whip with four drooping radials",
+   "teach": "image theory, ground planes"
+  },
+  {
+   "id": "ant-rubber-duck",
+   "name": "Rubber-duck antenna (SMA)",
+   "category": "rf",
+   "level": 1,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "≈ 2 dBi, 50 Ω, vertical, set band",
+   "look": "black whip on a gold SMA plug",
+   "teach": "the everyday antenna, polarization alignment"
+  },
+  {
+   "id": "ant-patch",
+   "name": "Patch antenna",
+   "category": "rf",
+   "level": 3,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "≈ 7 dBi, 70° beam, 18 dB front-to-back, narrow band (Q 30)",
+   "look": "square copper patch on a green FR-4 ground plane, standing up",
+   "teach": "directional antennas, beamwidth"
+  },
+  {
+   "id": "ant-yagi",
+   "name": "Yagi-Uda antenna",
+   "category": "rf",
+   "level": 3,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "3 el. ≈ 7.5 dBi … 12 el. ≈ 13.5 dBi, beam 66°→33°, linear along the elements",
+   "look": "boom with a reflector, a driven element and directors",
+   "teach": "gain vs beamwidth, pointing"
+  },
+  {
+   "id": "ant-helical",
+   "name": "Helical antenna (axial mode)",
+   "category": "rf",
+   "level": 3,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "≈ 11 dBi, 40° beam, right-hand circular: −3 dB to any linear antenna, cross-pol floor to LHCP",
+   "look": "copper helix over a round ground plate",
+   "teach": "circular polarization, satellites"
+  },
+  {
+   "id": "ant-loop",
+   "name": "Small loop antenna",
+   "category": "rf",
+   "level": 3,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "magnetic-dipole pattern (max in the loop plane), ≈ −8 dBi (η ≈ 10 %), very narrow band (Q 60)",
+   "look": "copper ring with a tuning capacitor on a stand",
+   "teach": "magnetic antennas, efficiency vs size"
+  },
+  {
+   "id": "ant-horn",
+   "name": "Horn antenna",
+   "category": "rf",
+   "level": 3,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "≈ 15 dBi standard-gain horn (WR-187 band), 30° beam, 25 dB front-to-back",
+   "look": "flared metal horn on a waveguide adapter",
+   "teach": "reference antennas, aperture gain"
+  },
+  {
+   "id": "ant-pcb-ifa",
+   "name": "PCB inverted-F antenna",
+   "category": "rf",
+   "level": 2,
+   "pins": [
+    "RF",
+    "GND"
+   ],
+   "sim": "≈ 2 dBi quasi-omni, mixed polarization (−3 dB flat), 50 Ω, 2.4 GHz",
+   "look": "small upright board with an F-shaped copper trace",
+   "teach": "printed antennas, keep-out areas"
   }
  ]
 }
