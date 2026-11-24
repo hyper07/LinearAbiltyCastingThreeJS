@@ -149,14 +149,14 @@ export class Golmok {
     this.obstacles = [];
     this.group = new THREE.Group();
     game.scene.add(this.group);
-    this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.05 });
-    this.groundMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-    // The surface takes the city's wet-road shine.
+    this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.05, envMapIntensity: 0.2 });
+    // The surface: matt like the city's own roads (no studio reflections to glow at night), darker when wet.
+    this.groundMat = new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
     this.groundMat.onBeforeCompile = (shader) => {
       shader.uniforms.uWet = game.uniforms.uWet;
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform float uWet;')
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.18, uWet);\ndiffuseColor.rgb *= 1.0 - 0.4 * uWet;');
+        .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= 1.0 - 0.45 * uWet;');
     };
     const signs = signTexture();
     this.signs = signs;

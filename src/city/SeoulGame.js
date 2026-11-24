@@ -390,7 +390,7 @@ export class SeoulGame {
       }
       for (const l of this.index.landmarks) if (l.tower) this._tower(l);
       // A short credit always on screen; each source's full notice is in the Places panel.
-      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '버스·스쿠터 bus, scooter: polyfork.dev (CC BY 4.0)'].filter(Boolean).join(' · ');
+      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '스쿠터 scooter: polyfork.dev (CC BY 4.0)', '자전거 riders: Quaternius Ultimate Modular Men & Women (CC0)'].filter(Boolean).join(' · ');
       this.ready = true;
       // Gangnam Jarani opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
