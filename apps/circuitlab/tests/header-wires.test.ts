@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import { getEntry } from '../src/model/catalog'
 import { offboardBodyRect, offboardGeometry, offboardTerminalPosition } from '../src/model/breadboard'
-import { ARDUINO_HEADER_Y, ESP32_PIN_Y } from '../src/model/boards'
+import { ARDUINO_HEADER_Y, ESP32_PIN_Y, PI_PIN_Y } from '../src/model/boards'
 import type { CircuitLayout, ComponentInstance, Wire } from '../src/model/types'
 import { DUPONT, dupontRise, endKinds, planRoutes, plannedWireRoute, wireBundles, wireEndStyle } from '../src/three/internal/wires'
 
@@ -20,6 +20,10 @@ const BOARDS: { type: string; pos: { x: number; z: number }; top: number; kind: 
   { type: 'arduino_leonardo', pos: { x: -31, z: -1.5 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
   { type: 'esp8266_nodemcu', pos: { x: -23, z: 2 }, top: ESP32_PIN_Y, kind: 'pin' },
   { type: 'esp32s3_devkitc', pos: { x: -29, z: 2 }, top: ESP32_PIN_Y, kind: 'pin' },
+  { type: 'rpi5', pos: { x: -40, z: -5 }, top: PI_PIN_Y, kind: 'pin' },
+  { type: 'rpi4', pos: { x: -40, z: -5 }, top: PI_PIN_Y, kind: 'pin' },
+  { type: 'rpi3bplus', pos: { x: -40, z: -5 }, top: PI_PIN_Y, kind: 'pin' },
+  { type: 'rpi_zero2w', pos: { x: -31, z: -2 }, top: PI_PIN_Y, kind: 'pin' },
 ]
 
 function boardLayout(type: string, pos: { x: number; z: number }, pins: string[]): CircuitLayout {

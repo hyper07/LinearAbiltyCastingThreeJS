@@ -37,6 +37,9 @@ export function pinKind(name: string, def?: BoardDef): PinKind {
   if (/^(SDA|SCL|TX\d?|RX\d?|MISO|MOSI|SCK|SS)$/.test(n)) return 'bus'
   if (/^A\d+$/.test(n) || n === 'VP' || n === 'VN') return 'analog'
   if (def?.adcLabels && def.adc[n] !== undefined) return 'analog'
+  const alt = def?.altNames?.[n]
+  if (alt && /^ID_S/.test(alt)) return 'ctrl'
+  if (alt && /^(SDA|SCL|TXD?|RXD?|MOSI|MISO|SCLK?|CE\d|CS\d?)/.test(alt)) return 'bus'
   if (def && Array.isArray(def.pwm) && def.pwm.includes(n)) return 'pwm'
   return 'digital'
 }
@@ -51,7 +54,7 @@ export function pinLabel(name: string, def?: BoardDef): string {
   if (def?.silk === 'arduino' && /^D\d+$/.test(n)) {
     return `${pinKind(n, def) === 'pwm' ? '~' : ''}${n.slice(1)}`
   }
-  if (def?.silk === 'bare' && /^(D|IO)\d+$/.test(n)) return n.replace(/^(D|IO)/, '')
+  if (def?.silk === 'bare' && /^(D|IO|GPIO)\d+$/.test(n)) return n.replace(/^(D|IO|GPIO)/, '')
   if (def?.silk === 'port' && /^P[A-K]\d+$/.test(n)) return n.slice(1)
   if (n === '3V3') return '3.3V'
   if (n === 'ADC_VREF') return 'VREF'
@@ -61,6 +64,14 @@ export function pinLabel(name: string, def?: BoardDef): string {
 
 /** the hover chip: the full name and what it is, e.g. "D9 · PWM", "A0 · analog in", "GND" */
 export function pinChip(name: string, def?: BoardDef): string {
+  const phys = def?.pinNumbers?.[name]
+  const alt = def?.altNames?.[baseName(name)]
+  if (phys !== undefined || alt) {
+    // Raspberry Pi style: "GPIO17 · pin 11", "GPIO2 · SDA1 · pin 3", "5V · pin 2"
+    const n = baseName(name)
+    const head = n === '3V3' ? '3.3V' : n
+    return [head, alt, phys !== undefined ? `pin ${phys}` : null].filter(Boolean).join(' · ')
+  }
   const n = baseName(name)
   const k = pinKind(name, def)
   if (k === 'gnd' || (k === 'power' && n !== 'IOREF')) return n === '3V3' ? '3.3V' : n

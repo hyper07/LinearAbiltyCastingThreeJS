@@ -22,7 +22,7 @@
 import type { StripRow } from './types'
 import { registerOffboardGeometry, type OffboardTerminalGeometry } from './breadboard'
 
-export type BoardRuntime = 'fast' | 'avr'
+export type BoardRuntime = 'fast' | 'avr' | 'python'
 
 export interface BoardDef {
   /** catalog type */
@@ -94,6 +94,18 @@ export interface BoardDef {
   /** GPIO driver output resistance (Ω) and internal pull-up (Ω) */
   rout?: number
   rpull?: number
+  /** physical header pin numbers (Raspberry Pi 1–40: GPIO.BOARD numbering, hover chips) */
+  pinNumbers?: Record<string, number>
+  /** second names printed in the hover chip (GPIO2 → SDA1, P9_14 → EHRPWM1A) */
+  altNames?: Record<string, string>
+  /** pins on FEMALE sockets on a board whose `header` is otherwise male (Nucleo: Arduino sockets + morpho pins) */
+  femalePins?: string[]
+  /** Python mode: which hardware modules exist — 'pi' (gpiozero, RPi.GPIO) or 'beagle' (Adafruit_BBIO) */
+  python?: 'pi' | 'beagle'
+  /** ADC full scale when it differs from the logic level (BeagleBone AIN: 1.8 V) */
+  adcMaxV?: number
+  /** pins with a lower absolute maximum than absMaxV (BeagleBone AIN pins: 1.8 V) */
+  lowVoltagePins?: { pins: string[]; maxV: number }
   doc: string
 }
 
@@ -964,6 +976,159 @@ const MORE_BOARDS: BoardDef[] = [
   BLUE_PILL, XIAO_SAMD21, TEENSY40,
 ]
 
+// ======================================================= Raspberry Pi (Linux)
+//
+// The 40-pin header from the Raspberry Pi documentation (raspberrypi.com
+// "GPIO and the 40-pin header", pinout.xyz) and the boards' mechanical
+// drawings: header centre line 3.5 mm from the top edge, centred on
+// x = 32.5 mm (pin 1 at 8.37 mm, odd pins on the inner row). These boards
+// run Python (src/mcu/python) — gpiozero and RPi.GPIO — not Arduino sketches.
+
+/** physical pin 1 … 40 → lab pin name (BCM GPIO names, numbered duplicates for power) */
+export const PI_HEADER: string[] = [
+  '3V3', '5V', 'GPIO2', '5V2', 'GPIO3', 'GND', 'GPIO4', 'GPIO14', 'GND2', 'GPIO15',
+  'GPIO17', 'GPIO18', 'GPIO27', 'GND3', 'GPIO22', 'GPIO23', '3V32', 'GPIO24', 'GPIO10', 'GND4',
+  'GPIO9', 'GPIO25', 'GPIO11', 'GPIO8', 'GND5', 'GPIO7', 'GPIO0', 'GPIO1', 'GPIO5', 'GND6',
+  'GPIO6', 'GPIO12', 'GPIO13', 'GND7', 'GPIO19', 'GPIO16', 'GPIO26', 'GPIO20', 'GND8', 'GPIO21',
+]
+/** male header pin tips above the bench: PCB on its feet + 8.5 mm header */
+export const PI_PIN_Y = 4.3
+/** millimetres → plan units (0.1") */
+export const MM = 1 / 2.54
+const PI_ALT: Record<string, string> = {
+  GPIO2: 'SDA1', GPIO3: 'SCL1', GPIO4: 'GPCLK0', GPIO14: 'TXD', GPIO15: 'RXD', GPIO18: 'PWM0', GPIO10: 'MOSI', GPIO9: 'MISO',
+  GPIO11: 'SCLK', GPIO8: 'CE0', GPIO7: 'CE1', GPIO0: 'ID_SD', GPIO1: 'ID_SC', GPIO12: 'PWM0', GPIO13: 'PWM1', GPIO19: 'PWM1',
+  GPIO20: 'PCM_DIN', GPIO21: 'PCM_DOUT',
+}
+/** header terminals: pin 1 at (8.37, 4.77) mm from the top-left corner, odd pins on the inner row */
+function piTerminals(): OffboardTerminalGeometry[] {
+  return PI_HEADER.map((_, i) => {
+    const inner = i % 2 === 0
+    return { dx: 8.37 * MM + (i >> 1), dz: (inner ? 4.77 : 2.23) * MM, y: PI_PIN_Y, exitDir: { x: 0, z: inner ? 1 : -1 } }
+  })
+}
+function piGpio(led: number): Record<number, string> {
+  const g: Record<number, string> = { [led]: 'LED' }
+  for (let n = 0; n <= 27; n++) g[n] = `GPIO${n}`
+  return g
+}
+const PI_SHARED = {
+  logicV: 3.3,
+  absMaxV: 3.6,
+  maxPinMa: 16,
+  pins: PI_HEADER,
+  bridges: [
+    ['GND', 'GND2'], ['GND', 'GND3'], ['GND', 'GND4'], ['GND', 'GND5'], ['GND', 'GND6'], ['GND', 'GND7'], ['GND', 'GND8'],
+    ['5V', '5V2'], ['3V3', '3V32'],
+  ] as [string, string][],
+  adc: {},
+  analogAlias: {},
+  adcBits: 0,
+  pwm: ['GPIO12', 'GPIO13', 'GPIO18', 'GPIO19'],
+  pwmHz: 100,
+  pwmBits: 8,
+  inputOnly: [],
+  supplies: [{ pin: '5V', v: 5 }, { pin: '3V3', v: 3.3 }],
+  ground: 'GND',
+  ledPin: 'LED',
+  i2c: { sda: 'GPIO2', scl: 'GPIO3' },
+  runtimes: ['python'] as BoardRuntime[],
+  python: 'pi' as const,
+  placement: 'offboard' as const,
+  header: 'male' as const,
+  silk: 'bare' as const,
+  pinNumbers: Object.fromEntries(PI_HEADER.map((p, i) => [p, i + 1])),
+  altNames: PI_ALT,
+  rout: 50,
+  rpull: 50000,
+}
+const PI_GPIO_FACTS: [string, string][] = [
+  ['GPIO header', '40 pins (2 × 20, 0.1"): 26 GPIO, 5V × 2, 3V3 × 2, GND × 8'],
+  ['GPIO current', 'all GPIO together ≤ 50 mA; keep each pin to a few mA (LED + 330 Ω)'],
+  ['ADC', 'none — read analog sensors through an ADC chip such as the MCP3008 (SPI)'],
+  ['Hardware PWM', 'GPIO12, 13, 18, 19 — software PWM (gpiozero PWMLED) on any GPIO'],
+  ['Internal pull-ups', '≈ 50 kΩ on every GPIO; GPIO2 / GPIO3 have 1.8 kΩ pull-ups for I²C'],
+  ['Programming', 'Python 3 with gpiozero or RPi.GPIO (the lab runs both in simulated time)'],
+]
+const piDoc = (name: string, extra: string) =>
+  `${name}: a small Linux computer with the 40-pin GPIO header. 3.3 V logic — its pins are NOT 5 V tolerant (5 V into a GPIO damages it) and all GPIO together should stay under 50 mA. Sits on the bench, pins up; wire the header ("P1:GPIO17", "P1:GND", "P1:3V3") to the breadboard. gpiozero uses BCM numbers (LED(17) = GPIO17 = physical pin 11); GPIO.setmode(GPIO.BOARD) uses the physical pin numbers 1–40. No analog inputs. ${extra}Runs Python (gpiozero, RPi.GPIO) in simulated time.`
+
+export const PI5: BoardDef = {
+  ...PI_SHARED,
+  type: 'rpi5',
+  label: 'Raspberry Pi 5',
+  short: 'Pi 5',
+  mcu: 'BCM2712 · 2.4 GHz',
+  extraSpecs: [
+    ['SoC', 'Broadcom BCM2712, 4 × Arm Cortex-A76, VideoCore VII GPU'], ['RAM', '1 / 2 / 4 / 8 / 16 GB LPDDR4X'],
+    ['Power in', '5 V 5 A over USB-C (USB Power Delivery)'], ['GPIO controller', 'RP1 I/O chip; drive strength 2 / 4 / 8 / 12 mA'],
+    ['Radio', 'dual-band Wi-Fi 802.11ac, Bluetooth 5.0 / BLE'], ['USB / network', '2 × USB 3.0, 2 × USB 2.0, Gigabit Ethernet (PoE+ with a HAT)'],
+    ['Video', '2 × micro-HDMI (4Kp60), 2 × 4-lane MIPI camera / display'], ['Also', 'PCIe 2.0 ×1, real-time clock, power button'],
+    ...PI_GPIO_FACTS, ['Size', '85 × 56 mm'],
+  ],
+  // the ACT LED sits on the SoC's always-on GPIO block, not on RP1: the lab numbers it 100
+  gpio: piGpio(100),
+  ledBuiltin: 100,
+  doc: piDoc('Raspberry Pi 5', 'Its GPIO come from the RP1 chip — gpiozero and RPi.GPIO programs work the same. '),
+}
+export const PI4: BoardDef = {
+  ...PI_SHARED,
+  type: 'rpi4',
+  label: 'Raspberry Pi 4 Model B',
+  short: 'Pi 4',
+  mcu: 'BCM2711 · 1.8 GHz',
+  extraSpecs: [
+    ['SoC', 'Broadcom BCM2711, 4 × Arm Cortex-A72 (1.5 GHz on early boards)'], ['RAM', '1 / 2 / 4 / 8 GB LPDDR4'],
+    ['Power in', '5 V 3 A over USB-C (or 5 V on the GPIO 5V pins)'], ['GPIO drive strength', '1–8 mA, set in 1 mA steps'],
+    ['Radio', 'dual-band Wi-Fi 802.11ac, Bluetooth 5.0 / BLE'], ['USB / network', '2 × USB 3.0, 2 × USB 2.0, Gigabit Ethernet'],
+    ['Video', '2 × micro-HDMI (4Kp60), MIPI camera + display'], ['ACT LED', 'GPIO42 (green, not on the header)'],
+    ...PI_GPIO_FACTS, ['Size', '85 × 56 mm'],
+  ],
+  gpio: piGpio(42),
+  ledBuiltin: 42,
+  doc: piDoc('Raspberry Pi 4 Model B', ''),
+}
+export const PI3BPLUS: BoardDef = {
+  ...PI_SHARED,
+  type: 'rpi3bplus',
+  label: 'Raspberry Pi 3 Model B+',
+  short: 'Pi 3B+',
+  mcu: 'BCM2837B0 · 1.4 GHz',
+  extraSpecs: [
+    ['SoC', 'Broadcom BCM2837B0, 4 × Arm Cortex-A53'], ['RAM', '1 GB LPDDR2'],
+    ['Power in', '5 V 2.5 A over micro-USB'], ['GPIO drive strength', '2–16 mA (16 mA max per pin)'],
+    ['Radio', 'dual-band Wi-Fi 802.11ac, Bluetooth 4.2 / BLE'], ['USB / network', '4 × USB 2.0, Gigabit Ethernet over USB 2.0 (≈ 300 Mbit/s)'],
+    ['Video', 'full-size HDMI, MIPI camera + display'], ['ACT LED', 'GPIO29 (green, not on the header)'],
+    ...PI_GPIO_FACTS, ['Size', '85 × 56 mm'],
+  ],
+  gpio: piGpio(29),
+  ledBuiltin: 29,
+  doc: piDoc('Raspberry Pi 3 Model B+', ''),
+}
+export const PI_ZERO2W: BoardDef = {
+  ...PI_SHARED,
+  type: 'rpi_zero2w',
+  label: 'Raspberry Pi Zero 2 W',
+  short: 'Zero 2 W',
+  mcu: 'RP3A0 · 1 GHz',
+  extraSpecs: [
+    ['SoC', 'RP3A0 system-in-package (BCM2710A1, 4 × Arm Cortex-A53)'], ['RAM', '512 MB LPDDR2'],
+    ['Power in', '5 V 2.5 A over micro-USB (PWR IN)'], ['GPIO drive strength', '2–16 mA (16 mA max per pin)'],
+    ['Radio', 'Wi-Fi 802.11 b/g/n 2.4 GHz, Bluetooth 4.2 / BLE'], ['USB / video', '1 × micro-USB OTG, mini-HDMI, CSI-2 camera'],
+    ['Header', 'unpopulated on the real board — the lab shows a soldered male header'], ['ACT LED', 'GPIO29 (green, lit when LOW)'],
+    ...PI_GPIO_FACTS, ['Size', '65 × 30 mm'],
+  ],
+  gpio: piGpio(29),
+  ledBuiltin: 29,
+  ledActiveLow: true,
+  doc: piDoc('Raspberry Pi Zero 2 W', 'The same 40-pin layout as the big Pis on a 65 × 30 mm board. '),
+}
+for (const [t, w, d] of [[PI5.type, 85, 56], [PI4.type, 85, 56], [PI3BPLUS.type, 85, 56], [PI_ZERO2W.type, 65, 30]] as [string, number, number][]) {
+  // the USB / Ethernet jacks overhang the right edge a little on the big boards
+  registerOffboardGeometry(t, { rect: { x0: 0, x1: (w + (w > 70 ? 2.5 : 0)) * MM, z0: 0, z1: (d + 1.5) * MM }, height: PI_PIN_Y + 0.3, terminals: piTerminals() })
+}
+const PI_BOARDS: BoardDef[] = [PI5, PI4, PI3BPLUS, PI_ZERO2W]
+
 // --------------------------------------------------------------- registry
 
 registerOffboardGeometry(UNO.type, { rect: unoGeo.rect, height: ARDUINO_HEADER_Y + 0.2, terminals: unoGeo.terminals })
@@ -972,6 +1137,7 @@ registerOffboardGeometry(MEGA.type, { rect: megaGeo.rect, height: ARDUINO_HEADER
 export const BOARDS: BoardDef[] = [
   UNO, NANO, MEGA, ESP32, PICO,
   ...MORE_BOARDS,
+  ...PI_BOARDS,
 ]
 const BY_TYPE = new Map(BOARDS.map((b) => [b.type, b]))
 

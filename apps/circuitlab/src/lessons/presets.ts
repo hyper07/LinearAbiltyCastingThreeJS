@@ -299,6 +299,42 @@ void loop() {
 }
 `
 
+const PI_BLINK_CODE = `# Blink with gpiozero: GPIO17 (physical pin 11) -> 330 ohm -> LED -> GND.
+from gpiozero import LED
+from time import sleep
+
+led = LED(17)
+print("Blinking GPIO17")
+
+while True:
+    led.on()
+    sleep(1)
+    led.off()
+    sleep(1)
+`
+
+const PI_BUTTON_CODE = `# A button on GPIO27 (pin 13) to GND lights the LED on GPIO17 (pin 11).
+# Button() switches on the Pi's internal pull-up: GPIO27 reads HIGH until
+# the button connects it to GND. gpiozero calls our functions on each change.
+from gpiozero import LED, Button
+from signal import pause
+
+led = LED(17)
+button = Button(27)
+presses = 0
+
+def pressed():
+    global presses
+    presses += 1
+    led.on()
+    print(f"pressed {presses} time(s)")
+
+button.when_pressed = pressed
+button.when_released = led.off
+
+pause()   # keep the program running; the callbacks do the work
+`
+
 // ------------------------------------------------------------- presets
 
 export const PRESETS: Preset[] = [
@@ -609,6 +645,60 @@ export const PRESETS: Preset[] = [
       [w('a15', 'top-14', 'black'), w('b6', 'top-5', 'black')],
     ),
   },
+  {
+    id: 'pi-blink',
+    title: 'Raspberry Pi blink (Python)',
+    board: 'Raspberry Pi 4',
+    summary: 'Your first Python on a Raspberry Pi: gpiozero blinks an LED on GPIO17.',
+    learn: [
+      'A Raspberry Pi runs Python: LED(17) is the LED on GPIO17, led.on() / led.off() switch it.',
+      'gpiozero uses BCM numbers — GPIO17 is physical pin 11 on the 40-pin header.',
+      'The Pi\'s pins are 3.3 V and not 5 V tolerant; 330 Ω keeps the LED current small.',
+      'sleep(1) waits one second of simulated time — watch the line marker in the Code panel.',
+    ],
+    controls: [],
+    layout: layout(
+      'Raspberry Pi blink',
+      'Pi GPIO17 (pin 11) → 330 Ω → red LED → GND (pin 9).',
+      [
+        { id: 'P1', type: 'rpi4', pos: { x: -40, z: -5 }, params: { code: PI_BLINK_CODE, runtime: 'python' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 330 }, holes: ['c12', 'c16'] },
+        { id: 'D1', type: 'led', params: { color: 'red' }, holes: ['b16', 'b17'] },
+      ],
+      [w('P1:GPIO17', 'a12', 'yellow'), w('a17', 'top-14', 'black'), w('P1:GND2', 'top-2', 'black')],
+    ),
+  },
+  {
+    id: 'pi-button',
+    title: 'Raspberry Pi button (Python)',
+    board: 'Raspberry Pi 4',
+    summary: 'gpiozero Button: a press on GPIO27 calls your Python function and lights the LED.',
+    learn: [
+      'Button(27) turns on the internal pull-up, so GPIO27 reads HIGH until the button pulls it to GND.',
+      'when_pressed = pressed hands gpiozero the function (no brackets) to call on each press.',
+      'pause() keeps the program alive — the callbacks run in the background.',
+      'Each press prints to the serial monitor.',
+    ],
+    controls: [{ part: 'SW1', key: 'pressed', label: 'Button', kind: 'button' }],
+    layout: layout(
+      'Raspberry Pi button',
+      'Pushbutton between GPIO27 (pin 13) and GND; LED on GPIO17 (pin 11) through 330 Ω.',
+      [
+        { id: 'P1', type: 'rpi4', pos: { x: -40, z: -5 }, params: { code: PI_BUTTON_CODE, runtime: 'python' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 330 }, holes: ['c12', 'c16'] },
+        { id: 'D1', type: 'led', params: { color: 'green' }, holes: ['b16', 'b17'] },
+        { id: 'SW1', type: 'pushbutton', at: 'f20' },
+      ],
+      [
+        w('P1:GPIO17', 'a12', 'yellow'),
+        w('a17', 'top-14', 'black'),
+        w('P1:GND2', 'top-2', 'black'),
+        w('P1:GPIO27', 'a20', 'green'),
+        w('j22', 'bot-18', 'black'),
+        w('P1:GND3', 'bot-2', 'black'),
+      ],
+    ),
+  },
 ]
 
 const CALLOUTS: Record<string, Callout[]> = {
@@ -669,6 +759,15 @@ const CALLOUTS: Record<string, Callout[]> = {
   'xiao-fade': [
     { part: 'X1', title: 'SEEED XIAO', text: 'PWM on D8 sets the brightness.', icon: 'board' },
     { part: 'D1', title: 'BLUE LED', text: 'Fades up and down, 2.5 s a cycle.', icon: 'led' },
+  ],
+  'pi-blink': [
+    { part: 'P1', title: 'RASPBERRY PI 4', text: 'Python: LED(17) drives GPIO17 (pin 11) at 3.3 V.', icon: 'board' },
+    { part: 'D1', title: 'RED LED', text: 'On for a second, off for a second.', icon: 'led' },
+  ],
+  'pi-button': [
+    { part: 'P1', title: 'RASPBERRY PI 4', text: 'Button(27) reads GPIO27 with the internal pull-up.', icon: 'board' },
+    { part: 'SW1', title: 'PUSHBUTTON', text: 'A press pulls GPIO27 to GND and calls pressed().', icon: 'switch' },
+    { part: 'D1', title: 'GREEN LED', text: 'On while the button is held.', icon: 'led' },
   ],
 }
 for (const p of PRESETS) p.callouts = CALLOUTS[p.id]

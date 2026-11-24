@@ -1173,6 +1173,432 @@ function buildDip(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   }
 }
 
+// ------------------------------------------- bench boards from a look table
+
+/**
+ * A bench board drawn from data (Raspberry Pi family, LaunchPads, Nucleo,
+ * BeagleBone, nRF52840 DK, micro:bit breakout, ESP-01 …): PCB outline and
+ * colour, the parts on it, printed text, LEDs. Everything is in MILLIMETRES
+ * from the board's top-left corner (x right, z toward the front), as on the
+ * makers' drawings; the headers come from the bench geometry (boards.ts).
+ */
+type BenchMat = 'steel' | 'black' | 'white' | 'chip' | 'gold' | 'blue' | 'yellow' | 'red' | 'grey' | number
+interface BenchPart {
+  /** box (default) or a cylinder standing up (cyl) / lying along x (barrel) */
+  kind?: 'box' | 'cyl' | 'barrel'
+  x: number
+  z: number
+  w: number
+  d: number
+  h: number
+  /** bottom above the PCB top (negative: under the board) */
+  y?: number
+  mat: BenchMat
+  /** printed on top (chips, shield cans) */
+  label?: string[]
+  /** turned about y (radians) */
+  rot?: number
+  /** a chip with gull-wing legs on all four sides */
+  legs?: number
+}
+interface BenchLook {
+  w: number
+  d: number
+  /** PCB colour (sides) and the painted top */
+  pcb: number
+  fill: string
+  trace: string
+  seed: number
+  /** PCB underside above the bench and thickness (mm) */
+  lift: number
+  thick: number
+  /** header pin tips (plan units) */
+  pinY: number
+  /** male headers sit on a plastic spacer this tall (mm); female sockets reach pinY */
+  spacer: number
+  holes?: [number, number][]
+  parts: BenchPart[]
+  texts?: { s: string; x: number; z: number; size: number; weight?: string; rot?: number; color?: string }[]
+  /** user LED (follows the program), power LED (lit), mm positions */
+  led?: { x: number; z: number; color: number }
+  power?: { x: number; z: number; color: number }[]
+  /** colour pin tags printed on the PCB beside rows that have room */
+  tags?: boolean
+  tagSize?: number
+  /** physical pin numbers printed at the ends of the header (Raspberry Pi J8) */
+  pinNumbers?: boolean
+  /** user LEDs driven by program pins (pin name → LED) */
+  pinLeds?: { pin: string; x: number; z: number; color: number; activeLow?: boolean }[]
+}
+
+const STEEL = () => satinMetal(0x6f767e)
+function benchMat(m: BenchMat): THREE.Material {
+  if (typeof m === 'number') return plastic(m, 0.5)
+  switch (m) {
+    case 'steel': return STEEL()
+    case 'black': return plastic(0x151515, 0.55)
+    case 'white': return MAT.white()
+    case 'chip': return MAT.chip()
+    case 'gold': return MAT.gold()
+    case 'blue': return plastic(0x1f5fd0, 0.45)
+    case 'yellow': return plastic(0xf2c230, 0.5)
+    case 'red': return plastic(0xc83a2e, 0.5)
+    case 'grey': return plastic(0x9a9fa6, 0.5)
+  }
+}
+
+/** Raspberry Pi parts shared by the 85 × 56 mm boards */
+const PI_GREEN = { pcb: 0x1d6e35, fill: '#22793c', trace: 'rgba(14,92,42,0.85)' }
+const PI_HOLES: [number, number][] = [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]]
+const usbStack = (z: number, blue: boolean): BenchPart[] => [
+  { x: 77.5, z, w: 17.5, d: 14.6, h: 15.6, mat: 'steel' },
+  { x: 86.2, z: z - 3.4, w: 0.3, d: 12, h: 1.9, y: 10.6, mat: blue ? 'blue' : 'black' },
+  { x: 86.2, z: z - 3.4, w: 0.3, d: 12, h: 1.9, y: 3.0, mat: blue ? 'blue' : 'black' },
+]
+const rj45 = (z: number): BenchPart[] => [
+  { x: 75.5, z, w: 21.3, d: 16, h: 13.5, mat: 'steel' },
+  { x: 86.2, z, w: 0.3, d: 11.5, h: 8, y: 2.4, mat: 'black' },
+]
+const PI_LOOKS: Record<string, BenchLook> = {
+  rpi4: {
+    w: 85, d: 56, ...PI_GREEN, seed: 41, lift: 1.2, thick: 1.4, pinY: 4.3, spacer: 2.5, holes: PI_HOLES, tags: true, pinNumbers: true,
+    parts: [
+      { x: 29, z: 32, w: 15.5, d: 15.5, h: 2.2, mat: 'steel', label: ['BCM2711'] },
+      { x: 46, z: 32, w: 14, d: 10, h: 1.0, mat: 'chip', label: ['LPDDR4'] },
+      { x: 13.5, z: 17, w: 11, d: 9.5, h: 1.4, mat: 'steel' },
+      { x: 66, z: 33, w: 7, d: 7, h: 0.9, mat: 'chip', legs: 12, label: ['VL805'] },
+      { x: 61, z: 46, w: 5, d: 5, h: 0.8, mat: 'chip', legs: 8 },
+      ...usbStack(47, false), ...usbStack(29, true), ...rj45(10.25),
+      { x: 11.2, z: 53.4, w: 9, d: 7.5, h: 3.3, mat: 'steel' },
+      { x: 26, z: 53.4, w: 7.5, d: 7, h: 3.5, mat: 'steel' },
+      { x: 39.5, z: 53.4, w: 7.5, d: 7, h: 3.5, mat: 'steel' },
+      { x: 54, z: 50, w: 7, d: 12, h: 6, mat: 'black' },
+      { kind: 'barrel', x: 54, z: 56.6, w: 6, d: 3, h: 6, y: 0, mat: 'black' },
+      { x: 46.5, z: 47, w: 3, d: 22, h: 4.8, mat: 'white', rot: Math.PI / 2 },
+      { x: 3.2, z: 28, w: 3, d: 22, h: 4.8, mat: 'white' },
+      { x: 71, z: 3.5, w: 5.1, d: 5.1, h: 2.5, mat: 'black' },
+      { x: 8, z: 28, w: 14, d: 15, h: 1.4, y: -2.6, mat: 'steel' },
+      { x: -1.2, z: 28, w: 4, d: 11, h: 0.8, y: -2.2, mat: 'grey' },
+    ],
+    texts: [
+      { s: 'Raspberry Pi 4 Model B', x: 40, z: 12.5, size: 2.6, weight: '700' },
+      { s: '© Raspberry Pi 2019', x: 40, z: 16.2, size: 1.5 },
+      { s: 'POWER', x: 11.2, z: 47.6, size: 1.2 },
+      { s: 'HDMI0', x: 26, z: 47.4, size: 1.2 },
+      { s: 'HDMI1', x: 39.5, z: 47.4, size: 1.2 },
+      { s: 'CAMERA', x: 46.5, z: 43.4, size: 1.2 },
+      { s: 'DISPLAY', x: 6.2, z: 28, size: 1.2, rot: -Math.PI / 2 },
+      { s: 'J8', x: 5.3, z: 3.5, size: 1.6, weight: '700' },
+    ],
+    led: { x: 1.6, z: 49.6, color: 0x35ff5a },
+    power: [{ x: 1.6, z: 52.4, color: 0xff2a1a }],
+  },
+  rpi5: {
+    w: 85, d: 56, ...PI_GREEN, seed: 43, lift: 1.2, thick: 1.4, pinY: 4.3, spacer: 2.5, holes: PI_HOLES, tags: true, pinNumbers: true,
+    parts: [
+      { x: 30, z: 31, w: 15.5, d: 15.5, h: 2.2, mat: 'steel', label: ['BCM2712'] },
+      { x: 46.5, z: 31, w: 13, d: 10, h: 1.0, mat: 'chip', label: ['LPDDR4X'] },
+      { x: 62.5, z: 31, w: 7.5, d: 7.5, h: 0.9, mat: 'chip', legs: 12, label: ['RP1'] },
+      { x: 13.5, z: 17, w: 11, d: 9.5, h: 1.4, mat: 'steel' },
+      ...usbStack(9, false), ...usbStack(26.9, true), ...rj45(45.8),
+      { x: 11.2, z: 53.4, w: 9, d: 7.5, h: 3.3, mat: 'steel' },
+      { x: 25.8, z: 53.4, w: 7.5, d: 7, h: 3.5, mat: 'steel' },
+      { x: 39.2, z: 53.4, w: 7.5, d: 7, h: 3.5, mat: 'steel' },
+      { x: 50, z: 51, w: 13.5, d: 3.2, h: 1.6, mat: 'black' },
+      { x: 61.5, z: 51, w: 13.5, d: 3.2, h: 1.6, mat: 'black' },
+      { x: 2.4, z: 26, w: 3, d: 16, h: 1.6, mat: 'black' },
+      { x: 66, z: 9.5, w: 5, d: 3.2, h: 3.5, mat: 'white' },
+      { x: 3.0, z: 46, w: 3.6, d: 3.6, h: 1.4, mat: 'steel' },
+      { kind: 'cyl', x: 3.0, z: 46, w: 2.2, d: 2.2, h: 0.6, y: 1.4, mat: 'black' },
+      { x: 8, z: 28, w: 14, d: 15, h: 1.4, y: -2.6, mat: 'steel' },
+      { x: -1.2, z: 28, w: 4, d: 11, h: 0.8, y: -2.2, mat: 'grey' },
+    ],
+    texts: [
+      { s: 'Raspberry Pi 5', x: 40, z: 12.5, size: 2.8, weight: '700' },
+      { s: '© Raspberry Pi Ltd 2023', x: 40, z: 16.2, size: 1.5 },
+      { s: 'CAM/DISP 0', x: 50, z: 48, size: 1.1 },
+      { s: 'CAM/DISP 1', x: 61.5, z: 48, size: 1.1 },
+      { s: 'PCIe', x: 6, z: 26, size: 1.2, rot: -Math.PI / 2 },
+      { s: 'FAN', x: 66, z: 13.4, size: 1.1 },
+      { s: 'J8', x: 5.3, z: 3.5, size: 1.6, weight: '700' },
+    ],
+    led: { x: 1.4, z: 39.6, color: 0x35ff5a },
+    power: [{ x: 1.4, z: 41.6, color: 0xff2a1a }],
+  },
+  rpi3bplus: {
+    w: 85, d: 56, ...PI_GREEN, seed: 47, lift: 1.2, thick: 1.4, pinY: 4.3, spacer: 2.5, holes: PI_HOLES, tags: true, pinNumbers: true,
+    parts: [
+      { x: 29, z: 32, w: 14, d: 14, h: 1.6, mat: 'steel', label: ['BCM2837B0'] },
+      { x: 15, z: 16, w: 12, d: 11, h: 1.4, mat: 'steel' },
+      { x: 64, z: 35, w: 9, d: 9, h: 0.9, mat: 'chip', legs: 14, label: ['LAN7515'] },
+      ...usbStack(9, false), ...usbStack(27, false), ...rj45(45.75),
+      { x: 10.6, z: 54, w: 7.5, d: 5, h: 2.6, mat: 'steel' },
+      { x: 32, z: 51.5, w: 15, d: 11.5, h: 6, mat: 'steel' },
+      { x: 53.5, z: 50, w: 7, d: 12, h: 6, mat: 'black' },
+      { kind: 'barrel', x: 53.5, z: 56.6, w: 6, d: 3, h: 6, y: 0, mat: 'black' },
+      { x: 45, z: 45.5, w: 3, d: 22, h: 4.8, mat: 'white', rot: Math.PI / 2 },
+      { x: 3.2, z: 28, w: 3, d: 22, h: 4.8, mat: 'white' },
+      { x: 70.5, z: 3.5, w: 5.1, d: 5.1, h: 2.5, mat: 'black' },
+      { x: -1.2, z: 28, w: 4, d: 11, h: 0.8, y: -2.2, mat: 'grey' },
+    ],
+    texts: [
+      { s: 'Raspberry Pi 3 Model B+', x: 42, z: 12.5, size: 2.6, weight: '700' },
+      { s: '© Raspberry Pi 2017', x: 42, z: 16.2, size: 1.5 },
+      { s: 'HDMI', x: 32, z: 44, size: 1.2 },
+      { s: 'CAMERA', x: 45, z: 42, size: 1.2 },
+      { s: 'DISPLAY', x: 6.2, z: 28, size: 1.2, rot: -Math.PI / 2 },
+      { s: 'J8', x: 5.3, z: 3.5, size: 1.6, weight: '700' },
+    ],
+    led: { x: 1.6, z: 44, color: 0x35ff5a },
+    power: [{ x: 1.6, z: 47, color: 0xff2a1a }],
+  },
+  rpi_zero2w: {
+    w: 65, d: 30, ...PI_GREEN, seed: 49, lift: 1.2, thick: 1.0, pinY: 4.3, spacer: 2.5, holes: [[3.5, 3.5], [61.5, 3.5], [3.5, 26.5], [61.5, 26.5]], tags: true, pinNumbers: true,
+    parts: [
+      { x: 35, z: 17, w: 14, d: 14, h: 1.6, mat: 'steel', label: ['RP3A0', '512MB'] },
+      { x: 6.5, z: 16, w: 12, d: 12, h: 1.4, mat: 'steel' },
+      { x: -1.5, z: 16, w: 4, d: 11, h: 0.8, y: 0.2, mat: 'grey' },
+      { x: 12.4, z: 26.8, w: 11.2, d: 7.5, h: 3.2, mat: 'steel' },
+      { x: 41.4, z: 27.5, w: 7.5, d: 5, h: 2.6, mat: 'steel' },
+      { x: 54, z: 27.5, w: 7.5, d: 5, h: 2.6, mat: 'steel' },
+      { x: 63, z: 15, w: 4, d: 17, h: 1.4, mat: 'black' },
+      { x: 50, z: 12, w: 4, d: 4, h: 0.8, mat: 'chip', legs: 6 },
+    ],
+    texts: [
+      { s: 'Raspberry Pi Zero 2 W', x: 30, z: 26.5, size: 1.9, weight: '700' },
+      { s: 'mini HDMI', x: 12.4, z: 21.6, size: 1.1 },
+      { s: 'USB', x: 41.4, z: 23.8, size: 1.1 },
+      { s: 'PWR IN', x: 54, z: 23.8, size: 1.1 },
+      { s: 'CAMERA', x: 59.6, z: 15, size: 1.1, rot: -Math.PI / 2 },
+    ],
+    led: { x: 58, z: 22.4, color: 0x35ff5a },
+  },
+}
+const BENCH_LOOKS: Record<string, BenchLook> = { ...PI_LOOKS }
+
+/** consecutive header pins (pitch 1, same row) as runs, for spacers and labels */
+function headerRuns(geo: { terminals: { dx: number; dz: number }[] }, idx: number[]): { axis: 'x' | 'z'; pins: number[] }[] {
+  const runs: { axis: 'x' | 'z'; pins: number[] }[] = []
+  const left = new Set(idx)
+  const t = geo.terminals
+  for (const axis of ['x', 'z'] as const) {
+    const along = (i: number) => (axis === 'x' ? t[i].dx : t[i].dz)
+    const across = (i: number) => (axis === 'x' ? t[i].dz : t[i].dx)
+    const byLine = new Map<string, number[]>()
+    for (const i of left) {
+      const k = across(i).toFixed(3)
+      byLine.set(k, [...(byLine.get(k) ?? []), i])
+    }
+    for (const list of byLine.values()) {
+      list.sort((a, b) => along(a) - along(b))
+      let cur: number[] = []
+      for (const i of list) {
+        if (cur.length && Math.abs(along(i) - along(cur[cur.length - 1]) - 1) > 0.02) {
+          if (cur.length > 1 || axis === 'z') runs.push({ axis, pins: cur })
+          cur = []
+        }
+        cur.push(i)
+      }
+      if (cur.length > 1 || axis === 'z') runs.push({ axis, pins: cur })
+    }
+    for (const r of runs) for (const i of r.pins) left.delete(i)
+  }
+  return runs
+}
+
+/** a colour tag on the PCB running from a pin along +/−x or +/−z (text along the tag) */
+function benchTag(ctx: CanvasRenderingContext2D, px: number, t: PinTag, x: number, z: number, dir: { x: number; z: number }, size: number): void {
+  const st = PIN_KIND_STYLE[t.kind]
+  ctx.save()
+  ctx.font = `700 ${size * px}px ${UI_FONT}`
+  const len = ctx.measureText(t.text).width / px + 0.34
+  const w = 0.8
+  ctx.translate(x * px, z * px)
+  ctx.rotate(Math.atan2(dir.z, dir.x))
+  // tag along +x in this frame, starting 0.62 from the pin
+  ctx.fillStyle = st.fill
+  ctx.beginPath()
+  ctx.roundRect(0.62 * px, (-w / 2) * px, len * px, w * px, 0.18 * px)
+  ctx.fill()
+  if (t.kind === 'gnd') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+    ctx.lineWidth = 0.05 * px
+    ctx.stroke()
+  }
+  ctx.translate((0.62 + len / 2) * px, 0)
+  if (dir.x < -0.5 || dir.z < -0.5) ctx.rotate(Math.PI)
+  ctx.fillStyle = st.ink
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(t.text, 0, 0.03 * px)
+  ctx.restore()
+}
+
+function buildBench(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
+  const L = BENCH_LOOKS[def.type]
+  const geo = offboardGeometry(def.type)!
+  const u = (mm: number) => mm / 2.54
+  const ax = pins[0].x - geo.terminals[0].dx
+  const az = pins[0].z - geo.terminals[0].dz
+  const W = u(L.w)
+  const D = u(L.d)
+  const yPcb = u(L.lift)
+  const thick = u(L.thick)
+  const top = yPcb + thick
+  const group = new THREE.Group()
+  group.position.set(ax, 0, az)
+  const stat: THREE.Object3D[] = []
+  // feet under the mounting holes (or the corners)
+  for (const [x, z] of L.holes ?? [[3, 3], [L.w - 3, 3], [3, L.d - 3], [L.w - 3, L.d - 3]]) stat.push(cyl(u(2.6), yPcb, plastic(0x202020, 0.9), u(x), yPcb / 2, u(z), 14))
+
+  // headers: male pins on spacers, female sockets for femalePins
+  const tagOf = (i: number): PinTag => ({ text: pinLabel(def.pins[i], def), kind: pinKind(def.pins[i], def) })
+  const female = new Set(def.femalePins ?? (def.header === 'female' ? def.pins : []))
+  const maleIdx = def.pins.map((_, i) => i).filter((i) => !female.has(def.pins[i]))
+  const femaleIdx = def.pins.map((_, i) => i).filter((i) => female.has(def.pins[i]))
+  const spacerTop = top + u(L.spacer)
+  if (maleIdx.length) stat.push(...malePins(maleIdx.map((i) => ({ x: geo.terminals[i].dx, z: geo.terminals[i].dz })), top, top - 0.2, L.pinY, false))
+  for (const run of headerRuns(geo, maleIdx)) {
+    const n = run.pins.length
+    const t0 = geo.terminals[run.pins[0]]
+    const h = spacerTop - top
+    const bar = new THREE.Mesh(cachedGeometry(`spacer:${n}:${h.toFixed(3)}`, () => new THREE.BoxGeometry(n, h, 1)), MAT.headerBlack())
+    const labels = new THREE.Group()
+    labels.add(bar)
+    bar.position.set((n - 1) / 2, top + h / 2, 0)
+    for (const p of spacerLabels(run.pins.map(tagOf), 0, 0, top + h / 2)) {
+      p.scale.y = h
+      labels.add(p)
+    }
+    labels.position.set(t0.dx, 0, t0.dz)
+    if (run.axis === 'z') labels.rotation.y = -Math.PI / 2
+    labels.updateMatrixWorld(true)
+    for (const c of [...labels.children]) {
+      labels.remove(c)
+      c.applyMatrix4(labels.matrix)
+      stat.push(c)
+    }
+  }
+  for (const run of headerRuns(geo, femaleIdx)) {
+    const n = run.pins.length
+    const t0 = geo.terminals[run.pins[0]]
+    const tags = run.pins.map(tagOf)
+    if (run.axis === 'x') stat.push(...femaleHeader(n, t0.dx + (n - 1) / 2, t0.dz, top, L.pinY, false, tags))
+    else stat.push(...femaleHeader(n, t0.dx, t0.dz + (n - 1) / 2, top, L.pinY, true, [...tags].reverse()))
+  }
+
+  // parts
+  for (const p of L.parts) {
+    const mat = benchMat(p.mat)
+    const y0 = top + u(p.y ?? 0)
+    let parts: THREE.Object3D[]
+    if (p.kind === 'cyl') parts = [cyl(u(p.w) / 2, u(p.h), mat, u(p.x), y0 + u(p.h) / 2, u(p.z), 20)]
+    else if (p.kind === 'barrel') {
+      const c = cyl(u(p.w) / 2, u(p.d), mat, u(p.x), y0 + u(p.h) / 2, u(p.z), 20)
+      c.rotation.x = Math.PI / 2
+      parts = [c]
+    } else if (p.legs) parts = smdChip(u(p.w), u(p.d), u(p.h), u(p.x), y0, u(p.z), p.legs, true)
+    else parts = [box(u(p.w), u(p.h), u(p.d), mat, u(p.x), y0 + u(p.h) / 2, u(p.z))]
+    stat.push(...(p.rot ? turned(parts, u(p.x), u(p.z), p.rot) : parts))
+  }
+  addStatic(group, stat)
+
+  const tagSize = L.tagSize ?? 0.42
+  group.add(
+    pcb(def.type, W, D, thick, L.pcb, yPcb, 0, 0, (ctx, px) => {
+      ctx.fillStyle = L.fill
+      ctx.fillRect(0, 0, W * px, D * px)
+      traces(ctx, W * px, D * px, L.trace, L.seed)
+      for (const [x, z] of L.holes ?? []) {
+        ctx.fillStyle = '#d8c58c'
+        ctx.beginPath()
+        ctx.arc(u(x) * px, u(z) * px, u(3.1) * px, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = '#1b1b1b'
+        ctx.beginPath()
+        ctx.arc(u(x) * px, u(z) * px, u(1.4) * px, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      // pads under every pin, square for pin 1
+      geo.terminals.forEach((t, i) => {
+        ctx.fillStyle = '#d9b45a'
+        if (i === 0) ctx.fillRect((t.dx - 0.42) * px, (t.dz - 0.42) * px, 0.84 * px, 0.84 * px)
+        else {
+          ctx.beginPath()
+          ctx.arc(t.dx * px, t.dz * px, 0.42 * px, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      })
+      if (L.tags) {
+        // a tag beside each pin whose way toward the board's middle is free of other pins
+        const at = new Set(geo.terminals.map((t) => `${Math.round(t.dx * 10)},${Math.round(t.dz * 10)}`))
+        geo.terminals.forEach((t, i) => {
+          const cands = [
+            { x: 0, z: t.dz < D / 2 ? 1 : -1 },
+            { x: t.dx < W / 2 ? 1 : -1, z: 0 },
+          ].sort((a, b) => (Math.abs(a.z) ? Math.min(t.dz, D - t.dz) : Math.min(t.dx, W - t.dx)) - (Math.abs(b.z) ? Math.min(t.dz, D - t.dz) : Math.min(t.dx, W - t.dx)))
+          for (const dir of cands) {
+            const nx = Math.round((t.dx + dir.x) * 10)
+            const nz = Math.round((t.dz + dir.z) * 10)
+            if (at.has(`${nx},${nz}`)) continue
+            // the run must be across this direction (tags of neighbours side by side)
+            const side = `${Math.round((t.dx + dir.z) * 10)},${Math.round((t.dz + dir.x) * 10)}`
+            const side2 = `${Math.round((t.dx - dir.z) * 10)},${Math.round((t.dz - dir.x) * 10)}`
+            if (!at.has(side) && !at.has(side2) && geo.terminals.length > 2) continue
+            benchTag(ctx, px, tagOf(i), t.dx, t.dz, dir, tagSize)
+            break
+          }
+        })
+      }
+      if (L.pinNumbers && def.pinNumbers) {
+        // J8 style: 1 / 2 at the left end, 39 / 40 at the right end
+        for (const [name, n] of Object.entries(def.pinNumbers)) {
+          if (n > 2 && n < 39) continue
+          const t = geo.terminals[def.pins.indexOf(name)]
+          text(ctx, px, String(n), t.dx + (n <= 2 ? -0.95 : 0.95), t.dz, 0.42, { weight: '700' })
+        }
+      }
+      for (const t of L.texts ?? []) text(ctx, px, t.s, u(t.x), u(t.z), u(t.size), { weight: t.weight ?? '600', rotate: t.rot, color: t.color })
+    }),
+  )
+  for (const p of L.parts) {
+    if (!p.label) continue
+    const lbl = chipLabel(p.label, u(p.w) - 0.3, u(p.d) - 0.3, u(p.x), top + u((p.y ?? 0) + p.h) + 0.01, u(p.z), p.rot ?? 0)
+    if (lbl) group.add(lbl)
+  }
+  const led = L.led ? smdLed(L.led.color, u(L.led.x), top, u(L.led.z)) : null
+  if (led) group.add(led.mesh)
+  for (const p of L.power ?? []) {
+    const m = smdLed(p.color, u(p.x), top, u(p.z))
+    m.mat.emissiveIntensity = 2
+    group.add(m.mesh)
+  }
+  const pinLeds = (L.pinLeds ?? []).map((p) => {
+    const m = smdLed(p.color, u(p.x), top, u(p.z))
+    group.add(m.mesh)
+    return { ...p, m }
+  })
+  const warn = beacon()
+  warn.group.position.set(W / 2, L.pinY + 2.5, D / 2)
+  group.add(warn.group)
+  const pinMark = damageMarks(def, pins, group, L.pinY)
+  return {
+    object: group,
+    pinWorld: pins.map((p) => new THREE.Vector3(p.x, L.pinY, p.z)),
+    update: (_c, _e, t) => {
+      const mcu = t?.mcu
+      if (led) led.mat.emissiveIntensity = mcu?.led ? 3.2 : 0
+      for (const p of pinLeds) {
+        const s = mcu?.pins[p.pin]
+        const on = p.activeLow ? s === 'L' : s === 'H' || s === 'PWM'
+        p.m.mat.emissiveIntensity = on ? 3 : 0
+      }
+      warn.set(!!mcu?.damage.length, performance.now() / 1000)
+      pinMark(mcu?.damage ?? [])
+    },
+  }
+}
+
 export function buildBoard(comp: ComponentInstance, _entry: CatalogEntry, pins: THREE.Vector3[]): BuildResult {
   const def = boardDef(comp.type)
   if (!def) throw new Error('unknown board')
@@ -1195,6 +1621,7 @@ export function buildBoard(comp: ComponentInstance, _entry: CatalogEntry, pins: 
       return buildPico(def, pins)
   }
   if (DIP_LOOKS[def.type]) return buildDip(def, pins)
+  if (BENCH_LOOKS[def.type]) return buildBench(def, pins)
   throw new Error('unknown board')
 }
 

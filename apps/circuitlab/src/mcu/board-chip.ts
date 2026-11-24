@@ -19,6 +19,8 @@ import type { ChipInstance, ChipStepCtx, PinEdge } from '../sim/chip-api'
 import { cachedHex } from './avr/compile'
 import { AvrRuntime } from './avr/runtime'
 import { FastRuntime } from './fast/runtime'
+import { PythonRuntime } from './python/runtime'
+import { DEFAULT_PYTHON } from '../model/catalog-lab'
 import { PinBank } from './pins'
 import { serialBus } from './serial'
 import type { McuIO, McuRuntime, PinMode } from './types'
@@ -46,7 +48,8 @@ export class BoardChip implements ChipInstance, McuIO {
   constructor(readonly comp: ComponentInstance) {
     this.board = boardDef(comp.type) as BoardDef
     this.bank = new PinBank(this.board)
-    const code = String(comp.params?.code ?? '')
+    // a Raspberry Pi without a program of its own runs the panel's default (Blink on GPIO17)
+    const code = comp.params?.code !== undefined ? String(comp.params.code) : this.board.runtimes[0] === 'python' ? DEFAULT_PYTHON(this.board) : ''
     const want = String(comp.params?.runtime ?? 'fast')
     if (want === 'avr' && this.board.runtimes.includes('avr')) {
       const hex = cachedHex(comp.type, code)
@@ -55,6 +58,9 @@ export class BoardChip implements ChipInstance, McuIO {
         this.runtime = null
         this.dead = null
       }
+    } else if (this.board.runtimes.includes('python') && (want === 'python' || !this.board.runtimes.includes(want as 'fast'))) {
+      // Raspberry Pi / BeagleBone: the program is Python
+      this.runtime = new PythonRuntime(comp.type, code)
     } else {
       this.runtime = new FastRuntime(comp.type, code)
     }

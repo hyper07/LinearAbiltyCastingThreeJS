@@ -37,7 +37,7 @@ export interface McuIO {
 }
 
 export interface McuRuntime {
-  readonly kind: 'fast' | 'avr'
+  readonly kind: 'fast' | 'avr' | 'python'
   state: 'running' | 'stopped' | 'error' | 'waiting'
   error?: string
   /** current source line (1-based) when the runtime can tell */

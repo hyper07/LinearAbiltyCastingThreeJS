@@ -248,6 +248,30 @@
   outline: none;
 }
 
+/* ---- Python boards: note + example picker ---- */
+.lab-py-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.lab-py-head .lab-dim {
+  flex: 1;
+}
+.lab-py-head code {
+  font: 12px var(--lg-mono);
+  color: #e6e6ea;
+}
+.lab-select {
+  flex: none;
+  font: 600 12px var(--lg-font);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 7px 8px;
+  max-width: 46%;
+}
+
 /* ---- lessons ---- */
 .lab-cards {
   display: grid;

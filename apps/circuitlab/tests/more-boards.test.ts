@@ -30,7 +30,7 @@ function place(b: BoardDef): Partial<ComponentInstance> {
 }
 
 function layoutWith(b: BoardDef, code: string, extra: { pin: string } | null = null): CircuitLayout {
-  const comps: ComponentInstance[] = [{ id: 'B1', type: b.type, ...place(b), params: { code, runtime: 'fast' } } as ComponentInstance]
+  const comps: ComponentInstance[] = [{ id: 'B1', type: b.type, ...place(b), params: { code, runtime: b.runtimes[0] } } as ComponentInstance]
   const wires = []
   if (extra && b.placement === 'offboard') {
     // board pin → a breadboard strip with a 10 kΩ load to the board's ground

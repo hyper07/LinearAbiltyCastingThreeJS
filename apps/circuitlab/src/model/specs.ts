@@ -329,7 +329,9 @@ const SHEETS: Record<string, Sheet> = {
 
 /** a board's sheet from its BoardDef (logic level, pin limits, ADC/PWM, supplies, extra facts) */
 function boardSheet(b: BoardDef): Sheet {
-  const adcTop = b.logicV >= 5 ? 5 : 3.3
+  const adcTop = b.adcMaxV ?? (b.logicV >= 5 ? 5 : 3.3)
+  const nAdc = Object.keys(b.adc).length
+  const py = b.runtimes[0] === 'python'
   return {
     part: `${b.label} — ${b.mcu}`,
     max: [
@@ -340,13 +342,15 @@ function boardSheet(b: BoardDef): Sheet {
     typ: [
       ['Logic level', `${b.logicV} V (HIGH ≈ ${b.logicV} V, LOW 0 V)`],
       ['Supply pins', b.supplies.map((s) => `${s.pin} = ${s.v} V`).join(', ')],
-      ['Analog in (ADC)', `${b.adcBits}-bit, 0–${adcTop} V on ${Object.keys(b.adc).length} pins`],
+      ['Analog in (ADC)', nAdc ? `${b.adcBits}-bit, 0–${adcTop} V on ${nAdc} pins` : 'none on the header'],
       ['I²C', `SDA ${b.i2c.sda}, SCL ${b.i2c.scl}`],
       ...(b.extraSpecs ?? []),
     ],
     freq: [
       ['Clock', b.mcu.split('·')[1]?.trim() ?? b.mcu],
-      ['PWM (analogWrite)', `${b.pwmHz} Hz, ${b.pwmBits}-bit, ${b.pwm === 'all' ? 'any output pin' : b.pwm.join(', ')}`],
+      py
+        ? ['PWM', `hardware PWM on ${b.pwm === 'all' ? 'any output pin' : b.pwm.join(', ')}; software PWM on any GPIO (${b.python === 'beagle' ? 'Adafruit_BBIO.PWM, 2 kHz' : 'gpiozero PWMLED, 100 Hz'})`]
+        : ['PWM (analogWrite)', `${b.pwmHz} Hz, ${b.pwmBits}-bit, ${b.pwm === 'all' ? 'any output pin' : b.pwm.join(', ')}`],
     ],
     lab: [['Damage', `the lab marks a pin damaged above ${b.absMaxV} V or ${b.maxPinMa} mA`]],
     tips: b.logicV < 5 ? ['A 3.3 V board: never feed 5 V into its pins — use a divider or a level shifter.'] : ['5 V logic: a 3.3 V module may need a level shifter on its inputs.'],

@@ -261,7 +261,7 @@ export class PinBank {
     if (Number.isNaN(v)) return null
     const b = this.board
     // 5 V-tolerant pins (Blue Pill FT pins, Pico 2 GPIO) take up to 5.5 V
-    const maxV = b.fiveVoltTolerant?.includes(pin) ? 5.5 : b.absMaxV
+    const maxV = b.fiveVoltTolerant?.includes(pin) ? 5.5 : b.lowVoltagePins?.pins.includes(pin) ? b.lowVoltagePins.maxV : b.absMaxV
     if (v > maxV + 0.15 || v < -0.6) {
       s.overV += dt
       if (s.overV > 1e-3) {

@@ -29,6 +29,36 @@ void loop() {
 }
 `
 
+/** the first program on a Raspberry Pi (gpiozero) or a BeagleBone (Adafruit_BBIO): blink an LED */
+export const DEFAULT_PYTHON = (board: BoardDef): string =>
+  board.python === 'beagle'
+    ? `# Blink: an LED on P8_10 (through a 330 ohm resistor to GND), on for a second, off for a second.
+import Adafruit_BBIO.GPIO as GPIO
+import time
+
+GPIO.setup("P8_10", GPIO.OUT)
+print("Hello from the ${board.short}!")
+
+while True:
+    GPIO.output("P8_10", GPIO.HIGH)
+    time.sleep(1)
+    GPIO.output("P8_10", GPIO.LOW)
+    time.sleep(1)
+`
+    : `# Blink: an LED on GPIO17 (physical pin 11) through a 330 ohm resistor to GND.
+from gpiozero import LED
+from time import sleep
+
+led = LED(17)
+print("Hello from the ${board.short}!")
+
+while True:
+    led.on()
+    sleep(1)
+    led.off()
+    sleep(1)
+`
+
 function boardEntry(b: BoardDef): CatalogEntry {
   return E({
     type: b.type,
@@ -41,8 +71,8 @@ function boardEntry(b: BoardDef): CatalogEntry {
     bodyFootprint: b.footprint ? { dCols: b.bodyCols ?? [0, b.footprint.length / 2 - 1], rows: b.bodyRows ?? ['e', 'f'] } : undefined,
     groundPin: b.ground,
     params: [
-      { key: 'code', label: 'Sketch', kind: 'text', default: DEFAULT_SKETCH(b), hidden: true },
-      { key: 'runtime', label: 'Runs as', kind: 'select', default: 'fast', options: b.runtimes, hidden: true },
+      { key: 'code', label: 'Sketch', kind: 'text', default: b.runtimes[0] === 'python' ? DEFAULT_PYTHON(b) : DEFAULT_SKETCH(b), hidden: true },
+      { key: 'runtime', label: 'Runs as', kind: 'select', default: b.runtimes[0], options: b.runtimes, hidden: true },
     ],
     sim: { kind: 'chip', model: 'mcu' },
     visual: { shape: 'board' },

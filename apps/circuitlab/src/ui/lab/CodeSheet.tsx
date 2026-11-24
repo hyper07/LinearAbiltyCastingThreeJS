@@ -10,6 +10,8 @@ import { liveEngine, useStore } from '../../state/store'
 import { boardDef } from '../../model/boards'
 import { getEntry } from '../../model/catalog'
 import { compileSketch } from '../../mcu/avr/compile'
+import { checkPython } from '../../mcu/python/runtime'
+import { PYTHON_EXAMPLES } from '../../mcu/python/examples'
 import { serialBus } from '../../mcu/serial'
 import { liveBoard } from '../../mcu/board-chip'
 import { Segmented, Sheet, showToast } from '../kit'
@@ -43,7 +45,8 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
   const board = boards.find((b) => b.id === boardId) ?? boards[0] ?? null
   const def = board ? boardDef(board.type) : undefined
   const savedCode = board ? codeOf(board) : ''
-  const runtime = String(board?.params?.runtime ?? 'fast')
+  const runtime = String(board?.params?.runtime ?? def?.runtimes[0] ?? 'fast')
+  const isPy = runtime === 'python'
   const [draft, setDraft] = useState(savedCode)
   const [snap, setSnap] = useState(0)
   const tele = useStore((s) => (board ? s.telemetry?.components[board.id]?.mcu : undefined))
@@ -68,7 +71,15 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
     const st = useStore.getState()
     setErrors([])
     if (dirty) st.setParam(board.id, 'code', draft)
-    if (runtime === 'avr') {
+    if (isPy) {
+      const chk = checkPython(draft)
+      if (!chk.ok) {
+        setErrors([{ board: board.id, line: chk.line, message: chk.message }])
+        setStatus('The program has a syntax error — fix the marked line')
+        return
+      }
+      setStatus('Running Python')
+    } else if (runtime === 'avr') {
       setStatus('Compiling…')
       const res = await compileSketch(board.type, draft, setStatus)
       if (!res.ok) {
@@ -91,7 +102,7 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
     setStatus(v === 'avr' ? 'Compiled mode: the sketch is compiled to a real ATmega328P program' : 'Instant mode: the sketch runs straight away')
   }
 
-  const curLine = running && tele?.runtime === 'fast' && tele.state === 'running' ? tele.line : undefined
+  const curLine = running && (tele?.runtime === 'fast' || tele?.runtime === 'python') && tele.state === 'running' ? tele.line : undefined
 
   return (
     <Sheet
@@ -108,19 +119,41 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
       <div className="lab-code" data-code-panel>
         <div className="lab-head">
           <span className="lg-title">Code</span>
-          {def && <span className="lab-badge">{def.short} · {def.logicV} V · {runtime === 'avr' ? 'chip: avr8js' : 'code: Instant'}</span>}
+          {def && <span className="lab-badge">{def.short} · {def.logicV} V · {runtime === 'avr' ? 'chip: avr8js' : isPy ? 'code: Python' : 'code: Instant'}</span>}
         </div>
         {!board || !def ? (
           <div className="lab-empty">
             <p>No board on the bench yet.</p>
-            <p className="lab-dim">Add an Arduino Uno, Nano, Mega, an ESP32 or a Raspberry Pi Pico from <b>Parts → Boards</b>, or start a lesson.</p>
+            <p className="lab-dim">Add an Arduino, an ESP32, a Raspberry Pi Pico or a Raspberry Pi (Python) from <b>Parts → Boards</b>, or start a lesson.</p>
           </div>
         ) : (
           <>
             {boards.length > 1 && (
               <Segmented value={board.id} onChange={(v) => setBoardId(v)} options={boards.map((b) => ({ value: b.id, label: `${b.id} · ${boardDef(b.type)?.short}` }))} aria-label="Board" />
             )}
-            {def.runtimes.length === 1 ? (
+            {isPy ? (
+              <div className="lab-py-head">
+                <div className="lab-dim">
+                  Runs Python 3 ({def.python === 'beagle' ? 'Adafruit_BBIO' : 'gpiozero, RPi.GPIO'}, time, random, math) in simulated time — <code>sleep(1)</code> is one simulated second; <code>print()</code> shows in the serial monitor.
+                </div>
+                <select
+                  className="lab-select"
+                  aria-label="Example programs"
+                  value=""
+                  onChange={(e) => {
+                    const ex = PYTHON_EXAMPLES.find((x) => x.id === e.target.value)
+                    if (ex) setDraft(ex.code(def))
+                  }}
+                >
+                  <option value="">Examples…</option>
+                  {PYTHON_EXAMPLES.filter((x) => x.family === (def.python ?? 'pi')).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : def.runtimes.length === 1 ? (
               <div className="lab-dim">Runs your sketch in Instant mode (Arduino-style C++ in simulated time). A chip-level emulator for the {def.short} is on the roadmap.</div>
             ) : (
             <Segmented
@@ -169,7 +202,7 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
                     }
                     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') void upload()
                   }}
-                  aria-label="Sketch"
+                  aria-label={isPy ? 'Python program' : 'Sketch'}
                 />
               </div>
             </div>
@@ -211,7 +244,7 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
               </ul>
             )}
             <PinStrip pins={tele?.pins ?? {}} />
-            <SerialMonitor boardId={board.id} active={open} />
+            <SerialMonitor boardId={board.id} active={open} python={isPy} />
           </>
         )}
       </div>
@@ -233,7 +266,7 @@ function PinStrip({ pins }: { pins: Record<string, string> }) {
   )
 }
 
-function SerialMonitor({ boardId, active }: { boardId: string; active: boolean }) {
+function SerialMonitor({ boardId, active, python = false }: { boardId: string; active: boolean; python?: boolean }) {
   const [text, setText] = useState(() => serialBus.read(boardId))
   const [line, setLine] = useState('')
   const outRef = useRef<HTMLPreElement>(null)
@@ -274,7 +307,7 @@ function SerialMonitor({ boardId, active }: { boardId: string; active: boolean }
         </button>
       </div>
       <pre ref={outRef} className="lab-serial-out" data-serial-out>
-        {text || 'Serial.print() output shows up here.'}
+        {text || (python ? 'print() output and error messages show up here.' : 'Serial.print() output shows up here.')}
       </pre>
       <div className="lab-serial-in">
         <input
@@ -284,7 +317,7 @@ function SerialMonitor({ boardId, active }: { boardId: string; active: boolean }
             e.stopPropagation()
             if (e.key === 'Enter') send()
           }}
-          placeholder="Type a line for Serial.read()…"
+          placeholder={python ? 'Type a line for input()…' : 'Type a line for Serial.read()…'}
           aria-label="Send to the board"
         />
         <button type="button" className="lab-btn" onClick={send}>
