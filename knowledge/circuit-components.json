@@ -2015,7 +2015,7 @@
   },
   {
    "id": "raspberry-pi-4",
-   "name": "Raspberry Pi 4 / 5 (Linux computer)",
+   "name": "Raspberry Pi 5 / 4 Model B / 3 Model B+ (Linux computer)",
    "category": "microcontroller",
    "level": 2,
    "pins": [
@@ -2024,9 +2024,9 @@
     "5V",
     "GND"
    ],
-   "sim": "browser: code: Python (Pyodide) with gpiozero and RPi.GPIO backed by our pin model; a terminal-like panel / server: QEMU raspi3b booting Raspberry Pi OS, GPIO through a qtest or serial bridge",
+   "sim": "browser: code: the lab's own Python interpreter (teaching subset, src/mcu/python) with gpiozero and RPi.GPIO on the board's pin model, time.sleep in simulated time / server: QEMU raspi3b booting Raspberry Pi OS, GPIO through a qtest or serial bridge",
    "runtime": {
-    "browser": "code: Python (Pyodide) with gpiozero and RPi.GPIO backed by our pin model; a terminal-like panel",
+    "browser": "code: the lab's Python interpreter with gpiozero and RPi.GPIO (no Pyodide)",
     "server": "QEMU raspi3b booting Raspberry Pi OS, GPIO through a qtest or serial bridge"
    },
    "look": "green credit-card PCB, 40-pin header, USB/Ethernet block, micro-HDMI, fan",
@@ -2040,9 +2040,9 @@
    "pins": [
     "40-pin header"
    ],
-   "sim": "browser: code: Pyodide + gpiozero / server: QEMU",
+   "sim": "browser: code: the lab's Python interpreter with gpiozero / RPi.GPIO / server: QEMU",
    "runtime": {
-    "browser": "code: Pyodide + gpiozero",
+    "browser": "code: the lab's Python interpreter with gpiozero and RPi.GPIO",
     "server": "QEMU"
    },
    "look": "tiny green PCB with 40-pin header",
@@ -2836,6 +2836,170 @@
    "sim": "≈ 2 dBi quasi-omni, mixed polarization (−3 dB flat), 50 Ω, 2.4 GHz",
    "look": "small upright board with an F-shaped copper trace",
    "teach": "printed antennas, keep-out areas"
+  },
+  {
+   "id": "ti-launchpad-msp430",
+   "name": "TI MSP430 LaunchPad (MSP-EXP430G2ET, MSP430G2553)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "J1 1..10 (3V3, P1.0..P1.5, P2.0..P2.2)",
+    "J2 11..20 (P2.3..P2.7, P1.6, P1.7, RST, TEST, GND)",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code: Energia-style Arduino transpiler (header numbers = pin numbers, P1_0 names) / server: mspdebug sim or Renode",
+   "runtime": {
+    "browser": "code: Energia-style Arduino transpiler",
+    "server": "mspdebug simulator or Renode"
+   },
+   "look": "red PCB, eZ-FET emulation half with micro-USB and a jumper row, socketed DIP-20 MSP430, J1 / J2 BoosterPack columns, green P1.0 and red P1.6 LEDs",
+   "teach": "low-power 16-bit MCU, BoosterPack pinout, 3.3 V and 6 mA pin limits"
+  },
+  {
+   "id": "ti-launchpad-tiva",
+   "name": "TI Tiva C LaunchPad (EK-TM4C123GXL)",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "J1..J4 BoosterPack (40 pins)",
+    "PA..PF ports",
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code: Energia-style Arduino transpiler (RED_LED / PF_1 names, BoosterPack numbers) / server: QEMU lm3s or Renode",
+   "runtime": {
+    "browser": "code: Energia-style Arduino transpiler",
+    "server": "Renode (TM4C123)"
+   },
+   "look": "red PCB, two micro-USB (debug / device), ICDI chip, TM4C123 QFP-64, RGB LED, SW1 / SW2 at the bottom corners",
+   "teach": "Arm Cortex-M4F in embedded-systems courses; PD0-PB6 / PD1-PB7 tie, 5 V tolerant inputs"
+  },
+  {
+   "id": "beaglebone-black",
+   "name": "BeagleBone Black (TI AM3358, Linux)",
+   "category": "microcontroller",
+   "level": 3,
+   "pins": [
+    "P8_1..P8_46",
+    "P9_1..P9_46",
+    "AIN0..AIN6 (1.8 V max)",
+    "3V3",
+    "SYS_5V",
+    "VDD_ADC",
+    "GND"
+   ],
+   "sim": "browser: code: the lab's Python interpreter with Adafruit_BBIO (GPIO, PWM, ADC) on the board's pin model / server: QEMU",
+   "runtime": {
+    "browser": "code: the lab's Python interpreter with Adafruit_BBIO",
+    "server": "QEMU"
+   },
+   "look": "black PCB, Ethernet and barrel jack on one edge, two 2x23 female headers P8 / P9, four blue USR LEDs",
+   "teach": "Linux SBC GPIO from Python, the 1.8 V ADC limit, pins shared with eMMC / HDMI"
+  },
+  {
+   "id": "arduino-nano-every-33",
+   "name": "Arduino Nano Every (ATmega4809) / Nano 33 BLE (nRF52840)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D13",
+    "A0..A7",
+    "5V / VUSB",
+    "3V3",
+    "GND",
+    "VIN"
+   ],
+   "sim": "browser: code: Arduino transpiler (no open emulator for ATmega4809 or nRF52840 GPIO + ADC)",
+   "runtime": {
+    "browser": "code: Arduino transpiler"
+   },
+   "look": "teal Nano-size PCB across the breadboard; Every: ATmega4809 + SAMD11, 33 BLE: u-blox NINA-B306 can",
+   "teach": "5 V Nano vs 3.3 V Nano: the same pinout, different logic levels and pin currents"
+  },
+  {
+   "id": "arduino-mkr",
+   "name": "Arduino MKR WiFi 1010 (SAMD21 + NINA-W102)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D14",
+    "A0..A6",
+    "AREF",
+    "5V",
+    "VIN",
+    "3V3",
+    "GND",
+    "RESET"
+   ],
+   "sim": "browser: code: Arduino transpiler",
+   "runtime": {
+    "browser": "code: Arduino transpiler"
+   },
+   "look": "long teal PCB, 14 pins a side 0.9\" apart, micro-USB, NINA-W102 module at the far end, LiPo socket",
+   "teach": "IoT boards: 3.3 V, 7 mA pins, VIN 5.5 V max"
+  },
+  {
+   "id": "feather-rp2040",
+   "name": "Adafruit Feather RP2040",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "16-pin row (RST, 3V, GND, A0..A3, SCK, MO, MI, RX, TX ...)",
+    "12-pin row (BAT, EN, USB, D5..D13, SCL, SDA)"
+   ],
+   "sim": "browser: code: Arduino transpiler (GPIO numbers) / chip: rp2040js could run CircuitPython .uf2",
+   "runtime": {
+    "browser": "code: Arduino transpiler",
+    "chip": "rp2040js (RP2040)"
+   },
+   "look": "black Feather PCB 2.0 x 0.9 in, USB-C, LiPo JST socket, NeoPixel, rows 0.8 in apart",
+   "teach": "the Feather ecosystem and battery-powered projects"
+  },
+  {
+   "id": "wemos-d1-mini",
+   "name": "LOLIN (WeMos) D1 mini (ESP8266)",
+   "category": "microcontroller",
+   "level": 2,
+   "pins": [
+    "D0..D8",
+    "A0",
+    "RX",
+    "TX",
+    "RST",
+    "3V3",
+    "5V",
+    "GND"
+   ],
+   "sim": "browser: code: Arduino transpiler (no maintained open ESP8266 emulator)",
+   "runtime": {
+    "browser": "code: Arduino transpiler"
+   },
+   "look": "small blue PCB, ESP-12F can with PCB antenna, 8 pins a side, micro-USB",
+   "teach": "cheap Wi-Fi nodes; D-names vs GPIO numbers; active-low LED on D4"
+  },
+  {
+   "id": "sparkfun-redboard",
+   "name": "SparkFun RedBoard Qwiic (ATmega328P)",
+   "category": "microcontroller",
+   "level": 1,
+   "pins": [
+    "D0..D13",
+    "A0..A5",
+    "5V",
+    "3V3",
+    "GND",
+    "VIN",
+    "Qwiic I2C"
+   ],
+   "sim": "browser: chip: avr8js runs the compiled .hex / fallback: code: Arduino transpiler",
+   "runtime": {
+    "browser": "chip: avr8js runs the compiled .hex",
+    "fallback": "code: Arduino transpiler"
+   },
+   "look": "red Uno-shaped PCB, SMD ATmega328P, CH340, micro-USB, Qwiic socket",
+   "teach": "an Uno-compatible board from another maker"
   }
  ]
 }

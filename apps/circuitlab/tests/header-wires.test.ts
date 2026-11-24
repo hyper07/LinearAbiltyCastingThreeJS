@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import { getEntry } from '../src/model/catalog'
 import { offboardBodyRect, offboardGeometry, offboardTerminalPosition } from '../src/model/breadboard'
-import { ARDUINO_HEADER_Y, ESP32_PIN_Y, PI_PIN_Y } from '../src/model/boards'
+import { ARDUINO_HEADER_Y, BBB_PIN_Y, ESP32_PIN_Y, LP_PIN_Y, PI_PIN_Y } from '../src/model/boards'
 import type { CircuitLayout, ComponentInstance, Wire } from '../src/model/types'
 import { DUPONT, dupontRise, endKinds, planRoutes, plannedWireRoute, wireBundles, wireEndStyle } from '../src/three/internal/wires'
 
@@ -24,6 +24,12 @@ const BOARDS: { type: string; pos: { x: number; z: number }; top: number; kind: 
   { type: 'rpi4', pos: { x: -40, z: -5 }, top: PI_PIN_Y, kind: 'pin' },
   { type: 'rpi3bplus', pos: { x: -40, z: -5 }, top: PI_PIN_Y, kind: 'pin' },
   { type: 'rpi_zero2w', pos: { x: -31, z: -2 }, top: PI_PIN_Y, kind: 'pin' },
+  { type: 'sparkfun_redboard', pos: { x: -31, z: -1.5 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
+  { type: 'wemos_d1_mini', pos: { x: -17, z: 2 }, top: ESP32_PIN_Y, kind: 'pin' },
+  { type: 'arduino_mkr_wifi1010', pos: { x: -28, z: 2 }, top: ESP32_PIN_Y, kind: 'pin' },
+  { type: 'msp_exp430g2et', pos: { x: -25, z: -6 }, top: LP_PIN_Y, kind: 'pin' },
+  { type: 'ek_tm4c123gxl', pos: { x: -24, z: -6 }, top: LP_PIN_Y, kind: 'pin' },
+  { type: 'beaglebone_black', pos: { x: -38, z: -6 }, top: BBB_PIN_Y, kind: 'socket' },
 ]
 
 function boardLayout(type: string, pos: { x: number; z: number }, pins: string[]): CircuitLayout {

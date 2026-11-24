@@ -335,6 +335,58 @@ button.when_released = led.off
 pause()   # keep the program running; the callbacks do the work
 `
 
+const LAUNCHPAD_CODE = `// MSP430 LaunchPad: an LED on P1.4 (header pin 6), and the board's
+// green (P1.0) and red (P1.6) LEDs taking turns.
+void setup() {
+  pinMode(P1_4, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+  Serial.begin(9600);
+  Serial.println("LaunchPad blink");
+}
+
+void loop() {
+  digitalWrite(P1_4, HIGH);
+  digitalWrite(GREEN_LED, HIGH);
+  digitalWrite(RED_LED, LOW);
+  delay(500);
+  digitalWrite(P1_4, LOW);
+  digitalWrite(GREEN_LED, LOW);
+  digitalWrite(RED_LED, HIGH);
+  delay(500);
+}
+`
+
+const MICROBIT_CODE = `// micro:bit: an LED on pin 0 and the display, every half second.
+void setup() {
+  pinMode(0, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(0, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(500);
+  digitalWrite(0, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(500);
+}
+`
+
+const BBB_CODE = `# BeagleBone Black: blink an LED on P8_10 with Adafruit_BBIO.
+import Adafruit_BBIO.GPIO as GPIO
+import time
+
+GPIO.setup("P8_10", GPIO.OUT)
+print("Blinking P8_10")
+
+while True:
+    GPIO.output("P8_10", GPIO.HIGH)
+    time.sleep(1)
+    GPIO.output("P8_10", GPIO.LOW)
+    time.sleep(1)
+`
+
 // ------------------------------------------------------------- presets
 
 export const PRESETS: Preset[] = [
@@ -699,6 +751,73 @@ export const PRESETS: Preset[] = [
       ],
     ),
   },
+  {
+    id: 'launchpad-blink',
+    title: 'MSP430 LaunchPad blink',
+    board: 'TI MSP430 LaunchPad',
+    summary: 'Energia-style code on a TI LaunchPad: an LED on P1.4 and the board\'s own red and green LEDs.',
+    learn: [
+      'LaunchPad pins are numbered like the header: pin 6 is P1.4 (the code can also say P1_4).',
+      'The MSP430 runs at 3.3 V and each pin gives only about 6 mA — so the LED gets 470 Ω.',
+      'GREEN_LED (P1.0) and RED_LED (P1.6) are on the board, blinking opposite each other.',
+    ],
+    controls: [],
+    layout: layout(
+      'MSP430 LaunchPad blink',
+      'LaunchPad P1.4 (J1 pin 6) → 470 Ω → yellow LED → GND.',
+      [
+        { id: 'L1', type: 'msp_exp430g2et', pos: { x: -25, z: -6 }, params: { code: LAUNCHPAD_CODE, runtime: 'fast' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 470 }, holes: ['c12', 'c16'] },
+        { id: 'D1', type: 'led', params: { color: 'yellow' }, holes: ['b16', 'b17'] },
+      ],
+      [w('L1:P1_4', 'a12', 'yellow'), w('a17', 'top-14', 'black'), w('L1:GND', 'top-2', 'black')],
+    ),
+  },
+  {
+    id: 'microbit-blink',
+    title: 'micro:bit blink',
+    board: 'BBC micro:bit v2',
+    summary: 'A micro:bit in an edge-connector breakout blinks an LED on pin 0 and its own display.',
+    learn: [
+      'The breakout brings the micro:bit\'s edge connector to breadboard pins: P0 is the big ring "0".',
+      'micro:bit pins are 3.3 V and weak (about 5 mA): 330 Ω keeps the LED current small.',
+      'LED_BUILTIN lights the 5 × 5 display in the lab; P3, P4, P6, P7 and P10 are display pins too.',
+    ],
+    controls: [],
+    layout: layout(
+      'micro:bit blink',
+      'micro:bit P0 → 330 Ω → red LED → GND.',
+      [
+        { id: 'K1', type: 'microbit_v2', at: 'c5', params: { code: MICROBIT_CODE, runtime: 'fast' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 330 }, holes: ['c30', 'c34'] },
+        { id: 'D1', type: 'led', params: { color: 'red' }, holes: ['b34', 'b35'] },
+      ],
+      [w('a6', 'a30', 'yellow'), w('a35', 'top-34', 'black'), w('j22', 'bot-22', 'black'), w('bot-45', 'top-45', 'black')],
+      'standard',
+    ),
+  },
+  {
+    id: 'beaglebone-blink',
+    title: 'BeagleBone blink (Python)',
+    board: 'BeagleBone Black',
+    summary: 'Python with Adafruit_BBIO on a BeagleBone Black: blink an LED on P8_10.',
+    learn: [
+      'BeagleBone pins are named by header and number: P8_10 is pin 10 on header P8.',
+      'GPIO.setup("P8_10", GPIO.OUT) then GPIO.output(…, GPIO.HIGH / LOW) — like RPi.GPIO.',
+      'Its GPIO are 3.3 V with only a few mA; its analog inputs take at most 1.8 V.',
+    ],
+    controls: [],
+    layout: layout(
+      'BeagleBone blink',
+      'BeagleBone P8_10 → 330 Ω → blue LED → GND (P8_1).',
+      [
+        { id: 'B1', type: 'beaglebone_black', pos: { x: -38, z: -6 }, params: { code: BBB_CODE, runtime: 'python' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 330 }, holes: ['c12', 'c16'] },
+        { id: 'D1', type: 'led', params: { color: 'blue' }, holes: ['b16', 'b17'] },
+      ],
+      [w('B1:P8_10', 'a12', 'yellow'), w('a17', 'top-14', 'black'), w('B1:GND7', 'top-2', 'black')],
+    ),
+  },
 ]
 
 const CALLOUTS: Record<string, Callout[]> = {
@@ -763,6 +882,18 @@ const CALLOUTS: Record<string, Callout[]> = {
   'pi-blink': [
     { part: 'P1', title: 'RASPBERRY PI 4', text: 'Python: LED(17) drives GPIO17 (pin 11) at 3.3 V.', icon: 'board' },
     { part: 'D1', title: 'RED LED', text: 'On for a second, off for a second.', icon: 'led' },
+  ],
+  'launchpad-blink': [
+    { part: 'L1', title: 'MSP430 LAUNCHPAD', text: 'Pin 6 = P1.4 drives the LED at 3.3 V.', icon: 'board' },
+    { part: 'D1', title: 'YELLOW LED', text: '470 Ω keeps it under the 6 mA a pin gives.', icon: 'led' },
+  ],
+  'microbit-blink': [
+    { part: 'K1', title: 'MICRO:BIT', text: 'The breakout turns the edge connector into pins.', icon: 'board' },
+    { part: 'D1', title: 'RED LED', text: 'On pin 0, with the display.', icon: 'led' },
+  ],
+  'beaglebone-blink': [
+    { part: 'B1', title: 'BEAGLEBONE BLACK', text: 'Python: GPIO.output("P8_10", GPIO.HIGH).', icon: 'board' },
+    { part: 'D1', title: 'BLUE LED', text: 'On for a second, off for a second.', icon: 'led' },
   ],
   'pi-button': [
     { part: 'P1', title: 'RASPBERRY PI 4', text: 'Button(27) reads GPIO27 with the internal pull-up.', icon: 'board' },

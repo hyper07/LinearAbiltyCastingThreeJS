@@ -181,7 +181,7 @@ export function stressOf(comp: ComponentInstance, entry: CatalogEntry, t: Compon
   if (b && entry.pins.includes('VIN')) {
     const gnd = b.ground
     const vin = v(t, 'VIN') - v(t, gnd)
-    const lim = b.logicV >= 5 ? 20 : 12
+    const lim = b.vinMax ?? (b.logicV >= 5 ? 20 : 12)
     if (vin > 0) return { ratio: vin / lim, reason: `${fmtV(vin)} on ${id}'s VIN pin — it takes at most ${lim} V.`, fix: `Feed VIN 7–12 V${b.logicV >= 5 ? '' : ' (5 V is best on this board)'}, or power the board over USB.` }
   }
   return null

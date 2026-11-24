@@ -672,7 +672,11 @@ export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole'
   const c = layout.components.find((x) => x.id === t.componentId)
   const e = c ? getEntry(c.type) : undefined
   if (!c || !e || RIBBON_SKIP.has(e.category)) return { kind: 'post' }
-  if (e.category === 'board') return { kind: boardDef(c.type)?.header === 'female' ? 'socket' : 'pin' }
+  if (e.category === 'board') {
+    // Nucleo-style boards: Arduino sockets (female) beside morpho pins (male)
+    const b = boardDef(c.type)
+    return { kind: b?.header === 'female' || b?.femalePins?.includes(t.pin) ? 'socket' : 'pin' }
+  }
   const d = leadDir(layout, ref)
   return d ? { kind: FEMALE_MODULES.has(c.type) ? 'sideSocket' : 'side', dir: d } : { kind: 'pin' }
 }

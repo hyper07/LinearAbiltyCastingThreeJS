@@ -24,22 +24,23 @@ export function baseName(name: string): string {
   if (/^GND\d+$/.test(name)) return 'GND'
   if (name === 'SDA1') return 'SDA'
   if (name === 'SCL1') return 'SCL'
-  const dup = /^(5V|3V3|RESET|RST|RSV|NC|VIN)\d$/.exec(name)
+  if (name === '3V3') return name
+  const dup = /^(5V|3V3|3V|RESET|RST|RSV|NC|VIN|IOREF|SYS_5V|VDD_5V|VUSB)\d+$/.exec(name)
   if (dup) return dup[1]
   return name
 }
 
 export function pinKind(name: string, def?: BoardDef): PinKind {
   const n = baseName(name)
-  if (/^A?GND$/.test(n)) return 'gnd'
-  if (/^(5V|3V3|VIN|VBUS|VSYS|IOREF|VB)$/.test(n)) return 'power'
-  if (/^(RESET|RST|RUN|EN|AREF|ADC_VREF|3V3_EN|B0|B1|NC|RSV|CLK|CMD|SD\d)$/.test(n)) return 'ctrl'
-  if (/^(SDA|SCL|TX\d?|RX\d?|MISO|MOSI|SCK|SS)$/.test(n)) return 'bus'
+  if (/^(A?GND|GNDA_ADC)$/.test(n)) return 'gnd'
+  if (/^(5V|3V3|3V|VIN|VBUS|VSYS|IOREF|VB|BAT|USB|VUSB|E5V|U5V|VDD|AVDD|VBAT|SYS_5V|VDD_5V|VDD_ADC)$/.test(n)) return 'power'
+  if (/^(RESET|RST|RUN|EN|AREF|ADC_VREF|3V3_EN|B0|B1|NC|RSV|CLK|CMD|SD\d|BOOT0|PWR_BUT|SYS_RESET|TEST)$/.test(n)) return 'ctrl'
+  if (/^(SDA|SCL|TX\d?|RX\d?|MISO|MOSI|SCK|SS|MO|MI)$/.test(n)) return 'bus'
   if (/^A\d+$/.test(n) || n === 'VP' || n === 'VN') return 'analog'
   if (def?.adcLabels && def.adc[n] !== undefined) return 'analog'
   const alt = def?.altNames?.[n]
   if (alt && /^ID_S/.test(alt)) return 'ctrl'
-  if (alt && /^(SDA|SCL|TXD?|RXD?|MOSI|MISO|SCLK?|CE\d|CS\d?)/.test(alt)) return 'bus'
+  if (alt && /^(SDA|SCL|TXD?|RXD?|MOSI|MISO|SCLK?|CE\d|CS\d?|I2C|UART|SPI)/.test(alt)) return 'bus'
   if (def && Array.isArray(def.pwm) && def.pwm.includes(n)) return 'pwm'
   return 'digital'
 }
@@ -56,6 +57,8 @@ export function pinLabel(name: string, def?: BoardDef): string {
   }
   if (def?.silk === 'bare' && /^(D|IO|GPIO)\d+$/.test(n)) return n.replace(/^(D|IO|GPIO)/, '')
   if (def?.silk === 'port' && /^P[A-K]\d+$/.test(n)) return n.slice(1)
+  if (/^P\d_\d$/.test(n)) return n.replace('_', '.')
+  if (/^P[89]_\d+$/.test(n)) return n.slice(3)
   if (n === '3V3') return '3.3V'
   if (n === 'ADC_VREF') return 'VREF'
   if (n === '3V3_EN') return '3V3EN'

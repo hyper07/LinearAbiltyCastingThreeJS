@@ -125,8 +125,10 @@ describe('more boards: static facts', () => {
   it('female headers take male jumper ends, pins take female ends', () => {
     for (const b of BOARDS) {
       if (b.placement !== 'offboard') continue
-      const kind = wireEndStyle(layoutWith(b, ''), `B1:${b.ground}`).kind
-      expect(kind, b.type).toBe(b.header === 'female' ? 'socket' : 'pin')
+      for (const pin of [b.ground, ...b.pins.slice(-2)]) {
+        const kind = wireEndStyle(layoutWith(b, ''), `B1:${pin}`).kind
+        expect(kind, `${b.type} ${pin}`).toBe(b.header === 'female' || b.femalePins?.includes(pin) ? 'socket' : 'pin')
+      }
     }
   })
 })

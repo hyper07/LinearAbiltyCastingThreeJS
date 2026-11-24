@@ -201,6 +201,8 @@ export class PythonRuntime implements McuRuntime, PyHost, InterpHost {
       if (m) return byPhysical(Number(m[1]))
       if (/^\d+$/.test(s)) return mode === 'board' ? byPhysical(Number(s)) : byGpio(Number(s))
       const up = s.toUpperCase()
+      // BeagleBone: USR0 is the on-board user LED the lab models
+      if (/^USR0$/.test(up) && Object.values(b.gpio).includes('LED')) return 'LED'
       const direct = b.pins.find((p) => p.toUpperCase() === up) ?? (up === 'LED' || /^USR\d$/.test(up) ? Object.values(b.gpio).find((p) => p.toUpperCase() === up) : undefined)
       if (direct && Object.values(b.gpio).includes(direct)) return direct
       if (direct) throw new PyError('ValueError', `${who}: ${direct} is a power / ground pin, not a GPIO`)
