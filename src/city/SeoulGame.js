@@ -392,7 +392,7 @@ export class SeoulGame {
       }
       for (const l of this.index.landmarks) if (l.tower) this._tower(l);
       // A short credit always on screen; each source's full notice is in the Places panel.
-      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '스쿠터 scooter: polyfork.dev (CC BY 4.0)', '자전거 riders: Quaternius Ultimate Modular Men & Women (CC0)'].filter(Boolean).join(' · ');
+      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '스쿠터 scooter: polyfork.dev (CC BY 4.0)', '자전거 riders: Quaternius Ultimate Modular Men & Women (CC0)', '벽 walls: ambientCG.com (CC0)'].filter(Boolean).join(' · ');
       this.ready = true;
       // Gangnam Jarani opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
@@ -722,8 +722,11 @@ export class SeoulGame {
     const day = Math.max(0, Math.sin(((this.hour - 6) / 12) * Math.PI)); // 0 at 6 and 18, 1 at noon
     const night = 1 - Math.min(1, day * 2.4);
     const dusk = day > 0 ? Math.max(0, 1 - Math.abs(day - 0.18) * 5) : 0; // only while the sun is low, not all night
+    // The blue hour: the sun just down or just up, the sky a clear deep blue (BLDG_5), not grey.
+    const s = Math.sin(((this.hour - 6) / 12) * Math.PI);
+    const blue = Math.max(0, 1 - Math.abs(s - 0.02) * 6);
     // The horizon's colour (the dome deepens it overhead): hazy blue by day, warm at golden hour, deep blue at dusk.
-    const sky = new THREE.Color('#0b1226').lerp(new THREE.Color('#9cc4ea'), Math.min(1, day * 1.8)).lerp(new THREE.Color('#f0a060'), dusk * 0.6);
+    const sky = new THREE.Color('#0b1226').lerp(new THREE.Color('#9cc4ea'), Math.min(1, day * 3.5)).lerp(new THREE.Color('#f4b070'), dusk * 0.5 * (1 - blue)).lerp(new THREE.Color('#7d93c4'), blue * 0.8);
     this.skyBase = sky.clone();
     this.scene.background = sky;
     this.scene.fog.color.copy(sky);
@@ -733,8 +736,11 @@ export class SeoulGame {
     // Sunlight several times the sky's light, so shadows read; warm and still strong at golden hour.
     // At night: a little cold moonlight, the city lit by its own windows, signs and lamps.
     this.sun.intensity = 0.08 + 3.1 * Math.min(1, day * 3) ** 0.7;
-    this.sun.color.set('#fff1d8').lerp(new THREE.Color('#ff9550'), dusk).lerp(new THREE.Color('#9fb4ff'), night * 0.7);
+    this.sun.color.set('#fff1d8').lerp(new THREE.Color('#ffa055'), dusk).lerp(new THREE.Color('#9fb4ff'), Math.max(0, (night - 0.6) / 0.4) * 0.7);
     this.hemi.intensity = 0.14 + 0.62 * Math.sqrt(day);
+    // Shade is lit by the blue sky: cooler as the sun gets low and warm (golden hour's blue shadows).
+    this.hemi.color.set('#dcecff').lerp(new THREE.Color('#8fb0e6'), dusk * 0.8);
+    this.hemi.groundColor.set('#6a6458').lerp(new THREE.Color('#7a5a44'), dusk * 0.6);
     this.hemiBase = this.hemi.intensity;
     this.sunBase = this.sun.intensity;
     this.uniforms.uNight.value = night;
@@ -742,7 +748,7 @@ export class SeoulGame {
       const u = this.sky.userData.u;
       u.uSunDir.value.copy(this.sunDir);
       u.uSunCol.value.copy(this.sun.color);
-      u.uDusk.value = dusk;
+      u.uDusk.value = Math.max(dusk * (1 - blue), blue * 0.35);
     }
     if (this.lampMat) this.lampMat.emissiveIntensity = night * 3;
     this.ground.material.color.setScalar(0.5 + Math.min(1, day * 1.6) * 0.7);
@@ -1835,7 +1841,7 @@ export class SeoulGame {
     this.uniforms.uWet.value = w.level.wet;
     this.wind.uTime.value += dt;
     this.wind.uWind.value += ((WEATHERS[w.kind].wind ?? 0.5) - this.wind.uWind.value) * Math.min(1, dt * 0.5);
-    if (this.bloom) this.bloom.strength = 0.22 + night * 0.55 + w.level.wet * night * 0.15;
+    if (this.bloom) this.bloom.strength = 0.16 + night * 0.32 + w.level.wet * night * 0.12;
   }
 
   /** The weather in the bar (it changes by itself: Weather.auto). */

@@ -25,7 +25,7 @@ export function skyDome(uniforms) {
         float h = clamp(d.y, 0.0, 1.0);
         float s = max(0.0, dot(d, normalize(uSunDir)));
         // Overhead deeper than the reflection colour; a pale band at the horizon (haze); warm on the sun's side at dusk.
-        vec3 top = mix(uTop, uZenith, 0.55 * (1.0 - uNight));
+        vec3 top = mix(uTop, uZenith, 0.6 * (1.0 - smoothstep(0.7, 1.0, uNight)));
         vec3 col = mix(uLow, top, pow(h, 0.45));
         col = mix(col, uSunCol * 1.05, uDusk * pow(s, 3.0) * (1.0 - h) * 0.85);
         col += uSunCol * (pow(s, 12.0) * 0.18 + pow(s, 900.0) * 3.0) * (1.0 - uNight);

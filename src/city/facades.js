@@ -181,21 +181,29 @@ export class Facades {
       const f = FINISH[key.slice(5)];
       m = new THREE.MeshStandardMaterial({ map: libTexture(f.tex, 'Color', true), normalMap: libTexture(f.tex, 'NormalGL'), roughnessMap: libTexture(f.tex, 'Roughness'), roughness: f.rough / 0.7, metalness: 0, vertexColors: true });
       m.normalScale.set(0.8, 0.8);
-      if (f.joints) {
-        // Granite panels: thin dark joints every panel (the stone texture itself has none).
-        const [jw, jh] = f.joints;
-        m.onBeforeCompile = (sh) => {
-          sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      // Weathering (§5): broad stains and thin vertical streaks, in the wall's own metres; granite
+      // panels also get their joints (the stone texture itself has none).
+      const [jw, jh] = f.joints ?? [0, 0];
+      const F = (v) => v.toFixed(3);
+      m.onBeforeCompile = (sh) => {
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', `#include <common>
+            float wvh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+            float wvn(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+              return mix(mix(wvh(i), wvh(i + vec2(1.0, 0.0)), f.x), mix(wvh(i + vec2(0.0, 1.0)), wvh(i + vec2(1.0, 1.0)), f.x), f.y); }`)
+          .replace('#include <map_fragment>', `#include <map_fragment>
             {
-              vec2 mm = vMapUv * ${f.scale.toFixed(3)};
-              float row = floor(mm.y / ${jh.toFixed(3)});
-              vec2 q = vec2(fract((mm.x + mod(row, 2.0) * ${(jw / 2).toFixed(3)}) / ${jw.toFixed(3)}) * ${jw.toFixed(3)}, fract(mm.y / ${jh.toFixed(3)}) * ${jh.toFixed(3)});
-              float jt = min(min(q.x, ${jw.toFixed(3)} - q.x), min(q.y, ${jh.toFixed(3)} - q.y));
+              vec2 mm = vMapUv * ${F(f.scale)};
+              float blot = wvn(mm * 0.3) * 0.65 + wvn(mm * 1.1 + 7.0) * 0.35;
+              float streak = smoothstep(0.6, 0.95, wvn(vec2(mm.x * 2.6, mm.y * 0.1))) * (0.4 + 0.6 * wvn(vec2(mm.x * 0.5, mm.y * 0.04 + 3.0)));
+              diffuseColor.rgb *= 1.0 - 0.11 * smoothstep(0.35, 0.85, blot) - 0.13 * streak;
+              ${f.joints ? `float row = floor(mm.y / ${F(jh)});
+              vec2 q = vec2(fract((mm.x + mod(row, 2.0) * ${F(jw / 2)}) / ${F(jw)}) * ${F(jw)}, fract(mm.y / ${F(jh)}) * ${F(jh)});
+              float jt = min(min(q.x, ${F(jw)} - q.x), min(q.y, ${F(jh)} - q.y));
               diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.003, 0.008, jt));
-              diffuseColor.rgb *= 0.94 + 0.12 * fract(sin(dot(floor(vec2((mm.x + mod(row, 2.0) * ${(jw / 2).toFixed(3)}) / ${jw.toFixed(3)}, row)), vec2(12.9898, 78.233))) * 43758.5453);
+              diffuseColor.rgb *= 0.94 + 0.12 * wvh(floor(vec2((mm.x + mod(row, 2.0) * ${F(jw / 2)}) / ${F(jw)}, row)));` : ''}
             }`);
-        };
-      }
+      };
     } else if (key === 'trim') {
       m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.15 });
     } else if (key === 'fabric') {
@@ -334,7 +342,7 @@ export class Facades {
             float hue = gh(cid + seed * 5.0 + 2.0);
             vec3 lamp = kind == 1.0 ? (hue < 0.75 ? vec3(1.0, 0.74, 0.46) : vec3(0.92, 0.95, 1.0)) : kind == 2.0 ? vec3(1.08, 1.04, 0.96) : (hue < 0.7 ? vec3(0.95, 0.98, 1.04) : vec3(1.0, 0.9, 0.74));
             // By day a lit room is still darker than the street outside it.
-            lamp *= mix(kind == 2.0 ? 0.42 : 0.36, kind == 2.0 ? 1.5 : 1.15, night);
+            lamp *= mix(kind == 2.0 ? 0.42 : 0.36, kind == 2.0 ? 0.95 : 0.9, night);
             float roomH = cs.y;
             float sill = 0.0;
             if (kind == 4.0) {
@@ -367,7 +375,7 @@ export class Facades {
             vec3 R = reflect(V, N);
             float az = atan(R.z, R.x);
             float skyline = 0.05 + 0.2 * gh(vec2(floor(az * 9.0), 1.0)) * step(0.3, gh(vec2(floor(az * 9.0), 2.0)));
-            vec3 sky = mix(uSkyLow, uSkyTop, sqrt(clamp(R.y, 0.0, 1.0)));
+            vec3 sky = mix(uSkyLow, mix(uSkyTop, vec3(0.16, 0.38, 0.78), 0.5 * (1.0 - night)), sqrt(clamp(R.y, 0.0, 1.0)));
             vec3 bld = mix(uSkyLow * 0.55, vec3(0.32, 0.31, 0.3), 0.5) * (1.0 - 0.65 * night) + vec3(1.0, 0.85, 0.6) * night * 0.12 * step(0.6, gh(floor(vec2(az * 60.0, R.y * 40.0))));
             vec3 env = R.y < 0.0 ? mix(vec3(0.24, 0.24, 0.25) * (1.0 - 0.7 * night), bld, smoothstep(-0.25, 0.0, R.y)) : mix(bld, sky, smoothstep(skyline - 0.02, skyline + 0.02, R.y));
             env += uSunCol * pow(max(0.0, dot(R, normalize(uSunDir))), 400.0) * 6.0 * (1.0 - night);
@@ -377,7 +385,7 @@ export class Facades {
             // Panes not quite flat: the reflection wobbles a little from pane to pane.
             fres = clamp(fres * (0.85 + 0.3 * gh(cid + 9.1)), 0.0, 1.0);
             // Coated office glass reflects through its own tint (BLDG_4's dark blue panes); clear glass a little dimmer.
-            vec3 coat = kind == 4.0 || kind == 0.0 ? mix(vec3(0.5, 0.62, 0.8), vec3(0.55, 0.7, 0.68), step(0.5, fract(seed * 3.7))) : vec3(0.85);
+            vec3 coat = kind == 4.0 || kind == 0.0 ? mix(vec3(0.42, 0.52, 0.68), vec3(0.45, 0.58, 0.56), step(0.6, fract(seed * 3.7))) : vec3(0.85);
             vec3 col = mix(inside, env * coat, fres);
             // Curtain walls: thin mullions at each cell edge.
             if (kind == 4.0) {
@@ -398,8 +406,8 @@ export class Facades {
     const g = this.g;
     const night = this.uni.uNight.value;
     for (const [key, m] of this.mats) {
-      if (key === 'sign-wide' || key === 'sign-tall') m.emissiveIntensity = 0.06 + night * 1.25;
-      else if (key === 'tower') m.emissiveIntensity = 0.08 + night * 1.6;
+      if (key === 'sign-wide' || key === 'sign-tall') m.emissiveIntensity = 0.05 + night * 0.62;
+      else if (key === 'tower') m.emissiveIntensity = 0.06 + night * 1.0;
       else if (key === 'spill') m.opacity = night * 0.55;
     }
     if (g.sunDir) this.uni.uSunDir.value.copy(g.sunDir);

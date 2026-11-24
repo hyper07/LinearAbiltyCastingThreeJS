@@ -80,12 +80,29 @@ class Builder {
       this.tri(new THREE.Vector3(cx, y0 + h, cz), p(a1, y0 + h), p(a0, y0 + h), color.clone().multiplyScalar(1.1));
     }
   }
-  mesh(material) {
+  /** `metres`: give it texture coordinates in world metres ÷ this (walls: along them and up; tops: x, z). */
+  mesh(material, metres = 0) {
     if (!this.pos.length) return null;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
     g.computeVertexNormals();
+    if (metres) {
+      const p = this.pos;
+      const n = g.attributes.normal.array;
+      const uv = new Float32Array((p.length / 3) * 2);
+      for (let i = 0, k = 0; i < p.length; i += 3, k += 2) {
+        if (Math.abs(n[i + 1]) > 0.7) {
+          uv[k] = p[i] / metres;
+          uv[k + 1] = p[i + 2] / metres;
+        } else {
+          // Along the face: the horizontal direction across its normal.
+          uv[k] = (p[i] * -n[i + 2] + p[i + 2] * n[i]) / metres;
+          uv[k + 1] = p[i + 1] / metres;
+        }
+      }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    }
     const m = new THREE.Mesh(g, material);
     m.castShadow = m.receiveShadow = true;
     return m;
@@ -150,6 +167,18 @@ export class Golmok {
     this.group = new THREE.Group();
     game.scene.add(this.group);
     this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.05, envMapIntensity: 0.2 });
+    const surface = (id) => {
+      const load = (part) => {
+        const t = new THREE.TextureLoader().load(`./library/ambientcg/${id}/${id}_1K-JPG_${part}.jpg`, undefined, undefined, () => {});
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.anisotropy = 4;
+        if (part === 'Color') t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      };
+      return new THREE.MeshStandardMaterial({ map: load('Color'), normalMap: load('NormalGL'), vertexColors: true, roughness: 0.9, envMapIntensity: 0.2 });
+    };
+    this.brickMat = surface('Bricks101');
+    this.blockMat = surface('Concrete034');
     // The surface: matt like the city's own roads (no studio reflections to glow at night), darker when wet.
     this.groundMat = new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
     this.groundMat.onBeforeCompile = (shader) => {
@@ -214,6 +243,9 @@ export class Golmok {
     const r = rng(k * 7919 + Math.round(pts[0][0]) * 31 + 17);
     const ground = new Builder();
     const props = new Builder();
+    // Garden walls in real brick or concrete block (ambientCG, CC0), in world metres.
+    const brick = new Builder();
+    const block = new Builder();
     const signs = [];
     const lamps = [];
     const wires = [];
@@ -280,7 +312,7 @@ export class Golmok {
             // A garden wall, sometimes a gate in it.
             const col = pick(r, PAL.walls);
             const h = 1.7 + r() * 0.6;
-            props.box(ex + rx * side * 0.2 + ux * len / 2, base + h / 2, ez + rz * side * 0.2 + uz * len / 2, len / 2, h / 2, 0.11, hd + Math.PI / 2, col);
+            (col === PAL.walls[0] ? brick : block).box(ex + rx * side * 0.2 + ux * len / 2, base + h / 2, ez + rz * side * 0.2 + uz * len / 2, len / 2, h / 2, 0.11, hd + Math.PI / 2, col === PAL.walls[0] ? C('#f2e6e0') : col.clone().multiplyScalar(1.35));
             props.box(ex + rx * side * 0.2 + ux * len / 2, base + h + 0.04, ez + rz * side * 0.2 + uz * len / 2, len / 2 + 0.02, 0.05, 0.15, hd + Math.PI / 2, col.clone().multiplyScalar(1.15));
             if (r() < 0.3) {
               const [gx, gz] = along(len * (0.3 + r() * 0.4));
@@ -399,6 +431,7 @@ export class Golmok {
     const pm = props.mesh(this.mat);
     if (gm) group.add(gm);
     if (pm) group.add(pm);
+    for (const m of [brick.mesh(this.brickMat, 1.7), block.mesh(this.blockMat, 3)]) if (m) group.add(m);
     for (const w of wires) group.add(w);
     // Vertical signs: a lit box standing out from the wall, a word down each face.
     for (const s of signs) {
@@ -451,7 +484,11 @@ export class Golmok {
   dispose() {
     for (const [k, c] of [...this.chunks]) this._drop(k, c);
     this.g.scene.remove(this.group);
-    for (const m of [this.mat, this.groundMat, this.signMat, this.lampMat, this.wireMat, this.glowMat, this.poolMat]) m.dispose();
+    for (const m of [this.mat, this.brickMat, this.blockMat, this.groundMat, this.signMat, this.lampMat, this.wireMat, this.glowMat, this.poolMat]) {
+      m.map?.dispose();
+      m.normalMap?.dispose();
+      m.dispose();
+    }
     this.poolGeo.dispose();
     this.signs.tex.dispose();
     this.glowTex.dispose();
