@@ -4089,6 +4089,26 @@ export class BreadboardScene implements IBreadboardScene {
    * Not part of the scene contract — never called by product code.
    */
   /** Circuit Lab: true once when Space was used to pan (so Space-up does not toggle Run) */
+  /**
+   * Drag-and-drop from the Parts sheet: what lies under a screen point — the
+   * nearest free-or-not board hole (within the click snap) and the bench point
+   * on the board plane (for off-board units).
+   */
+  dropTargetAt(clientX: number, clientY: number): { hole: HoleRef | null; bench: { x: number; z: number } | null } {
+    const m = this.m
+    if (!m) return { hole: null, bench: null }
+    const rect = m.renderer.domElement.getBoundingClientRect()
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return { hole: null, bench: null }
+    this.pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1
+    this.pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1
+    this.raycaster.setFromCamera(this.pointerNdc, m.camera)
+    const hole = this.pickHole(HOLE_SNAP_DIST * 1.5)
+    const p = new THREE.Vector3()
+    const bench = this.rayToPlane(p) ? { x: p.x, z: p.z } : null
+    this.pointerDirty = true
+    return { hole, bench }
+  }
+
   consumeSpacePan(): boolean {
     const used = this.spacePanUsed
     this.spacePanUsed = false

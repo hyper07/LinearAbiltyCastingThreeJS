@@ -17,7 +17,7 @@ import { PreflightHost, requestRun } from './ui/lab/PreflightPanel'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, GrowDirection, MoveTarget } from './state/types'
 import { boardConfigOf } from './model/types'
-import { holePosition, moduleOfHole, parseHole } from './model/breadboard'
+import { formatHole, holePosition, moduleOfHole, offboardGeometry, parseHole } from './model/breadboard'
 import type { HoleRef, Rotation } from './model/types'
 import { placementValid, setLayoutLoadedSink, setProgramPreparer, setStressSink, setTelemetrySink, useStore, boardsNeedingCompile } from './state/store'
 import { getEntry } from './model/catalog'
@@ -393,6 +393,87 @@ function isEditableTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false
   const tag = t.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable
+}
+
+/** how far apart a dropped leaded part's legs go (columns): a resistor spans 4, an LED sits in 2 neighbouring holes */
+const DROP_SPAN: Record<string, number> = { resistor: 4, diode: 4, diode_1n4007: 4, zener_1n4733: 4, inductor: 4, photoresistor: 3, buzzer: 3, capacitor: 2, led: 1 }
+
+/**
+ * A part dragged from the Parts sheet and dropped on the scene: chips and
+ * footprint boards anchor at the hole under the pointer, leaded parts get
+ * their legs laid along the row at a sensible spacing (left or right, the
+ * first that fits), off-board units land on the bench where they were dropped.
+ * Returns false when nothing could be placed there (place mode stays armed).
+ */
+function dropPart(type: string, target: { hole: HoleRef | null; bench: { x: number; z: number } | null }): boolean {
+  const st = useStore.getState()
+  const entry = getEntry(type)
+  if (!entry) return false
+  const added = (before: number): string | null => {
+    const comps = useStore.getState().layout.components
+    return comps.length > before ? comps[comps.length - 1].id : null
+  }
+  const done = (id: string) => {
+    tick()
+    st.setMode({ kind: 'select' })
+    st.select(id)
+  }
+  const before = st.layout.components.length
+  if (entry.placement === 'offboard') {
+    st.addComponent(type, {})
+    const id = added(before)
+    if (!id) return false
+    if (target.bench) {
+      const snap = (v: number) => Math.round(v * 2) / 2
+      const geo = offboardGeometry(type)
+      // drop point = the middle of the unit's body
+      const cx = geo ? (geo.rect.x0 + geo.rect.x1) / 2 : 3
+      const cz = geo ? (geo.rect.z0 + geo.rect.z1) / 2 : 0
+      const res = useStore.getState().setInstrumentPos(id, { x: snap(target.bench.x - cx), z: snap(target.bench.z - cz) })
+      if (!res.ok) showToast(`${id} needs clear bench space — it went to the shelf instead`, { duration: 3000 })
+    }
+    done(id)
+    return true
+  }
+  const hole = target.hole
+  if (!hole) return false
+  if (entry.placement === 'dip' || entry.placement === 'footprint') {
+    const rotation = st.mode.kind === 'place' ? st.mode.rotation : undefined
+    st.addComponent(type, { at: hole, rotation })
+    const id = added(before)
+    if (id) done(id)
+    else showToast(`${entry.label} doesn’t fit there — drop it so its pins land on free holes`, { duration: 3000 })
+    return !!id
+  }
+  if (entry.placement === 'probe' || entry.pins.length === 1) {
+    st.addComponent(type, { holes: [hole] })
+    const id = added(before)
+    if (id) done(id)
+    return !!id
+  }
+  // leaded parts: lay the legs along the row
+  const h = parseHole(hole)
+  const n = entry.pins.length
+  const span = n > 2 ? 1 : (DROP_SPAN[type] ?? 3)
+  if (h && h.kind === 'strip') {
+    for (const dir of [1, -1]) {
+      const holes: HoleRef[] = []
+      for (let i = 0; i < n; i++) holes.push(formatHole({ ...h, col: h.col + dir * i * span }))
+      if (holes.every((ref, i) => parseHole(ref) && placementValid(st.layout, type, ref, holes.slice(0, i)))) {
+        st.addComponent(type, { holes })
+        const id = added(before)
+        if (id) {
+          done(id)
+          return true
+        }
+      }
+    }
+  }
+  // no room along the row (or a rail hole): first leg here, click the rest
+  st.setMode({ kind: 'place', type, pickedHoles: [] })
+  handleHoleClick(hole)
+  showToast(`Now click the hole for ${entry.label}’s other leg${n > 2 ? 's' : ''}`, { duration: 3200 })
+  return true
 }
 
 /** Duplicate via re-placement: same type re-enters place mode (the user taps
@@ -1081,6 +1162,11 @@ export default function App() {
 
       {/* sheets (each renders its own kit Sheet; panel mode on desktop) */}
       <PartsSheet
+        onDrop={(type, x, y) => {
+          const t = sceneRef.current?.dropTargetAt?.(x, y)
+          if (!t || (!t.hole && !t.bench)) return false
+          return dropPart(type, t)
+        }}
         open={activeSheet === 'parts'}
         onDismiss={() => setActiveSheet(null)}
         desktop={isDesktop}

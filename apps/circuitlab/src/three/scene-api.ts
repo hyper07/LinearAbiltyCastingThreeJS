@@ -167,6 +167,8 @@ export interface IBreadboardScene {
   setBoardSelection?(board: { col: number; row: number } | null): void
   /** over-limit heat / burned parts for the glow, smoke and scorch effects */
   setStress?(f: { heat: ReadonlyMap<string, number>; ratio: ReadonlyMap<string, number>; burned: ReadonlySet<string> }): void
+  /** drag-and-drop: the board hole and bench point under a screen position */
+  dropTargetAt?(clientX: number, clientY: number): { hole: HoleRef | null; bench: { x: number; z: number } | null }
   setSelection(ids: string[]): void
   /** wire-drawing preview from a fixed endpoint to the hovered hole */
   setWirePreview(from: HoleRef | string | null, to: HoleRef | null): void

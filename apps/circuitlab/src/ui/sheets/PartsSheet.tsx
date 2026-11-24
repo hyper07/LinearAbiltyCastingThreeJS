@@ -16,7 +16,7 @@
  *     desktop={isDesktop} />
  */
 import { openSpecs } from '../lab/SpecsPanel'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Sheet, pressProps, tick, CloseIcon } from '../kit'
 import { useStore } from '../../state/store'
 import { CATALOG, type CatalogEntry, type ComponentCategory } from '../../model/catalog'
@@ -339,11 +339,13 @@ export interface PartsSheetProps {
   onDismiss: () => void
   /** Render as the desktop floating panel (anchored left) instead. */
   desktop?: boolean
+  /** drag-and-drop: a card dropped at a screen point; true when something was placed */
+  onDrop?: (type: string, clientX: number, clientY: number) => boolean
 }
 
 type CatFilter = 'all' | ComponentCategory
 
-export function PartsSheet({ open, onDismiss, desktop = false }: PartsSheetProps) {
+export function PartsSheet({ open, onDismiss, desktop = false, onDrop }: PartsSheetProps) {
   const mode = useStore((s) => s.mode)
   const setMode = useStore((s) => s.setMode)
 
@@ -369,7 +371,57 @@ export function PartsSheet({ open, onDismiss, desktop = false }: PartsSheetProps
     )
   }, [query, cat])
 
+  // drag a card onto the bench: the place-mode ghost follows the pointer over
+  // the board, a chip with the part's name follows the cursor, drop places it
+  const drag = useRef<{ type: string; label: string; x: number; y: number; id: number; started: boolean; el: HTMLDivElement | null } | null>(null)
+  const dragged = useRef(false)
+  const beginDrag = (e: ReactPointerEvent<HTMLElement>, entry: CatalogEntry) => {
+    if (e.button !== 0 || e.pointerType === 'touch' || !onDrop) return // touch: tap to place
+    drag.current = { type: entry.type, label: entry.label, x: e.clientX, y: e.clientY, id: e.pointerId, started: false, el: null }
+    const move = (ev: PointerEvent) => {
+      const d = drag.current
+      if (!d || ev.pointerId !== d.id) return
+      if (!d.started) {
+        if (Math.hypot(ev.clientX - d.x, ev.clientY - d.y) < 8) return
+        d.started = true
+        dragged.current = true
+        // bench units are placed where they are dropped (place mode would add them to the shelf at once)
+        if (entry.placement !== 'offboard') setMode({ kind: 'place', type: d.type, pickedHoles: [] })
+        if (!desktop) setSnap(PEEK)
+        const el = document.createElement('div')
+        el.className = 'psh-drag-chip'
+        el.textContent = d.label
+        document.body.append(el)
+        document.body.classList.add('psh-dragging')
+        d.el = el
+      }
+      if (d.el) d.el.style.transform = `translate(${ev.clientX + 16}px, ${ev.clientY + 14}px)`
+    }
+    const up = (ev: PointerEvent) => {
+      if (drag.current && ev.pointerId !== drag.current.id) return
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      const d = drag.current
+      drag.current = null
+      if (!d?.started) return
+      d.el?.remove()
+      document.body.classList.remove('psh-dragging')
+      setTimeout(() => (dragged.current = false), 0)
+      const under = document.elementFromPoint(ev.clientX, ev.clientY)
+      const onScene = ev.type === 'pointerup' && under instanceof HTMLCanvasElement
+      if (!onScene || !onDrop(d.type, ev.clientX, ev.clientY)) {
+        // dropped off the bench: keep the part armed so a click still places it
+        if (onScene) tick()
+      }
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+  }
+
   const onCard = (entry: CatalogEntry) => {
+    if (dragged.current) return // the end of a drag, not a tap
     tick()
     if (armedType === entry.type) {
       // tapping the armed card cancels placement
@@ -435,7 +487,9 @@ export function PartsSheet({ open, onDismiss, desktop = false }: PartsSheetProps
                   aria-pressed={armed}
                   aria-label={`${entry.label}, ${placementMeta(entry)}${armed ? ', placing' : ''}`}
                   {...pressProps}
+                  onPointerDownCapture={(e) => beginDrag(e, entry)}
                   onClick={() => onCard(entry)}
+                  title="Click to place, or drag onto the board"
                 >
                   <span className="psh-card-glyph" aria-hidden="true">
                     <PartGlyph entry={entry} />

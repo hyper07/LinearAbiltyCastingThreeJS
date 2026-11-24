@@ -256,3 +256,24 @@
   background: #0a84ff;
   border-color: #0a84ff;
 }
+
+/* drag-and-drop: the chip that follows the cursor */
+.psh-drag-chip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 300;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #0a84ff;
+  color: #fff;
+  font: 600 13px var(--lg-font);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  white-space: nowrap;
+}
+body.psh-dragging,
+body.psh-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
