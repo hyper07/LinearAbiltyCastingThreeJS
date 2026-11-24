@@ -57,7 +57,10 @@ export function faceSvg(species, size = 40) {
     penguin: ''
   }[sp.animal] ?? '';
   const hat = sp.animal === 'cat' || sp.animal === 'penguin' ? `<path d="M8 16 Q20 1 32 16Z" fill="${a}"/><circle cx="20" cy="5" r="4" fill="${a}" stroke="#fff" stroke-width="1"/>` : '';
-  const goggles = sp.animal === 'fox' || sp.animal === 'pig' || sp.animal === 'bunny' ? `<rect x="8" y="14" width="24" height="7" rx="3.5" fill="${a}"/><ellipse cx="15" cy="17.5" rx="4" ry="2.6" fill="#fff" opacity=".55"/><ellipse cx="25" cy="17.5" rx="4" ry="2.6" fill="#fff" opacity=".55"/>` : '';
+  // everyone rides with goggles down over the eyes (the Classic pair: the rider's frame colour, an amber mirror lens)
+  const gy = sp.animal === 'frog' ? 13 : 22.5, gw = sp.animal === 'frog' ? 30 : 26;
+  const fr = sp.goggleFrame ?? a;
+  const goggles = `<defs><linearGradient id="gl-${sp.animal}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a1a"/><stop offset="1" stop-color="#ffc24a"/></linearGradient></defs><path d="M${20 - gw / 2} ${gy} H${20 + gw / 2}" stroke="#2a2f4a" stroke-width="2.4"/><rect x="${20 - gw / 2 + 2}" y="${gy - 4.2}" width="${gw - 4}" height="8.4" rx="4.2" fill="url(#gl-${sp.animal})" stroke="${fr}" stroke-width="2.2"/><path d="M${20 - gw / 2 + 6} ${gy - 1.6} h5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".8"/>`;
   const scarf = sp.animal === 'bear' ? `<rect x="9" y="33" width="22" height="5" rx="2.5" fill="${a}"/>` : '';
   const snout = sp.animal === 'pig' ? `<ellipse cx="20" cy="28" rx="5" ry="3.6" fill="${l}"/><circle cx="18.3" cy="28" r="1" fill="#7a3a3a"/><circle cx="21.7" cy="28" r="1" fill="#7a3a3a"/>` : sp.animal === 'penguin' ? `<path d="M17 27 L23 27 L20 31Z" fill="#ff9f1c"/>` : sp.animal === 'fox' ? `<path d="M6 24 Q20 40 34 24 Q27 31 20 31 Q13 31 6 24Z" fill="${l}"/><ellipse cx="20" cy="28.5" rx="2.6" ry="1.9" fill="#2a1a14"/>` : `<ellipse cx="20" cy="28" rx="6" ry="4.2" fill="${l}"/>`;
   const eyesY = sp.animal === 'frog' ? 13 : 23;

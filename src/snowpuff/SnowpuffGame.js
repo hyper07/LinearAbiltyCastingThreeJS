@@ -1445,7 +1445,7 @@ export class SnowpuffGame {
       // the fun boards' trails (cosmetic, near you only)
       if (!rc.gone && rc.board && rc.board !== 'classic' && Math.hypot(x - cam.x, z - cam.z) < 45) {
         const yawW = f.heading + rd.yaw;
-        this.fx.boardTrail(rc.board, x, rd.y, z, [Math.sin(yawW), -Math.cos(yawW)], { speed: rd.speed, air: rd.air, boost: rd.boost > 0, carve: Math.abs(rd.edge ?? 0), landed: rc.justLanded, trick: rc.trickNow }, dt);
+        this.fx.boardTrail(rc.board, x, rd.y, z, [Math.sin(yawW), -Math.cos(yawW)], { speed: rd.speed, air: rd.air, boost: rd.boost > 0, carve: Math.abs(rd.edge ?? 0), landed: rc.justLanded, trick: rc.trickNow, holder: rc }, dt);
       }
       rc.trickNow = false;
       rc.prev.s = rd.s;

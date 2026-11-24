@@ -145,31 +145,45 @@ export function backdropPlace(course, m) {
   const dist = pk.dist ?? 1700;
   const ex = course.px[i1], ez = course.pz[i1];
   const at = (side) => [ex + ux * dist + rx * dist * side, ez + uz * dist + rz * dist * side];
+  // how much of the run sees it ahead (within ~26° of the way you face), the middle of the run counting most
   const inView = (x, z) => {
     let k = 0, n = 0;
     for (let s = 0; s < L; s += 10) {
       const f = frameAt(course, s);
       const a = Math.atan2(x - f.x, -(z - f.z));
-      if (Math.abs(Math.atan2(Math.sin(a - f.heading), Math.cos(a - f.heading))) < 0.6) k++;
-      n++;
+      const w = 0.6 + Math.sin((s / L) * Math.PI) * 0.6;
+      if (Math.abs(Math.atan2(Math.sin(a - f.heading), Math.cos(a - f.heading))) < 0.45) k += w;
+      n += w;
     }
     return k / n;
   };
+  // is its footprint (about `r` across) clear of every part of the run?
+  const clear = (x, z, r) => {
+    for (let i = 0; i < course.n; i += 8) if (Math.hypot(course.px[i] - x, course.pz[i] - z) < r + 250) return false;
+    return true;
+  };
   let side = pk.side ?? 0, best = -1;
+  let pick = null;
   if (pk.side == null) {
-    for (let sd = -0.45; sd <= 0.451; sd += 0.05) {
-      const [x, z] = at(sd);
-      const v = inView(x, z) - Math.abs(sd) * 0.05;
+    // try every direction round the middle of the run, at the same distance, and keep the one most in view
+    const m0 = frameAt(course, L / 2);
+    const [x0, z0] = at(0);
+    const D = Math.hypot(x0 - m0.x, z0 - m0.z);
+    const r0 = Math.min(dist - 450, (pk.radius ?? 1100) * ((D * 0.41) / (pk.height ?? 900)));
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 36) {
+      const x = m0.x + Math.sin(a) * D, z = m0.z - Math.cos(a) * D;
+      if (!clear(x, z, r0)) continue;
+      const v = inView(x, z);
       if (v > best) {
         best = v;
-        side = sd;
+        pick = [x, z];
       }
     }
   }
   // the hero standard: seen from mid-run its summit stands ~19° up and its
   // foot sits just under the horizon, so it fills a third of the view ahead
   // (its footprint never reaches the finish: radius ≤ dist − 450)
-  const [x, z] = at(side);
+  const [x, z] = pick ?? at(side);
   const mid = frameAt(course, L / 2);
   const elev = ((pk.elev ?? 19) * Math.PI) / 180;
   const foot = ((pk.foot ?? 4) * Math.PI) / 180;
@@ -177,7 +191,8 @@ export function backdropPlace(course, m) {
   const height = dm * (Math.tan(elev) + Math.tan(foot));
   const radius = Math.min(dist - 450, (pk.radius ?? 1100) * (height / (pk.height ?? 900)));
   const y = mid.y + Math.tan(elev) * dm - height;
-  const out = { x, y, z, height, radius, side, yaw: Math.atan2(ux, -uz) + (pk.yaw ?? 0) };
+  // it faces the middle of the run
+  const out = { x, y, z, height, radius, side, yaw: Math.atan2(x - mid.x, -(z - mid.z)) + (pk.yaw ?? 0) };
   _places.set(course, out);
   return out;
 }

@@ -190,28 +190,29 @@ export class Effects {
    */
   boardTrail(kind, x, y, z, fwd, s, dt) {
     const bx = x - fwd[0] * 0.55, bz = z - fwd[1] * 0.55;
+    const h = s.holder ?? this;
     const rate = (n) => {
-      this.trailAcc = (this.trailAcc ?? 0) + n * dt * this.scale;
-      const k = Math.floor(this.trailAcc);
-      this.trailAcc -= k;
+      h.trailAcc = (h.trailAcc ?? 0) + n * dt * Math.max(0.5, this.scale);
+      const k = Math.floor(h.trailAcc);
+      h.trailAcc -= k;
       return k;
     };
     if (kind === 'rainbow' && !s.air && s.speed > 4) {
       for (let i = rate(40); i > 0; i--) {
         const c = RAINBOW[Math.floor(Math.random() * RAINBOW.length)];
-        this.sparkle.add(bx + (Math.random() - 0.5) * 0.2, y + 0.06, bz + (Math.random() - 0.5) * 0.2, 0, 0.15, 0, { life: 1.2, size: 0.13, grow: 1.4, alpha: 0.7, drag: 3, grav: 0, col: c });
+        this.sparkle.add(bx + (Math.random() - 0.5) * 0.2, y + 0.06, bz + (Math.random() - 0.5) * 0.2, 0, 0.15, 0, { life: 1.3, size: 0.18, grow: 1.5, alpha: 0.85, drag: 3, grav: 0, col: c });
       }
     } else if (kind === 'pizza' && s.air) {
-      for (let i = rate(14); i > 0; i--) this.motes.add(bx, y - 0.02, bz, (Math.random() - 0.5) * 0.4, -0.6, (Math.random() - 0.5) * 0.4, { life: 0.6, size: 0.025, alpha: 1, drag: 1, grav: -3, stretch: 4, rot: Math.PI / 2, col: CHEESE });
+      for (let i = rate(14); i > 0; i--) this.motes.add(bx, y - 0.02, bz, (Math.random() - 0.5) * 0.4, -0.6, (Math.random() - 0.5) * 0.4, { life: 0.7, size: 0.04, alpha: 1, drag: 1, grav: -3, stretch: 5, rot: Math.PI / 2, col: CHEESE });
     } else if (kind === 'surf' && !s.air && s.speed > 6) {
-      for (let i = rate(10 + s.carve * 40); i > 0; i--) this.powder.add(bx, y + 0.05, bz, (Math.random() - 0.5) * 2, 1.5 + Math.random() * 1.5, (Math.random() - 0.5) * 2, { life: 0.7, size: 0.18, grow: 2, alpha: 0.6, drag: 2, grav: -5, col: SURF });
+      for (let i = rate(10 + s.carve * 40); i > 0; i--) this.powder.add(bx, y + 0.05, bz, (Math.random() - 0.5) * 2, 1.5 + Math.random() * 1.5, (Math.random() - 0.5) * 2, { life: 0.8, size: 0.24, grow: 2.2, alpha: 0.75, drag: 2, grav: -5, col: SURF });
     } else if (kind === 'rocket' && s.boost) {
-      for (let i = rate(50); i > 0; i--) this.sparkle.add(bx, y + 0.06, bz, -fwd[0] * 3 + (Math.random() - 0.5), 0.3, -fwd[1] * 3 + (Math.random() - 0.5), { life: 0.35, size: 0.14, grow: 0.4, alpha: 1, drag: 2, grav: 0, col: FLAME });
+      for (let i = rate(50); i > 0; i--) this.sparkle.add(bx, y + 0.06, bz, -fwd[0] * 3 + (Math.random() - 0.5), 0.3, -fwd[1] * 3 + (Math.random() - 0.5), { life: 0.4, size: 0.22, grow: 0.4, alpha: 1, drag: 2, grav: 0, col: FLAME });
       for (let i = rate(12); i > 0; i--) this.powder.add(bx, y + 0.1, bz, -fwd[0] * 1.5, 0.6, -fwd[1] * 1.5, { life: 0.9, size: 0.2, grow: 3, alpha: 0.45, drag: 1.5, grav: 0.4, col: SMOKE });
     } else if (kind === 'cookie' && s.landed) {
       for (let i = 0; i < 14 * this.scale; i++) this.confetti.add(x, y + 0.1, z, (Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3, { life: 1, size: 0.05, alpha: 1, drag: 1.2, grav: -6, col: SPRINKLES[i % SPRINKLES.length], rot: Math.random() * 6, rv: 8, stretch: 1.5 });
     } else if (kind === 'cloud' && s.speed > 4) {
-      for (let i = rate(6); i > 0; i--) this.powder.add(bx, y + 0.1, bz, (Math.random() - 0.5) * 0.4, 0.3, (Math.random() - 0.5) * 0.4, { life: 1.4, size: 0.25, grow: 2.2, alpha: 0.7, drag: 2, grav: 0.2, col: PLUME });
+      for (let i = rate(6); i > 0; i--) this.powder.add(bx, y + 0.1, bz, (Math.random() - 0.5) * 0.4, 0.3, (Math.random() - 0.5) * 0.4, { life: 1.6, size: 0.32, grow: 2.4, alpha: 0.85, drag: 2, grav: 0.2, col: PLUME });
     } else if (kind === 'melon' && s.trick) {
       for (let i = 0; i < 12 * this.scale; i++) this.confetti.add(x, y + 0.3, z, (Math.random() - 0.5) * 4, 2 + Math.random() * 2, (Math.random() - 0.5) * 4, { life: 1, size: 0.05, alpha: 1, drag: 1, grav: -7, col: SEED, rot: Math.random() * 6, rv: 6, stretch: 0.6 });
     }

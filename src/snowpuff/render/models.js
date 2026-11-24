@@ -12,6 +12,28 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import { POLYFORK } from '../assets.js';
+import { length, positionWorld, cameraPosition, interleavedGradientNoise, screenCoordinate } from 'three/tsl';
+
+/**
+ * Keep props out of the lens: a dithered fade (TRAA smooths it) that removes
+ * any prop surface within ~2–4.5 m of the camera — banners, signs, poles and
+ * chairs that would otherwise fill a corner of the screen as you pass.
+ */
+export const NEAR_LENS = length(positionWorld.sub(cameraPosition)).sub(2.2).div(2.3).greaterThan(interleavedGradientNoise(screenCoordinate));
+
+/** Give every opaque prop material under `root` the near-lens fade (skipping `except`). */
+export function fadeNearLens(root, except = new Set()) {
+  const done = new Set();
+  root.traverse((o) => {
+    if (!o.isMesh || o.userData.ground) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m || done.has(m) || except.has(m)) continue;
+      done.add(m);
+      if (!(m.isMeshStandardNodeMaterial || m.isMeshPhysicalNodeMaterial) || m.fog === false || m.maskNode || (m.transparent && !m.depthWrite)) continue;
+      m.maskNode = NEAR_LENS;
+    }
+  });
+}
 
 export { POLYFORK };
 

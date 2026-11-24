@@ -12,7 +12,7 @@ import { uniform, vec3, float, mix, smoothstep, positionLocal, positionWorld, in
 import { instanceColor as instanceColorNode } from './render/instanceColor.js';
 import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT, project } from './course.js';
 import { snowMaterial, iceMaterial } from './render/snow.js';
-import { loadKit, instance } from './render/models.js';
+import { loadKit, instance, fadeNearLens } from './render/models.js';
 import { RiderModel } from './render/riderModel.js';
 import { ALL_SPECIES } from './riders.js';
 import { KEEP_BUFFERS } from './fx.js';
@@ -108,6 +108,8 @@ export class World {
     progress('Raising the famous mountain on the skyline', 0.9);
     await idle();
     this.buildLandmarks();
+    // banners, poles, signs, chairs and the like never fill the lens as you pass them
+    fadeNearLens(this.scene, new Set([this.snow]));
   }
 
   /* ---------------------------------------------------------------- the famous mountain and its place */
@@ -118,7 +120,7 @@ export class World {
       this.hero = buildHeroPeak(c, m, this.sky);
       this.root.add(this.hero);
     }
-    const water = buildWater(c, m);
+    const water = buildWater(c, m, this.sky);
     if (water) this.root.add(water);
     // the scenery beside the run, one instanced group per kind per section
     const byKey = new Map();
@@ -343,7 +345,9 @@ export class World {
     g.setAttribute('side', new THREE.Float32BufferAttribute(side, 2));
     g.setIndex(idx);
     g.computeBoundingSphere();
-    return new THREE.Mesh(g, material);
+    const mesh = new THREE.Mesh(g, material);
+    mesh.userData.ground = true; // on the snow: never faded near the lens
+    return mesh;
   }
 
   buildKickers() {

@@ -78,7 +78,10 @@ export function buildCourse(m) {
     const R = lerp(T.radius[0], T.radius[1], rand());
     let ang = lerp(T.angle[0], T.angle[1], rand());
     // keep the run heading downhill overall: turn back toward the fall line when far off it
-    if (Math.abs(h + side * ang) > 0.9) side = -Math.sign(h) || 1;
+    // (on a famous mountain, closer still, so its peak stays ahead as the curves swing it side to side)
+    const lim = m.peak ? 0.5 : 0.9;
+    if (Math.abs(h + side * ang) > lim) side = -Math.sign(h) || 1;
+    if (m.peak) ang = Math.min(ang, Math.max(0.3, lim - side * h));
     const len = Math.min(ang * R, L - 90 - s0);
     ang = len / R;
     const isBerm = rand() < T.berm;

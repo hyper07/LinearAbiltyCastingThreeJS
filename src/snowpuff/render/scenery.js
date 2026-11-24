@@ -10,7 +10,7 @@
  * (polyfork, credited) or built here from a few soft primitives.
  */
 import * as THREE from 'three/webgpu';
-import { normalLocal, normalWorld, uniform, vec2, vec3, vec4, float, mix, smoothstep, positionLocal, positionWorld, output, color, uv, sin, time, mx_noise_float, pow, abs, normalize, cameraPosition, max, dot, normalView, positionViewDirection, step, fract } from 'three/tsl';
+import { length, normalLocal, normalWorld, uniform, vec2, vec3, vec4, float, mix, smoothstep, positionLocal, positionWorld, output, color, uv, sin, time, mx_noise_float, pow, abs, normalize, cameraPosition, max, dot, normalView, positionViewDirection, step, fract } from 'three/tsl';
 import { profile, backdropPlace } from '../landmarks.js';
 import { frameAt, groundAt, toWorld } from '../course.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -137,7 +137,7 @@ export function faceClouds(group, camera) {
 /* ---------------------------------------------------------------- water */
 
 /** The sea around an island (Jeju) or a lake below the run (Kawaguchi, Moraine, a laguna). */
-export function buildWater(course, m) {
+export function buildWater(course, m, sky = null) {
   const w = m.water;
   if (!w) return null;
   const g = new THREE.Group();
@@ -153,7 +153,12 @@ export function buildWater(course, m) {
     const sea = new THREE.Mesh(new THREE.CircleGeometry(9000, 64).rotateX(-Math.PI / 2), mat(w.sea));
     sea.position.set((course.px[0] + b.x) / 2, course.py[Math.round(L)] - 60, (course.pz[0] + b.z) / 2);
     sea.frustumCulled = false;
-    sea.material.fog = true;
+    if (sky) {
+      // its own gentle haze, so the blue still shows out to the island's foot
+      sea.material.fog = false;
+      const d = length(positionWorld.sub(cameraPosition));
+      sea.material.outputNode = vec4(mix(output.rgb, sky.u.fog, smoothstep(300, 7000, d).mul(0.55)), 1);
+    } else sea.material.fog = true;
     g.add(sea);
   }
   if (w.lake) {
@@ -349,7 +354,7 @@ export function toriiGate(course, s) {
 export function buildTrain(course, s) {
   const f = frameAt(course, s);
   const span = f.width + 60;
-  const y0 = groundAt(course, s, 0, false) + 10;
+  const y0 = groundAt(course, s, 0, false) + 17; // high, so it clears the view of the peak but for a moment
   const g = new THREE.Group();
   const stone = std('#8d8478', { roughness: 1 });
   const deck = new THREE.Mesh(new THREE.BoxGeometry(span * 2, 1.2, 3.2), stone);
