@@ -249,18 +249,23 @@ export function planTree(count) {
     return out.sort((a, b) => a.y - b.y);
   }
 
-  /** The surface at a spot nearest to height `y` (the lowest if no height is given), or null. */
+  /**
+   * The surface at a spot nearest to height `y` (the lowest if no height is given), or null.
+   * With a height, a surface more than REACH away (another ring, a storey up or down) is not
+   * yours: null, so a walker never snaps onto a bridge above or below.
+   */
+  const REACH = 4;
   function locate(x, z, y) {
     const list = surfaces(x, z);
     if (!list.length) return null;
     if (y == null || !Number.isFinite(y)) return list[0];
     let best = list[0];
     for (const s of list) if (Math.abs(s.y - y) < Math.abs(best.y - y)) best = s;
-    return best;
+    return Math.abs(best.y - y) <= REACH ? best : null;
   }
   /** The walking surface's height without the school plinths (what the decks and bridges draw). */
   function ground(x, z, y) {
-    return locate(x, z, y)?.y ?? TREE.ground;
+    return locate(x, z, y)?.y ?? y ?? TREE.ground;
   }
   /** The height a walker stands at — a deck, a bridge, the stair — and up onto a school's plinth. */
   function height(x, z, y) {

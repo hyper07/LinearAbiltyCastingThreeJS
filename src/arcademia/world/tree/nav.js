@@ -191,16 +191,21 @@ export function buildLayerNav(plan, { cell = 0.8, locked = () => false, blockers
     return out.map((p) => [p.x, p.z, p.y]);
   }
 
-  /** May a walker at height y step from one point to another (WASD)? */
+  /**
+   * May a walker at height y step from one point to another (WASD)? Only onto an
+   * open cell about as high as where they stand — never up or down to another ring,
+   * even when standing on a closed cell (a rim, by a building) to walk out of it.
+   */
   function canStep(fx, fz, tx, tz, y) {
     const a = toCell(fx, fz), b = toCell(tx, tz);
     if (!inGrid(a[0], a[1]) || !inGrid(b[0], b[1])) return false;
     const la = layerAt(a[0], a[1], y);
     const from = la * N + a[1] * w + a[0];
+    const fromY = h[from] > -1e3 ? h[from] : y ?? 0;
     for (const lb of [la, la + 1, la - 1]) {
       if (!isOpen(lb, b[0], b[1])) continue;
-      if (a[0] === b[0] && a[1] === b[1] && lb === la) return true;
-      if (!open[from] || stepOk(from, lb * N + b[1] * w + b[0])) return true;
+      const to = lb * N + b[1] * w + b[0];
+      if (Math.abs(h[to] - fromY) < cell * 0.95 && (y == null || Math.abs(h[to] - y) < 2)) return true;
     }
     return false;
   }

@@ -946,6 +946,15 @@ export class World {
       }
       speed = 5.2;
     }
+    // Safety net (the tree): nothing to stand on near this height — back onto the nearest open spot of your own floor.
+    if (this.isTree && !this.path && !this.plan.locate(kp.x, kp.z, kp.y)) {
+      const fy = this.plan.floors[this.kidFloor - 1].y;
+      const spot = this.nav.nearestOpen(kp.x, kp.z, fy);
+      if (spot) kp.set(spot[0], fy, spot[1]);
+      this.path = null;
+      this.arrive = null;
+      this.marker.visible = false;
+    }
     kp.y = THREE.MathUtils.lerp(kp.y, this.plan.height(kp.x, kp.z, kp.y), Math.min(1, dt * 18));
     this.kid.group.position.copy(kp);
     this.kid.group.rotation.y = this.kidHeading;

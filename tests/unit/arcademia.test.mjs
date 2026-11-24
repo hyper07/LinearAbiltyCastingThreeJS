@@ -441,3 +441,31 @@ test('great tree: rings all round the trunk, every place reachable, a locked rin
   const t1 = plan.floors[0].places[2].at;
   assert.ok(shut.findPath([s.x, s.z, s.y], [t1.x, t1.z, t1.y]), 'ring 1 still open');
 });
+
+test('great tree: a step never lands on another ring (no jumping up to the bridge above)', async () => {
+  const { planTree } = await import('../../src/arcademia/world/tree/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const plan = planTree(FLOORS.length);
+  const blockers = plan.floors.flatMap((f) => f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })));
+  // Ring 1 open, the rest locked: the case where a buddy who slipped up a storey was stuck.
+  const nav = buildLayerNav(plan, { blockers, locked: (n) => n >= 2 });
+  const { w, d, cell, x0, z0, h } = nav;
+  const N = w * d;
+  let jumps = 0;
+  for (let l = 0; l < 2; l++) for (let j = 1; j < d - 1; j++) for (let i = 1; i < w - 1; i++) {
+    const y = h[l * N + j * w + i];
+    if (y < -1e3) continue;
+    const ax = x0 + (i + 0.5) * cell, az = z0 + (j + 0.5) * cell;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+      const bx = ax + di * cell, bz = az + dj * cell;
+      if (nav.canStep(ax, az, bx, bz, y) && Math.abs(plan.height(bx, bz, y) - y) > 2) jumps++;
+    }
+  }
+  assert.equal(jumps, 0, 'steps that change ring');
+  // Standing under a bridge of the ring above with nothing below: no surface of yours, not the bridge.
+  const L = plan.floors[1].links.find((q) => q.type === 'rope');
+  const mx = L.ax + L.dx * (L.a0 + L.a1) / 2, mz = L.az + L.dz * (L.a0 + L.a1) / 2;
+  const here = plan.locate(mx, mz, 0);
+  assert.ok(!here || Math.abs(here.y) < 4, 'not the bridge a storey up');
+  assert.ok(Math.abs(plan.height(mx, mz, 0)) < 4, 'a walker on ring 1 stays at ring 1');
+});

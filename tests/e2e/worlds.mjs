@@ -54,8 +54,30 @@ export async function run(browser) {
     await page.waitForTimeout(700);
     await page.keyboard.up('KeyS');
     t.check('WASD keeps the buddy on its deck', await page.evaluate((y) => Math.abs(window.arcademia.world.kidPos.y - y) < 0.8, y0));
+    // WASD at the edge of every deck (under the bridges of the ring above): never up onto another ring.
+    let worst = 0;
+    const rims = await page.evaluate(() => {
+      const f = window.arcademia.world.plan.floors[0];
+      const out = [];
+      for (const p of Object.values(f.pads)) if (!p.landing) for (let a = 0; a < 6.28; a += 0.8) out.push([p.x + Math.sin(a) * (p.pr - 0.35), p.z + Math.cos(a) * (p.pr - 0.35)]);
+      return out;
+    });
+    for (const [i, [x, z]] of rims.entries()) {
+      await page.evaluate(([x, z]) => {
+        const w = window.arcademia.world;
+        w.kidPos.set(x, w.plan.height(x, z, 0), z);
+        w.path = null;
+      }, [x, z]);
+      const key = ['KeyW', 'KeyA', 'KeyS', 'KeyD'][i % 4];
+      await page.keyboard.down(key);
+      await page.waitForTimeout(260);
+      await page.keyboard.up(key);
+      worst = Math.max(worst, await page.evaluate(() => Math.abs(window.arcademia.world.kidPos.y)));
+    }
+    t.check('WASD at every deck edge stays on ring 1 (never jumps up to a bridge)', worst < 2, `highest ${worst.toFixed(1)} m`);
     await page.evaluate(() => {
       const w = window.arcademia.world;
+      w.teleport(1);
       w.select(w.places.find((p) => p.kind === 'worlds'), true);
     });
     t.check('walking into the tree\'s World Portal opens the picker', await until(page, () => Boolean(document.querySelector('.arc-modal--worlds')), null, 40000));
