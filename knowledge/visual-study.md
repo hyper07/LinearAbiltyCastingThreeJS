@@ -16,6 +16,9 @@ the distilled design knowledge. Each section ends with **Do** lines.
   duplicate, irrelevant) are kept in the catalogue but left out of search.
 - **Rendering:** how to make these looks in three.js is in
   [render-quality.md](render-quality.md).
+- **Second batch:** 93 more screenshots in `images2/` (`ref.img2-0258` ↔
+  `images2/IMG_0258.PNG`), studied 2026-11-24: racing cars, RC cars and FPV
+  drones in [racing-study.md](racing-study.md), scene moods in §11 below.
 - **Rule:** learn the layout, measurement, colour and timing; build original
   games. Never rebuild a specific game's screens, characters or art.
 
@@ -31,6 +34,7 @@ the distilled design knowledge. Each section ends with **Do** lines.
 8. [Scenes, light and palettes](#8-scenes-light-and-palettes)
 9. [What each focus game should take](#9-what-each-focus-game-should-take)
 10. [The best references](#10-the-best-references)
+11. [Second batch (images2/): scene moods](#11-second-batch-images2-scene-moods)
 
 ---
 
@@ -310,3 +314,28 @@ player forward.
 | `ref.img-9982` | Roguelite route map |
 | `ref.img-9960` | Maths battle and parent dashboard |
 | `ref.img-0181`, `9924-2`, `0137` | Violet forest, lamp-orb paths, glowing mushrooms |
+
+## 11. Second batch (images2/): scene moods
+
+Of the 93 screenshots in `images2/`, about 20 are vehicles (see
+[racing-study.md](racing-study.md)); the rest are mostly AI-generated mood
+stills, a few photos of Japan and Korea, and MMO / ARPG shots. Patterns:
+
+| Mood | Refs | What to take |
+|---|---|---|
+| Cosy window: warm inside, cool outside | 0262, 0323, 0332, 0338, 0349 | ~60/40 cool/warm; few warm sources, dark materials, a big window onto blue night or rain |
+| Snow at night | 0266, 0291, 0328, 0339 | everything in blue values (`#1b2a5a`→`#9fb3e8`), the path lightest, one amber lantern (`#ffb347`); a Korean palace in snow (0291) as a winter backdrop. Snowpuff night runs |
+| Lanterns and festivals | 0276, 0319, 0339 | many small warm points, each with a soft halo in fog; instance thousands cheaply |
+| Rain, wet paths | 0306, 0307, 0321, 0335, 0344, 0346 | wet = darker + glossy; lights smear into vertical streaks; mist planes for depth |
+| Autumn | 0331, 0340, 0341, 0344, 0348 | red/orange canopy + green moss; leaves carpet the path and lead the eye; framing branches |
+| Summer anime | 0300, 0306, 0322 | cobalt sky, huge white cumulus, turquoise water, saturated greens, soft shadows |
+| Japanese shrines and terraces | 0281, 0282, 0309, 0317 | one red torii as the focal point; flooded terraces mirror the sky; sun aligned with a straight path |
+| Korean night villages | 0291, 0324 | dark greens, a few warm windows, curving roads into the dark |
+| Sci-fi megacities | 0289, 0294, 0296, 0297, 0305 | vertical clutter + warm windows in cool rain; layered traffic at heights |
+| Scale vistas | 0265, 0274, 0288, 0295 | tiny figure, giant landform; warm aerial haze with distance |
+| Kids' cute | 0304 (hamsters in knitted hats), 0303 (spiral flower maze) | small animals in soft knitted hats; a spiral of round bushes as a ready-made kids' course |
+| Game HUD | 0263 (ARPG orbs + vortex spell), 0258 (rider on a beast) | health/mana orbs in the bottom corners, skills between; spiral spell = bright thin rings + floor glow decal |
+
+0311 and 0320 show existing cartoon characters: take the mood only, never the
+characters.
+

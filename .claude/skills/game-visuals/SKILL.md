@@ -28,6 +28,8 @@ Then read only the section a record names:
   things that matter, §3 WebGPU recipe, §4 WebGL2 upgrades for current games, §5 tiers and
   budgets, §6 cute doll/plush characters, §7 snow and board trails, §8 effect layer stack,
   §9 open-source picks, §10 what looks cheap.
+- `images2/` (93 more, `ref.img2-*`): scene moods in `visual-study.md` §11; racing cars,
+  RC cars and FPV drones in `knowledge/racing-study.md` (use the `racing-rc` skill).
 - `knowledge/visual-refs.json` — the full per-image catalogue (HUD element positions,
   effect layers, hex palettes, lighting, concept notes). Grep it; don't read it whole.
 

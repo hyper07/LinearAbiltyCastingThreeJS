@@ -98,7 +98,7 @@ if (existsSync(path.join(ROOT, PARTS))) {
   }
 }
 
-// 4b. Reference screenshots studied from images/ (kept out of git): HUDs, skill bars, effects,
+// 4b. Reference screenshots studied from images/ and images2/ (kept out of git): HUDs, skill bars, effects,
 // menus, scenes and game concepts. The record points at the study; `image` is the local file.
 // Ones rated 1 (blurry, duplicate, off-topic) stay in the catalogue but out of search.
 const REFS = 'knowledge/visual-refs.json';
@@ -112,9 +112,9 @@ if (existsSync(path.join(ROOT, REFS))) {
       title: `${r.title} (${r.type}, ${r.quality}/5)`,
       summary: `${r.concept ? `Concept: ${r.concept} ` : ''}${r.lessons[0] ?? r.summary}${fx}`,
       tags: [r.type, ...r.useFor, ...(r.concept ? ['concept'] : []), ...r.tags],
-      path: 'knowledge/visual-study.md',
+      path: r.study ?? 'knowledge/visual-study.md',
       image: r.image,
-      from: 'visual-study',
+      from: r.study ? path.basename(r.study, '.md') : 'visual-study',
     });
   }
 }

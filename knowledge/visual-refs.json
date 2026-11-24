@@ -1,5 +1,5 @@
 {
-"note": "One record per reference screenshot in images/ (never committed). Studied 2026-11-23; patterns distilled in knowledge/visual-study.md. source = the game or app shown, for internal attribution only; design original games from the lessons, never copy a game.",
+"note": "One record per reference screenshot: images/ (295, studied 2026-11-23) and images2/ (93, studied 2026-11-24: racing cars, RC cars, FPV drones, scene moods); both folders are never committed. Patterns distilled in knowledge/visual-study.md and, for vehicles, knowledge/racing-study.md (the record's `study`). source = the game or app shown, for internal attribution only; design original games from the lessons, never copy a game.",
 "refs": [
 {
 "id": "ref.img-0001",
@@ -15595,6 +15595,3344 @@
 "general"
 ],
 "source": "StarRupture"
+},
+{
+"id": "ref.img2-0258",
+"image": "images2/IMG_0258.PNG",
+"type": "hud-gameplay",
+"quality": 3,
+"title": "Rider on a beast crossing a jungle river",
+"summary": "A rider on a huge dark beast wades a shallow river under giant mossy trees; a red skill circle bottom-left, quest text top-right.",
+"concept": "",
+"lessons": [
+"Shallow water + god-rays through a jungle canopy: teal/green palette with one warm skill icon as the only red."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#365054",
+"#1b2a2f",
+"#0b1316",
+"#517572",
+"#2a3232"
+],
+"lighting": "dappled jungle light",
+"camera": "third-person",
+"tags": [
+"jungle",
+"river",
+"mount",
+"monster-hunt"
+],
+"useFor": [
+"general"
+],
+"source": "action game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0259",
+"image": "images2/IMG_0259.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Solo-dev rally hatchback drifting on gravel",
+"summary": "A boxy rally hatchback slides through a gravel corner behind a dry-stone wall; low-poly trees and a bright soft sky, a warm dust cloud and dark tyre ruts behind it.",
+"concept": "",
+"lessons": [
+"A simple low-poly world looks 'gorgeous' when three things are right: a strong low sun with soft sky fill, a big lit dust cloud off the rear wheels (soft billboards about two car-widths wide, warm sand colour, fading over ~1.5 s), and tyre ruts that stay on the ground.",
+"Tyre ruts are long dark decal strips that persist for the whole run; they show the racing line and make the surface feel soft.",
+"Chase camera a little higher than supercar games (~2.5 m up, 6 m back), car ~25% of frame width, so the corner ahead and its wall are readable.",
+"Stone walls and fences right at the track edge are the speed cue and the crash risk at the same time.",
+"Proof that effects + light can carry a stylised style: the right target for a kids' RC game, not photoreal."
+],
+"hud": [],
+"fx": {
+"colors": [
+"#d9c7a4",
+"#efe4cf",
+"#4a4a44"
+],
+"layers": [
+"rear-wheel dust billboards",
+"persistent rut decals",
+"sun-lit sky bloom"
+],
+"shape": "trail + ground decal",
+"readability": "Warm dust against cool sky and grey car reads instantly."
+},
+"palette": [
+"#1a1b1f",
+"#cbe7f6",
+"#6b7c81",
+"#c6c6c2",
+"#f6f8fb"
+],
+"lighting": "high bright sun, hazy sky, soft shadows",
+"camera": "third-person chase, ~2.5 m high, slightly offset to the outside of the turn",
+"tags": [
+"rally",
+"gravel",
+"drift",
+"dust",
+"tyre-ruts",
+"low-poly",
+"stylised",
+"chase-cam",
+"indie"
+],
+"useFor": [
+"racing",
+"rc-car"
+],
+"source": "Hardpack Rally (indie, one developer)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0260",
+"image": "images2/IMG_0260.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Bright coastal town of round-roofed shops",
+"summary": "A tilted top-down town of tiled plazas, red and blue roofed shops and green hedges beside a blue sea.",
+"concept": "",
+"lessons": [
+"High tilted camera + saturated roof colours make every building a readable landmark; use for kids' hub towns, not copy the buildings."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#3f5c71",
+"#d2b38f",
+"#bcad99",
+"#78b4c2",
+"#728d90"
+],
+"lighting": "bright noon",
+"camera": "high tilted top-down",
+"tags": [
+"town",
+"hub",
+"top-down",
+"kids",
+"coastal"
+],
+"useFor": [
+"general"
+],
+"source": "fan render (monster-collecting town)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0261",
+"image": "images2/IMG_0261.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Animals grazing a lavender meadow from above",
+"summary": "Top-down meadow of purple flowers with grazing cattle and a dirt path.",
+"concept": "",
+"lessons": [
+"Purple ground-cover breaks up a green field; scatter density variation reads as natural."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#404a35",
+"#6e6d57",
+"#a08b6a",
+"#645452",
+"#79785b"
+],
+"lighting": "soft daylight",
+"camera": "top-down RTS",
+"tags": [
+"meadow",
+"lavender",
+"rts",
+"animals"
+],
+"useFor": [
+"general"
+],
+"source": "strategy game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0262",
+"image": "images2/IMG_0262.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Cozy sleeper-train cabin passing a night city",
+"summary": "An anime-style lantern-lit sleeper cabin; a boy sleeps by a cat while a blue-violet city and moon glide past the window.",
+"concept": "",
+"lessons": [
+"Warm interior (orange lantern) against a cool blue exterior through a window is the strongest cozy contrast; ~60/40 cool/warm."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#31246e",
+"#190a21",
+"#470c14",
+"#4c3b86",
+"#07093f"
+],
+"lighting": "warm lamp + moonlit city",
+"camera": "interior, window",
+"tags": [
+"cozy",
+"train",
+"night",
+"anime",
+"window"
+],
+"useFor": [
+"general"
+],
+"source": "AI animation",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0263",
+"image": "images2/IMG_0263.PNG",
+"type": "skill-fx",
+"quality": 4,
+"title": "Spiral vortex spell in a dark dungeon ARPG",
+"summary": "A hero casts a swirling white-violet vortex on dark stone; red health orb bottom-left, blue mana orb bottom-right, skill bar between.",
+"concept": "",
+"lessons": [
+"Spiral effect: bright thin streak rings + a soft violet floor glow decal; on dark stone it reads even at small size. Orbs in the bottom corners, skills between them."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#161b23",
+"#05090e",
+"#1c222b",
+"#2c2e36",
+"#23262e"
+],
+"lighting": "dark dungeon, effect-lit",
+"camera": "isometric",
+"tags": [
+"arpg",
+"vortex",
+"spell",
+"orbs",
+"hud"
+],
+"useFor": [
+"general"
+],
+"source": "action RPG (isometric)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0264",
+"image": "images2/IMG_0264.PNG",
+"type": "vehicle",
+"quality": 3,
+"title": "Hard-surface spaceship skimming a pink sea",
+"summary": "A grey panelled spaceship with black engine nacelles flies low over a misty pink sea toward a distant spire.",
+"concept": "",
+"lessons": [
+"Hard-surface craft: panel lines + a few warm decals + darker engine parts; mist hides the horizon so the craft owns the frame."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#17100f",
+"#665450",
+"#746766",
+"#cfa8a1",
+"#9b817f"
+],
+"lighting": "soft pink haze",
+"camera": "side three-quarter",
+"tags": [
+"spaceship",
+"hard-surface",
+"mist",
+"vehicle"
+],
+"useFor": [
+"general"
+],
+"source": "sci-fi game/render",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0265",
+"image": "images2/IMG_0265.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Woman on a rusted ledge above a ruined desert city",
+"summary": "A woman sits on a rust-brown overhang high above a sprawling ruined city in dust haze.",
+"concept": "",
+"lessons": [
+"Aerial perspective: buildings lose contrast and shift to warm beige with distance — use height fog with a warm tint."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#362621",
+"#a0a498",
+"#8f8673",
+"#b0b6a6",
+"#bcbdaa"
+],
+"lighting": "hazy warm daylight",
+"camera": "high vertical",
+"tags": [
+"ruins",
+"desert",
+"haze",
+"scale"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0266",
+"image": "images2/IMG_0266.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Snowy forest path under a starry sky",
+"summary": "Footprints lead along a snowy forest path at night; snow-loaded pines, a deep blue starry sky.",
+"concept": "",
+"lessons": [
+"Night snow: everything in blue values (#1b2a5a→#9fb3e8), the path the lightest strip; footprints as small darker dents give scale."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#172358",
+"#25316c",
+"#0d143d",
+"#040720",
+"#0b174c"
+],
+"lighting": "moon and starlight, blue",
+"camera": "eye level",
+"tags": [
+"snow",
+"night",
+"forest",
+"path",
+"stars"
+],
+"useFor": [
+"snowpuff",
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0267",
+"image": "images2/IMG_0267.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Red hypercar chasing a rival on a canyon road",
+"summary": "A red mid-engine hypercar followed by a low chase camera on an overcast canyon road, a black rival just ahead, the road surface streaked by motion blur.",
+"concept": "",
+"lessons": [
+"Bumper-height chase camera (~0.8 m) about 6 m back: the car sits in the lower-middle, ~30% of frame width, horizon at ~45% height.",
+"Overcast sky is the most forgiving light for realistic cars: soft even reflections, no hard shadow edges to get wrong.",
+"A rival a few car lengths ahead gives the frame purpose; telephone poles and wires sweeping past are free speed cues.",
+"Only the road blurs (camera moves with the car), so the car stays razor sharp: that contrast is what reads as 'fast'."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#d8d7d5",
+"#6e6c68",
+"#8b807a",
+"#443530",
+"#e0dedc"
+],
+"lighting": "overcast, soft diffuse",
+"camera": "low chase, ~0.8 m, slight downhill",
+"tags": [
+"supercar",
+"chase-cam",
+"motion-blur",
+"overcast",
+"canyon",
+"rival",
+"real-footage"
+],
+"useFor": [
+"racing"
+],
+"source": "real footage (supercar chase video)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0268",
+"image": "images2/IMG_0268.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Retro motel on the edge of space",
+"summary": "A pink neon motel and a wet parking strip end at a cliff over the Earth and a pink nebula.",
+"concept": "",
+"lessons": [
+"Mundane place + impossible backdrop is a strong surreal-level hook; keep the foreground real (wet asphalt, neon) so the sky does the magic."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#22253a",
+"#aa5642",
+"#653532",
+"#72505c",
+"#c39ea8"
+],
+"lighting": "dusk neon, nebula",
+"camera": "eye level",
+"tags": [
+"surreal",
+"motel",
+"neon",
+"space"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0269",
+"image": "images2/IMG_0269.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Explorer in a green alien base",
+"summary": "A suited explorer walks toward a domed base in a green alien jungle; big title text.",
+"concept": "",
+"lessons": [
+"Readable sci-fi base: domes + antennae silhouettes against a hazy sky."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#546a45",
+"#273d29",
+"#0e1914",
+"#759268",
+"#3b4c31"
+],
+"lighting": "hazy green",
+"camera": "third-person",
+"tags": [
+"sci-fi",
+"alien",
+"base",
+"explorer"
+],
+"useFor": [
+"general"
+],
+"source": "space exploration game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0270",
+"image": "images2/IMG_0270.PNG",
+"type": "vehicle",
+"quality": 4,
+"title": "Dashboard view down a neon road through a glowing alien forest",
+"summary": "From behind a car dashboard, a wet two-lane road with double yellow lines runs into a forest of violet glowing mushrooms under a huge green wave-shaped cloud.",
+"concept": "",
+"lessons": [
+"Dashboard silhouette across the bottom ~15% frames a first-person drive with zero HUD.",
+"A wet road doubles every light source: violet/teal glows smear down the asphalt and lead the eye along the road.",
+"Double yellow centre lines are the strongest leading line in the frame; keep road markings bright even in a fantasy world."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#002931",
+"#015056",
+"#22707e",
+"#112a36",
+"#49a09e"
+],
+"lighting": "night, bioluminescent violet/teal, wet reflections",
+"camera": "in-car dashboard view",
+"tags": [
+"dashboard",
+"fantasy-road",
+"neon",
+"wet-road",
+"night",
+"bioluminescent"
+],
+"useFor": [
+"racing",
+"general"
+],
+"source": "AI video (IMRA)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0271",
+"image": "images2/IMG_0271.PNG",
+"type": "character-art",
+"quality": 3,
+"title": "Straw-hatted warrior meditating by a waterfall",
+"summary": "A dark-robed warrior with a wide straw hat sits on mossy rocks beside a white waterfall.",
+"concept": "",
+"lessons": [
+"Dark silhouette figure against a bright waterfall: value contrast does the composition."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#233733",
+"#445344",
+"#131b1a",
+"#596d58",
+"#313f37"
+],
+"lighting": "soft green forest light",
+"camera": "low three-quarter",
+"tags": [
+"samurai",
+"waterfall",
+"meditation",
+"green"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0272",
+"image": "images2/IMG_0272.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Over-the-shoulder view into a ruined stone village",
+"summary": "A hooded hero looks over a ruined stone hut with a red banner and a lantern.",
+"concept": "",
+"lessons": [
+"A single red banner is the eye magnet in a grey-green ruin."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#5d3f3e",
+"#140f10",
+"#846056",
+"#8c7474",
+"#625869"
+],
+"lighting": "overcast",
+"camera": "over-the-shoulder",
+"tags": [
+"ruins",
+"village",
+"banner",
+"third-person"
+],
+"useFor": [
+"general"
+],
+"source": "action game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0274",
+"image": "images2/IMG_0274.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Giant glowing sky-whale ship over night mountains",
+"summary": "A huge manta-shaped ship studded with warm lights flies over snowy peaks and a city at dusk.",
+"concept": "",
+"lessons": [
+"Scale: tiny lights in rows over a dark silhouette read as 'huge'."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#3c393f",
+"#0d1626",
+"#554b48",
+"#74655b",
+"#302a2a"
+],
+"lighting": "dusk, warm city lights",
+"camera": "wide",
+"tags": [
+"sky-ship",
+"whale",
+"night",
+"mountains"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0275",
+"image": "images2/IMG_0275.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Very close chase on a hypercar's exposed engine",
+"summary": "The camera hugs the rear of a black hypercar: exposed red intake runners, carbon wing, a bag over the engine, a number plate; trees and roadside flags are smeared by motion blur.",
+"concept": "",
+"lessons": [
+"An ultra-close chase (~2 m) shows off mechanical detail: the car fills ~90% of the width, so the rear needs real geometry (intakes, mesh grilles, diffuser fins), not a texture.",
+"Motion blur on everything except the car is the single biggest 'game looks real' cue in these clips.",
+"Small believable props (number plate, cloth bag, cable ties) sell scale and realism more than polygons do."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#13100e",
+"#665f51",
+"#524336",
+"#f3f6fb",
+"#383327"
+],
+"lighting": "daylight under trees, dappled",
+"camera": "extreme close chase, ~1.2 m high",
+"tags": [
+"hypercar",
+"close-chase",
+"engine-detail",
+"carbon",
+"motion-blur",
+"plate"
+],
+"useFor": [
+"racing"
+],
+"source": "racing game, 'NVIDIA 5090 DLSS' clip (IRace Games)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0276",
+"image": "images2/IMG_0276.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Lantern village in a foggy night valley",
+"summary": "Warm lanterns and lit windows scatter through a misty wooded valley at night.",
+"concept": "",
+"lessons": [
+"Warm point lights in fog: each lamp gets a soft volumetric halo; the fog is the canvas."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#191006",
+"#9b663e",
+"#2e1e10",
+"#402512",
+"#764422"
+],
+"lighting": "night fog, warm points",
+"camera": "high wide",
+"tags": [
+"lanterns",
+"village",
+"fog",
+"night"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0277",
+"image": "images2/IMG_0277.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Stag in a night forest under a cyan nebula",
+"summary": "A stag walks into tall grass under a cyan nebula, fireflies drifting.",
+"concept": "",
+"lessons": [
+"Cyan sky + white flower highlights + slow fireflies: calm magical night."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#131a15",
+"#1187ab",
+"#135970",
+"#2a2f23",
+"#172b2d"
+],
+"lighting": "cyan nebula light",
+"camera": "behind subject",
+"tags": [
+"deer",
+"nebula",
+"fireflies",
+"night"
+],
+"useFor": [
+"general"
+],
+"source": "AI animation",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0278",
+"image": "images2/IMG_0278.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Black supercar with LED chevron tail-lights on an expressway",
+"summary": "A black angular supercar in traffic on a sunny coastal expressway; red LED chevrons across the tail, a huge wing, blue sky reflected on the rear deck.",
+"concept": "",
+"lessons": [
+"Tail-lights as thin emissive strips (chevrons / bars) with a soft bloom read as 'modern car' far better than two round lamps.",
+"Dark paint is defined almost entirely by what it reflects: the rear deck shows the blue sky gradient; give black cars a high-contrast HDRI.",
+"Slow traffic cars ahead (lightly blurred) are the obstacle and the speed reference."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#18191d",
+"#706961",
+"#8299b9",
+"#8fa4c3",
+"#4c5966"
+],
+"lighting": "clear midday sun, blue sky",
+"camera": "low chase, ~1.0 m",
+"tags": [
+"supercar",
+"led-taillights",
+"emissive",
+"black-paint",
+"traffic",
+"expressway",
+"forza"
+],
+"useFor": [
+"racing"
+],
+"source": "open-world racing game (Forza Horizon 6 clip, IRace Games)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0279",
+"image": "images2/IMG_0279.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Orc city canyon at dawn",
+"summary": "Spiky orange-brown city in a canyon at dawn, lanterns and banners, players milling about.",
+"concept": "",
+"lessons": [
+"Dawn in a canyon: orange key on one wall, purple shade on the other."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#7b422a",
+"#5b2d1d",
+"#9a512e",
+"#402119",
+"#6c321c"
+],
+"lighting": "dawn, warm",
+"camera": "high third-person",
+"tags": [
+"canyon",
+"city",
+"dawn",
+"mmo"
+],
+"useFor": [
+"general"
+],
+"source": "MMO (upscaler showcase)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0281",
+"image": "images2/IMG_0281.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Rice terraces and a torii below green mountains",
+"summary": "A rider rests by flooded rice terraces reflecting the sky, a red torii and jagged green mountains behind.",
+"concept": "",
+"lessons": [
+"Flooded terraces = mirror strips that repeat the sky; a single red torii gives the focal point."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#151c1a",
+"#4a5c5a",
+"#587a95",
+"#7a949f",
+"#698187"
+],
+"lighting": "soft clear day",
+"camera": "wide",
+"tags": [
+"rice-terraces",
+"torii",
+"japan",
+"reflections"
+],
+"useFor": [
+"general"
+],
+"source": "open-world game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0282",
+"image": "images2/IMG_0282.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Mossy temple stairs in a green forest",
+"summary": "Moss-covered stone stairs climb through bright green maple forest.",
+"concept": "",
+"lessons": [
+"Monochrome green scene works when values vary: bright canopy, dark trunks, mid moss."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#0f301d",
+"#164922",
+"#0d6020",
+"#297b3b",
+"#2c6237"
+],
+"lighting": "soft green daylight",
+"camera": "up the stairs",
+"tags": [
+"moss",
+"stairs",
+"temple",
+"green"
+],
+"useFor": [
+"general"
+],
+"source": "photo (Shiga, Japan)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0283",
+"image": "images2/IMG_0283.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Red barchetta with horizontal louvres on a Japanese expressway",
+"summary": "A red open-top Italian-style hypercar from directly behind, on an overcast expressway; horizontal tail louvres catch thin specular lines; traffic ahead.",
+"concept": "",
+"lessons": [
+"Repeated thin shapes (louvres, fins) each catch a specular line: cheap geometry that makes paint look glossy.",
+"Centred straight-behind framing with the car low (~35% from the bottom) gives a calm cruising shot; use it for the 'cruise' camera.",
+"Overcast + red paint: let the clearcoat carry a soft white sky reflection along the top edges."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#431211",
+"#c6b6b7",
+"#d5d7df",
+"#524c41",
+"#d9dce3"
+],
+"lighting": "overcast",
+"camera": "low chase, centred",
+"tags": [
+"hypercar",
+"red-paint",
+"louvres",
+"clearcoat",
+"expressway",
+"japan"
+],
+"useFor": [
+"racing"
+],
+"source": "open-world racing game (IRace Games clip)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0284",
+"image": "images2/IMG_0284.PNG",
+"type": "vehicle",
+"quality": 4,
+"title": "Cockpit view chasing a blue hypercar on a city freeway",
+"summary": "Inside view over an Alcantara steering wheel with a yellow top marker; a digital cluster shows a big red gear number; a blue hypercar fills the windscreen ahead.",
+"concept": "",
+"lessons": [
+"Cockpit HUD lives in the car: the cluster shows a big gear digit in the centre (~1/4 of the cluster height), speed beside it, a curved rev bar on top.",
+"The wheel occupies the bottom ~45%; the yellow 12-o'clock stripe makes steering angle readable.",
+"Dark roof and pillars frame the view; keep the interior unlit and matte so the road stays the bright focus."
+],
+"hud": [
+{
+"element": "gear",
+"pos": "cluster centre",
+"notes": "big red digit"
+},
+{
+"element": "speed",
+"pos": "cluster right",
+"notes": "small white numbers"
+},
+{
+"element": "rev bar",
+"pos": "cluster top arc",
+"notes": "curved, coloured near redline"
+}
+],
+"fx": {},
+"palette": [
+"#0f1012",
+"#020305",
+"#747575",
+"#292a2c",
+"#000000"
+],
+"lighting": "overcast city daylight",
+"camera": "driver eye",
+"tags": [
+"cockpit",
+"interior",
+"gauge-cluster",
+"gear",
+"steering-wheel",
+"real-footage"
+],
+"useFor": [
+"racing"
+],
+"source": "real footage (Speed Shots)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0285",
+"image": "images2/IMG_0285.PNG",
+"type": "character-art",
+"quality": 2,
+"title": "Goggled engineer in a rust-yellow jacket",
+"summary": "A portrait of a person with steampunk goggles and a worn yellow jacket.",
+"concept": "",
+"lessons": [
+"Worn fabric + metal goggles: material contrast makes a character read 'crafted'."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#2a2d30",
+"#576258",
+"#657165",
+"#3a4849",
+"#4f4f44"
+],
+"lighting": "soft side light",
+"camera": "portrait",
+"tags": [
+"portrait",
+"goggles",
+"sci-fi"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0286",
+"image": "images2/IMG_0286.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Supercar shooting exhaust flames below a snowy volcano",
+"summary": "Rear view of a black supercar on a red-brown asphalt road; two orange exhaust flames burst from the tailpipes; a snow-capped volcano on the left horizon.",
+"concept": "",
+"lessons": [
+"Exhaust pops: a white-yellow core, orange body, soft round halo, ≤0.3 m long, lasting 2–4 frames, plus a short orange point light on the bumper; fire them on throttle lift and gear shifts.",
+"A famous distant mountain on the horizon (~1/5 frame height) makes a location instantly memorable without racing on it.",
+"Coloured asphalt (red-brown) and a yellow warning sign add place-specific colour to an otherwise grey road."
+],
+"hud": [],
+"fx": {
+"colors": [
+"#fff3c0",
+"#ffb030",
+"#ff6a10"
+],
+"layers": [
+"white core",
+"orange flame",
+"halo",
+"bumper point light"
+],
+"shape": "burst",
+"readability": "Warm flame pops against dark car body."
+},
+"palette": [
+"#151010",
+"#55352e",
+"#afbed7",
+"#433532",
+"#c4d2e3"
+],
+"lighting": "clear afternoon",
+"camera": "low chase",
+"tags": [
+"exhaust-flames",
+"backfire",
+"supercar",
+"mountain-backdrop",
+"asphalt-colour"
+],
+"useFor": [
+"racing"
+],
+"source": "racing game clip (IRace Games, 'Mount Fuji area')",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0287",
+"image": "images2/IMG_0287.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Spooky inn town in a dark green forest",
+"summary": "A crooked wooden inn with a clock tower and warm windows in a gloomy green wood.",
+"concept": "",
+"lessons": [
+"Gloomy green ambient + warm windows = safe haven in a dark zone."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#19201b",
+"#4c725f",
+"#2e2f26",
+"#232a22",
+"#43493a"
+],
+"lighting": "gloomy, warm windows",
+"camera": "third-person",
+"tags": [
+"inn",
+"spooky",
+"village",
+"mmo"
+],
+"useFor": [
+"general"
+],
+"source": "MMO (upscaler showcase)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0288",
+"image": "images2/IMG_0288.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Path along giant green cliffs",
+"summary": "A small figure on a path under enormous moss-green cliffs lit golden.",
+"concept": "",
+"lessons": [
+"Giant vertical cliffs with a tiny figure: scale through contrast."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#345127",
+"#67804e",
+"#ae975f",
+"#639678",
+"#d5c781"
+],
+"lighting": "golden side light",
+"camera": "low wide",
+"tags": [
+"cliffs",
+"green",
+"scale",
+"path"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0289",
+"image": "images2/IMG_0289.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Dark spired sci-fi megacity",
+"summary": "Black spires and a floating ring over a vast city of red lights.",
+"concept": "",
+"lessons": [
+"Silhouette density + a few red lights = menace."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#050506",
+"#1d1d21",
+"#2c343e",
+"#575d6a",
+"#42424a"
+],
+"lighting": "overcast dark",
+"camera": "high wide",
+"tags": [
+"sci-fi",
+"megacity",
+"dark"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0290",
+"image": "images2/IMG_0290.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Couple on a pier by a red lighthouse at dusk",
+"summary": "A painterly harbour pier at dusk with a red lighthouse and a seaside town.",
+"concept": "",
+"lessons": [
+"Painterly dusk: pink-violet sky, turquoise water, warm windows."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#234687",
+"#8a7393",
+"#715273",
+"#686593",
+"#484f85"
+],
+"lighting": "dusk",
+"camera": "eye level",
+"tags": [
+"pier",
+"lighthouse",
+"dusk",
+"painterly",
+"korea"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (Korean caption)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0291",
+"image": "images2/IMG_0291.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Joseon palace hall in snow at night",
+"summary": "A Korean palace hall with snow on its curved roof, warm lit doors, snowy pines and steps.",
+"concept": "",
+"lessons": [
+"Korean palace in snow: dark green-red dancheong eaves, white roof lines, warm doorway light — a Korea mountain backdrop for winter maps."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#221d2a",
+"#4d6187",
+"#203a61",
+"#6a82ad",
+"#463e48"
+],
+"lighting": "night, warm doors, snow",
+"camera": "low three-quarter",
+"tags": [
+"korea",
+"palace",
+"snow",
+"night",
+"hanok"
+],
+"useFor": [
+"snowpuff",
+"general"
+],
+"source": "AI image (Korean)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0292",
+"image": "images2/IMG_0292.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Neon tower looking straight up",
+"summary": "A neon-lit cyberpunk tower seen from below.",
+"concept": "",
+"lessons": [
+"Strong perspective + neon edges."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#010617",
+"#262d60",
+"#071540",
+"#554c80",
+"#191632"
+],
+"lighting": "neon",
+"camera": "worm's-eye",
+"tags": [
+"cyberpunk",
+"neon",
+"tower"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0293",
+"image": "images2/IMG_0293.PNG",
+"type": "vehicle",
+"quality": 2,
+"title": "Long freighter ship over Earth",
+"summary": "A long spaceship passes over the Earth.",
+"concept": "",
+"lessons": [
+"Space ship scale with a planet limb behind."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#000000",
+"#436674",
+"#1e313e",
+"#6f8e9e",
+"#010001"
+],
+"lighting": "sunlit space",
+"camera": "wide",
+"tags": [
+"spaceship",
+"earth",
+"space"
+],
+"useFor": [
+"general"
+],
+"source": "space game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0294",
+"image": "images2/IMG_0294.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Brass city built into a Martian canyon",
+"summary": "Bridges and towers span a deep orange canyon, drones in the sky.",
+"concept": "",
+"lessons": [
+"Warm monochrome (brass/orange) world: vary value, not hue."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#2e251e",
+"#533d2d",
+"#674f3d",
+"#a17b5b",
+"#846146"
+],
+"lighting": "warm dusty",
+"camera": "high",
+"tags": [
+"mars",
+"canyon",
+"city"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0295",
+"image": "images2/IMG_0295.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Hikers above an aqueduct city with waterfalls",
+"summary": "Two hikers look over a domed city, a long aqueduct and waterfalls under bright clouds.",
+"concept": "",
+"lessons": [
+"Reward vista: the player's back in the foreground, the destination framed in the middle."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#5e676a",
+"#223b47",
+"#7f9dbc",
+"#657e93",
+"#55474b"
+],
+"lighting": "bright day",
+"camera": "over-the-shoulder",
+"tags": [
+"vista",
+"aqueduct",
+"waterfall",
+"city"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0296",
+"image": "images2/IMG_0296.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Stacked shanty tower in rain",
+"summary": "A tower of stacked containers and shacks with warm windows on a rainy wet dock.",
+"concept": "",
+"lessons": [
+"Vertical clutter + warm windows + cool rain = lived-in."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#5b6f8b",
+"#1d2936",
+"#85ade4",
+"#3a3b46",
+"#59464b"
+],
+"lighting": "rainy blue, warm windows",
+"camera": "low",
+"tags": [
+"shanty",
+"rain",
+"cyberpunk",
+"vertical"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0297",
+"image": "images2/IMG_0297.PNG",
+"type": "vehicle",
+"quality": 4,
+"title": "Chrome flying cars over a futuristic city",
+"summary": "Heavy chrome hover-cars with orange running lights cruise between elevated rails and towers of a dense future city.",
+"concept": "",
+"lessons": [
+"Hover vehicles read as vehicles through car cues: a cabin glasshouse, headlight strips, running lights along the flanks.",
+"Orange running lights on chrome against a cool grey city: one warm accent per vehicle.",
+"Layered traffic at several heights sells a 3D race space for a hover racer."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#584f4e",
+"#2e2624",
+"#6c6f78",
+"#9d9796",
+"#c4bcb6"
+],
+"lighting": "hazy daylight, warm accents",
+"camera": "elevated three-quarter",
+"tags": [
+"hover-car",
+"flying-car",
+"sci-fi-city",
+"chrome",
+"running-lights"
+],
+"useFor": [
+"racing",
+"general"
+],
+"source": "AI image (Neuronovaofficial)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0298",
+"image": "images2/IMG_0298.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Ring space station over a planet",
+"summary": "A huge round station near a planet.",
+"concept": "",
+"lessons": [
+"Panel greebles + one big circular silhouette."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#181e1d",
+"#303937",
+"#615c53",
+"#75827c",
+"#345254"
+],
+"lighting": "space",
+"camera": "wide",
+"tags": [
+"space-station",
+"sci-fi"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0299",
+"image": "images2/IMG_0299.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Moonlit rice fields from a bridge",
+"summary": "A man on a bridge rail looks over moonlit green rice fields and a river.",
+"concept": "",
+"lessons": [
+"Moonlit green: keep greens saturated but dark; the river is the brightest band."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#042e62",
+"#091d2f",
+"#355571",
+"#24456a",
+"#17334f"
+],
+"lighting": "full moon",
+"camera": "behind subject",
+"tags": [
+"moon",
+"rice-fields",
+"anime",
+"river"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (anime)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0300",
+"image": "images2/IMG_0300.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Summer seaside railway with tall clouds",
+"summary": "Two kids sit on a flooded seaside railway platform under giant white summer clouds.",
+"concept": "",
+"lessons": [
+"Summer anime look: cobalt sky, huge white cumulus, turquoise water, green weeds; high saturation, soft shadows."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#2399d0",
+"#1d4e6a",
+"#99a982",
+"#41b2e2",
+"#b4d1d4"
+],
+"lighting": "bright summer",
+"camera": "side",
+"tags": [
+"summer",
+"anime",
+"railway",
+"clouds",
+"sea"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (anime)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0301",
+"image": "images2/IMG_0301.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "White spire ship above pink clouds",
+"summary": "A white sci-fi spire rises over a pink cloud sea.",
+"concept": "",
+"lessons": [
+"Pastel sky + white hard-surface."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#9c94c2",
+"#837396",
+"#6a73ad",
+"#cdafd1",
+"#5c4d71"
+],
+"lighting": "pastel",
+"camera": "low",
+"tags": [
+"sci-fi",
+"clouds",
+"pastel"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0302",
+"image": "images2/IMG_0302.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Widebody classic sports car on an industrial port road",
+"summary": "A dark-red widebody classic sports car with a big wing and a polished side exhaust drives past white warehouses and an elevated expressway.",
+"concept": "",
+"lessons": [
+"Body-kit parts (wide arches, ducktail wing, big chrome exhaust) are the 'garage' fantasy: make them swappable meshes.",
+"Chrome needs something to reflect: a polished exhaust only looks chrome with a real environment map (sky + road).",
+"Plain industrial locations (warehouses, overpass, power lines) look very real because they are simple and grey; the car supplies the colour."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#6e4f43",
+"#281c19",
+"#84756e",
+"#c2cdd7",
+"#e2e6e8"
+],
+"lighting": "bright overcast",
+"camera": "low chase, slight left offset",
+"tags": [
+"widebody",
+"body-kit",
+"chrome",
+"exhaust",
+"industrial",
+"port",
+"garage"
+],
+"useFor": [
+"racing"
+],
+"source": "racing game clip (Porsche RWB, IRace Games)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0303",
+"image": "images2/IMG_0303.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Spiral flower-garden maze at sunrise",
+"summary": "An aerial spiral maze of round pink and green flowering shrubs at sunrise.",
+"concept": "",
+"lessons": [
+"A spiral of rounded bushes is a ready-made kids' race/maze course readable from above."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#574c3e",
+"#9c897d",
+"#b2a094",
+"#6b6553",
+"#8b6e60"
+],
+"lighting": "golden sunrise",
+"camera": "aerial",
+"tags": [
+"maze",
+"spiral",
+"flowers",
+"course"
+],
+"useFor": [
+"general",
+"rc-car"
+],
+"source": "AI image",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0304",
+"image": "images2/IMG_0304.PNG",
+"type": "photo",
+"quality": 3,
+"title": "Hamsters in tiny hats sharing a noodle",
+"summary": "Two hamsters in little knitted animal hats share a long noodle in glass cups.",
+"concept": "",
+"lessons": [
+"Cute-pet costume = instant kids appeal: small animals + soft knitted hats."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#0e0d12",
+"#ae937e",
+"#896d5c",
+"#d1c6bd",
+"#f0e9e2"
+],
+"lighting": "soft studio",
+"camera": "close-up",
+"tags": [
+"hamster",
+"cute",
+"costume",
+"kids"
+],
+"useFor": [
+"general"
+],
+"source": "real photo",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0305",
+"image": "images2/IMG_0305.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Floating park over a future city",
+"summary": "A future city with a green park floating over towers, crowds on walkways.",
+"concept": "",
+"lessons": [
+"Green on top of grey: nature as the landmark."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#1c3138",
+"#537984",
+"#225263",
+"#42595d",
+"#76a5b5"
+],
+"lighting": "bright",
+"camera": "eye level",
+"tags": [
+"future-city",
+"floating",
+"park"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0306",
+"image": "images2/IMG_0306.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Girl under a huge tree by a torii in rain",
+"summary": "A girl stands under a giant tree near a small torii in rain, the city beyond.",
+"concept": "",
+"lessons": [
+"Rain in anime style: bright overcast, saturated greens, ground reflections."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#2d3533",
+"#131514",
+"#3b544f",
+"#daede3",
+"#586754"
+],
+"lighting": "rain, bright overcast",
+"camera": "low",
+"tags": [
+"rain",
+"anime",
+"tree",
+"torii"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (anime)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0307",
+"image": "images2/IMG_0307.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Wet night street with stretched neon reflections",
+"summary": "An empty street at night in heavy rain; pink, orange and cyan traffic and street lights smear into long vertical streaks on the wet asphalt; autumn leaves on the kerb.",
+"concept": "",
+"lessons": [
+"Wet asphalt reflections are vertical streaks, not mirror images: blur the reflection along the view's vertical (anisotropic), length ~3–6× the light's size.",
+"Darken wet asphalt (~0.6× albedo) and drop roughness to ~0.15 in puddles, ~0.35 elsewhere; use a puddle mask.",
+"Rain streaks in front of lights only are enough; distance fog with coloured glows does the rest."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#1d1718",
+"#532c32",
+"#4c4f5c",
+"#965251",
+"#c0b2a9"
+],
+"lighting": "night, neon + sodium lights, rain",
+"camera": "low, road level",
+"tags": [
+"wet-road",
+"rain",
+"neon",
+"reflections",
+"night",
+"street"
+],
+"useFor": [
+"racing",
+"general"
+],
+"source": "AI video (Rainverse)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0308",
+"image": "images2/IMG_0308.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Figure above a mirrored sunset cloud sea",
+"summary": "A figure stands over a sea of clouds reflecting the sunset.",
+"concept": "",
+"lessons": [
+"Mirror symmetry for dreamy scenes."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#02081e",
+"#40477b",
+"#917c8c",
+"#dfc6ad",
+"#0b1a40"
+],
+"lighting": "sunset",
+"camera": "wide",
+"tags": [
+"clouds",
+"mirror",
+"dream"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0309",
+"image": "images2/IMG_0309.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Shrine gate in a dark misty forest at dawn",
+"summary": "A stone torii in a blue misty forest at dawn.",
+"concept": "",
+"lessons": [
+"Blue mist + dark trunks + one grey gate: quiet, spooky."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#050e1a",
+"#283d51",
+"#162a3f",
+"#0e1d2e",
+"#0a1826"
+],
+"lighting": "blue dawn mist",
+"camera": "eye level",
+"tags": [
+"torii",
+"mist",
+"forest",
+"dawn"
+],
+"useFor": [
+"general"
+],
+"source": "photo/AI",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0310",
+"image": "images2/IMG_0310.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Campfire by a mountain lake under the moon",
+"summary": "A man by a campfire at a lake with jagged peaks and a full moon.",
+"concept": "",
+"lessons": [
+"Campfire warm pool vs moonlit cold mountains."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#031e41",
+"#1f4476",
+"#133057",
+"#04101f",
+"#0c213d"
+],
+"lighting": "moon + fire",
+"camera": "low",
+"tags": [
+"campfire",
+"lake",
+"moon",
+"mountains"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0311",
+"image": "images2/IMG_0311.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Plush characters riding a night train",
+"summary": "Plush toy-like cartoon characters on a warm night train.",
+"concept": "",
+"lessons": [
+"Mood only: plush toys in a warm wooden interior feel cosy. Never use those characters."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#16100a",
+"#4a3421",
+"#25190f",
+"#7e522d",
+"#391d0c"
+],
+"lighting": "warm lamps",
+"camera": "interior",
+"tags": [
+"plush",
+"train",
+"cozy",
+"night"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (uses existing cartoon characters: mood only)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0312",
+"image": "images2/IMG_0312.PNG",
+"type": "hud-gameplay",
+"quality": 5,
+"title": "Hover-pod racer HUD with progress bar and lap timer",
+"summary": "A hover pod with an orange thruster dives off a canyon edge toward a jungle valley under a huge planet; a thin gold racing HUD frames the screen.",
+"concept": "",
+"lessons": [
+"Race progress as a thin line across the very top with small markers for rivals and a triangle for you: position without a minimap.",
+"Lap counter top-right, big numeral + small '/4'; lap timer bottom-centre: current time over best time (gold).",
+"Boost/heat gauges as angled stripe bars hugging the bottom-left and bottom-right corners, keeping the centre clear.",
+"One thin warm-gold line style for every HUD element makes the whole HUD feel designed."
+],
+"hud": [
+{
+"element": "race progress",
+"pos": "top edge, full width",
+"notes": "thin line, rival markers, player triangle"
+},
+{
+"element": "lap",
+"pos": "top-right",
+"notes": "'2' large + '/4' small"
+},
+{
+"element": "timer",
+"pos": "bottom-centre",
+"notes": "current over best, monospace"
+},
+{
+"element": "boost gauges",
+"pos": "bottom-left/right corners",
+"notes": "angled stripe bars"
+}
+],
+"fx": {
+"colors": [
+"#ffcf7a",
+"#ff8a2a"
+],
+"layers": [
+"thruster glow",
+"heat shimmer"
+],
+"shape": "trail",
+"readability": "Orange thruster against green valley."
+},
+"palette": [
+"#3a2f28",
+"#93acc9",
+"#b0c2d7",
+"#c5cfdb",
+"#7f7971"
+],
+"lighting": "bright alien daylight, hazy distance",
+"camera": "third-person behind, diving",
+"tags": [
+"hud",
+"race-hud",
+"lap-counter",
+"progress-bar",
+"timer",
+"hover-racer",
+"pod"
+],
+"useFor": [
+"racing"
+],
+"source": "Star Wars: Galactic Racer (announcement clip)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0313",
+"image": "images2/IMG_0313.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Jungle temple builds",
+"summary": "A jungle temple on a hill with title text.",
+"concept": "",
+"lessons": [
+"Layered greenery on stone."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#8ca6c6",
+"#393530",
+"#6f634c",
+"#4d564a",
+"#828d91"
+],
+"lighting": "day",
+"camera": "wide",
+"tags": [
+"jungle",
+"temple",
+"builds"
+],
+"useFor": [
+"general"
+],
+"source": "survival builder game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0314",
+"image": "images2/IMG_0314.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Blue-lit avenue at night under a red tower",
+"summary": "A city avenue lined with trees wrapped in blue LEDs, cars with red tail-lights, a crosswalk, and an orange lattice tower above.",
+"concept": "",
+"lessons": [
+"Night city race palette: one dominant cool light (blue) + warm accents (tail-lights, tower) — the complementary pair keeps cars readable.",
+"Light-wrapped trees on both sides make a glowing corridor that shows the road ahead."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#141c24",
+"#226ab1",
+"#328edd",
+"#21303f",
+"#56b1dd"
+],
+"lighting": "night, blue LEDs + warm accents",
+"camera": "elevated over the road",
+"tags": [
+"night-city",
+"illumination",
+"blue",
+"tail-lights",
+"tokyo",
+"street"
+],
+"useFor": [
+"racing",
+"general"
+],
+"source": "photo/AI (Tokyo illumination)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0315",
+"image": "images2/IMG_0315.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Man on a bench as a train passes at sunset",
+"summary": "A man rests on a riverside bench as a train crosses at a purple-orange sunset.",
+"concept": "",
+"lessons": [
+"Sunset gradient: orange at the horizon to purple overhead, silhouettes in front."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#03050d",
+"#2c1c20",
+"#e18b89",
+"#fbae82",
+"#72516f"
+],
+"lighting": "sunset",
+"camera": "side",
+"tags": [
+"sunset",
+"train",
+"anime",
+"bench"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (anime)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0316",
+"image": "images2/IMG_0316.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Old-town street with a little kei truck",
+"summary": "A narrow old Japanese street of wooden shopfronts and power lines under a deep blue sky, a tiny white kei truck parked on the left.",
+"concept": "",
+"lessons": [
+"Narrow town streets with power lines, signs and wooden fronts are a dense, readable street-race course; the overhead wires add speed cues.",
+"Small boxy vehicles (kei trucks) are cute and great for kids' racers or delivery games."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#157dfe",
+"#0b316f",
+"#51506f",
+"#3195f7",
+"#c1c0c8"
+],
+"lighting": "clear afternoon, strong blue sky",
+"camera": "street level",
+"tags": [
+"town-street",
+"japan",
+"kei-truck",
+"power-lines",
+"street-course"
+],
+"useFor": [
+"racing",
+"rc-car"
+],
+"source": "photo (Takayama, Japan)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0317",
+"image": "images2/IMG_0317.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Golden path to the sea through shrine gates",
+"summary": "A straight shrine approach lined with lanterns leads to the sea under the setting sun.",
+"concept": "",
+"lessons": [
+"Sun aligned with a straight path: one-point perspective spotlight."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#322e1f",
+"#2b291d",
+"#2e2c1f",
+"#bc8156",
+"#b76c32"
+],
+"lighting": "sunset backlight",
+"camera": "down the path",
+"tags": [
+"shrine",
+"sunset",
+"path",
+"japan"
+],
+"useFor": [
+"general"
+],
+"source": "photo (Fukuoka)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0318",
+"image": "images2/IMG_0318.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Balcony over a moonlit sea",
+"summary": "A balcony with a person looking over a moonlit bay.",
+"concept": "",
+"lessons": [
+"Moon glitter path on water."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#0d1a33",
+"#172a4a",
+"#0c0a12",
+"#020a1b",
+"#040815"
+],
+"lighting": "moonlight",
+"camera": "interior out",
+"tags": [
+"moon",
+"sea",
+"balcony",
+"anime"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (anime)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0319",
+"image": "images2/IMG_0319.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Castle above a field of bamboo lanterns",
+"summary": "Thousands of small orange lanterns glow in rows below a lit castle at night.",
+"concept": "",
+"lessons": [
+"Mass small warm lights = festival; instance thousands of emissive points cheaply."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#141d22",
+"#101a1f",
+"#252924",
+"#1c1e1e",
+"#b6783d"
+],
+"lighting": "night, warm lanterns",
+"camera": "low",
+"tags": [
+"lanterns",
+"festival",
+"castle",
+"night"
+],
+"useFor": [
+"general"
+],
+"source": "photo (Kokura, Japan)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0320",
+"image": "images2/IMG_0320.PNG",
+"type": "scene-environment",
+"quality": 1,
+"title": "Cartoon cave with existing characters",
+"summary": "A cave camp in a storm with many cartoon characters.",
+"concept": "",
+"lessons": [
+"Off-topic: copyrighted characters; mood only."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#08141f",
+"#424d52",
+"#1a1c21",
+"#708179",
+"#3d2720"
+],
+"lighting": "storm, campfire",
+"camera": "wide",
+"tags": [
+"cave",
+"cartoon"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (uses existing cartoon characters: mood only)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0321",
+"image": "images2/IMG_0321.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Rainy stone path to a Japanese house",
+"summary": "A wet stone path with a lantern leads through a rainy forest to a wooden house.",
+"concept": "",
+"lessons": [
+"Wet stone path: darker values + specular highlights; lantern warm against green-grey rain."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#30483b",
+"#0c1812",
+"#192b24",
+"#466255",
+"#6d8d8a"
+],
+"lighting": "rain",
+"camera": "eye level",
+"tags": [
+"rain",
+"path",
+"lantern",
+"house"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0322",
+"image": "images2/IMG_0322.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Lying on a deck above a sea of clouds",
+"summary": "A boy lies on a wooden deck with flowers over a sunrise cloud sea.",
+"concept": "",
+"lessons": [
+"Cloud sea at sunrise: warm top light on cloud tops, blue valleys."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#232424",
+"#a19493",
+"#444d52",
+"#cfb4b3",
+"#f2d0b3"
+],
+"lighting": "sunrise",
+"camera": "low",
+"tags": [
+"clouds",
+"sunrise",
+"anime",
+"relax"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (anime)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0323",
+"image": "images2/IMG_0323.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Vintage train dining car",
+"summary": "A 1920s dining car with chandeliers and green lamps.",
+"concept": "",
+"lessons": [
+"Interior richness through repeated lamps and polished wood."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#502e23",
+"#311b14",
+"#775133",
+"#9f7231",
+"#703429"
+],
+"lighting": "warm lamps",
+"camera": "interior",
+"tags": [
+"train",
+"vintage",
+"interior"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0324",
+"image": "images2/IMG_0324.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Moon over a hanok village by a stream",
+"summary": "A Korean village with a small moon over a stream and a curving road.",
+"concept": "",
+"lessons": [
+"Korean rural night: dark greens, a few warm windows, a road that curves into the dark."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#1e2932",
+"#363a35",
+"#141a18",
+"#5c6460",
+"#2d2d2a"
+],
+"lighting": "moonlight",
+"camera": "high",
+"tags": [
+"korea",
+"hanok",
+"village",
+"night"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0325",
+"image": "images2/IMG_0325.PNG",
+"type": "character-art",
+"quality": 2,
+"title": "Rider leaning on a motorbike at night",
+"summary": "A man leans on a motorbike over a lit valley under the moon.",
+"concept": "",
+"lessons": [
+"Rim light from the town behind separates the dark figure."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#16376c",
+"#2e2320",
+"#13151d",
+"#031e49",
+"#877d7d"
+],
+"lighting": "moonlight, rim",
+"camera": "low",
+"tags": [
+"motorbike",
+"night",
+"rider"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0327",
+"image": "images2/IMG_0327.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Smoking volcano over green fields",
+"summary": "A volcano with a smoke cloud above green hills and a windmill.",
+"concept": "",
+"lessons": [
+"Landmark volcano visible from everywhere = orientation for an open world."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#3d4252",
+"#2f3037",
+"#5e6882",
+"#425376",
+"#848294"
+],
+"lighting": "soft day",
+"camera": "wide",
+"tags": [
+"volcano",
+"landmark",
+"open-world"
+],
+"useFor": [
+"general"
+],
+"source": "adventure game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0328",
+"image": "images2/IMG_0328.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Snowy forest path with hanging lanterns",
+"summary": "A snowy path through blue pines lit by a warm hanging lantern.",
+"concept": "",
+"lessons": [
+"Blue snow + one warm lantern: a ready Snowpuff night-run palette (blue #2a4b8f / white #e8f0ff / amber #ffb347)."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#03173b",
+"#27568f",
+"#4975ad",
+"#053066",
+"#7494c3"
+],
+"lighting": "night blue + warm lantern",
+"camera": "eye level",
+"tags": [
+"snow",
+"lantern",
+"forest",
+"night"
+],
+"useFor": [
+"snowpuff",
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0329",
+"image": "images2/IMG_0329.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Beach terrace with a firepit under a full moon",
+"summary": "A terrace with sofas and a firepit facing a moonlit sea.",
+"concept": "",
+"lessons": [
+"Fire + moon double light: warm foreground, cool background."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#121e32",
+"#36333c",
+"#5d443c",
+"#030d1c",
+"#331b12"
+],
+"lighting": "moon + fire",
+"camera": "eye level",
+"tags": [
+"beach",
+"firepit",
+"moon",
+"cozy"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0330",
+"image": "images2/IMG_0330.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "FPV racing drone in a stadium of glowing gates",
+"summary": "A carbon racing quad with an orange antenna mount hovers over a football field at dusk; cyan LED gates make a course; stadium floodlights glare.",
+"concept": "",
+"lessons": [
+"Gates as emissive cyan frames with bloom: the course is readable from anywhere, even at dusk.",
+"Dusk + floodlights: warm glare top, cool sky, saturated green field — great kids-friendly palette for a drone course.",
+"Drone detail that matters: carbon frame, coloured motor caps, antenna, props as blurred discs when spinning."
+],
+"hud": [],
+"fx": {
+"colors": [
+"#5ee6ff",
+"#e8faff"
+],
+"layers": [
+"emissive gate frames",
+"bloom halo",
+"floodlight glare"
+],
+"shape": "gate",
+"readability": "Cyan gates against green field and dark stands."
+},
+"palette": [
+"#2f3b35",
+"#869ca6",
+"#748591",
+"#4b6360",
+"#5c6e73"
+],
+"lighting": "dusk + stadium floodlights",
+"camera": "low third-person behind drone",
+"tags": [
+"fpv",
+"drone",
+"gates",
+"stadium",
+"neon",
+"race-course"
+],
+"useFor": [
+"rc-car",
+"racing"
+],
+"source": "AI video (Horizon FPV, 'History of FPV')",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0331",
+"image": "images2/IMG_0331.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Red maples reflected in a moss garden pond",
+"summary": "Red maples over a moss garden and a still pond reflecting them.",
+"concept": "",
+"lessons": [
+"Red canopy + green moss + mirror pond: complementary colours doubled by reflection."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#50484a",
+"#8a6059",
+"#957f6e",
+"#b6a188",
+"#8b353e"
+],
+"lighting": "soft",
+"camera": "eye level",
+"tags": [
+"autumn",
+"moss",
+"pond",
+"japan"
+],
+"useFor": [
+"general"
+],
+"source": "photo (Kyoto moss temple)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0332",
+"image": "images2/IMG_0332.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Treehouse café beside a night waterfall",
+"summary": "A wooden treehouse lounge with warm lights beside a glowing waterfall at night.",
+"concept": "",
+"lessons": [
+"Interior warm + exterior cool glowing water."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#0c0505",
+"#200a06",
+"#4a2f1f",
+"#371d14",
+"#360e05"
+],
+"lighting": "warm lamps",
+"camera": "interior",
+"tags": [
+"treehouse",
+"cozy",
+"waterfall"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0333",
+"image": "images2/IMG_0333.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Swirling cloud vortex",
+"summary": "A huge cloud vortex seen from a cockpit.",
+"concept": "",
+"lessons": [
+"Spiral sky as a portal."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#255d9b",
+"#0f3e6d",
+"#3379c0",
+"#71b6e9",
+"#aad8f3"
+],
+"lighting": "cool",
+"camera": "cockpit",
+"tags": [
+"clouds",
+"vortex",
+"sky"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0334",
+"image": "images2/IMG_0334.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Glowing ghost figures in a white forest",
+"summary": "White glowing figures in a pale flowering forest.",
+"concept": "",
+"lessons": [
+"Glowing figures: emissive + bloom on a pale ground reads as spirits."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#153640",
+"#4e7f8d",
+"#6ba7b2",
+"#245461",
+"#3a5f6d"
+],
+"lighting": "cool mist",
+"camera": "eye level",
+"tags": [
+"ghosts",
+"spirit",
+"forest"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0335",
+"image": "images2/IMG_0335.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Rainy autumn porch by a lake",
+"summary": "A stone porch with flowers and chairs over a misty autumn lake in rain.",
+"concept": "",
+"lessons": [
+"Autumn rain: wet stone, orange leaves, low cloud on hills."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#432f21",
+"#6c615b",
+"#17120d",
+"#828582",
+"#aab8c7"
+],
+"lighting": "rain",
+"camera": "eye level",
+"tags": [
+"autumn",
+"rain",
+"porch",
+"lake"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0336",
+"image": "images2/IMG_0336.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Boy leaning out of a train over a green valley",
+"summary": "A boy looks out of an old train door over a green valley at dusk.",
+"concept": "",
+"lessons": [
+"Movement + view: rail vehicles carry the player through vistas."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#0a111a",
+"#192935",
+"#434434",
+"#1d4364",
+"#3a5763"
+],
+"lighting": "dusk",
+"camera": "side",
+"tags": [
+"train",
+"valley",
+"anime"
+],
+"useFor": [
+"general"
+],
+"source": "AI image (anime)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0337",
+"image": "images2/IMG_0337.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Night city view from a mountain deck",
+"summary": "A city of lights and a bay seen from a mountain observation deck at dusk.",
+"concept": "",
+"lessons": [
+"City lights at dusk: blue hour sky + carpet of warm points."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#0c090b",
+"#4a4056",
+"#847188",
+"#596ee0",
+"#bfafd5"
+],
+"lighting": "blue hour",
+"camera": "high",
+"tags": [
+"night-city",
+"viewpoint",
+"dusk"
+],
+"useFor": [
+"general"
+],
+"source": "photo (Kitakyushu)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0338",
+"image": "images2/IMG_0338.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Rainy loft with a fireplace",
+"summary": "A cozy loft with leather sofas, a fireplace and rain on huge windows.",
+"concept": "",
+"lessons": [
+"Cosy interior lighting: few warm sources, dark materials, rainy window."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#070504",
+"#362a24",
+"#1b110b",
+"#493e3a",
+"#2c180e"
+],
+"lighting": "fire + grey day",
+"camera": "interior",
+"tags": [
+"cozy",
+"interior",
+"rain",
+"fireplace"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0339",
+"image": "images2/IMG_0339.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Golden Christmas tree in a snowy city",
+"summary": "A giant golden lit tree in a snowy city street.",
+"concept": "",
+"lessons": [
+"Thousands of warm points in falling snow: festive hero object."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#cbaa8d",
+"#d69965",
+"#b7987f",
+"#947051",
+"#e1b789"
+],
+"lighting": "warm lights, snow",
+"camera": "eye level",
+"tags": [
+"christmas",
+"snow",
+"city",
+"lights"
+],
+"useFor": [
+"snowpuff",
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0340",
+"image": "images2/IMG_0340.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Autumn stone path to a temple",
+"summary": "A stone path with orange and red trees leading to temple stairs.",
+"concept": "",
+"lessons": [
+"Leaves on the path = colour carpet guiding the eye."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#50453b",
+"#b58f6a",
+"#966955",
+"#a37b60",
+"#915649"
+],
+"lighting": "soft",
+"camera": "eye level",
+"tags": [
+"autumn",
+"path",
+"temple"
+],
+"useFor": [
+"general"
+],
+"source": "photo (Japan)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0341",
+"image": "images2/IMG_0341.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Red maple over a misty autumn lake",
+"summary": "Red maple branches frame a calm lake with misty autumn hills.",
+"concept": "",
+"lessons": [
+"Foreground framing branches for depth."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#585d65",
+"#121719",
+"#8f291f",
+"#43322b",
+"#727e91"
+],
+"lighting": "soft",
+"camera": "eye level",
+"tags": [
+"autumn",
+"lake",
+"maple"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0342",
+"image": "images2/IMG_0342.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Giant mushrooms in a violet swamp",
+"summary": "Giant mushrooms and glowing spores in a purple swamp.",
+"concept": "",
+"lessons": [
+"Oversized mushrooms + violet light = alien marsh."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#29181d",
+"#834a62",
+"#613439",
+"#492223",
+"#b3636b"
+],
+"lighting": "violet",
+"camera": "third-person",
+"tags": [
+"mushrooms",
+"swamp",
+"mmo",
+"violet"
+],
+"useFor": [
+"general"
+],
+"source": "MMO (upscaler showcase)",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0343",
+"image": "images2/IMG_0343.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Misty rainforest with a flowering log",
+"summary": "A mossy log with purple flowers by a stream in a misty rainforest.",
+"concept": "",
+"lessons": [
+"Layered mist planes separate forest depth."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#060c07",
+"#49542b",
+"#1b2a14",
+"#687042",
+"#363719"
+],
+"lighting": "misty",
+"camera": "eye level",
+"tags": [
+"rainforest",
+"mist",
+"moss"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0344",
+"image": "images2/IMG_0344.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Rainy autumn lane with a wooden fence",
+"summary": "A wet lane with a wooden fence, berries and a farmhouse in misty hills.",
+"concept": "",
+"lessons": [
+"Wet lane puddles + fence leading line."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#151412",
+"#6f5e4e",
+"#41392e",
+"#7d786d",
+"#783d28"
+],
+"lighting": "rain",
+"camera": "eye level",
+"tags": [
+"autumn",
+"rain",
+"lane",
+"farm"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0345",
+"image": "images2/IMG_0345.PNG",
+"type": "character-art",
+"quality": 2,
+"title": "Woman in white with water wings",
+"summary": "A woman in a white dress with water wings in blue water.",
+"concept": "",
+"lessons": [
+"Translucent wings: fresnel + refraction."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#319bdd",
+"#073765",
+"#0562a0",
+"#6da7dc",
+"#85c8f3"
+],
+"lighting": "blue",
+"camera": "eye level",
+"tags": [
+"fantasy",
+"water",
+"wings"
+],
+"useFor": [
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0346",
+"image": "images2/IMG_0346.PNG",
+"type": "scene-environment",
+"quality": 4,
+"title": "Rainy autumn river promenade at night",
+"summary": "A wet riverside promenade with street lamps, orange trees and city lights at night.",
+"concept": "",
+"lessons": [
+"Wet path + lamps: long warm reflections down the path; the reference for a rainy night cycling route."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#39261d",
+"#151010",
+"#605650",
+"#3e3f45",
+"#5e402d"
+],
+"lighting": "night lamps, rain",
+"camera": "eye level",
+"tags": [
+"rain",
+"night",
+"promenade",
+"autumn",
+"wet"
+],
+"useFor": [
+"general",
+"racing"
+],
+"source": "AI video",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0348",
+"image": "images2/IMG_0348.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Yellow track car sliding on a wet autumn road",
+"summary": "A yellow track-focused sports car with a swan-neck wing yaws through a wet corner; an orange centre line, guard rails and orange-red autumn trees.",
+"concept": "",
+"lessons": [
+"Camera swings to the outside of the corner and the car shows a few degrees of yaw: drift angle visible = handling visible.",
+"Wet road + autumn: dark glossy asphalt, orange centre line, warm trees; the yellow car is the brightest object.",
+"Full-width red light bar on the tail and quad exhausts: modern rear design cues."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#797569",
+"#32322b",
+"#4a4436",
+"#aab7bc",
+"#604e39"
+],
+"lighting": "overcast, wet",
+"camera": "low chase, offset to the corner outside",
+"tags": [
+"wet-road",
+"autumn",
+"drift-angle",
+"track-car",
+"yellow",
+"mountain-road"
+],
+"useFor": [
+"racing"
+],
+"source": "racing game clip (Porsche 992 GT3 RS, IRace Games)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0349",
+"image": "images2/IMG_0349.PNG",
+"type": "scene-environment",
+"quality": 3,
+"title": "Round glass house in the snow",
+"summary": "A modern round glass house with a spiral stair in snowy pines, warm inside.",
+"concept": "",
+"lessons": [
+"Warm glass interior in snow: the lit window glow on snow."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#191823",
+"#90aad6",
+"#707b9b",
+"#343240",
+"#593b35"
+],
+"lighting": "blue day, warm interior",
+"camera": "eye level",
+"tags": [
+"snow",
+"modern",
+"house"
+],
+"useFor": [
+"snowpuff",
+"general"
+],
+"source": "AI image",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0350",
+"image": "images2/IMG_0350.PNG",
+"type": "scene-environment",
+"quality": 2,
+"title": "Swamp at dusk",
+"summary": "A flat swamp with odd trees reflected in water at dusk.",
+"concept": "",
+"lessons": [
+"Still-water reflections double a sparse scene."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#312e22",
+"#83766e",
+"#0e0f08",
+"#262719",
+"#524d43"
+],
+"lighting": "dusk",
+"camera": "eye level",
+"tags": [
+"swamp",
+"reflections"
+],
+"useFor": [
+"general"
+],
+"source": "sci-fi MMO",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0351",
+"image": "images2/IMG_0351.PNG",
+"type": "combat",
+"quality": 2,
+"title": "Top-down battlefield ARPG",
+"summary": "A top-down battle by stone walls with many units and spell flashes.",
+"concept": "",
+"lessons": [
+"Small spell flashes read on brown ground."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#4b3b33",
+"#2b2221",
+"#40322d",
+"#110f10",
+"#382521"
+],
+"lighting": "dark",
+"camera": "top-down",
+"tags": [
+"arpg",
+"battle",
+"top-down"
+],
+"useFor": [
+"general"
+],
+"source": "action game",
+"study": "knowledge/visual-study.md"
+},
+{
+"id": "ref.img2-0353",
+"image": "images2/IMG_0353.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "Little RC drift car and a curious cat on a wooden floor",
+"summary": "A white-and-black 1:16-ish RC drift car with working headlights rolls off a marble step onto wood; a grey cat leaps over it like a giant.",
+"concept": "RC car racing through a house: pets and household objects as giant obstacles",
+"lessons": [
+"The household pet is the perfect RC-game hazard: a giant, fast, unpredictable moving obstacle kids instantly understand.",
+"Floor-level camera (~5–10 cm high) turns a room into a landscape; a step or doorway sill becomes a curb or jump.",
+"Working LED headlights on the toy car make it feel 'real' and give it a face."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#000000",
+"#432211",
+"#815736",
+"#b89c80",
+"#010000"
+],
+"lighting": "indoor warm, mixed",
+"camera": "floor level, static",
+"tags": [
+"rc-car",
+"toy-scale",
+"cat",
+"house",
+"floor-level",
+"headlights",
+"drift"
+],
+"useFor": [
+"rc-car"
+],
+"source": "real footage (Kent's RC)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0354",
+"image": "images2/IMG_0354.PNG",
+"type": "vehicle",
+"quality": 5,
+"title": "RC car crossing a shiny marble floor past household 'landmarks'",
+"summary": "The RC car drifts across glossy marble tiles; a litter box, a robot vacuum, a cat tree and a crisp packet stand around like buildings.",
+"concept": "RC house rally: rooms as tracks, household objects as landmarks",
+"lessons": [
+"Scale cues: ordinary objects (robot vacuum, snack bag, chair legs) become landmarks and obstacles; the robot vacuum is a slow patrolling hazard.",
+"Glossy floor reflections of the car and lamps are the miniature version of a wet road: planar/SSR reflection on the floor sells it.",
+"Low camera + some depth-of-field blur in the background = miniature look."
+],
+"hud": [],
+"fx": {},
+"palette": [
+"#000000",
+"#a0825d",
+"#473224",
+"#c2ad8b",
+"#010000"
+],
+"lighting": "indoor daylight, glossy floor",
+"camera": "floor level, slight tilt-shift",
+"tags": [
+"rc-car",
+"toy-scale",
+"marble",
+"reflections",
+"robot-vacuum",
+"house",
+"miniature"
+],
+"useFor": [
+"rc-car"
+],
+"source": "real footage (Kent's RC)",
+"study": "knowledge/racing-study.md"
+},
+{
+"id": "ref.img2-0355",
+"image": "images2/IMG_0355.PNG",
+"type": "hud-gameplay",
+"quality": 5,
+"title": "FPV simulator view with stick-position overlay and a real controller",
+"summary": "A wide fisheye FPV view rolls past a grandstand and a pink gate; two small boxes with crosshairs show the live stick positions; below, hands on a real drone controller.",
+"concept": "",
+"lessons": [
+"Stick overlay: two small squares (~8% width) with a crosshair and a dot per stick, bottom-centre — the best way to teach two-stick (Mode 2) flying.",
+"FPV camera: very wide (~120–150° feel) with barrel distortion and camera uptilt so forward flight looks level.",
+"Gates drawn as thin bright outlines (pink) over the scene read even at high roll angles."
+],
+"hud": [
+{
+"element": "stick overlay",
+"pos": "bottom-centre",
+"notes": "two squares, crosshair + dot each"
+},
+{
+"element": "gate outlines",
+"pos": "world",
+"notes": "thin pink frames"
+}
+],
+"fx": {},
+"palette": [
+"#1f3231",
+"#9b968c",
+"#bdc5c8",
+"#707358",
+"#624f48"
+],
+"lighting": "overcast",
+"camera": "FPV fisheye, rolled",
+"tags": [
+"fpv",
+"drone",
+"simulator",
+"stick-overlay",
+"controller",
+"fisheye",
+"teaching"
+],
+"useFor": [
+"rc-car"
+],
+"source": "FPV simulator practice video (Eliecer Prado)",
+"study": "knowledge/racing-study.md"
 }
 ]
 }

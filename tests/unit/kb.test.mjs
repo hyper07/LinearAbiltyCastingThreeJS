@@ -34,7 +34,11 @@ test('search finds the right thing first for plain words', () => {
   assert.ok(top('skill wheel mobile cooldown').slice(0, 3).includes('tech.skill-bar-alignment'));
   assert.ok(top('bunny snowboard').slice(0, 3).includes('ref.img-0252'));
   assert.ok(top('render quality unreal').slice(0, 3).includes('tech.render-engine-grade'));
-  assert.ok(top('dress up', { kind: 'visual-ref' }).every((id) => id.startsWith('ref.img-')));
+  assert.ok(top('dress up', { kind: 'visual-ref' }).every((id) => /^ref\.img2?-/.test(id)));
+  // The second batch (images2/): racing, RC cars, FPV.
+  assert.ok(top('car paint clearcoat').slice(0, 3).includes('tech.car-materials'));
+  assert.ok(top('rc car house').slice(0, 3).includes('tech.rc-miniature'));
+  assert.ok(top('fpv drone gates').slice(0, 3).some((id) => id === 'tech.fpv-drone' || id === 'ref.img2-0330'));
   assert.ok(top('stepper driver', { kind: 'circuit-part' })[0] === 'part.stepper-driver-a4988');
   assert.ok(top('mna circuit solver').slice(0, 3).includes('tech.circuit-mna-solver'));
   // Models only when asked for.
