@@ -273,7 +273,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 11;
+export const EXTRAS_VERSION = 12;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -338,7 +338,9 @@ const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027'
   // Wyldhunt's jungle floor, mud, river pebbles, ruin flagstones and mossy rock.
   'Ground068', 'Ground106', 'Ground108', 'Bricks113A', 'Rock063',
   // Gangnam Jarani's red-brick villas close up.
-  'Bricks105'];
+  'Bricks105',
+  // Gangnam Jarani's walls near the course: red villa brick, grey and beige granite panels, white tile, render.
+  'Bricks101', 'Granite002A', 'Granite001A', 'Tiles107', 'Tiles133A', 'Plaster001'];
 // (Kithvale's painted ground uses Grass004, Ground068, Ground106, PavingStones141, Rock051 and Moss002, all above.)
 
 /** polyfork models a game needs (CC BY 4.0, credited in the game), fetched by id from polyfork's CDN. */

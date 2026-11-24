@@ -290,7 +290,8 @@ export class Golmok {
             // On a building's wall: an air conditioner, a gas meter with its pipe, a sign, an awning, a lamp.
             if (r() < 0.32) {
               const [x, z] = along(len * r());
-              const y = base + (r() < 0.5 ? 0.35 : 2 + r() * 2.5);
+              // (Low, standing on the ground: the units up the walls come with the building, facades.js.)
+              const y = base + 0.05;
               props.box(x + rx * side * 0.15, y + 0.3, z + rz * side * 0.15, 0.4, 0.3, 0.16, outYaw, PAL.ac);
               props.box(x + rx * side * 0.0, y + 0.3, z + rz * side * 0.0, 0.17, 0.17, 0.02, outYaw, C('#3a3c40'));
             }
@@ -299,26 +300,9 @@ export class Golmok {
               props.box(x + rx * side * 0.1, base + 1.2, z + rz * side * 0.1, 0.12, 0.15, 0.08, outYaw, PAL.meter);
               props.box(x + rx * side * 0.12, base + 3.5, z + rz * side * 0.12, 0.025, 3.5, 0.025, outYaw, C('#d9c9a0'));
             }
-            if (r() < 0.16) {
-              const [sx, sz] = along(len * r());
-              signs.push({ x: sx - rx * side * 0.45, z: sz - rz * side * 0.45, y: base + 3.2 + r() * 1.5, yaw: Math.atan2(-uz, ux), word: Math.floor(r() * this.signs.count) });
-            }
-            if (r() < 0.12) {
-              // A striped awning over a door, sloping out over the street.
-              const [x, z] = along(len * (0.2 + r() * 0.6));
-              const [c1, c2] = pick(r, PAL.awn);
-              const yaw = hd;
-              for (let s = 0; s < 6; s++) {
-                const off = -1 + (s + 0.5) / 3;
-                const ax = x + ux * off;
-                const az = z + uz * off;
-                const pIn = new THREE.Vector3(ax + rx * side * 0.05, base + 2.75, az + rz * side * 0.05);
-                const pOut = new THREE.Vector3(ax - rx * side * 0.9, base + 2.35, az - rz * side * 0.9);
-                const d1 = new THREE.Vector3(ux * 0.17, 0, uz * 0.17);
-                props.quad(pIn.clone().sub(d1), pIn.clone().add(d1), pOut.clone().add(d1), pOut.clone().sub(d1), s % 2 ? c1 : c2);
-              }
-              void yaw;
-            }
+            // (Signs and awnings belong to the shops: facades.js puts them over each shopfront.)
+            r();
+            r();
             if (i % 5 === (side > 0 ? 2 : 0)) lamps.push({ x: ex - rx * side * 0.55, z: ez - rz * side * 0.55, y: base + 3.4, wall: [ex + rx * side * 0.05, ez + rz * side * 0.05] });
           }
           // On the ground by the edge: planters, pots, bins, a parked scooter, steps (never out on a main road).

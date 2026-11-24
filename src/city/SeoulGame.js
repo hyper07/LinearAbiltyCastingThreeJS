@@ -643,24 +643,14 @@ export class SeoulGame {
             // The window's lit glass is brightest in the middle (a lamp in the room, curtains at the sides).
             float inner = win * (0.6 + 0.4 * (1.0 - abs(f.x - 0.5) * 2.0));
             seoulGlow += warm * uNight * mix(inner * on * lamp, 0.05, far) * 0.42;
-            // Street level: shopfronts, and the signs above them — the Korean high street.
-            bool street = (kind == 2.0 || kind == 6.0 || kind == 3.0 || (kind == 0.0 && vWall.z > 0.55)) && vWall.y < 5.2 && far < 0.9;
+            // Street level, far off: shop glass on the ground floor, lit warm at night, some shut. (No
+            // signs out here: near the course facades.js puts each shop's own sign over it.)
+            bool street = (kind == 2.0 || kind == 6.0 || kind == 3.0 || (kind == 0.0 && vWall.z > 0.55)) && vWall.y < 3.3 && far < 0.9;
             if (street) {
-              if (vWall.y < 3.3) {
-                float pane = step(0.06, fract(vWall.x / 2.4)) * step(0.15, vWall.y / 3.3);
-                // Shop glass: a warm lit inside by night, some shops shut (shutters down).
-                float open = step(0.3, seoulHash(vec2(floor(vWall.x / 7.0), vWall.z * 53.0)));
-                diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.12, 0.14, 0.16), mix(vec3(0.32, 0.33, 0.35), vec3(0.45, 0.38, 0.28), open), uNight), pane * 0.9);
-                seoulGlow += vec3(1.0, 0.8, 0.58) * pane * uNight * open * 0.28;
-              } else if (vWall.y < 4.7) {
-                // Each sign 7 m wide: one of the atlas's sixteen, picked by the building and the place along it.
-                float n = floor(vWall.x / 7.0);
-                float pick = floor(seoulHash(vec2(n, vWall.z * 97.0)) * 16.0);
-                vec2 uv = vec2((mod(pick, 4.0) + fract(vWall.x / 7.0)) / 4.0, (floor(pick / 4.0) + 1.0 - (vWall.y - 3.3) / 1.4) / 4.0);
-                vec3 sign = texture2D(uSigns, uv).rgb;
-                diffuseColor.rgb = sign;
-                seoulGlow += sign * (0.08 + uNight * 0.55);
-              }
+              float pane = step(0.06, fract(vWall.x / 2.4)) * step(0.15, vWall.y / 3.3);
+              float open = step(0.3, seoulHash(vec2(floor(vWall.x / 7.0), vWall.z * 53.0)));
+              diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.12, 0.14, 0.16), mix(vec3(0.32, 0.33, 0.35), vec3(0.45, 0.38, 0.28), open), uNight), pane * 0.9);
+              seoulGlow += vec3(1.0, 0.8, 0.58) * pane * uNight * open * 0.28;
             }
             seoulLit = 0.0;
           } else {
@@ -853,6 +843,8 @@ export class SeoulGame {
       const flip = area > 0 ? -1 : 1;
       foot.at(-1).flip = flip;
       let along = seed * 3.2;
+      // Where its walls are in the tile's mesh (the near facades hide them: hideWalls).
+      foot.at(-1).v0 = pos.length / 3;
       for (let i = 0; i < n; i++) {
         const j = (i + 1) % n;
         const dx = xs[j] - xs[i];
@@ -871,6 +863,7 @@ export class SeoulGame {
         wall.push(u0, 0, seed, u1, 0, seed, u1, h, seed, u0, 0, seed, u1, h, seed, u0, h, seed);
         for (let k = 0; k < 6; k++) kinds.push(kind, h);
       }
+      foot.at(-1).v1 = pos.length / 3;
       const contour = [];
       for (let i = 0; i < n; i++) contour.push(new THREE.Vector2(xs[i], zs[i]));
       for (let [a, c, d] of THREE.ShapeUtils.triangulateShape(contour, [])) {
@@ -1416,6 +1409,33 @@ export class SeoulGame {
     g.position.set(l.wx, base, l.wz);
     this.scene.add(g);
     l.base = base;
+  }
+
+  /**
+   * Hide (or show again) a building's walls in its tile's mesh, while facades.js has built it
+   * for real: its wall triangles are folded to a point, and put back from a copy.
+   */
+  hideWalls(b, hide) {
+    const mesh = b.tile?.mesh;
+    if (!mesh || b.v1 == null || b.v1 <= b.v0) return;
+    const attr = mesh.geometry.attributes.position;
+    const a = b.v0 * 3;
+    const z = b.v1 * 3;
+    if (hide) {
+      if (b.saved) return;
+      b.saved = attr.array.slice(a, z);
+      for (let i = a + 3; i < z; i += 3) {
+        attr.array[i] = attr.array[a];
+        attr.array[i + 1] = attr.array[a + 1];
+        attr.array[i + 2] = attr.array[a + 2];
+      }
+    } else {
+      if (!b.saved) return;
+      attr.array.set(b.saved, a);
+      b.saved = null;
+    }
+    attr.addUpdateRange(a, z - a);
+    attr.needsUpdate = true;
   }
 
   /** The building standing at a point on the ground (its footprint), or null. */
