@@ -267,7 +267,10 @@ export function buildRfBench(comp: ComponentInstance, entry: CatalogEntry, pins:
         g.fillStyle = comp.type === 'rf_power_meter' ? '#ffb340' : '#7fe0ff'
         g.textBaseline = 'middle'
         const txt = reading || '----'
-        if (/^[-+0-9. ]+\s*[^\s]*$/.test(txt.replace(/^([-+]?[0-9.]+) /, '$1'))) drawReadout(g, txt.replace(/ /, ''), dx + dw - 10, dy + dh / 2 + 2, Math.min(40, dh * 0.55), 'right')
+        if (/^[-+0-9. ]+\s*[^\s]*$/.test(txt.replace(/^([-+]?[0-9.]+) /, '$1'))) {
+          const t2 = txt.replace(/ /, '')
+          drawReadout(g, t2, dx + dw - 10, dy + dh / 2 + 2, Math.min(40, dh * 0.55, (dw - 24) / (t2.length * 0.62)), 'right')
+        }
         else {
           g.font = mono(600, Math.min(22, dh * 0.4))
           g.fillText(txt, dx + 8, dy + dh / 2)
@@ -339,9 +342,8 @@ export function buildAntenna(comp: ComponentInstance, entry: CatalogEntry, pins:
         // four drooping radials
         for (let k = 0; k < 4; k++) {
           const ang = (k * Math.PI) / 2 + Math.PI / 4
-          const rad = cyl(0.1, L * 0.9, steel, Math.cos(ang) * L * 0.32, -L * 0.3, Math.sin(ang) * L * 0.32)
-          rad.rotation.set(Math.sin(ang) * 0.8, 0, -Math.cos(ang) * 0.8)
-          tiltable.add(rad)
+          const r = Math.min(L * 0.75, 9)
+          tiltable.add(tube([new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(ang) * r * 0.5, -0.6, Math.sin(ang) * r * 0.5), new THREE.Vector3(Math.cos(ang) * r, -Math.min(3.6, r * 0.55), Math.sin(ang) * r)], 0.09, steel, 8))
         }
       }
       break
@@ -496,7 +498,7 @@ export function buildRadioModule(comp: ComponentInstance, entry: CatalogEntry, p
       break
     }
     case 'rfm95': {
-      parts.push(box(6.3, 0.35, 6.3, satinMetal(0xc0c4ca), 5, pcbY + 0.26, cz), box(0.8, 0.12, 0.3, copper, 9.4, pcbY + 0.14, 4.5))
+      parts.push(box(6.3, 0.35, 6.3, satinMetal(0x7d848c), 5, pcbY + 0.26, cz), box(0.8, 0.12, 0.3, copper, 9.4, pcbY + 0.14, 4.5))
       break
     }
     case 'tx433': {
@@ -599,8 +601,8 @@ export function buildCmChoke(_comp: ComponentInstance, _entry: CatalogEntry, pin
       const th = (side ? Math.PI : 0) + Math.PI * 0.12 + (k / 8) * Math.PI * 0.76
       const turn = new THREE.Mesh(cachedGeometry('cmc-turn', () => new THREE.TorusGeometry(0.6, 0.07, 4, 10)), cu)
       turn.position.set(c.x + Math.cos(th) * R, R + 0.9 + Math.sin(th) * R, c.z)
-      turn.rotation.set(0, Math.PI / 2, 0)
-      turn.rotateOnAxis(new THREE.Vector3(1, 0, 0), 0)
+      // each turn wraps the core: its axis along the ring's tangent
+      turn.rotation.set(Math.PI / 2, 0, 0)
       const holder = new THREE.Object3D()
       holder.position.copy(turn.position)
       turn.position.set(0, 0, 0)
@@ -627,13 +629,13 @@ export function buildLcFilter(comp: ComponentInstance, _entry: CatalogEntry, pin
   const parts: THREE.Object3D[] = []
   const pi = comp.type === 'pi_filter'
   const W = Math.max(span, pi ? 4.2 : 3.4)
-  frame.add(box(W, 3.2, 0.16, plastic(0x1f4fae, 0.55), 0, 2.4, 0))
+  frame.add(box(W, 3.8, 0.16, plastic(0x1f4fae, 0.55), 0, 2.7, 0))
   const cap = plastic(0xc9a46a, 0.5)
   const ind = plastic(0x1c1c1e, 0.4)
-  if (pi) frame.add(box(0.7, 0.5, 0.5, cap, -W / 2 + 0.8, 2.2, 0.33))
-  frame.add(cyl(0.85, 0.7, ind, pi ? 0 : -0.5, 2.6, 0.45, 18))
+  if (pi) frame.add(box(0.7, 0.5, 0.5, cap, -W / 2 + 0.8, 1.7, 0.33))
+  frame.add(cyl(0.7, 0.6, ind, pi ? 0 : -0.5, 1.8, 0.38, 18))
   frame.children[frame.children.length - 1].rotation.x = Math.PI / 2
-  frame.add(box(0.7, 0.5, 0.5, cap, W / 2 - 0.8, 2.2, 0.33))
+  frame.add(box(0.7, 0.5, 0.5, cap, W / 2 - 0.8, 1.7, 0.33))
   parts.push(frame)
   const leg = metal(0xcfd3d8, 0.35)
   for (const p of pins) parts.push(tube([new THREE.Vector3(p.x, -0.18, p.z), new THREE.Vector3(p.x, 0.5, p.z), new THREE.Vector3(p.x, 0.9, p.z)], 0.06, leg, 6))
@@ -647,7 +649,7 @@ export function buildLcFilter(comp: ComponentInstance, _entry: CatalogEntry, pin
     silk.ctx.font = ui(600, 22)
     silk.ctx.fillText('IN   GND   OUT', 14, 80)
     silk.tex.needsUpdate = true
-    const lbl = face(W * 0.9, W * 0.34, silk.tex, 0, 1.5, 0.1)
+    const lbl = face(Math.min(W * 0.9, 3.2), Math.min(W * 0.9, 3.2) * 0.375, silk.tex, 0, 3.75, 0.1)
     frame.updateMatrixWorld()
     const holder = new THREE.Group()
     holder.position.copy(frame.position)

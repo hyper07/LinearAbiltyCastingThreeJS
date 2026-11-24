@@ -34,7 +34,9 @@ export function rfStressOf(comp: ComponentInstance, entry: CatalogEntry, t: Comp
       type === 'nrf24l01' || type === 'rfm95'
         ? `Power ${id} from the 3.3 V pin (not 5 V); its data pins can stay on 5 V logic${type === 'rfm95' ? ' only through a level shifter' : ''}.`
         : `Feed ${id} ${radio.vccMin}–${radio.vccMax} V.`
-    return { ratio: vcc / radio.vccAbs, reason: `${fmtV(vcc)} on ${id}'s ${radio.vcc} — the ${name} takes at most ${radio.vccAbs} V.`, fix }
+    // inside its working range it is fine; between the working max and the abs max it runs hot
+    const ratio = vcc <= radio.vccMax ? Math.min(0.75, vcc / radio.vccAbs) : radio.vccAbs > radio.vccMax ? 0.8 + (0.2 * (vcc - radio.vccMax)) / (radio.vccAbs - radio.vccMax) : vcc / radio.vccAbs
+    return { ratio, reason: `${fmtV(vcc)} on ${id}'s ${radio.vcc} — the ${name} takes at most ${radio.vccAbs} V.`, fix }
   }
   switch (type) {
     case 'usrp_b210': {

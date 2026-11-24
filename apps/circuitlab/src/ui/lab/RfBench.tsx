@@ -94,8 +94,10 @@ export function SpectrumPanel() {
   const running = useStore((s) => s.running)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [mode, setMode] = useState<'FFT (DC–1 MHz)' | 'RF'>('FFT (DC–1 MHz)')
-  const [stop, setStop] = useState(1000)
-  const [rbw, setRbw] = useState(10)
+  // a sensible first span from what is on the bench: ripple → 500 kHz, hum → 500 Hz
+  const firstMode = useStore((st) => String(st.layout.components.find((c) => c.type === 'noise_source')?.params?.mode ?? ''))
+  const [stop, setStop] = useState(firstMode === 'switching ripple' ? 5e5 : firstMode.startsWith('hum') ? 500 : 1000)
+  const [rbw, setRbw] = useState(firstMode === 'switching ripple' ? 1000 : firstMode.startsWith('hum') ? 1 : 10)
   const [center, setCenter] = useState(433.92)
   const [span, setSpan] = useState(10)
   const [rfRbw, setRfRbw] = useState(1e5)
@@ -140,7 +142,7 @@ export function SpectrumPanel() {
     if (!canvas.current || !spec) return
     const key = unit === 'dBm' ? 'dbm' : 'dbv'
     const top = spec.peaks[0]
-    const markers = spec.peaks.slice(0, 3).map((p, i) => ({ x: p.f, label: `M${i + 1} ${hz(p.f)} ${(unit === 'dBm' ? p.dbm : p.dbv).toFixed(1)}`, color: ['#ff453a', '#ff9f0a', '#30d158'][i] }))
+    const markers = spec.peaks.slice(0, 3).map((p, i) => ({ x: p.f, label: `M${i + 1}`, color: ['#ff453a', '#ff9f0a', '#30d158'][i] }))
     const lo = Math.min(...spec.points.map((p) => p[key]))
     drawPlot(canvas.current, [{ label: unit, color: '#ffd84a', points: spec.points.map((p) => ({ x: p.f, y: p[key] })) }], {
       xLabel: 'f (Hz)',
@@ -419,7 +421,7 @@ export function VnaPanel() {
         <div className="bn-meas" data-vna-meas>
           Best match {hz(res.best.f)} · |S11| {res.best.s11db.toFixed(1)} dB · return loss {res.best.rl.toFixed(1)} dB · VSWR {res.best.vswr.toFixed(2)} · Z {res.best.zin[0].toFixed(1)} {res.best.zin[1] >= 0 ? '+' : '−'} j{Math.abs(res.best.zin[1]).toFixed(1)} Ω
           <br />
-          {res.gainMode ? 'Gain' : 'S21'} peak {res.s21peak.s21db.toFixed(1)} dB at {hz(res.s21peak.f)} · −3 dB {res.s21low ? hz(res.s21low) : '—'} / {res.s21high ? hz(res.s21high) : '—'}
+          {res.s21peak.s21db < -150 ? 'S21: nothing reaches port 2' : <>{res.gainMode ? 'Gain' : 'S21'} peak {res.s21peak.s21db.toFixed(1)} dB at {hz(res.s21peak.f)} · −3 dB {res.s21low ? hz(res.s21low) : '—'} / {res.s21high ? hz(res.s21high) : '—'}</>}
         </div>
       )}
       <p className="lab-dim">Port 1 is a 50 Ω source; S11 = (V₁ − ½)/½ is what bounces back, S21 = V₂/½ what gets through into 50 Ω (with a high-Z port 2: the voltage gain V₂/V₁). Each point is an AC solve of the circuit.</p>
@@ -510,8 +512,8 @@ export function LinkPanel() {
                 <td>{r.best ? `${r.best.from.compId}${r.best.coupling.conducted ? ' (cable)' : ''}` : '—'}</td>
                 <td>{r.best ? hz(r.best.from.fHz) : hz(r.rx.fHz)}</td>
                 <td>{db(r.best?.dbm)} dBm</td>
-                <td>{db(r.noiseDbm)} dBm</td>
-                <td>{db(r.snrDb)} dB</td>
+                <td>{r.rx.what === 'power sensor' ? '—' : `${db(r.noiseDbm)} dBm`}</td>
+                <td>{r.rx.what === 'power sensor' ? '—' : `${db(r.snrDb)} dB`}</td>
                 <td className={marginClass(r.marginDb)}>{r.rx.what.startsWith('B210') || r.rx.what === 'spectrum analyzer' || r.rx.what === 'power sensor' ? '—' : `${db(r.marginDb)} dB`}</td>
                 <td>{live ? (live.link ? 'link ✓' : live.rssi !== undefined && Number.isFinite(Number(live.rssi)) ? `${Number(live.rssi).toFixed(0)} dBm` : String(live.note || '')) : ''}</td>
               </tr>

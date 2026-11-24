@@ -123,11 +123,23 @@ export function captureSpectrum(engine: SimEngine, inRef: EndpointRef, gndRef: E
   const h = Math.min(dt, period)
   const xs: number[] = []
   const t0 = engine.time
+  const read = () => {
+    const v = engine.netVoltage(inRef) - (gndRef ? engine.netVoltage(gndRef) : 0)
+    return Number.isFinite(v) ? v : 0
+  }
+  // each sample is the AVERAGE over its interval (a boxcar anti-alias filter:
+  // nulls at every multiple of fs, so fast ripple does not fold down into the span)
   for (let i = 0; i < n; i++) {
     const target = t0 + (i + 1) * period
-    while (engine.time < target - h * 0.5) engine.step(Math.min(h, target - engine.time))
-    const v = engine.netVoltage(inRef) - (gndRef ? engine.netVoltage(gndRef) : 0)
-    xs.push(Number.isFinite(v) ? v : 0)
+    let acc = 0
+    let span = 0
+    while (engine.time < target - h * 0.5) {
+      const step = Math.min(h, target - engine.time)
+      engine.step(step)
+      acc += read() * step
+      span += step
+    }
+    xs.push(span > 0 ? acc / span : read())
   }
   return spectrumOf(xs, fs, stopHz)
 }
