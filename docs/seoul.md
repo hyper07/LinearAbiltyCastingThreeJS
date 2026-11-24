@@ -91,55 +91,75 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **View**: near, far or farthest — how many tiles are kept around you (800 m to 2 km, more when
   flying high).
 
-## Gangnam Jarani: racing at night
+## Gangnam Jarani: the bike race
 
-**🏁 Gangnam Jarani** (the button) is a night race for four cars on a loop of real Seoul streets.
+**🚲 Race** (the button; the game opens on it) is a bicycle race for four riders through Seoul's
+real streets and alleys — and the streets stay open.
 
-- **Courses**: five city loops of 4 to 5 km (Gwanghwamun Loop, Namsan Twisties, Dongdaemun Night,
-  Gangnam Avenues, Yeouido Island) and three long ones of a single lap across the city — Han River
-  Grand Tour (13.8 km, both banks and the bridges), Seoul Marathon (16.2 km) and Downtown Circuit
-  (11.8 km). Then the two runs, start to finish, not round: **Seoul 50K** (about 55 km, Jongno to
-  Mapo, over the river to Yeouido and Gangnam, back by Seongdong) and **Seoul 100K** (about 105 km,
-  fifteen districts, over the river twice). A run has a checkpoint in each district on the way, with
-  a split time at each, the next one named with its distance, and the kilometres left to the
-  finish. Each is planned on the spot from the real road network: four points
-  round the place, joined by the best roads, never the same street twice, never turning round on
-  itself. The same roads always give the same course, so a room needs only the course's name.
-- **The garage**: five cars of our own — Solenne GT (fast and steady), Noctis R (a drift build with a
-  wing; its boost fills fastest), Hanbit Speedster (the highest top speed), Arden Coupe (quickest off
-  the line, sharpest turn) and Volta EV (electric: instant pull, planted) — each in four paints, with
-  bars for speed, pick-up, grip and drift. They share one licensed body (Car Concept, CC BY 4.0) but
-  each has its own proportions, parts and handling. Bots pick cars too.
-- **The crowd**: people line the course behind red-and-white barriers — both sides of the start, the
-  outside of every turn, every half kilometre between — and go wild as the cars come by (arms up,
-  waving, bouncing, a roar and whistles as you pass). They come to life as you near them.
-- **Things to hit**: the barriers and the cones on the inside of every turn are solid. Hit one and
-  it flies, tumbles and lies where it lands (the car loses a little speed, a cone less); the crowd
-  behind it jumps back, then comes back to the barrier. Nobody can be driven through: a car that
-  reaches the crowd stops.
-- **Alone**: you against three bots. **Together**: one player makes a room and gives the five-letter
-  code; up to three others join; the host picks the course and the laps (1, 2, 3 or 5) and starts.
-  Bots take any empty seats (the host's browser drives them).
-- **Driving**: **W** go, **S** brake (held on once stopped, it backs up — the camera stays behind), **A D** steer, **Shift** to drift (the
-  handbrake throws the car into a slide), **Space** for the turbo, **R** back onto the course, **H** horn.
-- **The turbo gauge** starts empty. Driving fast fills it slowly (about half a minute flat out);
-  drifting fills it far faster, and scores drift points. Only a **full** gauge fires the turbo
-  (**Space**; the gauge glows orange when it is ready), and a turbo burns for five seconds, flames from the back, until the gauge is empty. Drifting leaves skid marks and tyre smoke; a hard slide or a wall throws sparks.
-  Bots play by the same rule.
-- **Time and weather change by themselves.** The day starts at Seoul's real time of day and runs at
-  an hour a minute (a whole day in 24 minutes), dawn, noon, sunset and night; the weather changes
-  every few minutes — clear, rain, a storm with lightning, fog, and snow in the cold months. Rain
-  darkens the roads and makes them shine under the street lamps; fog closes the view in. A race
-  runs in whatever the city has at the time.
-- **On screen**: the map at the top left turns with you and shows the course ahead in orange over
-  the streets, with everyone on it; your place and lap, the lap's time, your best and the total;
-  the order of all four; speed and boost. Orange chevrons on the road point the way; every turn has an arrow board on the outside
-  of the bend (red for a sharp one), and the next turn is named at the top of the screen with its
-  distance. A gate marks the start and finish. A countdown starts the race; the results table ends it (time, best
-  lap, drift points).
+- **Courses**: seven short loops (about 2.2–2.5 km, two to four minutes a lap) round neighbourhoods
+  with golmok: Ikseon Hanok Lanes, Euljiro Print Alleys, Seochon Backstreets, Yeonnam Cafe Loop,
+  Seongsu Workshops, Mullae Ironworks, Haebangchon Hill. Each is planned on the spot from the real
+  street network — never a motorway, a mix of big roads and small streets, never the same street
+  twice, started on a straight wide enough for the grid. The small streets (residential lanes,
+  alleys, market lanes) come from OpenStreetMap round those neighbourhoods only:
+  `scripts/geo/seoul-alleys.mjs` writes `alleys.bin` beside `roads.bin` (`npm run geo:alleys`;
+  `npm run geo:seoul` runs it too). Without it the loops keep to the bigger roads. 1–3 laps.
+- **Riders**: six of our own, three women and three men — Haru (white jacket, ponytail, a mint
+  city bike), Taeo (red hoodie, headphones, a black fixie), Sora (yellow helmet, teal windbreaker,
+  a coral road bike), Rio (black tee, backwards cap, a white road bike), Dami (olive jacket, twin
+  buns, a lilac fixie), Hajin (white vest, a fat-tyred trail bike). Each bike handles its own way
+  (speed, pick-up, handling, grip). Bots take the others, women and men both.
+  They are drawn as 2D pictures standing in the 3D street (camera-facing cards, lit by the scene):
+  real-proportioned 3D people (Quaternius' Ultimate Modular Men and Women, CC0, in
+  `library/inbox/`) posed on a bike of our own — feet on the pedals, hands on the grips, standing to
+  sprint, thrown off, sat dazed, getting up, both arms up at the finish — rendered once for five
+  views and every moment and painted over (a Kuwahara paint filter, richer colour, soft edges, a
+  cool rim light). `src/city/riderbake.js` does it when the race starts (a moment, the first time);
+  without the models the riders are painted in code instead (`src/city/toon.js`).
+- **Riding** (`src/city/ride.js`, pure and tested): **W** pedal to a ~35 km/h cruise, **S** brake
+  (longer in the wet), **A D** lean — a bike turns by leaning, so a tight alley corner wants you
+  slow — **Space** sprint, standing on the pedals, to ~49 km/h while the stamina gauge lasts (it
+  refills as you ride, faster in a slipstream behind a car, a bus or a rider, and with every close
+  call), **Shift** skid the back round, **B** the bell (people just ahead step aside), **R** back on
+  the course. Hills slow you or let you run.
+- **Traffic** (`src/city/traffic.js`, `src/city/vehicles.js`): ordinary cars — hatchbacks, saloons,
+  small SUVs, people carriers, taxis with our own roof sign, delivery vans, one-tonne trucks — in
+  Seoul's whites, silvers, greys and blacks; city buses in route blue, green and yellow; delivery
+  scooters, also down the small streets. They keep their own side, cross at the junctions, blink
+  before turning, brake (late, for a bike), honk when held up. People walk the pavements and the
+  middle of the alleys (`src/city/life.js`). Hit any of it — or a planter, a bin, a parked scooter,
+  a pole — and you're off the bike: a hit-stop, "BONK!", a tumble, stars, back on 1.5 s later.
+  Pass close at speed for a "WHOOSH!" and a top-up of sprint.
+- **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
+  ~220 m) to fill three slots; use them with **1 2 3**. Energy drink (gauge full), air horn
+  (people and scooters ahead clear out, cars stop), gold helmet (the next crash bounces off),
+  tailwind (five seconds of free, faster sprinting). The further back you are, the better the odds.
+  Bots use them too.
+- **The alleys** (`src/city/golmok.js`): along the course, built as you come near: the small
+  streets' concrete and asphalt at road level, a narrow raised pavement down a residential lane,
+  garden walls and gates, air-conditioner units and gas meters, concrete poles with wires
+  overhead, convex mirrors at blind corners, vertical shop signs lit at night, awnings, styrofoam
+  planters, pots, bins, parked scooters, steps, alley lamps with pools of light.
+- **Buildings beside the course** (`src/city/facades.js` and the city shader): window frames and
+  sills on the shader's own grid, balconies and rails on flats and villas, shopfronts and striped
+  awnings, downpipes, roof tanks and units; close up the walls are brick, tile or render, glass has
+  rooms behind it (interior mapping: ceilings, lights, partitions — lit or dark at night), and
+  half the glass towers have white aluminium fins.
+- **Time and weather**: every race has its own — day, golden hour, dusk or night; clear, rain,
+  storm, fog, or snow in the cold months — random by default, or picked in the menu. The city
+  clock stops for the race. Rain darkens and shines the roads and makes braking longer; snow is
+  slipperier still.
+- **Alone**: you against three bots. **Together**: one player makes a room and gives the
+  five-letter code; up to three others join and pick their riders (everyone sees the picks); the
+  host picks the course, laps, time and weather and starts. Bots take any empty seats (the host's
+  browser rides them). Each browser sends where its riders are fifteen times a second, and when
+  an item is used.
+- **On screen**: the map at the top left turns with you (course ahead, traffic, item boxes,
+  everyone); your place beside it; the lap top right with the order under it; the time and the
+  three item slots bottom centre; speed and the sprint gauge bottom right; the next turn named at
+  the top ("SHARP RIGHT · ALLEY 30 m"); speed lines while sprinting. Left-drag looks round.
 - `src/city/race.js` runs the race; `src/city/course.js` plans the courses (tested in
-  `tests/unit/course.test.mjs`); the room goes over the party server (`/ws`), each browser
-  telling the others where its cars are fifteen times a second.
+  `tests/unit/course.test.mjs`); the room goes over the party server (`/ws`).
 
 ## On the street: how it is built
 
