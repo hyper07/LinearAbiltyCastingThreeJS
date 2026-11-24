@@ -165,6 +165,8 @@ export interface IBreadboardScene {
   /** highlight selected object ids */
   /** highlight the breadboard(s) that Remove would take: a module column, or a board-row on a one-wide grid (null = none) */
   setBoardSelection?(board: { col: number; row: number } | null): void
+  /** over-limit heat / burned parts for the glow, smoke and scorch effects */
+  setStress?(f: { heat: ReadonlyMap<string, number>; ratio: ReadonlyMap<string, number>; burned: ReadonlySet<string> }): void
   setSelection(ids: string[]): void
   /** wire-drawing preview from a fixed endpoint to the hovered hole */
   setWirePreview(from: HoleRef | string | null, to: HoleRef | null): void

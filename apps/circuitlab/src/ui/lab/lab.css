@@ -580,3 +580,102 @@
 .lab-specs-modal {
   z-index: 200;
 }
+
+/* ---- Diagnose ---- */
+.lab-diag-btn {
+  position: fixed;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font: 600 13px var(--lg-font);
+  cursor: pointer;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+  animation: lab-diag-pulse 1.4s ease-in-out infinite;
+}
+.lab-diag-btn.is-broken {
+  background: #c8352b;
+}
+.lab-diag-btn.is-hot {
+  background: #d97614;
+}
+.lab-diag-btn strong {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+}
+@keyframes lab-diag-pulse {
+  50% {
+    box-shadow: 0 6px 28px rgba(255, 90, 40, 0.65);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-diag-btn {
+    animation: none;
+  }
+}
+.lab-diag-card {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid #8a8f98;
+}
+.lab-diag-card.is-broken {
+  border-left-color: #e5483d;
+}
+.lab-diag-card.is-pin,
+.lab-diag-card.is-hot {
+  border-left-color: #f19a1c;
+}
+.lab-diag-card header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.lab-diag-id {
+  font: 700 15px var(--lg-mono);
+}
+.lab-diag-tag {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font: 600 12px var(--lg-font);
+}
+.lab-diag-card.is-broken .lab-diag-tag {
+  background: rgba(229, 72, 61, 0.25);
+  color: #ffb4a8;
+}
+.lab-diag-card.is-hot .lab-diag-tag,
+.lab-diag-card.is-pin .lab-diag-tag {
+  background: rgba(241, 154, 28, 0.22);
+  color: #ffd29a;
+}
+.lab-diag-card p {
+  margin: 6px 0;
+}
+.lab-diag-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.lab-diag-actions,
+.lab-diag-foot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.lab-diag-foot {
+  margin-top: 16px;
+}

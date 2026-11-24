@@ -53,6 +53,7 @@ import {
   removeBoardModule,
   spansSeam,
 } from '../model/breadboard'
+import { StressMonitor, withoutBurned, type Breakdown, type StressReading } from '../sim/stress'
 import { occludedHoles } from '../model/occlusion'
 import { validateLayout } from '../model/validate'
 import {
@@ -623,6 +624,24 @@ let probes: ProbeBinding[] = []
  * Per-frame telemetry consumer (the 3D scene). Registered by App.tsx so live
  * telemetry reaches the scene at full frame rate, bypassing React.
  */
+/** over-limit heat and burned parts (src/sim/stress.ts) */
+const stress = new StressMonitor()
+/** per-frame heat for the scene: part id → heat (0 … 1 = burned), how close to its limit, burned ids */
+export interface StressFrame {
+  heat: ReadonlyMap<string, number>
+  ratio: ReadonlyMap<string, number>
+  burned: ReadonlySet<string>
+}
+let stressSink: ((f: StressFrame) => void) | null = null
+export function setStressSink(sink: ((f: StressFrame) => void) | null): void {
+  stressSink = sink
+  sink?.({ heat: stress.heat, ratio: stress.ratio, burned: stress.burnedIds() })
+}
+function publishStress(): void {
+  useStore.setState({ damage: [...stress.broken.values()], hotParts: stress.hot() })
+  stressSink?.({ heat: stress.heat, ratio: stress.ratio, burned: stress.burnedIds() })
+}
+
 let telemetrySink: ((t: SimTelemetry | null) => void) | null = null
 export function setTelemetrySink(sink: ((t: SimTelemetry | null) => void) | null): void {
   telemetrySink = sink
@@ -681,7 +700,8 @@ function trimScope(now: number, timeWindow: number): void {
 function rebuildEngine(layout: CircuitLayout): void {
   const prevTime = engine?.time ?? 0
   try {
-    engine = new SimEngine(layout)
+    // burned parts are out of the circuit (open) until replaced
+    engine = new SimEngine(withoutBurned(layout, stress.burnedIds()))
     engine.time = prevTime
   } catch (err) {
     engine = null
@@ -721,6 +741,7 @@ function frame(nowMs: number): void {
   const wallDt = Math.min(Math.max((nowMs - prevMs) / 1000, 0), MAX_FRAME_WALL_DT)
   const targetT = engine.time + wallDt * s.simSpeed
   const deadline = performance.now() + FRAME_BUDGET_MS
+  const simBefore = engine.time
 
   // Advance in scope-sample slices (≈1 ms of sim time = 20 default steps),
   // checking the wall-clock budget between slices. If the budget runs out,
@@ -742,6 +763,15 @@ function frame(nowMs: number): void {
   const tele = engine.telemetry()
   telemetrySink?.(tele)
 
+  // over-limit heat: parts that burn out leave the circuit (engine rebuild)
+  const fresh = stress.update(s.layout, tele.components, engine.time - simBefore, engine.time)
+  if (fresh.length) {
+    rebuildEngine(s.layout)
+    publishStress()
+  } else if (stress.heat.size || stress.ratio.size) {
+    stressSink?.({ heat: stress.heat, ratio: stress.ratio, burned: stress.burnedIds() })
+  }
+
   // React state at ~10 Hz
   if (nowMs - lastReactPushMs >= REACT_PUSH_MS) {
     lastReactPushMs = nowMs
@@ -750,6 +780,7 @@ function frame(nowMs: number): void {
       simTime: engine.time,
       issues: engine.issues.slice(),
       scope: { samples: scopeBuf, timeWindow: s.scope.timeWindow },
+      hotParts: stress.hot(),
     })
   }
 }
@@ -781,6 +812,9 @@ export const useStore = create<AppState>()((set, get) => {
   }
 
   const commitLayout = (layout: CircuitLayout, rebuild = true): void => {
+    const gone = [...stress.broken.values()].filter((b) => !layout.components.some((c) => c.id === b.id))
+    for (const b of gone) stress.replace(b.id)
+    if (gone.length) publishStress()
     set({ layout, boardSelection: liveBoard(layout) })
     scheduleAutosave(layout)
     if (engine && rebuild) rebuildEngine(layout)
@@ -823,6 +857,8 @@ export const useStore = create<AppState>()((set, get) => {
     layout: loadSavedLayout(),
     selection: [],
     boardSelection: null,
+    damage: [],
+    hotParts: [],
     mode: { kind: 'select' } as InteractionMode,
     hoverHole: null,
     canUndo: false,
@@ -1364,6 +1400,18 @@ export const useStore = create<AppState>()((set, get) => {
       return { ok: true }
     },
 
+    replacePart(id) {
+      stress.replace(id)
+      if (engine) rebuildEngine(get().layout)
+      publishStress()
+    },
+
+    replaceAll() {
+      stress.clear()
+      if (engine) rebuildEngine(get().layout)
+      publishStress()
+    },
+
     selectBoard(board) {
       const cur = get().boardSelection
       if (board === null ? cur === null : cur?.col === board.col && cur?.row === board.row) return
@@ -1470,6 +1518,9 @@ export const useStore = create<AppState>()((set, get) => {
     resetSim() {
       stopLoop()
       engine = null
+      // a reset puts new parts in: every burned part works again
+      stress.clear()
+      publishStress()
       scopeBuf = []
       nextSampleT = 0
       set({

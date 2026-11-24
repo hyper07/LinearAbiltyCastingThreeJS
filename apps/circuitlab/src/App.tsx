@@ -18,7 +18,7 @@ import type { AppState, GrowDirection, MoveTarget } from './state/types'
 import { boardConfigOf } from './model/types'
 import { holePosition, moduleOfHole, parseHole } from './model/breadboard'
 import type { HoleRef, Rotation } from './model/types'
-import { placementValid, setLayoutLoadedSink, setProgramPreparer, setTelemetrySink, useStore, boardsNeedingCompile } from './state/store'
+import { placementValid, setLayoutLoadedSink, setProgramPreparer, setStressSink, setTelemetrySink, useStore, boardsNeedingCompile } from './state/store'
 import { getEntry } from './model/catalog'
 import { occludedHoles } from './model/occlusion'
 import { validateLayout } from './model/validate'
@@ -56,6 +56,7 @@ import { forceReplan } from './three/internal/wires'
 import { CreditsPanel, LabCorner, goHome, helpPanel, useFirstHelp } from './ui/lab/LabChrome'
 import { SavedPanel } from './ui/lab/SavedPanel'
 import { SpecsHost } from './ui/lab/SpecsPanel'
+import { DiagnoseButton, DiagnosePanel } from './ui/lab/DiagnosePanel'
 import { compileSketch } from './mcu/avr/compile'
 import { boardDef } from './model/boards'
 import { serialBus } from './mcu/serial'
@@ -476,6 +477,8 @@ export default function App() {
   const [expId, setExpId] = useState<string>(EXPERIMENTS[0]?.id ?? '')
   const [creditsOpen, setCreditsOpen] = useState(false)
   const [savedOpen, setSavedOpen] = useState(false)
+  const [diagOpen, setDiagOpen] = useState(false)
+  const closeDiag = useCallback(() => setDiagOpen(false), [])
   const closeSaved = useCallback(() => setSavedOpen(false), [])
   // Ctrl/Cmd+S opens Save / Open (instead of the browser saving the page)
   useEffect(() => {
@@ -573,6 +576,7 @@ export default function App() {
     scene.setInteractionMode?.(s0.mode.kind)
     syncOverlays(scene, s0)
     setTelemetrySink((t) => scene.setTelemetry(t)) // also pushes current telemetry
+    setStressSink((f) => scene.setStress?.(f))
 
     // Loaded examples / imports / applied AI circuits can sit anywhere on the
     // board, far outside the fixed home framing of a phone viewport — spring
@@ -616,6 +620,7 @@ export default function App() {
       if (shotRig) delete (window as unknown as Record<string, unknown>).__shotRig
       setLayoutLoadedSink(null)
       setTelemetrySink(null)
+      setStressSink(null)
       unsub()
       scene.dispose()
     }
@@ -840,6 +845,8 @@ export default function App() {
         return { theta: (Math.atan2(off.x, off.z) * 180) / Math.PI, phi: (Math.acos(off.y / r) * 180) / Math.PI }
       },
       boardSelection: () => useStore.getState().boardSelection,
+      damage: () => useStore.getState().damage.map((d) => ({ id: d.id, kind: d.kind, reason: d.reason })),
+      hot: () => useStore.getState().hotParts.map((h) => ({ id: h.id, ratio: h.reading.ratio })),
       select: (id: string | null) => useStore.getState().select(id),
       /** where a board hole is on screen (the e2e checks click bare holes with it) */
       holeScreen: (ref: string) => {
@@ -1124,6 +1131,16 @@ export default function App() {
       <LabCorner onCredits={() => setCreditsOpen(true)} onSaved={() => setSavedOpen(true)} />
       <SavedPanel open={savedOpen} onClose={closeSaved} />
       <SpecsHost />
+      <DiagnoseButton onOpen={() => setDiagOpen(true)} />
+      <DiagnosePanel
+        open={diagOpen}
+        onClose={closeDiag}
+        onShow={(id) => {
+          setDiagOpen(false)
+          useStore.getState().select(id)
+          sceneRef.current?.focusComponent(id)
+        }}
+      />
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       <ScopeSheet
         open={activeSheet === 'scope'}

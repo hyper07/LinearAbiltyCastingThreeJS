@@ -3,6 +3,7 @@
  * CONTRACT FILE — the UI agent codes against this; the glue agent implements it.
  */
 
+import type { Breakdown, StressReading } from '../sim/stress'
 import type {
   BoardSizeId,
   CircuitLayout,
@@ -78,6 +79,10 @@ export interface AppState {
   selection: string[]
   /** a breadboard picked by clicking its bare holes (0-based module column and board-row), or null */
   boardSelection: { col: number; row: number } | null
+  /** broken parts (burned out, or a damaged board pin) with the reason and what to change */
+  damage: Breakdown[]
+  /** parts running at ≥ 80 % of a limit (not broken yet), hottest first */
+  hotParts: { id: string; reading: StressReading; heat: number }[]
   mode: InteractionMode
   hoverHole: HoleRef | null
   /** an undo step is available (mirrors the in-memory history; never persisted) */
@@ -216,6 +221,10 @@ export interface AppState {
    */
   growGrid(direction: GrowDirection): { ok: boolean; error?: string }
   /** Pick one breadboard (null clears); it clears the part selection. */
+  /** put a new part in for a burned one (its damage cleared; the circuit rebuilt) */
+  replacePart(id: string): void
+  /** replace every broken part */
+  replaceAll(): void
   selectBoard(board: { col: number; row: number } | null): void
   /**
    * Remove one breadboard and whatever sits on it (one undo step); the boards

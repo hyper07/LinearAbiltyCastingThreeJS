@@ -41,6 +41,7 @@ import {
   parseTerminalRef,
 } from '../model/breadboard'
 import { occludedHoles } from '../model/occlusion'
+import { StressFx, type StressFrame } from './internal/stress-fx'
 import { boardDef } from '../model/boards'
 import { pinChip } from '../model/pin-labels'
 import { getEntry, type CatalogEntry } from '../model/catalog'
@@ -938,6 +939,9 @@ export class BreadboardScene implements IBreadboardScene {
   private telemetry: SimTelemetry | null = null
   private ghost: GhostSpec | null = null
   private selectedIds: string[] = []
+  /** over-limit glow / smoke / scorch (src/sim/stress.ts drives it) */
+  private stressFx: StressFx | null = null
+  private stressFrame: StressFrame | null = null
   /** the picked breadboard (host store) and its highlight in the overlay group */
   private boardSel: { col: number; row: number } | null = null
   private boardSelMesh: THREE.Group | null = null
@@ -1758,6 +1762,11 @@ export class BreadboardScene implements IBreadboardScene {
       prevFrameT = t
       tickHolograms(t)
       m.hoverRing.tick(t)
+      if (!this.stressFx) {
+        this.stressFx = new StressFx(m.overlayGroup)
+        if (this.stressFrame) this.stressFx.setFrame(this.stressFrame)
+      }
+      this.stressFx.tick(dt, t, (id) => this.components.get(id)?.built.object ?? null)
       this.updatePaddles(m, t)
       this.updateSpawnTween(m)
       this.updateRemovalTween(m)
@@ -1844,6 +1853,8 @@ export class BreadboardScene implements IBreadboardScene {
     disposeHolograms() // module-cached FX materials (recreated on demand)
     m.hoverRing.dispose()
     m.holeLabel.dispose()
+    this.stressFx?.disposeAll()
+    this.stressFx = null
     this.finishBoardAnims(m) // removal tween may hold the OLD board build
     m.spawnFx.dispose()
     for (const g of m.paddleGeos) g.dispose()
@@ -1938,6 +1949,12 @@ export class BreadboardScene implements IBreadboardScene {
   setSelection(ids: string[]): void {
     this.selectedIds = ids.slice()
     if (this.m) this.applySelection()
+  }
+
+  /** per-frame heat of over-limit parts and which ones burned out */
+  setStress(f: StressFrame): void {
+    this.stressFrame = f
+    this.stressFx?.setFrame(f)
   }
 
   setBoardSelection(board: { col: number; row: number } | null): void {
