@@ -28,6 +28,11 @@
     { "kind": "step", "label": "Rings at ω_d", "ref": "d18", "gen": "GEN", "metric": "ringFreq", "final": 2, "dt": 1e-6, "expect": "sqrt(1-pow((RD+50)/2*sqrt(C1/L1),2))/(2*PI*sqrt(L1*C1))", "tol": 0.05 }
   ],
   "settle": 0.02,
+  "callouts": [
+    { "part": "RD", "title": "DECADE BOX", "text": "R sets the damping ζ.", "icon": "resistor" },
+    { "part": "L1", "title": "INDUCTOR", "text": "With C it rings at 1/(2π√LC).", "icon": "resistor" },
+    { "part": "SC", "title": "OSCILLOSCOPE", "text": "Overshoot and ringing on CH2.", "icon": "wave" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 5 RLC step",

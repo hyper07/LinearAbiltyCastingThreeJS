@@ -34,6 +34,10 @@
     { "kind": "vpp", "label": "1 kHz output follows |H(jω)|", "ref": "d22", "window": 0.004, "expect": "GEN_vpp*RF/RIN/sqrt(1+pow(2*PI*GEN_frequency*RF*CF,2))", "tol": 0.05 }
   ],
   "settle": 0.01,
+  "callouts": [
+    { "part": "U1", "title": "LM741 OP-AMP", "text": "An inverting low-pass filter.", "icon": "chip" },
+    { "part": "CF", "title": "FEEDBACK CAPACITOR", "text": "Sets f_c = 1/(2π·R_f·C_f).", "icon": "resistor" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 11 Active low-pass",

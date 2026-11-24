@@ -34,6 +34,11 @@
     { "kind": "bode", "label": "Bandwidth ≈ GBW/(1 + R_f/R_in)", "gen": "GEN", "in": "i15", "out": "d22", "metric": "high", "expect": "1e6/(1+RF/RIN)", "tol": 0.2 }
   ],
   "settle": 0.005,
+  "callouts": [
+    { "part": "U1", "title": "LM741 OP-AMP", "text": "Gain −R_f/R_in = −10.", "icon": "chip" },
+    { "part": "RF", "title": "FEEDBACK RESISTOR", "text": "Sets the gain with RIN.", "icon": "resistor" },
+    { "part": "PS", "title": "±12 V SUPPLY", "text": "The output clips ~1.5 V inside the rails.", "icon": "power" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 10 Op-amp amplifiers",

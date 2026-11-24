@@ -66,6 +66,8 @@ export interface SetParam {
 }
 
 export interface Experiment {
+  /** illustrated-view callouts (part, title, text, icon) */
+  callouts?: { part: string; title: string; text: string; icon?: string }[]
   id: string
   number: number
   title: string

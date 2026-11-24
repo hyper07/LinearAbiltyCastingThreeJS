@@ -74,6 +74,8 @@ import {
   routedWireSignature,
   wireColorFor,
   wireGeometry,
+  wireEndStyle,
+  DUPONT,
 } from './internal/wires'
 import {
   applyHologram,
@@ -275,7 +277,12 @@ interface WireRecord {
   /** merged bare-tip pin geometry (board-hole ends), when any — disposed */
   tipsGeo: THREE.BufferGeometry | null
   material: THREE.MeshStandardMaterial
+  /** merged black DuPont housings on header ends — disposed */
+  housingGeo?: THREE.BufferGeometry | null
 }
+
+/** shared black DuPont housing plastic */
+const DUPONT_MAT = new THREE.MeshStandardMaterial({ color: 0x1c1c21, roughness: 0.55 })
 
 /** What the fingertip ghost-cursor is snapped to: a board hole or a terminal post. */
 type FingertipTarget =
@@ -1049,6 +1056,17 @@ export class BreadboardScene implements IBreadboardScene {
   private tapSuppressed = false
   /** previous empty-space tap, for double-tap re-frame detection */
   private lastBgTap: { x: number; y: number; t: number } | null = null
+  private lastObjTap: { id: string; t: number } | null = null
+  /** Space is held: a left drag pans instead of orbiting */
+  private spaceHeld = false
+  private spacePanUsed = false
+  private panBounds: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null
+  /** view-style hooks (illustrated mode): per-frame tick and an optional renderer */
+  /** fit keeps the current viewing direction (illustrated: stay on the 45° step) */
+  fitFromCurrent = false
+  fitMargin = 1
+  viewTick: ((scene: THREE.Scene, camera: THREE.PerspectiveCamera) => void) | null = null
+  viewRender: ((r: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) => boolean) | null = null
   /** app interaction mode, if the host reports it (else inferred from ghost/preview) */
   private explicitMode: SceneInteractionMode | null = null
   /** camera re-frame tween (rAF-interpolated, spring-eased) */
@@ -1133,6 +1151,11 @@ export class BreadboardScene implements IBreadboardScene {
     // updateTouchGestures().
     controls.touches.ONE = THREE.TOUCH.ROTATE
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN
+    // Circuit Lab: left-drag orbits, right/middle-drag (and Space + left-drag)
+    // pan along the bench, the wheel zooms toward the cursor
+    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }
+    controls.zoomToCursor = true
+    controls.screenSpacePanning = false
     controls.update()
 
     // render-mode engine: Performance keeps the plain render call in the rAF
@@ -1384,6 +1407,11 @@ export class BreadboardScene implements IBreadboardScene {
         return
       }
       if (e.button !== 0) return
+      if (this.spaceHeld) {
+        this.spacePanUsed = true
+        this.downInfo = null
+        return
+      }
       this.beginPointerInteraction() // Studio raster-falls-back while touched
       this.updateNdc(e)
       this.pointerInside = true
@@ -1512,6 +1540,29 @@ export class BreadboardScene implements IBreadboardScene {
     const onWheel = () => {
       this.camTween = null // user zoom cancels the re-frame tween
     }
+    const onWheelCapture = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return // trackpad pinch → OrbitControls zoom
+      const trackpad = e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY) || Math.abs(e.deltaY) < 40)
+      if (!trackpad) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      this.camTween = null
+      this.panByPixels(e.deltaX, e.deltaY)
+    }
+    const onKeySpace = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      const down = e.type === 'keydown'
+      if (down === this.spaceHeld) return
+      this.spaceHeld = down
+      if (down) this.spacePanUsed = false
+      controls.mouseButtons.LEFT = down ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE
+      container.style.cursor = down ? 'grab' : ''
+    }
+    window.addEventListener('keydown', onKeySpace, true)
+    window.addEventListener('keyup', onKeySpace, true)
+    dom.addEventListener('wheel', onWheelCapture, { passive: false, capture: true })
     dom.addEventListener('pointermove', onPointerMove)
     dom.addEventListener('pointerdown', onPointerDown)
     dom.addEventListener('pointerup', onPointerUp)
@@ -1546,6 +1597,9 @@ export class BreadboardScene implements IBreadboardScene {
       dom.removeEventListener('touchmove', preventDefault)
       dom.removeEventListener('contextmenu', preventDefault)
       dom.removeEventListener('wheel', onWheel)
+      dom.removeEventListener('wheel', onWheelCapture, { capture: true })
+      window.removeEventListener('keydown', onKeySpace, true)
+      window.removeEventListener('keyup', onKeySpace, true)
       document.removeEventListener('visibilitychange', onVisibility)
     }
 
@@ -1652,6 +1706,8 @@ export class BreadboardScene implements IBreadboardScene {
       m.raf = requestAnimationFrame(animate)
       m.controls.update()
       this.updateCamTween(m) // after controls.update so the tween wins while active
+      this.clampPan(m)
+      this.viewTick?.(m.scene, m.camera)
       // shared-FX clock: one number write drives every hologram/marker shader
       const t = m.clock.getElapsedTime()
       const dt = prevFrameT > 0 ? t - prevFrameT : 0
@@ -1693,7 +1749,9 @@ export class BreadboardScene implements IBreadboardScene {
       // inside render(); a path-traced frame additionally gets the raster
       // overlays (holograms, hover FX, selection) composited on top so every
       // interactive affordance stays live over the converging/held still.
-      if (!this.modes.render(dt)) {
+      if (this.viewRender?.(m.renderer, m.scene, m.camera)) {
+        // illustrated view drew the frame (toon + ink outlines)
+      } else if (!this.modes.render(dt)) {
         m.renderer.render(m.scene, m.camera)
       } else if (this.modes.pathTracedFrame) {
         this.renderStudioOverlays(m)
@@ -2293,6 +2351,41 @@ export class BreadboardScene implements IBreadboardScene {
     const tubeGeo = wireGeometry(a, b, WIRE_RADIUS, wire.id)
     const insulationParts: THREE.BufferGeometry[] = [tubeGeo]
     const tipParts: THREE.BufferGeometry[] = []
+    const housingParts: THREE.BufferGeometry[] = []
+    // DuPont ends on board / module headers: a housing on top of a female
+    // socket (its male pin hidden in the hole), over a male pin, or slid
+    // sideways onto a module pin — always perpendicular to the header
+    ;[wire.from, wire.to].forEach((ref, i) => {
+      const p = i === 0 ? a : b
+      const st = wireEndStyle(this.layout, ref)
+      if (st.kind === 'hole' || st.kind === 'post') return
+      const { w, h, collar, overPin, pinDepth } = DUPONT
+      // body (black) + collar (wire colour), built upright with the base at 0
+      const body = new THREE.BoxGeometry(w, h - collar, w)
+      body.translate(0, (h - collar) / 2, 0)
+      const ring = new THREE.BoxGeometry(w * 1.04, collar, w * 1.04)
+      ring.translate(0, h - collar / 2, 0)
+      const place = (g: THREE.BufferGeometry) => {
+        if (st.kind === 'side' && st.dir) {
+          // lying along the pin: base slid over it, collar outward
+          g.rotateZ(-Math.PI / 2)
+          g.rotateY(-Math.atan2(st.dir.z, st.dir.x))
+          g.translate(p.x - st.dir.x * overPin, p.y, p.z - st.dir.z * overPin)
+        } else {
+          g.translate(p.x, p.y - (st.kind === 'pin' ? overPin : -0.02), p.z)
+        }
+      }
+      place(body)
+      place(ring)
+      housingParts.push(body)
+      insulationParts.push(ring) // indexed like the tube and caps, so they merge
+      if (st.kind === 'socket') {
+        // the male DuPont's gold pin, pushed into the socket hole from above
+        const pin = new THREE.CylinderGeometry(0.11, 0.11, pinDepth + 0.25, 8)
+        pin.translate(p.x, p.y - pinDepth / 2 + 0.12, p.z)
+        tipParts.push(pin)
+      }
+    })
     for (const p of [a, b]) {
       // board-hole ends (y = 0) are stripped: the insulation stops
       // WIRE_TIP_LEN up and a bare tinned pin runs down into the socket;
@@ -2355,10 +2448,20 @@ export class BreadboardScene implements IBreadboardScene {
         }
       }
     }
+    let housingGeo: THREE.BufferGeometry | null = null
+    if (housingParts.length > 0) {
+      housingGeo = housingParts.length === 1 ? housingParts[0] : mergeGeometries(housingParts)
+      if (housingParts.length > 1) for (const g of housingParts) g.dispose()
+      if (housingGeo) {
+        const housings = new THREE.Mesh(housingGeo, DUPONT_MAT)
+        housings.castShadow = true
+        group.add(housings)
+      }
+    }
     group.userData.componentId = wire.id
     freezeTransforms(group) // static until this record is rebuilt (B2)
     m.wiresGroup.add(group)
-    return { wire, group, signature, geo, tipsGeo, material }
+    return { wire, group, signature, geo, tipsGeo, material, housingGeo }
   }
 
   private removeWireRecord(m: Mounted, id: string): void {
@@ -2367,6 +2470,7 @@ export class BreadboardScene implements IBreadboardScene {
     m.wiresGroup.remove(rec.group)
     rec.geo.dispose()
     rec.tipsGeo?.dispose()
+    rec.housingGeo?.dispose()
     rec.material.dispose()
     this.wires.delete(id)
   }
@@ -3788,6 +3892,83 @@ export class BreadboardScene implements IBreadboardScene {
    * any active re-frame tween; the running rAF loop renders the new view.
    * Not part of the scene contract — never called by product code.
    */
+  /** Circuit Lab: true once when Space was used to pan (so Space-up does not toggle Run) */
+  consumeSpacePan(): boolean {
+    const used = this.spacePanUsed
+    this.spacePanUsed = false
+    return used
+  }
+
+  /** Circuit Lab: pan by screen pixels along the bench plane (trackpad scroll, keys) */
+  panByPixels(dx: number, dy: number): void {
+    const m = this.m
+    if (!m) return
+    this.camTween = null
+    const h = Math.max(1, m.renderer.domElement.clientHeight)
+    const dist = m.camera.position.distanceTo(m.controls.target)
+    const k = (2 * dist * Math.tan(THREE.MathUtils.degToRad(m.camera.fov / 2))) / h
+    const fwd = new THREE.Vector3().subVectors(m.controls.target, m.camera.position)
+    fwd.y = 0
+    if (fwd.lengthSq() < 1e-9) fwd.set(0, 0, -1)
+    fwd.normalize()
+    const right = new THREE.Vector3(-fwd.z, 0, fwd.x)
+    const move = right.multiplyScalar(dx * k).addScaledVector(fwd, -dy * k)
+    m.camera.position.add(move)
+    m.controls.target.add(move)
+    m.controls.update()
+  }
+
+  /** Circuit Lab: spring the camera to one part (double-click) */
+  focusComponent(id: string): void {
+    const m = this.m
+    const rec = this.components.get(id)
+    if (!m || !rec) return
+    const box = new THREE.Box3().setFromObject(rec.built.object)
+    if (box.isEmpty()) return
+    const c = box.getCenter(new THREE.Vector3())
+    const r = Math.max(2.5, box.getSize(new THREE.Vector3()).length() / 2)
+    const dir = new THREE.Vector3().subVectors(m.camera.position, m.controls.target).normalize()
+    const dist = Math.max(m.controls.minDistance, (r * 1.6) / Math.tan(THREE.MathUtils.degToRad(m.camera.fov / 2)))
+    this.flyCamera(m, c.clone().addScaledVector(dir, dist), c)
+  }
+
+  /** Circuit Lab: world anchor (top centre) of a part, for callouts */
+  componentAnchor(id: string): { x: number; y: number; z: number } | null {
+    const rec = this.components.get(id)
+    if (!rec) return null
+    const box = new THREE.Box3().setFromObject(rec.built.object)
+    if (box.isEmpty()) return null
+    const c = box.getCenter(new THREE.Vector3())
+    return { x: c.x, y: box.max.y, z: c.z }
+  }
+
+  /** keep the orbit target over the bench (with a margin) so it cannot be lost */
+  private clampPan(m: Mounted): void {
+    const b = this.panBounds
+    if (!b) return
+    const t = m.controls.target
+    const M = 10
+    const x = THREE.MathUtils.clamp(t.x, b.minX - M, b.maxX + M)
+    const z = THREE.MathUtils.clamp(t.z, b.minZ - M, b.maxZ + M)
+    if (x !== t.x || z !== t.z) {
+      m.camera.position.x += x - t.x
+      m.camera.position.z += z - t.z
+      t.x = x
+      t.z = z
+    }
+  }
+
+  /** Circuit Lab: the camera itself (view styles change its lens) */
+  get cameraHandle(): { camera: THREE.PerspectiveCamera; controls: OrbitControls; scene: THREE.Scene; renderer: THREE.WebGLRenderer; ground: THREE.Object3D } | null {
+    const m = this.m
+    return m ? { camera: m.camera, controls: m.controls, scene: m.scene, renderer: m.renderer, ground: m.groundGroup } : null
+  }
+
+  /** Circuit Lab: re-frame everything (the "fit all" button) */
+  fitAll(): void {
+    this.reframeCamera()
+  }
+
   /** Circuit Lab: move the camera toward (k < 1) or away from (k > 1) the orbit target */
   dollyView(k: number): void {
     const m = this.m
@@ -3881,6 +4062,7 @@ export class BreadboardScene implements IBreadboardScene {
    */
   private computeHomeFraming(m: Mounted): boolean {
     const b = this.homeBounds()
+    this.panBounds = b
     this.refitShadows(m, b) // the shadow camera tracks the same extents
     const cx = (b.minX + b.maxX) / 2
     const cz = (b.minZ + b.maxZ) / 2
@@ -3973,7 +4155,9 @@ export class BreadboardScene implements IBreadboardScene {
 
     const sphere = box.getBoundingSphere(new THREE.Sphere())
     const tgt = new THREE.Vector3(sphere.center.x, 0, sphere.center.z)
-    const dir = new THREE.Vector3().subVectors(m.homePos, m.homeTarget).normalize()
+    const dir = this.fitFromCurrent
+      ? new THREE.Vector3().subVectors(m.camera.position, m.controls.target).normalize()
+      : new THREE.Vector3().subVectors(m.homePos, m.homeTarget).normalize()
     const vFov = THREE.MathUtils.degToRad(m.camera.fov)
     const tanV = Math.tan(vFov / 2)
     const tanH = tanV * Math.max(m.camera.aspect, 0.01)
@@ -3991,7 +4175,7 @@ export class BreadboardScene implements IBreadboardScene {
         }
       }
     }
-    dist *= 1.12 // headroom for the chrome
+    dist *= 1.12 * this.fitMargin // headroom for the chrome (and callout cards)
     const clamped = THREE.MathUtils.clamp(dist, m.controls.minDistance, m.controls.maxDistance)
     const pos = dir.multiplyScalar(clamped).add(tgt)
     return { pos, tgt }
@@ -4088,6 +4272,13 @@ export class BreadboardScene implements IBreadboardScene {
           this.callbacks.onHoleOcclusionRejected?.(under)
           return
         }
+      }
+      const nowT = performance.now()
+      const prevT = this.lastObjTap
+      this.lastObjTap = { id, t: nowT }
+      if (prevT && prevT.id === id && nowT - prevT.t < DOUBLE_TAP_MS && this.components.has(id)) {
+        this.lastObjTap = null
+        this.focusComponent(id)
       }
       this.callbacks.onObjectClick?.(id, e.shiftKey || e.metaKey || e.ctrlKey)
       return

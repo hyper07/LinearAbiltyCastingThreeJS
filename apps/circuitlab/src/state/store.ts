@@ -959,6 +959,13 @@ export const useStore = create<AppState>()((set, get) => {
       commitLayout({ ...layout, wires: layout.wires.filter((w) => w.id !== id) })
     },
 
+    recolorWires(colors) {
+      const layout = get().layout
+      if (!layout.wires.some((w) => colors[w.id] && colors[w.id] !== w.color)) return
+      pushHistory('recolor')
+      commitLayout({ ...layout, wires: layout.wires.map((w) => (colors[w.id] ? { ...w, color: colors[w.id] } : w)) })
+    },
+
     addWire(from, to, color) {
       const layout = get().layout
       if (!endpointValid(layout, from) || !endpointValid(layout, to)) return

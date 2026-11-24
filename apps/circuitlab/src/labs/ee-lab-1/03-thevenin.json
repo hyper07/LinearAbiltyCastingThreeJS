@@ -42,6 +42,10 @@
     { "kind": "dc", "label": "Load voltage at R_L = R_th is V_th / 2", "ref": "d12", "expect": "PS_v1*R2/(R1+R2)*RL/(R1*R2/(R1+R2)+R3+RL)", "tol": 0.01 },
     { "kind": "dc", "label": "Superposition node", "ref": "d40", "expect": "(PS_v1/R5+5/R6)/(1/R5+1/R6+1/R7)", "tol": 0.01 }
   ],
+  "callouts": [
+    { "part": "RL", "title": "DECADE BOX LOAD", "text": "Most power when R_L = R_th.", "icon": "resistor" },
+    { "part": "M1", "title": "MULTIMETER", "text": "Reads the load voltage for each R_L.", "icon": "meter" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 3 Thévenin",

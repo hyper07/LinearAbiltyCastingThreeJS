@@ -32,6 +32,11 @@
     { "kind": "curve", "label": "Tracer: I_D at V_GS = 3 V (per volt of gate)", "tracer": "CT", "mode": "nmos", "metric": "beta", "at": 3, "expect": "0.05*pow(3-2,2)/3", "tol": 0.12 }
   ],
   "settle": 0.05,
+  "callouts": [
+    { "part": "Q1", "title": "2N7000 SWITCH", "text": "Gate HIGH: the LED turns on.", "icon": "switch" },
+    { "part": "TR", "title": "TRIMMER", "text": "Sets V_GS for the square law.", "icon": "meter" },
+    { "part": "LS1", "title": "LOGIC SWITCH", "text": "Drives the gate HIGH or LOW.", "icon": "switch" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 9 MOSFET",

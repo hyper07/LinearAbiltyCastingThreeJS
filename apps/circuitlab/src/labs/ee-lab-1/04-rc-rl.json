@@ -31,6 +31,11 @@
     { "kind": "step", "label": "Inductor voltage decays with τ = L/(R + 50 Ω)", "ref": "b24", "gen": "GEN", "metric": "tau", "final": 0, "dt": 5e-6, "expect": "L1/(R2+50)", "tol": 0.06 }
   ],
   "settle": 0.1,
+  "callouts": [
+    { "part": "GEN", "title": "SQUARE WAVE", "text": "A repeating step: 0 → 5 V every 50 ms.", "icon": "wave" },
+    { "part": "C1", "title": "CAPACITOR", "text": "Charges with τ = RC.", "icon": "resistor" },
+    { "part": "SC", "title": "OSCILLOSCOPE", "text": "Cursors measure τ at 63 %.", "icon": "wave" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 4 RC and RL",

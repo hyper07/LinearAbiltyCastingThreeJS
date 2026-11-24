@@ -32,6 +32,10 @@
     { "kind": "dc", "label": "Parallel node (current divider)", "ref": "d20", "expect": "PS_v1*(R4*R5/(R4+R5))/(R6+R4*R5/(R4+R5))", "tol": 0.01 },
     { "kind": "dc", "label": "Bridge is balanced", "ref": "c33", "ref2": "c38", "expect": "0", "abs": 0.02 }
   ],
+  "callouts": [
+    { "part": "PS", "title": "BENCH SUPPLY", "text": "Sets the voltage; Ohm and Kirchhoff do the rest.", "icon": "power" },
+    { "part": "M1", "title": "MULTIMETER", "text": "Voltages around a loop sum to zero.", "icon": "meter" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 2 Kirchhoff",

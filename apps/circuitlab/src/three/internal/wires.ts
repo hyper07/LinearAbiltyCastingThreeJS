@@ -471,6 +471,210 @@ export function planRoutes(layout: CircuitLayout): void {
       yb: meta.yb,
     })
   }
+  applyRibbons(layout, resolve, obstacles, instruments)
+}
+
+// ---------------------------------------------------------------------------
+// Ribbons: wires between a board/module header and another part
+// ---------------------------------------------------------------------------
+
+export interface WireBundle {
+  key: string
+  /** wire ids in ribbon order (left → right across the header) */
+  wires: string[]
+}
+
+const RIBBON_SKIP: ReadonlySet<string> = new Set(['instrument', 'power'])
+/** straight vertical run above a header before the wire bends (plan units: 1 = 2.54 mm) */
+export const RIBBON_RISE = 2.4
+const RIBBON_PATHS = new WeakSet<readonly RoutePoint[]>()
+
+/**
+ * DuPont jumper ends (plan units, 1 = 2.54 mm): a black housing one pitch
+ * square, with a collar in the wire's colour at the top where the wire exits.
+ * Over a male pin the housing slides down onto the plastic strip; on a female
+ * socket it sits just above the socket with its gold pin pushed into the hole.
+ */
+export const DUPONT = { w: 0.9, h: 4.2, collar: 0.55, overPin: 2.0, pinDepth: 1.2 }
+/** how far the wire runs straight out of the housing top before it bends */
+const EXIT_RUN = 1.3
+/** riser height above the anchor for each end kind */
+export function dupontRise(kind: 'socket' | 'pin' | 'side' | 'hole' | 'post'): number {
+  if (kind === 'socket') return DUPONT.h + EXIT_RUN
+  if (kind === 'pin' || kind === 'side') return DUPONT.h - DUPONT.overPin + EXIT_RUN
+  return RIBBON_RISE
+}
+
+/** the planned path of a wire (tests, tools): waypoints with header ends at y = 0, plus the end heights */
+export function plannedWireRoute(id: string): { waypoints: readonly RoutePoint[]; ya: number; yb: number } | null {
+  const r = wireRouteCache.get(id)
+  return r ? { waypoints: r.route.waypoints, ya: r.ya, yb: r.yb } : null
+}
+
+/**
+ * Group the wires that leave the same board / module header for the same
+ * destination (another module's header, or the breadboard). Instruments keep
+ * the router's post-exit paths. Each group is ordered across its header so
+ * the ribbon never twists at the source.
+ */
+export function wireBundles(layout: CircuitLayout): WireBundle[] {
+  const resolve = makeEndpointResolver(layout)
+  const groups = new Map<string, { id: string; a: { x: number; z: number }; b: { x: number; z: number } }[]>()
+  for (const w of layout.wires) {
+    let ta = parseTerminalRef(w.from)
+    let tb = parseTerminalRef(w.to)
+    let from = w.from
+    let to = w.to
+    if (!ta && !tb) continue
+    if (!ta || (tb && tb.componentId < ta.componentId)) {
+      ;[ta, tb] = [tb, ta]
+      ;[from, to] = [to, from]
+    }
+    const ca = layout.components.find((c) => c.id === ta!.componentId)
+    const cb = tb ? layout.components.find((c) => c.id === tb!.componentId) : undefined
+    const ea = ca ? getEntry(ca.type) : undefined
+    const eb = cb ? getEntry(cb.type) : undefined
+    if (!ea || RIBBON_SKIP.has(ea.category) || (eb && RIBBON_SKIP.has(eb.category))) continue
+    const a = resolve(from)
+    const b = resolve(to)
+    if (!a || !b) continue
+    const key = `${ta!.componentId}>${tb ? tb.componentId : 'board'}`
+    const g = groups.get(key) ?? []
+    g.push({ id: w.id, a, b })
+    groups.set(key, g)
+  }
+  const out: WireBundle[] = []
+  for (const [key, g] of groups) {
+    const ca = g.reduce((s, x) => ({ x: s.x + x.a.x / g.length, z: s.z + x.a.z / g.length }), { x: 0, z: 0 })
+    const cb = g.reduce((s, x) => ({ x: s.x + x.b.x / g.length, z: s.z + x.b.z / g.length }), { x: 0, z: 0 })
+    const dx = cb.x - ca.x
+    const dz = cb.z - ca.z
+    const len = Math.hypot(dx, dz) || 1
+    const nx = -dz / len
+    const nz = dx / len
+    g.sort((p, q) => p.a.x * nx + p.a.z * nz - (q.a.x * nx + q.a.z * nz) || p.b.x * nx + p.b.z * nz - (q.b.x * nx + q.b.z * nz))
+    out.push({ key, wires: g.map((x) => x.id) })
+  }
+  return out
+}
+
+function applyRibbons(
+  layout: CircuitLayout,
+  resolve: (ref: string) => { x: number; y: number; z: number } | null,
+  obstacles: RouteObstacle[],
+  instruments: InstrumentObstacle[],
+): void {
+  const boxes: RouteObstacle[] = [...obstacles, ...instruments]
+  const byId = new Map(layout.wires.map((w) => [w.id, w]))
+  for (const bundle of wireBundles(layout)) {
+    const ends = bundle.wires.map((id) => {
+      const w = byId.get(id)!
+      const ta = parseTerminalRef(w.from)
+      const tb = parseTerminalRef(w.to)
+      // A = the header end (same normalisation as wireBundles)
+      const flip = !ta || (tb !== null && tb.componentId < ta.componentId)
+      const a = resolve(flip ? w.to : w.from)!
+      const b = resolve(flip ? w.from : w.to)!
+      const ra = flip ? w.to : w.from
+      const rb = flip ? w.from : w.to
+      return { id, a, b, flip, ea: leadDir(layout, ra), eb: leadDir(layout, rb), ka: wireEndStyle(layout, ra).kind, kb: wireEndStyle(layout, rb).kind }
+    })
+    const k = ends.length
+    const ca = ends.reduce((s, e) => ({ x: s.x + e.a.x / k, y: Math.max(s.y, e.a.y), z: s.z + e.a.z / k }), { x: 0, y: 0, z: 0 })
+    const cb = ends.reduce((s, e) => ({ x: s.x + e.b.x / k, y: Math.max(s.y, e.b.y), z: s.z + e.b.z / k }), { x: 0, y: 0, z: 0 })
+    const dx = cb.x - ca.x
+    const dz = cb.z - ca.z
+    const len = Math.hypot(dx, dz)
+    const nx = len > 1e-6 ? -dz / len : 1
+    const nz = len > 1e-6 ? dx / len : 0
+    // ribbon pitch: the header pitch, kept between snug and airy
+    const proj = ends.map((e) => e.a.x * nx + e.a.z * nz)
+    let pitch = 0.62
+    if (k > 1) pitch = Math.min(0.9, Math.max(0.5, Math.abs(proj[k - 1] - proj[0]) / (k - 1)))
+    // apex: clear every body under the straight run, then a gentle arch
+    let top = Math.max(ca.y, cb.y)
+    for (let i = 0; i <= 24; i++) {
+      const u = i / 24
+      const x = ca.x + dx * u
+      const z = ca.z + dz * u
+      for (const o of boxes) {
+        const m = 0.6 + (pitch * k) / 2
+        if (x > o.minX - m && x < o.maxX + m && z > o.minZ - m && z < o.maxZ + m) top = Math.max(top, o.height)
+      }
+    }
+    const apex = top + Math.max(1.4, Math.min(6, 0.16 * len))
+    ends.forEach((e, rank) => {
+      const off = (rank - (k - 1) / 2) * pitch
+      const A = e.a
+      const B = e.b
+      // a DuPont end goes straight into (or over) the header from above and
+      // leaves vertically for ~6 mm before it bends into the ribbon
+      // lead-in: vertical above a board header / breadboard hole, level along
+      // the pin for a sideways module header (both perpendicular to the header)
+      const leadIn = (P: { x: number; y: number; z: number }, d: { x: number; z: number } | null, kind: Parameters<typeof dupontRise>[0]): RoutePoint => {
+        const r = dupontRise(kind)
+        return d ? { x: P.x + d.x * r, y: P.y, z: P.z + d.z * r } : { x: P.x, y: P.y > 0 ? P.y + r : 1.0, z: P.z }
+      }
+      const LA = leadIn(A, e.ea, e.ka)
+      const LB = leadIn(B, e.eb, e.kb)
+      const pts: RoutePoint[] = [{ x: A.x, y: 0, z: A.z }, LA]
+      const N = 9
+      const lift = apex - Math.max(LA.y, LB.y) + 0.6
+      for (let i = 1; i < N; i++) {
+        const u = i / N
+        const w = Math.pow(Math.sin(Math.PI * u), 0.7) // 0 at the pins, 1 mid-run: the ribbon lane
+        const lx = ca.x + dx * u + nx * off
+        const lz = ca.z + dz * u + nz * off
+        const px = LA.x + (LB.x - LA.x) * u
+        const pz = LA.z + (LB.z - LA.z) * u
+        const base = LA.y + (LB.y - LA.y) * u
+        pts.push({ x: px + (lx - px) * w, y: base + lift * Math.sin(Math.PI * u), z: pz + (lz - pz) * w })
+      }
+      pts.push(LB, { x: B.x, y: 0, z: B.z })
+      if (e.flip) pts.reverse()
+      const rec = wireRouteCache.get(e.id)
+      RIBBON_PATHS.add(pts)
+      if (rec) rec.route = { waypoints: pts, style: 'arc' }
+    })
+  }
+}
+
+/** boards whose headers are FEMALE sockets (a male DuPont pin goes in from the top) */
+const SOCKET_BOARDS: ReadonlySet<string> = new Set(['arduino_uno', 'arduino_mega'])
+
+/**
+ * How a wire end meets its terminal: a breadboard hole, an instrument post,
+ * a female board socket (male DuPont pin pushed in from the top), a male
+ * board pin pointing up (female DuPont housing slid over it), or a sideways
+ * module pin (housing slid on along `dir`).
+ */
+export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole' | 'post' | 'socket' | 'pin' | 'side'; dir?: { x: number; z: number } } {
+  const t = parseTerminalRef(ref)
+  if (!t) return { kind: 'hole' }
+  const c = layout.components.find((x) => x.id === t.componentId)
+  const e = c ? getEntry(c.type) : undefined
+  if (!c || !e || RIBBON_SKIP.has(e.category)) return { kind: 'post' }
+  if (e.category === 'board') return { kind: SOCKET_BOARDS.has(c.type) ? 'socket' : 'pin' }
+  const d = leadDir(layout, ref)
+  return d ? { kind: 'side', dir: d } : { kind: 'pin' }
+}
+
+/** plan direction a sideways module pin points (null = the wire leaves vertically) */
+function leadDir(layout: CircuitLayout, ref: string): { x: number; z: number } | null {
+  const t = parseTerminalRef(ref)
+  if (!t) return null
+  const c = layout.components.find((x) => x.id === t.componentId)
+  const e = c ? getEntry(c.type) : undefined
+  if (!c || !e || e.category === 'board') return null
+  const d = offboardTerminalExit(c.type, e.pins.indexOf(t.pin))
+  const L = Math.hypot(d.x, d.z)
+  return L > 1e-6 ? { x: d.x / L, z: d.z / L } : null
+}
+
+/** "Tidy wires": forget the cached plan so the next layout sync re-routes everything */
+export function forceReplan(): void {
+  planSignature = ''
+  plannedWorld = null
 }
 
 /**
@@ -557,16 +761,20 @@ function routedCurve(
   yb: number,
 ): THREE.CatmullRomCurve3 {
   const pts = waypoints.map((p) => new THREE.Vector3(p.x, p.y, p.z))
+  // ribbon paths carry their own perpendicular lead-ins (level for sideways pins)
+  const ribbon = RIBBON_PATHS.has(waypoints)
   if (pts.length >= 2) {
     if (ya !== 0) {
       pts[0].y += ya
-      pts[1].y = Math.max(pts[1].y, ya + ENTRY_RISE)
+      if (!ribbon || Math.hypot(pts[1].x - pts[0].x, pts[1].z - pts[0].z) < 0.05) pts[1].y = Math.max(pts[1].y, ya + ENTRY_RISE)
     } else {
       pts[0].y = WIRE_TIP_LEN // stripped tip below the insulation
     }
     if (yb !== 0) {
       pts[pts.length - 1].y += yb
-      pts[pts.length - 2].y = Math.max(pts[pts.length - 2].y, yb + ENTRY_RISE)
+      const q = pts[pts.length - 1]
+      const r = pts[pts.length - 2]
+      if (!ribbon || Math.hypot(r.x - q.x, r.z - q.z) < 0.05) r.y = Math.max(r.y, yb + ENTRY_RISE)
     } else {
       pts[pts.length - 1].y = WIRE_TIP_LEN
     }

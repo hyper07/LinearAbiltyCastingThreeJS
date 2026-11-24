@@ -36,6 +36,11 @@
     { "kind": "curve", "label": "β of the 2N3904 on the curve tracer", "tracer": "CT", "mode": "npn", "metric": "beta", "at": 0.00002, "expect": "160", "tol": 0.3 }
   ],
   "settle": 0.3,
+  "callouts": [
+    { "part": "Q1", "title": "2N3904 NPN", "text": "Gain ≈ R_C / R_E, inverted.", "icon": "chip" },
+    { "part": "M1", "title": "BASE VOLTAGE", "text": "Set by the 47 k / 10 k divider.", "icon": "meter" },
+    { "part": "CT", "title": "CURVE TRACER", "text": "Measures β on Q2.", "icon": "meter" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 8 BJT amplifier",

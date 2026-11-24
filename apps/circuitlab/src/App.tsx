@@ -13,7 +13,7 @@
  * UI chrome state (which sheet is open, onboarding…) lives HERE in React
  * state — never in the store.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, GrowDirection, MoveTarget } from './state/types'
 import { boardConfigOf } from './model/types'
 import type { HoleRef, Rotation } from './model/types'
@@ -49,6 +49,9 @@ import { LessonsSheet, loadLesson } from './ui/lab/LessonsSheet'
 import { BenchSheet, type BenchTab } from './ui/lab/BenchSheet'
 import { LabSheet, loadExperiment } from './ui/lab/LabSheet'
 import { EXPERIMENTS } from './labs'
+import { Callouts, SchematicPanel, ViewBar, autoWireColors, calloutsFor, type ViewStyle } from './ui/lab/views'
+import { IllustratedView } from './three/illustrated'
+import { forceReplan } from './three/internal/wires'
 import { CreditsPanel, LabCorner, goHome, helpPanel, useFirstHelp } from './ui/lab/LabChrome'
 import { compileSketch } from './mcu/avr/compile'
 import { boardDef } from './model/boards'
@@ -475,6 +478,28 @@ export default function App() {
   const lastProgressRef = useRef<RenderProgress | null>(null)
   const setActiveSheetGlobal = useRef<typeof setActiveSheet | null>(null)
   setActiveSheetGlobal.current = setActiveSheet
+  // --- view style: Photo / Illustrated / Schematic ---
+  const [view, setViewState] = useState<ViewStyle>(() => {
+    try {
+      const v = localStorage.getItem('circuitlab.view')
+      return v === 'illustrated' || v === 'schematic' ? v : 'photo'
+    } catch {
+      return 'photo'
+    }
+  })
+  const setView = (v: ViewStyle) => {
+    setViewState(v)
+    try {
+      localStorage.setItem('circuitlab.view', v)
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  const [schInset, setSchInset] = useState(true)
+  const [schFull, setSchFull] = useState(false)
+  const illustrated = useRef<IllustratedView | null>(null)
+  const cycleViewGlobal = useRef<(() => void) | null>(null)
+  cycleViewGlobal.current = () => setView(view === 'photo' ? 'illustrated' : view === 'illustrated' ? 'schematic' : 'photo')
 
   // mount the 3D scene once; keep it in sync with the store
   useEffect(() => {
@@ -585,6 +610,20 @@ export default function App() {
           return
         }
         if (helpPanel().isOpen) return
+        if (e.shiftKey && (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD')) {
+          e.preventDefault()
+          const P = 70
+          if (e.code === 'KeyW') sceneRef.current?.panByPixels(0, -P)
+          else if (e.code === 'KeyS') sceneRef.current?.panByPixels(0, P)
+          else if (e.code === 'KeyA') sceneRef.current?.panByPixels(-P, 0)
+          else sceneRef.current?.panByPixels(P, 0)
+          return
+        }
+        if (e.code === 'KeyV') {
+          e.preventDefault()
+          cycleViewGlobal.current?.()
+          return
+        }
         if (e.code === 'KeyQ' || e.code === 'KeyE') {
           e.preventDefault()
           sceneRef.current?.orbitView(e.code === 'KeyQ' ? 0.26 : -0.26)
@@ -643,6 +682,15 @@ export default function App() {
         else st.moveSelection(0, 1)
         return
       }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        const P = 70
+        if (e.key === 'ArrowLeft') sceneRef.current?.panByPixels(-P, 0)
+        else if (e.key === 'ArrowRight') sceneRef.current?.panByPixels(P, 0)
+        else if (e.key === 'ArrowUp') sceneRef.current?.panByPixels(0, -P)
+        else sceneRef.current?.panByPixels(0, P)
+        return
+      }
       if (e.key === 'Escape') {
         if (st.mode.kind === 'wire' && st.mode.from) {
           st.setMode({ kind: 'wire', from: null, color: st.mode.color })
@@ -667,13 +715,26 @@ export default function App() {
           return
         }
         e.preventDefault()
-        if (st.running) st.stopSim()
-        else st.startSim()
-        tick()
+        spaceArmed = !e.repeat || spaceArmed
       }
     }
+    // Space toggles Run on release — unless it was held to pan (Space + drag)
+    let spaceArmed = false
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || !spaceArmed) return
+      spaceArmed = false
+      if (sceneRef.current?.consumeSpacePan()) return
+      const st = useStore.getState()
+      if (st.running) st.stopSim()
+      else st.startSim()
+      tick()
+    }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
   }, [])
 
   // Compiled mode: compile boards' sketches before the simulation starts
@@ -711,6 +772,15 @@ export default function App() {
         return ok
       },
       openSheet: (k: SheetKey | null) => setActiveSheet(k),
+      setView: (v: ViewStyle) => setView(v),
+      fit: () => sceneRef.current?.fitAll(),
+      pan: (dx: number, dy: number) => sceneRef.current?.panByPixels(dx, dy),
+      focus: (id: string) => sceneRef.current?.focusComponent(id),
+      autoColor: () => useStore.getState().recolorWires(autoWireColors(useStore.getState().layout)),
+      tidy: () => {
+        forceReplan()
+        sceneRef.current?.setLayout(useStore.getState().layout)
+      },
       experiments: EXPERIMENTS.map((e) => e.id),
       loadExperiment: (id: string) => {
         const ok = loadExperiment(id)
@@ -827,6 +897,41 @@ export default function App() {
 
   // --- long-press action sheet ---
   const layout = useStore((s) => s.layout)
+  const callouts = useMemo(() => calloutsFor(layout), [layout])
+  const calloutScene = useCallback(() => sceneRef.current, [])
+  // illustrated look: toon + ink + isometric lens, applied once the scene is mounted
+  useEffect(() => {
+    let raf = 0
+    const apply = () => {
+      const sc = sceneRef.current
+      const h = sc?.cameraHandle
+      if (!sc || !h) {
+        raf = requestAnimationFrame(apply)
+        return
+      }
+      illustrated.current ??= new IllustratedView()
+      const ill = illustrated.current
+      if (view === 'illustrated') {
+        if (!ill.active) {
+          ill.enable(h)
+          sc.viewTick = (s, c) => ill.tick(s, c)
+          sc.viewRender = (r, s, c) => ill.render(r, s, c)
+          sc.fitFromCurrent = true
+          sc.fitMargin = 1.5
+          sc.fitAll()
+        }
+      } else if (ill.active) {
+        sc.viewTick = null
+        sc.viewRender = null
+        sc.fitFromCurrent = false
+        sc.fitMargin = 1
+        ill.disable()
+        sc.fitAll()
+      }
+    }
+    apply()
+    return () => cancelAnimationFrame(raf)
+  }, [view])
   const targetComp = actionTarget ? layout.components.find((c) => c.id === actionTarget) : undefined
   const targetWire = actionTarget ? layout.wires.find((w) => w.id === actionTarget) : undefined
   const targetEntry = targetComp ? getEntry(targetComp.type) : undefined
@@ -943,6 +1048,28 @@ export default function App() {
         onBench={() => setActiveSheet('bench')}
       />
       <BenchSheet open={activeSheet === 'bench'} onDismiss={() => setActiveSheet(null)} desktop={isDesktop} tab={benchTab} setTab={setBenchTab} />
+      <ViewBar
+        view={view}
+        setView={setView}
+        onFit={() => sceneRef.current?.fitAll()}
+        onTidy={() => {
+          forceReplan()
+          sceneRef.current?.setLayout(useStore.getState().layout)
+          showToast('Wires re-routed')
+        }}
+        onAutoColor={() => {
+          const st = useStore.getState()
+          st.recolorWires(autoWireColors(st.layout))
+          showToast('Red = +V, black = GND, rainbow for signals')
+        }}
+      />
+      {view === 'illustrated' && <Callouts scene={calloutScene} items={callouts} />}
+      <SchematicPanel
+        open={view === 'schematic' || (view === 'illustrated' && schInset)}
+        full={view === 'schematic' || schFull}
+        onClose={() => (view === 'schematic' ? setView('photo') : setSchInset(false))}
+        onToggleFull={() => (view === 'schematic' ? setView('illustrated') : setSchFull(!schFull))}
+      />
       <LabCorner onCredits={() => setCreditsOpen(true)} />
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       <ScopeSheet

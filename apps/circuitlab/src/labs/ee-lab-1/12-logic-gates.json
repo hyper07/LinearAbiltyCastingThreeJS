@@ -44,6 +44,11 @@
     { "kind": "led", "label": "CARRY LED lights for A = 1, B = 1", "part": "LED2", "on": true, "set": [{ "part": "LSA", "key": "on", "value": true }, { "part": "LSB", "key": "on", "value": true }] }
   ],
   "settle": 0.01,
+  "callouts": [
+    { "part": "U1", "title": "7486 XOR", "text": "SUM = A XOR B.", "icon": "chip" },
+    { "part": "U2", "title": "7408 AND", "text": "CARRY = A AND B.", "icon": "chip" },
+    { "part": "LSA", "title": "INPUT A", "text": "Flip it to change A.", "icon": "switch" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 12 Logic gates",

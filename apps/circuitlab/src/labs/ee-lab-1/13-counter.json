@@ -33,6 +33,11 @@
     { "kind": "segments", "label": "Display reads 0 with the clock held in reset", "set": [{ "part": "RUN", "key": "on", "value": false }], "part": "DS1", "lit": "abcdef" }
   ],
   "settle": 0.4,
+  "callouts": [
+    { "part": "U1", "title": "555 CLOCK", "text": "About three ticks a second.", "icon": "chip" },
+    { "part": "U2", "title": "7490 COUNTER", "text": "Counts 0–9 in BCD.", "icon": "chip" },
+    { "part": "DS1", "title": "7-SEGMENT DISPLAY", "text": "The 7447 lights the right segments.", "icon": "display" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 13 Counter",

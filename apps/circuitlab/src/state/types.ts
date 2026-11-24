@@ -115,6 +115,8 @@ export interface AppState {
   removeSelected(): void
   removeComponent(id: string): void
   removeWire(id: string): void
+  /** Circuit Lab: set many wire colours at once (auto colour) — one undo step */
+  recolorWires(colors: Record<string, string>): void
   addWire(from: EndpointRef, to: EndpointRef, color?: string): void
   setParam(componentId: string, key: string, value: ParamValue): void
   /** Replace the selection with `[id]`; `null` clears (= clearSelection). */

@@ -1,0 +1,188 @@
+/* View toggle, illustrated callouts and the schematic panel */
+.vw-bar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  max-width: calc(100vw - 260px);
+}
+.vw-seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(28, 28, 32, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.vw-seg button,
+.vw-btn {
+  font: 600 13px/1 var(--lg-font, system-ui);
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+.vw-seg button.is-on {
+  background: #0a84ff;
+}
+.vw-btn {
+  background: rgba(28, 28, 32, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+}
+.vw-btn:hover,
+.vw-seg button:hover:not(.is-on) {
+  background: rgba(255, 255, 255, 0.14);
+}
+@media (max-width: 700px) {
+  .vw-btn[data-tidy],
+  .vw-btn[data-autocolor] {
+    display: none;
+  }
+  .vw-bar {
+    max-width: calc(100vw - 24px);
+    top: 58px;
+  }
+}
+
+/* callouts: white cards, bold caps title, one plain line, dotted leaders */
+.vw-callouts {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+.vw-leader-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.vw-leaders path {
+  fill: none;
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+.vw-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: #fffdf8;
+  color: #2b2433;
+  border: 1.5px solid #e5dccb;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(80, 60, 30, 0.12);
+  transition: opacity 0.25s;
+}
+.vw-icon {
+  flex: none;
+  color: #2b2433;
+}
+.vw-card-title {
+  font: 800 15px/1.15 var(--lg-font, system-ui);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.vw-card-text {
+  margin-top: 4px;
+  font: 400 13px/1.35 var(--lg-font, system-ui);
+  color: #5b5262;
+}
+
+/* schematic: inset bottom-right, expandable to a full 2D view */
+.vw-sch {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 25;
+  width: min(380px, calc(100vw - 32px));
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  background: #fffdf8;
+  color: #2b2433;
+  border: 1.5px solid #e2d8c6;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(60, 45, 20, 0.18);
+  overflow: hidden;
+}
+.vw-sch.is-full {
+  inset: 64px 24px 24px 100px;
+  width: auto;
+  height: auto;
+}
+@media (max-width: 900px) {
+  .vw-sch.is-full {
+    inset: 100px 10px 90px 10px;
+  }
+}
+.vw-sch-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 6px 14px;
+  font: 800 12px/1 var(--lg-font, system-ui);
+  letter-spacing: 0.12em;
+  color: #6b6070;
+  border-bottom: 1px solid #efe6d6;
+}
+.vw-sch-sp {
+  flex: 1;
+}
+.vw-sch-head button {
+  font: 600 16px/1 system-ui;
+  color: #6b6070;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  width: 28px;
+  height: 26px;
+  cursor: pointer;
+}
+.vw-sch-head button:hover {
+  background: #f1e9da;
+}
+.vw-sch-body {
+  flex: 1;
+  overflow: auto;
+  padding: 6px;
+  background-image: linear-gradient(#f3ecdf 1px, transparent 1px), linear-gradient(90deg, #f3ecdf 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.vw-sch-svg {
+  display: block;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.vw-sch:not(.is-full) .vw-sch-svg {
+  width: 100%;
+  height: auto;
+}
+.vw-sch.is-full .vw-sch-svg {
+  width: 100%;
+  max-width: 980px;
+  height: auto;
+  margin: 0 auto;
+}
+.vw-sch-part {
+  cursor: pointer;
+}
+.vw-sch-empty {
+  padding: 24px;
+  color: #7a7080;
+  font: 14px system-ui;
+}

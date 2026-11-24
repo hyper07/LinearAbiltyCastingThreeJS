@@ -34,6 +34,11 @@
     { "kind": "dc", "label": "Zener holds its node near V_Z", "ref": "d30", "expect": "Z1", "abs": 0.3 }
   ],
   "settle": 0.3,
+  "callouts": [
+    { "part": "CT", "title": "CURVE TRACER", "text": "Plots the diode I–V curve.", "icon": "meter" },
+    { "part": "CF", "title": "FILTER CAPACITOR", "text": "Holds the peak: ripple ≈ V/(f·R·C).", "icon": "resistor" },
+    { "part": "Z1", "title": "ZENER 5.1 V", "text": "Holds its node steady.", "icon": "led" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 7 Diodes",

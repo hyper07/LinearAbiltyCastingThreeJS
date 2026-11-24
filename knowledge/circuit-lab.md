@@ -84,6 +84,25 @@ the **Circuit Lab** card. Built so far:
 Not usable: *Circuit Sim 3D Mobile Lab* (no licence = all rights reserved);
 Velxio (AGPL) and CircuitJS (GPL) stay idea-only.
 
+### Views, camera and wiring (2026-11-23)
+
+- **Camera**: left-drag orbits; right/middle-drag or Space + drag pans;
+  trackpad two-finger scroll pans and pinch zooms; the wheel zooms toward the
+  cursor; arrows (nothing selected) or Shift+WASD pan; double-click a part to
+  focus it; ⤢ Fit; the target is clamped to the bench.
+- **Wires**: wires between a board/module header and anything else route as
+  ribbons (`wireBundles` / `applyRibbons` in `three/internal/wires.ts`): even
+  pitch, matching arch over every body, ordered across the header. Header
+  ends are DuPont jumpers — a black housing with a collar in the wire colour,
+  over male pins or on top of a female socket (gold pin in the hole), and the
+  wire leaves straight up (sideways module pins: level along the pin).
+  Auto colour: red +V, black GND, rainbow per bundle. Tidy wires re-plans.
+- **Views** (V): Photo; Illustrated (`three/illustrated.ts` — long-lens
+  isometric with 45° orbit steps, toon ramp, ink outlines, grid paper, callout
+  cards from lesson/experiment data or auto for boards and modules); Schematic
+  (`ui/lab/views.tsx` — generated from the netlist, inset or full screen,
+  click to select).
+
 ### EE Lab I track (CCNY EE 22100 topics)
 
 Thirteen **original** experiments covering the topics of the catalog

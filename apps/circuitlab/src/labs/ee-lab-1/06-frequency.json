@@ -30,6 +30,10 @@
     { "kind": "bode", "label": "Band-pass resonance at 1/(2π√LC)", "gen": "GEN", "in": "d10", "out": "c28", "metric": "f0", "expect": "1/(2*PI*sqrt(L1*C2))", "tol": 0.03 },
     { "kind": "bode", "label": "Band-pass Q = (1/R)√(L/C)", "gen": "GEN", "in": "d10", "out": "c28", "metric": "q", "expect": "1/R2*sqrt(L1/C2)", "tol": 0.1 }
   ],
+  "callouts": [
+    { "part": "GEN", "title": "FUNCTION GENERATOR", "text": "The Bode analyser sweeps it.", "icon": "wave" },
+    { "part": "SC", "title": "OSCILLOSCOPE", "text": "CH1 in, CH2 out: gain and phase.", "icon": "wave" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 6 Frequency response",

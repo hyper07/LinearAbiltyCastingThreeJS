@@ -18,7 +18,18 @@ export interface LessonControl {
   unit?: string
 }
 
+/** an illustrated-view callout card: a key part, a bold title and one plain line */
+export interface Callout {
+  part: string
+  title: string
+  text: string
+  /** chip | led | resistor | speaker | display | sensor | power | wave | switch | meter | board | motor */
+  icon?: string
+}
+
 export interface Preset {
+  /** illustrated-view callouts for the lesson's key parts */
+  callouts?: Callout[]
   id: string
   title: string
   board: string | null
@@ -448,6 +459,52 @@ export const PRESETS: Preset[] = [
     ),
   },
 ]
+
+const CALLOUTS: Record<string, Callout[]> = {
+  blink: [
+    { part: 'U1', title: 'ARDUINO UNO', text: 'Pin 13 goes HIGH and LOW once a second.', icon: 'board' },
+    { part: 'R1', title: '220 Ω RESISTOR', text: 'Limits the LED current to about 14 mA.', icon: 'resistor' },
+    { part: 'D1', title: 'RED LED', text: 'Lights when current flows anode → cathode.', icon: 'led' },
+  ],
+  button: [
+    { part: 'U1', title: 'ARDUINO UNO', text: 'Pin 2 reads the button with a pull-up.', icon: 'board' },
+    { part: 'SW1', title: 'PUSHBUTTON', text: 'Pressed, it pulls pin 2 to GND (reads LOW).', icon: 'switch' },
+    { part: 'D1', title: 'GREEN LED', text: 'On while the button is held.', icon: 'led' },
+  ],
+  fade: [
+    { part: 'U1', title: 'PWM PIN', text: 'analogWrite() switches fast; the average sets brightness.', icon: 'board' },
+    { part: 'D1', title: 'BLUE LED', text: 'Your eye averages the pulses into a glow.', icon: 'led' },
+    { part: 'PR1', title: 'SCOPE PROBE', text: 'Open Scope to see the duty cycle change.', icon: 'wave' },
+  ],
+  servo: [
+    { part: 'P1', title: 'POTENTIOMETER', text: 'A divider: the wiper gives 0–5 V to A0.', icon: 'meter' },
+    { part: 'S1', title: 'SERVO', text: 'The pulse width (1–2 ms) sets the angle.', icon: 'motor' },
+    { part: 'U1', title: 'ARDUINO UNO', text: 'map() turns 0–1023 into 0–180°.', icon: 'board' },
+  ],
+  lcd: [
+    { part: 'DHT1', title: 'DHT22 SENSOR', text: 'Temperature and humidity on one data wire.', icon: 'sensor' },
+    { part: 'LCD1', title: 'LCD 16×2 (I²C)', text: 'Two wires — SDA and SCL — carry every character.', icon: 'display' },
+    { part: 'U1', title: 'ARDUINO UNO', text: 'Reads the sensor, prints to the display.', icon: 'board' },
+  ],
+  blinker555: [
+    { part: 'U1', title: '555 TIMER', text: 'Charges and discharges C1: an astable clock.', icon: 'chip' },
+    { part: 'C1', title: 'TIMING CAPACITOR', text: 'Bigger C, slower blink: f = 1.44/((R1+2R2)C).', icon: 'resistor' },
+    { part: 'D1', title: 'LED', text: 'Follows the 555 output.', icon: 'led' },
+  ],
+  distance: [
+    { part: 'US1', title: 'HC-SR04', text: 'Echo time ÷ 58 = distance in cm.', icon: 'sensor' },
+    { part: 'U1', title: 'ARDUINO UNO', text: 'pulseIn() times the echo.', icon: 'board' },
+  ],
+  'esp32-trap': [
+    { part: 'E1', title: 'ESP32 (3.3 V)', text: 'Its pins are not 5 V tolerant.', icon: 'board' },
+    { part: 'US1', title: 'HC-SR04 (5 V)', text: 'Its echo is 5 V — divide it down first.', icon: 'sensor' },
+  ],
+  'pico-blink': [
+    { part: 'P1', title: 'RASPBERRY PI PICO', text: 'GP15 drives the LED at 3.3 V.', icon: 'board' },
+    { part: 'D1', title: 'GREEN LED', text: 'A 100 Ω resistor is enough at 3.3 V.', icon: 'led' },
+  ],
+}
+for (const p of PRESETS) p.callouts = CALLOUTS[p.id]
 
 export function presetById(id: string): Preset | undefined {
   return PRESETS.find((p) => p.id === id)

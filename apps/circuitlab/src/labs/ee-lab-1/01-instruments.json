@@ -31,6 +31,9 @@
     { "kind": "reading", "label": "M2 shows the loaded divider voltage", "part": "M2", "expect": "PS_v1*(R3*1e7/(R3+1e7))/(R2+R3*1e7/(R3+1e7))", "tol": 0.02 }
   ],
   "settle": 0.6,
+  "callouts": [
+    { "part": "M1", "title": "DIGITAL MULTIMETER", "text": "10 MΩ input: it barely loads most circuits.", "icon": "meter" }
+  ],
   "build": {
     "version": 1,
     "name": "EE Lab I · 1 Instruments",
