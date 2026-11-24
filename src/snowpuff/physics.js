@@ -23,7 +23,20 @@ import { geyserPhase, GEYSER_CYCLE } from './landmarks.js';
 /** How long an ice spin lasts (s). */
 export const SLIP = 1.1;
 export const G = 9.8;
-export const VMAX = 34; // m/s, hard cap (≈ 120 km/h with a boost)
+export const VMAX = 34; // m/s, hard cap (≈ 120 km/h)
+/**
+ * Boosts, kept modest so a leader who keeps hitting the jumps can still be
+ * caught (a boost is a few metres, not a getaway): the push while it lasts
+ * (m/s²), how far over VMAX it may take you, and how long each kind lasts (s).
+ * A clean trick: BOOST_TRICK + BOOST_PER_TRICK × tricks (up to 3).
+ */
+export const BOOST_ACC = 5.5;
+export const BOOST_OVER = 2.5;
+export const BOOST_TRICK = 0.55;
+export const BOOST_PER_TRICK = 0.15;
+export const BOOST_BELL = 0.45;
+export const BOOST_GEYSER = 0.6;
+export const BOOST_ITEM = 1.3;
 export const RIDER_R = 0.38;
 
 /** How tall each barrier is: ride over it if you are this high above the snow. */
@@ -214,12 +227,12 @@ export function step(r, inp, course, dt, o = {}) {
     if (r.spinout > 0) dec = Math.max(dec, sp * 0.5);
     if (o.brake) dec = Math.max(1.5, sp * 0.55);
     vF = Math.sign(vF) * Math.max(0, Math.abs(vF) - dec * dt);
-    if (r.boost > 0) vF += 7.5 * dt;
+    if (r.boost > 0) vF += BOOST_ACC * dt;
     if (r.flat > 0) vF = vL = 0;
     vs = vF * hx - vL * hy;
     vl = vF * hy + vL * hx;
     let v = Math.hypot(vs, vl);
-    const cap = VMAX + (r.boost > 0 ? 4 : 0);
+    const cap = VMAX + (r.boost > 0 ? BOOST_OVER : 0);
     if (v > cap) {
       vs *= cap / v;
       vl *= cap / v;
@@ -340,7 +353,7 @@ export function step(r, inp, course, dt, o = {}) {
       if (Math.abs(r.lat - b.lat) > b.w / 2) continue;
       const above = r.y - groundAt(course, r.s, r.lat);
       if (above > 0.9 && above < b.h + 0.5) {
-        r.boost = Math.max(r.boost, 0.8);
+        r.boost = Math.max(r.boost, BOOST_BELL);
         ev.push({ type: 'bell', id: b.id });
       }
     }
@@ -370,7 +383,7 @@ export function geyserLift(r, geysers, t, ev = []) {
       r.trickable = true;
     }
     r.vy = Math.max(r.vy ?? 0, 8.5);
-    r.boost = Math.max(r.boost, 1.0);
+    r.boost = Math.max(r.boost, BOOST_GEYSER);
     ev.push({ type: 'geyser', id: g.id });
   }
   return ev;
@@ -414,7 +427,7 @@ function land(r, ground, f, ev) {
   r.y = ground;
   r.vy = 0;
   if (clean) {
-    if (tricks > 0) r.boost = Math.max(r.boost, 0.9 + 0.35 * Math.min(4, tricks));
+    if (tricks > 0) r.boost = Math.max(r.boost, BOOST_TRICK + BOOST_PER_TRICK * Math.min(3, tricks));
   } else {
     r.wobble = 0.75;
     r.speed *= 0.82;

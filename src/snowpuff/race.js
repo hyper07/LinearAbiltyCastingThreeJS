@@ -16,6 +16,7 @@
  * from a hash of the gift and the racer. Snowball piles stay personal.
  */
 import { between, groundAt, frameAt } from './course.js';
+import { BOOST_ITEM } from './physics.js';
 
 export const MAX_SLOTS = 2;
 export const MAX_SNOWBALLS = 6;
@@ -214,7 +215,7 @@ export function useSlot(racer, i) {
   if (it.kind === 'shield') {
     racer.shieldT = SHIELD_TIME;
   } else if (it.kind === 'boost') {
-    racer.rider.boost = Math.max(racer.rider.boost, 1.7);
+    racer.rider.boost = Math.max(racer.rider.boost, BOOST_ITEM);
   }
   syncAmmo(racer);
   return { kind: it.kind };

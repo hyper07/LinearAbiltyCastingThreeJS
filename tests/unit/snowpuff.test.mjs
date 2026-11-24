@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MOUNTAINS, mountainById } from '../../src/snowpuff/mountains.js';
 import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt, RACE_MODES, LAPS, sectionAt, lapVariant } from '../../src/snowpuff/course.js';
-import { newRider, step, settle, trickName, onIce, VMAX } from '../../src/snowpuff/physics.js';
+import { newRider, step, settle, trickName, onIce, VMAX, BOOST_TRICK, BOOST_PER_TRICK, BOOST_ITEM, BOOST_BELL, BOOST_GEYSER } from '../../src/snowpuff/physics.js';
 import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_SNOWBALLS, SPINOUT, giveItem, useSlot, rollGift, ITEMS, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor, checkLap, tickLift, LIFT, LIFT_SKIP, giftOpen, openGift, respawnGifts, GIFT_RESPAWN } from '../../src/snowpuff/race.js';
 import { newBrain, think } from '../../src/snowpuff/ai.js';
 import { packState, unpackState, packThrow, unpackThrow, assignSlots, cleanMember, InterpBuffer, MSG } from '../../src/snowpuff/netproto.js';
@@ -280,6 +280,30 @@ test('rider: jump pressed on a kicker takes off at once (no wait for the lip); h
   };
   const early = pop(k.s + k.len * 0.2, 'launch'), late = pop(k.s + k.len * 0.85, 'launch'), flat = pop(k.s - 3, 'jump');
   assert.ok(late > early && early > flat, `flat ${flat.toFixed(2)} < early ${early.toFixed(2)} < late ${late.toFixed(2)}`);
+});
+
+test('boosts are modest: a trick, a bell, a geyser or the rocket sled is a few metres, not a getaway', () => {
+  const c = buildCourse(mountainById('marshmallow'));
+  const gain = (b) => {
+    let sum = 0;
+    for (const s0 of [300, 700, 1100]) {
+      const a = newRider({ s: s0, lat: 0, speed: 24 }), z = newRider({ s: s0, lat: 0, speed: 24 });
+      settle(a, c);
+      settle(z, c);
+      a.boost = b;
+      for (let t = 0; t < 6; t += DT) {
+        step(a, { tuck: true }, c, DT);
+        step(z, { tuck: true }, c, DT);
+      }
+      sum += a.s - z.s;
+    }
+    return sum / 3;
+  };
+  const trick1 = gain(BOOST_TRICK + BOOST_PER_TRICK), trick3 = gain(BOOST_TRICK + 3 * BOOST_PER_TRICK), sled = gain(BOOST_ITEM);
+  assert.ok(trick1 > 4 && trick1 < 16, `one trick: ${trick1.toFixed(1)} m`);
+  assert.ok(trick3 < 22, `three tricks: ${trick3.toFixed(1)} m`);
+  assert.ok(sled > trick3 && sled < 28, `rocket sled: ${sled.toFixed(1)} m`);
+  assert.ok(gain(BOOST_BELL) < 12 && gain(BOOST_GEYSER) < 14);
 });
 
 test('race: standings, ordinals, the finish', () => {
@@ -769,7 +793,7 @@ test('geysers (Yellowstone): placed the same every time beside the racing line, 
   assert.equal(geyserLift({ ...newRider({ s: 310, lat: 0 }), y: 0 }, [g], tE).length, 0, 'only in the column');
 });
 
-test('famous mountains: AI riders take about 60–90 s', () => {
+test('famous mountains: AI riders take about 60–95 s (modest boosts: the pack stays close)', () => {
   for (const m of MOUNTAINS) {
     const c = buildCourse(m);
     const rand = rng(11);
@@ -790,7 +814,7 @@ test('famous mountains: AI riders take about 60–90 s', () => {
       }
     }
     const times = racers.map((x) => (x.finished ? x.time : 999)).sort((x, y) => x - y);
-    assert.ok(times[1] >= 58 && times[1] <= 92, `${m.id}: median AI time ${times[1].toFixed(1)} s`);
+    assert.ok(times[1] >= 58 && times[1] <= 97, `${m.id}: median AI time ${times[1].toFixed(1)} s`);
   }
 });
 
@@ -982,11 +1006,11 @@ test('race length: every mountain builds Long and Laps the same every time, with
   }
 });
 
-test('race length: AI finish times — Long about 150–180 s; 3 Laps three laps of ride time plus the lifts', () => {
+test('race length: AI finish times — Long about 150–190 s; 3 Laps three laps of ride time plus the lifts', () => {
   for (const m of MOUNTAINS) {
     const [quick] = aiRace(buildCourse(m));
     const [long] = aiRace(buildCourse(m, { mode: 'long' }));
-    assert.ok(long[1] >= 140 && long[1] <= 190, `${m.id}: long median ${long[1].toFixed(1)} s`);
+    assert.ok(long[1] >= 140 && long[1] <= 200, `${m.id}: long median ${long[1].toFixed(1)} s`);
     const [laps, wall] = aiRace(buildCourse(m, { mode: 'laps' }));
     assert.ok(Math.abs(laps[1] - quick[1] * 3) < quick[1] * 0.45, `${m.id}: laps ${laps[1].toFixed(1)} vs 3 × ${quick[1].toFixed(1)}`);
     assert.ok(wall >= laps[0] + 2 * LIFT - 0.1, 'the lifts take their time on the clock');

@@ -280,6 +280,11 @@ interpolated state), so motion is smooth at any frame rate.
   toward a clean angle; land near one for a speed boost and a sparkle. Little
   airs off rollers aren't tricks — steering just nudges your line. Land crooked
   and you wobble — never fall.
+- **Boosts are modest** (`BOOST_*` in `physics.js`), so a leader who keeps
+  hitting the jumps can still be caught: over 6 s one clean trick is worth
+  about 13 m, three or more about 18 m, a bell about 9 m, a geyser about 11 m,
+  the rocket sled about 24 m (they were 31, 40, 20, 25 and 37 m). A boost
+  pushes 5.5 m/s² and may take you 2.5 m/s over the usual top speed.
 - **Barriers** (hay bales, fence sections, logs, rocks, gate poles): a soft
   bounce, a poof and a one-second tumble. **Snowmen** burst into snow when you
   ride through them (a tiny slow-down, a big poof).
