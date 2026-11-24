@@ -70,6 +70,11 @@ export interface BoardDef {
   /** footprint boards: rows and anchor-relative columns the PCB covers (occlusion) */
   bodyRows?: StripRow[]
   bodyCols?: [number, number]
+  /**
+   * datasheet facts for the Specs page beyond the fields above: memory,
+   * supply input range, totals, radios… as [label, value] rows
+   */
+  extraSpecs?: [string, string][]
   doc: string
 }
 
@@ -158,6 +163,7 @@ export const UNO: BoardDef = {
   label: 'Arduino Uno R3',
   short: 'Uno',
   mcu: 'ATmega328P · 16 MHz',
+  extraSpecs: [['Flash / SRAM / EEPROM', '32 KB / 2 KB / 1 KB'], ['Input (barrel / VIN)', '7–12 V recommended, 6–20 V limit'], ['USB', '5 V'], ['Total current, all pins', '200 mA'], ['3.3 V pin', '50 mA'], ['Digital / analog / PWM pins', '14 / 6 / 6']],
   logicV: 5,
   absMaxV: 5.5,
   maxPinMa: 40,
@@ -210,6 +216,7 @@ export const MEGA: BoardDef = {
   label: 'Arduino Mega 2560',
   short: 'Mega',
   mcu: 'ATmega2560 · 16 MHz',
+  extraSpecs: [['Flash / SRAM / EEPROM', '256 KB / 8 KB / 4 KB'], ['Input (barrel / VIN)', '7–12 V recommended, 6–20 V limit'], ['USB', '5 V'], ['Total current, all pins', '200 mA'], ['3.3 V pin', '50 mA'], ['Digital / analog / PWM pins', '54 / 16 / 15'], ['UARTs', '4']],
   logicV: 5,
   absMaxV: 5.5,
   maxPinMa: 40,
@@ -263,6 +270,7 @@ export const NANO: BoardDef = {
   label: 'Arduino Nano',
   short: 'Nano',
   mcu: 'ATmega328P · 16 MHz',
+  extraSpecs: [['Flash / SRAM / EEPROM', '32 KB / 2 KB / 1 KB'], ['Input (VIN)', '7–12 V recommended, 6–20 V limit'], ['USB', '5 V (mini-USB)'], ['Total current, all pins', '200 mA'], ['Digital / analog / PWM pins', '14 / 8 / 6']],
   logicV: 5,
   absMaxV: 5.5,
   maxPinMa: 40,
@@ -313,6 +321,7 @@ export const ESP32: BoardDef = {
   label: 'ESP32 DevKit V1',
   short: 'ESP32',
   mcu: 'ESP32-WROOM-32 · 240 MHz',
+  extraSpecs: [['Cores', '2 × Xtensa LX6'], ['Flash / SRAM', '4 MB / 520 KB'], ['Input (VIN / USB)', '5 V (VIN 4.5–12 V via regulator)'], ['3.3 V regulator', '≈600 mA (AMS1117)'], ['ADC', '12-bit, 0–3.3 V (≈0.1–3.1 V usable)'], ['DAC', '2 × 8-bit (GPIO 25, 26)'], ['Radio', 'Wi-Fi 802.11 b/g/n 2.4 GHz, Bluetooth 4.2 + BLE'], ['Touch pins', '10']],
   logicV: 3.3,
   absMaxV: 3.6,
   maxPinMa: 40,
@@ -368,6 +377,7 @@ export const PICO: BoardDef = {
   label: 'Raspberry Pi Pico',
   short: 'Pico',
   mcu: 'RP2040 · 133 MHz',
+  extraSpecs: [['Cores', '2 × Arm Cortex-M0+'], ['Flash / SRAM', '2 MB / 264 KB'], ['Input (VSYS)', '1.8–5.5 V'], ['3V3 out', '300 mA max'], ['ADC', '12-bit, 3 inputs + temperature, 500 kS/s'], ['PIO', '2 blocks × 4 state machines'], ['PWM', '16 channels']],
   logicV: 3.3,
   absMaxV: 3.6,
   maxPinMa: 12,
