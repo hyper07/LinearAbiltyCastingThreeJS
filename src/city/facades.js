@@ -243,57 +243,75 @@ export class Facades {
           varying vec3 vWP;
           varying vec3 vWN;
           float gh(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+          // Goods on a shelf: packs 0.14 × 0.26 m in quiet colours, a shelf edge every 0.42 m.
+          vec3 goods(vec2 q, float seed) {
+            vec2 c = floor(q / vec2(0.14, 0.42));
+            float r = gh(c + seed * 13.0);
+            vec3 pal = r < 0.2 ? vec3(0.8, 0.22, 0.18) : r < 0.4 ? vec3(0.95, 0.8, 0.3) : r < 0.55 ? vec3(0.2, 0.42, 0.75) : r < 0.7 ? vec3(0.25, 0.6, 0.35) : r < 0.85 ? vec3(0.92, 0.9, 0.86) : vec3(0.45, 0.3, 0.22);
+            float y = fract(q.y / 0.42);
+            vec3 pack = mix(vec3(0.55), pal, 0.65) * (0.75 + 0.25 * gh(c + 3.7));
+            pack *= step(0.08, y) * step(y, 0.08 + 0.62 * (0.7 + 0.3 * gh(c + 1.1)));
+            return mix(vec3(0.78, 0.79, 0.8), pack + vec3(0.1), step(0.08, y) * step(0.02, fract(q.x / 0.14)));
+          }
           // The view ray into a box room W × H × D (metres) from the point p on its glass front.
+          // kind: 0 office · 1 home · 2 shop (style by seed: a mart, a cafe, a clinic or salon, a restaurant).
           vec3 roomCol(vec2 p, vec3 v, vec3 dims, float kind, float seed, float lit, vec3 lamp) {
-            float tx = (v.x > 0.0 ? dims.x - p.x : -p.x) / (abs(v.x) > 1e-4 ? v.x : 1e-4);
-            float ty = (v.y > 0.0 ? dims.y - p.y : -p.y) / (abs(v.y) > 1e-4 ? v.y : 1e-4);
+            float tx = abs((v.x > 0.0 ? dims.x - p.x : -p.x) / (abs(v.x) > 1e-4 ? v.x : 1e-4));
+            float ty = abs((v.y > 0.0 ? dims.y - p.y : -p.y) / (abs(v.y) > 1e-4 ? v.y : 1e-4));
             float tz = dims.z / max(1e-3, v.z);
-            tx = abs(tx); ty = abs(ty);
             float t = min(min(tx, ty), tz);
             vec3 h = vec3(p, 0.0) + v * t;
-            vec3 wallC = kind == 1.0 ? mix(vec3(0.86, 0.8, 0.7), vec3(0.78, 0.82, 0.8), step(0.5, seed)) : kind == 2.0 ? vec3(0.93, 0.93, 0.9) : vec3(0.82, 0.83, 0.84);
-            vec3 col;
+            float style = floor(fract(seed * 7.31) * 4.0);
+            bool warm = kind == 2.0 && (style == 1.0 || style == 3.0);
+            vec3 wallC = kind == 1.0 ? mix(vec3(0.86, 0.8, 0.7), vec3(0.78, 0.82, 0.8), step(0.5, seed)) : warm ? vec3(0.62, 0.48, 0.36) : kind == 2.0 ? vec3(0.93, 0.93, 0.9) : vec3(0.8, 0.81, 0.82);
+            vec3 floorC = kind == 1.0 ? vec3(0.5, 0.38, 0.27) : warm ? vec3(0.42, 0.3, 0.2) : kind == 2.0 ? vec3(0.74, 0.74, 0.72) : vec3(0.42, 0.43, 0.46);
+            vec3 col = wallC;
             float glow = 0.0;
-            // A partition or a row of desks part-way in (offices), shelves (shops), a sofa (homes).
-            float zp = dims.z * (0.35 + 0.25 * seed);
+            // Something part-way in: desks and partitions (offices), shelves, tables or a counter (shops), a sofa (homes).
+            float zp = dims.z * (0.3 + 0.25 * fract(seed * 3.3));
             float tp = zp / max(1e-3, v.z);
             vec3 hp = vec3(p, 0.0) + v * tp;
-            bool front = tp < t && hp.x > 0.2 && hp.x < dims.x - 0.2;
-            if (front && kind == 0.0 && hp.y < 1.15) {
-              col = mix(vec3(0.34, 0.36, 0.4), vec3(0.75, 0.74, 0.7), step(1.05, hp.y));
-              return col * (0.75 + 0.25 * lit) + lamp * 0.0;
+            bool front = tp < t && hp.x > 0.15 && hp.x < dims.x - 0.15;
+            bool hit = false;
+            if (front) {
+              if (kind == 0.0 && hp.y < 1.2) { col = mix(vec3(0.32, 0.34, 0.38), vec3(0.72, 0.71, 0.68), step(1.1, hp.y)); hit = true; }
+              else if (kind == 2.0 && style == 0.0 && hp.y < 1.55 && fract(hp.x / 2.4 + seed) < 0.6) { col = goods(hp.xy + vec2(seed * 9.0, 0.0), seed); hit = true; }
+              else if (kind == 2.0 && warm && hp.y < 0.76 && hp.y > 0.7 - 0.0 * seed) { col = vec3(0.36, 0.25, 0.17); hit = true; }
+              else if (kind == 2.0 && warm && hp.y < 0.7 && fract(hp.x / 1.4 + seed) < 0.12) { col = vec3(0.2, 0.16, 0.13); hit = true; }
+              else if (kind == 2.0 && style == 2.0 && hp.y < 1.05 && fract(hp.x / 3.0 + seed) < 0.5) { col = vec3(0.9, 0.9, 0.88); hit = true; }
+              else if (kind == 1.0 && hp.y < 0.8 && seed > 0.5) { col = vec3(0.42, 0.34, 0.28); hit = true; }
             }
-            if (front && kind == 2.0 && hp.y < 1.6 && fract(hp.x / 2.6 + seed) < 0.55) {
-              float shelf = step(0.5, fract(hp.y / 0.4));
-              vec3 goods = vec3(gh(floor(hp.xy * vec2(4.0, 2.5)) + seed), gh(floor(hp.xy * vec2(4.0, 2.5)) + seed + 3.1), gh(floor(hp.xy * vec2(4.0, 2.5)) + seed + 7.7));
-              return mix(vec3(0.85), goods * 0.8 + 0.15, shelf) * 1.05;
-            }
-            if (front && kind == 1.0 && hp.y < 0.8 && seed > 0.5) return vec3(0.42, 0.34, 0.28) * (0.6 + 0.4 * lit);
-            if (t == tz) {
-              col = wallC;
+            if (hit) h = hp;
+            else if (t == tz) {
               if (kind == 0.0) col = mix(col, vec3(0.3, 0.32, 0.36), step(0.7, h.y) * step(h.y, 0.78));
-              if (kind == 2.0) {
-                float sh = step(0.45, fract(h.y / 0.45));
-                vec3 goods = vec3(gh(floor(h.xy * vec2(5.0, 2.2)) + seed), gh(floor(h.xy * vec2(5.0, 2.2)) + seed + 1.3), gh(floor(h.xy * vec2(5.0, 2.2)) + seed + 5.1));
-                col = mix(col, goods * 0.75 + 0.2, sh * step(h.y, 2.2) * step(0.3, h.y));
+              if (kind == 2.0 && style == 0.0) col = mix(col, goods(h.xy, seed), step(h.y, 2.2) * step(0.1, h.y));
+              if (kind == 2.0 && style == 2.0) {
+                // A clinic or a salon: posters and a mirror on a white wall.
+                vec2 pc = fract(h.xy / vec2(1.6, 3.0) + vec2(seed, 0.0));
+                col = mix(col, mix(vec3(0.3, 0.55, 0.8), vec3(0.85, 0.45, 0.55), step(0.5, gh(floor(h.xy / vec2(1.6, 3.0)) + seed))), step(0.2, pc.x) * step(pc.x, 0.6) * step(0.4, pc.y) * step(pc.y, 0.62));
               }
+              if (warm) col = mix(col, vec3(0.3, 0.2, 0.13), step(fract(h.x / 0.9), 0.08));
               if (kind == 1.0) col = mix(col, vec3(0.55, 0.42, 0.32), step(fract(h.x / 2.3 + seed), 0.18) * step(h.y, 1.9));
             } else if (t == ty) {
               if (v.y > 0.0) {
                 col = vec3(0.9, 0.9, 0.88);
-                // Ceiling lights: long panels in offices and shops, a round one in a home.
                 vec2 cp = h.xz;
-                float panel = kind == 1.0 ? 1.0 - smoothstep(0.18, 0.24, length(vec2(cp.x - dims.x * 0.5, cp.y - dims.z * 0.5))) : step(0.62, fract(cp.x / 1.25 + 0.3)) * step(0.4, fract(cp.y / 1.6));
+                // Ceiling lights: long panels in offices, marts and clinics; round warm pendants in cafes; one round lamp in a home.
+                float panel = kind == 1.0 ? 1.0 - smoothstep(0.18, 0.24, length(vec2(cp.x - dims.x * 0.5, cp.y - dims.z * 0.5)))
+                  : warm ? 1.0 - smoothstep(0.1, 0.16, length(fract(cp / vec2(1.4, 1.6)) - 0.5))
+                  : step(0.62, fract(cp.x / 1.25 + 0.3)) * step(0.4, fract(cp.y / 1.6));
                 glow = panel;
               } else {
-                col = kind == 2.0 ? vec3(0.78, 0.77, 0.74) : kind == 1.0 ? vec3(0.55, 0.42, 0.3) : vec3(0.5, 0.5, 0.52);
+                col = floorC;
               }
             } else {
               col = wallC * 0.9;
+              if (kind == 2.0 && style == 0.0) col = mix(col, goods(vec2(h.z, h.y), seed + 1.0), step(h.y, 2.0) * step(0.1, h.y));
             }
             // Light falls off into the room, brighter near the ceiling.
             float fall = 0.65 + 0.35 * clamp(h.y / dims.y, 0.0, 1.0);
-            return col * fall * mix(vec3(0.16), lamp, lit) + glow * lit * lamp * 1.6;
+            vec3 light = warm ? lamp * vec3(1.05, 0.82, 0.6) : lamp;
+            return col * fall * mix(vec3(0.16), light, lit) + glow * lit * light * 1.6;
           }`)
         .replace('#include <color_fragment>', `#include <color_fragment>
           {
@@ -358,7 +376,9 @@ export class Facades {
             float fres = F0 + (1.0 - F0) * pow(1.0 - cosT, 5.0);
             // Panes not quite flat: the reflection wobbles a little from pane to pane.
             fres = clamp(fres * (0.85 + 0.3 * gh(cid + 9.1)), 0.0, 1.0);
-            vec3 col = mix(inside, env, fres);
+            // Coated office glass reflects through its own tint (BLDG_4's dark blue panes); clear glass a little dimmer.
+            vec3 coat = kind == 4.0 || kind == 0.0 ? mix(vec3(0.5, 0.62, 0.8), vec3(0.55, 0.7, 0.68), step(0.5, fract(seed * 3.7))) : vec3(0.85);
+            vec3 col = mix(inside, env * coat, fres);
             // Curtain walls: thin mullions at each cell edge.
             if (kind == 4.0) {
               float mu = min(min(f.x, 1.0 - f.x) * cs.x, min(f.y, 1.0 - f.y) * cs.y);

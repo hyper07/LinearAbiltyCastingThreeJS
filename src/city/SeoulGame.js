@@ -13,6 +13,9 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { skyDome, followSun, GradeShader } from './sky.js';
 import { Race } from './race.js';
 import { readAlleys } from './alleys.js';
 import { confetti } from '../ui/pop.js';
@@ -362,9 +365,8 @@ export class SeoulGame {
     this._stamps();
     this.root.focus();
     this._last = performance.now();
-    // Power: a capped loop (60, or 45 on Quiet), stopped in a hidden tab. The city has no shadow maps
-    // (its shadows are painted), so the Graphics menu offers no shadow row here.
-    this.power = new PowerKit('seoul', { renderer: this.renderer, profile: POWER_PROFILE, features: { grass: false, ao: false, rays: false, shadows: false }, onChange: () => this.applyPower() });
+    // Power: a capped loop (60, or 45 on Quiet), stopped in a hidden tab; the sun's shadows and AO on the menu.
+    this.power = new PowerKit('seoul', { renderer: this.renderer, profile: POWER_PROFILE, features: { grass: false, ao: true, rays: false, shadows: true }, onChange: () => this.applyPower() });
     this.applyPower();
     // The soundtrack (docs/music.md): Neon Overpass while racing and while driving at night; otherwise the
     // city is left to its own sounds (the engine, the horn). On/off and volume are in the Graphics panel.
@@ -412,6 +414,21 @@ export class SeoulGame {
     }
     this.lifeFar = { near: 110, medium: 170, far: 200 }[c.distance];
     this.bloomOn = c.bloom;
+    // The sun's shadows: off on the low tier; a smaller map on Near shadows. AO on the high tier only.
+    const shadows = c.shadows !== 'off' && q !== 'low';
+    if (shadows !== this.renderer.shadowMap.enabled) {
+      this.renderer.shadowMap.enabled = shadows;
+      this.sun.castShadow = shadows;
+      this.scene.traverse((o) => o.material && (o.material.needsUpdate = true));
+    }
+    const size = c.shadows === 'full' && q === 'high' ? 2048 : 1024;
+    if (this.sun.shadow.mapSize.x !== size) {
+      this.sun.shadow.mapSize.set(size, size);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.shadowBox = size > 1024 ? 90 : 60;
+    if (this.gtao) this.gtao.enabled = Boolean(c.ao) && q === 'high';
     this.power.invalidate();
   }
 
@@ -465,8 +482,12 @@ export class SeoulGame {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    // AgX: film-like, keeps the signs' strong colours from going neon (render-quality.md §2).
+    this.renderer.toneMapping = THREE.AgXToneMapping;
+    this.renderer.toneMappingExposure = 1.25;
+    // The sun's shadows, in a box round you (on where the Graphics choice allows: applyPower).
+    this.renderer.shadowMap.enabled = false;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.canvas = this.renderer.domElement;
     this.canvas.className = 'seoul__canvas';
     stage.prepend(this.canvas);
@@ -475,6 +496,10 @@ export class SeoulGame {
     this.camera = new THREE.PerspectiveCamera(58, 1, 1, 9000);
     this.hemi = new THREE.HemisphereLight('#dcecff', '#6a6458', 1.15);
     this.sun = new THREE.DirectionalLight('#fff3dc', 2.1);
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.06;
+    this.sun.shadow.radius = 2;
     this.scene.add(this.hemi, this.sun, this.sun.target);
     // Weather: rain, storms, snow and fog, round the camera.
     this.weather = new Weather(this.scene);
@@ -484,9 +509,16 @@ export class SeoulGame {
     // Bright windows, signs, lamps and headlights glow (bloom), most at night.
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    // Ambient occlusion (the shadow line in every window reveal, under signs and sills), on the high tier.
+    this.gtao = new GTAOPass(this.scene, this.camera, 640, 360);
+    this.gtao.updateGtaoMaterial({ radius: 1.6, distanceExponent: 1.5, thickness: 2, scale: 1.2, samples: 12 });
+    this.gtao.blendIntensity = 0.9;
+    this.gtao.enabled = false;
+    this.composer.addPass(this.gtao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 1.05);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    this.composer.addPass(new ShaderPass(GradeShader));
     // The ground: flat, with a faint block pattern so speed and distance can be felt.
     const c = document.createElement('canvas');
     c.width = c.height = 128;
@@ -506,6 +538,9 @@ export class SeoulGame {
     this.uniforms = { uNight: { value: 0 }, uWet: { value: 0 }, uSkyTop: { value: new THREE.Color('#5b8fd6') }, uSkyLow: { value: new THREE.Color('#bcd4ea') } };
     this.wind = { uTime: { value: 0 }, uWind: { value: 0.5 } };
     this.material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    // The sky: deep overhead, hazy at the horizon, a glow round the sun.
+    this.sky = skyDome(this.uniforms);
+    this.scene.add(this.sky);
     this.signs = signAtlas();
     this.material.onBeforeCompile = (shader) => {
       shader.uniforms.uNight = this.uniforms.uNight;
@@ -687,19 +722,28 @@ export class SeoulGame {
     const day = Math.max(0, Math.sin(((this.hour - 6) / 12) * Math.PI)); // 0 at 6 and 18, 1 at noon
     const night = 1 - Math.min(1, day * 2.4);
     const dusk = day > 0 ? Math.max(0, 1 - Math.abs(day - 0.18) * 5) : 0; // only while the sun is low, not all night
-    const sky = new THREE.Color('#0b1226').lerp(new THREE.Color('#a9cdf0'), Math.min(1, day * 1.8)).lerp(new THREE.Color('#f2a66a'), dusk * 0.55);
+    // The horizon's colour (the dome deepens it overhead): hazy blue by day, warm at golden hour, deep blue at dusk.
+    const sky = new THREE.Color('#0b1226').lerp(new THREE.Color('#9cc4ea'), Math.min(1, day * 1.8)).lerp(new THREE.Color('#f0a060'), dusk * 0.6);
     this.skyBase = sky.clone();
     this.scene.background = sky;
     this.scene.fog.color.copy(sky);
     const a = ((this.hour - 6) / 12) * Math.PI;
-    this.sunDir = new THREE.Vector3(Math.cos(a) * 0.8, Math.max(0.12, Math.sin(a)), 0.45).normalize();
+    // A Seoul sun: about 45° up at noon (between winter's 29° and summer's 76°), low and long-shadowed late on.
+    this.sunDir = new THREE.Vector3(Math.cos(a) * 0.85, Math.max(0.1, Math.sin(a) * 0.82), 0.5).normalize();
+    // Sunlight several times the sky's light, so shadows read; warm and still strong at golden hour.
     // At night: a little cold moonlight, the city lit by its own windows, signs and lamps.
-    this.sun.intensity = 0.08 + day * 2.2;
-    this.sun.color.set('#fff3dc').lerp(new THREE.Color('#ff9a5a'), dusk).lerp(new THREE.Color('#9fb4ff'), night * 0.7);
-    this.hemi.intensity = 0.16 + day * 1.05;
+    this.sun.intensity = 0.08 + 3.1 * Math.min(1, day * 3) ** 0.7;
+    this.sun.color.set('#fff1d8').lerp(new THREE.Color('#ff9550'), dusk).lerp(new THREE.Color('#9fb4ff'), night * 0.7);
+    this.hemi.intensity = 0.14 + 0.62 * Math.sqrt(day);
     this.hemiBase = this.hemi.intensity;
     this.sunBase = this.sun.intensity;
     this.uniforms.uNight.value = night;
+    if (this.sky) {
+      const u = this.sky.userData.u;
+      u.uSunDir.value.copy(this.sunDir);
+      u.uSunCol.value.copy(this.sun.color);
+      u.uDusk.value = dusk;
+    }
     if (this.lampMat) this.lampMat.emissiveIntensity = night * 3;
     this.ground.material.color.setScalar(0.5 + Math.min(1, day * 1.6) * 0.7);
     const h = Math.floor(this.hour);
@@ -754,8 +798,10 @@ export class SeoulGame {
       this.tiles.delete(key);
     }
     const fogK = this.weather?.level.fog ?? 1;
-    this.scene.fog.near = reach * 0.45 * fogK * fogK;
-    this.scene.fog.far = reach * 1.05 * fogK;
+    // Aerial haze from a couple of hundred metres (BLDG_1: the far towers blue-grey), farther up high.
+    const lift = Math.max(0, this.camera.position.y - (this.groundAt?.(this.camera.position.x, this.camera.position.z) ?? 0));
+    this.scene.fog.near = Math.min(reach * 0.45, 140 + lift * 1.5) * fogK * fogK;
+    this.scene.fog.far = reach * 1.2 * fogK;
     this.camera.far = reach * 1.6 + 2000;
     this.camera.updateProjectionMatrix();
     // Nearest first, a few fetches at a time.
@@ -886,6 +932,7 @@ export class SeoulGame {
     geo.setAttribute('aKind', new THREE.Float32BufferAttribute(kinds, 2));
     geo.computeBoundingSphere();
     t.mesh = new THREE.Mesh(geo, this.material);
+    t.mesh.castShadow = t.mesh.receiveShadow = true;
     this.buildings.add(t.mesh);
     t.foot = foot;
     t.place = t.data.place;
@@ -1566,9 +1613,17 @@ export class SeoulGame {
       this.camera.lookAt(this.pos.clone().add(dir));
     } else if (this.mode === 'race') this.race.camera(this.camera);
     else this.street.camera(this.camera);
-    this.sun.position.copy(this.camera.position).addScaledVector(this.sunDir, 800);
-    this.sun.target.position.copy(this.camera.position);
-    this.sun.target.updateMatrixWorld();
+    // The sun's shadow box round the camera (or the sun far off, without shadows).
+    if (this.renderer.shadowMap.enabled) followSun(this.sun, this.sunDir, this.camera.position, this.shadowBox ?? 80);
+    else {
+      this.sun.position.copy(this.camera.position).addScaledVector(this.sunDir, 800);
+      this.sun.target.position.copy(this.camera.position);
+      this.sun.target.updateMatrixWorld();
+    }
+    if (this.sky) {
+      this.sky.position.copy(this.camera.position);
+      this.sky.scale.setScalar(this.camera.far * 0.9);
+    }
     this.ground.position.set(Math.round(this.pos.x / 100) * 100, 0, Math.round(this.pos.z / 100) * 100);
   }
 
@@ -1774,7 +1829,7 @@ export class SeoulGame {
     }
     // The studio reflections, for the city: a little by day, almost none at night.
     const day = 1 - night;
-    this.scene.environmentIntensity = (0.04 + 0.5 * day) * (1 - cloud * 0.4) + w.flash * 0.4;
+    this.scene.environmentIntensity = (0.04 + 0.22 * day) * (1 - cloud * 0.4) + w.flash * 0.4;
     this.hemi.intensity = (this.hemiBase ?? 1) * (1 - cloud * 0.35) + w.flash * 2.4;
     this.sun.intensity = (this.sunBase ?? 1) * (1 - cloud * 0.75);
     this.uniforms.uWet.value = w.level.wet;
