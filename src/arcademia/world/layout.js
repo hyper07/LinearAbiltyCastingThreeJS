@@ -110,6 +110,11 @@ export function planMountain(count) {
         return { kind, x, z: frontRow(x, r), r };
       })
     ];
+    // The World Portal (to the other study worlds) stands on the first floor, between the landmark and the museum.
+    if (f.k === 0) {
+      const x = f.cx + 7, z = frontRow(f.cx + 7, 1.6);
+      f.worldGate = { x, z, yaw: 0, at: { x, z: z - 1.6 - 1.2 } };
+    }
     f.spurs = f.places.map((p) => {
       const pz = pathAt(p.x) ?? p.z;
       return [[p.x, pz], [p.x, p.z + (p.z > pz ? -p.r * 0.6 : p.r * 0.6)]];

@@ -320,6 +320,15 @@
 .arc-quest-card span { font-size: 13px; font-weight: 700; color: var(--arc-muted); }
 .arc-quest-card__stars { color: #e9a92a !important; font-size: 22px !important; letter-spacing: 2px; }
 .arc-quest-card--arcade { background: linear-gradient(160deg, #fff7d6, #ffe3f1); }
+/* The World Portal's picker: a card per study world. */
+.arc-worlds__lead { margin: 0 0 12px; font-weight: 700; color: var(--arc-muted); }
+.arc-worlds__card { background: linear-gradient(160deg, #e9fbe9, #fff6dc); min-height: 150px; cursor: pointer; }
+.arc-worlds__card.is-here { border-color: #ffd23f; box-shadow: 0 0 0 3px rgba(255, 210, 63, 0.45), 0 5px 0 rgba(31, 59, 54, 0.12); }
+.arc-worlds__card--soon { cursor: default; opacity: 0.75; background: linear-gradient(160deg, #f1ecff, #fff3fb); border-style: dashed; border-color: #c9bdf2; }
+.arc-worlds__card--soon:hover { transform: none; }
+.arc-worlds__icon { font-size: 34px !important; line-height: 1; }
+.arc-worlds__go { margin-top: auto; color: #2c6b62 !important; font-weight: 900 !important; }
+.arc-nav__item--worlds { min-height: 38px; font-size: 13px; }
 
 /* story and reading */
 .arc-story { text-align: center; }

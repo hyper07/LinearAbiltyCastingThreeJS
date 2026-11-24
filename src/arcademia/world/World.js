@@ -21,7 +21,10 @@ import { buildTerrain, buildPeaks, buildWater, buildSky, waterClock } from './te
 import { buildBuilding, BUILDING_NAMES, SUBJECT_ICONS, windowMat, lampMat } from './buildings.js';
 import { buildStairs, buildBridge, buildGate, buildChest } from './structures.js';
 import { buildTrees, buildGround, buildClouds, buildBirds, buildFireflies, buildMoonProps, windClock, makeSpotCheck } from './nature.js';
-import { shop, arcade, museum, board, portal, landmark, toy, gem, silhouette, TOYS_BY_THEME } from './places.js';
+import { shop, arcade, museum, board, portal, worldGate, landmark, toy, gem, silhouette, TOYS_BY_THEME } from './places.js';
+import { planTree } from './tree/plan.js';
+import { buildLayerNav } from './tree/nav.js';
+import { buildTreeWorld } from './tree/scene.js';
 import { makeCreature, BUDDY_COLORS } from './figures.js';
 import { buildParticles } from './particles.js';
 import { WORLDS } from '../quests.js';
@@ -39,20 +42,22 @@ const c = (v) => new THREE.Color(v);
 const placeInfo = (icon, id) => ({ icon, get name() {
   return tr(`place.${id}`);
 } });
-export const PLACE_INFO = { shop: placeInfo('🎩', 'shop'), arcade: placeInfo('🕹️', 'arcade'), museum: placeInfo('🌈', 'museum'), board: placeInfo('📋', 'board'), portal: placeInfo('🌀', 'portal') };
-const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀' };
+export const PLACE_INFO = { shop: placeInfo('🎩', 'shop'), arcade: placeInfo('🕹️', 'arcade'), museum: placeInfo('🌈', 'museum'), board: placeInfo('📋', 'board'), portal: placeInfo('🌀', 'portal'), worlds: placeInfo('🌍', 'worlds') };
+const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼' };
 const landmarkName = (id) => `${LANDMARK_ICONS[id] ?? ''} ${tr(`landmark.${id}`)}`;
 const SUBJECTS = ['math', 'history', 'physics'];
 
 export class World {
-  constructor({ floors, labels, renderer, reducedMotion = false, buddy = null, on = {} }) {
+  constructor({ floors, labels, renderer, reducedMotion = false, buddy = null, on = {}, kind = 'mountain' }) {
     this.floors = floors;
+    this.kind = kind;
     this.labelsEl = labels;
     this.renderer = renderer;
     this.reducedMotion = reducedMotion;
     this.on = on;
     this.buddy = buddy ?? { species: 'fox', color: '#ff9b54', hat: 'party' };
-    this.plan = planMountain(floors.length);
+    this.plan = kind === 'tree' ? planTree(floors.length) : planMountain(floors.length);
+    this.isTree = this.plan.kind === 'tree';
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(DAY.fog, 160, 600);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.5, 2000);
@@ -94,26 +99,35 @@ export class World {
     });
     this.sky = buildSky();
     scene.add(this.sky);
-    this.terrain = buildTerrain(plan, floors);
-    scene.add(this.terrain);
-    scene.add(buildPeaks(plan));
-    this.water = buildWater(plan);
-    scene.add(this.water);
+    if (this.isTree) {
+      // The Great Tree: trunk, rings of decks and bridges, the spiral stair and its gates (tree/scene.js).
+      this.tree = buildTreeWorld(plan, floors);
+      scene.add(this.tree.group);
+      this.terrain = this.tree.walk;
+      this.gates = this.tree.gates;
+      this.bridges = [];
+    } else {
+      this.terrain = buildTerrain(plan, floors);
+      scene.add(this.terrain);
+      scene.add(buildPeaks(plan));
+      this.water = buildWater(plan);
+      scene.add(this.water);
 
-    // Stairs, gates and bridges: always there (cheap, batched).
-    this.gates = [];
-    for (const s of plan.stairs) {
-      scene.add(buildStairs(s, floors[s.from - 1].look));
-      const gate = buildGate(s, floors[s.from - 1].look);
-      gate.userData.to = s.to;
-      scene.add(gate);
-      this.gates.push(gate);
+      // Stairs, gates and bridges: always there (cheap, batched).
+      this.gates = [];
+      for (const s of plan.stairs) {
+        scene.add(buildStairs(s, floors[s.from - 1].look));
+        const gate = buildGate(s, floors[s.from - 1].look);
+        gate.userData.to = s.to;
+        scene.add(gate);
+        this.gates.push(gate);
+      }
+      this.bridges = plan.floors.map((f) => {
+        const pz = f.path.reduce((best, q) => (Math.abs(q[0] - f.river.x) < Math.abs(best[0] - f.river.x) ? q : best), f.path[0])[1];
+        return { floor: f.n, x: f.river.x, z: pz, y: f.y, width: 2.2, length: 5.6 };
+      });
+      for (const b of this.bridges) scene.add(buildBridge(b));
     }
-    this.bridges = plan.floors.map((f) => {
-      const pz = f.path.reduce((best, q) => (Math.abs(q[0] - f.river.x) < Math.abs(best[0] - f.river.x) ? q : best), f.path[0])[1];
-      return { floor: f.n, x: f.river.x, z: pz, y: f.y, width: 2.2, length: 5.6 };
-    });
-    for (const b of this.bridges) scene.add(buildBridge(b));
 
     // Every floor: a silhouette now, the full detail when the camera comes near.
     this.floorState = plan.floors.map((f) => {
@@ -122,21 +136,27 @@ export class World {
       scene.add(sil);
       const st = { n: f.n, f, look, sil, detail: null };
       for (const p of f.places) this._place(f, look, p);
+      // The World Portal: travel to another study world (ArcademiaGame opens the picker).
+      if (f.worldGate) this._place(f, look, { kind: 'worlds', r: 1.6, ...f.worldGate });
       this._floorLabel(f, look);
       return st;
     });
     this._extras();
     // Nature.
-    const trees = buildTrees(plan, floors);
-    scene.add(trees);
-    patchCutout(trees);
-    this.moonProps = buildMoonProps(plan, floors);
-    scene.add(this.moonProps);
-    patchCutout(this.moonProps);
-    scene.add(buildGround(plan, floors));
+    if (this.isTree) {
+      this.fireflies = buildFireflies(plan, this.tree.fireflySpots);
+    } else {
+      const trees = buildTrees(plan, floors);
+      scene.add(trees);
+      patchCutout(trees);
+      this.moonProps = buildMoonProps(plan, floors);
+      scene.add(this.moonProps);
+      patchCutout(this.moonProps);
+      scene.add(buildGround(plan, floors));
+      this.fireflies = buildFireflies(plan, trees.userData.positions);
+    }
     this.clouds = buildClouds();
     this.birds = buildBirds();
-    this.fireflies = buildFireflies(plan, trees.userData.positions);
     this.particles = buildParticles();
     scene.add(this.clouds, this.birds, this.fireflies, this.particles);
 
@@ -152,10 +172,11 @@ export class World {
     // The buddy.
     this.kid = makeCreature({ ...this.buddy, scale: KID_SCALE, lod: 'high' });
     scene.add(this.kid.group);
-    const start = plan.floors[0].plinths[1];
-    this.kidPos = new THREE.Vector3(start.door.x + 1.5, 0, start.door.z + 3.2);
-    this.kidPos.y = plan.height(this.kidPos.x, this.kidPos.z);
-    this.kidHeading = Math.PI;
+    const door = plan.floors[0].plinths[1].door;
+    const start = plan.start ?? { x: door.x + 1.5, z: door.z + 3.2, y: plan.floors[0].y };
+    this.kidPos = new THREE.Vector3(start.x, 0, start.z);
+    this.kidPos.y = plan.height(this.kidPos.x, this.kidPos.z, start.y);
+    this.kidHeading = this.isTree ? Math.atan2(start.x, start.z) : Math.PI;
     this.path = null;
     this._people();
 
@@ -183,7 +204,7 @@ export class World {
   _place(f, look, p) {
     const subject = SUBJECTS.includes(p.kind);
     const entry = { kind: p.kind, subject: subject ? p.kind : null, floor: f.n, plinth: subject ? f.plinths.find((q) => q.subject === p.kind) : null, p, group: null, wiggle: 9, bounce: 9 };
-    entry.at = subject ? { x: p.x, z: p.z + PLINTH_R + 0.8 } : { x: p.x, z: p.z - p.r - 1.2 };
+    entry.at = { ...(p.at ?? (subject ? { x: p.x, z: p.z + PLINTH_R + 0.8 } : { x: p.x, z: p.z - p.r - 1.2 })), y: f.y };
     entry.door = entry.at;
     const proxy = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 0.8, p.r * 0.8, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
     proxy.position.set(p.x, f.y + 4, p.z);
@@ -218,11 +239,14 @@ export class World {
     g.name = `floor-${n}`;
     for (const e of this.places.filter((x) => x.floor === n)) {
       let m;
+      if (e.kind === 'portal') continue;
       if (e.subject) m = buildBuilding(e.subject, look, { x: e.p.x, y: f.y + 0.55, z: e.p.z });
       else {
-        m = e.kind === 'landmark' ? landmark(look.look.landmark, look.look) : { shop, arcade, museum, board }[e.kind](look.look);
+        m = e.kind === 'landmark' ? landmark(look.look.landmark, look.look) : e.kind === 'worlds' ? worldGate() : { shop, arcade, museum, board }[e.kind](look.look);
         m.position.set(e.p.x, f.y, e.p.z);
       }
+      m.rotation.y = e.p.yaw ?? 0;
+      m.userData.yaw = m.rotation.y;
       e.group = m;
       e.top = m.userData.top;
       g.add(m);
@@ -230,10 +254,12 @@ export class World {
     // The portal by the stairs up.
     const st2 = this.plan.stairs.find((s) => s.from === n);
     if (st2) {
+      const spot = f.portal ?? { x: st2.a.x, z: st2.a.z + 4.6, yaw: 0, at: { x: st2.a.x, z: st2.a.z + 6.4 } };
       const pt = portal();
-      pt.position.set(st2.a.x, f.y, st2.a.z + 4.6);
+      pt.position.set(spot.x, f.y, spot.z);
+      pt.rotation.y = spot.yaw ?? 0;
       g.add(pt);
-      const entry = { kind: 'portal', floor: n, group: pt, at: { x: st2.a.x, z: st2.a.z + 6.4 }, p: { x: st2.a.x, z: st2.a.z + 4.6, r: 1.4 }, wiggle: 9, bounce: 9 };
+      const entry = { kind: 'portal', floor: n, group: pt, at: { x: spot.at.x, z: spot.at.z, y: f.y }, p: { x: spot.x, z: spot.z, r: 1.4 }, wiggle: 9, bounce: 9 };
       const proxy = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 4, 8), new THREE.MeshBasicMaterial({ visible: false }));
       proxy.position.set(entry.p.x, f.y + 1.5, entry.p.z);
       proxy.userData.place = entry;
@@ -244,26 +270,32 @@ export class World {
       st.portal = pt;
     }
     // Toys to poke, and three hidden gems.
-    const ok = makeSpotCheck(this.plan);
     const r = seeded(n * 97);
     const kinds = TOYS_BY_THEME[look.look.theme] ?? TOYS_BY_THEME.meadow;
-    const near = (x, z, d) => this.places.some((p) => p.floor === n && p.p && Math.hypot(p.p.x - x, p.p.z - z) < (p.p.r ?? 2) + d);
-    let placed = 0;
-    for (let tries = 0; tries < 400 && placed < kinds.length; tries++) {
-      const x = f.cx + (r() * 2 - 1) * f.rx * 0.8, z = f.cz + (r() * 1.6 - 0.4) * f.rz;
-      if (!ok(x, z, 0.4) || this.plan.floorAt(x, z) !== n || near(x, z, 2.5)) continue;
-      const t = toy(kinds[placed], look.look, n * 10 + placed);
-      t.position.set(x, this.plan.ground(x, z), z);
-      t.rotation.y = r() * 0.6 - 0.3;
+    const putToy = (x, z, i) => {
+      const t = toy(kinds[i], look.look, n * 10 + i);
+      t.position.set(x, this.plan.ground(x, z, f.y), z);
+      t.rotation.y = this.isTree ? Math.atan2(x, z) + r() * 0.6 - 0.3 : r() * 0.6 - 0.3;
       g.add(t);
-      this.toys.push({ floor: n, group: t, kind: kinds[placed], x, z });
-      placed++;
+      this.toys.push({ floor: n, group: t, kind: kinds[i], x, z });
+    };
+    if (f.toySpots) f.toySpots.slice(0, kinds.length).forEach(([x, z], i) => putToy(x, z, i));
+    else {
+      const ok = makeSpotCheck(this.plan);
+      const near = (x, z, d) => this.places.some((p) => p.floor === n && p.p && Math.hypot(p.p.x - x, p.p.z - z) < (p.p.r ?? 2) + d);
+      let placed = 0;
+      for (let tries = 0; tries < 400 && placed < kinds.length; tries++) {
+        const x = f.cx + (r() * 2 - 1) * f.rx * 0.8, z = f.cz + (r() * 1.6 - 0.4) * f.rz;
+        if (!ok(x, z, 0.4) || this.plan.floorAt(x, z) !== n || near(x, z, 2.5)) continue;
+        putToy(x, z, placed);
+        placed++;
+      }
     }
     const gemSpots = this._gemSpots(f);
     gemSpots.forEach(([x, z], i) => {
       const id = `${n}-${i}`;
       const m = gem(['#7ff7ff', '#ff9ed2', '#ffe066'][i]);
-      m.position.set(x, this.plan.ground(x, z), z);
+      m.position.set(x, this.plan.ground(x, z, f.y), z);
       m.visible = !this.found[id];
       g.add(m);
       this.gems.push({ id, floor: n, group: m, x, z });
@@ -276,7 +308,7 @@ export class World {
 
   /** Gems hide in tricky places: behind the schools, across the stream, at the far ends. */
   _gemSpots(f) {
-    const cands = [
+    const cands = f.gemSpots ?? [
       [f.plinths[0].x - 6.5, f.plinths[0].z - 2.5],
       [f.river.x + 3.2, (this.bridges[f.k]?.z ?? f.cz) + 1],
       [f.plinths[1].x + 7, f.plinths[1].z - 3],
@@ -285,8 +317,8 @@ export class World {
     ];
     const out = [];
     for (const [x, z] of cands) {
-      const spot = this.nav.nearestOpen(x, z);
-      if (spot && this.plan.floorAt(spot[0], spot[1]) === f.n) out.push(spot);
+      const spot = this.nav.nearestOpen(x, z, f.y);
+      if (spot && this.plan.floorAt(spot[0], spot[1], f.y) === f.n) out.push(spot);
       if (out.length === 3) break;
     }
     return out;
@@ -296,27 +328,39 @@ export class World {
     this.chests = [];
     this.bosses = [];
     for (const f of this.plan.floors) {
-      // The chest hides behind a big rock at the far end of the floor.
-      const ex = f.k % 2 === 0 ? f.cx + 26 : f.cx - 29;
-      const ez = (f.path.find((q) => Math.abs(q[0] - ex) < 1.5)?.[1] ?? f.cz) + 5.5;
+      // The chest hides behind a big rock at the far end of the floor (on the tree: out at the nook).
+      let ex, ez, rx, rz, cAt;
+      if (f.chest) {
+        ({ x: ex, z: ez } = f.chest);
+        ({ x: rx, z: rz } = f.chest.rock);
+        cAt = { ...f.chest.at, y: f.y };
+      } else {
+        ex = f.k % 2 === 0 ? f.cx + 26 : f.cx - 29;
+        ez = (f.path.find((q) => Math.abs(q[0] - ex) < 1.5)?.[1] ?? f.cz) + 5.5;
+        rx = ex;
+        rz = ez + 1.9;
+        cAt = { x: ex, z: ez - 1.6, y: f.y };
+      }
       const chest = buildChest();
-      chest.position.set(ex, this.plan.height(ex, ez), ez);
-      chest.rotation.y = 0.2;
+      chest.position.set(ex, this.plan.height(ex, ez, f.y), ez);
+      chest.rotation.y = f.chest ? f.chest.yaw : 0.2;
       this.scene.add(chest);
       const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.6, 0), new THREE.MeshToonMaterial({ color: this.floors[f.k].look.rock[0] }));
       rock.scale.set(1.4, 1, 0.9);
-      rock.position.set(ex, chest.position.y + 0.8, ez + 1.9);
+      rock.position.set(rx, chest.position.y + 0.8, rz);
+      rock.rotation.y = chest.rotation.y;
       rock.castShadow = true;
       this.scene.add(rock);
       const proxy = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshBasicMaterial({ visible: false }));
       proxy.position.set(ex, chest.position.y + 0.8, ez);
       proxy.userData.chest = f.n;
       this.scene.add(proxy);
-      this.chests.push({ floor: f.n, group: chest, proxy, at: { x: ex, z: ez - 1.6 } });
+      this.chests.push({ floor: f.n, group: chest, proxy, rock: { x: rx, z: rz }, at: cAt });
       // The boss waits by the stairs up (on the top floor, by the history hall).
       const st = this.plan.stairs.find((s) => s.from === f.n);
       let bx, bz;
-      if (st) {
+      if (f.boss) ({ x: bx, z: bz } = f.boss);
+      else if (st) {
         bx = st.a.x + (st.a.x < f.cx ? 4.2 : -4.2);
         bz = st.a.z + 2;
       } else {
@@ -325,14 +369,14 @@ export class World {
       }
       const w = WORLDS[f.n];
       const boss = makeCreature({ species: w.boss.species, color: w.boss.color, scale: 2.3, hat: f.n === 7 ? 'crown' : 'none', lod: 'mid', seed: f.n });
-      boss.group.position.set(bx, this.plan.height(bx, bz), bz);
-      boss.group.rotation.y = 0.3;
+      boss.group.position.set(bx, this.plan.height(bx, bz, f.y), bz);
+      boss.group.rotation.y = f.boss ? f.boss.yaw : 0.3;
       this.scene.add(boss.group);
       const bp = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 3.6, 8), new THREE.MeshBasicMaterial({ visible: false }));
       bp.position.set(bx, boss.group.position.y + 1.8, bz);
       bp.userData.boss = f.n;
       this.scene.add(bp);
-      const entry = { floor: f.n, fig: boss, proxy: bp, at: { x: bx, z: bz + 2.6 }, happy: false };
+      const entry = { floor: f.n, fig: boss, proxy: bp, at: f.boss ? { ...f.boss.at, y: f.y } : { x: bx, z: bz + 2.6, y: f.y }, happy: false };
       this.bosses.push(entry);
       const label = document.createElement('button');
       label.type = 'button';
@@ -371,7 +415,7 @@ export class World {
       return [p[0] + (Math.random() - 0.5) * 3, p[1] + (Math.random() - 0.5) * 2.5];
     };
     const [x, z] = pick();
-    fig.group.position.set(x, this.plan.height(x, z), z);
+    fig.group.position.set(x, this.plan.height(x, z, f.y), z);
     this.scene.add(fig.group);
     return { fig, floor: f.n, speed, species, path: null, wait: Math.random() * 4, pick, heading: 0 };
   }
@@ -389,7 +433,7 @@ export class World {
       this.on.floorPick?.(f.n);
     });
     this.labelsEl.append(el);
-    this.labels.push({ el, floor: f.n, entry: { floor: f.n }, isFloor: true, icon: look.icon, nameOf, pos: new THREE.Vector3(f.cx, f.y + 12, f.plinths[1].z + 6) });
+    this.labels.push({ el, floor: f.n, entry: { floor: f.n }, isFloor: true, icon: look.icon, nameOf, pos: f.label ? new THREE.Vector3(f.label.x, f.label.y, f.label.z) : new THREE.Vector3(f.cx, f.y + 12, f.plinths[1].z + 6) });
   }
 
   /* ================================================================ state */
@@ -397,17 +441,23 @@ export class World {
   setLocked(locked, { animate = false } = {}) {
     const before = this.locked;
     this.locked = new Set(locked);
-    this.nav = buildNavGrid(this.plan, {
+    const yOf = (n) => this.plan.floors[n - 1]?.y ?? 0;
+    const opts = {
       locked: (n) => this.locked.has(n),
       blockers: [
-        ...this.places.filter((p) => p.p && p.kind !== 'portal').map((p) => ({ x: p.p.x, z: p.subject ? p.p.z - 0.4 : p.p.z, r: p.subject ? 3.25 : p.p.r * 0.85 })),
-        ...(this.chests ?? []).map((c) => ({ x: c.group.position.x, z: c.group.position.z, r: 0.9 })),
-        ...(this.chests ?? []).map((c) => ({ x: c.group.position.x, z: c.group.position.z + 1.9, r: 1.6 })),
-        ...(this.bosses ?? []).map((b) => ({ x: b.fig.group.position.x, z: b.fig.group.position.z, r: 1.1 }))
+        ...this.places.filter((p) => p.p && p.kind !== 'portal').map((p) => ({ x: p.p.x, z: p.subject && !this.isTree ? p.p.z - 0.4 : p.p.z, y: yOf(p.floor), r: p.subject ? 3.25 : p.p.r * 0.85 })),
+        ...(this.chests ?? []).map((c) => ({ x: c.group.position.x, z: c.group.position.z, y: c.group.position.y, r: 0.9 })),
+        ...(this.chests ?? []).map((c) => ({ x: c.rock.x, z: c.rock.z, y: c.group.position.y, r: 1.6 })),
+        ...(this.bosses ?? []).map((b) => ({ x: b.fig.group.position.x, z: b.fig.group.position.z, y: b.fig.group.position.y, r: 1.1 }))
       ],
       bridges: this.bridges
+    };
+    this.nav = this.isTree ? buildLayerNav(this.plan, opts) : buildNavGrid(this.plan, opts);
+    if (this.isTree) this.tree.tiers.forEach((t, k) => {
+      this._dim(t.walk, this.locked.has(k + 1));
+      this._dim(t.deco, this.locked.has(k + 1));
     });
-    this.terrain.userData.setLocked((n) => this.locked.has(n));
+    else this.terrain.userData.setLocked((n) => this.locked.has(n));
     for (const g of this.gates) g.userData.setOpen(!this.locked.has(g.userData.to), !animate || !before.has(g.userData.to));
     for (const st of this.floorState ?? []) {
       if (st.detail) this._dim(st.detail, this.locked.has(st.n));
@@ -469,9 +519,14 @@ export class World {
 
   /* ================================================================ camera */
 
+  /** On the tree, turn a camera offset so it looks from outside the ring, wherever the buddy is round the trunk. */
+  _rel(v) {
+    if (this.isTree) v.applyAxisAngle(UP, Math.atan2(this.kidPos.x, this.kidPos.z));
+    return v;
+  }
   home() {
     const t = this.kidPos.clone().add(new THREE.Vector3(0, 1, 0));
-    this._tweenCam(t, new THREE.Vector3(6.2, 7.6, 12.6), 0.9);
+    this._tweenCam(t, this._rel(new THREE.Vector3(6.2, 7.6, 12.6)), 0.9);
   }
   zoom(by) {
     const off = this.camera.position.clone().sub(this.controls.target);
@@ -483,20 +538,24 @@ export class World {
     if (!f) return;
     this.focusFloor = n;
     this._ensureDetail(n);
-    this._tweenCam(new THREE.Vector3(f.cx, f.y + 1, f.plinths[1].z + 9), new THREE.Vector3(22, 36, 56), 1.0);
+    if (f.view) this._tweenCam(new THREE.Vector3(...f.view.target), new THREE.Vector3(...f.view.offset), 1.0);
+    else this._tweenCam(new THREE.Vector3(f.cx, f.y + 1, f.plinths[1].z + 9), new THREE.Vector3(22, 36, 56), 1.0);
   }
   closeUp() {
     const t = this.kidPos.clone().add(new THREE.Vector3(0, 0.7, 0));
-    this.kidHeading = 0;
-    this._tweenCam(t, new THREE.Vector3(1.4, 1.1, 4.2), 0.8);
+    this.kidHeading = this.isTree ? Math.atan2(this.kidPos.x, this.kidPos.z) : 0;
+    this._tweenCam(t, this._rel(new THREE.Vector3(1.4, 1.1, 4.2)), 0.8);
   }
   showBoss(n) {
     const b = this.bosses.find((x) => x.floor === n);
     if (!b) return;
     const p = b.fig.group.position;
-    this._tweenCam(new THREE.Vector3(p.x - 1.2, p.y + 1.6, p.z), new THREE.Vector3(2.5, 2.2, 8.5), 0.9);
+    const off = new THREE.Vector3(2.5, 2.2, 8.5);
+    if (this.isTree) off.applyAxisAngle(UP, Math.atan2(p.x, p.z));
+    this._tweenCam(new THREE.Vector3(p.x, p.y + 1.6, p.z), off, 0.9);
   }
   overview() {
+    if (this.isTree) return this._tweenCam(new THREE.Vector3(0, 34, 0), new THREE.Vector3(150, 62, 175), 1.2);
     const mid = this.plan.floors[Math.floor(this.plan.floors.length / 2)];
     this._tweenCam(new THREE.Vector3(0, mid.y - 6, mid.cz + 10), new THREE.Vector3(95, 85, 170), 1.2);
   }
@@ -525,11 +584,17 @@ export class World {
 
   _pointer() {
     const dom = this.renderer.domElement;
+    // Kept, so dispose() can take them off again (the canvas outlives a world when the map changes).
+    this._listeners = [];
+    const listen = (type, fn) => {
+      dom.addEventListener(type, fn);
+      this._listeners.push([type, fn]);
+    };
     let down = null;
-    dom.addEventListener('pointerdown', (e) => (down = { x: e.clientX, y: e.clientY }));
+    listen('pointerdown', (e) => (down = { x: e.clientX, y: e.clientY }));
     // Buildings wiggle when the pointer is over them.
     let lastHover = 0;
-    dom.addEventListener('pointermove', (e) => {
+    listen('pointermove', (e) => {
       if (e.buttons || this.paused || performance.now() - lastHover < 90) return;
       lastHover = performance.now();
       const ray = this._pick(e);
@@ -542,7 +607,7 @@ export class World {
         dom.style.cursor = entry ? 'pointer' : '';
       }
     });
-    dom.addEventListener('pointerup', (e) => {
+    listen('pointerup', (e) => {
       if (!down || this.paused) return;
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
       down = null;
@@ -585,9 +650,12 @@ export class World {
           this.on.npc?.(npc);
           return;
         }
-        if (o === this.terrain) {
+        if (o === this.terrain || isChild(this.terrain, o)) {
           this.select(null);
-          this.walkTo(h.point.x, h.point.z);
+          // On the tree a ring above may be in the way: prefer the buddy's own ring when the ray meets it too.
+          const same = this.isTree ? hits.find((q) => isChild(this.terrain, q.object) && this.plan.floorAt(q.point.x, q.point.z, q.point.y) === this.kidFloor) : null;
+          const p = (same ?? h).point;
+          this.walkTo(p.x, p.z, p.y);
           return;
         }
       }
@@ -632,16 +700,16 @@ export class World {
 
   goTo(at, then) {
     this.arrive = then;
-    if (!this.walkTo(at.x, at.z)) {
+    if (!this.walkTo(at.x, at.z, at.y)) {
       this.arrive = null;
       if (Math.hypot(this.kidPos.x - at.x, this.kidPos.z - at.z) < 4.5) then();
     }
   }
 
-  walkTo(x, z) {
-    const path = this.nav.findPath([this.kidPos.x, this.kidPos.z], [x, z]);
+  walkTo(x, z, y = this.kidPos.y) {
+    const path = this.nav.findPath([this.kidPos.x, this.kidPos.z, this.kidPos.y], [x, z, y]);
     if (!path) {
-      const n = this.plan.floorAt(x, z);
+      const n = this.plan.floorAt(x, z, y);
       if (n && this.locked.has(n)) this.on.gate?.(n);
       return false;
     }
@@ -649,21 +717,23 @@ export class World {
     this.pathI = 1;
     const end = path.at(-1);
     this.marker.visible = true;
-    this.marker.position.set(end[0], this.plan.height(end[0], end[1]) + 0.08, end[1]);
+    this.marker.position.set(end[0], (end[2] ?? this.plan.height(end[0], end[1], y)) + 0.08, end[1]);
     this._following = true;
     return true;
   }
 
-  teleport(n) {
+  teleport(n, at = null) {
     const f = this.plan.floors[n - 1];
     if (!f || this.locked.has(n)) return false;
     const p = f.plinths[1];
-    const spot = this.nav.nearestOpen(p.door.x + 1.5, p.door.z + 3.4) ?? [p.door.x, p.door.z + 2.4];
-    this.kidPos.set(spot[0], this.plan.height(spot[0], spot[1]), spot[1]);
+    const want = at ?? f.spawn ?? { x: p.door.x + 1.5, z: p.door.z + 3.4 };
+    const spot = this.nav.nearestOpen(want.x, want.z, f.y) ?? [p.door.x, p.door.z + 2.4];
+    this.kidPos.set(spot[0], this.plan.height(spot[0], spot[1], f.y), spot[1]);
+    this.kidFloor = n;
     this.path = null;
     this.arrive = null;
     this.marker.visible = false;
-    this.kidHeading = 0;
+    this.kidHeading = this.isTree ? Math.atan2(spot[0], spot[1]) : 0;
     this._ensureDetail(n);
     this.kid.hop();
     this.home();
@@ -707,7 +777,7 @@ export class World {
   }
 
   nearDoor() {
-    return this.buildings.find((b) => !this.locked.has(b.floor) && Math.hypot(this.kidPos.x - b.at.x, this.kidPos.z - b.at.z) < 2.4) ?? null;
+    return this.buildings.find((b) => !this.locked.has(b.floor) && Math.abs(this.plan.floors[b.floor - 1].y - this.kidPos.y) < 4 && Math.hypot(this.kidPos.x - b.at.x, this.kidPos.z - b.at.z) < 2.4) ?? null;
   }
 
   /* ================================================================ frame */
@@ -746,7 +816,7 @@ export class World {
     updateCutout(this.camera, this.renderer, this._cut, 1.1 * KID_SCALE, dist < 70 && !this.paused);
     this.scene.fog.near = 80 + dist * 1.2;
     this.scene.fog.far = 360 + dist * 3;
-    const tf = Math.max(1, Math.min(this.floors.length, Math.round(this.controls.target.y / FLOOR_H) + 1));
+    const tf = Math.max(1, Math.min(this.floors.length, Math.round(this.controls.target.y / (this.plan.floorH ?? FLOOR_H)) + 1));
     if (tf !== this.focusFloor) {
       this.focusFloor = tf;
       this.particles.userData.setFloor(this.plan.floors[tf - 1], this.floors[tf - 1].look);
@@ -771,9 +841,9 @@ export class World {
       this._applyNight();
     }
     windClock.uTime.value = this.reducedMotion ? 0 : t;
-    this.water.userData.update(this.reducedMotion ? 0 : t);
+    this.water?.userData.update(this.reducedMotion ? 0 : t);
     this.particles.userData.update(this.reducedMotion ? 0 : dt);
-    this.moonProps.userData.update(this.reducedMotion ? 0 : t);
+    this.moonProps?.userData.update(this.reducedMotion ? 0 : t);
     if (!this.reducedMotion) {
       this.clouds.userData.update(dt);
       this.birds.userData.update(dt, t);
@@ -835,9 +905,9 @@ export class World {
       const dir = right.multiplyScalar(ix).add(fwd.multiplyScalar(-iz)).normalize();
       const v = (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 7 : 4.6) * dt;
       const nx = kp.x + dir.x * v, nz = kp.z + dir.z * v;
-      if (this.nav.canStep(kp.x, kp.z, nx, nz)) kp.set(nx, kp.y, nz);
-      else if (this.nav.canStep(kp.x, kp.z, nx, kp.z)) kp.x = nx;
-      else if (this.nav.canStep(kp.x, kp.z, kp.x, nz)) kp.z = nz;
+      if (this.nav.canStep(kp.x, kp.z, nx, nz, kp.y)) kp.set(nx, kp.y, nz);
+      else if (this.nav.canStep(kp.x, kp.z, nx, kp.z, kp.y)) kp.x = nx;
+      else if (this.nav.canStep(kp.x, kp.z, kp.x, nz, kp.y)) kp.z = nz;
       else this._bump(nx, nz);
       this.kidHeading = turn(this.kidHeading, Math.atan2(dir.x, dir.z), dt * 12);
       speed = v / dt;
@@ -866,12 +936,12 @@ export class World {
       }
       speed = 5.2;
     }
-    kp.y = THREE.MathUtils.lerp(kp.y, this.plan.height(kp.x, kp.z), Math.min(1, dt * 18));
+    kp.y = THREE.MathUtils.lerp(kp.y, this.plan.height(kp.x, kp.z, kp.y), Math.min(1, dt * 18));
     this.kid.group.position.copy(kp);
     this.kid.group.rotation.y = this.kidHeading;
     this.kidSpeed = speed;
     this.kid.update(dt, { speed });
-    const n = this.plan.floorAt(kp.x, kp.z);
+    const n = this.plan.floorAt(kp.x, kp.z, kp.y);
     if (n && n !== this.kidFloor) {
       this.kidFloor = n;
       this.on.floor?.(n);
@@ -886,7 +956,7 @@ export class World {
   _bump(x, z) {
     if (this.time - (this._bumpT ?? -9) < 3) return;
     for (const s of this.plan.stairs) {
-      if (this.locked.has(s.to) && Math.hypot(x - s.a.x, z - s.a.z) < 3.5) {
+      if (this.locked.has(s.to) && Math.abs(s.a.y - this.kidPos.y) < 3 && Math.hypot(x - s.a.x, z - s.a.z) < 3.5) {
         this._bumpT = this.time;
         this.on.gate?.(s.to);
       }
@@ -920,15 +990,16 @@ export class World {
         }
       } else if ((n.wait -= dt) < 0) {
         const [tx, tz] = n.pick();
-        const path = this.nav.findPath([g.position.x, g.position.z], [tx, tz]);
-        if (path && this.plan.floorAt(tx, tz) === n.floor) {
+        const fy = this.plan.floors[n.floor - 1].y;
+        const path = this.plan.floorAt(tx, tz, fy) === n.floor ? this.nav.findPath([g.position.x, g.position.z, g.position.y], [tx, tz, fy]) : null;
+        if (path) {
           n.path = path;
           n.i = 1;
         } else n.wait = 1;
       } else if (Math.hypot(g.position.x - this.kidPos.x, g.position.z - this.kidPos.z) < 3) {
         n.heading = turn(n.heading, Math.atan2(this.kidPos.x - g.position.x, this.kidPos.z - g.position.z), dt * 4);
       }
-      g.position.y = this.plan.height(g.position.x, g.position.z);
+      g.position.y = this.plan.height(g.position.x, g.position.z, g.position.y);
       g.rotation.y = n.heading;
       n.fig.update(dt, { speed });
     }
@@ -981,10 +1052,13 @@ export class World {
     this.sky.userData.moon.material.opacity = k;
     this.fireflies.userData.material.uniforms.uNight.value = k;
     waterClock.uNight.value = k;
+    this.tree?.setNight(k);
     this.on.night?.(k);
   }
 
   dispose() {
+    this.disposed = true;
+    for (const [type, fn] of this._listeners ?? []) this.renderer.domElement.removeEventListener(type, fn);
     this.controls.dispose();
     this.scene.traverse((o) => o.geometry?.dispose?.());
     for (const L of this.labels) L.el.remove();
@@ -992,6 +1066,7 @@ export class World {
 }
 
 const PLINTH_H_TOP = 0.67;
+const UP = new THREE.Vector3(0, 1, 0);
 const dimCache = new Map();
 function dimmed(material) {
   if (!dimCache.has(material)) {

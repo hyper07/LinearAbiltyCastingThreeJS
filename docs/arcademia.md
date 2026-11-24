@@ -20,6 +20,37 @@ weekly report behind a PIN, and a read-only link they can open on their own phon
 | 6 | Seaside Harbor ⚓ (a seashell school, a lighthouse lab, a boat) | 11–12 | the age of exploration, the Industrial Revolution |
 | 7 | Moon Base 🚀 (domes, a launch pad) | 12–13 | the first flight, Apollo 11 |
 
+## Study worlds
+
+The same seven floors can be played in more than one world. Every world holds the same lessons —
+floor n is floor n everywhere — so stars, coins, stickers, gems, the buddy and the unlocked floors
+travel with the player; only the scenery changes.
+
+| World | What it is |
+| --- | --- |
+| Learning Mountain ⛰️ | the terraced mountain above |
+| The Great Tree 🌳 | a giant tree with a ring of treehouses all the way round its trunk for every floor: Root Hollow, Fern Boughs, Lantern Branches, Blossom Canopy, Nest Heights, Sunflower Rings and Starlight Crown |
+
+On the Great Tree each floor is a ring of nine round wooden decks (the three schools, the shop, the
+arcade, the museum, the quest board, a hub with the landmark, the portal up and the puzzle boss, and
+a nook where the treasure chest hides), joined all the way round by sturdy plank bridges and sagging
+rope bridges. Each ring is turned from the one below, so a school never sits right under the next
+ring's school. A spiral stair winds up the trunk from each ring's landing to the next, with a gate
+that stays shut until that floor opens. Glowing vines hang under the decks and light up at night,
+with fireflies, and a leafy crown sits on top.
+
+**Travelling.** A **World Portal** 🌍 stands on floor 1 of every world; walk into it, or press
+**🌍 Worlds** at the top of the floor list, to choose a world. The choice is saved in the browser
+(`arcademia.prefs`) and the next visit starts there.
+
+**Adding a world** (`src/arcademia/maps.js`): add an entry to `MAPS` with the floors' looks (shaped
+like `floors.js`), a `kind`, names in every language (`map.<id>`, `map.<id>.what`, `map.<id>.whole`
+and the floor names in `ui.js`; the lesson's way back in `lesson.js`), and teach `World.js` to build
+that kind: a plan (pure numbers, the contract of `world/layout.js` — floors with plinths, places,
+path and spawn spots, stairs, `height`, `floorAt`) and its scenery. A world whose floors overlap when
+seen from above, like the tree, takes an optional height in `height(x, z, y)` and `floorAt(x, z, y)`
+and walks on the layered grid in `world/tree/nav.js`. The picker lists it by itself.
+
 ## Languages
 
 The game speaks **English, 한국어 (Korean), Español, 日本語 (Japanese) and 简体中文 (Chinese)**. The
@@ -385,6 +416,8 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
+| Study worlds: the list, the Great Tree's floors | `src/arcademia/maps.js` |
+| The Great Tree: plan (rings, decks, bridges, spiral stair), layered walking grid, 3D scene | `src/arcademia/world/tree/plan.js`, `nav.js`, `scene.js` |
 | The diorama (lazy per-floor detail, silhouettes far away), terrain, buildings, places, rooms | `src/arcademia/world/` |
 | The creatures: sculpting, species recipes, faces, hats, materials; the creature API | `src/arcademia/world/creatures/`, `src/arcademia/world/figures.js` |
 | Languages: the i18n core, string tables and lesson overlays | `src/arcademia/i18n/` |
@@ -396,7 +429,7 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Learning API and its caps | `server/learningStore.js` (wired in `server/server.js` and `vite.config.js`) |
 | The tutor route | `server/api/ai.js` |
 | The share page | `parent-report.html`, `src/arcademia/sharedReport.js` |
-| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs`, `voice.test.mjs`; `tests/e2e/voice.mjs` |
+| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs`, `voice.test.mjs`; `tests/e2e/voice.mjs`, `tests/e2e/worlds.mjs` |
 
 To add a floor, add an entry to `FLOORS`, a world to `WORLDS` and at least two lessons per subject:
 the mountain, nav, minimap and unlock rules follow.

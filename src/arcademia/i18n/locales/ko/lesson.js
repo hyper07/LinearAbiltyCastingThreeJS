@@ -2,6 +2,8 @@
 export default {
   'lesson.back': '⬅ 산으로',
   'lesson.backAria': '산으로 돌아가기',
+  'lesson.back.tree': '⬅ 나무로',
+  'lesson.backAria.tree': '거대한 나무로 돌아가기',
   'lesson.stepsAria': '퀘스트 단계',
   'lesson.voiceOn': '🗣️ 목소리 켜짐',
   'lesson.voiceOff': '🔇 목소리 꺼짐',

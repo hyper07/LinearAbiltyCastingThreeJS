@@ -401,3 +401,43 @@ test('mountain: every place on every floor can be walked to; a locked floor cann
   assert.equal(shut.findPath(from, target(plan.floors[1].places[0])), null, 'floor 2 is shut while locked');
   assert.ok(shut.findPath(from, target(plan.floors[0].places[2])), 'floor 1 still open');
 });
+
+test('great tree: rings all round the trunk, every place reachable, a locked ring shut, decks apart', async () => {
+  const { planTree } = await import('../../src/arcademia/world/tree/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const { MAPS, TREE_FLOORS, mapById } = await import('../../src/arcademia/maps.js');
+  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree']);
+  assert.equal(mapById('nope').id, 'mountain', 'an unknown map falls back to the mountain');
+  assert.equal(TREE_FLOORS.length, FLOORS.length, 'the same floors (and lessons) in every world');
+  const plan = planTree(TREE_FLOORS.length);
+  const blockers = plan.floors.flatMap((f) => f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })));
+  const nav = buildLayerNav(plan, { blockers });
+  const s = plan.start;
+  for (const f of plan.floors) {
+    assert.equal(f.places.length, 8, `ring ${f.n}: three schools and five places`);
+    // Buildings all the way round the trunk, not on one side.
+    const angles = f.places.map((p) => Math.atan2(p.x, p.z));
+    const quadrants = new Set(angles.map((a) => Math.floor(((a + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2))));
+    assert.equal(quadrants.size, 4, `ring ${f.n} has buildings on every side of the tree`);
+    const decks = Object.values(f.pads).filter((p) => !p.landing);
+    for (let i = 0; i < decks.length; i++) for (let j = i + 1; j < decks.length; j++) {
+      const a = decks[i], b = decks[j];
+      assert.ok(Math.hypot(a.x - b.x, a.z - b.z) > a.pr + b.pr + 4, `ring ${f.n}: ${a.id} and ${b.id} have a bridge between them`);
+    }
+    for (const p of [...f.places.map((q) => q.at), f.portal.at, f.boss.at, f.chest.at]) {
+      const path = nav.findPath([s.x, s.z, s.y], [p.x, p.z, f.y]);
+      assert.ok(path, `ring ${f.n}: reachable`);
+      assert.ok(Math.abs(path.at(-1)[2] - f.y) < 1, `ring ${f.n}: the path ends on that ring`);
+    }
+    assert.ok(Math.abs(plan.height(f.spawn.x, f.spawn.z, f.y) - f.y) < 0.01);
+  }
+  assert.ok(plan.floors[0].worldGate, 'the World Portal is on the first ring');
+  // A ring above another: the height you are at picks the surface.
+  const top = plan.floors[2].places[0];
+  assert.equal(plan.floorAt(top.x, top.z, plan.floors[2].y), 3);
+  const shut = buildLayerNav(plan, { blockers, locked: (n) => n >= 2 });
+  const t2 = plan.floors[1].places[0].at;
+  assert.equal(shut.findPath([s.x, s.z, s.y], [t2.x, t2.z, t2.y]), null, 'ring 2 is shut while locked');
+  const t1 = plan.floors[0].places[2].at;
+  assert.ok(shut.findPath([s.x, s.z, s.y], [t1.x, t1.z, t1.y]), 'ring 1 still open');
+});

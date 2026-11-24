@@ -186,6 +186,60 @@ export function portal() {
   return g;
 }
 
+/**
+ * The World Portal: an arch of wood and gold round a swirling disc, with
+ * three little worlds circling it. Walk up to it to choose another study world.
+ */
+export function worldGate() {
+  const g = new THREE.Group();
+  add(g, cyl(1.7, 1.85, 0.3, 22), mat('#d9cbb2'), [0, 0.15, 0]);
+  add(g, cyl(1.45, 1.45, 0.06, 22), mat('#fff1d6'), [0, 0.33, 0]);
+  const wood = mat('#8a5e3c'), gold = mat('#e2b84a', { metal: 0.6 });
+  for (const s of [-1, 1]) {
+    add(g, box(0.32, 2.6, 0.4), wood, [s * 1.35, 1.6, 0]);
+    add(g, sphere(0.22, 8, 6), gold, [s * 1.35, 3.0, 0]);
+  }
+  add(g, new THREE.TorusGeometry(1.35, 0.16, 8, 26, Math.PI), gold, [0, 2.9, 0]);
+  batch(g);
+  const swirl = new THREE.Group();
+  swirl.position.set(0, 2.0, 0);
+  swirl.userData.live = true;
+  const discs = ['#7cc6ff', '#c39bff', '#7ee08a'].map((c, i) => {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(1.15 - i * 0.28, 5 + i, i), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+    m.position.z = i * 0.02;
+    swirl.add(m);
+    return m;
+  });
+  g.add(swirl);
+  const orbit = new THREE.Group();
+  orbit.position.set(0, 2.0, 0);
+  orbit.userData.live = true;
+  const worlds = [['#7cc274', 0], ['#5fae6a', 2.1], ['#9fd3ff', 4.2]].map(([c, a]) => {
+    const m = new THREE.Mesh(sphere(0.2, 10, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.35, roughness: 0.5 }));
+    m.userData.a = a;
+    orbit.add(m);
+    return m;
+  });
+  g.add(orbit);
+  let t = 9, clock = 0;
+  Object.assign(g.userData, {
+    top: 3.6,
+    poke: () => (t = 0),
+    update(dt) {
+      t += dt;
+      clock += dt;
+      const fast = t < 1.2 ? 6 : 1;
+      discs.forEach((d, i) => (d.rotation.z += dt * fast * (i % 2 ? -1.4 : 1.1)));
+      for (const w of worlds) {
+        w.userData.a += dt * 0.9 * fast;
+        w.position.set(Math.cos(w.userData.a) * 1.7, Math.sin(w.userData.a * 2) * 0.25 + Math.sin(w.userData.a) * 1.1, Math.sin(w.userData.a) * 0.35);
+      }
+      swirl.scale.setScalar(1 + Math.sin(clock * 3) * 0.03);
+    }
+  });
+  return g;
+}
+
 /* ---------------------------------------------------------------- landmarks */
 
 export function landmark(kind, look) {
@@ -344,6 +398,46 @@ const LANDMARKS = {
     return out;
   },
   /** Moon Base: a rocket on its launch pad. Tap: countdown, a hop and a puff of smoke. */
+  /** The Great Tree: a giant glowing flower. Tap it and its petals flutter open and it spins. */
+  glowbloom(look) {
+    const g = new THREE.Group();
+    pad(g, look, 4);
+    const green = toon('#4fae5a'), dark = toon('#3d8f4a');
+    add(g, cyl(0.32, 0.5, 4.6, 8), green, [0, 2.6, 0]);
+    for (const s of [-1, 1]) add(g, sphere(1.3, 10, 6), dark, [s * 1.2, 0.9, 0.2], [0, 0, s * 0.5], [1, 0.25, 0.6]);
+    const head = new THREE.Group();
+    head.position.set(0, 5.0, 0);
+    head.userData.live = true;
+    const heart = new THREE.Mesh(sphere(0.75, 14, 10), new THREE.MeshStandardMaterial({ color: '#fff2a8', emissive: '#ffd23f', emissiveIntensity: 0.7, roughness: 0.4 }));
+    head.add(heart);
+    const colors = [look.banner, '#ff9ed2', '#ffffff', look.flowers[0] ?? '#ffe066'];
+    const petals = [];
+    for (let i = 0; i < 9; i++) {
+      const hinge = new THREE.Group();
+      hinge.rotation.y = (i / 9) * Math.PI * 2;
+      const leaf = new THREE.Group();
+      add(leaf, sphere(1.0, 10, 6), toon(colors[i % colors.length]), [0, 0, 1.1], [0, 0, 0], [0.6, 0.16, 1.15]);
+      hinge.add(leaf);
+      head.add(hinge);
+      petals.push(leaf);
+    }
+    g.add(head);
+    batch(g);
+    let t = 9, clock = 0;
+    g.userData = {
+      top: 7.5,
+      poke: () => (t = 0),
+      update(dt) {
+        t += dt;
+        clock += dt;
+        const flutter = t < 1.6 ? Math.sin(t * 14) * Math.exp(-t * 2.4) * 0.5 : 0;
+        petals.forEach((p, i) => (p.rotation.x = -0.35 - Math.sin(clock * 1.2 + i) * 0.06 - flutter));
+        head.rotation.y += dt * (0.2 + (t < 1.6 ? 4 * Math.exp(-t * 2) : 0));
+        heart.material.emissiveIntensity = 0.6 + Math.sin(clock * 2) * 0.2;
+      }
+    };
+    return g;
+  },
   rocket(look) {
     const g = new THREE.Group();
     add(g, cyl(4, 4.2, 0.4, 8), toon('#9aa3b5'), [0, 0.2, 0]);

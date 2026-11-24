@@ -2,6 +2,8 @@
 export default {
   'lesson.back': '⬅ 回到山上',
   'lesson.backAria': '回到山上',
+  'lesson.back.tree': '⬅ 回到巨树',
+  'lesson.backAria.tree': '回到巨树',
   'lesson.stepsAria': '任务步骤',
   'lesson.voiceOn': '🗣️ 朗读开',
   'lesson.voiceOff': '🔇 朗读关',

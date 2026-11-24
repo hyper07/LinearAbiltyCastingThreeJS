@@ -333,5 +333,27 @@ export default {
   'book.noStreak': '🔥 ¡Termina una lección hoy para encender tu llama de racha!',
   'book.claimed': '✔ 15 🪙',
   'book.claim': 'Cobrar 15 🪙',
-  'book.stickers': '🌈 Álbum de pegatinas'
+  'book.stickers': '🌈 Álbum de pegatinas',
+  // Study worlds (maps.js) and the Great Tree.
+  'map.title': 'Mundos de estudio',
+  'map.lead': 'Elige un mundo para aprender. Tus estrellas, monedas, pegatinas y tu compañero vienen contigo.',
+  'map.mountain': 'Montaña del Saber',
+  'map.mountain.what': 'Siete pisos que suben por una gran montaña, con escaleras y cascadas',
+  'map.tree': 'El Gran Árbol',
+  'map.tree.what': 'Siete anillos de casitas alrededor de un árbol gigante, unidos por puentes colgantes',
+  'map.tree.whole': 'Todo el árbol',
+  'map.here': 'Estás aquí',
+  'map.go': 'Viajar aquí',
+  'map.soon': '¡Pronto habrá más mundos!',
+  'map.welcome': '¡Bienvenido a {name}!',
+  'hud.worlds': 'Mundos',
+  'place.worlds': 'Portal de mundos',
+  'landmark.glowbloom': 'Flor brillante',
+  'tree.floor.1': 'Hueco de las Raíces',
+  'tree.floor.2': 'Ramas de Helecho',
+  'tree.floor.3': 'Ramas de Farolillos',
+  'tree.floor.4': 'Copa en Flor',
+  'tree.floor.5': 'Altos del Nido',
+  'tree.floor.6': 'Anillos de Girasol',
+  'tree.floor.7': 'Corona Estelar'
 };

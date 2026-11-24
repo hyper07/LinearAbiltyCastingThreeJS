@@ -329,5 +329,27 @@ export default {
   'book.noStreak': '🔥 今天完成一节课，点亮你的连续学习小火苗！',
   'book.claimed': '✔ 15 🪙',
   'book.claim': '领取 15 🪙',
-  'book.stickers': '🌈 贴纸册'
+  'book.stickers': '🌈 贴纸册',
+  // Study worlds (maps.js) and the Great Tree.
+  'map.title': '学习世界',
+  'map.lead': '选一个世界来学习。你的星星、金币、贴纸和伙伴都会跟着你。',
+  'map.mountain': '学习之山',
+  'map.mountain.what': '沿着一座大山向上的七层，有台阶和瀑布',
+  'map.tree': '巨树',
+  'map.tree.what': '环绕巨树一圈的七层树屋，用绳桥连在一起',
+  'map.tree.whole': '整棵树',
+  'map.here': '你在这里',
+  'map.go': '去这里',
+  'map.soon': '更多世界即将到来！',
+  'map.welcome': '欢迎来到{name}！',
+  'hud.worlds': '世界',
+  'place.worlds': '世界传送门',
+  'landmark.glowbloom': '发光花',
+  'tree.floor.1': '树根洞',
+  'tree.floor.2': '蕨叶枝',
+  'tree.floor.3': '灯笼枝',
+  'tree.floor.4': '花之树冠',
+  'tree.floor.5': '鸟巢高处',
+  'tree.floor.6': '向日葵环',
+  'tree.floor.7': '星光之冠'
 };

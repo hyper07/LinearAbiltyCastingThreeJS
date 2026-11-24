@@ -329,5 +329,27 @@ export default {
   'book.noStreak': '🔥 きょうレッスンを1つ終えると、れんぞくのほのおがつくよ！',
   'book.claimed': '✔ 15 🪙',
   'book.claim': '15 🪙 もらう',
-  'book.stickers': '🌈 シールちょう'
+  'book.stickers': '🌈 シールちょう',
+  // Study worlds (maps.js) and the Great Tree.
+  'map.title': 'まなびの世界',
+  'map.lead': 'まなぶ世界をえらぼう。星、コイン、シール、なかまはいっしょに行くよ。',
+  'map.mountain': 'まなびの山',
+  'map.mountain.what': '階段と滝のある大きな山をのぼる7つのフロア',
+  'map.tree': '大きな木',
+  'map.tree.what': '大きな木をぐるりとかこむ7つの輪のツリーハウス。つり橋でつながっているよ',
+  'map.tree.whole': '木ぜんたい',
+  'map.here': 'いまここ',
+  'map.go': 'ここへ行く',
+  'map.soon': 'もっとたくさんの世界がもうすぐ！',
+  'map.welcome': '{name}へようこそ！',
+  'hud.worlds': '世界',
+  'place.worlds': 'ワールドポータル',
+  'landmark.glowbloom': 'ひかりの花',
+  'tree.floor.1': '根っこのほら穴',
+  'tree.floor.2': 'シダの枝',
+  'tree.floor.3': 'ちょうちんの枝',
+  'tree.floor.4': '花の天井',
+  'tree.floor.5': '巣のたかみ',
+  'tree.floor.6': 'ひまわりの輪',
+  'tree.floor.7': '星あかりの冠'
 };

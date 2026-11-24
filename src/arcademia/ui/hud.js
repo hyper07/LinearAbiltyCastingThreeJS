@@ -11,8 +11,10 @@ import { lessonsOn } from '../content/index.js';
 import { t, num, localizeLesson } from '../i18n/index.js';
 
 export class Hud {
-  constructor(root, actions) {
+  constructor(root, actions, { floors = FLOORS, map = null } = {}) {
     this.actions = actions;
+    this.floors = floors;
+    this.map = map;
     this.root = el('div', 'arc-hud');
     root.append(this.root);
 
@@ -47,15 +49,21 @@ export class Hud {
 
     // Floor list.
     this.nav = el('nav', 'arc-nav', null, { 'aria-label': t('hud.floors') });
-    this.navItems = FLOORS.map((f) => {
+    this.navItems = floors.map((f) => {
       const b = button('arc-nav__item', null, () => actions.goFloor(f.n));
       b.append(el('span', 'arc-nav__icon', f.icon, { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', t('hud.navFloor', { n: f.n, name: f.name })), el('span', 'arc-nav__meta', ''));
       this.nav.append(b);
       return b;
     });
     const all = button('arc-nav__item arc-nav__item--all', null, () => actions.overview());
-    all.append(el('span', 'arc-nav__icon', '⛰️', { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', t('hud.whole')));
+    all.append(el('span', 'arc-nav__icon', map?.icon ?? '⛰️', { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', t(map?.whole ?? 'hud.whole')));
     this.nav.prepend(all);
+    // The study worlds (the same as walking up to the World Portal on floor 1).
+    if (actions.worlds) {
+      const worlds = button('arc-nav__item arc-nav__item--worlds', null, () => actions.worlds());
+      worlds.append(el('span', 'arc-nav__icon', '🌍', { 'aria-hidden': 'true' }), el('span', 'arc-nav__name', t('hud.worlds')));
+      this.nav.prepend(worlds);
+    }
     this.root.append(this.nav);
 
     // Top right.
@@ -105,9 +113,10 @@ export class Hud {
   /** Refresh everything from progress. */
   update({ stars, open, kidFloor, focusFloor, current, total }) {
     this.stars.textContent = `⭐ ${num(total)}`;
-    const f = FLOORS[kidFloor - 1];
+    const FL = this.floors;
+    const f = FL[kidFloor - 1];
     this.sub.textContent = t('hud.sub', { n: f.n, name: f.name, ages: f.ages });
-    FLOORS.forEach((fl, i) => {
+    FL.forEach((fl, i) => {
       const b = this.navItems[i];
       const fs = floorStars(stars, fl.n);
       const locked = !open.has(fl.n);
@@ -127,7 +136,7 @@ export class Hud {
     bar.setAttribute('aria-label', t('hud.barAria', { have: fs.have, of: fs.of }));
     this.card.querySelector('.arc-quest__fill').style.width = `${(100 * fs.have) / Math.max(1, fs.of)}%`;
     const need = neededOn(kidFloor);
-    const above = FLOORS[kidFloor];
+    const above = FL[kidFloor];
     this.card.querySelector('.arc-quest__count').textContent = above
       ? open.has(above.n)
         ? t('hud.countOpen', { done: fs.done, all: fs.lessons, n: above.n })
@@ -201,13 +210,19 @@ export class Hud {
 
   /** The mountain from the side: a terrace per floor, three dots each, the kid. */
   _minimap({ stars, open, kidFloor, focusFloor }) {
-    const n = FLOORS.length;
+    const FL = this.floors;
+    const n = FL.length;
+    const tree = this.map?.kind === 'tree';
     const W = 168, H = 150, rowH = (H - 20) / n;
     const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('hud.mapAria', { n: kidFloor })}">`];
-    svg.push(`<path d="M6 ${H - 6} L${W / 2} 6 L${W - 6} ${H - 6} Z" fill="var(--arc-mini-peak)"/>`);
-    FLOORS.forEach((f, i) => {
+    if (tree) {
+      // The Great Tree from the side: a crown, a trunk, and a ring of treehouses round it per floor.
+      svg.push(`<circle cx="${W / 2}" cy="14" r="22" fill="var(--arc-mini-leaf, #8fd49a)"/><circle cx="${W / 2 - 22}" cy="20" r="14" fill="var(--arc-mini-leaf, #8fd49a)"/><circle cx="${W / 2 + 22}" cy="20" r="14" fill="var(--arc-mini-leaf, #8fd49a)"/>`);
+      svg.push(`<path d="M${W / 2 - 9} 18 L${W / 2 + 9} 18 L${W / 2 + 12} ${H - 6} L${W / 2 + 28} ${H - 2} L${W / 2 - 28} ${H - 2} L${W / 2 - 12} ${H - 6} Z" fill="var(--arc-mini-bark, #a7774a)"/>`);
+    } else svg.push(`<path d="M6 ${H - 6} L${W / 2} 6 L${W - 6} ${H - 6} Z" fill="var(--arc-mini-peak)"/>`);
+    FL.forEach((f, i) => {
       const y = H - 10 - (i + 1) * rowH;
-      const inset = 10 + i * 8;
+      const inset = tree ? 12 + i * 2 : 10 + i * 8;
       const locked = !open.has(f.n);
       const cls = `arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}`;
       svg.push(`<g class="${cls}" data-floor="${f.n}"><rect x="${inset}" y="${y + 2}" width="${W - inset * 2}" height="${rowH - 3}" rx="5"/>`);

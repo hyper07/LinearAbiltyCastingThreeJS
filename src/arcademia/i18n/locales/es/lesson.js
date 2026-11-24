@@ -2,6 +2,8 @@
 export default {
   'lesson.back': '⬅ Montaña',
   'lesson.backAria': 'Volver a la montaña',
+  'lesson.back.tree': '⬅ Gran Árbol',
+  'lesson.backAria.tree': 'Volver al Gran Árbol',
   'lesson.stepsAria': 'Pasos de la misión',
   'lesson.voiceOn': '🗣️ Voz activada',
   'lesson.voiceOff': '🔇 Voz desactivada',

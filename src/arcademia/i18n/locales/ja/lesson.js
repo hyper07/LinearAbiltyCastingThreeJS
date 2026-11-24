@@ -2,6 +2,8 @@
 export default {
   'lesson.back': '⬅ 山へ',
   'lesson.backAria': '山にもどる',
+  'lesson.back.tree': '⬅ 木へ',
+  'lesson.backAria.tree': '大きな木にもどる',
   'lesson.stepsAria': 'クエストのステップ',
   'lesson.voiceOn': '🗣️ 声 オン',
   'lesson.voiceOff': '🔇 声 オフ',

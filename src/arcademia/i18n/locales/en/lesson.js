@@ -3,6 +3,8 @@ export default {
   // The lesson frame
   'lesson.back': '⬅ Mountain',
   'lesson.backAria': 'Back to the mountain',
+  'lesson.back.tree': '⬅ Great Tree',
+  'lesson.backAria.tree': 'Back to the Great Tree',
   'lesson.stepsAria': 'Quest steps',
   'lesson.voiceOn': '🗣️ Voice on',
   'lesson.voiceOff': '🔇 Voice off',

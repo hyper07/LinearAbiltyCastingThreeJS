@@ -47,10 +47,12 @@ class Runner {
     this.game = game;
     this.subject = subject;
     this.floor = floor;
-    this.look = FLOORS[floor - 1];
+    this.look = (game.floors ?? FLOORS)[floor - 1];
+    /** The way back out: to the mountain, the tree… (maps.js) */
+    this.back = game.map?.back ?? ['lesson.back', 'lesson.backAria'];
     this.teacher = TEACHERS[subject];
     game._rooms ??= new Map();
-    const key = `${subject}:${floor}`;
+    const key = `${game.map?.id ?? 'mountain'}:${subject}:${floor}`;
     if (!game._rooms.has(key)) game._rooms.set(key, ROOMS[subject](this.look.look));
     this.room = game._rooms.get(key);
     this.camera = new THREE.PerspectiveCamera(46, 1, 0.1, 120);
@@ -78,7 +80,7 @@ class Runner {
     const t = this.teacher;
     this.root = el('div', `arc-lesson arc-lesson--${this.subject}`);
     const top = el('div', 'arc-lesson__top');
-    this.backBtn = button('arc-chip arc-chip--btn', tr('lesson.back'), () => this.leave(), { 'aria-label': tr('lesson.backAria') });
+    this.backBtn = button('arc-chip arc-chip--btn', tr(this.back[0]), () => this.leave(), { 'aria-label': tr(this.back[1]) });
     this.titleEl = el('div', 'arc-lesson__title');
     this.stepsEl = el('ol', 'arc-lesson__steps', null, { 'aria-label': tr('lesson.stepsAria') });
     this.voiceBtn = button('arc-chip arc-chip--btn', tr(this.voice ? 'lesson.voiceOn' : 'lesson.voiceOff'), () => {
@@ -301,7 +303,7 @@ class Runner {
     const card = el('section', 'arc-card arc-results');
     card.append(el('h2', null, tr('lesson.points', { count: score })), rewardsLine(got));
     const row = el('div', 'arc-row');
-    row.append(button('arc-btn arc-btn--primary', tr('lesson.playAgain'), () => this.arcade()), button('arc-btn', tr('lesson.quests'), () => this.lobby()), button('arc-btn', tr('lesson.back'), () => this.leave()));
+    row.append(button('arc-btn arc-btn--primary', tr('lesson.playAgain'), () => this.arcade()), button('arc-btn', tr('lesson.quests'), () => this.lobby()), button('arc-btn', tr(this.back[0]), () => this.leave()));
     card.append(row);
     this.main.append(card);
     this.celebrateRewards(got, card);
@@ -885,7 +887,7 @@ class Runner {
     const btns = el('div', 'arc-row');
     btns.append(button('arc-btn', tr('lesson.playAgain'), () => this.run(l)));
     if (next) btns.append(button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.nextQuest'), () => this.run(next)));
-    btns.append(button('arc-btn', tr('lesson.back'), () => this.leave()));
+    btns.append(button('arc-btn', tr(this.back[0]), () => this.leave()));
     card.append(btns);
     this.main.append(card);
     const sayKey = stars === 3 ? 'lesson.say3' : stars === 2 ? 'lesson.say2' : 'lesson.say1';

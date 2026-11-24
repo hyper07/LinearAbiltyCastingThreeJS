@@ -495,7 +495,36 @@ function moonDome(g, P, floor, subject) {
   return y0 + R + 3;
 }
 
-const SHAPES = { house: schoolhouse, hall, tower: observatory, pyramid, mushroom: mushroomHouse, igloo, cloudhouse: cloudHouse, shell, lighthouse, dome: moonDome };
+/** A round log treehouse: a drum of logs, a shaggy three-tier leaf roof, a crooked chimney, leaf tufts at the eaves. */
+function treehouse(g, P, floor, subject) {
+  const y0 = PLINTH_H + 0.1;
+  const big = subject === 'history';
+  const R = big ? 2.9 : 2.5, H = big ? 3.6 : 3.1, z0 = -0.3;
+  add(g, cyl(R - 0.08, R - 0.08, H, 18), P.wall, [0, y0 + H / 2, z0]);
+  const logs = 22;
+  for (let i = 0; i < logs; i++) {
+    const a = (i / logs) * Math.PI * 2;
+    if (Math.abs(Math.sin(a)) < 0.2 && Math.cos(a) > 0) continue; // leave the doorway open
+    add(g, cyl(0.24, 0.27, H + (i % 3) * 0.12, 6), i % 2 ? P.wood : P.darkWood, [Math.sin(a) * R, y0 + H / 2, z0 + Math.cos(a) * R]);
+  }
+  add(g, cyl(R + 0.4, R + 0.4, 0.26, 20), P.darkWood, [0, y0 + H + 0.05, z0]);
+  add(g, cone(R + 1.4, 2.3, 14), P.roof, [0, y0 + H + 1.25, z0]);
+  add(g, cone(R + 0.6, 2.0, 14), P.roofDark, [0, y0 + H + 2.6, z0], [0, 0.2, 0]);
+  add(g, cone(R * 0.5, 1.5, 10), P.roof, [0, y0 + H + 3.9, z0], [0, 0, 0.12]);
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    add(g, ico(0.42 + (i % 3) * 0.08), P.leaf, [Math.sin(a) * (R + 1.25), y0 + H + 0.15, z0 + Math.cos(a) * (R + 1.25)]);
+  }
+  add(g, box(0.55, 1.8, 0.55), P.stoneDark, [R * 0.55, y0 + H + 2.4, z0 - 0.7], [0, 0.3, 0.14]);
+  add(g, box(0.7, 0.18, 0.7), P.stone, [R * 0.55 + 0.12, y0 + H + 3.32, z0 - 0.7], [0, 0.3, 0.14]);
+  door(g, P, [0, y0, z0 + R + 0.06], 1.0, 1.8, { color: mat('#8a5e3c') });
+  for (const a of [-0.95, 0.95]) window(g, P, [Math.sin(a) * (R + 0.12), y0 + 1.9, z0 + Math.cos(a) * (R + 0.12)], a, 0.6, 0.7, { arch: true, box: true, flowers: P.flower });
+  // A little sign-board with the floor's colour over the door.
+  add(g, box(1.6, 0.4, 0.12), P.banner, [0, y0 + 2.35, z0 + R + 0.32]);
+  return y0 + H + 4.8;
+}
+
+const SHAPES = { treehouse, house: schoolhouse, hall, tower: observatory, pyramid, mushroom: mushroomHouse, igloo, cloudhouse: cloudHouse, shell, lighthouse, dome: moonDome };
 const BUILDERS = { math: schoolhouse, history: hall, physics: observatory };
 export { door, window, lanternPost as lantern, palette, bench };
 /** The schools' names in the current language (ui.js building.*). */

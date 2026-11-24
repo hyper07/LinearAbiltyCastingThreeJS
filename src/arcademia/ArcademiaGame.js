@@ -12,6 +12,7 @@ import { Sound, speech } from './sound.js';
 import { GameState } from './gamestate.js';
 import { WORLDS } from './quests.js';
 import { FLOORS } from './floors.js';
+import { MAPS, mapById } from './maps.js';
 import { LESSONS, lessonsOn } from './content/index.js';
 import { floorStars, totalStars } from './rules.js';
 import { t, num, loadLocale, setLocale, pickLocale, isLocale, localizeLesson, localeInfo } from './i18n/index.js';
@@ -58,6 +59,8 @@ export class ArcademiaGame {
     this.prefs = { night: false, sound: true, bigText: false, ...prefs.load() };
     // The language: saved, else the browser's own (navigator.languages), else English.
     if (!isLocale(this.prefs.lang)) this.prefs.lang = pickLocale(typeof navigator !== 'undefined' ? navigator.languages ?? [navigator.language] : []);
+    // The study world (maps.js): the mountain, the Great Tree… The same lessons in each.
+    this.map = mapById(this.prefs.map);
     this.reducedMotion = prefersReducedMotion();
     this.sound = new Sound();
     this.sound.setMuted(!this.prefs.sound);
@@ -86,33 +89,7 @@ export class ArcademiaGame {
     this.root.append(this.labels);
     await this.progress.load();
     if (this.closed) return;
-    this.world = new World({
-      floors: FLOORS,
-      labels: this.labels,
-      renderer: this.stage.renderer,
-      reducedMotion: this.reducedMotion,
-      buddy: this.gs.buddy ?? { species: 'fox', color: '#ff9b54', hat: 'party' },
-      on: {
-        enter: (subject, floor) => this.enter(subject, floor),
-        floor: (n) => {
-          this.refresh();
-          speech.preloadFloor(n, this.buddyChar);
-          if (this._amb) this.sound.ambient(this.prefs.sound, this.prefs.night ? 1 : 0, FLOORS[n - 1].look.mood);
-        },
-        near: (b) => this.hud?.setNear(b),
-        gate: (n) => this.gateToast(n),
-        npc: (n) => this.npcHello(n),
-        floorPick: (n) => this.goFloor(n),
-        night: (k) => this.stage.setGlow(k),
-        chest: (n) => this.openChest(n),
-        boss: (n) => this.startBoss(n),
-        place: (kind, n, entry) => this.openPlace(kind, n, entry),
-        toy: (sound, t) => this.pokeToy(sound, t),
-        gem: (n, id) => this.foundGem(n, id)
-      }
-    });
-    this.stage.show(this.world.scene, this.world.camera);
-    this.world.camAssist = new CameraAssist(loadAssist('arcademia'), { id: 'arcademia' });
+    this._makeWorld();
     this._makeHud();
     this.gs.onChange(() => this.hud?.updateGame(this.gs));
     this.world.setFound(this.gs.s.gems);
@@ -150,7 +127,7 @@ export class ArcademiaGame {
       this.sound.wake();
       if (!this._amb && this.prefs.sound) {
         this._amb = true;
-        this.sound.ambient(true, this.prefs.night ? 1 : 0, FLOORS[this.world.kidFloor - 1].look.mood);
+        this.sound.ambient(true, this.prefs.night ? 1 : 0, this.floors[this.world.kidFloor - 1].look.mood);
       }
     });
     await startScreen(this);
@@ -164,10 +141,113 @@ export class ArcademiaGame {
     if (!Object.keys(this.progress.stars).length) setTimeout(() => this.hud?.toast(t('game.firstQuest', { story: WORLDS[1].story }), { icon: '🌼', ms: 7000 }), 900);
   }
 
+  /** The floors of the current world (their looks; the lessons are the same everywhere). */
+  get floors() {
+    return this.map.floors;
+  }
+
+  /** Build the diorama for the current world, and show it. */
+  _makeWorld() {
+    this.world = new World({
+      floors: this.floors,
+      kind: this.map.kind,
+      labels: this.labels,
+      renderer: this.stage.renderer,
+      reducedMotion: this.reducedMotion,
+      buddy: this.gs.buddy ?? { species: 'fox', color: '#ff9b54', hat: 'party' },
+      on: {
+        enter: (subject, floor) => this.enter(subject, floor),
+        floor: (n) => {
+          this.refresh();
+          speech.preloadFloor(n, this.buddyChar);
+          if (this._amb) this.sound.ambient(this.prefs.sound, this.prefs.night ? 1 : 0, this.floors[n - 1].look.mood);
+        },
+        near: (b) => this.hud?.setNear(b),
+        gate: (n) => this.gateToast(n),
+        npc: (n) => this.npcHello(n),
+        floorPick: (n) => this.goFloor(n),
+        night: (k) => this.stage.setGlow(k),
+        chest: (n) => this.openChest(n),
+        boss: (n) => this.startBoss(n),
+        place: (kind, n, entry) => this.openPlace(kind, n, entry),
+        toy: (sound, t) => this.pokeToy(sound, t),
+        gem: (n, id) => this.foundGem(n, id)
+      }
+    });
+    this.stage.show(this.world.scene, this.world.camera);
+    this.world.camAssist = new CameraAssist(loadAssist('arcademia'), { id: 'arcademia' });
+  }
+
+  /** Travel to another study world: the new diorama replaces the old one, and the buddy arrives at its World Portal. */
+  switchMap(id) {
+    const next = mapById(id);
+    if (next.id === this.map.id || !this.world) return;
+    const keep = { night: this.prefs.night };
+    this.world.dispose();
+    this.map = next;
+    this.prefs.map = next.id;
+    prefs.save(this.prefs);
+    this._lastFocus = null;
+    this._makeWorld();
+    this.world.setFound(this.gs.s.gems);
+    this.world.setLocked(this.lockedSet());
+    this.setNight(keep.night, true);
+    this._makeHud();
+    this.refresh();
+    this.refreshGame();
+    this.resize();
+    const gate = this.world.plan.floors[0].worldGate;
+    this.world.teleport(1, gate?.at ?? null);
+    this.applyPower();
+    if (this._amb) this.sound.ambient(this.prefs.sound, this.prefs.night ? 1 : 0, this.floors[0].look.mood);
+    this.sound.toy('gem');
+    confetti(this.root, 50);
+    this.hud.toast(t('map.welcome', { name: next.name }), { icon: next.icon, ms: 4200 });
+    this.root.focus();
+  }
+
+  /** The World Portal's picker: every study world, the one you are in marked, more to come. */
+  openWorlds() {
+    if (this.mode !== 'world') return;
+    this.world.clearKeys();
+    this.root.querySelector('.arc-modal--worlds')?.remove();
+    const box = el('div', 'arc-modal arc-modal--worlds', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': t('map.title') });
+    const card = el('div', 'arc-modal__card arc-book');
+    const close = () => {
+      box.remove();
+      this.root.focus();
+    };
+    const x = el('button', 'arc-boss__x', '✕', { type: 'button', 'aria-label': t('settings.close') });
+    x.addEventListener('click', close);
+    card.append(x, el('h2', null, `🌍 ${t('map.title')}`), el('p', 'arc-worlds__lead', t('map.lead')));
+    const grid = el('div', 'arc-lobby__grid arc-worlds');
+    for (const m of MAPS) {
+      const here = m.id === this.map.id;
+      const b = el('button', `arc-quest-card arc-worlds__card${here ? ' is-here' : ''}`, null, { type: 'button', 'aria-pressed': String(here) });
+      b.append(el('span', 'arc-worlds__icon', m.icon, { 'aria-hidden': 'true' }), el('strong', null, m.name), el('span', null, m.what), el('span', 'arc-worlds__go', here ? `📍 ${t('map.here')}` : `✨ ${t('map.go')}`));
+      b.addEventListener('click', () => {
+        close();
+        if (!here) this.switchMap(m.id);
+      });
+      grid.append(b);
+    }
+    const soon = el('div', 'arc-quest-card arc-worlds__card arc-worlds__card--soon', null, { 'aria-disabled': 'true' });
+    soon.append(el('span', 'arc-worlds__icon', '🔮', { 'aria-hidden': 'true' }), el('strong', null, t('map.soon')));
+    grid.append(soon);
+    card.append(grid);
+    box.append(card);
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close();
+    });
+    this.root.append(box);
+    grid.querySelector('button:not(.is-here)')?.focus() ?? grid.querySelector('button')?.focus();
+  }
+
   /** The HUD (built again when the language changes). */
   _makeHud() {
     this.hud?.dispose();
     this.hud = new Hud(this.root, {
+      worlds: () => this.openWorlds(),
       goFloor: (n) => this.goFloor(n),
       overview: () => this.world.overview(),
       toggleNight: () => this.setNight(!this.prefs.night),
@@ -183,7 +263,7 @@ export class ArcademiaGame {
       buddy: () => this.openBuddy(),
       questbook: () => this.openQuestbook(),
       settings: () => openSettings(this)
-    });
+    }, { floors: this.floors, map: this.map });
     this.hud.textBtn.setAttribute('aria-pressed', String(this.prefs.bigText));
     this.hud.setNight(this.prefs.night);
     this.hud.setSound(this.prefs.sound);
@@ -421,7 +501,7 @@ export class ArcademiaGame {
   }
 
   celebrateUnlock(n) {
-    const f = FLOORS[n - 1];
+    const f = this.floors[n - 1];
     const got = this.gs.event('floor', { floor: n });
     if (got.stickers.length) setTimeout(() => {
       this.hud.toast(t('game.newSticker', { list: got.stickers.map((s) => `${s.emoji} ${s.name}`).join(', ') }), { icon: '🌈' });
@@ -456,7 +536,11 @@ export class ArcademiaGame {
     if (kind === 'arcade') return this.openArcadeHall(n);
     if (kind === 'landmark') {
       this.sound.toy('whirl');
-      return this.hud.toast(WORLDS[n].story, { icon: FLOORS[n - 1].icon, ms: 4500 });
+      return this.hud.toast(WORLDS[n].story, { icon: this.floors[n - 1].icon, ms: 4500 });
+    }
+    if (kind === 'worlds') {
+      this.sound.toy('whirl');
+      return this.openWorlds();
     }
     if (kind === 'portal') {
       if (this.lockedSet().has(n + 1)) return this.gateToast(n + 1);
@@ -608,7 +692,7 @@ export class ArcademiaGame {
     }
     this.hud?.setNight(on);
     this.root.classList.toggle('is-night', on);
-    if (this._amb) this.sound.ambient(this.prefs.sound, on ? 1 : 0, FLOORS[this.world.kidFloor - 1].look.mood);
+    if (this._amb) this.sound.ambient(this.prefs.sound, on ? 1 : 0, this.floors[this.world.kidFloor - 1].look.mood);
   }
 
   setSound(on) {
@@ -617,7 +701,7 @@ export class ArcademiaGame {
     this.sound.setMuted(!on);
     speech.setMuted(!on);
     this.hud?.setSound(on);
-    if (this._amb) this.sound.ambient(on, this.prefs.night ? 1 : 0, FLOORS[this.world.kidFloor - 1].look.mood);
+    if (this._amb) this.sound.ambient(on, this.prefs.night ? 1 : 0, this.floors[this.world.kidFloor - 1].look.mood);
   }
 
   setBigText(on) {

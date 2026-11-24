@@ -329,5 +329,27 @@ export default {
   'book.noStreak': '🔥 오늘 수업을 하나 마치면 연속 불꽃이 켜져요!',
   'book.claimed': '✔ 15 🪙',
   'book.claim': '15 🪙 받기',
-  'book.stickers': '🌈 스티커 북'
+  'book.stickers': '🌈 스티커 북',
+  // Study worlds (maps.js) and the Great Tree.
+  'map.title': '공부 세계',
+  'map.lead': '공부할 세계를 골라요. 별, 코인, 스티커와 친구는 함께 가요.',
+  'map.mountain': '배움의 산',
+  'map.mountain.what': '계단과 폭포가 있는 커다란 산을 오르는 일곱 층',
+  'map.tree': '거대한 나무',
+  'map.tree.what': '거대한 나무를 빙 둘러싼 일곱 층의 나무집, 흔들다리로 이어져 있어요',
+  'map.tree.whole': '나무 전체',
+  'map.here': '지금 여기',
+  'map.go': '여기로 가기',
+  'map.soon': '곧 더 많은 세계가 열려요!',
+  'map.welcome': '{name}에 온 걸 환영해요!',
+  'hud.worlds': '세계',
+  'place.worlds': '세계 포털',
+  'landmark.glowbloom': '반짝꽃',
+  'tree.floor.1': '뿌리 동굴',
+  'tree.floor.2': '고사리 가지',
+  'tree.floor.3': '등불 가지',
+  'tree.floor.4': '꽃 숲지붕',
+  'tree.floor.5': '둥지 언덕',
+  'tree.floor.6': '해바라기 고리',
+  'tree.floor.7': '별빛 왕관'
 };
