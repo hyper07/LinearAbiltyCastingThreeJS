@@ -240,8 +240,8 @@
 }
 .psh-info {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 10px;
+  left: 10px;
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -276,4 +276,8 @@ body.psh-dragging,
 body.psh-dragging * {
   cursor: grabbing !important;
   user-select: none;
+}
+/* the part glyph moves right of the top-left (i) — the top-right stays free for "Placing" */
+.psh-cell .psh-card-glyph {
+  padding-left: 32px;
 }
