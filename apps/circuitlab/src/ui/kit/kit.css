@@ -78,8 +78,8 @@
   --fill-2: rgba(120, 120, 128, 0.16);
 
   /* ---- type ---- */
-  --lg-font: -apple-system, BlinkMacSystemFont, system-ui, 'SF Pro Text',
-    'Segoe UI', Roboto, sans-serif;
+  --lg-font: 'Chakra Petch', system-ui, sans-serif;
+  --lg-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 
   /* ---- the one spring + durations (DESIGN.md §1 Motion) ---- */
   --lg-spring: cubic-bezier(0.32, 0.72, 0, 1);

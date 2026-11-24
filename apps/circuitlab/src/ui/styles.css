@@ -10,8 +10,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, system-ui, 'SF Pro Text',
-    'Segoe UI', Roboto, sans-serif;
+  font-family: var(--lg-font, 'Chakra Petch', system-ui, sans-serif);
   font-size: 17px; /* iOS Body */
   -webkit-font-smoothing: antialiased;
 }

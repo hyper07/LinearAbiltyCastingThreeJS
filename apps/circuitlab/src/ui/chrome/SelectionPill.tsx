@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from '../../state/store'
-import { ActionSheet, pressProps, tick, useIsDesktop } from '../kit'
+import { ActionSheet, pressProps, showToast, tick, useIsDesktop } from '../kit'
 import './SelectionPill.css'
 
 /** Matches the exit transition (--lg-dur-control 200ms) with a little slack. */
@@ -131,5 +131,60 @@ export function SelectionPill() {
         ]}
       />
     </>
+  )
+}
+
+/** Remove the picked breadboard (and what sits on it), with a toast that says what went. */
+export function removePickedBoard(): void {
+  const st = useStore.getState()
+  const b = st.boardSelection
+  if (!b) return
+  const res = st.removeBoard(b)
+  if (!res.ok) {
+    if (res.error) showToast(res.error)
+    return
+  }
+  tick(16) // delete haptic (DESIGN.md §1)
+  const n = (res.removedParts ?? 0) + (res.removedWires ?? 0)
+  showToast(n > 0 ? `Breadboard removed with ${n} part${n === 1 ? '' : 's'} on it — Undo brings it back` : 'Breadboard removed', { duration: 2800 })
+}
+
+/**
+ * BoardPill — the same glass pill while a breadboard is picked (click its bare
+ * holes): "Breadboard 2 · Remove · Clear". On a grid more than one module wide
+ * Remove takes the whole module column, so the label says how many boards go.
+ */
+export function BoardPill() {
+  const board = useStore((s) => s.boardSelection)
+  const cfg = useStore((s) => s.layout)
+  const select = useStore((s) => s.selectBoard)
+  if (!board || typeof document === 'undefined') return null
+  const count = cfg.boardCount ?? 1
+  const rows = cfg.boardRows ?? 1
+  const label = count > 1 ? (rows > 1 ? `Breadboard column ${board.col + 1} (${rows} boards)` : `Breadboard ${board.col + 1}`) : `Breadboard row ${board.row + 1}`
+  return createPortal(
+    <div className="app-sel-pill lg-card is-in" role="toolbar" aria-label="Breadboard actions" data-board-pill>
+      <span className="app-sel-count lg-tabular">{label}</span>
+      <span className="app-sel-dot" aria-hidden="true">
+        ·
+      </span>
+      <button
+        type="button"
+        className="app-sel-btn app-sel-delete lg-pressable lg-specular lg-gel"
+        aria-label={`Remove ${label}`}
+        {...pressProps}
+        onClick={removePickedBoard}
+        data-board-remove
+      >
+        Remove
+      </button>
+      <span className="app-sel-dot" aria-hidden="true">
+        ·
+      </span>
+      <button type="button" className="app-sel-btn lg-pressable lg-specular lg-gel" aria-label="Clear the selection" {...pressProps} onClick={() => select(null)}>
+        Clear
+      </button>
+    </div>,
+    document.body,
   )
 }

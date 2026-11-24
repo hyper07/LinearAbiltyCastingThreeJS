@@ -11,6 +11,7 @@ import type { CatalogEntry } from '../../model/catalog'
 import { offboardGeometry } from '../../model/breadboard'
 import { BuildResult, cachedGeometry, mergeStatic, plastic } from './shared'
 import { satinMetal } from './boards'
+import { ui, mono } from '../../ui/fonts'
 
 const TITLES: Record<string, string> = {
   signal_generator: 'FUNCTION GENERATOR',
@@ -112,7 +113,7 @@ export function buildBenchUnit(comp: ComponentInstance, entry: CatalogEntry, pin
     ctx.fillStyle = comp.type === 'oscilloscope' ? '#3b4048' : '#cfd2d6'
     ctx.fillRect(0, 0, cw, ch)
     ctx.fillStyle = comp.type === 'oscilloscope' ? '#e9edf2' : '#2a2d31'
-    ctx.font = 'bold 22px "Helvetica Neue", Arial'
+    ctx.font = ui(700, 22)
     ctx.fillText(TITLES[comp.type] ?? entry.label.toUpperCase(), 14, 28)
     // display window
     const dw = comp.type === 'oscilloscope' ? cw * 0.55 : cw * 0.62
@@ -120,7 +121,7 @@ export function buildBenchUnit(comp: ComponentInstance, entry: CatalogEntry, pin
     ctx.fillStyle = comp.type === 'oscilloscope' ? '#0b1a12' : '#12202a'
     ctx.fillRect(14, 40, dw, dh)
     ctx.fillStyle = comp.type === 'oscilloscope' ? '#7dff9a' : '#7fe0ff'
-    ctx.font = '600 20px "SF Mono", Menlo, monospace'
+    ctx.font = mono(600, 20)
     if (comp.type === 'oscilloscope') {
       ctx.strokeStyle = '#2a4a36'
       ctx.lineWidth = 1
@@ -153,7 +154,7 @@ export function buildBenchUnit(comp: ComponentInstance, entry: CatalogEntry, pin
     }
     // terminal labels
     ctx.fillStyle = comp.type === 'oscilloscope' ? '#e9edf2' : '#2a2d31'
-    ctx.font = '600 16px "Helvetica Neue", Arial'
+    ctx.font = ui(600, 16)
     geo.terminals.forEach((t, i) => {
       ctx!.textAlign = 'center'
       ctx!.fillText(entry.pins[i], t.dx * 48, ch - (t.y * 48 + 26))

@@ -98,7 +98,7 @@ Velxio (AGPL) and CircuitJS (GPL) stay idea-only.
   wire leaves straight up (sideways module pins: level along the pin).
   Auto colour: red +V, black GND, rainbow per bundle. Tidy wires re-plans.
 - **Views** (V): Photo; Illustrated (`three/illustrated.ts` — long-lens
-  isometric with 45° orbit steps, toon ramp, ink outlines, grid paper, callout
+  isometric that left-drag turns and tilts freely, toon ramp, ink outlines, grid paper, callout
   cards from lesson/experiment data or auto for boards and modules); Schematic
   (`ui/lab/views.tsx` — generated from the netlist, inset or full screen,
   click to select).

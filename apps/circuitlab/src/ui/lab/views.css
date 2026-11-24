@@ -21,7 +21,7 @@
 }
 .vw-seg button,
 .vw-btn {
-  font: 600 13px/1 var(--lg-font, system-ui);
+  font: 600 13px/1 var(--lg-font);
   color: #fff;
   background: transparent;
   border: 0;
@@ -94,13 +94,13 @@
   color: #2b2433;
 }
 .vw-card-title {
-  font: 800 15px/1.15 var(--lg-font, system-ui);
+  font: 800 15px/1.15 var(--lg-font);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 .vw-card-text {
   margin-top: 4px;
-  font: 400 13px/1.35 var(--lg-font, system-ui);
+  font: 400 13px/1.35 var(--lg-font);
   color: #5b5262;
 }
 
@@ -136,7 +136,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 10px 6px 14px;
-  font: 800 12px/1 var(--lg-font, system-ui);
+  font: 800 12px/1 var(--lg-font);
   letter-spacing: 0.12em;
   color: #6b6070;
   border-bottom: 1px solid #efe6d6;
@@ -145,7 +145,7 @@
   flex: 1;
 }
 .vw-sch-head button {
-  font: 600 16px/1 system-ui;
+  font: 600 16px/1 var(--lg-font);
   color: #6b6070;
   background: transparent;
   border: 0;
@@ -166,7 +166,7 @@
 }
 .vw-sch-svg {
   display: block;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--lg-mono);
 }
 .vw-sch:not(.is-full) .vw-sch-svg {
   width: 100%;
@@ -184,5 +184,5 @@
 .vw-sch-empty {
   padding: 24px;
   color: #7a7080;
-  font: 14px system-ui;
+  font: 14px var(--lg-font);
 }

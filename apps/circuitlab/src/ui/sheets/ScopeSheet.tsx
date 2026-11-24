@@ -13,6 +13,7 @@ import { useStore } from '../../state/store'
 import type { ScopeSample } from '../../model/types'
 import { Segmented, Sheet, type SegmentedOption } from '../kit'
 import './asm-sheets.css'
+import { mono } from '../fonts'
 
 const SNAP_POINTS = [0.4, 0.8] as const
 
@@ -25,7 +26,7 @@ const WINDOW_OPTIONS: readonly SegmentedOption<string>[] = [
   { value: '20', label: '20 s' },
 ]
 
-const MONO_FONT = "10px 'SF Mono', 'Fira Code', monospace"
+const MONO_FONT = mono(400, 10)
 
 export interface ScopeSheetProps {
   open: boolean

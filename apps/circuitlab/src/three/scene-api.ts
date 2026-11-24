@@ -163,6 +163,8 @@ export interface IBreadboardScene {
   /** translucent preview of the component being placed; null = none */
   setGhost(ghost: GhostSpec | null): void
   /** highlight selected object ids */
+  /** highlight the breadboard(s) that Remove would take: a module column, or a board-row on a one-wide grid (null = none) */
+  setBoardSelection?(board: { col: number; row: number } | null): void
   setSelection(ids: string[]): void
   /** wire-drawing preview from a fixed endpoint to the hovered hole */
   setWirePreview(from: HoleRef | string | null, to: HoleRef | null): void

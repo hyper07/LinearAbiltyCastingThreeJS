@@ -66,6 +66,7 @@ import {
   type BoardSizeId,
 } from '../../model/types'
 import { noiseNormalTexture } from '../meshes/shared'
+import { ui } from '../../ui/fonts'
 
 export interface BoardBuild {
   group: THREE.Group
@@ -349,7 +350,7 @@ function paintColor(ctx: CanvasRenderingContext2D, d: DecalCtx): void {
 
   // --- printed legend (column numbers continue across module seams) --------
   ctx.fillStyle = INK
-  ctx.font = `600 ${Math.round(0.56 * px)}px system-ui, "Segoe UI", sans-serif`
+  ctx.font = ui(600, Math.round(0.56 * px))
   const colLabels: number[] = [1]
   for (let c = 5; c <= totalCols; c += 5) colLabels.push(c)
   for (const col of colLabels) {
@@ -357,12 +358,12 @@ function paintColor(ctx: CanvasRenderingContext2D, d: DecalCtx): void {
     ctx.fillText(String(col), X(col), Y(2.1))
     ctx.fillText(String(col), X(col), Y(13.9))
   }
-  ctx.font = `600 ${Math.round(0.6 * px)}px system-ui, "Segoe UI", sans-serif`
+  ctx.font = ui(600, Math.round(0.6 * px))
   for (const row of STRIP_ROWS) {
     ctx.fillText(row, X(0), Y(ROW_Z[row]))
     ctx.fillText(row, X(totalCols + 1), Y(ROW_Z[row]))
   }
-  ctx.font = `700 ${Math.round(0.8 * px)}px system-ui, "Segoe UI", sans-serif`
+  ctx.font = ui(700, Math.round(0.8 * px))
   for (const s of STRIPES) {
     ctx.fillStyle = s.red ? RED : BLUE
     const sign = s.red ? '+' : '−'
@@ -376,13 +377,13 @@ function paintColor(ctx: CanvasRenderingContext2D, d: DecalCtx): void {
   // --- embossed brand (plastic-on-plastic: faint tone shift, bump does the rest)
   ctx.fillStyle = 'rgba(62,58,50,0.34)'
   if (d.first) {
-    ctx.font = `700 ${Math.round(0.52 * px)}px system-ui, "Segoe UI", sans-serif`
+    ctx.font = ui(700, Math.round(0.52 * px))
     ctx.textAlign = 'left'
     ctx.fillText('OHMLET', X(d.rigMinX + 1.6), Y(-1.02))
   }
   if (d.last) {
     ctx.textAlign = 'right'
-    ctx.font = `600 ${Math.round(0.46 * px)}px system-ui, "Segoe UI", sans-serif`
+    ctx.font = ui(600, Math.round(0.46 * px))
     const brand = count > 1 ? `${label.toUpperCase()} ×${count}` : label.toUpperCase()
     ctx.fillText(`${brand} · ${points * count} TIE POINTS`, X(d.rigMaxX - 1.6), Y(-1.02))
   }
@@ -414,12 +415,12 @@ function paintBump(ctx: CanvasRenderingContext2D, d: DecalCtx): void {
   ctx.textBaseline = 'middle'
   if (d.first) {
     ctx.textAlign = 'left'
-    ctx.font = `700 ${Math.round(0.52 * px)}px system-ui, "Segoe UI", sans-serif`
+    ctx.font = ui(700, Math.round(0.52 * px))
     ctx.fillText('OHMLET', X(d.rigMinX + 1.6), Y(-1.02))
   }
   if (d.last) {
     ctx.textAlign = 'right'
-    ctx.font = `600 ${Math.round(0.46 * px)}px system-ui, "Segoe UI", sans-serif`
+    ctx.font = ui(600, Math.round(0.46 * px))
     const brand = count > 1 ? `${label.toUpperCase()} ×${count}` : label.toUpperCase()
     ctx.fillText(`${brand} · ${points * count} TIE POINTS`, X(d.rigMaxX - 1.6), Y(-1.02))
   }

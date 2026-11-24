@@ -35,6 +35,7 @@ import {
   nowMs,
   plastic,
 } from './shared'
+import { ui, drawReadout } from '../../ui/fonts'
 
 // ---------------------------------------------------------------------------
 // Buzzer
@@ -144,26 +145,26 @@ function drawScreen(
   ctx.textBaseline = 'middle'
   if (kind === 'psu') {
     ctx.fillStyle = '#3d6e8f'
-    ctx.font = 'bold 17px Arial, sans-serif'
+    ctx.font = ui(700, 17)
     ctx.fillText('DC POWER', SCREEN_W / 2, 19)
     const v = Number(paramOf(comp.params, entry, 'voltage') ?? 5)
     ctx.fillStyle = '#6ee7f0'
-    ctx.font = 'bold 52px "Courier New", monospace'
-    ctx.fillText(`${v.toFixed(1)} V`, SCREEN_W / 2, 64)
+    drawReadout(ctx, `${v.toFixed(1)} V`, SCREEN_W / 2, 64, 46)
+    ctx.textAlign = 'center'
     ctx.fillStyle = '#3d6e8f'
-    ctx.font = 'bold 20px Arial, sans-serif'
+    ctx.font = ui(700, 20)
     ctx.fillText('DC OUTPUT', SCREEN_W / 2, 106)
   } else {
     ctx.fillStyle = '#4a7a3c'
-    ctx.font = 'bold 17px Arial, sans-serif'
+    ctx.font = ui(700, 17)
     ctx.fillText('FUNCTION GEN', SCREEN_W / 2, 19)
     const wf = String(paramOf(comp.params, entry, 'waveform') ?? 'square')
     const fr = Number(paramOf(comp.params, entry, 'frequency') ?? 1)
     ctx.fillStyle = '#9ef07a'
-    ctx.font = 'bold 40px "Courier New", monospace'
-    ctx.fillText(formatHz(fr), SCREEN_W / 2, 56)
+    drawReadout(ctx, formatHz(fr), SCREEN_W / 2, 56, 36)
+    ctx.textAlign = 'center'
     ctx.fillStyle = '#5f9e4a'
-    ctx.font = 'bold 20px Arial, sans-serif'
+    ctx.font = ui(700, 20)
     ctx.fillText(wf.toUpperCase(), SCREEN_W / 2 + 40, 100)
     // waveform glyph
     ctx.strokeStyle = '#9ef07a'

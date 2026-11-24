@@ -144,6 +144,9 @@ Circuit Lab is its own app in `apps/circuitlab/` (licence and `NOTICE` beside it
 | [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer), [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) | The path-traced Studio render mode (with its own pinned three 0.170 inside the lab's bundle) | MIT |
 | [React](https://react.dev), [zustand](https://github.com/pmndrs/zustand) | The lab's interface | MIT |
 | [Studio Small 03](https://polyhaven.com/a/studio_small_03) (Poly Haven) | Studio lighting for the Enhanced and Studio modes | CC0 |
+| [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) via [Fontsource](https://fontsource.org/fonts/chakra-petch) (`@fontsource/chakra-petch`) | The lab's interface type and the labels printed on parts and boards | SIL Open Font License 1.1 (font), MIT (package) |
+| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) via [Fontsource](https://fontsource.org/fonts/jetbrains-mono) (`@fontsource/jetbrains-mono`) | Values, pin names, code and the scope grid | SIL Open Font License 1.1 (font), MIT (package) |
+| [DSEG7 Classic](https://github.com/keshikan/DSEG) (`dseg` on npm) | Seven-segment LCD digits on the multimeters and the function generator | SIL Open Font License 1.1 |
 | [ngspice](https://ngspice.sourceforge.io) / `@o.z/ngspice-wasm` | Not used yet: OpenCircuit loads it from a CDN for an optional SPICE check; planned the same way | BSD-3-Clause (ngspice); package terms apply |
 
 The boards and parts are modelled in code (`apps/circuitlab/src/three/meshes/boards.ts`, `modules.ts`);

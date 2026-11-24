@@ -11,7 +11,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { MAX_BOARD_COUNT, MAX_BOARD_ROWS, STRIP_ROWS, boardConfigOf, isRotation } from '../model/types'
+import { BOARD_SIZES, MAX_BOARD_COUNT, MAX_BOARD_ROWS, STRIP_ROWS, boardConfigOf, isRotation } from '../model/types'
 import type {
   BoardConfig,
   CircuitLayout,
@@ -935,6 +935,9 @@ export class BreadboardScene implements IBreadboardScene {
   private telemetry: SimTelemetry | null = null
   private ghost: GhostSpec | null = null
   private selectedIds: string[] = []
+  /** the picked breadboard (host store) and its highlight in the overlay group */
+  private boardSel: { col: number; row: number } | null = null
+  private boardSelMesh: THREE.Group | null = null
   private preview: { from: HoleRef | string | null; to: HoleRef | null } = { from: null, to: null }
   /** render-mode preference set before mount (host picker); null = unset */
   private renderModePref: RenderModeId | null = null
@@ -1896,6 +1899,65 @@ export class BreadboardScene implements IBreadboardScene {
     if (this.m) this.applySelection()
   }
 
+  setBoardSelection(board: { col: number; row: number } | null): void {
+    this.boardSel = board
+    if (this.m) this.syncBoardHighlight(this.m)
+  }
+
+  /**
+   * Outline + tint over what Remove would take: the module column (on every
+   * board-row) when the rig is more than one module wide, else the board-row.
+   */
+  private syncBoardHighlight(m: Mounted): void {
+    if (this.boardSelMesh) {
+      this.boardSelMesh.removeFromParent()
+      this.boardSelMesh.traverse((o) => {
+        const mesh = o as THREE.Mesh
+        if (mesh.isMesh) {
+          mesh.geometry.dispose()
+          ;(mesh.material as THREE.Material).dispose()
+        }
+      })
+      this.boardSelMesh = null
+    }
+    const b = this.boardSel
+    if (!b) return
+    const config = m.board.config
+    const ext = boardExtents(config)
+    const cols = BOARD_SIZES[config.size].cols
+    const byCol = config.count > 1
+    const x0 = byCol ? (b.col === 0 ? ext.minX : b.col * cols + 0.5) : ext.minX
+    const x1 = byCol ? (b.col === config.count - 1 ? ext.maxX : (b.col + 1) * cols + 0.5) : ext.maxX
+    const z0 = byCol ? ext.minZ : -1.5 + b.row * BOARD_ROW_PITCH
+    const z1 = byCol ? ext.maxZ : 18 + b.row * BOARD_ROW_PITCH
+    const g = new THREE.Group()
+    g.name = 'board-selection'
+    const w = x1 - x0
+    const d = z1 - z0
+    const fill = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ color: 0x0a84ff, transparent: true, opacity: 0.12, depthWrite: false }),
+    )
+    fill.rotation.x = -Math.PI / 2
+    fill.position.set(x0 + w / 2, 0.06, z0 + d / 2)
+    fill.renderOrder = 2
+    g.add(fill)
+    const edge = new THREE.MeshBasicMaterial({ color: 0x0a84ff })
+    const bar = (bw: number, bd: number, x: number, z: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.3, bd), edge.clone())
+      mesh.position.set(x, 0.15, z)
+      g.add(mesh)
+    }
+    const t = 0.32
+    bar(w + t, t, x0 + w / 2, z0)
+    bar(w + t, t, x0 + w / 2, z1)
+    bar(t, d, x0, z0 + d / 2)
+    bar(t, d, x1, z0 + d / 2)
+    edge.dispose()
+    m.overlayGroup.add(g)
+    this.boardSelMesh = g
+  }
+
   setWirePreview(from: HoleRef | string | null, to: HoleRef | null): void {
     this.preview = { from, to }
     this.updateTouchGestures() // active preview ⇒ wire mode may be inferred
@@ -2131,6 +2193,7 @@ export class BreadboardScene implements IBreadboardScene {
     m.groundGroup.position.set((ext.minX + ext.maxX) / 2, 0, (ext.minZ + ext.maxZ) / 2)
     m.groundGroup.updateMatrix() // frozen (B2) — commit the recenter
     this.positionPaddles(m)
+    this.syncBoardHighlight(m)
     this.lastHoverHole = null // stale refs may not exist on the new board
 
     // the grid GREW → the new module column / board-row DROPS in on its

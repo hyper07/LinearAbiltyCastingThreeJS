@@ -46,7 +46,7 @@
 }
 .bn-display,
 .bn-lcd {
-  font: 600 15px/1.35 ui-monospace, Menlo, monospace;
+  font: 600 15px/1.35 var(--lg-mono);
   color: #b9f7c8;
   background: #0b1a12;
   border: 2px solid #11241a;
@@ -106,7 +106,7 @@
   opacity: 0.7;
 }
 .bn-knob-val {
-  font: 600 12px ui-monospace, Menlo, monospace;
+  font: 600 12px var(--lg-mono);
 }
 .bn-screen,
 .bn-plot {
@@ -117,7 +117,7 @@
   background: #07120c;
 }
 .bn-meas {
-  font: 12px/1.5 ui-monospace, Menlo, monospace;
+  font: 12px/1.5 var(--lg-mono);
   color: #d7e3dd;
 }
 .bn-chgroup {
@@ -144,7 +144,7 @@
 .ee-pre input,
 .ee-meas input,
 .ee-select {
-  font: 13px ui-monospace, Menlo, monospace;
+  font: 13px var(--lg-mono);
   color: inherit;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.15);

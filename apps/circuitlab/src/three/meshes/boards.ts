@@ -18,6 +18,7 @@ import type { CatalogEntry } from '../../model/catalog'
 import { boardDef, ARDUINO_HEADER_Y, ESP32_PIN_Y, type BoardDef } from '../../model/boards'
 import { offboardGeometry } from '../../model/breadboard'
 import { BuildResult, cachedGeometry, cachedMaterial, mergeStatic, metal, moldedEpoxy, plastic } from './shared'
+import { UI_FONT } from '../../ui/fonts'
 
 // ------------------------------------------------------------- primitives
 
@@ -126,7 +127,7 @@ function text(ctx: CanvasRenderingContext2D, px: number, s: string, x: number, z
   ctx.translate(x * px, z * px)
   if (opts.rotate) ctx.rotate(opts.rotate)
   ctx.fillStyle = opts.color ?? '#f4f6f2'
-  ctx.font = `${opts.weight ?? '600'} ${size * px}px ${opts.font ?? '"Helvetica Neue", Arial, sans-serif'}`
+  ctx.font = `${opts.weight ?? '600'} ${size * px}px ${opts.font ?? UI_FONT}`
   ctx.textAlign = opts.align ?? 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(s, 0, 0)
@@ -288,7 +289,7 @@ function paintArduino(def: BoardDef, widthIn: number) {
       ctx.fill()
     }
     // logo + name
-    text(ctx, px, isMega ? 'MEGA 2560' : 'UNO', isMega ? 22 : 15, 9.6, isMega ? 2.2 : 3.0, { weight: '800 italic', font: '"Avenir Next", "Helvetica Neue", Arial, sans-serif' })
+    text(ctx, px, isMega ? 'MEGA 2560' : 'UNO', isMega ? 22 : 15, 9.6, isMega ? 2.2 : 3.0, { weight: '800 italic', font: UI_FONT })
     text(ctx, px, '∞  ARDUINO', isMega ? 22 : 15, isMega ? 12.4 : 12.8, 1.2, { weight: '700' })
     text(ctx, px, 'DIGITAL (PWM~)', isMega ? 17 : 17, 3.2, 0.62, { weight: '700' })
     text(ctx, px, 'POWER', 15, 18.0, 0.6, { weight: '700' })

@@ -1,4 +1,5 @@
 /** A small canvas plotter for the bench and lab graphs (linear or log x, markers, legends). */
+import { mono, ui } from '../fonts'
 export interface Series {
   label: string
   color: string
@@ -42,7 +43,7 @@ export function drawPlot(canvas: HTMLCanvasElement, series: Series[], o: PlotOpt
   const pts = series.flatMap((s) => s.points).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && (!o.logX || p.x > 0))
   if (!pts.length) {
     ctx.fillStyle = '#6b7380'
-    ctx.font = '13px system-ui'
+    ctx.font = ui(500, 13)
     ctx.fillText('no data yet', W / 2 - 30, H / 2)
     return
   }
@@ -69,7 +70,7 @@ export function drawPlot(canvas: HTMLCanvasElement, series: Series[], o: PlotOpt
   const Y = (y: number) => T + (1 - (y - y0) / (y1 - y0)) * (H - T - B)
   ctx.strokeStyle = '#1e2530'
   ctx.fillStyle = '#8b94a3'
-  ctx.font = '11px system-ui'
+  ctx.font = mono(400, 11)
   ctx.lineWidth = 1
   // grid
   if (o.logX) {

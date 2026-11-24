@@ -16,6 +16,9 @@ export const CREDITS: Credit[] = [
   { name: 'three-gpu-pathtracer', url: 'https://github.com/gkjohnson/three-gpu-pathtracer', licence: 'MIT', what: 'The path-traced Studio render mode.' },
   { name: 'three-mesh-bvh', url: 'https://github.com/gkjohnson/three-mesh-bvh', licence: 'MIT', what: 'Fast ray casting for the path tracer.' },
   { name: 'React, zustand', url: 'https://react.dev', licence: 'MIT', what: 'The interface.' },
+  { name: 'Chakra Petch (Cadson Demak) via Fontsource', url: 'https://fontsource.org/fonts/chakra-petch', licence: 'SIL Open Font License 1.1', what: 'The interface type and the labels printed on parts and boards.' },
+  { name: 'JetBrains Mono via Fontsource', url: 'https://fontsource.org/fonts/jetbrains-mono', licence: 'SIL Open Font License 1.1', what: 'Values, pin names, code and the scope grid.' },
+  { name: 'DSEG7 Classic (keshikan)', url: 'https://github.com/keshikan/DSEG', licence: 'SIL Open Font License 1.1', what: 'The seven-segment LCD digits on the meters and the function generator.' },
   { name: 'Studio Small 03 HDRI (Poly Haven)', url: 'https://polyhaven.com/a/studio_small_03', licence: 'CC0', what: 'Studio lighting for the Enhanced and Studio modes.' },
   { name: 'Arduino AVR core, Servo, Wire, DHT, Adafruit GFX / SSD1306', url: 'https://github.com/arduino/ArduinoCore-avr', licence: 'LGPL-2.1 / MIT / BSD (inside the compiler package)', what: 'The libraries compiled sketches link against.' },
 ]

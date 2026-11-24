@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, GrowDirection, MoveTarget } from './state/types'
 import { boardConfigOf } from './model/types'
+import { holePosition, moduleOfHole, parseHole } from './model/breadboard'
 import type { HoleRef, Rotation } from './model/types'
 import { placementValid, setLayoutLoadedSink, setProgramPreparer, setTelemetrySink, useStore, boardsNeedingCompile } from './state/store'
 import { getEntry } from './model/catalog'
@@ -41,7 +42,7 @@ import {
 } from './ui/kit'
 import { EmptyState, Onboarding, StatusBar, WireColorStrip, hintForMode, markOnboarded, needsOnboarding, pushRenderProgress } from './ui/chrome'
 import { UndoPill } from './ui/chrome/UndoPill'
-import { SelectionPill } from './ui/chrome/SelectionPill'
+import { BoardPill, SelectionPill, removePickedBoard } from './ui/chrome/SelectionPill'
 import { RotateButton } from './ui/chrome/RotateButton'
 import { PartsSheet } from './ui/sheets/PartsSheet'
 import { CodeSheet } from './ui/lab/CodeSheet'
@@ -184,9 +185,21 @@ function handleHoleClick(hole: HoleRef): void {
     return
   }
 
-  // select mode: clicking a bare hole clears the selection
-  if (st.selection.length > 0) st.clearSelection()
+  // select mode: clicking a bare hole clears the part selection; with nothing
+  // selected it picks that breadboard (when there is more than one), so it can
+  // be removed with Delete or the Remove button — a second click lets it go
+  if (st.selection.length > 0) {
+    st.clearSelection()
+    return
+  }
+  const cfg = boardConfigOf(st.layout)
+  const h = parseHole(hole)
+  if (!h || cfg.count * (cfg.rows ?? 1) < 2) return
+  const b = moduleOfHole(h, cfg.size)
+  const cur = st.boardSelection
+  st.selectBoard(cur && cur.col === b.col && cur.row === b.row ? null : b)
 }
+
 
 function handleTerminalClick(ref: string): void {
   const st = useStore.getState()
@@ -244,7 +257,7 @@ function handleBackgroundClick(): void {
     st.setMode({ kind: 'wire', from: null, color: st.mode.color }) // cancel the started wire
     return
   }
-  if (st.mode.kind === 'select' && st.selection.length > 0) st.clearSelection()
+  if (st.mode.kind === 'select') st.clearSelection()
 }
 
 /** Legacy plus-paddle tap: grow the rig by one module (scene springs it in). */
@@ -282,7 +295,7 @@ function maybeHintShrink(): void {
   } catch {
     return // no matchMedia / storage: skip the hint rather than nag forever
   }
-  showToast('Long-press a + paddle to remove a board', { duration: 3600 })
+  showToast('Tap a breadboard to pick it, then Remove', { duration: 3600 })
 }
 
 /**
@@ -541,6 +554,7 @@ export default function App() {
     const s0 = useStore.getState()
     scene.setLayout(s0.layout)
     scene.setSelection(s0.selection)
+    scene.setBoardSelection?.(s0.boardSelection)
     scene.setInteractionMode?.(s0.mode.kind)
     syncOverlays(scene, s0)
     setTelemetrySink((t) => scene.setTelemetry(t)) // also pushes current telemetry
@@ -554,6 +568,7 @@ export default function App() {
     const unsub = useStore.subscribe((s, prev) => {
       if (s.layout !== prev.layout) scene.setLayout(s.layout)
       if (s.selection !== prev.selection) scene.setSelection(s.selection)
+      if (s.boardSelection !== prev.boardSelection) scene.setBoardSelection?.(s.boardSelection)
       if (s.mode.kind !== prev.mode.kind) scene.setInteractionMode?.(s.mode.kind)
       if (s.mode !== prev.mode || s.hoverHole !== prev.hoverHole || s.layout !== prev.layout) {
         syncOverlays(scene, s)
@@ -696,11 +711,14 @@ export default function App() {
           st.setMode({ kind: 'wire', from: null, color: st.mode.color })
         } else if (st.mode.kind !== 'select') {
           st.setMode({ kind: 'select' })
-        } else if (st.selection.length > 0) {
+        } else if (st.selection.length > 0 || st.boardSelection) {
           st.clearSelection()
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (st.selection.length > 0) {
+        if (st.boardSelection && st.selection.length === 0) {
+          e.preventDefault()
+          removePickedBoard()
+        } else if (st.selection.length > 0) {
           e.preventDefault()
           st.removeSelected()
           tick(16)
@@ -798,6 +816,22 @@ export default function App() {
       serial: (id: string) => serialBus.read(id),
       engine: () => liveEngine(),
       orbit: (rad: number) => sceneRef.current?.orbitView(rad),
+      /** camera azimuth / tilt in degrees (the e2e checks drag-to-orbit with it) */
+      cameraAngles: () => {
+        const h = sceneRef.current?.cameraHandle
+        if (!h) return null
+        const off = h.camera.position.clone().sub(h.controls.target)
+        const r = off.length()
+        return { theta: (Math.atan2(off.x, off.z) * 180) / Math.PI, phi: (Math.acos(off.y / r) * 180) / Math.PI }
+      },
+      boardSelection: () => useStore.getState().boardSelection,
+      /** where a board hole is on screen (the e2e checks click bare holes with it) */
+      holeScreen: (ref: string) => {
+        const h = parseHole(ref)
+        if (!h) return null
+        const p = holePosition(h)
+        return sceneRef.current?.projectToScreen({ x: p.x, y: 0, z: p.z }) ?? null
+      },
       dolly: (k: number) => sceneRef.current?.dollyView(k),
       pause: () => useStore.getState().stopSim(),
       run: () => useStore.getState().startSim(),
@@ -1002,6 +1036,7 @@ export default function App() {
 
       {/* multi-select pill ("N selected · Delete · Clear"); self-hides at ≤1 */}
       <SelectionPill />
+      <BoardPill />
 
       {/* rotate-the-armed-package glass button (touch chrome); self-hides */}
       <RotateButton />

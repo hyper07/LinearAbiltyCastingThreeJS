@@ -30,7 +30,7 @@
   flex: 0 0 auto;
 }
 .asm-mono {
-  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--lg-mono);
 }
 .asm-block {
   width: 100%;
@@ -422,7 +422,7 @@
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.07),
     0 0.5px 0 rgba(255, 255, 255, 0.06);
   color: var(--label);
-  font: 400 12px/17px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  font: 400 12px/17px var(--lg-mono);
   resize: none;
   outline: none;
   caret-color: var(--ios-blue);

@@ -14,6 +14,7 @@ export const CONTROLS = {
         { id: 'wire', keys: ['W'], codes: ['KeyW'], does: 'Wire mode: click one hole or pin, then another', hint: true },
         { id: 'rotate', keys: ['R'], codes: ['KeyR'], does: 'Rotate the part you are placing (or the selected chip)' },
         { id: 'delete', keys: ['Delete'], codes: ['Delete', 'Backspace'], does: 'Remove the selection' },
+        { id: 'board', keys: ['Click'], does: 'Click the bare holes of a breadboard to pick it (2+ boards), then Delete or Remove takes it off', touch: 'Tap' },
         { id: 'nudge', keys: ['←', '→', '↑', '↓'], codes: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'], does: 'Nudge the selected parts one hole (nothing selected: pan the view)' },
         { id: 'undo', keys: ['Ctrl', 'Z'], does: 'Undo (Ctrl+Shift+Z or Ctrl+Y redoes)' },
         { id: 'cancel', keys: ['Esc'], codes: ['Escape'], does: 'Cancel placing / wiring, clear the selection' },
@@ -22,7 +23,7 @@ export const CONTROLS = {
     {
       name: 'Camera',
       rows: [
-        { id: 'orbit', keys: ['Left-drag'], does: 'Orbit around the bench (drag on empty space; a short click still selects)', touch: 'One finger' },
+        { id: 'orbit', keys: ['Left-drag'], does: 'Orbit around the bench in every view, Illustrated too (drag on the background or the board; a short click still selects)', touch: 'One finger' },
         { id: 'pan', keys: ['Right-drag'], does: 'Pan (also middle-drag, or hold Space and left-drag)', touch: 'Two-finger drag' },
         { id: 'trackpad', keys: ['Two-finger scroll'], does: 'Trackpad: pan; pinch zooms' },
         { id: 'zoom', keys: ['Wheel'], does: 'Zoom toward the cursor', touch: 'Pinch' },

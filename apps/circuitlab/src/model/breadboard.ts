@@ -76,6 +76,7 @@ import {
   BoardSizeId,
   BoardConfig,
   asBoardConfig,
+  boardConfigOf,
   boardRowsOf,
   isBoardSizeId,
   MAX_BOARD_COUNT,
@@ -585,6 +586,77 @@ export function remapLayout(
     }),
     wires: layout.wires.map((w) => ({ ...w, from: shift(w.from), to: shift(w.to) })),
   }
+}
+
+/**
+ * Which breadboard (0-based module column, 0-based board-row) a hole sits on.
+ */
+export function moduleOfHole(h: Hole, size: BoardSizeId): { col: number; row: number } {
+  const col = h.kind === 'strip' ? moduleOfCol(h.col, size) - 1 : moduleOfRailIndex(h.index, size) - 1
+  return { col, row: h.boardRow ?? 0 }
+}
+
+/**
+ * Remove ONE breadboard from the grid: the module column `col` when the rig is
+ * more than one module wide (on a multi-row grid that column goes on every
+ * row), otherwise the board-row `row`. Parts with a pin on the removed board
+ * and wires with an end there go with it; everything past it slides back by
+ * one module (columns and rail indices) or one board-row, so the circuit on
+ * the other boards is untouched. Returns null when it is the last board.
+ * PURE: the input layout is untouched.
+ */
+export function removeBoardModule(
+  layout: CircuitLayout,
+  col: number,
+  row: number,
+  entryOf: (type: string) => CatalogEntry | undefined,
+): { layout: CircuitLayout; removedParts: number; removedWires: number } | null {
+  const config = boardConfigOf(layout)
+  const rows = config.rows ?? 1
+  const byCol = config.count > 1
+  if (!byCol && rows <= 1) return null
+  const size = BOARD_SIZES[config.size]
+  const where = (h: Hole): number => (byCol ? moduleOfHole(h, config.size).col : (h.boardRow ?? 0))
+  const cut = byCol ? col : row
+  const onCut = (h: Hole | null): boolean => h !== null && where(h) === cut
+  const shift = (ref: HoleRef): HoleRef => {
+    const h = parseHole(ref)
+    if (!h || where(h) < cut) return ref
+    if (!byCol) return formatHole({ ...h, boardRow: (h.boardRow ?? 0) - 1 })
+    if (h.kind === 'strip') return formatHole({ ...h, col: h.col - size.cols })
+    return formatHole({ ...h, index: h.index - size.railHoles })
+  }
+  const gone = new Set<string>()
+  for (const c of layout.components) {
+    const entry = entryOf(c.type)
+    if (!entry || entry.placement === 'offboard') continue
+    const holes = componentPinHoles(c, entry, config)
+    if (holes?.some(onCut)) gone.add(c.id)
+  }
+  const components = layout.components
+    .filter((c) => !gone.has(c.id))
+    .map((c) => {
+      const comp: ComponentInstance = { ...c }
+      if (comp.holes) comp.holes = comp.holes.map(shift)
+      if (comp.at !== undefined) comp.at = shift(comp.at)
+      return comp
+    })
+  const endGone = (ref: EndpointRef): boolean => {
+    const h = parseHole(ref)
+    if (h) return onCut(h)
+    const t = parseTerminalRef(ref)
+    return !!t && gone.has(t.componentId)
+  }
+  const wires = layout.wires.filter((w) => !endGone(w.from) && !endGone(w.to)).map((w) => ({ ...w, from: shift(w.from), to: shift(w.to) }))
+  const next: CircuitLayout = { ...layout, components, wires }
+  if (byCol) {
+    next.boardCount = config.count - 1
+    if (next.boardCount === 1) delete next.boardCount
+  } else {
+    next.boardRows = rows - 1
+    if (next.boardRows === 1) delete next.boardRows
+  }
+  return { layout: next, removedParts: gone.size, removedWires: layout.wires.length - wires.length }
 }
 
 /**

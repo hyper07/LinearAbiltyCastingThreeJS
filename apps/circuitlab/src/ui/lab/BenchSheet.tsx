@@ -14,6 +14,7 @@ import { benchReadings } from '../../labs/sources'
 import { download, drawPlot, fmt } from './plot'
 import './lab.css'
 import './bench.css'
+import { mono } from '../fonts'
 
 const SNAP = [0.6, 0.94] as const
 type Tab = 'gen' | 'scope' | 'dmm' | 'supply' | 'daq' | 'bode' | 'tracer'
@@ -376,7 +377,7 @@ function draw(cv: HTMLCanvasElement, cap: { t: number[]; ch: (number[] | null)[]
     }
   }
   ctx.fillStyle = '#9ad7ab'
-  ctx.font = '12px ui-monospace, Menlo, monospace'
+  ctx.font = mono(400, 12)
   ctx.fillText(`${fmt(s.tdiv)}s/div   CH1 ${fmt(s.ch[0].vdiv)}V/div ${s.ch[0].coupling}   CH2 ${fmt(s.ch[1].vdiv)}V/div ${s.ch[1].coupling}   trig ${s.trig.mode}`, 8, H - 8)
 }
 

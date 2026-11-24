@@ -1,6 +1,6 @@
 /**
  * Illustrated view: our own flat "technical illustration" look for the bench —
- * a near-orthographic isometric lens (orbit snaps to 45° steps), cel-shaded
+ * a near-orthographic isometric lens (left-drag turns and tilts it freely), cel-shaded
  * toon materials with a soft two-tone ramp, dark ink outlines (inverted-hull
  * OutlineEffect) and a warm grid-paper background. No path tracing: the
  * view draws its own frame. Photo view is restored exactly on exit.
@@ -18,6 +18,10 @@ export interface ViewHandle {
 }
 
 const ISO_POLAR = Math.acos(1 / Math.sqrt(3)) // 54.7° from vertical: true isometric
+// left-drag on the background orbits freely: any turn, and a tilt from near
+// top-down (a flat 2D plan) to a low three-quarter view
+const MIN_POLAR = THREE.MathUtils.degToRad(4)
+const MAX_POLAR = THREE.MathUtils.degToRad(72)
 const TELE_FOV = 7 // a long lens reads as orthographic but keeps picking and framing intact
 const INK = new THREE.Color('#2b2433')
 const PAPER = '#f6efe1'
@@ -103,10 +107,7 @@ export class IllustratedView {
     dist: number
   } | null = null
   private frame = 0
-  private dragging = false
   private h: ViewHandle | null = null
-  private onStart = () => (this.dragging = true)
-  private onEnd = () => (this.dragging = false)
 
   enable(h: ViewHandle): void {
     if (this.active) return
@@ -140,11 +141,9 @@ export class IllustratedView {
     sph.phi = ISO_POLAR
     sph.theta = Math.round((sph.theta - Math.PI / 4) / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 4
     camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(sph))
-    controls.minPolarAngle = ISO_POLAR
-    controls.maxPolarAngle = ISO_POLAR
+    controls.minPolarAngle = MIN_POLAR
+    controls.maxPolarAngle = MAX_POLAR
     controls.update()
-    controls.addEventListener('start', this.onStart)
-    controls.addEventListener('end', this.onEnd)
 
     this.paper ??= paperTexture()
     scene.background = this.paper
@@ -183,28 +182,15 @@ export class IllustratedView {
     controls.maxPolarAngle = this.prev.maxP
     camera.position.copy(controls.target).add(off.multiplyScalar(k))
     controls.update()
-    controls.removeEventListener('start', this.onStart)
-    controls.removeEventListener('end', this.onEnd)
     this.outline = null
     this.prev = null
   }
 
-  /** swap new meshes to toon, keep glow/colour live, snap the orbit to 45° */
-  tick(scene: THREE.Scene, camera: THREE.PerspectiveCamera): void {
+  /** swap new meshes to toon and keep glow/colour live (the orbit stays where the user left it) */
+  tick(scene: THREE.Scene, _camera: THREE.PerspectiveCamera): void {
     if (!this.active || !this.h) return
     if (this.frame++ % 12 === 0) this.convert(scene)
     for (const { src, dst } of this.toon.values()) sync(src, dst)
-    const c = this.h.controls
-    if (!this.dragging) {
-      const off = camera.position.clone().sub(c.target)
-      const sph = new THREE.Spherical().setFromVector3(off)
-      const d = Math.round(sph.theta / (Math.PI / 4)) * (Math.PI / 4) - sph.theta
-      if (Math.abs(d) > 1e-4) {
-        sph.theta += Math.abs(d) < 0.002 ? d : d * 0.2
-        camera.position.copy(c.target).add(new THREE.Vector3().setFromSpherical(sph))
-        camera.lookAt(c.target)
-      }
-    }
   }
 
   render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera): boolean {

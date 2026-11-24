@@ -38,6 +38,7 @@ import {
   textTexture,
   yawOf,
 } from './shared'
+import { ui } from '../../ui/fonts'
 
 // ---------------------------------------------------------------------------
 // Resistor color code
@@ -665,7 +666,7 @@ function sleeveMaterial(uF: string): THREE.Material {
       ctx.save()
       ctx.translate(W * u, H * 0.5)
       ctx.rotate(Math.PI / 2)
-      ctx.font = `bold ${Math.round(H * 0.2)}px Arial, sans-serif`
+      ctx.font = ui(700, Math.round(H * 0.2))
       ctx.fillText(`${uF} 25V`, 0, 0)
       ctx.restore()
     }

@@ -12,6 +12,7 @@ import { offboardGeometry } from '../../model/breadboard'
 import { glyph } from '../../mcu/fast/font5x7'
 import { BuildResult, cachedGeometry, cachedMaterial, mergeStatic, metal, moldedEpoxy, plastic } from './shared'
 import { satinMetal } from './boards'
+import { ui, drawReadout } from '../../ui/fonts'
 
 function box(w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
   const g = cachedGeometry(`bx:${w.toFixed(3)}:${h.toFixed(3)}:${d.toFixed(3)}`, () => new THREE.BoxGeometry(w, h, d))
@@ -131,7 +132,7 @@ export function buildServo(_c: ComponentInstance, _e: CatalogEntry, pins: THREE.
   const label = canvasTex(256, 64)
   if (label) {
     label.ctx.fillStyle = '#e8eefc'
-    label.ctx.font = 'bold 40px "Helvetica Neue", Arial'
+    label.ctx.font = ui(700, 40)
     label.ctx.textAlign = 'center'
     label.ctx.fillText('SG90  9g', 128, 46)
     label.tex.needsUpdate = true
@@ -324,14 +325,14 @@ function sprite(textOf: () => string, w = 6): { sprite: THREE.Sprite; set(s: str
     if (!c || txt === last) return
     last = txt
     c.ctx.clearRect(0, 0, 512, 96)
-    c.ctx.font = '600 40px "Helvetica Neue", Arial'
+    c.ctx.font = ui(600, 40)
     const tw = Math.min(496, c.ctx.measureText(txt).width + 56)
     c.ctx.fillStyle = 'rgba(255,255,255,0.92)'
     c.ctx.beginPath()
     c.ctx.roundRect(256 - tw / 2, 14, tw, 68, 34)
     c.ctx.fill()
     c.ctx.fillStyle = '#1c1c1e'
-    c.ctx.font = '600 40px "Helvetica Neue", Arial'
+    c.ctx.font = ui(600, 40)
     c.ctx.textAlign = 'center'
     c.ctx.textBaseline = 'middle'
     c.ctx.fillText(txt, 256, 50)
@@ -368,10 +369,10 @@ export function buildUltrasonic(_c: ComponentInstance, _e: CatalogEntry, pins: T
   if (lbl) {
     const g = lbl.ctx
     g.fillStyle = '#f2f4f2'
-    g.font = 'bold 54px "Helvetica Neue", Arial'
+    g.font = ui(700, 54)
     g.textAlign = 'center'
     g.fillText('HC-SR04', 256, 120)
-    g.font = '600 30px "Helvetica Neue", Arial'
+    g.font = ui(600, 30)
     ;['Gnd', 'Echo', 'Trig', 'Vcc'].forEach((s, i) => g.fillText(s, 256 + (i - 1.5) * 29 * 2.0, 205))
     lbl.tex.needsUpdate = true
     const m = new THREE.Mesh(cachedGeometry('srlbl', () => new THREE.PlaneGeometry(8.8, 3.95)), new THREE.MeshBasicMaterial({ map: lbl.tex, transparent: true, depthWrite: false }))
@@ -426,7 +427,7 @@ export function buildDht(_c: ComponentInstance, _e: CatalogEntry, pins: THREE.Ve
     g.fillRect(0, 0, 240, 300)
     g.fillStyle = '#3a3a38'
     for (let r = 0; r < 7; r++) for (let c = 0; c < 4; c++) g.fillRect(28 + c * 50, 24 + r * 30, 34, 14)
-    g.font = 'bold 26px "Helvetica Neue", Arial'
+    g.font = ui(700, 26)
     g.textAlign = 'center'
     g.fillText('DHT22', 120, 270)
     grille.tex.needsUpdate = true
@@ -488,7 +489,8 @@ export function buildMultimeter(_c: ComponentInstance, _e: CatalogEntry, pins: T
   lead(topC, jackC, 0x1a1a1a)
   const lcd = canvasTex(512, 200)
   let last = ''
-  if (lcd) group.add(plane(5.6, 2.2, new THREE.MeshBasicMaterial({ map: lcd.tex, toneMapped: false }), meterAt.x, 1.95, meterAt.z - 3.4))
+  // above the face slab and its bevel (top ≈ 2.005), or the screen hides inside it
+  if (lcd) group.add(plane(5.6, 2.2, new THREE.MeshBasicMaterial({ map: lcd.tex, toneMapped: false }), meterAt.x, 2.03, meterAt.z - 3.4))
   return {
     object: group,
     pinWorld: pins.map((p) => p.clone()),
@@ -501,10 +503,8 @@ export function buildMultimeter(_c: ComponentInstance, _e: CatalogEntry, pins: T
       g.fillStyle = '#b9c7a3'
       g.fillRect(0, 0, 512, 200)
       g.fillStyle = '#1b2116'
-      g.font = '700 104px "SF Mono", Menlo, monospace'
-      g.textAlign = 'right'
       g.textBaseline = 'middle'
-      g.fillText(s, 490, 104)
+      drawReadout(g, s, 490, 104, 92, 'right')
       lcd.tex.needsUpdate = true
     },
   }

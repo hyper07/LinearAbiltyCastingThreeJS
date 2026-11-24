@@ -37,6 +37,7 @@ import {
   topLabel,
 } from './shared'
 import { draftBodyGeometry } from './ics'
+import { ui } from '../../ui/fonts'
 
 /** Rounded-rect outline (centered) for punched-plate shapes. */
 function roundedRectPath(w: number, h: number, r: number): THREE.Shape {
@@ -417,7 +418,7 @@ function numberStripLabel(count: number, span: number): THREE.Mesh | null {
     if (ctx) {
       ctx.clearRect(0, 0, W, H)
       ctx.fillStyle = '#f2ece4'
-      ctx.font = `bold ${Math.floor(H * 0.62)}px "Helvetica Neue", Arial, sans-serif`
+      ctx.font = ui(700, Math.floor(H * 0.62))
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       for (let i = 0; i < count; i++) {

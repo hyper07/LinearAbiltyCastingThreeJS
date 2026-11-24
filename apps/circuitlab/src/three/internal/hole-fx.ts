@@ -42,6 +42,7 @@
  */
 
 import * as THREE from 'three'
+import { mono } from '../../ui/fonts'
 
 /** Matches the existing hover overlays in scene.ts (ghost/hover = 3). */
 export const HOVER_RING_RENDER_ORDER = 3
@@ -385,7 +386,7 @@ export function makeHoleLabel(): HoleLabel {
 
   // precomputed paint constants (no per-redraw gradient/string churn)
   const fontFor = (px: number): string =>
-    `600 ${px}px ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace`
+    mono(600, px)
   const BASE_FONT_PX = 78
   const INSET = 3
   const RADIUS = 34

@@ -49,6 +49,7 @@ import {
   parseHole,
   parseTerminalRef,
   remapLayout,
+  removeBoardModule,
   spansSeam,
 } from '../model/breadboard'
 import { occludedHoles } from '../model/occlusion'
@@ -770,8 +771,16 @@ function publishNow(): void {
 
 export const useStore = create<AppState>()((set, get) => {
   /** Commit an immutable layout update (+ autosave + live-engine rebuild). */
+  /** the picked breadboard, if it still exists on `layout`'s grid */
+  const liveBoard = (layout: CircuitLayout): AppState['boardSelection'] => {
+    const b = get().boardSelection
+    if (!b) return null
+    const cfg = boardConfigOf(layout)
+    return b.col < cfg.count && b.row < (cfg.rows ?? 1) ? b : null
+  }
+
   const commitLayout = (layout: CircuitLayout, rebuild = true): void => {
-    set({ layout })
+    set({ layout, boardSelection: liveBoard(layout) })
     scheduleAutosave(layout)
     if (engine && rebuild) rebuildEngine(layout)
   }
@@ -798,6 +807,7 @@ export const useStore = create<AppState>()((set, get) => {
     )
     set({
       layout,
+      boardSelection: liveBoard(layout),
       selection: alive.length === sel.length ? sel : alive, // keep identity when unchanged
       mode: reconcileWireMode(get().mode, layout), // drop a `from` stranded off the restored rig
       canUndo: history.canUndo,
@@ -811,6 +821,7 @@ export const useStore = create<AppState>()((set, get) => {
     // --- document -----------------------------------------------------------
     layout: loadSavedLayout(),
     selection: [],
+    boardSelection: null,
     mode: { kind: 'select' } as InteractionMode,
     hoverHole: null,
     canUndo: false,
@@ -1026,21 +1037,23 @@ export const useStore = create<AppState>()((set, get) => {
       const sel = get().selection
       // keep the array identity stable for repeat-clicks (the scene resyncs
       // highlight overlays on every selection identity change)
+      if (id !== null && get().boardSelection) set({ boardSelection: null })
       if (id === null ? sel.length === 0 : sel.length === 1 && sel[0] === id) return
       set({ selection: id === null ? [] : [id] })
     },
 
     toggleSelect(id) {
       const sel = get().selection
-      set({ selection: sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id] })
+      set({ selection: sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id], boardSelection: null })
     },
 
     clearSelection() {
+      if (get().boardSelection) set({ boardSelection: null })
       if (get().selection.length > 0) set({ selection: [] })
     },
 
     marqueeSelect(ids) {
-      set({ selection: [...new Set(ids)] })
+      set({ selection: [...new Set(ids)], boardSelection: null })
     },
 
     setMode(mode) {
@@ -1320,6 +1333,24 @@ export const useStore = create<AppState>()((set, get) => {
       commitLayout(next)
       set({ mode: reconcileWireMode(get().mode, next) })
       return { ok: true }
+    },
+
+    selectBoard(board) {
+      const cur = get().boardSelection
+      if (board === null ? cur === null : cur?.col === board.col && cur?.row === board.row) return
+      set(board === null ? { boardSelection: null } : { boardSelection: board, selection: [] })
+    },
+
+    removeBoard(board) {
+      const res = removeBoardModule(get().layout, board.col, board.row, getEntry)
+      if (!res) return { ok: false, error: 'This is the last breadboard — a circuit needs one' }
+      const check = validateLayout(res.layout)
+      if (!check.ok) return { ok: false, error: `Removing that breadboard failed validation: ${check.errors[0]}` }
+      pushHistory('remove:board')
+      set({ boardSelection: null, selection: [] })
+      commitLayout(res.layout)
+      set({ mode: reconcileWireMode(get().mode, res.layout) })
+      return { ok: true, removedParts: res.removedParts, removedWires: res.removedWires }
     },
 
     growGrid(direction) {

@@ -11,13 +11,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/chakra-petch": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "avr8js": "0.21.0",
+    "dseg": "^0.46.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.170.0",
     "three-gpu-pathtracer": "^0.0.23",
     "three-mesh-bvh": "^0.7.8",
-    "zustand": "^4.5.5",
-    "avr8js": "0.21.0"
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@types/node": "^22.19.21",

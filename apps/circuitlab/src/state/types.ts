@@ -76,6 +76,8 @@ export interface AppState {
    * view (count + group delete).
    */
   selection: string[]
+  /** a breadboard picked by clicking its bare holes (0-based module column and board-row), or null */
+  boardSelection: { col: number; row: number } | null
   mode: InteractionMode
   hoverHole: HoleRef | null
   /** an undo step is available (mirrors the in-memory history; never persisted) */
@@ -213,6 +215,14 @@ export interface AppState {
    * them. ONE undo step; refused at the MAX_BOARD_COUNT/MAX_BOARD_ROWS cap.
    */
   growGrid(direction: GrowDirection): { ok: boolean; error?: string }
+  /** Pick one breadboard (null clears); it clears the part selection. */
+  selectBoard(board: { col: number; row: number } | null): void
+  /**
+   * Remove one breadboard and whatever sits on it (one undo step); the boards
+   * after it slide back so the rest of the circuit keeps working. Refused for
+   * the last board.
+   */
+  removeBoard(board: { col: number; row: number }): { ok: boolean; error?: string; removedParts?: number; removedWires?: number }
 
   // --- actions: preferences ---
   /**
