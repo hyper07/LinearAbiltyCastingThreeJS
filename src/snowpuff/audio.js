@@ -235,6 +235,14 @@ export class SnowSound {
     this.tone(880, { dur: 0.05, gain: 0.05, type: 'triangle' });
   }
 
+  /** Goggles on: a stretchy strap snap and a happy two-note boing. */
+  tryOn() {
+    if (!this.ctx) return;
+    this.noiseBurst({ dur: 0.06, gain: 0.12, f0: 2400, f1: 900, q: 2 });
+    this.tone(420, { at: 0.05, dur: 0.16, gain: 0.08, type: 'triangle', slide: 760 });
+    this.tone(990, { at: 0.17, dur: 0.12, gain: 0.05, type: 'sine' });
+  }
+
   cheer(k = 1) {
     if (!this.ctx) return;
     // a crowd: many short bright noise swells, and a happy chord

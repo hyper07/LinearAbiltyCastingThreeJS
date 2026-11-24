@@ -780,6 +780,26 @@
     "cute"
    ],
    "path": "src/snowpuff/render/poseRig.js"
+  },
+  {
+   "id": "own.snowpuff.goggles",
+   "kind": "module",
+   "title": "Fitted goggles for sculpted plush heads: 18 original styles, picker chips, push-up, wobbly extras (TSL)",
+   "summary": "buildGoggles(id, fit) returns { group, setUp(k), update(dt,{jolt,yawRate}), flourish(), trick() } in head-bone space; fit = the head's ellipse at eye height measured from the SDF (RiderModel.measureFit). Ski goggles: curved lens shell with nose notch, mirror gradient + reflectView sky streak, tube frame, foam gasket, strap with a separate back radius; shaped pairs via ExtrudeGeometry rings; googly pupils / snorkel tube on springs, LED visor canvas text scrolled by a uniform, hypno TSL spiral. goggleRack() draws every pair once for warm-up. goggleList.js: pure ids, names, SVG chips, cleanGoggle / loadGoggles / saveGoggles (localStorage in try/catch), randomGoggle.",
+   "tags": [
+    "goggles",
+    "accessory",
+    "cosmetic",
+    "picker",
+    "character",
+    "plush",
+    "tsl",
+    "webgpu",
+    "customization",
+    "fit",
+    "snowpuff"
+   ],
+   "path": "src/snowpuff/render/goggles.js"
   }
  ]
 }

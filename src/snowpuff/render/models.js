@@ -21,11 +21,17 @@ const loader = new GLTFLoader();
  * A kit: { parts: [{ geometry, material }], size: Vector3, min: Vector3, fallback }.
  * Geometries are in the model's own units with its base at y = 0 and centred in x/z.
  */
-export async function loadKit(key, { emissiveTest = null, emissive = null } = {}) {
+export async function loadKit(key, { emissiveTest = null, emissive = null, skip = null } = {}) {
   const [id] = POLYFORK[key];
   try {
     const gltf = await loader.loadAsync(`./library/polyfork/${id}.glb`);
     const root = gltf.scene;
+    // leave out parts by name (e.g. a baked snow plume we animate ourselves)
+    if (skip) {
+      const drop = [];
+      root.traverse((o) => o !== root && skip(o.name ?? '') && drop.push(o));
+      for (const o of drop) o.removeFromParent();
+    }
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     const centre = box.getCenter(new THREE.Vector3());

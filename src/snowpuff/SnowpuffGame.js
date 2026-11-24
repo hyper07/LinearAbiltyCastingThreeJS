@@ -38,6 +38,8 @@ import { Hud, Menus, Loading, TouchControls, el } from './hud.js';
 import { OnlineRace } from './net.js';
 import { SideMirror } from './sideMirror.js';
 import { cleanName, randomName } from './names.js';
+import { loadGoggles, saveGoggles, randomGoggle, cleanGoggle } from './goggleList.js';
+import { goggleRack } from './render/goggles.js';
 
 const SAVE_KEY = 'snowpuff.save';
 const ITEM_NAMES = { snowballs: 'Snowballs!', giant: 'Giant snowball!', shield: 'Snow shield!', boost: 'Rocket sled!', ice: 'Ice patch!' };
@@ -158,6 +160,7 @@ export class SnowpuffGame {
     if (this.touch) this.root.classList.add('touch');
     this.save = loadSave();
     this.picked = this.save.rider;
+    this.goggles = loadGoggles();
     this.mountainId = this.save.mountain;
     this.mode = 'loading';
     this.screen = 'title';
@@ -197,15 +200,25 @@ export class SnowpuffGame {
     this.stagePipe = new Pipeline(this.renderer, this.stage.scene, this.stage.camera, this.tier);
     this.stagePipe.setGrade({ saturation: 1.08, warm: [1.02, 1, 0.98], cool: [0.97, 0.99, 1.04], vignette: 0.22, exposure: 1 });
     this.stage.pick(this.picked);
+    this.stage.setGoggles(this.goggles);
     this.stage.setMountain(this.mountainId);
     step('Warming up the paint…', 0.7);
     this.resize();
+    // every pair of goggles drawn once now, so trying them on never hitches
+    const rack = goggleRack();
+    rack.position.copy(this.stage.camera.position).add(new THREE.Vector3(0, -0.3, -4).applyQuaternion(this.stage.camera.quaternion));
+    rack.quaternion.copy(this.stage.camera.quaternion);
+    this.stage.scene.add(rack);
     try {
       await this.renderer.compileAsync(this.stage.scene, this.stage.camera);
     } catch {
       /* compiled on first frame instead */
     }
     this.stagePipe.render();
+    await new Promise((r) => requestAnimationFrame(() => r()));
+    this.stagePipe.render();
+    rack.removeFromParent();
+    rack.traverse((o) => o.isMesh && o.geometry.dispose());
     this.input = new Input(this.root);
     this.hud = new Hud(this.root, { touch: this.touch });
     this.hud.onUse = (i) => this.input.pressed.add(i ? 'item2' : 'throw');
@@ -367,6 +380,8 @@ export class SnowpuffGame {
       name: this.save.name,
       onName: (v) => this.setNickname(v),
       onDice: () => this.setNickname(randomName()),
+      goggles: this.goggles,
+      onGoggles: (id) => this.pickGoggles(id),
       picked: this.picked,
       onPick: (id) => {
         this.picked = id;
@@ -377,6 +392,16 @@ export class SnowpuffGame {
       onNext: after,
       onBack: () => (this.net?.active ? this.showLobby() : this.showTitle())
     });
+  }
+
+  /** Try on a pair: on the turntable at once, remembered on this device, sent to the room. */
+  pickGoggles(id) {
+    this.goggles = cleanGoggle(id);
+    saveGoggles(this.goggles);
+    this.stage.setGoggles(this.goggles, true);
+    this.net?.setGoggles(this.goggles);
+    this.sound.tryOn?.();
+    return this.goggles;
   }
 
   showMountains() {
@@ -403,6 +428,7 @@ export class SnowpuffGame {
     this.net ??= new OnlineRace({
       name: this.nickname(),
       species: this.picked,
+      goggles: this.goggles,
       onChange: () => this.screen === 'lobby' && this.mode === 'menu' && this.renderLobby(),
       onGo: (g) => this.startRace({ mountain: g.mountain, slots: g.slots, online: true }),
       onMessage: (m) => this.netMessage(m),
@@ -476,6 +502,7 @@ export class SnowpuffGame {
     this.trails = trails;
     const world = new World({ scene, course, mountain: m, tier: this.tier, trails, sky });
     this.world = world;
+    world.camera = camera;
     await world.build((l, k) => this.loadingEl.set(l, 0.1 + k * 0.7));
     scene.add(distantPeaks(course, m, rng(m.seed + 1)));
     this.fx = new Effects(scene, { scale: this.tier.particles });
@@ -486,8 +513,8 @@ export class SnowpuffGame {
     if (!slots) {
       const others = ALL_SPECIES.filter((s) => s !== this.picked);
       const kinds = ['careful', 'reckless', 'thrower', 'careful', 'reckless'];
-      slots = [{ slot: 0, id: 'me', name: this.nickname(), species: this.picked, human: true }];
-      for (let i = 0; i < m.rivals; i++) slots.push({ slot: i + 1, id: `ai${i + 1}`, name: null, species: others[i % others.length], human: false, kind: kinds[i] });
+      slots = [{ slot: 0, id: 'me', name: this.nickname(), species: this.picked, goggles: this.goggles, human: true }];
+      for (let i = 0; i < m.rivals; i++) slots.push({ slot: i + 1, id: `ai${i + 1}`, name: null, species: others[i % others.length], goggles: randomGoggle(), human: false, kind: kinds[i] });
     }
     const rand = rng(course.seed + 99);
     const n = slots.length;
@@ -502,7 +529,8 @@ export class SnowpuffGame {
       r.remote = !r.local;
       if (!sl.human) r.brain = newBrain(sl.kind ?? 'careful', rand);
       const fur = r.me ? this.tier.fur : this.tier.rivalFur;
-      r.model = new RiderModel(sl.species, { fur, res: r.me ? 74 : 60 });
+      r.goggles = r.me ? this.goggles : cleanGoggle(sl.goggles);
+      r.model = new RiderModel(sl.species, { fur, res: r.me ? 74 : 60, goggles: r.goggles, label: name });
       scene.add(r.model.root);
       r.shieldMesh = this.fx.shieldMesh();
       r.model.root.add(r.shieldMesh);
@@ -574,6 +602,10 @@ export class SnowpuffGame {
       b.position.set(cam.x + i * 0.2, cam.y, cam.z - 6);
     });
     for (const rc of this.racers) rc.shieldMesh.visible = true;
+    // every pair of goggles (a rival's random pick, or swapped on later) is built and drawn once now
+    const rack = goggleRack();
+    rack.position.set(cam.x, cam.y - 0.5, cam.z - 5);
+    this.scene.add(rack);
     // the things made on first use: a giant snowball, a dropped ice patch, a falling clump of snow
     fx.giant(0, cam.x, cam.y - 1, cam.z - 8, 1, 0, 0);
     const c = this.race.course;
@@ -596,6 +628,8 @@ export class SnowpuffGame {
     await nextFrame();
     this.pipe.render();
     for (const o of culled) o.frustumCulled = true;
+    rack.removeFromParent();
+    rack.traverse((o) => o.isMesh && o.geometry.dispose());
     fx.clear();
     this.world.syncIce(c.dynIce);
     this.world.dropSnow(-1);
@@ -989,6 +1023,7 @@ export class SnowpuffGame {
         if (near) this.fx.poof(rc.pos.x, rc.pos.y, rc.pos.z, { n: 10 + Math.min(20, e.impact * 2), size: 0.4, speed: 2.5, up: 1.4 });
         if (e.clean && e.tricks > 0) {
           rc.tricks += 1;
+          rc.model.trickLanded();
           if (near) this.fx.boostBurst(rc.pos.x, rc.pos.y, rc.pos.z);
           // a wave and a cheer when you land one with others around
           if (this.racers.some((o) => o !== rc && !o.gone && Math.hypot(o.pos.x - rc.pos.x, o.pos.z - rc.pos.z) < 16)) {
@@ -1371,8 +1406,7 @@ export class SnowpuffGame {
       rc.landed = 0;
       rc.shieldMesh.visible = rc.shieldT > 0;
       if (rc.shieldT > 0) rc.shieldMesh.rotation.y += dt * 1.5;
-      // keep riders out of the lens: hide one that is almost on the camera
-      if (!rc.me) root.visible = !rc.gone && Math.hypot(x - cam.x, rd.y + 0.6 - cam.y, z - cam.z) > 1.3;
+      if (!rc.me) root.visible = !rc.gone;
       // spray and trails (only on the snow, moving)
       if (!rd.air && rd.speed > 3 && !rc.gone) {
         const yawW = f.heading + rd.yaw;
@@ -1479,6 +1513,15 @@ export class SnowpuffGame {
       cam.position.set(me.pos.x + rx * 2.6 * sd + fx2 * 1.4, me.pos.y + 1.05, me.pos.z + rz * 2.6 * sd + fz2 * 1.4);
       cam.lookAt(me.pos.x + fx2 * 0.3, me.pos.y + 0.55, me.pos.z + fz2 * 0.3);
     }
+    // …and one ahead of the rider at a 3/4, close on the face (checking the goggles)
+    if (this.debugCam === 'face') {
+      const hd = f.heading + rd.yaw;
+      const fx2 = Math.sin(hd), fz2 = -Math.cos(hd), rx = -fz2, rz = fx2;
+      const sd = -(this.debugSide ?? 1);
+      cam.up.set(0, 1, 0);
+      cam.position.set(me.pos.x + fx2 * 1.9 - rx * 1.1 * sd, me.pos.y + 1.0, me.pos.z + fz2 * 1.9 - rz * 1.1 * sd);
+      cam.lookAt(me.pos.x + fx2 * 0.1, me.pos.y + 0.72, me.pos.z + fz2 * 0.1);
+    }
     // FOV widens with speed: 60 → 78
     const fov = 60 + 18 * clamp((speed - 6) / 24, 0, 1) + (rd.boost > 0 ? 4 : 0);
     r.fov += (fov - r.fov) * (1 - Math.exp(-dt * 3));
@@ -1510,12 +1553,36 @@ export class SnowpuffGame {
     for (const lf of c.lifts) if (lf.kind === 'cross' && lf.s > s0 && lf.s <= s1) this.sound.whoosh(0, 1.3);
   }
 
+  /**
+   * Keep riders out of the lens: one right by the camera, or close and off
+   * to the side or below it (where a fuzzy plush would fill a corner of the
+   * screen), is hidden until it is clear again.
+   */
+  keepOutOfLens() {
+    const cam = this.camera;
+    cam.updateMatrixWorld();
+    const v = (this._lens ??= new THREE.Vector3());
+    for (const rc of this.racers) {
+      if (rc.me || rc.gone) continue;
+      v.set(rc.pos.x, rc.pos.y + 0.55, rc.pos.z);
+      const d = v.distanceTo(cam.position);
+      let show = d > 2.4;
+      if (show && d < 5) {
+        v.project(cam);
+        // behind the lens, or near an edge or the bottom of the frame
+        show = v.z < 1 && Math.abs(v.x) < 0.62 && v.y > -0.45 && v.y < 0.7;
+      }
+      rc.model.root.visible = show;
+    }
+  }
+
   renderRace(dt) {
     const r = this.race;
     const simDt = this.mode === 'race' || this.mode === 'finish' || this.mode === 'countdown' ? dt : 0;
     if (simDt > 0 && this.mode !== 'countdown') this.updateRiders(simDt);
     if (simDt > 0) {
       this.placeCamera(simDt);
+      this.keepOutOfLens();
       this.passBy();
       // snowballs in the air
       r.projectiles.forEach((p, i) => {
@@ -1538,6 +1605,8 @@ export class SnowpuffGame {
       }
       const fwd = [Math.sin(frameAt(r.course, this.me.rider.s).heading), 0, -Math.cos(frameAt(r.course, this.me.rider.s).heading)];
       this.fx.speedMotes(this.camera.position, fwd, this.me.rider.speed, simDt, r.mountain.time === 'night');
+      // snow cannons near you blow their plumes
+      for (const cn of this.world.cannons ?? []) if (Math.abs(cn.s - this.me.rider.s) < 160) this.fx.plume(cn, simDt);
       this.fx.update(simDt);
       this.sound.ride(this.me.rider.speed, Math.abs(this.me.rider.edge), !this.me.rider.air, this.mode !== 'countdown', this.me.rider.skid ?? 0);
     } else if (!r.camPos) this.placeCamera(0, true);
@@ -1556,7 +1625,12 @@ export class SnowpuffGame {
     for (const x of this.racers) if (x !== this.me && !x.gone) others.push(x);
     this.mirror.update(dt, { pos: this.me.pos, heading }, others, { active: this.mode === 'race', scene: this.scene, exposure: (r.mountain.grade?.exposure ?? 1) * 0.82 });
     this.pipe.render();
-    this.mirror.draw();
+    if (this.mirror.wantSnap) {
+      // the panel's still looks back at riders the main camera hides (they are right by its lens)
+      for (const x of others) x.model.root.visible = true;
+      this.mirror.draw();
+      this.keepOutOfLens();
+    }
   }
 
   /**

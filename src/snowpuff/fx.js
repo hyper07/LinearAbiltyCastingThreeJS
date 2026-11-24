@@ -121,6 +121,8 @@ const WHITE = new THREE.Color('#ffffff');
 const CYAN = new THREE.Color('#7fe8ff');
 const PINK = new THREE.Color('#ff7ac0');
 
+const PLUME = new THREE.Color('#ffffff');
+
 export class Effects {
   constructor(scene, { scale = 1 } = {}) {
     this.scene = scene;
@@ -160,6 +162,17 @@ export class Effects {
         side[0] * sv + fwd[0] * speed * 0.35, 1.2 + Math.random() * 2.2 * (0.4 + carve), side[1] * sv + fwd[1] * speed * 0.35,
         { life: 0.4 + Math.random() * 0.45, size: 0.16 + Math.random() * 0.18, grow: 2.3, alpha: 0.7, drag: 2.4, grav: -5 }
       );
+    }
+  }
+
+  /** A snow cannon's plume: a soft, drifting cone of fine snow from its nozzle. */
+  plume(cn, dt) {
+    cn.acc = (cn.acc ?? 0) + dt * 40 * this.scale;
+    while (cn.acc > 1) {
+      cn.acc -= 1;
+      const v = 8 + Math.random() * 5, spread = 0.3;
+      const sx = (Math.random() - 0.5) * spread, sy = Math.random() * spread;
+      this.powder.add(cn.x, cn.y, cn.z, (cn.dx - cn.dz * sx) * v, (0.3 + sy) * v, (cn.dz + cn.dx * sx) * v, { life: 2.4 + Math.random() * 1.2, size: 0.7 + Math.random() * 0.6, grow: 3.2, alpha: 1, drag: 0.75, grav: -0.9, col: PLUME });
     }
   }
 

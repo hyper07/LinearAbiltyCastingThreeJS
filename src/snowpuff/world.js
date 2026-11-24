@@ -65,12 +65,12 @@ export class World {
     this.buildKickers();
     this.buildIce();
     progress('Fetching trees, lifts and chalets', 0.32);
-    const want = ['spruce', 'pine', 'pylon', 'chair', 'snowman', 'hay', 'snowFence', 'boulders', 'outcrop', 'startHut', 'hut'];
-    if (m.village) want.push('chalet', 'barn', 'fir', 'baseStation', 'cannon', 'bunting', 'present');
+    const want = ['spruce', 'pine', 'pylon', 'chair', 'snowman', 'hay', 'snowFence', 'boulders', 'outcrop', 'startHut', 'hut', 'cannon'];
+    if (m.village) want.push('chalet', 'barn', 'fir', 'baseStation', 'bunting', 'present');
     if (m.lanterns) want.push('lantern');
     const kits = {};
     await Promise.all(want.map(async (k) => {
-      kits[k] = await loadKit(k, k === 'lantern' ? { emissiveTest: (mat) => isWarm(mat.color), emissive: '#ffb050' } : {});
+      kits[k] = await loadKit(k, k === 'lantern' ? { emissiveTest: (mat) => isWarm(mat.color), emissive: '#ffb050' } : k === 'cannon' ? { skip: (n) => /^(plume|streak)/.test(n) } : {});
     }));
     this.kits = kits;
     progress('Putting up fences and flags', 0.55);
@@ -87,6 +87,7 @@ export class World {
     this.buildLifts();
     this.buildArches();
     this.buildEnds();
+    this.buildCannons();
     if (m.lanterns) this.buildLanterns();
     progress('Scattering stars and snowballs', 0.85);
     await idle();
@@ -632,7 +633,7 @@ export class World {
       arch.receiveShadow = true;
       this.section(a.s).add(arch);
       // the banner: hanging under the top, facing up the run
-      const label = a.kind === 'finish' ? 'FINISH' : a.kind === 'start' ? 'SNOWPUFF PEAKS' : a.s < c.length / 2 ? '★ 1/3 ★' : '★ 2/3 ★';
+      const label = a.kind === 'finish' ? 'FINISH' : a.kind === 'start' ? 'SNOWPUFF PEAKS' : a.s < c.length / 2 ? '🔔 1/3 🔔' : '🔔 2/3 🔔';
       const tex = bannerTexture(label, a.kind === 'finish' ? '#1d2233' : m.fence.colour);
       const banner = new THREE.Mesh(new THREE.PlaneGeometry(a.kind === 'start' ? 11 : 8, 1.6), new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.6, side: THREE.DoubleSide }));
       const top = pts[20];
@@ -689,6 +690,42 @@ export class World {
         list.push({ x: p.x, y: p.y - 0.4, z: p.z, ry: -fe.heading + (sd > 0 ? -Math.PI / 2 : Math.PI / 2), s: 1.2 });
       }
       sec.add(instance(K.hut, list));
+    }
+  }
+
+  /**
+   * Snowmaking guns beside the run, blowing gentle plumes away over the
+   * slope (the plume itself is particles, game-side: world.cannons).
+   */
+  buildCannons() {
+    const c = this.course, K = this.kits, r = this.rand;
+    this.cannons = [];
+    if (!K.cannon) return;
+    const L = c.length;
+    let sd = r() < 0.5 ? -1 : 1;
+    for (let s = 150 + r() * 60; s < L - 90; s += 210 + r() * 90) {
+      const f = frameAt(c, s, _f);
+      const lat = sd * (f.width + 5 + r() * 2);
+      const p = toWorld(c, s, lat, 0, {});
+      if (!this.valid(p.x, p.z, s, lat)) {
+        sd = -sd;
+        continue;
+      }
+      // the forward (downhill) and outward directions here
+      const q = toWorld(c, s + 2, lat, 0, {});
+      const fx = (q.x - p.x) / 2, fz = (q.z - p.z) / 2;
+      const ox = f.rx * sd, oz = f.rz * sd;
+      const dx = fx * 0.75 + ox * 0.65, dz = fz * 0.75 + oz * 0.65;
+      const n = Math.hypot(dx, dz);
+      const ux = dx / n, uz = dz / n;
+      // the model's barrel points along its +x
+      const ry = Math.atan2(-uz, ux);
+      const sc = 1.05;
+      this.section(s).add(instance(K.cannon, [{ x: p.x, y: p.y - 0.1, z: p.z, ry, s: sc }]));
+      // the nozzle: the barrel's mouth, ~3 m up and a little ahead of the mast
+      const top = K.cannon.size.y * sc;
+      this.cannons.push({ s, x: p.x + ux * 0.75 * sc, y: p.y - 0.1 + top * 0.78, z: p.z + uz * 0.75 * sc, dx: ux, dz: uz, t: r() * 10 });
+      sd = -sd;
     }
   }
 
@@ -867,6 +904,7 @@ export class World {
     const sc = this.sc ??= new THREE.Vector3();
     const p = this.pv ??= new THREE.Vector3();
     // lifts
+    const cam = this.camera?.position;
     for (const mv of this.movers) {
       mv.t += dt * mv.speed;
       const near = Math.abs(mv.s - focusS) < 600;
@@ -881,7 +919,13 @@ export class World {
         p.set(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u - mv.hang, a.z + (b.z - a.z) * u);
         e.set(Math.sin(mv.t * 0.7 + i) * 0.03, Math.atan2(b.x - a.x, b.z - a.z), 0);
         q.setFromEuler(e);
-        m4.compose(p, q, sc.set(1, 1, 1));
+        // never in front of the lens: a chair that comes within ~5 m of the camera shrinks away
+        let k2 = 1;
+        if (cam) {
+          const dc = Math.hypot(p.x - cam.x, p.y + mv.hang * 0.5 - cam.y, p.z - cam.z);
+          k2 = dc > 6 ? 1 : dc < 4 ? 0 : (dc - 4) / 2;
+        }
+        m4.compose(p, q, sc.setScalar(k2));
         for (const im of mv.chairs.children) im.setMatrixAt(i, m4);
       }
       for (const im of mv.chairs.children) im.instanceMatrix.needsUpdate = true;

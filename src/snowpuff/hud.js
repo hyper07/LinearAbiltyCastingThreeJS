@@ -8,6 +8,7 @@
  * text in the centre, speed lines at the edges — plus the touch controls.
  */
 import { SPECIES, SELECTABLE, faceSvg } from './riders.js';
+import { GOGGLES, goggleChip, randomGoggle } from './goggleList.js';
 import { MOUNTAINS } from './mountains.js';
 import { ordinal } from './race.js';
 import { hintItems } from '../shared/helpPanel.js';
@@ -27,7 +28,7 @@ export const fmtTime = (t) => {
   const m = Math.floor(t / 60), s = t - m * 60;
   return `${m}:${s < 10 ? '0' : ''}${s.toFixed(1)}`;
 };
-const diffStars = (n) => `${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i>`;
+const diffStars = (n) => `<span aria-label="difficulty ${n} of 3">${'❄'.repeat(n)}<i>${'❄'.repeat(3 - n)}</i></span>`;
 const SNOWBALL = '<svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="15" fill="#fff"/><circle cx="15" cy="15" r="5" fill="#fff" opacity=".9"/><path d="M8 24 Q20 32 32 24" stroke="#c9d8f2" stroke-width="3" fill="none"/></svg>';
 const SHIELD = '<svg viewBox="0 0 40 40"><path d="M20 4 L34 10 V20 C34 29 27 34 20 37 C13 34 6 29 6 20 V10Z" fill="#fff" stroke="#3ab8e8" stroke-width="3"/><path d="M20 12 L22.5 18 L29 18.5 L24 22.5 L25.6 29 L20 25.5 L14.4 29 L16 22.5 L11 18.5 L17.5 18Z" fill="#7fe8ff"/></svg>';
 const GIANT = '<svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="16" fill="#fff" stroke="#9db8e8" stroke-width="2"/><path d="M8 26 Q20 34 32 24 M10 16 Q18 12 26 14" stroke="#c9d8f2" stroke-width="3" fill="none"/><path d="M30 6 l2 4 4 1 -3 3 1 4 -4 -2 -4 2 1 -4 -3 -3 4 -1z" fill="#ffd23f"/></svg>';
@@ -114,7 +115,7 @@ export class Menus {
     setTimeout(() => this.el.querySelector('[data-race]')?.focus({ preventScroll: true }), 50);
   }
 
-  riders({ picked, onPick, onNext, onBack, name = '', onName, onDice }) {
+  riders({ picked, onPick, onNext, onBack, name = '', onName, onDice, goggles = 'classic', onGoggles }) {
     this.clear();
     this.el.append(el('div', 'sp-heading', 'Choose your rider'));
     const nameBox = el('div', 'sp-card sp-col sp-name', `<label for="sp-nick">Your name</label><div class="sp-row" style="margin:0;flex-wrap:nowrap"><input id="sp-nick" class="sp-input sp-input--name" maxlength="12" autocomplete="off" spellcheck="false" data-name value="${esc(name)}" placeholder="${esc(SPECIES[picked].name)}"><button class="sp-btn sp-btn--small" data-dice title="A random name" aria-label="A random name">🎲</button></div>`);
@@ -131,6 +132,49 @@ export class Menus {
       this.game.sound.click();
       input.value = onDice?.() ?? input.value;
     });
+    // goggles: a strip of round chips; a pick goes on at once (with a try-on bounce)
+    const gName = (id) => GOGGLES.find((g) => g.id === id)?.name ?? 'Classic';
+    const gBox = el('div', 'sp-goggles', `<div class="sp-goggles__head"><span>Goggles</span><b data-gname>${esc(gName(goggles))}</b></div><div class="sp-row sp-goggles__row"><button class="sp-btn sp-btn--small" data-gdice title="Random goggles" aria-label="Random goggles">🎲</button><div class="sp-goggles__strip" role="listbox" aria-label="Goggles"></div></div>`);
+    nameBox.append(gBox);
+    const strip = gBox.querySelector('.sp-goggles__strip');
+    const choose = (id, scroll = true) => {
+      const got = onGoggles?.(id) ?? id;
+      gBox.querySelector('[data-gname]').textContent = gName(got);
+      for (const c of strip.children) {
+        const on = c.dataset.goggles === got;
+        c.setAttribute('aria-selected', String(on));
+        if (on && scroll) c.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      }
+    };
+    for (const g of GOGGLES) {
+      const c = el('button', 'sp-gchip', goggleChip(g.id, 40));
+      c.dataset.goggles = g.id;
+      c.title = g.name;
+      c.setAttribute('role', 'option');
+      c.setAttribute('aria-label', g.name);
+      c.setAttribute('aria-selected', String(g.id === goggles));
+      c.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.game.sound.wake();
+        choose(g.id, false);
+      });
+      strip.append(c);
+    }
+    strip.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        strip.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive: false });
+    gBox.querySelector('[data-gdice]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.game.sound.wake();
+      let id = randomGoggle();
+      const now = strip.querySelector('[aria-selected="true"]')?.dataset.goggles;
+      if (id === now) id = GOGGLES[(GOGGLES.findIndex((g) => g.id === id) + 1) % GOGGLES.length].id;
+      choose(id);
+    });
+    setTimeout(() => strip.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' }), 0);
     const row = el('div', 'sp-col sp-riders');
     for (const id of SELECTABLE) {
       const sp = SPECIES[id];
@@ -267,11 +311,11 @@ export class Menus {
         ${s.error ? `<p class="sp-err">${esc(s.error)}</p>` : ''}${s.busy ? '<p class="sp-note">Connecting…</p>' : ''}
         <div class="sp-row"><button class="sp-btn sp-btn--small" data-back>‹ Back</button></div>`;
     } else {
-      const members = s.members.map((m) => `<span class="sp-member">${faceSvg(m.species, 34)}${esc(m.name)}${m.id === s.host ? ' ★' : ''}${m.id === s.you ? ' (you)' : ''}</span>`).join('');
+      const members = s.members.map((m) => `<span class="sp-member">${faceSvg(m.species, 34)}${esc(m.name)}${m.id === s.host ? ' (host)' : ''}${m.id === s.you ? ' (you)' : ''}</span>`).join('');
       const mtn = MOUNTAINS.find((x) => x.id === s.mountain) ?? MOUNTAINS[0];
       card.innerHTML = `<h2>Your room</h2><p>Share this code:</p><div class="sp-code" data-room>${esc(s.room)}</div>
         <div class="sp-members">${members}</div>
-        <p><b>Mountain:</b> ${esc(mtn.name)} ${'★'.repeat(mtn.difficulty)}</p>
+        <p><b>Mountain:</b> ${esc(mtn.name)} ${'❄'.repeat(mtn.difficulty)}</p>
         ${s.isHost ? `<div class="sp-row">${MOUNTAINS.map((m) => `<button class="sp-btn sp-btn--small${m.id === s.mountain ? ' sp-btn--blue' : ''}" data-m="${m.id}">${esc(m.name)}</button>`).join('')}</div>
         <div class="sp-row"><button class="sp-btn sp-btn--go" data-start>Start the race</button></div>` : '<p class="sp-note">Waiting for the host to start…</p>'}
         ${s.error ? `<p class="sp-err">${esc(s.error)}</p>` : ''}

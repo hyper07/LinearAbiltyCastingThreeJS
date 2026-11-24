@@ -14,7 +14,7 @@
  *            so they overshoot and settle; nothing snaps.
  *
  * Body space: the rider faces +z and stands side-on to the board. In a race
- * the body is turned `bodyYaw` = stance × (π/2 + 0.55) about y (regular:
+ * the body is turned `bodyYaw` = stance × (π/2 + OPEN) about y (regular:
  * left foot forward, chest toward the toe edge, opened 0.55 rad toward the
  * nose — the 3/4 compromise that reads from the chase camera). Angles follow
  * three.js: rotation.y > 0 turns the face toward +x… counter-clockwise from above.
@@ -35,7 +35,7 @@ const N = 16;
 const OMEGA = [34, 26, 20, 20, 16, 16, 13, 16, 15, 15, 15, 15, 20, 22, 18, 14];
 const ZETA = [1, 0.9, 0.9, 0.85, 0.85, 0.85, 0.9, 0.75, 0.55, 0.55, 0.55, 0.55, 0.9, 0.6, 1, 1];
 
-export const OPEN = 0.55; // how far the hips open toward the nose from straight side-on
+export const OPEN = 0.3; // how far the hips open toward the nose from straight side-on (a little: truly sideways, feet across the board)
 export const MAX_LEAN = 0.47; // ~27°
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);

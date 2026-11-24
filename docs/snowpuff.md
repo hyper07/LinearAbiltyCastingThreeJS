@@ -46,12 +46,12 @@ read at a glance — from behind, at speed (`src/snowpuff/riders.js`):
 
 | Rider | Look | Accent |
 | --- | --- | --- |
-| **Pip** the fox (the hero) | Round fuzzy orange, cream muzzle, chest and tail tip, dark paws and ear tips, a huge springy tail | Teal goggles |
-| **Mallow** the bunny | Round fuzzy hot pink, a lighter belly and inner ears, long floppy springy ears | Chunky orange goggles |
+| **Pip** the fox (the hero) | Round fuzzy orange, cream muzzle, chest and tail tip, dark paws and ear tips, a huge springy tail | Teal-framed goggles, stars on the board |
+| **Mallow** the bunny | Round fuzzy hot pink, a lighter-pink belly panel with a little front pocket, long floppy springy ears | White goggles with an amber lens, hearts on the board |
 | **Toffee** the bear | Caramel brown, cream muzzle | Mint scarf |
 | **Mochi** the cat | Blue-grey tabby | Sunny bobble hat |
 | **Pickle** the frog | Lime green | Orange backpack |
-| Peaches the pig, Pebble the penguin | Computer rivals only | Blue goggles, red bobble hat |
+| Peaches the pig, Pebble the penguin | Computer rivals only | Red bobble hat (penguin) |
 
 They are sculpted in code from soft shapes (the Arcademia sculptor,
 `src/arcademia/world/creatures/sculpt.js`) into one smooth skinned body each,
@@ -61,6 +61,42 @@ bead eyes with a catchlight, a stitched mouth and blush. They squash on
 landing, lean into carves, crouch to jump, breathe when idle; ears, tail,
 scarf and pompom swing on springs.
 
+Everyone rides with **goggles down over the eyes**, chunky dark boots in the
+bindings, a truly sideways stance (feet across the board) and a playful
+topsheet picture on the board (stars, hearts, paws, fish, dots, flakes).
+
+### Goggles
+
+On the rider screen a **Goggles** row sits under your name: a scrollable strip
+of round chips and a 🎲. A pick goes straight onto the turntable rider (a head
+shake and a little bounce, a strap-snap sound), is remembered on this device
+(`snowpuff.goggles` in localStorage, wrapped in try/catch) and is worn
+everywhere you appear — the race, the rival panel, the podium and your
+friends' screens online (the id travels with your rider and is checked on
+arrival; anything unknown becomes Classic). Computer rivals wear a random pair.
+All are unlocked.
+
+18 original pairs (`src/snowpuff/goggleList.js` is the list, `render/goggles.js`
+builds them to fit each head, measured from its sculpted shape at eye height):
+Classic (your rider's frame colour, amber mirror lens), Sky mirror, Rainbow,
+Hearts, Stars, Googly eyes (the pupils wobble on bumps and landings), Cat-eye
+(little ears), Aviator (brass, leather strap), Snorkel mask (the tube bobs),
+Swim goggles, 3D glasses (red/blue film), Pixel shades (drop in when you land a
+trick), Hypno spiral (turning), Donuts (frosting and sprinkles), Frog eyes,
+Cyclops visor, LED visor (scrolls your name and WHEE!), Sunflowers.
+
+Ski goggles have a thick rounded frame with a nose notch, a dark foam gasket,
+a curved mirror lens whose warm gradient carries a bright sky streak that
+slides as the head turns, and a black strap round the back of the hood; glasses
+have arms instead. Materials are shared and each pair is a handful of draws.
+The podium winner pushes theirs up onto the forehead (eyes showing) and silly
+ones do their trick. Every pair is drawn once behind the loading card (menu and
+race) so trying them on or a rival's random pick never builds a pipeline
+mid-play.
+
+Snow cannons (snowmaking guns) stand beside every run, blowing soft particle
+plumes away over the slope.
+
 ## The mountains
 
 Data in `src/snowpuff/mountains.js`; each builds its own course
@@ -69,9 +105,9 @@ Add a mountain by adding a record.
 
 | Mountain | Mood | What's on it |
 | --- | --- | --- |
-| **Marshmallow Hill** ★ | Sunny noon | Wide gentle runs, little jumps, hay bales and snowmen, chairlifts crossing and beside the run, a resort village of chalets at the bottom with cheering fans |
-| **Pinecone Ridge** ★★ | Golden hour | A slalom through dense pines, red and blue gates, chairlifts overhead, bigger jumps, a frozen creek with ice patches |
-| **Aurora Peak** ★★★ | Night | Aurora curtains and stars, warm lanterns down the run (real lights near you), steep drops, big kickers, narrow gaps |
+| **Marshmallow Hill** ❄ | Sunny noon | Wide gentle runs, little jumps, hay bales and snowmen, chairlifts crossing and beside the run, a resort village of chalets at the bottom with cheering fans |
+| **Pinecone Ridge** ❄❄ | Golden hour | A slalom through dense pines, red and blue gates, chairlifts overhead, bigger jumps, a frozen creek with ice patches |
+| **Aurora Peak** ❄❄❄ | Night | Aurora curtains and stars, warm lanterns down the run (real lights near you), steep drops, big kickers, narrow gaps |
 
 A course is a winding centre line sampled every metre — straights and eased
 arcs: S-bends, a few **banked berms** (boardercross style), wide sweeping curves

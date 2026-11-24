@@ -3,8 +3,9 @@
  * shapes blended into one soft body, tied to bones) run through the Arcademia
  * sculptor (src/arcademia/world/creatures/sculpt.js — renderer-agnostic
  * geometry), then dressed in TSL plush with shell fur (plush.js), bead eyes,
- * a stitched mouth, blush, their accent (goggles, scarf, bobble hat,
- * backpack) and a snowboard.
+ * a stitched mouth, blush, their accent (scarf, bobble hat, backpack),
+ * goggles worn down over the eyes (goggles.js — one of many, the player's
+ * pick), chunky boots and a snowboard with its own topsheet picture.
  *
  *   const geo = sculptSpecies('fox');            // once per species (cached)
  *   const rider = new RiderModel('fox', { fur: 12 });
@@ -19,6 +20,8 @@ import { compile, sculpt, trace, gradient } from '../../arcademia/world/creature
 import { SPECIES } from '../riders.js';
 import { plushMaterial, furShells, vinylMaterial, knitMaterial } from './plush.js';
 import { PoseRig, J, STANCE } from './poseRig.js';
+import { buildGoggles } from './goggles.js';
+import { cleanGoggle } from '../goggleList.js';
 
 /* ---------------------------------------------------------------- recipe helpers */
 
@@ -97,7 +100,8 @@ const RECIPES = {
         ...both(E([-0.22, 0.6, 0.25], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.02 }))
       ],
       face: { eyeX: 0.125, eyeY: 0.7, eyeR: 0.04, mouthY: 0.555 },
-      accent: 'goggles'
+      accent: null,
+      topsheet: 'stars'
     };
   },
   bunny(sp) {
@@ -116,10 +120,15 @@ const RECIPES = {
         ...b.paint,
         ...both(E([-0.165, 1.1, 0.02], [0.042, 0.18, 0.04], { col: '#ffc2dc', rot: [0, 0, -0.18] })),
         ...both(E([-0.2, 0.59, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.02 })),
-        E([0, 0.615, 0.3], [0.03, 0.02, 0.03], { col: '#e0447e', soft: 0.004 })
+        E([0, 0.615, 0.3], [0.03, 0.02, 0.03], { col: '#e0447e', soft: 0.004 }),
+        // a lighter-pink belly panel with a little front pocket
+        E([0, 0.25, 0.15], [0.15, 0.17, 0.1], { col: sp.light, soft: 0.008 }),
+        E([0, 0.2, 0.19], [0.085, 0.05, 0.05], { col: '#ffb3d4', soft: 0.003 })
       ],
       face: { eyeX: 0.12, eyeY: 0.66, eyeR: 0.04, mouthY: 0.565 },
-      accent: 'goggles'
+      accent: null,
+      pocket: [0, 0.2, 0.19],
+      topsheet: 'hearts'
     };
   },
   bear(sp) {
@@ -140,7 +149,8 @@ const RECIPES = {
         ...both(E([-0.21, 0.6, 0.25], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.02 }))
       ],
       face: { eyeX: 0.13, eyeY: 0.69, eyeR: 0.04, mouthY: 0.565 },
-      accent: 'scarf'
+      accent: 'scarf',
+      topsheet: 'paws'
     };
   },
   cat(sp) {
@@ -165,7 +175,8 @@ const RECIPES = {
         ...both(E([-0.21, 0.59, 0.24], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.02 }))
       ],
       face: { eyeX: 0.13, eyeY: 0.67, eyeR: 0.04, mouthY: 0.57 },
-      accent: 'beanie'
+      accent: 'beanie',
+      topsheet: 'fish'
     };
   },
   frog(sp) {
@@ -183,7 +194,8 @@ const RECIPES = {
         ...both(E([-0.24, 0.6, 0.23], [0.06, 0.035, 0.04], { col: BLUSH, soft: 0.02 }))
       ],
       face: { eyeX: 0.155, eyeY: 0.875, eyeR: 0.04, mouthY: 0.58, wide: true, eyeZ: 0.24 },
-      accent: 'backpack'
+      accent: 'backpack',
+      topsheet: 'dots'
     };
   },
   pig(sp) {
@@ -203,7 +215,8 @@ const RECIPES = {
         ...both(E([-0.22, 0.6, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.02 }))
       ],
       face: { eyeX: 0.13, eyeY: 0.7, eyeR: 0.038, mouthY: 0.52 },
-      accent: 'goggles'
+      accent: null,
+      topsheet: 'hearts'
     };
   },
   penguin(sp) {
@@ -221,7 +234,8 @@ const RECIPES = {
         ...both(E([-0.21, 0.58, 0.24], [0.05, 0.032, 0.04], { col: BLUSH, soft: 0.02 }))
       ],
       face: { eyeX: 0.12, eyeY: 0.68, eyeR: 0.038, mouthY: null },
-      accent: 'beanie'
+      accent: 'beanie',
+      topsheet: 'flakes'
     };
   }
 };
@@ -277,9 +291,9 @@ const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 export class RiderModel {
   /**
    * @param {string} species
-   * @param {{ fur?: number, res?: number, shadow?: boolean }} o
+   * @param {{ fur?: number, res?: number, shadow?: boolean, goggles?: string, label?: string }} o
    */
-  constructor(species, { fur = 0, res = 74, shadow = true } = {}) {
+  constructor(species, { fur = 0, res = 74, shadow = true, goggles = 'classic', label = '' } = {}) {
     this.species = species;
     const sp = SPECIES[species];
     this.sp = sp;
@@ -304,8 +318,13 @@ export class RiderModel {
     base.scale.set(1.005, 0.6, 1.02);
     base.position.y = -0.008;
     this.board.add(deck, stripe, base);
+    // the topsheet picture: a few shapes printed along the deck (one draw)
+    const art = topsheetGeometry(recipe.topsheet);
+    if (art) this.board.add(new THREE.Mesh(art, vinylMaterial(sp.boardArt ?? sp.boardTrim, { roughness: 0.32 })));
+    // bindings: a base plate and a high-back each side
+    const bindM = vinylMaterial('#2b2f3a', { roughness: 0.5, clearcoat: 0.2 });
     for (const sx of [-0.2, 0.2]) {
-      const bind = new THREE.Mesh(sphere(), vinylMaterial('#2b2f3a', { roughness: 0.5, clearcoat: 0.2 }));
+      const bind = new THREE.Mesh(sphere(), bindM);
       bind.scale.set(0.09, 0.035, 0.14);
       bind.position.set(sx, 0.035, 0);
       this.board.add(bind);
@@ -348,13 +367,19 @@ export class RiderModel {
     this.mesh = mesh;
     this.body.add(mesh);
     this.wind = uniform(new THREE.Vector3());
-    this.furLen = fur > 0 ? (species === 'penguin' ? 0.014 : 0.03) : 0;
+    // long shaggy fur (shorter on the penguin's sleek feathers)
+    this.furLen = fur > 0 ? (species === 'penguin' ? 0.014 : 0.04) : 0;
     if (fur > 0) {
       this.fur = furShells(mesh, { color: sp.color, count: fur, length: this.furLen, wind: this.wind });
       this.body.add(this.fur);
     }
     this.addFace(model, recipe.face, byName.get('head'));
     this.addAccent(recipe.accent, byName);
+    this.addBoots(byName);
+    if (recipe.pocket) this.addPocket(recipe.pocket, byName.get('chest'));
+    this.fit = this.measureFit(model.sdf, recipe);
+    this.label = label;
+    this.setGoggles(goggles);
     // Springs: ears, accent tail, pompom.
     this.spring = { earA: 0, earV: 0, earB: 0, earBV: 0, tail: 0, tailV: 0, bob: 0, bobV: 0 };
     this.t = Math.random() * 10;
@@ -408,32 +433,103 @@ export class RiderModel {
     }
   }
 
+  /**
+   * Where goggles sit on this head (head-bone space): the head's ellipse at
+   * eye height, measured from the sculpted shape, plus the eyes' place.
+   */
+  measureFit(sdf, recipe) {
+    const f = recipe.face;
+    const hp = this.rest.get('head');
+    const hc = recipe.parts[0].c; // the head shape's centre
+    const y = f.eyeY;
+    const side = trace(sdf, [1.5, y, hc[2]], [-1, 0, 0], 3);
+    const back = trace(sdf, [0, y, -1.5], [0, 0, 1], 3);
+    const front = trace(sdf, [f.eyeX, y, 1.5], [0, 0, -1], 3);
+    const pad = this.furLen + 0.008;
+    const rx = (side ? side[0] : 0.34) + pad;
+    const cz = hc[2];
+    const zf = (front ? front[2] : 0.28) - cz;
+    const k = Math.sqrt(Math.max(0.2, 1 - (f.eyeX / rx) ** 2));
+    const rz = zf / k + pad;
+    const rzb = (back ? cz - back[2] : rz) + pad;
+    return { cy: y - hp.y, cz: cz - hp.z, rx, rz, rzb, ex: f.eyeX, er: f.eyeR, hy: hc[1] - hp.y };
+  }
+
+  /** Put on a pair of goggles (any id from goggleList.js; unknown ones are Classic). */
+  setGoggles(id) {
+    id = cleanGoggle(id);
+    if (this.goggles?.id === id) return;
+    const was = this.goggles;
+    if (was) {
+      was.group.removeFromParent();
+      was.group.traverse((o) => o.isMesh && o.geometry.dispose());
+    }
+    this.goggles = buildGoggles(id, this.fit, { frame: this.sp.goggleFrame ?? this.sp.accent, text: this.label });
+    this.bones.get('head').add(this.goggles.group);
+    if (was) this.goggles.setUp(was.upGoal ?? 0, true);
+  }
+
+  /** Goggles down (0) over the eyes, or pushed up (1) onto the forehead. */
+  gogglesUp(k = 1) {
+    this.goggles?.setUp(k);
+  }
+
+  /** A try-on: a happy head shake and a little bounce (the picker). */
+  tryOn() {
+    this.react('tryon', 0.8);
+    this.goggles?.flourish();
+  }
+
+  /** A trick landed: silly goggles do their thing (the pixel shades drop in). */
+  trickLanded() {
+    this.goggles?.trick();
+  }
+
+  /** Chunky dark boots over the feet, in the bindings. */
+  addBoots(bones) {
+    const m = vinylMaterial('#2b2f3a', { roughness: 0.55, clearcoat: 0.25 });
+    const sole = vinylMaterial('#f4f1ea', { roughness: 0.7, clearcoat: 0 });
+    const pad = this.furLen;
+    for (const [name, sx] of [['legL', -1], ['legR', 1]]) {
+      const b = bones.get(name);
+      const lp = this.rest.get(name);
+      const boot = new THREE.Group();
+      boot.position.set(sx * 0.11 - lp.x, 0.055 - lp.y, 0.05 - lp.z);
+      const shell = new THREE.Mesh(sphere(), m);
+      shell.scale.set(0.098 + pad, 0.07 + pad * 0.6, 0.128 + pad);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.075 + pad, 0.088 + pad, 0.07, 18), m);
+      cuff.position.set(0, 0.06, -0.015);
+      const bottom = new THREE.Mesh(sphere(), sole);
+      bottom.scale.set(0.1 + pad, 0.026, 0.132 + pad);
+      bottom.position.y = -0.04;
+      const lace = new THREE.Mesh(sphere(), vinylMaterial(this.sp.accent, { roughness: 0.45 }));
+      lace.scale.set(0.05, 0.022, 0.05);
+      lace.position.set(0, 0.045 + pad * 0.6, 0.06);
+      boot.add(shell, cuff, bottom, lace);
+      b.add(boot);
+    }
+  }
+
+  /** A little stitched front pocket (Mallow's snowsuit). */
+  addPocket(at, chestB) {
+    const cp = this.rest.get('chest');
+    const g = new THREE.Group();
+    g.position.set(at[0] - cp.x, at[1] - cp.y + 0.035, at[2] - cp.z + this.furLen + 0.015);
+    const flap = new THREE.Mesh(sphere(), vinylMaterial('#ffa0c8', { roughness: 0.7, clearcoat: 0 }));
+    flap.scale.set(0.085, 0.022, 0.025);
+    const button = new THREE.Mesh(lowSphere(), vinylMaterial('#ffffff', { roughness: 0.3 }));
+    button.scale.setScalar(0.013);
+    button.position.set(0, -0.006, 0.022);
+    g.add(flap, button);
+    chestB.add(g);
+  }
+
   addAccent(kind, bones) {
     const sp = this.sp;
     const headB = bones.get('head'), chestB = bones.get('chest');
     const hp = this.rest.get('head'), cp = this.rest.get('chest');
     this.extras = {};
-    if (kind === 'goggles') {
-      const g = new THREE.Group();
-      g.position.set(0, 0.79 - hp.y, 0.02 - hp.z);
-      g.rotation.x = -0.32;
-      const strap = new THREE.Mesh(new THREE.TorusGeometry(1, 0.11, 10, 48), vinylMaterial(sp.accent, { roughness: 0.55, clearcoat: 0.2 }));
-      strap.scale.set(0.335, 0.31, 0.25);
-      strap.rotation.x = Math.PI / 2;
-      g.add(strap);
-      const frameM = vinylMaterial(sp.accent, { roughness: 0.3 });
-      const lensM = new THREE.MeshPhysicalNodeMaterial({ color: new THREE.Color(sp.accent).lerp(new THREE.Color('#ffffff'), 0.35), roughness: 0.05, metalness: 0.6, clearcoat: 1, clearcoatRoughness: 0.02, iridescence: 0.6 });
-      for (const s of [-1, 1]) {
-        const frame = new THREE.Mesh(sphere(), frameM);
-        frame.scale.set(0.1, 0.07, 0.06);
-        frame.position.set(s * 0.1, 0, 0.275);
-        const lens = new THREE.Mesh(sphere(), lensM);
-        lens.scale.set(0.085, 0.056, 0.05);
-        lens.position.set(s * 0.1, 0, 0.3);
-        g.add(frame, lens);
-      }
-      headB.add(g);
-    } else if (kind === 'scarf') {
+    if (kind === 'scarf') {
       const m = knitMaterial(sp.accent);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.32, 12, 40), m);
       ring.scale.set(0.27, 0.26, 0.23);
@@ -560,6 +656,11 @@ export class RiderModel {
       } else if (this.reaction === 'laugh') {
         this.squash.position.y = Math.abs(Math.sin(t * 14)) * 0.08 * k;
         B.get('head').rotation.x -= 0.2 * k;
+      } else if (this.reaction === 'tryon') {
+        // goggles on: a quick head shake, then a bounce
+        B.get('head').rotation.y += Math.sin(t * 26) * 0.3 * k * k;
+        B.get('head').rotation.x -= 0.12 * k;
+        this.squash.position.y = Math.abs(Math.sin(this.reactT * 10)) * 0.07 * k;
       } else if (this.reaction === 'wave') {
         B.get('armR').rotation.set(0, 0, 2.6 + Math.sin(t * 16) * 0.5 * k);
       }
@@ -614,6 +715,7 @@ export class RiderModel {
       sp.bob += sp.bobV * dt;
       this.extras.pom.rotation.z = sp.bob * 0.6 + w * 0.3;
     }
+    this.goggles?.update(dt, { jolt: st.landed ? Math.min(1.5, 0.3 + st.landed * 0.1) : 0, yawRate: st.yawRate ?? 0, wind: w });
     if (this.extras.pack) this.extras.pack.position.y = 0.32 - 0.33 + Math.sin(t * 6) * 0.004 - this.squashT * 0.02;
     // blink
     this.blink -= dt;
@@ -641,3 +743,90 @@ function starGeometry() {
   return G.star;
 }
 export { starGeometry };
+
+/** The topsheet pictures, in board space (x along the board, y up): a few flat shapes in a row. */
+const TOPSHEET = {
+  stars: () => [0.5, 0.36, 0.26].map((r, i) => starShape(r)),
+  hearts: () => [0, 1, 2].map(() => heartShape()),
+  paws: () => [0, 1, 2].map(() => pawShape()),
+  fish: () => [0, 1, 2].map(() => fishShape()),
+  dots: () => [0, 1, 2].map(() => new THREE.Shape().absarc(0, 0, 0.5, 0, Math.PI * 2)),
+  flakes: () => [0, 1, 2].map(() => starShape(0.2, 6))
+};
+
+function topsheetGeometry(kind) {
+  if (!kind || !TOPSHEET[kind]) return null;
+  const key = `top-${kind}`;
+  if (G[key]) return G[key];
+  const shapes = TOPSHEET[kind]();
+  // nose, middle (between the feet), tail; sizes grow toward the nose
+  const at = [[0.37, 0.085, 0.35], [0, 0.07, 0], [-0.37, 0.06, -0.25]];
+  const parts = shapes.map((sh, i) => {
+    const g = new THREE.ShapeGeometry(sh, 8);
+    const [x, sc, rot] = at[i];
+    g.scale(sc, sc, 1);
+    g.rotateZ(rot);
+    g.rotateX(-Math.PI / 2);
+    const u = Math.abs(x) / 0.56;
+    g.translate(x, 0.0145 + (1 - u * u) * 0.006 + 0.0012, 0);
+    return g;
+  });
+  const merged = new THREE.BufferGeometry();
+  const pos = [];
+  for (const g of parts) {
+    const n = g.index ? g.toNonIndexed() : g;
+    pos.push(...n.attributes.position.array);
+  }
+  merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  merged.computeVertexNormals();
+  G[key] = merged;
+  return merged;
+}
+
+function starShape(inner = 0.45, points = 5) {
+  const s = new THREE.Shape();
+  for (let i = 0; i < points * 2; i++) {
+    const a = (i / (points * 2)) * Math.PI * 2 + Math.PI / 2;
+    const r = i % 2 ? inner : 1;
+    if (i === 0) s.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else s.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  return s;
+}
+
+function heartShape() {
+  const s = new THREE.Shape();
+  s.moveTo(0, -0.9);
+  s.bezierCurveTo(-0.3, -0.55, -1.05, -0.15, -0.95, 0.35);
+  s.bezierCurveTo(-0.85, 0.85, -0.2, 0.9, 0, 0.45);
+  s.bezierCurveTo(0.2, 0.9, 0.85, 0.85, 0.95, 0.35);
+  s.bezierCurveTo(1.05, -0.15, 0.3, -0.55, 0, -0.9);
+  return s;
+}
+
+function pawShape() {
+  // a pad and four toes, as one shape with the toes as separate islands is not possible — use a scalloped pad
+  const s = new THREE.Shape();
+  const n = 40;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const toe = Math.max(0, Math.sin(a)) ** 3 * (0.35 + 0.25 * Math.cos(a * 4) ** 2);
+    const r = 0.6 + toe;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.85 - 0.1;
+    if (i === 0) s.moveTo(x, y);
+    else s.lineTo(x, y);
+  }
+  return s;
+}
+
+function fishShape() {
+  const s = new THREE.Shape();
+  s.moveTo(-1, 0);
+  s.quadraticCurveTo(-0.3, 0.65, 0.45, 0.05);
+  s.lineTo(1, 0.45);
+  s.lineTo(0.85, 0);
+  s.lineTo(1, -0.45);
+  s.lineTo(0.45, -0.05);
+  s.quadraticCurveTo(-0.3, -0.65, -1, 0);
+  return s;
+}

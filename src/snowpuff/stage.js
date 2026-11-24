@@ -130,6 +130,15 @@ export class Stage {
     this.picked = id;
   }
 
+  /** Your goggles on every rider on the turntable (`tryOn`: the chosen one tries them on with a little bounce). */
+  setGoggles(id, tryOn = false) {
+    this.goggles = id;
+    for (const [rid, e] of this.turnRiders) {
+      e.m.setGoggles(id);
+      if (tryOn && rid === this.picked) e.m.tryOn();
+    }
+  }
+
   /* ---------------------------------------------------------------- dioramas */
 
   async buildDioramas() {
@@ -274,8 +283,13 @@ export class Stage {
     for (const m of this.podiumRiders) m.dispose();
     this.podiumRiders = [];
     order.slice(0, 6).forEach((r, i) => {
-      const m = new RiderModel(r.species, { fur: i < 3 ? this.fur : 0 });
+      const m = new RiderModel(r.species, { fur: i < 3 ? this.fur : 0, goggles: r.goggles, label: r.name });
       m.body.rotation.y = 0;
+      // the winner pushes their goggles up to celebrate (and silly ones do their trick)
+      if (i === 0) {
+        m.gogglesUp(1);
+        m.winner = true;
+      }
       m.board.rotation.y = 0;
       const p = this.spots[i];
       m.root.position.copy(p);
@@ -393,7 +407,13 @@ export class Stage {
       } else d.mtn.rotation.y += dt * 0.05;
       d.g.scale.setScalar(1 + d.lift * 0.25);
     }
-    for (const m of this.podiumRiders) m.pose(dt, (m.st ??= { menu: true, cheer: m.cheer }));
+    for (const m of this.podiumRiders) {
+      m.pose(dt, (m.st ??= { menu: true, cheer: m.cheer }));
+      if (m.winner && (m.flourishT = (m.flourishT ?? 0.6) - dt) < 0) {
+        m.flourishT = 2.2;
+        m.goggles?.flourish();
+      }
+    }
     if (this.conf && this.confT > 0) {
       this.confT -= dt;
       const p = this.confPos, v = this.confVel;

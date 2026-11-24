@@ -4,9 +4,9 @@
  * interpolation buffer that glides other riders between their 15 Hz states.
  * Tested in tests/unit/snowpuff.test.mjs; the socket side is net.js.
  *
- *   lobby   'sp-hi'    guest → host   { name, species }
- *           'sp-lobby' host → all     { mountain, members: [{ id, name, species }] }
- *   race    'sp-go'    host → all     { mountain, slots: [{ slot, id, name, species, human, kind }], at }
+ *   lobby   'sp-hi'    guest → host   { name, species, goggles }
+ *           'sp-lobby' host → all     { mountain, members: [{ id, name, species, goggles }] }
+ *   race    'sp-go'    host → all     { mountain, slots: [{ slot, id, name, species, goggles, human, kind }], at }
  *           'sp-st'    any → all      { k: packed rider state }   ~15 Hz (the host also sends 'sp-ai')
  *           'sp-ai'    host → all     { k: [packed, …] }          the AI rivals, ~15 Hz
  *           'sp-th'    thrower → all  { p: projectile }           a throw (everyone draws it)
@@ -17,6 +17,7 @@
  */
 
 import { cleanName } from './names.js';
+import { cleanGoggle, randomGoggle } from './goggleList.js';
 
 export const MSG = Object.freeze({
   hi: 'sp-hi',
@@ -77,21 +78,21 @@ export function unpackThrow(a) {
 /** Clean up a lobby member record from the wire. */
 export function cleanMember(m, species) {
   const name = cleanName(m?.name, 'Rider');
-  return { id: String(m?.id ?? ''), name, species: species.includes(m?.species) ? m.species : species[0] };
+  return { id: String(m?.id ?? ''), name, species: species.includes(m?.species) ? m.species : species[0], goggles: cleanGoggle(m?.goggles) };
 }
 
 /**
  * Slots for a race: the humans first (host = slot 0), then AI rivals for the
  * empty places (up to `total`), each with a species no human took where possible.
  */
-export function assignSlots(members, total, species, aiKinds = ['careful', 'reckless', 'thrower']) {
-  const slots = members.slice(0, 4).map((m, i) => ({ slot: i, id: m.id, name: m.name, species: m.species, human: true, kind: null }));
+export function assignSlots(members, total, species, aiKinds = ['careful', 'reckless', 'thrower'], rand = Math.random) {
+  const slots = members.slice(0, 4).map((m, i) => ({ slot: i, id: m.id, name: m.name, species: m.species, goggles: cleanGoggle(m.goggles), human: true, kind: null }));
   const taken = new Set(slots.map((s) => s.species));
   const free = species.filter((s) => !taken.has(s));
   let i = 0;
   while (slots.length < total) {
     const sp = free.length ? free.shift() : species[(i + slots.length) % species.length];
-    slots.push({ slot: slots.length, id: `ai${slots.length}`, name: null, species: sp, human: false, kind: aiKinds[i % aiKinds.length] });
+    slots.push({ slot: slots.length, id: `ai${slots.length}`, name: null, species: sp, goggles: randomGoggle(rand), human: false, kind: aiKinds[i % aiKinds.length] });
     i++;
   }
   return slots;

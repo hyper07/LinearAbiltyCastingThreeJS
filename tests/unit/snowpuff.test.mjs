@@ -11,6 +11,8 @@ import { CONTROLS } from '../../src/snowpuff/controls.js';
 import { collisions, codesFor } from '../../src/shared/helpPanel.js';
 import { PACKS } from '../../src/snowpuff/credits.js';
 import { POLYFORK } from '../../src/snowpuff/assets.js';
+import { GOGGLES, GOGGLE_IDS, DEFAULT_GOGGLES, cleanGoggle, randomGoggle, loadGoggles, saveGoggles, goggleChip } from '../../src/snowpuff/goggleList.js';
+import { buildGoggles, ROUND_FIT, goggleRack } from '../../src/snowpuff/render/goggles.js';
 
 const DT = 1 / 60;
 const course = buildCourse(mountainById('marshmallow'));
@@ -540,3 +542,64 @@ test('pose rig: the head leads the board on a steer change; arms go to the right
   for (let i = 0; i < 300; i++) assert.equal(wild.update(i % 7 ? dt : 0, { speed: 30, edge: Math.sin(i), steerIn: Math.sign(Math.sin(i / 5)), air: i % 50 < 20, skid: (i % 13) / 13, landed: i % 50 === 20 ? 5 : 0, menu: i > 280 }), out);
   for (const x of out) assert.ok(Number.isFinite(x));
 });
+
+test('goggles: at least 16, unique ids and names, every one builds, pushes up and reacts', () => {
+  assert.ok(GOGGLES.length >= 16);
+  assert.equal(new Set(GOGGLE_IDS).size, GOGGLES.length);
+  assert.equal(new Set(GOGGLES.map((g) => g.name)).size, GOGGLES.length);
+  for (const id of GOGGLE_IDS) {
+    const g = buildGoggles(id, ROUND_FIT, { text: 'Pip' });
+    assert.equal(g.id, id);
+    let meshes = 0;
+    g.group.traverse((o) => {
+      if (o.isMesh) {
+        meshes++;
+        assert.ok(o.geometry.attributes.position.count > 0, `${id}: empty mesh`);
+      }
+    });
+    assert.ok(meshes >= 2 && meshes <= 12, `${id}: ${meshes} meshes (keep each pair a handful of draws)`);
+    const rest = g.group.rotation.x;
+    g.setUp(1, true);
+    g.update(1 / 60, { jolt: 1, yawRate: 2 });
+    assert.ok(g.group.rotation.x < rest - 0.2, `${id}: pushes up onto the forehead`);
+    g.flourish();
+    g.trick();
+    for (let i = 0; i < 120; i++) g.update(1 / 60, {});
+    g.group.traverse((o) => assert.ok(Number.isFinite(o.position.x + o.position.y + o.position.z + o.rotation.x), `${id}: stays finite`));
+    assert.ok(goggleChip(id).startsWith('<svg'));
+  }
+  assert.equal(goggleRack().children.length, GOGGLE_IDS.length);
+});
+
+test('goggles: unknown ids fall back to Classic; the choice is remembered (and storage failures are harmless)', () => {
+  assert.equal(DEFAULT_GOGGLES, 'classic');
+  for (const bad of [undefined, null, '', 'nope', 42, {}, '__proto__', 'CLASSIC']) assert.equal(cleanGoggle(bad), 'classic');
+  assert.equal(cleanGoggle('googly'), 'googly');
+  assert.equal(buildGoggles('not-a-goggle', ROUND_FIT).id, 'classic');
+  const mem = new Map();
+  const storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)) };
+  assert.equal(loadGoggles(storage), 'classic');
+  assert.ok(saveGoggles('donut', storage));
+  assert.equal(loadGoggles(storage), 'donut');
+  mem.set('snowpuff.goggles', 'evil<script>');
+  assert.equal(loadGoggles(storage), 'classic');
+  const broken = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
+  assert.equal(loadGoggles(broken), 'classic');
+  assert.equal(saveGoggles('led', broken), false);
+  const seen = new Set();
+  let k = 0;
+  for (let i = 0; i < 400; i++) seen.add(randomGoggle(() => ((k = (k * 9301 + 49297) % 233280) / 233280)));
+  assert.equal(seen.size, GOGGLE_IDS.length);
+  for (const g of seen) assert.ok(GOGGLE_IDS.includes(g));
+});
+
+test('goggles online: members and slots carry a goggle id, cleaned on the way in; AI rivals get one too', () => {
+  assert.equal(cleanMember({ id: 1, name: 'Pip', species: 'fox', goggles: 'hypno' }, ALL_SPECIES).goggles, 'hypno');
+  assert.equal(cleanMember({ id: 1, name: 'Pip', species: 'fox', goggles: 'x'.repeat(500) }, ALL_SPECIES).goggles, 'classic');
+  assert.equal(cleanMember({ id: 1, name: 'Pip', species: 'fox' }, ALL_SPECIES).goggles, 'classic');
+  const slots = assignSlots([{ id: '1', name: 'A', species: 'fox', goggles: 'frogeyes' }, { id: '2', name: 'B', species: 'cat', goggles: 'bogus' }], 5, ALL_SPECIES);
+  assert.equal(slots[0].goggles, 'frogeyes');
+  assert.equal(slots[1].goggles, 'classic');
+  for (const sl of slots) assert.ok(GOGGLE_IDS.includes(sl.goggles));
+});
+

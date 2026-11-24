@@ -11,9 +11,9 @@ export const SPECIES = {
     accentName: 'Teal goggles', selectable: true
   },
   bunny: {
-    name: 'Mallow', animal: 'bunny', color: '#ff6fb4', light: '#ffd3e6', accent: '#ff8c1a', board: '#ffffff', boardTrim: '#ff6fb4',
-    blurb: 'A hot-pink puffball with long floppy ears and chunky orange goggles. Never stops bouncing.',
-    accentName: 'Orange goggles', selectable: true
+    name: 'Mallow', animal: 'bunny', color: '#ff6fb4', light: '#ffd3e6', accent: '#ff8c1a', board: '#ffffff', boardTrim: '#ff6fb4', goggleFrame: '#ffffff',
+    blurb: 'A hot-pink puffball with long floppy ears, a little front pocket and white goggles with an amber lens. Never stops bouncing.',
+    accentName: 'White goggles', selectable: true
   },
   bear: {
     name: 'Toffee', animal: 'bear', color: '#a86d3f', light: '#f3dcb8', accent: '#3fd0b0', board: '#2f4a8a', boardTrim: '#ffd166',
