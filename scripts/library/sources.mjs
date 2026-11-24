@@ -341,7 +341,9 @@ const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027'
   // Gangnam Jarani's red-brick villas close up.
   'Bricks105',
   // Gangnam Jarani's walls near the course: red villa brick, grey and beige granite panels, white tile, render.
-  'Bricks101', 'Granite002A', 'Granite001A', 'Tiles107', 'Tiles133A', 'Plaster001'];
+  'Bricks101', 'Granite002A', 'Granite001A', 'Tiles107', 'Tiles133A', 'Plaster001',
+  // Gangnam Jarani's pavements: brick paving blocks.
+  'PavingStones152'];
 // (Kithvale's painted ground uses Grass004, Ground068, Ground106, PavingStones141, Rock051 and Moss002, all above.)
 
 /** polyfork models a game needs (CC BY 4.0, credited in the game), fetched by id from polyfork's CDN. */

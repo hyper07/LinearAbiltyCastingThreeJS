@@ -12,6 +12,7 @@ import { ComicFx } from './comic.js';
 import { Golmok } from './golmok.js';
 import { Facades } from './facades.js';
 import { raceSky, TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
+import { WetFx } from './wetfx.js';
 import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, resolveBump } from './pack.js';
 
 /**
@@ -443,6 +444,7 @@ export class Race {
     this.boxes = new ItemBoxes(this.g, course);
     this.golmok = new Golmok(this.g, course);
     this.facades = new Facades(this.g, course);
+    this.wet = new WetFx(this.g);
     this._decor();
     this.phase = 'grid';
     this.count = 3.99;
@@ -690,6 +692,8 @@ export class Race {
     this.golmok?.update(dt);
     this.facades?.update();
     this.fx?.update(rawDt, this.g.camera);
+    this._wetLights();
+    this.wet?.update(dt);
     this._hudFrame();
   }
 
@@ -901,6 +905,47 @@ export class Race {
     if (r.tailwind > 0 && Math.random() < dt * 14) this.fx?.streak({ x: s.x, y: r.y + 0.6 + Math.random() * 1.0, z: s.z }, s.heading);
     if (s.skid > 0.25 && s.v > 3 && Math.random() < dt * 20) this.fx?.dust({ x: s.x + Math.sin(s.heading) * 0.5, y: r.y, z: s.z + Math.cos(s.heading) * 0.5 }, 1);
     this.splash?.(r, dt);
+  }
+
+  /** On a wet road: spray off the back wheel. */
+  splash(r) {
+    const s = r.s;
+    if (r.mode !== 'ride' || (s.air ?? 0) > 0.05) return;
+    this.wet?.spray(s.x + Math.sin(s.heading) * 0.45, r.y, s.z + Math.cos(s.heading) * 0.45, s.travel ?? s.heading, Math.abs(s.v), 1);
+  }
+
+  /** The lights a wet road mirrors: every scooter's LEDs, and the lamps of the traffic near you (lit at night and in the rain). */
+  _wetLights() {
+    const fx = this.wet;
+    if (!fx || (this.g.weather?.level.wet ?? 0) < 0.05) return;
+    const night = this.g.uniforms?.uNight.value ?? 0;
+    const cam = this.g.camera.position;
+    for (const r of this.racers) {
+      if (r.left || r.mode !== 'ride') continue;
+      const s = r.s;
+      const fx2 = -Math.sin(s.heading);
+      const fz2 = -Math.cos(s.heading);
+      fx.light(s.x + fx2 * 0.5, r.y + 0.55, s.z + fz2 * 0.5, '#f2f6ff', 0.55 + night * 0.5);
+      fx.light(s.x - fx2 * 0.5, r.y + 0.22, s.z - fz2 * 0.5, '#ff2a1a', s.braking ? 1 : 0.35);
+    }
+    for (const v of this.traffic?.vehicles ?? []) {
+      const b = v.box;
+      if (Math.hypot(b.x - cam.x, b.z - cam.z) > 80) continue;
+      const fx2 = -Math.sin(b.heading);
+      const fz2 = -Math.cos(b.heading);
+      const rx = Math.cos(b.heading);
+      const rz = -Math.sin(b.heading);
+      const hw = b.halfWidth - 0.3;
+      const ly = v.y + (v.kind === 'bus' ? 0.85 : 0.7);
+      for (const s of [-1, 1]) {
+        if (v.kind !== 'scooter') {
+          fx.light(b.x + fx2 * b.halfLength + rx * hw * s, ly, b.z + fz2 * b.halfLength + rz * hw * s, '#fff1d6', 0.9);
+          fx.light(b.x - fx2 * b.halfLength + rx * hw * s, ly + 0.1, b.z - fz2 * b.halfLength + rz * hw * s, '#ff2414', v.braking ? 1.1 : 0.45);
+        } else if (s > 0) fx.light(b.x + fx2 * 0.8, v.y + 0.9, b.z + fz2 * 0.8, '#fff1d6', 0.6);
+      }
+      // and the spray off their tyres
+      if (v.speed > 3 && Math.hypot(b.x - cam.x, b.z - cam.z) < 45) for (const s of [-1, 1]) fx.spray(b.x - fx2 * (b.halfLength - 0.7) + rx * hw * s, v.y, b.z - fz2 * (b.halfLength - 0.7) + rz * hw * s, b.heading, v.speed, v.kind === 'bus' ? 2.2 : v.kind === 'scooter' ? 0.8 : 1.6);
+    }
   }
 
   /** What the wheels are on: paving on a pavement or a market lane, an alley's concrete, worn asphalt. */
@@ -1543,7 +1588,7 @@ export class Race {
     this.racers = [];
     for (const f of this.fans ?? []) f.remove();
     this.fans = [];
-    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx']) {
+    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'wet']) {
       this[k]?.dispose();
       this[k] = null;
     }

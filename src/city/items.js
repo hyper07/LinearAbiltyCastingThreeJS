@@ -1,10 +1,13 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { isSmall } from './course.js';
+import { laneBand } from './pack.js';
 
 /**
- * Item boxes for Gangnam Jarani: bouncing picture stickers along the course
- * (rows of them across the street every couple of hundred metres, one in an
- * alley); ride through one to fill an empty slot, and use it with 1, 2 or 3.
+ * Item boxes for Gangnam Jarani: spinning, glassy "?" boxes floating over the
+ * road in rows across the lanes the riders use, every couple of hundred
+ * metres (one or two in an alley, staggered row to row); ride through one to
+ * fill an empty slot, and use it with 1, 2 or 3.
  * What you get depends on where you are: the further back, the better.
  *
  *   battery pack — the boost gauge full again
@@ -37,20 +40,32 @@ export function rollItem(rank, n, random = Math.random) {
   return ITEM_ORDER.at(-1);
 }
 
-/** Where the boxes go on a course: a row across the street every ~220 m (from 80 m in), one in a narrow street. */
+/**
+ * Where the boxes go on a course: a row every ~`every` m (from 80 m in), spread
+ * evenly across the band of the street the riders keep to (pack.js laneBand),
+ * at least 2.2 m apart; every other row shifted half a gap, so they don't line up.
+ */
 export function boxSpots(course, every = 220) {
   const out = [];
   const pts = course.points;
   const n = pts.length;
-  for (let along = 80; along < course.length - 40; along += every) {
+  let row = 0;
+  for (let along = 80; along < course.length - 40; along += every, row++) {
     let i = 0;
     while (i < n - 1 && course.s[i] < along) i++;
     const p = pts[i];
     const q = pts[(i + 1) % n];
     const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
     const w = p[2] ?? 6;
-    const offs = isSmall(p[3] ?? 4) || w < 5 ? [0] : [-1.7, 0, 1.7];
-    for (const o of offs) out.push({ x: p[0] + Math.cos(hd) * o, z: p[1] - Math.sin(hd) * o, i });
+    const band = laneBand(w, isSmall(p[3] ?? 4) || w < 5, true);
+    const span = Math.max(0, band.hi - band.lo - 0.6);
+    const count = Math.max(1, Math.min(4, Math.floor(span / 2.2) + 1));
+    const gap = count > 1 ? span / (count - 1) : 0;
+    const shift = count > 1 && row % 2 ? gap * 0.25 : 0;
+    for (let k = 0; k < count; k++) {
+      const o = count > 1 ? band.lo + 0.3 + k * gap + shift - (k === count - 1 ? shift * 2 : 0) : (band.lo + band.hi) / 2;
+      out.push({ x: p[0] + Math.cos(hd) * o, z: p[1] - Math.sin(hd) * o, i, row });
+    }
   }
   return out;
 }
@@ -183,66 +198,87 @@ function paintIcon(g, id) {
   }
 }
 
-/** The box sticker in the world: a "?" badge that spins and bounces. */
-function boxTexture() {
+
+/** A soft round contact shadow (also under the scooters). */
+export function blobTexture() {
   const c = document.createElement('canvas');
-  c.width = c.height = 128;
+  c.width = c.height = 64;
   const g = c.getContext('2d');
-  g.scale(128 / 96, 128 / 96);
-  g.fillStyle = '#ffffff';
-  g.beginPath();
-  g.arc(48, 48, 44, 0, Math.PI * 2);
-  g.fill();
-  const grad = g.createLinearGradient(20, 10, 76, 86);
-  grad.addColorStop(0, '#ff9ac0');
-  grad.addColorStop(0.5, '#ff5f9a');
-  grad.addColorStop(0.51, '#e94785');
-  grad.addColorStop(1, '#c93574');
-  const p = new Path2D();
-  p.arc(48, 48, 38, 0, Math.PI * 2);
-  g.fillStyle = grad;
-  g.fill(p);
-  g.strokeStyle = INK;
-  g.lineWidth = 3;
-  g.stroke(p);
-  g.font = '900 52px system-ui, sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.lineWidth = 6;
-  g.strokeStyle = INK;
-  g.strokeText('?', 48, 52);
-  g.fillStyle = '#ffffff';
-  g.fillText('?', 48, 52);
-  g.fillStyle = 'rgba(255,255,255,0.75)';
-  g.beginPath();
-  g.ellipse(34, 26, 12, 5, -0.5, 0, Math.PI * 2);
-  g.fill();
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, 'rgba(0,0,0,0.85)');
+  r.addColorStop(0.45, 'rgba(0,0,0,0.45)');
+  r.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = r;
+  g.fillRect(0, 0, 64, 64);
   const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 
-/** The boxes of one course: built near the riders, taken, and back a few seconds later. */
+/** A "?" for the boxes' faces: white, outlined, on clear. */
+function glyphTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.font = '900 104px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = 14;
+  g.strokeStyle = '#2a2030';
+  g.strokeText('?', 64, 70);
+  g.fillStyle = '#ffffff';
+  g.fillText('?', 64, 70);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+/** A rainbow round the box's edges, the faces clearer in the middle (vertex colours). */
+function rainbowBox(size) {
+  const g = new RoundedBoxGeometry(size, size, size, 3, size * 0.16);
+  const P = g.attributes.position;
+  const col = new Float32Array(P.count * 3);
+  const c = new THREE.Color();
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i) / size, y = P.getY(i) / size, z = P.getZ(i) / size;
+    c.setHSL((Math.atan2(z, x) / (Math.PI * 2) + 0.5 + y * 0.4) % 1, 0.85, 0.62);
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+
+/** The boxes of one course: built near the riders, taken, and back a few seconds later. All in three instanced draws. */
 export class ItemBoxes {
   constructor(game, course) {
     this.g = game;
     this.spots = boxSpots(course).map((p) => ({ ...p, live: true, back: 0, y: null, phase: Math.random() * 6 }));
-    this.tex = boxTexture();
-    this.mat = new THREE.SpriteMaterial({ map: this.tex, transparent: true, depthWrite: true, alphaTest: 0.2 });
-    this.group = new THREE.Group();
-    game.scene.add(this.group);
-    for (const s of this.spots) {
-      s.sprite = new THREE.Sprite(this.mat);
-      s.sprite.scale.set(1, 1, 1);
-      s.shadow = new THREE.Mesh(new THREE.CircleGeometry(0.35, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.25, depthWrite: false }));
-      this.group.add(s.sprite, s.shadow);
+    const n = Math.max(1, this.spots.length);
+    const SIZE = 0.72;
+    this.shell = new THREE.InstancedMesh(rainbowBox(SIZE), new THREE.MeshPhysicalMaterial({ vertexColors: true, transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05, iridescence: 0.8, iridescenceIOR: 1.5, emissive: '#3a2a55', emissiveIntensity: 0.35, envMapIntensity: 1.6, depthWrite: false }), n);
+    this.tex = glyphTexture();
+    // the "?" on all four sides and the top: a slightly smaller cube of cut-out glyphs inside the glass
+    this.glyph = new THREE.InstancedMesh(new THREE.BoxGeometry(SIZE * 0.82, SIZE * 0.82, SIZE * 0.82), new THREE.MeshStandardMaterial({ map: this.tex, alphaTest: 0.4, transparent: false, roughness: 0.4, emissive: '#ffffff', emissiveMap: this.tex, emissiveIntensity: 0.35, side: THREE.DoubleSide }), n);
+    this.shadow = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.55 }), n);
+    for (const m of [this.shell, this.glyph, this.shadow]) {
+      m.frustumCulled = false;
+      m.count = 0;
     }
+    this.shell.castShadow = true;
+    this.shell.renderOrder = 3;
+    this.group = new THREE.Group();
+    this.group.add(this.glyph, this.shell, this.shadow);
+    game.scene.add(this.group);
     this.t = 0;
+    this._o = new THREE.Object3D();
   }
 
   update(dt) {
     this.t += dt;
     const p = this.g.pos;
+    const o = this._o;
+    let n = 0;
     for (const s of this.spots) {
       if (!s.live) {
         s.back -= dt;
@@ -251,19 +287,28 @@ export class ItemBoxes {
           s.pop = 0.35;
         }
       }
-      const near = Math.hypot(s.x - p.x, s.z - p.z) < 260;
-      s.sprite.visible = s.shadow.visible = s.live && near;
-      if (!s.sprite.visible) continue;
+      if (!s.live || Math.hypot(s.x - p.x, s.z - p.z) > 220) continue;
       if (s.y == null || Math.random() < 0.02) s.y = this.g.surfaceAt(s.x, s.z, this.g.groundAt(s.x, s.z) + 14);
-      // Bounce and spin (a sticker turning: its width goes round), and pop when it comes back.
-      const bounce = Math.abs(Math.sin(this.t * 3 + s.phase)) * 0.25;
-      const spin = Math.cos(this.t * 2.4 + s.phase);
+      // Float and bob, turn slowly on a tilt; pop in big when it comes back.
+      const bob = Math.sin(this.t * 2.2 + s.phase) * 0.08;
       s.pop = Math.max(0, (s.pop ?? 0) - dt);
-      const k = 1 + s.pop * 1.4;
-      s.sprite.scale.set(0.95 * (0.25 + 0.75 * Math.abs(spin)) * k, 0.95 * k * (1 + (0.25 - bounce) * 0.2), 1);
-      s.sprite.position.set(s.x, s.y + 0.85 + bounce, s.z);
-      s.shadow.position.set(s.x, s.y + 0.03, s.z);
-      s.shadow.scale.setScalar(1 - bounce);
+      const k = 1 + s.pop * 1.6;
+      o.position.set(s.x, s.y + 0.95 + bob, s.z);
+      o.rotation.set(0.42, this.t * 1.6 + s.phase, 0.42, 'YXZ');
+      o.scale.setScalar(k);
+      o.updateMatrix();
+      this.shell.setMatrixAt(n, o.matrix);
+      this.glyph.setMatrixAt(n, o.matrix);
+      o.position.set(s.x, s.y + 0.03, s.z);
+      o.rotation.set(0, 0, 0);
+      o.scale.set(0.95 - bob, 1, 0.95 - bob);
+      o.updateMatrix();
+      this.shadow.setMatrixAt(n, o.matrix);
+      n++;
+    }
+    for (const m of [this.shell, this.glyph, this.shadow]) {
+      m.count = n;
+      m.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -286,6 +331,9 @@ export class ItemBoxes {
   dispose() {
     this.g.scene.remove(this.group);
     this.tex.dispose();
-    this.mat.dispose();
+    for (const m of [this.shell, this.glyph, this.shadow]) {
+      m.geometry.dispose();
+      m.material.dispose();
+    }
   }
 }

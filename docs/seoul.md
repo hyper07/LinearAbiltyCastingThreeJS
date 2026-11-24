@@ -104,32 +104,38 @@ real streets and alleys — and the streets stay open.
   alleys, market lanes) come from OpenStreetMap round those neighbourhoods only:
   `scripts/geo/seoul-alleys.mjs` writes `alleys.bin` beside `roads.bin` (`npm run geo:alleys`;
   `npm run geo:seoul` runs it too). Without it the loops keep to the bigger roads. 1–3 laps.
-- **Riders**: six of our own, three women and three men — Haru (white jacket, ponytail, a mint
-  city bike), Taeo (red hoodie, headphones, a black fixie), Sora (yellow helmet, teal windbreaker,
-  a coral road bike), Rio (black tee, backwards cap, a white road bike), Dami (olive jacket, twin
-  buns, a lilac fixie), Hajin (white vest, a fat-tyred trail bike). Each bike handles its own way
-  (speed, pick-up, handling, grip). Bots take the others, women and men both.
-  They are drawn as 2D pictures standing in the 3D street (camera-facing cards, lit by the scene):
-  real-proportioned 3D people (Quaternius' Ultimate Modular Men and Women, CC0, in
-  `library/inbox/`) posed on a bike of our own — feet on the pedals, hands on the grips, standing to
-  sprint, thrown off, sat dazed, getting up, both arms up at the finish — rendered once for five
-  views and every moment and painted over (a Kuwahara paint filter, richer colour, soft edges, a
-  cool rim light). `src/city/riderbake.js` does it when the race starts (a moment, the first time);
-  without the models the riders are painted in code instead (`src/city/toon.js`).
-- **Riding** (`src/city/ride.js`, pure and tested): **W** pedal to a ~35 km/h cruise, **S** brake
-  (longer in the wet), **A D** lean — a bike turns by leaning, so a tight alley corner wants you
-  slow — **Space** sprint, standing on the pedals, to ~49 km/h while the stamina gauge lasts (it
-  refills as you ride, faster in a slipstream behind a car, a bus or a rider, and with every close
-  call), **Shift** skid the back round, **B** the bell (people just ahead step aside), **R** back on
-  the course. Hills slow you or let you run.
-- **Traffic** (`src/city/traffic.js`, `src/city/vehicles.js`): ordinary cars — hatchbacks, saloons,
-  small SUVs, people carriers, taxis with our own roof sign, delivery vans, one-tonne trucks — in
-  Seoul's whites, silvers, greys and blacks; city buses in route blue, green and yellow; delivery
-  scooters, also down the small streets. They keep their own side, cross at the junctions, blink
-  before turning, brake (late, for a bike), honk when held up. People walk the pavements and the
-  middle of the alleys (`src/city/life.js`). Hit any of it — or a planter, a bin, a parked scooter,
-  a pole — and you're off the bike: a hit-stop, "BONK!", a tumble, stars, back on 1.5 s later.
-  Pass close at speed for a "WHOOSH!" and a top-up of sprint.
+- **Riders**: Snowpuff Peaks' plush animals on electric hire scooters — Mallow the bunny, Pip the
+  fox, Mochi the cat, Toffee the bear, Peaches the pig, Pickle the frog and Pebble the penguin
+  (girls and boys both; the bots always mix them). The same sculpted toys as Snowpuff's
+  (`src/city/plushRider.js`: the recipes copied, Snowpuff's files never edited), dressed for
+  WebGL2 (`src/city/plush.js`): sheen, fibre noise, a fresnel rim that dims at night, shell fur in
+  one instanced draw with fewer shells further off. Knees bent on the deck, leaning into turns,
+  crouching for a boost, ears and tails on springs, arms up at the finish, a tumble with dizzy stars
+  and back up. Each rides a scooter of our own brand, "SSAENG 쌩쌩" (`src/city/scooter.js`), in their
+  colours: grip tape, folding stem, throttle and brake levers, a live speed and battery display, LED
+  head and brake lights, solid wheels, a kickstand. Riders bump and wobble off each other and never
+  pass through (`src/city/pack.js`); bots keep their own lines on the road side of the street,
+  overtake round the middle, and start from a staggered grid.
+- **Riding** (`src/city/scoot.js`, pure and tested): **W** throttle — the motor holds Korea's 25 km/h
+  cap — **S** brake (longer in the wet, and braking hard in a lean on a wet road slides the back out),
+  **A D** lean, **Space** boost to ~32 km/h while the battery gauge lasts (it charges as you ride,
+  faster in a slipstream and with every close call), **B** the bell, **R** back on the course. Small
+  solid wheels feel every paving joint; a kerb met at an angle is a hop up, met glancing it scrapes
+  and wobbles you.
+- **Traffic** (`src/city/traffic.js`, `src/city/fleet.js`): real models (Sketchfab, CC BY 4.0, from
+  the Objaverse mirror) — everyday saloons, hatchbacks, people carriers, small SUVs, compacts and
+  estates in Seoul's whites, silvers, greys and blacks, taxis with our own roof sign, one-tonne box
+  trucks, city buses in route blue and green — with glass, turning wheels, headlights at night and in
+  the rain, brake lights and blinking indicators; delivery scooters too, also down the small streets.
+  They keep their own side, cross at the junctions, blink before turning, brake (late, for a
+  scooter), honk when held up. Near you, people on the pavements are real (`src/city/folk.js`:
+  Microsoft Rocketbox avatars, MIT) — walking, texting, looking about, cheering at the start; further
+  off, light figures (`src/city/life.js`). In the rain (`src/city/wetfx.js`) every light is smeared
+  down the wet road, puddles mirror the sky, the rain glints where it crosses a light and wheels
+  throw spray.
+  Hit any of it — or a planter, a bin, a parked scooter, a pole — and you're off: a hit-stop,
+  "BONK!", a tumble, dizzy stars, back on 1.5 s later. Pass close at speed for a "WHOOSH!" and a
+  top-up of boost.
 - **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
   ~220 m) to fill three slots; use them with **1 2 3**. Energy drink (gauge full), air horn
   (people and scooters ahead clear out, cars stop), gold helmet (the next crash bounces off),

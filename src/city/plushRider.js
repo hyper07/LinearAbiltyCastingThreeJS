@@ -3,6 +3,7 @@ import { compile, sculpt, trace, gradient } from '../arcademia/world/creatures/s
 import { SPECIES } from '../snowpuff/riders.js';
 import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial } from './plush.js';
 import { Scooter, DECK_TOP } from './scooter.js';
+import { blobTexture } from './items.js';
 
 /**
  * Gangnam Jarani's riders: Snowpuff Peaks' plush animals, come to Seoul on
@@ -419,6 +420,12 @@ export class PlushRider {
     }
     this.stars.visible = false;
     this.root.add(this.stars);
+    // A small soft contact shadow under the wheels (the sun's own shadow does the rest).
+    this.blob = new THREE.Mesh(G.blob ??= new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), G.blobMat ??= new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+    this.blob.scale.set(0.42, 1, 1.15);
+    this.blob.position.y = 0.025;
+    this.blob.renderOrder = 1;
+    this.root.add(this.blob);
     // Springs and timers.
     this.sp2 = { ear: { x: 0, v: 0 }, earB: { x: 0, v: 0 }, wag: { x: 0, v: 0 }, tailL: { x: 0, v: 0 }, scarf: { x: 0, v: 0 }, bob: { x: 0, v: 0 }, crouch: { x: 0, v: 0 }, leanB: { x: 0, v: 0 }, armsUp: { x: 0, v: 0 }, sq: { x: 1, v: 0 } };
     this.t = Math.random() * 10;
@@ -668,6 +675,9 @@ export class PlushRider {
     this.squash.position.y = win ? Math.abs(Math.sin(t * 7)) * 0.12 : 0;
     // ---- a fall: thrown forward in a roll, sat dazed in the road with stars, then up and back on
     this.stars.visible = mode === 'dizzy';
+    this.blob.scale.set(0.42 + Math.abs(lean) * 0.25, 1, 1.15);
+    this.blob.material.opacity = 0.5;
+    this.blob.visible = (st.air ?? 0) < 0.25;
     if (down) {
       if (mode === 'tumble') {
         const u = Math.min(1, ft / 0.7);

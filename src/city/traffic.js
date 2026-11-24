@@ -210,7 +210,8 @@ export class RaceTraffic {
     const on = this.blink % 0.8 < 0.4;
     for (const v of this.vehicles) {
       this._drive(v, dt);
-      v.view?.lights(night, v.braking);
+      // (headlights on in the rain too)
+      v.view?.lights(Math.max(night, (this.g.weather?.level.wet ?? 0) > 0.3 ? 0.5 : 0), v.braking);
       v.view?.near(Math.hypot(v.box.x - me.x, v.box.z - me.z) < 90);
       v.view?.indicate(v.hazard ? 'both' : v.signal, on);
     }

@@ -17,6 +17,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { skyDome, followSun, GradeShader } from './sky.js';
 import { Race } from './race.js';
+import { streetCredits } from './streetAssets.js';
 import { readAlleys } from './alleys.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
@@ -36,7 +37,7 @@ function texture(id, part) {
   if (!textureCache.has(key)) {
     const t = new THREE.TextureLoader().load(`./library/ambientcg/${id}/${id}_1K-JPG_${part}.jpg`, undefined, undefined, () => {});
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.anisotropy = 8;
+    t.anisotropy = 16;
     if (part === 'Color') t.colorSpace = THREE.SRGBColorSpace;
     textureCache.set(key, t);
   }
@@ -171,8 +172,10 @@ function roadMaterial(uniforms) {
         // Wheel tracks: two darker, smoother bands in every lane.
         float track = exp(-pow((inLane - 0.27) * 9.0, 2.0)) + exp(-pow((inLane - 0.73) * 9.0, 2.0));
         diffuseColor.rgb *= 1.0 - 0.1 * track * near_;
-        // Wet: the asphalt goes dark.
+        // Wet: the asphalt goes dark; puddles where the road dips (in the wheel tracks and by the kerb), darker still.
         diffuseColor.rgb *= 1.0 - 0.45 * uWet;
+        float puddle = smoothstep(0.56, 0.7, roadNoise(vec2(along, o) * 0.31) * 0.65 + roadNoise(vec2(along, o) * 1.7) * 0.25 + track * 0.08 + smoothstep(half_ - 1.2, half_, x) * 0.12) * uWet * near_;
+        diffuseColor.rgb *= 1.0 - 0.4 * puddle;
         float lines = 0.0;
         float yellow = 0.0;
         // Crossings at the ends of a road (its junctions), not on motorways and bridges.
@@ -214,13 +217,40 @@ function roadMaterial(uniforms) {
         float dx = vPaint.x - side * (w0 * 0.5 + 0.5);
         float pool = exp(-(da * da) / 70.0 - (dx * dx) / 55.0);
         vec3 sodium = vec3(1.0, 0.78, 0.5);
-        roadGlow = sodium * pool * uNight * (0.32 + 0.5 * uWet);
+        roadGlow = sodium * pool * uNight * (0.32 + 0.12 * uWet);
         // And on a wet road, the light stretched out along it, and a sheen of the sky at a low angle.
         float streak = exp(-(dx * dx) / 30.0) * exp(-abs(da) / 22.0);
         roadGlow += sodium * streak * uWet * uNight * 0.28;
         vec3 vdir = normalize(vViewPosition);
-        roadGlow += vec3(0.16, 0.2, 0.28) * uWet * pow(1.0 - abs(vdir.z), 4.0) * 0.6;`)
+        roadGlow += vec3(0.16, 0.2, 0.28) * uWet * pow(1.0 - abs(vdir.z), 4.0) * 0.6;
+        // Puddles mirror the sky at a low angle, and the lamps by night (rippled by the rain).
+        float rip = 0.85 + 0.15 * sin(along * 7.0 + o * 5.0);
+        roadGlow += vec3(0.2, 0.25, 0.33) * puddle * pow(1.0 - abs(vdir.z), 2.0) * 0.9 * rip * (1.0 - 0.85 * uNight);
+        roadGlow += sodium * streak * puddle * uNight * 0.45 * rip;`)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += roadGlow;');
+  };
+  return m;
+}
+
+/**
+ * The pavements: Seoul's paving blocks (ambientCG PavingStones152, CC0), true to
+ * size, their joints in relief from the normal map, sharp at a glancing angle
+ * (mipmaps, 16× anisotropic). A little calmer in colour than the photo. Wet,
+ * they go darker and glossy, with standing water in the low blocks.
+ */
+function pavementMaterial(uniforms) {
+  const m = new THREE.MeshStandardMaterial({ map: texture('PavingStones152', 'Color'), normalMap: texture('PavingStones152', 'NormalGL'), roughnessMap: texture('PavingStones152', 'Roughness'), color: '#cfc6c0', roughness: 1, metalness: 0, normalScale: new THREE.Vector2(0.9, 0.9), envMapIntensity: 0.5, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uWet = uniforms.uWet;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uWet;')
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        {
+          // standing water where the blocks are low (dark in the photo), the rest just damp
+          float low = 1.0 - smoothstep(0.25, 0.5, dot(diffuseColor.rgb, vec3(0.33)));
+          roughnessFactor = mix(roughnessFactor, mix(0.5, 0.22, low), uWet);
+          diffuseColor.rgb *= 1.0 - uWet * (0.35 + 0.2 * low);
+        }`);
   };
   return m;
 }
@@ -392,7 +422,7 @@ export class SeoulGame {
       }
       for (const l of this.index.landmarks) if (l.tower) this._tower(l);
       // A short credit always on screen; each source's full notice is in the Places panel.
-      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '스쿠터 scooter: polyfork.dev (CC BY 4.0)', '자전거 riders: Quaternius Ultimate Modular Men & Women (CC0)', '벽 walls: ambientCG.com (CC0)'].filter(Boolean).join(' · ');
+      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '스쿠터 scooter: polyfork.dev (CC BY 4.0)', ...streetCredits(), '보도 paving: ambientCG PavingStones152 (CC0)', '벽 walls: ambientCG.com (CC0)'].filter(Boolean).join(' · ');
       this.ready = true;
       // Gangnam Jarani opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
@@ -1302,10 +1332,11 @@ export class SeoulGame {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(walk, 3));
       const uv = [];
-      for (let k = 0; k < walk.length; k += 3) uv.push(walk[k] / 2.2, walk[k + 2] / 2.2);
+      // (PavingStones152: about twelve rows of 20 × 10 cm blocks in a 1.6 m tile)
+      for (let k = 0; k < walk.length; k += 3) uv.push(walk[k] / 1.6, walk[k + 2] / 1.6);
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
       geo.computeVertexNormals();
-      this.walkMaterial ??= new THREE.MeshLambertMaterial({ map: texture('PavingStones128', 'Color'), color: '#d6d2cc', side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
+      this.walkMaterial ??= pavementMaterial(this.uniforms);
       out.walks = new THREE.Mesh(geo, this.walkMaterial);
       out.walks.receiveShadow = true;
       this.scene.add(out.walks);
