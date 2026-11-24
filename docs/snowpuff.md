@@ -322,7 +322,7 @@ ride straight through, leaving the box for someone else:
 | **Giant snowball** | Leaves your hands in your lane and rolls over the real terrain: faster on steeps, slower on flats, swinging up the banks and to the outside of turns, bouncing off the fences, hopping off rollers, growing and picking up chunks as it goes (spinning exactly as far as it rolls), a groove and spray behind it, a rumble and a little shake when it's near. It ends in a big poof on a barrier or snowman, or breaks apart after 7 s. A rider it catches is **squashed pancake-flat** on the snow, ears and board sticking out — a real 1 s stop, no steering — then pops back up to full height with a springy overshoot and rides on at part of their speed (jump it!) |
 | **Snow shield** | Snowballs and giant snowballs bounce off for five seconds |
 | **Rocket sled** | A short boost: the rider leans back from the feet and blue speed lines stream back past them, along the line of travel — part of the rider (`render/speedLines.js`), so they stay round them up a kicker and through the air |
-| **Ice patch** | Dropped behind you: slippery for whoever follows |
+| **Ice patch** | Dropped just behind you (it ends 1 m back of your board): slippery for whoever follows — never for you, even a lap later |
 
 You hold **two** at once — **1** uses the first, **2** the second (a click uses
 the first; touch has two buttons). Snowball piles add snowballs.

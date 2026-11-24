@@ -354,6 +354,19 @@ test('race: items — shield, boost, giant snowball and ice patch', () => {
   const iceR = racerAt(4, 500, 2);
   const p = dropIce(course, iceR, 10, 'i1', 5);
   assert.ok(onIce(course, p.s + p.len / 2, p.lat));
+  assert.ok(p.s + p.len <= iceR.rider.s - 1 && p.s + p.len > iceR.rider.s - 2 && !onIce(course, iceR.rider.s, iceR.rider.lat), 'just behind the one who dropped it');
+  assert.ok(!onIce(course, p.s + p.len / 2, p.lat, 4) && onIce(course, p.s + p.len / 2, p.lat, 1), 'never catches its dropper, catches the rest');
+  // riding over your own ice (say, a lap later): no slip; someone else slips
+  const own = newRider({ s: p.s - 4, lat: p.lat, speed: 15 });
+  settle(own, course);
+  const other = newRider({ s: p.s - 4, lat: p.lat, speed: 15 });
+  settle(other, course);
+  let ownSlip = false, otherSlip = false;
+  for (let t = 0; t < 1; t += DT) {
+    ownSlip ||= step(own, {}, course, DT, { slot: 4 }).some((e) => e.type === 'slip');
+    otherSlip ||= step(other, {}, course, DT, { slot: 1 }).some((e) => e.type === 'slip');
+  }
+  assert.ok(!ownSlip && otherSlip, 'own ice: ride on; their ice: slip');
   meltIce(course, 20);
   assert.ok(!onIce(course, p.s + p.len / 2, p.lat));
 });

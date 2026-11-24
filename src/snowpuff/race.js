@@ -353,7 +353,8 @@ export function applyBowl(target, fromSlot) {
 /** Drop a slippery ice patch behind you (it melts after `life` seconds of race time). */
 export function dropIce(course, racer, now, id, life = 30) {
   const r = racer.rider;
-  const p = { id, s: r.s - 5, lat: r.lat, len: 7, w: 4.5, until: now + life, from: racer.slot };
+  // just behind you (it ends 1 m back of your board), for whoever follows — and it never catches you (physics onIce)
+  const p = { id, s: r.s - 8, lat: r.lat, len: 7, w: 4.5, until: now + life, from: racer.slot };
   course.dynIce.push(p);
   return p;
 }

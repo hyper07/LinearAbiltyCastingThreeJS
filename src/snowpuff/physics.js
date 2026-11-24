@@ -54,9 +54,10 @@ export function settle(r, course) {
 
 const _f = {};
 
-/** Is (s, lat) on an ice patch? */
-export function onIce(course, s, lat) {
+/** Is (s, lat) on an ice patch? A patch someone dropped never catches the one who dropped it (`slot`). */
+export function onIce(course, s, lat, slot = null) {
   for (const p of course.dynIce?.length ? [...course.ice, ...course.dynIce] : course.ice) {
+    if (slot != null && p.from === slot) continue;
     if (s < p.s - 1 || s > p.s + p.len + 1) continue;
     const u = (s - p.s - p.len * 0.5) / (p.len * 0.5), v = (lat - p.lat) / (p.w * 0.5);
     if (u * u + v * v < 1) return true;
@@ -137,7 +138,7 @@ export function step(r, inp, course, dt, o = {}) {
   r.carve += (want - r.carve) * Math.min(1, dt * (want > r.carve ? 9 : 12));
   const tuckWas = r.tuck;
   r.tuck += (tuckIn - r.tuck) * Math.min(1, dt * 6);
-  r.onIce = !r.air && onIce(course, r.s, r.lat);
+  r.onIce = !r.air && onIce(course, r.s, r.lat, o.slot);
   // riding onto ice: the edge loses its grip — one slip per patch
   r.slipCd = Math.max(0, (r.slipCd ?? 0) - dt);
   if (r.onIce && !r.iceRun && r.slipCd <= 0 && r.speed > 5 && r.tumble <= 0 && r.flat <= 0) {

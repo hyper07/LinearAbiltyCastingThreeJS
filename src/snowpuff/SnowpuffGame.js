@@ -806,7 +806,7 @@ export class SnowpuffGame {
       // on the chairlift between laps (Space or a tap skips it after a few seconds)
       if (tickLift(me, dt, Boolean(first && inp.skip))) this.respawn(me);
     } else if (!me.finished) {
-      const ev = step(me.rider, { steer: inp.steer ?? 0, tuck: inp.tuck, jump: inp.jump, flip: inp.flip ?? 0 }, c, dt, { draft: draftFactor(me, this.racers), geysers: c.geysers, t: r.clock });
+      const ev = step(me.rider, { steer: inp.steer ?? 0, tuck: inp.tuck, jump: inp.jump, flip: inp.flip ?? 0 }, c, dt, { draft: draftFactor(me, this.racers), geysers: c.geysers, t: r.clock, slot: me.slot });
       this.riderEvents(me, ev);
       if (first && inp.throw) this.useItem(me, 0);
       if (first && inp.shield) this.useItem(me, 1);
@@ -830,7 +830,7 @@ export class SnowpuffGame {
         continue;
       }
       const ai = think(rc.brain, rc, c, this.racers, dt);
-      const ev = step(rc.rider, ai, c, dt, { pull: rubberBand(rc.rider.s, humanS), draft: draftFactor(rc, this.racers), geysers: c.geysers, t: r.clock });
+      const ev = step(rc.rider, ai, c, dt, { pull: rubberBand(rc.rider.s, humanS), draft: draftFactor(rc, this.racers), geysers: c.geysers, t: r.clock, slot: rc.slot });
       this.riderEvents(rc, ev);
       if (ai.use != null) this.useItem(rc, ai.use);
       for (const e of pickups(rc, c, r.clock, placeOf(rc))) {
