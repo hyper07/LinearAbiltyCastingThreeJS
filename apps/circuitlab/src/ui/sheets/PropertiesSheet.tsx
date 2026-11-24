@@ -42,8 +42,10 @@ import {
   Switch,
   TrashIcon,
   pressProps,
+  showToast,
   tick,
 } from '../kit'
+import { openSpecs } from '../lab/SpecsPanel'
 import { useStore } from '../../state/store'
 import { getEntry, paramOf, type CatalogEntry, type ParamDef } from '../../model/catalog'
 import { componentPinHoles, formatHole } from '../../model/breadboard'
@@ -236,6 +238,11 @@ function EmptyEditor() {
 // Component editor
 // ---------------------------------------------------------------------------
 
+function rotateWithToast(id: string): void {
+  if (useStore.getState().rotatePlaced(id).ok) tick()
+  else showToast(`${id} can't turn here — no other rotation fits`, { duration: 3200 })
+}
+
 function ComponentEditor({
   comp,
   desktop,
@@ -279,6 +286,13 @@ function ComponentEditor({
         id={comp.id}
         subtitle={`${comp.type} · ${placementMeta(entry)}`}
       />
+
+      <ListGroup>
+        <ListRow title="Specs and limits" subtitle="Voltage, current, power and frequency it can handle" chevron className="prs-specs-row" onPress={() => openSpecs(comp.type, comp.id)} />
+        {entry.placement !== 'leads' && entry.placement !== 'probe' && (
+          <ListRow title="Rotate a quarter turn" trailing={<span className="prs-mono">R</span>} onPress={() => rotateWithToast(comp.id)} />
+        )}
+      </ListGroup>
 
       {isPushbutton && <HoldGroup comp={comp} />}
       {isDip && <DipSwitchGroup comp={comp} entry={entry} />}

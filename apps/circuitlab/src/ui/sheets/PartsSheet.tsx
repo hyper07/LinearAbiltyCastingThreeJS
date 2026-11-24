@@ -15,6 +15,7 @@
  *   <PartsSheet open={partsOpen} onDismiss={() => setPartsOpen(false)}
  *     desktop={isDesktop} />
  */
+import { openSpecs } from '../lab/SpecsPanel'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Sheet, pressProps, tick, CloseIcon } from '../kit'
 import { useStore } from '../../state/store'
@@ -403,8 +404,8 @@ export function PartsSheet({ open, onDismiss, desktop = false }: PartsSheetProps
             {parts.map((entry) => {
               const armed = armedType === entry.type
               return (
+                <div key={entry.type} className="psh-cell">
                 <button
-                  key={entry.type}
                   type="button"
                   className={
                     // nested glass card (rim + slab via lg-card) with the gel
@@ -423,6 +424,17 @@ export function PartsSheet({ open, onDismiss, desktop = false }: PartsSheetProps
                   <span className="psh-card-meta lg-tabular">{placementMeta(entry)}</span>
                   {armed && <span className="psh-card-armed">Placing</span>}
                 </button>
+                <button
+                  type="button"
+                  className="psh-info lg-pressable"
+                  aria-label={`${entry.label} specs`}
+                  title="Specs: voltage, current and frequency it can handle"
+                  data-specs={entry.type}
+                  onClick={() => openSpecs(entry.type)}
+                >
+                  i
+                </button>
+                </div>
               )
             })}
           </div>

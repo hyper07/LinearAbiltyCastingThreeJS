@@ -55,6 +55,7 @@ import { IllustratedView } from './three/illustrated'
 import { forceReplan } from './three/internal/wires'
 import { CreditsPanel, LabCorner, goHome, helpPanel, useFirstHelp } from './ui/lab/LabChrome'
 import { SavedPanel } from './ui/lab/SavedPanel'
+import { SpecsHost } from './ui/lab/SpecsPanel'
 import { compileSketch } from './mcu/avr/compile'
 import { boardDef } from './model/boards'
 import { serialBus } from './mcu/serial'
@@ -1122,6 +1123,7 @@ export default function App() {
       />
       <LabCorner onCredits={() => setCreditsOpen(true)} onSaved={() => setSavedOpen(true)} />
       <SavedPanel open={savedOpen} onClose={closeSaved} />
+      <SpecsHost />
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       <ScopeSheet
         open={activeSheet === 'scope'}

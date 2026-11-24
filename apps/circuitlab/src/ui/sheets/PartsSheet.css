@@ -226,3 +226,31 @@
   padding: 24px 0 16px;
   text-align: center;
 }
+
+/* the ⓘ Specs button on each part card */
+.psh-cell {
+  position: relative;
+  display: flex;
+}
+.psh-cell > .psh-card {
+  flex: 1;
+  min-width: 0;
+}
+.psh-info {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(20, 22, 28, 0.55);
+  color: #f2f2f7;
+  font: 700 italic 14px/24px Georgia, 'Times New Roman', serif;
+  text-align: center;
+  cursor: pointer;
+}
+.psh-info:hover {
+  background: #0a84ff;
+  border-color: #0a84ff;
+}
