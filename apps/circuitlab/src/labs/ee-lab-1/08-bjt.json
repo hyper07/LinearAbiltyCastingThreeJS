@@ -1,0 +1,72 @@
+{
+  "id": "ee1-08",
+  "number": 8,
+  "title": "BJT: bias and the common-emitter amplifier",
+  "topics": ["Discrete circuits", "Frequency response"],
+  "goal": "Bias a 2N3904 with a voltage divider, check its DC operating point, then measure the small-signal gain of the common-emitter stage and the transistor's current gain β.",
+  "theory": [
+    "In the active region a BJT's collector current is β times its base current, and V_BE stays near 0.65–0.7 V. Output curves (I_C against V_CE, one per base current) are flat in the active region and collapse toward 0 V in saturation.",
+    "Divider bias makes the base voltage nearly independent of β: V_B ≈ V_CC·R2/(R1 + R2) when the divider current is much larger than I_B. Then V_E = V_B − V_BE and I_C ≈ I_E = V_E/R_E (more exactly, add R_th/(β+1) of the divider to R_E) and V_C = V_CC − I_C·R_C.",
+    "With an un-bypassed emitter resistor the mid-band voltage gain is A_v ≈ −R_C/(R_E + r_e), with r_e = 25 mV/I_C — close to −R_C/R_E. The minus sign is a 180° phase inversion.",
+    "The input coupling capacitor blocks DC so the generator does not disturb the bias; it sets a low-frequency corner."
+  ],
+  "prelab": [
+    { "key": "vb", "label": "Base voltage V_B (12 V, 47 kΩ / 10 kΩ)", "unit": "V", "answer": "12*10000/57000" },
+    { "key": "ic", "label": "Collector current I_C (R_E = 1 kΩ)", "unit": "mA", "answer": "(12*10000/57000-0.7)/(1000+8246/161)*1000" },
+    { "key": "vc", "label": "Collector voltage V_C (R_C = 4.7 kΩ)", "unit": "V", "answer": "12-4700*(12*10000/57000-0.7)/(1000+8246/161)" },
+    { "key": "av", "label": "Mid-band gain magnitude |A_v|", "unit": "V/V", "answer": "4700/1000" }
+  ],
+  "procedure": [
+    "Load the reference build. M1 reads the base (column 15) and M2 the collector (column 17), both against ground.",
+    "Compare V_B, V_E (= V_B − V_BE) and V_C with your pre-lab — the transistor is in the active region when V_C is well above V_E.",
+    "The generator injects 0.1 Vpp at 1 kHz through CIN. Scope CH1 on the input (column 10), CH2 on the collector with AC coupling. Gain = Vpp(CH2)/Vpp(CH1); note the inversion.",
+    "Run Bench → Bode from h10 to e17 and find the low-frequency corner set by CIN.",
+    "On the curve tracer (mode npn) trace Q2 and read β = I_C/I_B in the flat part of a curve."
+  ],
+  "table": [
+    { "key": "vbm", "label": "Base voltage V_B", "unit": "V", "predict": "vb", "source": "dmm:M1" },
+    { "key": "vcm", "label": "Collector voltage V_C", "unit": "V", "predict": "vc", "source": "dmm:M2", "tol": 8 },
+    { "key": "avm", "label": "Gain |A_v| (CH2 Vpp / 0.1 V)", "unit": "V/V", "predict": "av", "source": "scope.ch2.vpp", "transform": "v/0.1", "tol": 12 }
+  ],
+  "checks": [
+    { "kind": "dc", "label": "Divider sets the base voltage", "ref": "c15", "expect": "PS_v1*R2/(R1+R2)", "tol": 0.06 },
+    { "kind": "dc", "label": "Emitter sits one V_BE below the base", "ref": "i19", "expect": "PS_v1*R2/(R1+R2)-0.7", "tol": 0.12 },
+    { "kind": "dc", "label": "Collector voltage V_CC − I_C·R_C", "ref": "c17", "expect": "PS_v1-RC*(PS_v1*R2/(R1+R2)-0.7)/(RE+R1*R2/(R1+R2)/160)", "tol": 0.12 },
+    { "kind": "bode", "label": "Mid-band gain ≈ R_C/R_E", "gen": "GEN", "in": "h10", "out": "c17", "metric": "gainAt", "f": 1000, "expect": "RC/RE", "tol": 0.15 },
+    { "kind": "curve", "label": "β of the 2N3904 on the curve tracer", "tracer": "CT", "mode": "npn", "metric": "beta", "at": 0.00002, "expect": "160", "tol": 0.3 }
+  ],
+  "settle": 0.3,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 8 BJT amplifier",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "GEN", "type": "signal_generator", "pos": { "x": -16, "z": -1 }, "params": { "waveform": "sine", "frequency": 1000, "vpp": 0.1, "offset": 0, "load": "High-Z" } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "CT", "type": "curve_tracer", "pos": { "x": 20, "z": 21 } },
+      { "id": "R1", "type": "resistor", "params": { "resistance": 47000 }, "holes": ["a15", "top+12"] },
+      { "id": "R2", "type": "resistor", "params": { "resistance": 10000 }, "holes": ["g15", "bot-12"] },
+      { "id": "RC", "type": "resistor", "params": { "resistance": 4700 }, "holes": ["a17", "top+15"] },
+      { "id": "RE", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["g19", "bot-17"] },
+      { "id": "Q1", "type": "npn", "holes": ["h19", "h15", "b17"] },
+      { "id": "CIN", "type": "capacitor", "params": { "capacitance": 0.00001 }, "holes": ["i10", "i15"] },
+      { "id": "M1", "type": "multimeter", "params": { "mode": "V" }, "holes": ["e15", "top-19"] },
+      { "id": "M2", "type": "multimeter", "params": { "mode": "V" }, "holes": ["d17", "top-21"] },
+      { "id": "Q2", "type": "npn", "holes": ["a52", "a51", "a50"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "top-24", "to": "bot-24", "color": "black" },
+      { "id": "w4", "from": "b15", "to": "f15", "color": "green" },
+      { "id": "w5", "from": "GEN:out", "to": "j10", "color": "yellow" },
+      { "id": "w6", "from": "GEN:gnd", "to": "top-3", "color": "black" },
+      { "id": "w7", "from": "SC:CH1", "to": "h10", "color": "yellow" },
+      { "id": "w8", "from": "SC:CH2", "to": "e17", "color": "blue" },
+      { "id": "w9", "from": "SC:GND", "to": "top-30", "color": "black" },
+      { "id": "w10", "from": "CT:C", "to": "b50", "color": "red" },
+      { "id": "w11", "from": "CT:B", "to": "b51", "color": "green" },
+      { "id": "w12", "from": "CT:E", "to": "b52", "color": "black" }
+    ]
+  }
+}

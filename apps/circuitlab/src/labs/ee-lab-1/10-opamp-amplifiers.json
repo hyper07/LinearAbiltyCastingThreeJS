@@ -1,0 +1,63 @@
+{
+  "id": "ee1-10",
+  "number": 10,
+  "title": "Op-amps I: inverting and non-inverting amplifiers",
+  "topics": ["Operational amplifiers", "Frequency response"],
+  "goal": "Build an inverting amplifier with an LM741, confirm its gain and phase, find where it clips, and see how the gain–bandwidth product limits its bandwidth.",
+  "theory": [
+    "With negative feedback an op-amp drives its output until its two inputs are at the same voltage. In the inverting amplifier IN+ is grounded, so IN− is a virtual ground: the input current V_in/R_in must all flow through R_f, giving V_out = −(R_f/R_in)·V_in.",
+    "The non-inverting amplifier (signal into IN+, R_in from IN− to ground) has gain 1 + R_f/R_in and no inversion.",
+    "The output cannot go past its supply rails; a 741 on ±12 V clips about 1.5 V inside them. Its gain–bandwidth product is about 1 MHz, so a closed-loop noise gain of 1 + R_f/R_in = 11 leaves a bandwidth near 1 MHz/11 ≈ 91 kHz. The slew rate (0.5 V/µs) limits large fast signals."
+  ],
+  "prelab": [
+    { "key": "g", "label": "Gain of the inverting amplifier, R_in = 10 kΩ, R_f = 100 kΩ", "unit": "V/V", "answer": "-100000/10000" },
+    { "key": "vo", "label": "Output Vpp for a 0.5 Vpp input", "unit": "V", "answer": "0.5*100000/10000" },
+    { "key": "bw", "label": "Closed-loop −3 dB bandwidth", "unit": "Hz", "answer": "1e6/(1+100000/10000)" },
+    { "key": "vclip", "label": "Input Vpp at which the output starts to clip (±10.5 V)", "unit": "V", "answer": "21/10" }
+  ],
+  "procedure": [
+    "Load the reference build: LM741 across the centre gap (U1), ±12 V from the triple supply, R_in = RIN, R_f = RF. The generator gives 0.5 Vpp at 1 kHz.",
+    "Scope CH1 on the input (column 15), CH2 on the output (column 22). Measure both Vpp and confirm the 180° inversion.",
+    "Raise the generator amplitude until the output flattens at the top and bottom: that is saturation. Note the input Vpp.",
+    "Bench → Bode from i15 to d22 (10 Hz – 1 MHz). Read the mid-band gain in dB and the −3 dB frequency; compare with GBW/(1 + R_f/R_in).",
+    "Rewire as a non-inverting amplifier (generator into IN+, RIN from IN− to ground) and measure the new gain."
+  ],
+  "table": [
+    { "key": "vom", "label": "Output Vpp", "unit": "V", "predict": "vo", "source": "scope.ch2.vpp" },
+    { "key": "gdb", "label": "Mid-band gain", "unit": "dB", "predict": "20*log10(abs(g))", "source": "bode.peak", "tol": 3 },
+    { "key": "bwm", "label": "−3 dB bandwidth", "unit": "Hz", "predict": "bw", "source": "bode.high", "tol": 20 }
+  ],
+  "checks": [
+    { "kind": "vpp", "label": "Output swing = (R_f/R_in)·input", "ref": "d22", "window": 0.004, "expect": "GEN_vpp*RF/RIN", "tol": 0.04 },
+    { "kind": "vavg", "label": "Output centred on 0 V", "ref": "d22", "window": 0.004, "expect": "0", "abs": 0.1 },
+    { "kind": "bode", "label": "Gain R_f/R_in at 1 kHz", "gen": "GEN", "in": "i15", "out": "d22", "metric": "gainAt", "f": 1000, "expect": "RF/RIN", "tol": 0.03 },
+    { "kind": "bode", "label": "Bandwidth ≈ GBW/(1 + R_f/R_in)", "gen": "GEN", "in": "i15", "out": "d22", "metric": "high", "expect": "1e6/(1+RF/RIN)", "tol": 0.2 }
+  ],
+  "settle": 0.005,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 10 Op-amp amplifiers",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "GEN", "type": "signal_generator", "pos": { "x": -16, "z": -1 }, "params": { "waveform": "sine", "frequency": 1000, "vpp": 0.5, "offset": 0, "load": "High-Z" } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "U1", "type": "lm741", "at": "f20" },
+      { "id": "RIN", "type": "resistor", "params": { "resistance": 10000 }, "holes": ["g15", "g21"] },
+      { "id": "RF", "type": "resistor", "params": { "resistance": 100000 }, "holes": ["h21", "b22"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "top-24", "to": "bot-24", "color": "black" },
+      { "id": "w4", "from": "PS:-", "to": "bot+0", "color": "blue" },
+      { "id": "w5", "from": "a21", "to": "top+16", "color": "red" },
+      { "id": "w6", "from": "j23", "to": "bot+18", "color": "blue" },
+      { "id": "w7", "from": "j22", "to": "bot-17", "color": "black" },
+      { "id": "w8", "from": "GEN:out", "to": "j15", "color": "yellow" },
+      { "id": "w9", "from": "GEN:gnd", "to": "top-2", "color": "black" },
+      { "id": "w10", "from": "SC:CH1", "to": "i15", "color": "yellow" },
+      { "id": "w11", "from": "SC:CH2", "to": "d22", "color": "blue" },
+      { "id": "w12", "from": "SC:GND", "to": "top-30", "color": "black" }
+    ]
+  }
+}

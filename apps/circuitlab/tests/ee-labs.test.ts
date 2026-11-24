@@ -7,7 +7,7 @@ import { labCSV, labVars, summaryHTML, tableResults } from '../src/labs/report'
 
 describe('EE Lab I experiments', () => {
   it('are numbered in order with unique ids', () => {
-    expect(EXPERIMENTS.length).toBeGreaterThanOrEqual(6)
+    expect(EXPERIMENTS.length).toBe(13)
     EXPERIMENTS.forEach((e, i) => expect(e.number).toBe(i + 1))
     expect(new Set(EXPERIMENTS.map((e) => e.id)).size).toBe(EXPERIMENTS.length)
   })

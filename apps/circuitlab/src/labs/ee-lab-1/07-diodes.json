@@ -1,0 +1,68 @@
+{
+  "id": "ee1-07",
+  "number": 7,
+  "title": "Diodes: I–V curves, rectifiers and a Zener regulator",
+  "topics": ["Discrete circuits", "Test and measurement instruments"],
+  "goal": "Trace a diode's I–V curve, turn AC into DC with a half-wave rectifier and a filter capacitor, and hold a voltage steady with a Zener diode.",
+  "theory": [
+    "A silicon diode conducts once its forward voltage reaches about 0.6–0.7 V; the current then rises exponentially (Shockley: I = I_S·(e^(V/(n·V_T)) − 1)). In reverse only a tiny leakage flows — until breakdown.",
+    "Half-wave rectifier: the load sees the positive half-cycles minus one diode drop, so V_peak,out ≈ V_peak,in − V_D (the generator's 50 Ω takes a little more).",
+    "Add a capacitor across the load and it holds the peak between cycles. It sags by the ripple V_r ≈ V_peak,out / (f·R_L·C) before the next peak recharges it.",
+    "A Zener diode is built to break down at a set reverse voltage V_Z. Fed through a series resistor R_S, it keeps its node near V_Z while the extra current I_Z = (V_S − V_Z)/R_S − V_Z/R_L flows through it."
+  ],
+  "prelab": [
+    { "key": "vpk", "label": "Peak output of the half-wave rectifier (5 V peak in, 0.7 V drop)", "unit": "V", "answer": "5-0.7" },
+    { "key": "vr", "label": "Ripple with R_L = 10 kΩ, C = 10 µF at 60 Hz", "unit": "V", "answer": "(5-0.7)/(60*10000*10e-6)" },
+    { "key": "iz", "label": "Zener current: 12 V, R_S = 470 Ω, V_Z = 5.1 V, R_L = 1 kΩ", "unit": "mA", "answer": "1000*((12-5.1)/470-5.1/1000)" }
+  ],
+  "procedure": [
+    "Load the reference build. On the curve tracer (Bench → Curve tracer, mode diode) trace D3, a 1N4148: read V at 1 mA.",
+    "The generator gives a 10 Vpp, 60 Hz sine. CH1 shows the input (c10), CH2 the half-wave output across RL1 (column 16). Read the peak with the scope.",
+    "Move CH2 to the filtered output (column 22), switch CH2 to AC coupling and read the ripple Vpp.",
+    "Measure the Zener node (column 30) with the DMM. Change RZ (the load) to 470 Ω and 10 kΩ: the voltage hardly moves."
+  ],
+  "table": [
+    { "key": "vf", "label": "1N4148 forward voltage at 1 mA", "unit": "V", "predict": "0.65", "source": "tracer.vf", "tol": 10 },
+    { "key": "vpkm", "label": "Half-wave peak output", "unit": "V", "predict": "vpk", "source": "scope.ch2.vmax", "tol": 10 },
+    { "key": "vrm", "label": "Filter ripple (CH2 AC, Vpp)", "unit": "V", "predict": "vr", "source": "scope.ch2.vpp", "tol": 25 },
+    { "key": "vzm", "label": "Zener node voltage", "unit": "V", "predict": "5.1", "source": "dmm:M1" }
+  ],
+  "checks": [
+    { "kind": "curve", "label": "1N4148 conducts 1 mA near 0.65 V", "tracer": "CT", "mode": "diode", "metric": "vAtI", "at": 0.001, "expect": "0.65", "tol": 0.12 },
+    { "kind": "vpp", "label": "Half-wave output peaks one diode drop below the input", "ref": "d16", "window": 0.05, "expect": "5*RL1/(RL1+50)-0.75", "tol": 0.12 },
+    { "kind": "vpp", "label": "Filter ripple ≈ V_peak/(f·R·C)", "ref": "d22", "window": 0.05, "expect": "(5-0.8)/(60*RL2*CF)", "tol": 0.3 },
+    { "kind": "dc", "label": "Zener holds its node near V_Z", "ref": "d30", "expect": "Z1", "abs": 0.3 }
+  ],
+  "settle": 0.3,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 7 Diodes",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "GEN", "type": "signal_generator", "pos": { "x": -16, "z": -1 }, "params": { "waveform": "sine", "frequency": 60, "vpp": 10, "offset": 0, "load": "High-Z" } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "CT", "type": "curve_tracer", "pos": { "x": 20, "z": 21 } },
+      { "id": "D1", "type": "diode_1n4007", "holes": ["a10", "a16"] },
+      { "id": "RL1", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["b16", "top-14"] },
+      { "id": "D2", "type": "diode_1n4007", "holes": ["e10", "e22"] },
+      { "id": "RL2", "type": "resistor", "params": { "resistance": 10000 }, "holes": ["a22", "top-20"] },
+      { "id": "CF", "type": "capacitor", "params": { "capacitance": 0.00001 }, "holes": ["b22", "top-23"] },
+      { "id": "RS", "type": "resistor", "params": { "resistance": 470 }, "holes": ["top+28", "a30"] },
+      { "id": "Z1", "type": "zener_1n4733", "holes": ["top-31", "b30"] },
+      { "id": "RZ", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["c30", "top-33"] },
+      { "id": "M1", "type": "multimeter", "params": { "mode": "V" }, "holes": ["e30", "top-35"] },
+      { "id": "D3", "type": "diode", "holes": ["a50", "a54"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "GEN:out", "to": "b10", "color": "yellow" },
+      { "id": "w4", "from": "GEN:gnd", "to": "top-3", "color": "black" },
+      { "id": "w5", "from": "SC:CH1", "to": "c10", "color": "yellow" },
+      { "id": "w6", "from": "SC:CH2", "to": "c16", "color": "blue" },
+      { "id": "w7", "from": "SC:GND", "to": "top-26", "color": "black" },
+      { "id": "w8", "from": "CT:C", "to": "b50", "color": "red" },
+      { "id": "w9", "from": "CT:E", "to": "b54", "color": "black" }
+    ]
+  }
+}

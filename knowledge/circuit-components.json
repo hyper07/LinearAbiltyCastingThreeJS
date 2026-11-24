@@ -2139,6 +2139,334 @@
    },
    "look": "small green PCB, micro-USB",
    "teach": "fast audio/USB projects"
+  },
+  {
+   "id": "opamp-lm741",
+   "name": "LM741 op-amp",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "OFFSET N1",
+    "IN-",
+    "IN+",
+    "V-",
+    "OFFSET N2",
+    "OUT",
+    "V+",
+    "NC"
+   ],
+   "sim": "macro-model: 200k open-loop gain with one pole (GBW ≈ 1 MHz, implicit backward Euler), 0.5 V/µs slew limit, output clamps ~1.5 V inside the rails with soft corners; linearised VCVS stamp for Newton and a one-pole stamp for AC analysis",
+   "look": "black DIP-8 with a notch, pin 1 dot",
+   "teach": "virtual ground, inverting / non-inverting gain, saturation, slew rate, gain–bandwidth product"
+  },
+  {
+   "id": "bench-supply-triple",
+   "name": "Triple bench power supply",
+   "category": "instrument",
+   "level": 1,
+   "pins": [
+    "+",
+    "COM",
+    "-",
+    "5V",
+    "GND5"
+   ],
+   "sim": "two adjustable channels (0–30 V) in series about COM for ±V, each with a current limit that switches it from constant-voltage to constant-current inside the Newton loop; fixed 5 V channel",
+   "look": "grey bench box with two LCD channel readouts, V and I knobs, red/black/blue binding posts",
+   "teach": "CV vs CC, current limiting, split ±12 V rails for op-amps"
+  },
+  {
+   "id": "decade-resistor",
+   "name": "Decade resistance box",
+   "category": "instrument",
+   "level": 1,
+   "pins": [
+    "A",
+    "B"
+   ],
+   "sim": "ideal resistor 1 Ω–10 MΩ set by its dials",
+   "look": "wooden or grey box with a row of 0–9 dials and two posts",
+   "teach": "sweeping a load, maximum power transfer, damping an RLC"
+  },
+  {
+   "id": "decade-capacitor",
+   "name": "Decade capacitance box",
+   "category": "instrument",
+   "level": 1,
+   "pins": [
+    "A",
+    "B"
+   ],
+   "sim": "ideal capacitor 100 pF–10 µF set by its dials",
+   "look": "box with dials and two posts",
+   "teach": "time constants and cutoff frequencies by dial"
+  },
+  {
+   "id": "daq-device",
+   "name": "USB data-acquisition device (DAQ)",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "AI0+",
+    "AI0-",
+    "AI1+",
+    "AI1-",
+    "AO0",
+    "AO1",
+    "AGND",
+    "DIO0",
+    "DIO1",
+    "DIO2",
+    "DIO3",
+    "DGND"
+   ],
+   "sim": "two differential analog inputs (high impedance) sampled at a chosen rate, two analog outputs (DC or a sine) and four digital lines; a virtual-instrument panel plots, tabulates and exports CSV",
+   "look": "small blue USB box with a screw-terminal strip",
+   "teach": "virtual instruments, sampling rate and aliasing, computer-controlled measurement"
+  },
+  {
+   "id": "curve-tracer",
+   "name": "Curve tracer",
+   "category": "instrument",
+   "level": 2,
+   "pins": [
+    "C",
+    "B",
+    "E"
+   ],
+   "sim": "sweeps a source through a series resistor (100 Ω for diodes) and steps base current or gate voltage; each point is a settled DC solve; plots I–V families",
+   "look": "bench box with a small CRT-style screen and C/B/E sockets",
+   "teach": "diode knee and breakdown, BJT output curves and β, MOSFET threshold and saturation"
+  },
+  {
+   "id": "logic-switch",
+   "name": "Logic level switch",
+   "category": "switch",
+   "level": 1,
+   "pins": [
+    "VCC",
+    "OUT",
+    "GND"
+   ],
+   "sim": "drives OUT to VCC or GND through a small resistance — a clean, bounce-free logic input",
+   "look": "small toggle on a board with HIGH/LOW LED",
+   "teach": "driving TTL inputs, truth tables"
+  },
+  {
+   "id": "logic-probe",
+   "name": "Logic probe",
+   "category": "instrument",
+   "level": 1,
+   "pins": [
+    "TIP"
+   ],
+   "sim": "reads HIGH above 2.0 V, LOW below 0.8 V (TTL), undefined in between; a pulse LED stretches any edge to 0.1 s",
+   "look": "pen-shaped probe with red/green/yellow LEDs",
+   "teach": "TTL thresholds, floating inputs, catching pulses"
+  },
+  {
+   "id": "seven-seg-ca",
+   "name": "7-segment display (common anode)",
+   "category": "output",
+   "level": 1,
+   "pins": [
+    "E",
+    "D",
+    "COM",
+    "C",
+    "DP",
+    "B",
+    "A",
+    "COM",
+    "F",
+    "G"
+   ],
+   "sim": "eight LEDs with a shared anode; a segment lights when its pin is pulled LOW through a resistor",
+   "look": "red digit in a DIP-10 body",
+   "teach": "common anode vs common cathode, active-LOW drivers"
+  },
+  {
+   "id": "decoder-7447",
+   "name": "7447 BCD to 7-segment decoder",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "B",
+    "C",
+    "LT",
+    "BI/RBO",
+    "RBI",
+    "D",
+    "A",
+    "GND",
+    "e",
+    "d",
+    "c",
+    "b",
+    "a",
+    "g",
+    "f",
+    "VCC"
+   ],
+   "sim": "combinational decode of DCBA to active-LOW open-collector outputs (sinks only); lamp test and blanking",
+   "look": "DIP-16",
+   "teach": "decoders, open-collector outputs, driving a common-anode display"
+  },
+  {
+   "id": "counter-7490",
+   "name": "7490 decade counter",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "CKB",
+    "R0(1)",
+    "R0(2)",
+    "NC",
+    "VCC",
+    "R9(1)",
+    "R9(2)",
+    "QC",
+    "QB",
+    "GND",
+    "QD",
+    "QA",
+    "NC",
+    "CKA"
+   ],
+   "sim": "divide-by-2 and divide-by-5 sections on falling edges; QA→CKB gives BCD 0–9; reset-to-0 and set-to-9 inputs",
+   "look": "DIP-14 (VCC on pin 5)",
+   "teach": "ripple counters, BCD, frequency division"
+  },
+  {
+   "id": "counter-74161",
+   "name": "74161 synchronous 4-bit counter",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "CLR",
+    "CLK",
+    "A",
+    "B",
+    "C",
+    "D",
+    "ENP",
+    "GND",
+    "LOAD",
+    "ENT",
+    "QD",
+    "QC",
+    "QB",
+    "QA",
+    "RCO",
+    "VCC"
+   ],
+   "sim": "counts on rising CLK when ENP and ENT are high; synchronous LOAD, asynchronous CLR, ripple-carry out at 15",
+   "look": "DIP-16",
+   "teach": "synchronous counters, modulo-N with LOAD, cascading"
+  },
+  {
+   "id": "shift-74164",
+   "name": "74164 serial-in shift register",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "A",
+    "B",
+    "QA",
+    "QB",
+    "QC",
+    "QD",
+    "GND",
+    "CLK",
+    "CLR",
+    "QE",
+    "QF",
+    "QG",
+    "QH",
+    "VCC"
+   ],
+   "sim": "8-bit shift on rising CLK of A AND B; CLR low clears",
+   "look": "DIP-14",
+   "teach": "serial to parallel, ring and Johnson counters"
+  },
+  {
+   "id": "mux-74151",
+   "name": "74151 8-to-1 multiplexer",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "D3",
+    "D2",
+    "D1",
+    "D0",
+    "Y",
+    "W",
+    "G",
+    "GND",
+    "C",
+    "B",
+    "A",
+    "D7",
+    "D6",
+    "D5",
+    "D4",
+    "VCC"
+   ],
+   "sim": "Y = D[CBA] while strobe G is low, W = NOT Y",
+   "look": "DIP-16",
+   "teach": "data selectors, implementing any 3-input function from a truth table"
+  },
+  {
+   "id": "ff-74112",
+   "name": "74112 dual JK flip-flop",
+   "category": "ic",
+   "level": 2,
+   "pins": [
+    "1CLK",
+    "1K",
+    "1J",
+    "1PRE",
+    "1Q",
+    "1QN",
+    "2QN",
+    "GND",
+    "2Q",
+    "2PRE",
+    "2J",
+    "2K",
+    "2CLK",
+    "2CLR",
+    "1CLR",
+    "VCC"
+   ],
+   "sim": "negative-edge JK with active-low preset/clear; J=K=1 toggles",
+   "look": "DIP-16",
+   "teach": "JK behaviour, toggle mode, building counters from flip-flops"
+  },
+  {
+   "id": "gate-7402",
+   "name": "7402 quad NOR",
+   "category": "ic",
+   "level": 1,
+   "pins": [
+    "1Y",
+    "1A",
+    "1B",
+    "2Y",
+    "2A",
+    "2B",
+    "GND",
+    "3A",
+    "3B",
+    "3Y",
+    "4A",
+    "4B",
+    "4Y",
+    "VCC"
+   ],
+   "sim": "four 2-input NOR gates with TTL levels (outputs on the first pin of each gate)",
+   "look": "DIP-14",
+   "teach": "NOR as a universal gate, SR latches"
   }
  ]
 }

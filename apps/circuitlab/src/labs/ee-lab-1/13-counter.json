@@ -1,0 +1,90 @@
+{
+  "id": "ee1-13",
+  "number": 13,
+  "title": "Logic II: 555 clock, decade counter and 7-segment display",
+  "topics": ["Logic circuits", "Discrete circuits", "Test and measurement instruments"],
+  "goal": "Make a clock with a 555 timer, count its pulses with a 7490 decade counter and show the count on a 7-segment display through a 7447 decoder.",
+  "theory": [
+    "In astable mode a 555 charges its capacitor through R_A + R_B and discharges it through R_B, so it runs at f = 1.44/((R_A + 2R_B)·C) with a HIGH time 0.693·(R_A + R_B)·C and a LOW time 0.693·R_B·C.",
+    "A 7490 holds a divide-by-2 (input CKA, output QA) and a divide-by-5 (CKB → QB, QC, QD). Wiring QA to CKB makes a BCD counter 0–9: QA toggles at f/2 and QD completes one cycle every ten clocks (f/10). It counts on falling edges.",
+    "A 7447 turns the 4-bit BCD code DCBA into the seven segment drives a–g. Its outputs are active-LOW and open-collector, made for a common-anode display: COM to +5 V and each segment through about 330 Ω to the decoder.",
+    "On a scope, trigger on the clock and compare QA and QD with it; a logic probe blinks on every change."
+  ],
+  "prelab": [
+    { "key": "f", "label": "555 frequency, R_A = 10 kΩ, R_B = 47 kΩ, C = 4.7 µF", "unit": "Hz", "answer": "1.44/((10000+2*47000)*4.7e-6)" },
+    { "key": "duty", "label": "Clock duty cycle (HIGH time / period)", "unit": "%", "answer": "100*(10000+47000)/(10000+2*47000)" },
+    { "key": "fqa", "label": "QA frequency", "unit": "Hz", "answer": "1.44/((10000+2*47000)*4.7e-6)/2" },
+    { "key": "fqd", "label": "QD frequency", "unit": "Hz", "answer": "1.44/((10000+2*47000)*4.7e-6)/10" }
+  ],
+  "procedure": [
+    "Load the reference build. The display counts 0, 1, 2 … 9 and starts again — about three counts a second.",
+    "Scope CH1 on the 555 output (column 7), CH2 on QA (column 22). Read both frequencies and the clock's duty cycle with the cursors.",
+    "Turn RUN off (logic switch on the 555's RESET pin): the clock stops and the count freezes.",
+    "Try C = 0.47 µF: the count becomes a blur, but the scope still measures f ten times higher.",
+    "Optional: use the DAQ's DIO lines or the logic probe to read QA–QD while the clock runs slowly."
+  ],
+  "table": [
+    { "key": "fm", "label": "Clock frequency (CH1)", "unit": "Hz", "predict": "f", "source": "scope.ch1.freq", "tol": 10 },
+    { "key": "fqam", "label": "QA frequency (CH2)", "unit": "Hz", "predict": "fqa", "source": "scope.ch2.freq", "tol": 10 }
+  ],
+  "checks": [
+    { "kind": "freq", "label": "555 runs at 1.44/((R_A + 2R_B)·C)", "ref": "j7", "window": 2.5, "expect": "1.44/((RA+2*RB)*CT)", "tol": 0.1 },
+    { "kind": "freq", "label": "QA divides the clock by two", "ref": "d22", "window": 3, "expect": "1.44/((RA+2*RB)*CT)/2", "tol": 0.12 },
+    { "kind": "segments", "label": "Display reads 0 with the clock held in reset", "set": [{ "part": "RUN", "key": "on", "value": false }], "part": "DS1", "lit": "abcdef" }
+  ],
+  "settle": 0.4,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 13 Counter",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "U1", "type": "ne555", "at": "f5" },
+      { "id": "RA", "type": "resistor", "params": { "resistance": 10000 }, "holes": ["a6", "top+7"] },
+      { "id": "RB", "type": "resistor", "params": { "resistance": 47000 }, "holes": ["b6", "b7"] },
+      { "id": "CT", "type": "capacitor", "params": { "capacitance": 4.7e-6 }, "holes": ["h6", "bot-6"] },
+      { "id": "RUN", "type": "logic_switch", "params": { "on": true }, "holes": ["bot+9", "j8", "bot-10"] },
+      { "id": "U2", "type": "sn7490", "at": "f20" },
+      { "id": "U3", "type": "sn7447", "at": "f40" },
+      { "id": "DS1", "type": "seven_segment_ca", "at": "f53" },
+      { "id": "Ra", "type": "resistor", "params": { "resistance": 330 }, "holes": ["a43", "a56"] },
+      { "id": "Rb", "type": "resistor", "params": { "resistance": 330 }, "holes": ["a44", "a57"] },
+      { "id": "Rc", "type": "resistor", "params": { "resistance": 330 }, "holes": ["a45", "j56"] },
+      { "id": "Rd", "type": "resistor", "params": { "resistance": 330 }, "holes": ["a46", "j54"] },
+      { "id": "Re", "type": "resistor", "params": { "resistance": 330 }, "holes": ["a47", "j53"] },
+      { "id": "Rf", "type": "resistor", "params": { "resistance": 330 }, "holes": ["a41", "a54"] },
+      { "id": "Rg", "type": "resistor", "params": { "resistance": 330 }, "holes": ["a42", "a53"] },
+      { "id": "LP", "type": "logic_probe", "holes": ["c22"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:5V", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "top+1", "to": "bot+1", "color": "red" },
+      { "id": "w4", "from": "top-1", "to": "bot-1", "color": "black" },
+      { "id": "w5", "from": "a5", "to": "top+5", "color": "red" },
+      { "id": "w6", "from": "j5", "to": "bot-5", "color": "black" },
+      { "id": "w7", "from": "c7", "to": "g6", "color": "white" },
+      { "id": "w8", "from": "i7", "to": "a20", "color": "yellow" },
+      { "id": "w9", "from": "j24", "to": "bot+24", "color": "red" },
+      { "id": "w10", "from": "a24", "to": "top-24", "color": "black" },
+      { "id": "w11", "from": "j21", "to": "bot-21", "color": "black" },
+      { "id": "w12", "from": "j22", "to": "bot-22", "color": "black" },
+      { "id": "w13", "from": "j25", "to": "bot-26", "color": "black" },
+      { "id": "w14", "from": "j26", "to": "bot-27", "color": "black" },
+      { "id": "w15", "from": "b22", "to": "i20", "color": "orange" },
+      { "id": "w16", "from": "a22", "to": "i46", "color": "yellow" },
+      { "id": "w17", "from": "b25", "to": "i40", "color": "green" },
+      { "id": "w18", "from": "b26", "to": "i41", "color": "blue" },
+      { "id": "w19", "from": "b23", "to": "i45", "color": "white" },
+      { "id": "w20", "from": "j42", "to": "bot+42", "color": "red" },
+      { "id": "w21", "from": "j43", "to": "bot+43", "color": "red" },
+      { "id": "w22", "from": "j44", "to": "bot+44", "color": "red" },
+      { "id": "w23", "from": "j47", "to": "bot-47", "color": "black" },
+      { "id": "w24", "from": "b40", "to": "top+40", "color": "red" },
+      { "id": "w25", "from": "b55", "to": "top+49", "color": "red" },
+      { "id": "w26", "from": "SC:CH1", "to": "h7", "color": "yellow" },
+      { "id": "w27", "from": "SC:CH2", "to": "d22", "color": "blue" },
+      { "id": "w28", "from": "SC:GND", "to": "top-30", "color": "black" }
+    ]
+  }
+}

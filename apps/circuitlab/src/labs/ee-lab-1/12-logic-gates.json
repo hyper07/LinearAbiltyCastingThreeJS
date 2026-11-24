@@ -1,0 +1,83 @@
+{
+  "id": "ee1-12",
+  "number": 12,
+  "title": "Logic I: gates, truth tables and a half adder",
+  "topics": ["Logic circuits", "Test and measurement instruments"],
+  "goal": "Verify the truth tables of TTL gates with logic switches and a logic probe, then combine an XOR and an AND into a half adder.",
+  "theory": [
+    "TTL logic runs from 5 V. An input above 2.0 V reads as 1 (HIGH), below 0.8 V as 0 (LOW); in between is undefined. Outputs give at least 2.4 V HIGH and at most 0.4 V LOW.",
+    "AND (7408) is 1 only when both inputs are 1; OR (7432) when either is; XOR (7486) when they differ; NAND (7400) is NOT-AND — and any logic function can be built from NANDs alone.",
+    "Adding two bits A + B gives a two-bit result: the SUM bit is A XOR B and the CARRY bit is A AND B. That circuit is a half adder; two of them and an OR make a full adder.",
+    "Every gate package needs its VCC (pin 14) at 5 V and GND (pin 7) at 0 V — a missing supply wire is the most common reason a logic circuit does nothing."
+  ],
+  "prelab": [
+    { "key": "s11", "label": "SUM for A = 1, B = 1", "unit": "", "answer": "0" },
+    { "key": "c11", "label": "CARRY for A = 1, B = 1", "unit": "", "answer": "1" },
+    { "key": "n11", "label": "NAND output for A = 1, B = 1", "unit": "", "answer": "0" },
+    { "key": "vih", "label": "Lowest input voltage TTL must read as HIGH", "unit": "V", "answer": "2.0" }
+  ],
+  "procedure": [
+    "Load the reference build: LSA and LSB are the inputs A and B; U1 is a 7486 (XOR), U2 a 7408 (AND), U3 a 7400 (NAND). LED1 shows SUM, LED2 CARRY.",
+    "Step through 00, 01, 10, 11 with the two switches. Touch the logic probe to each output (column 22, 32 and 42) and fill in the truth table.",
+    "Measure a HIGH and a LOW output with the DMM and compare with the TTL limits.",
+    "Pull out U1's VCC wire and watch what happens to SUM — then put it back."
+  ],
+  "table": [
+    { "key": "voh", "label": "SUM output HIGH (A = 1, B = 0)", "unit": "V", "predict": "3.4", "source": "dmm:M1", "tol": 30 },
+    { "key": "s11m", "label": "SUM for 11 (0 or 1)", "unit": "", "predict": "s11", "source": "probe", "tol": 1 },
+    { "key": "c11m", "label": "CARRY for 11 (0 or 1)", "unit": "", "predict": "c11", "source": "probe", "tol": 1 }
+  ],
+  "checks": [
+    {
+      "kind": "truth",
+      "label": "Half adder and NAND truth table",
+      "inputs": ["LSA", "LSB"],
+      "outputs": ["g22", "g32", "g42"],
+      "rows": [
+        { "in": [0, 0], "out": [0, 0, 1] },
+        { "in": [0, 1], "out": [1, 0, 1] },
+        { "in": [1, 0], "out": [1, 0, 1] },
+        { "in": [1, 1], "out": [0, 1, 0] }
+      ]
+    },
+    { "kind": "led", "label": "SUM LED lights for A = 1, B = 0", "part": "LED1", "on": true, "set": [{ "part": "LSA", "key": "on", "value": true }, { "part": "LSB", "key": "on", "value": false }] },
+    { "kind": "led", "label": "CARRY LED lights for A = 1, B = 1", "part": "LED2", "on": true, "set": [{ "part": "LSA", "key": "on", "value": true }, { "part": "LSB", "key": "on", "value": true }] }
+  ],
+  "settle": 0.01,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 12 Logic gates",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "LSA", "type": "logic_switch", "params": { "on": true }, "holes": ["bot+10", "j11", "bot-12"] },
+      { "id": "LSB", "type": "logic_switch", "holes": ["bot+13", "j14", "bot-15"] },
+      { "id": "U1", "type": "sn7486", "at": "f20" },
+      { "id": "U2", "type": "sn7408", "at": "f30" },
+      { "id": "U3", "type": "sn7400", "at": "f40" },
+      { "id": "RL1", "type": "resistor", "params": { "resistance": 330 }, "holes": ["j22", "j28"] },
+      { "id": "LED1", "type": "led", "params": { "color": "green" }, "holes": ["i28", "bot-29"] },
+      { "id": "RL2", "type": "resistor", "params": { "resistance": 330 }, "holes": ["j32", "j38"] },
+      { "id": "LED2", "type": "led", "params": { "color": "red" }, "holes": ["i38", "bot-39"] },
+      { "id": "M1", "type": "multimeter", "params": { "mode": "V" }, "holes": ["h22", "bot-23"] },
+      { "id": "LP", "type": "logic_probe", "holes": ["h32"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:5V", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "top+1", "to": "bot+1", "color": "red" },
+      { "id": "w4", "from": "top-1", "to": "bot-1", "color": "black" },
+      { "id": "w5", "from": "a20", "to": "top+19", "color": "red" },
+      { "id": "w6", "from": "j26", "to": "bot-25", "color": "black" },
+      { "id": "w7", "from": "a30", "to": "top+29", "color": "red" },
+      { "id": "w8", "from": "j36", "to": "bot-35", "color": "black" },
+      { "id": "w9", "from": "a40", "to": "top+39", "color": "red" },
+      { "id": "w10", "from": "j46", "to": "bot-45", "color": "black" },
+      { "id": "w11", "from": "i11", "to": "i20", "color": "yellow" },
+      { "id": "w12", "from": "i14", "to": "i21", "color": "green" },
+      { "id": "w13", "from": "h11", "to": "i30", "color": "yellow" },
+      { "id": "w14", "from": "h14", "to": "i31", "color": "green" },
+      { "id": "w15", "from": "g11", "to": "i40", "color": "yellow" },
+      { "id": "w16", "from": "g14", "to": "i41", "color": "green" }
+    ]
+  }
+}

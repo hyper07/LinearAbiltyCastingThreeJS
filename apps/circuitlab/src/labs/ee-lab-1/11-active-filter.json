@@ -1,0 +1,64 @@
+{
+  "id": "ee1-11",
+  "number": 11,
+  "title": "Op-amps II: active low-pass filter and integrator",
+  "topics": ["Operational amplifiers", "Frequency response", "Virtual instruments and computer instrumentation"],
+  "goal": "Add a capacitor across the feedback resistor to turn the inverting amplifier into an active low-pass filter, measure its Bode plot, and watch it integrate a square wave far above its corner.",
+  "theory": [
+    "With C_f in parallel with R_f the feedback impedance is Z_f = R_f/(1 + jωR_fC_f), so H(jω) = −(R_f/R_in)/(1 + jω/ω_c) with ω_c = 1/(R_fC_f): a first-order low-pass with gain R_f/R_in in the pass band.",
+    "At f_c the gain is 3 dB down and the phase is −135° (the inversion plus −45°). Far above f_c the gain falls 20 dB per decade.",
+    "Far above f_c the capacitor dominates and the circuit integrates: v_out = −(1/(R_inC_f))∫v_in dt. A square wave comes out as a triangle whose peak-to-peak value is V_peak,in·T/(2·R_inC_f)."
+  ],
+  "prelab": [
+    { "key": "fc", "label": "Corner frequency, R_f = 100 kΩ, C_f = 1 nF", "unit": "Hz", "answer": "1/(2*PI*100000*1e-9)" },
+    { "key": "g0", "label": "Pass-band gain magnitude (R_in = 10 kΩ)", "unit": "dB", "answer": "20*log10(10)" },
+    { "key": "v1k", "label": "Output Vpp at 1 kHz for 0.5 Vpp in", "unit": "V", "answer": "0.5*10/sqrt(1+pow(1000/(1/(2*PI*100000*1e-9)),2))" },
+    { "key": "tri", "label": "Triangle Vpp for a ±0.25 V square at 20 kHz", "unit": "V", "answer": "0.25*(1/20000)/(2*10000*1e-9)" }
+  ],
+  "procedure": [
+    "Load the reference build (the amplifier of lab 10 with CF across RF).",
+    "Bench → Bode from i15 to d22. Read the pass-band gain and the −3 dB corner, and check the phase there.",
+    "With the generator at 1 kHz, 0.5 Vpp sine, measure the output Vpp on CH2 and compare with |H(1 kHz)|.",
+    "Switch the generator to a 20 kHz square wave: CH2 shows a triangle. Measure its Vpp and compare with the integrator formula.",
+    "Optional — DAQ: wire AI0 to the output and acquire 5 ms at 100 kS/s; export the CSV."
+  ],
+  "table": [
+    { "key": "fcm", "label": "Corner frequency f_c", "unit": "Hz", "predict": "fc", "source": "bode.high" },
+    { "key": "g0m", "label": "Pass-band gain", "unit": "dB", "predict": "g0", "source": "bode.peak", "tol": 3 },
+    { "key": "v1km", "label": "Output Vpp at 1 kHz", "unit": "V", "predict": "v1k", "source": "scope.ch2.vpp" },
+    { "key": "trim", "label": "Triangle Vpp at 20 kHz", "unit": "V", "predict": "tri", "source": "scope.ch2.vpp", "tol": 10 }
+  ],
+  "checks": [
+    { "kind": "bode", "label": "Corner at 1/(2π·R_f·C_f)", "gen": "GEN", "in": "i15", "out": "d22", "metric": "high", "expect": "1/(2*PI*RF*CF)", "tol": 0.06 },
+    { "kind": "bode", "label": "Pass-band gain R_f/R_in", "gen": "GEN", "in": "i15", "out": "d22", "metric": "gainAt", "f": 20, "expect": "RF/RIN", "tol": 0.03 },
+    { "kind": "vpp", "label": "1 kHz output follows |H(jω)|", "ref": "d22", "window": 0.004, "expect": "GEN_vpp*RF/RIN/sqrt(1+pow(2*PI*GEN_frequency*RF*CF,2))", "tol": 0.05 }
+  ],
+  "settle": 0.01,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 11 Active low-pass",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "GEN", "type": "signal_generator", "pos": { "x": -16, "z": -1 }, "params": { "waveform": "sine", "frequency": 1000, "vpp": 0.5, "offset": 0, "load": "High-Z" } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "U1", "type": "lm741", "at": "f20" },
+      { "id": "RIN", "type": "resistor", "params": { "resistance": 10000 }, "holes": ["g15", "g21"] },
+      { "id": "RF", "type": "resistor", "params": { "resistance": 100000 }, "holes": ["h21", "b22"] },
+      { "id": "CF", "type": "capacitor", "params": { "capacitance": 1e-9 }, "holes": ["i21", "c22"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "top-24", "to": "bot-24", "color": "black" },
+      { "id": "w4", "from": "PS:-", "to": "bot+0", "color": "blue" },
+      { "id": "w5", "from": "a21", "to": "top+16", "color": "red" },
+      { "id": "w6", "from": "j23", "to": "bot+18", "color": "blue" },
+      { "id": "w7", "from": "j22", "to": "bot-17", "color": "black" },
+      { "id": "w8", "from": "GEN:out", "to": "j15", "color": "yellow" },
+      { "id": "w9", "from": "GEN:gnd", "to": "top-2", "color": "black" },
+      { "id": "w10", "from": "SC:CH1", "to": "i15", "color": "yellow" },
+      { "id": "w11", "from": "SC:CH2", "to": "d22", "color": "blue" },
+      { "id": "w12", "from": "SC:GND", "to": "top-30", "color": "black" }
+    ]
+  }
+}

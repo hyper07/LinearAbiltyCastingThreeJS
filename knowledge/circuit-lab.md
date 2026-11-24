@@ -84,6 +84,46 @@ the **Circuit Lab** card. Built so far:
 Not usable: *Circuit Sim 3D Mobile Lab* (no licence = all rights reserved);
 Velxio (AGPL) and CircuitJS (GPL) stay idea-only.
 
+### EE Lab I track (CCNY EE 22100 topics)
+
+Thirteen **original** experiments covering the topics of the catalog
+description of CCNY EE 22100 (test and measurement instruments, virtual and
+computer instrumentation, electric and electronic circuits, transient and
+frequency response, logic circuits, discrete circuits, operational
+amplifiers). No university lab-manual text is used; a course's own manual
+can be added later as more data files.
+
+- **Experiments are data**: `apps/circuitlab/src/labs/ee-lab-1/NN-*.json`
+  (goal, theory, pre-lab with answers as expressions, procedure, measurement
+  table with a `source` per row, optional sweep, simulator `checks`, and a
+  reference `build`). Expressions see part values by id (`R1`, `PS_v1`,
+  `GEN_frequency`) and the pre-lab keys; `labs/checks.ts` evaluates them with
+  a whitelist. Check kinds: dc, reading, led, vpp/freq/vavg, step
+  (τ, overshoot, ringing), bode (−3 dB, f₀, Q, gain at f), curve (V at I,
+  I/step), truth table, 7-segment.
+- **The list**: 1 instruments and loading · 2 Ohm and Kirchhoff · 3 Thévenin,
+  max power, superposition · 4 RC/RL transients · 5 RLC step · 6 RC/RLC
+  frequency response · 7 diodes, rectifier, Zener · 8 BJT bias and CE gain ·
+  9 MOSFET switch and square law · 10 op-amp amplifiers and GBW · 11 active
+  low-pass / integrator · 12 gates and a half adder · 13 555 → 7490 → 7447 →
+  display.
+- **Bench** (dock → Bench): function generator (50 Ω out, High-Z vs 50 Ω
+  display), 2-channel scope (triggered capture on the live engine, coupling,
+  ×1/×10 probe loading, cursors, Vpp/Vrms/Vavg/f/rise/overshoot/phase, X-Y),
+  DMM (V, V~, mA, Ω, continuity, diode; 10 MΩ input), triple supply CV/CC,
+  decade boxes, DAQ with a VI panel (rate, duration, plot, table, CSV), Bode
+  analyser and curve tracer. Panels publish readings to `labs/sources.ts`;
+  the lab table's **Use** button takes them.
+- **Solver additions**: small-signal AC analysis (`sim/ac.ts`, complex MNA
+  linearised at the DC operating point, op-amp one-pole), adaptive time step
+  from the generator frequency, LM741 macro-model (GBW, slew, rail clamp),
+  rectifier and Zener diodes, 74-series lab chips (7402, 74112, 7490, 74161,
+  74164, 74595, 74138, 74151, 7447). Accuracy tests: `tests/ee-solver.test.ts`;
+  every experiment's own checks pass on its reference build
+  (`tests/ee-labs.test.ts`).
+- **Export**: CSV (pre-lab, table with % error, sweep, checks), PNG plots and
+  a printable HTML summary; progress per experiment kept in localStorage.
+
 ## Contents
 
 1. [The reference, studied](#1-the-reference-studied)

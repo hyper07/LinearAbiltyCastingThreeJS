@@ -1,0 +1,65 @@
+{
+  "id": "ee1-09",
+  "number": 9,
+  "title": "MOSFET: switch and square-law transfer",
+  "topics": ["Discrete circuits", "Logic circuits"],
+  "goal": "Use a 2N7000 as a logic-driven switch for an LED, then measure its drain current against gate voltage and compare with the square law.",
+  "theory": [
+    "An enhancement N-MOSFET is off until the gate–source voltage passes the threshold V_th (about 2 V here). The gate draws no DC current, so a logic output can drive it directly.",
+    "Fully on (V_GS well above V_th, small V_DS) the channel acts like a small resistor R_DS(on) ≈ 1/(k·(V_GS − V_th)); a switch should leave only millivolts across it.",
+    "In saturation (V_DS > V_GS − V_th) the drain current follows the square law I_D = (k/2)·(V_GS − V_th)²·(1 + λ·V_DS). The simulator's 2N7000 has k = 0.1 A/V², V_th = 2 V and λ = 0.01 /V."
+  ],
+  "prelab": [
+    { "key": "ron", "label": "R_DS(on) with a 5 V gate", "unit": "Ω", "answer": "1/(0.1*(5-2))" },
+    { "key": "id", "label": "I_D in saturation at V_GS = 3 V (ignore λ)", "unit": "mA", "answer": "1000*0.05*pow(3-2,2)" },
+    { "key": "vd", "label": "Drain voltage with R_D = 100 Ω from 12 V", "unit": "V", "answer": "12-100*0.05*pow(3-2,2)" }
+  ],
+  "procedure": [
+    "Load the reference build. Flip the logic switch LS1 (click it, or its Properties): the LED follows. Measure V_DS of Q1 while on.",
+    "The trimmer TR sets Q2's gate. M2 reads V_GS, M1 the drain. At V_GS = 3 V compare I_D = (12 − V_D)/100 Ω with the square law.",
+    "Turn TR in small steps from 2 V to 3.5 V and note I_D: it grows with the square of the overdrive.",
+    "On the curve tracer (mode nmos) trace Q3: one curve per gate voltage; find the knee where V_DS = V_GS − V_th."
+  ],
+  "table": [
+    { "key": "vgs", "label": "Gate voltage V_GS (M2)", "unit": "V", "predict": "3", "source": "dmm:M2", "tol": 3 },
+    { "key": "vdm", "label": "Drain voltage V_D (M1)", "unit": "V", "predict": "vd", "source": "dmm:M1", "tol": 8 }
+  ],
+  "checks": [
+    { "kind": "led", "label": "LED on when the switch is HIGH", "part": "LED1", "on": true, "set": [{ "part": "LS1", "key": "on", "value": true }] },
+    { "kind": "led", "label": "LED off when the switch is LOW", "part": "LED1", "on": false, "set": [{ "part": "LS1", "key": "on", "value": false }] },
+    { "kind": "dc", "label": "Only millivolts across the switch when on", "ref": "d17", "expect": "0.03", "abs": 0.15 },
+    { "kind": "dc", "label": "Square-law drain voltage at V_GS = 3 V", "ref": "e35", "expect": "PS_v1-RD2*0.05*pow(TR_position*PS_v1-2,2)*1.07", "tol": 0.06 },
+    { "kind": "curve", "label": "Tracer: I_D at V_GS = 3 V (per volt of gate)", "tracer": "CT", "mode": "nmos", "metric": "beta", "at": 3, "expect": "0.05*pow(3-2,2)/3", "tol": 0.12 }
+  ],
+  "settle": 0.05,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 9 MOSFET",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.5, "i2": 0.2 } },
+      { "id": "CT", "type": "curve_tracer", "pos": { "x": 20, "z": 21 } },
+      { "id": "LS1", "type": "logic_switch", "params": { "on": true }, "holes": ["bot+10", "j11", "bot-12"] },
+      { "id": "RG", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["i11", "i14"] },
+      { "id": "Q1", "type": "nmos", "holes": ["g16", "h14", "b17"] },
+      { "id": "RD", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["top+18", "a18"] },
+      { "id": "LED1", "type": "led", "params": { "color": "green" }, "holes": ["b18", "c17"] },
+      { "id": "TR", "type": "trimmer", "params": { "resistance": 10000, "position": 0.25 }, "holes": ["top-30", "a31", "top+32"] },
+      { "id": "Q2", "type": "nmos", "holes": ["c33", "c31", "c35"] },
+      { "id": "RD2", "type": "resistor", "params": { "resistance": 100 }, "holes": ["a35", "top+37"] },
+      { "id": "M1", "type": "multimeter", "params": { "mode": "V" }, "holes": ["d35", "top-39"] },
+      { "id": "M2", "type": "multimeter", "params": { "mode": "V" }, "holes": ["d31", "top-40"] },
+      { "id": "Q3", "type": "nmos", "holes": ["a52", "a51", "a50"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "PS:5V", "to": "bot+0", "color": "orange" },
+      { "id": "w4", "from": "top-24", "to": "bot-24", "color": "black" },
+      { "id": "w5", "from": "f16", "to": "bot-16", "color": "black" },
+      { "id": "w6", "from": "d33", "to": "top-34", "color": "black" },
+      { "id": "w7", "from": "CT:C", "to": "b50", "color": "red" },
+      { "id": "w8", "from": "CT:B", "to": "b51", "color": "green" },
+      { "id": "w9", "from": "CT:E", "to": "b52", "color": "black" }
+    ]
+  }
+}

@@ -39,6 +39,11 @@ export function readSource(key: string): number | undefined {
     const v = id ? tele[id]?.value : undefined
     return typeof v === 'number' && Number.isFinite(v) ? v : undefined
   }
+  if (key === 'probe') {
+    const lp = st.layout.components.find((c) => c.type === 'logic_probe')
+    const r = lp ? tele[lp.id]?.reading : undefined
+    return r === 'HIGH' ? 1 : r === 'LOW' ? 0 : undefined
+  }
   if (key.startsWith('supply.')) {
     const ps = st.layout.components.find((c) => c.type === 'bench_supply')
     const v = ps ? tele[ps.id]?.extra?.[key.slice(7)] : undefined
