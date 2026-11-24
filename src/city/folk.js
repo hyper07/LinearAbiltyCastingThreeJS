@@ -18,7 +18,7 @@ import { PEOPLE } from './streetAssets.js';
 
 const ROOT = './library/rocketbox/';
 /** How many real people at once, and how near (m): the rest are StreetLife's far figures. */
-export const FOLK = { max: 26, near: 48, keep: 56 };
+export const FOLK = { max: 32, near: 42, keep: 50 };
 /** The walk clip's natural pace (m/s): the clip is sped up or slowed to match each walker's feet. */
 const WALK_PACE = 1.3;
 
@@ -211,19 +211,30 @@ export class Folk {
       const m = p.m;
       if (!m || m.gone || Math.hypot(m.x - cam.x, m.z - cam.z) > FOLK.keep) this._release(p);
     }
-    // The nearest without one, nearest first, while there are bodies to give.
-    if (this.active.length < FOLK.max) {
-      const want = [];
-      for (const m of people) {
-        if (m.real || !m.onFoot) continue;
-        const d = Math.hypot(m.x - cam.x, m.z - cam.z);
-        if (d < FOLK.near) want.push([d, m]);
+    // The nearest without one, nearest first: a free body if there is one, else the body of whoever
+    // has one furthest off (when they're well further off than this one).
+    const want = [];
+    for (const m of people) {
+      if (m.real || !m.onFoot) continue;
+      const d = Math.hypot(m.x - cam.x, m.z - cam.z);
+      if (d < FOLK.near) want.push([d, m]);
+    }
+    want.sort((a, b) => a[0] - b[0]);
+    for (const [d, m] of want) {
+      if (this.active.length >= FOLK.max) {
+        let far = null;
+        let fd = 0;
+        for (const p of this.active) {
+          const pd = Math.hypot(p.m.x - cam.x, p.m.z - cam.z);
+          if (pd > fd) {
+            fd = pd;
+            far = p;
+          }
+        }
+        if (!far || fd < d + 6) break;
+        this._release(far);
       }
-      want.sort((a, b) => a[0] - b[0]);
-      for (const [, m] of want) {
-        if (this.active.length >= FOLK.max) break;
-        if (!this._take(m)) break;
-      }
+      if (!this._take(m)) break;
     }
     for (const p of this.active) this._pose(p, dt);
   }

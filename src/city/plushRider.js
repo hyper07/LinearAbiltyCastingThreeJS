@@ -73,8 +73,6 @@ function plushBody({ light, belly = true, bodyR = [0.21, 0.2, 0.19] } = {}) {
 }
 const head = (c = [0, 0.67, 0], r = [0.34, 0.29, 0.3], o = {}) => E(c, r, { k: 0.13, bone: 'head', ...o });
 const BLUSH = '#ff8fa8';
-/** How far a boost leans the rider back (radians, about 11°). */
-const BOOST_LEAN = 0.2;
 
 /* ---------------------------------------------------------------- recipes */
 
@@ -594,6 +592,13 @@ export class PlushRider {
     setFurLod(this.fur, dist < 7 ? max : dist < 16 ? max * 0.55 : dist < 34 ? Math.min(max, 3) : 0);
   }
 
+  /** Put the rider at (x, y, z) in the ground's frame although it hangs under the tipped-over scooter's lean. */
+  placeRider(x, y, z, lean) {
+    const c = Math.cos(-lean);
+    const s = Math.sin(-lean);
+    this.rider.position.set(x * c - y * s, x * s + y * c, z);
+  }
+
   /** Remove from the scene and free what is only ours (the sculpted body is shared per species). */
   dispose() {
     this.root.removeFromParent();
@@ -650,7 +655,7 @@ export class PlushRider {
     // lean the body into the turn a little more than the scooter (weight inside), back from a boost
     const bodyLean = spring(S.leanB, down ? 0 : (st.lean ?? 0) * 0.35, 80, 12, dt);
     this.rider.rotation.z = bodyLean;
-    this.tilt.rotation.x = -crouch * 0.22 + (st.boost ? -0.05 : 0);
+    this.tilt.rotation.x = -crouch * 0.1;
     // stance: turned a little, front foot forward
     this.body.rotation.y = Math.PI + (down ? 0 : 0.28);
     this.rider.position.set(0, DECK + 0.005, -0.08);
@@ -660,9 +665,9 @@ export class PlushRider {
     // knees bent: the hips drop and push back; more in a crouch
     hips.position.y = 0.2 - (0.035 + crouch * 0.05);
     hips.rotation.set(0.1 + crouch * 0.12, -0.28 * 0.6, 0);
-    chest.rotation.set(0.18 + crouch * 0.3, 0.12, -bodyLean * 0.3);
+    chest.rotation.set(0.12 + crouch * 0.16, 0.12, -bodyLean * 0.3);
     // the head looks where it is going (undoing the stance and the crouch's pitch), into the turn
-    headB.rotation.set(-0.2 - crouch * 0.22, 0.16 + (st.steer ?? 0) * 0.25, bodyLean * 0.4);
+    headB.rotation.set(-0.16 - crouch * 0.3, 0.16 + (st.steer ?? 0) * 0.25, bodyLean * 0.4);
     // arms forward to the grips (rotation.y swings forward, z raises; L at −x), or up at the finish
     const reach = 1.25, raise = 1.25 + crouch * 0.1;
     const upA = armsUp;
@@ -681,12 +686,13 @@ export class PlushRider {
     if (down) {
       if (mode === 'tumble') {
         const u = Math.min(1, ft / 0.7);
-        this.rider.position.set(0, DECK + Math.sin(u * Math.PI) * 0.6, -u * 0.9);
+        this.placeRider(0, DECK + Math.sin(u * Math.PI) * 0.6, -u * 0.9, lean);
+        this.rider.rotation.z = -lean;
         this.rider.rotation.x = -u * Math.PI * 2;
       } else {
         // sitting: dropped to the ground beside the scooter, leaning back on the paws, head wobbling
         const up = Math.max(0, Math.min(1, (ft - 1.25) / 0.3));
-        this.rider.position.set(0.32 * (1 - up), -0.06 * (1 - up) + DECK * up, -0.9 * (1 - up));
+        this.placeRider(0.32 * (1 - up), 0.02 * (1 - up) + DECK * up, -0.9 * (1 - up), lean);
         this.rider.rotation.z = -lean * (1 - up);
         hips.position.y = 0.2 - 0.12 * (1 - up);
         chest.rotation.set(-0.25 * (1 - up), 0, 0);
