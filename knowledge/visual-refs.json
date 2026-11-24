@@ -17949,12 +17949,14 @@
 "id": "ref.img2-0325",
 "image": "images2/IMG_0325.PNG",
 "type": "character-art",
-"quality": 2,
-"title": "Rider leaning on a motorbike at night",
-"summary": "A man leans on a motorbike over a lit valley under the moon.",
+"quality": 4,
+"title": "Handsome anime rider resting on a motorbike under the moon",
+"summary": "A good-looking young man with wind-tossed black hair, headphones and a black striped track jacket leans back on a motorbike, eyes closed, above a moonlit valley of warm village lights.",
 "concept": "",
 "lessons": [
-"Rim light from the town behind separates the dark figure."
+"The user's bar for \"good-looking 2D characters\": anime-film style, young adult, tall slim proportions (~7.5 heads), defined jaw and straight nose, calm closed-eye smile, big voluminous hair in shaded clumps.",
+"Dark clothes keep their detail through a cool blue moonlight rim and silver stripes; the motorbike headlight is the only warm light on the figure.",
+"Night palette: deep cobalt sky, white-edged clouds, a bright moon, warm amber points in the valley."
 ],
 "hud": [],
 "fx": {},
@@ -17968,15 +17970,23 @@
 "lighting": "moonlight, rim",
 "camera": "low",
 "tags": [
+"anime",
+"handsome",
+"character",
+"rider",
 "motorbike",
 "night",
-"rider"
+"moon",
+"headphones",
+"track-jacket",
+"gangnam-jarani"
 ],
 "useFor": [
+"racing",
 "general"
 ],
 "source": "AI image",
-"study": "knowledge/visual-study.md"
+"study": "knowledge/racing-study.md"
 },
 {
 "id": "ref.img2-0327",
