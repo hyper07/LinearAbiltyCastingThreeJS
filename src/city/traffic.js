@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadCar, makeCar, PAINTS } from './cars.js';
+import { makeVehicle, pickKind } from './vehicles.js';
 import { follow, pointOn } from './drive.js';
 import { isSmall } from './course.js';
 
@@ -19,10 +19,9 @@ import { isSmall } from './course.js';
 
 const SPEEDS = [0, 13, 11, 9.5, 8, 5]; // metres a second by road class (no motorways)
 const WANT = { car: 24, bus: 3, scooter: 9 };
-const SIZE = { car: [2.25, 0.95], bus: [5.6, 1.25], scooter: [0.9, 0.36] };
-/** Free models (polyfork.dev, CC BY 4.0): a city bus and a delivery moped. */
-const POLY = { bus: './library/polyfork/city-bus-49fd97.glb', scooter: './library/polyfork/delivery-moped-1aa2ce.glb' };
-const BUS_COLORS = ['#2f7fd1', '#3aa65a', '#2f7fd1', '#e9b23a'];
+const SIZE = { scooter: [0.9, 0.36] };
+/** A free model (polyfork.dev, CC BY 4.0): the delivery moped. */
+const POLY = { scooter: './library/polyfork/delivery-moped-1aa2ce.glb' };
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 
 const loader = new GLTFLoader();
@@ -109,11 +108,7 @@ export class RaceTraffic {
     this.group = new THREE.Group();
     game.scene.add(this.group);
     this._spawnT = 0;
-    loadCar().then((k) => (this.carKind = k));
-    for (const k of ['bus', 'scooter']) loadModel(k).then((m) => (this[`${k}Model`] = m));
-    this.blinkMat = new THREE.MeshBasicMaterial({ color: '#ffae1a' });
-    this.offMat = new THREE.MeshBasicMaterial({ color: '#5a3a10' });
-    this.indicator = new THREE.BoxGeometry(0.16, 0.1, 0.06);
+    loadModel('scooter').then((m) => (this.scooterModel = m));
   }
 
   /** Roads a vehicle of a kind may drive: cars and buses the main roads, scooters also the small streets. */
@@ -124,44 +119,21 @@ export class RaceTraffic {
   _make(kind) {
     const group = new THREE.Group();
     let view = null;
-    const color = kind === 'bus' ? BUS_COLORS[Math.floor(Math.random() * BUS_COLORS.length)] : kind === 'scooter' ? ['#e9e9e6', '#c8322b', '#2a2c31', '#1f5bb5'][Math.floor(Math.random() * 4)] : PAINTS[Math.floor(Math.random() * PAINTS.length)];
-    if (kind === 'car') {
-      view = makeCar(this.carKind, color, { lite: true });
-      group.add(view.group);
-    } else {
-      const model = this[`${kind}Model`];
-      const body = model ? model.clone(true) : plainModel(kind, color);
-      if (model && kind === 'bus') {
-        // Seoul's city buses: blue, green or yellow down the sides.
-        body.traverse((o) => {
-          if (!o.isMesh || !o.material?.color) return;
-          const c = o.material.color;
-          if (c.r + c.g + c.b > 0.9 && Math.abs(c.r - c.g) + Math.abs(c.g - c.b) > 0.15) {
-            o.material = o.material.clone();
-            o.material.color.set(color);
-          }
-        });
-      }
+    let size;
+    if (kind === 'scooter') {
+      const body = this.scooterModel ? this.scooterModel.clone(true) : plainModel('scooter', ['#e9e9e6', '#c8322b', '#2a2c31', '#1f5bb5'][Math.floor(Math.random() * 4)]);
       group.add(body);
-      if (kind === 'scooter') {
-        const rider = scooterRider(['#2f6fd1', '#3fb68b', '#f2c230', '#1d1f24', '#e2483d'][Math.floor(Math.random() * 5)]);
-        rider.scale.setScalar(0.95);
-        group.add(rider);
-      }
-    }
-    // Indicators: amber at the four corners, blinking before a turn.
-    const [hl, hw] = SIZE[kind];
-    const blinkers = { left: [], right: [] };
-    for (const side of ['left', 'right']) {
-      for (const end of [-1, 1]) {
-        const m = new THREE.Mesh(this.indicator, this.offMat);
-        m.position.set((side === 'left' ? -1 : 1) * hw * 0.95, kind === 'bus' ? 1.0 : kind === 'scooter' ? 0.9 : 0.75, end * hl * 0.98);
-        group.add(m);
-        blinkers[side].push(m);
-      }
+      const rider = scooterRider(['#2f6fd1', '#3fb68b', '#f2c230', '#1d1f24', '#e2483d'][Math.floor(Math.random() * 5)]);
+      rider.scale.setScalar(0.95);
+      group.add(rider);
+      size = SIZE.scooter;
+    } else {
+      view = makeVehicle(kind === 'bus' ? 'bus' : pickKind());
+      group.add(view.group);
+      size = [view.size.length / 2, view.size.width / 2];
     }
     this.group.add(group);
-    return { group, view, kind, blinkers };
+    return { group, view, kind, size };
   }
 
   /** A new vehicle on a road a little way from someone riding (mostly ahead of them, out of sight). */
@@ -187,7 +159,7 @@ export class RaceTraffic {
       if (this.g.buildingAt?.(q.x, q.z)) continue;
       const made = this._make(kind);
       const top = (SPEEDS[Math.min(5, r.cls)] ?? 8) * (kind === 'scooter' ? 1.05 : kind === 'bus' ? 0.85 : 1) * (0.85 + Math.random() * 0.3);
-      const [halfLength, halfWidth] = SIZE[kind];
+      const [halfLength, halfWidth] = made.size;
       const v = { ...made, road: r, at, lane, top, speed: top * 0.8, v: top * 0.8, y: this.g.surfaceAt(q.x, q.z), box: { x: q.x, z: q.z, heading: q.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0 };
       this.vehicles.push(v);
       this._place(v, 0);
@@ -213,12 +185,11 @@ export class RaceTraffic {
     }
     // Too few: more, a few a second, round the racers (most round you).
     this._spawnT -= dt;
-    if (this._spawnT <= 0 && (this.carKind || this.vehicles.length < 4)) {
+    if (this._spawnT <= 0) {
       this._spawnT = 0.12;
       const count = { car: 0, bus: 0, scooter: 0 };
       for (const v of this.vehicles) count[v.kind]++;
       for (const kind of ['car', 'bus', 'scooter']) {
-        if (kind === 'car' && !this.carKind) continue;
         if (count[kind] < WANT[kind] * (anchors.length > 1 ? 1.2 : 1)) {
           const a = Math.random() < 0.65 ? me : anchors[Math.floor(Math.random() * anchors.length)];
           this._spawn(a, kind);
@@ -232,8 +203,8 @@ export class RaceTraffic {
     for (const v of this.vehicles) {
       this._drive(v, dt);
       v.view?.lights(night, v.braking);
-      v.view?.near(Math.hypot(v.box.x - me.x, v.box.z - me.z) < 120);
-      for (const side of ['left', 'right']) for (const m of v.blinkers[side]) m.material = on && (v.signal === side || v.hazard) ? this.blinkMat : this.offMat;
+      v.view?.near(Math.hypot(v.box.x - me.x, v.box.z - me.z) < 90);
+      v.view?.indicate(v.hazard ? 'both' : v.signal, on);
     }
   }
 
@@ -339,7 +310,7 @@ export class RaceTraffic {
     v.y = dt ? v.y + (y - v.y) * Math.min(1, dt * 10) : y;
     v.group.position.set(b.x, v.y, b.z);
     v.group.rotation.y = b.heading;
-    if (v.view) v.view.wheels(0, (v.speed * dt) / (this.carKind?.radius || 0.34));
+    if (v.view) v.view.wheels((v.speed * dt) / (v.view.size.wheel || 0.33));
   }
 
   /** Everything within `r` metres of a point. */
