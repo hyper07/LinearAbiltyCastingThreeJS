@@ -326,6 +326,8 @@ export interface HoleLabel {
   setLocked(locked: boolean): void
   show(): void
   hide(): void
+  /** Grow the card (1 = the hole-coordinate size); pin-name chips scale with the view distance */
+  setScale(k: number): void
   /** Free the texture + material (one label per scene, reused per hover). */
   dispose(): void
 }
@@ -473,6 +475,9 @@ export function makeHoleLabel(): HoleLabel {
     },
     show() {
       sprite.visible = true
+    },
+    setScale(k) {
+      sprite.scale.set(LABEL_W * k, LABEL_H * k, 1)
     },
     hide() {
       sprite.visible = false

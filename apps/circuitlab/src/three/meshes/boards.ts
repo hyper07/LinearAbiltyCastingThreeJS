@@ -19,6 +19,7 @@ import { boardDef, ARDUINO_HEADER_Y, ESP32_PIN_Y, type BoardDef } from '../../mo
 import { offboardGeometry } from '../../model/breadboard'
 import { BuildResult, cachedGeometry, cachedMaterial, mergeStatic, metal, moldedEpoxy, plastic } from './shared'
 import { UI_FONT } from '../../ui/fonts'
+import { PIN_KIND_STYLE, pinKind, pinLabel, type PinKind } from '../../model/pin-labels'
 
 // ------------------------------------------------------------- primitives
 
@@ -94,7 +95,7 @@ function art(key: string, w: number, h: number, draw: (ctx: CanvasRenderingConte
 
 /** PCB slab: textured top, plain sides */
 function pcb(key: string, w: number, d: number, thick: number, color: number, y: number, x0: number, z0: number, paint: (ctx: CanvasRenderingContext2D, px: number) => void): THREE.Object3D {
-  const PX = 48
+  const PX = 64 // sharp enough for the pin tags
   const tex = art(`pcb:${key}`, Math.round(w * PX), Math.round(d * PX), (ctx) => paint(ctx, PX))
   const side = cachedMaterial(`pcbside:${color}`, () => new THREE.MeshPhysicalMaterial({ color, roughness: 0.55 }))
   const top = tex
@@ -160,33 +161,164 @@ function traces(ctx: CanvasRenderingContext2D, w: number, h: number, color: stri
   }
 }
 
-/** female header strip with n square holes, centered at (x, z), along x */
-function femaleHeader(n: number, x: number, z: number, y0: number, top: number, alongZ = false): THREE.Object3D[] {
+/** a printed pin name on a header side or a PCB: its text and kind (colour) */
+export interface PinTag {
+  text: string
+  kind: PinKind
+}
+
+/** text colour for a name printed straight on dark plastic */
+function inkOnDark(kind: PinKind): string {
+  return kind === 'gnd' ? '#c9ccd1' : kind === 'digital' ? '#f4f6f2' : kind === 'ctrl' ? '#b7c0ca' : PIN_KIND_STYLE[kind].fill
+}
+
+/**
+ * female header strip with n square holes, centered at (x, z), along x. With
+ * `tags` (one per hole, low x first; null = no label) each pin's name is
+ * printed up both long sides of the strip in its kind's colour, so the hole
+ * a wire goes into reads at a glance from any side.
+ */
+function femaleHeader(n: number, x: number, z: number, y0: number, top: number, alongZ = false, tags?: (PinTag | null)[]): THREE.Object3D[] {
   const h = top - y0
   const len = n
-  const tex = art(`fhdr:${n}`, n * 32, 32, (ctx) => {
-    ctx.fillStyle = '#191919'
-    ctx.fillRect(0, 0, n * 32, 32)
+  const C = 64 // px per hole
+  const tex = art(`fhdr2:${n}`, n * C, C, (ctx) => {
+    ctx.fillStyle = '#1b1b1d'
+    ctx.fillRect(0, 0, n * C, C)
     for (let i = 0; i < n; i++) {
-      ctx.fillStyle = '#040404'
-      ctx.fillRect(i * 32 + 10, 10, 12, 12)
-      ctx.strokeStyle = '#2b2b2b'
+      const x0 = i * C
+      // moulded funnel around each opening, then the opening with its contact
+      ctx.fillStyle = '#2c2c30'
+      ctx.fillRect(x0 + 12, 12, C - 24, C - 24)
+      const g = ctx.createLinearGradient(0, 18, 0, C - 18)
+      g.addColorStop(0, '#000000')
+      g.addColorStop(1, '#121214')
+      ctx.fillStyle = g
+      ctx.fillRect(x0 + 18, 18, C - 36, C - 36)
+      ctx.fillStyle = '#b8954a' // the spring contact glinting inside
+      ctx.fillRect(x0 + 22, C - 26, C - 44, 3)
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
       ctx.lineWidth = 2
-      ctx.strokeRect(i * 32 + 8, 8, 16, 16)
+      ctx.strokeRect(x0 + 1, 1, C - 2, C - 2)
     }
   })
   const side = MAT.headerBlack()
-  const topMat = tex ? cachedMaterial(`fhdrtop:${n}`, () => new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.6 })) : side
+  const topMat = tex ? cachedMaterial(`fhdrtop2:${n}`, () => new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.6 })) : side
   const g = cachedGeometry(`fhdrg:${n}:${h.toFixed(2)}`, () => new THREE.BoxGeometry(len, h, 1))
   const m = new THREE.Mesh(g, side)
   m.position.set(x, y0 + h / 2, z)
   if (alongZ) m.rotation.y = Math.PI / 2
   m.castShadow = true
-  if (topMat === side) return [m]
-  const face = new THREE.Mesh(cachedGeometry(`fhdrtopg:${n}`, () => new THREE.PlaneGeometry(len, 1).rotateX(-Math.PI / 2)), topMat)
-  face.position.set(x, top + 0.004, z)
-  if (alongZ) face.rotation.y = Math.PI / 2
-  return [m, face]
+  const out: THREE.Object3D[] = [m]
+  if (topMat !== side) {
+    const face = new THREE.Mesh(cachedGeometry(`fhdrtopg:${n}`, () => new THREE.PlaneGeometry(len, 1).rotateX(-Math.PI / 2)), topMat)
+    face.position.set(x, top + 0.004, z)
+    if (alongZ) face.rotation.y = Math.PI / 2
+    out.push(face)
+  }
+  if (tags && typeof document !== 'undefined') {
+    const H = Math.round(h * C)
+    const key = tags.map((t) => (t ? `${t.text}/${t.kind}` : '-')).join(',')
+    const sideTex = (reversed: boolean) =>
+      art(`fhdrside:${key}:${H}:${reversed ? 'r' : 'f'}`, n * C, H, (ctx) => {
+        ctx.fillStyle = '#18181a'
+        ctx.fillRect(0, 0, n * C, H)
+        tags.forEach((t, i) => {
+          if (!t) return
+          const cx = ((reversed ? n - 1 - i : i) + 0.5) * C
+          ctx.save()
+          ctx.translate(cx, 10)
+          ctx.rotate(-Math.PI / 2)
+          ctx.fillStyle = inkOnDark(t.kind)
+          ctx.font = `700 ${t.text.length > 4 ? 34 : 40}px ${UI_FONT}`
+          ctx.textAlign = 'right'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(t.text, 0, 0)
+          ctx.restore()
+        })
+      })
+    for (const [dir, reversed] of [[1, false], [-1, true]] as const) {
+      const t = sideTex(reversed)
+      if (!t) continue
+      const mat = cachedMaterial(`fhdrsidem:${key}:${H}:${reversed}`, () => new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 }))
+      const plane = new THREE.Mesh(cachedGeometry(`fhdrsideg:${n}:${h.toFixed(2)}`, () => new THREE.PlaneGeometry(len, h)), mat)
+      if (alongZ) {
+        // strip turned along z: cells run toward −z, long faces look along ±x
+        plane.position.set(x + dir * 0.505, y0 + h / 2, z)
+        plane.rotation.y = reversed ? -Math.PI / 2 : Math.PI / 2
+      } else {
+        plane.position.set(x, y0 + h / 2, z + dir * 0.505)
+        if (reversed) plane.rotation.y = Math.PI
+      }
+      out.push(plane)
+    }
+  }
+  return out
+}
+
+/**
+ * Pin names across both long faces of a row of 1 × 1 spacer blocks (male
+ * pin headers): one cell per pin from `x0` along +x, horizontal text fitted
+ * to the cell, in the pin kind's colour.
+ */
+function spacerLabels(tags: PinTag[], x0: number, z: number, y: number): THREE.Object3D[] {
+  const n = tags.length
+  const C = 96
+  const key = tags.map((t) => `${t.text}/${t.kind}`).join(',')
+  const out: THREE.Object3D[] = []
+  for (const [dir, reversed] of [[1, false], [-1, true]] as const) {
+    const tex = art(`spacer:${key}:${reversed ? 'r' : 'f'}`, n * C, C, (ctx) => {
+      ctx.fillStyle = '#161616'
+      ctx.fillRect(0, 0, n * C, C)
+      tags.forEach((t, i) => {
+        const cx = ((reversed ? n - 1 - i : i) + 0.5) * C
+        let size = 46
+        ctx.font = `700 ${size}px ${UI_FONT}`
+        while (ctx.measureText(t.text).width > C - 10 && size > 24) ctx.font = `700 ${--size}px ${UI_FONT}`
+        ctx.fillStyle = inkOnDark(t.kind)
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(t.text, cx, C / 2 + 2)
+      })
+    })
+    if (!tex) continue
+    const mat = cachedMaterial(`spacerm:${key}:${reversed}`, () => new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }))
+    const plane = new THREE.Mesh(cachedGeometry(`spacerg:${n}`, () => new THREE.PlaneGeometry(n, 1)), mat)
+    plane.position.set(x0 + (n - 1) / 2, y, z + dir * 0.505)
+    if (reversed) plane.rotation.y = Math.PI
+    out.push(plane)
+  }
+  return out
+}
+
+/**
+ * A colour-coded pin tag printed on a PCB: a rounded label in the pin kind's
+ * colour, running from `gap` beside the pin toward the board's middle
+ * (`toward` = +1 / −1 along z), text reading along the tag.
+ */
+function pcbTag(ctx: CanvasRenderingContext2D, px: number, t: PinTag, x: number, z: number, toward: 1 | -1, size = 0.5): void {
+  const st = PIN_KIND_STYLE[t.kind]
+  ctx.save()
+  ctx.font = `700 ${size * px}px ${UI_FONT}`
+  const len = ctx.measureText(t.text).width / px + 0.34
+  const w = 0.8
+  const z0 = toward > 0 ? z + 0.62 : z - 0.62 - len
+  ctx.fillStyle = st.fill
+  ctx.beginPath()
+  ctx.roundRect((x - w / 2) * px, z0 * px, w * px, len * px, 0.18 * px)
+  ctx.fill()
+  if (t.kind === 'gnd') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+    ctx.lineWidth = 0.05 * px
+    ctx.stroke()
+  }
+  ctx.translate(x * px, (z0 + len / 2) * px)
+  ctx.rotate(-Math.PI / 2)
+  ctx.fillStyle = st.ink
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(t.text, 0, 0.03 * px)
+  ctx.restore()
 }
 
 /** male pin header: plastic spacer + square gold pins from yBottom to yTop */
@@ -295,24 +427,17 @@ function paintArduino(def: BoardDef, widthIn: number) {
     text(ctx, px, 'POWER', 15, 18.0, 0.6, { weight: '700' })
     text(ctx, px, 'ANALOG IN', isMega ? 26 : 22.5, 18.0, 0.6, { weight: '700' })
     // pin labels next to the headers
-    const label = (name: string) => {
-      const pwm = Array.isArray(def.pwm) && def.pwm.includes(name)
-      if (/^D\d+$/.test(name)) return `${pwm ? '~' : ''}${name.slice(1)}`
-      if (name === 'GND2' || name === 'GND3' || name.startsWith('GND')) return 'GND'
-      if (name === '3V3') return '3.3V'
-      if (name === 'SDA1') return 'SDA'
-      if (name === 'SCL1') return 'SCL'
-      if (/^5V\d/.test(name)) return '5V'
-      return name
-    }
+    const label = (name: string) => pinLabel(name, def)
+    const color = (name: string) => inkOnDark(pinKind(name, def))
     const geo = offboardGeometry(def.type)
     if (geo) {
       def.pins.forEach((name, i) => {
         const t = geo.terminals[i]
         if (!t) return
-        if (t.exitDir.z < 0) text(ctx, px, label(name), t.dx, t.dz + 1.25, 0.42, { rotate: -Math.PI / 2, align: 'right' })
-        else if (t.exitDir.z > 0) text(ctx, px, label(name), t.dx, t.dz - 1.25, 0.42, { rotate: -Math.PI / 2, align: 'left' })
-        else text(ctx, px, label(name), t.dx + (t.dx < 38 ? -0.95 : 0.95), t.dz, 0.3, {})
+        const c = color(name)
+        if (t.exitDir.z < 0) text(ctx, px, label(name), t.dx, t.dz + 0.85, 0.5, { rotate: -Math.PI / 2, align: 'right', weight: '700', color: c })
+        else if (t.exitDir.z > 0) text(ctx, px, label(name), t.dx, t.dz - 0.85, 0.5, { rotate: -Math.PI / 2, align: 'left', weight: '700', color: c })
+        else text(ctx, px, label(name), t.dx + (t.dx < 38 ? -0.95 : 0.95), t.dz, 0.34, { weight: '700', color: c })
       })
     }
     text(ctx, px, 'ON', isMega ? 36.2 : 25.4, 8.3, 0.45)
@@ -352,7 +477,11 @@ function buildArduino(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
     const x0 = Math.min(...ts.map((t) => t.dx)) - extraLeft
     const x1 = Math.max(...ts.map((t) => t.dx))
     const n = Math.round(x1 - x0) + 1
-    stat.push(...femaleHeader(n, (x0 + x1) / 2, ts[0].dz, top, ARDUINO_HEADER_Y))
+    const tags: (PinTag | null)[] = Array.from({ length: n }, (_, i) => {
+      const name = names.find((nm) => Math.abs((termAt(nm)?.dx ?? -99) - (x0 + i)) < 0.01)
+      return name ? { text: pinLabel(name, def), kind: pinKind(name, def) } : null
+    })
+    stat.push(...femaleHeader(n, (x0 + x1) / 2, ts[0].dz, top, ARDUINO_HEADER_Y, false, tags))
   }
   run([isMega ? 'SCL1' : 'SCL', isMega ? 'SDA1' : 'SDA', 'AREF', 'GND2', 'D13', 'D12', 'D11', 'D10', 'D9', 'D8'])
   run(['D7', 'D6', 'D5', 'D4', 'D3', 'D2', 'D1', 'D0'])
@@ -363,10 +492,14 @@ function buildArduino(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
     run(['A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15'])
     // the double row at the end
     const xs = [3.75, 3.85].map((v) => v * 10)
+    const zc = (2.1 - 1.95) * 10 + 8.5
     for (const x of xs) {
-      const g = femaleHeader(18, x, 0, top, ARDUINO_HEADER_Y, true)[0]
-      g.position.set(x, g.position.y, (2.1 - 1.95) * 10 + 8.5)
-      stat.push(g)
+      // cell i sits at z = zc + 8.5 − i (the turned strip runs toward −z)
+      const tags: (PinTag | null)[] = Array.from({ length: 18 }, (_, i) => {
+        const k = geo.terminals.findIndex((t) => Math.abs(t.dx - x) < 0.01 && Math.abs(t.dz - (zc + 8.5 - i)) < 0.01)
+        return k >= 0 ? { text: pinLabel(def.pins[k], def), kind: pinKind(def.pins[k], def) } : null
+      })
+      stat.push(...femaleHeader(18, x, zc, top, ARDUINO_HEADER_Y, true, tags))
     }
   }
   // USB-B and barrel jack (overhang the left edge)
@@ -467,6 +600,11 @@ function buildEsp32(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   // pins up, on plastic spacer strips
   const pinPts = geo.terminals.map((t) => ({ x: t.dx, z: t.dz }))
   stat.push(...malePins(pinPts, top, top, ESP32_PIN_Y, true))
+  // each pin's name on both long faces of its black spacer strip
+  for (const row of [...new Set(geo.terminals.map((t) => t.dz))]) {
+    const ts = geo.terminals.map((t, i) => ({ t, i })).filter(({ t }) => t.dz === row).sort((a, b) => a.t.dx - b.t.dx)
+    stat.push(...spacerLabels(ts.map(({ i }) => ({ text: pinLabel(def.pins[i], def), kind: pinKind(def.pins[i], def) })), ts[0].t.dx, row, top + 0.5))
+  }
   // WROOM-32 module: PCB + shield can + antenna area
   stat.push(box(10.0, 0.32, 7.1, plastic(0x1d1d1d, 0.5), 15.0, top + 0.16, 5.5))
   stat.push(box(6.9, 1.2, 6.9, satinMetal(0x7f858c), 13.6, top + 0.92, 5.5))
@@ -486,8 +624,8 @@ function buildEsp32(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
         ctx.beginPath()
         ctx.arc(t.dx * px, t.dz * px, 0.42 * px, 0, Math.PI * 2)
         ctx.fill()
-        const name = def.pins[i].replace(/^D(\d+)$/, '$1').replace('GND2', 'GND')
-        text(ctx, px, name, t.dx, t.dz + (t.dz < 5 ? 1.15 : -1.15), 0.36, { rotate: -Math.PI / 2 })
+        const name = def.pins[i]
+        pcbTag(ctx, px, { text: pinLabel(name, def), kind: pinKind(name, def) }, t.dx, t.dz, t.dz < 5 ? 1 : -1, 0.44)
       })
       text(ctx, px, 'EN', 2.4, 3.55, 0.4)
       text(ctx, px, 'BOOT', 2.4, 7.4, 0.4)
@@ -588,11 +726,11 @@ function buildNano(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
         for (const [zz, nameIdx] of [[3.55 - rowGap / 2, i], [3.55 + rowGap / 2, i + half]] as [number, number][]) {
           ctx.fillStyle = '#e2c46a'
           ctx.fillRect((i + 1.0 - 0.38) * px, (zz - 0.38) * px, 0.76 * px, 0.76 * px)
-          const n = def.pins[nameIdx].replace(/^D(\d+)$/, '$1').replace(/^(GND|RESET)2$/, '$1').replace('RESET', 'RST')
-          text(ctx, px, n, i + 1.0, zz + (zz < 3.55 ? 0.95 : -0.95), 0.34, { rotate: -Math.PI / 2 })
+          const name = def.pins[nameIdx]
+          pcbTag(ctx, px, { text: pinLabel(name, def).replace('RESET', 'RST'), kind: pinKind(name, def) }, i + 1.0, zz, zz < 3.55 ? 1 : -1, 0.4)
         }
       }
-      text(ctx, px, 'ARDUINO NANO', 10.5, 3.55, 0.62, { weight: '800' })
+      text(ctx, px, 'ARDUINO NANO', 10.5, 3.55, 0.5, { weight: '800' })
     }),
   )
   const lbl = chipLabel(['ATMEGA328P'], 2.6, 2.6, 7.5, top + 0.42, rowGap / 2, Math.PI / 4)
@@ -651,6 +789,13 @@ function buildPico(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
           ctx.arc((i + 0.5) * px, (zz < 4 ? 0 : 8.3) * px, 0.28 * px, 0, Math.PI * 2)
           ctx.fill()
         }
+      }
+      // pin tags: row i (pins 1–20) along the canvas' far edge, row c (21–40) along the near one
+      for (let i = 0; i < n; i++) {
+        const a = def.pins[i]
+        const b = def.pins[n + (n - 1 - i)]
+        pcbTag(ctx, px, { text: pinLabel(a, def), kind: pinKind(a, def) }, i + 0.5, 7.65, -1, 0.4)
+        pcbTag(ctx, px, { text: pinLabel(b, def), kind: pinKind(b, def) }, i + 0.5, 0.65, 1, 0.4)
       }
       text(ctx, px, 'Raspberry Pi Pico', 14.6, 4.15, 0.62, { weight: '700' })
       text(ctx, px, '©2020', 14.6, 5.0, 0.36)

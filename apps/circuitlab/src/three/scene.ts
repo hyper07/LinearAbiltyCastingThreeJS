@@ -41,6 +41,8 @@ import {
   parseTerminalRef,
 } from '../model/breadboard'
 import { occludedHoles } from '../model/occlusion'
+import { boardDef } from '../model/boards'
+import { pinChip } from '../model/pin-labels'
 import { getEntry, type CatalogEntry } from '../model/catalog'
 import {
   buildComponentObject,
@@ -1042,6 +1044,44 @@ export class BreadboardScene implements IBreadboardScene {
   private pointerDirty = false
   private pointerInside = false
   private lastHoverHole: HoleRef | null = null
+  /** the board / module pin whose name chip is showing (hover) */
+  private lastHoverTerm: string | null = null
+  /** holes a footprint board's pins sit in (Nano, Pico) → that pin's chip text, per layout */
+  private boardPinHoles: { layout: CircuitLayout | null; map: Map<string, string> } = { layout: null, map: new Map() }
+
+  /** "D9 · PWM" for a board pin in this hole, else null */
+  private boardPinInHole(hole: HoleRef): string | null {
+    if (this.boardPinHoles.layout !== this.layout) {
+      const map = new Map<string, string>()
+      const config = boardConfigOf(this.layout)
+      for (const c of this.layout.components) {
+        const e = getEntry(c.type)
+        const def = boardDef(c.type)
+        if (!e || !def || e.placement === 'offboard') continue
+        componentPinHoles(c, e, config)?.forEach((h, i) => {
+          if (h) map.set(formatHole(h), `${pinChip(e.pins[i], def)} · ${formatHole(h)}`)
+        })
+      }
+      this.boardPinHoles = { layout: this.layout, map }
+    }
+    return this.boardPinHoles.map.get(hole) ?? null
+  }
+
+  /** a pin-name chip stays readable from afar: about 1× close up, up to 3× from the overview */
+  private chipScale(m: Mounted, x: number, z: number): number {
+    const d = m.camera.position.distanceTo(this.tmpVecB.set(x, 0, z))
+    const tele = m.camera.fov < 20 ? Math.tan((m.camera.fov * Math.PI) / 360) / Math.tan((45 * Math.PI) / 360) : 1
+    return Math.min(3, Math.max(1, (d * tele) / 28))
+  }
+
+  /** chip text for an off-board terminal: a board's pin by name and kind, else "PS1 +" */
+  private terminalChip(ref: string): string {
+    const t = parseTerminalRef(ref)
+    if (!t) return ref
+    const c = this.layout.components.find((x) => x.id === t.componentId)
+    const def = c ? boardDef(c.type) : undefined
+    return def ? pinChip(t.pin, def) : `${t.componentId} ${t.pin}`
+  }
   private downInfo: {
     x: number
     y: number
@@ -2428,7 +2468,7 @@ export class BreadboardScene implements IBreadboardScene {
       const kind = i === 0 ? kinds.ka : kinds.kb
       if (kind === 'hole' || kind === 'post') return
       if (kind === 'plug') plugEnds.add(p)
-      const male = kind === 'socket' || kind === 'plug'
+      const male = kind === 'socket' || kind === 'plug' || kind === 'sideSocket'
       const { w, h, collar, overPin, pinDepth, gap } = DUPONT
       // body (black) + collar (wire colour), built upright with the base at 0
       const body = new THREE.BoxGeometry(w, h - collar, w)
@@ -2436,11 +2476,13 @@ export class BreadboardScene implements IBreadboardScene {
       const ring = new THREE.BoxGeometry(w * 1.04, collar, w * 1.04)
       ring.translate(0, h - collar / 2, 0)
       const place = (g: THREE.BufferGeometry) => {
-        if (st.kind === 'side' && st.dir) {
-          // lying along the pin: base slid over it, collar outward
+        if ((st.kind === 'side' || st.kind === 'sideSocket') && st.dir) {
+          // lying along the pin: a female end slid over it (base overPin
+          // back), a male end standing `gap` out of a female connector
+          const back = st.kind === 'side' ? overPin : -gap
           g.rotateZ(-Math.PI / 2)
           g.rotateY(-Math.atan2(st.dir.z, st.dir.x))
-          g.translate(p.x - st.dir.x * overPin, p.y, p.z - st.dir.z * overPin)
+          g.translate(p.x - st.dir.x * back, p.y, p.z - st.dir.z * back)
         } else {
           g.translate(p.x, p.y - (st.kind === 'pin' ? overPin : -gap), p.z)
         }
@@ -2451,10 +2493,17 @@ export class BreadboardScene implements IBreadboardScene {
       insulationParts.push(ring) // indexed like the tube and caps, so they merge
       if (male) {
         // the male DuPont's bare pin: out of the housing, across the gap and
-        // down into the socket / breadboard hole
+        // into the socket / breadboard hole / module connector
         const len = pinDepth + gap + 0.3
         const pin = new THREE.CylinderGeometry(0.11, 0.11, len, 8)
-        pin.translate(p.x, p.y - pinDepth + len / 2, p.z)
+        if (kind === 'sideSocket' && st.dir) {
+          pin.translate(0, -pinDepth + len / 2, 0)
+          pin.rotateZ(-Math.PI / 2)
+          pin.rotateY(-Math.atan2(st.dir.z, st.dir.x))
+          pin.translate(p.x, p.y, p.z)
+        } else {
+          pin.translate(p.x, p.y - pinDepth + len / 2, p.z)
+        }
         tipParts.push(pin)
       }
     })
@@ -3060,7 +3109,9 @@ export class BreadboardScene implements IBreadboardScene {
             m.hoverRing.show(t)
           }
           m.holeLabel.setLocked(blocked)
-          m.holeLabel.setText(holeRef)
+          const pinText = this.boardPinInHole(holeRef)
+          m.holeLabel.setScale(pinText ? this.chipScale(m, p.x, p.z) : 1)
+          m.holeLabel.setText(pinText ?? holeRef)
           m.holeLabel.object.position.set(p.x, HOLE_LABEL_Y, p.z)
           m.holeLabel.show()
         }
@@ -3069,6 +3120,36 @@ export class BreadboardScene implements IBreadboardScene {
         if (this.labelPinnedUntil <= performance.now()) m.holeLabel.hide()
       }
       this.callbacks.onHoleHover?.(holeRef)
+    }
+
+    // a board / module pin under the pointer: its name chip ("D9 · PWM",
+    // "A0 · analog in", "GND") and the glow ring, so the right pin is clear
+    // before the wire goes in
+    const term = holeRef || this.lastPointerType === 'touch' ? null : this.pickTerminalNearPointer(16)
+    if (term !== this.lastHoverTerm) {
+      this.lastHoverTerm = term
+      let at: THREE.Vector3 | null = null
+      if (term) {
+        for (const rec of this.components.values()) {
+          const i = rec.posts.findIndex((post) => post.userData.terminalRef === term)
+          if (i >= 0) {
+            at = rec.attach[i]
+            break
+          }
+        }
+      }
+      if (term && at) {
+        m.hoverRing.object.position.set(at.x, at.y + 0.05, at.z)
+        m.hoverRing.show(t)
+        m.holeLabel.setLocked(false)
+        m.holeLabel.setScale(this.chipScale(m, at.x, at.z))
+        m.holeLabel.setText(this.terminalChip(term))
+        m.holeLabel.object.position.set(at.x, at.y + 1.1, at.z)
+        m.holeLabel.show()
+      } else if (!holeRef) {
+        m.hoverRing.hide(t)
+        if (this.labelPinnedUntil <= performance.now()) m.holeLabel.hide()
+      }
     }
 
     if (this.lastPointerType === 'touch') {
@@ -3135,6 +3216,7 @@ export class BreadboardScene implements IBreadboardScene {
     // (occluded holes read red + locked — the lift commit will be rejected)
     if (hole) {
       m.holeLabel.setLocked(this.occluded.has(hole))
+      m.holeLabel.setScale(1)
       m.holeLabel.setText(hole)
       m.holeLabel.object.position.set(px, py + FINGERTIP_LABEL_Y, pz)
       m.holeLabel.show()
@@ -3690,6 +3772,7 @@ export class BreadboardScene implements IBreadboardScene {
     if (!h) return
     const p = holePosition(h)
     m.holeLabel.setLocked(this.occluded.has(holeRef))
+    m.holeLabel.setScale(1)
     m.holeLabel.setText(holeRef)
     m.holeLabel.object.position.set(p.x, HOLE_LABEL_Y, p.z)
     m.holeLabel.show()

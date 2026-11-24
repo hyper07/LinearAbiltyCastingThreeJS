@@ -59,11 +59,15 @@ function bench(type: string, rect: [number, number, number, number], height: num
   })
 }
 
-// servo: body 9 × 4.8 (SG90, 23 × 12 mm), cable to a 3-pin connector in front
-bench('servo', [0, 9.5, 0, 8.4], 9.4, [
-  [2.5, 7.4, 0.9, 0, 1],
-  [3.5, 7.4, 0.9, 0, 1],
-  [4.5, 7.4, 0.9, 0, 1],
+// servo: body 9 × 4.8 (SG90, 23 × 12 mm; mounting tabs to 12.7). Its cable
+// leaves the left side low down and ends in a 3-pin FEMALE connector lying on
+// the bench to the left, facing away (−x) — towards the breadboard, which
+// usually sits left of a module — so jumpers go straight in without crossing
+// the servo. GND (brown) at the back, VCC (red), SIG (orange) at the front.
+bench('servo', [-1.6, 11.1, 0, 4.8], 9.4, [
+  [-4.6, 1.4, 0.48, -1, 0],
+  [-4.6, 2.4, 0.48, -1, 0],
+  [-4.6, 3.4, 0.48, -1, 0],
 ])
 // LCD 16×2 with I²C backpack: 80 × 36 mm lying face up, header on the left edge
 bench('lcd1602_i2c', [-1.6, 31.5, 0, 14.2], 3.4, [

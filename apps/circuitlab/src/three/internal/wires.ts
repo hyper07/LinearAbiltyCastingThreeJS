@@ -503,16 +503,16 @@ const RIBBON_PATHS = new WeakSet<readonly RoutePoint[]>()
  */
 export const DUPONT = { w: 0.9, h: 4.2, collar: 0.55, overPin: 2.0, pinDepth: 1.2, gap: 0.8 }
 /** how a jumper end is drawn: a male plug into a breadboard hole is 'plug' */
-export type WireEndKind = 'socket' | 'pin' | 'side' | 'hole' | 'post' | 'plug'
+export type WireEndKind = 'socket' | 'pin' | 'side' | 'sideSocket' | 'hole' | 'post' | 'plug'
 /** the tube starts this far above a male end's anchor (inside the housing, above the bare pin) */
 export function maleTubeStart(kind: WireEndKind): number {
-  return kind === 'socket' || kind === 'plug' ? DUPONT.gap + 0.5 : 0
+  return kind === 'socket' || kind === 'plug' || kind === 'sideSocket' ? DUPONT.gap + 0.5 : 0
 }
 /** how far the wire runs straight out of the housing top before it bends */
 const EXIT_RUN = 1.3
 /** riser height above the anchor for each end kind */
 export function dupontRise(kind: WireEndKind): number {
-  if (kind === 'socket' || kind === 'plug') return DUPONT.gap + DUPONT.h + EXIT_RUN
+  if (kind === 'socket' || kind === 'plug' || kind === 'sideSocket') return DUPONT.gap + DUPONT.h + EXIT_RUN
   if (kind === 'pin' || kind === 'side') return DUPONT.h - DUPONT.overPin + EXIT_RUN
   return RIBBON_RISE
 }
@@ -629,7 +629,11 @@ function applyRibbons(
       }
       const LA = leadIn(A, e.ea, e.ka)
       const LB = leadIn(B, e.eb, e.kb)
-      const pts: RoutePoint[] = [{ x: A.x, y: maleTubeStart(e.ka), z: A.z }, LA]
+      const start = (P: { x: number; z: number }, d: { x: number; z: number } | null, k: WireEndKind): RoutePoint => {
+        const t = maleTubeStart(k)
+        return d ? { x: P.x + d.x * t, y: 0, z: P.z + d.z * t } : { x: P.x, y: t, z: P.z }
+      }
+      const pts: RoutePoint[] = [start(A, e.ea, e.ka), LA]
       const N = 9
       const lift = apex - Math.max(LA.y, LB.y) + 0.6
       for (let i = 1; i < N; i++) {
@@ -642,7 +646,7 @@ function applyRibbons(
         const base = LA.y + (LB.y - LA.y) * u
         pts.push({ x: px + (lx - px) * w, y: base + lift * Math.sin(Math.PI * u), z: pz + (lz - pz) * w })
       }
-      pts.push(LB, { x: B.x, y: maleTubeStart(e.kb), z: B.z })
+      pts.push(LB, start(B, e.eb, e.kb))
       if (e.flip) pts.reverse()
       const rec = wireRouteCache.get(e.id)
       RIBBON_PATHS.add(pts)
@@ -653,6 +657,8 @@ function applyRibbons(
 
 /** boards whose headers are FEMALE sockets (a male DuPont pin goes in from the top) */
 const SOCKET_BOARDS: ReadonlySet<string> = new Set(['arduino_uno', 'arduino_mega'])
+/** modules whose cable ends in a FEMALE connector lying on the bench (a male jumper goes in sideways) */
+const FEMALE_MODULES: ReadonlySet<string> = new Set(['servo'])
 
 /**
  * How a wire end meets its terminal: a breadboard hole, an instrument post,
@@ -660,7 +666,7 @@ const SOCKET_BOARDS: ReadonlySet<string> = new Set(['arduino_uno', 'arduino_mega
  * board pin pointing up (female DuPont housing slid over it), or a sideways
  * module pin (housing slid on along `dir`).
  */
-export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole' | 'post' | 'socket' | 'pin' | 'side'; dir?: { x: number; z: number } } {
+export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole' | 'post' | 'socket' | 'pin' | 'side' | 'sideSocket'; dir?: { x: number; z: number } } {
   const t = parseTerminalRef(ref)
   if (!t) return { kind: 'hole' }
   const c = layout.components.find((x) => x.id === t.componentId)
@@ -668,7 +674,7 @@ export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole'
   if (!c || !e || RIBBON_SKIP.has(e.category)) return { kind: 'post' }
   if (e.category === 'board') return { kind: SOCKET_BOARDS.has(c.type) ? 'socket' : 'pin' }
   const d = leadDir(layout, ref)
-  return d ? { kind: 'side', dir: d } : { kind: 'pin' }
+  return d ? { kind: FEMALE_MODULES.has(c.type) ? 'sideSocket' : 'side', dir: d } : { kind: 'pin' }
 }
 
 /**
@@ -676,7 +682,7 @@ export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole'
  * male DuPont plug (the cable is a male-male or female-male jumper).
  */
 export function endKinds(layout: CircuitLayout, from: string, to: string): { ka: WireEndKind; kb: WireEndKind } {
-  const header = (k: WireEndKind) => k === 'socket' || k === 'pin' || k === 'side'
+  const header = (k: WireEndKind) => k === 'socket' || k === 'pin' || k === 'side' || k === 'sideSocket'
   let ka: WireEndKind = wireEndStyle(layout, from).kind
   let kb: WireEndKind = wireEndStyle(layout, to).kind
   if (ka === 'hole' && header(kb)) ka = 'plug'

@@ -17,6 +17,7 @@ export const CONTROLS = {
         { id: 'board', keys: ['Click'], does: 'Click the bare holes of a breadboard to pick it (2+ boards), then Delete or Remove takes it off', touch: 'Tap' },
         { id: 'nudge', keys: ['←', '→', '↑', '↓'], codes: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'], does: 'Nudge the selected parts one hole (nothing selected: pan the view)' },
         { id: 'undo', keys: ['Ctrl', 'Z'], does: 'Undo (Ctrl+Shift+Z or Ctrl+Y redoes)' },
+        { id: 'save', keys: ['Ctrl', 'S'], does: 'Save / Open: save the circuit under a name, open a saved one' },
         { id: 'cancel', keys: ['Esc'], codes: ['Escape'], does: 'Cancel placing / wiring, clear the selection' },
       ],
     },

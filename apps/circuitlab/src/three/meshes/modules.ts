@@ -107,15 +107,18 @@ export function buildServo(_c: ComponentInstance, _e: CatalogEntry, pins: THREE.
   stat.push(cyl(0.45, 1.2, plastic(0xf4f4f0, 0.4), 2.6, 10.1, 2.4, 16))
   // screw holes in the tabs
   for (const x of [-0.6, 10.1]) stat.push(cyl(0.35, 0.72, plastic(0x0d1a33, 0.8), x, 6.66, 2.4, 12))
-  // connector + cable
-  stat.push(box(3.0, 0.95, 1.6, plastic(0x151515, 0.6), 3.5, 0.48, 7.4))
+  // the cable's 3-pin female connector, lying on the bench left of the body
+  // with its openings facing away (−x); three sockets show on the face
+  stat.push(box(1.6, 0.95, 3.0, plastic(0x151515, 0.6), -3.8, 0.48, 2.4))
+  for (let i = 0; i < 3; i++) stat.push(box(0.05, 0.36, 0.36, plastic(0x050505, 0.9), -4.62, 0.48, 1.4 + i))
   finish(group, stat)
+  // brown / red / orange ribbon out of the body's left side, down to the connector
   const colors = [0x6b3a1e, 0xd2342c, 0xf08a1c]
   colors.forEach((c, i) => {
-    const off = (i - 1) * 0.32
+    const off = (i - 1) * 0.34
     group.add(
       tube(
-        [new THREE.Vector3(1.0 + off, 1.2, 4.8), new THREE.Vector3(1.1 + off, 0.5, 5.8), new THREE.Vector3(2.6 + off, 0.35, 6.6), new THREE.Vector3(2.5 + i, 0.45, 6.6)],
+        [new THREE.Vector3(0.4, 1.3, 2.4 + off), new THREE.Vector3(-0.7, 1.05, 2.4 + off * 1.4), new THREE.Vector3(-2.2, 0.55, 1.4 + i), new THREE.Vector3(-3.0, 0.48, 1.4 + i)],
         0.16,
         plastic(c, 0.45),
       ),

@@ -318,7 +318,7 @@ export const PRESETS: Preset[] = [
       [
         uno(SERVO_CODE),
         { id: 'P1', type: 'potentiometer', params: { resistance: 10000, position: 0.3 }, holes: ['e10', 'e11', 'e12'] },
-        { id: 'S1', type: 'servo', pos: { x: 36, z: 3 } },
+        { id: 'S1', type: 'servo', pos: { x: 47, z: 4 } },
       ],
       [
         w('U1:5V', 'top+0', 'red'),

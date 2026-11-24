@@ -54,6 +54,7 @@ import { Callouts, SchematicPanel, ViewBar, autoWireColors, calloutsFor, type Vi
 import { IllustratedView } from './three/illustrated'
 import { forceReplan } from './three/internal/wires'
 import { CreditsPanel, LabCorner, goHome, helpPanel, useFirstHelp } from './ui/lab/LabChrome'
+import { SavedPanel } from './ui/lab/SavedPanel'
 import { compileSketch } from './mcu/avr/compile'
 import { boardDef } from './model/boards'
 import { serialBus } from './mcu/serial'
@@ -473,6 +474,19 @@ export default function App() {
   const [benchTab, setBenchTab] = useState<BenchTab>('scope')
   const [expId, setExpId] = useState<string>(EXPERIMENTS[0]?.id ?? '')
   const [creditsOpen, setCreditsOpen] = useState(false)
+  const [savedOpen, setSavedOpen] = useState(false)
+  const closeSaved = useCallback(() => setSavedOpen(false), [])
+  // Ctrl/Cmd+S opens Save / Open (instead of the browser saving the page)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        setSavedOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const [codeErrors, setCodeErrors] = useState<{ board: string; line: number | null; message: string }[]>([])
   const [codeStatus, setCodeStatus] = useState('')
   useFirstHelp()
@@ -1105,7 +1119,8 @@ export default function App() {
         onClose={() => (view === 'schematic' ? setView('photo') : setSchInset(false))}
         onToggleFull={() => (view === 'schematic' ? setView('illustrated') : setSchFull(!schFull))}
       />
-      <LabCorner onCredits={() => setCreditsOpen(true)} />
+      <LabCorner onCredits={() => setCreditsOpen(true)} onSaved={() => setSavedOpen(true)} />
+      <SavedPanel open={savedOpen} onClose={closeSaved} />
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       <ScopeSheet
         open={activeSheet === 'scope'}

@@ -406,3 +406,95 @@
     height: 240px;
   }
 }
+
+/* ---- My circuits (save / open) ---- */
+.lab-saved-row {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0 6px;
+}
+.lab-saved-name {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: 500 16px var(--lg-font);
+}
+.lab-saved-name:focus {
+  outline: 2px solid #0a84ff;
+  outline-offset: 1px;
+}
+.lab-btn.is-warn {
+  background: #d9443a;
+  border-color: #d9443a;
+  color: #fff;
+}
+.lab-saved-warn {
+  margin: 4px 0 0;
+  color: #ffb4a8;
+}
+.lab-saved-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 8px;
+  font: 600 13px var(--lg-font);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(242, 242, 247, 0.7);
+}
+.lab-saved-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lab-saved-list li {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.lab-saved-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lab-saved-open:hover {
+  background: rgba(10, 132, 255, 0.18);
+  border-color: rgba(10, 132, 255, 0.5);
+}
+.lab-saved-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.lab-saved-empty {
+  margin: 0 0 16px;
+}
+@media (max-width: 520px) {
+  .lab-saved-row {
+    flex-wrap: wrap;
+  }
+  .lab-saved-name {
+    flex-basis: 100%;
+  }
+}

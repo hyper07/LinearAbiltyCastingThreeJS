@@ -26,7 +26,7 @@ export function helpPanel(): HelpPanel {
   return panel
 }
 
-export function LabCorner({ onCredits }: { onCredits: () => void }) {
+export function LabCorner({ onCredits, onSaved }: { onCredits: () => void; onSaved: () => void }) {
   const qRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const host = qRef.current
@@ -42,6 +42,13 @@ export function LabCorner({ onCredits }: { onCredits: () => void }) {
           <path d="M5.5 10v9.5h13V10" />
         </svg>
         <span>Home</span>
+      </button>
+      <button type="button" className="lab-corner-btn" data-saved onClick={onSaved} title="Save this circuit under a name, or open a saved one (Ctrl+S)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 3h11l3 3v15H5z" />
+          <path d="M8 3v6h8V3M8 21v-7h8v7" />
+        </svg>
+        <span>Save / Open</span>
       </button>
       <div ref={qRef} className="lab-corner-q" />
       <button type="button" className="lab-corner-btn" data-credits onClick={onCredits} title="Credits and licences">
