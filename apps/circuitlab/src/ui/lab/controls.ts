@@ -24,10 +24,10 @@ export const CONTROLS = {
     {
       name: 'Camera',
       rows: [
-        { id: 'orbit', keys: ['Left-drag'], does: 'Orbit around the bench in every view, Illustrated too (drag on the background or the board; a short click still selects)', touch: 'One finger' },
-        { id: 'pan', keys: ['Right-drag'], does: 'Pan (also middle-drag, or hold Space and left-drag)', touch: 'Two-finger drag' },
-        { id: 'trackpad', keys: ['Two-finger scroll'], does: 'Trackpad: pan; pinch zooms' },
-        { id: 'zoom', keys: ['Wheel'], does: 'Zoom toward the cursor', touch: 'Pinch' },
+        { id: 'orbit', keys: ['Left-drag'], does: 'Rotate the view (drag on the background or the board; a short click still selects)', touch: 'One finger' },
+        { id: 'pan', keys: ['Right-drag'], does: 'Move the view (also middle-drag, Shift + scroll, or hold Space and left-drag)', touch: 'Two-finger drag' },
+        { id: 'trackpad', keys: ['Trackpad'], does: 'Two-finger scroll zooms, pinch zooms, swipe sideways to move' },
+        { id: 'zoom', keys: ['Scroll'], does: 'Zoom in and out toward the cursor', touch: 'Pinch' },
         { id: 'pankeys', keys: ['Shift', 'W A S D'], codes: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], does: 'Pan with the keyboard (arrow keys too when nothing is selected)' },
         { id: 'focus', keys: ['Double-click'], does: 'Focus a part (on empty space: fit everything; the ⤢ button too)', touch: 'Double-tap' },
         { id: 'view', keys: ['V'], codes: ['KeyV'], does: 'Switch the view: Photo / Illustrated / Schematic' },

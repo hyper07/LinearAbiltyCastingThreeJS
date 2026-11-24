@@ -1203,6 +1203,7 @@ export class BreadboardScene implements IBreadboardScene {
     // pan along the bench, the wheel zooms toward the cursor
     controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }
     controls.zoomToCursor = true
+    controls.zoomSpeed = 2 // a mouse-wheel notch ≈ 10 % closer
     controls.screenSpacePanning = false
     controls.update()
 
@@ -1588,14 +1589,20 @@ export class BreadboardScene implements IBreadboardScene {
     const onWheel = () => {
       this.camTween = null // user zoom cancels the re-frame tween
     }
+    // Circuit Lab: the scroll wheel ZOOMS toward the cursor (OrbitControls),
+    // whatever kind of mouse or trackpad sent it. Shift + scroll, or a
+    // sideways (mostly horizontal) trackpad swipe, moves the view instead.
     const onWheelCapture = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) return // trackpad pinch → OrbitControls zoom
-      const trackpad = e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY) || Math.abs(e.deltaY) < 40)
-      if (!trackpad) return
+      const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5
+      if (!e.shiftKey && !sideways) return // a plain scroll: zoom
       e.preventDefault()
       e.stopImmediatePropagation()
       this.camTween = null
-      this.panByPixels(e.deltaX, e.deltaY)
+      // Shift + wheel on a mouse arrives as deltaY (or deltaX on macOS)
+      const dx = e.shiftKey && Math.abs(e.deltaX) < Math.abs(e.deltaY) ? e.deltaY : e.deltaX
+      const dy = e.shiftKey ? 0 : e.deltaY
+      this.panByPixels(dx, dy)
     }
     const onKeySpace = (e: KeyboardEvent) => {
       if (e.code !== 'Space') return

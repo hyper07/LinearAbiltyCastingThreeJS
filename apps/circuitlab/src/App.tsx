@@ -57,6 +57,7 @@ import { forceReplan } from './three/internal/wires'
 import { CreditsPanel, LabCorner, goHome, helpPanel, useFirstHelp } from './ui/lab/LabChrome'
 import { SavedPanel } from './ui/lab/SavedPanel'
 import { SpecsHost } from './ui/lab/SpecsPanel'
+import { MouseGuide } from './ui/lab/MouseGuide'
 import { DiagnoseButton, DiagnosePanel } from './ui/lab/DiagnosePanel'
 import { compileSketch } from './mcu/avr/compile'
 import { boardDef } from './model/boards'
@@ -847,7 +848,7 @@ export default function App() {
         if (!h) return null
         const off = h.camera.position.clone().sub(h.controls.target)
         const r = off.length()
-        return { theta: (Math.atan2(off.x, off.z) * 180) / Math.PI, phi: (Math.acos(off.y / r) * 180) / Math.PI }
+        return { theta: (Math.atan2(off.x, off.z) * 180) / Math.PI, phi: (Math.acos(off.y / r) * 180) / Math.PI, distance: r }
       },
       boardSelection: () => useStore.getState().boardSelection,
       damage: () => useStore.getState().damage.map((d) => ({ id: d.id, kind: d.kind, reason: d.reason })),
@@ -1136,6 +1137,7 @@ export default function App() {
       <LabCorner onCredits={() => setCreditsOpen(true)} onSaved={() => setSavedOpen(true)} />
       <SavedPanel open={savedOpen} onClose={closeSaved} />
       <SpecsHost />
+      <MouseGuide />
       <PreflightHost onShow={showPart} />
       <DiagnoseButton onOpen={() => setDiagOpen(true)} />
       <DiagnosePanel
