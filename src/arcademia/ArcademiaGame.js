@@ -436,7 +436,7 @@ export class ArcademiaGame {
   }
 
   npcHello(n) {
-    this.sound.toy(n.species === 'robot' ? 'beep' : 'squeak');
+    this.sound.toy(n.species === 'robot' || n.species === 'robopup' ? 'beep' : 'squeak');
     const left = this.world.gems.filter((g) => g.floor === n.floor && !this.gs.s.gems[g.id]).length;
     const i = Math.floor(Math.random() * 10);
     const gems = left && Math.random() < 0.35;
@@ -444,7 +444,7 @@ export class ArcademiaGame {
     // Its voice line (voice/script.js): npc.6 names the floor's boss, npc.gems the gems left.
     // Off the mountain the tip about the boss names that world's boss: it has no recorded line, text only.
     const line = gems ? `t.npc.gems~${Math.min(3, left)}` : i === 6 ? (this.realm !== 'land' ? null : `t.npc.6~${n.floor}`) : `t.npc.${i}`;
-    this.hud.toast(tip, { icon: { bunny: '🐰', mouse: '🐭', duck: '🦆', fox: '🦊', hedgehog: '🦔', frog: '🐸', penguin: '🐧', bear: '🐻', puff: '☁️', crab: '🦀', robot: '🤖' }[n.species] ?? '💬', ms: 4200 });
+    this.hud.toast(tip, { icon: { bunny: '🐰', mouse: '🐭', duck: '🦆', fox: '🦊', hedgehog: '🦔', frog: '🐸', penguin: '🐧', bear: '🐻', puff: '☁️', crab: '🦀', robot: '🤖', tardigrade: '🧸', lunamoth: '🦋', axolotl: '🦎', hamster: '🐹', robopup: '🤖', moonjelly: '🪼' }[n.species] ?? '💬', ms: 4200 });
     if (this.voiceOn() && line) speech.say(line, { char: 'townsfolk', face: n.fig });
   }
 

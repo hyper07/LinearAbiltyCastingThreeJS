@@ -334,8 +334,111 @@ const MODELS = {
       add(g, cone(0.13, 0.2, 4), mat('#f2d49a', { rough: 0.9 }), [x, 0.82, -0.02], [0, Math.PI / 4, 0]);
       for (const s of [-1, 1]) add(g, box(0.05, 0.14, 0.06), mat('#f2d49a'), [x + s * 0.1, 0.74, 0.02]);
     }
+  },
+  // The Moon's museum.
+  mortar: (g) => {
+    g.add(lathe([[0, 0.02], [0.3, 0.02], [0.38, 0.12], [0.42, 0.42], [0.36, 0.44], [0.3, 0.2], [0, 0.18]], wood(), 20));
+    add(g, cyl(0.42, 0.42, 0.04, 20), mat('#6e4a2e', { rough: 0.85 }), [0, 0.42, 0]);
+    add(g, cyl(0.05, 0.07, 0.85, 10), mat('#b98a5e', { rough: 0.8 }), [0.06, 0.62, 0], [0, 0, -0.35]);
+    for (let i = 0; i < 3; i++) add(g, sphere(0.07, 10, 8), mat('#fbf7ef', { rough: 0.6 }), [-0.14 + i * 0.12, 0.43, 0.12 - i * 0.05], [0, 0, 0], [1, 0.6, 1]);
+  },
+  mooncake: (g) => {
+    add(g, cyl(0.24, 0.26, 0.06, 6), wood(), [0, 0.03, 0]);
+    add(g, cyl(0.42, 0.44, 0.3, 28), mat('#c98a3f', { rough: 0.6 }), [0, 0.6, 0], [Math.PI / 2 - 0.25, 0, 0]);
+    add(g, cyl(0.36, 0.36, 0.02, 28), mat('#e0a856', { rough: 0.5 }), [0, 0.62, 0.15], [Math.PI / 2 - 0.25, 0, 0]);
+    for (let i = 0; i < 8; i++) add(g, sphere(0.07, 8, 6), mat('#d99a4a', { rough: 0.5 }), [Math.cos(i * 0.785) * 0.42, 0.6 + Math.sin(i * 0.785) * 0.41, 0.04 + Math.sin(i * 0.785) * 0.1]);
+    add(g, sphere(0.1, 12, 8), mat('#f0b04a', { rough: 0.4, emissive: '#ffb648', ei: 0.15 }), [0, 0.62, 0.17], [0, 0, 0], [1, 1, 0.4]);
+  },
+  satellite: (g) => {
+    add(g, cyl(0.08, 0.1, 0.3, 8), iron(), [0, 0.15, 0]);
+    add(g, sphere(0.28, 24, 16), mat('#d8dde4', { rough: 0.15, metal: 0.9 }), [0, 0.62, 0]);
+    for (const [ax, az] of [[0.5, 0.2], [-0.5, 0.2], [0.35, -0.4], [-0.35, -0.4]]) add(g, cyl(0.012, 0.012, 1.0, 5), mat('#c3cad6', { rough: 0.3, metal: 0.8 }), [ax * 0.5, 0.5, az * 0.5 - 0.3], [-1.1, 0, ax * 0.9]);
+  },
+  capsule: (g) => {
+    add(g, cyl(0.3, 0.36, 0.12, 12), iron(), [0, 0.06, 0]);
+    add(g, sphere(0.42, 22, 16), mat('#9aa3ad', { rough: 0.5, metal: 0.4 }), [0, 0.55, 0]);
+    for (const x of [-0.15, 0.15]) add(g, cyl(0.07, 0.07, 0.04, 14), mat('#1d2a4a', { rough: 0.2, emissive: '#7cc6ff', ei: 0.2 }), [x, 0.64, 0.39], [Math.PI / 2, 0, 0]);
+    add(g, new THREE.TorusGeometry(0.42, 0.03, 6, 28), mat('#6b7480', { metal: 0.6 }), [0, 0.55, 0], [Math.PI / 2, 0, 0]);
+  },
+  'space-helmet': (g) => {
+    add(g, cyl(0.2, 0.26, 0.2, 14), iron(), [0, 0.1, 0]);
+    add(g, sphere(0.36, 22, 16), mat('#f4f4f4', { rough: 0.35 }), [0, 0.58, 0]);
+    add(g, sphere(0.3, 18, 12), mat('#2b3f6b', { rough: 0.1, metal: 0.4, emissive: '#7cc6ff', ei: 0.1 }), [0, 0.58, 0.12], [0, 0, 0], [0.85, 0.7, 0.75]);
+    add(g, new THREE.TorusGeometry(0.33, 0.04, 6, 24), mat('#c0392b', { rough: 0.4 }), [0, 0.3, 0], [Math.PI / 2, 0, 0]);
+  },
+  'slide-rule': (g) => {
+    add(g, box(0.2, 0.3, 0.2), wood(), [0, 0.15, 0]);
+    add(g, box(1.1, 0.16, 0.04), mat('#f4efe2', { rough: 0.6 }), [0, 0.5, 0], [0, 0, 0.25]);
+    add(g, box(1.1, 0.06, 0.05), mat('#e6dcc4', { rough: 0.6 }), [0.12, 0.53, 0.01], [0, 0, 0.25]);
+    add(g, box(0.1, 0.22, 0.07), mat('#d9e6f2', { opacity: 0.6, key: 'slideglass' }), [-0.1, 0.48, 0], [0, 0, 0.25]);
+    for (let i = 0; i < 9; i++) add(g, box(0.006, 0.05, 0.05), mat('#3a2a24'), [-0.42 + i * 0.1, 0.38 + i * 0.026, 0.02], [0, 0, 0.25]);
+  },
+  'moon-rock': (g) => {
+    add(g, cyl(0.3, 0.34, 0.12, 12), mat('#2b2f3a', { rough: 0.6 }), [0, 0.06, 0]);
+    const geo = new THREE.IcosahedronGeometry(0.34, 1);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const k = 1 + 0.14 * Math.sin(p.getX(i) * 9) * Math.cos(p.getZ(i) * 7) + 0.08 * Math.sin(p.getY(i) * 13);
+      p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.8, p.getZ(i) * k);
+    }
+    geo.computeVertexNormals();
+    add(g, geo, mat('#8f8f96', { rough: 1 }), [0, 0.4, 0]);
+    add(g, new THREE.CylinderGeometry(0.4, 0.4, 0.7, 20, 1, true), mat('#d9f2ff', { opacity: 0.2, key: 'rockcase' }), [0, 0.45, 0]);
+  },
+  'space-telescope': (g) => {
+    add(g, box(0.1, 0.3, 0.1), iron(), [0, 0.15, 0]);
+    add(g, cyl(0.2, 0.2, 0.9, 16), mat('#d8dde4', { rough: 0.25, metal: 0.8 }), [0, 0.6, 0], [0, 0, Math.PI / 2]);
+    add(g, cyl(0.21, 0.21, 0.08, 16), mat('#2b2f3a'), [0.48, 0.6, 0], [0, 0, Math.PI / 2]);
+    for (const s of [-1, 1]) add(g, box(0.5, 0.02, 0.24), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [-0.1, 0.6, s * 0.45]);
+    add(g, cyl(0.02, 0.02, 0.7, 5), iron(), [-0.1, 0.6, 0], [Math.PI / 2, 0, 0]);
+  },
+  'space-station': (g) => {
+    add(g, cyl(0.05, 0.08, 0.4, 8), iron(), [0, 0.2, 0]);
+    add(g, box(1.2, 0.04, 0.05), mat('#c3cad6', { metal: 0.7 }), [0, 0.5, 0]);
+    for (const x of [-0.5, -0.3, 0.3, 0.5]) for (const s of [-1, 1]) add(g, box(0.16, 0.01, 0.36), mat('#c99a3f', { rough: 0.3, metal: 0.5 }), [x, 0.5, s * 0.22]);
+    add(g, cyl(0.08, 0.08, 0.5, 12), mat('#f4f4f4', { rough: 0.4 }), [0, 0.5, 0], [Math.PI / 2, 0, 0]);
+    add(g, cyl(0.07, 0.07, 0.3, 12), mat('#e6e9ee', { rough: 0.4 }), [0.12, 0.5, 0.1], [0, 0, Math.PI / 2]);
+  },
+  shuttle: (g) => {
+    add(g, box(0.12, 0.3, 0.12), iron(), [0, 0.15, 0]);
+    add(g, cyl(0.12, 0.14, 0.9, 14), mat('#f4f4f4', { rough: 0.4 }), [0, 0.55, 0], [Math.PI / 2, 0, 0]);
+    add(g, cone(0.12, 0.25, 14), mat('#2b2f3a', { rough: 0.5 }), [0, 0.55, 0.57], [Math.PI / 2, 0, 0]);
+    const wing = new THREE.Shape();
+    wing.moveTo(0, 0.3);
+    wing.lineTo(0.42, -0.35);
+    wing.lineTo(-0.42, -0.35);
+    wing.closePath();
+    add(g, new THREE.ExtrudeGeometry(wing, { depth: 0.03, bevelEnabled: false }), mat('#2b2f3a', { rough: 0.5 }), [0, 0.5, 0.05], [-Math.PI / 2, 0, 0]);
+    add(g, box(0.02, 0.25, 0.2), mat('#f4f4f4'), [0, 0.72, -0.35]);
+  },
+  'moon-rover': (g) => {
+    add(g, box(0.6, 0.14, 0.42), mat('#e6e9ee', { rough: 0.4 }), [0, 0.3, 0]);
+    for (const x of [-0.26, 0, 0.26]) for (const s of [-1, 1]) add(g, cyl(0.09, 0.09, 0.07, 12), mat('#3a3f4c', { rough: 0.8 }), [x, 0.12, s * 0.26], [Math.PI / 2, 0, 0]);
+    for (const s of [-1, 1]) add(g, box(0.34, 0.015, 0.3), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [0, 0.42, s * 0.35], [s * 0.4, 0, 0]);
+    add(g, cyl(0.02, 0.02, 0.3, 5), iron(), [0.2, 0.52, 0]);
+    add(g, box(0.14, 0.08, 0.1), mat('#c99a3f', { metal: 0.5 }), [0.2, 0.7, 0]);
+  },
+  'air-filter': (g) => {
+    add(g, box(0.36, 0.36, 0.36), mat('#9aa3ad', { rough: 0.6, metal: 0.3 }), [-0.2, 0.18, 0]);
+    add(g, box(0.4, 0.4, 0.06), mat('#d9c48a', { rough: 0.9 }), [-0.2, 0.2, 0.2]);
+    add(g, box(0.38, 0.05, 0.4), mat('#c0c4cc', { rough: 0.4, opacity: 0.85, key: 'filterbag' }), [-0.2, 0.42, 0.02]);
+    add(g, limbTube(), mat('#4c5560', { rough: 0.5 }), [0, 0, 0]);
+    for (let i = 0; i < 3; i++) add(g, box(0.42, 0.05, 0.02), mat('#b0b5bd', { rough: 0.7 }), [-0.2, 0.08 + i * 0.12, 0.235]);
+  },
+  orbiter: (g) => {
+    add(g, cyl(0.06, 0.08, 0.3, 8), iron(), [0, 0.15, 0]);
+    add(g, box(0.42, 0.42, 0.42), mat('#d7b45a', { rough: 0.3, metal: 0.6 }), [0, 0.55, 0]);
+    for (const s of [-1, 1]) add(g, box(0.5, 0.02, 0.3), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [s * 0.48, 0.6, 0]);
+    add(g, cyl(0.07, 0.09, 0.12, 12), mat('#2b2f3a'), [0, 0.38, 0.12]);
+    add(g, cyl(0.14, 0.02, 0.08, 14), mat('#e6e9ee', { metal: 0.5 }), [0, 0.82, 0]);
   }
 };
+
+/** A curved hose for the Apollo 13 air-filter fix. */
+function limbTube() {
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.2, 0.24), new THREE.Vector3(0.2, 0.3, 0.3), new THREE.Vector3(0.36, 0.5, 0.1), new THREE.Vector3(0.38, 0.75, -0.05)]);
+  return new THREE.TubeGeometry(curve, 20, 0.06, 8, false);
+}
 
 export function buildArtifact(model) {
   const g = new THREE.Group();

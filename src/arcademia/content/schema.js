@@ -11,8 +11,9 @@
  *   topic     a short key for "worth practising" in the parents' report ('fractions', 'ancient-egypt')
  *   topicName how that topic reads to a parent ('Fractions', 'Ancient Egypt')
  *   blurb     one line for the lesson card
- *   realm     (optional) 'forest' (content/forest.js, the Great Tree), 'sea' (content/sea.js, the Lagoon)
- *             or 'desert' (content/desert.js, the Desert of the Pyramids); land if absent
+ *   realm     (optional) 'forest' (content/forest.js, the Great Tree), 'sea' (content/sea.js, the Lagoon),
+ *             'desert' (content/desert.js, the Desert of the Pyramids) or 'moon' (content/moon.js, the Moon);
+ *             land if absent
  *   reading   2–4 cards: { title, text, emoji? } — big friendly text, one idea a card
  *   quiz      3–5 questions: { q, choices[2–4], answer (index), hint, explain }
  *             — or, for math, { gen, count } to draw them from a generator (math.js)
@@ -33,7 +34,7 @@ export const SUBJECTS = ['math', 'history', 'physics'];
 export const SUBJECT_NAMES = { math: 'Math', history: 'History', physics: 'Physics' };
 export const FLOOR_COUNT = 7;
 /** The study worlds' realms (maps.js): each has its own lessons. */
-export const REALM_IDS = ['land', 'forest', 'sea', 'desert'];
+export const REALM_IDS = ['land', 'forest', 'sea', 'desert', 'moon'];
 
 /** Costumes the history hall can dress a guide in (world/figures.js draws them). */
 export const LOOKS = [
@@ -45,7 +46,9 @@ export const LOOKS = [
   // the Great Tree
   'ranger', 'botanist',
   // the Desert of the Pyramids
-  'nile', 'scribe', 'caravan', 'archaeologist'
+  'nile', 'scribe', 'caravan', 'archaeologist',
+  // the Moon
+  'stargazer', 'flightsuit', 'mission'
 ];
 
 /** Objects the museum turntable can show (world/artifacts.js models them). */
@@ -60,7 +63,10 @@ export const ARTIFACTS = [
   'acorn', 'pinecone', 'tree-ring', 'magnifier',
   // the Desert of the Pyramids
   'shadoof', 'senet', 'papyrus', 'salt-slab', 'cubit-rod', 'obelisk', 'rosetta-stone', 'astrolabe', 'manuscript',
-  'golden-mask', 'temple-statue'
+  'golden-mask', 'temple-statue',
+  // the Moon
+  'mortar', 'mooncake', 'satellite', 'capsule', 'space-helmet', 'slide-rule', 'moon-rock', 'space-telescope',
+  'space-station', 'shuttle', 'moon-rover', 'air-filter', 'orbiter'
 ];
 
 /**

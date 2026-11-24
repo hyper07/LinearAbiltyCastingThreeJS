@@ -2,8 +2,8 @@ import { boot, tally, until } from './lib.mjs';
 
 /**
  * Arcademia's study worlds (src/arcademia/maps.js): the World Portal's
- * picker, travelling to the Great Tree, the Lagoon and the Desert and back, walking their
- * rings, bridges, boardwalks and causeways, a lesson in each, their own lessons and
+ * picker, travelling to the Great Tree, the Lagoon, the Desert and the Moon and back, walking their
+ * rings, bridges, boardwalks, causeways and glass tubes, a lesson in each, their own lessons and
  * teachers, and the choice kept across a reload.
  */
 export async function run(browser) {
@@ -124,7 +124,7 @@ export async function run(browser) {
     await page.click('.arc-nav__item--worlds');
     await until(page, () => Boolean(document.querySelector('.arc-modal--worlds')), null, 5000);
     const cards = await page.$$eval('.arc-worlds__card', (els) => els.map((e) => e.textContent));
-    t.check('the picker lists four worlds, the Desert among them', cards.filter((c) => !/🔮/.test(c)).length === 4 && cards.some((c) => c.includes('🐪')), JSON.stringify(cards));
+    t.check('the picker lists five worlds, the Desert and the Moon among them', cards.filter((c) => !/🔮/.test(c)).length === 5 && cards.some((c) => c.includes('🐪')) && cards.some((c) => c.includes('🌙')), JSON.stringify(cards));
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.arcademia.switchMap('desert'));
     await page.waitForTimeout(3000);
@@ -188,6 +188,90 @@ export async function run(browser) {
     await page.evaluate(() => window.arcademia.leaveLesson());
     await page.waitForTimeout(800);
     t.check('and back out to the oasis', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'desert'));
+    // The Moon: moonbases in craters, glass tubes between them, its own lessons and teachers.
+    await page.evaluate(() => window.arcademia.switchMap('moon'));
+    await page.waitForTimeout(3500);
+    const moon = await page.evaluate(() => {
+      const g = window.arcademia, w = g.world;
+      const mini = document.querySelector('.arc-mini svg');
+      return {
+        map: g.map.id, realm: g.realm, kind: w.plan.kind, places: w.places.filter((p) => p.floor === 1).length,
+        portal: w.places.some((p) => p.kind === 'worlds' && p.floor === 1), floor: w.kidFloor,
+        craters: mini?.querySelectorAll('[data-floor]').length, tubes: mini?.querySelectorAll('line[stroke="#5fb7e0"]').length,
+        // Space: stars by day, no clouds; the first view looks north over the first crater to the rocket and the Earth.
+        stars: w.sky.userData.stars.material.opacity === 1 && !w.clouds.visible, north: w.camera.position.z > w.controls.target.z + 40,
+        names: [...document.querySelectorAll('.arc-pill__name')].map((e) => e.textContent).filter((s) => /Dome School|Moon Museum|Star Observatory/.test(s)).length,
+        float: w.float, lessons: g.lessons.length
+      };
+    });
+    t.check('the Moon opens on moonbase 1 with its World Portal', moon.map === 'moon' && moon.realm === 'moon' && moon.kind === 'moon' && moon.floor === 1 && moon.places >= 9 && moon.portal, JSON.stringify(moon));
+    t.check('the minimap shows seven craters and the tubes; stars in a black sky; the first view looks north', moon.craters === 7 && moon.tubes === 6 && moon.stars && moon.north, JSON.stringify(moon));
+    t.check('its schools have their moon names, gravity is low, and it teaches its own 42 lessons', moon.names >= 3 && moon.float > 0 && moon.lessons === 42, JSON.stringify(moon));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(new Set());
+      w.teleport(1);
+      const b = w.buildings.find((x) => x.subject === 'physics' && x.floor === 2);
+      window.__arrived = false;
+      window.__inTube = false;
+      const st = w.plan.stairs[0];
+      const watch = setInterval(() => {
+        const L = st.segs[1];
+        if (w.plan.floorAt(w.kidPos.x, w.kidPos.z, w.kidPos.y) === 0 && Math.hypot(w.kidPos.x - (L.ax + L.bx) / 2, w.kidPos.z - (L.az + L.bz) / 2) < L.len / 2 + 1) window.__inTube = true;
+        if (window.__arrived) clearInterval(watch);
+      }, 100);
+      w.goTo(b.at, () => (window.__arrived = true));
+    });
+    t.check('the buddy walks the glass tube to the next moonbase', await until(page, () => window.__arrived && window.__inTube, null, 60000));
+    const base2 = await page.evaluate(() => ({ floor: window.arcademia.world.kidFloor, y: window.arcademia.world.kidPos.y }));
+    t.check('and arrives at moonbase 2, on the deck', base2.floor === 2 && Math.abs(base2.y - 1) < 0.8, JSON.stringify(base2));
+    // Low gravity: a hop floats up higher and longer than on the mountain, and lands in a puff of dust.
+    const hop = await page.evaluate(async () => {
+      const w = window.arcademia.world;
+      w.kid.hop();
+      let top = 0;
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 90));
+        top = Math.max(top, w.kid.group.children[0].position.y);
+      }
+      await new Promise((r) => setTimeout(r, 500));
+      const puffs = w.scenery.group.children.filter((c) => c.userData && c.userData.balls && c.visible).length;
+      return { top, puffs };
+    });
+    t.check('a moon hop floats high and kicks up dust', hop.top > 0.6 && hop.puffs > 0, JSON.stringify(hop));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(window.arcademia.lockedSet());
+      w.teleport(1);
+    });
+    // The Moon teaches its own lessons, with its own teachers, stories and puzzle bosses.
+    const lunar = await page.evaluate(() => {
+      const g = window.arcademia;
+      return {
+        lessons: g.lessons.length, allMoon: g.lessons.every((l) => l.realm === 'moon'),
+        story: g.worlds[1].story, boss: g.worlds[1].boss.species, help: document.querySelector('.arc-help')?.textContent ?? ''
+      };
+    });
+    t.check('the Moon teaches its own 42 moon lessons', lunar.lessons === 42 && lunar.allMoon, JSON.stringify(lunar));
+    t.check('the first moonbase has its own story and puzzle boss, and O names all the moonbases', /Landing Crater/.test(lunar.story) && lunar.boss === 'tardigrade' && /moonbases/.test(lunar.help) && !/mountain/.test(lunar.help), JSON.stringify(lunar));
+    await page.evaluate(() => window.arcademia.enter('math', 1));
+    t.check('the Dome School is taught by Miss Mochi the moon rabbit', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'moonrabbit', null, 20000));
+    const moonListed = await page.evaluate(() => [...document.querySelectorAll('.arc-lesson, .arc-quests, body')].map((e) => e.textContent).join(' '));
+    t.check('its lesson list shows moon lessons', /Counting Craters|Rocket Countdown/.test(moonListed));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('history', 1));
+    t.check('the Moon Museum is run by Captain Ginger the red panda', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'redpanda', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('physics', 1));
+    t.check('the Star Observatory is run by Dr. Comet the koala', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'koala', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.setNight(true));
+    await page.waitForTimeout(1800);
+    t.check('Earth-light: night on the Moon, back out at the moonbase', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'moon' && window.arcademia.world.night > 0.9));
+    await page.evaluate(() => window.arcademia.setNight(false));
     await page.evaluate(() => window.arcademia.switchMap('mountain'));
     await page.waitForTimeout(2000);
     t.check('and back to the mountain', (await page.evaluate(() => window.arcademia.map.id)) === 'mountain');

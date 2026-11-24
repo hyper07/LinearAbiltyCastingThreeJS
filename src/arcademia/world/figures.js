@@ -109,7 +109,7 @@ function bonesFor(recipe) {
   return { bones: list.map((x) => x.b), byName };
 }
 
-/** Wings: a dragon's scalloped bat wings or a bunny sprite's see-through fairy wings, on the wing bones. */
+/** Wings: a dragon's scalloped bat wings, a bunny sprite's see-through fairy wings or a luna moth's tailed wings, on the wing bones. */
 function addWings(kind, byName, body) {
   for (const s of [-1, 1]) {
     const bone = byName[s < 0 ? 'wingL' : 'wingR'];
@@ -121,6 +121,14 @@ function addWings(kind, byName, body) {
       shape.quadraticCurveTo(0.24, 0.0, 0.23, -0.07);
       shape.quadraticCurveTo(0.14, -0.06, 0.12, -0.13);
       shape.quadraticCurveTo(0.05, -0.06, 0, 0);
+    } else if (kind === 'moth') {
+      // A big rounded forewing and a hindwing that trails off in a long curly tail.
+      shape.moveTo(0, 0);
+      shape.quadraticCurveTo(0.06, 0.3, 0.3, 0.27);
+      shape.quadraticCurveTo(0.42, 0.14, 0.26, 0.03);
+      shape.quadraticCurveTo(0.3, -0.12, 0.3, -0.36);
+      shape.quadraticCurveTo(0.2, -0.3, 0.16, -0.12);
+      shape.quadraticCurveTo(0.08, -0.06, 0, 0);
     } else {
       shape.absellipse(0.16, 0.08, 0.17, 0.11, 0, Math.PI * 2, false, 0.4);
       const low = new THREE.Path();
@@ -132,6 +140,19 @@ function addWings(kind, byName, body) {
       m = new THREE.Mesh(g, propMaterial(new THREE.Color(body).multiplyScalar(0.78).getStyle(), { gloss: 0.4 }));
       const o = new THREE.Mesh(g, outlineMaterial(inkFor(body), 0.01));
       m.add(o);
+    } else if (kind === 'moth') {
+      m = new THREE.Mesh(g, propMaterial('#cdf3b4', { gloss: 0.3 }));
+      m.add(new THREE.Mesh(g, outlineMaterial('#7a9a5a', 0.01)));
+      // An eyespot on each forewing: a soft yellow ring round a dark dot.
+      const spot = new THREE.Mesh(new THREE.CircleGeometry(0.045, 16), propMaterial('#ffd36b'));
+      spot.position.set(0.2, 0.14, 0.025);
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.022, 12), propMaterial('#6b4a6a'));
+      dot.position.z = 0.002;
+      spot.add(dot);
+      m.add(spot);
+      const edge = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.008, 4, 16), propMaterial('#ff9ec7'));
+      edge.position.copy(spot.position);
+      m.add(edge);
     } else {
       m = new THREE.Group();
       const mat = new THREE.MeshBasicMaterial({ color: '#e8f6ff', transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
@@ -146,6 +167,8 @@ function addWings(kind, byName, body) {
       m.add(up, lo);
     }
     m.scale.x = s * -1;
+    // A luna moth's wings are big: they show round its body from every side.
+    if (kind === 'moth') m.scale.set(s * -1.7, 1.7, 1);
     m.rotation.y = s * -0.5;
     m.position.z = -0.02;
     if (kind === 'fairy') m.rotation.z = s * 0.25;
@@ -157,7 +180,7 @@ function addWings(kind, byName, body) {
  * A creature. `scale` 1 is buddy-sized (about 1 m tall); teachers are a bit bigger.
  * `costume` dresses a history guide (content/schema.js LOOKS).
  */
-export function makeCreature({ species = 'fox', color = null, hat = 'none', costume = null, scale = 1, seed = 1, glasses = false, lod = 'high' } = {}) {
+export function makeCreature({ species = 'fox', color = null, hat = 'none', costume = null, scale = 1, seed = 1, glasses = false, lod = 'high', float = 0, onLand = null } = {}) {
   if (!SPECIES[species]) species = 'fox';
   const model = modelFor(species, costume);
   const recipe = model.recipe;
@@ -214,6 +237,9 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
   group.add(blob);
 
   const rnd = mulberry(seed * 9973 + species.length);
+  // Low gravity (`float` 0–1, the Moon): hops go higher and last longer, walking lopes with bigger, slower bounces;
+  // `onLand('hop' | 'step')` is called as the feet touch down again (World kicks up moon dust there).
+  const HOP = 0.62 * (1 + float * 0.85), HOP_UP = 0.42 * (1 + float * 1.3), BOB = 0.07 * (1 + float * 1.6), LOPE = 1 - float * 0.3;
   const st = { phase: rnd(), t: rnd() * 10, look: 0, lookT: 2, waveT: 0, cheerT: 0, hopT: 0, sadT: 0, talkT: 0, surpriseT: 0, thinkT: 0, happyT: 0, flickT: 1 + rnd() * 3, flick: 0, flickSide: 1, voiceT: 0, voice: 0, lipFrames: 0 };
   const B = byName;
   const eased = (o, k, v, dt, rate = 10) => (o[k] += (v - o[k]) * Math.min(1, dt * rate));
@@ -221,24 +247,28 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     st.t += dt;
     const t = st.t;
     const walking = speed > 0.05;
-    st.phase += dt * (walking ? 2.1 + speed * 0.35 : 0);
+    const step0 = Math.floor(st.phase * 2);
+    st.phase += dt * (walking ? (2.1 + speed * 0.35) * LOPE : 0);
     const p = st.phase * Math.PI * 2;
+    if (onLand && walking && Math.floor(st.phase * 2) !== step0 && st.hopT <= 0) onLand('step');
+    const hopping = st.hopT > 0;
     for (const k of ['hopT', 'cheerT', 'sadT', 'waveT', 'talkT', 'surpriseT', 'thinkT', 'happyT']) st[k] = Math.max(0, st[k] - dt);
     const cheer = st.cheerT > 0, sad = st.sadT > 0 && !cheer, wave = st.waveT > 0, think = st.thinkT > 0 && !cheer && !sad, surprise = st.surpriseT > 0 && !cheer;
     // Body: bounce, squash and stretch.
     let y = 0, sy = 1, spin = 0, roll = 0;
     if (walking) {
       const b = Math.abs(Math.sin(p));
-      y = b * 0.07;
+      y = b * BOB;
       sy = 1 + (b - 0.45) * 0.1;
       roll = Math.sin(p) * 0.07;
     } else sy = 1 + Math.sin(t * 2.3) * 0.018;
+    if (hopping && st.hopT <= 0 && onLand) onLand('hop');
     if (st.hopT > 0) {
-      const k = 1 - st.hopT / 0.62;
+      const k = 1 - st.hopT / HOP;
       if (k < 0.18) sy = 1 - (k / 0.18) * 0.2;
       else {
         const q = (k - 0.18) / 0.82;
-        y = Math.sin(Math.PI * q) * 0.42;
+        y = Math.sin(Math.PI * q) * HOP_UP;
         sy = q < 0.85 ? 1.12 - q * 0.1 : 0.86;
       }
     }
@@ -348,7 +378,7 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     species,
     face,
     bones: byName,
-    hop: () => (st.hopT = 0.62),
+    hop: () => (st.hopT = HOP),
     cheer: (s = 1.8) => ((st.sadT = 0), (st.cheerT = s)),
     sad: (s = 1.4) => ((st.cheerT = 0), (st.happyT = 0), (st.sadT = s)),
     wave: (s = 1.6) => (st.waveT = s),
@@ -366,7 +396,7 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     react(right) {
       if (right) {
         st.happyT = 1.6;
-        st.hopT = 0.62;
+        st.hopT = HOP;
       } else {
         st.sadT = 1.3;
       }
@@ -392,14 +422,16 @@ const COSTUME_HATS = {
   viking: 'roundhelm', knight: 'knight', 'castle-cook': 'chef', maya: 'feathers', mali: 'kufi', printer: 'flatcap', explorer: 'tricorn', inventor: 'tophat',
   factory: 'flatcap', scientist: 'goggles', pilot: 'pilot', astronaut: 'space', nurse: 'nurse', farmer: 'straw',
   sailor: 'cap', diver: 'goggles', wayfinder: 'flower', keeper: 'flatcap', ranger: 'straw', botanist: 'flower',
-  nile: 'kufi', scribe: 'wig', caravan: 'headscarf', archaeologist: 'pith'
+  nile: 'kufi', scribe: 'wig', caravan: 'headscarf', archaeologist: 'pith',
+  stargazer: 'starcap', flightsuit: 'cap', mission: 'headset'
 };
 const COSTUME_COLORS = {
   guide: '#2f5d6b', 'stone-age': '#c9a77a', egypt: '#f2ead8', mesopotamia: '#b0643c', greece: '#f4f1ea', rome: '#d0453e', china: '#2f9d8b', 'silk-road': '#e07b3b',
   viking: '#6f9a5f', knight: '#9aa3ad', 'castle-cook': '#ffffff', maya: '#2fb5a3', mali: '#f0b43a', printer: '#e8dcc4', explorer: '#3f6fb3', inventor: '#7a5a46',
   factory: '#6b7c8f', scientist: '#ffffff', pilot: '#8a6a4e', astronaut: '#f4f4f4', nurse: '#f4f6f8', farmer: '#5f9f4f',
   sailor: '#2f5fa8', diver: '#f2a33a', wayfinder: '#e0643a', keeper: '#c94a3c', ranger: '#5f7f3a', botanist: '#8fbf6a',
-  nile: '#f4ecd8', scribe: '#ffffff', caravan: '#2f4f9a', archaeologist: '#c9b48a'
+  nile: '#f4ecd8', scribe: '#ffffff', caravan: '#2f4f9a', archaeologist: '#c9b48a',
+  stargazer: '#3b4f9a', flightsuit: '#3f6fd6', mission: '#f4f6fa'
 };
 /** The teachers: owl for math, tortoise for history, raccoon for physics. */
 export const TEACHERS = {
@@ -425,8 +457,14 @@ export const DESERT_TEACHERS = {
   history: { species: 'ibis', emoji: '🪶', get name() { return t('desert.teacher.history'); } },
   physics: { species: 'sandcat', emoji: '🐱', get name() { return t('desert.teacher.physics'); } }
 };
-/** A realm's teachers ('land', 'forest', 'sea' or 'desert'). */
-export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS })[realm] ?? TEACHERS;
+/** The Moon's teachers: Miss Mochi the moon rabbit (the Dome School), Captain Ginger the red panda (the Moon Museum), Dr. Comet the koala (the Star Observatory). */
+export const MOON_TEACHERS = {
+  math: { species: 'moonrabbit', emoji: '🐰', get name() { return t('moon.teacher.math'); } },
+  history: { species: 'redpanda', emoji: '🪐', get name() { return t('moon.teacher.history'); } },
+  physics: { species: 'koala', emoji: '🐨', get name() { return t('moon.teacher.physics'); } }
+};
+/** A realm's teachers ('land', 'forest', 'sea', 'desert' or 'moon'). */
+export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS, moon: MOON_TEACHERS })[realm] ?? TEACHERS;
 /** A guide's species, from their look (the same look, the same critter). */
 export function guideSpecies(look) {
   const list = ['bear', 'fox', 'mouse', 'hedgehog', 'frog', 'duck', 'bunny', 'owl'];

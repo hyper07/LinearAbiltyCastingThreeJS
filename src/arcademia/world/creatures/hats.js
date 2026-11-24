@@ -7,6 +7,8 @@
  *                a pharaoh's nemes, a Roman helmet, a Viking helmet, a chef's hat …)
  *   townsfolk    the desert's sun hat and striped headscarf
  *   the desert   a scribe's wig, a pith helmet, Miss Lotus's lotus flower
+ *   the Moon     the townsfolk's round bubble helmet and comms headset; its teachers' crescent
+ *                hair clip, star-badge captain's cap and astronaut visor; the stargazers' starry cap
  *
  * makeHat(id) builds one for a head of radius 1 standing on the head's top
  * point (y up, facing +z); figures.js scales and seats it on each species.
@@ -501,6 +503,94 @@ function costume(id) {
       heart.position.y = 0.16;
       heart.scale.set(1, 0.6, 1);
       flower.add(heart);
+      break;
+    }
+    // The Moon's townsfolk: a round fishbowl helmet on a silver collar, and a comms headset with an antenna.
+    case 'bubble': {
+      const glass = new THREE.MeshPhysicalMaterial({ color: '#d9f2ff', transparent: true, opacity: 0.2, roughness: 0.05, clearcoat: 1, depthWrite: false, side: THREE.DoubleSide });
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(1.08, 36, 22), glass);
+      dome.position.y = -0.82;
+      dome.renderOrder = 2;
+      g.add(dome);
+      const shine = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.035, 6, 30, 1.0), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8 }));
+      shine.position.set(0, -0.7, 0.5);
+      shine.rotation.set(-0.45, 0.5, 0.95);
+      g.add(shine);
+      P(new THREE.TorusGeometry(0.8, 0.14, 12, 40), M('#dfe5ee', { gloss: 0.6, metal: 0.4 }), [0, -1.62, 0], [Math.PI / 2, 0, 0], null, 0.012);
+      P(new THREE.TorusGeometry(0.8, 0.06, 6, 40), M('#2fb8c4'), [0, -1.5, 0], [Math.PI / 2, 0, 0], null, 0);
+      P(S(0.09, 10, 8), M('#ffd23f', { emissive: '#ffb648', ei: 0.8 }), [0, 0.28, 0]);
+      g.userData.helmet = true;
+      break;
+    }
+    case 'headset':
+      P(new THREE.TorusGeometry(0.98, 0.07, 8, 32, Math.PI), M('#eef2f8', { gloss: 0.5 }), [0, -0.5, -0.05], [0, 0, 0], null, 0.01);
+      for (const sd of [-1, 1]) {
+        P(new THREE.CylinderGeometry(0.24, 0.24, 0.16, 18), M('#ff8a3d'), [sd * 0.98, -0.62, -0.05], [0, 0, Math.PI / 2]);
+        P(new THREE.CylinderGeometry(0.15, 0.15, 0.18, 14), M('#2fb8c4'), [sd * 1.04, -0.62, -0.05], [0, 0, Math.PI / 2], null, 0);
+      }
+      P(new THREE.CylinderGeometry(0.025, 0.025, 0.55, 6), M('#c3cad6', { metal: 1 }), [0.55, -0.88, 0.32], [1.1, -0.6, 0], null, 0.006);
+      P(S(0.07, 10, 8), M('#2b2f3a'), [0.32, -1.02, 0.55]);
+      P(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), M('#c3cad6', { metal: 1 }), [-0.7, -0.05, -0.05], [0, 0, 0.35], null, 0.006);
+      P(S(0.09, 10, 8), M('#ff6f6f', { emissive: '#ff4d4d', ei: 0.9 }), [-0.81, 0.25, -0.05]);
+      break;
+    // The Moon's teachers: Miss Mochi's crescent-moon hair clip, Captain Ginger's star-badge captain's cap,
+    // Dr. Comet's astronaut headband with its gold visor flipped up; the stargazers' starry cap.
+    case 'crescent': {
+      const clip = new THREE.Group();
+      clip.position.set(0.42, -0.2, 0.42);
+      clip.rotation.set(0.25, 0.35, -0.5);
+      g.add(clip);
+      const moon = mesh(new THREE.TorusGeometry(0.24, 0.085, 10, 24, Math.PI * 1.15), propMaterial('#ffd23f', { gloss: 0.7, emissive: '#ffb648', ei: 0.35 }), { outline: 0.012 });
+      moon.rotation.z = 0.9;
+      clip.add(moon);
+      const little = star(0.11, '#fff3b0');
+      little.position.set(0.2, 0.08, 0.02);
+      clip.add(little);
+      P(S(0.05, 8, 6), M('#ff9ec7'), [0.3, -0.42, 0.52]);
+      break;
+    }
+    case 'spacecap': {
+      // A captain's cap: a flared navy crown with a gold band, a shiny black peak and a star badge.
+      P(new THREE.CylinderGeometry(1.0, 0.86, 0.3, 28), M('#2b3a67', { gloss: 0.3 }), [0, 0.0, 0.02], [-0.06, 0, 0]);
+      P(new THREE.CylinderGeometry(0.86, 0.86, 0.16, 28), M('#1d2540', { gloss: 0.3 }), [0, -0.24, 0]);
+      P(new THREE.CylinderGeometry(0.875, 0.875, 0.05, 28), M('#ffd23f', { metal: 1 }), [0, -0.2, 0], [0, 0, 0], null, 0);
+      P(new THREE.CylinderGeometry(0.6, 0.6, 0.05, 20, 1, false, -Math.PI / 2, Math.PI), M('#15192b', { gloss: 0.7 }), [0, -0.33, 0.7], [0.22, 0, 0]);
+      const badge = star(0.17, '#ffd23f');
+      badge.position.set(0, -0.0, 0.97);
+      badge.rotation.x = -0.1;
+      g.add(badge);
+      P(new THREE.TorusGeometry(0.24, 0.022, 6, 28), M('#7cc6ff', { emissive: '#7cc6ff', ei: 0.3 }), [0, 0.0, 0.95], [0.1, 0, 0.5], null, 0);
+      break;
+    }
+    case 'visor': {
+      // A white padded headband with an orange stripe, the gold visor flipped up over the brow, a little antenna.
+      P(new THREE.TorusGeometry(0.86, 0.11, 10, 40), M('#f4f6fa', { gloss: 0.5 }), [0, -0.3, 0], [Math.PI / 2 - 0.1, 0, 0], null, 0.012);
+      P(new THREE.TorusGeometry(0.85, 0.045, 6, 40), M('#ff8a3d'), [0, -0.23, 0.01], [Math.PI / 2 - 0.1, 0, 0], null, 0);
+      const gold = new THREE.MeshStandardMaterial({ color: '#ffcf4d', metalness: 0.35, roughness: 0.22, emissive: '#c98a1a', emissiveIntensity: 0.3, side: THREE.DoubleSide });
+      const shield = new THREE.Mesh(new THREE.SphereGeometry(1.0, 28, 10, Math.PI / 2 - 0.85, 1.7, 0.3, 0.62), gold);
+      shield.position.set(0, -0.78, 0.04);
+      shield.scale.set(1.06, 1.0, 1.06);
+      shield.castShadow = true;
+      g.add(shield);
+      for (const sd of [-1, 1]) P(S(0.1, 10, 8), M('#f4f6fa', { gloss: 0.5 }), [sd * 0.8, -0.3, 0.3]);
+      P(new THREE.CylinderGeometry(0.025, 0.025, 0.45, 6), M('#c3cad6', { metal: 1 }), [0.7, -0.05, -0.35], [0, 0, -0.35], null, 0.006);
+      P(S(0.08, 10, 8), M('#7ff7ff', { emissive: '#3fd0ff', ei: 0.9 }), [0.78, 0.18, -0.35]);
+      break;
+    }
+    case 'starcap': {
+      cap(0.95, '#2b3a67', -0.42);
+      P(new THREE.TorusGeometry(0.93, 0.08, 8, 36), M('#4a5fa8'), [0, -0.4, 0], [Math.PI / 2, 0, 0], null, 0.01);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.3;
+        const s = star(0.1, '#ffd23f', false);
+        s.position.set(Math.sin(a) * 0.92, -0.16 + (i % 2) * 0.06, Math.cos(a) * 0.92);
+        s.lookAt(s.position.clone().multiplyScalar(2));
+        g.add(s);
+      }
+      const tip = mesh(new THREE.TorusGeometry(0.16, 0.06, 8, 18, Math.PI * 1.2), propMaterial('#ffd23f', { emissive: '#ffb648', ei: 0.4 }), { outline: 0.01 });
+      tip.position.set(0, 0.62, 0);
+      tip.rotation.z = 0.6;
+      g.add(tip);
       break;
     }
     default:

@@ -32,6 +32,9 @@ import { buildLagoonWorld } from './lagoon/scene.js';
 import { planDesert } from './desert/plan.js';
 import { buildDesertWorld } from './desert/scene.js';
 import { stripedAwning, DESERT_LANDMARK_ICONS } from './desert/buildings.js';
+import { planMoon } from './moon/plan.js';
+import { buildMoonWorld } from './moon/scene.js';
+import { podCanopy, MOON_LANDMARK_ICONS } from './moon/buildings.js';
 import { makeCreature, BUDDY_COLORS } from './figures.js';
 import { buildParticles } from './particles.js';
 import { WORLDS } from '../quests.js';
@@ -52,7 +55,7 @@ const placeInfo = (icon, id) => ({ icon, get name() {
   return tr(`place.${id}`);
 } });
 export const PLACE_INFO = { shop: placeInfo('🎩', 'shop'), arcade: placeInfo('🕹️', 'arcade'), museum: placeInfo('🌈', 'museum'), board: placeInfo('📋', 'board'), portal: placeInfo('🌀', 'portal'), worlds: placeInfo('🌍', 'worlds') };
-const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼', ...SEA_LANDMARK_ICONS, ...DESERT_LANDMARK_ICONS };
+const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼', ...SEA_LANDMARK_ICONS, ...DESERT_LANDMARK_ICONS, ...MOON_LANDMARK_ICONS };
 const landmarkName = (id) => `${LANDMARK_ICONS[id] ?? ''} ${tr(`landmark.${id}`)}`;
 const SUBJECTS = ['math', 'history', 'physics'];
 
@@ -67,10 +70,12 @@ export class World {
     this.reducedMotion = reducedMotion;
     this.on = on;
     this.buddy = buddy ?? { species: 'fox', color: '#ff9b54', hat: 'party' };
-    this.plan = kind === 'tree' ? planTree(floors.length) : kind === 'lagoon' ? planLagoon(floors.length) : kind === 'desert' ? planDesert(floors.length) : planMountain(floors.length);
+    this.plan = kind === 'tree' ? planTree(floors.length) : kind === 'lagoon' ? planLagoon(floors.length) : kind === 'desert' ? planDesert(floors.length) : kind === 'moon' ? planMoon(floors.length) : planMountain(floors.length);
     this.isTree = this.plan.kind === 'tree';
-    /** The tree, the lagoon and the desert: their own scenery, the layered walking grid, spots from the plan. */
-    this.custom = ['tree', 'lagoon', 'desert'].includes(this.plan.kind);
+    /** The tree, the lagoon, the desert and the Moon: their own scenery, the layered walking grid, spots from the plan. */
+    this.custom = ['tree', 'lagoon', 'desert', 'moon'].includes(this.plan.kind);
+    /** Low gravity (the Moon): floatier hops, and a puff of dust on landing. */
+    this.float = this.plan.float ?? 0;
     /** Day and night colours (a plan may warm them: the desert's late-afternoon sky). */
     this.DAY = { ...DAY, ...this.plan.sky?.day };
     this.NIGHT = { ...NIGHT, ...this.plan.sky?.night };
@@ -117,8 +122,8 @@ export class World {
     this.sky = buildSky();
     scene.add(this.sky);
     if (this.custom) {
-      // The Great Tree (tree/scene.js), the Lagoon (lagoon/scene.js) or the Desert (desert/scene.js): walkable parts, gates, the rest.
-      this.scenery = this.isTree ? buildTreeWorld(plan, floors) : plan.kind === 'desert' ? buildDesertWorld(plan, floors) : buildLagoonWorld(plan, floors);
+      // The Great Tree (tree/scene.js), the Lagoon (lagoon/scene.js), the Desert (desert/scene.js) or the Moon (moon/scene.js): walkable parts, gates, the rest.
+      this.scenery = this.isTree ? buildTreeWorld(plan, floors) : plan.kind === 'desert' ? buildDesertWorld(plan, floors) : plan.kind === 'moon' ? buildMoonWorld(plan, floors) : buildLagoonWorld(plan, floors);
       if (this.isTree) this.tree = this.scenery;
       scene.add(this.scenery.group);
       this.terrain = this.scenery.walk;
@@ -177,6 +182,8 @@ export class World {
     this.birds = buildBirds();
     this.particles = buildParticles();
     scene.add(this.clouds, this.birds, this.fireflies, this.particles);
+    // Space (the Moon): no clouds, birds or fireflies; the sky's own stars stay out by day, its moon never shows.
+    if (plan.space) this.clouds.visible = this.birds.visible = this.fireflies.visible = false;
 
     this.ring = new THREE.Mesh(new THREE.RingGeometry(PLINTH_R + 0.25, PLINTH_R + 0.55, 48), new THREE.MeshBasicMaterial({ color: '#ff9ed2', transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
     this.ring.rotation.x = -Math.PI / 2;
@@ -188,7 +195,7 @@ export class World {
     scene.add(this.marker);
 
     // The buddy.
-    this.kid = makeCreature({ ...this.buddy, scale: KID_SCALE, lod: 'high' });
+    this.kid = makeCreature({ ...this.buddy, scale: KID_SCALE, lod: 'high', ...this._gravity(() => this.kid) });
     scene.add(this.kid.group);
     const door = plan.floors[0].plinths[1].door;
     const start = plan.start ?? { x: door.x + 1.5, z: door.z + 3.2, y: plan.floors[0].y };
@@ -200,7 +207,7 @@ export class World {
 
     const dom = this.renderer.domElement;
     this.controls = new OrbitControls(this.camera, dom);
-    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 5, maxDistance: { lagoon: 380, desert: 600 }[this.plan.kind] ?? 260, minPolarAngle: 0.35, maxPolarAngle: 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
+    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 5, maxDistance: { lagoon: 380, desert: 600, moon: 440 }[this.plan.kind] ?? 260, minPolarAngle: 0.35, maxPolarAngle: this.plan.maxPolar ?? 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
     this.controls.target.copy(this.kidPos).add(new THREE.Vector3(0, 1, 0));
     if (this.plan.arrival) this.arrival();
     else this.home();
@@ -237,7 +244,7 @@ export class World {
     el.className = `arc-pill${subject ? '' : ' arc-pill--place'}`;
     el.innerHTML = '<span class="arc-pill__icon" aria-hidden="true"></span><span class="arc-pill__name"></span><span class="arc-pill__meta"></span>';
     el.querySelector('.arc-pill__icon').textContent = subject ? SUBJECT_ICONS[p.kind] : p.kind === 'landmark' ? '' : PLACE_INFO[p.kind].icon;
-    const nameOf = () => (subject ? (look.look.resort ? tr(`sea.building.${p.kind}`) : look.look.sandstone ? tr(`desert.building.${p.kind}`) : look.look.grown ? tr(`forest.building.${p.kind}`) : BUILDING_NAMES[p.kind]) : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
+    const nameOf = () => (subject ? (look.look.resort ? tr(`sea.building.${p.kind}`) : look.look.sandstone ? tr(`desert.building.${p.kind}`) : look.look.lunar ? tr(`moon.building.${p.kind}`) : look.look.grown ? tr(`forest.building.${p.kind}`) : BUILDING_NAMES[p.kind]) : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
     el.querySelector('.arc-pill__name').textContent = nameOf();
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -246,7 +253,7 @@ export class World {
     this.labelsEl.append(el);
     entry.label = el;
     // Grown buildings (the Great Tree) are taller, and the small places wear a canopy: lift their labels.
-    const tall = Boolean(look.look.grown || look.look.resort || look.look.sandstone);
+    const tall = Boolean(look.look.grown || look.look.resort || look.look.sandstone || look.look.lunar);
     const top = subject ? (tall ? 11.2 : 8.5) : p.kind === 'landmark' ? 9.5 : tall && p.kind !== 'worlds' ? 6.6 : 4.6;
     this.labels.push({ el, entry, extra: !subject, nameOf, pos: new THREE.Vector3(p.x, f.y + top, p.z) });
     this.places.push(entry);
@@ -271,9 +278,9 @@ export class World {
       m.rotation.y = e.p.yaw ?? 0;
       m.userData.yaw = m.rotation.y;
       // On the Great Tree the shop, arcade, museum and board sit under a grown canopy of roots and leaves.
-      if ((look.look.grown || look.look.resort || look.look.sandstone) && ['shop', 'arcade', 'museum', 'board'].includes(e.kind)) {
+      if ((look.look.grown || look.look.resort || look.look.sandstone || look.look.lunar) && ['shop', 'arcade', 'museum', 'board'].includes(e.kind)) {
         const seed = n * 31 + e.kind.length;
-        const c = look.look.resort ? thatchGazebo(look.look, e.p.r, seed) : look.look.sandstone ? stripedAwning(look.look, e.p.r, seed) : leafCanopy(look.look, e.p.r, seed);
+        const c = look.look.resort ? thatchGazebo(look.look, e.p.r, seed) : look.look.sandstone ? stripedAwning(look.look, e.p.r, seed) : look.look.lunar ? podCanopy(look.look, e.p.r, seed) : leafCanopy(look.look, e.p.r, seed);
         c.position.copy(m.position);
         c.rotation.y = m.rotation.y;
         g.add(c);
@@ -399,7 +406,7 @@ export class World {
         bz = f.plinths[1].z;
       }
       const w = this.worlds[f.n];
-      const boss = makeCreature({ species: w.boss.species, color: w.boss.color, scale: 2.3, hat: f.n === 7 ? 'crown' : 'none', lod: 'mid', seed: f.n });
+      const boss = makeCreature({ species: w.boss.species, color: w.boss.color, scale: 2.3, hat: f.n === 7 ? 'crown' : 'none', lod: 'mid', seed: f.n, ...this._gravity(() => boss, 1.6) });
       boss.group.position.set(bx, this.plan.height(bx, bz, f.y), bz);
       boss.group.rotation.y = f.boss ? f.boss.yaw : 0.3;
       this.scene.add(boss.group);
@@ -436,10 +443,28 @@ export class World {
       const hats = this.floors[f.k].look.hats ?? partyHats;
       for (let i = 0; i < 5; i++) {
         const species = kinds[i % kinds.length];
-        const fig = makeCreature({ species, color: ['fox', 'puff', 'bunny'].includes(species) ? BUDDY_COLORS[Math.floor(r() * BUDDY_COLORS.length)] : null, hat: hats[Math.floor(r() * hats.length)], scale: 0.75 + r() * 0.25, seed: i + f.n * 7, lod: 'low' });
+        const fig = makeCreature({ species, color: ['fox', 'puff', 'bunny'].includes(species) ? BUDDY_COLORS[Math.floor(r() * BUDDY_COLORS.length)] : null, hat: hats[Math.floor(r() * hats.length)], scale: 0.75 + r() * 0.25, seed: i + f.n * 7, lod: 'low', ...this._gravity(() => fig, 0.7, false) });
         this.npcs.push(this._walker(fig, f, 0.9 + r() * 0.8, species));
       }
     }
+  }
+
+  /**
+   * Low gravity for a creature on the Moon: `float` makes its hops higher and slower, and when it
+   * lands (from a hop, or a step if `steps`) a little puff of moon dust kicks up under it.
+   */
+  _gravity(get, size = 1, steps = true) {
+    if (!this.float) return {};
+    return {
+      float: this.float,
+      onLand: (kind) => {
+        if (kind === 'step' && !steps) return;
+        const fig = get();
+        if (!fig?.group.visible) return;
+        const p = fig.group.position;
+        this.scenery?.dust?.(p.x, p.y, p.z, (kind === 'step' ? 0.45 : 1) * size);
+      }
+    };
   }
 
   _walker(fig, f, speed, species) {
@@ -534,7 +559,7 @@ export class World {
   setBuddy(buddy) {
     this.buddy = buddy;
     this.scene.remove(this.kid.group);
-    this.kid = makeCreature({ ...buddy, scale: KID_SCALE, lod: 'high' });
+    this.kid = makeCreature({ ...buddy, scale: KID_SCALE, lod: 'high', ...this._gravity(() => this.kid) });
     this.scene.add(this.kid.group);
     this.kid.group.position.copy(this.kidPos);
     this.kid.hop();
@@ -1156,8 +1181,9 @@ export class World {
     windowMat.emissiveIntensity = k * 1.6;
     lampMat.emissiveIntensity = 0.25 + k * 2.4;
     for (const l of this.lamps) l.intensity = k * 12;
-    this.sky.userData.stars.material.opacity = k;
-    this.sky.userData.moon.material.opacity = k;
+    // In space the stars are out by day too, and there is no moon in the sky: you are standing on it.
+    this.sky.userData.stars.material.opacity = this.plan.space ? 1 : k;
+    this.sky.userData.moon.material.opacity = this.plan.space ? 0 : k;
     this.fireflies.userData.material.uniforms.uNight.value = k;
     waterClock.uNight.value = k;
     this.scenery?.setNight?.(k);

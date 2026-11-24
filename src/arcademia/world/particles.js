@@ -3,7 +3,7 @@
  * floor the camera is on and changes with its theme — falling petals in
  * the meadow, sand swirls in the desert, glowing spores in the mushroom
  * grove, snow on the peaks, sparkles in the clouds, sea spray at the
- * harbor, twinkles on the moon. All the motion is in the shader.
+ * harbor, twinkles on the moon, sparkling moon dust on the Moon's bases. All the motion is in the shader.
  */
 import * as THREE from 'three';
 
@@ -14,7 +14,9 @@ const MODES = {
   snow: { color: '#ffffff', size: 6, mode: 0, glow: 0 },
   sparkles: { color: '#fff3b0', size: 6, mode: 3, glow: 1 },
   spray: { color: '#e6fbff', size: 4, mode: 2, glow: 0 },
-  twinkles: { color: '#bfe3ff', size: 5, mode: 3, glow: 1 }
+  twinkles: { color: '#bfe3ff', size: 5, mode: 3, glow: 1 },
+  /** The Moon: fine dust sparkling in the sunlight, hanging low over the decks. */
+  moondust: { color: '#eef2ff', size: 3.5, mode: 3, glow: 1 }
 };
 
 export function buildParticles(n = 900) {

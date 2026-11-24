@@ -11,6 +11,7 @@ import { LAND_LESSONS } from '../content/index.js';
 import { lessonsOn } from '../content/index.js';
 import { t, num, localizeLesson } from '../i18n/index.js';
 import { OASES, GIZA, riverLine, DESERT } from '../world/desert/plan.js';
+import { CRATERS, MOON, LANDMARKS as MOON_SIGHTS } from '../world/moon/plan.js';
 
 export class Hud {
   constructor(root, actions, { floors = FLOORS, map = null, lessons = LAND_LESSONS, realm = 'land' } = {}) {
@@ -219,6 +220,7 @@ export class Hud {
     const n = FL.length;
     if (this.map?.kind === 'lagoon') return this._islandMap({ stars, open, kidFloor, focusFloor });
     if (this.map?.kind === 'desert') return this._riverMap({ stars, open, kidFloor, focusFloor });
+    if (this.map?.kind === 'moon') return this._craterMap({ stars, open, kidFloor, focusFloor });
     const tree = this.map?.kind === 'tree';
     const W = 168, H = 150, rowH = (H - 20) / n;
     const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('hud.mapAria', { n: kidFloor })}">`];
@@ -319,6 +321,45 @@ export class Hud {
       });
       svg.push(`<text x="${x}" y="${y + 1}" text-anchor="middle" class="arc-mini__n">${locked ? '🔒' : f.n}</text></g>`);
       if (f.n === kidFloor) svg.push(`<text x="${x + 8}" y="${y - 8}" class="arc-mini__kid">🧒</text>`);
+    });
+    svg.push('</svg>');
+    this.mini.innerHTML = svg.join('');
+    for (const g of this.mini.querySelectorAll('[data-floor]')) {
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => this.actions.goFloor(Number(g.dataset.floor)));
+    }
+  }
+
+  /** The Moon from above: grey ground, seven craters round the plain, glass tubes between them, the Big Rocket in the middle, the Earth. */
+  _craterMap({ stars, open, kidFloor, focusFloor }) {
+    const FL = this.floors;
+    const W = 168, H = 150, cx = W / 2, cy = H / 2 + 2;
+    const k = 52 / MOON.ring;
+    const P = (x, z) => [+(cx + x * k).toFixed(1), +(cy + z * k).toFixed(1)];
+    const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('moon.mapAria', { n: kidFloor })}">`];
+    svg.push(`<rect x="2" y="2" width="${W - 4}" height="${H - 4}" rx="14" fill="#1c2240"/>`);
+    // A few stars, the plain, the Earth in the corner.
+    for (const [x, y] of [[14, 12], [40, 8], [150, 20], [130, 10], [10, 130], [156, 138], [24, 60], [150, 90]]) svg.push(`<circle cx="${x}" cy="${y}" r="0.9" fill="#fff" opacity="0.8"/>`);
+    svg.push(`<circle cx="${cx}" cy="${cy}" r="${(MOON.ring + MOON.outR) * k}" fill="#a9abb6"/><circle cx="${cx}" cy="${cy}" r="${(MOON.ring - MOON.outR + 6) * k}" fill="#bfc1ca"/>`);
+    svg.push(`<text x="10" y="22" font-size="13"><title>${t('moon.earth')}</title>🌍</text>`);
+    const pos = FL.map((f, i) => P(...CRATERS[i]));
+    for (let i = 1; i < pos.length; i++) svg.push(`<line x1="${pos[i - 1][0]}" y1="${pos[i - 1][1]}" x2="${pos[i][0]}" y2="${pos[i][1]}" stroke="#bfeaff" stroke-width="4" stroke-linecap="round" opacity="0.9"/><line x1="${pos[i - 1][0]}" y1="${pos[i - 1][1]}" x2="${pos[i][0]}" y2="${pos[i][1]}" stroke="#5fb7e0" stroke-width="1.4" stroke-linecap="round"/>`);
+    // The giant landmarks on the plain.
+    const [rx, ry] = P(MOON_SIGHTS.rocket.x, MOON_SIGHTS.rocket.z);
+    svg.push(`<text x="${rx}" y="${ry + 5}" text-anchor="middle" font-size="13"><title>${t('moon.rocket')}</title>🚀</text>`);
+    const [dx, dy] = P(MOON_SIGHTS.dish.x, MOON_SIGHTS.dish.z), [lx, ly] = P(MOON_SIGHTS.lander.x, MOON_SIGHTS.lander.z);
+    svg.push(`<text x="${dx}" y="${dy + 4}" text-anchor="middle" font-size="9"><title>${t('moon.dish')}</title>📡</text><text x="${lx}" y="${ly + 4}" text-anchor="middle" font-size="9"><title>${t('moon.lander')}</title>🛬</text>`);
+    FL.forEach((f, i) => {
+      const [x, y] = pos[i];
+      const locked = !open.has(f.n);
+      svg.push(`<g class="arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}" data-floor="${f.n}"><circle cx="${x}" cy="${y}" r="13.5" fill="${locked ? '#8a8c97' : '#dfe2ea'}" stroke="${f.n === focusFloor ? '#ffb23f' : '#f4f6fa'}" stroke-width="2.4"/><circle cx="${x}" cy="${y}" r="9.5" fill="${locked ? '#7a7c87' : '#c9ccd5'}"/>`);
+      ['math', 'history', 'physics'].forEach((sub, j) => {
+        const list = lessonsOn(f.n, sub, this.realm);
+        const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
+        svg.push(`<circle class="arc-mini__dot arc-mini__dot--${sub}${done === list.length && list.length ? ' is-done' : ''}" cx="${x - 6 + j * 6}" cy="${y + 6}" r="2.6"/>`);
+      });
+      svg.push(`<text x="${x}" y="${y + 1}" text-anchor="middle" class="arc-mini__n">${locked ? '🔒' : f.n}</text></g>`);
+      if (f.n === kidFloor) svg.push(`<text x="${x + 11}" y="${y - 8}" class="arc-mini__kid">🧒</text>`);
     });
     svg.push('</svg>');
     this.mini.innerHTML = svg.join('');

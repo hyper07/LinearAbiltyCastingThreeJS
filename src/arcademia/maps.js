@@ -4,7 +4,7 @@
  * buddy go wherever the player goes — and dresses them its own way: the
  * Learning Mountain stacks them as terraces, the Great Tree as rings of
  * treehouses round a giant trunk, the Lagoon as islands, the Desert as oasis
- * towns along the Nile.
+ * towns along the Nile, the Moon as moonbases in craters.
  *
  * To add a world: give it an entry here with its floors' looks (the shape of
  * floors.js — `look` drives the buildings, landmark, critters, particles and
@@ -128,16 +128,41 @@ export const DESERT_FLOORS = [
 ].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
 for (const f of DESERT_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`desert.floor.${f.n}`), enumerable: true });
 
+/** The moonbases' looks: white and silver toy habitats on landing pads, orange and teal trim (world/moon/). */
+const LUNAR = {
+  lunar: true, theme: 'moon', shapes: { math: 'domeschool', history: 'museummodule', physics: 'moonobservatory' },
+  stone: '#c9ced8', trim: '#ffffff', wall: '#f2f4f8', path: '#dde1e8', grass: '#c3c5ce', grassDark: '#a9abb6', rock: ['#9c9ea9', '#8a8c97', '#b2b4be'], tree: 'none', leaf: '#6fcf7a',
+  /** The townsfolk wear bubble helmets and comms headsets (creatures/hats.js). */
+  hats: ['bubble', 'headset', 'bubble', 'none', 'headset', 'bubble']
+};
+/**
+ * The Moon's seven moonbases, each in its own crater, joined by glass tubes. Its realm is
+ * 'moon': its own lessons (content/moon.js), teachers, stories and puzzle bosses.
+ * The townsfolk are its own: water bears, luna moths, axolotls, hamsters, robot pups and moon jellies.
+ */
+export const MOON_FLOORS = [
+  { icon: '🛬', look: { ...LUNAR, roof: { math: '#ff8a3d', history: '#2fb8c4', physics: '#5a7fe0' }, landmark: 'lander', flowers: ['#ffd23f', '#ff8a3d', '#ffffff'], banner: '#ff8a3d', critters: ['tardigrade', 'robopup', 'hamster'], particles: 'moondust', mood: 'space' } },
+  { icon: '🚀', look: { ...LUNAR, roof: { math: '#2fb8c4', history: '#ff6f5c', physics: '#ffb23f' }, landmark: 'minirocket', flowers: ['#7ff7ff', '#ff6f5c', '#ffffff'], banner: '#2fb8c4', critters: ['axolotl', 'lunamoth', 'robopup'], particles: 'moondust', mood: 'beeps' } },
+  { icon: '🚙', look: { ...LUNAR, roof: { math: '#ffb23f', history: '#5a7fe0', physics: '#ff6f9a' }, landmark: 'rovergarage', flowers: ['#ffd23f', '#7cc6ff', '#ffffff'], banner: '#ffb23f', critters: ['hamster', 'tardigrade', 'axolotl'], particles: 'moondust', mood: 'space' } },
+  { icon: '📡', look: { ...LUNAR, roof: { math: '#5a7fe0', history: '#ffb23f', physics: '#2fb8c4' }, landmark: 'dish', flowers: ['#7cc6ff', '#ffffff', '#ffd23f'], banner: '#5a7fe0', critters: ['robopup', 'moonjelly', 'lunamoth'], particles: 'moondust', mood: 'beeps' } },
+  { icon: '🌱', look: { ...LUNAR, roof: { math: '#5fc46a', history: '#ff8a3d', physics: '#c39bff' }, landmark: 'greenhouse', flowers: ['#7fd88a', '#ff9ed2', '#ffffff'], banner: '#5fc46a', critters: ['lunamoth', 'hamster', 'axolotl'], particles: 'moondust', mood: 'chimes' } },
+  { icon: '💎', look: { ...LUNAR, roof: { math: '#c39bff', history: '#2fb8c4', physics: '#ff7aa8' }, landmark: 'crystals', flowers: ['#c39bff', '#7ff7ff', '#ffffff'], banner: '#9b7be0', critters: ['moonjelly', 'tardigrade', 'lunamoth'], particles: 'twinkles', mood: 'chimes' } },
+  { icon: '🛰️', look: { ...LUNAR, roof: { math: '#3f6fd6', history: '#ffd23f', physics: '#ff8a3d' }, landmark: 'satellite', flowers: ['#7ff7ff', '#ffd23f', '#ffffff'], banner: '#3f6fd6', critters: ['moonjelly', 'robopup', 'axolotl'], particles: 'twinkles', mood: 'space' } }
+].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
+for (const f of MOON_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`moon.floor.${f.n}`), enumerable: true });
+
 /**
  * The worlds; names come from the current language (ui.js map.<id>, map.<id>.what).
  * `realm`: whose lessons, teachers, floors and stars — every world has its own (the mountain:
- * land, the Great Tree: forest, the Lagoon: sea, the Desert: desert), so each map teaches something new.
+ * land, the Great Tree: forest, the Lagoon: sea, the Desert: desert, the Moon: moon), so each map
+ * teaches something new.
  */
 export const MAPS = [
   { id: 'mountain', icon: '⛰️', kind: 'mountain', realm: 'land', floors: FLOORS, whole: 'hud.whole', wholeHint: 'hud.wholeHint', back: ['lesson.back', 'lesson.backAria'] },
   { id: 'tree', icon: '🌳', kind: 'tree', realm: 'forest', floors: TREE_FLOORS, whole: 'map.tree.whole', wholeHint: 'map.tree.wholeHint', back: ['lesson.back.tree', 'lesson.backAria.tree'] },
   { id: 'lagoon', icon: '🏝️', kind: 'lagoon', realm: 'sea', floors: SEA_FLOORS, whole: 'map.lagoon.whole', wholeHint: 'map.lagoon.wholeHint', back: ['lesson.back.lagoon', 'lesson.backAria.lagoon'] },
-  { id: 'desert', icon: '🐪', kind: 'desert', realm: 'desert', floors: DESERT_FLOORS, whole: 'map.desert.whole', wholeHint: 'map.desert.wholeHint', back: ['lesson.back.desert', 'lesson.backAria.desert'] }
+  { id: 'desert', icon: '🐪', kind: 'desert', realm: 'desert', floors: DESERT_FLOORS, whole: 'map.desert.whole', wholeHint: 'map.desert.wholeHint', back: ['lesson.back.desert', 'lesson.backAria.desert'] },
+  { id: 'moon', icon: '🌙', kind: 'moon', realm: 'moon', floors: MOON_FLOORS, whole: 'map.moon.whole', wholeHint: 'map.moon.wholeHint', back: ['lesson.back.moon', 'lesson.backAria.moon'] }
 ];
 for (const m of MAPS) {
   Object.defineProperty(m, 'name', { get: () => t(`map.${m.id}`), enumerable: true });

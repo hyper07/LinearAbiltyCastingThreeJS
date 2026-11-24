@@ -22,8 +22,9 @@ weekly report behind a PIN, and a read-only link they can open on their own phon
 
 ## Study worlds
 
-There are four study worlds, and each teaches **its own lessons with its own teachers**, so a child
-who finishes one world has a new one to explore. Each world has seven floors for ages 6–13 with its
+There are five study worlds, and each teaches **its own lessons with its own teachers**, so a child
+who finishes one world has a new one to explore (a world still being written borrows the mountain's
+lessons and teachers until its own exist: `content/index.js` `teachingRealm`). Each world has seven floors for ages 6–13 with its
 own stories and puzzle bosses, and its own stars and unlocking. Coins, stickers, hats, gems and the
 buddy are shared everywhere.
 
@@ -33,6 +34,7 @@ buddy are shared everywhere.
 | The Great Tree 🌳 | forest | Nutmeg 🐿️ · Grandpa Bramble 🐻 · Dr. Ribbit 🐸 | Forest Math, Forest History, the Nature Lab: trees, plants, seasons and the people who studied and protected forests (`content/forest.js`) |
 | The Lagoon 🏝️ | sea | Captain Pip 🐧 · Grandma Inka 🐙 · Dr. Splash 🦭 | Sea Math, Sea Explorers, the Ocean Lab: navigators, lighthouses, ocean science, floating, tides and the deep sea (`content/sea.js`) |
 | The Desert of the Pyramids 🐪 | desert | Miss Lotus 🦛 · Uncle Reed (an ibis) · Dr. Sandy (a sand cat) | the Pyramid School, the Temple School and the Sun Observatory: 42 desert and Ancient Egypt lessons — hieroglyph numbers, cubits and the Nile's fields; farmers, scribes, Imhotep, Hatshepsut, Petra, the Rosetta Stone, Ibn Battuta, Alexandria, Timbuktu, Tutankhamun and Abu Simbel; shade, singing dunes, wet sand under sledges, the shadoof, mirages, hot-air balloons, sandstorms and Eratosthenes (`content/desert.js`) |
+| The Moon 🌙 | moon | Miss Mochi (a moon rabbit) 🐰 · Captain Ginger (a red panda) · Dr. Comet (a koala) 🐨 | the Dome School, the Moon Museum and the Star Observatory: 42 Moon and space lessons — counting craters, rocket countdowns, fractions of the Moon, a sixth of your weight, moon-month decimals, hot days and freezing nights, mission equations; moon-rabbit tales and full-moon festivals, Galileo, Sputnik, Gagarin, Tereshkova, Katherine Johnson, Apollo 11, Hubble, the ISS, Sally Ride, the Chang'e missions, Apollo 13 and today's explorers (Danuri, Chandrayaan-3, SLIM, Artemis); phases, moon boots, silent space, the hammer and the feather, craters, polar ice, earthshine, levers, rockets, the long lunar day, eclipses and tides, moonbase power, pendulums and orbits (`content/moon.js`) |
 
 **The Great Tree** has a ring of treehouses all the way round a giant trunk for every floor: Root
 Hollow, Fern Boughs, Lantern Branches, Blossom Canopy, Nest Heights, Sunflower Rings and Starlight
@@ -93,6 +95,50 @@ cat in lab goggles (the Sun Observatory). The history guides dress as Nile farme
 bob wig), caravan guides and an archaeologist (a pith helmet). The oasis puzzle bosses are Pebble the
 Little Sphinx, Grumpy Humphrey the camel, Sunny Lizzie the gecko, Rolly the Scarab, Huff the Hot-Air
 Puff, Madam Whiskers the meerkat librarian and Dusk the Fennec.
+
+**The Moon** is seven moonbases, each in its own round crater, on a ring round a grey plain:
+Landing Crater, Rocket Ridge, Rover Tracks, Dish Valley, Greenhouse Crater, Crystal Caves and
+Starlight Station (`world/moon/plan.js`, `scene.js`). Each crater is the same toy layout as a
+Lagoon island: a landing pad in the middle (the landmark, the portal, the boss), a circular walk with
+rails on the crater's inner terrace, and gangways out to landing pads for the schools and places.
+Pressurised **glass-tube walkways** join each crater to the next through notches in the rims, with an
+**airlock** (doors slide apart, a red or green light) that stays shut while the next moonbase is
+locked. On the plain inside the ring stand giants you can see from everywhere: the **Big Rocket** on
+its launch pad and tower, the **Moon Lander**, the **Radio Telescope**, and the **Moon Rover**
+driving its loop round the rocket, with flagged rover roads out to every crater. The ground is
+grey-white regolith with hundreds of craters, boulders, boot prints and rover tracks; the sky is black
+and full of stars by day too, with the Sun, and the big blue-and-white **Earth** rising over the low
+hills to the north: arriving, the camera looks over the first crater to the rocket and the Earth
+(`plan.arrival`; the Moon lets the camera look a little flatter, `plan.maxPolar`). Night is
+**Earth-light**: the bases go blue, the windows, cupolas and landing lights glow, and the Earth
+shines brighter. The buildings are its own (`world/moon/buildings.js`, original designs):
+- **Dome School:** a white habitat under a big dome with panel seams, a glass cupola, a "123" badge, a round airlock porch and solar wings.
+- **Moon Museum:** three stacked cylinder modules with window bands, a round crest over the door (stars, a crescent and a rocket; no real insignia), a docking ring and a moon rock in a case.
+- **Star Observatory:** a drum under a turning silver dome with a slit and a telescope, a lab pod and a radar dish.
+- The shop and the other small places stand under white pod canopies.
+
+The landmarks are a little lander, a little rocket by its tower, a rover garage, a radio dish, a
+greenhouse dome, a crystal cave and a satellite. **Low gravity:** on the Moon the buddy and the
+townsfolk hop higher and float down slower, lope when they walk, and kick up little puffs of moon dust
+when they land (`plan.float`, `figures.js` `float`/`onLand`). The townsfolk are the Moon's own:
+water bears (tardigrades), luna moths, axolotls, hamsters, robot pups and moon jellies, in bubble
+helmets and comms headsets. Moon dust sparkles in the air; the music is soft slow notes and far-off
+radio blips (`space`). The minimap draws the craters round the plain, the tubes, the rocket and the
+Earth.
+
+The Moon's teachers are its own animals (`world/creatures/species.js`), each in their own space gear
+(`hat.wear`, `creatures/hats.js`): **Miss Mochi**, the moon rabbit of the East Asian story — snowy
+white, very long ears, a mortar of rice cakes in her arm, a pestle in her paw and a crescent-moon clip
+(the Dome School; not the lilac bunny sprite); **Captain Ginger**, a grandpa red panda and retired space
+captain in a star-badge captain's cap (the Moon Museum); and **Dr. Comet**, a koala astronaut-scientist
+in a padded headband with her gold visor flipped up (the Star Observatory: a lab teacher with gear of
+her own keeps it instead of lab goggles, `interiors.js`). The history guides dress as stargazers (a
+starry cap), astronauts in flight suits and mission-control engineers in headsets; the museum shows a
+mortar and pestle, a mooncake, Sputnik, a Vostok capsule, a cosmonaut's helmet, a slide rule, a moon
+rock, Hubble, the ISS, the space shuttle, the Yutu-2 rover, the Apollo 13 air-filter fix and the
+Danuri orbiter. The moonbase puzzle bosses are the Moon's own critters: Bumble the Water Bear, Captain
+Nibbles the hamster, Rusty the Robot Pup, Lumi the Luna Moth, Pinky the Axolotl, Glimmer the Moon Jelly
+and Twinkle the Star Puff.
 
 **Travelling.** A **World Portal** 🌍 stands on floor 1 of every world; walk into it, or press
 **🌍 Worlds** at the top of the floor list, to choose a world. The choice is saved in the browser

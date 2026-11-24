@@ -45,7 +45,7 @@ export function questFor(lesson0) {
   };
 }
 
-/** A forest, sea or desert lesson's quest: the same steps, told by that realm's teachers (ui.js <realm>.quest.*). */
+/** A forest, sea, desert or Moon lesson's quest: the same steps, told by that realm's teachers (ui.js <realm>.quest.*). */
 function realmQuest(realm, lesson, teacher, steps) {
   if (lesson.subject === 'math') return { title: lesson.title, intro: tr(`${realm}.quest.math`), introLine: `t.${realm}.quest.math`, teacher, steps: steps(['story', 'learn', 'board', 'try', 'challenge']) };
   if (lesson.subject === 'history') {
@@ -113,5 +113,15 @@ export const DESERT_WORLDS = {
   6: world(6, { species: 'meerkat', color: '#d6b07c', emoji: '📜' }, 'desert.world'),
   7: world(7, { species: 'fennec', color: '#f1c98c', emoji: '🌙' }, 'desert.world')
 };
-/** A realm's worlds ('land', 'forest', 'sea' or 'desert'). */
-export const worldsIn = (realm = 'land') => ({ sea: SEA_WORLDS, forest: FOREST_WORLDS, desert: DESERT_WORLDS })[realm] ?? WORLDS;
+/** The Moon: each moonbase's story and its puzzle boss (ui.js moon.world.<n>.*), the Moon's own critters. */
+export const MOON_WORLDS = {
+  1: world(1, { species: 'tardigrade', color: '#f2cdb0', emoji: '🧸' }, 'moon.world'),
+  2: world(2, { species: 'hamster', color: '#f2bd78', emoji: '🐹' }, 'moon.world'),
+  3: world(3, { species: 'robopup', color: '#eef2f8', emoji: '🐶' }, 'moon.world'),
+  4: world(4, { species: 'lunamoth', color: '#f4f1dc', emoji: '🦋' }, 'moon.world'),
+  5: world(5, { species: 'axolotl', color: '#ffb7cb', emoji: '🦎' }, 'moon.world'),
+  6: world(6, { species: 'moonjelly', color: '#c8c2ff', emoji: '🪼' }, 'moon.world'),
+  7: world(7, { species: 'puff', color: '#bfe0ff', emoji: '⭐' }, 'moon.world')
+};
+/** A realm's worlds ('land', 'forest', 'sea', 'desert' or 'moon'). */
+export const worldsIn = (realm = 'land') => ({ sea: SEA_WORLDS, forest: FOREST_WORLDS, desert: DESERT_WORLDS, moon: MOON_WORLDS })[realm] ?? WORLDS;

@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { add, box, cyl, cone, sphere, ico, mat, signTexture, batch, seeded } from './kit.js';
 import { makeCreature, guideSpecies } from './figures.js';
+import { SPECIES } from './creatures/species.js';
 import { buildArtifact } from './artifacts.js';
 
 function room({ w = 16, d = 12, h = 6, wall = '#f1e6cf', floor = '#c69c6d', trim = '#8a5e3c' }) {
@@ -324,8 +325,8 @@ export function buildLab(look, teacher = 'raccoon') {
     mobile.add(arm);
   });
   g.add(mobile);
-  // The lab teacher in a white coat.
-  const teacherFig = makeCreature({ species: teacher, hat: 'goggles', scale: 1.5 });
+  // The lab teacher in a white coat, in lab goggles unless they wear their own gear (Dr. Comet's astronaut visor).
+  const teacherFig = makeCreature({ species: teacher, hat: SPECIES[teacher]?.().hat?.wear ? 'none' : 'goggles', scale: 1.5 });
   teacherFig.group.position.set(5.2, 0, -D / 2 + 2);
   teacherFig.group.rotation.y = -0.5;
   scene.add(teacherFig.group);
