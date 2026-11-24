@@ -217,10 +217,10 @@ function roadMaterial(uniforms) {
         float dx = vPaint.x - side * (w0 * 0.5 + 0.5);
         float pool = exp(-(da * da) / 70.0 - (dx * dx) / 55.0);
         vec3 sodium = vec3(1.0, 0.78, 0.5);
-        roadGlow = sodium * pool * uNight * (0.32 + 0.12 * uWet);
+        roadGlow = sodium * pool * uNight * (0.32 - 0.2 * uWet);
         // And on a wet road, the light stretched out along it, and a sheen of the sky at a low angle.
-        float streak = exp(-(dx * dx) / 30.0) * exp(-abs(da) / 22.0);
-        roadGlow += sodium * streak * uWet * uNight * 0.28;
+        float streak = exp(-(dx * dx) / 3.5) * exp(-abs(da) / 14.0);
+        roadGlow += sodium * streak * uWet * uNight * 0.55;
         vec3 vdir = normalize(vViewPosition);
         roadGlow += vec3(0.16, 0.2, 0.28) * uWet * pow(1.0 - abs(vdir.z), 4.0) * 0.6;
         // Puddles mirror the sky at a low angle, and the lamps by night (rippled by the rain).
@@ -248,8 +248,8 @@ function pavementMaterial(uniforms) {
         {
           // standing water where the blocks are low (dark in the photo), the rest just damp
           float low = 1.0 - smoothstep(0.25, 0.5, dot(diffuseColor.rgb, vec3(0.33)));
-          roughnessFactor = mix(roughnessFactor, mix(0.5, 0.22, low), uWet);
-          diffuseColor.rgb *= 1.0 - uWet * (0.35 + 0.2 * low);
+          roughnessFactor = mix(roughnessFactor, mix(0.66, 0.36, low), uWet);
+          diffuseColor.rgb *= 1.0 - uWet * (0.45 + 0.2 * low);
         }`);
   };
   return m;

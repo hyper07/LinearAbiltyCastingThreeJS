@@ -151,11 +151,14 @@ export class Folk {
   /** A real person for someone: from the pool if one's free, else a new one (up to FOLK.max). */
   _take(m) {
     const she = Boolean(m.she ??= Math.random() < 0.5);
-    let i = this.pool.findIndex((p) => p.she === she && p.avatarIndex === (m.avatar ?? p.avatarIndex));
-    if (i < 0) i = this.pool.findIndex((p) => p.she === she);
+    // Never twins side by side: the looks already worn within a few metres are avoided.
+    const near = new Set(this.active.filter((q) => q.she === she && Math.hypot(q.m.x - m.x, q.m.z - m.z) < 8).map((q) => q.avatarIndex));
+    let i = m.avatar != null && !near.has(m.avatar) ? this.pool.findIndex((p) => p.she === she && p.avatarIndex === m.avatar) : -1;
+    if (i < 0) i = this.pool.findIndex((p) => p.she === she && !near.has(p.avatarIndex));
     let p;
     if (i >= 0) p = this.pool.splice(i, 1)[0];
-    else if (this.active.length + this.pool.length < FOLK.max) p = this._make(she, m.avatar);
+    else if (this.active.length + this.pool.length < FOLK.max) p = this._make(she, m.avatar != null && !near.has(m.avatar) ? m.avatar : this._freshLook(she, near));
+    else if ((i = this.pool.findIndex((q) => q.she === she)) >= 0) p = this.pool.splice(i, 1)[0];
     else if (this.pool.length) p = this.pool.shift();
     if (!p) return null;
     m.avatar = p.avatarIndex;
@@ -166,6 +169,19 @@ export class Folk {
     this.active.push(p);
     m.real = p;
     return p;
+  }
+
+  /** The look (avatar index among this gender's) worn least just now, and not by anyone in `near`. */
+  _freshLook(she, near) {
+    const n = this.s.avatars.filter((a) => a.she === she).length || this.s.avatars.length;
+    const worn = Array.from({ length: n }, () => 0);
+    for (const q of [...this.active, ...this.pool]) if (q.she === she && q.avatarIndex < n) worn[q.avatarIndex]++;
+    let best = Math.floor(Math.random() * n);
+    for (let k = 0; k < n; k++) {
+      const j = (best + k) % n;
+      if (!near.has(j) && (near.has(best) || worn[j] < worn[best])) best = j;
+    }
+    return best;
   }
 
   _make(she, want) {
