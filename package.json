@@ -21,6 +21,7 @@
     "game:new": "node --disable-warning=ExperimentalWarning scripts/new-game.mjs",
     "work:images": "node scripts/work/scene-images.mjs",
     "geo:seoul": "node scripts/geo/seoul-build.mjs",
+    "geo:alleys": "node scripts/geo/seoul-alleys.mjs",
     "db:import": "node --disable-warning=ExperimentalWarning scripts/db-import.mjs",
     "kb": "node scripts/kb.mjs",
     "kb:build": "node scripts/kb-pixelfx.mjs && node scripts/kb-build.mjs",

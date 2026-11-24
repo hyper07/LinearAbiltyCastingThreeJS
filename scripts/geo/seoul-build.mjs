@@ -20,6 +20,7 @@ import { openSync, readSync, closeSync, readdirSync, existsSync, mkdirSync, writ
 import { join, resolve } from 'node:path';
 import { TILE, tileKey, tileOf, encodeTile, simplify, area2, heightOf, useOf } from '../../src/city/tiles.js';
 import { buildExtras } from './seoul-extras.mjs';
+import { buildAlleys, ALLEY_CREDIT } from './seoul-alleys.mjs';
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const offline = process.argv.includes('--offline');
@@ -184,6 +185,8 @@ for (const l of landmarks.sort((a, b) => b.height - a.height)) {
   if (!seen.has(key)) seen.set(key, { ...l, name: l.name.replace(/\s+\S{1,6}동$/, '') });
 }
 const extras = await buildExtras(out, index, { offline });
+// The small streets round the bike courses (alleys.bin), for the bike race.
+if (await buildAlleys(out, { offline, src: join(out, '..', 'src') }).catch(() => 0)) extras.credits.push(ALLEY_CREDIT);
 writeFileSync(join(out, 'index.json'), JSON.stringify({
   terrain: extras.terrain,
   roads: extras.roads,

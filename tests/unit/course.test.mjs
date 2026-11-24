@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { COURSES, planCourse, planRun, locate, buildGraph } from '../../src/city/course.js';
+import { BIKE_COURSES, planCourse, locate, buildGraph, isSmall } from '../../src/city/course.js';
+import { readAlleys, SMALL_WIDTH } from '../../src/city/alleys.js';
+import { encodeAlleys, keepWay } from '../../scripts/geo/seoul-alleys.mjs';
+import { toLonLat } from '../../scripts/geo/tm.mjs';
 
 /** A town of straight roads every 200 m (one through 0, 0), big ones every 600 m, 3 km across. */
 function grid() {
@@ -78,29 +81,74 @@ test('following a car round: the nearest point, searched ahead of the last, even
   assert.equal(locate(c, end[0], end[1]).i, n - 2, 'with no hint, the whole course is searched');
 });
 
-test('the Seoul courses are each round a place, with a name in English and Korean', () => {
-  assert.ok(COURSES.length >= 4);
-  for (const c of COURSES) {
-    assert.ok(c.id && c.name && c.ko && c.text);
-    // A loop is round a place; a run goes district to district.
-    if (c.run) assert.ok(c.stops.length >= 3 && c.stops[0] === c.stops.at(-1), `${c.id} starts and ends in one district`);
-    else assert.ok(c.r > 0);
+test('the bike courses are short loops round Seoul neighbourhoods, named in English and Korean', () => {
+  assert.ok(BIKE_COURSES.length >= 5);
+  const ids = new Set();
+  for (const c of BIKE_COURSES) {
+    assert.ok(c.id && c.name && c.ko && c.text, c.id);
+    assert.ok(c.r > 150 && c.r < 600, `${c.id}: a neighbourhood, not a district`);
+    assert.ok(!c.run && !c.long, `${c.id}: no long runs in the bike race`);
+    ids.add(c.id);
   }
-  assert.ok(COURSES.some((c) => c.id === 'run50') && COURSES.some((c) => c.id === 'run100'), 'the 50K and the 100K');
+  assert.equal(ids.size, BIKE_COURSES.length);
 });
 
-test('a run goes stop to stop on the roads, with a checkpoint at each, in order', () => {
-  const stops = [
-    { name: 'A', x: 0, z: 0 },
-    { name: 'B', x: 1200, z: 0 },
-    { name: 'C', x: 1200, z: 1200 },
-    { name: 'D', x: 0, z: 1200 }
+/** The grid, with a small street (an alley) every 100 m between its roads. */
+function town() {
+  const roads = grid();
+  for (let k = -1300; k <= 1300; k += 200) {
+    const along = [];
+    const across = [];
+    for (let t = -1500; t <= 1500; t += 50) {
+      along.push(t, k);
+      across.push(k, t);
+    }
+    roads.push({ pts: Float32Array.from(along), width: 3.6, cls: 6, small: true }, { pts: Float32Array.from(across), width: 3.6, cls: 6, small: true });
+  }
+  return roads;
+}
+
+test('a bike course is 1.4–3.4 km, never on a motorway, and goes through small streets as well as big roads', () => {
+  const roads = town();
+  // A motorway straight through the middle: a bike must never use it.
+  const m = [];
+  for (let t = -1500; t <= 1500; t += 50) m.push(t, 100);
+  roads.push({ pts: Float32Array.from(m), width: 22, cls: 0 });
+  const c = planCourse(roads, { id: 'b', x: 0, z: 0, r: 320 }, { bike: true });
+  assert.ok(c, 'a course was planned');
+  assert.ok(c.length >= 1400 && c.length <= 3400, `length ${Math.round(c.length)} m`);
+  for (const p of c.points) assert.equal(p.length, 4, 'each point says its width and class');
+  assert.ok(!c.points.some((p) => p[3] === 0), 'no motorway');
+  const small = c.points.filter((p) => isSmall(p[3])).length / c.points.length;
+  assert.ok(small > 0.15, `some of it in the small streets (${Math.round(small * 100)}%)`);
+  for (let i = 0; i < c.points.length; i++) assert.ok(turnAt(c.points, i) < 2.3, `no turning round at ${i}`);
+  // The same streets, the same course: everyone in a room plans it alike.
+  assert.deepEqual(planCourse(roads, { id: 'b', x: 0, z: 0, r: 320 }, { bike: true }).points, c.points);
+});
+
+test('the small streets file: kept ways, written and read back in world metres', () => {
+  assert.equal(keepWay({ highway: 'service', service: 'alley' }), true);
+  assert.equal(keepWay({ highway: 'living_street' }), true);
+  assert.equal(keepWay({ highway: 'footway', footway: 'sidewalk' }), false, 'a pavement beside a road is not a street');
+  assert.equal(keepWay({ highway: 'service', service: 'parking_aisle' }), false);
+  assert.equal(keepWay({ highway: 'residential', access: 'private' }), false);
+  assert.equal(keepWay({ highway: 'primary' }), false, 'main roads are in roads.bin');
+  // Two ways near City Hall: an alley 3 m wide, and a lane of no known width.
+  const O = { x: 198050, y: 551860 };
+  const geo = (pts) => pts.map(([x, y]) => toLonLat(O.x + x, O.y + y)).map(([lon, lat]) => ({ lon, lat }));
+  const elements = [
+    { type: 'way', id: 1, tags: { highway: 'service', service: 'alley', width: '3' }, geometry: geo([[0, 0], [40, 0], [40, 30]]) },
+    { type: 'way', id: 2, tags: { highway: 'residential' }, geometry: geo([[-100, 50], [-100, 150]]) },
+    { type: 'way', id: 3, tags: { highway: 'footway', footway: 'crossing' }, geometry: geo([[0, 0], [5, 5]]) }
   ];
-  const run = planRun(grid(), stops);
-  assert.ok(run && run.open, 'an open course');
-  assert.equal(run.checkpoints.length, 3);
-  assert.deepEqual(run.checkpoints.map((c) => c.name), ['B', 'C', 'D']);
-  for (let k = 1; k < run.checkpoints.length; k++) assert.ok(run.checkpoints[k].i > run.checkpoints[k - 1].i, 'checkpoints in order along the way');
-  assert.ok(run.length > 3400 && run.length < 4500, `about 3.6 km, not ${Math.round(run.length)} m`);
-  assert.equal(run.s.length, run.points.length);
+  const { buffer, count } = encodeAlleys(elements, [{ x0: O.x - 500, x1: O.x + 500, y0: O.y - 500, y1: O.y + 500 }]);
+  assert.equal(count, 2);
+  const back = readAlleys(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), O);
+  assert.equal(back.length, 2);
+  assert.equal(back[0].cls, 6);
+  assert.equal(back[0].width, 3);
+  assert.equal(back[1].width, SMALL_WIDTH[5]);
+  // North is −z in the world.
+  assert.ok(Math.abs(back[0].pts[4] - 40) < 0.5 && Math.abs(back[0].pts[5] + 30) < 0.5, `${back[0].pts[4]},${back[0].pts[5]}`);
+  assert.deepEqual(readAlleys(new ArrayBuffer(8), O), []);
 });

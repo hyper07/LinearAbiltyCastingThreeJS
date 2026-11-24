@@ -241,7 +241,7 @@ function geoTiles() {
   const middleware = (server) => {
     server.middlewares.use('/geo/seoul', (req, res) => {
       const name = (req.url ?? '/').split('?')[0].slice(1);
-      if (!/^(index\.json|terrain\.bin|roads\.bin|\d+_\d+\.bin)$/.test(name)) {
+      if (!/^(index\.json|terrain\.bin|roads\.bin|alleys\.bin|\d+_\d+\.bin)$/.test(name)) {
         res.statusCode = 404;
         return res.end();
       }
