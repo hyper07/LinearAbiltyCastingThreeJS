@@ -120,7 +120,7 @@ export class World {
       this.hero = buildHeroPeak(c, m, this.sky);
       this.root.add(this.hero);
       // the land it stands on, between the run and the peak
-      if (m.peak.at !== 'start') this.root.add(buildFarLand(c, m, this.sky));
+      this.root.add(buildFarLand(c, m, this.sky));
     }
     const water = buildWater(c, m, this.sky);
     if (water) this.root.add(water);
@@ -207,8 +207,6 @@ export class World {
         // beyond the run's own ground keep rising like the mountainside; under the run, tuck away
         let y = groundAt(c, p.s, Math.sign(p.lat) * Math.min(a, W + 95), false) - 0.7;
         if (a < W + 6) y -= 3;
-        // starting on a crater rim: behind the start the ground falls away so the crater shows
-        if (this.mountain.peak?.at === 'start' && p.s < 2) y -= Math.min(400, (2 - p.s) * 3 + Math.max(0, Math.hypot(x - c.px[0], z - c.pz[0]) - 20) * 1.5);
         const o = (j * nx + i) * 3;
         pos[o] = x; pos[o + 1] = y; pos[o + 2] = z;
         crs[o] = p.s; crs[o + 1] = p.lat; crs[o + 2] = W;
@@ -616,15 +614,37 @@ export class World {
           if (tint === 'rime') mm.color = leafy || hsl.l > 0.7 ? new THREE.Color('#e9f1fb') : col.clone();
           else if (tint === 'cedar') mm.color = leafy ? col.clone().multiplyScalar(0.62).lerp(new THREE.Color('#1f4a36'), 0.35) : col.clone();
           else if (tint === 'dark') mm.color = leafy ? col.clone().multiplyScalar(0.55).lerp(new THREE.Color('#163b2c'), 0.4) : col.clone();
-          // birch and larch: pale bark, the larches' needles a winter gold
-          else if (tint === 'birch') mm.color = leafy ? col.clone().lerp(new THREE.Color('#b58a3c'), 0.6) : hsl.l < 0.5 ? new THREE.Color('#e6e1d6') : col.clone();
+          // larch: needles a deep winter gold-orange, a dark red-brown trunk (the birches are their own kit)
+          else if (tint === 'birch') mm.color = leafy ? col.clone().lerp(new THREE.Color('#d0802a'), 0.75) : hsl.l < 0.5 ? new THREE.Color('#5a3524') : col.clone();
           if (mm.map && tint === 'rime') mm.map = null;
-          return { geometry: p.geometry, material: mm };
+          // the forest models are coloured per vertex: larch needles turn a winter gold-orange there too
+          let geometry = p.geometry;
+          const vc = geometry.attributes.color;
+          if (tint === 'birch' && vc) {
+            geometry = geometry.clone();
+            const a = geometry.attributes.color, c = new THREE.Color(), h = {};
+            for (let i = 0; i < a.count; i++) {
+              c.setRGB(a.getX(i), a.getY(i), a.getZ(i)).getHSL(h);
+              if (h.l > 0.72) continue; // snow stays white
+              if (h.h > 0.15 && h.h < 0.5) c.setHSL(0.075 + h.l * 0.04, 0.72, 0.32 + h.l * 0.45);
+              else c.setHSL(0.04, 0.45, 0.2 + h.l * 0.3);
+              a.setXYZ(i, c.r, c.g, c.b);
+            }
+          }
+          return { geometry, material: mm };
         })
       });
       K.spruce = recolour(K.spruce);
       K.pine = recolour(K.pine);
+      // Baekdusan: white birch clumps, sized like the forest's trees
+      if (tint === 'birch') {
+        const b = BUILDERS.birch();
+        const h = (this.kits.spruce?.size?.y ?? 6) * 1.15;
+        K.pine = { ...b, parts: b.parts.map((p) => ({ geometry: p.geometry.clone().scale(h, h, h), material: p.material })), size: b.size.clone().multiplyScalar(h) };
+      }
     }
+    // birch and larch grow in their own groves (bands along the run), so the two woods read apart
+    const pineShare = (s) => (tint === 'birch' ? (Math.floor(s / 130) % 2 === 0 ? 0.85 : 0.12) : 0.25);
     const L = c.n - 1;
     for (let s0 = -20; s0 < L; s0 += SECTION) {
       const spruce = [], pine = [], farSpruce = [], farPine = [];
@@ -637,7 +657,7 @@ export class World {
             const lat = sd * (f.width + 4.6 + r() * 4);
             const p = toWorld(c, s + r() * 2, lat, 0, _p);
             if (!this.valid(p.x, p.z, s, lat)) continue;
-            (r() < 0.75 ? spruce : pine).push({ x: p.x, y: p.y - 0.2, z: p.z, ry: r() * 6.28, s: 0.75 + r() * 0.55 });
+            (r() < 1 - pineShare(s) ? spruce : pine).push({ x: p.x, y: p.y - 0.2, z: p.z, ry: r() * 6.28, s: 0.75 + r() * 0.55 });
           }
           // the forest on the mountainside
           const n = Math.floor(m.trees.density * (forest ? 4.5 : 2.4) + r());
@@ -646,7 +666,7 @@ export class World {
             const p = toWorld(c, s + r() * 2.5, lat, 0, _p);
             if (!this.valid(p.x, p.z, s, lat)) continue;
             const near = Math.abs(lat) < f.width + 16;
-            (r() < 0.7 ? (near ? spruce : farSpruce) : near ? pine : farPine).push({ x: p.x, y: p.y - 0.3, z: p.z, ry: r() * 6.28, s: 0.9 + r() * 0.9 });
+            (r() < (tint === 'birch' ? 1 - pineShare(s) : 0.7) ? (near ? spruce : farSpruce) : near ? pine : farPine).push({ x: p.x, y: p.y - 0.3, z: p.z, ry: r() * 6.28, s: 0.9 + r() * 0.9 });
           }
         }
       }

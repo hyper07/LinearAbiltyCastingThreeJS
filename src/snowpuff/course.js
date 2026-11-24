@@ -119,24 +119,7 @@ export function buildCourse(m, { mode = 'quick' } = {}) {
   let s0 = START_FLAT + 25;
   let side = rand() < 0.5 ? -1 : 1;
   let h = 0;
-  let switched = !m.switchback;
   while (s0 < L - 90) {
-    // a switchback (Baekdusan): a banked hairpin that turns you to face back up at the crater,
-    // a straight looking at it, and a hairpin back down the mountain
-    if (!switched && s0 > m.switchback.at * L) {
-      switched = true;
-      const R = m.switchback.radius ?? 70, sd = m.switchback.side ?? 1;
-      for (const [dir, gap] of [[sd, m.switchback.straight ?? 80], [-sd, 50]]) {
-        const len = Math.PI * R;
-        for (let i = Math.floor(s0); i < Math.min(n, s0 + len); i++) {
-          curv[i] = dir / R;
-          berm[i] = dir;
-        }
-        turnsList.push({ s0, s1: s0 + len, side: dir, R, berm: true, hairpin: true });
-        s0 += len + gap;
-      }
-      continue;
-    }
     const R = lerp(T.radius[0], T.radius[1], rand());
     let ang = lerp(T.angle[0], T.angle[1], rand());
     // keep the run heading downhill overall: turn back toward the fall line when far off it

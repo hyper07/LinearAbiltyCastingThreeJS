@@ -39,36 +39,9 @@ function gridGeometry(shape, { nx = 300, nz = 110, radius = 1, height = 1 } = {}
   return g;
 }
 
-/** The middle of a height-field disc, out to rMax (unit radius): a crater's inside. */
-function discGeometry(shape, rMax, radius, height, minH = -Infinity, rings = 40, spokes = 120) {
-  const h = profile(shape);
-  const pos = [0, Math.max(minH, h(0, 0) * height), 0], idx = [];
-  for (let i = 1; i <= rings; i++) {
-    const r = (i / rings) * rMax;
-    for (let j = 0; j < spokes; j++) {
-      const a = (j / spokes) * Math.PI * 2;
-      const x = Math.cos(a) * r, z = Math.sin(a) * r;
-      pos.push(x * radius, Math.max(minH, h(x, z) * height), z * radius);
-    }
-  }
-  for (let j = 0; j < spokes; j++) idx.push(0, 1 + ((j + 1) % spokes), 1 + j);
-  for (let i = 1; i < rings; i++) {
-    const a0 = 1 + (i - 1) * spokes, b0 = 1 + i * spokes;
-    for (let j = 0; j < spokes; j++) {
-      const j1 = (j + 1) % spokes;
-      idx.push(a0 + j, a0 + j1, b0 + j, a0 + j1, b0 + j1, b0 + j);
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setIndex(idx);
-  g.computeVertexNormals();
-  return g;
-}
-
 /** A height-field disc for a silhouette: rings × spokes, the profile as height. */
 export function peakGeometry(shape, { rings = 70, spokes = 140, radius = 1, height = 1, grid = false } = {}) {
-  if (grid) return gridGeometry(shape, { radius, height });
+  if (grid) return gridGeometry(shape, { radius, height, nx: 520, nz: 170 });
   const h = profile(shape);
   const pos = [];
   const idx = [];
@@ -108,7 +81,7 @@ export function buildBackdrop(course, m, sky) {
   const pk = m.peak;
   const b = backdropPlace(course, m);
   const g = peakGeometry(pk.shape, { radius: b.radius, height: b.height, grid: Boolean(pk.grid) });
-  const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0 });
+  const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0, flatShading: Boolean(pk.facets) });
   mat.fog = false;
   const hk = positionLocal.y.div(b.height);
   const n = mx_noise_float(positionLocal.mul(0.006)).mul(0.08).add(mx_noise_float(positionLocal.mul(0.02)).mul(0.04));
@@ -120,13 +93,24 @@ export function buildBackdrop(course, m, sky) {
   if (pk.strata) rock = rock.mul(step(0.5, fract(hk.mul(22).add(n.mul(4)))).mul(0.18).add(0.86));
   mat.colorNode = mix(rock, vec3(0.95, 0.97, 1.0), snow);
   // rime ice (상고대) on every spire: white where the sun is, blue-violet in the clefts
+  let rimeBare = float(0);
   if (pk.rime) {
     const lit = max(dot(normalize(normalWorld), sky.u.sun), 0);
-    mat.colorNode = mix(color(pk.rime), vec3(0.97, 0.97, 1.0), smoothstep(0.12, 0.6, lit).mul(0.9).add(smoothstep(0.85, 1, normalWorld.y).mul(0.3)).clamp(0, 1));
+    const rime = mix(color(pk.rime), vec3(0.97, 0.97, 1.0), smoothstep(0.12, 0.6, lit).mul(0.9).add(smoothstep(0.85, 1, normalWorld.y).mul(0.3)).clamp(0, 1));
+    // rough granite: bare grey rock shows in streaks on the sheerest faces and in the cracks,
+    // the rime clinging in crusty patches on every ledge
+    const pl = positionLocal;
+    const crust = mx_noise_float(pl.mul(vec3(0.05, 0.016, 0.05))).mul(0.6).add(mx_noise_float(pl.mul(0.16)).mul(0.4));
+    const sheer = smoothstep(0.5, 0.12, normalLocal.y).mul(smoothstep(0.12, 0.3, hk));
+    const bare = sheer.mul(smoothstep(-0.2, 0.15, crust)).clamp(0, 0.9);
+    const granite = mix(color(pk.granite ?? '#5f5b78'), color('#8a87a6'), mx_noise_float(pl.mul(vec3(0.3, 0.05, 0.3))).mul(0.5).add(0.5)).mul(lit.mul(0.5).add(0.62));
+    mat.colorNode = mix(rime, granite, bare);
+    mat.roughnessNode = mix(float(0.75), float(0.95), bare);
+    rimeBare = bare;
   }
   // crisp snow catching the sun: sunlit snow faces glow a little in the sun's colour
   const sunK = max(dot(normalize(normalWorld), sky.u.sun), 0);
-  mat.emissiveNode = sky.u.sunColor.mul(snow.mul(sunK.pow(1.5)).mul(pk.glow ?? 0.32));
+  mat.emissiveNode = sky.u.sunColor.mul(snow.mul(sunK.pow(1.5)).mul(pk.glow ?? 0.32).mul(float(1).sub(rimeBare)));
   // haze belongs in the valley: thick round its foot, almost none on the peak itself
   const haze = sky.u.fog;
   // the foot fades gently into the valley haze (the same gradient as the land), never a white band
@@ -154,30 +138,7 @@ export function buildBackdrop(course, m, sky) {
     group.add(dm);
   }
   // a crater lake on top (Hallasan's Baengnokdam, Baekdusan's Cheonji)
-  if (pk.lake && pk.at === 'start') {
-    // Cheonji: a huge, still, deep-blue lake filling the crater, mirroring its walls
-    const R = b.radius * (pk.rim ?? 0.2) * 0.86;
-    const level = profile(pk.shape)(0, 0) * b.height + (pk.lakeLevel ?? 0.035) * b.height;
-    const lake = new THREE.Mesh(new THREE.CircleGeometry(R, 96).rotateX(-Math.PI / 2), lakeMaterial(pk.lake));
-    lake.position.set(b.x, b.y + level, b.z);
-    lake.frustumCulled = false;
-    lake.renderOrder = -3;
-    group.add(lake);
-    // its mirror image: the crater walls turned upside down under the still water, tinted deep blue
-    const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.9, side: THREE.DoubleSide });
-    mm.colorNode = mat.colorNode;
-    mm.fog = false;
-    mm.outputNode = vec4(mix(output.rgb, color('#163a80'), 0.3), 1);
-    // (only the crater's inside: rings out to just past the rim)
-    const inner = discGeometry(pk.shape, (pk.rim ?? 0.2) * 1.08, b.radius, b.height, level + 4);
-    const mirror = new THREE.Mesh(inner, mm);
-    mirror.scale.y = -1;
-    mirror.position.set(b.x, 2 * (b.y + level) - b.y, b.z);
-    mirror.rotation.y = mesh.rotation.y;
-    mirror.frustumCulled = false;
-    mirror.renderOrder = -4;
-    group.add(mirror);
-  } else if (pk.lake) {
+  if (pk.lake) {
     const lake = new THREE.Mesh(new THREE.CircleGeometry(b.radius * (pk.shape === 'caldera' ? 0.17 : 0.085), 48).rotateX(-Math.PI / 2), new THREE.MeshBasicNodeMaterial({ color: pk.lake }));
     lake.material.fog = false;
     const top = profile(pk.shape)(0, 0) * b.height;
@@ -296,16 +257,6 @@ export function buildFarLand(course, m, sky) {
   mesh.renderOrder = -6;
   mesh.userData.ground = true;
   return mesh;
-}
-
-/** A still crater lake: deep navy in the middle, lighter blue at the edges, glassy enough to show the mirrored walls beneath. */
-function lakeMaterial(col) {
-  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
-  const d = uv().sub(0.5).length().mul(2);
-  const deep = mix(color(col), color('#3d7ec2'), smoothstep(0.5, 1, d));
-  m.colorNode = vec4(deep, mix(float(0.62), float(0.42), smoothstep(0.4, 1, d)));
-  m.fog = false;
-  return m;
 }
 
 /** Keep the cloud banks turned to the camera. */
@@ -468,7 +419,36 @@ function temple() {
   ]);
 }
 
-export const BUILDERS = { hareubang, tangerine, stupa, cairn, yak, moose, acacia, lodge, redbridge: redBridge, temple };
+/**
+ * A winter birch clump (Baekdusan's woods): two or three slender white trunks
+ * with black bark marks, bare twigs in a purple-brown haze — easy to tell from
+ * the golden larches beside them. Unit height (scale to the forest's trees).
+ */
+export function birch() {
+  const bark = new THREE.MeshStandardNodeMaterial({ roughness: 0.8 });
+  const pl = positionLocal;
+  const mark = step(0.62, mx_noise_float(pl.mul(vec3(9, 34, 9))).mul(0.5).add(0.5)).max(step(0.92, fract(pl.y.mul(7.3))).mul(0.6));
+  bark.colorNode = mix(vec3(0.93, 0.92, 0.89), vec3(0.12, 0.11, 0.12), mark);
+  const trunks = [], twigs = [];
+  const stems = [[0, 0, 0, 1], [0.05, 0.03, 0.12, 0.86], [-0.04, -0.05, -0.1, 0.78]];
+  for (const [ox, oz, lean, hh] of stems) {
+    trunks.push(new THREE.CylinderGeometry(0.014, 0.03, hh, 7).translate(0, hh / 2, 0).rotateZ(lean * 0.4).rotateX(lean * 0.3).translate(ox, 0, oz));
+    // a few upswept branches, then the fine twigs as an airy crown
+    for (let k = 0; k < 5; k++) {
+      const y = hh * (0.45 + k * 0.1), a = k * 2.4 + ox * 20;
+      trunks.push(new THREE.CylinderGeometry(0.004, 0.008, 0.22, 4).translate(0, 0.11, 0).rotateZ(0.7 + (k % 2) * 0.2).rotateY(a).translate(ox + lean * 0.4 * y, y, oz));
+    }
+    // a narrow, see-through-looking crown: a few slim twig sprays up the top half, the white trunk between them
+    for (let k = 0; k < 6; k++) {
+      const y = hh * (0.5 + k * 0.085), a = k * 2.1 + oz * 30;
+      twigs.push(new THREE.ConeGeometry(0.032 - k * 0.003, 0.15, 5).rotateZ(0.55).rotateY(a).translate(ox + lean * 0.3 + Math.cos(a) * 0.05, y, oz - Math.sin(a) * 0.05));
+    }
+  }
+  const twigMat = std('#a08890', { roughness: 1, flatShading: true });
+  return kit([{ geometry: merge(trunks), material: bark }, { geometry: merge(twigs), material: twigMat }]);
+}
+
+export const BUILDERS = { birch, hareubang, tangerine, stupa, cairn, yak, moose, acacia, lodge, redbridge: redBridge, temple };
 
 /* ---------------------------------------------------------------- over-the-run pieces */
 

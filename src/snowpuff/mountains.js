@@ -187,7 +187,7 @@ export const MOUNTAINS = [
     fence: { colour: '#5a5fb0', alt: '#ffffff' },
     grade: { saturation: 1.02, warm: [1.0, 0.99, 1.0], cool: [0.95, 0.96, 1.08], vignette: 0.2, exposure: 0.96 },
     palette: { sky: ['#4b5aa0', '#a9acd8', '#e6e4f4'], fog: '#cfcde6', sun: '#fff0de', sunI: 2.9, sunAlt: 20, sunAz: -35, hemi: ['#b9bde8', '#f3f0ff'], envI: 0.85 },
-    peak: { shape: 'ulsan', grid: true, elev: 23, height: 700, radius: 1500, dist: 2000, rock: '#8f8fc4', rime: '#7679bd', snowLine: 0, steep: 0.2, cliffs: 0.1, clouds: 0.5, behind: { shape: 'shield', scale: 0.85, height: 1.35, back: 1.05, side: -0.15 } },
+    peak: { shape: 'ulsan', grid: true, facets: true, elev: 23, height: 700, radius: 1500, dist: 2000, rock: '#8f8fc4', rime: '#7679bd', snowLine: 0, steep: 0.2, cliffs: 0.1, clouds: 0.5, behind: { shape: 'shield', scale: 0.85, height: 1.35, back: 1.05, side: -0.15 } },
     farForest: '#aeb3cf',
     scenery: [
       { kind: 'temple', every: 9999, zone: 'side', from: 0.6, to: 0.61, off: [70, 90], scale: [1, 1], side: -1 },

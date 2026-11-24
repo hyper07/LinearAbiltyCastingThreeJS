@@ -55,7 +55,7 @@ test('courses run downhill, wind gently, and have room to ride', () => {
       assert.ok(c.py[s] < c.py[s - 1] + 1e-6, `${m.id} goes down at ${s}`);
       const turn = Math.abs(c.heading[s + 1] - c.heading[s - 1]) / 2;
       assert.ok(turn < 1 / 40, `${m.id}: no hairpins (${turn.toFixed(4)} at ${s})`);
-      if (!m.switchback) assert.ok(Math.abs(c.heading[s]) < 1.35, `${m.id}: keeps heading down the mountain`);
+      assert.ok(Math.abs(c.heading[s]) < 1.35, `${m.id}: keeps heading down the mountain`);
       winding += turn;
     }
     assert.ok(winding > 3, `${m.id} winds: S-bends, not a straight (${winding.toFixed(2)} rad of turning)`);

@@ -122,22 +122,35 @@ export const SHAPES = {
     return clamp(h + Math.pow(clamp(1 - Math.hypot(x, z), 0, 1), 1.5) * 0.35, 0, 1);
   },
   // Seoraksan's Ulsanbawi: a long crown of rime-coated granite towers and needles on a broad snowy
-  // shoulder — 4–5× wider than tall, the tallest groups left and right of centre, deep clefts between
-  // (x along the crest, z across it; best built on a grid: see `grid` in scenery.js)
+  // shoulder — 4–5× wider than tall, the tallest groups left and right of centre, deep clefts between.
+  // Rough granite, not smooth columns: every tower is a jointed block with a slanted, broken top,
+  // ledges stepping down its faces and vertical cracks (x along the crest, z across it; built on a grid
+  // with flat shading so the facets show: see `grid` in scenery.js)
   ulsan: (x, z) => {
     const ax = Math.abs(x);
-    const shoulder = Math.pow(clamp(1 - Math.hypot(x / 1.0, z / 0.42), 0, 1), 0.9) * 0.24;
+    const shoulder = Math.pow(clamp(1 - Math.hypot(x / 1.0, z / 0.42), 0, 1), 0.9) * 0.24 * (0.92 + vnoise(x * 26, z * 26) * 0.16);
     let crown = 0;
     for (let i = 0; i < 30; i++) {
       const px = -0.78 + i * 0.054 + (hash(i, 7) - 0.5) * 0.02;
       const group = Math.exp(-(((px + 0.34) / 0.2) ** 2)) * 0.95 + Math.exp(-(((px - 0.3) / 0.22) ** 2)) * 0.9 + 0.35;
       const hh = (0.55 + hash(i, 11) * 0.45) * group * clamp(1 - Math.abs(px) * 0.9, 0.2, 1);
-      const w = 0.011 + hash(i, 5) * 0.014, d = 0.045 + hash(i, 9) * 0.035;
+      const w = 0.016 + hash(i, 5) * 0.014, d = 0.05 + hash(i, 9) * 0.035;
       const pz = (hash(i, 13) - 0.5) * 0.08;
-      const q = Math.hypot((x - px) / w, (z - pz) / d);
-      // a rounded knob on a tapering column
-      crown = Math.max(crown, hh * Math.pow(clamp(1 - q * q * 0.08, 0, 1), 0.35) * clamp(1.6 - q * 0.22, 0, 1));
+      // a ragged, lumpy outline: joints and fallen slabs bite into the block
+      const rag = 1 + (vnoise(x * 70 + i * 3.1, z * 22) - 0.5) * 0.5;
+      const q = Math.hypot((x - px) / w, (z - pz) / d) * rag;
+      // a blocky tower: steep walls, a broken top slanting one way, a ledge or two stepping down
+      let col = clamp(1 - Math.pow(q / 3.2, 5), 0, 1);
+      const tilt = 1 + ((x - px) / w) * (hash(i, 17) - 0.5) * 0.1;
+      const step = Math.floor(q * 1.1 + vnoise(x * 40, z * 30 + i)) / 1.1;
+      col *= clamp(1 - step * 0.09, 0.6, 1) * tilt;
+      crown = Math.max(crown, hh * col);
     }
+    // rime-crusted knobs: rounded lumps all over the tops and faces; deep vertical clefts between blocks
+    const jf = ((((x * 31 + vnoise(z * 7, x * 3) * 0.7) % 1) + 1) % 1) - 0.5;
+    const joint = 1 - 0.3 * Math.exp(-((jf / 0.09) ** 2));
+    const knobs = vnoise(x * 55, z * 24) * 0.7 + vnoise(x * 130, z * 50) * 0.3;
+    crown *= joint * (0.84 + knobs * 0.24);
     crown *= smooth(clamp((0.92 - ax) / 0.15, 0, 1)) * smooth(clamp((0.3 - Math.abs(z)) / 0.2, 0, 1));
     return clamp(Math.max(shoulder, 0.1 + crown * 0.92 * (z < 0.25 ? 1 : 0)) * (shoulder > 0.01 || crown > 0.02 ? 1 : 0) + (ridge(x, z, 18) - 0.45) * 0.02, 0, 1);
   },
@@ -204,27 +217,6 @@ export function backdropPlace(course, m) {
         pick = [x, z];
       }
     }
-  }
-  // a crater you start on (Baekdusan): the peak stands right behind the start line, its rim at your feet
-  if (pk.at === 'start') {
-    const f0 = frameAt(course, 0);
-    const H = pk.height ?? 900, R = pk.radius ?? 1100;
-    // the start sits on the crest itself (its highest point along the way out), so the whole bowl opens below you
-    const ax = Math.sin(f0.heading), az = -Math.cos(f0.heading);
-    const h = profile(pk.shape);
-    let rBest = pk.rim ?? 0.2, hBest = -1;
-    for (let r = (pk.rim ?? 0.2) - 0.03; r <= (pk.rim ?? 0.2) + 0.06; r += 0.001) {
-      const v = h(ax * r, az * r);
-      if (v > hBest) {
-        hBest = v;
-        rBest = r;
-      }
-    }
-    const x = f0.x - ax * R * rBest, z = f0.z - az * R * rBest;
-    const y = course.py[0] - hBest * H + 1.5;
-    const out = { x, y, z, height: H, radius: R, side: 0, yaw: 0, at: 'start', rimAt: rBest };
-    _places.set(course, out);
-    return out;
   }
   // the hero standard: seen from mid-run its summit stands ~19° up and its
   // foot sits just under the horizon, so it fills a third of the view ahead
