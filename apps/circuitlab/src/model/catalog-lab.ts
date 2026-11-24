@@ -176,10 +176,10 @@ export const LAB_PARTS: Record<string, CatalogEntry> = {
     placement: 'leads',
     pins: ['V', 'COM'],
     params: [
-      { key: 'mode', label: 'Measures', kind: 'select', default: 'V', options: ['V', 'mA', 'Ω'], runtime: true },
+      { key: 'mode', label: 'Measures', kind: 'select', default: 'V', options: ['V', 'V~', 'mA', 'Ω', 'continuity', 'diode'], runtime: true },
     ],
     sim: { kind: 'device', model: 'multimeter' },
     visual: { shape: 'multimeter' },
-    doc: 'Digital multimeter with a red probe (V) and a black probe (COM). V: touch both probes across a part. mA: the meter must be IN SERIES (it is nearly a short — across a supply it blows its fuse). Ω: measure a part with the power off.',
+    doc: 'Digital multimeter with a red probe (V) and a black probe (COM); 10 MΩ input in the volt ranges (it loads high-resistance circuits). V / V~ (true RMS): touch both probes across a part. mA: the meter must be IN SERIES (it is nearly a short — across a supply it blows its fuse). Ω: measure a part with the power off.',
   }),
 }

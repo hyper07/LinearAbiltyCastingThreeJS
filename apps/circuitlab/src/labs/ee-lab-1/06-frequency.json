@@ -1,0 +1,56 @@
+{
+  "id": "ee1-06",
+  "number": 6,
+  "title": "Frequency response: filters, resonance and the Bode plot",
+  "topics": ["Frequency response", "Virtual instruments and computer instrumentation"],
+  "goal": "Measure the cutoff of an RC low-pass filter and the resonance and Q of a series RLC band-pass, by hand and with the Bode analyser.",
+  "theory": [
+    "An RC low-pass passes low frequencies and attenuates high ones: |H| = 1/√(1 + (f/f_c)²), with f_c = 1/(2πRC) where the output is 3 dB down (70.7 %) and lags the input by 45°. Swapping R and C makes a high-pass with the same f_c.",
+    "A series RLC with the output across R is a band-pass: at f₀ = 1/(2π√(LC)) the inductor's and capacitor's reactances cancel and the gain peaks. The bandwidth between the −3 dB points is f₀/Q, with Q = (1/R)·√(L/C).",
+    "A Bode plot shows gain in dB (20·log₁₀|H|) and phase against frequency on a log axis. The Bode analyser sweeps the generator and plots both for you."
+  ],
+  "prelab": [
+    { "key": "fc", "label": "f_c of 1 kΩ and 0.1 µF", "unit": "Hz", "answer": "1/(2*PI*1000*1e-7)" },
+    { "key": "f0", "label": "f₀ of 10 mH and 0.1 µF", "unit": "Hz", "answer": "1/(2*PI*sqrt(0.01*1e-7))" },
+    { "key": "Q", "label": "Q with R = 200 Ω", "unit": "", "answer": "1/200*sqrt(0.01/1e-7)" }
+  ],
+  "procedure": [
+    "Load the reference build: generator → R1 → C1 (low-pass, output at column 16) and generator → L1 → C2 → R2 (band-pass, output at column 28).",
+    "By hand: set the generator to 1 Vpp sine, read the CH2/CH1 amplitude ratio at several frequencies and find where it falls to 0.707.",
+    "Open the Bode analyser: input = column 10, output = column 16, sweep 10 Hz–100 kHz. Record the −3 dB frequency.",
+    "Change the output to column 28 and record the resonance f₀ and Q."
+  ],
+  "table": [
+    { "key": "fcm", "label": "Low-pass −3 dB frequency", "unit": "Hz", "predict": "fc", "source": "bode.high", "tol": 3 },
+    { "key": "f0m", "label": "Band-pass resonance f₀", "unit": "Hz", "predict": "f0", "source": "bode.f0", "tol": 3 },
+    { "key": "Qm", "label": "Band-pass Q", "unit": "", "predict": "Q", "source": "bode.q", "tol": 10 }
+  ],
+  "checks": [
+    { "kind": "bode", "label": "Low-pass cutoff at 1/(2πRC)", "gen": "GEN", "in": "d10", "out": "d16", "metric": "high", "expect": "1/(2*PI*R1*C1)", "tol": 0.03 },
+    { "kind": "bode", "label": "Band-pass resonance at 1/(2π√LC)", "gen": "GEN", "in": "d10", "out": "c28", "metric": "f0", "expect": "1/(2*PI*sqrt(L1*C2))", "tol": 0.03 },
+    { "kind": "bode", "label": "Band-pass Q = (1/R)√(L/C)", "gen": "GEN", "in": "d10", "out": "c28", "metric": "q", "expect": "1/R2*sqrt(L1/C2)", "tol": 0.1 }
+  ],
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 6 Frequency response",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "GEN", "type": "signal_generator", "pos": { "x": -16, "z": -1 }, "params": { "waveform": "sine", "frequency": 1000, "vpp": 1, "offset": 0, "load": "High-Z" } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "R1", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["a10", "a16"] },
+      { "id": "C1", "type": "capacitor", "params": { "capacitance": 1e-7 }, "holes": ["b16", "top-14"] },
+      { "id": "L1", "type": "inductor", "params": { "inductance": 0.01 }, "holes": ["c10", "c24"] },
+      { "id": "C2", "type": "capacitor", "params": { "capacitance": 1e-7 }, "holes": ["a24", "a28"] },
+      { "id": "R2", "type": "resistor", "params": { "resistance": 200 }, "holes": ["b28", "top-26"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "GEN:out", "to": "b10", "color": "yellow" },
+      { "id": "w4", "from": "GEN:gnd", "to": "top-3", "color": "black" },
+      { "id": "w5", "from": "SC:CH1", "to": "e10", "color": "yellow" },
+      { "id": "w6", "from": "SC:CH2", "to": "c16", "color": "blue" },
+      { "id": "w7", "from": "SC:GND", "to": "top-30", "color": "black" }
+    ]
+  }
+}

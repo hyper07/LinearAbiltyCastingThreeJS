@@ -1,0 +1,57 @@
+{
+  "id": "ee1-02",
+  "number": 2,
+  "title": "Ohm's law, Kirchhoff's laws, dividers and the Wheatstone bridge",
+  "topics": ["Electric circuits"],
+  "goal": "Predict and measure currents and voltages in series and parallel networks, confirm KVL and KCL, and balance a Wheatstone bridge.",
+  "theory": [
+    "Ohm's law: V = I·R. Around any closed loop the voltage rises equal the drops (KVL); at any node the currents in equal the currents out (KCL).",
+    "In a series string the same current flows through every resistor, so each takes a share of the supply proportional to its resistance (voltage divider). Parallel branches share the same voltage and split the current in inverse proportion to their resistance (current divider).",
+    "A Wheatstone bridge is two dividers side by side. When R1/R2 = R3/Rx their midpoints sit at the same voltage and a meter between them reads zero — a null measurement that does not depend on the supply voltage."
+  ],
+  "prelab": [
+    { "key": "I", "label": "Series current with 1 kΩ, 2.2 kΩ, 3.3 kΩ on 10 V", "unit": "mA", "answer": "10/6500*1000" },
+    { "key": "V3", "label": "Voltage across the 3.3 kΩ", "unit": "V", "answer": "10*3300/6500" },
+    { "key": "Vp", "label": "Node voltage: 1 kΩ feeding 2 kΩ ∥ 3 kΩ", "unit": "V", "answer": "10*1200/2200" },
+    { "key": "Rx", "label": "Rx that balances the bridge (R7 = R8 = R9 = 1 kΩ)", "unit": "Ω", "answer": "1000" }
+  ],
+  "procedure": [
+    "Load the reference build: a series string (R1–R3), a parallel network (R6 feeding R4 ∥ R5) and a bridge (R7–R9 and the decade box RX).",
+    "Measure the voltage across each series resistor with M1 and check that they add up to the supply (KVL).",
+    "Measure the node voltage of the parallel network; compute the current in R4 and R5 and check they add to the current in R6 (KCL).",
+    "Put M1 between the two bridge midpoints (c33 and c38) and adjust RX until it reads zero."
+  ],
+  "table": [
+    { "key": "V3m", "label": "Voltage across R3", "unit": "V", "predict": "V3", "source": "dmm:M1" },
+    { "key": "Im", "label": "Series current (V_R3 / R3)", "unit": "mA", "predict": "I", "source": "dmm:M1", "transform": "v/3300*1000" },
+    { "key": "Vpm", "label": "Parallel node voltage", "unit": "V", "predict": "Vp", "source": "dmm" },
+    { "key": "Vb", "label": "Bridge output", "unit": "V", "predict": "0", "source": "dmm", "tol": 100 }
+  ],
+  "checks": [
+    { "kind": "dc", "label": "Series string: R3 takes its share (KVL)", "ref": "c10", "expect": "PS_v1*R3/(R1+R2+R3)", "tol": 0.01 },
+    { "kind": "dc", "label": "Parallel node (current divider)", "ref": "d20", "expect": "PS_v1*(R4*R5/(R4+R5))/(R6+R4*R5/(R4+R5))", "tol": 0.01 },
+    { "kind": "dc", "label": "Bridge is balanced", "ref": "c33", "ref2": "c38", "expect": "0", "abs": 0.02 }
+  ],
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 2 Kirchhoff",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 10, "v2": 10, "i1": 0.2, "i2": 0.2 } },
+      { "id": "R1", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["top+3", "a5"] },
+      { "id": "R2", "type": "resistor", "params": { "resistance": 2200 }, "holes": ["b5", "b10"] },
+      { "id": "R3", "type": "resistor", "params": { "resistance": 3300 }, "holes": ["a10", "top-8"] },
+      { "id": "M1", "type": "multimeter", "params": { "mode": "V" }, "holes": ["d10", "top-10"] },
+      { "id": "R6", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["top+15", "a20"] },
+      { "id": "R4", "type": "resistor", "params": { "resistance": 2000 }, "holes": ["b20", "top-15"] },
+      { "id": "R5", "type": "resistor", "params": { "resistance": 3000 }, "holes": ["c20", "top-17"] },
+      { "id": "R7", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["top+25", "a33"] },
+      { "id": "R8", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["b33", "top-25"] },
+      { "id": "R9", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["top+28", "a38"] },
+      { "id": "RX", "type": "decade_resistor", "params": { "resistance": 1000 }, "holes": ["b38", "top-30"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" }
+    ]
+  }
+}

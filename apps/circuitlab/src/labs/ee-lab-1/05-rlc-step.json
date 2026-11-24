@@ -1,0 +1,52 @@
+{
+  "id": "ee1-05",
+  "number": 5,
+  "title": "Series RLC step response",
+  "topics": ["Transient response"],
+  "goal": "Watch a series RLC circuit answer a step, and tune its resistance through under-damped, critically damped and over-damped behaviour.",
+  "theory": [
+    "A series RLC driven by a step is a second-order system with natural frequency ω₀ = 1/√(LC) and damping ratio ζ = (R/2)·√(C/L), where R includes the generator's 50 Ω.",
+    "ζ < 1 (under-damped): the capacitor voltage overshoots and rings at ω_d = ω₀·√(1 − ζ²); the overshoot is e^(−πζ/√(1−ζ²)). ζ = 1 (critical, R = 2√(L/C)): the fastest rise without overshoot. ζ > 1 (over-damped): a slow rise, no ringing."
+  ],
+  "prelab": [
+    { "key": "f0", "label": "Natural frequency f₀ for 10 mH, 0.1 µF", "unit": "Hz", "answer": "1/(2*PI*sqrt(0.01*1e-7))" },
+    { "key": "zeta", "label": "ζ with R = 100 Ω (+50 Ω)", "unit": "", "answer": "150/2*sqrt(1e-7/0.01)" },
+    { "key": "OS", "label": "Predicted overshoot", "unit": "%", "answer": "100*exp(-PI*(150/2*sqrt(1e-7/0.01))/sqrt(1-pow(150/2*sqrt(1e-7/0.01),2)))" },
+    { "key": "Rc", "label": "Decade-box R for critical damping", "unit": "Ω", "answer": "2*sqrt(0.01/1e-7)-50" }
+  ],
+  "procedure": [
+    "Load the reference build: generator (0–2 V square, 50 Hz) → decade box RD → 10 mH → 0.1 µF to ground.",
+    "Scope CH2 on the capacitor (d18), 50 µs/div, trigger on CH1 rising. Measure the overshoot (Vmax − 2 V)/2 V and the ringing period with the cursors.",
+    "Raise RD to your critical value: the ringing should just disappear. Then try 2 kΩ: a slow, over-damped rise."
+  ],
+  "table": [
+    { "key": "OSm", "label": "Overshoot with RD = 100 Ω", "unit": "%", "predict": "OS", "source": "scope.ch2.overshoot", "tol": 10 },
+    { "key": "fdm", "label": "Ringing frequency (1 / cursor Δt)", "unit": "Hz", "predict": "f0*sqrt(1-zeta*zeta)", "source": "scope.cursor.dt", "transform": "1/v" }
+  ],
+  "checks": [
+    { "kind": "step", "label": "Overshoot matches ζ", "ref": "d18", "gen": "GEN", "metric": "overshoot", "final": 2, "dt": 1e-6, "expect": "100*exp(-PI*((RD+50)/2*sqrt(C1/L1))/sqrt(1-pow((RD+50)/2*sqrt(C1/L1),2)))", "abs": 5 },
+    { "kind": "step", "label": "Rings at ω_d", "ref": "d18", "gen": "GEN", "metric": "ringFreq", "final": 2, "dt": 1e-6, "expect": "sqrt(1-pow((RD+50)/2*sqrt(C1/L1),2))/(2*PI*sqrt(L1*C1))", "tol": 0.05 }
+  ],
+  "settle": 0.02,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 5 RLC step",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "GEN", "type": "signal_generator", "pos": { "x": -16, "z": -1 }, "params": { "waveform": "square", "frequency": 50, "vpp": 2, "offset": 1, "load": "High-Z" } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "RD", "type": "decade_resistor", "params": { "resistance": 100 }, "holes": ["a10", "a14"] },
+      { "id": "L1", "type": "inductor", "params": { "inductance": 0.01 }, "holes": ["b14", "b18"] },
+      { "id": "C1", "type": "capacitor", "params": { "capacitance": 1e-7 }, "holes": ["c18", "top-16"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "GEN:out", "to": "b10", "color": "yellow" },
+      { "id": "w4", "from": "GEN:gnd", "to": "top-3", "color": "black" },
+      { "id": "w5", "from": "SC:CH1", "to": "c10", "color": "yellow" },
+      { "id": "w6", "from": "SC:CH2", "to": "e18", "color": "blue" },
+      { "id": "w7", "from": "SC:GND", "to": "top-30", "color": "black" }
+    ]
+  }
+}

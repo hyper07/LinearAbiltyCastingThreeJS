@@ -1,0 +1,66 @@
+{
+  "id": "ee1-03",
+  "number": 3,
+  "title": "Thévenin, maximum power transfer and superposition",
+  "topics": ["Electric circuits"],
+  "goal": "Replace a network by its Thévenin equivalent, find the load that takes the most power, and add up the effects of two sources one at a time.",
+  "theory": [
+    "Seen from two terminals, any linear network of sources and resistors behaves like one source V_th in series with one resistance R_th. V_th is the open-circuit voltage; R_th is the resistance looking back in with the sources turned off (voltage sources shorted).",
+    "The power in a load R_L is P = V_th²·R_L / (R_th + R_L)². It peaks when R_L = R_th, where the load gets V_th / 2 and P_max = V_th² / (4·R_th).",
+    "Superposition: in a linear circuit the response to several sources is the sum of the responses to each source alone."
+  ],
+  "prelab": [
+    { "key": "Vth", "label": "V_th of 12 V, R1 = 1 kΩ, R2 = 2 kΩ (open circuit)", "unit": "V", "answer": "12*2000/3000" },
+    { "key": "Rth", "label": "R_th including R3 = 1 kΩ", "unit": "Ω", "answer": "1000*2000/3000+1000" },
+    { "key": "Pmax", "label": "Maximum load power", "unit": "mW", "answer": "pow(12*2000/3000,2)/(4*(1000*2000/3000+1000))*1000" },
+    { "key": "Vs", "label": "Superposition node: 12 V via 1 kΩ, 5 V via 2 kΩ, 1 kΩ to ground", "unit": "V", "answer": "(12/1000+5/2000)/(1/1000+1/2000+1/1000)" }
+  ],
+  "procedure": [
+    "Load the reference build. RL is a decade resistor box across the network's output (column 12); M1 measures its voltage.",
+    "Set RL very high (9.9 MΩ) and record the open-circuit voltage: that is V_th.",
+    "Run the load sweep: the lab steps RL from 200 Ω to 10 kΩ and records V_L each time; P = V_L² / R_L is plotted against the theory curve.",
+    "Find the R_L of maximum power and compare with R_th.",
+    "Superposition (columns 40–46): measure the node with both sources, then think: what would each source alone give?"
+  ],
+  "table": [
+    { "key": "VLm", "label": "V_L with R_L = R_th", "unit": "V", "predict": "Vth/2", "source": "dmm:M1" },
+    { "key": "Pm", "label": "P at R_L = R_th", "unit": "mW", "predict": "Pmax", "source": "dmm:M1", "transform": "v*v/RL*1000" },
+    { "key": "Vsm", "label": "Superposition node voltage", "unit": "V", "predict": "Vs", "source": "dmm:M2" }
+  ],
+  "sweep": {
+    "part": "RL",
+    "key": "resistance",
+    "values": [200, 400, 700, 1000, 1400, 1667, 2000, 2700, 3500, 5000, 7000, 10000],
+    "source": "dmm:M1",
+    "compute": "v*v/x*1000",
+    "theory": "1000*pow(PS_v1*R2/(R1+R2),2)*x/pow(R1*R2/(R1+R2)+R3+x,2)",
+    "xLabel": "R_L (Ω)",
+    "yLabel": "P_L (mW)",
+    "logX": true
+  },
+  "checks": [
+    { "kind": "dc", "label": "Load voltage at R_L = R_th is V_th / 2", "ref": "d12", "expect": "PS_v1*R2/(R1+R2)*RL/(R1*R2/(R1+R2)+R3+RL)", "tol": 0.01 },
+    { "kind": "dc", "label": "Superposition node", "ref": "d40", "expect": "(PS_v1/R5+5/R6)/(1/R5+1/R6+1/R7)", "tol": 0.01 }
+  ],
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 3 Thévenin",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "R1", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["top+3", "a5"] },
+      { "id": "R2", "type": "resistor", "params": { "resistance": 2000 }, "holes": ["b5", "top-5"] },
+      { "id": "R3", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["c5", "c12"] },
+      { "id": "RL", "type": "decade_resistor", "params": { "resistance": 1667 }, "holes": ["a12", "top-12"] },
+      { "id": "M1", "type": "multimeter", "params": { "mode": "V" }, "holes": ["b12", "top-14"] },
+      { "id": "R5", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["top+30", "a40"] },
+      { "id": "R6", "type": "resistor", "params": { "resistance": 2000 }, "holes": ["b40", "b46"] },
+      { "id": "R7", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["c40", "top-35"] },
+      { "id": "M2", "type": "multimeter", "params": { "mode": "V" }, "holes": ["e40", "top-38"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "PS:5V", "to": "a46", "color": "orange" }
+    ]
+  }
+}

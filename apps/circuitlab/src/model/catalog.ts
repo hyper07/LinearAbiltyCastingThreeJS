@@ -9,6 +9,7 @@
 
 import type { StripRow } from './types'
 import { LAB_PARTS } from './catalog-lab'
+import { EE_PARTS } from './catalog-ee'
 
 export type PlacementKind =
   | 'leads' // free 2/3-lead part: instance lists one HoleRef per pin in `holes`
@@ -247,7 +248,11 @@ export const CATALOG: Record<string, CatalogEntry> = {
       ['A1', 'A2'],
       ['B1', 'B2'],
     ],
-    params: [{ key: 'pressed', label: 'Pressed', kind: 'boolean', default: false, runtime: true }],
+    params: [
+      { key: 'pressed', label: 'Pressed', kind: 'boolean', default: false, runtime: true },
+      // Circuit Lab: a real contact chatters for a few ms (the debounce lesson)
+      { key: 'bounce', label: 'Contact bounce', kind: 'boolean', default: false },
+    ],
     // 3-column-wide molded base: the middle column (at+1, rows e/f) sits
     // under the body and must stay empty
     bodyFootprint: { dCols: [0, 2], rows: ['e', 'f'] },
@@ -507,7 +512,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
 }
 
 // Circuit Lab: boards and the parts that need them
-Object.assign(CATALOG, LAB_PARTS)
+Object.assign(CATALOG, LAB_PARTS, EE_PARTS)
 
 export function getEntry(type: string): CatalogEntry | undefined {
   return CATALOG[type]

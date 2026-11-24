@@ -1,0 +1,249 @@
+/* Bench instrument panels + EE Lab runner */
+.lg-panel.bn-sheet {
+  width: min(700px, calc(100vw - 140px));
+}
+.bn-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bn-tabs button,
+.bn-seg button {
+  font: 600 13px/1 var(--lg-font);
+  color: var(--label, #fff);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+.bn-tabs button.is-on,
+.bn-seg button.is-on {
+  background: #0a84ff;
+  border-color: #0a84ff;
+}
+.bn-tabs button.is-absent {
+  opacity: 0.55;
+}
+.bn-seg {
+  display: inline-flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.bn-seg button {
+  padding: 6px 9px;
+  border-radius: 7px;
+}
+.bn-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(#3a3f47, #2a2e35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.bn-display,
+.bn-lcd {
+  font: 600 15px/1.35 ui-monospace, Menlo, monospace;
+  color: #b9f7c8;
+  background: #0b1a12;
+  border: 2px solid #11241a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.bn-lcd {
+  font-size: 30px;
+  justify-content: center;
+  color: #e6f0d0;
+  background: #1f2a1c;
+}
+.bn-lcd-sm {
+  font-size: 16px;
+  display: block;
+  text-align: right;
+  min-width: 120px;
+}
+.bn-led,
+.bn-cc {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #333;
+  color: #888;
+}
+.bn-led.is-on {
+  background: #30d158;
+  color: #022;
+}
+.bn-cc.is-on {
+  background: #ff453a;
+  color: #fff;
+}
+.bn-knobs,
+.bn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.bn-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 84px;
+  user-select: none;
+  touch-action: none;
+  cursor: ns-resize;
+}
+.bn-knob-label {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.bn-knob-val {
+  font: 600 12px ui-monospace, Menlo, monospace;
+}
+.bn-screen,
+.bn-plot {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 2px solid #111;
+  background: #07120c;
+}
+.bn-meas {
+  font: 12px/1.5 ui-monospace, Menlo, monospace;
+  color: #d7e3dd;
+}
+.bn-chgroup {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.lab-btn.is-ch1 {
+  background: #c9a400;
+  border-color: #ffd84a;
+}
+.lab-btn.is-ch2 {
+  background: #1490b0;
+  border-color: #43d9f6;
+}
+.bn-field,
+.bn-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+.bn-field input,
+.ee-pre input,
+.ee-meas input,
+.ee-select {
+  font: 13px ui-monospace, Menlo, monospace;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 7px;
+  padding: 6px 8px;
+  width: 110px;
+}
+.bn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.bn-table th,
+.bn-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+}
+.bn-missing {
+  padding: 16px;
+  opacity: 0.85;
+}
+.bn-beep {
+  color: #ffd60a;
+}
+.bn-supch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ee-lab {
+  gap: 12px;
+}
+.ee-select {
+  width: 100%;
+  font-size: 15px;
+  padding: 10px;
+}
+.ee-topics {
+  font-size: 12px;
+  opacity: 0.65;
+}
+.ee-goal,
+.ee-sec p,
+.ee-sec li {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ee-sec summary,
+.ee-box-title {
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.ee-box {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ee-pre {
+  display: grid;
+  grid-template-columns: 1fr 110px 36px 20px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.ee-unit {
+  opacity: 0.6;
+}
+.ee-mark.is-ok,
+.ee-ok {
+  color: #30d158;
+}
+.ee-mark.is-bad,
+.ee-bad {
+  color: #ff6961;
+}
+.ee-meas {
+  display: flex;
+  gap: 4px;
+}
+.ee-meas input {
+  width: 86px;
+}
+.lab-btn.ee-use {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.ee-checks {
+  margin: 0;
+  padding-left: 4px;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ee-export {
+  font-weight: 600;
+}

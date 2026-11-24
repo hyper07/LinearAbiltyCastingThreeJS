@@ -1,0 +1,50 @@
+{
+  "id": "ee1-01",
+  "number": 1,
+  "title": "Instruments and measurement",
+  "topics": ["Test and measurement instruments"],
+  "goal": "Read a resistor's colour code, check it with the multimeter, and discover that the meter itself changes what it measures in a high-resistance circuit.",
+  "theory": [
+    "Four colour bands give two digits, a multiplier and a tolerance: yellow-violet-red-gold is 47 × 10² Ω = 4.7 kΩ ±5 %, so any value from 4465 Ω to 4935 Ω is in spec.",
+    "A digital multimeter in a volt range is not invisible: it puts its input resistance (10 MΩ here) in parallel with whatever it touches. Across a 1 MΩ resistor that parallel combination is 909 kΩ, so a divider of two 1 MΩ resistors no longer splits the supply in half while the meter is connected. This is called loading.",
+    "Rule of thumb: the meter's resistance should be at least 100 times the resistance it is connected across."
+  ],
+  "prelab": [
+    { "key": "Rnom", "label": "Nominal value of yellow-violet-red-gold", "unit": "Ω", "answer": "4700" },
+    { "key": "Rmax", "label": "Largest in-tolerance value", "unit": "Ω", "answer": "4700*1.05" },
+    { "key": "Vdiv", "label": "Ideal voltage across the lower 1 MΩ of a 10 V divider", "unit": "V", "answer": "5" },
+    { "key": "Vload", "label": "The same voltage with a 10 MΩ meter connected across it", "unit": "V", "answer": "10*(1e6*1e7/1.1e7)/(1e6+1e6*1e7/1.1e7)" }
+  ],
+  "procedure": [
+    "Load the reference build (or build it): R1 alone on the board, and a divider of R2 and R3 (both 1 MΩ) across a 10 V supply.",
+    "Set multimeter M1 to Ω and touch its probes across R1 (the part must not be powered). Record the reading.",
+    "Set M2 to V and put it across R3. Press Run and record the reading.",
+    "Compare with your pre-lab values. Which of the two measurements is disturbed by the instrument, and why?"
+  ],
+  "table": [
+    { "key": "R1m", "label": "R1 measured (Ω range)", "unit": "Ω", "predict": "Rnom", "source": "dmm:M1", "tol": 5 },
+    { "key": "V3m", "label": "Voltage across R3 with the meter", "unit": "V", "predict": "Vload", "source": "dmm:M2", "tol": 2 },
+    { "key": "V3i", "label": "…compared with the ideal divider", "unit": "V", "predict": "Vdiv", "source": "dmm:M2", "tol": 10 }
+  ],
+  "checks": [
+    { "kind": "reading", "label": "M1 reads R1's resistance", "part": "M1", "expect": "R1", "tol": 0.01 },
+    { "kind": "reading", "label": "M2 shows the loaded divider voltage", "part": "M2", "expect": "PS_v1*(R3*1e7/(R3+1e7))/(R2+R3*1e7/(R3+1e7))", "tol": 0.02 }
+  ],
+  "settle": 0.6,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 1 Instruments",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 10, "v2": 10, "i1": 0.1, "i2": 0.1 } },
+      { "id": "R1", "type": "resistor", "params": { "resistance": 4700 }, "holes": ["a5", "a9"] },
+      { "id": "M1", "type": "multimeter", "params": { "mode": "Ω" }, "holes": ["b5", "b9"] },
+      { "id": "R2", "type": "resistor", "params": { "resistance": 1000000 }, "holes": ["a20", "top+16"] },
+      { "id": "R3", "type": "resistor", "params": { "resistance": 1000000 }, "holes": ["b20", "top-16"] },
+      { "id": "M2", "type": "multimeter", "params": { "mode": "V" }, "holes": ["c20", "top-19"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" }
+    ]
+  }
+}

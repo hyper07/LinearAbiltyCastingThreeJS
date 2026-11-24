@@ -301,8 +301,13 @@ export interface ComponentTelemetry {
   /** DHT22 readings */
   temperature?: number
   humidity?: number
-  /** multimeter display text */
+  /** multimeter / instrument display text */
   reading?: string
+  /** instrument reading as a number, and its unit/mode */
+  value?: number
+  unit?: string
+  /** instrument extras (supply channels, scope inputs…) */
+  extra?: Record<string, number | string | boolean>
   /** a part is unpowered (shown dim, with a hint) */
   unpowered?: boolean
   /** damage for teaching: what broke and why */

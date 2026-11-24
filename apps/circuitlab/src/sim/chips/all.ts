@@ -7,3 +7,4 @@ import './all-b'
 // Circuit Lab: microcontroller boards and the parts that need them
 import '../../mcu/board-chip'
 import './peripherals'
+import './logic-lab'

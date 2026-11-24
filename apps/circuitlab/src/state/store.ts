@@ -580,6 +580,8 @@ export function __resetHistoryForTests(): void {
 // ---------------------------------------------------------------------------
 
 let engine: SimEngine | null = null
+/** Circuit Lab: the step size the circuit needs (fast generators ask for less than 50 µs) */
+let simDt = DEFAULT_DT
 
 /** Circuit Lab: the live engine (serial input, board state) — null while stopped/reset */
 export function liveEngine(): SimEngine | null {
@@ -689,6 +691,7 @@ function rebuildEngine(layout: CircuitLayout): void {
     return
   }
   refreshProbes(layout)
+  simDt = engine.preferredDt()
   if (nextSampleT < engine.time) nextSampleT = engine.time
   useStore.setState({ issues: engine.issues.slice() })
 }
@@ -720,11 +723,11 @@ function frame(nowMs: number): void {
   // Advance in scope-sample slices (≈1 ms of sim time = 20 default steps),
   // checking the wall-clock budget between slices. If the budget runs out,
   // sim time simply falls behind the wall clock.
-  while (engine.time < targetT - DEFAULT_DT * 0.5) {
+  while (engine.time < targetT - simDt * 0.5) {
     const before = engine.time
     const sliceEnd = Math.min(targetT, nextSampleT)
-    if (sliceEnd > before) engine.advance(sliceEnd - before, DEFAULT_DT)
-    if (engine.time >= nextSampleT - DEFAULT_DT * 0.5) {
+    if (sliceEnd > before) engine.advance(sliceEnd - before, simDt)
+    if (engine.time >= nextSampleT - simDt * 0.5) {
       takeScopeSample(engine.time)
       nextSampleT = engine.time + scopeSampleDt()
     }
@@ -1005,7 +1008,10 @@ export const useStore = create<AppState>()((set, get) => {
       // runtime params go straight to the live engine — no rebuild;
       // structural params (resistance, capacitance…) require a rebuild.
       commitLayout({ ...layout, components }, !isRuntime)
-      if (isRuntime && engine) engine.setRuntimeParam(componentId, key, value)
+      if (isRuntime && engine) {
+        engine.setRuntimeParam(componentId, key, value)
+        simDt = engine.preferredDt()
+      }
       if (comp.type === 'scope_probe') refreshProbes(get().layout)
     },
 

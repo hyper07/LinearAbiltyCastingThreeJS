@@ -1,0 +1,56 @@
+{
+  "id": "ee1-04",
+  "number": 4,
+  "title": "RC and RL transients",
+  "topics": ["Transient response", "Test and measurement instruments"],
+  "goal": "Drive an RC and an RL circuit with a square wave and measure the time constant two ways on the oscilloscope.",
+  "theory": [
+    "A capacitor charging through R from a step follows v(t) = V·(1 − e^(−t/τ)) with τ = RC; an inductor's current (and the resistor voltage) rises the same way with τ = L/R, while the inductor's own voltage decays as V·e^(−t/τ).",
+    "After one τ the response has covered 63.2 % of its change. Way 1: put the scope cursors on the start of the edge and on the 63 % level and read Δt. Way 2: measure the 10 %–90 % rise time t_r, which equals τ·ln 9 ≈ 2.2·τ.",
+    "The generator's own 50 Ω output resistance is in series with your resistor — include it when the resistor is small."
+  ],
+  "prelab": [
+    { "key": "tauRC", "label": "τ of 10 kΩ and 1 µF", "unit": "s", "answer": "10000*1e-6" },
+    { "key": "tr", "label": "Expected 10–90 % rise time", "unit": "s", "answer": "10000*1e-6*log(9)" },
+    { "key": "tauRL", "label": "τ of 0.5 H with 1 kΩ + 50 Ω", "unit": "s", "answer": "0.5/1050" }
+  ],
+  "procedure": [
+    "Load the reference build. The generator gives a 0–5 V square wave at 10 Hz (amplitude 5 Vpp, offset 2.5 V).",
+    "Scope CH1 on the generator (c10), CH2 on the capacitor (c16), ground clip on the rail. Set 5 ms/div, trigger on CH1 rising.",
+    "Way 1: place cursor A at the edge and cursor B where CH2 reaches 63 % of 5 V; record Δt.",
+    "Way 2: read the automatic rise-time measurement on CH2 and divide by 2.2.",
+    "Move CH2 to the inductor (a24) and repeat at 0.5 ms/div for the RL circuit."
+  ],
+  "table": [
+    { "key": "t1", "label": "τ_RC by cursors (63 %)", "unit": "s", "predict": "tauRC", "source": "scope.cursor.dt" },
+    { "key": "t2", "label": "τ_RC from rise time / 2.2", "unit": "s", "predict": "tauRC", "source": "scope.ch2.rise", "transform": "v/log(9)" },
+    { "key": "t3", "label": "τ_RL by cursors", "unit": "s", "predict": "tauRL", "source": "scope.cursor.dt", "tol": 8 }
+  ],
+  "checks": [
+    { "kind": "step", "label": "Capacitor charges with τ = (R + 50 Ω)·C", "ref": "d16", "gen": "GEN", "metric": "tau", "expect": "(R1+50)*C1", "tol": 0.04 },
+    { "kind": "step", "label": "Inductor voltage decays with τ = L/(R + 50 Ω)", "ref": "b24", "gen": "GEN", "metric": "tau", "final": 0, "dt": 5e-6, "expect": "L1/(R2+50)", "tol": 0.06 }
+  ],
+  "settle": 0.1,
+  "build": {
+    "version": 1,
+    "name": "EE Lab I · 4 RC and RL",
+    "components": [
+      { "id": "PS", "type": "bench_supply", "pos": { "x": -18.5, "z": 20 }, "params": { "v1": 12, "v2": 12, "i1": 0.2, "i2": 0.2 } },
+      { "id": "GEN", "type": "signal_generator", "pos": { "x": -16, "z": -1 }, "params": { "waveform": "square", "frequency": 10, "vpp": 5, "offset": 2.5, "load": "High-Z" } },
+      { "id": "SC", "type": "oscilloscope", "pos": { "x": 2, "z": 21 } },
+      { "id": "R1", "type": "resistor", "params": { "resistance": 10000 }, "holes": ["a10", "a16"] },
+      { "id": "C1", "type": "capacitor", "params": { "capacitance": 1e-6 }, "holes": ["b16", "top-14"] },
+      { "id": "R2", "type": "resistor", "params": { "resistance": 1000 }, "holes": ["d10", "d24"] },
+      { "id": "L1", "type": "inductor", "params": { "inductance": 0.5 }, "holes": ["c24", "top-22"] }
+    ],
+    "wires": [
+      { "id": "w1", "from": "PS:+", "to": "top+0", "color": "red" },
+      { "id": "w2", "from": "PS:COM", "to": "top-0", "color": "black" },
+      { "id": "w3", "from": "GEN:out", "to": "b10", "color": "yellow" },
+      { "id": "w4", "from": "GEN:gnd", "to": "top-3", "color": "black" },
+      { "id": "w5", "from": "SC:CH1", "to": "c10", "color": "yellow" },
+      { "id": "w6", "from": "SC:CH2", "to": "c16", "color": "blue" },
+      { "id": "w7", "from": "SC:GND", "to": "top-30", "color": "black" }
+    ]
+  }
+}

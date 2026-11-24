@@ -42,6 +42,7 @@ import { buildDip, buildSevenSeg } from './meshes/ics'
 import { buildBuzzer, buildInstrumentBox, buildProbe } from './meshes/instruments'
 import { tryModelOverride } from './meshes/gltf-overrides'
 import { buildBoard } from './meshes/boards'
+import { buildBenchUnit, buildDecade } from './meshes/bench'
 import { buildDht, buildLcd, buildMultimeter, buildNeopixel, buildOled, buildServo, buildUltrasonic } from './meshes/modules'
 
 export interface BuiltComponent {
@@ -198,6 +199,11 @@ function dispatch(
       // Circuit Lab
       case 'board':
         if (pins.length >= 2) return buildBoard(comp, entry, pins)
+        break
+      case 'bench':
+        return buildBenchUnit(comp, entry, pins)
+      case 'decade':
+        if (pins.length >= 2) return buildDecade(comp, entry, pins)
         break
       case 'servo':
         return buildServo(comp, entry, pins)

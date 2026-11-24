@@ -46,6 +46,9 @@ import { RotateButton } from './ui/chrome/RotateButton'
 import { PartsSheet } from './ui/sheets/PartsSheet'
 import { CodeSheet } from './ui/lab/CodeSheet'
 import { LessonsSheet, loadLesson } from './ui/lab/LessonsSheet'
+import { BenchSheet, type BenchTab } from './ui/lab/BenchSheet'
+import { LabSheet, loadExperiment } from './ui/lab/LabSheet'
+import { EXPERIMENTS } from './labs'
 import { CreditsPanel, LabCorner, goHome, helpPanel, useFirstHelp } from './ui/lab/LabChrome'
 import { compileSketch } from './mcu/avr/compile'
 import { boardDef } from './model/boards'
@@ -404,6 +407,26 @@ function CodeGlyph() {
   )
 }
 /** Lessons tab: an open book */
+function BenchGlyph() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <path d="M5 13c1.2-4 2.4-4 3.6 0s2.4 4 3.6 0" />
+      <circle cx="17" cy="10" r="1.6" />
+      <circle cx="17" cy="15" r="1.2" />
+    </svg>
+  )
+}
+
+function FlaskGlyph() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 3h6M10 3v6l-5.5 9.5A1.6 1.6 0 0 0 5.9 21h12.2a1.6 1.6 0 0 0 1.4-2.5L14 9V3" />
+      <path d="M7.5 15h9" />
+    </svg>
+  )
+}
+
 function LessonGlyph() {
   return (
     <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -417,7 +440,7 @@ function LessonGlyph() {
 // App
 // ---------------------------------------------------------------------------
 
-type SheetKey = 'parts' | 'code' | 'lessons' | 'scope' | 'more'
+type SheetKey = 'parts' | 'code' | 'lessons' | 'lab' | 'bench' | 'scope' | 'more'
 type DockKey = SheetKey | 'wire' | 'none'
 
 export default function App() {
@@ -431,6 +454,8 @@ export default function App() {
   const [onboarding, setOnboarding] = useState(false)
   void needsOnboarding
   const [lessonId, setLessonId] = useState<string | null>(null)
+  const [benchTab, setBenchTab] = useState<BenchTab>('scope')
+  const [expId, setExpId] = useState<string>(EXPERIMENTS[0]?.id ?? '')
   const [creditsOpen, setCreditsOpen] = useState(false)
   const [codeErrors, setCodeErrors] = useState<{ board: string; line: number | null; message: string }[]>([])
   const [codeStatus, setCodeStatus] = useState('')
@@ -686,6 +711,16 @@ export default function App() {
         return ok
       },
       openSheet: (k: SheetKey | null) => setActiveSheet(k),
+      experiments: EXPERIMENTS.map((e) => e.id),
+      loadExperiment: (id: string) => {
+        const ok = loadExperiment(id)
+        if (ok) setExpId(id)
+        return ok
+      },
+      benchTab: (t: BenchTab) => {
+        setBenchTab(t)
+        setActiveSheet('bench')
+      },
       state: () => {
         const st = useStore.getState()
         return { running: st.running, time: st.simTime, issues: st.issues, telemetry: st.telemetry, components: st.layout.components.map((c) => c.id) }
@@ -771,6 +806,8 @@ export default function App() {
     { key: 'wire', icon: <WireIcon size={26} />, label: 'Wire' },
     { key: 'code', icon: <CodeGlyph />, label: 'Code' },
     { key: 'lessons', icon: <LessonGlyph />, label: 'Lessons' },
+    { key: 'lab', icon: <FlaskGlyph />, label: 'EE Lab' },
+    { key: 'bench', icon: <BenchGlyph />, label: 'Bench' },
     { key: 'scope', icon: <WaveformIcon size={26} />, label: 'Scope' },
     {
       key: 'more',
@@ -897,6 +934,15 @@ export default function App() {
         lessonId={lessonId}
         onLoad={setLessonId}
       />
+      <LabSheet
+        open={activeSheet === 'lab'}
+        onDismiss={() => setActiveSheet(null)}
+        desktop={isDesktop}
+        expId={expId}
+        setExpId={setExpId}
+        onBench={() => setActiveSheet('bench')}
+      />
+      <BenchSheet open={activeSheet === 'bench'} onDismiss={() => setActiveSheet(null)} desktop={isDesktop} tab={benchTab} setTab={setBenchTab} />
       <LabCorner onCredits={() => setCreditsOpen(true)} />
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       <ScopeSheet

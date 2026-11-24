@@ -21,6 +21,7 @@ import type { CatalogEntry } from '../model/catalog'
 import { paramOf } from '../model/catalog'
 import { pnLimit } from './mna'
 import type { StampContext } from './mna'
+import type { AcStamp } from './ac'
 
 // ------------------------------------------------------------- constants
 
@@ -51,24 +52,24 @@ const EXP_CAP = 80
 const EXP_CAP_E = Math.exp(EXP_CAP)
 
 /** exp() with a linear continuation above EXP_CAP, so it never overflows. */
-function expSafe(u: number): number {
+export function expSafe(u: number): number {
   return u <= EXP_CAP ? Math.exp(u) : EXP_CAP_E * (1 + (u - EXP_CAP))
 }
 /** d/du of expSafe. */
-function expSafeDeriv(u: number): number {
+export function expSafeDeriv(u: number): number {
   return u <= EXP_CAP ? Math.exp(u) : EXP_CAP_E
 }
 
-function vAt(x: Float64Array, node: number): number {
+export function vAt(x: Float64Array, node: number): number {
   return node >= 0 ? x[node] : 0
 }
 
-function clampResistance(r: number): number {
+export function clampResistance(r: number): number {
   if (!Number.isFinite(r)) return 1000
   return Math.min(Math.max(r, 1e-3), 1e12)
 }
 
-function asNumber(v: ParamValue | undefined, fallback: number): number {
+export function asNumber(v: ParamValue | undefined, fallback: number): number {
   if (typeof v === 'number') return Number.isFinite(v) ? v : fallback
   if (typeof v === 'string') {
     const n = parseFloat(v)
@@ -78,11 +79,11 @@ function asNumber(v: ParamValue | undefined, fallback: number): number {
   return fallback
 }
 
-function asString(v: ParamValue | undefined, fallback: string): string {
+export function asString(v: ParamValue | undefined, fallback: string): string {
   return typeof v === 'string' ? v : fallback
 }
 
-function asBool(v: ParamValue | undefined, fallback: boolean): boolean {
+export function asBool(v: ParamValue | undefined, fallback: boolean): boolean {
   if (typeof v === 'boolean') return v
   if (typeof v === 'number') return v !== 0
   if (typeof v === 'string') return v === 'true' || v === '1' || v === 'on'
@@ -100,9 +101,17 @@ export interface AnalogDevice {
   endStep(x: Float64Array): void
   setRuntimeParam(key: string, value: ParamValue): void
   fillTelemetry(t: ComponentTelemetry): void
+  /**
+   * Circuit Lab: small-signal AC stamp at angular frequency omega around the
+   * operating point x. Devices without it are linearised from their own
+   * stamp() (conductances only), which is exact for resistive parts.
+   */
+  stampAC?(ac: AcStamp, omega: number, x: Float64Array): void
+  /** Circuit Lab: preferred largest time step (fast sources ask for less) */
+  maxDt?(): number
 }
 
-abstract class BaseDevice implements AnalogDevice {
+export abstract class BaseDevice implements AnalogDevice {
   readonly nonlinear: boolean = false
 
   constructor(
@@ -195,6 +204,10 @@ class CapacitorDevice extends BaseDevice {
     if (key === 'capacitance') this.c = Math.max(asNumber(value, this.c), 1e-15)
   }
 
+  stampAC(ac: AcStamp, omega: number): void {
+    ac.addY(this.nodes[0], this.nodes[1], 0, omega * this.c)
+  }
+
   fillTelemetry(t: ComponentTelemetry): void {
     t.current = this.i
   }
@@ -231,6 +244,14 @@ class InductorDevice extends BaseDevice {
 
   setRuntimeParam(key: string, value: ParamValue): void {
     if (key === 'inductance') this.l = Math.max(asNumber(value, this.l), 1e-12)
+  }
+
+  stampAC(ac: AcStamp, omega: number): void {
+    // Y = 1 / (jωL) = −j / (ωL); a tiny series resistance keeps ω→0 finite
+    const r = 1e-3
+    const xl = omega * this.l
+    const d = r * r + xl * xl
+    ac.addY(this.nodes[0], this.nodes[1], r / d, -xl / d)
   }
 
   fillTelemetry(t: ComponentTelemetry): void {
@@ -297,7 +318,7 @@ class PhotoresistorDevice extends BaseDevice {
 
 // -------------------------------------------------------- semiconductors
 
-class DiodeDevice extends BaseDevice {
+export class DiodeDevice extends BaseDevice {
   readonly nonlinear: boolean = true
   /** saturation current (A) — LEDs override per color */
   protected isat = 1e-12
@@ -588,20 +609,42 @@ class NmosDevice extends BaseDevice {
 
 class PushbuttonDevice extends BaseDevice {
   private pressed: boolean
+  /** Circuit Lab: a real contact chatters for a few ms when it changes */
+  private readonly bounce: boolean
+  private bounceUntil = -1
+  private t = 0
 
   constructor(comp: ComponentInstance, entry: CatalogEntry, nodes: number[]) {
     super(comp, entry, nodes)
     this.pressed = this.bool('pressed', false)
+    this.bounce = this.bool('bounce', false)
+  }
+
+  beginStep(time: number): void {
+    this.t = time
+  }
+
+  private closed(): boolean {
+    if (this.t < this.bounceUntil) {
+      // pseudo-random chatter every ~0.25 ms
+      const k = Math.floor(this.t / 2.5e-4)
+      return ((k * 2654435761) >>> 0) % 3 !== 0
+    }
+    return this.pressed
   }
 
   stamp(ctx: StampContext): void {
     // pins [A1, A2, B1, B2]; A1/A2 and B1/B2 are netlist-bridged, so a single
     // conductance between the A side and the B side models the contact.
-    ctx.addConductance(this.nodes[0], this.nodes[2], this.pressed ? G_ON : G_OFF)
+    ctx.addConductance(this.nodes[0], this.nodes[2], this.closed() ? G_ON : G_OFF)
   }
 
   setRuntimeParam(key: string, value: ParamValue): void {
-    if (key === 'pressed') this.pressed = asBool(value, this.pressed)
+    if (key === 'pressed') {
+      const next = asBool(value, this.pressed)
+      if (next !== this.pressed && this.bounce) this.bounceUntil = this.t + 4e-3
+      this.pressed = next
+    }
   }
 
   fillTelemetry(t: ComponentTelemetry): void {
@@ -769,10 +812,14 @@ class MultimeterDevice extends BaseDevice {
   private mode: string
   private fuse = true
   private avg = 0
+  private ms = 0
   private dtLast = 0
   private value = 0
   private v = 0
   private iShunt = 0
+  /** input resistance in the volt ranges — the source of the loading effect */
+  static readonly R_IN = 10e6
+  static readonly I_TEST = 1e-3
 
   constructor(comp: ComponentInstance, entry: CatalogEntry, nodes: number[]) {
     super(comp, entry, nodes)
@@ -783,16 +830,19 @@ class MultimeterDevice extends BaseDevice {
     this.dtLast = dt
   }
 
+  private sourcesTestCurrent(): boolean {
+    return this.mode === 'Ω' || this.mode === 'continuity' || this.mode === 'diode'
+  }
+
   stamp(ctx: StampContext): void {
     const [a, b] = this.nodes
     if (this.mode === 'mA') {
       ctx.addConductance(a, b, this.fuse ? 10 : 1e-9)
-    } else if (this.mode === 'Ω') {
-      ctx.addConductance(a, b, 1e-9)
-      ctx.addCurrent(a, 1e-3)
-      ctx.addCurrent(b, -1e-3)
+    } else if (this.sourcesTestCurrent()) {
+      // a 1 mA test current limited to ~3 V open circuit (like a real meter)
+      ctx.addNorton(a, b, 3, 3 / MultimeterDevice.I_TEST)
     } else {
-      ctx.addConductance(a, b, 1e-7)
+      ctx.addConductance(a, b, 1 / MultimeterDevice.R_IN)
     }
   }
 
@@ -803,32 +853,57 @@ class MultimeterDevice extends BaseDevice {
       this.iShunt = this.fuse ? this.v * 10 : 0
       if (Math.abs(this.iShunt) > 0.4) this.fuse = false
       raw = this.iShunt * 1000
-    } else if (this.mode === 'Ω') {
-      raw = this.v / 1e-3
+    } else if (this.sourcesTestCurrent()) {
+      const i = (3 - this.v) / (3 / MultimeterDevice.I_TEST)
+      raw = this.mode === 'diode' ? this.v : i > 1e-9 ? this.v / i : Infinity
     } else {
       raw = this.v
     }
     const a = this.dtLast > 0 ? this.dtLast / (0.08 + this.dtLast) : 1
-    this.avg += (raw - this.avg) * a
+    if (!Number.isFinite(raw)) {
+      this.avg = raw
+    } else {
+      if (!Number.isFinite(this.avg)) this.avg = raw
+      this.avg += (raw - this.avg) * a
+    }
+    // true-RMS of the AC part (V~ range), averaged over ~0.2 s
+    const b = this.dtLast > 0 ? this.dtLast / (0.2 + this.dtLast) : 1
+    this.ms += (raw * raw - this.ms) * b
     this.value = this.avg
+  }
+
+  /** the number on the display in its unit (V, mA, Ω or V for the diode test) */
+  reading(): number {
+    if (this.mode === 'V~') return Math.sqrt(Math.max(0, this.ms - this.avg * this.avg))
+    return this.value
   }
 
   setRuntimeParam(key: string, value: ParamValue): void {
     if (key === 'mode') {
       this.mode = asString(value, this.mode)
       this.avg = 0
+      this.ms = 0
     }
   }
 
   fillTelemetry(t: ComponentTelemetry): void {
-    t.current = this.mode === 'mA' ? this.iShunt : this.v * 1e-7
+    t.current = this.mode === 'mA' ? this.iShunt : this.v / MultimeterDevice.R_IN
+    const r = this.reading()
+    t.value = r
+    t.unit = this.mode
     if (this.mode === 'mA') {
-      t.reading = this.fuse ? `${fmtMeter(this.value, 1)} mA` : 'FUSE'
+      t.reading = this.fuse ? `${fmtMeter(r, 2)} mA` : 'FUSE'
       if (!this.fuse) t.damaged = 'Fuse blown: in mA mode the meter is nearly a short — it must be in series, never across a supply.'
-    } else if (this.mode === 'Ω') {
-      t.reading = this.value > 2e6 || this.value < 0 ? 'OL Ω' : this.value >= 1000 ? `${fmtMeter(this.value / 1000, 2)} kΩ` : `${fmtMeter(this.value, 1)} Ω`
+    } else if (this.mode === 'Ω' || this.mode === 'continuity') {
+      const ol = !(r < 20e6) || r < 0
+      t.reading = ol ? 'OL Ω' : r >= 1e6 ? `${fmtMeter(r / 1e6, 3)} MΩ` : r >= 1000 ? `${fmtMeter(r / 1000, 3)} kΩ` : `${fmtMeter(r, 1)} Ω`
+      if (this.mode === 'continuity') t.sounding = !ol && r < 50
+    } else if (this.mode === 'diode') {
+      t.reading = r > 2.5 ? 'OL' : `${fmtMeter(r, 3)} V`
+    } else if (this.mode === 'V~') {
+      t.reading = `${fmtMeter(r, 3)} V~`
     } else {
-      t.reading = `${fmtMeter(this.value, 2)} V`
+      t.reading = `${fmtMeter(r, Math.abs(r) >= 10 ? 2 : 3)} V`
     }
   }
 }

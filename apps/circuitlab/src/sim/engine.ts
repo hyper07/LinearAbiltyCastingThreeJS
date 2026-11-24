@@ -35,6 +35,8 @@ import { buildNetlist } from './netlist'
 import type { Netlist } from './netlist'
 import { MnaSystem, solveNewton } from './mna'
 import { createDevice, LedDevice, PowerSupplyDevice } from './devices'
+import { createLabDevice } from './devices-lab'
+import { AcSystem, type BodePoint } from './ac'
 import type { AnalogDevice } from './devices'
 
 /** Default simulation time step (seconds). */
@@ -256,7 +258,7 @@ export class SimEngine {
 
         const sim = entry.sim
         if (sim.kind === 'device') {
-          const device = createDevice(sim.model, comp, entry, nodes)
+          const device = createDevice(sim.model, comp, entry, nodes) ?? createLabDevice(sim.model, comp, entry, nodes)
           if (!device) {
             this.addIssue(
               'error',
@@ -453,6 +455,80 @@ export class SimEngine {
     } catch {
       /* never throw on bad runtime params */
     }
+  }
+
+  /** Circuit Lab: the largest time step the circuit's fast sources allow (default 50 µs). */
+  preferredDt(): number {
+    let dt = DEFAULT_DT
+    for (const d of this.devices) {
+      const m = d.maxDt?.()
+      if (m !== undefined && m < dt) dt = m
+    }
+    return Math.max(1e-7, dt)
+  }
+
+  /** Circuit Lab: telemetry of one component without building the whole snapshot */
+  componentTelemetry(id: string): ComponentTelemetry | null {
+    const rt = this.runtimes.find((r) => r.comp?.id === id)
+    if (!rt) return null
+    const tele: ComponentTelemetry = { pinVoltages: {} }
+    if (rt.entry && rt.pinNodes) rt.entry.pins.forEach((p, i) => (tele.pinVoltages[p] = this.nodeVoltage(rt.pinNodes![i])))
+    try {
+      rt.device?.fillTelemetry(tele)
+      rt.chip?.chip.fillTelemetry?.(tele)
+    } catch {
+      /* never throw */
+    }
+    return tele
+  }
+
+  /** solver node of an endpoint ref (−1 ground), null when unknown */
+  private nodeOfRef(ref: EndpointRef): number | null {
+    const net = this.netlist.netOf(ref)
+    if (!net) return null
+    if (net === this.netlist.ground) return -1
+    return this.netIndex.get(net) ?? null
+  }
+
+  /**
+   * Circuit Lab: small-signal AC sweep around the present operating point.
+   * The generator `sourceId` injects a 1 V phasor; H = V(out)/V(in) (or
+   * V(out)/1 V when inRef is null). See src/sim/ac.ts.
+   */
+  acSweep(sourceId: string, outRef: EndpointRef, inRef: EndpointRef | null, freqs: number[]): BodePoint[] {
+    const n = this.sys.nodeCount
+    const src = this.deviceById.get(sourceId) as (AnalogDevice & { stampAC?: (...a: unknown[]) => void }) | undefined
+    const out = this.nodeOfRef(outRef)
+    const inn = inRef ? this.nodeOfRef(inRef) : null
+    if (!src || out === null || n === 0) return []
+    const ac = new AcSystem(n)
+    const rec = ac.recorder()
+    const x = this.x
+    const res: BodePoint[] = []
+    for (const f of freqs) {
+      const w = 2 * Math.PI * f
+      ac.clear()
+      for (const d of this.devices) {
+        if (d === src) (d.stampAC as (a: AcSystem, w: number, x: Float64Array, drive: boolean) => void)(ac, w, x, true)
+        else if (d.stampAC) d.stampAC(ac, w, x)
+        else d.stamp(rec, x)
+      }
+      for (const c of this.chips) {
+        for (let p = 0; p < c.pinNodes.length; p++) if (c.driveG[p] > 0) ac.addY(c.pinNodes[p], -1, c.driveG[p], 0)
+      }
+      const sol = ac.solve()
+      if (!sol) continue
+      const at = (k: number | null): [number, number] => (k === null ? [1, 0] : k < 0 ? [0, 0] : [sol[0][k], sol[1][k]])
+      const [or, oi] = at(out)
+      const [ir, ii] = inn === null && inRef ? [0, 0] : at(inn)
+      const d2 = ir * ir + ii * ii
+      if (d2 < 1e-30) continue
+      const hr = (or * ir + oi * ii) / d2
+      const hi = (oi * ir - or * ii) / d2
+      const mag = Math.hypot(hr, hi)
+      res.push({ f, mag, db: 20 * Math.log10(Math.max(mag, 1e-12)), phase: (Math.atan2(hi, hr) * 180) / Math.PI })
+    }
+    return res
   }
 
   /** Circuit Lab: the live behavioural model of a chip (boards, displays…), if any. */

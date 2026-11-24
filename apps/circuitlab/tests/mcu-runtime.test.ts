@@ -218,7 +218,7 @@ void loop() {}
       { id: 'w2', from: 'U1:GND2', to: 'top-0' },
     ]
     const { engine } = run('void setup() {}\nvoid loop() {}\n', 0.6, parts, wires)
-    expect(engine.telemetry().components.M1.reading).toBe('2.50 V')
+    expect(engine.telemetry().components.M1.value!).toBeCloseTo(2.5, 2)
     const short: ComponentInstance[] = [{ id: 'M1', type: 'multimeter', params: { mode: 'mA' }, holes: ['top+12', 'top-12'] }]
     const s = run('void setup() {}\nvoid loop() {}\n', 0.05, short, wires)
     expect(s.engine.telemetry().components.M1.reading).toBe('FUSE')
