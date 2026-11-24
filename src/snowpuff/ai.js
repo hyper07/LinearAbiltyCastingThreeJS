@@ -8,7 +8,7 @@
  */
 import { between, frameAt, kickerAt } from './course.js';
 import { BARRIER_H } from './physics.js';
-import { pickTarget, canThrow } from './race.js';
+import { pickTarget, canThrow, giftOpen } from './race.js';
 
 export const PERSONALITIES = {
   careful: { skill: 0.92, tuck: 0.6, risk: 0.15, throwRate: 0.25, trick: 0.35, wander: 0.35 },
@@ -61,7 +61,7 @@ export function think(brain, racer, course, racers, dt) {
   let pull = 0;
   if (racer.slots.length < 2) {
     for (const gf of between(course.gifts ?? [], r.s + 4, r.s + look * 1.4)) {
-      if (racer.taken.has(gf.id) || (gf.risky && brain.rand() > p.risk + 0.3)) continue;
+      if (giftOpen(course, gf.id, racer.lap ?? 1) || (gf.risky && brain.rand() > p.risk + 0.3)) continue;
       if (Math.abs(gf.lat - r.lat) > 9) continue;
       target = gf.lat;
       pull = 1;

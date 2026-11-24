@@ -8,9 +8,12 @@
  *   { slot, id, name, species, human, rider, slots: [{ kind, n }], ammo,
  *     shieldT, hits, bonks, bumps, gifts, tricks, lastHitBy, finished, time, taken: Set }
  *
- * Held items live in up to two slots (keys 1 and 2). Gifts and piles are
- * personal (each racer has its own) and what a gift holds comes from a hash
- * of the gift and the racer, so nothing about them has to be agreed online.
+ * Held items live in up to two slots (keys 1 and 2). A gift box is shared:
+ * whoever reaches it first opens it and it's gone for everyone (until the
+ * next lap: `course.opened` holds "id:lap"); one box per pickup, and a racer
+ * with both slots full rides through it, leaving it for the others. Online,
+ * an opened box is told to the room (SnowpuffGame). What a gift holds comes
+ * from a hash of the gift and the racer. Snowball piles stay personal.
  */
 import { between, groundAt, frameAt } from './course.js';
 
@@ -137,9 +140,20 @@ function syncAmmo(racer) {
   racer.ammo = racer.slots.find((x) => x.kind === 'snowballs')?.n ?? 0;
 }
 
+/** The key a gift box is opened under (boxes come back each lap). */
+export const giftKey = (id, lap = 1) => `${id}:${lap}`;
+
+/** Has anyone opened this gift box on this lap? */
+export const giftOpen = (course, id, lap = 1) => Boolean(course.opened?.has(giftKey(id, lap)));
+
+/** Mark a gift box opened for everyone on that lap (also for a box opened by another player online). */
+export function openGift(course, id, lap = 1) {
+  (course.opened ??= new Set()).add(giftKey(id, lap));
+}
+
 /**
  * Gift boxes and snowball piles within reach. `place` is 0 (leading) … 1 (last).
- * Returns events ({ type: 'gift', id, kind } | { type: 'pile', id }).
+ * Returns events ({ type: 'gift', id, kind, lap } | { type: 'pile', id }).
  */
 export function pickups(racer, course, now, place = 0.5) {
   const r = racer.rider;
@@ -147,15 +161,19 @@ export function pickups(racer, course, now, place = 0.5) {
   if (racer.finished) return ev;
   const g = groundAt(course, r.s, r.lat);
   const above = r.y - g;
-  for (const gf of between(course.gifts ?? [], r.s - 1.8, r.s + 1.8)) {
-    if (racer.taken.has(gf.id)) continue;
-    if (Math.abs(gf.lat - r.lat) > 1.6 || Math.abs(gf.h - (above + 0.6)) > 1.9) continue;
-    if (racer.slots.length >= MAX_SLOTS && !racer.slots.some((x) => x.kind === 'snowballs')) continue;
-    const kind = rollGift(gf.id, racer.slot, place);
-    if (!giveItem(racer, kind)) continue;
-    racer.taken.add(gf.id);
-    racer.gifts += 1;
-    ev.push({ type: 'gift', id: gf.id, kind });
+  const lap = racer.lap ?? 1;
+  // both slots full: ride straight through (the box stays for someone else)
+  if (racer.slots.length < MAX_SLOTS) {
+    for (const gf of between(course.gifts ?? [], r.s - 1.8, r.s + 1.8)) {
+      if (giftOpen(course, gf.id, lap)) continue;
+      if (Math.abs(gf.lat - r.lat) > 1.6 || Math.abs(gf.h - (above + 0.6)) > 1.9) continue;
+      const kind = rollGift(gf.id, racer.slot, place);
+      if (!giveItem(racer, kind)) continue;
+      openGift(course, gf.id, lap);
+      racer.gifts += 1;
+      ev.push({ type: 'gift', id: gf.id, kind, lap });
+      break; // one box at a time
+    }
   }
   if (above < 1.4) {
     for (const p of between(course.piles, r.s - 1.8, r.s + 1.8)) {

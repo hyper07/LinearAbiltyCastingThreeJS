@@ -2,8 +2,8 @@
  * The rival panel: when another rider comes up behind you, or draws level to
  * pass, a manga-style panel slides in on the left — ONE still picture of
  * them (snapped from just in front, looking back at their face), in a tilted
- * ink frame with radiating speed lines and a halftone edge, their name and
- * how far back they are.
+ * ink frame with radiating speed lines and a halftone edge. The picture says
+ * it all: no name or distance under it.
  *
  * Why a still: a live rear view meant drawing the scene twice; on the first
  * look it also built a whole new set of GPU pipelines, so the race hitched
@@ -26,10 +26,9 @@ export const MIRROR_BEHIND = 0.3;
 export const MIRROR_LINGER = 1.6;
 /** At most one new still this often (seconds), even for the same rider. */
 export const SNAP_EVERY = 1;
-const RT_W = 320;
-const RT_H = 240;
-
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+// the width × 8 bytes (RGBA half float) must be a multiple of 256: WebGPU reads back whole aligned rows
+const RT_W = 384;
+const RT_H = 288;
 
 export function mirrorTarget(me, others, { range = MIRROR_RANGE, behind = MIRROR_BEHIND } = {}) {
   let best = null;
@@ -82,15 +81,12 @@ export class SideMirror {
     this.wantSnap = false;
     this.busy = false;
     this.snaps = 0;
-    this.textT = 0;
     this.el = document.createElement('div');
     this.el.className = 'sp-manga';
-    this.el.innerHTML = `<div class="sp-manga__panel"><canvas class="sp-manga__pic" width="${RT_W}" height="${RT_H}" data-overlay></canvas><div class="sp-manga__lines"></div><div class="sp-manga__dots"></div></div>
-      <div class="sp-manga__tag" data-mirror-tag></div>`;
+    this.el.innerHTML = `<div class="sp-manga__panel"><canvas class="sp-manga__pic" width="${RT_W}" height="${RT_H}" data-overlay></canvas><div class="sp-manga__lines"></div><div class="sp-manga__dots"></div></div>`;
     this.canvas = this.el.querySelector('canvas');
     this.g2 = this.canvas.getContext('2d');
     this.img = this.g2.createImageData(RT_W, RT_H);
-    this.tag = this.el.querySelector('[data-mirror-tag]');
     root.append(this.el);
   }
 
@@ -169,13 +165,6 @@ export class SideMirror {
       this.camera.position.set(o.x + sx * 3.2 - sz * 0.9, o.y + 1.25, o.z + sz * 3.2 + sx * 0.9);
       this.camera.lookAt(o.x, o.y + 0.55, o.z);
       this.wantSnap = true;
-    }
-    // the words update a few times a second
-    this.textT -= dt;
-    if (this.textT <= 0) {
-      this.textT = 0.2;
-      this.tag.innerHTML = `<b>${esc(t.rider.name ?? 'Rider')}</b><span>${t.d.toFixed(0)} m ${t.d < 2.5 ? 'beside you' : 'behind'}</span>`;
-      this.el.classList.toggle('is-left', t.side === 'left');
     }
   }
 

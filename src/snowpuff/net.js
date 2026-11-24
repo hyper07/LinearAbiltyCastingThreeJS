@@ -256,6 +256,12 @@ export class OnlineRace {
         return;
       case MSG.item: {
         const it = m.it ?? {};
+        // a gift box someone opened: gone for everyone on that lap
+        if (it.k === 'gift') {
+          const id = it.id | 0, lap = Math.max(1, Math.min(9, it.lap | 0));
+          if (id > 0) this.onMessage({ t: 'item', it: { k: 'gift', id, lap, from: it.from | 0 } });
+          return;
+        }
         if (!['giant', 'ice', 'boost'].includes(it.k)) return;
         this.onMessage({ t: 'item', it: { k: it.k, id: String(it.id ?? ''), from: it.from | 0, s: +it.s || 0, lat: +it.lat || 0, v: +it.v || 18, vl: Math.max(-12, Math.min(12, +it.vl || 0)), until: +it.until || 0 } });
         return;

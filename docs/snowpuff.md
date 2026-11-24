@@ -296,8 +296,8 @@ interpolated state), so motion is smooth at any frame rate.
 When a rider comes up close behind you or draws level to pass, a manga-style
 panel slides in on the left (`src/snowpuff/sideMirror.js`): one still picture
 of them, snapped from just in front, in a tilted ink frame with radiating
-speed lines and a halftone edge, with their name and how far back they are.
-It takes a new still only when the rider changes (at most about once a
+speed lines and a halftone edge (360 × 270, smaller on phones). No name or
+distance under it: the picture is enough. It takes a new still only when the rider changes (at most about once a
 second); the still is read back to a plain 2D canvas, and the slide, wiggle
 and speed lines are CSS — so it costs no frame time. (An earlier live rear
 view drew the scene a second time at 20 Hz and built new GPU pipelines the
@@ -308,14 +308,18 @@ snapshot's pipelines are now built behind the loading card.)
 
 **Gift boxes** (bright wrapped presents with a beam of light and a ring on the
 snow; dots on the course strip) give a random item — kinder to the back of the
-pack, and the same gift always holds the same thing for the same rider:
+pack, and the same gift always holds the same thing for the same rider. A box
+is **shared**: whoever reaches it first opens it and it's gone for everyone
+else on that lap (online too: the opener tells the room). One box at a time —
+riding between two boxes opens just one — and with both item slots full you
+ride straight through, leaving the box for someone else:
 
 | Item | What it does |
 | --- | --- |
 | **Snowballs ×3** | Thrown at the nearest rider ahead (or at whoever bonked you last); a hit is a cartoon **face-plant** — pitched over the board's nose into the snow, a puff, goggles jiggling — and they pop back up (0.85 s, a fair speed loss) |
 | **Giant snowball** | Leaves your hands in your lane and rolls over the real terrain: faster on steeps, slower on flats, swinging up the banks and to the outside of turns, bouncing off the fences, hopping off rollers, growing and picking up chunks as it goes (spinning exactly as far as it rolls), a groove and spray behind it, a rumble and a little shake when it's near. It ends in a big poof on a barrier or snowman, or breaks apart after 7 s. A rider it catches is **squashed pancake-flat** on the snow, ears and board sticking out — a real 1 s stop, no steering — then pops back up to full height with a springy overshoot and rides on at part of their speed (jump it!) |
 | **Snow shield** | Snowballs and giant snowballs bounce off for five seconds |
-| **Rocket sled** | A short boost |
+| **Rocket sled** | A short boost: the rider leans back from the feet and ice-blue speed lines stream round them |
 | **Ice patch** | Dropped behind you: slippery for whoever follows |
 
 You hold **two** at once — **1** uses the first, **2** the second (a click uses
@@ -354,9 +358,10 @@ authority: it runs the rivals, decides every snowball and giant-snowball hit,
 and sends the final order. Each player sends their own rider about 15 times a second; the others
 glide between those states about a tenth of a second behind
 (`src/snowpuff/netproto.js`, `net.js`). Throws, giant snowballs, ice patches
-and boosts are relayed and drawn by everyone; the host says what they hit. Gift
-boxes and piles are personal and what a gift holds comes from a hash of the gift
-and the rider, so nothing about them is sent. If the server can't be reached, racing alone still works; if the host
+and boosts are relayed and drawn by everyone; the host says what they hit. An
+opened gift box is sent (its id and lap) so it disappears for everyone; what a
+gift holds comes from a hash of the gift and the rider. Snowball piles stay
+personal. If the server can't be reached, racing alone still works; if the host
 leaves mid-race, you finish the run on your own.
 
 ## The feeling of speed

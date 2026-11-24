@@ -69,6 +69,8 @@ function plushBody({ light, belly = true, bodyR = [0.21, 0.2, 0.19] } = {}) {
 }
 const head = (c = [0, 0.67, 0], r = [0.34, 0.29, 0.3], o = {}) => E(c, r, { k: 0.13, bone: 'head', ...o });
 const BLUSH = '#ff8fa8';
+/** How far a boost leans the rider back (radians, about 11°). */
+const BOOST_LEAN = 0.2;
 
 /* ---------------------------------------------------------------- recipes */
 
@@ -340,7 +342,10 @@ export class RiderModel {
     this.body = new THREE.Group();
     this.body.rotation.y = this.rig.bodyYaw;
     this.body.position.y = 0.045;
-    this.squash.add(this.body);
+    // a boost leans the body (not the board) back from the feet, as if the speed pushes it
+    this.tilt = new THREE.Group();
+    this.tilt.add(this.body);
+    this.squash.add(this.tilt);
 
     // Bones from the recipe's rest positions.
     const bones = [];
@@ -393,6 +398,8 @@ export class RiderModel {
     this.spring = { earA: 0, earV: 0, earB: 0, earBV: 0, tail: 0, tailV: 0, bob: 0, bobV: 0 };
     this.t = Math.random() * 10;
     this.squashT = 0;
+    this.boostLean = 0;
+    this.boostLeanV = 0;
     this.blink = 2 + Math.random() * 3;
     this.headTurn = 0;
     this.handDrag = 0;
@@ -707,6 +714,11 @@ export class RiderModel {
     this.body.rotation.y = menu ? 0 : this.rig.bodyYaw;
     this.lean.rotation.z = -P[J.lean] + (st.wobble > 0 ? Math.sin(t * 22) * 0.12 * st.wobble : 0);
     this.lean.rotation.x = -(st.tuck ?? 0) * 0.06;
+    // boosting: lean back a little (travel is −z, so +x tips the head toward +z), springy in and out
+    const leanGoal = st.boost && !menu && !st.air ? BOOST_LEAN : 0;
+    this.boostLeanV += ((leanGoal - this.boostLean) * 90 - this.boostLeanV * 11) * dt;
+    this.boostLean += this.boostLeanV * dt;
+    this.tilt.rotation.x = this.boostLean;
     this.lean.position.y = P[J.hop];
     // squash on landing
     if (st.landed) this.squashT = Math.min(1, 0.3 + st.landed * 0.12);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { MOUNTAINS, mountainById } from '../../src/snowpuff/mountains.js';
 import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt, RACE_MODES, LAPS, sectionAt, lapVariant } from '../../src/snowpuff/course.js';
 import { newRider, step, settle, trickName, onIce, VMAX } from '../../src/snowpuff/physics.js';
-import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_SNOWBALLS, SPINOUT, giveItem, useSlot, rollGift, ITEMS, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor, checkLap, tickLift, LIFT, LIFT_SKIP } from '../../src/snowpuff/race.js';
+import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_SNOWBALLS, SPINOUT, giveItem, useSlot, rollGift, ITEMS, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor, checkLap, tickLift, LIFT, LIFT_SKIP, giftOpen, openGift } from '../../src/snowpuff/race.js';
 import { newBrain, think } from '../../src/snowpuff/ai.js';
 import { packState, unpackState, packThrow, unpackThrow, assignSlots, cleanMember, InterpBuffer, MSG } from '../../src/snowpuff/netproto.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES, faceSvg } from '../../src/snowpuff/riders.js';
@@ -232,6 +232,35 @@ const racerAt = (slot, s, lat = 0, extra = {}) => {
   settle(r, course);
   return Object.assign(newRacer({ slot, rider: r }), extra);
 };
+
+test('race: a gift box is shared — first come, gone for the rest (until next lap); one box at a time; full slots ride through', () => {
+  const c = buildCourse(mountainById('marshmallow'));
+  const at = (slot, s, lat, extra = {}) => {
+    const r = newRider({ s, lat, speed: 15 });
+    settle(r, c);
+    return Object.assign(newRacer({ slot, rider: r }), extra);
+  };
+  const gf = c.gifts.find((g) => !g.risky);
+  const a = at(0, gf.s, gf.lat), b = at(1, gf.s, gf.lat);
+  assert.equal(pickups(a, c, 1).filter((e) => e.type === 'gift').length, 1);
+  assert.ok(giftOpen(c, gf.id, 1) && !giftOpen(c, gf.id, 2), 'opened on lap 1 only');
+  assert.equal(pickups(b, c, 1).filter((e) => e.type === 'gift').length, 0, 'gone for the second rider');
+  b.lap = 2;
+  assert.equal(pickups(b, c, 1).filter((e) => e.type === 'gift').length, 1, 'back again on the next lap');
+  // two boxes in reach at once: only one is taken
+  const pair = c.gifts.find((g, i) => !g.risky && c.gifts.some((h, j) => j !== i && !h.risky && h.s === g.s && Math.abs(h.lat - g.lat) < 3.3));
+  const twin = c.gifts.find((h) => h !== pair && h.s === pair.s && Math.abs(h.lat - pair.lat) < 3.3);
+  const mid = at(2, pair.s, (pair.lat + twin.lat) / 2);
+  mid.rider.lat = (pair.lat + twin.lat) / 2;
+  assert.ok(pickups(mid, c, 1).filter((e) => e.type === 'gift').length <= 1, 'one box at a time');
+  // both slots full (even with snowballs that could stack): ride through, the box stays
+  const next = c.gifts.find((g) => !g.risky && !giftOpen(c, g.id, 1) && g.s > pair.s + 10);
+  const full = at(3, next.s, next.lat, { slots: [{ kind: 'snowballs', n: 2 }, { kind: 'shield', n: 1 }] });
+  assert.equal(pickups(full, c, 1).filter((e) => e.type === 'gift').length, 0);
+  assert.ok(!giftOpen(c, next.id, 1), 'left for someone else');
+  openGift(c, next.id, 1);
+  assert.ok(giftOpen(c, next.id, 1), 'a box opened elsewhere (online) is gone here too');
+});
 
 test('race: standings, ordinals, the finish', () => {
   const a = racerAt(0, 100), b = racerAt(1, 120), c = racerAt(2, 80);
