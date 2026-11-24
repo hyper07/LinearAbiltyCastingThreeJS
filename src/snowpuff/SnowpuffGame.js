@@ -1522,6 +1522,19 @@ export class SnowpuffGame {
     const r = this.race;
     const me = this.me;
     if (me.liftT > 0 && this.liftChair) return this.liftCamera(dt);
+    // starting on a crater rim (Baekdusan): the countdown looks out over the lake first
+    if (this.mode === 'countdown' && r.mountain.peak?.at === 'start' && this.world.hero) {
+      const b = this.world.hero.userData.place;
+      const dx = b.x - me.pos.x, dz = b.z - me.pos.z, l = Math.hypot(dx, dz) || 1;
+      const cam = this.camera;
+      const k = Math.min(1, (r.count ?? 3) / 3.2);
+      cam.up.set(0, 1, 0);
+      // up over the rim's crest, looking down across Cheonji to the far walls
+      cam.position.set(me.pos.x + (dx / l) * 40, me.pos.y + 55 + k * 10, me.pos.z + (dz / l) * 40);
+      cam.lookAt(b.x + (dx / l) * b.radius * 0.1, me.pos.y - 150, b.z + (dz / l) * b.radius * 0.1);
+      r.camPos = null;
+      return;
+    }
     const rd = this.vis(me);
     const c = r.course;
     const f = frameAt(c, rd.s, {});

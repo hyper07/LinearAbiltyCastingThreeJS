@@ -120,7 +120,7 @@ export class World {
       this.hero = buildHeroPeak(c, m, this.sky);
       this.root.add(this.hero);
       // the land it stands on, between the run and the peak
-      this.root.add(buildFarLand(c, m, this.sky));
+      if (m.peak.at !== 'start') this.root.add(buildFarLand(c, m, this.sky));
     }
     const water = buildWater(c, m, this.sky);
     if (water) this.root.add(water);
@@ -207,6 +207,8 @@ export class World {
         // beyond the run's own ground keep rising like the mountainside; under the run, tuck away
         let y = groundAt(c, p.s, Math.sign(p.lat) * Math.min(a, W + 95), false) - 0.7;
         if (a < W + 6) y -= 3;
+        // starting on a crater rim: behind the start the ground falls away so the crater shows
+        if (this.mountain.peak?.at === 'start' && p.s < 2) y -= Math.min(400, (2 - p.s) * 3 + Math.max(0, Math.hypot(x - c.px[0], z - c.pz[0]) - 20) * 1.5);
         const o = (j * nx + i) * 3;
         pos[o] = x; pos[o + 1] = y; pos[o + 2] = z;
         crs[o] = p.s; crs[o + 1] = p.lat; crs[o + 2] = W;

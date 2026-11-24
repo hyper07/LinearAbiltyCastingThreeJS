@@ -610,7 +610,7 @@ test('goggles online: members and slots carry a goggle id, cleaned on the way in
 });
 
 test('famous mountains: every course is deterministic, has its facts and names, and keeps all scenery off the run', async () => {
-  const { sceneryPlan, backdropPlace } = await import('../../src/snowpuff/landmarks.js');
+  const { sceneryPlan, backdropPlace, profile: peakProfile } = await import('../../src/snowpuff/landmarks.js');
   for (const m of MOUNTAINS) {
     assert.ok(m.fact && m.fact.length > 30, `${m.id}: a fact`);
     assert.ok(m.local, `${m.id}: a local name`);
@@ -627,7 +627,13 @@ test('famous mountains: every course is deterministic, has its facts and names, 
       assert.deepEqual(p1, p2);
       // the hero stands beyond the finish, clear of the run
       const fin = frameAt(a, a.length);
-      assert.ok(Math.hypot(p1.x - fin.x, p1.z - fin.z) > p1.radius + 200, `${m.id}: the peak stands off beyond the finish`);
+      if (m.peak.at === 'start') {
+        // a crater you start on: its rim right at the start line's height, the start just outside the lake
+        const f0 = frameAt(a, 0);
+        const r = Math.hypot(p1.x - f0.x, p1.z - f0.z) / p1.radius;
+        assert.ok(r > m.peak.rim - 0.035 && r < m.peak.rim + 0.065, `${m.id}: on the rim (${r.toFixed(3)})`);
+        assert.ok(Math.abs(p1.y + peakProfile(m.peak.shape)((f0.x - p1.x) / p1.radius, (f0.z - p1.z) / p1.radius) * p1.height - a.py[0]) < 3, `${m.id}: the rim meets the start`);
+      } else assert.ok(Math.hypot(p1.x - fin.x, p1.z - fin.z) > p1.radius + 200, `${m.id}: the peak stands off beyond the finish`);
     }
   }
 });

@@ -162,6 +162,8 @@ Best times are kept per mountain and race length.
 | Mountain | Where | Mood | Around the run |
 | --- | --- | --- | --- |
 | **Hallasan** 한라산 ❄ | Jeju, Korea | Morning | A broad shield volcano with its crater lake, the sea, basalt field walls, stone grandfather statues, tangerine trees, canola flowers by the finish |
+| **Seoraksan** 설악산 ❄❄ | Korea | Deep winter, lavender light | Ulsanbawi's long crown of rime-coated granite spires (built on a grid so every needle and cleft shows) with a snowy dome behind in cloud, frosted forest ridges in hazy layers, rime "snow flower" trees, a cable car and small temple roofs down in the valley |
+| **Baekdusan** 백두산 ❄❄❄ | — | Clear high day | You start on the crater rim: the countdown looks out over Cheonji, a still deep-blue lake mirroring the dark, banded crater walls; then down the outer flank. Only nature — no flags, signs or buildings |
 | **Mount Fuji** 富士山 ❄❄ | Japan | Sunrise beside the summit | The snow-capped cone, a lake, torii gates over the run, stone lanterns, a pagoda, a red bridge, cedars |
 | **Matterhorn** ❄❄❄ | Switzerland / Italy | Clear day | The pyramid, cowbells to ring, a red mountain train on a viaduct, gondolas, a village |
 | **Mount Everest** ❄❄❄ | Nepal / China | High and blue | The summit plume, prayer flags, a stupa, yaks, cairns |
@@ -177,8 +179,7 @@ religious and wildlife things are only scenery. The pure parts are
 plan, always off the run) and `render/scenery.js` builds them.
 
 **Next mountains** (wave 2, in progress): Artesonraju (Peru), Yellowstone
-(geysers you can ride), Baekdusan 백두산 (the crater lake, kept neutral),
-Seoraksan 설악산, Mont Blanc, Denali, Kirkjufell. Later candidates: Aconcagua,
+(geysers you can ride), Mont Blanc, Denali, Kirkjufell. Later candidates: Aconcagua,
 Kangchenjunga, Aoraki / Mount Cook, a table mountain or desert dunes.
 
 A course is a winding centre line sampled every metre — straights and eased

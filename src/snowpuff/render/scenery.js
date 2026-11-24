@@ -17,8 +17,58 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ---------------------------------------------------------------- the hero peak */
 
+/** A height-field on a grid (long crests like Ulsanbawi need the detail along their length). */
+function gridGeometry(shape, { nx = 300, nz = 110, radius = 1, height = 1 } = {}) {
+  const h = profile(shape);
+  const pos = [], idx = [];
+  for (let j = 0; j <= nz; j++) {
+    for (let i = 0; i <= nx; i++) {
+      const x = -1 + (2 * i) / nx, z = -1 + (2 * j) / nz;
+      const edge = Math.min(1, (1 - Math.max(Math.abs(x), Math.abs(z))) * 8 + 0.02);
+      pos.push(x * radius, h(x, z) * height * edge - (1 - edge) * height * 0.05, z * radius);
+    }
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const k = j * (nx + 1) + i;
+    idx.push(k, k + nx + 1, k + 1, k + 1, k + nx + 1, k + nx + 2);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** The middle of a height-field disc, out to rMax (unit radius): a crater's inside. */
+function discGeometry(shape, rMax, radius, height, minH = -Infinity, rings = 40, spokes = 120) {
+  const h = profile(shape);
+  const pos = [0, Math.max(minH, h(0, 0) * height), 0], idx = [];
+  for (let i = 1; i <= rings; i++) {
+    const r = (i / rings) * rMax;
+    for (let j = 0; j < spokes; j++) {
+      const a = (j / spokes) * Math.PI * 2;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      pos.push(x * radius, Math.max(minH, h(x, z) * height), z * radius);
+    }
+  }
+  for (let j = 0; j < spokes; j++) idx.push(0, 1 + ((j + 1) % spokes), 1 + j);
+  for (let i = 1; i < rings; i++) {
+    const a0 = 1 + (i - 1) * spokes, b0 = 1 + i * spokes;
+    for (let j = 0; j < spokes; j++) {
+      const j1 = (j + 1) % spokes;
+      idx.push(a0 + j, a0 + j1, b0 + j, a0 + j1, b0 + j1, b0 + j);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
 /** A height-field disc for a silhouette: rings × spokes, the profile as height. */
-export function peakGeometry(shape, { rings = 70, spokes = 140, radius = 1, height = 1 } = {}) {
+export function peakGeometry(shape, { rings = 70, spokes = 140, radius = 1, height = 1, grid = false } = {}) {
+  if (grid) return gridGeometry(shape, { radius, height });
   const h = profile(shape);
   const pos = [];
   const idx = [];
@@ -57,7 +107,7 @@ export function peakGeometry(shape, { rings = 70, spokes = 140, radius = 1, heig
 export function buildBackdrop(course, m, sky) {
   const pk = m.peak;
   const b = backdropPlace(course, m);
-  const g = peakGeometry(pk.shape, { radius: b.radius, height: b.height });
+  const g = peakGeometry(pk.shape, { radius: b.radius, height: b.height, grid: Boolean(pk.grid) });
   const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0 });
   mat.fog = false;
   const hk = positionLocal.y.div(b.height);
@@ -69,6 +119,11 @@ export function buildBackdrop(course, m, sky) {
   let rock = color(pk.rock ?? '#55505a').mul(mx_noise_float(positionLocal.mul(0.01)).mul(0.15).add(0.92));
   if (pk.strata) rock = rock.mul(step(0.5, fract(hk.mul(22).add(n.mul(4)))).mul(0.18).add(0.86));
   mat.colorNode = mix(rock, vec3(0.95, 0.97, 1.0), snow);
+  // rime ice (상고대) on every spire: white where the sun is, blue-violet in the clefts
+  if (pk.rime) {
+    const lit = max(dot(normalize(normalWorld), sky.u.sun), 0);
+    mat.colorNode = mix(color(pk.rime), vec3(0.97, 0.97, 1.0), smoothstep(0.05, 0.55, lit).mul(0.85).add(snow.mul(0.15)));
+  }
   // crisp snow catching the sun: sunlit snow faces glow a little in the sun's colour
   const sunK = max(dot(normalize(normalWorld), sky.u.sun), 0);
   mat.emissiveNode = sky.u.sunColor.mul(snow.mul(sunK.pow(1.5)).mul(pk.glow ?? 0.32));
@@ -81,13 +136,48 @@ export function buildBackdrop(course, m, sky) {
   mat.outputNode = vec4(mix(output.rgb, haze, hazeK), 1);
   const mesh = new THREE.Mesh(g, mat);
   mesh.position.set(b.x, b.y, b.z);
-  mesh.rotation.y = b.yaw;
+  // a long crest turns its length across your view
+  mesh.rotation.y = pk.grid ? -b.yaw : b.yaw;
   mesh.frustumCulled = false;
   mesh.renderOrder = -5;
   const group = new THREE.Group();
   group.add(mesh);
+  // a softer, higher snowy dome behind, half in cloud (Seoraksan's Daecheongbong)
+  if (pk.behind) {
+    const bh = pk.behind;
+    const dm = new THREE.Mesh(peakGeometry(bh.shape ?? 'shield', { radius: b.radius * (bh.scale ?? 0.8), height: b.height * (bh.height ?? 1.25), rings: 40, spokes: 80 }), mat);
+    const dx = b.x - (course.px[0] + course.px[course.n - 1]) / 2, dz = b.z - (course.pz[0] + course.pz[course.n - 1]) / 2;
+    const l = Math.hypot(dx, dz) || 1;
+    dm.position.set(b.x + (dx / l) * b.radius * (bh.back ?? 0.9) + (-dz / l) * b.radius * (bh.side ?? -0.2), b.y, b.z + (dz / l) * b.radius * (bh.back ?? 0.9) + (dx / l) * b.radius * (bh.side ?? -0.2));
+    dm.frustumCulled = false;
+    dm.renderOrder = -5;
+    group.add(dm);
+  }
   // a crater lake on top (Hallasan's Baengnokdam, Baekdusan's Cheonji)
-  if (pk.lake) {
+  if (pk.lake && pk.at === 'start') {
+    // Cheonji: a huge, still, deep-blue lake filling the crater, mirroring its walls
+    const R = b.radius * (pk.rim ?? 0.2) * 0.86;
+    const level = profile(pk.shape)(0, 0) * b.height + (pk.lakeLevel ?? 0.035) * b.height;
+    const lake = new THREE.Mesh(new THREE.CircleGeometry(R, 96).rotateX(-Math.PI / 2), lakeMaterial(pk.lake));
+    lake.position.set(b.x, b.y + level, b.z);
+    lake.frustumCulled = false;
+    lake.renderOrder = -3;
+    group.add(lake);
+    // its mirror image: the crater walls turned upside down under the still water, tinted deep blue
+    const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.9, side: THREE.DoubleSide });
+    mm.colorNode = mat.colorNode;
+    mm.fog = false;
+    mm.outputNode = vec4(mix(output.rgb, color('#163a80'), 0.55), 1);
+    // (only the crater's inside: rings out to just past the rim)
+    const inner = discGeometry(pk.shape, (pk.rim ?? 0.2) * 1.08, b.radius, b.height, level + 4);
+    const mirror = new THREE.Mesh(inner, mm);
+    mirror.scale.y = -1;
+    mirror.position.set(b.x, 2 * (b.y + level) - b.y, b.z);
+    mirror.rotation.y = mesh.rotation.y;
+    mirror.frustumCulled = false;
+    mirror.renderOrder = -4;
+    group.add(mirror);
+  } else if (pk.lake) {
     const lake = new THREE.Mesh(new THREE.CircleGeometry(b.radius * (pk.shape === 'caldera' ? 0.17 : 0.085), 48).rotateX(-Math.PI / 2), new THREE.MeshBasicNodeMaterial({ color: pk.lake }));
     lake.material.fog = false;
     const top = profile(pk.shape)(0, 0) * b.height;
@@ -206,6 +296,16 @@ export function buildFarLand(course, m, sky) {
   mesh.renderOrder = -6;
   mesh.userData.ground = true;
   return mesh;
+}
+
+/** A still crater lake: deep navy in the middle, lighter blue at the edges, glassy enough to show the mirrored walls beneath. */
+function lakeMaterial(col) {
+  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+  const d = uv().sub(0.5).length().mul(2);
+  const deep = mix(color(col), color('#3d7ec2'), smoothstep(0.5, 1, d));
+  m.colorNode = vec4(deep, mix(float(0.86), float(0.62), smoothstep(0.4, 1, d)));
+  m.fog = false;
+  return m;
 }
 
 /** Keep the cloud banks turned to the camera. */
@@ -350,7 +450,25 @@ function redBridge() {
   return kit([{ geometry: deck, material: red }, { geometry: rails, material: red }]);
 }
 
-export const BUILDERS = { hareubang, tangerine, stupa, cairn, yak, moose, acacia, lodge, redbridge: redBridge };
+/** A small mountain temple far down in the valley: a hall under a curved dark-tiled roof, snow on top. */
+function temple() {
+  const roof = new THREE.CylinderGeometry(0.01, 8.2, 3.2, 4, 1).rotateY(Math.PI / 4).scale(1.3, 1, 0.8);
+  const p = roof.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), y = p.getY(i);
+    // the eaves turn up at the corners
+    if (y < 0) p.setY(i, y + (Math.abs(x) / 10.6) ** 2 * 1.2 + (Math.abs(z) / 6.6) ** 2 * 0.4);
+  }
+  roof.computeVertexNormals();
+  return kit([
+    { geometry: box(12, 4.2, 7, 0, 0, 0), material: std('#9b3d2c') },
+    { geometry: box(12.6, 0.6, 7.6, 0, -0.3, 0), material: std('#d8d2c4') },
+    { geometry: roof.translate(0, 5.8, 0), material: std('#3b3f48', { roughness: 0.6 }) },
+    { geometry: new THREE.CylinderGeometry(0.01, 7.2, 1.2, 4, 1).rotateY(Math.PI / 4).scale(1.25, 1, 0.75).translate(0, 7.1, 0), material: std('#f2f5fb') }
+  ]);
+}
+
+export const BUILDERS = { hareubang, tangerine, stupa, cairn, yak, moose, acacia, lodge, redbridge: redBridge, temple };
 
 /* ---------------------------------------------------------------- over-the-run pieces */
 

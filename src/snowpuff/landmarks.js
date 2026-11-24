@@ -54,7 +54,12 @@ export const SHAPES = {
     const r = Math.hypot(x, z);
     let h = Math.pow(clamp(1 - r, 0, 1), 1.1) * 1.05;
     const rim = 0.2;
-    if (r < rim) h = Math.pow(1 - rim, 1.1) * 1.05 - (rim - r) * 1.2;
+    // the bowl: steep inner walls (with chutes) down to a flat lake floor 0.24 below the crest
+    if (r < rim) {
+      const crest = Math.pow(1 - rim, 1.1) * 1.05;
+      const k = smooth(clamp((r - rim * 0.72) / (rim * 0.28), 0, 1));
+      h = crest - 0.24 + 0.24 * Math.pow(k, 0.8) * (1 + (ridge(x * 3, z * 3, 9) - 0.45) * 0.25);
+    }
     h += Math.exp(-Math.pow((r - rim) / 0.04, 2)) * (0.06 + ridge(x, z, 14) * 0.12);
     return clamp(h, 0, 1);
   },
@@ -115,6 +120,26 @@ export const SHAPES = {
       h = Math.max(h, hh * Math.pow(clamp(1 - Math.hypot((x - px) * 2.2, z * 1.4) / 0.32, 0, 1), 0.55));
     }
     return clamp(h + Math.pow(clamp(1 - Math.hypot(x, z), 0, 1), 1.5) * 0.35, 0, 1);
+  },
+  // Seoraksan's Ulsanbawi: a long crown of rime-coated granite towers and needles on a broad snowy
+  // shoulder — 4–5× wider than tall, the tallest groups left and right of centre, deep clefts between
+  // (x along the crest, z across it; best built on a grid: see `grid` in scenery.js)
+  ulsan: (x, z) => {
+    const ax = Math.abs(x);
+    const shoulder = Math.pow(clamp(1 - Math.hypot(x / 1.0, z / 0.42), 0, 1), 0.9) * 0.34;
+    let crown = 0;
+    for (let i = 0; i < 30; i++) {
+      const px = -0.78 + i * 0.054 + (hash(i, 7) - 0.5) * 0.02;
+      const group = Math.exp(-(((px + 0.34) / 0.2) ** 2)) * 0.95 + Math.exp(-(((px - 0.3) / 0.22) ** 2)) * 0.9 + 0.35;
+      const hh = (0.55 + hash(i, 11) * 0.45) * group * clamp(1 - Math.abs(px) * 0.9, 0.2, 1);
+      const w = 0.016 + hash(i, 5) * 0.018, d = 0.05 + hash(i, 9) * 0.04;
+      const pz = (hash(i, 13) - 0.5) * 0.08;
+      const q = Math.hypot((x - px) / w, (z - pz) / d);
+      // a rounded knob on a tapering column
+      crown = Math.max(crown, hh * Math.pow(clamp(1 - q * q * 0.08, 0, 1), 0.35) * clamp(1.6 - q * 0.22, 0, 1));
+    }
+    crown *= smooth(clamp((0.92 - ax) / 0.15, 0, 1)) * smooth(clamp((0.3 - Math.abs(z)) / 0.2, 0, 1));
+    return clamp(Math.max(shoulder, 0.2 + crown * 0.8 * (z < 0.25 ? 1 : 0)) * (shoulder > 0.01 || crown > 0.02 ? 1 : 0) + (ridge(x, z, 18) - 0.45) * 0.02, 0, 1);
   },
   // a canyon rim landscape: flat-topped walls either side of a gorge (Yellowstone)
   canyon: (x, z) => {
@@ -179,6 +204,27 @@ export function backdropPlace(course, m) {
         pick = [x, z];
       }
     }
+  }
+  // a crater you start on (Baekdusan): the peak stands right behind the start line, its rim at your feet
+  if (pk.at === 'start') {
+    const f0 = frameAt(course, 0);
+    const H = pk.height ?? 900, R = pk.radius ?? 1100;
+    // the start sits on the crest itself (its highest point along the way out), so the whole bowl opens below you
+    const ax = Math.sin(f0.heading), az = -Math.cos(f0.heading);
+    const h = profile(pk.shape);
+    let rBest = pk.rim ?? 0.2, hBest = -1;
+    for (let r = (pk.rim ?? 0.2) - 0.03; r <= (pk.rim ?? 0.2) + 0.06; r += 0.001) {
+      const v = h(ax * r, az * r);
+      if (v > hBest) {
+        hBest = v;
+        rBest = r;
+      }
+    }
+    const x = f0.x - ax * R * rBest, z = f0.z - az * R * rBest;
+    const y = course.py[0] - hBest * H + 1.5;
+    const out = { x, y, z, height: H, radius: R, side: 0, yaw: 0, at: 'start', rimAt: rBest };
+    _places.set(course, out);
+    return out;
   }
   // the hero standard: seen from mid-run its summit stands ~19° up and its
   // foot sits just under the horizon, so it fills a third of the view ahead
