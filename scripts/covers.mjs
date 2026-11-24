@@ -205,6 +205,35 @@ const SHOTS = {
     await bare(page, '.sp');
     await wait(page, 300);
   },
+  arcademia: async (page) => {
+    await page.route(/\/api\/games\/[^/]+\/play/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+    await open(page, 'official:arcademia');
+    await until(page, () => window.arcademia?.mode === 'world' && window.arcademia.power, null, 240000);
+    await wait(page, 800);
+    await page.click('.arc-start__play');
+    await wait(page, 800);
+    await page.click('.arc-side--buddy .arc-btn--primary').catch(() => {});
+    // The Lagoon's first island from above: the sandcastle, the palms, the ring of boardwalk and its
+    // overwater villas, more islands across the turquoise water, the buddy on the boardwalk waving up.
+    await page.evaluate(() => window.arcademia.switchMap('lagoon'));
+    await wait(page, 1500);
+    await page.evaluate(() => {
+      const w = window.arcademia.world, f = w.plan.floors[0], c = f.centre;
+      const cam = [c.x + f.out[0] * 44 + f.side[0] * 6, 16, c.z + f.out[1] * 44 + f.side[1] * 6];
+      const a = Math.atan2(cam[0] - c.x, cam[2] - c.z) - 0.33;
+      const kx = c.x + Math.sin(a) * 26, kz = c.z + Math.cos(a) * 26;
+      w.kidPos.set(kx, w.plan.height(kx, kz, f.y), kz);
+      w.path = null;
+      w.kidHeading = Math.atan2(cam[0] - kx, cam[2] - kz);
+      w._camTween = null;
+      w._following = false;
+      w.controls.target.set(c.x + (kx - c.x) * 0.2, 2, c.z + (kz - c.z) * 0.2);
+      w.camera.position.set(...cam);
+    });
+    await wait(page, 4000);
+    await bare(page, '.arc');
+    await wait(page, 600);
+  },
   lanternwood: async (page) => {
     await open(page, 'official:lanternwood');
     await until(page, () => window.lanternwood && document.querySelector('.ld'), null, 30000);

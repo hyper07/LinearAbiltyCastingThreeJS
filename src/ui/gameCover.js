@@ -105,7 +105,7 @@ function skyline(kind, r, color) {
 const PHOTO_COVERS = new Set([
   'hearthvale', 'lanebreak', 'thistledown', 'stormbreak-ruins', 'frost-hollow', 'the-wyrms-graveyard', 'dragons-keep', 'saltwind-squads', 'ember-ruins', 'study-grove',
   // Taken by scripts/covers.mjs (run it again to refresh them).
-  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff'
+  'breachline', 'bastion', 'gravepurge2d', 'seoul', 'shardfront', 'stock-market', 'work-life', 'lanternwood', 'stoneball', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'arcademia'
 ]);
 
 /**
