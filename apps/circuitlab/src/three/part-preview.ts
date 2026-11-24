@@ -97,7 +97,7 @@ export class PartPreview {
   private build(type: string): void {
     const entry = getEntry(type)
     if (!entry) return
-    const comp: ComponentInstance = { id: 'PREVIEW', type }
+    const comp: ComponentInstance = { id: 'PREVIEW', type, params: { usb: false } } // no USB cable on the turntable
     const pins = previewPins(comp, entry)
     if (!pins) return
     let built

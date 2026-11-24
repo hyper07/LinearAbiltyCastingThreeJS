@@ -103,12 +103,25 @@ body.app-wire-armed .app-sel-pill {
   color: var(--ios-red);
 }
 
-/* desktop ≥900px: the dock is a left rail — drop to the bottom edge */
+/* desktop ≥900px: the dock is a left rail — sit just above the undo pill and mouse guide */
 @media (min-width: 900px) {
   .app-sel-pill {
-    bottom: calc(var(--lg-safe-bottom) + 24px);
+    bottom: calc(var(--lg-safe-bottom) + 80px);
   }
   body.app-wire-armed .app-sel-pill {
-    bottom: calc(var(--lg-safe-bottom) + 90px);
+    bottom: calc(var(--lg-safe-bottom) + 140px);
   }
+}
+
+/* PartPill: the part's name after its id, quieter */
+.app-sel-sub {
+  opacity: 0.62;
+  font-weight: 500;
+  margin-left: 4px;
+  max-width: 220px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }

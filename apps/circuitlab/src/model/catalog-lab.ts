@@ -73,6 +73,7 @@ function boardEntry(b: BoardDef): CatalogEntry {
     params: [
       { key: 'code', label: 'Sketch', kind: 'text', default: b.runtimes[0] === 'python' ? DEFAULT_PYTHON(b) : DEFAULT_SKETCH(b), hidden: true },
       { key: 'runtime', label: 'Runs as', kind: 'select', default: b.runtimes[0], options: b.runtimes, hidden: true },
+      { key: 'usb', label: 'USB cable plugged in', kind: 'boolean', default: true },
     ],
     sim: { kind: 'chip', model: 'mcu' },
     visual: { shape: 'board' },

@@ -1242,6 +1242,16 @@ export const useStore = create<AppState>()((set, get) => {
         commitLayout(candidate)
         return { ok: true }
       }
+      if (comp && entry?.placement === 'leads' && comp.holes && comp.holes.length >= 2) {
+        // a leaded part (LED, diode, resistor, transistor …) turns end for end:
+        // the same holes, legs swapped — an LED or diode now faces the other way
+        const components = layout.components.map((c) => (c.id === id ? { ...c, holes: [...c.holes!].reverse() } : c))
+        const candidate: CircuitLayout = { ...layout, components }
+        if (!validateLayout(candidate).ok) return { ok: false }
+        pushHistory(`rotate:${id}`)
+        commitLayout(candidate)
+        return { ok: true }
+      }
       if (!comp || !entry || (entry.placement !== 'dip' && entry.placement !== 'footprint')) {
         return { ok: false }
       }

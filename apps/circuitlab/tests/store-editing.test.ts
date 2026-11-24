@@ -441,9 +441,11 @@ describe('rotation', () => {
     expect(st().layout.components[0].rotation).toBe(270)
   })
 
-  it('rotatePlaced refuses leads parts and unknown ids', () => {
+  it('rotatePlaced turns a leads part end for end (same holes, legs swapped) and refuses unknown ids', () => {
     st().addComponent('resistor', { holes: ['a1', 'a5'] })
-    expect(st().rotatePlaced(st().layout.components[0].id)).toEqual({ ok: false })
+    const id = st().layout.components[0].id
+    expect(st().rotatePlaced(id)).toEqual({ ok: true })
+    expect(st().layout.components[0].holes).toEqual(['a5', 'a1'])
     expect(st().rotatePlaced('NOPE')).toEqual({ ok: false })
   })
 })

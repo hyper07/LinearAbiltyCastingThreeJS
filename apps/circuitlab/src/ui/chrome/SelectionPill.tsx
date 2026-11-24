@@ -12,6 +12,8 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { createPortal } from 'react-dom'
 import { useStore } from '../../state/store'
 import { ActionSheet, pressProps, showToast, tick, useIsDesktop } from '../kit'
+import { getEntry } from '../../model/catalog'
+import { openSpecs } from '../lab/SpecsPanel'
 import './SelectionPill.css'
 
 /** Matches the exit transition (--lg-dur-control 200ms) with a little slack. */
@@ -183,6 +185,89 @@ export function BoardPill() {
       </span>
       <button type="button" className="app-sel-btn lg-pressable lg-specular lg-gel" aria-label="Clear the selection" {...pressProps} onClick={() => select(null)}>
         Clear
+      </button>
+    </div>,
+    document.body,
+  )
+}
+
+/**
+ * PartPill — the same glass pill while ONE part is selected on the bench:
+ * "U1 Arduino Uno · ⟳ Rotate · Specs · Delete". Rotate turns a board, module
+ * or instrument a quarter turn, a chip end for end, and a leaded part (LED,
+ * diode, resistor) the other way round in the same holes (R does the same).
+ */
+export function PartPill() {
+  const id = useStore((s) => (s.mode.kind === 'select' && s.selection.length === 1 ? s.selection[0] : null))
+  const comp = useStore((s) => (id ? s.layout.components.find((c) => c.id === id) ?? null : null))
+  if (!comp || typeof document === 'undefined') return null
+  const entry = getEntry(comp.type)
+  if (!entry) return null
+  const canTurn =
+    entry.placement === 'dip' || entry.placement === 'footprint' || entry.placement === 'offboard' || (entry.placement === 'leads' && (comp.holes?.length ?? 0) >= 2)
+  const turnTitle =
+    entry.placement === 'leads' ? 'Turn it round in the same holes (R)' : entry.placement === 'dip' ? 'Turn the chip end for end (R)' : 'Rotate a quarter turn (R)'
+  const rotate = () => {
+    if (useStore.getState().rotatePlaced(comp.id).ok) tick()
+    else showToast(`${comp.id} can't turn here — no other rotation fits`, { duration: 3200 })
+  }
+  const isBoard = entry.category === 'board'
+  const plugged = comp.params?.usb !== false
+  const toggleUsb = () => {
+    useStore.getState().setParam(comp.id, 'usb', !plugged)
+    tick()
+    showToast(plugged ? `${comp.id} unplugged — it has no power now unless a supply feeds its power pins` : `${comp.id} plugged in — 5 V over USB`, { duration: 2600 })
+  }
+  const remove = () => {
+    useStore.getState().removeComponent(comp.id)
+    useStore.getState().select(null)
+    tick(16)
+  }
+  const sep = (
+    <span className="app-sel-dot" aria-hidden="true">
+      ·
+    </span>
+  )
+  return createPortal(
+    <div className="app-sel-pill lg-card is-in" role="toolbar" aria-label={`${comp.id} actions`} data-part-pill>
+      <span className="app-sel-count lg-tabular">
+        {comp.id} <span className="app-sel-sub">{entry.label}</span>
+      </span>
+      {canTurn && (
+        <>
+          {sep}
+          <button type="button" className="app-sel-btn lg-pressable lg-specular lg-gel" title={turnTitle} aria-label={`Rotate ${comp.id}`} {...pressProps} onClick={rotate} data-part-rotate>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: '-2px', marginRight: 5 }}>
+              <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+              <path d="M20 4v7h-7" />
+            </svg>
+            Rotate
+          </button>
+        </>
+      )}
+      {isBoard && (
+        <>
+          {sep}
+          <button
+            type="button"
+            className="app-sel-btn lg-pressable lg-specular lg-gel"
+            title={plugged ? 'Pull the USB cable out — the board loses power unless a supply feeds VIN / 5V' : 'Plug the USB cable in — 5 V from the computer powers the board'}
+            aria-label={plugged ? `Unplug ${comp.id}'s USB cable` : `Plug in ${comp.id}'s USB cable`}
+            {...pressProps}
+            onClick={toggleUsb}
+            data-part-usb
+          >
+            {plugged ? 'Unplug USB' : 'Plug in USB'}
+          </button>
+        </>
+      )}
+      {sep}
+      <button type="button" className="app-sel-btn lg-pressable lg-specular lg-gel" aria-label={`Specs of ${comp.id}`} {...pressProps} onClick={() => openSpecs(comp.type, comp.id)}>
+        Specs
+      </button>
+      {sep}
+      <button type="button" className="app-sel-btn app-sel-delete lg-pressable lg-specular lg-gel" aria-label={`Delete ${comp.id}`} {...pressProps} onClick={remove}>
+        Delete
       </button>
     </div>,
     document.body,

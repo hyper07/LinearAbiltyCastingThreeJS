@@ -322,6 +322,10 @@ export interface McuTelemetry {
   line?: number
   /** on-board LED lit */
   led: boolean
+  /** has power (USB plugged in, or a supply on VIN / 5V / 3V3) — absent = powered */
+  powered?: boolean
+  /** what powers it: 'USB' or the pin an outside supply feeds */
+  powerFrom?: string
   /** pin name → 'H' | 'L' | 'PWM' | 'IN' | 'X' (damaged) */
   pins: Record<string, string>
   /** damaged pins with the reason */

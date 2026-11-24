@@ -145,6 +145,21 @@ export function preflight(layout: CircuitLayout, seconds = 0.3, budgetMs = 250):
     const r = worst.get(c.id)
     const rule = DIRECTION_RULES[c.type]
     const dir = tele[c.id] ? directionOf(c, tele[c.id], label) : null
+    if (tele[c.id]?.mcu?.powered === false) {
+      const b = boardDef(c.type)
+      const vin = entry.pins.includes('VIN') && !b?.supplies.some((x) => x.pin === 'VIN')
+      items.push({
+        id: c.id,
+        label,
+        kind: 'wiring',
+        title: `${c.id} has no power — its program won't run`,
+        detail: 'Its USB cable is unplugged and no supply is wired to its power pins, so every pin floats.',
+        rule: 'A board runs from its USB cable (5 V from the computer), or from a supply wired to VIN (7–12 V) or 5V / 3V3 — and the supply’s − always goes to the board’s GND.',
+        hint: 'Where does this board get its 5 V from? Look at its USB socket and its power pins.',
+        fix: `Plug in ${c.id}’s USB cable (select it → Plug in USB)${vin ? ', or wire 7–12 V to VIN and the supply’s − to GND' : ''}.`,
+      })
+      continue
+    }
     if (r && r.ratio >= 1) {
       items.push({ id: c.id, label, kind: 'burn', title: `${c.id} would go over its limit and burn out (${r.ratio >= 10 ? 'more than 10× its rating' : `${Math.round(r.ratio * 100)} % of its rating`})`, detail: r.reason, rule, spec: specLine(c.type, r.reason), hint: 'Open its Specs to see what it can take, then work out the voltage across it and the current through it (Ohm’s law: I = V / R).', fix: r.fix })
     } else if (latched.has(c.id)) {

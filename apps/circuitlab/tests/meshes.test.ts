@@ -73,7 +73,11 @@ function materialsOf(root: THREE.Object3D): THREE.Material[] {
 
 function triangleCount(root: THREE.Object3D): number {
   let tris = 0
+  // a board's USB cable + charger is a bench accessory, not part of the board's budget
+  const cable = root.getObjectByName('usb-cable')
+  const skip = new Set(cable ? meshesOf(cable) : [])
   for (const m of meshesOf(root)) {
+    if (skip.has(m)) continue
     const g = m.geometry
     tris += (g.index ? g.index.count : g.attributes.position.count) / 3
   }

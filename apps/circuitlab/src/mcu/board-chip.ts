@@ -44,9 +44,18 @@ export class BoardChip implements ChipInstance, McuIO {
   private warned = new Set<string>()
   private lastT = 0
   private supplyStress = 0
+  /** the USB cable is plugged in (the board's own 5 V) — `usb: false` = unplugged */
+  private readonly usb: boolean
+  /** unplugged: the pin an outside supply feeds the board through (VIN, VSYS, 5V, 3V3 …) */
+  private fed: string | null = null
+  private fedMin = 0
+  private powered = true
+  /** when power last arrived (power-on reset counts from here) */
+  private poweredAt = 0
 
   constructor(readonly comp: ComponentInstance) {
     this.board = boardDef(comp.type) as BoardDef
+    this.usb = comp.params?.usb !== false
     this.bank = new PinBank(this.board)
     // a Raspberry Pi without a program of its own runs the panel's default (Blink on GPIO17)
     const code = comp.params?.code !== undefined ? String(comp.params.code) : this.board.runtimes[0] === 'python' ? DEFAULT_PYTHON(this.board) : ''
@@ -87,8 +96,14 @@ export class BoardChip implements ChipInstance, McuIO {
       if (why) ctx.issue?.('error', `${this.comp.id}: ${why}`)
     }
     this.checkSupplies(ctx)
+    const was = this.powered
+    this.powered = this.hasPower(ctx)
+    if (this.powered && !was) this.poweredAt = t0
+    if (!this.powered) this.warnOnce(`${this.comp.id}: no power — its USB cable is unplugged and nothing feeds ${this.powerInputs().join(' / ')}. Plug the USB cable in, or wire a supply to one of those pins (and GND).`, 'warning')
 
-    if (t0 < BOOT_TIME) {
+    if (!this.powered) {
+      // unpowered: the program does not run and every pin floats
+    } else if (t0 - this.poweredAt < BOOT_TIME) {
       // still in power-on reset: the pins float, nothing runs
     } else if (!this.dead && this.runtime) {
       try {
@@ -105,18 +120,69 @@ export class BoardChip implements ChipInstance, McuIO {
 
     // drives
     const b = this.board
+    const off = !!this.dead || !this.powered
     for (const pin of this.bank.gpioPins()) {
       if (pin === 'LED') continue
-      ctx.drivePin(pin, this.dead ? null : this.bank.drive(pin))
+      ctx.drivePin(pin, off ? null : this.bank.drive(pin))
     }
-    for (const s of b.supplies) ctx.drivePin(s.pin, this.dead ? null : { v: s.v, rout: SUPPLY_ROUT })
+    // the pin an outside supply feeds is an input now — the board does not fight it
+    for (const s of b.supplies) ctx.drivePin(s.pin, off || !this.drives(s.pin, s.v) ? null : { v: s.v, rout: SUPPLY_ROUT })
     ctx.drivePin(b.ground, { v: 0, rout: 0.01 })
+  }
+
+  /** pins an outside supply can power the board through, with the least voltage each needs */
+  private powerInputs(): string[] {
+    return this.inputs().map((i) => i.pin)
+  }
+
+  private inputs(): { pin: string; min: number }[] {
+    const b = this.board
+    const out: { pin: string; min: number }[] = []
+    const own = new Set(b.supplies.map((s) => s.pin))
+    // VIN through the on-board regulator (an Uno's wants 7–12 V; it still starts at ~6 V)
+    if (b.pins.includes('VIN') && !own.has('VIN')) out.push({ pin: 'VIN', min: b.logicV >= 5 ? 6 : 4.2 })
+    if (b.pins.includes('VSYS') && !own.has('VSYS')) out.push({ pin: 'VSYS', min: 1.8 })
+    for (const s of [...b.supplies].sort((a, c) => c.v - a.v)) out.push({ pin: s.pin, min: s.v * 0.9 })
+    return out
+  }
+
+  /** powered: USB plugged in, or an outside supply on a power input (the pin that powers it is remembered) */
+  private hasPower(ctx: ChipStepCtx): boolean {
+    if (this.usb) {
+      this.fed = null
+      return true
+    }
+    const g = ctx.readPin(this.board.ground)
+    const gnd = Number.isNaN(g) ? 0 : g
+    const ok = (pin: string, min: number) => {
+      const v = ctx.readPin(pin)
+      return !Number.isNaN(v) && v - gnd >= min
+    }
+    if (this.fed && ok(this.fed, this.fedMin)) return true
+    this.fed = null
+    for (const i of this.inputs()) {
+      if (ok(i.pin, i.min)) {
+        this.fed = i.pin
+        this.fedMin = i.min
+        return true
+      }
+    }
+    return false
+  }
+
+  /** a supply pin the board drives: with USB all of them; fed from outside, only the rails below the input */
+  private drives(pin: string, v: number): boolean {
+    if (!this.fed) return true
+    if (pin === this.fed) return false
+    const fedSupply = this.board.supplies.find((s) => s.pin === this.fed)
+    return !fedSupply || v < fedSupply.v
   }
 
   /** 5 V fed into a 3.3 V board's 3V3 pin, or a supply pin shorted to GND */
   private checkSupplies(ctx: ChipStepCtx): void {
-    if (this.dead) return
+    if (this.dead || !this.powered) return
     for (const s of this.board.supplies) {
+      if (!this.drives(s.pin, s.v)) continue
       const v = ctx.readPin(s.pin)
       if (Number.isNaN(v)) continue
       const i = (s.v - v) / SUPPLY_ROUT
@@ -160,9 +226,11 @@ export class BoardChip implements ChipInstance, McuIO {
     if (this.dead) damage.unshift({ pin: 'board', reason: this.dead })
     t.mcu = {
       runtime: rt?.kind ?? 'avr',
-      state: this.dead ? 'error' : rt ? rt.state : 'waiting',
+      state: this.dead ? 'error' : !this.powered ? 'stopped' : rt ? rt.state : 'waiting',
       line: rt?.line,
-      led: !this.dead && this.ledLit(),
+      led: !this.dead && this.powered && this.ledLit(),
+      powered: this.powered,
+      powerFrom: !this.powered ? undefined : this.usb ? 'USB' : (this.fed ?? undefined),
       pins: this.bank.summary(),
       damage,
       error: this.dead ?? rt?.error,

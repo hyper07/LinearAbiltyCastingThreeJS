@@ -286,6 +286,13 @@ runs. Every runtime talks to the circuit through **one pin interface**
 (levels with drive strength, pull-ups, ADC, PWM, I²C/SPI/UART transactions),
 so a board can switch runtime without the circuit noticing.
 
+**Power.** A board runs only with power: its USB cable (param `usb`, default
+plugged in — drawn as a moulded plug, cable and a 5 V USB charger on the
+desk), or a supply on VIN / VSYS / 5V / 3V3 (and GND). Unplugged and unfed,
+the program stops, every pin floats, the power LED goes dark, and the
+pre-run check says "no power". A supply fed into the 5V pin is an input then:
+the board stops driving that rail (`src/mcu/board-chip.ts`).
+
 **Three tiers of faithfulness**
 
 | Tier | What runs | Boards | Cost |
@@ -389,6 +396,10 @@ The teaching value is in making invisible things visible:
 - **Save and share** circuits to the platform database (PostgreSQL, already in
   place); a link opens the same build; export SPICE netlist and an image.
 - **Help (H)** lists every key and mouse action.
+- **Selecting one part** shows a toolbar (Rotate · Plug in/Unplug USB for
+  boards · Specs · Delete). Rotate: boards, modules and instruments a quarter
+  turn, chips end for end, leaded parts (LED, diode, resistor) the other way
+  round in the same holes — R does the same.
 
 ## 10. Lessons and auto-checked goals
 

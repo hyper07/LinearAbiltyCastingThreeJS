@@ -27,7 +27,7 @@ import * as THREE from 'three'
 import type { ComponentInstance, ComponentTelemetry } from '../../model/types'
 import type { CatalogEntry } from '../../model/catalog'
 import { boardDef, ARDUINO_HEADER_Y, ESP32_PIN_Y, type BoardDef } from '../../model/boards'
-import { offboardGeometry } from '../../model/breadboard'
+import { holePosition, offboardGeometry } from '../../model/breadboard'
 import { BuildResult, cachedGeometry, cachedMaterial, mergeStatic, metal, moldedEpoxy, plastic } from './shared'
 import { UI_FONT } from '../../ui/fonts'
 import { PIN_KIND_STYLE, pinKind, pinLabel, type PinKind } from '../../model/pin-labels'
@@ -71,6 +71,9 @@ const MAT = {
 
 /** merge the single-material static parts; multi-material meshes (textured tops) go in as they are */
 function addStatic(group: THREE.Group, parts: THREE.Object3D[]): void {
+  // markers (the USB socket's mouth) are not meshes: they go in as they are
+  for (const o of parts) if (o.name === 'usb-port') group.add(o)
+  parts = parts.filter((o) => o.name !== 'usb-port')
   const multi = parts.filter((o) => Array.isArray((o as THREE.Mesh).material))
   for (const m of mergeStatic(parts.filter((o) => !multi.includes(o)))) {
     m.castShadow = true
@@ -386,14 +389,23 @@ function button(x: number, y: number, z: number, cap = 0x2a2a2a, size = 1.2): TH
   return [box(size, 0.35, size, MAT.steel(), x, y + 0.175, z), cyl(size * 0.28, 0.28, plastic(cap, 0.5), x, y + 0.49, z)]
 }
 
+/** where the USB cable plugs in: the socket's mouth (the cable leaves toward local −x) */
+function usbMark(x: number, y: number, z: number, kind: 'c' | 'micro' | 'b'): THREE.Object3D {
+  const m = new THREE.Object3D()
+  m.name = 'usb-port'
+  m.userData.kind = kind
+  m.position.set(x, y, z)
+  return m
+}
+
 /** USB-C receptacle (8.9 × 3.2 mm, 7.4 deep) lying on the PCB, mouth toward −x, centered at (x, z) */
 function usbC(x: number, y: number, z: number): THREE.Object3D[] {
-  return [box(2.9, 1.25, 3.5, MAT.steel(), x, y + 0.63, z), box(0.05, 0.75, 2.8, plastic(0x0c0c0c, 0.6), x - 1.46, y + 0.63, z)]
+  return [box(2.9, 1.25, 3.5, MAT.steel(), x, y + 0.63, z), box(0.05, 0.75, 2.8, plastic(0x0c0c0c, 0.6), x - 1.46, y + 0.63, z), usbMark(x - 1.46, y + 0.63, z, 'c')]
 }
 
 /** micro-USB receptacle (7.5 × 2.6 mm, 5 deep), mouth toward −x */
 function usbMicro(x: number, y: number, z: number): THREE.Object3D[] {
-  return [box(2.0, 1.0, 3.0, MAT.steel(), x, y + 0.5, z), box(0.05, 0.5, 2.4, plastic(0x0c0c0c, 0.6), x - 1.01, y + 0.5, z)]
+  return [box(2.0, 1.0, 3.0, MAT.steel(), x, y + 0.5, z), box(0.05, 0.5, 2.4, plastic(0x0c0c0c, 0.6), x - 1.01, y + 0.5, z), usbMark(x - 1.01, y + 0.5, z, 'micro')]
 }
 
 /** turn a chip's parts by `angle` about (cx, cz) — legs and body together */
@@ -603,6 +615,7 @@ function buildArduino(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   else {
     stat.push(box(6.4, 4.3, 4.7, MAT.steel(), 1.0, top + 2.15, 5.6))
     stat.push(box(0.3, 2.2, 3.0, plastic(0xe8e8e8, 0.5), -2.15, top + 2.0, 5.6))
+    stat.push(usbMark(-2.3, top + 2.0, 5.6, 'b'))
   }
   stat.push(box(5.8, 4.2, 3.6, plastic(0x141414, 0.7), 1.9, top + 2.1, 16.2))
   stat.push(cyl(1.0, 0.4, MAT.steel(), -1.0, top + 2.4, 16.2, 16).rotateZ(Math.PI / 2))
@@ -666,6 +679,7 @@ function buildArduino(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   const rx = smdLed(0xffcf33, 11.9, top, 8.0)
   group.add(on.mesh, l.mesh, tx.mesh, rx.mesh)
   on.mat.emissiveIntensity = 2.2
+  powerLed(on.mat)
 
   const warn = beacon()
   group.add(warn.group)
@@ -851,6 +865,7 @@ function buildPinsUp(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   if (L.led.size) led.mesh.scale.set(L.led.size / 0.42, 2, L.led.size / 0.28)
   const pwr = smdLed(0xff2a2a, L.pwr.x, top, L.pwr.z)
   pwr.mat.emissiveIntensity = 2
+  powerLed(pwr.mat)
   group.add(led.mesh, pwr.mesh)
   const warn = beacon()
   warn.group.position.set(W / 2, ESP32_PIN_Y + 2.5, D / 2)
@@ -928,6 +943,7 @@ function buildNano(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   const l = smdLed(0xffa21a, 13.4, top, 1.7)
   const on = smdLed(0x35ff5a, 13.4, top, 4.3)
   on.mat.emissiveIntensity = 2.2
+  powerLed(on.mat)
   group.add(l.mesh, on.mesh)
   const warn = beacon()
   warn.group.position.set(7, top + 3, rowGap / 2)
@@ -958,7 +974,7 @@ function buildPico(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   }
   stat.push(box(n, 1, 1, MAT.headerBlack(), (n - 1) / 2, 0.5, 0), box(n, 1, 1, MAT.headerBlack(), (n - 1) / 2, 0.5, gap))
   // micro-USB at the pin-1 end, RP2040, flash, BOOTSEL, crystal
-  stat.push(box(2.2, 1.1, 3.1, MAT.steel(), -0.2, top + 0.55, gap / 2))
+  stat.push(box(2.2, 1.1, 3.1, MAT.steel(), -0.2, top + 0.55, gap / 2), usbMark(-1.3, top + 0.55, gap / 2, 'micro'))
   stat.push(...smdChip(2.8, 2.8, 0.35, 9.5, top, gap / 2, 10, true))
   stat.push(...smdChip(2.0, 1.6, 0.35, 5.0, top, gap / 2 - 1.4, 4))
   stat.push(box(1.5, 0.75, 1.1, MAT.white(), 3.3, top + 0.38, gap / 2 + 1.7))
@@ -1264,6 +1280,7 @@ function buildDip(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   if (L.pwr) {
     const pwr = smdLed(L.pwr.color, L.pwr.x, top, L.pwr.z)
     pwr.mat.emissiveIntensity = 2
+  powerLed(pwr.mat)
     group.add(pwr.mesh)
   }
   const card = L.card === 'microbit' ? microbitCard(top, mid) : null
@@ -1407,6 +1424,8 @@ interface BenchLook {
   spacer: number
   holes?: [number, number][]
   parts: BenchPart[]
+  /** the USB power socket's mouth (mm, height above the PCB) and which way the cable leaves */
+  usbIn?: { x: number; z: number; y: number; exit: '-x' | '+x' | '-z' | '+z'; kind: 'c' | 'micro' }
   texts?: { s: string; x: number; z: number; size: number; weight?: string; rot?: number; color?: string }[]
   /** user LED (follows the program), power LED (lit), mm positions */
   led?: { x: number; z: number; color: number }
@@ -1451,6 +1470,7 @@ const rj45 = (z: number): BenchPart[] => [
 const PI_LOOKS: Record<string, BenchLook> = {
   rpi4: {
     w: 85, d: 56, ...PI_GREEN, seed: 41, lift: 1.2, thick: 1.4, pinY: 4.3, spacer: 2.5, holes: PI_HOLES, tags: true, pinNumbers: true,
+    usbIn: { x: 11.2, z: 57.2, y: 1.65, exit: '+z', kind: 'c' },
     parts: [
       { x: 29, z: 32, w: 15.5, d: 15.5, h: 2.2, mat: 'steel', label: ['BCM2711'] },
       { x: 46, z: 32, w: 14, d: 10, h: 1.0, mat: 'chip', label: ['LPDDR4'] },
@@ -1484,6 +1504,7 @@ const PI_LOOKS: Record<string, BenchLook> = {
   },
   rpi5: {
     w: 85, d: 56, ...PI_GREEN, seed: 43, lift: 1.2, thick: 1.4, pinY: 4.3, spacer: 2.5, holes: PI_HOLES, tags: true, pinNumbers: true,
+    usbIn: { x: 11.2, z: 57.2, y: 1.65, exit: '+z', kind: 'c' },
     parts: [
       { x: 30, z: 31, w: 15.5, d: 15.5, h: 2.2, mat: 'steel', label: ['BCM2712'] },
       { x: 46.5, z: 31, w: 13, d: 10, h: 1.0, mat: 'chip', label: ['LPDDR4X'] },
@@ -1516,6 +1537,7 @@ const PI_LOOKS: Record<string, BenchLook> = {
   },
   rpi3bplus: {
     w: 85, d: 56, ...PI_GREEN, seed: 47, lift: 1.2, thick: 1.4, pinY: 4.3, spacer: 2.5, holes: PI_HOLES, tags: true, pinNumbers: true,
+    usbIn: { x: 10.6, z: 56.5, y: 1.3, exit: '+z', kind: 'micro' },
     parts: [
       { x: 29, z: 32, w: 14, d: 14, h: 1.6, mat: 'steel', label: ['BCM2837B0'] },
       { x: 15, z: 16, w: 12, d: 11, h: 1.4, mat: 'steel' },
@@ -1543,6 +1565,7 @@ const PI_LOOKS: Record<string, BenchLook> = {
   },
   rpi_zero2w: {
     w: 65, d: 30, ...PI_GREEN, seed: 49, lift: 1.2, thick: 1.0, pinY: 4.3, spacer: 2.5, holes: [[3.5, 3.5], [61.5, 3.5], [3.5, 26.5], [61.5, 26.5]], tags: true, pinNumbers: true,
+    usbIn: { x: 54, z: 30, y: 1.3, exit: '+z', kind: 'micro' },
     parts: [
       { x: 35, z: 17, w: 14, d: 14, h: 1.6, mat: 'steel', label: ['RP3A0', '512MB'] },
       { x: 6.5, z: 16, w: 12, d: 12, h: 1.4, mat: 'steel' },
@@ -1810,6 +1833,12 @@ function buildBench(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
     else parts = [box(u(p.w), u(p.h), u(p.d), mat, u(p.x), y0 + u(p.h) / 2, u(p.z))]
     stat.push(...(p.rot ? turned(parts, u(p.x), u(p.z), p.rot) : parts))
   }
+  if (L.usbIn) {
+    const m = usbMark(u(L.usbIn.x), top + u(L.usbIn.y), u(L.usbIn.z), L.usbIn.kind)
+    // the marker's −x is the way out: turn it to face the exit edge
+    m.rotation.y = { '-x': 0, '+x': Math.PI, '+z': Math.PI / 2, '-z': -Math.PI / 2 }[L.usbIn.exit]
+    stat.push(m)
+  }
   addStatic(group, stat)
 
   const tagSize = L.tagSize ?? 0.42
@@ -1880,6 +1909,7 @@ function buildBench(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   for (const p of L.power ?? []) {
     const m = smdLed(p.color, u(p.x), top, u(p.z))
     m.mat.emissiveIntensity = 2
+    powerLed(m.mat)
     group.add(m.mesh)
   }
   const pinLeds = (L.pinLeds ?? []).map((p) => {
@@ -1908,9 +1938,131 @@ function buildBench(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   }
 }
 
-export function buildBoard(comp: ComponentInstance, _entry: CatalogEntry, pins: THREE.Vector3[]): BuildResult {
+/** power LEDs of the board being built (lit only while it has power) */
+const POWER_LEDS: THREE.MeshPhysicalMaterial[] = []
+function powerLed(m: THREE.MeshPhysicalMaterial): void {
+  m.userData.on = m.emissiveIntensity
+  POWER_LEDS.push(m)
+}
+
+/** the desk the bench stands on (the scene's laminate plane) */
+const DESK_Y = -1.3
+
+/**
+ * The USB cable a board runs from: a moulded plug in its socket, a cable that
+ * clears the breadboard and drops to the desk, and a 5 V USB charger at the
+ * end. Built in world space, then parented to the board so it turns with it.
+ */
+function usbCable(group: THREE.Object3D, def: BoardDef, pins: THREE.Vector3[]): THREE.Object3D {
+  group.updateMatrixWorld(true)
+  const mark = group.getObjectByName('usb-port')
+  const mouth = new THREE.Vector3()
+  const dir = new THREE.Vector3(-1, 0, 0)
+  let kind: 'c' | 'micro' | 'b' = 'c'
+  if (mark) {
+    mark.getWorldPosition(mouth)
+    dir.applyQuaternion(mark.getWorldQuaternion(new THREE.Quaternion())).setY(0).normalize()
+    kind = mark.userData.kind
+  } else {
+    // boards without a drawn socket: the cable goes into the middle of the left edge
+    const box = new THREE.Box3().setFromObject(group)
+    mouth.set(box.min.x, Math.min(box.max.y, box.min.y + 2.2), (box.min.z + box.max.z) / 2)
+  }
+  const side = new THREE.Vector3(-dir.z, 0, dir.x)
+  // on the breadboard: stay above it until past its edge
+  let clear = 1
+  if (def.placement === 'footprint') {
+    const x1 = holePosition({ kind: 'strip', col: 1, row: 'a' }).x - 1.6
+    const xs = pins.map((p) => p.x)
+    const zs = pins.map((p) => p.z)
+    const x2 = Math.max(...xs) + 4
+    if (Math.abs(dir.x) >= Math.abs(dir.z)) clear = dir.x < 0 ? mouth.x - x1 : x2 - mouth.x
+    else clear = dir.z < 0 ? mouth.z - Math.min(-0.8, Math.min(...zs) - 2) : Math.max(16.8, Math.max(...zs) + 2) - mouth.z
+    clear = Math.max(1.5, Math.min(40, clear))
+  }
+  const at = (d: number, y: number, s = 0) => mouth.clone().addScaledVector(dir, d).addScaledVector(side, s).setY(y)
+  const root = new THREE.Group()
+  root.name = 'usb-cable'
+  // inverse of the board frame: children are placed in world coordinates
+  group.matrixWorld.clone().invert().decompose(root.position, root.quaternion, root.scale)
+  const yaw = -Math.atan2(dir.z, dir.x)
+  const rubber = cachedMaterial('usb:rubber', () => new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.78, metalness: 0 }))
+  // the moulded plug, sticking out of the socket
+  const plugLen = kind === 'b' ? 2.8 : 2.2
+  const ph = kind === 'b' ? 2.0 : 1.05
+  const pw = kind === 'b' ? 2.4 : 1.6
+  const plug = new THREE.Mesh(cachedGeometry(`usb:plug:${kind}`, () => new THREE.BoxGeometry(plugLen, ph, pw)), rubber)
+  plug.position.copy(at(plugLen / 2, mouth.y))
+  plug.rotation.y = yaw
+  plug.castShadow = true
+  root.add(plug)
+  const boot = new THREE.Mesh(cachedGeometry('usb:boot', () => new THREE.CylinderGeometry(0.32, 0.5, 1.2, 8).rotateZ(Math.PI / 2)), rubber)
+  boot.position.copy(at(plugLen + 0.55, mouth.y))
+  boot.rotation.y = yaw
+  root.add(boot)
+  // the cable: level over the board, then down to the desk and along it to the charger
+  const hi = Math.max(mouth.y - 0.1, 0.45)
+  const run = Math.max(clear, plugLen + 2)
+  const pts = [
+    at(plugLen + 1.1, mouth.y),
+    at(plugLen + 2.2, (mouth.y + hi) / 2),
+    at(run, hi),
+    at(run + 1.6, (hi + DESK_Y) / 2 + 0.2, 0.3),
+    at(run + 3.2, DESK_Y + 0.25, 0.9),
+    at(run + 6.5, DESK_Y + 0.25, 1.8),
+    at(run + 8.6, DESK_Y + 0.6, 1.8),
+  ]
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 40, 0.24, 6, false), rubber)
+  tube.castShadow = true
+  root.add(tube)
+  // the 5 V USB charger at the end
+  const brickMat = cachedMaterial('usb:brick', () => new THREE.MeshPhysicalMaterial({ color: 0xf1f0ec, roughness: 0.42, clearcoat: 0.4 }))
+  const brick = new THREE.Mesh(cachedGeometry('usb:brickg', () => new THREE.BoxGeometry(4.2, 2.6, 3.6)), brickMat)
+  brick.position.copy(at(run + 10.6, DESK_Y + 1.3, 1.8))
+  brick.rotation.y = yaw
+  brick.castShadow = true
+  brick.receiveShadow = true
+  root.add(brick)
+  const tex = art('usb:label', 256, 220, (ctx) => {
+    ctx.fillStyle = '#f1f0ec'
+    ctx.fillRect(0, 0, 256, 220)
+    ctx.fillStyle = '#2a2c31'
+    ctx.textAlign = 'center'
+    ctx.font = `700 64px ${UI_FONT}`
+    ctx.fillText('USB', 128, 92)
+    ctx.font = `600 46px ${UI_FONT}`
+    ctx.fillText('5 V ⎓ 2 A', 128, 160)
+  })
+  if (tex) {
+    const label = new THREE.Mesh(
+      cachedGeometry('usb:labelg', () => new THREE.PlaneGeometry(3.4, 2.9).rotateX(-Math.PI / 2)),
+      cachedMaterial('usb:labelm', () => new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 })),
+    )
+    label.position.copy(at(run + 10.6, DESK_Y + 2.61, 1.8))
+    label.rotation.y = yaw - Math.PI / 2
+    root.add(label)
+  }
+  return root
+}
+
+export function buildBoard(comp: ComponentInstance, entry: CatalogEntry, pins: THREE.Vector3[]): BuildResult {
   const def = boardDef(comp.type)
   if (!def) throw new Error('unknown board')
+  POWER_LEDS.length = 0
+  const res = buildBoardBody(def, comp, entry, pins)
+  const leds = POWER_LEDS.splice(0)
+  if (comp.params?.usb !== false) res.object.add(usbCable(res.object, def, pins))
+  const inner = res.update
+  // power LEDs light only while the board has power (USB, or a supply on VIN / 5V)
+  res.update = (c, e, t) => {
+    inner?.(c, e, t)
+    const on = t?.mcu?.powered !== false
+    for (const m of leds) m.emissiveIntensity = on ? (m.userData.on as number) : 0
+  }
+  return res
+}
+
+function buildBoardBody(def: BoardDef, _comp: ComponentInstance, _entry: CatalogEntry, pins: THREE.Vector3[]): BuildResult {
   switch (def.type) {
     case 'arduino_uno':
     case 'arduino_mega':

@@ -43,7 +43,7 @@ import {
 } from './ui/kit'
 import { EmptyState, Onboarding, StatusBar, WireColorStrip, hintForMode, markOnboarded, needsOnboarding, pushRenderProgress } from './ui/chrome'
 import { UndoPill } from './ui/chrome/UndoPill'
-import { BoardPill, SelectionPill, removePickedBoard } from './ui/chrome/SelectionPill'
+import { BoardPill, PartPill, SelectionPill, removePickedBoard } from './ui/chrome/SelectionPill'
 import { RotateButton } from './ui/chrome/RotateButton'
 import { PartsSheet } from './ui/sheets/PartsSheet'
 import { CodeSheet } from './ui/lab/CodeSheet'
@@ -124,7 +124,7 @@ function wireEndpointClick(endpoint: string): void {
 function isRotatableComponent(st: AppState, id: string): boolean {
   const comp = st.layout.components.find((c) => c.id === id)
   const entry = comp ? getEntry(comp.type) : undefined
-  return !!entry && (entry.placement === 'dip' || entry.placement === 'footprint' || entry.placement === 'offboard')
+  return !!entry && (entry.placement === 'dip' || entry.placement === 'footprint' || entry.placement === 'offboard' || (entry.placement === 'leads' && (comp?.holes?.length ?? 0) >= 2))
 }
 
 /**
@@ -1084,7 +1084,7 @@ export default function App() {
     actionSheetActions.push({ label: 'Properties', onSelect: () => select(targetComp.id) })
     // dip/footprint packages only — the rotation feature's placed-part surface
     // (DIPs toggle 0↔180, footprints step to the next VALID quarter turn)
-    if (targetEntry && (targetEntry.placement === 'dip' || targetEntry.placement === 'footprint' || targetEntry.placement === 'offboard')) {
+    if (targetComp && isRotatableComponent(useStore.getState(), targetComp.id)) {
       actionSheetActions.push({
         label: 'Rotate',
         onSelect: () => rotatePlacedWithFeedback(targetComp.id),
@@ -1147,6 +1147,7 @@ export default function App() {
       {/* multi-select pill ("N selected · Delete · Clear"); self-hides at ≤1 */}
       <SelectionPill />
       <BoardPill />
+      <PartPill />
 
       {/* rotate-the-armed-package glass button (touch chrome); self-hides */}
       <RotateButton />
