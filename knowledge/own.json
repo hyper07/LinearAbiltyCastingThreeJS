@@ -761,6 +761,25 @@
     "multiplayer"
    ],
    "path": "src/snowpuff/names.js"
+  },
+  {
+   "id": "own.snowpuff.poserig",
+   "kind": "module",
+   "title": "Procedural full-body snowboard animation: layered poses + per-joint springs (pure)",
+   "summary": "PoseRig(stance).update(dt, state) → joint values for head, chest, hips, arms, lean, hop, eyes and a hand-drag weight. Layers: 3/4 stance; turn chain led by the head from the raw input (no input lag), then shoulders, hips; toeside forward with the rear hand dragging in the snow, heelside sitting back with arms forward; up-and-over on edge changes; tuck, skid, air, landing, tumble, idle; a glance at a nearby rider or a gift. Critically and under-damped springs per joint for overlap and follow-through. Allocation-free, NaN-safe, regular/goofy mirroring.",
+   "tags": [
+    "animation",
+    "procedural",
+    "pose",
+    "spring",
+    "snowboard",
+    "character",
+    "rig",
+    "secondary motion",
+    "follow-through",
+    "cute"
+   ],
+   "path": "src/snowpuff/render/poseRig.js"
   }
  ]
 }

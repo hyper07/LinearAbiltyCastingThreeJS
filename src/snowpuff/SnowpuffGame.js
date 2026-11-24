@@ -1321,11 +1321,37 @@ export class SnowpuffGame {
       root.rotation.order = 'YXZ';
       // the board follows its own heading (a skid shows as the board crossing its line)
       // lean: the turn's sideways pull, plus the edge itself so the tilt starts the instant you steer
-      const lean = clamp(Math.atan2(rd.latAcc, 9.8) * 0.7 + rd.edge * 0.32, -0.62, 0.62) * (rd.air ? 0.3 : 1);
-      rc.model.pose(dt, {
-        heading: f.heading, yaw: rd.head ?? rd.yaw, spin: rd.spin, flip: rd.flip, edge: rd.edge, lean, compress: rd.compress, skid: rd.skid, tuck: rd.tuck, charge: rd.charge, speed: rd.speed, air: rd.air,
-        tumbleK: rd.tumble > 0 ? clamp(rd.tumble / 0.95, 0, 1) : 0, spinoutK: rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0, wobble: rd.wobble, landed: rc.landed ?? 0
-      });
+      const lean = clamp(Math.atan2(rd.latAcc, 9.8) * 0.7 + rd.edge * 0.32, -0.47, 0.47) * (rd.air ? 0.3 : 1);
+      const head = rd.head ?? rd.yaw;
+      const yawRate = dt > 0 ? (head - (rc.lastHead ?? head)) / dt : 0;
+      rc.lastHead = head;
+      // a glance: at a rider right alongside, else at a gift box just ahead
+      let lookYaw = 0;
+      for (const o of this.racers) {
+        if (o === rc || o.gone) continue;
+        const ds = o.rider.s - rd.s, dl = o.rider.lat - rd.lat;
+        if (Math.abs(ds) < 3 && Math.abs(dl) < 4 && Math.abs(dl) > 0.6) {
+          lookYaw = -Math.atan2(dl, Math.max(0.5, ds + 1)) - head;
+          break;
+        }
+      }
+      if (!lookYaw && rc.me && this.world.items) {
+        const gf = this.world.nextGift?.(rd.s, rd.lat);
+        if (gf) lookYaw = clamp(-Math.atan2(gf.lat - rd.lat, gf.s - rd.s) - head, -0.6, 0.6) * 0.8;
+      }
+      const ps = (rc.poseState ??= {});
+      ps.heading = f.heading; ps.yaw = head; ps.spin = rd.spin; ps.flip = rd.flip; ps.edge = rd.edge; ps.lean = lean;
+      ps.compress = rd.compress; ps.skid = rd.skid; ps.tuck = rd.tuck; ps.charge = rd.charge; ps.speed = rd.speed; ps.air = rd.air;
+      ps.tumbleK = rd.tumble > 0 ? clamp(rd.tumble / 0.95, 0, 1) : 0; ps.spinoutK = rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0;
+      ps.wobble = rd.wobble; ps.landed = rc.landed ?? 0; ps.steerIn = rc.rider.steerIn ?? 0; ps.steer = rc.rider.steerR ?? 0;
+      ps.unweight = rc.rider.unweight ?? 0; ps.spinV = rc.rider.spinV ?? 0; ps.latAcc = rd.latAcc; ps.yawRate = yawRate; ps.lookYaw = lookYaw;
+      ps.idle = this.mode === 'countdown';
+      rc.model.pose(dt, ps);
+      // the glove dragging in the snow on a hard toeside carve leaves a little spray
+      if (rc.model.handDrag > 0.4 && this.near(rc, 40) && Math.random() < rc.model.handDrag * 0.9) {
+        const hp = rc.model.handPos;
+        this.fx.powder.add(hp.x, hp.y, hp.z, (Math.random() - 0.5) * 1.5, 0.8 + Math.random(), (Math.random() - 0.5) * 1.5, { life: 0.45, size: 0.12, grow: 2.2, alpha: 0.8, drag: 3, grav: -3 });
+      }
       // pitch with the snow underfoot (rollers, kickers), with the flight path in the air — eased, never snapped
       let pitchGoal;
       if (rd.air) pitchGoal = Math.atan2(rd.vy, Math.max(4, rd.speed)) * 0.7;
@@ -1437,6 +1463,15 @@ export class SnowpuffGame {
     r.roll += (rollGoal - r.roll) * Math.min(1, dt * 3);
     cam.up.set(Math.sin(r.roll) * Math.cos(yawW), Math.cos(r.roll), Math.sin(r.roll) * Math.sin(yawW));
     cam.lookAt(r.camLook);
+    // a debug camera close at the rider's 3/4 side (for checking the body animation)
+    if (this.debugCam === 'side') {
+      const hd = f.heading + rd.yaw;
+      const fx2 = Math.sin(hd), fz2 = -Math.cos(hd), rx = -fz2, rz = fx2;
+      const sd = this.debugSide ?? 1;
+      cam.up.set(0, 1, 0);
+      cam.position.set(me.pos.x + rx * 2.6 * sd + fx2 * 1.4, me.pos.y + 1.05, me.pos.z + rz * 2.6 * sd + fz2 * 1.4);
+      cam.lookAt(me.pos.x + fx2 * 0.3, me.pos.y + 0.55, me.pos.z + fz2 * 0.3);
+    }
     // FOV widens with speed: 60 → 78
     const fov = 60 + 18 * clamp((speed - 6) / 24, 0, 1) + (rd.boost > 0 ? 4 : 0);
     r.fov += (fov - r.fov) * (1 - Math.exp(-dt * 3));

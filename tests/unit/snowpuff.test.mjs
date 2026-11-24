@@ -505,3 +505,38 @@ test('steering is quick: the turn builds in well under 0.2 s and a slalom edge c
     assert.ok(m.peakYawRate > 1.8 && m.peakYawRate < 3.2, `${speed} m/s: turn rate ${m.peakYawRate} (quick, not twitchy)`);
   }
 });
+
+test('pose rig: the head leads the board on a steer change; arms go to the right sides for toe and heel; no NaNs; no allocations', async () => {
+  const { PoseRig, J } = await import('../../src/snowpuff/render/poseRig.js');
+  const dt = 1 / 60;
+  const ride = (rig, s, n) => { for (let i = 0; i < n; i++) rig.update(dt, s); return rig.value; };
+  const base = { speed: 16, steerIn: 0, steer: 0, edge: 0, lean: 0 };
+  // the head turns toward the new direction before the physics has moved the board at all
+  const rig = new PoseRig({ stance: 1 });
+  ride(rig, base, 60);
+  const h0 = rig.value[J.headYaw], c0 = rig.value[J.chestYaw], p0 = rig.value[J.hipsYaw];
+  const s1 = { ...base, steerIn: 1, steer: 0, edge: 0 };
+  ride(rig, s1, 5); // 83 ms: input only, board not turned yet
+  const dh = h0 - rig.value[J.headYaw], dc = c0 - rig.value[J.chestYaw], dp = p0 - rig.value[J.hipsYaw];
+  assert.ok(dh > 0.12, `head already turning (${dh})`);
+  assert.ok(dh > Math.abs(dc) && Math.abs(dc) >= Math.abs(dp), 'head first, then shoulders, then hips');
+  // toeside (regular, turning right): the rear (left) hand reaches down to drag; heelside: arms forward
+  const toe = new PoseRig({ stance: 1 });
+  const v = ride(toe, { ...base, steerIn: 1, steer: 1, edge: 1, lean: 0.4 }, 90);
+  assert.ok(v[J.armLRaise] < 0.2 && v[J.drag] > 0.5, `rear hand down (${v[J.armLRaise]}), dragging (${v[J.drag]})`);
+  assert.ok(v[J.armRRaise] > 0.9, 'the leading hand up and out');
+  const heel = new PoseRig({ stance: 1 });
+  const hv = ride(heel, { ...base, steerIn: -1, steer: -1, edge: -1, lean: -0.4 }, 90);
+  assert.ok(hv[J.armLSwing] > 0.6 && hv[J.armRSwing] > 0.6, 'heelside: both arms forward');
+  assert.ok(hv[J.chestPitch] < 0, 'heelside: sitting back');
+  assert.equal(hv[J.drag], 0);
+  // goofy riders mirror: the drag hand is the other one
+  const goofy = new PoseRig({ stance: -1 });
+  const gv = ride(goofy, { ...base, steerIn: -1, steer: -1, edge: -1, lean: -0.4 }, 90);
+  assert.ok(gv[J.armRRaise] < 0.2 && gv[J.drag] > 0.5, 'goofy toeside drags the other hand');
+  // never NaN, whatever comes in; and the same array every frame (no allocation)
+  const wild = new PoseRig();
+  const out = wild.update(dt, { speed: NaN, edge: Infinity, air: true, spinV: 40, landed: 9, tumbleK: 0.5, skid: 1 });
+  for (let i = 0; i < 300; i++) assert.equal(wild.update(i % 7 ? dt : 0, { speed: 30, edge: Math.sin(i), steerIn: Math.sign(Math.sin(i / 5)), air: i % 50 < 20, skid: (i % 13) / 13, landed: i % 50 === 20 ? 5 : 0, menu: i > 280 }), out);
+  for (const x of out) assert.ok(Number.isFinite(x));
+});

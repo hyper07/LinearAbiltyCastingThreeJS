@@ -18,6 +18,7 @@ import { uniform } from 'three/tsl';
 import { compile, sculpt, trace, gradient } from '../../arcademia/world/creatures/sculpt.js';
 import { SPECIES } from '../riders.js';
 import { plushMaterial, furShells, vinylMaterial, knitMaterial } from './plush.js';
+import { PoseRig, J, STANCE } from './poseRig.js';
 
 /* ---------------------------------------------------------------- recipe helpers */
 
@@ -313,8 +314,9 @@ export class RiderModel {
     this.board.position.y = 0.03;
     this.squash.add(this.board);
 
+    this.rig = new PoseRig({ stance: STANCE[species] ?? 1 });
     this.body = new THREE.Group();
-    this.body.rotation.y = Math.PI / 2;
+    this.body.rotation.y = this.rig.bodyYaw;
     this.body.position.y = 0.045;
     this.squash.add(this.body);
 
@@ -359,6 +361,8 @@ export class RiderModel {
     this.squashT = 0;
     this.blink = 2 + Math.random() * 3;
     this.headTurn = 0;
+    this.handDrag = 0;
+    this.handPos = new THREE.Vector3();
   }
 
   addFace(model, f, headBone) {
@@ -522,34 +526,30 @@ export class RiderModel {
     if (st.spinoutK > 0) spin += (1 - st.spinoutK) * Math.PI * 4;
     this.air.rotation.set(-flip, -spin, roll, 'YXZ');
     this.air.position.y = st.tumbleK > 0 ? Math.sin((1 - st.tumbleK) * Math.PI) * 0.6 : 0;
-    // lean into the carve (around the travel axis), crouch, tuck
+    // the full body: layered poses and springs (poseRig.js), then onto the bones
+    const P = this.rig.update(dt, st);
     const edge = st.edge ?? 0;
-    // knees: crouch to jump, tuck, soak up rollers and landings
-    const crouch = clamp01(Math.max(st.charge ?? 0, (st.tuck ?? 0) * 0.85, st.wobble > 0 ? 0.4 : 0) + Math.max(0, st.compress ?? 0) * 0.7 - Math.max(0, -(st.compress ?? 0)) * 0.3);
-    // lean into the turn (from the turn's sideways pull), wobble when a landing goes crooked
-    const lean = st.lean != null ? st.lean : edge * 0.42;
-    this.lean.rotation.z = -lean + (st.wobble > 0 ? Math.sin(t * 22) * 0.12 * st.wobble : 0);
-    this.lean.rotation.x = -(st.tuck ?? 0) * 0.08;
+    this.body.rotation.y = menu ? 0 : this.rig.bodyYaw;
+    this.lean.rotation.z = -P[J.lean] + (st.wobble > 0 ? Math.sin(t * 22) * 0.12 * st.wobble : 0);
+    this.lean.rotation.x = -(st.tuck ?? 0) * 0.06;
+    this.lean.position.y = P[J.hop];
     // squash on landing
     if (st.landed) this.squashT = Math.min(1, 0.3 + st.landed * 0.12);
     this.squashT = Math.max(0, this.squashT - dt * 5);
     const sq = Math.sin(this.squashT * Math.PI) * 0.6 + this.squashT * 0.4;
     const breathe = 1 + Math.sin(t * 2.3) * 0.012;
     this.squash.scale.set(1 + sq * 0.1, (1 - sq * 0.16) * breathe, 1 + sq * 0.1);
-    B.get('hips').position.y = 0.2 - crouch * 0.075;
-    B.get('chest').rotation.z = 0;
-    B.get('chest').rotation.x = crouch * 0.25;
-    // head looks where you go (toward the body's +x = travel); in menus it looks at you
-    const look = menu ? Math.sin(t * 0.6) * 0.15 : 1.05 - (st.spinoutK > 0 ? 0.6 : 0);
-    this.headTurn += (look - this.headTurn) * Math.min(1, dt * 6);
-    B.get('head').rotation.set(menu ? Math.sin(t * 1.3) * 0.04 : 0.05, this.headTurn, menu ? Math.sin(t * 0.9) * 0.05 : -edge * 0.12);
-    // arms out for balance, flailing in a tumble, up for a cheer
-    const flail = st.tumbleK > 0 || st.spinoutK > 0 ? Math.sin(t * 18) * 0.5 : 0;
-    const arms = menu ? (st.cheer ? 2.2 + Math.sin(t * 9) * 0.4 : 0.25 + Math.sin(t * 1.4) * 0.05) : 0.85 + Math.sin(t * 2.1) * 0.08 + (st.air ? 0.5 : 0) + crouch * 0.2;
-    // arms balance against the lean
-    const bal = menu ? 0 : (st.lean ?? edge * 0.4) * 0.9;
-    B.get('armL').rotation.set(0, 0, -arms - flail + bal);
-    B.get('armR').rotation.set(0, 0, arms + flail + bal);
+    const hips = B.get('hips'), chest = B.get('chest'), headB = B.get('head');
+    hips.position.y = 0.2 - P[J.hipsDrop] * 0.075;
+    hips.rotation.set(0, P[J.hipsYaw], 0);
+    chest.rotation.set(P[J.chestPitch], P[J.chestYaw] - P[J.hipsYaw], P[J.chestRoll]);
+    headB.rotation.set(P[J.headPitch], P[J.headYaw] - P[J.chestYaw], P[J.headRoll]);
+    // arms: rotation.z raises (σ = −1 for the L bone at −x, +1 for R), rotation.y swings to the front
+    B.get('armL').rotation.set(0, P[J.armLSwing], -P[J.armLRaise]);
+    B.get('armR').rotation.set(0, -P[J.armRSwing], P[J.armRRaise]);
+    // the dragging glove (toeside carves): where it touches the snow, for the spray
+    this.handDrag = P[J.drag];
+    if (this.handDrag > 0.05) (this.rig.leadIsR ? B.get('armL') : B.get('armR')).localToWorld(this.handPos.set(this.rig.leadIsR ? -0.15 : 0.15, -0.1, 0.05));
     // reactions
     if (this.reactT > 0) {
       this.reactT -= dt;
@@ -573,6 +573,8 @@ export class RiderModel {
     const sp = this.spring;
     const earTarget = menu ? Math.sin(t * 1.1) * 0.08 : -Math.min(0.85, (st.speed ?? 0) * 0.028) + (st.air ? -0.25 : 0);
     if (st.landed) sp.earV += 6 + st.landed;
+    // a direction change whips the ears and the tail (they lag, then overshoot)
+    sp.earBV += (st.yawRate ?? 0) * dt * 38;
     sp.earV += ((earTarget - sp.earA) * 60 - sp.earV * 6) * dt;
     sp.earA += sp.earV * dt;
     sp.earBV += ((Math.sin(t * 3.1) * 0.05 - sp.earB) * 40 - sp.earBV * 5) * dt;
@@ -584,6 +586,7 @@ export class RiderModel {
     const tb = B.get('tail'), t2 = B.get('tail2');
     if (tb) {
       const wagGoal = menu ? Math.sin(t * 1.8) * 0.35 : -(st.lean ?? edge * 0.4) * 1.4 + Math.sin(t * 3.2) * 0.08;
+      sp.wagV = (sp.wagV ?? 0) + (st.yawRate ?? 0) * dt * 30;
       if (st.landed) sp.tailLV = (sp.tailLV ?? 0) - 5 - st.landed;
       sp.wagV = (sp.wagV ?? 0) + ((wagGoal - (sp.wag ?? 0)) * 45 - (sp.wagV ?? 0) * 4.5) * dt;
       sp.wag = (sp.wag ?? 0) + sp.wagV * dt;
@@ -616,7 +619,11 @@ export class RiderModel {
     this.blink -= dt;
     const shut = this.blink < 0.12 && this.blink > 0;
     if (this.blink < 0) this.blink = 2.5 + Math.random() * 3;
-    for (const e of this.eyes) e.scale.y = shut ? 0.15 : e.userData.sy ?? 1;
+    const wide = P[J.eyes];
+    for (const e of this.eyes) {
+      e.scale.y = shut ? 0.15 : (e.userData.sy ?? 1) * wide;
+      e.scale.x = wide;
+    }
   }
 }
 

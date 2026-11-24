@@ -813,6 +813,16 @@ export class World {
     this.taken = new Set();
   }
 
+  /** The next gift box just ahead of (s, lat) that you haven't opened, for a glance. */
+  nextGift(s, lat) {
+    for (const it of this.items ?? []) {
+      if (it.kind !== 'gift' || it.s < s + 4) continue;
+      if (it.s > s + 22) break;
+      if (!this.taken.has(it.id) && Math.abs(it.lat - lat) < 7) return it;
+    }
+    return null;
+  }
+
   /** Hide a pickup the local player took (pickups are personal). */
   take(id) {
     this.taken.add(id);
@@ -930,7 +940,11 @@ export class World {
       sp.fan.root.visible = near;
       sp.cheerT = Math.max(0, (sp.cheerT ?? 0) - dt);
       const passing = Math.abs(sp.s - focusS) < 18;
-      if (near) sp.fan.pose(dt, { menu: true, cheer: sp.cheerT > 0 || passing || (sp.s > this.course.length - 40 && Math.sin(t * 2 + sp.phase) > -0.3) });
+      if (near) {
+        const ms = (sp.st ??= { menu: true, cheer: false });
+        ms.cheer = sp.cheerT > 0 || passing || (sp.s > this.course.length - 40 && Math.sin(t * 2 + sp.phase) > -0.3);
+        sp.fan.pose(dt, ms);
+      }
     }
     // bells swing when rung
     if (this.bellMap) for (const b of this.bellMap.values()) {

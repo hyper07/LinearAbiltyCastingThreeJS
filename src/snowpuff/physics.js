@@ -103,6 +103,7 @@ export function step(r, inp, course, dt, o = {}) {
     tuckIn = 0;
     jumpHeld = false;
   }
+  r.steerIn = steer;
   const pressed = jumpHeld && !r.jumpWas;
   r.jumpWas = jumpHeld;
 

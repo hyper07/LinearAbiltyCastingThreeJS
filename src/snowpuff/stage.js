@@ -343,7 +343,11 @@ export class Stage {
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     this.spinAngle += diff * Math.min(1, dt * 4);
     this.spin.rotation.y = this.spinAngle;
-    for (const [id, { m }] of this.turnRiders) m.pose(dt, { menu: true, cheer: id === this.picked && this.view === 'riders' && this.t % 4 < 0.9 });
+    for (const [id, e] of this.turnRiders) {
+      const ms = (e.st ??= { menu: true, cheer: false });
+      ms.cheer = id === this.picked && this.view === 'riders' && this.t % 4 < 0.9;
+      e.m.pose(dt, ms);
+    }
     // dioramas: the chosen one rises and turns
     for (const [id, d] of this.dioramas) {
       const on = id === this.mountain;
@@ -352,7 +356,7 @@ export class Stage {
       d.mtn.rotation.y += dt * (on ? 0.35 : 0.05);
       d.g.scale.setScalar(1 + d.lift * 0.25);
     }
-    for (const m of this.podiumRiders) m.pose(dt, { menu: true, cheer: m.cheer });
+    for (const m of this.podiumRiders) m.pose(dt, (m.st ??= { menu: true, cheer: m.cheer }));
     if (this.conf && this.confT > 0) {
       this.confT -= dt;
       const p = this.confPos, v = this.confVel;

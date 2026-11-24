@@ -110,6 +110,20 @@ interpolated state), so motion is smooth at any frame rate.
   0.3 s. The rider's lean, the board's tilt and the camera follow at once, and
   the camera looks a little toward where you steer while keeping you framed in
   the bottom-centre third, even through berms.
+- **The whole body rides** (`src/snowpuff/render/poseRig.js`): layered poses
+  driven by the physics — a 3/4 side-on stance (regular or goofy per rider:
+  the fox, bear, frog and penguin regular; the bunny, cat and pig goofy), knees
+  bent, arms out. A turn starts at the head (straight from your input, before
+  the board has moved), then the shoulders, then the hips; the rider leans into
+  it (capped near 27°) and the knees flex with the edge. Toeside, the body tips
+  forward and the rear glove drags in the snow with a little spray; heelside,
+  it sits back with both arms forward. An edge change crosses over with a small
+  up-and-over; quick slaloms counter-rotate the shoulders. Tuck: compact, arms
+  in. Skid: leaning back, arms flailing, eyes wide. Air: arms out, knees up,
+  spins led by the head and shoulders; landings compress and the arms flap.
+  The head glances at a rider alongside or a gift ahead; ears and tails whip on
+  direction changes. Every joint runs through its own spring (arms a little
+  under-damped, so they overshoot and settle); nothing allocates per frame.
 - **Steer** (A/D, ←/→), **tuck** (S, ↓ or Shift).
 - **Jump** (Space): it pops the moment you press it; holding it adds a little
   height. Pressed on a kicker, you crouch and get an extra kick at the lip;
