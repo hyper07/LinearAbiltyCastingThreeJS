@@ -48,7 +48,7 @@ export function plushMaterial({ color = '#ff6fb1', sheen = 1, rim = 0.34, roughn
   const m = new THREE.MeshPhysicalNodeMaterial({ roughness, metalness: 0 });
   const rest = attribute('position', 'vec3');
   const fibre = mx_noise_float(rest.mul(55)).mul(0.5).add(mx_noise_float(rest.mul(160)).mul(0.35));
-  // a fine woven fabric on the snowsuit panels (belly, pocket, muzzle patches: where the body colour doesn't show)
+  // a fine woven fabric on the snowsuit panels (belly, muzzle patches: where the body colour doesn't show)
   const weave = sin(rest.x.add(rest.z).mul(760)).mul(sin(rest.y.mul(760))).mul(0.5).add(0.5);
   const panel = float(1).sub(smoothstep(0.3, 0.8, attribute('tint', 'vec2').x));
   const ao = mix(float(0.5), float(1), contact());
@@ -154,7 +154,7 @@ function Fnless(colorNode, strand, clump, cell, vLayer, vMask, ndv) {
   })();
 }
 
-/** Woven cotton (Mallow's pocket, patches): a fine weave, soft sheen, no glow. */
+/** Woven cotton (patches): a fine weave, soft sheen, no glow. */
 export function fabricMaterial(color) {
   const c = uniform(new THREE.Color(color));
   const m = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.95, metalness: 0 });

@@ -12,7 +12,7 @@ export const SPECIES = {
   },
   bunny: {
     name: 'Mallow', animal: 'bunny', color: '#ff6fb4', light: '#ffd3e6', accent: '#ff8c1a', board: '#ffffff', boardTrim: '#ff6fb4', goggleFrame: '#ffffff',
-    blurb: 'A hot-pink puffball with long floppy ears, a little front pocket and white goggles with an amber lens. Never stops bouncing.',
+    blurb: 'A hot-pink puffball with long floppy ears and white goggles with an amber lens. Never stops bouncing.',
     accentName: 'White goggles', selectable: true
   },
   bear: {

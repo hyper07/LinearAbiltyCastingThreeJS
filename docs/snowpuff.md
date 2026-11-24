@@ -47,7 +47,7 @@ read at a glance — from behind, at speed (`src/snowpuff/riders.js`):
 | Rider | Look | Accent |
 | --- | --- | --- |
 | **Pip** the fox (the hero) | Round fuzzy orange, cream muzzle, chest and tail tip, dark paws and ear tips, a huge springy tail | Teal-framed goggles, stars on the board |
-| **Mallow** the bunny | Round fuzzy hot pink, a lighter-pink belly panel with a little front pocket, long floppy springy ears | White goggles with an amber lens, hearts on the board |
+| **Mallow** the bunny | Round fuzzy hot pink, a lighter-pink belly panel, long floppy springy ears | White goggles with an amber lens, hearts on the board |
 | **Toffee** the bear | Caramel brown, cream muzzle | Mint scarf |
 | **Mochi** the cat | Blue-grey tabby | Sunny bobble hat |
 | **Pickle** the frog | Lime green | Orange backpack |
@@ -70,8 +70,7 @@ about half from 7 m, 4 from 16 m and none beyond 40 m — the same fur length,
 only fewer instances (no new pipelines). Eyes have depth: a glossy iris (a
 colour per rider), a black pupil and two catchlights (seen when the goggles are
 pushed up); a stitched embroidery mouth, soft blush and coloured inner ears.
-Boots have soles with a tread line, criss-cross laces and a bow; Mallow's belly
-pocket is woven cotton with a stitched seam; boards show their printed
+Boots have soles with a tread line, criss-cross laces and a bow; boards show their printed
 topsheet over a coloured sidewall and a steel edge. Measured on the high tier
 (Marshmallow Hill, the pack together) the frame time stayed the same:
 8.3 ms mean, 9.3 ms p99. They squash on

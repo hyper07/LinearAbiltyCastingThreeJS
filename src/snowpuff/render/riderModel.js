@@ -18,7 +18,7 @@ import * as THREE from 'three/webgpu';
 import { uniform } from 'three/tsl';
 import { compile, sculpt, trace, gradient } from '../../arcademia/world/creatures/sculpt.js';
 import { SPECIES } from '../riders.js';
-import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial, fabricMaterial } from './plush.js';
+import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial } from './plush.js';
 import { PoseRig, J, STANCE, SPIN_T, PLANT_T, iceSpin, plantPitch } from './poseRig.js';
 import { buildGoggles } from './goggles.js';
 import { buildBoard } from './boards.js';
@@ -122,14 +122,10 @@ const RECIPES = {
         ...b.paint,
         ...both(E([-0.165, 1.1, 0.02], [0.042, 0.18, 0.04], { col: '#ffc2dc', rot: [0, 0, -0.18] })),
         ...both(E([-0.2, 0.59, 0.24], [0.055, 0.035, 0.04], { col: BLUSH, soft: 0.034 })),
-        E([0, 0.615, 0.3], [0.03, 0.02, 0.03], { col: '#e0447e', soft: 0.004 }),
-        // a lighter-pink belly panel with a little front pocket
-        E([0, 0.25, 0.15], [0.15, 0.17, 0.1], { col: sp.light, soft: 0.008 }),
-        E([0, 0.2, 0.19], [0.085, 0.05, 0.05], { col: '#ffb3d4', soft: 0.003 })
+        E([0, 0.615, 0.3], [0.03, 0.02, 0.03], { col: '#e0447e', soft: 0.004 })
       ],
       face: { iris: '#4a2236', eyeX: 0.12, eyeY: 0.66, eyeR: 0.04, mouthY: 0.565 },
       accent: null,
-      pocket: [0, 0.2, 0.19],
       topsheet: 'hearts'
     };
   },
@@ -383,7 +379,6 @@ export class RiderModel {
     this.addFace(model, recipe.face, byName.get('head'));
     this.addAccent(recipe.accent, byName);
     this.addBoots(byName);
-    if (recipe.pocket) this.addPocket(recipe.pocket, byName.get('chest'));
     this.fit = this.measureFit(model.sdf, recipe);
     this.label = label;
     this.topsheet = recipe.topsheet;
@@ -573,29 +568,6 @@ export class RiderModel {
       boot.add(shell, cuff, bottom, tread, bow);
       b.add(boot);
     }
-  }
-
-  /** A little stitched front pocket (Mallow's snowsuit). */
-  addPocket(at, chestB) {
-    const cp = this.rest.get('chest');
-    const g = new THREE.Group();
-    g.position.set(at[0] - cp.x, at[1] - cp.y + 0.035, at[2] - cp.z + this.furLen + 0.015);
-    const cloth = fabricMaterial('#ffa0c8');
-    const flap = new THREE.Mesh(sphere(), cloth);
-    flap.scale.set(0.085, 0.022, 0.025);
-    // the pocket itself: a soft woven patch with a stitched seam round it
-    const patch = new THREE.Mesh(sphere(), fabricMaterial('#ffb8d6'));
-    patch.scale.set(0.09, 0.07, 0.022);
-    patch.position.set(0, -0.055, -0.008);
-    const seam = new THREE.Mesh(new THREE.TorusGeometry(1, 0.018, 4, 40), vinylMaterial('#e8659e', { roughness: 0.85, clearcoat: 0 }));
-    seam.scale.set(0.082, 0.064, 0.4);
-    seam.position.set(0, -0.055, 0.012);
-    g.add(patch, seam);
-    const button = new THREE.Mesh(lowSphere(), vinylMaterial('#ffffff', { roughness: 0.3 }));
-    button.scale.setScalar(0.013);
-    button.position.set(0, -0.006, 0.022);
-    g.add(flap, button);
-    chestB.add(g);
   }
 
   addAccent(kind, bones) {
