@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { t as tr } from '../i18n/index.js';
 import { add, batch, box, cone, cyl, ico, mat, seeded, signTexture, sphere, toon } from './kit.js';
 import { door, window as win, lantern, palette, windowMat } from './buildings.js';
+import { SEA_LANDMARKS } from './resort.js';
 
 const small = (look) => palette(look, 'math');
 /** A low round stone base for the smaller places. */
@@ -243,7 +244,7 @@ export function worldGate() {
 /* ---------------------------------------------------------------- landmarks */
 
 export function landmark(kind, look) {
-  return (LANDMARKS[kind] ?? LANDMARKS.windmill)(look);
+  return (LANDMARKS[kind] ?? SEA_LANDMARKS[kind] ?? LANDMARKS.windmill)(look);
 }
 
 const LANDMARKS = {

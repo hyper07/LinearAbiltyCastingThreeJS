@@ -47,7 +47,15 @@ export const lineKey = (lang, char, id) => `${lang}/${char}/${id}`;
 
 /** The teachers and the subject each one teaches. */
 export const TEACHER_OF = { math: 'hoot', history: 'tock', physics: 'gizmo' };
-const SUBJECT_OF = { hoot: 'math', tock: 'history', gizmo: 'physics' };
+/** The sea islands' teachers: Captain Pip, Grandma Inka, Dr. Splash. */
+export const SEA_TEACHER_OF = { math: 'pip', history: 'inka', physics: 'splash' };
+/** The Great Tree's teachers: Nutmeg, Grandpa Bramble, Dr. Ribbit. */
+export const FOREST_TEACHER_OF = { math: 'nutmeg', history: 'bramble', physics: 'ribbit' };
+/** Each realm's teachers, by subject. */
+export const REALM_TEACHER_OF = { land: TEACHER_OF, forest: FOREST_TEACHER_OF, sea: SEA_TEACHER_OF };
+const SUBJECT_OF = Object.fromEntries(Object.values(REALM_TEACHER_OF).flatMap((m) => Object.entries(m).map(([subject, id]) => [id, subject])));
+/** Who voices a lesson: its realm's teacher for its subject. */
+export const teacherOf = (lesson) => (REALM_TEACHER_OF[lesson?.realm ?? 'land'] ?? TEACHER_OF)[lesson?.subject];
 const MATH_QUESTS = new Set(['count', 'add10', 'sub10', 'tens-ones', 'add-carry', 'skip-count', 'times', 'sub-borrow', 'fractions', 'mult-2x1', 'division', 'fraction-of', 'balance', 'decimals', 'area', 'negatives', 'percent', 'two-step', 'squares']);
 const PRAISES = 8;
 const NPC_TIPS = 10;
@@ -59,6 +67,12 @@ const DIRECTION = {
   hoot: 'Professor Hoot, a kind, slightly bookish owl who teaches math. Warm and encouraging, never rushed; smile in the voice. A soft “hoo-hoo” is welcome.',
   tock: 'Tock the Time-Keeper, an old, cosy tortoise who teaches history. A warm storyteller, unhurried, with a twinkle of wonder.',
   gizmo: 'Gizmo the Inventor, an excitable raccoon who runs the physics lab. Bright, curious and bouncy, with big “wow!” energy, but always clear.',
+  nutmeg: 'Nutmeg, a quick, cheerful squirrel who teaches Forest Math in a seed-pod school. Bright and bouncy, loves counting acorns, always patient.',
+  bramble: 'Grandpa Bramble, a big, gentle old bear who tells the forest’s history in the Root Hall. Deep, slow and cosy, like a story by the fire.',
+  ribbit: 'Dr. Ribbit, an excitable frog scientist who runs the Nature Lab. Curious and giggly, with a happy “ribbit!”, but always clear.',
+  pip: 'Captain Pip, a cheerful little penguin sea captain who teaches Sea Math on the islands. Brisk and jolly, a sailor’s “ahoy!”, always patient.',
+  inka: 'Grandma Inka, a wise, gentle old octopus who tells the sea’s history in her pavilion. Soft, cosy and full of wonder, like a bedtime story.',
+  splash: 'Dr. Splash, a playful seal scientist who runs the Ocean Lab. Bubbly and curious, giggly “ooh!”s, but clear when explaining.',
   townsfolk: 'The friendly little critters around the mountain (bunnies, mice, ducks, frogs). Light and chatty; a stage whisper for secrets.',
   'buddy-fox': 'The fox cub, the child’s buddy. Cheeky, bouncy and proud of them.',
   'buddy-robot': 'The little robot, the child’s buddy. Cheerful and a tiny bit precise. Your own real voice with no effects added.',
@@ -82,7 +96,13 @@ export function voiceCharacters(lang = 'en') {
   const out = [
     { id: 'hoot', group: 'teacher', species: 'owl', emoji: '🦉', name: tIn(lang, 'teacher.math'), subject: 'math' },
     { id: 'tock', group: 'teacher', species: 'tortoise', emoji: '🐢', name: tIn(lang, 'teacher.history'), subject: 'history' },
-    { id: 'gizmo', group: 'teacher', species: 'raccoon', emoji: '🦝', name: tIn(lang, 'teacher.physics'), subject: 'physics' }
+    { id: 'gizmo', group: 'teacher', species: 'raccoon', emoji: '🦝', name: tIn(lang, 'teacher.physics'), subject: 'physics' },
+    { id: 'nutmeg', group: 'teacher', species: 'squirrel', emoji: '🐿️', name: tIn(lang, 'forest.teacher.math'), subject: 'math', realm: 'forest' },
+    { id: 'bramble', group: 'teacher', species: 'bear', emoji: '🐻', name: tIn(lang, 'forest.teacher.history'), subject: 'history', realm: 'forest' },
+    { id: 'ribbit', group: 'teacher', species: 'frog', emoji: '🐸', name: tIn(lang, 'forest.teacher.physics'), subject: 'physics', realm: 'forest' },
+    { id: 'pip', group: 'teacher', species: 'penguin', emoji: '🐧', name: tIn(lang, 'sea.teacher.math'), subject: 'math', realm: 'sea' },
+    { id: 'inka', group: 'teacher', species: 'octopus', emoji: '🐙', name: tIn(lang, 'sea.teacher.history'), subject: 'history', realm: 'sea' },
+    { id: 'splash', group: 'teacher', species: 'seal', emoji: '🦭', name: tIn(lang, 'sea.teacher.physics'), subject: 'physics', realm: 'sea' }
   ];
   for (const l of historyLessons()) {
     const d = localizeLesson(l, lang).dialogue;
@@ -90,6 +110,10 @@ export function voiceCharacters(lang = 'en') {
   }
   const BOSS_EMOJI = ['☁️', '🦁', '🐉', '❄️', '🦋', '🦀', '🤖'];
   for (let n = 1; n <= FLOOR_COUNT; n++) out.push({ id: `boss-${n}`, group: 'boss', emoji: BOSS_EMOJI[n - 1] ?? '🎭', name: tIn(lang, `world.${n}.boss`), floor: n, direction: bossDirection(tIn('en', `world.${n}.boss`)) });
+  const FOREST_BOSS_EMOJI = ['🐭', '🦔', '🐿️', '🌸', '🦆', '🌻', '🐉'];
+  for (let n = 1; n <= FLOOR_COUNT; n++) out.push({ id: `forest-boss-${n}`, group: 'boss', emoji: FOREST_BOSS_EMOJI[n - 1], name: tIn(lang, `forest.world.${n}.boss`), floor: n, realm: 'forest', direction: bossDirection(tIn('en', `forest.world.${n}.boss`)) });
+  const SEA_BOSS_EMOJI = ['🦀', '🐙', '🐢', '🐧', '🫧', '🦭', '🤖'];
+  for (let n = 1; n <= FLOOR_COUNT; n++) out.push({ id: `sea-boss-${n}`, group: 'boss', emoji: SEA_BOSS_EMOJI[n - 1], name: tIn(lang, `sea.world.${n}.boss`), floor: n, realm: 'sea', direction: bossDirection(tIn('en', `sea.world.${n}.boss`)) });
   out.push({ id: 'townsfolk', group: 'townsfolk', emoji: '🐰', name: tIn(lang, 'credits.townsfolk') });
   const BUDDY_EMOJI = { fox: '🦊', robot: '🤖', dragon: '🐲', puff: '☁️', bunny: '🐰' };
   for (const b of BUDDY_IDS) out.push({ id: `buddy-${b}`, group: 'buddy', species: b, emoji: BUDDY_EMOJI[b], name: tIn(lang, `buddy.${b}`) });
@@ -138,9 +162,12 @@ export function buildScript(lang = 'en') {
   const key = (k, variant = null) => `t.${k}${variant != null ? `~${variant}` : ''}`;
 
   // ---- barks: teachers
-  for (const char of ['hoot', 'tock', 'gizmo']) {
+  for (const char of ['hoot', 'tock', 'gizmo', 'nutmeg', 'bramble', 'ribbit', 'pip', 'inka', 'splash']) {
     const subject = SUBJECT_OF[char];
-    add(char, key(`lesson.hello.${subject}`), 'bark', 0, T(`lesson.hello.${subject}`), 'Greeting: the child walks into the building and sees the quest list.');
+    // Each realm's teachers greet in their own words (lesson.js lesson.hello.* / <realm>.hello.*).
+    const realm = Object.keys(REALM_TEACHER_OF).find((r) => REALM_TEACHER_OF[r][subject] === char);
+    const hello = realm === 'land' ? `lesson.hello.${subject}` : `${realm}.hello.${subject}`;
+    add(char, key(hello), 'bark', 0, T(hello), 'Greeting: the child walks into the building and sees the quest list.');
     for (let i = 0; i < PRAISES; i++) add(char, key(`lesson.praise.${i}`), 'bark', 0, T(`lesson.praise.${i}`), 'Great job: a right answer (one of several, picked at random).');
     add(char, key('voice.teacher.tryAgain'), 'bark', 0, T('voice.teacher.tryAgain'), 'Try again: a wrong answer, before the hint shows.');
     add(char, key('voice.teacher.hint'), 'bark', 0, T('voice.teacher.hint'), 'Hint intro: the child pressed Hint.');
@@ -154,6 +181,20 @@ export function buildScript(lang = 'en') {
   add('gizmo', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
   add('gizmo', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
   add('gizmo', key('quest.physics.intro'), 'bark', 0, T('quest.physics.intro'), 'Lesson start: every physics quest begins with this.');
+  add('nutmeg', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
+  add('nutmeg', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
+  add('nutmeg', key('forest.quest.math'), 'bark', 0, T('forest.quest.math'), 'Lesson start: every Forest Math quest on the Great Tree begins with this.');
+  add('bramble', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
+  add('ribbit', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
+  add('ribbit', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
+  add('ribbit', key('forest.quest.physics'), 'bark', 0, T('forest.quest.physics'), 'Lesson start: every Nature Lab quest on the Great Tree begins with this.');
+  add('pip', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
+  add('pip', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
+  add('pip', key('sea.quest.math'), 'bark', 0, T('sea.quest.math'), 'Lesson start: every Sea Math quest on the islands begins with this.');
+  add('inka', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
+  add('splash', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
+  add('splash', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
+  add('splash', key('sea.quest.physics'), 'bark', 0, T('sea.quest.physics'), 'Lesson start: every Ocean Lab quest on the islands begins with this.');
   // ---- barks: buddies
   const BUDDY_BARKS = [
     ['hello', 'Greeting: the child starts playing.'],
@@ -180,15 +221,26 @@ export function buildScript(lang = 'en') {
     add(b, key(`world.${n}.line`), 'story', n, T(`world.${n}.line`), `The puzzle boss of floor ${n} greets the child before the riddles.`);
     add(b, key('puzzle.won'), 'bark', n, T('puzzle.won'), 'The child cheered the boss up (4 or more right).');
     add(b, key('puzzle.lost'), 'bark', n, T('puzzle.lost'), 'Not enough right answers this time.');
+    const fb = `forest-boss-${n}`;
+    add(fb, key(`forest.world.${n}.line`), 'story', n, T(`forest.world.${n}.line`), `The puzzle boss of the Great Tree's ring ${n} greets the child before the riddles.`);
+    add(fb, key('puzzle.won'), 'bark', n, T('puzzle.won'), 'The child cheered the boss up (4 or more right).');
+    add(fb, key('puzzle.lost'), 'bark', n, T('puzzle.lost'), 'Not enough right answers this time.');
+    const sb = `sea-boss-${n}`;
+    add(sb, key(`sea.world.${n}.line`), 'story', n, T(`sea.world.${n}.line`), `The puzzle boss of sea island ${n} greets the child before the riddles.`);
+    add(sb, key('puzzle.won'), 'bark', n, T('puzzle.won'), 'The child cheered the boss up (4 or more right).');
+    add(sb, key('puzzle.lost'), 'bark', n, T('puzzle.lost'), 'Not enough right answers this time.');
   }
 
   // ---- lessons, floor by floor
   for (const lesson0 of LESSONS) {
     const lesson = localizeLesson(lesson0, lang);
     const { id, floor, subject } = lesson0;
-    const teacher = TEACHER_OF[subject];
+    const teacher = teacherOf(lesson0);
     const where = `Lesson “${lesson0.title}” (${id}, floor ${floor})`;
-    if (subject === 'math') {
+    if (lesson0.realm && lesson0.realm !== 'land') {
+      const r = lesson0.realm;
+      if (subject === 'history') add(teacher, key(`${r}.quest.history`, id), 'story', floor, T(`${r}.quest.history`, { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }), `Story: the quest that starts ${where}.`);
+    } else if (subject === 'math') {
       const k = MATH_QUESTS.has(lesson0.topic) ? `quest.math.${lesson0.topic}.intro` : 'quest.math.default';
       add(teacher, key(k), 'story', floor, T(k), `Story: the quest that starts ${where}.`);
     } else if (subject === 'history') {

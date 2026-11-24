@@ -6,6 +6,7 @@
  *   buddies    fox cub, little robot, dragonling, puffball, bunny sprite
  *   teachers   Professor Hoot (owl), Tock (tortoise), Gizmo (raccoon)
  *   townsfolk  frog, hedgehog, mouse, duck, bear, crab, penguin, lion, yeti
+ *   the sea    octopus, seal, sea turtle (and the penguin and crab)
  *
  * Units: about one metre tall, feet at y = 0, facing +z.
  */
@@ -421,6 +422,89 @@ export const SPECIES = {
       ],
       paint: [E([0, 0.4, 0.17], [0.21, 0.29, 0.14], { col: '#ffffff', soft: 0.015 }), ...both(E([-0.1, 0.77, 0.21], [0.11, 0.12, 0.08], { col: '#ffffff', soft: 0.012 }))],
       face: { eyeX: 0.1, eyeY: 0.78, eyeR: 0.06, mouthY: null, cheekX: 0.18, cheekY: 0.68 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The Great Tree: a squirrel with tufted ears and a big curling tail. */
+  squirrel() {
+    const b = chibiBody({ socks: '#8a4a26' });
+    return {
+      color: '#d9824a', fur: 1, gloss: 0.2,
+      bones: skeleton({ earL: ['head', -0.15, 0.92, -0.02], earR: ['head', 0.15, 0.92, -0.02], tail: ['hips', 0, 0.2, -0.18], tail2: ['tail', 0, 0.55, -0.34] }),
+      parts: [
+        head([0, 0.68, 0], [0.33, 0.29, 0.29]),
+        ...both(E([-0.19, 0.58, 0.13], [0.15, 0.11, 0.13], { k: 0.08, bone: 'head', col: CREAM })),
+        ...both(T([-0.15, 0.9, -0.02], [-0.2, 1.08, -0.04], 0.085, 0.02, { k: 0.06, bone: 'earL' })),
+        ...b.parts,
+        C([0, 0.2, -0.18], [0, 0.42, -0.36], 0.12, { k: 0.08, bone: 'tail' }),
+        C([0, 0.42, -0.36], [0, 0.72, -0.34], 0.15, { k: 0.08, bone: 'tail2' }),
+        S([0, 0.82, -0.24], 0.13, { k: 0.07, bone: 'tail2' })
+      ],
+      paint: [...b.paint, ...both(S([-0.2, 1.07, -0.04], 0.03, { col: '#8a4a26', soft: 0.01 }))],
+      face: { eyeX: 0.12, eyeY: 0.7, eyeR: 0.072, mouthY: 0.57, cheekX: 0.2, cheekY: 0.6 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The sea islands: a round octopus, front tentacles up like arms, the rest curling on the ground. */
+  octopus() {
+    return {
+      color: '#c58cff', gloss: 0.5,
+      bones: skeleton({ head: ['chest', 0, 0.42, 0], earL: ['head', -0.12, 0.92, 0], earR: ['head', 0.12, 0.92, 0], armL: ['chest', -0.18, 0.28, 0.12], armR: ['chest', 0.18, 0.28, 0.12], legL: ['hips', -0.14, 0.16, 0.04], legR: ['hips', 0.14, 0.16, 0.04], tail: ['hips', 0, 0.16, -0.14] }),
+      parts: [
+        E([0, 0.64, -0.05], [0.33, 0.35, 0.31], { k: 0.12, bone: 'head' }),
+        E([0, 0.3, 0.02], [0.25, 0.15, 0.23], { k: 0.12, bone: 'chest' }),
+        ...both(C([-0.17, 0.3, 0.13], [-0.3, 0.24, 0.22], 0.06, { k: 0.05, bone: 'armL' }), T([-0.3, 0.24, 0.22], [-0.37, 0.34, 0.29], 0.05, 0.02, { k: 0.04, bone: 'armL' })),
+        ...both(C([-0.13, 0.2, 0.08], [-0.27, 0.05, 0.13], 0.065, { k: 0.05, bone: 'legL' }), T([-0.27, 0.05, 0.13], [-0.37, 0.05, 0.04], 0.05, 0.018, { k: 0.03, bone: 'legL' })),
+        ...both(C([-0.1, 0.18, -0.08], [-0.2, 0.05, -0.22], 0.06, { k: 0.05, bone: 'tail' }), T([-0.2, 0.05, -0.22], [-0.12, 0.05, -0.33], 0.045, 0.015, { k: 0.03, bone: 'tail' }))
+      ],
+      paint: [
+        ...[[0.14, 0.86, 0.14], [-0.17, 0.8, 0.18], [0.24, 0.66, 0.12], [-0.05, 0.93, -0.02], [0.02, 0.78, -0.3], [-0.24, 0.62, -0.12]].map((c) => S(c, 0.045, { col: '#9a63e0', soft: 0.01 })),
+        ...both(S([-0.36, 0.33, 0.29], 0.03, { col: CREAM, soft: 0.006 }), S([-0.36, 0.06, 0.05], 0.03, { col: CREAM, soft: 0.006 }))
+      ],
+      face: { eyeX: 0.12, eyeY: 0.62, eyeR: 0.075, mouthY: 0.49, cheekX: 0.21, cheekY: 0.53 },
+      hat: { lift: 0.08 }
+    };
+  },
+  /** The sea islands: a plump seal pup with front flippers, a whiskery muzzle and a tail of flippers. */
+  seal() {
+    return {
+      color: '#a9bccf', gloss: 0.55,
+      bones: skeleton({ head: ['chest', 0, 0.5, 0.06], armL: ['chest', -0.24, 0.28, 0.1], armR: ['chest', 0.24, 0.28, 0.1], legL: ['hips', -0.08, 0.08, -0.32], legR: ['hips', 0.08, 0.08, -0.32], tail: ['hips', 0, 0.1, -0.28] }),
+      parts: [
+        E([0, 0.3, -0.03], [0.26, 0.28, 0.29], { k: 0.12, bone: 'chest' }),
+        E([0, 0.14, -0.22], [0.19, 0.13, 0.22], { k: 0.12, bone: 'hips' }),
+        head([0, 0.68, 0.06], [0.27, 0.25, 0.25], { k: 0.15 }),
+        E([0, 0.61, 0.27], [0.12, 0.075, 0.07], { k: 0.05, bone: 'head', col: CREAM }),
+        S([0, 0.66, 0.33], 0.036, { k: 0.02, bone: 'head', col: INK }),
+        ...both(E([-0.25, 0.2, 0.12], [0.05, 0.13, 0.09], { k: 0.04, bone: 'armL', rot: [0.3, 0, -0.55] })),
+        ...both(E([-0.1, 0.05, -0.42], [0.1, 0.03, 0.08], { k: 0.04, bone: 'legL', rot: [0, 0.5, 0] }))
+      ],
+      paint: [
+        E([0, 0.3, 0.19], [0.16, 0.19, 0.12], { col: 'light', soft: 0.015 }),
+        ...[[0.16, 0.42, -0.2], [-0.18, 0.36, -0.14], [0.05, 0.5, -0.24], [-0.12, 0.86, -0.06]].map((c) => S(c, 0.035, { col: '#8096ad', soft: 0.008 }))
+      ],
+      face: { eyeX: 0.11, eyeY: 0.72, eyeR: 0.07, mouthY: 0.57, cheekX: 0.19, cheekY: 0.63 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The sea islands: a sea turtle with a domed teal shell and four flippers. */
+  seaturtle() {
+    return {
+      color: '#7fd6c0', gloss: 0.4,
+      bones: skeleton({ head: ['chest', 0, 0.46, 0.2], earL: ['head', -0.1, 0.85, 0.14], earR: ['head', 0.1, 0.85, 0.14], armL: ['chest', -0.3, 0.28, 0.16], armR: ['chest', 0.3, 0.28, 0.16], legL: ['hips', -0.22, 0.16, -0.24], legR: ['hips', 0.22, 0.16, -0.24], tail: ['hips', 0, 0.2, -0.38] }),
+      parts: [
+        E([0, 0.34, -0.06], [0.36, 0.22, 0.4], { k: 0.04, bone: 'chest', col: '#2f9d8b' }),
+        E([0, 0.25, -0.05], [0.38, 0.06, 0.42], { k: 0.04, bone: 'chest', col: '#e9d9a8' }),
+        C([0, 0.36, 0.2], [0, 0.5, 0.27], 0.1, { k: 0.06, bone: 'head' }),
+        head([0, 0.68, 0.3], [0.25, 0.22, 0.23]),
+        ...both(E([-0.36, 0.24, 0.18], [0.16, 0.035, 0.08], { k: 0.04, bone: 'armL', rot: [0, 0.5, -0.35] })),
+        ...both(E([-0.24, 0.16, -0.32], [0.09, 0.03, 0.06], { k: 0.04, bone: 'legL', rot: [0, -0.4, 0] }))
+      ],
+      paint: [
+        ...[[0, 0.55, -0.06], [0, 0.48, 0.18], [0, 0.46, -0.3], [-0.22, 0.47, -0.05], [0.22, 0.47, -0.05], [-0.17, 0.42, 0.17], [0.17, 0.42, 0.17], [-0.17, 0.42, -0.28], [0.17, 0.42, -0.28]].map((c) => S(c, 0.09, { col: '#4fbfa8', soft: 0.012 })),
+        ...[[0.1, 0.8, 0.38], [-0.12, 0.77, 0.4], [0.18, 0.66, 0.42]].map((c) => S(c, 0.03, { col: '#4fb39a', soft: 0.006 }))
+      ],
+      face: { eyeX: 0.11, eyeY: 0.71, eyeR: 0.068, mouthY: 0.59, cheekX: 0.18, cheekY: 0.62 },
       hat: { lift: 0 }
     };
   }

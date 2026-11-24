@@ -2,8 +2,9 @@ import { boot, tally, until } from './lib.mjs';
 
 /**
  * Arcademia's study worlds (src/arcademia/maps.js): the World Portal's
- * picker, travelling to the Great Tree and back, walking its rings and
- * bridges, a lesson from the tree, and the choice kept across a reload.
+ * picker, travelling to the Great Tree and the Lagoon and back, walking their
+ * rings, bridges and boardwalks, a lesson in each, their own lessons and
+ * teachers, and the choice kept across a reload.
  */
 export async function run(browser) {
   const t = tally();
@@ -83,12 +84,44 @@ export async function run(browser) {
     t.check('walking into the tree\'s World Portal opens the picker', await until(page, () => Boolean(document.querySelector('.arc-modal--worlds')), null, 40000));
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.arcademia.enter('math', 1));
-    t.check('a lesson opens from the tree', await until(page, () => window.arcademia.mode === 'lesson', null, 20000));
+    t.check('a lesson opens from the tree, taught by Nutmeg the squirrel', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'squirrel', null, 20000));
+    t.check('the tree teaches its own 42 forest lessons', await page.evaluate(() => window.arcademia.lessons.length === 42 && window.arcademia.lessons.every((l) => l.realm === 'forest')));
     await page.evaluate(() => window.arcademia.leaveLesson());
     await page.reload();
     await open();
     t.check('the chosen world is kept after a reload', (await page.evaluate(() => window.arcademia.map.id)) === 'tree');
-    await travel();
+    // The Lagoon: its own islands, teachers and lessons.
+    await page.evaluate(() => window.arcademia.switchMap('lagoon'));
+    await page.waitForTimeout(2500);
+    const sea = await page.evaluate(() => {
+      const g = window.arcademia;
+      return { map: g.map.id, realm: g.realm, kind: g.world.plan.kind, places: g.world.places.filter((p) => p.floor === 1).length, lessons: g.lessons.length, allSea: g.lessons.every((l) => l.realm === 'sea') };
+    });
+    t.check('the Lagoon opens: sea realm, island 1 with its villas', sea.map === 'lagoon' && sea.realm === 'sea' && sea.kind === 'lagoon' && sea.places >= 9, JSON.stringify(sea));
+    t.check('the Lagoon teaches its own 42 sea lessons', sea.lessons === 42 && sea.allSea, JSON.stringify(sea));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      const b = w.buildings.find((x) => x.subject === 'physics' && x.floor === 1);
+      window.__arrived = false;
+      w.goTo(b.at, () => (window.__arrived = true));
+    });
+    t.check('the buddy walks the boardwalk to the Reef Lab', await until(page, () => window.__arrived, null, 40000));
+    await page.evaluate(() => window.arcademia.enter('history', 1));
+    t.check('a sea lesson opens, taught by Grandma Inka', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'octopus', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    // Stars are kept per realm: a sea star opens nothing on the mountain.
+    const separate = await page.evaluate(() => {
+      const g = window.arcademia;
+      const stars = Object.fromEntries(g.lessons.filter((l) => l.floor === 1).map((l) => [l.id, 3]));
+      const saved = g.progress.stars;
+      g.progress.stars = { ...stars };
+      const seaOpen = [...g.floorsOpen()];
+      g.progress.stars = saved;
+      return { seaOpen };
+    });
+    t.check('sea stars open the next island', separate.seaOpen.includes(2), JSON.stringify(separate));
+    await page.evaluate(() => window.arcademia.switchMap('mountain'));
+    await page.waitForTimeout(2000);
     t.check('and back to the mountain', (await page.evaluate(() => window.arcademia.map.id)) === 'mountain');
     t.check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   } finally {

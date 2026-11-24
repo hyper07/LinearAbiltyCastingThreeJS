@@ -10,7 +10,7 @@
  *   time     seconds of study in a subject
  */
 import { FLOORS } from './floors.js';
-import { LESSONS, lessonById, TOPIC_NAMES } from './content/index.js';
+import { LESSONS, LAND_LESSONS, lessonById, TOPIC_NAMES } from './content/index.js';
 import { SUBJECTS, SUBJECT_NAMES } from './content/schema.js';
 
 export const MAX_STARS = 3;
@@ -39,17 +39,18 @@ export function starsFor(score, total) {
 }
 
 /** Lessons needed on a floor to open the one above it. */
-export function neededOn(floor, lessons = LESSONS) {
+export function neededOn(floor, lessons = LAND_LESSONS) {
   const count = lessons.filter((l) => l.floor === floor).length;
   return Math.ceil(count * UNLOCK_SHARE);
 }
 
 /**
  * Which floors are open: floor 1 always; each next one when enough lessons
- * on the floor below have a star. `stars` is { lessonId: stars }.
+ * on the floor below have a star. `stars` is { lessonId: stars }. A realm's
+ * floors count its own lessons (the land's by default; lessonsIn('sea') for the islands).
  * @returns {Set<number>}
  */
-export function openFloors(stars, { floors = FLOORS, lessons = LESSONS } = {}) {
+export function openFloors(stars, { floors = FLOORS, lessons = LAND_LESSONS } = {}) {
   const open = new Set([floors[0].n]);
   for (let i = 1; i < floors.length; i++) {
     const below = floors[i - 1].n;
@@ -61,7 +62,7 @@ export function openFloors(stars, { floors = FLOORS, lessons = LESSONS } = {}) {
 }
 
 /** Stars on a floor, and how many there are to get. */
-export function floorStars(stars, floor, lessons = LESSONS) {
+export function floorStars(stars, floor, lessons = LAND_LESSONS) {
   const here = lessons.filter((l) => l.floor === floor);
   return { have: here.reduce((s, l) => s + Math.min(MAX_STARS, stars[l.id] ?? 0), 0), of: here.length * MAX_STARS, done: here.filter((l) => (stars[l.id] ?? 0) > 0).length, lessons: here.length };
 }

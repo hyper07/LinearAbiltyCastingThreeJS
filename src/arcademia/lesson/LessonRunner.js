@@ -22,7 +22,7 @@ import { lessonsOn, quizFor, lessonById } from '../content/index.js';
 import { makeProblem } from '../content/math.js';
 import { questFor } from '../quests.js';
 import { buildClassroom, buildHall, buildLab } from '../world/interiors.js';
-import { makeCreature, TEACHERS } from '../world/figures.js';
+import { makeCreature, TEACHERS, teachersIn } from '../world/figures.js';
 import { Chalkboard } from './chalkboard.js';
 import { mountPractice } from './practice.js';
 import { createSim } from './sims.js';
@@ -31,7 +31,7 @@ import { TutorPanel, tutorStatus } from '../ui/tutor.js';
 import { speech } from '../sound.js';
 import { levelOf } from '../gamestate.js';
 import { t as tr, localizeLesson } from '../i18n/index.js';
-import { TEACHER_OF } from '../voice/script.js';
+import { REALM_TEACHER_OF } from '../voice/script.js';
 
 const ROOMS = { math: buildClassroom, history: buildHall, physics: buildLab };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -50,10 +50,12 @@ class Runner {
     this.look = (game.floors ?? FLOORS)[floor - 1];
     /** The way back out: to the mountain, the tree… (maps.js) */
     this.back = game.map?.back ?? ['lesson.back', 'lesson.backAria'];
-    this.teacher = TEACHERS[subject];
+    /** The realm's teachers: the land's, or the sea islands' (maps.js). */
+    this.realm = game.map?.realm ?? 'land';
+    this.teacher = teachersIn(this.realm)[subject];
     game._rooms ??= new Map();
     const key = `${game.map?.id ?? 'mountain'}:${subject}:${floor}`;
-    if (!game._rooms.has(key)) game._rooms.set(key, ROOMS[subject](this.look.look));
+    if (!game._rooms.has(key)) game._rooms.set(key, ROOMS[subject](this.look.look, this.teacher.species));
     this.room = game._rooms.get(key);
     this.camera = new THREE.PerspectiveCamera(46, 1, 0.1, 120);
     this.camAt = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
@@ -67,7 +69,7 @@ class Runner {
     this.buddy.group.rotation.y = spot[3];
     this.room.scene.add(this.buddy.group);
     this.voice = game.prefs.voice ?? floor <= 2;
-    this.teacherChar = TEACHER_OF[subject];
+    this.teacherChar = REALM_TEACHER_OF[this.realm][subject];
     this.buddyChar = `buddy-${game.gs.buddy?.species ?? 'fox'}`;
     this.time = 0;
     this._ui();
@@ -107,7 +109,7 @@ class Runner {
     this.root.append(top, this.main, this.sayEl, this.combo);
     this.game.root.append(this.root);
     this.tutor = new TutorPanel(this.root, {
-      lessonId: () => this.lesson?.id ?? lessonsOn(this.floor, this.subject)[0].id,
+      lessonId: () => this.lesson?.id ?? lessonsOn(this.floor, this.subject, this.realm)[0].id,
       context: () => this.ctx ?? { step: this.lesson?.title ?? '' },
       voice: () => this.voice
     });
@@ -262,7 +264,7 @@ class Runner {
     this.titleEl.textContent = `${SUBJECT_ICON[this.subject]} ${this.teacher.name}`;
     this.stepsEl.replaceChildren();
     if (start) return this.run(start);
-    const list = lessonsOn(this.floor, this.subject);
+    const list = lessonsOn(this.floor, this.subject, this.realm);
     const card = el('section', 'arc-card arc-lobby');
     card.append(el('h2', null, tr('lesson.pick', { emoji: this.teacher.emoji })));
     const grid = el('div', 'arc-lobby__grid');
@@ -278,7 +280,9 @@ class Runner {
     grid.append(arcade);
     card.append(grid);
     this.main.append(card);
-    this.say(tr(`lesson.hello.${this.subject}`), { line: `t.lesson.hello.${this.subject}` });
+    // Each realm's teacher greets in their own words (lesson.js lesson.hello.* on the mountain, <realm>.hello.* elsewhere).
+    const hello = this.realm === 'land' ? `lesson.hello.${this.subject}` : `${this.realm}.hello.${this.subject}`;
+    this.say(tr(hello), { line: `t.${hello}` });
     speech.preloadFloor(this.floor, this.buddyChar);
   }
 
@@ -293,7 +297,7 @@ class Runner {
     let score;
     if (this.subject === 'math') score = this.floor <= 2 && Math.random() < 0.5 ? await feedMonster(frame, ctx) : await bubblePop(frame, ctx);
     else if (this.subject === 'physics') score = await launch(frame, ctx);
-    else score = await whoSaid(frame, { ...ctx, lessons: lessonsOn(this.floor, 'history') });
+    else score = await whoSaid(frame, { ...ctx, lessons: lessonsOn(this.floor, 'history', this.realm) });
     if (!this.root.isConnected) return;
     const got = this.game.gs.event('arcade', { game: `${this.subject}-${this.floor}`, score });
     this.buddy.cheer(1.6);
@@ -558,7 +562,7 @@ class Runner {
     const check = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.tlCheck'), null);
     card.append(slotsEl, trayEl, check, fb);
     this.main.append(card);
-    this.say(tr('lesson.tlSay'), { who: TEACHERS.history.emoji, line: 't.lesson.tlSay' });
+    this.say(tr('lesson.tlSay'), { who: this.teacher.emoji, line: 't.lesson.tlSay' });
     this.ctx = { step: tr('lesson.ctxTimeline', { title: t.title }), hint: tr('lesson.tlHint'), worked: right.map((e) => `${e.when}: ${e.label}`).join(' → ') };
     const draw = () => {
       slotsEl.replaceChildren();
@@ -647,7 +651,7 @@ class Runner {
     canvas.addEventListener('pointerdown', down);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-    this.say(tr('lesson.lookFound', { name: a.name }), { who: TEACHERS.history.emoji, line: `t.lesson.lookFound~${this.lesson.id}` });
+    this.say(tr('lesson.lookFound', { name: a.name }), { who: this.teacher.emoji, line: `t.lesson.lookFound~${this.lesson.id}` });
     try {
       await this.until(next);
     } finally {
@@ -924,7 +928,7 @@ class Runner {
   }
 
   nextLesson() {
-    const list = lessonsOn(this.floor, this.subject);
+    const list = lessonsOn(this.floor, this.subject, this.realm);
     const i = list.findIndex((l) => l.id === this.lesson.id);
     return list.slice(i + 1).find((l) => true) ?? list.find((l) => !(this.game.progress.stars[l.id] > 0) && l.id !== this.lesson.id) ?? null;
   }

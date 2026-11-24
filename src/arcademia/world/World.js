@@ -26,6 +26,9 @@ import { planTree } from './tree/plan.js';
 import { buildLayerNav } from './tree/nav.js';
 import { buildTreeWorld } from './tree/scene.js';
 import { leafCanopy } from './grown.js';
+import { thatchGazebo, SEA_LANDMARK_ICONS } from './resort.js';
+import { planLagoon } from './lagoon/plan.js';
+import { buildLagoonWorld } from './lagoon/scene.js';
 import { makeCreature, BUDDY_COLORS } from './figures.js';
 import { buildParticles } from './particles.js';
 import { WORLDS } from '../quests.js';
@@ -44,21 +47,25 @@ const placeInfo = (icon, id) => ({ icon, get name() {
   return tr(`place.${id}`);
 } });
 export const PLACE_INFO = { shop: placeInfo('🎩', 'shop'), arcade: placeInfo('🕹️', 'arcade'), museum: placeInfo('🌈', 'museum'), board: placeInfo('📋', 'board'), portal: placeInfo('🌀', 'portal'), worlds: placeInfo('🌍', 'worlds') };
-const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼' };
+const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼', ...SEA_LANDMARK_ICONS };
 const landmarkName = (id) => `${LANDMARK_ICONS[id] ?? ''} ${tr(`landmark.${id}`)}`;
 const SUBJECTS = ['math', 'history', 'physics'];
 
 export class World {
-  constructor({ floors, labels, renderer, reducedMotion = false, buddy = null, on = {}, kind = 'mountain' }) {
+  constructor({ floors, labels, renderer, reducedMotion = false, buddy = null, on = {}, kind = 'mountain', worlds = WORLDS }) {
     this.floors = floors;
+    /** Each floor's story and puzzle boss (the land's, or the sea islands', quests.js). */
+    this.worlds = worlds;
     this.kind = kind;
     this.labelsEl = labels;
     this.renderer = renderer;
     this.reducedMotion = reducedMotion;
     this.on = on;
     this.buddy = buddy ?? { species: 'fox', color: '#ff9b54', hat: 'party' };
-    this.plan = kind === 'tree' ? planTree(floors.length) : planMountain(floors.length);
+    this.plan = kind === 'tree' ? planTree(floors.length) : kind === 'lagoon' ? planLagoon(floors.length) : planMountain(floors.length);
     this.isTree = this.plan.kind === 'tree';
+    /** The tree and the lagoon: their own scenery, the layered walking grid, spots from the plan. */
+    this.custom = this.plan.kind === 'tree' || this.plan.kind === 'lagoon';
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(DAY.fog, 160, 600);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.5, 2000);
@@ -100,12 +107,13 @@ export class World {
     });
     this.sky = buildSky();
     scene.add(this.sky);
-    if (this.isTree) {
-      // The Great Tree: trunk, rings of decks and bridges, the spiral stair and its gates (tree/scene.js).
-      this.tree = buildTreeWorld(plan, floors);
-      scene.add(this.tree.group);
-      this.terrain = this.tree.walk;
-      this.gates = this.tree.gates;
+    if (this.custom) {
+      // The Great Tree (tree/scene.js) or the Lagoon (lagoon/scene.js): walkable parts, gates, the rest.
+      this.scenery = this.isTree ? buildTreeWorld(plan, floors) : buildLagoonWorld(plan, floors);
+      if (this.isTree) this.tree = this.scenery;
+      scene.add(this.scenery.group);
+      this.terrain = this.scenery.walk;
+      this.gates = this.scenery.gates;
       this.bridges = [];
     } else {
       this.terrain = buildTerrain(plan, floors);
@@ -144,8 +152,8 @@ export class World {
     });
     this._extras();
     // Nature.
-    if (this.isTree) {
-      this.fireflies = buildFireflies(plan, this.tree.fireflySpots);
+    if (this.custom) {
+      this.fireflies = buildFireflies(plan, this.scenery.fireflySpots);
     } else {
       const trees = buildTrees(plan, floors);
       scene.add(trees);
@@ -177,13 +185,13 @@ export class World {
     const start = plan.start ?? { x: door.x + 1.5, z: door.z + 3.2, y: plan.floors[0].y };
     this.kidPos = new THREE.Vector3(start.x, 0, start.z);
     this.kidPos.y = plan.height(this.kidPos.x, this.kidPos.z, start.y);
-    this.kidHeading = this.isTree ? Math.atan2(start.x, start.z) : Math.PI;
+    this.kidHeading = this._facing(start.x, start.z) ?? Math.PI;
     this.path = null;
     this._people();
 
     const dom = this.renderer.domElement;
     this.controls = new OrbitControls(this.camera, dom);
-    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 5, maxDistance: 260, minPolarAngle: 0.35, maxPolarAngle: 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
+    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 5, maxDistance: this.plan.kind === 'lagoon' ? 380 : 260, minPolarAngle: 0.35, maxPolarAngle: 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
     this.controls.target.copy(this.kidPos).add(new THREE.Vector3(0, 1, 0));
     this.home();
     this._camTween = null;
@@ -217,7 +225,7 @@ export class World {
     el.className = `arc-pill${subject ? '' : ' arc-pill--place'}`;
     el.innerHTML = '<span class="arc-pill__icon" aria-hidden="true"></span><span class="arc-pill__name"></span><span class="arc-pill__meta"></span>';
     el.querySelector('.arc-pill__icon').textContent = subject ? SUBJECT_ICONS[p.kind] : p.kind === 'landmark' ? '' : PLACE_INFO[p.kind].icon;
-    const nameOf = () => (subject ? BUILDING_NAMES[p.kind] : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
+    const nameOf = () => (subject ? (look.look.resort ? tr(`sea.building.${p.kind}`) : look.look.grown ? tr(`forest.building.${p.kind}`) : BUILDING_NAMES[p.kind]) : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
     el.querySelector('.arc-pill__name').textContent = nameOf();
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -226,7 +234,7 @@ export class World {
     this.labelsEl.append(el);
     entry.label = el;
     // Grown buildings (the Great Tree) are taller, and the small places wear a canopy: lift their labels.
-    const tall = Boolean(look.look.grown);
+    const tall = Boolean(look.look.grown || look.look.resort);
     const top = subject ? (tall ? 11.2 : 8.5) : p.kind === 'landmark' ? 9.5 : tall && p.kind !== 'worlds' ? 6.6 : 4.6;
     this.labels.push({ el, entry, extra: !subject, nameOf, pos: new THREE.Vector3(p.x, f.y + top, p.z) });
     this.places.push(entry);
@@ -251,8 +259,8 @@ export class World {
       m.rotation.y = e.p.yaw ?? 0;
       m.userData.yaw = m.rotation.y;
       // On the Great Tree the shop, arcade, museum and board sit under a grown canopy of roots and leaves.
-      if (look.look.grown && ['shop', 'arcade', 'museum', 'board'].includes(e.kind)) {
-        const c = leafCanopy(look.look, e.p.r, n * 31 + e.kind.length);
+      if ((look.look.grown || look.look.resort) && ['shop', 'arcade', 'museum', 'board'].includes(e.kind)) {
+        const c = look.look.resort ? thatchGazebo(look.look, e.p.r, n * 31 + e.kind.length) : leafCanopy(look.look, e.p.r, n * 31 + e.kind.length);
         c.position.copy(m.position);
         c.rotation.y = m.rotation.y;
         g.add(c);
@@ -285,7 +293,7 @@ export class World {
     const putToy = (x, z, i) => {
       const t = toy(kinds[i], look.look, n * 10 + i);
       t.position.set(x, this.plan.ground(x, z, f.y), z);
-      t.rotation.y = this.isTree ? Math.atan2(x, z) + r() * 0.6 - 0.3 : r() * 0.6 - 0.3;
+      t.rotation.y = (this._facing(x, z) ?? 0) + r() * 0.6 - 0.3;
       g.add(t);
       this.toys.push({ floor: n, group: t, kind: kinds[i], x, z });
     };
@@ -377,7 +385,7 @@ export class World {
         bx = f.plinths[1].x + 9;
         bz = f.plinths[1].z;
       }
-      const w = WORLDS[f.n];
+      const w = this.worlds[f.n];
       const boss = makeCreature({ species: w.boss.species, color: w.boss.color, scale: 2.3, hat: f.n === 7 ? 'crown' : 'none', lod: 'mid', seed: f.n });
       boss.group.position.set(bx, this.plan.height(bx, bz, f.y), bz);
       boss.group.rotation.y = f.boss ? f.boss.yaw : 0.3;
@@ -455,15 +463,16 @@ export class World {
     const opts = {
       locked: (n) => this.locked.has(n),
       blockers: [
-        ...this.places.filter((p) => p.p && p.kind !== 'portal').map((p) => ({ x: p.p.x, z: p.subject && !this.isTree ? p.p.z - 0.4 : p.p.z, y: yOf(p.floor), r: p.subject ? 3.25 : p.p.r * 0.85 })),
+        ...this.places.filter((p) => p.p && p.kind !== 'portal').map((p) => ({ x: p.p.x, z: p.subject && !this.custom ? p.p.z - 0.4 : p.p.z, y: yOf(p.floor), r: p.subject ? 3.25 : p.p.r * 0.85 })),
         ...(this.chests ?? []).map((c) => ({ x: c.group.position.x, z: c.group.position.z, y: c.group.position.y, r: 0.9 })),
         ...(this.chests ?? []).map((c) => ({ x: c.rock.x, z: c.rock.z, y: c.group.position.y, r: 1.6 })),
         ...(this.bosses ?? []).map((b) => ({ x: b.fig.group.position.x, z: b.fig.group.position.z, y: b.fig.group.position.y, r: 1.1 }))
       ],
       bridges: this.bridges
     };
-    this.nav = this.isTree ? buildLayerNav(this.plan, opts) : buildNavGrid(this.plan, opts);
-    if (this.isTree) this.tree.tiers.forEach((t, k) => {
+    if (this.plan.palms) opts.blockers.push(...this.plan.floors.flatMap((f) => f.palms.map((p) => ({ x: p.x, z: p.z, y: f.y, r: 0.6 }))));
+    this.nav = this.custom ? buildLayerNav(this.plan, opts) : buildNavGrid(this.plan, opts);
+    if (this.custom) this.scenery.tiers.forEach((t, k) => {
       this._dim(t.walk, this.locked.has(k + 1));
       this._dim(t.deco, this.locked.has(k + 1));
     });
@@ -531,8 +540,14 @@ export class World {
 
   /** On the tree, turn a camera offset so it looks from outside the ring, wherever the buddy is round the trunk. */
   _rel(v) {
-    if (this.isTree) v.applyAxisAngle(UP, Math.atan2(this.kidPos.x, this.kidPos.z));
+    const a = this._facing(this.kidPos.x, this.kidPos.z);
+    if (a != null) v.applyAxisAngle(UP, a);
     return v;
+  }
+  /** Which way is "out" at a point (the tree: from the trunk; the lagoon: from its island's middle), or null on the mountain. */
+  _facing(x, z) {
+    if (this.plan.facing) return this.plan.facing(x, z);
+    return this.isTree ? Math.atan2(x, z) : null;
   }
   home() {
     const t = this.kidPos.clone().add(new THREE.Vector3(0, 1, 0));
@@ -553,7 +568,7 @@ export class World {
   }
   closeUp() {
     const t = this.kidPos.clone().add(new THREE.Vector3(0, 0.7, 0));
-    this.kidHeading = this.isTree ? Math.atan2(this.kidPos.x, this.kidPos.z) : 0;
+    this.kidHeading = this._facing(this.kidPos.x, this.kidPos.z) ?? 0;
     this._tweenCam(t, this._rel(new THREE.Vector3(1.4, 1.1, 4.2)), 0.8);
   }
   showBoss(n) {
@@ -561,10 +576,12 @@ export class World {
     if (!b) return;
     const p = b.fig.group.position;
     const off = new THREE.Vector3(2.5, 2.2, 8.5);
-    if (this.isTree) off.applyAxisAngle(UP, Math.atan2(p.x, p.z));
+    const fa = this._facing(p.x, p.z);
+    if (fa != null) off.applyAxisAngle(UP, fa);
     this._tweenCam(new THREE.Vector3(p.x, p.y + 1.6, p.z), off, 0.9);
   }
   overview() {
+    if (this.plan.overview) return this._tweenCam(new THREE.Vector3(...this.plan.overview.target), new THREE.Vector3(...this.plan.overview.offset), 1.2);
     if (this.isTree) return this._tweenCam(new THREE.Vector3(0, 34, 0), new THREE.Vector3(150, 62, 175), 1.2);
     const mid = this.plan.floors[Math.floor(this.plan.floors.length / 2)];
     this._tweenCam(new THREE.Vector3(0, mid.y - 6, mid.cz + 10), new THREE.Vector3(95, 85, 170), 1.2);
@@ -663,7 +680,7 @@ export class World {
         if (o === this.terrain || isChild(this.terrain, o)) {
           this.select(null);
           // On the tree a ring above may be in the way: prefer the buddy's own ring when the ray meets it too.
-          const same = this.isTree ? hits.find((q) => isChild(this.terrain, q.object) && this.plan.floorAt(q.point.x, q.point.z, q.point.y) === this.kidFloor) : null;
+          const same = this.custom ? hits.find((q) => isChild(this.terrain, q.object) && this.plan.floorAt(q.point.x, q.point.z, q.point.y) === this.kidFloor) : null;
           const p = (same ?? h).point;
           this.walkTo(p.x, p.z, p.y);
           return;
@@ -743,7 +760,7 @@ export class World {
     this.path = null;
     this.arrive = null;
     this.marker.visible = false;
-    this.kidHeading = this.isTree ? Math.atan2(spot[0], spot[1]) : 0;
+    this.kidHeading = this._facing(spot[0], spot[1]) ?? 0;
     this._ensureDetail(n);
     this.kid.hop();
     this.home();
@@ -826,7 +843,8 @@ export class World {
     updateCutout(this.camera, this.renderer, this._cut, 1.1 * KID_SCALE, dist < 70 && !this.paused);
     this.scene.fog.near = 80 + dist * 1.2;
     this.scene.fog.far = 360 + dist * 3;
-    const tf = Math.max(1, Math.min(this.floors.length, Math.round(this.controls.target.y / (this.plan.floorH ?? FLOOR_H)) + 1));
+    const ct0 = this.controls.target;
+    const tf = this.plan.focusFloor ? this.plan.focusFloor(ct0.x, ct0.z) : Math.max(1, Math.min(this.floors.length, Math.round(ct0.y / (this.plan.floorH ?? FLOOR_H)) + 1));
     if (tf !== this.focusFloor) {
       this.focusFloor = tf;
       this.particles.userData.setFloor(this.plan.floors[tf - 1], this.floors[tf - 1].look);
@@ -852,6 +870,7 @@ export class World {
     }
     windClock.uTime.value = this.reducedMotion ? 0 : t;
     this.water?.userData.update(this.reducedMotion ? 0 : t);
+    this.scenery?.update?.(this.reducedMotion ? 0 : t, this.night);
     this.particles.userData.update(this.reducedMotion ? 0 : dt);
     this.moonProps?.userData.update(this.reducedMotion ? 0 : t);
     if (!this.reducedMotion) {
@@ -947,7 +966,7 @@ export class World {
       speed = 5.2;
     }
     // Safety net (the tree): nothing to stand on near this height — back onto the nearest open spot of your own floor.
-    if (this.isTree && !this.path && !this.plan.locate(kp.x, kp.z, kp.y)) {
+    if (this.custom && !this.path && !this.plan.locate(kp.x, kp.z, kp.y)) {
       const fy = this.plan.floors[this.kidFloor - 1].y;
       const spot = this.nav.nearestOpen(kp.x, kp.z, fy);
       if (spot) kp.set(spot[0], fy, spot[1]);
@@ -1071,7 +1090,7 @@ export class World {
     this.sky.userData.moon.material.opacity = k;
     this.fireflies.userData.material.uniforms.uNight.value = k;
     waterClock.uNight.value = k;
-    this.tree?.setNight(k);
+    this.scenery?.setNight?.(k);
     this.on.night?.(k);
   }
 

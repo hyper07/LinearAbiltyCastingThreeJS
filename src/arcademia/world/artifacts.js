@@ -182,6 +182,72 @@ const MODELS = {
     add(g, new THREE.TorusGeometry(0.45, 0.06, 6, 20), wood(), [0, 0.52, 0]);
     add(g, cyl(0.1, 0.1, 0.18, 10), wood(), [0, 0.52, 0], [Math.PI / 2, 0, 0]);
     for (let i = 0; i < 8; i++) add(g, box(0.04, 0.84, 0.05), wood(), [0, 0.52, 0], [0, 0, (i / 8) * Math.PI]);
+  },
+  // The sea islands.
+  anchor: (g) => {
+    add(g, cyl(0.05, 0.05, 0.85, 8), iron(), [0, 0.55, 0]);
+    add(g, new THREE.TorusGeometry(0.09, 0.03, 6, 14), iron(), [0, 1.03, 0]);
+    add(g, box(0.5, 0.05, 0.05), iron(), [0, 0.85, 0]);
+    add(g, new THREE.TorusGeometry(0.32, 0.05, 6, 18, Math.PI), iron(), [0, 0.42, 0], [0, 0, Math.PI]);
+    for (const s of [-1, 1]) add(g, cone(0.08, 0.16, 4), iron(), [s * 0.32, 0.48, 0], [0, 0, s * 0.5]);
+  },
+  conch: (g) => {
+    g.add(lathe([[0, 0], [0.18, 0.05], [0.3, 0.25], [0.28, 0.45], [0.18, 0.62], [0.08, 0.82], [0, 0.9]], mat('#f6c9b0', { rough: 0.6 }), 18));
+    add(g, sphere(0.2, 12, 8), mat('#f08a7a', { rough: 0.4 }), [0.12, 0.3, 0.15], [0, 0, 0], [1, 1.3, 0.6]);
+    for (let i = 0; i < 5; i++) add(g, new THREE.TorusGeometry(0.25 - i * 0.04, 0.02, 4, 16), mat('#e8a98c'), [0, 0.2 + i * 0.13, 0], [Math.PI / 2, 0, 0]);
+  },
+  'ship-wheel': (g) => {
+    add(g, new THREE.TorusGeometry(0.38, 0.05, 8, 24), wood(), [0, 0.6, 0]);
+    add(g, cyl(0.09, 0.09, 0.12, 12), gold(), [0, 0.6, 0], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      add(g, cyl(0.025, 0.03, 0.62, 6), wood(), [Math.cos(a) * 0.3, 0.6 + Math.sin(a) * 0.3, 0], [0, 0, a + Math.PI / 2]);
+    }
+    add(g, box(0.12, 0.3, 0.12), wood(), [0, 0.15, 0]);
+  },
+  'diving-helmet': (g) => {
+    add(g, sphere(0.36, 18, 12), bronze(), [0, 0.6, 0]);
+    add(g, cyl(0.3, 0.36, 0.2, 18), bronze(), [0, 0.25, 0]);
+    for (const [x, z, r] of [[0, 0.33, 0.14], [0.3, 0.12, 0.09], [-0.3, 0.12, 0.09]]) {
+      add(g, cyl(r + 0.03, r + 0.03, 0.06, 14), gold(), [x, 0.62, z], [Math.PI / 2, Math.atan2(x, z), 0]);
+      add(g, cyl(r, r, 0.07, 14), mat('#7fb8d6', { rough: 0.2 }), [x * 1.02, 0.62, z * 1.02], [Math.PI / 2, Math.atan2(x, z), 0]);
+    }
+  },
+  pearl: (g) => {
+    for (const s of [-1, 1]) add(g, new THREE.SphereGeometry(0.42, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat('#a7b3c4', { rough: 0.5 }), [0, 0.25, s * 0.02], [s > 0 ? -0.5 : Math.PI, 0, 0], [1, 0.35, 1]);
+    add(g, sphere(0.15, 16, 12), mat('#fff8f0', { rough: 0.15, metal: 0.3 }), [0, 0.32, 0.05]);
+  },
+  'message-bottle': (g) => {
+    g.add(lathe([[0, 0], [0.16, 0.02], [0.17, 0.5], [0.08, 0.66], [0.06, 0.82], [0, 0.82]], mat('#8fd0b4', { rough: 0.15, opacity: 0.6 }), 16));
+    add(g, cyl(0.05, 0.05, 0.1, 8), wood(), [0, 0.86, 0]);
+    add(g, cyl(0.07, 0.07, 0.32, 10), cream(), [0, 0.28, 0]);
+  },
+  // The Great Tree.
+  acorn: (g) => {
+    add(g, sphere(0.3, 16, 12), mat('#b5793f', { rough: 0.5 }), [0, 0.42, 0], [0, 0, 0], [1, 1.25, 1]);
+    add(g, new THREE.SphereGeometry(0.33, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat('#7a5a36', { rough: 0.95 }), [0, 0.62, 0]);
+    add(g, cyl(0.03, 0.04, 0.16, 6), mat('#5a3a20'), [0, 0.98, 0]);
+  },
+  pinecone: (g) => {
+    for (let i = 0; i < 9; i++) {
+      const y = 0.15 + i * 0.09, r = 0.32 * Math.sin(Math.PI * (0.15 + i / 10));
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + i * 0.4;
+        add(g, box(0.12, 0.04, 0.16), mat(i % 2 ? '#8a5a32' : '#a06a3a', { rough: 0.9 }), [Math.sin(a) * r, y, Math.cos(a) * r], [-0.5, a, 0]);
+      }
+    }
+    add(g, sphere(0.2, 10, 8), mat('#6b4426'), [0, 0.5, 0], [0, 0, 0], [1, 2.2, 1]);
+  },
+  'tree-ring': (g) => {
+    add(g, cyl(0.45, 0.45, 0.16, 28), mat('#e8c99a', { rough: 0.9 }), [0, 0.5, 0], [Math.PI / 2, 0, 0]);
+    for (let i = 1; i < 7; i++) add(g, new THREE.TorusGeometry(i * 0.06, 0.008, 4, 32), mat('#9a6b45'), [0, 0.5, 0.085]);
+    add(g, new THREE.TorusGeometry(0.45, 0.04, 6, 32), mat('#6b4a30'), [0, 0.5, 0]);
+    add(g, box(0.5, 0.06, 0.3), wood(), [0, 0.03, 0]);
+  },
+  magnifier: (g) => {
+    add(g, new THREE.TorusGeometry(0.28, 0.04, 8, 28), gold(), [0, 0.72, 0]);
+    add(g, cyl(0.26, 0.26, 0.02, 24), mat('#cfefff', { rough: 0.1, opacity: 0.5 }), [0, 0.72, 0], [Math.PI / 2, 0, 0]);
+    add(g, cyl(0.05, 0.06, 0.5, 8), wood(), [0, 0.22, 0], [0, 0, 0.0]);
   }
 };
 

@@ -7,12 +7,15 @@
 import { el, button, SUBJECT_ICON, SUBJECT_LABEL, sparkle } from './dom.js';
 import { FLOORS } from '../floors.js';
 import { floorStars, neededOn } from '../rules.js';
+import { LAND_LESSONS } from '../content/index.js';
 import { lessonsOn } from '../content/index.js';
 import { t, num, localizeLesson } from '../i18n/index.js';
 
 export class Hud {
-  constructor(root, actions, { floors = FLOORS, map = null } = {}) {
+  constructor(root, actions, { floors = FLOORS, map = null, lessons = LAND_LESSONS, realm = 'land' } = {}) {
     this.actions = actions;
+    this.lessons = lessons;
+    this.realm = realm;
     this.floors = floors;
     this.map = map;
     this.root = el('div', 'arc-hud');
@@ -118,7 +121,7 @@ export class Hud {
     this.sub.textContent = t('hud.sub', { n: f.n, name: f.name, ages: f.ages });
     FL.forEach((fl, i) => {
       const b = this.navItems[i];
-      const fs = floorStars(stars, fl.n);
+      const fs = floorStars(stars, fl.n, this.lessons);
       const locked = !open.has(fl.n);
       b.classList.toggle('is-locked', locked);
       b.classList.toggle('is-here', fl.n === kidFloor);
@@ -128,21 +131,21 @@ export class Hud {
       b.setAttribute('aria-current', fl.n === kidFloor ? 'location' : 'false');
     });
     // The card: the next lesson on the kid's floor.
-    const fs = floorStars(stars, kidFloor);
+    const fs = floorStars(stars, kidFloor, this.lessons);
     this.card.querySelector('.arc-quest__floor').textContent = t('hud.floor', { n: kidFloor });
     const bar = this.card.querySelector('.arc-quest__bar');
     bar.setAttribute('aria-valuemax', String(fs.of));
     bar.setAttribute('aria-valuenow', String(fs.have));
     bar.setAttribute('aria-label', t('hud.barAria', { have: fs.have, of: fs.of }));
     this.card.querySelector('.arc-quest__fill').style.width = `${(100 * fs.have) / Math.max(1, fs.of)}%`;
-    const need = neededOn(kidFloor);
+    const need = neededOn(kidFloor, this.lessons);
     const above = FL[kidFloor];
     this.card.querySelector('.arc-quest__count').textContent = above
       ? open.has(above.n)
         ? t('hud.countOpen', { done: fs.done, all: fs.lessons, n: above.n })
         : t('hud.countNeed', { done: fs.done, need, n: above.n })
       : t('hud.countTop', { done: fs.done, all: fs.lessons });
-    if (current) {
+    if (current?.lesson) {
       this.card.querySelector('.arc-quest__icon').textContent = SUBJECT_ICON[current.lesson.subject];
       const cur = localizeLesson(current.lesson), next = current.next && localizeLesson(current.next);
       this.card.querySelector('.arc-quest__title').textContent = cur.title;
@@ -212,6 +215,7 @@ export class Hud {
   _minimap({ stars, open, kidFloor, focusFloor }) {
     const FL = this.floors;
     const n = FL.length;
+    if (this.map?.kind === 'lagoon') return this._islandMap({ stars, open, kidFloor, focusFloor });
     const tree = this.map?.kind === 'tree';
     const W = 168, H = 150, rowH = (H - 20) / n;
     const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('hud.mapAria', { n: kidFloor })}">`];
@@ -227,13 +231,44 @@ export class Hud {
       const cls = `arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}`;
       svg.push(`<g class="${cls}" data-floor="${f.n}"><rect x="${inset}" y="${y + 2}" width="${W - inset * 2}" height="${rowH - 3}" rx="5"/>`);
       ['math', 'history', 'physics'].forEach((s, k) => {
-        const done = lessonsOn(f.n, s).filter((l) => (stars[l.id] ?? 0) > 0).length;
-        const all = lessonsOn(f.n, s).length;
+        const done = lessonsOn(f.n, s, this.realm).filter((l) => (stars[l.id] ?? 0) > 0).length;
+        const all = lessonsOn(f.n, s, this.realm).length;
         const cx = inset + 18 + k * ((W - inset * 2 - 36) / 2);
         svg.push(`<circle class="arc-mini__dot arc-mini__dot--${s}${done === all && all ? ' is-done' : ''}" cx="${cx}" cy="${y + rowH / 2 + 0.5}" r="3.6"/>`);
       });
       svg.push(`<text x="${inset + 4}" y="${y + rowH / 2 + 3.5}" class="arc-mini__n">${locked ? '🔒' : f.n}</text></g>`);
       if (f.n === kidFloor) svg.push(`<text x="${W - inset - 4}" y="${y + rowH / 2 + 4.5}" class="arc-mini__kid" text-anchor="end">🧒</text>`);
+    });
+    svg.push('</svg>');
+    this.mini.innerHTML = svg.join('');
+    for (const g of this.mini.querySelectorAll('[data-floor]')) {
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => this.actions.goFloor(Number(g.dataset.floor)));
+    }
+  }
+
+  /** The Lagoon from above: the islands round the lagoon, a boardwalk between them, three dots each, the kid. */
+  _islandMap({ stars, open, kidFloor, focusFloor }) {
+    const FL = this.floors;
+    const W = 168, H = 150, cx = W / 2, cy = H / 2 + 2, R = 52;
+    const pos = FL.map((f, i) => {
+      const a = (i / FL.length) * Math.PI * 2;
+      return [cx + Math.sin(a) * R, cy + Math.cos(a) * R];
+    });
+    const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('hud.mapAria', { n: kidFloor })}">`];
+    svg.push(`<rect x="2" y="2" width="${W - 4}" height="${H - 4}" rx="14" fill="#5fd0dc"/><circle cx="${cx}" cy="${cy}" r="${R + 6}" fill="#8ff0e0" opacity="0.6"/>`);
+    for (let i = 1; i < pos.length; i++) svg.push(`<line x1="${pos[i - 1][0]}" y1="${pos[i - 1][1]}" x2="${pos[i][0]}" y2="${pos[i][1]}" stroke="#c39a6b" stroke-width="3" stroke-linecap="round"/>`);
+    FL.forEach((f, i) => {
+      const [x, y] = pos[i];
+      const locked = !open.has(f.n);
+      svg.push(`<g class="arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}" data-floor="${f.n}"><circle cx="${x}" cy="${y}" r="13" fill="#f6e7c1" stroke="#fff" stroke-width="2"/>`);
+      ['math', 'history', 'physics'].forEach((sub, k) => {
+        const list = lessonsOn(f.n, sub, this.realm);
+        const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
+        svg.push(`<circle class="arc-mini__dot arc-mini__dot--${sub}${done === list.length && list.length ? ' is-done' : ''}" cx="${x - 6 + k * 6}" cy="${y + 6}" r="2.6"/>`);
+      });
+      svg.push(`<text x="${x}" y="${y + 1}" text-anchor="middle" class="arc-mini__n">${locked ? '🔒' : f.n}</text></g>`);
+      if (f.n === kidFloor) svg.push(`<text x="${x + 11}" y="${y - 8}" class="arc-mini__kid">🧒</text>`);
     });
     svg.push('</svg>');
     this.mini.innerHTML = svg.join('');

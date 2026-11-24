@@ -11,6 +11,7 @@
  *   topic     a short key for "worth practising" in the parents' report ('fractions', 'ancient-egypt')
  *   topicName how that topic reads to a parent ('Fractions', 'Ancient Egypt')
  *   blurb     one line for the lesson card
+ *   realm     (optional) 'forest' (content/forest.js, the Great Tree) or 'sea' (content/sea.js, the Lagoon); land if absent
  *   reading   2–4 cards: { title, text, emoji? } — big friendly text, one idea a card
  *   quiz      3–5 questions: { q, choices[2–4], answer (index), hint, explain }
  *             — or, for math, { gen, count } to draw them from a generator (math.js)
@@ -35,7 +36,11 @@ export const FLOOR_COUNT = 7;
 export const LOOKS = [
   'guide', 'stone-age', 'egypt', 'mesopotamia', 'greece', 'rome', 'china', 'silk-road', 'viking',
   'knight', 'castle-cook', 'maya', 'mali', 'printer', 'explorer', 'inventor', 'factory',
-  'scientist', 'pilot', 'astronaut', 'nurse', 'farmer'
+  'scientist', 'pilot', 'astronaut', 'nurse', 'farmer',
+  // the sea islands
+  'sailor', 'diver', 'wayfinder', 'keeper',
+  // the Great Tree
+  'ranger', 'botanist'
 ];
 
 /** Objects the museum turntable can show (world/artifacts.js models them). */
@@ -43,7 +48,11 @@ export const ARTIFACTS = [
   'hand-axe', 'cave-painting', 'clay-tablet', 'pyramid', 'scarab', 'amphora', 'greek-column',
   'roman-arch', 'coin', 'scroll', 'silk-bolt', 'compass', 'viking-ship', 'helmet', 'castle',
   'printing-press', 'globe', 'telescope', 'steam-engine', 'lightbulb', 'telephone', 'airplane',
-  'rocket', 'moon-boot', 'computer', 'abacus', 'sundial', 'wheel'
+  'rocket', 'moon-boot', 'computer', 'abacus', 'sundial', 'wheel',
+  // the sea islands
+  'anchor', 'conch', 'ship-wheel', 'diving-helmet', 'pearl', 'message-bottle',
+  // the Great Tree
+  'acorn', 'pinecone', 'tree-ring', 'magnifier'
 ];
 
 /**
@@ -103,6 +112,7 @@ export function lessonProblems(lesson, { gens = {} } = {}) {
   const at = lesson.id;
   if (LETTER[m[1]] !== lesson.subject) out.push(`${at}: subject does not match the id`);
   if (Number(m[2]) !== lesson.floor || lesson.floor < 1 || lesson.floor > FLOOR_COUNT) out.push(`${at}: floor does not match the id`);
+  if (lesson.realm != null && !['land', 'forest', 'sea'].includes(lesson.realm)) out.push(`${at}: realm is 'land', 'forest' or 'sea'`);
   for (const key of ['title', 'topic', 'topicName', 'blurb']) if (typeof lesson[key] !== 'string' || !lesson[key].trim()) out.push(`${at}: no ${key}`);
   if (!/^[a-z0-9-]+$/.test(lesson.topic ?? '')) out.push(`${at}: topic is a short key`);
   if (!Array.isArray(lesson.reading) || lesson.reading.length < 2 || lesson.reading.length > 4) out.push(`${at}: 2–4 reading cards`);

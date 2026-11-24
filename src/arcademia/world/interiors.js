@@ -98,7 +98,8 @@ function shelf(g, [x, y, z], ry = 0, rows = 3) {
 
 /* ---------------------------------------------------------------- the classroom */
 
-export function buildClassroom(look) {
+/** `teacher`: the realm's math teacher's species (the owl on the mountain; a squirrel, a penguin…). */
+export function buildClassroom(look, teacher = 'owl') {
   const W = 16, D = 12, H = 6;
   const { scene, g } = room({ w: W, d: D, h: H, wall: look.wall, floor: '#c79a69' });
   windows(g, W, D, -1, 3);
@@ -155,16 +156,16 @@ export function buildClassroom(look) {
   add(g, box(0.04, 0.3, 0.02), mat('#222'), [5.4, 4.98, -D / 2 + 0.26]);
   add(g, box(0.22, 0.04, 0.02), mat('#222'), [5.48, 4.9, -D / 2 + 0.26]);
   // The teacher.
-  const teacher = makeCreature({ species: 'owl', scale: 1.5 });
-  teacher.group.position.set(-4.6, 0, -D / 2 + 1.8);
-  teacher.group.rotation.y = 0.5;
-  scene.add(teacher.group);
+  const teacherFig = makeCreature({ species: teacher, scale: 1.5 });
+  teacherFig.group.position.set(-4.6, 0, -D / 2 + 1.8);
+  teacherFig.group.rotation.y = 0.5;
+  scene.add(teacherFig.group);
   batch(g);
   return {
     scene,
     boardCanvas,
     boardTex,
-    teacher,
+    teacher: teacherFig,
     shots: {
       wide: { pos: [3.5, 4.6, 7.5], look: [-0.2, 2.6, -D / 2] },
       board: { pos: [0, 3.25, 1.6], look: [0, 3.15, -D / 2] },
@@ -172,15 +173,15 @@ export function buildClassroom(look) {
     },
     update(dt, t) {
       globe.rotation.y += dt * 0.4;
-      teacher.update(dt, {});
-      if (Math.sin(t * 0.3) > 0.97) teacher.talk(0.4);
+      teacherFig.update(dt, {});
+      if (Math.sin(t * 0.3) > 0.97) teacherFig.talk(0.4);
     }
   };
 }
 
 /* ---------------------------------------------------------------- the history hall */
 
-export function buildHall(look) {
+export function buildHall(look, teacher = 'tortoise') {
   const W = 18, D = 14, H = 7;
   const { scene, g } = room({ w: W, d: D, h: H, wall: '#efe4cf', floor: '#d9cfbd' });
   // Marble-ish checker floor over the boards.
@@ -224,7 +225,7 @@ export function buildHall(look) {
   shelf(g, [-W / 2 + 0.5, 0.05, -3], Math.PI / 2, 4);
   plant(g, [W / 2 - 1, 0, -D / 2 + 1]);
   batch(g);
-  const tock = makeCreature({ species: 'tortoise', scale: 1.4 });
+  const tock = makeCreature({ species: teacher, scale: 1.4 });
   tock.group.position.set(-5.2, 0, -4.4);
   tock.group.rotation.y = 0.6;
   scene.add(tock.group);
@@ -272,7 +273,7 @@ export function buildHall(look) {
 
 /* ---------------------------------------------------------------- the physics lab */
 
-export function buildLab(look) {
+export function buildLab(look, teacher = 'raccoon') {
   const W = 16, D = 12, H = 6;
   const { scene, g } = room({ w: W, d: D, h: H, wall: '#e6eef0', floor: '#9aa7b0' });
   // Tiles over the floor.
@@ -324,22 +325,22 @@ export function buildLab(look) {
   });
   g.add(mobile);
   // The lab teacher in a white coat.
-  const teacher = makeCreature({ species: 'raccoon', hat: 'goggles', scale: 1.5 });
-  teacher.group.position.set(5.2, 0, -D / 2 + 2);
-  teacher.group.rotation.y = -0.5;
-  scene.add(teacher.group);
+  const teacherFig = makeCreature({ species: teacher, hat: 'goggles', scale: 1.5 });
+  teacherFig.group.position.set(5.2, 0, -D / 2 + 2);
+  teacherFig.group.rotation.y = -0.5;
+  scene.add(teacherFig.group);
   batch(g);
   return {
     scene,
-    teacher,
+    teacher: teacherFig,
     shots: {
       wide: { pos: [0, 4.3, 8.2], look: [0, 2.5, -D / 2] },
       screen: { pos: [0, 3.3, 2.2], look: [0, 3.2, -D / 2] }
     },
     update(dt, t) {
       mobile.rotation.y += dt * 0.25;
-      teacher.update(dt, {});
-      if (Math.sin(t * 0.4) > 0.97) teacher.wave(0.8);
+      teacherFig.update(dt, {});
+      if (Math.sin(t * 0.4) > 0.97) teacherFig.wave(0.8);
     }
   };
 }

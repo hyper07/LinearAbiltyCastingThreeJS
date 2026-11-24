@@ -10,11 +10,11 @@ import { el, confetti, prefersReducedMotion } from './ui/dom.js';
 import { Progress } from './progress.js';
 import { Sound, speech } from './sound.js';
 import { GameState } from './gamestate.js';
-import { WORLDS } from './quests.js';
+import { worldsIn } from './quests.js';
 import { FLOORS } from './floors.js';
 import { MAPS, mapById } from './maps.js';
-import { LESSONS, lessonsOn } from './content/index.js';
-import { floorStars, totalStars } from './rules.js';
+import { LESSONS, lessonsOn, lessonsIn } from './content/index.js';
+import { floorStars, totalStars, openFloors } from './rules.js';
 import { t, num, loadLocale, setLocale, pickLocale, isLocale, localizeLesson, localeInfo } from './i18n/index.js';
 import { startScreen, openSettings } from './ui/settings.js';
 import './arcademia.css';
@@ -96,7 +96,7 @@ export class ArcademiaGame {
     this.setNight(this.prefs.night, true);
     this.setSound(this.prefs.sound);
     this.progress.onChange(() => this.refresh());
-    this.openBefore = new Set(this.progress.floorsOpen);
+    this.openBefore = new Set(this.floorsOpen());
     this.world.setLocked(this.lockedSet());
     this.refresh();
     this.refreshGame();
@@ -138,12 +138,28 @@ export class ArcademiaGame {
     // The buddy says hello in its recorded voice (if someone recorded it in this language).
     if (this.voiceOn()) speech.say('t.voice.buddy.hello', { char: this.buddyChar, face: this.world.kid });
     if (this.progress.guestToImport) this.offerImport();
-    if (!Object.keys(this.progress.stars).length) setTimeout(() => this.hud?.toast(t('game.firstQuest', { story: WORLDS[1].story }), { icon: '🌼', ms: 7000 }), 900);
+    if (!Object.keys(this.progress.stars).length) setTimeout(() => this.hud?.toast(t('game.firstQuest', { story: this.worlds[1].story }), { icon: '🌼', ms: 7000 }), 900);
   }
 
-  /** The floors of the current world (their looks; the lessons are the same everywhere). */
+  /** The floors of the current world (their looks). */
   get floors() {
     return this.map.floors;
+  }
+  /** The current world's realm: 'land' (the mountain and the tree share it) or 'sea' (the Lagoon). */
+  get realm() {
+    return this.map.realm ?? 'land';
+  }
+  /** The realm's lessons: its floors open, and its stars count, by these. */
+  get lessons() {
+    return lessonsIn(this.realm);
+  }
+  /** The realm's floor stories and puzzle bosses. */
+  get worlds() {
+    return worldsIn(this.realm);
+  }
+  /** The realm's open floors. */
+  floorsOpen() {
+    return openFloors(this.progress.stars, { floors: this.floors, lessons: this.lessons });
   }
 
   /** Build the diorama for the current world, and show it. */
@@ -151,6 +167,7 @@ export class ArcademiaGame {
     this.world = new World({
       floors: this.floors,
       kind: this.map.kind,
+      worlds: this.worlds,
       labels: this.labels,
       renderer: this.stage.renderer,
       reducedMotion: this.reducedMotion,
@@ -186,6 +203,7 @@ export class ArcademiaGame {
     this.world.dispose();
     this.map = next;
     this.prefs.map = next.id;
+    this.openBefore = new Set(this.floorsOpen());
     prefs.save(this.prefs);
     this._lastFocus = null;
     this._makeWorld();
@@ -263,7 +281,7 @@ export class ArcademiaGame {
       buddy: () => this.openBuddy(),
       questbook: () => this.openQuestbook(),
       settings: () => openSettings(this)
-    }, { floors: this.floors, map: this.map });
+    }, { floors: this.floors, map: this.map, lessons: this.lessons, realm: this.realm });
     this.hud.textBtn.setAttribute('aria-pressed', String(this.prefs.bigText));
     this.hud.setNight(this.prefs.night);
     this.hud.setSound(this.prefs.sound);
@@ -286,7 +304,7 @@ export class ArcademiaGame {
   }
 
   lockedSet() {
-    const open = this.progress.floorsOpen;
+    const open = this.floorsOpen();
     return new Set(FLOORS.map((f) => f.n).filter((n) => !open.has(n)));
   }
 
@@ -294,7 +312,7 @@ export class ArcademiaGame {
   refresh() {
     if (!this.world || !this.hud) return;
     const stars = this.progress.stars;
-    const open = this.progress.floorsOpen;
+    const open = this.floorsOpen();
     const newly = [...open].filter((n) => !this.openBefore.has(n));
     if (newly.length) {
       this.openBefore = new Set(open);
@@ -302,17 +320,17 @@ export class ArcademiaGame {
       this.pendingUnlock = newly;
     }
     this.world.setBuildingStats((subject, floor) => {
-      const list = lessonsOn(floor, subject);
+      const list = lessonsOn(floor, subject, this.realm);
       const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
       return `${done}/${list.length}`;
-    }, (n) => (open.has(n) ? `${floorStars(stars, n).have}★` : ''));
+    }, (n) => (open.has(n) ? `${floorStars(stars, n, this.lessons).have}★` : ''));
     this.hud.update({ stars, open, kidFloor: this.world.kidFloor, focusFloor: this.world.focusFloor, current: this.currentLesson(), total: totalStars(stars) });
   }
 
   /** The lesson to suggest: the first unstarred one on the kid's floor (math, history, physics in turn). */
   currentLesson() {
     const floor = this.world?.kidFloor ?? 1;
-    const here = lessonsOn(floor);
+    const here = lessonsOn(floor, null, this.realm);
     const order = [];
     const bySubject = ['math', 'history', 'physics'].map((s) => here.filter((l) => l.subject === s));
     for (let i = 0; i < 5; i++) for (const list of bySubject) if (list[i]) order.push(list[i]);
@@ -410,7 +428,7 @@ export class ArcademiaGame {
 
   gateToast(n) {
     const below = n - 1;
-    const fs = floorStars(this.progress.stars, below);
+    const fs = floorStars(this.progress.stars, below, this.lessons);
     const need = Math.ceil(fs.lessons * (2 / 3));
     this.hud.toast(t('game.gate', { n, need, below, done: fs.done }), { icon: '🔒' });
   }
@@ -420,11 +438,12 @@ export class ArcademiaGame {
     const left = this.world.gems.filter((g) => g.floor === n.floor && !this.gs.s.gems[g.id]).length;
     const i = Math.floor(Math.random() * 10);
     const gems = left && Math.random() < 0.35;
-    const tip = gems ? t('npc.gems', { count: left }) : t(`npc.${i}`, { boss: WORLDS[n.floor].boss.name });
+    const tip = gems ? t('npc.gems', { count: left }) : t(`npc.${i}`, { boss: this.worlds[n.floor].boss.name });
     // Its voice line (voice/script.js): npc.6 names the floor's boss, npc.gems the gems left.
-    const line = gems ? `t.npc.gems~${Math.min(3, left)}` : i === 6 ? `t.npc.6~${n.floor}` : `t.npc.${i}`;
+    // Off the mountain the tip about the boss names that world's boss: it has no recorded line, text only.
+    const line = gems ? `t.npc.gems~${Math.min(3, left)}` : i === 6 ? (this.realm !== 'land' ? null : `t.npc.6~${n.floor}`) : `t.npc.${i}`;
     this.hud.toast(tip, { icon: { bunny: '🐰', mouse: '🐭', duck: '🦆', fox: '🦊', hedgehog: '🦔', frog: '🐸', penguin: '🐧', bear: '🐻', puff: '☁️', crab: '🦀', robot: '🤖' }[n.species] ?? '💬', ms: 4200 });
-    if (this.voiceOn()) speech.say(line, { char: 'townsfolk', face: n.fig });
+    if (this.voiceOn() && line) speech.say(line, { char: 'townsfolk', face: n.fig });
   }
 
   /** The player's buddy as a voice character (voice/script.js). */
@@ -447,6 +466,7 @@ export class ArcademiaGame {
 
   continueLesson() {
     const { lesson } = this.currentLesson();
+    if (!lesson) return;
     const b = this.world.buildings.find((x) => x.subject === lesson.subject && x.floor === lesson.floor);
     this.pendingLesson = lesson;
     if (b) this.world.select(b, true);
@@ -510,7 +530,7 @@ export class ArcademiaGame {
     this.celebrate('level-up');
     confetti(this.root, 120);
     const banner = el('div', 'arc-banner', null, { role: 'status' });
-    banner.append(el('span', 'arc-banner__icon', f.icon, { 'aria-hidden': 'true' }), el('strong', null, t('game.floorOpen', { n })), el('span', null, t('game.floorOpenStory', { name: f.name, story: WORLDS[n].story })));
+    banner.append(el('span', 'arc-banner__icon', f.icon, { 'aria-hidden': 'true' }), el('strong', null, t('game.floorOpen', { n })), el('span', null, t('game.floorOpenStory', { name: f.name, story: this.worlds[n].story })));
     this.root.append(banner);
     setTimeout(() => banner.classList.add('is-out'), 4200);
     setTimeout(() => banner.remove(), 4800);
@@ -536,7 +556,7 @@ export class ArcademiaGame {
     if (kind === 'arcade') return this.openArcadeHall(n);
     if (kind === 'landmark') {
       this.sound.toy('whirl');
-      return this.hud.toast(WORLDS[n].story, { icon: this.floors[n - 1].icon, ms: 4500 });
+      return this.hud.toast(this.worlds[n].story, { icon: this.floors[n - 1].icon, ms: 4500 });
     }
     if (kind === 'worlds') {
       this.sound.toy('whirl');
@@ -575,7 +595,7 @@ export class ArcademiaGame {
       ['🫧', 'bubbles', (host) => bubblePop(host, { floor: n, sound: this.sound, reducedMotion: this.reducedMotion })],
       ['👾', 'monster', (host) => feedMonster(host, { floor: n, sound: this.sound })],
       ['🧺', 'launch', (host) => launch(host, { sound: this.sound })],
-      ['💬', 'who', (host) => whoSaid(host, { lessons: lessonsOn(n, 'history'), sound: this.sound })]
+      ['💬', 'who', (host) => whoSaid(host, { lessons: lessonsOn(n, 'history', this.realm), sound: this.sound })]
     ];
     this.world.clearKeys();
     const box = el('div', 'arc-modal', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': t('arcade.title') });
@@ -639,7 +659,7 @@ export class ArcademiaGame {
   /** A floor's chest opens once, after a lesson on that floor. */
   openChest(n) {
     if (this.gs.s.chests[n]) return this.hud.toast(t('game.chestEmpty'), { icon: '🧰' });
-    const done = lessonsOn(n).some((l) => (this.progress.stars[l.id] ?? 0) > 0);
+    const done = lessonsOn(n, null, this.realm).some((l) => (this.progress.stars[l.id] ?? 0) > 0);
     if (!done) return this.hud.toast(t('game.chestLocked'), { icon: '🔐' });
     const got = this.gs.event('chest', { floor: n });
     this.world.chests.find((c) => c.floor === n)?.group.userData.setOpen(true);
@@ -654,9 +674,9 @@ export class ArcademiaGame {
   /** The floor's puzzle boss: ready once two thirds of the floor's lessons are done. */
   async startBoss(n) {
     if (this.mode !== 'world') return;
-    const fs = floorStars(this.progress.stars, n);
+    const fs = floorStars(this.progress.stars, n, this.lessons);
     const need = Math.ceil(fs.lessons * (2 / 3));
-    const w = WORLDS[n].boss;
+    const w = this.worlds[n].boss;
     if (this.gs.s.bosses[n]) {
       this.world.bosses.find((b) => b.floor === n)?.fig.hop();
       return this.hud.toast(t('game.bossHappy', { name: w.name }), { icon: w.emoji });

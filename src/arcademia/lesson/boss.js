@@ -7,17 +7,17 @@
  */
 import { el, button, sparkle, confetti } from '../ui/dom.js';
 import { lessonsOn, quizFor } from '../content/index.js';
-import { WORLDS } from '../quests.js';
+import { worldsIn } from '../quests.js';
 import { speech } from '../sound.js';
 import { t as tr } from '../i18n/index.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
 
-export function bossQuestions(floor, seed = Date.now()) {
+export function bossQuestions(floor, seed = Date.now(), realm = 'land') {
   const out = [];
   for (const subject of ['math', 'history', 'physics']) {
-    const pool = lessonsOn(floor, subject).flatMap((l) => quizFor(l, seed).map((q) => ({ ...q, lesson: l.id, subject })));
+    const pool = lessonsOn(floor, subject, realm).flatMap((l) => quizFor(l, seed).map((q) => ({ ...q, lesson: l.id, subject })));
     out.push(...shuffle(pool).slice(0, 2));
   }
   return shuffle(out);
@@ -25,10 +25,11 @@ export function bossQuestions(floor, seed = Date.now()) {
 
 export function bossBattle(game, floor) {
   return new Promise((resolve) => {
-    const w = WORLDS[floor].boss;
+    const realm = game.map?.realm ?? 'land';
+    const w = worldsIn(realm)[floor].boss;
     const boss = game.world.bosses.find((b) => b.floor === floor);
     game.world.showBoss(floor);
-    const qs = bossQuestions(floor);
+    const qs = bossQuestions(floor, Date.now(), realm);
     const box = el('div', 'arc-boss', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('puzzle.aria', { name: w.name }) });
     const card = el('div', 'arc-card arc-boss__card');
     const meter = el('div', 'arc-boss__meter', null, { role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '6', 'aria-label': tr('puzzle.meter') });
@@ -40,7 +41,7 @@ export function bossBattle(game, floor) {
     let happy = 0, i = 0, done = false;
     // The boss's own recorded voice (voice/player.js): silent where nobody has recorded the line yet.
     const voiceOn = game.prefs.voice ?? floor <= 2;
-    const char = `boss-${floor}`;
+    const char = realm === 'land' ? `boss-${floor}` : `${realm}-boss-${floor}`;
     const voice = (line, bubble = null) => voiceOn && speech.say(line, { char, face: boss.fig, bubble });
     speech.preloadFloor(floor);
     const drawMeter = () => {
@@ -128,7 +129,7 @@ export function bossBattle(game, floor) {
       body.append(opts, fb);
       voice(q.line ? `${q.line}.q` : q.q, qEl);
     };
-    say(w.line, `t.world.${floor}.line`);
+    say(w.line, realm === 'land' ? `t.world.${floor}.line` : `t.${realm}.world.${floor}.line`);
     const go = button('arc-btn arc-btn--primary arc-btn--big', tr('puzzle.go'), ask);
     body.append(go);
     go.focus();

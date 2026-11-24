@@ -88,10 +88,32 @@ export const TREE_FLOORS = [
 ].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
 for (const f of TREE_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`tree.floor.${f.n}`), enumerable: true });
 
-/** The worlds; names come from the current language (ui.js map.<id>, map.<id>.what). */
+/** The resort islands' looks: thatched villas on stilts, teak decks (world/resort.js). */
+const RESORT = { resort: true, shapes: { math: 'villa', history: 'pavilion', physics: 'reeflab' }, stone: '#9a6b45', trim: '#fff6e6', wall: '#fbf1dc', path: '#f6e7c1', grass: '#9fdc8a', grassDark: '#86cc74', rock: ['#b9b2a3', '#a8a194', '#c9c3b6'], tree: 'palm' };
+/**
+ * The Lagoon's seven islands, the sea realm: their own floors, lessons
+ * (content/sea.js), teachers, stories and bosses; ages as on the land.
+ */
+export const SEA_FLOORS = [
+  { icon: '🐚', look: { ...RESORT, theme: 'harbor', roof: { math: '#ff8a7a', history: '#ffb347', physics: '#5fc4ea' }, landmark: 'sandcastle', leaf: '#4fbf6a', flowers: ['#ff8fa3', '#ffd166', '#ffffff'], banner: '#ff8fa3', critters: ['crab', 'seaturtle', 'crab'], particles: 'spray', mood: 'waves' } },
+  { icon: '🪸', look: { ...RESORT, theme: 'harbor', roof: { math: '#ff7aa8', history: '#ff9a6b', physics: '#7cc6ff' }, landmark: 'rainbow', leaf: '#3fbf7a', flowers: ['#ff7aa8', '#ffb3c8', '#fff1dc'], banner: '#ff7aa8', critters: ['octopus', 'crab', 'duck'], particles: 'sparkles', mood: 'waves' } },
+  { icon: '🐢', look: { ...RESORT, theme: 'harbor', roof: { math: '#3fbf9a', history: '#ffd23f', physics: '#4fb0c6' }, landmark: 'boat', leaf: '#4fbf6a', flowers: ['#ffd23f', '#ffffff', '#7ff7ff'], banner: '#3fbf9a', critters: ['seaturtle', 'seaturtle', 'duck'], particles: 'spray', mood: 'birds' } },
+  { icon: '🗼', look: { ...RESORT, theme: 'harbor', roof: { math: '#e0453a', history: '#3f7fd6', physics: '#ffd23f' }, landmark: 'beacon', leaf: '#4fb37a', flowers: ['#ffffff', '#e0453a', '#7cc6ff'], banner: '#e0453a', critters: ['seal', 'penguin', 'seal'], particles: 'spray', mood: 'wind' } },
+  { icon: '🦪', look: { ...RESORT, theme: 'cloud', roof: { math: '#b48cff', history: '#ff9ed2', physics: '#7ff7ff' }, landmark: 'clam', leaf: '#5fc79a', flowers: ['#fff8f0', '#ffd1e8', '#c39bff'], banner: '#b48cff', critters: ['octopus', 'crab', 'seal'], particles: 'sparkles', mood: 'bells' } },
+  { icon: '🐋', look: { ...RESORT, theme: 'harbor', roof: { math: '#4f7fc8', history: '#7cc6ff', physics: '#ff9a6b' }, landmark: 'whale', leaf: '#3fbf7a', flowers: ['#bfe9ff', '#ffffff', '#ffd23f'], banner: '#4f7fc8', critters: ['seal', 'duck', 'penguin'], particles: 'spray', mood: 'waves' } },
+  { icon: '🔱', look: { ...RESORT, theme: 'moon', roof: { math: '#ffd23f', history: '#5a6fd6', physics: '#3fd8ff' }, landmark: 'submarine', leaf: '#4fb39a', flowers: ['#7ff7ff', '#ffd23f', '#ffffff'], banner: '#ffd23f', critters: ['robot', 'octopus', 'seal'], particles: 'twinkles', mood: 'chimes' } }
+].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
+for (const f of SEA_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`sea.floor.${f.n}`), enumerable: true });
+
+/**
+ * The worlds; names come from the current language (ui.js map.<id>, map.<id>.what).
+ * `realm`: whose lessons, teachers, floors and stars — every world has its own (the mountain:
+ * land, the Great Tree: forest, the Lagoon: sea), so each map teaches something new.
+ */
 export const MAPS = [
-  { id: 'mountain', icon: '⛰️', kind: 'mountain', floors: FLOORS, whole: 'hud.whole', back: ['lesson.back', 'lesson.backAria'] },
-  { id: 'tree', icon: '🌳', kind: 'tree', floors: TREE_FLOORS, whole: 'map.tree.whole', back: ['lesson.back.tree', 'lesson.backAria.tree'] }
+  { id: 'mountain', icon: '⛰️', kind: 'mountain', realm: 'land', floors: FLOORS, whole: 'hud.whole', back: ['lesson.back', 'lesson.backAria'] },
+  { id: 'tree', icon: '🌳', kind: 'tree', realm: 'forest', floors: TREE_FLOORS, whole: 'map.tree.whole', back: ['lesson.back.tree', 'lesson.backAria.tree'] },
+  { id: 'lagoon', icon: '🏝️', kind: 'lagoon', realm: 'sea', floors: SEA_FLOORS, whole: 'map.lagoon.whole', back: ['lesson.back.lagoon', 'lesson.backAria.lagoon'] }
 ];
 for (const m of MAPS) {
   Object.defineProperty(m, 'name', { get: () => t(`map.${m.id}`), enumerable: true });

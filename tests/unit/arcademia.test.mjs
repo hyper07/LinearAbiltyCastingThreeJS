@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { GENERATORS, makeProblem, makeQuiz, MATH_LESSONS } from '../../src/arcademia/content/math.js';
-import { LESSONS, lessonById, quizFor, quizLength } from '../../src/arcademia/content/index.js';
+import { LESSONS, LAND_LESSONS, lessonById, lessonsIn, quizFor, quizLength } from '../../src/arcademia/content/index.js';
 import { lessonProblems, SUBJECTS, MAGNET_ITEMS, CIRCUIT_ITEMS, FLOAT_ITEMS } from '../../src/arcademia/content/schema.js';
 import { FLOORS } from '../../src/arcademia/floors.js';
 import { BEAT_MAX_SECONDS, buildReport, cleanEvent, dayOf, neededOn, openFloors, starsFor, weekStart } from '../../src/arcademia/rules.js';
@@ -127,7 +127,7 @@ test('lessons: history timelines can be sorted one way only', () => {
 
 test('floors: floor 1 is open; the next opens at two thirds of the floor below', () => {
   assert.deepEqual([...openFloors({})], [1]);
-  const f1 = LESSONS.filter((l) => l.floor === 1);
+  const f1 = LAND_LESSONS.filter((l) => l.floor === 1);
   const need = neededOn(1);
   assert.equal(need, Math.ceil(f1.length * (2 / 3)));
   const some = Object.fromEntries(f1.slice(0, need - 1).map((l) => [l.id, 3]));
@@ -135,10 +135,18 @@ test('floors: floor 1 is open; the next opens at two thirds of the floor below',
   some[f1[need - 1].id] = 1;
   assert.deepEqual([...openFloors(some)], [1, 2], 'one star is enough for a lesson to count');
   // Floor 3 needs floor 2's lessons, and floor 2 open.
-  const f2 = Object.fromEntries(LESSONS.filter((l) => l.floor === 2).map((l) => [l.id, 2]));
+  const f2 = Object.fromEntries(LAND_LESSONS.filter((l) => l.floor === 2).map((l) => [l.id, 2]));
   assert.deepEqual([...openFloors(f2)], [1], 'floor 2 done but floor 1 not: still only floor 1');
-  const all = Object.fromEntries(LESSONS.map((l) => [l.id, 3]));
+  const all = Object.fromEntries(LAND_LESSONS.map((l) => [l.id, 3]));
   assert.equal(openFloors(all).size, FLOORS.length);
+  // Each realm opens its own floors: every sea or forest star opens nothing on the mountain, and the other way round.
+  for (const realm of ['forest', 'sea']) {
+    const mine = lessonsIn(realm);
+    const theirs = Object.fromEntries(mine.map((l) => [l.id, 3]));
+    assert.deepEqual([...openFloors(theirs)], [1], `${realm} stars do not open the mountain`);
+    if (mine.length) assert.equal(openFloors(all, { lessons: mine }).size, 1, `mountain stars do not open the ${realm}`);
+    assert.ok(mine.every((l) => l.realm === realm), `${realm} lessons say so`);
+  }
   assert.equal(starsFor(5, 5), 3);
   assert.equal(starsFor(3, 5), 2);
   assert.equal(starsFor(0, 4), 1, 'finishing earns a star');
@@ -406,7 +414,7 @@ test('great tree: rings all round the trunk, every place reachable, a locked rin
   const { planTree } = await import('../../src/arcademia/world/tree/plan.js');
   const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
   const { MAPS, TREE_FLOORS, mapById } = await import('../../src/arcademia/maps.js');
-  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree']);
+  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon']);
   assert.equal(mapById('nope').id, 'mountain', 'an unknown map falls back to the mountain');
   assert.equal(TREE_FLOORS.length, FLOORS.length, 'the same floors (and lessons) in every world');
   const plan = planTree(TREE_FLOORS.length);

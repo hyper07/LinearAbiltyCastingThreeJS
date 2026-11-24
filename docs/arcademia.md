@@ -22,44 +22,60 @@ weekly report behind a PIN, and a read-only link they can open on their own phon
 
 ## Study worlds
 
-The same seven floors can be played in more than one world. Every world holds the same lessons —
-floor n is floor n everywhere — so stars, coins, stickers, gems, the buddy and the unlocked floors
-travel with the player; only the scenery changes.
+There are three study worlds, and each teaches **its own lessons with its own teachers**, so a child
+who finishes one world has a new one to explore. Each world has seven floors for ages 6–13 with its
+own stories and puzzle bosses, and its own stars and unlocking. Coins, stickers, hats, gems and the
+buddy are shared everywhere.
 
-| World | What it is |
-| --- | --- |
-| Learning Mountain ⛰️ | the terraced mountain above |
-| The Great Tree 🌳 | a giant tree with a ring of treehouses all the way round its trunk for every floor: Root Hollow, Fern Boughs, Lantern Branches, Blossom Canopy, Nest Heights, Sunflower Rings and Starlight Crown |
+| World | Realm | Teachers (Math · History · Physics) | What it teaches |
+| --- | --- | --- | --- |
+| Learning Mountain ⛰️ | land | Professor Hoot 🦉 · Tock 🐢 · Gizmo 🦝 | the lessons above |
+| The Great Tree 🌳 | forest | Nutmeg 🐿️ · Grandpa Bramble 🐻 · Dr. Ribbit 🐸 | Forest Math, Forest History, the Nature Lab: trees, plants, seasons and the people who studied and protected forests (`content/forest.js`) |
+| The Lagoon 🏝️ | sea | Captain Pip 🐧 · Grandma Inka 🐙 · Dr. Splash 🦭 | Sea Math, Sea Explorers, the Ocean Lab: navigators, lighthouses, ocean science, floating, tides and the deep sea (`content/sea.js`) |
 
-On the Great Tree each floor is a ring of nine round wooden decks (the three schools, the shop, the
-arcade, the museum, the quest board, a hub with the landmark, the portal up and the puzzle boss, and
-a nook where the treasure chest hides), joined all the way round by sturdy plank bridges and sagging
-rope bridges. Each ring is turned from the one below, so a school never sits right under the next
-ring's school. A spiral stair winds up the trunk from each ring's landing to the next, with a gate
-that stays shut until that floor opens. Glowing vines hang under the decks and light up at night,
-with fireflies, and a leafy crown sits on top.
+**The Great Tree** has a ring of treehouses all the way round a giant trunk for every floor: Root
+Hollow, Fern Boughs, Lantern Branches, Blossom Canopy, Nest Heights, Sunflower Rings and Starlight
+Crown. On each ring, nine round wooden decks hold the three schools, the shop, the arcade, the
+museum, the quest board, a hub with the landmark, the portal up and the puzzle boss, and a nook where
+the treasure chest hides. Sturdy plank bridges and sagging rope bridges join the decks all the way
+round. Each ring is turned from the one below, so a school never sits right under the next ring's
+school. A spiral stair winds up the trunk from each ring's landing to the next, with a gate that
+stays shut until that floor opens. Glowing vines hang under the decks and light up at night, with
+fireflies, and a leafy crown sits on top.
 
-The tree grows its own buildings (`src/arcademia/world/grown.js`, original designs): the **Math
-School** is a woven seed pod held by two living-wood ribs under a canopy of big leaves, with a round
-door and porthole windows; the **History Hall** is a woven dome wrapped in arching roots that meet in
-a crown of drooping leaves, with a root-arch doorway, banners and a carved spiral; the **Physics Lab**
-is a little woven pod at the foot of three braided strands that hold up a cup of petals and a glowing
-lens, seeds orbiting it on tilted rings. They stand on mossy discs of living wood with roots over the
-rim and glow-bulb lamps; the shop, arcade, museum and quest board sit under canopies of roots and
-leaves. The weave is a painted basket-weave texture; the glowing dots, spirals, bulbs and seeds
-(`world/glow.js`) brighten at night, and the windows and seed lanterns glow warm.
+The tree grows its own buildings (`src/arcademia/world/grown.js`, original designs):
+- **Seed Pod School:** a woven seed pod held by two living-wood ribs under a canopy of big leaves, with a round door and porthole windows.
+- **Root Hall:** a woven dome wrapped in arching roots that meet in a crown of drooping leaves, with a root-arch doorway, banners and a carved spiral.
+- **Nature Lab:** a little woven pod at the foot of three braided strands. The strands hold up a cup of petals and a glowing lens, with seeds orbiting it on tilted rings.
+
+They stand on mossy discs of living wood, with roots over the rim and glow-bulb lamps. The shop, arcade, museum and quest board sit under canopies of roots and leaves. The weave is a painted basket-weave texture. The glowing dots, spirals, bulbs and seeds (`world/glow.js`) brighten at night, and the windows and seed lanterns glow warm.
+
+**The Lagoon** is seven sandy islands round a turquoise lagoon: Shell Beach, Coral Cove, Turtle
+Lagoon, Lighthouse Point, Pearl Reef, Whale Bay and Deep Blue Station. Every island has palms on its
+sand (the landmark, the portal and the boss), a circular boardwalk on stilts, and overwater villas on
+their own decks (`world/resort.js`):
+- **Sea Math Villa:** a round thatched villa.
+- **Explorers' Pavilion:** a two-storey pavilion.
+- **Reef Lab:** a shingle-roofed lab with a glass dome, a telescope and a water slide.
+- The shop and the other small places stand under thatched gazebos.
+
+Long winding boardwalks with lanterns and a gate join each island to the next. Each island has its
+own landmark: a sandcastle, a rainbow, a boat, a lighthouse, a giant clam, a whale fountain and a
+little submarine. Sailboats and kayaks bob on the water. The townsfolk are crabs, sea turtles,
+octopuses, seals and penguins.
 
 **Travelling.** A **World Portal** 🌍 stands on floor 1 of every world; walk into it, or press
 **🌍 Worlds** at the top of the floor list, to choose a world. The choice is saved in the browser
 (`arcademia.prefs`) and the next visit starts there.
 
-**Adding a world** (`src/arcademia/maps.js`): add an entry to `MAPS` with the floors' looks (shaped
-like `floors.js`), a `kind`, names in every language (`map.<id>`, `map.<id>.what`, `map.<id>.whole`
-and the floor names in `ui.js`; the lesson's way back in `lesson.js`), and teach `World.js` to build
-that kind: a plan (pure numbers, the contract of `world/layout.js` — floors with plinths, places,
-path and spawn spots, stairs, `height`, `floorAt`) and its scenery. A world whose floors overlap when
-seen from above, like the tree, takes an optional height in `height(x, z, y)` and `floorAt(x, z, y)`
-and walks on the layered grid in `world/tree/nav.js`. The picker lists it by itself.
+**Adding a world** (`src/arcademia/maps.js`): give it a new realm and its own content.
+1. **Lessons:** 2 per subject per floor, with `realm: '<realm>'`, in `content/<realm>.js`. Register them in `BY_REALM` in `content/index.js`.
+2. **Teachers:** `figures.js` `teachersIn`, plus their voice ids in `voice/script.js` `REALM_TEACHER_OF` and their voices in `voice/generated.js`.
+3. **Stories and puzzle bosses:** `quests.js` `worldsIn`, with keys `<realm>.world.<n>.*`.
+4. **Text in every language:** `<realm>.teacher.*`, `<realm>.quest.*` and `<realm>.hello.*`, the floor names, and the lessons' translations in each language's `lessons-<realm>.js`. `tests/unit/arcademia-i18n.test.mjs` fails on anything missing.
+5. **The map entry:** add it to `MAPS` with its floors' looks and a `kind` that `World.js` can build. A kind is a plan (pure numbers: floors with places, path and spots; stairs; `surfaces`, `height`, `floorAt`) plus its scenery. The tree's and the lagoon's plans and their layered walking grid (`world/tree/nav.js`) are the models.
+
+The World Portal's picker then lists the new world by itself.
 
 ## Languages
 
@@ -188,17 +204,20 @@ barks and the teachers' "try again" and hint intro are the `voice.*` keys in eac
 Generated math questions and the chalkboard's worked examples change every time, so they have no line
 and stay text only, as does the AI tutor's answer (see [Generated voices](#generated-voices) for why).
 
-Each language has 991 lines (131 of them barks), about two hours of speech:
+Each language has 3,050 lines (257 of them barks), about six hours of speech:
 
 | Character | Barks / all lines (every language) |
 | --- | --- |
-| Professor Hoot | 16 / 92 |
-| Tock | 15 / 263 |
-| Gizmo | 17 / 271 |
-| each of the 16 history guides | 0 / 8 |
-| bosses 1–7 | 2 / 33, 33, 19, 20, 20, 22, 21 |
+| Professor Hoot · Tock · Gizmo (the mountain) | 16 / 92 · 15 / 263 · 17 / 271 |
+| Nutmeg · Grandpa Bramble · Dr. Ribbit (the Great Tree) | 17 / 199 · 15 / 239 · 17 / 255 |
+| Captain Pip · Grandma Inka · Dr. Splash (the Lagoon) | 17 / 199 · 15 / 239 · 17 / 255 |
+| each history guide (16 + 14 + 14) | 0 / 8 |
+| the bosses of each world (7 × 3) | 2 / about 20–33 |
 | the townsfolk | 19 / 19 |
 | each of the five buddies | 10 / 10 |
+
+The new teachers and bosses have voice designs (`voice/generated.js`) but no generated takes yet; until
+they are made on the Mac Studio, their lines show as text.
 
 A printable script and a CSV per character and language, with each line's id, text, the
 character's direction ("warm, encouraging, slow and clear for 6–8 year-olds"), where it is heard and
@@ -426,7 +445,9 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
-| Study worlds: the list, the Great Tree's floors | `src/arcademia/maps.js` |
+| Study worlds: the list, the Great Tree's and the Lagoon's floors | `src/arcademia/maps.js` |
+| Each world's lessons, teachers and stories (realms) | `src/arcademia/content/forest.js`, `content/sea.js`, `figures.js` `teachersIn`, `quests.js` `worldsIn` |
+| The Lagoon: plan (islands, boardwalks, villas), 3D scene, resort buildings and landmarks | `src/arcademia/world/lagoon/plan.js`, `scene.js`, `src/arcademia/world/resort.js` |
 | The Great Tree: plan (rings, decks, bridges, spiral stair), layered walking grid, 3D scene | `src/arcademia/world/tree/plan.js`, `nav.js`, `scene.js` |
 | Grown buildings (seed pod, root hall, star seed observatory, leaf canopies) and the night glow | `src/arcademia/world/grown.js`, `src/arcademia/world/glow.js` |
 | The diorama (lazy per-floor detail, silhouettes far away), terrain, buildings, places, rooms | `src/arcademia/world/` |
