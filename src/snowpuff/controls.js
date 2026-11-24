@@ -5,7 +5,7 @@
  */
 export const CONTROLS = {
   title: 'How to play — Snowpuff Peaks',
-  goal: 'Race your plush friends down the mountain! Open gift boxes for snowballs, a giant snowball, a shield, a rocket sled or an ice patch. Bonk the riders ahead, shove the one beside you by carving harder, ride close behind someone to draft, burst the snowmen, jump through the bell arches, and land tricks cleanly for a speed boost. Bumping into things never ends your run — you just tumble and pop back up.',
+  goal: 'Race your plush friends down the mountain! Open gift boxes for snowballs, a giant snowball, a shield, a rocket sled or an ice patch. Bonk the riders ahead, shove the one beside you by carving harder, ride close behind someone to draft, burst the snowmen, jump through the bell arches, and land tricks cleanly for a speed boost. A snowball makes a rider face-plant into the snow, a rolling giant snowball squashes them flat for a second, and ice spins you round. Bumping into things never ends your run — you just tumble and pop back up.',
   groups: [
     { name: 'Ride', rows: [
       { id: 'steer', keys: ['A', 'D'], codes: ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight'], does: 'Steer (or ← →). Hold longer to carve harder: sharper, more spray, a bit slower', pad: 'Left stick', touch: 'Drag on the left side of the screen', hint: true, short: 'steer' },

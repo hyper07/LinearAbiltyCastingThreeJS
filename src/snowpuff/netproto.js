@@ -38,7 +38,7 @@ export const SEND_HZ = 15;
 const r2 = (v) => Math.round(v * 100) / 100;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-const F_AIR = 1, F_TUMBLE = 2, F_SPIN = 4, F_TUCK = 8, F_SHIELD = 16, F_FIN = 32, F_WOBBLE = 64, F_BOOST = 128, F_SLIP = 256, F_ROLLED = 512, F_LIFT = 1024;
+const F_AIR = 1, F_TUMBLE = 2, F_SPIN = 4, F_TUCK = 8, F_SHIELD = 16, F_FIN = 32, F_WOBBLE = 64, F_BOOST = 128, F_SLIP = 256, F_FLAT = 512, F_LIFT = 1024, F_PLANT = 2048;
 
 /** A racer's state as a short array (≈ 60 bytes of JSON). */
 export function packState(racer) {
@@ -53,7 +53,8 @@ export function packState(racer) {
   if (r.wobble > 0) flags |= F_WOBBLE;
   if (r.boost > 0) flags |= F_BOOST;
   if (r.slip > 0) flags |= F_SLIP;
-  if (r.rolled > 0) flags |= F_ROLLED;
+  if (r.flat > 0) flags |= F_FLAT;
+  if (r.tumble > 0 && r.tumbleSoft) flags |= F_PLANT;
   if (racer.liftT > 0) flags |= F_LIFT;
   return [racer.slot, r2(r.s), r2(r.lat), r2(r.y), r3(r.yaw), r2(r.speed), flags, r2(r.spin), r2(r.flip), r2(r.edge), r2(r.charge), racer.ammo, racer.gifts ?? 0, r2(racer.time), racer.lap ?? 1];
 }
@@ -65,7 +66,7 @@ export function unpackState(a) {
   return {
     slot: a[0] | 0, s: +a[1], lat: +a[2], y: +a[3], yaw: +a[4], speed: +a[5],
     air: Boolean(flags & F_AIR), tumble: Boolean(flags & F_TUMBLE), spinout: Boolean(flags & F_SPIN), tuck: Boolean(flags & F_TUCK),
-    shield: Boolean(flags & F_SHIELD), finished: Boolean(flags & F_FIN), wobble: Boolean(flags & F_WOBBLE), boost: Boolean(flags & F_BOOST), slip: Boolean(flags & F_SLIP), rolled: Boolean(flags & F_ROLLED), lift: Boolean(flags & F_LIFT), lap: Math.max(1, Math.min(9, (a[14] | 0) || 1)),
+    shield: Boolean(flags & F_SHIELD), finished: Boolean(flags & F_FIN), wobble: Boolean(flags & F_WOBBLE), boost: Boolean(flags & F_BOOST), slip: Boolean(flags & F_SLIP), flat: Boolean(flags & F_FLAT), plant: Boolean(flags & F_PLANT), lift: Boolean(flags & F_LIFT), lap: Math.max(1, Math.min(9, (a[14] | 0) || 1)),
     spin: +a[7], flip: +a[8], edge: +a[9], charge: +a[10], ammo: a[11] | 0, gifts: a[12] | 0, time: +a[13]
   };
 }

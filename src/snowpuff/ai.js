@@ -157,5 +157,7 @@ export function think(brain, racer, course, racers, dt) {
     });
     brain.itemWait = 0.3 + brain.rand() * 0.7;
   }
+  // squashed flat, face down in the snow or spinning on ice: no items until back on the board
+  if (!out.throw && (r.flat > 0 || r.tumble > 0 || r.slip > 0)) out.use = null;
   if (out.use != null && racer.slots[out.use]?.kind === 'shield') out.shield = true;  return out;
 }

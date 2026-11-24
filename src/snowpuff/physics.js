@@ -19,7 +19,7 @@
 
 import { frameAt, groundAt, kickerAt, between, BARRIERS } from './course.js';
 
-/** How long an ice slip lasts (s). */
+/** How long an ice spin lasts (s). */
 export const SLIP = 1.1;
 export const G = 9.8;
 export const VMAX = 34; // m/s, hard cap (≈ 120 km/h with a boost)
@@ -39,7 +39,7 @@ export function newRider({ s = 4, lat = 0, speed = 0 } = {}) {
     carve: 0, tuck: 0, charge: 0, edge: 0,
     spin: 0, flip: 0, spinV: 0, flipV: 0,
     tumble: 0, tumbleLen: 0.95, tumbleSoft: false, spinout: 0, wobble: 0, boost: 0, invuln: 0, onIce: false,
-    slip: 0, slipDir: 1, iceRun: false, rolled: 0,
+    slip: 0, slipDir: 1, iceRun: false, flat: 0, flatSpeed: 0,
     lastLand: null, finished: false
   };
 }
@@ -96,18 +96,23 @@ export function step(r, inp, course, dt, o = {}) {
   r.boost = Math.max(0, r.boost - dt);
   r.wobble = Math.max(0, r.wobble - dt);
   r.charge = Math.max(0, r.charge - dt * 4);
-  if (r.tumble > 0 || r.spinout > 0 || r.rolled > 0) {
+  if (r.tumble > 0 || r.spinout > 0 || r.flat > 0) {
     r.tumble = Math.max(0, r.tumble - dt);
     r.spinout = Math.max(0, r.spinout - dt);
-    const wasRolled = r.rolled > 0;
-    r.rolled = Math.max(0, r.rolled - dt);
-    if (wasRolled && r.rolled <= 0) ev.push({ type: 'unroll' });
+    const wasFlat = r.flat > 0;
+    r.flat = Math.max(0, r.flat - dt);
+    // squashed flat: a real stop; then a springy pop back up and away
+    if (wasFlat && r.flat <= 0) {
+      r.speed = Math.max(r.speed, r.flatSpeed ?? 0);
+      r.flatSpeed = 0;
+      ev.push({ type: 'popup' });
+    }
     if (r.tumble <= 0) r.tumbleSoft = false;
     steer = 0;
     tuckIn = 0;
     jumpHeld = false;
   }
-  // a slip on ice: a short, funny skate (≤ 1.1 s) — steering barely works, then you've got it back
+  // ice: a short cartoon spin round sideways while sliding on (≤ 1.1 s) — steering barely works, then you've got it back
   if (r.slip > 0) {
     r.slip = Math.max(0, r.slip - dt);
     steer *= 0.15;
@@ -133,7 +138,7 @@ export function step(r, inp, course, dt, o = {}) {
   r.onIce = !r.air && onIce(course, r.s, r.lat);
   // riding onto ice: the edge loses its grip — one slip per patch
   r.slipCd = Math.max(0, (r.slipCd ?? 0) - dt);
-  if (r.onIce && !r.iceRun && r.slipCd <= 0 && r.speed > 5 && r.tumble <= 0 && r.rolled <= 0) {
+  if (r.onIce && !r.iceRun && r.slipCd <= 0 && r.speed > 5 && r.tumble <= 0 && r.flat <= 0) {
     r.slip = SLIP;
     r.slipCd = SLIP + 1.4; // never two slips back to back
     r.slipDir = Math.sign((r.head ?? 0) - r.yaw || r.edge || r.lat || 1);
@@ -170,8 +175,7 @@ export function step(r, inp, course, dt, o = {}) {
     if (r.spinout > 0) r.head += Math.sin(r.spinout * 9) * dt * 1.2;
     // slipping: the board slews round, sliding sideways
     if (r.slip > 0) r.head += r.slipDir * 1.3 * dt * Math.sin((r.slip / SLIP) * Math.PI);
-    // rolled up in a giant snowball: rolling straight down the fall line
-    if (r.rolled > 0) r.head -= r.head * Math.min(1, dt * 3);
+    // squashed flat: the board stays where it is
     r.head = clamp(r.head, -1.35, 1.35);
     // velocity in course space
     let vs = r.speed * Math.cos(r.yaw), vl = r.speed * Math.sin(r.yaw);
@@ -204,11 +208,11 @@ export function step(r, inp, course, dt, o = {}) {
     let dec = drag + mu + edgeGrip * (ice ? 0.12 : 0.3) * Math.min(1.4, sp / 18) + (scrub / Math.max(dt, 1e-4)) * 0.012;
     // a tumble from a snowball hit is quick and fair; a crash into a barrier slows you hard
     if (r.tumble > 0) dec = r.tumbleSoft ? Math.max(dec, sp * 0.35) : Math.max(2, sp * 1.4);
-    if (r.rolled > 0) dec = Math.max(dec, sp * 0.3);
     if (r.spinout > 0) dec = Math.max(dec, sp * 0.5);
     if (o.brake) dec = Math.max(1.5, sp * 0.55);
     vF = Math.sign(vF) * Math.max(0, Math.abs(vF) - dec * dt);
     if (r.boost > 0) vF += 7.5 * dt;
+    if (r.flat > 0) vF = vL = 0;
     vs = vF * hx - vL * hy;
     vl = vF * hy + vL * hx;
     let v = Math.hypot(vs, vl);

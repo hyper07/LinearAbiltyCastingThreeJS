@@ -24,7 +24,7 @@ import { MOUNTAINS, mountainById } from './mountains.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES } from './riders.js';
 import { buildCourse, frameAt, groundAt, toWorld, rng, cleanMode } from './course.js';
 import { newRider, step, settle, SLIP } from './physics.js';
-import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, checkLap, tickLift, LIFT, LIFT_SKIP, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, ROLLED, dropIce, meltIce, draftFactor } from './race.js';
+import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, checkLap, tickLift, LIFT, LIFT_SKIP, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, dropIce, meltIce, draftFactor } from './race.js';
 import { newBrain, think } from './ai.js';
 import { makeRenderer, Pipeline, TIERS, TIER_ORDER, backendName } from './render/pipeline.js';
 import { Sky, distantPeaks } from './render/sky.js';
@@ -947,7 +947,7 @@ export class SnowpuffGame {
       this.fx.poof(p.x, p.y + 0.6, p.z, { n: 30, size: 0.5, speed: 4, up: 3 });
       this.sound.bonk(1);
       const at = this.toScreen(p.x, p.y + 1.6, p.z);
-      if (at) this.hud.bonk(at[0], at[1], shielded ? 'BLOCKED!' : 'BOWLED!', from?.me);
+      if (at) this.hud.bonk(at[0], at[1], shielded ? 'BLOCKED!' : 'SQUASHED!', from?.me);
       if (!shielded) {
         rc.model.react('ouch');
         this.emote(rc, rc.me ? 'Waaah!' : 'Nooo!', 0.2);
@@ -1028,7 +1028,8 @@ export class SnowpuffGame {
     v.wobble = b.wobble;
     v.boost = b.boost;
     v.slip = b.slip ?? 0;
-    v.rolled = b.rolled ?? 0;
+    v.flat = b.flat ?? 0;
+    v.tumbleSoft = Boolean(b.tumbleSoft);
     v.tumbleLen = b.tumbleLen ?? 0.95;
     return v;
   }
@@ -1044,7 +1045,8 @@ export class SnowpuffGame {
     rd.tumble = st.tumble ? Math.max(rd.tumble, 0.01) : 0;
     rd.spinout = st.spinout ? Math.max(rd.spinout, 0.01) : 0;
     rd.slip = st.slip ? Math.max(rd.slip ?? 0, 0.5) : 0;
-    rd.rolled = st.rolled ? Math.max(rd.rolled ?? 0, 0.6) : 0;
+    rd.flat = st.flat ? Math.max(rd.flat ?? 0, 0.5) : 0;
+    rd.tumbleSoft = Boolean(st.plant);
     rd.wobble = st.wobble ? 0.3 : 0;
     rd.boost = st.boost ? 0.2 : 0;
     rd.carve = Math.abs(st.edge);
@@ -1106,15 +1108,15 @@ export class SnowpuffGame {
           this.race.shake = 0.5;
         }
       } else if (e.type === 'slip') {
-        // onto ice: a skate — a scrape and a glint of ice
+        // onto ice: a spin round — a scrape and a glint of ice
         if (near) {
           this.fx.sparkles(rc.pos.x, rc.pos.y + 0.15, rc.pos.z, { n: 10, col: new THREE.Color('#d8f6ff'), speed: 2.5, life: 0.5, size: 0.14 });
           this.sound.iceScrape(rc.me ? 1 : 0.5);
         }
         this.emote(rc, ['Whoa!', 'Wheee!', 'Slippy!'][Math.floor(Math.random() * 3)], 0.1);
         if (rc.me) this.hud.say('Ice!', 'info');
-      } else if (e.type === 'unroll') {
-        // bursting free of the giant snowball
+      } else if (e.type === 'popup') {
+        // popping back up after being squashed flat by a giant snowball
         if (near) {
           this.fx.poof(rc.pos.x, rc.pos.y + 0.6, rc.pos.z, { n: 44, size: 0.6, speed: 5, up: 3.6 });
           this.sound.snowmanPoof(rc.me ? 1 : 0.5);
@@ -1458,7 +1460,7 @@ export class SnowpuffGame {
       ps.compress = rd.compress; ps.skid = rd.skid; ps.tuck = rd.tuck; ps.charge = rd.charge; ps.speed = rd.speed; ps.air = rd.air;
       ps.tumbleK = rd.tumble > 0 ? clamp(rd.tumble / (rd.tumbleLen || 0.95), 0, 1) : 0;
       ps.slipK = rd.slip > 0 ? clamp(rd.slip / SLIP, 0, 1) : 0;
-      ps.rolledK = rd.rolled > 0 ? clamp(rd.rolled / ROLLED, 0, 1) : 0; ps.spinoutK = rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0;
+      ps.flat = rd.flat > 0; ps.plant = rd.tumble > 0 && Boolean(rd.tumbleSoft); ps.spinoutK = rd.spinout > 0 ? clamp(rd.spinout / 1.2, 0, 1) : 0;
       ps.wobble = rd.wobble; ps.landed = rc.landed ?? 0; ps.steerIn = rc.rider.steerIn ?? 0; ps.steer = rc.rider.steerR ?? 0;
       ps.unweight = rc.rider.unweight ?? 0; ps.spinV = rc.rider.spinV ?? 0; ps.latAcc = rd.latAcc; ps.yawRate = yawRate; ps.lookYaw = lookYaw;
       ps.idle = this.mode === 'countdown';

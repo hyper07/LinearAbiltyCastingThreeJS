@@ -22,6 +22,25 @@
  * update() allocates nothing: the joints live in Float32Arrays.
  */
 
+/** The ice spin and the face-plant play for this long (s) — the physics' SLIP and the race's TUMBLE. */
+export const SPIN_T = 1.1, PLANT_T = 0.85;
+
+/** Ice: how far round the rider has spun t s into a slip — two whole turns, easing in and out, ending square. */
+export function iceSpin(t) {
+  const u = Math.max(0, Math.min(1, t / SPIN_T));
+  return Math.PI * 4 * u * u * (3 - 2 * u);
+}
+
+/** A snowball face-plant: the forward pitch (rad) t s in — over the nose fast, a beat in the snow, a springy pop back (a little past upright, then square). */
+export function plantPitch(t) {
+  const u = Math.max(0, Math.min(1, t / PLANT_T));
+  if (u < 0.22) return Math.sin(((u / 0.22) * Math.PI) / 2) * 1.25;
+  if (u < 0.6) return 1.25;
+  // ease-out-back: past upright a touch, then square
+  const w = (u - 0.6) / 0.4 - 1, c1 = 1.70158;
+  return 1.25 * -((c1 + 1) * w * w * w + c1 * w * w);
+}
+
 export const J = Object.freeze({
   headYaw: 0, headPitch: 1, headRoll: 2,
   chestYaw: 3, chestPitch: 4, chestRoll: 5,
@@ -153,22 +172,25 @@ export class PoseRig {
         lS = 0.2; rS = -0.1;
         T[J.hipsDrop] = 0.7;
       }
-      if (s.tumbleK > 0 || s.spinoutK > 0) {
+      if (s.plant) {
+        // a face-plant: both arms thrown forward over the head, legs kicked up behind
+        lR = 2.5 + Math.sin(t * 20) * 0.2; rR = 2.5 + Math.sin(t * 20 + 2) * 0.2;
+        lS = 0.9; rS = 0.9;
+        T[J.hipsDrop] = 0.4;
+      } else if (s.tumbleK > 0 || s.spinoutK > 0) {
         lR = 1.5 + Math.sin(t * 18) * 0.6; rR = 1.5 + Math.sin(t * 18 + 2) * 0.6;
         T[J.headYaw] += Math.sin(t * 14) * 0.4;
       }
       if (s.slipK > 0) {
-        // skating on ice: windmilling arms, leaning back, eyes wide
-        const k = Math.sin(s.slipK * Math.PI);
-        lR = 1.2 + Math.sin(t * 16) * 0.9 * k + 0.6 * k; rR = 1.2 + Math.sin(t * 16 + Math.PI) * 0.9 * k + 0.6 * k;
-        lS = Math.sin(t * 16) * 0.8 * k; rS = -Math.sin(t * 16) * 0.8 * k;
-        T[J.chestPitch] -= 0.25 * k;
+        // spinning round on ice: arms straight out like a figure skater, a little wobble, eyes wide
+        lR = 1.55 + Math.sin(t * 9) * 0.12; rR = 1.55 + Math.sin(t * 9 + Math.PI) * 0.12;
+        lS = 0; rS = 0;
+        T[J.chestPitch] -= 0.12;
       }
-      if (s.rolledK > 0) {
-        // rolled up in a snowball: paws poking out, waving
-        lR = 2.4 + Math.sin(t * 20) * 0.35; rR = 2.4 + Math.sin(t * 20 + 2) * 0.35;
-        lS = 0.4; rS = 0.4;
-        T[J.hipsDrop] = 0.8;
+      if (s.flat) {
+        // squashed flat: arms and legs splayed out on the snow
+        lR = 1.6; rR = 1.6; lS = 0.2; rS = 0.2;
+        T[J.hipsDrop] = 0.2;
       }
       if (s.wobble > 0) {
         lR += Math.sin(t * 15) * 0.5 * s.wobble;

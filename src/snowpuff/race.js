@@ -17,9 +17,9 @@ import { between, groundAt, frameAt } from './course.js';
 export const MAX_SLOTS = 2;
 export const MAX_SNOWBALLS = 6;
 export const SPINOUT = 1.2;
-/** A snowball hit's tumble, and how long a giant snowball keeps you rolled up (s). */
+/** A snowball hit's face-plant, and how long a giant snowball keeps you squashed flat (stopped) (s). */
 export const TUMBLE = 0.85;
-export const ROLLED = 1.35;
+export const FLAT = 1.0;
 export const SHIELD_TIME = 5;
 export const THROW_COOLDOWN = 0.5;
 export const PILE_GIVES = 2;
@@ -178,7 +178,7 @@ export const slotItem = (racer, i) => racer.slots[i] ?? null;
 export function useSlot(racer, i) {
   const it = racer.slots[i];
   if (!it || racer.finished || racer.itemCd > 0) return null;
-  if (racer.rider.tumble > 0 || racer.rider.spinout > 0) return null;
+  if (racer.rider.tumble > 0 || racer.rider.spinout > 0 || racer.rider.flat > 0) return null;
   if (it.kind === 'snowballs') return canThrow(racer) ? { kind: 'snowball' } : null;
   it.n -= 1;
   racer.itemCd = 0.35;
@@ -303,17 +303,19 @@ export function giantHits(g, racers, course) {
   return out;
 }
 
-/** Bowled over by a giant snowball: a big tumble (a shield pops instead). */
+/** Bowled over by a giant snowball: squashed flat (a shield pops instead). */
 export function applyBowl(target, fromSlot) {
   if (target.shieldT > 0) {
     target.shieldT = 0;
     return false;
   }
   const r = target.rider;
-  // rolled up inside the snowball for a moment (arms, legs and ears poking out), then burst free
-  r.rolled = ROLLED;
-  r.speed *= 0.72;
-  r.invuln = Math.max(r.invuln, ROLLED + 0.5);
+  // squashed pancake-flat on the snow (ears and board sticking out): stopped for a real second,
+  // then a springy pop back up and off again at part of the old speed
+  r.flat = FLAT;
+  r.flatSpeed = r.speed * 0.6;
+  r.speed = 0;
+  r.invuln = Math.max(r.invuln, FLAT + 0.5);
   target.bonks += 1;
   target.lastHitBy = fromSlot;
   return true;
@@ -386,7 +388,7 @@ export function pickTarget(thrower, racers, { range = 48, cone = 0.62, revenge =
 }
 
 export function canThrow(racer) {
-  return racer.slots.some((x) => x.kind === 'snowballs' && x.n > 0) && racer.throwCd <= 0 && racer.rider.tumble <= 0 && racer.rider.spinout <= 0 && !racer.finished;
+  return racer.slots.some((x) => x.kind === 'snowballs' && x.n > 0) && racer.throwCd <= 0 && racer.rider.tumble <= 0 && racer.rider.spinout <= 0 && !(racer.rider.flat > 0) && !racer.finished;
 }
 
 /** Flight time of a lobbed snowball over `dist` metres. */
@@ -431,7 +433,7 @@ export function applyHit(target, fromSlot = -1) {
     return false;
   }
   const r = target.rider;
-  // a quick cartoon tumble: one roll over sideways, a puff of snow, and back on the board
+  // a cartoon face-plant: pitched over the board's nose into the snow, a puff, and back up
   r.tumble = TUMBLE;
   r.tumbleLen = TUMBLE;
   r.tumbleSoft = true;

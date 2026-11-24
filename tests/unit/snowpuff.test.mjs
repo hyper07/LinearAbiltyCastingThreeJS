@@ -8,6 +8,7 @@ import { newBrain, think } from '../../src/snowpuff/ai.js';
 import { packState, unpackState, packThrow, unpackThrow, assignSlots, cleanMember, InterpBuffer, MSG } from '../../src/snowpuff/netproto.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES, faceSvg } from '../../src/snowpuff/riders.js';
 import { CONTROLS } from '../../src/snowpuff/controls.js';
+import { iceSpin, plantPitch } from '../../src/snowpuff/render/poseRig.js';
 import { collisions, codesFor } from '../../src/shared/helpPanel.js';
 import { PACKS } from '../../src/snowpuff/credits.js';
 import { POLYFORK } from '../../src/snowpuff/assets.js';
@@ -299,7 +300,7 @@ test('race: items — shield, boost, giant snowball and ice patch', () => {
     bowled = giantHits(g, all, course);
   }
   assert.deepEqual(bowled.map((x) => x.slot), [2]);
-  assert.ok(applyBowl(victim, 1) && victim.rider.rolled > 0 && victim.lastHitBy === 1, 'rolled up inside the snowball');
+  assert.ok(applyBowl(victim, 1) && victim.rider.flat > 0 && victim.rider.speed === 0 && victim.lastHitBy === 1, 'squashed flat');
   // an ice patch dropped behind you makes the snow there slippery until it melts
   const iceR = racerAt(4, 500, 2);
   const p = dropIce(course, iceR, 10, 'i1', 5);
@@ -341,7 +342,7 @@ test('race: a snowball aims at the nearest rider ahead in the cone, hits, and sp
   assert.ok(hittable(ahead, course));
   const v = ahead.rider.speed;
   assert.ok(applyHit(ahead));
-  assert.ok(ahead.rider.tumble > 0 && ahead.rider.tumble <= 1.5 && ahead.rider.tumbleSoft, 'a quick sideways tumble');
+  assert.ok(ahead.rider.tumble > 0 && ahead.rider.tumble <= 1.5 && ahead.rider.tumbleSoft, 'a quick face-plant');
   assert.ok(ahead.rider.speed < v && ahead.bonks === 1);
   ride(ahead.rider, { steer: 1 }, 0.3);
   assert.ok(Math.abs(ahead.rider.carve) < 0.05, 'no steering while tumbling');
@@ -746,7 +747,7 @@ test('giant snowball: rolls over the real terrain — swings across, bounces off
   }
 });
 
-test('ice: riding onto it slips you for a moment (≤ 1.2 s), steering barely works, then you have it back', () => {
+test('ice: riding onto it spins you round for a moment (≤ 1.2 s), steering barely works, then you have it back', () => {
   const c = buildCourse(mountainById('pinecone'));
   const patch = c.ice[0] ?? { s: 300, lat: 0, len: 10, w: 6 };
   if (!c.ice.length) c.ice.push(patch);
@@ -772,9 +773,11 @@ test('ice: riding onto it slips you for a moment (≤ 1.2 s), steering barely wo
   assert.ok(slips >= 1, 'it slips');
   assert.ok(longest > 0.5 && longest <= 1.2, `slip ${longest.toFixed(2)} s`);
   assert.equal(r.slip, 0);
+  // the rider spins round sideways: two whole turns over the slip, ending square
+  assert.ok(Math.abs(iceSpin(0.55) - Math.PI * 2) < 1e-6 && Math.abs(iceSpin(1.1) - Math.PI * 4) < 1e-6 && iceSpin(0) === 0, 'spins round');
 });
 
-test('hits: a snowball tumbles you once (≤ 1.5 s, fair speed loss); a giant one rolls you up, then you burst free', () => {
+test('hits: a snowball face-plants you once (0.85 s, fair speed loss); a giant one squashes you flat for a real 1 s stop, then you pop up', () => {
   const a = racerAt(1, 300, 0, { speed: 20 });
   assert.ok(applyHit(a));
   let t = 0;
@@ -782,17 +785,22 @@ test('hits: a snowball tumbles you once (≤ 1.5 s, fair speed loss); a giant on
     step(a.rider, { steer: 1 }, course, DT);
     t += DT;
   }
-  assert.ok(t <= 1.5 && a.rider.speed > 9, `tumble ${t.toFixed(2)} s, ${a.rider.speed.toFixed(1)} m/s after`);
+  assert.ok(Math.abs(t - 0.85) < 0.02 && a.rider.speed > 9, `face-plant ${t.toFixed(2)} s, ${a.rider.speed.toFixed(1)} m/s after`);
+  // the face-plant pitches forward over the nose and comes back square
+  assert.ok(plantPitch(0.3) > 1 && Math.abs(plantPitch(0.85)) < 1e-6 && plantPitch(0.78) < 0, 'nose-down, then a springy pop back');
   const b = racerAt(2, 300, 0, { speed: 20 });
   assert.ok(applyBowl(b, 1));
   const ev = [];
+  const s0 = b.rider.s;
   t = 0;
-  while (b.rider.rolled > 0) {
-    ev.push(...step(b.rider, {}, course, DT));
+  while (b.rider.flat > 0) {
+    ev.push(...step(b.rider, { steer: 1, tuck: true }, course, DT));
     t += DT;
+    if (b.rider.flat > 0) assert.ok(b.rider.speed === 0 && Math.abs(b.rider.carve) < 0.01, 'flat: stopped, no steering');
   }
-  assert.ok(t <= 1.5 && b.rider.speed > 7, `rolled ${t.toFixed(2)} s`);
-  assert.ok(ev.some((e) => e.type === 'unroll'), 'bursts free');
+  assert.ok(Math.abs(t - 1) < 0.02, `flat ${t.toFixed(2)} s`);
+  assert.ok(Math.abs(b.rider.s - s0) < 0.2, 'it really stops for the second');
+  assert.ok(ev.some((e) => e.type === 'popup') && b.rider.speed > 7, 'pops back up and rides on');
 });
 
 /** Race AI riders through a course (with laps and the chairlift); returns [ride times (median first-sorted), wall clock]. */

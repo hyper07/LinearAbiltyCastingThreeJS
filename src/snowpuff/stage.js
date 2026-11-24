@@ -162,11 +162,14 @@ export class Stage {
       const g = new THREE.Group();
       g.position.set(DIO.x + (i - 1) * 4.4, 0, DIO.z);
       const r = rng(m.seed);
+      // everything on the pedestal turns as one piece (the pedestal too); only the sky card behind stays put
+      const turn = new THREE.Group();
+      g.add(turn);
       // pedestal
       const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.75, 0.7, 48), new THREE.MeshStandardNodeMaterial({ color: '#ffffff', roughness: 0.6 }));
       ped.position.y = 0.35;
       ped.castShadow = ped.receiveShadow = true;
-      g.add(ped);
+      turn.add(ped);
       // the mountain: a soft noisy cone, snow above, rock streaks
       let geo;
       const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.8 });
@@ -193,7 +196,7 @@ export class Stage {
       }
       const mtn = new THREE.Mesh(geo, mm);
       mtn.castShadow = mtn.receiveShadow = true;
-      g.add(mtn);
+      turn.add(mtn);
       // a winding run down its face
       const pts = [];
       const H = 2.2 + m.difficulty * 0.35;
@@ -205,7 +208,7 @@ export class Stage {
         pts.push(new THREE.Vector3(Math.cos(a) * rad, y, Math.sin(a) * rad));
       }
       const run = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.05, 6), new THREE.MeshStandardNodeMaterial({ color: m.fence.colour, roughness: 0.5 }));
-      g.add(run);
+      turn.add(run);
       // trees
       const trees = [];
       for (let k = 0; k < 22 + m.difficulty * 10; k++) {
@@ -215,10 +218,10 @@ export class Stage {
         const rad = 1.45 * u * 1.0;
         trees.push({ x: Math.cos(a) * rad, y, z: Math.sin(a) * rad, ry: r() * 6, s: 0.05 + r() * 0.03 });
       }
-      g.add(instance(spruce, trees));
+      turn.add(instance(spruce, trees));
       // a tiny lift up one side
       const towers = [0.25, 0.5, 0.75].map((u) => ({ x: -Math.sin(0.4) * 1.45 * u, y: 0.7 + H * (1 - u), z: Math.cos(0.4) * 1.45 * u, ry: 0.4, s: 0.045 }));
-      g.add(instance(pylon, towers));
+      turn.add(instance(pylon, towers));
       // night lanterns
       if (m.lanterns) {
         const lm = new THREE.MeshBasicNodeMaterial({ color: '#ffb54a' });
@@ -227,7 +230,7 @@ export class Stage {
           if (k % 3) return;
           const l = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), lm);
           l.position.copy(pt).add(new THREE.Vector3(0.1, 0.06, 0));
-          g.add(l);
+          turn.add(l);
         });
       }
       // the sky card behind
@@ -239,9 +242,9 @@ export class Stage {
       flag.position.set(0.15, 0.72 + H + 0.25, 0);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.45), new THREE.MeshStandardNodeMaterial({ color: '#ffffff' }));
       pole.position.set(0, 0.72 + H + 0.12, 0);
-      g.add(flag, pole);
+      turn.add(flag, pole);
       this.scene.add(g);
-      this.dioramas.set(m.id, { g, mtn, lift: 0 });
+      this.dioramas.set(m.id, { g, mtn, turn, lift: 0 });
     });
   }
 
@@ -374,7 +377,7 @@ export class Stage {
     const d = this.dioramas?.get(this.mountain);
     if (!d) return;
     const a = dxPx * 0.011;
-    d.mtn.rotation.y += a;
+    d.turn.rotation.y += a;
     this.turnVel = a / Math.max(1 / 120, dt);
     this.turnHold = 4;
     this.dragging = true;
@@ -436,9 +439,9 @@ export class Stage {
       if (on) {
         // your own turn (arrows, Q/E, drag) first; its slow idle turn only once you've let it be
         this.turnHold = Math.max(0, (this.turnHold ?? 0) - dt);
-        if (!this.dragging) d.mtn.rotation.y += dt * ((this.turnVel ?? 0) + (this.turnHold > 0 ? 0 : 0.35));
+        if (!this.dragging) d.turn.rotation.y += dt * ((this.turnVel ?? 0) + (this.turnHold > 0 ? 0 : 0.35));
         this.turnVel = (this.turnVel ?? 0) * Math.exp(-dt * (this.dragging ? 12 : 2.4));
-      } else d.mtn.rotation.y += dt * 0.05;
+      } else d.turn.rotation.y += dt * 0.05;
       d.g.scale.setScalar(1 + d.lift * 0.25);
     }
     for (const m of this.podiumRiders) {

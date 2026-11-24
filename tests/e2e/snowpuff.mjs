@@ -60,7 +60,7 @@ export async function run(browser) {
       g.debugPin(0, 20, 0, 12);
     });
     await page.keyboard.press('Digit1');
-    t.check('a giant snowball (an item on 1) rolls down your lane', await until(page, () => window.snowpuff.race.giants.length > 0 || window.snowpuff.racers.some((r) => !r.me && (r.rider.tumble > 0 || r.rider.rolled > 0)), null, 2000));
+    t.check('a giant snowball (an item on 1) rolls down your lane', await until(page, () => window.snowpuff.race.giants.length > 0 || window.snowpuff.racers.some((r) => !r.me && (r.rider.tumble > 0 || r.rider.flat > 0)), null, 2000));
     t.check('a snowball (1) flies at the rider ahead and tumbles them', await until(page, () => window.snowpuff.racers.some((r) => !r.me && r.rider.tumble > 0 && r.rider.tumbleSoft), null, 3000));
     await page.evaluate(() => window.snowpuff.debugFinish());
     t.check('the finish shows the podium and the standings', await until(page, () => window.snowpuff.mode === 'results' && document.querySelectorAll('.sp-standing').length === 4, null, 8000));
