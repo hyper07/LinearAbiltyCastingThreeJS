@@ -56,6 +56,12 @@ export async function run(browser) {
       r._renderItems();
     });
     t.check('an item shows in its slot', await page.evaluate(() => Boolean(document.querySelector('.race__slot.is-full img'))));
+    // (On the bike, not mid-tumble from the autopilot's last scrape.)
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    await page.evaluate(() => {
+      window.seoul.race.me.safe = 5;
+      window.seoul.race.me.s.stamina = 0.1;
+    });
     await page.keyboard.press('Digit1');
     t.check('1 uses it: the energy drink fills the sprint gauge', await until(page, () => window.seoul.race.me.s.stamina > 0.95 && window.seoul.race.me.items[0] === null, null, 3000));
     // A crash: off the bike, and back on.
