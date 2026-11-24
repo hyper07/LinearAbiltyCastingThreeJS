@@ -4,6 +4,7 @@
  * compile errors next to their lines, the board's pins, and the serial
  * monitor (output + a line to send).
  */
+import { requestRun } from './PreflightPanel'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { liveEngine, useStore } from '../../state/store'
 import { boardDef } from '../../model/boards'
@@ -81,7 +82,7 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
     }
     st.resetSim()
     serialBus.clear(board.id)
-    st.startSim()
+    requestRun()
   }
 
   const setRuntime = (v: string) => {
@@ -176,7 +177,7 @@ export function CodeSheet({ open, onDismiss, desktop = false, errors, setErrors,
               <button type="button" className="lab-btn is-primary" data-upload onClick={() => void upload()}>
                 {runtime === 'avr' ? 'Compile & run' : dirty ? 'Upload & run' : 'Run'}
               </button>
-              <button type="button" className="lab-btn" onClick={() => (running ? useStore.getState().stopSim() : useStore.getState().startSim())}>
+              <button type="button" className="lab-btn" onClick={() => (running ? useStore.getState().stopSim() : requestRun())}>
                 {running ? 'Pause' : 'Resume'}
               </button>
               <button

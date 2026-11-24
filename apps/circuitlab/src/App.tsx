@@ -13,6 +13,7 @@
  * UI chrome state (which sheet is open, onboarding…) lives HERE in React
  * state — never in the store.
  */
+import { PreflightHost, requestRun } from './ui/lab/PreflightPanel'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, GrowDirection, MoveTarget } from './state/types'
 import { boardConfigOf } from './model/types'
@@ -478,6 +479,10 @@ export default function App() {
   const [creditsOpen, setCreditsOpen] = useState(false)
   const [savedOpen, setSavedOpen] = useState(false)
   const [diagOpen, setDiagOpen] = useState(false)
+  const showPart = useCallback((id: string) => {
+    useStore.getState().select(id)
+    sceneRef.current?.focusComponent(id)
+  }, [])
   const closeDiag = useCallback(() => setDiagOpen(false), [])
   const closeSaved = useCallback(() => setSavedOpen(false), [])
   // Ctrl/Cmd+S opens Save / Open (instead of the browser saving the page)
@@ -764,7 +769,7 @@ export default function App() {
       if (sceneRef.current?.consumeSpacePan()) return
       const st = useStore.getState()
       if (st.running) st.stopSim()
-      else st.startSim()
+      else requestRun()
       tick()
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1131,6 +1136,7 @@ export default function App() {
       <LabCorner onCredits={() => setCreditsOpen(true)} onSaved={() => setSavedOpen(true)} />
       <SavedPanel open={savedOpen} onClose={closeSaved} />
       <SpecsHost />
+      <PreflightHost onShow={showPart} />
       <DiagnoseButton onOpen={() => setDiagOpen(true)} />
       <DiagnosePanel
         open={diagOpen}

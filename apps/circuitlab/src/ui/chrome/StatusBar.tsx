@@ -13,6 +13,7 @@
  *   samples ("rendering… N/M samples"), flashes the converged line, then
  *   auto-collapses — fed by pushRenderProgress (scene → App → here).
  */
+import { requestRun } from '../lab/PreflightPanel'
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../../state/store'
 import type { RenderProgress } from '../../three/scene-api'
@@ -139,7 +140,7 @@ export function StatusBar() {
   const onTap = () => {
     const st = useStore.getState()
     if (st.running) st.stopSim()
-    else st.startSim()
+    else requestRun() // checks the circuit first (see PreflightPanel)
   }
 
   return (

@@ -679,3 +679,25 @@
 .lab-diag-foot {
   margin-top: 16px;
 }
+
+/* ---- Check before you run ---- */
+.lab-pre-title {
+  font-weight: 600;
+}
+.lab-pre-answer {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(47, 174, 95, 0.16);
+}
+.lab-pre-off {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(242, 242, 247, 0.7);
+}
+.lab-diag-foot {
+  flex-wrap: wrap;
+  align-items: center;
+}
