@@ -1554,7 +1554,7 @@ const PI_LOOKS: Record<string, BenchLook> = {
       { x: 50, z: 12, w: 4, d: 4, h: 0.8, mat: 'chip', legs: 6 },
     ],
     texts: [
-      { s: 'Raspberry Pi Zero 2 W', x: 30, z: 26.5, size: 1.9, weight: '700' },
+      { s: 'Raspberry Pi Zero 2 W', x: 24, z: 21.2, size: 1.5, weight: '700' },
       { s: 'mini HDMI', x: 12.4, z: 21.6, size: 1.1 },
       { s: 'USB', x: 41.4, z: 23.8, size: 1.1 },
       { s: 'PWR IN', x: 54, z: 23.8, size: 1.1 },
