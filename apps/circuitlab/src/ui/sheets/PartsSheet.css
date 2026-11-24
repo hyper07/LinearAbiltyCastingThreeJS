@@ -221,6 +221,8 @@
 .psh-card.cat-ic .psh-card-glyph { color: var(--ios-purple); }
 .psh-card.cat-power .psh-card-glyph { color: var(--ios-green); }
 .psh-card.cat-instrument .psh-card-glyph { color: var(--ios-blue); }
+.psh-card.cat-rf .psh-card-glyph { color: var(--ios-purple, #af52de); }
+.psh-card.cat-filter .psh-card-glyph { color: var(--ios-orange, #ff9f0a); }
 
 .psh-empty {
   padding: 24px 0 16px;

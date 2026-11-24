@@ -36,6 +36,7 @@ import type { Netlist } from './netlist'
 import { MnaSystem, solveNewton } from './mna'
 import { createDevice, LedDevice, PowerSupplyDevice } from './devices'
 import { createLabDevice } from './devices-lab'
+import { connectRf, createRfDevice } from './devices-rf'
 import { AcSystem, type BodePoint } from './ac'
 import type { AnalogDevice } from './devices'
 
@@ -258,7 +259,7 @@ export class SimEngine {
 
         const sim = entry.sim
         if (sim.kind === 'device') {
-          const device = createDevice(sim.model, comp, entry, nodes) ?? createLabDevice(sim.model, comp, entry, nodes)
+          const device = createDevice(sim.model, comp, entry, nodes) ?? createLabDevice(sim.model, comp, entry, nodes) ?? createRfDevice(sim.model, comp, entry, nodes)
           if (!device) {
             this.addIssue(
               'error',
@@ -304,6 +305,8 @@ export class SimEngine {
     }
 
     if (!hasSupply) this.addIssue('warning', MSG_NO_POWER)
+    // Circuit Lab: antennas, radios and RF instruments share one radio world
+    connectRf(layout, this.devices)
 
     this.ledReported = new Uint8Array(this.leds.length)
     this.supplyWarned = new Uint8Array(this.supplies.length)

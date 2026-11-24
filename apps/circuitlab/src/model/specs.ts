@@ -7,6 +7,7 @@
 import type { ComponentInstance } from './types'
 import { getEntry, paramOf, type CatalogEntry } from './catalog'
 import { boardDef, type BoardDef } from './boards'
+import { RF_SHEETS } from './specs-rf'
 
 export type SpecRow = [label: string, value: string]
 export interface SpecGroup {
@@ -20,7 +21,7 @@ export interface PartSpecs {
   tips: string[]
 }
 
-interface Sheet {
+export interface Sheet {
   part: string
   max?: SpecRow[]
   typ?: SpecRow[]
@@ -323,6 +324,7 @@ const SHEETS: Record<string, Sheet> = {
     typ: [['Supply', '3.3–6 V'], ['Current', '1–1.5 mA measuring'], ['Temperature', '−40 … 80 °C, ±0.5 °C'], ['Humidity', '0–100 % RH, ±2–5 %']],
     freq: [['Read rate', 'once every 2 s at most']],
   },
+  ...RF_SHEETS,
 }
 
 /** a board's sheet from its BoardDef (logic level, pin limits, ADC/PWM, supplies, extra facts) */

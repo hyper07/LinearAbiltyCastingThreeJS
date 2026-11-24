@@ -43,6 +43,8 @@ const CATEGORY_ORDER: ComponentCategory[] = [
   'sensor',
   'output',
   'instrument',
+  'rf',
+  'filter',
 ]
 
 const CATEGORY_LABELS: Record<ComponentCategory, string> = {
@@ -56,6 +58,8 @@ const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   board: 'Boards',
   sensor: 'Sensors',
   output: 'Motion',
+  rf: 'RF & wireless',
+  filter: 'Filters',
 }
 
 function placementMeta(entry: CatalogEntry): string {
@@ -172,6 +176,22 @@ function PartGlyph({ entry }: { entry: CatalogEntry }) {
       break
   }
   switch (entry.category) {
+    case 'rf':
+      // antenna symbol: a mast with a V on top and radiating arcs
+      return (
+        <G>
+          <path d="M24 26V8M16 3l8 7 8-7M16 3h16" />
+          <path d="M35 10a7 7 0 0 1 0 8M39 7a12 12 0 0 1 0 14" strokeWidth={1.6} />
+        </G>
+      )
+    case 'filter':
+      // L in series, C to ground
+      return (
+        <G>
+          <path d="M2 10h6M30 10h16M38 10v6M33 16h10M33 20h10M38 20v5" />
+          <path d="M8 10a2.75 2.75 0 0 1 5.5 0a2.75 2.75 0 0 1 5.5 0a2.75 2.75 0 0 1 5.5 0a2.75 2.75 0 0 1 5.5 0" />
+        </G>
+      )
     case 'board':
       return (
         <G>

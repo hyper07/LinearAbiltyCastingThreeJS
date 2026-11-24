@@ -10,6 +10,7 @@
 import type { StripRow } from './types'
 import { LAB_PARTS } from './catalog-lab'
 import { EE_PARTS } from './catalog-ee'
+import { RF_PARTS } from './catalog-rf'
 
 export type PlacementKind =
   | 'leads' // free 2/3-lead part: instance lists one HoleRef per pin in `holes`
@@ -29,6 +30,8 @@ export type ComponentCategory =
   | 'board'
   | 'sensor'
   | 'output'
+  | 'rf'
+  | 'filter'
 
 /**
  * Plan-rect the molded BODY of a part covers, for occlusion checks
@@ -512,7 +515,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
 }
 
 // Circuit Lab: boards and the parts that need them
-Object.assign(CATALOG, LAB_PARTS, EE_PARTS)
+Object.assign(CATALOG, LAB_PARTS, EE_PARTS, RF_PARTS)
 
 export function getEntry(type: string): CatalogEntry | undefined {
   return CATALOG[type]
