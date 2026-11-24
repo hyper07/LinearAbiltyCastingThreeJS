@@ -16877,11 +16877,13 @@
 "id": "ref.img2-0295",
 "image": "images2/IMG_0295.PNG",
 "type": "scene-environment",
-"quality": 3,
-"title": "Hikers above an aqueduct city with waterfalls",
+"quality": 4,
+"title": "Hikers seen from behind above an aqueduct city (painterly semi-real)",
 "summary": "Two hikers look over a domed city, a long aqueduct and waterfalls under bright clouds.",
 "concept": "",
 "lessons": [
+"The user's chosen 2D style for Gangnam Jarani riders: painterly semi-realistic illustration, real proportions, tactile fabric (fleece hoodie, nylon backpack highlights), natural hair (ponytail, messy curls), bright saturated daylight, soft edges, no heavy outlines.",
+"Back views carry character through silhouette and colour blocks: red hoodie + black pack, blue pack + ponytail, olive jacket + poles. Exactly what a chase camera sees.",
 "Reward vista: the player's back in the foreground, the destination framed in the middle."
 ],
 "hud": [],
@@ -16899,13 +16901,19 @@
 "vista",
 "aqueduct",
 "waterfall",
-"city"
+"city",
+"painterly",
+"semi-realistic",
+"back-view",
+"character",
+"gangnam-jarani"
 ],
 "useFor": [
+"racing",
 "general"
 ],
 "source": "AI image",
-"study": "knowledge/visual-study.md"
+"study": "knowledge/racing-study.md"
 },
 {
 "id": "ref.img2-0296",
