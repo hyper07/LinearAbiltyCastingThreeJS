@@ -1292,17 +1292,21 @@ export class Race {
     if (performance.now() - (g.dragAt ?? 0) > 1000) {
       const behind = r.mode === 'ride' ? r.s.travel ?? r.s.heading : g.yaw;
       g.yaw += turn(g.yaw, behind) * 0.1;
-      g.pitch += (-0.2 - g.pitch) * 0.08;
+      // A little higher in the alleys, to see over the clutter round the next corner.
+      const alley = isSmall(this.course.points[r.idx]?.[3] ?? 4) && (this.course.points[r.idx]?.[2] ?? 6) < 5;
+      g.pitch += ((alley ? -0.32 : -0.2) - g.pitch) * 0.05;
     }
     const dir = new THREE.Vector3(-Math.sin(g.yaw) * Math.cos(g.pitch), Math.sin(g.pitch), -Math.cos(g.yaw) * Math.cos(g.pitch));
     const focus = new THREE.Vector3(r.s.x - Math.sin(g.yaw) * 1.6, r.y + 1.35, r.s.z - Math.cos(g.yaw) * 1.6);
     // Never inside a building: in a turning alley the camera comes in close (and a little up) instead.
     let dist = (g.zoom ?? 4.6) + Math.abs(r.s.v) * 0.09;
-    for (let d = 1.2; d <= dist; d += 0.4) {
+    // (Where the map's buildings overlap the alley itself, the rider is "inside" one: no pulling in then.)
+    const inside = g.buildingAt(r.s.x, r.s.z);
+    for (let d = 1.2; d <= dist && !inside; d += 0.4) {
       const x = focus.x - dir.x * d;
       const z = focus.z - dir.z * d;
       if (g.buildingAt(x, z)) {
-        dist = Math.max(1.4, d - 0.5);
+        dist = Math.max(2.2, d - 0.5);
         break;
       }
     }

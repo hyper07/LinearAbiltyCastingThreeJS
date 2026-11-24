@@ -21,6 +21,61 @@ const C = (hex) => new THREE.Color(hex);
 const FRAME = [C('#f2f0ea'), C('#3a3c40'), C('#8c8f94'), C('#e8e2d4')];
 const AWN = [[C('#d8402a'), C('#f2f0ea')], [C('#1f5bb5'), C('#f2f0ea')], [C('#2f8f4e'), C('#f2f0ea')], [C('#f2c230'), C('#3a3c40')], [C('#7a2bd1'), C('#f2f0ea')]];
 
+/**
+ * Signs of our own (no real names): company and shop words for the vertical sign stacks, and
+ * rooftop billboards — one atlas, lit at night.
+ */
+const WORDS = ['하늘치과', '한빛학원', '서울약국', '24시 편의점', '다온 미용실', '별빛 노래방', '푸른 한의원', '새봄 부동산', '맛나 분식', '바른 안과', 'PC방', '해오름 카페'];
+const ADS = [['여름 세일', '#e2483d', '#ffffff'], ['NEW 라면', '#f2c230', '#1a1a1a'], ['하늘 보험', '#1f5bb5', '#ffffff'], ['맑은 생수', '#3aa6c9', '#ffffff'], ['한강 은행', '#2f8f4e', '#ffffff'], ['별 극장', '#7a2bd1', '#ffd23a']];
+function signAtlas() {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 512;
+  const g = c.getContext('2d');
+  const colors = ['#1d6fd1', '#e8402a', '#18a35a', '#f4c21b', '#7a2bd1', '#e3007a', '#0f2a55', '#ffffff'];
+  // Top half: twelve vertical signs (one character under another).
+  WORDS.forEach((w, k) => {
+    const x = k * (1024 / 12);
+    const bg = colors[k % colors.length];
+    g.fillStyle = bg;
+    g.fillRect(x, 0, 1024 / 12, 256);
+    g.fillStyle = bg === '#ffffff' || bg === '#f4c21b' ? '#1a1a1a' : '#ffffff';
+    g.font = '900 30px "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const chars = [...w.replace(' ', '')];
+    chars.forEach((ch, i) => g.fillText(ch, x + 1024 / 24, 128 + (i - (chars.length - 1) / 2) * Math.min(36, 230 / chars.length)));
+  });
+  // Bottom half: six billboards.
+  ADS.forEach(([w, bg, fg], k) => {
+    const x = (k % 3) * (1024 / 3);
+    const y = 256 + Math.floor(k / 3) * 128;
+    g.fillStyle = bg;
+    g.fillRect(x, y, 1024 / 3, 128);
+    g.fillStyle = 'rgba(255,255,255,0.18)';
+    g.beginPath();
+    g.arc(x + 280, y + 30, 70, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = fg;
+    g.font = '900 52px "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(w, x + 1024 / 6, y + 66);
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/** A box whose faces show one cell of the atlas (u0…u1, v0…v1 in 0–1). */
+function signBox(w, h, d, u0, u1, v0, v1) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + (u1 - u0) * uv.getX(i), v0 + (v1 - v0) * uv.getY(i));
+  return g;
+}
+
 class Tris {
   constructor() {
     this.pos = [];
@@ -65,12 +120,15 @@ export class Facades {
     this.group = new THREE.Group();
     game.scene.add(this.group);
     this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.05 });
+    this.signTex = signAtlas();
+    this.signMat = new THREE.MeshStandardMaterial({ map: this.signTex, emissiveMap: this.signTex, emissive: '#ffffff', emissiveIntensity: 0.15, roughness: 0.45 });
     this.t = 0;
   }
 
   /** Every so often: detail the buildings near the course near you; clear batches left behind. */
   update() {
     this.t++;
+    this.signMat.emissiveIntensity = 0.15 + (this.g.uniforms?.uNight?.value ?? 0) * 1.3;
     if (this.t % 20) return;
     const p = this.g.pos;
     const pts = this.course.points.filter((q) => Math.abs(q[0] - p.x) < BUILD + 40 && Math.abs(q[1] - p.z) < BUILD + 40);
@@ -91,11 +149,13 @@ export class Facades {
     }
     if (fresh.length) {
       const tris = new Tris();
-      for (const b of fresh) this._detail(b, tris, pts);
+      const signs = new THREE.Group();
+      for (const b of fresh) this._detail(b, tris, pts, signs);
       const mesh = tris.mesh(this.mat);
-      const batch = { mesh, list: fresh, x: fresh[0].minx, z: fresh[0].minz };
+      const batch = { mesh, signs, list: fresh, x: fresh[0].minx, z: fresh[0].minz };
       for (const b of fresh) this.done.set(b, batch);
       if (mesh) this.group.add(mesh);
+      this.group.add(signs);
       this.batches.push(batch);
     }
     for (const batch of [...this.batches]) {
@@ -104,13 +164,15 @@ export class Facades {
         this.group.remove(batch.mesh);
         batch.mesh.geometry.dispose();
       }
+      this.group.remove(batch.signs);
+      batch.signs.traverse((o) => o.geometry?.dispose());
       for (const b of batch.list) this.done.delete(b);
       this.batches.splice(this.batches.indexOf(batch), 1);
     }
   }
 
   /** One building's details, on the walls that face the course. */
-  _detail(b, T, pts) {
+  _detail(b, T, pts, signs) {
     const n = b.xs.length;
     const kind = b.kind ?? 6; // 0 house · 1 apartment · 2 shop · 3 office · 4 public · 5 industry · 6 other
     const h = b.h;
@@ -212,8 +274,38 @@ export class Facades {
           T.quad(at(mid - wseg / 2, Y(2.7), 1.1), at(mid + wseg / 2, Y(2.7), 1.1), at(mid + wseg / 2, Y(2.5), 1.12), at(mid - wseg / 2, Y(2.5), 1.12), pick[0]);
         }
       }
+      // A stack of vertical signs standing out from the wall near its end (shops and offices up to 40 m).
+      if ((kind === 2 || kind === 6 || kind === 3) && h > 7 && h < 45 && len > 6 && ((seed * 13 + i) % 1) < 0.55) {
+        const n = Math.max(1, Math.min(4, Math.floor((Y(h) - Y(4)) / 2.4)));
+        const word = Math.floor(((seed * 97 + i * 7) % 1) * WORDS.length);
+        for (let q = 0; q < n; q++) {
+          const w = (word + q) % WORDS.length;
+          const box = new THREE.Mesh(signBox(0.18, 2.1, 0.62, w / 12, (w + 1) / 12, 0.5, 1), this.signMat);
+          const at0 = at(1.2, Y(4.4) + q * 2.35 + 1.05, 0.42);
+          box.position.set(at0[0], at0[1], at0[2]);
+          box.rotation.y = Math.atan2(-uz, ux);
+          signs.add(box);
+        }
+      }
       // A downpipe at the corner.
       if (h < 30) T.box(at(0.2, (ground + b.top) / 2, 0.08), u, nrm, 0.04, (b.top - ground) / 2, 0.04, C('#b9b6ae'));
+    }
+    // A billboard on the roof of some mid-rises, facing the course.
+    if (h >= 12 && h < 60 && (seed * 7.7) % 1 < 0.35) {
+      const cx = (b.minx + b.maxx) / 2;
+      const cz = (b.minz + b.maxz) / 2;
+      const near = pts.reduce((best, q) => (Math.hypot(q[0] - cx, q[1] - cz) < Math.hypot(best[0] - cx, best[1] - cz) ? q : best), pts[0]);
+      const face = Math.atan2(near[0] - cx, near[1] - cz);
+      const ad = Math.floor(((seed * 31) % 1) * ADS.length);
+      const board = new THREE.Mesh(signBox(6.5, 2.6, 0.25, (ad % 3) / 3, (ad % 3 + 1) / 3, 0.5 - (Math.floor(ad / 3) + 1) * 0.25, 0.5 - Math.floor(ad / 3) * 0.25), this.signMat);
+      board.position.set(cx, b.top + 3.4, cz);
+      board.rotation.y = face;
+      signs.add(board);
+      for (const sx of [-2.6, 2.6]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.2, 0.15), this.mat);
+        leg.position.set(cx + Math.cos(face) * sx, b.top + 1.1, cz - Math.sin(face) * sx);
+        signs.add(leg);
+      }
     }
     // On the roof: a water tank, units, a stair hut, a rail round the edge (low buildings).
     if (h < 40) {
@@ -265,5 +357,7 @@ export class Facades {
     this.done.clear();
     this.g.scene.remove(this.group);
     this.mat.dispose();
+    this.signMat.dispose();
+    this.signTex.dispose();
   }
 }
