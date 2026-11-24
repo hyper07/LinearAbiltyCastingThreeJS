@@ -256,10 +256,10 @@ export class OnlineRace {
         return;
       case MSG.item: {
         const it = m.it ?? {};
-        // a gift box someone opened: gone for everyone on that lap
+        // a gift box someone opened: gone for everyone (for a moment)
         if (it.k === 'gift') {
-          const id = it.id | 0, lap = Math.max(1, Math.min(9, it.lap | 0));
-          if (id > 0) this.onMessage({ t: 'item', it: { k: 'gift', id, lap, from: it.from | 0 } });
+          const id = it.id | 0;
+          if (id > 0) this.onMessage({ t: 'item', it: { k: 'gift', id, from: it.from | 0 } });
           return;
         }
         if (!['giant', 'ice', 'boost'].includes(it.k)) return;

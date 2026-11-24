@@ -10,7 +10,7 @@ export const CONTROLS = {
     { name: 'Ride', rows: [
       { id: 'steer', keys: ['A', 'D'], codes: ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight'], does: 'Steer (or ← →). Hold longer to carve harder: sharper, more spray, a bit slower', pad: 'Left stick', touch: 'Drag on the left side of the screen', hint: true, short: 'steer' },
       { id: 'tuck', keys: ['S', 'Shift'], codes: ['KeyS', 'ArrowDown', 'ShiftLeft', 'ShiftRight'], does: 'Tuck for speed (or ↓)', pad: 'RT', touch: 'Tuck button', hint: true, short: 'tuck' },
-      { id: 'jump', keys: ['Space'], codes: ['Space'], does: 'Hold to crouch, let go to pop — longer hold, higher jump', pad: 'A', touch: 'Jump button (hold)', hint: true, short: 'jump' }
+      { id: 'jump', keys: ['Space'], codes: ['Space'], does: 'Jumps the moment you press it (on a ramp too) — hold for a little more height', pad: 'A', touch: 'Jump button (hold)', hint: true, short: 'jump' }
     ] },
     { name: 'Tricks', rows: [
       { id: 'spin', keys: ['A', 'D'], codes: [], does: 'In the air: spin (or ← →)', pad: 'Left stick', touch: 'Drag left or right while in the air' },

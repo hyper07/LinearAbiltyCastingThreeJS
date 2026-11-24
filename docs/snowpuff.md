@@ -169,8 +169,7 @@ in the room, and every peer builds the same course from it):
   course strip; the famous peak stays ahead as the run swings toward it.
 - **3 Laps** — the run three times. At the line you ride a **chairlift** back
   up (9 s, Space or a tap skips it after 3 s): your rider on the chair with
-  the mountain view ahead and the order chair by chair; gifts are restocked
-  for the next lap, the slalom gates swap sides and from lap 2 a bonus
+  the mountain view ahead and the order chair by chair; the slalom gates swap sides and from lap 2 a bonus
   kicker opens. The lift's time doesn't count toward your race time, so
   skipping it is fair. The strip shows "Lap 2/3".
 
@@ -273,8 +272,10 @@ interpolated state), so motion is smooth at any frame rate.
   under-damped, so they overshoot and settle); nothing allocates per frame.
 - **Steer** (A/D, ←/→), **tuck** (S, ↓ or Shift).
 - **Jump** (Space): it pops the moment you press it; holding it adds a little
-  height. Pressed on a kicker, you crouch and get an extra kick at the lip;
-  kickers launch with the ramp's own upward speed (no snap).
+  height. Pressed on a kicker, you take off right there — never a wait for
+  the lip — with the ramp's kick for how far up it you are and the pop on top
+  (pressed near the lip, the biggest air); ride off the lip without pressing
+  and the kicker still launches you with the ramp's own upward speed (no snap).
 - **Tricks**: in the air, ←/→ spin and ↑/↓ flip. Let go and the board eases
   toward a clean angle; land near one for a speed boost and a sparkle. Little
   airs off rollers aren't tricks — steering just nudges your line. Land crooked
@@ -310,7 +311,8 @@ snapshot's pipelines are now built behind the loading card.)
 snow; dots on the course strip) give a random item — kinder to the back of the
 pack, and the same gift always holds the same thing for the same rider. A box
 is **shared**: whoever reaches it first opens it and it's gone for everyone
-else on that lap (online too: the opener tells the room). One box at a time —
+(online too: the opener tells the room), then pops back **2 s** later with a
+springy overshoot. One box at a time —
 riding between two boxes opens just one — and with both item slots full you
 ride straight through, leaving the box for someone else:
 
@@ -319,7 +321,7 @@ ride straight through, leaving the box for someone else:
 | **Snowballs ×3** | Thrown at the nearest rider ahead (or at whoever bonked you last); a hit is a cartoon **face-plant** — pitched over the board's nose into the snow, a puff, goggles jiggling — and they pop back up (0.85 s, a fair speed loss) |
 | **Giant snowball** | Leaves your hands in your lane and rolls over the real terrain: faster on steeps, slower on flats, swinging up the banks and to the outside of turns, bouncing off the fences, hopping off rollers, growing and picking up chunks as it goes (spinning exactly as far as it rolls), a groove and spray behind it, a rumble and a little shake when it's near. It ends in a big poof on a barrier or snowman, or breaks apart after 7 s. A rider it catches is **squashed pancake-flat** on the snow, ears and board sticking out — a real 1 s stop, no steering — then pops back up to full height with a springy overshoot and rides on at part of their speed (jump it!) |
 | **Snow shield** | Snowballs and giant snowballs bounce off for five seconds |
-| **Rocket sled** | A short boost: the rider leans back from the feet and ice-blue speed lines stream round them |
+| **Rocket sled** | A short boost: the rider leans back from the feet and blue speed lines stream back past them, along the line of travel — part of the rider (`render/speedLines.js`), so they stay round them up a kicker and through the air |
 | **Ice patch** | Dropped behind you: slippery for whoever follows |
 
 You hold **two** at once — **1** uses the first, **2** the second (a click uses
@@ -359,7 +361,7 @@ and sends the final order. Each player sends their own rider about 15 times a se
 glide between those states about a tenth of a second behind
 (`src/snowpuff/netproto.js`, `net.js`). Throws, giant snowballs, ice patches
 and boosts are relayed and drawn by everyone; the host says what they hit. An
-opened gift box is sent (its id and lap) so it disappears for everyone; what a
+opened gift box is sent (its id) so it disappears for everyone, back 2 s later; what a
 gift holds comes from a hash of the gift and the rider. Snowball piles stay
 personal. If the server can't be reached, racing alone still works; if the host
 leaves mid-race, you finish the run on your own.

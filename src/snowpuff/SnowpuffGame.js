@@ -25,7 +25,7 @@ import { SPECIES, SELECTABLE, ALL_SPECIES } from './riders.js';
 import { buildCourse, frameAt, groundAt, toWorld, rng, cleanMode } from './course.js';
 import { placeGeysers } from './landmarks.js';
 import { newRider, step, settle, SLIP } from './physics.js';
-import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, checkLap, tickLift, openGift, giftOpen, LIFT, LIFT_SKIP, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, dropIce, meltIce, draftFactor } from './race.js';
+import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, checkLap, tickLift, openGift, respawnGifts, LIFT, LIFT_SKIP, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, dropIce, meltIce, draftFactor } from './race.js';
 import { newBrain, think } from './ai.js';
 import { makeRenderer, Pipeline, TIERS, TIER_ORDER, backendName } from './render/pipeline.js';
 import { Sky, distantPeaks } from './render/sky.js';
@@ -799,6 +799,8 @@ export class SnowpuffGame {
     const online = r.online;
     const order = standings(this.racers);
     const placeOf = (rc) => (this.racers.length > 1 ? order.indexOf(rc) / (this.racers.length - 1) : 0.5);
+    // ---- gift boxes opened a couple of seconds ago pop back
+    for (const id of respawnGifts(c, r.clock)) this.world.respawn(id);
     // ---- you
     if (me.liftT > 0) {
       // on the chairlift between laps (Space or a tap skips it after a few seconds)
@@ -833,7 +835,7 @@ export class SnowpuffGame {
       if (ai.use != null) this.useItem(rc, ai.use);
       for (const e of pickups(rc, c, r.clock, placeOf(rc))) {
         if (e.type !== 'gift') continue;
-        this.giftOpened(e.id, e.lap, rc);
+        this.giftOpened(e.id, rc);
         if (this.near(rc, 40)) this.fx.giftBurst(rc.pos.x, rc.pos.y + 0.8, rc.pos.z);
       }
       tickRacer(rc, dt);
@@ -1165,21 +1167,21 @@ export class SnowpuffGame {
 
   /**
    * A gift box opened (by me, an AI I run, or — from the room — someone else):
-   * gone for everyone on that lap. Mine to tell the room if I opened it.
+   * gone for everyone, back GIFT_RESPAWN s later. Mine to tell the room if I opened it.
    */
-  giftOpened(id, lap, rc = null) {
+  giftOpened(id, rc = null) {
     const r = this.race;
     if (!r) return;
-    openGift(r.course, id, lap);
-    if ((this.me?.lap ?? 1) === lap) this.world.take(id);
-    if (rc?.local && r.online && this.net?.active) this.net.sendItem({ k: 'gift', id, lap, from: rc.slot });
+    openGift(r.course, id, r.clock);
+    this.world.take(id);
+    if (rc?.local && r.online && this.net?.active) this.net.sendItem({ k: 'gift', id, from: rc.slot });
   }
 
   pickupEvent(rc, e) {
     const p = rc.pos;
     const at = this.toScreen(p.x, p.y + 1.2, p.z);
     if (e.type === 'gift') {
-      this.giftOpened(e.id, e.lap, rc);
+      this.giftOpened(e.id, rc);
       this.fx.giftBurst(p.x, p.y + 0.8, p.z);
       this.sound.gift();
       if (at) this.hud.fly(e.kind, at[0], at[1]);
@@ -1264,7 +1266,7 @@ export class SnowpuffGame {
       if (!r.projectiles.some((p) => p.id === m.p.id)) r.projectiles.push(m.p);
       this.sound.throwBall();
     } else if (m.t === 'item' && r && m.it.k === 'gift') {
-      this.giftOpened(m.it.id, m.it.lap);
+      this.giftOpened(m.it.id);
     } else if (m.t === 'item' && r) {
       const it = m.it;
       const from = this.racers.find((x) => x.slot === it.from);
@@ -1538,11 +1540,6 @@ export class SnowpuffGame {
         const yawW = f.heading + rd.yaw;
         this.fx.boardTrail(rc.board, x, rd.y, z, [Math.sin(yawW), -Math.cos(yawW)], { speed: rd.speed, air: rd.air, boost: rd.boost > 0, carve: Math.abs(rd.edge ?? 0), landed: rc.justLanded, trick: rc.trickNow, holder: rc }, dt);
       }
-      // a boost: speed lines streaming round the rider (near the camera only)
-      if (rd.boost > 0 && !rc.gone && !(rc.liftT > 0) && Math.hypot(x - cam.x, z - cam.z) < 40) {
-        const yawW = f.heading + rd.yaw;
-        this.fx.boostLines(x, rd.y, z, [Math.sin(yawW), -Math.cos(yawW)], rd.speed, dt, rc);
-      }
       rc.trickNow = false;
       rc.prev.s = rd.s;
       rc.prev.lat = rd.lat;
@@ -1691,8 +1688,8 @@ export class SnowpuffGame {
     rc.rider.speed = 0;
     if (rc.me) {
       this.world.resetPickups?.();
-      // boxes riders ahead already opened on this lap stay gone
-      for (const gf of this.race.course.gifts ?? []) if (giftOpen(this.race.course, gf.id, rc.lap)) this.world.take(gf.id);
+      // boxes opened a moment ago stay gone until they pop back
+      for (const id of this.race.course.opened?.keys() ?? []) this.world.take(id);
       this.world.lapVariant?.(rc.lap);
       this.hud.say(`Lap ${rc.lap}!`, 'trick');
       this.sound.bell?.(1);

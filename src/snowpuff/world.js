@@ -1089,9 +1089,15 @@ export class World {
     return null;
   }
 
-  /** Hide a pickup the local player took (pickups are personal). */
+  /** Hide a pickup: a gift box anyone opened (back in a moment), or a snowball pile you took. */
   take(id) {
     this.taken.add(id);
+  }
+
+  /** A gift box back after its few seconds: it pops up again with a little springy overshoot. */
+  respawn(id) {
+    if (!this.taken.delete(id)) return;
+    (this.popAt ??= new Map()).set(id, this.time ?? 0);
   }
 
   resetPickups() {
@@ -1204,7 +1210,14 @@ export class World {
       for (const im of [this.giftBoxes, this.ribbons, this.pileBalls, this.shieldMesh]) {
         im.userData.list.forEach((it, i) => {
           const on = show(it);
-          const big = it.kind === 'gift' ? (it.risky ? 1.25 : 1.05) : 1;
+          let big = it.kind === 'gift' ? (it.risky ? 1.25 : 1.05) : 1;
+          const pop = on ? this.popAt?.get(it.id) : undefined;
+          if (pop != null) {
+            const u = Math.min(1, (t - pop) / 0.4);
+            if (u >= 1) this.popAt.delete(it.id);
+            // ease out with an overshoot
+            big *= 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2);
+          }
           e.set(it.kind === 'gift' ? 0.18 : 0.3, t * (it.kind === 'gift' ? 1.8 : 1.4) + it.ph, 0);
           q.setFromEuler(e);
           p.set(it.x, it.gy + it.h + Math.sin(t * 2.2 + it.ph) * 0.18, it.z);

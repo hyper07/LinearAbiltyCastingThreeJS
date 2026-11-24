@@ -9,10 +9,10 @@
  *     shieldT, hits, bonks, bumps, gifts, tricks, lastHitBy, finished, time, taken: Set }
  *
  * Held items live in up to two slots (keys 1 and 2). A gift box is shared:
- * whoever reaches it first opens it and it's gone for everyone (until the
- * next lap: `course.opened` holds "id:lap"); one box per pickup, and a racer
- * with both slots full rides through it, leaving it for the others. Online,
- * an opened box is told to the room (SnowpuffGame). What a gift holds comes
+ * whoever reaches it first opens it and it's gone for everyone, back
+ * GIFT_RESPAWN s later (`course.opened`: id → the race time it comes back);
+ * one box per pickup, and a racer with both slots full rides through it,
+ * leaving it for the others. Online, an opened box is told to the room (SnowpuffGame). What a gift holds comes
  * from a hash of the gift and the racer. Snowball piles stay personal.
  */
 import { between, groundAt, frameAt } from './course.js';
@@ -140,20 +140,32 @@ function syncAmmo(racer) {
   racer.ammo = racer.slots.find((x) => x.kind === 'snowballs')?.n ?? 0;
 }
 
-/** The key a gift box is opened under (boxes come back each lap). */
-export const giftKey = (id, lap = 1) => `${id}:${lap}`;
+/** Seconds an opened gift box stays gone before it pops back. */
+export const GIFT_RESPAWN = 2;
 
-/** Has anyone opened this gift box on this lap? */
-export const giftOpen = (course, id, lap = 1) => Boolean(course.opened?.has(giftKey(id, lap)));
+/** Is this gift box opened (gone) at race time `now`? */
+export const giftOpen = (course, id, now) => (course.opened?.get(id) ?? -Infinity) > now;
 
-/** Mark a gift box opened for everyone on that lap (also for a box opened by another player online). */
-export function openGift(course, id, lap = 1) {
-  (course.opened ??= new Set()).add(giftKey(id, lap));
+/** Open a gift box for everyone (also one opened by another player online): back GIFT_RESPAWN s after `now`. */
+export function openGift(course, id, now) {
+  (course.opened ??= new Map()).set(id, now + GIFT_RESPAWN);
+}
+
+/** The gift boxes due back by `now` (forgotten, so they're open to everyone again). */
+export function respawnGifts(course, now) {
+  const back = [];
+  if (!course.opened) return back;
+  for (const [id, at] of course.opened) {
+    if (at > now) continue;
+    course.opened.delete(id);
+    back.push(id);
+  }
+  return back;
 }
 
 /**
  * Gift boxes and snowball piles within reach. `place` is 0 (leading) … 1 (last).
- * Returns events ({ type: 'gift', id, kind, lap } | { type: 'pile', id }).
+ * Returns events ({ type: 'gift', id, kind } | { type: 'pile', id }).
  */
 export function pickups(racer, course, now, place = 0.5) {
   const r = racer.rider;
@@ -161,17 +173,16 @@ export function pickups(racer, course, now, place = 0.5) {
   if (racer.finished) return ev;
   const g = groundAt(course, r.s, r.lat);
   const above = r.y - g;
-  const lap = racer.lap ?? 1;
   // both slots full: ride straight through (the box stays for someone else)
   if (racer.slots.length < MAX_SLOTS) {
     for (const gf of between(course.gifts ?? [], r.s - 1.8, r.s + 1.8)) {
-      if (giftOpen(course, gf.id, lap)) continue;
+      if (giftOpen(course, gf.id, now)) continue;
       if (Math.abs(gf.lat - r.lat) > 1.6 || Math.abs(gf.h - (above + 0.6)) > 1.9) continue;
       const kind = rollGift(gf.id, racer.slot, place);
       if (!giveItem(racer, kind)) continue;
-      openGift(course, gf.id, lap);
+      openGift(course, gf.id, now);
       racer.gifts += 1;
-      ev.push({ type: 'gift', id: gf.id, kind, lap });
+      ev.push({ type: 'gift', id: gf.id, kind });
       break; // one box at a time
     }
   }

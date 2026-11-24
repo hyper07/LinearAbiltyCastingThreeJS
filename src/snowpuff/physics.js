@@ -35,7 +35,7 @@ const TAU = Math.PI * 2;
 /** A fresh rider at (s, lat). */
 export function newRider({ s = 4, lat = 0, speed = 0 } = {}) {
   return {
-    s, lat, y: 0, vy: 0, speed, yaw: 0, head: 0, steerR: 0, skid: 0, latAcc: 0, compress: 0, jumpWas: false, lift: 0, kickerCharge: 0, vyG: null,
+    s, lat, y: 0, vy: 0, speed, yaw: 0, head: 0, steerR: 0, skid: 0, latAcc: 0, compress: 0, jumpWas: false, lift: 0, vyG: null,
     air: false, airTime: 0, grounded: true,
     carve: 0, tuck: 0, charge: 0, edge: 0,
     spin: 0, flip: 0, spinV: 0, flipV: 0,
@@ -247,11 +247,13 @@ export function step(r, inp, course, dt, o = {}) {
     const crest = r.vyG != null && r.vyG - vyGround > G * 1.6 * dt && v > 16 && Math.abs(r.yaw) < 0.45 && want < 0.5 && !k0;
     // jump: crouch the moment it's pressed; a tap pops at once, holding lifts higher
     if (pressed) r.charge = 1;
-    if (k0 && jumpHeld) r.kickerCharge = Math.min(1, (r.kickerCharge ?? 0) + dt / 0.4);
     const offLip = k0 && s0 <= k0.s + k0.len && r.s > k0.s + k0.len;
-    if (offLip) {
+    if (offLip || (pressed && k0)) {
       // Off the lip: the ramp's own upward speed carries on (no snap), plus the kicker's kick.
-      const kick = clamp(v * 0.24, 3, 7) * k0.power + (r.kickerCharge ?? 0) * 2;
+      // Jump pressed on the ramp: off at once (never a wait for the lip), with the kick for how far
+      // up the ramp you are and the pop on top — pressed right at the lip, the biggest air.
+      const u = clamp((s0 - k0.s) / k0.len, 0, 1);
+      const kick = clamp(v * 0.24, 3, 7) * k0.power * (offLip ? 1 : 0.55 + 0.45 * u) + (pressed ? 2 : 0);
       r.air = true;
       r.airTime = 0;
       r.vy = Math.max(vyGround, (r.vyG ?? 0)) + kick;
@@ -260,7 +262,6 @@ export function step(r, inp, course, dt, o = {}) {
       r.spin = r.flip = r.spinV = r.flipV = 0;
       r.trickable = true;
       ev.push({ type: 'launch', kicker: k0.id, power: kick });
-      r.kickerCharge = 0;
     } else if (pressed && !k0) {
       r.air = true;
       r.airTime = 0;
@@ -284,7 +285,6 @@ export function step(r, inp, course, dt, o = {}) {
       r.y = g1;
       r.vy = vyGround;
     }
-    if (!k0) r.kickerCharge = 0;
     r.vyG = vyGround;
   } else {
     // ---- in the air

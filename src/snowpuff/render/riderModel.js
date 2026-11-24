@@ -24,6 +24,7 @@ import { buildGoggles } from './goggles.js';
 import { buildBoard } from './boards.js';
 import { cleanBoard } from '../boardList.js';
 import { cleanGoggle } from '../goggleList.js';
+import { SpeedLines } from './speedLines.js';
 
 /* ---------------------------------------------------------------- recipe helpers */
 
@@ -346,6 +347,9 @@ export class RiderModel {
     this.tilt = new THREE.Group();
     this.tilt.add(this.body);
     this.squash.add(this.tilt);
+    // speed lines on a boost: in the root's space, so they follow the rider exactly (ground, ramps, air)
+    this.speedLines = new SpeedLines();
+    this.root.add(this.speedLines.mesh);
 
     // Bones from the recipe's rest positions.
     const bones = [];
@@ -719,6 +723,7 @@ export class RiderModel {
     this.boostLeanV += ((leanGoal - this.boostLean) * 90 - this.boostLeanV * 11) * dt;
     this.boostLean += this.boostLeanV * dt;
     this.tilt.rotation.x = this.boostLean;
+    this.speedLines.update(dt, Boolean(st.boost) && !menu, st.speed ?? 0);
     this.lean.position.y = P[J.hop];
     // squash on landing
     if (st.landed) this.squashT = Math.min(1, 0.3 + st.landed * 0.12);

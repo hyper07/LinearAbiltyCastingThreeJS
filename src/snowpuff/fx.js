@@ -120,8 +120,6 @@ const GOLD = new THREE.Color('#ffd24a');
 const WHITE = new THREE.Color('#ffffff');
 const CYAN = new THREE.Color('#7fe8ff');
 const PINK = new THREE.Color('#ff7ac0');
-const ICE_LINE = new THREE.Color('#6fbcff');
-const ICE_DEEP = new THREE.Color('#3a8cff');
 
 const PLUME = new THREE.Color('#ffffff');
 const RAINBOW = ['#ff4b5c', '#ffa52e', '#ffe14d', '#3fd06a', '#3a86ff', '#8a5cff'].map((c) => new THREE.Color(c));
@@ -255,28 +253,6 @@ export class Effects {
       const side = (Math.random() - 0.5) * 1.6, up = 0.3 + Math.random() * 1.2;
       const rx = -fwd[1], rz = fwd[0];
       this.motes.add(x + fwd[0] * 2.5 + rx * side, y + up, z + fwd[1] * 2.5 + rz * side, -fwd[0] * speed * 0.6, 0, -fwd[1] * speed * 0.6, { life: 0.45, size: 0.03, alpha: 0.9, drag: 0, grav: 0, stretch: 7, rot: Math.atan2(up - 0.8, side) });
-    }
-  }
-
-  /**
-   * Speed lines round a boosting rider: thin streaks in a ring about the body,
-   * set radially (as seen from the chase camera) and rushing back past them —
-   * ice-blue (they show on white snow), with a few white. `holder` keeps the rate per rider.
-   */
-  boostLines(x, y, z, fwd, speed, dt, holder = this) {
-    holder.boostLineT = (holder.boostLineT ?? 0) + dt * 120 * Math.max(0.5, this.scale);
-    const rx = -fwd[1], rz = fwd[0];
-    while (holder.boostLineT > 1) {
-      holder.boostLineT -= 1;
-      const a = Math.random() * Math.PI * 2, rad = 0.7 + Math.random() * 0.8;
-      const side = Math.cos(a) * rad, up = 0.75 + Math.sin(a) * rad * 0.9;
-      if (up < 0.08) continue; // not under the snow
-      const ahead = 0.6 + Math.random() * 1.2;
-      const v = Math.max(8, speed) * 0.45;
-      this.motes.add(x + fwd[0] * ahead + rx * side, y + up, z + fwd[1] * ahead + rz * side, fwd[0] * v, 0, fwd[1] * v, {
-        life: 0.3 + Math.random() * 0.15, size: 0.06 + Math.random() * 0.04, alpha: 1, drag: 0, grav: 0,
-        stretch: 10 + Math.random() * 8, rot: Math.atan2(up - 0.75, side), col: Math.random() < 0.25 ? WHITE : Math.random() < 0.5 ? ICE_LINE : ICE_DEEP
-      });
     }
   }
 
