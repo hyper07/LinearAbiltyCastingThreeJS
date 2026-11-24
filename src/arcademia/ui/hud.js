@@ -10,6 +10,7 @@ import { floorStars, neededOn } from '../rules.js';
 import { LAND_LESSONS } from '../content/index.js';
 import { lessonsOn } from '../content/index.js';
 import { t, num, localizeLesson } from '../i18n/index.js';
+import { OASES, GIZA, riverLine, DESERT } from '../world/desert/plan.js';
 
 export class Hud {
   constructor(root, actions, { floors = FLOORS, map = null, lessons = LAND_LESSONS, realm = 'land' } = {}) {
@@ -108,7 +109,8 @@ export class Hud {
     // Minimap and help line.
     this.mini = el('div', 'arc-mini', null, { 'aria-label': t('hud.map') });
     this.root.append(this.mini);
-    this.root.append(el('p', 'arc-help', t('hud.help')));
+    // The keys, with O naming this world's whole view (the whole mountain, all the oases…).
+    this.root.append(el('p', 'arc-help', t('hud.help', { whole: t(map?.wholeHint ?? 'hud.wholeHint') })));
     this.toasts = el('div', 'arc-toasts', null, { role: 'status', 'aria-live': 'polite' });
     this.root.append(this.toasts);
   }
@@ -216,6 +218,7 @@ export class Hud {
     const FL = this.floors;
     const n = FL.length;
     if (this.map?.kind === 'lagoon') return this._islandMap({ stars, open, kidFloor, focusFloor });
+    if (this.map?.kind === 'desert') return this._riverMap({ stars, open, kidFloor, focusFloor });
     const tree = this.map?.kind === 'tree';
     const W = 168, H = 150, rowH = (H - 20) / n;
     const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('hud.mapAria', { n: kidFloor })}">`];
@@ -269,6 +272,53 @@ export class Hud {
       });
       svg.push(`<text x="${x}" y="${y + 1}" text-anchor="middle" class="arc-mini__n">${locked ? '🔒' : f.n}</text></g>`);
       if (f.n === kidFloor) svg.push(`<text x="${x + 11}" y="${y - 8}" class="arc-mini__kid">🧒</text>`);
+    });
+    svg.push('</svg>');
+    this.mini.innerHTML = svg.join('');
+    for (const g of this.mini.querySelectorAll('[data-floor]')) {
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => this.actions.goFloor(Number(g.dataset.floor)));
+    }
+  }
+
+  /** The Desert from above: the Nile winding west to east, the oases strung along it, the pyramids by the first. */
+  _riverMap({ stars, open, kidFloor, focusFloor }) {
+    const FL = this.floors;
+    const W = 168, H = 150;
+    const x0 = -395, x1 = 395, z0 = -300, z1 = 62;
+    const k = Math.min((W - 8) / (x1 - x0), (H - 8) / (z1 - z0));
+    const ox = (W - (x1 - x0) * k) / 2, oz = (H - (z1 - z0) * k) / 2 + 4;
+    const P = (x, z) => [+(ox + (x - x0) * k).toFixed(1), +(oz + (z - z0) * k).toFixed(1)];
+    const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('desert.mapAria', { n: kidFloor })}">`];
+    svg.push(`<rect x="2" y="2" width="${W - 4}" height="${H - 4}" rx="14" fill="#f3d39c"/>`);
+    // A few dune lines, the river with its green banks.
+    for (let i = 0; i < 5; i++) {
+      const y = 14 + i * 30;
+      svg.push(`<path d="M8 ${y} q 20 -7 40 0 t 40 0 t 40 0 t 34 0" fill="none" stroke="#e2b779" stroke-width="2" opacity="0.7"/>`);
+    }
+    const river = riverLine(24).filter(([x]) => x >= x0 - 30 && x <= x1 + 30).map(([x, z]) => P(x, z).join(' ')).join(' L');
+    svg.push(`<path d="M${river}" fill="none" stroke="#9fcf73" stroke-width="${(DESERT.river.half * 2 + 18) * k}" stroke-linecap="round" opacity="0.8"/>`);
+    svg.push(`<path d="M${river}" fill="none" stroke="#3fb7c4" stroke-width="${Math.max(3, DESERT.river.half * 2 * k)}" stroke-linecap="round"/>`);
+    // The pyramids and the Sphinx.
+    for (const p of [...GIZA.pyramids].sort((a, b) => a.base - b.base).reverse()) {
+      const [x, y] = P(p.x, p.z), h = Math.max(3, p.h * k * 1.6), b = Math.max(3, p.base * k * 0.9);
+      svg.push(`<path d="M${x - b / 2} ${y + h / 3} L${x} ${y - (h * 2) / 3} L${x + b / 2} ${y + h / 3} Z" fill="#e7bf7e" stroke="#b8834f" stroke-width="1"><title>${t('desert.pyramids')}</title></path>`);
+    }
+    const [sx, sy] = P(GIZA.sphinx.x, GIZA.sphinx.z);
+    svg.push(`<text x="${sx}" y="${sy + 4}" text-anchor="middle" font-size="9"><title>${t('desert.sphinx')}</title>🦁</text>`);
+    const pos = FL.map((f, i) => P(...OASES[i]));
+    for (let i = 1; i < pos.length; i++) svg.push(`<line x1="${pos[i - 1][0]}" y1="${pos[i - 1][1]}" x2="${pos[i][0]}" y2="${pos[i][1]}" stroke="#c9a06a" stroke-width="3" stroke-linecap="round"/>`);
+    FL.forEach((f, i) => {
+      const [x, y] = pos[i];
+      const locked = !open.has(f.n);
+      svg.push(`<g class="arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}" data-floor="${f.n}"><circle cx="${x}" cy="${y}" r="10" fill="${locked ? '#d8d2c4' : '#9fd27a'}" stroke="${f.n === focusFloor ? '#e9a92a' : '#fff'}" stroke-width="2"/>`);
+      ['math', 'history', 'physics'].forEach((sub, j) => {
+        const list = lessonsOn(f.n, sub, this.realm);
+        const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
+        svg.push(`<circle class="arc-mini__dot arc-mini__dot--${sub}${done === list.length && list.length ? ' is-done' : ''}" cx="${x - 5 + j * 5}" cy="${y + 5}" r="2.2"/>`);
+      });
+      svg.push(`<text x="${x}" y="${y + 1}" text-anchor="middle" class="arc-mini__n">${locked ? '🔒' : f.n}</text></g>`);
+      if (f.n === kidFloor) svg.push(`<text x="${x + 8}" y="${y - 8}" class="arc-mini__kid">🧒</text>`);
     });
     svg.push('</svg>');
     this.mini.innerHTML = svg.join('');

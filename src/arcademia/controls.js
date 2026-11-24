@@ -5,7 +5,8 @@
  */
 import { t } from './i18n/index.js';
 
-export function controls() {
+/** `map`: the current study world (maps.js), so O names its whole view. */
+export function controls(map = null) {
   return {
     title: t('help.title'),
     goal: t('help.goal'),
@@ -30,7 +31,7 @@ export function controls() {
         { id: 'esc', keys: ['Esc'], codes: ['Escape'], does: t('help.esc') }
       ] },
       { name: t('help.gMap'), rows: [
-        { id: 'map', keys: ['O'], codes: ['KeyO'], does: t('help.whole') }
+        { id: 'map', keys: ['O'], codes: ['KeyO'], does: t(map?.whole && map.whole !== 'hud.whole' ? map.whole : 'help.whole') }
       ] }
     ]
   };

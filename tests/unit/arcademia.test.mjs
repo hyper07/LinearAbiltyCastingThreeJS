@@ -139,8 +139,8 @@ test('floors: floor 1 is open; the next opens at two thirds of the floor below',
   assert.deepEqual([...openFloors(f2)], [1], 'floor 2 done but floor 1 not: still only floor 1');
   const all = Object.fromEntries(LAND_LESSONS.map((l) => [l.id, 3]));
   assert.equal(openFloors(all).size, FLOORS.length);
-  // Each realm opens its own floors: every sea or forest star opens nothing on the mountain, and the other way round.
-  for (const realm of ['forest', 'sea']) {
+  // Each realm opens its own floors: every forest, sea or desert star opens nothing on the mountain, and the other way round.
+  for (const realm of ['forest', 'sea', 'desert']) {
     const mine = lessonsIn(realm);
     const theirs = Object.fromEntries(mine.map((l) => [l.id, 3]));
     assert.deepEqual([...openFloors(theirs)], [1], `${realm} stars do not open the mountain`);
@@ -414,7 +414,7 @@ test('great tree: rings all round the trunk, every place reachable, a locked rin
   const { planTree } = await import('../../src/arcademia/world/tree/plan.js');
   const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
   const { MAPS, TREE_FLOORS, mapById } = await import('../../src/arcademia/maps.js');
-  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon']);
+  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert']);
   assert.equal(mapById('nope').id, 'mountain', 'an unknown map falls back to the mountain');
   assert.equal(TREE_FLOORS.length, FLOORS.length, 'the same floors (and lessons) in every world');
   const plan = planTree(TREE_FLOORS.length);
@@ -476,4 +476,160 @@ test('great tree: a step never lands on another ring (no jumping up to the bridg
   const here = plan.locate(mx, mz, 0);
   assert.ok(!here || Math.abs(here.y) < 4, 'not the bridge a storey up');
   assert.ok(Math.abs(plan.height(mx, mz, 0)) < 4, 'a walker on ring 1 stays at ring 1');
+});
+
+test('desert: seven oases along the Nile, every place reachable along the causeways, a locked oasis shut', async () => {
+  const { planDesert, riverLine, DESERT, GIZA } = await import('../../src/arcademia/world/desert/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const { DESERT_FLOORS, mapById } = await import('../../src/arcademia/maps.js');
+  const desert = mapById('desert');
+  assert.equal(desert.kind, 'desert');
+  assert.equal(desert.realm, 'desert');
+  assert.equal(DESERT_FLOORS.length, FLOORS.length, 'one oasis per floor');
+  // Its townsfolk are its own desert animals (in sun hats and headscarves), none borrowed from another world.
+  const { SPECIES } = await import('../../src/arcademia/world/creatures/species.js');
+  const { makeHat } = await import('../../src/arcademia/world/creatures/hats.js');
+  const { MAPS } = await import('../../src/arcademia/maps.js');
+  const elsewhere = new Set(MAPS.filter((m) => m.id !== 'desert').flatMap((m) => m.floors.flatMap((f) => f.look.critters ?? [])));
+  const locals = new Set(DESERT_FLOORS.flatMap((f) => f.look.critters));
+  assert.ok(locals.size >= 5, `${locals.size} kinds of desert townsfolk`);
+  for (const k of locals) {
+    assert.ok(SPECIES[k], `${k} has a recipe`);
+    assert.ok(!elsewhere.has(k), `${k} is new to the desert`);
+  }
+  for (const h of new Set(DESERT_FLOORS.flatMap((f) => f.look.hats ?? []))) if (h !== 'none') assert.ok(makeHat(h), `the ${h} hat exists`);
+  const plan = planDesert(DESERT_FLOORS.length);
+  assert.equal(plan.stairs.length, plan.floors.length - 1, 'a causeway from each oasis to the next');
+  // Strung along a line (west to east), not round a ring.
+  for (let i = 1; i < plan.floors.length; i++) assert.ok(plan.floors[i].centre.x > plan.floors[i - 1].centre.x + 80, `oasis ${i + 1} east of oasis ${i}`);
+  const blockers = plan.floors.flatMap((f) => f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })));
+  const nav = buildLayerNav(plan, { blockers });
+  const s = plan.start;
+  for (const f of plan.floors) {
+    assert.equal(f.places.length, 8, `oasis ${f.n}: three schools and five places`);
+    const pads = Object.values(f.pads);
+    for (let i = 0; i < pads.length; i++) for (let j = i + 1; j < pads.length; j++) {
+      const a = pads[i], b = pads[j];
+      assert.ok(Math.hypot(a.x - b.x, a.z - b.z) > a.pr + b.pr + 4, `oasis ${f.n}: ${a.id} and ${b.id} apart`);
+    }
+    // The schools stand on the river side and face the plaza (and the camera, south of it).
+    for (const p of f.plinths) {
+      assert.ok(p.z < f.centre.z - 15, `oasis ${f.n}: the ${p.subject} school is on the river side`);
+      assert.ok(Math.cos(p.yaw) > 0.5, `oasis ${f.n}: the ${p.subject} school's door faces south`);
+    }
+    for (const p of [...f.places.map((q) => q.at), f.portal.at, f.boss.at, f.chest.at, f.spawn, ...(f.worldGate ? [f.worldGate.at] : [])]) {
+      const path = nav.findPath([s.x, s.z, s.y], [p.x, p.z, f.y]);
+      assert.ok(path, `oasis ${f.n}: (${p.x.toFixed(1)}, ${p.z.toFixed(1)}) reachable`);
+      assert.ok(Math.abs(path.at(-1)[2] - f.y) < 0.6, `oasis ${f.n}: the path ends at walking height`);
+    }
+    for (const [x, z] of [...f.gemSpots, ...f.toySpots]) assert.equal(plan.floorAt(x, z), f.n, `oasis ${f.n}: gem or toy spot on its own stone`);
+  }
+  assert.ok(plan.floors[0].worldGate, 'the World Portal is in the first oasis');
+  assert.ok(!plan.floors.slice(1).some((f) => f.worldGate), 'and only there');
+  // Nothing to stand on in the river; the river runs north of every garden.
+  const river = riverLine(3);
+  for (const [x, z] of river) if (Math.abs(x) < 420) assert.equal(plan.surfaces(x, z).length, 0, `the Nile at x ${x.toFixed(0)}`);
+  for (const f of plan.floors) {
+    const near = Math.min(...river.map(([x, z]) => Math.hypot(x - f.centre.x, z - f.centre.z)));
+    assert.ok(near > DESERT.gardenR + DESERT.river.half, `oasis ${f.n}'s garden stays dry`);
+  }
+  // The pyramids and the Sphinx stand across the river from the first oasis, clear of each other.
+  const g = plan.floors[0].centre;
+  for (const p of GIZA.pyramids) assert.ok(p.z < g.z - 150 && Math.abs(p.x - g.x) < 220, `pyramid ${p.id} by the first oasis`);
+  for (let i = 0; i < GIZA.pyramids.length; i++) for (let j = i + 1; j < GIZA.pyramids.length; j++) {
+    const a = GIZA.pyramids[i], b = GIZA.pyramids[j];
+    const apart = Math.abs(a.x - b.x) > (a.base + b.base) / 2 || Math.abs(a.z - b.z) > (a.base + b.base) / 2;
+    assert.ok(apart, `pyramids ${i} and ${j} do not overlap`);
+  }
+  // Locked oases are shut, the open one still walkable; the causeway's gate shuts with it.
+  const shut = buildLayerNav(plan, { blockers, locked: (n) => n >= 2 });
+  const t2 = plan.floors[1].places[0].at;
+  assert.equal(shut.findPath([s.x, s.z, s.y], [t2.x, t2.z, t2.y]), null, 'oasis 2 is shut while locked');
+  const t1 = plan.floors[0].places[2].at;
+  assert.ok(shut.findPath([s.x, s.z, s.y], [t1.x, t1.z, t1.y]), 'oasis 1 still open');
+});
+
+test('desert: a step never changes height or lands off the stone, and the causeways carry you from oasis to oasis', async () => {
+  const { planDesert } = await import('../../src/arcademia/world/desert/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const plan = planDesert(FLOORS.length);
+  const blockers = plan.floors.flatMap((f) => f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })));
+  const nav = buildLayerNav(plan, { blockers });
+  const { w, d, cell, x0, z0, h } = nav;
+  let jumps = 0;
+  for (let j = 1; j < d - 1; j++) for (let i = 1; i < w - 1; i++) {
+    const y = h[j * w + i];
+    if (y < -1e3) continue;
+    const ax = x0 + (i + 0.5) * cell, az = z0 + (j + 0.5) * cell;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const bx = ax + di * cell, bz = az + dj * cell;
+      if (nav.canStep(ax, az, bx, bz, y) && (!plan.locate(bx, bz, y) || Math.abs(plan.height(bx, bz, y) - y) > 0.7)) jumps++;
+    }
+  }
+  assert.equal(jumps, 0, 'steps off the stone or up and down');
+  for (const st of plan.stairs) {
+    const a = plan.floors[st.from - 1], b = plan.floors[st.to - 1];
+    const path = nav.findPath([a.spawn.x, a.spawn.z, a.y], [b.spawn.x, b.spawn.z, b.y]);
+    assert.ok(path, `oasis ${st.from} to ${st.to}`);
+    const mid = st.segs[1];
+    const mx = mid.ax + mid.dx * mid.len / 2, mz = mid.az + mid.dz * mid.len / 2;
+    const near = Math.min(...path.slice(1).map(([x, z], i) => {
+      const [px, pz] = path[i];
+      const dx = x - px, dz = z - pz, L2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((mx - px) * dx + (mz - pz) * dz) / L2));
+      return Math.hypot(px + dx * t - mx, pz + dz * t - mz);
+    }));
+    assert.ok(near < 2, `the way from ${st.from} to ${st.to} crosses its causeway (${near.toFixed(1)} m off)`);
+    assert.equal(plan.floorAt(mx, mz), 0, 'a causeway belongs to no oasis');
+  }
+});
+
+test('desert realm: its own 42 lessons, teachers, stories, puzzle bosses and voices', async () => {
+  const { DESERT_LESSONS, teachingRealm } = await import('../../src/arcademia/content/index.js');
+  const { teachersIn } = await import('../../src/arcademia/world/figures.js');
+  const { worldsIn, questFor } = await import('../../src/arcademia/quests.js');
+  const { SPECIES } = await import('../../src/arcademia/world/creatures/species.js');
+  const { makeHat } = await import('../../src/arcademia/world/creatures/hats.js');
+  const { REALM_TEACHER_OF, characterIds } = await import('../../src/arcademia/voice/script.js');
+  const { CAST, CAST_BY_LANG } = await import('../../src/arcademia/voice/generated.js');
+  const { DESERT_FLOORS } = await import('../../src/arcademia/maps.js');
+  const { tIn } = await import('../../src/arcademia/i18n/index.js');
+  // 42 well-formed lessons, two per subject on every oasis, all its own.
+  assert.equal(DESERT_LESSONS.length, 42);
+  assert.deepEqual(DESERT_LESSONS.flatMap((l) => lessonProblems(l, { gens: GENERATORS })), []);
+  assert.ok(DESERT_LESSONS.every((l) => l.realm === 'desert' && /-desert-/.test(l.id)));
+  assert.equal(lessonsIn('desert'), DESERT_LESSONS);
+  assert.equal(teachingRealm('desert'), 'desert', 'the desert teaches its own lessons now, not the land\'s');
+  for (const f of FLOORS) for (const s of SUBJECTS) assert.equal(DESERT_LESSONS.filter((l) => l.floor === f.n && l.subject === s).length, 2, `oasis ${f.n} ${s}`);
+  // Its teachers are new animals: no other world's teachers, none of its own townsfolk.
+  const mine = teachersIn('desert');
+  const others = ['land', 'forest', 'sea'].flatMap((r) => Object.values(teachersIn(r)).map((t) => t.species));
+  const townsfolk = new Set(DESERT_FLOORS.flatMap((f) => f.look.critters));
+  for (const s of SUBJECTS) {
+    const t = mine[s];
+    assert.ok(SPECIES[t.species], `${t.species} has a recipe`);
+    assert.ok(!others.includes(t.species) && !townsfolk.has(t.species), `${t.species} is new to the desert's teachers`);
+    assert.ok(t.name && t.name !== `desert.teacher.${s}`, `the ${s} teacher has a name`);
+    for (const lang of ['ko', 'es', 'ja', 'zh']) assert.notEqual(tIn(lang, `desert.teacher.${s}`), `desert.teacher.${s}`);
+  }
+  assert.equal(SPECIES.hippo().hat.wear, 'lotus');
+  for (const h of ['lotus', 'wig', 'pith']) assert.ok(makeHat(h), `the ${h} hat exists`);
+  // Its quests are told by its own teachers; each oasis has its own story and puzzle boss.
+  const h1 = DESERT_LESSONS.find((l) => l.subject === 'history');
+  assert.equal(questFor(h1).teacher.species, mine.history.species);
+  const w = worldsIn('desert');
+  for (const f of FLOORS) {
+    assert.ok(SPECIES[w[f.n].boss.species], `oasis ${f.n}'s boss has a recipe`);
+    assert.ok(w[f.n].story && !w[f.n].story.startsWith('desert.world'), `oasis ${f.n} has a story`);
+    assert.notEqual(w[f.n].story, worldsIn('land')[f.n].story, `oasis ${f.n}'s story is its own, not the land's`);
+    assert.ok(w[f.n].boss.name && w[f.n].boss.line, `oasis ${f.n} has a boss name and line`);
+  }
+  // Voices: its teachers and bosses are in the script, each with a designed voice (bosses never scary).
+  const ids = characterIds();
+  for (const id of [...Object.values(REALM_TEACHER_OF.desert), ...FLOORS.map((f) => `desert-boss-${f.n}`)]) {
+    assert.ok(ids.includes(id), `${id} in the voice script`);
+    assert.ok(CAST[id]?.design, `${id} has a voice design`);
+    if (id.startsWith('desert-boss-')) assert.match(CAST[id].design, /never (scary|menacing)|more cuddly than scary/, `${id} must not be scary`);
+  }
+  for (const id of Object.values(REALM_TEACHER_OF.desert)) assert.ok(CAST_BY_LANG.ko[id], `${id} has a Korean voice`);
 });

@@ -7,6 +7,8 @@
  *   teachers   Professor Hoot (owl), Tock (tortoise), Gizmo (raccoon)
  *   townsfolk  frog, hedgehog, mouse, duck, bear, crab, penguin, lion, yeti
  *   the sea    octopus, seal, sea turtle (and the penguin and crab)
+ *   the desert fennec fox, camel calf, meerkat, jerboa, gecko, scarab beetle;
+ *              its teachers Miss Lotus (hippo), Uncle Reed (ibis), Dr. Sandy (sand cat)
  *
  * Units: about one metre tall, feet at y = 0, facing +z.
  */
@@ -78,7 +80,7 @@ const head = (c = [0, 0.68, 0], r = [0.34, 0.29, 0.3], o = {}) => E(c, r, { k: 0
 /**
  * Each recipe: { color (default body colour), bones, parts, paint, face, hat, extras }
  *   face  { eyeX, eyeY, eyeR, mouthY, cheekX, cheekY, browUp, style: 'gloss'|'led', eyeTilt, glasses }
- *   hat   { lift, scale }  how a hat sits (scales by head size)
+ *   hat   { lift, scale, wear }  how a hat sits (scales by head size); `wear`: a hat it wears unless given another
  *   wings 'dragon' | 'fairy' | null — extra skinned wing meshes
  *   gloss 0–1 (vinyl sheen), fur 0–1 (soft rim)
  */
@@ -484,6 +486,243 @@ export const SPECIES = {
         ...[[0.16, 0.42, -0.2], [-0.18, 0.36, -0.14], [0.05, 0.5, -0.24], [-0.12, 0.86, -0.06]].map((c) => S(c, 0.035, { col: '#8096ad', soft: 0.008 }))
       ],
       face: { eyeX: 0.11, eyeY: 0.72, eyeR: 0.07, mouthY: 0.57, cheekX: 0.19, cheekY: 0.63 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The desert: a fennec fox cub — sandy, with enormous ears and a dark-tipped tail. */
+  fennec() {
+    const b = chibiBody({ socks: '#c98f55' });
+    return {
+      color: '#f1c98c', fur: 1, gloss: 0.25,
+      bones: skeleton({ earL: ['head', -0.2, 0.86, -0.03], earR: ['head', 0.2, 0.86, -0.03], tail: ['hips', 0, 0.2, -0.17], tail2: ['tail', 0.06, 0.38, -0.38] }),
+      parts: [
+        head([0, 0.68, 0], [0.34, 0.28, 0.29]),
+        ...both(E([-0.2, 0.58, 0.13], [0.15, 0.11, 0.14], { k: 0.08, bone: 'head', col: CREAM })),
+        E([0, 0.6, 0.24], [0.1, 0.07, 0.1], { k: 0.08, bone: 'head', col: CREAM }),
+        ...both(T([-0.18, 0.86, -0.03], [-0.38, 1.22, -0.07], 0.17, 0.035, { k: 0.08, bone: 'earL' })),
+        ...b.parts,
+        C([0, 0.2, -0.17], [0.05, 0.34, -0.34], 0.09, { k: 0.07, bone: 'tail' }),
+        C([0.05, 0.34, -0.34], [0.1, 0.5, -0.42], 0.1, { k: 0.06, bone: 'tail2' }),
+        S([0.11, 0.54, -0.43], 0.09, { k: 0.06, bone: 'tail2', col: '#4a3326' })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.26, 1.0, 0.03], [0.08, 0.15, 0.06], { col: PINK, rot: [0, 0, 0.5] })),
+        E([0, 0.635, 0.335], [0.04, 0.026, 0.03], { col: INK, soft: 0.004 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.7, eyeR: 0.078, mouthY: 0.57, cheekX: 0.22, cheekY: 0.6 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The desert: a camel calf, standing on four long legs, one soft hump, a curved neck. */
+  camel() {
+    return {
+      color: '#e0b27a', fur: 0.7, gloss: 0.2,
+      bones: skeleton({ hips: ['root', 0, 0.5, -0.2], chest: ['hips', 0, 0.62, 0.05], head: ['chest', 0, 0.84, 0.32], earL: ['head', -0.09, 1.3, 0.38], earR: ['head', 0.09, 1.3, 0.38], armL: ['chest', -0.13, 0.52, 0.2], armR: ['chest', 0.13, 0.52, 0.2], legL: ['hips', -0.13, 0.5, -0.3], legR: ['hips', 0.13, 0.5, -0.3], tail: ['hips', 0, 0.64, -0.45] }),
+      parts: [
+        E([0, 0.64, 0.02], [0.24, 0.2, 0.3], { k: 0.1, bone: 'chest' }),
+        E([0, 0.62, -0.26], [0.23, 0.19, 0.24], { k: 0.1, bone: 'hips' }),
+        S([0, 0.86, -0.1], 0.15, { k: 0.1, bone: 'chest', col: '#d39d62' }),
+        C([0, 0.74, 0.24], [0, 1.08, 0.36], 0.09, { k: 0.07, bone: 'head' }),
+        E([0, 1.18, 0.42], [0.17, 0.15, 0.17], { k: 0.08, bone: 'head' }),
+        E([0, 1.12, 0.56], [0.11, 0.08, 0.1], { k: 0.06, bone: 'head', col: '#f3d6a8' }),
+        ...both(E([-0.12, 1.31, 0.36], [0.04, 0.06, 0.03], { k: 0.03, bone: 'earL' })),
+        ...both(C([-0.13, 0.52, 0.18], [-0.13, 0.08, 0.2], 0.055, { k: 0.05, bone: 'armL' }), E([-0.13, 0.04, 0.23], [0.07, 0.04, 0.08], { k: 0.03, bone: 'armL', col: '#a37850' })),
+        ...both(C([-0.13, 0.52, -0.32], [-0.13, 0.08, -0.32], 0.06, { k: 0.05, bone: 'legL' }), E([-0.13, 0.04, -0.29], [0.07, 0.04, 0.08], { k: 0.03, bone: 'legL', col: '#a37850' })),
+        C([0, 0.66, -0.48], [0, 0.5, -0.56], 0.03, { k: 0.02, bone: 'tail' })
+      ],
+      paint: [
+        ...both(S([-0.05, 1.11, 0.65], 0.022, { col: INK, soft: 0.004 })),
+        E([0, 0.86, -0.1], [0.18, 0.06, 0.18], { col: '#c88f58', soft: 0.02 })
+      ],
+      face: { eyeX: 0.085, eyeY: 1.22, eyeR: 0.05, mouthY: 1.07, cheekX: 0.12, cheekY: 1.14 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The desert: a scarab beetle, round and shiny, with six little legs and two feelers. */
+  scarab() {
+    return {
+      color: '#3fa0a8', gloss: 0.85,
+      bones: skeleton({ head: ['chest', 0, 0.3, 0.2], earL: ['head', -0.06, 0.4, 0.34], earR: ['head', 0.06, 0.4, 0.34], armL: ['chest', -0.22, 0.22, 0.12], armR: ['chest', 0.22, 0.22, 0.12], legL: ['hips', -0.22, 0.2, -0.12], legR: ['hips', 0.22, 0.2, -0.12] }),
+      parts: [
+        E([0, 0.3, -0.06], [0.3, 0.2, 0.34], { k: 0.04, bone: 'chest' }),
+        E([0, 0.36, 0.0], [0.28, 0.16, 0.3], { k: 0.04, bone: 'chest', col: '#2f8c9a' }),
+        E([0, 0.3, 0.3], [0.19, 0.15, 0.14], { k: 0.06, bone: 'head', col: '#2a6f7c' }),
+        ...both(C([-0.06, 0.4, 0.36], [-0.12, 0.56, 0.42], 0.018, { k: 0.02, bone: 'earL', col: '#1f3a40' }), S([-0.12, 0.57, 0.42], 0.035, { k: 0.02, bone: 'earL', col: '#f2c14e' })),
+        ...both(C([-0.22, 0.22, 0.14], [-0.34, 0.05, 0.22], 0.03, { k: 0.02, bone: 'armL', col: '#1f3a40' })),
+        ...both(C([-0.26, 0.2, 0.0], [-0.38, 0.05, 0.0], 0.03, { k: 0.02, bone: 'chest', col: '#1f3a40' })),
+        ...both(C([-0.22, 0.2, -0.14], [-0.34, 0.05, -0.24], 0.03, { k: 0.02, bone: 'legL', col: '#1f3a40' }))
+      ],
+      paint: [E([0, 0.5, -0.06], [0.015, 0.06, 0.32], { col: '#f2c14e', soft: 0.006 }), ...both(S([-0.15, 0.46, -0.12], 0.05, { col: '#7fe0e0', soft: 0.01 }))],
+      face: { eyeX: 0.08, eyeY: 0.34, eyeR: 0.05, mouthY: 0.25, cheekX: 0.13, cheekY: 0.27 },
+      hat: { lift: -0.02 }
+    };
+  },
+  /** The desert: a meerkat standing up on look-out — slim, sandy, dark eye patches, a thin dark-tipped tail. */
+  meerkat() {
+    const b = chibiBody({ belly: '#f6e6c8', socks: '#8a6a4a', bodyR: [0.17, 0.25, 0.16], legR: 0.06 });
+    return {
+      color: '#d6b07c', fur: 1, gloss: 0.2,
+      bones: skeleton({ head: ['chest', 0, 0.5, 0], earL: ['head', -0.2, 0.84, -0.02], earR: ['head', 0.2, 0.84, -0.02], armL: ['chest', -0.15, 0.44, 0.06], armR: ['chest', 0.15, 0.44, 0.06], tail: ['hips', 0, 0.16, -0.16], tail2: ['tail', 0, 0.06, -0.4] }),
+      parts: [
+        head([0, 0.74, 0.02], [0.27, 0.25, 0.26]),
+        E([0, 0.66, 0.22], [0.11, 0.08, 0.12], { k: 0.08, bone: 'head', col: '#f6e6c8' }),
+        ...both(S([-0.22, 0.84, -0.02], 0.065, { k: 0.04, bone: 'earL', col: '#6b4a32' })),
+        ...b.parts.map((q) => (q.bone === 'armL' || q.bone === 'armR' ? { ...q, c: q.c && [q.c[0] * 0.8, q.c[1] + 0.08, q.c[2] + 0.06], a: q.a && [q.a[0] * 0.8, q.a[1] + 0.06, q.a[2] + 0.04], b: q.b && [q.b[0] * 0.7, q.b[1] + 0.1, q.b[2] + 0.1] } : q)),
+        C([0, 0.16, -0.16], [0, 0.07, -0.4], 0.04, { k: 0.03, bone: 'tail' }),
+        C([0, 0.07, -0.4], [0, 0.05, -0.56], 0.03, { k: 0.02, bone: 'tail2', col: '#3a2a20' })
+      ],
+      paint: [...b.paint, ...both(E([-0.11, 0.77, 0.2], [0.075, 0.06, 0.06], { col: '#5a3a26', soft: 0.01 })), E([0, 0.69, 0.33], [0.035, 0.024, 0.03], { col: INK, soft: 0.004 }), E([0, 0.42, -0.14], [0.12, 0.2, 0.06], { col: '#b88f5c', soft: 0.02 })],
+      face: { eyeX: 0.11, eyeY: 0.77, eyeR: 0.06, mouthY: 0.64, cheekX: 0.18, cheekY: 0.68 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The desert: a jerboa — a tiny hopper with huge ears, long feet and a long tail with a black-and-white tuft. */
+  jerboa() {
+    const b = chibiBody({ belly: '#fff6e6', bodyR: [0.18, 0.17, 0.16], legR: 0.06 });
+    return {
+      color: '#e9c38e', fur: 1, gloss: 0.2,
+      bones: skeleton({ earL: ['head', -0.15, 0.9, -0.03], earR: ['head', 0.15, 0.9, -0.03], tail: ['hips', 0, 0.18, -0.16], tail2: ['tail', 0, 0.1, -0.5] }),
+      parts: [
+        head([0, 0.6, 0.02], [0.3, 0.26, 0.27]),
+        E([0, 0.52, 0.24], [0.09, 0.06, 0.08], { k: 0.08, bone: 'head', col: '#fff6e6' }),
+        ...both(E([-0.17, 0.98, -0.04], [0.09, 0.22, 0.04], { k: 0.05, bone: 'earL', rot: [0, 0, -0.35] })),
+        ...b.parts.filter((q) => q.bone !== 'legL' && q.bone !== 'legR'),
+        ...both(C([-0.1, 0.18, 0.0], [-0.11, 0.06, 0.02], 0.06, { k: 0.05, bone: 'legL' }), E([-0.11, 0.035, 0.12], [0.06, 0.035, 0.16], { k: 0.03, bone: 'legL', col: '#fff6e6' })),
+        C([0, 0.18, -0.16], [0, 0.1, -0.5], 0.025, { k: 0.02, bone: 'tail' }),
+        C([0, 0.1, -0.5], [0, 0.16, -0.7], 0.022, { k: 0.02, bone: 'tail2' }),
+        E([0, 0.18, -0.76], [0.06, 0.06, 0.09], { k: 0.03, bone: 'tail2', col: '#2b2b33' }),
+        E([0, 0.2, -0.84], [0.05, 0.05, 0.05], { k: 0.03, bone: 'tail2', col: '#ffffff' })
+      ],
+      paint: [...b.paint, ...both(E([-0.17, 0.98, 0.0], [0.05, 0.16, 0.03], { col: PINK, rot: [0, 0, -0.35] })), S([0, 0.55, 0.3], 0.028, { col: '#ff7aa8', soft: 0.004 })],
+      face: { eyeX: 0.12, eyeY: 0.63, eyeR: 0.075, mouthY: 0.5, cheekX: 0.2, cheekY: 0.54 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The desert: a gecko on all fours — a big round head, huge eyes, spots and a curly tail. */
+  gecko() {
+    return {
+      color: '#8fd06a', gloss: 0.55,
+      bones: skeleton({ hips: ['root', 0, 0.2, -0.12], chest: ['hips', 0, 0.22, 0.08], head: ['chest', 0, 0.3, 0.28], earL: ['head', -0.1, 0.5, 0.3], earR: ['head', 0.1, 0.5, 0.3], armL: ['chest', -0.16, 0.2, 0.14], armR: ['chest', 0.16, 0.2, 0.14], legL: ['hips', -0.16, 0.18, -0.16], legR: ['hips', 0.16, 0.18, -0.16], tail: ['hips', 0, 0.18, -0.3], tail2: ['tail', 0.1, 0.12, -0.6] }),
+      parts: [
+        E([0, 0.22, -0.02], [0.17, 0.12, 0.3], { k: 0.08, bone: 'chest' }),
+        head([0, 0.38, 0.36], [0.25, 0.2, 0.22], { k: 0.12 }),
+        ...both(C([-0.15, 0.2, 0.14], [-0.28, 0.05, 0.2], 0.04, { k: 0.03, bone: 'armL' }), S([-0.3, 0.035, 0.22], 0.05, { k: 0.02, bone: 'armL', col: '#b9e88a' })),
+        ...both(C([-0.15, 0.18, -0.16], [-0.28, 0.05, -0.2], 0.045, { k: 0.03, bone: 'legL' }), S([-0.3, 0.035, -0.2], 0.055, { k: 0.02, bone: 'legL', col: '#b9e88a' })),
+        T([0, 0.18, -0.28], [0.1, 0.1, -0.56], 0.09, 0.06, { k: 0.05, bone: 'tail' }),
+        T([0.1, 0.1, -0.56], [0.28, 0.08, -0.66], 0.06, 0.025, { k: 0.04, bone: 'tail2' })
+      ],
+      paint: [
+        E([0, 0.15, 0.05], [0.13, 0.06, 0.24], { col: '#e8f7b8', soft: 0.02 }),
+        ...[[0.08, 0.33, -0.06], [-0.09, 0.32, 0.06], [0.0, 0.34, -0.2], [0.1, 0.3, 0.14], [-0.06, 0.3, -0.16], [0.06, 0.52, 0.3]].map((c) => S(c, 0.04, { col: '#f2a03a', soft: 0.01 }))
+      ],
+      face: { eyeX: 0.11, eyeY: 0.44, eyeR: 0.085, mouthY: 0.3, cheekX: 0.18, cheekY: 0.34 },
+      hat: { lift: 0.1 }
+    };
+  },
+  /**
+   * The desert's history teacher, Uncle Reed: a plush sacred ibis — a round white body, a soft slate
+   * head and neck with a big cream face, a short curved beak, dark-tipped wings and tail plumes, a
+   * turquoise-and-gold Egyptian collar, and a papyrus scroll tucked under one wing.
+   */
+  ibis() {
+    const SLATE = '#5a6075';
+    return {
+      color: '#fbf6ee', fur: 0.4, gloss: 0.3,
+      bones: skeleton({ hips: ['root', 0, 0.4, 0], chest: ['hips', 0, 0.56, 0], head: ['chest', 0, 0.86, 0.1], earL: ['head', -0.08, 1.16, 0.08], earR: ['head', 0.08, 1.16, 0.08], armL: ['chest', -0.2, 0.66, 0], armR: ['chest', 0.2, 0.66, 0], legL: ['hips', -0.08, 0.4, 0.02], legR: ['hips', 0.08, 0.4, 0.02], tail: ['hips', 0, 0.52, -0.26] }),
+      parts: [
+        E([0, 0.6, -0.03], [0.23, 0.22, 0.27], { k: 0.1, bone: 'chest' }),
+        E([0, 0.5, 0.0], [0.19, 0.12, 0.2], { k: 0.08, bone: 'hips' }),
+        C([0, 0.74, 0.08], [0, 0.9, 0.11], 0.08, { k: 0.06, bone: 'head', col: SLATE }),
+        S([0, 1.0, 0.11], 0.2, { k: 0.08, bone: 'head', col: SLATE }),
+        // The beak: two tapers curving down.
+        T([0, 0.95, 0.28], [0, 0.9, 0.44], 0.044, 0.027, { k: 0.02, bone: 'head', col: '#4b4856' }),
+        T([0, 0.9, 0.44], [0, 0.8, 0.52], 0.027, 0.012, { k: 0.015, bone: 'head', col: '#4b4856' }),
+        // Wings, black-tipped, held at the sides.
+        ...both(E([-0.21, 0.62, -0.05], [0.065, 0.16, 0.23], { k: 0.05, bone: 'armL', rot: [0.15, 0, -0.18] })),
+        ...both(E([-0.2, 0.56, -0.25], [0.05, 0.08, 0.09], { k: 0.04, bone: 'armL', col: SLATE })),
+        // Fluffy black tail plumes.
+        E([0, 0.56, -0.32], [0.13, 0.08, 0.12], { k: 0.05, bone: 'tail', col: SLATE }),
+        // The scroll under the left wing.
+        C([-0.18, 0.5, 0.2], [0.04, 0.46, 0.25], 0.045, { k: 0.01, bone: 'armL', col: '#f3e6c4' }),
+        S([-0.2, 0.5, 0.2], 0.052, { k: 0.01, bone: 'armL', col: '#b5793f' }),
+        S([0.06, 0.46, 0.25], 0.052, { k: 0.01, bone: 'armL', col: '#b5793f' }),
+        // Long legs and wide feet.
+        ...both(C([-0.08, 0.42, 0.02], [-0.08, 0.06, 0.03], 0.028, { k: 0.02, bone: 'legL', col: '#3a3a44' }), E([-0.08, 0.03, 0.07], [0.06, 0.022, 0.09], { k: 0.02, bone: 'legL', col: '#3a3a44' }))
+      ],
+      paint: [
+        // A big cream face, so the eyes read on the grey head.
+        E([0, 1.0, 0.24], [0.17, 0.13, 0.1], { col: '#fff4e6', soft: 0.014 }),
+        E([0, 0.6, 0.24], [0.15, 0.16, 0.08], { col: '#fffdf8', soft: 0.02 }),
+        // A broad collar: turquoise, gold and turquoise bands round the neck.
+        { s: 'disc', c: [0, 0.76, 0.06], r: [0.22, 0.022], rot: [Math.PI / 2, 0, 0], col: '#36bfc4', soft: 0.006 },
+        { s: 'disc', c: [0, 0.72, 0.05], r: [0.24, 0.02], rot: [Math.PI / 2, 0, 0], col: '#f2c14e', soft: 0.006 },
+        { s: 'disc', c: [0, 0.685, 0.04], r: [0.26, 0.02], rot: [Math.PI / 2, 0, 0], col: '#2f6fb8', soft: 0.006 }
+      ],
+      face: { eyeX: 0.085, eyeY: 1.04, eyeR: 0.056, mouthY: null, cheekX: 0.13, cheekY: 0.97 },
+      hat: { lift: 0 }
+    };
+  },
+  /**
+   * The desert's math teacher, Miss Lotus: a round plush hippo in soft lilac, with a wide pale muzzle,
+   * little round ears, a pink tummy and a lotus flower worn over one ear.
+   */
+  hippo() {
+    const b = chibiBody({ belly: '#f7c9da', bodyR: [0.25, 0.22, 0.22], legR: 0.088 });
+    return {
+      color: '#b9a7e0', fur: 0.3, gloss: 0.35,
+      bones: skeleton({ earL: ['head', -0.2, 0.92, -0.06], earR: ['head', 0.2, 0.92, -0.06], armL: ['chest', -0.2, 0.4, 0.02], armR: ['chest', 0.2, 0.4, 0.02] }),
+      parts: [
+        head([0, 0.72, -0.02], [0.33, 0.27, 0.28]),
+        // The big muzzle.
+        E([0, 0.6, 0.18], [0.25, 0.16, 0.18], { k: 0.1, bone: 'head', col: '#d6c9f0' }),
+        ...both(E([-0.2, 0.93, -0.06], [0.065, 0.07, 0.045], { k: 0.04, bone: 'earL' })),
+        ...b.parts.map((q) => (q.bone === 'armL' || q.bone === 'armR' ? { ...q, r: typeof q.r === 'number' ? q.r * 1.2 : q.r } : q)),
+        S([0, 0.24, -0.22], 0.05, { k: 0.03, bone: 'tail' })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.2, 0.93, -0.02], [0.035, 0.04, 0.03], { col: '#f7a8c4', soft: 0.006 })),
+        // Nostrils on top of the muzzle.
+        ...both(E([-0.08, 0.7, 0.33], [0.03, 0.022, 0.03], { col: '#7a6aa0', soft: 0.005 })),
+        // Soft freckles.
+        ...[[0.16, 0.62, 0.3], [0.19, 0.57, 0.27], [-0.16, 0.62, 0.3], [-0.19, 0.57, 0.27]].map((c) => S(c, 0.012, { col: '#a593cf', soft: 0.003 }))
+      ],
+      face: { eyeX: 0.13, eyeY: 0.82, eyeR: 0.068, mouthY: 0.53, cheekX: 0.23, cheekY: 0.64 },
+      hat: { lift: 0, wear: 'lotus' }
+    };
+  },
+  /**
+   * The desert's physics teacher, Dr. Sandy: a sand cat — pale sandy fur, wide-set pointed ears,
+   * a broad face with fluffy cheeks, faint stripes on the legs and a ringed, black-tipped tail.
+   */
+  sandcat() {
+    const b = chibiBody({ belly: '#fff3dc', socks: '#c9a06a' });
+    return {
+      color: '#e6c99b', fur: 1, gloss: 0.2,
+      bones: skeleton({ earL: ['head', -0.22, 0.86, -0.02], earR: ['head', 0.22, 0.86, -0.02], tail: ['hips', 0, 0.2, -0.17], tail2: ['tail', 0.05, 0.36, -0.38] }),
+      parts: [
+        head([0, 0.68, 0], [0.36, 0.28, 0.3]),
+        ...both(E([-0.21, 0.58, 0.12], [0.16, 0.12, 0.15], { k: 0.08, bone: 'head', col: '#fff3dc' })),
+        E([0, 0.6, 0.24], [0.1, 0.07, 0.1], { k: 0.08, bone: 'head', col: '#fff3dc' }),
+        ...both(T([-0.21, 0.86, -0.02], [-0.33, 1.06, -0.05], 0.11, 0.03, { k: 0.07, bone: 'earL' })),
+        ...b.parts,
+        C([0, 0.2, -0.17], [0.05, 0.36, -0.36], 0.07, { k: 0.06, bone: 'tail' }),
+        C([0.05, 0.36, -0.36], [0.1, 0.56, -0.44], 0.065, { k: 0.05, bone: 'tail2' }),
+        S([0.1, 0.59, -0.44], 0.07, { k: 0.05, bone: 'tail2', col: '#3a2a20' })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.26, 0.97, 0.02], [0.06, 0.1, 0.05], { col: PINK, rot: [0, 0, 0.45] })),
+        ...both(S([-0.32, 1.05, -0.05], 0.035, { col: '#7a5a3c', soft: 0.008 })),
+        E([0, 0.635, 0.335], [0.04, 0.026, 0.03], { col: '#d98a8a', soft: 0.004 }),
+        // Faint stripes on the arms and legs, and rings round the tail.
+        ...both(E([-0.27, 0.3, 0.07], [0.06, 0.012, 0.07], { col: '#b98d58', soft: 0.004 }), E([-0.11, 0.12, 0.07], [0.08, 0.012, 0.08], { col: '#b98d58', soft: 0.004 })),
+        ...[[0.03, 0.29, -0.28], [0.07, 0.44, -0.4], [0.09, 0.52, -0.43]].map((c) => S(c, 0.075, { col: '#a07a4c', soft: 0.006 })),
+        // Brow marks above the eyes.
+        ...both(E([-0.1, 0.84, 0.24], [0.04, 0.012, 0.03], { col: '#b98d58', soft: 0.004, rot: [0, 0, 0.3] }))
+      ],
+      face: { eyeX: 0.135, eyeY: 0.7, eyeR: 0.08, mouthY: 0.565, cheekX: 0.23, cheekY: 0.6 },
       hat: { lift: 0 }
     };
   },

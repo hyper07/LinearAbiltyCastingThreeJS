@@ -216,6 +216,8 @@ export class ArcademiaGame {
     this.resize();
     const gate = this.world.plan.floors[0].worldGate;
     this.world.teleport(1, gate?.at ?? null);
+    // The world's own first view (the desert frames the Sphinx and the pyramids), else close behind the buddy.
+    this.world.arrival();
     this.applyPower();
     if (this._amb) this.sound.ambient(this.prefs.sound, this.prefs.night ? 1 : 0, this.floors[0].look.mood);
     this.sound.toy('gem');
@@ -365,7 +367,7 @@ export class ArcademiaGame {
     this.help = new HelpPanel({
       host: this.root,
       id: 'arcademia',
-      table: controls(),
+      table: controls(this.map),
       text: { title: t('help.title'), close: t('help.close'), dontShow: t('help.dontShow'), touch: t('help.touch'), gamepad: t('help.pad') },
       onClose: () => this.root.focus()
     });

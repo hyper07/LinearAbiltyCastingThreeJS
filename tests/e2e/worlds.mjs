@@ -2,8 +2,8 @@ import { boot, tally, until } from './lib.mjs';
 
 /**
  * Arcademia's study worlds (src/arcademia/maps.js): the World Portal's
- * picker, travelling to the Great Tree and the Lagoon and back, walking their
- * rings, bridges and boardwalks, a lesson in each, their own lessons and
+ * picker, travelling to the Great Tree, the Lagoon and the Desert and back, walking their
+ * rings, bridges, boardwalks and causeways, a lesson in each, their own lessons and
  * teachers, and the choice kept across a reload.
  */
 export async function run(browser) {
@@ -120,6 +120,74 @@ export async function run(browser) {
       return { seaOpen };
     });
     t.check('sea stars open the next island', separate.seaOpen.includes(2), JSON.stringify(separate));
+    // The Desert of the Pyramids: oasis towns along the Nile, causeways between them.
+    await page.click('.arc-nav__item--worlds');
+    await until(page, () => Boolean(document.querySelector('.arc-modal--worlds')), null, 5000);
+    const cards = await page.$$eval('.arc-worlds__card', (els) => els.map((e) => e.textContent));
+    t.check('the picker lists four worlds, the Desert among them', cards.filter((c) => !/🔮/.test(c)).length === 4 && cards.some((c) => c.includes('🐪')), JSON.stringify(cards));
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.arcademia.switchMap('desert'));
+    await page.waitForTimeout(3000);
+    const sand = await page.evaluate(() => {
+      const g = window.arcademia, w = g.world;
+      const mini = document.querySelector('.arc-mini svg');
+      return {
+        map: g.map.id, realm: g.realm, kind: w.plan.kind, places: w.places.filter((p) => p.floor === 1).length,
+        portal: w.places.some((p) => p.kind === 'worlds' && p.floor === 1),
+        floor: w.kidFloor, oases: mini?.querySelectorAll('[data-floor]').length, nile: Boolean(mini?.querySelector('path[stroke="#3fb7c4"]')),
+        // The arrival view looks north, over the first oasis to the Sphinx and the pyramids.
+        north: w.camera.position.z > w.controls.target.z + 40
+      };
+    });
+    t.check('the Desert opens on oasis 1 with its World Portal', sand.map === 'desert' && sand.kind === 'desert' && sand.floor === 1 && sand.places >= 9 && sand.portal, JSON.stringify(sand));
+    t.check('the minimap shows the Nile and seven oases; the first view looks north to the pyramids', sand.oases === 7 && sand.nile && sand.north, JSON.stringify(sand));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(new Set());
+      w.teleport(1);
+      const b = w.buildings.find((x) => x.subject === 'history' && x.floor === 2);
+      window.__arrived = false;
+      window.__onCauseway = false;
+      const st = w.plan.stairs[0];
+      const watch = setInterval(() => {
+        if (w.plan.floorAt(w.kidPos.x, w.kidPos.z, w.kidPos.y) === 0 && w.kidPos.x > st.pts[0][0] + 5 && w.kidPos.x < st.pts[3][0] - 5) window.__onCauseway = true;
+        if (window.__arrived) clearInterval(watch);
+      }, 100);
+      w.goTo(b.at, () => (window.__arrived = true));
+    });
+    t.check('the buddy walks the avenue of sphinxes to the next oasis', await until(page, () => window.__arrived && window.__onCauseway, null, 60000));
+    const there = await page.evaluate(() => ({ floor: window.arcademia.world.kidFloor, y: window.arcademia.world.kidPos.y }));
+    t.check('and arrives at oasis 2, on the stone', there.floor === 2 && Math.abs(there.y - 1) < 0.8, JSON.stringify(there));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(window.arcademia.lockedSet());
+      w.teleport(1);
+    });
+    // The Desert teaches its own lessons, with its own teachers, stories and puzzle bosses.
+    const own = await page.evaluate(() => {
+      const g = window.arcademia;
+      return {
+        lessons: g.lessons.length, allDesert: g.lessons.every((l) => l.realm === 'desert'),
+        story: g.worlds[1].story, boss: g.worlds[1].boss.species, help: document.querySelector('.arc-help')?.textContent ?? ''
+      };
+    });
+    t.check('the Desert teaches its own 42 desert lessons', own.lessons === 42 && own.allDesert, JSON.stringify(own));
+    t.check('the first oasis has its own story and puzzle boss, and O names all the oases', /Sphinx Gate/.test(own.story) && own.boss === 'lion' && /oases/.test(own.help) && !/mountain/.test(own.help), JSON.stringify(own));
+    await page.evaluate(() => window.arcademia.enter('math', 1));
+    t.check('a Pyramid School opens in the Desert, taught by Miss Lotus the hippo', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'hippo', null, 20000));
+    const listed = await page.evaluate(() => [...document.querySelectorAll('.arc-lesson, .arc-quests, body')].map((e) => e.textContent).join(' '));
+    t.check('its lesson list shows desert lessons', /Counting Camels|Dates at the Oasis/.test(listed));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('history', 1));
+    t.check('the Temple School is taught by Uncle Reed the ibis', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'ibis', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('physics', 1));
+    t.check('the Sun Observatory is run by Dr. Sandy the sand cat', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'sandcat', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    t.check('and back out to the oasis', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'desert'));
     await page.evaluate(() => window.arcademia.switchMap('mountain'));
     await page.waitForTimeout(2000);
     t.check('and back to the mountain', (await page.evaluate(() => window.arcademia.map.id)) === 'mountain');

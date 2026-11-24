@@ -45,7 +45,7 @@ export function questFor(lesson0) {
   };
 }
 
-/** A forest or sea lesson's quest: the same steps, told by that realm's teachers (ui.js <realm>.quest.*). */
+/** A forest, sea or desert lesson's quest: the same steps, told by that realm's teachers (ui.js <realm>.quest.*). */
 function realmQuest(realm, lesson, teacher, steps) {
   if (lesson.subject === 'math') return { title: lesson.title, intro: tr(`${realm}.quest.math`), introLine: `t.${realm}.quest.math`, teacher, steps: steps(['story', 'learn', 'board', 'try', 'challenge']) };
   if (lesson.subject === 'history') {
@@ -103,5 +103,15 @@ export const FOREST_WORLDS = {
   6: world(6, { species: 'puff', color: '#ffe066', emoji: '🌻' }, 'forest.world'),
   7: world(7, { species: 'dragon', color: '#7f8cff', emoji: '🐉' }, 'forest.world')
 };
-/** A realm's worlds ('land', 'forest' or 'sea'). */
-export const worldsIn = (realm = 'land') => ({ sea: SEA_WORLDS, forest: FOREST_WORLDS })[realm] ?? WORLDS;
+/** The Desert of the Pyramids: each oasis's story and its puzzle boss (ui.js desert.world.<n>.*). */
+export const DESERT_WORLDS = {
+  1: world(1, { species: 'lion', color: '#f0c27a', emoji: '🦁' }, 'desert.world'),
+  2: world(2, { species: 'camel', color: '#e0b27a', emoji: '🐪' }, 'desert.world'),
+  3: world(3, { species: 'gecko', color: '#8fd18a', emoji: '🦎' }, 'desert.world'),
+  4: world(4, { species: 'scarab', color: '#3fa0a8', emoji: '🪲' }, 'desert.world'),
+  5: world(5, { species: 'puff', color: '#ffb38a', emoji: '🎈' }, 'desert.world'),
+  6: world(6, { species: 'meerkat', color: '#d6b07c', emoji: '📜' }, 'desert.world'),
+  7: world(7, { species: 'fennec', color: '#f1c98c', emoji: '🌙' }, 'desert.world')
+};
+/** A realm's worlds ('land', 'forest', 'sea' or 'desert'). */
+export const worldsIn = (realm = 'land') => ({ sea: SEA_WORLDS, forest: FOREST_WORLDS, desert: DESERT_WORLDS })[realm] ?? WORLDS;

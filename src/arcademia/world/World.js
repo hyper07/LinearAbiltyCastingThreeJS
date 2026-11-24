@@ -29,6 +29,9 @@ import { leafCanopy } from './grown.js';
 import { thatchGazebo, SEA_LANDMARK_ICONS } from './resort.js';
 import { planLagoon } from './lagoon/plan.js';
 import { buildLagoonWorld } from './lagoon/scene.js';
+import { planDesert } from './desert/plan.js';
+import { buildDesertWorld } from './desert/scene.js';
+import { stripedAwning, DESERT_LANDMARK_ICONS } from './desert/buildings.js';
 import { makeCreature, BUDDY_COLORS } from './figures.js';
 import { buildParticles } from './particles.js';
 import { WORLDS } from '../quests.js';
@@ -49,7 +52,7 @@ const placeInfo = (icon, id) => ({ icon, get name() {
   return tr(`place.${id}`);
 } });
 export const PLACE_INFO = { shop: placeInfo('🎩', 'shop'), arcade: placeInfo('🕹️', 'arcade'), museum: placeInfo('🌈', 'museum'), board: placeInfo('📋', 'board'), portal: placeInfo('🌀', 'portal'), worlds: placeInfo('🌍', 'worlds') };
-const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼', ...SEA_LANDMARK_ICONS };
+const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼', ...SEA_LANDMARK_ICONS, ...DESERT_LANDMARK_ICONS };
 const landmarkName = (id) => `${LANDMARK_ICONS[id] ?? ''} ${tr(`landmark.${id}`)}`;
 const SUBJECTS = ['math', 'history', 'physics'];
 
@@ -64,12 +67,15 @@ export class World {
     this.reducedMotion = reducedMotion;
     this.on = on;
     this.buddy = buddy ?? { species: 'fox', color: '#ff9b54', hat: 'party' };
-    this.plan = kind === 'tree' ? planTree(floors.length) : kind === 'lagoon' ? planLagoon(floors.length) : planMountain(floors.length);
+    this.plan = kind === 'tree' ? planTree(floors.length) : kind === 'lagoon' ? planLagoon(floors.length) : kind === 'desert' ? planDesert(floors.length) : planMountain(floors.length);
     this.isTree = this.plan.kind === 'tree';
-    /** The tree and the lagoon: their own scenery, the layered walking grid, spots from the plan. */
-    this.custom = this.plan.kind === 'tree' || this.plan.kind === 'lagoon';
+    /** The tree, the lagoon and the desert: their own scenery, the layered walking grid, spots from the plan. */
+    this.custom = ['tree', 'lagoon', 'desert'].includes(this.plan.kind);
+    /** Day and night colours (a plan may warm them: the desert's late-afternoon sky). */
+    this.DAY = { ...DAY, ...this.plan.sky?.day };
+    this.NIGHT = { ...NIGHT, ...this.plan.sky?.night };
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(DAY.fog, 160, 600);
+    this.scene.fog = new THREE.Fog(this.DAY.fog, 160, 600);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.5, 2000);
     this.time = 0;
     this._cut = new THREE.Vector3();
@@ -93,6 +99,7 @@ export class World {
 
   _build() {
     const { scene, plan, floors } = this;
+    const DAY = this.DAY;
     this.hemi = new THREE.HemisphereLight(DAY.hemiSky, DAY.hemiGround, DAY.hemi);
     this.sun = new THREE.DirectionalLight(DAY.sun, DAY.sunI);
     this.sun.castShadow = true;
@@ -110,8 +117,8 @@ export class World {
     this.sky = buildSky();
     scene.add(this.sky);
     if (this.custom) {
-      // The Great Tree (tree/scene.js) or the Lagoon (lagoon/scene.js): walkable parts, gates, the rest.
-      this.scenery = this.isTree ? buildTreeWorld(plan, floors) : buildLagoonWorld(plan, floors);
+      // The Great Tree (tree/scene.js), the Lagoon (lagoon/scene.js) or the Desert (desert/scene.js): walkable parts, gates, the rest.
+      this.scenery = this.isTree ? buildTreeWorld(plan, floors) : plan.kind === 'desert' ? buildDesertWorld(plan, floors) : buildLagoonWorld(plan, floors);
       if (this.isTree) this.tree = this.scenery;
       scene.add(this.scenery.group);
       this.terrain = this.scenery.walk;
@@ -193,9 +200,10 @@ export class World {
 
     const dom = this.renderer.domElement;
     this.controls = new OrbitControls(this.camera, dom);
-    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 5, maxDistance: this.plan.kind === 'lagoon' ? 380 : 260, minPolarAngle: 0.35, maxPolarAngle: 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
+    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, minDistance: 5, maxDistance: { lagoon: 380, desert: 600 }[this.plan.kind] ?? 260, minPolarAngle: 0.35, maxPolarAngle: 1.32, rotateSpeed: 0.6, zoomSpeed: 0.9 });
     this.controls.target.copy(this.kidPos).add(new THREE.Vector3(0, 1, 0));
-    this.home();
+    if (this.plan.arrival) this.arrival();
+    else this.home();
     this._camTween = null;
     this.controls.addEventListener('start', () => {
       this._camTween = null;
@@ -209,6 +217,8 @@ export class World {
     this.setLocked(new Set());
     this._ensureDetail(1);
     this._ensureDetail(2);
+    // A world with its own sky colours shows them from the start.
+    if (this.plan.sky) this._applyNight();
   }
 
   /** A place on a floor: a picking proxy, a label and (later) its model. */
@@ -227,7 +237,7 @@ export class World {
     el.className = `arc-pill${subject ? '' : ' arc-pill--place'}`;
     el.innerHTML = '<span class="arc-pill__icon" aria-hidden="true"></span><span class="arc-pill__name"></span><span class="arc-pill__meta"></span>';
     el.querySelector('.arc-pill__icon').textContent = subject ? SUBJECT_ICONS[p.kind] : p.kind === 'landmark' ? '' : PLACE_INFO[p.kind].icon;
-    const nameOf = () => (subject ? (look.look.resort ? tr(`sea.building.${p.kind}`) : look.look.grown ? tr(`forest.building.${p.kind}`) : BUILDING_NAMES[p.kind]) : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
+    const nameOf = () => (subject ? (look.look.resort ? tr(`sea.building.${p.kind}`) : look.look.sandstone ? tr(`desert.building.${p.kind}`) : look.look.grown ? tr(`forest.building.${p.kind}`) : BUILDING_NAMES[p.kind]) : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
     el.querySelector('.arc-pill__name').textContent = nameOf();
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -236,7 +246,7 @@ export class World {
     this.labelsEl.append(el);
     entry.label = el;
     // Grown buildings (the Great Tree) are taller, and the small places wear a canopy: lift their labels.
-    const tall = Boolean(look.look.grown || look.look.resort);
+    const tall = Boolean(look.look.grown || look.look.resort || look.look.sandstone);
     const top = subject ? (tall ? 11.2 : 8.5) : p.kind === 'landmark' ? 9.5 : tall && p.kind !== 'worlds' ? 6.6 : 4.6;
     this.labels.push({ el, entry, extra: !subject, nameOf, pos: new THREE.Vector3(p.x, f.y + top, p.z) });
     this.places.push(entry);
@@ -261,8 +271,9 @@ export class World {
       m.rotation.y = e.p.yaw ?? 0;
       m.userData.yaw = m.rotation.y;
       // On the Great Tree the shop, arcade, museum and board sit under a grown canopy of roots and leaves.
-      if ((look.look.grown || look.look.resort) && ['shop', 'arcade', 'museum', 'board'].includes(e.kind)) {
-        const c = look.look.resort ? thatchGazebo(look.look, e.p.r, n * 31 + e.kind.length) : leafCanopy(look.look, e.p.r, n * 31 + e.kind.length);
+      if ((look.look.grown || look.look.resort || look.look.sandstone) && ['shop', 'arcade', 'museum', 'board'].includes(e.kind)) {
+        const seed = n * 31 + e.kind.length;
+        const c = look.look.resort ? thatchGazebo(look.look, e.p.r, seed) : look.look.sandstone ? stripedAwning(look.look, e.p.r, seed) : leafCanopy(look.look, e.p.r, seed);
         c.position.copy(m.position);
         c.rotation.y = m.rotation.y;
         g.add(c);
@@ -418,9 +429,11 @@ export class World {
   /** Townsfolk critters of each floor's theme. */
   _people() {
     const r = seeded(42);
-    const hats = ['none', 'none', 'party', 'beanie', 'flower', 'propeller'];
+    const partyHats = ['none', 'none', 'party', 'beanie', 'flower', 'propeller'];
     for (const f of this.plan.floors) {
       const kinds = this.floors[f.k].look.critters ?? ['bunny'];
+      // A world may dress its townsfolk its own way (the desert: sun hats and headscarves).
+      const hats = this.floors[f.k].look.hats ?? partyHats;
       for (let i = 0; i < 5; i++) {
         const species = kinds[i % kinds.length];
         const fig = makeCreature({ species, color: ['fox', 'puff', 'bunny'].includes(species) ? BUDDY_COLORS[Math.floor(r() * BUDDY_COLORS.length)] : null, hat: hats[Math.floor(r() * hats.length)], scale: 0.75 + r() * 0.25, seed: i + f.n * 7, lod: 'low' });
@@ -596,6 +609,12 @@ export class World {
   _facing(x, z) {
     if (this.plan.facing) return this.plan.facing(x, z);
     return this.isTree ? Math.atan2(x, z) : null;
+  }
+  /** Arriving in a world whose plan frames a view (the desert: the first oasis, the Sphinx and the pyramids). */
+  arrival() {
+    const a = this.plan.arrival;
+    if (!a) return this.home();
+    this._tweenCam(new THREE.Vector3(...a.target), new THREE.Vector3(...a.offset), 1.4);
   }
   home() {
     const t = this.kidPos.clone().add(new THREE.Vector3(0, 1, 0));
@@ -889,8 +908,9 @@ export class World {
     const dist = this.camera.position.distanceTo(this.controls.target);
     this._cut.copy(this.kidPos).y += 0.62 * KID_SCALE;
     updateCutout(this.camera, this.renderer, this._cut, 1.1 * KID_SCALE, dist < 70 && !this.paused);
-    this.scene.fog.near = 80 + dist * 1.2;
-    this.scene.fog.far = 360 + dist * 3;
+    const fog = this.plan.fog;
+    this.scene.fog.near = (fog?.near ?? 80) + dist * (fog?.nearK ?? 1.2);
+    this.scene.fog.far = (fog?.far ?? 360) + dist * (fog?.farK ?? 3);
     const ct0 = this.controls.target;
     const tf = this.plan.focusFloor ? this.plan.focusFloor(ct0.x, ct0.z) : Math.max(1, Math.min(this.floors.length, Math.round(ct0.y / (this.plan.floorH ?? FLOOR_H)) + 1));
     if (tf !== this.focusFloor) {
@@ -956,7 +976,7 @@ export class World {
     if (this.marker.visible) this.marker.scale.setScalar(1 + Math.sin(t * 6) * 0.12);
     const ct = this.controls.target;
     this.sun.target.position.copy(ct);
-    this.sun.position.copy(ct).add(new THREE.Vector3(45, 80, 50));
+    this.sun.position.copy(ct).add(this._sunOff ??= new THREE.Vector3(...(this.plan.sun ?? [45, 80, 50])));
     const fl = this.plan.floors[this.focusFloor - 1];
     fl.plinths.forEach((p, i) => this.lamps[i].position.set(p.x, fl.y + 2.4, p.z + PLINTH_R));
     this._labels();
@@ -1119,6 +1139,7 @@ export class World {
   }
 
   _applyNight() {
+    const { DAY, NIGHT } = this;
     const k = this.night;
     const mix = (a) => c(DAY[a]).lerp(c(NIGHT[a]), k);
     const u = this.sky.userData.uniforms;

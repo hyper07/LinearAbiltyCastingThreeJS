@@ -248,6 +248,92 @@ const MODELS = {
     add(g, new THREE.TorusGeometry(0.28, 0.04, 8, 28), gold(), [0, 0.72, 0]);
     add(g, cyl(0.26, 0.26, 0.02, 24), mat('#cfefff', { rough: 0.1, opacity: 0.5 }), [0, 0.72, 0], [Math.PI / 2, 0, 0]);
     add(g, cyl(0.05, 0.06, 0.5, 8), wood(), [0, 0.22, 0], [0, 0, 0.0]);
+  },
+  // The Desert of the Pyramids.
+  shadoof: (g) => {
+    for (const x of [-0.08, 0.08]) add(g, box(0.05, 0.7, 0.08), wood(), [x, 0.35, 0]);
+    add(g, cyl(0.025, 0.025, 1.2, 8), wood(), [0, 0.72, 0], [0, 0, 1.25]);
+    add(g, sphere(0.12, 10, 8), clay(), [-0.52, 0.62, 0]);
+    add(g, cyl(0.006, 0.006, 0.4, 4), mat('#6b5b4b'), [0.56, 0.7, 0]);
+    const bucket = lathe([[0, 0], [0.09, 0.0], [0.11, 0.14], [0.1, 0.16], [0, 0.16]], clay());
+    bucket.position.set(0.56, 0.36, 0);
+    g.add(bucket);
+    add(g, box(0.9, 0.04, 0.35), mat('#7fb8d6', { rough: 0.2 }), [0.25, 0.02, 0]);
+  },
+  senet: (g) => {
+    add(g, box(0.9, 0.16, 0.34), mat('#c49a5a', { rough: 0.7 }), [0, 0.38, 0]);
+    add(g, box(0.92, 0.04, 0.36), mat('#3d2a1c'), [0, 0.28, 0]);
+    for (const x of [-0.38, 0.38]) for (const z of [-0.13, 0.13]) add(g, box(0.05, 0.28, 0.05), mat('#3d2a1c'), [x, 0.14, z]);
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 10; c++) add(g, box(0.075, 0.01, 0.09), mat((r + c) % 2 ? '#f3e6c4' : '#e2cfa0'), [-0.36 + c * 0.08, 0.465, -0.1 + r * 0.1]);
+    for (const [c, r, col] of [[1, 0, '#2b4fa8'], [3, 1, '#2b4fa8'], [6, 2, '#f2ead8'], [8, 0, '#f2ead8']]) add(g, cyl(0.025, 0.03, 0.07, 10), mat(col, { rough: 0.4 }), [-0.36 + c * 0.08, 0.505, -0.1 + r * 0.1]);
+  },
+  papyrus: (g) => {
+    add(g, box(0.7, 0.62, 0.02), mat('#ead9a8', { rough: 0.95 }), [0, 0.56, 0], [-0.12, 0, 0]);
+    for (const y of [0.25, 0.87]) add(g, cyl(0.05, 0.05, 0.76, 12), mat('#d9c48e'), [0, y, y > 0.5 ? -0.07 : 0.07], [0, 0, Math.PI / 2]);
+    const ink = mat('#2a2420');
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) add(g, box(0.05, 0.06, 0.01), (r + c) % 4 ? ink : mat('#b5442e'), [-0.25 + c * 0.1, 0.74 - r * 0.12, 0.02 - r * 0.015], [-0.12, 0, 0]);
+  },
+  'salt-slab': (g) => {
+    add(g, box(0.9, 0.5, 0.14), mat('#f2efe8', { rough: 0.6 }), [0, 0.3, 0.06], [0, 0, 0]);
+    add(g, box(0.9, 0.5, 0.14), mat('#e6e0d4', { rough: 0.6 }), [0, 0.3, -0.1], [0.06, 0, 0]);
+    for (const x of [-0.3, 0.3]) add(g, box(0.05, 0.54, 0.34), mat('#8a5e3c', { rough: 0.9 }), [x, 0.3, -0.02]);
+  },
+  'cubit-rod': (g) => {
+    add(g, box(1.04, 0.07, 0.09), mat('#2b2b33', { rough: 0.5 }), [0, 0.4, 0], [0, 0, 0.0]);
+    for (let i = 0; i <= 7; i++) add(g, box(0.008, 0.075, 0.095), gold(), [-0.52 + i * (1.04 / 7), 0.4, 0]);
+    for (let i = 0; i < 28; i++) add(g, box(0.004, 0.03, 0.096), mat('#f2c14e'), [-0.52 + i * (1.04 / 28), 0.425, 0]);
+    for (const x of [-0.3, 0.3]) add(g, box(0.06, 0.36, 0.2), wood(), [x, 0.18, 0]);
+  },
+  obelisk: (g) => {
+    add(g, box(0.3, 0.06, 0.3), mat('#c98a76', { rough: 0.8 }), [0, 0.03, 0]);
+    add(g, cyl(0.07, 0.11, 0.95, 4), mat('#d99a84', { rough: 0.8 }), [0, 0.53, 0], [0, Math.PI / 4, 0]);
+    add(g, cone(0.1, 0.12, 4), gold(), [0, 1.06, 0], [0, Math.PI / 4, 0]);
+    for (let i = 0; i < 5; i++) add(g, box(0.05, 0.04, 0.01), mat('#7a3f30'), [0, 0.85 - i * 0.12, 0.085 + i * 0.006]);
+  },
+  'rosetta-stone': (g) => {
+    add(g, box(0.62, 0.85, 0.2), mat('#3e3d44', { rough: 0.7 }), [0, 0.48, 0], [0, 0, 0.03]);
+    add(g, box(0.3, 0.2, 0.2), mat('#3e3d44', { rough: 0.7 }), [-0.14, 0.95, 0], [0, 0, 0.5]);
+    const scratch = mat('#9a98a3');
+    for (let r = 0; r < 12; r++) add(g, box(r < 3 ? 0.36 : r < 7 ? 0.5 : 0.54, 0.012, 0.01), scratch, [0, 0.82 - r * 0.055, 0.105]);
+    for (const y of [0.66, 0.42]) add(g, box(0.56, 0.008, 0.012), mat('#c9c7cf'), [0, y, 0.106]);
+  },
+  astrolabe: (g) => {
+    add(g, cyl(0.36, 0.36, 0.05, 32), bronze(), [0, 0.6, 0], [Math.PI / 2, 0, 0]);
+    add(g, new THREE.TorusGeometry(0.36, 0.035, 8, 36), gold(), [0, 0.6, 0]);
+    add(g, new THREE.TorusGeometry(0.08, 0.025, 6, 16), gold(), [0, 1.02, 0]);
+    add(g, box(0.06, 0.06, 0.04), gold(), [0, 0.97, 0]);
+    add(g, box(0.62, 0.03, 0.02), gold(), [0, 0.6, 0.04], [0, 0, 0.4]);
+    for (let i = 0; i < 6; i++) add(g, sphere(0.02, 6, 4), mat('#fff1c4', { rough: 0.3, metal: 0.6 }), [Math.cos(i) * 0.22, 0.6 + Math.sin(i * 1.7) * 0.2, 0.04]);
+    add(g, box(0.06, 0.3, 0.06), wood(), [0, 0.15, 0]);
+  },
+  manuscript: (g) => {
+    add(g, box(0.62, 0.08, 0.46), mat('#8a4f2c', { rough: 0.7 }), [0, 0.42, 0]);
+    add(g, box(0.58, 0.06, 0.42), cream(), [0.01, 0.48, 0]);
+    add(g, box(0.62, 0.02, 0.46), mat('#8a4f2c', { rough: 0.7 }), [0, 0.52, 0]);
+    add(g, box(0.06, 0.12, 0.47), mat('#b5793f'), [0.12, 0.47, 0]);
+    add(g, box(0.18, 0.005, 0.18), mat('#c9963f'), [-0.1, 0.531, 0], [0, Math.PI / 4, 0]);
+    add(g, box(0.3, 0.38, 0.3), wood(), [0, 0.19, 0]);
+  },
+  'golden-mask': (g) => {
+    add(g, sphere(0.36, 20, 14), gold(), [0, 0.62, 0], [0, 0, 0], [1, 1.15, 0.8]);
+    const blue = mat('#2b4fa8', { rough: 0.4 });
+    for (let i = 0; i < 6; i++) for (const s of [-1, 1]) add(g, box(0.1, 0.035, 0.22), i % 2 ? blue : gold(), [s * 0.33, 0.5 - i * 0.07, -0.02]);
+    for (let i = 0; i < 4; i++) add(g, box(0.5 + i * 0.03, 0.03, 0.05), i % 2 ? blue : gold(), [0, 0.26 - i * 0.05, 0.12]);
+    for (const s of [-1, 1]) add(g, sphere(0.05, 10, 8), mat('#ffffff', { rough: 0.3 }), [s * 0.12, 0.7, 0.27], [0, 0, 0], [1.3, 0.7, 0.5]);
+    for (const s of [-1, 1]) add(g, sphere(0.025, 8, 6), mat('#1a1a24'), [s * 0.12, 0.7, 0.29]);
+    add(g, cyl(0.03, 0.05, 0.16, 8), blue, [0, 0.36, 0.22], [0.2, 0, 0]);
+    add(g, sphere(0.06, 10, 8), gold(), [0, 0.98, 0.22]);
+  },
+  'temple-statue': (g) => {
+    add(g, box(0.9, 0.12, 0.4), stone(), [0, 0.06, 0]);
+    for (const x of [-0.24, 0.24]) {
+      const sand = mat('#e0b07c', { rough: 0.9 });
+      add(g, box(0.3, 0.32, 0.3), sand, [x, 0.28, 0]);
+      add(g, box(0.22, 0.32, 0.18), sand, [x, 0.6, -0.04]);
+      add(g, sphere(0.1, 12, 8), sand, [x, 0.86, 0]);
+      add(g, cone(0.13, 0.2, 4), mat('#f2d49a', { rough: 0.9 }), [x, 0.82, -0.02], [0, Math.PI / 4, 0]);
+      for (const s of [-1, 1]) add(g, box(0.05, 0.14, 0.06), mat('#f2d49a'), [x + s * 0.1, 0.74, 0.02]);
+    }
   }
 };
 

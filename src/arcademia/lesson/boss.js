@@ -6,7 +6,7 @@
  * every right answer makes them smile a little more.
  */
 import { el, button, sparkle, confetti } from '../ui/dom.js';
-import { lessonsOn, quizFor } from '../content/index.js';
+import { lessonsOn, quizFor, teachingRealm } from '../content/index.js';
 import { worldsIn } from '../quests.js';
 import { speech } from '../sound.js';
 import { t as tr } from '../i18n/index.js';
@@ -25,7 +25,7 @@ export function bossQuestions(floor, seed = Date.now(), realm = 'land') {
 
 export function bossBattle(game, floor) {
   return new Promise((resolve) => {
-    const realm = game.map?.realm ?? 'land';
+    const realm = teachingRealm(game.map?.realm ?? 'land');
     const w = worldsIn(realm)[floor].boss;
     const boss = game.world.bosses.find((b) => b.floor === floor);
     game.world.showBoss(floor);

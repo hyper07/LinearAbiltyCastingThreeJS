@@ -3,7 +3,8 @@
  * lessons — floor n is floor n everywhere, so stars, coins, stickers and the
  * buddy go wherever the player goes — and dresses them its own way: the
  * Learning Mountain stacks them as terraces, the Great Tree as rings of
- * treehouses round a giant trunk.
+ * treehouses round a giant trunk, the Lagoon as islands, the Desert as oasis
+ * towns along the Nile.
  *
  * To add a world: give it an entry here with its floors' looks (the shape of
  * floors.js — `look` drives the buildings, landmark, critters, particles and
@@ -105,15 +106,38 @@ export const SEA_FLOORS = [
 ].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
 for (const f of SEA_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`sea.floor.${f.n}`), enumerable: true });
 
+/** The oasis towns' looks: sandstone schools on stone platforms, palm gardens (world/desert/). */
+const DUNE = {
+  sandstone: true, theme: 'desert', shapes: { math: 'pyramidschool', history: 'templeschool', physics: 'sunobservatory' },
+  stone: '#d9a96e', trim: '#fff1d6', wall: '#f3d9a8', path: '#ecd3a2', grass: '#a6d16c', grassDark: '#86c45c', rock: ['#c99258', '#b98450', '#d8a46c'], tree: 'palm', leaf: '#5fae4a',
+  /** The townsfolk dress for the sun (creatures/hats.js). */
+  hats: ['none', 'sunhat', 'headscarf', 'sunhat', 'none', 'headscarf']
+};
+/**
+ * The Desert of the Pyramids' seven oasis towns along the Nile, the desert realm
+ * (its own lessons, teachers and stories: content/desert.js).
+ */
+export const DESERT_FLOORS = [
+  { icon: '🦁', look: { ...DUNE, roof: { math: '#36bfc4', history: '#3460c0', physics: '#f2a03a' }, landmark: 'sphinxfountain', flowers: ['#ff8fa3', '#ffd166', '#ffffff'], banner: '#2fa8b4', critters: ['camel', 'fennec', 'meerkat'], particles: 'sand', mood: 'wind' } },
+  { icon: '🐪', look: { ...DUNE, roof: { math: '#e0703f', history: '#2fa8b4', physics: '#f2c14e' }, landmark: 'caravan', flowers: ['#ff9f4a', '#ff5f7e', '#ffd23f'], banner: '#d9603b', critters: ['camel', 'jerboa', 'camel'], particles: 'sand', mood: 'bells' } },
+  { icon: '⛵', look: { ...DUNE, roof: { math: '#3f7fd6', history: '#36bfc4', physics: '#ffb347' }, landmark: 'felucca', flowers: ['#ffffff', '#7cc6ff', '#ff9ec7'], banner: '#3460c0', critters: ['gecko', 'camel', 'meerkat'], particles: 'sparkles', mood: 'waves' } },
+  { icon: '☀️', look: { ...DUNE, roof: { math: '#f2a03a', history: '#d9603b', physics: '#36bfc4' }, landmark: 'obelisk', flowers: ['#ffd23f', '#ff8a5c', '#ffffff'], banner: '#e8942f', critters: ['scarab', 'fennec', 'gecko'], particles: 'sand', mood: 'chimes' } },
+  { icon: '🎈', look: { ...DUNE, roof: { math: '#ff7aa8', history: '#7cc6ff', physics: '#ffd23f' }, landmark: 'balloon', flowers: ['#ff9ec7', '#c39bff', '#ffffff'], banner: '#ff6f9a', critters: ['jerboa', 'meerkat', 'fennec'], particles: 'sparkles', mood: 'wind' } },
+  { icon: '📜', look: { ...DUNE, roof: { math: '#7f5fd0', history: '#c9963f', physics: '#36bfc4' }, landmark: 'scrolls', flowers: ['#c39bff', '#ffd166', '#ffffff'], banner: '#7f5fd0', critters: ['scarab', 'gecko', 'jerboa'], particles: 'sparkles', mood: 'bells' } },
+  { icon: '⛺', look: { ...DUNE, roof: { math: '#3460c0', history: '#f2c14e', physics: '#5a6fd6' }, landmark: 'startent', flowers: ['#7ff7ff', '#ffd23f', '#ffffff'], banner: '#3f4fb0', critters: ['fennec', 'meerkat', 'scarab'], particles: 'twinkles', mood: 'chimes' } }
+].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
+for (const f of DESERT_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`desert.floor.${f.n}`), enumerable: true });
+
 /**
  * The worlds; names come from the current language (ui.js map.<id>, map.<id>.what).
  * `realm`: whose lessons, teachers, floors and stars — every world has its own (the mountain:
- * land, the Great Tree: forest, the Lagoon: sea), so each map teaches something new.
+ * land, the Great Tree: forest, the Lagoon: sea, the Desert: desert), so each map teaches something new.
  */
 export const MAPS = [
-  { id: 'mountain', icon: '⛰️', kind: 'mountain', realm: 'land', floors: FLOORS, whole: 'hud.whole', back: ['lesson.back', 'lesson.backAria'] },
-  { id: 'tree', icon: '🌳', kind: 'tree', realm: 'forest', floors: TREE_FLOORS, whole: 'map.tree.whole', back: ['lesson.back.tree', 'lesson.backAria.tree'] },
-  { id: 'lagoon', icon: '🏝️', kind: 'lagoon', realm: 'sea', floors: SEA_FLOORS, whole: 'map.lagoon.whole', back: ['lesson.back.lagoon', 'lesson.backAria.lagoon'] }
+  { id: 'mountain', icon: '⛰️', kind: 'mountain', realm: 'land', floors: FLOORS, whole: 'hud.whole', wholeHint: 'hud.wholeHint', back: ['lesson.back', 'lesson.backAria'] },
+  { id: 'tree', icon: '🌳', kind: 'tree', realm: 'forest', floors: TREE_FLOORS, whole: 'map.tree.whole', wholeHint: 'map.tree.wholeHint', back: ['lesson.back.tree', 'lesson.backAria.tree'] },
+  { id: 'lagoon', icon: '🏝️', kind: 'lagoon', realm: 'sea', floors: SEA_FLOORS, whole: 'map.lagoon.whole', wholeHint: 'map.lagoon.wholeHint', back: ['lesson.back.lagoon', 'lesson.backAria.lagoon'] },
+  { id: 'desert', icon: '🐪', kind: 'desert', realm: 'desert', floors: DESERT_FLOORS, whole: 'map.desert.whole', wholeHint: 'map.desert.wholeHint', back: ['lesson.back.desert', 'lesson.backAria.desert'] }
 ];
 for (const m of MAPS) {
   Object.defineProperty(m, 'name', { get: () => t(`map.${m.id}`), enumerable: true });

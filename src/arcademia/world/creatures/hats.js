@@ -5,6 +5,8 @@
  *                golden crown, space helmet (the shop sells them)
  *   costume hats for the history guides and the teachers (mortarboard, goggles,
  *                a pharaoh's nemes, a Roman helmet, a Viking helmet, a chef's hat …)
+ *   townsfolk    the desert's sun hat and striped headscarf
+ *   the desert   a scribe's wig, a pith helmet, Miss Lotus's lotus flower
  *
  * makeHat(id) builds one for a head of radius 1 standing on the head's top
  * point (y up, facing +z); figures.js scales and seats it on each species.
@@ -439,6 +441,68 @@ function costume(id) {
       P(new THREE.CylinderGeometry(0.7, 0.85, 0.45, 24), M('#f2d27a'), [0, -0.05, 0]);
       P(new THREE.CylinderGeometry(0.86, 0.86, 0.1, 24), M('#e0453e'), [0, -0.2, 0], [0, 0, 0], null, 0);
       break;
+    // The desert townsfolk: a wide sun hat with a turquoise band and a flower, a striped headscarf with a cord.
+    case 'sunhat':
+      P(new THREE.CylinderGeometry(1.55, 1.62, 0.07, 36), M('#f4dc9a'), [0, -0.32, 0], [0.08, 0, 0]);
+      P(S(0.78, 24, 12), M('#f4dc9a'), [0, -0.3, 0], [0, 0, 0], [1, 0.62, 1]);
+      P(new THREE.CylinderGeometry(0.8, 0.8, 0.14, 28), M('#36bfc4'), [0, -0.2, 0], [0, 0, 0], null, 0);
+      for (let i = 0; i < 5; i++) P(S(0.1, 8, 6), M(i % 2 ? '#ffffff' : '#ff8fa3'), [0.62 + Math.cos(i * 1.26) * 0.12, -0.12 + Math.sin(i * 1.26) * 0.12, 0.42], [0, 0, 0], [1, 1, 0.5], 0.008);
+      P(S(0.06, 8, 6), M('#ffd23f'), [0.62, -0.12, 0.46]);
+      break;
+    case 'headscarf': {
+      // A striped cloth over the crown, falling to the shoulders at the sides and back, open in front.
+      const stripe = (v) => (Math.floor((Math.atan2(v.x, v.z) + Math.PI) * 4) % 2 ? '#fff6e6' : '#d9603b');
+      const crown = paint(lathe([[0.001, 1.0], [0.45, 0.94], [0.88, 0.62], [1.06, 0.12]], 36), stripe);
+      const drape = paint(new THREE.LatheGeometry([[1.16, -1.0], [1.12, -0.4], [1.06, 0.14]].map(([x, y]) => new THREE.Vector2(x, y)), 30, 1.0, Math.PI * 2 - 2.0), stripe);
+      for (const geo of [crown, drape]) {
+        const c = mesh(geo, vcMat(0.1), { outline: 0.016 });
+        c.position.y = -0.78;
+        c.scale.set(1, 1, 0.94);
+        g.add(c);
+      }
+      P(new THREE.TorusGeometry(0.98, 0.09, 8, 36), M('#2b2b33'), [0, -0.3, 0], [Math.PI / 2 - 0.12, 0, 0], null, 0.01);
+      P(new THREE.TorusGeometry(0.98, 0.05, 6, 36), M('#f2c14e', { metal: 1 }), [0, -0.18, 0], [Math.PI / 2 - 0.12, 0, 0], null, 0);
+      break;
+    }
+    // The desert's history guides: a scribe's black bob wig with a blue band, an archaeologist's pith helmet.
+    case 'wig':
+      cap(1.1, '#22202a', -0.95);
+      for (const sd of [-1, 1]) P(new THREE.BoxGeometry(0.3, 0.85, 0.78), M('#22202a'), [sd * 0.96, -1.22, -0.12]);
+      P(new THREE.BoxGeometry(1.7, 0.8, 0.3), M('#22202a'), [0, -1.22, -0.88]);
+      P(new THREE.TorusGeometry(1.06, 0.05, 6, 36), M('#3b6fd6'), [0, -0.52, 0], [Math.PI / 2 + 0.12, 0, 0], null, 0.008);
+      break;
+    case 'pith':
+      cap(0.98, '#ecdfbc', -0.62);
+      P(new THREE.CylinderGeometry(1.45, 1.52, 0.06, 32), M('#e3d4ae'), [0, -0.6, 0]);
+      P(new THREE.CylinderGeometry(1.0, 1.0, 0.14, 28), M('#6b5b4b'), [0, -0.5, 0], [0, 0, 0], null, 0);
+      P(S(0.09, 10, 8), M('#e3d4ae'), [0, 0.37, 0]);
+      break;
+    // Miss Lotus's lotus flower, over one ear, on a little lily pad.
+    case 'lotus': {
+      const flower = new THREE.Group();
+      flower.position.set(0.52, -0.22, 0.2);
+      flower.rotation.set(0.2, 0, -0.55);
+      g.add(flower);
+      const pad = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 24, 1, false, 0.4, Math.PI * 2 - 0.5), propMaterial('#6fbf5a', { gloss: 0.3 }), { outline: 0.012 });
+      flower.add(pad);
+      for (const [n, r, tilt, col] of [[8, 0.2, 0.95, '#ff9ec7'], [6, 0.1, 0.45, '#ffc2dc']]) {
+        for (let i = 0; i < n; i++) {
+          const spin = new THREE.Group();
+          spin.rotation.y = (i / n) * Math.PI * 2 + (n === 6 ? 0.3 : 0);
+          const petal = mesh(new THREE.SphereGeometry(0.15, 12, 8), propMaterial(col, { gloss: 0.25 }), { outline: 0.01 });
+          petal.scale.set(0.62, 1.55, 0.38);
+          petal.position.set(0, 0.2, r);
+          petal.rotation.x = tilt;
+          spin.add(petal);
+          flower.add(spin);
+        }
+      }
+      const heart = mesh(new THREE.SphereGeometry(0.1, 12, 8), propMaterial('#ffd23f', { gloss: 0.4 }), { outline: 0.01 });
+      heart.position.y = 0.16;
+      heart.scale.set(1, 0.6, 1);
+      flower.add(heart);
+      break;
+    }
     default:
       return null;
   }

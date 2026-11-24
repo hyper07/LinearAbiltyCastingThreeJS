@@ -22,7 +22,7 @@ weekly report behind a PIN, and a read-only link they can open on their own phon
 
 ## Study worlds
 
-There are three study worlds, and each teaches **its own lessons with its own teachers**, so a child
+There are four study worlds, and each teaches **its own lessons with its own teachers**, so a child
 who finishes one world has a new one to explore. Each world has seven floors for ages 6–13 with its
 own stories and puzzle bosses, and its own stars and unlocking. Coins, stickers, hats, gems and the
 buddy are shared everywhere.
@@ -32,6 +32,7 @@ buddy are shared everywhere.
 | Learning Mountain ⛰️ | land | Professor Hoot 🦉 · Tock 🐢 · Gizmo 🦝 | the lessons above |
 | The Great Tree 🌳 | forest | Nutmeg 🐿️ · Grandpa Bramble 🐻 · Dr. Ribbit 🐸 | Forest Math, Forest History, the Nature Lab: trees, plants, seasons and the people who studied and protected forests (`content/forest.js`) |
 | The Lagoon 🏝️ | sea | Captain Pip 🐧 · Grandma Inka 🐙 · Dr. Splash 🦭 | Sea Math, Sea Explorers, the Ocean Lab: navigators, lighthouses, ocean science, floating, tides and the deep sea (`content/sea.js`) |
+| The Desert of the Pyramids 🐪 | desert | Miss Lotus 🦛 · Uncle Reed (an ibis) · Dr. Sandy (a sand cat) | the Pyramid School, the Temple School and the Sun Observatory: 42 desert and Ancient Egypt lessons — hieroglyph numbers, cubits and the Nile's fields; farmers, scribes, Imhotep, Hatshepsut, Petra, the Rosetta Stone, Ibn Battuta, Alexandria, Timbuktu, Tutankhamun and Abu Simbel; shade, singing dunes, wet sand under sledges, the shadoof, mirages, hot-air balloons, sandstorms and Eratosthenes (`content/desert.js`) |
 
 **The Great Tree** has a ring of treehouses all the way round a giant trunk for every floor: Root
 Hollow, Fern Boughs, Lantern Branches, Blossom Canopy, Nest Heights, Sunflower Rings and Starlight
@@ -63,6 +64,35 @@ Long winding boardwalks with lanterns and a gate join each island to the next. E
 own landmark: a sandcastle, a rainbow, a boat, a lighthouse, a giant clam, a whale fountain and a
 little submarine. Sailboats and kayaks bob on the water. The townsfolk are crabs, sea turtles,
 octopuses, seals and penguins.
+
+**The Desert of the Pyramids** is seven oasis towns strung west to east along the Nile: Sphinx
+Gate, Camel Market, Felucca Harbor, Obelisk Square, Balloon Field, Scroll Library and Starry Camp
+(`world/desert/plan.js`, `scene.js`). Across the river from the first oasis stand the three Giza
+pyramids, the queens' pyramids and the Great Sphinx, big enough to see from every oasis; arriving,
+the camera looks north over the first oasis to them (`plan.arrival`). The camera always stands south
+of the buddy and looks north. Every oasis is a palm garden with a paved plaza (a sun mosaic and the
+landmark), a colonnade walk round it, a lotus pool, and raised stone paths out to platforms: the
+schools on the river side facing the plaza, the small places under striped awnings on the south side,
+the treasure nook due south. Raised stone causeways with a gate join each oasis to the next across
+the dunes, lined with little sphinxes (the first and fourth), obelisks or palms. Feluccas sail the
+river past reeds and papyrus; dunes with wind ripples roll out to mesas; the sky is late-afternoon
+warm (`plan.sky`, `plan.sun`, `plan.fog`). The buildings are its own (`world/desert/buildings.js`):
+- **Pyramid School:** a sloping-walled mastaba with a smooth pyramid on its roof, a gold capstone, a "123" medallion and an abacus by the door.
+- **Temple School:** two pylon towers with painted friezes and pennants, a gateway under a winged sun, lotus columns, two little sphinxes on guard.
+- **Sun Observatory:** a round drum with a sundial terrace on its roof, an obelisk for the pointer and a turning armillary sphere.
+
+The landmarks are a sphinx fountain, a caravan well, a felucca harbour, a sun obelisk, a hot-air
+balloon, a giant scroll and a star tent. The townsfolk are the desert's own: camels, fennec foxes,
+meerkats, jerboas, geckos and scarab beetles, in sun hats and striped headscarves. The minimap
+draws the Nile, the oases and the pyramids.
+
+The desert's teachers are its own animals (`world/creatures/species.js`): **Miss Lotus**, a lilac
+plush hippo with a lotus flower over one ear (the Pyramid School); **Uncle Reed**, a sacred ibis with
+a turquoise-and-gold collar and a scroll under his wing (the Temple School); and **Dr. Sandy**, a sand
+cat in lab goggles (the Sun Observatory). The history guides dress as Nile farmers, scribes (a black
+bob wig), caravan guides and an archaeologist (a pith helmet). The oasis puzzle bosses are Pebble the
+Little Sphinx, Grumpy Humphrey the camel, Sunny Lizzie the gecko, Rolly the Scarab, Huff the Hot-Air
+Puff, Madam Whiskers the meerkat librarian and Dusk the Fennec.
 
 **Travelling.** A **World Portal** 🌍 stands on floor 1 of every world; walk into it, or press
 **🌍 Worlds** at the top of the floor list, to choose a world. The choice is saved in the browser
@@ -445,9 +475,10 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
-| Study worlds: the list, the Great Tree's and the Lagoon's floors | `src/arcademia/maps.js` |
-| Each world's lessons, teachers and stories (realms) | `src/arcademia/content/forest.js`, `content/sea.js`, `figures.js` `teachersIn`, `quests.js` `worldsIn` |
+| Study worlds: the list, the Great Tree's, the Lagoon's and the Desert's floors | `src/arcademia/maps.js` |
+| Each world's lessons, teachers and stories (realms) | `src/arcademia/content/forest.js`, `content/sea.js`, `content/desert.js`, `figures.js` `teachersIn`, `quests.js` `worldsIn` |
 | The Lagoon: plan (islands, boardwalks, villas), 3D scene, resort buildings and landmarks | `src/arcademia/world/lagoon/plan.js`, `scene.js`, `src/arcademia/world/resort.js` |
+| The Desert: plan (oases, causeways, the Nile, Giza), 3D scene, sandstone buildings, landmarks, sphinxes | `src/arcademia/world/desert/plan.js`, `scene.js`, `buildings.js` |
 | The Great Tree: plan (rings, decks, bridges, spiral stair), layered walking grid, 3D scene | `src/arcademia/world/tree/plan.js`, `nav.js`, `scene.js` |
 | Grown buildings (seed pod, root hall, star seed observatory, leaf canopies) and the night glow | `src/arcademia/world/grown.js`, `src/arcademia/world/glow.js` |
 | The diorama (lazy per-floor detail, silhouettes far away), terrain, buildings, places, rooms | `src/arcademia/world/` |

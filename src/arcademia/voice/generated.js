@@ -134,7 +134,18 @@ export const CAST = {
   'sea-boss-4': V('A proud little penguin lighthouse keeper spoken by a girl about nine years old: bossy and fussy in a funny way, playful and never scary.' + KID, 331, REF_BOSS, CHILD),
   'sea-boss-5': V('A shy, bubbly sea-foam spirit: a soft, airy young woman\'s voice that giggles and pouts, gentle and never scary.' + REAL, 337, REF_BOSS, WOMAN),
   'sea-boss-6': V('A sulky, sleepy seal: a mellow man in his thirties with a lazy, grumbly, comic voice, playful and never menacing.' + REAL, 347, REF_BOSS, MAN),
-  'sea-boss-7': V('A worried little submarine robot spoken by a boy about ten years old: nervous and fussy with comic sighs, playful and never menacing; no robotic effects.' + KID, 349, REF_BOSS, CHILD)
+  'sea-boss-7': V('A worried little submarine robot spoken by a boy about ten years old: nervous and fussy with comic sighs, playful and never menacing; no robotic effects.' + KID, 349, REF_BOSS, CHILD),
+  // The Desert of the Pyramids: its teachers and puzzle bosses.
+  lotus: V('A warm, cheerful woman in her thirties with a soft, rounded, friendly voice in a comfortable mid range. Motherly and unhurried, like a kind primary-school teacher sharing out snacks fairly, patient and encouraging with young children.' + REAL, 701, null, WOMAN),
+  reed: V('A gentle, scholarly man in his fifties with a calm, warm, slightly soft voice. Unhurried and kind, like a favourite librarian reading an old story aloud, with quiet wonder.' + REAL, 703, null, MAN),
+  sandy: V('A curious young man in his twenties with a bright, friendly, clear voice in a comfortable mid range. Playful and quick to laugh, like a science-museum explainer, always clear when explaining.' + REAL, 707, null, MAN),
+  'desert-boss-1': V('A proud little sphinx spoken by a girl about nine years old: bossy and grand in a funny way, stickler for the rules, playful and never scary; delighted when cheered up.' + KID, 711, REF_BOSS, CHILD),
+  'desert-boss-2': V('A grumpy old camel: a slow, droning, comically huffy man in his fifties who sighs a lot, more cuddly than scary, never menacing.' + REAL, 713, REF_BOSS, OLD_MAN),
+  'desert-boss-3': V('A lazy, sunbathing gecko: a drowsy, relaxed young woman with a lazy drawl and big yawns, funny and never scary.' + REAL, 717, REF_BOSS, WOMAN),
+  'desert-boss-4': V('A bouncy, excitable scarab beetle spoken by a boy about ten years old: quick and giggly, a little show-off, playful and never scary.' + KID, 719, REF_BOSS, CHILD),
+  'desert-boss-5': V('A puffed-up hot-air puff: a jolly, blustery man in his thirties who huffs and puffs in a comic way, playful and never menacing.' + REAL, 721, REF_BOSS, MAN),
+  'desert-boss-6': V('A strict but kindly meerkat librarian: a prim woman in her forties who speaks in a hushed, fussy whisper-voice, comic and never scary.' + REAL, 727, REF_BOSS, WOMAN),
+  'desert-boss-7': V('A dreamy fennec fox who listens to the stars, spoken by a girl about ten years old: soft, hushed and a little mysterious, gentle and never scary.' + KID, 731, REF_BOSS, CHILD)
 };
 
 /**
@@ -154,6 +165,9 @@ export const CAST_BY_LANG = {
     pip: V('A cheerful young Korean man in his mid-twenties, like a friendly sailing-camp counsellor: a bright, clear, natural young man\'s voice in a comfortable mid range, jolly, patient and kind.' + REAL, 401, null, [105, 175]),
     inka: V('A gentle Korean woman in her late forties with a soft, warm, calm storyteller\'s voice, cosy and unhurried, full of wonder.' + REAL, 403, null, [170, 250]),
     splash: V('A bubbly Korean university student in her early twenties who studies the ocean: a clear, friendly, natural voice in a comfortable mid range, curious and playful.' + REAL, 407, null, [175, 260]),
+    lotus: V('A warm Korean woman of about twenty-five with a soft, bright, friendly voice in a comfortable mid range, like a kind kindergarten teacher sharing out snacks fairly, patient and smiling.' + REAL, 801, null, [175, 260]),
+    reed: V('A gentle Korean man in his late forties with a calm, warm, soft storyteller\'s voice, like a kind librarian reading an old tale aloud, unhurried and full of wonder.' + REAL, 803, null, MAN),
+    sandy: V('A cheerful Korean university student in his early twenties who loves science: a bright, friendly, natural young man\'s voice in a comfortable mid range, curious and playful.' + REAL, 807, null, [105, 175]),
     townsfolk: V('A friendly Korean young woman of about twenty with a soft, friendly, chatty voice in a comfortable mid range, like a kind girl helping at her family\'s village shop.' + REAL, 141, null, [175, 260])
   }
 };

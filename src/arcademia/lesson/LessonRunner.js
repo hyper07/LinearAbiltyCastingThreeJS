@@ -18,7 +18,7 @@
 import * as THREE from 'three';
 import { el, button, sparkle, confetti, SUBJECT_ICON } from '../ui/dom.js';
 import { FLOORS } from '../floors.js';
-import { lessonsOn, quizFor, lessonById } from '../content/index.js';
+import { lessonsOn, quizFor, lessonById, teachingRealm } from '../content/index.js';
 import { makeProblem } from '../content/math.js';
 import { questFor } from '../quests.js';
 import { buildClassroom, buildHall, buildLab } from '../world/interiors.js';
@@ -51,7 +51,7 @@ class Runner {
     /** The way back out: to the mountain, the tree… (maps.js) */
     this.back = game.map?.back ?? ['lesson.back', 'lesson.backAria'];
     /** The realm's teachers: the land's, or the sea islands' (maps.js). */
-    this.realm = game.map?.realm ?? 'land';
+    this.realm = teachingRealm(game.map?.realm ?? 'land');
     this.teacher = teachersIn(this.realm)[subject];
     game._rooms ??= new Map();
     const key = `${game.map?.id ?? 'mountain'}:${subject}:${floor}`;

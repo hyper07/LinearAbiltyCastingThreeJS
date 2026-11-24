@@ -192,7 +192,8 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     headBone.add(bulb);
   }
   // Hats: on the head's top point, scaled to the head.
-  const hatId = costume ? COSTUME_HATS[costume] : hat && hat !== 'none' ? hat : species === 'owl' && !costume ? 'mortarboard' : null;
+  // A teacher may wear its own hat unless given another (Hoot's mortarboard, Miss Lotus's lotus flower).
+  const hatId = costume ? COSTUME_HATS[costume] : hat && hat !== 'none' ? hat : species === 'owl' ? 'mortarboard' : recipe.hat?.wear ?? null;
   const hatObj = makeHat(hatId);
   let helmet = false;
   if (hatObj) {
@@ -390,13 +391,15 @@ const COSTUME_HATS = {
   guide: 'beanie', 'stone-age': 'bone', egypt: 'nemes', mesopotamia: 'cap', greece: 'wreath', rome: 'helmet', china: 'topknot', 'silk-road': 'turban',
   viking: 'roundhelm', knight: 'knight', 'castle-cook': 'chef', maya: 'feathers', mali: 'kufi', printer: 'flatcap', explorer: 'tricorn', inventor: 'tophat',
   factory: 'flatcap', scientist: 'goggles', pilot: 'pilot', astronaut: 'space', nurse: 'nurse', farmer: 'straw',
-  sailor: 'cap', diver: 'goggles', wayfinder: 'flower', keeper: 'flatcap', ranger: 'straw', botanist: 'flower'
+  sailor: 'cap', diver: 'goggles', wayfinder: 'flower', keeper: 'flatcap', ranger: 'straw', botanist: 'flower',
+  nile: 'kufi', scribe: 'wig', caravan: 'headscarf', archaeologist: 'pith'
 };
 const COSTUME_COLORS = {
   guide: '#2f5d6b', 'stone-age': '#c9a77a', egypt: '#f2ead8', mesopotamia: '#b0643c', greece: '#f4f1ea', rome: '#d0453e', china: '#2f9d8b', 'silk-road': '#e07b3b',
   viking: '#6f9a5f', knight: '#9aa3ad', 'castle-cook': '#ffffff', maya: '#2fb5a3', mali: '#f0b43a', printer: '#e8dcc4', explorer: '#3f6fb3', inventor: '#7a5a46',
   factory: '#6b7c8f', scientist: '#ffffff', pilot: '#8a6a4e', astronaut: '#f4f4f4', nurse: '#f4f6f8', farmer: '#5f9f4f',
-  sailor: '#2f5fa8', diver: '#f2a33a', wayfinder: '#e0643a', keeper: '#c94a3c', ranger: '#5f7f3a', botanist: '#8fbf6a'
+  sailor: '#2f5fa8', diver: '#f2a33a', wayfinder: '#e0643a', keeper: '#c94a3c', ranger: '#5f7f3a', botanist: '#8fbf6a',
+  nile: '#f4ecd8', scribe: '#ffffff', caravan: '#2f4f9a', archaeologist: '#c9b48a'
 };
 /** The teachers: owl for math, tortoise for history, raccoon for physics. */
 export const TEACHERS = {
@@ -416,8 +419,14 @@ export const FOREST_TEACHERS = {
   history: { species: 'bear', emoji: '🐻', get name() { return t('forest.teacher.history'); } },
   physics: { species: 'frog', emoji: '🐸', get name() { return t('forest.teacher.physics'); } }
 };
-/** A realm's teachers ('land', 'forest' or 'sea'). */
-export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS })[realm] ?? TEACHERS;
+/** The Desert of the Pyramids' teachers: Miss Lotus the hippo (the Pyramid School), Uncle Reed the ibis (the Temple School), Dr. Sandy the sand cat (the Sun Observatory). */
+export const DESERT_TEACHERS = {
+  math: { species: 'hippo', emoji: '🦛', get name() { return t('desert.teacher.math'); } },
+  history: { species: 'ibis', emoji: '🪶', get name() { return t('desert.teacher.history'); } },
+  physics: { species: 'sandcat', emoji: '🐱', get name() { return t('desert.teacher.physics'); } }
+};
+/** A realm's teachers ('land', 'forest', 'sea' or 'desert'). */
+export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS })[realm] ?? TEACHERS;
 /** A guide's species, from their look (the same look, the same critter). */
 export function guideSpecies(look) {
   const list = ['bear', 'fox', 'mouse', 'hedgehog', 'frog', 'duck', 'bunny', 'owl'];
