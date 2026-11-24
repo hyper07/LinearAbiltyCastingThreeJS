@@ -237,6 +237,67 @@ void loop() {
 }
 `
 
+const R4_CODE = `// Uno R4 blink: same pins as the Uno, a 32-bit chip — and only 8 mA per pin.
+void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}
+`
+
+const NODEMCU_CODE = `// NodeMCU blink: D5 (GPIO14) drives the LED; the blue LED on D4 (GPIO2) lights on LOW.
+void setup() {
+  pinMode(D5, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(D5, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);  // HIGH = blue LED off
+  delay(500);
+  digitalWrite(D5, LOW);
+  digitalWrite(LED_BUILTIN, LOW);   // LOW = blue LED on
+  delay(500);
+}
+`
+
+const BLUEPILL_CODE = `// Blue Pill blink: PA8 drives the LED; the green LED on PC13 lights on LOW.
+void setup() {
+  pinMode(PA8, OUTPUT);
+  pinMode(PC13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(PA8, HIGH);
+  digitalWrite(PC13, HIGH);  // off
+  delay(500);
+  digitalWrite(PA8, LOW);
+  digitalWrite(PC13, LOW);   // on
+  delay(500);
+}
+`
+
+const XIAO_CODE = `// XIAO fade: analogWrite on D8 ramps the LED up and down.
+int level = 0;
+int step = 5;
+
+void setup() {
+  pinMode(8, OUTPUT);
+}
+
+void loop() {
+  analogWrite(8, level);
+  level = level + step;
+  if (level <= 0 || level >= 255) step = -step;
+  delay(10);
+}
+`
+
 // ------------------------------------------------------------- presets
 
 export const PRESETS: Preset[] = [
@@ -458,6 +519,95 @@ export const PRESETS: Preset[] = [
       [w('j29', 'bot-23', 'black'), w('j22', 'bot-17', 'black')],
     ),
   },
+  {
+    id: 'uno-r4-blink',
+    title: 'Uno R4 blink',
+    board: 'Arduino Uno R4 Minima',
+    summary: 'The Uno layout with a 32-bit chip: same pins, same sketch — but only 8 mA per pin.',
+    learn: [
+      'The Uno R4 keeps the Uno\'s pins and 5 V logic.',
+      'Each R4 pin may give only 8 mA, so the LED gets 330 Ω, not 220 Ω.',
+      'Too much current marks the pin damaged — try 100 Ω and see.',
+    ],
+    controls: [],
+    layout: layout(
+      'Uno R4 blink',
+      'Uno R4 Minima pin 13 → 330 Ω → red LED → GND.',
+      [
+        { id: 'U1', type: 'arduino_uno_r4_minima', pos: UNO_POS, params: { code: R4_CODE, runtime: 'fast' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 330 }, holes: ['c12', 'c16'] },
+        { id: 'D1', type: 'led', params: { color: 'red' }, holes: ['b16', 'b17'] },
+      ],
+      [w('U1:D13', 'a12', 'yellow'), w('a17', 'top-12', 'black'), w('U1:GND2', 'top-0', 'black')],
+    ),
+  },
+  {
+    id: 'nodemcu-blink',
+    title: 'NodeMCU blink',
+    board: 'ESP8266 NodeMCU',
+    summary: 'A Wi-Fi board on the bench blinks an LED on D5 — and its own blue LED the other way round.',
+    learn: [
+      'NodeMCU pins are 3.3 V: HIGH is 3.3 V.',
+      'D5 is GPIO 14 — the D-names are just labels for GPIO numbers.',
+      'The blue LED on D4 is wired to 3.3 V, so it lights when the pin is LOW.',
+    ],
+    controls: [],
+    layout: layout(
+      'NodeMCU blink',
+      'NodeMCU D5 → 220 Ω → green LED → GND.',
+      [
+        { id: 'N1', type: 'esp8266_nodemcu', pos: { x: -23, z: 2 }, params: { code: NODEMCU_CODE, runtime: 'fast' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 220 }, holes: ['c12', 'c16'] },
+        { id: 'D1', type: 'led', params: { color: 'green' }, holes: ['b16', 'b17'] },
+      ],
+      [w('N1:D5', 'a12', 'yellow'), w('a17', 'top-12', 'black'), w('N1:GND3', 'top-0', 'black')],
+    ),
+  },
+  {
+    id: 'bluepill-blink',
+    title: 'Blue Pill blink',
+    board: 'STM32 Blue Pill',
+    summary: 'A 72 MHz STM32 straddles the breadboard and blinks an LED on PA8.',
+    learn: [
+      'STM32 pins are named by port and bit: PA8 is port A, pin 8.',
+      'The green LED on PC13 is wired to 3.3 V, so LOW turns it on.',
+      'PA8 is 5 V tolerant; the analog pins PA0–PA7 are not.',
+    ],
+    controls: [],
+    layout: layout(
+      'Blue Pill blink',
+      'Blue Pill PA8 → 220 Ω → yellow LED → GND.',
+      [
+        { id: 'S1', type: 'stm32_bluepill', at: 'c5', params: { code: BLUEPILL_CODE, runtime: 'fast' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 220 }, holes: ['c30', 'c34'] },
+        { id: 'D1', type: 'led', params: { color: 'yellow' }, holes: ['b34', 'b35'] },
+      ],
+      [w('j9', 'a30', 'yellow'), w('a35', 'top-30', 'black'), w('a5', 'top-4', 'black')],
+      'standard',
+    ),
+  },
+  {
+    id: 'xiao-fade',
+    title: 'XIAO fade',
+    board: 'Seeed XIAO SAMD21',
+    summary: 'A thumbnail-sized board fades an LED with PWM on D8.',
+    learn: [
+      'analogWrite switches the pin on and off fast; the share of ON time sets the brightness.',
+      'XIAO pins give only about 7 mA, so the LED gets 330 Ω.',
+      'Every XIAO pin is also an analog input (D0 = A0 … D10 = A10).',
+    ],
+    controls: [],
+    layout: layout(
+      'XIAO fade',
+      'XIAO D8 → 330 Ω → blue LED → GND.',
+      [
+        { id: 'X1', type: 'xiao_samd21', at: 'c5', params: { code: XIAO_CODE, runtime: 'fast' } },
+        { id: 'R1', type: 'resistor', params: { resistance: 330 }, holes: ['a10', 'a14'] },
+        { id: 'D1', type: 'led', params: { color: 'blue' }, holes: ['b14', 'b15'] },
+      ],
+      [w('a15', 'top-14', 'black'), w('b6', 'top-5', 'black')],
+    ),
+  },
 ]
 
 const CALLOUTS: Record<string, Callout[]> = {
@@ -502,6 +652,22 @@ const CALLOUTS: Record<string, Callout[]> = {
   'pico-blink': [
     { part: 'P1', title: 'RASPBERRY PI PICO', text: 'GP15 drives the LED at 3.3 V.', icon: 'board' },
     { part: 'D1', title: 'GREEN LED', text: 'A 100 Ω resistor is enough at 3.3 V.', icon: 'led' },
+  ],
+  'uno-r4-blink': [
+    { part: 'U1', title: 'ARDUINO UNO R4', text: '5 V pins, but only 8 mA each.', icon: 'board' },
+    { part: 'R1', title: '330 Ω RESISTOR', text: 'Keeps the LED under 8 mA.', icon: 'resistor' },
+  ],
+  'nodemcu-blink': [
+    { part: 'N1', title: 'NODEMCU (ESP8266)', text: 'D5 is GPIO 14, at 3.3 V.', icon: 'board' },
+    { part: 'D1', title: 'GREEN LED', text: 'Blinks opposite the blue on-board LED.', icon: 'led' },
+  ],
+  'bluepill-blink': [
+    { part: 'S1', title: 'STM32 BLUE PILL', text: 'PA8 drives the LED at 3.3 V.', icon: 'board' },
+    { part: 'D1', title: 'YELLOW LED', text: 'Lights while PA8 is HIGH.', icon: 'led' },
+  ],
+  'xiao-fade': [
+    { part: 'X1', title: 'SEEED XIAO', text: 'PWM on D8 sets the brightness.', icon: 'board' },
+    { part: 'D1', title: 'BLUE LED', text: 'Fades up and down, 2.5 s a cycle.', icon: 'led' },
   ],
 }
 for (const p of PRESETS) p.callouts = CALLOUTS[p.id]

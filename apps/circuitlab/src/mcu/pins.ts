@@ -44,12 +44,10 @@ interface PinState {
 
 /** Output resistance of a GPIO driver (Ω) by board family. */
 function driverOhms(board: BoardDef): number {
-  if (board.type === 'rpi_pico') return 40
-  if (board.type === 'esp32_devkit') return 30
-  return 25
+  return board.rout ?? 25
 }
 function pullOhms(board: BoardDef): number {
-  return board.type === 'esp32_devkit' ? 45000 : board.type === 'rpi_pico' ? 50000 : 35000
+  return board.rpull ?? 35000
 }
 
 const MAX_EDGES = 64
@@ -262,12 +260,14 @@ export class PinBank {
     const v = this.voltage(pin)
     if (Number.isNaN(v)) return null
     const b = this.board
-    if (v > b.absMaxV + 0.15 || v < -0.6) {
+    // 5 V-tolerant pins (Blue Pill FT pins, Pico 2 GPIO) take up to 5.5 V
+    const maxV = b.fiveVoltTolerant?.includes(pin) ? 5.5 : b.absMaxV
+    if (v > maxV + 0.15 || v < -0.6) {
       s.overV += dt
       if (s.overV > 1e-3) {
         s.damaged =
           v > 0
-            ? `${pin} saw ${v.toFixed(1)} V — the ${b.short} is a ${b.logicV} V board and its pins take at most ${b.absMaxV} V. The pin is damaged; use a voltage divider or a level shifter.`
+            ? `${pin} saw ${v.toFixed(1)} V — the ${b.short} is a ${b.logicV} V board and this pin takes at most ${maxV} V. The pin is damaged; use a voltage divider or a level shifter.`
             : `${pin} was pulled to ${v.toFixed(1)} V, below ground — the pin is damaged.`
         return s.damaged
       }

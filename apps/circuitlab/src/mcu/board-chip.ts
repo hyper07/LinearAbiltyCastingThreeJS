@@ -141,6 +141,13 @@ export class BoardChip implements ChipInstance, McuIO {
 
   setRuntimeParam(_key: string, _value: ParamValue): void {}
 
+  /** the on-board LED: lit while its pin is high, or low for an active-low LED (driven as an output) */
+  private ledLit(): boolean {
+    const pin = this.board.ledPin
+    if (!this.board.ledActiveLow) return this.bank.fraction(pin) > 0.05
+    return this.bank.state(pin)?.mode === 'output' && this.bank.fraction(pin) < 0.95
+  }
+
   fillTelemetry(t: ComponentTelemetry): void {
     const rt = this.runtime
     const damage = this.bank.damage()
@@ -149,7 +156,7 @@ export class BoardChip implements ChipInstance, McuIO {
       runtime: rt?.kind ?? 'avr',
       state: this.dead ? 'error' : rt ? rt.state : 'waiting',
       line: rt?.line,
-      led: !this.dead && this.bank.fraction(this.board.ledPin) > 0.05,
+      led: !this.dead && this.ledLit(),
       pins: this.bank.summary(),
       damage,
       error: this.dead ?? rt?.error,
@@ -169,7 +176,7 @@ export class BoardChip implements ChipInstance, McuIO {
     if (!s) return
     if (s.mode !== 'output' && this.runtime?.kind === 'fast') {
       // Arduino: writing an INPUT pin HIGH only turns on its pull-up
-      if (this.board.type.startsWith('arduino')) {
+      if (this.board.mcu.startsWith('ATmega')) {
         this.bank.setMode(pin, high ? 'pullup' : 'input', t)
         if (high) this.warn(`${this.board.short}: ${pin} is written HIGH but was never set to OUTPUT — that only turns on its weak pull-up (an LED glows faintly). Add pinMode(${pin.replace(/^D/, '')}, OUTPUT) in setup().`)
         return

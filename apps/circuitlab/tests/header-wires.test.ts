@@ -15,6 +15,11 @@ const BOARDS: { type: string; pos: { x: number; z: number }; top: number; kind: 
   { type: 'arduino_uno', pos: { x: -31, z: -1.5 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
   { type: 'arduino_mega', pos: { x: -60, z: -3 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
   { type: 'esp32_devkit', pos: { x: -25, z: 2 }, top: ESP32_PIN_Y, kind: 'pin' },
+  { type: 'arduino_uno_r4_minima', pos: { x: -31, z: -1.5 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
+  { type: 'arduino_uno_r4_wifi', pos: { x: -31, z: -1.5 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
+  { type: 'arduino_leonardo', pos: { x: -31, z: -1.5 }, top: ARDUINO_HEADER_Y, kind: 'socket' },
+  { type: 'esp8266_nodemcu', pos: { x: -23, z: 2 }, top: ESP32_PIN_Y, kind: 'pin' },
+  { type: 'esp32s3_devkitc', pos: { x: -29, z: 2 }, top: ESP32_PIN_Y, kind: 'pin' },
 ]
 
 function boardLayout(type: string, pos: { x: number; z: number }, pins: string[]): CircuitLayout {

@@ -5,7 +5,7 @@ every common part as a clean 3D model, circuits that are actually solved (not
 scripted), instruments, code running on a microcontroller, and a breadboard
 where students build and test their own circuits.
 
-- **Parts:** [circuit-components.json](circuit-components.json) — 125 parts
+- **Parts:** [circuit-components.json](circuit-components.json) — 158 parts
   (power, passives, switches, semiconductors, ICs, boards, sensors, outputs,
   instruments, modules) with pins, simulation model, 3D look, what each one
   teaches, and course level 1–3. Search: `npm run kb -- led --kind circuit-part`.

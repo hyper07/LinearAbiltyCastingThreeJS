@@ -7,7 +7,13 @@
  *    barrel jack, socketed ATmega, ON / L / TX / RX LEDs.
  *  - Arduino Nano: blue PCB straddling the channel, mini-USB, TQFP chip.
  *  - ESP32 DevKit V1: black PCB, WROOM-32 can + antenna, EN/BOOT, pins up.
- *  - Raspberry Pi Pico: green PCB, castellated edges, RP2040, BOOTSEL.
+ *  - Raspberry Pi Pico / Pico W / Pico 2: green PCB, castellated edges, RP2040
+ *    or RP2350, BOOTSEL (Pico W: radio can + antenna).
+ *  - Uno R4 Minima / WiFi and Leonardo: the Uno shape with a QFP chip, USB-C /
+ *    micro-USB (R4 WiFi: ESP32-S3 module + LED matrix).
+ *  - Pins-up bench boards (ESP32 DevKit, NodeMCU, ESP32-S3-DevKitC-1) share one
+ *    builder; 0.6" stick boards (Micro, Nano ESP32, ESP32-C3 SuperMini, Blue
+ *    Pill, XIAO, Teensy 4.0) share another, each with its own look table.
  *
  * The on-board LED follows the program (telemetry.mcu.led); a damaged pin
  * gets a red marker and the board a warning beacon.
@@ -375,6 +381,54 @@ function button(x: number, y: number, z: number, cap = 0x2a2a2a, size = 1.2): TH
   return [box(size, 0.35, size, MAT.steel(), x, y + 0.175, z), cyl(size * 0.28, 0.28, plastic(cap, 0.5), x, y + 0.49, z)]
 }
 
+/** USB-C receptacle (8.9 × 3.2 mm, 7.4 deep) lying on the PCB, mouth toward −x, centered at (x, z) */
+function usbC(x: number, y: number, z: number): THREE.Object3D[] {
+  return [box(2.9, 1.25, 3.5, MAT.steel(), x, y + 0.63, z), box(0.05, 0.75, 2.8, plastic(0x0c0c0c, 0.6), x - 1.46, y + 0.63, z)]
+}
+
+/** micro-USB receptacle (7.5 × 2.6 mm, 5 deep), mouth toward −x */
+function usbMicro(x: number, y: number, z: number): THREE.Object3D[] {
+  return [box(2.0, 1.0, 3.0, MAT.steel(), x, y + 0.5, z), box(0.05, 0.5, 2.4, plastic(0x0c0c0c, 0.6), x - 1.01, y + 0.5, z)]
+}
+
+/** turn a chip's parts by `angle` about (cx, cz) — legs and body together */
+function turned(parts: THREE.Object3D[], cx: number, cz: number, angle: number): THREE.Object3D[] {
+  const up = new THREE.Vector3(0, 1, 0)
+  for (const o of parts) {
+    const p = o.position.clone().sub(new THREE.Vector3(cx, 0, cz)).applyAxisAngle(up, angle)
+    o.position.set(cx + p.x, o.position.y, cz + p.z)
+    o.rotation.y += angle
+  }
+  return parts
+}
+
+/** a printed PCB antenna (meander trace) as a textured plane, long side along z */
+function antennaTrace(key: string, w: number, d: number, x: number, y: number, z: number, board = '#1d1d1d'): THREE.Mesh | null {
+  const tex = art(`ant:${key}`, 128, Math.round((128 * d) / w), (ctx) => {
+    const H = Math.round((128 * d) / w)
+    ctx.fillStyle = board
+    ctx.fillRect(0, 0, 128, H)
+    ctx.strokeStyle = '#b8923a'
+    ctx.lineWidth = 7
+    ctx.beginPath()
+    let yy = 16
+    ctx.moveTo(20, yy)
+    while (yy < H - 40) {
+      ctx.lineTo(108, yy)
+      yy += 20
+      ctx.lineTo(108, yy)
+      ctx.lineTo(20, yy)
+      yy += 20
+      ctx.lineTo(20, yy)
+    }
+    ctx.stroke()
+  })
+  if (!tex) return null
+  const m = new THREE.Mesh(cachedGeometry(`plane:${w}:${d}`, () => new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2)), cachedMaterial(`antm:${key}`, () => new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 })))
+  m.position.set(x, y, z)
+  return m
+}
+
 // --------------------------------------------------------------- warning
 
 function beacon(): { group: THREE.Group; set(on: boolean, t: number): void } {
@@ -397,6 +451,22 @@ function beacon(): { group: THREE.Group; set(on: boolean, t: number): void } {
 }
 
 // ------------------------------------------------------------- Arduinos
+
+/** which Uno-shaped board: the classic, the Uno R4 Minima / WiFi (RA4M1, USB-C) or the Leonardo (32u4, micro-USB) */
+type UnoVariant = 'uno' | 'mega' | 'r4min' | 'r4wifi' | 'leonardo'
+function unoVariant(def: BoardDef): UnoVariant {
+  switch (def.type) {
+    case 'arduino_mega':
+      return 'mega'
+    case 'arduino_uno_r4_minima':
+      return 'r4min'
+    case 'arduino_uno_r4_wifi':
+      return 'r4wifi'
+    case 'arduino_leonardo':
+      return 'leonardo'
+  }
+  return 'uno'
+}
 
 function paintArduino(def: BoardDef, widthIn: number) {
   const isMega = def.type === 'arduino_mega'
@@ -421,8 +491,21 @@ function paintArduino(def: BoardDef, widthIn: number) {
       ctx.fill()
     }
     // logo + name
-    text(ctx, px, isMega ? 'MEGA 2560' : 'UNO', isMega ? 22 : 15, 9.6, isMega ? 2.2 : 3.0, { weight: '800 italic', font: UI_FONT })
-    text(ctx, px, '∞  ARDUINO', isMega ? 22 : 15, isMega ? 12.4 : 12.8, 1.2, { weight: '700' })
+    const v = unoVariant(def)
+    if (v === 'r4wifi') {
+      text(ctx, px, 'UNO R4 WiFi', 15.6, 6.4, 1.6, { weight: '800 italic', font: UI_FONT })
+      text(ctx, px, 'ARDUINO', 15.8, 13.4, 0.9, { weight: '700' })
+    } else if (v === 'r4min') {
+      text(ctx, px, 'UNO R4', 15, 8.6, 2.6, { weight: '800 italic', font: UI_FONT })
+      text(ctx, px, 'MINIMA', 15, 10.6, 0.9, { weight: '800' })
+      text(ctx, px, 'ARDUINO', 15, 6.4, 0.9, { weight: '700' })
+    } else if (v === 'leonardo') {
+      text(ctx, px, 'LEONARDO', 14.6, 9.0, 2.0, { weight: '800 italic', font: UI_FONT })
+      text(ctx, px, 'ARDUINO', 14.6, 6.4, 1.0, { weight: '700' })
+    } else {
+      text(ctx, px, isMega ? 'MEGA 2560' : 'UNO', isMega ? 22 : 15, 9.6, isMega ? 2.2 : 3.0, { weight: '800 italic', font: UI_FONT })
+      text(ctx, px, '∞  ARDUINO', isMega ? 22 : 15, isMega ? 12.4 : 12.8, 1.2, { weight: '700' })
+    }
     text(ctx, px, 'DIGITAL (PWM~)', isMega ? 17 : 17, 3.2, 0.62, { weight: '700' })
     text(ctx, px, 'POWER', 15, 18.0, 0.6, { weight: '700' })
     text(ctx, px, 'ANALOG IN', isMega ? 26 : 22.5, 18.0, 0.6, { weight: '700' })
@@ -502,16 +585,26 @@ function buildArduino(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
       stat.push(...femaleHeader(18, x, zc, top, ARDUINO_HEADER_Y, true, tags))
     }
   }
-  // USB-B and barrel jack (overhang the left edge)
-  stat.push(box(6.4, 4.3, 4.7, MAT.steel(), 1.0, top + 2.15, 5.6))
-  stat.push(box(0.3, 2.2, 3.0, plastic(0xe8e8e8, 0.5), -2.15, top + 2.0, 5.6))
+  const v = unoVariant(def)
+  // USB (B on the classic boards, C on the R4, micro on the Leonardo) and barrel jack, overhanging the left edge
+  if (v === 'r4min' || v === 'r4wifi') stat.push(...usbC(-0.4, top, 5.6))
+  else if (v === 'leonardo') stat.push(...usbMicro(0.2, top, 5.6))
+  else {
+    stat.push(box(6.4, 4.3, 4.7, MAT.steel(), 1.0, top + 2.15, 5.6))
+    stat.push(box(0.3, 2.2, 3.0, plastic(0xe8e8e8, 0.5), -2.15, top + 2.0, 5.6))
+  }
   stat.push(box(5.8, 4.2, 3.6, plastic(0x141414, 0.7), 1.9, top + 2.1, 16.2))
   stat.push(cyl(1.0, 0.4, MAT.steel(), -1.0, top + 2.4, 16.2, 16).rotateZ(Math.PI / 2))
-  // ATmega in its socket (DIP-28) — or the Mega's square TQFP
+  // ATmega in its socket (DIP-28) — or a square QFP (Mega 2560, RA4M1, 32u4)
   if (isMega) {
     const chip = smdChip(5.5, 5.5, 0.45, 24, top, 11, 25, true)
     chip.forEach((o) => (o.rotation.y = Math.PI / 4))
     stat.push(...chip)
+  } else if (v === 'r4min' || v === 'r4wifi') {
+    const [cx, cz] = v === 'r4wifi' ? [22.0, 14.4] : [19.6, 14.6]
+    stat.push(...smdChip(3.9, 3.9, 0.4, cx, top, cz, 16, true))
+  } else if (v === 'leonardo') {
+    stat.push(...turned(smdChip(3.9, 3.9, 0.4, 19.6, top, 13.6, 11, true), 19.6, 13.6, Math.PI / 4))
   } else {
     stat.push(box(14.2, 0.55, 4.0, MAT.socket(), 19.6, top + 0.28, 14.8))
     stat.push(box(13.9, 0.6, 2.9, MAT.chip(), 19.6, top + 0.86, 14.8))
@@ -520,18 +613,34 @@ function buildArduino(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
       stat.push(box(0.22, 0.5, 0.3, MAT.tin(), 13.1 + i, top + 0.55, 16.3))
     }
   }
-  // USB chip, crystal, regulator, caps, reset, ICSP
-  stat.push(...smdChip(2.0, 2.0, 0.35, 8.0, top, 6.2, 8, true))
-  stat.push(box(1.6, 0.9, 0.7, MAT.steel(), 9.6, top + 0.45, 11.0))
-  stat.push(box(1.8, 0.7, 1.3, MAT.chip(), 6.0, top + 0.35, 13.2))
+  if (v === 'r4wifi') {
+    // ESP32-S3-MINI-1 radio module beside the USB-C, 12 × 8 LED matrix in the middle, Qwiic socket
+    stat.push(box(6.0, 0.3, 6.1, plastic(0x1d1d1d, 0.5), 8.6, top + 0.15, 13.4))
+    stat.push(box(5.6, 0.75, 4.6, satinMetal(0x8a9097), 8.6, top + 0.65, 14.1))
+    stat.push(box(2.4, 1.4, 1.6, plastic(0xf2f0ea, 0.5), 24.0, top + 0.7, 4.6))
+    const ledMat = cachedMaterial('r4matrix', () => new THREE.MeshPhysicalMaterial({ color: 0xf6e6d6, roughness: 0.4, emissive: new THREE.Color(0xff2a1a), emissiveIntensity: 0.05 }))
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 12; c++) stat.push(box(0.26, 0.16, 0.18, ledMat, 13.0 + c * 0.5, top + 0.08, 8.2 + r * 0.5))
+  }
+  // USB chip (the classic boards' 16U2), crystal, regulator, caps, reset, ICSP
+  if (v === 'uno' || v === 'mega') stat.push(...smdChip(2.0, 2.0, 0.35, 8.0, top, 6.2, 8, true))
+  if (v !== 'r4wifi') stat.push(box(1.6, 0.9, 0.7, MAT.steel(), 9.6, top + 0.45, 11.0), box(1.8, 0.7, 1.3, MAT.chip(), 6.0, top + 0.35, 13.2))
   stat.push(cyl(1.05, 2.2, plastic(0x1c1c1c, 0.4), 6.4, top + 1.1, 18.3, 18), cyl(1.05, 2.2, plastic(0x1c1c1c, 0.4), 8.9, top + 1.1, 18.3, 18))
   stat.push(...button(2.0, top, 2.6, 0xd03030, 1.25))
   const icspX = isMega ? 37.6 : 25.6
   stat.push(...malePins([0, 1, 2].flatMap((i) => [{ x: icspX - 0.5, z: 10.4 + i }, { x: icspX + 0.5, z: 10.4 + i }]), top, top, top + 2.5))
   addStatic(group, stat)
   group.add(pcb(def.type, W, D, thick, 0x0b7a83, yPcb, 0, 0, paintArduino(def, widthIn)))
-  const chipText = chipLabel(isMega ? ['ATMEGA2560', '16AU'] : ['ATMEGA328P-PU', '1932'], isMega ? 4.6 : 12, isMega ? 4.6 : 2.6, isMega ? 24 : 19.6, top + (isMega ? 0.46 : 1.16), isMega ? 11 : 14.8, isMega ? Math.PI / 4 : 0)
+  const chipText =
+    v === 'r4min' || v === 'r4wifi'
+      ? chipLabel(['RA4M1', 'RENESAS'], 3.6, 3.6, v === 'r4wifi' ? 22.0 : 19.6, top + 0.41, v === 'r4wifi' ? 14.4 : 14.6)
+      : v === 'leonardo'
+        ? chipLabel(['ATMEGA32U4', 'AU'], 3.6, 3.6, 19.6, top + 0.41, 13.6, Math.PI / 4)
+        : chipLabel(isMega ? ['ATMEGA2560', '16AU'] : ['ATMEGA328P-PU', '1932'], isMega ? 4.6 : 12, isMega ? 4.6 : 2.6, isMega ? 24 : 19.6, top + (isMega ? 0.46 : 1.16), isMega ? 11 : 14.8, isMega ? Math.PI / 4 : 0)
   if (chipText) group.add(chipText)
+  if (v === 'r4wifi') {
+    const mod = chipLabel(['ESP32-S3', 'MINI-1'], 5.2, 4.2, 8.6, top + 1.03, 14.1)
+    if (mod) group.add(mod)
+  }
 
   // LEDs: ON (green, always lit on USB power), L (follows D13), TX/RX
   const on = smdLed(0x35ff5a, isMega ? 36.2 : 25.4, top, 7.4)
@@ -585,15 +694,78 @@ function damageMarks(def: BoardDef, pins: THREE.Vector3[], group: THREE.Group, y
 
 // ----------------------------------------------------------------- ESP32
 
-function buildEsp32(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
+/**
+ * How a pins-up bench dev board looks (board units, x from the USB end, z
+ * across): the RF module with its shield can and antenna, the USB ports,
+ * the support chips, buttons and LEDs. The pins come from the bench geometry.
+ */
+interface PinsUpLook {
+  w: number
+  d: number
+  pcb: number
+  fill: string
+  trace: string
+  seed: number
+  /** RF module PCB, shield can and the printed antenna beyond it */
+  module: { x: number; w: number; d: number; canX: number; canW: number; canD: number; canH: number; label: string[]; antX: number; antW: number; antD: number; color?: number }
+  usb: { kind: 'micro' | 'c'; x: number; z: number }[]
+  chips: { w: number; d: number; x: number; z: number; legs: number }[]
+  regulator: { x: number; z: number }
+  buttons: { x: number; z: number; label: string; lz: number }[]
+  led: { x: number; z: number; color: number; size?: number }
+  pwr: { x: number; z: number }
+  title: { text: string; x: number; z: number; size: number }
+}
+
+const PINS_UP_LOOKS: Record<string, PinsUpLook> = {
+  // DOIT ESP32 DevKit V1: 51 × 28 mm, WROOM-32 at the far end
+  esp32_devkit: {
+    w: 20, d: 11, pcb: 0x141414, fill: '#161616', trace: 'rgba(40,40,40,0.9)', seed: 11,
+    module: { x: 15.0, w: 10.0, d: 7.1, canX: 13.6, canW: 6.9, canD: 6.9, canH: 1.2, label: ['ESP32-WROOM-32', 'Wi-Fi + BT'], antX: 18.6, antW: 2.6, antD: 7 },
+    usb: [{ kind: 'micro', x: 0.6, z: 5.5 }],
+    chips: [{ w: 2.0, d: 2.0, x: 4.3, z: 5.5, legs: 7 }],
+    regulator: { x: 7.0, z: 3.2 },
+    buttons: [{ x: 2.4, z: 2.4, label: 'EN', lz: 3.55 }, { x: 2.4, z: 8.6, label: 'BOOT', lz: 7.4 }],
+    led: { x: 5.6, z: 8.6, color: 0x2d7bff },
+    pwr: { x: 5.6, z: 2.2 },
+    title: { text: 'ESP32 DEVKIT V1', x: 7.2, z: 8.6, size: 0.5 },
+  },
+  // NodeMCU v1.0 (Amica): 49 × 26 mm, ESP-12E module with its own antenna at the far end
+  esp8266_nodemcu: {
+    w: 19.3, d: 10.2, pcb: 0x1a1d22, fill: '#1b1e24', trace: 'rgba(48,54,64,0.9)', seed: 13,
+    module: { x: 14.6, w: 9.4, d: 6.3, canX: 13.3, canW: 5.9, canD: 4.8, canH: 0.95, label: ['ESP8266MOD', 'ESP-12E'], antX: 17.9, antW: 2.4, antD: 5.6, color: 0x1f2a6b },
+    usb: [{ kind: 'micro', x: 0.6, z: 5.1 }],
+    chips: [{ w: 1.9, d: 1.9, x: 4.4, z: 5.1, legs: 7 }],
+    regulator: { x: 7.0, z: 2.6 },
+    buttons: [{ x: 2.4, z: 2.2, label: 'RST', lz: 3.3 }, { x: 2.4, z: 8.0, label: 'FLASH', lz: 6.9 }],
+    led: { x: 17.6, z: 2.6, color: 0x2d7bff },
+    pwr: { x: 6.2, z: 7.4 },
+    title: { text: 'NodeMCU V1.0', x: 7.6, z: 8.1, size: 0.5 },
+  },
+  // ESP32-S3-DevKitC-1: 62.7 × 25.4 mm, WROOM-1 at the far end, two USB-C, RGB LED
+  esp32s3_devkitc: {
+    w: 24.7, d: 10, pcb: 0x141414, fill: '#151515', trace: 'rgba(42,42,42,0.9)', seed: 17,
+    module: { x: 19.7, w: 10.0, d: 7.1, canX: 18.3, canW: 7.1, canD: 6.9, canH: 1.25, label: ['ESP32-S3-WROOM-1', 'Wi-Fi + BLE 5'], antX: 23.4, antW: 2.4, antD: 7 },
+    usb: [{ kind: 'c', x: 1.2, z: 2.6 }, { kind: 'c', x: 1.2, z: 7.4 }],
+    chips: [{ w: 1.8, d: 1.8, x: 9.2, z: 3.0, legs: 6 }],
+    regulator: { x: 9.4, z: 7.0 },
+    buttons: [{ x: 4.6, z: 2.4, label: 'BOOT', lz: 3.6 }, { x: 4.6, z: 7.6, label: 'RST', lz: 6.4 }],
+    led: { x: 7.0, z: 5.0, color: 0xffffff, size: 1.6 },
+    pwr: { x: 7.0, z: 7.6 },
+    title: { text: 'ESP32-S3-DevKitC-1', x: 11.6, z: 5.0, size: 0.5 },
+  },
+}
+
+function buildPinsUp(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
+  const L = PINS_UP_LOOKS[def.type] ?? PINS_UP_LOOKS.esp32_devkit
   const geo = offboardGeometry(def.type)!
   const ax = pins[0].x - geo.terminals[0].dx
   const az = pins[0].z - geo.terminals[0].dz
-  const W = 20
-  const D = 11
+  const { w: W, d: D } = L
   const yPcb = 0.32
   const thick = 0.63
   const top = yPcb + thick
+  const mid = D / 2
   const group = new THREE.Group()
   group.position.set(ax, 0, az)
   const stat: THREE.Object3D[] = []
@@ -605,61 +777,39 @@ function buildEsp32(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
     const ts = geo.terminals.map((t, i) => ({ t, i })).filter(({ t }) => t.dz === row).sort((a, b) => a.t.dx - b.t.dx)
     stat.push(...spacerLabels(ts.map(({ i }) => ({ text: pinLabel(def.pins[i], def), kind: pinKind(def.pins[i], def) })), ts[0].t.dx, row, top + 0.5))
   }
-  // WROOM-32 module: PCB + shield can + antenna area
-  stat.push(box(10.0, 0.32, 7.1, plastic(0x1d1d1d, 0.5), 15.0, top + 0.16, 5.5))
-  stat.push(box(6.9, 1.2, 6.9, satinMetal(0x7f858c), 13.6, top + 0.92, 5.5))
-  // micro-USB, CP2102, regulator, buttons
-  stat.push(box(2.3, 1.1, 3.1, MAT.steel(), 0.6, top + 0.55, 5.5))
-  stat.push(...smdChip(2.0, 2.0, 0.35, 4.3, top, 5.5, 7, true))
-  stat.push(box(2.6, 0.7, 1.4, MAT.chip(), 7.0, top + 0.35, 3.2))
-  stat.push(...button(2.4, top, 2.4, 0x262626, 1.1), ...button(2.4, top, 8.6, 0x262626, 1.1))
+  // RF module: PCB + shield can (+ the antenna painted below)
+  const M = L.module
+  stat.push(box(M.w, 0.32, M.d, plastic(M.color ?? 0x1d1d1d, 0.5), M.x, top + 0.16, mid))
+  stat.push(box(M.canW, M.canH, M.canD, satinMetal(0x7f858c), M.canX, top + 0.32 + M.canH / 2, mid))
+  for (const u of L.usb) stat.push(...(u.kind === 'c' ? usbC(u.x, top, u.z) : usbMicro(u.x, top, u.z)))
+  for (const c of L.chips) stat.push(...smdChip(c.w, c.d, 0.35, c.x, top, c.z, c.legs, true))
+  stat.push(box(2.6, 0.7, 1.4, MAT.chip(), L.regulator.x, top + 0.35, L.regulator.z))
+  for (const b of L.buttons) stat.push(...button(b.x, top, b.z, 0x262626, 1.1))
   addStatic(group, stat)
   group.add(
-    pcb('esp32', W, D, thick, 0x141414, yPcb, 0, 0, (ctx, px) => {
-      ctx.fillStyle = '#161616'
+    pcb(def.type === 'esp32_devkit' ? 'esp32' : def.type, W, D, thick, L.pcb, yPcb, 0, 0, (ctx, px) => {
+      ctx.fillStyle = L.fill
       ctx.fillRect(0, 0, W * px, D * px)
-      traces(ctx, W * px, D * px, 'rgba(40,40,40,0.9)', 11)
+      traces(ctx, W * px, D * px, L.trace, L.seed)
       geo.terminals.forEach((t, i) => {
         ctx.fillStyle = '#d9b45a'
         ctx.beginPath()
         ctx.arc(t.dx * px, t.dz * px, 0.42 * px, 0, Math.PI * 2)
         ctx.fill()
         const name = def.pins[i]
-        pcbTag(ctx, px, { text: pinLabel(name, def), kind: pinKind(name, def) }, t.dx, t.dz, t.dz < 5 ? 1 : -1, 0.44)
+        pcbTag(ctx, px, { text: pinLabel(name, def), kind: pinKind(name, def) }, t.dx, t.dz, t.dz < mid ? 1 : -1, 0.44)
       })
-      text(ctx, px, 'EN', 2.4, 3.55, 0.4)
-      text(ctx, px, 'BOOT', 2.4, 7.4, 0.4)
-      text(ctx, px, 'ESP32 DEVKIT V1', 7.2, 8.6, 0.5, { weight: '700' })
+      for (const b of L.buttons) text(ctx, px, b.label, b.x, b.lz, 0.4)
+      text(ctx, px, L.title.text, L.title.x, L.title.z, L.title.size, { weight: '700' })
     }),
   )
-  // shield marking + antenna trace
-  const shield = chipLabel(['ESP32-WROOM-32', 'Wi-Fi + BT'], 6.6, 6.6, 13.6, top + 1.52, 5.5)
+  const shield = chipLabel(M.label, M.canW - 0.3, M.canD - 0.3, M.canX, top + 0.32 + M.canH, mid)
   if (shield) group.add(shield)
-  const ant = art('esp32ant', 128, 300, (ctx) => {
-    ctx.fillStyle = '#1d1d1d'
-    ctx.fillRect(0, 0, 128, 300)
-    ctx.strokeStyle = '#b8923a'
-    ctx.lineWidth = 7
-    ctx.beginPath()
-    let y = 20
-    ctx.moveTo(20, y)
-    for (let i = 0; i < 6; i++) {
-      ctx.lineTo(108, y)
-      y += 22
-      ctx.lineTo(108, y)
-      ctx.lineTo(20, y)
-      y += 22
-      ctx.lineTo(20, y)
-    }
-    ctx.stroke()
-  })
-  if (ant) {
-    const m = new THREE.Mesh(cachedGeometry('plane:2.6:7', () => new THREE.PlaneGeometry(2.6, 7).rotateX(-Math.PI / 2)), cachedMaterial('esp32antm', () => new THREE.MeshStandardMaterial({ map: ant, roughness: 0.5 })))
-    m.position.set(18.6, top + 0.33, 5.5)
-    group.add(m)
-  }
-  const led = smdLed(0x2d7bff, 5.6, top, 8.6)
-  const pwr = smdLed(0xff2a2a, 5.6, top, 2.2)
+  const ant = antennaTrace(def.type === 'esp32_devkit' ? 'esp32ant' : `${def.type}ant`, M.antW, M.antD, M.antX, top + 0.33, mid)
+  if (ant) group.add(ant)
+  const led = smdLed(L.led.color, L.led.x, top, L.led.z)
+  if (L.led.size) led.mesh.scale.set(L.led.size / 0.42, 2, L.led.size / 0.28)
+  const pwr = smdLed(0xff2a2a, L.pwr.x, top, L.pwr.z)
   pwr.mat.emissiveIntensity = 2
   group.add(led.mesh, pwr.mesh)
   const warn = beacon()
@@ -773,9 +923,13 @@ function buildPico(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   stat.push(...smdChip(2.0, 1.6, 0.35, 5.0, top, gap / 2 - 1.4, 4))
   stat.push(box(1.5, 0.75, 1.1, MAT.white(), 3.3, top + 0.38, gap / 2 + 1.7))
   stat.push(box(1.2, 0.45, 0.9, MAT.steel(), 12.9, top + 0.22, gap / 2 - 1.8))
+  // Pico W: the CYW43439 radio under its shield can and the printed antenna at the far end
+  const isW = def.type === 'rpi_pico_w'
+  const is2 = def.type === 'rpi_pico2'
+  if (isW) stat.push(box(3.3, 0.6, 2.4, satinMetal(0x8a9097), 15.4, top + 0.3, gap / 2))
   addStatic(group, stat)
   group.add(
-    pcb('pico', 20, 8.3, thick, 0x1a7a3c, yPcb, -0.5, gap - 0.65, (ctx, px) => {
+    pcb(def.type === 'rpi_pico' ? 'pico' : def.type, 20, 8.3, thick, 0x1a7a3c, yPcb, -0.5, gap - 0.65, (ctx, px) => {
       ctx.fillStyle = '#1d8240'
       ctx.fillRect(0, 0, 20 * px, 8.3 * px)
       traces(ctx, 20 * px, 8.3 * px, 'rgba(14,100,48,0.8)', 9)
@@ -797,13 +951,20 @@ function buildPico(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
         pcbTag(ctx, px, { text: pinLabel(a, def), kind: pinKind(a, def) }, i + 0.5, 7.65, -1, 0.4)
         pcbTag(ctx, px, { text: pinLabel(b, def), kind: pinKind(b, def) }, i + 0.5, 0.65, 1, 0.4)
       }
-      text(ctx, px, 'Raspberry Pi Pico', 14.6, 4.15, 0.62, { weight: '700' })
-      text(ctx, px, '©2020', 14.6, 5.0, 0.36)
+      if (isW) text(ctx, px, 'Pico W', 6.8, 4.5, 0.6, { weight: '700' })
+      else text(ctx, px, is2 ? 'Raspberry Pi Pico 2' : 'Raspberry Pi Pico', 14.6, 4.15, 0.62, { weight: '700' })
+      text(ctx, px, isW ? '©2022' : is2 ? '©2024' : '©2020', isW ? 6.8 : 14.6, isW ? 5.3 : 5.0, 0.36)
       text(ctx, px, 'BOOTSEL', 3.8, 1.6, 0.34)
       text(ctx, px, 'LED', 1.9, 1.6, 0.34)
     }),
   )
-  const lbl = chipLabel(['RP2-B2', '20/21'], 2.6, 2.6, 9.5, top + 0.36, gap / 2)
+  const lbl = chipLabel(is2 ? ['RP2350', 'A2'] : ['RP2-B2', '20/21'], 2.6, 2.6, 9.5, top + 0.36, gap / 2)
+  if (isW) {
+    const can = chipLabel(['CYW43439'], 3.0, 2.1, 15.4, top + 0.61, gap / 2)
+    if (can) group.add(can)
+    const ant = antennaTrace('picow', 1.5, 5.2, 18.6, top + 0.01, gap / 2, '#1d8240')
+    if (ant) group.add(ant)
+  }
   if (lbl) group.add(lbl)
   const led = smdLed(0x3dff6a, 1.9, top, gap / 2 + 2.2)
   group.add(led.mesh)
@@ -820,20 +981,220 @@ function buildPico(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
   }
 }
 
+// ------------------------------------------- 0.6" stick boards (in holes)
+
+/**
+ * How a 0.6"-row breadboard board looks, in its footprint frame: x along the
+ * pin rows (pin 1 at x 0, USB end toward −x), z across (row c at 0, row h at
+ * 6). Real outlines: Micro 48 × 18 mm, Nano ESP32 45 × 18, ESP32-C3
+ * SuperMini 22.5 × 18, Blue Pill 53 × 23, XIAO 21 × 17.8, Teensy 4.0 35.6 × 17.8.
+ */
+interface DipLook {
+  len: number
+  wid: number
+  x0: number
+  pcb: number
+  fill: string
+  trace: string
+  seed: number
+  /** pins poke up through the PCB (soldered headers) or end in castellated pads */
+  pins: 'through' | 'castellated'
+  usb: { kind: 'micro' | 'c'; x: number }
+  chips: { w: number; d: number; x: number; z: number; legs: number; rot?: number; label?: string[]; h?: number }[]
+  /** RF / EMI shield can with a printed name */
+  can?: { w: number; d: number; h: number; x: number; z: number; label: string[] }
+  /** ceramic chip antenna */
+  ceramic?: { x: number; z: number }
+  crystal?: { x: number; z: number; w: number; d: number }
+  buttons: { x: number; z: number; cap: number; size: number }[]
+  /** 2 × 3 jumper headers (Blue Pill BOOT0 / BOOT1) */
+  jumpers?: { x: number; z: number }[]
+  /** a pin header standing on the board (Blue Pill SWD), points along z */
+  swd?: { x: number; z0: number; n: number }
+  led: { x: number; z: number; color: number }
+  pwr?: { x: number; z: number; color: number }
+  texts: { s: string; x: number; z: number; size: number; weight?: string }[]
+  tag: number
+}
+
+const DIP_LOOKS: Record<string, DipLook> = {
+  arduino_micro: {
+    len: 18.9, wid: 7.1, x0: -1.45, pcb: 0x0b7a83, fill: '#0e8a93', trace: 'rgba(6,90,97,0.75)', seed: 21, pins: 'through',
+    usb: { kind: 'micro', x: -0.6 },
+    chips: [{ w: 2.4, d: 2.4, x: 8.6, z: 3, legs: 9, rot: Math.PI / 4, label: ['ATMEGA32U4'] }],
+    crystal: { x: 11.6, z: 3, w: 1.0, d: 0.6 },
+    buttons: [{ x: 13.6, z: 3, cap: 0xf0f0f0, size: 1.1 }],
+    led: { x: 15.4, z: 2.4, color: 0xffa21a },
+    pwr: { x: 15.4, z: 3.6, color: 0x35ff5a },
+    texts: [{ s: 'ARDUINO MICRO', x: 3.6, z: 3, size: 0.46, weight: '800' }],
+    tag: 0.4,
+  },
+  arduino_nano_esp32: {
+    len: 17.7, wid: 7.1, x0: -1.35, pcb: 0x0b7a83, fill: '#0f858e', trace: 'rgba(6,90,97,0.75)', seed: 23, pins: 'through',
+    usb: { kind: 'c', x: -0.5 },
+    chips: [],
+    can: { w: 5.6, d: 2.9, h: 0.75, x: 7.9, z: 3, label: ['NORA-W106', 'u-blox'] },
+    buttons: [{ x: 13.8, z: 3, cap: 0xf0f0f0, size: 1.0 }],
+    led: { x: 12.0, z: 2.3, color: 0xffa21a },
+    pwr: { x: 12.0, z: 3.7, color: 0x35ff5a },
+    texts: [{ s: 'NANO ESP32', x: 3.2, z: 3, size: 0.44, weight: '800' }],
+    tag: 0.4,
+  },
+  esp32c3_supermini: {
+    len: 8.86, wid: 7.1, x0: -0.93, pcb: 0x1c3f8c, fill: '#1e44a0', trace: 'rgba(16,48,120,0.85)', seed: 25, pins: 'castellated',
+    usb: { kind: 'c', x: -0.55 },
+    chips: [{ w: 2.0, d: 2.0, x: 3.9, z: 3, legs: 8, label: ['ESP32-C3'] }],
+    crystal: { x: 5.7, z: 3.9, w: 0.8, d: 0.6 },
+    ceramic: { x: 7.0, z: 3 },
+    buttons: [{ x: 2.1, z: 2.3, cap: 0x2a2a2a, size: 0.8 }, { x: 2.1, z: 3.7, cap: 0x2a2a2a, size: 0.8 }],
+    led: { x: 5.7, z: 2.2, color: 0x2d7bff },
+    pwr: { x: 5.2, z: 4.4, color: 0xff2a2a },
+    texts: [],
+    tag: 0.38,
+  },
+  stm32_bluepill: {
+    len: 20.9, wid: 9.0, x0: -0.95, pcb: 0x1d4aa0, fill: '#2052b0', trace: 'rgba(16,52,130,0.85)', seed: 27, pins: 'through',
+    usb: { kind: 'micro', x: -0.4 },
+    chips: [{ w: 2.8, d: 2.8, x: 9.6, z: 3, legs: 12, rot: Math.PI / 4, label: ['STM32', 'F103C8T6'] }],
+    crystal: { x: 6.3, z: 3, w: 1.8, d: 0.8 },
+    buttons: [{ x: 3.4, z: 3, cap: 0xf0f0f0, size: 1.1 }],
+    jumpers: [{ x: 13.6, z: 2.4 }, { x: 13.6, z: 3.6 }],
+    swd: { x: 19.5, z0: 1.5, n: 4 },
+    led: { x: 16.4, z: 2.6, color: 0x35ff5a },
+    pwr: { x: 16.4, z: 3.4, color: 0xff2a2a },
+    texts: [{ s: 'BOOT0', x: 11.9, z: 2.4, size: 0.3 }, { s: 'BOOT1', x: 11.9, z: 3.6, size: 0.3 }, { s: 'RESET', x: 3.4, z: 4.0, size: 0.3 }],
+    tag: 0.4,
+  },
+  xiao_samd21: {
+    len: 8.27, wid: 7.0, x0: -1.13, pcb: 0x18191c, fill: '#1a1b1f', trace: 'rgba(40,42,48,0.9)', seed: 29, pins: 'castellated',
+    usb: { kind: 'c', x: -1.25 },
+    chips: [],
+    can: { w: 4.0, d: 2.2, h: 0.5, x: 3.5, z: 3, label: ['XIAO', 'SAMD21'] },
+    buttons: [],
+    led: { x: 0.95, z: 2.4, color: 0xffb020 },
+    pwr: { x: 0.95, z: 3.6, color: 0x35ff5a },
+    texts: [],
+    tag: 0.36,
+  },
+  teensy40: {
+    len: 14.0, wid: 7.0, x0: -0.5, pcb: 0x1d6b37, fill: '#1f7a3d', trace: 'rgba(14,90,40,0.8)', seed: 31, pins: 'through',
+    usb: { kind: 'micro', x: 0.1 },
+    chips: [
+      { w: 3.9, d: 3.9, x: 7.0, z: 3, legs: 0, h: 0.5, label: ['MIMXRT1062', 'DVJ6A'] },
+      { w: 1.6, d: 1.3, x: 10.6, z: 3, legs: 4 },
+    ],
+    buttons: [{ x: 12.3, z: 3, cap: 0xf0f0f0, size: 0.9 }],
+    led: { x: 12.3, z: 4.3, color: 0xff8a1a },
+    texts: [{ s: 'Teensy 4.0', x: 2.9, z: 3, size: 0.46, weight: '800' }],
+    tag: 0.4,
+  },
+}
+
+function buildDip(def: BoardDef, pins: THREE.Vector3[]): BuildResult {
+  const L = DIP_LOOKS[def.type]
+  const group = footprintFrame(pins)
+  const half = def.pins.length / 2
+  const rowGap = 6
+  const mid = rowGap / 2
+  const yPcb = 1.0
+  const thick = 0.63
+  const top = yPcb + thick
+  const z0 = mid - L.wid / 2
+  const stat: THREE.Object3D[] = []
+  // pins into the holes + black spacer bars between breadboard and PCB
+  for (let i = 0; i < half; i++) {
+    for (const z of [0, rowGap]) {
+      stat.push(box(0.25, 2.4, 0.25, MAT.gold(), i, 0.4, z))
+      if (L.pins === 'through') stat.push(box(0.25, 0.6, 0.25, MAT.gold(), i, top + 0.25, z))
+      else stat.push(box(0.6, 0.05, 0.7, MAT.gold(), i, top + 0.03, z + (z === 0 ? -0.1 : 0.1)))
+    }
+  }
+  stat.push(box(half, 1, 1, MAT.headerBlack(), (half - 1) / 2, 0.5, 0), box(half, 1, 1, MAT.headerBlack(), (half - 1) / 2, 0.5, rowGap))
+  stat.push(...(L.usb.kind === 'c' ? usbC(L.usb.x, top, mid) : usbMicro(L.usb.x, top, mid)))
+  for (const c of L.chips) {
+    const parts = c.legs ? smdChip(c.w, c.d, c.h ?? 0.4, c.x, top, c.z, c.legs, true) : [box(c.w, c.h ?? 0.4, c.d, MAT.chip(), c.x, top + (c.h ?? 0.4) / 2, c.z)]
+    stat.push(...(c.rot ? turned(parts, c.x, c.z, c.rot) : parts))
+  }
+  if (L.can) stat.push(box(L.can.w, L.can.h, L.can.d, satinMetal(0x8a9097), L.can.x, top + L.can.h / 2, L.can.z))
+  if (L.crystal) stat.push(box(L.crystal.w, 0.5, L.crystal.d, MAT.steel(), L.crystal.x, top + 0.25, L.crystal.z))
+  if (L.ceramic) stat.push(box(0.8, 0.45, 2.4, plastic(0xe9e4d8, 0.4), L.ceramic.x, top + 0.23, L.ceramic.z))
+  for (const b of L.buttons) stat.push(...button(b.x, top, b.z, b.cap, b.size))
+  for (const j of L.jumpers ?? []) {
+    stat.push(...malePins([0, 1, 2].map((k) => ({ x: j.x - 1 + k, z: j.z })), top, top, top + 2.3))
+    stat.push(box(0.9, 1.5, 1.0, plastic(0xf2c230, 0.5), j.x - 0.5, top + 1.75, j.z))
+  }
+  if (L.swd) stat.push(...malePins(Array.from({ length: L.swd.n }, (_, k) => ({ x: L.swd!.x, z: L.swd!.z0 + k })), top, top, top + 2.5))
+  addStatic(group, stat)
+  group.add(
+    pcb(def.type, L.len, L.wid, thick, L.pcb, yPcb, L.x0, z0, (ctx, px) => {
+      ctx.fillStyle = L.fill
+      ctx.fillRect(0, 0, L.len * px, L.wid * px)
+      traces(ctx, L.len * px, L.wid * px, L.trace, L.seed)
+      for (let i = 0; i < half; i++) {
+        for (const [zz, nameIdx] of [[-z0, i], [rowGap - z0, i + half]] as [number, number][]) {
+          const xx = i - L.x0
+          ctx.fillStyle = '#e2c46a'
+          if (L.pins === 'castellated') {
+            ctx.fillRect((xx - 0.32) * px, (zz < L.wid / 2 ? 0 : zz - 0.45) * px, 0.64 * px, (zz < L.wid / 2 ? zz + 0.45 : L.wid - zz + 0.45) * px)
+          } else ctx.fillRect((xx - 0.38) * px, (zz - 0.38) * px, 0.76 * px, 0.76 * px)
+          const name = def.pins[nameIdx]
+          pcbTag(ctx, px, { text: pinLabel(name, def), kind: pinKind(name, def) }, xx, zz, zz < L.wid / 2 ? 1 : -1, L.tag)
+        }
+      }
+      for (const t of L.texts) text(ctx, px, t.s, t.x - L.x0, t.z - z0, t.size, { weight: t.weight ?? '700' })
+    }),
+  )
+  for (const c of L.chips) {
+    if (!c.label) continue
+    const lbl = chipLabel(c.label, c.w - 0.2, c.d - 0.2, c.x, top + (c.h ?? 0.4) + 0.02, c.z, c.rot ?? 0)
+    if (lbl) group.add(lbl)
+  }
+  if (L.can) {
+    const lbl = chipLabel(L.can.label, L.can.w - 0.3, L.can.d - 0.3, L.can.x, top + L.can.h + 0.01, L.can.z)
+    if (lbl) group.add(lbl)
+  }
+  const led = smdLed(L.led.color, L.led.x, top, L.led.z)
+  group.add(led.mesh)
+  if (L.pwr) {
+    const pwr = smdLed(L.pwr.color, L.pwr.x, top, L.pwr.z)
+    pwr.mat.emissiveIntensity = 2
+    group.add(pwr.mesh)
+  }
+  const warn = beacon()
+  warn.group.position.set(L.x0 + L.len / 2, top + 3, mid)
+  group.add(warn.group)
+  return {
+    object: group,
+    pinWorld: pins.map((p) => p.clone()),
+    update: (_c, _e, t) => {
+      led.mat.emissiveIntensity = t?.mcu?.led ? 3.2 : 0
+      warn.set(!!t?.mcu?.damage.length, performance.now() / 1000)
+    },
+  }
+}
+
 export function buildBoard(comp: ComponentInstance, _entry: CatalogEntry, pins: THREE.Vector3[]): BuildResult {
   const def = boardDef(comp.type)
   if (!def) throw new Error('unknown board')
   switch (def.type) {
     case 'arduino_uno':
     case 'arduino_mega':
+    case 'arduino_uno_r4_minima':
+    case 'arduino_uno_r4_wifi':
+    case 'arduino_leonardo':
       return buildArduino(def, pins)
     case 'esp32_devkit':
-      return buildEsp32(def, pins)
+    case 'esp8266_nodemcu':
+    case 'esp32s3_devkitc':
+      return buildPinsUp(def, pins)
     case 'arduino_nano':
       return buildNano(def, pins)
     case 'rpi_pico':
+    case 'rpi_pico_w':
+    case 'rpi_pico2':
       return buildPico(def, pins)
   }
+  if (DIP_LOOKS[def.type]) return buildDip(def, pins)
   throw new Error('unknown board')
 }
 

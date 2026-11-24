@@ -110,7 +110,7 @@ export function compileSketch(source: string, board: BoardDef): CompiledSketch {
   try {
     const { js } = transpile(source)
     const analog = Object.keys(board.analogAlias)
-    const names = [...API_NAMES, ...analog]
+    const names = [...API_NAMES, ...analog, ...Object.keys(board.pinAliases ?? {})]
     const body = `"use strict";\n{\n${js}\n;return { setup: typeof setup === "function" ? setup : null, loop: typeof loop === "function" ? loop : null };\n}`
     // eslint-disable-next-line no-new-func
     const factory = new Function(...names, body) as CompiledSketch['factory']
@@ -308,6 +308,8 @@ export class FastRuntime implements McuRuntime, FastHost {
     }
     const analogAliases: Record<string, unknown> = {}
     for (const [a, n] of Object.entries(b.analogAlias)) analogAliases[a] = n
+    // board pin constants (NodeMCU D0…D8, STM32 PA0…PC15)
+    for (const [a, n] of Object.entries(b.pinAliases ?? {})) analogAliases[a] = n
 
     const serial = {
       baud: 0,

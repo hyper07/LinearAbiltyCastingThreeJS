@@ -22,31 +22,37 @@ export const PIN_KIND_STYLE: Record<PinKind, { fill: string; ink: string; word: 
 /** the pin's own name without the duplicate suffix (GND2 → GND, 5V2 → 5V, SDA1 → SDA) */
 export function baseName(name: string): string {
   if (/^GND\d+$/.test(name)) return 'GND'
-  if (/^5V\d$/.test(name)) return '5V'
   if (name === 'SDA1') return 'SDA'
   if (name === 'SCL1') return 'SCL'
-  if (/^RESET\d$/.test(name)) return 'RESET'
+  const dup = /^(5V|3V3|RESET|RST|RSV|NC|VIN)\d$/.exec(name)
+  if (dup) return dup[1]
   return name
 }
 
 export function pinKind(name: string, def?: BoardDef): PinKind {
   const n = baseName(name)
   if (/^A?GND$/.test(n)) return 'gnd'
-  if (/^(5V|3V3|VIN|VBUS|VSYS|IOREF)$/.test(n)) return 'power'
-  if (/^(RESET|RST|RUN|EN|AREF|ADC_VREF|3V3_EN)$/.test(n)) return 'ctrl'
-  if (/^(SDA|SCL|TX\d?|RX\d?)$/.test(n)) return 'bus'
+  if (/^(5V|3V3|VIN|VBUS|VSYS|IOREF|VB)$/.test(n)) return 'power'
+  if (/^(RESET|RST|RUN|EN|AREF|ADC_VREF|3V3_EN|B0|B1|NC|RSV|CLK|CMD|SD\d)$/.test(n)) return 'ctrl'
+  if (/^(SDA|SCL|TX\d?|RX\d?|MISO|MOSI|SCK|SS)$/.test(n)) return 'bus'
   if (/^A\d+$/.test(n) || n === 'VP' || n === 'VN') return 'analog'
-  if (def?.type === 'rpi_pico' && def.adc[n] !== undefined) return 'analog'
+  if (def?.adcLabels && def.adc[n] !== undefined) return 'analog'
   if (def && Array.isArray(def.pwm) && def.pwm.includes(n)) return 'pwm'
   return 'digital'
 }
 
-/** the short label printed beside the pin (Arduino digital pins as ~9 / 13, like the real silkscreen) */
+/**
+ * the short label printed beside the pin, as on the real silkscreen: Arduino
+ * digital pins as ~9 / 13, bare numbers (Teensy 13, ESP32-S3 IO4 → 4), STM32
+ * port pins without the P (PA0 → A0)
+ */
 export function pinLabel(name: string, def?: BoardDef): string {
   const n = baseName(name)
-  if (def && (def.type === 'arduino_uno' || def.type === 'arduino_mega' || def.type === 'arduino_nano') && /^D\d+$/.test(n)) {
+  if (def?.silk === 'arduino' && /^D\d+$/.test(n)) {
     return `${pinKind(n, def) === 'pwm' ? '~' : ''}${n.slice(1)}`
   }
+  if (def?.silk === 'bare' && /^(D|IO)\d+$/.test(n)) return n.replace(/^(D|IO)/, '')
+  if (def?.silk === 'port' && /^P[A-K]\d+$/.test(n)) return n.slice(1)
   if (n === '3V3') return '3.3V'
   if (n === 'ADC_VREF') return 'VREF'
   if (n === '3V3_EN') return '3V3EN'
@@ -59,6 +65,6 @@ export function pinChip(name: string, def?: BoardDef): string {
   const k = pinKind(name, def)
   if (k === 'gnd' || (k === 'power' && n !== 'IOREF')) return n === '3V3' ? '3.3V' : n
   if (k === 'digital' || k === 'ctrl') return n
-  if (def?.type === 'rpi_pico' && k === 'analog') return `${n} · ADC${def.adc[n]}`
+  if (def?.adcLabels && k === 'analog' && def.adc[n] !== undefined) return `${n} · ADC${def.adc[n]}`
   return `${n} · ${PIN_KIND_STYLE[k].word}`
 }

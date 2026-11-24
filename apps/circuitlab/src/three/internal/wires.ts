@@ -44,6 +44,7 @@ import {
   parseTerminalRef,
 } from '../../model/breadboard'
 import { getEntry, paramOf, type CatalogEntry } from '../../model/catalog'
+import { boardDef } from '../../model/boards'
 import {
   routeAll,
   routeOne,
@@ -192,7 +193,7 @@ const TALL_LEADS_HEIGHTS: Record<string, number> = {
   multimeter: 5.6,
 }
 /** Circuit Lab: footprint parts taller than a pushbutton (boards, standing sensor modules) */
-const FOOTPRINT_HEIGHTS: Record<string, number> = { arduino_nano: 3.4, rpi_pico: 2.8, hcsr04: 9.4, dht22: 12.4 }
+const FOOTPRINT_HEIGHTS: Record<string, number> = { hcsr04: 9.4, dht22: 12.4 }
 /** electrolytic can top = 1.55 (passives.ts) — the flat 1.2 left zero margin */
 const ELECTROLYTIC_HEIGHT = 1.6
 /** vertical hole-entry rise — must match wire-router's ENTRY_RISE */
@@ -246,7 +247,7 @@ export function obstaclesForLayout(layout: CircuitLayout): RouteObstacle[] {
       entry.placement === 'dip'
         ? DIP_HEIGHT
         : entry.placement === 'footprint'
-          ? FOOTPRINT_HEIGHTS[comp.type] ?? BUTTON_HEIGHT
+          ? FOOTPRINT_HEIGHTS[comp.type] ?? boardDef(comp.type)?.bodyHeight ?? BUTTON_HEIGHT
           : leadsHeightFor(comp, entry)
     out.push({
       minX: minX - OBSTACLE_MARGIN,
@@ -656,8 +657,6 @@ function applyRibbons(
   }
 }
 
-/** boards whose headers are FEMALE sockets (a male DuPont pin goes in from the top) */
-const SOCKET_BOARDS: ReadonlySet<string> = new Set(['arduino_uno', 'arduino_mega'])
 /** modules whose cable ends in a FEMALE connector lying on the bench (a male jumper goes in sideways) */
 const FEMALE_MODULES: ReadonlySet<string> = new Set(['servo'])
 
@@ -673,7 +672,7 @@ export function wireEndStyle(layout: CircuitLayout, ref: string): { kind: 'hole'
   const c = layout.components.find((x) => x.id === t.componentId)
   const e = c ? getEntry(c.type) : undefined
   if (!c || !e || RIBBON_SKIP.has(e.category)) return { kind: 'post' }
-  if (e.category === 'board') return { kind: SOCKET_BOARDS.has(c.type) ? 'socket' : 'pin' }
+  if (e.category === 'board') return { kind: boardDef(c.type)?.header === 'female' ? 'socket' : 'pin' }
   const d = leadDir(layout, ref)
   return d ? { kind: FEMALE_MODULES.has(c.type) ? 'sideSocket' : 'side', dir: d } : { kind: 'pin' }
 }
