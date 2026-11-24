@@ -43,6 +43,7 @@ import { buildBuzzer, buildInstrumentBox, buildProbe } from './meshes/instrument
 import { tryModelOverride } from './meshes/gltf-overrides'
 import { buildBoard } from './meshes/boards'
 import { buildBenchUnit, buildDecade } from './meshes/bench'
+import { buildRfPart } from './meshes/rf'
 import { buildDht, buildLcd, buildMultimeter, buildNeopixel, buildOled, buildServo, buildUltrasonic } from './meshes/modules'
 
 export interface BuiltComponent {
@@ -222,6 +223,17 @@ function dispatch(
       case 'multimeter':
         if (pins.length >= 2) return buildMultimeter(comp, entry, pins)
         break
+      // Circuit Lab: measurement, filter and wireless parts (meshes/rf.ts)
+      case 'rf_bench':
+      case 'rf_antenna':
+      case 'rf_module':
+      case 'ferrite':
+      case 'cmchoke':
+      case 'lcfilter': {
+        const rf = buildRfPart(shape, comp, entry, pins)
+        if (rf) return rf
+        break
+      }
     }
   } catch {
     // never let a bad layout crash the scene — fall back to the labeled box

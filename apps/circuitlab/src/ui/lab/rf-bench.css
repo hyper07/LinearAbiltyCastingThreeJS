@@ -1,0 +1,34 @@
+/* RF / measurement bench panels (RfBench.tsx) */
+.rf-table td,
+.rf-table th {
+  white-space: nowrap;
+}
+.rf-good {
+  color: #30d158;
+  font-weight: 700;
+}
+.rf-ok {
+  color: #ffd60a;
+  font-weight: 700;
+}
+.rf-bad {
+  color: #ff453a;
+  font-weight: 700;
+}
+.rf-warn {
+  color: #ff9f0a;
+}
+.rf-budget {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.rf-ends {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.rf-ends input[type='range'] {
+  width: 140px;
+}

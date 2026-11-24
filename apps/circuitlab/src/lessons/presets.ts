@@ -5,6 +5,7 @@
  */
 import type { CircuitLayout, ComponentInstance, Wire } from '../model/types'
 import blinky555 from '../../examples/blinky-555.json'
+import { RF_PRESETS } from './presets-rf'
 
 export interface LessonControl {
   /** component id and runtime param the slider / button drives */
@@ -671,6 +672,8 @@ const CALLOUTS: Record<string, Callout[]> = {
   ],
 }
 for (const p of PRESETS) p.callouts = CALLOUTS[p.id]
+// noise, filters, measurement and wireless (presets-rf.ts)
+PRESETS.push(...RF_PRESETS)
 
 export function presetById(id: string): Preset | undefined {
   return PRESETS.find((p) => p.id === id)

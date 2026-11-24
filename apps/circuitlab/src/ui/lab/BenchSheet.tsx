@@ -15,9 +15,10 @@ import { download, drawPlot, fmt } from './plot'
 import './lab.css'
 import './bench.css'
 import { mono } from '../fonts'
+import { CounterPanel, LcrPanel, LinkPanel, NoisePanel, PowerPanel, RmsPanel, SdrPanel, SpectrumPanel, VnaPanel } from './RfBench'
 
 const SNAP = [0.6, 0.94] as const
-type Tab = 'gen' | 'scope' | 'dmm' | 'supply' | 'daq' | 'bode' | 'tracer'
+type Tab = 'gen' | 'scope' | 'dmm' | 'supply' | 'daq' | 'bode' | 'tracer' | 'counter' | 'spectrum' | 'rms' | 'lcr' | 'vna' | 'power' | 'noise' | 'link' | 'sdr'
 const TABS: { key: Tab; label: string; type: string }[] = [
   { key: 'gen', label: 'Generator', type: 'signal_generator' },
   { key: 'scope', label: 'Scope', type: 'oscilloscope' },
@@ -26,6 +27,16 @@ const TABS: { key: Tab; label: string; type: string }[] = [
   { key: 'daq', label: 'DAQ / VI', type: 'daq' },
   { key: 'bode', label: 'Bode', type: 'signal_generator' },
   { key: 'tracer', label: 'Curve tracer', type: 'curve_tracer' },
+  // measurement and wireless (RfBench.tsx)
+  { key: 'counter', label: 'Counter', type: 'freq_counter' },
+  { key: 'spectrum', label: 'Spectrum', type: 'spectrum_analyzer' },
+  { key: 'rms', label: 'RMS volts', type: 'rms_voltmeter' },
+  { key: 'lcr', label: 'LCR', type: 'lcr_meter' },
+  { key: 'vna', label: 'VNA', type: 'vna' },
+  { key: 'power', label: 'RF power', type: 'rf_power_meter' },
+  { key: 'noise', label: 'Noise', type: 'noise_source' },
+  { key: 'link', label: 'RF link', type: 'usrp_b210' },
+  { key: 'sdr', label: 'B210 SDR', type: 'usrp_b210' },
 ]
 
 function useFirst(type: string): ComponentInstance | undefined {
@@ -681,6 +692,15 @@ export function BenchSheet({ open, onDismiss, desktop = false, tab, setTab }: { 
         {tab === 'daq' && <DaqPanel />}
         {tab === 'bode' && <BodePanel />}
         {tab === 'tracer' && <TracerPanel />}
+        {tab === 'counter' && <CounterPanel />}
+        {tab === 'spectrum' && <SpectrumPanel />}
+        {tab === 'rms' && <RmsPanel />}
+        {tab === 'lcr' && <LcrPanel />}
+        {tab === 'vna' && <VnaPanel />}
+        {tab === 'power' && <PowerPanel />}
+        {tab === 'noise' && <NoisePanel />}
+        {tab === 'link' && <LinkPanel />}
+        {tab === 'sdr' && <SdrPanel />}
       </div>
     </Sheet>
   )

@@ -189,3 +189,45 @@ describe('the radio link model', () => {
     expect(linkTable(mk(50), w).find((r) => r.rx.compId === 'RX1')!.marginDb!).toBeGreaterThan(10)
   })
 })
+
+describe('RF lessons and limits', () => {
+  it('every RF lesson validates and runs clean in "check before you run"', async () => {
+    const { RF_PRESETS } = await import('../src/lessons/presets-rf')
+    const { validateLayout } = await import('../src/model/validate')
+    const { preflight } = await import('../src/sim/preflight')
+    for (const p of RF_PRESETS) {
+      const v = validateLayout(p.layout)
+      expect(v.errors, p.id).toEqual([])
+      expect(preflight(p.layout, 0.1, 4000).filter((i) => i.kind !== 'near').map((i) => `${i.kind}:${i.id}:${i.title}`), p.id).toEqual([])
+    }
+  })
+  it('the Sallen-Key lesson measures ≈ 1 kHz on the VNA; the dipole lesson starts off-tune', async () => {
+    const { RF_PRESETS } = await import('../src/lessons/presets-rf')
+    const sk = vnaSweep(RF_PRESETS.find((p) => p.id === 'sallen-key')!.layout, 'VNA1', 10, 1e5, 201)!
+    expect(sk.gainMode).toBe(true)
+    expect(sk.s21high!).toBeGreaterThan(900)
+    expect(sk.s21high!).toBeLessThan(1300)
+    const dip = vnaSweep(RF_PRESETS.find((p) => p.id === 'dipole-vna')!.layout, 'VNA1', 300e6, 600e6, 301, false)!
+    expect(dip.best.f / 1e6).toBeGreaterThan(400)
+    expect(dip.best.f / 1e6).toBeLessThan(414)
+  })
+  it('the twin-T notches 60 Hz and passes the 5 Hz sensor signal', async () => {
+    const { RF_PRESETS } = await import('../src/lessons/presets-rf')
+    const l = RF_PRESETS.find((p) => p.id === 'hum-notch')!.layout
+    // measure the notch with a VNA in place of the sources: port 1 at the input, high-Z port 2 at the output
+    const probe = { ...l, components: [...l.components.filter((c) => c.type !== 'noise_source' && c.type !== 'signal_generator'), at('VNA1', 'vna', -60, 22, { port2: 'high-Z (1 MΩ)' })], wires: [...l.wires.filter((x) => !/^(SG1|NS1):/.test(x.from) && !/^(SG1|NS1):/.test(x.to)), wire('VNA1:PORT1', 'b5'), wire('VNA1:PORT2', 'c13'), wire('VNA1:GND', 'top-25')] }
+    const r = vnaSweep(probe, 'VNA1', 2, 1000, 400)!
+    const near = (f: number) => r.points.reduce((a, b) => (Math.abs(Math.log(b.f / f)) < Math.abs(Math.log(a.f / f)) ? b : a)).s21db
+    expect(near(60)).toBeLessThan(-30)
+    expect(near(5)).toBeGreaterThan(-1.5)
+  })
+  it('an nRF24L01+ on 5 V and a B210 transmitting straight into its own RX would burn', async () => {
+    const { preflight } = await import('../src/sim/preflight')
+    const nrf = layout([{ id: 'PS1', type: 'bench_supply', pos: { x: -40, z: 24 } }, at('N1', 'nrf24l01', 10, 30)], [wire('PS1:5V', 'N1:VCC'), wire('PS1:COM', 'N1:GND')])
+    expect(preflight(nrf, 0.1, 4000).map((i) => `${i.kind}:${i.id}`)).toContain('burn:N1')
+    const sdr = layout([at('SDR1', 'usrp_b210', -40, 24, { txOn: true, txGain: 89.75 })], [wire('SDR1:TX/RX A', 'SDR1:RX2 A')])
+    const items = preflight(sdr, 0.1, 4000)
+    expect(items.map((i) => `${i.kind}:${i.id}`)).toContain('burn:SDR1')
+    expect(items.find((i) => i.id === 'SDR1')!.fix).toMatch(/attenuator/)
+  })
+})

@@ -11,6 +11,7 @@
 import type { CircuitLayout, ComponentInstance, ComponentTelemetry } from '../model/types'
 import { getEntry, paramOf, type CatalogEntry } from '../model/catalog'
 import { boardDef } from '../model/boards'
+import { rfStressOf } from './stress-rf'
 
 export interface StressReading {
   /** worst value / its limit (1 = right at the limit) */
@@ -159,6 +160,9 @@ export function stressOf(comp: ComponentInstance, entry: CatalogEntry, t: Compon
       return { ratio: vb / 9, reason: `${fmtV(vb)} across ${id} — this buzzer is for 3–6 V.`, fix: 'Power it from 5 V, or add a series resistor.' }
     }
   }
+  // Circuit Lab: RF inputs, radio supplies, filter ratings (stress-rf.ts)
+  const rf = rfStressOf(comp, entry, t)
+  if (rf !== undefined) return rf
   // chips: supply across VCC/VDD and GND/VSS
   const chip = CHIP_MAX.find(([re]) => re.test(type))
   if (chip) {
