@@ -301,17 +301,24 @@ describe('validateLayout rotation rules', () => {
     expect(res.errors.join('\n')).toContain('"rotation" must be 0, 90, 180 or 270')
   })
 
-  it('rejects the field on leads, probe and off-board parts (even rotation 0)', () => {
+  it('rejects the field on leads and probe parts (even rotation 0)', () => {
     const cases: ComponentInstance[] = [
       { ...twoLead('R1', 'resistor', 'a5', 'a9'), rotation: 0 },
       { ...leads('P1', 'scope_probe', ['j30']), rotation: 90 },
-      { ...supply5('PS2'), rotation: 180 },
     ]
     for (const comp of cases) {
       const res = validateLayout(poweredLayout([comp], []))
       expect(res.ok).toBe(false)
       expect(res.errors.join('\n')).toContain('does not take "rotation"')
     }
+  })
+
+  it('off-board units turn in quarter turns (and keep it through validation)', () => {
+    const res = validateLayout(poweredLayout([{ ...supply5('PS2'), rotation: 180 }], []))
+    expect(res.ok).toBe(true)
+    expect(res.layout?.components.find((c) => c.id === 'PS2')?.rotation).toBe(180)
+    const bad = validateLayout(poweredLayout([{ ...supply5('PS2'), rotation: 45 as never }], []))
+    expect(bad.ok).toBe(false)
   })
 
   it('a 180-rotated DIP wires by the rotated pin map', () => {

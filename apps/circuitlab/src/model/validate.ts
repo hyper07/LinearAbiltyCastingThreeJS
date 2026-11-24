@@ -369,13 +369,9 @@ export function validateLayout(input: unknown): ValidationResult {
     // rotation (dip/footprint packages only; absent = 0)
     let rotation: Rotation = 0
     if (raw.rotation !== undefined) {
-      if (
-        entry.placement === 'leads' ||
-        entry.placement === 'probe' ||
-        entry.placement === 'offboard'
-      ) {
+      if (entry.placement === 'leads' || entry.placement === 'probe') {
         errors.push(
-          `component "${id}" (${entry.type}) does not take "rotation" — only dip and footprint packages rotate; leaded parts orient by their hole placement and off-board instruments have no orientation. Remove the field`,
+          `component "${id}" (${entry.type}) does not take "rotation" — only chips, footprint boards and off-board units rotate; leaded parts orient by their hole placement. Remove the field`,
         )
       } else if (!isRotation(raw.rotation)) {
         errors.push(
@@ -443,7 +439,7 @@ export function validateLayout(input: unknown): ValidationResult {
         // sit clear of the active rig's board AND of every other instrument
         const slot = offboardSlot++
         if (posOk) {
-          const rect = offboardBodyRect(slot, pos, entry.type)
+          const rect = offboardBodyRect(slot, pos, entry.type, rotation)
           const ext = boardExtents(config)
           if (rectsOverlap(rect, ext)) {
             errors.push(
@@ -598,6 +594,7 @@ export function validateLayout(input: unknown): ValidationResult {
       if (rotation !== 0) comp.rotation = rotation
     }
     if (entry.placement === 'offboard' && pos) comp.pos = pos // round-trips export/import
+    if (entry.placement === 'offboard' && rotation !== 0) comp.rotation = rotation
     components.push(comp)
     if (idOk && !byId.has(id)) byId.set(id, { comp, entry, pinHoles: placementOk ? pinHoles : null })
   }

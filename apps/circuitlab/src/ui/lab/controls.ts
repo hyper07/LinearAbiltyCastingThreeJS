@@ -12,7 +12,7 @@ export const CONTROLS = {
       rows: [
         { id: 'place', keys: ['Click'], does: 'Pick a part in Parts, then click the holes for its legs', touch: 'Tap' },
         { id: 'wire', keys: ['W'], codes: ['KeyW'], does: 'Wire mode: click one hole or pin, then another', hint: true },
-        { id: 'rotate', keys: ['R'], codes: ['KeyR'], does: 'Rotate the part you are placing (or the selected chip)' },
+        { id: 'rotate', keys: ['R'], codes: ['KeyR'], does: 'Rotate the part you are placing, or the selected chip, board, servo, module or instrument (a quarter turn)' },
         { id: 'delete', keys: ['Delete'], codes: ['Delete', 'Backspace'], does: 'Remove the selection' },
         { id: 'board', keys: ['Click'], does: 'Click the bare holes of a breadboard to pick it (2+ boards), then Delete or Remove takes it off', touch: 'Tap' },
         { id: 'nudge', keys: ['←', '→', '↑', '↓'], codes: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'], does: 'Nudge the selected parts one hole (nothing selected: pan the view)' },

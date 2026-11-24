@@ -120,7 +120,7 @@ function wireEndpointClick(endpoint: string): void {
 function isRotatableComponent(st: AppState, id: string): boolean {
   const comp = st.layout.components.find((c) => c.id === id)
   const entry = comp ? getEntry(comp.type) : undefined
-  return !!entry && (entry.placement === 'dip' || entry.placement === 'footprint')
+  return !!entry && (entry.placement === 'dip' || entry.placement === 'footprint' || entry.placement === 'offboard')
 }
 
 /**
@@ -839,6 +839,7 @@ export default function App() {
         return { theta: (Math.atan2(off.x, off.z) * 180) / Math.PI, phi: (Math.acos(off.y / r) * 180) / Math.PI }
       },
       boardSelection: () => useStore.getState().boardSelection,
+      select: (id: string | null) => useStore.getState().select(id),
       /** where a board hole is on screen (the e2e checks click bare holes with it) */
       holeScreen: (ref: string) => {
         const h = parseHole(ref)
@@ -988,7 +989,7 @@ export default function App() {
     actionSheetActions.push({ label: 'Properties', onSelect: () => select(targetComp.id) })
     // dip/footprint packages only — the rotation feature's placed-part surface
     // (DIPs toggle 0↔180, footprints step to the next VALID quarter turn)
-    if (targetEntry && (targetEntry.placement === 'dip' || targetEntry.placement === 'footprint')) {
+    if (targetEntry && (targetEntry.placement === 'dip' || targetEntry.placement === 'footprint' || targetEntry.placement === 'offboard')) {
       actionSheetActions.push({
         label: 'Rotate',
         onSelect: () => rotatePlacedWithFeedback(targetComp.id),

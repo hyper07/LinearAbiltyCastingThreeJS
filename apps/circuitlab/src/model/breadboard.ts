@@ -702,16 +702,35 @@ export function offboardGeometry(type: string | undefined): OffboardGeometry | u
  * unit without `pos` renders byte-identically to the pre-movable layouts.
  * Types with registered geometry (boards) use their own header positions.
  */
+/**
+ * Turn a plan offset by an off-board unit's rotation: quarter turns CLOCKWISE
+ * in plan view (+x → +z at 90), the same sense as a chip's `rotation`; the
+ * unit turns about its anchor (`pos`). Matches three.js rotation.y = −rot.
+ */
+export function turnOffset(dx: number, dz: number, rot = 0): { x: number; z: number } {
+  switch (((rot % 360) + 360) % 360) {
+    case 90:
+      return { x: -dz, z: dx }
+    case 180:
+      return { x: -dx, z: -dz }
+    case 270:
+      return { x: dz, z: -dx }
+    default:
+      return { x: dx, z: dz }
+  }
+}
+
 export function offboardTerminalPosition(
   slot: number,
   pinIndex: number,
   pos?: { x: number; z: number },
   type?: string,
+  rot = 0,
 ): { x: number; z: number } {
   const a = offboardBodyPosition(slot, pos, type)
   const t = offboardGeometry(type)?.terminals[pinIndex]
-  if (t) return { x: a.x + t.dx, z: a.z + t.dz }
-  return { x: a.x + 2 + pinIndex * 2.5, z: a.z + 2 }
+  const o = t ? turnOffset(t.dx, t.dz, rot) : turnOffset(2 + pinIndex * 2.5, 2, rot)
+  return { x: a.x + o.x, z: a.z + o.z }
 }
 
 /** Wire attach height of an off-board terminal (null = the instruments' default post top). */
@@ -720,8 +739,9 @@ export function offboardTerminalY(type: string | undefined, pinIndex: number): n
 }
 
 /** Exit direction of an off-board terminal (bench instruments: toward +z). */
-export function offboardTerminalExit(type: string | undefined, pinIndex: number): { x: number; z: number } {
-  return offboardGeometry(type)?.terminals[pinIndex]?.exitDir ?? { x: 0, z: 1 }
+export function offboardTerminalExit(type: string | undefined, pinIndex: number, rot = 0): { x: number; z: number } {
+  const d = offboardGeometry(type)?.terminals[pinIndex]?.exitDir ?? { x: 0, z: 1 }
+  return turnOffset(d.x, d.z, rot)
 }
 
 /** Router obstacle height of an off-board unit. */
@@ -760,9 +780,12 @@ export function offboardBodyRect(
   slot: number,
   pos?: { x: number; z: number },
   type?: string,
+  rot = 0,
 ): { minX: number; maxX: number; minZ: number; maxZ: number } {
   const a = offboardBodyPosition(slot, pos, type)
   const geo = offboardGeometry(type)
-  if (geo) return { minX: a.x + geo.rect.x0, maxX: a.x + geo.rect.x1, minZ: a.z + geo.rect.z0, maxZ: a.z + geo.rect.z1 }
-  return { minX: a.x, maxX: a.x + 6.5, minZ: a.z - 2, maxZ: a.z + 2.5 }
+  const r = geo ? geo.rect : { x0: 0, x1: 6.5, z0: -2, z1: 2.5 }
+  const p = turnOffset(r.x0, r.z0, rot)
+  const q = turnOffset(r.x1, r.z1, rot)
+  return { minX: a.x + Math.min(p.x, q.x), maxX: a.x + Math.max(p.x, q.x), minZ: a.z + Math.min(p.z, q.z), maxZ: a.z + Math.max(p.z, q.z) }
 }

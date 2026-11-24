@@ -45,6 +45,7 @@ import {
   componentPinHoles,
   formatHole,
   isHoleOnBoard,
+  offboardBodyPosition,
   offboardBodyRect,
   parseHole,
   parseTerminalRef,
@@ -361,13 +362,13 @@ function rectsOverlap(a: PlanRect, b: PlanRect): boolean {
 function nudgeInstrumentsClear(layout: CircuitLayout): CircuitLayout {
   const config = boardConfigOf(layout)
   const ext = boardExtents(config)
-  const units: { compIndex: number; slot: number; pos?: { x: number; z: number }; type: string }[] = []
+  const units: { compIndex: number; slot: number; pos?: { x: number; z: number }; type: string; rot: number }[] = []
   let slot = 0
   layout.components.forEach((c, compIndex) => {
     const entry = getEntry(c.type)
-    if (entry?.placement === 'offboard') units.push({ compIndex, slot: slot++, pos: c.pos, type: c.type })
+    if (entry?.placement === 'offboard') units.push({ compIndex, slot: slot++, pos: c.pos, type: c.type, rot: c.rotation ?? 0 })
   })
-  const rects = units.map((u) => offboardBodyRect(u.slot, u.pos, u.type))
+  const rects = units.map((u) => offboardBodyRect(u.slot, u.pos, u.type, u.rot))
   const moved = new Map<number, { x: number; z: number }>() // unit index → new pos
   for (let i = 0; i < units.length; i++) {
     const pos = units[i].pos
@@ -377,11 +378,11 @@ function nudgeInstrumentsClear(layout: CircuitLayout): CircuitLayout {
     if (!blocked(rects[i])) continue
     let x = pos.x
     const z = ext.maxZ + 2.5 // body rect minZ = z−2 → strictly past the board edge
-    let r = offboardBodyRect(units[i].slot, { x, z }, units[i].type)
+    let r = offboardBodyRect(units[i].slot, { x, z }, units[i].type, units[i].rot)
     let guard = 4 * units.length + 8 // every unit blocks ≤2 shelf steps; always terminates
     while (blocked(r) && guard-- > 0) {
       x += 7
-      r = offboardBodyRect(units[i].slot, { x, z }, units[i].type)
+      r = offboardBodyRect(units[i].slot, { x, z }, units[i].type, units[i].rot)
     }
     moved.set(i, { x, z })
     rects[i] = r
@@ -1177,6 +1178,34 @@ export const useStore = create<AppState>()((set, get) => {
       const layout = get().layout
       const comp = layout.components.find((c) => c.id === id)
       const entry = comp ? getEntry(comp.type) : undefined
+      if (comp && entry?.placement === 'offboard') {
+        // an off-board unit (board, servo, module, instrument) turns a quarter
+        // turn clockwise about its own middle; if the turned body would hit
+        // the breadboard or another unit, it is slid clear onto the bench
+        const slot = layout.components.filter((c) => getEntry(c.type)?.placement === 'offboard').findIndex((c) => c.id === id)
+        const cur = comp.rotation ?? 0
+        const rot = ((cur + 90) % 360) as Rotation
+        const before = offboardBodyRect(slot, comp.pos, comp.type, cur)
+        const anchor = comp.pos ?? offboardBodyPosition(slot, undefined, comp.type)
+        const turned = offboardBodyRect(slot, anchor, comp.type, rot)
+        const snap = (v: number) => Math.round(v * 2) / 2
+        const pos = {
+          x: snap(anchor.x + (before.minX + before.maxX) / 2 - (turned.minX + turned.maxX) / 2),
+          z: snap(anchor.z + (before.minZ + before.maxZ) / 2 - (turned.minZ + turned.maxZ) / 2),
+        }
+        const components = layout.components.map((c) => {
+          if (c.id !== id) return c
+          const next: ComponentInstance = { ...c, pos }
+          if (rot === 0) delete next.rotation
+          else next.rotation = rot
+          return next
+        })
+        const candidate = nudgeInstrumentsClear({ ...layout, components })
+        if (!validateLayout(candidate).ok) return { ok: false }
+        pushHistory(`rotate:${id}`)
+        commitLayout(candidate)
+        return { ok: true }
+      }
       if (!comp || !entry || (entry.placement !== 'dip' && entry.placement !== 'footprint')) {
         return { ok: false }
       }

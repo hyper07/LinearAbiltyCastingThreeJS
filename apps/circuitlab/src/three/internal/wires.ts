@@ -274,14 +274,15 @@ export function instrumentsForLayout(layout: CircuitLayout): InstrumentObstacle[
     const entry = getEntry(comp.type)
     if (entry?.placement !== 'offboard') continue
     const mySlot = slot++
-    const rect = offboardBodyRect(mySlot, comp.pos, comp.type)
+    const rot = comp.rotation ?? 0
+    const rect = offboardBodyRect(mySlot, comp.pos, comp.type, rot)
     out.push({
       id: comp.id,
       ...rect,
       height: offboardBodyHeight(comp.type),
       terminals: entry.pins.map((_pin, i) => {
-        const p = offboardTerminalPosition(mySlot, i, comp.pos, comp.type)
-        return { x: p.x, z: p.z, exitDir: offboardTerminalExit(comp.type, i) }
+        const p = offboardTerminalPosition(mySlot, i, comp.pos, comp.type, rot)
+        return { x: p.x, z: p.z, exitDir: offboardTerminalExit(comp.type, i, rot) }
       }),
     })
   }
@@ -342,13 +343,13 @@ function makeEndpointResolver(
 ): (ref: string) => { x: number; y: number; z: number } | null {
   const offboard = new Map<
     string,
-    { slot: number; entry: CatalogEntry; pos?: { x: number; z: number } }
+    { slot: number; entry: CatalogEntry; pos?: { x: number; z: number }; rot: number }
   >()
   let slot = 0
   for (const comp of layout.components) {
     const entry = getEntry(comp.type)
     if (entry?.placement === 'offboard') {
-      offboard.set(comp.id, { slot: slot++, entry, pos: comp.pos })
+      offboard.set(comp.id, { slot: slot++, entry, pos: comp.pos, rot: comp.rotation ?? 0 })
     }
   }
   return (ref) => {
@@ -364,7 +365,7 @@ function makeEndpointResolver(
     const pinIdx = rec.entry.pins.indexOf(term.pin)
     if (pinIdx < 0) return null
     // explicit instrument pos (movable instruments) overrides the slot shelf
-    const p = offboardTerminalPosition(rec.slot, pinIdx, rec.pos, rec.entry.type)
+    const p = offboardTerminalPosition(rec.slot, pinIdx, rec.pos, rec.entry.type, rec.rot)
     return { x: p.x, y: offboardTerminalY(rec.entry.type, pinIdx) ?? TERMINAL_TOP_Y, z: p.z }
   }
 }
@@ -697,7 +698,7 @@ function leadDir(layout: CircuitLayout, ref: string): { x: number; z: number } |
   const c = layout.components.find((x) => x.id === t.componentId)
   const e = c ? getEntry(c.type) : undefined
   if (!c || !e || e.category === 'board') return null
-  const d = offboardTerminalExit(c.type, e.pins.indexOf(t.pin))
+  const d = offboardTerminalExit(c.type, e.pins.indexOf(t.pin), c.rotation ?? 0)
   const L = Math.hypot(d.x, d.z)
   return L > 1e-6 ? { x: d.x / L, z: d.z / L } : null
 }

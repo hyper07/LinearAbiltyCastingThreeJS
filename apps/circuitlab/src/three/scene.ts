@@ -2362,9 +2362,11 @@ export class BreadboardScene implements IBreadboardScene {
       for (let i = 0; i < entry.pins.length; i++) {
         const pin = entry.pins[i]
         // explicit bench position (movable instruments) overrides the shelf
-        const p = offboardTerminalPosition(slot, i, comp.pos, comp.type)
+        const p = offboardTerminalPosition(slot, i, comp.pos, comp.type, comp.rotation ?? 0)
         const topY = offboardTerminalY(comp.type, i) ?? TERMINAL_TOP_Y
-        pinPositions.push(new THREE.Vector3(p.x, 0, p.z))
+        // the mesh is built unturned and then turned as a whole (below)
+        const pu = comp.rotation ? offboardTerminalPosition(slot, i, comp.pos, comp.type) : p
+        pinPositions.push(new THREE.Vector3(pu.x, 0, pu.z))
         attach.push(new THREE.Vector3(p.x, topY, p.z))
 
         // invisible hit proxy aligned over the instrument mesh's panel-
@@ -2402,12 +2404,26 @@ export class BreadboardScene implements IBreadboardScene {
     // axial leaded parts take their router-planned pose (body + lead paths);
     // wire attachment stays at the holes (attach[] above) — routed leads
     // always enter their exact holes, so picking/telemetry are unaffected
-    const built = buildComponentObject(
+    let built = buildComponentObject(
       comp,
       entry,
       pinPositions,
       routedComponentPose(comp.id) ?? undefined,
     )
+    if (entry.placement === 'offboard' && comp.rotation) {
+      // a turned off-board unit: the whole body turns about its anchor
+      const a = offboardBodyPosition(slot, comp.pos, comp.type)
+      const pivot = new THREE.Group()
+      pivot.position.set(a.x, 0, a.z)
+      pivot.rotation.y = -(comp.rotation * Math.PI) / 180
+      built.object.position.x -= a.x
+      built.object.position.z -= a.z
+      pivot.add(built.object)
+      // the root stays at the origin: a bench drag slides it by the offset
+      const root = new THREE.Group()
+      root.add(pivot)
+      built = { ...built, object: root }
+    }
     built.object.userData.componentId = comp.id
     enableShadowCasting(built.object)
     // placed parts commit their matrices once (B2); telemetry/param updaters
@@ -3548,7 +3564,7 @@ export class BreadboardScene implements IBreadboardScene {
     if (!d || d.tint) return
     const rec = this.components.get(d.id)
     if (!rec) return
-    const rect = offboardBodyRect(rec.slot, rec.comp.pos, rec.comp.type)
+    const rect = offboardBodyRect(rec.slot, rec.comp.pos, rec.comp.type, rec.comp.rotation ?? 0)
     const mat = new THREE.MeshBasicMaterial({
       color: DRAG_TINT_VALID,
       transparent: true,
@@ -4200,7 +4216,7 @@ export class BreadboardScene implements IBreadboardScene {
     let slot = 0
     for (const comp of this.layout.components) {
       if (getEntry(comp.type)?.placement !== 'offboard') continue
-      const r = offboardBodyRect(slot++, comp.pos, comp.type)
+      const r = offboardBodyRect(slot++, comp.pos, comp.type, comp.rotation ?? 0)
       minX = Math.min(minX, r.minX - 0.8)
       maxX = Math.max(maxX, r.maxX + 0.8)
       minZ = Math.min(minZ, r.minZ - 0.5)
