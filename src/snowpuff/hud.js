@@ -75,6 +75,8 @@ export class Menus {
 
   clear() {
     this.el.innerHTML = '';
+    for (const off of this._offs ?? []) off();
+    this._offs = [];
   }
 
   click(sel, fn) {
@@ -173,6 +175,22 @@ export class Menus {
       row.append(b);
     }
     this.el.append(row);
+    // ◀ ▶ (and ← →) step through the mountains; the row and the camera glide to the one chosen
+    let current = picked;
+    const show = (id, smooth = true) => row.querySelector(`[data-mountain="${id}"]`)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant', inline: 'center', block: 'nearest' });
+    const step = (dir) => {
+      const i = Math.max(0, MOUNTAINS.findIndex((m) => m.id === current));
+      current = MOUNTAINS[(i + dir + MOUNTAINS.length) % MOUNTAINS.length].id;
+      onPick(current);
+      for (const x of row.children) x.setAttribute('aria-pressed', String(x.dataset.mountain === current));
+      show(current);
+    };
+    for (const b of row.children) b.addEventListener('click', () => {
+      current = b.dataset.mountain;
+      show(current);
+    });
+    requestAnimationFrame(() => show(current, false));
+    this.turnControls({ step });
     this.el.append(el('div', 'sp-col sp-nav', `<button class="sp-btn sp-btn--go" data-go>${esc(goLabel)}</button>`));
     this.el.querySelector('.sp-nav').style.bottom = 'auto';
     this.el.querySelector('.sp-nav').style.top = '16px';
@@ -181,6 +199,60 @@ export class Menus {
     this.click('[data-go]', onGo);
     this.click('[data-back]', onBack);
     setTimeout(() => this.el.querySelector('[data-go]')?.focus({ preventScroll: true }), 50);
+  }
+
+  /**
+   * Looking round the mountains: ◀ ▶ either side (or ← →) step to the previous or next one;
+   * dragging on the chosen one with a mouse or a finger turns it round (it keeps a little spin
+   * when you let go), and so do Q / E.
+   */
+  turnControls({ step }) {
+    const stage = this.game.stage;
+    if (!stage?.turnMountain) return;
+    const area = el('div', 'sp-turn', `<div class="sp-turn__drag" data-turn-drag aria-hidden="true"></div>
+      <button class="sp-turn__btn sp-turn__btn--l" data-step="-1" aria-label="Previous mountain">◀</button>
+      <button class="sp-turn__btn sp-turn__btn--r" data-step="1" aria-label="Next mountain">▶</button>
+      <div class="sp-turn__hint">◀ ▶ another mountain · drag or Q / E to turn it round</div>`);
+    this.el.prepend(area); // under the cards and buttons
+    for (const b of area.querySelectorAll('[data-step]')) {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.game.sound.wake();
+        this.game.sound.click();
+        step(Number(b.dataset.step));
+      });
+    }
+    const drag = area.querySelector('[data-turn-drag]');
+    let last = null;
+    drag.addEventListener('pointerdown', (e) => {
+      last = { x: e.clientX, t: performance.now() };
+      drag.setPointerCapture(e.pointerId);
+      drag.classList.add('is-dragging');
+    });
+    drag.addEventListener('pointermove', (e) => {
+      if (!last) return;
+      const now = performance.now();
+      stage.dragMountain(e.clientX - last.x, (now - last.t) / 1000);
+      last = { x: e.clientX, t: now };
+    });
+    const end = () => {
+      last = null;
+      drag.classList.remove('is-dragging');
+      stage.releaseMountain();
+    };
+    drag.addEventListener('pointerup', end);
+    drag.addEventListener('pointercancel', end);
+    const keys = (e) => {
+      if (e.target?.closest?.('input, textarea')) return;
+      if (e.code === 'KeyQ') stage.turnMountain(-1);
+      else if (e.code === 'KeyE') stage.turnMountain(1);
+      else if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && !e.repeat) {
+        e.preventDefault();
+        step(e.code === 'ArrowLeft' ? -1 : 1);
+      }
+    };
+    window.addEventListener('keydown', keys);
+    this._offs.push(() => window.removeEventListener('keydown', keys), () => stage.releaseMountain());
   }
 
   /** Race with friends: make a room or join one by its five-letter code. */

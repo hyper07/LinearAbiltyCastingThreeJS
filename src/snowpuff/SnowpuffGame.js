@@ -36,6 +36,7 @@ import { SnowSound } from './audio.js';
 import { Stage } from './stage.js';
 import { Hud, Menus, Loading, TouchControls, el } from './hud.js';
 import { OnlineRace } from './net.js';
+import { SideMirror } from './sideMirror.js';
 import { cleanName, randomName } from './names.js';
 
 const SAVE_KEY = 'snowpuff.save';
@@ -266,6 +267,7 @@ export class SnowpuffGame {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.mirror?.dispose();
     this.music?.dispose();
     this.loop?.stop();
     this._resize?.disconnect();
@@ -1541,7 +1543,12 @@ export class SnowpuffGame {
     const place = st.indexOf(this.me) + 1;
     this.nameTags();
     this.hud.update(simDt, { racers: this.racers, me: this.me, place, total: this.racers.length, time: r.clock, speed: this.me.rider.speed, slots: this.me.slots, course: r.course, world: this.world });
+    // the side mirror: a rear view on the left while someone is right behind you or passing
+    this.mirror ??= new SideMirror(this.renderer, this.hud.el);
+    const heading = frameAt(r.course, this.me.rider.s).heading + this.me.rider.yaw;
+    this.mirror.update(dt, { pos: this.me.pos, heading }, this.racers.filter((x) => x !== this.me && !x.gone), { active: this.mode === 'race', scene: this.scene, hz: this.tierName === 'low' ? 12 : 20, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches });
     this.pipe.render();
+    this.mirror.draw();
   }
 
   /**

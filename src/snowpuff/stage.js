@@ -320,11 +320,43 @@ export class Stage {
 
   setMountain(id) {
     this.mountain = id;
+    this.turnVel = 0;
+  }
+
+  /**
+   * Turn the chosen mountain yourself: `dir` −1 or +1 gives it a push (the
+   * arrows, Q/E); `dragMountain` follows a drag (radians from pixels) and
+   * flings on release. It slows to a stop, and its own slow turn comes back
+   * a few seconds after you let go.
+   */
+  turnMountain(dir) {
+    this.turnVel = (this.turnVel ?? 0) + dir * 2.6;
+    this.turnHold = 4;
+  }
+
+  dragMountain(dxPx, dt = 1 / 60) {
+    const d = this.dioramas?.get(this.mountain);
+    if (!d) return;
+    const a = dxPx * 0.011;
+    d.mtn.rotation.y += a;
+    this.turnVel = a / Math.max(1 / 120, dt);
+    this.turnHold = 4;
+    this.dragging = true;
+  }
+
+  releaseMountain() {
+    this.dragging = false;
   }
 
   update(dt, aspect) {
     this.t += dt;
     const k = 1 - Math.exp(-dt * 3.2);
+    // on the mountains, the camera glides along the row to the one chosen (there are more than fit)
+    const chosen = this.view === 'mountains' && this.dioramas?.get(this.mountain);
+    if (chosen) {
+      this.goalPos.x = chosen.g.position.x;
+      this.goalLook.x = chosen.g.position.x;
+    }
     this.camPos.lerp(this.goalPos, k);
     this.camLook.lerp(this.goalLook, k);
     const sway = Math.sin(this.t * 0.25) * 0.15;
@@ -353,7 +385,12 @@ export class Stage {
       const on = id === this.mountain;
       d.lift += ((on ? 0.35 : 0) - d.lift) * Math.min(1, dt * 5);
       d.g.position.y = d.lift;
-      d.mtn.rotation.y += dt * (on ? 0.35 : 0.05);
+      if (on) {
+        // your own turn (arrows, Q/E, drag) first; its slow idle turn only once you've let it be
+        this.turnHold = Math.max(0, (this.turnHold ?? 0) - dt);
+        if (!this.dragging) d.mtn.rotation.y += dt * ((this.turnVel ?? 0) + (this.turnHold > 0 ? 0 : 0.35));
+        this.turnVel = (this.turnVel ?? 0) * Math.exp(-dt * (this.dragging ? 12 : 2.4));
+      } else d.mtn.rotation.y += dt * 0.05;
       d.g.scale.setScalar(1 + d.lift * 0.25);
     }
     for (const m of this.podiumRiders) m.pose(dt, (m.st ??= { menu: true, cheer: m.cheer }));

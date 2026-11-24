@@ -192,3 +192,45 @@
 .sp-nametag { position: absolute; left: 0; top: 0; z-index: 8; padding: 2px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.88); color: var(--ink); font: 800 13px 'Nunito Variable', system-ui, sans-serif; box-shadow: 0 2px 0 rgba(42,47,74,.2); pointer-events: none; white-space: nowrap; will-change: transform; }
 .sp-nametag.me { background: var(--sun); font-size: 14px; }
 @media (max-width: 760px) { .sp-name { left: 50%; transform: translateX(-50%); top: 12%; width: 80vw; } }
+
+/* turning the chosen mountain (hud.js turnControls): drag on it, ◀ ▶, or Q / E */
+.sp-menu > .sp-turn { position: absolute; inset: 0; pointer-events: none; }
+.sp-turn__drag { position: absolute; left: 10%; right: 10%; top: 13%; bottom: 36%; pointer-events: auto; cursor: grab; touch-action: none; }
+.sp-turn__drag.is-dragging { cursor: grabbing; }
+.sp-turn__btn { position: absolute; top: 40%; width: 64px; height: 64px; border: 0; border-radius: 50%; pointer-events: auto; cursor: pointer; touch-action: none; user-select: none; background: rgba(255, 255, 255, 0.88); color: var(--ink); font: 900 26px/64px 'Nunito Variable', system-ui, sans-serif; box-shadow: var(--shadow); transition: transform 0.12s, background 0.12s; }
+.sp-turn__btn:hover, .sp-turn__btn:focus-visible { background: #fff; transform: scale(1.08); outline: none; box-shadow: 0 0 0 4px var(--sun), var(--shadow); }
+.sp-turn__btn:active { transform: scale(0.94); }
+.sp-turn__btn--l { left: 3%; }
+.sp-turn__btn--r { right: 3%; }
+.sp-turn__hint { position: absolute; left: 50%; top: 12%; transform: translateX(-50%); padding: 5px 14px; border-radius: 999px; background: rgba(42, 47, 74, 0.55); color: #fff; font: 800 13px/1.3 'Nunito Variable', system-ui, sans-serif; white-space: nowrap; pointer-events: none; }
+@media (max-width: 760px) {
+  .sp-turn__btn { width: 48px; height: 48px; font-size: 20px; line-height: 48px; top: 30%; }
+  .sp-turn__drag { top: 12%; bottom: 52%; }
+  .sp-turn__hint { font-size: 11.5px; top: 10%; }
+}
+
+/* the side mirror (sideMirror.js): a wing mirror on the left while a rider is right behind you or passing.
+   The picture is drawn by WebGL/WebGPU under the glass's transparent middle. */
+.sp-mirror { position: absolute; left: 22px; top: 27%; width: 256px; opacity: 0; transform: translateX(calc(-100% - 30px)); transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2), opacity 0.25s ease; pointer-events: none; }
+.sp-mirror.is-on { opacity: 1; transform: translateX(0); }
+.sp-mirror__glass { position: relative; width: 256px; height: 144px; border-radius: 18px;
+  /* a plump white housing with a candy rim, like the rest of Snowpuff's HUD */
+  box-shadow: 0 0 0 4px #fff, 0 0 0 8px var(--pink, #ff8fb7), 0 0 0 11px #fff, 0 6px 0 11px rgba(42, 47, 74, 0.25); }
+.sp-mirror__glass::after { content: 'closer than they appear'; position: absolute; right: 12px; bottom: 7px; font: 800 9px/1 'Nunito Variable', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(255, 255, 255, 0.8); text-shadow: 0 1px 2px rgba(42, 47, 74, 0.8); }
+.sp-mirror__tag { display: flex; align-items: baseline; gap: 7px; margin: 18px 0 0 4px; font-weight: 900; font-size: 17px; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; white-space: nowrap; }
+.sp-mirror__tag span { font-size: 13px; -webkit-text-stroke: 3px var(--ink); }
+.sp-mirror__arrow { font-style: normal; color: var(--sky, #5cc8ff); }
+@media (max-width: 760px) {
+  .sp-mirror { left: 12px; top: 22%; width: 160px; }
+  .sp-mirror__glass { width: 160px; height: 90px; border-radius: 13px; }
+  .sp-mirror__glass::after { display: none; }
+  .sp-mirror__tag { font-size: 14px; margin-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .sp-mirror { transition: opacity 0.15s linear; } }
+/* more mountains than fit across: the cards scroll, and ◀ ▶ glide the chosen one to the middle */
+.sp-mountains { max-width: 94vw; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; padding: 12px 24px 14px; box-sizing: border-box; }
+.sp-mountains::-webkit-scrollbar { display: none; }
+.sp-mountains .sp-mtn { flex: none; scroll-snap-align: center; }
+@media (max-width: 760px) {
+  .sp-mountains { max-height: 40vh; overflow-y: auto; overflow-x: hidden; padding: 8px; }
+}
