@@ -52,6 +52,17 @@ function wideSign(g, x, y, w, h, e) {
   g.save();
   g.textAlign = 'center';
   g.textBaseline = 'middle';
+  if (e.floor === 0) {
+    // A to-let banner: white cloth, red letters, a phone number.
+    g.fillStyle = '#f8f6f0';
+    g.fillRect(x, y, w, h);
+    g.fillStyle = '#d4161d';
+    fit(g, e.name, x + w * 0.36, y + h * 0.52, w * 0.6, h * 0.74);
+    g.fillStyle = '#1a1a1a';
+    fit(g, phone(e.name).replace('02-', '010-'), x + w * 0.81, y + h * 0.52, w * 0.34, h * 0.3, 700);
+    g.restore();
+    return;
+  }
   if (style === 2) {
     // A dark board with lit channel letters and an LED edge.
     g.fillStyle = '#1b1d22';

@@ -103,6 +103,8 @@ export const WORDS = {
 };
 /** Made-up names to go in front of the word (no real businesses). */
 export const PREFIXES = ['하늘', '바른', '별빛', '푸른', '한빛', '새봄', '다온', '해오름', '온누리', '미소', '행복', '우리', '늘봄', '소망', '은하', '가온', '다솜', '라온', '한결', '참'];
+/** The banner hung across an empty floor's windows (현수막): to let. */
+export const LEASE = ['임대 문의', '사무실 임대', '상가 임대', '전층 임대'];
 /** Tower names for the big letters at the top: generic, our own. */
 export const TOWERS = ['한빛타워', '미래빌딩', '대성빌딩', '청운타워', '새한생명', '동원빌딩', '세종타워', '가람빌딩'];
 
@@ -123,6 +125,8 @@ export function signNames() {
   for (const w of WORDS.ground) add(w, 1, 3);
   for (const w of WORDS.second) add(w, 2, 3);
   for (const w of WORDS.upper) add(w, 3, 2);
+  // Banners for an empty floor (floor 0: no tenant's sign).
+  for (const name of LEASE) out.push({ name, word: '임대', floor: 0 });
   return out;
 }
 

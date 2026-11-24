@@ -206,6 +206,8 @@ export class Facades {
       };
     } else if (key === 'trim') {
       m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.15 });
+    } else if (key === 'banner') {
+      m = new THREE.MeshStandardMaterial({ map: this.atlas.wide, roughness: 0.95, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 });
     } else if (key === 'fabric') {
       m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
     } else if (key === 'shutter') {
@@ -329,7 +331,8 @@ export class Facades {
             vec2 cid = floor(vM / cs);
             vec2 f = fract(vM / cs);
             vec2 p = f * cs;
-            float r = gh(cid + seed * 37.0);
+            // A curtain wall is lit by the floor (a whole office floor at once, BLDG_5), other glass room by room.
+            float r = kind == 4.0 ? gh(vec2(floor(cid.x / 7.0), cid.y) + seed * 37.0) : gh(cid + seed * 37.0);
             float r2 = gh(cid * 1.7 + seed * 11.0);
             vec3 N = normalize(vWN);
             vec3 V = normalize(vWP - cameraPosition);
@@ -484,6 +487,7 @@ export class Facades {
     area = Math.abs(area / 2);
     const type = buildingType({ kind: b.kind ?? 6, h: b.h, area, seed: b.seed ?? 0.5 });
     const spec = typeSpec(type, b.seed ?? 0.5);
+    b.type = type;
     // The road is laid 0.9 m over the land: the street level, and the height above it.
     const fl = b.top - b.h + 0.9;
     const H = Math.max(3, b.h - 0.9);
@@ -668,6 +672,19 @@ export class Facades {
         this._box(G, 'trim', W, s - 0.008, s + 0.008, o.y0 + 0.02, o.y1 - 0.02, 0.07, 0.09, gc);
       }
     }
+    // A villa's little railing across the lower half of a window (a flower-pot ledge).
+    if (o.rail) {
+      const rc = C('#d8dade');
+      const ry = o.y0 + 0.75;
+      this._box(G, 'trim', W, o.s0 - 0.05, o.s1 + 0.05, ry, ry + 0.04, 0.1, 0.25, rc);
+      this._box(G, 'trim', W, o.s0 - 0.05, o.s1 + 0.05, o.y0 - 0.02, o.y0 + 0.02, 0.06, 0.25, rc);
+      const bars = Math.max(3, Math.round(width / 0.15));
+      for (let k = 0; k <= bars; k++) {
+        const s = o.s0 + (width * k) / bars;
+        this._box(G, 'trim', W, s - 0.01, s + 0.01, o.y0, ry, 0.2, 0.23, rc);
+      }
+      for (const s of [o.s0 - 0.04, o.s1 + 0.04]) this._box(G, 'trim', W, s - 0.012, s + 0.012, o.y0, ry, 0.02, 0.25, rc);
+    }
     return { s0: o.s0, s1: o.s1, y0: o.y0, y1: o.y1, streak: o.streak };
   }
 
@@ -822,11 +839,21 @@ export class Facades {
           const s0 = sc - ww / 2;
           const s1 = sc + ww / 2;
           if (s0 < 0.3 || s1 > len - 0.3) continue;
-          holes.push(this._window(ctx, w, { s0, s1, y0, y1: type === 'villa' ? Math.min(y1, y0 + spec.winH) : y1, kind: type === 'villa' ? 1 : 0, finish, tint, grille: type === 'villa' && (k <= 2 || r() < 0.3) }));
+          const grille = type === 'villa' && (k <= 2 || r() < 0.3);
+          holes.push(this._window(ctx, w, { s0, s1, y0, y1: type === 'villa' ? Math.min(y1, y0 + spec.winH) : y1, kind: type === 'villa' ? 1 : 0, finish, tint, grille, rail: type === 'villa' && !grille && r() < 0.5 }));
           panes.push({ s0, s1, y0, y1 });
           // A villa's AC unit hung on the wall beside a window.
           if (type === 'villa' && r() < 0.35 && s1 + 1.0 < len) this._acUnit(ctx, W, s1 + 0.55, fy + 0.35);
         }
+      }
+      // An empty floor: a to-let banner across its windows, on some (현수막).
+      if (!ten && type !== 'villa' && len > 4 && r() < 0.45) {
+        const lease = this.atlas.names.findIndex((e) => e.floor === 0) + Math.floor(r() * 4);
+        const [u0, v0, u1, v1] = this.atlas.uv('wide', lease);
+        const bw = Math.min(len - 0.8, (y1 - y0) * 0.55 * 5.3);
+        const b0 = (len - bw) / 2;
+        const by = y0 + 0.08;
+        G.quad('banner', W.P(b0, by, 0.07), W.P(b0 + bw, by, 0.07), W.P(b0 + bw, by + bw / 5.3, 0.07), W.P(b0, by + bw / 5.3, 0.07), W.n, [[u0, v1], [u1, v1], [u1, v0], [u0, v0]], WHITE);
       }
       if (!ten || type === 'villa') continue;
       // The tenant's sign on the band under its windows, and its letters on the glass.
