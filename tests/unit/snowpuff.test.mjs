@@ -601,6 +601,23 @@ test('steering is quick: the turn builds in well under 0.2 s and a slalom edge c
   }
 });
 
+test('pose rig: steady at any frame rate — no whirring heads on a slow frame (rider select at 20–30 fps)', async () => {
+  const { PoseRig, J } = await import('../../src/snowpuff/render/poseRig.js');
+  const run = (fps, s) => {
+    const rig = new PoseRig({ stance: 1 });
+    let max = 0;
+    for (let i = 0; i < fps * 4; i++) max = Math.max(max, Math.abs(rig.update(1 / fps, s)[J.headYaw]));
+    return max;
+  };
+  for (const s of [{ menu: true }, { menu: true, cheer: true }, { speed: 18, edge: 0.6, steerIn: 1, lean: 0.3 }]) {
+    const smooth = run(60, s);
+    for (const fps of [30, 20, 12]) {
+      const slow = run(fps, s);
+      assert.ok(slow < 1.2 && Math.abs(slow - smooth) < 0.25, `${fps} fps: head turns ${slow.toFixed(2)} rad (60 fps: ${smooth.toFixed(2)})`);
+    }
+  }
+});
+
 test('pose rig: the head leads the board on a steer change; arms go to the right sides for toe and heel; no NaNs; no allocations', async () => {
   const { PoseRig, J } = await import('../../src/snowpuff/render/poseRig.js');
   const dt = 1 / 60;

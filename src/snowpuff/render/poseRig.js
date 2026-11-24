@@ -53,6 +53,8 @@ const N = 16;
 /** Spring stiffness (ω, rad/s) and damping ratio per joint. */
 const OMEGA = [34, 26, 20, 20, 16, 16, 13, 16, 15, 15, 15, 15, 20, 22, 18, 14];
 const ZETA = [1, 0.9, 0.9, 0.85, 0.85, 0.85, 0.9, 0.75, 0.55, 0.55, 0.55, 0.55, 0.9, 0.6, 1, 1];
+/** The longest step a spring takes (s): stable for every joint here (ω up to ~120). */
+const SPRING_STEP = 1 / 120;
 
 export const OPEN = 0.3; // how far the hips open toward the nose from straight side-on (a little: truly sideways, feet across the board)
 export const MAX_LEAN = 0.47; // ~27°
@@ -211,13 +213,19 @@ export class PoseRig {
       this.vel[J.armLRaise] += 9 * k;
       this.vel[J.armRRaise] -= 7 * k;
     }
-    // springs
+    // springs, in small fixed steps: the stiffest (the head, ω = 34) goes unstable with steps
+    // longer than ~1/34 s, so a slow frame (the fur-heavy rider select at 30 fps) would set the
+    // heads whirring like a motor. At most SPRING_STEP per step, whatever the frame rate.
     const V = this.value, W = this.vel;
+    const n = Math.max(1, Math.ceil(dt / SPRING_STEP));
+    const h = dt / n;
     for (let i = 0; i < N; i++) {
       const w = OMEGA[i], z = ZETA[i];
-      const a = (T[i] - V[i]) * w * w - 2 * z * w * W[i];
-      W[i] += a * dt;
-      V[i] += W[i] * dt;
+      for (let k = 0; k < n; k++) {
+        const a = (T[i] - V[i]) * w * w - 2 * z * w * W[i];
+        W[i] += a * h;
+        V[i] += W[i] * h;
+      }
       if (!Number.isFinite(V[i])) {
         V[i] = T[i] || 0;
         W[i] = 0;
