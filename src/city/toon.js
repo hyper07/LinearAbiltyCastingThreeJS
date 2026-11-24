@@ -89,13 +89,14 @@ export const CHARACTER_ORDER = ['haru', 'taeo', 'sora', 'rio', 'dami', 'hajin'];
 export const ALT = { over: '#2b2d33', shirt: '#ff6a1a', bike: '#2b2d33', bagColor: '#ff6a1a' };
 
 const LINE = '#2a2030';
-const CELL = 288;
-const COLS = 8;
-const PPM = 112; // pixels a metre
-const GROUND = 268; // the ground line in a cell, pixels from its top
+/** The atlas: cells of CELL pixels, COLS across; PPM pixels a metre; the ground GROUND pixels down a cell. */
+export const CELL = 288;
+export const COLS = 8;
+export const PPM = 112;
+export const GROUND = 268;
 /** Views baked, by how far round the camera is from behind the racer (radians, camera on the racer's right). */
 export const VIEWS = [0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4, Math.PI];
-const TILT_CAM = 0.2; // the chase camera looks down a little
+export const TILT_CAM = 0.2; // the chase camera looks down a little
 const BIKE_BUILD = {
   city: { step: true, bars: 'swept', tyre: 3.6, fenders: true, basket: true, lean: 0.3 },
   road: { bars: 'drop', tyre: 2.2, lean: 0.85 },
@@ -1278,10 +1279,11 @@ export class ToonRider {
       this.tex.repeat.set((mirror ? -1 : 1) / COLS, 1 / this.rows);
       this.tex.offset.set(mirror ? u0 + 1 / COLS : u0, v0);
     }
-    this.material.emissiveIntensity = 0.2 + night * 0.24;
+    // Its own light: enough to read in the dark, not so much it glows at night.
+    this.material.emissiveIntensity = 0.2 - night * 0.06;
     // A rider right up against the camera (someone else's, alongside) fades so you can see past.
     const near = Math.hypot(_v.x, _v.z);
-    this.material.opacity = Math.max(0.15, Math.min(1, (near - 1.2) / 2.2));
+    this.material.opacity = this.fade === false ? 1 : Math.max(0.15, Math.min(1, (near - 1.2) / 2.2));
   }
 
   dispose() {
