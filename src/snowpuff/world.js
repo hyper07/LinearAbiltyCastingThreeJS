@@ -10,7 +10,7 @@
 import * as THREE from 'three/webgpu';
 import { uniform, vec3, float, mix, smoothstep, positionLocal, positionWorld, instanceIndex, sin, time, hash, uv, step, fract, mx_noise_float, abs, normalWorld, max, dot, pow, positionViewDirection, normalView, attribute, color, vec4, mrt, texture, cameraPosition } from 'three/tsl';
 import { instanceColor as instanceColorNode } from './render/instanceColor.js';
-import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT, project } from './course.js';
+import { frameAt, groundAt, toWorld, rampShape, rng, RUNOUT, project, sectionAt } from './course.js';
 import { snowMaterial, iceMaterial } from './render/snow.js';
 import { loadKit, instance, fadeNearLens } from './render/models.js';
 import { RiderModel } from './render/riderModel.js';
@@ -598,14 +598,15 @@ export class World {
         const f = frameAt(c, s, _f);
         for (const sd of [-1, 1]) {
           // near the fence: trees right at the edge sell the speed
-          if (r() < m.trees.near * 0.32) {
+          const forest = c.sections && sectionAt(c, s)?.kind === 'forest';
+          if (r() < (forest ? 0.75 : m.trees.near * 0.32)) {
             const lat = sd * (f.width + 4.6 + r() * 4);
             const p = toWorld(c, s + r() * 2, lat, 0, _p);
             if (!this.valid(p.x, p.z, s, lat)) continue;
             (r() < 0.75 ? spruce : pine).push({ x: p.x, y: p.y - 0.2, z: p.z, ry: r() * 6.28, s: 0.75 + r() * 0.55 });
           }
           // the forest on the mountainside
-          const n = Math.floor(m.trees.density * 2.4 + r());
+          const n = Math.floor(m.trees.density * (forest ? 4.5 : 2.4) + r());
           for (let i = 0; i < n; i++) {
             const lat = sd * (f.width + 9 + r() ** 0.8 * 52);
             const p = toWorld(c, s + r() * 2.5, lat, 0, _p);

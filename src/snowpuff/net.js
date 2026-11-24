@@ -13,6 +13,7 @@ import { ALL_SPECIES } from './riders.js';
 import { cleanName } from './names.js';
 import { cleanGoggle } from './goggleList.js';
 import { cleanBoard } from './boardList.js';
+import { cleanMode } from './course.js';
 
 export class OnlineRace {
   constructor({ name = 'Rider', species = 'fox', goggles = 'classic', board = 'classic', onChange = () => {}, onGo = () => {}, onMessage = () => {}, onClosed = () => {} } = {}) {
@@ -27,6 +28,7 @@ export class OnlineRace {
     this.onClosed = onClosed;
     this.members = new Map(); // id → { id, name, species }
     this.mountain = 'marshmallow';
+    this.mode = 'quick';
     this.error = '';
     this.busy = false;
     this.remote = new Map(); // slot → InterpBuffer
@@ -75,7 +77,7 @@ export class OnlineRace {
   }
 
   state() {
-    return { room: this.room, members: [...this.members.values()], host: this.session.host, you: this.you, isHost: this.isHost, mountain: this.mountain, error: this.error, busy: this.busy };
+    return { room: this.room, members: [...this.members.values()], host: this.session.host, you: this.you, isHost: this.isHost, mountain: this.mountain, mode: this.mode, error: this.error, busy: this.busy };
   }
 
   reset() {
@@ -164,6 +166,13 @@ export class OnlineRace {
     else this.session.sendTo(this.session.host, { t: MSG.hi, name: this.name, species: this.species, goggles: this.goggles, board: this.board });
   }
 
+  /** Host: the race length for everyone (Quick, Long trail, 3 Laps). */
+  setMode(mode) {
+    this.mode = cleanMode(mode);
+    if (this.isHost) this.sendLobby();
+    this.onChange();
+  }
+
   setMountain(id) {
     this.mountain = id;
     if (this.isHost) this.sendLobby();
@@ -171,7 +180,7 @@ export class OnlineRace {
   }
 
   sendLobby() {
-    this.session.send({ t: MSG.lobby, mountain: this.mountain, members: [...this.members.values()] });
+    this.session.send({ t: MSG.lobby, mountain: this.mountain, mode: this.mode, members: [...this.members.values()] });
   }
 
   /** Host: start the race for everyone; returns the slots. */
@@ -179,7 +188,7 @@ export class OnlineRace {
     const members = [...this.members.values()].sort((a, b) => (a.id === this.you ? -1 : b.id === this.you ? 1 : Number(a.id) - Number(b.id)));
     const slots = assignSlots(members, Math.max(total, members.length), ALL_SPECIES);
     this.slots = slots;
-    this.session.send({ t: MSG.go, mountain: this.mountain, slots });
+    this.session.send({ t: MSG.go, mountain: this.mountain, mode: this.mode, slots });
     return slots;
   }
 
@@ -201,6 +210,7 @@ export class OnlineRace {
       case MSG.lobby: {
         if (m.from !== this.session.host) return;
         this.mountain = String(m.mountain ?? 'marshmallow');
+        this.mode = cleanMode(m.mode);
         this.members.clear();
         for (const x of m.members ?? []) this.members.set(String(x.id), cleanMember(x, ALL_SPECIES));
         const me = this.members.get(this.you);
@@ -216,8 +226,9 @@ export class OnlineRace {
         if (m.from !== this.session.host) return;
         this.slots = (m.slots ?? []).map((s) => ({ slot: s.slot | 0, id: String(s.id), name: s.name == null ? null : cleanName(s.name), species: ALL_SPECIES.includes(s.species) ? s.species : 'fox', goggles: cleanGoggle(s.goggles), board: cleanBoard(s.board), human: Boolean(s.human), kind: s.kind ?? null }));
         this.mountain = String(m.mountain);
+        this.mode = cleanMode(m.mode);
         this.remote.clear();
-        this.onGo({ mountain: this.mountain, slots: this.slots });
+        this.onGo({ mountain: this.mountain, mode: this.mode, slots: this.slots });
         return;
       }
       case MSG.state: {

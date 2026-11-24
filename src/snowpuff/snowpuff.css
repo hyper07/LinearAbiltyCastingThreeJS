@@ -97,6 +97,19 @@
 .sp-pos.first b, .sp-pos.first sup { color: var(--sun); }
 .sp-pos.bump { animation: sp-bump 0.4s; }
 @keyframes sp-bump { 40% { transform: scale(1.25) rotate(-4deg); } }
+.sp-stage { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); padding: 2px 12px; border-radius: 99px; background: rgba(255,255,255,.85); color: var(--ink); font: 900 13px 'Nunito Variable', system-ui, sans-serif; white-space: nowrap; opacity: 0; transition: opacity .3s; box-shadow: 0 2px 0 rgba(42,47,74,.15); }
+.sp-stage.on { opacity: 1; }
+.sp-stage.pop { animation: sp-stagepop .6s ease; }
+@keyframes sp-stagepop { 0% { transform: translateX(-50%) scale(1.5); } 100% { transform: translateX(-50%) scale(1); } }
+.sp-lift { position: absolute; right: 24px; top: 50%; transform: translate(30px, -50%); opacity: 0; pointer-events: none; transition: opacity .4s, transform .4s; background: rgba(255,255,255,.9); border-radius: 22px; padding: 14px 18px; min-width: 230px; color: var(--ink); box-shadow: var(--shadow); font-family: 'Nunito Variable', system-ui, sans-serif; }
+.sp-lift.on { opacity: 1; transform: translate(0, -50%); }
+.sp-lift h3 { margin: 0 0 8px; font-size: 17px; font-weight: 900; }
+.sp-lift ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sp-lift li { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; }
+.sp-lift li.me { color: var(--pink); }
+.sp-lift li small { font-weight: 700; color: #7a8099; }
+.sp-lift .sp-chair { font-size: 14px; opacity: .7; }
+.sp-lift p { margin: 8px 0 0; font-weight: 800; font-size: 13px; color: #5a6078; }
 .sp-strip { position: absolute; left: 50%; top: 14px; width: min(46vw, 620px); transform: translateX(-50%); height: 48px; }
 .sp-strip__path { position: absolute; left: 0; top: 0; width: 100%; height: 48px; }
 .sp-fly { position: absolute; z-index: 15; margin: -22px 0 0 -22px; width: 44px; height: 44px; display: grid; place-items: center; font-size: 40px; pointer-events: none; transition: transform 0.55s cubic-bezier(.5,-0.3,.6,1), opacity 0.55s; filter: drop-shadow(0 3px 0 rgba(42,47,74,.3)); }
@@ -196,6 +209,11 @@
 .sp-goggles__head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 900; font-size: 16px; }
 .sp-goggles__head b { font-weight: 800; font-size: 14px; color: var(--pink, #ff4b8b); }
 .sp-standing__board { display: inline-grid; place-items: center; margin: 0 4px 0 -6px; font-style: normal; }
+.sp-modes { display: flex; gap: 6px; margin-top: 8px; }
+.sp-mode { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 2px solid #e3e7f1; background: #fff; border-radius: 14px; padding: 6px 4px; cursor: pointer; font-family: 'Nunito Variable', system-ui, sans-serif; color: var(--ink); }
+.sp-mode b { font-weight: 900; font-size: 14px; }
+.sp-mode small { font-size: 11px; color: #7a8099; font-weight: 700; }
+.sp-mode[aria-checked="true"] { border-color: var(--pink); background: #fff4fa; }
 .sp-world__ride { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; color: #5a6078; }
 .sp-tabs { display: inline-flex; gap: 4px; background: #eef1f8; border-radius: 99px; padding: 3px; }
 .sp-tab { border: 0; background: transparent; font: 900 14px 'Nunito Variable', system-ui, sans-serif; color: var(--ink); padding: 4px 12px; border-radius: 99px; cursor: pointer; }

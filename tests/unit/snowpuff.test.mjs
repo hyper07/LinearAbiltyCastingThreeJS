@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MOUNTAINS, mountainById } from '../../src/snowpuff/mountains.js';
-import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt } from '../../src/snowpuff/course.js';
+import { buildCourse, frameAt, groundAt, toWorld, project, between, rng, profile, kickerAt, RACE_MODES, LAPS, sectionAt } from '../../src/snowpuff/course.js';
 import { newRider, step, settle, trickName, onIce, VMAX } from '../../src/snowpuff/physics.js';
-import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_SNOWBALLS, SPINOUT, giveItem, useSlot, rollGift, ITEMS, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor } from '../../src/snowpuff/race.js';
+import { newRacer, standings, ordinal, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, useShield, tickRacer, flyProjectile, projectilePos, MAX_SNOWBALLS, SPINOUT, giveItem, useSlot, rollGift, ITEMS, newGiant, rollGiant, giantHits, applyBowl, dropIce, meltIce, draftFactor, checkLap, tickLift, LIFT, LIFT_SKIP } from '../../src/snowpuff/race.js';
 import { newBrain, think } from '../../src/snowpuff/ai.js';
 import { packState, unpackState, packThrow, unpackThrow, assignSlots, cleanMember, InterpBuffer, MSG } from '../../src/snowpuff/netproto.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES, faceSvg } from '../../src/snowpuff/riders.js';
@@ -787,5 +787,91 @@ test('hits: a snowball tumbles you once (≤ 1.5 s, fair speed loss); a giant on
   }
   assert.ok(t <= 1.5 && b.rider.speed > 7, `rolled ${t.toFixed(2)} s`);
   assert.ok(ev.some((e) => e.type === 'unroll'), 'bursts free');
+});
+
+/** Race AI riders through a course (with laps and the chairlift); returns [ride times (median first-sorted), wall clock]. */
+function aiRace(c, kinds = ['careful', 'reckless', 'thrower'], limit = 400) {
+  const rand = rng(11);
+  const racers = kinds.map((k, i) => {
+    const r = newRider({ s: 4, lat: (i - 1) * 2.5 });
+    settle(r, c);
+    const rc = newRacer({ slot: i, rider: r });
+    rc.brain = newBrain(k, rand);
+    return rc;
+  });
+  let t = 0;
+  while (t < limit && !racers.every((x) => x.finished)) {
+    t += DT;
+    for (const rc of racers) {
+      if (rc.finished) continue;
+      if (rc.liftT > 0) {
+        if (tickLift(rc, DT)) {
+          rc.rider = newRider({ s: 4, lat: (rc.slot - 1) * 2.5 });
+          settle(rc.rider, c);
+        }
+        continue;
+      }
+      step(rc.rider, think(rc.brain, rc, c, racers, DT), c, DT);
+      if (!checkLap(rc, c)) checkFinish(rc, c, t);
+    }
+  }
+  return [racers.map((x) => (x.finished ? x.time : 999)).sort((x, y) => x - y), t, racers];
+}
+
+test('race length: every mountain builds Long and Laps the same every time, with their sections and laps', () => {
+  for (const m of MOUNTAINS) {
+    for (const mode of RACE_MODES) {
+      const a = buildCourse(m, { mode }), b = buildCourse(m, { mode });
+      assert.equal(a.length, b.length);
+      for (const i of [0, 100, Math.floor(a.n / 2), a.n - 1]) assert.equal(a.px[i], b.px[i], `${m.id} ${mode}: deterministic`);
+      assert.deepEqual(a.kickers.map((k) => k.s), b.kickers.map((k) => k.s));
+      if (mode === 'long') {
+        assert.ok(a.length > m.length * 2, `${m.id}: a long trail`);
+        assert.deepEqual(a.sections.map((x) => x.kind), ['top', 'forest', 'bowl', 'jumps', 'gully', 'sprint']);
+        const park = a.sections.find((x) => x.kind === 'jumps');
+        assert.ok(a.kickers.filter((k) => k.s >= park.s0 && k.s < park.s1).length >= 3, `${m.id}: a jump park`);
+        assert.equal(sectionAt(a, a.length - 10).kind, 'sprint');
+        assert.ok(frameAt(a, (a.sections[2].s0 + a.sections[2].s1) / 2).width > frameAt(a, (a.sections[4].s0 + a.sections[4].s1) / 2).width * 1.6, 'the bowl is wide, the gully narrow');
+      }
+      assert.equal(a.laps, mode === 'laps' ? LAPS : 1);
+    }
+  }
+});
+
+test('race length: AI finish times — Long about 150–180 s; 3 Laps three laps of ride time plus the lifts', () => {
+  for (const m of MOUNTAINS) {
+    const [quick] = aiRace(buildCourse(m));
+    const [long] = aiRace(buildCourse(m, { mode: 'long' }));
+    assert.ok(long[1] >= 140 && long[1] <= 190, `${m.id}: long median ${long[1].toFixed(1)} s`);
+    const [laps, wall] = aiRace(buildCourse(m, { mode: 'laps' }));
+    assert.ok(Math.abs(laps[1] - quick[1] * 3) < quick[1] * 0.35, `${m.id}: laps ${laps[1].toFixed(1)} vs 3 × ${quick[1].toFixed(1)}`);
+    assert.ok(wall >= laps[0] + 2 * LIFT - 0.1, 'the lifts take their time on the clock');
+  }
+});
+
+test('laps: counted at the line, the chairlift (skippable after 3 s), the finish only after the last lap, order by ride time', () => {
+  const c = buildCourse(MOUNTAINS[0], { mode: 'laps' });
+  const a = racerAt(0, 10), b = racerAt(1, 10);
+  a.rider.s = c.finish + 0.5;
+  assert.ok(!checkFinish(a, c, 60), 'no finish on lap 1');
+  assert.ok(checkLap(a, c) && a.lap === 2 && a.liftT === LIFT);
+  assert.ok(!checkLap(a, c), 'once');
+  assert.ok(!tickLift(a, 1, true), 'no skipping in the first seconds');
+  assert.ok(!tickLift(a, LIFT_SKIP - 1 + 0.01, false));
+  assert.ok(tickLift(a, 0.01, true), 'skip after 3 s');
+  assert.ok(Math.abs(a.liftTotal - (LIFT_SKIP + 0.02)) < 1e-6);
+  a.lap = 3;
+  a.rider.s = c.finish + 1;
+  assert.ok(!checkLap(a, c) && checkFinish(a, c, 200));
+  assert.ok(Math.abs(a.time - (200 - a.liftTotal)) < 1e-9, 'lift time not counted');
+  b.lap = 3;
+  b.rider.s = c.finish + 1;
+  b.liftTotal = 18;
+  checkFinish(b, c, 210); // later on the clock, but less ride time (a full 18 s in lifts)
+  assert.deepEqual(standings([a, b]).map((x) => x.slot), [1, 0]);
+  // mid-race: a lap ahead beats further down the slope
+  const x = racerAt(2, 100), y = racerAt(3, 900);
+  x.lap = 2;
+  assert.deepEqual(standings([y, x]).map((r) => r.slot), [2, 3]);
 });
 

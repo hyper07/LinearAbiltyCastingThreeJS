@@ -22,14 +22,15 @@ import { GameMusic } from '../shared/gameMusic.js';
 import { CONTROLS } from './controls.js';
 import { MOUNTAINS, mountainById } from './mountains.js';
 import { SPECIES, SELECTABLE, ALL_SPECIES } from './riders.js';
-import { buildCourse, frameAt, groundAt, toWorld, rng } from './course.js';
+import { buildCourse, frameAt, groundAt, toWorld, rng, cleanMode } from './course.js';
 import { newRider, step, settle, SLIP } from './physics.js';
-import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, ROLLED, dropIce, meltIce, draftFactor } from './race.js';
+import { separate, newRacer, standings, rubberBand, checkFinish, pickups, pickTarget, canThrow, makeThrow, hittable, applyHit, tickRacer, flyProjectile, projectilePos, estimateFinish, checkLap, tickLift, LIFT, LIFT_SKIP, useSlot, giveItem, newGiant, rollGiant, giantHits, applyBowl, GIANT_LIFE, ROLLED, dropIce, meltIce, draftFactor } from './race.js';
 import { newBrain, think } from './ai.js';
 import { makeRenderer, Pipeline, TIERS, TIER_ORDER, backendName } from './render/pipeline.js';
 import { Sky, distantPeaks } from './render/sky.js';
 import { SnowTrails } from './render/snow.js';
 import { RiderModel } from './render/riderModel.js';
+import { instance } from './render/models.js';
 import { World } from './world.js';
 import { Effects } from './fx.js';
 import { SnowSound } from './audio.js';
@@ -57,9 +58,9 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY) ?? '{}');
-    return { rider: SELECTABLE.includes(s.rider) ? s.rider : 'fox', mountain: MOUNTAINS.some((m) => m.id === s.mountain) ? s.mountain : 'marshmallow', best: s.best ?? {}, quality: s.quality ?? 'auto', sound: s.sound !== false, name: s.name ?? '' };
+    return { rider: SELECTABLE.includes(s.rider) ? s.rider : 'fox', mountain: MOUNTAINS.some((m) => m.id === s.mountain) ? s.mountain : 'marshmallow', best: s.best ?? {}, quality: s.quality ?? 'auto', sound: s.sound !== false, name: s.name ?? '', length: cleanMode(s.length) };
   } catch {
-    return { rider: 'fox', mountain: 'marshmallow', best: {}, quality: 'auto', sound: true, name: '' };
+    return { rider: 'fox', mountain: 'marshmallow', best: {}, quality: 'auto', sound: true, name: '', length: 'quick' };
   }
 }
 
@@ -127,6 +128,7 @@ class Input {
       jump: this.held('jump') || Boolean(this.touch.jump) || Boolean(pad?.jump),
       throw: this.hit('item1') || this.pressed.has('throw') || Boolean(pad?.throw),
       shield: this.hit('item2') || this.pressed.has('item2') || Boolean(pad?.shield),
+      skip: this.hit('jump') || this.pressed.has('throw') || Boolean(this.touch.jump),
       help: this.hit('help'),
       pause: this.hit('pause') || Boolean(pad?.pause)
     };
@@ -175,7 +177,7 @@ export class SnowpuffGame {
 
   persist() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ rider: this.picked, mountain: this.mountainId, best: this.save.best, quality: this.save.quality, sound: this.save.sound, name: this.save.name }));
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ rider: this.picked, mountain: this.mountainId, best: this.save.best, quality: this.save.quality, sound: this.save.sound, name: this.save.name, length: this.save.length }));
     } catch {
       /* private mode */
     }
@@ -434,6 +436,12 @@ export class SnowpuffGame {
         this.stage.setMountain(id);
         this.persist();
       },
+      mode: this.save.length,
+      onMode: (k) => {
+        this.save.length = cleanMode(k);
+        this.persist();
+        return this.save.length;
+      },
       onGo: () => this.startRace({ mountain: this.mountainId }),
       onBack: () => this.showRiders()
     });
@@ -449,7 +457,7 @@ export class SnowpuffGame {
       goggles: this.goggles,
       board: this.boardId,
       onChange: () => this.screen === 'lobby' && this.mode === 'menu' && this.renderLobby(),
-      onGo: (g) => this.startRace({ mountain: g.mountain, slots: g.slots, online: true }),
+      onGo: (g) => this.startRace({ mountain: g.mountain, mode: g.mode, slots: g.slots, online: true }),
       onMessage: (m) => this.netMessage(m),
       onClosed: () => this.netClosed()
     });
@@ -464,13 +472,14 @@ export class SnowpuffGame {
       onStart: () => {
         const total = Math.max(n.members.size, mountainById(n.mountain).rivals + 1);
         const slots = n.start(total);
-        this.startRace({ mountain: n.mountain, slots, online: true });
+        this.startRace({ mountain: n.mountain, mode: n.mode, slots, online: true });
       },
       onBack: () => {
         if (n.active) n.leave();
         else this.showTitle();
       },
-      onMountain: (id) => n.setMountain(id)
+      onMountain: (id) => n.setMountain(id),
+      onMode: (k) => n.setMode(k)
     });
     this.stage.pick(this.picked);
   }
@@ -497,7 +506,7 @@ export class SnowpuffGame {
     this.world = null;
   }
 
-  async startRace({ mountain, slots = null, online = false }) {
+  async startRace({ mountain, mode = this.save.length, slots = null, online = false }) {
     if (this.mode === 'loading') return;
     this.sound.wake();
     this.mode = 'loading';
@@ -507,7 +516,7 @@ export class SnowpuffGame {
     this.mountainId = m.id;
     this.disposeRace();
     await new Promise((r) => setTimeout(r, 30));
-    const course = buildCourse(m);
+    const course = buildCourse(m, { mode: cleanMode(mode) });
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(62, this.w / this.h, 0.25, m.peak ? 7000 : 5200);
     this.camera = camera;
@@ -626,6 +635,12 @@ export class SnowpuffGame {
     const rack = goggleRack();
     rack.add(boardRack());
     rack.position.set(cam.x, cam.y - 0.5, cam.z - 5);
+    // the chairlift between laps, drawn once now
+    if (this.race.course.laps > 1) {
+      this.liftChair?.removeFromParent();
+      this.liftChair = this.makeLiftChair();
+      this.liftChair.position.set(cam.x, cam.y - 1, cam.z - 7);
+    }
     this.scene.add(rack);
     // the things made on first use: a giant snowball, a dropped ice patch, a falling clump of snow
     fx.giant(0, cam.x, cam.y - 1, cam.z - 8, 1, 0, 0);
@@ -651,6 +666,7 @@ export class SnowpuffGame {
     for (const o of culled) o.frustumCulled = true;
     rack.removeFromParent();
     rack.traverse((o) => o.isMesh && o.geometry.dispose());
+    if (this.liftChair) this.liftChair.visible = false;
     fx.clear();
     this.world.syncIce(c.dynIce);
     this.world.dropSnow(-1);
@@ -781,13 +797,17 @@ export class SnowpuffGame {
     const order = standings(this.racers);
     const placeOf = (rc) => (this.racers.length > 1 ? order.indexOf(rc) / (this.racers.length - 1) : 0.5);
     // ---- you
-    if (!me.finished) {
+    if (me.liftT > 0) {
+      // on the chairlift between laps (Space or a tap skips it after a few seconds)
+      if (tickLift(me, dt, Boolean(first && inp.skip))) this.respawn(me);
+    } else if (!me.finished) {
       const ev = step(me.rider, { steer: inp.steer ?? 0, tuck: inp.tuck, jump: inp.jump, flip: inp.flip ?? 0 }, c, dt, { draft: draftFactor(me, this.racers) });
       this.riderEvents(me, ev);
       if (first && inp.throw) this.useItem(me, 0);
       if (first && inp.shield) this.useItem(me, 1);
       for (const e of pickups(me, c, r.clock, placeOf(me))) this.pickupEvent(me, e);
-      if (checkFinish(me, c, r.clock)) this.onFinish(me);
+      if (checkLap(me, c)) this.onLap(me);
+      else if (checkFinish(me, c, r.clock)) this.onFinish(me);
     } else {
       step(me.rider, {}, c, dt, { brake: true });
     }
@@ -796,6 +816,10 @@ export class SnowpuffGame {
     const humanS = online ? Math.max(...this.racers.filter((x) => x.human).map((x) => x.rider.s)) : me.rider.s;
     for (const rc of this.racers) {
       if (rc === me || !rc.local) continue;
+      if (rc.liftT > 0) {
+        if (tickLift(rc, dt)) this.respawn(rc);
+        continue;
+      }
       if (rc.finished) {
         step(rc.rider, {}, c, dt, { brake: true });
         continue;
@@ -806,7 +830,8 @@ export class SnowpuffGame {
       if (ai.use != null) this.useItem(rc, ai.use);
       for (const e of pickups(rc, c, r.clock, placeOf(rc))) if (e.type === 'gift' && this.near(rc, 40)) this.fx.giftBurst(rc.pos.x, rc.pos.y + 0.8, rc.pos.z);
       tickRacer(rc, dt);
-      if (checkFinish(rc, c, r.clock)) this.onFinish(rc);
+      if (checkLap(rc, c)) this.onLap(rc);
+      else if (checkFinish(rc, c, r.clock)) this.onFinish(rc);
     }
     // ---- shoves between riders side by side (the harder carver wins)
     for (const [a, b, winner] of separate(this.racers, (x) => x.local && !x.finished)) {
@@ -871,7 +896,7 @@ export class SnowpuffGame {
 
   /** A little word bubble over a rider (shoves, hits, waves). */
   emote(rc, text, delay = 0) {
-    if (!this.near(rc, 30)) return;
+    if (!this.near(rc, 30) || rc.liftT > 0 || this.me?.liftT > 0) return;
     setTimeout(() => {
       const at = this.toScreen(rc.pos.x, rc.pos.y + 1.9, rc.pos.z);
       if (at) this.hud.bubble(at[0], at[1], text);
@@ -1024,6 +1049,8 @@ export class SnowpuffGame {
     rd.boost = st.boost ? 0.2 : 0;
     rd.carve = Math.abs(st.edge);
     rc.shieldT = st.shield ? 1 : 0;
+    rc.lap = st.lap ?? 1;
+    rc.liftT = st.lift ? Math.max(rc.liftT ?? 0, 0.01) : 0;
     rc.gifts = st.gifts;
     rc.ammo = st.ammo;
     if (st.finished && !rc.finished) {
@@ -1310,10 +1337,12 @@ export class SnowpuffGame {
     const meRow = rows.find((x) => x.me) ?? rows[0];
     const place = rows.indexOf(meRow) + 1;
     const m = r.mountain;
-    const old = this.save.best[m.id];
+    // best times per mountain and race length (Quick keeps the mountain's own key)
+    const bk = r.course.mode === 'quick' ? m.id : `${m.id}:${r.course.mode}`;
+    const old = this.save.best[bk];
     const newBest = !old || meRow.time < old.time;
-    if (newBest) this.save.best[m.id] = { time: meRow.time, place };
-    else if (place < old.place) this.save.best[m.id] = { ...old, place };
+    if (newBest) this.save.best[bk] = { time: meRow.time, place };
+    else if (place < old.place) this.save.best[bk] = { ...old, place };
     this.persist();
     this.mode = 'results';
     this.screen = 'results';
@@ -1434,6 +1463,13 @@ export class SnowpuffGame {
       ps.unweight = rc.rider.unweight ?? 0; ps.spinV = rc.rider.spinV ?? 0; ps.latAcc = rd.latAcc; ps.yawRate = yawRate; ps.lookYaw = lookYaw;
       ps.idle = this.mode === 'countdown';
       ps.boost = rd.boost > 0;
+      // on the chairlift: sitting on a chair, boards dangling (only yours is shown, the others are up there too)
+      const lifting = rc.liftT > 0;
+      ps.menu = lifting;
+      if (lifting && rc.me && this.liftChair) {
+        root.position.copy(this.liftChair.position).add(this.liftSeat);
+        root.rotation.set(0, this.liftChair.rotation.y, 0);
+      }
       rc.model.pose(dt, ps);
       // the glove dragging in the snow on a hard toeside carve leaves a little spray
       if (rc.model.handDrag > 0.4 && this.near(rc, 40) && Math.random() < rc.model.handDrag * 0.9) {
@@ -1485,6 +1521,7 @@ export class SnowpuffGame {
   placeCamera(dt, snapCam = false) {
     const r = this.race;
     const me = this.me;
+    if (me.liftT > 0 && this.liftChair) return this.liftCamera(dt);
     const rd = this.vis(me);
     const c = r.course;
     const f = frameAt(c, rd.s, {});
@@ -1612,6 +1649,81 @@ export class SnowpuffGame {
     for (const lf of c.lifts) if (lf.kind === 'cross' && lf.s > s0 && lf.s <= s1) this.sound.whoosh(0, 1.3);
   }
 
+  /** A lap done (3 Laps): up the chairlift; gifts restocked. */
+  onLap(rc) {
+    rc.rider.speed = 0;
+    if (rc.me) {
+      this.world.resetPickups?.();
+      this.hud.say(`Lap ${rc.lap}!`, 'trick');
+      this.sound.bell?.(1);
+      this.liftChair ??= this.makeLiftChair();
+      this.liftChair.visible = true;
+      this.race.liftCam = null;
+    }
+  }
+
+  /** Back at the top after the chairlift. */
+  respawn(rc) {
+    const c = this.race.course;
+    const i = this.racers.indexOf(rc), n = this.racers.length;
+    const lat = (i - (n - 1) / 2) * Math.min(2.8, (frameAt(c, 6).width * 1.6) / n);
+    const fresh = newRider({ s: 6 - (i % 2) * 2.5, lat });
+    for (const k of Object.keys(rc.rider)) if (!(k in fresh)) delete rc.rider[k];
+    Object.assign(rc.rider, fresh);
+    settle(rc.rider, c);
+    rc.prev = { s: rc.rider.s, lat: rc.rider.lat };
+    rc.prevState = null;
+    rc.model.root.visible = true;
+    if (rc.me) {
+      if (this.liftChair) this.liftChair.visible = false;
+      this.hud.lift(null);
+      this.race.camPos = null;
+      this.hud.say('Go!', 'boost');
+    }
+  }
+
+  /** The chair you ride between laps (a real chairlift chair, from the mountain's own kit). */
+  makeLiftChair() {
+    const K = this.world.kits;
+    const g = new THREE.Group();
+    if (K.chair) g.add(instance(K.chair, [{ x: 0, y: 0, z: 0, s: 1.25 }]));
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 400, 5).rotateX(Math.PI / 2), new THREE.MeshStandardNodeMaterial({ color: '#30343c', roughness: 0.4 }));
+    cable.position.y = (K.chair?.size.y ?? 2) * 1.25;
+    g.add(cable);
+    this.scene.add(g);
+    this.liftSeat = new THREE.Vector3(0, 0.5, 0);
+    return g;
+  }
+
+  /** The chairlift ride: the chair climbs beside the run; the camera looks past you at the view. */
+  liftCamera(dt) {
+    const r = this.race, c = r.course, me = this.me;
+    const u = 1 - me.liftT / LIFT;
+    const W = frameAt(c, 60).width;
+    const a = toWorld(c, 190, -(W + 16), 9, {}), b = toWorld(c, 15, -(W + 16), 24, {});
+    const ch = this.liftChair;
+    ch.position.set(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, a.z + (b.z - a.z) * u);
+    const dx = a.x - b.x, dz = a.z - b.z;
+    // facing out over the run toward the view (downhill)
+    ch.rotation.y = Math.atan2(-dx, -dz) + Math.PI;
+    const l = Math.hypot(dx, dz) || 1;
+    // the seat: up on the chair and forward of its back, facing the view
+    this.liftSeat.set((dx / l) * 0.32, 0.62, (dz / l) * 0.32);
+    const cam = this.camera;
+    cam.up.set(0, 1, 0);
+    // behind and to one side, above: your rider on the chair, boards dangling, and the view beyond
+    cam.position.set(ch.position.x - (dx / l) * 4.6 - (dz / l) * 3.6, ch.position.y + 3.6, ch.position.z - (dz / l) * 4.6 + (dx / l) * 3.6);
+    const hero = this.world.hero?.userData.place;
+    const look = hero ? new THREE.Vector3(hero.x, hero.y + hero.height * 0.55, hero.z) : new THREE.Vector3(ch.position.x + (dx / l) * 60, ch.position.y - 18, ch.position.z + (dz / l) * 60);
+    const toward = look.sub(cam.position).normalize();
+    cam.lookAt(cam.position.x + toward.x * 10, cam.position.y + toward.y * 10 - 1.2, cam.position.z + toward.z * 10);
+    if (Math.abs(cam.fov - 58) > 0.01) {
+      cam.fov = 58;
+      cam.updateProjectionMatrix();
+    }
+    this.hud.lift({ lap: me.lap, laps: c.laps, order: standings(this.racers), canSkip: LIFT - me.liftT >= LIFT_SKIP });
+  }
+
   /**
    * Keep riders out of the lens: one right by the camera, or close and off
    * to the side or below it (where a fuzzy plush would fill a corner of the
@@ -1622,6 +1734,10 @@ export class SnowpuffGame {
     cam.updateMatrixWorld();
     const v = (this._lens ??= new THREE.Vector3());
     for (const rc of this.racers) {
+      if (rc.liftT > 0 && !rc.me) {
+        rc.model.root.visible = false;
+        continue;
+      }
       if (rc.me || rc.gone) continue;
       v.set(rc.pos.x, rc.pos.y + 0.55, rc.pos.z);
       const d = v.distanceTo(cam.position);
@@ -1708,7 +1824,7 @@ export class SnowpuffGame {
     const others = (this._others ??= []);
     others.length = 0;
     for (const x of this.racers) if (x !== this.me && !x.gone) others.push(x);
-    this.mirror.update(dt, { pos: this.me.pos, heading }, others, { active: this.mode === 'race', scene: this.scene, exposure: (r.mountain.grade?.exposure ?? 1) * 0.82 });
+    this.mirror.update(dt, { pos: this.me.pos, heading }, others, { active: this.mode === 'race' && !(this.me.liftT > 0), scene: this.scene, exposure: (r.mountain.grade?.exposure ?? 1) * 0.82 });
     this.pipe.render();
     if (this.mirror.wantSnap) {
       // the panel's still looks back at riders the main camera hides (they are right by its lens)

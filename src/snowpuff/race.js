@@ -26,7 +26,7 @@ export const PILE_GIVES = 2;
 export const ITEMS = ['snowballs', 'giant', 'shield', 'boost', 'ice'];
 
 export function newRacer({ slot, id = `ai${slot}`, name = 'Rider', species = 'fox', human = false, rider }) {
-  return { slot, id, name, species, human, rider, slots: [], ammo: 0, shieldT: 0, throwCd: 0, itemCd: 0, hits: 0, bonks: 0, bumps: 0, gifts: 0, tricks: 0, lastHitBy: -1, best: '', finished: false, time: 0, taken: new Set(), draft: 0 };
+  return { slot, id, name, species, human, rider, slots: [], ammo: 0, shieldT: 0, throwCd: 0, itemCd: 0, hits: 0, bonks: 0, bumps: 0, gifts: 0, tricks: 0, lastHitBy: -1, best: '', finished: false, time: 0, taken: new Set(), draft: 0, lap: 1, liftT: 0, liftTotal: 0 };
 }
 
 /* ------------------------------------------------------------------ standings */
@@ -37,7 +37,8 @@ export function standings(racers) {
     if (a.finished && b.finished) return a.time - b.time;
     if (a.finished) return -1;
     if (b.finished) return 1;
-    return b.rider.s - a.rider.s;
+    if ((a.lap ?? 1) !== (b.lap ?? 1)) return (b.lap ?? 1) - (a.lap ?? 1);
+    return (b.liftT > 0 ? -1e6 + b.liftT : b.rider.s) - (a.liftT > 0 ? -1e6 + a.liftT : a.rider.s) || 0;
   });
 }
 
@@ -59,15 +60,40 @@ export function rubberBand(aiS, humanS) {
 
 /** The time a racer still on the course would probably finish in (for the podium after the cut-off). */
 export function estimateFinish(racer, course, now) {
-  const left = Math.max(0, course.finish - racer.rider.s);
-  return now + left / Math.max(9, racer.rider.speed);
+  const lapsLeft = Math.max(0, (course.laps ?? 1) - (racer.lap ?? 1));
+  const left = Math.max(0, course.finish - (racer.liftT > 0 ? 0 : racer.rider.s)) + lapsLeft * course.finish;
+  return now - (racer.liftTotal ?? 0) + left / Math.max(9, racer.rider.speed);
+}
+
+/** The chairlift ride back up between laps (s); you may skip it after LIFT_SKIP s. */
+export const LIFT = 9;
+export const LIFT_SKIP = 3;
+
+/** Crossed the line with laps still to go? Then up the chairlift (true once, as it starts). */
+export function checkLap(racer, course) {
+  if (racer.finished || racer.liftT > 0 || racer.rider.s < course.finish || (racer.lap ?? 1) >= (course.laps ?? 1)) return false;
+  racer.lap = (racer.lap ?? 1) + 1;
+  racer.liftT = LIFT;
+  racer.taken.clear(); // gifts restocked for the next lap
+  return true;
+}
+
+/**
+ * Ride the chairlift: true when it's over (put the racer back at the top).
+ * The lift's time doesn't count toward the race time (so skipping is fair).
+ */
+export function tickLift(racer, dt, skip = false) {
+  if (!(racer.liftT > 0)) return false;
+  racer.liftTotal = (racer.liftTotal ?? 0) + dt;
+  racer.liftT = skip && LIFT - racer.liftT >= LIFT_SKIP ? 0 : Math.max(0, racer.liftT - dt);
+  return racer.liftT <= 0;
 }
 
 /** Has this racer crossed the line in this step? Records the time once. */
 export function checkFinish(racer, course, now) {
-  if (racer.finished || racer.rider.s < course.finish) return false;
+  if (racer.finished || racer.liftT > 0 || racer.rider.s < course.finish || (racer.lap ?? 1) < (course.laps ?? 1)) return false;
   racer.finished = true;
-  racer.time = now;
+  racer.time = now - (racer.liftTotal ?? 0);
   racer.rider.finished = true;
   return true;
 }

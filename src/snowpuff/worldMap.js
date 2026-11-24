@@ -139,7 +139,7 @@ export function worldMap(host, { picked, best = {}, onPick, onGo, fmt = (t) => t
       <div class="sp-diff">${stars(m.difficulty)}</div>
       <p class="sp-world__fact">${esc(m.fact ?? '')}</p>
       <p class="sp-world__blurb">${esc(m.blurb)}</p>
-      <div class="sp-best">${b ? `Best: ${fmt(b.time)} · ${ordinal(b.place)}` : 'Not raced yet'}</div>${footer}`;
+      <div class="sp-best">${b ? `Best: ${fmt(b.time)} · ${ordinal(b.place)}` : 'Not raced yet'}</div>${typeof footer === 'function' ? footer(m) : footer}`;
   };
   const select = (id, { zoom = false } = {}) => {
     current = id;

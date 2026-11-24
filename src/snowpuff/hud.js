@@ -11,6 +11,7 @@ import { SPECIES, SELECTABLE, faceSvg } from './riders.js';
 import { GOGGLES, goggleChip, randomGoggle } from './goggleList.js';
 import { BOARDS, boardChip, randomBoard, boardInfo } from './boardList.js';
 import { MOUNTAINS } from './mountains.js';
+import { sectionAt } from './course.js';
 import { worldMap } from './worldMap.js';
 import { ordinal } from './race.js';
 import { hintItems } from '../shared/helpPanel.js';
@@ -30,6 +31,7 @@ export const fmtTime = (t) => {
   const m = Math.floor(t / 60), s = t - m * 60;
   return `${m}:${s < 10 ? '0' : ''}${s.toFixed(1)}`;
 };
+const MODE_NAMES = { quick: 'Quick', long: 'Long trail', laps: '3 Laps' };
 const diffStars = (n) => `<span aria-label="difficulty ${n} of 3">${'❄'.repeat(n)}<i>${'❄'.repeat(3 - n)}</i></span>`;
 const SNOWBALL = '<svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="15" fill="#fff"/><circle cx="15" cy="15" r="5" fill="#fff" opacity=".9"/><path d="M8 24 Q20 32 32 24" stroke="#c9d8f2" stroke-width="3" fill="none"/></svg>';
 const SHIELD = '<svg viewBox="0 0 40 40"><path d="M20 4 L34 10 V20 C34 29 27 34 20 37 C13 34 6 29 6 20 V10Z" fill="#fff" stroke="#3ab8e8" stroke-width="3"/><path d="M20 12 L22.5 18 L29 18.5 L24 22.5 L25.6 29 L20 25.5 L14.4 29 L16 22.5 L11 18.5 L17.5 18Z" fill="#7fe8ff"/></svg>';
@@ -223,12 +225,12 @@ export class Menus {
     setTimeout(() => this.el.querySelector('[data-next]')?.focus({ preventScroll: true }), 50);
   }
 
-  mountains({ picked, best, onPick, onGo, onBack, goLabel = 'Race! ›', board = 'classic' }) {
+  mountains({ picked, best, onPick, onGo, onBack, goLabel = 'Race! ›', board = 'classic', mode = 'quick', onMode = null }) {
     this.clear();
     this.el.append(el('div', 'sp-heading sp-heading--map', 'Choose a mountain'));
     const map = worldMap(this.el, {
       picked, best, fmt: fmtTime, ordinal,
-      footer: `<div class="sp-world__ride">${boardChip(board, 30)}<span>Riding the <b>${esc(boardInfo(board).name)}</b> board</span></div>`,
+      footer: () => `${onMode ? `<div class="sp-modes" role="radiogroup" aria-label="Race length">${[['quick', 'Quick', '1–1½ min'], ['long', 'Long trail', '2½–3 min'], ['laps', '3 Laps', 'with a chairlift']].map(([k, n, d]) => `<button class="sp-mode" role="radio" data-mode="${k}" aria-checked="${k === mode}"><b>${n}</b><small>${d}</small></button>`).join('')}</div>` : ''}<div class="sp-world__ride">${boardChip(board, 30)}<span>Riding the <b>${esc(boardInfo(board).name)}</b> board</span></div>`,
       onPick: (id) => {
         this.game.sound.wake();
         this.game.sound.click();
@@ -236,6 +238,17 @@ export class Menus {
       },
       onGo
     });
+    // race length: Quick, Long trail, 3 Laps (remembered; online the host picks)
+    const modeClick = (e) => {
+      const b = e.target.closest?.('[data-mode]');
+      if (!b || !onMode) return;
+      e.stopPropagation();
+      this.game.sound.click();
+      mode = onMode(b.dataset.mode) ?? b.dataset.mode;
+      for (const x of this.el.querySelectorAll('[data-mode]')) x.setAttribute('aria-checked', String(x.dataset.mode === mode));
+    };
+    this.el.addEventListener('click', modeClick);
+    (this._offs ??= []).push(() => this.el.removeEventListener('click', modeClick));
     this._offs.push(() => map.dispose());
     this.turnControls({ step: (dir) => map.step(dir) });
     this.el.querySelector('.sp-turn')?.classList.add('sp-turn--side');
@@ -302,7 +315,7 @@ export class Menus {
   }
 
   /** Race with friends: make a room or join one by its five-letter code. */
-  lobby(state, { onCreate, onJoin, onStart, onBack, onMountain }) {
+  lobby(state, { onCreate, onJoin, onStart, onBack, onMountain, onMode }) {
     this.clear();
     const s = state;
     const card = el('div', 'sp-card sp-lobby');
@@ -317,8 +330,9 @@ export class Menus {
       const mtn = MOUNTAINS.find((x) => x.id === s.mountain) ?? MOUNTAINS[0];
       card.innerHTML = `<h2>Your room</h2><p>Share this code:</p><div class="sp-code" data-room>${esc(s.room)}</div>
         <div class="sp-members">${members}</div>
-        <p><b>Mountain:</b> ${esc(mtn.name)} ${'❄'.repeat(mtn.difficulty)}</p>
+        <p><b>Mountain:</b> ${esc(mtn.name)} ${'❄'.repeat(mtn.difficulty)} · <b>${MODE_NAMES[s.mode] ?? 'Quick'}</b></p>
         ${s.isHost ? `<div class="sp-row">${MOUNTAINS.map((m) => `<button class="sp-btn sp-btn--small${m.id === s.mountain ? ' sp-btn--blue' : ''}" data-m="${m.id}">${esc(m.name)}</button>`).join('')}</div>
+        <div class="sp-row">${Object.entries(MODE_NAMES).map(([k, n]) => `<button class="sp-btn sp-btn--small${k === s.mode ? ' sp-btn--blue' : ''}" data-lmode="${k}">${n}</button>`).join('')}</div>
         <div class="sp-row"><button class="sp-btn sp-btn--go" data-start>Start the race</button></div>` : '<p class="sp-note">Waiting for the host to start…</p>'}
         ${s.error ? `<p class="sp-err">${esc(s.error)}</p>` : ''}
         <div class="sp-row"><button class="sp-btn sp-btn--small" data-back>‹ Leave the room</button></div>`;
@@ -334,6 +348,7 @@ export class Menus {
     this.click('[data-start]', onStart);
     this.click('[data-back]', onBack);
     for (const b of card.querySelectorAll('[data-m]')) b.addEventListener('click', () => onMountain(b.dataset.m));
+    for (const b of card.querySelectorAll('[data-lmode]')) b.addEventListener('click', () => onMode?.(b.dataset.lmode));
   }
 
   pause({ onResume, onRestart, onHelp, onCredits, onLeave, onQuality, quality, onSound, soundOn, online }) {
@@ -408,6 +423,7 @@ function aboutHtml(id) {
 export class Hud {
   constructor(root, { touch = false } = {}) {
     this.root = root;
+    this.touch = touch;
     this.el = el('div', 'sp-hud off');
     this.el.innerHTML = `
       <div class="sp-pos"><b>1</b><sup>st</sup><span>/4</span></div>
@@ -434,6 +450,12 @@ export class Hud {
     this.path = this.q('.sp-strip__path');
     this.pg = this.path.getContext('2d');
     this.timeEl = this.q('.sp-time');
+    // the lap (3 Laps) or the section you're in (Long trail), under the strip
+    this.stageEl = el('div', 'sp-stage');
+    this.q('.sp-strip').append(this.stageEl);
+    // the chairlift between laps: the standings chair by chair, and how to skip
+    this.liftEl = el('div', 'sp-lift');
+    this.el.append(this.liftEl);
 
     this.mini = this.q('.sp-mini');
     this.mg = this.mini.getContext('2d');
@@ -498,6 +520,20 @@ export class Hud {
     this.last = {};
   }
 
+  /** The chairlift ride: the lap coming, the order chair by chair, and the skip hint. Pass null to hide. */
+  lift(state) {
+    if (!state) {
+      this.liftEl.classList.remove('on');
+      this.liftKey = '';
+      return;
+    }
+    const key = `${state.lap}|${state.order.map((r) => r.slot).join(',')}|${state.canSkip}`;
+    if (key === this.liftKey) return;
+    this.liftKey = key;
+    this.liftEl.innerHTML = `<h3>Chairlift · Lap ${state.lap}/${state.laps} next</h3><ol>${state.order.map((r, i) => `<li class="${r.me ? 'me' : ''}"><span class="sp-chair">🪑</span>${faceSvg(r.species, 28)}<b>${i + 1}</b> ${esc(r.name)}${r.liftT > 0 ? ' <small>on the lift</small>' : ''}</li>`).join('')}</ol><p>${state.canSkip ? (this.touch ? 'Tap to skip' : 'Space to skip') : 'Enjoy the view…'}</p>`;
+    this.liftEl.classList.add('on');
+  }
+
   mapXY(x, z) {
     const m = this.map;
     return [m.ox + (x - m.x0) * m.k, m.oz + (z - m.z0) * m.k];
@@ -527,10 +563,24 @@ export class Hud {
     for (const r of racers) {
       const f = this.faceEls.get(r.slot);
       if (!f) continue;
-      const k = Math.max(0, Math.min(1, r.rider.s / L));
+      const laps = course.laps ?? 1;
+      const lapK = r.finished ? 1 : r.liftT > 0 ? 0 : r.rider.s / L;
+      const k = Math.max(0, Math.min(1, ((r.lap ?? 1) - 1 + Math.min(1, lapK)) / laps));
       f.style.left = `${(5 + k * (sw - 30)).toFixed(1)}px`;
       f.style.transform = `translateY(${(waveAt(k) * 11).toFixed(1)}px)`;
       f.classList.toggle('fin', r.finished);
+    }
+    // Lap 2/3, or the Long trail's section
+    const stage = (course.laps ?? 1) > 1 ? `Lap ${Math.min(course.laps, me.lap ?? 1)}/${course.laps}` : course.sections ? (sectionAt(course, me.rider.s)?.name ?? '') : '';
+    if (stage !== this.last.stage) {
+      this.stageEl.textContent = stage;
+      this.stageEl.classList.toggle('on', Boolean(stage));
+      if (this.last.stage) {
+        this.stageEl.classList.remove('pop');
+        void this.stageEl.offsetWidth;
+        this.stageEl.classList.add('pop');
+      }
+      this.last.stage = stage;
     }
     this.frameN = (this.frameN ?? 0) + 1;
     if (this.frameN % 2 === 0) this.drawStrip(me, world, L, waveAt);

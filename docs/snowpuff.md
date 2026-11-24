@@ -140,6 +140,25 @@ cloud bank round its foot; the run's curves swing it from side to side and it
 is ahead for most of the race. One mountain is loaded at a time; each race is
 about 60–90 s for the computer riders.
 
+### Race length
+
+Picked on the mountain card (remembered on this device; online the host picks
+in the room, and every peer builds the same course from it):
+
+- **Quick** — the mountain's own run: about 60–90 s for the computer riders.
+- **Long trail** — about 2½–3 min (150–180 s): the mountain's top, then new
+  sections with their own character — a **forest run** (trees close by), a
+  wide **open bowl**, a **jump park** (kickers one after another), a narrow
+  **gully** and a steeper **final sprint**. The section's name shows under the
+  course strip; the famous peak stays ahead as the run swings toward it.
+- **3 Laps** — the run three times. At the line you ride a **chairlift** back
+  up (9 s, Space or a tap skips it after 3 s): your rider on the chair with
+  the mountain view ahead and the order chair by chair; gifts are restocked
+  for the next lap. The lift's time doesn't count toward your race time, so
+  skipping it is fair. The strip shows "Lap 2/3".
+
+Best times are kept per mountain and race length.
+
 | Mountain | Where | Mood | Around the run |
 | --- | --- | --- | --- |
 | **Hallasan** 한라산 ❄ | Jeju, Korea | Morning | A broad shield volcano with its crater lake, the sea, basalt field walls, stone grandfather statues, tangerine trees, canola flowers by the finish |
