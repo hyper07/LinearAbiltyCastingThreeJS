@@ -10,7 +10,7 @@
  * (polyfork, credited) or built here from a few soft primitives.
  */
 import * as THREE from 'three/webgpu';
-import { length, normalLocal, normalWorld, uniform, vec2, vec3, vec4, float, mix, smoothstep, positionLocal, positionWorld, output, color, uv, sin, time, mx_noise_float, pow, abs, normalize, cameraPosition, max, dot, normalView, positionViewDirection, step, fract } from 'three/tsl';
+import { attribute, length, normalLocal, normalWorld, uniform, vec2, vec3, vec4, float, mix, smoothstep, positionLocal, positionWorld, output, color, uv, sin, time, mx_noise_float, pow, abs, normalize, cameraPosition, max, dot, normalView, positionViewDirection, step, fract } from 'three/tsl';
 import { profile, backdropPlace } from '../landmarks.js';
 import { frameAt, groundAt, toWorld } from '../course.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -74,7 +74,10 @@ export function buildBackdrop(course, m, sky) {
   mat.emissiveNode = sky.u.sunColor.mul(snow.mul(sunK.pow(1.5)).mul(pk.glow ?? 0.32));
   // haze belongs in the valley: thick round its foot, almost none on the peak itself
   const haze = sky.u.fog;
-  const hazeK = float(pk.haze ?? 0.03).add(smoothstep(0.45, 0, hk).mul(0.55)).clamp(0, 0.65);
+  // the foot fades gently into the valley haze (the same gradient as the land), never a white band
+  const hazeK = float(pk.haze ?? 0.03).add(smoothstep(0.4, 0, hk).mul(0.32)).clamp(0, 0.4);
+  // grounded: darker, forested lower slopes
+  mat.colorNode = mix(mix(color('#3f564c'), rock, smoothstep(0.04, 0.2, hk)), mat.colorNode, smoothstep(0.02, 0.12, hk));
   mat.outputNode = vec4(mix(output.rgb, haze, hazeK), 1);
   const mesh = new THREE.Mesh(g, mat);
   mesh.position.set(b.x, b.y, b.z);
@@ -96,7 +99,7 @@ export function buildBackdrop(course, m, sky) {
   cloudMat.fog = false;
   const u = uv().sub(0.5).mul(2);
   const puff = smoothstep(1, 0.2, u.length()).mul(mx_noise_float(vec3(u.mul(2.2), time.mul(0.03))).mul(0.4).add(0.6));
-  cloudMat.colorNode = vec4(mix(vec3(1, 1, 1), haze, 0.35), puff.mul(pk.clouds ?? 0.75));
+  cloudMat.colorNode = vec4(mix(vec3(1, 1, 1), haze, 0.35), puff.mul(pk.clouds ?? 0.42));
   const cloudGeo = new THREE.PlaneGeometry(1, 0.38);
   const clouds = [];
   for (let i = 0; i < 14; i++) {
@@ -127,6 +130,82 @@ export function buildBackdrop(course, m, sky) {
     group.add(plume);
   }
   return group;
+}
+
+/**
+ * The land between the run and the famous peak, so the mountain stands on
+ * the ground rather than floating: a wide valley plain that rolls up into two
+ * or three layered forest ridges (paler and bluer with distance) and spreads
+ * into the peak's foothills. Its far edge reaches past the peak; near the run
+ * it stays well below the run's own snow. Haze thickens with distance, low
+ * down, as a gradient (never a solid band).
+ */
+export function buildFarLand(course, m, sky) {
+  const b = backdropPlace(course, m);
+  const L = course.length;
+  const mid = frameAt(course, L / 2);
+  const end = frameAt(course, L);
+  // along: from behind the run's middle out past the peak; across: wide enough for the whole view
+  const ux0 = b.x - mid.x, uz0 = b.z - mid.z;
+  const D = Math.hypot(ux0, uz0) || 1;
+  const ux = ux0 / D, uz = uz0 / D, vx = -uz, vz = ux;
+  const back = 900, ahead = D + b.radius * 1.8;
+  const half = Math.max(2600, b.radius * 2.4 + D * 0.9);
+  const valley = Math.min(b.y + b.height * 0.02, end.y - 70);
+  const NU = 120, NV = 90;
+  const pos = new Float32Array((NU + 1) * (NV + 1) * 3), tone = new Float32Array((NU + 1) * (NV + 1));
+  const ridge = (t, c, w) => Math.exp(-(((t - c) / w) ** 2));
+  for (let i = 0; i <= NU; i++) {
+    const a = -back + ((ahead + back) * i) / NU;
+    for (let j = 0; j <= NV; j++) {
+      const c = -half + (2 * half * j) / NV;
+      const x = mid.x + ux * a + vx * c, z = mid.z + uz * a + vz * c;
+      const t = a / D; // 0 at the run's middle, 1 at the peak
+      // the plain sinks from just under the run to the valley, then layered ridges, then foothills to the peak's foot
+      const n = Math.sin(c * 0.004 + t * 3.1) * 0.5 + Math.sin(c * 0.0013 - t * 5.3) * 0.5;
+      let h = valley + ridge(t, 0.42, 0.06) * (60 + 35 * n) + ridge(t, 0.62, 0.07) * (95 + 50 * n) + ridge(t, 0.8, 0.06) * (130 + 60 * n);
+      const dp = Math.hypot(x - b.x, z - b.z) / b.radius; // the peak's own flanks spreading into foothills
+      h += Math.max(0, 1 - dp / 1.9) ** 2 * b.height * 0.18 * (1 + 0.3 * n);
+      // near the run, keep well under its snow (the run's own mountainside covers the rest)
+      const near = Math.max(0, 1 - Math.abs(t) / 0.32) * Math.max(0, 1 - Math.abs(c) / 900);
+      h = Math.min(h, valley + 400 * (1 - near)) - near * 120;
+      const o = (i * (NV + 1) + j) * 3;
+      pos[o] = x;
+      pos[o + 1] = h;
+      pos[o + 2] = z;
+      tone[i * (NV + 1) + j] = Math.max(0, Math.min(1, (h - valley) / 220));
+    }
+  }
+  const idx = [];
+  for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) {
+    const k = i * (NV + 1) + j;
+    idx.push(k, k + 1, k + NV + 1, k + 1, k + NV + 2, k + NV + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('tone', new THREE.Float32BufferAttribute(tone, 1));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.95 });
+  mat.fog = false;
+  const pw = positionWorld;
+  const tn = attribute('tone', 'float');
+  const nn = mx_noise_float(pw.mul(0.004)).mul(0.5).add(0.5);
+  // dark forest low down, snowy tops on the ridges (and snow where it's flat), rock on steep faces
+  const forest = mix(color(m.farForest ?? '#3f564c'), color('#55695f'), nn);
+  const snowy = smoothstep(0.35, 0.8, tn.add(nn.mul(0.25))).mul(smoothstep(0.55, 0.85, normalWorld.y)).add(smoothstep(0.92, 0.99, normalWorld.y).mul(0.35));
+  mat.colorNode = mix(forest, vec3(0.9, 0.93, 0.98), snowy.clamp(0, 1));
+  // haze: a gradient with distance, thinning upward, never a solid band (the land stays darker than the sky)
+  const d = length(pw.sub(cameraPosition));
+  const up = smoothstep(float(valley), float(valley + 260), pw.y);
+  const hazeK = smoothstep(300, D * 1.3, d).mul(float(0.6).sub(up.mul(0.18)));
+  mat.outputNode = vec4(mix(output.rgb, sky.u.fog, hazeK), 1);
+  const mesh = new THREE.Mesh(g, mat);
+  mesh.frustumCulled = false;
+  mesh.receiveShadow = false;
+  mesh.renderOrder = -6;
+  mesh.userData.ground = true;
+  return mesh;
 }
 
 /** Keep the cloud banks turned to the camera. */

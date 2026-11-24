@@ -17,7 +17,7 @@ import { RiderModel } from './render/riderModel.js';
 import { ALL_SPECIES } from './riders.js';
 import { KEEP_BUFFERS } from './fx.js';
 import { sceneryPlan } from './landmarks.js';
-import { buildBackdrop as buildHeroPeak, buildWater, faceClouds, BUILDERS, prayerFlags, toriiGate, buildTrain } from './render/scenery.js';
+import { buildBackdrop as buildHeroPeak, buildFarLand, buildWater, faceClouds, BUILDERS, prayerFlags, toriiGate, buildTrain } from './render/scenery.js';
 
 const SECTION = 100;
 const IN_COLS = 46;
@@ -119,6 +119,8 @@ export class World {
     if (m.peak) {
       this.hero = buildHeroPeak(c, m, this.sky);
       this.root.add(this.hero);
+      // the land it stands on, between the run and the peak
+      this.root.add(buildFarLand(c, m, this.sky));
     }
     const water = buildWater(c, m, this.sky);
     if (water) this.root.add(water);
