@@ -501,8 +501,8 @@ export function PartsSheet({ open, onDismiss, desktop = false, onDrop }: PartsSh
                 <button
                   type="button"
                   className="psh-info lg-pressable"
-                  aria-label={`${entry.label} specs`}
-                  title="Specs: voltage, current and frequency it can handle"
+                  aria-label={`${entry.label} details`}
+                  title="Details: 3D view, pinout, ports and specs"
                   data-specs={entry.type}
                   onClick={() => openSpecs(entry.type)}
                 >

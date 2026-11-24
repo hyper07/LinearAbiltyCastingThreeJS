@@ -288,7 +288,7 @@ function ComponentEditor({
       />
 
       <ListGroup>
-        <ListRow title="Specs and limits" subtitle="Voltage, current, power and frequency it can handle" chevron className="prs-specs-row" onPress={() => openSpecs(comp.type, comp.id)} />
+        <ListRow title="Details and specs" subtitle="3D view, pinout, ports, and the voltage, current and frequency it can handle" chevron className="prs-specs-row" onPress={() => openSpecs(comp.type, comp.id)} />
         {entry.placement !== 'leads' && entry.placement !== 'probe' && (
           <ListRow title="Rotate a quarter turn" trailing={<span className="prs-mono">R</span>} onPress={() => rotateWithToast(comp.id)} />
         )}
