@@ -519,7 +519,7 @@ export class SeoulGame {
         .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nattribute vec2 aKind;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;\nvKind = aKind;\nvWorldN = normal;\nvWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uNight;\nuniform sampler2D uSigns;\nuniform sampler2D uBrick;\nuniform sampler2D uRender;\nuniform vec3 uSkyTop;\nuniform vec3 uSkyLow;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;\nfloat seoulLit = 0.0;\nvec3 seoulGlow = vec3(0.0);\nfloat seoulHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
+        .replace('#include <common>', '#include <common>\nuniform float uNight;\nuniform sampler2D uSigns;\nuniform sampler2D uBrick;\nuniform sampler2D uRender;\nuniform vec3 uSkyTop;\nuniform vec3 uSkyLow;\nvarying vec3 vWall;\nvarying vec2 vKind;\nvarying vec3 vWorldN;\nvarying vec3 vWorldPos;\nfloat seoulLit = 0.0;\nvec3 seoulGlow = vec3(0.0);\nfloat seoulHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvec3 seoulRoom(vec2 f, vec3 Vt, float seed, float night, float lit) {\n  // Interior mapping: the window is the front of a room; follow the view ray in to its back wall, ceiling, floor or side.\n  vec3 v = normalize(Vt);\n  float tx = (v.x > 0.0 ? 1.0 - f.x : f.x) / max(1e-3, abs(v.x));\n  float ty = (v.y > 0.0 ? 1.0 - f.y : f.y) / max(1e-3, abs(v.y));\n  float tz = 0.85 / max(1e-3, v.z);\n  float t = min(min(tx, ty), tz);\n  vec3 h = vec3(f, 0.0) + v * t;\n  vec3 wallC = mix(vec3(0.78, 0.74, 0.68), vec3(0.62, 0.68, 0.74), step(0.5, seed));\n  vec3 col;\n  if (t == tz) {\n    col = wallC * (0.75 + 0.25 * h.y);\n    col = mix(col, vec3(0.32, 0.3, 0.3), step(0.22, h.y) * step(h.y, 0.34) * step(0.15, fract(h.x * 1.7 + seed)) * 0.8);\n  } else if (t == ty) {\n    if (v.y > 0.0) {\n      col = vec3(0.86, 0.86, 0.84);\n      float panel = step(0.55, fract(h.x * 2.0 + 0.25)) * step(0.5, fract(h.z * 2.4));\n      col += panel * lit * vec3(1.4, 1.3, 1.1);\n    } else col = vec3(0.4, 0.37, 0.34) * (0.8 + 0.4 * seed);\n  } else {\n    col = wallC * 0.82;\n  }\n  // Day: a room is darker than outside; night: unlit rooms dark, lit ones bright.\n  float bright = mix(0.42, mix(0.05, 1.15, lit), night);\n  return col * bright;\n}')
         .replace('#include <color_fragment>', `#include <color_fragment>
           if (vWall.x >= 0.0) {
             // What it is: 0 house · 1 apartment · 2 shop · 3 office · 4 public · 5 industry · 6 other; and how tall.
@@ -537,13 +537,15 @@ export class SeoulGame {
               vec2 wuv = vec2(vWall.x, vWall.y);
               if (seedW < 0.2) {
                 vec3 brick = texture2D(uBrick, wuv / 1.6).rgb;
-                diffuseColor.rgb = mix(diffuseColor.rgb, brick * vec3(1.18, 1.05, 1.0), nearT * 0.85);
+                // (Until the texture is in, it samples black: leave the wall as it is.)
+                diffuseColor.rgb = mix(diffuseColor.rgb, brick * vec3(1.18, 1.05, 1.0), nearT * 0.85 * step(0.03, brick.r + brick.g));
               } else if (seedW < 0.4) {
                 vec3 tile = texture2D(uBrick, wuv / 0.7).rgb;
-                float l = dot(tile, vec3(0.333));
+                float l = max(dot(tile, vec3(0.333)), 0.35 * step(dot(tile, vec3(0.333)), 0.01));
                 diffuseColor.rgb *= mix(1.0, 0.55 + l * 1.3, nearT * 0.7);
               } else {
                 float l = dot(texture2D(uRender, wuv / 3.0).rgb, vec3(0.333));
+                l = l < 0.01 ? 0.45 : l;
                 diffuseColor.rgb *= mix(1.0, 0.6 + l * 0.9, nearT * 0.6);
               }
             }
@@ -568,15 +570,24 @@ export class SeoulGame {
             vec3 refl = mix(city, mix(uSkyLow, uSkyTop, sqrt(clamp((Rf.y - cityTop) / (1.0 - cityTop), 0.0, 1.0))), smoothstep(cityTop - 0.03, cityTop + 0.03, Rf.y));
             vec3 glass = mix(tone, refl, fres * (curtain ? 0.8 : 0.6));
             glass = mix(glass, vec3(0.04, 0.05, 0.08) + refl * 0.15, uNight * 0.85);
+            // Near, the glass has rooms behind it (interior mapping), lit or not, under the reflection.
+            vec3 Tw = normalize(cross(vec3(0.0, 1.0, 0.0), N));
+            vec3 Vt = vec3(dot(V, Tw), dot(V, vec3(0.0, 1.0, 0.0)), max(0.05, dot(V, -N)));
+            float roomNear = (1.0 - far) * (1.0 - smoothstep(120.0, 420.0, length(vViewPosition)));
+            float roomLit = step(1.0 - (0.25 + 0.3 * fract(vWall.z * 7.3 + 0.35)), r);
+            vec3 room = seoulRoom(f, Vt, fract(r * 7.1), uNight, roomLit);
+            glass = mix(glass, mix(room * mix(vec3(1.0), tone * 4.0, 0.35), refl, fres * (curtain ? 0.75 : 0.55)), roomNear);
             float win = 0.0;
             bool office = !curtain && !flats && kind != 0.0 && tall >= 15.0;
             // The top: a plain parapet band, no windows.
             float parapet = step(tall - 1.8, vWall.y);
             if (curtain) {
               // A curtain wall: glass with thin mullions and a band at each floor; each pane a touch different.
-              float mull = step(0.05, f.x) * step(0.12, f.y);
+              bool fins = fract(vWall.z * 3.1) < 0.5;
+              float mull = fins ? step(0.16, f.x) * step(0.05, f.y) : step(0.05, f.x) * step(0.12, f.y);
               win = mull * (1.0 - parapet);
-              vec3 pane = glass * (0.92 + 0.12 * r * (1.0 - far));
+              vec3 pane = glass * (0.92 + 0.12 * r * (1.0 - far)) * (fins ? vec3(0.78, 0.85, 1.0) : vec3(1.0));
+              if (fins) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.9, 0.88), 0.85);
               // Mullions and floor bands in aluminium, a little of the building's own colour in them.
               diffuseColor.rgb = mix(mix(vec3(0.6, 0.62, 0.65), diffuseColor.rgb, 0.3) * 0.85, pane, win * 0.96);
             } else if (flats) {
@@ -1585,7 +1596,9 @@ export class SeoulGame {
       if (this.mode === 'race') {
         // A tap of Space between two frames still sprints.
         if (e.code === 'Space') this.race.sprintTap = true;
-        if (e.code === 'KeyB') this.race.horn();
+        const slot = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
+        if (slot >= 0) this.race.useSlot(slot);
+        else if (e.code === 'KeyB') this.race.horn();
         else if (e.code === 'KeyH' || e.code === 'KeyI') this.help.toggle();
         else if (e.code === 'Escape') this.race.quit();
         return;

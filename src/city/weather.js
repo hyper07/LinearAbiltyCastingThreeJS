@@ -36,7 +36,8 @@ export function nextWeather(now, month = new Date().getMonth(), random = Math.ra
 export const TIME_PICKS = {
   random: { name: 'Random', icon: '🎲' },
   day: { name: 'Day', icon: '☀️', hours: [9.5, 15.5] },
-  golden: { name: 'Golden hour', icon: '🌇', hours: [17.6, 18.4] },
+  golden: { name: 'Golden hour', icon: '🌇', hours: [16.9, 17.5] },
+  dusk: { name: 'Dusk', icon: '🌆', hours: [17.7, 17.95] },
   night: { name: 'Night', icon: '🌙', hours: [20.5, 23.8] }
 };
 export const WEATHER_PICKS = ['random', 'clear', 'rain', 'storm', 'snow', 'fog'];
@@ -48,7 +49,7 @@ const RACE_ODDS = { clear: 0.46, rain: 0.2, storm: 0.09, snow: 0.13, fog: 0.12 }
  * time of day; weather by the odds, snow only in the cold months).
  */
 export function raceSky(time = 'random', weather = 'random', { month = new Date().getMonth(), random = Math.random } = {}) {
-  const kinds = ['day', 'golden', 'night'];
+  const kinds = ['day', 'golden', 'dusk', 'night'];
   const t = TIME_PICKS[time]?.hours ? time : kinds[Math.floor(random() * kinds.length)];
   const [a, b] = TIME_PICKS[t].hours;
   const hour = a + (b - a) * random();

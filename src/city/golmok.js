@@ -175,6 +175,8 @@ export class Golmok {
       return new THREE.CanvasTexture(c);
     })();
     this.glowMat = new THREE.SpriteMaterial({ map: this.glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
+    this.poolGeo = new THREE.CircleGeometry(3.2, 24).rotateX(-Math.PI / 2);
+    this.poolMat = new THREE.MeshBasicMaterial({ map: this.glowTex, color: '#ffcf8a', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, polygonOffset: true, polygonOffsetFactor: -6 });
     this.t = 0;
   }
 
@@ -201,6 +203,7 @@ export class Golmok {
     this.signMat.emissiveIntensity = 0.12 + night * 1.4;
     this.lampMat.emissiveIntensity = night * 2.6;
     this.glowMat.opacity = night * 0.8;
+    this.poolMat.opacity = night * 0.45;
   }
 
   /** A stretch of the course: its small-street surface, and everything along its sides. */
@@ -268,7 +271,12 @@ export class Golmok {
         const outYaw = hd + (side > 0 ? -Math.PI / 2 : Math.PI / 2); // facing into the street from this side
         const along = (t) => [ex + ux * t, ez + uz * t];
         if (small) {
-          if (!wall && !g.onRoad?.(ex + rx * side * 1.5, ez + rz * side * 1.5, 0.5)) {
+          // (Not across a corner or another stretch of the course: a wall goes only where the street is plainly its edge.)
+          const turning = Math.abs(Math.atan2(Math.sin(Math.atan2(at(i + 2)[0] - a[0], at(i + 2)[1] - a[1]) - Math.atan2(a[0] - at(i - 2)[0], a[1] - at(i - 2)[1])), Math.cos(Math.atan2(at(i + 2)[0] - a[0], at(i + 2)[1] - a[1]) - Math.atan2(a[0] - at(i - 2)[0], a[1] - at(i - 2)[1])))) > 0.35;
+          const wallX = ex + rx * side * 0.2 + ux * len / 2;
+          const wallZ = ez + rz * side * 0.2 + uz * len / 2;
+          const inCourse = !turning && pts.some((q, qi) => Math.abs(qi - i) > 2 && Math.hypot(q[0] - wallX, q[1] - wallZ) < (q[2] ?? 6) / 2 + 1.2);
+          if (!wall && !turning && !inCourse && !g.onRoad?.(ex + rx * side * 1.5, ez + rz * side * 1.5, 0.5)) {
             // A garden wall, sometimes a gate in it.
             const col = pick(r, PAL.walls);
             const h = 1.7 + r() * 0.6;
@@ -316,7 +324,8 @@ export class Golmok {
           // On the ground by the edge: planters, pots, bins, a parked scooter, steps (never out on a main road).
           const gx = ex - rx * side * 0.35;
           const gz = ez - rz * side * 0.35;
-          const onMain = g.onRoad?.(gx, gz, 0.4);
+          // (and never on the course's own line, where it crosses itself or turns a corner)
+          const onMain = g.onRoad?.(gx, gz, 0.4) || pts.some((q, qi) => Math.abs(qi - i) > 1 && Math.hypot(q[0] - gx, q[1] - gz) < (q[2] ?? 6) / 2 - 0.1);
           const roll = onMain ? 1 : r();
           if (roll < 0.13) {
             // A styrofoam box of greens (lettuce, chillies) — a Seoul alley's kitchen garden.
@@ -427,7 +436,9 @@ export class Golmok {
       const glow = new THREE.Sprite(this.glowMat);
       glow.position.set(l.x, l.y - 0.2, l.z);
       glow.scale.setScalar(2.2);
-      group.add(arm, head, glow);
+      const pool = new THREE.Mesh(this.poolGeo, this.poolMat);
+      pool.position.set(l.x, g.groundAt(l.x, l.z) + 0.93, l.z);
+      group.add(arm, head, glow, pool);
     }
     this.group.add(group);
     this.obstacles.push(...obstacles);
@@ -437,7 +448,7 @@ export class Golmok {
   _drop(k, c) {
     this.group.remove(c.group);
     c.group.traverse((o) => {
-      if (o.geometry && !o.isSprite) o.geometry.dispose();
+      if (o.geometry && !o.isSprite && o.geometry !== this.poolGeo) o.geometry.dispose();
     });
     for (const [cell, seg] of c.owned) {
       const list = this.g.roadHash.get(cell);
@@ -456,7 +467,8 @@ export class Golmok {
   dispose() {
     for (const [k, c] of [...this.chunks]) this._drop(k, c);
     this.g.scene.remove(this.group);
-    for (const m of [this.mat, this.groundMat, this.signMat, this.lampMat, this.wireMat, this.glowMat]) m.dispose();
+    for (const m of [this.mat, this.groundMat, this.signMat, this.lampMat, this.wireMat, this.glowMat, this.poolMat]) m.dispose();
+    this.poolGeo.dispose();
     this.signs.tex.dispose();
     this.glowTex.dispose();
   }

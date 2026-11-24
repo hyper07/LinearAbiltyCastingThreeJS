@@ -16,7 +16,7 @@ test('a race sky: what was picked, or a random time of day and weather (no snow 
     kinds.add(s.weather);
     assert.ok(WEATHERS[s.weather]);
   }
-  assert.deepEqual([...times].sort(), ['day', 'golden', 'night']);
+  assert.deepEqual([...times].sort(), ['day', 'dusk', 'golden', 'night']);
   assert.ok(!kinds.has('snow') && kinds.has('rain') && kinds.has('clear'));
   assert.ok(new Set(Array.from({ length: 300 }, () => raceSky('day', 'random', { month: 0, random }).weather)).has('snow'), 'snow in January');
 });
