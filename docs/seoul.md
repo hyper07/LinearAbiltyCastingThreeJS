@@ -104,10 +104,21 @@ Seoul's real streets — and the streets stay open.
   turntable that turns the one you choose to the front, where it waves, wiggles its ears or hops;
   its name, Korean name, nickname and a big **READY**. **Scooter**: the six scooters on plinths behind
   your rider, the chosen one lifted and turning and your rider hopping onto it, with five animated
-  bars. **Course**: a toy map of Seoul — the Han, the hills, the districts — with a pin for each
-  course; pointing at one previews it (its loop on the map, and a card with its shape and a dot
-  riding round it, its length, lap time, sharp turns, share of wide roads, short cuts and the run to
-  the first corner); a click picks it; laps 1–3. **Time and weather**: cards for day, golden hour,
+  bars. **Course**: a real map of Seoul (`src/city/coursemap.js`), drawn from the game's own data
+  with nothing downloaded for it — the Han, streams and lakes and the wooded hills from the land
+  (`terrain.bin`, with a hill shade), every road from `roads.bin` (motorways and trunk roads bold,
+  tertiary roads thin, bridges dark-edged over the river), and close up the small streets
+  (`alleys.bin`) and the buildings' footprints (the map tiles); the 25 districts, the hills, and
+  landmarks (N Seoul Tower, Gyeongbokgung, Lotte World Tower, the 63 Building, City Hall, COEX…).
+  Every course is drawn at its true size on its real streets in its own colour, with a pin at its
+  start. Drag to pan, the wheel or a pinch (or + −) to zoom, ⌂ for all of Seoul; pointing at a pin
+  or a course's line previews it (the card: its shape and a dot riding round it, its length, lap
+  time, sharp turns, share of wide roads, short cuts and the run to the first corner); a click
+  picks it, and pointing at one in the list below flies there too. The map flies smoothly to the
+  course picked and shows its route: a chequered start and finish, arrows the way it runs, its short
+  cuts dotted, its sharp turns ringed, a rider running round it, and its length and turns beside it.
+  What stands still is drawn once into 256-pixel tiles per zoom level and kept (the land per pixel,
+  then buildings and roads); only the courses, pins and names are drawn each frame. Laps 1–3. **Time and weather**: cards for day, golden hour,
   dusk, night and Random × clear, rain, storm, snow, fog and Random, each a little animated sky —
   and the stage behind changes with them, live (the sky, the light, the lamps and windows, rain,
   snow, fog, a wet floor). Then **Race three bots**, or make or join a room. Keys: **← →** to choose
@@ -208,15 +219,33 @@ Seoul's real streets — and the streets stay open.
   (a wall, a car's flank, the edge of a bin, a pole) it is only a scrape: turned along it, slowed,
   still riding. Pass close at speed for a "WHOOSH!" and a top-up of boost.
 - **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
-  ~220 m) to fill three slots; use them with **1 2 3**. Energy drink (gauge full), air horn
-  (people and scooters ahead clear out, cars stop), gold helmet (the next crash bounces off),
-  tailwind (five seconds of free, faster sprinting), and the branch (`src/city/branch.js`: a leafy
+  ~220 m) to fill three slots; use them with **1 2 3**. **Energy drink**: a can crack and two gulps,
+  your rider drinks, and three seconds of boost at once without pressing F (70 → 86 km/h, the FOV
+  kicking out, speed lines, a green glow trail behind the scooter — about ten metres gained, worth
+  having, not a win), the gauge visibly filling up again, "GULP! +BOOST". (Before, it only set the
+  gauge full, silently: holding W, 70 km/h before and after.) **Air horn** (people and scooters ahead
+  clear out, cars stop). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
+  head, fitted to each species' head (the ears poke out), a soft gold shimmer round rider and
+  scooter, and a badge on the HUD; the next crash (a car, a wall, a branch, a fall on marbles)
+  bounces off — "BLOCKED!" and "PING!", a ding, and the helmet flies off, spinning. Everyone's
+  helmets show, bots' and friends' too. **Tailwind** (five seconds of free, faster sprinting).
+  **Marbles** (`src/city/marbles.js`): poured out behind you, 48 glass marbles with coloured swirls
+  bounce, scatter and roll, then lie in a patch for about 13 s — always inside the street they were
+  poured in (never onto a pavement or through a wall; in a golmok narrower than 5.5 m only across
+  the half you were riding, so a short cut is never shut). A rider whose wheels cross them slips:
+  the grip goes, the scooter wobbles and slides and loses speed; faster than about 50 km/h, or
+  steering hard above about 30, they fall (the tumble with dizzy stars, "WHOA!" "SLIP!", a glassy
+  rattle). Slow down and ride straight and you get through with a wobble. The golden helmet takes
+  the fall, not the slip; ridden through, marbles scatter. Bots pour them when someone is right
+  behind, and steer round the patches they see (the sharper ones see more) or brake to a crawl
+  across them. In a room the pourer's browser sends the pour's seed and everyone rolls the same
+  patch. And the branch (`src/city/branch.js`: a leafy
   plane-tree branch grown in code — with a rival ahead in reach it is thrown after a wind-up, in an
   arc, aimed where their front wheel will be; with nobody ahead it is dropped behind you as a trap
   for 22 s. A front wheel that catches it stops dead: "CRACK!", over the bars, dizzy stars, back up
   1.5 s later, and three seconds no branch can catch you. The gold helmet takes it.) The further
-  back you are, the better the odds (more tailwinds and branches). Bots use them too; in a room
-  throws are sent to everyone and whoever's browser rides the rider caught decides the catch.
+  back you are, the better the odds (more tailwinds, branches and marbles). Bots use them too; in a room
+  throws and pours are sent to everyone and whoever's browser rides the rider caught decides the catch.
 - **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
   near: the small streets' concrete and asphalt at road level, joined to the road where they meet
   one — the road's pavement is a dropped kerb across the alley's mouth (flush with the road, ramping
@@ -245,8 +274,17 @@ Seoul's real streets — and the streets stay open.
   host picks the course, laps, time and weather and starts. Bots take any empty seats (the host's
   browser rides them). Each browser sends where its riders are fifteen times a second, and when
   an item is used.
-- **On screen**: the map at the top left turns with you (course ahead, traffic, item boxes,
-  everyone); your place beside it; the lap top right with the order under it; the time and the
+- **On screen**: the map at the top left (`src/city/minimap.js`) — the real streets round you, every
+  small street, the buildings faintly, the river where it is near, the course ahead bright, short
+  cuts dotted, item boxes, marble patches and branches in the road, the traffic, and every rider as
+  a dot in their colour (ringed gold in a helmet) — turns smoothly with you, or keeps north up: click
+  it (remembered). It is drawn once per race and laid out about twelve times a second. When a rival
+  comes up behind you or draws level to pass, a small manga-style square slides in on the left
+  (`src/city/rivalPanel.js`, Snowpuff's rival panel, `src/snowpuff/sideMirror.js`, only read): one
+  still picture of them, snapped from just in front looking back at their face, in a tilted ink frame
+  with speed lines and a halftone edge — no name, no distance, no text. One small render when the
+  rider changes, at most once a second, read back to a 2D canvas; all its motion is CSS; it is
+  rendered once while the lights count down so nothing hitches. Your place beside the map; the lap top right with the order under it; the time and the
   three item slots bottom centre; speed and the sprint gauge bottom right; the next turn named at
   the top ("SHARP RIGHT · ALLEY 30 m"), a warning under it for anything in your line; the keys while
   the lights count down; speed lines from about 55 km/h. Left-drag looks round.
