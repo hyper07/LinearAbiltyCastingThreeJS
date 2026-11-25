@@ -511,7 +511,9 @@ export class World {
         ...this.places.filter((p) => p.p && p.kind !== 'portal').map((p) => ({ x: p.p.x, z: p.subject && !this.custom ? p.p.z - 0.4 : p.p.z, y: yOf(p.floor), r: p.subject ? 3.25 : p.p.r * 0.85 })),
         ...(this.chests ?? []).map((c) => ({ x: c.group.position.x, z: c.group.position.z, y: c.group.position.y, r: 0.9 })),
         ...(this.chests ?? []).map((c) => ({ x: c.rock.x, z: c.rock.z, y: c.group.position.y, r: 1.6 })),
-        ...(this.bosses ?? []).map((b) => ({ x: b.fig.group.position.x, z: b.fig.group.position.z, y: b.fig.group.position.y, r: 1.1 }))
+        ...(this.bosses ?? []).map((b) => ({ x: b.fig.group.position.x, z: b.fig.group.position.z, y: b.fig.group.position.y, r: 1.1 })),
+        // A plan's own obstacles (Mars: the pressurised tubes between the schools).
+        ...this.plan.floors.flatMap((f) => f.blockers ?? [])
       ],
       bridges: this.bridges
     };
@@ -648,7 +650,8 @@ export class World {
   }
   home() {
     const t = this.kidPos.clone().add(new THREE.Vector3(0, 1, 0));
-    this._tweenCam(t, this._rel(new THREE.Vector3(6.2, 7.6, 12.6)), 0.9);
+    // (A plan may put the camera straight out behind the buddy: round Mars, D then walks along the terrace, not into it.)
+    this._tweenCam(t, this._rel(new THREE.Vector3(...(this.plan.homeOffset ?? [6.2, 7.6, 12.6]))), 0.9);
   }
   zoom(by) {
     const off = this.camera.position.clone().sub(this.controls.target);
@@ -822,6 +825,21 @@ export class World {
     }, this.reducedMotion ? 0 : 420);
   }
 
+  /** Walk to a place (the minimap: tap a school or a place) and turn to it on arrival; a locked floor says why instead. */
+  walkToPlace(entry) {
+    if (!entry) return false;
+    if (this.locked.has(entry.floor)) {
+      this.on.gate?.(entry.floor);
+      return false;
+    }
+    this.select(entry);
+    this.goTo(entry.at, () => {
+      if (entry.p) this.kidHeading = Math.atan2(entry.p.x - this.kidPos.x, entry.p.z - this.kidPos.z);
+      this.kid.hop();
+    });
+    return true;
+  }
+
   goTo(at, then) {
     this.arrive = then;
     if (!this.walkTo(at.x, at.z, at.y)) {
@@ -933,8 +951,25 @@ export class World {
       this.controls.target.add(delta);
       this.camera.position.add(delta);
     }
+    // Round a mountain (Mars): as the buddy goes round, the camera turns with them, staying outside.
+    if (this.plan.followRound) {
+      const a = this._facing(this.kidPos.x, this.kidPos.z);
+      if (this._roundA != null && this._following && !this._camTween && this.camera.position.distanceTo(this.controls.target) < 60) {
+        let d = a - this._roundA;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        if (Math.abs(d) > 1e-6 && Math.abs(d) < 0.5) this.camera.position.sub(this.controls.target).applyAxisAngle(UP, d).add(this.controls.target);
+      }
+      this._roundA = a;
+    }
     this._assistCamera(dt);
     this.controls.update();
+    // Never in or behind the rock: lift the camera until the view of the buddy is clear (Mars).
+    if (this.plan.camLift && !this._coverCast) {
+      const c = this.camera.position, tg = this.controls.target;
+      const need = this.plan.camLift(c.x, c.y, c.z, tg.x, tg.y, tg.z);
+      if (need > 0) c.y += need;
+    }
     const dist = this.camera.position.distanceTo(this.controls.target);
     this._cut.copy(this.kidPos).y += 0.62 * KID_SCALE;
     updateCutout(this.camera, this.renderer, this._cut, 1.1 * KID_SCALE, dist < 70 && !this.paused);
@@ -1033,10 +1068,28 @@ export class World {
       const dir = right.multiplyScalar(ix).add(fwd.multiplyScalar(-iz)).normalize();
       const v = (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 7 : 4.6) * dt;
       const nx = kp.x + dir.x * v, nz = kp.z + dir.z * v;
+      // Round curved places (Mars): a blocked step glances off the obstacle — the nearest way that is open, a little slower.
+      const glance = () => {
+        if (!this.plan.followRound) return false;
+        // (Not along a shut pressure door: there the buddy stops, and is told why.)
+        const ahead = this.plan.locate(kp.x + dir.x * 0.8, kp.z + dir.z * 0.8, kp.y);
+        if (ahead?.stair && this.locked.has(ahead.stair.to)) return false;
+        for (const a of [0.35, -0.35, 0.7, -0.7, 1.05, -1.05]) {
+          const c = Math.cos(a), s = Math.sin(a), k = v * c;
+          const gx = kp.x + (dir.x * c - dir.z * s) * k, gz = kp.z + (dir.x * s + dir.z * c) * k;
+          if (this.nav.canStep(kp.x, kp.z, gx, gz, kp.y)) {
+            kp.set(gx, kp.y, gz);
+            return true;
+          }
+        }
+        return false;
+      };
       if (this.nav.canStep(kp.x, kp.z, nx, nz, kp.y)) kp.set(nx, kp.y, nz);
-      else if (this.nav.canStep(kp.x, kp.z, nx, kp.z, kp.y)) kp.x = nx;
-      else if (this.nav.canStep(kp.x, kp.z, kp.x, nz, kp.y)) kp.z = nz;
-      else this._bump(nx, nz);
+      else if (!glance()) {
+        if (this.nav.canStep(kp.x, kp.z, nx, kp.z, kp.y)) kp.x = nx;
+        else if (this.nav.canStep(kp.x, kp.z, kp.x, nz, kp.y)) kp.z = nz;
+        else this._bump(nx, nz);
+      }
       this.kidHeading = turn(this.kidHeading, Math.atan2(dir.x, dir.z), dt * 12);
       speed = v / dt;
     } else if (this.path) {
@@ -1093,7 +1146,10 @@ export class World {
   _bump(x, z) {
     if (this.time - (this._bumpT ?? -9) < 3) return;
     for (const s of this.plan.stairs) {
-      if (this.locked.has(s.to) && Math.abs(s.a.y - this.kidPos.y) < 3 && Math.hypot(x - s.a.x, z - s.a.z) < 3.5) {
+      // A wide ramp (Mars): anywhere across its foot; a staircase: near its foot.
+      const dx = x - s.a.x, dz = z - s.a.z;
+      const atFoot = s.up ? Math.abs(dx * s.up.x + dz * s.up.z) < 3 && Math.abs(dx * s.up.z - dz * s.up.x) < s.width / 2 + 1 : Math.hypot(dx, dz) < 3.5;
+      if (this.locked.has(s.to) && Math.abs(s.a.y - this.kidPos.y) < 3 && atFoot) {
         this._bumpT = this.time;
         this.on.gate?.(s.to);
       }

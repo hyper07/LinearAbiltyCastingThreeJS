@@ -3,7 +3,7 @@ import { boot, tally, until } from './lib.mjs';
 /**
  * Arcademia's study worlds (src/arcademia/maps.js): the World Portal's
  * picker, travelling to the Great Tree, the Lagoon, the Desert, the Moon and Mars and back, walking
- * their rings, bridges, boardwalks, causeways, glass tubes and red-rock stairs, a lesson in each,
+ * their rings, bridges, boardwalks, causeways, glass tubes and red-rock ramps, a lesson in each,
  * their own lessons and teachers, space suits on the space maps, and the choice kept across a reload.
  */
 export async function run(browser) {
@@ -276,7 +276,7 @@ export async function run(browser) {
     await page.waitForTimeout(1800);
     t.check('Earth-light: night on the Moon, back out at the moonbase', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'moon' && window.arcademia.world.night > 0.9));
     await page.evaluate(() => window.arcademia.setNight(false));
-    // Mars: Olympus Mons, seven ring terraces all the way round a red-rock volcano, stairs cut into the cliffs.
+    // Mars: Olympus Mons, a compact base on a terrace spiralling round a red-rock volcano, wide ramps between the floors.
     await page.evaluate(() => window.arcademia.switchMap('mars'));
     await page.waitForTimeout(3500);
     const mars = await page.evaluate(() => {
@@ -287,7 +287,8 @@ export async function run(browser) {
         map: g.map.id, realm: g.realm, kind: w.plan.kind, places: w.places.filter((p) => p.floor === 1).length,
         portal: w.places.some((p) => p.kind === 'worlds' && p.floor === 1), floor: w.kidFloor,
         rings: mini?.querySelectorAll('[data-floor]').length,
-        quadrants: new Set(f.places.map((p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)))).size,
+        quadrants: new Set(w.plan.floors.flatMap((g) => g.places).map((p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)))).size,
+        schoolIcons: mini?.querySelectorAll('[data-place="math"], [data-place="history"], [data-place="physics"]').length, me: Boolean(mini?.querySelector('.arc-mini__me')),
         names: [...document.querySelectorAll('.arc-pill__name')].map((e) => e.textContent).filter((s) => /Red Dome School|Mars Museum|Weather Lab/.test(s)).length,
         float: w.float, clouds: w.clouds.visible, moon: w.sky.userData.moon.material.opacity,
         sun: Boolean(w.scenery.group.children.find((c) => c.userData.sprites)),
@@ -295,8 +296,33 @@ export async function run(browser) {
         townsfolk: [...new Set(w.npcs.map((n) => n.species))]
       };
     });
-    t.check('Mars opens on ring 1 of the volcano with its World Portal, its schools named', mars.map === 'mars' && mars.realm === 'mars' && mars.kind === 'mars' && mars.floor === 1 && mars.places >= 9 && mars.portal && mars.names >= 3, JSON.stringify(mars));
-    t.check('the rings go all the way round the mountain, and the minimap draws all seven', mars.quadrants === 4 && mars.rings === 7, JSON.stringify(mars));
+    t.check('Mars opens on floor 1 of the volcano with its World Portal, its schools named', mars.map === 'mars' && mars.realm === 'mars' && mars.kind === 'mars' && mars.floor === 1 && mars.places >= 9 && mars.portal && mars.names >= 3, JSON.stringify(mars));
+    t.check('the floors go all the way round the mountain, and the minimap draws all seven, the schools and you', mars.quadrants === 4 && mars.rings === 7 && mars.schoolIcons >= 3 && mars.me, JSON.stringify(mars));
+    // Tap a school on the minimap: the buddy walks there.
+    await page.evaluate(() => {
+      window.arcademia.world.teleport(1);
+      document.querySelector('.arc-mini [data-place="physics"][data-floor-of="1"]').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    t.check('tapping a school on the minimap walks the buddy there', await until(page, () => {
+      const w = window.arcademia.world, e = w.places.find((p) => p.floor === 1 && p.kind === 'physics');
+      return !w.path && Math.hypot(w.kidPos.x - e.at.x, w.kidPos.z - e.at.z) < 1.5;
+    }, null, 20000));
+    // WASD walks round the floor; the camera turns with the buddy, stays outside the mountain, its view never blocked.
+    await page.evaluate(() => {
+      window.arcademia.world.teleport(1);
+      window.arcademia.root.focus();
+    });
+    await page.waitForTimeout(1200);
+    const before = await page.evaluate(() => Math.atan2(window.arcademia.world.kidPos.x, window.arcademia.world.kidPos.z));
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(2500);
+    await page.keyboard.up('KeyD');
+    await page.waitForTimeout(400);
+    const walkRound = await page.evaluate((a0) => {
+      const w = window.arcademia.world, c = w.camera.position, tg = w.controls.target;
+      return { turned: Math.atan2(w.kidPos.x, w.kidPos.z) - a0, floor: w.kidFloor, outside: Math.hypot(c.x, c.z) > Math.hypot(w.kidPos.x, w.kidPos.z) + 3, lift: w.plan.camLift(c.x, c.y, c.z, tg.x, tg.y, tg.z) };
+    }, before);
+    t.check('D walks the buddy round floor 1 with the camera outside and the view clear', walkRound.turned > 0.05 && walkRound.floor === 1 && walkRound.outside && walkRound.lift < 0.01, JSON.stringify(walkRound));
     t.check('Mars has a Sun, no Earth moon, no clouds, a little low gravity, and its own townsfolk in space suits', mars.sun && mars.moon === 0 && !mars.clouds && mars.float > 0 && mars.float < 1 && mars.suits && mars.townsfolk.includes('roverbot'), JSON.stringify(mars));
     await page.evaluate(() => {
       const w = window.arcademia.world;
@@ -312,9 +338,9 @@ export async function run(browser) {
       }, 100);
       w.goTo(b.at, () => (window.__arrived = true));
     });
-    t.check('the buddy climbs the stairs cut into the cliff to ring 2', await until(page, () => window.__arrived && window.__onStairs, null, 90000));
-    const ring2 = await page.evaluate(() => ({ floor: window.arcademia.world.kidFloor, y: window.arcademia.world.kidPos.y }));
-    t.check('and arrives on ring 2, a storey up', ring2.floor === 2 && Math.abs(ring2.y - 7.5) < 0.8, JSON.stringify(ring2));
+    t.check('the buddy climbs the ramp to floor 2', await until(page, () => window.__arrived && window.__onStairs, null, 60000));
+    const ring2 = await page.evaluate(() => ({ floor: window.arcademia.world.kidFloor, y: window.arcademia.world.kidPos.y, storey: window.arcademia.world.plan.floorH }));
+    t.check('and arrives on floor 2, a storey up', ring2.floor === 2 && Math.abs(ring2.y - ring2.storey) < 0.8, JSON.stringify(ring2));
     await page.evaluate(() => {
       const w = window.arcademia.world;
       w.setLocked(window.arcademia.lockedSet());

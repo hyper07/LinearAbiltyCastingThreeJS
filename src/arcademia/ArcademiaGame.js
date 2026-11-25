@@ -270,6 +270,11 @@ export class ArcademiaGame {
     this.hud = new Hud(this.root, {
       worlds: () => this.openWorlds(),
       goFloor: (n) => this.goFloor(n),
+      // The minimap (Mars): tap a school or a place and the buddy walks there.
+      walkTo: (n, kind) => {
+        this.sound.tap();
+        this.world.walkToPlace(this.world.places.find((p) => p.floor === n && p.kind === kind));
+      },
       overview: () => this.world.overview(),
       toggleNight: () => this.setNight(!this.prefs.night),
       toggleSound: () => this.setSound(!this.prefs.sound),
@@ -389,6 +394,12 @@ export class ArcademiaGame {
     this.power.showFps(this.root);
     if (this.mode === 'world') {
       this.world.update(dt);
+      // The minimap's "you are here" follows the buddy (a few times a second).
+      if ((this._mapT = (this._mapT ?? 0) - dt) < 0) {
+        this._mapT = 0.1;
+        const w = this.world, cam = w.camera.position, tg = w.controls.target;
+        this.hud?.tickMap?.({ x: w.kidPos.x, z: w.kidPos.z, heading: w.kidHeading, floor: w.kidFloor, fx: tg.x - cam.x, fz: tg.z - cam.z });
+      }
       if (this._hudT === undefined || (this._hudT -= dt) < 0) {
         this._hudT = 0.5;
         if (this.world.focusFloor !== this._lastFocus) {

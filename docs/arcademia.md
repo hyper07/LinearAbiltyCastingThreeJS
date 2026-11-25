@@ -141,20 +141,35 @@ Danuri orbiter. The moonbase puzzle bosses are the Moon's own critters: Bumble t
 Nibbles the hamster, Rusty the Robot Pup, Lumi the Luna Moth, Pinky the Axolotl, Glimmer the Moon Jelly
 and Twinkle the Star Puff.
 
-**Mars** is Olympus Mons, the tallest volcano in the solar system, as a red-rock mountain you walk
-all the way round (`world/mars/plan.js`, `scene.js`). Each floor is a whole ring-shaped terrace one
-storey up and a step further in: Landing Plains, Rover Ridge, Ice Ledge, Greenhouse Terrace, Weather
-Heights, Dust Devil Ledge and the Caldera Rim round the caldera's pit. On every ring the schools and
-small places stand all the way round, facing out, with a walking lane round the outside; stairs cut
-into the layered red, rust and ochre cliffs climb to the next ring, each set further round, so the way
-up spirals (a pressure door stays shut while the ring above is locked). Rings never overlap, so the
-walking grid is one layer (`tree/nav.js`); the camera always stands outside the mountain (`facing`).
+**Mars** is Olympus Mons, the tallest volcano in the solar system, as a compact red-rock mountain
+with a little Mars base wound round it (`world/mars/plan.js`, `scene.js`). One paved terrace spirals
+up from the plain to the caldera's rim, about two and a half turns, and the seven floors lie along it
+one after another — Landing Plains, Rover Ridge, Ice Ledge, Greenhouse Terrace, Weather Heights, Dust
+Devil Ledge and the Caldera Rim, which wraps round the caldera's pit — so the floors face every side
+of the mountain. Each floor is the same cosy base: its three schools side by side round a plaza
+(joined by pressurised tubes, a ring in the floor's colour on the road in front), its landmark beside
+them, the tents of the small places, the puzzle boss and the 🌀 portal by the ramp up and a chest at
+the start; the buildings stand with their backs to the cliff, facing out, and in front of them runs
+the road with a railing and lamps along its edge. Signposts with icons and numbers point the way (the
+schools →, ⬆ the next floor →, ← ⬇ the floor below; going up is always to the right, seen from
+outside), and each floor's start has a round badge with its icon and number. Wide gentle ramps, the
+terrace's whole width, join the floors, with lit edges, yellow arrow chevrons, beacons at the foot
+and a pressure door that stays shut while the floor above is locked. Nothing on a floor is more than
+12 s' walk from its plaza (the schools 3 s), and plaza to plaza is about 23 s (a unit test measures
+the walking paths). The turns never overlap, so the walking grid is one layer (`tree/nav.js`). The
+camera always stands outside the mountain (`facing`), turns with the buddy as they go round
+(`followRound`: A / D walk round the floor), and is lifted whenever the rock would be in the way
+(`camLift`). The minimap shows the spiral from above: near you by default (turned so the way the
+camera looks is up), or the whole volcano (the corner button); the schools are big coloured badges,
+the places icons, the ramps arrows, locked floors grey, and you an arrow that turns with you; tap a
+school or a place and the buddy walks there, tap a floor to go to it.
 Round the foot, a steep escarpment drops to the red plain, where the giants stand: the shiny steel
 **Big Rocket** by its launch tower, the **habitat village** of printed domes and greenhouse tunnels,
 the six-wheeled **rover** on its loop and the **helicopter drone** circling over the village. Far out
 are mesas, crater rims, a great layered canyon and the other Tharsis volcanoes; dust devils wander the
 plain; the sky is butterscotch with a small bright **Sun** (low in the north-east, where the arrival
 view sees it) and **Phobos** and **Deimos**; night is deep indigo with a blue glow low on the horizon.
+The cliffs are painted in crisp layers of red, rust and ochre by height (a small shader on the rock).
 Gravity is about 38 % of the Earth's: hops are a little floaty, with red dust puffs (`plan.float`).
 The buildings are its own (`world/mars/buildings.js`, original designs, printed from red soil):
 - **Red Dome School:** a tall dome 3D-printed in rings, a skylight, a printed arch porch with a "123" badge, and a printer gantry still printing a baby dome.
@@ -162,10 +177,10 @@ The buildings are its own (`world/mars/buildings.js`, original designs, printed 
 - **Weather Lab:** a rounded module with big solar wings, a weather mast with spinning cups and a wind vane, a radar dish.
 - The small places stand under inflatable tents (teal arches, a striped top).
 
-The ring landmarks are a landing site (a capsule under its parachute), a rover garage, an ice drill,
+The floor landmarks are a landing site (a capsule under its parachute), a rover garage, an ice drill,
 a greenhouse dome, a weather station, a dust-devil lookout and a caldera lookout. The townsfolk are
 Mars's own: pikas, capybaras, sloths, armadillos, chinchillas and little rover-bots, with dust goggles
-and beanies. The minimap draws the rings from above, the caldera, the rocket and the village.
+and beanies.
 
 Mars's teachers are its own animals (`world/creatures/species.js`), each keeping a touch of their own
 under the space helmet (`hat.wear`, `creatures/hats.js`, all in `HATS_IN_HELMET`): **Miss Ruby**, a
@@ -570,7 +585,7 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
 | Study worlds: the list, the Great Tree's, the Lagoon's, the Desert's, the Moon's and Mars's floors | `src/arcademia/maps.js` |
-| Mars: plan (ring terraces round the volcano, stairs, the rock), 3D scene, printed habitats, landmarks, the rocket, rover and drone | `src/arcademia/world/mars/plan.js`, `scene.js`, `buildings.js` |
+| Mars: plan (the spiral terrace, its floors and ramps, the rock, the camera lift), 3D scene, printed habitats, landmarks, the rocket, rover and drone | `src/arcademia/world/mars/plan.js`, `scene.js`, `buildings.js` |
 | Each world's lessons, teachers and stories (realms) | `src/arcademia/content/forest.js`, `content/sea.js`, `content/desert.js`, `content/moon.js`, `content/mars.js`, `figures.js` `teachersIn`, `quests.js` `worldsIn` |
 | The Lagoon: plan (islands, boardwalks, villas), 3D scene, resort buildings and landmarks | `src/arcademia/world/lagoon/plan.js`, `scene.js`, `src/arcademia/world/resort.js` |
 | The Desert: plan (oases, causeways, the Nile, Giza), 3D scene, sandstone buildings, landmarks, sphinxes | `src/arcademia/world/desert/plan.js`, `scene.js`, `buildings.js` |

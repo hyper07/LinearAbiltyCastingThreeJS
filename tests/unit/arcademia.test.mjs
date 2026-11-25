@@ -715,7 +715,7 @@ test('moon: a step never changes height or lands off the decks, and the glass tu
   }
 });
 
-test('mars: Olympus Mons — seven ring terraces all the way round a red volcano, every place reachable, a locked ring shut', async () => {
+test('mars: Olympus Mons — a compact base on a terrace spiralling round a red volcano, every place reachable, a locked floor shut', async () => {
   const { planMars, MARS, SIGHTS } = await import('../../src/arcademia/world/mars/plan.js');
   const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
   const { MARS_FLOORS, MAPS, mapById } = await import('../../src/arcademia/maps.js');
@@ -754,66 +754,111 @@ test('mars: Olympus Mons — seven ring terraces all the way round a red volcano
 
   const plan = planMars(MARS_FLOORS.length);
   assert.equal(plan.kind, 'mars');
-  assert.equal(plan.layers, 1, 'rings never lie over one another');
+  assert.equal(plan.layers, 1, 'turns of the terrace never lie over one another');
   assert.ok(plan.float > 0 && plan.float < planMoon(7).float, 'floatier than the Earth, less than the Moon');
-  assert.equal(plan.stairs.length, plan.floors.length - 1, 'stairs from each ring to the next');
+  assert.equal(plan.stairs.length, plan.floors.length - 1, 'a ramp from each floor to the next');
+  // Compact: the whole base sits within about 72 m of the caldera (it was 131 m).
+  assert.ok(plan.footR < 75, `the volcano's foot is ${plan.footR.toFixed(1)} m out`);
   plan.floors.forEach((f, k) => {
-    assert.equal(f.y, k * MARS.floorH, `ring ${f.n} stands a storey above the last`);
-    if (k) assert.ok(f.ro < plan.floors[k - 1].ri, `ring ${f.n} is inside the ring below, a cliff between`);
+    assert.equal(f.y, k * MARS.floorH, `floor ${f.n} stands a storey above the last`);
+    if (k) assert.ok(f.phiS > plan.floors[k - 1].phiE, `floor ${f.n} is further up the spiral than floor ${k}`);
   });
-  // The caldera's pit is inside the top ring and lower; the giants stand on the plain round the foot.
+  // The caldera's pit is inside the top turn and lower; the giants stand on the plain round the foot.
   const top = plan.floors.at(-1);
-  assert.ok(plan.rock(0, 0) < top.y - 6, 'the caldera pit is below the top ring');
+  assert.ok(plan.rock(0, 0) < top.y - 6, 'the caldera pit is below the top floor');
   assert.equal(plan.floorAt(0, 0), 0, 'nobody walks into the pit');
-  for (const s of [SIGHTS.rocket, SIGHTS.village, SIGHTS.rover]) assert.ok(Math.hypot(s.x, s.z) > plan.floors[0].ro + MARS.esc + s.r, 'the giants stand on the plain');
+  for (const s of [SIGHTS.rocket, SIGHTS.village, SIGHTS.rover]) {
+    const d = Math.hypot(s.x, s.z), o = plan.bandsAt(Math.atan2(s.x, s.z))[0];
+    assert.ok(d - s.r > o.ro + MARS.esc + (o.y + 7) * MARS.escK, 'the giants stand on the plain, off the terrace and its escarpment');
+  }
 
-  const blockers = plan.floors.flatMap((f) => [...f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })), { x: f.boss.x, z: f.boss.z, y: f.y, r: 1.1 }, { x: f.chest.x, z: f.chest.z, y: f.y, r: 0.9 }, { x: f.chest.rock.x, z: f.chest.rock.z, y: f.y, r: 1.6 }]);
+  const blockers = plan.floors.flatMap((f) => [...f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })), { x: f.boss.x, z: f.boss.z, y: f.y, r: 1.1 }, { x: f.chest.x, z: f.chest.z, y: f.y, r: 0.9 }, { x: f.chest.rock.x, z: f.chest.rock.z, y: f.y, r: 1.6 }, ...f.blockers]);
   const nav = buildLayerNav(plan, { blockers });
   const s = plan.start;
+  const quadrant = (p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2));
   for (const f of plan.floors) {
-    assert.equal(f.places.length, 8, `ring ${f.n}: three schools and five places`);
-    // All the way round the mountain: buildings in every quarter.
-    const quadrants = new Set(f.places.map((p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2))));
-    assert.equal(quadrants.size, 4, `ring ${f.n} has buildings on every side of the volcano`);
+    assert.equal(f.places.length, 8, `floor ${f.n}: three schools and five places`);
     for (const p of [...f.places.map((q) => q.at), f.portal.at, f.boss.at, f.chest.at]) {
       const path = nav.findPath([s.x, s.z, s.y], [p.x, p.z, f.y]);
-      assert.ok(path, `ring ${f.n}: (${p.x.toFixed(1)}, ${p.z.toFixed(1)}) reachable`);
-      assert.ok(Math.abs(path.at(-1)[2] - f.y) < 0.6, `ring ${f.n}: the path ends on that ring`);
+      assert.ok(path, `floor ${f.n}: (${p.x.toFixed(1)}, ${p.z.toFixed(1)}) reachable`);
+      assert.ok(Math.abs(path.at(-1)[2] - f.y) < 0.6, `floor ${f.n}: the path ends on that floor`);
     }
-    for (const p of f.plinths) assert.ok(Math.abs(plan.height(p.x, p.z, f.y) - (f.y + 0.55)) < 0.05, `ring ${f.n}: the ${p.subject} school stands on its plinth`);
-    for (const [x, z] of [...f.gemSpots, ...f.toySpots]) assert.equal(plan.floorAt(x, z), f.n, `ring ${f.n}: gem or toy spot on its own ring`);
+    for (const p of f.plinths) assert.ok(Math.abs(plan.height(p.x, p.z, f.y) - (f.y + 0.55)) < 0.05, `floor ${f.n}: the ${p.subject} school stands on its plinth`);
+    for (const [x, z] of [...f.gemSpots, ...f.toySpots]) assert.equal(plan.floorAt(x, z), f.n, `floor ${f.n}: gem or toy spot on its own floor`);
     // Places face out, away from the volcano's middle, towards the camera.
-    for (const p of f.places) assert.ok(Math.hypot(p.at.x, p.at.z) > Math.hypot(p.x, p.z), `ring ${f.n}: the ${p.kind} faces out`);
+    for (const p of f.places) assert.ok(Math.hypot(p.at.x, p.at.z) > Math.hypot(p.x, p.z), `floor ${f.n}: the ${p.kind} faces out`);
+    // The three schools stand side by side round the plaza, joined by tubes.
+    const [m, h, ph] = ['math', 'history', 'physics'].map((k) => f.plinths.find((p) => p.subject === k));
+    assert.ok(Math.hypot(m.x - h.x, m.z - h.z) < 11 && Math.hypot(ph.x - h.x, ph.z - h.z) < 11, `floor ${f.n}: the schools are neighbours`);
+    assert.equal(f.tubes.length, 2, `floor ${f.n}: tubes join the schools`);
   }
+  // All the way round the mountain: the floors' bases face every side, schools in every quarter.
+  assert.equal(new Set(plan.floors.flatMap((f) => f.places).map(quadrant)).size, 4, 'buildings on every side of the volcano');
+  assert.equal(new Set(plan.floors.flatMap((f) => f.plinths).map(quadrant)).size, 4, 'schools on every side of the volcano');
+  assert.ok(new Set(plan.floors.map((f) => quadrant(f.plaza))).size >= 3, 'the floors\' plazas face different ways');
   const gate = plan.floors[0].worldGate;
-  assert.ok(gate && nav.findPath([s.x, s.z, s.y], [gate.at.x, gate.at.z, 0]), 'the World Portal is on the first ring, and reachable');
+  assert.ok(gate && nav.findPath([s.x, s.z, s.y], [gate.at.x, gate.at.z, 0]), 'the World Portal is on floor 1, and reachable');
   assert.ok(Math.abs(plan.facing(0, 50) - 0) < 1e-9 && Math.abs(plan.facing(50, 0) - Math.PI / 2) < 1e-9, 'the camera looks from outside the mountain');
   const shut = buildLayerNav(plan, { blockers, locked: (n) => n >= 2 });
   const t2 = plan.floors[1].places[0].at, t1 = plan.floors[0].places[2].at;
-  // (A path to a shut ring may still lead to the nearest open spot below it, never onto it.)
+  // (A path to a shut floor may still lead to the nearest open spot below it, never onto it.)
   const reaches = (n, from, to) => {
     const p = n.findPath(from, to);
     return Boolean(p && Math.abs(p.at(-1)[2] - to[2]) < 0.6 && Math.hypot(p.at(-1)[0] - to[0], p.at(-1)[1] - to[1]) < 3);
   };
-  assert.ok(!reaches(shut, [s.x, s.z, s.y], [t2.x, t2.z, t2.y]), 'ring 2 is shut while locked');
-  assert.ok(reaches(shut, [s.x, s.z, s.y], [t1.x, t1.z, t1.y]), 'ring 1 still open');
+  assert.ok(!reaches(shut, [s.x, s.z, s.y], [t2.x, t2.z, t2.y]), 'floor 2 is shut while locked');
+  assert.ok(reaches(shut, [s.x, s.z, s.y], [t1.x, t1.z, t1.y]), 'floor 1 still open');
   const half = buildLayerNav(plan, { blockers, locked: (n) => n >= 5 });
   const t4 = plan.floors[3].places[0].at, t5 = plan.floors[4].places[0].at;
-  assert.ok(reaches(half, [s.x, s.z, s.y], [t4.x, t4.z, t4.y]), 'ring 4 open up three flights of stairs');
-  assert.ok(!reaches(half, [s.x, s.z, s.y], [t5.x, t5.z, t5.y]), 'ring 5 shut');
+  assert.ok(reaches(half, [s.x, s.z, s.y], [t4.x, t4.z, t4.y]), 'floor 4 open up three ramps');
+  assert.ok(!reaches(half, [s.x, s.z, s.y], [t5.x, t5.z, t5.y]), 'floor 5 shut');
 });
 
-test('mars: a step never jumps from one ring to another (only the stairs go up), and the stairs cut through the rock', async () => {
+test('mars: quick to walk — every place on a floor a few seconds from its plaza, the schools close to where you arrive, the next floor near', async () => {
   const { planMars } = await import('../../src/arcademia/world/mars/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const plan = planMars(FLOORS.length);
+  const blockers = plan.floors.flatMap((f) => [...f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })), { x: f.boss.x, z: f.boss.z, y: f.y, r: 1.1 }, { x: f.chest.x, z: f.chest.z, y: f.y, r: 0.9 }, { x: f.chest.rock.x, z: f.chest.rock.z, y: f.y, r: 1.6 }, ...f.blockers]);
+  const nav = buildLayerNav(plan, { blockers });
+  const SPEED = 4.6; // the buddy's walking speed with WASD (m/s; World.js), a little slower than click-to-walk
+  const secs = (from, to) => {
+    const p = nav.findPath(from, to);
+    assert.ok(p, 'a way there');
+    return p.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - p[i][0], q[1] - p[i][1]), 0) / SPEED;
+  };
+  for (const f of plan.floors) {
+    const plaza = [f.spawn.x, f.spawn.z, f.y], arrive = [f.arrive.x, f.arrive.z, f.y];
+    for (const [name, at] of [...f.places.map((p) => [p.kind, p.at]), ['portal', f.portal.at], ['boss', f.boss.at], ['chest', f.chest.at], ...(f.worldGate ? [['worlds', f.worldGate.at]] : [])]) {
+      const t = secs(plaza, [at.x, at.z, f.y]);
+      assert.ok(t <= 12, `floor ${f.n}: the ${name} is ${t.toFixed(1)} s from the plaza (at most 12)`);
+    }
+    for (const p of f.plinths) {
+      const door = f.places.find((q) => q.kind === p.subject).at;
+      assert.ok(secs(plaza, [door.x, door.z, f.y]) <= 4, `floor ${f.n}: the ${p.subject} school is by the plaza`);
+      // (Floor 1 has no ramp below: you arrive there at the World Portal, by the plaza.)
+      const from = f.k ? arrive : [f.worldGate.at.x, f.worldGate.at.z, f.y];
+      const t = secs(from, [door.x, door.z, f.y]);
+      assert.ok(t <= 12, `floor ${f.n}: the ${p.subject} school is ${t.toFixed(1)} s from where you arrive`);
+    }
+    const next = plan.floors[f.k + 1];
+    if (next) {
+      const t = secs(plaza, [next.spawn.x, next.spawn.z, next.y]);
+      assert.ok(t <= 25, `floor ${f.n} to ${next.n}: ${t.toFixed(1)} s plaza to plaza`);
+    }
+  }
+});
+
+test('mars: a step never jumps from one floor to another (only the ramps go up); the ramps are wide and gentle; the camera never sits in the rock', async () => {
+  const { planMars, MARS } = await import('../../src/arcademia/world/mars/plan.js');
   const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
   const plan = planMars(FLOORS.length);
   const nav = buildLayerNav(plan, {});
   const { w, d, cell, x0, z0, open, floorOf, h } = nav;
-  let jumps = 0, cliffs = 0, onStairs = 0;
+  let jumps = 0, cliffs = 0, onRamps = 0;
   for (let j = 1; j < d - 1; j++) for (let i = 1; i < w - 1; i++) {
     const a = j * w + i;
     if (!open[a]) continue;
-    if (!floorOf[a]) onStairs++;
+    if (!floorOf[a]) onRamps++;
     const ax = x0 + (i + 0.5) * cell, az = z0 + (j + 0.5) * cell;
     for (const [di, dj] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
       const b = (j + dj) * w + i + di;
@@ -823,16 +868,27 @@ test('mars: a step never jumps from one ring to another (only the stairs go up),
       if (Math.abs(h[a] - h[b]) > 1.2) cliffs++;
     }
   }
-  assert.equal(jumps, 0, 'steps straight from one ring onto another');
+  assert.equal(jumps, 0, 'steps straight from one floor onto another');
   assert.equal(cliffs, 0, 'steps up or down a cliff');
-  assert.ok(onStairs > 50, 'the stairs are walkable');
+  assert.ok(onRamps > 400, 'the ramps are walkable');
   for (const st of plan.stairs) {
+    assert.ok(st.width >= 14, 'a ramp is the terrace\'s whole width');
+    // Gentle: a storey over at least 14 m even along its inner (shortest) edge.
+    assert.ok(plan.riOf(st.pa) * (st.pb - st.pa) >= 13.9, `ramp ${st.from}: gentle`);
     const path = nav.findPath([st.a.x, st.a.z, st.a.y], [st.b.x, st.b.z, st.b.y]);
-    assert.ok(path && Math.abs(path.at(-1)[2] - st.b.y) < 0.6, `stairs ${st.from} to ${st.to} climb a storey`);
-    // Half-way up, the rock is carved down under the steps.
-    const mx = (st.a.x + st.b.x) / 2, mz = (st.a.z + st.b.z) / 2;
-    assert.ok(plan.rock(mx, mz) < plan.height(mx, mz, (st.a.y + st.b.y) / 2), `stairs ${st.from}: the rock is cut away under the steps`);
+    assert.ok(path && Math.abs(path.at(-1)[2] - st.b.y) < 0.6, `ramp ${st.from} to ${st.to} climbs a storey`);
+    const mid = plan.pt((st.pa + st.pb) / 2, MARS.W / 2);
+    assert.equal(plan.floorAt(mid.x, mid.z), 0, 'a ramp belongs to no floor');
+    assert.ok(Math.abs(plan.height(mid.x, mid.z, (st.a.y + st.b.y) / 2) - (st.a.y + st.b.y) / 2) < 0.2, `ramp ${st.from}: half-way up half a storey`);
   }
+  // The follow camera: in the rock or behind a cliff it is lifted until the buddy is in clear view.
+  const f = plan.floors[2], kid = f.spawn;
+  const inner = plan.pt(f.plaza.phi, -6), above = plan.floors[3];
+  assert.ok(plan.camLift(inner.x, f.y + 3, inner.z, kid.x, f.y + 1, kid.z) > 5, 'a camera inside the cliff behind is lifted out');
+  const out = plan.pt(f.plaza.phi, MARS.W + 12);
+  assert.equal(plan.camLift(out.x, f.y + 8, out.z, kid.x, f.y + 1, kid.z), 0, 'the usual view from outside is clear');
+  assert.ok(above.y > f.y, 'floors go up');
+  assert.equal(plan.followRound, true, 'the camera turns with the buddy round the mountain');
 });
 
 test('mars: the Learning Mountain keeps exactly its plan and ground', async () => {

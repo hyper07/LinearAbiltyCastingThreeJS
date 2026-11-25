@@ -141,6 +141,25 @@
 .arc-mini__dot--physics { fill: var(--arc-physics); }
 .arc-mini__n { font-size: 9px; font-weight: 800; fill: var(--arc-ink); }
 .arc-mini__kid { font-size: 11px; }
+.arc-mini--mars { width: 240px; padding: 6px; }
+.arc-mini__zoom { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: 1px solid var(--arc-line); border-radius: 50%; background: var(--arc-card); color: var(--arc-ink); font-size: 18px; font-weight: 800; line-height: 1; cursor: pointer; box-shadow: var(--arc-shadow); }
+.arc-mini__zoom:hover { background: #fff3cf; }
+.arc-mini__floor:hover path:last-of-type { filter: brightness(1.06); }
+.arc-mini__ramp { fill: #1f8f89; stroke: #fff; stroke-width: 0.8; }
+.arc-mini__ramp.is-locked { fill: #8a7f78; }
+.arc-mini__school circle { stroke: #fff; stroke-width: 1.4; opacity: 0.8; }
+.arc-mini__school.is-done circle { opacity: 1; stroke: #ffc83d; stroke-width: 1.8; }
+.arc-mini__school--math circle { fill: var(--arc-math); }
+.arc-mini__school--history circle { fill: var(--arc-history); }
+.arc-mini__school--physics circle { fill: var(--arc-physics); }
+.arc-mini__school.is-locked { fill: #a2958c; stroke: #e9ded4; stroke-width: 0.8; }
+.arc-mini__place { transition: transform 0.15s; }
+.arc-mini__place:hover > circle { stroke: #ffc83d; stroke-width: 2; }
+.arc-mini__me { pointer-events: none; }
+.arc-mini__up { transform: rotate(var(--up, 0deg)); transform-box: fill-box; transform-origin: center; }
+.arc-mini--mars svg { border-radius: 14px; background: #eaa978; }
+.arc-mini__me-ring { fill: rgba(255, 255, 255, 0.35); stroke: #fff; stroke-width: 1.2; }
+.arc-mini__me-arrow { fill: #ffd23f; stroke: #3b3340; stroke-width: 1.2; stroke-linejoin: round; }
 
 .arc-help { position: absolute; left: 20px; bottom: 10px; z-index: 4; margin: 0; font-size: 12px; font-weight: 600; color: var(--arc-muted); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7); pointer-events: none; }
 
@@ -196,6 +215,7 @@
   .arc-quest { left: 8px; right: 8px; bottom: 8px; width: auto; padding: 12px 14px; }
   .arc-quest__title { font-size: 17px; }
   .arc-mini { right: auto; left: 10px; top: 62px; bottom: auto; width: 116px; padding: 5px; }
+  .arc-mini--mars { width: 156px; }
   .arc-help { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
