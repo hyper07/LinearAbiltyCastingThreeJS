@@ -228,8 +228,11 @@ export class RaceTraffic {
     const left = this._leftOnRoad(v);
     if (left < 25 && v.next?.bend > 0.5) want = Math.min(want, 4 + left * 0.25);
     // Coming up to a junction with the race coming through it across our way: wait at the line.
-    v.giving = left > 2.5 && left < 45 && this._raceAcross(v, left);
-    if (v.giving) want = Math.min(want, Math.max(0, (left - 4) * 0.7));
+    // (at the line: clear of the course's carriageway — half its width and a car's length back from
+    // where the roads meet, not in the middle of a ten-lane crossing)
+    const clear = left < 60 ? this._raceAcross(v, left) : 0;
+    v.giving = clear > 0 && left > clear - 1.5;
+    if (v.giving) want = Math.min(want, Math.max(0, (left - clear) * 0.7));
     v.speed += Math.max(-8 * dt, Math.min(2.6 * dt, want - v.speed));
     v.braking = want < v.speed - 0.4;
     v.hazard = v.stopFor > 0;
@@ -276,9 +279,20 @@ export class RaceTraffic {
       const fx = -Math.sin(r.s.travel ?? r.s.heading);
       const fz = -Math.cos(r.s.travel ?? r.s.heading);
       if ((ex - r.s.x) * fx + (ez - r.s.z) * fz < -6) continue;
-      return true;
+      // how far back from the junction to wait: the course's half-width there, and a little more
+      let w = 8;
+      const pts = this.race.course?.points ?? [];
+      let best = 30;
+      for (let i = 0; i < pts.length; i += 2) {
+        const dd = Math.hypot(pts[i][0] - ex, pts[i][1] - ez);
+        if (dd < best) {
+          best = dd;
+          w = pts[i][2] ?? 8;
+        }
+      }
+      return Math.max(4, w / 2 + 3.5);
     }
-    return false;
+    return 0;
   }
 
   _leftOnRoad(v) {

@@ -1,10 +1,13 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Session } from '../net/Session.js';
-import { BIKE_COURSES, planCourse, finishCourse, locate, isSmall } from './course.js';
+import { BIKE_COURSES, planCourse, finishCourse, locate, isSmall, courseStats } from './course.js';
 import { Walls, tileRings, RIDER_RADIUS } from './walls.js';
 import { TILE, decodeTile, tileKey, tileOf } from './tiles.js';
 import { bikeGap, closeCall, slipstream, NEAR_MISS } from './ride.js';
-import { SCOOT, GRIP, newScoot, stepScoot, cornerSpeed } from './scoot.js';
+import { SCOOT, GRIP, SCOOTER_ORDER, newScoot, stepScoot, cornerSpeed, specFor, cleanScooter } from './scoot.js';
+import { Lobby } from './lobby.js';
+import { JaraniStage } from './stage.js';
 import { SpeedFx, speedFeel, windNoise } from './speedfx.js';
 import { ringBell } from './bell.js';
 import { THROW, branchModel, throwPlan, flightAt, snapSound } from './branch.js';
@@ -93,11 +96,20 @@ const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 <
 const heading = (p, q) => Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
 /** A crash: the tumble, then sitting dazed and getting up, then back on — seconds. */
 const TUMBLE = 0.7;
-/** How fast (m/s) a head-on wall knocks you off: about 30 km/h; slower is a bonk and a stop. */
-const WALL_FALL = 8.3;
+/** How fast (m/s) a head-on wall knocks you off: about 38 km/h; slower is a bonk and a stop. */
+const WALL_FALL = 10.5;
 const DOWN = 1.55;
 
 export { botRiders };
+
+/**
+ * Scooters for the bots: all different where there are enough, a mix of fast and nimble — never
+ * the whole field on the fastest.
+ */
+export function botScooters(n, random = Math.random) {
+  const pool = SCOOTER_ORDER.slice().sort(() => random() - 0.5);
+  return Array.from({ length: n }, (_, i) => pool[i % pool.length]);
+}
 
 /** The nearest point of an open line of points to (x, z), searched between two indices; how far off its segments. */
 function locateOn(pts, x, z, lo, hi) {
@@ -143,19 +155,29 @@ export class Race {
     } catch {
       /* private mode */
     }
+    this.scooter = 'city';
+    try {
+      this.scooter = cleanScooter(localStorage.getItem('gamory.jarani.scooter'));
+    } catch {
+      /* private mode */
+    }
     this.picks = new Map();
     this._hud();
+    this.lobby = new Lobby(this);
   }
 
   _saveChar() {
     try {
       localStorage.setItem('gamory.jarani.rider', this.char);
+      localStorage.setItem('gamory.jarani.scooter', this.scooter);
     } catch {
       /* private mode */
     }
     if (this.session?.room) {
-      if (this.session.isHost) this.picks.set(this.session.id, this.char);
-      else this.session.send({ t: 'race-pick', char: this.char });
+      if (this.session.isHost) {
+        this.picks.set(this.session.id, { char: this.char, scooter: this.scooter });
+        this.session.send({ t: 'race-picks', picks: [...this.picks] });
+      } else this.session.send({ t: 'race-pick', char: this.char, scooter: this.scooter });
     }
   }
 
@@ -199,74 +221,19 @@ export class Race {
     this.g.root.classList.toggle('is-racing', on);
   }
 
-  /** The race menu: a course, a rider, laps, the time and weather, alone or together. */
-  menu(note = '') {
+  /**
+   * The race menus (lobby.js over the 3D stage, stage.js): rider → scooter → course → time and
+   * weather → go, alone or together. `step` opens at one of them (the results' "Courses" opens on
+   * the course).
+   */
+  menu(note = '', step = null) {
     this.phase = this.session?.room ? 'lobby' : 'menu';
     this._show(false);
     this.resultEl.hidden = true;
-    const s = this.session;
-    const host = !s?.room || s.isHost;
-    const m = this.menuEl;
-    m.hidden = false;
-    const bar = (name, v) => `<span class="race__stat"><small>${name}</small><i><b style="width:${Math.round(Math.max(0.08, Math.min(1, v)) * 100)}%"></b></i></span>`;
-    const stats = (c) => {
-      const sp = { ...SCOOT, ...c.spec };
-      return bar('Speed', (sp.boostTop - 22.8) / 2.4 + 0.2) + bar('Pick-up', (sp.accel - 5.4) / 1.8) + bar('Handling', (sp.maxLean * sp.leanRate - 2.6) / 1.6) + bar('Grip', (sp.grip ?? 1) - 0.4);
-    };
-    // Portraits: each plush face, drawn small.
-    this._portraits ??= new Map(CREW_ORDER.map((id) => [id, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(faceSvg(id, 132).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}`]));
-    const len = (id) => {
-      const c = this.plans.get(id);
-      return c ? this._lenText(c) : '';
-    };
-    m.innerHTML = `
-      <header><h2>🛴 Gangnam Jarani</h2><button type="button" data-race-x aria-label="Close">✕</button></header>
-      <p class="race__lead">Snowpuff's plush friends race electric scooters through Seoul's real streets and alleys — and the streets are open: weave through cars, buses, delivery scooters and people. Throttle with <b>W</b> to 70 km/h, lean with <b>A D</b>, hold <b>Shift</b> to drift round the tight corners, boost with <b>F</b> while the battery gauge lasts, ring your bell with <b>Space</b>, grab item boxes and use them with <b>1 2 3</b> — a branch in a rival's front wheel sends them over the bars. Pass close to traffic to charge your boost; glance off a wall and you scrape, hit something square and you're off.</p>
-      <div class="race__courses">${BIKE_COURSES.map((c) => `<button type="button" data-course="${c.id}" class="${c.id === this.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><span>${esc(c.ko)}</span><small>${esc(c.text)}</small><em data-len="${c.id}">${len(c.id)}</em></button>`).join('')}</div>
-      <h3 class="race__label">Your rider</h3>
-      <div class="race__garage">${CREW_ORDER.map((id) => {
-        const c = rider(id);
-        return `<button type="button" data-char="${id}" class="${this.char === id ? 'is-on' : ''}"><img src="${this._portraits.get(id)}" alt="" /><b>${esc(c.name)} <span>${esc(c.ko)}</span></b><small>${esc(c.text)}</small>${stats(c)}</button>`;
-      }).join('')}</div>
-      <div class="race__row"><span>Laps</span>${[1, 2, 3].map((n) => `<button type="button" data-laps="${n}" class="${n === this.laps ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div>
-      <div class="race__row"><span>Time</span>${Object.entries(TIME_PICKS).map(([k, t]) => `<button type="button" data-time="${k}" class="${k === this.time ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${t.icon} ${t.name}</button>`).join('')}</div>
-      <div class="race__row"><span>Weather</span>${WEATHER_PICKS.map((k) => `<button type="button" data-weather="${k}" class="${k === this.weatherPick ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${k === 'random' ? '🎲 Random' : `${WEATHERS[k].icon} ${WEATHERS[k].name}`}</button>`).join('')}</div>
-      ${s?.room ? `
-        <div class="race__room"><b>Room <span data-race-code>${esc(s.room)}</span></b> — give friends this code (up to four). Bots take any empty seats.
-          <ul>${[...s.peers.values()].map((p) => { const pick = p.id === s.id ? this.char : this.picks.get(p.id); return `<li>${pick ? `<img src="${this._portraits.get(pick)}" alt="" />` : ''}${esc(p.name)}${pick ? ` — ${esc(rider(pick).name)}` : ''}${p.id === s.host ? ' <em>host</em>' : ''}${p.id === s.id ? ' <em>you</em>' : ''}</li>`; }).join('')}</ul>
-        </div>
-        <div class="race__row">${host ? '<button type="button" class="race__go" data-race-start>Start the race</button>' : '<span>Waiting for the host to start…</span>'}<button type="button" data-race-leave>Leave the room</button></div>` : `
-        <div class="race__row"><button type="button" class="race__go" data-race-solo>Race three bots</button></div>
-        <div class="race__row race__together"><span>With friends</span><button type="button" data-race-make>Make a room</button><input data-race-code-in maxlength="5" placeholder="CODE" /><button type="button" data-race-join>Join</button></div>`}
-      <p class="race__note" data-race-note>${esc(note)}</p>
-      <p class="race__keys">W throttle · S brake · A D lean · Shift drift · F boost · Space bell · 1 2 3 items · R reset if stuck · Esc pause · H how to play <button type="button" class="race__credits" data-race-credits>ⓒ Credits</button></p>`;
-    const $ = (q) => m.querySelector(q);
-    $('[data-race-x]').onclick = () => this.quit();
-    $('[data-race-credits]').onclick = () => this.g.toggleCredits(true);
-    for (const b of m.querySelectorAll('[data-course]')) b.onclick = () => this._setup({ course: b.dataset.course });
-    for (const b of m.querySelectorAll('[data-laps]')) b.onclick = () => this._setup({ laps: Number(b.dataset.laps) });
-    for (const b of m.querySelectorAll('[data-time]')) b.onclick = () => this._setup({ time: b.dataset.time });
-    for (const b of m.querySelectorAll('[data-weather]')) b.onclick = () => this._setup({ weather: b.dataset.weather });
-    for (const b of m.querySelectorAll('[data-char]')) b.onclick = () => {
-      this.char = b.dataset.char;
-      this._saveChar();
-      this.menu();
-    };
-    if ($('[data-race-solo]')) $('[data-race-solo]').onclick = () => this.startSolo();
-    if ($('[data-race-make]')) $('[data-race-make]').onclick = () => this._room('create');
-    if ($('[data-race-join]')) {
-      const join = () => this._room('join', $('[data-race-code-in]').value.trim().toUpperCase());
-      $('[data-race-join]').onclick = join;
-      $('[data-race-code-in]').onkeydown = (e) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') join();
-      };
-    }
-    if ($('[data-race-start]')) $('[data-race-start]').onclick = () => this.startRoom();
-    if ($('[data-race-leave]')) $('[data-race-leave]').onclick = () => this._leaveRoom();
-    // Plan the courses (and say how long) while the menu is up, one at a time.
+    this.lobby.open(step ?? this.lobby.step, note);
+    // Plan the courses (and say how long) while the menu is up, one at a time — the one picked first.
     clearTimeout(this._planT);
-    const todo = BIKE_COURSES.filter((c) => !this.plans.has(c.id));
+    const todo = [BIKE_COURSES.find((c) => c.id === this.courseId), ...BIKE_COURSES.filter((c) => c.id !== this.courseId)].filter((c) => c && !this.plans.has(c.id));
     const next = async () => {
       const c = todo.shift();
       if (!c || this.phase === 'off') return;
@@ -276,15 +243,21 @@ export class Race {
     this._planT = setTimeout(next, 50);
   }
 
+  /** The 3D stage behind the menus. */
+  makeStage() {
+    return new JaraniStage(this.g.renderer).build();
+  }
+
   _note(text) {
     const n = this.menuEl.querySelector('[data-race-note]');
     if (n) n.textContent = text;
   }
 
-  _setup({ course = this.courseId, laps = this.laps, time = this.time, weather = this.weatherPick }) {
+  /** The host's picks (course, laps, time, weather), sent to the room; `redraw` the menu after. */
+  _setup({ course = this.courseId, laps = this.laps, time = this.time, weather = this.weatherPick }, redraw = true) {
     Object.assign(this, { courseId: course, laps, time, weatherPick: weather });
     if (this.session?.room && this.session.isHost) this.session.send({ t: 'race-setup', course, laps, time, weather });
-    this.menu();
+    if (redraw) this.menu();
   }
 
   /** The roads and small streets near a course. */
@@ -344,8 +317,7 @@ export class Race {
       c.def = def;
       c.walls = walls;
       this.plans.set(id, c);
-      const el = this.menuEl.querySelector(`[data-len="${id}"]`);
-      if (el) el.textContent = this._lenText(c);
+      this.lobby.planned(id);
       return c;
     })();
     this.planning.set(id, job);
@@ -354,8 +326,9 @@ export class Race {
   }
 
   _lenText(c) {
+    const st = courseStats(c);
     const sc = c.shortcuts?.length ?? 0;
-    return `${(c.length / 1000).toFixed(1)} km · ${Math.round((c.points.filter((p) => isSmall(p[3] ?? 4)).length / c.points.length) * 100)}% alleys${sc ? ` · ${sc} short cut${sc > 1 ? 's' : ''}` : ''}`;
+    return `${(c.length / 1000).toFixed(1)} km · ${Math.round(st.wide * 100)}% wide roads · ${st.sharp} sharp turn${st.sharp === 1 ? '' : 's'}${sc ? ` · ${sc} short cut${sc > 1 ? 's' : ''}` : ''}`;
   }
 
   /* -------------------------------------------------------- the room */
@@ -406,7 +379,7 @@ export class Race {
 
   _heard(msg) {
     if (msg.t === 'race-pick' && this.session?.isHost && CREW[msg.char]) {
-      this.picks.set(msg.from, msg.char);
+      this.picks.set(msg.from, { char: msg.char, scooter: cleanScooter(msg.scooter) });
       // Everyone in the lobby sees who picked whom.
       this.session.send({ t: 'race-picks', picks: [...this.picks] });
       if (this.phase === 'lobby') this.menu();
@@ -414,7 +387,10 @@ export class Race {
     }
     const fromHost = msg.from === this.session?.host;
     if (msg.t === 'race-picks' && fromHost) {
-      for (const [id, c] of msg.picks ?? []) if (CREW[c] && id !== this.session.id) this.picks.set(id, c);
+      for (const [id, c] of msg.picks ?? []) {
+        const pick = typeof c === 'string' ? { char: c, scooter: 'city' } : c;
+        if (CREW[pick?.char] && id !== this.session.id) this.picks.set(id, { char: pick.char, scooter: cleanScooter(pick.scooter) });
+      }
       if (this.phase === 'lobby') this.menu();
     } else if (msg.t === 'race-setup' && fromHost) {
       Object.assign(this, { courseId: msg.course, laps: msg.laps, time: msg.time ?? 'random', weatherPick: msg.weather ?? 'random' });
@@ -459,8 +435,9 @@ export class Race {
   startSolo() {
     this.session?.close();
     this.session = null;
-    const grid = [{ id: 'me', name: this.g.account?.name ?? 'You', owner: 'me', char: this.char }];
-    botRiders(this.char, SEATS - 1).forEach((c, i) => grid.push({ id: `bot${i}`, name: BOT_NAMES[i], owner: 'me', bot: true, skill: 0.88 + i * 0.045, char: c }));
+    const grid = [{ id: 'me', name: this.g.account?.name ?? 'You', owner: 'me', char: this.char, scooter: this.scooter }];
+    const rides = botScooters(SEATS - 1);
+    botRiders(this.char, SEATS - 1).forEach((c, i) => grid.push({ id: `bot${i}`, name: BOT_NAMES[i], owner: 'me', bot: true, skill: 0.88 + i * 0.045, char: c, scooter: rides[i] }));
     this.myId = 'me';
     this._begin(grid, raceSky(this.time, this.weatherPick));
   }
@@ -469,10 +446,11 @@ export class Race {
     const s = this.session;
     if (!s?.isHost) return;
     const people = [...s.peers.values()].slice(0, SEATS);
-    this.picks.set(s.id, this.char);
-    const grid = people.map((p) => ({ id: p.id, name: p.name, owner: p.id, char: this.picks.get(p.id) ?? 'fox' }));
+    this.picks.set(s.id, { char: this.char, scooter: this.scooter });
+    const grid = people.map((p) => ({ id: p.id, name: p.name, owner: p.id, char: this.picks.get(p.id)?.char ?? 'fox', scooter: cleanScooter(this.picks.get(p.id)?.scooter) }));
     const bots = botRiders(grid[0]?.char ?? this.char, CREW_ORDER.length - 1).filter((c) => !grid.some((g) => g.char === c));
-    for (let i = grid.length; i < SEATS; i++) grid.push({ id: `bot${i}`, name: BOT_NAMES[i - 1] ?? 'Bot', owner: s.id, bot: true, skill: 0.9 + i * 0.03, char: bots.shift() ?? CREW_ORDER[i % CREW_ORDER.length] });
+    const rides = botScooters(SEATS);
+    for (let i = grid.length; i < SEATS; i++) grid.push({ id: `bot${i}`, name: BOT_NAMES[i - 1] ?? 'Bot', owner: s.id, bot: true, skill: 0.9 + i * 0.03, char: bots.shift() ?? CREW_ORDER[i % CREW_ORDER.length], scooter: rides[i] });
     const sky = raceSky(this.time, this.weatherPick);
     s.send({ t: 'race-go', course: this.courseId, laps: this.laps, grid, sky });
     this._begin(grid, sky);
@@ -515,6 +493,7 @@ export class Race {
     this._paths();
     this.myId = this.session?.id ?? 'me';
     this.menuEl.hidden = true;
+    this.lobby.close();
     this.resultEl.hidden = true;
     this._show(true);
     this.g.street?.hide();
@@ -540,14 +519,16 @@ export class Race {
       const { char, twice } = looks[i];
       const ch = rider(char);
       const body = twice ? '#2b2d33' : ch.scooter;
-      const view = new PlushRider(char, { body, trim: twice ? ch.scooter : ch.trim, screen: g.id === this.myId, fur: 10 });
+      const ride = cleanScooter(g.scooter);
+      const view = new PlushRider(char, { body, trim: twice ? ch.scooter : ch.trim, screen: g.id === this.myId, fur: 10, ride });
       this.g.scene.add(view.root);
       return {
         ...g,
         char,
         ch,
         color: body,
-        spec: { ...SCOOT, ...ch.spec },
+        scooter: ride,
+        spec: specFor(ride, ch.spec),
         view,
         mine: g.owner === this.myId,
         me: g.id === this.myId,
@@ -584,6 +565,8 @@ export class Race {
     this.boxes = new ItemBoxes(this.g, course);
     // The street along the course, and down each short cut's golmok (its walls solid: course.walls) —
     // each alley's mouth a dropped kerb where it crosses a road's pavement.
+    // (the menus draw their own stage, not the city: its road lookup may not be made yet)
+    this.g.roadHash ??= new Map();
     const lines = [course.points, ...(course.shortcuts ?? []).map((sc) => sc.points)];
     this.g.setMouths?.(lines);
     this.golmok = new Golmok(this.g, course, { walls: course.walls, avoid: lines.slice(1) });
@@ -605,6 +588,124 @@ export class Race {
     for (const r of this.racers) if (!r.me) r.view.fade(0.999);
     this._renderItems();
     this._starting = null;
+  }
+
+  /**
+   * What the wheels go over on the way round: steel road plates over roadworks (common on Seoul's
+   * roads), manhole covers, and on the narrower roads a painted speed bump — each in the racing
+   * line's half of the street, the same for everyone (placed by the course's own points). Small
+   * hard wheels feel them: scoot.js `bump`, softened by the suspension (shock absorption).
+   */
+  _plates() {
+    const c = this.course;
+    const n = c.points.length;
+    const list = [];
+    let i = 40;
+    let k = 0;
+    while (i < n - 20) {
+      const p = c.points[i];
+      const q = c.points[(i + 1) % n];
+      const hd = heading(p, q);
+      const w = p[2] ?? 8;
+      const band = laneBand(w, isSmall(p[3] ?? 4), false, Boolean(p[4]));
+      const kind = w < 9 && k % 3 === 2 ? 'hump' : k % 2 ? 'manhole' : 'plate';
+      const lat = kind === 'hump' ? 0 : band.lo + (band.hi - band.lo) * (0.2 + ((k * 0.37) % 0.6));
+      const half = kind === 'hump' ? { along: 0.45, across: Math.max(1.5, w / 2 - 0.4) } : kind === 'plate' ? { along: 1.2, across: 0.95 } : { along: 0.38, across: 0.38 };
+      const x = p[0] + Math.cos(hd) * lat;
+      const z = p[1] - Math.sin(hd) * lat;
+      if (!c.walls?.hits(x, z, 1)) list.push({ id: list.length, x, z, hd, kind, half, k: kind === 'hump' ? 1 : kind === 'plate' ? 0.75 : 0.5, i });
+      k++;
+      i += 17 + ((k * 7) % 9);
+    }
+    this.plates = list;
+    if (!list.length) return;
+    const mk = (kind, geo, mat) => {
+      const items = list.filter((pl) => pl.kind === kind);
+      if (!items.length) return;
+      const im = new THREE.InstancedMesh(geo, mat, items.length);
+      const m = new THREE.Matrix4();
+      const qn = new THREE.Quaternion();
+      items.forEach((pl, j) => {
+        qn.setFromAxisAngle(new THREE.Vector3(0, 1, 0), pl.hd);
+        const sx = kind === 'hump' ? pl.half.across * 2 : kind === 'plate' ? pl.half.across * 2 : 1;
+        const sz = kind === 'hump' ? 1 : kind === 'plate' ? pl.half.along * 2 : 1;
+        m.compose(new THREE.Vector3(pl.x, this.g.surfaceAt(pl.x, pl.z) + 0.012, pl.z), qn, new THREE.Vector3(sx, 1, sz));
+        im.setMatrixAt(j, m);
+      });
+      im.receiveShadow = true;
+      im.frustumCulled = false;
+      this.decor.add(im);
+    };
+    const tex = (draw) => {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 128;
+      draw(cv.getContext('2d'));
+      const t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    // a steel plate: chequered tread, rusty at the edges
+    const plateTex = tex((g) => {
+      g.fillStyle = '#5d6168';
+      g.fillRect(0, 0, 128, 128);
+      g.fillStyle = '#7b8088';
+      for (let y = 0; y < 128; y += 10) for (let x = (y / 10) % 2 ? 5 : 0; x < 128; x += 10) g.fillRect(x, y, 6, 2);
+      g.strokeStyle = 'rgba(140,80,40,0.7)';
+      g.lineWidth = 8;
+      g.strokeRect(0, 0, 128, 128);
+    });
+    const holeTex = tex((g) => {
+      g.fillStyle = '#3c3e42';
+      g.beginPath();
+      g.arc(64, 64, 62, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = '#55585e';
+      g.lineWidth = 4;
+      for (let r = 14; r < 60; r += 12) {
+        g.beginPath();
+        g.arc(64, 64, r, 0, Math.PI * 2);
+        g.stroke();
+      }
+      g.fillStyle = '#8a8d93';
+      g.font = '900 18px system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.fillText('하수', 64, 70);
+    });
+    const humpTex = tex((g) => {
+      for (let x = 0; x < 128; x += 32) {
+        g.fillStyle = '#ffd23a';
+        g.fillRect(x, 0, 16, 128);
+        g.fillStyle = '#26272b';
+        g.fillRect(x + 16, 0, 16, 128);
+      }
+    });
+    humpTex.wrapS = THREE.RepeatWrapping;
+    humpTex.repeat.set(3, 1);
+    mk('plate', new THREE.BoxGeometry(1, 0.02, 1), new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.45, metalness: 0.7 }));
+    mk('manhole', new THREE.CylinderGeometry(0.38, 0.38, 0.016, 20), new THREE.MeshStandardMaterial({ map: holeTex, roughness: 0.6, metalness: 0.5 }));
+    mk('hump', new RoundedBoxGeometry(1, 0.07, 0.9, 2, 0.03), new THREE.MeshStandardMaterial({ map: humpTex, roughness: 0.7 }));
+  }
+
+  /** Did a racer's front wheel just go over a plate, a manhole or a bump? How big (0–1), once each. */
+  _plateHit(r) {
+    if (!this.plates?.length || r.sc != null) return 0;
+    const s = r.s;
+    const fx = s.x - Math.sin(s.heading) * 0.5;
+    const fz = s.z - Math.cos(s.heading) * 0.5;
+    for (const pl of this.plates) {
+      if (Math.abs(pl.i - r.idx) > 6 && Math.abs(pl.i - r.idx) < this.course.points.length - 6) continue;
+      const dx = fx - pl.x;
+      const dz = fz - pl.z;
+      const along = Math.abs(-dx * Math.sin(pl.hd) - dz * Math.cos(pl.hd));
+      const across = Math.abs(dx * Math.cos(pl.hd) - dz * Math.sin(pl.hd));
+      const on = along < pl.half.along && across < pl.half.across;
+      if (on && r.plate !== pl.id) {
+        r.plate = pl.id;
+        return pl.k;
+      }
+      if (!on && r.plate === pl.id && along > pl.half.along + 1) r.plate = null;
+    }
+    return 0;
   }
 
   /** The course on the road: arrows along it, a banner over the start, fans at the line. */
@@ -635,6 +736,7 @@ export class Race {
     }
     this._lift(true);
     this.decor.add(this.chevrons);
+    this._plates();
     const p = c.points[0];
     const q = c.points[1];
     const w = Math.max(6, (p[2] ?? 8) + 2);
@@ -1034,6 +1136,7 @@ export class Race {
         input.draft = this._draft(r);
         input.surface = this._surface(r);
         input.kerb = this._kerb(r);
+        input.bump = this._plateHit(r);
         const out = this._step(r, input, dt);
         r.landed = out.landed;
         if (out.kerb === 'hop' && r.me) this.g.street?._thud?.(0.25);
@@ -1045,7 +1148,11 @@ export class Race {
         else if (out.hit > 2 && r.me) this._scrape(r, 0.6, false, 'bonk');
         else if (out.hit > 1 && r.me) this.g.street?._thud?.(Math.min(1, out.hit / 9));
         else if (out.glance > 0) this._scrape(r, out.glance, false, 'wall');
-        if (out.jolt > 0.4 && r.me) this.shake = Math.max(this.shake ?? 0, 0.04 * out.jolt);
+        // (a hard jolt shakes the camera: more on stiff springs — scoot.js already scaled it by the suspension)
+        if (out.jolt > 0.35 && r.me) {
+          this.shake = Math.max(this.shake ?? 0, 0.07 * out.jolt);
+          if (input.bump) this.g.street?._thud?.(Math.min(0.6, out.jolt * 0.4));
+        }
         if (r.me && racing) this._motorSound(r);
         if (r.me) this._squeal(r);
       } else if (r.net) {
@@ -1055,7 +1162,7 @@ export class Race {
         r.s.heading += turn(r.s.heading, r.net.heading) * kk;
         // (where the network says they are, but never inside a building between two messages)
         this._clear(r);
-        r.s.roll = ((r.s.roll ?? 0) + (r.s.v / SCOOT.wheel) * dt) % (Math.PI * 2);
+        r.s.roll = ((r.s.roll ?? 0) + (r.s.v / r.spec.wheel) * dt) % (Math.PI * 2);
         if (r.mode !== 'ride') r.crashT += dt;
       }
     }
@@ -1316,7 +1423,7 @@ export class Race {
         if (at < 0) continue;
         out.junctions++;
         const w = Math.min(a[2] ?? 4, b[2] ?? 4);
-        const J = { line: line.name, i, x: Math.round(a[0] + ux * at), z: Math.round(a[1] + uz * at), ux: Math.round(ux * 100) / 100, uz: Math.round(uz * 100) / 100, steps: 0, gaps: 0, overlaps: 0, maxStep: 0, flags: [] };
+        const J = { line: line.name, i, x: Math.round(a[0] + ux * at), z: Math.round(a[1] + uz * at), ux: Math.round(ux * 100) / 100, uz: Math.round(uz * 100) / 100, steps: 0, gaps: 0, overlaps: 0, maxStep: 0, maxRise: 0, flags: [] };
         const flag = (what, o, d, v = 0) => J.flags.length < 8 && J.flags.push(`${what} ${o.toFixed(1)}/${d.toFixed(1)}${v ? ` ${v.toFixed(2)}` : ''}`);
         for (const off of [-(w / 2 - 0.6), 0, w / 2 - 0.6]) {
           let y = null;
@@ -1353,6 +1460,8 @@ export class Race {
               J.steps++;
               flag('step', off, d, rise);
               J.maxStep = Math.max(J.maxStep, Math.abs(h - y));
+              // (up, the way the line is ridden: a step a wheel can catch — a step down is only a thump)
+              J.maxRise = Math.max(J.maxRise, h - y);
             }
             lastRise = y == null ? null : rise;
             y = h;
@@ -1375,6 +1484,7 @@ export class Race {
         out.gaps += J.gaps;
         out.overlaps += J.overlaps;
         J.maxStep = Math.round(J.maxStep * 100) / 100;
+        J.maxRise = Math.round(J.maxRise * 100) / 100;
         out.list.push(J);
       }
     }
@@ -1459,6 +1569,21 @@ export class Race {
           s.x += Math.cos(b.heading) * out;
           s.z -= Math.sin(b.heading) * out;
           this._scrape(r, 0.35, true, 'car');
+          continue;
+        }
+        // Run into it gently (a car stopped at the lights you rolled up to, one you drew level with):
+        // a bump and a shove, matched to its speed — only a real knock (closing at over ~23 km/h) throws you off.
+        const vx = -Math.sin(s.travel ?? s.heading) * s.v + Math.sin(b.heading) * v.v;
+        const vz = -Math.cos(s.travel ?? s.heading) * s.v + Math.cos(b.heading) * v.v;
+        const dl = Math.hypot(dx, dz) || 1;
+        const closing = -(vx * dx + vz * dz) / dl;
+        if (closing < 6.5) {
+          const push = Math.max(0.05, -gap + 0.05);
+          s.x += (dx / dl) * push;
+          s.z += (dz / dl) * push;
+          const ahead = -Math.sin(s.travel ?? s.heading) * -dx / dl + -Math.cos(s.travel ?? s.heading) * -dz / dl;
+          if (ahead > 0.3) s.v = Math.min(s.v, Math.max(0, v.v * Math.cos(turn(s.travel ?? s.heading, b.heading))) + 0.5);
+          this._scrape(r, 0.3, true, 'car');
           continue;
         }
         this._crash(r, v.kind, v);
@@ -1558,7 +1683,7 @@ export class Race {
     r.crashes++;
     (r.crashKinds ??= {})[what] = (r.crashKinds[what] ?? 0) + 1;
     // (where and how, for the end-to-end checks' tally of what knocks riders off)
-    (this.crashLog ??= []).push({ id: r.id, what, x: Math.round(r.s.x * 10) / 10, z: Math.round(r.s.z * 10) / 10, v: Math.round(r.hitV ?? r.s.v), sc: r.sc, idx: r.idx, off: Math.round((r.off ?? 0) * 10) / 10, t: Math.round(this.clock), drift: Math.round((r.s.drift ?? 0) * 100) / 100, w: this._at(this._line(r), 0)?.[2], bend: Math.round(Math.abs(turn(heading(this._at(this._line(r), -2), this._at(this._line(r), 0)), heading(this._at(this._line(r), 0), this._at(this._line(r), 3)))) * 100) / 100 });
+    (this.crashLog ??= []).push({ id: r.id, what, x: Math.round(r.s.x * 10) / 10, z: Math.round(r.s.z * 10) / 10, v: Math.round(r.hitV ?? r.s.v), sc: r.sc, idx: r.idx, off: Math.round((r.off ?? 0) * 10) / 10, t: Math.round(this.clock), drift: Math.round((r.s.drift ?? 0) * 100) / 100, w: this._at(this._line(r), 0)?.[2], car: vehicle ? { rel: Math.round(Math.abs(turn(r.s.travel ?? r.s.heading, vehicle.box.heading)) * 100) / 100, v: Math.round(vehicle.v * 10) / 10, kind: vehicle.kind, ahead: Math.round(((vehicle.box.x - r.s.x) * -Math.sin(r.s.heading) + (vehicle.box.z - r.s.z) * -Math.cos(r.s.heading)) * 10) / 10, side: Math.round(((vehicle.box.x - r.s.x) * Math.cos(r.s.heading) - (vehicle.box.z - r.s.z) * Math.sin(r.s.heading)) * 10) / 10 } : null, bot: Boolean(r.bot || this.autopilot), dbg: r.dbg ? { ...r.dbg } : null, bend: Math.round(Math.abs(turn(heading(this._at(this._line(r), -2), this._at(this._line(r), 0)), heading(this._at(this._line(r), 0), this._at(this._line(r), 3)))) * 100) / 100 });
     // A branch in the front wheel: it stops dead and pitches you over the bars; then a moment no branch can catch you.
     r.fallKind = what === 'branch' ? 'wheel' : null;
     if (what === 'branch') r.branchSafe = THROW.immune;
@@ -2228,7 +2353,7 @@ export class Race {
     r.lane = r.lat;
     const aimX = t[0] + Math.cos(hd) * r.lat;
     const aimZ = t[1] - Math.sin(hd) * r.lat;
-    let steer = Math.max(-1, Math.min(1, turn(s.heading, Math.atan2(-(aimX - s.x), -(aimZ - s.z))) * 2.6));
+    let steer = Math.max(-1, Math.min(1, turn(s.heading, Math.atan2(-(aimX - s.x), -(aimZ - s.z))) * 2.2));
     const fx = -Math.sin(s.heading);
     const fz = -Math.cos(s.heading);
     let block = Infinity;
@@ -2337,6 +2462,8 @@ export class Race {
     if ((r.off ?? 0) > (here[2] ?? 6) / 2 + 2.5) target = Math.min(target, 9);
     // Something in the way with no way round: slow to its speed in time.
     if (block < R && Math.abs(push) < 0.6) target = Math.min(target, blockV + Math.sqrt(2 * decel * Math.max(0, block - 5)));
+    // (close, and steering round it may not be enough: slow down too)
+    else if (block < 16) target = Math.min(target, blockV + 2 + Math.sqrt(2 * decel * Math.max(0, block - 3)));
     if (crossing < R) target = Math.min(target, Math.sqrt(2 * decel * Math.max(0, crossing - 6)));
     if (personAhead < R) target = Math.min(target, Math.max(2, Math.sqrt(2 * decel * Math.max(0, personAhead - 3))));
     // A wall straight ahead (a corner come too wide, a dead end of the map): brake for it in time.
@@ -2344,6 +2471,8 @@ export class Race {
     // Down a golmok barely wider than the bars: steady, the walls an arm's length off.
     const pinch = Math.min(P(0)?.[2] ?? 8, P(3)?.[2] ?? 8);
     if (pinch < 4.4) target = Math.min(target, 12.5 + 3 * (r.skill - 0.88) * 10);
+    // A narrow stretch of road (a slip road, a lane between kerbs): no faster than its width lets you steer.
+    else if (pinch < 7.5) target = Math.min(target, 4 + pinch * 1.9);
     r.stuck = this.phase === 'racing' && v < 0.8 ? r.stuck + dt : 0;
     if (r.stuck > 2.5 || r.off > 30) this._remount(r);
     const has = (id) => r.items.indexOf(id);
@@ -2355,20 +2484,29 @@ export class Race {
       // At a rival ahead in reach; else dropped when someone is close behind (or after holding it a while).
       r.heldBranch = (r.heldBranch ?? 0) + dt;
       const behind = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 3 && r.dist - o.dist < 28);
-      if (this._branchTarget(r) || behind || r.heldBranch > 18) {
+      // (at a person, only half the time: the bots are rivals, not snipers — the other half they wait
+      // for a bot ahead, or drop it)
+      const aim = this._branchTarget(r);
+      r.mercy ??= Math.random() < 0.5;
+      const spare = aim && !aim.bot && r.mercy;
+      if ((aim && !spare) || behind || r.heldBranch > 18) {
         r.heldBranch = 0;
+        r.mercy = null;
         this._use(r, has('branch'));
       }
     }
     r.dbg = { block: Math.round(block * 10) / 10, push: Math.round(push * 100) / 100, target: Math.round(target * 10) / 10, steer: Math.round(steer * 100) / 100 };
     const wantBoost = straight && block > 40 && (s.stamina > 0.45 || r.tailwind > 0) && v > 10 && v < target - 0.3;
+    // Something stopped close ahead (a car waiting at the junction it's turning through): no drift into it — brake.
+    const tooClose = Math.min(block, crossing, personAhead) < 9 + v * 0.35;
+    if (tooClose) driftNow = 0;
     // In a drift: held while the corner lasts, steered hard the way it turns (+ left, as steering is).
-    r.driftT = driftNow ? 0.45 : Math.max(0, (r.driftT ?? 0) - dt);
+    r.driftT = driftNow ? 0.45 : tooClose ? 0 : Math.max(0, (r.driftT ?? 0) - dt);
     if (driftNow) r.driftSide = driftNow;
     const drift = r.driftT > 0 && v > 6;
     if (drift && Math.sign(steer) !== Math.sign(r.driftSide)) steer = r.driftSide * 0.4;
     if (drift) steer = Math.sign(steer || r.driftSide) * Math.max(Math.abs(steer), 0.75);
-    return { throttle: v < target - 0.2, brake: v > target + 1.2 && !drift, steer, drift, boost: wantBoost && Math.random() < 0.4 + 0.6 * r.skill };
+    return { throttle: v < target - 0.2, brake: v > target + 1.2 && (!drift || v > target + 5), steer, drift, boost: wantBoost && Math.random() < 0.4 + 0.6 * r.skill };
   }
 
   /** The order: finished first (by time), then by how far round. */
@@ -2638,7 +2776,7 @@ export class Race {
     if ($('[data-race-again]')) $('[data-race-again]').onclick = () => (s?.room ? this.startRoom() : this.startSolo());
     $('[data-race-menu]').onclick = () => {
       this._end();
-      this.menu();
+      this.menu('', 'course');
     };
     $('[data-race-quit]').onclick = () => this.quit();
   }
@@ -2680,7 +2818,7 @@ export class Race {
     $('[data-pause-menu]').onclick = () => {
       this.togglePause(false);
       this._end();
-      this.menu();
+      this.menu('', 'course');
     };
     $('[data-pause-quit]').onclick = () => {
       this.togglePause(false);
@@ -2995,6 +3133,7 @@ export class Race {
     this.scGrid = null;
     if (this.decor) this.g.scene.remove(this.decor);
     this.decor = null;
+    this.plates = [];
     for (const t of this._boardTex ?? []) t.dispose();
     for (const m of this._boardMats ?? []) m.dispose();
     this.boards = [];
@@ -3033,12 +3172,15 @@ export class Race {
     this.session?.close();
     this.session = null;
     this.menuEl.hidden = true;
+    this.lobby.close();
     this.phase = 'off';
     if (this.g.mode === 'race') this.g.setMode('fly', { fromRace: true });
   }
 
   dispose() {
     this.quit();
+    this.stage?.dispose();
+    this.stage = null;
     for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.countEl, this.msgEl, this.linesEl, this.resultEl, this.pauseEl, this.hintEl, this.warnEl]) n.remove();
   }
 }

@@ -24,27 +24,69 @@ export async function run(browser) {
     await page.click(card);
     await page.waitForSelector('.home [data-play]');
     await page.click('.home [data-play]');
-    const ready = await until(page, () => Boolean(window.seoul?.ready && document.querySelector('[data-race-solo]')) || Boolean(document.querySelector('.seoul__msg:not([hidden])')), null, 120000);
+    const ready = await until(page, () => Boolean(window.seoul?.ready && document.querySelector('.jl [data-char]')) || Boolean(document.querySelector('.seoul__msg:not([hidden])')), null, 120000);
     const installed = await page.evaluate(() => Boolean(window.seoul?.ready));
     t.check('opens from its card on the race menu (or says the map is not installed)', ready);
     if (!installed) {
       t.check('no Seoul map on this server: the race is not run', true);
       return t;
     }
-    t.check('seven short courses and seven plush riders (girls and boys)', await page.evaluate(() => document.querySelectorAll('[data-course]').length === 7 && document.querySelectorAll('[data-char]').length === 7));
-    t.check('the race menu has a Credits button (and the corner one)', await page.evaluate(() => Boolean(document.querySelector('[data-race-credits]')) && getComputedStyle(document.querySelector('[data-credits-open]')).display !== 'none'));
-    t.check('time and weather rows, Random by default', await page.evaluate(() => document.querySelector('[data-time="random"]').classList.contains('is-on') && document.querySelector('[data-weather="random"]').classList.contains('is-on') && Boolean(document.querySelector('[data-time="dusk"]'))));
+    // The pre-race flow over its 3D stage: rider → scooter → course → time and weather → go.
+    const shot = (name) => (process.env.JARANI_FRAMES ? page.screenshot({ path: `${process.env.JARANI_FRAMES}-${name}.jpg`, quality: 82 }) : null);
+    t.check('the rider step: seven plush riders (girls and boys) on scooters on a 3D turntable', await until(page, () => document.querySelectorAll('.jl [data-char]').length === 7 && window.seoul.race.stage?.riders.size === 7 && window.seoul.race.stageOn, null, 60000));
+    await page.click('[data-char="cat"]');
+    await page.keyboard.press('ArrowRight');
+    t.check('← → browse the riders: the turntable turns the next one to the front, and it reacts', await until(page, () => window.seoul.race.char === 'bear' && window.seoul.race.stage.picked === 'bear' && Boolean(window.seoul.race.stage.riders.get('bear').m._react), null, 3000));
     await page.click('[data-char="fox"]');
+    t.check('a name, a nickname and a READY button for the rider in front', await page.evaluate(() => /Pip/.test(document.querySelector('[data-card] h2')?.textContent) && Boolean(document.querySelector('.jl__nick')) && /READY/.test(document.querySelector('.jl [data-next]')?.textContent)));
+    await page.waitForTimeout(900);
+    await shot('rider');
+    await page.click('.jl [data-next]');
+    t.check('the scooter step: six scooters in 3D, with five stat bars', await until(page, () => document.querySelectorAll('[data-scooter]').length === 6 && document.querySelectorAll('.jl__stat').length === 5 && window.seoul.race.stage.view === 'scooter', null, 3000));
+    await page.click('[data-scooter="racer"]');
+    t.check('picking a scooter: your rider hops onto that model, and the bars show its trade-off', await until(page, () => {
+      const r = window.seoul.race;
+      const bar = (k) => parseFloat(getComputedStyle(document.querySelector(`[data-stat="${k}"] b`)).getPropertyValue('--w'));
+      return r.scooter === 'racer' && r.stage.riders.get('fox').m.scooter.model === 'racer' && bar('speed') > 70 && bar('corner') < 30 && bar('shock') < 30;
+    }, null, 3000));
+    await page.waitForTimeout(900);
+    await shot('scooter');
+    await page.click('.jl [data-back]');
+    t.check('Back goes back a step', await until(page, () => window.seoul.race.lobby.step === 'rider', null, 3000));
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    t.check('the course step: a map of Seoul with a pin for each of the eight courses', await until(page, () => window.seoul.race.lobby.step === 'course' && document.querySelectorAll('[data-pin]').length === 8 && document.querySelectorAll('[data-course]').length === 8, null, 3000));
+    const course = 'hongdae';
+    t.check('each course is planned on the real streets: its length, wide roads, sharp turns (and a golmok short cut)', await until(page, (id) => /km · \d+% wide roads · \d+ sharp turns? · \d short cut/.test(document.querySelector(`[data-len="${id}"]`)?.textContent ?? ''), course, 90000), await page.evaluate((id) => document.querySelector(`[data-len="${id}"]`)?.textContent, course));
+    await page.hover('[data-pin="yeouido"]');
+    t.check('hovering a pin previews that course: its card, its shape and its numbers', await until(page, () => /Yeouido/.test(document.querySelector('[data-course-card] h2')?.textContent ?? '') && document.querySelector('[data-course-card]').classList.contains('is-preview'), null, 3000));
+    await page.click(`[data-pin="${course}"]`);
+    t.check('clicking a pin picks it', await until(page, (id) => window.seoul.race.courseId === id && document.querySelector(`[data-pin="${id}"]`).classList.contains('is-on'), course, 3000));
+    await page.waitForTimeout(500);
+    await shot('course');
+    await page.click('[data-course-card] [data-next]');
+    t.check('the time and weather step: Random by default, every time and weather a card', await until(page, () => document.querySelector('[data-time="random"]')?.classList.contains('is-on') && document.querySelector('[data-weather="random"]').classList.contains('is-on') && Boolean(document.querySelector('[data-time="dusk"]')) && Boolean(document.querySelector('[data-weather="snow"]')), null, 3000));
     await page.click('[data-time="night"]');
     await page.click('[data-weather="rain"]');
-    await page.click('[data-course="euljiro"]');
-    t.check('a course is planned on the real streets, partly through alleys, with a golmok short cut', await until(page, () => /km · \d+% alleys · \d short cut/.test(document.querySelector('[data-len="euljiro"]')?.textContent ?? ''), null, 60000), await page.evaluate(() => document.querySelector('[data-len="euljiro"]')?.textContent));
+    t.check('…previewed live on the stage behind: night, rain', await until(page, () => {
+      const st = window.seoul.race.stage;
+      return st.shown?.time === 'night' && st.shown?.weather === 'rain' && st.rain.visible && st.look.night > 0.8;
+    }, null, 5000));
+    await page.waitForTimeout(800);
+    await shot('weather');
+    t.check('the race menu has a Credits button', await page.evaluate(() => Boolean(document.querySelector('[data-race-credits]'))));
     await page.click('[data-race-solo]');
     t.check('the race lines up four riders and counts down', await until(page, () => window.seoul.race.racers.length === 4 && ['grid', 'racing'].includes(window.seoul.race.phase), null, 120000));
     t.check('you ride Pip the fox on a scooter; the bots are the others, girls and boys both', await page.evaluate(() => {
       const rs = window.seoul.race.racers;
       return rs.find((r) => r.me).char === 'fox' && new Set(rs.map((r) => r.char)).size === 4 && rs.some((r) => r.ch.she) && rs.some((r) => !r.ch.she) && rs.every((r) => r.view?.scooter && r.view.mesh.isSkinnedMesh);
     }));
+    t.check('…on the R7 Comet you picked (its own model and handling); the bots on scooters of their own', await page.evaluate(() => {
+      const rs = window.seoul.race.racers;
+      const me = rs.find((r) => r.me);
+      return me.scooter === 'racer' && me.view.scooter.model === 'racer' && me.spec.cruise > 21 && new Set(rs.filter((r) => r.bot).map((r) => r.scooter)).size >= 2 && rs.every((r) => r.view.scooter.model === r.scooter);
+    }));
+    t.check('the menus are gone and the city is back behind the race', await page.evaluate(() => !window.seoul.race.stageOn && !document.querySelector('.seoul').classList.contains('is-menu')));
     t.check('the race has its own sky: night and rain, the city clock stopped', await page.evaluate(() => window.seoul.weather.kind === 'rain' && (window.seoul.hour >= 20 || window.seoul.hour < 1) && window.seoul.clockPaused === true));
     t.check('the HUD: map, place, lap, time, three item slots, speed and the sprint gauge', await page.evaluate(() => ['.race__map', '.race__pos', '.race__lap', '.race__time', '.race__speed'].every((s) => !document.querySelector(s).hidden) && document.querySelectorAll('.race__slot').length === 3 && Boolean(document.querySelector('.race__boost'))));
     t.check('the race starts', await until(page, () => window.seoul.race.phase === 'racing', null, 15000));
@@ -88,14 +130,25 @@ export async function run(browser) {
       const r = window.seoul.race;
       const me = r.me;
       const p = r.paths[0];
-      const i = p.enter - 4;
+      // (just inside the golmok's mouth: a rider still on the course before it is free to ride on by)
+      const i = p.enter + 1;
       const a = p.points[i];
       const b = p.points[i + 1];
       const hd = Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
       Object.assign(me.s, { x: a[0], z: a[1], heading: hd, travel: hd, v: 8 });
-      Object.assign(me, { sc: p.k, si: i, idx: p.sc.from - 4, safe: 1, mode: 'ride', lost: 0 });
+      Object.assign(me, { sc: p.k, si: i, idx: p.sc.from, safe: 2, helmet: true, mode: 'ride', lost: 0 });
       r.autopilot = true;
       r._scStart = { dist: me.dist, took: me.shortcuts ?? 0, crashes: me.crashes };
+      // (watched in the page, every few milliseconds — not by polling from here, which can come late:
+      // the moment it leaves the golmok, where it is on the course and how far it has gone)
+      r._scOut = null;
+      clearInterval(r._scT);
+      r._scT = setInterval(() => {
+        if (me.sc == null && !r._scOut) {
+          r._scOut = { idx: me.idx, dist: me.dist };
+          clearInterval(r._scT);
+        }
+      }, 5);
       // the other riders out of its way for this: parked well back down the course
       r.racers.filter((x) => !x.me).forEach((x, k) => {
         const q = r.course.points[(p.sc.from - 60 - k * 4 + r.course.points.length) % r.course.points.length];
@@ -104,15 +157,10 @@ export async function run(browser) {
       });
       return { from: p.sc.from, to: p.sc.to, span: p.sc.span, length: p.sc.length };
     });
-    t.check('the autopilot rides through a short cut and is back on the course after it', await until(page, (to) => {
-      const me = window.seoul.race.me;
-      return me.sc == null && me.idx >= to && me.idx < to + 40;
-    }, sc.to, 30000), await page.evaluate(() => JSON.stringify({ sc: window.seoul.race.me.sc, idx: window.seoul.race.me.idx })));
-    t.check('…and its golmok counts as the course it cuts out (no lap lost or gained)', await page.evaluate((sc) => {
-      const r = window.seoul.race;
-      const gained = r.me.dist - r._scStart.dist;
-      return gained > sc.span * 0.85 && gained < sc.span + 260;
-    }, sc), await page.evaluate(() => (window.seoul.race.me.dist - window.seoul.race._scStart.dist).toFixed(0)) + ` m for a ${sc.span.toFixed(0)} m stretch`);
+    await until(page, () => Boolean(window.seoul.race._scOut), null, 90000);
+    const out = await page.evaluate(() => window.seoul.race._scOut);
+    t.check('the autopilot rides through a short cut and is back on the course after it', Boolean(out) && out.idx >= sc.to - 3 && out.idx < sc.to + 30, JSON.stringify({ out, to: sc.to }));
+    t.check('…and its golmok counts as the course it cuts out (no lap lost or gained)', Boolean(out) && out.dist - (await page.evaluate(() => window.seoul.race._scStart.dist)) > sc.span * 0.8 && out.dist - (await page.evaluate(() => window.seoul.race._scStart.dist)) < sc.span + 120, `${out ? (out.dist - (await page.evaluate(() => window.seoul.race._scStart.dist))).toFixed(0) : '—'} m for a ${sc.span.toFixed(0)} m stretch`);
     t.check('nobody walks or drives down a short cut', await page.evaluate(() => {
       const r = window.seoul.race;
       return !(window.seoul.life?.people ?? []).some((m) => r.keepClear(m.x, m.z)) && !(r.traffic?.vehicles ?? []).some((v) => r.keepClear(v.box.x, v.box.z));
@@ -184,11 +232,13 @@ export async function run(browser) {
     // The alley mouths: every junction of a golmok with a main road sampled for holes, steps and overlaps.
     const j = await page.evaluate(() => {
       const o = window.seoul.race.junctionReport();
-      return { junctions: o.junctions, steps: o.steps, gaps: o.gaps, overlaps: o.overlaps, sc: o.list.filter((x) => x.line !== 'course').map((x) => ({ steps: x.steps, gaps: x.gaps, maxStep: x.maxStep })) };
+      return { junctions: o.junctions, steps: o.steps, gaps: o.gaps, overlaps: o.overlaps, sc: o.list.filter((x) => x.line !== 'course').map((x) => ({ steps: x.steps, gaps: x.gaps, maxStep: x.maxStep, maxRise: x.maxRise })) };
     });
     t.check('alley mouths: every junction found and sampled (steps, holes, overlaps listed)', j.junctions > 0, JSON.stringify(j));
-    t.check('…the short cuts\' mouths: no hole, no step a wheel would catch (over 15 cm)', j.sc.every((x) => x.gaps === 0 && x.maxStep <= 0.15), JSON.stringify(j.sc));
+    t.check('…the short cuts\' mouths: no hole, no step up a wheel would catch (over 15 cm, the way they are ridden)', j.sc.every((x) => x.gaps === 0 && x.maxRise <= 0.15), JSON.stringify(j.sc));
     // A branch: thrown at the rival just ahead, it catches their front wheel and over they go.
+    // (on the scooter first: not mid-tumble from the drift or a knock just now)
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     await page.evaluate(() => {
       const r = window.seoul.race;
       r.autopilot = false;

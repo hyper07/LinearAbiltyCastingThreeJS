@@ -95,29 +95,48 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 
 ## Gangnam Jarani: the bike race
 
-**🚲 Race** (the button; the game opens on it) is a bicycle race for four riders through Seoul's
-real streets and alleys — and the streets stay open.
+**🚲 Race** (the button; the game opens on it) is an electric-scooter race for four riders through
+Seoul's real streets — and the streets stay open.
 
-- **Courses**: seven short loops (about 2.2–2.5 km, two to four minutes a lap) round neighbourhoods
-  with golmok: Ikseon Hanok Lanes, Euljiro Print Alleys, Seochon Backstreets, Yeonnam Cafe Loop,
-  Seongsu Workshops, Mullae Ironworks, Haebangchon Hill. Each is planned on the spot from the real
-  street network and between the real buildings (`src/city/course.js`, `src/city/walls.js`) —
-  never a motorway, the main loop on roads wide enough to race at 70 km/h (the narrowest golmok
-  cost the planner far more, and so do hard corners), one-way roads only with their traffic, never
-  the same street twice, started on a straight wide enough for the grid with a long run to the
-  first corner. A street the map drew through a building is moved into the gap beside it, or left
-  out; an alley that stops just short of a road is joined to it. **Short cuts**: the narrowest golmok
-  that leave the loop and join it again further on, shorter than the road round (15–230 m saved) —
-  tight walls and a tight turn in, so a bold rider gains and a careless one bounces. Each has a
-  "SHORTCUT · 지름길" sign at its mouth, a cyan hint at the top of the screen as you come up to it, a
-  dotted line on the map and cyan arrows down it; its metres count as the course's it cuts out, so
-  the order stays fair; bots take them now and then (the better ones more); no one walks or drives
-  down them. Euljiro, Seochon (two), Yeonnam and Mullae have one; on Ikseon, Seongsu and
-  Haebangchon the alleys don't rejoin the loop going its way (or would save so much they'd decide
-  the race), so none. The small streets (residential lanes,
-  alleys, market lanes) come from OpenStreetMap round those neighbourhoods only:
-  `scripts/geo/seoul-alleys.mjs` writes `alleys.bin` beside `roads.bin` (`npm run geo:alleys`;
-  `npm run geo:seoul` runs it too). Without it the loops keep to the bigger roads. 1–3 laps.
+- **Before the race** (`src/city/lobby.js` over `src/city/stage.js`, the way Snowpuff Peaks' menus
+  work — its files only read): a little 3D stage, a round plaza on a rooftop with the city behind
+  it, and four steps, with **Back** at every one. **Rider**: the seven riders on their scooters on a
+  turntable that turns the one you choose to the front, where it waves, wiggles its ears or hops;
+  its name, Korean name, nickname and a big **READY**. **Scooter**: the six scooters on plinths behind
+  your rider, the chosen one lifted and turning and your rider hopping onto it, with five animated
+  bars. **Course**: a toy map of Seoul — the Han, the hills, the districts — with a pin for each
+  course; pointing at one previews it (its loop on the map, and a card with its shape and a dot
+  riding round it, its length, lap time, sharp turns, share of wide roads, short cuts and the run to
+  the first corner); a click picks it; laps 1–3. **Time and weather**: cards for day, golden hour,
+  dusk, night and Random × clear, rain, storm, snow, fog and Random, each a little animated sky —
+  and the stage behind changes with them, live (the sky, the light, the lamps and windows, rain,
+  snow, fog, a wet floor). Then **Race three bots**, or make or join a room. Keys: **← →** to choose
+  (on the last step ← → the time, ↑ ↓ the weather), **Enter** for the next step, **Esc** or
+  **Backspace** to go back; click (or tap) a rider or a scooter on the stage, swipe it to browse.
+  The results' **Race again** starts the same race at once; **Courses** goes back to the map.
+- **Courses**: eight loops of 2–3 km (two to three minutes a lap) on Seoul's boulevards and avenues:
+  Gwanghwamun Avenues, Dongdaemun Market, Namsan Hill Road, Hongdae Boulevards, Yeouido Riverside,
+  Cheongnyangni Market, Teheran-ro Towers, Jamsil Tower Loop. Each is planned on the spot from the
+  real road network and between the real buildings (`src/city/course.js`, `src/city/walls.js`):
+  three or four points round the place, each on the nearest road with two or more lanes each way,
+  joined by the best way for a racer — a search over the streets' directed edges where wide roads
+  are cheap, every turn at a junction costs (a straight run through a crossroads nothing, a 90°
+  corner a long way round), never a motorway, never a residential lane or an alley (they are for
+  the short cuts), one-way roads only with their traffic, never out along one carriageway and back
+  down the other; of all the loops tried, the one that best keeps to the wide roads with the
+  fewest sharp corners, the longest straights and a long run from the start.
+  `node scripts/geo/jarani-courses.mjs` measures them (length, share on roads two lanes or more
+  each way, turns sharper than 60° and 80°, the longest straight, the first corner, short cuts);
+  `tests/unit/course.test.mjs` keeps them so. **Short cuts**: the narrowest golmok that leave the
+  loop and join it again further on, shorter than the road round (15–230 m saved) — tight walls and
+  a tight turn in, so a bold rider gains and a careless one bounces. Each has a "SHORTCUT · 지름길"
+  sign at its mouth, a cyan hint at the top of the screen as you come up to it, a dotted line on
+  the map and cyan arrows down it; its metres count as the course's it cuts out, so the order stays
+  fair; bots take them now and then (the better ones more); no one walks or drives down them. The
+  small streets (residential lanes, alleys, market lanes) come from OpenStreetMap round the courses
+  (and the first courses' golmok neighbourhoods) only: `scripts/geo/seoul-alleys.mjs` writes
+  `alleys.bin` beside `roads.bin` (`npm run geo:alleys`; `npm run geo:seoul` runs it too), a box at
+  a time. Without it there are no short cuts.
 - **Riders**: Snowpuff Peaks' plush animals on electric hire scooters — Mallow the bunny, Pip the
   fox, Mochi the cat, Toffee the bear, Peaches the pig, Pickle the frog and Pebble the penguin
   (girls and boys both; the bots always mix them). The same sculpted toys as Snowpuff's
@@ -125,15 +144,27 @@ real streets and alleys — and the streets stay open.
   WebGL2 (`src/city/plush.js`): sheen, fibre noise, a fresnel rim that dims at night, shell fur in
   one instanced draw with fewer shells further off. Knees bent on the deck, leaning into turns,
   crouching for a boost, ears and tails on springs, arms up at the finish, a tumble with dizzy stars
-  and back up. Each rides a scooter of our own brand, "SSAENG 쌩쌩" (`src/city/scooter.js`), in their
-  colours: grip tape, folding stem, throttle and brake levers, a live speed and battery display, LED
-  head and brake lights, solid wheels, a kickstand. Riders bump and wobble off each other and never
+  and back up. Each has a nickname ("The Bounce", "Corner Queen"…) and a feel of their own that
+  rides on any scooter. **Scooters**: six models of our own brand, "SSAENG 쌩쌩" (`src/city/scooter.js`,
+  each its own shape, in the rider's colours; handling in `scoot.js` SCOOTERS): the **S1 Commuter**
+  (the hire scooter: balanced), the **R7 Comet** (low and long, small hard wheels, a raked stem, a
+  tail fin: the fastest, a handful in the corners and on rough ground), the **X4 Mudlark** (fat
+  knobbly air tyres and coil springs: soaks up everything, slower), the **K2 Sparrow** (skinny and
+  light: first off the line and the quickest to flick through traffic, short of top speed), the
+  **G9 Grand** (wide, long, twin stem, chrome, a big lamp: fast on the boulevards, poor in corners)
+  and the **Mini Bubblegum** (pastel retro with a leg shield, whitewall tyres and a basket: nimble,
+  kind on bumps, the longest battery). Bars for top speed, acceleration, cornering, shock absorption
+  and battery; more top speed always costs cornering and shock absorption. All of them: grip tape,
+  folding stem, throttle and brake levers, a live speed and battery display, LED head and brake
+  lights, a kickstand. Bots ride a mix of them; in a room everyone's pick goes to the others. Riders bump and wobble off each other and never
   pass through (`src/city/pack.js`); bots keep their own lines on the road side of the street,
   overtake round the middle, and start from a staggered grid.
 - **Riding** (`src/city/scoot.js`, pure and tested): **W** throttle — a racing motor, 70 km/h in
   about four and a half seconds — **S** brake (about 20 m from 70 on a dry road, longer in the wet,
   and braking hard in a lean on a wet road, or leaning hard fast, slides the back out), **A D** lean
-  (more gently the faster you go), **Shift** drift (held while leaning: the back steps out, the
+  (quick to lean in — a left-right flick weaves through traffic — and steady at 70; turn radius at
+  full lean about 4 m at 30 km/h, 11 m at 50, 25 m at 70, so most corners take no brakes and no
+  drift), **Shift** drift (held while leaning: the back steps out, the
   scooter swings round faster than a lean turns it, an assist holds the slide, a little speed is
   scrubbed off — round a 90° junction at speed in about 12 m instead of 35; let go to straighten;
   tyre squeal, rubber scuffs on the road, the rider hanging out; bots drift the tight corners too),
@@ -141,8 +172,11 @@ real streets and alleys — and the streets stay open.
   charges as you ride, faster in a slipstream and with every close call), **Space** the bell (a
   synthesised two-strike "ring-ring", `src/city/bell.js`; **B** too: people ahead step aside, slower
   riders and scooters give you room, and you hear the bots' bells where they are), **R** back on the
-  course (and after a few seconds lost well off it, you are put back). Small solid wheels feel every
-  paving joint; a kerb met at an angle is a hop up, met glancing it scrapes and wobbles you. Speed
+  course (and after a few seconds lost well off it, you are put back). Small wheels feel every
+  paving joint, and the roads have steel road plates, manhole covers and, on the narrower ones,
+  speed bumps in the racing line; a kerb met at an angle is a hop up, met glancing it scrapes and
+  wobbles you. How much of it reaches you is the scooter's suspension: on the stiff R7 a plate
+  shakes the camera and the rider, costs speed and knocks your line; on the X4 you hardly notice. Speed
   shows: the FOV opens (58° → ~71°, more on a boost), a fine buzz in the camera, wind lines in the air
   and at the screen's edge, the wind's roar (`src/city/speedfx.js`).
 - **Traffic** (`src/city/traffic.js`, `src/city/fleet.js`): real models (Sketchfab, CC BY 4.0, from
@@ -164,8 +198,10 @@ real streets and alleys — and the streets stay open.
   speed or frame rate; a rider somehow found inside one (a spawn, a friend's position over the
   network) is put out the nearest way, and the chase camera is swept out from the rider against the
   same walls (in close and up instead of through them). At junctions cars waiting to cross the
-  course give way to riders coming through.
-  Hit any of it square — a car, a wall head-on above ~30 km/h, a planter, a bin, a parked scooter —
+  course give way to riders coming through, waiting clear of the course's carriageway (half its width and
+  a car's length back from the middle of the junction, not in the racing line).
+  Roll gently into a car (one stopped at the lights, one you drew level with) and it's a bump and a
+  shove; hit any of it square and fast — a car, a wall head-on above ~38 km/h, a planter, a bin, a parked scooter —
   and you're off: a hit-stop, "BONK!", a tumble, dizzy stars, back on 1.5 s later. Met at a slant
   (a wall, a car's flank, the edge of a bin, a pole) it is only a scrape: turned along it, slowed,
   still riding. Pass close at speed for a "WHOOSH!" and a top-up of boost.
@@ -199,11 +235,11 @@ real streets and alleys — and the streets stay open.
   rooms behind it (interior mapping: ceilings, lights, partitions — lit or dark at night), and
   half the glass towers have white aluminium fins.
 - **Time and weather**: every race has its own — day, golden hour, dusk or night; clear, rain,
-  storm, fog, or snow in the cold months — random by default, or picked in the menu. The city
+  storm, fog, or snow in the cold months — random by default, or picked (and previewed) in the menu. The city
   clock stops for the race. Rain darkens and shines the roads and makes braking longer; snow is
   slipperier still.
 - **Alone**: you against three bots. **Together**: one player makes a room and gives the
-  five-letter code; up to three others join and pick their riders (everyone sees the picks); the
+  five-letter code; up to three others join and pick their riders and scooters (everyone sees the picks); the
   host picks the course, laps, time and weather and starts. Bots take any empty seats (the host's
   browser rides them). Each browser sends where its riders are fifteen times a second, and when
   an item is used.
@@ -213,7 +249,9 @@ real streets and alleys — and the streets stay open.
   the top ("SHARP RIGHT · ALLEY 30 m"), a warning under it for anything in your line; the keys while
   the lights count down; speed lines from about 55 km/h. Left-drag looks round.
 - `src/city/race.js` runs the race; `src/city/course.js` plans the courses (tested in
-  `tests/unit/course.test.mjs`); the room goes over the party server (`/ws`).
+  `tests/unit/course.test.mjs`); `src/city/lobby.js` and `src/city/stage.js` are the menus and their
+  stage (drawn instead of the city while they are up, so they stay smooth); the room goes over the
+  party server (`/ws`).
 
 ## On the street: how it is built
 

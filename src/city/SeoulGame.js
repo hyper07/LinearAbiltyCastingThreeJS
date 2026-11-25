@@ -1830,6 +1830,8 @@ export class SeoulGame {
         this.toggleCredits(false);
         return;
       }
+      // The race menus take their keys first (← → to choose, Enter, Esc to go back).
+      if (!e.repeat && this.race?.lobby?.key(e)) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (e.repeat) return;
@@ -2027,6 +2029,23 @@ export class SeoulGame {
   _frame(now) {
     const dt = Math.min(0.1, (now - this._last) / 1000);
     this._last = now;
+    // The race menus: their own little stage instead of the city (light, and smooth on any machine).
+    if (this.race?.stageOn && this.race.stage) {
+      const { w = 16, h = 9 } = this.size ?? {};
+      this.race.stage.update(dt, w / Math.max(1, h));
+      this._music(dt);
+      this.power.gpuBegin();
+      this.race.stage.render(this.renderer);
+      this.power.gpuEnd();
+      this.power.sample(dt * 1000);
+      this.power.showFps(this.root);
+      if (!this._labelsClear) {
+        this.lctx?.clearRect(0, 0, this.labels.width, this.labels.height);
+        this._labelsClear = true;
+      }
+      return;
+    }
+    this._labelsClear = false;
     this._move(dt);
     this._camera();
     this._stream();
