@@ -592,6 +592,35 @@ export class PlushRider {
     setFurLod(this.fur, dist < 7 ? max : dist < 16 ? max * 0.55 : dist < 34 ? Math.min(max, 3) : 0);
   }
 
+  /**
+   * Fade rider and scooter together (1 whole … 0 gone): a rival right by the camera. Screen-door
+   * (alpha-hashed) so nothing needs sorting; the first fade switches it on for good (one shader
+   * change per material, at most once).
+   */
+  fade(k) {
+    k = Math.max(0, Math.min(1, k));
+    if (k === this._fade) return;
+    this._fade = k;
+    if (!this._mats) {
+      if (k >= 1) return;
+      this._mats = [];
+      const seen = new Set([G.blobMat]);
+      this.root.traverse((o) => {
+        for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) {
+          if (seen.has(m)) continue;
+          seen.add(m);
+          this._mats.push({ m, opacity: m.opacity });
+          if (!m.transparent && !m.alphaHash) {
+            m.alphaHash = true;
+            m.needsUpdate = true;
+          }
+        }
+      });
+    }
+    for (const e of this._mats) e.m.opacity = e.opacity * k;
+    this.blob.visible = k > 0.5;
+  }
+
   /** Put the rider at (x, y, z) in the ground's frame although it hangs under the tipped-over scooter's lean. */
   placeRider(x, y, z, lean) {
     const c = Math.cos(-lean);

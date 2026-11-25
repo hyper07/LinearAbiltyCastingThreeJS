@@ -40,6 +40,28 @@ import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, r
 
 const BOT_NAMES = ['Haneul', 'Doyun', 'Seoyeon', 'Jiho'];
 const SEATS = 4;
+/** The chase camera: how far back (m, plus a little with speed), its pitch, where it looks (m ahead, m up) and how far to the left it sits. */
+export const CHASE = { zoom: 4.4, pitch: -0.36, ahead: 1.1, height: 0.72, side: 0.9 };
+/** A rival nearer the camera than this (m) fades out (gone at the first, whole at the second). */
+export const NEAR_FADE = [2.0, 3.4];
+
+/**
+ * How much of a rival to draw (0–1): fading as it comes within NEAR_FADE of the camera, or into
+ * the line from the camera to you (within about a metre of it, on the camera's side of you).
+ */
+export function nearFade(cam, rival, me) {
+  const dx = rival.x - cam.x, dy = rival.y - cam.y, dz = rival.z - cam.z;
+  const d = Math.hypot(dx, dy, dz);
+  let k = Math.min(1, Math.max(0, (d - NEAR_FADE[0]) / (NEAR_FADE[1] - NEAR_FADE[0])));
+  const fx = me.x - cam.x, fy = me.y - cam.y, fz = me.z - cam.z;
+  const ff = fx * fx + fy * fy + fz * fz;
+  const t = ff > 0 ? (dx * fx + dy * fy + dz * fz) / ff : 1;
+  if (t > 0 && t < 0.85) {
+    const lat = Math.hypot(dx - fx * t, dy - fy * t, dz - fz * t);
+    k = Math.min(k, Math.min(1, Math.max(0, (lat - 0.75) / 0.6)));
+  }
+  return k;
+}
 const SEND_EVERY = 1 / 15;
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -452,9 +474,11 @@ export class Race {
     this.sent = 0;
     this.stop = 0;
     this.g.setMode('race');
-    this.g.zoom = 5.2;
+    this.g.zoom = CHASE.zoom;
     this.g.yaw = this.me.s.heading;
-    this.g.pitch = -0.25;
+    this.g.pitch = CHASE.pitch;
+    // (Every rider able to fade once, while the lights count down: no stall when one first comes close.)
+    for (const r of this.racers) if (!r.me) r.view.fade(0.999);
     this._renderItems();
     this._starting = null;
   }
@@ -901,7 +925,11 @@ export class Race {
     r.landed = 0;
     r.wobble = Math.max(0, (r.wobble ?? 0) - dt * 1.4);
     const cam = this.g.camera.position;
-    v.furLod(Math.hypot(cam.x - s.x, cam.y - r.y, cam.z - s.z));
+    const camD = Math.hypot(cam.x - s.x, cam.y - r.y - 0.8, cam.z - s.z);
+    v.furLod(camD);
+    // A rival right by the camera (a big furry head filling a corner), or between it and you, fades away.
+    if (!r.me && this.me) v.fade(nearFade(cam, { x: s.x, y: r.y + 0.8, z: s.z }, { x: this.me.s.x, y: this.me.y + 0.9, z: this.me.s.z }));
+    if (!r.me && (v._fade ?? 1) < 0.03) v.root.visible = false;
     if (r.tailwind > 0 && Math.random() < dt * 14) this.fx?.streak({ x: s.x, y: r.y + 0.6 + Math.random() * 1.0, z: s.z }, s.heading);
     if (s.skid > 0.25 && s.v > 3 && Math.random() < dt * 20) this.fx?.dust({ x: s.x + Math.sin(s.heading) * 0.5, y: r.y, z: s.z + Math.cos(s.heading) * 0.5 }, 1);
     this.splash?.(r, dt);
@@ -1407,7 +1435,11 @@ export class Race {
     $('[data-race-quit]').onclick = () => this.quit();
   }
 
-  /** The chase camera: low behind the rider, swinging after them; wider when sprinting. Left-drag looks round. */
+  /**
+   * The chase camera: behind the rider and a little up and to the left (a three-quarter view, so
+   * the scooter's deck, stem and wheels show past the rider, and the road ahead stays in view),
+   * swinging after them; wider when sprinting. Left-drag looks round.
+   */
   camera(camera) {
     const g = this.g;
     const r = this.me;
@@ -1417,12 +1449,14 @@ export class Race {
       g.yaw += turn(g.yaw, behind) * 0.1;
       // A little higher in the alleys, to see over the clutter round the next corner.
       const alley = isSmall(this.course.points[r.idx]?.[3] ?? 4) && (this.course.points[r.idx]?.[2] ?? 6) < 5;
-      g.pitch += ((alley ? -0.34 : -0.25) - g.pitch) * 0.05;
+      g.pitch += ((alley ? -0.36 : CHASE.pitch) - g.pitch) * 0.05;
     }
     const dir = new THREE.Vector3(-Math.sin(g.yaw) * Math.cos(g.pitch), Math.sin(g.pitch), -Math.cos(g.yaw) * Math.cos(g.pitch));
-    const focus = new THREE.Vector3(r.s.x - Math.sin(g.yaw) * 1.4, r.y + 1.3, r.s.z - Math.cos(g.yaw) * 1.4);
+    // To the camera's side: left of the way it looks (toward the road's middle, riding on the right).
+    const side = new THREE.Vector3(-Math.cos(g.yaw), 0, Math.sin(g.yaw)).multiplyScalar(CHASE.side);
+    const focus = new THREE.Vector3(r.s.x - Math.sin(g.yaw) * CHASE.ahead, r.y + CHASE.height, r.s.z - Math.cos(g.yaw) * CHASE.ahead).addScaledVector(side, 0.3);
     // Never inside a building: in a turning alley the camera comes in close (and a little up) instead.
-    let dist = (g.zoom ?? 5.2) + Math.abs(r.s.v) * 0.12;
+    let dist = (g.zoom ?? CHASE.zoom) + Math.abs(r.s.v) * 0.07;
     // (Where the map's buildings overlap the alley itself, the rider is "inside" one: no pulling in then.)
     const inside = g.buildingAt(r.s.x, r.s.z);
     for (let d = 1.2; d <= dist && !inside; d += 0.4) {
@@ -1434,7 +1468,7 @@ export class Race {
       }
     }
     this._camDist = this._camDist == null ? dist : this._camDist + (dist - this._camDist) * (dist < this._camDist ? 0.5 : 0.06);
-    camera.position.copy(focus).addScaledVector(dir, -this._camDist);
+    camera.position.copy(focus).addScaledVector(dir, -this._camDist).addScaledVector(side, 0.7);
     camera.position.y += Math.max(0, 3.5 - this._camDist) * 0.25;
     camera.position.y = Math.max(camera.position.y, g.surfaceAt(camera.position.x, camera.position.z, r.y) + 0.9);
     if (this.shake > 0) {
