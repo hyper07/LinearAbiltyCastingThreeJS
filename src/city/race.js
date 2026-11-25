@@ -1345,8 +1345,10 @@ export class Race {
     this.scRoads = new Set((c.shortcuts ?? []).flatMap((sc) => [...(sc.roads ?? [])]));
     // Where the golmok are (for keeping people and traffic out of them): their segments by 20 m square.
     this.scGrid = new Map();
+    // (not its first and last few metres: those are across the main road's lanes and pavement at its
+    // mouths, where the traffic and the people going along the road belong)
     for (const p of this.paths) {
-      for (let i = p.enter + 1; i < p.leave; i++) {
+      for (let i = p.enter + 2; i < p.leave - 1; i++) {
         const a = p.points[i - 1];
         const b = p.points[i];
         const seg = [a[0], a[1], b[0], b[1], (b[2] ?? 4) / 2 + 0.9];

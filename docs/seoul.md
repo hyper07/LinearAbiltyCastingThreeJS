@@ -132,7 +132,9 @@ Seoul's real streets — and the streets stay open.
   a tight turn in, so a bold rider gains and a careless one bounces. Each has a "SHORTCUT · 지름길"
   sign at its mouth, a cyan hint at the top of the screen as you come up to it, a dotted line on
   the map and cyan arrows down it; its metres count as the course's it cuts out, so the order stays
-  fair; bots take them now and then (the better ones more); no one walks or drives down them. The
+  fair; bots take them now and then (the better ones more); no one walks or drives down them.
+  Dongdaemun, Hongdae, Teheran-ro and Jamsil have one; round the other boulevards no golmok rejoins
+  the loop going its way, so none. The
   small streets (residential lanes, alleys, market lanes) come from OpenStreetMap round the courses
   (and the first courses' golmok neighbourhoods) only: `scripts/geo/seoul-alleys.mjs` writes
   `alleys.bin` beside `roads.bin` (`npm run geo:alleys`; `npm run geo:seoul` runs it too), a box at
