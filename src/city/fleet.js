@@ -40,7 +40,21 @@ const KINDS = {
   suv: { file: 'pack', part: 'Offroad_Body', length: 4.6, mix: 0.12, paint: /^Body/, glass: /^Glass/, yaw: Math.PI },
   compact: { file: 'pack', part: 'Compact_Body', length: 3.7, mix: 0.08, paint: /^Body/, glass: /^Glass/, yaw: 0 },
   wagon: { file: 'pack', part: 'Sedan_Body', length: 4.7, mix: 0.06, paint: /^Body/, glass: /^Glass/, yaw: 0 },
-  truck: { file: 'truck', length: 5.1, mix: 0.1, yaw: Math.PI, keepPaint: true },
+  // No real makers' badges: the truck's grille badge (its own decal) is left out, and the badge in its
+  // front photo, the model name on its door and the badges on its wheel caps are painted over.
+  truck: {
+    file: 'truck',
+    length: 5.1,
+    mix: 0.1,
+    yaw: Math.PI,
+    keepPaint: true,
+    hide: /^Material_227$/,
+    scrub: {
+      Material_215: [{ x: 0.207, y: 0.363, r: 0.04 }, { x: 0.77, y: 0.53, w: 0.1, h: 0.055 }],
+      Material_552: [{ x: 0.207, y: 0.363, r: 0.04 }, { x: 0.77, y: 0.53, w: 0.1, h: 0.055 }],
+      Material_26: [{ x: 0.252, y: 0.441, r: 0.036 }, { x: 0.725, y: 0.457, r: 0.034 }]
+    }
+  },
   bus: { file: 'bus', length: 11, mix: 0, glass: /^glass$/, wheelMat: /^material(_4)?$/, yaw: 0, bus: true }
 };
 export const FLEET_KINDS = Object.keys(KINDS);
@@ -153,6 +167,12 @@ function prepare(scene, k, kind) {
   meshes.forEach((m, i) => tris(m) >= total * 0.03 && core.union(boxes[i]));
   core.expandByScalar(core.getSize(_v).length() * 0.05);
   meshes = meshes.filter((m, i) => m.userData.wheel || core.containsBox(boxes[i]));
+  // A maker's badge as its own decal: left out. One painted into a texture: painted over.
+  if (k.hide) meshes = meshes.filter((m) => !k.hide.test(m.material?.name ?? ''));
+  if (k.scrub) for (const m of meshes) {
+    const spots = k.scrub[m.material?.name];
+    if (spots && m.material.map) m.material.map = scrubbed(m.material.map, spots);
+  }
   // Everything into one space: the frame → ours (metres, nose to −z, on the ground, centred).
   const box = new THREE.Box3();
   for (const m of meshes) box.union(boxIn(m));
@@ -208,6 +228,61 @@ function prepare(scene, k, kind) {
   const W = dims.max.x - dims.min.x;
   const H = dims.max.y - dims.min.y;
   return { kind, k, parts, wheels, size: { length: L, width: W, height: H, wheel: wheels[0]?.radius || 0.33 }, front: dims.min.z, back: dims.max.z, mats: new Map() };
+}
+
+const scrubCache = new Map();
+/**
+ * A texture with some spots painted over (a badge, a model name): each spot — a
+ * circle { x, y, r } or a box { x, y, w, h }, in fractions of the image — filled
+ * with the colour just round it, its edge softened. Made once per image.
+ */
+function scrubbed(tex, spots) {
+  const img = tex.image;
+  if (!img?.width) return tex;
+  const key = `${tex.source?.uuid ?? tex.uuid}|${JSON.stringify(spots)}`;
+  if (scrubCache.has(key)) return scrubCache.get(key);
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0);
+  const W = c.width;
+  const H = c.height;
+  for (const s of spots) {
+    const box = s.r != null ? { x0: (s.x - s.r) * W, y0: s.y * H - s.r * W, x1: (s.x + s.r) * W, y1: s.y * H + s.r * W } : { x0: s.x * W, y0: s.y * H, x1: (s.x + s.w) * W, y1: (s.y + s.h) * H };
+    // the colour round it: the average of a frame a few pixels outside
+    const pad = Math.max(2, Math.round((box.x1 - box.x0) * 0.25));
+    const fx0 = Math.max(0, Math.floor(box.x0 - pad));
+    const fy0 = Math.max(0, Math.floor(box.y0 - pad));
+    const fx1 = Math.min(W, Math.ceil(box.x1 + pad));
+    const fy1 = Math.min(H, Math.ceil(box.y1 + pad));
+    const d = g.getImageData(fx0, fy0, fx1 - fx0, fy1 - fy0).data;
+    let r = 0, gg = 0, b = 0, n = 0;
+    for (let y = fy0; y < fy1; y++) for (let x = fx0; x < fx1; x++) {
+      if (x >= box.x0 - 1 && x <= box.x1 + 1 && y >= box.y0 - 1 && y <= box.y1 + 1) continue;
+      const i = ((y - fy0) * (fx1 - fx0) + (x - fx0)) * 4;
+      r += d[i];
+      gg += d[i + 1];
+      b += d[i + 2];
+      n++;
+    }
+    if (!n) continue;
+    g.fillStyle = `rgb(${Math.round(r / n)},${Math.round(gg / n)},${Math.round(b / n)})`;
+    g.filter = `blur(${Math.max(1, pad * 0.35)}px)`;
+    g.beginPath();
+    if (s.r != null) g.arc(s.x * W, s.y * H, s.r * W, 0, Math.PI * 2);
+    else g.rect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+    g.fill();
+    g.filter = 'none';
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = tex.flipY;
+  t.colorSpace = tex.colorSpace;
+  t.wrapS = tex.wrapS;
+  t.wrapT = tex.wrapT;
+  t.anisotropy = 8;
+  scrubCache.set(key, t);
+  return t;
 }
 
 /** Split a geometry holding several wheels into one per quarter round its middle (x left/right, z front/back). */
