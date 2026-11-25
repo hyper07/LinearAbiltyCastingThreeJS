@@ -1717,7 +1717,7 @@
   bottom: 150px;
   border: 3px solid #2b1d4e;
   border-radius: 26px;
-  background: #9fd4f5;
+  background: #e3d8bd;
   box-shadow: 0 7px 0 #2b1d4e;
   overflow: hidden;
   z-index: 1;
@@ -1727,7 +1727,7 @@
   height: 100%;
 }
 .jl__sea {
-  fill: #9fd4f5;
+  fill: #e3d8bd;
 }
 .jl__land {
   fill: #f6edd8;
