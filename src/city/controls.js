@@ -27,7 +27,7 @@ export const CONTROLS = {
       { id: 'sprint', context: 'race', keys: ['F'], codes: ['KeyF'], modes: { race: 'boost' }, does: 'Boost to about 85 km/h, crouched low, while the battery gauge lasts (it charges riding, faster in a slipstream or after a close call)' },
       { id: 'bell', context: 'race', keys: ['Space'], codes: ['Space', 'KeyB'], modes: { race: 'bell' }, does: 'Ring your bell — ring-ring! People ahead step aside, slower riders and scooters give you room (B rings it too)' },
       { id: 'items', context: 'race', keys: ['1', '2', '3'], codes: ['Digit1', 'Digit2', 'Digit3'], modes: { race: 'items' }, does: 'Use the item in that slot (ride through the ? boxes to get them). A branch flies at the rival ahead, or drops behind you as a trap if no one is ahead' },
-      { id: 'respawn', context: 'race', keys: ['R'], codes: ['KeyR'], does: 'Back on the course' },
+      { id: 'respawn', context: 'race', keys: ['R'], codes: ['KeyR'], modes: { race: 'reset' }, does: 'Stuck in a wall or a building, or tumbled the wrong way? Back on the open road at once, where you had got to' },
       { id: 'quit', context: 'race', keys: ['Esc'], codes: ['Escape'], does: 'Leave the race' }
     ] },
     { name: 'Menus', rows: [

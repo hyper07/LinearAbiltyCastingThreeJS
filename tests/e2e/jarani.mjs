@@ -153,6 +153,15 @@ export async function run(browser) {
       const run = await page.evaluate(() => (clearInterval(window.seoul.race._wallT), window.seoul.race._wallRun));
       t.check('ridden into a building at full speed: never inside it — it stops you (a fall) or turns you along it', run.inside === 0 && (run.crashed > 0 || run.minV < 15), JSON.stringify({ ...run, at: wall.d }));
     } else t.check('a building beside the course to ride into', false);
+    // R, straight after the wall (still against it, or tumbling): back on the open road at once.
+    await page.keyboard.press('KeyR');
+    await page.waitForTimeout(150);
+    const reset = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      return { mode: me.mode, inside: r._inside(me), hit: Boolean(r.course.walls?.hits(me.s.x, me.s.z, 0.3)) };
+    });
+    t.check('R puts you back on the open road at once, wherever you were (riding, clear of every wall)', reset.mode === 'ride' && !reset.inside && !reset.hit, JSON.stringify(reset));
     await page.evaluate(() => (window.seoul.race.autopilot = false));
     // Shift: a drift — the back out, round the corner.
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);

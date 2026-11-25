@@ -239,7 +239,7 @@ export class Race {
         <div class="race__row"><button type="button" class="race__go" data-race-solo>Race three bots</button></div>
         <div class="race__row race__together"><span>With friends</span><button type="button" data-race-make>Make a room</button><input data-race-code-in maxlength="5" placeholder="CODE" /><button type="button" data-race-join>Join</button></div>`}
       <p class="race__note" data-race-note>${esc(note)}</p>
-      <p class="race__keys">W throttle · S brake · A D lean · Shift drift · F boost · Space bell · 1 2 3 items · R back on the course · Esc pause · H how to play <button type="button" class="race__credits" data-race-credits>ⓒ Credits</button></p>`;
+      <p class="race__keys">W throttle · S brake · A D lean · Shift drift · F boost · Space bell · 1 2 3 items · R reset if stuck · Esc pause · H how to play <button type="button" class="race__credits" data-race-credits>ⓒ Credits</button></p>`;
     const $ = (q) => m.querySelector(q);
     $('[data-race-x]').onclick = () => this.quit();
     $('[data-race-credits]').onclick = () => this.g.toggleCredits(true);
@@ -1072,7 +1072,14 @@ export class Race {
     }
     this.boxes?.update(dt, this.g.camera);
     if (racing) for (const r of this.racers) if (r.mine && !r.left && r.mode === 'ride') this._pickup(r);
-    if (this.me && racing && key('KeyR') && !this._rHeld && this.me.mode === 'ride') this._remount(this.me);
+    // Throttle held but going nowhere for two seconds: say how to get out.
+    if (this.me && racing && this.me.done == null && this.me.mode === 'ride') {
+      this.me.stuckT = key('KeyW') && Math.abs(this.me.s.v) < 1 ? (this.me.stuckT ?? 0) + dt : 0;
+      if (this.me.stuckT > 2) {
+        this.me.stuckT = -3;
+        this._flash('Stuck? Press R', 2.5);
+      }
+    }
     // Lost well off the course (round the wrong side of a building, out in a square) for a few seconds:
     // back on it, as R would — a fair race isn't lost to a bad bounce.
     if (racing) {
@@ -1087,7 +1094,6 @@ export class Race {
         }
       }
     }
-    this._rHeld = key('KeyR');
     this.g.pos.set(this.me.s.x, this.me.y, this.me.s.z);
     this.g.speed = Math.abs(this.me.s.v);
     if (racing) this._finishCheck();
@@ -2787,6 +2793,18 @@ export class Race {
     o.connect(gain).connect(a.destination);
     o.start();
     o.stop(a.currentTime + 0.32);
+  }
+
+  /**
+   * R: back on the open road at once, wherever you are — wedged against a wall or a building,
+   * mid-tumble, dazed. You go back on the course at the place you had reached, so it never skips ahead.
+   */
+  reset() {
+    const me = this.me;
+    if (!me || !['racing', 'done'].includes(this.phase) || this.paused || me.left || me.done != null) return;
+    this._remount(me);
+    me.stuckT = 0;
+    this._flash('Back on the road', 1);
   }
 
   /** The bell (Space, or B): ring-ring — people just ahead step aside, slower riders and scooters ahead give you room. */
