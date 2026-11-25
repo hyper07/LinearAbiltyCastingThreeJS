@@ -100,9 +100,9 @@ export function turnCost(a) {
  * `items` how much more the last-placed odds lean on a harder level (0–1).
  */
 export const LEVELS = {
-  easy: { id: 'easy', name: 'Easy', ko: '쉬움', stars: 1, color: '#2fbf71', traffic: 1, oncoming: 8, parked: 0, bots: [0.86, 0.89, 0.92], items: 0 },
-  medium: { id: 'medium', name: 'Medium', ko: '보통', stars: 2, color: '#ffa928', traffic: 1.2, oncoming: 11, parked: 2, bots: [0.89, 0.93, 0.97], items: 0.5 },
-  hard: { id: 'hard', name: 'Hard', ko: '어려움', stars: 3, color: '#ff4b3e', traffic: 1.4, oncoming: 14, parked: 5, bots: [0.93, 0.97, 1.01], items: 1 }
+  easy: { id: 'easy', name: 'Easy', ko: '쉬움', stars: 1, color: '#2fbf71', traffic: 1, oncoming: 9, parked: 0, bots: [0.86, 0.89, 0.92], items: 0 },
+  medium: { id: 'medium', name: 'Medium', ko: '보통', stars: 2, color: '#ffa928', traffic: 1.1, oncoming: 12, parked: 4, bots: [0.89, 0.93, 0.97], items: 0.5 },
+  hard: { id: 'hard', name: 'Hard', ko: '어려움', stars: 3, color: '#ff4b3e', traffic: 1.15, oncoming: 15, parked: 8, bots: [0.93, 0.97, 1.01], items: 1 }
 };
 export const LEVEL_ORDER = ['easy', 'medium', 'hard'];
 

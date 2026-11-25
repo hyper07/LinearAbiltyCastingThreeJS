@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Session } from '../net/Session.js';
-import { BIKE_COURSES, planCourse, finishCourse, locate, isSmall, courseStats } from './course.js';
+import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, isSmall, courseStats } from './course.js';
 import { Walls, tileRings, RIDER_RADIUS } from './walls.js';
 import { TILE, decodeTile, tileKey, tileOf } from './tiles.js';
 import { bikeGap, closeCall, slipstream, NEAR_MISS } from './ride.js';
@@ -289,6 +289,11 @@ export class Race {
     this._planT = setTimeout(next, 50);
   }
 
+  /** The level of the course picked (course.js LEVELS): its bots, traffic and item odds. */
+  _level() {
+    return LEVELS[BIKE_COURSES.find((c) => c.id === this.courseId)?.level ?? 'easy'] ?? LEVELS.easy;
+  }
+
   /** The 3D stage behind the menus. */
   makeStage() {
     return new JaraniStage(this.g.renderer).build();
@@ -493,7 +498,9 @@ export class Race {
     this.session = null;
     const grid = [{ id: 'me', name: this.g.account?.name ?? 'You', owner: 'me', char: this.char, scooter: this.scooter }];
     const rides = botScooters(SEATS - 1);
-    botRiders(this.char, SEATS - 1).forEach((c, i) => grid.push({ id: `bot${i}`, name: BOT_NAMES[i], owner: 'me', bot: true, skill: 0.88 + i * 0.045, char: c, scooter: rides[i] }));
+    // (the bots as sharp as the course's level asks)
+    const skills = this._level().bots;
+    botRiders(this.char, SEATS - 1).forEach((c, i) => grid.push({ id: `bot${i}`, name: BOT_NAMES[i], owner: 'me', bot: true, skill: skills[i] ?? 0.9, char: c, scooter: rides[i] }));
     this.myId = 'me';
     this._begin(grid, raceSky(this.time, this.weatherPick));
   }
@@ -506,7 +513,8 @@ export class Race {
     const grid = people.map((p) => ({ id: p.id, name: p.name, owner: p.id, char: this.picks.get(p.id)?.char ?? 'fox', scooter: cleanScooter(this.picks.get(p.id)?.scooter) }));
     const bots = botRiders(grid[0]?.char ?? this.char, CREW_ORDER.length - 1).filter((c) => !grid.some((g) => g.char === c));
     const rides = botScooters(SEATS);
-    for (let i = grid.length; i < SEATS; i++) grid.push({ id: `bot${i}`, name: BOT_NAMES[i - 1] ?? 'Bot', owner: s.id, bot: true, skill: 0.9 + i * 0.03, char: bots.shift() ?? CREW_ORDER[i % CREW_ORDER.length], scooter: rides[i] });
+    const skills = this._level().bots;
+    for (let i = grid.length; i < SEATS; i++) grid.push({ id: `bot${i}`, name: BOT_NAMES[i - 1] ?? 'Bot', owner: s.id, bot: true, skill: (skills[i - 1] ?? 0.92) + 0.01, char: bots.shift() ?? CREW_ORDER[i % CREW_ORDER.length], scooter: rides[i] });
     const sky = raceSky(this.time, this.weatherPick);
     s.send({ t: 'race-go', course: this.courseId, laps: this.laps, grid, sky });
     this._begin(grid, sky);
@@ -2232,7 +2240,7 @@ export class Race {
     if (slot < 0) return;
     const got = this.boxes?.take(r.s.x, r.s.z);
     if (got == null) return;
-    const item = rollItem(this._rank(r), this.racers.length, Math.random);
+    const item = rollItem(this._rank(r), this.racers.length, Math.random, this._level().items);
     r.items[slot] = item;
     if (r.me) {
       this._renderItems(slot);

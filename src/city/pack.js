@@ -21,7 +21,9 @@ export const BIKE_RADIUS = 0.32;
  */
 export function laneBand(width, small, pass = false, oneway = false) {
   const w = Math.max(2.4, width || 6);
-  if (small) return { lo: -w / 2 + 0.75, hi: w / 2 - 0.75 };
+  // (a two-way residential lane wide enough for cars both ways: your own side of it, a little over the
+  // middle — the cars coming the other way have the rest; all of it to pass, or in a narrower golmok)
+  if (small) return !pass && !oneway && w >= 5.5 ? { lo: -0.3, hi: w / 2 - 0.75 } : { lo: -w / 2 + 0.75, hi: w / 2 - 0.75 };
   if (oneway) return { lo: -w / 2 + 0.95, hi: w / 2 - 0.95 };
   const hi = Math.max(1.4, w / 2 - 0.85);
   const lo = pass ? Math.max(-0.3, Math.min(0.9, hi - 4.5)) : Math.min(hi - 0.4, 1.0);

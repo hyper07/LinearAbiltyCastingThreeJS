@@ -34,15 +34,19 @@ const ODDS = {
   first: { drink: 0.32, helmet: 0.26, horn: 0.18, tailwind: 0.08, branch: 0.1, marbles: 0.06 },
   last: { drink: 0.13, helmet: 0.08, horn: 0.12, tailwind: 0.26, branch: 0.23, marbles: 0.18 }
 };
-/** The odds of an item for a racer in `rank` of `n` (for the tests and the menu). */
-export function itemOdds(rank, n) {
-  const k = n > 1 ? (rank - 1) / (n - 1) : 0;
+/**
+ * The odds of an item for a racer in `rank` of `n` (for the tests and the menu). `lean` (0–1, the
+ * course's level: course.js LEVELS items) tips everyone's odds a little toward the back-markers'
+ * (more branches, marbles and tailwinds on a harder course).
+ */
+export function itemOdds(rank, n, lean = 0) {
+  const k = Math.min(1, (n > 1 ? (rank - 1) / (n - 1) : 0) + 0.15 * lean);
   return Object.fromEntries(ITEM_ORDER.map((id) => [id, ODDS.first[id] + (ODDS.last[id] - ODDS.first[id]) * k]));
 }
 
-/** An item for a racer in `rank` of `n` (1 is leading). */
-export function rollItem(rank, n, random = Math.random) {
-  const k = n > 1 ? (rank - 1) / (n - 1) : 0;
+/** An item for a racer in `rank` of `n` (1 is leading), the odds tipped by `lean` as itemOdds. */
+export function rollItem(rank, n, random = Math.random, lean = 0) {
+  const k = Math.min(1, (n > 1 ? (rank - 1) / (n - 1) : 0) + 0.15 * lean);
   let r = random();
   for (const id of ITEM_ORDER) {
     r -= ODDS.first[id] + (ODDS.last[id] - ODDS.first[id]) * k;
