@@ -1,9 +1,10 @@
 /**
- * Riding an electric kick scooter, as plain numbers (no drawing, so the
- * tests can ride one into a kerb): the motor pulls up to Korea's legal cap
- * (25 km/h), a boost spends the battery gauge for a few seconds at about
- * 32 km/h, brakes, and steering by leaning — lean in and it curves (radius
- * v² / (g·tan lean)), turning by the bars when slow. Small solid wheels feel
+ * Riding an electric racing scooter, as plain numbers (no drawing, so the
+ * tests can ride one into a kerb): a race-tuned motor pulls to 70 km/h in
+ * about four and a half seconds, a boost spends the battery gauge for a few
+ * seconds at about 85 km/h, brakes, and steering by leaning — lean in and it
+ * curves (radius v² / (g·tan lean), with racing tyres' extra bite), turning
+ * by the bars when slow; fast, the same key leans it more gently. Small solid wheels feel
  * the street: every paving joint is a bump (a jolt and a sliver of speed),
  * a kerb taken at an angle is a hop up, one met glancing scrubs along it and
  * wobbles you. Wet roads have less grip: less lean, longer braking, and the
@@ -16,16 +17,18 @@
  */
 
 export const SCOOT = {
-  cruise: 6.95, // 25 km/h: the motor's cap
-  boostTop: 8.9, // 32 km/h on a boost
-  accel: 2.6,
-  boostAccel: 3.4,
-  brake: 5.6,
-  skidBrake: 3.6,
+  cruise: 19.45, // 70 km/h: the motor's cap
+  boostTop: 23.6, // 85 km/h on a boost
+  accel: 6.3, // 0 → 70 km/h in about 4.5 s
+  boostAccel: 7.4,
+  brake: 9.5, // 70 → 0 in about 2 s on a dry road
+  skidBrake: 6,
   roll: 0.14,
-  drag: 0.0045,
+  drag: 0.0028,
   maxLean: 0.6, // about 34°: small wheels don't like more
   leanRate: 5.2,
+  bite: 1.7, // racing tyres: how much more a lean turns than physics alone would (an arcade's grip)
+  calm: 0.45, // at full speed the lean comes this much slower (speed-sensitive steering)
   wheelbase: 0.82,
   wheel: 0.095, // wheel radius, metres
   drain: 0.2, // gauge a second while boosting: five seconds of it
@@ -56,9 +59,19 @@ export function newScoot(x, z, heading) {
 
 /** The tightest turn at a speed on a surface, as a curvature (1 / radius in metres). */
 export function maxCurvature(v, grip = 1, spec = SCOOT) {
-  const lean = Math.min(spec.maxLean, Math.atan(grip * 0.95));
+  const lean = leanLimit(grip, spec);
   // Slow, it steers by the bars (about a 1.8 m circle at walking pace); faster, by leaning.
-  return Math.min(1 / 1.8, (G * Math.tan(lean)) / Math.max(1, v * v));
+  return Math.min(1 / 1.8, (G * Math.tan(lean) * (spec.bite ?? 1) * Math.min(1, grip)) / Math.max(1, v * v));
+}
+
+/** How far it can lean on a surface. */
+export function leanLimit(grip = 1, spec = SCOOT) {
+  return Math.min(spec.maxLean, Math.atan(grip * 0.8));
+}
+
+/** The fastest a turn of `curvature` (1 / radius) can be taken on a surface, m/s. */
+export function cornerSpeed(curvature, grip = 1, spec = SCOOT) {
+  return Math.sqrt((G * Math.tan(leanLimit(grip, spec)) * (spec.bite ?? 1) * Math.min(1, grip)) / Math.max(1e-4, curvature));
 }
 
 /**
@@ -83,14 +96,15 @@ export function kerbHop(rise, cross) {
  * more top speed), grade (rise over run), grip (GRIP.*), draft (0–1),
  * surface ('paving' | 'concrete' | 'asphalt' | 'smooth'), kerb ({ rise, cross })
  * }. `blocked(x, z)` says whether a point is inside something solid.
- * Returns { hit (speed it hit something at), jolt (a joint's bump, 0–1),
+ * Returns { hit (speed it hit something head-on at), glance (radians it was
+ * turned along a wall it met at a slant, or 0), jolt (a joint's bump, 0–1),
  * kerb (what a kerb did: kerbHop's word, or null), landed (thump, m/s) }.
  */
 export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   const grip = clamp(input.grip ?? 1, 0.2, 1.1);
   const grade = clamp(input.grade ?? 0, -0.25, 0.25);
   const free = Boolean(input.free);
-  const out = { hit: 0, jolt: 0, kerb: null, landed: 0 };
+  const out = { hit: 0, glance: 0, jolt: 0, kerb: null, landed: 0 };
   // Boost: from the gauge (or a tailwind); run it dry and it needs a moment before it boosts again.
   s.tired = Math.max(0, (s.tired ?? 0) - dt);
   const canBoost = free || (s.stamina > 0.02 && s.tired <= 0);
@@ -103,12 +117,12 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   if (throttle) {
     const push = (s.boosting ? spec.boostAccel : spec.accel) * (1.3 - Math.min(1, Math.max(0, s.v) / top) * 1.0);
     if (s.v < top) s.v = Math.min(top, s.v + push * dt);
-    else s.v -= Math.min(s.v - top, 1.4 * dt); // after a boost or a hill, back to the cap
+    else s.v -= Math.min(s.v - top, 3 * dt); // after a boost or a hill, back to the cap
   }
   // Brakes: firm on a dry road, much less on a wet one; stopped and still holding back, it rolls back a little.
   s.braking = Boolean(input.brake && s.v > 0.3);
   if (input.brake) {
-    if (s.v > 0.3) s.v = Math.max(0, s.v - spec.brake * Math.min(1, grip * 1.05) * dt);
+    if (s.v > 0.3) s.v = Math.max(0, s.v - spec.brake * Math.min(1, grip * 1.05) * (grip < 0.9 ? 0.8 : 1) * dt);
     else s.v = Math.max(-1, s.v - 1.6 * dt);
   } else if (s.v < 0) s.v = Math.min(0, s.v + 3 * dt);
   // Rolling resistance and air, more on rough paving; the hill.
@@ -118,7 +132,7 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   else if (s.v > 0) s.v -= slow * 0.4;
   s.v -= G * grade * 0.6 * dt;
   if (s.v > 0 && s.v < 0.05 && !throttle && grade >= 0) s.v = 0;
-  s.v = clamp(s.v, -1, spec.boostTop + 3);
+  s.v = clamp(s.v, -1, spec.boostTop + 4);
   // The gauge: spent boosting (not on a tailwind), back slowly riding, faster coasting or in a slipstream.
   if (s.boosting && !free) {
     s.stamina = Math.max(0, s.stamina - spec.drain * dt);
@@ -127,19 +141,23 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
       s.tired = 1.2;
     }
   } else s.stamina = Math.min(1, s.stamina + (throttle ? spec.regen : spec.rest) * dt + (input.draft ?? 0) * 0.2 * dt);
-  // Steering by leaning: the keys (or a bot's steer) ask for a lean, the grip says how far.
+  // Steering by leaning: the keys (or a bot's steer) ask for a lean, the grip says how far; fast, it leans in
+  // more gently (speed-sensitive steering), so a tap at 70 km/h is a lane change, not a swerve.
   const wheel = clamp(input.steer ?? (input.left ? 1 : 0) - (input.right ? 1 : 0), -1, 1);
-  const maxLean = Math.min(spec.maxLean, Math.atan(grip * 0.95));
+  const maxLean = leanLimit(grip, spec);
   const speedK = clamp(s.v / 3, 0, 1);
-  s.lean += (wheel * maxLean * speedK - s.lean) * Math.min(1, dt * spec.leanRate);
+  const fast = clamp(s.v / spec.cruise, 0, 1.2);
+  s.lean += (wheel * maxLean * speedK - s.lean) * Math.min(1, dt * spec.leanRate * (1 - (spec.calm ?? 0) * fast * 0.8));
   s.steer += (wheel - s.steer) * Math.min(1, dt * 8);
-  const byLean = (G * Math.tan(s.lean)) / Math.max(1, s.v * s.v);
+  const bite = (spec.bite ?? 1) * Math.min(1, grip);
+  const byLean = (G * Math.tan(s.lean) * bite) / Math.max(1, s.v * s.v);
   const byBars = (Math.tan(s.steer * 0.6) / spec.wheelbase) * (1 - speedK);
   const curve = clamp(byLean + byBars, -1 / 1.8, 1 / 1.8);
   s.heading += curve * s.v * dt;
-  // The way it goes follows the way it points; on a wet road, braking in a lean, the back steps out.
+  // The way it goes follows the way it points; on a wet road, braking in a lean — or leaning hard fast — the back steps out.
   const braking = input.brake && s.v > 2;
-  const loose = braking ? Math.abs(s.lean) / Math.max(0.05, maxLean) : 0;
+  const leanK = Math.abs(s.lean) / Math.max(0.05, maxLean);
+  const loose = (braking ? leanK : 0) + (grip < 0.9 && s.v > spec.cruise * 0.55 ? leanK * leanK * 0.6 : 0);
   const hold = (14 * grip) / (1 + loose * (grip < 0.9 ? 3.5 : 1.2));
   s.travel = (s.travel ?? s.heading) + turn(s.travel ?? s.heading, s.heading) * Math.min(1, dt * hold);
   s.skid = Math.abs(turn(s.travel, s.heading));
@@ -190,17 +208,49 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
       return out;
     } else if (what === 'drop') s.bump = Math.max(s.bump, 0.5);
   }
-  const nx = s.x - Math.sin(s.travel) * s.v * dt;
-  const nz = s.z - Math.cos(s.travel) * s.v * dt;
-  const fx = -Math.sin(s.heading) * spec.halfLength;
-  const fz = -Math.cos(s.heading) * spec.halfLength;
-  if (blocked(nx + fx, nz + fz) || blocked(nx, nz)) {
-    out.hit = Math.abs(s.v);
-    s.v = 0;
-    s.travel = s.heading;
+  const into = (dir) => {
+    const nx = s.x - Math.sin(dir) * s.v * dt;
+    const nz = s.z - Math.cos(dir) * s.v * dt;
+    // (probed a little further than one frame's travel, so a wall met at speed is seen as a wall, not a gap)
+    const px = s.x - Math.sin(dir) * Math.max(spec.halfLength, s.v * dt + 0.25);
+    const pz = s.z - Math.cos(dir) * Math.max(spec.halfLength, s.v * dt + 0.25);
+    return blocked(px, pz) || blocked(nx, nz) ? null : [nx, nz];
+  };
+  const go = into(s.travel);
+  if (go) {
+    s.x = go[0];
+    s.z = go[1];
     return out;
   }
-  s.x = nx;
-  s.z = nz;
+  // Something solid ahead. Met at a slant it is a glance: turned along it, scraping and slowed, still up.
+  // Only met nearly head-on (more than GLANCE off its line) is it a hit.
+  // (along the wall the way the rider is steering, if both ways are open: round a corner, not away from it)
+  const pref = input.steer ?? (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  const sides = pref < 0 ? [-1, 1] : [1, -1];
+  for (let k = 1; k * 0.1 <= GLANCE + 1e-6; k++) {
+    for (const sgn of sides) {
+      const dir = s.travel + sgn * k * 0.1;
+      if (!into(dir) || !into(dir + sgn * 0.12)) continue;
+      const angle = k * 0.1;
+      out.glance = angle;
+      out.hit = 0;
+      s.v *= Math.max(0.35, 1 - Math.sin(angle) * 1.1);
+      s.travel = dir;
+      s.heading += turn(s.heading, dir) * 0.85;
+      s.wobble = Math.min(1, (s.wobble ?? 0) + 0.25 + angle);
+      const ok = into(dir);
+      if (ok) {
+        s.x = ok[0];
+        s.z = ok[1];
+      }
+      return out;
+    }
+  }
+  out.hit = Math.abs(s.v);
+  s.v = 0;
+  s.travel = s.heading;
   return out;
 }
+
+/** How far off a wall's line (radians) a scooter can meet it and only glance off. */
+export const GLANCE = 0.6;

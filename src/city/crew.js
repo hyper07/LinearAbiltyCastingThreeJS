@@ -8,12 +8,12 @@ import { SPECIES } from '../snowpuff/riders.js';
  * always has some of each (botRiders in race.js).
  */
 export const CREW = {
-  bunny: { she: true, ko: '말로', scooter: '#ff6fb4', trim: '#ffffff', text: 'Never stops bouncing. Quick off the line; her long ears stream back at full speed.', spec: { accel: 3.0, leanRate: 5.6 } },
-  pig: { she: true, ko: '피치스', scooter: '#3a86ff', trim: '#ffffff', text: 'Peachy and unflappable: brakes late, holds a wet corner better than anyone.', spec: { brake: 6.4, grip: 1.08 } },
+  bunny: { she: true, ko: '말로', scooter: '#ff6fb4', trim: '#ffffff', text: 'Never stops bouncing. Quick off the line; her long ears stream back at full speed.', spec: { accel: 6.9, leanRate: 5.6 } },
+  pig: { she: true, ko: '피치스', scooter: '#3a86ff', trim: '#ffffff', text: 'Peachy and unflappable: brakes late, holds a wet corner better than anyone.', spec: { brake: 10.6, grip: 1.08 } },
   cat: { she: true, ko: '모찌', scooter: '#ffd23f', trim: '#2b2f3a', text: 'A tabby in a sunny bobble hat. Quickest through the turns.', spec: { maxLean: 0.64, leanRate: 6.2 } },
-  fox: { ko: '핍', scooter: '#2ec4d6', trim: '#ffffff', text: 'A round orange fox with a huge fluffy tail. Loves a long straight and a boost.', spec: { boostTop: 9.2, drain: 0.18 } },
-  bear: { ko: '토피', scooter: '#2f4a8a', trim: '#ffd166', text: 'A caramel bear in a mint scarf: steady, heavy, hard to knock off line.', spec: { accel: 2.4, cruise: 7.05 } },
-  frog: { ko: '피클', scooter: '#6fcf4a', trim: '#ff7a33', text: 'A lime frog with a snack backpack. Hops kerbs like nobody else.', spec: { accel: 2.8, hop: 1.2 } },
+  fox: { ko: '핍', scooter: '#2ec4d6', trim: '#ffffff', text: 'A round orange fox with a huge fluffy tail. Loves a long straight and a boost.', spec: { boostTop: 24.4, drain: 0.18 } },
+  bear: { ko: '토피', scooter: '#2f4a8a', trim: '#ffd166', text: 'A caramel bear in a mint scarf: steady, heavy, hard to knock off line.', spec: { accel: 5.8, cruise: 19.75 } },
+  frog: { ko: '피클', scooter: '#6fcf4a', trim: '#ff7a33', text: 'A lime frog with a snack backpack. Hops kerbs like nobody else.', spec: { accel: 6.6, hop: 1.2 } },
   penguin: { ko: '페블', scooter: '#ff4b5c', trim: '#ffffff', text: 'A round penguin in a red bobble hat — never minds the rain.', spec: { grip: 1.1, leanRate: 4.8 } }
 };
 
