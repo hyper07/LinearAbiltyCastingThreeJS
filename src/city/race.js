@@ -1778,8 +1778,10 @@ export class Race {
   _place(r, dt) {
     const s = r.s;
     const target = r.net && !r.mine ? r.net.y : this.g.surfaceAt(s.x, s.z, r.y + 0.3);
-    // up a kerb at once (the hop carries it), down one quickly
-    r.y += (target - r.y) * Math.min(1, dt * (target > r.y ? 30 : 14));
+    // up a kerb at once (the hop carries it), down one quickly; a seam of a few centimetres eased over
+    // in a tenth of a second rather than snapped to (it read as a jump)
+    const dy = target - r.y;
+    r.y += dy * Math.min(1, dt * (Math.abs(dy) < 0.12 ? 10 : dy > 0 ? 30 : 14));
     const night = this.g.uniforms?.uNight.value ?? 0;
     const won = r.done != null && this._rank(r) === 1 && s.v < 0.6;
     const v = r.view;
@@ -1929,8 +1931,9 @@ export class Race {
     const rise = ahead - here;
     if (Math.abs(rise) < 0.035 || Math.abs(rise) > 0.6) return null;
     // Within the street the course runs down, a step in the surface is a seam or a steep bit (two road
-    // meshes meeting, a hill), not a kerb: ridden over, never a wall.
-    if (rise > 0.12) {
+    // stretches meeting, a hill), not a kerb: ridden over, never hopped and never a wall. Only the
+    // street's edge has kerbs (any step there still counts).
+    {
       const p = this._at(this._line(r), 0);
       if (p && Math.hypot(s.x + fx * 0.55 - p[0], s.z + fz * 0.55 - p[1]) < (p[2] ?? 6) / 2 + 2.5 && (r.off ?? 0) < (p[2] ?? 6) / 2 - 0.3) return null;
     }

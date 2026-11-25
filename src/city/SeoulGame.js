@@ -1532,6 +1532,13 @@ export class SeoulGame {
    * What you stand on at a point: the road's surface if a road passes here
    * within a step up of where you are (so you walk onto a bridge from its
    * end, and under it from the bank), else the ground.
+   *
+   * Where road stretches overlap they rarely agree to the centimetre (a dual carriageway's two ways,
+   * a junction on a hill), so the surface is not simply the highest of them — that made small
+   * invisible steps a scooter hopped like kerbs. Given where you are (`from`, your height + 0.3), it
+   * follows the stretch nearest your height; and a stretch's round end (the disc past its last point,
+   * flat at that point's height — on a slope it stands proud of the road on) only counts where no
+   * stretch runs through the point.
    */
   surfaceAt(x, z, from = Infinity, mainOnly = false) {
     const ground = this.groundAt(x, z);
@@ -1539,6 +1546,9 @@ export class SeoulGame {
     let best = ground;
     let onIt = false;
     let alleyEnd = -Infinity;
+    const ref = Number.isFinite(from) ? from - 0.3 : null;
+    let through = null;
+    let cap = -Infinity;
     const cx = Math.floor(x / ROAD_CELL);
     const cz = Math.floor(z / ROAD_CELL);
     for (let i = cx - 1; i <= cx + 1; i++) {
@@ -1554,12 +1564,21 @@ export class SeoulGame {
           if (y > Math.max(from, ground) + 2.5) continue;
           // An alley's stretch only past its end (round a bend, where the next stretch doesn't reach):
           // on a hill, its end's height isn't the ground's just before the next one.
-          if (s.alley && (raw < -0.02 || raw > 1.02)) alleyEnd = Math.max(alleyEnd, y);
-          else if (y > best) {
-            best = y;
-            onIt = true;
-          }
+          const end = raw < -0.02 || raw > 1.02;
+          if (s.alley && end) alleyEnd = Math.max(alleyEnd, y);
+          else if (end) cap = Math.max(cap, y);
+          // through this stretch: the one nearest your height (or the highest, asked from nowhere)
+          else if (through == null || (ref == null ? y > through : Math.abs(y - ref) < Math.abs(through - ref))) through = y;
         }
+      }
+    }
+    const road = through ?? (cap > -Infinity ? cap : null);
+    if (road != null && road > best) {
+      best = road;
+      onIt = true;
+    }
+    for (let i = cx - 1; i <= cx + 1; i++) {
+      for (let j = cz - 1; j <= cz + 1; j++) {
         for (const s of this.walkHash?.get(`${i}_${j}`) ?? []) {
           const y = this._onWalk(s, x, z);
           if (y != null && y <= Math.max(from, ground) + 2.5) {
