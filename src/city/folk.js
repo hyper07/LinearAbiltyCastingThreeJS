@@ -9,16 +9,16 @@ import { PEOPLE } from './streetAssets.js';
  * and women in everyday clothes, walking, standing about, texting, looking
  * round, cheering at the start — motion-captured clips on one shared biped
  * skeleton. StreetLife (life.js) keeps everyone's place and what they're
- * doing; this dresses the nearest of them as a real person each frame and
- * StreetLife draws only the far ones (as its light instanced figures).
+ * doing; this dresses the nearest of them as a real person each frame (and
+ * nobody else is drawn: no faceless stand-ins).
  *
  *   const folk = new Folk(game);       // loads in the background
  *   folk.update(dt, people, camera);   // after StreetLife has moved everyone
  */
 
 const ROOT = './library/rocketbox/';
-/** How many real people at once, and how near (m): the rest are StreetLife's far figures. */
-export const FOLK = { max: 32, near: 42, keep: 50 };
+/** How many real people at once, and how near (m): nobody further is drawn (life.js). */
+export const FOLK = { max: 34, near: 62, keep: 72 };
 /** The walk clip's natural pace (m/s): the clip is sped up or slowed to match each walker's feet. */
 const WALK_PACE = 1.3;
 
@@ -131,6 +131,83 @@ function dress(model, { body, head, opacity }) {
     });
     o.material = Array.isArray(o.material) ? mats : mats[0];
   });
+}
+
+/* ------------------------------------------------- riders on delivery scooters */
+
+const _a = new THREE.Vector3();
+const _b = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _pq = new THREE.Quaternion();
+const _d = new THREE.Quaternion();
+
+/** Turn a bone (in its holder's space) so the line from it to `child` points along `dir`. */
+function aim(bone, child, dir) {
+  bone.updateWorldMatrix(true, true);
+  bone.getWorldPosition(_a);
+  child.getWorldPosition(_b);
+  const cur = _b.sub(_a).normalize();
+  _d.setFromUnitVectors(cur, dir.clone().normalize());
+  bone.getWorldQuaternion(_q);
+  bone.parent.getWorldQuaternion(_pq);
+  bone.quaternion.copy(_pq.invert().multiply(_d.multiply(_q)));
+}
+
+/** The pose of someone riding a moped: sat, knees forward, feet on the board, hands on the bars, leaning in a little. */
+const SEAT = {
+  spine: [0, 1, -0.22],
+  thigh: [0.12, -0.28, -1],
+  calf: [0.04, -1, -0.32],
+  foot: [0, -0.25, -1],
+  upper: [0.28, -0.42, -1],
+  fore: [0.06, -0.1, -1],
+  /** where the hips sit (moped space: forward −z, metres) */
+  hips: [0, 0.86, 0.12]
+};
+
+const riderPool = [];
+
+/**
+ * A real person to ride a delivery scooter (a Rocketbox avatar, sat in a riding pose: no faceless
+ * dummy), or null until the people have loaded. Give it back with `releaseRider` when the scooter goes.
+ */
+export function takeRider() {
+  const s = loadShared();
+  if (!s.ready) return null;
+  const old = riderPool.pop();
+  if (old) {
+    old.visible = true;
+    return old;
+  }
+  const a = s.avatars[Math.floor(Math.random() * s.avatars.length)];
+  const root = cloneSkinned(a.holder);
+  const bone = (n) => root.getObjectByName(`Bip01_${n}`);
+  const v = (xyz, flip = 1) => new THREE.Vector3(xyz[0] * flip, xyz[1], xyz[2]);
+  root.updateMatrixWorld(true);
+  aim(bone('Spine'), bone('Spine1'), v(SEAT.spine));
+  for (const [side, f] of [['L', -1], ['R', 1]]) {
+    aim(bone(`${side}_Thigh`), bone(`${side}_Calf`), v(SEAT.thigh, f));
+    aim(bone(`${side}_Calf`), bone(`${side}_Foot`), v(SEAT.calf, f));
+    aim(bone(`${side}_Foot`), bone(`${side}_Toe0`), v(SEAT.foot, f));
+    aim(bone(`${side}_UpperArm`), bone(`${side}_Forearm`), v(SEAT.upper, f));
+    aim(bone(`${side}_Forearm`), bone(`${side}_Hand`), v(SEAT.fore, f));
+  }
+  root.updateMatrixWorld(true);
+  // Sat on the seat: the hips where the saddle is.
+  const hips = bone('Pelvis').getWorldPosition(new THREE.Vector3());
+  const holder = new THREE.Group();
+  holder.add(root);
+  root.position.set(SEAT.hips[0] - hips.x, SEAT.hips[1] - hips.y, SEAT.hips[2] - hips.z);
+  holder.userData.rider = true;
+  return holder;
+}
+
+/** A scooter's rider back to the pool. */
+export function releaseRider(holder) {
+  if (!holder) return;
+  holder.removeFromParent();
+  holder.visible = false;
+  if (riderPool.length < 16) riderPool.push(holder);
 }
 
 export class Folk {

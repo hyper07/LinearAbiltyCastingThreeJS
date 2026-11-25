@@ -3,34 +3,33 @@ import { follow, pointOn } from './drive.js';
 import { Folk } from './folk.js';
 
 /**
- * Street life: ordinary people on Seoul's pavements — walking, jogging,
- * walking the dog, coming back from the shops with bags, standing about in
- * twos and threes or on the phone — people on bikes (a good share on the
- * city's green share-bikes, with a basket) along the pavement's edge, and
- * delivery riders on motorbikes with a box on the back, along the edge of
- * the road. In the small streets (alleys.bin) people walk down the middle,
- * there being no pavement. A bike race asks who is near (`near`), rings its
- * bell or blasts its horn at them (`shoo`: they step aside), and knocks
- * into them (`bump`).
+ * Street life: ordinary people on Seoul's pavements — walking, walking the
+ * dog, coming back from the shops with bags, waiting in groups at the
+ * crossings, standing at shop doors, on the phone. In the small streets
+ * (alleys.bin) there is no pavement: they walk anywhere across it — in a race
+ * along its edges, out of the riders' way. A bike race asks who is near
+ * (`near`), rings its bell or blasts its horn at them (`shoo`: they step
+ * aside), and knocks into them (`bump`).
  *
- * Near you, people on foot are real: rigged, textured Rocketbox men and
- * women with motion-captured walks, idles, texting and cheering (folk.js).
- * Further off, hundreds of them cost little: every body part is one
- * instanced draw for all of them (a torso for everyone, a head for
- * everyone…), posed each frame from a few numbers (a stride, a pedal stroke).
+ * Everyone you see is real: rigged, textured Rocketbox men and women with
+ * faces and motion-captured walks, idles, texting and cheering (folk.js).
+ * There are as many as Folk can dress — no faceless stand-ins: further off
+ * the pavement is quieter, the way a street thins out with distance. In a
+ * race, people gather ahead of the riders, where they will be seen. Only the
+ * walkers' small dogs are drawn here (instanced: a body, a head, legs).
  *
  *   const life = new StreetLife(game);   // game: the SeoulGame
  *   life.update(dt);                       // every frame
  */
 
-/** How many of each, near you. */
-export const CROWD = { walk: 70, jog: 12, dog: 14, shop: 24, stand: 26, bike: 14, moto: 10 };
+/** How many of each, near you (the stand-abouts come in twos and threes, and some walkers in pairs). */
+export const CROWD = { walk: 22, dog: 5, shop: 8, stand: 12 };
 const ON_FOOT = new Set(['walk', 'jog', 'dog', 'shop', 'stand']);
-/** Who becomes a real person near you (joggers and riders stay figures). */
+/** Who becomes a real person near you: everyone on foot (nobody is drawn who isn't). */
 const REAL = new Set(['walk', 'dog', 'shop', 'stand']);
-const NEAR = 12;
-const FAR = 150;
-const GONE = 200;
+const NEAR = 10;
+const FAR = 80;
+const GONE = 100;
 
 /** Everyday Seoul clothes: mostly dark and neutral, a few colours. */
 const TOPS = ['#1d1f24', '#23293a', '#2f2f33', '#4a4d55', '#e9e6df', '#c9b79c', '#8b6d4f', '#5b6b7d', '#7a2830', '#2e4a3a', '#b8b2a7', '#f2f0ea', '#3c3f6b', '#d9cfbf'];
@@ -69,44 +68,9 @@ function merge(list) {
   return out;
 }
 
-/** A part's shape, its pivot at the origin (limbs hang down from it). Forward is −Z. */
+/** A small dog's parts (a maltese, a poodle, a shiba): body, head, ears, four legs, a tail, and its lead. Forward is −Z. */
 function shapes() {
-  const limb = (r, len) => new THREE.CapsuleGeometry(r, len, 3, 8).translate(0, -(len / 2 + r * 0.6), 0);
-  const bar = (a, b, r = 0.02) => {
-    const d = new THREE.Vector3().subVectors(b, a);
-    const g = new THREE.CylinderGeometry(r, r, d.length(), 5);
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()));
-    g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
-    return g;
-  };
-  const P = (y, z) => new THREE.Vector3(0, y, z);
-  const frame = merge([bar(P(0.33, 0.52), P(0.42, -0.02)), bar(P(0.42, -0.02), P(0.85, -0.12)), bar(P(0.85, -0.12), P(0.88, -0.48)), bar(P(0.42, -0.02), P(0.33, -0.52)), bar(P(0.85, -0.12), P(0.33, -0.52)), bar(P(0.88, -0.48), P(0.33, 0.52)), bar(P(0.88, -0.48), P(1.0, -0.42)), bar(new THREE.Vector3(-0.24, 1.02, -0.44), new THREE.Vector3(0.24, 1.02, -0.44), 0.016), new THREE.BoxGeometry(0.12, 0.05, 0.24).translate(0, 0.95, -0.12)]);
-  // A delivery motorbike: a step-through body, a seat, front cowl and bars.
-  const moto = merge([
-    new THREE.BoxGeometry(0.36, 0.3, 1.0).translate(0, 0.5, 0.05),
-    new THREE.CapsuleGeometry(0.17, 0.5, 4, 8).rotateX(Math.PI / 2).translate(0, 0.72, 0.2),
-    new THREE.BoxGeometry(0.3, 0.7, 0.24).translate(0, 0.75, -0.52),
-    bar(new THREE.Vector3(-0.34, 1.12, -0.6), new THREE.Vector3(0.34, 1.12, -0.6), 0.02),
-    new THREE.BoxGeometry(0.2, 0.12, 0.08).translate(0, 1.05, -0.66)
-  ]);
   return {
-    leg: limb(0.062, 0.72),
-    arm: limb(0.046, 0.5),
-    torso: new THREE.CapsuleGeometry(0.17, 0.36, 4, 10).scale(1, 1, 0.62),
-    head: new THREE.SphereGeometry(0.105, 12, 10).scale(0.92, 1.08, 1),
-    hair: new THREE.SphereGeometry(0.113, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.58).scale(0.95, 1.1, 1.05).translate(0, 0.012, 0.008),
-    // Long hair: down the back of the head to the shoulders.
-    long: new THREE.CapsuleGeometry(0.1, 0.16, 3, 8).scale(1.05, 1, 0.7).translate(0, -0.1, 0.05),
-    helmet: new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.62),
-    phone: new THREE.BoxGeometry(0.035, 0.14, 0.07),
-    bag: new THREE.BoxGeometry(0.1, 0.32, 0.28).translate(0, -0.18, 0),
-    wheel: new THREE.TorusGeometry(0.33, 0.028, 6, 22).rotateY(Math.PI / 2),
-    tyre: new THREE.TorusGeometry(0.25, 0.065, 6, 18).rotateY(Math.PI / 2),
-    frame,
-    basket: new THREE.BoxGeometry(0.34, 0.22, 0.26).translate(0, 0.92, -0.66),
-    moto,
-    box: new THREE.BoxGeometry(0.48, 0.44, 0.46).translate(0, 1.05, 0.44),
-    // A small dog (a maltese, a poodle, a shiba): body, head, ears, four legs, a tail.
     dogBody: new THREE.CapsuleGeometry(0.1, 0.24, 4, 8).rotateX(Math.PI / 2),
     dogHead: merge([new THREE.SphereGeometry(0.085, 10, 8), new THREE.SphereGeometry(0.045, 8, 6).translate(0, -0.02, -0.08), new THREE.SphereGeometry(0.035, 6, 5).translate(-0.06, 0.04, 0.02), new THREE.SphereGeometry(0.035, 6, 5).translate(0.06, 0.04, 0.02)]),
     dogLeg: new THREE.CylinderGeometry(0.025, 0.022, 0.16, 5).translate(0, -0.08, 0),
@@ -123,7 +87,6 @@ export class StreetLife {
     this.group = new THREE.Group();
     game.scene.add(this.group);
     const s = shapes();
-    const all = Object.values(CROWD).reduce((a, b) => a + b, 0) + 30 + 120; // and room for a race's spectators
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, envMapIntensity: 0.8 });
     const draw = (geo, n, color = null) => {
       const m = new THREE.InstancedMesh(geo, color ? new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0 }) : mat, n);
@@ -136,23 +99,6 @@ export class StreetLife {
       return m;
     };
     this.parts = {
-      torso: draw(s.torso, all),
-      head: draw(s.head, all),
-      hair: draw(s.hair, all),
-      long: draw(s.long, all),
-      helmet: draw(s.helmet, CROWD.moto + 4),
-      armL: draw(s.arm, all),
-      armR: draw(s.arm, all),
-      legL: draw(s.leg, all),
-      legR: draw(s.leg, all),
-      phone: draw(s.phone, all, '#202226'),
-      bag: draw(s.bag, CROWD.shop * 2 + 4),
-      wheel: draw(s.wheel, CROWD.bike * 2 + 4, '#1b1b1d'),
-      tyre: draw(s.tyre, CROWD.moto * 2 + 4, '#1b1b1d'),
-      frame: draw(s.frame, CROWD.bike + 2),
-      basket: draw(s.basket, CROWD.bike + 2, '#3c4a3f'),
-      moto: draw(s.moto, CROWD.moto + 2),
-      box: draw(s.box, CROWD.moto + 2),
       dogBody: draw(s.dogBody, CROWD.dog + 2),
       dogHead: draw(s.dogHead, CROWD.dog + 2),
       dogLeg: draw(s.dogLeg, (CROWD.dog + 2) * 4),
@@ -216,16 +162,34 @@ export class StreetLife {
       // On foot, anywhere across the pavement (3 m); bikes along its road-side edge; motorbikes in the road, by the kerb.
       // A small street has no pavement: people walk anywhere across it, bikes and motorbikes keep right.
       if (r.small && kind === 'moto') continue;
-      const side = r.small ? (ON_FOOT.has(kind) ? (Math.random() * 2 - 1) * Math.max(0.2, half - 0.45) : Math.max(0, half - 0.7)) : ON_FOOT.has(kind) ? half + 0.9 + Math.random() * 1.9 : kind === 'bike' ? half + 0.75 : half - 1.1;
+      const racing = this.g.mode === 'race';
+      // Waiting at a crossing: at the street's end, by the corner. At a shop door: at the back of the pavement.
+      const corner = kind === 'stand' && !r.small && Math.random() < 0.5;
+      const door = kind === 'stand' && !corner && !r.small && Math.random() < 0.5;
+      if (corner) Object.assign(at, Math.random() < 0.5 ? { i: 0, t: 0.02 + Math.random() * 0.06 } : { i: n - 1, t: 0.92 + Math.random() * 0.06 });
+      const edge = (Math.random() < 0.5 ? -1 : 1) * Math.max(0.2, half - 0.4);
+      const side = r.small ? (ON_FOOT.has(kind) ? (racing ? edge : (Math.random() * 2 - 1) * Math.max(0.2, half - 0.45)) : Math.max(0, half - 0.7)) : ON_FOOT.has(kind) ? (door ? half + 2.5 + Math.random() * 0.4 : corner ? half + (racing ? 1.7 : 0.8) + Math.random() * 0.8 : half + 0.9 + Math.random() * 1.9) : kind === 'bike' ? half + 0.75 : half - 1.1;
       const pt = pointOn(r.pts, at, side);
       const d = Math.hypot(pt.x - p.x, pt.z - p.z);
       if (d < NEAR || d > FAR) continue;
+      // In a race, people turn up ahead of the riders (behind them nobody would see them).
+      if (racing) {
+        const yaw = this.g.yaw ?? 0;
+        const along = (pt.x - p.x) * -Math.sin(yaw) + (pt.z - p.z) * -Math.cos(yaw);
+        if (along < -10 && Math.random() < 0.85) continue;
+      }
       if (kind === 'moto' ? this.g.buildingAt?.(pt.x, pt.z) || r.width < 9 : !this._free(pt.x, pt.z) || (!r.small && this._median(r.pts, at, side))) continue;
       const m = this._person(kind, r, at, side, pt);
       this.people.push(m);
-      // Friends: two walk together; those standing about are in twos and threes, facing each other.
+      if (door) {
+        // at a shop door: alone, on the phone or looking about, facing the street or the window
+        m.phone = Math.random() < 0.55;
+        m.heading = pt.heading + (Math.random() < 0.5 ? -Math.PI / 2 : Math.PI / 2);
+        return;
+      }
+      // Friends: two walk together; those standing about are in twos and threes (more at a crossing), facing each other.
       if ((kind === 'walk' && Math.random() < 0.25) || kind === 'stand') {
-        const more = kind === 'stand' ? 1 + (Math.random() < 0.4 ? 1 : 0) : 1;
+        const more = kind === 'stand' ? 1 + (Math.random() < 0.4 ? 1 : 0) + (corner && Math.random() < 0.5 ? 1 : 0) : 1;
         for (let k = 1; k <= more; k++) {
           const a = (k / (more + 1)) * Math.PI * 2;
           const off = kind === 'stand' ? { x: Math.cos(a) * 0.75, z: Math.sin(a) * 0.75 } : null;
@@ -301,7 +265,14 @@ export class StreetLife {
       for (const [k, want] of Object.entries(CROWD)) if ((count[k] ?? 0) < want) this._spawn(k);
     }
     for (const m of this.people) this._move(m, dt);
-    for (const m of this.fans) m.phase += dt;
+    for (const m of this.fans) {
+      m.phase += dt;
+      if (m.handlePos) {
+        m.x = m.handlePos.x;
+        m.y = m.handlePos.y;
+        m.z = m.handlePos.z;
+      }
+    }
     this._all = this.people.concat(this.fans);
     // Who is near enough to be a real person (on foot, or a fan at the barriers).
     for (const m of this.people) m.onFoot = REAL.has(m.kind);
@@ -397,7 +368,7 @@ export class StreetLife {
     m.phase += dt * m.speed * rate * (m.stride ?? 1) + (m.kind === 'stand' ? dt : 0);
   }
 
-  /** Every part of everyone, from their place and stride. */
+  /** The walkers' dogs (the people themselves are folk.js's real bodies; nobody without one is drawn). */
   _pose() {
     const P = this.parts;
     const n = {};
@@ -415,167 +386,20 @@ export class StreetLife {
       q.setFromEuler(e);
       mPart.compose(v.set(x, y, z), q, sc.set(1, sy, 1)).premultiply(mBase);
     };
-    const head = (m, y, z = -0.01, turn = 0, nod = 0) => {
-      at(0, y, z, nod, turn);
-      put('head', m.skin);
-      if (m.kind === 'moto') {
-        put('helmet', m.cargo);
-        return;
-      }
-      put('hair', m.hair);
-      if (m.long) put('long', m.hair);
-    };
-    // Past the Graphics draw distance (game.lifeFar), people on the street aren't drawn.
-    const far = this.g.lifeFar ?? Infinity;
-    const cam = this.g.camera?.position ?? this.g.pos;
-    for (const m of [...this.people, ...this.fans]) {
-      if (m.handlePos) {
-        m.x = m.handlePos.x;
-        m.y = m.handlePos.y;
-        m.z = m.handlePos.z;
-      }
-      if (m.kind !== 'fan' && Math.hypot(m.x - cam.x, m.z - cam.z) > far) continue;
+    for (const m of this.people) {
+      if (!m.real || m.kind !== 'dog') continue;
       tmp.position.set(m.x, m.y, m.z);
-      if (m.real) {
-        // A real person (folk.js): only their dog is ours to draw.
-        if (m.kind === 'dog') {
-          tmp.rotation.set(0, m.heading, 0);
-          tmp.scale.setScalar(m.scale);
-          tmp.updateMatrix();
-          mBase.copy(tmp.matrix);
-          this._dog(m, put, at, m.stride ?? 1);
-        }
-        continue;
-      }
       tmp.rotation.set(0, m.heading, 0);
       tmp.scale.setScalar(m.scale);
       tmp.updateMatrix();
       mBase.copy(tmp.matrix);
-      const s = Math.sin(m.phase);
-      const c = Math.cos(m.phase);
-      if (m.kind === 'fan') {
-        this._fan(m, put, at, head);
-      } else if (ON_FOOT.has(m.kind)) {
-        const stride = m.stride ?? 1;
-        const jog = m.kind === 'jog';
-        const swing = s * (jog ? 0.75 : 0.42) * stride;
-        const bob = Math.abs(c) * (jog ? 0.07 : 0.035) * stride;
-        // Standing, a little sway and a look about; talking, a nod and a gesture.
-        const idle = (1 - stride) * Math.sin(this.time * 0.9 + m.phase) * 0.05;
-        const talk = m.kind === 'stand' ? Math.sin(this.time * 2.1 + m.phase * 3) : 0;
-        at(0, 1.2 + bob, 0, (jog ? -0.12 : -0.04) * stride, idle * 3, idle);
-        put('torso', m.top);
-        head(m, 1.6 + bob, -0.01, idle * 6 + talk * 0.08, m.phone ? 0.25 : talk * 0.04);
-        // Arms: swinging; bent and pumping when jogging; one to the ear on the phone; one on the lead; bags in both hands.
-        const armX = 0.215;
-        if (m.phone) {
-          at(-armX, 1.47, 0, 0.1, 0, 0.06);
-          put('armL', m.top);
-          at(armX, 1.47, -0.02, 2.6, 0, -0.35);
-          put('armR', m.top);
-          at(0.1, 1.66, -0.04, 0, 0, 0);
-          put('phone');
-        } else {
-          const bend = jog ? 0.9 : m.kind === 'stand' ? Math.max(0, talk) * 0.6 : 0;
-          at(-armX, 1.47 + bob, 0, swing * 0.85 + bend, 0, 0.06);
-          put('armL', m.top);
-          at(armX, 1.47 + bob, 0, m.kind === 'dog' ? 0.55 : -swing * 0.85 + bend * (jog ? 1 : 0.3), 0, -0.06);
-          put('armR', m.top);
-        }
-        if (m.kind === 'shop') {
-          at(-armX - 0.03, 0.97 + bob, swing * 0.18);
-          put('bag', m.bags[0]);
-          if (m.bags[1]) {
-            at(armX + 0.03, 0.97 + bob, -swing * 0.18);
-            put('bag', m.bags[1]);
-          }
-        }
-        at(-0.09, 0.93 + bob, 0, -swing);
-        put('legL', m.legs);
-        at(0.09, 0.93 + bob, 0, swing);
-        put('legR', m.legs);
-        if (m.kind === 'dog') this._dog(m, put, at, stride);
-      } else {
-        const bike = m.kind === 'bike';
-        // The rider: leaning to the bars, legs on the pedals going round (or on the footboard).
-        const lean = bike ? 0.42 : 0.15;
-        const hip = bike ? 1.0 : 0.88;
-        at(0, hip + 0.3, 0.02, -lean);
-        put('torso', m.top);
-        head(m, hip + 0.68, bike ? -0.14 : -0.05);
-        at(-0.2, hip + 0.55, -0.12, 1.05 - lean * 0.3, 0, 0.08);
-        put('armL', m.top);
-        at(0.2, hip + 0.55, -0.12, 1.05 - lean * 0.3, 0, -0.08);
-        put('armR', m.top);
-        if (bike) {
-          at(-0.1, hip, 0.04, 1.0 + s * 0.45);
-          put('legL', m.legs);
-          at(0.1, hip, 0.04, 1.0 - s * 0.45);
-          put('legR', m.legs);
-          at(0, 0, 0);
-          put('frame', m.share ? col('#3aa65a') : m.bike);
-          if (m.share) put('basket');
-          at(0, 0.33, 0.52, m.phase * 2.2);
-          put('wheel');
-          at(0, 0.33, -0.52, m.phase * 2.2);
-          put('wheel');
-        } else {
-          at(-0.13, hip, -0.02, 1.25);
-          put('legL', m.legs);
-          at(0.13, hip, -0.02, 1.25);
-          put('legR', m.legs);
-          at(0, 0, 0);
-          put('moto', m.bike);
-          put('box', m.cargo);
-          at(0, 0.32, 0.52, m.phase * 3);
-          put('tyre');
-          at(0, 0.32, -0.6, m.phase * 3);
-          put('tyre');
-        }
-      }
+      this._dog(m, put, at, m.stride ?? 1);
     }
     for (const [k, mesh] of Object.entries(P)) {
       mesh.count = Math.min(n[k], mesh.instanceMatrix.count);
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
-  }
-
-  /** A race spectator: clapping when it is quiet, arms up and hopping as cars come by, or filming. */
-  _fan(m, put, at, head) {
-    const c = m.cheer ?? 0.15;
-    const t = this.time * (6 + c * 4) + m.phase * 3;
-    const hop = c > 0.6 ? Math.abs(Math.sin(t * 0.9)) * 0.14 * c : 0;
-    at(0, 1.2 + hop, 0, -0.05 + c * 0.05, Math.sin(this.time * 0.7 + m.phase) * 0.15);
-    put('torso', m.top);
-    head(m, 1.6 + hop, -0.01, Math.sin(this.time * 0.9 + m.phase) * 0.3 * (1 - c), m.phone ? 0.2 : -0.1 * c);
-    if (m.phone) {
-      // Filming: both hands holding the phone up in front.
-      at(-0.2, 1.47 + hop, 0, 1.7, 0, -0.35);
-      put('armL', m.top);
-      at(0.2, 1.47 + hop, 0, 1.7, 0, 0.35);
-      put('armR', m.top);
-      at(0, 1.7 + hop, -0.42, 0.2);
-      put('phone');
-    } else if (c > 0.6) {
-      // Arms up, waving.
-      const wave = Math.sin(t) * 0.35;
-      at(-0.215, 1.47 + hop, 0, 2.9 + wave, 0, 0.35);
-      put('armL', m.top);
-      at(0.215, 1.47 + hop, 0, 2.9 - wave, 0, -0.35);
-      put('armR', m.top);
-    } else {
-      // Clapping in front.
-      const clap = Math.abs(Math.sin(t * 1.4)) * 0.25;
-      at(-0.215, 1.47, 0, 1.2, 0, -0.45 + clap);
-      put('armL', m.top);
-      at(0.215, 1.47, 0, 1.2, 0, 0.45 - clap);
-      put('armR', m.top);
-    }
-    at(-0.09, 0.93 + hop, 0, 0);
-    put('legL', m.legs);
-    at(0.09, 0.93 + hop, 0, 0);
-    put('legR', m.legs);
   }
 
   /** A small dog trotting ahead and to the right, on a lead to the walker's hand; it stops to sniff. */

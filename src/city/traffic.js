@@ -4,6 +4,7 @@ import { makeVehicle, pickKind } from './vehicles.js';
 import { loadFleet, makeFleetVehicle, pickFleetKind } from './fleet.js';
 import { follow, pointOn } from './drive.js';
 import { isSmall } from './course.js';
+import { takeRider, releaseRider } from './folk.js';
 
 /**
  * The traffic a bike race rides through: cars, city buses and delivery
@@ -22,7 +23,7 @@ import { isSmall } from './course.js';
  * race to test bikes against (ride.js bikeGap), and a speed v.
  */
 
-const SPEEDS = [0, 13, 11, 9.5, 8, 5]; // metres a second by road class (no motorways)
+const SPEEDS = [0, 14.5, 12.5, 10.5, 8.5, 5.5]; // metres a second by road class (no motorways)
 const WANT = { car: 24, bus: 3, scooter: 9 };
 const SIZE = { scooter: [0.9, 0.36] };
 /** A free model (polyfork.dev, CC BY 4.0): the delivery moped. */
@@ -75,35 +76,6 @@ function plainModel(kind, color) {
   return g;
 }
 
-/** A delivery rider on a scooter: a jacket, a helmet, sitting. */
-function scooterRider(color) {
-  const g = new THREE.Group();
-  const jacket = new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
-  const dark = new THREE.MeshStandardMaterial({ color: '#23252b', roughness: 0.8 });
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.38, 4, 10).scale(1, 1, 0.7), jacket);
-  torso.position.set(0, 1.25, 0.05);
-  torso.rotation.x = -0.15;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), new THREE.MeshPhysicalMaterial({ color: '#f2f0ea', roughness: 0.3, clearcoat: 1 }));
-  head.position.set(0, 1.72, -0.03);
-  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.152, 14, 8, -Math.PI * 0.35, Math.PI * 0.7, Math.PI * 0.35, Math.PI * 0.3), new THREE.MeshStandardMaterial({ color: '#111318', roughness: 0.1, metalness: 0.6 }));
-  visor.position.copy(head.position);
-  visor.rotation.y = Math.PI;
-  for (const s of [-1, 1]) {
-    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.36, 3, 8), dark);
-    thigh.position.set(s * 0.12, 0.92, -0.12);
-    thigh.rotation.x = Math.PI / 2 - 0.2;
-    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.34, 3, 8), dark);
-    shin.position.set(s * 0.13, 0.62, -0.32);
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.42, 3, 8), jacket);
-    arm.position.set(s * 0.23, 1.32, -0.25);
-    arm.rotation.x = Math.PI / 2 - 0.5;
-    g.add(thigh, shin, arm);
-  }
-  g.add(torso, head, visor);
-  g.traverse((o) => o.isMesh && (o.castShadow = true));
-  return g;
-}
-
 export class RaceTraffic {
   /** @param {any} game the SeoulGame @param {any} race the Race */
   constructor(game, race) {
@@ -129,9 +101,7 @@ export class RaceTraffic {
     if (kind === 'scooter') {
       const body = this.scooterModel ? this.scooterModel.clone(true) : plainModel('scooter', ['#e9e9e6', '#c8322b', '#2a2c31', '#1f5bb5'][Math.floor(Math.random() * 4)]);
       group.add(body);
-      const rider = scooterRider(['#2f6fd1', '#3fb68b', '#f2c230', '#1d1f24', '#e2483d'][Math.floor(Math.random() * 5)]);
-      rider.scale.setScalar(0.95);
-      group.add(rider);
+      // (its rider — a real person, sat — comes on as it nears you: see update)
       size = SIZE.scooter;
     } else {
       // a real model when it's in; else one of ours
@@ -160,9 +130,11 @@ export class RaceTraffic {
       const dx = q.x - anchor.x;
       const dz = q.z - anchor.z;
       const d = Math.hypot(dx, dz);
-      // Not on top of anyone; out ahead where it can be seen coming, a few behind.
-      if (d < (anchor.me ? 45 : 30) || d > 190) continue;
-      if ((dx * fx + dz * fz) / d < -0.4 && Math.random() < 0.75) continue;
+      // Not on top of anyone; out ahead where it can be seen coming (far enough not to pop up in view at
+      // 70 km/h), a few behind.
+      const ahead = (dx * fx + dz * fz) / d;
+      if (d < (anchor.me ? (ahead > 0.3 ? 95 : 45) : 30) || d > 230) continue;
+      if (ahead < -0.4 && Math.random() < 0.75) continue;
       if (this.vehicles.some((v) => Math.hypot(v.box.x - q.x, v.box.z - q.z) < 9)) continue;
       if (this.g.buildingAt?.(q.x, q.z)) continue;
       const made = this._make(kind);
@@ -189,7 +161,7 @@ export class RaceTraffic {
     // Far from every racer here: gone.
     for (const v of [...this.vehicles]) {
       const near = Math.min(...anchors.map((a) => Math.hypot(a.x - v.box.x, a.z - v.box.z)));
-      if (near > 260) this._remove(v);
+      if (near > 300) this._remove(v);
     }
     // Too few: more, a few a second, round the racers (most round you).
     this._spawnT -= dt;
@@ -212,7 +184,18 @@ export class RaceTraffic {
       this._drive(v, dt);
       // (headlights on in the rain too)
       v.view?.lights(Math.max(night, (this.g.weather?.level.wet ?? 0) > 0.3 ? 0.5 : 0), v.braking);
-      v.view?.near(Math.hypot(v.box.x - me.x, v.box.z - me.z) < 90);
+      const d = Math.hypot(v.box.x - me.x, v.box.z - me.z);
+      v.view?.near(d < 90);
+      // A delivery scooter's rider: a real person near you; far off, none drawn (better than a faceless doll).
+      if (v.kind === 'scooter') {
+        if (!v.rider && d < 110) {
+          v.rider = takeRider();
+          if (v.rider) v.group.add(v.rider);
+        } else if (v.rider && d > 140) {
+          releaseRider(v.rider);
+          v.rider = null;
+        }
+      }
       v.view?.indicate(v.hazard ? 'both' : v.signal, on);
     }
   }
@@ -231,8 +214,8 @@ export class RaceTraffic {
       if (along > -0.5 && along < react && side < b.halfWidth + width * 0.5) gap = Math.min(gap, along);
     };
     for (const o of this.vehicles) if (o !== v) look(o.box.x, o.box.z, o.box.halfWidth * 2);
-    // Bikes: seen late (they are small and quick) — a driver brakes only for one close in front.
-    for (const r of this.race.racers) if (!r.left) look(r.s.x, r.s.z, 0.7, 11);
+    // Bikes: seen late (they are small and quick) — a driver brakes only for one fairly close in front.
+    for (const r of this.race.racers) if (!r.left) look(r.s.x, r.s.z, 0.7, 18);
     for (const p of this.g.life?.near?.(b.x, b.z, 26) ?? []) look(p.x, p.z, 0.6, 14);
     v.stopFor = Math.max(0, v.stopFor - dt);
     let want = gap < Infinity ? v.top * Math.max(0, Math.min(1, (gap - 2.5) / 10)) : v.top;
@@ -341,12 +324,29 @@ export class RaceTraffic {
     }
   }
 
+  /** A bike's bell behind them: delivery scooters just ahead in its line ease over to the kerb. */
+  bell(x, z, heading, range) {
+    const fx = -Math.sin(heading);
+    const fz = -Math.cos(heading);
+    for (const v of this.vehicles) {
+      if (v.kind !== 'scooter') continue;
+      const dx = v.box.x - x;
+      const dz = v.box.z - z;
+      const along = dx * fx + dz * fz;
+      if (along < 0 || along > range || Math.abs(dx * -fz + dz * fx) > 2.5) continue;
+      v.lane = Math.max(v.lane, v.road.width / 2 - 0.35);
+    }
+  }
+
   _remove(v) {
+    releaseRider(v.rider);
+    v.rider = null;
     this.group.remove(v.group);
     this.vehicles.splice(this.vehicles.indexOf(v), 1);
   }
 
   dispose() {
+    for (const v of this.vehicles) releaseRider(v.rider);
     this.g.scene.remove(this.group);
     this.vehicles = [];
   }
