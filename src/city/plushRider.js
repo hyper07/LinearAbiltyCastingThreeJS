@@ -660,15 +660,20 @@ export class PlushRider {
     const wob = (st.wobble ?? 0) > 0 ? Math.sin(t * 21) * 0.13 * st.wobble : 0;
     let lean = (st.lean ?? 0) + wob;
     // fallen: the scooter on its side; getting up: righted again
+    // a branch in the front wheel: it stops dead, the back kicks up over it (an endo), then down on its side
+    const endo = down && st.fallKind === 'wheel' && mode === 'tumble' ? Math.sin(Math.min(1, ft / 0.5) * Math.PI) : 0;
     if (down) {
-      const k = mode === 'tumble' ? Math.min(1, ft / 0.25) : Math.max(0, 1 - Math.max(0, ft - 1.25) / 0.3);
+      const k = mode === 'tumble' ? Math.min(1, Math.max(0, ft - (st.fallKind === 'wheel' ? 0.35 : 0)) / 0.25) : Math.max(0, 1 - Math.max(0, ft - 1.25) / 0.3);
       lean = (st.fallSide ?? 1) * 1.38 * k;
     }
     this.lean.rotation.z = lean;
     // bumps: a quick shake up and a tip back; a hop lifts it all
     const bump = st.bump ?? 0;
     this.jolt.position.y = (st.air ?? 0) + bump * 0.02 * Math.sin(t * 60);
-    this.jolt.rotation.x = bump * 0.03 * Math.sin(t * 47) + (st.air > 0 ? -0.08 : 0);
+    this.jolt.rotation.x = bump * 0.03 * Math.sin(t * 47) + (st.air > 0 ? -0.08 : 0) - endo * 1.05;
+    // (turning about the front wheel, not the deck: lifted as it tips)
+    this.jolt.position.y += endo * 0.42;
+    this.jolt.position.z = -endo * 0.25;
     this.scooter.update(dt, { roll: st.roll ?? 0, steer: down ? 0 : clamp((st.steer ?? 0) * (1 - Math.min(1, speed / 6)) + (st.lean ?? 0) * 0.4, -1, 1), braking: Boolean(st.braking), night, speed, battery: st.battery ?? 1, boost: Boolean(st.boost) });
     this.scooter.setStand(mode === 'grid' && speed < 0.2);
     // ---- the rider
@@ -702,6 +707,14 @@ export class PlushRider {
     const upA = armsUp;
     B.get('armL').rotation.set(0, reach * (1 - upA) + Math.sin(t * 14) * 0.2 * upA, -(raise * (1 - upA) + 2.6 * upA));
     B.get('armR').rotation.set(0, -reach * (1 - upA) - Math.sin(t * 14 + 1) * 0.2 * upA, raise * (1 - upA) + 2.6 * upA);
+    // Throwing a branch: the right arm swings back and up over the shoulder (the wind-up), then whips forward.
+    if (st.throwK != null && !down) {
+      const k = st.throwK;
+      const back = k < 0.6 ? Math.sin((k / 0.6) * Math.PI * 0.5) : 1 - (k - 0.6) / 0.4;
+      const whip = k < 0.6 ? 0 : Math.sin(((k - 0.6) / 0.4) * Math.PI);
+      B.get('armR').rotation.set(0, -reach * (1 - back) + 0.7 * back - 1.1 * whip, raise * (1 - back) + 2.7 * back - 0.6 * whip);
+      chest.rotation.y += 0.35 * back - 0.5 * whip;
+    }
     // legs: bent, the front one forward
     B.get('legL').rotation.set(-0.25 - crouch * 0.15, 0, 0.04);
     B.get('legR').rotation.set(0.12 - crouch * 0.1, 0, -0.04);

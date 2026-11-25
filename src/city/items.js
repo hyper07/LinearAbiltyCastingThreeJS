@@ -14,20 +14,28 @@ import { laneBand } from './pack.js';
  *   air horn     — people and scooters ahead clear out, cars stop
  *   gold helmet  — the next crash doesn't knock you off
  *   tailwind     — five seconds of free, faster boosting
+ *   branch       — a leafy branch: thrown into the wheel of the rider ahead,
+ *                  or dropped behind you as a trap (branch.js)
  */
 export const ITEMS = {
   drink: { name: 'Battery pack', ko: '보조 배터리', text: 'Your boost gauge, full again.', pop: 'CHARGE!', color: '#9ef07a' },
   horn: { name: 'Air horn', ko: '에어혼', text: 'BWAAMP: people and scooters ahead clear out, cars stop.', pop: 'HORN!', color: '#ff7aa8' },
   helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'The next crash bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
-  tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster boosting.', pop: 'WIND!', color: '#8fd8ff' }
+  tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster boosting.', pop: 'WIND!', color: '#8fd8ff' },
+  branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider ahead (they go over the bars), or dropped behind you as a trap.', pop: 'BRANCH!', color: '#8bd450' }
 };
-export const ITEM_ORDER = ['drink', 'horn', 'helmet', 'tailwind'];
+export const ITEM_ORDER = ['drink', 'horn', 'helmet', 'tailwind', 'branch'];
 
-/** Odds by place: [leader … last]. */
+/** Odds by place: [leader … last]. The further back, the more tailwinds and branches. */
 const ODDS = {
-  first: { drink: 0.4, helmet: 0.3, horn: 0.2, tailwind: 0.1 },
-  last: { drink: 0.2, helmet: 0.15, horn: 0.25, tailwind: 0.4 }
+  first: { drink: 0.36, helmet: 0.28, horn: 0.18, tailwind: 0.08, branch: 0.1 },
+  last: { drink: 0.14, helmet: 0.1, horn: 0.16, tailwind: 0.3, branch: 0.3 }
 };
+/** The odds of an item for a racer in `rank` of `n` (for the tests and the menu). */
+export function itemOdds(rank, n) {
+  const k = n > 1 ? (rank - 1) / (n - 1) : 0;
+  return Object.fromEntries(ITEM_ORDER.map((id) => [id, ODDS.first[id] + (ODDS.last[id] - ODDS.first[id]) * k]));
+}
 
 /** An item for a racer in `rank` of `n` (1 is leading). */
 export function rollItem(rank, n, random = Math.random) {
@@ -57,7 +65,7 @@ export function boxSpots(course, every = 220) {
     const q = pts[(i + 1) % n];
     const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
     const w = p[2] ?? 6;
-    const band = laneBand(w, isSmall(p[3] ?? 4) || w < 5, true);
+    const band = laneBand(w, isSmall(p[3] ?? 4) || w < 5, true, Boolean(p[4]));
     const span = Math.max(0, band.hi - band.lo - 0.6);
     const count = Math.max(1, Math.min(4, Math.floor(span / 2.2) + 1));
     const gap = count > 1 ? span / (count - 1) : 0;
@@ -120,7 +128,7 @@ function paintIcon(g, id) {
   g.arc(48, 48, 42, 0, Math.PI * 2);
   g.fill();
   g.restore();
-  g.fillStyle = { drink: '#e6f8d8', horn: '#ffe2ec', helmet: '#fff4c8', tailwind: '#e0f4ff' }[id] ?? '#eee';
+  g.fillStyle = { drink: '#e6f8d8', horn: '#ffe2ec', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0' }[id] ?? '#eee';
   g.beginPath();
   g.arc(48, 48, 37, 0, Math.PI * 2);
   g.fill();
@@ -195,6 +203,38 @@ function paintIcon(g, id) {
     }
     const leaf = new Path2D('M60 72 C66 60 78 58 84 62 C80 72 70 78 60 72 Z');
     inked(g, leaf, '#9ef07a', 2);
+  } else if (id === 'branch') {
+    // A crooked brown stick, a snapped pale end, twigs and three bunches of leaves; motion lines behind.
+    g.lineCap = 'round';
+    g.strokeStyle = INK;
+    g.lineWidth = 3;
+    for (const [x0, y0, x1, y1] of [[10, 58, 20, 52], [12, 70, 22, 64]]) {
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.stroke();
+    }
+    const stick = new Path2D('M22 70 L30 62 L48 54 L62 40 L80 30 L82 34 L64 46 L50 60 L32 68 L26 76 Z');
+    inked(g, stick, '#8a5a34', 2.5);
+    shadeIn(g, stick, '#6a4426', 0, 3);
+    const end = new Path2D('M20 66 L26 62 L30 70 L24 78 Z');
+    inked(g, end, '#e8d3a8', 2);
+    for (const [x0, y0, x1, y1] of [[48, 55, 46, 38], [62, 42, 70, 56]]) {
+      g.strokeStyle = INK;
+      g.lineWidth = 5;
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.stroke();
+      g.strokeStyle = '#8a5a34';
+      g.lineWidth = 2.5;
+      g.stroke();
+    }
+    for (const [x, y, s] of [[44, 34, 1], [72, 60, 0.9], [84, 26, 1.1]]) {
+      const lf = new Path2D(`M${x} ${y - 12 * s} L${x + 5 * s} ${y - 4 * s} L${x + 12 * s} ${y - 6 * s} L${x + 8 * s} ${y + 2 * s} L${x + 11 * s} ${y + 9 * s} L${x} ${y + 6 * s} L${x - 11 * s} ${y + 9 * s} L${x - 8 * s} ${y + 2 * s} L${x - 12 * s} ${y - 6 * s} L${x - 5 * s} ${y - 4 * s} Z`);
+      inked(g, lf, '#6fcf4a', 2);
+      shadeIn(g, lf, '#3f9a32', 3, 3);
+    }
   }
 }
 
@@ -274,9 +314,10 @@ export class ItemBoxes {
     this._o = new THREE.Object3D();
   }
 
-  update(dt) {
+  update(dt, camera = null) {
     this.t += dt;
     const p = this.g.pos;
+    const cam = camera?.position;
     const o = this._o;
     let n = 0;
     for (const s of this.spots) {
@@ -292,7 +333,9 @@ export class ItemBoxes {
       // Float and bob, turn slowly on a tilt; pop in big when it comes back.
       const bob = Math.sin(this.t * 2.2 + s.phase) * 0.08;
       s.pop = Math.max(0, (s.pop ?? 0) - dt);
-      const k = 1 + s.pop * 1.6;
+      // (one the camera is passing through shrinks away, rather than filling the screen with glass)
+      const near = cam ? Math.min(1, Math.max(0, (Math.hypot(s.x - cam.x, s.y + 0.95 - cam.y, s.z - cam.z) - 1.2) / 2.3)) : 1;
+      const k = (1 + s.pop * 1.6) * near;
       o.position.set(s.x, s.y + 0.95 + bob, s.z);
       o.rotation.set(0.42, this.t * 1.6 + s.phase, 0.42, 'YXZ');
       o.scale.setScalar(k);

@@ -935,6 +935,43 @@
   }
 }
 
+.race__warn {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 5px 16px;
+  border-radius: 12px;
+  background: rgba(30, 22, 6, 0.86);
+  border: 2px solid #ffd21a;
+  color: #fff;
+  pointer-events: none;
+}
+.race__warn b {
+  grid-row: 1 / span 2;
+  font-size: 30px;
+  line-height: 1;
+  color: #ffd21a;
+}
+.race__warn span {
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+}
+.race__warn small {
+  font-size: 13px;
+  opacity: 0.8;
+}
+@media (max-width: 640px) {
+  .race__warn {
+    top: 64px;
+  }
+}
+
 /* The garage */
 .race__label {
   margin: 14px 0 6px;
@@ -1202,6 +1239,20 @@
   border: 1px solid rgba(255, 210, 58, 0.5);
 }
 /* Speed lines round the edge of the screen while sprinting. */
+.race__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 190px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(20, 24, 32, 0.78);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .race__lines {
   position: absolute;
   inset: 0;

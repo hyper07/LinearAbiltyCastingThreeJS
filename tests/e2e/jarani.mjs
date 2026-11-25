@@ -3,10 +3,11 @@ import { boot, tally, until } from './lib.mjs';
 /**
  * Gangnam Jarani's bike race end to end (src/city/race.js): open the Seoul
  * game from its card (it opens on the race menu), pick a rider, night and
- * rain, race three bots on a short course through the alleys with the
- * streets open — traffic on the road, the three item slots, sprinting, a
- * crash and back on, How to play on H — pause on Esc, the credits from the
- * pause screen, and leave. Without Seoul's map
+ * rain, race three bots on a short course with the streets open — traffic
+ * on the road, 70 km/h, the three item slots, the bell on Shift, a branch
+ * thrown into a rival's wheel, a crash and back on, only real people (with
+ * faces) on the street, How to play on H — pause on Esc, the credits from
+ * the pause screen, and leave. Without Seoul's map
  * converted on this server (data/geo/seoul) there is nothing to race on:
  * the checks say so and pass by.
  */
@@ -46,9 +47,57 @@ export async function run(browser) {
     t.check('the race starts', await until(page, () => window.seoul.race.phase === 'racing', null, 15000));
     await page.evaluate(() => (window.seoul.race.autopilot = true));
     t.check('the streets are open: cars, buses or scooters drive round you', await until(page, () => (window.seoul.race.traffic?.vehicles.length ?? 0) >= 6, null, 30000), await page.evaluate(() => window.seoul.race.traffic?.vehicles.length));
-    const d0 = await page.evaluate(() => window.seoul.race.me.dist);
+    const d0 = await page.evaluate(() => {
+      const r = window.seoul.race;
+      r._top = 0;
+      r._topT = setInterval(() => (r._top = Math.max(r._top, r.me?.s.v ?? 0)), 100);
+      return r.me.dist;
+    });
     await page.waitForTimeout(15000);
-    t.check('riding on: you get along the course', await page.evaluate((d) => window.seoul.race.me.dist - d > 40, d0), await page.evaluate((d) => (window.seoul.race.me.dist - d).toFixed(0), d0));
+    t.check('riding on: you get along the course', await page.evaluate((d) => window.seoul.race.me.dist - d > 120, d0), await page.evaluate((d) => (window.seoul.race.me.dist - d).toFixed(0), d0));
+    t.check('racing speed: up to about 70 km/h', await page.evaluate(() => (clearInterval(window.seoul.race._topT), window.seoul.race._top * 3.6 > 60)), await page.evaluate(() => `${Math.round(window.seoul.race._top * 3.6)} km/h`));
+    t.check('only real people on the street: no faceless figures', await page.evaluate(() => {
+      const life = window.seoul.life;
+      return Boolean(life) && !('torso' in life.parts) && !('head' in life.parts) && life.people.every((m) => ['walk', 'dog', 'shop', 'stand'].includes(m.kind));
+    }));
+    // The bell on Shift: ring-ring (its sound sources started), people ahead step aside.
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    const bells = await page.evaluate(() => window.seoul.race.bells ?? 0);
+    await page.keyboard.press('ShiftLeft');
+    t.check('Shift rings the bell: a two-strike ring-ring is played', await until(page, (b) => (window.seoul.race.bells ?? 0) > b && window.seoul.race.lastBell?.sources >= 20 && window.seoul.race.lastBell.id === window.seoul.race.me.id, bells, 3000), await page.evaluate(() => JSON.stringify(window.seoul.race.lastBell)));
+    // A branch: thrown at the rival just ahead, it catches their front wheel and over they go.
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.autopilot = false;
+      const me = r.me;
+      const bot = r.racers.find((x) => x.bot && x.mode === 'ride');
+      const c = r.course;
+      const i = me.idx;
+      const p = c.points[i];
+      const q = c.points[(i + 1) % c.points.length];
+      const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+      Object.assign(me.s, { x: p[0], z: p[1], heading: hd, travel: hd, v: 0 });
+      const j = (i + 3) % c.points.length;
+      const pj = c.points[j];
+      Object.assign(bot.s, { x: pj[0], z: pj[1], heading: hd, travel: hd, v: 0 });
+      bot.dist = me.dist + 18;
+      Object.assign(bot, { safe: 0, branchSafe: 0, helmet: false, idx: j });
+      me.items = [null, 'branch', null];
+      r._renderItems();
+      r._victim = bot.id;
+      r._before = Object.fromEntries(r.racers.map((x) => [x.id, x.crashes]));
+      // (no golden helmets on: one would take the branch)
+      for (const x of r.racers) if (x.bot) Object.assign(x, { helmet: false, safe: 0, branchSafe: 0, items: [null, null, null] });
+    });
+    t.check('a branch shows in its slot', await page.evaluate(() => Boolean(document.querySelector('.race__slot.is-full img[alt="Branch"]'))));
+    const thrown = await page.evaluate(() => window.seoul.race.thrown ?? 0);
+    await page.keyboard.press('Digit2');
+    t.check('2 throws it: a wind-up, then the branch flies', await until(page, (n) => (window.seoul.race.thrown ?? 0) > n && window.seoul.race.me.items[1] === null, thrown, 3000));
+    t.check('…into the rival\'s wheel: they go over the bars (CRACK!)', await until(page, () => {
+      const r = window.seoul.race;
+      // (the one it was thrown at — or whichever rival was nearest ahead of you)
+      return r.racers.some((bot) => bot.bot && bot.crashes > (r._before[bot.id] ?? 0) && (bot.mode === 'tumble' || bot.mode === 'dizzy' || bot.branchSafe > 0) && bot.fallKind === 'wheel') && (r.caught ?? 0) > 0;
+    }, null, 4000), await page.evaluate(() => JSON.stringify({ caught: window.seoul.race.caught, branches: window.seoul.race.branches?.length })));
     // Items on the number keys.
     await page.evaluate(() => {
       const r = window.seoul.race;

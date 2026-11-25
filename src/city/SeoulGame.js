@@ -1685,7 +1685,7 @@ export class SeoulGame {
         if (e.code === 'Space') this.race.sprintTap = true;
         const slot = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
         if (slot >= 0) this.race.useSlot(slot);
-        else if (e.code === 'KeyB') this.race.horn();
+        else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') this.race.horn();
         else if (e.code === 'KeyH' || e.code === 'KeyI') this.help.toggle();
         return;
       }

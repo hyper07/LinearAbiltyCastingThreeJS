@@ -101,8 +101,10 @@ real streets and alleys — and the streets stay open.
 - **Courses**: seven short loops (about 2.2–2.5 km, two to four minutes a lap) round neighbourhoods
   with golmok: Ikseon Hanok Lanes, Euljiro Print Alleys, Seochon Backstreets, Yeonnam Cafe Loop,
   Seongsu Workshops, Mullae Ironworks, Haebangchon Hill. Each is planned on the spot from the real
-  street network — never a motorway, a mix of big roads and small streets, never the same street
-  twice, started on a straight wide enough for the grid. The small streets (residential lanes,
+  street network — never a motorway, mostly roads wide enough to race at 70 km/h with an alley or
+  two as a short cut (narrow alleys cost the planner more, and so do hard corners), one-way roads
+  only with their traffic, never the same street twice, started on a straight wide enough for the
+  grid with a long run to the first corner. The small streets (residential lanes,
   alleys, market lanes) come from OpenStreetMap round those neighbourhoods only:
   `scripts/geo/seoul-alleys.mjs` writes `alleys.bin` beside `roads.bin` (`npm run geo:alleys`;
   `npm run geo:seoul` runs it too). Without it the loops keep to the bigger roads. 1–3 laps.
@@ -118,36 +120,54 @@ real streets and alleys — and the streets stay open.
   head and brake lights, solid wheels, a kickstand. Riders bump and wobble off each other and never
   pass through (`src/city/pack.js`); bots keep their own lines on the road side of the street,
   overtake round the middle, and start from a staggered grid.
-- **Riding** (`src/city/scoot.js`, pure and tested): **W** throttle — the motor holds Korea's 25 km/h
-  cap — **S** brake (longer in the wet, and braking hard in a lean on a wet road slides the back out),
-  **A D** lean, **Space** boost to ~32 km/h while the battery gauge lasts (it charges as you ride,
-  faster in a slipstream and with every close call), **B** the bell, **R** back on the course. Small
-  solid wheels feel every paving joint; a kerb met at an angle is a hop up, met glancing it scrapes
-  and wobbles you.
+- **Riding** (`src/city/scoot.js`, pure and tested): **W** throttle — a racing motor, 70 km/h in
+  about four and a half seconds — **S** brake (about 20 m from 70 on a dry road, longer in the wet,
+  and braking hard in a lean on a wet road, or leaning hard fast, slides the back out), **A D** lean
+  (more gently the faster you go), **Space** boost to ~85 km/h while the battery gauge lasts (it
+  charges as you ride, faster in a slipstream and with every close call), **Shift** the bell (a
+  synthesised two-strike "ring-ring", `src/city/bell.js`; **B** too: people ahead step aside, slower
+  riders and scooters give you room, and you hear the bots' bells where they are), **R** back on the
+  course (and after a few seconds lost well off it, you are put back). Small solid wheels feel every
+  paving joint; a kerb met at an angle is a hop up, met glancing it scrapes and wobbles you. Speed
+  shows: the FOV opens (58° → ~71°, more on a boost), a fine buzz in the camera, wind lines in the air
+  and at the screen's edge, the wind's roar (`src/city/speedfx.js`).
 - **Traffic** (`src/city/traffic.js`, `src/city/fleet.js`): real models (Sketchfab, CC BY 4.0, from
   the Objaverse mirror) — everyday saloons, hatchbacks, people carriers, small SUVs, compacts and
   estates in Seoul's whites, silvers, greys and blacks, taxis with our own roof sign, one-tonne box
   trucks, city buses in route blue and green — with glass, turning wheels, headlights at night and in
   the rain, brake lights and blinking indicators; delivery scooters too, also down the small streets.
   They keep their own side, cross at the junctions, blink before turning, brake (late, for a
-  scooter), honk when held up. Near you, people on the pavements are real (`src/city/folk.js`:
-  Microsoft Rocketbox avatars, MIT) — walking, texting, looking about, cheering at the start; further
-  off, light figures (`src/city/life.js`). In the rain (`src/city/wetfx.js`) every light is smeared
+  scooter), honk when held up. Everyone on the street is real (`src/city/folk.js`: Microsoft
+  Rocketbox avatars, MIT) — walking, waiting in groups at the crossings, at shop doors, texting,
+  looking about, cheering at the start — and nobody faceless is drawn: further off the pavement is
+  simply quieter (`src/city/life.js`). In a race people gather ahead of the riders, and in the small
+  streets they keep to the edges. A delivery scooter near you has a real rider sat on it; far off,
+  none is drawn. In the rain (`src/city/wetfx.js`) every light is smeared
   down the wet road, puddles mirror the sky, the rain glints where it crosses a light and wheels
   throw spray.
-  Hit any of it — or a planter, a bin, a parked scooter, a pole — and you're off: a hit-stop,
-  "BONK!", a tumble, dizzy stars, back on 1.5 s later. Pass close at speed for a "WHOOSH!" and a
-  top-up of boost.
+  Hit any of it square — a car, a wall head-on above ~30 km/h, a planter, a bin, a parked scooter —
+  and you're off: a hit-stop, "BONK!", a tumble, dizzy stars, back on 1.5 s later. Met at a slant
+  (a wall, a car's flank, the edge of a bin, a pole) it is only a scrape: turned along it, slowed,
+  still riding. Pass close at speed for a "WHOOSH!" and a top-up of boost.
 - **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
   ~220 m) to fill three slots; use them with **1 2 3**. Energy drink (gauge full), air horn
   (people and scooters ahead clear out, cars stop), gold helmet (the next crash bounces off),
-  tailwind (five seconds of free, faster sprinting). The further back you are, the better the odds.
-  Bots use them too.
+  tailwind (five seconds of free, faster sprinting), and the branch (`src/city/branch.js`: a leafy
+  plane-tree branch grown in code — with a rival ahead in reach it is thrown after a wind-up, in an
+  arc, aimed where their front wheel will be; with nobody ahead it is dropped behind you as a trap
+  for 22 s. A front wheel that catches it stops dead: "CRACK!", over the bars, dizzy stars, back up
+  1.5 s later, and three seconds no branch can catch you. The gold helmet takes it.) The further
+  back you are, the better the odds (more tailwinds and branches). Bots use them too; in a room
+  throws are sent to everyone and whoever's browser rides the rider caught decides the catch.
 - **The alleys** (`src/city/golmok.js`): along the course, built as you come near: the small
   streets' concrete and asphalt at road level, a narrow raised pavement down a residential lane,
   garden walls and gates, air-conditioner units and gas meters, concrete poles with wires
   overhead, convex mirrors at blind corners, vertical shop signs lit at night, awnings, styrofoam
-  planters, pots, bins, parked scooters, steps, alley lamps with pools of light.
+  planters, pots, bins, parked scooters, steps, alley lamps with pools of light. What stands in the
+  street is fair at 70 km/h: only in lanes 5 m or wider, tight to the wall, never in the 40 m before a
+  corner or just after it, each with a reflective yellow-and-black band. Every sharp corner has a
+  chevron board across the end of its approach, and anything in your line ahead gets a warning at
+  the top of the screen ("⚠ BINS · ⬅ KEEP LEFT 60 m").
 - **Buildings beside the course** (`src/city/facades.js` and the city shader): window frames and
   sills on the shader's own grid, balconies and rails on flats and villas, shopfronts and striped
   awnings, downpipes, roof tanks and units; close up the walls are brick, tile or render, glass has
@@ -165,7 +185,8 @@ real streets and alleys — and the streets stay open.
 - **On screen**: the map at the top left turns with you (course ahead, traffic, item boxes,
   everyone); your place beside it; the lap top right with the order under it; the time and the
   three item slots bottom centre; speed and the sprint gauge bottom right; the next turn named at
-  the top ("SHARP RIGHT · ALLEY 30 m"); speed lines while sprinting. Left-drag looks round.
+  the top ("SHARP RIGHT · ALLEY 30 m"), a warning under it for anything in your line; the keys while
+  the lights count down; speed lines from about 55 km/h. Left-drag looks round.
 - `src/city/race.js` runs the race; `src/city/course.js` plans the courses (tested in
   `tests/unit/course.test.mjs`); the room goes over the party server (`/ws`).
 

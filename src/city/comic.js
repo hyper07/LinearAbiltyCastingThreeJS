@@ -152,7 +152,8 @@ export class ComicFx {
   /** A word bursting in over a place: slams in past full size, wobbles, rises, snaps away. */
   pop(word, at, { color = '#ffd23a', size = 1 } = {}) {
     const s = this._sprite(burst(word, color), { depthTest: false });
-    this.live.push({ s, kind: 'pop', t: 0, life: 1.0, at: { ...at }, size: size * 1.4 });
+    // (`at.ride`: something moving — a racer — that the word rides along with, so it isn't left behind at 70 km/h)
+    this.live.push({ s, kind: 'pop', t: 0, life: 1.0, at: { x: at.x, y: at.y, z: at.z }, ride: at.ride ?? null, r0: at.ride ? { x: at.ride.x, z: at.ride.z } : null, size: size * 1.4 });
   }
 
   /** Puffs of dust where something hit the ground. */
@@ -193,10 +194,12 @@ export class ComicFx {
         const inK = Math.min(1, f.t / 0.08);
         const wob = f.t < 0.6 ? 1 + 0.2 * Math.exp(-(f.t - 0.08) * 10) * Math.cos((f.t - 0.08) * 34) : 1 - Math.min(1, (f.t - 0.6) / 0.4) ** 2;
         // (never bigger on screen than one about 7 m off: a pop right by the camera would fill it)
-        const near = camera ? Math.min(1, camera.position.distanceTo(_p.set(f.at.x, f.at.y, f.at.z)) / 7) : 1;
+        const near = camera ? Math.min(1, camera.position.distanceTo(_p.set(f.at.x + (f.ride ? f.ride.x - f.r0.x : 0), f.at.y, f.at.z + (f.ride ? f.ride.z - f.r0.z : 0))) / 7) : 1;
         const sc = f.size * near * (f.t < 0.08 ? 0.3 + 0.9 * inK : wob);
         s.scale.set(sc * 2 * (1 + (1 - inK) * 0.3), sc * (1 - (1 - inK) * 0.2), 1);
-        s.position.set(f.at.x, f.at.y + f.t * 0.9, f.at.z);
+        const ox = f.ride ? f.ride.x - f.r0.x : 0;
+        const oz = f.ride ? f.ride.z - f.r0.z : 0;
+        s.position.set(f.at.x + ox, f.at.y + f.t * 0.9, f.at.z + oz);
         s.material.opacity = 1;
       } else if (f.kind === 'dust') {
         f.at.x += f.v.x * dt;
