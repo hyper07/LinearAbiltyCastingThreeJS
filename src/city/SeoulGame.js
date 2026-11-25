@@ -271,6 +271,7 @@ export class SeoulGame {
     this.host = host;
     this.onClose = onClose;
     this.base = base;
+    this.origin = ORIGIN;
     this.tiles = new Map(); // key → { state, mesh?, foot?, place? }
     this.lands = new Map(); // key → { ground, roads? }: the land of every tile in view, built on or not
     this.queue = [];
@@ -820,21 +821,7 @@ export class SeoulGame {
     // The land of every tile in view (hills and water have no buildings): a few a frame, nearest first.
     for (const [key, l] of this.lands) {
       if (land.has(key)) continue;
-      for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls]) {
-        if (!m) continue;
-        if (m.userData.treeId != null) this.streetTrees.remove(m.userData.treeId);
-        if (m.userData.lampId != null) this.nightLights.remove(m.userData.lampId);
-        this.scene.remove(m);
-        // Trees and lamps share their shapes across tiles: free only their own instance data.
-        if (m.isInstancedMesh) m.dispose();
-        else if (m.isGroup) m.children.forEach((c) => c.dispose?.());
-        else m.geometry.dispose();
-        for (const [cell, seg] of m.userData.owned ?? []) {
-          const list = this.roadHash.get(cell);
-          const at = list?.indexOf(seg) ?? -1;
-          if (at >= 0) list.splice(at, 1);
-        }
-      }
+      this._freeLand(l);
       this.lands.delete(key);
     }
     let made = 0;
@@ -874,6 +861,118 @@ export class SeoulGame {
     const ready = [...this.tiles.values()].filter((t) => t.state === 'fetched').sort((a, b) => (want.get(a.key) ?? 0) - (want.get(b.key) ?? 0))[0];
     if (ready) this._build(ready);
     this.loadingCount = missing.length + (ready ? 1 : 0);
+  }
+
+  /** Take a tile's land down: its ground, roads, pavements, kerbs, trees and lamps (and what they told surfaceAt). */
+  _freeLand(l) {
+    for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls]) {
+      if (!m) continue;
+      if (m.userData.treeId != null) this.streetTrees.remove(m.userData.treeId);
+      if (m.userData.lampId != null) this.nightLights.remove(m.userData.lampId);
+      this.scene.remove(m);
+      // Trees and lamps share their shapes across tiles: free only their own instance data.
+      if (m.isInstancedMesh) m.dispose();
+      else if (m.isGroup) m.children.forEach((c) => c.dispose?.());
+      else m.geometry.dispose();
+      for (const [hash, owned] of [[this.roadHash, m.userData.owned], [this.walkHash, m.userData.walkOwned]]) {
+        for (const [cell, seg] of owned ?? []) {
+          const list = hash?.get(cell);
+          const at = list?.indexOf(seg) ?? -1;
+          if (at >= 0) list.splice(at, 1);
+        }
+      }
+    }
+  }
+
+  /**
+   * A race's golmok (lines of [x, z, width, class] points — its course's small streets and its short
+   * cuts): where one runs across a road's pavement, the pavement there is a dropped kerb — flush with
+   * the road for the alley's width, ramping up to kerb height either side — so the alley's mouth is
+   * one surface from the road into the alley, no step, no kerb across it. Lands already built where
+   * they cross are built again. `null` puts the kerbs back.
+   */
+  setMouths(lines) {
+    // (each stretch of a line with a small street at either end: the one into the road too)
+    const small = (p) => (p[3] ?? 4) >= 5 || (p[2] ?? 8) < 7.5;
+    this.mouthLines = [];
+    for (const pts of lines ?? []) for (let j = 1; j < pts.length; j++) if (small(pts[j - 1]) || small(pts[j])) this.mouthLines.push([pts[j - 1], pts[j]]);
+    const box = { x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity };
+    for (const line of this.mouthLines) for (const [x, z] of line) Object.assign(box, { x0: Math.min(box.x0, x), x1: Math.max(box.x1, x), z0: Math.min(box.z0, z), z1: Math.max(box.z1, z) });
+    for (const was of [this._mouthBox, box]) {
+      if (!was || !Number.isFinite(was.x0)) continue;
+      for (const [key, l] of [...this.lands]) {
+        const [tx, ty] = key.split('_').map(Number);
+        const x0 = tx * TILE - ORIGIN.x;
+        const z1 = -(ty * TILE - ORIGIN.y);
+        if (x0 > was.x1 + 30 || x0 + TILE < was.x0 - 30 || z1 - TILE > was.z1 + 30 || z1 < was.z0 - 30) continue;
+        this._freeLand(l);
+        this.lands.set(key, this._land(key));
+      }
+    }
+    this._mouthBox = box;
+  }
+
+  /**
+   * Where the alley mouths cut a road's pavements: for each side (−1 left, +1 right) the stretches
+   * (metres along the road's line, from its first point) where the kerb is dropped.
+   */
+  _mouthDrops(line, half) {
+    const drops = { '-1': [], 1: [] };
+    const small = (p) => (p[3] ?? 4) >= 5 || (p[2] ?? 8) < 7.5;
+    if (!this.mouthLines?.length || line.length < 2) return drops;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (const [x, z] of line) {
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      z0 = Math.min(z0, z);
+      z1 = Math.max(z1, z);
+    }
+    const pad = half + 6;
+    const cross = (ax, az, bx, bz, cx, cz, dx, dz) => {
+      const rx = bx - ax;
+      const rz = bz - az;
+      const sx = dx - cx;
+      const sz = dz - cz;
+      const den = rx * sz - rz * sx;
+      if (Math.abs(den) < 1e-9) return null;
+      const t = ((cx - ax) * sz - (cz - az) * sx) / den;
+      const u = ((cx - ax) * rz - (cz - az) * rx) / den;
+      // (the road's side a little past each end of its stretch: round a bend, the two sides' stretches don't meet)
+      const e = 1.5 / (Math.hypot(rx, rz) || 1);
+      return t >= -e && t <= 1 + e && u >= 0 && u <= 1 ? { t, u, sin: Math.abs(den) / (Math.hypot(rx, rz) * Math.hypot(sx, sz)) } : null;
+    };
+    let along = 0;
+    for (let i = 1; i < line.length; i++) {
+      const [ax, az] = line[i - 1];
+      const [bx, bz] = line[i];
+      const len = Math.hypot(bx - ax, bz - az) || 1e-6;
+      const nx = (bz - az) / len; // right of a→b (as _roadMesh's right side)
+      const nz = -(bx - ax) / len;
+      for (const pts of this.mouthLines) {
+        for (let j = 1; j < pts.length; j++) {
+          const p = pts[j - 1];
+          const q = pts[j];
+          if (Math.max(p[0], q[0]) < x0 - pad || Math.min(p[0], q[0]) > x1 + pad || Math.max(p[1], q[1]) < z0 - pad || Math.min(p[1], q[1]) > z1 + pad) continue;
+          const w = Math.min(small(p) ? p[2] ?? 4 : 99, small(q) ? q[2] ?? 4 : 99);
+          for (const side of [-1, 1]) {
+            // the alley's line across the kerb's line, or across the pavement's back edge
+            for (const off of [half, half + 1.5, half + 3]) {
+              const hit = cross(ax + nx * off * side, az + nz * off * side, bx + nx * off * side, bz + nz * off * side, p[0], p[1], q[0], q[1]);
+              if (!hit) continue;
+              const at = along + hit.t * len;
+              const reach = Math.min(2.5, 1 / Math.max(0.4, hit.sin)) * (w / 2) + 0.8;
+              drops[side].push([at - reach, at + reach]);
+              break;
+            }
+          }
+        }
+      }
+      along += len;
+    }
+    return drops;
   }
 
   _free(t) {
@@ -1183,15 +1282,48 @@ export class SeoulGame {
     const lamps = [];
     const c = new THREE.Color();
     const owned = [];
+    const walkOwned = [];
     this.roadHash ??= new Map();
     for (const r of list) {
       // Points no more than 20 m apart, each with its deck height (worked out for the whole road network).
-      const line = [];
-      const eased = [];
+      let line = [];
+      let eased = [];
       for (let i = 0; i < r.line.length; i += 3) {
         line.push([r.line[i], r.line[i + 1]]);
         eased.push(r.line[i + 2]);
       }
+      // Alley mouths across its pavements (setMouths): a point at each end of each drop and its ramps,
+      // and how high the kerb is at every point, each side.
+      const drops = this._mouthDrops(line, r.width / 2);
+      const RAMP = 0.9;
+      const marks = [];
+      for (const side of [-1, 1]) for (const [a, b] of drops[side]) marks.push(a - RAMP, a, b, b + RAMP);
+      if (marks.length) {
+        const out = [line[0]];
+        const outE = [eased[0]];
+        let acc = 0;
+        for (let i = 1; i < line.length; i++) {
+          const [ax, az] = line[i - 1];
+          const [bx, bz] = line[i];
+          const len = Math.hypot(bx - ax, bz - az) || 1e-6;
+          for (const m of marks.filter((v) => v > acc + 0.05 && v < acc + len - 0.05).sort((u, v) => u - v)) {
+            const t = (m - acc) / len;
+            out.push([ax + (bx - ax) * t, az + (bz - az) * t]);
+            outE.push(eased[i - 1] + (eased[i] - eased[i - 1]) * t);
+          }
+          out.push(line[i]);
+          outE.push(eased[i]);
+          acc += len;
+        }
+        line = out;
+        eased = outE;
+      }
+      const kerbAt = (side, a) => {
+        let k = 0;
+        for (const [d0, d1] of drops[side]) k = Math.max(k, a >= d0 && a <= d1 ? 1 : a < d0 ? 1 - (d0 - a) / RAMP : 1 - (a - d1) / RAMP);
+        return 0.14 * (1 - Math.max(0, Math.min(1, k)));
+      };
+      let localAlong = 0;
       c.set(r.cls <= 1 ? '#8c8e94' : '#9a9ca2');
       const half = r.width / 2;
       let prev = null;
@@ -1212,14 +1344,20 @@ export class SeoulGame {
         const y = this.groundAt(x, z) + 0.9 + eased[i];
         const left = [x - (dz / len) * half, y, z + (dx / len) * half];
         const right = [x + (dz / len) * half, y, z - (dx / len) * half];
-        if (last) along += Math.hypot(x - last[0], z - last[2]);
-        // The pavement each side: a step up, a paving strip 3 m wide (not on an expressway or a bridge).
+        if (last) {
+          along += Math.hypot(x - last[0], z - last[2]);
+          localAlong += Math.hypot(x - last[0], z - last[2]);
+        }
+        // The pavement each side: a step up, a paving strip 3 m wide (not on an expressway or a bridge) —
+        // dropped flush with the road across an alley's mouth.
         const onBridge = eased[i] > 1;
         const kerb = 0.14;
-        const outL = [x - (dz / len) * (half + 3), y + kerb, z + (dx / len) * (half + 3)];
-        const outR = [x + (dz / len) * (half + 3), y + kerb, z - (dx / len) * (half + 3)];
-        const inL = [left[0], y + kerb, left[2]];
-        const inR = [right[0], y + kerb, right[2]];
+        const kL = kerbAt(-1, localAlong);
+        const kR = kerbAt(1, localAlong);
+        const outL = [x - (dz / len) * (half + 3), y + kL, z + (dx / len) * (half + 3)];
+        const outR = [x + (dz / len) * (half + 3), y + kR, z - (dx / len) * (half + 3)];
+        const inL = [left[0], y + kL, left[2]];
+        const inR = [right[0], y + kR, right[2]];
         if (prev) {
           pos.push(...prev.left, ...prev.right, ...right, ...prev.left, ...right, ...left);
           for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
@@ -1239,6 +1377,16 @@ export class SeoulGame {
             if (sideR) {
               walk.push(...prev.outR, ...prev.inR, ...inR, ...prev.outR, ...inR, ...outR);
               walkA.push(1, prev.along, sR, 0, prev.along, sR, 0, along, sR, 1, prev.along, sR, 0, along, sR, 1, along, sR);
+            }
+            // So whoever rides or walks onto it stands on it (surfaceAt), at its height — the dropped kerbs too.
+            for (const [on, side, ya, yb] of [[sideL, -1, prev.inL[1], inL[1]], [sideR, 1, prev.inR[1], inR[1]]]) {
+              if (!on) continue;
+              const seg = { ax: last[0], az: last[2], bx: x, bz: z, ya, yb, inner: half, outer: half + 3, side };
+              const cell = `${Math.floor((last[0] + x) / 2 / ROAD_CELL)}_${Math.floor((last[2] + z) / 2 / ROAD_CELL)}`;
+              this.walkHash ??= new Map();
+              if (!this.walkHash.has(cell)) this.walkHash.set(cell, []);
+              this.walkHash.get(cell).push(seg);
+              walkOwned.push([cell, seg]);
             }
           }
           // The road is a slab, not a sheet: a granite kerb up to the pavement, the pavement's edge and
@@ -1303,6 +1451,7 @@ export class SeoulGame {
     this.roadMaterial ??= roadMaterial(this.uniforms);
     const mesh = new THREE.Mesh(geo, this.roadMaterial);
     mesh.userData.owned = owned;
+    mesh.userData.walkOwned = walkOwned;
     mesh.receiveShadow = true;
     this.scene.add(mesh);
     mesh.userData.street = this._street(walk, trees, lamps, walkA);
@@ -1384,25 +1533,65 @@ export class SeoulGame {
    * within a step up of where you are (so you walk onto a bridge from its
    * end, and under it from the bank), else the ground.
    */
-  surfaceAt(x, z, from = Infinity) {
+  surfaceAt(x, z, from = Infinity, mainOnly = false) {
     const ground = this.groundAt(x, z);
     if (!this.roadHash) return ground;
     let best = ground;
+    let onIt = false;
+    let alleyEnd = -Infinity;
     const cx = Math.floor(x / ROAD_CELL);
     const cz = Math.floor(z / ROAD_CELL);
     for (let i = cx - 1; i <= cx + 1; i++) {
       for (let j = cz - 1; j <= cz + 1; j++) {
         for (const s of this.roadHash.get(`${i}_${j}`) ?? []) {
+          if (mainOnly && s.alley) continue;
           const dx = s.bx - s.ax;
           const dz = s.bz - s.az;
-          const k = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1)));
+          const raw = ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1);
+          const k = Math.max(0, Math.min(1, raw));
           if (Math.hypot(x - (s.ax + dx * k), z - (s.az + dz * k)) > s.half) continue;
           const y = s.ay + (s.by - s.ay) * k;
-          if (y > best && y <= Math.max(from, ground) + 2.5) best = y;
+          if (y > Math.max(from, ground) + 2.5) continue;
+          // An alley's stretch only past its end (round a bend, where the next stretch doesn't reach):
+          // on a hill, its end's height isn't the ground's just before the next one.
+          if (s.alley && (raw < -0.02 || raw > 1.02)) alleyEnd = Math.max(alleyEnd, y);
+          else if (y > best) {
+            best = y;
+            onIt = true;
+          }
+        }
+        for (const s of this.walkHash?.get(`${i}_${j}`) ?? []) {
+          const y = this._onWalk(s, x, z);
+          if (y != null && y <= Math.max(from, ground) + 2.5) {
+            onIt = true;
+            best = Math.max(best, y);
+          }
         }
       }
     }
-    return best;
+    return onIt ? best : Math.max(best, alleyEnd);
+  }
+
+  /** A pavement strip's height at a point (null if the point isn't on it). */
+  _onWalk(s, x, z) {
+    const dx = s.bx - s.ax;
+    const dz = s.bz - s.az;
+    const L2 = dx * dx + dz * dz || 1;
+    const k = ((x - s.ax) * dx + (z - s.az) * dz) / L2;
+    if (k < -0.02 || k > 1.02) return null;
+    // metres to the right of its road's line (as _roadMesh's right side)
+    const d = ((x - s.ax) * dz - (z - s.az) * dx) / Math.sqrt(L2);
+    const across = d * s.side;
+    if (across < s.inner - 0.02 || across > s.outer + 0.02) return null;
+    return s.ya + (s.yb - s.ya) * Math.max(0, Math.min(1, k));
+  }
+
+  /** Whether a point is on a road's pavement (the main roads' paving strips). */
+  onWalk(x, z) {
+    const cx = Math.floor(x / ROAD_CELL);
+    const cz = Math.floor(z / ROAD_CELL);
+    for (let i = cx - 1; i <= cx + 1; i++) for (let j = cz - 1; j <= cz + 1; j++) for (const s of this.walkHash?.get(`${i}_${j}`) ?? []) if (this._onWalk(s, x, z) != null) return true;
+    return false;
   }
 
   /** A broadcast tower the register lists only as a point: our own plain shape, to its real height. */
@@ -1650,11 +1839,11 @@ export class SeoulGame {
         if ((e.code === 'Escape' || e.code === 'KeyP') && live) return this.race.togglePause();
         if (e.code === 'Escape') return this.race.quit();
         if (this.race.paused) return;
-        // A tap of Space between two frames still sprints.
-        if (e.code === 'Space') this.race.sprintTap = true;
+        // A tap of F between two frames still boosts.
+        if (e.code === 'KeyF') this.race.sprintTap = true;
         const slot = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
         if (slot >= 0) this.race.useSlot(slot);
-        else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') this.race.horn();
+        else if (e.code === 'Space' || e.code === 'KeyB') this.race.horn();
         else if (e.code === 'KeyH' || e.code === 'KeyI') this.help.toggle();
         return;
       }

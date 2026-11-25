@@ -91,7 +91,9 @@ export class RaceTraffic {
 
   /** Roads a vehicle of a kind may drive: cars and buses the main roads, scooters also the small streets. */
   _roads(x, z, kind) {
-    return (this.g.roadsNear?.(x, z, 1) ?? []).filter((r) => r.pts.length >= 4 && r.cls >= 1 && (kind === 'scooter' ? r.cls <= 6 && r.cls !== 7 : r.cls <= 4) && !(kind === 'bus' && r.cls > 3));
+    // (never down a short cut's golmok: it is kept clear to race down)
+    const keep = this.race.scRoads;
+    return (this.g.roadsNear?.(x, z, 1) ?? []).filter((r) => r.pts.length >= 4 && r.cls >= 1 && (kind === 'scooter' ? r.cls <= 6 && r.cls !== 7 : r.cls <= 4) && !(kind === 'bus' && r.cls > 3) && !keep?.has(r));
   }
 
   _make(kind) {
@@ -138,7 +140,7 @@ export class RaceTraffic {
       if (d < (anchor.me ? (ahead > 0.3 ? 95 : 45) : 30) || d > 230) continue;
       if (ahead < -0.4 && Math.random() < 0.75) continue;
       if (this.vehicles.some((v) => Math.hypot(v.box.x - q.x, v.box.z - q.z) < 9)) continue;
-      if (this.g.buildingAt?.(q.x, q.z)) continue;
+      if (this.g.buildingAt?.(q.x, q.z) || this.race.keepClear?.(q.x, q.z)) continue;
       const made = this._make(kind);
       const top = (SPEEDS[Math.min(5, r.cls)] ?? 8) * (kind === 'scooter' ? 1.05 : kind === 'bus' ? 0.85 : 1) * (0.85 + Math.random() * 0.3);
       const [halfLength, halfWidth] = made.size;

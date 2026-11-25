@@ -687,7 +687,8 @@ export class PlushRider {
     const breathe = 1 + Math.sin(t * 2.3) * 0.012;
     this.squash.scale.set(1 + (1 - sq) * 0.6, sq * breathe, 1 + (1 - sq) * 0.6);
     // lean the body into the turn a little more than the scooter (weight inside), back from a boost
-    const bodyLean = spring(S.leanB, down ? 0 : (st.lean ?? 0) * 0.35, 80, 12, dt);
+    // (in a drift the body hangs out, away from the slide)
+    const bodyLean = spring(S.leanB, down ? 0 : (st.lean ?? 0) * 0.35 - (st.drift ?? 0) * 0.5, 80, 12, dt);
     this.rider.rotation.z = bodyLean;
     this.tilt.rotation.x = -crouch * 0.1;
     // stance: turned a little, front foot forward

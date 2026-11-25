@@ -175,11 +175,21 @@ function signTexture() {
 }
 
 export class Golmok {
-  /** @param {any} game the SeoulGame @param {any} course a planned bike course */
-  constructor(game, course) {
+  /**
+   * @param {any} game the SeoulGame @param {any} course a planned bike course (or a short cut: { id, points })
+   * @param {{ open?: boolean, walls?: any, avoid?: number[][][], shortcut?: boolean }} [opts] `open`: a line
+   * with ends (a short cut), not a loop; `walls`: where its garden walls go, solid (walls.js); `avoid`:
+   * other lines (the course, the short cuts) no garden wall may be built across.
+   */
+  constructor(game, course, { open = false, walls = null, avoid = [], shortcut = false } = {}) {
     this.g = game;
     this.course = course;
+    this.open = open;
+    this.walls = walls;
+    this.avoid = avoid;
+    this.shortcut = shortcut;
     this.calm = cornerZones(course.points);
+    if (open) for (let i = 0; i < Math.min(8, course.points.length); i++) this.calm[i] = this.calm[course.points.length - 1 - i] = 1;
     this.chunks = new Map();
     this.obstacles = [];
     this.group = new THREE.Group();
@@ -284,10 +294,32 @@ export class Golmok {
     const owned = [];
     const obstacles = [];
     const group = new THREE.Group();
-    const at = (i) => pts[((i % n) + n) % n];
+    const open = this.open;
+    const at = (i) => pts[open ? Math.max(0, Math.min(n - 1, i)) : ((i % n) + n) % n];
     const y0 = (x, z) => g.groundAt(x, z) + 0.9; // road level (SeoulGame lays its roads 0.9 m over the land)
+    // Is a wall from (x0, z0) to (x1, z1) across another line (the course, a short cut)? Then it isn't built.
+    const across = (x0, z0, x1, z1) => {
+      for (const line of this.avoid) {
+        for (let j = 1; j < line.length; j++) {
+          const q = line[j - 1];
+          const r2 = line[j];
+          if (Math.min(q[0], r2[0]) > Math.max(x0, x1) + 8 || Math.max(q[0], r2[0]) < Math.min(x0, x1) - 8 || Math.min(q[1], r2[1]) > Math.max(z0, z1) + 8 || Math.max(q[1], r2[1]) < Math.min(z0, z1) - 8) continue;
+          const half = Math.max(q[2] ?? 4, r2[2] ?? 4) / 2 + 0.4;
+          for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+            const x = x0 + (x1 - x0) * t;
+            const z = z0 + (z1 - z0) * t;
+            const dx = r2[0] - q[0];
+            const dz = r2[1] - q[1];
+            const u = Math.max(0, Math.min(1, ((x - q[0]) * dx + (z - q[1]) * dz) / (dx * dx + dz * dz || 1)));
+            if (Math.hypot(x - q[0] - dx * u, z - q[1] - dz * u) < half) return true;
+          }
+        }
+      }
+      return false;
+    };
     const poles = [];
     for (let i = k * CHUNK; i < Math.min(n, (k + 1) * CHUNK + 1); i++) {
+      if (open && i >= n - 1) break;
       const a = at(i);
       const b = at(i + 1);
       const cls = b[3] ?? 4;
@@ -304,25 +336,109 @@ export class Golmok {
       const hd = Math.atan2(-ux, -uz);
       if (small && i < (k + 1) * CHUNK) {
         // The surface: patchy concrete (an alley) or asphalt (a lane), at road level; skirts down to the land.
+        // Not over a main road or its pavement (where an alley meets one, the road and its dropped kerb are
+        // the surface: no second one on top), and where it starts at a pavement's edge, at that height.
         const half = w / 2;
-        const ya = y0(a[0], a[1]);
-        const yb = y0(b[0], b[1]);
-        const corner = (p, s, y) => new THREE.Vector3(p[0] + rx * s, y, p[1] + rz * s);
+        const covered = (t, o = 0) => {
+          const x = a[0] + dx * t + rx * o;
+          const z = a[1] + dz * t + rz * o;
+          return Boolean(g.onRoad?.(x, z, 0) || g.onWalk?.(x, z));
+        };
+        // (the colour drawn first, whatever is built: the same alley for everyone, whatever they have loaded)
         const tone = cls === 6 ? pick(r, PAL.concrete) : PAL.asphalt.clone().multiplyScalar(0.92 + r() * 0.16);
-        ground.quad(corner(a, -half, ya), corner(a, half, ya), corner(b, half, yb), corner(b, -half, yb), tone);
-        for (const s of [-1, 1]) ground.quad(corner(a, s * half, ya - 1.4), corner(b, s * half, yb - 1.4), corner(b, s * half, yb), corner(a, s * half, ya), tone.clone().multiplyScalar(0.7));
-        // A narrow raised pavement down the right of a residential lane.
-        if (cls === 5 && w >= 5) {
-          const kerbY = 0.13;
-          ground.quad(corner(a, half - 1.1, ya + kerbY), corner(a, half, ya + kerbY), corner(b, half, yb + kerbY), corner(b, half - 1.1, yb + kerbY), PAL.paving);
-          ground.quad(corner(a, half - 1.1, ya), corner(a, half - 1.1, ya + kerbY), corner(b, half - 1.1, yb + kerbY), corner(b, half - 1.1, yb), PAL.kerb);
+        // Where it is the alley's own ground (not road, not pavement), along each edge and its middle —
+        // to the edge to a few centimetres, and a hair under it, so no crack shows: an alley meeting a
+        // road at a slant ends on the slant.
+        const N = Math.max(2, Math.ceil(len / 0.5));
+        const span = (o) => {
+          let t0 = -1;
+          let t1 = -1;
+          for (let q = 0; q <= N; q++) {
+            if (covered(q / N, o)) continue;
+            if (t0 < 0) t0 = q / N;
+            t1 = q / N;
+          }
+          if (t0 < 0) return null;
+          const edge = (lo, hi) => {
+            for (let q = 0; q < 8; q++) {
+              const m = (lo + hi) / 2;
+              if (covered(m, o) === covered(lo, o)) lo = m;
+              else hi = m;
+            }
+            return (lo + hi) / 2;
+          };
+          // (on under the road's or pavement's edge by half a metre, a few centimetres lower: no sliver of a hole)
+          const cutA = t0 > 0;
+          const cutB = t1 < 1;
+          if (cutA) t0 = Math.max(0, edge(t0 - 1 / N, t0) - 0.5 / len);
+          if (cutB) t1 = Math.min(1, edge(t1 + 1 / N, t1) + 0.5 / len);
+          return [t0, t1, cutA, cutB];
+        };
+        const mid = span(0);
+        if (mid) {
+          const L = span(-half) ?? mid;
+          const R = span(half) ?? mid;
+          const at = (t, o) => [a[0] + dx * t + rx * o, a[1] + dz * t + rz * o];
+          // (the road's or pavement's own height where it meets one: not another stretch of alley)
+          const yAt = (t, o, cut) => {
+            if (cut) {
+              const [x, z] = at(t, o);
+              return g.surfaceAt(x, z, Infinity, true) - 0.04;
+            }
+            const p = t <= 0 ? a : b;
+            return y0(p[0], p[1]);
+          };
+          const V = (t, o, cut) => {
+            const [x, z] = at(t, o);
+            return new THREE.Vector3(x, yAt(t, o, cut), z);
+          };
+          const la = V(L[0], -half, L[2]);
+          const ra = V(R[0], half, R[2]);
+          const rb = V(R[1], half, R[3]);
+          const lb = V(L[1], -half, L[3]);
+          ground.quad(la, ra, rb, lb, tone);
+          const down = (v) => new THREE.Vector3(v.x, v.y - 1.4, v.z);
+          ground.quad(down(la), down(lb), lb, la, tone.clone().multiplyScalar(0.7));
+          ground.quad(down(rb), down(ra), ra, rb, tone.clone().multiplyScalar(0.7));
+          const ya = (la.y + ra.y) / 2;
+          const yb = (lb.y + rb.y) / 2;
+          const t0 = Math.min(L[0], R[0], mid[0]);
+          const t1 = Math.max(L[1], R[1], mid[1]);
+          const pa = at(t0, 0);
+          const pb = at(t1, 0);
+          // A narrow raised pavement down the right of a residential lane.
+          if (cls === 5 && w >= 5 && t0 === 0 && t1 === 1) {
+            const corner = (p, s, y) => new THREE.Vector3(p[0] + rx * s, y, p[1] + rz * s);
+            const kerbY = 0.13;
+            ground.quad(corner(pa, half - 1.1, ya + kerbY), corner(pa, half, ya + kerbY), corner(pb, half, yb + kerbY), corner(pb, half - 1.1, yb + kerbY), PAL.paving);
+            ground.quad(corner(pa, half - 1.1, ya), corner(pa, half - 1.1, ya + kerbY), corner(pb, half - 1.1, yb + kerbY), corner(pb, half - 1.1, yb), PAL.kerb);
+          }
+          // So bikes and people stand on it (the city's surface lookup), and it shows on the map.
+          const seg = { ax: pa[0], ay: ya, az: pa[1], bx: pb[0], by: yb, bz: pb[1], half: half + 0.2, alley: true };
+          const cell = `${Math.floor((a[0] + b[0]) / 2 / ROAD_CELL)}_${Math.floor((a[1] + b[1]) / 2 / ROAD_CELL)}`;
+          if (!g.roadHash.has(cell)) g.roadHash.set(cell, []);
+          g.roadHash.get(cell).push(seg);
+          owned.push([cell, seg]);
+          // Round a bend, the corner between this stretch and the last (outside the bend the two
+          // stretches' ends part like a book's pages): filled, at the point's height.
+          const z0 = at(i - 1);
+          if (mid[0] === 0 && isSmall(a[3] ?? 4) && (!open || i > 0) && !covered(0)) {
+            const pl = Math.hypot(a[0] - z0[0], a[1] - z0[1]) || 1;
+            const prx = -(a[1] - z0[1]) / pl;
+            const prz = (a[0] - z0[0]) / pl;
+            const ya0 = la.y;
+            const c = new THREE.Vector3(a[0], ya0, a[1]);
+            for (const sd of [-1, 1]) {
+              const p0 = new THREE.Vector3(a[0] + prx * sd * half, ya0, a[1] + prz * sd * half);
+              const p1 = new THREE.Vector3(a[0] + rx * sd * half, ya0, a[1] + rz * sd * half);
+              if (p0.distanceTo(p1) < 0.05) continue;
+              // (wound to face up whichever side it is on)
+              const up = (p0.x - c.x) * (p1.z - c.z) - (p0.z - c.z) * (p1.x - c.x) < 0;
+              if (up) ground.tri(c, p0, p1, tone);
+              else ground.tri(c, p1, p0, tone);
+            }
+          }
         }
-        // So bikes and people stand on it (the city's surface lookup), and it shows on the map.
-        const seg = { ax: a[0], ay: ya, az: a[1], bx: b[0], by: yb, bz: b[1], half: half + 0.2 };
-        const cell = `${Math.floor((a[0] + b[0]) / 2 / ROAD_CELL)}_${Math.floor((a[1] + b[1]) / 2 / ROAD_CELL)}`;
-        if (!g.roadHash.has(cell)) g.roadHash.set(cell, []);
-        g.roadHash.get(cell).push(seg);
-        owned.push([cell, seg]);
       }
       if (i >= (k + 1) * CHUNK) continue;
       // Along both sides.
@@ -340,8 +456,17 @@ export class Golmok {
           const wallX = ex + rx * side * 0.2 + ux * len / 2;
           const wallZ = ez + rz * side * 0.2 + uz * len / 2;
           const inCourse = !turning && pts.some((q, qi) => Math.abs(qi - i) > 2 && Math.hypot(q[0] - wallX, q[1] - wallZ) < (q[2] ?? 6) / 2 + 1.2);
-          if (!wall && !turning && !inCourse && !g.onRoad?.(ex + rx * side * 1.5, ez + rz * side * 1.5, 0.5)) {
-            // A garden wall, sometimes a gate in it.
+          // (and not at a short cut's mouth, nor across another line)
+          const mouth = open && (i < 2 || i > n - 4);
+          const wx0 = ex + rx * side * 0.2;
+          const wz0 = ez + rz * side * 0.2;
+          if (!wall && !turning && !inCourse && !mouth && !across(wx0, wz0, wx0 + ux * len, wz0 + uz * len) && !g.onRoad?.(ex + rx * side * 1.5, ez + rz * side * 1.5, 0.5)) {
+            // A garden wall, sometimes a gate in it — solid, like the buildings (once for each place it stands).
+            const tag = `${this.course.id ?? ''}|${i}|${side}`;
+            if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
+              this.walls.tags.add(tag);
+              this.walls.addSegment(wx0, wz0, wx0 + ux * len, wz0 + uz * len, 'garden');
+            }
             const col = pick(r, PAL.walls);
             const h = 1.7 + r() * 0.6;
             (col === PAL.walls[0] ? brick : block).box(ex + rx * side * 0.2 + ux * len / 2, base + h / 2, ez + rz * side * 0.2 + uz * len / 2, len / 2, h / 2, 0.11, hd + Math.PI / 2, col === PAL.walls[0] ? C('#f2e6e0') : col.clone().multiplyScalar(1.35));
@@ -520,6 +645,12 @@ export class Golmok {
     }
     this.obstacles = this.obstacles.filter((o) => !c.obstacles.includes(o));
     this.chunks.delete(k);
+  }
+
+  /** Every stretch built now, wherever you are (the end-to-end junction checks look at all of them). */
+  buildAll() {
+    const n = this.course.points.length;
+    for (let k = 0; k < Math.ceil(n / CHUNK); k++) if (!this.chunks.has(k)) this.chunks.set(k, this._build(k));
   }
 
   /** Things standing in the street within `r` of a point. */

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Session } from '../net/Session.js';
-import { BIKE_COURSES, planCourse, locate, startOnBigRoad, isSmall } from './course.js';
+import { BIKE_COURSES, planCourse, finishCourse, locate, isSmall } from './course.js';
+import { Walls, tileRings, RIDER_RADIUS } from './walls.js';
+import { TILE, decodeTile, tileKey, tileOf } from './tiles.js';
 import { bikeGap, closeCall, slipstream, NEAR_MISS } from './ride.js';
 import { SCOOT, GRIP, newScoot, stepScoot, cornerSpeed } from './scoot.js';
 import { SpeedFx, speedFeel, windNoise } from './speedfx.js';
@@ -32,8 +34,8 @@ import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, r
  * the scooter — a tumble, dizzy stars, and back on a second and a half later;
  * met at a slant (a wall, a car's flank, a bin) it is only a scrape. Pass
  * close at speed and the boost gauge fills. Throttle (W, to 70 km/h), lean
- * (A D), brake (S), boost (Space, on the battery gauge), ring the bell
- * (Shift, or B), and use what the item boxes give you (1–3) — a branch thrown
+ * (A D), drift (Shift, round the tight corners), brake (S), boost (F, on the
+ * battery gauge), ring the bell (Space, or B), and use what the item boxes give you (1–3) — a branch thrown
  * into a rival's wheel among them (branch.js). Riders bump and wobble off
  * each other (pack.js); kerbs met at an angle are hopped, paving joints
  * rattle. Corners are marked with chevron boards, and anything standing in
@@ -96,6 +98,31 @@ const WALL_FALL = 8.3;
 const DOWN = 1.55;
 
 export { botRiders };
+
+/** The nearest point of an open line of points to (x, z), searched between two indices; how far off its segments. */
+function locateOn(pts, x, z, lo, hi) {
+  const n = pts.length;
+  let best = Math.max(0, Math.min(n - 1, lo));
+  let bd = Infinity;
+  for (let i = Math.max(0, lo); i <= Math.min(n - 1, hi); i++) {
+    const d = Math.hypot(pts[i][0] - x, pts[i][1] - z);
+    if (d < bd) {
+      bd = d;
+      best = i;
+    }
+  }
+  let off = bd;
+  for (const [a, b] of [[best - 1, best], [best, best + 1]]) {
+    if (a < 0 || b >= n) continue;
+    const P = pts[a];
+    const Q = pts[b];
+    const dx = Q[0] - P[0];
+    const dz = Q[1] - P[1];
+    const t = Math.max(0, Math.min(1, ((x - P[0]) * dx + (z - P[1]) * dz) / (dx * dx + dz * dz || 1)));
+    off = Math.min(off, Math.hypot(x - P[0] - dx * t, z - P[1] - dz * t));
+  }
+  return { i: best, off };
+}
 
 export class Race {
   /** @param {any} game the SeoulGame */
@@ -160,6 +187,7 @@ export class Race {
     this.pauseEl = el('race__pause');
     this.hintEl = el('race__hint');
     this.warnEl = el('race__warn');
+    this.scEl = el('race__sc');
   }
 
   _show(on) {
@@ -189,11 +217,11 @@ export class Race {
     this._portraits ??= new Map(CREW_ORDER.map((id) => [id, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(faceSvg(id, 132).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}`]));
     const len = (id) => {
       const c = this.plans.get(id);
-      return c ? `${(c.length / 1000).toFixed(1)} km · ${Math.round((c.points.filter((p) => isSmall(p[3] ?? 4)).length / c.points.length) * 100)}% alleys` : '';
+      return c ? this._lenText(c) : '';
     };
     m.innerHTML = `
       <header><h2>🛴 Gangnam Jarani</h2><button type="button" data-race-x aria-label="Close">✕</button></header>
-      <p class="race__lead">Snowpuff's plush friends race electric scooters through Seoul's real streets and alleys — and the streets are open: weave through cars, buses, delivery scooters and people. Throttle with <b>W</b> to 70 km/h, lean with <b>A D</b>, boost with <b>Space</b> while the battery gauge lasts, ring your bell with <b>Shift</b>, grab item boxes and use them with <b>1 2 3</b> — a branch in a rival's front wheel sends them over the bars. Pass close to traffic to charge your boost; glance off a wall and you scrape, hit something square and you're off.</p>
+      <p class="race__lead">Snowpuff's plush friends race electric scooters through Seoul's real streets and alleys — and the streets are open: weave through cars, buses, delivery scooters and people. Throttle with <b>W</b> to 70 km/h, lean with <b>A D</b>, hold <b>Shift</b> to drift round the tight corners, boost with <b>F</b> while the battery gauge lasts, ring your bell with <b>Space</b>, grab item boxes and use them with <b>1 2 3</b> — a branch in a rival's front wheel sends them over the bars. Pass close to traffic to charge your boost; glance off a wall and you scrape, hit something square and you're off.</p>
       <div class="race__courses">${BIKE_COURSES.map((c) => `<button type="button" data-course="${c.id}" class="${c.id === this.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><span>${esc(c.ko)}</span><small>${esc(c.text)}</small><em data-len="${c.id}">${len(c.id)}</em></button>`).join('')}</div>
       <h3 class="race__label">Your rider</h3>
       <div class="race__garage">${CREW_ORDER.map((id) => {
@@ -211,7 +239,7 @@ export class Race {
         <div class="race__row"><button type="button" class="race__go" data-race-solo>Race three bots</button></div>
         <div class="race__row race__together"><span>With friends</span><button type="button" data-race-make>Make a room</button><input data-race-code-in maxlength="5" placeholder="CODE" /><button type="button" data-race-join>Join</button></div>`}
       <p class="race__note" data-race-note>${esc(note)}</p>
-      <p class="race__keys">W throttle · S brake · A D lean · Space boost · Shift bell · 1 2 3 items · R back on the course · Esc pause · H how to play <button type="button" class="race__credits" data-race-credits>ⓒ Credits</button></p>`;
+      <p class="race__keys">W throttle · S brake · A D lean · Shift drift · F boost · Space bell · 1 2 3 items · R back on the course · Esc pause · H how to play <button type="button" class="race__credits" data-race-credits>ⓒ Credits</button></p>`;
     const $ = (q) => m.querySelector(q);
     $('[data-race-x]').onclick = () => this.quit();
     $('[data-race-credits]').onclick = () => this.g.toggleCredits(true);
@@ -239,10 +267,10 @@ export class Race {
     // Plan the courses (and say how long) while the menu is up, one at a time.
     clearTimeout(this._planT);
     const todo = BIKE_COURSES.filter((c) => !this.plans.has(c.id));
-    const next = () => {
+    const next = async () => {
       const c = todo.shift();
       if (!c || this.phase === 'off') return;
-      this._plan(c.id);
+      await this._plan(c.id);
       this._planT = setTimeout(next, 30);
     };
     this._planT = setTimeout(next, 50);
@@ -266,21 +294,68 @@ export class Race {
     return roads;
   }
 
-  /** A course, planned once on the real streets (and started where a grid of four fits). */
+  /**
+   * The buildings round a course, as walls a bike can't ride through (walls.js): read from the
+   * same map tiles the city stands up, all of them round the course at once (not only those in
+   * view: a bot round the far side meets them too). Kept for the next race there.
+   */
+  async _walls(def, reach) {
+    this.wallSets ??= new Map();
+    const key = `${def.id}|${reach}`;
+    if (this.wallSets.has(key)) return this.wallSets.get(key);
+    const walls = new Walls();
+    const O = this.g.origin;
+    const [tx0, ty0] = tileOf(def.x - reach + O.x, -(def.z + reach) + O.y);
+    const [tx1, ty1] = tileOf(def.x + reach + O.x, -(def.z - reach) + O.y);
+    const jobs = [];
+    for (let tx = tx0; tx <= tx1; tx++) {
+      for (let ty = ty0; ty <= ty1; ty++) {
+        // (only the tiles the map has: none over the river or past the city's edge)
+        if (this.g.index?.tiles && !this.g.index.tiles[tileKey(tx, ty)]) continue;
+        jobs.push(fetch(`${this.g.base}${tileKey(tx, ty)}.bin`).then((r) => (r.ok ? r.arrayBuffer() : null)).then((buf) => {
+          if (!buf) return;
+          for (const ring of tileRings(decodeTile(new Uint8Array(buf)), tx, ty, TILE, O)) walls.addRing(ring.xs, ring.zs);
+        }).catch(() => {}));
+      }
+    }
+    await Promise.all(jobs);
+    this.wallSets.set(key, walls);
+    return walls;
+  }
+
+  /**
+   * A course, planned once on the real streets, between the real buildings (and started where a grid
+   * of four fits), with its golmok short cuts. The same streets and buildings give everyone in a
+   * room the same course.
+   */
   _plan(id) {
-    if (this.plans.has(id)) return this.plans.get(id);
-    const def = BIKE_COURSES.find((c) => c.id === id);
-    if (!def || !this.g.roadTiles) return null;
-    let c = planCourse(this._roadsNear(def, def.r * 4), def, { bike: true });
-    // Without the small streets (or where they are thin), a wider loop on the big roads.
-    if (!c) c = planCourse(this._roadsNear(def, def.r * 8), { ...def, r: def.r * 1.8 }, { bike: true, target: 2600 });
-    if (!c) return null;
-    c = startOnBigRoad(c);
-    c.def = def;
-    this.plans.set(id, c);
-    const el = this.menuEl.querySelector(`[data-len="${id}"]`);
-    if (el) el.textContent = `${(c.length / 1000).toFixed(1)} km · ${Math.round((c.points.filter((p) => isSmall(p[3] ?? 4)).length / c.points.length) * 100)}% alleys`;
-    return c;
+    this.planning ??= new Map();
+    if (this.plans.has(id)) return Promise.resolve(this.plans.get(id));
+    if (this.planning.has(id)) return this.planning.get(id);
+    const job = (async () => {
+      const def = BIKE_COURSES.find((c) => c.id === id);
+      if (!def || !this.g.roadTiles) return null;
+      const walls = await this._walls(def, def.r * 4);
+      let c = planCourse(this._roadsNear(def, def.r * 4), def, { bike: true, walls });
+      // Without the small streets (or where they are thin), a wider loop on the big roads.
+      if (!c) c = planCourse(this._roadsNear(def, def.r * 8), { ...def, r: def.r * 1.8 }, { bike: true, target: 2600, walls });
+      if (!c) return null;
+      c = finishCourse(c, { walls });
+      c.def = def;
+      c.walls = walls;
+      this.plans.set(id, c);
+      const el = this.menuEl.querySelector(`[data-len="${id}"]`);
+      if (el) el.textContent = this._lenText(c);
+      return c;
+    })();
+    this.planning.set(id, job);
+    job.finally(() => this.planning.delete(id));
+    return job;
+  }
+
+  _lenText(c) {
+    const sc = c.shortcuts?.length ?? 0;
+    return `${(c.length / 1000).toFixed(1)} km · ${Math.round((c.points.filter((p) => isSmall(p[3] ?? 4)).length / c.points.length) * 100)}% alleys${sc ? ` · ${sc} short cut${sc > 1 ? 's' : ''}` : ''}`;
   }
 
   /* -------------------------------------------------------- the room */
@@ -421,7 +496,8 @@ export class Race {
 
   /** Line the grid up behind the line, set the sky, and count down. */
   async _begin(grid, sky) {
-    const course = this._plan(this.courseId);
+    this._note('Planning the course…');
+    const course = await this._plan(this.courseId);
     if (!course) return this._note('That course could not be planned here — try another');
     // The riders (sculpted the first time); a rider picked twice rides a scooter in other colours.
     const used = new Map();
@@ -436,6 +512,7 @@ export class Race {
     this._starting = grid;
     this._end();
     this.course = course;
+    this._paths();
     this.myId = this.session?.id ?? 'me';
     this.menuEl.hidden = true;
     this.resultEl.hidden = true;
@@ -495,14 +572,22 @@ export class Race {
         crashes: 0,
         misses: 0,
         stuck: 0,
-        net: null
+        net: null,
+        sc: null,
+        si: 0
       };
     });
+    for (const r of this.racers) this._clear(r);
     this.me = this.racers.find((r) => r.me);
     this.fx = new ComicFx(this.g.scene);
     this.traffic = new RaceTraffic(this.g, this);
     this.boxes = new ItemBoxes(this.g, course);
-    this.golmok = new Golmok(this.g, course);
+    // The street along the course, and down each short cut's golmok (its walls solid: course.walls) —
+    // each alley's mouth a dropped kerb where it crosses a road's pavement.
+    const lines = [course.points, ...(course.shortcuts ?? []).map((sc) => sc.points)];
+    this.g.setMouths?.(lines);
+    this.golmok = new Golmok(this.g, course, { walls: course.walls, avoid: lines.slice(1) });
+    this.golmoks = (course.shortcuts ?? []).map((sc, k) => new Golmok(this.g, { id: sc.id, points: sc.points }, { open: true, walls: course.walls, avoid: lines.filter((_, j) => j !== k + 1), shortcut: true }));
     this.facades = new Facades(this.g, course);
     this.wet = new WetFx(this.g);
     this.speedFx = new SpeedFx(this.g.scene);
@@ -592,6 +677,7 @@ export class Race {
     this.decor.add(gate);
     this._turns();
     this._cornerBoards();
+    this._shortcutSigns();
     this.g.scene.add(this.decor);
     this.fans = [];
     if (this.g.life) {
@@ -611,25 +697,31 @@ export class Race {
 
   /** The course's turns: where it bends (over 30 m) by more than about 30°, and which way. */
   _turns() {
-    const pts = this.course.points;
+    this.turnsList = this._turnsOf(this.course.points, false);
+  }
+
+  /** The turns of a line of points (a loop, or open): { at, bend (+ left), from, total }. */
+  _turnsOf(pts, open) {
     const n = pts.length;
-    const dir = (i, j) => heading(pts[((i % n) + n) % n], pts[((j % n) + n) % n]);
+    const at = (i) => pts[open ? Math.max(0, Math.min(n - 1, i)) : ((i % n) + n) % n];
+    const dir = (i, j) => heading(at(i), at(j));
     const bendAt = (i) => turn(dir(i - 3, i), dir(i, i + 3));
-    this.turnsList = [];
+    const list = [];
     let run = null;
     for (let i = 0; i <= n; i++) {
-      const b = i < n ? bendAt(i) : 0;
+      const b = i < n && !(open && (i < 3 || i > n - 4)) ? bendAt(i) : 0;
       if (Math.abs(b) > 0.5 && i < n) {
         if (!run || Math.sign(b) !== Math.sign(run.bend)) {
-          if (run) this.turnsList.push(run);
+          if (run) list.push(run);
           run = { at: i, bend: b, from: i };
         } else if (Math.abs(b) > Math.abs(run.bend)) Object.assign(run, { at: i, bend: b });
       } else if (run) {
-        this.turnsList.push(run);
+        list.push(run);
         run = null;
       }
     }
-    for (const t of this.turnsList) t.total = Math.abs(turn(dir(t.from - 4, t.from), dir(t.at + 3, t.at + 6)));
+    for (const t of list) t.total = Math.abs(turn(dir(t.from - 4, t.from), dir(t.at + 3, t.at + 6)));
+    return list;
   }
 
   /**
@@ -708,15 +800,130 @@ export class Race {
     this._boardMats = mats;
   }
 
-  /** The next turn ahead of a racer: { left, sharp, metres, alley } within 120 m, or null. */
+  /**
+   * Each short cut marked on the street: a sign at its mouth ("SHORTCUT · 지름길", an arrow the
+   * way it turns off), standing at the kerb on that side a little before it, facing riders coming
+   * up; and its own arrows down the golmok, in cyan and further apart — a dotted line.
+   */
+  _shortcutSigns() {
+    const c = this.course;
+    this.scSigns = [];
+    if (!this.paths?.length) return;
+    const tex = (left) => {
+      const cv = document.createElement('canvas');
+      cv.width = 512;
+      cv.height = 192;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#0d2a33';
+      g.fillRect(0, 0, 512, 192);
+      g.strokeStyle = '#7ff0ff';
+      g.lineWidth = 12;
+      g.strokeRect(6, 6, 500, 180);
+      g.fillStyle = '#7ff0ff';
+      g.font = '900 64px system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('SHORTCUT', left ? 300 : 212, 70);
+      g.fillStyle = '#ffd23a';
+      g.font = '800 46px system-ui, sans-serif';
+      g.fillText('지름길', left ? 300 : 212, 138);
+      // the arrow: up and round the way it goes
+      g.fillStyle = '#ffd23a';
+      g.save();
+      g.translate(left ? 80 : 432, 96);
+      g.scale(left ? -1 : 1, 1);
+      g.beginPath();
+      g.moveTo(-34, 50);
+      g.lineTo(-34, -6);
+      g.quadraticCurveTo(-34, -30, -8, -30);
+      g.lineTo(10, -30);
+      g.lineTo(10, -58);
+      g.lineTo(52, -16);
+      g.lineTo(10, 26);
+      g.lineTo(10, -2);
+      g.lineTo(-6, -2);
+      g.lineTo(-6, 50);
+      g.closePath();
+      g.fill();
+      g.restore();
+      const t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 8;
+      return t;
+    };
+    const post = new THREE.MeshStandardMaterial({ color: '#d8d8d8', roughness: 0.5, metalness: 0.4 });
+    for (const p of this.paths) {
+      const map = tex(p.side > 0);
+      const mat = new THREE.MeshStandardMaterial({ map, emissive: '#ffffff', emissiveMap: map, emissiveIntensity: 0.6, roughness: 0.5 });
+      const i = Math.max(0, p.sc.from - 3);
+      const a = c.points[Math.max(0, i - 2)];
+      const b = c.points[i];
+      const h = heading(a, b);
+      const w = b[2] ?? 8;
+      // at the kerb on the side it turns off (left: −right), a little in from the edge
+      const off = (w / 2 + 0.4) * (p.side > 0 ? -1 : 1);
+      let x = b[0] + Math.cos(h) * off;
+      let z = b[1] - Math.sin(h) * off;
+      const walls = c.walls;
+      if (walls?.hits(x, z, 0.5)) {
+        const out = walls.push(x, z, 0.55);
+        x = out.x;
+        z = out.z;
+      }
+      const sign = new THREE.Group();
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.83), mat);
+      face.position.y = 2.0;
+      sign.add(face);
+      const pole = new THREE.Mesh(this._postGeo ??= new THREE.CylinderGeometry(0.04, 0.04, 1.35, 6).translate(0, 0.675, 0), post);
+      pole.scale.y = 1.25;
+      sign.add(pole);
+      sign.rotation.y = h;
+      sign.position.set(x, this.g.surfaceAt(x, z), z);
+      sign.userData.at = { x, z };
+      sign.userData.mat = mat;
+      this.decor.add(sign);
+      this.boards.push(sign);
+      this.scSigns.push(sign);
+      p.sign = { x, z };
+    }
+    // Cyan arrows down each golmok, every other point: a dotted line to follow.
+    const chev = this.chevrons.geometry;
+    const mat = new THREE.MeshBasicMaterial({ color: '#7ff0ff', transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -16 });
+    const at = [];
+    for (const p of this.paths) {
+      const pts = p.sc.points;
+      for (let i = 1; i < pts.length - 1; i += 2) at.push({ x: pts[i][0], z: pts[i][1], heading: heading(pts[i], pts[i + 1]) });
+    }
+    if (!at.length) return;
+    this.scArrows = new THREE.InstancedMesh(chev, mat, at.length);
+    this.scArrows.frustumCulled = false;
+    this.scArrows.userData.at = at;
+    this.decor.add(this.scArrows);
+  }
+
+  /** The next turn ahead of a racer on its line: { left, sharp, metres, alley } within 120 m, or null. */
   _nextTurn(r) {
+    const line = this._line(r);
+    const L = line.open ? Infinity : this.course.length;
+    let best = null;
+    for (const t of line.turns ?? []) {
+      let d = line.s[t.from] - line.s[line.i];
+      if (d < -10 && Number.isFinite(L)) d += L;
+      if (d < -10 || d > 120) continue;
+      if (!best || d < best.metres) best = { left: t.bend > 0, sharp: t.total > 1.3, metres: Math.max(0, d), alley: isSmall(line.pts[t.at][3] ?? 4) };
+    }
+    return best;
+  }
+
+  /** The next short cut ahead on the course (within 160 m): { left, metres, saves }, or null. */
+  _nextShortcut(r) {
+    if (r.sc != null || !this.paths?.length) return null;
     const c = this.course;
     let best = null;
-    for (const t of this.turnsList ?? []) {
-      let d = c.s[t.from] - c.s[r.idx];
-      if (d < -10) d += c.length;
-      if (d < -10 || d > 120) continue;
-      if (!best || d < best.metres) best = { left: t.bend > 0, sharp: t.total > 1.3, metres: Math.max(0, d), alley: isSmall(c.points[t.at][3] ?? 4) };
+    for (const p of this.paths) {
+      const d = c.s[p.sc.from] - c.s[r.idx];
+      if (d < -4 || d > 160) continue;
+      if (!best || d < best.metres) best = { left: p.side > 0, metres: Math.max(0, d), saves: p.sc.saves };
     }
     return best;
   }
@@ -735,6 +942,19 @@ export class Race {
       m.setMatrixAt(k, o.matrix);
     });
     m.instanceMatrix.needsUpdate = true;
+    const sa = this.scArrows;
+    if (sa) {
+      sa.userData.at.forEach((a, k) => {
+        if (!all && Math.hypot(a.x - p.x, a.z - p.z) > 220) return;
+        o.position.set(a.x, this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14) + 0.07, a.z);
+        o.rotation.set(0, a.heading, 0);
+        o.scale.set(0.8, 1, 0.8);
+        o.updateMatrix();
+        sa.setMatrixAt(k, o.matrix);
+      });
+      sa.instanceMatrix.needsUpdate = true;
+      o.scale.set(1, 1, 1);
+    }
     for (const b of this.boards ?? []) {
       const a = b.userData.at;
       if (all || Math.hypot(a.x - p.x, a.z - p.z) < 220) b.position.y = this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14);
@@ -803,7 +1023,7 @@ export class Race {
         if (racing && r.done == null) {
           // (autopilot: the bot's riding for you — the end-to-end checks use it.)
           if (r.me && this.paused) input = {};
-          else if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), boost: key('Space') || this.sprintTap };
+          else if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), boost: key('KeyF') || this.sprintTap, drift: key('ShiftLeft', 'ShiftRight') };
           else input = this._bot(r, dt);
         } else if (r.done != null) input = { throttle: r.s.v < 2, brake: r.s.v > 3 };
         if (r.me) this.sprintTap = false;
@@ -814,22 +1034,26 @@ export class Race {
         input.draft = this._draft(r);
         input.surface = this._surface(r);
         input.kerb = this._kerb(r);
-        const out = stepScoot(r.s, input, dt, (x, z) => this._blocked(r, x, z), r.spec);
+        const out = this._step(r, input, dt);
         r.landed = out.landed;
         if (out.kerb === 'hop' && r.me) this.g.street?._thud?.(0.25);
         if (out.kerb === 'scrub') this._scrape(r, 0.2, false, 'kerb');
         // Into a wall head-on: off, if it was fast (about 30 km/h); slower, a bonk and a stop.
+        r.hitV = out.hit;
         if (out.hit > WALL_FALL && racing) this._crash(r, 'wall');
         else if (out.hit > 2 && r.me) this._scrape(r, 0.6, false, 'bonk');
         else if (out.hit > 1 && r.me) this.g.street?._thud?.(Math.min(1, out.hit / 9));
         else if (out.glance > 0) this._scrape(r, out.glance, false, 'wall');
         if (out.jolt > 0.4 && r.me) this.shake = Math.max(this.shake ?? 0, 0.04 * out.jolt);
         if (r.me && racing) this._motorSound(r);
+        if (r.me) this._squeal(r);
       } else if (r.net) {
         const kk = Math.min(1, dt * 10);
         r.s.x += (r.net.x - r.s.x) * kk;
         r.s.z += (r.net.z - r.s.z) * kk;
         r.s.heading += turn(r.s.heading, r.net.heading) * kk;
+        // (where the network says they are, but never inside a building between two messages)
+        this._clear(r);
         r.s.roll = ((r.s.roll ?? 0) + (r.s.v / SCOOT.wheel) * dt) % (Math.PI * 2);
         if (r.mode !== 'ride') r.crashT += dt;
       }
@@ -853,7 +1077,7 @@ export class Race {
     if (racing) {
       for (const r of this.racers) {
         if (!r.mine || r.left || r.mode !== 'ride' || r.done != null) continue;
-        const w = this.course.points[r.idx]?.[2] ?? 6;
+        const w = this._at(this._line(r), 0)?.[2] ?? 6;
         r.lost = (r.off ?? 0) > Math.max(14, w / 2 + 9) ? (r.lost ?? 0) + dt : 0;
         if (r.lost > 2.5) {
           r.lost = 0;
@@ -869,6 +1093,7 @@ export class Race {
     this._send(dt);
     this._lift();
     this.golmok?.update(dt);
+    for (const gm of this.golmoks ?? []) gm.update(dt);
     this.facades?.update();
     this.fx?.update(rawDt, this.g.camera);
     const feel = this.me.mode === 'ride' ? speedFeel(Math.abs(this.me.s.v), this.me.spec.cruise) : 0;
@@ -907,24 +1132,305 @@ export class Race {
     return best;
   }
 
-  /** Walls stop a bike — but not inside the street the course runs down (the map's walls and its streets don't quite agree). */
-  _blocked(r, x, z) {
-    if (!this.g.buildingAt(x, z)) return false;
+  /**
+   * Riding on for a frame against the walls (the buildings and the alleys' walls, walls.js): in
+   * steps of at most 1/120 s, so a fast rider meets a wall where it is, whatever the frame rate.
+   */
+  _step(r, input, dt) {
+    const walls = this.course.walls;
+    const steps = Math.max(1, Math.ceil(dt / (1 / 120) - 1e-6));
+    const h = dt / steps;
+    const all = { hit: 0, glance: 0, jolt: 0, kerb: null, landed: 0 };
+    for (let k = 0; k < steps; k++) {
+      // (a kerb is met once a frame, not once a step)
+      const out = stepScoot(r.s, k ? { ...input, kerb: null } : input, h, walls ?? (() => false), r.spec);
+      all.hit = Math.max(all.hit, out.hit);
+      all.glance = Math.max(all.glance, out.glance);
+      all.jolt = Math.max(all.jolt, out.jolt);
+      all.landed = Math.max(all.landed, out.landed);
+      all.kerb ??= out.kerb;
+      if (out.hit > 0) break;
+    }
+    return all;
+  }
+
+  /** Never inside a building or a wall: a racer found in one (a spawn, a snap from the network) goes out the nearest way. */
+  _clear(r) {
+    const walls = this.course?.walls;
+    if (!walls) return;
+    const out = walls.push(r.s.x, r.s.z, RIDER_RADIUS);
+    if (out.ok && out.moved < 6) {
+      r.s.x = out.x;
+      r.s.z = out.z;
+      return;
+    }
+    // Deep in one: back on the line the racer is following, where it is clear.
+    const line = this._line(r);
+    for (let k = 0; k < 12; k++) {
+      for (const sgn of [1, -1]) {
+        const p = this._at(line, k * sgn);
+        const fix = walls.push(p[0], p[1], RIDER_RADIUS);
+        if (fix.ok) {
+          r.s.x = fix.x;
+          r.s.z = fix.z;
+          return;
+        }
+      }
+    }
+  }
+
+  /** Whether a racer is inside a building (counted by the end-to-end checks: it must never be). */
+  _inside(r) {
+    return Boolean(this.course?.walls?.inside(r.s.x, r.s.z));
+  }
+
+  /* ------------------------------------------------- lines: the course and its short cuts */
+
+  /**
+   * Each short cut as a line a racer follows: a little of the course before it, the golmok, and
+   * the course after it — each point with how far round the course it counts as (`vs`: the
+   * golmok's metres stand for the course's metres it cuts out, so the order of the riders is fair
+   * whichever way they went), and the room between the walls at each.
+   */
+  _paths() {
     const c = this.course;
     const n = c.points.length;
-    const at = locate(c, x, z, r.idx);
-    // How far off the course's line (its segments, not just its points, 6 m apart).
-    let off = at.off;
-    for (const [a, b] of [[at.i - 1, at.i], [at.i, at.i + 1]]) {
-      const p = c.points[(a + n) % n];
-      const q = c.points[(b + n) % n];
-      const dx = q[0] - p[0];
-      const dz = q[1] - p[1];
-      const t = Math.max(0, Math.min(1, ((x - p[0]) * dx + (z - p[1]) * dz) / (dx * dx + dz * dz || 1)));
-      off = Math.min(off, Math.hypot(x - p[0] - dx * t, z - p[1] - dz * t));
+    const E = 10;
+    const X = 30;
+    this.paths = (c.shortcuts ?? []).map((sc, k) => {
+      const points = [];
+      const vs = [];
+      const room = [];
+      for (let i = sc.from - E; i < sc.from; i++) {
+        points.push(c.points[i]);
+        vs.push(c.s[i]);
+        room.push(c.room[i * 2], c.room[i * 2 + 1]);
+      }
+      const enter = points.length;
+      for (let j = 0; j < sc.points.length - 1; j++) {
+        points.push(sc.points[j]);
+        vs.push(c.s[sc.from] + (sc.s[j] / sc.length) * sc.span);
+        room.push(sc.room[j * 2], sc.room[j * 2 + 1]);
+      }
+      const leave = points.length;
+      for (let m = 0; m < X; m++) {
+        const i = (sc.to + m) % n;
+        points.push(c.points[i]);
+        vs.push(c.s[i] + (sc.to + m >= n ? c.length : 0));
+        room.push(c.room[i * 2], c.room[i * 2 + 1]);
+      }
+      const s = [0];
+      for (let i = 1; i < points.length; i++) s.push(s[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+      // Which way it turns off the course (+ left).
+      const a = c.points[sc.from - 2];
+      const b = c.points[sc.from];
+      const q = sc.points[Math.min(2, sc.points.length - 1)];
+      const side = Math.sign(turn(heading(a, b), heading(b, q))) || 1;
+      return { k, sc, points, vs, room: Float32Array.from(room), enter, leave, s, side, turns: this._turnsOf(points, true) };
+    });
+    this.scRoads = new Set((c.shortcuts ?? []).flatMap((sc) => [...(sc.roads ?? [])]));
+    // Where the golmok are (for keeping people and traffic out of them): their segments by 20 m square.
+    this.scGrid = new Map();
+    for (const p of this.paths) {
+      for (let i = p.enter + 1; i < p.leave; i++) {
+        const a = p.points[i - 1];
+        const b = p.points[i];
+        const seg = [a[0], a[1], b[0], b[1], (b[2] ?? 4) / 2 + 0.9];
+        for (const [x, z] of [[a[0], a[1]], [b[0], b[1]], [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]]) {
+          const key = `${Math.floor(x / 20)}|${Math.floor(z / 20)}`;
+          if (!this.scGrid.has(key)) this.scGrid.set(key, new Set());
+          this.scGrid.get(key).add(seg);
+        }
+      }
     }
-    const w = c.points[at.i][2] ?? 6;
-    return off > w / 2 - 0.2;
+  }
+
+  /** What stands in the street near a point (planters, bins, parked scooters, poles): the course's and the short cuts'. */
+  _props(x, z, r) {
+    const out = this.golmok?.near(x, z, r) ?? [];
+    for (const gm of this.golmoks ?? []) out.push(...gm.near(x, z, r));
+    return out;
+  }
+
+  /**
+   * Every place a golmok (the course's small streets, the short cuts) meets a main road: where its
+   * line goes from the road or its pavement onto the alley's own surface. For each, the surface is
+   * sampled along the line and to each side of it, every 20 cm for 10 m each way: a step of more
+   * than 5 cm between samples, a sample with nothing under it (a hole), or the alley's surface laid
+   * over the road's or the pavement's (two surfaces fighting) is flagged. Builds every stretch first.
+   */
+  junctionReport() {
+    const g = this.g;
+    this.golmok?.buildAll();
+    for (const gm of this.golmoks ?? []) gm.buildAll();
+    // (`over`: only an alley surface drawn level with or above the road's there — one tucked under it can't be seen)
+    const alleyAt = (x, z, inset = 0, over = false) => {
+      const cx = Math.floor(x / 40);
+      const cz = Math.floor(z / 40);
+      for (let i = cx - 1; i <= cx + 1; i++) {
+        for (let j = cz - 1; j <= cz + 1; j++) {
+          for (const s of g.roadHash?.get(`${i}_${j}`) ?? []) {
+            if (!s.alley) continue;
+            const dx = s.bx - s.ax;
+            const dz = s.bz - s.az;
+            // (round its ends too: a bend's corner is filled, golmok.js)
+            const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1)));
+            if (Math.hypot(x - s.ax - dx * t, z - s.az - dz * t) > s.half - 0.2 - inset) continue;
+            if (!over || s.ay + (s.by - s.ay) * t > g.surfaceAt(x, z, Infinity, true) - 0.015) return true;
+          }
+        }
+      }
+      return false;
+    };
+    const main = (x, z, inset = 0) => Boolean(g.onRoad(x, z, -inset) || (inset ? g.onWalk(x + inset, z) && g.onWalk(x - inset, z) && g.onWalk(x, z + inset) && g.onWalk(x, z - inset) : g.onWalk(x, z)));
+    const out = { junctions: 0, steps: 0, gaps: 0, overlaps: 0, worst: [], list: [] };
+    const lines = [{ name: 'course', pts: this.course.points, open: false }, ...(this.paths ?? []).map((p) => ({ name: p.sc.id, pts: p.sc.points, open: true }))];
+    for (const line of lines) {
+      const pts = line.pts;
+      const n = pts.length;
+      for (let i = 0; i < (line.open ? n - 1 : n); i++) {
+        const a = pts[i];
+        const b = pts[(i + 1) % n];
+        if (!((a[3] ?? 4) >= 5 || (b[3] ?? 4) >= 5)) continue;
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const ux = (b[0] - a[0]) / len;
+        const uz = (b[1] - a[1]) / len;
+        // where along it the road (or its pavement) gives way to the alley
+        let at = -1;
+        let prev = main(a[0], a[1]);
+        for (let t = 0.25; t <= len; t += 0.25) {
+          const now = main(a[0] + ux * t, a[1] + uz * t);
+          if (now !== prev) {
+            at = t;
+            break;
+          }
+          prev = now;
+        }
+        if (at < 0) continue;
+        out.junctions++;
+        const w = Math.min(a[2] ?? 4, b[2] ?? 4);
+        const J = { line: line.name, i, x: Math.round(a[0] + ux * at), z: Math.round(a[1] + uz * at), steps: 0, gaps: 0, overlaps: 0, maxStep: 0, flags: [] };
+        const flag = (what, o, d, v = 0) => J.flags.length < 8 && J.flags.push(`${what} ${o.toFixed(1)}/${d.toFixed(1)}${v ? ` ${v.toFixed(2)}` : ''}`);
+        for (const off of [-(w / 2 - 0.6), 0, w / 2 - 0.6]) {
+          let y = null;
+          let lastRise = null;
+          let both = 0;
+          // (a hole: nothing under a sample between two that have the road, the pavement or the alley under them)
+          const under = [];
+          for (let d = -10; d <= 10; d += 0.2) {
+            const x = a[0] + ux * (at + d) - uz * off;
+            const z = a[1] + uz * (at + d) + ux * off;
+            const onMain = main(x, z);
+            const onAlley = alleyAt(x, z);
+            under.push(onMain || onAlley || Boolean(g.buildingAt(x, z)) || Boolean(this.course.walls?.inside(x, z)));
+            both = main(x, z, 0.15) && alleyAt(x, z, 0.15, true) ? both + 0.2 : 0;
+            if (both > 0.3) {
+              J.overlaps++;
+              flag('overlap', off, d);
+              both = -1e9;
+            }
+            // (inside a building or a wall no one rides: the next step is counted from beyond it)
+            if (this.course.walls?.hits(x, z, 0.1)) {
+              y = null;
+              continue;
+            }
+            // (a step from one surface to another: off them all is the land, a hole if anything — counted as one)
+            if (!under.at(-1)) {
+              y = null;
+              continue;
+            }
+            const h = g.surfaceAt(x, z, y ?? g.surfaceAt(a[0], a[1]));
+            // (a step: a jump in the surface, not a hill — the rise from the last sample unlike the one before it)
+            const rise = y == null ? 0 : h - y;
+            if (y != null && Math.abs(rise - (lastRise ?? rise)) > 0.05 && Math.abs(rise) > 0.05) {
+              J.steps++;
+              flag('step', off, d, rise);
+              J.maxStep = Math.max(J.maxStep, Math.abs(h - y));
+            }
+            lastRise = y == null ? null : rise;
+            y = h;
+          }
+          for (let q = 0; q < under.length; q++) {
+            if (under[q]) continue;
+            let before = false;
+            let after = false;
+            for (let e = 1; e <= 15; e++) {
+              before ||= under[q - e] === true;
+              after ||= under[q + e] === true;
+            }
+            if (before && after) {
+              J.gaps++;
+              flag('gap', off, q * 0.2 - 10);
+            }
+          }
+        }
+        out.steps += J.steps;
+        out.gaps += J.gaps;
+        out.overlaps += J.overlaps;
+        J.maxStep = Math.round(J.maxStep * 100) / 100;
+        out.list.push(J);
+      }
+    }
+    out.worst = out.list.filter((j) => j.steps || j.gaps || j.overlaps).slice(0, 12);
+    return out;
+  }
+
+  /** Whether a point is in a short cut's golmok (nobody stands or drives there: it is a racing line). */
+  keepClear(x, z) {
+    if (!this.scGrid?.size || !this.course) return false;
+    const ci = Math.floor(x / 20);
+    const cj = Math.floor(z / 20);
+    for (let i = ci - 1; i <= ci + 1; i++) {
+      for (let j = cj - 1; j <= cj + 1; j++) {
+        for (const [ax, az, bx, bz, half] of this.scGrid.get(`${i}|${j}`) ?? []) {
+          const dx = bx - ax;
+          const dz = bz - az;
+          const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+          if (Math.hypot(x - ax - dx * t, z - az - dz * t) < half) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** The line a racer is on: the course (a loop), or a short cut's (open) — and where on it. */
+  _line(r) {
+    const p = r.sc != null ? this.paths?.[r.sc] : null;
+    if (p) return { pts: p.points, i: r.si, open: true, room: p.room, s: p.s, turns: p.turns, path: p };
+    const c = this.course;
+    return { pts: c.points, i: r.idx, open: false, room: c.room, s: c.s, turns: this.turnsList };
+  }
+
+  /** The point `k` on from where a line's racer is (an open line stops at its ends). */
+  _at(line, k = 0) {
+    const n = line.pts.length;
+    return line.pts[this._ix(line, k)] ?? line.pts[0];
+  }
+
+  _ix(line, k = 0) {
+    const n = line.pts.length;
+    return line.open ? Math.max(0, Math.min(n - 1, line.i + k)) : (((line.i + k) % n) + n) % n;
+  }
+
+  /** How far round the course (metres from the line) a racer is, short cut or not. */
+  _vs(r) {
+    const p = r.sc != null ? this.paths?.[r.sc] : null;
+    return p ? p.vs[r.si] : this.course.s[r.idx];
+  }
+
+  /** The course point nearest a distance round it. */
+  _idxAt(v) {
+    const c = this.course;
+    const L = c.length;
+    const x = ((v % L) + L) % L;
+    let lo = 0;
+    let hi = c.s.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (c.s[mid] <= x) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
   }
 
   /** Hitting traffic or people, or riding close past them. */
@@ -964,7 +1470,7 @@ export class Race {
       }
     }
     // Things standing in an alley: a planter, bins, a parked scooter, a pole.
-    for (const o of this.golmok?.near(s.x, s.z, 2) ?? []) {
+    for (const o of this._props(s.x, s.z, 2) ?? []) {
       const d = Math.min(Math.hypot(o.x - s.x, o.z - s.z), Math.hypot(o.x - (s.x - Math.sin(s.heading) * 0.7), o.z - (s.z - Math.cos(s.heading) * 0.7)));
       if (d > o.r + 0.28) continue;
       // Clipped with the edge of the bars, it glances off; only ridden into square is it a fall.
@@ -1043,6 +1549,9 @@ export class Race {
     r.mode = 'tumble';
     r.crashT = 0;
     r.crashes++;
+    (r.crashKinds ??= {})[what] = (r.crashKinds[what] ?? 0) + 1;
+    // (where and how, for the end-to-end checks' tally of what knocks riders off)
+    (this.crashLog ??= []).push({ id: r.id, what, x: Math.round(r.s.x * 10) / 10, z: Math.round(r.s.z * 10) / 10, v: Math.round(r.hitV ?? r.s.v), sc: r.sc, idx: r.idx, off: Math.round((r.off ?? 0) * 10) / 10, t: Math.round(this.clock) });
     // A branch in the front wheel: it stops dead and pitches you over the bars; then a moment no branch can catch you.
     r.fallKind = what === 'branch' ? 'wheel' : null;
     if (what === 'branch') r.branchSafe = THROW.immune;
@@ -1070,31 +1579,39 @@ export class Race {
       r.s.z += r.slide.vz * dt;
       r.slide.vx *= Math.max(0, 1 - dt * 4);
       r.slide.vz *= Math.max(0, 1 - dt * 4);
-      if (this._blocked(r, r.s.x, r.s.z)) {
+      const walls = this.course.walls;
+      if (walls?.hits(r.s.x, r.s.z, RIDER_RADIUS * 0.8)) {
         r.s.x -= r.slide.vx * dt;
         r.s.z -= r.slide.vz * dt;
         r.slide.vx = r.slide.vz = 0;
+        this._clear(r);
       }
     }
     if (r.mode === 'tumble' && r.crashT > TUMBLE) r.mode = 'dizzy';
     if (r.crashT > DOWN) this._remount(r);
   }
 
-  /** Back on the bike, on the course where you were (to the right of its line), a moment safe. */
+  /** Back on the bike, on the line where you were (the course, or the golmok of a short cut; to the right of its line), a moment safe. */
   _remount(r) {
     const c = this.course;
-    const at = locate(c, r.s.x, r.s.z, r.idx);
-    const i = at.off < 25 ? at.i : r.idx;
-    const p = c.points[i];
-    const q = c.points[(i + 1) % c.points.length];
-    const hd = heading(p, q);
-    const side = Math.max(0, Math.min(1.2, (p[2] ?? 6) / 2 - 1));
+    let line = this._line(r);
+    if (!line.path) {
+      const at = locate(c, r.s.x, r.s.z, r.idx);
+      r.idx = at.off < 25 ? at.i : r.idx;
+      line = this._line(r);
+    }
+    const p = this._at(line, 0);
+    const q = this._at(line, 1) === p ? this._at(line, -1) : this._at(line, 1);
+    const hd = q === this._at(line, 1) ? heading(p, q) : heading(q, p);
+    const i = this._ix(line, 0);
+    const room = line.room ? Math.min(line.room[i * 2 + 1] - 0.6, (p[2] ?? 6) / 2 - 1) : (p[2] ?? 6) / 2 - 1;
+    const side = Math.max(0, Math.min(1.2, room));
     Object.assign(r.s, { x: p[0] + Math.cos(hd) * side, z: p[1] - Math.sin(hd) * side, heading: hd, travel: hd, v: 0, lean: 0, steer: 0, air: 0, airV: 0, wobble: 0 });
+    this._clear(r);
     r.mode = 'ride';
     r.crashT = 0;
     r.slide = null;
     r.safe = 1.5;
-    r.idx = i;
     r.stuck = 0;
   }
 
@@ -1135,7 +1652,7 @@ export class Race {
     v.root.position.set(s.x, r.y, s.z);
     v.root.visible = !(r.safe > 0 && r.mode === 'ride' && Math.floor(r.safe * 12) % 2);
     const mode = won ? 'win' : this.phase === 'grid' ? 'grid' : r.mode;
-    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, steer: s.steer, braking: s.braking, boost: s.boosting || r.tailwind > 0, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, battery: s.stamina, night, glow: r.helmet ? '#ffd86a' : r.tailwind > 0 ? '#bdf0ff' : null });
+    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, drift: (s.drift ?? 0) * (s.driftSide ?? 0), steer: s.steer, braking: s.braking, boost: s.boosting || r.tailwind > 0, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, battery: s.stamina, night, glow: r.helmet ? '#ffd86a' : r.tailwind > 0 ? '#bdf0ff' : null });
     r.landed = 0;
     r.wobble = Math.max(0, (r.wobble ?? 0) - dt * 1.4);
     const cam = this.g.camera.position;
@@ -1146,7 +1663,71 @@ export class Race {
     if (!r.me && (v._fade ?? 1) < 0.03) v.root.visible = false;
     if (r.tailwind > 0 && Math.random() < dt * 14) this.fx?.streak({ x: s.x, y: r.y + 0.6 + Math.random() * 1.0, z: s.z }, s.heading);
     if (s.skid > 0.25 && s.v > 3 && Math.random() < dt * 20) this.fx?.dust({ x: s.x + Math.sin(s.heading) * 0.5, y: r.y, z: s.z + Math.cos(s.heading) * 0.5 }, 1);
+    // A drift: a dark scuff off the back tyre on the road, and a puff now and then.
+    if ((s.drift ?? 0) > 0.25 && s.v > 4 && r.mode === 'ride') {
+      r.markT = (r.markT ?? 0) - dt;
+      if (r.markT <= 0) {
+        r.markT = 0.035;
+        this._skidMark(s.x + Math.sin(s.heading) * 0.45, r.y, s.z + Math.cos(s.heading) * 0.45, s.travel ?? s.heading, Math.min(1, s.drift));
+      }
+      if (Math.random() < dt * 8) this.fx?.dust({ x: s.x + Math.sin(s.heading) * 0.5, y: r.y + 0.05, z: s.z + Math.cos(s.heading) * 0.5 }, 2);
+    }
     this.splash?.(r, dt);
+  }
+
+  /** A scuff of rubber on the road (from a drift): one of a few hundred, the oldest reused. */
+  _skidMark(x, y, z, hd, k) {
+    if (!this.marks) {
+      const geo = new THREE.PlaneGeometry(0.12, 0.34).rotateX(-Math.PI / 2);
+      const mat = new THREE.MeshBasicMaterial({ color: '#141416', transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -12 });
+      this.marks = new THREE.InstancedMesh(geo, mat, 400);
+      this.marks.frustumCulled = false;
+      this.marks.count = 0;
+      this.marks.userData.next = 0;
+      this.g.scene.add(this.marks);
+    }
+    const m = this.marks;
+    const o = this._markObj ??= new THREE.Object3D();
+    o.position.set(x, this.g.surfaceAt(x, z, y + 0.3) + 0.03, z);
+    o.rotation.set(0, hd, 0);
+    o.scale.set(0.7 + k * 0.6, 1, 1);
+    o.updateMatrix();
+    const i = m.userData.next;
+    m.setMatrixAt(i, o.matrix);
+    m.userData.next = (i + 1) % 400;
+    m.count = Math.max(m.count, i + 1);
+    m.instanceMatrix.needsUpdate = true;
+  }
+
+  /** The tyre's squeal while you drift: a narrow band of noise, louder the wider the slide. */
+  _squeal(r) {
+    const a = this._audio();
+    if (!a) return;
+    if (!this._sq) {
+      this._whoosh(0.001);
+      const src = a.createBufferSource();
+      src.buffer = this._nbuf;
+      src.loop = true;
+      const f = a.createBiquadFilter();
+      f.type = 'bandpass';
+      f.Q.value = 9;
+      f.frequency.value = 1900;
+      const f2 = a.createBiquadFilter();
+      f2.type = 'bandpass';
+      f2.Q.value = 14;
+      f2.frequency.value = 3100;
+      const gain = a.createGain();
+      gain.gain.value = 0;
+      src.connect(f).connect(gain);
+      src.connect(f2).connect(gain);
+      gain.connect(a.destination);
+      src.start();
+      this._sq = { src, f, f2, gain };
+    }
+    const k = r && r.mode === 'ride' && !this.paused ? Math.min(1, (r.s.drift ?? 0) * Math.min(1, r.s.v / 10) * (0.6 + r.s.skid)) : 0;
+    const t = a.currentTime;
+    this._sq.gain.gain.setTargetAtTime(k * 0.22, t, 0.04);
+    this._sq.f.frequency.setTargetAtTime(1700 + k * 500 + Math.sin(t * 23) * 60, t, 0.05);
   }
 
   /** On a wet road: spray off the back wheel. */
@@ -1194,8 +1775,7 @@ export class Race {
 
   /** What the wheels are on: paving on a pavement or a market lane, an alley's concrete, worn asphalt. */
   _surface(r) {
-    const c = this.course;
-    const p = c.points[r.idx];
+    const p = this._at(this._line(r), 0);
     const w = p?.[2] ?? 6;
     if ((r.off ?? 0) > w / 2 + 0.3) return 'paving';
     const cls = p?.[3] ?? 4;
@@ -1217,7 +1797,7 @@ export class Race {
     // Within the street the course runs down, a step in the surface is a seam or a steep bit (two road
     // meshes meeting, a hill), not a kerb: ridden over, never a wall.
     if (rise > 0.12) {
-      const p = this.course.points[r.idx];
+      const p = this._at(this._line(r), 0);
       if (p && Math.hypot(s.x + fx * 0.55 - p[0], s.z + fz * 0.55 - p[1]) < (p[2] ?? 6) / 2 + 2.5 && (r.off ?? 0) < (p[2] ?? 6) / 2 - 0.3) return null;
     }
     // the kerb's line from the slope across it: sample a little to each side of the step
@@ -1231,23 +1811,77 @@ export class Race {
     return { rise, cross, away: side > 0 ? -1 : 1 };
   }
 
-  /** How far round the course a racer has gone: following the nearest point, laps counted at the line. */
+  /**
+   * How far round the course a racer has gone: following the nearest point of the line it is on,
+   * laps counted at the line. Off the course into a short cut's golmok (a rider who turns in; a bot
+   * that chose to), it follows the golmok, its metres counted as the course's it cuts out, until it
+   * is back on the course.
+   */
   _progress(r) {
     const c = this.course;
     const L = c.length;
-    const loc = locate(c, r.s.x, r.s.z, r.idx);
-    const width = c.points[loc.i][2] ?? 6;
-    r.off = loc.off;
-    if (loc.off < width / 2 + 20) {
-      let d = c.s[loc.i] - c.s[r.idx];
-      if (d > L / 2) d -= L;
-      if (d < -L / 2) d += L;
-      r.dist += d;
-      r.idx = loc.i;
-      const q = c.points[(loc.i + 1) % c.points.length];
-      const p = c.points[loc.i];
-      r.wrong = Math.abs(turn(r.s.heading, heading(p, q))) > 2 && r.s.v > 3;
+    const n = c.points.length;
+    const before = this._vs(r);
+    if (r.sc != null && this.paths?.[r.sc]) {
+      const p = this.paths[r.sc];
+      const at = locateOn(p.points, r.s.x, r.s.z, r.si - 4, r.si + 14);
+      r.off = at.off;
+      if (at.i >= p.leave) {
+        r.sc = null;
+        r.idx = (p.sc.to + (at.i - p.leave)) % n;
+      } else if (at.off > 30 || (at.i < p.enter && !r.bot)) {
+        // Back out of it (or lost): on the course again.
+        r.sc = null;
+        const l = locate(c, r.s.x, r.s.z);
+        r.idx = l.i;
+        r.off = l.off;
+      } else {
+        r.si = at.i;
+        r.idx = this._idxAt(p.vs[at.i]);
+      }
+    } else {
+      r.sc = null;
+      const loc = locate(c, r.s.x, r.s.z, r.idx);
+      const width = c.points[loc.i][2] ?? 6;
+      r.off = loc.off;
+      if (loc.off < width / 2 + 20) r.idx = loc.i;
+      // Turned into a short cut's golmok: following it now.
+      for (const p of this.paths ?? []) {
+        if (r.idx < p.sc.from - 3 || r.idx > p.sc.from + 5) continue;
+        const at = locateOn(p.points, r.s.x, r.s.z, p.enter, p.enter + 5);
+        const w = p.points[at.i][2] ?? 4;
+        if (at.i > p.enter && at.off < w / 2 + 0.8 && at.off + 0.5 < loc.off) {
+          r.sc = p.k;
+          r.si = at.i;
+          r.off = at.off;
+          r.shortcuts = (r.shortcuts ?? 0) + 1;
+          break;
+        }
+      }
+      // A bot that means to take one: on its line from a little before it.
+      if (r.bot && r.sc == null) {
+        for (const p of this.paths ?? []) {
+          const ahead = p.sc.from - r.idx;
+          if (ahead < 1 || ahead > 8) continue;
+          const key = `${p.k}|${r.lapsDone}`;
+          if (r.scPick?.key !== key) r.scPick = { key, take: Math.random() < Math.max(0.12, Math.min(0.8, 0.15 + ((r.skill ?? 0.9) - 0.86) * 4.5)) };
+          if (r.scPick.take) {
+            r.sc = p.k;
+            r.si = p.enter - ahead;
+            r.shortcuts = (r.shortcuts ?? 0) + 1;
+          }
+          break;
+        }
+      }
     }
+    let d = this._vs(r) - before;
+    if (d > L / 2) d -= L;
+    if (d < -L / 2) d += L;
+    r.dist += d;
+    const line = this._line(r);
+    const p = this._at(line, 0);
+    const q = this._at(line, 1);
+    r.wrong = p !== q && Math.abs(turn(r.s.heading, heading(p, q))) > 2 && r.s.v > 3;
     const laps = Math.floor(r.dist / L);
     if (this.phase === 'racing' && laps > r.lapsDone) {
       const lap = this.clock - r.lapStart;
@@ -1528,25 +2162,35 @@ export class Race {
    */
   _bot(r, dt) {
     r.skill ??= 0.97;
-    const c = this.course;
-    const n = c.points.length;
+    // The line it follows: the course, or the short cut it chose.
+    const line = this._line(r);
+    const P = (k) => this._at(line, k);
     const s = r.s;
     const v = Math.max(0, s.v);
     // (in a narrow street it aims nearer, or it would cut the corners through the walls)
-    const narrowK = Math.min(1, Math.max(0.35, ((c.points[r.idx]?.[2] ?? 8) - 2) / 6));
+    const narrowK = Math.min(1, Math.max(0.35, ((P(0)?.[2] ?? 8) - 2) / 6));
     const ahead = Math.max(1, Math.round((4 + v * 0.6 * narrowK) / 6));
-    const t = c.points[(r.idx + ahead) % n];
-    const t2 = c.points[(r.idx + ahead + 1) % n];
-    const hd = heading(t, t2);
+    let t = P(ahead);
+    let t2 = P(ahead + 1);
+    if (t === t2) t = P(ahead - 1);
+    const hd = heading(t, t2 === t ? P(ahead + 1) : t2);
     // Its own line in the street: on a big road the right-hand half, in an alley all of it —
-    // and round anyone slower in that line, on the side with more room.
+    // and round anyone slower in that line, on the side with more room — never nearer a wall than
+    // its handlebars allow (the room the walls really leave, roomOf).
     const small = isSmall(t[3] ?? 4);
-    const band = laneBand(t[2] ?? 6, small, false, Boolean(t[4]));
-    const wide = laneBand(t[2] ?? 6, small, true, Boolean(t[4]));
+    const ti = this._ix(line, ahead);
+    const fit = (b) => {
+      if (!line.room) return b;
+      const lo = Math.max(b.lo, -line.room[ti * 2] + 0.75);
+      const hi = Math.min(b.hi, line.room[ti * 2 + 1] - 0.75);
+      return lo <= hi ? { lo, hi } : { lo: (lo + hi) / 2, hi: (lo + hi) / 2 };
+    };
+    const band = fit(laneBand(t[2] ?? 6, small, false, Boolean(t[4])));
+    const wide = fit(laneBand(t[2] ?? 6, small, true, Boolean(t[4])));
     r.laneK ??= 0.5;
     let want = band.lo + (band.hi - band.lo) * r.laneK;
-    const here = c.points[r.idx];
-    const next = c.points[(r.idx + 1) % n];
+    const here = P(0);
+    const next = P(1) === here ? P(-1) : P(1);
     const myLat = lateralOf(s.x, s.z, here, next);
     let passing = null;
     for (const o of this.racers) {
@@ -1626,23 +2270,32 @@ export class Race {
         blockV = o.s.v;
       }
     }
-    for (const o of this.golmok?.near(s.x, s.z, 20) ?? []) consider(o.x, o.z, o.r);
+    for (const o of this._props(s.x, s.z, 20) ?? []) consider(o.x, o.z, o.r);
     // Steering is + to the left; something on our right pushes us left.
     steer = Math.max(-1, Math.min(1, steer + push * r.skill));
     const grip = Math.min(1.05, this._grip() * (r.spec.grip ?? 1));
     let target = r.spec.boostTop;
     let straight = true;
-    // Corners ahead (about 100 m of them): how fast each can be taken, and braking for it in time.
+    // Corners ahead (about 100 m of them): how fast each can be taken, and braking for it in time —
+    // a tight one (a 90° junction) drifted, faster than any lean would take it.
     const decel = r.spec.brake * Math.min(1, grip) * 0.7;
+    const driftV = (12 + (r.skill - 0.86) * 28) * Math.min(1, grip * 1.1);
+    let driftNow = 0;
     for (let j = 1; j < 17; j++) {
-      const a = c.points[(r.idx + j) % n];
-      const b = c.points[(r.idx + j + 3) % n];
-      const p0 = c.points[(r.idx + j - 3 + n) % n];
+      const a = P(j);
+      const b = P(j + 3);
+      const p0 = P(j - 3);
+      if (a === b || a === p0) break;
       const bend = Math.abs(turn(Math.atan2(a[0] - p0[0], a[1] - p0[1]), Math.atan2(b[0] - a[0], b[1] - a[1])));
       if (j < 9 && bend > 0.25) straight = false;
       // (a road's corner is cut across its width: the line through it is wider than the kerb's)
       const w = Math.min(a[2] ?? 8, b[2] ?? 8);
-      const corner = cornerSpeed(Math.max(1e-3, bend / Math.min(30, 12 + w * 1.6)), grip, r.spec) * (0.78 + 0.14 * r.skill);
+      let corner = cornerSpeed(Math.max(1e-3, bend / Math.min(30, 12 + w * 1.6)), grip, r.spec) * (0.78 + 0.14 * r.skill);
+      if (bend > 0.9) {
+        corner = Math.max(corner, driftV);
+        // close to it and too quick to lean round: drift (the way it turns)
+        if (j <= 3 && v > corner * 0.8 && !driftNow) driftNow = Math.sign(turn(Math.atan2(a[0] - p0[0], a[1] - p0[1]), Math.atan2(b[0] - a[0], b[1] - a[1]))) || 0;
+      }
       target = Math.min(target, Math.sqrt(corner * corner + 2 * decel * Math.max(0, j * 6 - 5)));
     }
     // Run wide off the course (a corner overcooked): slow, and back onto it.
@@ -1650,6 +2303,9 @@ export class Race {
     // Something in the way with no way round: slow to its speed in time.
     if (block < R && Math.abs(push) < 0.6) target = Math.min(target, blockV + Math.sqrt(2 * decel * Math.max(0, block - 5)));
     if (crossing < R) target = Math.min(target, Math.sqrt(2 * decel * Math.max(0, crossing - 6)));
+    // Down a golmok barely wider than the bars: steady, the walls an arm's length off.
+    const pinch = Math.min(P(0)?.[2] ?? 8, P(3)?.[2] ?? 8);
+    if (pinch < 4.4) target = Math.min(target, 12.5 + 3 * (r.skill - 0.88) * 10);
     r.stuck = this.phase === 'racing' && v < 0.8 ? r.stuck + dt : 0;
     if (r.stuck > 2.5 || r.off > 30) this._remount(r);
     const has = (id) => r.items.indexOf(id);
@@ -1668,7 +2324,13 @@ export class Race {
     }
     r.dbg = { block: Math.round(block * 10) / 10, push: Math.round(push * 100) / 100, target: Math.round(target * 10) / 10, steer: Math.round(steer * 100) / 100 };
     const wantBoost = straight && block > 40 && (s.stamina > 0.45 || r.tailwind > 0) && v > 10 && v < target - 0.3;
-    return { throttle: v < target - 0.2, brake: v > target + 1.2, steer, boost: wantBoost && Math.random() < 0.4 + 0.6 * r.skill };
+    // In a drift: held while the corner lasts, steered hard the way it turns (+ left, as steering is).
+    r.driftT = driftNow ? 0.45 : Math.max(0, (r.driftT ?? 0) - dt);
+    if (driftNow) r.driftSide = driftNow;
+    const drift = r.driftT > 0 && v > 6;
+    if (drift && Math.sign(steer) !== Math.sign(r.driftSide)) steer = r.driftSide * 0.4;
+    if (drift) steer = Math.sign(steer || r.driftSide) * Math.max(Math.abs(steer), 0.75);
+    return { throttle: v < target - 0.2, brake: v > target + 1.2 && !drift, steer, drift, boost: wantBoost && Math.random() < 0.4 + 0.6 * r.skill };
   }
 
   /** The order: finished first (by time), then by how far round. */
@@ -1730,7 +2392,7 @@ export class Race {
     this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.ch.name)} <small>${esc(r.name)}${r.bot ? ' · bot' : ''}</small><span>${r.done != null ? clock(r.done) : `${Math.max(0, Math.round((L - r.dist) / 10) * 10)} m`}</span></p>`).join('');
     const kmh = Math.round(Math.abs(me.s.v) * 3.6);
     const st = me.s.stamina;
-    const state = me.mode !== 'ride' ? 'OUCH' : me.tailwind > 0 ? 'TAILWIND' : me.s.boosting ? 'BOOST' : me.s.tired > 0 ? 'CHARGING…' : me.draft > 0.2 ? 'SLIPSTREAM' : st >= 0.99 ? 'SPACE · BOOST' : '';
+    const state = me.mode !== 'ride' ? 'OUCH' : (me.s.drift ?? 0) > 0.3 ? 'DRIFT' : me.tailwind > 0 ? 'TAILWIND' : me.s.boosting ? 'BOOST' : me.s.tired > 0 ? 'CHARGING…' : me.draft > 0.2 ? 'SLIPSTREAM' : st >= 0.99 ? 'F · BOOST' : '';
     this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost${st >= 0.99 ? ' is-full' : ''}${me.s.tired > 0 ? ' is-tired' : ''}"><i style="width:${Math.round(st * 100)}%"></i></div><span>${state}</span>${me.helmet ? '<em class="race__shield">golden helmet on</em>' : ''}`;
     // Speed lines round the edge of the screen: from about 55 km/h, stronger flat out and on a boost.
     const lines = me.mode === 'ride' ? Math.min(1, (this.feel ?? 0) * 0.75 + (me.s.boosting || me.tailwind > 0 ? 0.35 : 0)) : 0;
@@ -1750,7 +2412,21 @@ export class Race {
       }
     }
     this._warn(me);
+    this._scHint(me);
     this._minimap();
+  }
+
+  /** A short cut coming up on the course: which side, how far, and what it saves; in it, a badge. */
+  _scHint(me) {
+    const sc = this.phase === 'racing' && me.done == null ? this._nextShortcut(me) : null;
+    const inIt = me.sc != null && this.paths?.[me.sc];
+    const key = inIt ? `in|${me.sc}` : sc ? `${sc.left}|${Math.round(sc.metres / 10)}` : '';
+    if (key === this._scKey) return;
+    this._scKey = key;
+    this.scEl.hidden = !key;
+    if (inIt) this.scEl.innerHTML = `<b>⤴</b><span>SHORTCUT · 지름길</span><small>tight walls — steady</small>`;
+    else if (sc) this.scEl.innerHTML = `<b>${sc.left ? '⬉' : '⬈'}</b><span>SHORTCUT ${sc.left ? 'LEFT' : 'RIGHT'}</span><small>${sc.metres < 8 ? 'now' : `${Math.round(sc.metres / 10) * 10} m`} · saves ${Math.round(sc.saves / 10) * 10} m</small>`;
+    this.scEl.classList.toggle('is-in', Boolean(inIt));
   }
 
   /**
@@ -1770,7 +2446,7 @@ export class Race {
         if (along < 6 || along > 25 + s.v * 2.5 || Math.abs(side) > r + 0.7) return;
         if (!hit || along < hit.along) hit = { along, side, what };
       };
-      for (const o of this.golmok?.near(s.x, s.z, 80) ?? []) look(o.x, o.z, o.r, o.kind === 'pole' ? 'pole' : o.kind);
+      for (const o of this._props(s.x, s.z, 80) ?? []) look(o.x, o.z, o.r, o.kind === 'pole' ? 'pole' : o.kind);
       for (const v of this.traffic?.near(s.x, s.z, 80) ?? []) if (v.v < 2) look(v.box.x, v.box.z, v.box.halfWidth, v.kind);
     }
     const key = hit ? `${hit.side > 0 ? 'L' : 'R'}|${hit.what}|${Math.round(hit.along / 10)}` : '';
@@ -1830,10 +2506,30 @@ export class Race {
     pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
     g.closePath();
     g.stroke();
+    // The short cuts: dotted, off the course.
+    g.save();
+    g.setLineDash([7, 7]);
+    g.lineCap = 'butt';
+    for (const p of this.paths ?? []) {
+      const on = me.sc === p.k;
+      g.strokeStyle = on ? '#7ff0ff' : 'rgba(127, 240, 255, 0.9)';
+      g.lineWidth = on ? 9 : 6;
+      g.beginPath();
+      p.sc.points.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])));
+      g.stroke();
+    }
+    g.restore();
     g.strokeStyle = '#ffd23a';
     g.lineWidth = 10;
     g.beginPath();
-    for (let k = 0; k < 40; k++) {
+    if (me.sc != null && this.paths?.[me.sc]) {
+      const p = this.paths[me.sc];
+      for (let k = 0; k < 40; k++) {
+        const q = p.points[Math.min(p.points.length - 1, me.si + k)];
+        if (k) g.lineTo(q[0], q[1]);
+        else g.moveTo(q[0], q[1]);
+      }
+    } else for (let k = 0; k < 40; k++) {
       const p = pts[(me.idx + k) % n];
       if (k) g.lineTo(p[0], p[1]);
       else g.moveTo(p[0], p[1]);
@@ -1964,37 +2660,61 @@ export class Race {
     const g = this.g;
     const r = this.me;
     if (!r) return;
+    // (a fixed view, for the end-to-end checks' close-ups of the junctions)
+    if (this.debugCam) {
+      const d = this.debugCam;
+      camera.position.set(d.x, d.y, d.z);
+      camera.lookAt(d.tx, d.ty, d.tz);
+      camera.fov = d.fov ?? 55;
+      camera.updateProjectionMatrix();
+      return;
+    }
     if (performance.now() - (g.dragAt ?? 0) > 1000) {
       const behind = r.mode === 'ride' ? r.s.travel ?? r.s.heading : g.yaw;
       g.yaw += turn(g.yaw, behind) * 0.1;
       // A little higher in the alleys, to see over the clutter round the next corner.
-      const alley = isSmall(this.course.points[r.idx]?.[3] ?? 4) && (this.course.points[r.idx]?.[2] ?? 6) < 5;
+      const here = this._at(this._line(r), 0);
+      const alley = isSmall(here?.[3] ?? 4) && (here?.[2] ?? 6) < 5;
       g.pitch += ((alley ? -0.36 : CHASE.pitch) - g.pitch) * 0.05;
     }
     const dir = new THREE.Vector3(-Math.sin(g.yaw) * Math.cos(g.pitch), Math.sin(g.pitch), -Math.cos(g.yaw) * Math.cos(g.pitch));
     // To the camera's side: left of the way it looks (toward the road's middle, riding on the right).
     const side = new THREE.Vector3(-Math.cos(g.yaw), 0, Math.sin(g.yaw)).multiplyScalar(CHASE.side);
     const focus = new THREE.Vector3(r.s.x - Math.sin(g.yaw) * CHASE.ahead, r.y + CHASE.height, r.s.z - Math.cos(g.yaw) * CHASE.ahead).addScaledVector(side, 0.3);
-    // Never inside a building: in a turning alley the camera comes in close (and a little up) instead.
+    // Never inside a building or through a wall: the camera comes in close (and a little up) instead —
+    // swept out from the rider against the same walls the rider meets.
     let dist = (g.zoom ?? CHASE.zoom) + Math.min(1.5, Math.abs(r.s.v) * 0.07);
-    // (Where the map's buildings overlap the alley itself, the rider is "inside" one: no pulling in then.)
-    const inside = g.buildingAt(r.s.x, r.s.z);
+    const walls = this.course.walls;
+    if (walls) {
+      const cx = focus.x - dir.x * dist + side.x * 0.7;
+      const cz = focus.z - dir.z * dist + side.z * 0.7;
+      const hit = walls.sweep(r.s.x, r.s.z, cx, cz, 0.3);
+      if (hit) dist = Math.max(1.4, dist * hit.t - 0.25);
+    }
     // Nor inside a car or a bus beside you: the camera comes in over it instead.
     const cars = (this.traffic?.vehicles ?? []).filter((v) => Math.hypot(v.box.x - r.s.x, v.box.z - r.s.z) < dist + 8);
     for (let d = 1.2; d <= dist; d += 0.4) {
       const x = focus.x - dir.x * d + side.x * 0.7 * (d / dist);
       const z = focus.z - dir.z * d + side.z * 0.7 * (d / dist);
       const y = focus.y - dir.y * d;
-      if ((!inside && g.buildingAt(x, z)) || cars.some((v) => inBox(v, x, y, z, 0.45))) {
+      if (cars.some((v) => inBox(v, x, y, z, 0.45))) {
         dist = Math.max(2.2, d - 0.5);
         break;
       }
     }
-    this._camDist = this._camDist == null ? dist : this._camDist + (dist - this._camDist) * (dist < this._camDist ? 0.5 : 0.06);
+    // (in at once when a wall comes between; back out slowly)
+    this._camDist = this._camDist == null || dist < this._camDist ? dist : this._camDist + (dist - this._camDist) * 0.06;
     camera.position.copy(focus).addScaledVector(dir, -this._camDist).addScaledVector(side, 0.7);
     // pulled in close (a wall, a car), it rises to look over the rider rather than into their back
     camera.position.y += Math.max(0, 4 - this._camDist) * 0.5;
     camera.position.y = Math.max(camera.position.y, g.surfaceAt(camera.position.x, camera.position.z, r.y) + 0.9);
+    // Last word: out of any wall it still touches (a corner behind you), the way the rider would be pushed.
+    if (walls?.hits(camera.position.x, camera.position.z, 0.22)) {
+      const out = walls.push(camera.position.x, camera.position.z, 0.25);
+      camera.position.x = out.x;
+      camera.position.z = out.z;
+    }
+    this.camInside = Boolean(walls?.inside(camera.position.x, camera.position.z));
     if (this.shake > 0) {
       this.shake = Math.max(0, this.shake - 1 / 60);
       camera.position.x += (Math.random() - 0.5) * this.shake * 0.6;
@@ -2037,7 +2757,7 @@ export class Race {
     o.stop(a.currentTime + 0.32);
   }
 
-  /** The bell (Shift, or B): ring-ring — people just ahead step aside, slower riders and scooters ahead give you room. */
+  /** The bell (Space, or B): ring-ring — people just ahead step aside, slower riders and scooters ahead give you room. */
   bell() {
     const me = this.me;
     if (!me || me.mode !== 'ride' || this.paused) return;
@@ -2219,12 +2939,19 @@ export class Race {
       this[k]?.dispose();
       this[k] = null;
     }
+    for (const gm of this.golmoks ?? []) gm.dispose();
+    this.golmoks = [];
+    this.paths = [];
+    this.scGrid = null;
     if (this.decor) this.g.scene.remove(this.decor);
     this.decor = null;
     for (const t of this._boardTex ?? []) t.dispose();
     for (const m of this._boardMats ?? []) m.dispose();
     this.boards = [];
     this.chevrons = null;
+    this.scArrows = null;
+    for (const sg of this.scSigns ?? []) sg.userData.mat?.map?.dispose();
+    this.scSigns = [];
     this.gate = null;
     this.course = null;
     this.me = null;
@@ -2233,10 +2960,20 @@ export class Race {
     this.hintEl.hidden = true;
     this.warnEl.hidden = true;
     this._warnKey = '';
+    this.scEl.hidden = true;
+    this._scKey = '';
     this.msgEl.hidden = true;
     this.resultEl.hidden = true;
     if (this._hub) this._hub.gain.gain.value = 0;
     this._wind?.set(0);
+    if (this._sq) this._sq.gain.gain.value = 0;
+    if (this.course) this.g.setMouths?.(null);
+    if (this.marks) {
+      this.g.scene.remove(this.marks);
+      this.marks.geometry.dispose();
+      this.marks.material.dispose();
+      this.marks = null;
+    }
     this.g.raceSky?.(null);
   }
 

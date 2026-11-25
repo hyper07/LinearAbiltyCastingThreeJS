@@ -972,6 +972,48 @@
   }
 }
 
+/* A short cut coming up (and the badge while in one): cyan, under the turn sign. */
+.race__sc {
+  position: absolute;
+  top: 148px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 5px 16px;
+  border-radius: 12px;
+  background: rgba(6, 26, 32, 0.86);
+  border: 2px dashed #7ff0ff;
+  color: #fff;
+  pointer-events: none;
+}
+.race__sc b {
+  grid-row: 1 / span 2;
+  font-size: 30px;
+  line-height: 1;
+  color: #7ff0ff;
+}
+.race__sc span {
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: #7ff0ff;
+}
+.race__sc small {
+  font-size: 13px;
+  opacity: 0.85;
+}
+.race__sc.is-in {
+  border-style: solid;
+}
+@media (max-width: 640px) {
+  .race__sc {
+    top: 112px;
+  }
+}
+
 /* The garage */
 .race__label {
   margin: 14px 0 6px;

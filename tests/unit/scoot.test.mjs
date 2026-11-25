@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SCOOT, GRIP, JOINTS, KERB, GLANCE, newScoot, stepScoot, maxCurvature, cornerSpeed, kerbHop } from '../../src/city/scoot.js';
+import { SCOOT, GRIP, JOINTS, KERB, GLANCE, DRIFT, newScoot, stepScoot, maxCurvature, cornerSpeed, kerbHop } from '../../src/city/scoot.js';
 import { CREW, CREW_ORDER, rider, botRiders } from '../../src/city/crew.js';
 
 const ride = (s, input, secs, dt = 1 / 60, blocked) => {
@@ -176,6 +176,39 @@ test('scooter: a wall met at a slant is a glance — turned along it, slowed, st
   assert.ok(glanced > 0 && glanced <= GLANCE, `glanced ${glanced}`);
   assert.ok(s.x < 3 && s.z < -20, 'scraped along it and on up the street');
   assert.ok(s.v > 6, `still going (${s.v.toFixed(1)} m/s)`);
+});
+
+test('scooter: Shift drifts — round a 90° junction at speed in a fraction of the room a lean needs, a little speed lost, straight again on letting go', () => {
+  const turned = (s) => Math.abs(Math.atan2(Math.sin(s.travel), Math.cos(s.travel)));
+  for (const v0 of [12, 16, SCOOT.cruise]) {
+    const run = (drift, throttle = true) => {
+      const s = newScoot(0, 0, 0);
+      s.v = v0;
+      let t = 0;
+      while (turned(s) < Math.PI / 2 && t < 6) {
+        stepScoot(s, { throttle, steer: 1, drift }, 1 / 120);
+        t += 1 / 120;
+      }
+      return { s, t, forward: -s.z, side: -s.x };
+    };
+    const lean = run(false);
+    const drift = run(true);
+    // A 90° junction: the turn done within about 14 m (a road's width or two), where leaning needs 30+.
+    assert.ok(drift.forward < 14 && drift.side < 10, `${v0} m/s: drifted round in ${drift.forward.toFixed(1)} × ${drift.side.toFixed(1)} m`);
+    assert.ok(lean.forward > drift.forward * 2, `${v0} m/s: a lean needs ${lean.forward.toFixed(1)} m`);
+    assert.ok(drift.s.v > v0 * 0.8, `${v0} m/s: still quick out of it (${drift.s.v.toFixed(1)})`);
+    assert.ok(drift.s.skid > 0.3 && drift.s.skid <= DRIFT.maxSlip + 0.06, `the back out, held (${drift.s.skid.toFixed(2)} rad)`);
+    // Off the throttle it loses some speed — less than braking would.
+    const coast = run(true, false);
+    const braked = newScoot(0, 0, 0);
+    braked.v = v0;
+    for (let t = 0; t < coast.t; t += 1 / 120) stepScoot(braked, { brake: true }, 1 / 120);
+    assert.ok(coast.s.v > braked.v + 2 && coast.s.v < v0, `drifting costs ${(v0 - coast.s.v).toFixed(1)} m/s, braking ${(v0 - braked.v).toFixed(1)}`);
+    // Let go: straight again within half a second.
+    const s = drift.s;
+    for (let t = 0; t < 0.5; t += 1 / 120) stepScoot(s, { throttle: true }, 1 / 120);
+    assert.ok(s.skid < 0.08 && s.drift < 0.05, `straightened (${s.skid.toFixed(3)})`);
+  }
 });
 
 test('crew: Snowpuff\'s plush riders, girls and boys both; bots always mix them', () => {

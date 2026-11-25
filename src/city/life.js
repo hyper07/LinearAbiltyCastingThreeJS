@@ -244,7 +244,8 @@ export class StreetLife {
 
   /** Off every road, outside every building, not in the river. */
   _free(x, z) {
-    return !this.g.onRoad?.(x, z, 0.2) && !this.g.buildingAt?.(x, z) && !this.g.waterAt?.(x, z);
+    // (nor in a race's short-cut golmok: those are kept clear to race down)
+    return !this.g.onRoad?.(x, z, 0.2) && !this.g.buildingAt?.(x, z) && !this.g.waterAt?.(x, z) && !(this.g.mode === 'race' && this.g.race?.keepClear?.(x, z));
   }
 
   update(dt) {

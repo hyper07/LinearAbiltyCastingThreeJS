@@ -8,7 +8,11 @@
  * the street: every paving joint is a bump (a jolt and a sliver of speed),
  * a kerb taken at an angle is a hop up, one met glancing scrubs along it and
  * wobbles you. Wet roads have less grip: less lean, longer braking, and the
- * back steps out — it slides.
+ * back steps out — it slides. And a drift on purpose (Shift held while
+ * steering): the back wheel lets go, the scooter swings round faster than any
+ * lean would turn it, an assist holds the slide's angle, and it scrubs off a
+ * little speed (less than the brakes would) — the way round a 90° junction at
+ * speed. Let go and it straightens.
  *
  * A scooter is { x, z, heading, travel, v, lean, steer, stamina (the boost
  * gauge, 0–1), … }: heading the way it points (0 is north, −z; turning left
@@ -38,6 +42,13 @@ export const SCOOT = {
   halfWidth: 0.3,
   grip: 1
 };
+
+/**
+ * A drift: how fast it swings round (rad/s at full lock, on top of the lean), how quickly the way it
+ * goes follows the way it points while the back is out (the rear's grip), the slide angle the
+ * assist holds it to, and the speed it scrubs off (m/s² — plus more the wider the slide).
+ */
+export const DRIFT = { yaw: 2.3, hold: 4.4, maxSlip: 0.72, scrub: 1.2, slipScrub: 3.6, minV: 5 };
 
 /** Grip by surface: dry, wet (rain, a storm, fog's damp), snow. */
 export const GRIP = { dry: 1, wet: 0.7, snow: 0.48 };
@@ -94,7 +105,7 @@ export function kerbHop(rise, cross) {
 
 /**
  * Move a scooter on by dt seconds. `input`: { throttle, brake, left, right (or
- * steer −1…1), boost, free (a tailwind: boosting costs nothing), extra (m/s
+ * steer −1…1), drift (Shift held), boost, free (a tailwind: boosting costs nothing), extra (m/s
  * more top speed), grade (rise over run), grip (GRIP.*), draft (0–1),
  * surface ('paving' | 'concrete' | 'asphalt' | 'smooth'), kerb ({ rise, cross })
  * }. `blocked` is what is solid: a Walls (walls.js — the buildings' footprints and
@@ -158,12 +169,31 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   const byBars = (Math.tan(s.steer * 0.6) / spec.wheelbase) * (1 - speedK);
   const curve = clamp(byLean + byBars, -1 / 1.8, 1 / 1.8);
   s.heading += curve * s.v * dt;
+  // A drift: Shift held, steering, going — the back steps out and it swings round (eased in and out).
+  const drifting = Boolean(input.drift) && Math.abs(wheel) > 0.15 && s.v > DRIFT.minV && !(s.air > 0);
+  s.drift = (s.drift ?? 0) + ((drifting ? 1 : 0) - (s.drift ?? 0)) * Math.min(1, dt * (drifting ? 6 : 7));
+  if (s.drift < 0.01) s.drift = 0;
+  const dk = s.drift;
+  if (dk > 0) {
+    if (drifting) s.driftSide = Math.sign(wheel);
+    s.heading += wheel * DRIFT.yaw * dk * Math.min(1, grip * 1.1) * dt;
+  }
   // The way it goes follows the way it points; on a wet road, braking in a lean — or leaning hard fast — the back steps out.
   const braking = input.brake && s.v > 2;
   const leanK = Math.abs(s.lean) / Math.max(0.05, maxLean);
   const loose = (braking ? leanK : 0) + (grip < 0.9 && s.v > spec.cruise * 0.55 ? leanK * leanK * 0.6 : 0);
-  const hold = (14 * grip) / (1 + loose * (grip < 0.9 ? 3.5 : 1.2));
+  let hold = (14 * grip) / (1 + loose * (grip < 0.9 ? 3.5 : 1.2));
+  if (dk > 0) hold += (DRIFT.hold * Math.min(1, grip * 1.1) - hold) * dk;
   s.travel = (s.travel ?? s.heading) + turn(s.travel ?? s.heading, s.heading) * Math.min(1, dt * hold);
+  if (dk > 0) {
+    // The assist: the slide held to its angle (no spinning round), and the speed it costs.
+    const slip = turn(s.travel, s.heading);
+    const cap = DRIFT.maxSlip * dk + 0.05;
+    if (Math.abs(slip) > cap) s.heading = s.travel + Math.sign(slip) * cap;
+    s.v = Math.max(0, s.v - (DRIFT.scrub + DRIFT.slipScrub * Math.abs(Math.sin(slip))) * dk * dt);
+    // and the rider's weight goes the other way to the slide
+    s.lean += (wheel * maxLean * 0.8 - s.lean) * Math.min(1, dt * 6) * dk;
+  }
   s.skid = Math.abs(turn(s.travel, s.heading));
   // The wheels roll; joints in the street come by and each one is a bump.
   s.roll = (s.roll + (s.v / spec.wheel) * dt) % (Math.PI * 2);
