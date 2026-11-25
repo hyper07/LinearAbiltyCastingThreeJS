@@ -1040,7 +1040,8 @@ export class Race {
         if (out.kerb === 'scrub') this._scrape(r, 0.2, false, 'kerb');
         // Into a wall head-on: off, if it was fast (about 30 km/h); slower, a bonk and a stop.
         r.hitV = out.hit;
-        if (out.hit > WALL_FALL && racing) this._crash(r, 'wall');
+        // (sliding into it sideways in a drift, the deck takes it: a harder knock before it throws you)
+        if (out.hit > WALL_FALL * (1 + 0.45 * (r.s.drift ?? 0)) && racing) this._crash(r, 'wall');
         else if (out.hit > 2 && r.me) this._scrape(r, 0.6, false, 'bonk');
         else if (out.hit > 1 && r.me) this.g.street?._thud?.(Math.min(1, out.hit / 9));
         else if (out.glance > 0) this._scrape(r, out.glance, false, 'wall');
@@ -1551,7 +1552,7 @@ export class Race {
     r.crashes++;
     (r.crashKinds ??= {})[what] = (r.crashKinds[what] ?? 0) + 1;
     // (where and how, for the end-to-end checks' tally of what knocks riders off)
-    (this.crashLog ??= []).push({ id: r.id, what, x: Math.round(r.s.x * 10) / 10, z: Math.round(r.s.z * 10) / 10, v: Math.round(r.hitV ?? r.s.v), sc: r.sc, idx: r.idx, off: Math.round((r.off ?? 0) * 10) / 10, t: Math.round(this.clock) });
+    (this.crashLog ??= []).push({ id: r.id, what, x: Math.round(r.s.x * 10) / 10, z: Math.round(r.s.z * 10) / 10, v: Math.round(r.hitV ?? r.s.v), sc: r.sc, idx: r.idx, off: Math.round((r.off ?? 0) * 10) / 10, t: Math.round(this.clock), drift: Math.round((r.s.drift ?? 0) * 100) / 100, w: this._at(this._line(r), 0)?.[2], bend: Math.round(Math.abs(turn(heading(this._at(this._line(r), -2), this._at(this._line(r), 0)), heading(this._at(this._line(r), 0), this._at(this._line(r), 3)))) * 100) / 100 });
     // A branch in the front wheel: it stops dead and pitches you over the bars; then a moment no branch can catch you.
     r.fallKind = what === 'branch' ? 'wheel' : null;
     if (what === 'branch') r.branchSafe = THROW.immune;
@@ -2252,7 +2253,14 @@ export class Race {
     };
     for (const veh of this.traffic?.near(s.x, s.z, R + 6) ?? []) consider(veh.box.x, veh.box.z, veh.box.halfWidth + 0.3, veh.v, veh.box.heading);
     const before = block;
-    for (const p of this.g.life?.near(s.x, s.z, R) ?? []) consider(p.x, p.z, isSmall(t[3] ?? 4) ? 0.1 : 0.4);
+    // People: steered round, and someone right in the line is braked for (they may not step aside in time).
+    let personAhead = Infinity;
+    for (const p of this.g.life?.near(s.x, s.z, R) ?? []) {
+      consider(p.x, p.z, isSmall(t[3] ?? 4) ? 0.25 : 0.4);
+      const along = (p.x - s.x) * fx + (p.z - s.z) * fz;
+      const side = Math.abs((p.x - s.x) * -fz + (p.z - s.z) * fx);
+      if (along > 0 && side < 0.85) personAhead = Math.min(personAhead, along);
+    }
     if (block < before && block < 30 && this.clock - (r.rang ?? -9) > 3) {
       r.rang = this.clock;
       this.ringBell(r);
@@ -2271,6 +2279,26 @@ export class Race {
       }
     }
     for (const o of this._props(s.x, s.z, 20) ?? []) consider(o.x, o.z, o.r);
+    // The walls (walls.js): feelers out ahead and to each side — one near on a side steers it away, one
+    // straight ahead is a stop to brake for.
+    let wallAhead = Infinity;
+    const walls = this.course.walls;
+    if (walls && v > 2) {
+      const look = 3 + v * 0.75;
+      const tr = s.travel ?? s.heading;
+      for (const a of [0.6, 0.32, 0.14, 0, -0.14, -0.32, -0.6]) {
+        const h = tr + a;
+        const d = walls.ray(s.x, s.z, -Math.sin(h), -Math.cos(h), look);
+        if (d >= look) continue;
+        // where it is: how far ahead, and how far to the side of the way we're going
+        const ahead2 = d * Math.cos(a);
+        const lateral = d * Math.abs(Math.sin(a));
+        // in our own path (a bike's width and a bit): a wall to brake for
+        if (lateral < 0.9) wallAhead = Math.min(wallAhead, ahead2);
+        // close beside the path ahead: ease away from it (a wall to the left (+a) pushes right: −)
+        else if (lateral < 1.7) push -= Math.sign(a) * (1 - lateral / 1.7) * (1 - ahead2 / look) * 1.6;
+      }
+    }
     // Steering is + to the left; something on our right pushes us left.
     steer = Math.max(-1, Math.min(1, steer + push * r.skill));
     const grip = Math.min(1.05, this._grip() * (r.spec.grip ?? 1));
@@ -2279,7 +2307,8 @@ export class Race {
     // Corners ahead (about 100 m of them): how fast each can be taken, and braking for it in time —
     // a tight one (a 90° junction) drifted, faster than any lean would take it.
     const decel = r.spec.brake * Math.min(1, grip) * 0.7;
-    const driftV = (12 + (r.skill - 0.86) * 28) * Math.min(1, grip * 1.1);
+    // (as fast as the street's width lets it swing round: a lane barely two cars wide, gently)
+    const driftV = Math.min(12 + (r.skill - 0.86) * 28, Math.max(7.5, 1.6 + Math.min(P(0)?.[2] ?? 8, P(4)?.[2] ?? 8) * 1.15)) * Math.min(1, grip * 1.1);
     let driftNow = 0;
     for (let j = 1; j < 17; j++) {
       const a = P(j);
@@ -2294,7 +2323,7 @@ export class Race {
       if (bend > 0.9) {
         corner = Math.max(corner, driftV);
         // close to it and too quick to lean round: drift (the way it turns)
-        if (j <= 3 && v > corner * 0.8 && !driftNow) driftNow = Math.sign(turn(Math.atan2(a[0] - p0[0], a[1] - p0[1]), Math.atan2(b[0] - a[0], b[1] - a[1]))) || 0;
+        if (j <= 2 && v > corner * 0.8 && !driftNow && Math.min(w, P(0)?.[2] ?? 8) >= 7) driftNow = Math.sign(turn(Math.atan2(a[0] - p0[0], a[1] - p0[1]), Math.atan2(b[0] - a[0], b[1] - a[1]))) || 0;
       }
       target = Math.min(target, Math.sqrt(corner * corner + 2 * decel * Math.max(0, j * 6 - 5)));
     }
@@ -2303,6 +2332,9 @@ export class Race {
     // Something in the way with no way round: slow to its speed in time.
     if (block < R && Math.abs(push) < 0.6) target = Math.min(target, blockV + Math.sqrt(2 * decel * Math.max(0, block - 5)));
     if (crossing < R) target = Math.min(target, Math.sqrt(2 * decel * Math.max(0, crossing - 6)));
+    if (personAhead < R) target = Math.min(target, Math.max(2, Math.sqrt(2 * decel * Math.max(0, personAhead - 3))));
+    // A wall straight ahead (a corner come too wide, a dead end of the map): brake for it in time.
+    if (wallAhead < Infinity) target = Math.min(target, Math.max(3, Math.sqrt(2 * decel * Math.max(0, wallAhead - 2.5))));
     // Down a golmok barely wider than the bars: steady, the walls an arm's length off.
     const pinch = Math.min(P(0)?.[2] ?? 8, P(3)?.[2] ?? 8);
     if (pinch < 4.4) target = Math.min(target, 12.5 + 3 * (r.skill - 0.88) * 10);

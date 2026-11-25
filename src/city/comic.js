@@ -93,8 +93,11 @@ function puff() {
     g.arc(x, y, r, 0, Math.PI * 2);
     g.fill();
   }
+  // (the underside shaded on the cloud only — not a grey box round it)
+  g.globalCompositeOperation = 'source-atop';
   g.fillStyle = 'rgba(150,140,130,0.35)';
   g.fillRect(0, 40, 64, 24);
+  g.globalCompositeOperation = 'source-over';
   puffTex = new THREE.CanvasTexture(c);
   puffTex.colorSpace = THREE.SRGBColorSpace;
   return puffTex;

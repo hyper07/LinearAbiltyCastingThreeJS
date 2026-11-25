@@ -288,7 +288,7 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
 }
 
 /** How far off a wall's line (radians) a scooter can meet it and only glance off. */
-export const GLANCE = 0.6;
+export const GLANCE = 0.75;
 
 /**
  * Moving on against real walls (walls.js): the rider's circle is swept along the way it is going.
