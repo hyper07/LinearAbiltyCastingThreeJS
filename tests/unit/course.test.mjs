@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKE_COURSES, planCourse, finishCourse, locate, buildGraph, isSmall, sharpTurns, courseStats, turnCost } from '../../src/city/course.js';
+import { BIKE_COURSES, planCourse, finishCourse, locate, buildGraph, isSmall, sharpTurns, courseStats, turnCost, OPEN_LEAD, OPEN_RUNOUT } from '../../src/city/course.js';
+import { behindStart } from '../../src/city/pack.js';
+import { coasterTrack, coasterSpeed } from '../../src/city/fairground.js';
+import { woodSpots } from '../../src/city/hillwood.js';
 import { seoulData, roadsNear, wallsNear } from './seoulData.mjs';
 import { readAlleys, SMALL_WIDTH } from '../../src/city/alleys.js';
 import { encodeAlleys, keepWay } from '../../scripts/geo/seoul-alleys.mjs';
@@ -166,22 +169,82 @@ test('turning costs a racer: a straight run is free, a 90° corner dear, a turn-
 });
 
 const seoul = seoulData();
-test('the bike courses on Seoul\'s real streets: boulevards, few sharp turns, a long run to the first corner', { skip: !seoul && 'no Seoul map converted here' }, () => {
+test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), avenues and corners (Medium), tight streets and square corners (Hard)', { skip: !seoul && 'no Seoul map converted here' }, () => {
   const kinds = new Set();
+  const byLevel = { easy: [], medium: [], hard: [] };
   for (const def of BIKE_COURSES) {
     const walls = wallsNear(def.x, def.z, def.r * 4);
-    const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
+    const planned = planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls });
+    assert.ok(planned, `${def.id}: planned`);
+    const c = finishCourse(planned, { walls });
     const st = courseStats(c);
     kinds.add(def.kind);
-    assert.ok(c.length > 1800 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
-    assert.equal(st.small, 0, `${def.id}: no residential lanes on the main loop`);
-    // (the hill road is one lane each way by nature; every other course two or more, most of the way)
-    if (def.kind !== 'Hill') assert.ok(st.wide >= 0.72, `${def.id}: ${Math.round(st.wide * 100)}% on roads two lanes or more each way`);
-    assert.ok(st.sharp <= 4, `${def.id}: ${st.sharp} turns sharper than 60°`);
-    assert.ok(st.firstCorner >= 250, `${def.id}: ${Math.round(st.firstCorner)} m to the first corner`);
+    byLevel[def.level].push(def.id);
     // one-way roads only with their traffic
     assert.equal(c.points.filter((p) => p[4] === -1).length, 0, `${def.id}: against a one-way road`);
+    if (def.level === 'easy') {
+      assert.ok(c.length > 1800 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
+      assert.equal(st.small, 0, `${def.id}: no residential lanes on the main loop`);
+      // (the hill road is one lane each way by nature; every other course two or more, most of the way)
+      if (def.kind !== 'Hill') assert.ok(st.wide >= 0.72, `${def.id}: ${Math.round(st.wide * 100)}% on roads two lanes or more each way`);
+      assert.ok(st.sharp <= 4, `${def.id}: ${st.sharp} turns sharper than 60°`);
+      assert.ok(st.firstCorner >= 250, `${def.id}: ${Math.round(st.firstCorner)} m to the first corner`);
+    } else if (def.level === 'medium') {
+      assert.ok(c.length > 1800 && c.length < 3600, `${def.id}: ${Math.round(c.length)} m`);
+      assert.ok(st.wide <= 0.8, `${def.id}: avenues, not boulevards (${Math.round(st.wide * 100)}% wide)`);
+      assert.ok(st.small <= 0.35, `${def.id}: a little of the residential lanes at most (${Math.round(st.small * 100)}%)`);
+      assert.ok(st.sharp >= 6 && st.sharp <= 10, `${def.id}: ${st.sharp} turns sharper than 60° (6–10)`);
+      assert.ok(st.firstCorner >= 150, `${def.id}: ${Math.round(st.firstCorner)} m to the first corner`);
+    } else if (c.open) {
+      // a point-to-point run: down a hill, its finish well below its start
+      assert.ok(c.length > 1500 && c.length < 3200, `${def.id}: ${Math.round(c.length)} m`);
+      assert.ok(c.finishI > c.startI && c.s[c.finishI] - c.s[c.startI] === c.length, `${def.id}: raced from its start line to its finish line`);
+    } else {
+      assert.ok(c.length > 1500 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
+      assert.ok(st.wide <= 0.5, `${def.id}: tight streets (${Math.round(st.wide * 100)}% wide)`);
+      assert.ok(st.sharp >= 8 && st.square >= 6, `${def.id}: ${st.sharp} turns over 60°, ${st.square} over 80°`);
+      assert.ok(st.firstCorner >= 120, `${def.id}: ${Math.round(st.firstCorner)} m to the first corner`);
+    }
   }
-  for (const k of ['River', 'Avenue', 'Market', 'Hill', 'Towers']) assert.ok(kinds.has(k), k);
-  assert.ok(BIKE_COURSES.length >= 6 && BIKE_COURSES.length <= 8);
+  for (const k of ['River', 'Avenue', 'Market', 'Hill', 'Towers', 'Fairground', 'Downhill']) assert.ok(kinds.has(k), k);
+  for (const [level, ids] of Object.entries(byLevel)) assert.ok(ids.length >= 3, `${level}: ${ids.join(', ')}`);
+  assert.ok(BIKE_COURSES.length >= 12 && BIKE_COURSES.length <= 16);
+});
+
+test('a point-to-point course: from its first point to its last, its start line a little in, its finish a run-out short of the end', () => {
+  const roads = grid();
+  const def = { id: 'down', x: 0, z: 0, r: 500, level: 'hard', open: true, via: [[-1200, -400], [200, -400], [200, 400], [800, 400]] };
+  const planned = planCourse(roads, def, { bike: true });
+  assert.ok(planned?.open, 'planned, with ends');
+  const c = finishCourse(planned);
+  assert.ok(Math.hypot(c.points[0][0] + 1200, c.points[0][1] + 400) < 2, 'it starts at the first point');
+  assert.ok(Math.hypot(c.points.at(-1)[0] - 800, c.points.at(-1)[1] - 400) < 8, 'it ends at the last');
+  assert.ok(c.s[c.startI] >= OPEN_LEAD && c.s[c.startI] < OPEN_LEAD + 7, 'the start line a grid\'s length in');
+  assert.ok(c.total - c.s[c.finishI] >= OPEN_RUNOUT - 7, 'room past the finish to stop');
+  assert.equal(c.length, c.s[c.finishI] - c.s[c.startI]);
+  assert.equal(c.shortcuts.length, 0);
+  const st = courseStats(c);
+  assert.equal(st.square, 2, 'its two corners, and no turn from its end back round to its start');
+  // the grid behind the start line, on the course's own road
+  const at = behindStart(c, 6);
+  assert.ok(Math.abs(Math.hypot(at.x - c.points[c.startI][0], at.z - c.points[c.startI][1]) - 6) < 1, 'six metres back from the line');
+});
+
+test('the fairground\'s coaster climbs a lift hill, drops, and comes home', () => {
+  const track = coasterTrack();
+  const ys = Array.from({ length: 200 }, (_, i) => track.getPointAt(i / 200).y);
+  assert.ok(Math.max(...ys) > 18, `a lift hill (${Math.max(...ys).toFixed(1)} m)`);
+  assert.ok(Math.min(...ys) < 3.5, 'down to the ground');
+  assert.ok(track.getPointAt(0).distanceTo(track.getPointAt(0.999)) < 2, 'a closed track');
+  assert.ok(coasterSpeed(20, true) < 4 && coasterSpeed(3, false) > 15, 'slow up the chain, fast at the bottom of the drop');
+});
+
+test('the woods on a hill keep off the road', () => {
+  const points = [];
+  for (let i = 0; i < 100; i++) points.push([i * 6, 0, 7, 6, 0]);
+  const wild = new Uint8Array(100).fill(1);
+  const trees = woodSpots(points, wild);
+  assert.ok(trees.length > 100, `${trees.length} trees`);
+  for (const t of trees) assert.ok(Math.abs(t.z) > 3.5 + 1.5, `a tree ${t.z.toFixed(1)} m from the middle of a 7 m road`);
+  assert.equal(woodSpots(points, new Uint8Array(100)).length, 0, 'none where the course is not out on the hill');
 });

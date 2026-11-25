@@ -18,6 +18,9 @@ import { RaceTraffic } from './traffic.js';
 import { ITEMS, rollItem, ItemBoxes, itemIcon, blobTexture } from './items.js';
 import { MARBLE, MarbleField, pourMarbles, pourBand, corridorClamp, stepMarble, marbleFall, marblesAt, patchBounds, rattle } from './marbles.js';
 import { HelmetDrops } from './helmet.js';
+import { HillWood } from './hillwood.js';
+import { loadProgress, saveProgress, recordRun } from './progress.js';
+import { Fairground } from './fairground.js';
 import { GlowTrail } from './trail.js';
 import { RaceMinimap } from './minimap.js';
 import { RivalPanel } from './rivalPanel.js';
@@ -145,6 +148,32 @@ function locateOn(pts, x, z, lo, hi) {
     off = Math.min(off, Math.hypot(x - P[0] - dx * t, z - P[1] - dz * t));
   }
   return { i: best, off };
+}
+
+/**
+ * Which points of a course are out on a wooded hill: a small street (the park road) with no building
+ * within 22 m either side. A flag per point, smoothed so a short gap in the woods (a hut by the road)
+ * doesn't break the guard rail.
+ */
+export function wildStretches(c, walls) {
+  const n = c.points.length;
+  const raw = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = c.points[i];
+    const q = c.points[Math.min(n - 1, i + 1)] === p ? c.points[i - 1] : c.points[Math.min(n - 1, i + 1)];
+    const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+    const rx = -(q[1] - p[1]) / L;
+    const rz = (q[0] - p[0]) / L;
+    const reach = (p[2] ?? 6) / 2 + 22;
+    raw[i] = isSmall(p[3] ?? 4) && (!walls || (walls.ray(p[0], p[1], rx, rz, reach) >= reach && walls.ray(p[0], p[1], -rx, -rz, reach) >= reach)) ? 1 : 0;
+  }
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    let k = 0;
+    for (let j = Math.max(0, i - 3); j <= Math.min(n - 1, i + 3); j++) k += raw[j];
+    out[i] = raw[i] || k >= 5 ? 1 : 0;
+  }
+  return out;
 }
 
 export class Race {
@@ -333,6 +362,8 @@ export class Race {
       c = finishCourse(c, { walls });
       c.def = def;
       c.walls = walls;
+      // Out on a wooded hill (the downhill's park road): no building near on either side — guard rails and woods there.
+      if (def.mountain) c.wild = wildStretches(c, walls);
       this.plans.set(id, c);
       this.lobby.planned(id);
       return c;
@@ -515,6 +546,8 @@ export class Race {
     this._starting = grid;
     this._end();
     this.course = course;
+    // (a point-to-point course is one run)
+    if (course.open) this.laps = 1;
     this._paths();
     this.myId = this.session?.id ?? 'me';
     this.menuEl.hidden = true;
@@ -560,7 +593,8 @@ export class Race {
         s: newScoot(x, z, hd),
         y: this.g.surfaceAt(x, z),
         idx: back,
-        dist: course.s[back] - course.length,
+        // (behind the line: a point-to-point course counts from its start line, a loop from its point 0)
+        dist: course.open ? course.s[back] - course.s[course.startI] : course.s[back] - course.length,
         laneK: shares[i],
         lat: side,
         wobble: 0,
@@ -607,9 +641,11 @@ export class Race {
     this.g.roadHash ??= new Map();
     const lines = [course.points, ...(course.shortcuts ?? []).map((sc) => sc.points)];
     this.g.setMouths?.(lines);
-    this.golmok = new Golmok(this.g, course, { walls: course.walls, avoid: lines.slice(1) });
+    this.golmok = new Golmok(this.g, course, { open: Boolean(course.open), walls: course.walls, avoid: lines.slice(1), mountain: course.def?.mountain ? course.wild : null });
     this.golmoks = (course.shortcuts ?? []).map((sc, k) => new Golmok(this.g, { id: sc.id, points: sc.points }, { open: true, walls: course.walls, avoid: lines.filter((_, j) => j !== k + 1), shortcut: true }));
     this.facades = new Facades(this.g, course);
+    this.wood = course.wild ? new HillWood(this.g, course, course.wild) : null;
+    this.fair = course.def?.fair ? new Fairground(this.g, course) : null;
     this.wet = new WetFx(this.g);
     this.speedFx = new SpeedFx(this.g.scene);
     this._decor();
@@ -638,9 +674,10 @@ export class Race {
     const c = this.course;
     const n = c.points.length;
     const list = [];
-    let i = 40;
+    // (a point-to-point course: from just after its start line to just before its finish)
+    let i = c.open ? c.startI + 30 : 40;
     let k = 0;
-    while (i < n - 20) {
+    while (i < (c.open ? c.finishI - 8 : n - 20)) {
       const p = c.points[i];
       const q = c.points[(i + 1) % n];
       const hd = heading(p, q);
@@ -762,59 +799,28 @@ export class Race {
     const geo = new THREE.ShapeGeometry(chev).rotateX(-Math.PI / 2);
     const mat = new THREE.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -16 });
     const every = 3; // an arrow every 18 m
-    const count = Math.floor(n / every);
+    // (a point-to-point course: from its start line to its finish, never round from its end to its start)
+    const from = c.open ? c.startI : 0;
+    const to = c.open ? c.finishI : n;
+    const count = Math.max(1, Math.floor((to - from) / every));
     this.chevrons = new THREE.InstancedMesh(geo, mat, count);
     this.chevrons.frustumCulled = false;
     this.chevrons.userData.at = [];
     for (let k = 0; k < count; k++) {
-      const i = k * every;
+      const i = from + k * every;
       const p = c.points[i];
-      const q = c.points[(i + 1) % n];
+      const q = c.points[c.open ? Math.min(n - 1, i + 1) : (i + 1) % n];
       this.chevrons.userData.at.push({ x: p[0], z: p[1], heading: heading(p, q) });
     }
     this._lift(true);
     this.decor.add(this.chevrons);
     this._plates();
-    const p = c.points[0];
-    const q = c.points[1];
+    const p = c.points[c.open ? c.startI : 0];
+    const q = c.points[c.open ? c.startI + 1 : 1];
     const w = Math.max(6, (p[2] ?? 8) + 2);
-    const gate = new THREE.Group();
-    const post = new THREE.MeshStandardMaterial({ color: '#202226', metalness: 0.6, roughness: 0.4 });
-    for (const sx of [-w / 2, w / 2]) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5, 0.3), post);
-      m.position.set(sx, 2.5, 0);
-      gate.add(m);
-    }
-    const cv = document.createElement('canvas');
-    cv.width = 512;
-    cv.height = 64;
-    const g = cv.getContext('2d');
-    for (let x = 0; x < 512; x += 32) for (let y = 0; y < 64; y += 32) {
-      g.fillStyle = (x + y) % 64 ? '#111' : '#f5f5f5';
-      g.fillRect(x, y, 32, 32);
-    }
-    g.fillStyle = '#ffd23a';
-    g.fillRect(118, 6, 276, 52);
-    g.strokeStyle = '#1a1222';
-    g.lineWidth = 5;
-    g.strokeRect(118, 6, 276, 52);
-    g.fillStyle = '#1a1222';
-    g.font = '900 34px system-ui, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('START · 출발', 256, 33);
-    const tex = new THREE.CanvasTexture(cv);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const banner = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.3), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
-    banner.position.y = 4.4;
-    gate.add(banner);
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -8 }));
-    line.position.y = 0.05;
-    gate.add(line);
-    gate.position.set(p[0], this.g.surfaceAt(p[0], p[1]), p[1]);
-    gate.rotation.y = heading(p, q);
-    this.gate = gate;
-    this.decor.add(gate);
+    // A point-to-point course: a big gantry at its start (the tower plaza) and another over its finish line below.
+    this.gate = this._gate(c.open ? c.startI : 0, 'START · 출발', Boolean(c.open));
+    this.finishGate = c.open ? this._gate(c.finishI, 'FINISH · 결승', true) : null;
     this._turns();
     this._cornerBoards();
     this._shortcutSigns();
@@ -835,9 +841,86 @@ export class Race {
     }
   }
 
+  /**
+   * A gate over the course at point `i`: two posts, a chequered banner with `label`, the same painted
+   * across the road. `big`: a race gantry — a truss across on tall legs, the banner both ways, a row
+   * of lamps and the five start lights.
+   */
+  _gate(i, label, big = false) {
+    const c = this.course;
+    const n = c.points.length;
+    const p = c.points[i];
+    const q = c.points[Math.min(n - 1, i + 1)] === p ? c.points[i - 1] : c.points[Math.min(n - 1, i + 1)];
+    const w = Math.max(6, (p[2] ?? 8) + 2) + (big ? 1.5 : 0);
+    const gate = new THREE.Group();
+    const post = (this._gatePost ??= new THREE.MeshStandardMaterial({ color: '#202226', metalness: 0.6, roughness: 0.4 }));
+    const H = big ? 6.2 : 5;
+    for (const sx of [-w / 2, w / 2]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(big ? 0.5 : 0.3, H, big ? 0.5 : 0.3), post);
+      m.position.set(sx, H / 2, 0);
+      m.castShadow = true;
+      gate.add(m);
+    }
+    const cv = document.createElement('canvas');
+    cv.width = 512;
+    cv.height = 64;
+    const g = cv.getContext('2d');
+    for (let x = 0; x < 512; x += 32) for (let y = 0; y < 64; y += 32) {
+      g.fillStyle = (x + y) % 64 ? '#111' : '#f5f5f5';
+      g.fillRect(x, y, 32, 32);
+    }
+    g.fillStyle = '#ffd23a';
+    g.fillRect(108, 6, 296, 52);
+    g.strokeStyle = '#1a1222';
+    g.lineWidth = 5;
+    g.strokeRect(108, 6, 296, 52);
+    g.fillStyle = '#1a1222';
+    g.font = '900 34px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(label, 256, 33);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(w, big ? 1.6 : 1.3), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+    banner.position.y = H - 0.6;
+    gate.add(banner);
+    if (big) {
+      // the truss: top and bottom chords and diagonals, over the banner
+      const chord = new THREE.BoxGeometry(w, 0.14, 0.14);
+      for (const y of [H - 0.02, H + 0.75]) for (const z of [-0.35, 0.35]) {
+        const m = new THREE.Mesh(chord, post);
+        m.position.set(0, y, z);
+        gate.add(m);
+      }
+      const diag = new THREE.BoxGeometry(0.08, 1.05, 0.08);
+      for (let k = 0; k < Math.floor(w / 0.9); k++) for (const z of [-0.35, 0.35]) {
+        const m = new THREE.Mesh(diag, post);
+        m.position.set(-w / 2 + 0.45 + k * 0.9, H + 0.37, z);
+        m.rotation.z = k % 2 ? 0.7 : -0.7;
+        gate.add(m);
+      }
+      // the start lights: five red lamps in a row (they go out at GO), and a lamp at each end
+      const lamp = (this._gateLamp ??= new THREE.MeshStandardMaterial({ color: '#3a0a0a', emissive: '#ff2a1a', emissiveIntensity: 2.2 }));
+      lamp.emissive.set('#ff2a1a');
+      for (let k = 0; k < 5; k++) {
+        const m = new THREE.Mesh((this._lampGeo ??= new THREE.SphereGeometry(0.16, 12, 8)), lamp);
+        m.position.set((k - 2) * 0.55, H + 1.05, 0.42);
+        gate.add(m);
+      }
+      gate.userData.lamp = lamp;
+    }
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -8 }));
+    line.position.y = 0.05;
+    gate.add(line);
+    gate.position.set(p[0], this.g.surfaceAt(p[0], p[1]), p[1]);
+    gate.rotation.y = heading(p, q);
+    this.decor.add(gate);
+    return gate;
+  }
+
   /** The course's turns: where it bends (over 30 m) by more than about 30°, and which way. */
   _turns() {
-    this.turnsList = this._turnsOf(this.course.points, false);
+    this.turnsList = this._turnsOf(this.course.points, Boolean(this.course.open));
   }
 
   /** The turns of a line of points (a loop, or open): { at, bend (+ left), from, total }. */
@@ -1050,7 +1133,7 @@ export class Race {
       let d = line.s[t.from] - line.s[line.i];
       if (d < -10 && Number.isFinite(L)) d += L;
       if (d < -10 || d > 120) continue;
-      if (!best || d < best.metres) best = { left: t.bend > 0, sharp: t.total > 1.3, metres: Math.max(0, d), alley: isSmall(line.pts[t.at][3] ?? 4) };
+      if (!best || d < best.metres) best = { left: t.bend > 0, sharp: t.total > 1.3, metres: Math.max(0, d), alley: isSmall(line.pts[t.at][3] ?? 4) && !(line.path ? 0 : this.course.wild?.[t.at]) };
     }
     return best;
   }
@@ -1099,7 +1182,7 @@ export class Race {
       const a = b.userData.at;
       if (all || Math.hypot(a.x - p.x, a.z - p.z) < 220) b.position.y = this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14);
     }
-    if (this.gate && (all || Math.hypot(this.gate.position.x - p.x, this.gate.position.z - p.z) < 200)) this.gate.position.y = this.g.surfaceAt(this.gate.position.x, this.gate.position.z, this.g.groundAt(this.gate.position.x, this.gate.position.z) + 14);
+    for (const gt of [this.gate, this.finishGate]) if (gt && (all || Math.hypot(gt.position.x - p.x, gt.position.z - p.z) < 200)) gt.position.y = this.g.surfaceAt(gt.position.x, gt.position.z, this.g.groundAt(gt.position.x, gt.position.z) + 14);
   }
 
   /* ---------------------------------------------------------- a frame */
@@ -1133,6 +1216,8 @@ export class Race {
         this.phase = 'racing';
         this.clock = 0;
         for (const r of this.racers) r.lapStart = 0;
+        // (a gantry's start lights: red to green)
+        this.gate?.userData.lamp?.emissive.set('#2bff6a');
       }
     } else if (this.count > -0.8) {
       this.count -= dt;
@@ -1265,6 +1350,7 @@ export class Race {
     this.golmok?.update(dt);
     for (const gm of this.golmoks ?? []) gm.update(dt);
     this.facades?.update();
+    this.fair?.update(rawDt);
     this.fx?.update(rawDt, this.g.camera);
     const feel = this.me.mode === 'ride' ? speedFeel(Math.abs(this.me.s.v), this.me.spec.cruise) : 0;
     this.feel = feel;
@@ -1586,7 +1672,7 @@ export class Race {
     const p = r.sc != null ? this.paths?.[r.sc] : null;
     if (p) return { pts: p.points, i: r.si, open: true, room: p.room, s: p.s, turns: p.turns, path: p };
     const c = this.course;
-    return { pts: c.points, i: r.idx, open: false, room: c.room, s: c.s, turns: this.turnsList };
+    return { pts: c.points, i: r.idx, open: Boolean(c.open), room: c.room, s: c.s, turns: this.turnsList };
   }
 
   /** The point `k` on from where a line's racer is (an open line stops at its ends). */
@@ -2960,6 +3046,12 @@ export class Race {
   _results() {
     if (this.phase !== 'done') return;
     const order = this._order();
+    // Your finish kept in this browser: the best time and place on this course (the course step's
+    // medals), and the next level opened.
+    if (this.me?.done != null && this.course?.id) {
+      saveProgress(recordRun(loadProgress(), this.course.id, { time: this.me.done, place: order.indexOf(this.me) + 1 }));
+      this.lobby.progressChanged();
+    }
     if (this.me?.done != null && order.indexOf(this.me) === 0) this.g.music?.cue('victory');
     const s = this.session;
     const host = !s?.room || s.isHost;
@@ -3381,7 +3473,7 @@ export class Race {
     this._helmetKey = null;
     for (const f of this.fans ?? []) f.remove();
     this.fans = [];
-    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'wet', 'speedFx', 'marbleField', 'helmetDrops']) {
+    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'wet', 'speedFx', 'marbleField', 'helmetDrops', 'wood', 'fair']) {
       this[k]?.dispose();
       this[k] = null;
     }
@@ -3400,6 +3492,7 @@ export class Race {
     for (const sg of this.scSigns ?? []) sg.userData.mat?.map?.dispose();
     this.scSigns = [];
     this.gate = null;
+    this.finishGate = null;
     this.course = null;
     this.me = null;
     this._show(false);

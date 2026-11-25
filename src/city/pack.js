@@ -43,9 +43,23 @@ export function gridSlots(n, { row = 3.2, first = 2.5 } = {}) {
   return Array.from({ length: n }, (_, i) => ({ back: first + i * (row / 2), col: i % 2 }));
 }
 
-/** A point `back` metres behind index 0 of a looped course of points [x, z, …] (with distances `s`, total `length`), and its heading. */
+/**
+ * A point `back` metres behind the start line, and its heading: index 0 of a looped course of points
+ * [x, z, …] (with distances `s`, total `length`); on a point-to-point course (`open`) its `startI`,
+ * on the road behind it (never round past its first point).
+ */
 export function behindStart(course, back) {
   const pts = course.points;
+  if (course.open) {
+    const S = course.s;
+    const want = Math.max(0, S[course.startI ?? 0] - back);
+    let i = 0;
+    while (i < pts.length - 2 && S[i + 1] <= want) i++;
+    const p = pts[i];
+    const q = pts[i + 1];
+    const t = Math.max(0, Math.min(1, (want - S[i]) / (S[i + 1] - S[i] || 1)));
+    return { x: p[0] + (q[0] - p[0]) * t, z: p[1] + (q[1] - p[1]) * t, heading: Math.atan2(-(q[0] - p[0]), -(q[1] - p[1])), i, width: p[2] ?? 6, cls: p[3] ?? 4, oneway: Boolean(p[4]) };
+  }
   const n = pts.length;
   let left = back;
   let i = n - 1;

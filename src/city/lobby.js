@@ -1,10 +1,11 @@
-import { BIKE_COURSES, courseStats } from './course.js';
+import { BIKE_COURSES, LEVELS, LEVEL_ORDER, courseStats } from './course.js';
 import { CREW, CREW_ORDER, rider } from './crew.js';
 import { SCOOTERS, SCOOTER_ORDER, STAT_NAMES, scooterStats, cleanScooter } from './scoot.js';
 import { SCOOTER_LOOKS } from './scooter.js';
 import { TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
 import { faceSvg } from '../snowpuff/riders.js';
-import { CourseMap, COURSE_COLORS } from './coursemap.js';
+import { CourseMap, COURSE_COLORS, chillies } from './coursemap.js';
+import { loadProgress, unlocked, medalOf, UNLOCK } from './progress.js';
 
 /**
  * Kickrani's pre-race flow, over the 3D stage (stage.js): rider →
@@ -13,7 +14,11 @@ import { CourseMap, COURSE_COLORS } from './coursemap.js';
  * worldMap.js, only read): a big name card and a READY button over the
  * turntable, ◀ ▶ either side, a strip of faces to jump to; a real map of
  * Seoul (coursemap.js) with every course on its streets and a pin for each,
- * whose card previews it; cards for the sky. Keyboard
+ * whose card previews it — the courses by level (Easy, Medium, Hard: tabs
+ * that filter and recolour the map and fly to fit them; Medium opens after
+ * an Easy race is finished, Hard after a Medium one, and "Try anyway" races
+ * one still locked), each with its best time and medal in this browser
+ * (progress.js); cards for the sky. Keyboard
  * (← → to browse, ↑ ↓ for the weather, Enter for next, Esc or Backspace for
  * back), mouse (click a rider or a scooter on the stage, hover a pin or a
  * sky card to preview it) and touch (tap, swipe the stage) all work.
@@ -60,6 +65,18 @@ export class Lobby {
     this.step = 'rider';
     this.hoverCourse = null;
     this.prevSky = null;
+    /** The level the course step shows: the course picked's. */
+    this.level = BIKE_COURSES.find((c) => c.id === race.courseId)?.level ?? 'easy';
+  }
+
+  /** The progress kept in this browser (best times, medals, levels open). */
+  progress() {
+    return (this._progress ??= loadProgress());
+  }
+
+  /** A race just finished: read the progress again. */
+  progressChanged() {
+    this._progress = null;
   }
 
   get g() {
@@ -81,6 +98,8 @@ export class Lobby {
     const r = this.race;
     this.step = STEPS.includes(step) ? step : 'rider';
     this.note = note;
+    // (the course step opens on the level of the course picked — the host's, in a room)
+    if (this.step === 'course') this.level = BIKE_COURSES.find((c) => c.id === r.courseId)?.level ?? this.level;
     const st = this.stage();
     if (st) {
       st.setView(this.step);
@@ -133,7 +152,7 @@ export class Lobby {
     return {
       rider: '← → choose · click a rider · Enter ready · Esc close',
       scooter: '← → choose · click a scooter · Enter next · Esc back',
-      course: '← → choose · hover a pin to preview · Enter next · Esc back',
+      course: '← → choose · ↑ ↓ level · hover a pin to preview · Enter next · Esc back',
       weather: '← → time · ↑ ↓ weather · Enter race · Esc back'
     }[this.step];
   }
@@ -193,10 +212,31 @@ export class Lobby {
   _course() {
     const r = this.race;
     const host = this.host();
+    const prog = this.progress();
+    const tabs = LEVEL_ORDER.map((k) => {
+      const L = LEVELS[k];
+      const open = unlocked(prog, k, BIKE_COURSES);
+      return `<button type="button" role="tab" data-level="${k}" aria-selected="${k === this.level}" class="jl__level jl__level--${k}${k === this.level ? ' is-on' : ''}${open ? '' : ' is-locked'}" style="--lc:${L.color}"><b>${esc(L.name)}</b><small>${esc(L.ko)}</small>${chillies(k, 13)}${open ? '' : '<i class="jl__lock" aria-label="locked">🔒</i>'}</button>`;
+    }).join('');
     return `
       <div class="jl__map" data-course-map></div>
+      <div class="jl__levels" role="tablist" aria-label="Level">${tabs}</div>
       <section class="jl__card jl__card--course" data-card data-course-card></section>
-      <div class="jl__strip jl__strip--courses" role="listbox" aria-label="Courses">${BIKE_COURSES.map((c) => `<button type="button" role="option" data-course="${c.id}" class="${c.id === r.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'} style="--c:${COURSE_COLORS[c.id]}"><b>${esc(c.name)}</b><small>${esc(c.ko)} · ${esc(c.kind ?? '')}</small><em data-len="${c.id}">${this.race.plans.has(c.id) ? this.race._lenText(this.race.plans.get(c.id)) : 'planning…'}</em></button>`).join('')}</div>`;
+      <div class="jl__strip jl__strip--courses" role="listbox" aria-label="Courses">${this._levelCourses().map((c) => `<button type="button" role="option" data-course="${c.id}" class="${c.id === r.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'} style="--c:${COURSE_COLORS[c.id]}"><b>${esc(c.name)} ${chillies(c.level ?? 'easy', 11)}</b><small>${esc(c.ko)} · ${esc(c.kind ?? '')}</small><em data-len="${c.id}">${this.race.plans.has(c.id) ? this.race._lenText(this.race.plans.get(c.id)) : 'planning…'}</em>${this._bestChip(c.id)}</button>`).join('')}</div>`;
+  }
+
+  /** The courses of the level shown. */
+  _levelCourses() {
+    return BIKE_COURSES.filter((c) => (c.level ?? 'easy') === this.level);
+  }
+
+  /** A course's best here: its medal and best time (nothing if never finished). */
+  _bestChip(id) {
+    const rec = this.progress().courses[id];
+    if (!rec?.runs) return '';
+    const medal = medalOf(rec.place);
+    const t = rec.best;
+    return `<span class="jl__best" data-best="${id}">${medal ? `<i class="jl__medal jl__medal--${medal}" title="${medal}">${rec.place}</i>` : ''}${t != null ? `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}` : ''}</span>`;
   }
 
   /** The course card: its shape large, a dot riding round it, and its numbers. */
@@ -214,14 +254,14 @@ export class Lobby {
       const z0 = Math.min(...zs);
       const S = 220 / Math.max(Math.max(...xs) - x0, Math.max(...zs) - z0);
       const P = (p) => `${(10 + (p[0] - x0) * S).toFixed(1)} ${(10 + (p[1] - z0) * S).toFixed(1)}`;
-      const d = `M${plan.points.map(P).join(' L')} Z`;
+      const d = `M${plan.points.map(P).join(' L')}${plan.open ? '' : ' Z'}`;
       const scs = (plan.shortcuts ?? []).map((sc) => `<path d="M${sc.points.map(P).join(' L')}" class="jl__sc"/>`).join('');
       const turns = st.turns.filter((t) => t.angle > Math.PI / 3).map((t) => `<circle cx="${P(plan.points[t.i]).split(' ')[0]}" cy="${P(plan.points[t.i]).split(' ')[1]}" r="6" class="jl__turn"/>`).join('');
       const secs = Math.round(plan.length / 16);
-      shape = `<svg class="jl__shape" viewBox="0 0 240 240" aria-label="The course's shape"><path d="${d}" class="jl__road"/><path d="${d}" class="jl__line" id="jl-route-${def.id}"/>${scs}${turns}<circle r="9" class="jl__start" cx="${P(plan.points[0]).split(' ')[0]}" cy="${P(plan.points[0]).split(' ')[1]}"/><circle r="7" class="jl__rider"><animateMotion dur="${Math.max(5, secs / 18).toFixed(1)}s" repeatCount="indefinite" path="${d}"/></circle></svg>`;
+      shape = `<svg class="jl__shape" viewBox="0 0 240 240" aria-label="The course's shape"><path d="${d}" class="jl__road"/><path d="${d}" class="jl__line" id="jl-route-${def.id}"/>${scs}${turns}<circle r="9" class="jl__start" cx="${P(plan.points[plan.open ? plan.startI : 0]).split(' ')[0]}" cy="${P(plan.points[plan.open ? plan.startI : 0]).split(' ')[1]}"/>${plan.open ? `<circle r="9" class="jl__finish" cx="${P(plan.points[plan.finishI]).split(' ')[0]}" cy="${P(plan.points[plan.finishI]).split(' ')[1]}"/>` : ''}<circle r="7" class="jl__rider"><animateMotion dur="${Math.max(5, secs / 18).toFixed(1)}s" repeatCount="indefinite" path="${d}"/></circle></svg>`;
       facts = `<dl class="jl__facts">
         <div><dt>Length</dt><dd>${(plan.length / 1000).toFixed(1)} km</dd></div>
-        <div><dt>Lap</dt><dd>~${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</dd></div>
+        <div><dt>${plan.open ? 'Run' : 'Lap'}</dt><dd>~${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</dd></div>
         <div><dt>Sharp turns</dt><dd>${st.sharp}</dd></div>
         <div><dt>Wide roads</dt><dd>${Math.round(st.wide * 100)}%</dd></div>
         <div><dt>Short cuts</dt><dd>${plan.shortcuts?.length ?? 0}</dd></div>
@@ -229,9 +269,17 @@ export class Lobby {
       </dl>`;
     }
     const host = this.host();
-    return `<h2>${esc(def.name)} <span>${esc(def.ko)}</span></h2><p class="jl__kind">${esc(def.kind ?? '')}</p>${shape}<p>${esc(def.text)}</p>${facts}
-      <div class="jl__laps"><span>Laps</span>${[1, 2, 3].map((n) => `<button type="button" data-laps="${n}" class="${n === r.laps ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div>
-      ${this._nav()}`;
+    const level = def.level ?? 'easy';
+    const open = unlocked(this.progress(), level, BIKE_COURSES);
+    const rec = this.progress().courses[def.id];
+    const medal = medalOf(rec?.place);
+    const best = rec?.runs ? `<p class="jl__bestline">${medal ? `<i class="jl__medal jl__medal--${medal}">${rec.place}</i> ` : ''}Best ${rec.best != null ? `${Math.floor(rec.best / 60)}:${(rec.best % 60).toFixed(2).padStart(5, '0')}` : '—'}${medal ? ` · ${medal}` : ''}</p>` : '';
+    const lock = open ? '' : `<p class="jl__locked">🔒 Finish ${UNLOCK[level] === 'easy' ? 'an' : 'a'} ${esc(LEVELS[UNLOCK[level]].name)} course to unlock ${esc(LEVELS[level].name)}</p>`;
+    // (a point-to-point course is one run, start to finish: no laps)
+    const laps = plan?.open || def.open ? '<div class="jl__laps"><span>One run, start to finish</span></div>' : `<div class="jl__laps"><span>Laps</span>${[1, 2, 3].map((n) => `<button type="button" data-laps="${n}" class="${n === r.laps ? 'is-on' : ''}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div>`;
+    return `<h2>${esc(def.name)} <span>${esc(def.ko)}</span></h2><p class="jl__kind">${chillies(level, 15)} ${esc(LEVELS[level].name)} · ${esc(def.kind ?? '')}</p>${best}${shape}<p>${esc(def.text)}</p>${facts}
+      ${laps}${lock}
+      ${this._nav(open ? 'Next ›' : 'Try anyway ›')}`;
   }
 
   /* Time and weather: cards, previewed live on the stage; then go. */
@@ -301,6 +349,7 @@ export class Lobby {
     on('[data-char]', (b) => this.pickRider(b.dataset.char));
     on('[data-scooter]', (b) => this.pickScooter(b.dataset.scooter));
     on('[data-course]', (b) => this.pickCourse(b.dataset.course));
+    on('[data-level]', (b) => this.pickLevel(b.dataset.level));
     on('[data-laps]', (b) => r._setup({ laps: Number(b.dataset.laps) }, false) || this._refreshCourse());
     on('[data-time]', (b) => this.pickSky(b.dataset.time, null));
     on('[data-weather]', (b) => this.pickSky(null, b.dataset.weather));
@@ -333,6 +382,7 @@ export class Lobby {
       });
       this.map.attach(m.querySelector('[data-course-map]'));
       this.map.highlight(null);
+      if (this.map.level !== this.level) this.map.setLevel(this.level, !this.map.focusId);
       for (const b of m.querySelectorAll('[data-course]')) {
         b.onpointerenter = () => {
           this._preview(b.dataset.course);
@@ -384,6 +434,12 @@ export class Lobby {
       this._cycleSky('weather', e.code === 'ArrowUp' ? -1 : 1);
       return true;
     }
+    if ((e.code === 'ArrowUp' || e.code === 'ArrowDown') && this.step === 'course') {
+      e.preventDefault();
+      const i = LEVEL_ORDER.indexOf(this.level) + (e.code === 'ArrowUp' ? -1 : 1);
+      this.pickLevel(LEVEL_ORDER[Math.max(0, Math.min(LEVEL_ORDER.length - 1, i))]);
+      return true;
+    }
     if (e.code === 'Enter' || e.code === 'NumpadEnter') {
       // (Enter on a focused button presses it: leave that to the button)
       if (document.activeElement?.closest?.('.race__menu button, .race__menu [data-pin]')) return false;
@@ -427,7 +483,7 @@ export class Lobby {
     if (this.step === 'rider') this.pickRider(CREW_ORDER[(CREW_ORDER.indexOf(r.char) + d + CREW_ORDER.length) % CREW_ORDER.length]);
     else if (this.step === 'scooter') this.pickScooter(SCOOTER_ORDER[(SCOOTER_ORDER.indexOf(r.scooter) + d + SCOOTER_ORDER.length) % SCOOTER_ORDER.length]);
     else if (this.step === 'course' && this.host()) {
-      const ids = BIKE_COURSES.map((c) => c.id);
+      const ids = this._levelCourses().map((c) => c.id);
       this.pickCourse(ids[(ids.indexOf(r.courseId) + d + ids.length) % ids.length]);
     }
   }
@@ -456,8 +512,29 @@ export class Lobby {
     }
   }
 
+  /** Show a level: its tab on, its courses in the list and bright on the map (the map flies to fit them). */
+  pickLevel(level) {
+    if (!LEVELS[level] || level === this.level) return;
+    this.level = level;
+    const r = this.race;
+    const first = this._levelCourses()[0];
+    if (this.host() && first && (BIKE_COURSES.find((c) => c.id === r.courseId)?.level ?? 'easy') !== level) r._setup({ course: first.id }, false);
+    this.map?.setLevel(level, false);
+    this.render();
+    this.map?.setLevel(level, true);
+  }
+
   pickCourse(id) {
     if (!this.host()) return;
+    const lv = BIKE_COURSES.find((c) => c.id === id)?.level ?? 'easy';
+    if (lv !== this.level) {
+      this.level = lv;
+      this.race._setup({ course: id }, false);
+      this.map?.setLevel(lv, false);
+      this.render();
+      this.map?.focus(id);
+      return;
+    }
     this.race._setup({ course: id }, false);
     for (const b of this.race.menuEl.querySelectorAll('[data-course]')) b.classList.toggle('is-on', b.dataset.course === id);
     for (const p of this.race.menuEl.querySelectorAll('[data-pin]')) p.classList.toggle('is-on', p.dataset.pin === id);

@@ -45,3 +45,26 @@ export function wallsNear(x, z, reach) {
   }
   return walls;
 }
+
+/** The lie of the land (terrain.bin, read as SeoulGame reads it): a groundAt(x, z) in metres, or null without it. */
+export function seoulTerrain() {
+  const f = join(DIR, 'terrain.bin');
+  if (!existsSync(f)) return null;
+  const b = readFileSync(f);
+  const buf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+  const v = new DataView(buf);
+  if (v.getUint32(0, true) !== 0x544f4553) return null;
+  const cols = v.getUint16(14, true);
+  const rows = v.getUint16(16, true);
+  const t = { x0: v.getInt32(4, true) - ORIGIN.x, y0: v.getInt32(8, true) - ORIGIN.y, cell: v.getUint16(12, true), cols, rows, h: new Uint16Array(buf, 24, cols * rows) };
+  return (x, z) => {
+    const fx = Math.max(0, Math.min(t.cols - 1.001, (x - t.x0) / t.cell));
+    const fy = Math.max(0, Math.min(t.rows - 1.001, (-z - t.y0) / t.cell));
+    const i = Math.floor(fx);
+    const j = Math.floor(fy);
+    const u = fx - i;
+    const w = fy - j;
+    const at = (a, c) => t.h[c * t.cols + a];
+    return (at(i, j) * (1 - u) * (1 - w) + at(i + 1, j) * u * (1 - w) + at(i, j + 1) * (1 - u) * w + at(i + 1, j + 1) * u * w) / 10;
+  };
+}

@@ -1,4 +1,4 @@
-import { BIKE_COURSES, courseStats } from './course.js';
+import { BIKE_COURSES, LEVELS, courseStats } from './course.js';
 import { decodeTile, tileKey, tileOf, TILE } from './tiles.js';
 import { tileRings } from './walls.js';
 
@@ -30,24 +30,34 @@ import { tileRings } from './walls.js';
  */
 
 /** Each course's colour on the map (and its pin). */
-export const COURSE_COLORS = { gwanghwamun: '#ff5a36', dongdaemun: '#e23ad0', namsan: '#1f9e4a', hongdae: '#8a4dff', yeouido: '#1c7ef2', cheongnyangni: '#f08c00', teheran: '#00a596', jamsil: '#ff2f72' };
+/** Each course's colour: by level, a family each — Easy the greens and blues, Medium the ambers, Hard the reds. */
+export const COURSE_COLORS = {
+  gwanghwamun: '#1f9e4a', dongdaemun: '#0f9488', namsan: '#3fb950', hongdae: '#2f80ed', yeouido: '#1c7ef2', cheongnyangni: '#20a4c8', teheran: '#00a596', jamsil: '#4a6cf0',
+  seochon: '#f08c00', seongsu: '#e8a400', jamsilpark: '#ff7a1a',
+  euljiro: '#e5383b', mullae: '#c2185b', haebangchon: '#ff4d6d', namsandown: '#b5179e'
+};
+
+/** A little red chilli pepper (SVG): the difficulty badge, one to three of them. */
+export const chilli = (size = 14) => `<svg class="chilli" viewBox="0 0 16 16" width="${size}" height="${size}" aria-hidden="true"><path d="M10.6 3.2c.4-1 1.2-1.7 2.2-2" stroke="#2f8f3a" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M9.6 3.4c2.4-.4 3.6 1.4 2.8 3.6-1.2 3.4-5 6.6-9.8 7.6-.9.2-1.2-.7-.4-1.1 3.6-1.8 5.6-4.4 6-7.4.1-1.4.4-2.5 1.4-2.7z" fill="#e5383b" stroke="#7a1015" stroke-width=".9"/><path d="M9.2 5.2c-.3 1.6-1.2 3.4-2.8 4.8" stroke="#ff9a9a" stroke-width=".9" fill="none" stroke-linecap="round"/></svg>`;
+export const chillies = (level, size = 14) => `<span class="chillies" title="${LEVELS[level]?.name ?? ''}">${chilli(size).repeat(LEVELS[level]?.stars ?? 1)}</span>`;
 
 /** Places named on the map (world metres: x east, z south of City Hall). `big`: named from further out. */
 export const LANDMARKS = [
-  { name: 'N Seoul Tower', ko: 'N서울타워', x: 907, z: 1673, icon: 'tower', big: true },
-  { name: 'Gyeongbokgung', ko: '경복궁', x: -82, z: -1479, icon: 'palace', big: true },
-  { name: 'Lotte World Tower', ko: '롯데월드타워', x: 11012, z: 5953, icon: 'tower', big: true },
-  { name: '63 Building', ko: '63빌딩', x: -3367, z: 5170, icon: 'tower', big: true },
-  { name: 'City Hall', ko: '서울시청', x: 6, z: -25, icon: 'hall' },
-  { name: 'Changdeokgung', ko: '창덕궁', x: 1155, z: -1457, icon: 'palace' },
-  { name: 'Seoul Station', ko: '서울역', x: -639, z: 1284, icon: 'station' },
-  { name: 'DDP', ko: '동대문디자인플라자', x: 2763, z: -25, icon: 'hall' },
-  { name: 'COEX', ko: '코엑스', x: 7211, z: 6067, icon: 'hall' },
-  { name: 'Olympic Park', ko: '올림픽공원', x: 12682, z: 5063, icon: 'park' },
-  { name: 'Seoul Forest', ko: '서울숲', x: 5255, z: 2427, icon: 'park' },
-  { name: 'Yeouido Park', ko: '여의도공원', x: -4883, z: 4445, icon: 'park' },
-  { name: 'World Cup Stadium', ko: '월드컵경기장', x: -7132, z: -230, icon: 'stadium' },
-  { name: 'Jamsil Stadium', ko: '잠실종합운동장', x: 8307, z: 5999, icon: 'stadium' }
+  { name: 'N Seoul Tower', ko: 'N서울타워', x: 907, z: 1673, icon: 'tower', big: true, text: 'On top of Namsan, 237 m: the Namsan Tower Downhill starts at its plaza.' },
+  { name: 'Gyeongbokgung', ko: '경복궁', x: -82, z: -1479, icon: 'palace', big: true, text: 'The great palace of the Joseon kings, under Bugaksan.' },
+  { name: 'Lotte World Tower', ko: '롯데월드타워', x: 11012, z: 5953, icon: 'tower', big: true, text: 'Korea\'s tallest tower, 555 m, by Seokchon Lake.' },
+  { name: '63 Building', ko: '63빌딩', x: -3367, z: 5170, icon: 'tower', big: true, text: 'The golden tower on Yeouido, by the Han.' },
+  { name: 'City Hall', ko: '서울시청', x: 6, z: -25, icon: 'hall', text: 'The middle of the map: every course is measured from here.' },
+  { name: 'Changdeokgung', ko: '창덕궁', x: 1155, z: -1457, icon: 'palace', text: 'A palace and its secret garden, by the hanok lanes of Bukchon.' },
+  { name: 'Seoul Station', ko: '서울역', x: -639, z: 1284, icon: 'station', text: 'The trains to Busan leave from here.' },
+  { name: 'DDP', ko: '동대문디자인플라자', x: 2763, z: -25, icon: 'hall', text: 'A silver building like a spaceship, by the Dongdaemun markets.' },
+  { name: 'COEX', ko: '코엑스', x: 7211, z: 6067, icon: 'hall', text: 'A huge mall with a library of books two floors high.' },
+  { name: 'Olympic Park', ko: '올림픽공원', x: 12682, z: 5063, icon: 'park', text: 'Built for the 1988 Olympics.' },
+  { name: 'Seoul Forest', ko: '서울숲', x: 5255, z: 2427, icon: 'park', text: 'A forest park with deer, next to the Seongsu brick works.' },
+  { name: 'Yeouido Park', ko: '여의도공원', x: -4883, z: 4445, icon: 'park', text: 'A long park down the middle of the island.' },
+  { name: 'World Cup Stadium', ko: '월드컵경기장', x: -7132, z: -230, icon: 'stadium', text: 'The 2002 World Cup was played here.' },
+  { name: 'Jamsil Stadium', ko: '잠실종합운동장', x: 8307, z: 5999, icon: 'stadium', text: 'The Olympic stadium and the baseball grounds.' },
+  { name: 'Seokchon Lake', ko: '석촌호수', x: 11230, z: 6090, icon: 'park', text: 'The lake the Jamsil Fairground course goes round: a funfair of our own beside it.' }
 ];
 const HILLS = [
   { name: 'Namsan', ko: '남산', x: 700, z: 1900 },
@@ -128,13 +138,19 @@ export class CourseMap {
     this.o = o;
     this.root = document.createElement('div');
     this.root.className = 'cm';
-    this.root.innerHTML = `<canvas class="cm__canvas" aria-label="Map of Seoul with the eight courses on their real streets"></canvas>
+    this.root.innerHTML = `<canvas class="cm__canvas" aria-label="Map of Seoul with the courses on their real streets"></canvas>
       <div class="cm__pins"></div>
       <div class="cm__ui"><button type="button" data-cm-zoom="1" aria-label="Zoom in">+</button><button type="button" data-cm-zoom="-1" aria-label="Zoom out">−</button><button type="button" data-cm-all title="All the courses">⌂ Seoul</button></div>
-      <p class="cm__credit">Map: OpenStreetMap contributors (ODbL) · 국토교통부 · Copernicus DEM</p>`;
+      <p class="cm__credit">Map: OpenStreetMap contributors (ODbL) · 국토교통부 · Copernicus DEM</p>
+      <div class="cm__tip" hidden></div>`;
     this.cv = this.root.querySelector('canvas');
     this.ctx = this.cv.getContext('2d');
     this.pinsEl = this.root.querySelector('.cm__pins');
+    this.tipEl = this.root.querySelector('.cm__tip');
+    /** The level shown (its courses bright, the others faint), or null for all of them. */
+    this.level = null;
+    /** A course's line drawing itself in (its id, how far: 0–1). */
+    this.reveal = null;
     this.pins = new Map();
     for (const c of BIKE_COURSES) {
       const b = document.createElement('button');
@@ -143,7 +159,8 @@ export class CourseMap {
       b.dataset.pin = c.id;
       b.setAttribute('aria-label', c.name);
       b.style.setProperty('--c', COURSE_COLORS[c.id] ?? '#ff8a2a');
-      b.innerHTML = `<i></i><span>${esc(c.name)}</span>`;
+      b.dataset.pinLevel = c.level ?? 'easy';
+      b.innerHTML = `<i></i><span>${esc(c.name)} ${chillies(c.level ?? 'easy', 12)}</span>`;
       b.onpointerenter = () => this.o.onHover?.(c.id);
       b.onpointerleave = () => this.o.onHover?.(null);
       b.onclick = () => this.o.onPick?.(c.id);
@@ -233,7 +250,7 @@ export class CourseMap {
     let x1 = -Infinity;
     let z0 = Infinity;
     let z1 = -Infinity;
-    for (const c of BIKE_COURSES) {
+    for (const c of this.shown()) {
       x0 = Math.min(x0, c.x - 1800);
       x1 = Math.max(x1, c.x + 1800);
       z0 = Math.min(z0, c.z - 1800);
@@ -244,8 +261,25 @@ export class CourseMap {
     this.flyTo(fitView(x0, z0, x1, z1, this.W, this.H, 20), animate);
   }
 
+  /** The courses of the level shown (all of them with none). */
+  shown() {
+    return this.level ? BIKE_COURSES.filter((c) => (c.level ?? 'easy') === this.level) : BIKE_COURSES;
+  }
+
+  /**
+   * Show a level: its courses in their colours with their pins, the others faint and pinless —
+   * and fly to fit them (`fly` false: only redraw).
+   */
+  setLevel(level, fly = true) {
+    this.level = LEVELS[level] ? level : null;
+    for (const [id, b] of this.pins) b.classList.toggle('is-other', Boolean(this.level) && b.dataset.pinLevel !== this.level);
+    this.dirty = true;
+    if (fly) this.overview(true);
+  }
+
   /** Fly to a course: its whole loop in view, with room round it for the streets it runs through. */
   focus(id, animate = true) {
+    if (id !== this.focusId) this.reveal = { id, t: 0 };
     const plan = this.o.plans().get(id);
     const def = BIKE_COURSES.find((c) => c.id === id);
     if (!def) return;
@@ -282,6 +316,7 @@ export class CourseMap {
 
   /** Pointing at a course (a pin or a list chip): lit up and its route shown, or null. */
   highlight(id) {
+    if (id && id !== this.hover && id !== this.focusId) this.reveal = { id, t: 0 };
     this.hover = id;
     for (const [k, b] of this.pins) b.classList.toggle('is-hover', k === id);
     this.dirty = true;
@@ -327,6 +362,7 @@ export class CourseMap {
       const r = cv.getBoundingClientRect();
       const p = ptrs.get(e.pointerId);
       if (!p) {
+        this._tip(e.clientX - r.left, e.clientY - r.top);
         // hovering a course's line lights it up
         const id = this._hit(e.clientX - r.left, e.clientY - r.top);
         if (id !== this._lineHover) {
@@ -368,6 +404,7 @@ export class CourseMap {
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', up);
     cv.addEventListener('pointerleave', () => {
+      this._tip(-999, -999);
       if (this._lineHover) {
         this._lineHover = null;
         this.o.onHover?.(null);
@@ -377,14 +414,37 @@ export class CourseMap {
     this.root.querySelector('[data-cm-all]').onclick = () => this.overview(true);
   }
 
+  /** A landmark under the pointer (within 12 px): its name, Korean name and what it is, in a box beside it. */
+  _tip(px, py) {
+    let best = null;
+    let bd = 12;
+    for (const m of this._marks ?? []) {
+      const d = Math.hypot(m.x - px, m.y - py);
+      if (d < bd) [bd, best] = [d, m];
+    }
+    const el = this.tipEl;
+    if (!best) {
+      if (!el.hidden) el.hidden = true;
+      this.tipFor = null;
+      return;
+    }
+    if (this.tipFor !== best.m) {
+      this.tipFor = best.m;
+      el.innerHTML = `<b>${esc(best.m.name)}</b> <span>${esc(best.m.ko)}</span>${best.m.text ? `<small>${esc(best.m.text)}</small>` : ''}`;
+    }
+    el.hidden = false;
+    el.style.transform = `translate(${Math.round(clamp(best.x + 14, 4, this.W - 230))}px, ${Math.round(clamp(best.y - 12, 4, this.H - 70))}px)`;
+  }
+
   /** The course whose line is under a point of the screen (within 9 px), or null. */
   _hit(px, py) {
     const v = this.view;
     let best = null;
     let bd = 9;
     for (const [id, plan] of this.o.plans()) {
+      if (this.level && (plan.def?.level ?? BIKE_COURSES.find((c) => c.id === id)?.level ?? 'easy') !== this.level) continue;
       const pts = plan.points;
-      for (let i = 0; i < pts.length; i++) {
+      for (let i = 0; i < pts.length - (plan.open ? 1 : 0); i++) {
         const a = pts[i];
         const b = pts[(i + 1) % pts.length];
         const ax = (a[0] - v.cx) * v.s + this.W / 2;
@@ -596,8 +656,12 @@ export class CourseMap {
       if (a.t >= 1) this.anim = null;
       this.dirty = true;
     }
-    // (the rider running round the course picked: always moving)
-    const moving = Boolean(this.focusId || this.hover);
+    if (this.reveal) {
+      this.reveal.t += dt / 1.1;
+      if (this.reveal.t >= 1) this.reveal = null;
+    }
+    // (the rider running round the course picked, the flow along it: always moving)
+    const moving = Boolean(this.focusId || this.hover || this.reveal);
     if (!this.dirty && !moving && !this.queue.size) return;
     this.dirty = false;
     this._draw();
@@ -706,33 +770,62 @@ export class CourseMap {
     const lit = new Set([this.hover, this.focusId, picked].filter(Boolean));
     const close = v.s > 0.09;
     // The courses: each its loop, at its true size on its streets.
-    for (const c of BIKE_COURSES) {
+    // (another level's courses first, faint and grey, under the level shown)
+    const order = [...BIKE_COURSES].sort((a, b) => Number(!this.level || a.level === this.level) - Number(!this.level || b.level === this.level));
+    for (const c of order) {
       const plan = plans.get(c.id);
       if (!plan) continue;
-      const col = COURSE_COLORS[c.id] ?? '#ff8a2a';
-      const on = lit.has(c.id);
+      const other = Boolean(this.level) && (c.level ?? 'easy') !== this.level;
+      const col = other ? '#9a93a6' : COURSE_COLORS[c.id] ?? '#ff8a2a';
+      const on = lit.has(c.id) && !other;
       const pts = plan.points;
       const stepN = v.s < 0.05 ? 4 : 1;
+      const loop = !plan.open;
+      // drawing itself in: only so far, a bright head at the front
+      const rv = this.reveal?.id === c.id && !other ? this.reveal.t : 1;
+      const e = rv < 1 ? 1 - (1 - rv) ** 3 : 1;
+      const end = Math.max(1, Math.floor((loop ? pts.length : pts.length - 1) * e));
       ctx.beginPath();
-      for (let i = 0; i <= pts.length; i += stepN) {
-        const p = pts[i % pts.length];
+      for (let i = 0; i <= end; i += stepN) {
+        const p = pts[Math.min(i, end) % pts.length];
         const [x, y] = this._sp(p[0], p[1]);
         if (i) ctx.lineTo(x, y);
         else ctx.moveTo(x, y);
       }
-      ctx.closePath();
+      if (loop && e >= 1) ctx.closePath();
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      const w = on ? clamp(v.s * 9, 4, 11) : clamp(v.s * 6, 2.5, 7);
+      const w = on ? clamp(v.s * 9, 4, 11) : other ? clamp(v.s * 4, 1.5, 4) : clamp(v.s * 6, 2.5, 7);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = w + (on ? 5 : 3);
-      ctx.globalAlpha = on ? 1 : 0.9;
+      ctx.lineWidth = w + (on ? 5 : other ? 1.5 : 3);
+      ctx.globalAlpha = on ? 1 : other ? 0.45 : 0.9;
       ctx.stroke();
       ctx.strokeStyle = col;
       ctx.lineWidth = w;
       ctx.stroke();
+      // the flow: light dashes running along it the way it is raced
+      if (on && e >= 1) {
+        ctx.save();
+        ctx.setLineDash([2, 16]);
+        ctx.lineDashOffset = -this.t * 40;
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+        ctx.lineWidth = Math.max(2, w * 0.45);
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.globalAlpha = 1;
-      if (on && close) this._route(ctx, c, plan, col, w);
+      if (rv < 1) {
+        const p = pts[end % pts.length];
+        const [x, y] = this._sp(p[0], p[1]);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, w * 0.9 + 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      if (on && close && e >= 1) this._route(ctx, c, plan, col, w);
     }
     // The hills, the river, the districts, the landmarks (drawn under the pins, over the land).
     if (v.s < 0.5) {
@@ -749,9 +842,11 @@ export class CourseMap {
       }
     }
     const marks = LANDMARKS.filter((m) => m.big || v.s > 0.06);
+    this._marks = [];
     for (const m of marks) {
       const [x, y] = this._sp(m.x, m.z);
       if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue;
+      this._marks.push({ m, x, y });
       this._icon(ctx, m.icon, x, y);
       this._label(ctx, m.name, x + 10, y, { size: m.big ? 12.5 : 11.5, color: '#2b1d4e', weight: 900, align: 'left' });
     }
@@ -769,11 +864,11 @@ export class CourseMap {
     for (const c of BIKE_COURSES) {
       const b = this.pins.get(c.id);
       const plan = plans.get(c.id);
-      const at = plan ? plan.points[0] : [c.x, c.z];
+      const at = plan ? plan.points[plan.open ? plan.startI : 0] : [c.x, c.z];
       const [x, y] = this._sp(at[0], at[1]);
       const out = x < -30 || y < -30 || x > W + 30 || y > H + 30;
       b.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      b.hidden = out;
+      b.hidden = out || (Boolean(this.level) && (c.level ?? 'easy') !== this.level);
       b.classList.toggle('is-on', c.id === picked);
       b.classList.toggle('is-close', close);
     }
@@ -886,24 +981,37 @@ export class CourseMap {
       ctx.stroke();
       ctx.restore();
     }
-    // start and finish: a chequered flag on a post
-    const [sx, sy] = this._sp(pts[0][0], pts[0][1]);
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.strokeStyle = '#2b1d4e';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, -30);
-    ctx.stroke();
-    for (let a = 0; a < 4; a++) for (let b = 0; b < 3; b++) {
-      ctx.fillStyle = (a + b) % 2 ? '#2b1d4e' : '#ffffff';
-      ctx.fillRect(a * 5, -30 + b * 5, 5, 5);
+    // start and finish: a chequered flag on a post (a point-to-point course: one at each end, A and B)
+    const flags = plan.open ? [[plan.startI, 'A'], [plan.finishI, 'B']] : [[0, '']];
+    for (const [fi, letter] of flags) {
+      const [sx, sy] = this._sp(pts[fi][0], pts[fi][1]);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.strokeStyle = '#2b1d4e';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -30);
+      ctx.stroke();
+      for (let a = 0; a < 4; a++) for (let b = 0; b < 3; b++) {
+        ctx.fillStyle = (a + b) % 2 ? '#2b1d4e' : '#ffffff';
+        ctx.fillRect(a * 5, -30 + b * 5, 5, 5);
+      }
+      ctx.strokeRect(0, -30, 20, 15);
+      if (letter) {
+        ctx.font = '900 13px Nunito, system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(letter, 24, -21);
+        ctx.fillStyle = '#2b1d4e';
+        ctx.fillText(letter, 24, -21);
+      }
+      ctx.restore();
     }
-    ctx.strokeRect(0, -30, 20, 15);
-    ctx.restore();
-    // a rider running round it, about a lap every eight seconds
-    const u = ((this.t / 8) % 1) * plan.length;
+    // a rider running round it, about a lap every eight seconds (start to finish, and again)
+    const s0 = plan.open ? plan.s[plan.startI] : 0;
+    const u = s0 + ((this.t / 8) % 1) * plan.length;
     let i = 0;
     while (i < n - 1 && plan.s[i + 1] < u) i++;
     const p = pts[i];

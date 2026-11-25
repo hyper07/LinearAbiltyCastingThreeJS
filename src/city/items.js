@@ -61,7 +61,9 @@ export function boxSpots(course, every = 220) {
   const pts = course.points;
   const n = pts.length;
   let row = 0;
-  for (let along = 80; along < course.length - 40; along += every, row++) {
+  // (a point-to-point course: from its start line to its finish)
+  const s0 = course.open ? course.s[course.startI] : 0;
+  for (let along = s0 + 80; along < s0 + course.length - 40; along += every, row++) {
     let i = 0;
     while (i < n - 1 && course.s[i] < along) i++;
     const p = pts[i];

@@ -11,23 +11,50 @@
  */
 
 /**
- * The bike courses: loops of 2–3 km (two to three minutes a lap) on Seoul's boulevards and
- * avenues — two or more lanes each way, long straights and sweeping bends, few hard corners, a
- * long run from the start — each with a character of its own: an island in the river, palace
- * avenues, a market, a hill road with a view, the towers of Gangnam. The golmok (alleys.bin,
- * scripts/geo/seoul-alleys.mjs) are only the short cuts. Centres are world metres from City Hall;
- * `r` is how far out the loop is drawn; `kind` is what the map picker calls it.
+ * The bike courses, by level (LEVELS below). Easy: loops of 2–3 km (two to three minutes a lap) on
+ * Seoul's boulevards and avenues — two or more lanes each way, long straights and sweeping bends,
+ * few hard corners, a long run from the start. Medium: narrower avenues and a little of the
+ * residential lanes, 6–10 hard corners, a hill, a short cut or two. Hard: tight two-lane streets
+ * and residential lanes, square corners to drift, hills, golmok short cuts. Each with a character
+ * of its own: an island in the river, palace avenues, a market, a hill road with a view, the
+ * towers of Gangnam, print shops, ironworks, a fairground, the run down from N Seoul Tower. The
+ * golmok (alleys.bin, scripts/geo/seoul-alleys.mjs) are the short cuts. Centres are world metres
+ * from City Hall; `r` is how far out the loop is drawn; `kind` is what the map picker calls it.
+ * A course with `via` goes through those points in order (planViaCourse); with `open` it runs from
+ * the first to the last — a point-to-point race, its finish line below its start.
  */
 export const BIKE_COURSES = [
-  { id: 'gwanghwamun', name: 'Gwanghwamun Avenues', ko: '광화문', x: 159, z: -818, r: 350, kind: 'Avenue', text: 'Ten lanes past the palace gate and the glass towers of Jongno, under the mountains.' },
-  { id: 'dongdaemun', name: 'Dongdaemun Market', ko: '동대문', x: 2263, z: 475, r: 350, kind: 'Market', text: 'Round the old East Gate and the night markets, buses and delivery scooters everywhere.' },
-  { id: 'namsan', name: 'Namsan Hill Road', ko: '남산 소월로', x: 350, z: 1650, r: 350, kind: 'Hill', text: 'Sowol-ro winds along the side of Namsan under the tower, the city spread out below.' },
-  { id: 'hongdae', name: 'Hongdae Boulevards', ko: '홍대', x: -4801, z: 1355, r: 450, kind: 'Avenue', text: 'Wide roads round the university quarter, buskers and cafes, and a golmok short cut through it.' },
-  { id: 'yeouido', name: 'Yeouido Riverside', ko: '여의도', x: -4400, z: 4300, r: 350, kind: 'River', text: 'The island in the Han: long straight boulevards between the river parks and the finance towers.' },
-  { id: 'cheongnyangni', name: 'Cheongnyangni Market', ko: '청량리', x: 5675, z: -1807, r: 350, kind: 'Market', text: 'Past the fruit and herb stalls of Gyeongdong Market and the station: long straights, two big corners.' },
-  { id: 'teheran', name: 'Teheran-ro Towers', ko: '테헤란로', x: 7150, z: 6300, r: 350, kind: 'Towers', text: 'Between the office towers of Gangnam: eight lanes, four big corners.' },
-  { id: 'jamsil', name: 'Jamsil Tower Loop', ko: '잠실', x: 11000, z: 5650, r: 350, kind: 'Towers', text: 'Under the tallest tower in Korea — the shortest, fastest loop.' }
+  { id: 'gwanghwamun', level: 'easy', name: 'Gwanghwamun Avenues', ko: '광화문', x: 159, z: -818, r: 350, kind: 'Avenue', text: 'Ten lanes past the palace gate and the glass towers of Jongno, under the mountains.' },
+  { id: 'dongdaemun', level: 'easy', name: 'Dongdaemun Market', ko: '동대문', x: 2263, z: 475, r: 350, kind: 'Market', text: 'Round the old East Gate and the night markets, buses and delivery scooters everywhere.' },
+  { id: 'namsan', level: 'easy', name: 'Namsan Hill Road', ko: '남산 소월로', x: 350, z: 1650, r: 350, kind: 'Hill', text: 'Sowol-ro winds along the side of Namsan under the tower, the city spread out below.' },
+  { id: 'hongdae', level: 'easy', name: 'Hongdae Boulevards', ko: '홍대', x: -4801, z: 1355, r: 450, kind: 'Avenue', text: 'Wide roads round the university quarter, buskers and cafes, and a golmok short cut through it.' },
+  { id: 'yeouido', level: 'easy', name: 'Yeouido Riverside', ko: '여의도', x: -4400, z: 4300, r: 350, kind: 'River', text: 'The island in the Han: long straight boulevards between the river parks and the finance towers.' },
+  { id: 'cheongnyangni', level: 'easy', name: 'Cheongnyangni Market', ko: '청량리', x: 5675, z: -1807, r: 350, kind: 'Market', text: 'Past the fruit and herb stalls of Gyeongdong Market and the station: long straights, two big corners.' },
+  { id: 'teheran', level: 'easy', name: 'Teheran-ro Towers', ko: '테헤란로', x: 7150, z: 6300, r: 350, kind: 'Towers', text: 'Between the office towers of Gangnam: eight lanes, four big corners.' },
+  { id: 'jamsil', level: 'easy', name: 'Jamsil Tower Loop', ko: '잠실', x: 11000, z: 5650, r: 350, kind: 'Towers', text: 'Under the tallest tower in Korea — the shortest, fastest loop.' },
+  { id: 'seochon', level: 'medium', name: 'Seochon Palace Lanes', ko: '서촌', x: -656, z: -1468, r: 320, kind: 'Hanok', text: 'West of Gyeongbokgung under Inwangsan: avenues and hanok lanes, a climb, square corners and two golmok short cuts.' },
+  { id: 'seongsu', level: 'medium', name: 'Seongsu Brick Works', ko: '성수', x: 6700, z: 2300, r: 280, kind: 'Factory', text: 'Red-brick factories turned cafés and workshops: a grid of square corners, delivery trucks and lanes.' },
+  {
+    id: 'jamsilpark', level: 'medium', name: 'Jamsil Fairground', ko: '잠실 놀이공원', x: 11200, z: 6000, r: 350, kind: 'Fairground',
+    text: 'Round Seokchon Lake under the tallest tower in Korea, past a fairground of our own: a wooden coaster, a drop tower, a big wheel, a carousel and a pirate ship.',
+    via: [[10800, 5890], [11120, 6380], [11480, 6050], [11425, 5790], [11575, 5745], [11560, 5625]],
+    // the fairground: on the lake side of Seokchonhosu-ro (left of the way the course runs there)
+    fair: { at: [11300, 6215], side: -1 }
+  },
+  { id: 'euljiro', level: 'hard', name: 'Euljiro Print Alleys', ko: '을지로', x: 1287, z: -25, r: 330, kind: 'Alleys', text: 'Print shops and tool stalls on tight two-lane streets: square corner after square corner — drift them.' },
+  { id: 'mullae', level: 'hard', name: 'Mullae Ironworks', ko: '문래', x: -7377, z: 5575, r: 330, kind: 'Workshops', text: 'Metal workshops and rolling shutters: narrow lanes, parked trucks, sparks of welding and a golmok short cut.' },
+  { id: 'haebangchon', level: 'hard', name: 'Haebangchon Hill Lanes', ko: '해방촌', x: 801, z: 2417, r: 320, kind: 'Hill', text: 'Steep lanes under Namsan: up and over the hill, tight corners at the top, and down again.' },
+  {
+    id: 'namsandown', level: 'hard', name: 'Namsan Tower Downhill', ko: '남산 다운힐', x: 600, z: 1500, r: 400, kind: 'Downhill',
+    text: 'From the plaza under N Seoul Tower down Namsan\'s winding park road and Sowol-ro to the city below — one way, all downhill: brake before the bends.',
+    via: [[1150, 1689], [894, 1787], [762, 1950], [592, 1709], [371, 1554], [169, 1332], [269, 1237], [-85, 1146]],
+    // (the park road meets Sowol-ro a few metres short of it, and Sowol-ro's northbound carriageway has a gap in the map)
+    links: [[[370.8, 1553.9], [359.1, 1561.0]], [[168.6, 1332.3], [207.6, 1296.0]]],
+    open: true, small: true, minWidth: 7, mountain: true
+  }
 ];
+/** The courses of a level, in order. */
+export const coursesOf = (level) => BIKE_COURSES.filter((c) => (c.level ?? 'easy') === level);
 /** Kept for anything that still asks for "the courses". */
 export const COURSES = BIKE_COURSES;
 
@@ -61,6 +88,69 @@ export function turnCost(a) {
   if (t > 2.4) return 1e5;
   return 25 * t * t + (t > Math.PI / 3 ? 60 : 0) + (t > 1.4 ? 40 : 0);
 }
+/**
+ * The three levels a course can be, and what each asks of the planner and of the race.
+ *   easy    the boulevards: two lanes or more each way, long straights, few hard corners
+ *   medium  narrower avenues (one or two lanes each way), more corners (6–10 over 60°), a hill or
+ *           two, a short cut or two, more traffic
+ *   hard    tight two-lane streets and residential lanes, square corners you drift round, hills,
+ *           golmok short cuts, parked cars, busy oncoming traffic
+ * `traffic` scales the cars about; `oncoming` is how many to keep coming the other way down the
+ * course's own two-way roads; `parked` cars per km along the kerb; `bots` the three bots' skills;
+ * `items` how much more the last-placed odds lean on a harder level (0–1).
+ */
+export const LEVELS = {
+  easy: { id: 'easy', name: 'Easy', ko: '쉬움', stars: 1, color: '#2fbf71', traffic: 1, oncoming: 8, parked: 0, bots: [0.86, 0.89, 0.92], items: 0 },
+  medium: { id: 'medium', name: 'Medium', ko: '보통', stars: 2, color: '#ffa928', traffic: 1.2, oncoming: 11, parked: 2, bots: [0.89, 0.93, 0.97], items: 0.5 },
+  hard: { id: 'hard', name: 'Hard', ko: '어려움', stars: 3, color: '#ff4b3e', traffic: 1.4, oncoming: 14, parked: 5, bots: [0.93, 0.97, 1.01], items: 1 }
+};
+export const LEVEL_ORDER = ['easy', 'medium', 'hard'];
+
+/** A bike's costs on avenues: the wide roads no longer much cheaper, the narrower ones fine. */
+const MEDIUM_COST = Object.assign([Infinity, 3, 1.0, 1.0, 1.05, 1.7, 9, 12], { narrow: 0.25, against: 60, wide: 0.95, bridge: 2.5, link: 1.6 });
+/** …and in the tight streets: the boulevards dear, the two-lane roads and residential lanes cheap, the alleys still for the short cuts. */
+const HARD_COST = Object.assign([Infinity, 6, 2.2, 1.4, 1.0, 1.0, 9, 12], { narrow: 0.05, against: 60, wide: 1.8, bridge: 3, link: 1.3 });
+
+/** Corners (a sum over the turns, `per` each and `sharp` more per radian past 60°), and `each` for every one out of [lo, hi]. */
+const cornerScore = (st, per, sharp, [lo, hi], each = 140) => st.turns.reduce((t, x) => t + (x.angle > Math.PI / 3 ? per + (x.angle - Math.PI / 3) * sharp : x.angle > 0.7 ? per * 0.25 : 0), 0) + each * Math.max(0, lo - st.sharp, st.sharp - hi);
+
+/**
+ * How the planner plans for each level: the costs on the streets, what a turn at a junction costs,
+ * which small streets the main loop may use, where its points snap, and what makes a loop better.
+ * Lower is better.
+ */
+const PROFILE = {
+  easy: {
+    costs: BIKE_COST,
+    turn: turnCost,
+    small: false,
+    snap: (n) => (n.wide ? 0 : 260) + (n.cls <= 1 ? 300 : 0),
+    // the wide roads, few corners (a 90° junction is a stop at 70 km/h), long straights, a long run from the start
+    score: (st, { narrow }) => 1800 * (1 - st.wide) + 3000 * st.small + 2500 * narrow + st.turns.reduce((t, x) => t + (x.angle > Math.PI / 3 ? 90 + (x.angle - Math.PI / 3) * 160 : x.angle > 0.7 ? 25 : 0), 0) - Math.min(700, st.longest) * 0.35 - Math.min(350, st.firstCorner) * 0.4,
+    shortcut: 90
+  },
+  medium: {
+    costs: MEDIUM_COST,
+    turn: (a) => turnCost(a) * 0.45,
+    small: 'lanes',
+    snap: (n) => (n.wide ? 120 : 0) + (n.cls <= 1 ? 400 : 0) + (n.cls >= 5 ? 200 : 0),
+    // avenues, not boulevards: about half wide, a little of the residential lanes; 6–10 corners over
+    // 60°; still a fair run from the start
+    score: (st) => 2200 * Math.max(0, st.wide - 0.55) + 900 * Math.max(0, 0.15 - st.wide) + 2500 * Math.max(0, st.small - 0.35) + cornerScore(st, -40, 30, [6, 10], 260) - Math.min(500, st.longest) * 0.2 - Math.min(220, st.firstCorner) * 0.6,
+    shortcut: 160
+  },
+  hard: {
+    costs: HARD_COST,
+    turn: (a) => turnCost(a) * 0.2,
+    small: 'lanes',
+    snap: (n) => (n.wide ? 300 : 0) + (n.cls <= 2 ? 200 : 0),
+    // the narrow streets, square corners (about 8–14 over 60°), a straight to start on
+    score: (st, { narrow }) => 1600 * st.wide - 600 * Math.min(0.6, narrow) + cornerScore(st, -60, 20, [8, 14], 220) - 120 * Math.min(8, st.square) - Math.min(160, st.firstCorner) * 0.8,
+    shortcut: 220,
+    shortcuts: 3
+  }
+};
+
 /** Small streets: what a course point's class says it is (5 residential, 6 alley, 7 pedestrian). */
 export const isSmall = (cls) => cls >= 5;
 const key = (x, z) => `${Math.round(x * 2)}|${Math.round(z * 2)}`;
@@ -234,6 +324,8 @@ function edgeIndex(nodes) {
  * for the short cuts; so is going against a one-way road (unless not `strict`). Returns { route (the nodes), head (the way it arrives) }, or null.
  */
 function pathTurning(nodes, from, to, used, inHead = null, { turn = turnCost, small = false, strict = true } = {}) {
+  // (`small`: false — none of the small streets; 'lanes' — the residential lanes, not the alleys; true — all)
+  const shut = (e) => (strict && e.against) || (small === 'lanes' ? e.cls > 5 : !small && isSmall(e.cls));
   const off = edgeIndex(nodes);
   const tail = nodes._tail;
   const E = off[nodes.length];
@@ -251,7 +343,7 @@ function pathTurning(nodes, from, to, used, inHead = null, { turn = turnCost, sm
   const heap = new Heap();
   for (let k = off[from]; k < off[from + 1]; k++) {
     const e = nodes[from].adj[k - off[from]];
-    if ((strict && e.against) || (!small && isSmall(e.cls))) continue;
+    if (shut(e)) continue;
     const d = step(from, e) + (inHead == null ? 0 : turn(angle(inHead, hd[k])));
     if (d < dist[k]) {
       dist[k] = d;
@@ -272,7 +364,7 @@ function pathTurning(nodes, from, to, used, inHead = null, { turn = turnCost, sm
     }
     for (let k = off[v]; k < off[v + 1]; k++) {
       const e = nodes[v].adj[k - off[v]];
-      if (e.to === u || (strict && e.against) || (!small && isSmall(e.cls))) continue;
+      if (e.to === u || shut(e)) continue;
       const d = dist[id] + step(v, e) + turn(angle(hd[id], hd[k]));
       if (d < dist[k]) {
         dist[k] = d;
@@ -439,15 +531,17 @@ function loopOf(nodes, route, step, { min = 1400, max = 3400 } = {}) {
  * golmok are left for the short cuts.
  */
 function planBikeCourse(roads, def, { step, why, walls, target, strict = true }) {
-  const nodes = buildGraph(roads, def.x, def.z, def.r * (def.reach ?? 3), BIKE_COST, walls);
+  const prof = PROFILE[def.level ?? 'easy'] ?? PROFILE.easy;
+  if (def.via) return planViaCourse(roads, def, { step, why, walls, prof });
+  const nodes = buildGraph(roads, def.x, def.z, def.r * (def.reach ?? 3), prof.costs, walls);
   const snapWide = (x, z, reach) => {
     let best = -1;
     let bestScore = Infinity;
     nodes.forEach((n, i) => {
-      if (n.adj.length < 2 || n.cls >= 5 || n.cls <= 0) return;
+      if (n.adj.length < 2 || n.cls >= (prof.small ? 6 : 5) || n.cls <= 0) return;
       const d = Math.hypot(n.x - x, n.z - z);
       if (d > reach) return;
-      const score = d + (n.wide ? 0 : 260) + (n.cls <= 1 ? 300 : 0);
+      const score = d + prof.snap(n);
       if (score < bestScore) {
         bestScore = score;
         best = i;
@@ -479,7 +573,7 @@ function planBikeCourse(roads, def, { step, why, walls, target, strict = true })
         let inHead = null;
         let ok = true;
         for (let k = 0; k < count; k++) {
-          const leg = pathTurning(nodes, anchors[k], anchors[(k + 1) % count], used, inHead, { strict });
+          const leg = pathTurning(nodes, anchors[k], anchors[(k + 1) % count], used, inHead, { strict, turn: prof.turn, small: prof.small });
           if (!leg) {
             why?.push(`no way ${k}`);
             ok = false;
@@ -499,11 +593,9 @@ function planBikeCourse(roads, def, { step, why, walls, target, strict = true })
         }
         const started = startOnBigRoad({ id: def.id, ...loop });
         const st = courseStats(started);
-        // (a turn's cost: harder the sharper; a 90° junction is a stop at 70 km/h)
-        const corners = st.turns.reduce((t, x) => t + (x.angle > Math.PI / 3 ? 90 + (x.angle - Math.PI / 3) * 160 : x.angle > 0.7 ? 25 : 0), 0);
         const against = loop.points.filter((p) => p[4] === -1).length / loop.points.length;
         const narrow = loop.points.filter((p) => (p[2] ?? 8) < 6.5).length / loop.points.length;
-        const score = Math.abs(loop.length - target) * 0.35 + 1800 * (1 - st.wide) + 3000 * st.small + 8000 * against + 2500 * narrow + corners - Math.min(700, st.longest) * 0.35 - Math.min(350, st.firstCorner) * 0.4;
+        const score = Math.abs(loop.length - target) * 0.35 + 8000 * against + prof.score(st, { narrow });
         cands.push({ id: def.id, points: loop.points, s: loop.s, length: loop.length, score, graph: { nodes, route: loop.route } });
       }
     }
@@ -517,13 +609,89 @@ function planBikeCourse(roads, def, { step, why, walls, target, strict = true })
     for (const c of cands.slice(0, 8)) {
       const started = startOnBigRoad(c);
       Object.defineProperty(started, 'graph', { enumerable: false, value: c.graph });
-      c.score -= 90 * Math.min(2, planShortcuts(started, { walls }).length);
+      c.score -= prof.shortcut * Math.min(prof.shortcuts ?? 2, planShortcuts(started, { walls }).length);
     }
   }
   const best = cands.slice(0, 8).reduce((a, b) => (b.score < a.score ? b : a));
   delete best.score;
   Object.defineProperty(best, 'graph', { enumerable: false, value: best.graph });
   return best;
+}
+
+/**
+ * A course through points of its own (`def.via`: [[x, z], …] in order) — a loop round a lake, a run
+ * down a hill: each point snapped to the nearest street the course may use, joined leg by leg the
+ * racer's way (pathTurning) — back to the first (a loop), or, with `def.open`, from the first to the
+ * last: a point-to-point run, its start up top and its finish line below. `def.small` which small
+ * streets it may use (as pathTurning's); `def.minWidth` widens narrow streets on it (a park road two
+ * lanes wide that the map gives no width); `def.links` short pieces of street the map is missing
+ * ([[x, z], [x, z]] each: where a park road meets a main road a few metres short of it).
+ * Returns { points, s, length, open?, graph } or null.
+ */
+function planViaCourse(roads, def, { step, why, walls, prof }) {
+  const small = def.small ?? prof.small;
+  const links = (def.links ?? []).map(([a, b]) => ({ pts: Float32Array.of(a[0], a[1], b[0], b[1]), width: def.minWidth ?? 6, cls: 5, small: true, link: true }));
+  const nodes = buildGraph(links.length ? roads.concat(links) : roads, def.x, def.z, def.r * (def.reach ?? 3), def.costs ?? prof.costs, walls);
+  const allowed = (cls) => (small === true ? cls <= 7 : small === 'lanes' ? cls <= 5 : cls < 5) && cls >= 1;
+  const snapTo = ([x, z]) => {
+    let best = -1;
+    let bd = Infinity;
+    nodes.forEach((n, i) => {
+      if (!n.adj.some((e) => allowed(e.cls))) return;
+      const d = Math.hypot(n.x - x, n.z - z);
+      if (d < bd) [bd, best] = [d, i];
+    });
+    return bd < 120 ? best : -1;
+  };
+  const anchors = def.via.map(snapTo);
+  if (anchors.some((a) => a < 0)) {
+    why?.push(`via ${anchors}`);
+    return null;
+  }
+  const legs = def.open ? anchors.length - 1 : anchors.length;
+  for (const strict of [true, false]) {
+    const used = new Set();
+    const route = [anchors[0]];
+    let inHead = null;
+    let ok = true;
+    for (let k = 0; k < legs && ok; k++) {
+      const leg = pathTurning(nodes, anchors[k], anchors[(k + 1) % anchors.length], used, inHead, { strict, turn: prof.turn, small });
+      if (!leg) {
+        why?.push(`no way ${k}${strict ? '' : ' (loose)'}`);
+        ok = false;
+        break;
+      }
+      inHead = leg.head;
+      for (let i = 1; i < leg.route.length; i++) {
+        used.add(`${leg.route[i - 1]}>${leg.route[i]}`);
+        route.push(leg.route[i]);
+      }
+    }
+    if (!ok) continue;
+    const widen = (p) => (def.minWidth && (p[2] ?? 8) < def.minWidth ? [p[0], p[1], def.minWidth, p[3], p[4]] : p);
+    if (def.open) {
+      const edge = (a, b) => nodes[a].adj.reduce((best, e) => (e.to === b && (!best || e.cost < best.cost) ? e : best), null);
+      const pts = route.map((id, i) => {
+        const e = edge(route[Math.max(0, i - 1)], route[Math.max(1, i)]) ?? { width: 8, cls: 4 };
+        return [nodes[id].x, nodes[id].z, e.width || 8, e.cls ?? 4, e.oneway ? (e.against ? -1 : 1) : 0];
+      });
+      const points = resample(pts, step).map(widen);
+      const { s, length } = alongLine(points, true);
+      if (length < (def.min ?? 1200) || length > (def.max ?? 4000)) {
+        why?.push(`length ${Math.round(length)}`);
+        return null;
+      }
+      return Object.defineProperty({ id: def.id, points, s, length, open: true }, 'graph', { enumerable: false, value: { nodes, route } });
+    }
+    const loop = loopOf(nodes, route, step, { min: def.min ?? 1700, max: def.max ?? 3600 });
+    if (typeof loop === 'string') {
+      why?.push(loop);
+      continue;
+    }
+    const points = loop.points.map(widen);
+    return Object.defineProperty({ id: def.id, points, s: loop.s, length: loop.length }, 'graph', { enumerable: false, value: { nodes, route: loop.route } });
+  }
+  return null;
 }
 
 /**
@@ -537,7 +705,7 @@ function planBikeCourse(roads, def, { step, why, walls, target, strict = true })
  */
 export function planCourse(roads, def, { step = 6, why = null, bike = false, walls = null, target = def.target ?? (bike ? 2500 : 4200) } = {}) {
   // (a bike also rides the alleys: those that stop just short of a road, joined to it)
-  if (bike) return planBikeCourse(joinAlleys(roads), def, { step, why, walls, target });
+  if (bike) return planBikeCourse(joinAlleys(roads, { reach: def.joinReach ?? 6 }), def, { step, why, walls, target });
   const nodes = buildGraph(roads, def.x, def.z, def.r * (def.reach ?? 3), bike ? BIKE_COST : COST, walls);
   let best = null;
   const cands = [];
@@ -663,12 +831,14 @@ export function isWide(p) {
  * The turns a loop makes, each { i, angle } — the heading change from the 24 m before a point to
  * the 24 m after it, one per bend (its sharpest point).
  */
-export function turnsOf(points, { over = 4, min = 0.5 } = {}) {
+export function turnsOf(points, { over = 4, min = 0.5, open = false } = {}) {
   const m = points.length;
   const head = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
-  const at = (i) => points[((i % m) + m) % m];
+  const at = (i) => points[open ? Math.max(0, Math.min(m - 1, i)) : ((i % m) + m) % m];
   const ang = new Float64Array(m);
   for (let i = 0; i < m; i++) {
+    // (a line with ends: no turn at its ends, nor from its end round to its start)
+    if (open && (i < over || i > m - 1 - over)) continue;
     const t = head(at(i), at(i + over)) - head(at(i - over), at(i));
     ang[i] = Math.abs(Math.atan2(Math.sin(t), Math.cos(t)));
   }
@@ -689,22 +859,31 @@ export function turnsOf(points, { over = 4, min = 0.5 } = {}) {
  * more than 30°).
  */
 export function courseStats(c) {
-  const pts = c.points;
+  // (a point-to-point course: only what is raced, from its start line to its finish)
+  const open = Boolean(c.open);
+  const i0 = open ? c.startI ?? 0 : 0;
+  const i1 = open ? c.finishI ?? c.points.length - 1 : c.points.length - 1;
+  const all = turnsOf(c.points, { open });
+  const turns = all.filter((t) => t.i >= i0 && t.i <= i1);
+  const pts = c.points.slice(i0, i1 + 1);
   const m = pts.length;
-  const turns = turnsOf(pts);
   const sharp = turns.filter((t) => t.angle > Math.PI / 3).length;
   const square = turns.filter((t) => t.angle > (80 * Math.PI) / 180).length;
-  const bends = turnsOf(pts, { min: Math.PI / 6 }).map((t) => t.i).sort((a, b) => a - b);
-  const S = c.s ?? alongLine(pts).s;
+  const bends = turnsOf(c.points, { min: Math.PI / 6, open }).map((t) => t.i).filter((i) => i >= i0 && i <= i1).sort((a, b) => a - b);
+  const S = c.s ?? alongLine(c.points).s;
   let longest = 0;
   for (let k = 0; k < bends.length; k++) {
     const a = bends[k];
     const b = bends[(k + 1) % bends.length];
+    if (open && k === bends.length - 1) {
+      longest = Math.max(longest, S[bends[0]] - S[i0], S[i1] - S[a]);
+      continue;
+    }
     const d = b > a ? S[b] - S[a] : c.length - S[a] + S[b];
     longest = Math.max(longest, d);
   }
   if (!bends.length) longest = c.length;
-  return { wide: pts.filter(isWide).length / m, small: pts.filter((p) => isSmall(p[3] ?? 4)).length / m, sharp, square, longest, firstCorner: bends.length ? S[bends[0]] : c.length, turns };
+  return { wide: pts.filter(isWide).length / m, small: pts.filter((p) => isSmall(p[3] ?? 4)).length / m, sharp, square, longest, firstCorner: bends.length ? S[bends[0]] - S[i0] : c.length, turns };
 }
 
 /** How many hard corners (more than about 70° within 36 m) a loop of points has. */
@@ -1048,6 +1227,7 @@ export function planShortcuts(course, { max = 2, narrowest = 6.5, pinch = 4.7, s
  * between the walls (roomOf) — the same everywhere for the same streets and buildings.
  */
 export function finishCourse(planned, { walls = null, shortcuts = true } = {}) {
+  if (planned.open) return finishOpen(planned, { walls });
   let c = startOnBigRoad(planned);
   if (walls) {
     const points = centreLine(c.points, walls);
@@ -1058,6 +1238,30 @@ export function finishCourse(planned, { walls = null, shortcuts = true } = {}) {
   c.shortcuts = shortcuts ? planShortcuts(c, { walls }) : [];
   c.room = roomOf(c.points, walls);
   for (const sc of c.shortcuts) sc.room = roomOf(sc.points, walls, { open: true });
+  return c;
+}
+
+/** Room behind the start line of a point-to-point course for the grid, and past its finish to stop in (m). */
+export const OPEN_LEAD = 26;
+export const OPEN_RUNOUT = 90;
+
+/**
+ * A point-to-point course made ready to race: moved into the gaps between the buildings, and its
+ * start and finish lines placed — `startI` a little way in (the grid stands on the road behind it)
+ * and `finishI` a run-out short of the end. Its `length` is the race: from line to line; `s` is
+ * still measured from its first point. No short cuts.
+ */
+function finishOpen(planned, { walls = null } = {}) {
+  const points = walls ? centreLine(planned.points, walls, { open: true }) : planned.points;
+  const { s } = alongLine(points, true);
+  const total = s.at(-1);
+  const startI = Math.max(1, s.findIndex((v) => v >= OPEN_LEAD));
+  let finishI = s.findIndex((v) => v >= total - OPEN_RUNOUT);
+  if (finishI <= startI) finishI = points.length - 1;
+  const c = { ...planned, points, s, open: true, startI, finishI, total, length: s[finishI] - s[startI] };
+  Object.defineProperty(c, 'graph', { enumerable: false, value: planned.graph });
+  c.shortcuts = [];
+  c.room = roomOf(points, walls, { open: true });
   return c;
 }
 

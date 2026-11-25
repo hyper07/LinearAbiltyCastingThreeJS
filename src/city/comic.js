@@ -145,7 +145,9 @@ export class ComicFx {
   }
 
   _sprite(tex, opts = {}) {
-    const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: opts.depthTest ?? true, color: opts.color ?? '#ffffff' });
+    // (alphaTest: whatever is clear in the picture is never drawn at all — not as a dark card round a
+    // puff or a word in a pass that ignores blending)
+    const m = new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.02, depthWrite: false, depthTest: opts.depthTest ?? true, color: opts.color ?? '#ffffff' });
     const s = new THREE.Sprite(m);
     s.renderOrder = 10;
     this.group.add(s);

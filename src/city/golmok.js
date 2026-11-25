@@ -143,6 +143,9 @@ const PAL = {
   pots: [C('#a8553a'), C('#6a4a3a'), C('#3a3c40')],
   awn: [[C('#d8402a'), C('#f2f0ea')], [C('#1f5bb5'), C('#f2f0ea')], [C('#2f8f4e'), C('#f2f0ea')], [C('#f2c230'), C('#3a3c40')]],
   scooter: [C('#e9e9e6'), C('#c8322b'), C('#2a2c31'), C('#1f5bb5')],
+  rail: C('#c3c8cd'),
+  railPost: C('#8d9298'),
+  lineYellow: C('#e8b923'),
   mirror: C('#ff7a1a'),
   step: C('#b9b2a6')
 };
@@ -179,12 +182,15 @@ export class Golmok {
    * @param {any} game the SeoulGame @param {any} course a planned bike course (or a short cut: { id, points })
    * @param {{ open?: boolean, walls?: any, avoid?: number[][][], shortcut?: boolean }} [opts] `open`: a line
    * with ends (a short cut), not a loop; `walls`: where its garden walls go, solid (walls.js); `avoid`:
-   * other lines (the course, the short cuts) no garden wall may be built across.
+   * other lines (the course, the short cuts) no garden wall may be built across; `mountain`: a flag
+   * per point, out on a wooded hill (the Namsan downhill's park road) — there an asphalt road with a
+   * yellow centre line and steel guard rails either side (solid), not an alley's walls and clutter.
    */
-  constructor(game, course, { open = false, walls = null, avoid = [], shortcut = false } = {}) {
+  constructor(game, course, { open = false, walls = null, avoid = [], shortcut = false, mountain = null } = {}) {
     this.g = game;
     this.course = course;
     this.open = open;
+    this.mountain = mountain;
     this.walls = walls;
     this.avoid = avoid;
     this.shortcut = shortcut;
@@ -345,7 +351,8 @@ export class Golmok {
           return Boolean(g.onRoad?.(x, z, 0) || g.onWalk?.(x, z));
         };
         // (the colour drawn first, whatever is built: the same alley for everyone, whatever they have loaded)
-        const tone = cls === 6 ? pick(r, PAL.concrete) : PAL.asphalt.clone().multiplyScalar(0.92 + r() * 0.16);
+        const hill = this.mountain?.[i];
+        const tone = cls === 6 && !hill ? pick(r, PAL.concrete) : PAL.asphalt.clone().multiplyScalar(hill ? 0.86 : 0.92 + r() * 0.16);
         // Where it is the alley's own ground (not road, not pavement), along each edge and its middle —
         // to the edge to a few centimetres, and a hair under it, so no crack shows: an alley meeting a
         // road at a slant ends on the slant.
@@ -413,6 +420,16 @@ export class Golmok {
             ground.quad(corner(pa, half - 1.1, ya + kerbY), corner(pa, half, ya + kerbY), corner(pb, half, yb + kerbY), corner(pb, half - 1.1, yb + kerbY), PAL.paving);
             ground.quad(corner(pa, half - 1.1, ya), corner(pa, half - 1.1, ya + kerbY), corner(pb, half - 1.1, yb + kerbY), corner(pb, half - 1.1, yb), PAL.kerb);
           }
+          // A two-lane park road: a double yellow line down its middle.
+          if (hill && t0 === 0 && t1 === 1) {
+            for (const o of [-0.12, 0.12]) {
+              const c0 = new THREE.Vector3(pa[0] + rx * (o - 0.05), ya + 0.01, pa[1] + rz * (o - 0.05));
+              const c1 = new THREE.Vector3(pa[0] + rx * (o + 0.05), ya + 0.01, pa[1] + rz * (o + 0.05));
+              const c2 = new THREE.Vector3(pb[0] + rx * (o + 0.05), yb + 0.01, pb[1] + rz * (o + 0.05));
+              const c3 = new THREE.Vector3(pb[0] + rx * (o - 0.05), yb + 0.01, pb[1] + rz * (o - 0.05));
+              ground.quad(c0, c1, c2, c3, PAL.lineYellow);
+            }
+          }
           // So bikes and people stand on it (the city's surface lookup), and it shows on the map.
           const seg = { ax: pa[0], ay: ya, az: pa[1], bx: pb[0], by: yb, bz: pb[1], half: half + 0.2, alley: true };
           const cell = `${Math.floor((a[0] + b[0]) / 2 / ROAD_CELL)}_${Math.floor((a[1] + b[1]) / 2 / ROAD_CELL)}`;
@@ -451,6 +468,10 @@ export class Golmok {
         const wall = g.buildingAt?.(a[0] + rx * side * (half + 1.2), a[1] + rz * side * (half + 1.2));
         const outYaw = hd + (side > 0 ? -Math.PI / 2 : Math.PI / 2); // facing into the street from this side
         const along = (t) => [ex + ux * t, ez + uz * t];
+        if (this.mountain?.[i]) {
+          this._rail(props, refl, i, side, { ex, ez, ux, uz, rx, rz, len, hd, base });
+          continue;
+        }
         if (small) {
           // (Not across a corner or another stretch of the course: a wall goes only where the street is plainly its edge.)
           const turning = Math.abs(Math.atan2(Math.sin(Math.atan2(at(i + 2)[0] - a[0], at(i + 2)[1] - a[1]) - Math.atan2(a[0] - at(i - 2)[0], a[1] - at(i - 2)[1])), Math.cos(Math.atan2(at(i + 2)[0] - a[0], at(i + 2)[1] - a[1]) - Math.atan2(a[0] - at(i - 2)[0], a[1] - at(i - 2)[1])))) > 0.35;
@@ -631,6 +652,43 @@ export class Golmok {
     // The lamps light the alley for real after dark (nightlights.js).
     const lampId = lamps.length ? g.nightLights?.add(lamps.map((l) => ({ x: l.x, y: l.y, z: l.z, ground: g.groundAt(l.x, l.z) + 0.92 }))) : null;
     return { group, owned, obstacles, lampId };
+  }
+
+  /**
+   * A steel guard rail along one side of a mountain stretch: a galvanised W-beam on posts every two
+   * metres, a reflector on every other post — and solid (walls.js), once for each place it stands.
+   * Not across a junction's mouth (a side road meeting it) nor where the course itself runs.
+   */
+  _rail(props, refl, i, side, { ex, ez, ux, uz, rx, rz, len, hd, base }) {
+    const g = this.g;
+    const off = 0.55;
+    const x0 = ex + rx * side * off;
+    const z0 = ez + rz * side * off;
+    if (g.onRoad?.(x0 + rx * side * 1.2 + ux * len / 2, z0 + rz * side * 1.2 + uz * len / 2, 0.3)) return;
+    const pts = this.course.points;
+    if (pts.some((q, qi) => Math.abs(qi - i) > 3 && Math.hypot(q[0] - x0 - ux * len / 2, q[1] - z0 - uz * len / 2) < (q[2] ?? 6) / 2 + 0.8)) return;
+    const tag = `${this.course.id ?? ''}|rail|${i}|${side}`;
+    if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
+      this.walls.tags.add(tag);
+      this.walls.addSegment(x0, z0, x0 + ux * len, z0 + uz * len, 'rail');
+    }
+    const y = (t) => this.g.groundAt(x0 + ux * t, z0 + uz * t) + 0.9;
+    // the beam: two strips, the W's ridges, along the stretch
+    const ya = y(0);
+    const yb = y(len);
+    const beam = PAL.rail;
+    for (const [h, d] of [[0.58, 0], [0.72, 0.03]]) {
+      const P = (t, yy, o) => new THREE.Vector3(x0 + ux * t - rx * side * o, yy, z0 + uz * t - rz * side * o);
+      props.quad(P(0, ya + h - 0.09, d), P(len, yb + h - 0.09, d), P(len, yb + h + 0.09, d), P(0, ya + h + 0.09, d), beam);
+      props.quad(P(0, ya + h + 0.09, d), P(len, yb + h + 0.09, d), P(len, yb + h - 0.09, d), P(0, ya + h - 0.09, d), beam.clone().multiplyScalar(0.8));
+    }
+    for (let t = 0; t < len; t += 2) {
+      const px = x0 + ux * t + rx * side * 0.08;
+      const pz = z0 + uz * t + rz * side * 0.08;
+      props.box(px, y(t) + 0.4, pz, 0.05, 0.4, 0.05, hd, PAL.railPost);
+      if (Math.round(t / 2) % 2 === 0) refl.box(px - rx * side * 0.06, y(t) + 0.66, pz - rz * side * 0.06, 0.05, 0.05, 0.02, hd + Math.PI / 2, C('#ffd21a'), { top: 1, side: 1 });
+    }
+    void base;
   }
 
   _drop(k, c) {

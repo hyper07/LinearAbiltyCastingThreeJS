@@ -1951,6 +1951,135 @@
   font-weight: 900;
   font-size: 17px;
 }
+/* The levels: three tabs over the map (Easy, Medium, Hard), chillies for how hard, a lock till opened. */
+.jl__levels {
+  position: absolute;
+  top: 84px;
+  left: calc(2% + 12px);
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+}
+.jl__level {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px 5px 10px;
+  border: 3px solid #2b1d4e;
+  border-radius: 999px;
+  background: #fffaf0;
+  color: #2b1d4e;
+  font: inherit;
+  font-weight: 900;
+  box-shadow: 0 3px 0 #2b1d4e;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.jl__level small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.jl__level:hover {
+  transform: translateY(-2px);
+}
+.jl__level.is-on {
+  background: var(--lc);
+  color: #fff;
+  transform: translateY(-2px);
+}
+.jl__level.is-on small {
+  opacity: 0.9;
+}
+.jl__level.is-locked:not(.is-on) {
+  background: #e9e4dc;
+}
+.jl__lock {
+  font-style: normal;
+  font-size: 12px;
+}
+.chillies {
+  display: inline-flex;
+  gap: 0;
+  vertical-align: -2px;
+}
+.chillies .chilli {
+  filter: drop-shadow(0 1px 0 rgba(43, 29, 78, 0.35));
+}
+.cm__pin.is-other {
+  display: none;
+}
+.jl__best {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #2b1d4e;
+}
+.jl__medal {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid #2b1d4e;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 900;
+  color: #2b1d4e;
+}
+.jl__medal--gold { background: linear-gradient(135deg, #fff1a8, #ffc531 60%, #d99a10); }
+.jl__medal--silver { background: linear-gradient(135deg, #ffffff, #c9ced6 60%, #9aa1ab); }
+.jl__medal--bronze { background: linear-gradient(135deg, #ffd8b0, #cd7f32 60%, #8a5020); color: #fff; }
+.jl__bestline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 0 !important;
+  font-weight: 900;
+  font-size: 13px !important;
+}
+.jl__locked {
+  margin: 8px 0 0 !important;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #fff1d6;
+  font-weight: 800;
+  font-size: 12.5px !important;
+}
+.jl__finish {
+  fill: #2b1d4e;
+  stroke: #fff;
+  stroke-width: 3;
+}
+/* a landmark's name and what it is, by it on the map as you point at it */
+.cm__tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 220px;
+  padding: 6px 10px;
+  border: 2px solid #2b1d4e;
+  border-radius: 12px;
+  background: #fffaf0;
+  color: #2b1d4e;
+  font-size: 12px;
+  box-shadow: 0 3px 0 #2b1d4e;
+  pointer-events: none;
+  z-index: 4;
+}
+.cm__tip b {
+  font-weight: 900;
+}
+.cm__tip span {
+  opacity: 0.7;
+  font-weight: 800;
+}
+.cm__tip small {
+  display: block;
+  margin-top: 2px;
+  line-height: 1.3;
+}
 .jl__laps {
   display: flex;
   align-items: center;
