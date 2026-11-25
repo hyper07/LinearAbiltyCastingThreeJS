@@ -101,10 +101,20 @@ real streets and alleys — and the streets stay open.
 - **Courses**: seven short loops (about 2.2–2.5 km, two to four minutes a lap) round neighbourhoods
   with golmok: Ikseon Hanok Lanes, Euljiro Print Alleys, Seochon Backstreets, Yeonnam Cafe Loop,
   Seongsu Workshops, Mullae Ironworks, Haebangchon Hill. Each is planned on the spot from the real
-  street network — never a motorway, mostly roads wide enough to race at 70 km/h with an alley or
-  two as a short cut (narrow alleys cost the planner more, and so do hard corners), one-way roads
-  only with their traffic, never the same street twice, started on a straight wide enough for the
-  grid with a long run to the first corner. The small streets (residential lanes,
+  street network and between the real buildings (`src/city/course.js`, `src/city/walls.js`) —
+  never a motorway, the main loop on roads wide enough to race at 70 km/h (the narrowest golmok
+  cost the planner far more, and so do hard corners), one-way roads only with their traffic, never
+  the same street twice, started on a straight wide enough for the grid with a long run to the
+  first corner. A street the map drew through a building is moved into the gap beside it, or left
+  out; an alley that stops just short of a road is joined to it. **Short cuts**: the narrowest golmok
+  that leave the loop and join it again further on, shorter than the road round (15–230 m saved) —
+  tight walls and a tight turn in, so a bold rider gains and a careless one bounces. Each has a
+  "SHORTCUT · 지름길" sign at its mouth, a cyan hint at the top of the screen as you come up to it, a
+  dotted line on the map and cyan arrows down it; its metres count as the course's it cuts out, so
+  the order stays fair; bots take them now and then (the better ones more); no one walks or drives
+  down them. Euljiro, Seochon (two), Yeonnam and Mullae have one; on Ikseon, Seongsu and
+  Haebangchon the alleys don't rejoin the loop going its way (or would save so much they'd decide
+  the race), so none. The small streets (residential lanes,
   alleys, market lanes) come from OpenStreetMap round those neighbourhoods only:
   `scripts/geo/seoul-alleys.mjs` writes `alleys.bin` beside `roads.bin` (`npm run geo:alleys`;
   `npm run geo:seoul` runs it too). Without it the loops keep to the bigger roads. 1–3 laps.
@@ -123,8 +133,12 @@ real streets and alleys — and the streets stay open.
 - **Riding** (`src/city/scoot.js`, pure and tested): **W** throttle — a racing motor, 70 km/h in
   about four and a half seconds — **S** brake (about 20 m from 70 on a dry road, longer in the wet,
   and braking hard in a lean on a wet road, or leaning hard fast, slides the back out), **A D** lean
-  (more gently the faster you go), **Space** boost to ~85 km/h while the battery gauge lasts (it
-  charges as you ride, faster in a slipstream and with every close call), **Shift** the bell (a
+  (more gently the faster you go), **Shift** drift (held while leaning: the back steps out, the
+  scooter swings round faster than a lean turns it, an assist holds the slide, a little speed is
+  scrubbed off — round a 90° junction at speed in about 12 m instead of 35; let go to straighten;
+  tyre squeal, rubber scuffs on the road, the rider hanging out; bots drift the tight corners too),
+  **F** boost to ~85 km/h while the battery gauge lasts (it
+  charges as you ride, faster in a slipstream and with every close call), **Space** the bell (a
   synthesised two-strike "ring-ring", `src/city/bell.js`; **B** too: people ahead step aside, slower
   riders and scooters give you room, and you hear the bots' bells where they are), **R** back on the
   course (and after a few seconds lost well off it, you are put back). Small solid wheels feel every
@@ -145,6 +159,12 @@ real streets and alleys — and the streets stay open.
   none is drawn. In the rain (`src/city/wetfx.js`) every light is smeared
   down the wet road, puddles mirror the sky, the rain glints where it crosses a light and wheels
   throw spray.
+  Buildings and the alleys' garden walls are solid (`src/city/walls.js`): each rider is a circle
+  swept against every wall near the course, in 1/120 s steps, so nothing is ridden through at any
+  speed or frame rate; a rider somehow found inside one (a spawn, a friend's position over the
+  network) is put out the nearest way, and the chase camera is swept out from the rider against the
+  same walls (in close and up instead of through them). At junctions cars waiting to cross the
+  course give way to riders coming through.
   Hit any of it square — a car, a wall head-on above ~30 km/h, a planter, a bin, a parked scooter —
   and you're off: a hit-stop, "BONK!", a tumble, dizzy stars, back on 1.5 s later. Met at a slant
   (a wall, a car's flank, the edge of a bin, a pole) it is only a scrape: turned along it, slowed,
@@ -159,8 +179,13 @@ real streets and alleys — and the streets stay open.
   1.5 s later, and three seconds no branch can catch you. The gold helmet takes it.) The further
   back you are, the better the odds (more tailwinds and branches). Bots use them too; in a room
   throws are sent to everyone and whoever's browser rides the rider caught decides the catch.
-- **The alleys** (`src/city/golmok.js`): along the course, built as you come near: the small
-  streets' concrete and asphalt at road level, a narrow raised pavement down a residential lane,
+- **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
+  near: the small streets' concrete and asphalt at road level, joined to the road where they meet
+  one — the road's pavement is a dropped kerb across the alley's mouth (flush with the road, ramping
+  up either side), the alley's surface starts at the pavement's edge at its height, round a bend the
+  corner is filled, and the ground the riders stand on (`surfaceAt`) knows the pavements (the race's
+  `junctionReport()` samples every mouth for holes, steps and doubled surfaces);
+  a narrow raised pavement down a residential lane,
   garden walls and gates, air-conditioner units and gas meters, concrete poles with wires
   overhead, convex mirrors at blind corners, vertical shop signs lit at night, awnings, styrofoam
   planters, pots, bins, parked scooters, steps, alley lamps with pools of light. What stands in the

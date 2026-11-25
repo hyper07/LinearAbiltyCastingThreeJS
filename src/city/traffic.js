@@ -227,9 +227,13 @@ export class RaceTraffic {
     // Slow into the turn at the end of the road.
     const left = this._leftOnRoad(v);
     if (left < 25 && v.next?.bend > 0.5) want = Math.min(want, 4 + left * 0.25);
+    // Coming up to a junction with the race coming through it across our way: wait at the line.
+    v.giving = left > 2.5 && left < 45 && this._raceAcross(v, left);
+    if (v.giving) want = Math.min(want, Math.max(0, (left - 4) * 0.7));
     v.speed += Math.max(-8 * dt, Math.min(2.6 * dt, want - v.speed));
     v.braking = want < v.speed - 0.4;
     v.hazard = v.stopFor > 0;
+    v.braking ||= Boolean(v.giving);
     // Held up a while by something in front: a toot of the horn.
     v.waited = v.speed < 0.5 && gap < 8 ? v.waited + dt : 0;
     if (v.waited > 1.6 && v.kind !== 'scooter') {
@@ -249,6 +253,32 @@ export class RaceTraffic {
     b.z = q.z;
     v.v = v.speed;
     this._place(v, dt);
+  }
+
+  /**
+   * Is a racer coming through the junction at the end of this vehicle's road, across its way? (A
+   * rider on our road going our way, or the other, is traffic like any other.) Looks a few seconds ahead.
+   */
+  _raceAcross(v, left) {
+    const pts = v.road.pts;
+    const n = pts.length / 2 - 1;
+    const ex = v.at.dir > 0 ? pts[n * 2] : pts[0];
+    const ez = v.at.dir > 0 ? pts[n * 2 + 1] : pts[1];
+    const hd = v.box.heading;
+    for (const r of this.race.racers) {
+      if (r.left || r.mode !== 'ride' || r.s.v < 4) continue;
+      const d = Math.hypot(r.s.x - ex, r.s.z - ez);
+      if (d > 14 + r.s.v * 3.2) continue;
+      // across our way (not along our road)
+      const rel = Math.abs(Math.sin(turn(hd, r.s.travel ?? r.s.heading)));
+      if (rel < 0.45) continue;
+      // and coming to the junction, or in it — not long past it
+      const fx = -Math.sin(r.s.travel ?? r.s.heading);
+      const fz = -Math.cos(r.s.travel ?? r.s.heading);
+      if ((ex - r.s.x) * fx + (ez - r.s.z) * fz < -6) continue;
+      return true;
+    }
+    return false;
   }
 
   _leftOnRoad(v) {

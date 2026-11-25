@@ -4,7 +4,10 @@ import { boot, tally, until } from './lib.mjs';
  * Gangnam Jarani's bike race end to end (src/city/race.js): open the Seoul
  * game from its card (it opens on the race menu), pick a rider, night and
  * rain, race three bots on a short course with the streets open — traffic
- * on the road, 70 km/h, the three item slots, the bell on Shift, a branch
+ * on the road, 70 km/h, the three item slots, the bell on Space, a drift on
+ * Shift, riders never inside a building (ridden into one at full speed they
+ * scrape or come off), a golmok short cut taken and counted, the alley
+ * mouths joined to their roads, a branch
  * thrown into a rival's wheel, a crash and back on, only real people (with
  * faces) on the street, How to play on H — pause on Esc, the credits from
  * the pause screen, and leave. Without Seoul's map
@@ -34,8 +37,8 @@ export async function run(browser) {
     await page.click('[data-char="fox"]');
     await page.click('[data-time="night"]');
     await page.click('[data-weather="rain"]');
-    await page.click('[data-course="ikseon"]');
-    t.check('a course is planned on the real streets, partly through alleys', await until(page, () => /km · \d+% alleys/.test(document.querySelector('[data-len="ikseon"]')?.textContent ?? ''), null, 20000), await page.evaluate(() => document.querySelector('[data-len="ikseon"]')?.textContent));
+    await page.click('[data-course="euljiro"]');
+    t.check('a course is planned on the real streets, partly through alleys, with a golmok short cut', await until(page, () => /km · \d+% alleys · \d short cut/.test(document.querySelector('[data-len="euljiro"]')?.textContent ?? ''), null, 60000), await page.evaluate(() => document.querySelector('[data-len="euljiro"]')?.textContent));
     await page.click('[data-race-solo]');
     t.check('the race lines up four riders and counts down', await until(page, () => window.seoul.race.racers.length === 4 && ['grid', 'racing'].includes(window.seoul.race.phase), null, 120000));
     t.check('you ride Pip the fox on a scooter; the bots are the others, girls and boys both', await page.evaluate(() => {
@@ -45,7 +48,22 @@ export async function run(browser) {
     t.check('the race has its own sky: night and rain, the city clock stopped', await page.evaluate(() => window.seoul.weather.kind === 'rain' && (window.seoul.hour >= 20 || window.seoul.hour < 1) && window.seoul.clockPaused === true));
     t.check('the HUD: map, place, lap, time, three item slots, speed and the sprint gauge', await page.evaluate(() => ['.race__map', '.race__pos', '.race__lap', '.race__time', '.race__speed'].every((s) => !document.querySelector(s).hidden) && document.querySelectorAll('.race__slot').length === 3 && Boolean(document.querySelector('.race__boost'))));
     t.check('the race starts', await until(page, () => window.seoul.race.phase === 'racing', null, 15000));
-    await page.evaluate(() => (window.seoul.race.autopilot = true));
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.autopilot = true;
+      // Watched all race: no rider ever inside a building, nor the camera; who drifted.
+      const st = (r._e2e = { inside: 0, cam: 0, samples: 0, drift: 0 });
+      r._e2eT = setInterval(() => {
+        st.samples++;
+        for (const x of r.racers) if (x.mode === 'ride' && r._inside(x)) st.inside++;
+        if (r.camInside) st.cam++;
+        for (const x of r.racers) if ((x.s.drift ?? 0) > 0.3) st.drift++;
+      }, 100);
+    });
+    t.check('short cuts are marked: a sign at each mouth, its own arrows, dotted on the map', await page.evaluate(() => {
+      const r = window.seoul.race;
+      return r.paths.length >= 1 && r.scSigns.length === r.paths.length && r.scArrows?.count > 0 && r.course.shortcuts.every((sc) => sc.saves > 15 && sc.width <= 4.7);
+    }));
     t.check('the streets are open: cars, buses or scooters drive round you', await until(page, () => (window.seoul.race.traffic?.vehicles.length ?? 0) >= 6, null, 30000), await page.evaluate(() => window.seoul.race.traffic?.vehicles.length));
     const d0 = await page.evaluate(() => {
       const r = window.seoul.race;
@@ -60,11 +78,107 @@ export async function run(browser) {
       const life = window.seoul.life;
       return Boolean(life) && !('torso' in life.parts) && !('head' in life.parts) && life.people.every((m) => ['walk', 'dog', 'shop', 'stand'].includes(m.kind));
     }));
-    // The bell on Shift: ring-ring (its sound sources started), people ahead step aside.
+    // The bell on Space: ring-ring (its sound sources started), people ahead step aside.
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     const bells = await page.evaluate(() => window.seoul.race.bells ?? 0);
-    await page.keyboard.press('ShiftLeft');
-    t.check('Shift rings the bell: a two-strike ring-ring is played', await until(page, (b) => (window.seoul.race.bells ?? 0) > b && window.seoul.race.lastBell?.sources >= 20 && window.seoul.race.lastBell.id === window.seoul.race.me.id, bells, 3000), await page.evaluate(() => JSON.stringify(window.seoul.race.lastBell)));
+    await page.keyboard.press('Space');
+    t.check('Space rings the bell: a two-strike ring-ring is played', await until(page, (b) => (window.seoul.race.bells ?? 0) > b && window.seoul.race.lastBell?.sources >= 20 && window.seoul.race.lastBell.id === window.seoul.race.me.id, bells, 3000), await page.evaluate(() => JSON.stringify(window.seoul.race.lastBell)));
+    // A short cut: on the autopilot down the golmok — counted as the course it cuts out, back on the course after.
+    const sc = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const p = r.paths[0];
+      const i = p.enter - 4;
+      const a = p.points[i];
+      const b = p.points[i + 1];
+      const hd = Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
+      Object.assign(me.s, { x: a[0], z: a[1], heading: hd, travel: hd, v: 8 });
+      Object.assign(me, { sc: p.k, si: i, idx: p.sc.from - 4, safe: 1, mode: 'ride', lost: 0 });
+      r.autopilot = true;
+      r._scStart = { dist: me.dist, took: me.shortcuts ?? 0, crashes: me.crashes };
+      // the other riders out of its way for this: parked well back down the course
+      r.racers.filter((x) => !x.me).forEach((x, k) => {
+        const q = r.course.points[(p.sc.from - 60 - k * 4 + r.course.points.length) % r.course.points.length];
+        Object.assign(x.s, { x: q[0], z: q[1], v: 0 });
+        Object.assign(x, { idx: (p.sc.from - 60 - k * 4 + r.course.points.length) % r.course.points.length, sc: null });
+      });
+      return { from: p.sc.from, to: p.sc.to, span: p.sc.span, length: p.sc.length };
+    });
+    t.check('the autopilot rides through a short cut and is back on the course after it', await until(page, (to) => {
+      const me = window.seoul.race.me;
+      return me.sc == null && me.idx >= to && me.idx < to + 40;
+    }, sc.to, 30000), await page.evaluate(() => JSON.stringify({ sc: window.seoul.race.me.sc, idx: window.seoul.race.me.idx })));
+    t.check('…and its golmok counts as the course it cuts out (no lap lost or gained)', await page.evaluate((sc) => {
+      const r = window.seoul.race;
+      const gained = r.me.dist - r._scStart.dist;
+      return gained > sc.span * 0.85 && gained < sc.span + 260;
+    }, sc), await page.evaluate(() => (window.seoul.race.me.dist - window.seoul.race._scStart.dist).toFixed(0)) + ` m for a ${sc.span.toFixed(0)} m stretch`);
+    t.check('nobody walks or drives down a short cut', await page.evaluate(() => {
+      const r = window.seoul.race;
+      return !(window.seoul.life?.people ?? []).some((m) => r.keepClear(m.x, m.z)) && !(r.traffic?.vehicles ?? []).some((v) => r.keepClear(v.box.x, v.box.z));
+    }));
+    // Ridden straight at a building at full speed: a scrape or a fall at its wall — never inside it.
+    const wall = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const w = r.course.walls;
+      r.autopilot = false;
+      for (let i = 20; i < r.course.points.length; i += 7) {
+        const p = r.course.points[i];
+        const q = r.course.points[i + 1];
+        const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+        for (const side of [1, -1]) {
+          const dx = Math.cos(hd) * side;
+          const dz = -Math.sin(hd) * side;
+          const d = w.ray(p[0], p[1], dx, dz, 40);
+          if (d < 14 || d > 38 || !w.inside(p[0] + dx * (d + 1), p[1] + dz * (d + 1))) continue;
+          const h = Math.atan2(-dx, -dz);
+          Object.assign(me.s, { x: p[0], z: p[1], heading: h, travel: h, v: 23, lean: 0, steer: 0 });
+          Object.assign(me, { mode: 'ride', safe: 0, helmet: false, crashes: 0, idx: i, sc: null });
+          r._wallRun = { inside: 0, crashed: 0, minV: 99 };
+          r._wallT = setInterval(() => {
+            if (w.inside(me.s.x, me.s.z)) r._wallRun.inside++;
+            r._wallRun.crashed = me.crashes;
+            r._wallRun.minV = Math.min(r._wallRun.minV, me.s.v);
+          }, 16);
+          return { d: Math.round(d) };
+        }
+      }
+      return null;
+    });
+    if (wall) {
+      await page.keyboard.down('KeyW');
+      await page.waitForTimeout(2500);
+      await page.keyboard.up('KeyW');
+      const run = await page.evaluate(() => (clearInterval(window.seoul.race._wallT), window.seoul.race._wallRun));
+      t.check('ridden into a building at full speed: never inside it — it stops you (a fall) or turns you along it', run.inside === 0 && (run.crashed > 0 || run.minV < 15), JSON.stringify({ ...run, at: wall.d }));
+    } else t.check('a building beside the course to ride into', false);
+    await page.evaluate(() => (window.seoul.race.autopilot = false));
+    // Shift: a drift — the back out, round the corner.
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const p = r.course.points[r.me.idx];
+      Object.assign(me.s, { v: 16, lean: 0 });
+      me.safe = 3;
+    });
+    await page.keyboard.down('KeyW');
+    await page.keyboard.down('ShiftLeft');
+    await page.keyboard.down('KeyA');
+    await page.waitForTimeout(350);
+    const drift = await page.evaluate(() => ({ drift: window.seoul.race.me.s.drift, skid: window.seoul.race.me.s.skid }));
+    await page.keyboard.up('KeyA');
+    await page.keyboard.up('ShiftLeft');
+    await page.keyboard.up('KeyW');
+    t.check('Shift with a lean drifts: the back steps out', drift.drift > 0.5 && drift.skid > 0.2, JSON.stringify(drift));
+    // The alley mouths: every junction of a golmok with a main road sampled for holes, steps and overlaps.
+    const j = await page.evaluate(() => {
+      const o = window.seoul.race.junctionReport();
+      return { junctions: o.junctions, steps: o.steps, gaps: o.gaps, overlaps: o.overlaps, sc: o.list.filter((x) => x.line !== 'course').map((x) => ({ steps: x.steps, gaps: x.gaps, maxStep: x.maxStep })) };
+    });
+    t.check('alley mouths: every junction found and sampled (steps, holes, overlaps listed)', j.junctions > 0, JSON.stringify(j));
+    t.check('…the short cuts\' mouths: no hole, no step a wheel would catch (over 15 cm)', j.sc.every((x) => x.gaps === 0 && x.maxStep <= 0.15), JSON.stringify(j.sc));
     // A branch: thrown at the rival just ahead, it catches their front wheel and over they go.
     await page.evaluate(() => {
       const r = window.seoul.race;
@@ -144,6 +258,8 @@ export async function run(browser) {
     await until(page, () => window.seoul.race.paused, null, 3000);
     await page.click('[data-pause-quit]');
     t.check('Back to Seoul from the pause screen: flying, the city clock running again', await until(page, () => window.seoul.mode === 'fly' && !window.seoul.clockPaused, null, 5000));
+    const watched = await page.evaluate(() => (clearInterval(window.seoul.race._e2eT), window.seoul.race._e2e ?? { inside: -1 }));
+    t.check('all race long: no rider inside a building, nor the camera', watched.inside === 0 && watched.cam === 0 && watched.samples > 50, JSON.stringify(watched));
     t.check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   } finally {
     await context.close();

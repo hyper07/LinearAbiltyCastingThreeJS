@@ -421,7 +421,8 @@ export class Golmok {
           owned.push([cell, seg]);
           // Round a bend, the corner between this stretch and the last (outside the bend the two
           // stretches' ends part like a book's pages): filled, at the point's height.
-          const z0 = at(i - 1);
+          // (the line's own point before: `at` here is the stretch's)
+          const z0 = pts[open ? Math.max(0, i - 1) : (i - 1 + n) % n];
           if (mid[0] === 0 && isSmall(a[3] ?? 4) && (!open || i > 0) && !covered(0)) {
             const pl = Math.hypot(a[0] - z0[0], a[1] - z0[1]) || 1;
             const prx = -(a[1] - z0[1]) / pl;
