@@ -1912,12 +1912,20 @@ export class Race {
   }
 
   /** Back on the bike, on the line where you were (the course, or the golmok of a short cut; to the right of its line), a moment safe. */
-  _remount(r) {
+  _remount(r, on = 0) {
     const c = this.course;
     let line = this._line(r);
     if (!line.path) {
       const at = locate(c, r.s.x, r.s.z, r.idx);
       r.idx = at.off < 25 ? at.i : r.idx;
+      if (on) {
+        const before = c.s[r.idx];
+        r.idx = c.open ? Math.min(c.points.length - 2, r.idx + on) : (r.idx + on) % c.points.length;
+        // (the metres it was moved on count as ridden: the order stays fair, a little behind where it would have been)
+        let d = c.s[r.idx] - before;
+        if (d < 0) d += c.length;
+        r.dist += d;
+      }
       line = this._line(r);
     }
     const p = this._at(line, 0);
@@ -2682,8 +2690,20 @@ export class Race {
       const hi = Math.min(b.hi, line.room[ti * 2 + 1] - 0.75);
       return lo <= hi ? { lo, hi } : { lo: (lo + hi) / 2, hi: (lo + hi) / 2 };
     };
-    const band = fit(laneBand(t[2] ?? 6, small, false, Boolean(t[4])));
-    const wide = fit(laneBand(t[2] ?? 6, small, true, Boolean(t[4])));
+    // (in a small street coming up to a corner, all of its width: the line through a square corner
+    // swings out from the inside wall — keeping to its own side there runs it into the corner's building)
+    let cornerSoon = false;
+    if (small) for (let j = 1; j < 7 && !cornerSoon; j++) {
+      const a = P(j - 2);
+      const b = P(j);
+      const c2 = P(j + 2);
+      cornerSoon = Math.abs(turn(Math.atan2(b[0] - a[0], b[1] - a[1]), Math.atan2(c2[0] - b[0], c2[1] - b[1]))) > 0.45;
+    }
+    // (a short cut's residential lane has a raised pavement down its right (golmok.js): ridden clear of its kerb)
+    const walk = line.path && (t[3] ?? 4) === 5 && (t[2] ?? 6) >= 5 ? (t[2] ?? 6) / 2 - 1.75 : Infinity;
+    const offWalk = (b) => (b.hi > walk ? { lo: Math.min(b.lo, walk - 0.4), hi: walk } : b);
+    const band = offWalk(fit(laneBand(t[2] ?? 6, small, cornerSoon, Boolean(t[4]))));
+    const wide = offWalk(fit(laneBand(t[2] ?? 6, small, true, Boolean(t[4]))));
     r.laneK ??= 0.5;
     let want = band.lo + (band.hi - band.lo) * r.laneK;
     const here = P(0);
@@ -2709,6 +2729,17 @@ export class Race {
       r.passSide ??= roomIn >= 0 || roomIn > roomOut ? -1 : 1;
       want = r.passSide < 0 ? Math.max(wide.lo, inner) : Math.min(band.hi, outer);
     } else r.passSide = null;
+    // A car parked at the kerb ahead in its line: round it on the middle side, in good time.
+    for (const pv of this.traffic?.vehicles ?? []) {
+      if (!pv.parked) continue;
+      const dx = pv.box.x - s.x;
+      const dz = pv.box.z - s.z;
+      const along = dx * -Math.sin(s.heading) + dz * -Math.cos(s.heading);
+      if (along < -pv.box.halfLength || along > 14 + v * 1.6) continue;
+      const pLat = lateralOf(pv.box.x, pv.box.z, here, next);
+      const clear = pLat - pv.box.halfWidth - 0.85;
+      if (want > clear) want = Math.max(wide.lo, clear);
+    }
     // Rung at from behind: give them the middle of the road for a moment.
     r.yieldT = Math.max(0, (r.yieldT ?? 0) - dt);
     if (r.yieldT > 0 && !passing) want = band.hi - 0.15;
@@ -2832,7 +2863,9 @@ export class Race {
       if (j < 9 && bend > 0.25) straight = false;
       // (a road's corner is cut across its width: the line through it is wider than the kerb's)
       const w = Math.min(a[2] ?? 8, b[2] ?? 8);
-      let corner = cornerSpeed(Math.max(1e-3, bend / Math.min(30, 12 + w * 1.6)), grip, r.spec) * (0.78 + 0.14 * r.skill);
+      // (into or along a small street there is far less room to swing wide: a much tighter line)
+      const tight = isSmall(b[3] ?? 4) || isSmall(a[3] ?? 4);
+      let corner = cornerSpeed(Math.max(1e-3, bend / Math.min(30, tight ? 3 + w * 1.3 : 12 + w * 1.6)), grip, r.spec) * (0.78 + 0.14 * r.skill);
       if (bend > 0.9) {
         corner = Math.max(corner, driftV);
         // close to it and too quick to lean round: drift (the way it turns)
@@ -2863,7 +2896,28 @@ export class Race {
     // A narrow stretch of road (a slip road, a lane between kerbs): no faster than its width lets you steer.
     else if (pinch < 7.5) target = Math.min(target, 4 + pinch * 1.9);
     r.stuck = this.phase === 'racing' && v < 0.8 ? r.stuck + dt : 0;
-    if (r.stuck > 2.5 || r.off > 30) this._remount(r);
+    // Nose against a wall (a square corner run wide in a narrow street) and stopped: the rider walks the
+    // scooter round toward the way on, a step back off the wall, and rides again — as you would.
+    if (v < 1.2 && this.phase === 'racing' && (walls?.ray(s.x, s.z, -Math.sin(s.heading), -Math.cos(s.heading), 1.5) ?? 9) < 1.1) {
+      const tgt = heading(P(1), P(4));
+      const d = turn(s.heading, tgt);
+      s.heading += Math.max(-2.4 * dt, Math.min(2.4 * dt, d));
+      s.travel = s.heading;
+      s.x += Math.sin(s.heading) * 0.5 * dt;
+      s.z += Math.cos(s.heading) * 0.5 * dt;
+      this._clear(r);
+    }
+    // (stuck a while — stopped, or getting nowhere, pressed into a corner: back on the course a few
+    // metres on, past whatever held it, not the same spot again)
+    if (this.phase === 'racing') {
+      r.prog ??= { d: r.dist, t: 0 };
+      r.prog.t += dt;
+      if (r.dist - r.prog.d > 4) r.prog = { d: r.dist, t: 0 };
+    }
+    if (r.stuck > 2.5 || (r.prog?.t ?? 0) > 4.5) {
+      r.prog = null;
+      this._remount(r, 2);
+    } else if (r.off > 30) this._remount(r);
     const has = (id) => r.items.indexOf(id);
     if (has('helmet') >= 0 && !r.helmet) this._use(r, has('helmet'));
     // the drink: on a straight with open road, not already boosting (it is three seconds of boost)

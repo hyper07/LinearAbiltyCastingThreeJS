@@ -97,8 +97,8 @@ export class RaceTraffic {
     this._onT = 0;
     const level = race.course?.def?.level ?? 'easy';
     this.level = LEVELS[level] ?? LEVELS.easy;
-    // (on Hard the residential lanes the course takes have cars on them too)
-    this.carsOnLanes = level === 'hard';
+    // (the residential lanes the course takes: delivery scooters on them, coming the other way too, not cars)
+    this.carsOnLanes = false;
     loadModel('scooter').then((m) => (this.scooterModel = m));
     loadFleet();
     this._parkSpots();
@@ -255,7 +255,8 @@ export class RaceTraffic {
       const hl = Math.hypot(hx, hz) || 1;
       const w = p[2] ?? 8;
       const kinds = ['car', 'car', 'car', 'car', 'bus', 'scooter'];
-      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      // (down a residential lane: a delivery scooter)
+      const kind = isSmall(p[3] ?? 4) ? 'scooter' : kinds[Math.floor(Math.random() * kinds.length)];
       // a road passing by this point, going the other way (its own direction, or the way it's driven back)
       let best = null;
       for (const r of this._roads(p[0], p[1], kind)) {
@@ -320,7 +321,7 @@ export class RaceTraffic {
       const p = c.points[i];
       const q = c.points[(i + 1) % n];
       const w = p[2] ?? 8;
-      if (calm[i] || p[4] || w < 6 || w > 15 || c.wild?.[i]) continue;
+      if (calm[i] || p[4] || w < 7 || w > 15 || c.wild?.[i]) continue;
       if ((c.shortcuts ?? []).some((sc) => Math.abs(sc.from - i) < 6 || Math.abs(sc.to - i) < 6)) continue;
       const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
       const lat = w / 2 - 1.15;
@@ -434,10 +435,21 @@ export class RaceTraffic {
     };
     for (const o of this.vehicles) if (o !== v) look(o.box.x, o.box.z, o.box.halfWidth * 2);
     // Bikes: seen late (they are small and quick) — a driver brakes only for one fairly close in front.
-    for (const r of this.race.racers) if (!r.left) look(r.s.x, r.s.z, 0.7, 18);
+    // One coming head-on down a narrow street: tuck in to the kerb and creep past, never a stand-off.
+    let headOn = false;
+    for (const r of this.race.racers) {
+      if (r.left) continue;
+      const dx = r.s.x - b.x;
+      const dz = r.s.z - b.z;
+      const along = dx * fx + dz * fz;
+      if (along > 0 && along < 28 && Math.cos((r.s.travel ?? r.s.heading) - b.heading) < -0.5 && Math.abs(dx * -fz + dz * fx) < 3.5) headOn = true;
+      else look(r.s.x, r.s.z, 0.7, 18);
+    }
+    if (headOn && !v.parked) v.lane = Math.max(v.lane, (v.road.width ?? 6) / 2 - v.box.halfWidth - 0.15);
     for (const p of this.g.life?.near?.(b.x, b.z, 26) ?? []) look(p.x, p.z, 0.6, 14);
     v.stopFor = Math.max(0, v.stopFor - dt);
     let want = gap < Infinity ? v.top * Math.max(0, Math.min(1, (gap - 2.5) / 10)) : v.top;
+    if (headOn) want = Math.min(want, 3);
     if (v.stopFor > 0) want = 0;
     // Slow into the turn at the end of the road.
     const left = this._leftOnRoad(v);

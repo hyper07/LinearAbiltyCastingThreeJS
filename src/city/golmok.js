@@ -413,8 +413,9 @@ export class Golmok {
           const t1 = Math.max(L[1], R[1], mid[1]);
           const pa = at(t0, 0);
           const pb = at(t1, 0);
-          // A narrow raised pavement down the right of a residential lane.
-          if (cls === 5 && w >= 5 && t0 === 0 && t1 === 1) {
+          // A narrow raised pavement down the right of a residential lane (a short cut's: on a course's own
+          // lane the race has the whole street, kerb to kerb — no ledge to catch a wheel on a square corner).
+          if (cls === 5 && w >= 5 && t0 === 0 && t1 === 1 && this.shortcut) {
             const corner = (p, s, y) => new THREE.Vector3(p[0] + rx * s, y, p[1] + rz * s);
             const kerbY = 0.13;
             ground.quad(corner(pa, half - 1.1, ya + kerbY), corner(pa, half, ya + kerbY), corner(pb, half, yb + kerbY), corner(pb, half - 1.1, yb + kerbY), PAL.paving);
