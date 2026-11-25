@@ -100,6 +100,8 @@ export class RaceTraffic {
     let size;
     if (kind === 'scooter') {
       const body = this.scooterModel ? this.scooterModel.clone(true) : plainModel('scooter', ['#e9e9e6', '#c8322b', '#2a2c31', '#1f5bb5'][Math.floor(Math.random() * 4)]);
+      // (the moped model is built facing +z: turned to face the way it goes, bars and basket in front, its box behind)
+      if (this.scooterModel) body.rotation.y = Math.PI;
       group.add(body);
       // (its rider — a real person, sat — comes on as it nears you: see update)
       size = SIZE.scooter;

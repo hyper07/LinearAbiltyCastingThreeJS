@@ -159,8 +159,8 @@ const SEAT = {
   thigh: [0.12, -0.28, -1],
   calf: [0.04, -1, -0.32],
   foot: [0, -0.25, -1],
-  upper: [0.28, -0.42, -1],
-  fore: [0.06, -0.1, -1],
+  upper: [0.26, -0.7, -1],
+  fore: [0.04, -0.32, -1],
   /** where the hips sit (moped space: forward −z, metres) */
   hips: [0, 0.86, 0.12]
 };
