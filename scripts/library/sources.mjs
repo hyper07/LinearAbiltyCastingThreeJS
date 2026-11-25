@@ -274,7 +274,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 13;
+export const EXTRAS_VERSION = 14;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -343,7 +343,9 @@ const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027'
   // Gangnam Jarani's walls near the course: red villa brick, grey and beige granite panels, white tile, render.
   'Bricks101', 'Granite002A', 'Granite001A', 'Tiles107', 'Tiles133A', 'Plaster001',
   // Gangnam Jarani's pavements: brick paving blocks.
-  'PavingStones152'];
+  'PavingStones152',
+  // Gangnam Jarani's street trees: a ginkgo's grey furrowed bark, a plane tree's peeling camouflage bark.
+  'Bark004', 'Bark009'];
 // (Kithvale's painted ground uses Grass004, Ground068, Ground106, PavingStones141, Rock051 and Moss002, all above.)
 
 /** polyfork models a game needs (CC BY 4.0, credited in the game), fetched by id from polyfork's CDN. */

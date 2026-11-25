@@ -19,6 +19,7 @@ import { skyDome, followSun, GradeShader } from './sky.js';
 import { Race } from './race.js';
 import { streetCredits } from './streetAssets.js';
 import { readAlleys } from './alleys.js';
+import { StreetTrees } from './trees.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
 
@@ -45,33 +46,6 @@ function texture(id, part) {
 }
 
 /** Two geometries as one, each in its own colour (per vertex). */
-/**
- * Trees in the wind: the higher up, the more it sways — the whole tree slowly, the leaves
- * quickly; each tree its own timing (from where it stands), more in a storm.
- */
-function windy(material, wind, flutter) {
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = wind.uTime;
-    shader.uniforms.uWind = wind.uWind;
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uWind;')
-      .replace('#include <begin_vertex>', `#include <begin_vertex>
-        #ifdef USE_INSTANCING
-          float ph = instanceMatrix[3][0] * 0.071 + instanceMatrix[3][2] * 0.053;
-        #else
-          float ph = 0.0;
-        #endif
-        float hgt = max(0.0, transformed.y - 1.2);
-        float gust = 0.65 + 0.35 * sin(uTime * 0.31 + ph * 0.4);
-        float sway = (sin(uTime * 1.25 + ph) * 0.7 + sin(uTime * 2.35 + ph * 1.7) * 0.3) * gust;
-        transformed.x += sway * uWind * hgt * hgt * 0.012;
-        transformed.z += cos(uTime * 0.95 + ph * 1.3) * uWind * hgt * hgt * 0.007;
-        float leaf = sin(uTime * 7.3 + position.x * 4.1 + position.y * 3.3 + position.z * 2.7 + ph) * ${flutter.toFixed(2)};
-        transformed += normal * leaf * uWind * 0.045 * step(3.0, transformed.y);`);
-  };
-  return material;
-}
-
 function mergeTwo(a, b, ca, cb) {
   const parts = [a, b].map((g, k) => {
     const n = g.toNonIndexed();
@@ -484,6 +458,7 @@ export class SeoulGame {
     this.race?.dispose();
     this.street?.dispose();
     this.weather?.dispose();
+    this.streetTrees?.dispose();
     this.life?.dispose();
     this.composer?.dispose();
     this.renderer?.dispose();
@@ -567,6 +542,8 @@ export class SeoulGame {
     // One material for every building: its colour per vertex, windows drawn by the shader.
     this.uniforms = { uNight: { value: 0 }, uWet: { value: 0 }, uSkyTop: { value: new THREE.Color('#5b8fd6') }, uSkyLow: { value: new THREE.Color('#bcd4ea') } };
     this.wind = { uTime: { value: 0 }, uWind: { value: 0.5 } };
+    // Street trees: ginkgos and plane trees, instanced for the whole city (trees.js).
+    this.streetTrees = new StreetTrees(this.scene, this.wind, texture);
     this.material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     // The sky: deep overhead, hazy at the horizon, a glow round the sun.
     this.sky = skyDome(this.uniforms);
@@ -810,6 +787,7 @@ export class SeoulGame {
       if (land.has(key)) continue;
       for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls]) {
         if (!m) continue;
+        if (m.userData.treeId != null) this.streetTrees.remove(m.userData.treeId);
         this.scene.remove(m);
         // Trees and lamps share their shapes across tiles: free only their own instance data.
         if (m.isInstancedMesh) m.dispose();
@@ -1210,6 +1188,8 @@ export class SeoulGame {
       let last = null;
       let along = r.along ?? 0;
       let nextTree = Math.ceil(((r.along ?? 0) - 8) / 16) * 16 + 8;
+      // A street is planted with one kind: ginkgos on most, plane trees on some (from where the road starts).
+      const kind = Math.abs(Math.sin(r.line[0] * 0.0131 + r.line[1] * 0.0077) * 1000) % 1 < 0.62 ? 'ginkgo' : 'plane';
       const expressway = r.cls === 0;
       // For the paint: the road's length (crossings at its ends; none on a motorway or a bridge), negative if one way.
       const mark = (expressway || r.bridge ? 0.5 : r.total ?? 0.5) * (r.oneway ? -1 : 1);
@@ -1280,7 +1260,7 @@ export class SeoulGame {
             // Never on a road: not on the other carriageway, a crossing or a slip road.
             if (Math.floor(nextTree / 16) % 3 === 0) {
               if (!this.onRoad(lx, lz, 0.3)) lamps.push([lx, y + kerb, lz, Math.atan2(-dz * side, dx * side)]);
-            } else if (!this.onRoad(tx, tz, 1.4)) trees.push([tx, y + kerb, tz, nextTree]);
+            } else if (!this.onRoad(tx, tz, 1.4)) trees.push({ x: tx, y: y + kerb, z: tz, yaw: Math.atan2(dx, dz), species: kind, seed: nextTree + r.line[0] * 0.001 });
             nextTree += 16;
           }
           // Remember the stretch, so someone walking here stands on the road and not under it.
@@ -1343,76 +1323,10 @@ export class SeoulGame {
     }
     const o = new THREE.Object3D();
     if (trees.length) {
-      // Street trees: a grey trunk and a full crown of a few leafy lumps — zelkovas and ginkgos, mostly
-      // green, some gone gold. Two instanced draws a tile, so the crowns can each take their own colour.
-      this.treeParts ??= (() => {
-        const trunk = new THREE.CylinderGeometry(0.12, 0.2, 3.4, 7).translate(0, 1.7, 0);
-        const lumps = [[0, 4.6, 0, 1.4], [0.9, 4.15, 0.35, 1.0], [-0.8, 4.3, -0.35, 1.05], [0.15, 5.55, -0.2, 1.0], [-0.35, 3.85, 0.85, 0.9], [0.45, 4.0, -0.9, 0.9], [-0.95, 5.0, 0.4, 0.8], [0.8, 5.1, -0.5, 0.8], [0.1, 6.3, 0.15, 0.7]];
-        const parts = lumps.map(([x, y, z, r], i) => {
-          const g = new THREE.IcosahedronGeometry(r, 2).toNonIndexed();
-          // A little roughness, so the crown is not a pile of balls.
-          const p = g.attributes.position;
-          for (let k = 0; k < p.count; k++) {
-            const n = 1 + 0.16 * Math.sin(p.getX(k) * 5.1 + i) * Math.cos(p.getY(k) * 4.3 + p.getZ(k) * 3.7);
-            p.setXYZ(k, p.getX(k) * n + x, p.getY(k) * n * 0.92 + y, p.getZ(k) * n + z);
-          }
-          g.deleteAttribute('uv');
-          g.computeVertexNormals();
-          return g;
-        });
-        // Darker inside and underneath, as a real crown is (vertex colours, times each tree's own green).
-        const crown = new THREE.BufferGeometry();
-        const total = parts.reduce((s, g) => s + g.attributes.position.count, 0);
-        const pos = new Float32Array(total * 3);
-        const nor = new Float32Array(total * 3);
-        const col = new Float32Array(total * 3);
-        let at = 0;
-        for (const g of parts) {
-          pos.set(g.attributes.position.array, at * 3);
-          nor.set(g.attributes.normal.array, at * 3);
-          // Each little facet its own shade (leaves catching the light or not), darker low and inside.
-          for (let k = 0; k < g.attributes.position.count; k += 3) {
-            const jitter = 0.78 + Math.random() * 0.36;
-            for (let j = 0; j < 3; j++) {
-              const y = g.attributes.position.getY(k + j);
-              const shade = (0.5 + 0.5 * Math.min(1, Math.max(0, (y - 3.2) / 3))) * jitter;
-              col.set([shade, shade * (0.97 + Math.random() * 0.06), shade], (at + k + j) * 3);
-            }
-          }
-          at += g.attributes.position.count;
-        }
-        crown.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-        crown.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-        crown.setAttribute('color', new THREE.BufferAttribute(col, 3));
-        return {
-          trunk,
-          crown,
-          bark: windy(new THREE.MeshLambertMaterial({ color: '#57504a' }), this.wind, 0.35),
-          leaves: windy(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), this.wind, 1)
-        };
-      })();
-      const group = new THREE.Group();
-      const trunks = new THREE.InstancedMesh(this.treeParts.trunk, this.treeParts.bark, trees.length);
-      const crowns = new THREE.InstancedMesh(this.treeParts.crown, this.treeParts.leaves, trees.length);
-      const tint = new THREE.Color();
-      trees.forEach(([x, y, z, seed], k) => {
-        const r = (m) => (((seed * m) % 1) + 1) % 1;
-        const sz = 0.8 + r(7.31) * 0.4;
-        o.position.set(x, y, z);
-        o.rotation.set(0, seed, 0);
-        o.scale.set(sz, sz * (0.9 + r(3.7) * 0.25), sz);
-        o.updateMatrix();
-        trunks.setMatrixAt(k, o.matrix);
-        crowns.setMatrixAt(k, o.matrix);
-        // Three in four green (zelkova, ginkgo in summer), the rest ginkgo gold.
-        if (r(5.17) < 0.75) tint.setHSL(0.24 + r(1.3) * 0.08, 0.42 + r(2.9) * 0.15, 0.24 + r(2.1) * 0.1);
-        else tint.setHSL(0.12 + r(1.3) * 0.03, 0.7, 0.42 + r(2.1) * 0.08);
-        crowns.setColorAt(k, tint);
-      });
-      trunks.castShadow = crowns.castShadow = true;
-      group.add(trunks, crowns);
-      out.trees = group;
-      this.scene.add(group);
+      // Street trees (trees.js): registered with the city's instanced trees; this handle takes them away again.
+      out.trees = new THREE.Group();
+      out.trees.userData.treeId = this.streetTrees.add(trees);
+      out.trees.geometry = { dispose() {} };
     }
     if (lamps.length) {
       // A tall grey street lamp: a pole, an arm over the road, a lamp that glows after dark.
@@ -1897,6 +1811,7 @@ export class SeoulGame {
     this._move(dt);
     this._camera();
     this._stream();
+    this.streetTrees?.update(this.camera);
     this._where();
     this._weather(dt);
     // People on the pavements, bikes and scooters (once the roads are in).
