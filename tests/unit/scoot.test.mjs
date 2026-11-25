@@ -195,7 +195,7 @@ test('scooter: Shift drifts — round a 90° junction at speed in a fraction of 
     const drift = run(true);
     // A 90° junction: the turn done within about 14 m (a road's width or two), where leaning needs 30+.
     assert.ok(drift.forward < 14 && drift.side < 10, `${v0} m/s: drifted round in ${drift.forward.toFixed(1)} × ${drift.side.toFixed(1)} m`);
-    assert.ok(lean.forward > drift.forward * 2, `${v0} m/s: a lean needs ${lean.forward.toFixed(1)} m`);
+    assert.ok(lean.forward > drift.forward * (v0 < 14 ? 1.4 : 2), `${v0} m/s: a lean needs ${lean.forward.toFixed(1)} m`);
     assert.ok(drift.s.v > v0 * 0.8, `${v0} m/s: still quick out of it (${drift.s.v.toFixed(1)})`);
     assert.ok(drift.s.skid > 0.3 && drift.s.skid <= DRIFT.maxSlip + 0.06, `the back out, held (${drift.s.skid.toFixed(2)} rad)`);
     // Off the throttle it loses some speed — less than braking would.

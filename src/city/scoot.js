@@ -30,11 +30,14 @@ export const SCOOT = {
   roll: 0.14,
   drag: 0.0028,
   maxLean: 0.6, // about 34°: small wheels don't like more
-  leanRate: 5.2,
-  bite: 1.7, // racing tyres: how much more a lean turns than physics alone would (an arcade's grip)
-  calm: 0.45, // at full speed the lean comes this much slower (speed-sensitive steering)
+  leanRate: 9, // how quickly it leans in (1/s): a flick left-right to weave through traffic
+  bite: 2.2, // racing tyres: how much more a lean turns than physics alone would (an arcade's grip)
+  mid: 0.22, // and more still at city speeds (peaking about 45 km/h, none at 20 or 70): corners taken without the brakes
+  calm: 0.45, // at full speed the lean comes this much slower (speed-sensitive steering, steady at 70)
+  hold: 18, // how quickly the way it goes follows the way it points (a grippy front: little understeer)
   wheelbase: 0.82,
   wheel: 0.095, // wheel radius, metres
+  shock: 0.6, // suspension, 0 (none: every joint jars) … 1 (soaks up kerbs and cobbles)
   drain: 0.2, // gauge a second while boosting: five seconds of it
   regen: 0.05, // a second while riding
   rest: 0.09, // a second while coasting or braking
@@ -42,6 +45,49 @@ export const SCOOT = {
   halfWidth: 0.3,
   grip: 1
 };
+
+/**
+ * The scooters to pick from, each its own model (scooter.js SCOOTER_LOOKS) and its own handling —
+ * changes to SCOOT. The trade-off: the faster ones corner worse and feel the street more.
+ * All made up: the brand "SSAENG 쌩쌩" and its models are ours.
+ */
+export const SCOOTERS = {
+  city: { name: 'S1 Commuter', ko: '시티', text: 'The hire scooter on every corner: balanced, comfy, no surprises.', spec: {} },
+  racer: { name: 'R7 Comet', ko: '코멧', text: 'Low and stiff on small hard wheels: the fastest down a straight, a handful in the corners and on rough ground.', spec: { cruise: 21.4, boostTop: 25.6, accel: 6.7, bite: 1.85, leanRate: 7.6, maxLean: 0.56, shock: 0.18, wheel: 0.08, drain: 0.22 } },
+  chunky: { name: 'X4 Mudlark', ko: '머드락', text: 'Fat air tyres and long springs: kerbs, plates and cobbles hardly touch you. Slower.', spec: { cruise: 17.8, boostTop: 21.6, accel: 5.9, bite: 2.1, leanRate: 8.4, shock: 0.95, wheel: 0.13, drain: 0.18 } },
+  kick: { name: 'K2 Sparrow', ko: '참새', text: 'Feather-light: off the line first and flicks through traffic, but runs out of puff at the top.', spec: { cruise: 17.2, boostTop: 21, accel: 7.7, bite: 2.6, leanRate: 11, maxLean: 0.64, shock: 0.45, wheel: 0.09 } },
+  cruiser: { name: 'G9 Grand', ko: '그랜드', text: 'Heavy, wide and fast: a missile on the boulevards that needs braking well before a corner.', spec: { cruise: 22, boostTop: 26.2, accel: 5.5, bite: 1.65, leanRate: 6.8, maxLean: 0.54, shock: 0.4, wheel: 0.11, drain: 0.24 } },
+  retro: { name: 'Mini Bubblegum', ko: '버블껌', text: 'A pastel retro runabout with whitewall tyres and a basket: nimble, kind on the bumps, long on battery.', spec: { cruise: 18.3, boostTop: 22.2, accel: 6.5, bite: 2.35, leanRate: 9.6, maxLean: 0.62, shock: 0.68, wheel: 0.1, drain: 0.14, regen: 0.07 } }
+};
+export const SCOOTER_ORDER = ['city', 'racer', 'chunky', 'kick', 'cruiser', 'retro'];
+export const cleanScooter = (id) => (SCOOTERS[id] ? id : 'city');
+
+/**
+ * A rider's whole spec: the scooter's handling, nudged by the rider's own feel (crew.js `spec`,
+ * values as on the S1 — a rider with accel 6.9 pulls 6.9 / 6.3 as hard on any scooter).
+ */
+export function specFor(scooter = 'city', feel = {}) {
+  const base = { ...SCOOT, ...(SCOOTERS[scooter] ?? SCOOTERS.city).spec };
+  for (const [k, v] of Object.entries(feel)) if (typeof SCOOT[k] === 'number' && SCOOT[k] !== 0 && typeof v === 'number') base[k] *= v / SCOOT[k];
+  return base;
+}
+
+/**
+ * The bars a scooter is shown with (0–1 each): Top speed, Acceleration, Cornering, Shock absorption
+ * and Battery (how long a boost lasts and how fast it comes back).
+ */
+export function scooterStats(id) {
+  const s = { ...SCOOT, ...(SCOOTERS[id] ?? SCOOTERS.city).spec };
+  const k = (v, a, b) => clamp((v - a) / (b - a), 0.06, 1);
+  return {
+    speed: k(s.cruise * 3.6, 58, 82),
+    accel: k(s.accel, 5, 8),
+    corner: k(s.bite * Math.tan(s.maxLean) * (0.6 + s.leanRate / 25), 0.9, 2.25),
+    shock: k(s.shock, 0, 1),
+    battery: k(1 / s.drain + s.regen * 40, 4, 9.6)
+  };
+}
+export const STAT_NAMES = { speed: 'Top speed', accel: 'Acceleration', corner: 'Cornering', shock: 'Shock absorption', battery: 'Battery' };
 
 /**
  * A drift: how fast it swings round (rad/s at full lock, on top of the lean), how quickly the way it
@@ -64,6 +110,26 @@ const G = 9.81;
 const RIDER_R = 0.42;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+/** How much of the extra city-speed bite (SCOOT.mid) there is at a speed: all at 45 km/h, none at 20 or 70. */
+export const midSpeed = (v) => clamp(1 - Math.abs(v - 12.5) / 7, 0, 1);
+/** How much of a bump reaches the rider through the suspension (1 on the S1's springs). */
+export const soak = (spec) => (1.35 - 0.75 * (spec.shock ?? 0.6)) / 0.9;
+/**
+ * A jolt of `k` (0–1+) through the wheels: shaken (s.bump, for the camera and the rider), a sliver of
+ * speed gone — more on stiff springs — and on stiff springs a hard one knocks the bars a little
+ * (the line wanders, a wobble).
+ */
+function jar(s, k, spec, out) {
+  out.jolt = Math.max(out.jolt, k);
+  s.bump = Math.max(s.bump ?? 0, Math.min(1, k));
+  const stiff = clamp(0.6 - (spec.shock ?? 0.6), 0, 0.6);
+  s.v = Math.max(0, s.v - (0.02 + stiff * 0.35) * k);
+  if (k > 0.45 && stiff > 0) {
+    s.kick = -(s.kick ?? 1) || 1;
+    s.heading += s.kick * stiff * k * 0.05;
+    s.wobble = Math.min(1, (s.wobble ?? 0) + stiff * k * 0.9);
+  }
+}
 
 /** A scooter at rest at a place. */
 export function newScoot(x, z, heading) {
@@ -164,7 +230,7 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   const fast = clamp(s.v / spec.cruise, 0, 1.2);
   s.lean += (wheel * maxLean * speedK - s.lean) * Math.min(1, dt * spec.leanRate * (1 - (spec.calm ?? 0) * fast * 0.8));
   s.steer += (wheel - s.steer) * Math.min(1, dt * 8);
-  const bite = (spec.bite ?? 1) * Math.min(1, grip);
+  const bite = (spec.bite ?? 1) * Math.min(1, grip) * (1 + (spec.mid ?? 0) * midSpeed(s.v));
   const byLean = (G * Math.tan(s.lean) * bite) / Math.max(1, s.v * s.v);
   const byBars = (Math.tan(s.steer * 0.6) / spec.wheelbase) * (1 - speedK);
   const curve = clamp(byLean + byBars, -1 / 1.8, 1 / 1.8);
@@ -182,7 +248,7 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   const braking = input.brake && s.v > 2;
   const leanK = Math.abs(s.lean) / Math.max(0.05, maxLean);
   const loose = (braking ? leanK : 0) + (grip < 0.9 && s.v > spec.cruise * 0.55 ? leanK * leanK * 0.6 : 0);
-  let hold = (14 * grip) / (1 + loose * (grip < 0.9 ? 3.5 : 1.2));
+  let hold = ((spec.hold ?? 14) * grip) / (1 + loose * (grip < 0.9 ? 3.5 : 1.2));
   if (dk > 0) hold += (DRIFT.hold * Math.min(1, grip * 1.1) - hold) * dk;
   s.travel = (s.travel ?? s.heading) + turn(s.travel ?? s.heading, s.heading) * Math.min(1, dt * hold);
   if (dk > 0) {
@@ -203,12 +269,14 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
     if (s.joint >= gap) {
       s.joint %= gap;
       // A small wheel feels it more the faster it goes; a slab joint less than a paver's edge.
-      const k = clamp((s.v / spec.cruise) * (0.095 / spec.wheel) * (input.surface === 'asphalt' ? 0.55 : input.surface === 'concrete' ? 0.8 : 0.6), 0, 1.2);
-      out.jolt = k;
-      s.bump = Math.max(s.bump ?? 0, k);
-      s.v = Math.max(0, s.v - 0.02 * k);
+      // (the suspension soaks up the rest: none, and every joint jars)
+      const k = clamp((s.v / SCOOT.cruise) * (0.095 / spec.wheel) * (input.surface === 'asphalt' ? 0.55 : input.surface === 'concrete' ? 0.8 : 0.6) * soak(spec), 0, 1.2);
+      jar(s, k, spec, out);
     }
   }
+  // Something in the road the race says the wheels went over this frame: a steel road plate, a
+  // manhole, a speed bump, tram-like rails across a junction (0–1 how big).
+  if (input.bump > 0 && s.v > 1 && !(s.air > 0)) jar(s, clamp(input.bump * (0.35 + (0.5 * s.v) / SCOOT.cruise) * soak(spec), 0, 1.4), spec, out);
   s.bump = Math.max(0, (s.bump ?? 0) - dt * 6);
   s.wobble = Math.max(0, (s.wobble ?? 0) - dt * 1.3);
   // In the air after a hop: up and down again (the ground under you is the race's business).
@@ -219,7 +287,12 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
       out.landed = Math.max(0, -s.airV);
       s.air = 0;
       s.airV = 0;
-      s.bump = Math.max(s.bump, Math.min(1, out.landed / 2.5));
+      s.bump = Math.max(s.bump, Math.min(1, (out.landed / 2.5) * soak(spec)));
+      // a hard landing on stiff springs: a moment's wobble and a little speed
+      if (out.landed > 1.2 && (spec.shock ?? 0.6) < 0.5) {
+        s.wobble = Math.min(1, (s.wobble ?? 0) + (0.5 - spec.shock) * 0.8);
+        s.v *= 1 - (0.5 - spec.shock) * 0.08;
+      }
     }
   }
   // A kerb ahead (the race measures it): hop up it, scrub along it, or stop at it.
@@ -229,7 +302,7 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
     if (what === 'hop') {
       s.airV = KERB.hopV + Math.min(0.6, s.v * 0.05);
       s.air = 0.001;
-      s.v *= 0.86;
+      s.v *= 1 - 0.2 * (1.15 - (spec.shock ?? 0.6));
     } else if (what === 'scrub') {
       s.wobble = Math.min(1, (s.wobble ?? 0) + 0.6);
       s.v *= 0.7;
