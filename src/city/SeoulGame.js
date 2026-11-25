@@ -18,7 +18,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { skyDome, followSun, GradeShader } from './sky.js';
 import { Race } from './race.js';
 import { seoulCredits } from './credits.js';
-import { readAlleys } from './alleys.js';
+import { readAlleys, readRoads } from './alleys.js';
 import { StreetTrees } from './trees.js';
 import { NightLights, LAMP_FIELD_GLSL } from './nightlights.js';
 import { confetti } from '../ui/pop.js';
@@ -247,10 +247,6 @@ const PALETTE = { house: '#d8c9b4', apartment: '#e4e2dc', shop: '#d9cfc0', offic
 const POWER_PROFILE = { quietFps: 45 };
 const QUALITY = { low: 800, medium: 1300, high: 2000 };
 const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 공공누리 제1유형(출처표시)';
-/** Road widths in metres by class (motorway … tertiary); a link road is narrower. */
-const ROAD_WIDTH = [22, 18, 15, 11, 8];
-/** A one-way carriageway (half of a big road) of no known lane count. */
-const ONE_WAY_WIDTH = [11.5, 10, 8.5, 7.5, 6];
 const WATER = new THREE.Color('#3f74b3');
 /** Roads are looked up by squares this wide (metres). */
 const ROAD_CELL = 40;
@@ -1087,41 +1083,14 @@ export class SeoulGame {
 
   /** Read roads.bin and sort every road into the tiles it crosses. */
   _roads(buf) {
-    const v = new DataView(buf);
-    if (v.getUint32(0, true) !== 0x524f4553) return;
-    const x0 = v.getInt32(4, true) - ORIGIN.x;
-    const y0 = v.getInt32(8, true) - ORIGIN.y;
-    const count = v.getUint32(12, true);
+    const all = readRoads(buf, ORIGIN);
+    if (!all) return;
     this.roadTiles = new Map();
-    const all = [];
-    let o = 16;
-    for (let k = 0; k < count; k++) {
-      const cls = v.getUint8(o);
-      const flags = v.getUint8(o + 1);
-      const n = v.getUint16(o + 2, true);
-      const pts = new Float32Array(n * 2);
-      const keys = new Array(n);
-      let first = null;
-      for (let i = 0; i < n; i++) {
-        const xi = v.getInt32(o + 4 + i * 8, true);
-        const yi = v.getInt32(o + 8 + i * 8, true);
-        const x = x0 + xi / 10;
-        const y = y0 + yi / 10;
-        pts[i * 2] = x;
-        pts[i * 2 + 1] = -y; // world Z
-        keys[i] = `${xi}|${yi}`; // where roads meet: the same point, to the decimetre
-        first ??= tileKey(...tileOf(x + ORIGIN.x, y + ORIGIN.y));
-      }
-      o += 4 + n * 8;
+    for (const { road } of all) {
       // A road is listed with the tile it starts in (traffic, people, race courses).
+      const first = tileKey(...tileOf(road.pts[0] + ORIGIN.x, -road.pts[1] + ORIGIN.y));
       if (!this.roadTiles.has(first)) this.roadTiles.set(first, []);
-      // As wide as its lanes (3.25 m each, and the shoulders), where the map says how many; else by its class.
-      const lanes = flags >> 4;
-      const oneway = Boolean(flags & 4);
-      const width = lanes ? lanes * 3.25 + (oneway ? 1.0 : 1.6) : (oneway ? ONE_WAY_WIDTH[cls] : ROAD_WIDTH[cls]) * (flags & 1 ? 0.55 : 1);
-      const road = { pts, width, bridge: Boolean(flags & 2), cls, oneway, lanes };
       this.roadTiles.get(first).push(road);
-      all.push({ road, keys });
     }
     this.roadPieces = roadPieces(all, {
       water: (x, z) => this.waterAt(x, z),

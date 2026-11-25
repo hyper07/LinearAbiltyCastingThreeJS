@@ -49,6 +49,8 @@ export const JOINTS = { paving: 0.42, concrete: 1.6, asphalt: 7.5, smooth: 0 };
 export const KERB = { low: 0.035, high: 0.2, angle: 0.4, hopV: 2.1 };
 
 const G = 9.81;
+/** A racer's circle against walls (walls.js RIDER_RADIUS). */
+const RIDER_R = 0.42;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 
@@ -95,7 +97,9 @@ export function kerbHop(rise, cross) {
  * steer −1…1), boost, free (a tailwind: boosting costs nothing), extra (m/s
  * more top speed), grade (rise over run), grip (GRIP.*), draft (0–1),
  * surface ('paving' | 'concrete' | 'asphalt' | 'smooth'), kerb ({ rise, cross })
- * }. `blocked(x, z)` says whether a point is inside something solid.
+ * }. `blocked` is what is solid: a Walls (walls.js — the buildings' footprints and
+ * the alleys' walls, met by a swept circle so nothing is ridden through at any
+ * speed), or a function (x, z) → whether a point is inside something solid.
  * Returns { hit (speed it hit something head-on at), glance (radians it was
  * turned along a wall it met at a slant, or 0), jolt (a joint's bump, 0–1),
  * kerb (what a kerb did: kerbHop's word, or null), landed (thump, m/s) }.
@@ -208,6 +212,7 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
       return out;
     } else if (what === 'drop') s.bump = Math.max(s.bump, 0.5);
   }
+  if (blocked && typeof blocked.sweep === 'function') return moveSwept(s, input, dt, blocked, spec, out);
   const into = (dir) => {
     const nx = s.x - Math.sin(dir) * s.v * dt;
     const nz = s.z - Math.cos(dir) * s.v * dt;
@@ -254,3 +259,67 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
 
 /** How far off a wall's line (radians) a scooter can meet it and only glance off. */
 export const GLANCE = 0.6;
+
+/**
+ * Moving on against real walls (walls.js): the rider's circle is swept along the way it is going.
+ * A wall met at a slant (within GLANCE of its line) turns it along the wall, slowed by how square
+ * it met it, and it rides on for the rest of the frame (a second wall too: into a corner); met
+ * more squarely it stops — `hit` says how fast. However it got there, it ends clear of every wall.
+ */
+function moveSwept(s, input, dt, walls, spec, out) {
+  const R = spec.radius ?? RIDER_R;
+  let dist = s.v * dt;
+  let dir = s.v >= 0 ? s.travel : s.travel + Math.PI;
+  dist = Math.abs(dist);
+  for (let round = 0; round < 3 && dist > 1e-6; round++) {
+    const dx = -Math.sin(dir) * dist;
+    const dz = -Math.cos(dir) * dist;
+    const hit = walls.sweep(s.x, s.z, s.x + dx, s.z + dz, R);
+    if (!hit) {
+      s.x += dx;
+      s.z += dz;
+      break;
+    }
+    // Up to the wall (a hair short of it).
+    const t = Math.max(0, hit.t - 0.002 / Math.max(dist, 1e-3));
+    s.x += dx * t;
+    s.z += dz * t;
+    dist *= 1 - t;
+    // How squarely: the angle between the way it goes and the wall's line.
+    const ux = dx / Math.hypot(dx, dz);
+    const uz = dz / Math.hypot(dx, dz);
+    const into = -(ux * hit.nx + uz * hit.nz);
+    if (into <= 0) continue;
+    const angle = Math.asin(Math.min(1, into));
+    if (angle > GLANCE || s.v < 0) {
+      out.hit = Math.max(out.hit, Math.abs(s.v));
+      out.glance = 0;
+      s.v = 0;
+      s.travel = s.heading;
+      break;
+    }
+    // Along the wall, the way it was mostly going.
+    let tx = ux + hit.nx * into;
+    let tz = uz + hit.nz * into;
+    const tl = Math.hypot(tx, tz) || 1;
+    tx /= tl;
+    tz /= tl;
+    const along = Math.atan2(-tx, -tz);
+    if (angle > 0.05) {
+      out.glance = Math.max(out.glance, angle);
+      s.v *= Math.max(0.35, 1 - Math.sin(angle) * 1.1);
+      s.wobble = Math.min(1, (s.wobble ?? 0) + 0.25 + angle);
+      s.heading += turn(s.heading, along) * 0.85;
+    }
+    s.travel = along;
+    dir = along;
+    dist *= Math.cos(angle);
+  }
+  // Never left in a wall (turning on the spot by one, a corner squeezed).
+  const fix = walls.push(s.x, s.z, R);
+  if (fix.moved > 1e-4) {
+    s.x = fix.x;
+    s.z = fix.z;
+  }
+  return out;
+}
