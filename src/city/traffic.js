@@ -450,6 +450,12 @@ export class RaceTraffic {
     v.stopFor = Math.max(0, v.stopFor - dt);
     let want = gap < Infinity ? v.top * Math.max(0, Math.min(1, (gap - 2.5) / 10)) : v.top;
     if (headOn) want = Math.min(want, 3);
+    // Coming the other way up to a corner of the course with riders coming to it: the riders turn
+    // across this lane there — wait short of it, as the crossing traffic waits at the junctions.
+    if (v.oncoming) {
+      const hold = this._cornerAhead(v);
+      if (hold < Infinity) want = Math.min(want, Math.max(0, (hold - 9) * 0.6));
+    }
     if (v.stopFor > 0) want = 0;
     // Slow into the turn at the end of the road.
     const left = this._leftOnRoad(v);
@@ -483,6 +489,29 @@ export class RaceTraffic {
     b.z = q.z;
     v.v = v.speed;
     this._place(v, dt);
+  }
+
+  /**
+   * How far ahead (m) is a corner of the course this oncoming vehicle comes up to with a racer coming
+   * to it (within 50 m of it, not yet through it) — Infinity if none within 40 m.
+   */
+  _cornerAhead(v) {
+    const c = this.race.course;
+    const turns = this.race.turnsList;
+    if (!c || !turns?.length) return Infinity;
+    const b = v.box;
+    const fx = -Math.sin(b.heading);
+    const fz = -Math.cos(b.heading);
+    let best = Infinity;
+    for (const t of turns) {
+      if (Math.abs(t.bend) < 0.6) continue;
+      const p = c.points[t.at];
+      const along = (p[0] - b.x) * fx + (p[1] - b.z) * fz;
+      if (along < 4 || along > 40 || Math.abs((p[0] - b.x) * -fz + (p[1] - b.z) * fx) > 14) continue;
+      const coming = this.race.racers.some((r) => !r.left && r.mode === 'ride' && Math.hypot(r.s.x - p[0], r.s.z - p[1]) < 50 && (r.idx ?? 0) <= t.at + 3 && (r.idx ?? 0) >= t.at - 12);
+      if (coming) best = Math.min(best, along);
+    }
+    return best;
   }
 
   /**
