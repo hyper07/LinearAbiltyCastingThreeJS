@@ -17,7 +17,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { skyDome, followSun, GradeShader } from './sky.js';
 import { Race } from './race.js';
-import { streetCredits } from './streetAssets.js';
+import { seoulCredits } from './credits.js';
 import { readAlleys } from './alleys.js';
 import { StreetTrees } from './trees.js';
 import { NightLights, LAMP_FIELD_GLSL } from './nightlights.js';
@@ -329,7 +329,8 @@ export class SeoulGame {
         <label class="seoul__quality">View<select data-quality aria-label="How far you can see"><option value="low">Near</option><option value="medium">Far</option><option value="high">Farthest</option></select></label>
         <span class="seoul__help" data-help></span>
       </footer>
-      <p class="seoul__credit">${esc(ATTRIBUTION)}</p>`;
+      <button type="button" class="seoul__credits-btn" data-credits-open title="Who made the map, the models and the music">ⓒ Credits</button>
+      <aside class="seoul__credits" data-credits hidden role="dialog" aria-label="Credits"></aside>`;
     this.host.append(this.root);
     const $ = (s) => this.root.querySelector(s);
     this.$ = $;
@@ -337,6 +338,7 @@ export class SeoulGame {
     for (const b of this.root.querySelectorAll('[data-mode]')) b.addEventListener('click', () => this.setMode(b.dataset.mode));
     $('[data-open-places]').addEventListener('click', () => this.togglePlaces());
     $('[data-open-gfx]').addEventListener('click', () => this.toggleGraphics());
+    $('[data-credits-open]').addEventListener('click', () => this.toggleCredits());
     // How to play (H or I, the bar's ❔): the city stops drawing while it's up.
     this.help = new HelpPanel({
       host: this.root,
@@ -405,8 +407,8 @@ export class SeoulGame {
         this.pos.y += this.groundAt(this.pos.x, this.pos.z);
       }
       for (const l of this.index.landmarks) if (l.tower) this._tower(l);
-      // A short credit always on screen; each source's full notice is in the Places panel.
-      this.$('.seoul__credit').textContent = [ATTRIBUTION, this.terrain ? '지형 terrain: Copernicus DEM (EU / ESA)' : '', this.roadTiles ? '도로 roads: © OpenStreetMap contributors' : '', '자동차 car: Car Concept, Eric Chadwick / Khronos (CC BY 4.0)', this.alleyCount ? '골목 small streets: © OpenStreetMap contributors' : '', '스쿠터 scooter: polyfork.dev (CC BY 4.0)', ...streetCredits(), '보도 paving: ambientCG PavingStones152 (CC0)', '벽 walls: ambientCG.com (CC0)'].filter(Boolean).join(' · ');
+      // The credits (map, models, textures, music) are behind the Credits button: on the menus, the pause screen and in the city.
+      this.creditOpts = { alleys: Boolean(this.alleyCount), terrain: Boolean(this.terrain) };
       this.ready = true;
       // Gangnam Jarani opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
@@ -444,6 +446,25 @@ export class SeoulGame {
     this.shadowBox = size > 1024 ? 90 : 60;
     if (this.gtao) this.gtao.enabled = Boolean(c.ao) && q === 'high';
     this.power.invalidate();
+  }
+
+  /**
+   * The Credits panel (the corner button, or Credits on the race menu and pause screen): every
+   * source with its site and licence, every CC BY model by name and author, and the music.
+   */
+  toggleCredits(open) {
+    const box = this.$('[data-credits]');
+    const show = open ?? box.hidden;
+    box.hidden = !show;
+    if (show) {
+      const link = (url, text) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text)}</a>`;
+      box.innerHTML = `<header><b>Credits</b><button type="button" class="seoul__x" data-credits-close aria-label="Close the credits">✕</button></header>
+        ${seoulCredits(this.creditOpts).map((c) => `<section><h4>${link(c.site, c.name)} <small>${link(c.licenceUrl, c.licence)}</small></h4><p>${esc(c.what)}</p>${c.items ? `<ul>${c.items.map((i) => `<li>${link(i.url, i.name)}${i.by ? ` by ${esc(i.by)}` : ''}</li>`).join('')}</ul>` : ''}</section>`).join('')}
+        <section><h4>Music</h4><p data-music-credit>${musicCreditHtml('seoul', esc)}</p></section>
+        <p class="seoul__credits-own">The plush riders, their scooters, the street trees, the shop signs and the city's shaders are made for the game. Full notices: docs/third-party.md.</p>`;
+      box.querySelector('[data-credits-close]').addEventListener('click', () => this.toggleCredits(false));
+    }
+    this.root.focus();
   }
 
   /** The Graphics panel (G, or the bar's button). */
@@ -1647,17 +1668,25 @@ export class SeoulGame {
         if (e.code === 'Escape' || e.code === 'KeyH' || e.code === 'KeyI') this.help.close();
         return;
       }
+      if (!this.$('[data-credits]').hidden && e.code === 'Escape') {
+        this.toggleCredits(false);
+        return;
+      }
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (e.repeat) return;
       if (this.mode === 'race') {
+        // Esc (or P) pauses a race under way; from the menus and the results, Esc leaves.
+        const live = ['grid', 'racing'].includes(this.race.phase);
+        if ((e.code === 'Escape' || e.code === 'KeyP') && live) return this.race.togglePause();
+        if (e.code === 'Escape') return this.race.quit();
+        if (this.race.paused) return;
         // A tap of Space between two frames still sprints.
         if (e.code === 'Space') this.race.sprintTap = true;
         const slot = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
         if (slot >= 0) this.race.useSlot(slot);
         else if (e.code === 'KeyB') this.race.horn();
         else if (e.code === 'KeyH' || e.code === 'KeyI') this.help.toggle();
-        else if (e.code === 'Escape') this.race.quit();
         return;
       }
       if (e.code === 'KeyF') this.setMode(this.mode === 'fly' ? 'walk' : 'fly');

@@ -1,7 +1,7 @@
 /**
  * The realistic people and vehicles on Gangnam Jarani's streets: what the
  * library fetches for them (scripts/library/streetfolk.mjs, on dev and build)
- * and what the game credits on screen. Pure data, shared by both.
+ * and what the game credits in its Credits panel (credits.js). Pure data.
  *
  * People: the Microsoft Rocketbox Avatar Library (MIT): rigged, textured
  * adults in everyday clothes, one 81-bone biped skeleton for all, so one set
@@ -58,15 +58,10 @@ export const VEHICLES = [
   { id: 'sedan', uid: '7fd6e15785fa4aa9bfd6e31eb7c97ba6', glb: 'glbs/000-107/7fd6e15785fa4aa9bfd6e31eb7c97ba6.glb', title: "Kiri '10 - Low poly model", author: 'Daniel Zhabotinsky', what: 'an everyday saloon; also the taxis' },
   { id: 'hatch', uid: '055ff8a21b8d4d279debca089e2fafcd', glb: 'glbs/000-125/055ff8a21b8d4d279debca089e2fafcd.glb', title: "Ace '11 - Low Poly model", author: 'Daniel Zhabotinsky', what: 'a city hatchback' },
   { id: 'pack', uid: '20f9af9b8a404d5cb022ac6fe87f21f5', glb: 'glbs/000-102/20f9af9b8a404d5cb022ac6fe87f21f5.glb', title: 'Generic passenger car pack', author: 'Comrade1280', what: 'the people carrier, small SUV, compact and estate', parts: ['minivan body', 'Compact Body', 'Hatchback Body', 'Offroad Body', 'Sedan Body'] },
-  { id: 'truck', uid: '3869c5bc8dff40ad97ee165ba31e0ee1', glb: 'glbs/000-132/3869c5bc8dff40ad97ee165ba31e0ee1.glb', title: 'Hyundai - Pother II (Bongo III)', author: 'yunho98', what: 'the one-tonne box truck' },
+  // (its full title is in docs/third-party.md; on screen it is a 1-ton truck, with no maker's name or badge)
+  { id: 'truck', uid: '3869c5bc8dff40ad97ee165ba31e0ee1', glb: 'glbs/000-132/3869c5bc8dff40ad97ee165ba31e0ee1.glb', title: 'Hyundai - Pother II (Bongo III)', screen: '1-ton truck', author: 'yunho98', what: 'the one-tonne box truck' },
   { id: 'bus', uid: '14fe03d792914d51b6c6250b393c44fd', glb: 'glbs/000-154/14fe03d792914d51b6c6250b393c44fd.glb', title: 'Generic Town Bus', author: 'own.guest', what: 'the city buses, in route colours' }
 ];
 
 export const OBJAVERSE = 'https://huggingface.co/datasets/allenai/objaverse/resolve/main/';
 export const sketchfabPage = (uid) => `https://sketchfab.com/3d-models/${uid}`;
-
-/** One line of credits for the screen. */
-export function streetCredits() {
-  const cars = VEHICLES.map((v) => `“${v.title}” by ${v.author}`).join(', ');
-  return [`사람 people: Microsoft Rocketbox Avatar Library (MIT)`, `차 vehicles: ${cars} — Sketchfab, CC BY 4.0`];
-}

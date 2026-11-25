@@ -145,6 +145,7 @@ export class Race {
     this.msgEl = el('race__msg');
     this.linesEl = el('race__lines');
     this.resultEl = el('race__results');
+    this.pauseEl = el('race__pause');
   }
 
   _show(on) {
@@ -196,9 +197,10 @@ export class Race {
         <div class="race__row"><button type="button" class="race__go" data-race-solo>Race three bots</button></div>
         <div class="race__row race__together"><span>With friends</span><button type="button" data-race-make>Make a room</button><input data-race-code-in maxlength="5" placeholder="CODE" /><button type="button" data-race-join>Join</button></div>`}
       <p class="race__note" data-race-note>${esc(note)}</p>
-      <p class="race__keys">W throttle · S brake · A D lean · Space boost · 1 2 3 items · B bell · R back on the course · H how to play</p>`;
+      <p class="race__keys">W throttle · S brake · A D lean · Space boost · 1 2 3 items · B bell · R back on the course · Esc pause · H how to play <button type="button" class="race__credits" data-race-credits>ⓒ Credits</button></p>`;
     const $ = (q) => m.querySelector(q);
     $('[data-race-x]').onclick = () => this.quit();
+    $('[data-race-credits]').onclick = () => this.g.toggleCredits(true);
     for (const b of m.querySelectorAll('[data-course]')) b.onclick = () => this._setup({ course: b.dataset.course });
     for (const b of m.querySelectorAll('[data-laps]')) b.onclick = () => this._setup({ laps: Number(b.dataset.laps) });
     for (const b of m.querySelectorAll('[data-time]')) b.onclick = () => this._setup({ time: b.dataset.time });
@@ -637,6 +639,8 @@ export class Race {
 
   update(rawDt) {
     if (!this.course || this.phase === 'menu' || this.phase === 'lobby' || this.phase === 'off') return;
+    // Paused: the race stands still (in a room with friends it can't: your rider just coasts).
+    if (this.paused && !this.session?.room) return;
     // Hit-stop: a crash freezes the world for a beat.
     let dt = rawDt;
     if (this.stop > 0) {
@@ -677,7 +681,8 @@ export class Race {
         let input = {};
         if (racing && r.done == null) {
           // (autopilot: the bot's riding for you — the end-to-end checks use it.)
-          if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), boost: key('Space') || this.sprintTap };
+          if (r.me && this.paused) input = {};
+          else if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), boost: key('Space') || this.sprintTap };
           else input = this._bot(r, dt);
         } else if (r.done != null) input = { throttle: r.s.v < 2, brake: r.s.v > 3 };
         if (r.me) this.sprintTap = false;
@@ -1438,14 +1443,60 @@ export class Race {
       <table><thead><tr><th></th><th>Rider</th><th>Time</th><th>Best lap</th><th>Falls</th><th>Close calls</th></tr></thead><tbody>
       ${order.map((r, i) => `<tr class="${r.me ? 'is-me' : ''}"><td>${i + 1}</td><td><i style="background:${r.color}"></i>${esc(r.ch.name)} <small>${esc(r.name)}${r.bot ? ' · bot' : ''}</small></td><td>${r.done != null ? clock(r.done) : 'DNF'}</td><td>${clock(r.best)}</td><td>${r.crashes}</td><td>${r.misses}</td></tr>`).join('')}
       </tbody></table>
-      <div class="race__row">${host ? '<button type="button" class="race__go" data-race-again>Race again</button>' : '<span>The host can start another.</span>'}<button type="button" data-race-menu>Courses</button><button type="button" data-race-quit>Back to Seoul</button></div>`;
+      <div class="race__row">${host ? '<button type="button" class="race__go" data-race-again>Race again</button>' : '<span>The host can start another.</span>'}<button type="button" data-race-menu>Courses</button><button type="button" data-race-quit>Back to Seoul</button><button type="button" class="race__credits" data-race-credits>ⓒ Credits</button></div>`;
     const $ = (q) => this.resultEl.querySelector(q);
+    $('[data-race-credits]').onclick = () => this.g.toggleCredits(true);
     if ($('[data-race-again]')) $('[data-race-again]').onclick = () => (s?.room ? this.startRoom() : this.startSolo());
     $('[data-race-menu]').onclick = () => {
       this._end();
       this.menu();
     };
     $('[data-race-quit]').onclick = () => this.quit();
+  }
+
+  /**
+   * Pause (Esc or P during a race): the race stands still behind a small panel — resume,
+   * start again, the courses, back to Seoul, and the credits.
+   */
+  togglePause(on = !this.paused) {
+    if (!this.course || !['grid', 'racing'].includes(this.phase)) on = false;
+    this.paused = on;
+    this.g.keys.clear();
+    this.g.root.classList.toggle('is-paused', on);
+    const p = this.pauseEl;
+    p.hidden = !on;
+    // (not caught mid-blink after a knock)
+    if (this.me) this.me.view.root.visible = true;
+    if (this._hub && on) this._hub.gain.gain.value = 0;
+    if (!on) {
+      this.g.toggleCredits(false);
+      return;
+    }
+    const room = Boolean(this.session?.room);
+    p.innerHTML = `<h2>Paused</h2>${room ? '<p class="race__note">The race goes on for your friends: your scooter coasts.</p>' : ''}
+      <div class="race__col">
+        <button type="button" class="race__go" data-pause-resume>Resume <small>Esc</small></button>
+        ${room ? '' : '<button type="button" data-pause-restart>Start again</button>'}
+        <button type="button" data-pause-menu>Courses</button>
+        <button type="button" data-pause-quit>Back to Seoul</button>
+        <button type="button" class="race__credits" data-credits-open-race>ⓒ Credits</button>
+      </div>`;
+    const $ = (q) => p.querySelector(q);
+    $('[data-pause-resume]').onclick = () => this.togglePause(false);
+    if ($('[data-pause-restart]')) $('[data-pause-restart]').onclick = () => {
+      this.togglePause(false);
+      this.startSolo();
+    };
+    $('[data-pause-menu]').onclick = () => {
+      this.togglePause(false);
+      this._end();
+      this.menu();
+    };
+    $('[data-pause-quit]').onclick = () => {
+      this.togglePause(false);
+      this.quit();
+    };
+    $('[data-credits-open-race]').onclick = () => this.g.toggleCredits(true);
   }
 
   /**
@@ -1634,6 +1685,7 @@ export class Race {
   /** Take the race down (riders, course, street dressing, HUD), keeping the room. */
   _end() {
     clearTimeout(this._planT);
+    if (this.paused) this.togglePause(false);
     for (const r of this.racers) r.view.dispose();
     this.racers = [];
     for (const f of this.fans ?? []) f.remove();
@@ -1668,6 +1720,6 @@ export class Race {
 
   dispose() {
     this.quit();
-    for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.countEl, this.msgEl, this.linesEl, this.resultEl]) n.remove();
+    for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.countEl, this.msgEl, this.linesEl, this.resultEl, this.pauseEl]) n.remove();
   }
 }

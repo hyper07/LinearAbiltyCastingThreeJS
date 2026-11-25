@@ -63,3 +63,16 @@ test('Jarani camera: a rival by the camera or between it and you fades; one alon
   assert.ok(mid > 0 && mid < 1, 'fading in between');
   assert.ok(NEAR_FADE[0] < NEAR_FADE[1]);
 });
+
+test('Jarani credits: every source with a link and a licence; the truck credited without its maker', async () => {
+  const { seoulCredits } = await import('../../src/city/credits.js');
+  const list = seoulCredits();
+  for (const c of list) {
+    assert.match(c.site, /^https:\/\//, c.name);
+    assert.ok(c.licence && /^https:\/\//.test(c.licenceUrl), `${c.name} has a licence link`);
+    for (const i of c.items ?? []) assert.match(i.url, /^https:\/\//, i.name);
+  }
+  const text = JSON.stringify(list);
+  for (const want of ['OpenStreetMap', 'KOGL', 'Copernicus', 'Rocketbox', 'yunho98', '1-ton truck', 'Daniel Zhabotinsky', 'Comrade1280', 'own.guest', 'Bark004', 'PavingStones152', 'Delivery Moped']) assert.ok(text.includes(want), want);
+  assert.ok(!/Hyundai|Pother|Bongo/.test(text), 'no maker named on screen');
+});

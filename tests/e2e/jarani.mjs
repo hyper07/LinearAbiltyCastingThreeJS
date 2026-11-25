@@ -5,7 +5,8 @@ import { boot, tally, until } from './lib.mjs';
  * game from its card (it opens on the race menu), pick a rider, night and
  * rain, race three bots on a short course through the alleys with the
  * streets open — traffic on the road, the three item slots, sprinting, a
- * crash and back on, How to play on H — and leave. Without Seoul's map
+ * crash and back on, How to play on H — pause on Esc, the credits from the
+ * pause screen, and leave. Without Seoul's map
  * converted on this server (data/geo/seoul) there is nothing to race on:
  * the checks say so and pass by.
  */
@@ -27,6 +28,7 @@ export async function run(browser) {
       return t;
     }
     t.check('seven short courses and seven plush riders (girls and boys)', await page.evaluate(() => document.querySelectorAll('[data-course]').length === 7 && document.querySelectorAll('[data-char]').length === 7));
+    t.check('the race menu has a Credits button (and the corner one)', await page.evaluate(() => Boolean(document.querySelector('[data-race-credits]')) && getComputedStyle(document.querySelector('[data-credits-open]')).display !== 'none'));
     t.check('time and weather rows, Random by default', await page.evaluate(() => document.querySelector('[data-time="random"]').classList.contains('is-on') && document.querySelector('[data-weather="random"]').classList.contains('is-on') && Boolean(document.querySelector('[data-time="dusk"]'))));
     await page.click('[data-char="fox"]');
     await page.click('[data-time="night"]');
@@ -71,8 +73,28 @@ export async function run(browser) {
     await page.keyboard.press('KeyH');
     t.check('H opens How to play in the race', await until(page, () => Boolean(document.querySelector('[data-help-panel]')), null, 3000));
     await page.keyboard.press('KeyH');
+    t.check('no credits over a live race: the Credits button is out of the way', await page.evaluate(() => getComputedStyle(document.querySelector('[data-credits-open]')).display === 'none' && !document.querySelector('.seoul__credit')));
     await page.keyboard.press('Escape');
-    t.check('Esc leaves the race: back to flying, the city clock running again', await until(page, () => window.seoul.mode === 'fly' && !window.seoul.clockPaused, null, 5000));
+    t.check('Esc pauses the race: a pause panel, the clock stopped', await until(page, () => window.seoul.race.paused && !document.querySelector('.race__pause').hidden, null, 3000));
+    const c0 = await page.evaluate(() => window.seoul.race.clock);
+    await page.waitForTimeout(600);
+    t.check('…and the race stands still', await page.evaluate((c) => window.seoul.race.clock === c, c0));
+    await page.click('[data-credits-open-race]');
+    t.check('Credits from the pause screen: every source with its link and licence', await until(page, () => {
+      const box = document.querySelector('[data-credits]');
+      if (!box || box.hidden) return false;
+      const text = box.textContent;
+      const links = [...box.querySelectorAll('a')].map((a) => a.href);
+      return /OpenStreetMap/.test(text) && /Rocketbox/.test(text) && /1-ton truck/.test(text) && /yunho98/.test(text) && !/Hyundai/.test(text) && links.some((h) => h.includes('creativecommons.org/licenses/by/4.0')) && links.some((h) => h.includes('sketchfab.com/3d-models/'));
+    }, null, 3000));
+    await page.keyboard.press('Escape');
+    t.check('Esc closes the credits, still paused', await until(page, () => document.querySelector('[data-credits]').hidden && window.seoul.race.paused, null, 3000));
+    await page.keyboard.press('Escape');
+    t.check('Esc again resumes', await until(page, () => !window.seoul.race.paused && document.querySelector('.race__pause').hidden, null, 3000));
+    await page.keyboard.press('Escape');
+    await until(page, () => window.seoul.race.paused, null, 3000);
+    await page.click('[data-pause-quit]');
+    t.check('Back to Seoul from the pause screen: flying, the city clock running again', await until(page, () => window.seoul.mode === 'fly' && !window.seoul.clockPaused, null, 5000));
     t.check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   } finally {
     await context.close();

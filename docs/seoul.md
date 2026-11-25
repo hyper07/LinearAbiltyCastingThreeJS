@@ -26,7 +26,8 @@ clock to see the windows light up at night.
 The buildings come from **국토교통부 GIS건물통합정보** (the Ministry of Land, Infrastructure and
 Transport's national building register, [data.go.kr 15083092](https://www.data.go.kr/data/15083092/fileData.do)),
 the file for 서울특별시 (`AL_D010_11_<date>`). Its licence is **공공누리 제1유형 (KOGL type 1)**: free to use,
-including commercially, **with attribution** — the game shows the credit on screen at all times.
+including commercially, **with attribution** — the game credits it in its Credits panel (the small
+**ⓒ Credits** button in the corner of the city and the race menu, and on the pause screen).
 
 - **Nothing from the register is in this repository.** You download the file yourself and convert
   it; the tiles live in `data/geo/seoul/tiles/` (git-ignored).
@@ -50,7 +51,8 @@ including commercially, **with attribution** — the game shows the credit on sc
   there, to the real height. No other building is modelled by hand.
 - Heights only shape the ground: **no elevation figure and no coordinate is ever shown.** Parks,
   subway lines and small streets are not in the map yet.
-- All three credits are on screen while you play (in short), and in full in the Places panel.
+- All three credits, with every model, texture and the music, are in the Credits panel (kept off
+  the screen during a live race), and the map's sources in full in the Places panel too.
 
 ## Setting it up
 
@@ -177,8 +179,10 @@ real streets and alleys — and the streets stay open.
 - `src/city/cars.js` — the Car Concept model in many paints, its glass made plain, its logos left
   out, our own number plates, wheels that steer and roll, lights at night, a light stand-in far away.
 - `SeoulGame.js` — the city itself: asphalt roads with lane lines (dashed between lanes, double
-  yellow down the middle), raised pavements of grey block paving with ginkgos (gold, it being
-  November) and street lamps that light at dusk; buildings drawn by what they are — glass towers
+  yellow down the middle), raised pavements of grey block paving with street trees (`trees.js`:
+  ginkgos and plane trees grown in code — real branches, leaf cards, bark, cast-iron grates;
+  gold and tan in autumn, green in summer) and street lamps that light the street after dark
+  (`nightlights.js`); a light from each lit shop window across the pavement; buildings drawn by what they are — glass towers
   (each its own tint) for offices, white blocks with window bands and balcony rails for apartments,
   shopfronts at street level with a row of shop signs above (pharmacy, convenience store, café,
   hair salon…) that glow at night.
