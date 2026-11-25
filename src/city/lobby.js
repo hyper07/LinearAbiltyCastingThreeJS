@@ -4,14 +4,16 @@ import { SCOOTERS, SCOOTER_ORDER, STAT_NAMES, scooterStats, cleanScooter } from 
 import { SCOOTER_LOOKS } from './scooter.js';
 import { TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
 import { faceSvg } from '../snowpuff/riders.js';
+import { CourseMap, COURSE_COLORS } from './coursemap.js';
 
 /**
  * Kickrani's pre-race flow, over the 3D stage (stage.js): rider →
  * scooter → course → time and weather → go, with Back at every step. The
  * shape is Snowpuff Peaks' (src/snowpuff/hud.js riders/mountains and
  * worldMap.js, only read): a big name card and a READY button over the
- * turntable, ◀ ▶ either side, a strip of faces to jump to; a toy map with a
- * pin for every course whose card previews it; cards for the sky. Keyboard
+ * turntable, ◀ ▶ either side, a strip of faces to jump to; a real map of
+ * Seoul (coursemap.js) with every course on its streets and a pin for each,
+ * whose card previews it; cards for the sky. Keyboard
  * (← → to browse, ↑ ↓ for the weather, Enter for next, Esc or Backspace for
  * back), mouse (click a rider or a scooter on the stage, hover a pin or a
  * sky card to preview it) and touch (tap, swipe the stage) all work.
@@ -23,53 +25,6 @@ import { faceSvg } from '../snowpuff/riders.js';
 export const STEPS = ['rider', 'scooter', 'course', 'weather'];
 const STEP_NAMES = { rider: 'Rider', scooter: 'Scooter', course: 'Course', weather: 'Time & weather' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-
-/** The Han through Seoul (world metres, west to east) and the hills: a toy map, not an atlas. */
-const HAN = [[-15720, -2100], [-11740, -980], [-9090, 690], [-7330, 1580], [-6450, 2800], [-4240, 3470], [-2910, 3690], [-2030, 4360], [-1760, 5470], [180, 6020], [1600, 5800], [2830, 4360], [5040, 3140], [6810, 3360], [7700, 4250], [9460, 4800], [10790, 4350], [11500, 3580], [12290, 2360], [13880, 1240], [16970, 130]];
-const HILLS = [{ name: 'Namsan', x: 907, z: 1673, r: 700 }, { name: 'Inwangsan', x: -1300, z: -2300, r: 700 }, { name: 'Bugaksan', x: 0, z: -3900, r: 800 }];
-const VIEW = { x0: -8200, z0: -4600, w: 22000, h: 13400 };
-const MX = (x) => ((x - VIEW.x0) / VIEW.w) * 1000;
-const MZ = (z) => ((z - VIEW.z0) / VIEW.h) * (1000 * (VIEW.h / VIEW.w));
-const MAP_H = 1000 * (VIEW.h / VIEW.w);
-
-/** A smooth line through points (the river). */
-function smooth(pts) {
-  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-  for (let i = 1; i < pts.length - 1; i++) {
-    const m = [(pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2];
-    d += ` Q${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
-  }
-  const L = pts.at(-1);
-  return `${d} L${L[0].toFixed(1)} ${L[1].toFixed(1)}`;
-}
-
-/** A soft blob round points (the city's land): their hull, pushed out and rounded. */
-function hullBlob(pts, pad) {
-  const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lower = [];
-  for (const q of p) {
-    while (lower.length >= 2 && cross(lower.at(-2), lower.at(-1), q) <= 0) lower.pop();
-    lower.push(q);
-  }
-  const upper = [];
-  for (const q of p.slice().reverse()) {
-    while (upper.length >= 2 && cross(upper.at(-2), upper.at(-1), q) <= 0) upper.pop();
-    upper.push(q);
-  }
-  const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
-  const cx = hull.reduce((t, q) => t + q[0], 0) / hull.length;
-  const cz = hull.reduce((t, q) => t + q[1], 0) / hull.length;
-  const out = hull.map(([x, z]) => {
-    const d = Math.hypot(x - cx, z - cz) || 1;
-    return [x + ((x - cx) / d) * pad, z + ((z - cz) / d) * pad];
-  });
-  const n = out.length;
-  const mid = (a, b) => `${((a[0] + b[0]) / 2).toFixed(1)} ${((a[1] + b[1]) / 2).toFixed(1)}`;
-  let d = `M${mid(out[n - 1], out[0])}`;
-  for (let i = 0; i < n; i++) d += ` Q${out[i][0].toFixed(1)} ${out[i][1].toFixed(1)} ${mid(out[i], out[(i + 1) % n])}`;
-  return `${d}Z`;
-}
 
 /** A scooter seen from the side, small (the scooter chips): its own deck, stem and wheels. */
 export function scooterChip(id, colour = '#2ec4d6', size = 64) {
@@ -234,27 +189,14 @@ export class Lobby {
       <div class="jl__strip jl__strip--scooters" role="listbox" aria-label="Scooters">${SCOOTER_ORDER.map((id) => `<button type="button" role="option" data-scooter="${id}" aria-selected="${id === r.scooter}" class="${id === r.scooter ? 'is-on' : ''}" title="${esc(SCOOTERS[id].name)}">${scooterChip(id, col, 64)}<small>${esc(SCOOTERS[id].name)}</small></button>`).join('')}</div>`;
   }
 
-  /* Course: the map of Seoul with a pin for each course, and its card. */
+  /* Course: the real map of Seoul (coursemap.js) with every course on its streets, and its card. */
   _course() {
     const r = this.race;
     const host = this.host();
-    const dists = (this.g.index?.districts ?? []).map((d) => ({ name: d.name, x: d.x - this.g.origin.x, z: -(d.y - this.g.origin.y) }));
-    const land = dists.length ? hullBlob(dists.map((d) => [MX(d.x), MZ(d.z)]), 60) : '';
-    const river = smooth(HAN.map(([x, z]) => [MX(x), MZ(z)]));
-    const pins = BIKE_COURSES.map((c) => `<g class="jl__pin ${c.id === r.courseId ? 'is-on' : ''}" data-pin="${c.id}" transform="translate(${MX(c.x).toFixed(1)} ${MZ(c.z).toFixed(1)})" tabindex="0" role="button" aria-label="${esc(c.name)}"><circle class="jl__pin-halo" r="22"/><g data-route="${c.id}" class="jl__pin-route"></g><circle class="jl__pin-dot" r="9"/><text y="-28">${esc(c.name)}</text></g>`).join('');
     return `
-      <div class="jl__map">
-        <svg viewBox="0 0 1000 ${MAP_H.toFixed(0)}" preserveAspectRatio="xMidYMid meet" aria-label="Map of Seoul with the courses">
-          <rect width="1000" height="${MAP_H.toFixed(0)}" class="jl__sea"/>
-          <path d="${land}" class="jl__land"/>
-          ${HILLS.map((h) => `<ellipse cx="${MX(h.x).toFixed(1)}" cy="${MZ(h.z).toFixed(1)}" rx="${((h.r / VIEW.w) * 1000).toFixed(1)}" ry="${((h.r / VIEW.w) * 800).toFixed(1)}" class="jl__hill"/><text x="${MX(h.x).toFixed(1)}" y="${(MZ(h.z) + 4).toFixed(1)}" class="jl__hilltext">${h.name}</text>`).join('')}
-          <path d="${river}" class="jl__han"/><text x="${MX(-6200).toFixed(0)}" y="${(MZ(2300) + 46).toFixed(0)}" class="jl__hantext">한강 Han River</text>
-          ${dists.map((d) => `<text x="${MX(d.x).toFixed(1)}" y="${MZ(d.z).toFixed(1)}" class="jl__gu">${esc(d.name)}</text>`).join('')}
-          ${pins}
-        </svg>
-      </div>
+      <div class="jl__map" data-course-map></div>
       <section class="jl__card jl__card--course" data-card data-course-card></section>
-      <div class="jl__strip jl__strip--courses" role="listbox" aria-label="Courses">${BIKE_COURSES.map((c) => `<button type="button" role="option" data-course="${c.id}" class="${c.id === r.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'}><b>${esc(c.name)}</b><small>${esc(c.ko)} · ${esc(c.kind ?? '')}</small><em data-len="${c.id}">${this.race.plans.has(c.id) ? this.race._lenText(this.race.plans.get(c.id)) : 'planning…'}</em></button>`).join('')}</div>`;
+      <div class="jl__strip jl__strip--courses" role="listbox" aria-label="Courses">${BIKE_COURSES.map((c) => `<button type="button" role="option" data-course="${c.id}" class="${c.id === r.courseId ? 'is-on' : ''}" ${host ? '' : 'disabled'} style="--c:${COURSE_COLORS[c.id]}"><b>${esc(c.name)}</b><small>${esc(c.ko)} · ${esc(c.kind ?? '')}</small><em data-len="${c.id}">${this.race.plans.has(c.id) ? this.race._lenText(this.race.plans.get(c.id)) : 'planning…'}</em></button>`).join('')}</div>`;
   }
 
   /** The course card: its shape large, a dot riding round it, and its numbers. */
@@ -380,21 +322,28 @@ export class Lobby {
       b.onpointerenter = () => r.stage?.setSky(b.dataset.time ?? r.time, b.dataset.weather ?? r.weatherPick);
       b.onpointerleave = () => r.stage?.setSky(r.time, r.weatherPick);
     }
-    // The map: hovering a pin previews its course; clicking picks it.
-    for (const p of m.querySelectorAll('[data-pin]')) {
-      p.onpointerenter = () => this._preview(p.dataset.pin);
-      p.onpointerleave = () => this._preview(null);
-      p.onclick = () => this.pickCourse(p.dataset.pin);
-      p.onkeydown = (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          this.pickCourse(p.dataset.pin);
-        }
-      };
-    }
+    // The map: pointing at a pin or a course's line previews it; a click picks it (and flies there).
+    // Pointing at a course in the list below flies the map to it too.
     if (this.step === 'course') {
+      this.map ??= new CourseMap(this.g, {
+        plans: () => this.race.plans,
+        picked: () => this.race.courseId,
+        onHover: (id) => this._preview(id),
+        onPick: (id) => this.pickCourse(id)
+      });
+      this.map.attach(m.querySelector('[data-course-map]'));
+      this.map.highlight(null);
+      for (const b of m.querySelectorAll('[data-course]')) {
+        b.onpointerenter = () => {
+          this._preview(b.dataset.course);
+          this.map.focus(b.dataset.course);
+        };
+        b.onpointerleave = () => {
+          this._preview(null);
+          if (this.map.focusId && this.map.focusId !== this.race.courseId) this.map.focus(this.race.courseId);
+        };
+      }
       this._refreshCourse();
-      this._routes();
     }
     // The stage: a tap picks what is under it, a swipe browses.
     const hit = $('[data-hit]');
@@ -512,6 +461,7 @@ export class Lobby {
     this.race._setup({ course: id }, false);
     for (const b of this.race.menuEl.querySelectorAll('[data-course]')) b.classList.toggle('is-on', b.dataset.course === id);
     for (const p of this.race.menuEl.querySelectorAll('[data-pin]')) p.classList.toggle('is-on', p.dataset.pin === id);
+    this.map?.focus(id);
     this._refreshCourse();
   }
 
@@ -545,22 +495,10 @@ export class Lobby {
   }
 
   _preview(id) {
+    if (id === this.hoverCourse) return;
     this.hoverCourse = id;
-    for (const p of this.race.menuEl.querySelectorAll('[data-pin]')) p.classList.toggle('is-hover', p.dataset.pin === id);
+    this.map?.highlight(id);
     this._refreshCourse();
-  }
-
-  /** Each planned course's loop drawn at its pin (to scale with the map), as the plans come in. */
-  _routes() {
-    for (const g of this.race.menuEl.querySelectorAll('[data-route]')) {
-      const plan = this.race.plans.get(g.dataset.route);
-      if (!plan || g.childElementCount) continue;
-      const def = BIKE_COURSES.find((c) => c.id === g.dataset.route);
-      // (a little larger than true scale, so the shape reads)
-      const k = (1000 / VIEW.w) * 2.2;
-      const d = `M${plan.points.filter((_, i) => i % 3 === 0).map((p) => `${((p[0] - def.x) * k).toFixed(1)} ${((p[1] - def.z) * k).toFixed(1)}`).join(' L')} Z`;
-      g.innerHTML = `<path d="${d}"/>`;
-    }
   }
 
   /** A plan came in (race._plan): its numbers on the chips, its card, its loop on the map. */
@@ -568,7 +506,7 @@ export class Lobby {
     const el = this.race.menuEl.querySelector(`[data-len="${id}"]`);
     if (el) el.textContent = this.race._lenText(this.race.plans.get(id));
     if (this.step === 'course') {
-      this._routes();
+      this.map?.refresh();
       if ((this.hoverCourse ?? this.race.courseId) === id) this._refreshCourse();
     }
   }
