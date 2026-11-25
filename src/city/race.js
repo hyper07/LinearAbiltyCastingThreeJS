@@ -1309,7 +1309,7 @@ export class Race {
         if (at < 0) continue;
         out.junctions++;
         const w = Math.min(a[2] ?? 4, b[2] ?? 4);
-        const J = { line: line.name, i, x: Math.round(a[0] + ux * at), z: Math.round(a[1] + uz * at), steps: 0, gaps: 0, overlaps: 0, maxStep: 0, flags: [] };
+        const J = { line: line.name, i, x: Math.round(a[0] + ux * at), z: Math.round(a[1] + uz * at), ux: Math.round(ux * 100) / 100, uz: Math.round(uz * 100) / 100, steps: 0, gaps: 0, overlaps: 0, maxStep: 0, flags: [] };
         const flag = (what, o, d, v = 0) => J.flags.length < 8 && J.flags.push(`${what} ${o.toFixed(1)}/${d.toFixed(1)}${v ? ` ${v.toFixed(2)}` : ''}`);
         for (const off of [-(w / 2 - 0.6), 0, w / 2 - 0.6]) {
           let y = null;
