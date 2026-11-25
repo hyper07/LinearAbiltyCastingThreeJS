@@ -29,6 +29,10 @@ export class WetFx {
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
+      // (over the road, which is itself pulled forward: far off, at a glancing angle, it would hide them)
+      polygonOffset: true,
+      polygonOffsetFactor: -8,
+      polygonOffsetUnits: -16,
       vertexShader: /* glsl */ `
         attribute vec3 aColor;
         varying vec2 vUv;
@@ -120,9 +124,9 @@ export class WetFx {
     m.needsUpdate = true;
   }
 
-  /** A light this frame: where (its lamp), its colour, how bright (0–1+). */
-  light(x, y, z, color, power = 1) {
-    if (this.lights.length < MAX_STREAKS) this.lights.push({ x, y, z, color, power });
+  /** A light this frame: where (its lamp), its colour, how bright (0–1+), and the ground under it if known (a street lamp high up). */
+  light(x, y, z, color, power = 1, ground = null) {
+    if (this.lights.length < MAX_STREAKS) this.lights.push({ x, y, z, color, power, ground });
   }
 
   /** Spray behind a wheel at (x, y, z), going `heading` at `speed` m/s; `size` 1 for a scooter, more for a car. */
@@ -166,7 +170,7 @@ export class WetFx {
         const dz = cam.z - l.z;
         const d = Math.hypot(dx, dz);
         if (d > 90 || n >= MAX_STREAKS) continue;
-        const ground = this.g.surfaceAt?.(l.x, l.z, l.y + 1) ?? l.y - 0.6;
+        const ground = l.ground ?? this.g.surfaceAt?.(l.x, l.z, l.y + 1) ?? l.y - 0.6;
         const h = Math.max(0.2, l.y - ground);
         const len = Math.min(d * 0.9, h * (4 + d * 0.06) + 1.2);
         o.position.set(l.x, ground + 0.035, l.z);

@@ -43,12 +43,23 @@ const SEATS = 4;
 /** The chase camera: how far back (m, plus a little with speed), its pitch, where it looks (m ahead, m up) and how far to the left it sits. */
 export const CHASE = { zoom: 4.4, pitch: -0.36, ahead: 1.1, height: 0.72, side: 0.9 };
 /** A rival nearer the camera than this (m) fades out (gone at the first, whole at the second). */
-export const NEAR_FADE = [2.0, 3.4];
+export const NEAR_FADE = [2.1, 3.3];
 
 /**
  * How much of a rival to draw (0–1): fading as it comes within NEAR_FADE of the camera, or into
  * the line from the camera to you (within about a metre of it, on the camera's side of you).
  */
+/** Whether a point is inside a vehicle in traffic (grown by `pad` m): its box on the ground, and its height. */
+function inBox(v, x, y, z, pad) {
+  const b = v.box;
+  const dx = x - b.x;
+  const dz = z - b.z;
+  const along = Math.abs(-dx * Math.sin(b.heading) - dz * Math.cos(b.heading));
+  const across = Math.abs(dx * Math.cos(b.heading) - dz * Math.sin(b.heading));
+  const top = (v.y ?? 0) + (v.view?.size?.height ?? (v.kind === 'bus' ? 3.2 : 1.6)) + pad;
+  return along < b.halfLength + pad && across < b.halfWidth + pad && y < top;
+}
+
 export function nearFade(cam, rival, me) {
   const dx = rival.x - cam.x, dy = rival.y - cam.y, dz = rival.z - cam.z;
   const d = Math.hypot(dx, dy, dz);
@@ -948,6 +959,8 @@ export class Race {
     if (!fx || (this.g.weather?.level.wet ?? 0) < 0.05) return;
     const night = this.g.uniforms?.uNight.value ?? 0;
     const cam = this.g.camera.position;
+    // The street and alley lamps nearest you, streaking down the wet road.
+    if (night > 0.3) for (const l of (this.g.nightLights?.near ?? []).slice(0, 12)) fx.light(l.x, l.y, l.z, '#ffc888', 2.4 * night, l.ground);
     for (const r of this.racers) {
       if (r.left || r.mode !== 'ride') continue;
       const s = r.s;
@@ -1459,10 +1472,13 @@ export class Race {
     let dist = (g.zoom ?? CHASE.zoom) + Math.abs(r.s.v) * 0.07;
     // (Where the map's buildings overlap the alley itself, the rider is "inside" one: no pulling in then.)
     const inside = g.buildingAt(r.s.x, r.s.z);
-    for (let d = 1.2; d <= dist && !inside; d += 0.4) {
-      const x = focus.x - dir.x * d;
-      const z = focus.z - dir.z * d;
-      if (g.buildingAt(x, z)) {
+    // Nor inside a car or a bus beside you: the camera comes in over it instead.
+    const cars = (this.traffic?.vehicles ?? []).filter((v) => Math.hypot(v.box.x - r.s.x, v.box.z - r.s.z) < dist + 8);
+    for (let d = 1.2; d <= dist; d += 0.4) {
+      const x = focus.x - dir.x * d + side.x * 0.7 * (d / dist);
+      const z = focus.z - dir.z * d + side.z * 0.7 * (d / dist);
+      const y = focus.y - dir.y * d;
+      if ((!inside && g.buildingAt(x, z)) || cars.some((v) => inBox(v, x, y, z, 0.45))) {
         dist = Math.max(2.2, d - 0.5);
         break;
       }

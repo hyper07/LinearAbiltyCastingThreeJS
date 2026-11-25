@@ -48,9 +48,9 @@ export function skyDome(uniforms) {
  */
 export const GradeShader = {
   name: 'SeoulGrade',
-  uniforms: { tDiffuse: { value: null }, uSat: { value: 1.18 }, uContrast: { value: 1.08 }, uSplit: { value: 0.04 } },
+  uniforms: { tDiffuse: { value: null }, uSat: { value: 1.18 }, uContrast: { value: 1.08 }, uSplit: { value: 0.04 }, uLift: { value: 0 } },
   vertexShader: 'varying vec2 vUv;\nvoid main() {\n  vUv = uv;\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n}',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uSat; uniform float uContrast; uniform float uSplit;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uSat; uniform float uContrast; uniform float uSplit; uniform float uLift;
     varying vec2 vUv;
     void main() {
       vec4 c = texture2D(tDiffuse, vUv);
@@ -58,6 +58,8 @@ export const GradeShader = {
       vec3 col = mix(vec3(l), c.rgb, uSat);
       col = (col - 0.5) * uContrast + 0.5;
       col += mix(vec3(-0.3, 0.0, 0.5), vec3(0.5, 0.15, -0.35), smoothstep(0.2, 0.8, l)) * uSplit;
+      // (at night) the darks lifted to a deep blue, so shapes read in the shadows
+      col += vec3(0.55, 0.65, 1.0) * uLift * (1.0 - smoothstep(0.0, 0.45, l));
       gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a);
     }`
 };

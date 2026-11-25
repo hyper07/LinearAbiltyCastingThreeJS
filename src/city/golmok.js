@@ -459,11 +459,14 @@ export class Golmok {
     }
     this.group.add(group);
     this.obstacles.push(...obstacles);
-    return { group, owned, obstacles };
+    // The lamps light the alley for real after dark (nightlights.js).
+    const lampId = lamps.length ? g.nightLights?.add(lamps.map((l) => ({ x: l.x, y: l.y, z: l.z, ground: g.groundAt(l.x, l.z) + 0.92 }))) : null;
+    return { group, owned, obstacles, lampId };
   }
 
   _drop(k, c) {
     this.group.remove(c.group);
+    if (c.lampId != null) this.g.nightLights?.remove(c.lampId);
     c.group.traverse((o) => {
       if (o.geometry && !o.isSprite && o.geometry !== this.poolGeo) o.geometry.dispose();
     });

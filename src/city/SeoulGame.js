@@ -20,6 +20,7 @@ import { Race } from './race.js';
 import { streetCredits } from './streetAssets.js';
 import { readAlleys } from './alleys.js';
 import { StreetTrees } from './trees.js';
+import { NightLights, LAMP_FIELD_GLSL } from './nightlights.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
 
@@ -117,11 +118,12 @@ function roadMaterial(uniforms) {
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uNight = uniforms.uNight;
     shader.uniforms.uWet = uniforms.uWet;
+    shader.uniforms.uLamps = uniforms.uLamps;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec4 aPaint;\nvarying vec4 vPaint;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaint = aPaint;');
+      .replace('#include <common>', '#include <common>\nattribute vec4 aPaint;\nvarying vec4 vPaint;\nvarying vec3 vLampW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaint = aPaint;\nvLampW = position;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec4 vPaint;\nuniform float uNight;\nuniform float uWet;\nvec3 roadGlow = vec3(0.0);\nfloat roadHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat roadNoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(roadHash(i), roadHash(i + vec2(1.0, 0.0)), f.x), mix(roadHash(i + vec2(0.0, 1.0)), roadHash(i + vec2(1.0, 1.0)), f.x), f.y); }')
+      .replace('#include <common>', `#include <common>\nvarying vec4 vPaint;\nvarying vec3 vLampW;\nuniform float uNight;\nuniform float uWet;\n${LAMP_FIELD_GLSL}\nvec3 roadGlow = vec3(0.0);\nfloat roadHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat roadNoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(roadHash(i), roadHash(i + vec2(1.0, 0.0)), f.x), mix(roadHash(i + vec2(0.0, 1.0)), roadHash(i + vec2(1.0, 1.0)), f.x), f.y); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float w = vPaint.z;
         float o = vPaint.x;
@@ -183,24 +185,15 @@ function roadMaterial(uniforms) {
         float worn = 0.75 + 0.25 * roadNoise(vec2(along, o) * 1.7);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.75, 0.15), clamp(yellow, 0.0, 1.0) * near_ * worn);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95), clamp(lines, 0.0, 1.0) * near_ * worn);
-        float w0 = w;
-        // At night, a pool of warm light under every street lamp (one each 48 m, the side changing each time).
-        float n = floor((along - 8.0) / 48.0 + 0.5);
-        float side = mod(n, 2.0) < 0.5 ? -1.0 : 1.0;
-        float da = along - (8.0 + n * 48.0);
-        float dx = vPaint.x - side * (w0 * 0.5 + 0.5);
-        float pool = exp(-(da * da) / 70.0 - (dx * dx) / 55.0);
-        vec3 sodium = vec3(1.0, 0.78, 0.5);
-        roadGlow = sodium * pool * uNight * (0.32 - 0.2 * uWet);
-        // And on a wet road, the light stretched out along it, and a sheen of the sky at a low angle.
-        float streak = exp(-(dx * dx) / 3.5) * exp(-abs(da) / 14.0);
-        roadGlow += sodium * streak * uWet * uNight * 0.55;
+        // At night: the lamps' pools (the light field: the lamps beyond the few lit for real), brighter in the puddles.
+        vec3 pools = lampField(vLampW);
+        roadGlow = diffuseColor.rgb * pools * 1.6;
         vec3 vdir = normalize(vViewPosition);
         roadGlow += vec3(0.16, 0.2, 0.28) * uWet * pow(1.0 - abs(vdir.z), 4.0) * 0.6;
         // Puddles mirror the sky at a low angle, and the lamps by night (rippled by the rain).
         float rip = 0.85 + 0.15 * sin(along * 7.0 + o * 5.0);
         roadGlow += vec3(0.2, 0.25, 0.33) * puddle * pow(1.0 - abs(vdir.z), 2.0) * 0.9 * rip * (1.0 - 0.85 * uNight);
-        roadGlow += sodium * streak * puddle * uNight * 0.45 * rip;`)
+        roadGlow += pools * puddle * 0.35 * rip;`)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += roadGlow;');
   };
   return m;
@@ -216,14 +209,31 @@ function pavementMaterial(uniforms) {
   const m = new THREE.MeshStandardMaterial({ map: texture('PavingStones152', 'Color'), normalMap: texture('PavingStones152', 'NormalGL'), roughnessMap: texture('PavingStones152', 'Roughness'), color: '#cfc6c0', roughness: 1, metalness: 0, normalScale: new THREE.Vector2(0.9, 0.9), envMapIntensity: 0.5, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uWet = uniforms.uWet;
+    shader.uniforms.uNight = uniforms.uNight;
+    shader.uniforms.uLamps = uniforms.uLamps;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 aWalk;\nvarying vec3 vWalk;\nvarying vec3 vLampW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWalk = aWalk;\nvLampW = position;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uWet;')
+      .replace('#include <common>', `#include <common>\nuniform float uWet;\nuniform float uNight;\nvarying vec3 vWalk;\nvarying vec3 vLampW;\n${LAMP_FIELD_GLSL}\nfloat walkHash(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         {
           // standing water where the blocks are low (dark in the photo), the rest just damp
           float low = 1.0 - smoothstep(0.25, 0.5, dot(diffuseColor.rgb, vec3(0.33)));
           roughnessFactor = mix(roughnessFactor, mix(0.66, 0.36, low), uWet);
           diffuseColor.rgb *= 1.0 - uWet * (0.45 + 0.2 * low);
+        }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        {
+          // After dark: the lamps' pools, and the light of the shop windows spilling across the
+          // pavement from the building side (shop by shop, 6 m each: most lit, warm or cool, some shut).
+          vec2 unit = vec2(floor(vWalk.y / 6.0), vWalk.z);
+          float lit = step(0.3, walkHash(unit));
+          vec3 shopCol = mix(vec3(1.0, 0.8, 0.55), vec3(0.8, 0.9, 1.0), step(0.75, walkHash(unit + 7.1)));
+          float edge = smoothstep(0.15, 1.0, vWalk.x);
+          float within = smoothstep(0.0, 0.8, fract(vWalk.y / 6.0)) * smoothstep(1.0, 0.85, fract(vWalk.y / 6.0));
+          vec3 spill = shopCol * lit * edge * edge * mix(0.55, 1.0, within) * uNight * 0.75;
+          totalEmissiveRadiance += diffuseColor.rgb * (lampField(vLampW) * 1.6 + spill) * (1.0 + uWet * 0.6);
         }`);
   };
   return m;
@@ -459,6 +469,7 @@ export class SeoulGame {
     this.street?.dispose();
     this.weather?.dispose();
     this.streetTrees?.dispose();
+    this.nightLights?.dispose();
     this.life?.dispose();
     this.composer?.dispose();
     this.renderer?.dispose();
@@ -523,7 +534,8 @@ export class SeoulGame {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 1.05);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
-    this.composer.addPass(new ShaderPass(GradeShader));
+    this.grade = new ShaderPass(GradeShader);
+    this.composer.addPass(this.grade);
     // The ground: flat, with a faint block pattern so speed and distance can be felt.
     const c = document.createElement('canvas');
     c.width = c.height = 128;
@@ -544,6 +556,9 @@ export class SeoulGame {
     this.wind = { uTime: { value: 0 }, uWind: { value: 0.5 } };
     // Street trees: ginkgos and plane trees, instanced for the whole city (trees.js).
     this.streetTrees = new StreetTrees(this.scene, this.wind, texture);
+    // The lights after dark (nightlights.js): lamps for real and as a field in the road's shader, a headlight.
+    this.nightLights = new NightLights(this.scene);
+    this.uniforms.uLamps = this.nightLights.field;
     this.material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     // The sky: deep overhead, hazy at the horizon, a glow round the sun.
     this.sky = skyDome(this.uniforms);
@@ -744,9 +759,12 @@ export class SeoulGame {
     // At night: a little cold moonlight, the city lit by its own windows, signs and lamps.
     this.sun.intensity = 0.08 + 3.1 * Math.min(1, day * 3) ** 0.7;
     this.sun.color.set('#fff1d8').lerp(new THREE.Color('#ffa055'), dusk).lerp(new THREE.Color('#9fb4ff'), Math.max(0, (night - 0.6) / 0.4) * 0.7);
-    this.hemi.intensity = 0.14 + 0.62 * Math.sqrt(day);
+    this.hemi.intensity = 0.14 + 0.62 * Math.sqrt(day) + night * 0.12;
     // Shade is lit by the blue sky: cooler as the sun gets low and warm (golden hour's blue shadows).
-    this.hemi.color.set('#dcecff').lerp(new THREE.Color('#8fb0e6'), dusk * 0.8);
+    this.hemi.color.set('#dcecff').lerp(new THREE.Color('#8fb0e6'), dusk * 0.8).lerp(new THREE.Color('#9db0e0'), night * 0.6);
+    // Night lifted a little: the shadows a deep blue, not black; the exposure a touch up.
+    if (this.grade) this.grade.uniforms.uLift.value = night * 0.045;
+    this.renderer.toneMappingExposure = 1.25 + night * 0.2;
     this.hemi.groundColor.set('#6a6458').lerp(new THREE.Color('#7a5a44'), dusk * 0.6);
     this.hemiBase = this.hemi.intensity;
     this.sunBase = this.sun.intensity;
@@ -788,6 +806,7 @@ export class SeoulGame {
       for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls]) {
         if (!m) continue;
         if (m.userData.treeId != null) this.streetTrees.remove(m.userData.treeId);
+        if (m.userData.lampId != null) this.nightLights.remove(m.userData.lampId);
         this.scene.remove(m);
         // Trees and lamps share their shapes across tiles: free only their own instance data.
         if (m.isInstancedMesh) m.dispose();
@@ -1167,6 +1186,7 @@ export class SeoulGame {
     const col = [];
     const paint = []; // per vertex: metres across from the middle, metres along, the road's width
     const walk = []; // the pavements
+    const walkA = []; // per pavement vertex: across (0 at the kerb, 1 at the building side), metres along, which side
     const wall = []; // the road's sides: kerbs, the slab's edge, bridge girders and parapets
     const wallCol = [];
     const trees = [];
@@ -1220,8 +1240,16 @@ export class SeoulGame {
           const sideR = !this.onRoad((outR[0] + prev.outR[0]) / 2, (outR[2] + prev.outR[2]) / 2) && !this.onRoad((inR[0] + outR[0]) / 2, (inR[2] + outR[2]) / 2, -0.5);
           const paved = !expressway && !onBridge && !prev.bridge;
           if (paved) {
-            if (sideL) walk.push(...prev.inL, ...prev.outL, ...outL, ...prev.inL, ...outL, ...inL);
-            if (sideR) walk.push(...prev.outR, ...prev.inR, ...inR, ...prev.outR, ...inR, ...outR);
+            const sL = r.line[0] * 0.37 + 1;
+            const sR = r.line[1] * 0.41 + 2;
+            if (sideL) {
+              walk.push(...prev.inL, ...prev.outL, ...outL, ...prev.inL, ...outL, ...inL);
+              walkA.push(0, prev.along, sL, 1, prev.along, sL, 1, along, sL, 0, prev.along, sL, 1, along, sL, 0, along, sL);
+            }
+            if (sideR) {
+              walk.push(...prev.outR, ...prev.inR, ...inR, ...prev.outR, ...inR, ...outR);
+              walkA.push(1, prev.along, sR, 0, prev.along, sR, 0, along, sR, 1, prev.along, sR, 0, along, sR, 1, along, sR);
+            }
           }
           // The road is a slab, not a sheet: a granite kerb up to the pavement, the pavement's edge and
           // the slab's sides down into the ground; on a bridge a deep girder under the deck and a
@@ -1287,7 +1315,7 @@ export class SeoulGame {
     mesh.userData.owned = owned;
     mesh.receiveShadow = true;
     this.scene.add(mesh);
-    mesh.userData.street = this._street(walk, trees, lamps);
+    mesh.userData.street = this._street(walk, trees, lamps, walkA);
     if (wall.length) {
       const wg = new THREE.BufferGeometry();
       wg.setAttribute('position', new THREE.Float32BufferAttribute(wall, 3));
@@ -1306,7 +1334,7 @@ export class SeoulGame {
   }
 
   /** A tile's pavements (one mesh), ginkgo trees and street lamps (instanced). */
-  _street(walk, trees, lamps) {
+  _street(walk, trees, lamps, walkA = null) {
     const out = {};
     if (walk.length) {
       const geo = new THREE.BufferGeometry();
@@ -1315,6 +1343,7 @@ export class SeoulGame {
       // (PavingStones152: about twelve rows of 20 × 10 cm blocks in a 1.6 m tile)
       for (let k = 0; k < walk.length; k += 3) uv.push(walk[k] / 1.6, walk[k + 2] / 1.6);
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.setAttribute('aWalk', walkA?.length === walk.length ? new THREE.Float32BufferAttribute(walkA, 3) : new THREE.Float32BufferAttribute(new Float32Array(walk.length), 3));
       geo.computeVertexNormals();
       this.walkMaterial ??= pavementMaterial(this.uniforms);
       out.walks = new THREE.Mesh(geo, this.walkMaterial);
@@ -1352,6 +1381,8 @@ export class SeoulGame {
       lampGroup.add(poles, heads);
       lampGroup.geometry = { dispose() {} };
       out.lamps = lampGroup;
+      // the lamp heads (at the end of each arm), lit after dark
+      lampGroup.userData.lampId = this.nightLights.add(lamps.map(([x, y, z, a]) => ({ x: x - Math.sin(a) * 2.1, y: y + 7.8, z: z - Math.cos(a) * 2.1, ground: y - 0.12 })));
       this.scene.add(lampGroup);
       this.lampMat.emissiveIntensity = (this.uniforms.uNight.value ?? 0) * 3;
     }
@@ -1812,6 +1843,8 @@ export class SeoulGame {
     this._camera();
     this._stream();
     this.streetTrees?.update(this.camera);
+    const me = this.mode === 'race' ? this.race?.me : null;
+    this.nightLights?.update(this.camera, { night: this.uniforms.uNight.value, wet: this.weather?.level.wet ?? 0, rider: me && me.mode === 'ride' ? { x: me.s.x, y: me.y, z: me.s.z, heading: me.s.heading } : null });
     this._where();
     this._weather(dt);
     // People on the pavements, bikes and scooters (once the roads are in).
