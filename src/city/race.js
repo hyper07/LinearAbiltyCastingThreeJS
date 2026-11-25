@@ -2777,7 +2777,8 @@ export class Race {
     if (has('marbles') >= 0) {
       // poured when someone is right behind (or after holding them a while)
       r.heldMarbles = (r.heldMarbles ?? 0) + dt;
-      const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 2 && r.dist - o.dist < 18);
+      // (right behind and in its line — within a lane of its back wheel — so they will ride over them)
+      const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 2 && r.dist - o.dist < 18 && Math.abs((o.s.x - s.x) * Math.cos(s.heading) - (o.s.z - s.z) * Math.sin(s.heading)) < 2.2);
       if (close || r.heldMarbles > 22) {
         r.heldMarbles = 0;
         this._use(r, has('marbles'));

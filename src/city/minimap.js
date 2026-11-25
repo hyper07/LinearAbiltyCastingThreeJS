@@ -96,7 +96,7 @@ export class RaceMinimap {
       this.water = any;
     }
     // Buildings, faintly: the footprints the course's walls were made from.
-    ctx.fillStyle = 'rgba(150, 140, 196, 0.3)';
+    ctx.fillStyle = 'rgba(120, 112, 168, 0.22)';
     let nb = 0;
     for (const r of c.walls?.rings ?? []) {
       if (r.maxx < x0 || r.minx > x1 || r.maxz < z0 || r.minz > z1) continue;
@@ -127,7 +127,7 @@ export class RaceMinimap {
     for (const pass of ['edge', 'top']) {
       for (const r of roads) {
         const p = r.pts;
-        ctx.strokeStyle = pass === 'edge' ? 'rgba(10, 8, 20, 0.5)' : r.small ? 'rgba(150, 150, 178, 0.5)' : r.bridge ? 'rgba(206, 200, 226, 0.85)' : 'rgba(178, 182, 206, 0.72)';
+        ctx.strokeStyle = pass === 'edge' ? 'rgba(10, 8, 20, 0.5)' : r.small ? 'rgba(170, 170, 200, 0.62)' : r.bridge ? 'rgba(226, 222, 244, 0.95)' : 'rgba(205, 208, 230, 0.88)';
         ctx.lineWidth = Math.max(r.small ? 1.6 / MAP_SCALE : 2.6 / MAP_SCALE, r.width) + (pass === 'edge' ? 1.6 / MAP_SCALE : 0);
         ctx.beginPath();
         ctx.moveTo(p[0], p[1]);
