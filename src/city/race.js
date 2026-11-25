@@ -63,10 +63,12 @@ function inBox(v, x, y, z, pad) {
 export function nearFade(cam, rival, me) {
   const dx = rival.x - cam.x, dy = rival.y - cam.y, dz = rival.z - cam.z;
   const d = Math.hypot(dx, dy, dz);
-  let k = Math.min(1, Math.max(0, (d - NEAR_FADE[0]) / (NEAR_FADE[1] - NEAR_FADE[0])));
   const fx = me.x - cam.x, fy = me.y - cam.y, fz = me.z - cam.z;
   const ff = fx * fx + fy * fy + fz * fz;
   const t = ff > 0 ? (dx * fx + dy * fy + dz * fz) / ff : 1;
+  // (a rival behind you, down in a corner of the frame, fades from a little further off)
+  const [a, b] = t < 0.9 ? [NEAR_FADE[0] + 0.5, NEAR_FADE[1] + 1] : NEAR_FADE;
+  let k = Math.min(1, Math.max(0, (d - a) / (b - a)));
   if (t > 0 && t < 0.85) {
     const lat = Math.hypot(dx - fx * t, dy - fy * t, dz - fz * t);
     k = Math.min(k, Math.min(1, Math.max(0, (lat - 0.75) / 0.6)));

@@ -192,8 +192,8 @@ export class ComicFx {
         // In: overshoot and settle (squash and stretch); out: squeeze away.
         const inK = Math.min(1, f.t / 0.08);
         const wob = f.t < 0.6 ? 1 + 0.2 * Math.exp(-(f.t - 0.08) * 10) * Math.cos((f.t - 0.08) * 34) : 1 - Math.min(1, (f.t - 0.6) / 0.4) ** 2;
-        // (never bigger on screen than one about 5 m off: a pop right by the camera would fill it)
-        const near = camera ? Math.min(1, camera.position.distanceTo(_p.set(f.at.x, f.at.y, f.at.z)) / 5) : 1;
+        // (never bigger on screen than one about 7 m off: a pop right by the camera would fill it)
+        const near = camera ? Math.min(1, camera.position.distanceTo(_p.set(f.at.x, f.at.y, f.at.z)) / 7) : 1;
         const sc = f.size * near * (f.t < 0.08 ? 0.3 + 0.9 * inK : wob);
         s.scale.set(sc * 2 * (1 + (1 - inK) * 0.3), sc * (1 - (1 - inK) * 0.2), 1);
         s.position.set(f.at.x, f.at.y + f.t * 0.9, f.at.z);

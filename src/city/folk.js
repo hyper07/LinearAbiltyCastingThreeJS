@@ -123,7 +123,8 @@ function dress(model, { body, head, opacity }) {
     const mats = [].concat(o.material).map((m) => {
       const name = m.name ?? '';
       if (/opacity/i.test(name)) {
-        return new THREE.MeshStandardMaterial({ name, map: opacity, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7, metalness: 0 });
+        // Hair (and lashes) darkened toward the black and dark brown most people in Seoul have.
+        return new THREE.MeshStandardMaterial({ name, map: opacity, color: '#3b3430', alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.62, metalness: 0 });
       }
       const isHead = /head/i.test(name);
       return new THREE.MeshStandardMaterial({ name, map: isHead ? head : body, roughness: isHead ? 0.62 : 0.82, metalness: 0, envMapIntensity: 0.6 });
