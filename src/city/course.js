@@ -34,10 +34,13 @@ export const COURSES = BIKE_COURSES;
 /** How much a metre of each class of road costs a car: big roads are preferred, small ones avoided. */
 const COST = [0.75, 0.7, 0.8, 1.0, 1.6, 4, 9, 9];
 /**
- * …and a bike: never the motorway, rarely the trunk roads; the small streets
- * a little cheaper than the big ones, so a loop goes in and out of them.
+ * …and a bike at 70 km/h: never the motorway, rarely the trunk roads; the
+ * wide city roads cheapest (room to race and to pass), the small streets a
+ * little dearer and the narrowest dearer still (`narrow`: how much more a
+ * metre costs for each metre under 6 m wide) — so a loop races the roads and
+ * takes an alley now and then as a short cut, not a maze of them.
  */
-export const BIKE_COST = [Infinity, 2.4, 1.3, 1.0, 0.92, 0.8, 0.74, 0.86];
+export const BIKE_COST = Object.assign([Infinity, 1.7, 0.95, 0.88, 0.9, 1.0, 1.15, 1.5], { narrow: 0.3, against: 8 });
 /** Small streets: what a course point's class says it is (5 residential, 6 alley, 7 pedestrian). */
 export const isSmall = (cls) => cls >= 5;
 const key = (x, z) => `${Math.round(x * 2)}|${Math.round(z * 2)}`;
@@ -74,9 +77,12 @@ export function buildGraph(roads, cx, cz, reach, costs = COST) {
         const a = nodes[prev];
         const b = nodes[id];
         const len = Math.hypot(a.x - b.x, a.z - b.z);
-        const cost = len * (costs[r.cls] ?? 1.4);
-        a.adj.push({ to: id, len, cost, width: r.width, cls: r.cls });
-        b.adj.push({ to: prev, len, cost, width: r.width, cls: r.cls });
+        const cost = len * (costs[r.cls] ?? 1.4) * (1 + Math.max(0, 6 - (r.width || 6)) * (costs.narrow ?? 0));
+        // A one-way road (its points run the way the traffic goes): a bike goes with the traffic — the
+        // wrong way costs `against` times as much (so a loop uses the other carriageway back).
+        const oneway = Boolean(r.oneway);
+        a.adj.push({ to: id, len, cost, width: r.width, cls: r.cls, oneway });
+        b.adj.push({ to: prev, len, cost: cost * (oneway ? costs.against ?? 1 : 1), width: r.width, cls: r.cls, oneway, against: oneway });
       }
       prev = id;
     }
@@ -179,7 +185,7 @@ function resample(pts, step) {
     const len = Math.hypot(bx - ax, bz - az);
     let t = step - carry;
     while (t <= len) {
-      out.push(bc == null ? [ax + ((bx - ax) * t) / len, az + ((bz - az) * t) / len, Math.max(aw, bw)] : [ax + ((bx - ax) * t) / len, az + ((bz - az) * t) / len, bw, bc]);
+      out.push(bc == null ? [ax + ((bx - ax) * t) / len, az + ((bz - az) * t) / len, Math.max(aw, bw)] : [ax + ((bx - ax) * t) / len, az + ((bz - az) * t) / len, bw, bc, pts[i][4] ?? 0]);
       t += step;
     }
     carry = len - (t - step);
@@ -226,8 +232,9 @@ function cutHairpins(points) {
  * at each point), length } or null when no loop could be made there.
  *
  * With `bike` (the bike race): the loop is short (1.4–3.4 km, about 2.3 wanted),
- * never on a motorway, goes through the small streets where it can and each
- * point also says what it is on: [x, z, width, class] (5+ is a small street).
+ * never on a motorway, mostly on roads wide enough to race, and each point
+ * also says what it is on: [x, z, width, class (5+ is a small street), one-way
+ * (1 with the traffic, −1 against it, 0 a two-way road)].
  */
 export function planCourse(roads, def, { step = 6, why = null, bike = false, target = def.target ?? (bike ? 2300 : 4200) } = {}) {
   const nodes = buildGraph(roads, def.x, def.z, def.r * (def.reach ?? 3), bike ? BIKE_COST : COST);
@@ -273,7 +280,8 @@ export function planCourse(roads, def, { step = 6, why = null, bike = false, tar
       const pts = route.map((id, i) => {
         if (!bike) return [nodes[id].x, nodes[id].z, nodes[id].width || 10];
         const e = edge(route[Math.max(0, i - 1)], route[Math.max(1, i)]) ?? edge(route[i], route[i + 1]) ?? { width: 8, cls: 4 };
-        return [nodes[id].x, nodes[id].z, e.width || 8, e.cls ?? 4];
+        // (and whether it is one carriageway of a one-way road, ridden with its traffic: 1; against it: −1)
+        return [nodes[id].x, nodes[id].z, e.width || 8, e.cls ?? 4, e.oneway ? (e.against ? -1 : 1) : 0];
       });
       const points = resample(cutHairpins(resample(pts, step).slice(0, -1)).concat([resample(pts, step)[0]]), step).slice(0, -1);
       const s = [0];
@@ -306,17 +314,37 @@ export function planCourse(roads, def, { step = 6, why = null, bike = false, tar
         why?.push(`hairpins ${pins}`);
         continue;
       }
-      // The loop nearest the length wanted wins (for a bike, one that is partly small streets and partly big).
+      // The loop nearest the length wanted wins — for a bike, one mostly on roads you can race with an
+      // alley or two in it, and few hard corners (each a stop at 70 km/h).
       let score = Math.abs(length - target);
       if (bike) {
         const small = points.filter((p) => isSmall(p[3])).length / points.length;
-        score += 2200 * Math.max(0, 0.3 - small) + 1200 * Math.max(0, small - 0.8);
+        score += 2200 * Math.max(0, 0.1 - small) + 1800 * Math.max(0, small - 0.4);
+        score += 60 * sharpTurns(points);
+        // and narrow: every point under 4.5 m wide is a pinch
+        score += 8 * points.filter((p) => (p[2] ?? 8) < 4.5).length;
       }
       if (!best || score < best.score) best = { id: def.id, points, s, length, score };
     }
   }
   if (best) delete best.score;
   return best;
+}
+
+/** How many hard corners (more than about 70° within 36 m) a loop of points has. */
+export function sharpTurns(points) {
+  const m = points.length;
+  const head = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
+  let n = 0;
+  let last = -99;
+  for (let i = 0; i < m; i++) {
+    const t = head(points[i], points[(i + 3) % m]) - head(points[(i - 3 + m) % m], points[i]);
+    if (Math.abs(Math.atan2(Math.sin(t), Math.cos(t))) > 1.2 && i - last > 6) {
+      n++;
+      last = i;
+    }
+  }
+  return n;
 }
 
 /**
@@ -343,8 +371,9 @@ export function locate(course, x, z, near = null) {
 
 /**
  * Start a loop where a grid of four fits: the straightest stretch of the
- * widest road on it (never in an alley). Returns the course turned round so
- * that point is index 0 (distances counted again from there).
+ * widest road on it (never in an alley), with a long run to the first corner
+ * (a pack at 70 km/h needs room to string out). Returns the course turned
+ * round so that point is index 0 (distances counted again from there).
  */
 export function startOnBigRoad(course) {
   const pts = course.points;
@@ -361,7 +390,15 @@ export function startOnBigRoad(course) {
     // Wide, straight, and the grid behind it (a few points back) on the same road.
     let narrow = Infinity;
     for (let k = -5; k <= 3; k++) narrow = Math.min(narrow, pts[(i + k + n) % n][2] ?? 8);
-    const score = narrow - bend * 20 - (isSmall(pts[i][3] ?? 4) ? 50 : 0);
+    // how far to the first corner (more than ~30°), up to 240 m
+    let run = 0;
+    while (run < 40) {
+      const k = i + run;
+      const u = head(pts[(k - 3 + n) % n], pts[k % n]) - head(pts[k % n], pts[(k + 3) % n]);
+      if (Math.abs(Math.atan2(Math.sin(u), Math.cos(u))) > 0.5) break;
+      run++;
+    }
+    const score = narrow - bend * 20 - (isSmall(pts[i][3] ?? 4) ? 50 : 0) + Math.min(run, 30) * 1.2;
     if (score > bestScore) {
       bestScore = score;
       best = i;

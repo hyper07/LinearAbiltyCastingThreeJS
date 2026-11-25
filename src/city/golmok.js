@@ -19,8 +19,25 @@ import { isSmall } from './course.js';
  * what glows and one set of lines for the wires — a few draws a stretch,
  * only near you. The props are placed by a seeded random from the course
  * itself, so every racer in a room sees the same alley. Things that stand
- * in the way (planters, bins, scooters, poles) are `obstacles` for the race.
+ * in the way (planters, bins, scooters, poles) are `obstacles` for the race —
+ * fair ones at 70 km/h: only in lanes wide enough to ride round them, tight
+ * to the wall, never in the 40 m before a corner (or just after it), each
+ * with a reflective yellow-and-black band you see from far off.
  */
+
+/** Course points near a corner (more than ~30° within 36 m): `before` points ahead of it and `after` past it are kept clear. */
+export function cornerZones(points, { before = 7, after = 2, bend = 0.5 } = {}) {
+  const n = points.length;
+  const head = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
+  const at = (i) => points[((i % n) + n) % n];
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = head(at(i), at(i + 3)) - head(at(i - 3), at(i));
+    if (Math.abs(Math.atan2(Math.sin(t), Math.cos(t))) < bend) continue;
+    for (let k = -before; k <= after; k++) out[((i + k) % n + n) % n] = 1;
+  }
+  return out;
+}
 
 /** The city's road lookup squares (SeoulGame ROAD_CELL). */
 const ROAD_CELL = 40;
@@ -162,6 +179,7 @@ export class Golmok {
   constructor(game, course) {
     this.g = game;
     this.course = course;
+    this.calm = cornerZones(course.points);
     this.chunks = new Map();
     this.obstacles = [];
     this.group = new THREE.Group();
@@ -191,6 +209,11 @@ export class Golmok {
     this.signs = signs;
     this.signMat = new THREE.MeshStandardMaterial({ map: signs.tex, emissiveMap: signs.tex, emissive: '#ffffff', emissiveIntensity: 0.15, roughness: 0.5 });
     this.lampMat = new THREE.MeshStandardMaterial({ color: '#fff4d8', emissive: '#ffd58a', emissiveIntensity: 0 });
+    // Reflective tape: its own colours, glowing a little (more at night, as if caught in a headlamp).
+    this.reflMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0, emissive: '#ffffff', emissiveIntensity: 0.25 });
+    this.reflMat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;');
+    };
     this.wireMat = new THREE.LineBasicMaterial({ color: '#1c1d22', transparent: true, opacity: 0.85 });
     this.glowTex = (() => {
       const c = document.createElement('canvas');
@@ -233,6 +256,7 @@ export class Golmok {
     this.lampMat.emissiveIntensity = night * 2.6;
     this.glowMat.opacity = night * 0.8;
     this.poolMat.opacity = night * 0.45;
+    this.reflMat.emissiveIntensity = 0.3 + night * 0.9;
   }
 
   /** A stretch of the course: its small-street surface, and everything along its sides. */
@@ -243,6 +267,14 @@ export class Golmok {
     const r = rng(k * 7919 + Math.round(pts[0][0]) * 31 + 17);
     const ground = new Builder();
     const props = new Builder();
+    // The reflective bands on whatever stands in the street (lit by headlamps, and by day just bright).
+    const refl = new Builder();
+    const band = (x, y, z, hx, hz, yaw) => {
+      for (let q = 0; q < 4; q++) {
+        const o = (q - 1.5) * hx * 0.5;
+        refl.box(x + Math.cos(yaw) * o, y, z - Math.sin(yaw) * o, hx * 0.25, 0.06, hz, yaw, q % 2 ? C('#1a1a1a') : C('#ffd21a'), { top: 1, side: 1 });
+      }
+    };
     // Garden walls in real brick or concrete block (ambientCG, CC0), in world metres.
     const brick = new Builder();
     const block = new Builder();
@@ -337,16 +369,20 @@ export class Golmok {
             r();
             if (i % 5 === (side > 0 ? 2 : 0)) lamps.push({ x: ex - rx * side * 0.55, z: ez - rz * side * 0.55, y: base + 3.4, wall: [ex + rx * side * 0.05, ez + rz * side * 0.05] });
           }
-          // On the ground by the edge: planters, pots, bins, a parked scooter, steps (never out on a main road).
-          const gx = ex - rx * side * 0.35;
-          const gz = ez - rz * side * 0.35;
+          // On the ground by the edge: planters, pots, bins, a parked scooter, steps (never out on a main road) —
+          // only where the lane is wide enough to ride round them, and never coming up to a corner.
+          const gx = ex - rx * side * 0.3;
+          const gz = ez - rz * side * 0.3;
           // (and never on the course's own line, where it crosses itself or turns a corner)
           const onMain = g.onRoad?.(gx, gz, 0.4) || pts.some((q, qi) => Math.abs(qi - i) > 1 && Math.hypot(q[0] - gx, q[1] - gz) < (q[2] ?? 6) / 2 - 0.1);
-          const roll = onMain ? 1 : r();
+          const clear = w < 5 || this.calm[i] || this.calm[(i + 1) % n];
+          const roll0 = r();
+          const roll = onMain || clear ? 1 : roll0 * 1.6;
           if (roll < 0.13) {
             // A styrofoam box of greens (lettuce, chillies) — a Seoul alley's kitchen garden.
             props.box(gx, base + 0.17, gz, 0.32, 0.17, 0.22, hd, PAL.styro);
             for (let q = 0; q < 4; q++) props.box(gx + (q - 1.5) * 0.14 * ux, base + 0.42, gz + (q - 1.5) * 0.14 * uz, 0.07, 0.1, 0.07, hd + q, pick(r, PAL.greens));
+            band(gx, base + 0.17, gz, 0.33, 0.225, hd);
             obstacles.push({ x: gx, z: gz, r: 0.38, kind: 'planter' });
           } else if (roll < 0.22) {
             for (let q = 0; q < 3; q++) {
@@ -355,12 +391,14 @@ export class Golmok {
               props.cyl(ox, base, oz, 0.15, 0.32, pick(r, PAL.pots), 7);
               props.box(ox, base + 0.45, oz, 0.13, 0.14, 0.13, q, pick(r, PAL.greens));
             }
+            band(gx, base + 0.05, gz, 0.62, 0.17, hd);
             obstacles.push({ x: gx, z: gz, r: 0.55, kind: 'pots' });
           } else if (roll < 0.31) {
             const col = pick(r, PAL.bins);
             props.box(gx, base + 0.5, gz, 0.29, 0.5, 0.34, hd, col);
             props.box(gx, base + 1.02, gz, 0.31, 0.03, 0.37, hd, col.clone().multiplyScalar(0.8));
             props.box(gx + ux * 0.6, base + 0.22, gz + uz * 0.6, 0.22, 0.22, 0.22, hd + 0.4, C('#eef0f2'));
+            band(gx, base + 0.62, gz, 0.3, 0.355, hd);
             obstacles.push({ x: gx, z: gz, r: 0.45, kind: 'bin' });
           } else if (roll < 0.37) {
             // A parked delivery scooter, nose to the wall.
@@ -370,20 +408,23 @@ export class Golmok {
             props.box(sx, base + 0.45, sz, 0.22, 0.25, 0.8, hd + Math.PI / 2, col);
             props.box(sx - rx * side * 0.2, base + 0.95, sz - rz * side * 0.2, 0.25, 0.22, 0.25, hd + Math.PI / 2, C('#d8402a'));
             for (const e of [-0.6, 0.6]) props.cyl(sx + rx * side * e, base, sz + rz * side * e, 0.22, 0.12, C('#1b1b1d'), 8);
+            band(sx, base + 0.3, sz, 0.24, 0.82, hd + Math.PI / 2);
             obstacles.push({ x: sx, z: sz, r: 0.6, kind: 'scooter' });
           } else if (roll < 0.42 && wall) {
             // Steps up to a door.
             for (let q = 0; q < 3; q++) props.box(ex - rx * side * (0.15 + q * 0.0), base + 0.09 + q * 0.18, ez - rz * side * (0.15 + q * 0.0), 0.6 - q * 0.04, 0.09, 0.3 - q * 0.1 + 0.15, hd + Math.PI / 2, PAL.step);
           }
           // A utility pole every 24 m, sides in turn; wires between them.
-          if (i % 4 === (side > 0 ? 0 : 2) && !onMain) {
-            const px = ex - rx * side * 0.25;
-            const pz = ez - rz * side * 0.25;
+          if (i % 4 === (side > 0 ? 0 : 2) && !onMain && !this.calm[i]) {
+            // (tight to the edge: a pole is a street's, not a slalom gate)
+            const px = ex - rx * side * 0.15;
+            const pz = ez - rz * side * 0.15;
             props.cyl(px, base, pz, 0.14, 9.5, PAL.pole, 8);
+            for (let q = 0; q < 3; q++) refl.cyl(px, base + 0.45 + q * 0.3, pz, 0.15, 0.15, q % 2 ? C('#1a1a1a') : C('#ffd21a'), 8);
             props.box(px, base + 8.6, pz, 0.7, 0.05, 0.05, hd + Math.PI / 2, C('#6a6d74'));
             if (r() < 0.4) props.cyl(px - rx * side * 0.35, base + 6.8, pz - rz * side * 0.35, 0.22, 0.7, C('#7a7f86'), 8);
             poles.push({ x: px, z: pz, y: base + 8.6, side });
-            obstacles.push({ x: px, z: pz, r: 0.25, kind: 'pole' });
+            obstacles.push({ x: px, z: pz, r: 0.16, kind: 'pole' });
           }
         }
       }
@@ -429,6 +470,8 @@ export class Golmok {
     if (wirePts.length) wires.push(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(wirePts), this.wireMat));
     const gm = ground.mesh(this.groundMat);
     const pm = props.mesh(this.mat);
+    const rm = refl.mesh(this.reflMat);
+    if (rm) group.add(rm);
     if (gm) group.add(gm);
     if (pm) group.add(pm);
     for (const m of [brick.mesh(this.brickMat, 1.7), block.mesh(this.blockMat, 3)]) if (m) group.add(m);
@@ -487,7 +530,7 @@ export class Golmok {
   dispose() {
     for (const [k, c] of [...this.chunks]) this._drop(k, c);
     this.g.scene.remove(this.group);
-    for (const m of [this.mat, this.brickMat, this.blockMat, this.groundMat, this.signMat, this.lampMat, this.wireMat, this.glowMat, this.poolMat]) {
+    for (const m of [this.mat, this.brickMat, this.blockMat, this.groundMat, this.signMat, this.lampMat, this.wireMat, this.glowMat, this.poolMat, this.reflMat]) {
       m.map?.dispose();
       m.normalMap?.dispose();
       m.dispose();

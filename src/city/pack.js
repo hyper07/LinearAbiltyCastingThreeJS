@@ -14,13 +14,15 @@ export const BIKE_RADIUS = 0.32;
 
 /**
  * The band of the street a racer keeps to: on a big road the right-hand half
- * (clear of the double yellow and of the kerb), in a small street all of it
- * bar a margin at each wall. `pass` widens it towards the middle, for
- * going round someone.
+ * (clear of the double yellow and of the kerb), in a small street — or on one
+ * carriageway of a one-way road, all of which goes your way — all of it bar
+ * a margin at each side. `pass` widens it towards the middle, for going
+ * round someone.
  */
-export function laneBand(width, small, pass = false) {
+export function laneBand(width, small, pass = false, oneway = false) {
   const w = Math.max(2.4, width || 6);
   if (small) return { lo: -w / 2 + 0.75, hi: w / 2 - 0.75 };
+  if (oneway) return { lo: -w / 2 + 0.95, hi: w / 2 - 0.95 };
   const hi = Math.max(1.4, w / 2 - 0.85);
   const lo = pass ? Math.max(-0.3, Math.min(0.9, hi - 4.5)) : Math.min(hi - 0.4, 1.0);
   return { lo, hi };
@@ -55,7 +57,7 @@ export function behindStart(course, back) {
       const t = seg > 1e-6 ? left / seg : 0;
       const x = q[0] + (p[0] - q[0]) * t;
       const z = q[1] + (p[1] - q[1]) * t;
-      return { x, z, heading: Math.atan2(-(q[0] - p[0]), -(q[1] - p[1])), i, width: p[2] ?? 6, cls: p[3] ?? 4 };
+      return { x, z, heading: Math.atan2(-(q[0] - p[0]), -(q[1] - p[1])), i, width: p[2] ?? 6, cls: p[3] ?? 4, oneway: Boolean(p[4]) };
     }
     left -= seg;
     q = p;

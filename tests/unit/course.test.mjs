@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKE_COURSES, planCourse, locate, buildGraph, isSmall } from '../../src/city/course.js';
+import { BIKE_COURSES, planCourse, locate, buildGraph, isSmall, sharpTurns } from '../../src/city/course.js';
 import { readAlleys, SMALL_WIDTH } from '../../src/city/alleys.js';
 import { encodeAlleys, keepWay } from '../../scripts/geo/seoul-alleys.mjs';
 import { toLonLat } from '../../scripts/geo/tm.mjs';
@@ -108,7 +108,7 @@ function town() {
   return roads;
 }
 
-test('a bike course is 1.4–3.4 km, never on a motorway, and goes through small streets as well as big roads', () => {
+test('a bike course is 1.4–3.4 km, never on a motorway, mostly on roads wide enough to race', () => {
   const roads = town();
   // A motorway straight through the middle: a bike must never use it.
   const m = [];
@@ -117,10 +117,12 @@ test('a bike course is 1.4–3.4 km, never on a motorway, and goes through small
   const c = planCourse(roads, { id: 'b', x: 0, z: 0, r: 320 }, { bike: true });
   assert.ok(c, 'a course was planned');
   assert.ok(c.length >= 1400 && c.length <= 3400, `length ${Math.round(c.length)} m`);
-  for (const p of c.points) assert.equal(p.length, 4, 'each point says its width and class');
+  for (const p of c.points) assert.equal(p.length, 5, 'each point says its width, class and one-way');
   assert.ok(!c.points.some((p) => p[3] === 0), 'no motorway');
   const small = c.points.filter((p) => isSmall(p[3])).length / c.points.length;
-  assert.ok(small > 0.15, `some of it in the small streets (${Math.round(small * 100)}%)`);
+  // At 70 km/h: mostly the roads (here every alley is a narrow one running beside a road, so none is a short cut).
+  assert.ok(small < 0.45, `mostly roads (${Math.round(small * 100)}% small streets)`);
+  assert.ok(sharpTurns(c.points) <= 8, `few hard corners (${sharpTurns(c.points)})`);
   for (let i = 0; i < c.points.length; i++) assert.ok(turnAt(c.points, i) < 2.3, `no turning round at ${i}`);
   // The same streets, the same course: everyone in a room plans it alike.
   assert.deepEqual(planCourse(roads, { id: 'b', x: 0, z: 0, r: 320 }, { bike: true }).points, c.points);

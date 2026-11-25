@@ -55,6 +55,9 @@ test('pack: lanes — on a road the right-hand half clear of the kerb and the ce
   assert.ok(pass.lo < road.lo, 'overtaking widens toward the middle');
   const alley = laneBand(4, true);
   assert.ok(alley.lo < 0 && alley.hi > 0 && alley.hi <= 4 / 2 - 0.7, 'an alley: either side, off the walls');
+  // one carriageway of a one-way road (ridden with its traffic): all of it is yours, off the median and the kerb
+  const one = laneBand(7.5, false, false, true);
+  assert.ok(one.lo < -2 && one.hi > 2 && one.hi <= 7.5 / 2 - 0.9 && one.lo >= -7.5 / 2 + 0.9);
   const shares = laneShares(4);
   assert.equal(shares.length, 4);
   assert.equal(new Set(shares.map((x) => x.toFixed(3))).size, 4, 'each rider its own line');
