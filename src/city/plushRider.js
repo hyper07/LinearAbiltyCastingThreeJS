@@ -4,7 +4,7 @@ import { SPECIES } from '../snowpuff/riders.js';
 import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial } from './plush.js';
 import { Scooter } from './scooter.js';
 import { blobTexture } from './items.js';
-import { goldHelmet, shield } from './helmet.js';
+import { goldHelmet } from './helmet.js';
 
 /**
  * Kickrani's riders: Snowpuff Peaks' plush animals, come to Seoul on
@@ -591,9 +591,9 @@ export class PlushRider {
   }
 
   /**
-   * The golden helmet on or off: a gold helmet fitted to this head (its ellipsoid in the recipe —
-   * ears poke out of it), a bobble hat taken off under it, and a shimmer of gold round rider and
-   * scooter while it is on (eased in and out by pose).
+   * The golden helmet on or off: a gold cycling helmet fitted to this head (its ellipsoid in the
+   * recipe — ears poke out of it), a bobble hat taken off under it. Just the helmet: no glow round
+   * the rider.
    */
   setHelmet(on) {
     on = Boolean(on);
@@ -601,8 +601,6 @@ export class PlushRider {
       const part = this.recipe.parts.find((p) => p.bone === 'head' && p.s === 'ell') ?? { c: [0, 0.67, 0], r: [0.34, 0.29, 0.3] };
       this.helmet = goldHelmet(part, this.rest.get('head'), this.furLen);
       this.bones.get('head').add(this.helmet);
-      this.shield = shield();
-      this.root.add(this.shield);
       // (a rival already fading by the camera fades its helmet too)
       if (this._mats) {
         this.helmet.traverse((o) => {
@@ -907,12 +905,6 @@ export class PlushRider {
     this.material.userData.u.uRimK.value = rimK;
     if (this.fur) this.fur.userData.u.uRimK.value = 1 - night * 0.8;
     const flash = st.glow ? 0.18 + Math.sin(t * 8) * 0.06 : 0;
-    if (this.shield) {
-      this._shieldK = (this._shieldK ?? 0) + ((this.helmetOn && (this._fade ?? 1) > 0.5 ? 1 : 0) - (this._shieldK ?? 0)) * Math.min(1, dt * 5);
-      this.shield.userData.set(this._shieldK);
-      this.shield.userData.update(t);
-      this.shield.position.y = 0.92 + (this.squash.position.y ?? 0);
-    }
     this.material.userData.u.uFlash.value = flash;
     if (this.fur) this.fur.userData.u.uFlash.value = flash;
     // ---- blink

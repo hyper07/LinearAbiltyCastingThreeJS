@@ -308,11 +308,18 @@ export async function run(browser) {
       r._renderItems();
     });
     await page.keyboard.press('Digit1');
-    t.check('the golden helmet: on your rider\'s head, a shimmer round you, a badge on the HUD', await until(page, () => {
+    t.check('the golden helmet: on your rider\'s head (a cycling helmet: vents, strap, a peak), a badge on the HUD', await until(page, () => {
       const r = window.seoul.race;
       const v = r.me.view;
-      return r.me.helmet && v.helmet?.visible && v.helmet.parent === v.bones.get('head') && v.shield?.visible && !document.querySelector('.race__helmet').hidden;
+      const parts = new Set(v.helmet?.children.map((c) => c.name));
+      return r.me.helmet && v.helmet?.visible && v.helmet.parent === v.bones.get('head') && ['shell', 'vent', 'strap', 'peak'].every((k) => parts.has(k)) && !document.querySelector('.race__helmet').hidden;
     }, null, 3000));
+    t.check('…just the helmet: no shimmer sphere round the rider', await page.evaluate(() => {
+      const v = window.seoul.race.me.view;
+      let glow = 0;
+      v.root.traverse((o) => o.visible && o.isMesh && o.material?.blending === 2 && o.geometry?.type === 'SphereGeometry' && glow++);
+      return !v.shield && glow === 0;
+    }));
     const saves = await page.evaluate(() => window.seoul.race.saves ?? 0);
     await page.evaluate(() => window.seoul.race._crash(window.seoul.race.me, 'car'));
     t.check('…a crash bounces off it: still riding, BLOCKED!, the helmet flies off', await until(page, (n) => {

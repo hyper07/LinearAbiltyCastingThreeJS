@@ -1,36 +1,76 @@
 import * as THREE from 'three';
 
 /**
- * The golden helmet, worn: a shiny gold cycling helmet fitted to a plush
+ * The golden helmet, worn: a rounded gold cycling helmet fitted to a plush
  * rider's head (the way Snowpuff's goggles are fitted to each head —
  * src/snowpuff/render/goggles.js, only read: here from the head's own
  * ellipsoid in the sculpt recipe, so every species wears it snug, ears and
- * all poking out), a soft golden shimmer round rider and scooter while it is
- * on, and the helmet flying off, spinning, when it saves you.
+ * all poking out) — a smooth shell over the crown, longer to the back, with
+ * vent slots, a dark foam liner under the rim, a short peak and a chin strap
+ * — and the helmet flying off, spinning, when it saves you. Nothing else: no
+ * glow round the rider (the HUD's badge says you have it).
  *
  *   const h = goldHelmet({ c: [0, 0.67, 0], r: [0.34, 0.29, 0.3] }, headRest, fur);
- *   headBone.add(h);                       // and shield() on the rider's root
+ *   headBone.add(h);
  *   drops.fling(h, scene, { vx, vz })      // when it takes a crash: a spinning gold helmet in the air
  *   drops.update(dt, ground)
  */
 
-const mats = {};
-// (each helmet its own gold and vents: a rival fading by the camera fades only its own)
-let own = {};
-const gold = () => (own.gold ??= new THREE.MeshPhysicalMaterial({ color: '#ffc531', metalness: 1, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.6, emissive: '#7a4a00', emissiveIntensity: 0.32 }));
-const goldDark = () => (own.dark ??= new THREE.MeshPhysicalMaterial({ color: '#d99a10', metalness: 1, roughness: 0.32, clearcoat: 0.6, envMapIntensity: 1.3, emissive: '#5a3200', emissiveIntensity: 0.25 }));
-const vent = () => (own.vent ??= new THREE.MeshStandardMaterial({ color: '#2a2030', roughness: 0.8 }));
-const strap = () => (own.strap ??= new THREE.MeshStandardMaterial({ color: '#3a2a4a', roughness: 0.7 }));
-const star = () => (own.star ??= new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff4c0', emissiveIntensity: 0.6, roughness: 0.3 }));
-
 const G = {};
+// (each helmet its own materials: a rival fading by the camera fades only its own)
+let own = {};
+const gold = () => (own.gold ??= new THREE.MeshPhysicalMaterial({ color: '#ffc531', metalness: 1, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.6, emissive: '#7a4a00', emissiveIntensity: 0.3 }));
+const goldDark = () => (own.dark ??= new THREE.MeshPhysicalMaterial({ color: '#d99a10', metalness: 1, roughness: 0.34, clearcoat: 0.6, envMapIntensity: 1.3, emissive: '#5a3200', emissiveIntensity: 0.22 }));
+const vent = () => (own.vent ??= new THREE.MeshStandardMaterial({ color: '#241c2a', roughness: 0.85 }));
+const liner = () => (own.liner ??= new THREE.MeshStandardMaterial({ color: '#2c2833', roughness: 0.95, side: THREE.BackSide }));
+const strap = () => (own.strap ??= new THREE.MeshStandardMaterial({ color: '#2f2a3a', roughness: 0.7 }));
+const buckle = () => (own.buckle ??= new THREE.MeshStandardMaterial({ color: '#16141a', roughness: 0.4, metalness: 0.2 }));
+
+/**
+ * The shell's shape: a point on it for `a` round the head (0 the face, +π/2 the left) and `t` from
+ * the crown (0) to the rim (1). It comes down further at the back than over the brow, and the back
+ * is drawn out into a short tail, as a cycling helmet's is — not a bowl.
+ */
+export function helmetPoint(a, t, R) {
+  const front = Math.max(0, Math.cos(a));
+  const back = Math.max(0, -Math.cos(a));
+  const deep = Math.PI * (0.34 + 0.05 * (1 - front) + 0.1 * back);
+  const th = t * deep;
+  const sn = Math.sin(th);
+  const x = sn * Math.sin(a) * R.x * (1 - 0.06 * back);
+  // drawn out behind into a short tail, a little forward over the brow
+  const z = sn * Math.cos(a) * R.z * (1 + 0.34 * back * sn * sn + 0.06 * front);
+  // a low ridge down the middle; the brow flatter; the tail lifted a touch
+  const ridge = 0.012 * Math.sin(Math.min(Math.PI, th * 3)) * Math.max(0, 1 - Math.abs(Math.sin(a)) * 2.2);
+  const y = Math.cos(th) * R.y * (1 - 0.05 * front * t) + ridge + 0.035 * back * t * t;
+  return [x, y, z];
+}
+
+/** The shell (and the liner, the same surface inside) as a grid of points round and down. */
+function shellGeometry(R, around = 48, down = 14, t0 = 0, t1 = 1, k = 1) {
+  const pos = [];
+  const idx = [];
+  for (let j = 0; j <= down; j++) {
+    for (let i = 0; i <= around; i++) pos.push(...helmetPoint((i / around) * Math.PI * 2, t0 + ((t1 - t0) * j) / down, R).map((v) => v * k));
+  }
+  for (let j = 0; j < down; j++) {
+    for (let i = 0; i < around; i++) {
+      const a = j * (around + 1) + i;
+      const b = a + around + 1;
+      idx.push(a, b, a + 1, a + 1, b, b + 1);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
 
 /**
  * A gold helmet for a head: `head` the head's ellipsoid in the sculpt ({ c, r }, metres, the face to
  * +z), `rest` the head bone's rest position (the helmet is a child of the bone), `fur` how thick the
- * fur is (the shell sits over it). The shell is the top of the head's own ellipsoid grown a little,
- * tipped back; three raised ribs front to back, dark vents between them, a short peak over the eyes,
- * a chin strap down each side and a white star on the front.
+ * fur is (the shell sits over it).
  */
 export function goldHelmet(head = { c: [0, 0.67, 0], r: [0.34, 0.29, 0.3] }, rest = { x: 0, y: 0.46, z: 0 }, fur = 0.045) {
   own = {};
@@ -38,111 +78,84 @@ export function goldHelmet(head = { c: [0, 0.67, 0], r: [0.34, 0.29, 0.3] }, res
   g.name = 'gold-helmet';
   const [cx, cy, cz] = head.c;
   const [rx, ry, rz] = head.r;
-  const pad = fur * 0.9 + 0.022;
-  g.position.set(cx - rest.x, cy - rest.y + ry * 0.1, cz - rest.z - 0.01);
-  g.rotation.x = -0.22;
-  const shellGeo = (G.shell ??= new THREE.SphereGeometry(1, 40, 18, 0, Math.PI * 2, 0, Math.PI * 0.52));
+  const pad = fur * 0.8 + 0.018;
+  const R = { x: rx + pad, y: ry + pad * 0.9, z: rz + pad };
+  g.position.set(cx - rest.x, cy - rest.y + ry * 0.04, cz - rest.z - 0.012);
+  // (sat level, a shade forward over the brow)
+  g.rotation.x = 0.06;
+  const shellGeo = shellGeometry(R);
   const shell = new THREE.Mesh(shellGeo, gold());
-  shell.scale.set(rx + pad, ry * 0.95 + pad, rz + pad);
   shell.castShadow = true;
+  shell.name = 'shell';
   g.add(shell);
-  // the rim: a rolled gold edge
-  const rim = new THREE.Mesh((G.rim ??= new THREE.TorusGeometry(1, 0.035, 8, 48)), goldDark());
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = -(ry * 0.95 + pad) * Math.cos(Math.PI * 0.52) * -1;
-  rim.scale.set(rx + pad, rz + pad, 1);
+  // the foam liner inside, seen under the rim
+  const inner = new THREE.Mesh(shellGeometry(R, 32, 8, 0, 1, 0.965), liner());
+  g.add(inner);
+  // the lower band of the shell in a darker gold, and a rolled edge under it
+  const band = new THREE.Mesh(shellGeometry(R, 48, 3, 0.84, 1, 1.006), goldDark());
+  band.name = 'band';
+  g.add(band);
+  const rimPts = [];
+  for (let i = 0; i < 64; i++) rimPts.push(new THREE.Vector3(...helmetPoint((i / 64) * Math.PI * 2, 1, R)));
+  const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rimPts, true), 96, 0.008, 6, true), vent());
+  rim.name = 'rim';
   g.add(rim);
-  // ribs front to back, and the vents between them
-  for (const s of [-0.42, 0, 0.42]) {
-    const rib = new THREE.Mesh(shellGeo, goldDark());
-    rib.scale.set((rx + pad) * 0.16, ry * 0.95 + pad + 0.016, rz + pad + 0.012);
-    rib.position.x = s * (rx + pad) * 0.62;
-    rib.rotation.z = -s * 0.55;
-    g.add(rib);
-  }
-  for (const [x, z, a] of [[-0.22, 0.25, 0.3], [0.22, 0.25, -0.3], [-0.24, -0.15, -0.2], [0.24, -0.15, 0.2], [0, -0.42, 0]]) {
-    const v = new THREE.Mesh((G.vent ??= new THREE.CapsuleGeometry(0.018, 0.07, 3, 8).rotateX(Math.PI / 2)), vent());
-    const px = x * (rx + pad);
-    const pz = z * (rz + pad);
-    const py = (ry * 0.95 + pad) * Math.sqrt(Math.max(0, 1 - (px / (rx + pad)) ** 2 - (pz / (rz + pad)) ** 2)) + 0.004;
-    v.position.set(px, py, pz);
-    v.rotation.set(-Math.atan2(pz, py) * 0.9, a, Math.atan2(px, py) * 0.9);
+  // vent slots front to back, flush in the shell: two long ones each side of the ridge, two lower
+  // down each side, two short ones over the brow and two out the back of the tail
+  const slot = (G.slot ??= new THREE.CapsuleGeometry(0.5, 1, 3, 10));
+  const vents = [[0.3, 0.12, 0.66, 0.026], [-0.3, 0.12, 0.66, 0.026], [0.85, 0.3, 0.74, 0.022], [-0.85, 0.3, 0.74, 0.022], [0.12, 0.58, 0.8, 0.02], [-0.12, 0.58, 0.8, 0.02], [2.75, 0.5, 0.8, 0.02], [-2.75, 0.5, 0.8, 0.02]];
+  for (const [a, t0, t1, w] of vents) {
+    const p0 = new THREE.Vector3(...helmetPoint(a, t0, R));
+    const p1 = new THREE.Vector3(...helmetPoint(a, t1, R));
+    const mid = new THREE.Vector3(...helmetPoint(a, (t0 + t1) / 2, R));
+    const v = new THREE.Mesh(slot, vent());
+    // (a capsule 1 + 2 × 0.5 long: scaled to the slot, a vent's width across, flat to the shell)
+    v.scale.set(w, p0.distanceTo(p1) / 2, 0.012);
+    const along = p1.clone().sub(p0).normalize();
+    const out = mid.clone().sub(new THREE.Vector3(0, -R.y * 0.2, 0)).normalize();
+    const side = along.clone().cross(out).normalize();
+    out.crossVectors(side, along);
+    v.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, along, out));
+    v.position.copy(mid);
+    v.name = 'vent';
     g.add(v);
   }
-  // a short peak over the eyes
-  const peak = new THREE.Mesh((G.peak ??= new THREE.SphereGeometry(1, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2)), goldDark());
-  peak.scale.set((rx + pad) * 0.7, 0.03, 0.14);
-  peak.position.set(0, 0.012, rz + pad - 0.02);
-  peak.rotation.x = 0.12;
+  // a short peak over the eyes: a thin lip out from the brow, tipped down a little
+  const lip = [];
+  const lipIdx = [];
+  const N = 12;
+  for (let i = 0; i <= N; i++) {
+    const a = -0.62 + (1.24 * i) / N;
+    const [x, y, z] = helmetPoint(a, 0.97, R);
+    const reach = 0.055 * Math.cos((a / 0.62) * Math.PI * 0.5) + 0.004;
+    lip.push(x, y, z, x * (1 + reach * 0.6), y - reach * 0.35, z + reach);
+  }
+  for (let i = 0; i < N; i++) lipIdx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+  const lipGeo = new THREE.BufferGeometry();
+  lipGeo.setAttribute('position', new THREE.Float32BufferAttribute(lip, 3));
+  lipGeo.setIndex(lipIdx);
+  lipGeo.computeVertexNormals();
+  const peak = new THREE.Mesh(lipGeo, own.peak ??= goldDark().clone());
+  peak.material.side = THREE.DoubleSide;
+  peak.name = 'peak';
   g.add(peak);
-  // a white star on the front
-  const st = new THREE.Mesh((G.star ??= starShape()), star());
-  st.scale.setScalar(0.06);
-  st.position.set(0, (ry * 0.95 + pad) * 0.48, (rz + pad) * 0.88 + 0.004);
-  st.rotation.x = -0.55;
-  g.add(st);
-  // the chin straps
+  // the chin strap: from the rim in front of and behind each ear, down the cheeks to a buckle under the chin
+  const on = (a, th, k = 1) => new THREE.Vector3(Math.sin(th) * Math.sin(a) * (rx + pad * k), Math.cos(th) * (ry + pad * k), Math.sin(th) * Math.cos(a) * (rz + pad * k));
+  const chin = on(0, Math.PI * 0.86, 0.7);
   for (const s of [-1, 1]) {
-    const sp = new THREE.Mesh((G.strap ??= new THREE.CapsuleGeometry(0.012, 0.16, 3, 6)), strap());
-    sp.position.set(s * (rx + pad) * 0.86, -0.08, 0.06);
-    sp.rotation.set(0.3, 0, s * 0.18);
-    g.add(sp);
+    const frontLeg = [new THREE.Vector3(...helmetPoint(s * 1.25, 0.98, R)), on(s * 1.3, Math.PI * 0.6), on(s * 1.0, Math.PI * 0.76, 0.8), chin.clone().add(new THREE.Vector3(s * 0.02, 0, 0))];
+    const backLeg = [new THREE.Vector3(...helmetPoint(s * 2.0, 0.98, R)), on(s * 1.75, Math.PI * 0.6), on(s * 1.3, Math.PI * 0.6)];
+    for (const pts of [frontLeg, backLeg]) {
+      const sp = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.007, 5, false), strap());
+      sp.name = 'strap';
+      g.add(sp);
+    }
   }
-  g.userData.fit = { rx: rx + pad, ry: ry * 0.95 + pad, rz: rz + pad };
+  const b = new THREE.Mesh((G.buckle ??= new THREE.BoxGeometry(0.05, 0.016, 0.03)), buckle());
+  b.position.copy(chin);
+  g.add(b);
+  g.userData.fit = { rx: R.x, ry: R.y, rz: R.z };
   return g;
-}
-
-function starShape() {
-  const s = new THREE.Shape();
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
-    const r = i % 2 ? 0.42 : 1;
-    if (i) s.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    else s.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-  }
-  return new THREE.ExtrudeGeometry(s, { depth: 0.15, bevelEnabled: false });
-}
-
-/**
- * The shimmer round a rider in a golden helmet: an egg of light round rider and scooter, clear in
- * the middle and gold at its rim (fresnel), with bands of light running up it and a slow pulse;
- * added light, never hiding the rider. `set(k)` fades it (0 … 1); `update(t)` moves the bands.
- */
-export function shield() {
-  const mat = (mats.shield ??= new THREE.ShaderMaterial({
-    uniforms: { uT: { value: 0 }, uK: { value: 1 }, uCol: { value: new THREE.Color('#ffd23a') } },
-    vertexShader: `varying vec3 vN; varying vec3 vV; varying float vY;
-      void main() {
-        vec4 wp = modelMatrix * vec4(position, 1.0);
-        vN = normalize(mat3(modelMatrix) * normal);
-        vV = normalize(cameraPosition - wp.xyz);
-        vY = position.y;
-        gl_Position = projectionMatrix * viewMatrix * wp;
-      }`,
-    fragmentShader: `uniform float uT; uniform float uK; uniform vec3 uCol; varying vec3 vN; varying vec3 vV; varying float vY;
-      void main() {
-        float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6);
-        float band = smoothstep(0.75, 1.0, sin(vY * 14.0 - uT * 5.0) * 0.5 + 0.5);
-        float pulse = 0.75 + 0.25 * sin(uT * 4.0);
-        float a = (pow(f, 1.6) * 0.38 + band * f * 0.42) * pulse * uK;
-        gl_FragColor = vec4(uCol * (1.2 + band), a);
-      }`,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.FrontSide
-  }));
-  const m = new THREE.Mesh((G.egg ??= new THREE.SphereGeometry(1, 32, 20)), mat.clone());
-  m.scale.set(0.72, 1.02, 0.98);
-  m.position.y = 0.92;
-  m.renderOrder = 6;
-  m.frustumCulled = false;
-  m.userData.set = (k) => {
-    m.material.uniforms.uK.value = k;
-    m.visible = k > 0.01;
-  };
-  m.userData.update = (t) => (m.material.uniforms.uT.value = t);
-  return m;
 }
 
 /** Helmets knocked off: flying up and away, spinning, bouncing once on the road, then gone. */

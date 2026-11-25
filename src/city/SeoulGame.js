@@ -15,7 +15,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { SolidGTAOPass } from './aopass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { skyDome, followSun, GradeShader } from './sky.js';
 import { Race } from './race.js';
@@ -546,7 +546,7 @@ export class SeoulGame {
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     // Ambient occlusion (the shadow line in every window reveal, under signs and sills), on the high tier.
-    this.gtao = new GTAOPass(this.scene, this.camera, 640, 360);
+    this.gtao = new SolidGTAOPass(this.scene, this.camera, 640, 360);
     this.gtao.updateGtaoMaterial({ radius: 1.6, distanceExponent: 1.5, thickness: 2, scale: 1.2, samples: 12 });
     this.gtao.blendIntensity = 0.9;
     this.gtao.enabled = false;
