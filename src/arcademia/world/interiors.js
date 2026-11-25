@@ -100,7 +100,7 @@ function shelf(g, [x, y, z], ry = 0, rows = 3) {
 /* ---------------------------------------------------------------- the classroom */
 
 /** `teacher`: the realm's math teacher's species (the owl on the mountain; a squirrel, a penguin…). */
-export function buildClassroom(look, teacher = 'owl') {
+export function buildClassroom(look, teacher = 'owl', { suit = null } = {}) {
   const W = 16, D = 12, H = 6;
   const { scene, g } = room({ w: W, d: D, h: H, wall: look.wall, floor: '#c79a69' });
   windows(g, W, D, -1, 3);
@@ -157,7 +157,7 @@ export function buildClassroom(look, teacher = 'owl') {
   add(g, box(0.04, 0.3, 0.02), mat('#222'), [5.4, 4.98, -D / 2 + 0.26]);
   add(g, box(0.22, 0.04, 0.02), mat('#222'), [5.48, 4.9, -D / 2 + 0.26]);
   // The teacher.
-  const teacherFig = makeCreature({ species: teacher, scale: 1.5 });
+  const teacherFig = makeCreature({ species: teacher, scale: 1.5, suit });
   teacherFig.group.position.set(-4.6, 0, -D / 2 + 1.8);
   teacherFig.group.rotation.y = 0.5;
   scene.add(teacherFig.group);
@@ -182,7 +182,7 @@ export function buildClassroom(look, teacher = 'owl') {
 
 /* ---------------------------------------------------------------- the history hall */
 
-export function buildHall(look, teacher = 'tortoise') {
+export function buildHall(look, teacher = 'tortoise', { suit = null } = {}) {
   const W = 18, D = 14, H = 7;
   const { scene, g } = room({ w: W, d: D, h: H, wall: '#efe4cf', floor: '#d9cfbd' });
   // Marble-ish checker floor over the boards.
@@ -226,7 +226,7 @@ export function buildHall(look, teacher = 'tortoise') {
   shelf(g, [-W / 2 + 0.5, 0.05, -3], Math.PI / 2, 4);
   plant(g, [W / 2 - 1, 0, -D / 2 + 1]);
   batch(g);
-  const tock = makeCreature({ species: teacher, scale: 1.4 });
+  const tock = makeCreature({ species: teacher, scale: 1.4, suit });
   tock.group.position.set(-5.2, 0, -4.4);
   tock.group.rotation.y = 0.6;
   scene.add(tock.group);
@@ -244,7 +244,7 @@ export function buildHall(look, teacher = 'tortoise') {
     /** Dress the guide for this lesson (schema.js LOOKS). */
     setGuide(lookId, seed = 1) {
       if (guide) scene.remove(guide.group);
-      guide = makeCreature({ species: guideSpecies(lookId), costume: lookId, scale: 1.45, seed });
+      guide = makeCreature({ species: guideSpecies(lookId), costume: lookId, scale: 1.45, seed, suit });
       guide.group.position.set(-2.3, 0, -1.6);
       guide.group.rotation.y = 0.25;
       scene.add(guide.group);
@@ -274,7 +274,7 @@ export function buildHall(look, teacher = 'tortoise') {
 
 /* ---------------------------------------------------------------- the physics lab */
 
-export function buildLab(look, teacher = 'raccoon') {
+export function buildLab(look, teacher = 'raccoon', { suit = null } = {}) {
   const W = 16, D = 12, H = 6;
   const { scene, g } = room({ w: W, d: D, h: H, wall: '#e6eef0', floor: '#9aa7b0' });
   // Tiles over the floor.
@@ -326,7 +326,7 @@ export function buildLab(look, teacher = 'raccoon') {
   });
   g.add(mobile);
   // The lab teacher in a white coat, in lab goggles unless they wear their own gear (Dr. Comet's astronaut visor).
-  const teacherFig = makeCreature({ species: teacher, hat: SPECIES[teacher]?.().hat?.wear ? 'none' : 'goggles', scale: 1.5 });
+  const teacherFig = makeCreature({ species: teacher, hat: SPECIES[teacher]?.().hat?.wear ? 'none' : 'goggles', scale: 1.5, suit });
   teacherFig.group.position.set(5.2, 0, -D / 2 + 2);
   teacherFig.group.rotation.y = -0.5;
   scene.add(teacherFig.group);

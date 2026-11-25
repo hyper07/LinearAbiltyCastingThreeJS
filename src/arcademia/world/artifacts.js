@@ -431,6 +431,138 @@ const MODELS = {
     for (const s of [-1, 1]) add(g, box(0.5, 0.02, 0.3), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [s * 0.48, 0.6, 0]);
     add(g, cyl(0.07, 0.09, 0.12, 12), mat('#2b2f3a'), [0, 0.38, 0.12]);
     add(g, cyl(0.14, 0.02, 0.08, 14), mat('#e6e9ee', { metal: 0.5 }), [0, 0.82, 0]);
+  },
+  // The Mars Museum.
+  'mars-globe': (g) => {
+    // An old Mars globe on a wooden stand: a red-orange ball with dark patches, a white cap and thin "canal" lines.
+    add(g, cyl(0.2, 0.25, 0.08, 10), wood(), [0, 0.04, 0]);
+    add(g, cyl(0.03, 0.03, 0.35, 6), bronze(), [0, 0.2, 0]);
+    add(g, sphere(0.38, 20, 14), mat('#d9774a', { rough: 0.7 }), [0, 0.65, 0]);
+    for (let i = 0; i < 5; i++) add(g, ico(0.12), mat('#9a4a2c', { rough: 0.9 }), [Math.cos(i * 1.3) * 0.31, 0.6 + Math.sin(i * 2.1) * 0.12, Math.sin(i * 1.3) * 0.31], [0, 0, 0], [1.4, 0.5, 1.4]);
+    add(g, sphere(0.12, 12, 6), mat('#ffffff', { rough: 0.5 }), [0, 1.0, 0], [0, 0, 0], [1.4, 0.4, 1.4]);
+    for (let i = 0; i < 4; i++) add(g, new THREE.TorusGeometry(0.385, 0.006, 3, 24, 1.1), mat('#5a2a1a'), [0, 0.65, 0], [0.4 + i * 0.5, i * 1.2, 0.2]);
+    add(g, new THREE.TorusGeometry(0.43, 0.02, 4, 24, Math.PI), bronze(), [0, 0.65, 0], [0, 0, -0.4]);
+  },
+  pastels: (g) => {
+    // The first Mars picture coloured in by hand: a board of number strips shaded with pastel crayons, crayons in front.
+    add(g, box(0.9, 0.7, 0.05), mat('#f4efe2', { rough: 0.9 }), [0, 0.6, 0], [-0.15, 0, 0]);
+    const shades = ['#5a3a2a', '#8a5a3a', '#b9784a', '#d99a5a', '#f0c27a', '#c98a5a'];
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) add(g, box(0.11, 0.11, 0.02), mat(shades[(r * 3 + c * 2 + (r * c) % 3) % shades.length], { rough: 1 }), [-0.33 + c * 0.11, 0.84 - r * 0.11, 0.03 + r * 0.016], [-0.15, 0, 0]);
+    add(g, box(0.5, 0.06, 0.25), wood(), [0, 0.03, 0.2]);
+    ['#d9603b', '#f2c14e', '#8a5a3a', '#ff9e7a'].forEach((col, i) => add(g, cyl(0.03, 0.03, 0.22, 8), mat(col, { rough: 0.8 }), [-0.15 + i * 0.1, 0.09, 0.22], [0, 0, Math.PI / 2]));
+  },
+  'viking-lander': (g) => {
+    // Three legs with round footpads, a six-sided body, a tall camera mast, a dish and a little scoop arm.
+    for (let i = 0; i < 3; i++) {
+      const a = i * 2.09;
+      add(g, cyl(0.025, 0.025, 0.4, 6), iron(), [Math.cos(a) * 0.3, 0.2, Math.sin(a) * 0.3], [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5]);
+      add(g, cyl(0.08, 0.08, 0.02, 12), iron(), [Math.cos(a) * 0.42, 0.01, Math.sin(a) * 0.42]);
+    }
+    add(g, cyl(0.32, 0.32, 0.16, 6), mat('#d8dde4', { rough: 0.3, metal: 0.6 }), [0, 0.42, 0]);
+    add(g, box(0.18, 0.14, 0.18), mat('#d7b45a', { rough: 0.3, metal: 0.6 }), [-0.08, 0.56, 0.05]);
+    add(g, cyl(0.025, 0.025, 0.35, 6), iron(), [0.16, 0.66, 0.1]);
+    add(g, box(0.1, 0.12, 0.08), mat('#e6e9ee', { metal: 0.4 }), [0.16, 0.86, 0.1]);
+    add(g, cyl(0.2, 0.03, 0.06, 16), mat('#f4f4f4', { metal: 0.3 }), [-0.12, 0.78, -0.12], [0.6, 0, 0.3]);
+    add(g, cyl(0.015, 0.015, 0.4, 5), iron(), [0.3, 0.48, -0.08], [0, 0, -1.0]);
+    add(g, box(0.07, 0.05, 0.07), iron(), [0.47, 0.37, -0.08]);
+  },
+  'airbag-lander': (g) => {
+    // A little lander wrapped in a bunch of white airbag balloons, bounced to a stop.
+    add(g, cyl(0.3, 0.34, 0.08, 12), mat('#c97a50', { rough: 0.95 }), [0, 0.04, 0]);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      add(g, sphere(0.2, 14, 10), mat('#f4f1ea', { rough: 0.6 }), [Math.cos(a) * 0.28, 0.42 + (i % 2) * 0.14 - 0.07, Math.sin(a) * 0.28]);
+    }
+    add(g, sphere(0.2, 14, 10), mat('#f4f1ea', { rough: 0.6 }), [0, 0.68, 0]);
+    add(g, sphere(0.2, 14, 10), mat('#f4f1ea', { rough: 0.6 }), [0, 0.2, 0]);
+    add(g, cone(0.18, 0.2, 3), mat('#d7b45a', { rough: 0.3, metal: 0.6 }), [0, 0.45, 0.32], [Math.PI / 2, 0, 0]);
+  },
+  'twin-rover': (g) => {
+    // Six wheels on rocker legs, a flat deck of solar panels like wings, and a tall mast with two camera eyes.
+    for (const x of [-0.26, 0, 0.26]) for (const s of [-1, 1]) add(g, cyl(0.08, 0.08, 0.07, 12), mat('#3a3f4c', { rough: 0.8 }), [x, 0.08, s * 0.26], [Math.PI / 2, 0, 0]);
+    for (const s of [-1, 1]) add(g, box(0.56, 0.03, 0.03), iron(), [0, 0.18, s * 0.24], [0, 0, 0.1]);
+    add(g, box(0.4, 0.16, 0.3), mat('#e6e9ee', { rough: 0.4 }), [0, 0.28, 0]);
+    add(g, box(0.62, 0.02, 0.5), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [0, 0.37, 0]);
+    for (const s of [-1, 1]) add(g, box(0.2, 0.02, 0.3), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [s * 0.4, 0.38, -0.05], [0, 0, s * 0.2]);
+    add(g, cyl(0.025, 0.025, 0.42, 6), iron(), [0.2, 0.58, 0.15]);
+    add(g, box(0.18, 0.07, 0.07), mat('#e6e9ee'), [0.2, 0.8, 0.15]);
+    for (const s of [-1, 1]) add(g, cyl(0.022, 0.022, 0.02, 10), mat('#1d2a4a', { emissive: '#7cc6ff', ei: 0.2 }), [0.2 + s * 0.05, 0.8, 0.19], [Math.PI / 2, 0, 0]);
+  },
+  'mars-orbiter': (g) => {
+    // A gold box with one wing of solar panels and a big dish on top (Mangalyaan's shape, simplified).
+    add(g, cyl(0.06, 0.08, 0.3, 8), iron(), [0, 0.15, 0]);
+    add(g, box(0.4, 0.4, 0.4), mat('#d7b45a', { rough: 0.3, metal: 0.6 }), [0, 0.52, 0]);
+    add(g, cyl(0.01, 0.01, 0.2, 5), iron(), [0.3, 0.52, 0], [0, 0, Math.PI / 2]);
+    for (let i = 0; i < 3; i++) add(g, box(0.22, 0.02, 0.34), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [0.5 + i * 0.24, 0.52, 0]);
+    add(g, cyl(0.3, 0.06, 0.08, 20), mat('#f4f4f4', { metal: 0.3 }), [0, 0.8, 0]);
+    add(g, cyl(0.015, 0.015, 0.12, 5), iron(), [0, 0.88, 0]);
+  },
+  'rover-wheel': (g) => {
+    // A big aluminium rover wheel with curved spokes and zigzag treads; the holes in the tread spell "JPL" in Morse code.
+    add(g, box(0.5, 0.06, 0.3), mat('#2b2f3a', { rough: 0.6 }), [0, 0.03, 0]);
+    const rim = mat('#c3cad6', { rough: 0.3, metal: 0.8 });
+    add(g, cyl(0.42, 0.42, 0.34, 28), rim, [0, 0.5, 0], [Math.PI / 2, 0, 0]);
+    add(g, cyl(0.34, 0.34, 0.36, 28), mat('#8a929e', { rough: 0.5, metal: 0.5 }), [0, 0.5, 0], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 6; i++) add(g, box(0.04, 0.34, 0.03), rim, [Math.cos(i * 1.047) * 0.16, 0.5 + Math.sin(i * 1.047) * 0.16, 0.18], [0, 0, i * 1.047 + 0.3]);
+    add(g, cyl(0.07, 0.07, 0.38, 12), iron(), [0, 0.5, 0], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      add(g, box(0.05, 0.03, 0.34), mat('#a9b0bc', { metal: 0.6 }), [Math.cos(a) * 0.43, 0.5 + Math.sin(a) * 0.43, 0], [0, 0, a]);
+    }
+    const dots = [1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1];
+    dots.forEach((d, i) => {
+      const a = 1.9 + i * 0.12;
+      add(g, d ? box(0.03, 0.01, 0.08) : box(0.03, 0.01, 0.03), mat('#2b2f3a'), [Math.cos(a) * 0.425, 0.5 + Math.sin(a) * 0.425, 0], [0, 0, a + Math.PI / 2]);
+    });
+  },
+  'hope-probe': (g) => {
+    // A six-sided spacecraft with three solar panels and a big white dish (the Hope orbiter's shape, simplified).
+    add(g, cyl(0.06, 0.08, 0.3, 8), iron(), [0, 0.15, 0]);
+    add(g, cyl(0.26, 0.26, 0.42, 6), mat('#d8dde4', { rough: 0.25, metal: 0.8 }), [0, 0.55, 0]);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      add(g, box(0.5, 0.02, 0.26), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [Math.cos(a) * 0.5, 0.45, Math.sin(a) * 0.5], [0, -a, 0]);
+    }
+    add(g, cyl(0.34, 0.08, 0.1, 22), mat('#f4f4f4', { metal: 0.3 }), [0, 0.82, 0]);
+    add(g, box(0.1, 0.08, 0.06), mat('#d7b45a', { metal: 0.6 }), [0, 0.6, 0.27]);
+  },
+  'sample-tube': (g) => {
+    // A shiny sample tube with a rock core inside, in its holder: the tubes a rover fills to send home one day.
+    add(g, cyl(0.26, 0.3, 0.1, 16), mat('#2b2f3a', { rough: 0.6 }), [0, 0.05, 0]);
+    add(g, cyl(0.07, 0.07, 0.75, 18), mat('#e6e9ee', { rough: 0.15, metal: 0.9 }), [0, 0.5, 0], [0, 0, 0.12]);
+    add(g, cyl(0.055, 0.055, 0.3, 14), mat('#b9663e', { rough: 1 }), [0.02, 0.42, 0.04], [0, 0, 0.12]);
+    add(g, cyl(0.078, 0.078, 0.07, 18), mat('#d7b45a', { rough: 0.3, metal: 0.7 }), [-0.045, 0.88, 0], [0, 0, 0.12]);
+    add(g, new THREE.CylinderGeometry(0.22, 0.22, 0.9, 20, 1, true), mat('#d9f2ff', { opacity: 0.2, key: 'tubecase' }), [0, 0.5, 0]);
+  },
+  'butterfly-rover': (g) => {
+    // Six wheels, a boxy body, a camera mast, and four blue solar panels open like butterfly wings.
+    for (const x of [-0.24, 0, 0.24]) for (const s of [-1, 1]) add(g, cyl(0.08, 0.08, 0.07, 12), mat('#3a3f4c', { rough: 0.8 }), [x, 0.08, s * 0.24], [Math.PI / 2, 0, 0]);
+    add(g, box(0.44, 0.18, 0.3), mat('#f4f4f4', { rough: 0.4 }), [0, 0.28, 0]);
+    for (const s of [-1, 1]) for (const z of [-0.12, 0.12]) add(g, box(0.34, 0.015, 0.22), mat('#2f6fd6', { rough: 0.3, metal: 0.4 }), [s * 0.36, 0.48, z * 1.6], [0, z > 0 ? -s * 0.3 : s * 0.3, s * 0.55]);
+    add(g, cyl(0.025, 0.025, 0.4, 6), iron(), [0.15, 0.56, 0.12]);
+    add(g, box(0.16, 0.08, 0.08), mat('#e6e9ee'), [0.15, 0.78, 0.12]);
+    add(g, box(0.06, 0.06, 0.02), mat('#d9603b'), [-0.12, 0.33, 0.16]);
+  },
+  'mars-helicopter': (g) => {
+    // A tissue-box body on four springy legs, two long stacked rotor blades, and a solar panel on top.
+    for (let i = 0; i < 4; i++) {
+      const a = i * 1.571 + 0.785;
+      add(g, cyl(0.012, 0.012, 0.42, 5), mat('#c3cad6', { metal: 0.6 }), [Math.cos(a) * 0.16, 0.2, Math.sin(a) * 0.16], [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5]);
+    }
+    add(g, box(0.2, 0.16, 0.2), mat('#d7b45a', { rough: 0.3, metal: 0.6 }), [0, 0.42, 0]);
+    add(g, cyl(0.018, 0.018, 0.4, 6), iron(), [0, 0.68, 0]);
+    for (const [y, r] of [[0.62, 0.2], [0.72, -0.4]]) add(g, box(1.1, 0.012, 0.09), mat('#2b2f3a', { rough: 0.4 }), [0, y, 0], [0, r, 0]);
+    add(g, box(0.22, 0.015, 0.16), mat('#2a4f9a', { rough: 0.3, metal: 0.4 }), [0, 0.89, 0]);
+  },
+  moxie: (g) => {
+    // A gold box about the size of a car battery, with pipes and a little glowing window: the machine that made oxygen on Mars.
+    add(g, box(0.5, 0.06, 0.4), mat('#2b2f3a', { rough: 0.6 }), [0, 0.03, 0]);
+    add(g, box(0.42, 0.42, 0.34), mat('#d7b45a', { rough: 0.25, metal: 0.8 }), [0, 0.3, 0]);
+    for (let i = 0; i < 4; i++) add(g, box(0.43, 0.012, 0.35), mat('#b8963f', { metal: 0.7 }), [0, 0.14 + i * 0.1, 0]);
+    add(g, cyl(0.06, 0.06, 0.03, 16), mat('#7ff7ff', { emissive: '#7ff7ff', ei: 0.6 }), [0.08, 0.36, 0.175], [Math.PI / 2, 0, 0]);
+    add(g, cyl(0.025, 0.025, 0.4, 8), iron(), [-0.16, 0.6, 0.06]);
+    add(g, cyl(0.025, 0.025, 0.3, 8), iron(), [0.04, 0.6, -0.08], [0, 0, 0.6]);
+    for (let i = 0; i < 3; i++) add(g, sphere(0.05, 10, 8), mat('#cfefff', { opacity: 0.55, key: 'o2bubble' }), [-0.16 + i * 0.03, 0.84 + i * 0.09, 0.06]);
   }
 };
 

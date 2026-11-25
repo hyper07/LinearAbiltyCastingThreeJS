@@ -4,7 +4,8 @@
  * buddy go wherever the player goes — and dresses them its own way: the
  * Learning Mountain stacks them as terraces, the Great Tree as rings of
  * treehouses round a giant trunk, the Lagoon as islands, the Desert as oasis
- * towns along the Nile, the Moon as moonbases in craters.
+ * towns along the Nile, the Moon as moonbases in craters, Mars as the
+ * terraces of a giant red volcano (Olympus Mons).
  *
  * To add a world: give it an entry here with its floors' looks (the shape of
  * floors.js — `look` drives the buildings, landmark, critters, particles and
@@ -132,8 +133,8 @@ for (const f of DESERT_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`
 const LUNAR = {
   lunar: true, theme: 'moon', shapes: { math: 'domeschool', history: 'museummodule', physics: 'moonobservatory' },
   stone: '#c9ced8', trim: '#ffffff', wall: '#f2f4f8', path: '#dde1e8', grass: '#c3c5ce', grassDark: '#a9abb6', rock: ['#9c9ea9', '#8a8c97', '#b2b4be'], tree: 'none', leaf: '#6fcf7a',
-  /** The townsfolk wear bubble helmets and comms headsets (creatures/hats.js). */
-  hats: ['bubble', 'headset', 'bubble', 'none', 'headset', 'bubble']
+  /** Everyone here wears a space suit (MAPS `suit`); under the helmet some townsfolk wear a comms headset (creatures/hats.js). */
+  hats: ['headset', 'none', 'headset', 'none', 'beanie', 'none']
 };
 /**
  * The Moon's seven moonbases, each in its own crater, joined by glass tubes. Its realm is
@@ -151,18 +152,47 @@ export const MOON_FLOORS = [
 ].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
 for (const f of MOON_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`moon.floor.${f.n}`), enumerable: true });
 
+/** Mars's terraces: habitats 3D-printed from red soil, white shells, teal and yellow trim, inflatable tents (world/mars/). */
+const RED = {
+  martian: true, theme: 'mars', shapes: { math: 'printdome', history: 'marsmuseum', physics: 'weatherlab' },
+  stone: '#efc5a0', trim: '#ffffff', wall: '#fbf3ea', path: '#f7dcbc', rock: ['#9c4f36', '#8b4430', '#ab5d40'], tree: 'none', leaf: '#5fbf5a',
+  /** Wind-blown drifts of paler dust on the terraces (terrain.js). */
+  patch: { color: '#efbd93', k: 0.16, t: 0.38 },
+  /** Under their space suits' helmets (maps.js `suit`) the townsfolk wear dust goggles or a beanie (creatures/hats.js). */
+  hats: ['dustgoggles', 'none', 'dustgoggles', 'beanie', 'none', 'dustgoggles']
+};
+/**
+ * Mars: seven terraces up Olympus Mons, the tallest volcano in the solar system, from the landing
+ * site at its foot to the lookout on the caldera's rim. Its realm is 'mars': its own lessons
+ * (content/mars.js), teachers (figures.js MARS_TEACHERS) and stories (quests.js MARS_WORLDS).
+ * The townsfolk are its own: pikas, capybaras, sloths, armadillos, chinchillas and little rover-bots.
+ */
+export const MARS_FLOORS = [
+  { icon: '🪂', look: { ...RED, grass: '#e59e6c', grassDark: '#da905f', roof: { math: '#2fb5ad', history: '#ffb83d', physics: '#3f8fd6' }, landmark: 'landingsite', flowers: ['#ffc83d', '#2fb5ad', '#ffffff'], banner: '#2fb5ad', critters: ['capybara', 'pika', 'roverbot'], particles: 'reddust', mood: 'mars' } },
+  { icon: '🚙', look: { ...RED, grass: '#e39a69', grassDark: '#d78c5c', roof: { math: '#ffb83d', history: '#2fb5ad', physics: '#ff7a5c' }, landmark: 'marsgarage', flowers: ['#ffc83d', '#ff7a5c', '#ffffff'], banner: '#ffb83d', critters: ['roverbot', 'armadillo', 'chinchilla'], particles: 'reddust', mood: 'beeps' } },
+  { icon: '🧊', look: { ...RED, grass: '#e49e6d', grassDark: '#d8905f', patch: { color: '#f8ece4', k: 0.14, t: 0.42 }, roof: { math: '#4fb8e0', history: '#ff8f6a', physics: '#2fb5ad' }, landmark: 'icedrill', flowers: ['#bfe9ff', '#ffffff', '#2fb5ad'], banner: '#4fb8e0', critters: ['pika', 'chinchilla', 'capybara'], particles: 'reddust', mood: 'wind' } },
+  { icon: '🌱', look: { ...RED, grass: '#e19867', grassDark: '#d58a5a', roof: { math: '#5fc46a', history: '#ffb83d', physics: '#c38bff' }, landmark: 'greendome', flowers: ['#7fd88a', '#ff9ed2', '#ffffff'], banner: '#5fc46a', critters: ['sloth', 'capybara', 'pika'], particles: 'sparkles', mood: 'chimes' } },
+  { icon: '🌡️', look: { ...RED, grass: '#df9565', grassDark: '#d38757', roof: { math: '#3f8fd6', history: '#2fb5ad', physics: '#ffb83d' }, landmark: 'weatherstation', flowers: ['#7cc6ff', '#ffffff', '#ffd23f'], banner: '#3f8fd6', critters: ['chinchilla', 'armadillo', 'roverbot'], particles: 'reddust', mood: 'mars' } },
+  { icon: '🌪️', look: { ...RED, grass: '#dc9161', grassDark: '#cf8354', roof: { math: '#ff7a5c', history: '#3f8fd6', physics: '#2fb5ad' }, landmark: 'dustview', flowers: ['#ff9f6a', '#ffd23f', '#ffffff'], banner: '#ff7a5c', critters: ['armadillo', 'sloth', 'pika'], particles: 'reddust', mood: 'wind' } },
+  { icon: '🌋', look: { ...RED, grass: '#d88b5d', grassDark: '#ca7d50', roof: { math: '#ffb83d', history: '#c38bff', physics: '#3f8fd6' }, landmark: 'calderalookout', flowers: ['#ffd23f', '#c39bff', '#ffffff'], banner: '#ffb83d', critters: ['sloth', 'roverbot', 'chinchilla'], particles: 'twinkles', mood: 'mars' } }
+].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
+for (const f of MARS_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`mars.floor.${f.n}`), enumerable: true });
+
 /**
  * The worlds; names come from the current language (ui.js map.<id>, map.<id>.what).
  * `realm`: whose lessons, teachers, floors and stars — every world has its own (the mountain:
- * land, the Great Tree: forest, the Lagoon: sea, the Desert: desert, the Moon: moon), so each map
+ * land, the Great Tree: forest, the Lagoon: sea, the Desert: desert, the Moon: moon, Mars: mars), so each map
  * teaches something new.
+ * `suit`: on the space maps everyone — the buddy, the townsfolk, the puzzle bosses, the teachers and
+ * guides in the lesson rooms — wears a space suit ('moon' or 'mars': world/figures.js).
  */
 export const MAPS = [
   { id: 'mountain', icon: '⛰️', kind: 'mountain', realm: 'land', floors: FLOORS, whole: 'hud.whole', wholeHint: 'hud.wholeHint', back: ['lesson.back', 'lesson.backAria'] },
   { id: 'tree', icon: '🌳', kind: 'tree', realm: 'forest', floors: TREE_FLOORS, whole: 'map.tree.whole', wholeHint: 'map.tree.wholeHint', back: ['lesson.back.tree', 'lesson.backAria.tree'] },
   { id: 'lagoon', icon: '🏝️', kind: 'lagoon', realm: 'sea', floors: SEA_FLOORS, whole: 'map.lagoon.whole', wholeHint: 'map.lagoon.wholeHint', back: ['lesson.back.lagoon', 'lesson.backAria.lagoon'] },
   { id: 'desert', icon: '🐪', kind: 'desert', realm: 'desert', floors: DESERT_FLOORS, whole: 'map.desert.whole', wholeHint: 'map.desert.wholeHint', back: ['lesson.back.desert', 'lesson.backAria.desert'] },
-  { id: 'moon', icon: '🌙', kind: 'moon', realm: 'moon', floors: MOON_FLOORS, whole: 'map.moon.whole', wholeHint: 'map.moon.wholeHint', back: ['lesson.back.moon', 'lesson.backAria.moon'] }
+  { id: 'moon', icon: '🌙', kind: 'moon', realm: 'moon', floors: MOON_FLOORS, whole: 'map.moon.whole', wholeHint: 'map.moon.wholeHint', back: ['lesson.back.moon', 'lesson.backAria.moon'], suit: 'moon' },
+  { id: 'mars', icon: '🔴', kind: 'mars', realm: 'mars', floors: MARS_FLOORS, whole: 'map.mars.whole', wholeHint: 'map.mars.wholeHint', back: ['lesson.back.mars', 'lesson.backAria.mars'], suit: 'mars' }
 ];
 for (const m of MAPS) {
   Object.defineProperty(m, 'name', { get: () => t(`map.${m.id}`), enumerable: true });

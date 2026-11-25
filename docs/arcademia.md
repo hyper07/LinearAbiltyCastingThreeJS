@@ -22,7 +22,7 @@ weekly report behind a PIN, and a read-only link they can open on their own phon
 
 ## Study worlds
 
-There are five study worlds, and each teaches **its own lessons with its own teachers**, so a child
+There are six study worlds, and each teaches **its own lessons with its own teachers**, so a child
 who finishes one world has a new one to explore (a world still being written borrows the mountain's
 lessons and teachers until its own exist: `content/index.js` `teachingRealm`). Each world has seven floors for ages 6–13 with its
 own stories and puzzle bosses, and its own stars and unlocking. Coins, stickers, hats, gems and the
@@ -34,6 +34,7 @@ buddy are shared everywhere.
 | The Great Tree 🌳 | forest | Nutmeg 🐿️ · Grandpa Bramble 🐻 · Dr. Ribbit 🐸 | Forest Math, Forest History, the Nature Lab: trees, plants, seasons and the people who studied and protected forests (`content/forest.js`) |
 | The Lagoon 🏝️ | sea | Captain Pip 🐧 · Grandma Inka 🐙 · Dr. Splash 🦭 | Sea Math, Sea Explorers, the Ocean Lab: navigators, lighthouses, ocean science, floating, tides and the deep sea (`content/sea.js`) |
 | The Desert of the Pyramids 🐪 | desert | Miss Lotus 🦛 · Uncle Reed (an ibis) · Dr. Sandy (a sand cat) | the Pyramid School, the Temple School and the Sun Observatory: 42 desert and Ancient Egypt lessons — hieroglyph numbers, cubits and the Nile's fields; farmers, scribes, Imhotep, Hatshepsut, Petra, the Rosetta Stone, Ibn Battuta, Alexandria, Timbuktu, Tutankhamun and Abu Simbel; shade, singing dunes, wet sand under sledges, the shadoof, mirages, hot-air balloons, sandstorms and Eratosthenes (`content/desert.js`) |
+| Mars 🔴 | mars | Miss Ruby (an otter) 🦦 · Professor Woolly (an alpaca) 🦙 · Dr. Digby (a star-nosed mole) | the Red Dome School, the Mars Museum and the Weather Lab on Olympus Mons: 42 Mars and planet lessons — counting rover wheels, rock samples in tens, the six times table, fractions of a space pizza, feeling about 3/8 as heavy, sols about 40 minutes longer, greenhouse areas, a Mars year of about 1.9 Earth years, below-zero nights, Mars percentages, rover-route equations and square solar fields; the red wandering star, Phobos and Deimos and Angeline Stickney, Schiaparelli's canal mix-up, Mariner 4's hand-coloured first picture, Viking, Sojourner, Spirit and Opportunity, Mangalyaan, Curiosity's sky crane, the UAE's Hope, Perseverance's sample tubes, Tianwen-1 and Zhurong, Ingenuity and MOXIE; why Mars is red, sols and blue sunsets, quiet thin air, falling in gentler gravity, ice caps and long-ago water, keeping warm, greenhouses and mirrors, rovers in soft sand, solar power and dust, robot arms and levers, flying in thin air, radio delay, Olympus Mons and Valles Marineris, and launch windows (`content/mars.js`) |
 | The Moon 🌙 | moon | Miss Mochi (a moon rabbit) 🐰 · Captain Ginger (a red panda) · Dr. Comet (a koala) 🐨 | the Dome School, the Moon Museum and the Star Observatory: 42 Moon and space lessons — counting craters, rocket countdowns, fractions of the Moon, a sixth of your weight, moon-month decimals, hot days and freezing nights, mission equations; moon-rabbit tales and full-moon festivals, Galileo, Sputnik, Gagarin, Tereshkova, Katherine Johnson, Apollo 11, Hubble, the ISS, Sally Ride, the Chang'e missions, Apollo 13 and today's explorers (Danuri, Chandrayaan-3, SLIM, Artemis); phases, moon boots, silent space, the hammer and the feather, craters, polar ice, earthshine, levers, rockets, the long lunar day, eclipses and tides, moonbase power, pendulums and orbits (`content/moon.js`) |
 
 **The Great Tree** has a ring of treehouses all the way round a giant trunk for every floor: Root
@@ -121,8 +122,8 @@ The landmarks are a little lander, a little rocket by its tower, a rover garage,
 greenhouse dome, a crystal cave and a satellite. **Low gravity:** on the Moon the buddy and the
 townsfolk hop higher and float down slower, lope when they walk, and kick up little puffs of moon dust
 when they land (`plan.float`, `figures.js` `float`/`onLand`). The townsfolk are the Moon's own:
-water bears (tardigrades), luna moths, axolotls, hamsters, robot pups and moon jellies, in bubble
-helmets and comms headsets. Moon dust sparkles in the air; the music is soft slow notes and far-off
+water bears (tardigrades), luna moths, axolotls, hamsters, robot pups and moon jellies, in space
+suits (some with a comms headset under the helmet: see Space suits below). Moon dust sparkles in the air; the music is soft slow notes and far-off
 radio blips (`space`). The minimap draws the craters round the plain, the tubes, the rocket and the
 Earth.
 
@@ -139,6 +140,53 @@ rock, Hubble, the ISS, the space shuttle, the Yutu-2 rover, the Apollo 13 air-fi
 Danuri orbiter. The moonbase puzzle bosses are the Moon's own critters: Bumble the Water Bear, Captain
 Nibbles the hamster, Rusty the Robot Pup, Lumi the Luna Moth, Pinky the Axolotl, Glimmer the Moon Jelly
 and Twinkle the Star Puff.
+
+**Mars** is Olympus Mons, the tallest volcano in the solar system, as a red-rock mountain you walk
+all the way round (`world/mars/plan.js`, `scene.js`). Each floor is a whole ring-shaped terrace one
+storey up and a step further in: Landing Plains, Rover Ridge, Ice Ledge, Greenhouse Terrace, Weather
+Heights, Dust Devil Ledge and the Caldera Rim round the caldera's pit. On every ring the schools and
+small places stand all the way round, facing out, with a walking lane round the outside; stairs cut
+into the layered red, rust and ochre cliffs climb to the next ring, each set further round, so the way
+up spirals (a pressure door stays shut while the ring above is locked). Rings never overlap, so the
+walking grid is one layer (`tree/nav.js`); the camera always stands outside the mountain (`facing`).
+Round the foot, a steep escarpment drops to the red plain, where the giants stand: the shiny steel
+**Big Rocket** by its launch tower, the **habitat village** of printed domes and greenhouse tunnels,
+the six-wheeled **rover** on its loop and the **helicopter drone** circling over the village. Far out
+are mesas, crater rims, a great layered canyon and the other Tharsis volcanoes; dust devils wander the
+plain; the sky is butterscotch with a small bright **Sun** (low in the north-east, where the arrival
+view sees it) and **Phobos** and **Deimos**; night is deep indigo with a blue glow low on the horizon.
+Gravity is about 38 % of the Earth's: hops are a little floaty, with red dust puffs (`plan.float`).
+The buildings are its own (`world/mars/buildings.js`, original designs, printed from red soil):
+- **Red Dome School:** a tall dome 3D-printed in rings, a skylight, a printed arch porch with a "123" badge, and a printer gantry still printing a baby dome.
+- **Mars Museum:** a round hab with a gallery of windows, a landing capsule on its roof, a porch on printed pillars under a red-planet badge, a meteorite under glass.
+- **Weather Lab:** a rounded module with big solar wings, a weather mast with spinning cups and a wind vane, a radar dish.
+- The small places stand under inflatable tents (teal arches, a striped top).
+
+The ring landmarks are a landing site (a capsule under its parachute), a rover garage, an ice drill,
+a greenhouse dome, a weather station, a dust-devil lookout and a caldera lookout. The townsfolk are
+Mars's own: pikas, capybaras, sloths, armadillos, chinchillas and little rover-bots, with dust goggles
+and beanies. The minimap draws the rings from above, the caldera, the rocket and the village.
+
+Mars's teachers are its own animals (`world/creatures/species.js`), each keeping a touch of their own
+under the space helmet (`hat.wear`, `creatures/hats.js`, all in `HATS_IN_HELMET`): **Miss Ruby**, a
+chocolate otter with a red Mars-pebble hair clip and a yellow pencil over her ear (the Red Dome School);
+**Professor Woolly**, a grandpa alpaca with a fluffy topknot, round glasses and a little red-planet pin
+(the Mars Museum); and **Dr. Digby**, a star-nosed mole — the pink star nose shows through the glass —
+in round glasses and a miner's headlamp, which he keeps in the lab instead of goggles (the Weather Lab).
+The history guides include a Babylonian sky-watcher, stargazers, mission engineers, scientists and
+rover drivers in team caps (`roverteam`); the museum shows a sky-watcher's clay tablet, Asaph Hall's
+telescope, an old Mars globe with its "canals", Mariner 4's hand-coloured picture, a Viking lander,
+Pathfinder's airbags, a twin rover, Mangalyaan, Curiosity's Morse-code wheel, the Hope orbiter, a
+sample tube, Zhurong, Ingenuity and MOXIE. The terrace puzzle bosses are Mars's own critters: Toffee the
+Capybara, Bolt the Rover-Bot, Frosty the Chinchilla, Mossy the Sloth, Peep the Pika, Swirly the Dust
+Devil (a dusty puff) and Sir Rollo the Armadillo.
+
+**Space suits.** On the space maps (the Moon and Mars, `maps.js` `suit`) everyone wears a space suit:
+the buddy, the townsfolk, the puzzle bosses, and the teachers and guides in the lesson rooms
+(`figures.js` `suit`). The body is repainted as a soft suit with gloves, boots and a belt (the Moon's
+white with teal and orange, Mars's warm white with dusty terracotta), a clear bubble helmet is sized
+to each head (long ears fold down inside; a small hat stays on under the glass), with an oxygen pack
+on the back and a chest light (`creatures/hats.js` `spaceHelmet`, `oxygenPack`, `chestLight`).
 
 **Travelling.** A **World Portal** 🌍 stands on floor 1 of every world; walk into it, or press
 **🌍 Worlds** at the top of the floor list, to choose a world. The choice is saved in the browser
@@ -521,8 +569,9 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
-| Study worlds: the list, the Great Tree's, the Lagoon's and the Desert's floors | `src/arcademia/maps.js` |
-| Each world's lessons, teachers and stories (realms) | `src/arcademia/content/forest.js`, `content/sea.js`, `content/desert.js`, `figures.js` `teachersIn`, `quests.js` `worldsIn` |
+| Study worlds: the list, the Great Tree's, the Lagoon's, the Desert's, the Moon's and Mars's floors | `src/arcademia/maps.js` |
+| Mars: plan (ring terraces round the volcano, stairs, the rock), 3D scene, printed habitats, landmarks, the rocket, rover and drone | `src/arcademia/world/mars/plan.js`, `scene.js`, `buildings.js` |
+| Each world's lessons, teachers and stories (realms) | `src/arcademia/content/forest.js`, `content/sea.js`, `content/desert.js`, `content/moon.js`, `content/mars.js`, `figures.js` `teachersIn`, `quests.js` `worldsIn` |
 | The Lagoon: plan (islands, boardwalks, villas), 3D scene, resort buildings and landmarks | `src/arcademia/world/lagoon/plan.js`, `scene.js`, `src/arcademia/world/resort.js` |
 | The Desert: plan (oases, causeways, the Nile, Giza), 3D scene, sandstone buildings, landmarks, sphinxes | `src/arcademia/world/desert/plan.js`, `scene.js`, `buildings.js` |
 | The Great Tree: plan (rings, decks, bridges, spiral stair), layered walking grid, 3D scene | `src/arcademia/world/tree/plan.js`, `nav.js`, `scene.js` |

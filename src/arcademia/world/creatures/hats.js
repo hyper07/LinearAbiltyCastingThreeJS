@@ -9,6 +9,8 @@
  *   the desert   a scribe's wig, a pith helmet, Miss Lotus's lotus flower
  *   the Moon     the townsfolk's round bubble helmet and comms headset; its teachers' crescent
  *                hair clip, star-badge captain's cap and astronaut visor; the stargazers' starry cap
+ *   Mars         the townsfolk's dust goggles with a bandana
+ *   space suits  the clear bubble helmet, oxygen pack and chest light every creature wears on the space maps
  *
  * makeHat(id) builds one for a head of radius 1 standing on the head's top
  * point (y up, facing +z); figures.js scales and seats it on each species.
@@ -593,6 +595,106 @@ function costume(id) {
       g.add(tip);
       break;
     }
+    // Mars's townsfolk: dust goggles with a bandana (worn under the space suit's helmet).
+    case 'dustgoggles': {
+      // A strap round the head, two big round amber goggles pushed up on the brow.
+      P(new THREE.TorusGeometry(0.98, 0.07, 8, 36), M('#6b4a3a'), [0, -0.5, 0], [Math.PI / 2 - 0.25, 0, 0], null, 0.01);
+      for (const sx of [-1, 1]) {
+        const q = new THREE.Group();
+        q.position.set(sx * 0.33, -0.3, 0.86);
+        q.rotation.set(-0.5, sx * 0.3, 0);
+        g.add(q);
+        const rim = mesh(new THREE.TorusGeometry(0.26, 0.08, 10, 24), propMaterial('#d9744a', { gloss: 0.5 }), { outline: 0.012 });
+        q.add(rim);
+        const lens = new THREE.Mesh(new THREE.SphereGeometry(0.25, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: '#ffb347', transparent: true, opacity: 0.7, roughness: 0.05, clearcoat: 1, emissive: '#ff8a2a', emissiveIntensity: 0.15 }));
+        lens.rotation.x = Math.PI / 2;
+        lens.scale.set(1, 0.45, 1);
+        q.add(lens);
+      }
+      P(new THREE.BoxGeometry(0.16, 0.1, 0.1), M('#6b4a3a'), [0, -0.3, 0.98], [-0.5, 0, 0], null, 0.008);
+      // A teal bandana round the neck, knotted at the back.
+      P(new THREE.TorusGeometry(0.78, 0.17, 10, 32), M('#2fb5ad', { gloss: 0.1 }), [0, -1.78, 0.05], [Math.PI / 2 - 0.15, 0, 0], null, 0.012);
+      P(new THREE.ConeGeometry(0.22, 0.4, 4), M('#2fb5ad', { gloss: 0.1 }), [0, -1.95, -0.8], [-0.4, 0, Math.PI], null, 0.01);
+      break;
+    }
+    // Mars's teachers (small enough to keep on under the space helmet): Miss Ruby's red-pebble hair clip and
+    // the pencil tucked over her ear, Professor Woolly's red-planet pin, Dr. Digby's miner's headlamp.
+    case 'pebbleclip': {
+      const clip = new THREE.Group();
+      clip.position.set(0.44, -0.18, 0.4);
+      clip.rotation.set(0.2, 0.4, -0.45);
+      g.add(clip);
+      const pebble = new THREE.IcosahedronGeometry(0.2, 1);
+      const pp = pebble.attributes.position;
+      for (let i = 0; i < pp.count; i++) {
+        const k = 1 + 0.12 * Math.sin(pp.getX(i) * 17) * Math.cos(pp.getZ(i) * 13);
+        pp.setXYZ(i, pp.getX(i) * k, pp.getY(i) * k * 0.75, pp.getZ(i) * k * 0.8);
+      }
+      pebble.computeVertexNormals();
+      clip.add(mesh(pebble, propMaterial('#d0593a', { gloss: 0.35 }), { outline: 0.012 }));
+      const shine = mesh(new THREE.SphereGeometry(0.05, 8, 6), propMaterial('#ffb08a', { gloss: 0.8 }), { outline: 0 });
+      shine.position.set(-0.06, 0.07, 0.12);
+      clip.add(shine);
+      const bar = mesh(new THREE.BoxGeometry(0.42, 0.05, 0.05), propMaterial('#ffd23f', { metal: 1 }), { outline: 0.006 });
+      bar.position.set(0, -0.12, -0.06);
+      clip.add(bar);
+      // A yellow pencil over the other ear: painted wood, a sharpened point, a pink eraser.
+      const pencil = new THREE.Group();
+      pencil.position.set(-0.8, -0.55, 0.05);
+      pencil.rotation.set(0.15, 0, 0.95);
+      g.add(pencil);
+      pencil.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.7, 6), propMaterial('#ffcf3a', { gloss: 0.4 }), { outline: 0.01 }));
+      const wood = mesh(new THREE.ConeGeometry(0.06, 0.14, 6), propMaterial('#f2d2a2'), { outline: 0.008 });
+      wood.position.y = -0.42;
+      wood.rotation.x = Math.PI;
+      pencil.add(wood);
+      const lead = mesh(new THREE.ConeGeometry(0.022, 0.05, 6), propMaterial('#3a3540'), { outline: 0 });
+      lead.position.y = -0.475;
+      lead.rotation.x = Math.PI;
+      pencil.add(lead);
+      const band = mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.07, 8), propMaterial('#c9cfd8', { metal: 1 }), { outline: 0.006 });
+      band.position.y = 0.37;
+      pencil.add(band);
+      const eraser = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.09, 8), propMaterial('#ff9eb5'), { outline: 0.008 });
+      eraser.position.y = 0.44;
+      pencil.add(eraser);
+      break;
+    }
+    case 'marspin': {
+      const pin = new THREE.Group();
+      pin.position.set(0.3, -0.12, 0.42);
+      pin.rotation.set(0.3, 0.4, 0);
+      g.add(pin);
+      const planet = mesh(new THREE.SphereGeometry(0.17, 18, 12), propMaterial('#d9603b', { gloss: 0.45 }), { outline: 0.012 });
+      pin.add(planet);
+      // A pale ice cap and a dark patch, like the real red planet.
+      const capTop = new THREE.Mesh(new THREE.SphereGeometry(0.172, 14, 6, 0, Math.PI * 2, 0, 0.5), propMaterial('#ffffff'));
+      pin.add(capTop);
+      const patch = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), propMaterial('#9a3f26'));
+      patch.position.set(0.05, -0.02, 0.135);
+      patch.scale.set(1.4, 0.6, 0.5);
+      pin.add(patch);
+      const little = star(0.08, '#ffd23f');
+      little.position.set(0.2, 0.14, 0.04);
+      pin.add(little);
+      break;
+    }
+    case 'headlamp': {
+      // A strap round the head and a round lamp over the brow, glowing warm.
+      P(new THREE.TorusGeometry(0.97, 0.075, 8, 36), M('#3d4a5c'), [0, -0.42, 0], [Math.PI / 2 - 0.3, 0, 0], null, 0.01);
+      P(new THREE.TorusGeometry(0.97, 0.03, 6, 36), M('#ffb83d'), [0, -0.36, 0.02], [Math.PI / 2 - 0.3, 0, 0], null, 0);
+      const lamp = new THREE.Group();
+      lamp.position.set(0, -0.12, 0.9);
+      lamp.rotation.x = -0.35;
+      g.add(lamp);
+      const housing = mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.2, 18), propMaterial('#ffb83d', { gloss: 0.5 }), { outline: 0.012 });
+      housing.rotation.x = Math.PI / 2;
+      lamp.add(housing);
+      const glow = new THREE.Mesh(new THREE.CircleGeometry(0.16, 18), propMaterial('#fff6c8', { emissive: '#ffe58a', ei: 1.0 }));
+      glow.position.z = 0.105;
+      lamp.add(glow);
+      break;
+    }
     default:
       return null;
   }
@@ -607,4 +709,89 @@ export function makeHat(id) {
   if (BUDDY[id]) return BUDDY[id]();
   if (id === 'beanie2') return BUDDY.beanie();
   return costume(id);
+}
+
+/* ---------------------------------------------------------------- space suits (figures.js `suit`) */
+
+/** The space suits' colours: the Moon's white with teal and orange, Mars's warm white with dusty terracotta. */
+export const SUITS = {
+  moon: { body: '#f4f6fa', belt: '#ff8a3d', boots: '#8f97a6', glove: '#2fb8c4', collar: '#dfe5ee', band: '#2fb8c4', lamp: '#7ff7ff', pack: '#e9edf4', tank: '#ff8a3d', dust: null },
+  mars: { body: '#fbf3ea', belt: '#d9744a', boots: '#8a4a34', glove: '#d9744a', collar: '#f4ece4', band: '#d9744a', lamp: '#ffc83d', pack: '#f4ece4', tank: '#d9744a', dust: '#e4a27c' }
+};
+/** Hats small enough to keep on inside a space helmet; any other is left off while the suit is on. */
+export const HATS_IN_HELMET = new Set(['beanie', 'beanie2', 'flower', 'crown', 'crescent', 'goggles', 'dustgoggles', 'headset', 'visor', 'spacecap', 'starcap', 'kufi', 'cap', 'topknot', 'pebbleclip', 'marspin', 'headlamp']);
+
+/**
+ * A clear bubble helmet of radius 1 round the origin (figures.js scales it to each head): the glass,
+ * a shine, a soft collar ring at the neck with a coloured band, a little lamp on top.
+ */
+export function spaceHelmet(kind = 'moon') {
+  const S = SUITS[kind] ?? SUITS.moon;
+  const g = new THREE.Group();
+  const glass = new THREE.MeshPhysicalMaterial({ color: kind === 'mars' ? '#fff0e4' : '#e4f4ff', transparent: true, opacity: 0.16, roughness: 0.04, clearcoat: 1, depthWrite: false, side: THREE.DoubleSide });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 26, 0, Math.PI * 2, 0, Math.PI * 0.8), glass);
+  dome.renderOrder = 2;
+  dome.raycast = () => {};
+  g.add(dome);
+  const shine = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.035, 6, 30, 1.1), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8 }));
+  shine.position.set(0, 0.1, 0.52);
+  shine.rotation.set(-0.45, 0.5, 0.95);
+  shine.raycast = () => {};
+  g.add(shine);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.85 }));
+  dot.position.set(-0.42, 0.52, 0.68);
+  g.add(dot);
+  const ringY = -Math.cos(Math.PI * 0.2);
+  const ringR = Math.sin(Math.PI * 0.2);
+  const collar = mesh(new THREE.TorusGeometry(ringR + 0.06, 0.13, 12, 40), propMaterial(S.collar, { gloss: 0.5 }), { outline: 0.012 });
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = ringY;
+  g.add(collar);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(ringR + 0.07, 0.06, 6, 40), propMaterial(S.band));
+  band.rotation.x = Math.PI / 2;
+  band.position.y = ringY + 0.1;
+  g.add(band);
+  const lamp = mesh(new THREE.SphereGeometry(0.09, 12, 8), propMaterial(S.lamp, { emissive: S.lamp, ei: 0.9 }), { outline: 0.008 });
+  lamp.position.set(0.32, 0.95, 0.05);
+  g.add(lamp);
+  g.userData.blink = lamp;
+  g.userData.helmet = true;
+  return g;
+}
+
+/** A little oxygen pack, about 1 wide (figures.js scales it to each back): a soft frame, two tanks and a dial on its outside (−Z, away from the back it rides on). */
+export function oxygenPack(kind = 'moon') {
+  const S = SUITS[kind] ?? SUITS.moon;
+  const g = new THREE.Group();
+  const frame = mesh(new THREE.BoxGeometry(1, 1.15, 0.42), propMaterial(S.pack, { gloss: 0.35 }), { outline: 0.018 });
+  g.add(frame);
+  for (const sx of [-0.26, 0.26]) {
+    const tank = mesh(new THREE.CapsuleGeometry(0.2, 0.62, 6, 16), propMaterial(S.tank, { gloss: 0.55 }), { outline: 0.014 });
+    tank.position.set(sx, 0.02, -0.3);
+    g.add(tank);
+    const cap = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.12, 12), propMaterial('#c9cfd8', { metal: 1 }), { outline: 0.008 });
+    cap.position.set(sx, 0.6, -0.3);
+    g.add(cap);
+  }
+  const dial = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 16), propMaterial('#ffffff'), { outline: 0.008 });
+  dial.rotation.x = Math.PI / 2;
+  dial.position.set(0, 0.42, -0.23);
+  g.add(dial);
+  const needle = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.01), propMaterial('#ff5f5f'));
+  needle.position.set(0, 0.44, -0.26);
+  needle.rotation.z = -0.6;
+  g.add(needle);
+  return g;
+}
+
+/** A small glowing chest light for a space suit (a disc in a ring), facing +Z. */
+export function chestLight(kind = 'moon') {
+  const S = SUITS[kind] ?? SUITS.moon;
+  const g = new THREE.Group();
+  const ring = mesh(new THREE.TorusGeometry(0.5, 0.16, 8, 20), propMaterial(S.belt, { gloss: 0.5 }), { outline: 0.01 });
+  g.add(ring);
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(0.46, 20), propMaterial(S.lamp, { emissive: S.lamp, ei: 1.0 }));
+  glow.position.z = 0.02;
+  g.add(glow);
+  return g;
 }

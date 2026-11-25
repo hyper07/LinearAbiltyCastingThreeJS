@@ -2,9 +2,9 @@ import { boot, tally, until } from './lib.mjs';
 
 /**
  * Arcademia's study worlds (src/arcademia/maps.js): the World Portal's
- * picker, travelling to the Great Tree, the Lagoon, the Desert and the Moon and back, walking their
- * rings, bridges, boardwalks, causeways and glass tubes, a lesson in each, their own lessons and
- * teachers, and the choice kept across a reload.
+ * picker, travelling to the Great Tree, the Lagoon, the Desert, the Moon and Mars and back, walking
+ * their rings, bridges, boardwalks, causeways, glass tubes and red-rock stairs, a lesson in each,
+ * their own lessons and teachers, space suits on the space maps, and the choice kept across a reload.
  */
 export async function run(browser) {
   const t = tally();
@@ -124,7 +124,7 @@ export async function run(browser) {
     await page.click('.arc-nav__item--worlds');
     await until(page, () => Boolean(document.querySelector('.arc-modal--worlds')), null, 5000);
     const cards = await page.$$eval('.arc-worlds__card', (els) => els.map((e) => e.textContent));
-    t.check('the picker lists five worlds, the Desert and the Moon among them', cards.filter((c) => !/🔮/.test(c)).length === 5 && cards.some((c) => c.includes('🐪')) && cards.some((c) => c.includes('🌙')), JSON.stringify(cards));
+    t.check('the picker lists six worlds, the Desert, the Moon and Mars among them', cards.filter((c) => !/🔮/.test(c)).length === 6 && cards.some((c) => c.includes('🐪')) && cards.some((c) => c.includes('🌙')) && cards.some((c) => c.includes('🔴')), JSON.stringify(cards));
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.arcademia.switchMap('desert'));
     await page.waitForTimeout(3000);
@@ -207,6 +207,10 @@ export async function run(browser) {
     t.check('the Moon opens on moonbase 1 with its World Portal', moon.map === 'moon' && moon.realm === 'moon' && moon.kind === 'moon' && moon.floor === 1 && moon.places >= 9 && moon.portal, JSON.stringify(moon));
     t.check('the minimap shows seven craters and the tubes; stars in a black sky; the first view looks north', moon.craters === 7 && moon.tubes === 6 && moon.stars && moon.north, JSON.stringify(moon));
     t.check('its schools have their moon names, gravity is low, and it teaches its own 42 lessons', moon.names >= 3 && moon.float > 0 && moon.lessons === 42, JSON.stringify(moon));
+    t.check('on the Moon the buddy, the townsfolk and the bosses wear space suits', await page.evaluate(() => {
+      const w = window.arcademia.world;
+      return w.kid.suit === 'moon' && w.npcs.every((n) => n.fig.suit === 'moon') && w.bosses.every((b) => b.fig.suit === 'moon');
+    }));
     await page.evaluate(() => {
       const w = window.arcademia.world;
       w.setLocked(new Set());
@@ -272,9 +276,82 @@ export async function run(browser) {
     await page.waitForTimeout(1800);
     t.check('Earth-light: night on the Moon, back out at the moonbase', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'moon' && window.arcademia.world.night > 0.9));
     await page.evaluate(() => window.arcademia.setNight(false));
+    // Mars: Olympus Mons, seven ring terraces all the way round a red-rock volcano, stairs cut into the cliffs.
+    await page.evaluate(() => window.arcademia.switchMap('mars'));
+    await page.waitForTimeout(3500);
+    const mars = await page.evaluate(() => {
+      const g = window.arcademia, w = g.world;
+      const mini = document.querySelector('.arc-mini svg');
+      const f = w.plan.floors[0];
+      return {
+        map: g.map.id, realm: g.realm, kind: w.plan.kind, places: w.places.filter((p) => p.floor === 1).length,
+        portal: w.places.some((p) => p.kind === 'worlds' && p.floor === 1), floor: w.kidFloor,
+        rings: mini?.querySelectorAll('[data-floor]').length,
+        quadrants: new Set(f.places.map((p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)))).size,
+        names: [...document.querySelectorAll('.arc-pill__name')].map((e) => e.textContent).filter((s) => /Red Dome School|Mars Museum|Weather Lab/.test(s)).length,
+        float: w.float, clouds: w.clouds.visible, moon: w.sky.userData.moon.material.opacity,
+        sun: Boolean(w.scenery.group.children.find((c) => c.userData.sprites)),
+        suits: w.kid.suit === 'mars' && w.npcs.every((n) => n.fig.suit === 'mars') && w.bosses.every((b) => b.fig.suit === 'mars'),
+        townsfolk: [...new Set(w.npcs.map((n) => n.species))]
+      };
+    });
+    t.check('Mars opens on ring 1 of the volcano with its World Portal, its schools named', mars.map === 'mars' && mars.realm === 'mars' && mars.kind === 'mars' && mars.floor === 1 && mars.places >= 9 && mars.portal && mars.names >= 3, JSON.stringify(mars));
+    t.check('the rings go all the way round the mountain, and the minimap draws all seven', mars.quadrants === 4 && mars.rings === 7, JSON.stringify(mars));
+    t.check('Mars has a Sun, no Earth moon, no clouds, a little low gravity, and its own townsfolk in space suits', mars.sun && mars.moon === 0 && !mars.clouds && mars.float > 0 && mars.float < 1 && mars.suits && mars.townsfolk.includes('roverbot'), JSON.stringify(mars));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(new Set());
+      w.teleport(1);
+      const b = w.buildings.find((x) => x.subject === 'math' && x.floor === 2);
+      window.__arrived = false;
+      window.__onStairs = false;
+      const watch = setInterval(() => {
+        const hit = w.plan.locate(w.kidPos.x, w.kidPos.z, w.kidPos.y);
+        if (hit?.stair) window.__onStairs = true;
+        if (window.__arrived) clearInterval(watch);
+      }, 100);
+      w.goTo(b.at, () => (window.__arrived = true));
+    });
+    t.check('the buddy climbs the stairs cut into the cliff to ring 2', await until(page, () => window.__arrived && window.__onStairs, null, 90000));
+    const ring2 = await page.evaluate(() => ({ floor: window.arcademia.world.kidFloor, y: window.arcademia.world.kidPos.y }));
+    t.check('and arrives on ring 2, a storey up', ring2.floor === 2 && Math.abs(ring2.y - 7.5) < 0.8, JSON.stringify(ring2));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(window.arcademia.lockedSet());
+      w.teleport(1);
+    });
+    // Mars teaches its own lessons, with its own teachers, stories and puzzle bosses.
+    const red = await page.evaluate(() => {
+      const g = window.arcademia;
+      return {
+        lessons: g.lessons.length, allMars: g.lessons.every((l) => l.realm === 'mars'),
+        story: g.worlds[1].story, boss: g.worlds[1].boss.species, bosses: [...new Set(g.world.bosses.map((b) => b.fig.species))]
+      };
+    });
+    t.check('Mars teaches its own 42 Mars lessons', red.lessons === 42 && red.allMars, JSON.stringify(red));
+    t.check('the first terrace has its own story and puzzle boss', /Landing Plains/.test(red.story) && red.boss === 'capybara', JSON.stringify(red));
+    await page.evaluate(() => window.arcademia.enter('math', 1));
+    t.check('the Red Dome School is taught by Miss Ruby the otter', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'otter', null, 20000));
+    t.check('in the lesson room on Mars the buddy wears its space suit too', await page.evaluate(() => window.arcademia.lesson.suit === 'mars' && window.arcademia.lesson.buddy.suit === 'mars'));
+    const marsListed = await page.evaluate(() => [...document.querySelectorAll('.arc-lesson, .arc-quests, body')].map((e) => e.textContent).join(' '));
+    t.check('its lesson list shows Mars lessons', /Counting Rover Wheels|Collecting Rock Samples/.test(marsListed));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('history', 1));
+    t.check('the Mars Museum is run by Professor Woolly the alpaca', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'alpaca', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('physics', 1));
+    t.check('the Weather Lab is run by Dr. Digby the star-nosed mole', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'mole', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.setNight(true));
+    await page.waitForTimeout(1800);
+    t.check('night falls on Mars, back out on the volcano', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'mars' && window.arcademia.world.night > 0.9));
+    await page.evaluate(() => window.arcademia.setNight(false));
     await page.evaluate(() => window.arcademia.switchMap('mountain'));
     await page.waitForTimeout(2000);
-    t.check('and back to the mountain', (await page.evaluate(() => window.arcademia.map.id)) === 'mountain');
+    t.check('and back to the mountain, out of the space suits', await page.evaluate(() => window.arcademia.map.id === 'mountain' && window.arcademia.world.kid.suit === null));
     t.check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   } finally {
     await context.close();

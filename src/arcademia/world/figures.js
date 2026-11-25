@@ -20,6 +20,12 @@
  *   c.update(dt, { speed })   c.hop()  c.cheer()  c.sad()  c.wave()  c.talk(s)
  *   c.surprise()  c.think()  c.happy()  c.react(right)  c.lipSync(level)
  *
+ * On the space maps everyone wears a space suit (`suit: 'moon' | 'mars'`): the
+ * body below the head is repainted as a soft suit with gloves, boots and a
+ * belt, a clear bubble helmet sized to the head goes on (long ears fold down
+ * inside; a small hat stays on under the glass), with an oxygen pack on the
+ * back and a little chest light.
+ *
  * Meshes are built once per species (and costume) and level of detail, then
  * shared; the body colour is a material uniform. `lod: 'low'` is for
  * townsfolk far away, 'high' for the buddy, 'ultra' for close-ups.
@@ -30,7 +36,7 @@ import { SPECIES, costumePaint } from './creatures/species.js';
 import { compile, sculpt, trace } from './creatures/sculpt.js';
 import { creatureMaterial, outlineMaterial, inkFor, propMaterial } from './creatures/materials.js';
 import { buildFace } from './creatures/face.js';
-import { makeHat } from './creatures/hats.js';
+import { makeHat, spaceHelmet, oxygenPack, chestLight, SUITS, HATS_IN_HELMET } from './creatures/hats.js';
 
 /** Names come from the current language (i18n chars.js), so they are getters. */
 const named = (list, prefix) => list.map((x) => Object.defineProperty(x, 'name', { get: () => t(`${prefix}.${x.id}`), enumerable: true }));
@@ -89,6 +95,86 @@ export function creatureGeometry(species, { costume = null, lod = 'high' } = {})
 }
 /** How long sculpting has taken so far (for the report and tests). */
 export const stats = { builds: 0, ms: 0 };
+
+/* ---------------------------------------------------------------- space suits */
+
+/** The bones a space suit covers (the head, ears, tail and wings stay out). */
+const SUIT_BONES = new Set(['root', 'hips', 'chest', 'armL', 'armR', 'legL', 'legR']);
+const suitInfos = new Map();
+/**
+ * Where a creature's head and body are (from its sculpted mesh at rest, model space): the head's box
+ * (its own bone only, not the ears), the suited body's box, the lowest point, each limb's reach.
+ */
+function suitInfo(species, costume, geometry) {
+  const key = `${species}|${costume ?? ''}`;
+  if (suitInfos.has(key)) return suitInfos.get(key);
+  const recipe = modelFor(species, costume).recipe;
+  const names = recipe.bones.map((b) => b[0]);
+  const rest = Object.fromEntries(recipe.bones.map(([n, , x, y, z]) => [n, [x, y, z]]));
+  const P = geometry.attributes.position, SI = geometry.attributes.skinIndex;
+  const box = () => ({ min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] });
+  const grow = (b, x, y, z) => {
+    b.min[0] = Math.min(b.min[0], x); b.min[1] = Math.min(b.min[1], y); b.min[2] = Math.min(b.min[2], z);
+    b.max[0] = Math.max(b.max[0], x); b.max[1] = Math.max(b.max[1], y); b.max[2] = Math.max(b.max[2], z);
+  };
+  const head = box(), body = box(), reach = {};
+  let minY = Infinity;
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+    const n = names[SI.getX(i)];
+    minY = Math.min(minY, y);
+    if (n === 'head') grow(head, x, y, z);
+    else if (n === 'chest' || n === 'hips') grow(body, x, y, z);
+    if (n === 'armL' || n === 'armR' || n === 'legL' || n === 'legR') {
+      const r = rest[n];
+      reach[n] = Math.max(reach[n] ?? 0, Math.hypot(x - r[0], y - r[1], z - r[2]));
+    }
+  }
+  if (!Number.isFinite(body.min[0])) Object.assign(body, { min: [-0.18, 0.12, -0.18], max: [0.18, 0.45, 0.18] });
+  const info = { names, rest, head, body, minY, reach };
+  suitInfos.set(key, info);
+  return info;
+}
+const suitGeos = new Map();
+/** The creature's mesh with its body repainted as a space suit (shares everything but the colours). */
+function suitGeometry(species, costume, lod, kind) {
+  const key = `${species}|${costume ?? ''}|${lod}|${kind}`;
+  if (suitGeos.has(key)) return suitGeos.get(key);
+  const base = creatureGeometry(species, { costume, lod });
+  const info = suitInfo(species, costume, base);
+  const S = SUITS[kind] ?? SUITS.moon;
+  const c = { body: new THREE.Color(S.body), belt: new THREE.Color(S.belt), boots: new THREE.Color(S.boots), glove: new THREE.Color(S.glove), dust: S.dust ? new THREE.Color(S.dust) : null };
+  const P = base.attributes.position, SI = base.attributes.skinIndex;
+  const colors = base.attributes.color.array.slice(), tint = base.attributes.tint.array.slice();
+  const beltY = (info.rest.hips?.[1] ?? 0.22) + 0.035;
+  const col = new THREE.Color();
+  for (let i = 0; i < P.count; i++) {
+    const n = info.names[SI.getX(i)];
+    if (!SUIT_BONES.has(n)) continue;
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+    col.copy(c.body);
+    if (n === 'legL' || n === 'legR') {
+      if (y < info.minY + 0.085) col.copy(c.boots);
+    } else if (n === 'armL' || n === 'armR') {
+      const r = info.rest[n];
+      if (Math.hypot(x - r[0], y - r[1], z - r[2]) > (info.reach[n] ?? 0.15) * 0.62) col.copy(c.glove);
+    } else if (Math.abs(y - beltY) < 0.02) col.copy(c.belt);
+    // Mars: a little red dust on the legs.
+    if (c.dust && col.equals(c.body)) col.lerp(c.dust, Math.max(0, 1 - (y - info.minY) / 0.22) * (0.45 + 0.25 * Math.sin(x * 40 + z * 31)));
+    col.toArray(colors, i * 3);
+    tint[i * 2] = 0;
+    tint[i * 2 + 1] = 1;
+  }
+  const geo = new THREE.BufferGeometry();
+  for (const name of ['position', 'normal', 'skinIndex', 'skinWeight']) geo.setAttribute(name, base.attributes[name]);
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('tint', new THREE.BufferAttribute(tint, 2));
+  geo.setIndex(base.index);
+  geo.boundingSphere = base.boundingSphere;
+  geo.boundingBox = base.boundingBox;
+  suitGeos.set(key, geo);
+  return geo;
+}
 
 /** The skeleton for one creature (bones are per creature; geometry is shared). */
 function bonesFor(recipe) {
@@ -180,12 +266,13 @@ function addWings(kind, byName, body) {
  * A creature. `scale` 1 is buddy-sized (about 1 m tall); teachers are a bit bigger.
  * `costume` dresses a history guide (content/schema.js LOOKS).
  */
-export function makeCreature({ species = 'fox', color = null, hat = 'none', costume = null, scale = 1, seed = 1, glasses = false, lod = 'high', float = 0, onLand = null } = {}) {
+export function makeCreature({ species = 'fox', color = null, hat = 'none', costume = null, scale = 1, seed = 1, glasses = false, lod = 'high', float = 0, onLand = null, suit = null } = {}) {
   if (!SPECIES[species]) species = 'fox';
   const model = modelFor(species, costume);
   const recipe = model.recipe;
   const body = color ?? recipe.color;
-  const geometry = creatureGeometry(species, { costume, lod });
+  if (suit && !SUITS[suit]) suit = null;
+  const geometry = suit ? suitGeometry(species, costume, lod, suit) : creatureGeometry(species, { costume, lod });
   const group = new THREE.Group();
   const rig = new THREE.Group();
   rig.scale.setScalar(scale);
@@ -216,7 +303,9 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
   }
   // Hats: on the head's top point, scaled to the head.
   // A teacher may wear its own hat unless given another (Hoot's mortarboard, Miss Lotus's lotus flower).
-  const hatId = costume ? COSTUME_HATS[costume] : hat && hat !== 'none' ? hat : species === 'owl' ? 'mortarboard' : recipe.hat?.wear ?? null;
+  let hatId = costume ? COSTUME_HATS[costume] : hat && hat !== 'none' ? hat : species === 'owl' ? 'mortarboard' : recipe.hat?.wear ?? null;
+  // In a space suit only a small hat fits under the glass (the old helmets are the suit's now).
+  if (suit && !HATS_IN_HELMET.has(hatId)) hatId = null;
   const hatObj = makeHat(hatId);
   let helmet = false;
   if (hatObj) {
@@ -227,6 +316,30 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     holder.add(hatObj);
     headBone.add(holder);
     helmet = Boolean(hatObj.userData.helmet);
+  }
+  // The space suit's helmet (sized to the head), oxygen pack and chest light.
+  let suitHelmet = null;
+  if (suit) {
+    const info = suitInfo(species, costume, creatureGeometry(species, { costume, lod }));
+    const { head: hb, body: bb } = info;
+    const hc = [(hb.min[0] + hb.max[0]) / 2, (hb.min[1] + hb.max[1]) / 2 + 0.015, (hb.min[2] + hb.max[2]) / 2];
+    const R = Math.max(hb.max[0] - hb.min[0], hb.max[1] - hb.min[1], hb.max[2] - hb.min[2]) * 0.6 + 0.04;
+    suitHelmet = spaceHelmet(suit);
+    suitHelmet.position.set(...hc).sub(headPos);
+    suitHelmet.scale.setScalar(R);
+    headBone.add(suitHelmet);
+    helmet = true;
+    const chest = byName.chest, cr = chest.userData.rest;
+    const bw = bb.max[0] - bb.min[0], bh = bb.max[1] - bb.min[1];
+    const pack = oxygenPack(suit);
+    const ps = Math.max(0.12, Math.min(bw * 0.62, bh * 0.75));
+    pack.scale.setScalar(ps);
+    pack.position.set(0, bb.min[1] + bh * 0.55 - cr.y, bb.min[2] - ps * 0.12 - cr.z);
+    chest.add(pack);
+    const lamp = chestLight(suit);
+    lamp.scale.setScalar(Math.max(0.03, bw * 0.13));
+    lamp.position.set(0, bb.min[1] + bh * 0.62 - cr.y, bb.max[2] - 0.005 - cr.z);
+    chest.add(lamp);
   }
   // A soft round shadow.
   const blob = new THREE.Mesh(BLOB_GEO, BLOB_MAT);
@@ -362,6 +475,7 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
     if (bulb) bulb.material.emissiveIntensity = 0.6 + Math.sin(t * 4) * 0.4;
     if (hatObj?.userData.spin) hatObj.userData.spin.rotation.y += dt * (walking || cheer ? 18 : 5);
     if (hatObj?.userData.blink) hatObj.userData.blink.visible = Math.sin(t * 5) > -0.3;
+    if (suitHelmet) suitHelmet.userData.blink.visible = Math.sin(t * 3 + seed) > -0.5;
     // Face.
     const expr = cheer ? 'cheer' : sad ? 'sad' : surprise ? 'surprised' : think ? 'thinking' : st.happyT > 0 || st.hopT > 0 || wave ? 'happy' : 'neutral';
     face.setExpression(expr);
@@ -389,6 +503,8 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
       st.voiceT = hold;
       st.talkT = 0;
     },
+    /** The space suit it wears ('moon' | 'mars'), or null. */
+    suit,
     surprise: (s = 0.9) => (st.surpriseT = s),
     think: (s = 2) => (st.thinkT = s),
     happy: (s = 1.5) => (st.happyT = s),
@@ -423,7 +539,8 @@ const COSTUME_HATS = {
   factory: 'flatcap', scientist: 'goggles', pilot: 'pilot', astronaut: 'space', nurse: 'nurse', farmer: 'straw',
   sailor: 'cap', diver: 'goggles', wayfinder: 'flower', keeper: 'flatcap', ranger: 'straw', botanist: 'flower',
   nile: 'kufi', scribe: 'wig', caravan: 'headscarf', archaeologist: 'pith',
-  stargazer: 'starcap', flightsuit: 'cap', mission: 'headset'
+  stargazer: 'starcap', flightsuit: 'cap', mission: 'headset',
+  roverteam: 'cap'
 };
 const COSTUME_COLORS = {
   guide: '#2f5d6b', 'stone-age': '#c9a77a', egypt: '#f2ead8', mesopotamia: '#b0643c', greece: '#f4f1ea', rome: '#d0453e', china: '#2f9d8b', 'silk-road': '#e07b3b',
@@ -431,7 +548,8 @@ const COSTUME_COLORS = {
   factory: '#6b7c8f', scientist: '#ffffff', pilot: '#8a6a4e', astronaut: '#f4f4f4', nurse: '#f4f6f8', farmer: '#5f9f4f',
   sailor: '#2f5fa8', diver: '#f2a33a', wayfinder: '#e0643a', keeper: '#c94a3c', ranger: '#5f7f3a', botanist: '#8fbf6a',
   nile: '#f4ecd8', scribe: '#ffffff', caravan: '#2f4f9a', archaeologist: '#c9b48a',
-  stargazer: '#3b4f9a', flightsuit: '#3f6fd6', mission: '#f4f6fa'
+  stargazer: '#3b4f9a', flightsuit: '#3f6fd6', mission: '#f4f6fa',
+  roverteam: '#d9744a'
 };
 /** The teachers: owl for math, tortoise for history, raccoon for physics. */
 export const TEACHERS = {
@@ -463,8 +581,18 @@ export const MOON_TEACHERS = {
   history: { species: 'redpanda', emoji: '🪐', get name() { return t('moon.teacher.history'); } },
   physics: { species: 'koala', emoji: '🐨', get name() { return t('moon.teacher.physics'); } }
 };
-/** A realm's teachers ('land', 'forest', 'sea', 'desert' or 'moon'). */
-export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS, moon: MOON_TEACHERS })[realm] ?? TEACHERS;
+/**
+ * Mars's teachers: Miss Ruby the otter (the Red Dome School), Professor Woolly the alpaca (the Mars Museum),
+ * Dr. Digby the star-nosed mole (the Weather Lab). In their space suits each keeps a touch of their own under
+ * the glass: Ruby's red-pebble clip and pencil, Woolly's glasses and red-planet pin, Digby's glasses and headlamp.
+ */
+export const MARS_TEACHERS = {
+  math: { species: 'otter', emoji: '🦦', get name() { return t('mars.teacher.math'); } },
+  history: { species: 'alpaca', emoji: '🦙', get name() { return t('mars.teacher.history'); } },
+  physics: { species: 'mole', emoji: '🔦', get name() { return t('mars.teacher.physics'); } }
+};
+/** A realm's teachers ('land', 'forest', 'sea', 'desert', 'moon' or 'mars'). */
+export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS, moon: MOON_TEACHERS, mars: MARS_TEACHERS })[realm] ?? TEACHERS;
 /** A guide's species, from their look (the same look, the same critter). */
 export function guideSpecies(look) {
   const list = ['bear', 'fox', 'mouse', 'hedgehog', 'frog', 'duck', 'bunny', 'owl'];

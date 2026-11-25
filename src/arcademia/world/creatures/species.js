@@ -11,6 +11,8 @@
  *              its teachers Miss Lotus (hippo), Uncle Reed (ibis), Dr. Sandy (sand cat)
  *   the Moon   water bear (tardigrade), luna moth, axolotl, hamster, robot pup, moon jelly;
  *              its teachers Miss Mochi (moon rabbit), Captain Ginger (red panda), Dr. Comet (koala)
+ *   Mars       pika, capybara, sloth, armadillo, chinchilla, little rover-bot;
+ *              its teachers Miss Ruby (otter), Professor Woolly (alpaca), Dr. Digby (star-nosed mole)
  *
  * Units: about one metre tall, feet at y = 0, facing +z.
  */
@@ -996,6 +998,263 @@ export const SPECIES = {
       ],
       face: { eyeX: 0.11, eyeY: 0.71, eyeR: 0.068, mouthY: 0.59, cheekX: 0.18, cheekY: 0.62 },
       hat: { lift: 0 }
+    };
+  },
+  /** Mars: a pika — a round little ball of soft grey-brown fluff, big round ears with cream rims, a tiny nose, no tail to speak of. */
+  pika() {
+    const b = chibiBody({ belly: '#f6ead8', bodyR: [0.22, 0.2, 0.2], legR: 0.065 });
+    return {
+      color: '#b99b80', fur: 1, gloss: 0.15,
+      bones: skeleton({ earL: ['head', -0.2, 0.9, -0.02], earR: ['head', 0.2, 0.9, -0.02] }),
+      parts: [
+        head([0, 0.66, 0], [0.35, 0.3, 0.3]),
+        ...both(E([-0.19, 0.58, 0.14], [0.14, 0.11, 0.12], { k: 0.08, bone: 'head', col: '#f6ead8' })),
+        ...both(D([-0.24, 0.94, -0.03], 0.13, 0.035, { k: 0.04, bone: 'earL', rot: [0.15, 0, -0.45] })),
+        ...b.parts
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.24, 0.95, 0.0], [0.09, 0.09, 0.03], { col: '#ffc7c0', rot: [0.15, 0, -0.45] })),
+        ...both(E([-0.24, 0.95, -0.02], [0.135, 0.135, 0.02], { col: '#f6ead8', soft: 0.01, rot: [0.15, 0, -0.45] })),
+        E([0, 0.615, 0.31], [0.03, 0.022, 0.03], { col: '#7a5a4a', soft: 0.004 }),
+        E([0, 0.86, 0.12], [0.14, 0.06, 0.06], { col: '#a2846a', soft: 0.03 })
+      ],
+      face: { eyeX: 0.125, eyeY: 0.7, eyeR: 0.07, mouthY: 0.565, cheekX: 0.21, cheekY: 0.6 },
+      hat: { lift: 0 }
+    };
+  },
+  /** Mars: a capybara — a calm, chunky barrel of warm brown, a big blunt nose, little round ears, a sleepy smile. */
+  capybara() {
+    const b = chibiBody({ belly: '#c9a07a', bodyR: [0.24, 0.22, 0.22], legR: 0.075 });
+    return {
+      color: '#b8875a', fur: 0.8, gloss: 0.15,
+      bones: skeleton({ earL: ['head', -0.2, 0.86, -0.06], earR: ['head', 0.2, 0.86, -0.06] }),
+      parts: [
+        head([0, 0.66, -0.02], [0.33, 0.27, 0.29]),
+        B([0, 0.63, 0.2], [0.21, 0.15, 0.16], 0.13, { k: 0.08, bone: 'head' }),
+        ...both(E([-0.2, 0.87, -0.06], [0.07, 0.06, 0.04], { k: 0.03, bone: 'earL', col: '#8a6040' })),
+        ...b.parts
+      ],
+      paint: [
+        ...b.paint,
+        B([0, 0.67, 0.355], [0.13, 0.06, 0.02], 0.04, { col: '#5a3c2a', soft: 0.004 }),
+        ...both(S([-0.05, 0.66, 0.36], 0.018, { col: '#2e1e16', soft: 0.003 })),
+        ...both(S([-0.21, 0.88, -0.02], 0.035, { col: '#6f4a32' }))
+      ],
+      face: { eyeX: 0.15, eyeY: 0.76, eyeR: 0.058, mouthY: 0.54, cheekX: 0.23, cheekY: 0.62, eyeTilt: -0.1 },
+      hat: { lift: 0 }
+    };
+  },
+  /** Mars: a sloth — shaggy tan fur, a cream face with dark eye patches and a big gentle smile, long arms with three soft claws. */
+  sloth() {
+    const b = chibiBody({ belly: '#d9c2a2', bodyR: [0.21, 0.21, 0.19] });
+    const claws = (side) => [0, 1, 2].map((i) => C([side * 0.29, 0.22, 0.06 + (i - 1) * 0.03], [side * 0.31, 0.14, 0.09 + (i - 1) * 0.035], 0.016, { k: 0.01, bone: side < 0 ? 'armL' : 'armR', col: '#f4ead8' }));
+    return {
+      color: '#ae8c6c', fur: 1, gloss: 0.1,
+      bones: skeleton({ armL: ['chest', -0.18, 0.42, 0.02], armR: ['chest', 0.18, 0.42, 0.02] }),
+      parts: [
+        head([0, 0.67, 0], [0.33, 0.29, 0.29]),
+        E([0, 0.64, 0.12], [0.26, 0.2, 0.18], { k: 0.06, bone: 'head', col: '#f0e2c8' }),
+        ...b.parts,
+        ...both(C([-0.17, 0.42, 0.02], [-0.3, 0.24, 0.06], 0.06, { k: 0.04, bone: 'armL' })),
+        ...claws(-1),
+        ...claws(1)
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.12, 0.68, 0.27], [0.1, 0.05, 0.03], { col: '#5c4030', soft: 0.012, rot: [0, 0, -0.35] })),
+        E([0, 0.6, 0.29], [0.045, 0.03, 0.03], { col: '#3a2a24', soft: 0.004 }),
+        E([0, 0.9, 0.1], [0.2, 0.06, 0.12], { col: '#9a7a5c', soft: 0.03 })
+      ],
+      face: { eyeX: 0.12, eyeY: 0.69, eyeR: 0.06, mouthY: 0.55, cheekX: 0.21, cheekY: 0.6 },
+      hat: { lift: 0 }
+    };
+  },
+  /** Mars: an armadillo — a pinkish-tan face with a long snout and tall ears, a banded shell over its back like a little helmet. */
+  armadillo() {
+    const b = chibiBody({ belly: '#f4d8c8', bodyR: [0.21, 0.2, 0.2] });
+    const SHELL = '#c19a80', BAND = '#a87e66';
+    return {
+      color: '#e8bfa6', fur: 0.2, gloss: 0.45,
+      bones: skeleton({ earL: ['head', -0.15, 0.9, -0.04], earR: ['head', 0.15, 0.9, -0.04], tail: ['hips', 0, 0.2, -0.2], tail2: ['tail', 0, 0.12, -0.4] }),
+      parts: [
+        head([0, 0.67, 0.02], [0.31, 0.27, 0.28]),
+        T([0, 0.6, 0.22], [0, 0.57, 0.42], 0.11, 0.06, { k: 0.05, bone: 'head' }),
+        ...both(T([-0.15, 0.88, -0.04], [-0.21, 1.1, -0.06], 0.07, 0.04, { k: 0.04, bone: 'earL' })),
+        // The shell: a cap on the crown and a banded dome over the back.
+        E([0, 0.84, -0.06], [0.24, 0.1, 0.2], { k: 0.04, bone: 'head', col: SHELL }),
+        E([0, 0.34, -0.1], [0.28, 0.26, 0.26], { k: 0.04, bone: 'chest', col: SHELL }),
+        ...b.parts,
+        T([0, 0.2, -0.24], [0, 0.12, -0.48], 0.06, 0.02, { k: 0.03, bone: 'tail', col: SHELL })
+      ],
+      paint: [
+        ...b.paint,
+        ...[0.12, 0.0, -0.12, -0.24].map((z) => E([0, 0.38, z - 0.05], [0.3, 0.29, 0.015], { col: BAND, soft: 0.01 })),
+        ...both(E([-0.17, 1.0, 0.0], [0.035, 0.07, 0.03], { col: '#f7a8a0' })),
+        S([0, 0.575, 0.425], 0.035, { col: '#8a5a4a', soft: 0.004 })
+      ],
+      face: { eyeX: 0.12, eyeY: 0.7, eyeR: 0.064, mouthY: 0.52, cheekX: 0.2, cheekY: 0.6 },
+      hat: { lift: 0.03 }
+    };
+  },
+  /** Mars: a chinchilla — the softest silver-grey fluff, huge round pink-lined ears, long whiskers, a fat bushy tail. */
+  chinchilla() {
+    const b = chibiBody({ belly: '#f4f4f8', bodyR: [0.21, 0.2, 0.19], legR: 0.065 });
+    return {
+      color: '#c3c6d2', fur: 1, gloss: 0.15,
+      bones: skeleton({ earL: ['head', -0.19, 0.88, -0.04], earR: ['head', 0.19, 0.88, -0.04], tail: ['hips', 0, 0.22, -0.18], tail2: ['tail', 0, 0.32, -0.34] }),
+      parts: [
+        head([0, 0.66, 0], [0.34, 0.29, 0.3]),
+        ...both(E([-0.18, 0.58, 0.15], [0.14, 0.1, 0.12], { k: 0.08, bone: 'head', col: '#f4f4f8' })),
+        ...both(D([-0.26, 0.98, -0.04], 0.16, 0.035, { k: 0.04, bone: 'earL', rot: [0.1, 0, -0.35] })),
+        ...b.parts,
+        C([0, 0.22, -0.18], [0, 0.36, -0.32], 0.1, { k: 0.08, bone: 'tail' }),
+        C([0, 0.36, -0.32], [0, 0.5, -0.36], 0.12, { k: 0.08, bone: 'tail2' })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.26, 0.99, -0.01], [0.11, 0.11, 0.03], { col: '#ffc9d2', rot: [0.1, 0, -0.35] })),
+        E([0, 0.615, 0.31], [0.03, 0.022, 0.03], { col: '#ff9aa8', soft: 0.004 }),
+        E([0, 0.86, 0.08], [0.16, 0.07, 0.1], { col: '#a9adbb', soft: 0.03 }),
+        S([0, 0.52, -0.37], 0.08, { col: '#a9adbb', soft: 0.03 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.7, eyeR: 0.074, mouthY: 0.565, cheekX: 0.22, cheekY: 0.6 },
+      hat: { lift: 0 }
+    };
+  },
+  /** Mars: a little rover-bot — a white boxy body on two chunky wheels, a camera head with big LED eyes, a solar panel backpack. */
+  roverbot() {
+    const TERRA = '#d9744a', DARK = '#3b3340';
+    return {
+      color: '#f4efe8', gloss: 1, robot: true,
+      bones: skeleton({ earL: ['head', -0.26, 0.7, 0], earR: ['head', 0.26, 0.7, 0] }),
+      parts: [
+        B([0, 0.7, 0.02], [0.3, 0.2, 0.22], 0.12, { k: 0.04, bone: 'head' }),
+        B([0, 0.86, 0.0], [0.31, 0.04, 0.23], 0.03, { k: 0.02, bone: 'head', col: TERRA }),
+        ...both(D([-0.31, 0.7, 0], 0.07, 0.03, { k: 0.02, bone: 'earL', rot: [0, Math.PI / 2, 0], col: TERRA })),
+        C([0, 0.42, 0], [0, 0.5, 0], 0.06, { k: 0.03, bone: 'chest', col: '#9aa3b0' }),
+        B([0, 0.3, 0], [0.2, 0.14, 0.17], 0.08, { k: 0.04, bone: 'chest' }),
+        B([0, 0.36, -0.2], [0.24, 0.12, 0.03], 0.02, { k: 0.02, bone: 'chest', col: '#2b3f8c', rot: [-0.4, 0, 0] }),
+        ...both(C([-0.17, 0.38, 0.02], [-0.25, 0.26, 0.05], 0.035, { k: 0.03, bone: 'armL', col: '#9aa3b0' }), S([-0.26, 0.24, 0.06], 0.05, { k: 0.02, bone: 'armL', col: '#2fb5ad' })),
+        // Wheels for feet.
+        ...both(C([-0.1, 0.17, 0.0], [-0.11, 0.11, 0.02], 0.04, { k: 0.03, bone: 'legL', col: '#9aa3b0' }), D([-0.12, 0.08, 0.03], 0.08, 0.04, { k: 0.02, bone: 'legL', rot: [0, Math.PI / 2, 0], col: DARK }))
+      ],
+      paint: [
+        B([0, 0.7, 0.22], [0.23, 0.13, 0.1], 0.08, { col: '#1d2a40', soft: 0.004 }),
+        E([0, 0.3, 0.16], [0.08, 0.06, 0.04], { col: '#ffc83d', soft: 0.004 }),
+        S([-0.05, 0.31, 0.18], 0.018, { col: '#2fb5ad', soft: 0.003 }),
+        S([0.05, 0.31, 0.18], 0.018, { col: '#ff7a5c', soft: 0.003 })
+      ],
+      face: { eyeX: 0.1, eyeY: 0.72, eyeR: 0.066, mouthY: 0.63, cheekX: 0.19, cheekY: 0.64, style: 'led' },
+      antenna: [0.12, 0.92, -0.05],
+      hat: { lift: 0.02 }
+    };
+  },
+  /**
+   * Mars's math teacher, Miss Ruby: a sleek chocolate otter — a cream face and tummy, little round ears
+   * set low, a dark button nose with whisker dots, a thick tapering tail, and (under her space helmet
+   * too) a red Mars-pebble hair clip with a yellow pencil tucked over one ear.
+   */
+  otter() {
+    const FACE = '#f6e6cf';
+    const b = chibiBody({ belly: FACE, bodyR: [0.2, 0.21, 0.18] });
+    return {
+      color: '#8a5a3c', fur: 0.9, gloss: 0.3,
+      bones: skeleton({ earL: ['head', -0.25, 0.84, -0.04], earR: ['head', 0.25, 0.84, -0.04], tail: ['hips', 0, 0.18, -0.16], tail2: ['tail', 0, 0.09, -0.4] }),
+      parts: [
+        head([0, 0.67, 0], [0.34, 0.28, 0.29]),
+        // A pale face: puffy whisker cheeks and a little muzzle.
+        ...both(E([-0.14, 0.6, 0.16], [0.14, 0.11, 0.12], { k: 0.08, bone: 'head', col: FACE })),
+        E([0, 0.61, 0.24], [0.1, 0.07, 0.09], { k: 0.07, bone: 'head', col: FACE }),
+        // Little round ears, low on the head.
+        ...both(S([-0.26, 0.84, -0.04], 0.055, { k: 0.03, bone: 'earL' })),
+        ...b.parts,
+        // A thick tail tapering to the ground.
+        T([0, 0.18, -0.16], [0, 0.09, -0.4], 0.085, 0.05, { k: 0.06, bone: 'tail' }),
+        T([0, 0.09, -0.4], [0, 0.05, -0.54], 0.05, 0.02, { k: 0.04, bone: 'tail2' })
+      ],
+      paint: [
+        ...b.paint,
+        // The button nose and whisker dots.
+        E([0, 0.655, 0.325], [0.05, 0.032, 0.03], { col: '#3a2a24', soft: 0.004 }),
+        ...both(...[[-0.07, 0.6, 0.3], [-0.1, 0.62, 0.28], [-0.09, 0.575, 0.29]].map((c) => S(c, 0.009, { col: '#6b4a34', soft: 0.002 }))),
+        ...both(S([-0.26, 0.845, 0.0], 0.03, { col: '#d9a58a', soft: 0.006 })),
+        E([0, 0.9, 0.1], [0.14, 0.05, 0.06], { col: '#74482e', soft: 0.03 })
+      ],
+      face: { eyeX: 0.125, eyeY: 0.72, eyeR: 0.066, mouthY: 0.555, cheekX: 0.22, cheekY: 0.6 },
+      hat: { lift: 0, wear: 'pebbleclip' }
+    };
+  },
+  /**
+   * Mars's history teacher, Professor Woolly: a grandpa alpaca — creamy fleece, a big fluffy topknot,
+   * long banana ears, a soft pale muzzle, round gold-rimmed glasses, and a little red-planet pin in his
+   * topknot.
+   */
+  alpaca() {
+    const WOOL = '#fbf3e4';
+    const b = chibiBody({ belly: WOOL, bodyR: [0.21, 0.21, 0.19] });
+    const tuft = [[0, 0.98, 0.02, 0.1], [-0.09, 0.95, 0.06, 0.08], [0.09, 0.95, 0.06, 0.08], [-0.06, 0.97, -0.07, 0.085], [0.06, 0.97, -0.07, 0.085], [0, 0.93, 0.13, 0.07]];
+    return {
+      color: '#ead6b4', fur: 1, gloss: 0.15,
+      bones: skeleton({ earL: ['head', -0.14, 0.9, -0.05], earR: ['head', 0.14, 0.9, -0.05] }),
+      parts: [
+        head([0, 0.69, 0], [0.31, 0.27, 0.28]),
+        // A fleecy collar round the neck.
+        ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => S([Math.sin((i / 8) * Math.PI * 2) * 0.16, 0.45, Math.cos((i / 8) * Math.PI * 2) * 0.14], 0.08, { k: 0.05, bone: 'chest', col: WOOL })),
+        // The long, soft muzzle.
+        E([0, 0.6, 0.2], [0.13, 0.1, 0.13], { k: 0.08, bone: 'head', col: WOOL }),
+        // The fluffy topknot.
+        ...tuft.map(([x, y, z, r]) => S([x, y, z], r, { k: 0.05, bone: 'head', col: WOOL })),
+        // Long banana ears.
+        ...both(T([-0.14, 0.88, -0.05], [-0.21, 1.12, -0.07], 0.055, 0.035, { k: 0.04, bone: 'earL' })),
+        ...b.parts,
+        S([0, 0.24, -0.2], 0.075, { k: 0.04, bone: 'tail', col: WOOL })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.19, 1.03, -0.03], [0.025, 0.08, 0.02], { col: '#d9b48a', rot: [0, 0, 0.25] })),
+        // The nose and the split lip.
+        ...both(E([-0.035, 0.64, 0.325], [0.022, 0.014, 0.02], { col: '#5a4034', soft: 0.004 })),
+        E([0, 0.585, 0.33], [0.006, 0.03, 0.01], { col: '#a07a5c', soft: 0.003 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.74, eyeR: 0.062, mouthY: null, cheekX: 0.21, cheekY: 0.63, glasses: true },
+      hat: { lift: 0, wear: 'marspin' }
+    };
+  },
+  /**
+   * Mars's physics teacher, Dr. Digby: a star-nosed mole — velvety charcoal fur, a pointed snout ending in
+   * a pink star of little feelers, tiny eyes behind round glasses, big pink digging paws, and a miner's
+   * headlamp for poking into Mars rocks and ice.
+   */
+  mole() {
+    const PINK = '#ff9cb8';
+    const b = chibiBody({ belly: '#6a6472', bodyR: [0.22, 0.21, 0.2] });
+    const star = [];
+    for (let i = 0; i < 11; i++) {
+      const a = (i / 11) * Math.PI * 2;
+      star.push(C([0, 0.6, 0.385], [Math.cos(a) * 0.06, 0.6 + Math.sin(a) * 0.06, 0.405], 0.017, { k: 0.008, bone: 'head', col: PINK }));
+    }
+    return {
+      color: '#4d4856', fur: 1, gloss: 0.35,
+      bones: skeleton({ earL: ['head', -0.2, 0.86, -0.04], earR: ['head', 0.2, 0.86, -0.04], armL: ['chest', -0.19, 0.4, 0.03], armR: ['chest', 0.19, 0.4, 0.03] }),
+      parts: [
+        head([0, 0.67, 0], [0.33, 0.28, 0.3]),
+        // The snout and its pink star.
+        T([0, 0.63, 0.2], [0, 0.6, 0.37], 0.1, 0.055, { k: 0.05, bone: 'head', col: '#5a5462' }),
+        S([0, 0.6, 0.385], 0.03, { k: 0.01, bone: 'head', col: PINK }),
+        ...star,
+        ...b.parts.map((q) => (q.bone === 'armL' || q.bone === 'armR' ? { ...q, r: typeof q.r === 'number' ? q.r * 1.15 : q.r } : q)),
+        // Big digging paws.
+        ...both(E([-0.3, 0.26, 0.08], [0.085, 0.07, 0.045], { k: 0.02, bone: 'armL', col: PINK, rot: [0, 0.3, 0] })),
+        T([0, 0.2, -0.19], [0, 0.18, -0.3], 0.03, 0.015, { k: 0.02, bone: 'tail', col: PINK })
+      ],
+      paint: [
+        ...b.paint,
+        // A soft sheen on the velvet crown.
+        E([0.06, 0.88, 0.12], [0.12, 0.05, 0.06], { col: '#6a6472', soft: 0.03 })
+      ],
+      face: { eyeX: 0.12, eyeY: 0.74, eyeR: 0.05, mouthY: 0.47, cheekX: 0.21, cheekY: 0.6, glasses: true },
+      hat: { lift: 0, wear: 'headlamp' }
     };
   }
 };

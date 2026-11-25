@@ -12,8 +12,8 @@
  *   topicName how that topic reads to a parent ('Fractions', 'Ancient Egypt')
  *   blurb     one line for the lesson card
  *   realm     (optional) 'forest' (content/forest.js, the Great Tree), 'sea' (content/sea.js, the Lagoon),
- *             'desert' (content/desert.js, the Desert of the Pyramids) or 'moon' (content/moon.js, the Moon);
- *             land if absent
+ *             'desert' (content/desert.js, the Desert of the Pyramids), 'moon' (content/moon.js, the Moon)
+ *             or 'mars' (content/mars.js, Mars); land if absent
  *   reading   2–4 cards: { title, text, emoji? } — big friendly text, one idea a card
  *   quiz      3–5 questions: { q, choices[2–4], answer (index), hint, explain }
  *             — or, for math, { gen, count } to draw them from a generator (math.js)
@@ -34,7 +34,7 @@ export const SUBJECTS = ['math', 'history', 'physics'];
 export const SUBJECT_NAMES = { math: 'Math', history: 'History', physics: 'Physics' };
 export const FLOOR_COUNT = 7;
 /** The study worlds' realms (maps.js): each has its own lessons. */
-export const REALM_IDS = ['land', 'forest', 'sea', 'desert', 'moon'];
+export const REALM_IDS = ['land', 'forest', 'sea', 'desert', 'moon', 'mars'];
 
 /** Costumes the history hall can dress a guide in (world/figures.js draws them). */
 export const LOOKS = [
@@ -48,7 +48,9 @@ export const LOOKS = [
   // the Desert of the Pyramids
   'nile', 'scribe', 'caravan', 'archaeologist',
   // the Moon
-  'stargazer', 'flightsuit', 'mission'
+  'stargazer', 'flightsuit', 'mission',
+  // Mars
+  'roverteam'
 ];
 
 /** Objects the museum turntable can show (world/artifacts.js models them). */
@@ -66,7 +68,10 @@ export const ARTIFACTS = [
   'golden-mask', 'temple-statue',
   // the Moon
   'mortar', 'mooncake', 'satellite', 'capsule', 'space-helmet', 'slide-rule', 'moon-rock', 'space-telescope',
-  'space-station', 'shuttle', 'moon-rover', 'air-filter', 'orbiter'
+  'space-station', 'shuttle', 'moon-rover', 'air-filter', 'orbiter',
+  // Mars
+  'mars-globe', 'pastels', 'viking-lander', 'airbag-lander', 'twin-rover', 'mars-orbiter', 'rover-wheel', 'hope-probe',
+  'sample-tube', 'butterfly-rover', 'mars-helicopter', 'moxie'
 ];
 
 /**

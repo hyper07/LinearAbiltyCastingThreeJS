@@ -156,7 +156,18 @@ export const CAST = {
   'moon-boss-4': V('A dreamy, fluttery luna moth: a soft, airy young woman who drifts off mid-sentence and giggles, gentle and never scary.' + REAL, 919, REF_BOSS, WOMAN),
   'moon-boss-5': V('A pouty, sulky axolotl: a mellow young man in his twenties with a comic, sighing, lazy voice, playful and never menacing.' + REAL, 921, REF_BOSS, MAN),
   'moon-boss-6': V('A floaty, giggly moon jelly: a soft, bubbly woman in her thirties with a slow, glittery, sing-song voice, gentle and never scary.' + REAL, 927, REF_BOSS, WOMAN),
-  'moon-boss-7': V('A zippy, proud little star puff spoken by a girl about ten years old: quick, sparkly and a little show-off, playful and never scary.' + KID, 931, REF_BOSS, CHILD)
+  'moon-boss-7': V('A zippy, proud little star puff spoken by a girl about ten years old: quick, sparkly and a little show-off, playful and never scary.' + KID, 931, REF_BOSS, CHILD),
+  // Mars: its teachers and puzzle bosses.
+  ruby: V('A bubbly, warm young woman in her twenties with a bright, clear, friendly voice in a comfortable mid range. Playful and encouraging, like a lively swimming-camp counsellor who turns sums into games, always patient.' + REAL, 1101, null, WOMAN),
+  woolly: V('A gentle, kindly grandfather in his late sixties with a soft, warm, unhurried voice and a quiet chuckle. A dreamy old professor telling the story of the red planet by lamplight, full of wonder.' + REAL, 1103, null, OLD_MAN),
+  digby: V('An enthusiastic young man in his twenties with a friendly, clear, natural voice in a comfortable mid range. Curious and cheerful, like a geology student who has just found a great rock, always clear when explaining.' + REAL, 1107, null, MAN),
+  'mars-boss-1': V('A very relaxed, sleepy capybara spoken by a boy about nine years old: slow, contented and yawny in a funny way, cuddly and never scary; delighted when cheered up.' + KID, 1111, REF_BOSS, CHILD),
+  'mars-boss-2': V('A fussy little rover-bot with its wheels stuck, spoken by a boy about eight years old: huffy and impatient in a funny way, playful and never scary; no robotic effects.' + KID, 1113, REF_BOSS, CHILD),
+  'mars-boss-3': V('A shivery, fluffy chinchilla spoken by a girl about nine years old: brrr-ing and a bit dramatic in a funny way, sweet and never scary.' + KID, 1117, REF_BOSS, CHILD),
+  'mars-boss-4': V('A very slow, gentle sloth: a mellow young man in his twenties who talks… slowly… with comic pauses and a sleepy smile, playful and never menacing.' + REAL, 1119, REF_BOSS, MAN),
+  'mars-boss-5': V('An excitable little pika weather reporter spoken by a girl about ten years old: quick, squeaky-bright and bossy about the forecast in a funny way, playful and never scary.' + KID, 1121, REF_BOSS, CHILD),
+  'mars-boss-6': V('A whirly, giggly dust devil puff: a bubbly woman in her thirties with a breezy, spinning, sing-song voice, a bit dizzy and very silly, gentle and never scary.' + REAL, 1127, REF_BOSS, WOMAN),
+  'mars-boss-7': V('A proud, polite little armadillo knight guarding the caldera rim, spoken by a boy about ten years old: grand and a bit pompous in a funny way, playful and never scary.' + KID, 1131, REF_BOSS, CHILD)
 };
 
 /**
@@ -182,6 +193,9 @@ export const CAST_BY_LANG = {
     mochi: V('A gentle Korean woman of about twenty-four with a soft, bright, warm voice in a comfortable mid range, like a kind kindergarten teacher counting rice cakes with the children, patient and smiling.' + REAL, 1001, null, [175, 260]),
     ginger: V('A kindly Korean grandfather in his sixties with a warm, calm, slightly husky storyteller\'s voice, unhurried and full of wonder, like a retired captain telling stories of the stars.' + REAL, 1003, null, OLD_MAN),
     comet: V('A cheerful Korean university student in her early twenties who loves space: a bright, clear, friendly natural voice in a comfortable mid range, curious and upbeat.' + REAL, 1007, null, [175, 260]),
+    ruby: V('A bubbly Korean woman of about twenty-four with a bright, clear, warm voice in a comfortable mid range, like a lively after-school teacher who turns sums into games, patient and smiling.' + REAL, 1201, null, [175, 260]),
+    woolly: V('A kindly Korean grandfather in his sixties with a soft, warm, calm storyteller\'s voice and a quiet chuckle, unhurried and full of wonder, like an old professor telling stories of the red planet.' + REAL, 1203, null, OLD_MAN),
+    digby: V('A cheerful Korean university student in his early twenties who loves rocks and science: a bright, friendly, natural young man\'s voice in a comfortable mid range, curious and upbeat.' + REAL, 1207, null, [105, 175]),
     townsfolk: V('A friendly Korean young woman of about twenty with a soft, friendly, chatty voice in a comfortable mid range, like a kind girl helping at her family\'s village shop.' + REAL, 141, null, [175, 260])
   }
 };

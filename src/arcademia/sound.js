@@ -174,7 +174,7 @@ export class Sound {
       const t = this.ctx.currentTime;
       const mood = this._mood;
       // Space has no crickets: the Moon keeps its own soft notes at night too.
-      if ((this._night > 0.5 && mood !== 'space') || mood === 'crickets') for (let k = 0; k < 3; k++) this._tone(4200, t + k * 0.06, 0.04, { type: 'sine', gain: 0.012 });
+      if ((this._night > 0.5 && mood !== 'space' && mood !== 'mars') || mood === 'crickets') for (let k = 0; k < 3; k++) this._tone(4200, t + k * 0.06, 0.04, { type: 'sine', gain: 0.012 });
       else if (mood === 'wind') this._noise(t, 1.2, { freq: 500 + Math.random() * 300, q: 2, gain: 0.03 });
       else if (mood === 'chimes') [2093, 2637, 3136].forEach((f, i) => Math.random() < 0.6 && this._tone(f, t + i * 0.15, 0.9, { type: 'sine', gain: 0.012 }));
       else if (mood === 'bells') this._tone([1046, 1318, 1568][Math.floor(Math.random() * 3)], t, 1.2, { type: 'sine', gain: 0.014 });
@@ -185,6 +185,11 @@ export class Sound {
         // Soft, slow notes, and now and then a far-off radio blip.
         this._tone([523, 659, 784, 988, 1175][Math.floor(Math.random() * 5)], t, 2.4, { type: 'sine', gain: 0.009 });
         if (Math.random() < 0.25) this._tone(1568, t + 0.6, 0.05, { type: 'square', gain: 0.004 });
+      } else if (mood === 'mars') {
+        // Mars: a thin whistling breeze, a low warm note, now and then a little rover chirp.
+        this._noise(t, 1.8, { freq: 900 + Math.random() * 500, q: 3, gain: 0.022 });
+        if (Math.random() < 0.5) this._tone([392, 440, 523, 587][Math.floor(Math.random() * 4)], t + 0.4, 2.0, { type: 'sine', gain: 0.008 });
+        if (Math.random() < 0.15) this._tone(1320, t + 1.0, 0.06, { type: 'square', gain: 0.004, to: 1760 });
       } else if (mood === 'beeps') this._tone([660, 880, 990][Math.floor(Math.random() * 3)], t, 0.08, { type: 'square', gain: 0.01 });
       else {
         const f = 2200 + Math.random() * 1400;

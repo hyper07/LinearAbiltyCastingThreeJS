@@ -55,7 +55,9 @@ class Runner {
     this.teacher = teachersIn(this.realm)[subject];
     game._rooms ??= new Map();
     const key = `${game.map?.id ?? 'mountain'}:${subject}:${floor}`;
-    if (!game._rooms.has(key)) game._rooms.set(key, ROOMS[subject](this.look.look, this.teacher.species));
+    // On the space maps the teachers and guides wear space suits too (maps.js `suit`).
+    this.suit = game.map?.suit ?? null;
+    if (!game._rooms.has(key)) game._rooms.set(key, ROOMS[subject](this.look.look, this.teacher.species, { suit: this.suit }));
     this.room = game._rooms.get(key);
     this.camera = new THREE.PerspectiveCamera(46, 1, 0.1, 120);
     this.camAt = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
@@ -63,7 +65,7 @@ class Runner {
     game.stage.show(this.room.scene, this.camera);
     game.stage.setGlow(0);
     // The player's buddy comes inside too, to cheer and wobble along.
-    this.buddy = makeCreature({ ...(game.gs.buddy ?? { species: 'fox' }), scale: 1.0 });
+    this.buddy = makeCreature({ ...(game.gs.buddy ?? { species: 'fox' }), scale: 1.0, suit: this.suit });
     const spot = { math: [2.4, 0, -1.6, -0.45], history: [3.4, 0, -1.2, -0.5], physics: [3.0, 0, -2.0, -0.5] }[subject];
     this.buddy.group.position.set(spot[0], spot[1], spot[2]);
     this.buddy.group.rotation.y = spot[3];

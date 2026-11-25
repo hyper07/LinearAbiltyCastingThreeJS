@@ -139,8 +139,8 @@ test('floors: floor 1 is open; the next opens at two thirds of the floor below',
   assert.deepEqual([...openFloors(f2)], [1], 'floor 2 done but floor 1 not: still only floor 1');
   const all = Object.fromEntries(LAND_LESSONS.map((l) => [l.id, 3]));
   assert.equal(openFloors(all).size, FLOORS.length);
-  // Each realm opens its own floors: every forest, sea, desert or Moon star opens nothing on the mountain, and the other way round.
-  for (const realm of ['forest', 'sea', 'desert', 'moon']) {
+  // Each realm opens its own floors: every forest, sea, desert, Moon or Mars star opens nothing on the mountain, and the other way round.
+  for (const realm of ['forest', 'sea', 'desert', 'moon', 'mars']) {
     const mine = lessonsIn(realm);
     const theirs = Object.fromEntries(mine.map((l) => [l.id, 3]));
     assert.deepEqual([...openFloors(theirs)], [1], `${realm} stars do not open the mountain`);
@@ -414,7 +414,7 @@ test('great tree: rings all round the trunk, every place reachable, a locked rin
   const { planTree } = await import('../../src/arcademia/world/tree/plan.js');
   const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
   const { MAPS, TREE_FLOORS, mapById } = await import('../../src/arcademia/maps.js');
-  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert', 'moon']);
+  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert', 'moon', 'mars']);
   assert.equal(mapById('nope').id, 'mountain', 'an unknown map falls back to the mountain');
   assert.equal(TREE_FLOORS.length, FLOORS.length, 'the same floors (and lessons) in every world');
   const plan = planTree(TREE_FLOORS.length);
@@ -601,7 +601,7 @@ test('moon: seven moonbases in craters round a ring, every place reachable throu
   // The Moon teaches its own lessons now (the moon realm), not the land's.
   assert.equal(teachingRealm('moon'), 'moon');
   assert.equal(lessonsIn('moon'), MOON_LESSONS);
-  // Its townsfolk are its own (in bubble helmets and headsets); none on any other map, no rabbits (kept for a teacher).
+  // Its townsfolk are its own (in space suits, some with headsets under the helmet); none on any other map, no rabbits (kept for a teacher).
   const elsewhere = new Set(MAPS.filter((m) => m.id !== 'moon').flatMap((m) => m.floors.flatMap((f) => f.look.critters ?? [])));
   const locals = new Set(MOON_FLOORS.flatMap((f) => f.look.critters));
   assert.ok(locals.size >= 5, `${locals.size} kinds of moon townsfolk`);
@@ -611,7 +611,8 @@ test('moon: seven moonbases in craters round a ring, every place reachable throu
     assert.ok(!/bunny|rabbit|hare/.test(k), `${k} is not a rabbit`);
   }
   const hats = new Set(MOON_FLOORS.flatMap((f) => f.look.hats ?? []));
-  assert.ok(hats.has('bubble') && hats.has('headset'));
+  assert.ok(hats.has('headset') && !hats.has('bubble'), 'headsets under the space suits\' helmets (the suit has the bubble now)');
+  assert.equal(moon.suit, 'moon', 'everyone on the Moon wears a space suit');
   for (const h of hats) if (h !== 'none') assert.ok(makeHat(h), `the ${h} hat exists`);
   const plan = planMoon(MOON_FLOORS.length);
   assert.equal(plan.kind, 'moon');
@@ -712,6 +713,143 @@ test('moon: a step never changes height or lands off the decks, and the glass tu
     // The tube passes the rims between the craters (through a notch), not through another crater.
     for (const f of plan.floors) if (f.n !== st.from && f.n !== st.to) assert.ok(Math.hypot(mx - f.centre.x, mz - f.centre.z) > 80);
   }
+});
+
+test('mars: Olympus Mons — seven ring terraces all the way round a red volcano, every place reachable, a locked ring shut', async () => {
+  const { planMars, MARS, SIGHTS } = await import('../../src/arcademia/world/mars/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const { MARS_FLOORS, MAPS, mapById } = await import('../../src/arcademia/maps.js');
+  const { SPECIES } = await import('../../src/arcademia/world/creatures/species.js');
+  const { makeHat } = await import('../../src/arcademia/world/creatures/hats.js');
+  const { teachersIn } = await import('../../src/arcademia/world/figures.js');
+  const { worldsIn } = await import('../../src/arcademia/quests.js');
+  const { teachingRealm } = await import('../../src/arcademia/content/index.js');
+  const { planMoon } = await import('../../src/arcademia/world/moon/plan.js');
+  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert', 'moon', 'mars']);
+  const mars = mapById('mars');
+  assert.equal(mars.kind, 'mars');
+  assert.equal(mars.realm, 'mars');
+  assert.equal(mars.icon, '🔴');
+  assert.equal(mars.floors, MARS_FLOORS);
+  assert.equal(mars.whole, 'map.mars.whole');
+  assert.equal(mars.wholeHint, 'map.mars.wholeHint');
+  assert.deepEqual(mars.back, ['lesson.back.mars', 'lesson.backAria.mars']);
+  assert.equal(MARS_FLOORS.length, FLOORS.length, 'one ring per floor');
+  // Mars teaches its own lessons (the mars realm), not the land's.
+  assert.equal(teachingRealm('mars'), 'mars');
+  assert.ok(MARS_FLOORS.every((f, i) => f.n === i + 1 && f.ages === FLOORS[i].ages && f.look.martian && f.look.landmark));
+  assert.equal(new Set(MARS_FLOORS.map((f) => f.look.landmark)).size, 7, 'every ring has its own landmark');
+
+  // Its townsfolk are its own: no other map's critters, and no teacher's or puzzle boss's species anywhere.
+  const locals = new Set(MARS_FLOORS.flatMap((f) => f.look.critters));
+  const elsewhere = new Set(MAPS.filter((m) => m.id !== 'mars').flatMap((m) => m.floors.flatMap((f) => f.look.critters ?? [])));
+  const cast = new Set(['land', 'forest', 'sea', 'desert', 'moon'].flatMap((r) => [...Object.values(teachersIn(r)).map((t) => t.species), ...Object.values(worldsIn(r)).map((w) => w.boss.species)]));
+  assert.ok(locals.size >= 5, `${locals.size} kinds of Mars townsfolk`);
+  for (const k of locals) {
+    assert.ok(SPECIES[k], `${k} has a recipe`);
+    assert.ok(!elsewhere.has(k), `${k} is new to Mars`);
+    assert.ok(!cast.has(k), `${k} is not a teacher or a boss anywhere else`);
+  }
+  for (const h of new Set(MARS_FLOORS.flatMap((f) => f.look.hats).filter((h) => h !== 'none'))) assert.ok(makeHat(h), `the ${h} hat exists`);
+
+  const plan = planMars(MARS_FLOORS.length);
+  assert.equal(plan.kind, 'mars');
+  assert.equal(plan.layers, 1, 'rings never lie over one another');
+  assert.ok(plan.float > 0 && plan.float < planMoon(7).float, 'floatier than the Earth, less than the Moon');
+  assert.equal(plan.stairs.length, plan.floors.length - 1, 'stairs from each ring to the next');
+  plan.floors.forEach((f, k) => {
+    assert.equal(f.y, k * MARS.floorH, `ring ${f.n} stands a storey above the last`);
+    if (k) assert.ok(f.ro < plan.floors[k - 1].ri, `ring ${f.n} is inside the ring below, a cliff between`);
+  });
+  // The caldera's pit is inside the top ring and lower; the giants stand on the plain round the foot.
+  const top = plan.floors.at(-1);
+  assert.ok(plan.rock(0, 0) < top.y - 6, 'the caldera pit is below the top ring');
+  assert.equal(plan.floorAt(0, 0), 0, 'nobody walks into the pit');
+  for (const s of [SIGHTS.rocket, SIGHTS.village, SIGHTS.rover]) assert.ok(Math.hypot(s.x, s.z) > plan.floors[0].ro + MARS.esc + s.r, 'the giants stand on the plain');
+
+  const blockers = plan.floors.flatMap((f) => [...f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })), { x: f.boss.x, z: f.boss.z, y: f.y, r: 1.1 }, { x: f.chest.x, z: f.chest.z, y: f.y, r: 0.9 }, { x: f.chest.rock.x, z: f.chest.rock.z, y: f.y, r: 1.6 }]);
+  const nav = buildLayerNav(plan, { blockers });
+  const s = plan.start;
+  for (const f of plan.floors) {
+    assert.equal(f.places.length, 8, `ring ${f.n}: three schools and five places`);
+    // All the way round the mountain: buildings in every quarter.
+    const quadrants = new Set(f.places.map((p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2))));
+    assert.equal(quadrants.size, 4, `ring ${f.n} has buildings on every side of the volcano`);
+    for (const p of [...f.places.map((q) => q.at), f.portal.at, f.boss.at, f.chest.at]) {
+      const path = nav.findPath([s.x, s.z, s.y], [p.x, p.z, f.y]);
+      assert.ok(path, `ring ${f.n}: (${p.x.toFixed(1)}, ${p.z.toFixed(1)}) reachable`);
+      assert.ok(Math.abs(path.at(-1)[2] - f.y) < 0.6, `ring ${f.n}: the path ends on that ring`);
+    }
+    for (const p of f.plinths) assert.ok(Math.abs(plan.height(p.x, p.z, f.y) - (f.y + 0.55)) < 0.05, `ring ${f.n}: the ${p.subject} school stands on its plinth`);
+    for (const [x, z] of [...f.gemSpots, ...f.toySpots]) assert.equal(plan.floorAt(x, z), f.n, `ring ${f.n}: gem or toy spot on its own ring`);
+    // Places face out, away from the volcano's middle, towards the camera.
+    for (const p of f.places) assert.ok(Math.hypot(p.at.x, p.at.z) > Math.hypot(p.x, p.z), `ring ${f.n}: the ${p.kind} faces out`);
+  }
+  const gate = plan.floors[0].worldGate;
+  assert.ok(gate && nav.findPath([s.x, s.z, s.y], [gate.at.x, gate.at.z, 0]), 'the World Portal is on the first ring, and reachable');
+  assert.ok(Math.abs(plan.facing(0, 50) - 0) < 1e-9 && Math.abs(plan.facing(50, 0) - Math.PI / 2) < 1e-9, 'the camera looks from outside the mountain');
+  const shut = buildLayerNav(plan, { blockers, locked: (n) => n >= 2 });
+  const t2 = plan.floors[1].places[0].at, t1 = plan.floors[0].places[2].at;
+  // (A path to a shut ring may still lead to the nearest open spot below it, never onto it.)
+  const reaches = (n, from, to) => {
+    const p = n.findPath(from, to);
+    return Boolean(p && Math.abs(p.at(-1)[2] - to[2]) < 0.6 && Math.hypot(p.at(-1)[0] - to[0], p.at(-1)[1] - to[1]) < 3);
+  };
+  assert.ok(!reaches(shut, [s.x, s.z, s.y], [t2.x, t2.z, t2.y]), 'ring 2 is shut while locked');
+  assert.ok(reaches(shut, [s.x, s.z, s.y], [t1.x, t1.z, t1.y]), 'ring 1 still open');
+  const half = buildLayerNav(plan, { blockers, locked: (n) => n >= 5 });
+  const t4 = plan.floors[3].places[0].at, t5 = plan.floors[4].places[0].at;
+  assert.ok(reaches(half, [s.x, s.z, s.y], [t4.x, t4.z, t4.y]), 'ring 4 open up three flights of stairs');
+  assert.ok(!reaches(half, [s.x, s.z, s.y], [t5.x, t5.z, t5.y]), 'ring 5 shut');
+});
+
+test('mars: a step never jumps from one ring to another (only the stairs go up), and the stairs cut through the rock', async () => {
+  const { planMars } = await import('../../src/arcademia/world/mars/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const plan = planMars(FLOORS.length);
+  const nav = buildLayerNav(plan, {});
+  const { w, d, cell, x0, z0, open, floorOf, h } = nav;
+  let jumps = 0, cliffs = 0, onStairs = 0;
+  for (let j = 1; j < d - 1; j++) for (let i = 1; i < w - 1; i++) {
+    const a = j * w + i;
+    if (!open[a]) continue;
+    if (!floorOf[a]) onStairs++;
+    const ax = x0 + (i + 0.5) * cell, az = z0 + (j + 0.5) * cell;
+    for (const [di, dj] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+      const b = (j + dj) * w + i + di;
+      if (!open[b]) continue;
+      if (!nav.canStep(ax, az, ax + di * cell, az + dj * cell, h[a])) continue;
+      if (floorOf[a] && floorOf[b] && floorOf[a] !== floorOf[b]) jumps++;
+      if (Math.abs(h[a] - h[b]) > 1.2) cliffs++;
+    }
+  }
+  assert.equal(jumps, 0, 'steps straight from one ring onto another');
+  assert.equal(cliffs, 0, 'steps up or down a cliff');
+  assert.ok(onStairs > 50, 'the stairs are walkable');
+  for (const st of plan.stairs) {
+    const path = nav.findPath([st.a.x, st.a.z, st.a.y], [st.b.x, st.b.z, st.b.y]);
+    assert.ok(path && Math.abs(path.at(-1)[2] - st.b.y) < 0.6, `stairs ${st.from} to ${st.to} climb a storey`);
+    // Half-way up, the rock is carved down under the steps.
+    const mx = (st.a.x + st.b.x) / 2, mz = (st.a.z + st.b.z) / 2;
+    assert.ok(plan.rock(mx, mz) < plan.height(mx, mz, (st.a.y + st.b.y) / 2), `stairs ${st.from}: the rock is cut away under the steps`);
+  }
+});
+
+test('mars: the Learning Mountain keeps exactly its plan and ground', async () => {
+  const { createHash } = await import('node:crypto');
+  const { planMountain } = await import('../../src/arcademia/world/layout.js');
+  const { buildTerrain } = await import('../../src/arcademia/world/terrain.js');
+  const plan = planMountain(FLOORS.length);
+  const h = createHash('sha256');
+  for (let z = -260; z <= 110; z += 1.7) for (let x = -150; x <= 150; x += 1.9) h.update(`${plan.ground(x, z).toFixed(4)},${plan.height(x, z).toFixed(4)},${plan.floorAt(x, z)};`);
+  assert.equal(h.digest('hex').slice(0, 16), '22cc5d1a84d6ee9e', 'the mountain\'s ground');
+  const layout = JSON.stringify({ floors: plan.floors.map((f) => ({ ...f, frontZ: undefined, backZ: undefined })), stairs: plan.stairs, river: { ...plan.river, distToBrook: undefined } });
+  assert.equal(createHash('sha256').update(layout).digest('hex').slice(0, 16), '81f5387ef335c4a2', 'the mountain\'s terraces, places, stairs and stream');
+  const m = buildTerrain(plan, FLOORS);
+  const t = createHash('sha256');
+  const p = m.geometry.attributes.position.array, c = m.geometry.attributes.color.array;
+  for (let i = 0; i < p.length; i += 7) t.update(p[i].toFixed(3) + c[i].toFixed(3));
+  assert.equal(t.digest('hex').slice(0, 16), '0d0979a03bff04e4', 'the mountain\'s terrain mesh and colours');
 });
 
 test('desert realm: its own 42 lessons, teachers, stories, puzzle bosses and voices', async () => {
@@ -831,4 +969,84 @@ test('moon realm: its own 42 lessons, teachers, stories, puzzle bosses, museum o
   const lines = buildScript('en');
   assert.ok(lines.some((l) => l.char === 'mochi' && l.id === 't.moon.hello.math'), 'Miss Mochi greets in her own words');
   assert.ok(lines.some((l) => l.char === 'comet' && l.id.startsWith('l.p1-moon-')), 'Dr. Comet reads the Moon\'s physics');
+});
+
+test('mars realm: its own 42 lessons, teachers, stories, puzzle bosses, museum objects and voices', async () => {
+  const { MARS_LESSONS, teachingRealm } = await import('../../src/arcademia/content/index.js');
+  const { ARTIFACTS, LOOKS } = await import('../../src/arcademia/content/schema.js');
+  const { ARTIFACT_MODELS } = await import('../../src/arcademia/world/artifacts.js');
+  const { teachersIn, makeCreature } = await import('../../src/arcademia/world/figures.js');
+  const { worldsIn, questFor } = await import('../../src/arcademia/quests.js');
+  const { SPECIES } = await import('../../src/arcademia/world/creatures/species.js');
+  const { makeHat, HATS_IN_HELMET } = await import('../../src/arcademia/world/creatures/hats.js');
+  const { REALM_TEACHER_OF, characterIds, buildScript } = await import('../../src/arcademia/voice/script.js');
+  const { CAST, CAST_BY_LANG } = await import('../../src/arcademia/voice/generated.js');
+  const { MAPS, MARS_FLOORS } = await import('../../src/arcademia/maps.js');
+  const { tIn, loadLocale } = await import('../../src/arcademia/i18n/index.js');
+  for (const lang of ['ko', 'es', 'ja', 'zh']) await loadLocale(lang);
+  // 42 well-formed lessons, two per subject on every terrace, all its own.
+  assert.equal(MARS_LESSONS.length, 42);
+  assert.deepEqual(MARS_LESSONS.flatMap((l) => lessonProblems(l, { gens: GENERATORS })), []);
+  assert.ok(MARS_LESSONS.every((l) => l.realm === 'mars' && /-mars-/.test(l.id)));
+  assert.equal(lessonsIn('mars'), MARS_LESSONS);
+  assert.equal(teachingRealm('mars'), 'mars', 'Mars teaches its own lessons now, not the land\'s');
+  for (const f of FLOORS) for (const s of SUBJECTS) assert.equal(MARS_LESSONS.filter((l) => l.floor === f.n && l.subject === s).length, 2, `terrace ${f.n} ${s}`);
+  assert.equal(new Set(LESSONS.map((l) => l.id)).size, LESSONS.length, 'lesson ids are unique across every realm');
+  // Its lessons' guides and museum objects exist: every costume is drawn, every object modelled.
+  for (const l of MARS_LESSONS.filter((x) => x.subject === 'history')) {
+    assert.ok(LOOKS.includes(l.dialogue.npc.look), `${l.id}: look ${l.dialogue.npc.look}`);
+    assert.ok(ARTIFACT_MODELS.includes(l.artifact.model), `${l.id}: a model for ${l.artifact.model}`);
+  }
+  for (const a of ARTIFACTS) assert.ok(ARTIFACT_MODELS.includes(a), `the museum can show ${a}`);
+  // Its teachers are new animals: no other world's teachers or puzzle bosses, and nobody's townsfolk on any map.
+  const mine = teachersIn('mars');
+  const others = ['land', 'forest', 'sea', 'desert', 'moon'].flatMap((r) => [...Object.values(teachersIn(r)).map((t) => t.species), ...Object.values(worldsIn(r)).map((w) => w.boss.species)]);
+  const townsfolk = new Set(MAPS.flatMap((m) => m.floors.flatMap((f) => f.look.critters ?? [])));
+  assert.equal(new Set(Object.values(mine).map((t) => t.species)).size, 3, 'three different teachers');
+  for (const s of SUBJECTS) {
+    const t = mine[s];
+    assert.ok(SPECIES[t.species], `${t.species} has a recipe`);
+    assert.ok(!others.includes(t.species) && !townsfolk.has(t.species), `${t.species} is new to Mars's teachers`);
+    assert.ok(t.name && t.name !== `mars.teacher.${s}`, `the ${s} teacher has a name`);
+    for (const lang of ['ko', 'es', 'ja', 'zh']) assert.notEqual(tIn(lang, `mars.teacher.${s}`), `mars.teacher.${s}`);
+    // Each keeps a touch of their own on under the space helmet.
+    const wear = SPECIES[t.species]().hat.wear;
+    assert.ok(wear && makeHat(wear) && HATS_IN_HELMET.has(wear), `the ${s} teacher wears a ${wear} under the helmet`);
+    const suited = makeCreature({ species: t.species, lod: 'low', suit: 'mars' });
+    assert.equal(suited.suit, 'mars');
+    assert.ok(suited.bones.head.children.some((o) => !o.isBone && !o.userData.helmet && o.children.length === 1), `${t.species} keeps its ${wear} inside the helmet`);
+  }
+  assert.deepEqual(Object.values(mine).map((t) => t.species), ['otter', 'alpaca', 'mole']);
+  // Its quests are told by its own teachers; each terrace has its own story and puzzle boss, a Mars critter.
+  const h1 = MARS_LESSONS.find((l) => l.subject === 'history');
+  assert.equal(questFor(h1).teacher.species, mine.history.species);
+  assert.match(questFor(MARS_LESSONS[0]).intro, /Mars/);
+  const w = worldsIn('mars');
+  const locals = new Set(MARS_FLOORS.flatMap((f) => f.look.critters));
+  for (const f of FLOORS) {
+    assert.ok(SPECIES[w[f.n].boss.species], `terrace ${f.n}'s boss has a recipe`);
+    assert.ok(locals.has(w[f.n].boss.species) || w[f.n].boss.species === 'puff', `terrace ${f.n}'s boss is a Mars critter`);
+    assert.ok(w[f.n].story && !w[f.n].story.startsWith('mars.world'), `terrace ${f.n} has a story`);
+    assert.notEqual(w[f.n].story, worldsIn('land')[f.n].story, `terrace ${f.n}'s story is its own, not the land's`);
+    assert.ok(w[f.n].boss.name && w[f.n].boss.line, `terrace ${f.n} has a boss name and line`);
+    for (const lang of ['ko', 'es', 'ja', 'zh']) for (const k of ['story', 'boss', 'line']) assert.notEqual(tIn(lang, `mars.world.${f.n}.${k}`), `mars.world.${f.n}.${k}`);
+  }
+  assert.match(w[1].story, /Landing Plains/, 'the arrival toast is the first terrace\'s own story');
+  for (const lang of ['en', 'ko', 'es', 'ja', 'zh']) for (const s of SUBJECTS) {
+    assert.notEqual(tIn(lang, `mars.hello.${s}`), `mars.hello.${s}`);
+    assert.notEqual(tIn(lang, `mars.quest.${s}`), `mars.quest.${s}`);
+  }
+  // Voices: its teachers and bosses are in the script, each with a designed voice (bosses never scary).
+  const ids = characterIds();
+  for (const id of [...Object.values(REALM_TEACHER_OF.mars), ...FLOORS.map((f) => `mars-boss-${f.n}`)]) {
+    assert.ok(ids.includes(id), `${id} in the voice script`);
+    assert.ok(CAST[id]?.design, `${id} has a voice design`);
+    if (id.startsWith('mars-boss-')) assert.match(CAST[id].design, /never (scary|menacing)/, `${id} must not be scary`);
+  }
+  for (const id of Object.values(REALM_TEACHER_OF.mars)) assert.ok(CAST_BY_LANG.ko[id], `${id} has a Korean voice`);
+  const lines = buildScript('en');
+  assert.ok(lines.some((l) => l.char === 'ruby' && l.id === 't.mars.hello.math'), 'Miss Ruby greets in her own words');
+  assert.ok(lines.some((l) => l.char === 'woolly' && l.id.startsWith('t.mars.quest.history~h1-mars-')), 'Professor Woolly tells the Mars Museum quests');
+  assert.ok(lines.some((l) => l.char === 'digby' && l.id.startsWith('l.p1-mars-')), 'Dr. Digby reads Mars\'s physics');
+  assert.ok(lines.some((l) => l.char === 'mars-boss-1' && l.id === 't.mars.world.1.line'), 'the first terrace\'s boss has its line');
 });
