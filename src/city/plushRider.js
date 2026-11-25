@@ -6,7 +6,7 @@ import { Scooter } from './scooter.js';
 import { blobTexture } from './items.js';
 
 /**
- * Gangnam Jarani's riders: Snowpuff Peaks' plush animals, come to Seoul on
+ * Kickrani's riders: Snowpuff Peaks' plush animals, come to Seoul on
  * electric kick scooters. The same sculpted toys — each species a recipe of
  * smooth shapes blended into one soft skinned body by the Arcademia sculptor
  * (renderer-agnostic geometry) — dressed for WebGL2 here: plush with sheen,

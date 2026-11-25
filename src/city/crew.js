@@ -1,7 +1,7 @@
 import { SPECIES } from '../snowpuff/riders.js';
 
 /**
- * Gangnam Jarani's riders: Snowpuff Peaks' plush animals (their names,
+ * Kickrani's riders: Snowpuff Peaks' plush animals (their names,
  * colours and accents from src/snowpuff/riders.js, read only), on hire
  * scooters in Seoul — each with a scooter in their own colours and a feel of
  * their own (`spec`: nudges whichever scooter they ride, scoot.js specFor). Girls and boys both: the field

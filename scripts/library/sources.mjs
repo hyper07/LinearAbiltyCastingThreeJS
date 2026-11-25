@@ -338,13 +338,13 @@ const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027'
   'Grass004', 'PavingStones141', 'PavingStones142', 'Rock051', 'Rock035', 'Moss002', 'Bricks106A', 'Bricks112A', 'Bricks113A', 'RoofingTiles012B', 'RoofingTiles013A', 'RoofingTiles014B', 'WoodFloor041', 'WoodFloor043', 'Planks037A', 'Lava004',
   // Wyldhunt's jungle floor, mud, river pebbles, ruin flagstones and mossy rock.
   'Ground068', 'Ground106', 'Ground108', 'Bricks113A', 'Rock063',
-  // Gangnam Jarani's red-brick villas close up.
+  // Kickrani's red-brick villas close up.
   'Bricks105',
-  // Gangnam Jarani's walls near the course: red villa brick, grey and beige granite panels, white tile, render.
+  // Kickrani's walls near the course: red villa brick, grey and beige granite panels, white tile, render.
   'Bricks101', 'Granite002A', 'Granite001A', 'Tiles107', 'Tiles133A', 'Plaster001',
-  // Gangnam Jarani's pavements: brick paving blocks.
+  // Kickrani's pavements: brick paving blocks.
   'PavingStones152',
-  // Gangnam Jarani's street trees: a ginkgo's grey furrowed bark, a plane tree's peeling camouflage bark.
+  // Kickrani's street trees: a ginkgo's grey furrowed bark, a plane tree's peeling camouflage bark.
   'Bark004', 'Bark009'];
 // (Kithvale's painted ground uses Grass004, Ground068, Ground106, PavingStones141, Rock051 and Moss002, all above.)
 
@@ -362,7 +362,7 @@ const EXTRA_POLYFORK = [
   // Kithvale: your three looks and the people of Lanternrest.
   'kite-kid-base', 'village-child-bef09e', 'waving-child-dfada0', 'ashigaru-foot-soldier-806707', 'porter-e4e566', 'farmer-363820', 'townswoman-5ca8b5',
   'buddhist-monk-39f498', 'village-gardener-9f7af6', 'shopkeeper-be5547', 'crossing-keeper-e13207', 'daimyo-lord-78364a',
-  // Gangnam Jarani: the delivery scooters in its bike race's traffic (src/city/traffic.js).
+  // Kickrani: the delivery scooters in its bike race's traffic (src/city/traffic.js).
   'delivery-moped-1aa2ce',
   // Snowpuff Peaks: the props on its mountains (src/snowpuff/assets.js).
   ...Object.values(SNOWPUFF_MODELS).map(([id]) => id)
@@ -410,7 +410,7 @@ export async function extras({ budget }) {
       log(SRC, `skip ${id}: ${error.message}`);
     }
   }
-  // Gangnam Jarani's realistic people (Rocketbox, MIT) and vehicles (Sketchfab CC BY 4.0, via Objaverse).
+  // Kickrani's realistic people (Rocketbox, MIT) and vehicles (Sketchfab CC BY 4.0, via Objaverse).
   try {
     assets.push(...(await streetfolk({ budget })));
   } catch (error) {

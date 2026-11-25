@@ -1,5 +1,5 @@
 /**
- * Gangnam Jarani's courses, measured on the real map (data/geo/seoul): each
+ * Kickrani's courses, measured on the real map (data/geo/seoul): each
  * course planned as the game plans it (course.js), then its length, how much
  * of the main loop runs on roads with two or more lanes each way, its turns
  * sharper than 60°, the longest straight, the run to the first corner and its

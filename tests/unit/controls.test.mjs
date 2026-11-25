@@ -48,7 +48,7 @@ test('controls: the camera and map keys are the shared ones, and clash with noth
     assert.ok(codesFor(t, 'map').includes(MAP_KEY), `${id}: O is the map`);
   }
   assert.ok(codesFor(KW, 'map').includes(MAP_KEY));
-  // Gangnam Jarani: the horn moved off H.
+  // Kickrani: the horn moved off H.
   assert.deepEqual(codesFor(SE, 'horn'), ['KeyB']);
   // …and in a race the bell is on Space (B rings it too), Shift drifts, F boosts.
   assert.deepEqual(codesFor(SE, 'bell'), ['Space', 'KeyB']);

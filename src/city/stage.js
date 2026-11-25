@@ -6,7 +6,7 @@ import { CREW_ORDER, rider } from './crew.js';
 import { SCOOTER_ORDER } from './scoot.js';
 
 /**
- * Gangnam Jarani's pre-race stage: a little round plaza on a Seoul rooftop
+ * Kickrani's pre-race stage: a little round plaza on a Seoul rooftop
  * — a roundabout of asphalt with its double yellow ring and a granite kerb,
  * zebra stripes leading in, two street lamps — and the city behind it: towers
  * with lit windows, N Seoul Tower on its hill, the tallest tower far off.

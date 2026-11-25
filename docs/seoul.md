@@ -1,4 +1,4 @@
-# Gangnam Jarani (Seoul, for real)
+# Kickrani (Seoul, for real)
 
 [← Back to the README](../README.md)
 
@@ -62,7 +62,7 @@ including commercially, **with attribution** — the game credits it in its Cred
    about 80 MB) and the roads (about 20 MB) into `data/geo/seoul/src/` once, then writes 2,285
    building tiles (23 MB), `terrain.bin` (7 MB), `roads.bin` (1 MB) and an index. `--offline` skips
    the downloads; without them the ground is flat and there are no roads.
-3. Open **Gangnam Jarani** from the home page (it opens on the race menu; close it to explore the city). Without the tiles, the game says how to install them.
+3. Open **Kickrani** from the home page (it opens on the race menu; close it to explore the city). Without the tiles, the game says how to install them.
 
 For a newer register file, repeat both steps. On a deployed server the tiles go in
 `DATA_DIR/geo/seoul/tiles/`; they are served at `/geo/seoul/*`.
@@ -93,7 +93,7 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 - **View**: near, far or farthest — how many tiles are kept around you (800 m to 2 km, more when
   flying high).
 
-## Gangnam Jarani: the bike race
+## Kickrani: the scooter race
 
 **🚲 Race** (the button; the game opens on it) is an electric-scooter race for four riders through
 Seoul's real streets — and the streets stay open.

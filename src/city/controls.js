@@ -1,11 +1,11 @@
 /**
- * Gangnam Jarani's controls: the one table the key handler reads, the bar's
+ * Kickrani's controls: the one table the key handler reads, the bar's
  * line of hints is built from (by mode) and How to play lists
  * (shared/helpPanel.js). In a race Shift drifts, the bell is Space (B too;
  * H is How to play), F boosts; items are on the number keys.
  */
 export const CONTROLS = {
-  title: 'How to play — Gangnam Jarani',
+  title: 'How to play — Kickrani',
   goal: 'Snowpuff\'s plush friends race electric scooters through Seoul\'s real streets and alleys, open to traffic: throttle up to 70 km/h, lean through the corners, hold Shift to drift round the tight 90° corners, boost to 85 (F) while your battery gauge lasts, ring your bell (Space) and weave past cars, buses, scooters and people — hit one square and you\'re off for a moment; a glancing knock only scrapes. Close calls charge your boost; item boxes give you a battery pack, an air horn, a gold helmet, a tailwind or a branch to throw into a rival\'s wheel. Race three bots or up to four friends. Outside a race: fly over the city, walk its streets, borrow a car, and visit all 25 districts.',
   groups: [
     { name: 'Fly', rows: [
@@ -34,7 +34,7 @@ export const CONTROLS = {
       { id: 'places', keys: ['M'], codes: ['KeyM'], does: 'Places: districts and tall buildings to go to', modes: { fly: 'places', walk: 'places' } },
       { id: 'graphics', keys: ['G'], codes: ['KeyG'], does: 'Graphics: Quiet keeps your laptop cool' },
       { id: 'help', keys: ['H', 'I'], codes: ['KeyH', 'KeyI'], does: 'How to play (this)', modes: { fly: 'help', walk: 'help', drive: 'help' } },
-      { id: 'close', keys: ['Esc'], codes: ['Escape'], does: 'Close a panel · leave Gangnam Jarani' }
+      { id: 'close', keys: ['Esc'], codes: ['Escape'], does: 'Close a panel · leave Kickrani' }
     ] }
   ]
 };

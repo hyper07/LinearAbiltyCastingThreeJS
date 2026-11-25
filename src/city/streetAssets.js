@@ -1,5 +1,5 @@
 /**
- * The realistic people and vehicles on Gangnam Jarani's streets: what the
+ * The realistic people and vehicles on Kickrani's streets: what the
  * library fetches for them (scripts/library/streetfolk.mjs, on dev and build)
  * and what the game credits in its Credits panel (credits.js). Pure data.
  *

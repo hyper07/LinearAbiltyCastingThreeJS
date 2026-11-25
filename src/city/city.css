@@ -1,4 +1,4 @@
-/* ---- Gangnam Jarani — Seoul, for real (city/SeoulGame.js): Gamory Pop over a 3D city ---- */
+/* ---- Kickrani — Seoul, for real (city/SeoulGame.js): Gamory Pop over a 3D city ---- */
 .seoul {
   position: fixed;
   inset: 0;
@@ -1099,7 +1099,7 @@
   border-radius: 50%;
 }
 
-/* ---- Gangnam Jarani, the bike race HUD: the map top left with your place beside it, the lap top right,
+/* ---- Kickrani, the bike race HUD: the map top left with your place beside it, the lap top right,
    the board under it, time and the three item slots bottom centre, speed and the sprint gauge bottom right.
    One thin line style, one warm gold accent; the middle of the screen stays clear. ---- */
 .race__map {
@@ -1367,7 +1367,7 @@
   bottom: 136px;
 }
 
-/* ---- Gangnam Jarani's pre-race flow (city/lobby.js) over its 3D stage (city/stage.js): rider → scooter →
+/* ---- Kickrani's pre-race flow (city/lobby.js) over its 3D stage (city/stage.js): rider → scooter →
    course → time and weather. Pop panels (cream, a thick ink outline, a hard drop shadow), the stage
    clear in the middle; the shape of Snowpuff's menus. ---- */
 .seoul.is-menu .seoul__top,
@@ -1413,19 +1413,39 @@
 .jl__bar > * {
   pointer-events: auto;
 }
-.jl__logo {
-  padding: 8px 16px;
-  border: 3px solid #2b1d4e;
-  border-radius: 18px;
-  background: #ffc93c;
-  box-shadow: 0 4px 0 #2b1d4e;
-  font-size: 20px;
-  font-weight: 900;
+/* Kickrani's logo (kickboard + gorani): a fat, bubbly, tilted word with a sunset fill and a thick ink edge,
+   its Hangul on a little sticker. Bagel Fat One, bundled (SeoulGame.js imports it). */
+.kr-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
+  transform: rotate(-4deg);
 }
-.jl__logo small {
-  font-size: 13px;
-  opacity: 0.7;
+.kr-logo__word {
+  font-family: 'Bagel Fat One', 'Nunito Variable', system-ui, sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #fff27a 0%, #ffb02e 38%, #ff5e7e 72%, #d43cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 2.5px #2b1d4e;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 3px 0 #2b1d4e) drop-shadow(0 6px 10px rgba(43, 29, 78, 0.35));
+}
+.kr-logo__ko {
+  font-family: 'Bagel Fat One', system-ui, sans-serif;
+  font-size: 15px;
+  padding: 3px 9px 4px;
+  border: 2.5px solid #2b1d4e;
+  border-radius: 999px;
+  background: #5ee6ff;
+  color: #2b1d4e;
+  box-shadow: 0 3px 0 #2b1d4e;
+  transform: rotate(6deg);
 }
 .jl__steps {
   display: flex;

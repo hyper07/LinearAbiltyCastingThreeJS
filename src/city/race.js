@@ -25,7 +25,7 @@ import { modeHint } from './controls.js';
 import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, resolveBump } from './pack.js';
 
 /**
- * Gangnam Jarani: an electric-scooter race through Seoul's streets and
+ * Kickrani: an electric-scooter race through Seoul's streets and
  * alleys, for four of Snowpuff Peaks' plush animals (plushRider.js) on hire
  * scooters (scooter.js, handling in scoot.js) in the real 3D city.
  * Alone against three bots, or up to four people in a room (by code, over

@@ -227,15 +227,73 @@ const SHOTS = {
   },
   bastion: (page) => purge(page, 'official:bastion', false),
   gravepurge2d: (page) => purge(page, 'official:gravepurge2d', true),
+  // Kickrani: the plush pack on scooters down Gwanghwamun's avenue at golden hour, with the game's logo.
   seoul: async (page) => {
     await open(page, 'official:seoul');
-    await until(page, () => window.seoul?.ready && !document.querySelector('.race__menu')?.hidden, null, 90000);
-    await page.click('.race__menu [data-race-solo]');
-    await until(page, () => window.seoul.race?.phase === 'racing', null, 30000);
-    await page.keyboard.down('KeyW');
+    await until(page, () => Boolean(window.seoul?.ready && document.querySelector('.jl [data-char]')), null, 120000);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await until(page, () => window.seoul.race.lobby.step === 'course', null, 10000);
+    await until(page, () => /km/.test(document.querySelector('[data-len="gwanghwamun"]')?.textContent ?? ''), null, 90000);
+    await page.click('[data-pin="gwanghwamun"]');
+    await page.click('[data-course-card] [data-next]');
+    await page.click('[data-time="golden"]');
+    await page.click('[data-weather="clear"]');
+    await page.click('[data-race-solo]');
+    await until(page, () => window.seoul.race?.phase === 'racing', null, 120000);
+    // Ridden for you down the first straight; then, for the photograph only, the pack gathered
+    // round you and the camera set low in front, looking back at the four of them.
+    await page.evaluate(() => (window.seoul.race.autopilot = true));
     await wait(page, 6000);
-    await page.keyboard.up('KeyW');
-    await wait(page, 400);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const h = me.s.heading;
+      const fx = -Math.sin(h);
+      const fz = -Math.cos(h);
+      const rx = Math.cos(h);
+      const rz = -Math.sin(h);
+      const spots = [[-1.5, -1.9], [1.6, -2.9], [-0.2, -4.6]];
+      let k = 0;
+      for (const x of r.racers) {
+        if (x === me || !spots[k]) continue;
+        const [side, back] = spots[k++];
+        Object.assign(x.s, { x: me.s.x + rx * side + fx * back, z: me.s.z + rz * side + fz * back, heading: h, travel: h, v: me.s.v });
+      }
+    });
+    await wait(page, 350);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const h = me.s.heading;
+      const fx = -Math.sin(h);
+      const fz = -Math.cos(h);
+      const rx = Math.cos(h);
+      const rz = -Math.sin(h);
+      r.togglePause(true);
+      // no comic pops in the photograph (gathering the pack set some off)
+      for (const l of r.fx?.live ?? []) if (l.kind === 'pop') l.s.visible = false;
+      // and every rider solid (the chase camera had faded the ones between it and you)
+      for (const x of r.racers) x.view.fade(1);
+      r.camera = (cam) => {
+        cam.position.set(me.s.x + fx * 4.6 + rx * 1.3, me.y + 1.05, me.s.z + fz * 4.6 + rz * 1.3);
+        cam.lookAt(me.s.x - fx * 2.8 - rx * 0.1, me.y + 1.05, me.s.z - fz * 2.8 - rz * 0.1);
+        cam.fov = 50;
+        cam.updateProjectionMatrix();
+      };
+    });
+    await wait(page, 900);
+    await bare(page, '.seoul');
+    // The logo over the picture (outside the game, so bare() leaves it alone).
+    await page.evaluate(() => {
+      const logo = document.createElement('div');
+      logo.className = 'kr-logo';
+      logo.style.cssText = 'position:fixed;left:4.5%;top:7%;z-index:99999;transform:rotate(-5deg) scale(2.3);transform-origin:left top;';
+      logo.innerHTML = '<span class="kr-logo__word">Kickrani</span><small class="kr-logo__ko">킥라니</small>';
+      document.body.append(logo);
+    });
+    await page.evaluate(() => document.fonts.ready);
+    await wait(page, 500);
   },
   shardfront: async (page) => {
     await open(page, 'official:shardfront');

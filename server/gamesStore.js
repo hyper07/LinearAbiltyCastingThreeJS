@@ -73,7 +73,7 @@ export const ENGINE_GAMES = [
   },
   {
     id: 'official:seoul',
-    title: 'Gangnam Jarani',
+    title: 'Kickrani',
     summary: 'Plush animals race electric scooters through the real streets and alleys of Seoul: dodge traffic, drift the corners, find the shortcuts, throw a branch in a rival\'s wheel — against bots or with up to four friends. Day or night, rain or shine. Between races, walk or fly through the whole city, every building at its true place and height.',
     engine: 'city',
     genre: 'racing',

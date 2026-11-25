@@ -1,7 +1,7 @@
 import { boot, tally, until } from './lib.mjs';
 
 /**
- * Gangnam Jarani's bike race end to end (src/city/race.js): open the Seoul
+ * Kickrani's bike race end to end (src/city/race.js): open the Seoul
  * game from its card (it opens on the race menu), pick a rider, night and
  * rain, race three bots on a short course with the streets open — traffic
  * on the road, 70 km/h, the three item slots, the bell on Space, a drift on

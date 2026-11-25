@@ -6,7 +6,7 @@ import { TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
 import { faceSvg } from '../snowpuff/riders.js';
 
 /**
- * Gangnam Jarani's pre-race flow, over the 3D stage (stage.js): rider →
+ * Kickrani's pre-race flow, over the 3D stage (stage.js): rider →
  * scooter → course → time and weather → go, with Back at every step. The
  * shape is Snowpuff Peaks' (src/snowpuff/hud.js riders/mountains and
  * worldMap.js, only read): a big name card and a READY button over the
@@ -161,7 +161,7 @@ export class Lobby {
     const i = STEPS.indexOf(this.step);
     m.innerHTML = `
       <div class="jl__bar">
-        <b class="jl__logo">🛴 Gangnam Jarani <small>강남 자라니</small></b>
+        <b class="jl__logo kr-logo" aria-label="Kickrani 킥라니"><span class="kr-logo__word">Kickrani</span><small class="kr-logo__ko">킥라니</small></b>
         <ol class="jl__steps">${STEPS.map((k, j) => `<li><button type="button" data-goto="${k}" class="${j === i ? 'is-on' : j < i ? 'is-done' : ''}">${j + 1}. ${STEP_NAMES[k]}</button></li>`).join('')}</ol>
         ${s?.room ? `<span class="jl__room">Room <b data-race-code>${esc(s.room)}</b> · ${s.peers.size} here${s.isHost ? ' · you host' : ''}</span>` : ''}
         <button type="button" class="jl__ghost" data-race-credits>ⓒ Credits</button>

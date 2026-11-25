@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+// Kickrani's logo face: Bagel Fat One (OFL 1.1, Latin and Hangul), bundled, no network.
+import '@fontsource/bagel-fat-one/400.css';
 import { PowerKit } from '../shared/powerKit.js';
 import { setChoice } from '../shared/power.js';
 import { HelpPanel } from '../shared/helpPanel.js';
@@ -253,7 +255,7 @@ const ROAD_CELL = 40;
 export { ROAD_CELL };
 
 /**
- * Gangnam Jarani (Seoul, for real): every building in the city at its true place and height,
+ * Kickrani (Seoul, for real): every building in the city at its true place and height,
  * from the national building register (public data, KOGL type 1), streamed
  * as map tiles while you fly over it or walk its streets.
  *
@@ -305,7 +307,7 @@ export class SeoulGame {
       <header class="seoul__top">
         <div class="seoul__where"><b data-place>Seoul</b><small data-sub>서울특별시</small></div>
         <div class="seoul__stamps" data-stamps title="Districts you have visited"></div>
-        <button type="button" class="seoul__x" data-close aria-label="Leave Gangnam Jarani">✕</button>
+        <button type="button" class="seoul__x" data-close aria-label="Leave Kickrani">✕</button>
       </header>
       <div class="seoul__toast" data-toast role="status" aria-live="polite" hidden></div>
       <div class="seoul__msg" data-msg hidden></div>
@@ -407,7 +409,7 @@ export class SeoulGame {
       // The credits (map, models, textures, music) are behind the Credits button: on the menus, the pause screen and in the city.
       this.creditOpts = { alleys: Boolean(this.alleyCount), terrain: Boolean(this.terrain) };
       this.ready = true;
-      // Gangnam Jarani opens on its races; close the menu to fly, walk and drive the city.
+      // Kickrani opens on its races; close the menu to fly, walk and drive the city.
       this.race.menu();
       this.help.openFirstTime();
     } catch {

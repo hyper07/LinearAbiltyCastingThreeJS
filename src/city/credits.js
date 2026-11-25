@@ -1,5 +1,5 @@
 /**
- * Everything third-party in Gangnam Jarani, for its Credits panel (behind the
+ * Everything third-party in Kickrani, for its Credits panel (behind the
  * small Credits button on the menus and the pause screen, never over a live
  * race): each source with its site and licence, each CC BY model by name and
  * author. docs/third-party.md keeps the same list with the models' full
@@ -94,6 +94,13 @@ export function seoulCredits({ alleys = true, terrain = true } = {}) {
       site: 'https://ambientcg.com',
       ...CC0,
       items: AMBIENTCG.map(([id, what]) => ({ name: `${id} — ${what}`, url: `https://ambientcg.com/view?id=${id}` }))
+    },
+    {
+      name: 'Bagel Fat One',
+      what: 'The Kickrani 킥라니 logo: a font by the Bagel Fat Project Authors (JAMO), via Fontsource',
+      site: 'https://github.com/JAMO-TYPEFACE/BagelFat',
+      licence: 'SIL Open Font License 1.1',
+      licenceUrl: 'https://openfontlicense.org'
     }
   ].filter(Boolean);
 }

@@ -4,7 +4,7 @@ import { isSmall } from './course.js';
 import { laneBand } from './pack.js';
 
 /**
- * Item boxes for Gangnam Jarani: spinning, glassy "?" boxes floating over the
+ * Item boxes for Kickrani: spinning, glassy "?" boxes floating over the
  * road in rows across the lanes the riders use, every couple of hundred
  * metres (one or two in an alley, staggered row to row); ride through one to
  * fill an empty slot, and use it with 1, 2 or 3.

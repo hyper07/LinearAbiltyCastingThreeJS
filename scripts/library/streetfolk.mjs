@@ -1,5 +1,5 @@
 /**
- * Gangnam Jarani's realistic street: people from the Microsoft Rocketbox
+ * Kickrani's realistic street: people from the Microsoft Rocketbox
  * Avatar Library (MIT, GitHub) and everyday vehicles from Sketchfab (CC BY
  * 4.0) through the Objaverse dataset's public mirror — the lists are in
  * src/city/streetAssets.js. Fetched with the rest of the library (`extras`),
@@ -126,7 +126,7 @@ async function vehicle(v, budget) {
     await download(OBJAVERSE + v.glb, dest, budget);
     if ((await readFile(dest)).subarray(0, 4).toString('latin1') !== 'glTF') throw new Error('not a binary glTF');
   }
-  return { id: `objaverse/${v.id}`, name: v.title, source: SRC, pack: 'Gangnam Jarani traffic', file: rel(dest), files: [rel(dest)], tags: ['vehicle', v.id], license: 'CC-BY-4.0', author: v.author, url: sketchfabPage(v.uid) };
+  return { id: `objaverse/${v.id}`, name: v.title, source: SRC, pack: 'Kickrani traffic', file: rel(dest), files: [rel(dest)], tags: ['vehicle', v.id], license: 'CC-BY-4.0', author: v.author, url: sketchfabPage(v.uid) };
 }
 
 /** Everything above; each piece on its own, so one that fails doesn't stop the rest. */

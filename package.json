@@ -2,7 +2,7 @@
   "name": "gamory",
   "version": "1.0.0",
   "private": true,
-  "description": "Gamory \u2014 spells, stories and worlds you build. Three.js action RPG with AI-designed classes, a shared content library, and co-op play in the browser.",
+  "description": "Gamory — spells, stories and worlds you build. Three.js action RPG with AI-designed classes, a shared content library, and co-op play in the browser.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -41,6 +41,7 @@
   "dependencies": {
     "@electric-sql/pglite": "0.5.12",
     "@fontsource-variable/nunito": "^5.3.0",
+    "@fontsource/bagel-fat-one": "^5.3.0",
     "lil-gui": "^0.21.0",
     "pg": "8.23.1",
     "three": "^0.185.1",

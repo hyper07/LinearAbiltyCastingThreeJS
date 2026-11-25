@@ -184,7 +184,7 @@ export function lanternwoodTrack({ realm = 'lanternwood', area = null }) {
   return area === 'camp' ? 'village' : 'night-forest';
 }
 
-/** Gangnam Jarani: Neon Overpass while racing, and while driving at night; quiet otherwise (the engine and the city). */
+/** Kickrani: Neon Overpass while racing, and while driving at night; quiet otherwise (the engine and the city). */
 export function seoulTrack({ mode, racing = false, night = false }) {
   if (racing || mode === 'race') return 'city-night';
   if (mode === 'drive' && night) return 'city-night';

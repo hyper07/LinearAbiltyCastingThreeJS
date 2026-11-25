@@ -530,8 +530,8 @@ function driftCover(game) {
     <path d="M150 140 l14 -5 l22 1 l8 6 l-6 5 h-34 z" fill="#e8e9ee"/><path d="M164 135 l6 -5 h12 l6 6z" fill="#2a3442"/>
     <circle cx="160" cy="147" r="3.5" fill="#0a0a0a"/><circle cx="184" cy="147" r="3.5" fill="#0a0a0a"/>
     <path d="M196 141 l10 0" stroke="#fff6c8" stroke-width="2"/>
-    <text x="16" y="34" fill="#ffffff" font-family="system-ui, sans-serif" font-size="24" font-weight="900" font-style="italic">${String(game.title).replace(/[<&]/g, '')}</text>
-    <text x="17" y="54" fill="#ff8a2a" font-family="system-ui, sans-serif" font-size="12" font-weight="800" letter-spacing="2">강남 · SEOUL NIGHT RACING</text>
+    <text x="16" y="38" fill="#ffb02e" stroke="#2b1d4e" stroke-width="3" paint-order="stroke" font-family="'Bagel Fat One', system-ui, sans-serif" font-size="30" transform="rotate(-4 16 38)">${String(game.title).replace(/[<&]/g, '')}</text>
+    <text x="19" y="60" fill="#5ee6ff" font-family="'Bagel Fat One', system-ui, sans-serif" font-size="13" letter-spacing="1">킥라니 · SEOUL SCOOTER RACE</text>
   </svg>`;
 }
 

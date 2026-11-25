@@ -85,7 +85,7 @@ test('Wyldhunt, zone by zone: the hearth at camp, the falls down the gorge, the 
   assert.equal(wyldhuntTrack({ zone: 'somewhere-new' }), 'jungle', 'a new zone plays the gorge');
 });
 
-test('Kithvale, Lanternwood and Gangnam Jarani', () => {
+test('Kithvale, Lanternwood and Kickrani', () => {
   assert.equal(duskAt(17.8), true, 'the vale\'s own golden hour is dusk');
   assert.equal(duskAt(12), false);
   assert.equal(duskAt(17.3, true), true, 'held in the dead band');
