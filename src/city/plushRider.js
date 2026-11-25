@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { compile, sculpt, trace, gradient } from '../arcademia/world/creatures/sculpt.js';
 import { SPECIES } from '../snowpuff/riders.js';
 import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial } from './plush.js';
-import { Scooter, DECK_TOP } from './scooter.js';
+import { Scooter } from './scooter.js';
 import { blobTexture } from './items.js';
 
 /**
@@ -311,7 +311,6 @@ function bakeFurry(geo, recipe) {
 export const RIDER_SCALE = 1.18;
 /** The scooter is built in metres for a 1 m toy; in the street it is this much bigger. */
 export const SCOOTER_SCALE = 1.24;
-const DECK = DECK_TOP * SCOOTER_SCALE;
 
 const G = {};
 const sphere = () => (G.sphere ??= new THREE.SphereGeometry(1, 24, 16));
@@ -346,7 +345,7 @@ export class PlushRider {
    * @param {string} species  a Snowpuff species (fox, bunny, bear, cat, frog, pig, penguin)
    * @param {{ body?: string, trim?: string, fur?: number, res?: number, shadow?: boolean, screen?: boolean }} o
    */
-  constructor(species, { body = null, trim = '#ffffff', fur = 10, res = 96, shadow = true, screen = true } = {}) {
+  constructor(species, { body = null, trim = '#ffffff', fur = 10, res = 96, shadow = true, screen = true, ride = 'city' } = {}) {
     this.species = species;
     const sp = SPECIES[species] ?? SPECIES.fox;
     this.sp = sp;
@@ -358,12 +357,15 @@ export class PlushRider {
     this.root.add(this.lean);
     this.lean.add(this.jolt);
     // The scooter, in its rider's colours.
-    this.scooter = new Scooter({ body: body ?? sp.accent, trim, screen });
+    this._paint = body ?? sp.accent;
+    this._trim = trim;
+    this.scooter = new Scooter({ model: ride, body: this._paint, trim, screen });
+    this.deck = this.scooter.deckTop * SCOOTER_SCALE;
     this.scooter.group.scale.setScalar(SCOOTER_SCALE);
     this.jolt.add(this.scooter.group);
     // The rider: standing on the deck, a little turned (front foot forward), knees bent.
     this.rider = new THREE.Group();
-    this.rider.position.y = DECK + 0.005;
+    this.rider.position.y = this.deck + 0.005;
     this.rider.scale.setScalar(RIDER_SCALE);
     this.jolt.add(this.rider);
     this.squash = new THREE.Group();
@@ -628,6 +630,25 @@ export class PlushRider {
     this.rider.position.set(x * c - y * s, x * s + y * c, z);
   }
 
+  /** A reaction for the menus: 'wave', 'ears' (a wiggle) or 'hop'. */
+  react(kind, dur = kind === 'hop' ? 0.55 : 1.1) {
+    this._react = { kind, t: 0, dur };
+  }
+
+  /** Swap the scooter for another model (the scooter select), in the same colours. */
+  setRide(model, { body, trim } = {}) {
+    if (this.scooter.model === model) return;
+    const old = this.scooter;
+    const paint = body ?? this._paint ?? this.sp.accent;
+    this.scooter = new Scooter({ model, body: paint, trim: trim ?? this._trim ?? '#ffffff', screen: Boolean(old.screenTex) });
+    this.scooter.group.scale.setScalar(SCOOTER_SCALE);
+    old.group.removeFromParent();
+    old.dispose();
+    this.jolt.add(this.scooter.group);
+    this.deck = this.scooter.deckTop * SCOOTER_SCALE;
+    this.rider.position.y = this.deck + 0.005;
+  }
+
   /** Remove from the scene and free what is only ours (the sculpted body is shared per species). */
   dispose() {
     this.root.removeFromParent();
@@ -693,7 +714,7 @@ export class PlushRider {
     this.tilt.rotation.x = -crouch * 0.1;
     // stance: turned a little, front foot forward
     this.body.rotation.y = Math.PI + (down ? 0 : 0.28);
-    this.rider.position.set(0, DECK + 0.005, -0.08);
+    this.rider.position.set(0, this.deck + 0.005, -0.08);
     this.rider.rotation.x = 0;
     this.rider.rotation.y = 0;
     const hips = B.get('hips'), chest = B.get('chest'), headB = B.get('head');
@@ -721,6 +742,31 @@ export class PlushRider {
     B.get('legR').rotation.set(0.12 - crouch * 0.1, 0, -0.04);
     // the finish: a happy hop
     this.squash.position.y = win ? Math.abs(Math.sin(t * 7)) * 0.12 : 0;
+    // A reaction (the menus: picked, a new scooter): a wave, a wiggle of the ears, a little hop.
+    const re = this._react;
+    if (re && !down) {
+      re.t += dt;
+      const u = Math.min(1, re.t / re.dur);
+      const env = Math.sin(u * Math.PI);
+      if (re.kind === 'wave') {
+        B.get('armR').rotation.set(0, -0.2, 1.3 + 1.4 * env + Math.sin(re.t * 16) * 0.35 * env);
+        headB.rotation.z += Math.sin(re.t * 8) * 0.12 * env;
+      } else if (re.kind === 'hop') {
+        this.squash.position.y += Math.sin(u * Math.PI) * 0.22;
+        if (u > 0.92 && !re.landed) {
+          re.landed = true;
+          S.sq.v -= 3.5;
+          S.ear.v += 6;
+        }
+        B.get('armL').rotation.z -= 0.9 * env;
+        B.get('armR').rotation.z += 0.9 * env;
+      } else if (re.kind === 'ears') {
+        S.earB.v += Math.sin(re.t * 22) * 40 * dt * env;
+        S.ear.v += Math.cos(re.t * 18) * 30 * dt * env;
+        headB.rotation.y += Math.sin(re.t * 9) * 0.25 * env;
+      }
+      if (u >= 1) this._react = null;
+    }
     // ---- a fall: thrown forward in a roll, sat dazed in the road with stars, then up and back on
     this.stars.visible = mode === 'dizzy';
     this.blob.scale.set(0.42 + Math.abs(lean) * 0.25, 1, 1.15);
@@ -729,13 +775,13 @@ export class PlushRider {
     if (down) {
       if (mode === 'tumble') {
         const u = Math.min(1, ft / 0.7);
-        this.placeRider(0, DECK + Math.sin(u * Math.PI) * 0.6, -u * 0.9, lean);
+        this.placeRider(0, this.deck + Math.sin(u * Math.PI) * 0.6, -u * 0.9, lean);
         this.rider.rotation.z = -lean;
         this.rider.rotation.x = -u * Math.PI * 2;
       } else {
         // sitting: dropped to the ground beside the scooter, leaning back on the paws, head wobbling
         const up = Math.max(0, Math.min(1, (ft - 1.25) / 0.3));
-        this.placeRider(0.32 * (1 - up), 0.02 * (1 - up) + DECK * up, -0.9 * (1 - up), lean);
+        this.placeRider(0.32 * (1 - up), 0.02 * (1 - up) + this.deck * up, -0.9 * (1 - up), lean);
         this.rider.rotation.z = -lean * (1 - up);
         hips.position.y = 0.2 - 0.12 * (1 - up);
         chest.rotation.set(-0.25 * (1 - up), 0, 0);
