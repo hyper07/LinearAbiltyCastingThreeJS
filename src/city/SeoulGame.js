@@ -2082,6 +2082,8 @@ export class SeoulGame {
     this.power.gpuBegin();
     if (this.quality === 'low' || this.bloomOn === false) this.renderer.render(this.scene, this.camera);
     else this.composer.render(dt);
+    // (the race's rival panel takes its still after the frame: rivalPanel.js)
+    if (this.mode === 'race') this.race?.afterDraw?.();
     this.power.gpuEnd();
     this.power.sample(dt * 1000);
     this.power.showFps(this.root);

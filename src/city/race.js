@@ -15,7 +15,12 @@ import { CREW, CREW_ORDER, rider, botRiders } from './crew.js';
 import { faceSvg } from '../snowpuff/riders.js';
 import { PlushRider, sculptSpecies } from './plushRider.js';
 import { RaceTraffic } from './traffic.js';
-import { ITEMS, rollItem, ItemBoxes, itemIcon } from './items.js';
+import { ITEMS, rollItem, ItemBoxes, itemIcon, blobTexture } from './items.js';
+import { MARBLE, MarbleField, pourMarbles, pourBand, corridorClamp, stepMarble, marbleFall, marblesAt, patchBounds, rattle } from './marbles.js';
+import { HelmetDrops } from './helmet.js';
+import { GlowTrail } from './trail.js';
+import { RaceMinimap } from './minimap.js';
+import { RivalPanel } from './rivalPanel.js';
 import { ComicFx } from './comic.js';
 import { Golmok } from './golmok.js';
 import { Facades } from './facades.js';
@@ -99,6 +104,12 @@ const TUMBLE = 0.7;
 /** How fast (m/s) a head-on wall knocks you off: about 38 km/h; slower is a bonk and a stop. */
 const WALL_FALL = 10.5;
 const DOWN = 1.55;
+/**
+ * The energy drink: a gulp, then `boost` seconds of boost at once (to the scooter's boost speed,
+ * `extra` m/s over it, costing no gauge), and the gauge filled up again at `fill` a second — about
+ * ten metres gained on a straight: worth having, not a win.
+ */
+export const DRINK = { boost: 3, extra: 0.4, fill: 1.5 };
 
 export { botRiders };
 
@@ -210,6 +221,10 @@ export class Race {
     this.hintEl = el('race__hint');
     this.warnEl = el('race__warn');
     this.scEl = el('race__sc');
+    this.helmetEl = el('race__helmet');
+    this.minimap = new RaceMinimap(this.mapEl);
+    // a click on the map: north up, or turning with you
+    this.mapEl.onclick = () => this.minimap.toggle();
   }
 
   _show(on) {
@@ -217,6 +232,8 @@ export class Race {
     if (!on) {
       this.turnEl.hidden = true;
       this.linesEl.hidden = true;
+      this.helmetEl.hidden = true;
+      this.panel?.hide();
     }
     this.g.root.classList.toggle('is-racing', on);
   }
@@ -405,8 +422,13 @@ export class Race {
         if (!r || r.owner === this.session?.id) continue;
         Object.assign(r, { net: { x, z, heading: hd, y }, dist, done: done < 0 ? null : done, best: best < 0 ? null : best, crashes, misses });
         Object.assign(r.s, { v, lean, roll, boosting: Boolean(flags & 1), throttle: Boolean(flags & 2), braking: Boolean(flags & 4) });
-        r.helmet = Boolean(flags & 8);
+        // (their helmet gone while they are still riding: it saved them — it flies off here too)
+        const helmet = Boolean(flags & 8);
+        if (r.helmet && !helmet && mode === 'ride') this._helmetSaved(r, false);
+        r.helmet = helmet;
         r.tailwind = flags & 16 ? 1 : 0;
+        r.drinkT = flags & 32 ? Math.max(r.drinkT ?? 0, 0.2) : 0;
+        r.slip = flags & 64 ? 1 : Math.max(0, (r.slip ?? 0) - 0.1);
         if (mode !== r.mode) {
           r.mode = mode;
           r.crashT = 0;
@@ -421,6 +443,9 @@ export class Race {
       const v = this.racers.find((q) => q.id === msg.by);
       if (v && msg.fell) v.fallKind = 'wheel';
       if (b) this._snapBranch(b, v);
+    } else if (msg.t === 'race-marbles') {
+      const r = this.racers.find((q) => q.id === msg.id);
+      if (r && r.owner !== this.session?.id && !this.patches?.some((p) => p.mid === msg.plan?.mid)) this._addPatch(msg.plan);
     } else if (msg.t === 'race-bell') {
       const r = this.racers.find((q) => q.id === msg.id);
       if (r && r.owner !== this.session?.id) this.ringBell(r, true);
@@ -547,6 +572,9 @@ export class Race {
         items: [null, null, null],
         helmet: false,
         tailwind: 0,
+        drinkT: 0,
+        slip: 0,
+        slips: 0,
         mode: 'ride',
         crashT: 0,
         safe: 0,
@@ -563,6 +591,16 @@ export class Race {
     this.fx = new ComicFx(this.g.scene);
     this.traffic = new RaceTraffic(this.g, this);
     this.boxes = new ItemBoxes(this.g, course);
+    this.patches = [];
+    this.marbleField = new MarbleField(this.g.scene, blobTexture());
+    this.helmetDrops = new HelmetDrops(this.g.scene);
+    this.trails = new Map();
+    this.minimap.layer = null;
+    this.minimapT = 0;
+    // The rival panel (rivalPanel.js): its snapshot rendered once now, while the lights count down.
+    this.panel ??= new RivalPanel(this.g.renderer, this.g.root);
+    this.panel.hide();
+    this._warmPanel = true;
     // The street along the course, and down each short cut's golmok (its walls solid: course.walls) —
     // each alley's mouth a dropped kerb where it crosses a road's pavement.
     // (the menus draw their own stage, not the city: its road lookup may not be made yet)
@@ -1115,6 +1153,7 @@ export class Race {
         if (r.throwT > 0.5) r.throwT = null;
       }
       r.tailwind = Math.max(0, r.tailwind - dt);
+      r.drinkT = Math.max(0, (r.drinkT ?? 0) - dt);
       if (r.mine) {
         if (r.mode !== 'ride') {
           this._down(r, dt);
@@ -1132,11 +1171,26 @@ export class Race {
         input.grip = Math.min(1.05, grip * (r.spec.grip ?? 1));
         input.free = r.tailwind > 0;
         input.extra = r.tailwind > 0 ? 0.9 : 0;
+        // The energy drink: boosting by itself, free, while it lasts; the gauge filling back up.
+        if (r.drinkT > 0 && racing && r.done == null) {
+          input.boost = true;
+          input.throttle = true;
+          input.brake = false;
+          input.free = true;
+          input.extra = Math.max(input.extra, DRINK.extra);
+        }
+        if (r.fill) {
+          r.s.stamina = Math.min(1, r.s.stamina + DRINK.fill * dt);
+          if (r.s.stamina >= 1) r.fill = false;
+        }
         input.grade = this._grade(r);
         input.draft = this._draft(r);
         input.surface = this._surface(r);
         input.kerb = this._kerb(r);
         input.bump = this._plateHit(r);
+        // Marbles under the wheels: the grip goes, it slides and wobbles (and maybe throws you off).
+        this._slip(r, input, dt);
+        if (r.mode !== 'ride') continue;
         const out = this._step(r, input, dt);
         r.landed = out.landed;
         if (out.kerb === 'hop' && r.me) this.g.street?._thud?.(0.25);
@@ -1171,6 +1225,8 @@ export class Race {
     this.traffic?.update(dt, anchors);
     if (racing) for (const r of this.racers) if (r.mine && !r.left && r.mode === 'ride') this._hits(r);
     this._branches(dt);
+    this._marbles(dt);
+    this.helmetDrops?.update(dt, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14));
     this._bump();
     for (const r of this.racers) {
       if (r.left) continue;
@@ -1216,6 +1272,19 @@ export class Race {
     this._wetLights();
     this.wet?.update(dt);
     this._hudFrame();
+    // The rival panel: who is coming up behind you (one still of them, taken after this frame is drawn).
+    if (this.panel) {
+      if (this._warmPanel) {
+        this._warmPanel = false;
+        this.panel.warm(this.g.scene, this.g.camera);
+      }
+      this.panel.update(dt, this.me, this.racers.filter((r) => r !== this.me), { active: this.phase === 'racing' && this.me.done == null && !this.paused, scene: this.g.scene, exposure: this.g.renderer?.toneMappingExposure ?? 1 });
+    }
+  }
+
+  /** After the city is drawn (SeoulGame): the rival panel's still, if one is due. */
+  afterDraw() {
+    this.panel?.draw();
   }
 
   /** How much grip the street has: dry, wet, or snow (from the weather as it is now). */
@@ -1671,13 +1740,13 @@ export class Race {
   _crash(r, what, vehicle = null) {
     if (r.mode !== 'ride') return;
     if (r.helmet) {
-      // The golden helmet takes it: a bounce off, no fall.
+      // The golden helmet takes it: a bounce off, no fall — and the helmet flies off, spinning.
       r.helmet = false;
       r.safe = 1.2;
-      r.s.v *= 0.45;
+      r.s.v *= what === 'marbles' ? 0.75 : 0.45;
       r.s.heading += (Math.random() - 0.5) * 0.4;
-      this.fx?.pop('BONK!', { x: r.s.x, y: r.y + 2.2, z: r.s.z, ride: r.s }, { color: '#ffd23a', size: r.me ? 1.2 : 0.9 });
-      if (r.me) this._clang();
+      (r.blocked ??= []).push(what);
+      this._helmetSaved(r, true);
       return;
     }
     r.mode = 'tumble';
@@ -1698,8 +1767,31 @@ export class Race {
     if (r.me) this.stop = 0.13;
   }
 
+  /**
+   * The golden helmet saving a rider: BLOCKED! and PING!, a ding, the helmet flying off their head,
+   * spinning, and the badge saying so (`mine`: this browser decided it — else it is only shown).
+   */
+  _helmetSaved(r, mine = true) {
+    const at = { x: r.s.x, y: r.y + 2.3, z: r.s.z, ride: r.s };
+    const near = r.me || Math.hypot(r.s.x - this.g.pos.x, r.s.z - this.g.pos.z) < 70;
+    this.fx?.pop('BLOCKED!', at, { color: '#ffd23a', size: r.me ? 1.3 : 1 });
+    this.fx?.pop('PING!', { ...at, y: at.y + 0.9 }, { color: '#fff3a8', size: r.me ? 0.8 : 0.6 });
+    if (near) this._ding(r.me ? 1568 : 1320, 2);
+    if (r.view?.helmet?.visible) this.helmetDrops?.fling(r.view.helmet, { vx: -Math.sin(r.s.travel ?? r.s.heading) * r.s.v, vz: -Math.cos(r.s.travel ?? r.s.heading) * r.s.v });
+    r.view?.setHelmet(false);
+    this.saves = (this.saves ?? 0) + 1;
+    if (r.me) {
+      this.shake = Math.max(this.shake ?? 0, 0.15);
+      this._helmetBlocked = 1.6;
+    }
+    if (mine) this.saveLog = [...(this.saveLog ?? []), { id: r.id, t: Math.round(this.clock * 10) / 10 }];
+  }
+
   _crashFx(r, what = '') {
-    this.fx?.pop(what === 'bus' ? 'WHAM!' : what === 'person' ? 'OOF!' : 'BONK!', { x: r.s.x, y: r.y + 2, z: r.s.z, ride: r.s }, { color: '#ff5a3c', size: r.me ? 1.5 : 1.1 });
+    if (what === 'marbles') {
+      this.fx?.pop('WHOA!', { x: r.s.x, y: r.y + 2, z: r.s.z, ride: r.s }, { color: '#7ad8ff', size: r.me ? 1.5 : 1.1 });
+      this.fx?.pop('SLIP!', { x: r.s.x, y: r.y + 3, z: r.s.z, ride: r.s }, { color: '#ffffff', size: r.me ? 0.9 : 0.7 });
+    } else this.fx?.pop(what === 'bus' ? 'WHAM!' : what === 'person' ? 'OOF!' : 'BONK!', { x: r.s.x, y: r.y + 2, z: r.s.z, ride: r.s }, { color: '#ff5a3c', size: r.me ? 1.5 : 1.1 });
     this.fx?.dust({ x: r.s.x, y: r.y, z: r.s.z }, 10);
     if (r.me || Math.hypot(r.s.x - this.g.pos.x, r.s.z - this.g.pos.z) < 40) this.g.street?._thud?.(r.me ? 1 : 0.4);
     if (r.me) this.shake = 0.35;
@@ -1788,7 +1880,15 @@ export class Race {
     v.root.position.set(s.x, r.y, s.z);
     v.root.visible = !(r.safe > 0 && r.mode === 'ride' && Math.floor(r.safe * 12) % 2);
     const mode = won ? 'win' : this.phase === 'grid' ? 'grid' : r.mode;
-    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, drift: (s.drift ?? 0) * (s.driftSide ?? 0), steer: s.steer, braking: s.braking, boost: s.boosting || r.tailwind > 0, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, battery: s.stamina, night, glow: r.helmet ? '#ffd86a' : r.tailwind > 0 ? '#bdf0ff' : null });
+    if (Boolean(v.helmetOn) !== Boolean(r.helmet)) v.setHelmet(r.helmet);
+    const boosted = s.boosting || r.tailwind > 0 || r.drinkT > 0;
+    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, drift: (s.drift ?? 0) * (s.driftSide ?? 0), steer: s.steer, braking: s.braking, boost: boosted, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0, (r.slip ?? 0) * 0.8), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, battery: s.stamina, night, glow: r.drinkT > 0 ? '#c8ff9a' : r.tailwind > 0 ? '#bdf0ff' : null });
+    // The drink's boost: a ribbon of green light behind the back wheel.
+    if (r.drinkT > 0 || this.trails?.has(r.id)) {
+      let tr = this.trails.get(r.id);
+      if (!tr) this.trails.set(r.id, (tr = new GlowTrail(this.g.scene, '#9ef07a')));
+      tr.update(dt, { x: s.x + Math.sin(s.heading) * 0.45, y: r.y, z: s.z + Math.cos(s.heading) * 0.45 }, r.drinkT > 0 && r.mode === 'ride');
+    }
     r.landed = 0;
     r.wobble = Math.max(0, (r.wobble ?? 0) - dt * 1.4);
     const cam = this.g.camera.position;
@@ -2069,8 +2169,13 @@ export class Race {
   _apply(r, item) {
     const s = r.s;
     if (item === 'branch') this._throwBranch(r);
-    else if (item === 'drink') s.stamina = 1;
-    else if (item === 'helmet') r.helmet = true;
+    else if (item === 'marbles') this._pour(r);
+    else if (item === 'drink') {
+      // A gulp, and away: boosting at once for DRINK.boost seconds, the gauge filling up as you go.
+      r.drinkT = DRINK.boost;
+      r.fill = true;
+      r.drinks = (r.drinks ?? 0) + 1;
+    } else if (item === 'helmet') r.helmet = true;
     else if (item === 'tailwind') r.tailwind = 5;
     else if (item === 'horn') {
       // Everyone ahead clears out: people step aside, scooters pull over, cars stop.
@@ -2088,11 +2193,23 @@ export class Race {
       this.fx?.ring(at, '#ff7aa8');
       if (near) this.g.street?._horn?.(0.5, 233);
     } else if (item === 'drink') {
-      this.fx?.pop('ZAP!', at, { color: '#9ef07a', size: 1.1 });
-      if (r.me) this._ding(880);
+      this.fx?.pop('GULP!', at, { color: '#9ef07a', size: r.me ? 1.2 : 1 });
+      this.fx?.pop('+BOOST', { ...at, y: at.y + 0.9 }, { color: '#ffd23a', size: r.me ? 0.85 : 0.7 });
+      r.view?.drink();
+      r.drinkT = Math.max(r.drinkT ?? 0, DRINK.boost);
+      if (near) this._gulp(r.me ? 1 : 0.4);
+      if (r.me) {
+        this._drinkKick = 1;
+        this.speedEl.classList.remove('is-gulp');
+        void this.speedEl.offsetWidth;
+        this.speedEl.classList.add('is-gulp');
+      }
+    } else if (item === 'marbles') {
+      this.fx?.pop('MARBLES!', at, { color: '#7ad8ff', size: r.me ? 1.1 : 0.9 });
     } else if (item === 'helmet') {
-      this.fx?.pop('SAFE!', at, { color: '#ffd23a', size: 1.1 });
+      this.fx?.pop('HELMET ON!', at, { color: '#ffd23a', size: 1.1 });
       r.helmet = true;
+      r.view?.setHelmet(true);
       if (r.me) this._ding(1100);
     } else if (item === 'tailwind') {
       this.fx?.pop('ZOOM!', at, { color: '#8fd8ff', size: 1.3 });
@@ -2101,6 +2218,155 @@ export class Race {
     } else if (item === 'branch') {
       // the wind-up: the arm goes back with the branch over the shoulder (the throw itself is _branches')
       r.throwT = 0;
+    }
+  }
+
+  /* ----------------------------------------------------------- marbles */
+
+  /**
+   * Pour marbles out behind a racer (the pourer's browser plans it and tells the room): from the back
+   * wheel, kept in the street they are poured in — on a narrow golmok, only across the half you
+   * are riding, so it is never shut.
+   */
+  _pour(r) {
+    const s = r.s;
+    const line = this._line(r);
+    const i = this._ix(line, 0);
+    const here = this._at(line, 0);
+    const next = this._at(line, 1) === here ? this._at(line, -1) : this._at(line, 1);
+    const lat = lateralOf(s.x, s.z, here, next) * (next === this._at(line, 1) ? 1 : -1);
+    const room = line.room ? [line.room[i * 2], line.room[i * 2 + 1]] : null;
+    const band = pourBand(here[2] ?? 6, lat, room);
+    const pts = [];
+    for (let k = -6; k <= 9; k++) {
+      const p = this._at(line, k);
+      if (pts.length && pts.at(-1)[0] === Math.round(p[0] * 10) / 10 && pts.at(-1)[1] === Math.round(p[1] * 10) / 10) continue;
+      pts.push([Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
+    }
+    const plan = { mid: `${r.id}:m${(this._mid = (this._mid ?? 0) + 1)}`, owner: r.id, x: s.x, z: s.z, heading: s.travel ?? s.heading, v: Math.max(0, s.v), seed: (Math.random() * 2 ** 31) | 0, pts, lo: band.lo, hi: band.hi };
+    this._addPatch(plan);
+    if (this.session?.room) this.session.send({ t: 'race-marbles', id: r.id, plan });
+  }
+
+  /** A patch of marbles in the world: poured (simulated from the plan's seed), then lying a while. */
+  _addPatch(plan) {
+    const marbles = pourMarbles(plan);
+    const pts = plan.pts;
+    const walls = this.course?.walls;
+    const keep = (x, z) => {
+      const c = corridorClamp(pts, x, z, plan.lo, plan.hi);
+      if (walls?.hits(c.x, c.z, MARBLE.r)) return { x: NaN, z: NaN, clamped: true };
+      return c;
+    };
+    const p = { ...plan, marbles, keep, born: this.clock, until: this.clock + MARBLE.pour + MARBLE.life, acc: 0, x: plan.x, z: plan.z, r: 12 };
+    (this.patches ??= []).push(p);
+    this.poured = (this.poured ?? 0) + 1;
+    const near = Math.hypot(plan.x - this.g.pos.x, plan.z - this.g.pos.z);
+    if (near < 70) rattle(this._audio(), { gain: Math.max(0.12, 0.6 * (1 - near / 70)), pan: this._panOf(plan.x, plan.z), dur: 0.9, n: 34 });
+    return p;
+  }
+
+  /** Where a point is, left (−1) to right (1), as heard from the camera. */
+  _panOf(x, z) {
+    const cam = this.g.camera.position;
+    const dx = x - cam.x;
+    const dz = z - cam.z;
+    const yaw = this.g.yaw ?? 0;
+    return Math.max(-0.9, Math.min(0.9, (dx * Math.cos(yaw) - dz * Math.sin(yaw)) / Math.max(4, Math.hypot(dx, dz))));
+  }
+
+  /** Each frame: the marbles roll and settle (fixed steps, so every browser pours the same patch), and go in the end. */
+  _marbles(dt) {
+    const list = this.patches ?? [];
+    for (const p of [...list]) {
+      if (this.clock > p.until) {
+        list.splice(list.indexOf(p), 1);
+        continue;
+      }
+      p.acc += dt;
+      while (p.acc >= 1 / 60) {
+        p.acc -= 1 / 60;
+        for (const m of p.marbles) {
+          if (m.live && m.y <= 0 && m.vy === 0 && Math.abs(m.vx) + Math.abs(m.vz) < 0.01) continue;
+          const keep = (x, z) => {
+            const c = p.keep(x, z);
+            // (against a wall: it stays where it was)
+            return Number.isNaN(c.x) ? { x: m.x, z: m.z, clamped: true } : c;
+          };
+          stepMarble(m, 1 / 60, keep);
+        }
+      }
+      const b = patchBounds(p);
+      p.bx = b.x;
+      p.bz = b.z;
+      p.br = b.r;
+      p.x = b.x;
+      p.z = b.z;
+      p.r = b.r;
+    }
+    this.marbleField?.update(list, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14), this.clock);
+  }
+
+  /**
+   * A racer this browser rides, on marbles: the wheels (front and back) over any marbles — and
+   * if so the grip goes, it slides and wobbles and loses speed; the moment they reach them, too
+   * fast or steering hard, they fall (the golden helmet takes the fall, not the slip).
+   */
+  _slip(r, input, dt) {
+    const s = r.s;
+    let n = 0;
+    if (this.patches?.length && r.mode === 'ride' && !(s.air > 0)) {
+      const fx = -Math.sin(s.heading);
+      const fz = -Math.cos(s.heading);
+      for (const p of this.patches) {
+        if (this.clock - p.born < 0.15) continue;
+        const k = marblesAt(p, s.x + fx * 0.45, s.z + fz * 0.45) + marblesAt(p, s.x - fx * 0.4, s.z - fz * 0.4);
+        if (!k) continue;
+        n += k;
+        // ridden through, they scatter
+        for (const m of p.marbles) {
+          if (!m.live || Math.abs(m.x - s.x) > 0.8 || Math.abs(m.z - s.z) > 0.8) continue;
+          const tr = s.travel ?? s.heading;
+          const side = (Math.random() - 0.5) * 2.4;
+          m.vx += -Math.sin(tr) * s.v * 0.35 + Math.cos(tr) * side;
+          m.vz += -Math.cos(tr) * s.v * 0.35 - Math.sin(tr) * side;
+          m.vy = 0.3 + Math.random() * 0.5;
+        }
+      }
+    }
+    if (n > 0) {
+      if (!(r.onMarbles > 0)) this._onMarbles(r);
+      r.onMarbles = 0.3;
+      r.slip = 1;
+    } else {
+      r.onMarbles = Math.max(0, (r.onMarbles ?? 0) - dt);
+      r.slip = Math.max(0, (r.slip ?? 0) - dt * 1.6);
+    }
+    if (r.slip > 0 && r.mode === 'ride') {
+      input.grip = (input.grip ?? 1) * (1 - (1 - MARBLE.slipGrip) * r.slip);
+      s.wobble = Math.max(s.wobble ?? 0, 0.85 * r.slip);
+      s.v = Math.max(0, s.v - s.v * MARBLE.speedLoss * r.slip * dt);
+      const j = Math.sin(this.clock * 23 + r.id.length * 1.7) + Math.sin(this.clock * 37.7 + r.id.length) * 0.6;
+      s.heading += j * 1.4 * r.slip * dt;
+      s.travel = (s.travel ?? s.heading) + j * 0.8 * r.slip * dt;
+      input.boost = false;
+    }
+  }
+
+  /** The moment a racer's wheels reach marbles: the clatter, SLIP!, and a fall if too fast or turning hard. */
+  _onMarbles(r) {
+    const s = r.s;
+    r.slips = (r.slips ?? 0) + 1;
+    const fall = marbleFall(Math.abs(s.v), s.steer ?? 0, s.lean ?? 0, r.spec.maxLean ?? 0.6);
+    (this.slipLog ??= []).push({ id: r.id, v: Math.round(s.v * 36) / 10, steer: Math.round((s.steer ?? 0) * 100) / 100, fall, helmet: Boolean(r.helmet), t: Math.round(this.clock * 10) / 10 });
+    const d = Math.hypot(s.x - this.g.pos.x, s.z - this.g.pos.z);
+    if (d < 60) rattle(this._audio(), { gain: r.me ? 0.7 : Math.max(0.1, 0.5 * (1 - d / 60)), pan: r.me ? 0 : this._panOf(s.x, s.z), dur: 0.55, n: 22 });
+    if (fall) {
+      this._crash(r, 'marbles');
+      if (r.mode === 'ride') this.fx?.pop('SLIP!', { x: s.x, y: r.y + 2.2, z: s.z, ride: s }, { color: '#7ad8ff', size: r.me ? 1 : 0.8 });
+    } else {
+      this.fx?.pop(r.me ? 'WOBBLE!' : 'SLIP!', { x: s.x, y: r.y + 2.2, z: s.z, ride: s }, { color: '#7ad8ff', size: r.me ? 0.9 : 0.7 });
+      if (r.me) this.shake = Math.max(this.shake ?? 0, 0.12);
     }
   }
 
@@ -2415,6 +2681,23 @@ export class Race {
       }
     }
     for (const o of this._props(s.x, s.z, 20) ?? []) consider(o.x, o.z, o.r);
+    // Marbles in the road: seen (the sharper bots see more of them) — steered round, and if there is
+    // no way round, crossed slowly and straight.
+    let marblesAhead = Infinity;
+    for (const p of this.patches ?? []) {
+      if (p.owner === r.id && this.clock - p.born < 2) continue;
+      const seen = (r.seenMarbles ??= {});
+      seen[p.mid] ??= Math.random() < 0.45 + ((r.skill ?? 0.9) - 0.86) * 3;
+      if (!seen[p.mid]) continue;
+      const dx = p.x - s.x;
+      const dz = p.z - s.z;
+      const along = dx * fx + dz * fz;
+      if (along < -p.r || along > R) continue;
+      const side = Math.abs(dx * -fz + dz * fx);
+      if (side > p.r + 1.2) continue;
+      consider(p.x, p.z, p.r * 0.8);
+      marblesAhead = Math.min(marblesAhead, Math.max(0, along - p.r));
+    }
     // The walls (walls.js): feelers out ahead and to each side — one near on a side steers it away, one
     // straight ahead is a stop to brake for.
     let wallAhead = Infinity;
@@ -2473,6 +2756,13 @@ export class Race {
     if (personAhead < R) target = Math.min(target, Math.max(2, Math.sqrt(2 * decel * Math.max(0, personAhead - 3))));
     // A wall straight ahead (a corner come too wide, a dead end of the map): brake for it in time.
     if (wallAhead < Infinity) target = Math.min(target, Math.max(3, Math.sqrt(2 * decel * Math.max(0, wallAhead - 2.5))));
+    // marbles it can't steer round: down to a safe speed before them, and straight across
+    const slow = MARBLE.steerV * 0.92;
+    if (marblesAhead < Infinity && Math.abs(push) < 0.9) target = Math.min(target, Math.sqrt(slow * slow + 2 * decel * marblesAhead));
+    if (r.slip > 0 || marblesAhead < 3) {
+      target = Math.min(target, slow);
+      steer = Math.max(-0.35, Math.min(0.35, steer));
+    }
     // Down a golmok barely wider than the bars: steady, the walls an arm's length off.
     const pinch = Math.min(P(0)?.[2] ?? 8, P(3)?.[2] ?? 8);
     if (pinch < 4.4) target = Math.min(target, 12.5 + 3 * (r.skill - 0.88) * 10);
@@ -2482,7 +2772,17 @@ export class Race {
     if (r.stuck > 2.5 || r.off > 30) this._remount(r);
     const has = (id) => r.items.indexOf(id);
     if (has('helmet') >= 0 && !r.helmet) this._use(r, has('helmet'));
-    if (has('drink') >= 0 && s.stamina < 0.25) this._use(r, has('drink'));
+    // the drink: on a straight with open road, not already boosting (it is three seconds of boost)
+    if (has('drink') >= 0 && straight && block > 50 && v > 12 && !s.boosting && r.tailwind <= 0 && !(r.slip > 0)) this._use(r, has('drink'));
+    if (has('marbles') >= 0) {
+      // poured when someone is right behind (or after holding them a while)
+      r.heldMarbles = (r.heldMarbles ?? 0) + dt;
+      const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 2 && r.dist - o.dist < 18);
+      if (close || r.heldMarbles > 22) {
+        r.heldMarbles = 0;
+        this._use(r, has('marbles'));
+      }
+    }
     if (has('horn') >= 0 && block < 30) this._use(r, has('horn'));
     if (has('tailwind') >= 0 && straight && block > 40 && v > 14) this._use(r, has('tailwind'));
     if (has('branch') >= 0 && !r.pendingBranch) {
@@ -2541,7 +2841,7 @@ export class Race {
     if (this.sent < SEND_EVERY) return;
     this.sent = 0;
     const r2 = (v) => Math.round(v * 100) / 100;
-    const flags = (r) => (r.s.boosting ? 1 : 0) | (r.s.throttle ? 2 : 0) | (r.s.braking ? 4 : 0) | (r.helmet ? 8 : 0) | (r.tailwind > 0 ? 16 : 0);
+    const flags = (r) => (r.s.boosting ? 1 : 0) | (r.s.throttle ? 2 : 0) | (r.s.braking ? 4 : 0) | (r.helmet ? 8 : 0) | (r.tailwind > 0 ? 16 : 0) | (r.drinkT > 0 ? 32 : 0) | (r.slip > 0.3 ? 64 : 0);
     s.send({ t: 'race-bikes', bikes: this.racers.filter((r) => r.mine && !r.left).map((r) => [r.id, r2(r.s.x), r2(r.s.z), r2(r.s.heading), r2(r.s.v), r2(r.s.lean), r2(r.y), r2(r.dist), r.done ?? -1, r.best ?? -1, r2(r.s.roll), flags(r), r.mode, r.crashes, r.misses]) });
   }
 
@@ -2573,10 +2873,20 @@ export class Race {
     this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.ch.name)} <small>${esc(r.name)}${r.bot ? ' · bot' : ''}</small><span>${r.done != null ? clock(r.done) : `${Math.max(0, Math.round((L - r.dist) / 10) * 10)} m`}</span></p>`).join('');
     const kmh = Math.round(Math.abs(me.s.v) * 3.6);
     const st = me.s.stamina;
-    const state = me.mode !== 'ride' ? 'OUCH' : (me.s.drift ?? 0) > 0.3 ? 'DRIFT' : me.tailwind > 0 ? 'TAILWIND' : me.s.boosting ? 'BOOST' : me.s.tired > 0 ? 'CHARGING…' : me.draft > 0.2 ? 'SLIPSTREAM' : st >= 0.99 ? 'F · BOOST' : '';
-    this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost${st >= 0.99 ? ' is-full' : ''}${me.s.tired > 0 ? ' is-tired' : ''}"><i style="width:${Math.round(st * 100)}%"></i></div><span>${state}</span>${me.helmet ? '<em class="race__shield">golden helmet on</em>' : ''}`;
+    const state = me.mode !== 'ride' ? 'OUCH' : me.slip > 0.2 ? 'SLIPPING!' : me.drinkT > 0 ? 'DRINK BOOST' : (me.s.drift ?? 0) > 0.3 ? 'DRIFT' : me.tailwind > 0 ? 'TAILWIND' : me.s.boosting ? 'BOOST' : me.s.tired > 0 ? 'CHARGING…' : me.draft > 0.2 ? 'SLIPSTREAM' : st >= 0.99 ? 'F · BOOST' : '';
+    this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost${st >= 0.99 ? ' is-full' : ''}${me.s.tired > 0 ? ' is-tired' : ''}${me.fill ? ' is-filling' : ''}"><i style="width:${Math.round(st * 100)}%"></i></div><span>${state}</span>`;
+    this.speedEl.classList.toggle('is-drink', me.drinkT > 0);
+    // The golden helmet's badge: on, and protecting you — or, the moment it saves you, BLOCKED!
+    this._helmetBlocked = Math.max(0, (this._helmetBlocked ?? 0) - (this._hudDt ?? 0.016));
+    const hk = me.helmet ? 'on' : this._helmetBlocked > 0 ? 'blocked' : '';
+    if (hk !== this._helmetKey) {
+      this._helmetKey = hk;
+      this.helmetEl.hidden = !hk;
+      this.helmetEl.className = `race__helmet${hk === 'blocked' ? ' is-blocked' : ''}`;
+      if (hk) this.helmetEl.innerHTML = `<img src="${itemIcon('helmet')}" alt="" /><b>${hk === 'on' ? 'GOLD HELMET' : 'BLOCKED!'}</b><small>${hk === 'on' ? 'protected · takes the next fall' : 'the helmet took it'}</small>`;
+    }
     // Speed lines round the edge of the screen: from about 55 km/h, stronger flat out and on a boost.
-    const lines = me.mode === 'ride' ? Math.min(1, (this.feel ?? 0) * 0.75 + (me.s.boosting || me.tailwind > 0 ? 0.35 : 0)) : 0;
+    const lines = me.mode === 'ride' ? Math.min(1, (this.feel ?? 0) * 0.75 + (me.s.boosting || me.tailwind > 0 || me.drinkT > 0 ? 0.35 : 0) + (me.drinkT > 0 ? 0.25 : 0)) : 0;
     this.linesEl.hidden = lines < 0.12;
     if (!this.linesEl.hidden) this.linesEl.style.opacity = lines.toFixed(2);
     if (me.wrong && this.phase === 'racing') this._flash('WRONG WAY', 0.4);
@@ -2594,7 +2904,12 @@ export class Race {
     }
     this._warn(me);
     this._scHint(me);
-    this._minimap();
+    // the map: about twelve times a second
+    const now = performance.now();
+    if (now - (this.minimapT ?? 0) > 80) {
+      this.minimap.draw(this, Math.min(0.3, (now - (this.minimapT || now)) / 1000) || 1 / 12);
+      this.minimapT = now;
+    }
   }
 
   /** A short cut coming up on the course: which side, how far, and what it saves; in it, a badge. */
@@ -2639,128 +2954,6 @@ export class Race {
       // it is on the right: go left (and the other way)
       this.warnEl.innerHTML = `<b>⚠</b><span>${name} · ${hit.side > 0 ? '⬅ KEEP LEFT' : 'KEEP RIGHT ➡'}</span><small>${Math.round(hit.along / 10) * 10} m</small>`;
     }
-  }
-
-  /** The map in the top left: the streets, the course ahead, traffic, item boxes, everyone; the way you face is up. */
-  _minimap() {
-    const cv = this.mapEl;
-    const g = cv.getContext('2d');
-    const W = cv.width;
-    const R = W / 2;
-    const me = this.me;
-    const scale = 1.3; // pixels a metre: about 170 m to the edge
-    g.clearRect(0, 0, W, W);
-    g.save();
-    g.beginPath();
-    g.arc(R, R, R - 4, 0, Math.PI * 2);
-    g.clip();
-    g.fillStyle = 'rgba(20, 18, 34, 0.84)';
-    g.fillRect(0, 0, W, W);
-    g.translate(R, R * 1.2);
-    g.rotate(me.s.heading);
-    g.scale(scale, scale);
-    g.translate(-me.s.x, -me.s.z);
-    g.strokeStyle = 'rgba(160, 170, 195, 0.5)';
-    g.lineCap = 'round';
-    g.lineJoin = 'round';
-    const reach = 240;
-    const cell = 40;
-    const seen = new Set();
-    for (let i = Math.floor((me.s.x - reach) / cell); i <= Math.floor((me.s.x + reach) / cell); i++) {
-      for (let j = Math.floor((me.s.z - reach) / cell); j <= Math.floor((me.s.z + reach) / cell); j++) {
-        for (const s of this.g.roadHash?.get(`${i}_${j}`) ?? []) {
-          if (seen.has(s)) continue;
-          seen.add(s);
-          g.lineWidth = Math.max(2.5, s.half * 1.6);
-          g.beginPath();
-          g.moveTo(s.ax, s.az);
-          g.lineTo(s.bx, s.bz);
-          g.stroke();
-        }
-      }
-    }
-    const pts = this.course.points;
-    const n = pts.length;
-    g.strokeStyle = 'rgba(255, 210, 58, 0.35)';
-    g.lineWidth = 7;
-    g.beginPath();
-    pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
-    g.closePath();
-    g.stroke();
-    // The short cuts: dotted, off the course.
-    g.save();
-    g.setLineDash([7, 7]);
-    g.lineCap = 'butt';
-    for (const p of this.paths ?? []) {
-      const on = me.sc === p.k;
-      g.strokeStyle = on ? '#7ff0ff' : 'rgba(127, 240, 255, 0.9)';
-      g.lineWidth = on ? 9 : 6;
-      g.beginPath();
-      p.sc.points.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])));
-      g.stroke();
-    }
-    g.restore();
-    g.strokeStyle = '#ffd23a';
-    g.lineWidth = 10;
-    g.beginPath();
-    if (me.sc != null && this.paths?.[me.sc]) {
-      const p = this.paths[me.sc];
-      for (let k = 0; k < 40; k++) {
-        const q = p.points[Math.min(p.points.length - 1, me.si + k)];
-        if (k) g.lineTo(q[0], q[1]);
-        else g.moveTo(q[0], q[1]);
-      }
-    } else for (let k = 0; k < 40; k++) {
-      const p = pts[(me.idx + k) % n];
-      if (k) g.lineTo(p[0], p[1]);
-      else g.moveTo(p[0], p[1]);
-    }
-    g.stroke();
-    g.fillStyle = '#ffffff';
-    g.beginPath();
-    g.arc(pts[0][0], pts[0][1], 6, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = '#ff7aa8';
-    for (const b of this.boxes?.live() ?? []) {
-      g.beginPath();
-      g.arc(b.x, b.z, 3.5, 0, Math.PI * 2);
-      g.fill();
-    }
-    for (const v of this.traffic?.vehicles ?? []) {
-      g.save();
-      g.translate(v.box.x, v.box.z);
-      g.rotate(-v.box.heading);
-      g.fillStyle = v.kind === 'bus' ? '#7fd1ff' : v.kind === 'scooter' ? '#ffb02e' : '#e8e8ee';
-      g.fillRect(-v.box.halfWidth, -v.box.halfLength, v.box.halfWidth * 2, v.box.halfLength * 2);
-      g.restore();
-    }
-    for (const r of this.racers) {
-      if (r === me || r.left) continue;
-      g.fillStyle = r.color;
-      g.strokeStyle = '#fff';
-      g.lineWidth = 2.5;
-      g.beginPath();
-      g.arc(r.s.x, r.s.z, 6, 0, Math.PI * 2);
-      g.fill();
-      g.stroke();
-    }
-    g.restore();
-    g.fillStyle = '#ffd23a';
-    g.strokeStyle = '#1a1222';
-    g.lineWidth = 3;
-    g.beginPath();
-    g.moveTo(R, R * 1.2 - 15);
-    g.lineTo(R + 10, R * 1.2 + 11);
-    g.lineTo(R, R * 1.2 + 5);
-    g.lineTo(R - 10, R * 1.2 + 11);
-    g.closePath();
-    g.fill();
-    g.stroke();
-    g.strokeStyle = 'rgba(255,255,255,0.8)';
-    g.lineWidth = 6;
-    g.beginPath();
-    g.arc(R, R, R - 4, 0, Math.PI * 2);
-    g.stroke();
   }
 
   _results() {
@@ -2913,8 +3106,13 @@ export class Race {
     camera.lookAt(focus);
     // The FOV opens with speed (58° standing, about 71° flat out) and kicks wider on a boost.
     const v = Math.abs(r.s.v);
-    const fov = 58 + 13 * Math.min(1, Math.max(0, (v - 4) / 16)) + (r.s.boosting || r.tailwind > 0 ? 6 : 0);
+    const fov = 58 + 13 * Math.min(1, Math.max(0, (v - 4) / 16)) + (r.s.boosting || r.tailwind > 0 || r.drinkT > 0 ? 6 : 0) + (r.drinkT > 0 ? 3 : 0);
     camera.fov += (fov - camera.fov) * 0.08;
+    // the gulp: a quick kick of the FOV as the drink's boost goes in
+    if (this._drinkKick > 0) {
+      camera.fov += this._drinkKick * 0.9;
+      this._drinkKick = Math.max(0, this._drinkKick - 1 / 20);
+    }
     camera.updateProjectionMatrix();
   }
 
@@ -3050,6 +3248,55 @@ export class Race {
     src.stop(a.currentTime + 0.5 * k);
   }
 
+  /** A can opened and drunk: the ring pull's crack and hiss, then two quick gulps. */
+  _gulp(k = 1) {
+    const a = this._audio();
+    if (!a) return;
+    this._whoosh(0.001);
+    const t = a.currentTime;
+    // crack: a short bright snap of noise
+    const crack = a.createBufferSource();
+    crack.buffer = this._nbuf;
+    const hp = a.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2500;
+    const cg = a.createGain();
+    cg.gain.setValueAtTime(0.35 * k, t);
+    cg.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    crack.connect(hp).connect(cg).connect(a.destination);
+    crack.start(t);
+    crack.stop(t + 0.06);
+    // the fizz
+    const fizz = a.createBufferSource();
+    fizz.buffer = this._nbuf;
+    const bp = a.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 6000;
+    bp.Q.value = 0.8;
+    const fg = a.createGain();
+    fg.gain.setValueAtTime(0.0001, t + 0.03);
+    fg.gain.exponentialRampToValueAtTime(0.08 * k, t + 0.06);
+    fg.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    fizz.connect(bp).connect(fg).connect(a.destination);
+    fizz.start(t + 0.03);
+    fizz.stop(t + 0.5);
+    // gulp, gulp: low thumps falling in pitch
+    for (const at of [0.28, 0.5]) {
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(260, t + at);
+      o.frequency.exponentialRampToValueAtTime(110, t + at + 0.12);
+      g.gain.setValueAtTime(0.0001, t + at);
+      g.gain.exponentialRampToValueAtTime(0.3 * k, t + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + at + 0.16);
+      o.connect(g).connect(a.destination);
+      o.start(t + at);
+      o.stop(t + at + 0.18);
+    }
+    this.gulps = (this.gulps ?? 0) + 1;
+  }
+
   _clang() {
     this._ding(660, 1);
     this.g.street?._thud?.(0.5);
@@ -3126,9 +3373,14 @@ export class Race {
     }
     this.racers = [];
     for (const b of [...(this.branches ?? [])]) this._dropBranch(b);
+    this.patches = [];
+    for (const t of this.trails?.values() ?? []) t.dispose();
+    this.trails = new Map();
+    this.panel?.hide();
+    this._helmetKey = null;
     for (const f of this.fans ?? []) f.remove();
     this.fans = [];
-    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'wet', 'speedFx']) {
+    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'wet', 'speedFx', 'marbleField', 'helmetDrops']) {
       this[k]?.dispose();
       this[k] = null;
     }
@@ -3186,6 +3438,8 @@ export class Race {
     this.quit();
     this.stage?.dispose();
     this.stage = null;
-    for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.countEl, this.msgEl, this.linesEl, this.resultEl, this.pauseEl, this.hintEl, this.warnEl]) n.remove();
+    for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.countEl, this.msgEl, this.linesEl, this.resultEl, this.pauseEl, this.hintEl, this.warnEl, this.helmetEl]) n.remove();
+    this.panel?.dispose();
+    this.panel = null;
   }
 }

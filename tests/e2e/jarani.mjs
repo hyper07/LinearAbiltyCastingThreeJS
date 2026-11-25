@@ -8,7 +8,9 @@ import { boot, tally, until } from './lib.mjs';
  * Shift, riders never inside a building (ridden into one at full speed they
  * scrape or come off), a golmok short cut taken and counted, the alley
  * mouths joined to their roads, a branch
- * thrown into a rival's wheel, a crash and back on, only real people (with
+ * thrown into a rival's wheel, the energy drink's boost, the golden helmet
+ * worn and knocked off, marbles that throw a rival off, the rival panel,
+ * a crash and back on, only real people (with
  * faces) on the street, How to play on H — pause on Esc, the credits from
  * the pause screen, and leave. Without Seoul's map
  * converted on this server (data/geo/seoul) there is nothing to race on:
@@ -56,12 +58,20 @@ export async function run(browser) {
     await page.keyboard.press('Enter');
     await page.keyboard.press('Enter');
     t.check('the course step: a map of Seoul with a pin for each of the eight courses', await until(page, () => window.seoul.race.lobby.step === 'course' && document.querySelectorAll('[data-pin]').length === 8 && document.querySelectorAll('[data-course]').length === 8, null, 3000));
+    t.check('…a real map: drawn from the city\'s own land and roads, in tiles', await until(page, () => (window.seoul.race.lobby.map?.drawnTiles ?? 0) > 4 && window.seoul.race.lobby.map.data?.roads.length > 1000 && document.querySelector('.cm canvas').width > 300, null, 15000), await page.evaluate(() => JSON.stringify({ tiles: window.seoul.race.lobby.map?.drawnTiles, roads: window.seoul.race.lobby.map?.data?.roads.length })));
     const course = 'hongdae';
     t.check('each course is planned on the real streets: its length, wide roads, sharp turns (and a golmok short cut)', await until(page, (id) => /km · \d+% wide roads · \d+ sharp turns? · \d short cut/.test(document.querySelector(`[data-len="${id}"]`)?.textContent ?? ''), course, 90000), await page.evaluate((id) => document.querySelector(`[data-len="${id}"]`)?.textContent, course));
     await page.hover('[data-pin="yeouido"]');
     t.check('hovering a pin previews that course: its card, its shape and its numbers', await until(page, () => /Yeouido/.test(document.querySelector('[data-course-card] h2')?.textContent ?? '') && document.querySelector('[data-course-card]').classList.contains('is-preview'), null, 3000));
     await page.click(`[data-pin="${course}"]`);
     t.check('clicking a pin picks it', await until(page, (id) => window.seoul.race.courseId === id && document.querySelector(`[data-pin="${id}"]`).classList.contains('is-on'), course, 3000));
+    t.check('…and the map flies to it, close enough to see its streets', await until(page, (id) => {
+      const m = window.seoul.race.lobby.map;
+      return m.focusId === id && !m.anim && m.view.s > 0.12;
+    }, course, 5000), await page.evaluate(() => JSON.stringify(window.seoul.race.lobby.map.view)));
+    const zoom0 = await page.evaluate(() => window.seoul.race.lobby.map.view.s);
+    await page.click('.cm [data-cm-zoom="1"]');
+    t.check('+ zooms the map in', await page.evaluate((s) => window.seoul.race.lobby.map.view.s > s * 1.5, zoom0));
     await page.waitForTimeout(500);
     await shot('course');
     await page.click('[data-course-card] [data-next]');
@@ -286,8 +296,120 @@ export async function run(browser) {
       window.seoul.race.me.safe = 5;
       window.seoul.race.me.s.stamina = 0.1;
     });
+    await page.evaluate(() => (window.seoul.race.me.s.v = 19.4));
     await page.keyboard.press('Digit1');
-    t.check('1 uses it: the battery pack fills the boost gauge', await until(page, () => window.seoul.race.me.s.stamina > 0.95 && window.seoul.race.me.items[0] === null, null, 3000));
+    t.check('1 uses it: the energy drink — a gulp, the gauge filled up again', await until(page, () => window.seoul.race.me.s.stamina > 0.95 && window.seoul.race.me.items[0] === null && (window.seoul.race.gulps ?? 0) > 0, null, 3000));
+    t.check('…and a boost at once, no F needed: faster than the motor\'s 70 km/h', await until(page, () => window.seoul.race.me.drinkT > 0 && window.seoul.race.me.s.v * 3.6 > 76, null, 2500), await page.evaluate(() => `${Math.round(window.seoul.race.me.s.v * 3.6)} km/h`));
+    // The golden helmet: worn where everyone sees it, and knocked off when it saves you.
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.me.items = ['helmet', null, null];
+      r._renderItems();
+    });
+    await page.keyboard.press('Digit1');
+    t.check('the golden helmet: on your rider\'s head, a shimmer round you, a badge on the HUD', await until(page, () => {
+      const r = window.seoul.race;
+      const v = r.me.view;
+      return r.me.helmet && v.helmet?.visible && v.helmet.parent === v.bones.get('head') && v.shield?.visible && !document.querySelector('.race__helmet').hidden;
+    }, null, 3000));
+    const saves = await page.evaluate(() => window.seoul.race.saves ?? 0);
+    await page.evaluate(() => window.seoul.race._crash(window.seoul.race.me, 'car'));
+    t.check('…a crash bounces off it: still riding, BLOCKED!, the helmet flies off', await until(page, (n) => {
+      const r = window.seoul.race;
+      return r.me.mode === 'ride' && !r.me.helmet && (r.saves ?? 0) > n && !r.me.view.helmet.visible && r.helmetDrops.live.length > 0 && /BLOCKED/.test(document.querySelector('.race__helmet').textContent);
+    }, saves, 2000));
+    // Marbles: poured behind you, they throw a rival who rides over them fast.
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    const pour = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      r.autopilot = true;
+      me.items = ['marbles', null, null];
+      me.s.v = 16;
+      r._renderItems();
+      r.slipLog = [];
+      return r.poured ?? 0;
+    });
+    await page.keyboard.press('Digit1');
+    t.check('marbles: 1 pours them out behind you, glass marbles rolling in the road', await until(page, (n) => {
+      const r = window.seoul.race;
+      const p = r.patches?.at(-1);
+      return (r.poured ?? 0) > n && p && p.marbles.filter((m) => m.live).length > 30 && r.marbleField.mesh.count > 30;
+    }, pour, 3000));
+    await page.waitForTimeout(1200);
+    const rival = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const p = r.patches.at(-1);
+      const c = r.course;
+      const n = c.points.length;
+      // the marble nearest the middle of the patch, and the course a little way back from it
+      let bi = 0;
+      let bd = Infinity;
+      c.points.forEach((q, i) => {
+        const d = Math.hypot(q[0] - p.x, q[1] - p.z);
+        if (d < bd) [bd, bi] = [d, i];
+      });
+      const m = p.marbles.filter((q) => q.live).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+      const a = c.points[(bi - 1 + n) % n];
+      const b = c.points[bi];
+      const hd = Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
+      const bot = r.racers.find((x) => x.bot && x.mode === 'ride');
+      // 14 m short of that marble, riding straight at it at 65 km/h, not having seen them
+      Object.assign(bot.s, { x: m.x + Math.sin(hd) * 14, z: m.z + Math.cos(hd) * 14, heading: hd, travel: hd, v: 18, lean: 0, steer: 0 });
+      Object.assign(bot, { idx: bi, sc: null, helmet: false, safe: 0, slip: 0, onMarbles: 0, seenMarbles: { [p.mid]: false } });
+      r._victim = bot.id;
+      r._victimCrashes = bot.crashes;
+      return bot.id;
+    });
+    t.check('…a rival who hits them fast slips and falls (WHOA!)', await until(page, (id) => {
+      const r = window.seoul.race;
+      const bot = r.racers.find((x) => x.id === id);
+      return (r.slipLog ?? []).some((s) => s.id === id && s.fall) && bot.crashes > r._victimCrashes && bot.crashKinds?.marbles > 0;
+    }, rival, 4000), await page.evaluate(() => JSON.stringify(window.seoul.race.slipLog)));
+    t.check('…and the marbles stay in the street they were poured in', await page.evaluate(() => {
+      const r = window.seoul.race;
+      return r.patches.every((p) => p.marbles.every((m) => !m.live || !r.course.walls?.inside(m.x, m.z)));
+    }));
+    // The rival panel: a rider close behind you slides in a picture of them; gone a moment after they go.
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.autopilot = true;
+      const me = r.me;
+      const bot = r.racers.find((x) => x.bot && x.mode === 'ride' && x.id !== r._victim) ?? r.racers.find((x) => x.bot);
+      r._chaser = bot.id;
+      // held a few metres behind you for a moment
+      clearInterval(r._chaseT);
+      r._chaseT = setInterval(() => {
+        const h = me.s.travel ?? me.s.heading;
+        Object.assign(bot.s, { x: me.s.x + Math.sin(h) * 6 + Math.cos(h) * 1.2, z: me.s.z + Math.cos(h) * 6 - Math.sin(h) * 1.2, heading: me.s.heading, travel: h, v: me.s.v });
+        bot.mode = 'ride';
+      }, 16);
+    });
+    t.check('the rival panel: a rider close behind you — a square slides in with a picture of them', await until(page, () => {
+      const p = window.seoul.race.panel;
+      return p.on && p.el.classList.contains('is-on') && p.el.classList.contains('has-pic') && p.snaps > 0;
+    }, null, 4000));
+    t.check('…a still, not a live view: no text in it, and at most about one picture a second', await page.evaluate(async () => {
+      const p = window.seoul.race.panel;
+      const n = p.snaps;
+      await new Promise((ok) => setTimeout(ok, 1500));
+      return p.el.textContent.trim() === '' && p.snaps - n <= 2;
+    }));
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      clearInterval(r._chaseT);
+      // everyone else far back down the course
+      const c = r.course;
+      r.racers.filter((x) => !x.me).forEach((bot, k) => {
+        const i = (r.me.idx - 60 - k * 5 + c.points.length) % c.points.length;
+        Object.assign(bot.s, { x: c.points[i][0], z: c.points[i][1], v: 0 });
+        Object.assign(bot, { idx: i, sc: null });
+      });
+    });
+    t.check('…and slides away a moment after they have gone', await until(page, () => !window.seoul.race.panel.on && !window.seoul.race.panel.el.classList.contains('is-on'), null, 4000));
+    await page.evaluate(() => (window.seoul.race.autopilot = false));
     // A crash: off the bike, and back on.
     await page.evaluate(() => window.seoul.race._crash(window.seoul.race.me, 'car'));
     t.check('a crash throws you off the scooter', await page.evaluate(() => window.seoul.race.me.mode === 'tumble'));

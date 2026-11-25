@@ -4,6 +4,7 @@ import { SPECIES } from '../snowpuff/riders.js';
 import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial } from './plush.js';
 import { Scooter } from './scooter.js';
 import { blobTexture } from './items.js';
+import { goldHelmet, shield } from './helmet.js';
 
 /**
  * Kickrani's riders: Snowpuff Peaks' plush animals, come to Seoul on
@@ -392,6 +393,7 @@ export class PlushRider {
     }
     this.bones = byName;
     this.rest = world;
+    this.recipe = recipe;
     this.material = plushMaterial({ color: sp.color });
     const mesh = new THREE.SkinnedMesh(geometry, this.material);
     mesh.add(bones[0]);
@@ -568,6 +570,7 @@ export class PlushRider {
       hat.add(dome, rim, pom);
       headB.add(hat);
       this.extras.pom = pom;
+      this.extras.hat = hat;
     } else if (kind === 'backpack') {
       const m = vinylMaterial(sp.accent, { roughness: 0.45, clearcoat: 0.5 });
       const pack = new THREE.Group();
@@ -585,6 +588,56 @@ export class PlushRider {
       chestB.add(pack);
       this.extras.pack = pack;
     }
+  }
+
+  /**
+   * The golden helmet on or off: a gold helmet fitted to this head (its ellipsoid in the recipe —
+   * ears poke out of it), a bobble hat taken off under it, and a shimmer of gold round rider and
+   * scooter while it is on (eased in and out by pose).
+   */
+  setHelmet(on) {
+    on = Boolean(on);
+    if (on && !this.helmet) {
+      const part = this.recipe.parts.find((p) => p.bone === 'head' && p.s === 'ell') ?? { c: [0, 0.67, 0], r: [0.34, 0.29, 0.3] };
+      this.helmet = goldHelmet(part, this.rest.get('head'), this.furLen);
+      this.bones.get('head').add(this.helmet);
+      this.shield = shield();
+      this.root.add(this.shield);
+      // (a rival already fading by the camera fades its helmet too)
+      if (this._mats) {
+        this.helmet.traverse((o) => {
+          if (!o.material || this._mats.some((e) => e.m === o.material)) return;
+          o.material.alphaHash = true;
+          o.material.needsUpdate = true;
+          this._mats.push({ m: o.material, opacity: o.material.opacity });
+          o.material.opacity *= this._fade ?? 1;
+        });
+      }
+    }
+    this.helmetOn = on;
+    if (this.helmet) this.helmet.visible = on;
+    if (this.extras.hat) this.extras.hat.visible = !on;
+  }
+
+  /** A gulp from a can of energy drink: the paw up to the mouth with a can in it, the head back. */
+  drink() {
+    if (!this.can) {
+      const can = new THREE.Group();
+      const body = new THREE.Mesh(G.can ??= new THREE.CylinderGeometry(0.034, 0.034, 0.105, 16), vinylMaterial('#3fb68b', { roughness: 0.25, clearcoat: 1 }));
+      const band = new THREE.Mesh(G.canBand ??= new THREE.CylinderGeometry(0.0345, 0.0345, 0.04, 16), vinylMaterial('#f8f6ef', { roughness: 0.4, clearcoat: 0.6 }));
+      const top = new THREE.Mesh(G.canTop ??= new THREE.CylinderGeometry(0.03, 0.034, 0.012, 16), vinylMaterial('#c9ccd1', { roughness: 0.25, clearcoat: 1 }));
+      top.position.y = 0.058;
+      can.add(body, band, top);
+      const arm = this.bones.get('armR');
+      const ap = this.rest.get('armR');
+      // in the right paw (the recipe's paw for armR is the mirror of armL's: x +0.3)
+      can.position.set(0.3 - ap.x, 0.27 - ap.y, 0.1 - ap.z);
+      can.rotation.z = 0.5;
+      arm.add(can);
+      this.can = can;
+    }
+    this.can.visible = true;
+    this._drink = { t: 0, dur: 0.75 };
   }
 
   /** Fur level of detail from the camera distance (m). */
@@ -737,6 +790,22 @@ export class PlushRider {
       B.get('armR').rotation.set(0, -reach * (1 - back) + 0.7 * back - 1.1 * whip, raise * (1 - back) + 2.7 * back - 0.6 * whip);
       chest.rotation.y += 0.35 * back - 0.5 * whip;
     }
+    // A gulp of energy drink: the right paw up to the mouth with the can, the head tipped back.
+    const dr = this._drink;
+    if (dr) {
+      dr.t += dt;
+      const u = Math.min(1, dr.t / dr.dur);
+      const env = Math.sin(u * Math.PI);
+      if (!down) {
+        B.get('armR').rotation.set(0.35 * env, -reach * (1 - env) - 1.55 * env, raise * (1 - env) + 2.35 * env);
+        headB.rotation.x -= 0.42 * env;
+        if (this.can) this.can.rotation.z = 0.5 + 1.1 * env;
+      }
+      if (u >= 1) {
+        this._drink = null;
+        if (this.can) this.can.visible = false;
+      }
+    }
     // legs: bent, the front one forward
     B.get('legL').rotation.set(-0.25 - crouch * 0.15, 0, 0.04);
     B.get('legR').rotation.set(0.12 - crouch * 0.1, 0, -0.04);
@@ -838,6 +907,12 @@ export class PlushRider {
     this.material.userData.u.uRimK.value = rimK;
     if (this.fur) this.fur.userData.u.uRimK.value = 1 - night * 0.8;
     const flash = st.glow ? 0.18 + Math.sin(t * 8) * 0.06 : 0;
+    if (this.shield) {
+      this._shieldK = (this._shieldK ?? 0) + ((this.helmetOn && (this._fade ?? 1) > 0.5 ? 1 : 0) - (this._shieldK ?? 0)) * Math.min(1, dt * 5);
+      this.shield.userData.set(this._shieldK);
+      this.shield.userData.update(t);
+      this.shield.position.y = 0.92 + (this.squash.position.y ?? 0);
+    }
     this.material.userData.u.uFlash.value = flash;
     if (this.fur) this.fur.userData.u.uFlash.value = flash;
     // ---- blink

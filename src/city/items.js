@@ -10,26 +10,29 @@ import { laneBand } from './pack.js';
  * fill an empty slot, and use it with 1, 2 or 3.
  * What you get depends on where you are: the further back, the better.
  *
- *   battery pack — the boost gauge full again
+ *   energy drink — a gulp: three seconds of boost at once, and the gauge full again
  *   air horn     — people and scooters ahead clear out, cars stop
- *   gold helmet  — the next crash doesn't knock you off
+ *   gold helmet  — worn where everyone sees it: the next crash bounces off
  *   tailwind     — five seconds of free, faster boosting
  *   branch       — a leafy branch: thrown into the wheel of the rider ahead,
  *                  or dropped behind you as a trap (branch.js)
+ *   marbles      — a spray of glass marbles poured behind you: whoever rides
+ *                  over them slips, and too fast or steering hard, falls (marbles.js)
  */
 export const ITEMS = {
-  drink: { name: 'Battery pack', ko: '보조 배터리', text: 'Your boost gauge, full again.', pop: 'CHARGE!', color: '#9ef07a' },
+  drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Gulp! Three seconds of boost at once, and your boost gauge full again.', pop: 'DRINK!', color: '#9ef07a' },
   horn: { name: 'Air horn', ko: '에어혼', text: 'BWAAMP: people and scooters ahead clear out, cars stop.', pop: 'HORN!', color: '#ff7aa8' },
-  helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'The next crash bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
+  helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'On your head for all to see: the next crash (or a branch, or a fall on marbles) bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
   tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster boosting.', pop: 'WIND!', color: '#8fd8ff' },
-  branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider ahead (they go over the bars), or dropped behind you as a trap.', pop: 'BRANCH!', color: '#8bd450' }
+  branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider ahead (they go over the bars), or dropped behind you as a trap.', pop: 'BRANCH!', color: '#8bd450' },
+  marbles: { name: 'Marbles', ko: '구슬', text: 'Pour a spray of glass marbles behind you: riders who cross them slip — too fast, or steering hard, and they fall.', pop: 'MARBLES!', color: '#7ad8ff' }
 };
-export const ITEM_ORDER = ['drink', 'horn', 'helmet', 'tailwind', 'branch'];
+export const ITEM_ORDER = ['drink', 'horn', 'helmet', 'tailwind', 'branch', 'marbles'];
 
-/** Odds by place: [leader … last]. The further back, the more tailwinds and branches. */
+/** Odds by place: [leader … last]. The further back, the more tailwinds, branches and marbles. */
 const ODDS = {
-  first: { drink: 0.36, helmet: 0.28, horn: 0.18, tailwind: 0.08, branch: 0.1 },
-  last: { drink: 0.14, helmet: 0.1, horn: 0.16, tailwind: 0.3, branch: 0.3 }
+  first: { drink: 0.32, helmet: 0.26, horn: 0.18, tailwind: 0.08, branch: 0.1, marbles: 0.06 },
+  last: { drink: 0.13, helmet: 0.08, horn: 0.12, tailwind: 0.26, branch: 0.23, marbles: 0.18 }
 };
 /** The odds of an item for a racer in `rank` of `n` (for the tests and the menu). */
 export function itemOdds(rank, n) {
@@ -128,7 +131,7 @@ function paintIcon(g, id) {
   g.arc(48, 48, 42, 0, Math.PI * 2);
   g.fill();
   g.restore();
-  g.fillStyle = { drink: '#e6f8d8', horn: '#ffe2ec', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0' }[id] ?? '#eee';
+  g.fillStyle = { drink: '#e6f8d8', horn: '#ffe2ec', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0', marbles: '#e4f2ff' }[id] ?? '#eee';
   g.beginPath();
   g.arc(48, 48, 37, 0, Math.PI * 2);
   g.fill();
@@ -203,6 +206,35 @@ function paintIcon(g, id) {
     }
     const leaf = new Path2D('M60 72 C66 60 78 58 84 62 C80 72 70 78 60 72 Z');
     inked(g, leaf, '#9ef07a', 2);
+  } else if (id === 'marbles') {
+    // A little spill of glass marbles: each a clear ball with a coloured swirl, a hard highlight, a shadow.
+    for (const [x, y, r, c, c2] of [[64, 66, 12, '#3a8bff', '#9fd2ff'], [34, 64, 13, '#ff5a7a', '#ffc2cf'], [50, 42, 15, '#2fc48a', '#b4f3d6'], [70, 32, 9, '#ffb02e', '#ffe2a6'], [24, 40, 8, '#9b6bff', '#d9c8ff']]) {
+      g.fillStyle = 'rgba(42,32,48,0.22)';
+      g.beginPath();
+      g.ellipse(x + 3, y + r * 0.85, r * 0.9, r * 0.32, 0, 0, Math.PI * 2);
+      g.fill();
+      const ball = new Path2D();
+      ball.arc(x, y, r, 0, Math.PI * 2);
+      inked(g, ball, '#eaf6ff', 2.4);
+      g.save();
+      g.clip(ball);
+      g.strokeStyle = c;
+      g.lineWidth = r * 0.42;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(x - r * 0.9, y + r * 0.3);
+      g.bezierCurveTo(x - r * 0.2, y - r * 0.8, x + r * 0.2, y + r * 0.8, x + r * 0.9, y - r * 0.3);
+      g.stroke();
+      g.strokeStyle = c2;
+      g.lineWidth = r * 0.16;
+      g.stroke();
+      shadeIn(g, ball, 'rgba(40,60,110,0.18)', r * 0.35, r * 0.35);
+      g.restore();
+      g.fillStyle = 'rgba(255,255,255,0.95)';
+      g.beginPath();
+      g.ellipse(x - r * 0.38, y - r * 0.42, r * 0.28, r * 0.17, -0.6, 0, Math.PI * 2);
+      g.fill();
+    }
   } else if (id === 'branch') {
     // A crooked brown stick, a snapped pale end, twigs and three bunches of leaves; motion lines behind.
     g.lineCap = 'round';
