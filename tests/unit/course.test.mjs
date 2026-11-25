@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKE_COURSES, planCourse, locate, buildGraph, isSmall, sharpTurns } from '../../src/city/course.js';
+import { BIKE_COURSES, planCourse, finishCourse, locate, buildGraph, isSmall, sharpTurns, courseStats, turnCost } from '../../src/city/course.js';
+import { seoulData, roadsNear, wallsNear } from './seoulData.mjs';
 import { readAlleys, SMALL_WIDTH } from '../../src/city/alleys.js';
 import { encodeAlleys, keepWay } from '../../scripts/geo/seoul-alleys.mjs';
 import { toLonLat } from '../../scripts/geo/tm.mjs';
@@ -117,6 +118,8 @@ test('a bike course is 1.4–3.4 km, never on a motorway, mostly on roads wide e
   const c = planCourse(roads, { id: 'b', x: 0, z: 0, r: 320 }, { bike: true });
   assert.ok(c, 'a course was planned');
   assert.ok(c.length >= 1400 && c.length <= 3400, `length ${Math.round(c.length)} m`);
+  // the main loop keeps to the roads: not one point down an alley (they are for the short cuts)
+  assert.equal(c.points.filter((p) => isSmall(p[3])).length, 0);
   for (const p of c.points) assert.equal(p.length, 5, 'each point says its width, class and one-way');
   assert.ok(!c.points.some((p) => p[3] === 0), 'no motorway');
   const small = c.points.filter((p) => isSmall(p[3])).length / c.points.length;
@@ -153,4 +156,32 @@ test('the small streets file: kept ways, written and read back in world metres',
   // North is −z in the world.
   assert.ok(Math.abs(back[0].pts[4] - 40) < 0.5 && Math.abs(back[0].pts[5] + 30) < 0.5, `${back[0].pts[4]},${back[0].pts[5]}`);
   assert.deepEqual(readAlleys(new ArrayBuffer(8), O), []);
+});
+
+test('turning costs a racer: a straight run is free, a 90° corner dear, a turn-round never', () => {
+  assert.equal(turnCost(0), 0);
+  assert.ok(turnCost(0.3) < 5);
+  assert.ok(turnCost(Math.PI / 2) > 150 && turnCost(Math.PI / 2) > turnCost(0.9) * 3);
+  assert.ok(turnCost(2.6) > 1e4);
+});
+
+const seoul = seoulData();
+test('the bike courses on Seoul\'s real streets: boulevards, few sharp turns, a long run to the first corner', { skip: !seoul && 'no Seoul map converted here' }, () => {
+  const kinds = new Set();
+  for (const def of BIKE_COURSES) {
+    const walls = wallsNear(def.x, def.z, def.r * 4);
+    const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
+    const st = courseStats(c);
+    kinds.add(def.kind);
+    assert.ok(c.length > 1800 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
+    assert.equal(st.small, 0, `${def.id}: no residential lanes on the main loop`);
+    // (the hill road is one lane each way by nature; every other course two or more, most of the way)
+    if (def.kind !== 'Hill') assert.ok(st.wide >= 0.72, `${def.id}: ${Math.round(st.wide * 100)}% on roads two lanes or more each way`);
+    assert.ok(st.sharp <= 4, `${def.id}: ${st.sharp} turns sharper than 60°`);
+    assert.ok(st.firstCorner >= 250, `${def.id}: ${Math.round(st.firstCorner)} m to the first corner`);
+    // one-way roads only with their traffic
+    assert.equal(c.points.filter((p) => p[4] === -1).length, 0, `${def.id}: against a one-way road`);
+  }
+  for (const k of ['River', 'Avenue', 'Market', 'Hill', 'Towers']) assert.ok(kinds.has(k), k);
+  assert.ok(BIKE_COURSES.length >= 6 && BIKE_COURSES.length <= 8);
 });
