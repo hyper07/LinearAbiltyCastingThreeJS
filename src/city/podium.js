@@ -9,7 +9,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * their kickstands. The winner jumps with its arms up and pumps its fists; 2nd dances, 3rd claps
  * (plushRider.js celebrate: procedural, squash and stretch, ears and tails flopping). Confetti
  * falls, the camera swings slowly round and pushes in. Your own rider, if it is up there, has a gold
- * ring round its block and a soft beam of light on it.
+ * ring round its block, the block's top glowing with it.
  *
  *   const p = new Podium(scene, { x, y, z, heading, sweep });   // heading: the way the course runs
  *   p.stand([{ view, me }, …]);                                    // in finishing order
@@ -61,22 +61,6 @@ function numberTexture(n, color) {
   return t;
 }
 
-function beamTexture() {
-  const c = document.createElement('canvas');
-  c.width = 4;
-  c.height = 128;
-  const g = c.getContext('2d');
-  const gr = g.createLinearGradient(0, 0, 0, 128);
-  gr.addColorStop(0, 'rgba(255,236,170,0)');
-  gr.addColorStop(0.6, 'rgba(255,236,170,0.35)');
-  gr.addColorStop(1, 'rgba(255,236,170,0.75)');
-  g.fillStyle = gr;
-  g.fillRect(0, 0, 4, 128);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
 const CONFETTI = 420;
 const CONFETTI_COLOURS = ['#ff4f6d', '#ffd23a', '#3fd0a8', '#4aa8ff', '#b46bff', '#ff8a2a', '#ffffff'];
 
@@ -118,8 +102,8 @@ export class Podium {
     plinth.position.y = 0.06;
     plinth.receiveShadow = true;
     this.group.add(plinth);
-    const rug = new THREE.Mesh(this._keep(new THREE.PlaneGeometry(2.1, 3.2).rotateX(-Math.PI / 2)), carpet);
-    rug.position.set(0, 0.03, -BLOCK_D / 2 - 1.6);
+    const rug = new THREE.Mesh(this._keep(new THREE.PlaneGeometry(1.7, 2.4).rotateX(-Math.PI / 2)), carpet);
+    rug.position.set(0, 0.03, -BLOCK_D / 2 - 1.2);
     rug.receiveShadow = true;
     this.group.add(rug);
     this.blocks = BLOCKS.map((b) => {
@@ -147,16 +131,11 @@ export class Podium {
       this.group.add(g);
       return g;
     });
-    // the highlight for your own rider: a gold ring on its block and a soft beam down on it
+    // the highlight for your own rider: a gold ring on its block (and its top glowing)
     this.ringM = this._keep(new THREE.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: 0.9, depthWrite: false }));
     this.ring = new THREE.Mesh(this._keep(new THREE.TorusGeometry(0.5, 0.035, 8, 48).rotateX(Math.PI / 2)), this.ringM);
     this.ring.visible = false;
     this.group.add(this.ring);
-    const beamTex = this._keep(beamTexture());
-    this.beamM = this._keep(new THREE.MeshBasicMaterial({ map: beamTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
-    this.beam = new THREE.Mesh(this._keep(new THREE.CylinderGeometry(0.35, 0.62, 3.2, 24, 1, true)), this.beamM);
-    this.beam.visible = false;
-    this.group.add(this.beam);
     // confetti: one instanced draw, flat paper bits that flutter down
     const paper = this._keep(new THREE.PlaneGeometry(0.07, 0.045));
     this.confM = this._keep(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, fog: false }));
@@ -225,22 +204,23 @@ export class Podium {
     if (mine) {
       const blk = this.blocks[mine.i];
       const h = BLOCKS[mine.i].h;
-      this.ring.visible = this.beam.visible = true;
+      this.ring.visible = true;
+      this.mineTop = blk.userData.topM;
       this.ring.position.set(blk.position.x, 0.12 + h - 0.12 + 0.07, 0);
-      this.beam.position.set(blk.position.x, 0.12 + h + 1.55, 0);
     }
     return this.riders;
   }
 
   update(dt, { night = 0 } = {}) {
     this.t += dt;
-    // a pulse in the ring and beam over your block
+    // a pulse in the ring round your block
     if (this.ring.visible) {
       this.ringM.opacity = 0.65 + 0.3 * Math.sin(this.t * 4);
       this.ring.scale.setScalar(1 + 0.05 * Math.sin(this.t * 4));
-      this.beamM.opacity = 0.16 + 0.22 * night;
     }
     for (const b of this.blocks) b.userData.topM.emissiveIntensity = 0.12 + night * 0.5;
+    // (your block's top glows with the ring's pulse: a light on you without a beam over your face)
+    if (this.mineTop) this.mineTop.emissiveIntensity += 0.35 + 0.3 * Math.sin(this.t * 4);
     // the dancers: their own beats (a little apart, so they aren't a chorus line)
     for (const r of this.riders) r.view.celebrate(dt, { kind: r.kind, heading: 0, night, beat: 2.2 + r.i * 0.07 });
     // confetti: a burst from each end at the start, again every few seconds; it flutters as it falls

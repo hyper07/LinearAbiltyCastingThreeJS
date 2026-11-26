@@ -149,7 +149,7 @@ Seoul's real streets — and the streets stay open.
   landing, stretch in the air, ears and tails flopping, each in its own animal and colours. Confetti
   bursts from both ends and flutters down (one instanced draw), the victory fanfare plays and the
   podium's own track comes in; the camera swings slowly round and pushes in. Your own rider, up there,
-  has a pulsing gold ring on its block and a soft beam of light on it (after dark a fill light over
+  has a pulsing gold ring on its block, its top glowing with it (after dark a fill light over
   the podium). After 6.5 s — or on any key or click — the results come up, smaller and low, the
   podium still dancing above them; **Race again**, **Courses**, **Back to Seoul** and **Credits** as
   before, and each takes the podium down.
