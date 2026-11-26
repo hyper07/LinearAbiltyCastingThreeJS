@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ITEMS, ITEM_ORDER, rollItem, itemOdds } from '../../src/city/items.js';
-import { THROW, throwPlan, flightAt } from '../../src/city/branch.js';
+import { THROW, throwPlan, flightAt, branchTarget } from '../../src/city/branch.js';
 import { RING, DOME } from '../../src/city/bell.js';
 import { speedFeel } from '../../src/city/speedfx.js';
 import { cornerZones } from '../../src/city/golmok.js';
@@ -40,6 +40,24 @@ test('branch: thrown where the rider ahead will be, up in an arc and down on the
   // a standing target: no lead
   const q = throwPlan(from, target);
   assert.equal(q.tz, -30);
+});
+
+test('branch: only the rider right ahead — nobody behind, wasted when you lead or the next is out of reach', () => {
+  const me = { id: 'me', dist: 400 };
+  const behind = { id: 'b', dist: 396 };
+  const ahead = { id: 'a', dist: 430 };
+  const further = { id: 'f', dist: 470 };
+  // the nearest ahead by race distance, whatever order they come in
+  assert.equal(branchTarget(me, [further, behind, me, ahead]), ahead);
+  // in 1st: nobody (it is wasted) — never the rider right behind
+  assert.equal(branchTarget(me, [me, behind, { id: 'c', dist: 100 }]), null);
+  // the next one ahead too far on: wasted, not thrown at anyone else
+  assert.equal(branchTarget(me, [me, behind, { id: 'far', dist: 400 + THROW.reach + 1 }]), null);
+  assert.ok(THROW.reach >= 100 && THROW.reach <= 200);
+  // finished or gone don't count; level with you isn't ahead
+  assert.equal(branchTarget(me, [me, { id: 'x', dist: 410, done: 99 }, { id: 'y', dist: 405, left: true }, { id: 'z', dist: 400 }, further]), further);
+  // a rider down a short cut alongside counts by their race distance
+  assert.equal(branchTarget(me, [me, { id: 'sc', dist: 402, sc: 1 }, ahead]).id, 'sc');
 });
 
 test('bell: a two-strike ring-ring of inharmonic partials that die away fast', () => {

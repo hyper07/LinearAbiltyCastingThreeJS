@@ -8,7 +8,7 @@ import { boot, tally, until } from './lib.mjs';
  * Shift, riders never inside a building (ridden into one at full speed they
  * scrape or come off), a golmok short cut taken and counted, the alley
  * mouths joined to their roads, a branch
- * thrown into a rival's wheel, the energy drink's boost, the golden helmet
+ * thrown into the wheel of the rider right ahead (only them; from 1st, wasted), the energy drink's boost, the golden helmet
  * worn and knocked off, marbles that throw a rival off, the rival panel,
  * a crash and back on, only real people (with
  * faces) on the street, How to play on H — pause on Esc, the credits from
@@ -295,41 +295,87 @@ export async function run(browser) {
     });
     t.check('alley mouths: every junction found and sampled (steps, holes, overlaps listed)', j.junctions > 0, JSON.stringify(j));
     t.check('…the short cuts\' mouths: no hole, no step up a wheel would catch (over 15 cm, the way they are ridden)', j.sc.every((x) => x.gaps === 0 && x.maxRise <= 0.15), JSON.stringify(j.sc));
-    // A branch: thrown at the rival just ahead, it catches their front wheel and over they go.
+    // A branch: only the rider right ahead of you (by race distance) — thrown into their wheel, over
+    // they go; the one right behind you, and one further ahead, untouched. Then from 1st: wasted.
     // (on the scooter first: not mid-tumble from the drift or a knock just now)
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     await page.evaluate(() => {
       const r = window.seoul.race;
       r.autopilot = false;
       const me = r.me;
-      const bot = r.racers.find((x) => x.bot && x.mode === 'ride');
       const c = r.course;
+      const n = c.points.length;
       const i = me.idx;
-      const p = c.points[i];
-      const q = c.points[(i + 1) % c.points.length];
-      const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
-      Object.assign(me.s, { x: p[0], z: p[1], heading: hd, travel: hd, v: 0 });
-      const j = (i + 3) % c.points.length;
-      const pj = c.points[j];
-      Object.assign(bot.s, { x: pj[0], z: pj[1], heading: hd, travel: hd, v: 0 });
-      bot.dist = me.dist + 18;
-      Object.assign(bot, { safe: 0, branchSafe: 0, helmet: false, idx: j });
+      const at = (k) => c.points[(i + k + n) % n];
+      const hd = Math.atan2(-(at(1)[0] - at(0)[0]), -(at(1)[1] - at(0)[1]));
+      Object.assign(me.s, { x: at(0)[0], z: at(0)[1], heading: hd, travel: hd, v: 0 });
+      // (on the course itself, out of any short cut: put down out of one, a rider's distance would jump)
+      me.sc = null;
+      const bots = r.racers.filter((x) => x.bot);
+      // (their race distances moved for the test, and put back after: `_shift`)
+      r._shift = Object.fromEntries(bots.map((b) => [b.id, b.dist]));
+      const [ahead, behind, ...rest] = bots;
+      Object.assign(ahead.s, { x: at(3)[0], z: at(3)[1], heading: hd, travel: hd, v: 0 });
+      Object.assign(ahead, { dist: me.dist + 18, idx: (i + 3) % n, sc: null });
+      // right behind you, close on your back wheel
+      Object.assign(behind.s, { x: at(-1)[0], z: at(-1)[1], heading: hd, travel: hd, v: 0 });
+      Object.assign(behind, { dist: me.dist - 4, idx: (i - 1 + n) % n, sc: null });
+      rest.forEach((b, k) => (b.dist = me.dist + 60 + k * 20));
+      for (const b of bots) Object.assign(b, { safe: 0, branchSafe: 0, helmet: false, items: [null, null, null] });
       me.items = [null, 'branch', null];
       r._renderItems();
-      r._victim = bot.id;
-      r._before = Object.fromEntries(r.racers.map((x) => [x.id, x.crashes]));
-      // (no golden helmets on: one would take the branch)
-      for (const x of r.racers) if (x.bot) Object.assign(x, { helmet: false, safe: 0, branchSafe: 0, items: [null, null, null] });
+      r._roles = { ahead: ahead.id, behind: behind.id };
+      r._before = Object.fromEntries(r.racers.map((x) => [x.id, x.crashKinds?.branch ?? 0]));
+      r._fizzled = r.fizzled ?? 0;
     });
     t.check('a branch shows in its slot', await page.evaluate(() => Boolean(document.querySelector('.race__slot.is-full img[alt="Branch"]'))));
+    t.check('…aimed at the rider right ahead (by race distance), not the one behind or further on', await page.evaluate(() => window.seoul.race._branchTarget(window.seoul.race.me)?.id === window.seoul.race._roles.ahead));
     const thrown = await page.evaluate(() => window.seoul.race.thrown ?? 0);
     await page.keyboard.press('Digit2');
     t.check('2 throws it: a wind-up, then the branch flies', await until(page, (n) => (window.seoul.race.thrown ?? 0) > n && window.seoul.race.me.items[1] === null, thrown, 3000));
-    t.check('…into the rival\'s wheel: they go over the bars (CRACK!)', await until(page, () => {
+    const hit = await until(page, () => {
       const r = window.seoul.race;
-      // (the one it was thrown at — or whichever rival was nearest ahead of you)
-      return r.racers.some((bot) => bot.bot && bot.crashes > (r._before[bot.id] ?? 0) && (bot.mode === 'tumble' || bot.mode === 'dizzy' || bot.branchSafe > 0) && bot.fallKind === 'wheel') && (r.caught ?? 0) > 0;
-    }, null, 4000), await page.evaluate(() => JSON.stringify({ caught: window.seoul.race.caught, branches: window.seoul.race.branches?.length })));
+      const v = r.racers.find((x) => x.id === r._roles.ahead);
+      return (v.crashKinds?.branch ?? 0) > r._before[v.id] && v.fallKind === 'wheel' && (r.caught ?? 0) > 0;
+    }, null, 4000);
+    await shot('branch-hit');
+    t.check('…it homes in on their wheel: they go over the bars (CRACK!)', hit, await page.evaluate(() => JSON.stringify({ caught: window.seoul.race.caught, branches: window.seoul.race.branches?.length })));
+    await page.waitForTimeout(600);
+    t.check('…and nobody else falls to it: not the rider right behind you, not the ones further on', await page.evaluate(() => {
+      const r = window.seoul.race;
+      return r.racers.every((x) => x.id === r._roles.ahead || (x.crashKinds?.branch ?? 0) === (r._before[x.id] ?? 0)) && (r.branches?.length ?? 0) === 0;
+    }), await page.evaluate(() => JSON.stringify(window.seoul.race.racers.map((x) => [x.id, x.crashKinds?.branch ?? 0]))));
+    // From 1st: nobody ahead — thrown, wasted (a poof of leaves), nobody hurt; nothing left on the road.
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const bots = r.racers.filter((x) => x.bot);
+      bots.forEach((b, k) => Object.assign(b, { dist: me.dist - 25 - k * 8, safe: 0, branchSafe: 0, helmet: false, items: [null, null, null] }));
+      me.items = [null, 'branch', null];
+      r._renderItems();
+      r._before = Object.fromEntries(r.racers.map((x) => [x.id, x.crashKinds?.branch ?? 0]));
+      r._wasted = r.wasted ?? 0;
+      r._fizzled = r.fizzled ?? 0;
+    });
+    t.check('in 1st there is nobody to throw it at', await page.evaluate(() => window.seoul.race._branchTarget(window.seoul.race.me) === null));
+    await page.keyboard.press('Digit2');
+    t.check('…2 still throws it, and it is wasted: it flies on and bursts (POOF)', await until(page, () => {
+      const r = window.seoul.race;
+      return r.wasted > r._wasted && r.fizzled > r._fizzled && r.me.items[1] === null;
+    }, null, 3000), await page.evaluate(() => JSON.stringify({ wasted: window.seoul.race.wasted, fizzled: window.seoul.race.fizzled })));
+    await page.waitForTimeout(150);
+    await shot('branch-wasted');
+    await page.waitForTimeout(500);
+    t.check('…nobody affected (the riders right behind you included), and no branch left in the road', await page.evaluate(() => {
+      const r = window.seoul.race;
+      return r.racers.every((x) => (x.crashKinds?.branch ?? 0) === (r._before[x.id] ?? 0)) && (r.branches?.length ?? 0) === 0;
+    }));
+    // (the bots' race distances put back as they were, plus what they have ridden since)
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      for (const b of r.racers) if (r._shift?.[b.id] != null) b.dist = Math.max(b.dist, r._shift[b.id]);
+    });
     // Items on the number keys.
     await page.evaluate(() => {
       const r = window.seoul.race;
