@@ -843,7 +843,7 @@ export class SeoulGame {
     const fogK = this.weather?.level.fog ?? 1;
     // Aerial haze from a couple of hundred metres (BLDG_1: the far towers blue-grey), farther up high.
     const lift = Math.max(0, this.camera.position.y - (this.groundAt?.(this.camera.position.x, this.camera.position.z) ?? 0));
-    const fr = fogRange(reach, fogK, this.weather?.level.thick ?? 0, lift);
+    const fr = fogRange(reach, fogK, this.weather?.level.thick ?? 0, lift, this.uniforms?.uNight.value ?? 0);
     this.scene.fog.near = fr.near;
     this.scene.fog.far = fr.far;
     this.camera.far = reach * 1.6 + 2000;
@@ -2027,7 +2027,8 @@ export class SeoulGame {
       // below by the city (at night); the dome fades into it too, so nothing reads past it.
       const thick = w.level.thick ?? 0;
       if (thick > 0.001) {
-        const fogC = (this._fogC ??= new THREE.Color()).setRGB(0.6, 0.63, 0.66).lerp(this._fogN ??= new THREE.Color('#353b48'), night);
+        // (by night a dark blue-grey murk, a shade lighter than the dark street so it reads as fog, not as night)
+        const fogC = (this._fogC ??= new THREE.Color()).setRGB(0.6, 0.63, 0.66).lerp(this._fogN ??= new THREE.Color('#3f4655'), night);
         sky.lerp(fogC, thick * 0.9);
       }
       if (this.sky) {

@@ -91,6 +91,21 @@ test('fog: a fog bank closes the world in to 10–20 m whatever the view distanc
   }
 });
 
+test('fog by night: the bank closes in nearer (gone by about 15 m), rain, storm and snow untouched', () => {
+  for (const reach of [800, 1300, 2000]) {
+    const day = fogRange(reach, WEATHERS.fog.fog, 1, 0, 0);
+    const night = fogRange(reach, WEATHERS.fog.fog, 1, 0, 1);
+    assert.ok(night.far < day.far && night.far >= 10 && night.far <= 20, String(night.far));
+    assert.ok(night.near < 2);
+    // a building 20 m off is all fog by night
+    assert.ok((20 - night.near) / (night.far - night.near) >= 1);
+  }
+  for (const kind of ['clear', 'rain', 'storm', 'snow']) {
+    const w = WEATHERS[kind];
+    assert.deepEqual(fogRange(2000, w.fog, w.thick, 0, 1), fogRange(2000, w.fog, w.thick, 0, 0));
+  }
+});
+
 test('rival panel: a flat slab of one colour (taken from inside a bus or a wall) is never shown', () => {
   const slab = Array.from({ length: 400 }, () => 120 + Math.random() * 6);
   assert.equal(stillIsGood(slab), false);

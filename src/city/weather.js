@@ -27,18 +27,23 @@ export const WEATHER_ORDER = ['clear', 'rain', 'storm', 'snow', 'fog'];
  * The plush riders aren't fogged (their materials opt out), so a rival 20–40 m ahead stays a crisp
  * toy while the world closes in; the corners ahead are on the HUD's turn arrows and the map.
  */
-export const FOG_BANK = { near: 2, far: 24 };
+export const FOG_BANK = { near: 2, far: 24, nightNear: 0.5, nightFar: 15 };
 
 /**
  * The scene fog's near and far for a view distance `reach` (m), the haze factor `fog` (1 clear …)
- * and a fog bank's thickness `thick` (0 … 1) — eased in log space so it closes in smoothly.
+ * and a fog bank's thickness `thick` (0 … 1) — eased in log space so it closes in smoothly. After dark
+ * (`night` 0 … 1) the bank closes in nearer still: the dark street and the dark murk are close in tone, so
+ * at the day's distances the buildings still read 40–50 m off; by night they are gone by about 15 m.
  */
-export function fogRange(reach, fog = 1, thick = 0, lift = 0) {
+export function fogRange(reach, fog = 1, thick = 0, lift = 0, night = 0) {
   const near0 = Math.min(reach * 0.45, 140 + lift * 1.5) * fog * fog;
   const far0 = reach * 1.2 * fog;
   const k = Math.max(0, Math.min(1, thick));
-  const far = far0 * Math.pow(FOG_BANK.far / far0, k);
-  const near = Math.min(far * 0.5, near0 * (1 - k) + FOG_BANK.near * k);
+  const n = Math.max(0, Math.min(1, night));
+  const bankFar = FOG_BANK.far + (FOG_BANK.nightFar - FOG_BANK.far) * n;
+  const bankNear = FOG_BANK.near + (FOG_BANK.nightNear - FOG_BANK.near) * n;
+  const far = far0 * Math.pow(bankFar / far0, k);
+  const near = Math.min(far * 0.5, near0 * (1 - k) + bankNear * k);
   return { near, far };
 }
 /** How often each comes when the weather changes by itself (snow only in the cold months). */
