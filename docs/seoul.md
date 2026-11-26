@@ -365,7 +365,9 @@ Seoul's real streets — and the streets stay open.
   stripe and "POLICE 경찰" on its side, a red-and-blue light bar, a hi-vis vest and a peaked cap, no
   real force's crest — rides up beside the nearest rider ahead of you (if you lead, the one behind),
   lights flashing, a short synthesised siren whoop, a "PULL OVER!" pop, and pulls them over: hauled to
-  a stop and held for 1.5 s with a wobble, then let go as the patrol rides off ahead. The gold helmet
+  a stop and held for five seconds with a wobble — the patrol stays right beside them the whole time,
+  lights flashing and the officer waving them down — then let go as the patrol rides off ahead and is
+  gone. (Held isn't stuck: a bot isn't put back on the course for it, nor is "Stuck?" shown.) The gold helmet
   doesn't help (it takes crashes, and this isn't one), and a rider down a short cut can still be
   caught. Bots call it on whoever is ahead — at a person only half the time, as with the branch.
   Commoner further back (6 % of boxes leading, 18 % last). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's

@@ -103,5 +103,7 @@ test('police: the nearest rider ahead; leading, the nearest behind; never one ho
   const lead = { id: 'lead', dist: 1000 };
   assert.equal(policeTarget(lead, [lead, ...riders.slice(1)]).id, 'far');
   assert.equal(policeTarget(me, [me]), null);
-  assert.ok(POLICE.hold >= 1 && POLICE.hold <= 2, 'held a second or two');
+  assert.equal(POLICE.hold, 5, 'stopped for five seconds');
+  assert.ok(POLICE.arrive < 1 && POLICE.leave < 2, 'up beside them quickly, gone soon after');
+  assert.match(ITEMS.police.text, /five seconds/);
 });

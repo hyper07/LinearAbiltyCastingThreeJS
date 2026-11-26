@@ -19,7 +19,7 @@ import { boot, tally, until } from './lib.mjs';
  * anyway"), cars coming the other way, the Namsan Tower Downhill raced to
  * its finish line below its start (point to point, its woods and guard
  * rails, the finish kept as progress), and the Jamsil Fairground's rides
- * moving; then a race in a fog bank, a call to the police that stops the rider ahead, (fog far under 40 m, the riders unfogged)
+ * moving; then a race in a fog bank, a call to the police that stops the rider ahead for five seconds, (fog far under 40 m, the riders unfogged)
  * to the course's own music, watched for a blinking box in the middle (no
  * WRONG WAY flicker, the rival panel never empty or in and out too fast), the
  * 30 s finish window (bots close behind get home in it, one far back is DNF,
@@ -1107,7 +1107,8 @@ export async function run(browser) {
       return { wrong: w.wrong, empty: w.empty, ins: w.panelIns.length, minGap: gaps.length ? Math.min(...gaps) : null, wrongShows: r.wrongShows ?? 0, warns: w.warns, warnShort: w.warnShort, warnFlips: w.warnFlips };
     });
     t.check('no blinking box: no WRONG WAY flicker riding the course, the rival panel never empty, never in and out within its rest; the warning never up a moment and gone, never flipping sides', blink.wrong === 0 && blink.empty === 0 && (blink.minGap == null || blink.minGap > 2500) && blink.warnShort === 0 && blink.warnFlips === 0, JSON.stringify(blink));
-    // Call the police: the rider just ahead of you is pulled over — held to a stop for a second or two.
+    // Call the police: the rider just ahead of you is pulled over — held to a stop for five seconds, the patrol
+    // beside them all the while, then let go (and the patrol gone).
     const cop = await page.evaluate(async () => {
       const r = window.seoul.race;
       const me = r.me;
@@ -1127,15 +1128,23 @@ export async function run(browser) {
       r.useSlot(0);
       const t0 = performance.now();
       let slow = 0;
+      let beside = 0;
+      let held = 0;
       await new Promise((ok) => {
         const T = setInterval(() => {
           if (Math.abs(ahead.s.v) < 1.5) slow += 0.05;
-          if (performance.now() - t0 > 3200) ok(clearInterval(T));
+          // (while held: the patrol alongside, within a few metres)
+          if (ahead.pulled && ahead.pulled.t > 0.2) {
+            held += 0.05;
+            const st = r.police.live.find((p) => p.target === ahead);
+            if (st && Math.hypot(st.x - ahead.s.x, st.z - ahead.s.z) < 3.5) beside += 0.05;
+          }
+          if (performance.now() - t0 > 8200) ok(clearInterval(T));
         }, 50);
       });
-      return { slow: Math.round(slow * 10) / 10, stops: ahead.policeStops ?? 0, patrols: r.police.live.length, slots: me.items.join() };
+      return { slow: Math.round(slow * 10) / 10, held: Math.round(held * 10) / 10, beside: Math.round(beside * 10) / 10, stops: ahead.policeStops ?? 0, patrols: r.police.live.length, free: !ahead.pulled, slots: me.items.join() };
     });
-    t.check('Call the police: a patrol pulls the rider ahead of you over — stopped about 1–2 s, then let go', cop.stops >= 1 && cop.slow >= 1 && cop.slow <= 2.4 && !cop.slots.includes('police'), JSON.stringify(cop));
+    t.check('Call the police: a patrol pulls the rider ahead of you over — stopped for five seconds, the patrol beside them all the while, then let go and gone', cop.stops >= 1 && cop.slow >= 4.2 && cop.slow <= 6.4 && cop.beside >= cop.held - 0.3 && cop.free && cop.patrols === 0 && !cop.slots.includes('police'), JSON.stringify(cop));
     // The finish: you home first; two bots close behind (they get their time), one far back (DNF).
     // (each where its distance says it is — behind you on the course: the police check above left the first
     // pulled over a few metres in front of you, in your way)

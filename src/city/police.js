@@ -17,8 +17,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 export const POLICE = {
   /** seconds from the call until they are alongside */
   arrive: 0.45,
-  /** seconds the rider is held, from then */
-  hold: 1.5,
+  /** seconds the rider is held, from then (the patrol stays beside them, lights going, the whole time) */
+  hold: 5,
   /** seconds riding off afterwards */
   leave: 1.1
 };

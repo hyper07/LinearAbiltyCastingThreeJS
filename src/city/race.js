@@ -1403,7 +1403,8 @@ export class Race {
     if (racing) for (const r of this.racers) if (r.mine && !r.left && r.mode === 'ride') this._pickup(r);
     // Throttle held but going nowhere for two seconds: say how to get out.
     if (this.me && racing && this.me.done == null && this.me.mode === 'ride') {
-      this.me.stuckT = key('KeyW') && Math.abs(this.me.s.v) < 1 ? (this.me.stuckT ?? 0) + dt : 0;
+      // (held by the police isn't stuck: it lets go by itself)
+      this.me.stuckT = key('KeyW') && Math.abs(this.me.s.v) < 1 && !this.me.pulled ? (this.me.stuckT ?? 0) + dt : 0;
       if (this.me.stuckT > 2) {
         this.me.stuckT = -3;
         this._flash('Stuck? Press R', 2.5);
@@ -3351,7 +3352,8 @@ export class Race {
     if (pinch < 4.4) target = Math.min(target, 12.5 + 3 * (r.skill - 0.88) * 10);
     // A narrow stretch of road (a slip road, a lane between kerbs): no faster than its width lets you steer.
     else if (pinch < 7.5) target = Math.min(target, 4 + pinch * 1.9);
-    r.stuck = this.phase === 'racing' && v < 0.8 ? r.stuck + dt : 0;
+    // (held by the police — five seconds at a standstill — isn't stuck: never put back on for it)
+    r.stuck = this.phase === 'racing' && v < 0.8 && !r.pulled ? r.stuck + dt : 0;
     // Nose against a wall (a square corner run wide in a narrow street) and stopped: the rider walks the
     // scooter round toward the way on, a step back off the wall, and rides again — as you would.
     if (v < 1.2 && this.phase === 'racing' && (walls?.ray(s.x, s.z, -Math.sin(s.heading), -Math.cos(s.heading), 1.5) ?? 9) < 1.1) {
@@ -3369,7 +3371,7 @@ export class Race {
       r.prog ??= { d: r.dist, t: 0 };
       r.prog.t += dt;
       // (on 4 m since — or put back, or anywhere else: counted afresh)
-      if (Math.abs(r.dist - r.prog.d) > 4) r.prog = { d: r.dist, t: 0 };
+      if (Math.abs(r.dist - r.prog.d) > 4 || r.pulled) r.prog = { d: r.dist, t: 0 };
     }
     // (home and cooling down: none of this — it is meant to stop, and it has nothing left to use)
     if (r.done != null) return { steer, throttle: false, brake: true };

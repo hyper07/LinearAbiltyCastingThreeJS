@@ -12,7 +12,7 @@ import { laneBand } from './pack.js';
  *
  *   energy drink — a gulp: four seconds of boost at once (the only boost there is)
  *   police       — call the police: a patrol pulls the rider ahead of you over,
- *                  stopped for a second and a half (police.js)
+ *                  stopped for five seconds (police.js)
  *   gold helmet  — worn where everyone sees it: the next crash bounces off
  *   branch       — a leafy branch: thrown into the wheel of the rider right
  *                  ahead of you, and only them; with nobody ahead it is wasted (branch.js)
@@ -25,7 +25,7 @@ import { laneBand } from './pack.js';
  */
 export const ITEMS = {
   drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Gulp! Four seconds of boost at once — the only way to go faster than the motor.', pop: 'DRINK!', color: '#9ef07a' },
-  police: { name: 'Call the police', ko: '경찰 호출', text: 'A patrol pulls the rider ahead of you over: stopped for a second and a half (if you lead, the one behind you).', pop: 'POLICE!', color: '#5a8bff' },
+  police: { name: 'Call the police', ko: '경찰 호출', text: 'A patrol pulls the rider ahead of you over: stopped for five seconds (if you lead, the one behind you).', pop: 'POLICE!', color: '#5a8bff' },
   helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'On your head for all to see: the next crash (or a branch, or a fall on marbles) bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
   branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider right ahead of you (they go over the bars). If nobody\'s ahead, it\'s wasted.', pop: 'BRANCH!', color: '#8bd450' },
   marbles: { name: 'Marbles', ko: '구슬', text: 'Pour a spray of glass marbles behind you: riders who cross them slip — too fast, or steering hard, and they fall.', pop: 'MARBLES!', color: '#7ad8ff' },
