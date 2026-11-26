@@ -38,6 +38,30 @@ export class NightLights {
     this.head.name = 'headlight';
     this.fill = new THREE.PointLight('#c8d4ff', 0, 10, 2);
     scene.add(this.head, this.head.target, this.fill);
+    // In a fog bank after dark, each lamp near you is a soft halo in the fog (one draw, unfogged,
+    // dimming with distance through it): the lamps show before the street under them does.
+    const HALOS = 48;
+    const hg = new THREE.BufferGeometry();
+    hg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HALOS * 3), 3));
+    hg.setDrawRange(0, 0);
+    hg.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e9);
+    this.halos = new THREE.Points(hg, new THREE.ShaderMaterial({
+      uniforms: { uK: { value: 0 } },
+      vertexShader: `uniform float uK; varying float vF;
+        void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); float z = max(1.0, -mv.z);
+          vF = exp(-z / 80.0); gl_PointSize = 5.5 * 320.0 / z; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform float uK; varying float vF;
+        void main() { float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); a = (a * a * a * 0.7 + a * 0.1) * uK * vF; if (a < 0.01) discard;
+          gl_FragColor = vec4(vec3(1.0, 0.82, 0.6) * (0.7 + 2.0 * smoothstep(0.12, 0.0, d)), a); }`,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    }));
+    this.halos.frustumCulled = false;
+    this.halos.renderOrder = 3;
+    this.halos.visible = false;
+    this.halosMax = HALOS;
+    scene.add(this.halos);
     /** The lamps nearest the camera this frame, nearest first (for the wet road's streaks). */
     this.near = [];
     this._list = [];
@@ -56,7 +80,7 @@ export class NightLights {
   }
 
   /** Each frame: which lamps are lit for real, the field, the headlight and the fill. */
-  update(camera, { night = 0, wet = 0, rider = null } = {}) {
+  update(camera, { night = 0, wet = 0, rider = null, fog = 0, spot = null } = {}) {
     const on = Math.max(0, Math.min(1, (night - 0.25) / 0.5));
     const p = camera.position;
     const fwd = camera.getWorldDirection(this._fwd);
@@ -78,6 +102,16 @@ export class NightLights {
       list.sort((a, b) => a.score - b.score);
     }
     this.near = list.slice(0, 16);
+    const hk = on * fog;
+    this.halos.visible = hk > 0.01;
+    if (this.halos.visible) {
+      const a = this.halos.geometry.attributes.position;
+      const m = Math.min(this.halosMax, list.length);
+      for (let i = 0; i < m; i++) a.setXYZ(i, list[i].x, list[i].y - 0.1, list[i].z);
+      a.needsUpdate = true;
+      this.halos.geometry.setDrawRange(0, m);
+      this.halos.material.uniforms.uK.value = hk;
+    }
     this.points.forEach((pl, i) => {
       const l = list[i];
       pl.intensity = l ? LAMP.power * on : 0;
@@ -101,6 +135,11 @@ export class NightLights {
       // A faint fill from over the camera's shoulder: your own rider never a silhouette.
       this.fill.intensity = 9 * on;
       this.fill.position.set(p.x * 0.6 + rider.x * 0.4, p.y + 0.6, p.z * 0.6 + rider.z * 0.4);
+    } else if (spot && on > 0) {
+      // (the podium after dark: the fill over it, from the camera's side)
+      this.head.intensity = 0;
+      this.fill.intensity = 14 * on;
+      this.fill.position.set(spot.x * 0.6 + p.x * 0.4, spot.y + 3.2, spot.z * 0.6 + p.z * 0.4);
     } else {
       this.head.intensity = 0;
       this.fill.intensity = 0;
@@ -108,7 +147,9 @@ export class NightLights {
   }
 
   dispose() {
-    for (const l of [...this.points, this.head, this.head.target, this.fill]) this.scene.remove(l);
+    for (const l of [...this.points, this.head, this.head.target, this.fill, this.halos]) this.scene.remove(l);
+    this.halos.geometry.dispose();
+    this.halos.material.dispose();
     this.sets.clear();
   }
 }

@@ -24,6 +24,26 @@ export const PANEL_BEHIND = 0.3;
 export const PANEL_LINGER = 1.6;
 /** At most one new still this often (seconds), even for the same rider. */
 export const SNAP_EVERY = 1;
+/**
+ * No blinking: once it has slid away it stays away this long (s), and once in it stays at least
+ * PANEL_HOLD; and it never slides in empty or with a bad still (see stillIsGood).
+ */
+export const PANEL_REST = 2.5;
+export const PANEL_HOLD = 1.8;
+
+/**
+ * Is a still worth showing? A face in a street varies; a picture taken from inside a bus, a tree or
+ * a wall is a flat slab of one colour (the "blinking box"). `lum` an array of luminances 0–255.
+ * Good when no more than 55 % of the samples sit within ±14 of the median, and it is not all dark.
+ */
+export function stillIsGood(lum) {
+  if (!lum.length) return false;
+  const s = [...lum].sort((a, b) => a - b);
+  const med = s[s.length >> 1];
+  let near = 0;
+  for (const v of s) if (Math.abs(v - med) < 14) near++;
+  return near / s.length <= 0.55 && s[Math.floor(s.length * 0.9)] > 24;
+}
 const RT_W = 384;
 const RT_H = 288;
 
@@ -72,6 +92,17 @@ export class RivalPanel {
     this.wantSnap = false;
     this.busy = false;
     this.snaps = 0;
+    /** Stills thrown away (flat, or no clear place to take one from); slide-ins, for the checks. */
+    this.rejected = 0;
+    this.shows = 0;
+    this.rest = 0;
+    this.held = 0;
+    this.hasPic = false;
+    /**
+     * From the race: `aim(racer)` → { pos, look } a clear spot in front of them (or null), and
+     * `isolate(on, racer)` hides the clutter (traffic, people, other riders, effects) for the still.
+     */
+    this.hooks = {};
     this.el = document.createElement('div');
     this.el.className = 'kr-manga';
     this.el.setAttribute('aria-hidden', 'true');
@@ -110,11 +141,13 @@ export class RivalPanel {
       view.fade(1);
       view.root.visible = true;
     }
+    this.hooks.isolate?.(true, target);
     const prev = r.getRenderTarget();
     r.setRenderTarget(this.rt);
     r.clear();
     r.render(this.scene, this.camera);
     r.setRenderTarget(prev);
+    this.hooks.isolate?.(false, target);
     if (view) {
       view.fade(fade);
       view.root.visible = vis;
@@ -140,33 +173,59 @@ export class RivalPanel {
       for (const o of others) if (!o.left) flat.push({ x: o.s.x, z: o.s.z, y: o.y, id: o.id, racer: o });
       t = mirrorTarget({ x: me.s.x, z: me.s.z, fx, fz }, flat);
     }
+    this.rest = Math.max(0, this.rest - dt);
+    this.held += dt;
     if (t) {
       this.target = t;
       this.linger = PANEL_LINGER;
     } else this.linger = active ? Math.max(0, this.linger - dt) : 0;
-    const want = this.linger > 0;
-    if (want !== this.on) {
-      this.on = want;
-      this.el.classList.toggle('is-on', want);
-      if (!want) {
-        this.shownId = null;
-        this.el.classList.remove('has-pic');
-      }
+    // In only with a good still of them ready, not straight after it went away; out only after a
+    // moment shown (or at once when the race says so).
+    const want = this.linger > 0 || (active && this.on && this.held < PANEL_HOLD);
+    if (want && !this.on && this.hasPic && this.rest <= 0 && this.target && this.picOf === this.target.rider.id) this._slide(true);
+    else if (!want && this.on) this._slide(false);
+    if (!want) {
+      this.hasPic = false;
+      this.picOf = null;
     }
     if (!t) return;
     const id = t.rider.id;
     if (id !== this.shownId || this.sinceSnap >= SNAP_EVERY) {
       this.shownId = id;
       this.sinceSnap = 0;
-      // from just in front of them (the way they ride), a little to one side, looking back at their face
+      // from just in front of them (the way they ride), a little to one side, looking back at their face —
+      // somewhere clear of walls and cars (the race knows where), or no still this time
       const o = t.rider.racer;
-      const oh = o.s.heading;
-      const ofx = -Math.sin(oh);
-      const ofz = -Math.cos(oh);
-      this.camera.position.set(o.s.x + ofx * 3 - ofz * 0.8, o.y + 1.35, o.s.z + ofz * 3 + ofx * 0.8);
-      this.camera.lookAt(o.s.x + ofx * 0.3, o.y + 0.85, o.s.z + ofz * 0.3);
+      const spot = this.hooks.aim ? this.hooks.aim(o) : this._front(o);
+      if (!spot) {
+        this.rejected++;
+        return;
+      }
+      this.camera.position.copy(spot.pos);
+      this.camera.lookAt(spot.look);
       this.snapFor = o;
       this.wantSnap = true;
+    }
+  }
+
+  /** Where a still of `o` is taken from, with nothing to say otherwise: 3 m in front, a little aside. */
+  _front(o) {
+    const oh = o.s.heading;
+    const ofx = -Math.sin(oh);
+    const ofz = -Math.cos(oh);
+    return { pos: new THREE.Vector3(o.s.x + ofx * 3 - ofz * 0.8, o.y + 1.35, o.s.z + ofz * 3 + ofx * 0.8), look: new THREE.Vector3(o.s.x + ofx * 0.3, o.y + 0.85, o.s.z + ofz * 0.3) };
+  }
+
+  _slide(on) {
+    this.on = on;
+    this.el.classList.toggle('is-on', on);
+    this.el.classList.toggle('has-pic', on);
+    if (on) {
+      this.shows++;
+      this.held = 0;
+    } else {
+      this.shownId = null;
+      this.rest = PANEL_REST;
     }
   }
 
@@ -184,6 +243,7 @@ export class RivalPanel {
         px ??= this.px;
         const d = this.img.data;
         const e = this.exposure ?? 1;
+        const forId = this.snapFor?.id;
         // (read bottom row first: flip it the right way up)
         for (let y = 0; y < RT_H; y++) {
           const src = (RT_H - 1 - y) * RT_W * 4;
@@ -195,8 +255,16 @@ export class RivalPanel {
             d[dst + x + 3] = 255;
           }
         }
+        // (a flat slab — taken from inside something — is never shown)
+        const lum = [];
+        for (let i = 0; i < d.length; i += 4 * 97) lum.push(0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]);
+        if (!stillIsGood(lum)) {
+          this.rejected++;
+          return;
+        }
         this.g2.putImageData(this.img, 0, 0);
-        if (this.on) this.el.classList.add('has-pic');
+        this.hasPic = true;
+        this.picOf = forId;
       })
       .catch(() => {})
       .finally(() => (this.busy = false));
@@ -206,6 +274,9 @@ export class RivalPanel {
     this.linger = 0;
     this.on = false;
     this.shownId = null;
+    this.hasPic = false;
+    this.picOf = null;
+    this.rest = 0;
     this.el.classList.remove('is-on', 'has-pic');
   }
 

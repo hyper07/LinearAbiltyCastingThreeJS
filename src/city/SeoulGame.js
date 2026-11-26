@@ -9,7 +9,8 @@ import { CONTROLS, modeHint } from './controls.js';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
 import { roadPieces } from './bridges.js';
-import { Weather, WEATHERS } from './weather.js';
+import { Weather, WEATHERS, fogRange } from './weather.js';
+import { GroundMist } from './mist.js';
 import { StreetLife } from './life.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -488,6 +489,7 @@ export class SeoulGame {
     this.race?.dispose();
     this.street?.dispose();
     this.weather?.dispose();
+    this.mist?.dispose();
     this.streetTrees?.dispose();
     this.nightLights?.dispose();
     this.life?.dispose();
@@ -541,7 +543,9 @@ export class SeoulGame {
     this.weather = new Weather(this.scene);
     this.weather.auto = true;
     this.weather.onChange = () => this._showWeather();
-    for (const k of ['rain', 'snow', 'fog', 'wet']) this.weather.level[k] = WEATHERS[this.weather.kind][k];
+    // (a fog bank's low mist over the street, round the camera)
+    this.mist = new GroundMist(this.scene);
+    for (const k of ['rain', 'snow', 'fog', 'wet', 'thick']) this.weather.level[k] = WEATHERS[this.weather.kind][k];
     // Bright windows, signs, lamps and headlights glow (bloom), most at night.
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -839,8 +843,9 @@ export class SeoulGame {
     const fogK = this.weather?.level.fog ?? 1;
     // Aerial haze from a couple of hundred metres (BLDG_1: the far towers blue-grey), farther up high.
     const lift = Math.max(0, this.camera.position.y - (this.groundAt?.(this.camera.position.x, this.camera.position.z) ?? 0));
-    this.scene.fog.near = Math.min(reach * 0.45, 140 + lift * 1.5) * fogK * fogK;
-    this.scene.fog.far = reach * 1.2 * fogK;
+    const fr = fogRange(reach, fogK, this.weather?.level.thick ?? 0, lift);
+    this.scene.fog.near = fr.near;
+    this.scene.fog.far = fr.far;
     this.camera.far = reach * 1.6 + 2000;
     this.camera.updateProjectionMatrix();
     // Nearest first, a few fetches at a time.
@@ -1246,7 +1251,7 @@ export class SeoulGame {
     if (this.weather && WEATHERS[weather]) {
       this.weather.auto = false;
       this.weather.set(weather);
-      for (const k of ['rain', 'snow', 'fog', 'wet']) this.weather.level[k] = WEATHERS[weather][k];
+      for (const k of ['rain', 'snow', 'fog', 'wet', 'thick']) this.weather.level[k] = WEATHERS[weather][k];
     }
     this._showWeather();
   }
@@ -1853,6 +1858,8 @@ export class SeoulGame {
       }
       // The race menus take their keys first (← → to choose, Enter, Esc to go back).
       if (!e.repeat && this.race?.lobby?.key(e)) return;
+      // (the race's own: Enter skips the wait once you are home; any key on the podium brings the results)
+      if (!e.repeat && this.mode === 'race' && this.race?.key?.(e)) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (e.repeat) return;
@@ -2018,7 +2025,24 @@ export class SeoulGame {
       const grey = (this._greyC ??= new THREE.Color()).setRGB(0.42, 0.45, 0.5).lerp(new THREE.Color('#2a2430'), night);
       sky.lerp(grey, cloud * 0.75);
       if (w.flash > 0) sky.lerp(this._bolt ??= new THREE.Color('#c9c6ff'), w.flash * 0.75);
+      // A fog bank: the sky and the far street one grey-white (by day) or a deep blue-grey lit from
+      // below by the city (at night); the dome fades into it too, so nothing reads past it.
+      const thick = w.level.thick ?? 0;
+      if (thick > 0.001) {
+        const fogC = (this._fogC ??= new THREE.Color()).setRGB(0.74, 0.76, 0.78).lerp(this._fogN ??= new THREE.Color('#353b48'), night);
+        sky.lerp(fogC, thick * 0.9);
+      }
+      if (this.sky) {
+        this.sky.userData.u.uFog.value = thick * 0.97;
+        this.sky.userData.u.uFogCol.value.copy(sky);
+      }
       this.scene.fog.color.copy(sky);
+      if (this.mist) {
+        const race = this.mode === 'race' ? this.race : null;
+        const holes = race?.podium ? [{ x: race.podium.x, z: race.podium.z, r: 4.5 }] : (race?.racers ?? []).filter((r) => !r.left).map((r) => ({ x: r.s.x, z: r.s.z, r: 1.1 }));
+        const cp = this.camera.position;
+        this.mist.update(dt, { camera: this.camera, ground: this.groundAt?.(cp.x, cp.z) ?? 0, amount: thick, color: sky, holes });
+      }
       // What glass reflects: the sky overhead deeper than at the horizon.
       this.uniforms.uSkyTop.value.copy(sky).multiplyScalar(0.8).lerp(this._deep ??= new THREE.Color('#2f6fd0'), 0.35 * (1 - night) * (1 - cloud));
       this.uniforms.uSkyLow.value.copy(sky).lerp(this._haze ??= new THREE.Color('#e8eef3'), 0.3 * (1 - night));
@@ -2075,7 +2099,8 @@ export class SeoulGame {
     this._stream();
     this.streetTrees?.update(this.camera);
     const me = this.mode === 'race' ? this.race?.me : null;
-    this.nightLights?.update(this.camera, { night: this.uniforms.uNight.value, wet: this.weather?.level.wet ?? 0, rider: me && me.mode === 'ride' ? { x: me.s.x, y: me.y, z: me.s.z, heading: me.s.heading } : null });
+    const podium = this.mode === 'race' ? this.race?.podium : null;
+    this.nightLights?.update(this.camera, { night: this.uniforms.uNight.value, wet: this.weather?.level.wet ?? 0, fog: this.weather?.level.thick ?? 0, rider: me && me.mode === 'ride' && !podium ? { x: me.s.x, y: me.y, z: me.s.z, heading: me.s.heading } : null, spot: podium ? { x: podium.x, y: podium.y, z: podium.z } : null });
     this._where();
     this._weather(dt);
     // People on the pavements, bikes and scooters (once the roads are in).

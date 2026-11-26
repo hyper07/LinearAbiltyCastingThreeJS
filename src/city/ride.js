@@ -179,3 +179,31 @@ export function slipstream(b, box, speed) {
   if (side > (box.halfWidth ?? 0.4) + 0.4) return 0;
   return clamp(1 - behind / 12, 0, 1) * clamp(speed / 12, 0, 1);
 }
+
+/** How long (s) a rider must keep going against the course before WRONG WAY shows, and how far off (rad). */
+export const WRONG_WAY = { hold: 1.5, angle: 2.2, speed: 3, clear: 0.6 };
+
+/**
+ * Riding the wrong way, judged so it never blinks: by the way the scooter is actually going
+ * (`travel`), against the course's direction a few points ahead (`ahead`, so a corner or the point
+ * where the index ticks over doesn't flip it), only while riding (not tumbling, dizzy, drifting, just
+ * put back, or down a short cut), and only once it has lasted WRONG_WAY.hold seconds; it clears once
+ * you have been going the right way for WRONG_WAY.clear seconds.
+ * `w` { t, ok, on } carried between frames; returns it, `on` true while WRONG WAY should show.
+ */
+export function wrongWay(w = { t: 0, ok: 0, on: false }, { mode = 'ride', travel = 0, ahead = 0, v = 0, drift = 0, safe = 0, shortcut = false } = {}, dt = 1 / 60) {
+  const off = Math.abs(Math.atan2(Math.sin(travel - ahead), Math.cos(travel - ahead)));
+  const judged = mode === 'ride' && !shortcut && drift < 0.15 && safe <= 0;
+  const against = judged && v > WRONG_WAY.speed && off > WRONG_WAY.angle;
+  if (against) {
+    w.t += dt;
+    w.ok = 0;
+  } else {
+    w.ok += dt;
+    // (going the right way wears it down twice as fast as going the wrong way builds it)
+    w.t = w.ok >= WRONG_WAY.clear || !judged ? 0 : Math.max(0, w.t - dt * 2);
+  }
+  if (w.t >= WRONG_WAY.hold) w.on = true;
+  else if (w.ok >= WRONG_WAY.clear || !judged) w.on = false;
+  return w;
+}

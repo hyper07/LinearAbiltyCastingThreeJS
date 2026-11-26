@@ -227,7 +227,7 @@ export class RaceTraffic {
         }
       }
       // (headlights on in the rain too)
-      v.view?.lights(Math.max(night, (this.g.weather?.level.wet ?? 0) > 0.3 ? 0.5 : 0), v.braking);
+      v.view?.lights(Math.max(night, (this.g.weather?.level.wet ?? 0) > 0.3 ? 0.5 : 0, (this.g.weather?.level.thick ?? 0) * 0.8), v.braking);
       const d = Math.hypot(v.box.x - me.x, v.box.z - me.z);
       v.view?.near(d < 90);
       // A delivery scooter's rider: a real person near you; far off, none drawn (better than a faceless doll).
@@ -370,11 +370,15 @@ export class RaceTraffic {
     geo.setDrawRange(0, 0);
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e9);
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uK: { value: 0 } },
-      vertexShader: `attribute float size; attribute vec3 color; varying vec3 vC;
-        void main() { vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = size * 320.0 / max(1.0, -mv.z); gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: `uniform float uK; varying vec3 vC;
-        void main() { float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); a = a * a * uK; if (a < 0.01) discard; gl_FragColor = vec4(vC * (0.6 + 2.4 * smoothstep(0.25, 0.0, d)), a); }`,
+      uniforms: { uK: { value: 0 }, uFog: { value: 0 } },
+      // (in a fog bank each lamp is a wide soft halo, seen before the car is — dimming with distance
+      // through the fog rather than at the fog's edge)
+      vertexShader: `attribute float size; attribute vec3 color; uniform float uFog; varying vec3 vC; varying float vF;
+        void main() { vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); float z = max(1.0, -mv.z);
+          vF = mix(1.0, exp(-z / 95.0), uFog);
+          gl_PointSize = size * (1.0 + uFog * 1.6) * 320.0 / z; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform float uK; uniform float uFog; varying vec3 vC; varying float vF;
+        void main() { float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); a = mix(a * a, a * a * a * 0.8 + a * 0.12, uFog) * uK * vF; if (a < 0.01) discard; gl_FragColor = vec4(vC * (0.6 + 2.4 * smoothstep(0.25 - uFog * 0.12, 0.0, d)), a); }`,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending
@@ -389,8 +393,11 @@ export class RaceTraffic {
   _glowFrame(night, me) {
     const g = this.glow;
     if (!g) return;
-    const k = Math.max(0, Math.min(1, (night - 0.3) / 0.4)) + ((this.g.weather?.level.wet ?? 0) > 0.3 ? 0.35 : 0);
+    // (lights on in the rain, and in a fog bank by day too: halos ahead before the cars)
+    const thick = this.g.weather?.level.thick ?? 0;
+    const k = Math.max(0, Math.min(1, (night - 0.3) / 0.4)) + ((this.g.weather?.level.wet ?? 0) > 0.3 ? 0.35 : 0) + thick * 0.85;
     g.material.uniforms.uK.value = Math.min(1, k);
+    g.material.uniforms.uFog.value = thick;
     g.visible = k > 0.02;
     if (!g.visible) return;
     const pos = g.geometry.attributes.position.array;

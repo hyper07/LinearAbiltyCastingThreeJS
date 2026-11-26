@@ -12,13 +12,34 @@ import * as THREE from 'three';
  *   w.update(dt, camera);        // every frame
  */
 export const WEATHERS = {
-  clear: { wind: 0.45, name: 'Clear', icon: '🌙', rain: 0, snow: 0, fog: 1, wet: 0, storm: false },
-  rain: { wind: 0.9, name: 'Rain', icon: '🌧️', rain: 0.65, snow: 0, fog: 0.62, wet: 1, storm: false },
-  storm: { wind: 2.0, name: 'Storm', icon: '⛈️', rain: 1, snow: 0, fog: 0.5, wet: 1, storm: true },
-  snow: { wind: 0.6, name: 'Snow', icon: '❄️', rain: 0, snow: 1, fog: 0.55, wet: 0.35, storm: false },
-  fog: { wind: 0.2, name: 'Fog', icon: '🌫️', rain: 0, snow: 0, fog: 0.22, wet: 0.25, storm: false }
+  clear: { wind: 0.45, name: 'Clear', icon: '🌙', rain: 0, snow: 0, fog: 1, wet: 0, storm: false, thick: 0 },
+  rain: { wind: 0.9, name: 'Rain', icon: '🌧️', rain: 0.65, snow: 0, fog: 0.62, wet: 1, storm: false, thick: 0 },
+  storm: { wind: 2.0, name: 'Storm', icon: '⛈️', rain: 1, snow: 0, fog: 0.5, wet: 1, storm: true, thick: 0 },
+  snow: { wind: 0.6, name: 'Snow', icon: '❄️', rain: 0, snow: 1, fog: 0.55, wet: 0.35, storm: false, thick: 0 },
+  // `thick`: a real fog bank — the world closes in to FOG_BANK's distances whatever the view distance
+  // (the haze factor `fog` alone only scaled the far plane: 0.22 of 2 km still left 500 m of clear air)
+  fog: { wind: 0.2, name: 'Fog', icon: '🌫️', rain: 0, snow: 0, fog: 0.22, wet: 0.25, storm: false, thick: 1 }
 };
 export const WEATHER_ORDER = ['clear', 'rain', 'storm', 'snow', 'fog'];
+/**
+ * A fog bank's linear fog (metres): grey from `near`, gone by `far` — a car 40 m off is half lost,
+ * one 60 m off a shape at most. The plush riders aren't fogged (their materials opt out), so rivals
+ * stay readable while the street and the traffic close in.
+ */
+export const FOG_BANK = { near: 4, far: 68 };
+
+/**
+ * The scene fog's near and far for a view distance `reach` (m), the haze factor `fog` (1 clear …)
+ * and a fog bank's thickness `thick` (0 … 1) — eased in log space so it closes in smoothly.
+ */
+export function fogRange(reach, fog = 1, thick = 0, lift = 0) {
+  const near0 = Math.min(reach * 0.45, 140 + lift * 1.5) * fog * fog;
+  const far0 = reach * 1.2 * fog;
+  const k = Math.max(0, Math.min(1, thick));
+  const far = far0 * Math.pow(FOG_BANK.far / far0, k);
+  const near = Math.min(far * 0.5, near0 * (1 - k) + FOG_BANK.near * k);
+  return { near, far };
+}
 /** How often each comes when the weather changes by itself (snow only in the cold months). */
 const ODDS = { clear: 0.5, rain: 0.22, storm: 0.08, snow: 0.1, fog: 0.1 };
 
@@ -97,7 +118,7 @@ export class Weather {
     this.auto = false;
     this.onChange = null;
     this._nextChange = 180 + Math.random() * 240;
-    this.level = { rain: 0, snow: 0, fog: 1, wet: 0 };
+    this.level = { rain: 0, snow: 0, fog: 1, wet: 0, thick: 0 };
     this.flash = 0;
     this._nextBolt = 6;
     this.uniforms = { uCam: { value: new THREE.Vector3() }, uBox: { value: BOX }, uTime: { value: 0 }, uNight: { value: 1 } };
@@ -207,7 +228,7 @@ export class Weather {
     }
     const want = WEATHERS[this.kind];
     const k = Math.min(1, dt * 0.6);
-    for (const key of ['rain', 'snow', 'fog', 'wet']) this.level[key] += (want[key] - this.level[key]) * (key === 'wet' ? Math.min(1, dt * 0.25) : k);
+    for (const key of ['rain', 'snow', 'fog', 'wet', 'thick']) this.level[key] += (want[key] - this.level[key]) * (key === 'wet' ? Math.min(1, dt * 0.25) : k);
     const u = this.uniforms;
     u.uTime.value += dt;
     u.uCam.value.copy(camera.position);

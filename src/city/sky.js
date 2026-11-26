@@ -10,7 +10,7 @@ import * as THREE from 'three';
 
 /** A sky dome round the camera: zenith, horizon, the sun's glow. Uses the city's uSkyTop/uSkyLow. */
 export function skyDome(uniforms) {
-  const u = { uTop: uniforms.uSkyTop, uLow: uniforms.uSkyLow, uNight: uniforms.uNight, uSunDir: { value: new THREE.Vector3(0.5, 0.5, 0.2) }, uSunCol: { value: new THREE.Color('#ffffff') }, uDusk: { value: 0 }, uZenith: { value: new THREE.Color('#2a64c8') } };
+  const u = { uTop: uniforms.uSkyTop, uLow: uniforms.uSkyLow, uNight: uniforms.uNight, uSunDir: { value: new THREE.Vector3(0.5, 0.5, 0.2) }, uSunCol: { value: new THREE.Color('#ffffff') }, uDusk: { value: 0 }, uZenith: { value: new THREE.Color('#2a64c8') }, uFog: { value: 0 }, uFogCol: { value: new THREE.Color('#c0c4c8') } };
   const m = new THREE.ShaderMaterial({
     uniforms: u,
     side: THREE.BackSide,
@@ -18,7 +18,7 @@ export function skyDome(uniforms) {
     depthTest: false,
     fog: false,
     vertexShader: 'varying vec3 vDir;\nvoid main() {\n  vDir = position;\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n}',
-    fragmentShader: `uniform vec3 uTop; uniform vec3 uLow; uniform float uNight; uniform vec3 uSunDir; uniform vec3 uSunCol; uniform float uDusk; uniform vec3 uZenith;
+    fragmentShader: `uniform vec3 uTop; uniform vec3 uLow; uniform float uNight; uniform vec3 uSunDir; uniform vec3 uSunCol; uniform float uDusk; uniform vec3 uZenith; uniform float uFog; uniform vec3 uFogCol;
       varying vec3 vDir;
       void main() {
         vec3 d = normalize(vDir);
@@ -30,6 +30,8 @@ export function skyDome(uniforms) {
         col = mix(col, uSunCol * 1.05, uDusk * pow(s, 3.0) * (1.0 - h) * 0.85);
         col += uSunCol * (pow(s, 12.0) * 0.18 + pow(s, 900.0) * 3.0) * (1.0 - uNight);
         col = d.y < 0.0 ? uLow * 0.95 : col;
+        // (in a fog bank the whole dome is the fog; a little lighter straight up)
+        col = mix(col, uFogCol * (1.0 + 0.06 * h), uFog);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

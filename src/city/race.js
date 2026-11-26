@@ -4,7 +4,7 @@ import { Session } from '../net/Session.js';
 import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, isSmall, courseStats } from './course.js';
 import { Walls, tileRings, RIDER_RADIUS } from './walls.js';
 import { TILE, decodeTile, tileKey, tileOf } from './tiles.js';
-import { bikeGap, closeCall, slipstream, NEAR_MISS } from './ride.js';
+import { bikeGap, closeCall, slipstream, NEAR_MISS, wrongWay } from './ride.js';
 import { SCOOT, GRIP, SCOOTER_ORDER, newScoot, stepScoot, cornerSpeed, specFor, cleanScooter } from './scoot.js';
 import { Lobby } from './lobby.js';
 import { JaraniStage } from './stage.js';
@@ -14,6 +14,7 @@ import { THROW, branchModel, throwPlan, flightAt, snapSound } from './branch.js'
 import { CREW, CREW_ORDER, rider, botRiders } from './crew.js';
 import { faceSvg } from '../snowpuff/riders.js';
 import { PlushRider, sculptSpecies } from './plushRider.js';
+import { Podium, PODIUM_SECONDS } from './podium.js';
 import { RaceTraffic } from './traffic.js';
 import { ITEMS, rollItem, ItemBoxes, itemIcon, blobTexture } from './items.js';
 import { MARBLE, MarbleField, pourMarbles, pourBand, corridorClamp, stepMarble, marbleFall, marblesAt, patchBounds, rattle } from './marbles.js';
@@ -113,6 +114,8 @@ const DOWN = 1.55;
  * ten metres gained on a straight: worth having, not a win.
  */
 export const DRINK = { boost: 3, extra: 0.4, fill: 1.5 };
+/** Seconds the race stays open for the others once the first rider is home (then the rest are DNF). */
+export const FINISH_WINDOW = 30;
 
 export { botRiders };
 
@@ -251,6 +254,11 @@ export class Race {
     this.warnEl = el('race__warn');
     this.scEl = el('race__sc');
     this.helmetEl = el('race__helmet');
+    // after you are home: Enter or this skips the wait for the others (the host's, in a room)
+    this.skipEl = el('race__skip', 'button');
+    this.skipEl.type = 'button';
+    this.skipEl.innerHTML = 'Skip <kbd>⏎</kbd>';
+    this.skipEl.onclick = () => this.skipWait();
     this.minimap = new RaceMinimap(this.mapEl);
     // a click on the map: north up, or turning with you
     this.mapEl.onclick = () => this.minimap.toggle();
@@ -262,6 +270,7 @@ export class Race {
       this.turnEl.hidden = true;
       this.linesEl.hidden = true;
       this.helmetEl.hidden = true;
+      this.skipEl.hidden = true;
       this.panel?.hide();
     }
     this.g.root.classList.toggle('is-racing', on);
@@ -448,6 +457,8 @@ export class Race {
     } else if (msg.t === 'race-setup' && fromHost) {
       Object.assign(this, { courseId: msg.course, laps: msg.laps, time: msg.time ?? 'random', weatherPick: msg.weather ?? 'random' });
       if (this.phase === 'lobby') this.menu();
+    } else if (msg.t === 'race-skip' && fromHost) {
+      this._over(0.3);
     } else if (msg.t === 'race-go' && fromHost) {
       this.courseId = msg.course;
       this.laps = msg.laps;
@@ -641,6 +652,7 @@ export class Race {
     this.minimapT = 0;
     // The rival panel (rivalPanel.js): its snapshot rendered once now, while the lights count down.
     this.panel ??= new RivalPanel(this.g.renderer, this.g.root);
+    this.panel.hooks = { aim: (o) => this._panelSpot(o), isolate: (on, o) => this._panelIsolate(on, o) };
     this.panel.hide();
     this._warmPanel = true;
     // The street along the course, and down each short cut's golmok (its walls solid: course.walls) —
@@ -1205,6 +1217,14 @@ export class Race {
       this.stop -= rawDt;
       dt = rawDt * 0.06;
     }
+    // The ceremony: the podium dances (podium.js); the race itself is over.
+    if (this.podium) {
+      this.podiumT += rawDt;
+      this.podium.update(rawDt, { night: this.g.uniforms?.uNight.value ?? 0 });
+      this.fx?.update(rawDt, this.g.camera);
+      if (!this.resultsUp && this.podiumT > PODIUM_SECONDS) this._results();
+      return;
+    }
     const k = this.g.keys;
     const key = (...codes) => codes.some((c) => k.has(c));
     if (this.phase === 'grid') {
@@ -1236,6 +1256,7 @@ export class Race {
     }
     const racing = this.phase === 'racing' || this.phase === 'done';
     if (racing) this.clock += dt;
+    this._dt = dt;
     const grip = this._grip();
     for (const r of this.racers) {
       if (r.left) continue;
@@ -1259,7 +1280,13 @@ export class Race {
           if (r.me && this.paused) input = {};
           else if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), boost: key('KeyF') || this.sprintTap, drift: key('ShiftLeft', 'ShiftRight') };
           else input = this._bot(r, dt);
-        } else if (r.done != null) input = this.course.open ? { brake: true } : { throttle: r.s.v < 2, brake: r.s.v > 3 };
+        } else if (r.done != null) {
+          // Home: a cool-down while the others finish — steered along the course, braking to a stop
+          // over a few seconds (the downhill's run-out at once), never left to roll into the traffic.
+          const steer = this._bot(r, dt).steer ?? 0;
+          const cap = this.course.open ? 0 : Math.max(0, 9 - (this.clock - r.done) * 2.2);
+          input = { steer: r.s.v > 0.5 ? steer : 0, throttle: false, brake: r.s.v > cap + 0.3 || (cap === 0 && r.s.v > 0.1) };
+        }
         if (r.me) this.sprintTap = false;
         input.grip = Math.min(1.05, grip * (r.spec.grip ?? 1));
         input.free = r.tailwind > 0;
@@ -1372,7 +1399,50 @@ export class Race {
         this._warmPanel = false;
         this.panel.warm(this.g.scene, this.g.camera);
       }
-      this.panel.update(dt, this.me, this.racers.filter((r) => r !== this.me), { active: this.phase === 'racing' && this.me.done == null && !this.paused, scene: this.g.scene, exposure: this.g.renderer?.toneMappingExposure ?? 1 });
+      this.panel.update(dt, this.me, this.racers.filter((r) => r !== this.me), { active: this.phase === 'racing' && this.clock > 4 && this.me.done == null && !this.paused, scene: this.g.scene, exposure: this.g.renderer?.toneMappingExposure ?? 1 });
+    }
+  }
+
+  /**
+   * Where the rival panel's still of `o` is taken from: just in front of them looking back at their
+   * face, at the first of a few spots with no wall, car, bus or street prop in the way (or between
+   * them and it) — or null, and no still this time. A still taken from inside a bus or a wall was a
+   * flat green or grey square sliding in and out at the left: the "blinking box".
+   */
+  _panelSpot(o) {
+    const s = o.s;
+    const fx = -Math.sin(s.heading);
+    const fz = -Math.cos(s.heading);
+    const walls = this.course?.walls;
+    const y = o.y + 1.35;
+    const cars = (this.traffic?.vehicles ?? []).filter((v) => Math.hypot(v.box.x - s.x, v.box.z - s.z) < 14);
+    const props = this._props(s.x, s.z, 6);
+    for (const [a, side] of [[3, -0.8], [3, 0.8], [2.3, 0], [2.5, -1.5], [2.5, 1.5]]) {
+      const x = s.x + fx * a - fz * side;
+      const z = s.z + fz * a + fx * side;
+      if (walls && (walls.sweep(s.x, s.z, x, z, 0.35) || walls.inside(x, z))) continue;
+      let blocked = false;
+      for (let k = 0.35; k <= 1 && !blocked; k += 0.325) {
+        const px = s.x + (x - s.x) * k;
+        const pz = s.z + (z - s.z) * k;
+        const py = o.y + 0.9 + (y - o.y - 0.9) * k;
+        blocked = cars.some((v) => inBox(v, px, py, pz, 0.5)) || props.some((p) => Math.hypot(p.x - px, p.z - pz) < (p.r ?? 0.3) + 0.45);
+      }
+      if (blocked) continue;
+      return { pos: new THREE.Vector3(x, Math.max(y, this.g.surfaceAt(x, z, o.y) + 1.1), z), look: new THREE.Vector3(s.x + fx * 0.3, o.y + 0.85, s.z + fz * 0.3) };
+    }
+    return null;
+  }
+
+  /** For the rival panel's still: only the rider and the street (no traffic, people, effects or other riders). */
+  _panelIsolate(on, o) {
+    if (on) {
+      const hide = [this.traffic?.group, this.g.life?.group, this.g.life?.folk?.group, this.fx?.group, this.boxes?.group, this.speedFx?.mesh, this.marbleField?.group, ...this.racers.filter((r) => r !== o).map((r) => r.view.root)].filter(Boolean);
+      this._isoHidden = hide.filter((m) => m.visible);
+      for (const m of this._isoHidden) m.visible = false;
+    } else {
+      for (const m of this._isoHidden ?? []) m.visible = true;
+      this._isoHidden = null;
     }
   }
 
@@ -2218,9 +2288,11 @@ export class Race {
     if (d < -L / 2) d += L;
     r.dist += d;
     const line = this._line(r);
-    const p = this._at(line, 0);
-    const q = this._at(line, 1);
-    r.wrong = p !== q && Math.abs(turn(r.s.heading, heading(p, q))) > 2 && r.s.v > 3;
+    const p = this._at(line, 1);
+    const q = this._at(line, 4);
+    // (judged by the way it is going against the course a little ahead, held 1.5 s — never a blink: ride.js wrongWay)
+    r.wrongW = wrongWay(r.wrongW, { mode: r.mode, travel: r.s.travel ?? r.s.heading, ahead: p !== q ? heading(p, q) : r.s.travel ?? r.s.heading, v: r.s.v, drift: r.s.drift ?? 0, safe: r.safe, shortcut: r.sc != null }, this._dt ?? 1 / 60);
+    r.wrong = r.wrongW.on;
     const laps = Math.floor(r.dist / L);
     if (this.phase === 'racing' && laps > r.lapsDone) {
       const lap = this.clock - r.lapStart;
@@ -2915,6 +2987,8 @@ export class Race {
       // (on 4 m since — or put back, or anywhere else: counted afresh)
       if (Math.abs(r.dist - r.prog.d) > 4) r.prog = { d: r.dist, t: 0 };
     }
+    // (home and cooling down: none of this — it is meant to stop, and it has nothing left to use)
+    if (r.done != null) return { steer, throttle: false, brake: true };
     if (r.stuck > 2.5 || (r.prog?.t ?? 0) > 4.5) {
       r.prog = null;
       this._remount(r, 2);
@@ -2973,15 +3047,94 @@ export class Race {
     return this._order().indexOf(r) + 1;
   }
 
+  /**
+   * The finish: once the first rider is home the race stays open FINISH_WINDOW seconds for the
+   * others; it ends when everyone is home or the window closes (whoever is still out is DNF, placed
+   * by how far they got). Then the podium (_ceremony), then the results.
+   */
   _finishCheck() {
+    if (this.phase !== 'racing') return;
     const left = this.racers.filter((r) => !r.left);
     const first = Math.min(...left.map((r) => r.done ?? Infinity));
-    const all = left.every((r) => r.done != null);
-    // Everyone home — or thirty seconds after the winner — and it is over.
-    if (this.phase === 'racing' && (all || (Number.isFinite(first) && this.clock - first > 30) || (this.me.done != null && left.filter((r) => !r.bot).every((r) => r.done != null) && this.clock - this.me.done > 4))) {
-      this.phase = 'done';
-      setTimeout(() => this._results(), all ? 1600 : 400);
+    this.windowEnd = Number.isFinite(first) ? first + FINISH_WINDOW : null;
+    const all = left.length > 0 && left.every((r) => r.done != null);
+    if (all || (this.windowEnd != null && this.clock >= this.windowEnd)) this._over(all ? 1.6 : 0.6);
+  }
+
+  /** The race is over: in `delay` seconds the podium. */
+  _over(delay = 0.6) {
+    if (this.phase !== 'racing') return;
+    this.phase = 'done';
+    this.skipEl.hidden = true;
+    clearTimeout(this._overT);
+    this._overT = setTimeout(() => this._ceremony(), delay * 1000);
+  }
+
+  /** Enter (or Skip) once you are home: straight to the podium — the host's call in a room. */
+  skipWait() {
+    const s = this.session;
+    if (this.phase !== 'racing' || this.me?.done == null || (s?.room && !s.isHost)) return;
+    if (s?.room) s.send({ t: 'race-skip' });
+    this._over(0.3);
+  }
+
+  /** Keys the race takes before anything else: any key on the podium brings the results up; Enter skips the wait. */
+  key(e) {
+    if (this.g.mode !== 'race') return false;
+    if (this.podium && !this.resultsUp && !['Escape', 'ShiftLeft', 'ShiftRight', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) {
+      this._results();
+      return true;
     }
+    if ((e.code === 'Enter' || e.code === 'NumpadEnter') && this.phase === 'racing' && this.me?.done != null) {
+      this.skipWait();
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * The ceremony: the first three home (in time) on a podium just past the finish line, dancing;
+   * the others gone from the street, the traffic out of sight; confetti, the fanfare and the
+   * podium's music. The results come up over it after PODIUM_SECONDS, or on any key or click.
+   */
+  _ceremony() {
+    if (this.phase !== 'done' || !this.course || this.podium) return;
+    const top = this._order().filter((r) => r.done != null).slice(0, 3);
+    if (!top.length) return this._results();
+    const c = this.course;
+    const n = c.points.length;
+    const fi = c.open ? c.finishI : 0;
+    // (a little short of the line, the riders facing back down the course: the camera sees the
+    // finish gate's banner the right way round behind them)
+    const k = c.open ? Math.max(0, fi - 2) : (fi - 2 + n) % n;
+    const p = c.points[k];
+    const q = c.points[c.open ? Math.min(n - 1, k + 1) : (k + 1) % n];
+    const hd = heading(p, q) + Math.PI;
+    const walls = c.walls;
+    const y = this.g.surfaceAt(p[0], p[1]);
+    this.podium = new Podium(this.g.scene, { x: p[0], y, z: p[1], heading: hd, sweep: (x0, z0, x1, z1) => walls?.sweep(x0, z0, x1, z1, 0.4)?.t ?? 1 });
+    this.podium.stand(top.map((r) => ({ view: r.view, me: r.me })));
+    this.podiumIds = top.map((r) => r.id);
+    this.podiumT = 0;
+    this.resultsUp = false;
+    for (const r of this.racers) if (!top.includes(r)) r.view.root.visible = false;
+    for (const t of this.trails?.values() ?? []) if (t.mesh) t.mesh.visible = false;
+    if (this.traffic?.group) this.traffic.group.visible = false;
+    // the HUD away (the podium is the picture now)
+    for (const el of [this.mapEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.turnEl, this.linesEl, this.helmetEl, this.warnEl, this.scEl, this.msgEl, this.skipEl, this.countEl, this.hintEl]) el.hidden = true;
+    this._warnKey = this._scKey = this._turnKey = '';
+    this.panel?.hide();
+    if (this._hub) this._hub.gain.gain.value = 0;
+    this._wind?.set(0);
+    if (this._sq) this._sq.gain.gain.value = 0;
+    this.g.pos.set(p[0], y, p[1]);
+    this.g.speed = 0;
+    this.g.music?.cue('victory');
+    this._podiumClick = (e) => {
+      if (e.target.closest?.('button, a, .race__results, .race__pause, [data-credits]')) return;
+      this._results();
+    };
+    this.g.root.addEventListener('pointerdown', this._podiumClick);
   }
 
   _send(dt) {
@@ -3018,7 +3171,11 @@ export class Race {
       this.posEl.classList.add('is-bump');
     }
     this.lapEl.innerHTML = `<small>LAP</small><b>${lap}</b><small>/ ${this.laps}</small>`;
-    this.timeEl.innerHTML = `<b>${clock(this.phase === 'grid' ? 0 : me.done ?? this.clock)}</b>${me.best != null ? `<small>best lap ${clock(me.best)}</small>` : ''}`;
+    // (the finish window: the seconds left for everyone still out, small, under the time)
+    const leftS = this.phase === 'racing' && this.windowEnd != null ? Math.max(0, Math.ceil(this.windowEnd - this.clock)) : null;
+    this.timeEl.innerHTML = `<b>${clock(this.phase === 'grid' ? 0 : me.done ?? this.clock)}</b>${me.best != null ? `<small>best lap ${clock(me.best)}</small>` : ''}${leftS != null ? `<small class="race__left" data-race-left>⏱ 0:${String(leftS).padStart(2, '0')}</small>` : ''}`;
+    const canSkip = this.phase === 'racing' && me.done != null && (!this.session?.room || this.session.isHost);
+    if (this.skipEl.hidden === canSkip) this.skipEl.hidden = !canSkip;
     const L = this.course.length * this.laps;
     this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.ch.name)} <small>${esc(r.name)}${r.bot ? ' · bot' : ''}</small><span>${r.done != null ? clock(r.done) : `${Math.max(0, Math.round((L - r.dist) / 10) * 10)} m`}</span></p>`).join('');
     const kmh = Math.round(Math.abs(me.s.v) * 3.6);
@@ -3039,7 +3196,17 @@ export class Race {
     const lines = me.mode === 'ride' ? Math.min(1, (this.feel ?? 0) * 0.75 + (me.s.boosting || me.tailwind > 0 || me.drinkT > 0 ? 0.35 : 0) + (me.drinkT > 0 ? 0.25 : 0)) : 0;
     this.linesEl.hidden = lines < 0.12;
     if (!this.linesEl.hidden) this.linesEl.style.opacity = lines.toFixed(2);
-    if (me.wrong && this.phase === 'racing') this._flash('WRONG WAY', 0.4);
+    // WRONG WAY: steady while it lasts (ride.js wrongWay holds it 1.5 s first), never flashed frame by frame.
+    const wrong = Boolean(me.wrong && this.phase === 'racing' && me.done == null);
+    if (wrong !== Boolean(this._wrongOn)) {
+      this._wrongOn = wrong;
+      this.wrongShows = (this.wrongShows ?? 0) + (wrong ? 1 : 0);
+      if (wrong) {
+        clearTimeout(this._msgT);
+        this.msgEl.textContent = 'WRONG WAY';
+        this.msgEl.hidden = false;
+      } else if (this.msgEl.textContent === 'WRONG WAY') this.msgEl.hidden = true;
+    }
     const next = this.phase !== 'done' && me.done == null ? this._nextTurn(me) : null;
     this.turnEl.hidden = !next;
     if (next) {
@@ -3107,7 +3274,10 @@ export class Race {
   }
 
   _results() {
-    if (this.phase !== 'done') return;
+    if (this.phase !== 'done' || this.resultsUp) return;
+    this.resultsUp = true;
+    if (this._podiumClick) this.g.root.removeEventListener('pointerdown', this._podiumClick);
+    this._podiumClick = null;
     const order = this._order();
     // Your finish kept in this browser: the best time and place on this course (the course step's
     // medals), and the next level opened.
@@ -3115,10 +3285,12 @@ export class Race {
       saveProgress(recordRun(loadProgress(), this.course.id, { time: this.me.done, place: order.indexOf(this.me) + 1 }));
       this.lobby.progressChanged();
     }
-    if (this.me?.done != null && order.indexOf(this.me) === 0) this.g.music?.cue('victory');
+    if (!this.podium && this.me?.done != null && order.indexOf(this.me) === 0) this.g.music?.cue('victory');
     const s = this.session;
     const host = !s?.room || s.isHost;
     this.resultEl.hidden = false;
+    // (over the podium: smaller and low, so they keep dancing above it)
+    this.resultEl.classList.toggle('is-podium', Boolean(this.podium));
     this.resultEl.innerHTML = `
       <h2>${this.me.done != null ? `You finished ${ordinal(order.indexOf(this.me) + 1)}` : 'Race over'}</h2>
       <table><thead><tr><th></th><th>Rider</th><th>Time</th><th>Best lap</th><th>Falls</th><th>Close calls</th></tr></thead><tbody>
@@ -3190,6 +3362,10 @@ export class Race {
     const g = this.g;
     const r = this.me;
     if (!r) return;
+    if (this.podium) {
+      this.podium.aim(camera, { low: this.resultsUp });
+      return;
+    }
     // (a fixed view, for the end-to-end checks' close-ups of the junctions)
     if (this.debugCam) {
       const d = this.debugCam;
@@ -3522,7 +3698,18 @@ export class Race {
   /** Take the race down (riders, course, street dressing, HUD), keeping the room. */
   _end() {
     clearTimeout(this._planT);
+    clearTimeout(this._overT);
     if (this.paused) this.togglePause(false);
+    // the ceremony down first (its riders go back to be disposed with the rest)
+    if (this._podiumClick) this.g.root.removeEventListener('pointerdown', this._podiumClick);
+    this._podiumClick = null;
+    this.podium?.dispose();
+    this.podium = null;
+    this.podiumIds = null;
+    this.resultsUp = false;
+    this.windowEnd = null;
+    this._wrongOn = false;
+    this.resultEl.classList.remove('is-podium');
     for (const r of this.racers) {
       r.view.dispose();
       r.heldMesh?.removeFromParent();
@@ -3595,7 +3782,7 @@ export class Race {
     this.quit();
     this.stage?.dispose();
     this.stage = null;
-    for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.countEl, this.msgEl, this.linesEl, this.resultEl, this.pauseEl, this.hintEl, this.warnEl, this.helmetEl]) n.remove();
+    for (const n of [this.menuEl, this.mapEl, this.turnEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.countEl, this.msgEl, this.linesEl, this.resultEl, this.pauseEl, this.hintEl, this.warnEl, this.helmetEl, this.skipEl, this.scEl]) n.remove();
     this.panel?.dispose();
     this.panel = null;
   }
