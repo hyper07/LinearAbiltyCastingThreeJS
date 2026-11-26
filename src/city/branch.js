@@ -2,24 +2,43 @@ import * as THREE from 'three';
 
 /**
  * The branch: an item (items.js) — a leafy plane-tree branch, snapped off
- * after a storm, thrown into the wheel of the rider ahead or dropped behind
- * you as a trap. Whoever's front wheel catches it stops dead and goes over
- * the bars (race.js). Grown in code like the street trees (trees.js): a
+ * after a storm, thrown into the wheel of the rider right ahead of you (the
+ * nearest ahead round the course, `branchTarget`). It homes in on that one
+ * wheel and nobody else's: they stop dead and go over the bars (race.js),
+ * unless a gold helmet takes it. With nobody ahead in reach it is wasted —
+ * it flies on and bursts into leaves. It never lies in the road. Grown in code like the street trees (trees.js): a
  * crooked, tapering stick with side twigs, bark-brown with a paler snapped
  * end, and bunches of five-lobed leaves drawn in a canvas.
  *
  * The flight is plain numbers, so the tests can throw one:
  *   const plan = throwPlan(from, target, targetVelocity);   // where it lands, and when
  *   const p = flightAt(plan, t);                            // { x, y, z, spin } along its arc
+ *   const o = branchTarget(me, riders);                     // who it is thrown at (or null: wasted)
  */
 
 /**
  * How a branch flies: its speed over the ground (m/s), how long at least and at most (s), how high it
- * arcs, how far it can be thrown (m), the wind-up (s), how long one lies in the road (s), how near a
- * wheel must come to catch it in the air and on the road (m), the immunity after a catch (s), and how
- * fast (m/s) its landing spot follows the rider it was thrown at.
+ * arcs, how far ahead round the course (m) the rider it is thrown at may be, the wind-up (s), how near
+ * the target's wheel it must come down to catch it (m), the immunity after a catch (s), and how far
+ * (m) and how long (s) a wasted one flies before it bursts.
  */
-export const THROW = { speed: 38, min: 0.35, max: 1.25, arc: 1.4, reach: 55, windup: 0.28, lie: 22, hitR: 0.95, trapR: 0.8, immune: 3, home: 9 };
+export const THROW = { speed: 42, min: 0.35, max: 3.6, arc: 1.4, reach: 150, windup: 0.28, hitR: 0.95, immune: 3, waste: 18, wasteT: 0.6 };
+
+/**
+ * Who a branch is thrown at: the nearest rider ahead of `me` round the course (by `dist`, the race
+ * distance — a rider down a short cut alongside counts by theirs), if within `THROW.reach`. Nobody
+ * behind, ever; null when `me` leads or the next one is out of reach (the throw is wasted). Riders
+ * who have finished or left don't count. `riders` [{ id, dist, done, left }].
+ */
+export function branchTarget(me, riders, reach = THROW.reach) {
+  let best = null;
+  for (const o of riders) {
+    if (o === me || o.id === me.id || o.left || o.done != null) continue;
+    const d = o.dist - me.dist;
+    if (d > 0 && (!best || d < best.d)) best = { o, d };
+  }
+  return best && best.d <= reach ? best.o : null;
+}
 
 /**
  * Plan a throw from (x, y, z) at a target moving at (vx, vz): aimed where it will be when the branch
@@ -188,6 +207,55 @@ export function branchModel() {
   l.castShadow = true;
   g.add(l);
   return g;
+}
+
+/**
+ * A burst of leaves where a branch broke up (a catch, or a wasted throw): a dozen leaves flung out,
+ * fluttering down and fading. Put the group in the scene and call `stepLeaves(group, dt)` each frame
+ * until it returns false (then it has removed itself).
+ */
+export function leafBurst(at, n = 12, dir = null) {
+  shared ??= build();
+  const g = new THREE.Group();
+  g.position.set(at.x, at.y, at.z);
+  const geo = (leafBurst.geo ??= new THREE.PlaneGeometry(0.3, 0.3));
+  const mat = shared.leaf.clone();
+  mat.transparent = true;
+  mat.alphaTest = 0.05;
+  for (let k = 0; k < n; k++) {
+    const m = new THREE.Mesh(geo, mat);
+    const a = Math.random() * Math.PI * 2;
+    const sp = 1.5 + Math.random() * 3;
+    m.userData.v = { x: Math.cos(a) * sp + (dir?.x ?? 0), y: 1.5 + Math.random() * 2.5, z: Math.sin(a) * sp + (dir?.z ?? 0) };
+    m.userData.w = { x: (Math.random() - 0.5) * 12, y: (Math.random() - 0.5) * 12 };
+    m.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+    g.add(m);
+  }
+  g.userData = { t: 0, life: 1.6, mat };
+  return g;
+}
+
+/** One frame of a leaf burst; false (and gone from the scene) when it is over. */
+export function stepLeaves(g, dt) {
+  const u = g.userData;
+  u.t += dt;
+  for (const m of g.children) {
+    const v = m.userData.v;
+    // light things: the air slows them fast and they drift down
+    v.x *= Math.exp(-2.5 * dt);
+    v.z *= Math.exp(-2.5 * dt);
+    v.y = Math.max(-1.2, v.y - 7 * dt);
+    m.position.x += v.x * dt;
+    m.position.y += v.y * dt;
+    m.position.z += v.z * dt;
+    m.rotation.x += m.userData.w.x * dt;
+    m.rotation.y += m.userData.w.y * dt;
+  }
+  u.mat.opacity = Math.max(0, Math.min(1, (u.life - u.t) / 0.5));
+  if (u.t < u.life) return true;
+  g.removeFromParent();
+  u.mat.dispose();
+  return false;
 }
 
 /**

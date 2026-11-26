@@ -10,7 +10,7 @@ import { Lobby } from './lobby.js';
 import { JaraniStage } from './stage.js';
 import { SpeedFx, speedFeel, windNoise } from './speedfx.js';
 import { ringBell } from './bell.js';
-import { THROW, branchModel, throwPlan, flightAt, snapSound } from './branch.js';
+import { THROW, branchModel, branchTarget, throwPlan, flightAt, snapSound, leafBurst, stepLeaves } from './branch.js';
 import { CREW, CREW_ORDER, rider, botRiders } from './crew.js';
 import { faceSvg } from '../snowpuff/riders.js';
 import { PlushRider, sculptSpecies } from './plushRider.js';
@@ -49,7 +49,7 @@ import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, r
  * close at speed and the boost gauge fills. Throttle (W, to 70 km/h), lean
  * (A D), drift (Shift, round the tight corners), brake (S), boost (F, on the
  * battery gauge), ring the bell (Space, or B), and use what the item boxes give you (1–3) — a branch thrown
- * into a rival's wheel among them (branch.js). Riders bump and wobble off
+ * into the wheel of the rider right ahead among them (branch.js). Riders bump and wobble off
  * each other (pack.js); kerbs met at an angle are hopped, paving joints
  * rattle. Corners are marked with chevron boards, and anything standing in
  * your line ahead with a warning at the top of the screen.
@@ -485,7 +485,7 @@ export class Race {
       }
     } else if (msg.t === 'race-branch') {
       const r = this.racers.find((q) => q.id === msg.id);
-      if (r && r.owner !== this.session?.id && !this.branches?.some((b) => b.bid === msg.bid)) this._addBranch(r, msg.plan, msg.bid, msg.drop);
+      if (r && r.owner !== this.session?.id && !this.branches?.some((b) => b.bid === msg.bid)) this._addBranch(r, msg.plan, msg.bid, msg.waste);
     } else if (msg.t === 'race-branch-gone') {
       const b = this.branches?.find((q) => q.bid === msg.bid);
       const v = this.racers.find((q) => q.id === msg.by);
@@ -2613,60 +2613,47 @@ export class Race {
   /* ---------------------------------------------------------- branches */
 
   /**
-   * Use a branch: at the nearest rival ahead within reach (and roughly where you are pointing) it is
-   * thrown — after a wind-up, aimed where they will be when it comes down; with nobody ahead it is
-   * dropped behind you, across the road, as a trap.
+   * Use a branch: it is for the rider right ahead of you (the nearest ahead round the course, in reach)
+   * and only them — after a wind-up it is thrown and homes in on their front wheel. With nobody ahead
+   * in reach it is still thrown, and wasted: it flies on and bursts into leaves. Never a trap behind.
    */
   _throwBranch(r) {
-    const s = r.s;
-    const fx = -Math.sin(s.heading);
-    const fz = -Math.cos(s.heading);
     const target = this._branchTarget(r);
     const bid = `${r.id}:${(this._bid = (this._bid ?? 0) + 1)}`;
-    if (target) {
-      r.pendingBranch = { bid, target: target.id, at: this.clock };
-      return;
-    }
-    // dropped: down behind the back wheel
-    this._launch(r, { sx: s.x - fx * 1.1, sy: 0.9, sz: s.z - fz * 1.1, tx: s.x - fx * 1.7, tz: s.z - fz * 1.7, T: 0.3 }, bid, true);
+    r.pendingBranch = { bid, target: target?.id ?? null, at: this.clock };
   }
 
-  /** The rival a branch would be thrown at: the nearest one ahead along the course, in reach and in front. */
+  /** The rider a branch would be thrown at: the nearest one ahead round the course, in reach (branch.js); else null. */
   _branchTarget(r) {
-    const s = r.s;
-    const fx = -Math.sin(s.heading);
-    const fz = -Math.cos(s.heading);
-    let best = null;
-    for (const o of this.racers) {
-      if (o === r || o.left || o.mode !== 'ride' || o.done != null) continue;
-      const dx = o.s.x - s.x;
-      const dz = o.s.z - s.z;
-      const d = Math.hypot(dx, dz);
-      const ahead = o.dist - r.dist;
-      if (ahead < 4 || ahead > THROW.reach || d > THROW.reach || (dx * fx + dz * fz) / (d || 1) < 0.55) continue;
-      if (!best || d < best.d) best = { o, d };
-    }
-    return best?.o ?? null;
+    return branchTarget(r, this.racers);
   }
 
   /** The branch leaves the hand (the thrower's browser plans it and tells the room). */
-  _launch(r, plan, bid, drop = false) {
-    this._addBranch(r, plan, bid, drop);
-    if (this.session?.room) this.session.send({ t: 'race-branch', id: r.id, bid, drop, plan });
+  _launch(r, plan, bid, waste = false) {
+    this._addBranch(r, plan, bid, waste);
+    if (this.session?.room) this.session.send({ t: 'race-branch', id: r.id, bid, waste, plan });
   }
 
-  /** A branch in the world: flying (or falling, dropped) and then lying in the road. */
-  _addBranch(r, plan, bid, drop) {
+  /** A branch in the air: homing on its rider's wheel, or (wasted) flying on to burst. */
+  _addBranch(r, plan, bid, waste) {
     const mesh = branchModel();
     this.g.scene.add(mesh);
-    const b = { bid, owner: r.id, plan, t: 0, state: 'fly', drop, mesh, life: THROW.lie, base: this.g.surfaceAt(plan.sx, plan.sz, r.y + 0.5) };
+    const b = { bid, owner: r.id, plan, t: 0, state: 'fly', waste: Boolean(waste || !plan.target), mesh, base: this.g.surfaceAt(plan.sx, plan.sz, r.y + 0.5) };
     (this.branches ??= []).push(b);
-    this.thrown = (this.thrown ?? 0) + (drop ? 0 : 1);
-    if (!drop && Math.hypot(r.s.x - this.g.pos.x, r.s.z - this.g.pos.z) < 60) this._whoosh(0.5);
+    this.thrown = (this.thrown ?? 0) + 1;
+    if (b.waste) this.wasted = (this.wasted ?? 0) + 1;
+    if (Math.hypot(r.s.x - this.g.pos.x, r.s.z - this.g.pos.z) < 60) this._whoosh(0.5);
     return b;
   }
 
-  /** Each frame: wind-ups let go, branches fly and land, and catch whoever rides into them. */
+  /** Where a rider's front wheel will be in `t` seconds (where a branch aimed at it comes down). */
+  _wheelAhead(o, t) {
+    const s = o.s;
+    const tr = s.travel ?? s.heading;
+    return { x: s.x - Math.sin(s.heading) * 0.45 - Math.sin(tr) * s.v * t, z: s.z - Math.cos(s.heading) * 0.45 - Math.cos(tr) * s.v * t };
+  }
+
+  /** Each frame: wind-ups let go, branches fly at their rider's wheel (or on, wasted) and burst. */
   _branches(dt) {
     // Wind-ups: the branch held up over the shoulder; at the top of the swing it goes.
     for (const r of this.racers) {
@@ -2678,18 +2665,23 @@ export class Race {
       }
       if (this.clock - p.at < THROW.windup) continue;
       r.pendingBranch = null;
-      const target = this.racers.find((o) => o.id === p.target);
       const s = r.s;
-      if (!target || target.mode !== 'ride') {
-        this._launch(r, { sx: s.x, sy: 1.2, sz: s.z, tx: s.x + Math.sin(s.heading) * 1.6, tz: s.z + Math.cos(s.heading) * 1.6, T: 0.35 }, p.bid, true);
+      const hand = { x: s.x + Math.cos(s.heading) * 0.25, y: 1.7, z: s.z - Math.sin(s.heading) * 0.25 };
+      // (the one right ahead when it was used, if still ahead — else whoever is now; never anyone
+      // behind. Used with nobody ahead, it is wasted, whoever rides past in the wind-up.)
+      const still = this.racers.find((o) => o.id === p.target && !o.left && o.done == null && o.dist > r.dist);
+      const target = p.target ? still ?? this._branchTarget(r) : null;
+      if (!target) {
+        // nobody ahead: thrown on up the road, and wasted
+        const fx = -Math.sin(s.heading);
+        const fz = -Math.cos(s.heading);
+        this._launch(r, { sx: hand.x, sy: hand.y, sz: hand.z, tx: s.x + fx * THROW.waste, tz: s.z + fz * THROW.waste, T: THROW.wasteT, target: null }, p.bid, true);
         continue;
       }
       // aimed at their front wheel, where it will be when the branch comes down
       const t = target.s;
       const vel = { x: -Math.sin(t.travel ?? t.heading) * t.v, z: -Math.cos(t.travel ?? t.heading) * t.v };
-      const aim = { x: t.x - Math.sin(t.heading) * 0.45, z: t.z - Math.cos(t.heading) * 0.45 };
-      const hand = { x: s.x + Math.cos(s.heading) * 0.25, y: 1.7, z: s.z - Math.sin(s.heading) * 0.25 };
-      this._launch(r, { ...throwPlan(hand, aim, vel), target: target.id }, p.bid, false);
+      this._launch(r, { ...throwPlan(hand, this._wheelAhead(target, 0), vel), target: target.id }, p.bid, false);
     }
     // The one in a wind-up: held over the thrower's shoulder.
     for (const r of this.racers) {
@@ -2702,83 +2694,84 @@ export class Race {
       r.heldMesh.rotation.set(0.9 * k, s.heading + Math.PI / 2, 0.6, 'YXZ');
     }
     for (const r of this.racers) if (r.heldMesh?.parent && (!r.pendingBranch || r.mode !== 'ride')) r.heldMesh.removeFromParent();
+    for (const g of [...(this.leafBursts ?? [])]) if (!stepLeaves(g, dt)) this.leafBursts.splice(this.leafBursts.indexOf(g), 1);
     const list = this.branches ?? [];
     for (const b of [...list]) {
       b.t += dt;
       const m = b.mesh;
-      if (b.state === 'fly') {
-        // It homes in a little on the wheel it was thrown at (a hard swerve can still make it miss).
-        const tg = b.plan.target ? this.racers.find((o) => o.id === b.plan.target) : null;
-        if (tg && tg.mode === 'ride' && b.t < b.plan.T) {
-          const ts = tg.s;
-          const left = b.plan.T - b.t;
-          const wx = ts.x - Math.sin(ts.heading) * 0.45 - Math.sin(ts.travel ?? ts.heading) * ts.v * left;
-          const wz = ts.z - Math.cos(ts.heading) * 0.45 - Math.cos(ts.travel ?? ts.heading) * ts.v * left;
-          const dx = wx - b.plan.tx;
-          const dz = wz - b.plan.tz;
-          const d = Math.hypot(dx, dz);
-          const step = Math.min(d, THROW.home * dt);
-          if (d > 1e-3) {
-            b.plan.tx += (dx / d) * step;
-            b.plan.tz += (dz / d) * step;
-          }
-        }
-        const f = flightAt(b.plan, b.t);
-        const ground = this.g.surfaceAt(f.x, f.z, b.base + 2);
-        m.position.set(f.x, ground + Math.max(0.05, f.y), f.z);
-        m.rotation.set(f.spin, Math.atan2(b.plan.tx - b.plan.sx, b.plan.tz - b.plan.sz), f.spin * 0.3, 'YXZ');
-        // low enough to catch a wheel (or a rider) on the way down
-        if (f.u > 0.55 && f.y < 1.3 && this._branchCatch(b, f.x, f.z, THROW.hitR)) continue;
-        if (b.t >= b.plan.T) {
-          b.state = 'lie';
-          b.x = b.plan.tx;
-          b.z = b.plan.tz;
-          b.t = 0;
-          m.position.set(b.x, this.g.surfaceAt(b.x, b.z, ground + 1) + 0.06, b.z);
-          // across the road, mostly: a twist off the way it flew
-          m.rotation.set(0, Math.atan2(b.plan.tx - b.plan.sx, b.plan.tz - b.plan.sz) + Math.PI / 2 + (b.bid.length % 5) * 0.12 - 0.24, 0.08);
-          this.fx?.dust({ x: b.x, y: m.position.y, z: b.z }, 3);
-        }
-      } else {
-        // lying in the road: a trap for the next front wheel; gone after a while
-        if (this._branchCatch(b, b.x, b.z, THROW.trapR)) continue;
-        if (b.t > b.life) this._dropBranch(b);
+      if (b.state === 'wait') {
+        // down at a wheel another browser rides: theirs to say if it caught (race-branch-gone); else it bursts
+        const tg = this.racers.find((o) => o.id === b.plan.target);
+        if (tg) m.position.set(tg.s.x - Math.sin(tg.s.heading) * 0.45, tg.y + 0.3, tg.s.z - Math.cos(tg.s.heading) * 0.45);
+        if (b.t > 1) this._fizzle(b);
+        continue;
+      }
+      // Homing: the landing spot follows the wheel it was thrown at all the way down — only a helmet saves them.
+      const tg = !b.waste && b.plan.target ? this.racers.find((o) => o.id === b.plan.target && !o.left) : null;
+      if (tg) {
+        const w = this._wheelAhead(tg, Math.max(0, b.plan.T - b.t));
+        b.plan.tx = w.x;
+        b.plan.tz = w.z;
+      }
+      const f = flightAt(b.plan, Math.min(b.t, b.plan.T));
+      const ground = this.g.surfaceAt(f.x, f.z, b.base + 2);
+      m.position.set(f.x, ground + Math.max(0.05, f.y), f.z);
+      m.rotation.set(f.spin, Math.atan2(b.plan.tx - b.plan.sx, b.plan.tz - b.plan.sz), f.spin * 0.3, 'YXZ');
+      // down at the wheel (or at the end of its flight): theirs to catch — nobody else's
+      const atWheel = tg && f.u > 0.55 && f.y < 1.3 && Math.hypot(f.x - b.plan.tx, f.z - b.plan.tz) < THROW.hitR;
+      if (!atWheel && b.t < b.plan.T) continue;
+      if (!tg) this._fizzle(b);
+      else if (tg.mine && tg.done == null) this._branchCatch(b, tg);
+      else if (tg.mine) this._fizzle(b);
+      else {
+        b.state = 'wait';
+        b.t = 0;
       }
     }
   }
 
-  /** Whoever's front wheel is at the branch: caught (decided by the browser that rides them). */
-  _branchCatch(b, x, z, reach) {
-    for (const r of this.racers) {
-      if (!r.mine || r.left || r.mode !== 'ride') continue;
-      // the thrower can't catch their own on the way out
-      if (r.id === b.owner && (b.state === 'fly' || b.t < 1)) continue;
-      const s = r.s;
-      const wx = s.x - Math.sin(s.heading) * 0.45;
-      const wz = s.z - Math.cos(s.heading) * 0.45;
-      if (Math.min(Math.hypot(wx - x, wz - z), Math.hypot(s.x - x, s.z - z)) > reach) continue;
-      // (a golden helmet takes it — _crash — and so does a moment's immunity after the last one)
-      const fell = r.branchSafe <= 0 && r.safe <= 0 && !r.helmet;
-      if (r.branchSafe <= 0 && r.safe <= 0) this._crash(r, 'branch');
-      this._snapBranch(b, r);
-      if (this.session?.room) this.session.send({ t: 'race-branch-gone', bid: b.bid, by: r.id, fell });
-      return true;
-    }
-    return false;
+  /**
+   * The branch at its rider's front wheel: caught (decided by the browser that rides them). Over the
+   * bars — unless a gold helmet takes it (_crash), they are already down, or just caught one.
+   */
+  _branchCatch(b, r) {
+    const fell = r.mode === 'ride' && r.branchSafe <= 0 && r.safe <= 0 && !r.helmet;
+    if (r.mode === 'ride' && r.branchSafe <= 0 && r.safe <= 0) this._crash(r, 'branch');
+    this._snapBranch(b, r);
+    if (this.session?.room) this.session.send({ t: 'race-branch-gone', bid: b.bid, by: r.id, fell });
   }
 
-  /** A branch caught (or ridden over by someone immune): CRACK, a burst of leaves, gone. */
+  /** A branch caught (or ridden into by someone immune): CRACK, a burst of leaves, gone. */
   _snapBranch(b, r = null) {
     const at = b.mesh.position;
     const near = Math.hypot(at.x - this.g.pos.x, at.z - this.g.pos.z);
     this.fx?.pop('CRACK!', { x: at.x, y: at.y + 1.9, z: at.z }, { color: '#8bd450', size: r?.me ? 1.5 : 1.15 });
     this.fx?.dust({ x: at.x, y: at.y + 0.2, z: at.z }, 6);
+    this._leaves(at, 14);
     if (near < 70) {
       const n = snapSound(this._audio(), Math.max(0.15, 1 - near / 70));
       this.snaps = (this.snaps ?? 0) + (n ? 1 : 0);
     }
     this.caught = (this.caught ?? 0) + 1;
     this._dropBranch(b);
+  }
+
+  /** A wasted branch (nobody ahead, or its rider gone): a soft poof of leaves where it came down, nobody hurt. */
+  _fizzle(b) {
+    const at = b.mesh.position;
+    this.fx?.pop('POOF', { x: at.x, y: at.y + 1.2, z: at.z }, { color: '#b9e38f', size: 0.85 });
+    this.fx?.dust({ x: at.x, y: at.y, z: at.z }, 3);
+    this._leaves(at, 16);
+    this.fizzled = (this.fizzled ?? 0) + 1;
+    this._dropBranch(b);
+  }
+
+  /** Leaves flung out where a branch broke up (branch.js leafBurst), if anyone near could see them. */
+  _leaves(at, n) {
+    if (Math.hypot(at.x - this.g.pos.x, at.z - this.g.pos.z) > 120) return;
+    const g = leafBurst({ x: at.x, y: at.y + 0.3, z: at.z }, n);
+    this.g.scene.add(g);
+    (this.leafBursts ??= []).push(g);
   }
 
   _dropBranch(b) {
@@ -3089,15 +3082,17 @@ export class Race {
     }
     if (has('tailwind') >= 0 && straight && block > 40 && v > 14) this._use(r, has('tailwind'));
     if (has('branch') >= 0 && !r.pendingBranch) {
-      // At a rival ahead in reach; else dropped when someone is close behind (or after holding it a while).
+      // Only at the rider right ahead, in reach (a throw with nobody there would be wasted) — and at a
+      // person only half the time: the bots are rivals, not snipers (the other half they hold it for a
+      // bot ahead, or think again after a while).
       r.heldBranch = (r.heldBranch ?? 0) + dt;
-      const behind = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 3 && r.dist - o.dist < 28);
-      // (at a person, only half the time: the bots are rivals, not snipers — the other half they wait
-      // for a bot ahead, or drop it)
       const aim = this._branchTarget(r);
       r.mercy ??= Math.random() < 0.5;
-      const spare = aim && !aim.bot && r.mercy;
-      if ((aim && !spare) || behind || r.heldBranch > 18) {
+      if (r.heldBranch > 20) {
+        r.heldBranch = 0;
+        r.mercy = null;
+      }
+      if (aim && aim.mode === 'ride' && (aim.bot || !r.mercy)) {
         r.heldBranch = 0;
         r.mercy = null;
         this._use(r, has('branch'));
@@ -3814,6 +3809,8 @@ export class Race {
     }
     this.racers = [];
     for (const b of [...(this.branches ?? [])]) this._dropBranch(b);
+    for (const g of this.leafBursts ?? []) g.removeFromParent();
+    this.leafBursts = [];
     this.patches = [];
     for (const t of this.trails?.values() ?? []) t.dispose();
     this.trails = new Map();

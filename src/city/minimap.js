@@ -3,7 +3,7 @@
  * road and small street from roads.bin and alleys.bin, as wide as they are),
  * the buildings faintly (the course's own walls), the river where it is
  * near, the course and its short cuts (dotted), the item boxes, marble
- * patches and branches in the road, the traffic, and every rider as a dot in
+ * patches in the road, the traffic, and every rider as a dot in
  * their colour. It turns with you (smoothly), or keeps north up — a click on
  * the map switches, remembered on this device.
  *
@@ -241,14 +241,6 @@ export class RaceMinimap {
         if (!m.live) continue;
         g.fillRect(m.x - 0.5, m.z - 0.5, 1, 1);
       }
-    }
-    // branches lying in the road
-    g.fillStyle = '#8bd450';
-    for (const b of race.branches ?? []) {
-      if (b.state !== 'lie') continue;
-      g.beginPath();
-      g.arc(b.x, b.z, 2.6, 0, Math.PI * 2);
-      g.fill();
     }
     for (const v of race.traffic?.vehicles ?? []) {
       g.save();
