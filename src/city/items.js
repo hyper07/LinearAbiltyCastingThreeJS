@@ -32,7 +32,7 @@ export const ITEM_ORDER = ['drink', 'police', 'helmet', 'tailwind', 'branch', 'm
 
 /** Odds by place: [leader … last]. The further back, the more tailwinds, branches, marbles and police calls. */
 const ODDS = {
-  first: { drink: 0.37, helmet: 0.28, police: 0.06, tailwind: 0.1, branch: 0.09, marbles: 0.1 },
+  first: { drink: 0.41, helmet: 0.28, police: 0.06, tailwind: 0.1, branch: 0.09, marbles: 0.06 },
   last: { drink: 0.13, helmet: 0.08, police: 0.18, tailwind: 0.24, branch: 0.21, marbles: 0.16 }
 };
 /**
