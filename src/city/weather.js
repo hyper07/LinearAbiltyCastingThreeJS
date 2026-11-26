@@ -22,11 +22,12 @@ export const WEATHERS = {
 };
 export const WEATHER_ORDER = ['clear', 'rain', 'storm', 'snow', 'fog'];
 /**
- * A fog bank's linear fog (metres): grey from `near`, gone by `far` — a car 40 m off is half lost,
- * one 60 m off a shape at most. The plush riders aren't fogged (their materials opt out), so rivals
- * stay readable while the street and the traffic close in.
+ * A fog bank's linear fog (metres): grey from `near`, gone by `far` — the street, the buildings and
+ * the traffic mostly hidden by 10–20 m: a car 20 m off is a faint shape, its lights glowing through.
+ * The plush riders aren't fogged (their materials opt out), so a rival 20–40 m ahead stays a crisp
+ * toy while the world closes in; the corners ahead are on the HUD's turn arrows and the map.
  */
-export const FOG_BANK = { near: 4, far: 68 };
+export const FOG_BANK = { near: 2, far: 24 };
 
 /**
  * The scene fog's near and far for a view distance `reach` (m), the haze factor `fog` (1 clear …)

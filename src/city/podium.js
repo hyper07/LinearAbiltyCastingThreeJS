@@ -170,6 +170,10 @@ export class Podium {
     }
     this.confetti.instanceColor.needsUpdate = true;
     this.group.add(this.confetti);
+    // (the ceremony is the characters' stage, not the street: out of a fog bank like the riders)
+    this.group.traverse((o) => {
+      if (o.material && o.material.fog !== false) o.material.fog = false;
+    });
     this._m = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
     this._e = new THREE.Euler();

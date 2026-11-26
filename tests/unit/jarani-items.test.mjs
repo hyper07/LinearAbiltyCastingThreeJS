@@ -5,6 +5,7 @@ import { THROW, throwPlan, flightAt } from '../../src/city/branch.js';
 import { RING, DOME } from '../../src/city/bell.js';
 import { speedFeel } from '../../src/city/speedfx.js';
 import { cornerZones } from '../../src/city/golmok.js';
+import { policeTarget, POLICE } from '../../src/city/police.js';
 
 test('items: the branch is one of them, and riders further back get more branches (and tailwinds)', () => {
   assert.ok(ITEM_ORDER.includes('branch') && ITEMS.branch.name && ITEMS.branch.text);
@@ -65,4 +66,20 @@ test('alley props: none in the 40 m before a corner, nor just after it', () => {
   for (let i = 24; i <= 31; i++) assert.equal(calm[i], 1, `clear at ${i}`);
   assert.equal(calm[10], 0);
   assert.equal(calm[50], 0);
+});
+
+test('items: no air horn any more; calling the police is one, more common further back', () => {
+  assert.ok(!ITEM_ORDER.includes('horn') && !ITEMS.horn);
+  assert.ok(ITEM_ORDER.includes('police') && /police/i.test(ITEMS.police.name) && ITEMS.police.ko === '경찰 호출');
+  assert.ok(itemOdds(4, 4).police > itemOdds(1, 4).police * 2);
+});
+
+test('police: the nearest rider ahead; leading, the nearest behind; never one home or gone', () => {
+  const me = { id: 'me', dist: 500 };
+  const riders = [me, { id: 'far', dist: 900 }, { id: 'near', dist: 560 }, { id: 'back', dist: 420 }, { id: 'home', dist: 520, done: 80 }, { id: 'gone', dist: 510, left: true }];
+  assert.equal(policeTarget(me, riders).id, 'near');
+  const lead = { id: 'lead', dist: 1000 };
+  assert.equal(policeTarget(lead, [lead, ...riders.slice(1)]).id, 'far');
+  assert.equal(policeTarget(me, [me]), null);
+  assert.ok(POLICE.hold >= 1 && POLICE.hold <= 2, 'held a second or two');
 });

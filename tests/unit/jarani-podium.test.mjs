@@ -72,13 +72,14 @@ test('wrong way: once shown it stays steady, and clears once you are going the r
   assert.equal(w.on, false);
 });
 
-test('fog: a fog bank closes the world in to about 70 m whatever the view distance; the rest unchanged', () => {
+test('fog: a fog bank closes the world in to 10–20 m whatever the view distance; the rest unchanged', () => {
   for (const reach of [800, 1300, 2000]) {
     const f = fogRange(reach, WEATHERS.fog.fog, 1);
     assert.equal(Math.round(f.far), FOG_BANK.far);
-    assert.ok(f.near <= 6);
-    // a car 60 m off is mostly fog
-    assert.ok((60 - f.near) / (f.far - f.near) > 0.8);
+    assert.ok(f.near <= 3);
+    // a car 20 m off is a faint shape (mostly fog); one 10 m off half lost
+    assert.ok((20 - f.near) / (f.far - f.near) > 0.75);
+    assert.ok((10 - f.near) / (f.far - f.near) > 0.3);
   }
   // clear, rain, storm and snow keep their haze exactly as before (near, far)
   for (const kind of ['clear', 'rain', 'storm', 'snow']) {

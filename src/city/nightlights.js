@@ -49,7 +49,7 @@ export class NightLights {
       uniforms: { uK: { value: 0 } },
       vertexShader: `uniform float uK; varying float vF;
         void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); float z = max(1.0, -mv.z);
-          vF = exp(-z / 80.0); gl_PointSize = 5.5 * 320.0 / z; gl_Position = projectionMatrix * mv; }`,
+          vF = exp(-z / 45.0); gl_PointSize = 5.5 * 320.0 / z; gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `uniform float uK; varying float vF;
         void main() { float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); a = (a * a * a * 0.7 + a * 0.1) * uK * vF; if (a < 0.01) discard;
           gl_FragColor = vec4(vec3(1.0, 0.82, 0.6) * (0.7 + 2.0 * smoothstep(0.12, 0.0, d)), a); }`,

@@ -15,6 +15,7 @@ import { CREW, CREW_ORDER, rider, botRiders } from './crew.js';
 import { faceSvg } from '../snowpuff/riders.js';
 import { PlushRider, sculptSpecies } from './plushRider.js';
 import { Podium, PODIUM_SECONDS } from './podium.js';
+import { PoliceStops, POLICE, policeTarget } from './police.js';
 import { RaceTraffic } from './traffic.js';
 import { ITEMS, rollItem, ItemBoxes, itemIcon, blobTexture } from './items.js';
 import { MARBLE, MarbleField, pourMarbles, pourBand, corridorClamp, stepMarble, marbleFall, marblesAt, patchBounds, rattle } from './marbles.js';
@@ -493,6 +494,10 @@ export class Race {
     } else if (msg.t === 'race-marbles') {
       const r = this.racers.find((q) => q.id === msg.id);
       if (r && r.owner !== this.session?.id && !this.patches?.some((p) => p.mid === msg.plan?.mid)) this._addPatch(msg.plan);
+    } else if (msg.t === 'race-police') {
+      const by = this.racers.find((q) => q.id === msg.id);
+      const target = this.racers.find((q) => q.id === msg.target);
+      if (by && target && by.owner !== this.session?.id) this._policeArrive(by, target, msg.side);
     } else if (msg.t === 'race-bell') {
       const r = this.racers.find((q) => q.id === msg.id);
       if (r && r.owner !== this.session?.id) this.ringBell(r, true);
@@ -642,6 +647,7 @@ export class Race {
     for (const r of this.racers) this._clear(r);
     this.me = this.racers.find((r) => r.me);
     this.fx = new ComicFx(this.g.scene);
+    this.police = new PoliceStops(this.g.scene);
     this.traffic = new RaceTraffic(this.g, this);
     this.boxes = new ItemBoxes(this.g, course);
     this.patches = [];
@@ -1299,6 +1305,19 @@ export class Race {
           input.free = true;
           input.extra = Math.max(input.extra, DRINK.extra);
         }
+        // Pulled over by the police (police.js): hauled to a stop and held, a wobble, then let go.
+        if (r.pulled) {
+          r.pulled.t += dt;
+          if (r.pulled.t >= 0) {
+            Object.assign(input, { throttle: false, boost: false, drift: false, brake: true, free: false, extra: 0 });
+            r.s.v *= Math.exp(-dt * 6);
+            if (r.pulled.t < 0.4) r.wobble = Math.max(r.wobble ?? 0, 0.55);
+          }
+          if (r.pulled.t >= r.pulled.dur) {
+            r.pulled = null;
+            r.wobble = Math.max(r.wobble ?? 0, 0.25);
+          }
+        }
         if (r.fill) {
           r.s.stamina = Math.min(1, r.s.stamina + DRINK.fill * dt);
           if (r.s.stamina >= 1) r.fill = false;
@@ -1387,6 +1406,7 @@ export class Race {
     this.facades?.update();
     this.fair?.update(rawDt);
     this.fx?.update(rawDt, this.g.camera);
+    this.police?.update(dt);
     const feel = this.me.mode === 'ride' ? speedFeel(Math.abs(this.me.s.v), this.me.spec.cruise) : 0;
     this.feel = feel;
     this.speedFx?.update(dt, { x: this.me.s.x, y: this.me.y, z: this.me.s.z, heading: this.me.s.travel ?? this.me.s.heading, v: Math.abs(this.me.s.v), k: feel });
@@ -2351,21 +2371,16 @@ export class Race {
       r.drinks = (r.drinks ?? 0) + 1;
     } else if (item === 'helmet') r.helmet = true;
     else if (item === 'tailwind') r.tailwind = 5;
-    else if (item === 'horn') {
-      // Everyone ahead clears out: people step aside, scooters pull over, cars stop.
-      this.traffic?.airHorn(s.x, s.z, s.heading, 45);
-      this.g.life?.shoo(s.x, s.z, s.heading, 40, true);
-    }
+    else if (item === 'police') this._callPolice(r);
   }
 
   /** What using an item looks and sounds like (for anyone's racer). */
   _itemFx(r, item) {
     const at = { x: r.s.x, y: r.y + 2.4, z: r.s.z, ride: r.s };
     const near = r.me || Math.hypot(r.s.x - this.g.pos.x, r.s.z - this.g.pos.z) < 80;
-    if (item === 'horn') {
-      this.fx?.pop('BWAAMP!', at, { color: '#ff7aa8', size: 1.4 });
-      this.fx?.ring(at, '#ff7aa8');
-      if (near) this.g.street?._horn?.(0.5, 233);
+    if (item === 'police') {
+      // (the patrol itself, and the pull-over, are _policeArrive's: sent to everyone as race-police)
+      this.fx?.pop('POLICE!', at, { color: '#5a8bff', size: r.me ? 1.1 : 0.9 });
     } else if (item === 'drink') {
       this.fx?.pop('GULP!', at, { color: '#9ef07a', size: r.me ? 1.2 : 1 });
       this.fx?.pop('+BOOST', { ...at, y: at.y + 0.9 }, { color: '#ffd23a', size: r.me ? 0.85 : 0.7 });
@@ -2393,6 +2408,57 @@ export class Race {
       // the wind-up: the arm goes back with the branch over the shoulder (the throw itself is _branches')
       r.throwT = 0;
     }
+  }
+
+  /* ------------------------------------------------------------ police */
+
+  /**
+   * "Call the police": the caller's browser picks who (policeTarget: the nearest rider ahead, or if
+   * you lead the one behind) and tells the room; everyone sees the patrol ride up beside them.
+   * The gold helmet doesn't help: it takes crashes, and this isn't one.
+   */
+  _callPolice(r) {
+    const target = policeTarget(r, this.racers);
+    if (!target) return;
+    const side = Math.random() < 0.5 ? 1 : -1;
+    this._policeArrive(r, target, side);
+    if (this.session?.room) this.session.send({ t: 'race-police', id: r.id, target: target.id, side });
+  }
+
+  /** A patrol rides up beside `target` and pulls it over (held where its browser rides it). */
+  _policeArrive(by, target, side = 1) {
+    this.police?.call(target, { side });
+    target.policeStops = (target.policeStops ?? 0) + 1;
+    if (target.mine) target.pulled = { t: -POLICE.arrive, dur: POLICE.hold, by: by.id };
+    this.fx?.pop('PULL OVER!', { x: target.s.x, y: target.y + 2.5, z: target.s.z, ride: target.s }, { color: '#5a8bff', size: target.me ? 1.2 : 0.9 });
+    const near = target.me || by.me || Math.hypot(target.s.x - this.g.pos.x, target.s.z - this.g.pos.z) < 90;
+    if (near) this._siren(target.me || by.me ? 1 : 0.45);
+  }
+
+  /** A short siren whoop: two rising-and-falling sweeps (synthesised, nobody's recording). */
+  _siren(k = 1) {
+    const a = this._audio();
+    if (!a) return;
+    const t0 = a.currentTime;
+    const o = a.createOscillator();
+    o.type = 'sawtooth';
+    const f = a.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 2400;
+    const gain = a.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.06 * k, t0 + 0.05);
+    for (let i = 0; i < 2; i++) {
+      const t = t0 + i * 0.5;
+      o.frequency.setValueAtTime(620, t);
+      o.frequency.exponentialRampToValueAtTime(1350, t + 0.22);
+      o.frequency.exponentialRampToValueAtTime(640, t + 0.48);
+    }
+    gain.gain.setValueAtTime(0.06 * k, t0 + 0.9);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.05);
+    o.connect(f).connect(gain).connect(a.destination);
+    o.start(t0);
+    o.stop(t0 + 1.1);
   }
 
   /* ----------------------------------------------------------- marbles */
@@ -3007,7 +3073,20 @@ export class Race {
         this._use(r, has('marbles'));
       }
     }
-    if (has('horn') >= 0 && block < 30) this._use(r, has('horn'));
+    if (has('police') >= 0) {
+      // Called on whoever is ahead — at a person only half the time, as with the branch (the bots are
+      // rivals, not snipers); leading, on the one behind after holding it a while.
+      r.heldPolice = (r.heldPolice ?? 0) + dt;
+      const aim = policeTarget(r, this.racers);
+      r.policeMercy ??= Math.random() < 0.5;
+      const ahead = aim && aim.dist > r.dist;
+      const spare = aim && !aim.bot && r.policeMercy;
+      if (aim && ((ahead && !spare) || r.heldPolice > 14)) {
+        r.heldPolice = 0;
+        r.policeMercy = null;
+        this._use(r, has('police'));
+      }
+    }
     if (has('tailwind') >= 0 && straight && block > 40 && v > 14) this._use(r, has('tailwind'));
     if (has('branch') >= 0 && !r.pendingBranch) {
       // At a rival ahead in reach; else dropped when someone is close behind (or after holding it a while).
@@ -3120,6 +3199,7 @@ export class Race {
     for (const r of this.racers) if (!top.includes(r)) r.view.root.visible = false;
     for (const t of this.trails?.values() ?? []) if (t.mesh) t.mesh.visible = false;
     if (this.traffic?.group) this.traffic.group.visible = false;
+    this.police?.dispose();
     // the HUD away (the podium is the picture now)
     for (const el of [this.mapEl, this.posEl, this.lapEl, this.boardEl, this.speedEl, this.timeEl, this.itemsEl, this.turnEl, this.linesEl, this.helmetEl, this.warnEl, this.scEl, this.msgEl, this.skipEl, this.countEl, this.hintEl]) el.hidden = true;
     this._warnKey = this._scKey = this._turnKey = '';
@@ -3723,7 +3803,7 @@ export class Race {
     this._helmetKey = null;
     for (const f of this.fans ?? []) f.remove();
     this.fans = [];
-    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'wet', 'speedFx', 'marbleField', 'helmetDrops', 'wood', 'fair']) {
+    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'police', 'wet', 'speedFx', 'marbleField', 'helmetDrops', 'wood', 'fair']) {
       this[k]?.dispose();
       this[k] = null;
     }

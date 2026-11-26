@@ -11,7 +11,8 @@ import { laneBand } from './pack.js';
  * What you get depends on where you are: the further back, the better.
  *
  *   energy drink — a gulp: three seconds of boost at once, and the gauge full again
- *   air horn     — people and scooters ahead clear out, cars stop
+ *   police       — call the police: a patrol pulls the rider ahead of you over,
+ *                  stopped for a second and a half (police.js)
  *   gold helmet  — worn where everyone sees it: the next crash bounces off
  *   tailwind     — five seconds of free, faster boosting
  *   branch       — a leafy branch: thrown into the wheel of the rider ahead,
@@ -21,18 +22,18 @@ import { laneBand } from './pack.js';
  */
 export const ITEMS = {
   drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Gulp! Three seconds of boost at once, and your boost gauge full again.', pop: 'DRINK!', color: '#9ef07a' },
-  horn: { name: 'Air horn', ko: '에어혼', text: 'BWAAMP: people and scooters ahead clear out, cars stop.', pop: 'HORN!', color: '#ff7aa8' },
+  police: { name: 'Call the police', ko: '경찰 호출', text: 'A patrol pulls the rider ahead of you over: stopped for a second and a half (if you lead, the one behind you).', pop: 'POLICE!', color: '#5a8bff' },
   helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'On your head for all to see: the next crash (or a branch, or a fall on marbles) bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
   tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster boosting.', pop: 'WIND!', color: '#8fd8ff' },
   branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider ahead (they go over the bars), or dropped behind you as a trap.', pop: 'BRANCH!', color: '#8bd450' },
   marbles: { name: 'Marbles', ko: '구슬', text: 'Pour a spray of glass marbles behind you: riders who cross them slip — too fast, or steering hard, and they fall.', pop: 'MARBLES!', color: '#7ad8ff' }
 };
-export const ITEM_ORDER = ['drink', 'horn', 'helmet', 'tailwind', 'branch', 'marbles'];
+export const ITEM_ORDER = ['drink', 'police', 'helmet', 'tailwind', 'branch', 'marbles'];
 
-/** Odds by place: [leader … last]. The further back, the more tailwinds, branches and marbles. */
+/** Odds by place: [leader … last]. The further back, the more tailwinds, branches, marbles and police calls. */
 const ODDS = {
-  first: { drink: 0.32, helmet: 0.26, horn: 0.18, tailwind: 0.08, branch: 0.1, marbles: 0.06 },
-  last: { drink: 0.13, helmet: 0.08, horn: 0.12, tailwind: 0.26, branch: 0.23, marbles: 0.18 }
+  first: { drink: 0.37, helmet: 0.28, police: 0.06, tailwind: 0.1, branch: 0.09, marbles: 0.1 },
+  last: { drink: 0.13, helmet: 0.08, police: 0.18, tailwind: 0.24, branch: 0.21, marbles: 0.16 }
 };
 /**
  * The odds of an item for a racer in `rank` of `n` (for the tests and the menu). `lean` (0–1, the
@@ -137,7 +138,7 @@ function paintIcon(g, id) {
   g.arc(48, 48, 42, 0, Math.PI * 2);
   g.fill();
   g.restore();
-  g.fillStyle = { drink: '#e6f8d8', horn: '#ffe2ec', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0', marbles: '#e4f2ff' }[id] ?? '#eee';
+  g.fillStyle = { drink: '#e6f8d8', police: '#e2eaff', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0', marbles: '#e4f2ff' }[id] ?? '#eee';
   g.beginPath();
   g.arc(48, 48, 37, 0, Math.PI * 2);
   g.fill();
@@ -161,24 +162,39 @@ function paintIcon(g, id) {
     const top = new Path2D();
     top.ellipse(48, 20, 14, 4, 0, 0, Math.PI * 2);
     inked(g, top, '#c9ccd1', 2);
-  } else if (id === 'horn') {
-    // An air horn: a red canister and a white trumpet, blasting.
-    const can = new Path2D();
-    can.roundRect(22, 44, 22, 32, 5);
-    inked(g, can, '#e2483d');
-    shadeIn(g, can, '#a8302a', 8, 0);
-    const trumpet = new Path2D('M30 44 L36 30 L66 18 L70 44 L44 40 Z');
-    inked(g, trumpet, '#f4f4f2');
-    shadeIn(g, trumpet, '#c9cdd6', 4, 6);
-    g.strokeStyle = INK;
-    g.lineWidth = 3;
+  } else if (id === 'police') {
+    // A police light bar: a red dome and a blue one on a dark bar, flashing (rays), a little badge.
     g.lineCap = 'round';
-    for (const [x0, y0, x1, y1] of [[74, 22, 84, 16], [76, 32, 88, 32], [74, 42, 84, 48]]) {
+    for (const [x0, y0, x1, y1, c] of [[16, 28, 8, 20, '#ff3b3b'], [14, 42, 6, 42, '#ff3b3b'], [80, 28, 88, 20, '#3a6bff'], [82, 42, 90, 42, '#3a6bff']]) {
+      g.strokeStyle = c;
+      g.lineWidth = 4;
       g.beginPath();
       g.moveTo(x0, y0);
       g.lineTo(x1, y1);
       g.stroke();
     }
+    const red = new Path2D('M20 50 C20 30 30 24 38 24 C44 24 47 30 47 50 Z');
+    inked(g, red, '#ff3b3b');
+    shadeIn(g, red, '#c22222', 6, 0);
+    const blue = new Path2D('M49 50 C49 30 52 24 58 24 C66 24 76 30 76 50 Z');
+    inked(g, blue, '#3a6bff');
+    shadeIn(g, blue, '#2246c2', 6, 0);
+    g.fillStyle = 'rgba(255,255,255,0.75)';
+    g.beginPath();
+    g.ellipse(30, 34, 4, 7, -0.4, 0, Math.PI * 2);
+    g.ellipse(58, 34, 4, 7, -0.4, 0, Math.PI * 2);
+    g.fill();
+    const bar = new Path2D();
+    bar.roundRect(14, 48, 68, 12, 4);
+    inked(g, bar, '#2a3040');
+    const plate = new Path2D();
+    plate.roundRect(26, 62, 44, 16, 4);
+    inked(g, plate, '#f6f7f9', 2.4);
+    g.fillStyle = '#1d4fd8';
+    g.font = '900 10px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('경찰', 48, 70.5);
   } else if (id === 'helmet') {
     // A gold cycling helmet: vents, a shine.
     const shell = new Path2D('M16 60 C16 30 38 18 54 18 C72 18 84 34 82 56 L70 58 C64 50 54 50 44 54 L16 60 Z');

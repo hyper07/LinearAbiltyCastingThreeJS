@@ -375,7 +375,7 @@ export class RaceTraffic {
       // through the fog rather than at the fog's edge)
       vertexShader: `attribute float size; attribute vec3 color; uniform float uFog; varying vec3 vC; varying float vF;
         void main() { vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); float z = max(1.0, -mv.z);
-          vF = mix(1.0, exp(-z / 95.0), uFog);
+          vF = mix(1.0, exp(-z / 45.0), uFog);
           gl_PointSize = size * (1.0 + uFog * 1.6) * 320.0 / z; gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `uniform float uK; uniform float uFog; varying vec3 vC; varying float vF;
         void main() { float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); a = mix(a * a, a * a * a * 0.8 + a * 0.12, uFog) * uK * vF; if (a < 0.01) discard; gl_FragColor = vec4(vC * (0.6 + 2.4 * smoothstep(0.25 - uFog * 0.12, 0.0, d)), a); }`,

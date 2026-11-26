@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 /**
  * Low ground mist for a fog bank (weather.js FOG_BANK): three thin sheets just above the street
- * round the camera — at knee, hip and wheel-arch height — each a disc 140 m across with drifting
+ * round the camera — at knee, hip and wheel-arch height — each a disc 64 m across with drifting
  * patchy noise in the fog's own colour, thinning out near the camera (so you never ride inside a
  * grey card) and far off (where the fog takes over). One small draw each; nothing when the air is
  * clear.
@@ -33,7 +33,7 @@ export class GroundMist {
     this.group = new THREE.Group();
     this.group.name = 'ground-mist';
     this.group.visible = false;
-    const geo = new THREE.CircleGeometry(70, 48).rotateX(-Math.PI / 2);
+    const geo = new THREE.CircleGeometry(32, 40).rotateX(-Math.PI / 2);
     this.geo = geo;
     this.mats = LAYERS.map((L, i) => {
       const m = new THREE.ShaderMaterial({
@@ -62,8 +62,8 @@ export class GroundMist {
             float n = noise(p) * 0.6 + noise(p * 2.3 - uTime * 0.05) * 0.4;
             n = smoothstep(0.3, 0.85, n);
             float d = length(vW.xz - uCam.xz);
-            // thin by the camera (no grey card in your face), thickest 12–40 m out, gone at 70 m
-            float r = smoothstep(4.0, 12.0, d) * (1.0 - smoothstep(42.0, 69.0, d));
+            // thin by the camera (no grey card in your face), thickest 7–18 m out (the fog takes over past it)
+            float r = smoothstep(3.0, 7.0, d) * (1.0 - smoothstep(18.0, 30.0, d));
             float hole = 1.0;
             for (int i = 0; i < ${HOLES}; i++) {
               vec3 H = uHoles[i];
