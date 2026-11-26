@@ -3547,6 +3547,7 @@ export class Race {
     this.podium.stand(top.map((r) => ({ view: r.view, me: r.me })));
     this.podiumIds = top.map((r) => r.id);
     this.podiumT = 0;
+    this._beats = null; // (the dancers count from the podium track's top, like everyone else's)
     this.resultsUp = false;
     for (const r of this.racers) if (!top.includes(r)) r.view.root.visible = false;
     for (const t of this.trails?.values() ?? []) if (t.mesh) t.mesh.visible = false;

@@ -6,8 +6,9 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * crossed the line in time) stand on a podium just past the finish line, in the city as it is —
  * the time of day and the weather carry on. 1st in the middle and highest, 2nd on its left, 3rd on
  * its right (as you look at it), a big number on each block; their scooters parked beside it on
- * their kickstands. The winner jumps with its arms up and pumps its fists; 2nd dances, 3rd claps
- * (plushRider.js celebrate: procedural, squash and stretch, ears and tails flopping). Confetti
+ * their kickstands. Each dances its own species' signature (src/shared/motion/signatures.js), the
+ * winner throwing its arms up in a V and jumping at every bar, 2nd and 3rd smaller (plushRider.js
+ * celebrate: procedural, squash and stretch, ears and tails flopping). Confetti
  * falls, the camera swings slowly round and pushes in. Your own rider, if it is up there, has a gold
  * ring round its block, the block's top glowing with it.
  *
@@ -27,6 +28,8 @@ export const BLOCKS = [
 ];
 export const BLOCK_W = 1.3;
 export const BLOCK_D = 1.15;
+/** Podium Party's measured tempo (public/audio/bgm/manifest.json), when the race doesn't say. */
+export const PODIUM_BPM = 143.6;
 /** How long the podium shows on its own before the results come up over it (s). */
 export const PODIUM_SECONDS = 6.5;
 
@@ -221,9 +224,12 @@ export class Podium {
     for (const b of this.blocks) b.userData.topM.emissiveIntensity = 0.12 + night * 0.5;
     // (your block's top glows with the ring's pulse: a light on you without a beam over your face)
     if (this.mineTop) this.mineTop.emissiveIntensity += 0.35 + 0.3 * Math.sin(this.t * 4);
-    // the dancers: on the music's beat together (a chest-pop routine), each a hair off it and in its own way
-    this.beats = beats ?? (this.beats ?? 0) + dt * (143.6 / 60);
-    for (const r of this.riders) r.view.celebrate(dt, { kind: r.kind, heading: 0, night, beats: this.beats + [0, 0.035, -0.03][r.i], style: r.i });
+    // the dancers: on the music's beat together, each its own species' signature dance with its
+    // place's flourish on top (signatures.js), each a hair off the beat. The species, the place and
+    // the song's position decide every move — counted from the song's first beat (the podium track
+    // starts with the ceremony, from the top) — so a room's browsers dance alike
+    this.beats = beats ?? (this.beats ?? 0) + dt * (PODIUM_BPM / 60);
+    for (const r of this.riders) r.view.celebrate(dt, { kind: r.kind, place: r.i + 1, start: 0, bpm: PODIUM_BPM, heading: 0, night, beats: this.beats + [0, 0.035, -0.03][r.i] });
     // confetti: a burst from each end at the start, again every few seconds; it flutters as it falls
     const { _m: m, _q: q, _e: e, _p: p, _s: s } = this;
     for (let i = 0; i < this.bits.length; i++) {

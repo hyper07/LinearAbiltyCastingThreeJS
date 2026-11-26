@@ -5,6 +5,8 @@ import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial } from
 import { Scooter } from './scooter.js';
 import { blobTexture } from './items.js';
 import { goldHelmet } from './helmet.js';
+import { applyPlushPose, lerpPose, smoothstep } from '../shared/motion/dance.js';
+import { podiumDance } from '../shared/motion/signatures.js';
 
 /**
  * Kickrani's riders: Snowpuff Peaks' plush animals, come to Seoul on
@@ -740,20 +742,25 @@ export class PlushRider {
     } else {
       g.position.set(0, 0, 0);
       g.rotation.set(0, 0, 0);
+      // (what the dance moved that riding doesn't set: the sway, the rubber-hose arms)
+      this.tilt.rotation.z = 0;
+      this.bones.get('armL')?.scale.setScalar(1);
+      this.bones.get('armR')?.scale.setScalar(1);
+      this._danceKey = null;
     }
   }
 
   /**
-   * The ceremony, procedural (no clips), on the music's beat (`beats`: where the track is, in beats) — a
-   * little routine of our own round the street-dance chest pop, one bar long:
-   *   beats 0–2  a burst of four chest pops (two a beat): the chest hits forward and snaps back, the
-   *              shoulders roll back, the elbows pull back at the sides, the head nods just after, a squash
-   *              on every hit, the knees bouncing in half time;
-   *   beats 2–4  the groove: a sway and a clap — the winner (`kind` 'win') jumps with its arms up instead.
-   * All three pop together; `style` (0, 1, 2) gives each its own size and swing (the winner a fist pump on
-   * the off pops, 2nd a hip into it, 3rd smaller, its head bobbing). The ears and the tail flop after, on springs.
+   * The ceremony, procedural (no clips), on the music's beat (`beats`: where the track is, in beats):
+   * each species its own signature dance (src/shared/motion/signatures.js — the bunny hops, the pig
+   * shimmies and claps, the cat body-rolls and flicks a paw, the fox chest-pops and pumps a fist, the
+   * bear two-steps heavily and stomps, the frog jumps and wiggles, the penguin waddles, flaps and spins),
+   * eight bars in four variants, and its place's flourish on top (`place` 1: the V-arms cheer and a jump
+   * at every bar; 2 and 3 smaller; any other place a little clap). Species + place + `start` (the beat it
+   * began on) decide every pose: the same in every browser. Squash and stretch on the body; the ears and
+   * the tail follow on springs, the bunny's flying.
    */
-  celebrate(dt, { kind = 'win', heading = 0, night = 0, beats = null, style = 0 } = {}) {
+  celebrate(dt, { kind = 'win', heading = 0, night = 0, beats = null, place = null, start = 0, bpm = 143.6 } = {}) {
     dt = Math.min(dt, 0.05);
     this.t += dt;
     const t = this.t;
@@ -768,97 +775,44 @@ export class PlushRider {
     this.stars.visible = false;
     this.rider.position.set(0, 0.005, 0);
     this.rider.rotation.set(0, 0, 0);
-    this.body.rotation.y = Math.PI;
-    this.tilt.rotation.set(0, 0, 0);
-    const hips = B.get('hips'), chest = B.get('chest'), headB = B.get('head');
-    const armL = B.get('armL'), armR = B.get('armR'), legL = B.get('legL'), legR = B.get('legR');
-    hips.position.y = 0.2;
-    hips.rotation.set(0, 0, 0);
-    const bt = beats ?? t * 2.4;
-    const amp = [1.15, 1, 0.85][style] ?? 1;
-    const bar = ((bt % 4) + 4) % 4;
-    const burst = bar < 2;
-    // a pop: a sharp hit forward, then a quick release (half a beat each)
-    const popP = (((bt * 2) % 1) + 1) % 1;
-    const hitOf = (p) => (p < 0.1 ? p / 0.1 : Math.max(0, 1 - (p - 0.1) / 0.32) ** 2);
-    const hit = burst ? hitOf(popP) : 0;
-    // the head a fraction after the chest
-    const nod = burst ? hitOf((popP + 0.91) % 1) : 0;
-    const popN = Math.floor(bt * 2);
-    if (burst && popN !== this._popN) {
-      // each hit flicks the ears and the tail (they catch up a moment later)
-      S.ear.v += 5 * amp;
-      S.tailL.v -= 3;
+    const pl = place ?? { win: 1, dance: 2, clap: 3 }[kind] ?? 4;
+    const key = `${this.species}|${pl}|${start}|${bpm}`;
+    if (this._danceKey !== key) {
+      this._danceKey = key;
+      this._dance = podiumDance(this.species, { place: pl, start, bpm });
+      this._lastBeat = this._lastPose = this._lastY = null;
+      this._ease = 0;
     }
-    this._popN = popN;
-    // the knees: a bounce every other beat, the groove under it all
-    const half = Math.abs(Math.sin((bt * Math.PI) / 2));
-    let y = half * 0.035 * amp;
-    let stretch = -0.16 * hit * amp + (half - 0.5) * 0.04;
-    const sway = Math.sin(bt * Math.PI);
-    if (burst) {
-      // (the chest out: the upper body arches back off the hips as the shoulders roll back — + leans forward)
-      chest.rotation.set(0.06 - 0.46 * hit * amp, 0, 0);
-      hips.rotation.set(0.1 * hit, style === 1 ? sway * 0.18 : 0, 0);
-      headB.rotation.set(-0.05 + 0.3 * nod * amp, 0, style === 2 ? Math.sin(bt * Math.PI * 2) * 0.08 : 0);
-      // arms bent down at the sides, the elbows (the whole arm, on this rig) pulling back on each hit —
-      // the shoulders rolling back with them; the winner pumps a fist on the off pops
-      const back = 0.6 * hit * amp;
-      armL.rotation.set(back, 0.25, -0.62 - 0.34 * hit);
-      const pump = kind === 'win' && popN % 2 === 1;
-      armR.rotation.set(pump ? 0 : back, -0.25, pump ? 2.3 + 0.4 * hit : 0.62 + 0.34 * hit);
-      legL.rotation.set(-0.12 * half, 0, 0.06);
-      legR.rotation.set(-0.12 * half, 0, -0.06);
-    } else if (kind === 'win') {
-      // the winner's jump, arms up: a crouch on beat 2, up through 3, a squash landing by 4
-      const u = (bar - 2) / 2;
-      const air = u > 0.18 && u < 0.82;
-      const a = air ? (u - 0.18) / 0.64 : 0;
-      y = air ? Math.sin(a * Math.PI) * 0.4 : 0;
-      stretch = air ? 0.14 * (1 - Math.abs(a - 0.5) * 2) : u <= 0.18 ? -0.16 * Math.sin((u / 0.18) * Math.PI) : -0.18 * Math.sin(((u - 0.82) / 0.18) * Math.PI);
-      if (air && !this._wasAir) S.ear.v -= 9;
-      if (!air && this._wasAir) {
-        S.ear.v += 12;
-        S.tailL.v -= 6;
-      }
-      this._wasAir = air;
-      const up = air ? 2.75 : 2.2;
-      armL.rotation.set(0, 0.15, -up);
-      armR.rotation.set(0, -0.15, up);
-      legL.rotation.set(air ? -0.55 : -0.1, 0, 0.06);
-      legR.rotation.set(air ? -0.45 : -0.1, 0, -0.06);
-      chest.rotation.set(air ? -0.12 : 0.08, 0, 0);
-      headB.rotation.set(-0.25, 0, 0);
-    } else {
-      // the groove: a sway side to side and a clap on each beat, the head bobbing with it
-      const clap = Math.abs(Math.sin(bt * Math.PI));
-      this.tilt.rotation.z = sway * 0.1 * amp;
-      hips.rotation.set(0, sway * 0.25, 0);
-      chest.rotation.set(0.06, -sway * 0.15, sway * 0.06);
-      headB.rotation.set(-0.1, sway * 0.15, -sway * 0.14);
-      armL.rotation.set(0, 1.2 + (1 - clap) * 0.4, -1.2);
-      armR.rotation.set(0, -1.2 - (1 - clap) * 0.4, 1.2);
-      legL.rotation.set(-0.12 * half, 0, 0.06 + Math.max(0, sway) * 0.12);
-      legR.rotation.set(-0.12 * half, 0, -0.06 - Math.max(0, -sway) * 0.12);
+    const bt = beats ?? (this._lastBeat ?? 0) + (dt * bpm) / 60;
+    let pose = this._dance.sample(bt);
+    // the music jumping (its loop going round, or coming in late): ease over from where we were, no snap
+    if (this._lastBeat != null && Math.abs(bt - this._lastBeat - (dt * bpm) / 60) > 0.5) this._ease = 1;
+    this._lastBeat = bt;
+    if (this._ease > 0 && this._lastPose) {
+      pose = lerpPose(this._lastPose, pose, smoothstep(1 - this._ease));
+      this._ease = Math.max(0, this._ease - dt / 0.3);
     }
-    this.squash.position.y = y;
-    const sq = spring(S.sq, 1, 260, 12, dt);
-    const sy = (1 + stretch) * sq;
-    const sxz = 1 / Math.sqrt(Math.max(0.5, sy));
-    this.squash.scale.set(sxz, sy, sxz);
-    // ears flop with the bounce; the tail wags
-    const earA = spring(S.ear, kind === 'win' ? -0.1 : 0.05, 55, 5, dt);
-    const earB = spring(S.earB, Math.sin(bt * Math.PI) * 0.18, 40, 5, dt);
+    this._lastPose = pose;
+    applyPlushPose({ bones: B, squash: this.squash, tilt: this.tilt, turn: this.body, turnRest: Math.PI, hipsRestY: 0.2 }, pose);
+    // ears and tail on springs: left behind as the body goes up, flung up as it lands, swinging with the sway
+    const sig = this._dance.signature;
+    const y = (pose.lift ?? 0) + (pose.hipsY ?? 0) + (pose.stretch ?? 0) * 0.3;
+    const vy = this._lastY == null || dt <= 0 ? 0 : (y - this._lastY) / dt;
+    this._lastY = y;
+    const fling = Math.max(-0.9, Math.min(0.9, vy * 0.45 * sig.ears));
+    const earA = Math.max(-1, Math.min(0.8, spring(S.ear, -0.05 - fling, 70, 6, dt)));
+    const earB = spring(S.earB, (pose.sway ?? 0) * 1.6 * sig.ears + (pose.yaw ?? 0) * 0.3, 45, 5, dt);
     B.get('earL').rotation.set(earA, 0, -0.08 - earB);
     B.get('earR').rotation.set(earA * 0.92, 0, 0.08 + earB);
     const tb = B.get('tail'), t2 = B.get('tail2');
     if (tb) {
-      const wag = spring(S.wag, Math.sin(t * (kind === 'win' ? 11 : 7)) * 0.7, 60, 4, dt);
-      const lift = spring(S.tailL, 0.35, 50, 5, dt);
+      const wag = spring(S.wag, (-(pose.hips?.[1] ?? 0) * 1.5 - (pose.sway ?? 0) - (pose.hips?.[2] ?? 0)) * sig.tail, 55, 4, dt);
+      const lift = spring(S.tailL, 0.35 - Math.max(-0.4, Math.min(0.4, vy * 0.3)), 50, 5, dt);
       tb.rotation.set(-lift * 0.5, wag * 0.55, wag * 0.25);
       if (t2) t2.rotation.set(-lift * 0.35, wag * 0.7, wag * 0.35);
     }
-    if (this.extras.scarf) this.extras.scarf.forEach((seg, i) => (seg.rotation.z = Math.sin(t * 6 + i) * 0.25));
+    if (this.extras.scarf) this.extras.scarf.forEach((seg, i) => (seg.rotation.z = -earB * (0.4 + i * 0.1) + Math.sin(t * 6 + i) * 0.08));
+    if (this.extras.pom) this.extras.pom.rotation.z = spring(S.bob, (pose.sway ?? 0) * 2 - fling * 0.4, 80, 5, dt) * 0.6;
     const rimK = 0.34 * (1 - night * 0.8);
     this.material.userData.u.uRimK.value = rimK;
     if (this.fur) this.fur.userData.u.uRimK.value = 1 - night * 0.8;
@@ -867,9 +821,10 @@ export class PlushRider {
     // happy squinting eyes, with a blink now and then
     this.blink -= dt;
     if (this.blink < 0) this.blink = 2.5 + Math.random() * 3;
-    for (const e of this.eyes) e.scale.y = this.blink < 0.12 ? 0.15 : kind === 'win' ? 0.35 : 0.7;
+    for (const e of this.eyes) e.scale.y = this.blink < 0.12 ? 0.15 : pl === 1 ? 0.35 : 0.7;
+    const air = Math.max(0, pose.lift ?? 0);
     this.blob.visible = true;
-    this.blob.scale.set(0.5 - y * 0.4, 1, 0.5 - y * 0.4);
+    this.blob.scale.set(0.5 - air * 0.4, 1, 0.5 - air * 0.4);
   }
 
   /**
