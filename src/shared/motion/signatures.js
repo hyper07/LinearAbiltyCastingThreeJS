@@ -147,7 +147,7 @@ export function signatureSteps(id, cycle = 0) {
  * paws' raise (≤ 1.7, the plush limit: a V, never straight up); w: how much of the arms it takes.
  */
 export const FLOURISH = {
-  1: { every: 1, at: 0, H: 0.3, arms: 'both', raise: 1.65, reach: 0.22, w: 1, squash: 0.16 },
+  1: { every: 1, at: 0, H: 0.3, arms: 'both', raise: 1.65, reach: 0.25, w: 1, squash: 0.16 },
   2: { every: 2, at: 0, H: 0.15, arms: 'one', raise: 1.6, reach: 0.2, w: 0.85, squash: 0.1 },
   3: { every: 2, at: 1, H: 0.07, arms: 'both', raise: 1.25, reach: 0.1, w: 0.6, squash: 0.07 }
 };
