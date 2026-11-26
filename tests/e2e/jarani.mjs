@@ -17,7 +17,13 @@ import { boot, tally, until } from './lib.mjs';
  * anyway"), cars coming the other way, the Namsan Tower Downhill raced to
  * its finish line below its start (point to point, its woods and guard
  * rails, the finish kept as progress), and the Jamsil Fairground's rides
- * moving. Without Seoul's map
+ * moving; then a race in a fog bank, a call to the police that stops the rider ahead, (fog far under 40 m, the riders unfogged)
+ * to the course's own music, watched for a blinking box in the middle (no
+ * WRONG WAY flicker, the rival panel never empty or in and out too fast), the
+ * 30 s finish window (bots close behind get home in it, one far back is DNF,
+ * your scooter cools down, the seconds left under your time), the podium of
+ * only those who finished, dancing with confetti and the podium's music, the
+ * results over it on any key, and Race again taking it all down. Without Seoul's map
  * converted on this server (data/geo/seoul) there is nothing to race on:
  * the checks say so and pass by.
  */
@@ -624,6 +630,141 @@ export async function run(browser) {
       window.seoul.race.debugCam = null;
       window.seoul.race.quit();
     });
+    // A fog bank, the course's own music, no blinking box, the 30 s finish window and the podium.
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      Object.assign(r, { courseId: 'jamsil', time: 'night', weatherPick: 'fog', laps: 1 });
+      r.startSolo();
+    });
+    t.check('Fog picked: the race is in a fog bank — the world gone by about 20 m (scene fog far small), the sky into it', await until(page, () => {
+      const g = window.seoul;
+      return window.seoul.race.course?.id === 'jamsil' && g.weather.kind === 'fog' && g.scene.fog.far < 40 && g.scene.fog.near < 5 && g.sky.userData.u.uFog.value > 0.8;
+    }, null, 120000), await page.evaluate(() => JSON.stringify({ kind: window.seoul.weather.kind, near: window.seoul.scene.fog.near, far: window.seoul.scene.fog.far })));
+    t.check('…the riders and their scooters stay out of the fog (crisp), the street does not', await page.evaluate(() => {
+      const r = window.seoul.race;
+      let riders = 0;
+      let fogged = 0;
+      for (const x of r.racers) x.view.root.traverse((o) => o.material && (riders++, [].concat(o.material).some((m) => m.fog !== false) && fogged++));
+      return riders > 20 && fogged === 0 && window.seoul.mist.group.visible !== undefined;
+    }));
+    t.check('the course\'s own track plays on the grid and in the race (Jamsil: Neon Boulevard)', await until(page, () => {
+      const s = window.seoul.music.state;
+      return s.area === 'kick-boulevard' && (s.track === 'kick-boulevard' || s.pending === 'kick-boulevard' || !window.seoul.music.audible);
+    }, null, 15000), await page.evaluate(() => JSON.stringify(window.seoul.music.state)));
+    t.check('…and the file is there (an Ogg, in the manifest)', await page.evaluate(async () => {
+      const r = await fetch('audio/bgm/kick-boulevard.ogg');
+      const m = await (await fetch('audio/bgm/manifest.json')).json();
+      return r.ok && /ogg|audio/.test(r.headers.get('content-type') ?? '') && m.tracks.some((x) => x.id === 'kick-boulevard' && x.loopEnd > x.loopStart);
+    }));
+    await until(page, () => window.seoul.race.phase === 'racing', null, 20000);
+    // Watched for a while, riding: no box blinking in the middle — no WRONG WAY flicker, the rival
+    // panel never in without a picture, never in and out faster than its rest.
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.autopilot = true;
+      const w = (r._blink = { wrong: 0, msgs: 0, panelIns: [], empty: 0 });
+      const P = r.panel.el;
+      r._blinkObs = new MutationObserver(() => {
+        if (!r.msgEl.hidden) w.msgs++;
+        if (!r.msgEl.hidden && r.msgEl.textContent === 'WRONG WAY') w.wrong++;
+      });
+      r._blinkObs.observe(r.msgEl, { attributes: true, childList: true, characterData: true, subtree: true });
+      let was = false;
+      r._blinkObs2 = new MutationObserver(() => {
+        const on = P.classList.contains('is-on');
+        if (on && !P.classList.contains('has-pic')) w.empty++;
+        if (on && !was) w.panelIns.push(performance.now());
+        was = on;
+      });
+      r._blinkObs2.observe(P, { attributes: true, attributeFilter: ['class'] });
+    });
+    await page.waitForTimeout(12000);
+    const blink = await page.evaluate(() => {
+      const r = window.seoul.race;
+      r._blinkObs.disconnect();
+      r._blinkObs2.disconnect();
+      const w = r._blink;
+      const gaps = w.panelIns.slice(1).map((t, i) => t - w.panelIns[i]);
+      return { wrong: w.wrong, empty: w.empty, ins: w.panelIns.length, minGap: gaps.length ? Math.min(...gaps) : null, wrongShows: r.wrongShows ?? 0 };
+    });
+    t.check('no blinking box: no WRONG WAY flicker riding the course, the rival panel never empty, never in and out within its rest', blink.wrong === 0 && blink.empty === 0 && (blink.minGap == null || blink.minGap > 2500), JSON.stringify(blink));
+    // Call the police: the rider just ahead of you is pulled over — held to a stop for a second or two.
+    const cop = await page.evaluate(async () => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const c = r.course;
+      const n = c.points.length;
+      const bots = r.racers.filter((x) => x.bot);
+      bots.forEach((b, i) => {
+        const j = (me.idx + (i === 0 ? 3 : n - 30 - i * 6)) % n;
+        const p = c.points[j];
+        const q = c.points[(j + 1) % n];
+        const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+        Object.assign(b.s, { x: p[0], z: p[1], heading: hd, travel: hd, v: 14 });
+        Object.assign(b, { idx: j, sc: null, dist: me.dist + (i === 0 ? 14 : -200 - i * 30), mode: 'ride', pulled: null, items: [null, null, null] });
+      });
+      const ahead = bots[0];
+      me.items[0] = 'police';
+      r.useSlot(0);
+      const t0 = performance.now();
+      let slow = 0;
+      await new Promise((ok) => {
+        const T = setInterval(() => {
+          if (Math.abs(ahead.s.v) < 1.5) slow += 0.05;
+          if (performance.now() - t0 > 3200) ok(clearInterval(T));
+        }, 50);
+      });
+      return { slow: Math.round(slow * 10) / 10, stops: ahead.policeStops ?? 0, patrols: r.police.live.length, slots: me.items.join() };
+    });
+    t.check('Call the police: a patrol pulls the rider ahead of you over — stopped about 1–2 s, then let go', cop.stops >= 1 && cop.slow >= 1 && cop.slow <= 2.4 && !cop.slots.includes('police'), JSON.stringify(cop));
+    // The finish: you home first; two bots close behind (they get their time), one far back (DNF).
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const L = r.course.length;
+      const bots = r.racers.filter((x) => x.bot);
+      r.me.dist = L - 90;
+      [L - 160, L - 420, L - 3000].forEach((d, i) => (bots[i].dist = d));
+      r._dnf = bots[2].id;
+    });
+    t.check('over the line', await until(page, () => window.seoul.race.me.done != null, null, 30000));
+    await page.waitForTimeout(5500);
+    t.check('the race waits for the others (not over 4 s after you, as it was): the seconds left small under your time, and Skip', await page.evaluate(() => {
+      const r = window.seoul.race;
+      const left = document.querySelector('[data-race-left]')?.textContent ?? '';
+      return r.phase === 'racing' && /0:2\d/.test(left) && !document.querySelector('.race__skip').hidden && Math.abs(r.windowEnd - Math.min(...r.racers.map((x) => x.done ?? Infinity)) - 30) < 1e-6;
+    }), await page.evaluate(() => document.querySelector('[data-race-left]')?.textContent));
+    await shot('finish-countdown');
+    t.check('…your scooter cools down to a stop, not left rolling into the traffic', await until(page, () => Math.abs(window.seoul.race.me.s.v) < 0.8, null, 8000));
+    t.check('the window closes 30 s after the winner: the bots close behind got home in it; the one far back is out', await until(page, () => Boolean(window.seoul.race.podium), null, 40000), await page.evaluate(() => JSON.stringify(window.seoul.race.racers.map((x) => [x.id, x.done]))));
+    const pod = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const home = r._order().filter((x) => x.done != null).map((x) => x.id);
+      return { ids: r.podiumIds, home, dnf: r._dnf, late: r.racers.filter((x) => x.done != null).map((x) => x.done - r.me.done), y0: r.podium.riders.map((p) => p.view.squash.position.y + p.view.squash.scale.y) };
+    });
+    t.check('the podium: only riders who finished in time, in order (1st, 2nd, 3rd), nobody who did not finish', pod.ids.length === 3 && pod.ids.join() === pod.home.slice(0, 3).join() && !pod.ids.includes(pod.dnf) && pod.late.some((d) => d > 4), JSON.stringify(pod));
+    await page.waitForTimeout(700);
+    t.check('…they celebrate (jumping, dancing, clapping: squash and stretch), confetti falls, the podium\'s music', await page.evaluate((y0) => {
+      const r = window.seoul.race;
+      const y1 = r.podium.riders.map((p) => p.view.squash.position.y + p.view.squash.scale.y);
+      const moved = y1.filter((y, i) => Math.abs(y - y0[i]) > 0.01).length;
+      const s = window.seoul.music.state;
+      return moved >= 2 && r.podium.riders.map((p) => p.kind).join() === 'win,dance,clap' && r.podium.confetti.count > 100 && s.area === 'kick-podium';
+    }, pod.y0), await page.evaluate(() => JSON.stringify(window.seoul.music.state)));
+    await shot('podium');
+    t.check('…on its own a few seconds: no results table yet', await page.evaluate(() => document.querySelector('.race__results').hidden));
+    await page.keyboard.press('KeyX');
+    t.check('any key: the results come up, smaller, over the dancing podium (DNF for the rider still out)', await until(page, () => {
+      const el = document.querySelector('.race__results');
+      return !el.hidden && el.classList.contains('is-podium') && /DNF/.test(el.textContent) && Boolean(window.seoul.race.podium) && Boolean(el.querySelector('[data-race-again]'));
+    }, null, 3000));
+    await shot('results-podium');
+    await page.click('[data-race-again]');
+    t.check('Race again: the podium is taken down, every rider back on the road, no results', await until(page, () => {
+      const r = window.seoul.race;
+      const g = window.seoul;
+      return !r.podium && !g.scene.getObjectByName('podium') && ['grid', 'racing'].includes(r.phase) && r.racers.length === 4 && r.racers.every((x) => x.view.root.parent === g.scene) && document.querySelector('.race__results').hidden;
+    }, null, 120000));
+    await page.evaluate(() => window.seoul.race.quit());
     t.check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   } finally {
     await context.close();
