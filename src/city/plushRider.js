@@ -744,11 +744,16 @@ export class PlushRider {
   }
 
   /**
-   * The ceremony, procedural (no clips): `kind` 'win' — jumping with arms up and fist pumps;
-   * 'dance' — a bounce and a sway, arms pointing up in turn; 'clap' — a bounce, clapping. Squash and
-   * stretch on every bounce; the ears and the tail flop with it. `beat` the music's beats a second.
+   * The ceremony, procedural (no clips), on the music's beat (`beats`: where the track is, in beats) — a
+   * little routine of our own round the street-dance chest pop, one bar long:
+   *   beats 0–2  a burst of four chest pops (two a beat): the chest hits forward and snaps back, the
+   *              shoulders roll back, the elbows pull back at the sides, the head nods just after, a squash
+   *              on every hit, the knees bouncing in half time;
+   *   beats 2–4  the groove: a sway and a clap — the winner (`kind` 'win') jumps with its arms up instead.
+   * All three pop together; `style` (0, 1, 2) gives each its own size and swing (the winner a fist pump on
+   * the off pops, 2nd a hip into it, 3rd smaller, its head bobbing). The ears and the tail flop after, on springs.
    */
-  celebrate(dt, { kind = 'win', heading = 0, night = 0, beat = 2.2 } = {}) {
+  celebrate(dt, { kind = 'win', heading = 0, night = 0, beats = null, style = 0 } = {}) {
     dt = Math.min(dt, 0.05);
     this.t += dt;
     const t = this.t;
@@ -768,63 +773,74 @@ export class PlushRider {
     const hips = B.get('hips'), chest = B.get('chest'), headB = B.get('head');
     const armL = B.get('armL'), armR = B.get('armR'), legL = B.get('legL'), legR = B.get('legR');
     hips.position.y = 0.2;
-    let y = 0;
-    let stretch = 0; // + tall and thin, − squashed
-    const ph = (t * beat) % 1;
-    if (kind === 'win') {
-      // A jump every other beat: crouch (anticipation), up stretched, down, a squash on landing.
-      const T = 2 / beat;
-      const u = (t % T) / T;
-      const air = u > 0.2 && u < 0.8;
-      const a = air ? (u - 0.2) / 0.6 : 0;
-      y = air ? Math.sin(a * Math.PI) * 0.42 : 0;
-      stretch = air ? 0.14 * (1 - Math.abs(a - 0.5) * 2) : u <= 0.2 ? -0.16 * Math.sin((u / 0.2) * Math.PI) : -0.18 * Math.sin(((u - 0.8) / 0.2) * Math.PI);
+    hips.rotation.set(0, 0, 0);
+    const bt = beats ?? t * 2.4;
+    const amp = [1.15, 1, 0.85][style] ?? 1;
+    const bar = ((bt % 4) + 4) % 4;
+    const burst = bar < 2;
+    // a pop: a sharp hit forward, then a quick release (half a beat each)
+    const popP = (((bt * 2) % 1) + 1) % 1;
+    const hitOf = (p) => (p < 0.1 ? p / 0.1 : Math.max(0, 1 - (p - 0.1) / 0.32) ** 2);
+    const hit = burst ? hitOf(popP) : 0;
+    // the head a fraction after the chest
+    const nod = burst ? hitOf((popP + 0.91) % 1) : 0;
+    const popN = Math.floor(bt * 2);
+    if (burst && popN !== this._popN) {
+      // each hit flicks the ears and the tail (they catch up a moment later)
+      S.ear.v += 5 * amp;
+      S.tailL.v -= 3;
+    }
+    this._popN = popN;
+    // the knees: a bounce every other beat, the groove under it all
+    const half = Math.abs(Math.sin((bt * Math.PI) / 2));
+    let y = half * 0.035 * amp;
+    let stretch = -0.16 * hit * amp + (half - 0.5) * 0.04;
+    const sway = Math.sin(bt * Math.PI);
+    if (burst) {
+      // (the chest out: the upper body arches back off the hips as the shoulders roll back — + leans forward)
+      chest.rotation.set(0.06 - 0.46 * hit * amp, 0, 0);
+      hips.rotation.set(0.1 * hit, style === 1 ? sway * 0.18 : 0, 0);
+      headB.rotation.set(-0.05 + 0.3 * nod * amp, 0, style === 2 ? Math.sin(bt * Math.PI * 2) * 0.08 : 0);
+      // arms bent down at the sides, the elbows (the whole arm, on this rig) pulling back on each hit —
+      // the shoulders rolling back with them; the winner pumps a fist on the off pops
+      const back = 0.6 * hit * amp;
+      armL.rotation.set(back, 0.25, -0.62 - 0.34 * hit);
+      const pump = kind === 'win' && popN % 2 === 1;
+      armR.rotation.set(pump ? 0 : back, -0.25, pump ? 2.3 + 0.4 * hit : 0.62 + 0.34 * hit);
+      legL.rotation.set(-0.12 * half, 0, 0.06);
+      legR.rotation.set(-0.12 * half, 0, -0.06);
+    } else if (kind === 'win') {
+      // the winner's jump, arms up: a crouch on beat 2, up through 3, a squash landing by 4
+      const u = (bar - 2) / 2;
+      const air = u > 0.18 && u < 0.82;
+      const a = air ? (u - 0.18) / 0.64 : 0;
+      y = air ? Math.sin(a * Math.PI) * 0.4 : 0;
+      stretch = air ? 0.14 * (1 - Math.abs(a - 0.5) * 2) : u <= 0.18 ? -0.16 * Math.sin((u / 0.18) * Math.PI) : -0.18 * Math.sin(((u - 0.82) / 0.18) * Math.PI);
       if (air && !this._wasAir) S.ear.v -= 9;
       if (!air && this._wasAir) {
         S.ear.v += 12;
         S.tailL.v -= 6;
       }
       this._wasAir = air;
-      // arms straight up in the air; fist pumps on the ground
-      const pump = air ? 2.75 : 2.15 + Math.abs(Math.sin(t * beat * Math.PI * 2)) * 0.6;
-      armL.rotation.set(0, 0.15, -pump);
-      armR.rotation.set(0, -0.15, pump);
+      const up = air ? 2.75 : 2.2;
+      armL.rotation.set(0, 0.15, -up);
+      armR.rotation.set(0, -0.15, up);
       legL.rotation.set(air ? -0.55 : -0.1, 0, 0.06);
       legR.rotation.set(air ? -0.45 : -0.1, 0, -0.06);
-      hips.position.y = 0.2 - (u <= 0.2 || u >= 0.8 ? 0.03 : 0);
       chest.rotation.set(air ? -0.12 : 0.08, 0, 0);
-      headB.rotation.set(-0.25, Math.sin(t * 3) * 0.15, 0);
-    } else if (kind === 'dance') {
-      // A bounce on every beat and a sway every two; the arms point up in turn (a disco point).
-      const b = Math.abs(Math.sin(ph * Math.PI));
-      y = b * 0.07;
-      stretch = (b - 0.5) * 0.14;
-      if (ph < this._lastPh) S.ear.v += 5;
-      const sway = Math.sin(t * beat * Math.PI);
-      this.tilt.rotation.z = sway * 0.16;
-      hips.rotation.set(0, sway * 0.35, 0);
-      chest.rotation.set(0.05, -sway * 0.25, sway * 0.1);
-      headB.rotation.set(-0.1, sway * 0.2, -sway * 0.18);
-      const up = sway > 0;
-      armL.rotation.set(0, 0.3, -(up ? 2.7 : 0.6) );
-      armR.rotation.set(0, -0.3, up ? 0.6 : 2.7);
-      legL.rotation.set(-0.15 * b, 0, 0.06 + Math.max(0, sway) * 0.2);
-      legR.rotation.set(-0.15 * b, 0, -0.06 - Math.max(0, -sway) * 0.2);
+      headB.rotation.set(-0.25, 0, 0);
     } else {
-      // Clapping: a small bounce, paws together in front twice a beat, the head bobbing side to side.
-      const b = Math.abs(Math.sin(ph * Math.PI));
-      y = b * 0.05;
-      stretch = (b - 0.5) * 0.1;
-      if (ph < this._lastPh) S.ear.v += 4;
-      const clap = Math.abs(Math.sin(t * beat * Math.PI * 2));
-      armL.rotation.set(0, 1.25 + clap * 0.35, -1.25);
-      armR.rotation.set(0, -1.25 - clap * 0.35, 1.25);
-      chest.rotation.set(0.08, 0, Math.sin(t * beat * Math.PI) * 0.06);
-      headB.rotation.set(-0.12, 0, Math.sin(t * beat * Math.PI) * 0.2);
-      legL.rotation.set(-0.1 * b, 0, 0.05);
-      legR.rotation.set(-0.1 * b, 0, -0.05);
+      // the groove: a sway side to side and a clap on each beat, the head bobbing with it
+      const clap = Math.abs(Math.sin(bt * Math.PI));
+      this.tilt.rotation.z = sway * 0.1 * amp;
+      hips.rotation.set(0, sway * 0.25, 0);
+      chest.rotation.set(0.06, -sway * 0.15, sway * 0.06);
+      headB.rotation.set(-0.1, sway * 0.15, -sway * 0.14);
+      armL.rotation.set(0, 1.2 + (1 - clap) * 0.4, -1.2);
+      armR.rotation.set(0, -1.2 - (1 - clap) * 0.4, 1.2);
+      legL.rotation.set(-0.12 * half, 0, 0.06 + Math.max(0, sway) * 0.12);
+      legR.rotation.set(-0.12 * half, 0, -0.06 - Math.max(0, -sway) * 0.12);
     }
-    this._lastPh = ph;
     this.squash.position.y = y;
     const sq = spring(S.sq, 1, 260, 12, dt);
     const sy = (1 + stretch) * sq;
@@ -832,7 +848,7 @@ export class PlushRider {
     this.squash.scale.set(sxz, sy, sxz);
     // ears flop with the bounce; the tail wags
     const earA = spring(S.ear, kind === 'win' ? -0.1 : 0.05, 55, 5, dt);
-    const earB = spring(S.earB, Math.sin(t * beat * Math.PI) * 0.18, 40, 5, dt);
+    const earB = spring(S.earB, Math.sin(bt * Math.PI) * 0.18, 40, 5, dt);
     B.get('earL').rotation.set(earA, 0, -0.08 - earB);
     B.get('earR').rotation.set(earA * 0.92, 0, 0.08 + earB);
     const tb = B.get('tail'), t2 = B.get('tail2');

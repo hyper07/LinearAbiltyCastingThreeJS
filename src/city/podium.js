@@ -211,7 +211,7 @@ export class Podium {
     return this.riders;
   }
 
-  update(dt, { night = 0 } = {}) {
+  update(dt, { night = 0, beats = null } = {}) {
     this.t += dt;
     // a pulse in the ring round your block
     if (this.ring.visible) {
@@ -221,8 +221,9 @@ export class Podium {
     for (const b of this.blocks) b.userData.topM.emissiveIntensity = 0.12 + night * 0.5;
     // (your block's top glows with the ring's pulse: a light on you without a beam over your face)
     if (this.mineTop) this.mineTop.emissiveIntensity += 0.35 + 0.3 * Math.sin(this.t * 4);
-    // the dancers: their own beats (a little apart, so they aren't a chorus line)
-    for (const r of this.riders) r.view.celebrate(dt, { kind: r.kind, heading: 0, night, beat: 2.2 + r.i * 0.07 });
+    // the dancers: on the music's beat together (a chest-pop routine), each a hair off it and in its own way
+    this.beats = beats ?? (this.beats ?? 0) + dt * (143.6 / 60);
+    for (const r of this.riders) r.view.celebrate(dt, { kind: r.kind, heading: 0, night, beats: this.beats + [0, 0.035, -0.03][r.i], style: r.i });
     // confetti: a burst from each end at the start, again every few seconds; it flutters as it falls
     const { _m: m, _q: q, _e: e, _p: p, _s: s } = this;
     for (let i = 0; i < this.bits.length; i++) {

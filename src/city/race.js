@@ -9,6 +9,7 @@ import { SCOOT, GRIP, SCOOTER_ORDER, newScoot, stepScoot, cornerSpeed, specFor, 
 import { Lobby } from './lobby.js';
 import { JaraniStage } from './stage.js';
 import { SpeedFx, speedFeel, windNoise } from './speedfx.js';
+import { music } from '../shared/music.js';
 import { ringBell } from './bell.js';
 import { THROW, branchModel, branchTarget, throwPlan, flightAt, snapSound, leafBurst, stepLeaves } from './branch.js';
 import { CREW, CREW_ORDER, rider, botRiders } from './crew.js';
@@ -119,6 +120,8 @@ const DOWN = 1.55;
 export const DRINK = { boost: 4, extra: 0.4 };
 /** Seconds the race stays open for the others once the first rider is home (then the rest are DNF). */
 export const FINISH_WINDOW = 30;
+/** Podium Party's measured tempo (the manifest has it; this when it isn't loaded). */
+const PODIUM_BPM = 143.6;
 
 export { botRiders };
 
@@ -1251,7 +1254,7 @@ export class Race {
     // The ceremony: the podium dances (podium.js); the race itself is over.
     if (this.podium) {
       this.podiumT += rawDt;
-      this.podium.update(rawDt, { night: this.g.uniforms?.uNight.value ?? 0 });
+      this.podium.update(rawDt, { night: this.g.uniforms?.uNight.value ?? 0, beats: this._podiumBeats(rawDt) });
       this.fx?.update(rawDt, this.g.camera);
       if (!this.resultsUp && this.podiumT > PODIUM_SECONDS) this._results();
       return;
@@ -3448,6 +3451,22 @@ export class Race {
     if (drift && Math.sign(steer) !== Math.sign(r.driftSide)) steer = r.driftSide * 0.4;
     if (drift) steer = Math.sign(steer || r.driftSide) * Math.max(Math.abs(steer), 0.75);
     return { throttle: v < target - 0.2, brake: v > target + 1.2 && (!drift || v > target + 5), steer, drift };
+  }
+
+  /**
+   * Where the podium's music is, in beats (its measured tempo, from the music manifest): the dancers
+   * pop on its beat. While it isn't playing (muted, still loading), the same tempo on their own clock.
+   */
+  _podiumBeats(dt) {
+    const tr = music.current;
+    const bpm = tr?.id === 'kick-podium' ? tr.measured?.tempo ?? tr.bpm ?? PODIUM_BPM : PODIUM_BPM;
+    const pos = tr?.id === 'kick-podium' && music.audible ? music._position?.() : null;
+    if (pos != null && Number.isFinite(pos)) {
+      // (the song's place, eased toward; a jump — the loop going round — taken at once)
+      const want = (pos * bpm) / 60;
+      this._beats = this._beats == null || Math.abs(want - this._beats) > 4 ? want : this._beats + (dt * bpm) / 60 + (want - this._beats) * Math.min(1, dt * 4);
+    } else this._beats = (this._beats ?? 0) + (dt * bpm) / 60;
+    return this._beats;
   }
 
   /** The order: finished first (by time), then by how far round. */
