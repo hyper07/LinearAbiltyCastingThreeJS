@@ -8,17 +8,25 @@
  *   const pose = d.sample(beats);            // beats: where the song is, in beats
  *   applyPlushPose(rig, pose);
  *
+ * Slow and smooth, like real dancing to a fast song: everything moves in half time (Podium Party
+ * is 143.6 BPM; the dances feel it at ~72, the big gestures at ~36) — a pose arrives on the count,
+ * holds, then flows to the next with a sine ease; the hips lead, the chest, arms and head follow
+ * 90–200 ms behind; the knees give in a soft groove, never a hop (only the winner hops, once in
+ * two bars). Peak joint speeds stay under ~3 rad/s (tests/unit/motion-signatures.test.mjs).
+ *
  * A signature runs 8 bars (32 counts: four 8-count phrases — the hook, an answer, a variation,
  * and a phrase that ends on the character's own button), then again as one of four variants
  * (a different answer here, a mirror or a size there): the variant is the cycle number, so it
  * never loops the same two bars, and never differs between browsers.
  */
-import { MOVES, routine, rng, beatAt, restPose, lerpPose, clampPlushPose, smoothstep, PLUSH_LIMITS } from './dance.js';
+import { MOVES, routine, rng, beatAt, restPose, lerpPose, clampPlushPose, easeSine, PLUSH_LIMITS } from './dance.js';
 
 /** Counts in a signature's cycle (8 bars of 4/4). */
 export const CYCLE = 32;
 /** How many variants a signature plays in turn. */
 export const VARIANTS = 4;
+/** Crossfade between a signature's moves, in beats (slow: the change flows over a beat and a half). */
+export const BLEND = 1.5;
 
 const mod = (a, n) => ((a % n) + n) % n;
 const pick = (r, list) => list[Math.floor(r() * list.length)];
@@ -34,86 +42,86 @@ const size = (r, v) => (v ? 0.9 + r() * 0.2 : 1);
 export const SIGNATURES = {
   bunny: {
     who: 'Mallow, The Bounce',
-    dance: 'springy hops and bounces, ears flying: little hops on every beat, big ones every two, side hops, a raise-the-roof',
+    dance: 'a gentle bounce-sway from foot to foot, paws swinging in arcs, ears flowing; the paws float up into a soft V and drift down; a cheer to finish',
     ears: 1.6,
     tail: 1.2,
     phrases: (r, v) => [
-      [{ move: 'hop', counts: 4 }, { move: 'hop', counts: 4, big: true }],
-      [{ move: 'hop', counts: 4, side: true, mirror: v % 2 === 1 }, { move: v ? pick(r, ['roof', 'clap', 'roof']) : 'roof', counts: 4, amp: size(r, v) }],
-      [{ move: 'hop', counts: 4, big: true }, { move: 'hop', counts: 4, side: true, mirror: v % 2 === 0 }],
-      [{ move: v === 2 ? 'bounce' : 'hop', counts: 4, amp: v === 2 ? 1.4 : 1 }, { move: 'hop', counts: 2, big: true }, { move: 'hit', counts: 2 }]
+      [{ move: 'bounceSway', counts: 8 }],
+      [{ move: 'bounceSway', counts: 4, mirror: v % 2 === 1 }, { move: 'reachUp', counts: 4, amp: size(r, v) }],
+      [{ move: 'reachUp', counts: 4 }, { move: v ? pick(r, ['bounceSway', 'lazySway']) : 'bounceSway', counts: 4, amp: v ? 1.1 : 1, mirror: v >= 2 }],
+      [{ move: 'bounceSway', counts: 4 }, { move: 'strike', counts: 4, look: 'cheer' }]
     ]
   },
   pig: {
     who: 'Peaches, Late Braker',
-    dance: 'a cheerful side-to-side shimmy and claps, unbothered: shimmies, step-claps on 2 and 4, a shimmy down, a shrug to finish',
+    dance: 'a relaxed side-step with a clap on the half-time 2 and 4, a lazy sway with the belly circling, unbothered; a shrug to finish',
     ears: 0.8,
     tail: 1.4,
     phrases: (r, v) => [
-      [{ move: 'shimmy', counts: 4 }, { move: 'shimmy', counts: 4, mirror: true }],
-      [{ move: 'stepClap', counts: 8, amp: size(r, v) }],
-      [{ move: 'shimmy', counts: 4, double: true, mirror: v % 2 === 1 }, { move: v ? pick(r, ['clap', 'stepClap']) : 'clap', counts: 4 }],
-      [{ move: 'stepClap', counts: 4 }, { move: 'shimmy', counts: 2 }, { move: 'shrug', counts: 2 }]
+      [{ move: 'sideClap', counts: 8 }],
+      [{ move: 'lazySway', counts: 8, amp: size(r, v) }],
+      [{ move: 'sideClap', counts: 4, mirror: v % 2 === 1 }, { move: v ? pick(r, ['lazySway', 'sideClap']) : 'lazySway', counts: 4 }],
+      [{ move: 'sideClap', counts: 4 }, { move: 'strike', counts: 4, look: 'shrug' }]
     ]
   },
   cat: {
     who: 'Mochi, Corner Queen',
-    dance: 'a sassy body roll with paw flicks and a hip sway, a paw on the hip, ending on a pose',
+    dance: 'a slow, sultry body wave and hip sway, a paw on the hip, the other sweeping out from the cheek; a pose to end',
     ears: 0.7,
     tail: 1.6,
     phrases: (r, v) => [
-      [{ move: 'bodyRoll', counts: 4 }, { move: 'pawFlick', counts: 4 }],
-      [{ move: 'hipSway', counts: 4, mirror: v % 2 === 1 }, { move: 'hipSway', counts: 4, mirror: v % 2 === 0 }],
-      [{ move: v === 3 ? 'hipSway' : 'bodyRoll', counts: 4, amp: size(r, v) }, { move: 'pawFlick', counts: 4, mirror: true }],
-      [{ move: 'hipSway', counts: 4 }, { move: 'pawFlick', counts: 2 }, { move: 'hit', counts: 2 }]
+      [{ move: 'bodyWave', counts: 4 }, { move: 'sultrySway', counts: 4 }],
+      [{ move: 'sultrySway', counts: 4, mirror: v % 2 === 1 }, { move: 'pawArc', counts: 4, mirror: v % 2 === 1 }],
+      [{ move: v === 3 ? 'sultrySway' : 'bodyWave', counts: 4, amp: size(r, v) }, { move: 'pawArc', counts: 4, mirror: v % 2 === 0 }],
+      [{ move: 'sultrySway', counts: 4 }, { move: 'strike', counts: 4, look: 'pose' }]
     ]
   },
   fox: {
     who: 'Pip, Straight-line Pip',
-    dance: 'the chest-pop routine (four pops in two beats, then a sway and a clap) with arm pumps, ending on a point',
+    dance: 'slow chest pops, one every two beats, and a smooth arm wave rippling paw to paw; a point to end',
     ears: 1,
     tail: 1.3,
     phrases: (r, v) => [
-      [{ move: 'popBurst', counts: 4 }, { move: 'popBurst', counts: 4 }],
-      [{ move: 'chestPop', counts: 4, double: v !== 1 }, { move: 'armPump', counts: 4, amp: size(r, v) }],
-      [{ move: 'popBurst', counts: 4 }, { move: 'armPump', counts: 4, mirror: true }],
-      [{ move: 'chestPop', counts: 4, double: v >= 2 }, { move: 'armPump', counts: 2, mirror: v % 2 === 1 }, { move: 'hit', counts: 2 }]
+      [{ move: 'slowPop', counts: 8 }],
+      v === 1 ? [{ move: 'slowPop', counts: 4 }, { move: 'armFlow', counts: 4 }] : [{ move: 'armFlow', counts: 8, amp: size(r, v) }],
+      [{ move: 'slowPop', counts: 4, amp: size(r, v) }, { move: 'armFlow', counts: 4, mirror: true }],
+      [{ move: 'slowPop', counts: 4 }, { move: 'strike', counts: 4, look: 'point' }]
     ]
   },
   bear: {
     who: 'Toffee, The Wall',
-    dance: 'a heavy, slow, proud two-step in half time, big shoulder rolls, a stomp, and a flex',
+    dance: 'a heavy, slow, proud two-step deep in the knees, big slow shoulder rolls; a flex to finish',
     ears: 0.6,
     tail: 0.8,
     phrases: (r, v) => [
-      [{ move: 'proudStep', counts: 8 }],
-      [{ move: 'shoulderRoll', counts: 4, amp: size(r, v) }, { move: 'shoulderRoll', counts: 4, mirror: true }],
-      [{ move: 'proudStep', counts: 4 }, { move: 'stomp', counts: 4, mirror: v % 2 === 1 }],
-      [{ move: 'shoulderRoll', counts: 4 }, { move: 'stomp', counts: 2 }, { move: 'flex', counts: 2 }]
+      [{ move: 'heavyStep', counts: 8 }],
+      [{ move: 'rollShoulders', counts: 4, amp: size(r, v) }, { move: 'rollShoulders', counts: 4, mirror: true }],
+      [{ move: 'heavyStep', counts: 4 }, { move: 'rollShoulders', counts: 4, mirror: v % 2 === 1 }],
+      [{ move: 'rollShoulders', counts: 4 }, { move: 'strike', counts: 4, look: 'flex' }]
     ]
   },
   frog: {
     who: 'Pickle, Kerb Hopper',
-    dance: 'froggy knee-bent jumps from a wide squat and a splayed-leg wiggle, sinking low',
+    dance: 'a slow, wide squat-and-rise, the paws floating up as it rises, and a low splayed-leg wiggle that sinks and comes back',
     ears: 0.5,
     tail: 0.8,
     phrases: (r, v) => [
-      [{ move: 'frogJump', counts: 4 }, { move: 'frogJump', counts: 4 }],
-      [{ move: 'splitWiggle', counts: 4, amp: size(r, v) }, { move: 'splitWiggle', counts: 4, double: true }],
-      [{ move: 'frogJump', counts: 4 }, { move: v ? pick(r, ['splitWiggle', 'clap']) : 'splitWiggle', counts: 4 }],
-      [{ move: 'splitWiggle', counts: 4, double: v % 2 === 1 }, { move: 'frogJump', counts: 2 }, { move: 'hit', counts: 2 }]
+      [{ move: 'squatRise', counts: 8 }],
+      [{ move: 'wideWiggle', counts: 4, amp: size(r, v) }, { move: 'wideWiggle', counts: 4, double: true }],
+      [{ move: 'squatRise', counts: 4 }, { move: v ? pick(r, ['wideWiggle', 'reachUp']) : 'wideWiggle', counts: 4, mirror: v % 2 === 1 }],
+      [{ move: 'wideWiggle', counts: 4, double: v % 2 === 1 }, { move: 'strike', counts: 4, look: 'frog' }]
     ]
   },
   penguin: {
     who: 'Pebble, Rain Dancer',
-    dance: 'a waddle shuffle with flipper flaps and a spin',
+    dance: 'a smooth waddle-glide from foot to foot, flipper waves, and a slow full turn',
     ears: 0.5,
     tail: 1.2,
     phrases: (r, v) => [
-      [{ move: 'waddle', counts: 4 }, { move: 'waddle', counts: 4, mirror: true }],
-      [{ move: 'flap', counts: 4, double: v % 2 === 1 }, { move: 'waddle', counts: 4, amp: size(r, v) }],
-      [{ move: 'waddle', counts: 4, mirror: v >= 2 }, { move: 'flap', counts: 4, double: v % 2 === 0 }],
-      [{ move: 'waddle', counts: 4 }, { move: 'spin', counts: 2 }, { move: 'hit', counts: 2 }]
+      [{ move: 'waddleGlide', counts: 8 }],
+      [{ move: 'flipperWave', counts: 4 }, { move: 'waddleGlide', counts: 4, amp: size(r, v) }],
+      [{ move: 'slowTurn', counts: 8, mirror: v >= 2 }],
+      [{ move: v % 2 ? 'flipperWave' : 'waddleGlide', counts: 4 }, { move: 'strike', counts: 4, look: 'flipper' }]
     ]
   }
 };
@@ -141,50 +149,59 @@ export function signatureSteps(id, cycle = 0) {
 /* ------------------------------------------------------------------ place flourishes */
 
 /**
- * On top of the signature, by podium place: the winner throws the V-arms cheer and jumps at
- * every bar's start; 2nd one paw up and a smaller hop every other bar; 3rd a small V and a little
- * hop on the bars between. `every`/`at`: which bars; H: jump height (rider units); raise: the
- * paws' raise (≤ 1.7, the plush limit: a V, never straight up); w: how much of the arms it takes.
+ * On top of the signature, by podium place, once every two bars (`at`: on the first bar or the
+ * second): the winner raises its arms slowly into a V — up over a beat and a half to arrive on the
+ * downbeat, held two beats, down over a beat and a half — with one soft hop as they arrive (the
+ * only hop in the dances); 2nd raises one paw the same way, no hop; 3rd a small V on the bars
+ * between. raise: the paws' raise (≤ 1.7, the plush limit: a V, never straight up); w: how much
+ * of the arms it takes; hop: the hop's height (rider units).
  */
 export const FLOURISH = {
-  1: { every: 1, at: 0, H: 0.3, arms: 'both', raise: 1.65, reach: 0.25, w: 1, squash: 0.16 },
-  2: { every: 2, at: 0, H: 0.15, arms: 'one', raise: 1.6, reach: 0.2, w: 0.85, squash: 0.1 },
-  3: { every: 2, at: 1, H: 0.07, arms: 'both', raise: 1.25, reach: 0.1, w: 0.6, squash: 0.07 }
+  1: { every: 2, at: 0, arms: 'both', raise: 1.65, reach: 0.25, w: 1, hop: 0.12 },
+  2: { every: 2, at: 0, arms: 'one', raise: 1.55, reach: 0.2, w: 0.85, hop: 0 },
+  3: { every: 2, at: 1, arms: 'both', raise: 1.25, reach: 0.1, w: 0.6, hop: 0 }
 };
+/** The flourish's timing in beats from its downbeat: up from −RISE, held to HOLD, down by HOLD + FALL. */
+const RISE = 1.5, HOLD = 2, FALL = 1.5;
+
+/** The raise at `j` beats from the flourish's downbeat: 0..1 (sine ease up, held, sine ease down). */
+const raiseAt = (j) => (j < -RISE || j > HOLD + FALL ? 0 : j < 0 ? easeSine((j + RISE) / RISE) : j < HOLD ? 1 : 1 - easeSine((j - HOLD) / FALL));
 
 /**
- * The flourish at a beat (counted from the dance's start): { pose, arms (0..1), up (0..1, in the
- * air) } or null between them. The jump: a crouch just before the bar line, off the ground on the
- * downbeat with the paws thrown up (the hit on 1), down by beat 2 with a squash, the paws back by 2½.
+ * The flourish at a beat (counted from the dance's start): { pose, arms (0..1), look (0..1, the
+ * head and chest, a little behind the arms), up (0..1, in the air), both } or null between them.
  */
-export function flourish(local, place) {
+export function flourish(local, place, bpm = 143.6) {
   const F = FLOURISH[place];
   if (!F) return null;
-  const bar = Math.floor(local / 4);
-  const bp = local - bar * 4;
-  const on = (b) => mod(b - F.at, F.every) === 0;
-  let j;
-  if (bp >= 3.7 && on(bar + 1)) j = bp - 4;
-  else if (bp < 1.6 && on(bar)) j = bp;
-  else return null;
-  const arms = j < 0 ? smoothstep((j + 0.3) / 0.3) : j < 1 ? 1 : 1 - smoothstep((j - 1) / 0.6);
+  const per = 4 * F.every;
+  let j = mod(local - 4 * F.at, per);
+  if (j > per - RISE) j -= per;
+  const lag = (0.2 * bpm) / 60; // the head and chest follow the paws up, 200 ms behind
+  if (j > HOLD + FALL + lag) return null;
+  const arms = raiseAt(j);
+  const look = raiseAt(j - lag);
   const p = restPose();
   let up = 0;
-  if (j < 0.06) {
-    const k = j > -0.28 ? Math.sin((Math.PI * (j + 0.28)) / 0.34) : 0; // the crouch
-    p.hipsY = -0.04 * k;
-    p.stretch = -F.squash * 0.8 * k;
-  } else if (j < 0.86) {
-    const a = (j - 0.06) / 0.8;
-    up = Math.sin(Math.PI * a);
-    p.lift = F.H * up;
-    p.stretch = 0.12 * Math.abs(Math.sin(2 * Math.PI * a)) * Math.min(1, F.H / 0.15);
-    p.legL = [-0.45 * up, 0, -0.06 * up];
-    p.legR = [-0.35 * up, 0, 0.06 * up];
-  } else if (j < 1.2) {
-    const k = Math.sin((Math.PI * (j - 0.86)) / 0.34); // the landing
-    p.hipsY = -0.03 * k;
-    p.stretch = -F.squash * k;
+  if (F.hop) {
+    // a soft crouch through the beat before, off the ground on the downbeat as the paws arrive, a slow landing
+    if (j > -1 && j < 0) {
+      const k = Math.sin(Math.PI * (j + 1));
+      p.hipsY = -0.035 * k;
+      p.stretch = -0.06 * k;
+    } else if (j >= 0 && j < 1) {
+      up = Math.sin(Math.PI * j);
+      p.lift = F.hop * up;
+      p.stretch = 0.06 * up;
+    } else if (j >= 1 && j < 2) {
+      const k = Math.sin(Math.PI * (j - 1));
+      p.hipsY = -0.03 * k;
+      p.stretch = -0.05 * k;
+    }
+    // the legs tuck a little after the take-off and let go before the landing
+    const tuck = j >= 0 && j < 1 ? Math.sin(Math.PI * j) ** 2 : 0;
+    p.legL = [-0.35 * tuck, 0, -0.05 * tuck];
+    p.legR = [-0.28 * tuck, 0, 0.05 * tuck];
   }
   p.armR = [0, -0.1, F.raise];
   p.reachR = F.reach;
@@ -197,22 +214,28 @@ export function flourish(local, place) {
     p.head = [-0.18, -0.15, 0.1]; // looking up at the paw
     p.chest = [-0.06, 0.08, 0];
   }
-  return { pose: p, arms: arms * F.w, up, both: F.arms === 'both' };
+  return { pose: p, arms: arms * F.w, look: look * F.w, up, hop: !!F.hop, both: F.arms === 'both' };
 }
 
-/** The signature with a flourish on top: the arms and head taken over, the hop added, the legs tucked in the air. */
+/** The signature with a flourish on top: the arms taken over, then the head and chest; the hop added, the legs tucked in the air. */
 export function withFlourish(base, f) {
   if (!f) return base;
   const out = lerpPose(base, base, 0); // a copy
-  const take = f.both ? ['armL', 'armR', 'head', 'chest'] : ['armR', 'head', 'chest'];
-  const w = f.arms;
-  for (const j of take) for (let i = 0; i < 3; i++) out[j][i] = base[j][i] + (f.pose[j][i] - base[j][i]) * (j === 'chest' ? w * 0.6 : w);
-  out.reachR = base.reachR + (f.pose.reachR - base.reachR) * w;
-  if (f.both) out.reachL = base.reachL + (f.pose.reachL - base.reachL) * w;
-  for (const j of ['legL', 'legR']) for (let i = 0; i < 3; i++) out[j][i] = base[j][i] + (f.pose[j][i] - base[j][i]) * f.up;
-  out.lift = Math.max(base.lift, f.pose.lift);
-  out.stretch = base.stretch + f.pose.stretch;
-  out.hipsY = base.hipsY + f.pose.hipsY;
+  const mix = (j, w) => {
+    for (let i = 0; i < 3; i++) out[j][i] = base[j][i] + (f.pose[j][i] - base[j][i]) * w;
+  };
+  mix('armR', f.arms);
+  if (f.both) mix('armL', f.arms);
+  mix('head', f.look);
+  mix('chest', f.look * 0.6);
+  out.reachR = base.reachR + (f.pose.reachR - base.reachR) * f.arms;
+  if (f.both) out.reachL = base.reachL + (f.pose.reachL - base.reachL) * f.arms;
+  if (f.hop) {
+    for (const j of ['legL', 'legR']) for (let i = 0; i < 3; i++) out[j][i] = base[j][i] + f.pose[j][i];
+    out.lift = Math.max(base.lift, f.pose.lift);
+    out.stretch = base.stretch + f.pose.stretch;
+    out.hipsY = base.hipsY + f.pose.hipsY;
+  }
   return out;
 }
 
@@ -221,7 +244,7 @@ export function withFlourish(base, f) {
 /**
  * A character's podium dance: its signature, from `start` (a beat; rounded down to a bar line so
  * the moves keep to the music's bars), with its place's flourish (1, 2, 3); any other place (a
- * finisher off the podium) just claps along, small; place 0 the signature alone.
+ * finisher off the podium) just side-claps along, small; place 0 the signature alone.
  * `sample(beat)` → a pose inside the plush limits.
  */
 export function podiumDance(id, { place = 0, start = 0, bpm = 143.6, limits = PLUSH_LIMITS } = {}) {
@@ -230,7 +253,7 @@ export function podiumDance(id, { place = 0, start = 0, bpm = 143.6, limits = PL
   const shows = new Map();
   const show = (cycle) => {
     const v = mod(cycle, VARIANTS);
-    if (!shows.has(v)) shows.set(v, routine(offPodium ? [{ move: 'clap', counts: 4, amp: 0.7 }] : signatureSteps(id, v), { limits: null }));
+    if (!shows.has(v)) shows.set(v, routine(offPodium ? [{ move: 'sideClap', counts: 8, amp: 0.7 }] : signatureSteps(id, v), { blend: BLEND, limits: null }));
     return shows.get(v);
   };
   return {
@@ -252,7 +275,7 @@ export function podiumDance(id, { place = 0, start = 0, bpm = 143.6, limits = PL
       const cycle = Math.floor(local / CYCLE);
       const c = beatAt(mod(local, CYCLE), bpm);
       let p = show(cycle).sample(c);
-      if (!offPodium) p = withFlourish(p, flourish(local, place));
+      if (!offPodium) p = withFlourish(p, flourish(local, place, bpm));
       return limits ? clampPlushPose(p, limits) : p;
     }
   };

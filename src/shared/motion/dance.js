@@ -148,6 +148,44 @@ export function popEvery(c, every = 2, { start = 0, at = 0, attack = 0.07, hold 
   return Math.max(rise, fall);
 }
 
+/* ---- smooth curves: half time, held poses, sine ease (the slow moves below) ---- */
+
+/** Sine ease in and out, 0..1: starts and stops gently (a smoothstep's flatter cousin). */
+export const easeSine = (x) => 0.5 - 0.5 * Math.cos(Math.PI * clamp01(x));
+
+/** A soft knee groove: −1 (knees bent) on every `per`-th beat (counted from `at`), 0 halfway between — a pure sine, never a snap. */
+export function groove(beat, per = 2, at = 0) {
+  return -(0.5 + 0.5 * Math.cos((2 * Math.PI * (beat - at)) / per));
+}
+
+/**
+ * A held weight shift: arrives at +1 on beat 0 (and every 2·`per` beats), at −1 on beat `per`…;
+ * dwells `hold` of the way there, then flows across with a sine ease, arriving on the next count.
+ */
+export function glide(beat, per = 2, hold = 0.25) {
+  const n = Math.floor(beat / per);
+  const here = mod(n, 2) === 0 ? 1 : -1;
+  return here - 2 * here * easeSine((beat / per - n - hold) / (1 - hold));
+}
+
+/**
+ * A smooth pulse, 0..1: eases up over `rise` beats to arrive (1) on beat `at` of every `per`, holds
+ * `hold` beats, eases back down over `fall` — a slow hit that lands on the count and lets go gently.
+ */
+export function swell(beat, per, at = 0, { rise = 1, hold = 0.25, fall = 1.5 } = {}) {
+  const u = mod(beat - at + rise, per);
+  if (u < rise) return easeSine(u / rise);
+  if (u < rise + hold) return 1;
+  return 1 - easeSine((u - rise - hold) / fall);
+}
+
+/**
+ * Follow-through, in seconds: the hips lead, the chest follows ~90 ms later, the arms ~160 ms, the
+ * head last (~200 ms). `lagged(c, LAG.head)` is the beat the head is at.
+ */
+export const LAG = { hips: 0, chest: 0.09, arms: 0.16, head: 0.2 };
+export const lagged = (c, seconds) => c.beat - seconds / c.spb;
+
 /** A clock state at a beat count (from a song's position in beats, not seconds) — what `beatClock` gives. */
 export function beatAt(beat, bpm = 120, beatsPerBar = 4) {
   const spb = 60 / bpm;
@@ -270,6 +308,44 @@ export function clampAim([out, up, fwd], { minOut = 0.35, maxBack = 0.45, maxUp 
 }
 
 /* ------------------------------------------------------------------ the move library */
+
+/** −1 when a move plays mirrored: its weight shift starts on the other foot, so after mirrorPose the weight is where it was (no jump at the join). */
+const sided = (o) => (o.mirror ? -1 : 1);
+
+/**
+ * The base of the slow moves: the weight from foot to foot (`glide`, landing every `per` beats and
+ * dwelling `hold`), the hips leading, the chest, then the head answering late (LAG); the weight
+ * leg out a little (`step`), the free knee soft; a knee groove (`knees`, m) lowest as the weight
+ * lands, a little squash with it (`bob`). `size` scales the shift, `hips` the hip drop.
+ */
+function shiftPose(c, o = {}, { per = 2, hold = 0.25, size = 1, knees = 0.03, bob = 0.04, hips = 1, step = 0.18 } = {}) {
+  const sd = sided(o);
+  const h = (lag) => sd * glide(lagged(c, lag), per, hold);
+  const h0 = h(0), hc = h(LAG.chest), hh = h(LAG.head);
+  const p = restPose();
+  p.sway = 0.07 * size * h0;
+  p.hips = [0, 0.1 * size * h0, 0.1 * size * hips * h0];
+  p.chest = [0.03, -0.07 * size * hc, -0.09 * size * hc];
+  p.head = [-0.06, 0.05 * size * hh, 0.07 * size * hh];
+  const wR = ((1 + h0) / 2) ** 2, wL = ((1 - h0) / 2) ** 2;
+  p.legR = [-0.1 * wL, 0, step * wR];
+  p.legL = [-0.1 * wR, 0, -step * wL];
+  p.hipsY = knees * groove(c.beat, 2);
+  p.stretch = bob * groove(lagged(c, LAG.chest), 2);
+  return p;
+}
+
+/** The frog's base: the hips wiggling slowly side to side every two beats, the chest countering, the head after. */
+function wiggle(c, o = {}, size = 1) {
+  const sd = sided(o);
+  const h = (lag) => sd * glide(lagged(c, lag), 2, 0.2);
+  const p = restPose();
+  p.hips = [0, 0.22 * size * h(0), 0.08 * size * h(0)];
+  p.chest = [0.05, -0.12 * size * h(LAG.chest), -0.06 * size * h(LAG.chest)];
+  p.head = [-0.1, 0.06 * size * h(LAG.head), 0.1 * size * h(LAG.head)];
+  p.sway = 0.04 * size * h(LAG.chest);
+  return p;
+}
 
 /**
  * Generic moves, each a function of the clock state → pose, with its natural
@@ -840,6 +916,344 @@ export const MOVES = {
     }
   },
 
+  /* ---- slow moves: half time, smooth (the podium signatures, signatures.js) ----
+   * Real dancing to a fast song moves on every other beat: it arrives on the count, holds, then
+   * flows to the next pose with a sine ease (no snap). The hips lead, the chest follows, then the
+   * arms, the head last (LAG); the knees give in a soft groove once every two beats, never a hop.
+   * Peak joint speeds stay under ~3 rad/s at Podium Party's 143.6 BPM (the fast moves above: 20+). */
+
+  /** Bounce-sway: the weight from foot to foot every two beats with a springy knee groove, the paws swinging in arcs, the head tipping after. */
+  bounceSway: {
+    counts: 8,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 1.1, knees: 0.035, bob: 0.06 });
+      const a = sided(o) * glide(lagged(c, LAG.arms), 2, 0.25);
+      const wR = (1 + a) / 2; // the paw on the weight side lifts out, the other swings forward and down
+      const arc = (w) => [0, 0.15 + 0.35 * (1 - w), 0.45 + 0.35 * w + 0.15 * Math.sin(Math.PI * w)];
+      const [rx, ry, rz] = arc(wR);
+      const [lx, ly, lz] = arc(1 - wR);
+      p.armR = [rx, -ry, rz];
+      p.armL = [lx, ly, -lz];
+      p.head[2] += 0.06 * a;
+      return p;
+    }
+  },
+  /** Reach up: both paws float up and out into a soft V over a beat and a half, hold, and drift down over two; the weight still shifts. */
+  reachUp: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 0.7, knees: 0.025 });
+      const s0 = o.start ?? 0;
+      const k = swell(lagged(c, LAG.arms) - s0, 4, 1.5, { rise: 1.5, hold: 0.5, fall: 2 });
+      const kh = swell(lagged(c, LAG.head) - s0, 4, 1.5, { rise: 1.5, hold: 0.5, fall: 2 });
+      p.armL = [0, 0.25 - 0.1 * k, -(0.45 + 0.9 * k)];
+      p.armR = [0, -0.25 + 0.1 * k, 0.45 + 0.9 * k];
+      p.reachL = p.reachR = 0.12 * k;
+      p.head[0] += -0.2 * kh;
+      p.chest[0] += -0.1 * k;
+      p.stretch += 0.04 * k;
+      return p;
+    }
+  },
+  /**
+   * Side clap: a relaxed step-touch in half time — the weight out to a side every two beats, and on
+   * every other step (counts 3 and 7: the half-time bar's 2 and 4) the paws come together in a clap,
+   * easing in over a beat, the head nodding after it.
+   */
+  sideClap: {
+    counts: 8,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 1, knees: 0.03 });
+      const s0 = o.start ?? 0;
+      const k = swell(c.beat - s0, 4, 2, { rise: 1, hold: 0.25, fall: 1.75 }); // shut on counts 3 and 7
+      const kh = swell(lagged(c, LAG.head) - s0, 4, 2, { rise: 1, hold: 0.25, fall: 1.75 });
+      p.armL = [0, 0.7 + 0.55 * k, -(0.75 + 0.1 * k)];
+      p.armR = [0, -0.7 - 0.55 * k, 0.75 + 0.1 * k];
+      p.chest[0] += 0.06 * k;
+      p.head[0] += 0.12 * kh;
+      p.stretch -= 0.02 * k;
+      return p;
+    }
+  },
+  /** Lazy sway: unhurried, the weight rolling foot to foot, the belly circling slowly (one round in four beats), paws loose and swinging. */
+  lazySway: {
+    counts: 8,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 1.2, knees: 0.025, hold: 0.15 });
+      const th = (lag) => (Math.PI * lagged(c, lag)) / 2;
+      p.hips[0] += 0.1 * Math.sin(th(0));
+      p.hips[2] += 0.08 * Math.cos(th(0));
+      p.chest[0] += -0.08 * Math.sin(th(LAG.chest));
+      const a = sided(o) * glide(lagged(c, LAG.arms), 2, 0.15);
+      p.armL = [0.2 * a, 0.4 + 0.2 * a, -0.55];
+      p.armR = [-0.2 * a, -0.4 + 0.2 * a, 0.55];
+      p.head[0] += 0.06 * Math.sin(th(LAG.head));
+      return p;
+    }
+  },
+  /** Body wave: a slow roll up the body once every four beats — the hips first, the chest after, the head last — the knees sinking into it. */
+  bodyWave: {
+    counts: 4,
+    pose(c) {
+      const w = (lag) => Math.sin((Math.PI * lagged(c, lag)) / 2);
+      const p = restPose();
+      p.hips = [-0.18 * w(0), 0, 0];
+      p.chest = [0.24 * w(LAG.chest * 1.4), 0.05 * w(LAG.chest), 0];
+      p.head = [0.2 * w(LAG.head * 1.6), 0, 0.06];
+      p.hipsY = 0.025 * (w(0) - 1);
+      p.legL[0] = -0.1 * (1 - w(0)) / 2;
+      p.legR[0] = -0.1 * (1 - w(0)) / 2;
+      p.stretch = 0.03 * w(LAG.chest);
+      const a = w(LAG.arms * 1.4);
+      p.armL = [0, 0.4 + 0.25 * a, -(0.5 + 0.15 * a)];
+      p.armR = [0, -0.4 - 0.25 * a, 0.5 + 0.15 * a];
+      return p;
+    }
+  },
+  /** Sultry sway: the hips swing out to a side every two beats and dwell, the chest and head answering late; a paw on the hip, the other drifting by the cheek. */
+  sultrySway: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 1.3, knees: 0.02, hold: 0.3, hips: 1.6 });
+      const a = glide(lagged(c, LAG.arms), 2, 0.3) * sided(o);
+      p.armL = [0, 0.9, -0.7]; // the paw on the hip
+      p.armR = [0, -0.45 + 0.2 * a, 0.75 + 0.2 * a];
+      return p;
+    }
+  },
+  /** Paw arc: a paw by the cheek sweeps slowly out to the side in an arc over two beats, holds, and comes back; the other on the hip; the head follows the paw. */
+  pawArc: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 0.9, knees: 0.02, hold: 0.3 });
+      const s0 = o.start ?? 0;
+      const k = swell(lagged(c, LAG.arms) - s0, 4, 2, { rise: 2, hold: 0.5, fall: 1.5 });
+      const kh = swell(lagged(c, LAG.head) - s0, 4, 2, { rise: 2, hold: 0.5, fall: 1.5 });
+      p.armR = [0, -0.75 + 0.75 * k, 1.2 + 0.2 * Math.sin(Math.PI * k)]; // by the cheek → out, over the top of an arc
+      p.reachR = 0.2 * k;
+      p.armL = [0, 0.9, -0.7];
+      p.head[1] += -0.2 * kh;
+      p.head[2] += 0.08 * kh;
+      p.chest[1] += 0.08 * k;
+      return p;
+    }
+  },
+  /** Slow pop: one chest pop every two beats — eased out to land on the count, held, let go slowly — the elbows easing back, the head countering after. */
+  slowPop: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 0.6, knees: 0.03, per: 4, hold: 0.2 });
+      const P = { rise: 0.6, hold: 0.3, fall: 1 };
+      const kh = swell(c.beat + LAG.chest / c.spb, 2, 0, P); // the hips lead
+      const k = swell(c.beat, 2, 0, P);
+      const ka = swell(lagged(c, LAG.arms), 2, 0, P);
+      const kd = swell(lagged(c, LAG.head), 2, 0, P);
+      p.hips[0] += 0.08 * kh;
+      p.chest[0] += -0.3 * k;
+      p.head[0] += 0.14 * kd;
+      p.armL = [0.3 * ka, 0.2 - 0.25 * ka, -(0.5 + 0.15 * ka)];
+      p.armR = [0.3 * ka, -0.2 + 0.25 * ka, 0.5 + 0.15 * ka];
+      p.stretch += 0.05 * k;
+      return p;
+    }
+  },
+  /** Arm flow: a slow wave from one paw, across the shoulders, to the other paw and back, once in four beats; each paw traces an arc; the weight shifts under it. */
+  armFlow: {
+    counts: 8,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 0.7, knees: 0.025 });
+      const w = (lag) => Math.sin((Math.PI * (c.beat - lag)) / 2);
+      const u = (lag) => Math.cos((Math.PI * (c.beat - lag)) / 2);
+      const L0 = LAG.arms / c.spb;
+      p.armL = [0, 0.3 + 0.2 * u(0), -(0.95 + 0.4 * w(0))];
+      p.chest[2] += 0.1 * w(0.35);
+      p.head[2] += -0.1 * w(0.55);
+      p.armR = [0, -0.3 - 0.2 * u(0.8), 0.95 + 0.4 * w(0.8)];
+      p.reachL = 0.1 * Math.max(0, w(0)) ** 2;
+      p.reachR = 0.1 * Math.max(0, w(0.8)) ** 2;
+      p.sway += 0.04 * w(0.35 + L0);
+      return p;
+    }
+  },
+  /** Heavy step: a slow, proud two-step — the weight lands every two beats, deep in the knees, chest out, chin up, the arms swinging heavily after. */
+  heavyStep: {
+    counts: 8,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 1.3, knees: 0.045, hold: 0.3, bob: 0.07, step: 0.28 });
+      const a = sided(o) * glide(lagged(c, LAG.arms), 2, 0.3);
+      p.chest[0] += -0.16;
+      p.chest[2] += 0.05 * Math.sin((Math.PI * lagged(c, LAG.chest)) / 2);
+      p.head[0] += -0.16;
+      p.armL = [-0.15 * a, 0.3 + 0.3 * a, -0.6];
+      p.armR = [0.15 * a, -0.3 + 0.3 * a, 0.6];
+      return p;
+    }
+  },
+  /** Shoulder roll (slow): big rolls, one shoulder after the other, one round every four beats, the arms swinging with them, the weight shifting heavily. */
+  rollShoulders: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 0.8, knees: 0.04, hold: 0.3 });
+      const th = (lag) => (Math.PI * lagged(c, lag)) / 2;
+      const sR = Math.sin(th(LAG.chest)), cR = Math.cos(th(LAG.chest));
+      const sA = Math.sin(th(LAG.arms)), cA = Math.cos(th(LAG.arms));
+      p.chest = [-0.1, 0.18 * cR, 0.16 * sR];
+      p.head[1] += -0.08 * Math.cos(th(LAG.head));
+      p.head[0] += -0.1;
+      p.armR = [-0.35 * cA, -0.25, 0.55 + 0.25 * sA];
+      p.armL = [0.35 * cA, 0.25, -(0.55 - 0.25 * sA)];
+      return p;
+    }
+  },
+  /**
+   * Squat-rise: down into a wide frog squat (knees out, paws out low) over two beats and back up tall
+   * over two, the paws floating up on the rise; the hips wiggle slowly side to side all the way.
+   */
+  squatRise: {
+    counts: 8,
+    pose(c, o = {}) {
+      const d = (lag) => -groove(lagged(c, lag) - (o.start ?? 0), 4, 2); // 1 at the bottom (counts 3 and 7)
+      const p = wiggle(c, o, 0.7);
+      const k = d(0), ka = d(LAG.arms), kh = d(LAG.head);
+      p.hipsY = -0.07 * k;
+      p.stretch = -0.08 * k + 0.04 * (1 - k);
+      p.legL = [-0.1 - 0.15 * k, 0, -(0.3 + 0.2 * k)];
+      p.legR = [-0.1 - 0.15 * k, 0, 0.3 + 0.2 * k];
+      p.chest[0] += 0.16 * d(LAG.chest);
+      p.head[0] += -0.2 * kh;
+      p.armL = [0, 0.4 * ka, -(0.35 + 0.75 * (1 - ka))];
+      p.armR = [0, -0.4 * ka, 0.35 + 0.75 * (1 - ka)];
+      return p;
+    }
+  },
+  /** Wide wiggle: low in a wide squat, the hips wiggling slowly side to side every two beats, paws out and wobbling; `double` sinks lower and comes back up. */
+  wideWiggle: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = wiggle(c, o, 1);
+      const dip = o.double ? 0.5 - 0.5 * Math.cos((Math.PI * 2 * mod(c.beat - (o.start ?? 0), 4)) / 4) : 0;
+      const w = (lag) => Math.sin((Math.PI * lagged(c, lag)) / 2);
+      p.hipsY = -0.05 - 0.03 * dip + 0.012 * groove(c.beat, 2);
+      p.stretch = -0.06 - 0.04 * dip;
+      p.legL = [-0.2, 0, -0.48];
+      p.legR = [-0.2, 0, 0.48];
+      p.armL = [0, 0.15, -(0.95 + 0.15 * w(LAG.arms))];
+      p.armR = [0, -0.15, 0.95 - 0.15 * w(LAG.arms)];
+      p.head[0] += -0.12;
+      return p;
+    }
+  },
+  /** Waddle-glide: a smooth rock from foot to foot every two beats, toes out, the body gliding with it; the flippers out at the sides, waving slowly in turn. */
+  waddleGlide: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 1.5, knees: 0.015, hold: 0.2, hips: 0.4, step: 0.08 });
+      const h = sided(o) * glide(lagged(c, LAG.chest), 2, 0.2);
+      p.yaw = 0.1 * h;
+      p.legL[2] -= 0.08;
+      p.legR[2] += 0.08;
+      const f = (lag) => Math.sin((Math.PI * lagged(c, lag)) / 2);
+      p.armL = [0, -0.1, -(0.6 + 0.22 * f(LAG.arms))];
+      p.armR = [0, 0.1, 0.6 - 0.22 * f(LAG.arms + 0.05)];
+      return p;
+    }
+  },
+  /** Flipper wave: both flippers rise out to the sides and sink again, once every four beats, the tips lagging, the body lifting tall with them. */
+  flipperWave: {
+    counts: 4,
+    pose(c, o = {}) {
+      const p = shiftPose(c, o, { size: 1.1, knees: 0.015, hold: 0.2, hips: 0.4 });
+      const s0 = o.start ?? 0;
+      const k = (lag) => 0.5 - 0.5 * Math.cos((Math.PI * (lagged(c, lag) - s0)) / 2);
+      p.armL = [0, -0.05, -(0.45 + 0.75 * k(LAG.arms))];
+      p.armR = [0, 0.05, 0.45 + 0.75 * k(LAG.arms + 0.04)];
+      p.reachL = p.reachR = 0.08 * k(LAG.arms);
+      p.stretch += 0.05 * k(LAG.chest);
+      p.head[0] += -0.15 * k(LAG.head);
+      return p;
+    }
+  },
+  /** Slow turn: one full turn over eight beats, still waddling, flippers out — it eases in and out and ends facing front. */
+  slowTurn: {
+    counts: 8,
+    pose(c, o = {}) {
+      const p = MOVES.waddleGlide.pose(c, o);
+      const u = mod(c.beat - (o.start ?? 0), 8) / 8;
+      const a = 2 * Math.PI * easeSine((u - 0.06) / 0.88);
+      p.yaw += Math.atan2(Math.sin(a), Math.cos(a)); // wrapped, so a crossfade out of it doesn't unwind the turn
+      p.armL[2] -= 0.2 * Math.sin(Math.PI * u);
+      p.armR[2] += 0.2 * Math.sin(Math.PI * u);
+      return p;
+    }
+  },
+  /**
+   * Strike: the routine's button, slow — the crossfade eases into a pose over a beat and a half and it
+   * holds, breathing. `look`: cheer (a soft V), shrug, pose (the cat's: a paw on the hip, one up),
+   * point, flex, frog (a wide squat, paws out), flipper (flippers out, chin up).
+   */
+  strike: {
+    counts: 4,
+    blend: 1.5,
+    pose(c, o = {}) {
+      const p = restPose();
+      const br = (lag) => Math.sin((Math.PI * lagged(c, lag)) / 2);
+      const look = o.look ?? 'point';
+      if (look === 'cheer') {
+        p.armL = [0, 0.15, -1.3];
+        p.armR = [0, -0.15, 1.3];
+        p.reachL = p.reachR = 0.12;
+        p.head = [-0.2, 0, 0.12];
+        p.chest = [-0.08, 0, 0];
+      } else if (look === 'shrug') {
+        p.armL = [0, -0.35, -0.85];
+        p.armR = [0, 0.35, 0.85];
+        p.head = [0.04, 0, 0.26];
+        p.stretch = -0.04;
+      } else if (look === 'flex') {
+        p.armL = [0, 0.25, -1.35];
+        p.armR = [0, -0.25, 1.35];
+        p.reachL = p.reachR = 0.1;
+        p.chest = [-0.22, 0, 0];
+        p.head = [-0.26, 0, 0.08];
+        p.stretch = 0.05;
+      } else if (look === 'frog') {
+        p.legL = [-0.25, 0, -0.5];
+        p.legR = [-0.25, 0, 0.5];
+        p.hipsY = -0.06;
+        p.stretch = -0.07;
+        p.armL = [0, 0.2, -1.2];
+        p.armR = [0, -0.2, 1.2];
+        p.chest = [0.12, 0, 0];
+        p.head = [-0.26, 0, 0];
+      } else if (look === 'flipper') {
+        p.armL = [0, -0.05, -1.15];
+        p.armR = [0, 0.05, 1.15];
+        p.reachL = p.reachR = 0.08;
+        p.head = [-0.3, 0, -0.08];
+        p.chest = [-0.1, 0, 0];
+        p.stretch = 0.05;
+      } else {
+        // point (and the cat's pose, the hip cocked): one paw up the diagonal, the other on the hip
+        p.armR = [0, -0.1, 1.55];
+        p.reachR = 0.2;
+        p.armL = [0, 0.9, -0.7];
+        p.head = [-0.22, -0.28, 0];
+        p.chest = [-0.1, 0.12, 0];
+        p.sway = -0.08;
+        if (look === 'pose') {
+          p.hips = [0, -0.15, -0.18];
+          p.chest[2] = 0.12;
+          p.head[2] = 0.15;
+        }
+      }
+      // breathing: a slow rise and fall, the head settling after
+      p.stretch += 0.02 * br(0);
+      p.hipsY += 0.008 * (br(0) - 1);
+      p.head[2] += 0.04 * br(LAG.head);
+      return p;
+    }
+  },
+
   /* ---- emotes (also fine off the music: give them a clock at any tempo, ~120) ---- */
 
   /** Hello: one paw up, waving side to side twice a beat. */
@@ -919,7 +1333,7 @@ export const EMOTES = Object.keys(MOVES).filter((m) => MOVES[m].emote);
 export function movePose(name, c, { mirror = false, amp = 1, ...o } = {}) {
   const m = MOVES[name];
   if (!m) throw new Error(`unknown move ${name}`);
-  let p = m.pose(c, { amp, ...o });
+  let p = m.pose(c, { amp, mirror, ...o });
   if (amp !== 1) p = scalePose(p, amp);
   return mirror ? mirrorPose(p) : p;
 }
