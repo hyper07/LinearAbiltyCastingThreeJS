@@ -689,7 +689,6 @@
   display: flex;
   align-items: center;
 }
-.race__menu h2,
 /* The results over the podium (podium.js): smaller and low, the riders dancing above them. */
 .race__results.is-podium {
   top: auto;
@@ -734,6 +733,7 @@
   font: inherit;
   opacity: 0.7;
 }
+.race__menu h2,
 .race__results h2 {
   margin: 0;
   flex: 1;
