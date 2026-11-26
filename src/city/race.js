@@ -3543,6 +3543,8 @@ export class Race {
     const hd = heading(p, q) + Math.PI;
     const walls = c.walls;
     const y = this.g.surfaceAt(p[0], p[1]);
+    // (a loop's gantry reads FINISH behind the podium, however the race got here)
+    if (this.course && !this.course.open && this.gate) this._gateLabel(this.gate, 'FINISH · 결승');
     this.podium = new Podium(this.g.scene, { x: p[0], y, z: p[1], heading: hd, sweep: (x0, z0, x1, z1) => walls?.sweep(x0, z0, x1, z1, 0.4)?.t ?? 1 });
     this.podium.stand(top.map((r) => ({ view: r.view, me: r.me })));
     this.podiumIds = top.map((r) => r.id);
