@@ -104,7 +104,7 @@ export function turnCost(a) {
 export const LEVELS = {
   easy: { id: 'easy', name: 'Easy', ko: '쉬움', stars: 1, color: '#2fbf71', traffic: 1.2, oncoming: 15, along: 8, parked: 2, stops: 1.2, bots: [0.86, 0.89, 0.92], items: 0 },
   medium: { id: 'medium', name: 'Medium', ko: '보통', stars: 2, color: '#ffa928', traffic: 1.3, oncoming: 21, along: 11, parked: 7, stops: 1, bots: [0.89, 0.93, 0.97], items: 0.5 },
-  hard: { id: 'hard', name: 'Hard', ko: '어려움', stars: 3, color: '#ff4b3e', traffic: 1.4, oncoming: 26, along: 14, parked: 12, stops: 0.6, bots: [0.93, 0.97, 1.01], items: 1 }
+  hard: { id: 'hard', name: 'Hard', ko: '어려움', stars: 3, color: '#ff4b3e', traffic: 1.4, oncoming: 26, along: 14, parked: 12, scooters: 10, stops: 0.6, dense: true, bots: [0.93, 0.97, 1.01], items: 1 }
 };
 export const LEVEL_ORDER = ['easy', 'medium', 'hard'];
 
