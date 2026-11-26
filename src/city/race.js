@@ -3526,6 +3526,17 @@ export class Race {
       this._drinkKick = Math.max(0, this._drinkKick - 1 / 20);
     }
     camera.updateProjectionMatrix();
+    // The rivals' fade by the camera judged again from where the camera is now (the race step judged
+    // it from last frame's): one put back on the course right by the camera, or swung past it as the
+    // camera swings, never pops in whole for a frame.
+    for (const o of this.racers) {
+      if (o.me || o.left || !o.view) continue;
+      const k = nearFade(camera.position, { x: o.s.x, y: o.y + 0.8, z: o.s.z, ride: o.s }, { x: r.s.x, y: r.y + 0.9, z: r.s.z });
+      if (k < (o.view._fade ?? 1)) {
+        o.view.fade(k);
+        if (k < 0.03) o.view.root.visible = false;
+      }
+    }
   }
 
   /* ------------------------------------------------------------ sound */

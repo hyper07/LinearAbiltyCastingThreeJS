@@ -132,6 +132,27 @@ Seoul's real streets — and the streets stay open.
   (on the last step ← → the time, ↑ ↓ the weather), **Enter** for the next step, **Esc** or
   **Backspace** to go back; click (or tap) a rider or a scooter on the stage, swipe it to browse.
   The results' **Race again** starts the same race at once; **Courses** goes back to the map.
+- **The finish and the podium** (`_finishCheck`, `_ceremony` in `src/city/race.js`, `src/city/podium.js`):
+  once the first rider is over the line the race stays open **30 seconds** for the others
+  (`FINISH_WINDOW`) — it ends when everyone is home or the window closes, never early because the
+  people are done; whoever is still out is DNF, placed by how far they got. Home, your scooter cools
+  down — steered along the course, braking to a stop (the downhill's run-out at once) — while the
+  seconds left show small under your time ("⏱ 0:24"), with a small **Skip ⏎** (Enter too; in a room
+  only the host's, sent to everyone). Then the **podium**: the first three home in time — nobody who
+  didn't finish — stand on blocks a little short of the finish line, facing back down the course
+  under the finish banner, in the city as it is (the time of day and the weather carry on; the
+  traffic and the riders who aren't up there out of sight): 1st in the middle and highest, 2nd on its
+  left, 3rd on its right as you look at it, a big 1, 2, 3 on the blocks in gold, silver and bronze,
+  their scooters parked beside on their kickstands. They celebrate, procedurally
+  (`PlushRider.celebrate`, no clips): the winner jumps every other beat with its arms up and pumps its
+  fists between, 2nd bounces and sways with a disco point, 3rd bounces and claps — squash on every
+  landing, stretch in the air, ears and tails flopping, each in its own animal and colours. Confetti
+  bursts from both ends and flutters down (one instanced draw), the victory fanfare plays and the
+  podium's own track comes in; the camera swings slowly round and pushes in. Your own rider, up there,
+  has a pulsing gold ring on its block and a soft beam of light on it (after dark a fill light over
+  the podium). After 6.5 s — or on any key or click — the results come up, smaller and low, the
+  podium still dancing above them; **Race again**, **Courses**, **Back to Seoul** and **Credits** as
+  before, and each takes the podium down.
 - **Courses, by level** (`LEVELS` in `src/city/course.js`; chillies on the map and the cards — one,
   two or three):
   - **Easy** — eight loops of 2–3 km (two to three minutes a lap) on Seoul's boulevards and avenues:
@@ -283,8 +304,15 @@ Seoul's real streets — and the streets stay open.
   your rider drinks, and three seconds of boost at once without pressing F (70 → 86 km/h, the FOV
   kicking out, speed lines, a green glow trail behind the scooter — about ten metres gained, worth
   having, not a win), the gauge visibly filling up again, "GULP! +BOOST". (Before, it only set the
-  gauge full, silently: holding W, 70 km/h before and after.) **Air horn** (people and scooters ahead
-  clear out, cars stop). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
+  gauge full, silently: holding W, 70 km/h before and after.) **Call the police · 경찰 호출** (`src/city/police.js`,
+  the air horn's place): a patrol officer of our own design — a white police scooter with a blue
+  stripe and "POLICE 경찰" on its side, a red-and-blue light bar, a hi-vis vest and a peaked cap, no
+  real force's crest — rides up beside the nearest rider ahead of you (if you lead, the one behind),
+  lights flashing, a short synthesised siren whoop, a "PULL OVER!" pop, and pulls them over: hauled to
+  a stop and held for 1.5 s with a wobble, then let go as the patrol rides off ahead. The gold helmet
+  doesn't help (it takes crashes, and this isn't one), and a rider down a short cut can still be
+  caught. Bots call it on whoever is ahead — at a person only half the time, as with the branch.
+  Commoner further back (6 % of boxes leading, 18 % last). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
   head, fitted to each species' head (the ears poke out) — a rounded cycling helmet,
   longer to the back, with vent slots, a darker band and rim, a foam liner, a short peak and a chin
   strap (just the helmet: no glow round the rider) — and a badge on the HUD; the next crash (a car, a
@@ -327,6 +355,18 @@ Seoul's real streets — and the streets stay open.
   awnings, downpipes, roof tanks and units; close up the walls are brick, tile or render, glass has
   rooms behind it (interior mapping: ceilings, lights, partitions — lit or dark at night), and
   half the glass towers have white aluminium fins.
+- **Fog** (`src/city/weather.js` `FOG_BANK`, `src/city/mist.js`): a real fog bank — the street, the
+  buildings, the traffic and the people mostly gone by 10–20 m (the scene's fog from 2 m to 24 m,
+  whatever the view distance; before, the haze factor only scaled the far plane, and 0.22 of 2.4 km
+  left 500 m of clear air, so Fog looked like Clear), grey-white by day, a deep blue-grey after dark;
+  the sky dome and the background fade into it. Headlights and tail lights glow through it as wide
+  soft halos, on by day in fog too, so a car's lights show before its body does; after dark every
+  street lamp near you is a halo in it (one draw each). Low mist sheets drift over the road round the
+  camera (three thin discs, patchy noise, thinning by the camera). Fog is the street's weather, not
+  the characters': the riders, their scooters and helmets opt out of it (`noFog` in
+  `plushRider.js`), and the mist is cut out round them, so a rival 20–40 m ahead stays a crisp plush
+  toy (in the rival panel too, and on the podium); the corners ahead are on the turn arrows and the
+  map. Rain, snow and the storm are as they were.
 - **Time and weather**: every race has its own — day, golden hour, dusk or night; clear, rain,
   storm, fog, or snow in the cold months — random by default, or picked (and previewed) in the menu. The city
   clock stops for the race. Rain darkens and shines the roads and makes braking longer; snow is
@@ -350,6 +390,18 @@ Seoul's real streets — and the streets stay open.
   three item slots bottom centre; speed and the sprint gauge bottom right; the next turn named at
   the top ("SHARP RIGHT · ALLEY 30 m"), a warning under it for anything in your line; the keys while
   the lights count down; speed lines from about 55 km/h. Left-drag looks round.
+- **The blinking box** (a square flicking in and out at the left of the middle of the screen): the
+  rival panel's still was taken from wherever 3 m in front of the rival happened to be — often inside
+  a bus, a wall or a tree — so it slid in as a flat green or grey square, in and out as the pack
+  jostled (caught by recording a careless race frame by frame and measuring every still). Now the
+  still is taken from a spot clear of walls, cars and street props (`_panelSpot`), with only the rider
+  and the street drawn (`_panelIsolate`), a flat still is never shown (`stillIsGood`), and the panel
+  only slides in with a good picture, stays at least 1.8 s, rests 2.5 s before coming back, and not
+  in the first 4 s of a race. WRONG WAY, a box at the same place, is judged by the way you are going
+  against the course a few points ahead, held 1.5 s, never while drifting, tumbling or just put back
+  (`wrongWay` in `src/city/ride.js`), and shown steadily, not flashed frame by frame. A rival put back
+  on the course right by the camera is faded from where the camera is that frame, so it never pops in
+  whole for one frame. The end-to-end run watches the middle of the screen while riding.
 - **The dark slab** (a black rectangle behind a slipping rider's dust, round a "WHOA!"): the race's
   comic sprites now never draw their clear texels at all (`alphaTest`), and the ambient occlusion
   pass (`src/city/aopass.js`) leaves sprites and see-through, depth-less meshes (puffs, glows, painted
