@@ -1905,8 +1905,11 @@ export class SeoulGame {
           /* private mode */
         }
         this._stamps();
-        this.toast(`New district: ${gu} — ${this.visited.size} of ${this.index.districts.length}`);
-        confetti(null, this.visited.size === this.index.districts.length ? 160 : 40);
+        // Exploring the city, a new district is a moment; mid-race it's a distraction — counted, not shown.
+        if (this.mode !== 'race') {
+          this.toast(`New district: ${gu} — ${this.visited.size} of ${this.index.districts.length}`);
+          confetti(null, this.visited.size === this.index.districts.length ? 160 : 40);
+        }
       }
     } else if (!place && !t && this._place !== '') {
       this._place = '';
