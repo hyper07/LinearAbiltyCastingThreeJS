@@ -549,6 +549,346 @@
     "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
     "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
    }
+  },
+  {
+   "id": "kick-lobby",
+   "title": "Garage Showroom",
+   "file": "kick-lobby.ogg",
+   "kind": "loop",
+   "tags": [
+    "menu",
+    "kickrani"
+   ],
+   "mood": "calm",
+   "bpm": 120,
+   "key": "F major",
+   "measured": {
+    "tempo": 117.5,
+    "key": "C major"
+   },
+   "duration": 76.058,
+   "loopStart": 19.551208,
+   "loopEnd": 75.557729,
+   "lufs": -16.36,
+   "bytes": 846083,
+   "style": "relaxed cheerful funky lounge pop for a game menu, mellow electric piano, clean funk guitar, smooth bass, light groovy drums, bright vibraphone melody, friendly and inviting, kids racing game menu music, instrumental",
+   "seed": 559955,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-palace",
+   "title": "Palace Gate Dash",
+   "file": "kick-palace.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 150,
+   "key": "D major",
+   "measured": {
+    "tempo": 152,
+    "key": "F# major"
+   },
+   "duration": 92.985,
+   "loopStart": 9.264771,
+   "loopEnd": 92.485083,
+   "lufs": -16.07,
+   "bytes": 1214148,
+   "style": "upbeat energetic K-pop dance racing music, bright plucked gayageum zither riff over a punchy four-on-the-floor pop beat, janggu hourglass drum fills, slap bass, sparkling synth lead with a catchy hook, fun and cheerful for kids, fast arcade racing game soundtrack, instrumental",
+   "seed": 799234,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-market",
+   "title": "Night Market Rush",
+   "file": "kick-market.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 148,
+   "key": "G major",
+   "measured": {
+    "tempo": 152,
+    "key": "B minor"
+   },
+   "duration": 137.753,
+   "loopStart": 22.058958,
+   "loopEnd": 137.253146,
+   "lufs": -16.08,
+   "bytes": 1743545,
+   "style": "bouncy upbeat funk-pop racing music, tight brass section stabs, wah-wah funk guitar, popping slap bass, cowbell and hand claps, cheeky catchy saxophone hook, busy lively street market, playful kids arcade racing game soundtrack, instrumental",
+   "seed": 539390,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-boulevard",
+   "title": "Neon Boulevard",
+   "file": "kick-boulevard.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 156,
+   "key": "E major",
+   "measured": {
+    "tempo": 152,
+    "key": "E major"
+   },
+   "duration": 135.71,
+   "loopStart": 9.775604,
+   "loopEnd": 135.209792,
+   "lufs": -16,
+   "bytes": 1718907,
+   "style": "bright sunny city-pop and synth-pop racing music, continuous driving groove with no breaks, steady punchy drums all the way through, shimmering electric piano chords, funky clean guitar, bouncy synth bass, soaring catchy synth lead melody, happy speeding down wide city avenues, fun kids arcade racing game soundtrack, instrumental",
+   "seed": 731004,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-river",
+   "title": "Riverside Breeze",
+   "file": "kick-river.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 144,
+   "key": "A major",
+   "measured": {
+    "tempo": 143.6,
+    "key": "E major"
+   },
+   "duration": 137.01,
+   "loopStart": 14.814333,
+   "loopEnd": 136.510104,
+   "lufs": -16.11,
+   "bytes": 1869384,
+   "style": "breezy upbeat tropical synth-pop racing music, marimba and steel drum hook, plucky synths, bouncy bass, crisp claps and snappy drums, sunny riverside, cheerful and catchy, fun kids arcade racing game soundtrack, instrumental",
+   "seed": 16304,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-hill",
+   "title": "Hilltop Sprint",
+   "file": "kick-hill.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 160,
+   "key": "F major",
+   "measured": {
+    "tempo": 161.5,
+    "key": "A major"
+   },
+   "duration": 136.523,
+   "loopStart": 35.271104,
+   "loopEnd": 136.0225,
+   "lufs": -16,
+   "bytes": 1827983,
+   "style": "energetic pop-rock racing music, driving electric guitars, fast pounding drums, bright synth brass hook, uplifting key changes, climbing a green hill road under a tower, fun heroic kids arcade racing game soundtrack, instrumental",
+   "seed": 766929,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-downhill",
+   "title": "Tower Downhill",
+   "file": "kick-downhill.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 170,
+   "key": "B minor",
+   "measured": {
+    "tempo": 172.3,
+    "key": "B minor"
+   },
+   "duration": 136.801,
+   "loopStart": 41.424396,
+   "loopEnd": 136.301125,
+   "lufs": -16.17,
+   "bytes": 1900302,
+   "style": "fast soaring high-energy electro-rock racing music, racing breakbeat drums, distorted power chords, soaring synth lead melody, rising arpeggios, the thrill of speeding downhill, exciting and bright, kids arcade racing game soundtrack, instrumental",
+   "seed": 176057,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-fair",
+   "title": "Starlight Fair",
+   "file": "kick-fair.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 150,
+   "key": "C major",
+   "measured": {
+    "tempo": 152,
+    "key": "G major"
+   },
+   "duration": 120.895,
+   "loopStart": 17.995458,
+   "loopEnd": 120.395458,
+   "lufs": -16.54,
+   "bytes": 1459725,
+   "style": "bouncy carnival racing music, oom-pah brass band, cheerful band organ and calliope melody, glockenspiel, snare drum and cymbal crashes over a fast pop beat, playful funfair, catchy and silly, fun kids arcade racing game soundtrack, instrumental",
+   "seed": 851500,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-works",
+   "title": "Ironworks Groove",
+   "file": "kick-works.ogg",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 146,
+   "key": "E minor",
+   "measured": {
+    "tempo": 143.6,
+    "key": "E minor"
+   },
+   "duration": 134.502,
+   "loopStart": 41.958458,
+   "loopEnd": 134.002354,
+   "lufs": -16.2,
+   "bytes": 1628732,
+   "style": "gritty driving funk-rock racing music, crunchy overdriven guitar riff, heavy groovy bass, punchy live drums with clanking metal percussion, brass hits, workshop alleys and sparks, cool and catchy, kids arcade racing game soundtrack, instrumental",
+   "seed": 164608,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
+  },
+  {
+   "id": "kick-podium",
+   "title": "Podium Party",
+   "file": "kick-podium.ogg",
+   "kind": "loop",
+   "tags": [
+    "victory",
+    "kickrani"
+   ],
+   "mood": "victory",
+   "bpm": 140,
+   "key": "C major",
+   "measured": {
+    "tempo": 143.6,
+    "key": "G major"
+   },
+   "duration": 50.585,
+   "loopStart": 8.939687,
+   "loopEnd": 50.085437,
+   "lufs": -16,
+   "bytes": 667766,
+   "style": "joyful triumphant party celebration music, bright brass fanfare hook, bouncy disco-funk bass, hand claps, celebratory drums, confetti and dancing on a winners podium, happy and catchy, kids racing game celebration music, instrumental",
+   "seed": 498654,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
   }
  ]
 }

@@ -236,6 +236,161 @@
    "seconds": 12,
    "prompt": "short wondrous discovery jingle, shimmering harp, celesta and a soft string swell, magical and mysterious, treasure found, video game sting, instrumental",
    "takes": 4
+  },
+  {
+   "id": "kick-palace",
+   "pick": 799234,
+   "title": "Palace Gate Dash",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 150,
+   "key": "D major",
+   "seconds": 150,
+   "prompt": "upbeat energetic K-pop dance racing music, bright plucked gayageum zither riff over a punchy four-on-the-floor pop beat, janggu hourglass drum fills, slap bass, sparkling synth lead with a catchy hook, fun and cheerful for kids, fast arcade racing game soundtrack, instrumental"
+  },
+  {
+   "id": "kick-market",
+   "pick": 539390,
+   "title": "Night Market Rush",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 148,
+   "key": "G major",
+   "seconds": 150,
+   "prompt": "bouncy upbeat funk-pop racing music, tight brass section stabs, wah-wah funk guitar, popping slap bass, cowbell and hand claps, cheeky catchy saxophone hook, busy lively street market, playful kids arcade racing game soundtrack, instrumental"
+  },
+  {
+   "id": "kick-boulevard",
+   "pick": 731004,
+   "title": "Neon Boulevard",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 156,
+   "key": "E major",
+   "seconds": 150,
+   "prompt": "bright sunny city-pop and synth-pop racing music, continuous driving groove with no breaks, steady punchy drums all the way through, shimmering electric piano chords, funky clean guitar, bouncy synth bass, soaring catchy synth lead melody, happy speeding down wide city avenues, fun kids arcade racing game soundtrack, instrumental",
+  "takes": 6
+  },
+  {
+   "id": "kick-river",
+   "pick": 16304,
+   "title": "Riverside Breeze",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 144,
+   "key": "A major",
+   "seconds": 150,
+   "prompt": "breezy upbeat tropical synth-pop racing music, marimba and steel drum hook, plucky synths, bouncy bass, crisp claps and snappy drums, sunny riverside, cheerful and catchy, fun kids arcade racing game soundtrack, instrumental"
+  },
+  {
+   "id": "kick-hill",
+   "pick": 766929,
+   "title": "Hilltop Sprint",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 160,
+   "key": "F major",
+   "seconds": 150,
+   "prompt": "energetic pop-rock racing music, driving electric guitars, fast pounding drums, bright synth brass hook, uplifting key changes, climbing a green hill road under a tower, fun heroic kids arcade racing game soundtrack, instrumental"
+  },
+  {
+   "id": "kick-downhill",
+   "pick": 176057,
+   "title": "Tower Downhill",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 170,
+   "key": "B minor",
+   "seconds": 150,
+   "prompt": "fast soaring high-energy electro-rock racing music, racing breakbeat drums, distorted power chords, soaring synth lead melody, rising arpeggios, the thrill of speeding downhill, exciting and bright, kids arcade racing game soundtrack, instrumental"
+  },
+  {
+   "id": "kick-fair",
+   "pick": 851500,
+   "title": "Starlight Fair",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 150,
+   "key": "C major",
+   "seconds": 150,
+   "prompt": "bouncy carnival racing music, oom-pah brass band, cheerful band organ and calliope melody, glockenspiel, snare drum and cymbal crashes over a fast pop beat, playful funfair, catchy and silly, fun kids arcade racing game soundtrack, instrumental"
+  },
+  {
+   "id": "kick-works",
+   "pick": 164608,
+   "title": "Ironworks Groove",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 146,
+   "key": "E minor",
+   "seconds": 150,
+   "prompt": "gritty driving funk-rock racing music, crunchy overdriven guitar riff, heavy groovy bass, punchy live drums with clanking metal percussion, brass hits, workshop alleys and sparks, cool and catchy, kids arcade racing game soundtrack, instrumental"
+  },
+  {
+   "id": "kick-lobby",
+   "pick": 559955,
+   "title": "Garage Showroom",
+   "kind": "loop",
+   "tags": [
+    "menu",
+    "kickrani"
+   ],
+   "mood": "calm",
+   "bpm": 120,
+   "key": "F major",
+   "seconds": 120,
+   "loopMin": 40,
+  "takes": 5,
+   "prompt": "relaxed cheerful funky lounge pop for a game menu, mellow electric piano, clean funk guitar, smooth bass, light groovy drums, bright vibraphone melody, friendly and inviting, kids racing game menu music, instrumental"
+  },
+  {
+   "id": "kick-podium",
+   "pick": 498654,
+   "title": "Podium Party",
+   "kind": "loop",
+   "tags": [
+    "victory",
+    "kickrani"
+   ],
+   "mood": "victory",
+   "bpm": 140,
+   "key": "C major",
+   "seconds": 75,
+   "loopMin": 24,
+   "loopMax": 64,
+   "prompt": "joyful triumphant party celebration music, bright brass fanfare hook, bouncy disco-funk bass, hand claps, celebratory drums, confetti and dancing on a winners podium, happy and catchy, kids racing game celebration music, instrumental"
   }
  ]
 }

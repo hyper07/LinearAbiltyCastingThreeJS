@@ -4,8 +4,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   TRACK_TITLES, GAME_TRACKS, musicPack, gameMusicPack, MoodHold, Settle, band,
-  gloamreachTrack, kithvaleTrack, lanternwoodTrack, seoulTrack, wyldhuntTrack, duskAt
+  gloamreachTrack, kithvaleTrack, lanternwoodTrack, seoulTrack, wyldhuntTrack, duskAt, KICKRANI_COURSE_TRACKS
 } from '../../src/shared/gameMusic.js';
+import { BIKE_COURSES } from '../../src/city/course.js';
 import { MUSIC_CREDIT } from '../../src/shared/music.js';
 
 const MANIFEST = path.resolve('public/audio/bgm/manifest.json');
@@ -99,7 +100,12 @@ test('Kithvale, Lanternwood and Kickrani', () => {
   assert.equal(lanternwoodTrack({ realm: 'sunmeadow' }), 'meadow');
   assert.equal(lanternwoodTrack({ realm: 'frostpeak' }), 'frozen-fortress');
   assert.equal(lanternwoodTrack({ realm: 'emberfall' }), 'frozen-fortress');
-  assert.equal(seoulTrack({ mode: 'race' }), 'city-night');
+  assert.equal(seoulTrack({ mode: 'race' }), 'city-night', 'a course with no track of its own');
+  assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'gwanghwamun' }), 'kick-palace');
+  assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'jamsilpark' }), 'kick-fair');
+  assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'namsandown' }), 'kick-downhill');
+  assert.equal(seoulTrack({ mode: 'race', menu: true, course: 'mullae' }), 'kick-lobby');
+  assert.equal(seoulTrack({ mode: 'race', racing: true, podium: true, course: 'mullae' }), 'kick-podium');
   assert.equal(seoulTrack({ mode: 'drive', night: true }), 'city-night');
   assert.equal(seoulTrack({ mode: 'drive', night: false }), null);
   assert.equal(seoulTrack({ mode: 'fly', night: true }), null);
@@ -112,6 +118,14 @@ test('every game\'s tracks exist and every mapping lands on one of them', () => 
   for (const realm of ['lanternwood', 'sunmeadow', 'frostpeak', 'emberfall']) has('lanternwood', lanternwoodTrack({ realm, area: 'camp' }));
   for (const v of [true, false]) for (const d of [true, false]) has('kithvale', kithvaleTrack({ village: v, dusk: d }));
   has('seoul', seoulTrack({ mode: 'race' }));
+  for (const [course, id] of Object.entries(KICKRANI_COURSE_TRACKS)) {
+    assert.equal(seoulTrack({ mode: 'race', racing: true, course }), id);
+    has('seoul', id);
+  }
+  // every Kickrani course has a track of its own
+  for (const id of BIKE_COURSES.map((c) => c.id)) assert.ok(KICKRANI_COURSE_TRACKS[id], `a track for ${id}`);
+  has('seoul', seoulTrack({ menu: true }));
+  has('seoul', seoulTrack({ podium: true }));
   for (const zone of ['base-camp', 'veilfall-reach', 'hollow-heights']) for (const hunting of [true, false]) has('wyldhunt', wyldhuntTrack({ zone, hunting }));
 });
 

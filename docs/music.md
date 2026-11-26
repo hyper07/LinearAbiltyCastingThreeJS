@@ -34,8 +34,18 @@ for the stingers, with peaks under −1 dBFS.
 | `defeat` | Retreat | stinger | defeat | 70 (103.4) | D minor (D minor) | 0:07 | stinger | 0.08 MB |
 | `level-up` | Level Up | stinger | levelup | 120 (117.5) | F major (C major) | 0:07 | stinger | 0.09 MB |
 | `discovery` | Treasure Found | stinger | discovery | 90 (44.6) | E major (E major) | 0:08 | stinger | 0.10 MB |
+| `kick-lobby` | Garage Showroom | menu, kickrani | calm | 120 (117.5) | F major (C major) | 1:16 | 19.55–75.56 s | 0.85 MB |
+| `kick-palace` | Palace Gate Dash | race, kickrani | race | 150 (152) | D major (F# major) | 1:33 | 9.26–92.49 s | 1.21 MB |
+| `kick-market` | Night Market Rush | race, kickrani | race | 148 (152) | G major (B minor) | 2:18 | 22.06–137.25 s | 1.74 MB |
+| `kick-boulevard` | Neon Boulevard | race, kickrani | race | 156 (152) | E major (E major) | 2:16 | 9.78–135.21 s | 1.72 MB |
+| `kick-river` | Riverside Breeze | race, kickrani | race | 144 (143.6) | A major (E major) | 2:17 | 14.81–136.51 s | 1.87 MB |
+| `kick-hill` | Hilltop Sprint | race, kickrani | race | 160 (161.5) | F major (A major) | 2:17 | 35.27–136.02 s | 1.83 MB |
+| `kick-downhill` | Tower Downhill | race, kickrani | race | 170 (172.3) | B minor (B minor) | 2:17 | 41.42–136.30 s | 1.90 MB |
+| `kick-fair` | Starlight Fair | race, kickrani | race | 150 (152) | C major (G major) | 2:01 | 18.00–120.40 s | 1.46 MB |
+| `kick-works` | Ironworks Groove | race, kickrani | race | 146 (143.6) | E minor (E minor) | 2:15 | 41.96–134.00 s | 1.63 MB |
+| `kick-podium` | Podium Party | victory, kickrani | victory | 140 (143.6) | C major (G major) | 0:51 | 8.94–50.09 s | 0.67 MB |
 
-16 files, 21.8 MB in all. "Measured" is what librosa hears in the chosen take: tempo from its beat tracker, key from chroma profiles (it can confuse a key with its relative or parallel key, or with the dominant, especially in modal or pentatonic writing).
+26 files, 36.7 MB in all. The ten `kick-*` tracks are Kickrani's (made on the Mac Studio, Nov 2026: three to six takes each, the best by the numbers; the menu loop and the podium party are short beds, about a minute). "Measured" is what librosa hears in the chosen take: tempo from its beat tracker, key from chroma profiles (it can confuse a key with its relative or parallel key, or with the dominant, especially in modal or pentatonic writing).
 <!-- tracks:end -->
 
 **Pairs.** Three calm/tense pairs share a key and a pulse, so a game can
@@ -63,7 +73,7 @@ and each game's `music` — a `GameMusic`):
 | Kithvale | `lantern-valley` in Lanternrest and at dusk, `meadow` out in the vale by day (softer under the trust moment) | — | — | `discovery` when a creature joins | Sound |
 | Kindlewatch | `frozen-fortress` | `battle` | `boss` (Hrimgar, in the throne room) | `victory`, `defeat`, `level-up` (a beacon lit) | the pause menu's Sound |
 | AI Arcademia | `playful`, at 40 % under a lesson | — | — | `level-up` (stars, a level, a floor, a puzzle boss), `discovery` (a chest, a sticker); the old fanfare when the music is off | Sound |
-| Kickrani | `city-night` while racing, and driving at night; otherwise quiet (the engine and the city) | — | — | `victory` (first past the line) | the Graphics panel's Music |
+| Kickrani | `kick-lobby` on the race menus; each course its own from the grid through the race (`KICKRANI_COURSE_TRACKS`: `kick-palace` Gwanghwamun and Seochon, `kick-market` Dongdaemun and Cheongnyangni, `kick-boulevard` Hongdae, Teheran-ro and Jamsil, `kick-river` Yeouido, `kick-hill` Namsan and Haebangchon, `kick-downhill` the Namsan Tower Downhill, `kick-fair` the Jamsil Fairground, `kick-works` Seongsu, Euljiro and Mullae); `kick-podium` at the ceremony and the results (crossfading from the course's); `city-night` driving at night; otherwise quiet (the engine and the city) | — | — | `victory` (the podium) | the Graphics panel's Music |
 | Lanternwood | `title` on the title; by realm: `village` round the camp fire, `night-forest` in the Lanternwood, `meadow` in Sunmeadow, `frozen-fortress` in Frostpeak and Emberfall | `battle` | `boss` | `victory` (boss or hero monster), `defeat`, `level-up`, `discovery` (chests) | the pause menu's Music |
 | Stoneball | quiet on the start screen; `battle` at 45 % in a match | — | — | `victory` or `defeat` at full time | M |
 | Home page | `title` at 35 %, from the first click or key | — | — | — | ♪ in the bar |
@@ -202,3 +212,5 @@ report (`report/report.json`) stay in `library/music-masters/` (git-ignored).
 
 On the M5 Max (128 GB), the 4B XL SFT model makes a 170-second take in 130–180 seconds, about real time (the model loads in ~22 s, uses ~18 GB, and stays loaded for a whole batch), and a 10–12-second stinger in 8–13 seconds. The whole soundtrack, 63 takes, took about two hours; judging and mastering a track takes 10–20 seconds. The 2B turbo model (`--model acestep-v15-turbo`)
 makes a 30-second sketch in about 15 seconds, for trying prompts.
+
+On the Mac Studio (M1 Ultra, where heavy generation runs: `ssh` in, `zsh -lc`, a workspace with `package.json`, `scripts/music*` and `library/tools/ace-step` synced over — the weights copied across the network, the venv built there by `npm run music:setup`), the same model makes a 150-second take in about 4.5 minutes; Kickrani's 35 takes took about two and a half hours. Only the Ogg files and the manifest entries come back.

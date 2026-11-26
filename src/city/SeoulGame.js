@@ -1528,7 +1528,7 @@ export class SeoulGame {
       lampGroup.geometry = { dispose() {} };
       out.lamps = lampGroup;
       // the lamp heads (at the end of each arm), lit after dark
-      lampGroup.userData.lampId = this.nightLights.add(lamps.map(([x, y, z, a]) => ({ x: x - Math.sin(a) * 2.1, y: y + 7.8, z: z - Math.cos(a) * 2.1, ground: y - 0.12 })));
+      lampGroup.userData.lampId = this.nightLights.add(lamps.map(([x, y, z, a]) => ({ x: x - Math.sin(a) * 2.1, y: y + 7.8, z: z - Math.cos(a) * 2.1, ground: y - 0.12, pole: [x, z] })));
       this.scene.add(lampGroup);
       this.lampMat.emissiveIntensity = (this.uniforms.uNight.value ?? 0) * 3;
     }
@@ -2029,7 +2029,7 @@ export class SeoulGame {
       // below by the city (at night); the dome fades into it too, so nothing reads past it.
       const thick = w.level.thick ?? 0;
       if (thick > 0.001) {
-        const fogC = (this._fogC ??= new THREE.Color()).setRGB(0.74, 0.76, 0.78).lerp(this._fogN ??= new THREE.Color('#353b48'), night);
+        const fogC = (this._fogC ??= new THREE.Color()).setRGB(0.6, 0.63, 0.66).lerp(this._fogN ??= new THREE.Color('#353b48'), night);
         sky.lerp(fogC, thick * 0.9);
       }
       if (this.sky) {
@@ -2070,8 +2070,20 @@ export class SeoulGame {
   _music(dt) {
     if (!this.music) return;
     this._night = band(this.uniforms?.uNight?.value ?? 0, this._night, 0.6, 0.4);
-    const racing = this.mode === 'race' && ['grid', 'racing', 'done'].includes(this.race?.phase);
-    this.music.update(dt, { area: seoulTrack({ mode: this.mode, racing, night: this._night }) });
+    const race = this.race;
+    const menu = Boolean(race?.stageOn);
+    const podium = this.mode === 'race' && Boolean(race?.podium);
+    const racing = this.mode === 'race' && ['grid', 'racing', 'done'].includes(race?.phase);
+    const area = seoulTrack({ mode: this.mode, racing, night: this._night, course: race?.courseId, menu, podium });
+    // A new screen (the menus, the grid, the podium) changes the music at once, crossfading;
+    // a drive into the night settles first.
+    if (area !== this._musicArea) {
+      const screen = menu || podium || racing || this._musicScreen;
+      this._musicArea = area;
+      this._musicScreen = menu || podium || racing;
+      if (screen) return this.music.jump(area, { fade: podium ? 1.2 : 1.6 });
+    }
+    this.music.update(dt, { area });
   }
 
   _frame(now) {

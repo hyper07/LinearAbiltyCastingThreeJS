@@ -376,6 +376,18 @@ Seoul's real streets — and the streets stay open.
   host picks the course, laps, time and weather and starts. Bots take any empty seats (the host's
   browser rides them). Each browser sends where its riders are fifteen times a second, and when
   an item is used.
+- **Music** (`KICKRANI_COURSE_TRACKS` and `seoulTrack` in `src/shared/gameMusic.js`; docs/music.md):
+  original, upbeat kart-racing-style tracks of our own, generated with ACE-Step 1.5 (MIT) on the Mac
+  Studio from prompts that name only styles, instruments and moods — never a game, a composer or an
+  artist. Each course family has its own: *Palace Gate Dash* (Gwanghwamun, Seochon — a plucked
+  zither riff and hourglass-drum fills over a pop beat), *Night Market Rush* (Dongdaemun,
+  Cheongnyangni — brassy funk-pop), *Neon Boulevard* (Hongdae, Teheran-ro, Jamsil — bright city-pop),
+  *Riverside Breeze* (Yeouido — tropical synth-pop), *Hilltop Sprint* (Namsan, Haebangchon — pop-rock),
+  *Tower Downhill* (the downhill — fast electro-rock), *Starlight Fair* (the fairground — a carnival
+  band and band organ), *Ironworks Groove* (Seongsu, Euljiro, Mullae — gritty funk-rock). *Garage
+  Showroom* loops on the race menus; the course's track plays from the grid through the race and
+  crossfades into *Podium Party* at the ceremony (after the victory fanfare); a drive at night keeps
+  *Neon Overpass*. The Music switch and volume in the Graphics panel control all of it.
 - **On screen**: the map at the top left (`src/city/minimap.js`) — the real streets round you, every
   small street, the buildings faintly, the river where it is near, the course ahead bright, short
   cuts dotted, item boxes, marble patches and branches in the road, the traffic, and every rider as

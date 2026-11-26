@@ -32,7 +32,17 @@ export const TRACK_TITLES = Object.freeze({
   victory: 'Victory',
   defeat: 'Retreat',
   'level-up': 'Level Up',
-  discovery: 'Treasure Found'
+  discovery: 'Treasure Found',
+  'kick-palace': 'Palace Gate Dash',
+  'kick-market': 'Night Market Rush',
+  'kick-boulevard': 'Neon Boulevard',
+  'kick-river': 'Riverside Breeze',
+  'kick-hill': 'Hilltop Sprint',
+  'kick-downhill': 'Tower Downhill',
+  'kick-fair': 'Starlight Fair',
+  'kick-works': 'Ironworks Groove',
+  'kick-lobby': 'Garage Showroom',
+  'kick-podium': 'Podium Party'
 });
 
 /** The tracks (beds, then stingers) each game plays: its Credits panel lists these. */
@@ -43,7 +53,7 @@ export const GAME_TRACKS = Object.freeze({
   kindlewatch: ['frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up'],
   snowpuff: ['playful', 'meadow', 'lantern-valley', 'night-forest', 'victory', 'level-up'],
   arcademia: ['playful', 'level-up', 'discovery'],
-  seoul: ['city-night', 'victory'],
+  seoul: ['kick-lobby', 'kick-palace', 'kick-market', 'kick-boulevard', 'kick-river', 'kick-hill', 'kick-downhill', 'kick-fair', 'kick-works', 'kick-podium', 'city-night', 'victory'],
   lanternwood: ['title', 'village', 'night-forest', 'meadow', 'frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up', 'discovery'],
   stoneball: ['battle', 'victory', 'defeat'],
   home: ['title']
@@ -184,9 +194,39 @@ export function lanternwoodTrack({ realm = 'lanternwood', area = null }) {
   return area === 'camp' ? 'village' : 'night-forest';
 }
 
-/** Kickrani: Neon Overpass while racing, and while driving at night; quiet otherwise (the engine and the city). */
-export function seoulTrack({ mode, racing = false, night = false }) {
-  if (racing || mode === 'race') return 'city-night';
+/**
+ * Kickrani's race music by course (src/city/course.js ids): each place its own mood — the palace
+ * lanes a pop beat under a plucked zither and hourglass drum, the markets brassy funk, the
+ * boulevards bright city-pop, the river tropical synth-pop, the hills pop-rock, the Namsan
+ * downhill fast electro-rock, the fairground a carnival band, the workshops gritty funk-rock.
+ */
+export const KICKRANI_COURSE_TRACKS = Object.freeze({
+  gwanghwamun: 'kick-palace',
+  seochon: 'kick-palace',
+  dongdaemun: 'kick-market',
+  cheongnyangni: 'kick-market',
+  hongdae: 'kick-boulevard',
+  teheran: 'kick-boulevard',
+  jamsil: 'kick-boulevard',
+  yeouido: 'kick-river',
+  namsan: 'kick-hill',
+  haebangchon: 'kick-hill',
+  namsandown: 'kick-downhill',
+  jamsilpark: 'kick-fair',
+  seongsu: 'kick-works',
+  euljiro: 'kick-works',
+  mullae: 'kick-works'
+});
+
+/**
+ * Kickrani: the showroom loop on the race menus, the course's own track from the grid through the
+ * race, the podium's party at the ceremony and the results; Neon Overpass for a drive at night;
+ * quiet otherwise (the engine and the city).
+ */
+export function seoulTrack({ mode, racing = false, night = false, course = null, menu = false, podium = false }) {
+  if (menu) return 'kick-lobby';
+  if (podium) return 'kick-podium';
+  if (racing || mode === 'race') return KICKRANI_COURSE_TRACKS[course] ?? 'city-night';
   if (mode === 'drive' && night) return 'city-night';
   return null;
 }
