@@ -8,7 +8,7 @@ import { boot, tally, until } from './lib.mjs';
  * Shift, riders never inside a building (ridden into one at full speed they
  * scrape or come off), a golmok short cut taken and counted, the alley
  * mouths joined to their roads, a branch
- * thrown into the wheel of the rider right ahead (only them; from 1st, wasted), the energy drink's boost, the golden helmet
+ * thrown into the wheel of the rider right ahead (only them; from 1st, wasted), the energy drink's boost (the only boost: F does nothing, no gauge), the golden helmet
  * worn and knocked off, marbles that throw a rival off, smoke that blinds
  * whoever rides into it (a soft grey veil over your view), the rival panel,
  * a crash and back on, only real people (with
@@ -56,7 +56,7 @@ export async function run(browser) {
     await page.waitForTimeout(900);
     await shot('rider');
     await page.click('.jl [data-next]');
-    t.check('the scooter step: six scooters in 3D, with five stat bars', await until(page, () => document.querySelectorAll('[data-scooter]').length === 6 && document.querySelectorAll('.jl__stat').length === 5 && window.seoul.race.stage.view === 'scooter', null, 3000));
+    t.check('the scooter step: six scooters in 3D, with four stat bars (no battery)', await until(page, () => document.querySelectorAll('[data-scooter]').length === 6 && document.querySelectorAll('.jl__stat').length === 4 && !document.querySelector('[data-stat="battery"]') && window.seoul.race.stage.view === 'scooter', null, 3000));
     await page.click('[data-scooter="racer"]');
     t.check('picking a scooter: your rider hops onto that model, and the bars show its trade-off', await until(page, () => {
       const r = window.seoul.race;
@@ -129,7 +129,8 @@ export async function run(browser) {
     }));
     t.check('the menus are gone and the city is back behind the race', await page.evaluate(() => !window.seoul.race.stageOn && !document.querySelector('.seoul').classList.contains('is-menu')));
     t.check('the race has its own sky: night and rain, the city clock stopped', await page.evaluate(() => window.seoul.weather.kind === 'rain' && (window.seoul.hour >= 20 || window.seoul.hour < 1) && window.seoul.clockPaused === true));
-    t.check('the HUD: map, place, lap, time, three item slots, speed and the sprint gauge', await page.evaluate(() => ['.race__map', '.race__pos', '.race__lap', '.race__time', '.race__speed'].every((s) => !document.querySelector(s).hidden) && document.querySelectorAll('.race__slot').length === 3 && Boolean(document.querySelector('.race__boost'))));
+    t.check('the HUD: map, place, lap, time, three item slots, speed — and no boost gauge', await page.evaluate(() => ['.race__map', '.race__pos', '.race__lap', '.race__time', '.race__speed'].every((s) => !document.querySelector(s).hidden) && document.querySelectorAll('.race__slot').length === 3 && !document.querySelector('.race__boost') && !/BOOST|CHARGING/.test(document.querySelector('.race__speed').textContent)));
+    t.check('no boost key in the race hints, no tailwind among the items', await page.evaluate(() => !/boost/i.test(document.querySelector('.race__hint')?.textContent ?? '') && !/\bF\b/.test(document.querySelector('.race__hint')?.textContent ?? '')));
     t.check('the race starts', await until(page, () => window.seoul.race.phase === 'racing', null, 15000));
     await page.evaluate(() => {
       const r = window.seoul.race;
@@ -382,7 +383,6 @@ export async function run(browser) {
       const r = window.seoul.race;
       r.autopilot = false;
       r.me.items = ['drink', null, null];
-      r.me.s.stamina = 0.1;
       r._renderItems();
     });
     t.check('an item shows in its slot', await page.evaluate(() => Boolean(document.querySelector('.race__slot.is-full img'))));
@@ -390,12 +390,23 @@ export async function run(browser) {
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     await page.evaluate(() => {
       window.seoul.race.me.safe = 5;
-      window.seoul.race.me.s.stamina = 0.1;
+      window.seoul.race.me.s.v = 19.4;
     });
-    await page.evaluate(() => (window.seoul.race.me.s.v = 19.4));
+    // F does nothing in a race now: held at full throttle, no boost — the motor's cap and no more.
+    await page.keyboard.down('KeyF');
+    await page.waitForTimeout(700);
+    const fBoost = await page.evaluate(() => ({ boosting: window.seoul.race.me.s.boosting, kmh: Math.round(window.seoul.race.me.s.v * 3.6) }));
+    await page.keyboard.up('KeyF');
+    t.check('F does nothing in a race: no boost without a drink', !fBoost.boosting, JSON.stringify(fBoost));
+    await page.evaluate(() => {
+      window.seoul.race.me.safe = 5;
+      window.seoul.race.me.s.v = 19.4;
+    });
     await page.keyboard.press('Digit1');
-    t.check('1 uses it: the energy drink — a gulp, the gauge filled up again', await until(page, () => window.seoul.race.me.s.stamina > 0.95 && window.seoul.race.me.items[0] === null && (window.seoul.race.gulps ?? 0) > 0, null, 3000));
-    t.check('…and a boost at once, no F needed: faster than the motor\'s 70 km/h', await until(page, () => window.seoul.race.me.drinkT > 0 && window.seoul.race.me.s.v * 3.6 > 76, null, 2500), await page.evaluate(() => `${Math.round(window.seoul.race.me.s.v * 3.6)} km/h`));
+    t.check('1 uses it: the energy drink — a gulp', await until(page, () => window.seoul.race.me.items[0] === null && (window.seoul.race.gulps ?? 0) > 0, null, 3000));
+    t.check('…and a boost at once, no key needed: faster than the motor\'s 70 km/h, DRINK BOOST under the speed', await until(page, () => window.seoul.race.me.drinkT > 0 && window.seoul.race.me.s.boosting && window.seoul.race.me.s.v * 3.6 > 76 && /DRINK BOOST/.test(document.querySelector('.race__speed').textContent), null, 2500), await page.evaluate(() => `${Math.round(window.seoul.race.me.s.v * 3.6)} km/h`));
+    await shot('drink-boost');
+    t.check('…for about four seconds, then back to the motor', await until(page, () => window.seoul.race.me.drinkT <= 0 && !window.seoul.race.me.s.boosting, null, 6000));
     // The golden helmet: worn where everyone sees it, and knocked off when it saves you.
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     await page.evaluate(() => {

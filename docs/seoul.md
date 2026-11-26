@@ -180,7 +180,7 @@ Seoul's real streets — and the streets stay open.
 
   The level sets more than the streets: the bots' skill, how many cars are about and coming the other
   way, how many cars are parked at the kerb, and the item odds (a little more of the back-markers'
-  branches, marbles and tailwinds on the harder ones). Each course is planned on the spot from the
+  branches, marbles and police calls on the harder ones). Each course is planned on the spot from the
   real road network and between the real buildings (`src/city/course.js`, `src/city/walls.js`):
   three or four points round the place, each on the nearest road with two or more lanes each way,
   joined by the best way for a racer — a search over the streets' directed edges where wide roads
@@ -241,8 +241,8 @@ Seoul's real streets — and the streets stay open.
   light: first off the line and the quickest to flick through traffic, short of top speed), the
   **G9 Grand** (wide, long, twin stem, chrome, a big lamp: fast on the boulevards, poor in corners)
   and the **Mini Bubblegum** (pastel retro with a leg shield, whitewall tyres and a basket: nimble,
-  kind on bumps, the longest battery). Bars for top speed, acceleration, cornering, shock absorption
-  and battery; more top speed always costs cornering and shock absorption. All of them: grip tape,
+  kind on bumps, a little quicker off the line than the S1). Bars for top speed, acceleration,
+  cornering and shock absorption; more top speed always costs cornering and shock absorption. All of them: grip tape,
   folding stem, throttle and brake levers, a live speed and battery display, LED head and brake
   lights, a kickstand. Bots ride a mix of them; in a room everyone's pick goes to the others. Riders bump and wobble off each other and never
   pass through (`src/city/pack.js`); bots keep their own lines on the road side of the street,
@@ -256,8 +256,7 @@ Seoul's real streets — and the streets stay open.
   scooter swings round faster than a lean turns it, an assist holds the slide, a little speed is
   scrubbed off — round a 90° junction at speed in about 12 m instead of 35; let go to straighten;
   tyre squeal, rubber scuffs on the road, the rider hanging out; bots drift the tight corners too),
-  **F** boost to ~85 km/h while the battery gauge lasts (it
-  charges as you ride, faster in a slipstream and with every close call), **Space** the bell (a
+  no boost key and no boost gauge — the energy drink is the only boost — **Space** the bell (a
   synthesised two-strike "ring-ring", `src/city/bell.js`; **B** too: people ahead step aside, slower
   riders and scooters give you room, and you hear the bots' bells where they are), **R** back on the
   course (and after a few seconds lost well off it, you are put back). Small wheels feel every
@@ -298,13 +297,14 @@ Seoul's real streets — and the streets stay open.
   shove; hit any of it square and fast — a car, a wall head-on above ~38 km/h, a planter, a bin, a parked scooter —
   and you're off: a hit-stop, "BONK!", a tumble, dizzy stars, back on 1.5 s later. Met at a slant
   (a wall, a car's flank, the edge of a bin, a pole) it is only a scrape: turned along it, slowed,
-  still riding. Pass close at speed for a "WHOOSH!" and a top-up of boost.
+  still riding. Pass close at speed for a "WHOOSH!".
 - **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
-  ~220 m) to fill three slots; use them with **1 2 3**. **Energy drink**: a can crack and two gulps,
-  your rider drinks, and three seconds of boost at once without pressing F (70 → 86 km/h, the FOV
-  kicking out, speed lines, a green glow trail behind the scooter — about ten metres gained, worth
-  having, not a win), the gauge visibly filling up again, "GULP! +BOOST". (Before, it only set the
-  gauge full, silently: holding W, 70 km/h before and after.) **Call the police · 경찰 호출** (`src/city/police.js`,
+  ~220 m) to fill three slots; use them with **1 2 3**. **Energy drink** — the only boost
+  there is (no boost key, no gauge, no tailwind): a can crack and two gulps, your rider drinks, and
+  four seconds of boost at once at the scooter's boost speed and pull (70 → 86 km/h on the S1, the FOV
+  kicking out, speed lines, the wind, a green glow trail behind the scooter — about fifteen metres
+  gained, worth having, not a win), "GULP! +BOOST" and DRINK BOOST under the speed. The commonest
+  item at every place (about half the boxes leading, a third last). **Call the police · 경찰 호출** (`src/city/police.js`,
   the air horn's place): a patrol officer of our own design — a white police scooter with a blue
   stripe and "POLICE 경찰" on its side, a red-and-blue light bar, a hi-vis vest and a peaked cap, no
   real force's crest — rides up beside the nearest rider ahead of you (if you lead, the one behind),
@@ -318,7 +318,7 @@ Seoul's real streets — and the streets stay open.
   strap (just the helmet: no glow round the rider) — and a badge on the HUD; the next crash (a car, a
   wall, a branch, a fall on marbles)
   bounces off — "BLOCKED!" and "PING!", a ding, and the helmet flies off, spinning. Everyone's
-  helmets show, bots' and friends' too. **Tailwind** (five seconds of free, faster sprinting).
+  helmets show, bots' and friends' too.
   **Marbles** (`src/city/marbles.js`): poured out behind you, 48 glass marbles with coloured swirls
   bounce, scatter and roll, then lie in a patch for about 13 s — always inside the street they were
   poured in (never onto a pavement or through a wall; in a golmok narrower than 5.5 m only across
@@ -352,7 +352,7 @@ Seoul's real streets — and the streets stay open.
   ahead in reach — you lead — it's wasted: it flies on up the road and bursts into leaves ("POOF").
   It never lies in the road and never touches anyone behind you. Bots throw it only with someone
   ahead in reach, and at a person only half the time.) The further
-  back you are, the better the odds (more tailwinds, branches, marbles and smoke). Bots use them too; in a room
+  back you are, the better the odds (more branches, marbles, smoke and police calls). Bots use them too; in a room
   throws, pours and smoke are sent to everyone and whoever's browser rides the rider caught decides the catch.
 - **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
   near: the small streets' concrete and asphalt at road level, joined to the road where they meet
@@ -417,7 +417,7 @@ Seoul's real streets — and the streets stay open.
   with speed lines and a halftone edge — no name, no distance, no text. One small render when the
   rider changes, at most once a second, read back to a 2D canvas; all its motion is CSS; it is
   rendered once while the lights count down so nothing hitches. Your place beside the map; the lap top right with the order under it; the time and the
-  three item slots bottom centre; speed and the sprint gauge bottom right; the next turn named at
+  three item slots bottom centre; speed (and what you're doing: DRINK BOOST, DRIFT, SLIPSTREAM, SLIPPING!) bottom right — no boost gauge; the next turn named at
   the top ("SHARP RIGHT · ALLEY 30 m"), a warning under it for anything in your line; the keys while
   the lights count down; speed lines from about 55 km/h. Left-drag looks round.
 - **The blinking box** (a square flicking in and out at the left of the middle of the screen): the
