@@ -804,7 +804,8 @@ export class PlushRider {
     const fling = Math.max(-0.9, Math.min(0.9, vy * 1.2 * sig.ears));
     const earA = Math.max(-1, Math.min(0.8, spring(S.ear, -0.05 - fling, 30, 3.6, dt)));
     const earB = spring(S.earB, ((pose.sway ?? 0) * 1.6 + (pose.head?.[2] ?? 0) * 0.8) * sig.ears + (pose.yaw ?? 0) * 0.3, 20, 3, dt);
-    B.get('earL').rotation.set(earA, 0, -0.08 - earB);
+    // (both ears swing the same way, keeping their spread: opposite turns would pinch them into one point)
+    B.get('earL').rotation.set(earA, 0, -0.08 + earB);
     B.get('earR').rotation.set(earA * 0.92, 0, 0.08 + earB);
     const tb = B.get('tail'), t2 = B.get('tail2');
     if (tb) {
