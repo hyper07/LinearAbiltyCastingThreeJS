@@ -712,12 +712,14 @@ export class Race {
    * What the wheels go over on the way round: steel road plates over roadworks (common on Seoul's
    * roads), manhole covers, and on the narrower roads a painted speed bump — each in the racing
    * line's half of the street, the same for everyone (placed by the course's own points). Small
-   * hard wheels feel them: scoot.js `bump`, softened by the suspension (shock absorption).
+   * hard wheels feel them: scoot.js `bump`, softened by the suspension (shock absorption). Never in
+   * a junction: a crossing rides flat.
    */
   _plates() {
     const c = this.course;
     const n = c.points.length;
     const list = [];
+    const junctions = this._junctions();
     // (a point-to-point course: from just after its start line to just before its finish)
     let i = c.open ? c.startI + 30 : 40;
     let k = 0;
@@ -732,6 +734,11 @@ export class Race {
       const half = kind === 'hump' ? { along: 0.45, across: Math.max(1.5, w / 2 - 0.4) } : kind === 'plate' ? { along: 1.2, across: 0.95 } : { along: 0.38, across: 0.38 };
       const x = p[0] + Math.cos(hd) * lat;
       const z = p[1] - Math.sin(hd) * lat;
+      // (in a junction's box — the widest road's width there, its crossings and a plate's length: a little further on)
+      if (junctions.some(([jx, jz, jw]) => Math.hypot(x - jx, z - jz) < jw / 2 + 8)) {
+        i += 2;
+        continue;
+      }
       if (!c.walls?.hits(x, z, 1)) list.push({ id: list.length, x, z, hd, kind, half, k: kind === 'hump' ? 1 : kind === 'plate' ? 0.75 : 0.5, i });
       k++;
       i += 17 + ((k * 7) % 9);
@@ -803,6 +810,49 @@ export class Race {
     mk('plate', new THREE.BoxGeometry(1, 0.02, 1), new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.45, metalness: 0.7 }));
     mk('manhole', new THREE.CylinderGeometry(0.38, 0.38, 0.016, 20), new THREE.MeshStandardMaterial({ map: holeTex, roughness: 0.6, metalness: 0.5 }));
     mk('hump', new RoundedBoxGeometry(1, 0.07, 0.9, 2, 0.03), new THREE.MeshStandardMaterial({ map: humpTex, roughness: 0.7 }));
+  }
+
+  /** The junctions round the course: where three or more streets meet (x, z, the widest street's width). */
+  _junctions() {
+    const c = this.course;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (const p of c.points) {
+      x0 = Math.min(x0, p[0]);
+      x1 = Math.max(x1, p[0]);
+      z0 = Math.min(z0, p[1]);
+      z1 = Math.max(z1, p[1]);
+    }
+    const key = (x, z) => `${Math.round(x * 2)}|${Math.round(z * 2)}`;
+    const nodes = new Map();
+    const node = (x, z) => {
+      const k = key(x, z);
+      let nd = nodes.get(k);
+      if (!nd) nodes.set(k, (nd = { x, z, w: 0, to: new Set() }));
+      return nd;
+    };
+    for (const list of this.g.roadTiles?.values() ?? []) {
+      for (const rd of list) {
+        const m = rd.pts.length / 2;
+        for (let i = 1; i < m; i++) {
+          const ax = rd.pts[i * 2 - 2];
+          const az = rd.pts[i * 2 - 1];
+          const bx = rd.pts[i * 2];
+          const bz = rd.pts[i * 2 + 1];
+          if (Math.max(ax, bx) < x0 - 40 || Math.min(ax, bx) > x1 + 40 || Math.max(az, bz) < z0 - 40 || Math.min(az, bz) > z1 + 40) continue;
+          const a = node(ax, az);
+          const b = node(bx, bz);
+          if (a === b) continue;
+          a.to.add(b);
+          b.to.add(a);
+          a.w = Math.max(a.w, rd.width || 6);
+          b.w = Math.max(b.w, rd.width || 6);
+        }
+      }
+    }
+    return [...nodes.values()].filter((nd) => nd.to.size >= 3).map((nd) => [nd.x, nd.z, nd.w]);
   }
 
   /** Did a racer's front wheel just go over a plate, a manhole or a bump? How big (0–1), once each. */
@@ -2234,7 +2284,8 @@ export class Race {
   _surface(r) {
     const p = this._at(this._line(r), 0);
     const w = p?.[2] ?? 6;
-    if ((r.off ?? 0) > w / 2 + 0.3) return 'paving';
+    // (off the course's street, paving only on a pavement: cutting a junction's corner is still the road)
+    if ((r.off ?? 0) > w / 2 + 0.3 && this.g.onWalk?.(r.s.x, r.s.z)) return 'paving';
     const cls = p?.[3] ?? 4;
     if (cls === 7) return 'paving';
     if (isSmall(cls)) return 'concrete';
@@ -2249,7 +2300,10 @@ export class Race {
     const fz = -Math.cos(s.travel ?? s.heading);
     const here = this.g.surfaceAt(s.x, s.z, r.y + 0.3);
     const ahead = this.g.surfaceAt(s.x + fx * 0.55, s.z + fz * 0.55, r.y + 0.3);
-    const rise = ahead - here;
+    // (less the hill's own rise: the streets and pavements lie on the ground, and up a steep one a
+    // pavement climbs more than a low kerb in half a metre — it isn't hopped stone by stone)
+    const hill = this.g.groundAt(s.x + fx * 0.55, s.z + fz * 0.55) - this.g.groundAt(s.x, s.z);
+    const rise = ahead - here - hill;
     if (Math.abs(rise) < 0.035 || Math.abs(rise) > 0.6) return null;
     // Within the street the course runs down, a step in the surface is a seam or a steep bit (two road
     // stretches meeting, a hill), not a kerb: ridden over, never hopped and never a wall. Only the
@@ -2263,8 +2317,9 @@ export class Race {
     const sz = fx;
     const l = this.g.surfaceAt(s.x + fx * 0.45 + sx * 0.5, s.z + fz * 0.45 + sz * 0.5, r.y + 0.3);
     const rt = this.g.surfaceAt(s.x + fx * 0.45 - sx * 0.5, s.z + fz * 0.45 - sz * 0.5, r.y + 0.3);
-    // gradient across travel (side) vs along it (rise): met squarely, the side difference is small
-    const side = (l - rt) / 1.0;
+    // gradient across travel (side) vs along it (rise): met squarely, the side difference is small (the hill's own, left out)
+    const tilt = this.g.groundAt(s.x + fx * 0.45 + sx * 0.5, s.z + fz * 0.45 + sz * 0.5) - this.g.groundAt(s.x + fx * 0.45 - sx * 0.5, s.z + fz * 0.45 - sz * 0.5);
+    const side = (l - rt - tilt) / 1.0;
     const cross = Math.atan2(Math.abs(rise) / 0.55, Math.abs(side) + 1e-4);
     return { rise, cross, away: side > 0 ? -1 : 1 };
   }

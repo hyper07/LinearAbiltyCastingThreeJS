@@ -44,9 +44,16 @@ including commercially, **with attribution** — the game credits it in its Cred
   are lifted onto a deck: the bridges. Roads are as wide as their lanes (OpenStreetMap's lane count, 3.25 m a lane), with
   Korean markings — a double yellow in the middle of a two-way road, on the median side of a one-way carriageway —
   worn wheel tracks, zebra crossings and stop lines at junctions, granite kerbs, the slab's edge, and on bridges a
-  deep girder and a concrete parapet. Each bridge ramps down to the roads it meets on the banks, and
+  deep girder and a concrete parapet. Each bridge ramps down to the roads it meets on the banks (level
+  across the road it meets and its pavements, then climbing), and
   where a bridge comes in several pieces (as Yanghwa and Dongjak do) they meet level, so every Han
   crossing drives straight through. Smaller streets are simply the gaps between buildings.
+  Off the decks a road lies on the ground edge by edge (a point every 10 m, each edge and the middle
+  line at the ground's height there), not level across at its middle's height: where roads cross on a
+  hill they are one surface, not a ledge as tall as the crossing road's width times the slope (up to
+  1.8 m on Haebangchon's). A pavement is cut where it meets another road, so it never lies across a
+  crossing and a junction's corners aren't left as holes. The surface the riders stand on is
+  `src/city/surface.js` (`surfaceOf`, tested in `tests/unit/city-surface.test.mjs`).
 - **N Seoul Tower** is in the register as a single point, so the game draws its own plain tower
   there, to the real height. No other building is modelled by hand.
 - Heights only shape the ground: **no elevation figure and no coordinate is ever shown.** Parks,
@@ -297,7 +304,8 @@ Seoul's real streets — and the streets stay open.
   riders and scooters give you room, and you hear the bots' bells where they are), **R** back on the
   course (and after a few seconds lost well off it, you are put back). Small wheels feel every
   paving joint, and the roads have steel road plates, manhole covers and, on the narrower ones,
-  speed bumps in the racing line; a kerb met at an angle is a hop up, met glancing it scrapes and
+  speed bumps in the racing line (never in a junction: a crossing rides flat, on asphalt, not
+  paving, when you cut across it); a kerb met at an angle is a hop up, met glancing it scrapes and
   wobbles you. How much of it reaches you is the scooter's suspension: on the stiff R7 a plate
   shakes the camera and the rider, costs speed and knocks your line; on the X4 you hardly notice. Speed
   shows: the FOV opens (58° → ~71°, more on a boost), a fine buzz in the camera, wind lines in the air
