@@ -14,7 +14,7 @@ import { tileRings } from './walls.js';
  *     close, bridges dark-edged over the river;
  *   building footprints from the map tiles when close;
  *   the 25 districts' names, the hills, and landmarks (N Seoul Tower,
- *     Gyeongbokgung, Lotte World Tower, the 63 Building …);
+ *     Gyeongbokgung, the Jamsil Sky Tower, the 63 Building …);
  *   every course at its true size on its real streets, each in its colour —
  *     and the one picked (or pointed at in the list) with its route: the start
  *     and finish, arrows the way it runs, its short cuts dotted, its sharp
@@ -34,7 +34,9 @@ import { tileRings } from './walls.js';
 export const COURSE_COLORS = {
   gwanghwamun: '#1f9e4a', dongdaemun: '#0f9488', namsan: '#3fb950', hongdae: '#2f80ed', yeouido: '#1c7ef2', cheongnyangni: '#20a4c8', teheran: '#00a596', jamsil: '#4a6cf0',
   seochon: '#f08c00', seongsu: '#e8a400', jamsilpark: '#ff7a1a',
-  euljiro: '#e5383b', mullae: '#c2185b', haebangchon: '#ff4d6d', namsandown: '#b5179e'
+  euljiro: '#e5383b', mullae: '#c2185b', haebangchon: '#ff4d6d', namsandown: '#b5179e',
+  heritage: '#ffb703', banpo: '#d98e04', olympic: '#f4a300', yeouido63: '#ffcf33',
+  bukak: '#9d0208', itaewon: '#ff006e', sinchon: '#d00000', skytower: '#a4133c'
 };
 
 /** A little red chilli pepper (SVG): the difficulty badge, one to three of them. */
@@ -45,7 +47,7 @@ export const chillies = (level, size = 14) => `<span class="chillies" title="${L
 export const LANDMARKS = [
   { name: 'N Seoul Tower', ko: 'N서울타워', x: 907, z: 1673, icon: 'tower', big: true, text: 'On top of Namsan, 237 m: the Namsan Tower Downhill starts at its plaza.' },
   { name: 'Gyeongbokgung', ko: '경복궁', x: -82, z: -1479, icon: 'palace', big: true, text: 'The great palace of the Joseon kings, under Bugaksan.' },
-  { name: 'Lotte World Tower', ko: '롯데월드타워', x: 11012, z: 5953, icon: 'tower', big: true, text: 'Korea\'s tallest tower, 555 m, by Seokchon Lake.' },
+  { name: 'Jamsil Sky Tower', ko: '잠실 타워', x: 11012, z: 5953, icon: 'tower', big: true, text: 'Korea\'s tallest tower, 555 m, by Seokchon Lake: the Jamsil Sky Tower course runs in its shadow.' },
   { name: '63 Building', ko: '63빌딩', x: -3367, z: 5170, icon: 'tower', big: true, text: 'The golden tower on Yeouido, by the Han.' },
   { name: 'City Hall', ko: '서울시청', x: 6, z: -25, icon: 'hall', text: 'The middle of the map: every course is measured from here.' },
   { name: 'Changdeokgung', ko: '창덕궁', x: 1155, z: -1457, icon: 'palace', text: 'A palace and its secret garden, by the hanok lanes of Bukchon.' },
@@ -57,6 +59,10 @@ export const LANDMARKS = [
   { name: 'Yeouido Park', ko: '여의도공원', x: -4883, z: 4445, icon: 'park', text: 'A long park down the middle of the island.' },
   { name: 'World Cup Stadium', ko: '월드컵경기장', x: -7132, z: -230, icon: 'stadium', text: 'The 2002 World Cup was played here.' },
   { name: 'Jamsil Stadium', ko: '잠실종합운동장', x: 8307, z: 5999, icon: 'stadium', text: 'The Olympic stadium and the baseball grounds.' },
+  { name: 'World Peace Gate', ko: '세계평화의문', x: 12095, z: 5125, icon: 'hall', text: 'The great winged gate at Olympic Park\'s west entrance, up the road from the Olympic Park Lanes.' },
+  { name: 'Banpo Bridge', ko: '반포대교', x: 1641, z: 5735, icon: 'park', text: 'A bridge over a bridge: its fountain sprays rainbows over the Han at night.' },
+  { name: 'Hongik University', ko: '홍익대학교', x: -4677, z: 1637, icon: 'hall', text: 'The art school the Hongdae quarter is named after.' },
+  { name: 'Itaewon', ko: '이태원', x: 1473, z: 3527, icon: 'station', text: 'Seoul\'s international street, under Namsan.' },
   { name: 'Seokchon Lake', ko: '석촌호수', x: 11230, z: 6090, icon: 'park', text: 'The lake the Jamsil Fairground course goes round: a funfair of our own beside it.' }
 ];
 const HILLS = [

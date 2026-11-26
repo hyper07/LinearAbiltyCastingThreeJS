@@ -215,7 +215,15 @@ export const KICKRANI_COURSE_TRACKS = Object.freeze({
   jamsilpark: 'kick-fair',
   seongsu: 'kick-works',
   euljiro: 'kick-works',
-  mullae: 'kick-works'
+  mullae: 'kick-works',
+  heritage: 'kick-palace',
+  banpo: 'kick-river',
+  olympic: 'kick-boulevard',
+  yeouido63: 'kick-river',
+  bukak: 'kick-downhill',
+  itaewon: 'kick-hill',
+  sinchon: 'kick-market',
+  skytower: 'kick-boulevard'
 });
 
 /**

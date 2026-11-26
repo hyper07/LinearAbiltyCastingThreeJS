@@ -184,9 +184,10 @@ export class Golmok {
    * with ends (a short cut), not a loop; `walls`: where its garden walls go, solid (walls.js); `avoid`:
    * other lines (the course, the short cuts) no garden wall may be built across; `mountain`: a flag
    * per point, out on a wooded hill (the Namsan downhill's park road) — there an asphalt road with a
-   * yellow centre line and steel guard rails either side (solid), not an alley's walls and clutter.
+   * yellow centre line and steel guard rails either side (solid), not an alley's walls and clutter;
+   * `sparse`: no planters, pots, bins or scooters on the ground (a zig-zag's main line).
    */
-  constructor(game, course, { open = false, walls = null, avoid = [], shortcut = false, mountain = null } = {}) {
+  constructor(game, course, { open = false, walls = null, avoid = [], shortcut = false, mountain = null, sparse = false } = {}) {
     this.g = game;
     this.course = course;
     this.open = open;
@@ -194,6 +195,8 @@ export class Golmok {
     this.walls = walls;
     this.avoid = avoid;
     this.shortcut = shortcut;
+    // (`sparse`: a zig-zag's lanes one car wide — raced at speed, corner after corner: nothing stood out on the ground at their edges)
+    this.sparse = sparse;
     this.calm = cornerZones(course.points);
     if (open) for (let i = 0; i < Math.min(8, course.points.length); i++) this.calm[i] = this.calm[course.points.length - 1 - i] = 1;
     this.chunks = new Map();
@@ -523,7 +526,7 @@ export class Golmok {
           const gz = ez - rz * side * 0.3;
           // (and never on the course's own line, where it crosses itself or turns a corner)
           const onMain = g.onRoad?.(gx, gz, 0.4) || pts.some((q, qi) => Math.abs(qi - i) > 1 && Math.hypot(q[0] - gx, q[1] - gz) < (q[2] ?? 6) / 2 - 0.1);
-          const clear = w < 5 || this.calm[i] || this.calm[(i + 1) % n];
+          const clear = w < 5 || this.sparse || this.calm[i] || this.calm[(i + 1) % n];
           const roll0 = r();
           const roll = onMain || clear ? 1 : roll0 * 1.6;
           if (roll < 0.13) {

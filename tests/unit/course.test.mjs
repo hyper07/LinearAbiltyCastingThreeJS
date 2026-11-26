@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKE_COURSES, planCourse, finishCourse, locate, buildGraph, isSmall, sharpTurns, courseStats, turnCost, OPEN_LEAD, OPEN_RUNOUT } from '../../src/city/course.js';
+import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, buildGraph, isSmall, sharpTurns, courseStats, turnCost, isLocal, ZIG_MIN_WIDTH, OPEN_LEAD, OPEN_RUNOUT } from '../../src/city/course.js';
 import { behindStart } from '../../src/city/pack.js';
 import { coasterTrack, coasterSpeed } from '../../src/city/fairground.js';
 import { woodSpots } from '../../src/city/hillwood.js';
@@ -182,7 +182,16 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
     byLevel[def.level].push(def.id);
     // one-way roads only with their traffic
     assert.equal(c.points.filter((p) => p[4] === -1).length, 0, `${def.id}: against a one-way road`);
-    if (def.level === 'easy') {
+    if (def.zigzag) {
+      // a zig-zag: through the local streets, corner after corner, left and right in turn
+      if (c.open) assert.ok(c.length > 1500 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
+      else assert.ok(c.length > 1700 && c.length < 3600, `${def.id}: ${Math.round(c.length)} m`);
+      if (def.roads !== 'avenues') assert.ok(st.local >= 0.6, `${def.id}: ${Math.round(st.local * 100)}% on local streets`);
+      assert.ok(st.switches >= 4, `${def.id}: ${st.switches} left/right switches`);
+      if (def.roads !== 'avenues') assert.ok(st.sharp + st.switches >= 10, `${def.id}: ${st.sharp} sharp turns, ${st.switches} switches`);
+      // never down a golmok narrower than ZIG_MIN_WIDTH (but for a course drawn along one on purpose)
+      if (!def.minRoad) assert.equal(c.points.filter((p) => isSmall(p[3]) && (p[2] ?? 6) < ZIG_MIN_WIDTH - 0.01).length, 0, `${def.id}: down a golmok`);
+    } else if (def.level === 'easy') {
       assert.ok(c.length > 1800 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
       assert.equal(st.small, 0, `${def.id}: no residential lanes on the main loop`);
       // (the hill road is one lane each way by nature; every other course two or more, most of the way)
@@ -208,7 +217,38 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
   }
   for (const k of ['River', 'Avenue', 'Market', 'Hill', 'Towers', 'Fairground', 'Downhill']) assert.ok(kinds.has(k), k);
   for (const [level, ids] of Object.entries(byLevel)) assert.ok(ids.length >= 3, `${level}: ${ids.join(', ')}`);
-  assert.ok(BIKE_COURSES.length >= 12 && BIKE_COURSES.length <= 16);
+  assert.ok(BIKE_COURSES.length >= 12 && BIKE_COURSES.length <= 24);
+});
+
+test('a zig-zag through a grid of local streets: one lane each way, corner after corner, left and right in turn — never down the golmok, the arterial only to cross', () => {
+  // residential streets (6.2 m) every 100 m, golmok (3.6 m) between them, an eight-lane boulevard through the middle
+  const roads = [];
+  for (let k = -800; k <= 800; k += 50) {
+    const along = [];
+    const across = [];
+    for (let t = -900; t <= 900; t += 25) {
+      along.push(t, k);
+      across.push(k, t);
+    }
+    const lane = k % 100 === 0;
+    roads.push({ pts: Float32Array.from(along), width: lane ? 6.2 : 3.6, cls: lane ? 5 : 6, small: true }, { pts: Float32Array.from(across), width: lane ? 6.2 : 3.6, cls: lane ? 5 : 6, small: true });
+  }
+  const boulevard = [];
+  for (let t = -900; t <= 900; t += 25) boulevard.push(t, 0);
+  roads.push({ pts: Float32Array.from(boulevard), width: 27, cls: 2, lanes: 8 });
+  // a staircase up to the north-east and back down the other side
+  const via = [[-400, 300], [-300, 200], [-200, 100], [-100, -100], [0, -200], [100, -300], [300, -300], [300, 100], [200, 300]];
+  const c = planCourse(roads, { id: 'zz', x: 0, z: 0, r: 300, level: 'medium', zigzag: true, via }, { bike: true });
+  assert.ok(c, 'planned');
+  const st = courseStats(c);
+  assert.ok(st.switches >= 4, `${st.switches} left/right switches`);
+  assert.ok(st.sharp >= 6, `${st.sharp} sharp corners`);
+  assert.equal(c.points.filter((p) => p[2] < ZIG_MIN_WIDTH).length, 0, 'no golmok on the main line');
+  assert.ok(st.local > 0.9, `${Math.round(st.local * 100)}% local`);
+  assert.ok(isLocal([0, 0, 6.2, 5, 0]) && !isLocal([0, 0, 27, 2, 0]) && !isLocal([0, 0, 3.6, 6, 0]));
+  // its traffic: lighter than its level's on the avenues, kept off the level tabs
+  assert.ok(LEVELS['medium-local'].oncoming < LEVELS.medium.oncoming && LEVELS['hard-local'].parked < LEVELS.hard.parked);
+  assert.deepEqual(Object.keys(LEVELS), ['easy', 'medium', 'hard']);
 });
 
 test('a point-to-point course: from its first point to its last, its start line a little in, its finish a run-out short of the end', () => {

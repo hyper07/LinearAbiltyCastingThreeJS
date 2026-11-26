@@ -137,7 +137,7 @@ export class JaraniStage {
       s.add(g);
       this.lamps.push(light);
     }
-    // The city behind: towers with windows, N Seoul Tower on Namsan, Lotte World Tower far off.
+    // The city behind: towers with windows, N Seoul Tower on Namsan, the Jamsil Sky Tower far off.
     const lit = windowTexture(true);
     const face = windowTexture(false);
     // (three kinds of tower: cream render, blue-grey glass, brick — a skyline, not a grey wall)

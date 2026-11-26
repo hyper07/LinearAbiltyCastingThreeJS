@@ -667,7 +667,12 @@ export class Race {
     this.me = this.racers.find((r) => r.me);
     this.fx = new ComicFx(this.g.scene);
     this.police = new PoliceStops(this.g.scene);
+    // (a zig-zag's local streets: the lighter traffic of its level's `-local` (course.js LEVELS) — traffic.js reads
+    // the level off the course's def as it starts, so it is handed that one while it does)
+    const def = course.def;
+    if (def?.zigzag && LEVELS[`${def.level}-local`]) course.def = { ...def, level: `${def.level}-local` };
     this.traffic = new RaceTraffic(this.g, this);
+    course.def = def;
     this.boxes = new ItemBoxes(this.g, course);
     this.patches = [];
     this.marbleField = new MarbleField(this.g.scene, blobTexture());
@@ -691,7 +696,7 @@ export class Race {
     this.g.roadHash ??= new Map();
     const lines = [course.points, ...(course.shortcuts ?? []).map((sc) => sc.points)];
     this.g.setMouths?.(lines);
-    this.golmok = new Golmok(this.g, course, { open: Boolean(course.open), walls: course.walls, avoid: lines.slice(1), mountain: course.def?.mountain ? course.wild : null });
+    this.golmok = new Golmok(this.g, course, { open: Boolean(course.open), walls: course.walls, avoid: lines.slice(1), mountain: course.def?.mountain ? course.wild : null, sparse: Boolean(course.def?.zigzag) });
     this.golmoks = (course.shortcuts ?? []).map((sc, k) => new Golmok(this.g, { id: sc.id, points: sc.points }, { open: true, walls: course.walls, avoid: lines.filter((_, j) => j !== k + 1), shortcut: true }));
     this.facades = new Facades(this.g, course);
     this.wood = course.wild ? new HillWood(this.g, course, course.wild) : null;
@@ -1690,6 +1695,22 @@ export class Race {
         const b = p.points[i];
         const seg = [a[0], a[1], b[0], b[1], (b[2] ?? 4) / 2 + 0.9];
         for (const [x, z] of [[a[0], a[1]], [b[0], b[1]], [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]]) {
+          const key = `${Math.floor(x / 20)}|${Math.floor(z / 20)}`;
+          if (!this.scGrid.has(key)) this.scGrid.set(key, new Set());
+          this.scGrid.get(key).add(seg);
+        }
+      }
+    }
+    // (a zig-zag's own lanes one car wide: kept clear too — people at their doors, not strolling down the
+    // racing line, and no car driving them while the race is on — or every corner is a queue)
+    if (c.def?.zigzag) {
+      const n = c.points.length;
+      for (let i = 1; i < n; i++) {
+        const a = c.points[i - 1];
+        const b = c.points[i];
+        if (!isSmall(b[3] ?? 4) || (b[2] ?? 8) >= 7.5) continue;
+        const seg = [a[0], a[1], b[0], b[1], (b[2] ?? 6) / 2 + 0.5];
+        for (const [x, z] of [[a[0], a[1]], [b[0], b[1]]]) {
           const key = `${Math.floor(x / 20)}|${Math.floor(z / 20)}`;
           if (!this.scGrid.has(key)) this.scGrid.set(key, new Set());
           this.scGrid.get(key).add(seg);
@@ -3388,6 +3409,9 @@ export class Race {
         corner = Math.max(corner, driftV);
         // close to it and too quick to lean round: drift (the way it turns)
         if (j <= 2 && v > corner * 0.8 && !driftNow && Math.min(w, P(0)?.[2] ?? 8) >= 7) driftNow = Math.sign(turn(Math.atan2(a[0] - p0[0], a[1] - p0[1]), Math.atan2(b[0] - a[0], b[1] - a[1]))) || 0;
+        // (a square corner between two lanes one car wide, buildings to the kerb: no room to drift or swing
+        // wide — round it at a walk-and-a-bit, about 25 km/h, a little quicker for the sharper riders)
+        if (bend > 1.1 && tight && w < 7.5) corner = Math.min(corner, 5.2 + w * 0.25 + (r.skill - 0.86) * 6);
       }
       target = Math.min(target, Math.sqrt(corner * corner + 2 * decel * Math.max(0, j * 6 - 5)));
     }

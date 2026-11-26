@@ -2,7 +2,8 @@
  * Kickrani's courses, measured on the real map (data/geo/seoul): each
  * course planned as the game plans it (course.js), then its level, length,
  * how much of it runs on roads with two or more lanes each way, on small
- * streets, its turns sharper than 60° and 80°, the longest straight, the run
+ * streets, on local streets (course.js isLocal), its turns sharper than 60° and 80°, how often a corner
+ * turns the other way from the one before (L/R: the zig-zag), the longest straight, the run
  * to the first corner, its short cuts, and its hills (metres climbed and
  * dropped over a lap, and the steepest 30 m). A point-to-point course is
  * measured from its start line to its finish.
@@ -73,6 +74,6 @@ for (const def of defs) {
   const c = finishCourse(planned, { walls });
   const st = courseStats(c);
   const hl = hills(c, ground);
-  rows.push({ id: def.id, level: def.level ?? 'easy', km: +(c.length / 1000).toFixed(2), wide: `${Math.round(st.wide * 100)}%`, small: `${Math.round(st.small * 100)}%`, 'turns>60': st.sharp, 'turns>80': st.square, straight: Math.round(st.longest), first: Math.round(st.firstCorner), shortcuts: c.shortcuts.length, up: hl?.up, down: hl?.down, 'steep%': hl?.steep, ends: c.open ? 'A→B' : 'loop', ms: Date.now() - t0 });
+  rows.push({ id: def.id, level: def.level ?? 'easy', km: +(c.length / 1000).toFixed(2), wide: `${Math.round(st.wide * 100)}%`, small: `${Math.round(st.small * 100)}%`, local: `${Math.round(st.local * 100)}%`, 'turns>60': st.sharp, 'turns>80': st.square, 'L/R': st.switches, straight: Math.round(st.longest), first: Math.round(st.firstCorner), shortcuts: c.shortcuts.length, up: hl?.up, down: hl?.down, 'steep%': hl?.steep, ends: c.open ? 'A→B' : 'loop', ms: Date.now() - t0 });
 }
 console.table(rows);
