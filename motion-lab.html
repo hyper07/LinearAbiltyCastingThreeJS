@@ -36,9 +36,14 @@
   <button id="combo">New combo</button>
   <button id="music">Play the podium track</button>
   <button id="pause">Pause</button>
+  <a id="crewView" href="?view=crew" style="color: var(--accent)">Podium crew</a>
   <div class="count" id="count"></div>
 </div>
 <div class="now" id="now">Loading…</div>
-<script type="module" src="/src/shared/motion/lab.js"></script>
+<script type="module">
+  // ?view=crew: Kickrani's seven plush riders, each dancing its signature (src/shared/motion/crewLab.js)
+  const crew = new URLSearchParams(location.search).get('view') === 'crew';
+  import(crew ? '/src/shared/motion/crewLab.js' : '/src/shared/motion/lab.js');
+</script>
 </body>
 </html>
