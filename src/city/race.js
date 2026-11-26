@@ -905,23 +905,10 @@ export class Race {
     const cv = document.createElement('canvas');
     cv.width = 512;
     cv.height = 64;
-    const g = cv.getContext('2d');
-    for (let x = 0; x < 512; x += 32) for (let y = 0; y < 64; y += 32) {
-      g.fillStyle = (x + y) % 64 ? '#111' : '#f5f5f5';
-      g.fillRect(x, y, 32, 32);
-    }
-    g.fillStyle = '#ffd23a';
-    g.fillRect(108, 6, 296, 52);
-    g.strokeStyle = '#1a1222';
-    g.lineWidth = 5;
-    g.strokeRect(108, 6, 296, 52);
-    g.fillStyle = '#1a1222';
-    g.font = '900 34px system-ui, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(label, 256, 33);
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
+    gate.userData.banner = { cv, tex };
+    this._gateLabel(gate, label);
     const banner = new THREE.Mesh(new THREE.PlaneGeometry(w, big ? 1.6 : 1.3), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
     banner.position.y = H - 0.6;
     gate.add(banner);
@@ -957,6 +944,29 @@ export class Race {
     gate.rotation.y = heading(p, q);
     this.decor.add(gate);
     return gate;
+  }
+
+  /** A gantry's banner (and the line under it) reads `label`: chequers, and the words on a yellow board. */
+  _gateLabel(gate, label) {
+    const b = gate?.userData.banner;
+    if (!b || b.label === label) return;
+    b.label = label;
+    const g = b.cv.getContext('2d');
+    for (let x = 0; x < 512; x += 32) for (let y = 0; y < 64; y += 32) {
+      g.fillStyle = (x + y) % 64 ? '#111' : '#f5f5f5';
+      g.fillRect(x, y, 32, 32);
+    }
+    g.fillStyle = '#ffd23a';
+    g.fillRect(108, 6, 296, 52);
+    g.strokeStyle = '#1a1222';
+    g.lineWidth = 5;
+    g.strokeRect(108, 6, 296, 52);
+    g.fillStyle = '#1a1222';
+    g.font = '900 34px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(label, 256, 33, 284);
+    b.tex.needsUpdate = true;
   }
 
   /** The course's turns: where it bends (over 30 m) by more than about 30°, and which way. */
@@ -1267,6 +1277,8 @@ export class Race {
         for (const r of this.racers) r.lapStart = 0;
         // (a gantry's start lights: red to green)
         this.gate?.userData.lamp?.emissive.set('#2bff6a');
+        // (a loop's one gantry is its finish line now — and the podium's backdrop at the end)
+        if (!this.course.open) this._gateLabel(this.gate, 'FINISH · 결승');
       }
     } else if (this.count > -0.8) {
       this.count -= dt;
