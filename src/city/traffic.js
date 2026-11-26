@@ -18,7 +18,8 @@ import { takeRider, releaseRider } from './folk.js';
  * vehicle holds its lane and its speed — no swerving, no braking, no waiting
  * at a junction for the race — and the rider has to dodge it. The only rider
  * a driver brakes for is one going its way in front of it in its lane (it
- * follows, as it follows a car) or one held stopped by the police.
+ * follows, as it follows a car) or one standing still there (held by the
+ * police, stuck in a jam).
  *
  * Nothing pops in or out in view (FADE): a vehicle is put down out of sight
  * where it can be — round a corner, behind a building, behind the camera, in
@@ -69,12 +70,13 @@ export function fadeStep(a, want, dt, seen) {
 
 /**
  * Does a driver going `heading` brake for this rider in front of it? Only one going its way (it follows,
- * as it follows a car) or one held stopped by the police — never one coming at it or across its way: they
- * have to get out of its way, not it out of theirs.
+ * as it follows a car), or one standing still in the road (held by the police, stuck in a jam: a driver
+ * doesn't run into something stopped) — never one riding at it or across its way: they have to get out of
+ * its way, not it out of theirs.
  */
 export function brakesFor(heading, rider) {
   if (rider.left) return false;
-  if (rider.pulled) return true;
+  if (rider.pulled || Math.abs(rider.s.v ?? 0) < 1.5) return true;
   return Math.cos((rider.s.travel ?? rider.s.heading) - heading) > 0.5;
 }
 
@@ -765,7 +767,7 @@ export class RaceTraffic {
     // Riders: no swerving, no braking, no waiting at a junction for them — coming the other way or across,
     // a vehicle holds its lane and its speed, and the rider has to get out of its way. A driver brakes only
     // for one going its way close in front in its lane (following, as it follows a car: a bike is seen
-    // late, small and quick) or one held stopped there by the police (brakesFor).
+    // late, small and quick) or one standing still there — held by the police, stuck in a jam (brakesFor).
     for (const r of this.race.racers) if (brakesFor(b.heading, r)) look(r.s.x, r.s.z, 0.7, 18);
     for (const p of this.g.life?.near?.(b.x, b.z, 26) ?? []) look(p.x, p.z, 0.6, 14);
     v.stopFor = Math.max(0, v.stopFor - dt);
@@ -929,8 +931,9 @@ export class RaceTraffic {
     const fx = -Math.sin(heading);
     const fz = -Math.cos(heading);
     for (const v of this.vehicles) {
-      // (one going the rider's way, rung at from behind: one coming at them doesn't move over for it)
-      if (v.kind !== 'scooter' || Math.cos(v.box.heading - heading) < 0.5) continue;
+      // (one going the rider's way, rung at from behind: one coming at them doesn't move over for it, and
+      // one parked at the kerb has nowhere to go)
+      if (v.kind !== 'scooter' || v.parked || Math.cos(v.box.heading - heading) < 0.5) continue;
       const dx = v.box.x - x;
       const dz = v.box.z - z;
       const along = dx * fx + dz * fz;

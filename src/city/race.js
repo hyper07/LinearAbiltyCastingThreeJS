@@ -3336,6 +3336,9 @@ export class Race {
     if (block < R && Math.abs(push) < 0.6) target = Math.min(target, blockV + Math.sqrt(2 * decel * Math.max(0, block - 5)));
     // (close, and steering round it may not be enough: slow down too)
     else if (block < 16) target = Math.min(target, blockV + 2 + Math.sqrt(2 * decel * Math.max(0, block - 3)));
+    // The traffic doesn't wait for riders (traffic.js): where its line in the next two seconds — round the
+    // corner too, not just straight on — meets a vehicle coming the other way or across, it slows to let it by.
+    crossing = Math.min(crossing, this._pathConflict(r, P, Math.max(4, v)));
     if (crossing < R) target = Math.min(target, Math.sqrt(2 * decel * Math.max(0, crossing - 6)));
     if (personAhead < R) target = Math.min(target, Math.max(2, Math.sqrt(2 * decel * Math.max(0, personAhead - 3))));
     // A wall straight ahead (a corner come too wide, a dead end of the map): brake for it in time.
@@ -3470,6 +3473,60 @@ export class Race {
     if (drift && Math.sign(steer) !== Math.sign(r.driftSide)) steer = r.driftSide * 0.4;
     if (drift) steer = Math.sign(steer || r.driftSide) * Math.max(Math.abs(steer), 0.75);
     return { throttle: v < target - 0.2, brake: v > target + 1.2 && (!drift || v > target + 5), steer, drift };
+  }
+
+  /**
+   * How far along a bot's line (m) it would meet a vehicle coming the other way or across its way, riding
+   * on at `speed` for the next two seconds while each vehicle drives straight on at its own — Infinity if
+   * none. (Its line, `P`, as _bot's: course points round the corners ahead, in its own lane.) Ones going
+   * its way are left to the following and passing.
+   */
+  _pathConflict(r, P, speed) {
+    const cars = this.traffic?.near(r.s.x, r.s.z, speed * 2 + 30) ?? [];
+    if (!cars.length) return Infinity;
+    const lat = r.lat ?? 0;
+    // its line, sampled where it will be at each moment
+    const marks = [];
+    let k = 0;
+    let a = P(0);
+    let b = P(1);
+    let gone = -Math.hypot(r.s.x - a[0], r.s.z - a[1]) * 0.5;
+    for (const tt of [0.35, 0.7, 1.05, 1.4, 1.75, 2.1]) {
+      const want = speed * tt;
+      let seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      while (gone + seg < want && k < 40) {
+        gone += seg;
+        k++;
+        a = b;
+        b = P(k + 1);
+        seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (a === b) break;
+      }
+      const u = seg > 0 ? Math.max(0, Math.min(1, (want - gone) / seg)) : 0;
+      const h = a === b ? r.s.heading : heading(a, b);
+      marks.push({ tt, d: want, x: a[0] + (b[0] - a[0]) * u + Math.cos(h) * lat, z: a[1] + (b[1] - a[1]) * u - Math.sin(h) * lat, h });
+    }
+    let best = Infinity;
+    for (const veh of cars) {
+      if (veh.v < 0.8) continue;
+      const bx = veh.box;
+      const fx = -Math.sin(bx.heading);
+      const fz = -Math.cos(bx.heading);
+      for (const m of marks) {
+        if (m.d >= best) break;
+        // (going its way there: following and passing see to that)
+        if (Math.cos(bx.heading - m.h) > 0.7) continue;
+        const cx = bx.x + fx * veh.v * m.tt;
+        const cz = bx.z + fz * veh.v * m.tt;
+        const dx = m.x - cx;
+        const dz = m.z - cz;
+        if (Math.abs(dx * fx + dz * fz) < bx.halfLength + 1.2 && Math.abs(dx * -fz + dz * fx) < bx.halfWidth + 0.9) {
+          best = m.d;
+          break;
+        }
+      }
+    }
+    return best;
   }
 
   /**

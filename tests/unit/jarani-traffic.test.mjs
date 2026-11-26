@@ -56,11 +56,12 @@ test('traffic: a fade comes in over about half a second where it is seen, at onc
   assert.ok(FADE.far > FADE.back && FADE.back > 230, 'drawn out past where vehicles are sent in');
 });
 
-test('traffic: drivers brake for a rider going their way in front, or one held by the police — never one coming at them or across', () => {
+test('traffic: drivers brake for a rider going their way in front, or one standing still (held by the police, in a jam) — never one riding at them or across', () => {
   assert.equal(brakesFor(0, rider(0, 0, 0)), true, 'following');
   assert.equal(brakesFor(0, rider(0, 0, Math.PI)), false, 'head-on');
   assert.equal(brakesFor(0, rider(0, 0, Math.PI / 2)), false, 'across');
   assert.equal(brakesFor(0, rider(0, 0, Math.PI, { pulled: { t: 1 } })), true, 'pulled over by the police');
+  assert.equal(brakesFor(0, { s: { x: 0, z: 0, heading: Math.PI / 2, v: 0.4 } }), true, 'standing still across the road');
   assert.equal(brakesFor(0, rider(0, 0, 0, { left: true })), false, 'gone');
 });
 

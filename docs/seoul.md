@@ -311,9 +311,14 @@ Seoul's real streets — and the streets stay open.
   they don't get out of your way. Coming the other way or across, a vehicle holds its lane and its
   speed: no swerving, no braking, no waiting at a junction for the race (they still give way to one
   another); dodging it is yours to do. The only rider a driver brakes for is one going its way close
-  in front in its lane (it follows you as it follows a car) or one held stopped there by the police
-  (`brakesFor`). A bike's bell moves over only a delivery scooter going your way. Bots see a vehicle
-  coming at them as near as it will be (met at both speeds together) and steer round it earlier.
+  in front in its lane (it follows you as it follows a car) or one standing still there — held by the
+  police, stuck in a jam: nobody drives into something stopped (`brakesFor`). A bike's bell moves over only a delivery scooter going your way. Bots see a vehicle
+  coming at them as near as it will be (met at both speeds together) and steer round it earlier, and
+  look along their own line — round the corner ahead too — for a vehicle that will cross it in the next
+  two seconds, coming the other way or across, and slow to let it by (`_pathConflict`). Measured on the
+  autopilot after the change (Nov 2026, four riders, day, clear): Dongdaemun 120 s, one traffic crash
+  in all (seven before the bots' line check); Euljiro 90 s, none (Euljiro's tight grid jams now and
+  then, as it did before) — and no vehicle popped up in view in either.
   Nothing pops in or out in view (`FADE`): a vehicle is put down out of sight where it can be — round
   a corner, behind a building or wall along the course, behind the camera, in the fog — and one that
   has to appear in plain view (a parked car's place, a long straight in clear air) fades in over half
