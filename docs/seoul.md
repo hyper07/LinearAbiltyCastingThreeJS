@@ -359,6 +359,23 @@ Seoul's real streets — and the streets stay open.
   5 % of boxes leading, 10 % last (taken from the others in proportion). In a room the dropper's
   browser sends the plan (place, street, seed) and everyone draws the same cloud; each browser
   works out who of its own riders is in it. The map shows each cloud as a soft grey round.
+  **Oil slick · 기름** (`src/city/oil.js`): a glossy black slick spilled on the road behind
+  you — an irregular puddle about 3.6 m across and 4.5 m along with a few splashes round it (kept in
+  the street as marbles are: in a narrow golmok only across your half), spreading out in half a
+  second. It is one mesh laid on the road's surface (a grid following the ground, pulled forward
+  against the road: no z-fighting, no floating) with a soft edge from its blobs' field, drawn wet
+  and black with a hard gloss and a thin-film rainbow in marbled swirls and round its thin edge,
+  brighter at a low angle; by night only the lamps' pools and the lights catch in it. It lies about
+  13 s, or until three riders have crossed it (then it fades in a second). Riding into it spins you
+  out: no grip for 1.2 s while the scooter turns a full circle sliding on the way it was going —
+  "OIL!", a tyre squeal (synthesised) — then upright again with 30 % of the speed left. No fall,
+  unless the slide meets a wall faster than 3 m/s (the usual crash). The gold helmet takes it (as a
+  fall on marbles). The wheels leave dark, glossy oily tracks: round in circles while it spins, then
+  for five metres, thinning. Bots spill it when a rival is close behind in their line (or after
+  holding it a while) and steer round slicks they see; each rider is caught by a slick once. In a
+  room the spiller's browser sends the plan (seed and street) and each crossing, so every browser
+  lays the same slick and counts the same three riders. Commoner further back (6 % leading, 14 %
+  last). The map shows each slick as a black round ringed in violet.
   And the branch (`src/city/branch.js`: a leafy
   plane-tree branch grown in code — thrown into the wheel of the rider right ahead of you, and only
   them: the nearest ahead round the course by race distance (a rider down a short cut alongside
@@ -368,7 +385,7 @@ Seoul's real streets — and the streets stay open.
   ahead in reach — you lead — it's wasted: it flies on up the road and bursts into leaves ("POOF").
   It never lies in the road and never touches anyone behind you. Bots throw it only with someone
   ahead in reach, and at a person only half the time.) The further
-  back you are, the better the odds (more branches, marbles, smoke and police calls). Bots use them too; in a room
+  back you are, the better the odds (more branches, marbles, smoke, oil and police calls). Bots use them too; in a room
   throws, pours and smoke are sent to everyone and whoever's browser rides the rider caught decides the catch.
 - **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
   near: the small streets' concrete and asphalt at road level, joined to the road where they meet
@@ -424,7 +441,7 @@ Seoul's real streets — and the streets stay open.
   *Neon Overpass*. The Music switch and volume in the Graphics panel control all of it.
 - **On screen**: the map at the top left (`src/city/minimap.js`) — the real streets round you, every
   small street, the buildings faintly, the river where it is near, the course ahead bright, short
-  cuts dotted, item boxes, marble patches, smoke clouds and branches in the road, the traffic, and every rider as
+  cuts dotted, item boxes, marble patches, oil slicks, smoke clouds and branches in the road, the traffic, and every rider as
   a dot in their colour (ringed gold in a helmet) — turns smoothly with you, or keeps north up: click
   it (remembered). It is drawn once per race and laid out about twelve times a second. When a rival
   comes up behind you or draws level to pass, a small manga-style square slides in on the left

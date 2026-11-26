@@ -3,7 +3,7 @@
  * road and small street from roads.bin and alleys.bin, as wide as they are),
  * the buildings faintly (the course's own walls), the river where it is
  * near, the course and its short cuts (dotted), the item boxes, marble
- * patches and smoke clouds in the road, the traffic, and every rider as a dot in
+ * patches, oil slicks and smoke clouds in the road, the traffic, and every rider as a dot in
  * their colour. It turns with you (smoothly), or keeps north up — a click on
  * the map switches, remembered on this device.
  *
@@ -241,6 +241,16 @@ export class RaceMinimap {
         if (!m.live) continue;
         g.fillRect(m.x - 0.5, m.z - 0.5, 1, 1);
       }
+    }
+    // oil in the road: a black puddle, ringed in its sheen's violet
+    for (const o of race.slicks ?? []) {
+      g.fillStyle = 'rgba(20, 18, 28, 0.9)';
+      g.strokeStyle = 'rgba(200, 155, 255, 0.95)';
+      g.lineWidth = 1.6;
+      g.beginPath();
+      g.arc(o.x, o.z, Math.max(2.5, o.r), 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
     }
     // smoke clouds: a soft grey round, thinning as the cloud does
     for (const c of race.clouds ?? []) {
