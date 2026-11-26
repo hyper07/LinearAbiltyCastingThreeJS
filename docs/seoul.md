@@ -330,10 +330,14 @@ Seoul's real streets — and the streets stay open.
   behind, and steer round the patches they see (the sharper ones see more) or brake to a crawl
   across them. In a room the pourer's browser sends the pour's seed and everyone rolls the same
   patch. And the branch (`src/city/branch.js`: a leafy
-  plane-tree branch grown in code — with a rival ahead in reach it is thrown after a wind-up, in an
-  arc, aimed where their front wheel will be; with nobody ahead it is dropped behind you as a trap
-  for 22 s. A front wheel that catches it stops dead: "CRACK!", over the bars, dizzy stars, back up
-  1.5 s later, and three seconds no branch can catch you. The gold helmet takes it.) The further
+  plane-tree branch grown in code — thrown into the wheel of the rider right ahead of you, and only
+  them: the nearest ahead round the course by race distance (a rider down a short cut alongside
+  counts), up to 150 m on. After a wind-up it flies in an arc and homes in on their front wheel all
+  the way down, so it doesn't miss: "CRACK!", a burst of leaves, over the bars, dizzy stars, back up
+  1.5 s later, and three seconds no branch can catch you. The gold helmet takes it. If nobody's
+  ahead in reach — you lead — it's wasted: it flies on up the road and bursts into leaves ("POOF").
+  It never lies in the road and never touches anyone behind you. Bots throw it only with someone
+  ahead in reach, and at a person only half the time.) The further
   back you are, the better the odds (more tailwinds, branches and marbles). Bots use them too; in a room
   throws and pours are sent to everyone and whoever's browser rides the rider caught decides the catch.
 - **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
