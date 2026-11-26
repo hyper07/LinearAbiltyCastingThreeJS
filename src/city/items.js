@@ -19,6 +19,8 @@ import { laneBand } from './pack.js';
  *                  ahead of you, and only them; with nobody ahead it is wasted (branch.js)
  *   marbles      — a spray of glass marbles poured behind you: whoever rides
  *                  over them slips, and too fast or steering hard, falls (marbles.js)
+ *   smoke        — a smoke canister dropped behind you: a thick cloud in the road
+ *                  for about seven seconds; whoever rides into it can't see (smoke.js)
  */
 export const ITEMS = {
   drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Gulp! Three seconds of boost at once, and your boost gauge full again.', pop: 'DRINK!', color: '#9ef07a' },
@@ -26,14 +28,18 @@ export const ITEMS = {
   helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'On your head for all to see: the next crash (or a branch, or a fall on marbles) bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
   tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster boosting.', pop: 'WIND!', color: '#8fd8ff' },
   branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider right ahead of you (they go over the bars). If nobody\'s ahead, it\'s wasted.', pop: 'BRANCH!', color: '#8bd450' },
-  marbles: { name: 'Marbles', ko: '구슬', text: 'Pour a spray of glass marbles behind you: riders who cross them slip — too fast, or steering hard, and they fall.', pop: 'MARBLES!', color: '#7ad8ff' }
+  marbles: { name: 'Marbles', ko: '구슬', text: 'Pour a spray of glass marbles behind you: riders who cross them slip — too fast, or steering hard, and they fall.', pop: 'MARBLES!', color: '#7ad8ff' },
+  smoke: { name: 'Smoke', ko: '연막', text: 'Drop a smoke canister behind you: a thick cloud fills the road for about seven seconds, and riders who go into it can\'t see a thing.', pop: 'SMOKE!', color: '#c9ced6' }
 };
-export const ITEM_ORDER = ['drink', 'police', 'helmet', 'tailwind', 'branch', 'marbles'];
+export const ITEM_ORDER = ['drink', 'police', 'helmet', 'tailwind', 'branch', 'marbles', 'smoke'];
 
-/** Odds by place: [leader … last]. The further back, the more tailwinds, branches, marbles and police calls. */
+/**
+ * Odds by place: [leader … last]. The further back, the more tailwinds, branches, marbles, smoke and
+ * police calls. (Smoke's 5 % and 10 % came out of the others in proportion.)
+ */
 const ODDS = {
-  first: { drink: 0.41, helmet: 0.28, police: 0.06, tailwind: 0.1, branch: 0.09, marbles: 0.06 },
-  last: { drink: 0.13, helmet: 0.08, police: 0.18, tailwind: 0.24, branch: 0.21, marbles: 0.16 }
+  first: { drink: 0.3895, helmet: 0.266, police: 0.057, tailwind: 0.095, branch: 0.0855, marbles: 0.057, smoke: 0.05 },
+  last: { drink: 0.117, helmet: 0.072, police: 0.162, tailwind: 0.216, branch: 0.189, marbles: 0.144, smoke: 0.1 }
 };
 /**
  * The odds of an item for a racer in `rank` of `n` (for the tests and the menu). `lean` (0–1, the
@@ -118,6 +124,11 @@ function inked(g, path, fill, w = 3) {
   g.lineJoin = 'round';
   g.stroke(path);
 }
+function circlePath(x, y, r) {
+  const p = new Path2D();
+  p.arc(x, y, r, 0, Math.PI * 2);
+  return p;
+}
 function shadeIn(g, path, color, dx, dy) {
   g.save();
   g.clip(path);
@@ -138,7 +149,7 @@ function paintIcon(g, id) {
   g.arc(48, 48, 42, 0, Math.PI * 2);
   g.fill();
   g.restore();
-  g.fillStyle = { drink: '#e6f8d8', police: '#e2eaff', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0', marbles: '#e4f2ff' }[id] ?? '#eee';
+  g.fillStyle = { drink: '#e6f8d8', police: '#e2eaff', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0', marbles: '#e4f2ff', smoke: '#eceef2' }[id] ?? '#eee';
   g.beginPath();
   g.arc(48, 48, 37, 0, Math.PI * 2);
   g.fill();
@@ -257,6 +268,45 @@ function paintIcon(g, id) {
       g.ellipse(x - r * 0.38, y - r * 0.42, r * 0.28, r * 0.17, -0.6, 0, Math.PI * 2);
       g.fill();
     }
+  } else if (id === 'smoke') {
+    // A smoke canister on its side, its cap off, a big grey cloud billowing out of it.
+    const cloud = new Path2D();
+    for (const [x, y, r] of [[56, 34, 15], [40, 28, 12], [70, 46, 12], [44, 46, 14], [28, 40, 10], [60, 58, 10]]) cloud.addPath(circlePath(x, y, r));
+    g.save();
+    g.lineWidth = 6;
+    g.strokeStyle = INK;
+    g.lineJoin = 'round';
+    g.stroke(cloud);
+    g.fillStyle = '#c9ced6';
+    g.fill(cloud);
+    // (soft shade low on the right, light on the tops)
+    g.clip(cloud);
+    g.fillStyle = '#9ea6b2';
+    g.translate(5, 6);
+    g.fill(cloud);
+    g.restore();
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    for (const [x, y, rx, ry] of [[52, 26, 7, 4], [36, 22, 5, 3], [24, 36, 3.5, 2.2]]) {
+      g.beginPath();
+      g.ellipse(x, y, rx, ry, -0.4, 0, Math.PI * 2);
+      g.fill();
+    }
+    const can = new Path2D();
+    can.roundRect(16, 62, 40, 16, 5);
+    inked(g, can, '#6a7382', 2.6);
+    shadeIn(g, can, '#4c5462', 0, 5);
+    const band = new Path2D();
+    band.rect(28, 62, 8, 16);
+    g.save();
+    g.clip(can);
+    g.fillStyle = '#ffb02e';
+    g.fill(band);
+    g.restore();
+    const lid = new Path2D();
+    lid.ellipse(56, 70, 4, 8, 0, 0, Math.PI * 2);
+    inked(g, lid, '#2a3040', 2);
+    g.fillStyle = 'rgba(255,255,255,0.6)';
+    g.fillRect(20, 65, 30, 2.5);
   } else if (id === 'branch') {
     // A crooked brown stick, a snapped pale end, twigs and three bunches of leaves; motion lines behind.
     g.lineCap = 'round';

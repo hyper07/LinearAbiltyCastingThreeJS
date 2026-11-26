@@ -19,6 +19,7 @@ import { PoliceStops, POLICE, policeTarget } from './police.js';
 import { RaceTraffic } from './traffic.js';
 import { ITEMS, rollItem, ItemBoxes, itemIcon, blobTexture } from './items.js';
 import { MARBLE, MarbleField, pourMarbles, pourBand, corridorClamp, stepMarble, marbleFall, marblesAt, patchBounds, rattle } from './marbles.js';
+import { SMOKE, SmokeField, smokeAt, smokePuffs, keepInStreet, poof, cough } from './smoke.js';
 import { HelmetDrops } from './helmet.js';
 import { HillWood } from './hillwood.js';
 import { loadProgress, saveProgress, recordRun } from './progress.js';
@@ -273,6 +274,7 @@ export class Race {
       this.helmetEl.hidden = true;
       this.skipEl.hidden = true;
       this.panel?.hide();
+      this._veil(0);
     }
     this.g.root.classList.toggle('is-racing', on);
   }
@@ -494,6 +496,9 @@ export class Race {
     } else if (msg.t === 'race-marbles') {
       const r = this.racers.find((q) => q.id === msg.id);
       if (r && r.owner !== this.session?.id && !this.patches?.some((p) => p.mid === msg.plan?.mid)) this._addPatch(msg.plan);
+    } else if (msg.t === 'race-smoke') {
+      const r = this.racers.find((q) => q.id === msg.id);
+      if (r && r.owner !== this.session?.id && !this.clouds?.some((c) => c.sid === msg.plan?.sid)) this._addCloud(msg.plan);
     } else if (msg.t === 'race-police') {
       const by = this.racers.find((q) => q.id === msg.id);
       const target = this.racers.find((q) => q.id === msg.target);
@@ -652,6 +657,8 @@ export class Race {
     this.boxes = new ItemBoxes(this.g, course);
     this.patches = [];
     this.marbleField = new MarbleField(this.g.scene, blobTexture());
+    this.clouds = [];
+    this.smokeField = new SmokeField(this.g.scene);
     this.helmetDrops = new HelmetDrops(this.g.scene);
     this.trails = new Map();
     this.minimap.layer = null;
@@ -1365,6 +1372,7 @@ export class Race {
     if (racing) for (const r of this.racers) if (r.mine && !r.left && r.mode === 'ride') this._hits(r);
     this._branches(dt);
     this._marbles(dt);
+    this._smoke(dt);
     this.helmetDrops?.update(dt, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14));
     this._bump();
     for (const r of this.racers) {
@@ -1457,7 +1465,7 @@ export class Race {
   /** For the rival panel's still: only the rider and the street (no traffic, people, effects or other riders). */
   _panelIsolate(on, o) {
     if (on) {
-      const hide = [this.traffic?.group, this.g.life?.group, this.g.life?.folk?.group, this.fx?.group, this.boxes?.group, this.speedFx?.mesh, this.marbleField?.group, ...this.racers.filter((r) => r !== o).map((r) => r.view.root)].filter(Boolean);
+      const hide = [this.traffic?.group, this.g.life?.group, this.g.life?.folk?.group, this.fx?.group, this.boxes?.group, this.speedFx?.mesh, this.marbleField?.group, this.smokeField?.group, ...this.racers.filter((r) => r !== o).map((r) => r.view.root)].filter(Boolean);
       this._isoHidden = hide.filter((m) => m.visible);
       for (const m of this._isoHidden) m.visible = false;
     } else {
@@ -2364,6 +2372,7 @@ export class Race {
     const s = r.s;
     if (item === 'branch') this._throwBranch(r);
     else if (item === 'marbles') this._pour(r);
+    else if (item === 'smoke') this._dropSmoke(r);
     else if (item === 'drink') {
       // A gulp, and away: boosting at once for DRINK.boost seconds, the gauge filling up as you go.
       r.drinkT = DRINK.boost;
@@ -2395,6 +2404,8 @@ export class Race {
       }
     } else if (item === 'marbles') {
       this.fx?.pop('MARBLES!', at, { color: '#7ad8ff', size: r.me ? 1.1 : 0.9 });
+    } else if (item === 'smoke') {
+      this.fx?.pop('SMOKE!', at, { color: '#c9ced6', size: r.me ? 1.1 : 0.9 });
     } else if (item === 'helmet') {
       this.fx?.pop('HELMET ON!', at, { color: '#ffd23a', size: 1.1 });
       r.helmet = true;
@@ -2608,6 +2619,126 @@ export class Race {
       this.fx?.pop(r.me ? 'WOBBLE!' : 'SLIP!', { x: s.x, y: r.y + 2.2, z: s.z, ride: s }, { color: '#7ad8ff', size: r.me ? 0.9 : 0.7 });
       if (r.me) this.shake = Math.max(this.shake ?? 0, 0.12);
     }
+  }
+
+  /* ------------------------------------------------------------- smoke */
+
+  /**
+   * Drop a smoke canister behind a racer (the dropper's browser plans it and tells the room): it
+   * lands a few metres back, in the street being ridden, and billows into a cloud that stays there.
+   */
+  _dropSmoke(r) {
+    const s = r.s;
+    const line = this._line(r);
+    const i = this._ix(line, 0);
+    const here = this._at(line, 0);
+    const room = line.room ? [line.room[i * 2], line.room[i * 2 + 1]] : null;
+    const w = here[2] ?? 6;
+    let lo = -Math.max(0.6, w / 2 - 0.2);
+    let hi = -lo;
+    if (room) {
+      lo = Math.max(lo, -room[0] + 0.2);
+      hi = Math.min(hi, room[1] - 0.2);
+    }
+    const pts = [];
+    for (let k = -8; k <= 8; k++) {
+      const p = this._at(line, k);
+      const q = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+      if (pts.length && pts.at(-1)[0] === q[0] && pts.at(-1)[1] === q[1]) continue;
+      pts.push(q);
+    }
+    const tr = s.travel ?? s.heading;
+    const at = keepInStreet({ pts, lo, hi }, s.x + Math.sin(tr) * SMOKE.back, s.z + Math.cos(tr) * SMOKE.back, 0.5);
+    const plan = { sid: `${r.id}:s${(this._sid = (this._sid ?? 0) + 1)}`, owner: r.id, x: Math.round(at.x * 100) / 100, z: Math.round(at.z * 100) / 100, heading: Math.round(tr * 100) / 100, seed: (Math.random() * 2 ** 31) | 0, pts, lo, hi };
+    this._addCloud(plan);
+    if (this.session?.room) this.session.send({ t: 'race-smoke', id: r.id, plan });
+  }
+
+  /** A smoke cloud in the world, from its plan: the same puffs in every browser. */
+  _addCloud(plan) {
+    const c = { ...plan, x0: plan.x, z0: plan.z, puffs: smokePuffs(plan.seed), born: this.clock };
+    (this.clouds ??= []).push(c);
+    this.smoked = (this.smoked ?? 0) + 1;
+    const d = Math.hypot(plan.x - this.g.pos.x, plan.z - this.g.pos.z);
+    if (d < 80) {
+      this._whoosh(0.001);
+      poof(this._audio(), this._nbuf, { gain: Math.max(0.1, 0.55 * (1 - d / 80)), pan: this._panOf(plan.x, plan.z) });
+    }
+    return c;
+  }
+
+  /**
+   * Each frame: the clouds drift with the wind (kept in their street) and thin away; who of the
+   * racers this browser rides is in one (a cough, and the bots lose their line); and your veil.
+   */
+  _smoke(dt) {
+    const list = this.clouds ?? [];
+    const wind = this.g.wind?.uWind.value ?? 0.5;
+    for (const c of [...list]) {
+      if (this.clock - c.born > SMOKE.life) {
+        list.splice(list.indexOf(c), 1);
+        continue;
+      }
+      const at = keepInStreet(c, c.x + SMOKE.drift * wind * dt, c.z + SMOKE.drift * wind * 0.35 * dt, 1);
+      c.x = at.x;
+      c.z = at.z;
+    }
+    for (const r of this.racers) {
+      if (r.left || !r.mine) continue;
+      let k = 0;
+      if (r.mode === 'ride') {
+        for (const c of list) {
+          if (c.owner === r.id && this.clock - c.born < SMOKE.grace) continue;
+          k = Math.max(k, smokeAt(c, r.s.x, r.s.z, 1.3, this.clock - c.born));
+        }
+      }
+      r.smoke = k;
+      const was = r.inSmoke ?? false;
+      r.inSmoke = was ? k > 0.15 : k > 0.35;
+      if (was && !r.inSmoke) (this.smokeLog ??= []).push({ id: r.id, out: true, v: Math.round(r.s.v * 10) / 10, t: Math.round(this.clock * 10) / 10 });
+      if (r.inSmoke && !was) {
+        r.smokes = (r.smokes ?? 0) + 1;
+        (this.smokeLog ??= []).push({ id: r.id, v: Math.round(r.s.v * 10) / 10, t: Math.round(this.clock * 10) / 10 });
+        this.fx?.pop('COUGH!', { x: r.s.x, y: r.y + 2.2, z: r.s.z, ride: r.s }, { color: '#c9ced6', size: r.me ? 0.75 : 0.65 });
+        const d = Math.hypot(r.s.x - this.g.pos.x, r.s.z - this.g.pos.z);
+        if (d < 40 && !this._nbuf) this._whoosh(0.001);
+        if (d < 40) cough(this._audio(), this._nbuf, { gain: r.me ? 0.35 : Math.max(0.06, 0.25 * (1 - d / 40)), pan: r.me ? 0 : this._panOf(r.s.x, r.s.z), pitch: 0.85 + (r.id.length % 4) * 0.12 });
+      }
+    }
+    // Your view: engulfed while you (or the camera) are in it, clearing over about a second once out.
+    const me = this.me;
+    let want = me?.smoke ?? 0;
+    const cam = this.g.camera?.position;
+    if (cam && list.length) {
+      const up = cam.y - this.g.groundAt(cam.x, cam.z);
+      for (const c of list) {
+        if (c.owner === me?.id && this.clock - c.born < SMOKE.grace) continue;
+        want = Math.max(want, smokeAt(c, cam.x, cam.z, up, this.clock - c.born));
+      }
+    }
+    const v = this.veilK ?? 0;
+    this._veil(want > v ? v + (want - v) * Math.min(1, dt * 7) : Math.max(want, v - dt / SMOKE.clear), dt);
+    if (list.length || this.smokeField?.mesh.count) {
+      const night = this.g.uniforms?.uNight.value ?? 0;
+      const lamps = night > 0.3 ? this.g.nightLights?.near ?? [] : [];
+      this.smokeField?.update(list, { camera: this.g.camera, now: this.clock, ground: (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14), keep: keepInStreet, lamps, night });
+    }
+  }
+
+  /**
+   * The smoke veil over your view (0 clear – 1 engulfed): grey-white by day; after dark darker,
+   * warmed by the street lamps near you. Drawn in the scene, under the page's HUD and map.
+   */
+  _veil(k, dt = 0) {
+    this.veilK = k;
+    const f = this.smokeField;
+    if (!f) return;
+    const night = this.g.uniforms?.uNight.value ?? 0;
+    const lamp = Math.min(1, (this.g.nightLights?.near?.length ?? 0) / 6) * night;
+    const c = (this._veilC ??= new THREE.Color());
+    c.setRGB(0.86 - 0.58 * night + 0.17 * lamp, 0.87 - 0.58 * night + 0.13 * lamp, 0.89 - 0.58 * night + 0.07 * lamp, THREE.SRGBColorSpace);
+    const cv = this.g.renderer?.domElement;
+    f.veil.set(k, c, dt, cv ? cv.width / Math.max(1, cv.height) : 16 / 9);
   }
 
   /* ---------------------------------------------------------- branches */
@@ -3021,6 +3152,12 @@ export class Race {
       target = Math.min(target, slow);
       steer = Math.max(-0.35, Math.min(0.35, steer));
     }
+    // In smoke it can't see its line: it eases off (rolls, down to about 36 km/h) and wanders a little
+    // while inside.
+    if (r.inSmoke && r.done == null) {
+      target = Math.min(target, Math.max(10, v - 0.5));
+      steer = Math.max(-1, Math.min(1, steer + Math.sin(this.clock * 2.6 + r.id.length * 2.1) * 0.28 * Math.min(1, (r.smoke ?? 0) * 1.6)));
+    }
     // Down a golmok barely wider than the bars: steady, the walls an arm's length off.
     const pinch = Math.min(P(0)?.[2] ?? 8, P(3)?.[2] ?? 8);
     if (pinch < 4.4) target = Math.min(target, 12.5 + 3 * (r.skill - 0.88) * 10);
@@ -3064,6 +3201,15 @@ export class Race {
       if (close || r.heldMarbles > 22) {
         r.heldMarbles = 0;
         this._use(r, has('marbles'));
+      }
+    }
+    if (has('smoke') >= 0) {
+      // dropped when a rival is close behind (they ride into it), or after holding it a while
+      r.heldSmoke = (r.heldSmoke ?? 0) + dt;
+      const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 3 && r.dist - o.dist < 20);
+      if (close || r.heldSmoke > 24) {
+        r.heldSmoke = 0;
+        this._use(r, has('smoke'));
       }
     }
     if (has('police') >= 0) {
@@ -3812,13 +3958,15 @@ export class Race {
     for (const g of this.leafBursts ?? []) g.removeFromParent();
     this.leafBursts = [];
     this.patches = [];
+    this.clouds = [];
+    this._veil(0);
     for (const t of this.trails?.values() ?? []) t.dispose();
     this.trails = new Map();
     this.panel?.hide();
     this._helmetKey = null;
     for (const f of this.fans ?? []) f.remove();
     this.fans = [];
-    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'police', 'wet', 'speedFx', 'marbleField', 'helmetDrops', 'wood', 'fair']) {
+    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'police', 'wet', 'speedFx', 'marbleField', 'smokeField', 'helmetDrops', 'wood', 'fair']) {
       this[k]?.dispose();
       this[k] = null;
     }
