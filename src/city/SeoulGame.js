@@ -33,6 +33,16 @@ const el = (tag, className, text) => {
   if (text != null) n.textContent = text;
   return n;
 };
+/** A material that never gives out more than `max` (linear, before tone mapping): no single pixel too hot for the bloom. */
+function capLight(mat, max) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, r) => {
+    prev?.call(mat, shader, r);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `#include <opaque_fragment>\n  gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(${max.toFixed(2)}));`);
+  };
+  mat.customProgramCacheKey = () => `cap-${max}`;
+  return mat;
+}
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const textureCache = new Map();
@@ -556,6 +566,12 @@ export class SeoulGame {
     this.gtao.enabled = false;
     this.composer.addPass(this.gtao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 1.05);
+    // (what the bloom spreads is capped: one pixel far hotter than the rest — a lamp's underside under its
+    // own light, a glint off a car — flickering in and out as it crossed the pixel grid blew up into a
+    // glare over half the screen for a frame. Bright things still glow; no single pixel floods.)
+    const hp = this.bloom.materialHighPassFilter;
+    hp.fragmentShader = hp.fragmentShader.replace('gl_FragColor = mix( outputColor, texel, alpha );', 'gl_FragColor = mix( outputColor, vec4( min( texel.rgb, vec3( 2.5 ) ), texel.a ), alpha );');
+    hp.needsUpdate = true;
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.grade = new ShaderPass(GradeShader);
@@ -1511,7 +1527,13 @@ export class SeoulGame {
         const head = new THREE.BoxGeometry(0.35, 0.14, 0.7).translate(0, 7.8, -2.1);
         const metal = mergeTwo(pole, arm, '#7a7f86', '#7a7f86');
         this.lampMat = new THREE.MeshLambertMaterial({ color: '#fff4d8', emissive: '#ffd58a', emissiveIntensity: 0 });
-        return { geo: metal, mat: new THREE.MeshLambertMaterial({ vertexColors: true }), head, headMat: this.lampMat };
+        const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+        // (each lit lamp's own light hangs a hand under its head: the head's and the arm's undersides took
+        // thousands of times the street's light — a far lamp a few bright pixels that came and went as it
+        // moved across the pixel grid, and the bloom blew each into a big glare for a frame. Capped.)
+        capLight(this.lampMat, 3.6);
+        capLight(mat, 1.1);
+        return { geo: metal, mat, head, headMat: this.lampMat };
       })();
       const poles = new THREE.InstancedMesh(this.lampParts.geo, this.lampParts.mat, lamps.length);
       const heads = new THREE.InstancedMesh(this.lampParts.head, this.lampParts.headMat, lamps.length);

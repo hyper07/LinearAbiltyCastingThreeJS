@@ -3659,29 +3659,52 @@ export class Race {
    * across it: a warning arrow at the top, which way to go round, from about 70 m off.
    */
   _warn(me) {
+    // (judged every frame, but shown steadily: a thing has to be in your line a quarter of a second
+    // before the box comes up, and once up it stays at least a second and a half, on the same side —
+    // never on for a frame or two and off again, never flipping left and right: the "blinking box".
+    // A car only counts as stopped below 2 m/s, and stays counted till it is past 4.)
+    const w = (this._warnS ??= { obj: null, seen: 0, shown: null, t: 0 });
+    const dt = this._dt ?? 1 / 60;
     let hit = null;
     if (me.mode === 'ride' && this.phase === 'racing' && me.s.v > 6) {
       const s = me.s;
       const h = s.travel ?? s.heading;
       const fx = -Math.sin(h);
       const fz = -Math.cos(h);
-      const look = (x, z, r, what) => {
+      const look = (x, z, r, what, obj) => {
         const along = (x - s.x) * fx + (z - s.z) * fz;
         const side = (x - s.x) * -fz + (z - s.z) * fx;
-        if (along < 6 || along > 25 + s.v * 2.5 || Math.abs(side) > r + 0.7) return;
-        if (!hit || along < hit.along) hit = { along, side, what };
+        const held = w.shown?.obj === obj;
+        if (along < (held ? 3 : 6) || along > (held ? 35 : 25) + s.v * 2.5 || Math.abs(side) > r + (held ? 1.3 : 0.7)) return;
+        if (!hit || along < hit.along) hit = { along, side, what, obj };
       };
-      for (const o of this._props(s.x, s.z, 80) ?? []) look(o.x, o.z, o.r, o.kind === 'pole' ? 'pole' : o.kind);
-      for (const v of this.traffic?.near(s.x, s.z, 80) ?? []) if (v.v < 2) look(v.box.x, v.box.z, v.box.halfWidth, v.kind);
+      for (const o of this._props(s.x, s.z, 80) ?? []) look(o.x, o.z, o.r, o.kind === 'pole' ? 'pole' : o.kind, o);
+      for (const v of this.traffic?.near(s.x, s.z, 80) ?? []) if (v.v < (w.shown?.obj === v ? 4 : 2)) look(v.box.x, v.box.z, v.box.halfWidth, v.kind, v);
     }
-    const key = hit ? `${hit.side > 0 ? 'L' : 'R'}|${hit.what}|${Math.round(hit.along / 10)}` : '';
+    if (hit && hit.obj === w.obj) w.seen += dt;
+    else w.seen = 0;
+    w.obj = hit?.obj ?? null;
+    if (w.shown) {
+      w.t += dt;
+      const same = hit && hit.obj === w.shown.obj;
+      if (same) w.shown.along = hit.along;
+      // (something else nearer has been there a while: that one now; nothing for a moment after its time: gone)
+      if (hit && !same && w.seen > 0.25) w.shown = { ...hit, t: 0 };
+      else if (!same && w.t > 1.5) w.shown = null;
+      else if (same) w.t = Math.min(w.t, 1.2);
+    } else if (hit && w.seen > 0.25) {
+      w.shown = { ...hit };
+      w.t = 0;
+    }
+    const sh = w.shown;
+    const key = sh ? `${sh.side > 0 ? 'L' : 'R'}|${sh.what}|${Math.max(1, Math.round(sh.along / 10))}` : '';
     if (key === this._warnKey) return;
     this._warnKey = key;
-    this.warnEl.hidden = !hit;
-    if (hit) {
-      const name = { planter: 'PLANTER', pots: 'POTS', bin: 'BINS', scooter: 'PARKED SCOOTER', pole: 'POLE', car: 'CAR STOPPED', bus: 'BUS STOPPED' }[hit.what] ?? 'IN THE WAY';
-      // it is on the right: go left (and the other way)
-      this.warnEl.innerHTML = `<b>⚠</b><span>${name} · ${hit.side > 0 ? '⬅ KEEP LEFT' : 'KEEP RIGHT ➡'}</span><small>${Math.round(hit.along / 10) * 10} m</small>`;
+    this.warnEl.hidden = !sh;
+    if (sh) {
+      const name = { planter: 'PLANTER', pots: 'POTS', bin: 'BINS', scooter: 'PARKED SCOOTER', pole: 'POLE', car: 'CAR STOPPED', bus: 'BUS STOPPED' }[sh.what] ?? 'IN THE WAY';
+      // it is on the right: go left (and the other way) — the side it was first seen on
+      this.warnEl.innerHTML = `<b>⚠</b><span>${name} · ${sh.side > 0 ? '⬅ KEEP LEFT' : 'KEEP RIGHT ➡'}</span><small>${Math.max(1, Math.round(sh.along / 10)) * 10} m</small>`;
     }
   }
 
@@ -4185,6 +4208,7 @@ export class Race {
     this.hintEl.hidden = true;
     this.warnEl.hidden = true;
     this._warnKey = '';
+    this._warnS = null;
     this.scEl.hidden = true;
     this._scKey = '';
     this.msgEl.hidden = true;
