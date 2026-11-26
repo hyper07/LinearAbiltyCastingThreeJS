@@ -313,9 +313,24 @@ Seoul's real streets — and the streets stay open.
 - **Traffic** (`src/city/traffic.js`, `src/city/fleet.js`): real models (Sketchfab, CC BY 4.0, from
   the Objaverse mirror) — everyday saloons, hatchbacks, people carriers, small SUVs, compacts and
   estates in Seoul's whites, silvers, greys and blacks, taxis with our own roof sign, one-tonne box
-  trucks, city buses in route blue and green — with glass, turning wheels, headlights at night and in
-  the rain, brake lights and blinking indicators; delivery scooters too, also down the small streets.
-  They keep their own side, cross at the junctions, blink before turning, honk when held up — and
+  trucks, city buses in route blue and green and the smaller green town buses (마을버스, the same model
+  at about 9 m) — with glass, turning wheels, headlights at night and in the rain, brake lights and
+  blinking indicators; delivery scooters too (polyfork's moped, a real person riding each one), also
+  down the small streets. Every vehicle is a real model: they are all loaded before the lights (the race
+  waits for them, `loadFleet`), a kind whose file failed is stood in for by another real one
+  (`fleetKindFor`), and nothing is put down until its model is there — the old built stand-ins
+  (`vehicles.js`, boxy extruded cars) are gone. Each model is merged by material once (a car is a
+  handful of draws); past 60 m it is a reduced copy of itself — the same shape, wheels fixed, its
+  textures' colours baked into its corners, two draws, no lamps (`LOD`, back to full inside 50 m). The
+  delivery riders are posed once and baked into still meshes (`bakeFigure`: a few draws, no skinning —
+  a skinned rider was dozens). They drive properly: pulling away at their own pace (a bus slowly),
+  braking smoothly, following the road's bends in their lane with the lane offset mitred round each
+  corner of the road's line (`laneAt`: no jump where two stretches meet), turning at a junction on a
+  smooth arc from their lane to the new road's (`arc`: no teleport, the nose the way they move, never
+  sliding sideways), blinking before the turn and through it, turning round at a dead end. Across a
+  junction one gives way to the other — the later one, or about together the one with the other on
+  its right; one already in the crossing never waits (`giveWay`) — and a last guard stops any from
+  driving into another (`_bumps`). They keep their own side, cross at the junctions, honk when held up — and
   they don't get out of your way. Coming the other way or across, a vehicle holds its lane and its
   speed: no swerving, no braking, no waiting at a junction for the race (they still give way to one
   another); dodging it is yours to do. The only rider a driver brakes for is one going its way close
@@ -327,12 +342,21 @@ Seoul's real streets — and the streets stay open.
   autopilot after the change (Nov 2026, four riders, day, clear): Dongdaemun 120 s, one traffic crash
   in all (seven before the bots' line check); Euljiro 90 s, none (Euljiro's tight grid jams now and
   then, as it did before) — and no vehicle popped up in view in either.
-  Nothing pops in or out in view (`FADE`): a vehicle is put down out of sight where it can be — round
-  a corner, behind a building or wall along the course, behind the camera, in the fog — and one that
-  has to appear in plain view (a parked car's place, a long straight in clear air) fades in over half
-  a second; one going in view fades out the same way (nothing to hit meanwhile), as does one past
-  280 m from the camera (back in inside 262 m), its lamps' glows with it, and a delivery scooter's
-  rider coming on near you. The course's own roads are kept busy the other way: cars, taxis,
+  Nothing appears or goes in view, and nothing fades (`SIGHT`): a vehicle is put down only where the
+  camera can't see it — round a corner, behind a building or a wall (a line to its middle and both its
+  ends tested against the course's walls and every building's footprint), behind the camera, in the
+  fog, or so far down a straight that it is smaller than 2.5 pixels on screen — and drives into view
+  along its lane; a parked car's place stays empty while you can see it. One done with (far from
+  everyone, or passed) goes only once it is out of sight; in view it drives on, solid, until it isn't.
+  When there is nowhere hidden, the street waits rather than pop one up. There is no distance cut: in
+  clear air a car 400 m down the road is still drawn. Cars and buses sent up the course start 60–600 m
+  ahead (so on a long straight they come from its far end) and go at 700 m; never more than 115 at
+  once. Measured on the autopilot (Nov 2026, day, clear, Dongdaemun and Euljiro; before 90 s each,
+  after 120 s each): vehicles put down in view 110 and 18 before (fading in), 1 and 0 after (a delivery
+  scooter 398 m off, about 3 px); vehicles drawn see-through in view 120 and 20 before, 0 after; boxy
+  built cars seen 8 and 13 before (the models still loading as the race began), 0 after; on the High
+  tier 59.9 and 57.6 fps on average (lowest 5 s 59.4 and 52.5), with the delivery riders baked (skinned
+  they cost about 1,500 draws on Hard). The course's own roads are kept busy the other way: cars, taxis,
   buses and delivery scooters sent up the road ahead of you on the far side of a two-way road, or
   down the other carriageway of a divided one — fifteen of them on an Easy course, 21 on Medium,
   26 on Hard — in their own lane (and on a two-way residential lane the riders keep to their own
@@ -563,7 +587,7 @@ Seoul's real streets — and the streets stay open.
 - `src/city/drive.js` — the car's handling (engine, brakes, steering that tightens at low speed,
   skids) and going along a road, as plain numbers; tested in `tests/unit/drive.test.mjs`.
 - `src/city/cars.js` — the Car Concept model in many paints, its glass made plain, its logos left
-  out, our own number plates, wheels that steer and roll, lights at night, a light stand-in far away.
+  out, our own number plates, wheels that steer and roll, lights at night, far away the same car without its small parts (never boxes).
 - `SeoulGame.js` — the city itself: asphalt roads with lane lines (dashed between lanes, double
   yellow down the middle), raised pavements of grey block paving with street trees (`trees.js`:
   ginkgos and plane trees grown in code — real branches, leaf cards, bark, cast-iron grates;

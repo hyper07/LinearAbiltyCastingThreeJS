@@ -1,15 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { RaceTraffic, FADE, fadeStep, brakesFor } from '../../src/city/traffic.js';
+import { RaceTraffic, SIGHT, brakesFor, giveWay, laneAt, onScreen } from '../../src/city/traffic.js';
+import { fleetKindFor, LOD } from '../../src/city/fleet.js';
 import { pointOn } from '../../src/city/drive.js';
 
 /**
  * Kickrani's traffic without a browser: a straight two-way road running north (−z) through the
- * camera, which looks north from just behind the origin. Vehicles are plain boxes (one material each,
- * so a fade can be seen on it).
+ * camera, which looks north from just behind the origin. With `boxes`, vehicles are stand-in boxes made
+ * by the test (the logic under test is where and when they come and go, not their look).
  */
-function street() {
+function street({ boxes = true, roads = null } = {}) {
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 3000);
   cam.position.set(0, 3, 6);
   cam.lookAt(0, 1, -60);
@@ -17,44 +18,36 @@ function street() {
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog('#ffffff', 140, 1000);
   const road = { pts: [0, 600, 0, -600], cls: 2, width: 14, oneway: false };
-  const game = { scene, camera: cam, roadsNear: () => [road], surfaceAt: () => 0, pos: { x: 0, z: 0 } };
+  const game = { scene, camera: cam, roadsNear: () => roads ?? [road], surfaceAt: () => 0, pos: { x: 0, z: 0 } };
   const race = { course: null, racers: [], keepClear: () => false };
   const t = new RaceTraffic(game, race);
-  t._make = () => {
-    const group = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: '#888' });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.5, 4.5), mat);
-    body.castShadow = true;
-    group.add(body);
-    t.group.add(group);
-    return { group, view: null, kind: 'car', size: [2.25, 0.9], model: 'box', mat, body };
-  };
+  if (boxes) {
+    t._make = (kind) => {
+      const group = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color: '#888' });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.5, 4.5), mat);
+      group.add(body);
+      t.group.add(group);
+      return { group, view: null, kind: kind === 'scooter' ? 'car' : kind, size: [2.25, 0.9], model: 'box', mat, body };
+    };
+  }
   t._view();
-  return { t, race, road, cam };
+  return { t, race, road, cam, game };
 }
 
 /** A car on the road at `z`, going north (dir 1) or south (dir −1), in its lane. */
 function car(t, road, z, dir = 1, top = 12) {
   const made = t._make('car');
-  const at = { i: 0, t: (600 - z) / 1200, dir };
+  const at = { i: 0, t: dir > 0 ? (600 - z) / 1200 : (600 - z) / 1200, dir };
   const lane = 3.5;
-  const q = pointOn(road.pts, at, lane);
-  const v = { ...made, road, at, lane, top, speed: top, v: top, y: 0, box: { x: q.x, z: q.z, heading: q.heading, halfLength: 2.25, halfWidth: 0.9 }, missed: new Set(), stopFor: 0, waited: 0, roll: 0 };
+  const q = laneAt(road.pts, at, lane);
+  const v = { ...made, road, at, lane, lat: lane, top, speed: top, v: top, y: 0, box: { x: q.x, z: q.z, heading: q.heading, halfLength: 2.25, halfWidth: 0.9 }, missed: new Set(), stopFor: 0, waited: 0, roll: 0 };
   t._born(v);
   return v;
 }
 
 const rider = (x, z, heading, extra = {}) => ({ id: 'r', s: { x, z, heading, travel: heading, v: 8 }, mode: 'ride', ...extra });
-
-test('traffic: a fade comes in over about half a second where it is seen, at once where it is not', () => {
-  let a = 0;
-  let n = 0;
-  while (a < 1 && n < 100) (a = fadeStep(a, 1, 1 / 60, true)), n++;
-  assert.ok(Math.abs(n / 60 - FADE.time) < 0.05, `${n} frames`);
-  assert.equal(fadeStep(0, 1, 1 / 60, false), 1);
-  assert.equal(fadeStep(1, 0, 1 / 60, false), 0);
-  assert.ok(FADE.far > FADE.back && FADE.back > 230, 'drawn out past where vehicles are sent in');
-});
+const me = { x: 0, z: 0, heading: 0, me: true };
 
 test('traffic: drivers brake for a rider going their way in front, or one standing still (held by the police, in a jam) — never one riding at them or across', () => {
   assert.equal(brakesFor(0, rider(0, 0, 0)), true, 'following');
@@ -72,10 +65,9 @@ test('traffic: an oncoming car holds its lane and its speed with a rider right i
   const fx = -Math.sin(v.box.heading);
   const fz = -Math.cos(v.box.heading);
   race.racers.push(rider(v.box.x + fx * 16, v.box.z + fz * 16, v.box.heading + Math.PI));
-  const lat0 = v.lat ?? v.lane;
   for (let k = 0; k < 30; k++) t._drive(v, 1 / 60);
   assert.ok(v.speed >= 11.9, `speed ${v.speed}`);
-  assert.ok(Math.abs((v.lat ?? v.lane) - lat0) < 1e-9 && v.lane === 3.5, 'no swerve');
+  assert.ok(Math.abs(v.lat - 3.5) < 1e-9 && v.lane === 3.5, 'no swerve');
   assert.equal(v.braking, false);
   // …but one going its way just in front: it follows, braking
   const w = car(t, road, -300, 1, 12);
@@ -85,43 +77,205 @@ test('traffic: an oncoming car holds its lane and its speed with a rider right i
   assert.ok(w.speed < 10, `follows: ${w.speed}`);
 });
 
-test('traffic: nothing pops in — put down in view it fades in; out of view it is simply there; its own material back after', () => {
-  const { t, road } = street();
-  const ahead = car(t, road, -120);
-  assert.equal(ahead.alpha, 0, 'in view: starts invisible');
-  assert.notEqual(ahead.body.material, ahead.mat, 'wearing a see-through copy while it fades');
-  const behind = car(t, road, 120);
-  assert.equal(behind.alpha, 1, 'behind the camera: there at once');
-  let frames = 0;
-  while (ahead.alpha < 1 && frames < 120) {
-    t._fade(ahead, 1 / 60);
-    frames++;
-    if (ahead.alpha < 1) assert.ok(ahead.body.material.transparent && Math.abs(ahead.body.material.opacity - ahead.alpha) < 1e-9);
+test('traffic: no vehicle is put down where the camera can see it — it is put down out of sight and drives in; none at all if there is nowhere hidden', () => {
+  const { t } = street();
+  let made = 0;
+  for (let k = 0; k < 400 && made < 30; k++) if (t._spawn(me, 'car')) made++;
+  assert.ok(made >= 10, `${made} put down`);
+  for (const v of t.vehicles) {
+    assert.equal(t._seen(v.box.x, 0, v.box.z, v.box.halfLength + 1, true, v.box.halfLength, v.box.heading), false, `seen at z ${v.box.z.toFixed(0)}`);
+    assert.equal(v.alpha, undefined, 'no fading: solid from the start');
+    assert.equal(v.body.material, v.mat, 'its own material');
   }
-  assert.ok(frames >= 25 && frames <= 35, `${frames} frames`);
-  assert.equal(ahead.body.material, ahead.mat, 'the shared material back on');
-  assert.equal(ahead.body.castShadow, true);
+  // With the camera high over the road looking down on all of it (nothing behind it, none too small to
+  // see), nothing hidden on the road: nobody comes.
+  const { t: t2, cam } = street();
+  cam.fov = 100;
+  cam.up.set(0, 0, -1);
+  cam.position.set(0, 300, 0);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
+  cam.updateMatrixWorld();
+  t2._view();
+  let none = 0;
+  for (let k = 0; k < 200; k++) if (t2._spawn(me, 'car')) none++;
+  assert.equal(none, 0, 'waits rather than pop one up in view');
 });
 
-test('traffic: nothing pops out — gone in view it fades out first (nothing to hit meanwhile); past FADE.far it fades, and back in nearer', () => {
-  const { t, road } = street();
+test('traffic: nothing goes in view — one done with but still seen drives on, solid, until it is out of sight', () => {
+  const { t, road, cam } = street();
   const v = car(t, road, -100);
-  for (let k = 0; k < 40; k++) t._fade(v, 1 / 60);
   t._retire(v);
-  assert.ok(!t.vehicles.includes(v) && t.leaving.includes(v), 'leaving, not on the street');
-  for (let k = 0; k < 40 && t.leaving.length; k++) t.update(1 / 60, [{ x: 0, z: 0, heading: 0, me: true }]);
-  assert.ok(!t.leaving.includes(v) && !t.group.children.includes(v.group), 'faded out, then gone');
-  // out of view: gone at once
+  assert.ok(t.vehicles.includes(v) && v.going && t.group.children.includes(v.group), 'still on the street, going');
+  const z0 = v.box.z;
+  for (let k = 0; k < 30; k++) t._drive(v, 1 / 60);
+  assert.ok(v.box.z < z0 - 5, 'driving on');
+  // the camera turns away: gone at the next look
+  cam.lookAt(0, 1, 60);
+  cam.updateMatrixWorld();
+  t._view();
+  t._retire(v);
+  assert.ok(!t.vehicles.includes(v) && !t.group.children.includes(v.group), 'gone out of sight');
+  // behind the camera: gone at once
+  cam.lookAt(0, 1, -60);
+  cam.updateMatrixWorld();
+  t._view();
   const back = car(t, road, 150);
   t._retire(back);
-  assert.ok(!t.leaving.includes(back) && !t.group.children.includes(back.group));
-  // far down the road: faded out (not a hard cut), and in again as it comes back
-  const far = car(t, road, -(FADE.far + 20));
-  assert.equal(far.alpha, 0);
-  for (let k = 0; k < 40; k++) t._fade(far, 1 / 60);
-  assert.equal(far.alpha, 0);
-  assert.equal(far.group.visible, false);
-  Object.assign(far.box, { z: -(FADE.back - 20) });
-  t._fade(far, 1 / 60);
-  assert.ok(far.alpha > 0 && far.alpha < 0.1, 'fading back in, not popped');
+  assert.ok(!t.vehicles.includes(back));
+  // never cut at a distance in clear air while it can be made out: one 380 m off in plain view is still
+  // drawn; one so far down the road that it is a dot smaller than SIGHT.px goes
+  const far = car(t, road, -380);
+  t.update(1 / 60, [me]);
+  assert.ok(onScreen(cam, 720, far.box.x, far.box.z, 2.25, far.box.heading) > SIGHT.px, 'big enough to see');
+  assert.ok(far.group.visible && t.vehicles.includes(far), 'drawn far off');
+  const dot = car(t, road, -590);
+  assert.ok(onScreen(cam, 720, dot.box.x, dot.box.z, 2.25, dot.box.heading) < SIGHT.px, 'a dot');
+  t._retire(dot);
+  assert.ok(!t.vehicles.includes(dot), 'gone past seeing');
+});
+
+test('traffic: nothing is put down until a real model is there (no built stand-in, ever)', () => {
+  const { t } = street({ boxes: false });
+  assert.equal(fleetKindFor('taxi'), null, 'no model loaded here');
+  assert.equal(t._make('car'), null);
+  assert.equal(t._make('bus'), null);
+  assert.equal(t._make('scooter'), null);
+  let made = 0;
+  for (let k = 0; k < 50; k++) if (t._spawn(me, 'car') || t._spawn(me, 'scooter')) made++;
+  assert.equal(made, 0);
+  assert.ok(LOD.far > LOD.near && LOD.near >= 40, 'far copy only well off');
+});
+
+test('traffic: a lane round a bend is continuous — no jump where two stretches of road meet', () => {
+  // a road bending 40° at its middle corner
+  const a = (40 * Math.PI) / 180;
+  const pts = [0, 0, 0, -50, 50 * Math.sin(a), -50 - 50 * Math.cos(a)];
+  const before = { i: 0, t: 0.9999, dir: 1 };
+  const after = { i: 1, t: 0.0001, dir: 1 };
+  for (const side of [-4, 4]) {
+    const p = laneAt(pts, before, side);
+    const q = laneAt(pts, after, side);
+    assert.ok(Math.hypot(p.x - q.x, p.z - q.z) < 0.05, `side ${side}: ${Math.hypot(p.x - q.x, p.z - q.z)}`);
+    // (the plain offset square to each stretch jumps)
+    const p0 = pointOn(pts, before, side);
+    const q0 = pointOn(pts, after, side);
+    assert.ok(Math.hypot(p0.x - q0.x, p0.z - q0.z) > 2);
+  }
+  // and the other way along it, still on its own right
+  const back = laneAt(pts, { i: 0, t: 0.5, dir: -1 }, 3);
+  assert.ok(back.x < -2.9, 'right of the way it goes (west, going south)');
+});
+
+test('traffic: across a junction one gives way and the other goes — never both waiting, never one already in the crossing', () => {
+  // a going north toward (0, −20); b going west toward it from the east
+  const a = { x: 0, z: 0, heading: 0, speed: 10, halfLength: 2.25, halfWidth: 0.9 };
+  const b = { x: 20, z: -20, heading: Math.PI / 2, speed: 10, halfLength: 2.25, halfWidth: 0.9 };
+  const ab = giveWay(a, b);
+  const ba = giveWay(b, a);
+  assert.ok((ab == null) !== (ba == null), `exactly one waits: ${ab} ${ba}`);
+  // b on a's right (east, going north): a waits for it, b goes
+  assert.ok(ab != null && ab < 20 && ba == null);
+  // one already in the crossing doesn't wait; the other does
+  const inside = { ...b, x: 1, z: -20 };
+  assert.ok(giveWay(inside, a) == null && giveWay(a, inside) != null);
+  // one well ahead of the other gets there first: the later one waits whichever side
+  const late = { ...a, z: 5 };
+  const early = { ...b, x: 8, heading: Math.PI / 2 };
+  assert.ok(giveWay(late, early) != null && giveWay(early, late) == null);
+  // the same way or head on: nothing to give way about
+  assert.equal(giveWay(a, { ...a, z: -10 }), null);
+  assert.equal(giveWay(a, { ...a, z: -30, heading: Math.PI }), null);
+});
+
+test('traffic: driving through a junction onto the next road — no teleport, its nose the way it goes, wheels turning, blinking through the turn', () => {
+  // north up one road, then east along the next (a right turn), the two meeting at (0, −100)
+  const r1 = { pts: [0, 0, 0, -100], cls: 2, width: 14, oneway: false };
+  const r2 = { pts: [0, -100, 200, -100], cls: 4, width: 7, oneway: false };
+  const { t } = street({ roads: [r1, r2] });
+  t._lane = (r) => (r === r1 ? 4.2 : 1.75);
+  const v = car(t, r1, 0);
+  Object.assign(v, { road: r1, at: { i: 0, t: 0.6, dir: 1 }, lane: 4.2, lat: 4.2, top: 12, speed: 12 });
+  const q = laneAt(r1.pts, v.at, 4.2);
+  Object.assign(v.box, { x: q.x, z: q.z, heading: q.heading });
+  let rolled = 0;
+  v.view = { size: { wheel: 0.33 }, wheels: (r) => (rolled += r), lights() {}, near() {}, indicate() {} };
+  let maxStep = 0;
+  let maxSlip = 0;
+  let blinked = false;
+  let turned = false;
+  for (let k = 0; k < 60 * 12; k++) {
+    const x0 = v.box.x;
+    const z0 = v.box.z;
+    t._drive(v, 1 / 60);
+    const dx = v.box.x - x0;
+    const dz = v.box.z - z0;
+    const step = Math.hypot(dx, dz);
+    maxStep = Math.max(maxStep, step);
+    if (step > 0.03) maxSlip = Math.max(maxSlip, Math.abs(Math.atan2(Math.sin(Math.atan2(-dx, -dz) - v.box.heading), Math.cos(Math.atan2(-dx, -dz) - v.box.heading))));
+    if (v.road === r1 && v.signal === 'right') blinked = true;
+    if (v.road === r2) turned = true;
+  }
+  assert.ok(turned, 'onto the next road');
+  assert.ok(blinked, 'blinked right before the turn');
+  assert.ok(maxStep < (12 / 60) * 1.6, `no jump: largest step ${maxStep.toFixed(3)} m`);
+  assert.ok(maxSlip < 0.35, `nose along its track: ${maxSlip.toFixed(2)} rad off at most`);
+  assert.ok(rolled > 10, 'wheels turning');
+  assert.ok(Math.abs(v.box.z - (-100 + 1.75)) < 0.3, `in its lane on the new road (${v.box.z.toFixed(2)})`);
+});
+
+test('traffic: at a dead end a car turns round in the road (blinking left) and drives back on the other side — never flipped on the spot', () => {
+  const road = { pts: [0, 0, 0, -100], cls: 4, width: 7, oneway: false };
+  const { t } = street({ roads: [road] });
+  const v = car(t, road, -40);
+  Object.assign(v, { at: { i: 0, t: 0.4, dir: 1 }, lane: 1.75, lat: 1.75, top: 10, speed: 10 });
+  const q = laneAt(road.pts, v.at, 1.75);
+  Object.assign(v.box, { x: q.x, z: q.z, heading: q.heading });
+  let maxStep = 0;
+  let maxTurn = 0;
+  let blinked = false;
+  for (let k = 0; k < 60 * 14; k++) {
+    const x0 = v.box.x;
+    const z0 = v.box.z;
+    const h0 = v.box.heading;
+    t._drive(v, 1 / 60);
+    maxStep = Math.max(maxStep, Math.hypot(v.box.x - x0, v.box.z - z0));
+    maxTurn = Math.max(maxTurn, Math.abs(Math.atan2(Math.sin(v.box.heading - h0), Math.cos(v.box.heading - h0))));
+    if (v.signal === 'left') blinked = true;
+  }
+  assert.equal(v.at.dir, -1, 'going back the other way');
+  assert.ok(v.box.z > -60 && v.box.x < -1, `back down the road on its own side (${v.box.x.toFixed(1)}, ${v.box.z.toFixed(1)})`);
+  assert.ok(blinked, 'blinked left');
+  assert.ok(maxStep < (10 / 60) * 1.6, `no jump: ${maxStep.toFixed(3)} m`);
+  assert.ok(maxTurn < 0.2, `no flip: ${maxTurn.toFixed(3)} rad in a frame at most`);
+});
+
+test('traffic: pulling away and braking are gentle — no jump in speed', () => {
+  const { t, road } = street();
+  const v = car(t, road, -100, 1, 12);
+  v.speed = 0;
+  let last = 0;
+  let most = 0;
+  for (let k = 0; k < 120; k++) {
+    t._drive(v, 1 / 60);
+    most = Math.max(most, (v.speed - last) * 60);
+    last = v.speed;
+  }
+  assert.ok(most <= 3.01, `pulls away at ${most.toFixed(2)} m/s² at most`);
+  // something stopped 30 m ahead in its lane: it slows to a stop behind it, braking no harder than it must
+  const w = car(t, road, -300, 1, 12);
+  const block = car(t, road, -335, 1, 0);
+  block.speed = 0;
+  block.stopFor = 999;
+  let hardest = 0;
+  last = w.speed;
+  for (let k = 0; k < 60 * 6; k++) {
+    t._drive(w, 1 / 60);
+    t._drive(block, 1 / 60);
+    hardest = Math.max(hardest, (last - w.speed) * 60);
+    last = w.speed;
+  }
+  const gap = Math.abs(block.box.z - w.box.z) - 4.5;
+  assert.ok(w.speed < 0.2 && gap > 1 && gap < 6, `stopped ${gap.toFixed(1)} m behind`);
+  assert.ok(hardest <= 9.01, `braked at ${hardest.toFixed(1)} m/s² at most`);
 });
