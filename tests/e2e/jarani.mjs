@@ -57,7 +57,7 @@ export async function run(browser) {
     await page.waitForTimeout(900);
     await shot('rider');
     await page.click('.jl [data-next]');
-    t.check('the scooter step: six scooters in 3D, with four stat bars (no battery)', await until(page, () => document.querySelectorAll('[data-scooter]').length === 6 && document.querySelectorAll('.jl__stat').length === 4 && !document.querySelector('[data-stat="battery"]') && window.seoul.race.stage.view === 'scooter', null, 3000));
+    t.check('the scooter step: six scooters in 3D, with four stat bars (no battery), its name heading plain (no dark bar over it)', await until(page, () => document.querySelectorAll('[data-scooter]').length === 6 && document.querySelectorAll('.jl__stat').length === 4 && !document.querySelector('[data-stat="battery"]') && getComputedStyle(document.querySelector('.jl__card--scooter h2')).backgroundColor === 'rgba(0, 0, 0, 0)' && window.seoul.race.stage.view === 'scooter', null, 3000));
     await page.click('[data-scooter="racer"]');
     t.check('picking a scooter: your rider hops onto that model, and the bars show its trade-off', await until(page, () => {
       const r = window.seoul.race;
@@ -173,31 +173,54 @@ export async function run(browser) {
       const r = window.seoul.race;
       r._top = 0;
       r._topT = setInterval(() => (r._top = Math.max(r._top, r.me?.s.v ?? 0)), 100);
-      // The traffic watched meanwhile: how close to a rider each new vehicle first appears, the ones
-      // going your way up the course ahead, lane changes.
-      const tw = (r._tw = { seen: new Set(r.traffic.vehicles), close: [], made: 0, along: 0, alongAhead: 0, alongWith: 0, laneChanges: 0 });
+      // The traffic watched meanwhile: how close to a rider each new vehicle first appears, lane changes, and
+      // the ones going your way up the course: every one seen in the street (they stay till you pass them, so
+      // few new ones are needed in a while), each going the course's way where it is, the new ones sent in
+      // well ahead of you.
+      const c = r.course;
+      const courseWay = (x, z) => {
+        let bi = 0;
+        let bd = Infinity;
+        for (let i = 0; i < c.points.length; i++) {
+          const d = Math.hypot(c.points[i][0] - x, c.points[i][1] - z);
+          if (d < bd) [bd, bi] = [d, i];
+        }
+        const p = c.points[bi];
+        const q = c.points[(bi + 1) % c.points.length];
+        return Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+      };
+      const tw = (r._tw = { seen: new Set(r.traffic.vehicles), alongSeen: new Set(), close: [], made: 0, along: 0, alongNew: 0, alongAhead: 0, alongWith: 0, laneChanges: 0 });
       r._twT = setInterval(() => {
         const me = r.me.s;
         for (const v of r.traffic.vehicles) {
           if (v.laneTo != null && !v._twLane) (v._twLane = true), tw.laneChanges++;
           if (v.laneTo == null) v._twLane = false;
+          if (v.along && !tw.alongSeen.has(v)) {
+            tw.alongSeen.add(v);
+            tw.along++;
+            if (Math.cos(v.box.heading - courseWay(v.box.x, v.box.z)) > 0.7) tw.alongWith++;
+          }
           if (tw.seen.has(v)) continue;
           tw.seen.add(v);
           tw.made++;
           const d = Math.min(...r.racers.filter((x) => !x.left).map((x) => Math.hypot(x.s.x - v.box.x, x.s.z - v.box.z)));
           if (d < 36) tw.close.push({ d: Math.round(d), kind: v.kind, along: v.along, on: v.oncoming, parked: v.parked });
           if (v.along) {
-            tw.along++;
+            tw.alongNew++;
             if ((v.box.x - me.x) * -Math.sin(me.heading) + (v.box.z - me.z) * -Math.cos(me.heading) > 60) tw.alongAhead++;
-            if (Math.cos(v.box.heading - me.heading) > 0.5) tw.alongWith++;
           }
         }
       }, 100);
       return r.me.dist;
     });
     await page.waitForTimeout(15000);
-    const tw = await page.evaluate(() => (clearInterval(window.seoul.race._twT), window.seoul.race._tw));
-    t.check('busier streets: traffic sent up the course ahead going your way too, slower, in the riders\' lanes', tw.along >= 4 && tw.alongAhead >= tw.along * 0.8 && tw.alongWith >= tw.along * 0.7, JSON.stringify(tw));
+    const tw = await page.evaluate(() => {
+      const r = window.seoul.race;
+      clearInterval(r._twT);
+      const { seen, alongSeen, ...rest } = r._tw;
+      return rest;
+    });
+    t.check('busier streets: traffic sent up the course ahead going your way too, slower, in the riders\' lanes', tw.along >= 6 && tw.alongWith >= tw.along * 0.85 && tw.alongNew >= 1 && tw.alongAhead >= tw.alongNew * 0.8, JSON.stringify(tw));
     t.check('…none of it put down in a rider\'s face (every new vehicle 40 m or more from every rider)', tw.made >= 8 && tw.close.length === 0, JSON.stringify({ made: tw.made, close: tw.close }));
     t.check('…cars change lane now and then on the wide roads (blinking first), and buses stand at their stops', tw.laneChanges >= 1 && (await page.evaluate(() => window.seoul.race.traffic.spots.some((s) => s.kind === 'bus'))), JSON.stringify({ laneChanges: tw.laneChanges }));
     t.check('riding on: you get along the course', await page.evaluate((d) => window.seoul.race.me.dist - d > 120, d0), await page.evaluate((d) => (window.seoul.race.me.dist - d).toFixed(0), d0));
@@ -515,6 +538,8 @@ export async function run(browser) {
     await until(page, () => !window.seoul.race.me.sc && window.seoul.race.me.mode === 'ride', null, 30000);
     const spill = await page.evaluate(() => {
       const r = window.seoul.race;
+      // (the marbles poured above swept up: still lying in the street, a rival sent at the oil met them first)
+      for (const p of r.patches ?? []) p.until = r.clock;
       r.me.items = ['oil', null, null];
       r.me.s.v = 16;
       r._renderItems();
@@ -541,12 +566,15 @@ export async function run(browser) {
       c.points.forEach((q, i) => {
         if (Math.hypot(q[0] - o.x, q[1] - o.z) < Math.hypot(c.points[bi][0] - o.x, c.points[bi][1] - o.z)) bi = i;
       });
-      Object.assign(bot.s, { x: o.x - Math.sin(h) * 5, z: o.z - Math.cos(h) * 5, heading: h, travel: h, v: 15, lean: 0, steer: 0 });
-      Object.assign(bot, { idx: bi, sc: null, prog: null, stuck: 0, safe: 0, helmet: false, spin: null, slip: 0, seenOil: { [o.oid]: false }, seenMarbles: {} });
-      r._oilWatch = { id: bot.id, turn: 0, v0: null, vEnd: null, spun: 0 };
+      // (5 m behind it — forward is (−sin h, −cos h), so back is +sin, +cos — riding at it; no drink boost going)
+      Object.assign(bot.s, { x: o.x + Math.sin(h) * 5, z: o.z + Math.cos(h) * 5, heading: h, travel: h, v: 15, lean: 0, steer: 0 });
+      Object.assign(bot, { idx: bi, sc: null, prog: null, stuck: 0, safe: 0, helmet: false, spin: null, slip: 0, drinkT: 0, pulled: null, seenOil: { [o.oid]: false }, seenMarbles: {} });
+      r._oilWatch = { id: bot.id, turn: 0, v0: null, vEnd: null, spun: 0, track: [] };
       const f = () => {
         const w = r._oilWatch;
         if (!w) return;
+        // (where it goes, from the slick: along its way and across, the first second)
+        if (w.track.length < 40) w.track.push([Math.round(((bot.s.x - o.x) * -Math.sin(h) + (bot.s.z - o.z) * -Math.cos(h)) * 10) / 10, Math.round(((bot.s.x - o.x) * Math.cos(h) - (bot.s.z - o.z) * Math.sin(h)) * 10) / 10, Math.round(bot.s.v), bot.mode]);
         if (bot.spin) {
           w.v0 ??= bot.spin.v0;
           w.turn = Math.max(w.turn, Math.abs(bot.s.heading - bot.s.travel));
@@ -584,8 +612,8 @@ export async function run(browser) {
       c.points.forEach((q, i) => {
         if (Math.hypot(q[0] - o.x, q[1] - o.z) < Math.hypot(c.points[bi][0] - o.x, c.points[bi][1] - o.z)) bi = i;
       });
-      Object.assign(bot.s, { x: o.x - Math.sin(h) * 5, z: o.z - Math.cos(h) * 5, heading: h, travel: h, v: 13, lean: 0, steer: 0 });
-      Object.assign(bot, { idx: bi, sc: null, prog: null, stuck: 0, safe: 0, helmet: true, spin: null, slip: 0, seenOil: { [oid]: false }, seenMarbles: {} });
+      Object.assign(bot.s, { x: o.x + Math.sin(h) * 5, z: o.z + Math.cos(h) * 5, heading: h, travel: h, v: 13, lean: 0, steer: 0 });
+      Object.assign(bot, { idx: bi, sc: null, prog: null, stuck: 0, safe: 0, helmet: true, spin: null, slip: 0, drinkT: 0, pulled: null, seenOil: { [oid]: false }, seenMarbles: {} });
       r._helmeted = bot.id;
       return r.saves ?? 0;
     }, oiled.oid);
@@ -691,7 +719,9 @@ export async function run(browser) {
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     const smoke0 = await page.evaluate(() => {
       const r = window.seoul.race;
-      r.autopilot = true;
+      // (the autopilot off till it is dropped: it rides as a bot does, and a bot drops its smoke at once with a
+      // rival close behind — the slot empty before the key is pressed)
+      r.autopilot = false;
       r.me.items = ['smoke', null, null];
       r.me.s.v = 14;
       r._renderItems();
@@ -707,6 +737,7 @@ export async function run(browser) {
       const along = (c.x - r.me.s.x) * -Math.sin(r.me.s.heading) + (c.z - r.me.s.z) * -Math.cos(r.me.s.heading);
       return along < 0;
     }, smoke0, 3000), await page.evaluate(() => JSON.stringify({ clouds: window.seoul.race.clouds?.length, puffs: window.seoul.race.smokeField?.mesh.count })));
+    await page.evaluate(() => (window.seoul.race.autopilot = true));
     await page.waitForTimeout(1300);
     t.check('…kept in its street, on the road (no puff inside a building)', await page.evaluate(() => {
       const r = window.seoul.race;
@@ -730,7 +761,8 @@ export async function run(browser) {
       const hd = Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
       const bot = r.racers.find((x) => x.bot && x.mode === 'ride' && x.id !== r._victim) ?? r.racers.find((x) => x.bot);
       Object.assign(bot.s, { x: c.x + Math.sin(hd) * 12, z: c.z + Math.cos(hd) * 12, heading: hd, travel: hd, v: 16, lean: 0, steer: 0 });
-      Object.assign(bot, { idx: bi, sc: null, mode: 'ride', safe: 0, slip: 0, inSmoke: false, items: [null, null, null] });
+      // (no drink boost going: a drink drives the throttle open whatever the rider can see)
+      Object.assign(bot, { idx: bi, sc: null, mode: 'ride', safe: 0, slip: 0, inSmoke: false, items: [null, null, null], drinkT: 0, pulled: null, spin: null });
       r._smoker = { id: bot.id, crashes: bot.crashes };
       return bot.id;
     });
@@ -773,10 +805,14 @@ export async function run(browser) {
       const bot = r.racers.find((x) => x.bot && x.id !== r._smoker.id) ?? r.racers.find((x) => x.bot);
       bot.items = ['smoke', null, null];
       const h = me.s.travel ?? me.s.heading;
-      const s0 = { x: bot.s.x, z: bot.s.z };
+      const s0 = { x: bot.s.x, z: bot.s.z, idx: bot.idx, sc: bot.sc, si: bot.si };
+      // (on your stretch of the course while it drops it: the cloud is kept in the street of the dropper's
+      // own place on the course, and left at its own it lands wherever that rider really is)
       Object.assign(bot.s, { x: me.s.x - Math.sin(h) * 9, z: me.s.z - Math.cos(h) * 9, travel: h, heading: h });
+      Object.assign(bot, { idx: me.idx, sc: me.sc, si: me.si });
       r._use(bot, 0);
-      Object.assign(bot.s, s0);
+      Object.assign(bot.s, { x: s0.x, z: s0.z });
+      Object.assign(bot, { idx: s0.idx, sc: s0.sc, si: s0.si });
       const c = r.clouds.at(-1);
       c.born -= 1.2;
       // (5 m short of its middle, riding in)
@@ -1040,17 +1076,37 @@ export async function run(browser) {
         was = on;
       });
       r._blinkObs2.observe(P, { attributes: true, attributeFilter: ['class'] });
+      // (and the warning at the top — "CAR STOPPED · KEEP LEFT" — never up for a moment and gone, nor flipping sides)
+      w.warnShort = 0;
+      w.warnFlips = 0;
+      w.warns = 0;
+      let wOn = null;
+      let wSide = '';
+      r._blinkObs3 = new MutationObserver(() => {
+        const now = performance.now();
+        const on = !r.warnEl.hidden;
+        const side = on ? (/LEFT/.test(r.warnEl.textContent) ? 'L' : 'R') : '';
+        if (on && wOn == null) (wOn = now), w.warns++;
+        else if (on && side !== wSide && wSide) w.warnFlips++;
+        if (!on && wOn != null) {
+          if (now - wOn < 1000) w.warnShort++;
+          wOn = null;
+        }
+        wSide = side;
+      });
+      r._blinkObs3.observe(r.warnEl, { attributes: true, childList: true, subtree: true });
     });
     await page.waitForTimeout(12000);
     const blink = await page.evaluate(() => {
       const r = window.seoul.race;
       r._blinkObs.disconnect();
       r._blinkObs2.disconnect();
+      r._blinkObs3.disconnect();
       const w = r._blink;
       const gaps = w.panelIns.slice(1).map((t, i) => t - w.panelIns[i]);
-      return { wrong: w.wrong, empty: w.empty, ins: w.panelIns.length, minGap: gaps.length ? Math.min(...gaps) : null, wrongShows: r.wrongShows ?? 0 };
+      return { wrong: w.wrong, empty: w.empty, ins: w.panelIns.length, minGap: gaps.length ? Math.min(...gaps) : null, wrongShows: r.wrongShows ?? 0, warns: w.warns, warnShort: w.warnShort, warnFlips: w.warnFlips };
     });
-    t.check('no blinking box: no WRONG WAY flicker riding the course, the rival panel never empty, never in and out within its rest', blink.wrong === 0 && blink.empty === 0 && (blink.minGap == null || blink.minGap > 2500), JSON.stringify(blink));
+    t.check('no blinking box: no WRONG WAY flicker riding the course, the rival panel never empty, never in and out within its rest; the warning never up a moment and gone, never flipping sides', blink.wrong === 0 && blink.empty === 0 && (blink.minGap == null || blink.minGap > 2500) && blink.warnShort === 0 && blink.warnFlips === 0, JSON.stringify(blink));
     // Call the police: the rider just ahead of you is pulled over — held to a stop for a second or two.
     const cop = await page.evaluate(async () => {
       const r = window.seoul.race;
@@ -1081,12 +1137,34 @@ export async function run(browser) {
     });
     t.check('Call the police: a patrol pulls the rider ahead of you over — stopped about 1–2 s, then let go', cop.stops >= 1 && cop.slow >= 1 && cop.slow <= 2.4 && !cop.slots.includes('police'), JSON.stringify(cop));
     // The finish: you home first; two bots close behind (they get their time), one far back (DNF).
+    // (each where its distance says it is — behind you on the course: the police check above left the first
+    // pulled over a few metres in front of you, in your way)
     await page.evaluate(() => {
       const r = window.seoul.race;
-      const L = r.course.length;
+      const c = r.course;
+      const n = c.points.length;
+      const L = c.length;
       const bots = r.racers.filter((x) => x.bot);
+      const back = (m) => {
+        let j = r.me.idx;
+        for (let d = 0; d < m; ) {
+          const k = (j - 1 + n) % n;
+          d += Math.hypot(c.points[j][0] - c.points[k][0], c.points[j][1] - c.points[k][1]);
+          j = k;
+        }
+        return j;
+      };
       r.me.dist = L - 90;
-      [L - 160, L - 420, L - 3000].forEach((d, i) => (bots[i].dist = d));
+      r.me.crashes0 = r.me.crashes ?? 0;
+      [L - 160, L - 420, L - 3000].forEach((d, i) => {
+        const b = bots[i];
+        const j = back(i === 2 ? 250 : L - 90 - d);
+        const p = c.points[j];
+        const q = c.points[(j + 1) % n];
+        const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+        Object.assign(b.s, { x: p[0], z: p[1], heading: hd, travel: hd, v: 12 });
+        Object.assign(b, { idx: j, sc: null, dist: d, mode: 'ride', pulled: null, spin: null, drinkT: 0, items: [null, null, null] });
+      });
       r._dnf = bots[2].id;
     });
     t.check('over the line', await until(page, () => window.seoul.race.me.done != null, null, 30000));
@@ -1095,7 +1173,10 @@ export async function run(browser) {
       const r = window.seoul.race;
       const left = document.querySelector('[data-race-left]')?.textContent ?? '';
       return r.phase === 'racing' && /0:2\d/.test(left) && !document.querySelector('.race__skip').hidden && Math.abs(r.windowEnd - Math.min(...r.racers.map((x) => x.done ?? Infinity)) - 30) < 1e-6;
-    }), await page.evaluate(() => document.querySelector('[data-race-left]')?.textContent));
+    }), await page.evaluate(() => {
+      const r = window.seoul.race;
+      return `${document.querySelector('[data-race-left]')?.textContent} ${JSON.stringify({ phase: r.phase, done: r.racers.map((x) => [x.id, x.done == null ? null : Math.round((x.done - r.me.done) * 10) / 10]), meCrashes: (r.me.crashes ?? 0) - (r.me.crashes0 ?? 0), kinds: r.me.crashKinds })}`;
+    }));
     await shot('finish-countdown');
     t.check('…your scooter cools down to a stop, not left rolling into the traffic', await until(page, () => Math.abs(window.seoul.race.me.s.v) < 0.8, null, 8000));
     t.check('the window closes 30 s after the winner: the bots close behind got home in it; the one far back is out', await until(page, () => Boolean(window.seoul.race.podium), null, 40000), await page.evaluate(() => JSON.stringify(window.seoul.race.racers.map((x) => [x.id, x.done]))));
