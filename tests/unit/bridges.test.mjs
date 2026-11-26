@@ -55,5 +55,5 @@ test('long roads are cut into pieces of about 300 m that join end to end', () =>
     const prev = list[k - 1].line;
     assert.equal(prev[prev.length - 3], list[k].line[0], 'each starts where the last ended');
   }
-  assert.deepEqual(densify(Float32Array.from([0, 0, 100, 0])).at, [0, 20, 40, 60, 80, 100]);
+  assert.deepEqual(densify(Float32Array.from([0, 0, 50, 0])).at, [0, 10, 20, 30, 40, 50]);
 });

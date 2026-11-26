@@ -23,8 +23,8 @@
 /** Deck heights above the ground, in metres: over water, and over land or a road. */
 export const DECK_WATER = 11;
 export const DECK_LAND = 5;
-const STEP = 20; // metres between points along a road
-const PIECE = 15; // points in a piece (≈ 300 m)
+const STEP = 10; // metres between points along a road (each edge laid on the ground: 20 m apart, two roads drawn over a junction parted by up to 20 cm)
+const PIECE = 29; // points in a piece (≈ 300 m)
 
 const smooth = (t) => {
   const k = Math.max(0, Math.min(1, t));
@@ -61,6 +61,17 @@ export function densify(pts) {
   return { xz, at, vert };
 }
 
+/** A point added to a densified line `d` metres along it (unless one is within half a metre). */
+export function addPoint(line, d) {
+  const { xz, at, vert } = line;
+  const i = at.findIndex((a) => a >= d);
+  if (i <= 0 || at[i] - d < 0.5 || d - at[i - 1] < 0.5) return;
+  const t = (d - at[i - 1]) / (at[i] - at[i - 1]);
+  xz.splice(i * 2, 0, xz[i * 2 - 2] + (xz[i * 2] - xz[i * 2 - 2]) * t, xz[i * 2 - 1] + (xz[i * 2 + 1] - xz[i * 2 - 1]) * t);
+  at.splice(i, 0, d);
+  for (let k = 0; k < vert.length; k++) if (vert[k] >= i) vert[k]++;
+}
+
 /**
  * @param {{ road: { pts: Float32Array, width: number, bridge: boolean, cls: number }, keys: string[] }[]} all
  *   every road, with a key for each of its points (the same key where roads meet)
@@ -72,15 +83,18 @@ export function roadPieces(all, { water, tile }) {
   // Which points bridges pass through, and what else touches them.
   const bridgeKeys = new Set();
   for (const { road, keys } of all) if (road.bridge) for (const k of keys) bridgeKeys.add(k);
-  /** key → { ground: a road that is no bridge passes here, ways: the bridges that do } */
+  /** key → { ground: a road that is no bridge passes here (wide: the widest), ways: the bridges that do } */
   const touch = new Map();
   all.forEach(({ road, keys }, w) => {
     for (const k of keys) {
       if (!bridgeKeys.has(k)) continue;
       let t = touch.get(k);
-      if (!t) touch.set(k, (t = { ground: false, ways: [] }));
+      if (!t) touch.set(k, (t = { ground: false, wide: 0, ways: [] }));
       if (road.bridge) t.ways.push(w);
-      else t.ground = true;
+      else {
+        t.ground = true;
+        t.wide = Math.max(t.wide, road.width || 0);
+      }
     }
   });
 
@@ -92,7 +106,25 @@ export function roadPieces(all, { water, tile }) {
   };
   for (const t of touch.values()) for (let i = 1; i < t.ways.length; i++) parent[find(t.ways[i])] = find(t.ways[0]);
 
+  /**
+   * How far a bridge's end that comes down to a road stays level with it before it climbs: across
+   * the road it meets and its pavement (the ramp starting at the junction's middle was a ledge in
+   * the crossing — half a metre up within the width of the road it met).
+   */
+  const holdAt = (key) => {
+    const t = touch.get(key);
+    return t?.ground ? t.wide / 2 + 3 : 0;
+  };
   const lines = all.map(({ road }) => densify(road.pts));
+  // (a point where each level end gives way to the climb, so the climb doesn't start at the junction's middle)
+  all.forEach(({ road, keys }, w) => {
+    if (!road.bridge) return;
+    const L = lines[w].at[lines[w].at.length - 1];
+    const h0 = Math.min(holdAt(keys[0]), L / 3);
+    const h1 = Math.min(holdAt(keys[keys.length - 1]), L / 3);
+    if (h0 > 0) addPoint(lines[w], h0);
+    if (h1 > 0) addPoint(lines[w], L - h1);
+  });
   // A bridge any of whose pieces crosses water stands high.
   const wet = new Set();
   all.forEach(({ road }, w) => {
@@ -117,19 +149,24 @@ export function roadPieces(all, { water, tile }) {
   };
 
   const lifts = new Array(all.length);
-  const liftOf = (w, a, b) => {
+  const liftOf = (w, a, b, ha = 0, hb = 0) => {
     const { at } = lines[w];
     const L = at[at.length - 1] || 1;
     const D = deckOf(w);
-    const R = Math.max(25, Math.min(150, L * 0.35));
-    return at.map((d) => D - (D - a) * (1 - smooth(d / R)) - (D - b) * (1 - smooth((L - d) / R)));
+    // (the level stretches never more than a third of the bridge each)
+    const h0 = a === 0 ? Math.min(ha, L / 3) : 0;
+    const h1 = b === 0 ? Math.min(hb, L / 3) : 0;
+    const R = Math.max(25, Math.min(150, (L - h0 - h1) * 0.35));
+    return at.map((d) => D - (D - a) * (1 - smooth((d - h0) / R)) - (D - b) * (1 - smooth((L - d - h1) / R)));
   };
   // First pass: each bridge on its own.
   all.forEach(({ road, keys }, w) => {
     if (!road.bridge) return;
     const { xz } = lines[w];
     const m = xz.length - 2;
-    lifts[w] = liftOf(w, endTarget(w, keys[0], xz[0], xz[1]), endTarget(w, keys[keys.length - 1], xz[m], xz[m + 1]));
+    const k0 = keys[0];
+    const k1 = keys[keys.length - 1];
+    lifts[w] = liftOf(w, endTarget(w, k0, xz[0], xz[1]), endTarget(w, k1, xz[m], xz[m + 1]), holdAt(k0), holdAt(k1));
   });
   // The height a bridge has where another bridge's end meets it partway along.
   const midway = new Map();
@@ -146,7 +183,7 @@ export function roadPieces(all, { water, tile }) {
     const b = midway.has(keys[keys.length - 1]) && endTarget(w, keys[keys.length - 1], xz[m], xz[m + 1]) > 0 ? midway.get(keys[keys.length - 1]) : null;
     if (a == null && b == null) return;
     const first = lifts[w];
-    lifts[w] = liftOf(w, a ?? first[0], b ?? first[first.length - 1]);
+    lifts[w] = liftOf(w, a ?? first[0], b ?? first[first.length - 1], holdAt(keys[0]), holdAt(keys[keys.length - 1]));
   });
 
   // Cut into pieces, each with the tile its middle is in.
