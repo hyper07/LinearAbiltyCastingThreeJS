@@ -20,6 +20,8 @@ import { laneBand } from './pack.js';
  *                  over them slips, and too fast or steering hard, falls (marbles.js)
  *   smoke        — a smoke canister dropped behind you: a thick cloud in the road
  *                  for about seven seconds; whoever rides into it can't see (smoke.js)
+ *   oil          — a slick of black oil spilled behind you: whoever rides into it
+ *                  spins right round, no grip, and loses most of their speed (oil.js)
  */
 export const ITEMS = {
   drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Gulp! Four seconds of boost at once — the only way to go faster than the motor.', pop: 'DRINK!', color: '#9ef07a' },
@@ -27,17 +29,19 @@ export const ITEMS = {
   helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'On your head for all to see: the next crash (or a branch, or a fall on marbles) bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
   branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider right ahead of you (they go over the bars). If nobody\'s ahead, it\'s wasted.', pop: 'BRANCH!', color: '#8bd450' },
   marbles: { name: 'Marbles', ko: '구슬', text: 'Pour a spray of glass marbles behind you: riders who cross them slip — too fast, or steering hard, and they fall.', pop: 'MARBLES!', color: '#7ad8ff' },
-  smoke: { name: 'Smoke', ko: '연막', text: 'Drop a smoke canister behind you: a thick cloud fills the road for about seven seconds, and riders who go into it can\'t see a thing.', pop: 'SMOKE!', color: '#c9ced6' }
+  smoke: { name: 'Smoke', ko: '연막', text: 'Drop a smoke canister behind you: a thick cloud fills the road for about seven seconds, and riders who go into it can\'t see a thing.', pop: 'SMOKE!', color: '#c9ced6' },
+  oil: { name: 'Oil slick', ko: '기름', text: 'Spill a slick of black oil behind you: a rider who rides into it spins right round and loses most of their speed. It lasts a dozen seconds, or three riders.', pop: 'OIL!', color: '#c89bff' }
 };
-export const ITEM_ORDER = ['drink', 'police', 'helmet', 'branch', 'marbles', 'smoke'];
+export const ITEM_ORDER = ['drink', 'police', 'helmet', 'branch', 'marbles', 'smoke', 'oil'];
 
 /**
- * Odds by place: [leader … last], each summing to 1. The further back, the more branches, marbles, smoke
- * and police calls; drinks (the only boost) are the commonest item all the way down.
+ * Odds by place: [leader … last], each summing to 1. The further back, the more branches, marbles, smoke,
+ * oil and police calls; drinks (the only boost) are the commonest item all the way down. (Oil's 6 % and
+ * 14 % came out of the others in proportion.)
  */
 const ODDS = {
-  first: { drink: 0.465, helmet: 0.276, police: 0.057, branch: 0.095, marbles: 0.057, smoke: 0.05 },
-  last: { drink: 0.3, helmet: 0.072, police: 0.162, branch: 0.219, marbles: 0.147, smoke: 0.1 }
+  first: { drink: 0.4371, helmet: 0.2594, police: 0.0536, branch: 0.0893, marbles: 0.0536, smoke: 0.047, oil: 0.06 },
+  last: { drink: 0.258, helmet: 0.0619, police: 0.1393, branch: 0.1884, marbles: 0.1264, smoke: 0.086, oil: 0.14 }
 };
 /**
  * The odds of an item for a racer in `rank` of `n` (for the tests and the menu). `lean` (0–1, the
@@ -147,7 +151,7 @@ function paintIcon(g, id) {
   g.arc(48, 48, 42, 0, Math.PI * 2);
   g.fill();
   g.restore();
-  g.fillStyle = { drink: '#e6f8d8', police: '#e2eaff', helmet: '#fff4c8', branch: '#eef6e0', marbles: '#e4f2ff', smoke: '#eceef2' }[id] ?? '#eee';
+  g.fillStyle = { drink: '#e6f8d8', police: '#e2eaff', helmet: '#fff4c8', branch: '#eef6e0', marbles: '#e4f2ff', smoke: '#eceef2', oil: '#efe8ff' }[id] ?? '#eee';
   g.beginPath();
   g.arc(48, 48, 37, 0, Math.PI * 2);
   g.fill();
@@ -291,6 +295,38 @@ function paintIcon(g, id) {
     inked(g, lid, '#2a3040', 2);
     g.fillStyle = 'rgba(255,255,255,0.6)';
     g.fillRect(20, 65, 30, 2.5);
+  } else if (id === 'oil') {
+    // A tipped-over oil can, glugging a black puddle with a rainbow sheen across it.
+    const pool = new Path2D('M14 70 C12 60 26 56 38 58 C46 52 62 54 70 58 C82 56 88 64 84 72 C80 80 64 80 54 78 C44 82 26 82 18 78 C12 76 12 73 14 70 Z');
+    inked(g, pool, '#15131c', 2.6);
+    g.save();
+    g.clip(pool);
+    const sheen = g.createLinearGradient(20, 60, 80, 76);
+    for (const [k, c] of [[0, 'rgba(255,90,170,0)'], [0.25, 'rgba(255,90,170,0.75)'], [0.42, 'rgba(255,210,70,0.75)'], [0.58, 'rgba(90,230,160,0.75)'], [0.75, 'rgba(80,150,255,0.75)'], [1, 'rgba(160,100,255,0)']]) sheen.addColorStop(k, c);
+    g.strokeStyle = sheen;
+    g.lineWidth = 5;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(22, 70);
+    g.bezierCurveTo(36, 62, 52, 76, 78, 66);
+    g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    g.beginPath();
+    g.ellipse(64, 72, 7, 2, -0.1, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    // the can, on its side, its spout pouring into the pool
+    const can = new Path2D('M34 26 L64 18 L72 44 L42 52 Z');
+    inked(g, can, '#e8483a');
+    shadeIn(g, can, '#b52f26', 0, 6);
+    const band = new Path2D('M37 34 L66 26 L68 34 L39 42 Z');
+    inked(g, band, '#ffd23a', 2);
+    const spout = new Path2D('M30 40 L36 37 L39 46 L33 49 Z');
+    inked(g, spout, '#c9ccd1', 2);
+    const drip = new Path2D('M32 49 C30 54 28 58 30 62 C32 60 34 56 34 50 Z');
+    inked(g, drip, '#15131c', 1.6);
+    g.fillStyle = 'rgba(255,255,255,0.7)';
+    g.fillRect(44, 22, 14, 3);
   } else if (id === 'branch') {
     // A crooked brown stick, a snapped pale end, twigs and three bunches of leaves; motion lines behind.
     g.lineCap = 'round';

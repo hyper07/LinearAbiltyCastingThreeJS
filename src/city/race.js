@@ -20,6 +20,7 @@ import { RaceTraffic } from './traffic.js';
 import { ITEMS, rollItem, ItemBoxes, itemIcon, blobTexture } from './items.js';
 import { MARBLE, MarbleField, pourMarbles, pourBand, corridorClamp, stepMarble, marbleFall, marblesAt, patchBounds, rattle } from './marbles.js';
 import { SMOKE, SmokeField, smokeAt, smokePuffs, keepInStreet, poof, cough } from './smoke.js';
+import { OIL, OilField, OilTracks, planSlick, onSlick, slickGrow, spinAngle, spinSpeed, squeal } from './oil.js';
 import { HelmetDrops } from './helmet.js';
 import { HillWood } from './hillwood.js';
 import { loadProgress, saveProgress, recordRun } from './progress.js';
@@ -498,6 +499,12 @@ export class Race {
     } else if (msg.t === 'race-smoke') {
       const r = this.racers.find((q) => q.id === msg.id);
       if (r && r.owner !== this.session?.id && !this.clouds?.some((c) => c.sid === msg.plan?.sid)) this._addCloud(msg.plan);
+    } else if (msg.t === 'race-oil') {
+      const r = this.racers.find((q) => q.id === msg.id);
+      if (r && r.owner !== this.session?.id && !this.slicks?.some((o) => o.oid === msg.plan?.oid)) this._addSlick(msg.plan);
+    } else if (msg.t === 'race-oil-hit') {
+      const o = this.slicks?.find((q) => q.oid === msg.oid);
+      if (o) this._slickHit(o, msg.id);
     } else if (msg.t === 'race-police') {
       const by = this.racers.find((q) => q.id === msg.id);
       const target = this.racers.find((q) => q.id === msg.target);
@@ -657,6 +664,9 @@ export class Race {
     this.marbleField = new MarbleField(this.g.scene, blobTexture());
     this.clouds = [];
     this.smokeField = new SmokeField(this.g.scene);
+    this.slicks = [];
+    this.oilField = new OilField(this.g.scene, this.g.uniforms);
+    this.oilTracks = new OilTracks(this.g.scene);
     this.helmetDrops = new HelmetDrops(this.g.scene);
     this.trails = new Map();
     this.minimap.layer = null;
@@ -1326,8 +1336,11 @@ export class Race {
         input.bump = this._plateHit(r);
         // Marbles under the wheels: the grip goes, it slides and wobbles (and maybe throws you off).
         this._slip(r, input, dt);
+        // Oil under the wheels: a spin-out (no grip, a full turn, most of the speed gone).
+        this._oily(r, input, dt);
         if (r.mode !== 'ride') continue;
         const out = this._step(r, input, dt);
+        this._spun(r, out, racing);
         r.landed = out.landed;
         if (out.kerb === 'hop' && r.me) this.g.street?._thud?.(0.25);
         if (out.kerb === 'scrub') this._scrape(r, 0.2, false, 'kerb');
@@ -1363,6 +1376,7 @@ export class Race {
     this._branches(dt);
     this._marbles(dt);
     this._smoke(dt);
+    this._slicks();
     this.helmetDrops?.update(dt, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14));
     this._bump();
     for (const r of this.racers) {
@@ -1455,7 +1469,7 @@ export class Race {
   /** For the rival panel's still: only the rider and the street (no traffic, people, effects or other riders). */
   _panelIsolate(on, o) {
     if (on) {
-      const hide = [this.traffic?.group, this.g.life?.group, this.g.life?.folk?.group, this.fx?.group, this.boxes?.group, this.speedFx?.mesh, this.marbleField?.group, this.smokeField?.group, ...this.racers.filter((r) => r !== o).map((r) => r.view.root)].filter(Boolean);
+      const hide = [this.traffic?.group, this.g.life?.group, this.g.life?.folk?.group, this.fx?.group, this.boxes?.group, this.speedFx?.mesh, this.marbleField?.group, this.smokeField?.group, this.oilField?.group, this.oilTracks?.mesh, ...this.racers.filter((r) => r !== o).map((r) => r.view.root)].filter(Boolean);
       this._isoHidden = hide.filter((m) => m.visible);
       for (const m of this._isoHidden) m.visible = false;
     } else {
@@ -1924,7 +1938,7 @@ export class Race {
       // The golden helmet takes it: a bounce off, no fall — and the helmet flies off, spinning.
       r.helmet = false;
       r.safe = 1.2;
-      r.s.v *= what === 'marbles' ? 0.75 : 0.45;
+      r.s.v *= what === 'marbles' || what === 'oil' ? 0.75 : 0.45;
       r.s.heading += (Math.random() - 0.5) * 0.4;
       (r.blocked ??= []).push(what);
       this._helmetSaved(r, true);
@@ -2095,6 +2109,7 @@ export class Race {
       }
       if (Math.random() < dt * 8) this.fx?.dust({ x: s.x + Math.sin(s.heading) * 0.5, y: r.y + 0.05, z: s.z + Math.cos(s.heading) * 0.5 }, 2);
     }
+    this._oilTrack(r, dt);
     this.splash?.(r, dt);
   }
 
@@ -2360,6 +2375,7 @@ export class Race {
     if (item === 'branch') this._throwBranch(r);
     else if (item === 'marbles') this._pour(r);
     else if (item === 'smoke') this._dropSmoke(r);
+    else if (item === 'oil') this._spill(r);
     else if (item === 'drink') {
       // A gulp, and away: boosting at once for DRINK.boost seconds.
       r.drinkT = DRINK.boost;
@@ -2391,6 +2407,8 @@ export class Race {
       this.fx?.pop('MARBLES!', at, { color: '#7ad8ff', size: r.me ? 1.1 : 0.9 });
     } else if (item === 'smoke') {
       this.fx?.pop('SMOKE!', at, { color: '#c9ced6', size: r.me ? 1.1 : 0.9 });
+    } else if (item === 'oil') {
+      this.fx?.pop('GLUG!', at, { color: '#c89bff', size: r.me ? 1.1 : 0.9 });
     } else if (item === 'helmet') {
       this.fx?.pop('HELMET ON!', at, { color: '#ffd23a', size: 1.1 });
       r.helmet = true;
@@ -2599,6 +2617,155 @@ export class Race {
     } else {
       this.fx?.pop(r.me ? 'WOBBLE!' : 'SLIP!', { x: s.x, y: r.y + 2.2, z: s.z, ride: s }, { color: '#7ad8ff', size: r.me ? 0.9 : 0.7 });
       if (r.me) this.shake = Math.max(this.shake ?? 0, 0.12);
+    }
+  }
+
+  /* --------------------------------------------------------------- oil */
+
+  /**
+   * Spill oil behind a racer (the spiller's browser plans it and tells the room): a slick a few metres
+   * back, kept in the street — on a narrow golmok only across the half you ride, as marbles.
+   */
+  _spill(r) {
+    const s = r.s;
+    const line = this._line(r);
+    const i = this._ix(line, 0);
+    const here = this._at(line, 0);
+    const next = this._at(line, 1) === here ? this._at(line, -1) : this._at(line, 1);
+    const lat = lateralOf(s.x, s.z, here, next) * (next === this._at(line, 1) ? 1 : -1);
+    const room = line.room ? [line.room[i * 2], line.room[i * 2 + 1]] : null;
+    const band = pourBand(here[2] ?? 6, lat, room);
+    const pts = [];
+    for (let k = -6; k <= 4; k++) {
+      const p = this._at(line, k);
+      const q = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+      if (pts.length && pts.at(-1)[0] === q[0] && pts.at(-1)[1] === q[1]) continue;
+      pts.push(q);
+    }
+    const plan = { oid: `${r.id}:o${(this._oid = (this._oid ?? 0) + 1)}`, owner: r.id, x: s.x, z: s.z, heading: s.travel ?? s.heading, seed: (Math.random() * 2 ** 31) | 0, pts, lo: band.lo, hi: band.hi };
+    this._addSlick(plan);
+    if (this.session?.room) this.session.send({ t: 'race-oil', id: r.id, plan });
+  }
+
+  /** A slick in the world, from its plan: laid on the road, spreading out. */
+  _addSlick(plan) {
+    const o = { ...plan, ...planSlick(plan), born: this.clock, until: this.clock + OIL.spread + OIL.life, hits: [] };
+    (this.slicks ??= []).push(o);
+    this.oilField?.add(o, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14));
+    this.spilled = (this.spilled ?? 0) + 1;
+    return o;
+  }
+
+  /** A rider has crossed a slick: counted once — the third one wipes it off (it fades away). */
+  _slickHit(o, id) {
+    if (!o.hits.includes(id)) o.hits.push(id);
+    if (o.hits.length >= OIL.riders) o.until = Math.min(o.until, this.clock + OIL.fade);
+  }
+
+  /** Each frame: slicks past their time go. */
+  _slicks() {
+    const list = this.slicks ?? [];
+    for (let i = list.length - 1; i >= 0; i--) if (this.clock > list[i].until) list.splice(i, 1);
+    this.oilField?.update(list, this.clock);
+  }
+
+  /**
+   * A racer this browser rides, on oil: a wheel (front or back) in a slick it hasn't crossed yet starts
+   * a spin-out; while it spins, no grip and nothing it does counts — it slides on the way it was going.
+   */
+  _oily(r, input, dt) {
+    const s = r.s;
+    if (r.mode !== 'ride') {
+      r.spin = null;
+      return;
+    }
+    if (!r.spin && this.slicks?.length && !(s.air > 0) && !(r.safe > 0) && Math.abs(s.v) > 2) {
+      const fx = -Math.sin(s.heading);
+      const fz = -Math.cos(s.heading);
+      for (const o of this.slicks) {
+        if (o.hits.includes(r.id) || (o.owner === r.id && this.clock - o.born < OIL.own)) continue;
+        if (Math.abs(o.x - s.x) > o.r + 1 || Math.abs(o.z - s.z) > o.r + 1) continue;
+        const g = slickGrow(this.clock - o.born, o.until - this.clock);
+        if (!onSlick(o, s.x + fx * 0.45, s.z + fz * 0.45, g) && !onSlick(o, s.x - fx * 0.4, s.z - fz * 0.4, g)) continue;
+        this._slickHit(o, r.id);
+        if (this.session?.room) this.session.send({ t: 'race-oil-hit', oid: o.oid, id: r.id });
+        this._onOil(r);
+        break;
+      }
+    }
+    const sp = r.spin;
+    if (!sp) return;
+    sp.t += dt;
+    if (sp.t >= OIL.spin) {
+      // round, upright and on again — slowly
+      r.spin = null;
+      s.heading = s.travel ?? s.heading;
+      s.v = Math.min(s.v, sp.v0 * OIL.keep);
+      s.wobble = Math.max(s.wobble ?? 0, 0.45);
+      return;
+    }
+    Object.assign(input, { throttle: false, brake: false, boost: false, drift: false, free: false, extra: 0, steer: 0, left: false, right: false, grip: 0.2 });
+    // (it goes the way it was going: pointed that way for the step, turned round again after it — _spun)
+    s.heading = s.travel ?? s.heading;
+    s.lean = 0;
+    s.steer = 0;
+    s.drift = 0;
+    s.v = Math.min(s.v, spinSpeed(sp.v0, sp.t));
+  }
+
+  /** After the step: the scooter turned as far round as the spin has got; into a wall while spinning, the usual crash. */
+  _spun(r, out, racing) {
+    const sp = r.spin;
+    if (!sp) return;
+    if (out.hit > OIL.wallFall && racing) {
+      r.spin = null;
+      r.hitV = out.hit;
+      this._crash(r, 'wall');
+      return;
+    }
+    r.s.heading = (r.s.travel ?? r.s.heading) + spinAngle(sp.t, sp.dir);
+  }
+
+  /** The moment a racer's wheels reach oil: OIL!, the tyres squeal, and round it goes (the golden helmet takes it). */
+  _onOil(r) {
+    const s = r.s;
+    r.spins = (r.spins ?? 0) + 1;
+    r.oily = OIL.track;
+    (this.oilLog ??= []).push({ id: r.id, v: Math.round(s.v * 36) / 10, helmet: Boolean(r.helmet), t: Math.round(this.clock * 10) / 10 });
+    if (r.helmet) {
+      this._crash(r, 'oil');
+      return;
+    }
+    const at = { x: s.x, y: r.y + 2.2, z: s.z, ride: s };
+    const d = Math.hypot(s.x - this.g.pos.x, s.z - this.g.pos.z);
+    const steer = s.steer ?? 0;
+    const dir = steer > 0.1 ? 1 : steer < -0.1 ? -1 : Math.random() < 0.5 ? 1 : -1;
+    r.spin = { t: 0, dir, v0: Math.max(0, s.v) };
+    this.fx?.pop('OIL!', at, { color: '#c89bff', size: r.me ? 1.3 : 1 });
+    if (r.me) {
+      this.fx?.pop('SPIN!', { ...at, y: at.y + 0.9 }, { color: '#ffffff', size: 0.8 });
+      this.shake = Math.max(this.shake ?? 0, 0.16);
+    }
+    if (d < 70) squeal(this._audio(), { gain: r.me ? 0.8 : Math.max(0.12, 0.6 * (1 - d / 70)), pan: r.me ? 0 : this._panOf(s.x, s.z) });
+  }
+
+  /** Oily tyres: dark, glossy smears where the wheels go — round in circles while it spins, then a few metres on. */
+  _oilTrack(r, dt) {
+    const s = r.s;
+    if (!this.oilTracks || r.mode !== 'ride' || !(r.spin || r.oily > 0) || Math.abs(s.v) < 0.5 || (s.air ?? 0) > 0.05) return;
+    const step = Math.abs(s.v) * dt;
+    if (!r.spin) r.oily = Math.max(0, r.oily - step);
+    r.oilRun = (r.oilRun ?? 0) + step;
+    if (r.oilRun < 0.2) return;
+    // (each smear as long as the way since the last, and a little over: an unbroken track)
+    const len = r.oilRun * 1.6;
+    r.oilRun = 0;
+    const k = r.spin ? 1 : r.oily / OIL.track;
+    const tr = s.travel ?? s.heading;
+    for (const w of r.spin ? [0.45, -0.4] : [-0.4]) {
+      const x = s.x - Math.sin(s.heading) * w;
+      const z = s.z - Math.cos(s.heading) * w;
+      this.oilTracks.mark(x, this.g.surfaceAt(x, z, r.y + 0.3), z, tr, k, len);
     }
   }
 
@@ -3075,6 +3242,20 @@ export class Race {
       consider(p.x, p.z, p.r * 0.8);
       marblesAhead = Math.min(marblesAhead, Math.max(0, along - p.r));
     }
+    // Oil in the road: seen (as marbles) — steered round; there is no slow way across it.
+    for (const o of this.slicks ?? []) {
+      if (o.hits.includes(r.id) || (o.owner === r.id && this.clock - o.born < 2)) continue;
+      const seen = (r.seenOil ??= {});
+      seen[o.oid] ??= Math.random() < 0.55 + ((r.skill ?? 0.9) - 0.86) * 3;
+      if (!seen[o.oid]) continue;
+      const dx = o.x - s.x;
+      const dz = o.z - s.z;
+      const along = dx * fx + dz * fz;
+      if (along < -o.r || along > R) continue;
+      const side = dx * -fz + dz * fx;
+      if (Math.abs(side) > o.r * 0.85 + 1.2) continue;
+      push += (side > 0 ? 1 : -1) * (1 - Math.max(0, along) / R) * 2;
+    }
     // The walls (walls.js): feelers out ahead and to each side — one near on a side steers it away, one
     // straight ahead is a stop to brake for.
     let wallAhead = Infinity;
@@ -3200,6 +3381,15 @@ export class Race {
       if (close || r.heldSmoke > 24) {
         r.heldSmoke = 0;
         this._use(r, has('smoke'));
+      }
+    }
+    if (has('oil') >= 0) {
+      // spilled when a rival is close behind, in its line (or after holding it a while)
+      r.heldOil = (r.heldOil ?? 0) + dt;
+      const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 3 && r.dist - o.dist < 16 && Math.abs((o.s.x - s.x) * Math.cos(s.heading) - (o.s.z - s.z) * Math.sin(s.heading)) < 2.4);
+      if (close || r.heldOil > 22) {
+        r.heldOil = 0;
+        this._use(r, has('oil'));
       }
     }
     if (has('police') >= 0) {
@@ -3946,6 +4136,7 @@ export class Race {
     for (const b of [...(this.branches ?? [])]) this._dropBranch(b);
     for (const g of this.leafBursts ?? []) g.removeFromParent();
     this.leafBursts = [];
+    this.slicks = [];
     this.patches = [];
     this.clouds = [];
     this._veil(0);
@@ -3955,7 +4146,7 @@ export class Race {
     this._helmetKey = null;
     for (const f of this.fans ?? []) f.remove();
     this.fans = [];
-    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'police', 'wet', 'speedFx', 'marbleField', 'smokeField', 'helmetDrops', 'wood', 'fair']) {
+    for (const k of ['traffic', 'boxes', 'golmok', 'facades', 'fx', 'police', 'wet', 'speedFx', 'marbleField', 'smokeField', 'oilField', 'oilTracks', 'helmetDrops', 'wood', 'fair']) {
       this[k]?.dispose();
       this[k] = null;
     }

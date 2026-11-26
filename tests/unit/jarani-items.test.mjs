@@ -23,7 +23,8 @@ test('items: the branch is one of them, and riders further back get more branche
     if (rollItem(1, 4, random) === 'branch') n.first++;
     if (rollItem(4, 4, random) === 'branch') n.last++;
   }
-  assert.ok(n.last > n.first * 2, `last ${n.last} vs first ${n.first}`);
+  // (about twice as many: the odds say 2×, a sample of 4000 wanders a little either side)
+  assert.ok(n.last > n.first * 1.7, `last ${n.last} vs first ${n.first}`);
 });
 
 test('branch: thrown where the rider ahead will be, up in an arc and down on the road', () => {
