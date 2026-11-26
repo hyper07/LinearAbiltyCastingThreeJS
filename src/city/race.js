@@ -2912,7 +2912,8 @@ export class Race {
     if (this.phase === 'racing') {
       r.prog ??= { d: r.dist, t: 0 };
       r.prog.t += dt;
-      if (r.dist - r.prog.d > 4) r.prog = { d: r.dist, t: 0 };
+      // (on 4 m since — or put back, or anywhere else: counted afresh)
+      if (Math.abs(r.dist - r.prog.d) > 4) r.prog = { d: r.dist, t: 0 };
     }
     if (r.stuck > 2.5 || (r.prog?.t ?? 0) > 4.5) {
       r.prog = null;

@@ -212,11 +212,20 @@ export class RaceTraffic {
     const night = this.g.uniforms?.uNight?.value ?? 0;
     this.blink = (this.blink ?? 0) + dt;
     const on = this.blink % 0.8 < 0.4;
-    for (const v of this.vehicles) {
+    for (const v of [...this.vehicles]) {
       if (v.parked) {
         v.braking = false;
         this._place(v, 0);
       } else this._drive(v, dt);
+      // (a short cut's golmok is kept clear to race down: one that strays into its mouth — tucked in to
+      // let a rider by — goes back to its lane, and one far from you is simply gone)
+      if (!v.parked && this.race.keepClear?.(v.box.x, v.box.z)) {
+        v.lane = this._lane(v.road, v.kind);
+        if (Math.hypot(v.box.x - me.x, v.box.z - me.z) > 40) {
+          this._remove(v);
+          continue;
+        }
+      }
       // (headlights on in the rain too)
       v.view?.lights(Math.max(night, (this.g.weather?.level.wet ?? 0) > 0.3 ? 0.5 : 0), v.braking);
       const d = Math.hypot(v.box.x - me.x, v.box.z - me.z);
