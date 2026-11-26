@@ -140,13 +140,18 @@ Seoul's real streets — and the streets stay open.
   seconds left show small under your time ("⏱ 0:24"), with a small **Skip ⏎** (Enter too; in a room
   only the host's, sent to everyone). Then the **podium**: the first three home in time — nobody who
   didn't finish — stand on blocks a little short of the finish line, facing back down the course
-  under the finish banner, in the city as it is (the time of day and the weather carry on; the
+  under the finish banner (a loop's one gantry reads START · 출발 on the grid and FINISH · 결승 from the green
+  light on), in the city as it is (the time of day and the weather carry on; the
   traffic and the riders who aren't up there out of sight): 1st in the middle and highest, 2nd on its
   left, 3rd on its right as you look at it, a big 1, 2, 3 on the blocks in gold, silver and bronze,
   their scooters parked beside on their kickstands. They celebrate, procedurally
-  (`PlushRider.celebrate`, no clips): the winner jumps every other beat with its arms up and pumps its
-  fists between, 2nd bounces and sways with a disco point, 3rd bounces and claps — squash on every
-  landing, stretch in the air, ears and tails flopping, each in its own animal and colours. Confetti
+  (`PlushRider.celebrate`, no clips) — a little routine of our own round the street-dance chest pop,
+  locked to the podium track's beat (its measured tempo from the music manifest, 143.6 BPM; the song's
+  own position while it plays): a burst of four chest pops, two a beat — the chest hits out and snaps
+  back, the shoulders and elbows pull back at the sides, the head nods a moment after, a squash on every
+  hit, the knees bouncing in half time — then two beats of groove, a sway and a clap; the winner jumps
+  with its arms up there instead and pumps a fist on the off pops. All three pop together, each a hair
+  off the beat and its own size, ears and tails flopping after on springs. Confetti
   bursts from both ends and flutters down (one instanced draw), the victory fanfare plays and the
   podium's own track comes in; the camera swings slowly round and pushes in. Your own rider, up there,
   has a pulsing gold ring on its block, its top glowing with it (after dark a fill light over
@@ -246,7 +251,7 @@ Seoul's real streets — and the streets stay open.
   cornering and shock absorption; more top speed always costs cornering and shock absorption. Top
   speeds sit within 5 km/h (67–72 km/h: Sparrow 67, Mudlark 67.5, Bubblegum 68.5, S1 70, Comet 71.5,
   Grand 72), so the fastest scooter can't simply ride away: corners, traffic, items and short cuts decide it. All of them: grip tape,
-  folding stem, throttle and brake levers, a live speed and battery display, LED head and brake
+  folding stem, throttle and brake levers, a live display (the speed and a bar of it, lime and glowing through a drink's boost), LED head and brake
   lights, a kickstand. Bots ride a mix of them; in a room everyone's pick goes to the others. Riders bump and wobble off each other and never
   pass through (`src/city/pack.js`); bots keep their own lines on the road side of the street,
   overtake round the middle, and start from a staggered grid.
@@ -282,20 +287,25 @@ Seoul's real streets — and the streets stay open.
   side of it too, out over the middle only to pass). And your way: slower cars, taxis, trucks,
   buses and delivery scooters (55–90% of the road's speed) sent up the course 90–270 m ahead of you
   in the riders' own lanes, to weave past — up to 8 on Easy, 11 on Medium, 14 on Hard (`along` in
-  `LEVELS`; on the Hard streets far fewer find a place); one that turns off the course is just
-  traffic again and another is sent in its place. Bots and the autopilot see a vehicle along its
+  `LEVELS`); on Hard (`dense`) they are sent anywhere 60–300 m up the course, cars as well as
+  delivery scooters down the residential lanes wide enough for a car and a rider beside it, and they
+  may stand closer on the two-lane streets (14 m apart in a lane) — but never two side by side, nor
+  beside one coming the other way or a parked car: across the road there is always a gap. One that
+  turns off the course is just traffic again and another is sent in its place. Bots and the autopilot see a vehicle along its
   whole length (a bus's tail, not just its middle). Measured on the autopilot (Nov 2026, 150 s a
   course, four riders): vehicles within 150 m ahead of you about 1.5× what they were (Dongdaemun
   7→11, Seongsu 8→13, Euljiro 6→9), close calls a lap up (8→12, 15→18, 8→12), traffic crashes a
   lap you / bots 0 / 0→1.2, 1.5 / 0.5→0 / 1.0, 0 / 0→0 / 0.
-  None is ever put down within 40 m of a rider, nor within 22 m of another vehicle (never two
+  None is ever put down within 40 m of a rider, nor (off Hard) within 22 m of another vehicle (never two
   abreast, or one beside a car coming the other way: no wall across the road). On a road with two
   lanes or more their way, cars change lane now and then — blinking first, sliding over, only into
   a clear lane and never with a rider within 30 m — and pull out round a car parked at the kerb or
   a bus at its stop rather than queue behind it. Cars stand parked at the kerb (two, seven and
-  twelve a kilometre by level) on the two-way roads, never in the 60 m before a corner nor just after
-  it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
-  you), blinking to pull out. At night
+  twelve a kilometre by level) on the two-way roads — on Hard the narrower ones too (6.5 m and up),
+  with delivery scooters left at the kerb of the lanes (about ten a kilometre) — never in the 60 m
+  before a corner nor just after it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
+  you — a warning comes up only once a thing has been in your line a quarter of a second, and stays at
+  least a second and a half on the side it was first seen: never a box blinking on and off), blinking to pull out. At night
   every headlight and tail light glows, near and far (one draw for all of them). Everyone on the street is real (`src/city/folk.js`: Microsoft
   Rocketbox avatars, MIT) — walking, waiting in groups at the crossings, at shop doors, texting,
   looking about, cheering at the start — and nobody faceless is drawn: further off the pavement is
@@ -356,8 +366,8 @@ Seoul's real streets — and the streets stay open.
   and you can't see: one full-screen veil drawn last in the scene (drifting billows of noise in the
   smoke's colour — grey-white by day, darker and lamp-warmed at night; no edge anywhere), the HUD
   and map over it; it clears about a second after you (and the camera) are out. A rider entering it
-  coughs ("COUGH!"). Nobody falls because of it; bots inside lose their line — they roll off the
-  throttle (down to about 36 km/h) and wander a little. Bots drop it when a rival is close behind.
+  coughs ("COUGH!"). Nobody falls because of it; bots inside lose their line — they come off the
+  throttle and feather the brake (`SMOKE.ease`, down to about 36 km/h) and wander a little. Bots drop it when a rival is close behind.
   5 % of boxes leading, 10 % last (taken from the others in proportion). In a room the dropper's
   browser sends the plan (place, street, seed) and everyone draws the same cloud; each browser
   works out who of its own riders is in it. The map shows each cloud as a soft grey round.
@@ -411,7 +421,9 @@ Seoul's real streets — and the streets stay open.
 - **Fog** (`src/city/weather.js` `FOG_BANK`, `src/city/mist.js`): a real fog bank — the street, the
   buildings, the traffic and the people mostly gone by 10–20 m (the scene's fog from 2 m to 24 m,
   whatever the view distance; before, the haze factor only scaled the far plane, and 0.22 of 2.4 km
-  left 500 m of clear air, so Fog looked like Clear), grey-white by day, a deep blue-grey after dark;
+  left 500 m of clear air, so Fog looked like Clear), grey-white by day; after dark a dark blue-grey
+  murk a shade lighter than the street, and nearer (from 0.5 m, gone by 15 m: the dark buildings and
+  the dark murk are close in tone, so at the day's distances they still read 40–50 m off);
   the sky dome and the background fade into it. Headlights and tail lights glow through it as wide
   soft halos, on by day in fog too, so a car's lights show before its body does; after dark every
   street lamp near you is a halo in it (one draw each). Low mist sheets drift over the road round the
