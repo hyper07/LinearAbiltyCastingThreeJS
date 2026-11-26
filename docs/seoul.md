@@ -307,8 +307,19 @@ Seoul's real streets — and the streets stay open.
   estates in Seoul's whites, silvers, greys and blacks, taxis with our own roof sign, one-tonne box
   trucks, city buses in route blue and green — with glass, turning wheels, headlights at night and in
   the rain, brake lights and blinking indicators; delivery scooters too, also down the small streets.
-  They keep their own side, cross at the junctions, blink before turning, brake (late, for a
-  scooter), honk when held up. The course's own roads are kept busy the other way: cars, taxis,
+  They keep their own side, cross at the junctions, blink before turning, honk when held up — and
+  they don't get out of your way. Coming the other way or across, a vehicle holds its lane and its
+  speed: no swerving, no braking, no waiting at a junction for the race (they still give way to one
+  another); dodging it is yours to do. The only rider a driver brakes for is one going its way close
+  in front in its lane (it follows you as it follows a car) or one held stopped there by the police
+  (`brakesFor`). A bike's bell moves over only a delivery scooter going your way. Bots see a vehicle
+  coming at them as near as it will be (met at both speeds together) and steer round it earlier.
+  Nothing pops in or out in view (`FADE`): a vehicle is put down out of sight where it can be — round
+  a corner, behind a building or wall along the course, behind the camera, in the fog — and one that
+  has to appear in plain view (a parked car's place, a long straight in clear air) fades in over half
+  a second; one going in view fades out the same way (nothing to hit meanwhile), as does one past
+  280 m from the camera (back in inside 262 m), its lamps' glows with it, and a delivery scooter's
+  rider coming on near you. The course's own roads are kept busy the other way: cars, taxis,
   buses and delivery scooters sent up the road ahead of you on the far side of a two-way road, or
   down the other carriageway of a divided one — fifteen of them on an Easy course, 21 on Medium,
   26 on Hard — in their own lane (and on a two-way residential lane the riders keep to their own
@@ -346,9 +357,8 @@ Seoul's real streets — and the streets stay open.
   swept against every wall near the course, in 1/120 s steps, so nothing is ridden through at any
   speed or frame rate; a rider somehow found inside one (a spawn, a friend's position over the
   network) is put out the nearest way, and the chase camera is swept out from the rider against the
-  same walls (in close and up instead of through them). At junctions cars waiting to cross the
-  course give way to riders coming through, waiting clear of the course's carriageway (half its width and
-  a car's length back from the middle of the junction, not in the racing line).
+  same walls (in close and up instead of through them). At junctions cars crossing the course
+  don't wait for the riders: look out for them.
   Roll gently into a car (one stopped at the lights, one you drew level with) and it's a bump and a
   shove; hit any of it square and fast — a car, a wall head-on above ~38 km/h, a planter, a bin, a parked scooter —
   and you're off: a hit-stop, "BONK!", a tumble, dizzy stars, back on 1.5 s later. Met at a slant

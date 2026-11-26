@@ -189,7 +189,7 @@ export async function run(browser) {
         const q = c.points[(bi + 1) % c.points.length];
         return Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
       };
-      const tw = (r._tw = { seen: new Set(r.traffic.vehicles), alongSeen: new Set(), close: [], made: 0, along: 0, alongNew: 0, alongAhead: 0, alongWith: 0, laneChanges: 0 });
+      const tw = (r._tw = { seen: new Set(r.traffic.vehicles), alongSeen: new Set(), close: [], pops: [], made: 0, along: 0, alongNew: 0, alongAhead: 0, alongWith: 0, laneChanges: 0 });
       r._twT = setInterval(() => {
         const me = r.me.s;
         for (const v of r.traffic.vehicles) {
@@ -205,6 +205,10 @@ export async function run(browser) {
           tw.made++;
           const d = Math.min(...r.racers.filter((x) => !x.left).map((x) => Math.hypot(x.s.x - v.box.x, x.s.z - v.box.z)));
           if (d < 36) tw.close.push({ d: Math.round(d), kind: v.kind, along: v.along, on: v.oncoming, parked: v.parked });
+          // (first seen at full strength right in the camera's view, in clear sight: popped in — it should have
+          // been put down out of sight, or be fading in)
+          const cam = window.seoul.camera.position;
+          if ((v.alpha ?? 1) > 0.6 && r.traffic._seen(v.box.x, v.y, v.box.z, 0, true)) tw.pops.push({ d: Math.round(Math.hypot(v.box.x - cam.x, v.box.z - cam.z)), kind: v.kind, along: v.along, on: v.oncoming, parked: v.parked });
           if (v.along) {
             tw.alongNew++;
             if ((v.box.x - me.x) * -Math.sin(me.heading) + (v.box.z - me.z) * -Math.cos(me.heading) > 60) tw.alongAhead++;
@@ -222,6 +226,8 @@ export async function run(browser) {
     });
     t.check('busier streets: traffic sent up the course ahead going your way too, slower, in the riders\' lanes', tw.along >= 6 && tw.alongWith >= tw.along * 0.85 && tw.alongNew >= 1 && tw.alongAhead >= tw.alongNew * 0.8, JSON.stringify(tw));
     t.check('…none of it put down in a rider\'s face (every new vehicle 40 m or more from every rider)', tw.made >= 8 && tw.close.length === 0, JSON.stringify({ made: tw.made, close: tw.close }));
+    // (one at most allowed: a vehicle put down just outside the view can slide into it between two looks)
+    t.check('…and none pops up in view: put down out of sight (round a corner, behind a building or the camera, in the fog) or faded in', tw.pops.length <= 1, JSON.stringify({ made: tw.made, pops: tw.pops }));
     t.check('…cars change lane now and then on the wide roads (blinking first), and buses stand at their stops', tw.laneChanges >= 1 && (await page.evaluate(() => window.seoul.race.traffic.spots.some((s) => s.kind === 'bus'))), JSON.stringify({ laneChanges: tw.laneChanges }));
     t.check('riding on: you get along the course', await page.evaluate((d) => window.seoul.race.me.dist - d > 120, d0), await page.evaluate((d) => (window.seoul.race.me.dist - d).toFixed(0), d0));
     t.check('racing speed: up to about 70 km/h', await page.evaluate(() => (clearInterval(window.seoul.race._topT), window.seoul.race._top * 3.6 > 60)), await page.evaluate(() => `${Math.round(window.seoul.race._top * 3.6)} km/h`));

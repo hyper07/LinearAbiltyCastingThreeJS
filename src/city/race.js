@@ -2210,6 +2210,9 @@ export class Race {
     for (const v of this.traffic?.vehicles ?? []) {
       const b = v.box;
       if (Math.hypot(b.x - cam.x, b.z - cam.z) > 80) continue;
+      // (a vehicle fading in: its lamps with it)
+      const la = v.alpha ?? 1;
+      if (la <= 0.02) continue;
       const fx2 = -Math.sin(b.heading);
       const fz2 = -Math.cos(b.heading);
       const rx = Math.cos(b.heading);
@@ -2218,9 +2221,9 @@ export class Race {
       const ly = v.y + (v.kind === 'bus' ? 0.85 : 0.7);
       for (const s of [-1, 1]) {
         if (v.kind !== 'scooter') {
-          fx.light(b.x + fx2 * b.halfLength + rx * hw * s, ly, b.z + fz2 * b.halfLength + rz * hw * s, '#fff1d6', 0.9);
-          fx.light(b.x - fx2 * b.halfLength + rx * hw * s, ly + 0.1, b.z - fz2 * b.halfLength + rz * hw * s, '#ff2414', v.braking ? 1.1 : 0.45);
-        } else if (s > 0) fx.light(b.x + fx2 * 0.8, v.y + 0.9, b.z + fz2 * 0.8, '#fff1d6', 0.6);
+          fx.light(b.x + fx2 * b.halfLength + rx * hw * s, ly, b.z + fz2 * b.halfLength + rz * hw * s, '#fff1d6', 0.9 * la);
+          fx.light(b.x - fx2 * b.halfLength + rx * hw * s, ly + 0.1, b.z - fz2 * b.halfLength + rz * hw * s, '#ff2414', (v.braking ? 1.1 : 0.45) * la);
+        } else if (s > 0) fx.light(b.x + fx2 * 0.8, v.y + 0.9, b.z + fz2 * 0.8, '#fff1d6', 0.6 * la);
       }
       // and the spray off their tyres
       if (v.speed > 3 && Math.hypot(b.x - cam.x, b.z - cam.z) < 45) for (const s of [-1, 1]) fx.spray(b.x - fx2 * (b.halfLength - 0.7) + rx * hw * s, v.y, b.z - fz2 * (b.halfLength - 0.7) + rz * hw * s, b.heading, v.speed, v.kind === 'bus' ? 2.2 : v.kind === 'scooter' ? 0.8 : 1.6);
@@ -3189,24 +3192,29 @@ export class Race {
       const dz = z - s.z;
       const along = dx * fx + dz * fz;
       const side = dx * -fz + dz * fx; // + is to our right
-      if (along < 0 || along > R) return;
-      const tt = along / Math.max(2, v);
+      // (how fast it is going our way — and coming at us, how fast it closes: the traffic doesn't get out of a
+      // rider's way, so one coming head-on is seen as near as it will be, met at both speeds together)
+      const ownAlong = ownV * (-Math.sin(ownHd) * fx - Math.cos(ownHd) * fz);
+      const closing = Math.max(0, -ownAlong);
+      const eff = closing > 0.5 ? (along * Math.max(2, v)) / (Math.max(2, v) + closing) : along;
+      if (along < 0 || eff > R) return;
+      const tt = along / (Math.max(2, v) + closing);
       const side2 = side + (Math.sin(ownHd) * fz - Math.cos(ownHd) * fx) * ownV * Math.min(1.6, tt);
       if (Math.abs(side2) < half + 0.9) {
-        if (along < block) {
-          block = along;
-          // (how fast it is going our way: a car ahead going on is less of a wall than one stopped)
-          blockV = Math.max(0, ownV * (-Math.sin(ownHd) * fx - Math.cos(ownHd) * fz));
+        if (eff < block) {
+          block = eff;
+          // (a car ahead going on is less of a wall than one stopped)
+          blockV = Math.max(0, ownAlong);
         }
         // Something crossing our way (a car out of a side street): no steering round that — brake for it.
         const across = Math.abs(Math.sin(turn(s.heading, ownHd)));
         if (ownV > 1.5 && across > 0.55) crossing = Math.min(crossing, along);
-        push += (side2 > 0 ? 1 : -1) * (1 - along / R) * 1.6 * weight;
+        push += (side2 > 0 ? 1 : -1) * (1 - eff / R) * (closing > 0.5 ? 2.1 : 1.6) * weight;
       }
     };
     // (a vehicle is in the way from its back to its front — a bus's tail long before its middle — so
-    // it is looked at every couple of metres down its length)
-    for (const veh of this.traffic?.near(s.x, s.z, R + 12) ?? []) {
+    // it is looked at every couple of metres down its length; one coming at us from further off)
+    for (const veh of this.traffic?.near(s.x, s.z, R * 1.9 + 12) ?? []) {
       const b = veh.box;
       const k = Math.max(1, Math.round(b.halfLength / 1.25));
       for (let j = -k; j <= k; j++) {

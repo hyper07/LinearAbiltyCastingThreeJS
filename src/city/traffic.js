@@ -11,10 +11,19 @@ import { takeRider, releaseRider } from './folk.js';
  * The traffic a bike race rides through: cars, city buses and delivery
  * scooters on Seoul's real roads round the racers, each on its own side,
  * turning at the junctions onto whatever road meets theirs (so they cross
- * the course), slowing for whatever is ahead in their lane — a bike too,
- * if they see it in time — blinking before they turn, honking when held up.
- * Scooters also take the small streets. An air horn (items.js) stops the
- * cars ahead and sends the scooters to the kerb.
+ * the course), slowing for whatever is ahead in their lane, blinking before
+ * they turn, honking when held up. Scooters also take the small streets.
+ *
+ * They don't get out of the riders' way: coming the other way or across, a
+ * vehicle holds its lane and its speed — no swerving, no braking, no waiting
+ * at a junction for the race — and the rider has to dodge it. The only rider
+ * a driver brakes for is one going its way in front of it in its lane (it
+ * follows, as it follows a car) or one held stopped by the police.
+ *
+ * Nothing pops in or out in view (FADE): a vehicle is put down out of sight
+ * where it can be — round a corner, behind a building, behind the camera, in
+ * the fog — and one that has to appear (or go) in plain view fades over half a
+ * second; past FADE.far from the camera it fades out, and back in nearer.
  *
  * The cars, the one-tonne trucks and the buses are real models (fleet.js:
  * Sketchfab, CC BY 4.0) once they have loaded; until then, and for anything
@@ -44,6 +53,77 @@ const SIZE = { scooter: [0.9, 0.36] };
 /** A free model (polyfork.dev, CC BY 4.0): the delivery moped. */
 const POLY = { scooter: './library/polyfork/delivery-moped-1aa2ce.glb' };
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+/**
+ * Coming and going in view: a fade of `time` seconds; drawn out to `far` m from the camera (faded out past
+ * it, back in inside `back`) — never a vehicle, a rider or a lamp appearing or vanishing in a frame.
+ */
+export const FADE = { time: 0.5, far: 280, back: 262 };
+
+/** An alpha `a` a frame on toward `want`: at once where nobody can see it, else over FADE.time. */
+export function fadeStep(a, want, dt, seen) {
+  if (!seen) return want;
+  const k = dt / FADE.time;
+  return want > a ? Math.min(want, a + k) : Math.max(want, a - k);
+}
+
+/**
+ * Does a driver going `heading` brake for this rider in front of it? Only one going its way (it follows,
+ * as it follows a car) or one held stopped by the police — never one coming at it or across its way: they
+ * have to get out of its way, not it out of theirs.
+ */
+export function brakesFor(heading, rider) {
+  if (rider.left) return false;
+  if (rider.pulled) return true;
+  return Math.cos((rider.s.travel ?? rider.s.heading) - heading) > 0.5;
+}
+
+/** The meshes of a vehicle (or of a rider), not counting a scooter's rider sat on it (that fades by itself). */
+function meshesOf(obj, out = [], root = true) {
+  if (!root && obj.userData?.rider) return out;
+  if (obj.isMesh && obj.material) out.push(obj);
+  for (const c of obj.children) meshesOf(c, out, false);
+  return out;
+}
+
+/**
+ * An object drawn at `a` (0–1) of itself: while it fades its meshes wear see-through copies of their
+ * materials (and cast no shadow until they are mostly there); at 1 the shared materials go back on.
+ */
+function setAlpha(obj, a) {
+  let list = obj.userData.fade;
+  if (a >= 1) {
+    if (!list) return;
+    for (const f of list) {
+      if (f.mesh.material === f.clone) f.mesh.material = f.orig;
+      f.mesh.castShadow = f.shadow;
+      for (const c of [f.clone].flat()) c.dispose();
+    }
+    obj.userData.fade = null;
+    return;
+  }
+  if (!list) {
+    const copy = (m) => {
+      const c = m.clone();
+      // (a painted body's own shader tweak goes with it)
+      c.onBeforeCompile = m.onBeforeCompile;
+      c.customProgramCacheKey = m.customProgramCacheKey;
+      c.transparent = true;
+      c.userData = { ...c.userData, base: m.opacity };
+      return c;
+    };
+    list = obj.userData.fade = meshesOf(obj).map((mesh) => {
+      const orig = mesh.material;
+      const clone = Array.isArray(orig) ? orig.map(copy) : copy(orig);
+      mesh.material = clone;
+      return { mesh, orig, clone, shadow: mesh.castShadow };
+    });
+  }
+  for (const f of list) {
+    for (const c of [f.clone].flat()) c.opacity = c.userData.base * a;
+    f.mesh.castShadow = f.shadow && a > 0.6;
+  }
+}
 
 const loader = new GLTFLoader();
 const models = {};
@@ -97,6 +177,11 @@ export class RaceTraffic {
     this.g = game;
     this.race = race;
     this.vehicles = [];
+    /** vehicles gone from the street, fading out where they can be seen (no longer hit or counted) */
+    this.leaving = [];
+    this._frustum = new THREE.Frustum();
+    this._pv = new THREE.Matrix4();
+    this._ball = new THREE.Sphere();
     this.group = new THREE.Group();
     game.scene.add(this.group);
     this._spawnT = 0;
@@ -149,7 +234,7 @@ export class RaceTraffic {
     if (!roads.length) return false;
     const fx = -Math.sin(anchor.heading);
     const fz = -Math.cos(anchor.heading);
-    for (let tries = 0; tries < 12; tries++) {
+    for (let tries = 0; tries < 16; tries++) {
       const r = roads[Math.floor(Math.random() * roads.length)];
       const n = r.pts.length / 2 - 1;
       const i = Math.floor(Math.random() * n);
@@ -166,12 +251,14 @@ export class RaceTraffic {
       if (ahead < -0.4 && Math.random() < 0.85) continue;
       if (this._nearRider(q.x, q.z) || this.vehicles.some((v) => Math.hypot(v.box.x - q.x, v.box.z - q.z) < 9)) continue;
       if (this.g.buildingAt?.(q.x, q.z) || this.race.keepClear?.(q.x, q.z)) continue;
+      // (out of sight if it can be: round a corner, behind a building or the camera, in the fog — the
+      // last few tries take a place in view, and it fades in there)
+      if (tries < 12 && this._seen(q.x, this.g.surfaceAt(q.x, q.z), q.z, 4, true)) continue;
       const made = this._make(kind);
       const top = (SPEEDS[Math.min(5, r.cls)] ?? 8) * (kind === 'scooter' ? 1.05 : kind === 'bus' ? 0.85 : 1) * (0.85 + Math.random() * 0.3);
       const [halfLength, halfWidth] = made.size;
       const v = { ...made, road: r, at, lane, top, speed: top * 0.8, v: top * 0.8, y: this.g.surfaceAt(q.x, q.z), box: { x: q.x, z: q.z, heading: q.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0 };
-      this.vehicles.push(v);
-      this._place(v, 0);
+      this._born(v);
       return true;
     }
     return false;
@@ -198,15 +285,16 @@ export class RaceTraffic {
 
   update(dt, anchors) {
     if (!anchors.length) return;
+    this._view();
     const me = anchors.find((a) => a.me) ?? anchors[0];
-    // Far from every racer here: gone.
+    // Far from every racer here: gone (out of sight at once, in view fading out).
     for (const v of [...this.vehicles]) {
       if (v.parked) continue;
       const near = Math.min(...anchors.map((a) => Math.hypot(a.x - v.box.x, a.z - v.box.z)));
       // (one that came at you and has gone by: gone, and another sent up the road ahead)
       // (and one going your way, sent up the course ahead, that you have passed)
       const behind = (v.oncoming || v.along) && (v.box.x - me.x) * -Math.sin(me.heading) + (v.box.z - me.z) * -Math.cos(me.heading) < -45;
-      if (near > 300 || behind) this._remove(v);
+      if (near > 300 || behind) this._retire(v);
     }
     // Too few: more, a few a second, round the racers (most round you).
     this._spawnT -= dt;
@@ -245,12 +333,12 @@ export class RaceTraffic {
         v.braking = false;
         this._place(v, 0);
       } else this._drive(v, dt);
-      // (a short cut's golmok is kept clear to race down: one that strays into its mouth — tucked in to
-      // let a rider by — goes back to its lane, and one far from you is simply gone)
+      // (a short cut's golmok is kept clear to race down: one that strays into its mouth goes back to its
+      // lane, and one far from you is gone — out of sight at once, else fading)
       if (!v.parked && this.race.keepClear?.(v.box.x, v.box.z)) {
         v.lane = this._lane(v.road, v.kind);
         if (Math.hypot(v.box.x - me.x, v.box.z - me.z) > 40) {
-          this._remove(v);
+          this._retire(v);
           continue;
         }
       }
@@ -263,21 +351,108 @@ export class RaceTraffic {
       v.view?.lights(Math.max(night, (this.g.weather?.level.wet ?? 0) > 0.3 ? 0.5 : 0, (this.g.weather?.level.thick ?? 0) * 0.8), v.braking);
       const d = Math.hypot(v.box.x - me.x, v.box.z - me.z);
       v.view?.near(d < 90);
-      // (far off down the street, past where they are sent in: not drawn — a speck, and draws saved)
-      v.group.visible = d < 260;
-      // A delivery scooter's rider: a real person near you; far off, none drawn (better than a faceless doll).
-      if (v.kind === 'scooter' && !v.parked) {
-        if (!v.rider && d < 110) {
-          v.rider = takeRider();
-          if (v.rider) v.group.add(v.rider);
-        } else if (v.rider && d > 140) {
-          releaseRider(v.rider);
-          v.rider = null;
-        }
-      }
+      this._fade(v, dt);
       v.view?.indicate(v.hazard ? 'both' : v.signal, on);
     }
+    // Gone from the street, still fading out where they can be seen: driving on meanwhile, nothing to hit.
+    for (const v of [...this.leaving]) {
+      if (v.parked) this._place(v, 0);
+      else this._drive(v, dt);
+      this._fade(v, dt);
+      if (v.alpha <= 0) this._remove(v);
+    }
     this._glowFrame(night, me);
+  }
+
+  /** The camera's view this frame (what can see a vehicle come or go): its frustum, and the fog. */
+  _view() {
+    const cam = this.g.camera;
+    if (!cam) {
+      this._cam = null;
+      return;
+    }
+    this._pv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    this._frustum.setFromProjectionMatrix(this._pv);
+    this._cam = cam.position;
+    const f = this.g.scene?.fog;
+    // (past nine tenths of the way through the fog, a car is gone into it)
+    this._fogFar = f?.isFog ? f.near + (f.far - f.near) * 0.9 : Infinity;
+  }
+
+  /**
+   * Could the camera see something at (x, y, z) about `r` m round: in its view, inside the fog — and with
+   * `sight`, not behind the buildings and walls along the course either (a line across the ground to it).
+   */
+  _seen(x, y, z, r = 3, sight = false) {
+    const cam = this._cam;
+    if (!cam) return true;
+    const dx = x - cam.x;
+    const dz = z - cam.z;
+    const d = Math.hypot(dx, dz);
+    if (d - r > this._fogFar) return false;
+    this._ball.center.set(x, y + 1, z);
+    this._ball.radius = r;
+    if (!this._frustum.intersectsSphere(this._ball)) return false;
+    const walls = sight ? this.race.course?.walls : null;
+    if (walls && d > r + 2 && walls.ray(cam.x, cam.z, dx / d, dz / d, d) < d - r - 1) return false;
+    return true;
+  }
+
+  /** A vehicle just made: on the street, in place — seen as it is put down, it fades in. */
+  _born(v) {
+    this.vehicles.push(v);
+    this._place(v, 0);
+    v.alpha = v.lampA = this._seen(v.box.x, v.y, v.box.z, v.box.halfLength + 1) ? 0 : 1;
+    setAlpha(v.group, v.alpha);
+    v.group.visible = v.alpha > 0;
+  }
+
+  /** Off the street: gone at once out of sight; in view, fading out first (no longer hit or counted). */
+  _retire(v) {
+    const i = this.vehicles.indexOf(v);
+    if (i >= 0) this.vehicles.splice(i, 1);
+    for (const s of this.spots ?? []) if (s.v === v) s.v = null;
+    v.dying = true;
+    if (!this._seen(v.box.x, v.y, v.box.z, v.box.halfLength + 1) || !(v.alpha > 0)) this._remove(v);
+    else this.leaving.push(v);
+  }
+
+  /**
+   * A vehicle's fade this frame: in (just made), out (going, or past FADE.far from the camera) — over
+   * FADE.time where the camera can see it, at once where it can't. Its lamps' glows go with it (but not
+   * with the distance: lamps are seen far off at night). A delivery scooter's rider comes on near you
+   * and goes further off (a real person; far off none is drawn, better than a faceless doll), fading too.
+   */
+  _fade(v, dt) {
+    const cam = this._cam ?? { x: v.box.x, z: v.box.z };
+    const d = Math.hypot(v.box.x - cam.x, v.box.z - cam.z);
+    if (d > FADE.far) v.farOut = true;
+    else if (d < FADE.back) v.farOut = false;
+    const seen = this._seen(v.box.x, v.y, v.box.z, v.box.halfLength + 1);
+    v.alpha = fadeStep(v.alpha ?? 1, v.dying || v.farOut ? 0 : 1, dt, seen);
+    v.lampA = fadeStep(v.lampA ?? 1, v.dying ? 0 : 1, dt, seen);
+    setAlpha(v.group, v.alpha);
+    v.group.visible = v.alpha > 0.001;
+    if (v.kind !== 'scooter' || v.parked) return;
+    if (!v.rider && d < 110 && !v.dying) {
+      v.rider = takeRider();
+      if (v.rider) {
+        v.group.add(v.rider);
+        v.riderA = seen ? 0 : 1;
+      }
+    }
+    if (!v.rider) return;
+    v.riderA = fadeStep(v.riderA ?? 1, d > 140 || v.dying ? 0 : 1, dt, seen);
+    if (v.riderA <= 0) this._dropRider(v);
+    else setAlpha(v.rider, v.riderA);
+  }
+
+  /** A scooter's rider back to the pool, its own materials back on. */
+  _dropRider(v) {
+    if (!v.rider) return;
+    setAlpha(v.rider, 1);
+    releaseRider(v.rider);
+    v.rider = null;
   }
 
   /** Is any rider within `r` metres of a point (no vehicle is put down there: it would pop up in their face)? */
@@ -314,7 +489,8 @@ export class RaceTraffic {
     if (!c || anchor.idx == null) return false;
     const n = c.points.length;
     const dense = along && this.level.dense;
-    for (let tries = 0; tries < (dense ? 14 : 8); tries++) {
+    const tries0 = dense ? 14 : 8;
+    for (let tries = 0; tries < tries0; tries++) {
       // (on Hard anywhere 60–300 m on up the course, by the metre; else 15–44 of its points on)
       const k = dense ? this._ahead(anchor.idx, 60 + Math.random() * 240) : along ? 15 + Math.floor(Math.random() * 30) : 13 + Math.floor(Math.random() * 26);
       const i = c.open ? Math.min(n - 2, anchor.idx + k) : (anchor.idx + k) % n;
@@ -363,13 +539,15 @@ export class RaceTraffic {
       // (a car crossing at a junction is no wall along the road: only kept a car's length off)
       if (dense ? !this._roomFor(at, best.r) : this.vehicles.some((v) => Math.hypot(v.box.x - at.x, v.box.z - at.z) < (Math.abs(Math.cos(v.box.heading - at.heading)) > 0.7 ? (along ? 22 : 12) : 8))) continue;
       if (this.g.buildingAt?.(at.x, at.z) || this.race.keepClear?.(at.x, at.z)) continue;
+      // (out of sight if it can be — round the course's next corner, behind a building, in the fog; on a long
+      // straight in clear air the later tries take a place in view, and it fades in there)
+      if (tries < tries0 * 0.6 && this._seen(at.x, this.g.surfaceAt(at.x, at.z), at.z, 4, true)) continue;
       const made = this._make(kind);
       // (going your way: slower than the riders, some much slower — a truck, a bus, a cautious driver)
       const top = (SPEEDS[Math.min(5, best.r.cls)] ?? 8) * (kind === 'scooter' ? 1.05 : kind === 'bus' ? 0.85 : 1) * (along ? 0.55 + Math.random() * 0.35 : 0.85 + Math.random() * 0.3);
       const [halfLength, halfWidth] = made.size;
       const v = { ...made, road: best.r, at: best.at, lane, top, speed: top * 0.9, v: top * 0.9, y: this.g.surfaceAt(at.x, at.z), box: { x: at.x, z: at.z, heading: at.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0, oncoming: !along, along, ci: i };
-      this.vehicles.push(v);
-      this._place(v, 0);
+      this._born(v);
       return true;
     }
     return false;
@@ -468,10 +646,10 @@ export class RaceTraffic {
         const [halfLength, halfWidth] = made.size;
         // (a bus at its stop blinks to pull out again)
         s.v = { ...made, parked: true, top: 0, speed: 0, v: 0, y: this.g.surfaceAt(s.x, s.z), box: { x: s.x, z: s.z, heading: s.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0, signal: s.kind === 'bus' ? 'left' : null };
-        this.vehicles.push(s.v);
-        this._place(s.v, 0);
+        // (its place is its place: seen, it fades in)
+        this._born(s.v);
       } else if (s.v && d > 280) {
-        this._remove(s.v);
+        this._retire(s.v);
         s.v = null;
       }
     }
@@ -532,8 +710,11 @@ export class RaceTraffic {
       size[m] = s;
       m++;
     };
-    for (const v of this.vehicles) {
+    for (const v of [...this.vehicles, ...this.leaving]) {
       if (v.parked) continue;
+      // (fading in or out with the vehicle: never a lamp popping on or off in view)
+      const la = v.lampA ?? 1;
+      if (la <= 0) continue;
       const b = v.box;
       const fx = -Math.sin(b.heading);
       const fz = -Math.cos(b.heading);
@@ -543,8 +724,8 @@ export class RaceTraffic {
       const half = v.kind === 'scooter' ? 0 : b.halfWidth - 0.3;
       const front = b.halfLength + 0.05;
       for (const s of v.kind === 'scooter' ? [0] : [-1, 1]) {
-        put(b.x + fx * front + rx * half * s, y, b.z + fz * front + rz * half * s, 1, 0.93, 0.78, v.kind === 'scooter' ? 0.5 : 0.75);
-        put(b.x - fx * front + rx * half * s, y + 0.05, b.z - fz * front + rz * half * s, 1, 0.12, 0.08, v.braking ? 0.65 : 0.4);
+        put(b.x + fx * front + rx * half * s, y, b.z + fz * front + rz * half * s, 1, 0.93, 0.78, (v.kind === 'scooter' ? 0.5 : 0.75) * la);
+        put(b.x - fx * front + rx * half * s, y + 0.05, b.z - fz * front + rz * half * s, 1, 0.12, 0.08, (v.braking ? 0.65 : 0.4) * la);
       }
     }
     g.geometry.setDrawRange(0, m);
@@ -581,42 +762,21 @@ export class RaceTraffic {
       if (al < -o.box.halfLength - b.halfLength || al > 30 + o.box.halfLength || Math.abs(sd) > room) continue;
       if (!dodge || al < dodge.al) dodge = { al, lat: (v.lat ?? v.lane) + sd - Math.sign(sd || 1) * room, side: Math.sign(sd || 1) };
     }
-    // Bikes: seen late (they are small and quick) — a driver brakes only for one fairly close in front.
-    // One coming head-on down a narrow street: tuck in to the kerb and creep past, never a stand-off.
-    let headOn = false;
-    for (const r of this.race.racers) {
-      if (r.left) continue;
-      const dx = r.s.x - b.x;
-      const dz = r.s.z - b.z;
-      const along = dx * fx + dz * fz;
-      if (along > 0 && along < 28 && Math.cos((r.s.travel ?? r.s.heading) - b.heading) < -0.5 && Math.abs(dx * -fz + dz * fx) < 3.5) headOn = true;
-      else look(r.s.x, r.s.z, 0.7, 18);
-    }
-    if (headOn && !v.parked) v.lane = Math.max(v.lane, (v.road.width ?? 6) / 2 - v.box.halfWidth - 0.15);
+    // Riders: no swerving, no braking, no waiting at a junction for them — coming the other way or across,
+    // a vehicle holds its lane and its speed, and the rider has to get out of its way. A driver brakes only
+    // for one going its way close in front in its lane (following, as it follows a car: a bike is seen
+    // late, small and quick) or one held stopped there by the police (brakesFor).
+    for (const r of this.race.racers) if (brakesFor(b.heading, r)) look(r.s.x, r.s.z, 0.7, 18);
     for (const p of this.g.life?.near?.(b.x, b.z, 26) ?? []) look(p.x, p.z, 0.6, 14);
     v.stopFor = Math.max(0, v.stopFor - dt);
     let want = gap < Infinity ? v.top * Math.max(0, Math.min(1, (gap - 2.5) / 10)) : v.top;
-    if (headOn) want = Math.min(want, 3);
-    // Coming the other way up to a corner of the course with riders coming to it: the riders turn
-    // across this lane there — wait short of it, as the crossing traffic waits at the junctions.
-    if (v.oncoming) {
-      const hold = this._cornerAhead(v);
-      if (hold < Infinity) want = Math.min(want, Math.max(0, (hold - 10 - v.box.halfLength) * 0.6));
-    }
     if (v.stopFor > 0) want = 0;
     // Slow into the turn at the end of the road.
     const left = this._leftOnRoad(v);
     if (left < 25 && v.next?.bend > 0.5) want = Math.min(want, 4 + left * 0.25);
-    // Coming up to a junction with the race coming through it across our way: wait at the line.
-    // (at the line: clear of the course's carriageway — half its width and a car's length back from
-    // where the roads meet, not in the middle of a ten-lane crossing)
-    const clear = left < 60 ? this._raceAcross(v, left) : 0;
-    v.giving = clear > 0 && left > clear - 1.5;
-    if (v.giving) want = Math.min(want, Math.max(0, (left - clear) * 0.7));
     v.speed += Math.max(-8 * dt, Math.min(2.6 * dt, want - v.speed));
     v.braking = want < v.speed - 0.4;
     v.hazard = v.stopFor > 0;
-    v.braking ||= Boolean(v.giving);
     // Held up a while by something in front: a toot of the horn.
     v.waited = v.speed < 0.5 && gap < 8 ? v.waited + dt : 0;
     if (v.waited > 1.6 && v.kind !== 'scooter') {
@@ -683,66 +843,6 @@ export class RaceTraffic {
       const al = dx * fx + dz * fz;
       return al > -12 && al < 20 && Math.abs(dx * -fz + dz * fx - shift) < 2.6;
     });
-  }
-
-  /**
-   * How far ahead (m) is a corner of the course this oncoming vehicle comes up to with a racer coming
-   * to it (within 50 m of it, not yet through it) — Infinity if none within 40 m.
-   */
-  _cornerAhead(v) {
-    const c = this.race.course;
-    const turns = this.race.turnsList;
-    if (!c || !turns?.length) return Infinity;
-    const b = v.box;
-    const fx = -Math.sin(b.heading);
-    const fz = -Math.cos(b.heading);
-    let best = Infinity;
-    for (const t of turns) {
-      if (Math.abs(t.bend) < 0.6) continue;
-      const p = c.points[t.at];
-      const along = (p[0] - b.x) * fx + (p[1] - b.z) * fz;
-      if (along < 4 || along > 40 || Math.abs((p[0] - b.x) * -fz + (p[1] - b.z) * fx) > 14) continue;
-      const coming = this.race.racers.some((r) => !r.left && r.mode === 'ride' && Math.hypot(r.s.x - p[0], r.s.z - p[1]) < 50 && (r.idx ?? 0) <= t.at + 3 && (r.idx ?? 0) >= t.at - 12);
-      if (coming) best = Math.min(best, along);
-    }
-    return best;
-  }
-
-  /**
-   * Is a racer coming through the junction at the end of this vehicle's road, across its way? (A
-   * rider on our road going our way, or the other, is traffic like any other.) Looks a few seconds ahead.
-   */
-  _raceAcross(v, left) {
-    const pts = v.road.pts;
-    const n = pts.length / 2 - 1;
-    const ex = v.at.dir > 0 ? pts[n * 2] : pts[0];
-    const ez = v.at.dir > 0 ? pts[n * 2 + 1] : pts[1];
-    const hd = v.box.heading;
-    for (const r of this.race.racers) {
-      if (r.left || r.mode !== 'ride' || r.s.v < 4) continue;
-      const d = Math.hypot(r.s.x - ex, r.s.z - ez);
-      if (d > 14 + r.s.v * 3.2) continue;
-      // across our way (not along our road)
-      const rel = Math.abs(Math.sin(turn(hd, r.s.travel ?? r.s.heading)));
-      if (rel < 0.45) continue;
-      // and coming to the junction, or in it — not long past it
-      const fx = -Math.sin(r.s.travel ?? r.s.heading);
-      const fz = -Math.cos(r.s.travel ?? r.s.heading);
-      if ((ex - r.s.x) * fx + (ez - r.s.z) * fz < -6) continue;
-      // how far back from the junction to wait: the course's half-width there, and a little more
-      let w = 8;
-      const pts = this.race.course?.points ?? [];
-      let best = 30;
-      for (let i = 0; i < pts.length; i += 2) {
-        const dd = Math.hypot(pts[i][0] - ex, pts[i][1] - ez);
-        if (dd < best) {
-          best = dd;
-          w = pts[i][2] ?? 8;
-        }
-      }
-      return Math.max(4, w / 2 + (v.oncoming ? 7 : 3.5));
-    }
-    return 0;
   }
 
   _leftOnRoad(v) {
@@ -829,7 +929,8 @@ export class RaceTraffic {
     const fx = -Math.sin(heading);
     const fz = -Math.cos(heading);
     for (const v of this.vehicles) {
-      if (v.kind !== 'scooter') continue;
+      // (one going the rider's way, rung at from behind: one coming at them doesn't move over for it)
+      if (v.kind !== 'scooter' || Math.cos(v.box.heading - heading) < 0.5) continue;
       const dx = v.box.x - x;
       const dz = v.box.z - z;
       const along = dx * fx + dz * fz;
@@ -840,15 +941,19 @@ export class RaceTraffic {
 
   _remove(v) {
     for (const s of this.spots ?? []) if (s.v === v) s.v = null;
-    releaseRider(v.rider);
-    v.rider = null;
+    this._dropRider(v);
+    setAlpha(v.group, 1);
     this.group.remove(v.group);
-    this.vehicles.splice(this.vehicles.indexOf(v), 1);
+    for (const list of [this.vehicles, this.leaving]) {
+      const i = list.indexOf(v);
+      if (i >= 0) list.splice(i, 1);
+    }
   }
 
   dispose() {
-    for (const v of this.vehicles) releaseRider(v.rider);
+    for (const v of [...this.vehicles, ...this.leaving]) this._dropRider(v);
     this.g.scene.remove(this.group);
     this.vehicles = [];
+    this.leaving = [];
   }
 }
