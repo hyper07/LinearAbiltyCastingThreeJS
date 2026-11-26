@@ -133,6 +133,28 @@ export function wave(beat, beats, lag = 0) {
   return Math.sin(((beat / beats) - lag) * Math.PI * 2);
 }
 
+/**
+ * A pop on every `every`-th beat only (counted from `start`, shifted by `at`): 1 on those beats,
+ * rising in the attack just before them, 0 elsewhere. `popEvery(c, 1)` is `pop(c.phase, c.spb)`.
+ */
+export function popEvery(c, every = 2, { start = 0, at = 0, attack = 0.07, hold = 0.06, release = 0.35 } = {}) {
+  const local = c.beat - start - at;
+  const n = Math.floor(local);
+  const ph = local - n;
+  const since = ph * c.spb;
+  const until = c.spb - since;
+  const rise = mod(n + 1, every) === 0 && until < attack ? (1 - until / attack) ** 2 : 0;
+  const fall = mod(n, every) !== 0 ? 0 : since <= hold ? 1 : 1 - smoothstep((since - hold) / Math.max(1e-6, release));
+  return Math.max(rise, fall);
+}
+
+/** A clock state at a beat count (from a song's position in beats, not seconds) — what `beatClock` gives. */
+export function beatAt(beat, bpm = 120, beatsPerBar = 4) {
+  const spb = 60 / bpm;
+  const index = Math.floor(beat);
+  return { t: beat * spb, bpm, spb, beat, index, phase: beat - index, bar: Math.floor(index / beatsPerBar), beatInBar: mod(index, beatsPerBar), count: mod(index, 8) };
+}
+
 /* ------------------------------------------------------------------ poses */
 
 const V = () => [0, 0, 0];
@@ -379,10 +401,8 @@ export const MOVES = {
   clap: {
     counts: 4,
     pose(c) {
-      const back = c.beatInBar % 2 === 1;
-      const k = back ? pop(c.phase, c.spb, { attack: 0.08, hold: 0.04, release: 0.25 }) : 0;
-      const before = c.beatInBar % 2 === 0 && c.phase > 0.5 ? pop(c.phase, c.spb, { attack: 0.08, hold: 0, release: 0 }) : 0; // closing in for the clap on the next beat
-      const shut = Math.max(k, before);
+      // shut on the odd beats (2 and 4), closing in just before them — and never before 1 and 3
+      const shut = popEvery(c, 2, { at: 1, attack: 0.08, hold: 0.04, release: 0.25 });
       const b = bounce(c.phase, 2);
       const p = restPose();
       p.armL = [0, 1.1 + 0.4 * shut, -0.9]; // paws meet in front of the tummy, below the head
@@ -445,6 +465,377 @@ export const MOVES = {
       p.sway = -0.1;
       p.stretch = 0.03 + 0.05 * settle;
       p.lift = 0.01 * settle;
+      return p;
+    }
+  },
+
+  /* ---- character moves (the crew's signatures, signatures.js; generic, anyone can use them) ---- */
+
+  /**
+   * Hop: springy hops, landing (squashed) on the beat — a small one every beat, or `big` one every two
+   * beats with the paws flung out; `side` hops to alternate sides, tilting and turning into each.
+   */
+  hop: {
+    counts: 4,
+    pose(c, o = {}) {
+      const per = o.big ? 2 : 1;
+      const local = c.beat - (o.start ?? 0);
+      const u = mod(local, per) / per; // 0: on the ground, on the beat
+      const [a0, a1] = o.big ? [0.12, 0.9] : [0.16, 0.84];
+      const side = o.side ? (mod(Math.floor(local / per), 2) === 0 ? 1 : -1) : 0;
+      const p = restPose();
+      let raise = 0.45;
+      if (u > a0 && u < a1) {
+        const a = (u - a0) / (a1 - a0);
+        const up = Math.sin(Math.PI * a);
+        p.lift = (o.big ? 0.24 : 0.1) * up;
+        p.stretch = 0.11 * Math.abs(Math.sin(2 * Math.PI * a)); // long on the way up and down, round at the top
+        p.legL = [-0.35 * up, 0, -0.1 * up];
+        p.legR = [-0.28 * up, 0, 0.1 * up];
+        p.head[0] = -0.18 * up;
+        p.chest[0] = -0.08 * up;
+        p.sway = 0.1 * side * up;
+        p.yaw = 0.22 * side * up;
+        raise += (o.big ? 0.95 : 0.4) * up;
+        p.reachL = p.reachR = (o.big ? 0.12 : 0) * up;
+      } else {
+        const g = (u >= a1 ? u - a1 : u + 1 - a1) / (a0 + 1 - a1);
+        const k = Math.sin(Math.PI * g);
+        p.stretch = -(o.big ? 0.16 : 0.12) * k;
+        p.hipsY = -0.035 * k;
+        p.head[0] = 0.08 * k;
+        p.chest[0] = 0.1 * k;
+        raise -= 0.15 * k;
+      }
+      p.armL = [0, 0.15, -raise];
+      p.armR = [0, -0.15, raise];
+      return p;
+    }
+  },
+  /** Shimmy: the shoulders shake twice a beat while the weight steps side to side; `double` shimmies down low and back up. */
+  shimmy: {
+    counts: 4,
+    pose(c, o = {}) {
+      const sh = Math.sin(c.beat * Math.PI * 4);
+      const s = step(c.beat, 0.5);
+      const b = bounce(c.phase, 2);
+      const dip = o.double ? Math.sin((Math.PI * mod(c.beat - (o.start ?? 0), 4)) / 4) : 0;
+      const p = restPose();
+      p.chest = [0.05, 0.22 * sh, 0.05 * s];
+      p.hips = [0, 0.15 * s - 0.08 * sh, 0];
+      p.sway = 0.09 * s;
+      p.head = [-0.1 - 0.08 * b, -0.1 * sh, -0.12 * s];
+      p.armL = [0, 0.45 + 0.25 * sh, -0.75];
+      p.armR = [0, -0.45 + 0.25 * sh, 0.75];
+      p.legL = [-0.1 * Math.max(0, -s), 0, -0.2 * Math.max(0, -s)];
+      p.legR = [-0.1 * Math.max(0, s), 0, 0.2 * Math.max(0, s)];
+      p.hipsY = 0.025 * b - 0.05 * dip;
+      p.stretch = 0.04 * b - 0.05 * dip;
+      return p;
+    }
+  },
+  /** Step-clap: a step to a side on every beat, the paws clapping on 2 and 4. */
+  stepClap: {
+    counts: 8,
+    pose(c) {
+      const p = MOVES.clap.pose(c);
+      const s = step(c.beat, 0.5);
+      p.sway += 0.1 * s;
+      p.hips[1] += 0.2 * s;
+      p.head[2] -= 0.08 * s;
+      p.legL = [-0.1 * Math.max(0, -s), 0, -0.22 * Math.max(0, -s)];
+      p.legR = [-0.1 * Math.max(0, s), 0, 0.22 * Math.max(0, s)];
+      return p;
+    }
+  },
+  /** Hip sway: the hips swing out to a side on each beat and dwell there, the chest and head countering; one paw on the hip. */
+  hipSway: {
+    counts: 4,
+    pose(c) {
+      const s = step(c.beat, 0.6);
+      const b = bounce(c.phase, 3);
+      const p = restPose();
+      p.hips = [0, 0.18 * s, 0.22 * s];
+      p.chest = [-0.06, -0.12 * s, -0.2 * s];
+      p.head = [-0.08, 0.1 * s, 0.16 * s];
+      p.sway = -0.05 * s;
+      p.armL = [0, 0.9, -0.7]; // the paw on the hip
+      p.armR = [0, -0.25 + 0.2 * s, 0.5 + 0.12 * s];
+      p.legL = [-0.15 * Math.max(0, s), 0, 0]; // the free knee pops forward
+      p.legR = [-0.15 * Math.max(0, -s), 0, 0];
+      p.hipsY = 0.02 * b;
+      p.stretch = 0.03 * b;
+      return p;
+    }
+  },
+  /** Paw flick: a paw up by the cheek flicks out to the side on 1 and 3 (the head snapping after it), the other on the hip. */
+  pawFlick: {
+    counts: 4,
+    pose(c, o = {}) {
+      const k = popEvery(c, 2, { start: o.start ?? 0, attack: 0.05, hold: 0.07, release: 0.3 });
+      const s = step(c.beat, 0.5);
+      const b = bounce(c.phase, 2);
+      const p = restPose();
+      p.armR = [0, -0.7 + 0.85 * k, 1.25 - 0.2 * k]; // by the cheek → out to the side
+      p.reachR = 0.22 * k;
+      p.armL = [0, 0.9, -0.7];
+      p.head = [-0.08, -0.25 * k, 0.12 * k];
+      p.chest = [-0.06 * k, 0.1 * k, 0];
+      p.hips = [0, 0, 0.12 * s];
+      p.sway = -0.04 * s;
+      p.stretch = 0.04 * k + 0.02 * b;
+      p.hipsY = 0.015 * b;
+      return p;
+    }
+  },
+  /** Arm pump: a fist punched up the diagonal on every beat with a small chest pop, the other paw low. */
+  armPump: {
+    counts: 4,
+    pose(c) {
+      const k = pop(c.phase, c.spb, { attack: 0.06, hold: 0.05, release: 0.25 });
+      const b = bounce(c.phase, 3);
+      const p = restPose();
+      p.armR = [0, -0.05, 0.75 + 0.85 * k];
+      p.reachR = 0.18 * k;
+      p.armL = [0, 0.4, -0.55];
+      p.chest = [-0.18 * k, 0.1 * k, 0];
+      p.head = [-0.12 - 0.1 * k, -0.12 * k, 0];
+      p.hips = [0.05 * k, 0, 0];
+      p.stretch = 0.07 * k + 0.03 * b;
+      p.lift = 0.012 * k;
+      p.hipsY = 0.025 * b;
+      p.legL[0] = 0.06 * b;
+      p.legR[0] = 0.06 * b;
+      return p;
+    }
+  },
+  /**
+   * Pop burst: a bar of two halves — beats 1–2 four chest pops (two a beat: the chest hits out, the
+   * elbows pull back, a squash on every hit, the head nodding just after); beats 3–4 a sway and a clap.
+   * (Kickrani's first podium routine, kept as Pip's.)
+   */
+  popBurst: {
+    counts: 4,
+    pose(c, o = {}) {
+      const bar = mod(c.beat - (o.start ?? 0), 4);
+      const P = { attack: 0.05, hold: 0.03, release: 0.1 };
+      const half = c.spb / 2;
+      const k = pop(mod(c.beat * 2, 1), half, P);
+      const nod = pop(mod(c.beat * 2 - 0.1, 1), half, P);
+      const knees = Math.abs(Math.sin((c.beat * Math.PI) / 2));
+      const burst = restPose();
+      burst.chest = [0.06 - 0.42 * k, 0, 0];
+      burst.hips = [0.1 * k, 0, 0];
+      burst.head = [-0.05 + 0.3 * nod, 0, 0];
+      burst.armL = [0.6 * k, 0.25, -0.62 - 0.34 * k];
+      burst.armR = [0.6 * k, -0.25, 0.62 + 0.34 * k];
+      burst.legL = [-0.12 * knees, 0, -0.06];
+      burst.legR = [-0.12 * knees, 0, 0.06];
+      burst.stretch = -0.14 * k + (knees - 0.5) * 0.04;
+      burst.hipsY = 0.03 * (knees - 1);
+      const sw = Math.sin(c.beat * Math.PI);
+      const clap = Math.abs(sw);
+      const groove = restPose();
+      groove.sway = 0.1 * sw;
+      groove.hips = [0, 0.25 * sw, 0];
+      groove.chest = [0.06, -0.15 * sw, 0.06 * sw];
+      groove.head = [-0.1, 0.15 * sw, -0.14 * sw];
+      groove.armL = [0, 1.2 + (1 - clap) * 0.3, -1.1];
+      groove.armR = [0, -1.2 - (1 - clap) * 0.3, 1.1];
+      groove.legL = [-0.12 * knees, 0, -0.06 - Math.max(0, sw) * 0.12];
+      groove.legR = [-0.12 * knees, 0, 0.06 + Math.max(0, -sw) * 0.12];
+      groove.stretch = (knees - 0.5) * 0.04;
+      groove.hipsY = 0.03 * (knees - 1);
+      const w = bar < 3 ? smoothstep((bar - 1.75) / 0.3) : 1 - smoothstep((bar - 3.8) / 0.2);
+      return lerpPose(burst, groove, w);
+    }
+  },
+  /** Proud step: a heavy two-step in half time — the weight lands every two beats, chest out, chin up. */
+  proudStep: {
+    counts: 8,
+    pose(c) {
+      const s = step(c.beat / 2, 0.5);
+      const b = bounce(mod(c.beat / 2, 1), 2);
+      const roll = wave(c.beat, 2);
+      const p = restPose();
+      p.sway = 0.1 * s;
+      p.hips = [0, 0.2 * s, 0];
+      p.chest = [-0.16, -0.15 * s, 0.07 * roll];
+      p.head = [-0.2, 0.12 * s, -0.06 * s];
+      p.legL = [-0.12 * Math.max(0, -s), 0, -0.3 * Math.max(0, -s)];
+      p.legR = [-0.12 * Math.max(0, s), 0, 0.3 * Math.max(0, s)];
+      p.armL = [0, 0.3 + 0.4 * s, -0.6];
+      p.armR = [0, -0.3 + 0.4 * s, 0.6];
+      p.hipsY = 0.045 * b;
+      p.stretch = 0.08 * b;
+      return p;
+    }
+  },
+  /** Shoulder roll: big slow rolls, one shoulder after the other (one round every two beats), the arms swinging with them. */
+  shoulderRoll: {
+    counts: 4,
+    pose(c) {
+      const th = Math.PI * c.beat;
+      const sR = Math.sin(th);
+      const cR = Math.cos(th);
+      const b = bounce(c.phase, 2);
+      const p = restPose();
+      p.chest = [-0.06, 0.2 * cR, 0.2 * sR];
+      p.head = [-0.08, -0.1 * cR, -0.15 * sR];
+      p.hips = [0, -0.06 * cR, 0.05 * sR];
+      p.armR = [-0.35 * cR, -0.25, 0.55 + 0.3 * sR];
+      p.armL = [0.35 * cR, 0.25, -(0.55 - 0.3 * sR)];
+      p.sway = 0.05 * sR;
+      p.hipsY = 0.035 * b;
+      p.stretch = 0.06 * b;
+      return p;
+    }
+  },
+  /**
+   * Stomp: a knee lifts through the "and", the foot slams down on the beat — a big squash, the fists
+   * punching down; right foot on 1, left on 3.
+   */
+  stomp: {
+    counts: 4,
+    pose(c, o = {}) {
+      const local = mod(c.beat - (o.start ?? 0), 4);
+      const u = mod(local, 2);
+      const n = Math.floor(local / 2) + (u > 1 ? 1 : 0); // the lift belongs to the next stomp
+      // the knee comes up slowly, then the foot drives down, accelerating, to land on the beat
+      const drop = u > 1.85 ? ((u - 1.85) / 0.15) ** 2 : 0;
+      const up = (u > 1 ? smoothstep((u - 1.2) / 0.55) : 0) * (1 - drop);
+      const since = u * c.spb;
+      const slam = u < 1 ? (since <= 0.06 ? 1 : 1 - smoothstep((since - 0.06) / 0.4)) : drop;
+      const p = restPose();
+      p.legR = [-0.75 * up, 0, 0.15 * up];
+      p.legL = [0.06 * slam, 0, -0.05];
+      p.lift = 0.03 * up;
+      p.stretch = -0.2 * slam + 0.06 * up;
+      p.hipsY = -0.05 * slam;
+      p.sway = -0.08 * up;
+      p.chest = [0.15 * slam - 0.1 * up, 0, 0];
+      p.head = [0.1 * slam - 0.15 * up, 0, 0];
+      p.armR = [0, -0.2, 0.45 + 0.4 * up - 0.25 * slam];
+      p.armL = [0, 0.2, -(0.45 + 0.4 * up - 0.25 * slam)];
+      return mod(n, 2) === 0 ? p : mirrorPose(p);
+    }
+  },
+  /** Flex: the proud button — paws out in a V, chest out, chin up; a settle on its first beat. */
+  flex: {
+    counts: 2,
+    blend: 0.2,
+    pose(c, o = {}) {
+      const local = mod(c.beat - (o.start ?? 0), 2);
+      const settle = local < 1 ? pop(c.phase, c.spb, { attack: 0.01, hold: 0.03, release: 0.3 }) : 0;
+      const p = restPose();
+      p.armL = [0, 0.25, -1.35];
+      p.armR = [0, -0.25, 1.35];
+      p.reachL = p.reachR = 0.1;
+      p.chest = [-0.22, 0, 0];
+      p.head = [-0.28, 0, 0.08];
+      p.stretch = 0.05 + 0.06 * settle;
+      p.hipsY = -0.03 * settle;
+      return p;
+    }
+  },
+  /**
+   * Frog jump: down into a wide squat (knees out, paws between the feet), wind up, and spring up with
+   * the legs splayed and the paws flung out, landing squashed on the beat — one every two beats.
+   */
+  frogJump: {
+    counts: 4,
+    pose(c, o = {}) {
+      const u = mod(c.beat - (o.start ?? 0), 2) / 2;
+      const T = 0.62;
+      const p = restPose();
+      if (u < T) {
+        const cr = smoothstep(u / 0.12) * (1 + 0.25 * smoothstep((u - 0.44) / 0.12)) * (1 - smoothstep((u - 0.56) / 0.06));
+        const land = u < 0.1 ? Math.sin((Math.PI * u) / 0.1) : 0;
+        p.hipsY = -0.06 * cr;
+        p.stretch = -0.1 * cr - 0.12 * land;
+        p.legL = [-0.25 * cr, 0, -0.45 * cr];
+        p.legR = [-0.25 * cr, 0, 0.45 * cr];
+        p.chest = [0.22 * cr, 0, 0];
+        p.head = [-0.3 * cr, 0, 0];
+        p.armL = [0, 0.6 * cr, -(0.3 - 0.4 * cr)];
+        p.armR = [0, -0.6 * cr, 0.3 - 0.4 * cr];
+      } else {
+        const a = (u - T) / (1 - T);
+        const up = Math.sin(Math.PI * a);
+        p.lift = 0.3 * up;
+        p.stretch = 0.13 * Math.abs(Math.sin(2 * Math.PI * a));
+        p.legL = [0.35 * up, 0, -0.55 * up];
+        p.legR = [0.35 * up, 0, 0.55 * up];
+        p.armL = [0, 0.1, -(0.3 + 1.3 * up)];
+        p.armR = [0, -0.1, 0.3 + 1.3 * up];
+        p.reachL = p.reachR = 0.15 * up;
+        p.head = [-0.2 * up, 0, 0];
+        p.chest = [-0.1 * up, 0, 0];
+      }
+      return p;
+    }
+  },
+  /** Split wiggle: legs splayed wide, knees bent, the hips wiggling twice a beat, paws out wobbling; `double` sinks low and comes back up. */
+  splitWiggle: {
+    counts: 4,
+    pose(c, o = {}) {
+      const w = Math.sin(c.beat * Math.PI * 4);
+      const b = bounce(c.phase, 2);
+      const dip = o.double ? Math.sin((Math.PI * mod(c.beat - (o.start ?? 0), 4)) / 4) : 0;
+      const p = restPose();
+      p.legL = [-0.2, 0, -0.5];
+      p.legR = [-0.2, 0, 0.5];
+      p.hipsY = -0.045 + 0.02 * b - 0.03 * dip;
+      p.stretch = -0.06 + 0.04 * b - 0.04 * dip;
+      p.hips = [0, 0.28 * w, 0.08 * w];
+      p.chest = [0.05, -0.15 * w, -0.06 * w];
+      p.head = [-0.15 - 0.08 * b, 0.08 * w, 0.1 * Math.sin(c.beat * Math.PI)];
+      p.armL = [0, 0.15, -(0.95 + 0.2 * w)];
+      p.armR = [0, -0.15, 0.95 - 0.2 * w];
+      p.sway = 0.05 * Math.sin(c.beat * Math.PI);
+      return p;
+    }
+  },
+  /** Waddle: a rock from foot to foot on every beat, toes out, the free foot shuffling forward; flippers stiff out at the sides, flicking. */
+  waddle: {
+    counts: 4,
+    pose(c) {
+      const s = step(c.beat, 0.55);
+      const b = bounce(c.phase, 2);
+      const k = pop(c.phase, c.spb, { attack: 0.05, hold: 0.04, release: 0.2 });
+      const p = restPose();
+      p.sway = 0.15 * s;
+      p.yaw = 0.1 * s;
+      p.hips = [0, 0, 0.05 * s];
+      p.chest = [0, 0, -0.05 * s];
+      p.head = [-0.08, 0, -0.1 * s];
+      p.legL = [-0.18 * Math.max(0, s), 0, -0.08];
+      p.legR = [-0.18 * Math.max(0, -s), 0, 0.08];
+      p.armL = [0, -0.1, -(0.55 + 0.25 * k)];
+      p.armR = [0, 0.1, 0.55 + 0.25 * k];
+      p.hipsY = 0.015 * b;
+      p.stretch = 0.035 * b;
+      return p;
+    }
+  },
+  /** Flap: the flippers slap down on every beat (twice a beat with `double`), the body bobbing up off them in little hops. */
+  flap: {
+    counts: 4,
+    pose(c, o = {}) {
+      const ph = o.double ? mod(c.beat * 2, 1) : c.phase;
+      const k = pop(ph, o.double ? c.spb / 2 : c.spb, { attack: 0.06, hold: 0.03, release: o.double ? 0.13 : 0.25 });
+      const up = 1 - k;
+      const hop = Math.sin(Math.PI * c.phase);
+      const p = restPose();
+      p.armL = [0, -0.05, -(0.35 + 0.95 * up)];
+      p.armR = [0, 0.05, 0.35 + 0.95 * up];
+      p.reachL = p.reachR = 0.08 * up;
+      p.lift = 0.05 * hop;
+      p.stretch = 0.06 * k - 0.04 * (1 - hop) * k;
+      p.head = [-0.2, 0, 0.08 * Math.sin(c.beat * Math.PI)];
+      p.chest = [-0.08, 0, 0];
+      p.legL = [-0.12 * Math.max(0, Math.sin(c.beat * Math.PI)), 0, -0.06];
+      p.legR = [-0.12 * Math.max(0, -Math.sin(c.beat * Math.PI)), 0, 0.06];
       return p;
     }
   },
