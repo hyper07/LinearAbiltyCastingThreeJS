@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { podiumSlots, BLOCKS, BLOCK_W } from '../../src/city/podium.js';
 import { wrongWay, WRONG_WAY } from '../../src/city/ride.js';
-import { fogRange, FOG_BANK, WEATHERS } from '../../src/city/weather.js';
+import { fogRange, FOG_BANK, WEATHERS, WEATHER_PICKS, raceSky } from '../../src/city/weather.js';
 import { stillIsGood } from '../../src/city/rivalPanel.js';
 
 // Kickrani's heading convention: 0 is north (−z); the podium's riders face `heading`.
@@ -98,4 +98,14 @@ test('rival panel: a flat slab of one colour (taken from inside a bus or a wall)
   assert.equal(stillIsGood(dark), false);
   const face = Array.from({ length: 400 }, (_, i) => (i % 5) * 50 + Math.random() * 20);
   assert.equal(stillIsGood(face), true);
+});
+
+test('fog: on the weather step, and random weather gives it too (about one race in eight)', () => {
+  assert.ok(WEATHER_PICKS.includes('fog'));
+  assert.equal(raceSky('day', 'fog').weather, 'fog');
+  let seed = 7;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  let fog = 0;
+  for (let i = 0; i < 4000; i++) if (raceSky('random', 'random', { month: 6, random }).weather === 'fog') fog++;
+  assert.ok(fog > 300 && fog < 800, `${fog} of 4000`);
 });

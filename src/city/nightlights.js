@@ -71,8 +71,23 @@ export class NightLights {
   /** Lamp heads [{ x, y, z }]; returns an id to take them away by. */
   add(list) {
     const id = this.nextId++;
-    this.sets.set(id, list.map((l) => ({ x: l.x, y: l.y, z: l.z, ground: l.ground ?? null })));
+    this.sets.set(id, list.map((l) => ({ x: l.x, y: l.y, z: l.z, ground: l.ground ?? null, pole: l.pole ?? null })));
     return id;
+  }
+
+  /** The street lamps' poles within `r` m of (x, z), as [x, z] (the race's chase camera keeps off them). */
+  polesNear(x, z, r) {
+    const out = [];
+    const r2 = r * r;
+    for (const set of this.sets.values()) {
+      for (const l of set) {
+        if (!l.pole) continue;
+        const dx = l.pole[0] - x;
+        const dz = l.pole[1] - z;
+        if (dx * dx + dz * dz < r2) out.push(l.pole);
+      }
+    }
+    return out;
   }
 
   remove(id) {

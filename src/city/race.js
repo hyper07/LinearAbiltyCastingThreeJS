@@ -3477,14 +3477,21 @@ export class Race {
       const hit = walls.sweep(r.s.x, r.s.z, cx, cz, 0.3);
       if (hit) dist = Math.max(1.4, dist * hit.t - 0.25);
     }
-    // Nor inside a car or a bus beside you: the camera comes in over it instead.
+    // Nor inside a car or a bus beside you, nor through a lamp post or a pole (a grey slab across the
+    // middle of the screen for a few frames): the camera comes in in front of it instead.
     const cars = (this.traffic?.vehicles ?? []).filter((v) => Math.hypot(v.box.x - r.s.x, v.box.z - r.s.z) < dist + 8);
+    const poles = this.g.nightLights?.polesNear(r.s.x, r.s.z, dist + 2) ?? [];
+    for (const p of this._props(r.s.x, r.s.z, dist + 2) ?? []) if (p.kind === 'pole') poles.push([p.x, p.z]);
     for (let d = 1.2; d <= dist; d += 0.4) {
       const x = focus.x - dir.x * d + side.x * 0.7 * (d / dist);
       const z = focus.z - dir.z * d + side.z * 0.7 * (d / dist);
       const y = focus.y - dir.y * d;
       if (cars.some((v) => inBox(v, x, y, z, 0.45))) {
         dist = Math.max(2.2, d - 0.5);
+        break;
+      }
+      if (poles.some((p) => Math.hypot(p[0] - x, p[1] - z) < 0.42)) {
+        dist = Math.max(1.3, d - 0.45);
         break;
       }
     }
