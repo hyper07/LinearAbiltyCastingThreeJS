@@ -7,8 +7,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * with grip tape and the brand down its side, a rear fender with the brake
  * light in it, the folding stem with its hinge and latch, the T-bar with
  * rubber grips, a thumb throttle on the right and a brake lever on the left,
- * a bell, a little display between the grips (speed and battery, redrawn as
- * you ride), the LED headlight, wheels with hubs, a fork, and a kickstand.
+ * a bell, a little display between the grips (the speed and a bar of it, glowing
+ * lime through an energy drink's boost — redrawn as you ride), the LED headlight, wheels with hubs, a fork, and a kickstand.
  * Each model is its own shape (SCOOTER_LOOKS):
  *
  *   city     S1 Commuter: the hire scooter — solid wheels, a straight stem
@@ -26,7 +26,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * the origin, the ground at y = 0.
  *
  *   const s = new Scooter({ model: 'racer', body: '#2ec4d6', trim: '#ffffff' });
- *   s.update(dt, { roll, steer, braking, night, speed, battery, boost });
+ *   s.update(dt, { roll, steer, braking, night, speed, boost });
  */
 
 /** Each model's shape: deck (top, length, width, thickness), wheels (radius, tyre, front and rear z), stem, bars, extras. */
@@ -393,29 +393,37 @@ export class Scooter {
     this.stand.rotation.set(down ? 0.35 : 1.45, 0, down ? -0.35 : 0);
   }
 
-  _drawScreen(kmh, battery, boost) {
+  /** The display: the speed, and under it a bar of it — lime and glowing through a drink's boost. */
+  _drawScreen(kmh, boost) {
     const g = this.screenCanvas.getContext('2d');
-    g.fillStyle = '#0c1014';
+    g.fillStyle = boost ? '#14200c' : '#0c1014';
     g.fillRect(0, 0, 128, 80);
-    g.fillStyle = boost ? '#8fd8ff' : '#e9f6ff';
+    g.fillStyle = boost ? '#c8ff9a' : '#e9f6ff';
     g.font = '800 40px ui-monospace, monospace';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(String(Math.round(kmh)).padStart(2, '0'), 54, 34);
     g.font = '700 12px system-ui, sans-serif';
     g.fillText('km/h', 104, 44);
-    for (let i = 0; i < 5; i++) {
-      g.fillStyle = battery > i / 5 + 0.02 ? (battery < 0.25 ? '#ff6a4a' : '#7cf07a') : '#2a3138';
-      g.fillRect(16 + i * 20, 64, 16, 8);
+    // the bar: the motor's 70 km/h most of the way along, the drink's boost the rest
+    g.fillStyle = '#2a3138';
+    g.fillRect(12, 62, 104, 10);
+    g.fillStyle = boost ? '#c8ff9a' : '#7cd6ff';
+    g.fillRect(12, 62, Math.round(104 * Math.max(0, Math.min(1, kmh / 85))), 10);
+    if (boost) {
+      // (round the edge, the drink's glow)
+      g.strokeStyle = 'rgba(200, 255, 154, 0.85)';
+      g.lineWidth = 4;
+      g.strokeRect(2, 2, 124, 76);
     }
     this.screenTex.needsUpdate = true;
   }
 
   /**
    * Each frame: `roll` the wheels' angle, `steer` the bars (−1…1, + left),
-   * `braking`, `night` (0–1: lights on), and for the display `speed` (m/s), `battery` (0–1), `boost`.
+   * `braking`, `night` (0–1: lights on), and for the display `speed` (m/s) and `boost` (a drink's).
    */
-  update(dt, { roll = 0, steer = 0, braking = false, night = 0, speed = 0, battery = 1, boost = false } = {}) {
+  update(dt, { roll = 0, steer = 0, braking = false, night = 0, speed = 0, boost = false } = {}) {
     for (const w of this.wheels) w.rotation.x = -roll;
     const a = steer * 0.35;
     this.steerer.rotation.y = a;
@@ -429,7 +437,7 @@ export class Scooter {
       this._screenT -= dt;
       if (this._screenT <= 0) {
         this._screenT = 0.25;
-        this._drawScreen(speed * 3.6, battery, boost);
+        this._drawScreen(speed * 3.6, boost);
       }
     }
   }

@@ -758,7 +758,7 @@ export class PlushRider {
     this.lean.rotation.z = 0;
     this.jolt.position.set(0, 0, 0);
     this.jolt.rotation.set(0, 0, 0);
-    this.scooter.update(dt, { roll: 0, steer: 0, braking: false, night, speed: 0, battery: 1, boost: false });
+    this.scooter.update(dt, { roll: 0, steer: 0, braking: false, night, speed: 0, boost: false });
     this.scooter.setStand(true);
     this.stars.visible = false;
     this.rider.position.set(0, 0.005, 0);
@@ -860,7 +860,7 @@ export class PlushRider {
    * Animate from a state: { heading (world yaw, 0 faces −z), speed, lean, steer,
    * braking, boost (crouch for a boost), bump (a joint's jolt 0–1), air (hop height),
    * wobble, mode ('ride' | 'tumble' | 'dizzy' | 'win' | 'grid'), t (seconds into a
-   * fall), roll (wheel angle), battery, night (0–1), glow ('#hex' or null), visible }.
+   * fall), roll (wheel angle), night (0–1), glow ('#hex' or null), visible }.
    */
   pose(dt, st) {
     dt = Math.min(dt, 0.05);
@@ -896,7 +896,7 @@ export class PlushRider {
     // (turning about the front wheel, not the deck: lifted as it tips)
     this.jolt.position.y += endo * 0.42;
     this.jolt.position.z = -endo * 0.25;
-    this.scooter.update(dt, { roll: st.roll ?? 0, steer: down ? 0 : clamp((st.steer ?? 0) * (1 - Math.min(1, speed / 6)) + (st.lean ?? 0) * 0.4, -1, 1), braking: Boolean(st.braking), night, speed, battery: st.battery ?? 1, boost: Boolean(st.boost) });
+    this.scooter.update(dt, { roll: st.roll ?? 0, steer: down ? 0 : clamp((st.steer ?? 0) * (1 - Math.min(1, speed / 6)) + (st.lean ?? 0) * 0.4, -1, 1), braking: Boolean(st.braking), night, speed, boost: Boolean(st.boost) });
     this.scooter.setStand(mode === 'grid' && speed < 0.2);
     // ---- the rider
     const crouchGoal = down ? 0 : st.boost ? 1 : st.braking ? 0.35 : 0.15 + Math.min(0.2, speed * 0.02);

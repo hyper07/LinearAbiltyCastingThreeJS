@@ -226,7 +226,7 @@ export class JaraniStage {
     holder.add(m.root);
     this.spin.add(holder);
     m.root.traverse((o) => (o.userData.pick = { char: id }));
-    this.riders.set(id, { m, a, holder, st: { mode: 'grid', speed: 0, heading: a + Math.PI + 0.55, battery: 1 } });
+    this.riders.set(id, { m, a, holder, st: { mode: 'grid', speed: 0, heading: a + Math.PI + 0.55 } });
     if (id === this.picked) m.react('wave');
   }
 
