@@ -274,7 +274,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 14;
+export const EXTRAS_VERSION = 15;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -332,6 +332,22 @@ const EXTRA_MODELS = [
     page: 'https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept'
   }
 ];
+/**
+ * Motion-capture clips as single files (BVH), for the motion study's retargeting
+ * demo (motion-lab.html, src/shared/motion/). Kept out of the model catalogue.
+ */
+const EXTRA_MOTIONS = [
+  {
+    id: 'pirouette',
+    url: 'https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/models/bvh/pirouette.bvh',
+    file: 'motion/pirouette.bvh',
+    // Carnegie Mellon University Graphics Lab Motion Capture Database (mocap.cs.cmu.edu): free for all
+    // uses, including in commercial products, but the data may not be resold; BVH conversion for Daz
+    // (cgspeed), shipped with the three.js BVHLoader example.
+    license: 'CMU Graphics Lab Motion Capture Database terms (free for all uses; not for resale)',
+    author: 'CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu), via the three.js examples'
+  }
+];
 /** ambientCG materials by id: metal and concrete for Breachline's yards. */
 const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027', 'PaintedMetal004', 'Concrete034', 'Concrete047A', 'MetalPlates006', 'Metal063', 'PavingStones128', 'Asphalt031', 'Ground078', 'Ground071', 'Ground103', 'Gravel043', 'Rock030',
   // Gloamreach's ground, stone, roofs and lava.
@@ -383,6 +399,20 @@ export async function extras({ budget }) {
     } catch (error) {
       if (error.budget) break;
       log(SRC, `skip ${m.id}: ${error.message}`);
+    }
+  }
+  for (const m of EXTRA_MOTIONS) {
+    const dest = path.join(LIBRARY, SRC, ...m.file.split('/'));
+    try {
+      const head = await readFile(dest).then((b) => b.subarray(0, 9).toString('latin1')).catch(() => '');
+      if (head !== 'HIERARCHY') {
+        await rm(dest, { force: true });
+        await download(m.url, dest, budget);
+        if ((await readFile(dest)).subarray(0, 9).toString('latin1') !== 'HIERARCHY') throw new Error('not a BVH file');
+      }
+    } catch (error) {
+      if (error.budget) break;
+      log(SRC, `skip motion ${m.id}: ${error.message}`);
     }
   }
   for (const id of EXTRA_POLYFORK) {
