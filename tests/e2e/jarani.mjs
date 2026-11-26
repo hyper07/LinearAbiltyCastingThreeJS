@@ -130,7 +130,7 @@ export async function run(browser) {
     t.check('the menus are gone and the city is back behind the race', await page.evaluate(() => !window.seoul.race.stageOn && !document.querySelector('.seoul').classList.contains('is-menu')));
     t.check('the race has its own sky: night and rain, the city clock stopped', await page.evaluate(() => window.seoul.weather.kind === 'rain' && (window.seoul.hour >= 20 || window.seoul.hour < 1) && window.seoul.clockPaused === true));
     t.check('the HUD: map, place, lap, time, three item slots, speed — and no boost gauge', await page.evaluate(() => ['.race__map', '.race__pos', '.race__lap', '.race__time', '.race__speed'].every((s) => !document.querySelector(s).hidden) && document.querySelectorAll('.race__slot').length === 3 && !document.querySelector('.race__boost') && !/BOOST|CHARGING/.test(document.querySelector('.race__speed').textContent)));
-    t.check('no boost key in the race hints, no tailwind among the items', await page.evaluate(() => !/boost/i.test(document.querySelector('.race__hint')?.textContent ?? '') && !/\bF\b/.test(document.querySelector('.race__hint')?.textContent ?? '')));
+    t.check('no boost key (F) in the race hints', await page.evaluate(() => !/boost/i.test(document.querySelector('.race__hint')?.textContent ?? '') && !/\bF\b/.test(document.querySelector('.race__hint')?.textContent ?? '')));
     t.check('the race starts', await until(page, () => window.seoul.race.phase === 'racing', null, 15000));
     await page.evaluate(() => {
       const r = window.seoul.race;
@@ -740,8 +740,12 @@ export async function run(browser) {
     });
     t.check('…and slides away a moment after they have gone', await until(page, () => !window.seoul.race.panel.on && !window.seoul.race.panel.el.classList.contains('is-on'), null, 4000));
     await page.evaluate(() => (window.seoul.race.autopilot = false));
-    // A crash: off the bike, and back on.
-    await page.evaluate(() => window.seoul.race._crash(window.seoul.race.me, 'car'));
+    // A crash: off the bike, and back on (riding, and no gold helmet from a box to bounce it off).
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    await page.evaluate(() => {
+      window.seoul.race.me.helmet = false;
+      window.seoul.race._crash(window.seoul.race.me, 'car');
+    });
     t.check('a crash throws you off the scooter', await page.evaluate(() => window.seoul.race.me.mode === 'tumble'));
     t.check('…and you are back on a moment later', await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000));
     await page.keyboard.press('KeyH');
