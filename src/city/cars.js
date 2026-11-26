@@ -7,7 +7,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
  * licence leaves out the Khronos logos, so the steering-wheel emblem is
  * hidden and the number plate is our own. Its glass is made plain (glass
  * that bends light would draw the whole city twice), traffic leaves the
- * interior out, and far away a car is a light stand-in of a few boxes.
+ * interior out, and far away a car is the same model with its small parts
+ * (wheel hubs and brakes, lamps' insides, badges) left out and casting no
+ * shadow — never a stand-in of boxes.
  */
 
 const URL = './library/extras/car/CarConcept.glb';
@@ -135,19 +137,6 @@ export function loadCar() {
   return (loading ??= new GLTFLoader().loadAsync(URL).then(prepare).catch(() => null));
 }
 
-/** A stand-in for a car far away: body, cabin, wheels. */
-function standIn(color, kind) {
-  const g = new THREE.Group();
-  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.4 });
-  const glass = new THREE.MeshStandardMaterial({ color: '#1f252c', roughness: 0.1 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(kind.width * 0.95, kind.height * 0.45, kind.length * 0.97), paint);
-  body.position.y = kind.height * 0.36;
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(kind.width * 0.8, kind.height * 0.35, kind.length * 0.45), glass);
-  cabin.position.set(0, kind.height * 0.74, kind.length * 0.05);
-  g.add(body, cabin);
-  return g;
-}
-
 /**
  * The parts that make one of the garage's cars itself (garage.js): a wing,
  * a ducktail or a lip at the back, a scoop on the bonnet, skirts down the
@@ -217,9 +206,16 @@ export function makeCar(kind, color, { lite = false, look = null } = {}) {
       o.userData.light = /Headlight/.test(o.material.name) ? 'head' : 'brake';
     }
   });
-  const far = standIn(color, kind);
-  far.visible = false;
-  group.add(model, far);
+  // Far off: the same model, its small parts (smaller than a tenth of the car) left out, no shadow from them.
+  const small = [];
+  const _b = new THREE.Box3();
+  const _s = new THREE.Vector3();
+  model.updateMatrixWorld(true);
+  model.traverse((o) => {
+    if (!o.isMesh || !o.visible || o.userData.light) return;
+    if (_b.setFromObject(o).getSize(_s).length() < kind.length * 0.1) small.push(o);
+  });
+  group.add(model);
   if (look) model.add(bodyKit(kind, look, color));
   const wheels = Object.entries(kind.wheelInfo).map(([name, info]) => {
     const node = model.getObjectByName(name);
@@ -256,10 +252,9 @@ export function makeCar(kind, color, { lite = false, look = null } = {}) {
         } else w.node.quaternion.copy(w.base).multiply(qs).multiply(qt);
       }
     },
-    /** The full model near, the stand-in far. */
+    /** The full model near; far, without its small parts. */
     near(on) {
-      model.visible = on;
-      far.visible = !on;
+      for (const o of small) o.visible = on;
     },
     /** Headlights at night, brake lights when braking. */
     lights(night, braking) {

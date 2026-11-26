@@ -18,6 +18,7 @@ import { PlushRider, sculptSpecies } from './plushRider.js';
 import { Podium, PODIUM_SECONDS } from './podium.js';
 import { PoliceStops, POLICE, policeTarget } from './police.js';
 import { RaceTraffic } from './traffic.js';
+import { loadFleet } from './fleet.js';
 import { ITEMS, rollItem, ItemBoxes, itemIcon, blobTexture } from './items.js';
 import { MARBLE, MarbleField, pourMarbles, pourBand, corridorClamp, stepMarble, marbleFall, marblesAt, patchBounds, rattle } from './marbles.js';
 import { SMOKE, SmokeField, smokeAt, smokePuffs, keepInStreet, poof, cough } from './smoke.js';
@@ -196,6 +197,8 @@ export class Race {
     this.courseId = BIKE_COURSES[0].id;
     this.time = 'random';
     this.weatherPick = 'random';
+    // (the traffic's models start coming in while the menus are up: in long before the lights)
+    if (typeof document !== 'undefined') loadFleet();
     this.plans = new Map();
     this.char = 'bunny';
     try {
@@ -569,6 +572,8 @@ export class Race {
   /** Line the grid up behind the line, set the sky, and count down. */
   async _begin(grid, sky) {
     this._note('Planning the course…');
+    // (the traffic's models, every one, in before the lights: no car is put down before its model is there)
+    const fleet = loadFleet();
     const course = await this._plan(this.courseId);
     if (!course) return this._note('That course could not be planned here — try another');
     // The riders (sculpted the first time); a rider picked twice rides a scooter in other colours.
@@ -580,6 +585,7 @@ export class Race {
       return { char, twice };
     });
     await this._sculpt(looks.map((l) => l.char));
+    await Promise.race([fleet, new Promise((ok) => setTimeout(ok, 20000))]);
     if (this._starting === grid) return;
     this._starting = grid;
     this._end();

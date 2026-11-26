@@ -7,8 +7,8 @@
  * adults in everyday clothes, one 81-bone biped skeleton for all, so one set
  * of motion-captured clips (walk, idle, phone, looking about) plays on any.
  *
- * Vehicles: ordinary cars, a 1-tonne truck and a town bus published on
- * Sketchfab under CC BY 4.0 (each licence checked on the model's API page,
+ * Vehicles: ordinary cars, a 1-tonne truck and a town bus (also the small
+ * green 마을버스, the same model smaller) published on Sketchfab under CC BY 4.0 (each licence checked on the model's API page,
  * api.sketchfab.com/v3/models/<uid>), fetched as GLB from the Objaverse
  * dataset's public mirror of them on Hugging Face (allenai/objaverse).
  */
@@ -60,8 +60,11 @@ export const VEHICLES = [
   { id: 'pack', uid: '20f9af9b8a404d5cb022ac6fe87f21f5', glb: 'glbs/000-102/20f9af9b8a404d5cb022ac6fe87f21f5.glb', title: 'Generic passenger car pack', author: 'Comrade1280', what: 'the people carrier, small SUV, compact and estate', parts: ['minivan body', 'Compact Body', 'Hatchback Body', 'Offroad Body', 'Sedan Body'] },
   // (its full title is in docs/third-party.md; on screen it is a 1-ton truck, with no maker's name or badge)
   { id: 'truck', uid: '3869c5bc8dff40ad97ee165ba31e0ee1', glb: 'glbs/000-132/3869c5bc8dff40ad97ee165ba31e0ee1.glb', title: 'Hyundai - Pother II (Bongo III)', screen: '1-ton truck', author: 'yunho98', what: 'the one-tonne box truck' },
-  { id: 'bus', uid: '14fe03d792914d51b6c6250b393c44fd', glb: 'glbs/000-154/14fe03d792914d51b6c6250b393c44fd.glb', title: 'Generic Town Bus', author: 'own.guest', what: 'the city buses, in route colours' }
+  { id: 'bus', uid: '14fe03d792914d51b6c6250b393c44fd', glb: 'glbs/000-154/14fe03d792914d51b6c6250b393c44fd.glb', title: 'Generic Town Bus', author: 'own.guest', what: 'the city buses, in route colours, and the small green town buses' }
 ];
+
+/** The delivery moped (polyfork.dev, CC BY 4.0; fetched with the polyfork set, scripts/library/sources.mjs): its file and length in metres. */
+export const MOPED = { file: './library/polyfork/delivery-moped-1aa2ce.glb', length: 1.85, page: 'https://polyfork.dev/asset/delivery-moped-1aa2ce' };
 
 export const OBJAVERSE = 'https://huggingface.co/datasets/allenai/objaverse/resolve/main/';
 export const sketchfabPage = (uid) => `https://sketchfab.com/3d-models/${uid}`;

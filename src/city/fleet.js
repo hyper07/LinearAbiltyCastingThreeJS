@@ -1,25 +1,34 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { VEHICLES } from './streetAssets.js';
+import { VEHICLES, MOPED } from './streetAssets.js';
 
 /**
  * Seoul's traffic as real models: everyday cars, a one-tonne box truck and a
- * town bus published on Sketchfab under CC BY 4.0 (streetAssets.js, fetched
- * by scripts/library/streetfolk.mjs). Each model is made ready once — sized,
- * turned so its nose points −z, its wheels found and made to turn, its paint
- * made repaintable in Seoul's colours (white, silver, grey, black, a few
- * muted colours; taxis orange or silver with a roof sign of our own; buses
- * in route blue and green), its glass made glass — then cloned per vehicle,
- * sharing geometry and materials (one material per kind and paint).
+ * town bus published on Sketchfab under CC BY 4.0, and polyfork's delivery
+ * moped (streetAssets.js, fetched by scripts/library/streetfolk.mjs). Each
+ * model is made ready once — sized, turned so its nose points −z, its wheels
+ * found and made to turn, its paint made repaintable in Seoul's colours
+ * (white, silver, grey, black, a few muted colours; taxis orange or silver
+ * with a roof sign of our own; buses in route blue and green, the small
+ * green town buses shorter), its glass made glass, its parts merged by
+ * material (a car is a handful of draws, not dozens) — then cloned per
+ * vehicle, sharing geometry and materials (one material per kind and paint).
+ *
+ * Far off (past LOD.far) a vehicle is a reduced copy of its own model: the
+ * same shape with its wheels fixed in place and its colours (the textures',
+ * the paint's) baked into its corners — two draws, no textures, no glass to
+ * sort, no lamps. Never a box: there is no built stand-in, and a kind whose
+ * file didn't load is stood in for by another real model (`fleetKindFor`).
  *
  * The lamps are ours, laid over each model at its corners and lit only when
  * on: headlights and tail lights at night, brake lights brighter when
  * braking, amber indicators that really blink.
  *
- * Same handle as vehicles.js makeVehicle, so traffic.js uses either:
- *   const v = makeFleetVehicle('sedan');    // null until the models are in
+ *   await loadFleet();                       // every model, before the race starts
+ *   const v = makeFleetVehicle('sedan');     // null only if no model at all loaded
  *   v.lights(night, braking); v.indicate('left' | 'right' | 'both' | null, on); v.wheels(roll); v.near(on);
+ *   const m = makeFleetMoped();              // a delivery moped's body (no rider)
  */
 
 const ROOT = './library/objaverse/';
@@ -27,6 +36,10 @@ const ROOT = './library/objaverse/';
 export const PAINTS = ['#f2f2f0', '#f2f2f0', '#f2f2f0', '#e9e9e6', '#c6c9cd', '#c6c9cd', '#8e9399', '#55595f', '#1c1d20', '#1c1d20', '#2f3e5c', '#6e2a2c', '#c9bfa8', '#4a5a6a'];
 const TAXI = ['#f28a1a', '#c6c9cd', '#f2f2f0'];
 const ROUTE = ['#2f6fd1', '#3aa65a', '#2f6fd1'];
+/** A town bus (마을버스): always green. */
+const TOWN = ['#3aa65a'];
+/** Near: the full model; past `far` m from the camera the reduced copy (back to full inside `near`). */
+export const LOD = { near: 50, far: 60 };
 
 /**
  * The kinds: which file (and which body in a pack), its length in metres, how
@@ -55,32 +68,61 @@ const KINDS = {
       Material_26: [{ x: 0.252, y: 0.441, r: 0.036 }, { x: 0.725, y: 0.457, r: 0.034 }]
     }
   },
-  bus: { file: 'bus', length: 11, mix: 0, glass: /^glass$/, wheelMat: /^material(_4)?$/, yaw: 0, bus: true }
+  bus: { file: 'bus', length: 11, mix: 0, glass: /^glass$/, wheelMat: /^material(_4)?$/, yaw: 0, bus: true },
+  // The green town bus (마을버스) of the back streets: the same bus, smaller all round (about 9 m).
+  townbus: { file: 'bus', length: 8.9, mix: 0, glass: /^glass$/, wheelMat: /^material(_4)?$/, yaw: 0, bus: true, town: true }
 };
 export const FLEET_KINDS = Object.keys(KINDS);
+
+/**
+ * Another real model for a kind whose own didn't load (never a block): the
+ * nearest everyday kind that did; for a bus a town bus, then a truck.
+ */
+const STAND_IN = {
+  sedan: ['wagon', 'hatch', 'compact', 'minivan', 'suv'],
+  taxi: ['sedan', 'wagon', 'hatch', 'compact'],
+  hatch: ['compact', 'sedan', 'wagon'],
+  minivan: ['suv', 'wagon', 'sedan'],
+  suv: ['minivan', 'wagon', 'sedan'],
+  compact: ['hatch', 'sedan'],
+  wagon: ['sedan', 'hatch'],
+  truck: ['minivan', 'suv'],
+  bus: ['townbus', 'truck', 'minivan'],
+  townbus: ['bus', 'truck', 'minivan']
+};
 
 const loader = new GLTFLoader();
 const files = {};
 const ready = {};
-let started = false;
+let all = null;
 
-/** Start loading every model (once); `fleetReady()` says when cars can be made. */
+/**
+ * Start loading every model (once) and make each ready; resolves (never
+ * rejects) with the kinds that are, once every file has come in or failed.
+ * The race waits on it before the lights (race.js _begin), so no car is ever
+ * put down before its model is there.
+ */
 export function loadFleet() {
-  if (started) return;
-  started = true;
+  if (all) return all;
+  const jobs = [];
   for (const v of VEHICLES) {
     files[v.id] = loader.loadAsync(`${ROOT}${v.id}.glb`).then((g) => g.scene).catch(() => null);
   }
   for (const [kind, k] of Object.entries(KINDS)) {
-    files[k.file]?.then((scene) => {
-      if (!scene) return;
-      try {
-        ready[kind] = prepare(scene, k, kind);
-      } catch (e) {
-        console.warn(`[fleet] ${kind}: ${e.message}`);
-      }
-    });
+    jobs.push(
+      files[k.file]?.then((scene) => {
+        if (!scene) return;
+        try {
+          ready[kind] = prepare(scene, k, kind);
+        } catch (e) {
+          console.warn(`[fleet] ${kind}: ${e.message}`);
+        }
+      })
+    );
   }
+  jobs.push(loadMoped());
+  all = Promise.all(jobs).then(() => FLEET_KINDS.filter((k) => ready[k]));
+  return all;
 }
 
 export const fleetReady = (kind) => Boolean(ready[kind]);
@@ -93,6 +135,57 @@ export function pickFleetKind(random = Math.random) {
   let r = random() * sum;
   for (const [k, d] of have) if ((r -= d.mix) <= 0) return k;
   return have[0][0];
+}
+
+/** The kind to make for `kind`: itself if its model is in, else the nearest real one that is (null if none at all). */
+export function fleetKindFor(kind, random = Math.random) {
+  if (ready[kind]) return kind;
+  for (const k of STAND_IN[kind] ?? []) if (ready[k]) return k;
+  return pickFleetKind(random);
+}
+
+/* ------------------------------------------------------------------ the delivery moped */
+
+let moped = null;
+function loadMoped() {
+  return loader
+    .loadAsync(MOPED.file)
+    .then((g) => {
+      const root = g.scene;
+      root.updateMatrixWorld(true);
+      // To size (1.85 m long), its front to −z (it is built facing +z, or across), sitting on the ground.
+      const box = new THREE.Box3().setFromObject(root);
+      const size = box.getSize(new THREE.Vector3());
+      const alongX = size.x > size.z;
+      const s = MOPED.length / Math.max(size.x, size.z);
+      const c = box.getCenter(new THREE.Vector3());
+      const toLocal = new THREE.Matrix4()
+        .makeRotationY(alongX ? -Math.PI / 2 : Math.PI)
+        .multiply(new THREE.Matrix4().makeScale(s, s, s))
+        .multiply(new THREE.Matrix4().makeTranslation(-c.x, -box.min.y, -c.z));
+      const list = [];
+      root.traverse((o) => {
+        if (!o.isMesh) return;
+        const geo = o.geometry.clone();
+        geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toLocal, o.matrixWorld));
+        list.push({ g: geo, mat: o.material });
+      });
+      moped = merged(list);
+    })
+    .catch(() => null);
+}
+
+/** A delivery moped's body (one or two draws; its rider is traffic.js's), or null if it didn't load. */
+export function makeFleetMoped() {
+  if (!moped) return null;
+  const g = new THREE.Group();
+  for (const p of moped) {
+    const m = new THREE.Mesh(p.g, p.mat);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    g.add(m);
+  }
+  return g;
 }
 
 /* ------------------------------------------------------------------ preparing a model */
@@ -227,7 +320,172 @@ function prepare(scene, k, kind) {
   const L = dims.max.z - dims.min.z;
   const W = dims.max.x - dims.min.x;
   const H = dims.max.y - dims.min.y;
-  return { kind, k, parts, wheels, size: { length: L, width: W, height: H, wheel: wheels[0]?.radius || 0.33 }, front: dims.min.z, back: dims.max.z, mats: new Map() };
+  const P = { kind, k, parts, wheels, size: { length: L, width: W, height: H, wheel: wheels[0]?.radius || 0.33 }, front: dims.min.z, back: dims.max.z, mats: new Map() };
+  // The far copy is made from the parts as they are; then each list is merged by material (fewer draws).
+  P.far = farCopy(P);
+  for (const key of ['paint', 'glass', 'other']) parts[key] = merged(parts[key]);
+  for (const w of wheels) w.list = merged(w.list);
+  return P;
+}
+
+/* ------------------------------------------------------------------ fewer draws */
+
+/**
+ * Geometries that share a material made one (each { g, mat }, already in the same space): a model's
+ * dozen meshes become a draw per material. Pieces that can't be joined (different attributes) stay apart.
+ */
+function merged(list) {
+  const byMat = new Map();
+  for (const p of list) {
+    const key = p.mat?.uuid ?? 'none';
+    if (!byMat.has(key)) byMat.set(key, []);
+    byMat.get(key).push(p);
+  }
+  const out = [];
+  for (const group of byMat.values()) {
+    if (group.length === 1) {
+      out.push(group[0]);
+      continue;
+    }
+    // the attributes all of them have (a stray colour or second uv set is dropped), all indexed or none
+    const names = Object.keys(group[0].g.attributes).filter((n) => group.every((p) => p.g.attributes[n] && p.g.attributes[n].itemSize === group[0].g.attributes[n].itemSize));
+    const indexed = group.every((p) => p.g.index);
+    const geos = group.map((p) => {
+      let g = indexed || !p.g.index ? p.g : p.g.toNonIndexed();
+      g = g === p.g ? g.clone() : g;
+      for (const n of Object.keys(g.attributes)) if (!names.includes(n)) g.deleteAttribute(n);
+      for (const n of names) {
+        // (one stored normalised and one not can't be joined: as plain floats)
+        const a = g.attributes[n];
+        if (a.normalized || a.isInterleavedBufferAttribute) g.setAttribute(n, new THREE.BufferAttribute(Float32Array.from({ length: a.count * a.itemSize }, (_, i) => a.getComponent(Math.floor(i / a.itemSize), i % a.itemSize)), a.itemSize));
+      }
+      g.morphAttributes = {};
+      g.clearGroups();
+      return g;
+    });
+    let one = null;
+    try {
+      one = mergeGeometries(geos, false);
+    } catch {
+      one = null;
+    }
+    if (one) out.push({ g: one, mat: group[0].mat });
+    else out.push(...group);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ the far copy */
+
+const _c = new THREE.Color();
+const pixels = new Map();
+/** A texture's pixels (at most 256 across), for reading colours at points on it; null if it can't be read. */
+function texPixels(tex) {
+  const img = tex?.image;
+  if (!img?.width) return null;
+  const key = tex.source?.uuid ?? tex.uuid;
+  if (pixels.has(key)) return pixels.get(key);
+  let out = null;
+  try {
+    const w = Math.min(256, img.width);
+    const h = Math.max(1, Math.round((img.height / img.width) * w));
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, w, h);
+    out = { w, h, d: g.getImageData(0, 0, w, h).data, flipY: tex.flipY, repeat: tex.repeat, offset: tex.offset };
+  } catch {
+    out = null;
+  }
+  pixels.set(key, out);
+  return out;
+}
+
+const lin = (v) => Math.pow(v / 255, 2.2);
+
+/** The colour (linear) of a material at a point of its texture (u, v): the texture's (or white) times its colour. */
+function colourAt(mat, px, u, v, out) {
+  out.setRGB(1, 1, 1);
+  if (px) {
+    let uu = u * px.repeat.x + px.offset.x;
+    let vv = v * px.repeat.y + px.offset.y;
+    uu -= Math.floor(uu);
+    vv -= Math.floor(vv);
+    const x = Math.min(px.w - 1, Math.floor(uu * px.w));
+    const y = Math.min(px.h - 1, Math.floor((px.flipY ? 1 - vv : vv) * px.h));
+    const i = (y * px.w + x) * 4;
+    out.setRGB(lin(px.d[i]), lin(px.d[i + 1]), lin(px.d[i + 2]));
+  }
+  if (mat?.color) out.multiply(mat.color);
+  return out;
+}
+
+/**
+ * The vehicle as seen from far off: its own model, every part (the wheels fixed at their hubs), with its
+ * colours baked into its corners (read from its textures where it has them) — no textures, no glass to
+ * sort, no lamps, no wheels to turn: two draws instead of a dozen or more. The paint (a grey shade × the
+ * vehicle's paint colour, as the near paint does) and everything else.
+ */
+function farCopy(P) {
+  const k = P.k;
+  const out = { paint: { p: [], n: [], c: [] }, rest: { p: [], n: [], c: [] } };
+  const _n = new THREE.Vector3();
+  const add = (g, mat, kind, shift = null) => {
+    const pos = g.attributes.position;
+    const nor = g.attributes.normal;
+    const uv = g.attributes.uv;
+    const idx = g.index;
+    const count = idx ? idx.count : pos.count;
+    const px = kind === 'glass' ? null : texPixels(mat?.map);
+    const ref = kind === 'paint' ? paintRef(mat) : 1;
+    const livery = k.bus && kind === 'other' && mat?.color && isLivery(mat);
+    const into = kind === 'paint' || livery ? out.paint : out.rest;
+    for (let t = 0; t < count; t++) {
+      const i = idx ? idx.getX(t) : t;
+      into.p.push(pos.getX(i) + (shift?.x ?? 0), pos.getY(i) + (shift?.y ?? 0), pos.getZ(i) + (shift?.z ?? 0));
+      if (nor) _n.fromBufferAttribute(nor, i).normalize();
+      else _n.set(0, 1, 0);
+      into.n.push(_n.x, _n.y, _n.z);
+      if (kind === 'glass') _c.setRGB(0.02, 0.026, 0.032);
+      else if (livery) _c.setRGB(1, 1, 1);
+      else {
+        colourAt(mat, px, uv ? uv.getX(i) : 0, uv ? uv.getY(i) : 0, _c);
+        if (kind === 'paint') {
+          const l = Math.min(1.25, (0.2126 * _c.r + 0.7152 * _c.g + 0.0722 * _c.b) / ref);
+          _c.setRGB(l, l, l);
+        } else if (k.bus && kind === 'wheel') _c.setRGB(0.16, 0.16, 0.17);
+      }
+      into.c.push(_c.r, _c.g, _c.b);
+    }
+  };
+  for (const p of P.parts.paint) add(p.g, p.mat, 'paint');
+  for (const p of P.parts.glass) add(p.g, p.mat, 'glass');
+  for (const p of P.parts.other) add(p.g, p.mat, 'other');
+  for (const w of P.wheels) for (const p of w.list) add(p.g, p.mat, 'wheel', w.at);
+  const geos = {};
+  for (const [part, a] of Object.entries(out)) {
+    if (!a.p.length) continue;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(a.p, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(a.n, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(a.c, 3));
+    g.computeBoundingSphere();
+    geos[part] = g;
+  }
+  return geos;
+}
+
+const farMats = new Map();
+/** The far copy's materials: the paint per colour, everything else one for all. */
+function farMaterial(hex) {
+  const key = hex ?? 'rest';
+  let m = farMats.get(key);
+  if (!m) {
+    m = hex ? new THREE.MeshStandardMaterial({ color: hex, vertexColors: true, roughness: 0.38, metalness: 0.25, envMapIntensity: 1.1 }) : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.1, envMapIntensity: 0.8 });
+    farMats.set(key, m);
+  }
+  return m;
 }
 
 const scrubCache = new Map();
@@ -436,10 +694,20 @@ export function makeFleetVehicle(kind, color = null) {
   const P = ready[kind];
   if (!P) return null;
   const k = P.k;
-  const hex = color ?? (k.taxi ? TAXI[Math.floor(Math.random() * TAXI.length)] : k.bus ? ROUTE[Math.floor(Math.random() * ROUTE.length)] : PAINTS[Math.floor(Math.random() * PAINTS.length)]);
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
+  const hex = color ?? pick(k.taxi ? TAXI : k.town ? TOWN : k.bus ? ROUTE : PAINTS);
   const group = new THREE.Group();
+  // near: the model itself; far: its reduced copy (two draws)
   const body = new THREE.Group();
-  group.add(body);
+  const far = new THREE.Group();
+  far.visible = false;
+  group.add(body, far);
+  for (const [part, g] of Object.entries(P.far)) {
+    const mesh = new THREE.Mesh(g, farMaterial(part === 'paint' ? hex : null));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    far.add(mesh);
+  }
   const add = (g, m, parent = body) => {
     const mesh = new THREE.Mesh(g, m);
     mesh.castShadow = m !== glassMat;
@@ -519,14 +787,14 @@ export function makeFleetVehicle(kind, color = null) {
     const sign = new THREE.Mesh(lampGeo.taxi ??= new THREE.BoxGeometry(0.55, 0.17, 0.22), lampMats.taxi ??= new THREE.MeshStandardMaterial({ map: signTexture('택시 TAXI', '#1a1a1a', '#ffd23a'), emissive: '#ffd23a', emissiveIntensity: 0.15 }));
     sign.position.set(0, H + 0.08, 0.15);
     sign.castShadow = true;
-    body.add(sign);
+    group.add(sign);
   }
   if (k.bus) {
-    const n = hex === '#3aa65a' ? '1712' : '470';
+    const n = k.town ? '마을 05' : hex === '#3aa65a' ? '1712' : '470';
     const board = new THREE.Mesh(g(1.5, 0.3), lampMats[`bus${n}`] ??= new THREE.MeshBasicMaterial({ map: signTexture(n, '#ffb02e', '#121212'), toneMapped: false }));
     board.position.set(0, H * 0.86, P.front - 0.04);
     board.rotation.y = Math.PI;
-    body.add(board);
+    group.add(board);
   }
   let spun = 0;
   let near = true;
@@ -539,8 +807,12 @@ export function makeFleetVehicle(kind, color = null) {
       spun = (spun + roll) % (Math.PI * 2);
       for (const w of wheels) w.rotation.x = -spun;
     },
+    /** Near the full model (lamps and all), far its reduced copy. */
     near(on) {
+      if (on === near) return;
       near = on;
+      body.visible = on;
+      far.visible = !on;
     },
     lights(night, braking) {
       const lit = night > 0.35;
@@ -561,5 +833,4 @@ function isLivery(mat) {
   return hsl.s > 0.35 && (hsl.h < 0.17 || hsl.h > 0.93) && hsl.l > 0.15;
 }
 
-void mergeGeometries;
 void _v;
