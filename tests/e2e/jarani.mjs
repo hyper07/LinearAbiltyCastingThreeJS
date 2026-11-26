@@ -9,7 +9,8 @@ import { boot, tally, until } from './lib.mjs';
  * scrape or come off), a golmok short cut taken and counted, the alley
  * mouths joined to their roads, a branch
  * thrown into the wheel of the rider right ahead (only them; from 1st, wasted), the energy drink's boost, the golden helmet
- * worn and knocked off, marbles that throw a rival off, the rival panel,
+ * worn and knocked off, marbles that throw a rival off, smoke that blinds
+ * whoever rides into it (a soft grey veil over your view), the rival panel,
  * a crash and back on, only real people (with
  * faces) on the street, How to play on H — pause on Esc, the credits from
  * the pause screen, and leave. Then the courses by level (Easy, Medium,
@@ -531,6 +532,164 @@ export async function run(browser) {
       return { dark: Math.round((dark / (px.length / 4)) * 1000) / 10, w, h: hh, sprites: r.fx.live.length };
     });
     t.check('no dark slab: dust puffs and a word burst over the road leave no dark card round them (AO on)', slab.dark >= 0 && slab.dark < 2, JSON.stringify(slab));
+    // Smoke: 1 drops a canister behind you — a thick cloud in the road; a rival riding into it loses its
+    // line (eases off, wanders) but doesn't fall; inside it your view is a soft grey veil, the HUD over it.
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
+    const smoke0 = await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.autopilot = true;
+      r.me.items = ['smoke', null, null];
+      r.me.s.v = 14;
+      r._renderItems();
+      r.smokeLog = [];
+      return r.smoked ?? 0;
+    });
+    t.check('smoke: its sticker in the slot', await page.evaluate(() => /Smoke/.test(document.querySelector('.race__slot img')?.alt ?? '')));
+    await page.keyboard.press('Digit1');
+    t.check('smoke: 1 drops it behind you — a billowing cloud of soft puffs, about 10 m across, 3–4 m tall', await until(page, (n) => {
+      const r = window.seoul.race;
+      const c = r.clouds?.at(-1);
+      if (!((r.smoked ?? 0) > n && c && r.smokeField.mesh.count >= 20 && r.me.items[0] === null)) return false;
+      const along = (c.x - r.me.s.x) * -Math.sin(r.me.s.heading) + (c.z - r.me.s.z) * -Math.cos(r.me.s.heading);
+      return along < 0;
+    }, smoke0, 3000), await page.evaluate(() => JSON.stringify({ clouds: window.seoul.race.clouds?.length, puffs: window.seoul.race.smokeField?.mesh.count })));
+    await page.waitForTimeout(1300);
+    t.check('…kept in its street, on the road (no puff inside a building)', await page.evaluate(() => {
+      const r = window.seoul.race;
+      const c = r.clouds.at(-1);
+      return c.puffs.length >= 20 && !r.course.walls?.inside(c.x, c.z);
+    }));
+    await shot('smoke-dropped');
+    const smokeRival = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const c = r.clouds.at(-1);
+      const co = r.course;
+      let bi = 0;
+      let bd = Infinity;
+      co.points.forEach((q, i) => {
+        const d = Math.hypot(q[0] - c.x, q[1] - c.z);
+        if (d < bd) [bd, bi] = [d, i];
+      });
+      const n = co.points.length;
+      const a = co.points[(bi - 1 + n) % n];
+      const b = co.points[bi];
+      const hd = Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
+      const bot = r.racers.find((x) => x.bot && x.mode === 'ride' && x.id !== r._victim) ?? r.racers.find((x) => x.bot);
+      Object.assign(bot.s, { x: c.x + Math.sin(hd) * 12, z: c.z + Math.cos(hd) * 12, heading: hd, travel: hd, v: 16, lean: 0, steer: 0 });
+      Object.assign(bot, { idx: bi, sc: null, mode: 'ride', safe: 0, slip: 0, inSmoke: false, items: [null, null, null] });
+      r._smoker = { id: bot.id, crashes: bot.crashes };
+      return bot.id;
+    });
+    t.check('…a rival riding into it is in the smoke (COUGH!), eases off while inside, and does not fall', await until(page, (id) => {
+      const r = window.seoul.race;
+      const bot = r.racers.find((x) => x.id === id);
+      const log = (r.smokeLog ?? []).filter((e) => e.id === id);
+      const into = log.find((e) => !e.out);
+      const out = log.find((e) => e.out);
+      return Boolean(into && out && out.v < into.v - 0.5 && bot.crashes === r._smoker.crashes);
+    }, smokeRival, 6000), await page.evaluate(() => JSON.stringify(window.seoul.race.smokeLog)));
+    // the room: a cloud from someone else's browser appears here too (once), the same puffs from the same plan
+    t.check('…sent to the room, and a cloud from the room appears here once, the same puffs', await page.evaluate(() => {
+      const r = window.seoul.race;
+      const bot = r.racers.find((x) => x.bot);
+      const sent = [];
+      const s0 = r.session;
+      r.session = { room: 'test', id: 'me', send: (m) => sent.push(m) };
+      try {
+        r._dropSmoke(bot);
+      } finally {
+        r.session = s0;
+      }
+      const msg = sent.find((m) => m.t === 'race-smoke');
+      if (!msg) return false;
+      const mine = r.clouds.at(-1);
+      r.clouds.pop();
+      const n = r.clouds.length;
+      r._heard({ ...msg, from: 'other' });
+      r._heard({ ...msg, from: 'other' });
+      const got = r.clouds.at(-1);
+      const ok = r.clouds.length === n + 1 && got.sid === mine.sid && JSON.stringify(got.puffs) === JSON.stringify(mine.puffs);
+      r.clouds.pop();
+      return ok;
+    }));
+    // your own view inside a cloud: ride into one
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const me = r.me;
+      const bot = r.racers.find((x) => x.bot && x.id !== r._smoker.id) ?? r.racers.find((x) => x.bot);
+      bot.items = ['smoke', null, null];
+      const h = me.s.travel ?? me.s.heading;
+      const s0 = { x: bot.s.x, z: bot.s.z };
+      Object.assign(bot.s, { x: me.s.x - Math.sin(h) * 9, z: me.s.z - Math.cos(h) * 9, travel: h, heading: h });
+      r._use(bot, 0);
+      Object.assign(bot.s, s0);
+      const c = r.clouds.at(-1);
+      c.born -= 1.2;
+      // (5 m short of its middle, riding in)
+      Object.assign(me.s, { x: c.x + Math.sin(h) * 5, z: c.z + Math.cos(h) * 5, v: 6 });
+      me.mode = 'ride';
+      r.autopilot = true;
+    });
+    t.check('…ride into it: your view is engulfed — a thick grey veil over the screen, the map and HUD still over it', await until(page, () => {
+      const r = window.seoul.race;
+      const v = r.smokeField.veil;
+      return r.veilK > 0.6 && v.mesh.visible && v.uniforms.uAmount.value > 0.6 && !document.querySelector('.race__map').hidden && !document.querySelector('.race__speed').hidden;
+    }, null, 5000), await page.evaluate(() => JSON.stringify({ veil: window.seoul.race.veilK, me: window.seoul.race.me.smoke, clouds: window.seoul.race.clouds.length })));
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.autopilot = false;
+      r.me.s.v = 0;
+    });
+    // the veil, read back: soft everywhere (no hard edge across the middle of the screen), and grey
+    const veil = await page.evaluate(async () => {
+      const g = window.seoul;
+      const r = g.race;
+      const canvas = g.renderer.domElement;
+      const grab = await new Promise((ok) => {
+        let n = 0;
+        const after = r.afterDraw.bind(r);
+        r.afterDraw = () => {
+          after();
+          if (++n < 4) return;
+          r.afterDraw = after;
+          const c = document.createElement('canvas');
+          c.width = canvas.width;
+          c.height = canvas.height;
+          c.getContext('2d').drawImage(canvas, 0, 0);
+          ok(c);
+        };
+      });
+      const W = grab.width;
+      const H = grab.height;
+      const px = grab.getContext('2d').getImageData(0, 0, W, H).data;
+      let sat = 0;
+      let lum = 0;
+      let n = 0;
+      // the upper middle (the rider is lower down): grey, little colour
+      for (let y = Math.floor(H * 0.12); y < H * 0.4; y += 6) {
+        for (let x = Math.floor(W * 0.2); x < W * 0.8; x += 6) {
+          const i = (y * W + x) * 4;
+          const mx = Math.max(px[i], px[i + 1], px[i + 2]);
+          const mn = Math.min(px[i], px[i + 1], px[i + 2]);
+          sat += mx ? (mx - mn) / mx : 0;
+          lum += mx;
+          n++;
+        }
+      }
+      return { sat: Math.round((sat / n) * 100) / 100, lum: Math.round(lum / n), veil: Math.round(r.veilK * 100) / 100 };
+    });
+    t.check('…the veil is smoke: grey, soft, over the whole view', veil.sat < 0.25 && veil.lum > 60, JSON.stringify(veil));
+    await shot('smoke-inside');
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      for (const c of r.clouds) c.born -= 20;
+    });
+    const t0s = Date.now();
+    t.check('…and out of it, the view clears in about a second', await until(page, () => window.seoul.race.veilK === 0 && !window.seoul.race.smokeField.veil.mesh.visible, null, 3000), `${Date.now() - t0s} ms`);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.clouds.length = 0;
+    });
     // The rival panel: a rider close behind you slides in a picture of them; gone a moment after they go.
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     await page.evaluate(() => {

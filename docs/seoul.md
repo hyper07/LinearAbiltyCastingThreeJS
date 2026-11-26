@@ -329,7 +329,21 @@ Seoul's real streets — and the streets stay open.
   the fall, not the slip; ridden through, marbles scatter. Bots pour them when someone is right
   behind, and steer round the patches they see (the sharper ones see more) or brake to a crawl
   across them. In a room the pourer's browser sends the pour's seed and everyone rolls the same
-  patch. And the branch (`src/city/branch.js`: a leafy
+  patch. **Smoke · 연막** (`src/city/smoke.js`): a little grey canister dropped 3 m behind you pops
+  and hisses (synthesised) into a thick cloud — 30 soft puffs billowing out over about 1.3 s to some
+  10 m across and 3.5 m tall, heaped in the middle, drifting with the weather's wind and kept inside
+  the street it was dropped in; it thins away slowly and is gone after 7 s. The puffs are lit
+  billboards (the sun and sky by day; after dark a little sky fill and the street lamps' warm light),
+  each fading out where it meets the road and near the camera, so none shows an edge. Ride into it
+  and you can't see: one full-screen veil drawn last in the scene (drifting billows of noise in the
+  smoke's colour — grey-white by day, darker and lamp-warmed at night; no edge anywhere), the HUD
+  and map over it; it clears about a second after you (and the camera) are out. A rider entering it
+  coughs ("COUGH!"). Nobody falls because of it; bots inside lose their line — they roll off the
+  throttle (down to about 36 km/h) and wander a little. Bots drop it when a rival is close behind.
+  5 % of boxes leading, 10 % last (taken from the others in proportion). In a room the dropper's
+  browser sends the plan (place, street, seed) and everyone draws the same cloud; each browser
+  works out who of its own riders is in it. The map shows each cloud as a soft grey round.
+  And the branch (`src/city/branch.js`: a leafy
   plane-tree branch grown in code — thrown into the wheel of the rider right ahead of you, and only
   them: the nearest ahead round the course by race distance (a rider down a short cut alongside
   counts), up to 150 m on. After a wind-up it flies in an arc and homes in on their front wheel all
@@ -338,8 +352,8 @@ Seoul's real streets — and the streets stay open.
   ahead in reach — you lead — it's wasted: it flies on up the road and bursts into leaves ("POOF").
   It never lies in the road and never touches anyone behind you. Bots throw it only with someone
   ahead in reach, and at a person only half the time.) The further
-  back you are, the better the odds (more tailwinds, branches and marbles). Bots use them too; in a room
-  throws and pours are sent to everyone and whoever's browser rides the rider caught decides the catch.
+  back you are, the better the odds (more tailwinds, branches, marbles and smoke). Bots use them too; in a room
+  throws, pours and smoke are sent to everyone and whoever's browser rides the rider caught decides the catch.
 - **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
   near: the small streets' concrete and asphalt at road level, joined to the road where they meet
   one — the road's pavement is a dropped kerb across the alley's mouth (flush with the road, ramping
@@ -394,7 +408,7 @@ Seoul's real streets — and the streets stay open.
   *Neon Overpass*. The Music switch and volume in the Graphics panel control all of it.
 - **On screen**: the map at the top left (`src/city/minimap.js`) — the real streets round you, every
   small street, the buildings faintly, the river where it is near, the course ahead bright, short
-  cuts dotted, item boxes, marble patches and branches in the road, the traffic, and every rider as
+  cuts dotted, item boxes, marble patches, smoke clouds and branches in the road, the traffic, and every rider as
   a dot in their colour (ringed gold in a helmet) — turns smoothly with you, or keeps north up: click
   it (remembered). It is drawn once per race and laid out about twelve times a second. When a rival
   comes up behind you or draws level to pass, a small manga-style square slides in on the left
