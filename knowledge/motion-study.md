@@ -306,6 +306,22 @@ All angles are added to rest, in the plush convention (§5). `b` = bounce, `k` =
 `mirrorPose` swaps sides (arms/legs swap, y/z turns and sway/yaw flip);
 `clampPlushPose` keeps everything inside `PLUSH_LIMITS`.
 
+**Slow and smooth (real dancing to a fast song).** The moves above hit on every beat:
+at 143.6 BPM they peak at 20–28 rad/s with a jerk of 30 000–130 000 rad/s³ and read
+as jittery. Dancers to a fast track move in **half time**: arrive on every other
+beat, hold, flow on. The slow set (`bounceSway`, `reachUp`, `sideClap`, `lazySway`,
+`bodyWave`, `sultrySway`, `pawArc`, `slowPop`, `armFlow`, `heavyStep`,
+`rollShoulders`, `squatRise`, `wideWiggle`, `waddleGlide`, `flipperWave`,
+`slowTurn`, `strike`) is built from four curves: `glide(beat, per, hold)` (a weight
+shift that lands every `per` beats, dwells, then crosses with a sine ease),
+`groove(beat, per)` (a soft knee bend, a pure sine, lowest as the weight lands),
+`swell(beat, per, at, { rise, hold, fall })` (a slow hit: eased in to land on the
+count, held, eased out) and `easeSine`; and on **follow-through**: `LAG` — the hips
+lead, the chest 90 ms behind, the arms 160 ms, the head 200 ms (`lagged(c, s)`).
+Crossfades 1.5 beats. Result: under ~3.7 rad/s, jerk under ~2 000, no hops (the
+podium signatures, `signatures.js`; tested in `motion-signatures.test.mjs`).
+Springs for ears and tails go softer with it (k 20–30, d 3–3.6: they flow).
+
 ### 6.4 Routines and original combos
 
 `routine(steps)` plays `{ move, counts, mirror, amp, double }` steps in a loop with

@@ -37,6 +37,8 @@ what · §12 checklist.
 - `src/shared/motion/signatures.js` (pure): each plush species' signature dance
   (`SIGNATURES`, 8 bars in 4 variants) and `podiumDance(id, { place, start })` with the
   podium places' flourishes; all seven side by side at `/motion-lab.html?view=crew`.
+  Slow and smooth: half time, held poses, sine ease, hips→chest→arms→head follow-through
+  (`glide`, `groove`, `swell`, `LAG` in dance.js; motion-study §6.3), under 4 rad/s.
 - `src/shared/motion/retarget.js`: `aimRetarget` (humanoid clip → one-bone limbs),
   `bakePoseClip`, `compressClip`, `maskClip`; `clipTools.js` (pure) for keys, masks,
   root motion.
@@ -54,6 +56,9 @@ what · §12 checklist.
 - **Plush/chibi**: paws in the visibility envelope (arms up = a V, never straight up);
   rubber-hose reach for waves and points; exaggerate body, head and ears; ears and
   tails on springs; in place.
+- **Slow reads as real dancing** (the user's call): to a fast song, move in half time, hold
+  poses, flow with sine ease, overlap the joints; no hits on every beat, no hops (one for a
+  winner in two bars at most). Keep joints under ~4 rad/s and test it.
 - **On the beat**: hits peak on the beat, bounce lowest on the beat, claps on 2 and 4;
   use the manifest's **measured** BPM and a fitted offset.
 - **Original choreography**: generic moves in our own order (`makeCombo`), our music;
