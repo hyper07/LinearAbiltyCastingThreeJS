@@ -19,6 +19,8 @@ test('every course has a level, and each level its look, traffic, bots and badge
   }
   // harder: busier, sharper bots, more oncoming cars
   assert.ok(LEVELS.easy.oncoming < LEVELS.medium.oncoming && LEVELS.medium.oncoming < LEVELS.hard.oncoming);
+  // (and going your way up the course ahead, to weave past: some on every level, more the harder)
+  assert.ok(LEVELS.easy.along > 0 && LEVELS.easy.along < LEVELS.medium.along && LEVELS.medium.along < LEVELS.hard.along);
   assert.ok(LEVELS.easy.bots[1] < LEVELS.hard.bots[1]);
   assert.ok(LEVELS.easy.traffic <= LEVELS.medium.traffic && LEVELS.medium.traffic <= LEVELS.hard.traffic);
 });

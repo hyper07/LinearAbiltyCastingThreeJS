@@ -26,10 +26,16 @@ import { takeRider, releaseRider } from './folk.js';
  * The course's own roads are kept busy the other way: cars, taxis, buses and
  * delivery scooters coming at you down the far side of a two-way road (or
  * down the other carriageway of a divided one) — how many by the course's
- * level (course.js LEVELS: Easy moderate, Hard busy), always in their own
- * lane; and on Medium and Hard, cars parked along the kerb (never just
- * before a corner). At night every headlight and tail light glows, near and
- * far (one draw for all of them).
+ * level (course.js LEVELS: Easy busier, Medium busy, Hard packed), always in
+ * their own lane — and going your way too: slower cars, taxis, trucks, buses
+ * and delivery scooters sent up the course ahead of you, in the riders' own
+ * lanes, to weave past (never put down within 40 m of a rider, never two
+ * side by side as a wall). On a road with two lanes or more their way, cars
+ * now and then change lane (blinking first, never with a rider close), and
+ * pull out round a car parked at the kerb rather than stand behind it. Cars
+ * stand parked at the kerb (never just before a corner), and buses stand at
+ * their stops on the wider roads. At night every headlight and tail light
+ * glows, near and far (one draw for all of them).
  */
 
 const SPEEDS = [0, 14.5, 12.5, 10.5, 8.5, 5.5]; // metres a second by road class (no motorways)
@@ -95,6 +101,7 @@ export class RaceTraffic {
     game.scene.add(this.group);
     this._spawnT = 0;
     this._onT = 0;
+    this._alT = 0;
     const level = race.course?.def?.level ?? 'easy';
     this.level = LEVELS[level] ?? LEVELS.easy;
     // (the residential lanes the course takes: delivery scooters on them, coming the other way too, not cars)
@@ -155,8 +162,8 @@ export class RaceTraffic {
       // 70 km/h), a few behind.
       const ahead = (dx * fx + dz * fz) / d;
       if (d < (anchor.me ? (ahead > 0.3 ? 95 : 45) : 30) || d > 230) continue;
-      if (ahead < -0.4 && Math.random() < 0.75) continue;
-      if (this.vehicles.some((v) => Math.hypot(v.box.x - q.x, v.box.z - q.z) < 9)) continue;
+      if (ahead < -0.4 && Math.random() < 0.85) continue;
+      if (this._nearRider(q.x, q.z) || this.vehicles.some((v) => Math.hypot(v.box.x - q.x, v.box.z - q.z) < 9)) continue;
       if (this.g.buildingAt?.(q.x, q.z) || this.race.keepClear?.(q.x, q.z)) continue;
       const made = this._make(kind);
       const top = (SPEEDS[Math.min(5, r.cls)] ?? 8) * (kind === 'scooter' ? 1.05 : kind === 'bus' ? 0.85 : 1) * (0.85 + Math.random() * 0.3);
@@ -176,6 +183,18 @@ export class RaceTraffic {
     return kind === 'scooter' ? Math.max(lane, r.width / 2 - 1.1) : kind === 'bus' ? Math.max(lane, r.width / 2 - 1.8) : lane;
   }
 
+  /**
+   * The lanes (offsets right of the road's middle, 3.2 m apart) a car may drive on its side of a road
+   * with two or more lanes its way — null on one narrower than that, and on the small streets.
+   */
+  _lanes(r) {
+    if (isSmall(r.cls)) return null;
+    const w = r.width ?? 6;
+    const out = [];
+    for (let x = r.oneway ? -w / 2 + 1.6 : 1.6; x <= w / 2 - 1.4; x += 3.2) out.push(x);
+    return out.length > 1 ? out : null;
+  }
+
   update(dt, anchors) {
     if (!anchors.length) return;
     const me = anchors.find((a) => a.me) ?? anchors[0];
@@ -184,7 +203,8 @@ export class RaceTraffic {
       if (v.parked) continue;
       const near = Math.min(...anchors.map((a) => Math.hypot(a.x - v.box.x, a.z - v.box.z)));
       // (one that came at you and has gone by: gone, and another sent up the road ahead)
-      const behind = v.oncoming && (v.box.x - me.x) * -Math.sin(me.heading) + (v.box.z - me.z) * -Math.cos(me.heading) < -45;
+      // (and one going your way, sent up the course ahead, that you have passed)
+      const behind = (v.oncoming || v.along) && (v.box.x - me.x) * -Math.sin(me.heading) + (v.box.z - me.z) * -Math.cos(me.heading) < -45;
       if (near > 300 || behind) this._remove(v);
     }
     // Too few: more, a few a second, round the racers (most round you).
@@ -192,7 +212,7 @@ export class RaceTraffic {
     if (this._spawnT <= 0) {
       this._spawnT = 0.12;
       const count = { car: 0, bus: 0, scooter: 0 };
-      for (const v of this.vehicles) if (!v.oncoming && !v.parked) count[v.kind]++;
+      for (const v of this.vehicles) if (!v.oncoming && !v.along && !v.parked) count[v.kind]++;
       for (const kind of ['car', 'bus', 'scooter']) {
         if (count[kind] < WANT[kind] * this.level.traffic * (anchors.length > 1 ? 1.2 : 1)) {
           const a = Math.random() < 0.65 ? me : anchors[Math.floor(Math.random() * anchors.length)];
@@ -204,9 +224,16 @@ export class RaceTraffic {
     // Coming the other way down the course's own roads, ahead of you: kept to the level's number.
     this._onT -= dt;
     if (this._onT <= 0) {
-      this._onT = 0.2;
+      this._onT = 0.1;
       const on = this.vehicles.filter((v) => v.oncoming).length;
       if (on < this.level.oncoming) this._spawnOncoming(me);
+    }
+    // …and going your way up the course ahead, in the riders' lanes: slower traffic to weave past.
+    this._alT -= dt;
+    if (this._alT <= 0) {
+      this._alT = 0.1;
+      const al = this.vehicles.filter((v) => v.along).length;
+      if (al < (this.level.along ?? 0)) this._spawnOncoming(me, true);
     }
     this._parked(anchors);
     const night = this.g.uniforms?.uNight?.value ?? 0;
@@ -226,10 +253,17 @@ export class RaceTraffic {
           continue;
         }
       }
+      // (one sent up the course that has turned off it: just traffic now, and another sent in its place)
+      if ((v.along || v.oncoming) && (v.ciT = (v.ciT ?? 0.5) - dt) <= 0) {
+        v.ciT = 0.5;
+        if (!this._onCourse(v)) v.along = v.oncoming = false;
+      }
       // (headlights on in the rain too)
       v.view?.lights(Math.max(night, (this.g.weather?.level.wet ?? 0) > 0.3 ? 0.5 : 0, (this.g.weather?.level.thick ?? 0) * 0.8), v.braking);
       const d = Math.hypot(v.box.x - me.x, v.box.z - me.z);
       v.view?.near(d < 90);
+      // (far off down the street, past where they are sent in: not drawn — a speck, and draws saved)
+      v.group.visible = d < 260;
       // A delivery scooter's rider: a real person near you; far off, none drawn (better than a faceless doll).
       if (v.kind === 'scooter') {
         if (!v.rider && d < 110) {
@@ -245,17 +279,41 @@ export class RaceTraffic {
     this._glowFrame(night, me);
   }
 
+  /** Is any rider within `r` metres of a point (no vehicle is put down there: it would pop up in their face)? */
+  _nearRider(x, z, r = 40) {
+    return this.race.racers.some((o) => !o.left && Math.hypot(o.s.x - x, o.s.z - z) < r);
+  }
+
+  /** Is a vehicle sent up the course still on it (its own carriageway, or the other one of a divided road)? */
+  _onCourse(v) {
+    const c = this.race.course;
+    if (!c || v.ci == null) return true;
+    const n = c.points.length;
+    let best = Infinity;
+    let bi = v.ci;
+    for (let k = -12; k <= 12; k++) {
+      const i = c.open ? v.ci + k : (v.ci + k + n) % n;
+      if (i < 0 || i >= n) continue;
+      const d = Math.hypot(c.points[i][0] - v.box.x, c.points[i][1] - v.box.z);
+      if (d < best) [best, bi] = [d, i];
+    }
+    v.ci = bi;
+    const p = c.points[bi];
+    return best < (p[2] ?? 8) / 2 + (v.oncoming && p[4] ? 48 : 6);
+  }
+
   /**
-   * A vehicle coming the other way down the course ahead of `anchor` (90–230 m on): on the far side
+   * A vehicle coming the other way down the course ahead of `anchor` (80–230 m on): on the far side
    * of the same two-way road, or down the other carriageway of a divided one — a road beside the
-   * course running against it. Returns whether one was made.
+   * course running against it. With `along`, one going the riders' way instead (90–270 m on), in
+   * their own carriageway: slower than they are, to weave past. Returns whether one was made.
    */
-  _spawnOncoming(anchor) {
+  _spawnOncoming(anchor, along = false) {
     const c = this.race.course;
     if (!c || anchor.idx == null) return false;
     const n = c.points.length;
-    for (let tries = 0; tries < 6; tries++) {
-      const k = 13 + Math.floor(Math.random() * 26);
+    for (let tries = 0; tries < 8; tries++) {
+      const k = along ? 15 + Math.floor(Math.random() * 30) : 13 + Math.floor(Math.random() * 26);
       const i = c.open ? Math.min(n - 2, anchor.idx + k) : (anchor.idx + k) % n;
       const p = c.points[i];
       const q = c.points[c.open ? i + 1 : (i + 1) % n];
@@ -263,7 +321,7 @@ export class RaceTraffic {
       const hz = q[1] - p[1];
       const hl = Math.hypot(hx, hz) || 1;
       const w = p[2] ?? 8;
-      const kinds = ['car', 'car', 'car', 'car', 'bus', 'scooter'];
+      const kinds = along ? ['car', 'car', 'car', 'car', 'car', 'bus', 'scooter', 'scooter'] : ['car', 'car', 'car', 'car', 'bus', 'scooter'];
       // (down a residential lane: a delivery scooter)
       const kind = isSmall(p[3] ?? 4) ? 'scooter' : kinds[Math.floor(Math.random() * kinds.length)];
       // a road passing by this point, going the other way (its own direction, or the way it's driven back)
@@ -280,27 +338,32 @@ export class RaceTraffic {
           const L2 = ex * ex + ez * ez || 1;
           const t = Math.max(0, Math.min(1, ((p[0] - ax) * ex + (p[1] - az) * ez) / L2));
           const d = Math.hypot(ax + ex * t - p[0], az + ez * t - p[1]);
-          // (the other carriageway of a divided road may lie well across a median)
-          if (d > w / 2 + (p[4] ? 48 : 14)) continue;
+          // (the other carriageway of a divided road may lie well across a median; the riders' own is the course's)
+          if (d > w / 2 + (along ? 5 : p[4] ? 48 : 14)) continue;
           const dot = (ex * hx + ez * hz) / (Math.sqrt(L2) * hl);
-          // along the course one way or the other; the way it is driven: against the course
+          // along the course one way or the other; the way it is driven: against the course (or with it)
           let dir = 0;
-          if (dot < -0.85) dir = 1;
-          else if (dot > 0.85 && !r.oneway) dir = -1;
+          if (dot < -0.85) dir = along ? (r.oneway ? 0 : -1) : 1;
+          else if (dot > 0.85) dir = along ? 1 : r.oneway ? 0 : -1;
           if (!dir) continue;
           if (!best || d < best.d) best = { r, at: { i: j, t, dir }, d };
         }
       }
       if (!best) continue;
-      const lane = this._lane(best.r, kind);
+      // (a car on a road with lanes to spare: any of them)
+      const lanes = kind === 'car' ? this._lanes(best.r) : null;
+      const lane = lanes ? lanes[Math.floor(Math.random() * lanes.length)] : this._lane(best.r, kind);
       const at = pointOn(best.r.pts, best.at, lane);
-      if (Math.hypot(at.x - anchor.x, at.z - anchor.z) < 70) continue;
-      if (this.vehicles.some((v) => Math.hypot(v.box.x - at.x, v.box.z - at.z) < 10)) continue;
+      if (Math.hypot(at.x - anchor.x, at.z - anchor.z) < (along ? 85 : 70) || this._nearRider(at.x, at.z)) continue;
+      // (room round it: never two abreast, or a car beside one coming the other way — a wall across the road)
+      // (a car crossing at a junction is no wall along the road: only kept a car's length off)
+      if (this.vehicles.some((v) => Math.hypot(v.box.x - at.x, v.box.z - at.z) < (Math.abs(Math.cos(v.box.heading - at.heading)) > 0.7 ? (along ? 22 : 12) : 8))) continue;
       if (this.g.buildingAt?.(at.x, at.z) || this.race.keepClear?.(at.x, at.z)) continue;
       const made = this._make(kind);
-      const top = (SPEEDS[Math.min(5, best.r.cls)] ?? 8) * (kind === 'scooter' ? 1.05 : kind === 'bus' ? 0.85 : 1) * (0.85 + Math.random() * 0.3);
+      // (going your way: slower than the riders, some much slower — a truck, a bus, a cautious driver)
+      const top = (SPEEDS[Math.min(5, best.r.cls)] ?? 8) * (kind === 'scooter' ? 1.05 : kind === 'bus' ? 0.85 : 1) * (along ? 0.55 + Math.random() * 0.35 : 0.85 + Math.random() * 0.3);
       const [halfLength, halfWidth] = made.size;
-      const v = { ...made, road: best.r, at: best.at, lane, top, speed: top * 0.9, v: top * 0.9, y: this.g.surfaceAt(at.x, at.z), box: { x: at.x, z: at.z, heading: at.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0, oncoming: true };
+      const v = { ...made, road: best.r, at: best.at, lane, top, speed: top * 0.9, v: top * 0.9, y: this.g.surfaceAt(at.x, at.z), box: { x: at.x, z: at.z, heading: at.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0, oncoming: !along, along, ci: i };
       this.vehicles.push(v);
       this._place(v, 0);
       return true;
@@ -309,37 +372,45 @@ export class RaceTraffic {
   }
 
   /**
-   * Where cars stand parked along the course (Medium and Hard: `parked` a km): at the kerb on the
-   * riders' side, on two-way roads and lanes, never in the 60 m before a corner nor just after it,
-   * nor at a short cut's mouth, nor in a building — the same places for everyone.
+   * Where cars stand parked along the course (`parked` a km): at the kerb on the riders' side, on
+   * two-way roads and lanes; and where buses stand at their stops (`stops` a km), on the wider roads
+   * (two lanes or more the riders' way) — never in the 60 m before a corner nor just after it, nor at
+   * a short cut's mouth, nor in a building — the same places for everyone.
    */
   _parkSpots() {
     this.spots = [];
     const c = this.race.course;
-    const per = this.level.parked ?? 0;
-    if (!c || !per) return;
+    if (!c) return;
     const n = c.points.length;
     const calm = cornerZones(c.points, { before: 10, after: 3 });
-    const gap = 1000 / per;
     const walls = c.walls;
     const from = c.open ? c.startI + 30 : 30;
     const to = c.open ? c.finishI - 10 : n - 10;
-    let k = 0;
-    let last = -Infinity;
-    for (let i = from; i < to; i += 2, k++) {
-      if (c.s[i] - last < gap) continue;
-      const p = c.points[i];
-      const q = c.points[(i + 1) % n];
-      const w = p[2] ?? 8;
-      if (calm[i] || p[4] || w < 7 || w > 15 || c.wild?.[i]) continue;
-      if ((c.shortcuts ?? []).some((sc) => Math.abs(sc.from - i) < 6 || Math.abs(sc.to - i) < 6)) continue;
-      const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
-      const lat = w / 2 - 1.15;
-      const x = p[0] + Math.cos(hd) * lat;
-      const z = p[1] - Math.sin(hd) * lat;
-      if (walls?.hits(x, z, 1.1) || this.g.buildingAt?.(x, z)) continue;
-      last = c.s[i];
-      this.spots.push({ i, x, z, heading: hd, k, v: null });
+    for (const [kind, per] of [['bus', this.level.stops ?? 0], ['car', this.level.parked ?? 0]]) {
+      if (!per) continue;
+      const gap = 1000 / per;
+      let k = 0;
+      let last = -Infinity;
+      for (let i = from; i < to; i += 2, k++) {
+        if (c.s[i] - last < gap) continue;
+        const p = c.points[i];
+        const q = c.points[(i + 1) % n];
+        const w = p[2] ?? 8;
+        if (calm[i] || c.wild?.[i]) continue;
+        if (kind === 'car' ? p[4] || w < 7 || w > 15 : isSmall(p[3] ?? 4) || w < (p[4] ? 7.4 : 12)) continue;
+        if ((c.shortcuts ?? []).some((sc) => Math.abs(sc.from - i) < 6 || Math.abs(sc.to - i) < 6)) continue;
+        // (a bus's length clear of the next corner too)
+        if (kind === 'bus' && calm[(i + 3) % n]) continue;
+        const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+        const lat = w / 2 - (kind === 'bus' ? 1.45 : 1.15);
+        const x = p[0] + Math.cos(hd) * lat;
+        const z = p[1] - Math.sin(hd) * lat;
+        if (walls?.hits(x, z, 1.1) || this.g.buildingAt?.(x, z)) continue;
+        // (never two together: a bus stop clear of the parked cars)
+        if (this.spots.some((s) => Math.hypot(s.x - x, s.z - z) < 30)) continue;
+        last = c.s[i];
+        this.spots.push({ i, x, z, heading: hd, k, kind, v: null });
+      }
     }
   }
 
@@ -347,10 +418,12 @@ export class RaceTraffic {
   _parked(anchors) {
     for (const s of this.spots) {
       const d = Math.min(...anchors.map((a) => Math.hypot(a.x - s.x, a.z - s.z)));
-      if (!s.v && d < 220 && d > 25) {
-        const made = this._make('car');
+      // (never put down close to a rider: it would pop up in front of them)
+      if (!s.v && d < 220 && d > 45 && !this._nearRider(s.x, s.z)) {
+        const made = this._make(s.kind);
         const [halfLength, halfWidth] = made.size;
-        s.v = { ...made, parked: true, top: 0, speed: 0, v: 0, y: this.g.surfaceAt(s.x, s.z), box: { x: s.x, z: s.z, heading: s.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0 };
+        // (a bus at its stop blinks to pull out again)
+        s.v = { ...made, parked: true, top: 0, speed: 0, v: 0, y: this.g.surfaceAt(s.x, s.z), box: { x: s.x, z: s.z, heading: s.heading, halfLength, halfWidth }, missed: new Set(), stopFor: 0, waited: 0, roll: 0, signal: s.kind === 'bus' ? 'left' : null };
         this.vehicles.push(s.v);
         this._place(s.v, 0);
       } else if (s.v && d > 280) {
@@ -450,7 +523,20 @@ export class RaceTraffic {
       const side = Math.abs(dx * -fz + dz * fx);
       if (along > -0.5 && along < react && side < b.halfWidth + width * 0.5) gap = Math.min(gap, along);
     };
-    for (const o of this.vehicles) if (o !== v) look(o.box.x, o.box.z, o.box.halfWidth * 2);
+    // A car parked at the kerb (a bus at its stop) ahead in our lane: pull out round it, not stand behind it.
+    let dodge = null;
+    for (const o of this.vehicles) {
+      if (o === v) continue;
+      look(o.box.x, o.box.z, o.box.halfWidth * 2);
+      if (!o.parked || Math.abs(Math.cos(o.box.heading - b.heading)) < 0.8) continue;
+      const dx = o.box.x - b.x;
+      const dz = o.box.z - b.z;
+      const al = dx * fx + dz * fz;
+      const sd = dx * -fz + dz * fx;
+      const room = b.halfWidth + o.box.halfWidth + 0.5;
+      if (al < -o.box.halfLength - b.halfLength || al > 30 + o.box.halfLength || Math.abs(sd) > room) continue;
+      if (!dodge || al < dodge.al) dodge = { al, lat: (v.lat ?? v.lane) + sd - Math.sign(sd || 1) * room, side: Math.sign(sd || 1) };
+    }
     // Bikes: seen late (they are small and quick) — a driver brakes only for one fairly close in front.
     // One coming head-on down a narrow street: tuck in to the kerb and creep past, never a stand-off.
     let headOn = false;
@@ -471,7 +557,7 @@ export class RaceTraffic {
     // across this lane there — wait short of it, as the crossing traffic waits at the junctions.
     if (v.oncoming) {
       const hold = this._cornerAhead(v);
-      if (hold < Infinity) want = Math.min(want, Math.max(0, (hold - 9) * 0.6));
+      if (hold < Infinity) want = Math.min(want, Math.max(0, (hold - 10 - v.box.halfLength) * 0.6));
     }
     if (v.stopFor > 0) want = 0;
     // Slow into the turn at the end of the road.
@@ -497,15 +583,62 @@ export class RaceTraffic {
     // Pick the next road before getting there, and signal which way.
     if (!v.next && left < 40) v.next = this._pickNext(v);
     v.signal = v.next && left < 40 && Math.abs(v.next.bend) > 0.4 ? (v.next.bend > 0 ? 'left' : 'right') : null;
+    // Now and then over to another lane (on a road with two or more our way): blinking a moment
+    // first, and only into a clear one — never with a rider close by.
+    if (v.kind !== 'scooter' && !dodge && left > 30) {
+      v.laneT = (v.laneT ?? 2 + Math.random() * 8) - dt;
+      if (v.laneTo != null) {
+        v.laneSig -= dt;
+        if (v.laneSig <= 0) {
+          if (this._laneFree(v, v.laneTo)) v.lane = v.laneTo;
+          v.laneTo = null;
+        }
+      } else if (v.laneT <= 0) {
+        v.laneT = 5 + Math.random() * 9;
+        const lanes = this._lanes(v.road);
+        if (lanes) {
+          let i = 0;
+          for (let j = 1; j < lanes.length; j++) if (Math.abs(lanes[j] - v.lane) < Math.abs(lanes[i] - v.lane)) i = j;
+          const to = lanes[i + (Math.random() < 0.5 ? -1 : 1)] ?? lanes[i - 1] ?? lanes[i + 1];
+          if (to != null && Math.abs(to - v.lane) > 1 && this._laneFree(v, to)) {
+            v.laneTo = to;
+            v.laneSig = 1.1;
+          }
+        }
+      }
+    } else v.laneTo = null;
+    // Across to the lane (or out round a parked car), a bike's width a second or so — never a jump.
+    const aim = dodge ? (dodge.side > 0 ? Math.min(v.lane, dodge.lat) : Math.max(v.lane, dodge.lat)) : v.lane;
+    v.lat ??= v.lane;
+    v.lat += Math.max(-1.4 * dt, Math.min(1.4 * dt, aim - v.lat));
+    const to = v.laneTo ?? aim;
+    if (Math.abs(to - v.lat) > 0.3) v.signal = to > v.lat ? 'right' : 'left';
     const next = follow(v.road.pts, v.at, v.speed * dt);
     v.at = next;
     if (next.end) this._nextRoad(v);
-    const q = pointOn(v.road.pts, v.at, v.lane);
-    b.heading += turn(b.heading, q.heading) * Math.min(1, dt * 5);
+    const q = pointOn(v.road.pts, v.at, v.lat);
+    // (nosed the way it is moving over)
+    b.heading += turn(b.heading, q.heading - Math.max(-0.12, Math.min(0.12, (aim - v.lat) * 0.1))) * Math.min(1, dt * 5);
     b.x = q.x;
     b.z = q.z;
     v.v = v.speed;
     this._place(v, dt);
+  }
+
+  /** Is the lane at `to` clear for this vehicle to move into: no vehicle beside or just ahead or behind there, no rider near? */
+  _laneFree(v, to) {
+    const b = v.box;
+    const fx = -Math.sin(b.heading);
+    const fz = -Math.cos(b.heading);
+    const shift = to - (v.lat ?? v.lane);
+    if (this._nearRider(b.x, b.z, 30)) return false;
+    return !this.vehicles.some((o) => {
+      if (o === v) return false;
+      const dx = o.box.x - b.x;
+      const dz = o.box.z - b.z;
+      const al = dx * fx + dz * fz;
+      return al > -12 && al < 20 && Math.abs(dx * -fz + dz * fx - shift) < 2.6;
+    });
   }
 
   /**
@@ -563,7 +696,7 @@ export class RaceTraffic {
           w = pts[i][2] ?? 8;
         }
       }
-      return Math.max(4, w / 2 + 3.5);
+      return Math.max(4, w / 2 + (v.oncoming ? 7 : 3.5));
     }
     return 0;
   }
@@ -608,10 +741,12 @@ export class RaceTraffic {
   _nextRoad(v) {
     const o = v.next ?? this._pickNext(v);
     v.next = null;
+    v.laneTo = null;
     if (o) {
       v.road = o.r;
       v.at = o.at;
-      v.lane = this._lane(o.r, v.kind);
+      // (its place on the new road at once, as it turns in: never sliding across from a wide road's far lane)
+      v.lane = v.lat = this._lane(o.r, v.kind);
       v.top = (SPEEDS[Math.min(5, o.r.cls)] ?? 8) * (v.kind === 'scooter' ? 1.05 : v.kind === 'bus' ? 0.85 : 1) * (0.85 + Math.random() * 0.3);
       v.missed.clear();
     } else v.at = { ...v.at, dir: -v.at.dir };

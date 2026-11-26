@@ -96,13 +96,15 @@ export function turnCost(a) {
  *   hard    tight two-lane streets and residential lanes, square corners you drift round, hills,
  *           golmok short cuts, parked cars, busy oncoming traffic
  * `traffic` scales the cars about; `oncoming` is how many to keep coming the other way down the
- * course's own two-way roads; `parked` cars per km along the kerb; `bots` the three bots' skills;
- * `items` how much more the last-placed odds lean on a harder level (0–1).
+ * course's own two-way roads; `along` how many going the riders' way up the course ahead, in their
+ * lanes; `parked` cars per km along the kerb; `stops` buses per km standing at their stops; `bots`
+ * the three bots' skills; `items` how much more the last-placed odds lean on a harder level (0–1).
+ * (Easy busier but fair, Medium busy, Hard packed.)
  */
 export const LEVELS = {
-  easy: { id: 'easy', name: 'Easy', ko: '쉬움', stars: 1, color: '#2fbf71', traffic: 1, oncoming: 9, parked: 0, bots: [0.86, 0.89, 0.92], items: 0 },
-  medium: { id: 'medium', name: 'Medium', ko: '보통', stars: 2, color: '#ffa928', traffic: 1.1, oncoming: 12, parked: 4, bots: [0.89, 0.93, 0.97], items: 0.5 },
-  hard: { id: 'hard', name: 'Hard', ko: '어려움', stars: 3, color: '#ff4b3e', traffic: 1.15, oncoming: 15, parked: 8, bots: [0.93, 0.97, 1.01], items: 1 }
+  easy: { id: 'easy', name: 'Easy', ko: '쉬움', stars: 1, color: '#2fbf71', traffic: 1.2, oncoming: 15, along: 8, parked: 2, stops: 1.2, bots: [0.86, 0.89, 0.92], items: 0 },
+  medium: { id: 'medium', name: 'Medium', ko: '보통', stars: 2, color: '#ffa928', traffic: 1.3, oncoming: 21, along: 11, parked: 7, stops: 1, bots: [0.89, 0.93, 0.97], items: 0.5 },
+  hard: { id: 'hard', name: 'Hard', ko: '어려움', stars: 3, color: '#ff4b3e', traffic: 1.4, oncoming: 26, along: 14, parked: 12, stops: 0.6, bots: [0.93, 0.97, 1.01], items: 1 }
 };
 export const LEVEL_ORDER = ['easy', 'medium', 'hard'];
 
