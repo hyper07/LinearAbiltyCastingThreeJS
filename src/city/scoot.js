@@ -44,16 +44,18 @@ export const SCOOT = {
 
 /**
  * The scooters to pick from, each its own model (scooter.js SCOOTER_LOOKS) and its own handling —
- * changes to SCOOT. The trade-off: the faster ones corner worse and feel the street more.
+ * changes to SCOOT. The trade-off: the faster ones corner worse and feel the street more. Top speeds
+ * sit within 5 km/h of each other (67–72 km/h), so a race is won in the corners, the traffic and
+ * the short cuts, not on the spec sheet.
  * All made up: the brand "SSAENG 쌩쌩" and its models are ours.
  */
 export const SCOOTERS = {
   city: { name: 'S1 Commuter', ko: '시티', text: 'The hire scooter on every corner: balanced, comfy, no surprises.', spec: {} },
-  racer: { name: 'R7 Comet', ko: '코멧', text: 'Low and stiff on small hard wheels: the fastest down a straight, a handful in the corners and on rough ground.', spec: { cruise: 21.4, boostTop: 25.6, accel: 6.7, bite: 1.85, leanRate: 7.6, maxLean: 0.56, shock: 0.18, wheel: 0.08 } },
-  chunky: { name: 'X4 Mudlark', ko: '머드락', text: 'Fat air tyres and long springs: kerbs, plates and cobbles hardly touch you. Slower.', spec: { cruise: 17.8, boostTop: 21.6, accel: 5.9, bite: 2.1, leanRate: 8.4, shock: 0.95, wheel: 0.13 } },
-  kick: { name: 'K2 Sparrow', ko: '참새', text: 'Feather-light: off the line first and flicks through traffic, but runs out of puff at the top.', spec: { cruise: 17.2, boostTop: 21, accel: 7.7, bite: 2.6, leanRate: 11, maxLean: 0.64, shock: 0.45, wheel: 0.09 } },
-  cruiser: { name: 'G9 Grand', ko: '그랜드', text: 'Heavy, wide and fast: a missile on the boulevards that needs braking well before a corner.', spec: { cruise: 22, boostTop: 26.2, accel: 5.5, bite: 1.65, leanRate: 6.8, maxLean: 0.54, shock: 0.4, wheel: 0.11 } },
-  retro: { name: 'Mini Bubblegum', ko: '버블껌', text: 'A pastel retro runabout with whitewall tyres and a basket: nimble, kind on the bumps, and a little quicker off the line than the S1.', spec: { cruise: 18.3, boostTop: 22.2, accel: 6.5, bite: 2.35, leanRate: 9.6, maxLean: 0.62, shock: 0.68, wheel: 0.1 } }
+  racer: { name: 'R7 Comet', ko: '코멧', text: 'Low and stiff on small hard wheels: a touch faster down a straight, slower off the line, a handful in the corners and on rough ground.', spec: { cruise: 19.86, boostTop: 24, accel: 6.1, bite: 1.85, leanRate: 7.6, maxLean: 0.56, shock: 0.18, wheel: 0.08 } },
+  chunky: { name: 'X4 Mudlark', ko: '머드락', text: 'Fat air tyres and long springs: kerbs, plates and cobbles hardly touch you. Slower.', spec: { cruise: 18.75, boostTop: 22.9, accel: 5.9, bite: 2.1, leanRate: 8.4, shock: 0.95, wheel: 0.13 } },
+  kick: { name: 'K2 Sparrow', ko: '참새', text: 'Feather-light: off the line first and flicks through traffic, but runs out of puff at the top.', spec: { cruise: 18.61, boostTop: 22.75, accel: 7.7, bite: 2.6, leanRate: 11, maxLean: 0.64, shock: 0.45, wheel: 0.09 } },
+  cruiser: { name: 'G9 Grand', ko: '그랜드', text: 'Heavy, wide and the fastest of all, by a whisker: at home on the boulevards, slow to get going, and it needs braking well before a corner.', spec: { cruise: 20, boostTop: 24.15, accel: 5.5, bite: 1.65, leanRate: 6.8, maxLean: 0.54, shock: 0.4, wheel: 0.11 } },
+  retro: { name: 'Mini Bubblegum', ko: '버블껌', text: 'A pastel retro runabout with whitewall tyres and a basket: nimble, kind on the bumps, and a little quicker off the line than the S1.', spec: { cruise: 19.03, boostTop: 23.2, accel: 6.5, bite: 2.35, leanRate: 9.6, maxLean: 0.62, shock: 0.68, wheel: 0.1 } }
 };
 export const SCOOTER_ORDER = ['city', 'racer', 'chunky', 'kick', 'cruiser', 'retro'];
 export const cleanScooter = (id) => (SCOOTERS[id] ? id : 'city');
@@ -73,7 +75,7 @@ export function scooterStats(id) {
   const s = { ...SCOOT, ...(SCOOTERS[id] ?? SCOOTERS.city).spec };
   const k = (v, a, b) => clamp((v - a) / (b - a), 0.06, 1);
   return {
-    speed: k(s.cruise * 3.6, 58, 82),
+    speed: k(s.cruise * 3.6, 65, 73.5),
     accel: k(s.accel, 5, 8),
     corner: k(s.bite * Math.tan(s.maxLean) * (0.6 + s.leanRate / 25), 0.9, 2.25),
     shock: k(s.shock, 0, 1)

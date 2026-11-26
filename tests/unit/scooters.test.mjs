@@ -68,7 +68,10 @@ test('scooters: six of them, each with its own model and bars; more top speed co
     for (let t = 0; t < 14; t += 1 / 60) stepScoot(s, { throttle: true }, 1 / 60, undefined, specFor(id));
     return s.v * 3.6;
   };
-  assert.ok(top('racer') > top('city') + 4 && top('city') > top('chunky') + 3, `${top('racer')} ${top('city')} ${top('chunky')}`);
+  assert.ok(top('racer') > top('city') + 1 && top('city') > top('chunky') + 1.5, `${top('racer')} ${top('city')} ${top('chunky')}`);
+  // …but within 5 km/h of each other: the fastest can't simply ride away from the rest
+  const tops = SCOOTER_ORDER.map((id) => SCOOTERS[id].spec.cruise ?? SCOOT.cruise);
+  assert.ok((Math.max(...tops) - Math.min(...tops)) * 3.6 <= 5.01, `top speeds span ${((Math.max(...tops) - Math.min(...tops)) * 3.6).toFixed(1)} km/h`);
   assert.ok(cornering(50, specFor('racer')).radius > cornering(50, specFor('kick')).radius * 1.3);
   // a rider's own feel rides on any scooter (Mallow pulls a little harder on all of them)
   assert.ok(specFor('racer', { accel: 6.9 }).accel > specFor('racer').accel);

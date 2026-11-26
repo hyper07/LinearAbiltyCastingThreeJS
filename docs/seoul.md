@@ -243,7 +243,9 @@ Seoul's real streets — and the streets stay open.
   **G9 Grand** (wide, long, twin stem, chrome, a big lamp: fast on the boulevards, poor in corners)
   and the **Mini Bubblegum** (pastel retro with a leg shield, whitewall tyres and a basket: nimble,
   kind on bumps, a little quicker off the line than the S1). Bars for top speed, acceleration,
-  cornering and shock absorption; more top speed always costs cornering and shock absorption. All of them: grip tape,
+  cornering and shock absorption; more top speed always costs cornering and shock absorption. Top
+  speeds sit within 5 km/h (67–72 km/h: Sparrow 67, Mudlark 67.5, Bubblegum 68.5, S1 70, Comet 71.5,
+  Grand 72), so the fastest scooter can't simply ride away: corners, traffic, items and short cuts decide it. All of them: grip tape,
   folding stem, throttle and brake levers, a live speed and battery display, LED head and brake
   lights, a kickstand. Bots ride a mix of them; in a room everyone's pick goes to the others. Riders bump and wobble off each other and never
   pass through (`src/city/pack.js`); bots keep their own lines on the road side of the street,
