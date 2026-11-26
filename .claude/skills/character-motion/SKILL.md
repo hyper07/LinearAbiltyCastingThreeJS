@@ -34,6 +34,9 @@ what · §12 checklist.
   curves (`pop`, `bounce`, `step`, `wave`), `MOVES` + emotes, `routine`,
   `makeCombo(seed)`, `mirrorPose`, `clampPlushPose`, `spring`, `secondary`,
   `applyPlushPose(rig, pose, { mask, weight })` — on the plush riders' bone names.
+- `src/shared/motion/signatures.js` (pure): each plush species' signature dance
+  (`SIGNATURES`, 8 bars in 4 variants) and `podiumDance(id, { place, start })` with the
+  podium places' flourishes; all seven side by side at `/motion-lab.html?view=crew`.
 - `src/shared/motion/retarget.js`: `aimRetarget` (humanoid clip → one-bone limbs),
   `bakePoseClip`, `compressClip`, `maskClip`; `clipTools.js` (pure) for keys, masks,
   root motion.

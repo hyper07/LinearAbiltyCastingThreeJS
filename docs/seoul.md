@@ -144,20 +144,43 @@ Seoul's real streets — and the streets stay open.
   light on), in the city as it is (the time of day and the weather carry on; the
   traffic and the riders who aren't up there out of sight): 1st in the middle and highest, 2nd on its
   left, 3rd on its right as you look at it, a big 1, 2, 3 on the blocks in gold, silver and bronze,
-  their scooters parked beside on their kickstands. They celebrate, procedurally
-  (`PlushRider.celebrate`, no clips) — a little routine of our own round the street-dance chest pop,
-  locked to the podium track's beat (its measured tempo from the music manifest, 143.6 BPM; the song's
-  own position while it plays): a burst of four chest pops, two a beat — the chest hits out and snaps
-  back, the shoulders and elbows pull back at the sides, the head nods a moment after, a squash on every
-  hit, the knees bouncing in half time — then two beats of groove, a sway and a clap; the winner jumps
-  with its arms up there instead and pumps a fist on the off pops. All three pop together, each a hair
-  off the beat and its own size, ears and tails flopping after on springs. Confetti
+  their scooters parked beside on their kickstands. They dance — each its own character's signature
+  (see **Podium dances** below), all on the podium track's beat — ears and tails flopping after on
+  springs. Confetti
   bursts from both ends and flutters down (one instanced draw), the victory fanfare plays and the
   podium's own track comes in; the camera swings slowly round and pushes in. Your own rider, up there,
   has a pulsing gold ring on its block, its top glowing with it (after dark a fill light over
   the podium). After 6.5 s — or on any key or click — the results come up, smaller and low, the
   podium still dancing above them; **Race again**, **Courses**, **Back to Seoul** and **Credits** as
   before, and each takes the podium down.
+- **Podium dances** (`src/shared/motion/signatures.js`, played by `PlushRider.celebrate`; procedural,
+  no clips): every rider has a signature dance of its own, original combos of the generic moves in
+  `src/shared/motion/dance.js`:
+  - **Mallow** (bunny, The Bounce): springy hops on every beat, big ones every two with the paws flung
+    out, side hops and a raise-the-roof; the ears fly.
+  - **Peaches** (pig, Late Braker): a cheerful side-to-side shimmy, step-claps on 2 and 4, a shimmy
+    down low, a shrug to finish — unbothered.
+  - **Mochi** (cat, Corner Queen): a sassy body roll, paw flicks out from the cheek, a hip sway with a
+    paw on the hip, a pose to end.
+  - **Pip** (fox, Straight-line Pip): the chest-pop routine — four pops in two beats, then a sway and a
+    clap — with arm pumps up the diagonal.
+  - **Toffee** (bear, The Wall): a heavy, slow, proud two-step in half time, big shoulder rolls, a
+    stomp (the knee up through the "and", the foot down on the beat, a big squash) and a flex.
+  - **Pickle** (frog, Kerb Hopper): froggy jumps from a wide knee-bent squat, legs splayed in the air,
+    and a splayed-leg wiggle that sinks low.
+  - **Pebble** (penguin, Rain Dancer): a waddle shuffle, flipper flaps and a spin.
+
+  Each runs eight bars — a hook, an answer, a variation, a phrase ending on its button — then again as
+  one of four variants (other answers, mirrors, sizes), so it never loops two bars. All are locked to
+  the podium track (Podium Party, 143.6 BPM measured; the song's position while it plays, counted from
+  its top), each rider a hair off the beat. The place adds a flourish on top: the winner throws its
+  arms up in a V (out to the sides: a plush paw raised past ~50° vanishes behind the big head) and
+  jumps at every bar's start; 2nd puts one paw up and hops every other bar; 3rd a small V and a little
+  hop on the bars between. A finisher off the podium would just clap along (none is shown today).
+  Squash and stretch on every landing and hit; ears and tails on springs driven by the body's motion.
+  The species, the place and the song's beat decide every pose (no randomness), so the browsers in a
+  room dance alike with no animation traffic. All seven side by side: `/motion-lab.html?view=crew`
+  (dev only, with a place picker). Tests: `tests/unit/motion-signatures.test.mjs`.
 - **Courses, by level** (`LEVELS` in `src/city/course.js`; chillies on the map and the cards — one,
   two or three):
   - **Easy** — eight loops of 2–3 km (two to three minutes a lap) on Seoul's boulevards and avenues:
