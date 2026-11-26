@@ -5,8 +5,7 @@ const _p = new THREE.Vector3();
 /**
  * The race's comic beats, in the riders' ink-and-flat-colour style: word
  * bursts that slam in and squash ("BONK!", "WHOOSH!", "DING!"), puffs of
- * dust, a ring for the air horn, wind streaks on a tailwind. Sprites in the
- * 3D street, each one short-lived; the words' pictures are made once.
+ * dust. Sprites in the 3D street, each one short-lived; the words' pictures are made once.
  *
  *   const fx = new ComicFx(scene);
  *   fx.pop('BONK!', { x, y, z }, { color: '#ff5a3c', size: 1.2 });
@@ -103,39 +102,6 @@ function puff() {
   return puffTex;
 }
 
-let ringTex = null;
-function ringTexture() {
-  if (ringTex) return ringTex;
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d');
-  g.strokeStyle = '#ffffff';
-  g.lineWidth = 8;
-  g.setLineDash([16, 10]);
-  g.beginPath();
-  g.arc(64, 64, 54, 0, Math.PI * 2);
-  g.stroke();
-  ringTex = new THREE.CanvasTexture(c);
-  return ringTex;
-}
-
-let streakTex = null;
-function streakTexture() {
-  if (streakTex) return streakTex;
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 16;
-  const g = c.getContext('2d');
-  const grad = g.createLinearGradient(0, 0, 128, 0);
-  grad.addColorStop(0, 'rgba(255,255,255,0)');
-  grad.addColorStop(0.7, 'rgba(220,245,255,0.9)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grad;
-  g.fillRect(0, 6, 128, 4);
-  streakTex = new THREE.CanvasTexture(c);
-  return streakTex;
-}
-
 export class ComicFx {
   constructor(scene) {
     this.scene = scene;
@@ -171,18 +137,6 @@ export class ComicFx {
     }
   }
 
-  /** A ring going out (the air horn's blast). */
-  ring(at, color) {
-    const s = this._sprite(ringTexture(), { color });
-    this.live.push({ s, kind: 'ring', t: 0, life: 0.6, at: { ...at } });
-  }
-
-  /** A streak of wind going by (a tailwind). */
-  streak(at, heading) {
-    const s = this._sprite(streakTexture());
-    this.live.push({ s, kind: 'streak', t: 0, life: 0.35, at: { ...at }, v: { x: Math.sin(heading) * 14, y: 0, z: Math.cos(heading) * 14 }, size: 1.6 });
-  }
-
   update(dt, camera = null) {
     for (const f of [...this.live]) {
       f.t += dt;
@@ -213,16 +167,6 @@ export class ComicFx {
         f.v.y -= 1.5 * dt;
         s.position.set(f.at.x, f.at.y, f.at.z);
         s.scale.setScalar(f.size * (1 + k * 1.6));
-        s.material.opacity = 1 - k;
-      } else if (f.kind === 'ring') {
-        s.position.set(f.at.x, f.at.y - 0.8, f.at.z);
-        s.scale.setScalar(1 + k * 14);
-        s.material.opacity = 1 - k;
-      } else if (f.kind === 'streak') {
-        f.at.x += f.v.x * dt;
-        f.at.z += f.v.z * dt;
-        s.position.set(f.at.x, f.at.y, f.at.z);
-        s.scale.set(f.size, 0.12, 1);
         s.material.opacity = 1 - k;
       }
     }
