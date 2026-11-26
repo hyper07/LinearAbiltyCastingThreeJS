@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { SMOKE, cloudShape, smokeAt, smokePuffs, puffAt, keepInStreet } from '../../src/city/smoke.js';
 import { ITEMS, ITEM_ORDER, itemOdds, rollItem } from '../../src/city/items.js';
 
-test('smoke: an item, more often for riders further back; every place\'s odds still add up to 1', () => {
+test('smoke: an item, more often for the leaders (dropped behind, it defends a lead); every place\'s odds still add up to 1', () => {
   assert.ok(ITEM_ORDER.includes('smoke') && ITEMS.smoke.name && ITEMS.smoke.text && ITEMS.smoke.ko && ITEMS.smoke.pop === 'SMOKE!');
-  assert.ok(itemOdds(4, 4).smoke > itemOdds(1, 4).smoke * 1.5);
+  assert.ok(itemOdds(1, 4).smoke > itemOdds(4, 4).smoke * 1.5);
   for (const lean of [0, 0.5, 1]) {
     for (const rank of [1, 2, 3, 4]) {
       const o = itemOdds(rank, 4, lean);
@@ -16,8 +16,8 @@ test('smoke: an item, more often for riders further back; every place\'s odds st
   let seed = 9;
   const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   let n = 0;
-  for (let k = 0; k < 4000; k++) if (rollItem(4, 4, random) === 'smoke') n++;
-  assert.ok(n > 250 && n < 550, `${n} smokes in 4000 rolls from last`);
+  for (let k = 0; k < 4000; k++) if (rollItem(1, 4, random) === 'smoke') n++;
+  assert.ok(n > 450 && n < 750, `${n} smokes in 4000 rolls leading`);
 });
 
 test('smoke: billows out to about 10 m across and 3.5 m tall, lasts about 7 s, thinning slowly', () => {

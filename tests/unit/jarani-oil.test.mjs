@@ -26,9 +26,9 @@ function extent(s) {
   return { across: x1 - x0, along: z1 - z0, z0, z1, area };
 }
 
-test('oil: an item, more often for riders further back; every place\'s odds add up to 1', () => {
+test('oil: an item, more often for the leaders (spilled behind, it defends a lead); every place\'s odds add up to 1', () => {
   assert.ok(ITEM_ORDER.includes('oil') && ITEMS.oil.name && ITEMS.oil.text && ITEMS.oil.pop === 'OIL!');
-  assert.ok(itemOdds(4, 4).oil > itemOdds(1, 4).oil * 2);
+  assert.ok(itemOdds(1, 4).oil > itemOdds(4, 4).oil * 1.5);
   for (const lean of [0, 0.5, 1]) {
     for (const o of [itemOdds(1, 4, lean), itemOdds(2, 4, lean), itemOdds(3, 4, lean), itemOdds(4, 4, lean), itemOdds(1, 1, lean)]) {
       assert.ok(Math.abs(Object.values(o).reduce((a, b) => a + b, 0) - 1) < 1e-9, JSON.stringify(o));

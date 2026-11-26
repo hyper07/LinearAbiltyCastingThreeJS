@@ -8,7 +8,8 @@ import { laneBand } from './pack.js';
  * road in rows across the lanes the riders use, every couple of hundred
  * metres (one or two in an alley, staggered row to row); ride through one to
  * fill an empty slot, and use it with 1, 2 or 3.
- * What you get depends on where you are: the further back, the better.
+ * Two in three boxes are an attack, one in three a drink or a helmet; where you are decides which
+ * attack: the further back, the more police calls and branches.
  *
  *   energy drink — a gulp: four seconds of boost at once (the only boost there is)
  *   police       — call the police: a patrol pulls the rider ahead of you over,
@@ -35,18 +36,25 @@ export const ITEMS = {
 export const ITEM_ORDER = ['drink', 'police', 'helmet', 'branch', 'marbles', 'smoke', 'oil'];
 
 /**
- * Odds by place: [leader … last], each summing to 1. The further back, the more branches, marbles, smoke,
- * oil and police calls; drinks (the only boost) are the commonest item all the way down. (Oil's 6 % and
- * 14 % came out of the others in proportion — at the back, not out of the drink's 30 %.)
+ * Odds by place: [leader … last], each summing to 1. Attack items (police, branch, marbles, smoke, oil) come
+ * twice as often as support (the drink and the helmet) at every place and level: two thirds of the boxes
+ * to one third. Within the support third the drink — the only boost there is — is the larger part (about a
+ * quarter of all boxes, the commonest single item everywhere), the helmet the rest, more of it for the
+ * leaders. Within the attack two thirds, the further back the more of the nasty ones aimed up the road
+ * (the police, the branch); the leaders get more of the ones dropped behind (marbles, smoke, oil), which is
+ * what a lead is defended with. (Both ends hold the 2 : 1, so every place between them does too.)
  */
 const ODDS = {
-  first: { drink: 0.4371, helmet: 0.2594, police: 0.0536, branch: 0.0893, marbles: 0.0536, smoke: 0.047, oil: 0.06 },
-  last: { drink: 0.3, helmet: 0.0576, police: 0.1296, branch: 0.1752, marbles: 0.1176, smoke: 0.08, oil: 0.14 }
+  first: { drink: 0.2233, helmet: 0.11, police: 0.07, branch: 0.1, marbles: 0.17, smoke: 0.15, oil: 0.1767 },
+  last: { drink: 0.25, helmet: 0.0833, police: 0.19, branch: 0.21, marbles: 0.11, smoke: 0.07, oil: 0.0867 }
 };
+/** The items that hit other riders, and the ones that help you (the drink and the helmet). */
+export const ATTACK_ITEMS = ['police', 'branch', 'marbles', 'smoke', 'oil'];
+export const SUPPORT_ITEMS = ['drink', 'helmet'];
 /**
  * The odds of an item for a racer in `rank` of `n` (for the tests and the menu). `lean` (0–1, the
  * course's level: course.js LEVELS items) tips everyone's odds a little toward the back-markers'
- * (more branches, marbles and police calls on a harder course).
+ * (more branches and police calls on a harder course; still two attacks to one drink or helmet).
  */
 export function itemOdds(rank, n, lean = 0) {
   const k = Math.min(1, (n > 1 ? (rank - 1) / (n - 1) : 0) + 0.15 * lean);

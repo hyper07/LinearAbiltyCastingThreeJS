@@ -214,7 +214,7 @@ Seoul's real streets — and the streets stay open.
   The level sets more than the streets: the bots' skill, how many cars are about, coming the other
   way and going yours (Easy busier but fair, Medium busy, Hard packed), how many cars are parked at
   the kerb and buses at their stops, and the item odds (a little more of the back-markers'
-  branches, marbles and police calls on the harder ones). Each course is planned on the spot from the
+  branches and police calls on the harder ones — still two attacks to one drink or helmet). Each course is planned on the spot from the
   real road network and between the real buildings (`src/city/course.js`, `src/city/walls.js`):
   three or four points round the place, each on the nearest road with two or more lanes each way,
   joined by the best way for a racer — a search over the streets' directed edges where wide roads
@@ -360,7 +360,7 @@ Seoul's real streets — and the streets stay open.
   four seconds of boost at once at the scooter's boost speed and pull (70 → 86 km/h on the S1, the FOV
   kicking out, speed lines, the wind, a green glow trail behind the scooter — about fifteen metres
   gained, worth having, not a win), "GULP! +BOOST" and DRINK BOOST under the speed. The commonest
-  item at every place (about half the boxes leading, a third last). **Call the police · 경찰 호출** (`src/city/police.js`,
+  single item at every place (22 % of the boxes leading, 25 % last). **Call the police · 경찰 호출** (`src/city/police.js`,
   the air horn's place): a patrol officer of our own design — a white police scooter with a blue
   stripe and "POLICE 경찰" on its side, a red-and-blue light bar, a hi-vis vest and a peaked cap, no
   real force's crest — rides up beside the nearest rider ahead of you (if you lead, the one behind),
@@ -370,7 +370,7 @@ Seoul's real streets — and the streets stay open.
   gone. (Held isn't stuck: a bot isn't put back on the course for it, nor is "Stuck?" shown.) The gold helmet
   doesn't help (it takes crashes, and this isn't one), and a rider down a short cut can still be
   caught. Bots call it on whoever is ahead — at a person only half the time, as with the branch.
-  Commoner further back (6 % of boxes leading, 18 % last). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
+  Commoner further back (7 % of boxes leading, 19 % last). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
   head, fitted to each species' head (the ears poke out) — a rounded cycling helmet,
   longer to the back, with vent slots, a darker band and rim, a foam liner, a short peak and a chin
   strap (just the helmet: no glow round the rider) — and a badge on the HUD; the next crash (a car, a
@@ -384,7 +384,8 @@ Seoul's real streets — and the streets stay open.
   the grip goes, the scooter wobbles and slides and loses speed; faster than about 50 km/h, or
   steering hard above about 30, they fall (the tumble with dizzy stars, "WHOA!" "SLIP!", a glassy
   rattle). Slow down and ride straight and you get through with a wobble. The golden helmet takes
-  the fall, not the slip; ridden through, marbles scatter. Bots pour them when someone is right
+  the fall, not the slip; ridden through, marbles scatter. Commoner up front (17 % of boxes
+  leading, 11 % last). Bots pour them when someone is right
   behind, and steer round the patches they see (the sharper ones see more) or brake to a crawl
   across them. In a room the pourer's browser sends the pour's seed and everyone rolls the same
   patch. **Smoke · 연막** (`src/city/smoke.js`): a little grey canister dropped 3 m behind you pops
@@ -398,7 +399,7 @@ Seoul's real streets — and the streets stay open.
   and map over it; it clears about a second after you (and the camera) are out. A rider entering it
   coughs ("COUGH!"). Nobody falls because of it; bots inside lose their line — they come off the
   throttle and feather the brake (`SMOKE.ease`, down to about 36 km/h) and wander a little. Bots drop it when a rival is close behind.
-  5 % of boxes leading, 10 % last (taken from the others in proportion). In a room the dropper's
+  15 % of boxes leading, 7 % last (dropped behind you, it defends a lead). In a room the dropper's
   browser sends the plan (place, street, seed) and everyone draws the same cloud; each browser
   works out who of its own riders is in it. The map shows each cloud as a soft grey round.
   **Oil slick · 기름** (`src/city/oil.js`): a glossy black slick spilled on the road behind
@@ -416,8 +417,8 @@ Seoul's real streets — and the streets stay open.
   for five metres, thinning. Bots spill it when a rival is close behind in their line (or after
   holding it a while) and steer round slicks they see; each rider is caught by a slick once. In a
   room the spiller's browser sends the plan (seed and street) and each crossing, so every browser
-  lays the same slick and counts the same three riders. Commoner further back (6 % leading, 14 %
-  last). The map shows each slick as a black round ringed in violet.
+  lays the same slick and counts the same three riders. Commoner up front (18 % leading, 9 %
+  last: spilled behind you, it defends a lead). The map shows each slick as a black round ringed in violet.
   And the branch (`src/city/branch.js`: a leafy
   plane-tree branch grown in code — thrown into the wheel of the rider right ahead of you, and only
   them: the nearest ahead round the course by race distance (a rider down a short cut alongside
@@ -426,8 +427,20 @@ Seoul's real streets — and the streets stay open.
   1.5 s later, and three seconds no branch can catch you. The gold helmet takes it. If nobody's
   ahead in reach — you lead — it's wasted: it flies on up the road and bursts into leaves ("POOF").
   It never lies in the road and never touches anyone behind you. Bots throw it only with someone
-  ahead in reach, and at a person only half the time.) The further
-  back you are, the better the odds (more branches, marbles, smoke, oil and police calls). Bots use them too; in a room
+  ahead in reach, and at a person only half the time.)
+  **The odds** (`itemOdds`): two boxes in three are an attack (police, branch, marbles, smoke, oil),
+  one in three helps you (the drink, the only boost, and the helmet) — at every place and on every
+  level. Where you are decides which: leading, more helmets and more of what you drop behind you
+  (marbles, smoke, oil); further back, more drinks and more of what you aim up the road (the police,
+  the branch):
+
+  | place  | drink | helmet | police | branch | marbles | smoke | oil  | attack : support |
+  |--------|-------|--------|--------|--------|---------|-------|------|------------------|
+  | leader | 22 %  | 11 %   | 7 %    | 10 %   | 17 %    | 15 %  | 18 % | 67 : 33          |
+  | last   | 25 %  | 8 %    | 19 %   | 21 %   | 11 %    | 7 %   | 9 %  | 67 : 33          |
+
+  Bots use them too — up to three held, an attack fired only every 3–5 s (never everything at once on
+  whoever is near), the drink and the helmet whenever they help; in a room
   throws, pours and smoke are sent to everyone and whoever's browser rides the rider caught decides the catch.
 - **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
   near: the small streets' concrete and asphalt at road level, joined to the road where they meet

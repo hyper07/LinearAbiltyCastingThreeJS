@@ -3380,6 +3380,15 @@ export class Race {
       this._remount(r, 2);
     } else if (r.off > 30) this._remount(r);
     const has = (id) => r.items.indexOf(id);
+    // Two boxes in three are an attack (items.js): a bot holds up to three, but fires one at a time — then
+    // a few seconds before the next, never everything at once on whoever is near (the drink and the helmet
+    // aren't held back).
+    r.attackCd = Math.max(0, (r.attackCd ?? 0) - dt);
+    const ready = () => r.attackCd <= 0;
+    const fire = (id) => {
+      this._use(r, has(id));
+      r.attackCd = 3 + Math.random() * 2.5;
+    };
     if (has('helmet') >= 0 && !r.helmet) this._use(r, has('helmet'));
     // the drink (the only boost): on a straight with open road, not already boosting (it is four seconds of boost)
     if (has('drink') >= 0 && straight && block > 50 && v > 12 && !s.boosting && !(r.slip > 0)) this._use(r, has('drink'));
@@ -3388,27 +3397,27 @@ export class Race {
       r.heldMarbles = (r.heldMarbles ?? 0) + dt;
       // (right behind and in its line — within a lane of its back wheel — so they will ride over them)
       const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 2 && r.dist - o.dist < 18 && Math.abs((o.s.x - s.x) * Math.cos(s.heading) - (o.s.z - s.z) * Math.sin(s.heading)) < 2.2);
-      if (close || r.heldMarbles > 22) {
+      if (ready() && (close || r.heldMarbles > 22)) {
         r.heldMarbles = 0;
-        this._use(r, has('marbles'));
+        fire('marbles');
       }
     }
     if (has('smoke') >= 0) {
       // dropped when a rival is close behind (they ride into it), or after holding it a while
       r.heldSmoke = (r.heldSmoke ?? 0) + dt;
       const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 3 && r.dist - o.dist < 20);
-      if (close || r.heldSmoke > 24) {
+      if (ready() && (close || r.heldSmoke > 24)) {
         r.heldSmoke = 0;
-        this._use(r, has('smoke'));
+        fire('smoke');
       }
     }
     if (has('oil') >= 0) {
       // spilled when a rival is close behind, in its line (or after holding it a while)
       r.heldOil = (r.heldOil ?? 0) + dt;
       const close = this.racers.some((o) => o !== r && !o.left && o.mode === 'ride' && r.dist - o.dist > 3 && r.dist - o.dist < 16 && Math.abs((o.s.x - s.x) * Math.cos(s.heading) - (o.s.z - s.z) * Math.sin(s.heading)) < 2.4);
-      if (close || r.heldOil > 22) {
+      if (ready() && (close || r.heldOil > 22)) {
         r.heldOil = 0;
-        this._use(r, has('oil'));
+        fire('oil');
       }
     }
     if (has('police') >= 0) {
@@ -3419,10 +3428,10 @@ export class Race {
       r.policeMercy ??= Math.random() < 0.5;
       const ahead = aim && aim.dist > r.dist;
       const spare = aim && !aim.bot && r.policeMercy;
-      if (aim && ((ahead && !spare) || r.heldPolice > 14)) {
+      if (ready() && aim && ((ahead && !spare) || r.heldPolice > 14)) {
         r.heldPolice = 0;
         r.policeMercy = null;
-        this._use(r, has('police'));
+        fire('police');
       }
     }
     if (has('branch') >= 0 && !r.pendingBranch) {
@@ -3436,10 +3445,10 @@ export class Race {
         r.heldBranch = 0;
         r.mercy = null;
       }
-      if (aim && aim.mode === 'ride' && (aim.bot || !r.mercy)) {
+      if (ready() && aim && aim.mode === 'ride' && (aim.bot || !r.mercy)) {
         r.heldBranch = 0;
         r.mercy = null;
-        this._use(r, has('branch'));
+        fire('branch');
       }
     }
     r.dbg = { block: Math.round(block * 10) / 10, push: Math.round(push * 100) / 100, target: Math.round(target * 10) / 10, steer: Math.round(steer * 100) / 100 };

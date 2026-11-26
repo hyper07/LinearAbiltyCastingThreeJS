@@ -17,9 +17,9 @@ function settle(plan, lo, hi, seconds = MARBLE.pour + 5) {
   return ms;
 }
 
-test('marbles: an item, more often for riders further back', () => {
+test('marbles: an item, more often for the leaders (poured behind, they defend a lead)', () => {
   assert.ok(ITEM_ORDER.includes('marbles') && ITEMS.marbles.name && ITEMS.marbles.text);
-  assert.ok(itemOdds(4, 4).marbles > itemOdds(1, 4).marbles * 2);
+  assert.ok(itemOdds(1, 4).marbles > itemOdds(4, 4).marbles * 1.3);
   for (const o of [itemOdds(1, 4), itemOdds(3, 4), itemOdds(4, 4)]) assert.ok(Math.abs(Object.values(o).reduce((a, b) => a + b, 0) - 1) < 1e-9);
 });
 

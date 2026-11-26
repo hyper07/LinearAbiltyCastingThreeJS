@@ -634,6 +634,8 @@ export async function run(browser) {
       if (!bot.items.includes('oil') && !(r.slicks ?? []).some((o) => o.owner === bot.id)) {
         bot.items = ['oil', null, null];
         bot.heldOil = 30;
+        // (not straight after another attack: a bot fires one every few seconds)
+        bot.attackCd = 0;
       }
       return (r.slicks ?? []).some((o) => o.owner === bot.id) && !bot.items.includes('oil');
     }, null, 4000));

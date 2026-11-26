@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ITEMS, ITEM_ORDER, rollItem, itemOdds } from '../../src/city/items.js';
+import { ITEMS, ITEM_ORDER, rollItem, itemOdds, ATTACK_ITEMS, SUPPORT_ITEMS } from '../../src/city/items.js';
 import { THROW, throwPlan, flightAt, branchTarget } from '../../src/city/branch.js';
 import { RING, DOME } from '../../src/city/bell.js';
 import { speedFeel } from '../../src/city/speedfx.js';
@@ -13,8 +13,8 @@ test('items: the branch is one of them, and riders further back get more branche
   const first = itemOdds(1, 4);
   const last = itemOdds(4, 4);
   assert.ok(last.branch > first.branch);
-  // boosts aren't rare: the drink is about a third of the boxes or more, all the way down the field
-  for (const o of [first, itemOdds(2, 4), itemOdds(3, 4), last, itemOdds(4, 4, 1)]) assert.ok(o.drink >= 0.3, `drink ${o.drink}`);
+  // boosts aren't rare: the drink is a fifth of the boxes or more, all the way down the field — the larger part of the support share
+  for (const o of [first, itemOdds(2, 4), itemOdds(3, 4), last, itemOdds(4, 4, 1)]) assert.ok(o.drink >= 0.2 && o.drink > o.helmet * 1.8, `drink ${o.drink}`);
   for (const o of [first, last, itemOdds(2, 4), itemOdds(4, 4, 1)]) assert.ok(Math.abs(Object.values(o).reduce((a, b) => a + b, 0) - 1) < 1e-9, 'odds add up');
   let seed = 3;
   const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -25,6 +25,35 @@ test('items: the branch is one of them, and riders further back get more branche
   }
   // (about twice as many: the odds say 2×, a sample of 4000 wanders a little either side)
   assert.ok(n.last > n.first * 1.7, `last ${n.last} vs first ${n.first}`);
+});
+
+test('items: attacks twice as often as support (drink + helmet) at every place and level; the helmet more for leaders, police and branch more further back', () => {
+  assert.deepEqual([...ATTACK_ITEMS, ...SUPPORT_ITEMS].sort(), [...ITEM_ORDER].sort(), 'every item is one or the other');
+  for (const n of [1, 2, 4, 5, 8]) {
+    for (let rank = 1; rank <= n; rank++) {
+      for (const lean of [0, 0.25, 0.5, 1]) {
+        const o = itemOdds(rank, n, lean);
+        const attack = ATTACK_ITEMS.reduce((a, id) => a + o[id], 0);
+        const support = SUPPORT_ITEMS.reduce((a, id) => a + o[id], 0);
+        assert.ok(Math.abs(attack / support - 2) < 0.01, `${rank}/${n} lean ${lean}: ${attack.toFixed(4)} : ${support.toFixed(4)}`);
+        assert.ok(Math.abs(attack + support - 1) < 1e-9, 'odds add up');
+        assert.ok(o.drink >= 0.2 && o.drink <= 0.26 && o.helmet >= 0.08 && o.helmet <= 0.115, JSON.stringify(o));
+        assert.ok(Object.values(o).every((p) => p > 0));
+      }
+    }
+  }
+  const first = itemOdds(1, 4);
+  const last = itemOdds(4, 4);
+  assert.ok(first.helmet > last.helmet);
+  assert.ok(last.police > first.police * 2 && last.branch > first.branch * 1.8);
+  // …and a sample says so too: about two attacks in three boxes
+  let seed = 11;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (const rank of [1, 4]) {
+    let hits = 0;
+    for (let k = 0; k < 6000; k++) if (ATTACK_ITEMS.includes(rollItem(rank, 4, random))) hits++;
+    assert.ok(hits / 6000 > 0.63 && hits / 6000 < 0.7, `rank ${rank}: ${hits} attacks in 6000`);
+  }
 });
 
 test('branch: thrown where the rider ahead will be, up in an arc and down on the road', () => {
