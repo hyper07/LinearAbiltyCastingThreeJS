@@ -24,7 +24,7 @@ $('bpm').disabled = true;
 $('crewView').href = '?';
 $('crewView').textContent = 'Performers view';
 const placeSel = document.createElement('select');
-for (const [v, name] of [[0, 'signature only'], [1, '1st (cheer + jump)'], [2, '2nd'], [3, '3rd'], [4, 'off the podium (clap)']]) placeSel.append(new Option(name, v));
+for (const [v, name] of [[0, 'signature only'], [1, '1st (slow V, a hop)'], [2, '2nd (one paw)'], [3, '3rd (small V)'], [4, 'off the podium (side-clap)']]) placeSel.append(new Option(name, v));
 placeSel.value = String(state.place);
 const placeLabel = document.createElement('label');
 placeLabel.append('Place ', placeSel);

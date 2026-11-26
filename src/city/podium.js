@@ -7,8 +7,9 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * the time of day and the weather carry on. 1st in the middle and highest, 2nd on its left, 3rd on
  * its right (as you look at it), a big number on each block; their scooters parked beside it on
  * their kickstands. Each dances its own species' signature (src/shared/motion/signatures.js), the
- * winner throwing its arms up in a V and jumping at every bar, 2nd and 3rd smaller (plushRider.js
- * celebrate: procedural, squash and stretch, ears and tails flopping). Confetti
+ * slow and smooth in half time; the winner raising its arms slowly into a V, held two beats, with one
+ * soft hop every two bars, 2nd one paw, 3rd a small V (plushRider.js celebrate: procedural, ears and
+ * tails flowing on soft springs). Confetti
  * falls, the camera swings slowly round and pushes in. Your own rider, if it is up there, has a gold
  * ring round its block, the block's top glowing with it.
  *

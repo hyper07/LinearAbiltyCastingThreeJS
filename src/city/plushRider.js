@@ -752,13 +752,14 @@ export class PlushRider {
 
   /**
    * The ceremony, procedural (no clips), on the music's beat (`beats`: where the track is, in beats):
-   * each species its own signature dance (src/shared/motion/signatures.js — the bunny hops, the pig
-   * shimmies and claps, the cat body-rolls and flicks a paw, the fox chest-pops and pumps a fist, the
-   * bear two-steps heavily and stomps, the frog jumps and wiggles, the penguin waddles, flaps and spins),
-   * eight bars in four variants, and its place's flourish on top (`place` 1: the V-arms cheer and a jump
-   * at every bar; 2 and 3 smaller; any other place a little clap). Species + place + `start` (the beat it
-   * began on) decide every pose: the same in every browser. Squash and stretch on the body; the ears and
-   * the tail follow on springs, the bunny's flying.
+   * each species its own signature dance (src/shared/motion/signatures.js — slow and smooth, in half
+   * time: the bunny bounce-sways, the pig side-steps and claps, the cat body-waves and sways its hips,
+   * the fox pops its chest every two beats and waves its arms, the bear two-steps heavily and rolls its
+   * shoulders, the frog squats and rises wide, the penguin waddle-glides, waves its flippers and turns),
+   * eight bars in four variants, and its place's flourish on top (`place` 1: a slow V held two beats and
+   * one soft hop every two bars; 2 one paw up, 3 a small V; any other place a little side-clap). Species +
+   * place + `start` (the beat it began on) decide every pose: the same in every browser. The ears and the
+   * tail follow on soft springs, flowing; the bunny's the floppiest.
    */
   celebrate(dt, { kind = 'win', heading = 0, night = 0, beats = null, place = null, start = 0, bpm = 143.6 } = {}) {
     dt = Math.min(dt, 0.05);
@@ -790,29 +791,30 @@ export class PlushRider {
     this._lastBeat = bt;
     if (this._ease > 0 && this._lastPose) {
       pose = lerpPose(this._lastPose, pose, smoothstep(1 - this._ease));
-      this._ease = Math.max(0, this._ease - dt / 0.3);
+      this._ease = Math.max(0, this._ease - dt / 0.6);
     }
     this._lastPose = pose;
     applyPlushPose({ bones: B, squash: this.squash, tilt: this.tilt, turn: this.body, turnRest: Math.PI, hipsRestY: 0.2 }, pose);
-    // ears and tail on springs: left behind as the body goes up, flung up as it lands, swinging with the sway
+    // ears and tail on soft springs (slow and loose, so they flow after the dance, not jitter): left
+    // behind as the body rises, flung up as it sinks, swinging after the sway and the head's tilt
     const sig = this._dance.signature;
     const y = (pose.lift ?? 0) + (pose.hipsY ?? 0) + (pose.stretch ?? 0) * 0.3;
     const vy = this._lastY == null || dt <= 0 ? 0 : (y - this._lastY) / dt;
     this._lastY = y;
-    const fling = Math.max(-0.9, Math.min(0.9, vy * 0.45 * sig.ears));
-    const earA = Math.max(-1, Math.min(0.8, spring(S.ear, -0.05 - fling, 70, 6, dt)));
-    const earB = spring(S.earB, (pose.sway ?? 0) * 1.6 * sig.ears + (pose.yaw ?? 0) * 0.3, 45, 5, dt);
+    const fling = Math.max(-0.9, Math.min(0.9, vy * 1.2 * sig.ears));
+    const earA = Math.max(-1, Math.min(0.8, spring(S.ear, -0.05 - fling, 30, 3.6, dt)));
+    const earB = spring(S.earB, ((pose.sway ?? 0) * 1.6 + (pose.head?.[2] ?? 0) * 0.8) * sig.ears + (pose.yaw ?? 0) * 0.3, 20, 3, dt);
     B.get('earL').rotation.set(earA, 0, -0.08 - earB);
     B.get('earR').rotation.set(earA * 0.92, 0, 0.08 + earB);
     const tb = B.get('tail'), t2 = B.get('tail2');
     if (tb) {
-      const wag = spring(S.wag, (-(pose.hips?.[1] ?? 0) * 1.5 - (pose.sway ?? 0) - (pose.hips?.[2] ?? 0)) * sig.tail, 55, 4, dt);
-      const lift = spring(S.tailL, 0.35 - Math.max(-0.4, Math.min(0.4, vy * 0.3)), 50, 5, dt);
+      const wag = spring(S.wag, (-(pose.hips?.[1] ?? 0) * 1.5 - (pose.sway ?? 0) - (pose.hips?.[2] ?? 0)) * sig.tail, 24, 3, dt);
+      const lift = spring(S.tailL, 0.35 - Math.max(-0.4, Math.min(0.4, vy * 0.6)), 24, 3.5, dt);
       tb.rotation.set(-lift * 0.5, wag * 0.55, wag * 0.25);
       if (t2) t2.rotation.set(-lift * 0.35, wag * 0.7, wag * 0.35);
     }
-    if (this.extras.scarf) this.extras.scarf.forEach((seg, i) => (seg.rotation.z = -earB * (0.4 + i * 0.1) + Math.sin(t * 6 + i) * 0.08));
-    if (this.extras.pom) this.extras.pom.rotation.z = spring(S.bob, (pose.sway ?? 0) * 2 - fling * 0.4, 80, 5, dt) * 0.6;
+    if (this.extras.scarf) this.extras.scarf.forEach((seg, i) => (seg.rotation.z = -earB * (0.4 + i * 0.1) + Math.sin(t * 2 + i * 0.7) * 0.06));
+    if (this.extras.pom) this.extras.pom.rotation.z = spring(S.bob, (pose.sway ?? 0) * 2 - fling * 0.4, 35, 3.5, dt) * 0.6;
     const rimK = 0.34 * (1 - night * 0.8);
     this.material.userData.u.uRimK.value = rimK;
     if (this.fur) this.fur.userData.u.uRimK.value = 1 - night * 0.8;
