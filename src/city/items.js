@@ -37,11 +37,11 @@ export const ITEM_ORDER = ['drink', 'police', 'helmet', 'branch', 'marbles', 'sm
 /**
  * Odds by place: [leader … last], each summing to 1. The further back, the more branches, marbles, smoke,
  * oil and police calls; drinks (the only boost) are the commonest item all the way down. (Oil's 6 % and
- * 14 % came out of the others in proportion.)
+ * 14 % came out of the others in proportion — at the back, not out of the drink's 30 %.)
  */
 const ODDS = {
   first: { drink: 0.4371, helmet: 0.2594, police: 0.0536, branch: 0.0893, marbles: 0.0536, smoke: 0.047, oil: 0.06 },
-  last: { drink: 0.258, helmet: 0.0619, police: 0.1393, branch: 0.1884, marbles: 0.1264, smoke: 0.086, oil: 0.14 }
+  last: { drink: 0.3, helmet: 0.0576, police: 0.1296, branch: 0.1752, marbles: 0.1176, smoke: 0.08, oil: 0.14 }
 };
 /**
  * The odds of an item for a racer in `rank` of `n` (for the tests and the menu). `lean` (0–1, the
