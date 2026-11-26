@@ -178,8 +178,9 @@ Seoul's real streets — and the streets stay open.
     finish gantry in the city below, about 145 m lower; speed builds downhill, so the braking points
     matter. One run, no laps; past the finish line a run-out to stop in.
 
-  The level sets more than the streets: the bots' skill, how many cars are about and coming the other
-  way, how many cars are parked at the kerb, and the item odds (a little more of the back-markers'
+  The level sets more than the streets: the bots' skill, how many cars are about, coming the other
+  way and going yours (Easy busier but fair, Medium busy, Hard packed), how many cars are parked at
+  the kerb and buses at their stops, and the item odds (a little more of the back-markers'
   branches, marbles and police calls on the harder ones). Each course is planned on the spot from the
   real road network and between the real buildings (`src/city/course.js`, `src/city/walls.js`):
   three or four points round the place, each on the nearest road with two or more lanes each way,
@@ -274,10 +275,25 @@ Seoul's real streets — and the streets stay open.
   They keep their own side, cross at the junctions, blink before turning, brake (late, for a
   scooter), honk when held up. The course's own roads are kept busy the other way: cars, taxis,
   buses and delivery scooters sent up the road ahead of you on the far side of a two-way road, or
-  down the other carriageway of a divided one — nine of them on an Easy course, twelve on Medium,
-  fifteen on Hard — in their own lane (and on a two-way residential lane the riders keep to their own
-  side of it too, out over the middle only to pass). On Medium and Hard, cars stand parked at the
-  kerb (four and eight a kilometre), never in the 60 m before a corner nor just after it. At night
+  down the other carriageway of a divided one — fifteen of them on an Easy course, 21 on Medium,
+  26 on Hard — in their own lane (and on a two-way residential lane the riders keep to their own
+  side of it too, out over the middle only to pass). And your way: slower cars, taxis, trucks,
+  buses and delivery scooters (55–90% of the road's speed) sent up the course 90–270 m ahead of you
+  in the riders' own lanes, to weave past — up to 8 on Easy, 11 on Medium, 14 on Hard (`along` in
+  `LEVELS`; on the Hard streets far fewer find a place); one that turns off the course is just
+  traffic again and another is sent in its place. Bots and the autopilot see a vehicle along its
+  whole length (a bus's tail, not just its middle). Measured on the autopilot (Nov 2026, 150 s a
+  course, four riders): vehicles within 150 m ahead of you about 1.5× what they were (Dongdaemun
+  7→11, Seongsu 8→13, Euljiro 6→9), close calls a lap up (8→12, 15→18, 8→12), traffic crashes a
+  lap you / bots 0 / 0→1.2, 1.5 / 0.5→0 / 1.0, 0 / 0→0 / 0.
+  None is ever put down within 40 m of a rider, nor within 22 m of another vehicle (never two
+  abreast, or one beside a car coming the other way: no wall across the road). On a road with two
+  lanes or more their way, cars change lane now and then — blinking first, sliding over, only into
+  a clear lane and never with a rider within 30 m — and pull out round a car parked at the kerb or
+  a bus at its stop rather than queue behind it. Cars stand parked at the kerb (two, seven and
+  twelve a kilometre by level) on the two-way roads, never in the 60 m before a corner nor just after
+  it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
+  you), blinking to pull out. At night
   every headlight and tail light glows, near and far (one draw for all of them). Everyone on the street is real (`src/city/folk.js`: Microsoft
   Rocketbox avatars, MIT) — walking, waiting in groups at the crossings, at shop doors, texting,
   looking about, cheering at the start — and nobody faceless is drawn: further off the pavement is

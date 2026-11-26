@@ -172,9 +172,33 @@ export async function run(browser) {
       const r = window.seoul.race;
       r._top = 0;
       r._topT = setInterval(() => (r._top = Math.max(r._top, r.me?.s.v ?? 0)), 100);
+      // The traffic watched meanwhile: how close to a rider each new vehicle first appears, the ones
+      // going your way up the course ahead, lane changes.
+      const tw = (r._tw = { seen: new Set(r.traffic.vehicles), close: [], made: 0, along: 0, alongAhead: 0, alongWith: 0, laneChanges: 0 });
+      r._twT = setInterval(() => {
+        const me = r.me.s;
+        for (const v of r.traffic.vehicles) {
+          if (v.laneTo != null && !v._twLane) (v._twLane = true), tw.laneChanges++;
+          if (v.laneTo == null) v._twLane = false;
+          if (tw.seen.has(v)) continue;
+          tw.seen.add(v);
+          tw.made++;
+          const d = Math.min(...r.racers.filter((x) => !x.left).map((x) => Math.hypot(x.s.x - v.box.x, x.s.z - v.box.z)));
+          if (d < 36) tw.close.push({ d: Math.round(d), kind: v.kind, along: v.along, on: v.oncoming, parked: v.parked });
+          if (v.along) {
+            tw.along++;
+            if ((v.box.x - me.x) * -Math.sin(me.heading) + (v.box.z - me.z) * -Math.cos(me.heading) > 60) tw.alongAhead++;
+            if (Math.cos(v.box.heading - me.heading) > 0.5) tw.alongWith++;
+          }
+        }
+      }, 100);
       return r.me.dist;
     });
     await page.waitForTimeout(15000);
+    const tw = await page.evaluate(() => (clearInterval(window.seoul.race._twT), window.seoul.race._tw));
+    t.check('busier streets: traffic sent up the course ahead going your way too, slower, in the riders\' lanes', tw.along >= 4 && tw.alongAhead >= tw.along * 0.8 && tw.alongWith >= tw.along * 0.7, JSON.stringify(tw));
+    t.check('…none of it put down in a rider\'s face (every new vehicle 40 m or more from every rider)', tw.made >= 8 && tw.close.length === 0, JSON.stringify({ made: tw.made, close: tw.close }));
+    t.check('…cars change lane now and then on the wide roads (blinking first), and buses stand at their stops', tw.laneChanges >= 1 && (await page.evaluate(() => window.seoul.race.traffic.spots.some((s) => s.kind === 'bus'))), JSON.stringify({ laneChanges: tw.laneChanges }));
     t.check('riding on: you get along the course', await page.evaluate((d) => window.seoul.race.me.dist - d > 120, d0), await page.evaluate((d) => (window.seoul.race.me.dist - d).toFixed(0), d0));
     t.check('racing speed: up to about 70 km/h', await page.evaluate(() => (clearInterval(window.seoul.race._topT), window.seoul.race._top * 3.6 > 60)), await page.evaluate(() => `${Math.round(window.seoul.race._top * 3.6)} km/h`));
     t.check('only real people on the street: no faceless figures', await page.evaluate(() => {
