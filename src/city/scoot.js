@@ -1,8 +1,8 @@
 /**
  * Riding an electric racing scooter, as plain numbers (no drawing, so the
  * tests can ride one into a kerb): a race-tuned motor pulls to 70 km/h in
- * about four and a half seconds, a boost spends the battery gauge for a few
- * seconds at about 85 km/h, brakes, and steering by leaning — lean in and it
+ * about four and a half seconds, an energy drink's boost (the race's item —
+ * nothing else boosts) runs it to about 85 km/h for a few seconds, brakes, and steering by leaning — lean in and it
  * curves (radius v² / (g·tan lean), with racing tyres' extra bite), turning
  * by the bars when slow; fast, the same key leans it more gently. Small solid wheels feel
  * the street: every paving joint is a bump (a jolt and a sliver of speed),
@@ -14,8 +14,7 @@
  * little speed (less than the brakes would) — the way round a 90° junction at
  * speed. Let go and it straightens.
  *
- * A scooter is { x, z, heading, travel, v, lean, steer, stamina (the boost
- * gauge, 0–1), … }: heading the way it points (0 is north, −z; turning left
+ * A scooter is { x, z, heading, travel, v, lean, steer, boosting, … }: heading the way it points (0 is north, −z; turning left
  * as it grows — the game's yaw), travel the way it is going (they part in a
  * slide), v its speed in m/s, lean in radians (+ is leaning left).
  */
@@ -38,9 +37,6 @@ export const SCOOT = {
   wheelbase: 0.82,
   wheel: 0.095, // wheel radius, metres
   shock: 0.6, // suspension, 0 (none: every joint jars) … 1 (soaks up kerbs and cobbles)
-  drain: 0.2, // gauge a second while boosting: five seconds of it
-  regen: 0.05, // a second while riding
-  rest: 0.09, // a second while coasting or braking
   halfLength: 0.5,
   halfWidth: 0.3,
   grip: 1
@@ -53,11 +49,11 @@ export const SCOOT = {
  */
 export const SCOOTERS = {
   city: { name: 'S1 Commuter', ko: '시티', text: 'The hire scooter on every corner: balanced, comfy, no surprises.', spec: {} },
-  racer: { name: 'R7 Comet', ko: '코멧', text: 'Low and stiff on small hard wheels: the fastest down a straight, a handful in the corners and on rough ground.', spec: { cruise: 21.4, boostTop: 25.6, accel: 6.7, bite: 1.85, leanRate: 7.6, maxLean: 0.56, shock: 0.18, wheel: 0.08, drain: 0.22 } },
-  chunky: { name: 'X4 Mudlark', ko: '머드락', text: 'Fat air tyres and long springs: kerbs, plates and cobbles hardly touch you. Slower.', spec: { cruise: 17.8, boostTop: 21.6, accel: 5.9, bite: 2.1, leanRate: 8.4, shock: 0.95, wheel: 0.13, drain: 0.18 } },
+  racer: { name: 'R7 Comet', ko: '코멧', text: 'Low and stiff on small hard wheels: the fastest down a straight, a handful in the corners and on rough ground.', spec: { cruise: 21.4, boostTop: 25.6, accel: 6.7, bite: 1.85, leanRate: 7.6, maxLean: 0.56, shock: 0.18, wheel: 0.08 } },
+  chunky: { name: 'X4 Mudlark', ko: '머드락', text: 'Fat air tyres and long springs: kerbs, plates and cobbles hardly touch you. Slower.', spec: { cruise: 17.8, boostTop: 21.6, accel: 5.9, bite: 2.1, leanRate: 8.4, shock: 0.95, wheel: 0.13 } },
   kick: { name: 'K2 Sparrow', ko: '참새', text: 'Feather-light: off the line first and flicks through traffic, but runs out of puff at the top.', spec: { cruise: 17.2, boostTop: 21, accel: 7.7, bite: 2.6, leanRate: 11, maxLean: 0.64, shock: 0.45, wheel: 0.09 } },
-  cruiser: { name: 'G9 Grand', ko: '그랜드', text: 'Heavy, wide and fast: a missile on the boulevards that needs braking well before a corner.', spec: { cruise: 22, boostTop: 26.2, accel: 5.5, bite: 1.65, leanRate: 6.8, maxLean: 0.54, shock: 0.4, wheel: 0.11, drain: 0.24 } },
-  retro: { name: 'Mini Bubblegum', ko: '버블껌', text: 'A pastel retro runabout with whitewall tyres and a basket: nimble, kind on the bumps, long on battery.', spec: { cruise: 18.3, boostTop: 22.2, accel: 6.5, bite: 2.35, leanRate: 9.6, maxLean: 0.62, shock: 0.68, wheel: 0.1, drain: 0.14, regen: 0.07 } }
+  cruiser: { name: 'G9 Grand', ko: '그랜드', text: 'Heavy, wide and fast: a missile on the boulevards that needs braking well before a corner.', spec: { cruise: 22, boostTop: 26.2, accel: 5.5, bite: 1.65, leanRate: 6.8, maxLean: 0.54, shock: 0.4, wheel: 0.11 } },
+  retro: { name: 'Mini Bubblegum', ko: '버블껌', text: 'A pastel retro runabout with whitewall tyres and a basket: nimble, kind on the bumps, and a little quicker off the line than the S1.', spec: { cruise: 18.3, boostTop: 22.2, accel: 6.5, bite: 2.35, leanRate: 9.6, maxLean: 0.62, shock: 0.68, wheel: 0.1 } }
 };
 export const SCOOTER_ORDER = ['city', 'racer', 'chunky', 'kick', 'cruiser', 'retro'];
 export const cleanScooter = (id) => (SCOOTERS[id] ? id : 'city');
@@ -72,10 +68,7 @@ export function specFor(scooter = 'city', feel = {}) {
   return base;
 }
 
-/**
- * The bars a scooter is shown with (0–1 each): Top speed, Acceleration, Cornering, Shock absorption
- * and Battery (how long a boost lasts and how fast it comes back).
- */
+/** The bars a scooter is shown with (0–1 each): Top speed, Acceleration, Cornering and Shock absorption. */
 export function scooterStats(id) {
   const s = { ...SCOOT, ...(SCOOTERS[id] ?? SCOOTERS.city).spec };
   const k = (v, a, b) => clamp((v - a) / (b - a), 0.06, 1);
@@ -83,11 +76,10 @@ export function scooterStats(id) {
     speed: k(s.cruise * 3.6, 58, 82),
     accel: k(s.accel, 5, 8),
     corner: k(s.bite * Math.tan(s.maxLean) * (0.6 + s.leanRate / 25), 0.9, 2.25),
-    shock: k(s.shock, 0, 1),
-    battery: k(1 / s.drain + s.regen * 40, 4, 9.6)
+    shock: k(s.shock, 0, 1)
   };
 }
-export const STAT_NAMES = { speed: 'Top speed', accel: 'Acceleration', corner: 'Cornering', shock: 'Shock absorption', battery: 'Battery' };
+export const STAT_NAMES = { speed: 'Top speed', accel: 'Acceleration', corner: 'Cornering', shock: 'Shock absorption' };
 
 /**
  * A drift: how fast it swings round (rad/s at full lock, on top of the lean), how quickly the way it
@@ -133,7 +125,7 @@ function jar(s, k, spec, out) {
 
 /** A scooter at rest at a place. */
 export function newScoot(x, z, heading) {
-  return { x, z, heading, travel: heading, v: 0, lean: 0, steer: 0, stamina: 1, roll: 0, skid: 0, boosting: false, sprinting: false, braking: false, tired: 0, bump: 0, joint: 0, air: 0, airV: 0, wobble: 0 };
+  return { x, z, heading, travel: heading, v: 0, lean: 0, steer: 0, roll: 0, skid: 0, boosting: false, sprinting: false, braking: false, bump: 0, joint: 0, air: 0, airV: 0, wobble: 0 };
 }
 
 /** The tightest turn at a speed on a surface, as a curvature (1 / radius in metres). */
@@ -171,8 +163,8 @@ export function kerbHop(rise, cross) {
 
 /**
  * Move a scooter on by dt seconds. `input`: { throttle, brake, left, right (or
- * steer −1…1), drift (Shift held), boost, free (a tailwind: boosting costs nothing), extra (m/s
- * more top speed), grade (rise over run), grip (GRIP.*), draft (0–1),
+ * steer −1…1), drift (Shift held), boost (an energy drink's boost under way: the
+ * race sets it from the drink's timer — no key boosts), extra (m/s more top speed), grade (rise over run), grip (GRIP.*), draft (0–1),
  * surface ('paving' | 'concrete' | 'asphalt' | 'smooth'), kerb ({ rise, cross })
  * }. `blocked` is what is solid: a Walls (walls.js — the buildings' footprints and
  * the alleys' walls, met by a swept circle so nothing is ridden through at any
@@ -184,12 +176,9 @@ export function kerbHop(rise, cross) {
 export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   const grip = clamp(input.grip ?? 1, 0.2, 1.1);
   const grade = clamp(input.grade ?? 0, -0.25, 0.25);
-  const free = Boolean(input.free);
   const out = { hit: 0, glance: 0, jolt: 0, kerb: null, landed: 0 };
-  // Boost: from the gauge (or a tailwind); run it dry and it needs a moment before it boosts again.
-  s.tired = Math.max(0, (s.tired ?? 0) - dt);
-  const canBoost = free || (s.stamina > 0.02 && s.tired <= 0);
-  s.boosting = Boolean(input.boost && canBoost && !input.brake && s.v > -0.3);
+  // Boost: only while a drink's boost lasts (the race says so), to the boost speed with the boost's pull.
+  s.boosting = Boolean(input.boost && !input.brake && s.v > -0.3);
   s.sprinting = s.boosting;
   const throttle = Boolean(input.throttle || s.boosting) && !input.brake;
   s.throttle = throttle;
@@ -214,14 +203,6 @@ export function stepScoot(s, input, dt, blocked = () => false, spec = SCOOT) {
   s.v -= G * grade * 0.6 * dt;
   if (s.v > 0 && s.v < 0.05 && !throttle && grade >= 0) s.v = 0;
   s.v = clamp(s.v, -1, spec.boostTop + 4);
-  // The gauge: spent boosting (not on a tailwind), back slowly riding, faster coasting or in a slipstream.
-  if (s.boosting && !free) {
-    s.stamina = Math.max(0, s.stamina - spec.drain * dt);
-    if (s.stamina <= 0.02) {
-      s.stamina = 0;
-      s.tired = 1.2;
-    }
-  } else s.stamina = Math.min(1, s.stamina + (throttle ? spec.regen : spec.rest) * dt + (input.draft ?? 0) * 0.2 * dt);
   // Steering by leaning: the keys (or a bot's steer) ask for a lean, the grip says how far; fast, it leans in
   // more gently (speed-sensitive steering), so a tap at 70 km/h is a lane change, not a swerve.
   const wheel = clamp(input.steer ?? (input.left ? 1 : 0) - (input.right ? 1 : 0), -1, 1);

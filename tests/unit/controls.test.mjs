@@ -50,10 +50,12 @@ test('controls: the camera and map keys are the shared ones, and clash with noth
   assert.ok(codesFor(KW, 'map').includes(MAP_KEY));
   // Kickrani: the horn moved off H.
   assert.deepEqual(codesFor(SE, 'horn'), ['KeyB']);
-  // …and in a race the bell is on Space (B rings it too), Shift drifts, F boosts.
+  // …and in a race the bell is on Space (B rings it too), Shift drifts; no boost key (only the drink boosts).
   assert.deepEqual(codesFor(SE, 'bell'), ['Space', 'KeyB']);
   assert.deepEqual(codesFor(SE, 'drift'), ['ShiftLeft', 'ShiftRight']);
-  assert.deepEqual(codesFor(SE, 'sprint'), ['KeyF']);
+  const raceRows = SE.groups.flatMap((g) => g.rows).filter((r) => r.modes?.race || r.context === 'race');
+  assert.ok(!raceRows.some((r) => r.codes.includes('KeyF')), 'F does nothing in a race');
+  assert.ok(!/boost/i.test(raceRows.map((r) => r.modes?.race ?? '').join(' ')), 'no boost in the race hints');
 });
 
 test('controls: the on-screen hint is drawn from the same rows', () => {

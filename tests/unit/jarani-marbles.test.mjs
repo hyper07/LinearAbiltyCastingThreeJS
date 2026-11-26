@@ -83,10 +83,10 @@ test('marbles: found under a wheel only where they lie', () => {
   assert.equal(marblesAt(patch, 30, 30), 0);
 });
 
-test('drink: an instant boost of a few seconds, the gauge refilled — useful, not a win button', () => {
-  assert.ok(DRINK.boost >= 2.5 && DRINK.boost <= 3.5);
+test('drink: the only boost — an instant three to four seconds of it, useful, not a win button', () => {
+  assert.ok(DRINK.boost >= 3 && DRINK.boost <= 4);
   assert.ok(DRINK.extra < 1.5, 'a little over boost speed at most');
-  assert.ok(DRINK.fill > 0.5);
+  assert.equal(DRINK.fill, undefined, 'no gauge to fill');
 });
 
 test('course map: zoom levels, what each shows, fitting a box, every course coloured', () => {

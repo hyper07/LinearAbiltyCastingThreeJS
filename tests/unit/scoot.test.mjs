@@ -13,7 +13,7 @@ const ride = (s, input, secs, dt = 1 / 60, blocked) => {
   return { last, all };
 };
 
-test('scooter: a racing motor — 70 km/h in about four and a half seconds; a boost runs to about 85 and spends the gauge', () => {
+test('scooter: a racing motor — 70 km/h in about four and a half seconds; a (drink\'s) boost runs to about 85, no gauge', () => {
   const s = newScoot(0, 0, 0);
   let t = 0;
   while (s.v * 3.6 < 69 && t < 10) {
@@ -24,14 +24,14 @@ test('scooter: a racing motor — 70 km/h in about four and a half seconds; a bo
   ride(s, { throttle: true }, 6);
   assert.ok(Math.abs(s.v * 3.6 - 70) < 1, `cruise ${(s.v * 3.6).toFixed(1)} km/h`);
   assert.ok(s.z < -150, 'it went north (−z)');
-  const before = s.stamina;
   ride(s, { throttle: true, boost: true }, 3);
   assert.ok(s.v * 3.6 > 80 && s.v * 3.6 < 86.5, `boost ${(s.v * 3.6).toFixed(1)} km/h`);
-  assert.ok(s.stamina < before - 0.5, 'the gauge went down');
-  // run it dry: it stops boosting and needs a moment
-  ride(s, { throttle: true, boost: true }, 4);
-  assert.equal(s.boosting, false);
+  // no gauge to run dry: it boosts for as long as it is told to (the race: while the drink lasts)
+  ride(s, { throttle: true, boost: true }, 6);
+  assert.ok(s.boosting && s.v * 3.6 > 80, 'still boosting');
+  assert.equal(s.stamina, undefined, 'no boost gauge');
   ride(s, { throttle: true }, 8);
+  assert.equal(s.boosting, false);
   assert.ok(Math.abs(s.v * 3.6 - 70) < 1.2, 'back to the cap after the boost');
 });
 

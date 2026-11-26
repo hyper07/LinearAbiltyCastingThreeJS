@@ -10,11 +10,10 @@ import { laneBand } from './pack.js';
  * fill an empty slot, and use it with 1, 2 or 3.
  * What you get depends on where you are: the further back, the better.
  *
- *   energy drink — a gulp: three seconds of boost at once, and the gauge full again
+ *   energy drink — a gulp: four seconds of boost at once (the only boost there is)
  *   police       — call the police: a patrol pulls the rider ahead of you over,
  *                  stopped for a second and a half (police.js)
  *   gold helmet  — worn where everyone sees it: the next crash bounces off
- *   tailwind     — five seconds of free, faster boosting
  *   branch       — a leafy branch: thrown into the wheel of the rider right
  *                  ahead of you, and only them; with nobody ahead it is wasted (branch.js)
  *   marbles      — a spray of glass marbles poured behind you: whoever rides
@@ -23,28 +22,27 @@ import { laneBand } from './pack.js';
  *                  for about seven seconds; whoever rides into it can't see (smoke.js)
  */
 export const ITEMS = {
-  drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Gulp! Three seconds of boost at once, and your boost gauge full again.', pop: 'DRINK!', color: '#9ef07a' },
+  drink: { name: 'Energy drink', ko: '에너지 드링크', text: 'Gulp! Four seconds of boost at once — the only way to go faster than the motor.', pop: 'DRINK!', color: '#9ef07a' },
   police: { name: 'Call the police', ko: '경찰 호출', text: 'A patrol pulls the rider ahead of you over: stopped for a second and a half (if you lead, the one behind you).', pop: 'POLICE!', color: '#5a8bff' },
   helmet: { name: 'Gold helmet', ko: '황금 헬멧', text: 'On your head for all to see: the next crash (or a branch, or a fall on marbles) bounces off you.', pop: 'HELMET!', color: '#ffd23a' },
-  tailwind: { name: 'Tailwind', ko: '순풍', text: 'Five seconds of free, faster boosting.', pop: 'WIND!', color: '#8fd8ff' },
   branch: { name: 'Branch', ko: '나뭇가지', text: 'Thrown into the wheel of the rider right ahead of you (they go over the bars). If nobody\'s ahead, it\'s wasted.', pop: 'BRANCH!', color: '#8bd450' },
   marbles: { name: 'Marbles', ko: '구슬', text: 'Pour a spray of glass marbles behind you: riders who cross them slip — too fast, or steering hard, and they fall.', pop: 'MARBLES!', color: '#7ad8ff' },
   smoke: { name: 'Smoke', ko: '연막', text: 'Drop a smoke canister behind you: a thick cloud fills the road for about seven seconds, and riders who go into it can\'t see a thing.', pop: 'SMOKE!', color: '#c9ced6' }
 };
-export const ITEM_ORDER = ['drink', 'police', 'helmet', 'tailwind', 'branch', 'marbles', 'smoke'];
+export const ITEM_ORDER = ['drink', 'police', 'helmet', 'branch', 'marbles', 'smoke'];
 
 /**
- * Odds by place: [leader … last]. The further back, the more tailwinds, branches, marbles, smoke and
- * police calls. (Smoke's 5 % and 10 % came out of the others in proportion.)
+ * Odds by place: [leader … last], each summing to 1. The further back, the more branches, marbles, smoke
+ * and police calls; drinks (the only boost) are the commonest item all the way down.
  */
 const ODDS = {
-  first: { drink: 0.3895, helmet: 0.266, police: 0.057, tailwind: 0.095, branch: 0.0855, marbles: 0.057, smoke: 0.05 },
-  last: { drink: 0.117, helmet: 0.072, police: 0.162, tailwind: 0.216, branch: 0.189, marbles: 0.144, smoke: 0.1 }
+  first: { drink: 0.465, helmet: 0.276, police: 0.057, branch: 0.095, marbles: 0.057, smoke: 0.05 },
+  last: { drink: 0.3, helmet: 0.072, police: 0.162, branch: 0.219, marbles: 0.147, smoke: 0.1 }
 };
 /**
  * The odds of an item for a racer in `rank` of `n` (for the tests and the menu). `lean` (0–1, the
  * course's level: course.js LEVELS items) tips everyone's odds a little toward the back-markers'
- * (more branches, marbles and tailwinds on a harder course).
+ * (more branches, marbles and police calls on a harder course).
  */
 export function itemOdds(rank, n, lean = 0) {
   const k = Math.min(1, (n > 1 ? (rank - 1) / (n - 1) : 0) + 0.15 * lean);
@@ -149,7 +147,7 @@ function paintIcon(g, id) {
   g.arc(48, 48, 42, 0, Math.PI * 2);
   g.fill();
   g.restore();
-  g.fillStyle = { drink: '#e6f8d8', police: '#e2eaff', helmet: '#fff4c8', tailwind: '#e0f4ff', branch: '#eef6e0', marbles: '#e4f2ff', smoke: '#eceef2' }[id] ?? '#eee';
+  g.fillStyle = { drink: '#e6f8d8', police: '#e2eaff', helmet: '#fff4c8', branch: '#eef6e0', marbles: '#e4f2ff', smoke: '#eceef2' }[id] ?? '#eee';
   g.beginPath();
   g.arc(48, 48, 37, 0, Math.PI * 2);
   g.fill();
@@ -225,20 +223,6 @@ function paintIcon(g, id) {
     g.strokeStyle = INK;
     g.lineWidth = 3;
     g.stroke(strap);
-  } else if (id === 'tailwind') {
-    // Gusts: three curling strokes and a leaf riding them.
-    g.lineCap = 'round';
-    for (const [y, l, w] of [[34, 56, 7], [50, 66, 8], [66, 48, 7]]) {
-      const p = new Path2D(`M${18} ${y} L${18 + l} ${y} C${18 + l + 14} ${y} ${18 + l + 14} ${y - 16} ${18 + l} ${y - 14}`);
-      g.strokeStyle = INK;
-      g.lineWidth = w + 3;
-      g.stroke(p);
-      g.strokeStyle = '#6ec6f0';
-      g.lineWidth = w;
-      g.stroke(p);
-    }
-    const leaf = new Path2D('M60 72 C66 60 78 58 84 62 C80 72 70 78 60 72 Z');
-    inked(g, leaf, '#9ef07a', 2);
   } else if (id === 'marbles') {
     // A little spill of glass marbles: each a clear ball with a coloured swirl, a hard highlight, a shadow.
     for (const [x, y, r, c, c2] of [[64, 66, 12, '#3a8bff', '#9fd2ff'], [34, 64, 13, '#ff5a7a', '#ffc2cf'], [50, 42, 15, '#2fc48a', '#b4f3d6'], [70, 32, 9, '#ffb02e', '#ffe2a6'], [24, 40, 8, '#9b6bff', '#d9c8ff']]) {

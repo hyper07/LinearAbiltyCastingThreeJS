@@ -1869,8 +1869,6 @@ export class SeoulGame {
         if ((e.code === 'Escape' || e.code === 'KeyP') && live) return this.race.togglePause();
         if (e.code === 'Escape') return this.race.quit();
         if (this.race.paused) return;
-        // A tap of F between two frames still boosts.
-        if (e.code === 'KeyF') this.race.sprintTap = true;
         if (e.code === 'KeyR' && !e.repeat) this.race.reset();
         const slot = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
         if (slot >= 0) this.race.useSlot(slot);

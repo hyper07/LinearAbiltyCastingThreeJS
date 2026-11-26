@@ -7,12 +7,15 @@ import { speedFeel } from '../../src/city/speedfx.js';
 import { cornerZones } from '../../src/city/golmok.js';
 import { policeTarget, POLICE } from '../../src/city/police.js';
 
-test('items: the branch is one of them, and riders further back get more branches (and tailwinds)', () => {
+test('items: the branch is one of them, and riders further back get more branches; no tailwind — the drink is the only boost', () => {
   assert.ok(ITEM_ORDER.includes('branch') && ITEMS.branch.name && ITEMS.branch.text);
+  assert.ok(!ITEM_ORDER.includes('tailwind') && !ITEMS.tailwind, 'no tailwind');
   const first = itemOdds(1, 4);
   const last = itemOdds(4, 4);
-  assert.ok(last.branch > first.branch && last.tailwind > first.tailwind);
-  for (const o of [first, last, itemOdds(2, 4)]) assert.ok(Math.abs(Object.values(o).reduce((a, b) => a + b, 0) - 1) < 1e-9, 'odds add up');
+  assert.ok(last.branch > first.branch);
+  // boosts aren't rare: the drink is about a third of the boxes or more, all the way down the field
+  for (const o of [first, itemOdds(2, 4), itemOdds(3, 4), last, itemOdds(4, 4, 1)]) assert.ok(o.drink >= 0.3, `drink ${o.drink}`);
+  for (const o of [first, last, itemOdds(2, 4), itemOdds(4, 4, 1)]) assert.ok(Math.abs(Object.values(o).reduce((a, b) => a + b, 0) - 1) < 1e-9, 'odds add up');
   let seed = 3;
   const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const n = { first: 0, last: 0 };

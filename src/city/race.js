@@ -4,7 +4,7 @@ import { Session } from '../net/Session.js';
 import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, isSmall, courseStats } from './course.js';
 import { Walls, tileRings, RIDER_RADIUS } from './walls.js';
 import { TILE, decodeTile, tileKey, tileOf } from './tiles.js';
-import { bikeGap, closeCall, slipstream, NEAR_MISS, wrongWay } from './ride.js';
+import { bikeGap, closeCall, slipstream, wrongWay } from './ride.js';
 import { SCOOT, GRIP, SCOOTER_ORDER, newScoot, stepScoot, cornerSpeed, specFor, cleanScooter } from './scoot.js';
 import { Lobby } from './lobby.js';
 import { JaraniStage } from './stage.js';
@@ -47,9 +47,9 @@ import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, r
  * pavements and the alleys (life.js). Hit something square and you are off
  * the scooter — a tumble, dizzy stars, and back on a second and a half later;
  * met at a slant (a wall, a car's flank, a bin) it is only a scrape. Pass
- * close at speed and the boost gauge fills. Throttle (W, to 70 km/h), lean
- * (A D), drift (Shift, round the tight corners), brake (S), boost (F, on the
- * battery gauge), ring the bell (Space, or B), and use what the item boxes give you (1–3) — a branch thrown
+ * close at speed for a WHOOSH. Throttle (W, to 70 km/h), lean
+ * (A D), drift (Shift, round the tight corners), brake (S), ring the bell (Space, or B), and use what
+ * the item boxes give you (1–3) — the energy drink, the only boost; a branch thrown
  * into the wheel of the rider right ahead among them (branch.js). Riders bump and wobble off
  * each other (pack.js); kerbs met at an angle are hopped, paving joints
  * rattle. Corners are marked with chevron boards, and anything standing in
@@ -111,11 +111,11 @@ const TUMBLE = 0.7;
 const WALL_FALL = 10.5;
 const DOWN = 1.55;
 /**
- * The energy drink: a gulp, then `boost` seconds of boost at once (to the scooter's boost speed,
- * `extra` m/s over it, costing no gauge), and the gauge filled up again at `fill` a second — about
- * ten metres gained on a straight: worth having, not a win.
+ * The energy drink — the only boost there is (no gauge, no boost key): a gulp, then `boost` seconds at
+ * once to the scooter's boost speed (`extra` m/s over it) with its boost's pull — about 15 metres
+ * gained on a straight: worth having, not a win.
  */
-export const DRINK = { boost: 3, extra: 0.4, fill: 1.5 };
+export const DRINK = { boost: 4, extra: 0.4 };
 /** Seconds the race stays open for the others once the first rider is home (then the rest are DNF). */
 export const FINISH_WINDOW = 30;
 
@@ -476,7 +476,6 @@ export class Race {
         const helmet = Boolean(flags & 8);
         if (r.helmet && !helmet && mode === 'ride') this._helmetSaved(r, false);
         r.helmet = helmet;
-        r.tailwind = flags & 16 ? 1 : 0;
         r.drinkT = flags & 32 ? Math.max(r.drinkT ?? 0, 0.2) : 0;
         r.slip = flags & 64 ? 1 : Math.max(0, (r.slip ?? 0) - 0.1);
         if (mode !== r.mode) {
@@ -634,7 +633,6 @@ export class Race {
         done: null,
         items: [null, null, null],
         helmet: false,
-        tailwind: 0,
         drinkT: 0,
         slip: 0,
         slips: 0,
@@ -1279,7 +1277,6 @@ export class Race {
         r.throwT += dt;
         if (r.throwT > 0.5) r.throwT = null;
       }
-      r.tailwind = Math.max(0, r.tailwind - dt);
       r.drinkT = Math.max(0, (r.drinkT ?? 0) - dt);
       if (r.mine) {
         if (r.mode !== 'ride') {
@@ -1291,7 +1288,7 @@ export class Race {
         if (racing && r.done == null) {
           // (autopilot: the bot's riding for you — the end-to-end checks use it.)
           if (r.me && this.paused) input = {};
-          else if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), boost: key('KeyF') || this.sprintTap, drift: key('ShiftLeft', 'ShiftRight') };
+          else if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), drift: key('ShiftLeft', 'ShiftRight') };
           else input = this._bot(r, dt);
         } else if (r.done != null) {
           // Home: a cool-down while the others finish — steered along the course, braking to a stop
@@ -1300,23 +1297,20 @@ export class Race {
           const cap = this.course.open ? 0 : Math.max(0, 9 - (this.clock - r.done) * 2.2);
           input = { steer: r.s.v > 0.5 ? steer : 0, throttle: false, brake: r.s.v > cap + 0.3 || (cap === 0 && r.s.v > 0.1) };
         }
-        if (r.me) this.sprintTap = false;
         input.grip = Math.min(1.05, grip * (r.spec.grip ?? 1));
-        input.free = r.tailwind > 0;
-        input.extra = r.tailwind > 0 ? 0.9 : 0;
-        // The energy drink: boosting by itself, free, while it lasts; the gauge filling back up.
+        // The energy drink, the only boost: boosting by itself while it lasts (nothing else boosts).
+        input.boost = false;
         if (r.drinkT > 0 && racing && r.done == null) {
           input.boost = true;
           input.throttle = true;
           input.brake = false;
-          input.free = true;
-          input.extra = Math.max(input.extra, DRINK.extra);
+          input.extra = DRINK.extra;
         }
         // Pulled over by the police (police.js): hauled to a stop and held, a wobble, then let go.
         if (r.pulled) {
           r.pulled.t += dt;
           if (r.pulled.t >= 0) {
-            Object.assign(input, { throttle: false, boost: false, drift: false, brake: true, free: false, extra: 0 });
+            Object.assign(input, { throttle: false, boost: false, drift: false, brake: true, extra: 0 });
             r.s.v *= Math.exp(-dt * 6);
             if (r.pulled.t < 0.4) r.wobble = Math.max(r.wobble ?? 0, 0.55);
           }
@@ -1324,10 +1318,6 @@ export class Race {
             r.pulled = null;
             r.wobble = Math.max(r.wobble ?? 0, 0.25);
           }
-        }
-        if (r.fill) {
-          r.s.stamina = Math.min(1, r.s.stamina + DRINK.fill * dt);
-          if (r.s.stamina >= 1) r.fill = false;
         }
         input.grade = this._grade(r);
         input.draft = this._draft(r);
@@ -1852,11 +1842,10 @@ export class Race {
         this._crash(r, v.kind, v);
         return;
       }
-      // Close and fast between you: a close call fills the sprint gauge.
+      // Close and fast between you: a close call — WHOOSH!
       const closing = Math.hypot(-Math.sin(s.travel) * s.v + Math.sin(v.box.heading) * v.v, -Math.cos(s.travel) * s.v + Math.cos(v.box.heading) * v.v);
       if (!v.missed.has(r.id) && closeCall(gap, closing)) {
         v.missed.add(r.id);
-        r.s.stamina = Math.min(1, r.s.stamina + NEAR_MISS.stamina);
         r.misses++;
         if (r.me) {
           this.fx.pop('WHOOSH!', { x: s.x, y: r.y + 2.4, z: s.z, ride: s }, { color: '#8fd8ff', size: 0.9 });
@@ -1954,7 +1943,6 @@ export class Race {
     r.slide = { vx: -Math.sin(r.s.travel) * r.s.v * 0.55, vz: -Math.cos(r.s.travel) * r.s.v * 0.55 };
     if (vehicle) vehicle.stopFor = 2.5;
     r.s.v = 0;
-    r.s.stamina = Math.max(0, r.s.stamina - 0.15);
     this._crashFx(r, what);
     if (r.me) this.stop = 0.13;
   }
@@ -2081,8 +2069,8 @@ export class Race {
     v.root.visible = !(r.safe > 0 && r.mode === 'ride' && Math.floor(r.safe * 12) % 2);
     const mode = won ? 'win' : this.phase === 'grid' ? 'grid' : r.mode;
     if (Boolean(v.helmetOn) !== Boolean(r.helmet)) v.setHelmet(r.helmet);
-    const boosted = s.boosting || r.tailwind > 0 || r.drinkT > 0;
-    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, drift: (s.drift ?? 0) * (s.driftSide ?? 0), steer: s.steer, braking: s.braking, boost: boosted, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0, (r.slip ?? 0) * 0.8), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, battery: s.stamina, night, glow: r.drinkT > 0 ? '#c8ff9a' : r.tailwind > 0 ? '#bdf0ff' : null });
+    const boosted = s.boosting || r.drinkT > 0;
+    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, drift: (s.drift ?? 0) * (s.driftSide ?? 0), steer: s.steer, braking: s.braking, boost: boosted, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0, (r.slip ?? 0) * 0.8), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, night, glow: r.drinkT > 0 ? '#c8ff9a' : null });
     // The drink's boost: a ribbon of green light behind the back wheel.
     if (r.drinkT > 0 || this.trails?.has(r.id)) {
       let tr = this.trails.get(r.id);
@@ -2097,7 +2085,6 @@ export class Race {
     // A rival right by the camera (a big furry head filling a corner), or between it and you, fades away.
     if (!r.me && this.me) v.fade(nearFade(cam, { x: s.x, y: r.y + 0.8, z: s.z, ride: s }, { x: this.me.s.x, y: this.me.y + 0.9, z: this.me.s.z }));
     if (!r.me && (v._fade ?? 1) < 0.03) v.root.visible = false;
-    if (r.tailwind > 0 && Math.random() < dt * 14) this.fx?.streak({ x: s.x, y: r.y + 0.6 + Math.random() * 1.0, z: s.z }, s.heading);
     if (s.skid > 0.25 && s.v > 3 && Math.random() < dt * 20) this.fx?.dust({ x: s.x + Math.sin(s.heading) * 0.5, y: r.y, z: s.z + Math.cos(s.heading) * 0.5 }, 1);
     // A drift: a dark scuff off the back tyre on the road, and a puff now and then.
     if ((s.drift ?? 0) > 0.25 && s.v > 4 && r.mode === 'ride') {
@@ -2374,12 +2361,10 @@ export class Race {
     else if (item === 'marbles') this._pour(r);
     else if (item === 'smoke') this._dropSmoke(r);
     else if (item === 'drink') {
-      // A gulp, and away: boosting at once for DRINK.boost seconds, the gauge filling up as you go.
+      // A gulp, and away: boosting at once for DRINK.boost seconds.
       r.drinkT = DRINK.boost;
-      r.fill = true;
       r.drinks = (r.drinks ?? 0) + 1;
     } else if (item === 'helmet') r.helmet = true;
-    else if (item === 'tailwind') r.tailwind = 5;
     else if (item === 'police') this._callPolice(r);
   }
 
@@ -2411,10 +2396,6 @@ export class Race {
       r.helmet = true;
       r.view?.setHelmet(true);
       if (r.me) this._ding(1100);
-    } else if (item === 'tailwind') {
-      this.fx?.pop('ZOOM!', at, { color: '#8fd8ff', size: 1.3 });
-      r.tailwind = 5;
-      if (r.me) this._whoosh(1.4);
     } else if (item === 'branch') {
       // the wind-up: the arm goes back with the branch over the shoulder (the throw itself is _branches')
       r.throwT = 0;
@@ -3191,8 +3172,8 @@ export class Race {
     } else if (r.off > 30) this._remount(r);
     const has = (id) => r.items.indexOf(id);
     if (has('helmet') >= 0 && !r.helmet) this._use(r, has('helmet'));
-    // the drink: on a straight with open road, not already boosting (it is three seconds of boost)
-    if (has('drink') >= 0 && straight && block > 50 && v > 12 && !s.boosting && r.tailwind <= 0 && !(r.slip > 0)) this._use(r, has('drink'));
+    // the drink (the only boost): on a straight with open road, not already boosting (it is four seconds of boost)
+    if (has('drink') >= 0 && straight && block > 50 && v > 12 && !s.boosting && !(r.slip > 0)) this._use(r, has('drink'));
     if (has('marbles') >= 0) {
       // poured when someone is right behind (or after holding them a while)
       r.heldMarbles = (r.heldMarbles ?? 0) + dt;
@@ -3226,7 +3207,6 @@ export class Race {
         this._use(r, has('police'));
       }
     }
-    if (has('tailwind') >= 0 && straight && block > 40 && v > 14) this._use(r, has('tailwind'));
     if (has('branch') >= 0 && !r.pendingBranch) {
       // Only at the rider right ahead, in reach (a throw with nobody there would be wasted) — and at a
       // person only half the time: the bots are rivals, not snipers (the other half they hold it for a
@@ -3245,7 +3225,6 @@ export class Race {
       }
     }
     r.dbg = { block: Math.round(block * 10) / 10, push: Math.round(push * 100) / 100, target: Math.round(target * 10) / 10, steer: Math.round(steer * 100) / 100 };
-    const wantBoost = straight && block > 40 && (s.stamina > 0.45 || r.tailwind > 0) && v > 10 && v < target - 0.3;
     // Something stopped close ahead (a car waiting at the junction it's turning through): no drift into it — brake.
     const tooClose = Math.min(block, crossing, personAhead) < 9 + v * 0.35;
     if (tooClose) driftNow = 0;
@@ -3255,7 +3234,7 @@ export class Race {
     const drift = r.driftT > 0 && v > 6;
     if (drift && Math.sign(steer) !== Math.sign(r.driftSide)) steer = r.driftSide * 0.4;
     if (drift) steer = Math.sign(steer || r.driftSide) * Math.max(Math.abs(steer), 0.75);
-    return { throttle: v < target - 0.2, brake: v > target + 1.2 && (!drift || v > target + 5), steer, drift, boost: wantBoost && Math.random() < 0.4 + 0.6 * r.skill };
+    return { throttle: v < target - 0.2, brake: v > target + 1.2 && (!drift || v > target + 5), steer, drift };
   }
 
   /** The order: finished first (by time), then by how far round. */
@@ -3365,7 +3344,8 @@ export class Race {
     if (this.sent < SEND_EVERY) return;
     this.sent = 0;
     const r2 = (v) => Math.round(v * 100) / 100;
-    const flags = (r) => (r.s.boosting ? 1 : 0) | (r.s.throttle ? 2 : 0) | (r.s.braking ? 4 : 0) | (r.helmet ? 8 : 0) | (r.tailwind > 0 ? 16 : 0) | (r.drinkT > 0 ? 32 : 0) | (r.slip > 0.3 ? 64 : 0);
+    // (bit 16 was the tailwind, gone: left unused so an older browser in the room reads nothing odd)
+    const flags = (r) => (r.s.boosting ? 1 : 0) | (r.s.throttle ? 2 : 0) | (r.s.braking ? 4 : 0) | (r.helmet ? 8 : 0) | (r.drinkT > 0 ? 32 : 0) | (r.slip > 0.3 ? 64 : 0);
     s.send({ t: 'race-bikes', bikes: this.racers.filter((r) => r.mine && !r.left).map((r) => [r.id, r2(r.s.x), r2(r.s.z), r2(r.s.heading), r2(r.s.v), r2(r.s.lean), r2(r.y), r2(r.dist), r.done ?? -1, r.best ?? -1, r2(r.s.roll), flags(r), r.mode, r.crashes, r.misses]) });
   }
 
@@ -3400,9 +3380,9 @@ export class Race {
     const L = this.course.length * this.laps;
     this.boardEl.innerHTML = order.map((r, i) => `<p class="${r.me ? 'is-me' : ''}"><b>${i + 1}</b><i style="background:${r.color}"></i>${esc(r.ch.name)} <small>${esc(r.name)}${r.bot ? ' · bot' : ''}</small><span>${r.done != null ? clock(r.done) : `${Math.max(0, Math.round((L - r.dist) / 10) * 10)} m`}</span></p>`).join('');
     const kmh = Math.round(Math.abs(me.s.v) * 3.6);
-    const st = me.s.stamina;
-    const state = me.mode !== 'ride' ? 'OUCH' : me.slip > 0.2 ? 'SLIPPING!' : me.drinkT > 0 ? 'DRINK BOOST' : (me.s.drift ?? 0) > 0.3 ? 'DRIFT' : me.tailwind > 0 ? 'TAILWIND' : me.s.boosting ? 'BOOST' : me.s.tired > 0 ? 'CHARGING…' : me.draft > 0.2 ? 'SLIPSTREAM' : st >= 0.99 ? 'F · BOOST' : '';
-    this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><div class="race__boost${st >= 0.99 ? ' is-full' : ''}${me.s.tired > 0 ? ' is-tired' : ''}${me.fill ? ' is-filling' : ''}"><i style="width:${Math.round(st * 100)}%"></i></div><span>${state}</span>`;
+    // (no boost gauge: the energy drink is the only boost)
+    const state = me.mode !== 'ride' ? 'OUCH' : me.slip > 0.2 ? 'SLIPPING!' : me.drinkT > 0 ? 'DRINK BOOST' : (me.s.drift ?? 0) > 0.3 ? 'DRIFT' : me.draft > 0.2 ? 'SLIPSTREAM' : '';
+    this.speedEl.innerHTML = `<b>${kmh}</b><small>km/h</small><span>${state}</span>`;
     this.speedEl.classList.toggle('is-drink', me.drinkT > 0);
     // The golden helmet's badge: on, and protecting you — or, the moment it saves you, BLOCKED!
     this._helmetBlocked = Math.max(0, (this._helmetBlocked ?? 0) - (this._hudDt ?? 0.016));
@@ -3414,7 +3394,7 @@ export class Race {
       if (hk) this.helmetEl.innerHTML = `<img src="${itemIcon('helmet')}" alt="" /><b>${hk === 'on' ? 'GOLD HELMET' : 'BLOCKED!'}</b><small>${hk === 'on' ? 'protected · takes the next fall' : 'the helmet took it'}</small>`;
     }
     // Speed lines round the edge of the screen: from about 55 km/h, stronger flat out and on a boost.
-    const lines = me.mode === 'ride' ? Math.min(1, (this.feel ?? 0) * 0.75 + (me.s.boosting || me.tailwind > 0 || me.drinkT > 0 ? 0.35 : 0) + (me.drinkT > 0 ? 0.25 : 0)) : 0;
+    const lines = me.mode === 'ride' ? Math.min(1, (this.feel ?? 0) * 0.75 + (me.s.boosting || me.drinkT > 0 ? 0.35 : 0) + (me.drinkT > 0 ? 0.25 : 0)) : 0;
     this.linesEl.hidden = lines < 0.12;
     if (!this.linesEl.hidden) this.linesEl.style.opacity = lines.toFixed(2);
     // WRONG WAY: steady while it lasts (ride.js wrongWay holds it 1.5 s first), never flashed frame by frame.
@@ -3666,7 +3646,7 @@ export class Race {
     camera.lookAt(focus);
     // The FOV opens with speed (58° standing, about 71° flat out) and kicks wider on a boost.
     const v = Math.abs(r.s.v);
-    const fov = 58 + 13 * Math.min(1, Math.max(0, (v - 4) / 16)) + (r.s.boosting || r.tailwind > 0 || r.drinkT > 0 ? 6 : 0) + (r.drinkT > 0 ? 3 : 0);
+    const fov = 58 + 13 * Math.min(1, Math.max(0, (v - 4) / 16)) + (r.s.boosting || r.drinkT > 0 ? 6 : 0) + (r.drinkT > 0 ? 3 : 0);
     camera.fov += (fov - camera.fov) * 0.08;
     // the gulp: a quick kick of the FOV as the drink's boost goes in
     if (this._drinkKick > 0) {
@@ -3920,7 +3900,7 @@ export class Race {
     this._hub.gain.gain.setTargetAtTime(v < 0.3 ? 0 : r.s.throttle ? 0.016 + (r.s.boosting ? 0.01 : 0) : 0.006, t, 0.12);
     // and the wind, opening up with speed (a gust in a near miss or a boost)
     this._wind ??= windNoise(a);
-    this._wind.set(r.mode === 'ride' ? this.feel ?? 0 : 0, r.s.boosting || r.tailwind > 0 ? 0.6 : 0);
+    this._wind.set(r.mode === 'ride' ? this.feel ?? 0 : 0, r.s.boosting || r.drinkT > 0 ? 0.6 : 0);
   }
 
   horn() {
