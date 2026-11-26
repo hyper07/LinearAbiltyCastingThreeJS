@@ -31,6 +31,8 @@ Then read only the section a record names:
 - `images2/` (93 more, `ref.img2-*`): scene moods in `visual-study.md` §11; racing cars,
   RC cars and FPV drones in `knowledge/racing-study.md` (use the `racing-rc` skill).
 - `knowledge/seoul-buildings.md` — real-looking city buildings and Korean shop-sign placement.
+- How characters move (dances, celebrations, emotes, idles, plush/chibi retargeting, beat-synced
+  routines): the `character-motion` skill — `knowledge/motion-study.md` and `src/shared/motion/`.
 - `knowledge/visual-refs.json` — the full per-image catalogue (HUD element positions,
   effect layers, hex palettes, lighting, concept notes). Grep it; don't read it whole.
 

@@ -819,6 +819,31 @@
     "snowpuff"
    ],
    "path": "src/snowpuff/render/boards.js"
+  },
+  {
+   "id": "own.shared.motion",
+   "kind": "module",
+   "title": "Character motion: beat-synced procedural dance and emotes, retargeting onto plush/chibi rigs, clip baking and compression",
+   "summary": "dance.js (pure): beatClock, fitBeatOffset/detectOnsets, pop/bounce/step/wave curves, MOVES (bounce, chestPop, twoStep, armWave, point, bodyRoll, clap, roof, spin, hit; emotes hello, cheer, shrug, bow), routine(steps).sample(clock(t)), makeCombo(seed), mirrorPose, clampPlushPose, spring, secondary (ears/tail), applyPlushPose(rig, pose, {mask, weight}) on the plush rider bone names. retarget.js: aimRetarget (humanoid clip → one-bone limbs, PLUSH_FROM_UNREAL/MIXAMO/CMU_DAZ), bakePoseClip, compressClip, maskClip. clipTools.js (pure): reduceKeys, quantize, MASKS, splitRootMotion. Demo: motion-lab.html.",
+   "tags": [
+    "animation",
+    "dance",
+    "emote",
+    "beat",
+    "music",
+    "retarget",
+    "plush",
+    "chibi",
+    "procedural",
+    "celebration",
+    "mixer",
+    "clip",
+    "compression",
+    "kickrani",
+    "snowpuff",
+    "motion"
+   ],
+   "path": "src/shared/motion/dance.js"
   }
  ]
 }

@@ -1837,6 +1837,235 @@
    ],
    "from": "seoul-buildings",
    "path": "knowledge/seoul-buildings.md"
+  },
+  {
+   "id": "tech.motion-sources",
+   "kind": "technique",
+   "title": "Free motion sources and their licences: what we may ship (motion-study §2)",
+   "summary": "Usable: Mesh2Motion (CC0, 234 human clips incl. 5 dances, fetched), Quaternius UAL 1/2 (CC0, inbox), KayKit/Kenney animations (CC0), RobotExpressive (CC0), CMU mocap (free incl. commercial, no resale; credit), 100STYLE (CC BY 4.0). Builds only: Mixamo, Rokoko (no raw files in the repo). Not usable: AIST++ (AIST commercial clause + SMPL), Bandai Namco (CC BY-NC), Motorica, LaFAN1/ZeroEGGS, SFU, FineDance, Ready Player Me library, VRoid VRMA pack (extractable files).",
+   "tags": [
+    "animation",
+    "motion",
+    "mocap",
+    "dance",
+    "emote",
+    "licence",
+    "license",
+    "mixamo",
+    "cmu",
+    "aist",
+    "quaternius",
+    "mesh2motion",
+    "bvh",
+    "clips"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.retarget-chibi",
+   "kind": "technique",
+   "title": "Retargeting humanoid clips onto chibi and plush bodies with one-bone limbs (motion-study §5)",
+   "summary": "aimRetarget(): each one-bone limb aims along the source chain (shoulder→wrist, hip→ankle); spine/head copy turns in facing frames; limbs paired by side, not name (plush armL is the character's right); hips scaled by leg length, drop clamped to 25 %; in place. Plush visibility envelope: a paw raised > ~50° hides in the big head, so arms up = a V (clampAim maxUp 0.75), rubber-hose reach +20–25 %.",
+   "tags": [
+    "retarget",
+    "retargeting",
+    "chibi",
+    "plush",
+    "big head",
+    "animation",
+    "skeleton",
+    "limbs",
+    "rig",
+    "clip",
+    "stylised",
+    "kickrani",
+    "snowpuff"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.beat-dance",
+   "kind": "technique",
+   "title": "Procedural dance on the beat: beat clock, pop/bounce/step curves, original combos (motion-study §6)",
+   "summary": "beatClock(bpm,{offset}) → beat, phase, count 1–8. Pop: rises (ease-in) in the last 70 ms before the beat, 1 on the beat, holds 60 ms, releases 220–350 ms (seconds, so sharp at any tempo). Bounce lowest on the beat; steps arrive on the beat and dwell; claps on 2 and 4; crossfades of 0.5 beat centred on the count. Moves: bounce, chestPop, twoStep, armWave, point, bodyRoll, clap, roof, spin, hit + emotes. makeCombo(seed) composes original 8-count phrases; send the seed for online sync.",
+   "tags": [
+    "dance",
+    "beat",
+    "music",
+    "rhythm",
+    "bpm",
+    "procedural",
+    "animation",
+    "chest pop",
+    "celebration",
+    "podium",
+    "choreography",
+    "combo",
+    "emote"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.beat-lock",
+   "kind": "technique",
+   "title": "Locking a dance to music: measured BPM and a fitted downbeat (motion-study §6.1)",
+   "summary": "Use the manifest's measured tempo, not the asked one (podium 143.6 vs 140: one beat of drift every ~17 s). detectOnsets() on an AnalyserNode's 40–500 Hz energy (flux > 1.6× recent mean, ≥ 120 ms apart), then fitBeatOffset(onsets, bpm) = circular mean of onset phases; add AudioContext.outputLatency on Bluetooth.",
+   "tags": [
+    "beat",
+    "tempo",
+    "bpm",
+    "onset",
+    "music",
+    "sync",
+    "audio",
+    "analyser",
+    "dance",
+    "rhythm"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.anim-layers-masks",
+   "kind": "technique",
+   "title": "Animation layers in three.js: masks, additive clips, crossfades, root motion (motion-study §4.3–4.4)",
+   "summary": "Mask = a clip with only some tracks (maskClip with MASKS.upperBody) on a second action; additive = makeClipAdditive + AdditiveAnimationBlendMode for breathing/flinch/head-shake; crossfade 0.15–0.5 s from the current blended pose; layer order: locomotion → masked emote → additive → springs/IK. Root motion: play in place, timeScale = game speed ÷ clip speed (from the -rm twin) to stop foot sliding.",
+   "tags": [
+    "animation",
+    "mixer",
+    "layer",
+    "mask",
+    "upper body",
+    "additive",
+    "crossfade",
+    "blend",
+    "root motion",
+    "foot sliding",
+    "three.js"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.clip-compression",
+   "kind": "technique",
+   "title": "Making animation clips small: keyframe reduction, quantisation, meshopt (motion-study §4.5)",
+   "summary": "compressClip(): Ramer–Douglas–Peucker per track (angle tolerance 0.006 rad for quaternions, 1.5 mm for positions) cut a retargeted body roll 1,544 → 556 keys; drop constant tracks; offline gltf-transform resample + meshopt (EXT_meshopt_compression quaternion filter). Draco compresses geometry only, not animation. Target < 10 KB per plush emote.",
+   "tags": [
+    "animation",
+    "compression",
+    "keyframe",
+    "reduction",
+    "meshopt",
+    "gltf",
+    "quantization",
+    "clip",
+    "size",
+    "performance"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.secondary-springs",
+   "kind": "technique",
+   "title": "Secondary motion: ears, tails and squash-stretch on springs (motion-study §7)",
+   "summary": "Damped springs (semi-implicit Euler; critical damping d = 2√k) driven by the body's vertical speed and sway, never by time: ears k 70 d 6, sway follow k 45 d 5, tails k 55 d 4, landing squash k 260 d 12. Squash keeps volume: y = 1 + s, x = z = 1/√(1 + s).",
+   "tags": [
+    "spring",
+    "secondary motion",
+    "ears",
+    "tail",
+    "squash",
+    "stretch",
+    "jiggle",
+    "plush",
+    "follow through",
+    "animation"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.ik-foot-planting",
+   "kind": "technique",
+   "title": "IK for feet and hands: two-bone analytic, CCDIK, foot planting (motion-study §7)",
+   "summary": "Two-bone IK by the law of cosines with a pole vector (exact, cheap) for legs and arms; CCDIKSolver (three addons) for longer chains; foot planting: contact when the foot is < 2 cm up and < 0.3 m/s, pin its world position, blend the IK weight over 0.1 s. Plush one-bone legs: drop the hips instead.",
+   "tags": [
+    "ik",
+    "inverse kinematics",
+    "two bone",
+    "ccd",
+    "foot",
+    "planting",
+    "sliding",
+    "hands",
+    "animation"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.motion-matching",
+   "kind": "technique",
+   "title": "Motion matching basics (motion-study §7)",
+   "summary": "Pose database from long clips; features = feet positions/velocities, hip velocity, future trajectory at 0.33/0.67/1.0 s; search every ~0.1 s for the best normalised, weighted match; switch with inertialization (a decaying pose offset) instead of a crossfade. Data: 100STYLE (CC BY 4.0). Our games: a state machine + speed-matched playback is enough for now.",
+   "tags": [
+    "motion matching",
+    "locomotion",
+    "inertialization",
+    "animation",
+    "database",
+    "trajectory",
+    "character controller"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.generative-motion",
+   "kind": "technique",
+   "title": "Text-to-motion and music-to-dance models: licence verdicts (motion-study §9)",
+   "summary": "MDM, MotionGPT, MoMask, T2M-GPT: MIT/Apache code but trained on HumanML3D (AMASS, non-commercial incl. artefacts) → prototype only; EDGE, Bailando (AIST++, SMPL) → no; MotionLCM non-commercial; Tencent HY-Motion excludes South Korea; NVIDIA Kimodo SOMA checkpoints (NVIDIA Open Model License, commercially licensed data) → shippable but NVIDIA-only. MoMask runs on CPU (Mac Studio) and exports BVH.",
+   "tags": [
+    "generative",
+    "text to motion",
+    "music to dance",
+    "ai",
+    "mdm",
+    "momask",
+    "edge",
+    "motiongpt",
+    "kimodo",
+    "licence",
+    "amass",
+    "smpl",
+    "mac studio"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
+  },
+  {
+   "id": "tech.dance-learn-not-copy",
+   "kind": "technique",
+   "title": "Learning from famous choreography without copying it (motion-study §8)",
+   "summary": "A song's routine is a protected choreographic work; the vocabulary (bounce, two-step, chest pop, wave, point, body roll, claps on 2 and 4) is not. Watch for qualities (hit timing, holds, direction changes every 8 counts, the hook), name the moves, then compose our own order, phrases, mirrors and a plush hook (ear flick, tail wag, squash hop). Never the signature sequence, the music or the name.",
+   "tags": [
+    "dance",
+    "choreography",
+    "k-pop",
+    "copyright",
+    "original",
+    "learning",
+    "moves",
+    "routine",
+    "celebration"
+   ],
+   "from": "motion-study",
+   "path": "knowledge/motion-study.md"
   }
  ]
 }
