@@ -9,6 +9,7 @@ import { CONTROLS, modeHint } from './controls.js';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
 import { roadPieces } from './bridges.js';
+import { surfaceOf, walkY } from './surface.js';
 import { Weather, WEATHERS, fogRange } from './weather.js';
 import { GroundMist } from './mist.js';
 import { StreetLife } from './life.js';
@@ -1308,7 +1309,7 @@ export class SeoulGame {
     const walkOwned = [];
     this.roadHash ??= new Map();
     for (const r of list) {
-      // Points no more than 20 m apart, each with its deck height (worked out for the whole road network).
+      // Points no more than 10 m apart, each with its deck height (worked out for the whole road network).
       let line = [];
       let eased = [];
       for (let i = 0; i < r.line.length; i += 3) {
@@ -1364,9 +1365,17 @@ export class SeoulGame {
         const dx = nx - px;
         const dz = nz - pz;
         const len = Math.hypot(dx, dz) || 1;
-        const y = this.groundAt(x, z) + 0.9 + eased[i];
-        const left = [x - (dz / len) * half, y, z + (dx / len) * half];
-        const right = [x + (dz / len) * half, y, z - (dx / len) * half];
+        const g0 = this.groundAt(x, z);
+        const y = g0 + 0.9 + eased[i];
+        // Each edge on the ground under it (not flat across at the middle's height): roads that meet
+        // at a junction on a slope then lie on one surface, not a ledge the width of the crossing road
+        // times the slope. A deck stays level across (eased over its first half-metre of lift).
+        const drape = Math.max(0, Math.min(1, 1 - eased[i] / 0.5));
+        const edgeY = (ex, ez) => y + (this.groundAt(ex, ez) - g0) * drape;
+        const left = [x - (dz / len) * half, 0, z + (dx / len) * half];
+        const right = [x + (dz / len) * half, 0, z - (dx / len) * half];
+        left[1] = edgeY(left[0], left[2]);
+        right[1] = edgeY(right[0], right[2]);
         if (last) {
           along += Math.hypot(x - last[0], z - last[2]);
           localAlong += Math.hypot(x - last[0], z - last[2]);
@@ -1377,35 +1386,74 @@ export class SeoulGame {
         const kerb = 0.14;
         const kL = kerbAt(-1, localAlong);
         const kR = kerbAt(1, localAlong);
-        const outL = [x - (dz / len) * (half + 3), y + kL, z + (dx / len) * (half + 3)];
-        const outR = [x + (dz / len) * (half + 3), y + kR, z - (dx / len) * (half + 3)];
-        const inL = [left[0], y + kL, left[2]];
-        const inR = [right[0], y + kR, right[2]];
+        const outL = [x - (dz / len) * (half + 3), 0, z + (dx / len) * (half + 3)];
+        const outR = [x + (dz / len) * (half + 3), 0, z - (dx / len) * (half + 3)];
+        outL[1] = edgeY(outL[0], outL[2]) + kL;
+        outR[1] = edgeY(outR[0], outR[2]) + kR;
+        const inL = [left[0], left[1] + kL, left[2]];
+        const inR = [right[0], right[1] + kR, right[2]];
         if (prev) {
-          pos.push(...prev.left, ...prev.right, ...right, ...prev.left, ...right, ...left);
-          for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
+          // (two strips, either side of the middle line: the ground under a wide road isn't a plane)
+          const mid = [x, y, z];
+          pos.push(...prev.left, ...prev.mid, ...mid, ...prev.left, ...mid, ...left);
+          pos.push(...prev.mid, ...prev.right, ...right, ...prev.mid, ...right, ...mid);
+          for (let k = 0; k < 12; k++) col.push(c.r, c.g, c.b);
           const a0 = prev.along;
-          for (const [o, v] of [[-half, a0], [half, a0], [half, along], [-half, a0], [half, along], [-half, along]]) paint.push(o, v, r.width, mark);
-          // (Not where it would lie across another road: the other carriageway, a crossing.)
-          const sideL = !this.onRoad((outL[0] + prev.outL[0]) / 2, (outL[2] + prev.outL[2]) / 2) && !this.onRoad((inL[0] + outL[0]) / 2, (inL[2] + outL[2]) / 2, -0.5);
-          const sideR = !this.onRoad((outR[0] + prev.outR[0]) / 2, (outR[2] + prev.outR[2]) / 2) && !this.onRoad((inR[0] + outR[0]) / 2, (inR[2] + outR[2]) / 2, -0.5);
+          for (const [o, v] of [[-half, a0], [0, a0], [0, along], [-half, a0], [0, along], [-half, along], [0, a0], [half, a0], [half, along], [0, a0], [half, along], [0, along]]) paint.push(o, v, r.width, mark);
+          // (Not where it would lie across another road: the other carriageway, a crossing. Cut where it
+          // meets one, not left out for the whole stretch: a whole stretch left out at a junction was a
+          // hole a rider cutting the corner dropped into; one left in lay over the crossing road, a step
+          // up in the middle of the junction.)
           const paved = !expressway && !onBridge && !prev.bridge;
-          if (paved) {
-            const sL = r.line[0] * 0.37 + 1;
-            const sR = r.line[1] * 0.41 + 2;
-            if (sideL) {
-              walk.push(...prev.inL, ...prev.outL, ...outL, ...prev.inL, ...outL, ...inL);
-              walkA.push(0, prev.along, sL, 1, prev.along, sL, 1, along, sL, 0, prev.along, sL, 1, along, sL, 0, along, sL);
+          const lerp3 = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+          const n = paved ? Math.max(1, Math.ceil(Math.hypot(x - last[0], z - last[2]) / 1.5)) : 0;
+          const runsOf = (pIn, inn, pOut, out) => {
+            const runs = [];
+            let from = null;
+            for (let q = 0; q <= n; q++) {
+              const t = q / n;
+              const a = lerp3(pIn, inn, t);
+              const b = lerp3(pOut, out, t);
+              const clear = !this.onRoad(b[0], b[2]) && !this.onRoad((a[0] + b[0]) / 2, (a[2] + b[2]) / 2, -0.5) && !this.onRoad(a[0] * 0.8 + b[0] * 0.2, a[2] * 0.8 + b[2] * 0.2, -0.5);
+              if (clear && from == null) from = t;
+              if ((!clear || q === n) && from != null) {
+                const to = clear ? t : (q - 1) / n;
+                if (to - from > 1e-6) runs.push([from, to]);
+                from = null;
+              }
             }
-            if (sideR) {
-              walk.push(...prev.outR, ...prev.inR, ...inR, ...prev.outR, ...inR, ...outR);
-              walkA.push(1, prev.along, sR, 0, prev.along, sR, 0, along, sR, 1, prev.along, sR, 0, along, sR, 1, along, sR);
-            }
-            // So whoever rides or walks onto it stands on it (surfaceAt), at its height — the dropped kerbs too.
-            for (const [on, side, ya, yb] of [[sideL, -1, prev.inL[1], inL[1]], [sideR, 1, prev.inR[1], inR[1]]]) {
-              if (!on) continue;
-              const seg = { ax: last[0], az: last[2], bx: x, bz: z, ya, yb, inner: half, outer: half + 3, side };
-              const cell = `${Math.floor((last[0] + x) / 2 / ROAD_CELL)}_${Math.floor((last[2] + z) / 2 / ROAD_CELL)}`;
+            return runs;
+          };
+          const sides = paved
+            ? [
+                { side: -1, pe: prev.left, e: left, pIn: prev.inL, inn: inL, po: prev.outL, oo: outL, seed: r.line[0] * 0.37 + 1 },
+                { side: 1, pe: prev.right, e: right, pIn: prev.inR, inn: inR, po: prev.outR, oo: outR, seed: r.line[1] * 0.41 + 2 }
+              ]
+            : [];
+          for (const sd of sides) sd.runs = runsOf(sd.pIn, sd.inn, sd.po, sd.oo);
+          for (const sd of sides) {
+            for (const [t0, t1] of sd.runs) {
+              const i0 = lerp3(sd.pIn, sd.inn, t0);
+              const i1 = lerp3(sd.pIn, sd.inn, t1);
+              const o0 = lerp3(sd.po, sd.oo, t0);
+              const o1 = lerp3(sd.po, sd.oo, t1);
+              const v0 = prev.along + (along - prev.along) * t0;
+              const v1 = prev.along + (along - prev.along) * t1;
+              const sS = sd.seed;
+              if (sd.side < 0) {
+                walk.push(...i0, ...o0, ...o1, ...i0, ...o1, ...i1);
+                walkA.push(0, v0, sS, 1, v0, sS, 1, v1, sS, 0, v0, sS, 1, v1, sS, 0, v1, sS);
+              } else {
+                walk.push(...o0, ...i0, ...i1, ...o0, ...i1, ...o1);
+                walkA.push(1, v0, sS, 0, v0, sS, 0, v1, sS, 1, v0, sS, 0, v1, sS, 1, v1, sS);
+              }
+              // So whoever rides or walks onto it stands on it (surfaceAt), at its height — the dropped kerbs too.
+              const ax = last[0] + (x - last[0]) * t0;
+              const az = last[2] + (z - last[2]) * t0;
+              const bx = last[0] + (x - last[0]) * t1;
+              const bz = last[2] + (z - last[2]) * t1;
+              const seg = { ax, az, bx, bz, ya: i0[1], yb: i1[1], oa: o0[1], ob: o1[1], inner: half, outer: half + 3, side: sd.side };
+              const cell = `${Math.floor((ax + bx) / 2 / ROAD_CELL)}_${Math.floor((az + bz) / 2 / ROAD_CELL)}`;
               this.walkHash ??= new Map();
               if (!this.walkHash.has(cell)) this.walkHash.set(cell, []);
               this.walkHash.get(cell).push(seg);
@@ -1425,10 +1473,27 @@ export class SeoulGame {
           const BARRIER = [0.72, 0.71, 0.69];
           const gA = (p) => this.groundAt(p[0], p[2]) - 0.4;
           const bridgeDeck = onBridge || prev.bridge;
-          for (const [pe, e, po, oo, pIn, inn, walked] of [[prev.left, left, prev.outL, outL, prev.inL, inL, paved && sideL], [prev.right, right, prev.outR, outR, prev.inR, inR, paved && sideR]]) {
-            if (walked) {
-              quad(pe, e, pe[1], pIn[1], e[1], inn[1], KERB);
-              quad(po, oo, gA(po), po[1], gA(oo), oo[1], SLAB);
+          for (const [pe, e, side] of [[prev.left, left, -1], [prev.right, right, 1]]) {
+            const sd = sides.find((q) => q.side === side);
+            if (sd) {
+              // the kerb and the pavement's outer edge where it is paved; the slab's side where it isn't
+              let at = 0;
+              for (const [t0, t1] of [...sd.runs, [1, 1]]) {
+                if (t0 > at + 1e-6) {
+                  const a = lerp3(pe, e, at);
+                  const b = lerp3(pe, e, t0);
+                  quad(a, b, gA(a), a[1], gA(b), b[1], SLAB);
+                }
+                if (t1 > t0 + 1e-6) {
+                  const a = lerp3(pe, e, t0);
+                  const b = lerp3(pe, e, t1);
+                  quad(a, b, a[1], lerp3(sd.pIn, sd.inn, t0)[1], b[1], lerp3(sd.pIn, sd.inn, t1)[1], KERB);
+                  const po = lerp3(sd.po, sd.oo, t0);
+                  const oo = lerp3(sd.po, sd.oo, t1);
+                  quad(po, oo, gA(po), po[1], gA(oo), oo[1], SLAB);
+                }
+                at = Math.max(at, t1);
+              }
             } else if (bridgeDeck) {
               // The girder under the deck's edge, then the parapet: outer face, top, inner face.
               quad(pe, e, pe[1] - 1.7, pe[1], e[1] - 1.7, e[1], GIRDER);
@@ -1448,19 +1513,20 @@ export class SeoulGame {
             const lz = z - (dx / len) * (half + 0.5) * side;
             // Never on a road: not on the other carriageway, a crossing or a slip road.
             if (Math.floor(nextTree / 16) % 3 === 0) {
-              if (!this.onRoad(lx, lz, 0.3)) lamps.push([lx, y + kerb, lz, Math.atan2(-dz * side, dx * side)]);
-            } else if (!this.onRoad(tx, tz, 1.4)) trees.push({ x: tx, y: y + kerb, z: tz, yaw: Math.atan2(dx, dz), species: kind, seed: nextTree + r.line[0] * 0.001 });
+              if (!this.onRoad(lx, lz, 0.3)) lamps.push([lx, edgeY(lx, lz) + kerb, lz, Math.atan2(-dz * side, dx * side)]);
+            } else if (!this.onRoad(tx, tz, 1.4)) trees.push({ x: tx, y: edgeY(tx, tz) + kerb, z: tz, yaw: Math.atan2(dx, dz), species: kind, seed: nextTree + r.line[0] * 0.001 });
             nextTree += 16;
           }
           // Remember the stretch, so someone walking here stands on the road and not under it.
-          const seg = { ax: last[0], ay: last[1], az: last[2], bx: x, by: y, bz: z, half: half + 0.5 };
+          // (with its edges' heights: the surface is level along each edge, sloped across like the mesh)
+          const seg = { ax: last[0], ay: last[1], az: last[2], bx: x, by: y, bz: z, half: half + 0.5, w: half, aL: prev.left[1], aR: prev.right[1], bL: left[1], bR: right[1] }; // (ay, by: the middle's)
           const cell = `${Math.floor((last[0] + x) / 2 / ROAD_CELL)}_${Math.floor((last[2] + z) / 2 / ROAD_CELL)}`;
           if (!this.roadHash.has(cell)) this.roadHash.set(cell, []);
           this.roadHash.get(cell).push(seg);
           owned.push([cell, seg]);
         }
         last = [x, y, z];
-        prev = { left, right, inL, inR, outL, outR, along, bridge: onBridge };
+        prev = { left, right, mid: [x, y, z], inL, inR, outL, outR, along, bridge: onBridge };
       });
     }
     const geo = new THREE.BufferGeometry();
@@ -1557,81 +1623,27 @@ export class SeoulGame {
     return out;
   }
 
-  /**
-   * What you stand on at a point: the road's surface if a road passes here
-   * within a step up of where you are (so you walk onto a bridge from its
-   * end, and under it from the bank), else the ground.
-   *
-   * Where road stretches overlap they rarely agree to the centimetre (a dual carriageway's two ways,
-   * a junction on a hill), so the surface is not simply the highest of them — that made small
-   * invisible steps a scooter hopped like kerbs. Given where you are (`from`, your height + 0.3), it
-   * follows the stretch nearest your height; and a stretch's round end (the disc past its last point,
-   * flat at that point's height — on a slope it stands proud of the road on) only counts where no
-   * stretch runs through the point.
-   */
+  /** What you stand on at a point (surface.js `surfaceOf`): the road's, a pavement's, or the ground. */
   surfaceAt(x, z, from = Infinity, mainOnly = false) {
     const ground = this.groundAt(x, z);
     if (!this.roadHash) return ground;
-    let best = ground;
-    let onIt = false;
-    let alleyEnd = -Infinity;
-    const ref = Number.isFinite(from) ? from - 0.3 : null;
-    let through = null;
-    let cap = -Infinity;
     const cx = Math.floor(x / ROAD_CELL);
     const cz = Math.floor(z / ROAD_CELL);
+    const roads = [];
+    const walks = [];
     for (let i = cx - 1; i <= cx + 1; i++) {
       for (let j = cz - 1; j <= cz + 1; j++) {
-        for (const s of this.roadHash.get(`${i}_${j}`) ?? []) {
-          if (mainOnly && s.alley) continue;
-          const dx = s.bx - s.ax;
-          const dz = s.bz - s.az;
-          const raw = ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1);
-          const k = Math.max(0, Math.min(1, raw));
-          if (Math.hypot(x - (s.ax + dx * k), z - (s.az + dz * k)) > s.half) continue;
-          const y = s.ay + (s.by - s.ay) * k;
-          if (y > Math.max(from, ground) + 2.5) continue;
-          // An alley's stretch only past its end (round a bend, where the next stretch doesn't reach):
-          // on a hill, its end's height isn't the ground's just before the next one.
-          const end = raw < -0.02 || raw > 1.02;
-          if (s.alley && end) alleyEnd = Math.max(alleyEnd, y);
-          else if (end) cap = Math.max(cap, y);
-          // through this stretch: the one nearest your height (or the highest, asked from nowhere)
-          else if (through == null || (ref == null ? y > through : Math.abs(y - ref) < Math.abs(through - ref))) through = y;
-        }
+        const key = `${i}_${j}`;
+        for (const s of this.roadHash.get(key) ?? []) roads.push(s);
+        for (const s of this.walkHash?.get(key) ?? []) walks.push(s);
       }
     }
-    const road = through ?? (cap > -Infinity ? cap : null);
-    if (road != null && road > best) {
-      best = road;
-      onIt = true;
-    }
-    for (let i = cx - 1; i <= cx + 1; i++) {
-      for (let j = cz - 1; j <= cz + 1; j++) {
-        for (const s of this.walkHash?.get(`${i}_${j}`) ?? []) {
-          const y = this._onWalk(s, x, z);
-          if (y != null && y <= Math.max(from, ground) + 2.5) {
-            onIt = true;
-            best = Math.max(best, y);
-          }
-        }
-      }
-    }
-    return onIt ? best : Math.max(best, alleyEnd);
+    return surfaceOf(ground, roads, walks, x, z, from, mainOnly);
   }
 
   /** A pavement strip's height at a point (null if the point isn't on it). */
   _onWalk(s, x, z) {
-    const dx = s.bx - s.ax;
-    const dz = s.bz - s.az;
-    const L2 = dx * dx + dz * dz || 1;
-    const k = ((x - s.ax) * dx + (z - s.az) * dz) / L2;
-    if (k < -0.02 || k > 1.02) return null;
-    // metres to the right of its road's line (as _roadMesh's right side)
-    const d = ((x - s.ax) * dz - (z - s.az) * dx) / Math.sqrt(L2);
-    const across = d * s.side;
-    if (across < s.inner - 0.02 || across > s.outer + 0.02) return null;
-    return s.ya + (s.yb - s.ya) * Math.max(0, Math.min(1, k));
+    return walkY(s, x, z);
   }
 
   /** Whether a point is on a road's pavement (the main roads' paving strips). */
