@@ -271,7 +271,8 @@ export class RaceTraffic {
           const L2 = ex * ex + ez * ez || 1;
           const t = Math.max(0, Math.min(1, ((p[0] - ax) * ex + (p[1] - az) * ez) / L2));
           const d = Math.hypot(ax + ex * t - p[0], az + ez * t - p[1]);
-          if (d > w / 2 + 16) continue;
+          // (the other carriageway of a divided road may lie well across a median)
+          if (d > w / 2 + (p[4] ? 48 : 14)) continue;
           const dot = (ex * hx + ez * hz) / (Math.sqrt(L2) * hl);
           // along the course one way or the other; the way it is driven: against the course
           let dir = 0;

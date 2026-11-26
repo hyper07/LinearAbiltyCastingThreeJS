@@ -12,7 +12,12 @@ import { boot, tally, until } from './lib.mjs';
  * worn and knocked off, marbles that throw a rival off, the rival panel,
  * a crash and back on, only real people (with
  * faces) on the street, How to play on H — pause on Esc, the credits from
- * the pause screen, and leave. Without Seoul's map
+ * the pause screen, and leave. Then the courses by level (Easy, Medium,
+ * Hard tabs over the map, Hard shut till a Medium is finished, "Try
+ * anyway"), cars coming the other way, the Namsan Tower Downhill raced to
+ * its finish line below its start (point to point, its woods and guard
+ * rails, the finish kept as progress), and the Jamsil Fairground's rides
+ * moving. Without Seoul's map
  * converted on this server (data/geo/seoul) there is nothing to race on:
  * the checks say so and pass by.
  */
@@ -57,7 +62,26 @@ export async function run(browser) {
     t.check('Back goes back a step', await until(page, () => window.seoul.race.lobby.step === 'rider', null, 3000));
     await page.keyboard.press('Enter');
     await page.keyboard.press('Enter');
-    t.check('the course step: a map of Seoul with a pin for each of the eight courses', await until(page, () => window.seoul.race.lobby.step === 'course' && document.querySelectorAll('[data-pin]').length === 8 && document.querySelectorAll('[data-course]').length === 8, null, 3000));
+    t.check('the course step: a map of Seoul with a pin for every course, the Easy ones listed', await until(page, () => window.seoul.race.lobby.step === 'course' && document.querySelectorAll('[data-pin]').length >= 15 && document.querySelectorAll('[data-course]').length === 8 && window.seoul.race.lobby.level === 'easy', null, 3000), await page.evaluate(() => `${document.querySelectorAll('[data-pin]').length} pins, ${document.querySelectorAll('[data-course]').length} listed`));
+    // The levels: three tabs over the map; Hard lists its own courses, the map shows only theirs and flies to them.
+    t.check('three level tabs over the map: Easy, Medium, Hard, with their chillies', await page.evaluate(() => {
+      const tabs = [...document.querySelectorAll('.jl__levels [data-level]')];
+      return tabs.map((b) => b.dataset.level).join() === 'easy,medium,hard' && tabs.map((b) => b.querySelectorAll('.chilli').length).join() === '1,2,3';
+    }));
+    await page.click('.jl__levels [data-level="hard"]');
+    t.check('picking Hard: its courses listed, the others\' pins gone from the map, the map fitted to them', await until(page, () => {
+      const r = window.seoul.race;
+      const ids = [...document.querySelectorAll('[data-course]')].map((b) => b.dataset.course);
+      const shown = [...document.querySelectorAll('[data-pin]')].filter((p) => !p.hidden && !p.classList.contains('is-other')).map((p) => p.dataset.pin);
+      return r.lobby.map.level === 'hard' && ids.length >= 3 && ids.includes('namsandown') && !ids.includes('hongdae') && shown.every((id) => ids.includes(id)) && !r.lobby.map.anim;
+    }, null, 6000));
+    t.check('…each with its difficulty (three chillies), and shut till a Medium course is finished: Try anyway', await until(page, () => {
+      const card = document.querySelector('[data-course-card]');
+      return card.querySelectorAll('.jl__kind .chilli').length === 3 && /Try anyway/.test(card.querySelector('[data-next]')?.textContent ?? '') && /unlock Hard/.test(card.textContent);
+    }, null, 3000));
+    await shot('levels-hard');
+    await page.click('.jl__levels [data-level="easy"]');
+    await until(page, () => window.seoul.race.lobby.level === 'easy' && document.querySelectorAll('[data-course]').length === 8, null, 3000);
     t.check('…a real map: drawn from the city\'s own land and roads, in tiles', await until(page, () => (window.seoul.race.lobby.map?.drawnTiles ?? 0) > 4 && window.seoul.race.lobby.map.data?.roads.length > 1000 && document.querySelector('.cm canvas').width > 300, null, 15000), await page.evaluate(() => JSON.stringify({ tiles: window.seoul.race.lobby.map?.drawnTiles, roads: window.seoul.race.lobby.map?.data?.roads.length })));
     const course = 'hongdae';
     t.check('each course is planned on the real streets: its length, wide roads, sharp turns (and a golmok short cut)', await until(page, (id) => /km · \d+% wide roads · \d+ sharp turns? · \d short cut/.test(document.querySelector(`[data-len="${id}"]`)?.textContent ?? ''), course, 90000), await page.evaluate((id) => document.querySelector(`[data-len="${id}"]`)?.textContent, course));
@@ -117,6 +141,25 @@ export async function run(browser) {
       return r.paths.length >= 1 && r.scSigns.length === r.paths.length && r.scArrows?.count > 0 && r.course.shortcuts.every((sc) => sc.saves > 15 && sc.width <= 4.7);
     }));
     t.check('the streets are open: cars, buses or scooters drive round you', await until(page, () => (window.seoul.race.traffic?.vehicles.length ?? 0) >= 6, null, 30000), await page.evaluate(() => window.seoul.race.traffic?.vehicles.length));
+    t.check('…and coming the other way down the course\'s own roads, ahead of you, in their own lane', await until(page, () => {
+      const r = window.seoul.race;
+      const on = (r.traffic?.vehicles ?? []).filter((v) => v.oncoming);
+      if (on.length < 6) return false;
+      // each going against the course where it is
+      const c = r.course;
+      return on.every((v) => {
+        let bi = 0;
+        let bd = Infinity;
+        for (let i = 0; i < c.points.length; i += 2) {
+          const d = Math.hypot(c.points[i][0] - v.box.x, c.points[i][1] - v.box.z);
+          if (d < bd) [bd, bi] = [d, i];
+        }
+        const p = c.points[bi];
+        const q = c.points[(bi + 1) % c.points.length];
+        const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+        return bd > 40 || Math.cos(v.box.heading - hd) < 0;
+      });
+    }, null, 20000), await page.evaluate(() => (window.seoul.race.traffic?.vehicles ?? []).filter((v) => v.oncoming).length));
     const d0 = await page.evaluate(() => {
       const r = window.seoul.race;
       r._top = 0;
@@ -378,6 +421,64 @@ export async function run(browser) {
       const r = window.seoul.race;
       return r.patches.every((p) => p.marbles.every((m) => !m.live || !r.course.walls?.inside(m.x, m.z)));
     }));
+    // No dark card round a puff of dust or a word burst (the "dark slab"): puffs and a WHOA! low over the road
+    // in front of the camera, ambient occlusion on, and the frame read back — nothing near-black round them.
+    const slab = await page.evaluate(async () => {
+      const g = window.seoul;
+      const r = g.race;
+      const ao = g.gtao.enabled;
+      g.gtao.enabled = true;
+      r.autopilot = false;
+      r.me.s.v = 0;
+      const h = r.me.s.travel ?? r.me.s.heading;
+      const spots = [];
+      for (let k = 0; k < 4; k++) {
+        const at = { x: r.me.s.x - Math.sin(h) * (2.5 + k) + Math.cos(h) * 1.2, y: r.me.y + 0.1, z: r.me.s.z - Math.cos(h) * (2.5 + k) - Math.sin(h) * 1.2 };
+        r.fx.dust(at, 8);
+        spots.push(at);
+      }
+      r.fx.pop('WHOA!', { x: r.me.s.x - Math.sin(h) * 7, y: r.me.y + 2, z: r.me.s.z - Math.cos(h) * 7 }, { color: '#7ad8ff', size: 1.2 });
+      const canvas = g.renderer.domElement;
+      const grab = await new Promise((ok) => {
+        let n = 0;
+        const after = r.afterDraw.bind(r);
+        r.afterDraw = () => {
+          after();
+          if (++n < 8) return;
+          r.afterDraw = after;
+          const c = document.createElement('canvas');
+          c.width = canvas.width;
+          c.height = canvas.height;
+          c.getContext('2d').drawImage(canvas, 0, 0);
+          ok(c);
+        };
+      });
+      g.gtao.enabled = ao;
+      // the puffs' patch of the screen: round their middles, as far as they could have spread
+      const cam = g.camera;
+      const box = [Infinity, Infinity, -Infinity, -Infinity];
+      for (const s of spots) {
+        for (const [dx, dy, dz] of [[-1.5, 0, -1.5], [1.5, 1.8, 1.5]]) {
+          const v = new cam.position.constructor(s.x + dx, s.y + dy, s.z + dz).project(cam);
+          const x = ((v.x + 1) / 2) * grab.width;
+          const y = ((1 - v.y) / 2) * grab.height;
+          box[0] = Math.min(box[0], x);
+          box[1] = Math.min(box[1], y);
+          box[2] = Math.max(box[2], x);
+          box[3] = Math.max(box[3], y);
+        }
+      }
+      const x0 = Math.max(0, Math.floor(box[0]));
+      const y0 = Math.max(0, Math.floor(box[1]));
+      const w = Math.min(grab.width, Math.ceil(box[2])) - x0;
+      const hh = Math.min(grab.height, Math.ceil(box[3])) - y0;
+      if (w < 10 || hh < 10) return { dark: -1, w, h: hh };
+      const px = grab.getContext('2d').getImageData(x0, y0, w, hh).data;
+      let dark = 0;
+      for (let i = 0; i < px.length; i += 4) if (Math.max(px[i], px[i + 1], px[i + 2]) < 18) dark++;
+      return { dark: Math.round((dark / (px.length / 4)) * 1000) / 10, w, h: hh, sprites: r.fx.live.length };
+    });
+    t.check('no dark slab: dust puffs and a word burst over the road leave no dark card round them (AO on)', slab.dark >= 0 && slab.dark < 2, JSON.stringify(slab));
     // The rival panel: a rider close behind you slides in a picture of them; gone a moment after they go.
     await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     await page.evaluate(() => {
@@ -448,6 +549,81 @@ export async function run(browser) {
     t.check('Back to Seoul from the pause screen: flying, the city clock running again', await until(page, () => window.seoul.mode === 'fly' && !window.seoul.clockPaused, null, 5000));
     const watched = await page.evaluate(() => (clearInterval(window.seoul.race._e2eT), window.seoul.race._e2e ?? { inside: -1 }));
     t.check('all race long: no rider inside a building, nor the camera', watched.inside === 0 && watched.cam === 0 && watched.samples > 50, JSON.stringify(watched));
+    // The Namsan Tower Downhill: point to point, from the tower's plaza to a finish line far below.
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      Object.assign(r, { courseId: 'namsandown', time: 'day', weatherPick: 'clear', laps: 2 });
+      r.startSolo();
+    });
+    t.check('the Namsan Tower Downhill: one run from a gantry under the tower to a finish gantry below — not a loop', await until(page, () => {
+      const r = window.seoul.race;
+      const c = r.course;
+      if (!c || c.id !== 'namsandown' || !['grid', 'racing'].includes(r.phase)) return false;
+      const a = c.points[c.startI];
+      const b = c.points[c.finishI];
+      const g = window.seoul;
+      return c.open && r.laps === 1 && Boolean(r.gate) && Boolean(r.finishGate) && Math.hypot(a[0] - b[0], a[1] - b[1]) > 500 && g.groundAt(a[0], a[1]) - g.groundAt(b[0], b[1]) > 80 && Math.hypot(a[0] - 907, a[1] - 1673) < 400;
+    }, null, 120000), await page.evaluate(() => {
+      const c = window.seoul.race.course;
+      return c ? JSON.stringify({ id: c.id, open: c.open, startI: c.startI, finishI: c.finishI, length: Math.round(c.length) }) : 'none';
+    }));
+    t.check('…down the park road between guard rails (solid: in the course\'s walls) and woods', await until(page, () => {
+      const r = window.seoul.race;
+      const c = r.course;
+      const rails = [...(c.walls.tags ?? [])].filter((k) => k.includes('|rail|')).length;
+      return (c.wild?.filter(Boolean).length ?? 0) > 100 && (r.wood?.count ?? 0) > 150 && rails > 10;
+    }, null, 10000), await page.evaluate(() => JSON.stringify({ wild: window.seoul.race.course.wild?.filter(Boolean).length, trees: window.seoul.race.wood?.count, rails: [...(window.seoul.race.course.walls.tags ?? [])].filter((k) => k.includes('|rail|')).length })));
+    await until(page, () => window.seoul.race.phase === 'racing', null, 15000);
+    await shot('downhill');
+    // ridden on to just short of the finish: over the line is the finish (not the start again)
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const c = r.course;
+      const me = r.me;
+      const i = c.finishI - 6;
+      const p = c.points[i];
+      const q = c.points[i + 1];
+      const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
+      Object.assign(me.s, { x: p[0], z: p[1], heading: hd, travel: hd, v: 12 });
+      Object.assign(me, { idx: i, dist: c.s[i] - c.s[c.startI], sc: null, safe: 5, mode: 'ride' });
+      r.autopilot = true;
+    });
+    t.check('…and over the finish line below, the run is done: first time over it, no second lap', await until(page, () => {
+      const r = window.seoul.race;
+      return r.me.done != null && r.me.lapsDone === 1;
+    }, null, 15000), await page.evaluate(() => JSON.stringify({ dist: Math.round(window.seoul.race.me.dist), L: Math.round(window.seoul.race.course.length), done: window.seoul.race.me.done })));
+    t.check('…and past it, you roll to a stop in the run-out', await until(page, () => window.seoul.race.me.s.v < 1.5, null, 12000));
+    await page.evaluate(() => window.seoul.race.quit());
+    // The Jamsil Fairground: the rides moving beside the course.
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      Object.assign(r, { courseId: 'jamsilpark', time: 'night', weatherPick: 'clear', laps: 1 });
+      r.startSolo();
+    });
+    t.check('the Jamsil Fairground: a fun fair of our own beside the course — coaster, drop tower, big wheel, carousel, pirate ship', await until(page, () => {
+      const f = window.seoul.race.fair;
+      return window.seoul.race.course?.id === 'jamsilpark' && Boolean(f) && ['coaster', 'tower', 'wheel', 'carousel', 'ship'].every((k) => f.rides[k]);
+    }, null, 120000));
+    const f0 = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const f = r.fair;
+      // (looking at it from the road)
+      const a = f.world(-30, 4, -10);
+      const b = f.world(5, 12, 28);
+      r.debugCam = { x: a.x, y: a.y, z: a.z, tx: b.x, ty: b.y, tz: b.z, fov: 60 };
+      return { u: f.rides.coaster.u, wheel: f.rides.wheel.a, tower: f.rides.tower.car.position.y, carousel: f.rides.carousel.a, ship: f.rides.ship.t };
+    });
+    await page.waitForTimeout(1500);
+    t.check('…the rides move: the train round the track, the wheel turning, the tower car, the carousel, the ship', await page.evaluate((f0) => {
+      const f = window.seoul.race.fair;
+      return f.rides.coaster.u !== f0.u && f.rides.wheel.a !== f0.wheel && f.rides.carousel.a !== f0.carousel && f.rides.ship.t !== f0.ship;
+    }, f0));
+    t.check('…lit up at night', await page.evaluate(() => window.seoul.race.fair.mats.bulb.emissiveIntensity > 1.5));
+    await shot('fair-night');
+    await page.evaluate(() => {
+      window.seoul.race.debugCam = null;
+      window.seoul.race.quit();
+    });
     t.check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   } finally {
     await context.close();

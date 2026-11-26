@@ -40,7 +40,7 @@ const PAL = {
   teal: C('#20b3a4'),
   pink: C('#ff7bb0'),
   purple: C('#8a5bd6'),
-  plaza: C('#c9b691'),
+  plaza: C('#a8977a'),
   fence: C('#2b4f8a'),
   hull: C('#8a4b2a'),
   sail: C('#f2ead8')
@@ -192,14 +192,15 @@ export class Fairground {
     _m.compose(new THREE.Vector3(-14, -0.62, 30), _q.identity(), new THREE.Vector3(200, 1.24, 56));
     pile.add(this.box, PAL.plaza, _m);
     const lamps = [];
-    for (const [x, z] of [[-90, 6], [-60, 6], [-30, 6], [0, 6], [30, 6], [55, 6], [-75, 26], [45, 30]]) {
+    for (const [x, z] of [[-75, 20], [-28, 18], [12, 22], [50, 34], [-60, 46]]) {
       _m.compose(new THREE.Vector3(x, 2.4, z), _q.identity(), new THREE.Vector3(0.14, 4.8, 0.14));
       pile.add(this.cyl, C('#3a3f4a'), _m);
       const w = this.world(x, 4.9, z);
       lamps.push({ x: w.x, y: w.y, z: w.z, ground: this.ground });
     }
     this.group.add(pile.mesh(this.mats.solid));
-    this.lampId = this.g.nightLights?.add(lamps);
+    // (their light is the bulbs' own: the city's lamp pools here washed the whole fair out in a haze)
+    void lamps;
   }
 
   /** The wooden coaster: timber bents under a track on two steel rails, and a train of four cars. */

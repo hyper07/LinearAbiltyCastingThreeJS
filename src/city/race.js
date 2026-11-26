@@ -1259,7 +1259,7 @@ export class Race {
           if (r.me && this.paused) input = {};
           else if (r.me && !this.autopilot) input = { throttle: key('KeyW', 'ArrowUp'), brake: key('KeyS', 'ArrowDown'), left: key('KeyA', 'ArrowLeft'), right: key('KeyD', 'ArrowRight'), boost: key('KeyF') || this.sprintTap, drift: key('ShiftLeft', 'ShiftRight') };
           else input = this._bot(r, dt);
-        } else if (r.done != null) input = { throttle: r.s.v < 2, brake: r.s.v > 3 };
+        } else if (r.done != null) input = this.course.open ? { brake: true } : { throttle: r.s.v < 2, brake: r.s.v > 3 };
         if (r.me) this.sprintTap = false;
         input.grip = Math.min(1.05, grip * (r.spec.grip ?? 1));
         input.free = r.tailwind > 0;
