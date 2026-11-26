@@ -9,7 +9,8 @@ import { boot, tally, until } from './lib.mjs';
  * scrape or come off), a golmok short cut taken and counted, the alley
  * mouths joined to their roads, a branch
  * thrown into the wheel of the rider right ahead (only them; from 1st, wasted), the energy drink's boost (the only boost: F does nothing, no gauge), the golden helmet
- * worn and knocked off, marbles that throw a rival off, smoke that blinds
+ * worn and knocked off, marbles that throw a rival off, an oil slick that
+ * spins a rival right round, smoke that blinds
  * whoever rides into it (a soft grey veil over your view), the rival panel,
  * a crash and back on, only real people (with
  * faces) on the street, How to play on H — pause on Esc, the credits from
@@ -509,6 +510,124 @@ export async function run(browser) {
       const r = window.seoul.race;
       return r.patches.every((p) => p.marbles.every((m) => !m.live || !r.course.walls?.inside(m.x, m.z)));
     }));
+    // Oil: spilled behind you, a rival who rides into it spins right round and is slowed; the gold helmet takes it.
+    // (on the course itself, not down a short cut's golmok: the rivals are put on the course behind it)
+    await until(page, () => !window.seoul.race.me.sc && window.seoul.race.me.mode === 'ride', null, 30000);
+    const spill = await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.me.items = ['oil', null, null];
+      r.me.s.v = 16;
+      r._renderItems();
+      r.oilLog = [];
+      return r.spilled ?? 0;
+    });
+    await page.keyboard.press('Digit1');
+    t.check('oil: 1 spills a slick behind you — an irregular black puddle laid on the road, in the street', await until(page, (n) => {
+      const r = window.seoul.race;
+      const o = r.slicks?.filter((q) => q.owner === r.me.id).at(-1);
+      const mesh = o && r.oilField.meshes.get(o);
+      return (r.spilled ?? 0) > n && o.owner === r.me.id && Boolean(mesh?.visible) && o.blobs.length > 5 && o.blobs.every(([x, z]) => !r.course.walls?.inside(x, z));
+    }, spill, 3000));
+    await page.waitForTimeout(900);
+    // a rival sent into it at about 55 km/h, a few metres short, not having seen it; its turn and speed watched every frame
+    const oiled = await page.evaluate(() => {
+      const r = window.seoul.race;
+      const o = r.slicks.filter((q) => q.owner === r.me.id).at(-1);
+      const h = o.heading;
+      const bot = r.racers.filter((x) => x.bot && x.mode === 'ride' && x.id !== r._victim).at(-1);
+      // (on the course, at the point nearest the slick — not down a short cut)
+      const c = r.course;
+      let bi = 0;
+      c.points.forEach((q, i) => {
+        if (Math.hypot(q[0] - o.x, q[1] - o.z) < Math.hypot(c.points[bi][0] - o.x, c.points[bi][1] - o.z)) bi = i;
+      });
+      Object.assign(bot.s, { x: o.x - Math.sin(h) * 5, z: o.z - Math.cos(h) * 5, heading: h, travel: h, v: 15, lean: 0, steer: 0 });
+      Object.assign(bot, { idx: bi, sc: null, prog: null, stuck: 0, safe: 0, helmet: false, spin: null, slip: 0, seenOil: { [o.oid]: false }, seenMarbles: {} });
+      r._oilWatch = { id: bot.id, turn: 0, v0: null, vEnd: null, spun: 0 };
+      const f = () => {
+        const w = r._oilWatch;
+        if (!w) return;
+        if (bot.spin) {
+          w.v0 ??= bot.spin.v0;
+          w.turn = Math.max(w.turn, Math.abs(bot.s.heading - bot.s.travel));
+          w.spun = bot.spin.t;
+        } else if (w.v0 != null && w.vEnd == null) w.vEnd = bot.s.v;
+        requestAnimationFrame(f);
+      };
+      requestAnimationFrame(f);
+      return { id: bot.id, oid: o.oid };
+    });
+    t.check('…a rival who rides into it spins right round (OIL!), no grip for about 1.2 s', await until(page, () => {
+      const w = window.seoul.race._oilWatch;
+      return w.vEnd != null && w.turn > 5.8 && w.spun > 1;
+    }, null, 5000), await page.evaluate(() => {
+      const r = window.seoul.race;
+      const b = r.racers.find((x) => x.id === r._oilWatch.id);
+      const o = r.slicks.find((q) => q.owner === r.me.id);
+      return JSON.stringify({ w: r._oilWatch, log: r.oilLog, phase: r.phase, paused: r.paused, clock: r.clock, me: { done: r.me.done, mode: r.me.mode }, bot: { mode: b.mode, x: b.s.x, z: b.s.z, v: b.s.v, safe: b.safe, done: b.done, pulled: Boolean(b.pulled), air: b.s.air }, slick: o && { x: o.x, z: o.z, r: o.r, until: o.until, hits: o.hits } });
+    }));
+    t.check('…and comes out of it upright, still riding, most of its speed gone, oily tracks behind it', await page.evaluate((id) => {
+      const r = window.seoul.race;
+      const w = r._oilWatch;
+      const bot = r.racers.find((x) => x.id === id);
+      return bot.mode === 'ride' && bot.spins >= 1 && w.vEnd < w.v0 * 0.45 && r.oilTracks.laid > 10 && r.slicks.at(-1).hits.includes(id);
+    }, oiled.id), await page.evaluate(() => JSON.stringify({ w: window.seoul.race._oilWatch, tracks: window.seoul.race.oilTracks.laid })));
+    await page.evaluate(() => (window.seoul.race._oilWatch = null));
+    // a second rival, in the gold helmet: it bounces off (BLOCKED!), no spin
+    const saves2 = await page.evaluate((oid) => {
+      const r = window.seoul.race;
+      const o = r.slicks.find((q) => q.oid === oid);
+      const h = o.heading;
+      const bot = r.racers.find((x) => x.bot && x.mode === 'ride' && !o.hits.includes(x.id));
+      const c = r.course;
+      let bi = 0;
+      c.points.forEach((q, i) => {
+        if (Math.hypot(q[0] - o.x, q[1] - o.z) < Math.hypot(c.points[bi][0] - o.x, c.points[bi][1] - o.z)) bi = i;
+      });
+      Object.assign(bot.s, { x: o.x - Math.sin(h) * 5, z: o.z - Math.cos(h) * 5, heading: h, travel: h, v: 13, lean: 0, steer: 0 });
+      Object.assign(bot, { idx: bi, sc: null, prog: null, stuck: 0, safe: 0, helmet: true, spin: null, slip: 0, seenOil: { [oid]: false }, seenMarbles: {} });
+      r._helmeted = bot.id;
+      return r.saves ?? 0;
+    }, oiled.oid);
+    t.check('…the gold helmet takes it: BLOCKED!, no spin, the helmet gone', await until(page, (n) => {
+      const r = window.seoul.race;
+      const bot = r.racers.find((x) => x.id === r._helmeted);
+      return (r.saves ?? 0) > n && !bot.helmet && !bot.spin && bot.mode === 'ride' && (r.oilLog ?? []).some((e) => e.id === bot.id && e.helmet);
+    }, saves2, 4000), await page.evaluate(() => JSON.stringify(window.seoul.race.oilLog)));
+    t.check('…its third rider wipes it off: it fades and goes', await until(page, (oid) => {
+      const r = window.seoul.race;
+      const o = r.slicks.find((q) => q.oid === oid);
+      for (let k = 0; o && o.hits.length < 3; k++) r._slickHit(o, `someone${k}`);
+      return !r.slicks.some((q) => q.oid === oid) && ![...r.oilField.meshes.keys()].some((q) => q.oid === oid);
+    }, oiled.oid, 4000));
+    t.check('a bot holding oil spills it (a rival close behind, or held a while)', await until(page, (n) => {
+      const r = window.seoul.race;
+      const bot = r.racers.find((x) => x.bot && x.mode === 'ride');
+      if (!bot.items.includes('oil') && !(r.slicks ?? []).some((o) => o.owner === bot.id)) {
+        bot.items = ['oil', null, null];
+        bot.heldOil = 30;
+      }
+      return (r.slicks ?? []).some((o) => o.owner === bot.id) && !bot.items.includes('oil');
+    }, null, 4000));
+    t.check('the oil slick has its sticker in the item slots', await page.evaluate(() => {
+      const r = window.seoul.race;
+      r.me.items = ['oil', null, null];
+      r._renderItems();
+      const img = document.querySelector('.race__slot img[alt="Oil slick"]');
+      r.me.items = [null, null, null];
+      r._renderItems();
+      return Boolean(img && img.src.startsWith('data:image/png'));
+    }));
+    // (the rivals sent into the oil, put back down the course: not left right behind you for the checks after)
+    await page.evaluate((ids) => {
+      const r = window.seoul.race;
+      const c = r.course;
+      r.racers.filter((x) => ids.includes(x.id)).forEach((bot, k) => {
+        const i = (r.me.idx - 40 - k * 5 + c.points.length) % c.points.length;
+        Object.assign(bot.s, { x: c.points[i][0], z: c.points[i][1], v: 0 });
+        Object.assign(bot, { idx: i, sc: null, prog: null, spin: null });
+      });
+    }, [oiled.id, await page.evaluate(() => window.seoul.race._helmeted)]);
     // No dark card round a puff of dust or a word burst (the "dark slab"): puffs and a WHOA! low over the road
     // in front of the camera, ambient occlusion on, and the frame read back — nothing near-black round them.
     const slab = await page.evaluate(async () => {
