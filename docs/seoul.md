@@ -110,8 +110,15 @@ Seoul's real streets — and the streets stay open.
   tertiary roads thin, bridges dark-edged over the river), and close up the small streets
   (`alleys.bin`) and the buildings' footprints (the map tiles); the 25 districts, the hills, and
   landmarks (N Seoul Tower, Gyeongbokgung, Lotte World Tower, the 63 Building, City Hall, COEX…).
-  Every course is drawn at its true size on its real streets in its own colour, with a pin at its
-  start. Drag to pan, the wheel or a pinch (or + −) to zoom, ⌂ for all of Seoul; pointing at a pin
+  Every course is drawn at its true size on its real streets in its own colour (Easy greens and
+  blues, Medium ambers, Hard reds), with a pin at its start. Over the map, three **level tabs** —
+  Easy, Medium, Hard, with one to three chillies (↑ ↓ too): picking one lists its courses below,
+  leaves only its courses bright on the map (the others faint, their pins gone) and flies to fit
+  them. Medium opens once an Easy race has been finished, Hard once a Medium one has (kept in this
+  browser, `src/city/progress.js`); a course still shut says so on its card, and its **Try anyway**
+  races it all the same. Each course's card and chip show its best time here and a medal (gold,
+  silver, bronze) for its best place. A course picked or pointed at draws itself in along its streets
+  and flows the way it is raced; pointing at a landmark says what it is. Drag to pan, the wheel or a pinch (or + −) to zoom, ⌂ for all of Seoul; pointing at a pin
   or a course's line previews it (the card: its shape and a dot riding round it, its length, lap
   time, sharp turns, share of wide roads, short cuts and the run to the first corner); a click
   picks it, and pointing at one in the list below flies there too. The map flies smoothly to the
@@ -125,9 +132,34 @@ Seoul's real streets — and the streets stay open.
   (on the last step ← → the time, ↑ ↓ the weather), **Enter** for the next step, **Esc** or
   **Backspace** to go back; click (or tap) a rider or a scooter on the stage, swipe it to browse.
   The results' **Race again** starts the same race at once; **Courses** goes back to the map.
-- **Courses**: eight loops of 2–3 km (two to three minutes a lap) on Seoul's boulevards and avenues:
-  Gwanghwamun Avenues, Dongdaemun Market, Namsan Hill Road, Hongdae Boulevards, Yeouido Riverside,
-  Cheongnyangni Market, Teheran-ro Towers, Jamsil Tower Loop. Each is planned on the spot from the
+- **Courses, by level** (`LEVELS` in `src/city/course.js`; chillies on the map and the cards — one,
+  two or three):
+  - **Easy** — eight loops of 2–3 km (two to three minutes a lap) on Seoul's boulevards and avenues:
+    Gwanghwamun Avenues, Dongdaemun Market, Namsan Hill Road, Hongdae Boulevards, Yeouido Riverside,
+    Cheongnyangni Market, Teheran-ro Towers, Jamsil Tower Loop.
+  - **Medium** — narrower avenues and a little of the residential lanes, 6–10 corners over 60°, a
+    climb, a short cut or two, more traffic: Seochon Palace Lanes (under Inwangsan, two golmok short
+    cuts), Seongsu Brick Works (the red-brick factory grid), and the **Jamsil Fairground** — round
+    Seokchon Lake under Lotte World Tower, past the "Starlight Fun Fair · 별빛 놀이공원", a fair of our
+    own (`src/city/fairground.js`, every ride our own design, no real park's castle, mascot or name):
+    a wooden roller coaster on timber bents with a train of four cars (slow up the chain, fast down
+    the drops), a 52 m drop tower whose ring of seats climbs, hangs and drops, a big wheel with sixteen
+    gondolas kept level, a carousel with horses rising and falling, a pirate ship swinging higher and
+    higher, bunting and strings of bulbs; the rides move when you are near, light up after dark, and
+    you hear the fair as you pass (a band organ's waltz, the coaster's chain, screams on the drops).
+    A fence along the course (solid) with an arch at the gate.
+  - **Hard** — tight two-lane streets and residential lanes, square corners to drift, hills, golmok
+    short cuts, parked cars, the busiest oncoming traffic, the sharpest bots: Euljiro Print Alleys,
+    Mullae Ironworks, Haebangchon Hill Lanes (90 m up and down), and the **Namsan Tower Downhill** — a
+    point-to-point run: a race gantry with start lights on the plaza under N Seoul Tower, then down
+    Namsan's park road (two lanes, a double yellow line, steel guard rails either side — solid — and a
+    wood of pines and November-coloured broadleaf trees, `src/city/hillwood.js`) and Sowol-ro to a
+    finish gantry in the city below, about 145 m lower; speed builds downhill, so the braking points
+    matter. One run, no laps; past the finish line a run-out to stop in.
+
+  The level sets more than the streets: the bots' skill, how many cars are about and coming the other
+  way, how many cars are parked at the kerb, and the item odds (a little more of the back-markers'
+  branches, marbles and tailwinds on the harder ones). Each course is planned on the spot from the
   real road network and between the real buildings (`src/city/course.js`, `src/city/walls.js`):
   three or four points round the place, each on the nearest road with two or more lanes each way,
   joined by the best way for a racer — a search over the streets' directed edges where wide roads
@@ -135,10 +167,32 @@ Seoul's real streets — and the streets stay open.
   corner a long way round), never a motorway, never a residential lane or an alley (they are for
   the short cuts), one-way roads only with their traffic, never out along one carriageway and back
   down the other; of all the loops tried, the one that best keeps to the wide roads with the
-  fewest sharp corners, the longest straights and a long run from the start.
-  `node scripts/geo/jarani-courses.mjs` measures them (length, share on roads two lanes or more
-  each way, turns sharper than 60° and 80°, the longest straight, the first corner, short cuts);
-  `tests/unit/course.test.mjs` keeps them so. **Short cuts**: the narrowest golmok that leave the
+  fewest sharp corners, the longest straights and a long run from the start. That is the Easy
+  planner; Medium and Hard plan with costs of their own (`PROFILE`): the wide roads no longer
+  cheaper, the turns cheaper (so the loop takes more of them), the residential lanes open (a little
+  for Medium, freely for Hard), and loops scored on the corners and the narrow streets they want. A
+  course with its own points (`via`: the fairground's lake loop, the downhill) is joined through them
+  in order; `open` makes it point to point — its start line a grid's length in (`OPEN_LEAD`), its
+  finish a run-out short of its end (`OPEN_RUNOUT`), its `length` the race from line to line.
+  `node scripts/geo/jarani-courses.mjs` measures them (level, length, share on roads two lanes or
+  more each way, on small streets, turns sharper than 60° and 80°, the longest straight, the first
+  corner, short cuts, metres climbed and dropped and the steepest 30 m; `--level hard` for one level);
+  `tests/unit/course.test.mjs` keeps each level so. Measured (Nov 2026):
+
+  | level | course | km | wide | turns >60° / >80° | first corner | short cuts | climb | crashes a lap (you on the autopilot / a bot) |
+  |---|---|---|---|---|---|---|---|---|
+  | Easy | the eight boulevard loops | 1.95–2.58 | 76–100% (Namsan 14%) | 1–4 / 1–3 | 286–883 m | 0–1 | 7–73 m | 0–2 / 0–1.7 |
+  | Medium | Seochon Palace Lanes | 2.74 | 64% | 7 / 5 | 210 m | 2 | 17 m | 1–5 / 1.7–3.3 |
+  | Medium | Seongsu Brick Works | 2.74 | 36% | 9 / 7 | 215 m | 0 | 9 m | 1–3 / 1.6–2 |
+  | Medium | Jamsil Fairground | 2.58 | 73% | 7 / 5 | 684 m | 1 | 15 m | 2–3 / 1.4–1.7 |
+  | Hard | Euljiro Print Alleys | 1.78 | 10% | 17 / 10 | 191 m | 0 | 9 m | 1.3 / 0.9 |
+  | Hard | Mullae Ironworks | 2.49 | 8% | 11 / 9 | 161 m | 1 | 8 m | 1.4 / 1.4 |
+  | Hard | Haebangchon Hill Lanes | 2.78 | 17% | 9 / 7 | 512 m | 0 | 90 m | 0 / 1.7 |
+  | Hard | Namsan Tower Downhill (A→B) | 2.12 | 37% | 1 / 1 (and the park road's bends) | 486 m | 0 | 145 m down | 2.2 / 0.7 |
+
+  (Crashes counted without the items' — branches, marbles. On the Hard loops the bots are often
+  put back on the course after getting nowhere in a tight corner: they are slow there, not unfair.)
+  **Short cuts**: the narrowest golmok that leave the
   loop and join it again further on, shorter than the road round (15–230 m saved) — tight walls and
   a tight turn in, so a bold rider gains and a careless one bounces. Each has a "SHORTCUT · 지름길"
   sign at its mouth, a cyan hint at the top of the screen as you come up to it, a dotted line on
@@ -198,7 +252,13 @@ Seoul's real streets — and the streets stay open.
   trucks, city buses in route blue and green — with glass, turning wheels, headlights at night and in
   the rain, brake lights and blinking indicators; delivery scooters too, also down the small streets.
   They keep their own side, cross at the junctions, blink before turning, brake (late, for a
-  scooter), honk when held up. Everyone on the street is real (`src/city/folk.js`: Microsoft
+  scooter), honk when held up. The course's own roads are kept busy the other way: cars, taxis,
+  buses and delivery scooters sent up the road ahead of you on the far side of a two-way road, or
+  down the other carriageway of a divided one — nine of them on an Easy course, twelve on Medium,
+  fifteen on Hard — in their own lane (and on a two-way residential lane the riders keep to their own
+  side of it too, out over the middle only to pass). On Medium and Hard, cars stand parked at the
+  kerb (four and eight a kilometre), never in the 60 m before a corner nor just after it. At night
+  every headlight and tail light glows, near and far (one draw for all of them). Everyone on the street is real (`src/city/folk.js`: Microsoft
   Rocketbox avatars, MIT) — walking, waiting in groups at the crossings, at shop doors, texting,
   looking about, cheering at the start — and nobody faceless is drawn: further off the pavement is
   simply quieter (`src/city/life.js`). In a race people gather ahead of the riders, and in the small
@@ -225,8 +285,10 @@ Seoul's real streets — and the streets stay open.
   having, not a win), the gauge visibly filling up again, "GULP! +BOOST". (Before, it only set the
   gauge full, silently: holding W, 70 km/h before and after.) **Air horn** (people and scooters ahead
   clear out, cars stop). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
-  head, fitted to each species' head (the ears poke out), a soft gold shimmer round rider and
-  scooter, and a badge on the HUD; the next crash (a car, a wall, a branch, a fall on marbles)
+  head, fitted to each species' head (the ears poke out) — a rounded cycling helmet,
+  longer to the back, with vent slots, a darker band and rim, a foam liner, a short peak and a chin
+  strap (just the helmet: no glow round the rider) — and a badge on the HUD; the next crash (a car, a
+  wall, a branch, a fall on marbles)
   bounces off — "BLOCKED!" and "PING!", a ding, and the helmet flies off, spinning. Everyone's
   helmets show, bots' and friends' too. **Tailwind** (five seconds of free, faster sprinting).
   **Marbles** (`src/city/marbles.js`): poured out behind you, 48 glass marbles with coloured swirls
@@ -288,6 +350,11 @@ Seoul's real streets — and the streets stay open.
   three item slots bottom centre; speed and the sprint gauge bottom right; the next turn named at
   the top ("SHARP RIGHT · ALLEY 30 m"), a warning under it for anything in your line; the keys while
   the lights count down; speed lines from about 55 km/h. Left-drag looks round.
+- **The dark slab** (a black rectangle behind a slipping rider's dust, round a "WHOA!"): the race's
+  comic sprites now never draw their clear texels at all (`alphaTest`), and the ambient occlusion
+  pass (`src/city/aopass.js`) leaves sprites and see-through, depth-less meshes (puffs, glows, painted
+  arrows) out of the normals it shades by, so none can shade the road as a solid card; the end-to-end
+  run reads a frame back round a cloud of dust and a word burst with AO on and finds no dark card.
 - `src/city/race.js` runs the race; `src/city/course.js` plans the courses (tested in
   `tests/unit/course.test.mjs`); `src/city/lobby.js` and `src/city/stage.js` are the menus and their
   stage (drawn instead of the city while they are up, so they stay smooth); the room goes over the
