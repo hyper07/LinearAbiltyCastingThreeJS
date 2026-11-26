@@ -25,6 +25,7 @@ import { seoulCredits } from './credits.js';
 import { readAlleys, readRoads } from './alleys.js';
 import { StreetTrees } from './trees.js';
 import { NightLights, LAMP_FIELD_GLSL } from './nightlights.js';
+import { Skyline, SKYLINE } from './skyline.js';
 import { confetti } from '../ui/pop.js';
 import './city.css';
 
@@ -256,6 +257,8 @@ function pavementMaterial(uniforms) {
 /** Where the game's world begins: Seoul City Hall, in the source's grid (EPSG:5186, metres). */
 const ORIGIN = { x: 198050, y: 551860 };
 /** Wall colours by what a building is for (see tiles.js USES), light to read windows on. */
+/** Buildings in the register drawn by hand instead (skyline.js: the 63 Building's gold tower), by name. */
+const SKYLINE_SKIP = new Set(SKYLINE.map((l) => l.skip).filter(Boolean));
 const PALETTE = { house: '#d8c9b4', apartment: '#e4e2dc', shop: '#d9cfc0', office: '#9fb0c0', public: '#d2c4b2', industry: '#b9b3a6', other: '#cfc8bc' };
 /** Quiet runs the city at 45 frames a second. */
 const POWER_PROFILE = { quietFps: 45 };
@@ -418,6 +421,7 @@ export class SeoulGame {
         this.pos.y += this.groundAt(this.pos.x, this.pos.z);
       }
       for (const l of this.index.landmarks) if (l.tower) this._tower(l);
+      this.skyline = new Skyline(this);
       // The credits (map, models, textures, music) are behind the Credits button: on the menus, the pause screen and in the city.
       this.creditOpts = { alleys: Boolean(this.alleyCount), terrain: Boolean(this.terrain) };
       this.ready = true;
@@ -1024,6 +1028,8 @@ export class SeoulGame {
     const roof = new THREE.Color();
     let seedBase = (tx * 73856093) ^ (ty * 19349663);
     for (const b of t.data.buildings) {
+      // (a landmark drawn by hand instead, always on the skyline: skyline.js)
+      if (b.name && SKYLINE_SKIP.has(b.name)) continue;
       const n = b.ring.length / 2;
       const h = b.height;
       seedBase = (seedBase * 1664525 + 1013904223) | 0;
@@ -2151,6 +2157,7 @@ export class SeoulGame {
     // People on the pavements, bikes and scooters (once the roads are in).
     if (!this.life && this.roadTiles && this.terrain) this.life = new StreetLife(this);
     this.life?.update(dt);
+    this.skyline?.update(this.camera, { night: this.uniforms.uNight.value, thick: this.weather?.level.thick ?? 0, fog: this.scene.fog });
     this._music(dt);
     this.power.gpuBegin();
     if (this.quality === 'low' || this.bloomOn === false) this.renderer.render(this.scene, this.camera);
