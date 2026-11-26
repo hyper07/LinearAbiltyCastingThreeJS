@@ -3001,7 +3001,7 @@ export class Race {
     let push = 0;
     // How far ahead it looks: about two and a half seconds at speed.
     const R = 22 + v * 1.4;
-    const consider = (x, z, half, ownV = 0, ownHd = 0) => {
+    const consider = (x, z, half, ownV = 0, ownHd = 0, weight = 1) => {
       const dx = x - s.x;
       const dz = z - s.z;
       const along = dx * fx + dz * fz;
@@ -3018,10 +3018,19 @@ export class Race {
         // Something crossing our way (a car out of a side street): no steering round that — brake for it.
         const across = Math.abs(Math.sin(turn(s.heading, ownHd)));
         if (ownV > 1.5 && across > 0.55) crossing = Math.min(crossing, along);
-        push += (side2 > 0 ? 1 : -1) * (1 - along / R) * 1.6;
+        push += (side2 > 0 ? 1 : -1) * (1 - along / R) * 1.6 * weight;
       }
     };
-    for (const veh of this.traffic?.near(s.x, s.z, R + 6) ?? []) consider(veh.box.x, veh.box.z, veh.box.halfWidth + 0.3, veh.v, veh.box.heading);
+    // (a vehicle is in the way from its back to its front — a bus's tail long before its middle — so
+    // it is looked at every couple of metres down its length)
+    for (const veh of this.traffic?.near(s.x, s.z, R + 12) ?? []) {
+      const b = veh.box;
+      const k = Math.max(1, Math.round(b.halfLength / 1.25));
+      for (let j = -k; j <= k; j++) {
+        const u = (j / k) * b.halfLength;
+        consider(b.x - Math.sin(b.heading) * u, b.z - Math.cos(b.heading) * u, b.halfWidth + 0.3, veh.v, b.heading, 2 / (2 * k + 1));
+      }
+    }
     const before = block;
     // People: steered round, and someone right in the line is braked for (they may not step aside in time).
     let personAhead = Infinity;
