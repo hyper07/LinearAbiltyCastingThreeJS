@@ -3335,10 +3335,12 @@ export class Race {
       target = Math.min(target, slow);
       steer = Math.max(-0.35, Math.min(0.35, steer));
     }
-    // In smoke it can't see its line: it eases off (rolls, down to about 36 km/h) and wanders a little
+    // In smoke it can't see its line: it eases off (off the throttle, feathering the brake, down to about 36 km/h) and wanders a little
     // while inside.
     if (r.inSmoke && r.done == null) {
       target = Math.min(target, Math.max(10, v - 0.5));
+      // (off the throttle and feathering the brake: rolling alone took off barely 2 km/h crossing a cloud)
+      if (v > 10) s.v = Math.max(10, s.v - SMOKE.ease * dt);
       steer = Math.max(-1, Math.min(1, steer + Math.sin(this.clock * 2.6 + r.id.length * 2.1) * 0.28 * Math.min(1, (r.smoke ?? 0) * 1.6)));
     }
     // Down a golmok barely wider than the bars: steady, the walls an arm's length off.

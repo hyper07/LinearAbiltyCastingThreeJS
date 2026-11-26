@@ -30,7 +30,8 @@ export const SMOKE = {
   puffs: 30, // puffs a cloud
   clear: 1, // s the veil takes to clear once you are out
   grace: 2, // s the dropper rides out of their own cloud untouched
-  drift: 0.9 // m/s of drift at the weather's wind 1
+  drift: 0.9, // m/s of drift at the weather's wind 1
+  ease: 2.4 // m/s² a bot inside sheds over its rolling (off the throttle, feathering the brake)
 };
 
 /** The cloud's size and thickness at `age` seconds: { r, h, thick } (thick 0 – 1). */
