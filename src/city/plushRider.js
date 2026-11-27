@@ -776,12 +776,14 @@ export class PlushRider {
 
   /**
    * The ceremony, procedural (no clips), on the music's beat (`beats`: where the track is, in beats):
-   * each species its own signature dance (src/shared/motion/signatures.js — smooth, half-time moves
-   * played at 1.5×: the bunny bounce-sways, the pig side-steps and claps, the cat body-waves and sways its hips,
-   * the fox pops its chest every two beats and waves its arms, the bear two-steps heavily and rolls its
-   * shoulders, the frog squats and rises wide, the penguin waddle-glides, waves its flippers and turns),
-   * eight bars in four variants, and its place's flourish on top (`place` 1: a V held a beat and a third
-   * and one soft hop every two bars; 2 one paw up, 3 a small V; any other place a little side-clap). Species +
+   * each species its own style (src/shared/motion/signatures.js, on the song's beat at the 1.5× pace,
+   * smooth): the bunny hop-kicks on every beat, paws by its cheeks; the pig swings like a pendulum, wide,
+   * with a swing feel, claps and a V; the cat body-waves, pops its hips on the "and", claw-swipes and
+   * spins on one foot; the fox does the robot, tutting on every beat; the bear stomps and flexes; the
+   * frog swims breaststroke in a deep squat and leaps every two bars; the penguin waddles stiffly,
+   * flaps, skates and spins. Eight bars in four variants, and its place's flourish on top (`place` 1:
+   * a V held a beat and a third and one soft hop every two bars; 2 one paw up, 3 a small V; any other
+   * place a little side-clap). Species +
    * place + `start` (the beat it began on) decide every pose: the same in every browser. The ears and the
    * tail follow on soft springs, flowing; the bunny's the floppiest.
    */
