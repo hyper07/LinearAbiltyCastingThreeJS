@@ -1955,7 +1955,9 @@ export class Race {
         v.missed.add(r.id);
         r.misses++;
         if (r.me) {
-          this.fx.pop('WHOOSH!', { x: s.x, y: r.y + 2.4, z: s.z, ride: s }, { color: '#8fd8ff', size: 0.9 });
+          // (the word only for one met coming the other way: one going your way — passing you from behind
+          // with its horn, or one you slipped by — is the sound alone)
+          if (Math.cos(turn(s.travel ?? s.heading, v.box.heading)) < -0.3) this.fx.pop('WHOOSH!', { x: s.x, y: r.y + 2.4, z: s.z, ride: s }, { color: '#8fd8ff', size: 0.9 });
           this._whoosh();
         }
       }
