@@ -225,6 +225,17 @@ server for the admin (same requirement).
 | `POST /api/releases/<game>/rollback` | admin | `{ version }` |
 | `POST /api/releases/<game>/draft`, `GET /api/releases/<code>/draft/<file>` | admin | build and serve the committed draft |
 
+**Kickrani's first release** (to make once, then commit `releases/g_cv2yrhrpv2/`): its base is
+47b2d66 — the game as at 3a17b88, in the package layout — plus the package-test fix e60dfba:
+
+```bash
+npm run game:deploy -- kickrani --base 47b2d66 --pick e60dfba --version 1.0.0 \
+  --notes "First production release: Kickrani as at 3a17b88 (the gilded Admiral Yi). Level roads (41ac6b3) not included."
+```
+
+Until it exists, production servers cannot start Kickrani (the dev server plays its draft).
+The level roads (f10b4ce) and the scene params (3a5504b) are then its pending changes.
+
 One deploy at a time per server (a second answers 409). The panel's deploy runs the unit-test gate,
 not the browser load.
 
