@@ -3558,14 +3558,14 @@ export class Race {
     // A narrow stretch of road (a slip road, a lane between kerbs): no faster than its width lets you steer.
     else if (pinch < 7.5) target = Math.min(target, 4 + pinch * 1.9);
     // Stopped, and held there: a stream of traffic across the junction is waited for (that isn't stuck —
-    // up to eight seconds); anything else that has stopped in front — a car that pulled up for this rider
+    // up to four seconds); anything else that has stopped in front — a car that pulled up for this rider
     // standing still (drivers do: traffic.js brakesFor), and so waits for it to go — is crept round at a
     // walking pace, as you would, steering round it, rather than both standing there for ever.
     r.waitT = v < 1.2 && this.phase === 'racing' ? (r.waitT ?? 0) + dt : 0;
     r.trafficWait = r.waitT > 0 && crossing < 9 ? (r.trafficWait ?? 0) + dt : 0;
     if (r.waitT > 1 && crossing >= 9) target = Math.max(target, 2.3);
     // (held by the police — five seconds at a standstill — isn't stuck: never put back on for it)
-    const waiting = r.trafficWait > 0 && r.trafficWait < 8;
+    const waiting = r.trafficWait > 0 && r.trafficWait < 4;
     r.stuck = this.phase === 'racing' && v < 0.8 && !r.pulled && !waiting ? r.stuck + dt : 0;
     // Nose against a wall (a square corner run wide in a narrow street) and stopped: the rider walks the
     // scooter round toward the way on, a step back off the wall, and rides again — as you would.

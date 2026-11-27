@@ -271,7 +271,7 @@ Seoul's real streets — and the streets stay open.
     from the way it turns, the widest line it has; round a corner or a bend under way nothing (someone at
     the corner, the pack, a car's nose) steers it out toward the outside; the drink only
     with nothing to slow for in the next 100 m; a rider stopped by crossing traffic waits (not "stuck",
-    up to 8 s), one held by anything else stopped in front — a car that pulled up for it — creeps round
+    up to 4 s), one held by anything else stopped in front — a car that pulled up for it — creeps round
     it at a walking pace, and one stood a second and a half against anything is walked round toward the
     way on; where the course comes back past itself (the U-turn's two ways 10 m apart) a rider's place
     on it no longer jumps up the course to the other way.
