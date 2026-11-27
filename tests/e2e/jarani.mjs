@@ -18,7 +18,10 @@ import { boot, tally, until } from './lib.mjs';
  * Hard tabs over the map, Hard shut till a Medium is finished, "Try
  * anyway"), cars coming the other way, the Namsan Tower Downhill raced to
  * its finish line below its start (point to point, its woods and guard
- * rails, the finish kept as progress), and the Jamsil Fairground's rides
+ * rails, the finish kept as progress), Haebangchon's steep lanes (its traffic
+ * on the road — none sunk into it, none in another car, none stuck for good —
+ * its alleys' walls broken at the side streets' mouths, the lane lines stopped
+ * where roads cross), and the Jamsil Fairground's rides
  * moving; then a race in a fog bank, a call to the police that stops the rider ahead for five seconds, (fog far under 40 m, the riders unfogged)
  * to the course's own music, watched for a blinking box in the middle (no
  * WRONG WAY flicker, the rival panel never empty or in and out too fast), the
@@ -1029,6 +1032,104 @@ export async function run(browser) {
       return r.me.done != null && r.me.lapsDone === 1;
     }, null, 15000), await page.evaluate(() => JSON.stringify({ dist: Math.round(window.seoul.race.me.dist), L: Math.round(window.seoul.race.course.length), done: window.seoul.race.me.done })));
     t.check('…and past it, you roll to a stop in the run-out', await until(page, () => window.seoul.race.me.s.v < 1.5, null, 12000));
+    await page.evaluate(() => window.seoul.race.quit());
+    // Haebangchon's steep hill lanes: the traffic on the road (none sunk into it, parked or moving), never one
+    // car in another, nothing left standing in the road for good; the alleys' walls broken at the side
+    // streets' mouths; the lane lines stopped where roads cross.
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      Object.assign(r, { courseId: 'haebangchon', time: 'day', weatherPick: 'clear', laps: 1 });
+      r.startSolo();
+    });
+    await until(page, () => window.seoul.race.course?.id === 'haebangchon' && window.seoul.race.phase === 'racing', null, 120000);
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      const g = window.seoul;
+      r.autopilot = true;
+      const st = (r._e2eHill = { samples: 0, tyres: 0, sunk: 0, worst: 0, parked: 0, overlap: 0, still: 0 });
+      // (two boxes on the ground overlapping, a few centimetres in)
+      const over = (a, b) => {
+        if (Math.hypot(a.x - b.x, a.z - b.z) > a.halfLength + b.halfLength + 2) return false;
+        const reach = (o, ux, uz) => Math.abs(-Math.sin(o.heading) * ux - Math.cos(o.heading) * uz) * (o.halfLength - 0.05) + Math.abs(Math.cos(o.heading) * ux - Math.sin(o.heading) * uz) * (o.halfWidth - 0.05);
+        return [a.heading, a.heading + Math.PI / 2, b.heading, b.heading + Math.PI / 2].every((h) => Math.abs((b.x - a.x) * -Math.sin(h) + (b.z - a.z) * -Math.cos(h)) <= reach(a, -Math.sin(h), -Math.cos(h)) + reach(b, -Math.sin(h), -Math.cos(h)));
+      };
+      r._e2eHillT = setInterval(() => {
+        const tr = r.traffic;
+        if (!tr) return;
+        st.samples++;
+        const cam = g.camera.position;
+        for (const v of tr.vehicles) {
+          const ax = v.axles ?? v.view?.axles;
+          if (!ax || !v.sat || Math.hypot(v.box.x - cam.x, v.box.z - cam.z) > 120) continue;
+          v.group.updateMatrixWorld();
+          const e = v.group.matrixWorld.elements;
+          for (const [along, side] of [[ax.front, -ax.track], [ax.front, ax.track], [ax.rear, -ax.track], [ax.rear, ax.track]]) {
+            const x = e[0] * side + e[8] * along + e[12];
+            const y = e[1] * side + e[9] * along + e[13];
+            const z = e[2] * side + e[10] * along + e[14];
+            const d = g.surfaceAt(x, z, y + 0.3) - y;
+            st.tyres++;
+            st.worst = Math.max(st.worst, d);
+            if (d > 0.15) {
+              st.sunk++;
+              if (v.parked) st.parked++;
+            }
+          }
+          if (!v.parked && (v.stuckT ?? 0) > 20) st.still++;
+        }
+        const V = tr.vehicles;
+        for (let i = 0; i < V.length; i++) for (let j = i + 1; j < V.length; j++) if (over(V[i].box, V[j].box)) st.overlap++;
+      }, 250);
+    });
+    await page.waitForTimeout(30000);
+    const hill = await page.evaluate(() => (clearInterval(window.seoul.race._e2eHillT), window.seoul.race._e2eHill));
+    t.check('Haebangchon: the traffic sits on the steep road — no tyre of a car near you sunk into it, parked or moving', hill.tyres > 500 && hill.sunk === 0, JSON.stringify({ ...hill, worst: Math.round(hill.worst * 100) / 100 }));
+    t.check('…never one car in another, and none left standing in the road for good', hill.samples > 60 && hill.overlap === 0 && hill.still === 0, JSON.stringify(hill));
+    await shot('haebangchon');
+    t.check('…the alleys\' garden walls stop at the side streets\' mouths: none across a side street or out on a main road', await page.evaluate(() => {
+      const g = window.seoul;
+      const r = g.race;
+      for (const gm of [r.golmok, ...(r.golmoks ?? [])]) gm?.buildAll?.();
+      const segs = new Set();
+      for (const list of r.course.walls.grid.values()) for (const s of list) if (['garden', 'rail', 'fence'].includes(s.owner)) segs.add(s);
+      const streets = new Set();
+      for (const s of segs) for (const q of g.roadsNear(s.ax, s.az, 1)) if (q.small) streets.add(q);
+      let bad = 0;
+      for (const s of segs) {
+        const len = Math.hypot(s.bx - s.ax, s.bz - s.az);
+        const ux = (s.bx - s.ax) / len;
+        const uz = (s.bz - s.az) / len;
+        for (let t = 0.25; t < len - 0.25; t += 0.25) {
+          const x = s.ax + ux * t;
+          const z = s.az + uz * t;
+          let inside = g.onRoad(x, z, -0.2);
+          for (const q of streets) {
+            for (let k = 0; !inside && k + 3 < q.pts.length; k += 2) {
+              const ex = q.pts[k + 2] - q.pts[k];
+              const ez = q.pts[k + 3] - q.pts[k + 1];
+              const L = Math.hypot(ex, ez) || 1e-6;
+              if (Math.abs((ex * ux + ez * uz) / L) > 0.8) continue;
+              const f = Math.max(0, Math.min(1, ((x - q.pts[k]) * ex + (z - q.pts[k + 1]) * ez) / (L * L)));
+              inside = Math.hypot(q.pts[k] + ex * f - x, q.pts[k + 1] + ez * f - z) < q.width / 2 - 0.2;
+            }
+          }
+          if (inside) {
+            bad++;
+            break;
+          }
+        }
+      }
+      return segs.size > 50 && bad === 0;
+    }));
+    t.check('…and the lane lines stop where roads cross: the roads drawn round here know where they run into another', await page.evaluate(() => {
+      const g = window.seoul;
+      let cut = 0;
+      g.scene.traverse((m) => {
+        const a = m.isMesh && m.material === g.roadMaterial ? m.geometry.getAttribute('aJunc') : null;
+        if (a) for (let i = 0; i < a.count; i++) if (a.getX(i) > 0.5) cut++;
+      });
+      return cut > 0;
+    }));
     await page.evaluate(() => window.seoul.race.quit());
     // The Jamsil Fairground: the rides moving beside the course.
     await page.evaluate(() => {

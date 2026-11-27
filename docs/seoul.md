@@ -44,7 +44,14 @@ including commercially, **with attribution** — the game credits it in its Cred
   are lifted onto a deck: the bridges. Roads are as wide as their lanes (OpenStreetMap's lane count, 3.25 m a lane), with
   Korean markings — a double yellow in the middle of a two-way road, on the median side of a one-way carriageway —
   worn wheel tracks, zebra crossings and stop lines at junctions, granite kerbs, the slab's edge, and on bridges a
-  deep girder and a concrete parapet. Each bridge ramps down to the roads it meets on the banks (level
+  deep girder and a concrete parapet. **The lines stop where roads cross** (`src/city/markings.js`): along each
+  road, where its middle and each edge line lie inside another road (one going on through there — not the far
+  side of a T, where the road running on keeps its centre line and far edge) or under a wider road lying along
+  it (a slip road, a street mapped twice), its paint is left out; a junction's middle is one plain asphalt
+  whichever road draws it (a hair behind, so the road keeping its lines shows — no two roads' lines fighting
+  into yellow dashes), and the zebras and stop lines sit back from its edge, not its middle. A two-way street
+  under 5.5 m has no line down its middle, one under 4 m none (around Haebangchon: 268 m of centre line and
+  584 m of edge line that lay inside other roads → 0; `tests/unit/city-markings.test.mjs`). Each bridge ramps down to the roads it meets on the banks (level
   across the road it meets and its pavements, then climbing), and
   where a bridge comes in several pieces (as Yanghwa and Dongjak do) they meet level, so every Han
   crossing drives straight through. Smaller streets are simply the gaps between buildings.
@@ -465,8 +472,11 @@ Seoul's real streets — and the streets stay open.
   `tests/unit/jarani-heading.test.mjs`). **On the hill, on its wheels** (`sitOn`, `_place`): each
   stands on the surface under its own tyres — the model's real axles and track (`v.axles`, a bus's
   and a truck's longer and wider) — nose up or down the slope, tipped with the road's camber, its
-  lowest tyre on the road and none sunk into it; the four tyres sampled within 90 m of the camera, the
-  axles' middles further off every fourth frame (about 1 µs a sample, 0.07 ms for 28 vehicles).
+  lowest tyre on the road and none sunk into it; the four tyres sampled every frame within 90 m of the
+  camera and every fourth frame further off (the axles' middles alone sank the high side's wheels on a
+  hill's cross-fall), a parked one every 30 frames — one put down before its road had come in sat on
+  the bare ground, a metre into the road drawn over it later (every parked car on Haebangchon: 0.9–1.1 m
+  → 0.01 m; moving cars more than 8 cm in, 551 samples in 80 s → 5).
   Only what a step adds over the land (a seam, a kerb) is eased; the hill itself is followed exactly
   (eased as a whole, a car trailed 20 cm above the road going down and sank going up). Measured on
   Bukak Skyway (150 s, autopilot): tyres more than 5 cm off the road 0.6 % of samples, 15 cm at worst
@@ -520,7 +530,14 @@ Seoul's real streets — and the streets stay open.
   abreast, or one beside a car coming the other way: no wall across the road). On a road with two
   lanes or more their way, cars change lane now and then — blinking first, sliding over, only into
   a clear lane and never with a rider within 30 m — and pull out round a car parked at the kerb or
-  a bus at its stop rather than queue behind it. Cars stand parked at the kerb (two, seven and
+  a bus at its stop rather than queue behind it (stopping a car's length short of it while the other lane
+  isn't clear; across the lane only as it rolls on, its nose never more than a steer's angle off the road).
+  **No car ever drives into another**: the last guard is box to box, a hand's breadth round each, on
+  any side (a lane bending in toward one parked on the bend, a nose turning as it pulls out) — never
+  the old way out of two stood nose to side, creeping on through each other; and one stuck for good
+  (12 s: a corner too tight for it, a knot of two) is taken off once out of sight, never in view
+  (Haebangchon, 100 s: car-on-car overlaps 1,491 samples, 224 pairs → 0; cars stood 15 s or more 6 → 0;
+  `tests/unit/jarani-traffic.test.mjs`). Cars stand parked at the kerb of the road itself, along it (two, seven and
   twelve a kilometre by level) on the two-way roads — on Hard the narrower ones too (6.5 m and up),
   with delivery scooters left at the kerb of the lanes wide enough (about ten a kilometre) — never in the 60 m
   before a corner nor just after it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
@@ -669,7 +686,9 @@ Seoul's real streets — and the streets stay open.
   corner is filled, and the ground the riders stand on (`surfaceAt`) knows the pavements (the race's
   `junctionReport()` samples every mouth for holes, steps and doubled surfaces);
   a narrow raised pavement down a residential lane,
-  garden walls and gates, air-conditioner units and gas meters, concrete poles with wires
+  garden walls and gates — broken where a side street opens off the course and stopped short of a main
+  road's pavement, never across a mouth (`golmok.js` MOUTH, `wallRuns`; a mountain road's guard rails
+  and a zig-zag's railings too; Haebangchon: 36 of 228 walls across an opening → 0), air-conditioner units and gas meters, concrete poles with wires
   overhead, convex mirrors at blind corners, vertical shop signs lit at night, awnings, styrofoam
   planters, pots, bins, parked scooters (never in a narrow street), steps, alley lamps with pools of light. What stands in the
   street is fair at 70 km/h: only in lanes 5 m or wider, tight to the wall, never in the 40 m before a
