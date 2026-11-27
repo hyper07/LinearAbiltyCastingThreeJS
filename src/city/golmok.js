@@ -147,6 +147,9 @@ const PAL = {
   rail: C('#c3c8cd'),
   railPost: C('#8d9298'),
   lineYellow: C('#e8b923'),
+  lineWhite: C('#e9e9e4'),
+  fence: C('#dfe3e6'),
+  fencePost: C('#9aa1a8'),
   mirror: C('#ff7a1a'),
   step: C('#b9b2a6')
 };
@@ -435,6 +438,19 @@ export class Golmok {
               ground.quad(c0, c1, c2, c3, PAL.lineYellow);
             }
           }
+          // A zig-zag's lane wide enough for a car and a rider (7 m and up) is a street, not an alley: a white
+          // line down each edge and, two-way, a yellow one down its middle.
+          if (this.sparse && !hill && cls === 5 && w >= 7 && t0 === 0 && t1 === 1) {
+            const stripe = (o, hw, col) => {
+              const c0 = new THREE.Vector3(pa[0] + rx * (o - hw), ya + 0.01, pa[1] + rz * (o - hw));
+              const c1 = new THREE.Vector3(pa[0] + rx * (o + hw), ya + 0.01, pa[1] + rz * (o + hw));
+              const c2 = new THREE.Vector3(pb[0] + rx * (o + hw), yb + 0.01, pb[1] + rz * (o + hw));
+              const c3 = new THREE.Vector3(pb[0] + rx * (o - hw), yb + 0.01, pb[1] + rz * (o - hw));
+              ground.quad(c0, c1, c2, c3, col);
+            };
+            for (const sd of [-1, 1]) stripe(sd * (half - 0.35), 0.07, PAL.lineWhite);
+            if (!b[4]) stripe(0, 0.075, PAL.lineYellow);
+          }
           // So bikes and people stand on it (the city's surface lookup), and it shows on the map.
           const seg = { ax: pa[0], ay: ya, az: pa[1], bx: pb[0], by: yb, bz: pb[1], half: half + 0.2, alley: true };
           const cell = `${Math.floor((a[0] + b[0]) / 2 / ROAD_CELL)}_${Math.floor((a[1] + b[1]) / 2 / ROAD_CELL)}`;
@@ -487,7 +503,12 @@ export class Golmok {
           const mouth = open && (i < 2 || i > n - 4);
           const wx0 = ex + rx * side * 0.2;
           const wz0 = ez + rz * side * 0.2;
-          if (!wall && !turning && !inCourse && !mouth && !across(wx0, wz0, wx0 + ux * len, wz0 + uz * len) && !g.onRoad?.(ex + rx * side * 1.5, ez + rz * side * 1.5, 0.5)) {
+          const open2 = !wall && !turning && !inCourse && !mouth && !across(wx0, wz0, wx0 + ux * len, wz0 + uz * len) && !g.onRoad?.(ex + rx * side * 1.5, ez + rz * side * 1.5, 0.5);
+          // A zig-zag's lane with no building at its edge (an office district's, a flats estate's): a
+          // street's raised pavement out to the buildings and a low railing along its back, not an alley's
+          // garden wall — the open ground beyond reads as the city's, not a walled lane through a plaza.
+          if (open2 && this.sparse && w >= 7) this._walkside(ground, props, owned, i, side, { a, b, ex, ez, ux, uz, rx, rz, len, hd, half });
+          else if (open2) {
             // A garden wall, sometimes a gate in it — solid, like the buildings (once for each place it stands).
             const tag = `${this.course.id ?? ''}|${i}|${side}`;
             if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
@@ -696,14 +717,76 @@ export class Golmok {
     void base;
   }
 
+  /**
+   * One side of a zig-zag's lane with nothing built at its edge: a raised pavement (a granite kerb, block
+   * paving out to the buildings or 3 m, its side down to the land) that riders hop up onto as they do the
+   * main roads' (registered with them: SeoulGame `walkHash`), and a low steel railing along its back —
+   * solid (walls.js), so a line run wide is a scrape, not a ride off across the open ground (none in a
+   * corner's approach or just round it: `calm`).
+   */
+  _walkside(ground, props, owned, i, side, { a, b, ex, ez, ux, uz, rx, rz, len, hd, half }) {
+    const g = this.g;
+    // (out to the nearest building, a hand short of it)
+    let pw = 3;
+    for (const d of [1.2, 1.8, 2.4, 3]) {
+      const mx = ex + ux * len / 2 + rx * side * d;
+      const mz = ez + uz * len / 2 + rz * side * d;
+      if (g.buildingAt?.(mx, mz) || g.buildingAt?.(ex + rx * side * d, ez + rz * side * d) || g.buildingAt?.(ex + ux * len + rx * side * d, ez + uz * len + rz * side * d)) {
+        pw = d - 0.45;
+        break;
+      }
+    }
+    if (pw < 0.7) return;
+    const KERB = 0.14;
+    const ya = g.groundAt(a[0], a[1]) + 0.9;
+    const yb = g.groundAt(b[0], b[1]) + 0.9;
+    const P = (t, o, y) => new THREE.Vector3(a[0] + ux * len * t + rx * side * o, y, a[1] + uz * len * t + rz * side * o);
+    const yAt = (t) => ya + (yb - ya) * t;
+    // wound to face up (or out) whichever side it is on
+    const quad = (p0, p1, p2, p3, col) => (side > 0 ? ground.quad(p0, p3, p2, p1, col) : ground.quad(p0, p1, p2, p3, col));
+    // the top: block paving, a little lighter at its kerb
+    quad(P(0, half, yAt(0) + KERB), P(1, half, yAt(1) + KERB), P(1, half + pw, yAt(1) + KERB), P(0, half + pw, yAt(0) + KERB), PAL.paving);
+    // the kerb's face, up from the road
+    quad(P(0, half, yAt(0)), P(1, half, yAt(1)), P(1, half, yAt(1) + KERB), P(0, half, yAt(0) + KERB), PAL.kerb);
+    quad(P(0, half - 0.001, yAt(0) + KERB), P(1, half - 0.001, yAt(1) + KERB), P(1, half + 0.18, yAt(1) + KERB + 0.002), P(0, half + 0.18, yAt(0) + KERB + 0.002), PAL.kerb);
+    // its back, down to the land
+    quad(P(0, half + pw, yAt(0) + KERB), P(1, half + pw, yAt(1) + KERB), P(1, half + pw, yAt(1) - 1.4), P(0, half + pw, yAt(0) - 1.4), PAL.paving.clone().multiplyScalar(0.7));
+    // stood on: the city's pavement lookup (surface.js walkY — `side` there is + to the left of a→b)
+    const seg = { ax: a[0], az: a[1], bx: b[0], bz: b[1], ya: ya + KERB, yb: yb + KERB, oa: ya + KERB, ob: yb + KERB, inner: half, outer: half + pw, side: -side };
+    const cell = `${Math.floor((a[0] + b[0]) / 2 / ROAD_CELL)}_${Math.floor((a[1] + b[1]) / 2 / ROAD_CELL)}`;
+    g.walkHash ??= new Map();
+    if (!g.walkHash.has(cell)) g.walkHash.set(cell, []);
+    g.walkHash.get(cell).push(seg);
+    owned.push([cell, seg, 'walk']);
+    // the railing along its back: posts every 2 m, a top rail and a middle one — solid; not coming up to a
+    // corner nor just round it (the line through a corner cuts across the pavement there: a kerb to hop,
+    // not a railing to stop on)
+    const n = this.course.points.length;
+    if (this.calm[i] || this.calm[(i + 1) % n]) return;
+    const x0 = ex + rx * side * (pw - 0.12);
+    const z0 = ez + rz * side * (pw - 0.12);
+    const tag = `${this.course.id ?? ''}|fence|${i}|${side}`;
+    if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
+      this.walls.tags.add(tag);
+      this.walls.addSegment(x0, z0, x0 + ux * len, z0 + uz * len, 'fence');
+    }
+    for (const [h, t] of [[0.95, 0.035], [0.5, 0.025]]) {
+      props.box(x0 + ux * len / 2, (ya + yb) / 2 + KERB + h, z0 + uz * len / 2, len / 2, t, 0.025, hd + Math.PI / 2, PAL.fence);
+    }
+    for (let t = 0; t < len; t += 2) {
+      const y = yAt(t / len) + KERB;
+      props.box(x0 + ux * t, y + 0.49, z0 + uz * t, 0.03, 0.49, 0.03, hd, PAL.fencePost);
+    }
+  }
+
   _drop(k, c) {
     this.group.remove(c.group);
     if (c.lampId != null) this.g.nightLights?.remove(c.lampId);
     c.group.traverse((o) => {
       if (o.geometry && !o.isSprite && o.geometry !== this.poolGeo) o.geometry.dispose();
     });
-    for (const [cell, seg] of c.owned) {
-      const list = this.g.roadHash.get(cell);
+    for (const [cell, seg, kind] of c.owned) {
+      const list = (kind === 'walk' ? this.g.walkHash : this.g.roadHash)?.get(cell);
       const i = list?.indexOf(seg) ?? -1;
       if (i >= 0) list.splice(i, 1);
     }
