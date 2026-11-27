@@ -1217,3 +1217,120 @@
   }
 }
 
+
+/* ---- The platform's sign-in window (ui/AccountDialog.js): Gamory Pop paper, over everything ---- */
+.acct {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  font-family: var(--pop-font);
+  color: var(--pop-ink);
+}
+.acct[hidden] { display: none; }
+.acct__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(43, 33, 64, 0.45);
+  backdrop-filter: blur(4px);
+}
+.acct__card {
+  position: relative;
+  width: min(400px, 100%);
+  padding: 30px 26px 22px;
+  border: var(--pop-border);
+  border-radius: var(--pop-r);
+  background: var(--pop-paper);
+  box-shadow: var(--pop-shadow);
+  animation: acct-in 0.28s var(--pop-spring);
+}
+@keyframes acct-in { from { opacity: 0; transform: translateY(14px) scale(0.96); } }
+.acct button { font-family: var(--pop-font); cursor: pointer; }
+.acct__x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--pop-soft-line);
+  border-radius: 50%;
+  background: var(--pop-card);
+  color: var(--pop-ink-2);
+  font-size: 20px;
+  line-height: 1;
+}
+.acct__x:hover { border-color: var(--pop-line); color: var(--pop-ink); }
+.acct__brand { font-size: 12px; font-weight: 800; letter-spacing: 0.28em; color: var(--pop-pink); text-align: center; }
+.acct__title { margin: 6px 0 6px; font-size: 26px; font-weight: 900; color: var(--pop-ink); text-align: center; }
+.acct__lead { margin: 0 0 18px; font-size: 14px; line-height: 1.5; color: var(--pop-ink-2); text-align: center; }
+.acct__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border: 2px solid var(--pop-soft-line);
+  border-radius: 999px;
+  background: var(--pop-paper-2);
+}
+.acct__tab {
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pop-ink-2);
+  font-size: 14px;
+  font-weight: 800;
+}
+.acct__tab.is-on { background: var(--pop-card); color: var(--pop-ink); box-shadow: 0 2px 0 var(--pop-soft-line); }
+.acct__form { display: grid; gap: 12px; }
+.acct__field { display: grid; gap: 6px; font-size: 13px; font-weight: 800; color: var(--pop-ink-2); }
+.acct__field[hidden] { display: none; }
+.acct__field input {
+  height: 46px;
+  padding: 0 14px;
+  border: 2px solid var(--pop-soft-line);
+  border-radius: var(--pop-r-sm);
+  background: var(--pop-card);
+  color: var(--pop-ink);
+  font: 700 16px var(--pop-font);
+  outline: none;
+}
+.acct__field input:focus { border-color: var(--pop-sky); box-shadow: 0 0 0 3px rgba(56, 182, 255, 0.2); }
+.acct__msg { min-height: 18px; margin: 0; font-size: 13px; font-weight: 700; color: var(--pop-ink-2); }
+.acct__msg.is-bad { color: #d63a6a; }
+.acct__submit {
+  height: 50px;
+  border: var(--pop-border);
+  border-radius: 999px;
+  background: var(--pop-sun);
+  color: var(--pop-ink);
+  font-size: 17px;
+  font-weight: 900;
+  box-shadow: var(--pop-shadow-sm);
+  transition: transform 0.18s var(--pop-spring), box-shadow 0.18s var(--pop-spring);
+}
+.acct__submit:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--pop-line); }
+.acct__submit:active { transform: translateY(3px); box-shadow: 0 0 0 var(--pop-line); }
+.acct__submit:disabled { opacity: 0.6; cursor: progress; transform: none; }
+.acct__submit--quiet { width: 100%; background: var(--pop-card); }
+.acct__submit:focus-visible, .acct__tab:focus-visible, .acct__x:focus-visible { outline: 3px solid var(--pop-sky); outline-offset: 2px; }
+.acct__note { margin: 16px 0 0; font-size: 12px; line-height: 1.5; color: var(--pop-ink-3); text-align: center; }
+.acct__who { display: flex; align-items: center; gap: 12px; margin: 16px 0 12px; }
+.acct__who strong { display: block; font-size: 20px; font-weight: 900; }
+.acct__avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: var(--pop-border);
+  border-radius: 50%;
+  background: var(--pop-mint);
+  font-size: 22px;
+  font-weight: 900;
+}
+.acct__badge { font-size: 13px; font-weight: 800; color: #17a37a; }
+@media (max-width: 480px) { .acct__card { padding: 26px 18px 18px; } }
+@media (prefers-reduced-motion: reduce) { .acct__card { animation: none; } .acct__submit { transition: none; } }

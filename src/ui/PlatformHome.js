@@ -3,6 +3,7 @@ import { cardLine } from '../platform/gameCards.js';
 import { GENRE_ICONS, coverHtml, guardCovers } from './gameCover.js';
 import { tilt, confetti, popColor } from './pop.js';
 import { ChannelPage } from './ChannelPage.js';
+import { AccountDialog } from './AccountDialog.js';
 import { music } from '../shared/music.js';
 import { releases } from '../platform/releasesClient.js';
 
@@ -60,7 +61,10 @@ export class PlatformHome {
    *   heroes: () => Promise<{ id: string, name: string }[]>,
    *   heroOf: (gameId: string) => string|null,
    *   rosterHeroes: (roster: object[]) => { id: string, name: string }[],
-   *   account: () => { id: number, name: string }|null
+   *   account: () => { id: number, name: string }|null,
+   *   signIn: (name: string, password: string) => Promise<object>,
+   *   signUp: (name: string, password: string) => Promise<object>,
+   *   signOut: () => Promise<void>
    * }} actions
    */
   constructor(host, actions) {
@@ -228,14 +232,22 @@ export class PlatformHome {
     /** Channels: a maker's own space (ui/ChannelPage.js), over the home page. */
     this.channel = new ChannelPage(this.root, {
       account: () => actions.account(),
-      signIn: () => actions.openHero('account'),
+      signIn: () => this.accountDialog.open(),
       play: (id) => actions.play(id),
       create: () => actions.create(),
       list: (params) => actions.list(params)
     });
     this.$('[data-channel]').addEventListener('click', () => this.channel.openMine());
     this.$('[data-party]').addEventListener('click', () => actions.openHero('party'));
-    this.$('[data-account]').addEventListener('click', () => actions.openHero('account'));
+    /** Sign in: the platform's own window — the same account for every game (not the arena's menu). */
+    this.accountDialog = new AccountDialog(document.body, {
+      account: () => actions.account(),
+      signIn: (name, password) => actions.signIn(name, password),
+      signUp: (name, password) => actions.signUp(name, password),
+      signOut: () => actions.signOut()
+    });
+    this.accountDialog.onChange = () => this.updateAccount();
+    this.$('[data-account]').addEventListener('click', () => this.accountDialog.open());
     this.$('[data-music-toggle]').addEventListener('click', () => {
       music.toggleMute();
       this._musicButton();

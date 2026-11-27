@@ -436,7 +436,14 @@ export class App {
       heroes,
       heroOf: (id) => this.heroOf(id),
       rosterHeroes: (roster) => this.rosterHeroes(roster),
-      account: () => this.account?.user ?? null
+      account: () => this.account?.user ?? null,
+      // (the platform's own sign-in window; this.account is made further down, so looked up at call time)
+      signIn: (name, password) => this._signIn('login', name, password),
+      signUp: (name, password) => this._signIn('register', name, password),
+      signOut: async () => {
+        await this.account.logout();
+        this._signedOut();
+      }
     });
     /** "My heroes": the games you have a hero in; a hero's bag and gear, by game. */
     this.heroesPanel = new HeroesPanel(hudRoot, {
