@@ -13,7 +13,7 @@ Listen to all of it: `npm run music:preview`, then open
 All in `public/audio/bgm/` as Ogg Vorbis (about 100 kbps, 48 kHz stereo),
 described by `public/audio/bgm/manifest.json` (loop points, mood, tags, BPM,
 key, pair, credit). Loudness is about −16 LUFS integrated for the beds and −14
-for the stingers, with peaks under −1 dBFS.
+for the stingers (Kickrani's gentler orchestral set: −18), with peaks under −1 dBFS.
 
 <!-- tracks:start -->
 | id | Title | Tags | Mood | BPM asked (measured) | Key asked (measured) | Length | Loop | Size |
@@ -34,18 +34,20 @@ for the stingers, with peaks under −1 dBFS.
 | `defeat` | Retreat | stinger | defeat | 70 (103.4) | D minor (D minor) | 0:07 | stinger | 0.08 MB |
 | `level-up` | Level Up | stinger | levelup | 120 (117.5) | F major (C major) | 0:07 | stinger | 0.09 MB |
 | `discovery` | Treasure Found | stinger | discovery | 90 (44.6) | E major (E major) | 0:08 | stinger | 0.10 MB |
-| `kick-lobby` | Garage Showroom | menu, kickrani | calm | 120 (117.5) | F major (C major) | 1:16 | 19.55–75.56 s | 0.85 MB |
-| `kick-palace` | Palace Gate Dash | race, kickrani | race | 150 (152) | D major (F# major) | 1:33 | 9.26–92.49 s | 1.21 MB |
-| `kick-market` | Night Market Rush | race, kickrani | race | 148 (152) | G major (B minor) | 2:18 | 22.06–137.25 s | 1.74 MB |
-| `kick-boulevard` | Neon Boulevard | race, kickrani | race | 156 (152) | E major (E major) | 2:16 | 9.78–135.21 s | 1.72 MB |
-| `kick-river` | Riverside Breeze | race, kickrani | race | 144 (143.6) | A major (E major) | 2:17 | 14.81–136.51 s | 1.87 MB |
-| `kick-hill` | Hilltop Sprint | race, kickrani | race | 160 (161.5) | F major (A major) | 2:17 | 35.27–136.02 s | 1.83 MB |
-| `kick-downhill` | Tower Downhill | race, kickrani | race | 170 (172.3) | B minor (B minor) | 2:17 | 41.42–136.30 s | 1.90 MB |
-| `kick-fair` | Starlight Fair | race, kickrani | race | 150 (152) | C major (G major) | 2:01 | 18.00–120.40 s | 1.46 MB |
-| `kick-works` | Ironworks Groove | race, kickrani | race | 146 (143.6) | E minor (E minor) | 2:15 | 41.96–134.00 s | 1.63 MB |
-| `kick-podium` | Podium Party | victory, kickrani | victory | 140 (143.6) | C major (G major) | 0:51 | 8.94–50.09 s | 0.67 MB |
+| `kick-lobby` | Paddock Prelude | menu, kickrani | calm | 100 (99.4) | G major (G major) | 1:20 | 39.06–79.83 s | 0.94 MB |
+| `kick-palace` | Courtyard Overture | race, kickrani | race | 144 (143.6) | D major (D major) | 1:29 | 6.62–89.47 s | 1.03 MB |
+| `kick-market` | Pizzicato Market | race, kickrani | race | 148 (152) | G major (G major) | 1:49 | 24.38–108.72 s | 1.32 MB |
+| `kick-boulevard` | Boulevard Sweep | race, kickrani | race | 140 (143.6) | A major (A major) | 1:56 | 27.24–116.38 s | 1.41 MB |
+| `kick-river` | Along the Han | race, kickrani | race | 136 (136) | E major (E major) | 2:02 | 19.53–121.60 s | 1.48 MB |
+| `kick-hill` | Hilltop Gallop | race, kickrani | race | 152 (152) | B♭ major (B major) | 1:44 | 20.50–103.54 s | 1.08 MB |
+| `kick-downhill` | Downhill Flight | race, kickrani | race | 156 (152) | C major (C major) | 2:01 | 18.90–121.16 s | 1.41 MB |
+| `kick-fair` | Carousel Waltz | race, kickrani | race | 150, in 3 (152) | E♭ major (E♭ minor) | 2:09 | 13.96–129.20 s | 1.56 MB |
+| `kick-works` | Workshop March | race, kickrani | race | 132 (136) | F major (C major) | 1:55 | 21.27–114.87 s | 1.28 MB |
+| `kick-podium` | Confetti Fanfare | victory, kickrani | victory | 144 (143.6) | C major (C major) | 0:50 | 12.14–50.43 s | 0.61 MB |
 
-26 files, 36.7 MB in all. The ten `kick-*` tracks are Kickrani's (made on the Mac Studio, Nov 2026: three to six takes each, the best by the numbers; the menu loop and the podium party are short beds, about a minute). "Measured" is what librosa hears in the chosen take: tempo from its beat tracker, key from chroma profiles (it can confuse a key with its relative or parallel key, or with the dominant, especially in modal or pentatonic writing).
+26 files, 34.0 MB in all. "Measured" is what librosa hears in the chosen take: tempo from its beat tracker, key from chroma profiles (it can confuse a key with its relative or parallel key, or with the dominant, especially in modal or pentatonic writing).
+
+The ten `kick-*` tracks are Kickrani's second set (Nov 2026), a fast "mini orchestra" that replaced a synth-pop/funk/rock set players found hard on the ear: a small, bright chamber orchestra (strings, pizzicato, flute, clarinet, oboe, bassoon, horn, trumpet, timpani, light snare and cymbals, glockenspiel, harp), consonant major keys, light and bouncy, each place its own colour. Made on the Mac Studio, four takes each, the kept take chosen by the `gentle` rank and a trial loop's seam (market and fair pinned by hand: gentler, with cleaner seams), mastered to −18 LUFS with `tame` 2.5 dB. Harshness of the kept take, raw → mastered (the old set: 0.4–2.3, median 1.4): lobby 0.007 → 0, palace 0.13 → 0.08, market 0.26 → 0.20, boulevard 0.31 → 0.25, river 0.24 → 0.20, hill 0.27 → 0.19, downhill 0.48 → 0.44, fair 0.07 → 0.03, works 0 → 0, podium 0.03 → 0.04. The listener heard no vocals in any of them (at most 0.06 in a 10-second window) and next to no synth (the workshop march's busiest window 0.10, every other under 0.04). The podium dances follow Confetti Fanfare's measured 143.6 BPM (`measured.tempo`; `PODIUM_BPM` in `src/city` is the fallback).
 <!-- tracks:end -->
 
 **Pairs.** Three calm/tense pairs share a key and a pulse, so a game can
@@ -179,7 +181,17 @@ composer, an artist or a game. To add a track to the soundtrack, add an entry to
 `scripts/music/soundtrack.json` (id, title, kind `loop` or `stinger`, tags,
 mood, bpm, key, seconds, prompt, optional `pair`), run `npm run
 music:soundtrack -- --only <id>`, listen, and pin the take you like with
-`"pick": <seed>`.
+`"pick": <seed>`. Optional per track: `lufs` (the loudness to master to, −16 if
+left out), `tame` (dB: softens shrill highs, below), `gentle: true` (judge the
+takes for ear comfort too, below), `timesig` and `beatsPerBar` (3 for a waltz).
+
+**Easy on the ear.** Kickrani's first race set (fast synth-pop, funk and rock)
+was too much: piercing highs, dense mixes, relentless. Its tracks are now marked
+`gentle`: a small acoustic chamber orchestra, consonant major keys, a clear
+melody, light and bouncy rather than pounding, no synths, distortion or vocals
+(the prompts describe the instruments and the hall: "warm natural acoustic sound
+of a small live chamber orchestra in a concert hall, soft mellow highs, gentle
+dynamics"), mastered softer (−18 LUFS) with `tame` 2.5 dB.
 
 ### What the pipeline does
 
@@ -190,7 +202,21 @@ music:soundtrack -- --only <id>`, listen, and pin the take you like with
    every take is measured: clipping and flat tops, drop-outs and silences in the
    short-term loudness curve, loudness spread, tempo (librosa beat tracker) and
    key (Krumhansl–Kessler profiles on CQT chroma) against what the prompt asked
-   for. The best score wins unless a seed is pinned.
+   for. The best score wins unless a seed is pinned. Every take also gets ear-comfort
+   numbers (`comfort()`): the share of its power in 3–8 kHz (where the ear is most
+   sensitive and shrill strings, cymbals, synth leads and distortion pile up), how
+   far its loudest third-octave band there stands above its own spectral slope,
+   the spectral flatness of everything above 3 kHz (noise-like highs: hi-hats,
+   distortion, hiss) and the median 1-second crest factor (under ~10 dB is
+   squashed), folded into one `harshness` number (0 is easy listening; the old
+   synth-pop race tracks measured 0.4–2.3, median 1.4). For `gentle` tracks, when
+   `library/tools/ast/model` holds the AST AudioSet classifier
+   (`MIT/ast-finetuned-audioset-10-10-0.4593`, BSD-3-Clause; analysis only,
+   nothing of it ships; fetch it once with the venv's `huggingface_hub`:
+   `snapshot_download("MIT/ast-finetuned-audioset-10-10-0.4593",
+   local_dir="library/tools/ast/model")`), the judge also listens for vocals (singing, choir,
+   speech), synths and distortion over 10-second windows, and the take's rank is
+   its score less 0.6 × harshness and a cost for any of those it hears.
 3. **Loop**: a beat and bar grid, then every bar-aligned (start, end) pair in
    range is scored on how alike the music is just before and just after both
    points (chroma, MFCC timbre, loudness), preferring whole 4-bar phrases; the
@@ -199,7 +225,9 @@ music:soundtrack -- --only <id>`, listen, and pin the take you like with
    the audio just before the loop start, so the jump is inaudible, and half a
    second of the loop start is kept after the loop end so the decoder never
    stops on it.
-4. **Master**: 28 Hz high-pass, loudness-normalise to −16 LUFS (ITU-R BS.1770
+4. **Master**: 28 Hz high-pass; with `tame`, a broad cut of that many dB
+   centred on 5 kHz (Q 0.7, about 3–8 kHz) and half of it as a shelf above 10
+   kHz; loudness-normalise to −16 LUFS or the track's `lufs` (ITU-R BS.1770
    via pyloudnorm), a gentle look-ahead peak limiter at −1 dBFS; then Ogg Vorbis
    through libsndfile (no ffmpeg needed), read back to check the length.
 5. **Check the seam**: spectral flux across the jump compared with the track's
@@ -213,4 +241,4 @@ report (`report/report.json`) stay in `library/music-masters/` (git-ignored).
 On the M5 Max (128 GB), the 4B XL SFT model makes a 170-second take in 130–180 seconds, about real time (the model loads in ~22 s, uses ~18 GB, and stays loaded for a whole batch), and a 10–12-second stinger in 8–13 seconds. The whole soundtrack, 63 takes, took about two hours; judging and mastering a track takes 10–20 seconds. The 2B turbo model (`--model acestep-v15-turbo`)
 makes a 30-second sketch in about 15 seconds, for trying prompts.
 
-On the Mac Studio (M1 Ultra, where heavy generation runs: `ssh` in, `zsh -lc`, a workspace with `package.json`, `scripts/music*` and `library/tools/ace-step` synced over — the weights copied across the network, the venv built there by `npm run music:setup`), the same model makes a 150-second take in about 4.5 minutes; Kickrani's 35 takes took about two and a half hours. Only the Ogg files and the manifest entries come back.
+On the Mac Studio (M1 Ultra, where heavy generation runs: `ssh` in, `zsh -lc`, a workspace with `package.json`, `scripts/music*` and `library/tools/ace-step` synced over — the weights copied across the network, the venv built there by `npm run music:setup`), the same model makes a 150-second take in about 4.5 minutes; Kickrani's 35 takes took about two and a half hours; its orchestral set, 40 takes of 70–140 s, about two and a half hours too (3.5–4 minutes a 140-second take). Only the Ogg files and the manifest entries come back.

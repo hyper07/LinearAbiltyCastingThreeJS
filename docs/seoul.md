@@ -195,7 +195,7 @@ Seoul's real streets — and the streets stay open.
 
   Each runs eight bars — a hook, an answer, a variation, a phrase ending on its button — then again as
   one of four variants (other answers, mirrors, sizes), so it never loops two bars. All are locked to
-  the podium track (Podium Party, 143.6 BPM measured; the song's position while it plays, counted from
+  the podium track (Confetti Fanfare, 143.6 BPM measured; the song's position while it plays, counted from
   its top), each rider a hair off the beat. The place adds a flourish on top, once every two bars:
   the winner raises its arms slowly into a V (up over a beat and a half, held two beats, down over a
   beat and a half; out to the sides: a plush paw raised past ~50° vanishes behind the big head) with
@@ -639,17 +639,20 @@ Seoul's real streets — and the streets stay open.
   browser rides them). Each browser sends where its riders are fifteen times a second, and when
   an item is used.
 - **Music** (`KICKRANI_COURSE_TRACKS` and `seoulTrack` in `src/shared/gameMusic.js`; docs/music.md):
-  original, upbeat kart-racing-style tracks of our own, generated with ACE-Step 1.5 (MIT) on the Mac
-  Studio from prompts that name only styles, instruments and moods — never a game, a composer or an
-  artist. Each course family has its own: *Palace Gate Dash* (Gwanghwamun, Seochon — a plucked
-  zither riff and hourglass-drum fills over a pop beat), *Night Market Rush* (Dongdaemun,
-  Cheongnyangni — brassy funk-pop), *Neon Boulevard* (Hongdae, Teheran-ro, Jamsil — bright city-pop),
-  *Riverside Breeze* (Yeouido — tropical synth-pop), *Hilltop Sprint* (Namsan, Haebangchon — pop-rock),
-  *Tower Downhill* (the downhill — fast electro-rock), *Starlight Fair* (the fairground — a carnival
-  band and band organ), *Ironworks Groove* (Seongsu, Euljiro, Mullae — gritty funk-rock). *Garage
-  Showroom* loops on the race menus; the course's track plays from the grid through the race and
-  crossfades into *Podium Party* at the ceremony (after the victory fanfare); a drive at night keeps
-  *Neon Overpass*. The Music switch and volume in the Graphics panel control all of it.
+  original tracks of our own for a small, bright chamber orchestra — fast, light and playful-heroic,
+  like a family film's race, easy on the ear (warm acoustic strings, woodwinds, a little brass and
+  orchestral percussion; no synths, distortion or vocals; soft highs; mastered at −18 LUFS) —
+  generated with ACE-Step 1.5 (MIT) on the Mac Studio from prompts that name only instruments and
+  moods — never a film, a game, a composer or an artist. Each course family has its own: *Courtyard
+  Overture* (Gwanghwamun, Seochon — gayageum and daegeum colour over the strings), *Pizzicato Market*
+  (Dongdaemun, Cheongnyangni — bustling pizzicato and woodwinds), *Boulevard Sweep* (Hongdae,
+  Teheran-ro, Jamsil — sweeping strings), *Along the Han* (Yeouido — flowing strings and harp),
+  *Hilltop Gallop* (Namsan, Haebangchon — galloping strings and horns), *Downhill Flight* (the
+  downhill — soaring brass), *Carousel Waltz* (the fairground — a carousel orchestra in three),
+  *Workshop March* (Seongsu, Euljiro, Mullae — bassoon and low strings marching). *Paddock Prelude*
+  (a calm 100 BPM loop) plays on the race menus; the course's track plays from the grid through the
+  race and crossfades into *Confetti Fanfare* (a fanfare dance) at the ceremony (after the victory
+  fanfare); a drive at night keeps *Neon Overpass*. The Music switch and volume in the Graphics panel control all of it.
 - **On screen**: the map at the top left (`src/city/minimap.js`) — the real streets round you, every
   small street, the buildings faintly, the river where it is near, the course ahead bright, short
   cuts dotted, item boxes, marble patches, oil slicks, smoke clouds and branches in the road, the traffic, and every rider as
