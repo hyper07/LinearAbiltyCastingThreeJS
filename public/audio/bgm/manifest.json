@@ -889,6 +889,39 @@
     "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
     "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
    }
+  },
+  {
+   "id": "home-orchestra",
+   "title": "Front Door Waltz",
+   "file": "home-orchestra.ogg",
+   "kind": "loop",
+   "tags": [
+    "menu"
+   ],
+   "mood": "calm",
+   "bpm": 104,
+   "key": "D major",
+   "measured": {
+    "tempo": 103.4,
+    "key": "D major"
+   },
+   "duration": 96.909,
+   "loopStart": 13.32825,
+   "loopEnd": 96.40925,
+   "lufs": -18,
+   "bytes": 1142842,
+   "style": "gentle inviting orchestral waltz for a cozy welcome menu, warm soft strings in a lilting three-four, mellow flute and clarinet melody, soft french horn, flowing harp arpeggios, a touch of celesta and glockenspiel, soft timpani, friendly and homely, a pleasant place to sit and choose, light and lilting, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear melody, instrumental",
+   "seed": 185121,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
   }
  ]
 }

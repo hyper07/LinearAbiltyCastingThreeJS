@@ -420,6 +420,26 @@
    "tame": 2.5,
    "gentle": true,
    "prompt": "short joyful triumphant orchestral fanfare dance for a family animated film, bright trumpet and french horn fanfare, bouncy staccato strings dancing, flute trills, glockenspiel, timpani and cymbal accents, celebrating on a winners podium with confetti, happy and catchy, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
+  },
+  {
+   "id": "home-orchestra",
+   "pick": 185121,
+   "title": "Front Door Waltz",
+   "kind": "loop",
+   "tags": [
+    "menu"
+   ],
+   "mood": "calm",
+   "bpm": 104,
+   "key": "D major",
+   "timesig": "3",
+   "beatsPerBar": 3,
+   "seconds": 130,
+   "loopMin": 60,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "gentle inviting orchestral waltz for a cozy welcome menu, warm soft strings in a lilting three-four, mellow flute and clarinet melody, soft french horn, flowing harp arpeggios, a touch of celesta and glockenspiel, soft timpani, friendly and homely, a pleasant place to sit and choose, light and lilting, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear melody, instrumental"
   }
  ]
 }

@@ -44,10 +44,13 @@ for the stingers (Kickrani's gentler orchestral set: −18), with peaks under �
 | `kick-fair` | Carousel Waltz | race, kickrani | race | 150, in 3 (152) | E♭ major (E♭ minor) | 2:09 | 13.96–129.20 s | 1.56 MB |
 | `kick-works` | Workshop March | race, kickrani | race | 132 (136) | F major (C major) | 1:55 | 21.27–114.87 s | 1.28 MB |
 | `kick-podium` | Confetti Fanfare | victory, kickrani | victory | 144 (143.6) | C major (C major) | 0:50 | 12.14–50.43 s | 0.61 MB |
+| `home-orchestra` | Front Door Waltz | menu | calm | 104, in 3 (103.4) | D major (D major) | 1:37 | 13.33–96.41 s | 1.14 MB |
 
-26 files, 34.0 MB in all. "Measured" is what librosa hears in the chosen take: tempo from its beat tracker, key from chroma profiles (it can confuse a key with its relative or parallel key, or with the dominant, especially in modal or pentatonic writing).
+27 files, 35.1 MB in all. "Measured" is what librosa hears in the chosen take: tempo from its beat tracker, key from chroma profiles (it can confuse a key with its relative or parallel key, or with the dominant, especially in modal or pentatonic writing).
 
 The ten `kick-*` tracks are Kickrani's second set (Nov 2026), a fast "mini orchestra" that replaced a synth-pop/funk/rock set players found hard on the ear: a small, bright chamber orchestra (strings, pizzicato, flute, clarinet, oboe, bassoon, horn, trumpet, timpani, light snare and cymbals, glockenspiel, harp), consonant major keys, light and bouncy, each place its own colour. Made on the Mac Studio, four takes each, the kept take chosen by the `gentle` rank and a trial loop's seam (market and fair pinned by hand: gentler, with cleaner seams), mastered to −18 LUFS with `tame` 2.5 dB. Harshness of the kept take, raw → mastered (the old set: 0.4–2.3, median 1.4): lobby 0.007 → 0, palace 0.13 → 0.08, market 0.26 → 0.20, boulevard 0.31 → 0.25, river 0.24 → 0.20, hill 0.27 → 0.19, downhill 0.48 → 0.44, fair 0.07 → 0.03, works 0 → 0, podium 0.03 → 0.04. The listener heard no vocals in any of them (at most 0.06 in a 10-second window) and next to no synth (the workshop march's busiest window 0.10, every other under 0.04). The podium dances follow Confetti Fanfare's measured 143.6 BPM (`measured.tempo`; `PODIUM_BPM` in `src/city` is the fallback).
+
+`home-orchestra` (*Front Door Waltz*) is the home page's music since Nov 2026, in the same gentle style, replacing *First Light* there (which stays on the Gloamreach and Lanternwood start screens): an inviting waltz in three for warm strings, flute and clarinet, soft horn, harp, celesta and glockenspiel and soft timpani, 104 BPM in D major. Four takes on the Mac Studio, judged by `judge.py` (the `gentle` rank plus a trial loop's seam); seed 185121 pinned for the cleanest seam (flux z 0.5, against 1.4–2.4 for the others) and the longest loop (48 bars, 83 s), harshness 0.15 → 0.16 mastered, no vocals or synth heard (at most 0.02 and 0.005), −18 LUFS, `tame` 2.5 dB.
 <!-- tracks:end -->
 
 **Pairs.** Three calm/tense pairs share a key and a pulse, so a game can
@@ -78,7 +81,7 @@ and each game's `music` — a `GameMusic`):
 | Kickrani | `kick-lobby` on the race menus; each course its own from the grid through the race (`KICKRANI_COURSE_TRACKS`: `kick-palace` Gwanghwamun and Seochon, `kick-market` Dongdaemun and Cheongnyangni, `kick-boulevard` Hongdae, Teheran-ro and Jamsil, `kick-river` Yeouido, `kick-hill` Namsan and Haebangchon, `kick-downhill` the Namsan Tower Downhill, `kick-fair` the Jamsil Fairground, `kick-works` Seongsu, Euljiro and Mullae); `kick-podium` at the ceremony and the results (crossfading from the course's); `city-night` driving at night; otherwise quiet (the engine and the city) | — | — | `victory` (the podium) | the Graphics panel's Music |
 | Lanternwood | `title` on the title; by realm: `village` round the camp fire, `night-forest` in the Lanternwood, `meadow` in Sunmeadow, `frozen-fortress` in Frostpeak and Emberfall | `battle` | `boss` | `victory` (boss or hero monster), `defeat`, `level-up`, `discovery` (chests) | the pause menu's Music |
 | Stoneball | quiet on the start screen; `battle` at 45 % in a match | — | — | `victory` or `defeat` at full time | M |
-| Home page | `title` at 35 %, from the first click or key | — | — | — | ♪ in the bar |
+| Home page | `home-orchestra` (Front Door Waltz) at 35 %, from the first click or key | — | — | — | ♪ in the bar |
 
 **Moods** come from game state with hysteresis (`MoodHold`): into the fight at
 once (a monster alert, chasing or striking near you), out of it only after 5–6

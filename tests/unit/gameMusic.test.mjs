@@ -140,6 +140,9 @@ test('credits: ACE-Step 1.5, MIT, the link, and the titles a game uses', () => {
   assert.match(p.what, /Over the Falls, The Gorge Hunt, The Warm Hearth, Crown of Cinders/);
   assert.ok(!('items' in p), 'no item list (the Credits panels link items by url)');
   assert.deepEqual(musicPack(['title']).titles, ['First Light']);
+  // The home page has its own gentle orchestral waltz; First Light stays on the Gloamreach and Lanternwood title screens.
+  assert.deepEqual(gameMusicPack('home').titles, ['Front Door Waltz']);
+  assert.ok(GAME_TRACKS.gloamreach.includes('title') && GAME_TRACKS.lanternwood.includes('title'));
 });
 
 test('the titles match the shipped manifest', { skip: !existsSync(MANIFEST) }, () => {

@@ -6,14 +6,14 @@ import { ChannelPage } from './ChannelPage.js';
 import { music } from '../shared/music.js';
 
 /**
- * The home page's music: First Light, quiet (this share of the player's music
+ * The home page's music: Front Door Waltz (a gentle chamber-orchestra waltz), quiet (this share of the player's music
  * volume), starting only on the first click or key (music.js waits for one).
  * The ♪ button in the bar switches music off and on — the global setting
  * (music.js, localStorage 'gamory.music'), so off here starts every game with
  * its music off too; a game's own Music menu can turn it back on, which is the
  * same switch. The ▾ beside it opens the music volume (also global).
  */
-const HOME_MUSIC = { track: 'title', level: 0.35 };
+const HOME_MUSIC = { track: 'home-orchestra', level: 0.35 };
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -286,7 +286,7 @@ export class PlatformHome {
     this._musicStop();
   }
 
-  /** That game closed: First Light again, if the home page is what's showing. */
+  /** That game closed: Front Door Waltz again, if the home page is what's showing. */
   musicBack() {
     this._away = false;
     if (this.isVisible) this._music();
@@ -298,7 +298,7 @@ export class PlatformHome {
     if (!music.current || music.current.id === HOME_MUSIC.track) music.stop({ fade: 0.8 });
   }
 
-  /** First Light, quietly, while the home page is up (after the first click or key: music.js waits for one). */
+  /** Front Door Waltz, quietly, while the home page is up (after the first click or key: music.js waits for one). */
   _music() {
     this._musicButton();
     if (music.muted || this._away) return;

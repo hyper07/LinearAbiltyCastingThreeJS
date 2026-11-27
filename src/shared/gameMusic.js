@@ -42,7 +42,8 @@ export const TRACK_TITLES = Object.freeze({
   'kick-fair': 'Carousel Waltz',
   'kick-works': 'Workshop March',
   'kick-lobby': 'Paddock Prelude',
-  'kick-podium': 'Confetti Fanfare'
+  'kick-podium': 'Confetti Fanfare',
+  'home-orchestra': 'Front Door Waltz'
 });
 
 /** The tracks (beds, then stingers) each game plays: its Credits panel lists these. */
@@ -56,7 +57,7 @@ export const GAME_TRACKS = Object.freeze({
   seoul: ['kick-lobby', 'kick-palace', 'kick-market', 'kick-boulevard', 'kick-river', 'kick-hill', 'kick-downhill', 'kick-fair', 'kick-works', 'kick-podium', 'city-night', 'victory'],
   lanternwood: ['title', 'village', 'night-forest', 'meadow', 'frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up', 'discovery'],
   stoneball: ['battle', 'victory', 'defeat'],
-  home: ['title']
+  home: ['home-orchestra']
 });
 
 /** Credits from the static titles (no fetch needed), shaped like the games' PACKS entries. */
