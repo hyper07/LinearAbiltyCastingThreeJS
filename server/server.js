@@ -7,6 +7,8 @@ import { JsonFileStore, fileApi } from './api/files.js';
 import { chain, json, pathOf } from './api/http.js';
 import { LibraryStore, libraryHandler } from './libraryStore.js';
 import { GamesStore, gamesHandler } from './gamesStore.js';
+import { releasesHandler, draftViewer } from './releases.js';
+import { packageGames } from './gamePackages.js';
 import { ChannelStore, channelHandler } from './channelStore.js';
 import { LearningStore, learningHandler } from './learningStore.js';
 import { VoiceStore, voiceHandler, voiceStudioAuth } from './voiceStore.js';
@@ -35,6 +37,8 @@ import { createFps } from './fps/index.js';
  *   /api/voice/*      AI Arcademia's voice studio: real people's recordings, admin only (voiceStore.js)
  *   /audio/voice/*    those recordings and their manifest (VOICE_DIR, default public/audio/voice)
  *   /api/games/*      the games on the home page: official and published (gamesStore.js)
+ *   /releases/*       game packages' production releases (RELEASES_DIR, releases.js)
+ *   /api/releases/*   their versions; the admin's changes, deploy and rollback (releases.js)
  *   /api/market/*     the stock market game and its admin API (market/index.js)
  *   /api/work/*       the work game and its admin API; /api/wallet (work/index.js, wallet.js)
  *   /api/levels/*     levels players save, in DATA_DIR/levels (api/files.js)
@@ -64,6 +68,10 @@ const DATA_DIR = resolve(process.env.DATA_DIR ?? './data');
 const LIBRARY_ROOT = resolve(process.env.LIBRARY_ROOT ?? './library');
 /** AI Arcademia's recorded voices (the voice studio writes here; served at /audio/voice/). */
 const VOICE_DIR = resolve(process.env.VOICE_DIR ?? './public/audio/voice');
+/** Game packages' production releases (`npm run game:deploy`), served at /releases/. */
+const RELEASES_DIR = resolve(process.env.RELEASES_DIR ?? './releases');
+/** Game packages' manifests (and, in a git checkout, their draft source). */
+const GAMES_DIR = resolve(process.env.GAMES_DIR ?? './games');
 const MAX_PLAYERS = Math.max(2, Math.min(8, Number(process.env.MAX_PLAYERS) || 4));
 const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 500;
 /** Comma-separated origins allowed to call the API cross-site. Empty = none. */
@@ -116,7 +124,7 @@ const game = await createGameServices({ dataDir: DATA_DIR, db: database, readLev
 const realtime = createRealtime({ maxPlayers: MAX_PLAYERS, maxRooms: MAX_ROOMS, log: (line) => console.log(`[party] ${line}`), authenticate: game.authenticate });
 game.setPartyCheck((a, b) => realtime.sameParty(a, b));
 const library = new LibraryStore(database);
-const games = new GamesStore(database, levels);
+const games = new GamesStore(database, levels, { packages: packageGames({ gamesDir: GAMES_DIR, releasesDir: RELEASES_DIR }) });
 const channels = new ChannelStore(database, games);
 const learning = new LearningStore(database);
 const voice = new VoiceStore(database, { voiceDir: VOICE_DIR });
@@ -133,7 +141,8 @@ const api = chain([
   fileApi(levels, { files: 'levels', ordered: true }),
   fileApi(new JsonFileStore({ builtInDir: join(STATIC_ROOT, 'classes'), userDir: join(DATA_DIR, 'classes'), indexKey: 'classes', maxBytes: 512 * 1024, label: 'class' }), { files: 'classes' }),
   libraryHandler(async () => library),
-  gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req) }),
+  gamesHandler(async () => games, { authenticate: (req) => game.authenticate(req), canSeeDrafts: draftViewer({ authenticate: (req) => game.authenticate(req) }) }),
+  releasesHandler({ repo: resolve('.'), releasesDir: RELEASES_DIR, gamesDir: GAMES_DIR, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) }),
   channelHandler(async () => channels, { authenticate: (req) => game.authenticate(req) }),
   learningHandler(async () => learning, { authenticate: (req) => game.authenticate(req) }),
   voiceHandler(async () => voice),
@@ -312,6 +321,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[gamory] database ${database.kind === 'postgres' ? 'PostgreSQL (DATABASE_URL)' : `PGlite in ${join(DATA_DIR, 'postgres')} (set DATABASE_URL for a PostgreSQL server)`}`);
   console.log(`[gamory] library  ${LIBRARY_ROOT}`);
   console.log(`[gamory] voices   ${VOICE_DIR}`);
+  console.log(`[gamory] releases ${RELEASES_DIR}`);
   console.log(`[gamory] model    ${process.env.LLM_MODEL1 || '(unset)'} @ ${process.env.LLM_PLATFORM_BASE_URL || '(unset — AI off)'}`);
   console.log(`[gamory] parties  up to ${MAX_PLAYERS} players, ${MAX_ROOMS} rooms`);
 });

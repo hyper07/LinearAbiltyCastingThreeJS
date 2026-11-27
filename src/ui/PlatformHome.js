@@ -4,6 +4,7 @@ import { GENRE_ICONS, coverHtml, guardCovers } from './gameCover.js';
 import { tilt, confetti, popColor } from './pop.js';
 import { ChannelPage } from './ChannelPage.js';
 import { music } from '../shared/music.js';
+import { releases } from '../platform/releasesClient.js';
 
 /**
  * The home page's music: Front Door Waltz (a gentle chamber-orchestra waltz), quiet (this share of the player's music
@@ -584,6 +585,8 @@ export class PlatformHome {
             ${game.owner && game.owner === this.actions.account()?.id ? '<button type="button" class="home__btn home__btn--danger" data-remove>Remove</button>' : ''}
           </div>
           <p class="home-page__hint">In a party? Press Play — your party comes with you.</p>
+          <p class="home-page__release" data-release hidden></p>
+          <p class="home-page__error" data-play-error role="alert" hidden></p>
         </div>
       </div>`;
     guardCovers(page, game);
@@ -639,7 +642,7 @@ export class PlatformHome {
         : named
         ? `You play as ${named.name} here`
         : `You choose your character when you play: ${choices.length} to pick from`;
-    if (['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'circuitlab'].includes(game.engine)) {
+    if (['package', 'market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'circuitlab'].includes(game.engine)) {
       page.querySelector('[data-play-party]').remove();
       page.querySelector('.home-page__hint').textContent = game.engine === 'snowpuff'
         ? 'For kids: a snowboard race down three mountains. A/D or the arrows to steer, S or Shift to tuck, Space to jump (hold for more air; spin and flip in the air), 1 and 2 use the items from gift boxes (snowballs, a giant snowball, a shield, a rocket sled, an ice patch), H for How to play, Esc to pause. Race with friends from inside the game with a five-letter room code. Touch and gamepads work too; it picks its own detail level.'
@@ -676,11 +679,27 @@ export class PlatformHome {
         : 'Game money only. Sign in to keep your run and be on the leaderboard.';
     }
     page.querySelector('[data-close]').addEventListener('click', () => this.closePage());
-    page.querySelector('[data-play]').addEventListener('click', async (e) => {
+    const playButton = page.querySelector('[data-play]');
+    const playAs = async (options) => {
+      playButton.disabled = true;
+      try {
+        await this.actions.play(game.id, options);
+      } catch (error) {
+        console.error('[play]', error);
+        const box = page.querySelector('[data-play-error]');
+        if (box) {
+          box.hidden = false;
+          box.textContent = error.message;
+        }
+      } finally {
+        playButton.disabled = false;
+      }
+    };
+    playButton.addEventListener('click', (e) => {
       confetti(e.currentTarget);
-      e.currentTarget.disabled = true;
-      await this.actions.play(game.id);
+      playAs();
     });
+    if (game.package) this._packageInfo(page, game, playAs);
     page.querySelector('[data-play-party]')?.addEventListener('click', () => this.actions.openHero('party'));
     page.querySelector('[data-remove]')?.addEventListener('click', async () => {
       await this.actions.remove(game.id);
@@ -688,6 +707,41 @@ export class PlatformHome {
       this.refresh();
     });
     page.querySelector('[data-play]').focus();
+  }
+
+  /**
+   * A game package's page: its production version (small), and for the platform admin (or
+   * on the dev server) "Play draft" and the development view (Changes, History, Deploy).
+   */
+  async _packageInfo(page, game, playAs) {
+    const line = page.querySelector('[data-release]');
+    line.hidden = false;
+    line.textContent = game.version ? `Version ${game.version}` : 'Draft — not released to players yet';
+    if (game.draft) page.querySelector('.home-page__title')?.append(Object.assign(document.createElement('span'), { className: 'home-page__draft', textContent: 'DRAFT' }));
+    let info = null;
+    try {
+      info = await releases.list();
+    } catch {
+      return;
+    }
+    if (!info?.adminHint || !page.isConnected) return;
+    const row = page.querySelector('.home-page__play');
+    const draft = document.createElement('button');
+    draft.type = 'button';
+    draft.className = 'home__btn';
+    draft.textContent = '🧪 Play draft';
+    draft.title = 'The latest committed draft (games/' + game.package + '/), not what players get';
+    draft.addEventListener('click', () => playAs({ channel: 'draft' }));
+    const dev = document.createElement('button');
+    dev.type = 'button';
+    dev.className = 'home__btn';
+    dev.textContent = '🛠 Changes & deploy';
+    dev.title = 'The development view: changes since production, pick and deploy, history and rollback';
+    dev.addEventListener('click', async () => {
+      const { ReleasePanel } = await import('./ReleasePanel.js');
+      new ReleasePanel(document.body, { game, onPlayDraft: () => playAs({ channel: 'draft' }), onChanged: () => this.refresh?.() }).open();
+    });
+    row.append(draft, dev);
   }
 
   closePage() {

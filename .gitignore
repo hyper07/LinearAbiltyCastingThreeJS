@@ -153,3 +153,9 @@ __pycache__/
 # Reference screenshots a person brings to study (knowledge/visual-refs.json describes them): never committed
 /images/
 /images2/
+
+# Game packages' releases: the release files are committed, their compressed copies are made again on deploy / in Docker
+/releases/**/*.br
+/releases/**/*.gz
+/releases/**/*.tmp
+/releases/**/*.staging-*

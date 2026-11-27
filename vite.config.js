@@ -1,10 +1,12 @@
-import { createReadStream, statSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { extname, resolve, sep } from 'node:path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, searchForWorkspaceRoot } from 'vite';
 import { libraryState, startFetch } from './scripts/library/ensure.mjs';
 import { createModelStore } from './server/modelgen.mjs';
 import { libraryApi } from './server/libraryStore.js';
 import { GamesStore, gamesHandler } from './server/gamesStore.js';
+import { releasesHandler, draftViewer } from './server/releases.js';
+import { packageGames } from './server/gamePackages.js';
 import { ChannelStore, channelHandler } from './server/channelStore.js';
 import { LearningStore, learningHandler } from './server/learningStore.js';
 import { VoiceStore, voiceHandler } from './server/voiceStore.js';
@@ -382,6 +384,42 @@ function circuitLab() {
   };
 }
 
+/**
+ * Folders the dev server may serve files from: the project, plus wherever its symlinks
+ * really point. A git worktree (an agent's, under .claude/worktrees/) links node_modules to
+ * the main checkout, so a font from @fontsource resolves outside the project and Vite used
+ * to answer 403 — every agent then wrote a temporary config. Allowing the real folders
+ * fixes that for good (`npm run wt:setup` makes the links).
+ */
+function servedFolders() {
+  const out = new Set([searchForWorkspaceRoot(process.cwd())]);
+  for (const name of ['node_modules', 'library']) {
+    try {
+      if (existsSync(resolve(name))) out.add(realpathSync(resolve(name)));
+    } catch {
+      /* a broken link: nothing to allow */
+    }
+  }
+  return [...out];
+}
+
+/**
+ * `npm run game:dev -- <game>` sets GAME_DEV=<code>: the dev server then stops watching the
+ * other game packages' folders (and the legacy games under src/ that the platform shell does
+ * not need to reload for), so a save in this game reloads in a moment.
+ */
+function gameDevIgnored() {
+  const code = process.env.GAME_DEV;
+  if (!code) return [];
+  const out = [];
+  try {
+    for (const d of readdirSync(resolve('games'), { withFileTypes: true })) if (d.isDirectory() && d.name !== code) out.push(`${resolve('games', d.name)}/**`);
+  } catch {
+    /* no games folder */
+  }
+  return out;
+}
+
 export default defineConfig(({ mode }) => {
   // Third argument '' loads *every* variable, not just the VITE_ prefixed ones —
   // these must stay server-side, so they are deliberately not exposed to client
@@ -407,11 +445,12 @@ export default defineConfig(({ mode }) => {
       host: '127.0.0.1',
       port: 5173,
       open: false,
+      fs: { allow: servedFolders() },
       watch: {
         // The asset library is gigabytes of files nobody edits by hand, and a
         // saved level must not reload the page out from under the editor.
         // Absolute paths: a bare `**/library/**` would also ignore src/library.
-        ignored: [`${resolve('library')}/**`, `${resolve('apps')}/**`,`${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('public', 'audio', 'voice')}/**`, `${resolve('public', 'audio', 'voice-gen')}/**`, `${resolve('data')}/**`]
+        ignored: [`${resolve('library')}/**`, `${resolve('apps')}/**`,`${resolve('public', 'levels')}/**`, `${resolve('public', 'classes')}/**`, `${resolve('public', 'audio', 'voice')}/**`, `${resolve('public', 'audio', 'voice-gen')}/**`, `${resolve('data')}/**`, `${resolve('releases')}/**`, ...gameDevIgnored()]
       }
     },
     build: {
@@ -439,14 +478,18 @@ export default defineConfig(({ mode }) => {
       (() => {
         let store = null;
         const getStore = async () =>
-          (store ??= new GamesStore(await getDb(), new JsonFileStore({ builtInDir: levelDir(), userDir: levelDir(), indexKey: 'campaign', label: 'level' })));
+          (store ??= new GamesStore(await getDb(), new JsonFileStore({ builtInDir: levelDir(), userDir: levelDir(), indexKey: 'campaign', label: 'level' }), {
+            packages: packageGames({ gamesDir: resolve('games'), releasesDir: resolve(env.RELEASES_DIR ?? 'releases') })
+          }));
         let channels = null;
         const getChannels = async () => (channels ??= new ChannelStore(await getDb(), await getStore()));
         let learning = null;
         const getLearning = async () => (learning ??= new LearningStore(await getDb()));
         return [
           mount('learning', learningHandler(getLearning, { authenticate: async (req) => (await getGame()).authenticate(req) })),
-          mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req) })),
+          mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req), canSeeDrafts: draftViewer({ env: { ...process.env, ...env }, allowLocal: true, authenticate: async (req) => (await getGame()).authenticate(req) }) })),
+          // Game packages: production releases at /releases/, and the admin's changes / deploy / rollback.
+          mount('releases', releasesHandler({ repo: resolve('.'), releasesDir: resolve(env.RELEASES_DIR ?? 'releases'), env: { ...process.env, ...env }, allowLocal: true, authenticate: async (req) => (await getGame()).authenticate(req), log: (line) => console.log(line) })),
           mount('channels', channelHandler(getChannels, { authenticate: async (req) => (await getGame()).authenticate(req) }))
         ];
       })(),

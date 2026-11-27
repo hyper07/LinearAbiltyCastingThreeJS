@@ -36,6 +36,9 @@ import { HeroesPanel } from '../ui/HeroesPanel.js';
 import { RosterPicker } from '../ui/RosterPicker.js';
 import { GameLobby } from '../ui/GameLobby.js';
 import { games } from '../platform/gamesClient.js';
+import { releases } from '../platform/releasesClient.js';
+import { chooseChannel, draftRequested, loadPackage, releaseRequested } from '../platform/packageLoader.js';
+import { createPlatformApi } from '../platform/gameApi.js';
 import { GameBuilder } from '../ai/GameBuilder.js';
 import { compileGame, describeHero } from '../blueprints/index.js';
 import { CLASS_SPECS } from '../platform/character/classes.js';
@@ -135,7 +138,7 @@ const _castDirection = new Vector3();
  * ability class has any idea that monsters exist.
  */
 /** The games that open over the home page (their own screens), not through the lobby. */
-const OVER_HOME = new Set(['market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'circuitlab']);
+const OVER_HOME = new Set(['package', 'market', 'work', 'rts', 'moba', 'mmo', 'city', 'fps', 'squad', 'hd2d', 'stoneball', 'arcademia', 'gloamreach', 'wyldhunt', 'kithvale', 'kindlewatch', 'snowpuff', 'circuitlab']);
 
 export class App {
   constructor(canvas) {
@@ -416,16 +419,10 @@ export class App {
     /** Which menu screen shows between games: the platform's 'home', or the action RPG's 'hero' menu. */
     this._menuView = 'home';
     this.home = new PlatformHome(hudRoot, {
-      list: (params) => games.list(params),
+      // Draft-only game packages are listed for the platform admin (the server decides).
+      list: (params) => games.list({ ...params, drafts: 1 }),
       get: (id) => games.get(id),
-      play: async (id) => {
-        this._engineView = null;
-        this.playTracker.start(id);
-        // A game on its own engine opens its own screen over the home page; the others go through the lobby.
-        const view = await this.openLobby(id);
-        this._engineView = view?.root ? view : null;
-        return view;
-      },
+      play: (id, options) => this.playFromHome(id, options),
       remove: (id) => games.remove(id),
       create: () => this.builder.toggle(true),
       openHero: (panel) => this.openHero(panel),
@@ -1490,17 +1487,45 @@ export class App {
     return out;
   }
 
+  /** The home page's Play (and ?play=…): the game, tracked as played. */
+  async playFromHome(id, options = {}) {
+    this._engineView = null;
+    this.playTracker.start(id);
+    // A game on its own engine opens its own screen over the home page; the others go through the lobby.
+    const view = await this.openLobby(id, options);
+    this._engineView = view?.root ? view : null;
+    return view;
+  }
+
+  /**
+   * Straight into a game from the address: `?play=<slug|code|id>` (with `&draft=<same>` for the
+   * draft, and the game's own scene params) — the per-game dev loop (npm run game:dev) and the
+   * smoke check use it; no clicking through the home page.
+   */
+  async playFromUrl(search = location.search) {
+    const want = new URLSearchParams(search).get('play');
+    if (!want || !/^[a-z0-9_:-]{1,80}$/i.test(want)) return null;
+    let id = want.toLowerCase();
+    if (!id.includes(':')) {
+      const list = await releases.list().catch(() => null);
+      id = list?.packages?.find((p) => p.code === id || p.slug === id)?.id ?? `official:${id}`;
+    }
+    this.home.closePage?.();
+    return this.playFromHome(id);
+  }
+
   /** The home page's Play: the game's lobby. */
-  async openLobby(id) {
+  async openLobby(id, options = {}) {
     const game = await games.get(id);
     // A game that opens over the home page: the home page's music steps aside (the game may bring its own).
-    if (OVER_HOME.has(game.engine)) this.home.musicAway?.();
+    if (OVER_HOME.has(game.engine) || game.package) this.home.musicAway?.();
+    // A game package (games/<code>/): the generic loader, production unless the draft is asked for and allowed.
+    if (game.package) return this.openPackage(game, options);
     if (game.engine === 'market') return this.openMarket(game);
     if (game.engine === 'work') return this.openWork(game);
     if (game.engine === 'rts') return this.openRts(game);
     if (game.engine === 'moba') return this.openMoba(game);
     if (game.engine === 'mmo') return this.openMmo(game);
-    if (game.engine === 'city') return this.openCity(game);
     if (game.engine === 'fps') return this.openFps(game);
     if (game.engine === 'squad') return this.openSquad(game);
     if (game.engine === 'hd2d') return this.openLanternwood(game);
@@ -1754,22 +1779,52 @@ export class App {
     return view;
   }
 
-  /** Kickrani (Seoul, for real): its own screen and 3D view, streaming the city's buildings as you move. */
-  async openCity(game) {
+  /**
+   * A game package (games/<code>/, Kickrani first): loaded by URL, never bundled with the
+   * platform. Players get the production release; the draft only when asked for
+   * (`?draft=<game>` or the admin's "Play draft") and allowed (dev server or platform admin),
+   * or for a game with no release yet. The game gets the platform API (src/platform/gameApi.js)
+   * and nothing else.
+   */
+  async openPackage(game, { channel = null } = {}) {
+    const dev = Boolean(import.meta.env?.DEV);
+    const pkg = { code: game.package, slug: game.slug, id: game.id, entry: game.entry, title: game.title };
+    const wantDraft = channel === 'draft' || draftRequested(location.search, pkg);
+    const pinned = releaseRequested(location.search);
+    const admin = (wantDraft || pinned || !game.version) && !dev ? await releases.isAdmin().catch(() => false) : false;
+    // ?release=x.y.z: a staged or older release (the deploy's smoke check), for the dev server or the admin.
+    const version = pinned && !wantDraft && (dev || admin) ? pinned : null;
+    const pick = chooseChannel({ requested: wantDraft ? 'draft' : null, dev, admin, hasRelease: Boolean(game.version || version) });
+    if (!pick) {
+      this.home.musicBack?.();
+      throw new Error(`${game.title} has no production release yet`);
+    }
     games.play?.(game.id)?.catch?.(() => {});
-    const { SeoulGame } = await import('../city/SeoulGame.js');
+    let loaded;
+    try {
+      loaded = await loadPackage(pkg, { channel: pick, dev, version: pick === 'production' ? version : null });
+    } catch (error) {
+      this.home.musicBack?.();
+      throw new Error(`${game.title} (${pick}) did not load: ${error.message}`);
+    }
     this.home.closePage();
     this.stop();
-    const view = new SeoulGame(document.body, {
+    const platform = createPlatformApi({
       account: this.account?.user ?? null,
-      onClose: () => {
+      game: { id: game.id, code: game.package, slug: game.slug, title: game.title },
+      release: { channel: loaded.channel, version: loaded.version },
+      dev,
+      search: location.search,
+      music: { away: () => this.home.musicAway?.(), back: () => this.home.musicBack?.() },
+      onExit: () => {
         this.start();
         this.home.musicBack?.();
         this.home.refresh?.();
       }
     });
-    await view.open();
-    return view;
+    const handle = await loaded.module.mount(document.body, platform);
+    console.info(`[packages] ${game.title}: ${loaded.channel}${loaded.version ? ` ${loaded.version}` : ' (draft)'}`);
+    return { root: handle?.root ?? null, dispose: () => handle?.dispose?.(), view: handle?.view ?? null, channel: loaded.channel, version: loaded.version };
   }
 
   /** Bastion Squad: co-op against the dead, its own screen — Grave Purge (raise a squad, clear the land) or Hold the Outpost (waves). */

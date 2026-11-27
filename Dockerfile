@@ -13,6 +13,9 @@ ENV LIBRARY_AUTO_FETCH=0
 # The bundle is static and carries no credentials — the API key never leaves
 # the runtime stage below. `postbuild` writes the .br/.gz copies the server serves.
 RUN npm run build
+# Game packages' production releases (releases/<code>/<version>/, committed) are not part of
+# the platform build: they are served as they are, with their own .br/.gz copies.
+RUN mkdir -p releases && node scripts/precompress.mjs releases
 
 # ---- run --------------------------------------------------------------
 FROM node:22-alpine AS runtime
@@ -34,12 +37,18 @@ COPY scripts/admin.mjs scripts/db-import.mjs ./scripts/
 # The server runs the game's own rules (inventory, loot, levels) from src/ — the same
 # code the browser runs, so both sides agree on every action.
 COPY src ./src
+# Game packages: their manifests (games/<code>/game.json) name them; their releases are what
+# players get (RELEASES_DIR). Deploying needs git and vite, so it is done from a checkout
+# (npm run game:deploy) and shipped by committing releases/; an admin's rollback here
+# rewrites current.json in the container — mount /app/releases to keep it across restarts.
+COPY games ./games
+COPY --from=build /app/releases ./releases
 
 # Accounts, characters, the history and the library live in PostgreSQL
 # (DATABASE_URL; without it, PGlite in /app/data/postgres). Levels and classes
 # players save go to /app/data, and so does the server key unless SERVER_SECRET
 # is set. Mount it and back it up. Don't run as root.
-RUN mkdir -p /app/data /app/library && chown -R node:node /app/data /app/library
+RUN mkdir -p /app/data /app/library && chown -R node:node /app/data /app/library /app/releases
 USER node
 
 EXPOSE 8787

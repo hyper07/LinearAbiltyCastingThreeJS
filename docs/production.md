@@ -99,6 +99,9 @@ docker compose exec -T db pg_restore -U gamory -d gamory --clean < gamory-2026-1
 | `LIBRARY_ROOT` | The 3D asset library, served at `/library/` | `./library` |
 | `VOICE_DIR` | AI Arcademia's recorded voices (the voice studio writes here), served at `/audio/voice/` ahead of the build's copy; put it on a persistent volume | `./public/audio/voice` |
 | `VOICE_STUDIO_ADMIN_ID` / `VOICE_STUDIO_ADMIN_PASSWORD` | The voice studio's own login (`/voice-studio.html` and `/api/voice`), separate from the platform admin; when either is unset the studio falls back to `ADMIN_ACCOUNTS` / `ADMIN_PASSWORD` | unset |
+| `RELEASES_DIR` | Game packages' production releases, served at `/releases/` (deploys and rollbacks write here) | `./releases` |
+| `GAMES_DIR` | Game packages' manifests (and their draft source in a checkout) | `./games` |
+| `GAMES_SCRATCH` | Where deploys make their temporary worktrees and builds | the OS temp dir |
 | `MAX_PLAYERS` | Players per party (2–8) | `4` |
 | `MAX_ROOMS` | Parties at once | `500` |
 | `TRUST_PROXY` | `1` behind a reverse proxy: rate limits then see the real client address from `X-Forwarded-For` | `0` |
@@ -172,12 +175,67 @@ The races that matter across processes are already decided in PostgreSQL: taking
 floor is one conditional update, an item id can exist once (primary key), and two history events
 cannot share an id.
 
+## Deploying one game
+
+Games that are packages (`games/<code>/`, Kickrani first — see
+[Game packages, draft and production](platform-architecture.md#game-packages-draft-and-production))
+ship on their own, without rebuilding the platform. Players get each game's production release
+(`releases/<code>/current.json`); the platform build never includes a package.
+
+```bash
+npm run game:list                                   # every package: code, slug, id, production version
+npm run game:changes -- kickrani                    # the draft's commits not in production (newest first)
+npm run game:diff -- kickrani <hash>                # one change, file by file
+npm run game:deploy -- kickrani --pick <h1,h2>      # production + only these changes (applied oldest first)
+npm run game:deploy -- kickrani --all               # the draft as committed (the base moves to HEAD)
+npm run game:deploy -- kickrani --base <commit>     # that commit as it was (a first release, or a rebuild)
+    #   [--version x.y.z | --bump patch|minor|major] [--notes "…"] [--by name] [--force]
+npm run game:history -- kickrani                    # releases, what each added, live, pending, the log
+npm run game:rollback -- kickrani 1.0.0             # players get 1.0.0 again: instant, no rebuild
+npm run game:verify -- kickrani                     # every release's files against its sha256 list
+```
+
+A deploy builds from **commits**, never uncommitted edits: a temporary git worktree at the
+base, the picked commits' changes under `games/<code>/` applied in order, one Vite library build
+of that game alone (every import bundled), the game's unit tests on that source, then
+`releases/<code>/<version>/` written *staged*, a short browser load of it on `BASE_URL`'s running
+platform (skipped with a note when none is up), and only then `current.json` repointed. Any
+failure: nothing changes for players (a conflicting pick names the change, its files and git's
+reason). `--force` skips the tests and the browser load. **Commit `releases/`** to ship the
+release with the platform's next deploy (Docker copies it into the image and precompresses it).
+
+**From the platform** (the game's page, for the platform admin — `ADMIN_ACCOUNTS` +
+`ADMIN_PASSWORD`; the browser asks for them): *🛠 Changes & deploy* lists the changes with
+their diffs, ticks, bump, notes and **Deploy to production**, and *History* has **Make this live**
+for any release. The deploy runs on the server, so it needs the server to run from a git checkout
+with the dev dependencies (`npm ci`) — a developer box or a build host. The Docker image has no
+`.git` and no Vite: there the panel shows the releases and rolls back (rewriting `current.json`
+in `RELEASES_DIR`; mount it as a volume to keep that across restarts), and deploys are done with
+the CLI on a checkout, committed, and shipped. *🧪 Play draft* builds the committed draft on the
+server for the admin (same requirement).
+
+| Route | Who | Does |
+| --- | --- | --- |
+| `GET /releases/<code>/current.json`, `/releases/<code>/<version>/<file>` | everyone | the live pointer (no-cache) and release files (immutable) |
+| `GET /api/releases` | everyone | each package's production version; `admin` / `adminHint` for this caller |
+| `GET /api/releases/<game>` | everyone | its releases: version, date, notes |
+| `GET /api/releases/<game>/history` | admin | releases with sources, the log, pending changes |
+| `GET /api/releases/<game>/changes/<hash>` | admin | one change's diff under `games/<code>/` |
+| `POST /api/releases/<game>/deploy` | admin | `{ all: true }` or `{ picks: [hash…] }`, `bump` or `version`, `notes` |
+| `POST /api/releases/<game>/rollback` | admin | `{ version }` |
+| `POST /api/releases/<game>/draft`, `GET /api/releases/<code>/draft/<file>` | admin | build and serve the committed draft |
+
+One deploy at a time per server (a second answers 409). The panel's deploy runs the unit-test gate,
+not the browser load.
+
 ## Checks
 
 ```bash
 npm test                # the server: rooms, file stores, the database, the library, accounts and every cheat rule (node --test)
 TEST_DATABASE_URL=postgres://user@localhost/postgres npm test   # the same, on a PostgreSQL server (a fresh database per test)
 npm run build && npm run test:e2e   # the real server + Chromium: solo, co-op, accounts, the bag, the map editor and the action bar by mouse
+npm run game:test -- <game>         # one game package's unit tests only
+npm run game:smoke -- <game>        # one game's short headless load on the running dev server
 ```
 
 `npm run test:e2e` needs Playwright's browser once: `npx playwright install chromium`.

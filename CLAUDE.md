@@ -26,3 +26,11 @@ Open only the file the chosen record points to. Details: [docs/knowledge-base.md
 ## Checks
 
 `npm test` (unit), `npm run build`, `BASE_URL=http://127.0.0.1:5173/ npm run test:e2e` with the dev server up.
+
+Game packages (`games/<shortcode>/`, Kickrani = `g_cv2yrhrpv2`; each has a README file map — read it
+first): work on one game with `npm run game:dev -- <game>` (straight into its draft),
+`npm run game:test -- <game>` (its unit tests only) and `npm run game:smoke -- <game>` (one short
+headless load). New game: `npm run game:create -- --title "…"`. Players get the production release
+until an admin deploys (`npm run game:changes` / `game:deploy` / `game:rollback`;
+docs/platform-architecture.md "Game packages, draft and production"). The platform never imports a
+game. A fresh worktree: `npm run wt:setup` (links node_modules, library/, data/geo — never data/postgres).

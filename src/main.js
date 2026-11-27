@@ -17,6 +17,8 @@ async function boot() {
 
     // Handy for poking at the scene from the console.
     window.app = app;
+    // ?play=<game> opens a game straight away (npm run game:dev, the smoke check).
+    app.playFromUrl().catch((error) => console.error('[play]', error));
   } catch (error) {
     console.error('[boot] failed to start', error);
     new LoadingScreen().fail(

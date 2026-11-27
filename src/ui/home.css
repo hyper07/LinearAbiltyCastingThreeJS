@@ -411,6 +411,27 @@
   font-size: 12px;
   color: var(--ui-text-dim);
 }
+/* A game package's production version, small (src/ui/PlatformHome.js _packageInfo). */
+.home-page__release {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--ui-text-dim);
+  opacity: 0.8;
+}
+.home-page__error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #ff8a8a;
+}
+.home-page__draft {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  vertical-align: middle;
+  background: #ffb02e;
+  color: #241600;
+}
 
 /* The hero menu's way back to the games. */
 .main-menu__head {

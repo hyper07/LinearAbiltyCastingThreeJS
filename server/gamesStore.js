@@ -202,15 +202,21 @@ export class GamesStore {
    * @param {import('./db/database.js').Database} db
    * @param {{ index: () => Promise<object>, readText: (id: string) => Promise<string|null>, sameDir?: boolean }} levelStore the level files
    */
-  constructor(db, levelStore) {
+  constructor(db, levelStore, { packages = () => [] } = {}) {
     this.db = db;
     this.levels = levelStore;
+    /** Game packages (games/<code>/, server/gamePackages.js packageGames()): manifests with their production version. */
+    this.packages = packages;
     /** level id → card, for the official games (files change only with a build). */
     this._officialCards = new Map();
   }
 
-  /** The official games: the built-in levels, as cards. */
-  async official() {
+  /**
+   * The official games: the built-in levels, as cards, the engine games, and the game packages
+   * (games/<code>/). A package with no production release yet is a draft: listed only with
+   * `drafts` (the platform admin, or the dev server), and still found by get() for them.
+   */
+  async official({ drafts = false } = {}) {
     const index = await this.levels.index();
     const entries = (index.campaign ?? []).filter((e) => e.official || this.levels.sameDir);
     const plays = new Map((await this.db.many('SELECT game_id, plays FROM game_plays')).map((r) => [r.game_id, r.plays]));
@@ -227,7 +233,38 @@ export class GamesStore {
       const id = `official:${entry.id}`;
       out.push({ id, engine: 'action-rpg', title: card.title, summary: card.summary, author: 'Gamory', official: true, genre: card.card.genre, card: card.card, plays: plays.get(id) ?? 0, updated: 0, levels: [entry.id], roster: [] });
     }
-    for (const g of ENGINE_GAMES) out.push({ ...g, author: 'Gamory', official: true, plays: plays.get(g.id) ?? 0, updated: 0, levels: [], roster: [] });
+    let pkgs = [];
+    try {
+      pkgs = this.packages() ?? [];
+    } catch (error) {
+      console.warn(`[games] game packages: ${error.message}`);
+    }
+    const pkgOf = new Map(pkgs.map((p) => [p.id, p]));
+    const pkgFields = (p) => ({ package: p.code, slug: p.slug, entry: p.entry, version: p.production ?? null, draft: !p.production });
+    for (const g of ENGINE_GAMES) {
+      const p = pkgOf.get(g.id);
+      out.push({ ...g, ...(p ? pkgFields(p) : {}), author: 'Gamory', official: true, plays: plays.get(g.id) ?? 0, updated: 0, levels: [], roster: [] });
+    }
+    for (const p of pkgs) {
+      if (ENGINE_GAMES.some((g) => g.id === p.id)) continue;
+      if (!p.production && !drafts) continue;
+      const genre = p.genre ?? 'arcade';
+      out.push({
+        id: p.id,
+        title: p.title,
+        summary: p.description ?? '',
+        engine: 'package',
+        genre,
+        card: { genre, genreName: p.genreName ?? 'Arcade', cover: p.cover ?? 'arena', badge: p.production ? 'NEW' : 'DRAFT', ...(p.card ?? {}) },
+        ...pkgFields(p),
+        author: 'Gamory',
+        official: true,
+        plays: plays.get(p.id) ?? 0,
+        updated: 0,
+        levels: [],
+        roster: []
+      });
+    }
     return out;
   }
 
@@ -253,7 +290,7 @@ export class GamesStore {
   }
 
   /** Cards for the home page: official and shared games, filtered and sorted. */
-  async list({ q = null, genre = null, sort = 'popular', limit = 60 } = {}) {
+  async list({ q = null, genre = null, sort = 'popular', limit = 60, drafts = false } = {}) {
     const where = ["status = 'shared'"];
     const args = [];
     if (genre) {
@@ -268,7 +305,7 @@ export class GamesStore {
     const rows = await this.db.many(`SELECT * FROM games WHERE ${where.join(' AND ')} ORDER BY updated DESC LIMIT 500`, args);
     let games = rows.map((r) => this._row(r));
     const needle = q ? String(q).toLowerCase() : null;
-    const official = (await this.official()).filter((g) => (!genre || g.genre === genre) && (!needle || `${g.title} ${g.summary}`.toLowerCase().includes(needle)));
+    const official = (await this.official({ drafts })).filter((g) => (!genre || g.genre === genre) && (!needle || `${g.title} ${g.summary}`.toLowerCase().includes(needle)));
     games = [...games, ...official];
     games.sort(sort === 'new' ? (a, b) => b.updated - a.updated || b.plays - a.plays : (a, b) => b.plays - a.plays || b.updated - a.updated);
     return games.slice(0, Math.max(1, Math.min(200, Number(limit) || 60)));
@@ -276,7 +313,7 @@ export class GamesStore {
 
   /** One game with its levels: the full levels for a published game, ids for an official one. */
   async get(id) {
-    if (id.startsWith('official:')) return (await this.official()).find((g) => g.id === id) ?? null;
+    if (id.startsWith('official:')) return (await this.official({ drafts: true })).find((g) => g.id === id) ?? null;
     const row = await this.db.one('SELECT * FROM games WHERE id = ?', [id]);
     if (!row || row.status === 'hidden') return null;
     const levels = (await this.db.many('SELECT data FROM game_levels WHERE game_id = ? ORDER BY ord', [id])).map((r) => r.data);
@@ -342,9 +379,10 @@ export class GamesStore {
 /**
  * The /api/games routes.
  * @param {() => Promise<GamesStore>} getStore
- * @param {{ authenticate?: (req) => Promise<object|null> }} [options] who is asking (server/game)
+ * @param {{ authenticate?: (req) => Promise<object|null>, canSeeDrafts?: (req) => Promise<boolean> }} [options]
+ *   who is asking (server/game); whether they may see draft-only game packages (the platform admin)
  */
-export function gamesHandler(getStore, { authenticate = async () => null } = {}) {
+export function gamesHandler(getStore, { authenticate = async () => null, canSeeDrafts = async () => false } = {}) {
   const writes = new RateLimiter(30, { burst: 10 });
   const plays = new RateLimiter(120, { burst: 30 });
   return async (req, res) => {
@@ -356,7 +394,7 @@ export function gamesHandler(getStore, { authenticate = async () => null } = {})
       const store = await getStore();
       if (req.method === 'GET' && !id) {
         const params = queryOf(req);
-        json(res, 200, { games: await store.list({ q: params.get('q')?.slice(0, 80), genre: params.get('genre'), sort: params.get('sort') ?? 'popular', limit: params.get('limit') }) });
+        json(res, 200, { games: await store.list({ q: params.get('q')?.slice(0, 80), genre: params.get('genre'), sort: params.get('sort') ?? 'popular', limit: params.get('limit'), drafts: params.get('drafts') === '1' && (await canSeeDrafts(req).catch(() => false)) }) });
         return true;
       }
       if (id && !GAME_ID.test(id)) return json(res, 404, { error: 'no such game' }), true;

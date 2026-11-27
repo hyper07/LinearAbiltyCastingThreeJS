@@ -18,6 +18,7 @@ modules); the rest is the plan.
 | Engines other than the action RPG | **Built**: the stock market game (engine `market` — [Stock Market Challenge](stock-market.md)) and the work game (engine `work` — [Work Life](work-life.md)), 2D screens sharing a wallet; the strategy game (engine `rts` — [Shardfront](shardfront.md)) and the battle arena (engine `moba` — [Lanebreak](lanebreak.md)), each with its own 3D view; Lanebreak plays in party rooms with the host's browser running the match; the online RPG (engine `mmo` — [Hearthvale](hearthvale.md)) is the first game the server runs itself (`server/mmo`), with characters in PostgreSQL. Puzzle and story: planned |
 | Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
 | Battle royale on the action RPG engine: storm, AI rivals, players against players, solo and squads | **Built**: see [Battle royale](battle-royale.md) |
+| Game packages: each game in its own folder, draft vs versioned production releases, pick-and-deploy, rollback | **Built** (Kickrani first; the other games move one at a time): see [Game packages, draft and production](#game-packages-draft-and-production) |
 | Games as records, on a home page | **Built**: published games are rows in PostgreSQL with their levels; the home page lists them with the official ones. See [Games on the home page](#games-on-the-home-page) |
 | Characters per player, per game, per class | **Built**: a character for each class in each game, in the browser and on the server (sealed to account, game and class); a game's lobby to choose and customize, and to start together |
 | NPCs, worlds, monsters and question sets players make, offered by the builder | Planned |
@@ -140,6 +141,139 @@ The platform opens on its games, not on one game's menu
 | `DELETE /api/games/<id>` | Remove (its maker only) |
 
 Not yet: private games for a family, a maker's own page, likes, and comments.
+
+## Game packages, draft and production
+
+The platform and its core stay put; each game lives in **its own folder** and ships on its own.
+Someone building or testing a game changes only that folder, and players keep the last
+**production release** until an admin deploys a new one. Kickrani is the first game moved;
+every other game is still built into the platform (the "legacy" path in `App.openLobby`) until it
+is moved the same way, one at a time (steps below).
+
+```
+games/<code>/                 the DRAFT: the game's live source (developers and agents edit it)
+  game.json                   { code, id, slug, title, version, api, entry, description, genre?, card?, smoke? }
+  index.js                    export async function mount(container, platform) → { root, dispose, view? }
+  README.md                   the file map: what each module does, where the tuning numbers live
+  tests/                      the game's own unit tests
+releases/<code>/<version>/    a PRODUCTION release: built alone, every import bundled, never changed
+  game.js, game.css, …        the files (ES module + stylesheet)
+  release.json                version, date, deployedBy, notes, source { mode, base, picks, head },
+                              added (the changes it brought over the previous one), checks,
+                              entry, css, files [{ path, bytes, sha256 }], builtWith
+releases/<code>/current.json  { version, updated, by, action } — what players get
+releases/<code>/log.json      every deploy and rollback
+```
+
+- **The folder is a shortcode** (`g_` + 10 random base32 letters, e.g. `g_cv2yrhrpv2` for
+  Kickrani), assigned once by `npm run game:create` and never renamed, so two games can never
+  collide. The human name, the slug (`kickrani`) and the platform game id (`official:seoul`, kept
+  so saves and links do not break) are in `game.json`. Every command takes any of the three; the
+  registry is the manifests themselves (`scanPackages` in
+  [`server/gamePackages.js`](../server/gamePackages.js)), and two packages claiming one id or
+  slug are refused by name.
+- **The contract** ([`src/platform/gameApi.js`](../src/platform/gameApi.js), api 1): the platform
+  calls `mount(container, platform)` and nothing else. `platform` is `{ api, account, game,
+  release: { channel, version }, dev, params, exit(), track(), music: { away, back } }`, frozen.
+  It only ever grows; a breaking change is a new api number, with the old one kept for the
+  releases built on it. A game imports `three`, npm packages and the stable shared libraries
+  (`src/shared/…`, `src/net/Session.js`, `src/pixel/…`); never `src/core`, `src/ui` or another
+  game's folder. What Kickrani borrows from Snowpuff Peaks and AI Arcademia comes through
+  [`src/shared/plushKit.js`](../src/shared/plushKit.js), a facade whose exports are the contract.
+- **The platform never imports a game.** [`src/platform/packageLoader.js`](../src/platform/packageLoader.js)
+  loads by URL at run time: production reads `releases/<code>/current.json`, then
+  `release.json`, adds its stylesheets and `import()`s its `game.js`; the draft is
+  `/games/<code>/<entry>` through Vite on the dev server (live), or for an admin on a production
+  server a build of the committed draft (`POST /api/releases/<code>/draft`). A unit test walks
+  every module the platform's pages can reach and fails if one is in `games/`.
+- **Production by default** (`chooseChannel`): players always get production. The draft only
+  when asked for (`?draft=<game>`, or the admin's "Play draft") **and** allowed (the dev server,
+  or the platform admin). A game with no release yet is a draft only the admin sees (DRAFT badge;
+  `GET /api/games?drafts=1` is honoured only for the admin). `?release=x.y.z` loads one particular
+  release (the deploy's smoke check, comparisons), for the same people.
+- **The home page** lists a package's game like any other (`GamesStore.official()` merges the
+  manifests through `packageGames()`), and the game's page shows its production version, small.
+  For the platform admin it adds **🧪 Play draft** and **🛠 Changes & deploy**. Who is the admin:
+  the platform admin of [production](production.md) (`ADMIN_ACCOUNTS` + `ADMIN_PASSWORD`, HTTP
+  Basic, `server/api/adminAuth.js`). A signed-in account named in `ADMIN_ACCOUNTS` only gets the
+  buttons; every action asks for the password. On the dev server with no admin configured, this
+  machine is the admin.
+
+### Releases: where, and why there
+
+Releases are **committed** under `releases/` at the repository root and served by the platform
+server from `RELEASES_DIR` (default `./releases`) at `/releases/…` — the same handler
+([`server/releases.js`](../server/releases.js)) on the dev server, `vite preview` and
+`server/server.js`. Committed, because a release is part of what the platform ships: a clone or a
+Docker image always has the exact bytes players got, a rollback is a pointer change with no
+rebuild, and git history shows every release. They are small (a game's minified JS and CSS,
+fonts inlined, no source maps); the `.br`/`.gz` copies the server sends are made on deploy and in
+the Docker build and are git-ignored. Big assets (models, textures, map tiles) are never in a
+release: the game fetches them at run time from `/library/…`, `/geo/…` and `public/`, exactly as
+before, so data stays out of git.
+
+### The development view: changes, picking, history
+
+Like publishing a data app: the draft has a history of changes, and you choose which reach players.
+
+- **Changes** (the admin's panel on the game's page, [`src/ui/ReleasePanel.js`](../src/ui/ReleasePanel.js);
+  `npm run game:changes -- <game>`): every commit touching `games/<code>/` that production does
+  not have — commits after the live release's **base** that it did not **pick** — newest first,
+  with hash, date, author, message, files and +/− lines, and a file-by-file unified diff for each
+  (`npm run game:diff -- <game> <hash>`).
+- **Pick, then deploy**: tick changes, choose patch/minor/major, edit the notes (prefilled from
+  the ticked messages), deploy. The release is built from the live release's base, its picks, and
+  ONLY the ticked commits, applied oldest first — each commit's part under `games/<code>/` only,
+  `git apply --3way` in a temporary worktree. If one does not apply, the deploy stops and names
+  the change, its files and git's reason; nothing changes for players. Ticking all = **deploy the
+  draft**: the base moves to the current commit and the picks reset — that is also how changes to
+  the shared libraries reach a game (a pick keeps the base's `src/shared`).
+- **Gates**: the release's own source must pass the game's unit tests (`game:test`, run in the
+  temporary worktree) before anything is written; the CLI then writes the release *staged*, loads
+  it once in a browser (`game:smoke --release`) on the running platform when one is up, and only
+  then points `current.json` at it. A failed smoke removes the staged folder. `--force` skips both.
+  The admin panel's deploy runs the unit-test gate (no browser on the server).
+- **History** (`npm run game:history -- <game>`): every release with what it added over the one
+  before, its base and picks, who and when, which one is live, the changes not yet in production,
+  and **Make this live** (`npm run game:rollback -- <game> <version>`): instant, only
+  `current.json` changes.
+- **Deploys are from commits only.** Uncommitted edits are never deployed. Git always runs with
+  fixed argument lists (no shell); hashes, codes and versions are checked against strict
+  patterns; temporary worktrees live under the OS temp dir (`GAMES_SCRATCH`) and are removed
+  afterwards; the main working tree is never touched. See [production](production.md#deploying-one-game).
+
+### The fast loop for one game
+
+| Command | Does |
+| --- | --- |
+| `npm run game:create -- --title "…" [--template 3d\|2d]` | A new shortcode folder with a complete starter: manifest, `mount()`, a three.js scene (renderer, camera, lights, resize, dispose) or a pixel canvas, input, pause and exit, HUD, How to play (`src/shared/helpPanel.js`), music (`src/shared/music.js`), credits, a unit test, README with the file map. A draft until its first deploy |
+| `npm run game:dev -- <game> [--race 1 --laps 1 …]` | The dev server opened straight into the game's draft (`?play=<slug>&draft=<slug>` plus scene params, read by the game as `platform.params`); it stops watching the other packages |
+| `npm run game:test -- <game>` | Only that game's unit tests: `games/<code>/tests/` and every `tests/unit` file importing its folder |
+| `npm run game:smoke -- <game> [--release x.y.z]` | One headless load (~10 s, on the running dev server): fails on console errors, saves `.captures/smoke-<slug>.png` |
+| `npm run game:deploy -- <game> --all \| --pick <h,…>` | Builds that game alone (one Vite library build), gates, release |
+| `npm run wt:setup` | A fresh git worktree ready to run: links `node_modules`, `library/`, `data/geo` (never `data/postgres`) |
+
+The platform build (`npm run build`) never builds a package, and a package's build never builds
+the platform. `vite.config.js` lets the dev server serve the real folders behind a worktree's
+links (`server.fs.allow`), so the font 403 that made every agent write a temporary config is gone.
+
+### Moving another game into a package (one at a time)
+
+1. Allocate its shortcode: `npm run game:create -- --title "<Title>" --slug <slug> --id official:<id>`
+   (keep the game's existing id), then delete the starter files except `game.json`.
+2. **Move it in its own commit** — a pure `git mv src/<folder>/* games/<code>/`, no edits — so
+   rename detection carries its history and other branches' changes across.
+3. Next commit: fix the imports (`../shared/` → `../../src/shared/` …); route anything borrowed
+   from another game through a facade in `src/shared/` (like `plushKit.js`); update the tests,
+   scripts and docs that named the old path.
+4. Write `index.js`: `mount(container, platform)` builds the game's screen with what
+   `App.open<Game>` passed it (`platform.account`; `platform.exit` as its `onClose`) and returns
+   `{ root, dispose }`.
+5. In `App.js`, delete `open<Game>` and its `if (game.engine === …)` line: `game.package` routes it
+   to `openPackage`. Keep its `ENGINE_GAMES` entry (title, card); `packageGames()` adds the package.
+6. Add `README.md` (the file map) and `tests/`; the "platform bundle" unit test must still pass.
+7. First release from a known-good commit: `npm run game:deploy -- <slug> --base <commit> --version 1.0.0`,
+   then commit `releases/<code>/`.
 
 ## Saving progress per player, per game
 

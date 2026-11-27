@@ -1,0 +1,10 @@
+{
+  "code": "g_cv2yrhrpv2",
+  "id": "official:seoul",
+  "slug": "kickrani",
+  "title": "Kickrani",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "index.js",
+  "description": "Plush animals race electric scooters through the real streets and alleys of Seoul (킥라니)."
+}
