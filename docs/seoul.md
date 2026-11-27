@@ -466,13 +466,20 @@ Seoul's real streets — and the streets stay open.
   swept against every wall near the course, in 1/120 s steps, so nothing is ridden through at any
   speed or frame rate; a rider somehow found inside one (a spawn, a friend's position over the
   network) is put out the nearest way, and the chase camera is swept out from the rider against the
-  same walls (in close and up instead of through them). At junctions cars crossing the course
+  same walls, kept 0.55 m off them (`CAM_NEAR`): in close and up instead of through them — with less
+  room than that (riding along a wall, the camera swung toward it) in closer still and higher, looking
+  down over the rider, never put beyond the wall — and pushed along a wall it still touches, never
+  into it. Its near plane comes in with it to the room it has (the 1 m the city uses cut into a wall
+  half a metre off, and into your own rider's head, and showed the building's dark inside); back to
+  1 m with room to spare, on the podium and off the race. At junctions cars crossing the course
   don't wait for the riders: look out for them.
   Roll gently into a car (one stopped at the lights, one you drew level with) and it's a bump and a
   shove; hit any of it square and fast — a car, a wall head-on above ~38 km/h, a planter, a bin, a parked scooter —
   and you're off: a hit-stop, "BONK!", a tumble, dizzy stars, back on 1.5 s later. Met at a slant
   (a wall, a car's flank, the edge of a bin, a pole) it is only a scrape: turned along it, slowed,
-  still riding. Pass close at speed for a "WHOOSH!".
+  still riding. Pass close at speed and you hear the whoosh (and it counts as a close call); the
+  "WHOOSH!" word pops only for one met coming the other way — a car or bus passing you from behind,
+  horn and all, is the sound alone.
 - **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
   ~220 m) to fill three slots; use them with **1 2 3**. **Energy drink** — the only boost
   there is (no boost key, no gauge, no tailwind): a can crack and two gulps, your rider drinks, and

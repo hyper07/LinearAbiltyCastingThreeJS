@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Session } from '../net/Session.js';
 import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, isSmall, courseStats } from './course.js';
-import { Walls, tileRings, RIDER_RADIUS } from './walls.js';
+import { Walls, tileRings, RIDER_RADIUS, segDist } from './walls.js';
 import { TILE, decodeTile, tileKey, tileOf } from './tiles.js';
 import { bikeGap, closeCall, slipstream, wrongWay } from './ride.js';
 import { SCOOT, GRIP, SCOOTER_ORDER, newScoot, stepScoot, cornerSpeed, specFor, cleanScooter } from './scoot.js';
@@ -69,6 +69,23 @@ const BOT_NAMES = ['Haneul', 'Doyun', 'Seoyeon', 'Jiho'];
 const SEATS = 4;
 /** The chase camera: how far back (m, plus a little with speed), its pitch, where it looks (m ahead, m up) and how far to the left it sits. */
 export const CHASE = { zoom: 4.4, pitch: -0.36, ahead: 1.1, height: 0.72, side: 0.9 };
+/**
+ * The chase camera never closer to a wall than `clear` (m); its near plane comes in with it, to the
+ * room it has (`room`: the near plane's corners stand about 1.9× its distance out at the race's widest
+ * FOV), never under `min`, and is `far` (the city's own, 1 m) with room to spare — a near plane further
+ * off than the wall beside it cut into the wall and showed the building's dark inside.
+ */
+export const CAM_NEAR = { clear: 0.55, room: 1.9, min: 0.12, far: 1 };
+
+/** How far a point is from a vehicle's box on the ground (0 inside it). */
+function boxDist(v, x, z) {
+  const b = v.box;
+  const dx = x - b.x;
+  const dz = z - b.z;
+  const along = Math.abs(-dx * Math.sin(b.heading) - dz * Math.cos(b.heading)) - b.halfLength;
+  const across = Math.abs(dx * Math.cos(b.heading) - dz * Math.sin(b.heading)) - b.halfWidth;
+  return Math.hypot(Math.max(0, along), Math.max(0, across));
+}
 /** A rival nearer the camera than this (m) fades out (gone at the first, whole at the second). */
 export const NEAR_FADE = [2.1, 3.3];
 
@@ -3985,6 +4002,10 @@ export class Race {
     const g = this.g;
     const r = this.me;
     if (!r) return;
+    if (camera.near !== CAM_NEAR.far && (this.podium || this.debugCam)) {
+      camera.near = CAM_NEAR.far;
+      camera.updateProjectionMatrix();
+    }
     if (this.podium) {
       this.podium.aim(camera, { low: this.resultsUp });
       return;
@@ -4017,8 +4038,10 @@ export class Race {
     if (walls) {
       const cx = focus.x - dir.x * dist + side.x * 0.7;
       const cz = focus.z - dir.z * dist + side.z * 0.7;
-      const hit = walls.sweep(r.s.x, r.s.z, cx, cz, 0.3);
-      if (hit) dist = Math.max(1.4, dist * hit.t - 0.25);
+      const hit = walls.sweep(r.s.x, r.s.z, cx, cz, CAM_NEAR.clear);
+      // (with less room than that — riding along a wall with the camera swung toward it — in closer still
+      // and higher, looking down over the rider, never put beyond the wall and pushed out its far side)
+      if (hit) dist = Math.max(0.35, dist * hit.t - 0.1);
     }
     // Nor inside a car or a bus beside you, nor through a lamp post or a pole (a grey slab across the
     // middle of the screen for a few frames): the camera comes in in front of it instead.
@@ -4044,13 +4067,23 @@ export class Race {
     // pulled in close (a wall, a car), it rises to look over the rider rather than into their back
     camera.position.y += Math.max(0, 4 - this._camDist) * 0.5;
     camera.position.y = Math.max(camera.position.y, g.surfaceAt(camera.position.x, camera.position.z, r.y) + 0.9);
-    // Last word: out of any wall it still touches (a corner behind you), the way the rider would be pushed.
-    if (walls?.hits(camera.position.x, camera.position.z, 0.22)) {
-      const out = walls.push(camera.position.x, camera.position.z, 0.25);
+    // Last word: out of any wall it still touches (a corner behind you, a wall it is swung along after
+    // a tumble), the way the rider would be pushed — sliding along it, never into it.
+    if (walls?.hits(camera.position.x, camera.position.z, CAM_NEAR.clear - 0.02)) {
+      const out = walls.push(camera.position.x, camera.position.z, CAM_NEAR.clear);
       camera.position.x = out.x;
       camera.position.z = out.z;
     }
     this.camInside = Boolean(walls?.inside(camera.position.x, camera.position.z));
+    // The near plane: no further out than the room the camera has to the nearest wall or vehicle.
+    let room = 3;
+    if (walls) {
+      if (this.camInside) room = 0;
+      else for (const sg of walls.segments(camera.position.x - room, camera.position.z - room, camera.position.x + room, camera.position.z + room)) room = Math.min(room, segDist(camera.position.x, camera.position.z, sg.ax, sg.az, sg.bx, sg.bz).d);
+    }
+    for (const v of cars) if (camera.position.y < (v.y ?? 0) + (v.view?.size?.height ?? (v.kind === 'bus' ? 3.2 : 1.6)) + 0.3) room = Math.min(room, boxDist(v, camera.position.x, camera.position.z));
+    const near = Math.max(CAM_NEAR.min, Math.min(CAM_NEAR.far, room / CAM_NEAR.room));
+    if (Math.abs(camera.near - near) > 1e-3) camera.near = near;
     if (this.shake > 0) {
       this.shake = Math.max(0, this.shake - 1 / 60);
       camera.position.x += (Math.random() - 0.5) * this.shake * 0.6;
@@ -4338,6 +4371,11 @@ export class Race {
 
   /** Take the race down (riders, course, street dressing, HUD), keeping the room. */
   _end() {
+    // (the city's own near plane back: the chase camera's came in to the walls)
+    if (this.g.camera.near !== CAM_NEAR.far) {
+      this.g.camera.near = CAM_NEAR.far;
+      this.g.camera.updateProjectionMatrix();
+    }
     clearTimeout(this._planT);
     clearTimeout(this._overT);
     if (this.paused) this.togglePause(false);
