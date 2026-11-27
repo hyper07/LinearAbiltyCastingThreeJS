@@ -219,6 +219,8 @@ export async function run(browser) {
       return r.me.dist;
     });
     await page.waitForTimeout(15000);
+    // (none new going your way yet — those about stay till you pass them: up to 15 s more for one to be sent)
+    await until(page, () => window.seoul.race._tw.alongNew >= 1, null, 15000);
     const tw = await page.evaluate(() => {
       const r = window.seoul.race;
       clearInterval(r._twT);
@@ -1162,7 +1164,8 @@ export async function run(browser) {
       // (used up there and then — the slot is looked at now: riding on, you may pick up another from a box)
       const used = me.items[0] === null;
       // (this call's own patrol: the bots go on racing and may call one of their own meanwhile)
-      const mine = r.police.live.find((p) => p.target === ahead);
+      // (the newest for them: one a bot called on them earlier may still be riding off)
+      const mine = r.police.live.findLast((p) => p.target === ahead);
       const t0 = performance.now();
       let slow = 0;
       let beside = 0;
@@ -1175,7 +1178,7 @@ export async function run(browser) {
           // (while held: the patrol alongside, within a few metres)
           if (ahead.pulled && ahead.pulled.t > 0.2) {
             held += 0.05;
-            const st = r.police.live.find((p) => p.target === ahead);
+            const st = mine && r.police.live.includes(mine) ? mine : null;
             if (st && Math.hypot(st.x - ahead.s.x, st.z - ahead.s.z) < 3.5) beside += 0.05;
           }
           if (performance.now() - t0 > 8200) ok(clearInterval(T));
@@ -1235,14 +1238,19 @@ export async function run(browser) {
       return { ids: r.podiumIds, home, dnf: r._dnf, late: r.racers.filter((x) => x.done != null).map((x) => x.done - r.me.done), y0: r.podium.riders.map((p) => p.view.squash.position.y + p.view.squash.scale.y) };
     });
     t.check('the podium: only riders who finished in time, in order (1st, 2nd, 3rd), nobody who did not finish', pod.ids.length === 3 && pod.ids.join() === pod.home.slice(0, 3).join() && !pod.ids.includes(pod.dnf) && pod.late.some((d) => d > 4), JSON.stringify(pod));
-    await page.waitForTimeout(700);
-    t.check('…they celebrate (jumping, dancing, clapping: squash and stretch), confetti falls, the podium\'s music', await page.evaluate((y0) => {
+    // (watched for up to three seconds: the dances are slow, in half time, with poses held a beat or two —
+    // a single look 0.7 s on could land on two of them holding still)
+    const cele = await page.evaluate(async (y0) => {
       const r = window.seoul.race;
-      const y1 = r.podium.riders.map((p) => p.view.squash.position.y + p.view.squash.scale.y);
-      const moved = y1.filter((y, i) => Math.abs(y - y0[i]) > 0.01).length;
+      const moved = new Set();
+      for (let k = 0; k < 30 && moved.size < 2; k++) {
+        await new Promise((ok) => setTimeout(ok, 100));
+        r.podium?.riders.forEach((p, i) => Math.abs(p.view.squash.position.y + p.view.squash.scale.y - y0[i]) > 0.01 && moved.add(i));
+      }
       const s = window.seoul.music.state;
-      return moved >= 2 && r.podium.riders.map((p) => p.kind).join() === 'win,dance,clap' && r.podium.confetti.count > 100 && s.area === 'kick-podium';
-    }, pod.y0), await page.evaluate(() => JSON.stringify(window.seoul.music.state)));
+      return { moved: moved.size, kinds: r.podium?.riders.map((p) => p.kind).join(), confetti: r.podium?.confetti.count, area: s.area };
+    }, pod.y0);
+    t.check('…they celebrate (jumping, dancing, clapping: squash and stretch), confetti falls, the podium\'s music', cele.moved >= 2 && cele.kinds === 'win,dance,clap' && cele.confetti > 100 && cele.area === 'kick-podium', JSON.stringify(cele));
     await shot('podium');
     t.check('…on its own a few seconds: no results table yet', await page.evaluate(() => document.querySelector('.race__results').hidden));
     await page.keyboard.press('KeyX');
