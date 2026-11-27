@@ -44,6 +44,15 @@ export function setRealmLessons(realm, lessons) {
   };
 }
 
+/**
+ * Make a lesson no world teaches findable by its id (a preview, the dev demos, the e2e checks), so
+ * its stars and answers can be recorded; it still opens no floor and counts in no world.
+ */
+export function previewLesson(lesson) {
+  if (lesson?.id && !BY_ID.has(lesson.id)) BY_ID.set(lesson.id, lesson);
+  return lessonById(lesson?.id);
+}
+
 /** A lesson's realm: 'land' (the default), 'forest', 'sea', 'desert', 'moon', 'mars' or 'castle'. */
 export const realmOf = (lesson) => lesson?.realm ?? 'land';
 /** A realm's lessons: its floors open and its stars count by these alone. */

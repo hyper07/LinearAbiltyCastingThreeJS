@@ -66,9 +66,19 @@ export async function loadLocale(id) {
   if (!loaded.has(id)) {
     const mod = await LOADERS[id]();
     const d = mod.default ?? mod;
-    loaded.set(id, { strings: flatten(d), lessons: d.lessons ?? {} });
+    loaded.set(id, { strings: flatten(d), lessons: { ...(d.lessons ?? {}), ...(extraOverlays[id] ?? {}) } });
   }
   return loaded.get(id);
+}
+/** Lesson overlays for lessons no world ships (previews, the dev demos): { ko: { '<lesson id>': overlay }, … }. */
+const extraOverlays = {};
+export function addLessonOverlays(byLocale) {
+  for (const [lc, more] of Object.entries(byLocale)) {
+    extraOverlays[lc] = { ...extraOverlays[lc], ...more };
+    const d = loaded.get(lc);
+    if (d) d.lessons = { ...d.lessons, ...more };
+  }
+  cache.clear();
 }
 /** Register a language's data directly (tests and the server use this, no dynamic import). */
 export function registerLocale(id, d) {
@@ -145,9 +155,19 @@ export const minutes = (m, lc = current) => {
 
 /* ---------------------------------------------------------------- lessons */
 
-/** Text fields a lesson overlay may (and must) carry. Everything else (ids, numbers, emoji, models) stays English. */
-export const LESSON_TEXT_KEYS = new Set(['title', 'topicName', 'blurb', 'text', 'name', 'role', 'intro', 'ask', 'answer', 'q', 'choices', 'hint', 'explain', 'farewell', 'label', 'when']);
-const SKIP = new Set(['id', 'subject', 'activities', 'floor', 'topic', 'emoji', 'look', 'portrayal', 'model', 'gen', 'kind', 'setup', 'year', 'count', 'board', 'practice']);
+/**
+ * Text fields a lesson overlay may (and must) carry. Everything else (ids, numbers, emoji, models) stays English.
+ * The signature games add `message` (a dig's code to decode) and `order` (a countdown's things to put in order).
+ */
+export const LESSON_TEXT_KEYS = new Set(['title', 'topicName', 'blurb', 'text', 'name', 'role', 'intro', 'ask', 'answer', 'q', 'choices', 'hint', 'explain', 'farewell', 'label', 'when', 'message']);
+/** Lists whose text items are translated one by one (numbers in them stay: a countdown's 10, 9, 8 or a rhythm's note lengths). */
+const TEXT_LISTS = new Set(['choices', 'order']);
+const SKIP = new Set([
+  'id', 'subject', 'activities', 'floor', 'topic', 'emoji', 'look', 'portrayal', 'model', 'gen', 'kind', 'setup', 'year', 'count', 'board', 'practice',
+  // the signature games' ids, places and numbers (content/games.js)
+  'group', 'given', 'region', 'points', 'at', 'w', 'h', 'start', 'samples', 'rocks', 'goal', 'blocks', 'program', 'max',
+  'target', 'from', 'tempo', 'mode', 'pattern', 'note', 'color', 'sound', 'tolerance', 'turns'
+]);
 
 function overlay(base, over) {
   if (over == null) return base;
@@ -159,6 +179,8 @@ function overlay(base, over) {
   }
   return typeof base === typeof over ? over : base;
 }
+/** A lesson with an overlay laid over it (the same rules as localizeLesson; tests use it for overlays not registered). */
+export const applyOverlay = (lesson, over) => overlay(lesson, over);
 const cache = new Map();
 /** A lesson in a language (the English lesson when that language has no overlay for it). */
 export function localizeLesson(lesson, lc = current) {
@@ -181,7 +203,7 @@ export function lessonTextPaths(node, path = [], out = []) {
     for (const [k, v] of Object.entries(node)) {
       if (SKIP.has(k)) continue;
       if (typeof v === 'string' && LESSON_TEXT_KEYS.has(k)) out.push([...path, k]);
-      else if (k === 'choices' && Array.isArray(v)) v.forEach((_, i) => out.push([...path, k, i]));
+      else if (TEXT_LISTS.has(k) && Array.isArray(v)) v.forEach((x, i) => typeof x === 'string' && out.push([...path, k, i]));
       else if (typeof v === 'object') lessonTextPaths(v, [...path, k], out);
     }
   }

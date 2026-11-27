@@ -55,7 +55,7 @@ const ARCADE_OF_ROOM = { classroom: 'numbers', hall: 'who', lab: 'launch' };
  *   flow       its lessons' default activities (FLOWS[room] unless it says otherwise)
  *   arcade     its lobby's arcade game (ARCADES)
  *   woven      true: the world's woven-in math (generators, chalkboard, number practice)
- *   signature  the world's own game planned for it (an activity kind still to be built), or null
+ *   signature  the world's own game for it (an activity kind: content/games.js, lesson/games/), or null
  */
 function subject(id, home, icon, color, room, more = {}) {
   return Object.freeze({

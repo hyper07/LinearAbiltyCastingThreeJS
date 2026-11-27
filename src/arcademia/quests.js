@@ -43,7 +43,8 @@ export function questFor(lesson0) {
   const titleKey = `quest.${lesson.subject}.title`;
   return {
     title: has(titleKey) ? tr(titleKey, { title: lesson.title }) : lesson.title,
-    intro: guided ? tr(key, { name: guideName(lesson) }) : tr(key),
+    // (A world's new subject before its quest intro is written — a preview — uses the lesson's own blurb.)
+    intro: !has(key) ? lesson.blurb : guided ? tr(key, { name: guideName(lesson) }) : tr(key),
     introLine: guided ? `t.${key}~${lesson.id}` : `t.${key}`,
     teacher,
     steps

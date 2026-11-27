@@ -198,6 +198,15 @@ function activitiesFor(realm, subject) {
   for (const l of LESSONS) if ((l.realm ?? 'land') === realm && l.subject === subject) for (const k of activitiesOf(l)) out.add(k);
   return out;
 }
+/** The teacher's lines in each signature game (lesson/games/), and how the voice actor hears them. */
+const GAME_BARKS = {
+  sort: [['act.sort.say', 'Sorting game: the child sorts picture cards into groups.'], ['act.sort.ruleSay', 'Sorting game: some cards are already sorted; the child guesses the secret rule.']],
+  maphunt: [['act.map.say', 'Map hunt: the child reads a clue and taps the place on a map.']],
+  dig: [['act.dig.say', 'Dig site: the child brushes sand off squares to find buried things.']],
+  countdown: [['act.cd.say', 'Rocket launch: each right answer pours fuel into a rocket.'], ['act.cd.ready', 'Rocket launch: the tank is full, time for the countdown.']],
+  rover: [['act.rover.say', 'Rover coding: the child builds a program of blocks to drive a rover.']],
+  rhythm: [['act.rhythm.say', 'Rhythm game: listen to bells and drums, then play along.']]
+};
 /** How the voice actor hears each shared quest intro (others: by the school's name). */
 const INTRO_CONTEXT = {
   'land.physics': 'Lesson start: every physics quest begins with this.',
@@ -258,6 +267,10 @@ export function buildScript(lang = 'en') {
     if (acts.has('experiment')) {
       add(char, key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
       add(char, key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
+    }
+    // The signature games (lesson/games/): what the teacher says as each starts.
+    for (const [kind, lines] of Object.entries(GAME_BARKS)) {
+      if (acts.has(kind)) for (const [k, context] of lines) add(char, key(k), 'bark', 0, T(k), context);
     }
     // The mountain's math quests have an intro per topic, and guided ones (a chat) one per lesson: both are story lines below.
     if ((realm === 'land' && subject === 'math') || acts.has('chat')) continue;

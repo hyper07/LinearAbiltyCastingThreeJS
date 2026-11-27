@@ -13,12 +13,13 @@ import { GameState } from './gamestate.js';
 import { worldsIn } from './quests.js';
 import { FLOORS } from './floors.js';
 import { MAPS, mapById } from './maps.js';
-import { LESSONS, lessonsOn, lessonsIn, guidesOn } from './content/index.js';
-import { subjectsOf, toSubject } from './content/subjects.js';
+import { LESSONS, lessonsOn, lessonsIn, guidesOn, previewLesson } from './content/index.js';
+import { subjectsOf, toSubject, SUBJECT_INFO } from './content/subjects.js';
 import { floorStars, totalStars, openFloors } from './rules.js';
-import { t, num, loadLocale, setLocale, pickLocale, isLocale, localizeLesson, localeInfo } from './i18n/index.js';
+import { t, num, loadLocale, setLocale, pickLocale, isLocale, localizeLesson, localeInfo, addLessonOverlays } from './i18n/index.js';
 import { startScreen, openSettings } from './ui/settings.js';
 import './arcademia.css';
+import './games.css';
 
 /**
  * AI Arcademia: a learning mountain for kids. Seven floors (FLOORS), each a
@@ -74,6 +75,16 @@ export class ArcademiaGame {
     this.closed = false;
     this.mode = 'loading';
     window.arcademia = this;
+    if (import.meta.env.DEV) {
+      // Dev server only: arcademiaDemo('sort' | 'maphunt' | 'dig' | 'countdown' | 'rover' | 'rhythm') in the console
+      // plays that signature game's demo lesson (tests/fixtures/arcademia-activities.js, in every language).
+      window.arcademiaDemo = async (kind) => {
+        const { DEMO_LESSONS, DEMO_OVERLAYS } = await import('../../tests/fixtures/arcademia-activities.js');
+        addLessonOverlays(DEMO_OVERLAYS);
+        if (this.mode === 'lesson') this.leaveLesson();
+        return this.playLesson(DEMO_LESSONS[kind]);
+      };
+    }
   }
 
   async open() {
@@ -515,6 +526,15 @@ export class ArcademiaGame {
     this._menuKind();
     this.labels.hidden = true;
     this.hud.root.hidden = true;
+  }
+
+  /**
+   * Play any lesson — one no world teaches yet too (previews, tests) — in the room its subject is
+   * taught in: the floor-1 school of that room's slot.
+   */
+  playLesson(lesson) {
+    const slot = { classroom: 'math', hall: 'history', lab: 'physics' }[SUBJECT_INFO[lesson?.subject]?.room] ?? 'math';
+    return this.enter(slot, 1, previewLesson(lesson) ?? lesson);
   }
 
   /** Back out to the mountain. */

@@ -99,7 +99,9 @@ test('subjects: every subject is complete — icon, colour, room, a flow that ru
     for (const step of a.steps) for (const lc of LOCALE_IDS) assert.ok(writtenIn(lc, `quest.step.${step}`), `${lc} quest.step.${step}`);
   }
   for (const flow of Object.values(FLOWS)) assert.ok(flow.every((k) => ACTIVITIES[k]));
-  assert.deepEqual(HANDS_ON, ['board', 'try', 'chat', 'timeline', 'treasure', 'experiment']);
+  assert.deepEqual(HANDS_ON, ['board', 'try', 'chat', 'timeline', 'treasure', 'experiment', 'sort', 'maphunt', 'dig', 'countdown', 'rover', 'rhythm']);
+  // Every planned signature game is built: an activity kind with a runner.
+  for (const s of Object.values(SUBJECT_INFO)) if (s.signature) assert.ok(ACTIVITIES[s.signature] && RUNNERS[s.signature], `${s.id}: its signature game ${s.signature}`);
 });
 
 test('subjects: every world has three subjects, named — with its schools — in all five languages', () => {

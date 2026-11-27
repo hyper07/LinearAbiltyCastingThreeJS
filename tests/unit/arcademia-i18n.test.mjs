@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LOCALES, LOCALE_IDS, pickLocale, loadLocale, tIn, localizeLesson, lessonTextPaths, atPath, num } from '../../src/arcademia/i18n/index.js';
+import { LOCALES, LOCALE_IDS, pickLocale, loadLocale, tIn, localizeLesson, lessonTextPaths, atPath, num, applyOverlay } from '../../src/arcademia/i18n/index.js';
+import { DEMO_LESSONS, DEMO_OVERLAYS } from '../fixtures/arcademia-activities.js';
+import { cipherFor, charsOf } from '../../src/arcademia/content/games.js';
 import en from '../../src/arcademia/i18n/locales/en/index.js';
 import { LESSONS, GENERATORS } from '../../src/arcademia/content/index.js';
 import { lessonProblems } from '../../src/arcademia/content/schema.js';
@@ -67,6 +69,49 @@ test('i18n: every lesson is complete in every language and still well-formed', (
       lesson.timeline?.events.forEach((e, i) => assert.equal(local.timeline.events[i].year, e.year));
     }
     for (const k of Object.keys(mods[id].lessons)) assert.ok(LESSONS.some((l) => l.id === k), `${id}: unknown lesson ${k}`);
+  }
+});
+
+test('i18n: the signature games\' lesson text is translatable — and must be translated — in every language', () => {
+  // Their text fields are overlay paths (so the completeness check above requires them in every lesson that uses them)…
+  const paths = (l) => lessonTextPaths(l).map((p) => p.join('.'));
+  const { sort, maphunt, dig, countdown, rover, rhythm } = DEMO_LESSONS;
+  for (const p of ['sort.q', 'sort.groups.0.label', 'sort.items.4.label', 'sort.items.4.hint', 'sort.rule.q', 'sort.rule.choices.2', 'sort.rule.explain']) assert.ok(paths(sort).includes(p), p);
+  for (const p of ['maphunt.q', 'maphunt.clues.1.q', 'maphunt.clues.1.hint']) assert.ok(paths(maphunt).includes(p), p);
+  for (const p of ['dig.q', 'dig.finds.0.label', 'dig.finds.0.text', 'dig.finds.0.question.choices.1', 'dig.finds.1.decode.message', 'dig.finds.1.decode.explain']) assert.ok(paths(dig).includes(p), p);
+  for (const p of ['countdown.q', 'countdown.steps.0.q', 'countdown.steps.2.order.0', 'countdown.steps.1.choices.0']) assert.ok(paths(countdown).includes(p), p);
+  for (const p of ['rover.q', 'rover.puzzles.1.hint']) assert.ok(paths(rover).includes(p), p);
+  for (const p of ['rhythm.q', 'rhythm.rounds.1.q', 'rhythm.rounds.1.explain', 'rhythm.rounds.2.pairs.0.label']) assert.ok(paths(rhythm).includes(p), p);
+  // …and ids, places, numbers, notes and programs are not (they stay as written).
+  const all = Object.values(DEMO_LESSONS).flatMap(paths);
+  for (const re of [/\.group$/, /\.region$/, /\.id$/, /\.note$/, /\.color$/, /\.order\.\d+$/, /program|samples|rocks|start|pattern|blocks/]) {
+    const bad = all.filter((p) => re.test(p) && !p.startsWith('countdown.steps.2.order'));
+    assert.deepEqual(bad, [], String(re));
+  }
+  assert.ok(!all.includes('countdown.steps.0.order.0'), 'numbers to order stay numbers');
+  assert.ok(!all.some((p) => p.startsWith('rhythm.rounds.1.choices')), 'note lengths stay numbers');
+  // The demo lessons, in every language: complete, still well-formed, the numbers that matter unchanged.
+  for (const id of OTHERS) {
+    for (const lesson of Object.values(DEMO_LESSONS)) {
+      const over = DEMO_OVERLAYS[id][lesson.id];
+      assert.ok(over, `${id}: ${lesson.id} is not translated`);
+      for (const p of lessonTextPaths(lesson)) {
+        const v = atPath(over, p);
+        assert.ok(typeof v === 'string' && v.trim(), `${id} ${lesson.id}: missing ${p.join('.')}`);
+      }
+      const local = applyOverlay(lesson, over);
+      assert.deepEqual(lessonProblems(local, { gens: GENERATORS }), [], `${id} ${lesson.id}`);
+      assert.deepEqual(local.sort?.items.map((i) => i.group), lesson.sort?.items.map((i) => i.group));
+      assert.deepEqual(local.maphunt?.clues.map((c) => c.region), lesson.maphunt?.clues.map((c) => c.region));
+      assert.deepEqual(local.rover?.puzzles.map((p) => [p.start, p.samples, p.rocks, p.program]), lesson.rover?.puzzles.map((p) => [p.start, p.samples, p.rocks, p.program]));
+      assert.deepEqual(local.rhythm?.rounds.map((r) => [r.pattern, r.choices, r.pairs?.map((x) => x.note)]), lesson.rhythm?.rounds.map((r) => [r.pattern, r.choices, r.pairs?.map((x) => x.note)]));
+      assert.deepEqual(local.countdown?.steps[0].order, lesson.countdown?.steps[0].order);
+      // A translated code still decodes: every character of the message has its symbol.
+      for (const f of local.dig?.finds ?? []) if (f.decode) {
+        const c = cipherFor(f.decode.message, 1);
+        assert.equal(c.code.filter((x) => !x.space).map((x) => x.ch).join(''), charsOf(f.decode.message).filter((x) => x.trim()).join('').toUpperCase(), `${id} ${f.decode.message}`);
+      }
+    }
   }
 });
 

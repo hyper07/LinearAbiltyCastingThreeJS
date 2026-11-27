@@ -4,5 +4,6 @@ import parents from './parents.js';
 import chars from './chars.js';
 import math from './math.js';
 import subjects from './subjects.js';
+import games from './games.js';
 /** English: the source language. Lessons are the content files themselves. */
-export default { ui, lesson, parents, chars, math, subjects };
+export default { ui, lesson, parents, chars, math, subjects, games };

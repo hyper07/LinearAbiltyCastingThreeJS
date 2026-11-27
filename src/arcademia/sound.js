@@ -144,6 +144,57 @@ export class Sound {
     this._tone(freq * 2, t, 0.5, { type: 'sine', gain: 0.02 + loud * 0.05, attack: 0.005 });
   }
 
+  /* ---- the signature games (lesson/games/): bells and drums for the rhythm game, the rocket, the dig */
+
+  /** A castle bell: a struck tone with a few soft overtones. `delay` in seconds from now. */
+  bell(freq, delay = 0, { gain = 0.16, length = 1.2 } = {}) {
+    if (!this._ok()) return;
+    const t = this.ctx.currentTime + delay;
+    this._tone(freq, t, length, { type: 'sine', gain, attack: 0.004 });
+    this._tone(freq * 2.01, t, length * 0.55, { type: 'sine', gain: gain * 0.35, attack: 0.004 });
+    this._tone(freq * 3.0, t, length * 0.3, { type: 'triangle', gain: gain * 0.12, attack: 0.004 });
+  }
+  /** A soft hand drum (accent: a little louder and lower). */
+  drum(delay = 0, accent = false) {
+    if (!this._ok()) return;
+    const t = this.ctx.currentTime + delay;
+    this._tone(accent ? 150 : 190, t, 0.28, { type: 'sine', gain: accent ? 0.34 : 0.26, attack: 0.003, to: 70 });
+    this._noise(t, 0.06, { freq: 1400, q: 0.7, gain: accent ? 0.08 : 0.05 });
+  }
+  /** A quiet metronome tick. */
+  tick(delay = 0, accent = false) {
+    if (!this._ok()) return;
+    this._tone(accent ? 1760 : 1320, this.ctx.currentTime + delay, 0.05, { type: 'square', gain: 0.025, attack: 0.002 });
+  }
+  /** A brush stroke in the sand. */
+  brush() {
+    if (!this._ok()) return;
+    this._noise(this.ctx.currentTime, 0.16, { freq: 1800 + Math.random() * 900, q: 0.9, gain: 0.07 });
+  }
+  /** Fuel glugging into a tank. */
+  glug() {
+    if (!this._ok()) return;
+    const t = this.ctx.currentTime;
+    [0, 0.09, 0.18].forEach((d, i) => this._tone(260 + i * 70, t + d, 0.12, { type: 'sine', gain: 0.12, to: 420 + i * 80 }));
+  }
+  /** A countdown beep (high: the last one). */
+  beep(high = false) {
+    if (!this._ok()) return;
+    this._tone(high ? 1320 : 880, this.ctx.currentTime, high ? 0.5 : 0.16, { type: 'square', gain: 0.05 });
+  }
+  /** Rocket engines: a rising roar. */
+  rocket() {
+    if (!this._ok()) return;
+    const t = this.ctx.currentTime;
+    this._noise(t, 2.6, { freq: 380, q: 0.4, gain: 0.22, type: 'lowpass' });
+    this._tone(60, t, 2.4, { type: 'sawtooth', gain: 0.05, to: 140 });
+  }
+  /** The rover's little motor for one move (turn: a shorter whirr). */
+  motor(turn = false) {
+    if (!this._ok()) return;
+    this._tone(turn ? 420 : 300, this.ctx.currentTime, turn ? 0.12 : 0.2, { type: 'sawtooth', gain: 0.025, to: turn ? 520 : 360 });
+  }
+
   /** The quiet bed under the diorama: running water, and birds by day or crickets by night. */
   ambient(on, night = 0, mood = 'birds') {
     this._mood = mood;

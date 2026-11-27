@@ -84,6 +84,12 @@ export default {
   'quest.step.treasure': 'Treasure',
   'quest.step.guess': 'Guess',
   'quest.step.experiment': 'Experiment',
+  'quest.step.sort': 'Sort',
+  'quest.step.maphunt': 'Map hunt',
+  'quest.step.dig': 'Dig',
+  'quest.step.countdown': 'Launch',
+  'quest.step.rover': 'Code the rover',
+  'quest.step.rhythm': 'Rhythm',
   // Subjects
   'subject.math': 'Math',
   'subject.history': 'History',

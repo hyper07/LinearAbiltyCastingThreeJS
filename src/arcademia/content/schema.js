@@ -34,10 +34,28 @@
  *   treasure  artifact { model (ARTIFACTS), name, text }
  *   experiment sim     { id (SIMS), setup?: {...}, predict: { q, choices, answer, explain } }
  *
+ * The signature games (content/games.js has their rules and checks; docs/arcademia.md, "Activity kinds",
+ * an example of each):
+ *
+ *   sort      sort      { q, groups: [{ id, label, emoji? }] (2–4), items: [{ label, emoji, group, given? }] (4–12),
+ *                         rule?: { q, choices, answer, hint, explain } — guess the rule from the given examples first }
+ *   maphunt   maphunt   { q, map: 'world' | 'island' | { regions: [{ id, label, kind?, points, at?, emoji? }] },
+ *                         clues: [{ q, region, hint }] (2–6) }
+ *   dig       dig       { q, w (3–7), h (3–6), finds: [{ at: [x, y], emoji, label, text?,
+ *                         question: { q, choices, answer, hint, explain } | decode: { q, message, explain } }] (1–4) }
+ *   countdown countdown { q, target?: 'moon'|'mars'|'orbit'|'stars', from? (3–10),
+ *                         steps: [{ q, choices, answer, hint, explain } | { q, order: [...] (3–6), hint }] (2–6) }
+ *   rover     rover     { q, puzzles: [{ w, h, start: [x, y, dir], samples: [[x, y]], rocks?, goal?, blocks?, max, hint,
+ *                         program? (a buggy start to fix) }] (1–3) }
+ *   rhythm    rhythm    { q, tempo (60–160), rounds: [{ mode: 'echo', pattern, tolerance?, sound? }
+ *                         | { mode: 'notes', q, pattern (one 0 = the gap), choices, hint, explain }
+ *                         | { mode: 'match', q, pairs: [{ label, note, emoji?, color? }], turns? }] (1–5) }
+ *
  * The mountain's math lessons run story, learn, board, try, challenge; history story, learn, chat,
  * timeline, treasure, challenge; physics story, learn, experiment (guess + test), challenge.
  */
 import { ALL_SUBJECTS, LAND_SUBJECTS, SUBJECT_INFO, allowedSubjects, activitiesOf, isSubject } from './subjects.js';
+import { sortProblems, maphuntProblems, digProblems, countdownProblems, roverProblems, rhythmProblems } from './games.js';
 
 /** The Learning Mountain's subjects (content/subjects.js has every world's). */
 export const SUBJECTS = LAND_SUBJECTS;
@@ -213,6 +231,13 @@ export const ACTIVITIES = {
       return out;
     }
   },
+  // The signature games (content/games.js; lesson/games/*.js play them).
+  sort: { steps: ['sort'], rooms: null, check: sortProblems },
+  maphunt: { steps: ['maphunt'], rooms: null, check: maphuntProblems },
+  dig: { steps: ['dig'], rooms: null, check: digProblems },
+  countdown: { steps: ['countdown'], rooms: null, check: countdownProblems },
+  rover: { steps: ['rover'], rooms: null, check: roverProblems },
+  rhythm: { steps: ['rhythm'], rooms: null, check: rhythmProblems },
   challenge: { steps: ['challenge'], rooms: null }
 };
 /** The hands-on kinds (everything but the story, the reading and the challenge every lesson has). */

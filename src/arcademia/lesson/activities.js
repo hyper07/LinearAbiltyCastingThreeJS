@@ -12,7 +12,17 @@
  *
  * To add a kind: write its runner (here, or in its own file imported here) and add it to RUNNERS,
  * plus its entry in content/schema.js ACTIVITIES (docs/arcademia.md, "Adding an activity kind").
+ *
+ * The six signature games are in lesson/games/ (one file each, sharing kit.js; their rules and data
+ * checks in content/games.js).
  */
+import { playSort } from './games/sort.js';
+import { playMaphunt } from './games/maphunt.js';
+import { playDig } from './games/dig.js';
+import { playCountdown } from './games/countdown.js';
+import { playRover } from './games/rover.js';
+import { playRhythm } from './games/rhythm.js';
+
 export const RUNNERS = {
   story: (r) => r.story(),
   learn: (r) => r.reading(),
@@ -22,5 +32,11 @@ export const RUNNERS = {
   timeline: (r) => r.timelineStep(),
   treasure: (r) => r.artifactStep(),
   experiment: (r) => r.simStep(),
+  sort: playSort,
+  maphunt: playMaphunt,
+  dig: playDig,
+  countdown: playCountdown,
+  rover: playRover,
+  rhythm: playRhythm,
   challenge: (r) => r.challenge()
 };

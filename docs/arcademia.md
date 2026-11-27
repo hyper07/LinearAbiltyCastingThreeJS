@@ -295,7 +295,7 @@ The registry, `src/arcademia/content/subjects.js`:
 
 | | |
 | --- | --- |
-| `SUBJECT_INFO[id]` | `code` (lesson-id prefix: `m`/`h`/`p` for the mountain's, the id itself for the rest), `home` realm, `icon`, `color` (the parents' report), `room` (`classroom`, `hall` or `lab`: the lesson room), `flow` (default activities), `arcade` (`numbers`, `who` or `launch`), `woven` (the world's math), `signature` (the world's own game, still to build) |
+| `SUBJECT_INFO[id]` | `code` (lesson-id prefix: `m`/`h`/`p` for the mountain's, the id itself for the rest), `home` realm, `icon`, `color` (the parents' report), `room` (`classroom`, `hall` or `lab`: the lesson room), `flow` (default activities), `arcade` (`numbers`, `who` or `launch`), `woven` (the world's math), `signature` (the world's own game: an activity kind, see [Activity kinds](#activity-kinds)) |
 | `REALM_SUBJECTS[realm]` | the three subject ids in slot order |
 | `subjectsOf(realm)` · `subjectAt(realm, slot)` · `slotOf(realm, subject)` · `toSubject(realm, subjectOrSlot)` | what a world teaches now, and the slot ↔ subject mapping |
 | `buildingName(realm, slot)` · `helloKey(realm, subject)` · `activitiesOf(lesson)` | school names (`building.<subject>` on the mountain, `<realm>.building.<subject>` elsewhere), the teacher's greeting key, a lesson's activities |
@@ -351,13 +351,20 @@ A lesson runs `story`, `learn`, one to four hands-on activities, then `challenge
 | `timeline` | Timeline | any | `timeline` |
 | `treasure` | Treasure | hall | `artifact` |
 | `experiment` | Guess, Experiment | any | `sim` |
+| `sort` | Sort | any | `sort` — see [Activity kinds](#activity-kinds) |
+| `maphunt` | Map hunt | any | `maphunt` |
+| `dig` | Dig | any | `dig` |
+| `countdown` | Launch | any | `countdown` |
+| `rover` | Code the rover | any | `rover` |
+| `rhythm` | Rhythm | any | `rhythm` |
 
 The default flows by room (`subjects.js` `FLOWS`): classroom `story, learn, board, try, challenge`;
 hall `story, learn, chat, timeline, treasure, challenge`; lab `story, learn, experiment, challenge`.
 A lesson may list its own (`activities: ['story', 'learn', 'board', 'experiment', 'challenge']`).
+The signature games are not in any subject's default flow: a lesson that plays one lists it
+(`activities: ['story', 'learn', 'sort', 'challenge']`, or mixed with others).
 
-To add one (the planned signature games: `sort` for Biology, `maphunt` for Geography, `dig` for
-Archaeology, `countdown` for Rockets, `rover` for Coding, `rhythm` for Music):
+To add one:
 
 1. `content/schema.js` `ACTIVITIES.<kind>`: its quest `steps`, the `rooms` it can run in (or
    `null`), and `check(lesson, { gens })` returning problems with the lesson data it needs.
@@ -365,10 +372,145 @@ Archaeology, `countdown` for Rockets, `rover` for Coding, `rhythm` for Music):
 3. Its runner in `lesson/activities.js` `RUNNERS.<kind>`: `async (runner) => …`, using the
    runner's helpers (`clear`, `shot`, `say`, `until`, `choices`, `good`/`oops`, `runner.lesson`,
    `runner.room`, `runner.main`; `runner.at` is its first quest step). It resolves when the child is
-   done. The lesson runner itself does not change.
+   done. The lesson runner itself does not change. (`lesson/games/kit.js` has the signature games'
+   shared bits: the card, `gate(r)` for a wait that leaving the lesson stops, the capped XP, Next.)
 4. Any voice lines it speaks: a `t.<key>` or `l.<lesson>.<path>` line in `voice/script.js`.
-5. A lesson that uses it (its subject's `flow`, or the lesson's `activities`), and a unit test for
+5. Its lesson text in the overlays: a text field named like the others (`q`, `label`, `text`,
+   `hint`, `explain`, `choices`… `i18n/index.js` `LESSON_TEXT_KEYS`) is translated by itself; ids,
+   places and numbers go in `SKIP`.
+6. A lesson that uses it (its subject's `flow`, or the lesson's `activities`), and a unit test for
    its check.
+
+### Activity kinds
+
+The six **signature games**, one per world, each a reusable activity kind: its rules and data check
+in `content/games.js`, its play in `lesson/games/<kind>.js`, its look in `games.css`, its words
+(`act.*`) in `i18n/locales/<lc>/games.js`. All of them work with mouse, touch and keyboard, have
+big targets, follow reduced motion, and never punish: a miss shakes, says what happened and gives
+a hint; a second miss shows the way. Something solved on the first try earns the challenge's own
+reward (2 coins and 10 XP, today's "answer right" quest; at most four per game); stars still come
+from the challenge. A demo lesson of each, translated, is in `tests/fixtures/arcademia-activities.js`
+(no world teaches them); on the dev server, `arcademiaDemo('sort')` in the console plays one
+(`'maphunt'`, `'dig'`, `'countdown'`, `'rover'`, `'rhythm'`). `window.arcademia.playLesson(lesson)`
+plays any lesson object in its subject's room (the e2e suite uses it).
+
+**`sort`** — Sort it out (Biology, the Great Tree). Cards go into 2–4 labelled groups: tap a card
+then its group, drag it there, or Enter, the arrows (or 1–4) and Enter. With a `rule` question the
+groups start as mysteries holding the `given` examples: the child guesses how they were sorted,
+then sorts the rest. A wrong group sends the card back with the item's `hint`; two misses light the
+right group.
+
+```js
+sort: {
+  q: 'Help Ribbit sort the animals into their families!',
+  groups: [{ id: 'mammal', label: 'Mammals', emoji: '🐾' }, { id: 'bird', label: 'Birds', emoji: '🪶' }, { id: 'fish', label: 'Fish' }],
+  items: [                                   // 4–12, labels all different, every group used
+    { label: 'Bear', emoji: '🐻', group: 'mammal', given: true },   // given: already sorted (with a rule)
+    { label: 'Dolphin', emoji: '🐬', group: 'mammal', hint: 'Dolphins breathe air and feed their babies milk.' },
+    …
+  ],
+  rule: { q: 'How were these animals sorted?', choices: ['Into animal families', 'By their colour', 'By size'], answer: 0, hint: '…', explain: '…' }  // optional
+}
+```
+
+**`maphunt`** — Map hunt (Geography, the Lagoon). A painted map and a clue at a time; tap the
+place. A miss names the place tapped, swings the compass toward the answer ("try going north-east")
+and shows the clue's hint; a second makes the place sparkle. The arrow keys hop between places,
+Enter taps. `map` is `'world'` (five oceans and seven continents: `pacific`, `atlantic`, `indian`,
+`arctic`, `southern`, `north-america`, `south-america`, `europe`, `africa`, `asia`, `australia`,
+`antarctica`), `'island'` (`sea`, `reef`, `forest`, `volcano`, `village`, `beach`, `lagoon`) — their
+names are `act.map.<id>` in every language — or the lesson's own regions on a 100 × 60 map (x right,
+y down, north up).
+
+```js
+maphunt: {
+  q: 'Help Inka find these places on the world map!',
+  map: 'world',                              // or { regions: [{ id, label, kind: 'land' | 'water', points: [[x, y], …] or a list of polygons, at?: [x, y], emoji? }] } (2–12)
+  clues: [{ q: 'Where is the biggest ocean, the Pacific?', region: 'pacific', hint: 'It is on both sides of the map…' }, …]   // 2–6, each a different place
+}
+```
+
+**`dig`** — Dig site (Archaeology, the Desert). A grid of sand; two brushes clear a square. Each
+find opens its question, or a message written in picture symbols to decode with a key (any
+language: each different letter, 한글 syllable or 漢字 gets its own symbol; Latin letters and digits
+get two decoys). Tap the key or type the letter. After four empty squares something glints where a
+find is.
+
+```js
+dig: {
+  q: 'Dig up the old camp by the Nile!',
+  w: 5, h: 4,                                // 3–7 × 3–6 squares
+  finds: [                                   // 1–4, one per square
+    { at: [1, 1], emoji: '🏺', label: 'A clay jar', text: 'People kept water, oil and grain in jars like this.',
+      question: { q: 'What could people keep in this jar?', choices: ['Water', 'Electricity', 'Television'], answer: 0, hint: '…', explain: '…' } },
+    { at: [3, 2], emoji: '🪨', label: 'A carved stone', text: '…',
+      decode: { q: 'What does the stone say?', message: 'NILE', explain: 'The Nile is the long river…' } }   // 2–12 letters, at most 10 different
+  ]
+}
+```
+
+**`countdown`** — Rocket launch (Rockets, the Moon). Each step fills the rocket's fuel tank: a
+question, or things to tap in order. With a full tank the child presses the big red button, the
+countdown beeps from `from` to zero and the rocket lifts off toward its `target` (`moon`, `mars`,
+`orbit`, `stars`).
+
+```js
+countdown: {
+  q: 'Fill the rocket with fuel and fly to the Moon!',
+  target: 'moon', from: 5,                   // optional (moon, 5); from 3–10
+  steps: [                                   // 2–6
+    { q: 'Count back from 5!', order: [5, 4, 3, 2, 1], hint: 'Start with the biggest number.' },   // 3–6 things, in the right order (numbers or text)
+    { q: 'What pulls the rocket back down?', choices: ['Gravity', 'Wind', 'Magnets'], answer: 0, hint: '…', explain: '…' }
+  ]
+}
+```
+
+**`rover`** — Rover coding (Coding, Mars). Build a program from blocks — `forward`, `left`, `right`,
+`pick` (pick up a sample; without it in `blocks`, driving over one collects it) and `repeat` (×2–5,
+holding the blocks added while it is open) — and Run it: the rover follows it block by block; a
+bump into a rock or the edge stops it and lights that block red. A `program` starts the puzzle with
+a bug to fix. On the map, ↑ ← → add blocks, Backspace takes one back, Enter runs. The check solves
+every puzzle (breadth-first) and refuses one nobody can solve, one that needs more than `max`
+blocks without a repeat, and a "bug" program that already works.
+
+```js
+rover: {
+  q: 'Drive the rover to the sample tubes!',
+  puzzles: [                                 // 1–3
+    { w: 5, h: 4, start: [0, 3, 'E'], samples: [[2, 1]], rocks: [[2, 3], [2, 2]], blocks: ['forward', 'left', 'right'], max: 8, hint: 'Go up and round the rocks.' },
+    { w: 6, h: 3, start: [0, 1, 'E'], samples: [[4, 1]], goal: [5, 1] /* optional: end here */, blocks: ['forward', 'left', 'right', 'repeat', 'pick'], max: 6,
+      program: [{ repeat: 3, do: ['forward'] }, 'pick'], hint: 'How many times should the rover go forward?' }
+  ]
+}
+```
+
+**`rhythm`** — Rhythm time (Music, the Sky Castle), with bells and a hand drum from the game's own
+synth (`sound.js`, no audio files). Rounds: `echo` (listen, then tap the drum — or Space — the same
+way; a tap counts within `tolerance` of a beat, a third by default, from the first tap), `notes`
+(a 4-beat bar with a gap: which note fills it? lengths 4, 2, 1, 0.5 — whole, half, quarter, eighth,
+shown as ¼-style fractions too), `match` (a bell rings: which coloured or lettered bell was it? — for
+art and languages too). Three echo tries, then it moves on with a "good try".
+
+```js
+rhythm: {
+  q: 'Play along with the castle bells and drums!',
+  tempo: 90,                                 // 60–160 beats a minute
+  rounds: [                                  // 1–5
+    { mode: 'echo', pattern: [1, 1, 2], sound: 'drum' },                       // note lengths in beats, negative = a rest; sound 'drum' | 'bell'
+    { mode: 'notes', q: 'Two quarter notes, then what?', pattern: [1, 1, 0], choices: [4, 2, 1], hint: '…', explain: 'A half note lasts 2 beats: 1 + 1 + 2 = 4.' },
+    { mode: 'match', q: 'Which coloured bell rang?', pairs: [{ label: 'Red', emoji: '🔴', note: 'C5', color: '#ef476f' }, …], turns: 3 }   // 2–4 pairs, different notes
+  ]
+}
+```
+
+Checks: `tests/unit/arcademia-activities.test.mjs` (each kind's check, sorting, maps and the
+compass, the symbol code in five scripts, ordering and fuel, rover programs with loops, bumps and the
+solver, the tap judge's window, bars and bells, every `act.*` string written),
+`tests/unit/arcademia-i18n.test.mjs` (the games' text fields are overlay paths and the demo lessons
+are complete and well-formed in every language), and the e2e suite `tests/e2e/activities.mjs`,
+which plays each demo to its stars with the mouse and again with the keyboard
+(`npm run test:e2e -- activities`; `E2E_SHOTS=<dir>` saves a picture of each game mid-play,
+`E2E_KINDS=dig,rover` plays only those).
 
 ## Languages
 
@@ -753,6 +895,7 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
 | Subjects: every world's three, the slot ↔ subject mapping, which worlds are live | `src/arcademia/content/subjects.js` |
 | Activity kinds: their data and checks · how each plays | `src/arcademia/content/schema.js` `ACTIVITIES` · `src/arcademia/lesson/activities.js` |
+| The signature games: rules, map presets, checks · play · look · words · demo lessons | `src/arcademia/content/games.js` · `src/arcademia/lesson/games/` · `src/arcademia/games.css` · `i18n/locales/<lc>/games.js` · `tests/fixtures/arcademia-activities.js` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
 | Study worlds: the list, the Great Tree's, the Lagoon's, the Desert's, the Moon's, Mars's and the Sky Castle's floors | `src/arcademia/maps.js` |
@@ -774,7 +917,7 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Learning API and its caps | `server/learningStore.js` (wired in `server/server.js` and `vite.config.js`) |
 | The tutor route | `server/api/ai.js` |
 | The share page | `parent-report.html`, `src/arcademia/sharedReport.js` |
-| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-subjects.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs`, `voice.test.mjs`; `tests/e2e/voice.mjs`, `tests/e2e/worlds.mjs` |
+| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-subjects.test.mjs`, `arcademia-activities.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs`, `voice.test.mjs`; `tests/e2e/voice.mjs`, `tests/e2e/worlds.mjs`, `tests/e2e/activities.mjs` |
 
 To add a floor, add an entry to `FLOORS`, a world to `WORLDS` and at least two lessons per subject:
 the mountain, nav, minimap and unlock rules follow.

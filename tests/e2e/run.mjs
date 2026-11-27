@@ -31,6 +31,7 @@ import { run as snowpuff } from './snowpuff.mjs';
 import { run as circuitlab } from './circuitlab.mjs';
 import { run as worlds } from './worlds.mjs';
 import { run as jarani } from './jarani.mjs';
+import { run as activities } from './activities.mjs';
 
 /**
  * The end-to-end runs, against the real production server.
@@ -69,7 +70,7 @@ if (!process.env.BASE_URL) {
 const browser = await launch();
 let failed = 0;
 try {
-  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts], ['lanebreak', lanebreak], ['hearthvale', hearthvale], ['breachline', breachline], ['bastion', bastion], ['channels', channels], ['graphics', graphics], ['camera', camera], ['map', map], ['help', help], ['zones', zones], ['voice', voice], ['camdrag', camdrag], ['snowpuff', snowpuff], ['circuitlab', circuitlab], ['worlds', worlds], ['jarani', jarani]]) {
+  for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts], ['lanebreak', lanebreak], ['hearthvale', hearthvale], ['breachline', breachline], ['bastion', bastion], ['channels', channels], ['graphics', graphics], ['camera', camera], ['map', map], ['help', help], ['zones', zones], ['voice', voice], ['camdrag', camdrag], ['snowpuff', snowpuff], ['circuitlab', circuitlab], ['worlds', worlds], ['jarani', jarani], ['activities', activities]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
     const t = await fn(browser);
