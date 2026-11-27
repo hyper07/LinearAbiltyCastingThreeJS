@@ -105,6 +105,7 @@ test('Kithvale, Lanternwood and Kickrani', () => {
   assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'jamsilpark' }), 'kick-fair');
   assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'namsandown' }), 'kick-downhill');
   assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'inwangsan' }), 'kick-downhill');
+  assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'samcheong' }), 'kick-palace');
   assert.equal(seoulTrack({ mode: 'race', menu: true, course: 'mullae' }), 'kick-lobby');
   assert.equal(seoulTrack({ mode: 'race', racing: true, podium: true, course: 'mullae' }), 'kick-podium');
   assert.equal(seoulTrack({ mode: 'drive', night: true }), 'city-night');

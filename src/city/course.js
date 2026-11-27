@@ -90,8 +90,14 @@ export const BIKE_COURSES = [
   // Seoul's inner mountains on their real slopes — long linked bends, hairpins, the city opening up below.
   {
     id: 'inwangsan', level: 'hard', name: 'Inwangsan Skyway', ko: '인왕산 스카이웨이', x: -1050, z: -2100, r: 450, kind: 'Mountain', zigzag: true,
-    text: 'Down from Buam-dong to Changuimun, the old city wall\'s north-west gate, then along Inwangsan\'s granite flank on the old skyway and all the way down to Sajik-dong — Gyeongbokgung and the towers of downtown opening up below. One way.',
+    text: 'Down from Buam-dong to Changuimun, the old city wall\'s north-west gate, then along Inwangsan\'s granite flank on the old skyway and down toward Sajik-dong — Gyeongbokgung and the towers of downtown opening up below. One way.',
     via: [[-714, -3167], [-852, -3072], [-1003, -2978], [-1061, -2753], [-1243, -2300], [-1426, -1940], [-1386, -1617], [-1234, -1225], [-1093, -1085]],
+    open: true, mountain: true, max: 4200
+  },
+  {
+    id: 'samcheong', level: 'hard', name: 'Samcheong–Bukchon Downhill', ko: '삼청·북촌 다운힐', x: 450, z: -2100, r: 450, kind: 'Downhill', zigzag: true,
+    text: 'From the mouth of the Samcheong tunnel high under Bugaksan, down Samcheong Park\'s hairpins through the woods, a jink across the top of Bukchon by Waryong Park, then down Bukchon-ro between the hanok roofs to Anguk, Changdeokgung\'s woods off to the left. One way.',
+    via: [[385, -3014], [312, -2915], [404, -2918], [486, -2842], [537, -2751], [468, -2721], [379, -2785], [342, -2701], [400, -2609], [399, -2503], [332, -2422], [334, -2296], [392, -2321], [491, -2366], [505, -2279], [593, -2269], [652, -2235], [672, -2173], [642, -2080], [638, -1894], [633, -1723], [628, -1531], [649, -1390], [699, -1248], [731, -1172]],
     open: true, mountain: true, max: 4200
   }
 ];

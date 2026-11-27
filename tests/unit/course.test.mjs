@@ -225,7 +225,7 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
 test('the hill roads (Hard, one way like the Bukak Skyway): roads cars use, on real slopes, linked bends, a run of about three minutes', { skip: !seoul && 'no Seoul map converted here' }, () => {
   const ground = seoulTerrain();
   const hillRoads = BIKE_COURSES.filter((c) => c.mountain && c.zigzag);
-  assert.deepEqual(hillRoads.map((c) => c.id), ['bukak', 'inwangsan']);
+  assert.deepEqual(hillRoads.map((c) => c.id), ['bukak', 'inwangsan', 'samcheong']);
   const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const lines = new Map();
   for (const def of hillRoads) {
