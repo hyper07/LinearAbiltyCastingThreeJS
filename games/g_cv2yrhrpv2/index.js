@@ -7,6 +7,7 @@
  * account, `exit()` to hand the screen back, and which release is running.
  */
 import { SeoulGame } from './SeoulGame.js';
+import { applyScene } from './devScene.js';
 
 /**
  * @param {HTMLElement} container
@@ -23,6 +24,8 @@ export async function mount(container, platform) {
     }
   });
   await view.open();
+  // ?race=1&course=…&laps=…&autopilot=1 (npm run game:dev, the smoke check): straight into a scene.
+  applyScene(view, platform.params).catch((error) => console.warn('[kickrani] scene params:', error));
   return {
     root: view.root,
     view,

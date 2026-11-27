@@ -34,6 +34,7 @@ module** as one exported constant (`SCOOT`, `CAR`, `BIKE`, `ITEMS`, `OIL`, `SMOK
 | `index.js` | the package entry: `mount(container, platform)` → `{ root, dispose }` |
 | `game.json` | the manifest (code, id, slug, title, version, entry) |
 | `SeoulGame.js` | the city screen: tiles, ground, renderer + bloom/AO/grade, fly/walk/drive, the loop, menus |
+| `devScene.js` | scene params from the address (`race`, `course`, `laps`, `time`, `weather`, `autopilot`, `hour`, `mode`) |
 | `controls.js` | the ONE controls table (keys, hint line, How to play) |
 | `credits.js` | every third-party source with site and licence (Credits panel) |
 | **Race** | |
