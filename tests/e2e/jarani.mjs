@@ -1153,6 +1153,10 @@ export async function run(browser) {
         Object.assign(b, { idx: j, sc: null, dist: me.dist + (i === 0 ? 14 : -200 - i * 30), mode: 'ride', pulled: null, items: [null, null, null] });
       });
       const ahead = bots[0];
+      // (you wait behind: on the autopilot you rode up into them and shoved them along, away from the patrol)
+      const auto = r.autopilot;
+      r.autopilot = false;
+      me.s.v = 0;
       me.items[0] = 'police';
       r.useSlot(0);
       // (used up there and then — the slot is looked at now: riding on, you may pick up another from a box)
@@ -1177,6 +1181,7 @@ export async function run(browser) {
           if (performance.now() - t0 > 8200) ok(clearInterval(T));
         }, 50);
       });
+      r.autopilot = auto;
       return { slow: Math.round(slow * 10) / 10, held: Math.round(held * 10) / 10, beside: Math.round(beside * 10) / 10, stops: ahead.policeStops ?? 0, patrols: mine && r.police.live.includes(mine) ? 1 : mine ? 0 : -1, others: r.police.live.length, free: !ahead.pulled, used, slots: me.items.join() };
     });
     t.check('Call the police: a patrol pulls the rider ahead of you over — stopped for five seconds, the patrol beside them all the while, then let go and gone', cop.stops >= 1 && cop.slow >= 4.2 && cop.slow <= 6.4 && cop.beside >= cop.held - 0.3 && cop.free && cop.patrols === 0 && cop.used, JSON.stringify(cop));
