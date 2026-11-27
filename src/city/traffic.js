@@ -99,6 +99,21 @@ export function overlaps(a, b, slack = 0) {
 }
 
 /**
+ * How far (m) two vehicles' boxes run into each other: the least overlap along the separating axes — under
+ * 0 when apart (by about that much, near enough), over 0 when one is in the other.
+ */
+export function overlapDepth(a, b) {
+  const reach = (o, ux, uz) => Math.abs(-Math.sin(o.heading) * ux - Math.cos(o.heading) * uz) * o.halfLength + Math.abs(Math.cos(o.heading) * ux - Math.sin(o.heading) * uz) * o.halfWidth;
+  let depth = Infinity;
+  for (const h of [a.heading, a.heading + Math.PI / 2, b.heading, b.heading + Math.PI / 2]) {
+    const ux = -Math.sin(h);
+    const uz = -Math.cos(h);
+    depth = Math.min(depth, reach(a, ux, uz) + reach(b, ux, uz) - Math.abs((b.x - a.x) * ux + (b.z - a.z) * uz));
+  }
+  return depth;
+}
+
+/**
  * How big a vehicle `hl` m half-long, heading `heading`, standing at (x, y, z) looks on a screen `height`
  * pixels tall from `cam`: the largest of its length, width and height as seen from there (end-on its
  * length counts for nothing, from above its height), in pixels.
@@ -1280,6 +1295,8 @@ export class RaceTraffic {
     // a car slid sideways from a standstill turned its nose across the road, and stood there in everyone's way.
     const aim = dodge ? (dodge.side > 0 ? Math.min(v.lane, dodge.lat) : Math.max(v.lane, dodge.lat)) : v.lane;
     v.lat ??= v.lane;
+    // (where it was on its way, put back if this frame's move would end in another vehicle)
+    const was = { road: v.road, at: v.at, turn: v.turn && { ...v.turn }, next: v.next, noNext: v.noNext, lane: v.lane, lat: v.lat, top: v.top, turnSig: v.turnSig, turnSide: v.turnSide, deadEnd: v.deadEnd };
     const off = aim - v.lat;
     const across = Math.sign(off) * Math.min(Math.abs(off), Math.min(1.2, 0.4 + Math.abs(off) * 0.9, 0.3 + v.speed * 0.5) * dt);
     if (across && !this._sideBumps(v, across)) v.lat += across;
@@ -1321,12 +1338,36 @@ export class RaceTraffic {
     // (never more than a steer's angle off its lane's way: a creep across it is no reason to face across the road)
     let toward = Math.atan2(-mx, -mz);
     if (!v.turn && q.heading != null) toward = q.heading + Math.max(-MAX_STEER, Math.min(MAX_STEER, turn(q.heading, toward)));
-    if (moved > 1e-6) b.heading += turn(b.heading, toward) * (1 - Math.exp(-Math.max(dt * 10, moved / 0.8)));
-    else if (!v.turn && q.heading != null) b.heading += turn(b.heading, q.heading) * Math.min(1, dt * 2);
-    b.x = q.x;
-    b.z = q.z;
+    let heading = b.heading;
+    if (moved > 1e-6) heading += turn(b.heading, toward) * (1 - Math.exp(-Math.max(dt * 10, moved / 0.8)));
+    else if (!v.turn && q.heading != null) heading += turn(b.heading, q.heading) * Math.min(1, dt * 2);
+    // (the last guard on where it really ends up — along its lane's bend, across it, its nose turning, round
+    // a corner's arc: the straight step `_bumps` tried isn't all of it. A nose swung back in beside a parked
+    // car, two passing at a junction's mouth, ran their corners into each other. Into another: it stays put.)
+    if (this._into(v, { x: q.x, z: q.z, heading, halfLength: b.halfLength, halfWidth: b.halfWidth })) {
+      Object.assign(v, was);
+      v.speed = 0;
+    } else {
+      b.heading = heading;
+      b.x = q.x;
+      b.z = q.z;
+    }
     v.v = v.speed;
     this._place(v, dt);
+  }
+
+  /**
+   * Would this vehicle at `next` ({ x, z, heading, halfLength, halfWidth }) be in another one — moving,
+   * parked, coming the other way — touching one it was clear of, or deeper into one it already touches?
+   */
+  _into(v, next) {
+    const b = v.box;
+    for (const o of this.vehicles) {
+      if (o === v || Math.abs(o.box.x - next.x) > 15 || Math.abs(o.box.z - next.z) > 15) continue;
+      const now = overlapDepth(next, o.box);
+      if (now > 0 && now > overlapDepth(b, o.box) + 1e-4) return true;
+    }
+    return false;
   }
 
   /**

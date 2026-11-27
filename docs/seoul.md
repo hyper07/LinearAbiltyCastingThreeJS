@@ -628,7 +628,11 @@ Seoul's real streets — and the streets stay open.
   the old way out of two stood nose to side, creeping on through each other; and one stuck for good
   (12 s: a corner too tight for it, a knot of two) is taken off once out of sight, never in view
   (Haebangchon, 100 s: car-on-car overlaps 1,491 samples, 224 pairs → 0; cars stood 15 s or more 6 → 0;
-  `tests/unit/jarani-traffic.test.mjs`). Cars stand parked at the kerb of the road itself, along it (two, seven and
+  `tests/unit/jarani-traffic.test.mjs`). That guard tried a straight step along the nose; where each car
+  really ends up each frame — along its lane's bend, across it, its nose turning, round a corner's arc — is
+  checked too (`_into`, against moving, parked and oncoming alike), and a move that would end in another is
+  not made (a nose swung back in beside a parked car, two passing at a junction's mouth: Haebangchon,
+  3 × 30 s, 0 / 1 / 9 overlapping samples → 0 in 8 runs of 30–50 s). Cars stand parked at the kerb of the road itself, along it (two, seven and
   twelve a kilometre by level) on the two-way roads — on Hard the narrower ones too (6.5 m and up),
   with delivery scooters left at the kerb of the lanes wide enough (about ten a kilometre) — never in the 60 m
   before a corner nor just after it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns

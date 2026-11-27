@@ -1102,7 +1102,11 @@ export async function run(browser) {
           if (!v.parked && (v.stuckT ?? 0) > 20) st.still++;
         }
         const V = tr.vehicles;
-        for (let i = 0; i < V.length; i++) for (let j = i + 1; j < V.length; j++) if (over(V[i].box, V[j].box)) st.overlap++;
+        // (which two, where — kept for the report: parked or moving, how fast, how far from the camera)
+        const who = (v) => `${v.model ?? v.kind}${v.parked ? ' parked' : v.oncoming ? ' oncoming' : ''} ${(v.speed ?? 0).toFixed(1)}m/s`;
+        for (let i = 0; i < V.length; i++)
+          for (let j = i + 1; j < V.length; j++)
+            if (over(V[i].box, V[j].box) && st.overlap++ < 4) (st.pairs ??= []).push(`${who(V[i])} × ${who(V[j])} @${Math.round(Math.hypot(V[i].box.x - cam.x, V[i].box.z - cam.z))}m`);
       }, 250);
     });
     // …and whatever stands in the street stands on what is drawn under it (a hand's breadth either way at most):

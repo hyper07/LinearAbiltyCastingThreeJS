@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { MAX_STEER, PARK_RESIT, RaceTraffic, SIGHT, STUCK, brakesFor, giveWay, laneAt, onScreen, overlaps } from '../../src/city/traffic.js';
+import { MAX_STEER, PARK_RESIT, RaceTraffic, SIGHT, STUCK, brakesFor, giveWay, laneAt, onScreen, overlapDepth, overlaps } from '../../src/city/traffic.js';
 import { fleetKindFor, LOD } from '../../src/city/fleet.js';
 import { pointOn } from '../../src/city/drive.js';
 
@@ -351,6 +351,27 @@ test('traffic: one standing across the lane is never driven through, however lon
   cam.updateMatrixWorld();
   for (let k = 0; k < 30; k++) t.update(1 / 60, [me]);
   assert.ok(!t.vehicles.includes(v) && !t.vehicles.includes(across), 'cleared away once out of sight');
+});
+
+test('traffic: wherever a move really takes it (its lane, its nose turning), never into another — not even one coming the other way that strays into its lane', () => {
+  // (two coming at each other, each in its own lane but the lanes too close: their corners meet)
+  const road = { pts: [0, 600, 0, -600], cls: 4, width: 3, oneway: false };
+  const { t } = street({ roads: [road] });
+  const put = (v, lane) => {
+    const q = laneAt(road.pts, v.at, lane);
+    Object.assign(v, { road, lane, lat: lane });
+    Object.assign(v.box, { x: q.x, z: q.z, heading: q.heading });
+    return v;
+  };
+  const a = put(car(t, road, -110, 1, 8), 0.4);
+  const b = put(car(t, road, -140, -1, 8), 0.4);
+  let worst = -Infinity;
+  for (let k = 0; k < 60 * 6; k++) {
+    t._drive(a, 1 / 60);
+    t._drive(b, 1 / 60);
+    worst = Math.max(worst, overlapDepth(a.box, b.box));
+  }
+  assert.ok(worst <= 1e-3, `never one in the other (${worst.toFixed(2)} m in)`);
 });
 
 test('traffic: two going the same way queue — the one behind never runs into the one in front, at any speed', () => {
