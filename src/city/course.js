@@ -99,6 +99,12 @@ export const BIKE_COURSES = [
     text: 'From the mouth of the Samcheong tunnel high under Bugaksan, down Samcheong Park\'s hairpins through the woods, a jink across the top of Bukchon by Waryong Park, then down Bukchon-ro between the hanok roofs to Anguk, Changdeokgung\'s woods off to the left. One way.',
     via: [[385, -3014], [312, -2915], [404, -2918], [486, -2842], [537, -2751], [468, -2721], [379, -2785], [342, -2701], [400, -2609], [399, -2503], [332, -2422], [334, -2296], [392, -2321], [491, -2366], [505, -2279], [593, -2269], [652, -2235], [672, -2173], [642, -2080], [638, -1894], [633, -1723], [628, -1531], [649, -1390], [699, -1248], [731, -1172]],
     open: true, mountain: true, max: 4200
+  },
+  {
+    id: 'arirang', level: 'hard', name: 'Arirang Pass Downhill', ko: '아리랑고개 다운힐', x: 1500, z: -3800, r: 550, kind: 'Ridge', zigzag: true,
+    text: 'The Bukak Skyway\'s eastern half: along the ridge east of Palgakjeong, across the Seongbuk-dong pass, then down through the pines in long linked bends and two hairpins toward Arirang-gogae, the north-east of the city spread out below. One way.',
+    via: [[1290, -4143], [1477, -4084], [1711, -3974], [2015, -3922], [2173, -3579], [2475, -3239], [2464, -3417], [2567, -3669], [2789, -3776], [2940, -3874]],
+    open: true, mountain: true, max: 4200
   }
 ];
 /** The courses of a level, in order. */
