@@ -1140,6 +1140,8 @@ export async function run(browser) {
     t.check('no blinking box: no WRONG WAY flicker riding the course, the rival panel never empty, never in and out within its rest; the warning never up a moment and gone, never flipping sides', blink.wrong === 0 && blink.empty === 0 && (blink.minGap == null || blink.minGap > 2500) && blink.warnShort === 0 && blink.warnFlips === 0, JSON.stringify(blink));
     // Call the police: the rider just ahead of you is pulled over — held to a stop for five seconds, the patrol
     // beside them all the while, then let go (and the patrol gone).
+    // (on the bike, not mid-tumble: a call from the ground isn't made)
+    await until(page, () => window.seoul.race.me.mode === 'ride', null, 5000);
     const cop = await page.evaluate(async () => {
       const r = window.seoul.race;
       const me = r.me;
