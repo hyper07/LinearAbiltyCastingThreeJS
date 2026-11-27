@@ -347,6 +347,64 @@ function wiggle(c, o = {}, size = 1) {
   return p;
 }
 
+/* ---- the signature styles' clock: the song's own beats ---- */
+
+/**
+ * How fast the podium dances play: dance counts per beat of the song (three counts to every two
+ * beats, from a bar line). The signature styles below are written in the song's beats (`sb`), so
+ * their hits land on the music: a 12-count step is two bars of the song, a 6-count step one.
+ */
+export const RATE = 1.5;
+/** The song's beat at a clock state given in dance counts, `lag` seconds behind (follow-through). */
+const sb = (c, lag = 0) => lagged(c, lag) / RATE;
+/** Beats since the step began (a style's own bar and phrase: 0..8 in a 12-count step). */
+const inStep = (c, o, lag = 0) => (lagged(c, lag) - (o.start ?? 0)) / RATE;
+const frac = (x) => x - Math.floor(x);
+/** A smooth bump: 0 at `a`, 1 halfway, 0 again at `b`, starting and ending still (sine squared; 0 outside). */
+const bump = (x, a, b) => (x <= a || x >= b ? 0 : Math.sin((Math.PI * (x - a)) / (b - a)) ** 2);
+/** A hop's arc: 0 at `a` (take-off), 1 halfway, 0 at `b` (landing): a sine, quick off the ground (0 outside). */
+const arc = (x, a, b) => (x <= a || x >= b ? 0 : Math.sin((Math.PI * (x - a)) / (b - a)));
+/** 1 on the beat, 0 on the off-beat (a cosine; `sharp` narrows it round the beat). */
+const onBeat = (b, sharp = 1) => (0.5 + 0.5 * Math.cos(2 * Math.PI * b)) ** sharp;
+/** 0 before `a`, eased (sine) to 1 at `b`, 1 after. */
+const ramp = (x, a, b) => easeSine((x - a) / (b - a));
+/**
+ * Held keyframes on a grid (`b` in grid steps: beats, or half-beats for syncopation), cycling
+ * through `list`: a value arrives ON its step and holds, then moves to the next over the last `tr`
+ * of the step with a sine ease — a staccato hit that never snaps. Numbers or arrays.
+ */
+function held(b, list, tr = 0.5) {
+  const n = Math.floor(b);
+  const a = list[mod(n, list.length)], z = list[mod(n + 1, list.length)];
+  const k = easeSine((b - n - (1 - tr)) / tr);
+  return typeof a === 'number' ? a + (z - a) * k : a.map((x, i) => x + (z[i] - x) * k);
+}
+/** Arm angles from [raise, forward]: raise up from the droop (≈ 0.8 out flat, 1.6 a V), forward swing (− back). */
+const armR = ([raise, fwd], x = 0) => [x, -fwd, raise];
+const armL = ([raise, fwd], x = 0) => [x, fwd, -raise];
+const mixArm = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+/**
+ * A whole turn's progress, 0..1, over beats [a, b]: speeds up over the first `r` of it, steady,
+ * slows over the last `r` — its top speed only 1/(1 − r) of the mean (a sine ease peaks at π/2 of it).
+ */
+function turnAt(x, a, b, r = 0.25) {
+  const u = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  const m = 1 / (1 - r);
+  if (u < r) return (m * u * u) / (2 * r);
+  if (u > 1 - r) return 1 - (m * (1 - u) ** 2) / (2 * r);
+  return m * (u - r / 2);
+}
+/** A full turn as a yaw, wrapped to ±π (a crossfade out of it doesn't unwind it). */
+const spinYaw = (k) => Math.atan2(Math.sin(2 * Math.PI * k), Math.cos(2 * Math.PI * k));
+
+/** The fox's robot arms, [raise, forward]: straight lines and right angles (one-bone arms make the boxes with the body). */
+const TUT = { out: [0.8, 0], fwd: [0.78, 1.2], down: [-0.35, 0.05], up: [1.55, 0.1], box: [0.45, 0.95] };
+/** Two bars of tutting, a pose on every beat: [right arm, left arm, head tilt, body facing]; only one arm changes at a time, mostly. */
+const ROBOT = {
+  lines: [['out', 'down', 1, 0], ['out', 'out', 0, 0], ['up', 'out', -1, 0.4], ['up', 'fwd', 0, 0.4], ['out', 'fwd', 1, 0], ['out', 'out', 0, -0.4], ['out', 'up', -1, -0.4], ['down', 'out', 0, 0]],
+  boxes: [['box', 'box', 0, 0], ['out', 'box', -1, 0.3], ['out', 'out', 0, 0.3], ['up', 'out', 1, 0], ['up', 'down', 0, 0], ['out', 'down', -1, -0.3], ['out', 'box', 0, -0.3], ['box', 'box', 1, 0]]
+};
+
 /**
  * Generic moves, each a function of the clock state → pose, with its natural
  * length in counts. These are the vocabulary of street and party dance (and of
@@ -1186,6 +1244,420 @@ export const MOVES = {
       return p;
     }
   },
+
+  /* ---- signature styles: one unmistakable dance per character (signatures.js) ----
+   * Written in the song's beats (`sb`: counts ÷ RATE), so each style keeps its own rhythm on the
+   * music — the bunny on every beat, the pig's swing, the cat's syncopation, the fox's staccato,
+   * the bear's stomps — and its own silhouette: paws by the cheeks, low and wide, one paw framing
+   * the face, straight lines, flexes, a deep squat, stiff flippers. 12 counts = two bars of the song. */
+
+  /**
+   * Bunny hop: a little hop off every beat (down on the beat, a squash; up between), a foot kicking
+   * forward on each, left and right in turn, the paws up by the cheeks bobbing with it, the head
+   * tipping to the kicking side (the ears flap on their springs). `side`: the kicks go out to the
+   * sides; `turn`: it faces a little left for a bar, then right.
+   */
+  bunnyHop: {
+    counts: 12,
+    pose(c, o = {}) {
+      const b = sb(c), n = Math.floor(b), u = b - n;
+      const right = mod(n, 2) === 0;
+      const kick = Math.sin(Math.PI * u) ** 2; // out in the air, back by the landing
+      const g = onBeat(b, 3);
+      const air = arc(u, 0.18, 0.82);
+      const p = restPose();
+      p.lift = 0.06 * air;
+      p.hipsY = -0.04 * g;
+      p.stretch = -0.09 * g + 0.07 * air;
+      const tuck = -0.12 * kick;
+      if (o.side) {
+        p.legR = right ? [-0.2 * kick, 0, 0.42 * kick] : [tuck, 0, 0];
+        p.legL = right ? [tuck, 0, 0] : [-0.2 * kick, 0, -0.42 * kick];
+      } else {
+        p.legR = [right ? -0.52 * kick : tuck, 0, 0];
+        p.legL = [right ? tuck : -0.52 * kick, 0, 0];
+      }
+      const ga = onBeat(sb(c, LAG.arms), 2);
+      const s = Math.sin(Math.PI * sb(c, LAG.arms)); // + while kicking right
+      p.armR = armR([1.0 - 0.14 * ga + 0.06 * s, 1.05]);
+      p.armL = armL([1.0 - 0.14 * ga - 0.06 * s, 1.05]);
+      p.chest = [-0.06 + 0.06 * onBeat(sb(c, LAG.chest), 2), 0, -0.06 * Math.sin(Math.PI * sb(c, LAG.chest))];
+      p.head = [-0.06 + 0.1 * onBeat(sb(c, LAG.head), 2), 0, -0.14 * Math.sin(Math.PI * sb(c, LAG.head))];
+      p.sway = 0.05 * Math.sin(Math.PI * sb(c, LAG.chest));
+      if (o.turn) p.yaw = 0.4 * Math.sin((Math.PI * sb(c, LAG.chest)) / 4);
+      return p;
+    }
+  },
+  /**
+   * Pendulum: wide-legged, the whole body swinging side to side like a pendulum — out to a side on
+   * every beat and hanging there — with a swing feel in the knees (a dip on the beat, a lighter one on
+   * the swung "a"), the belly circling, the shoulders shimmying, the paws hanging low and flying out
+   * on the far side. `clap`: claps in front of the belly on 2 and 4, then up into a V for the second
+   * bar, clapping the paws in towards each other on 3 and 4.
+   */
+  pendulum: {
+    counts: 12,
+    pose(c, o = {}) {
+      const b = sb(c);
+      const h = (lag) => glide(sb(c, lag), 1, 0.35);
+      const h0 = h(0), hc = h(LAG.chest), ha = h(LAG.arms), hh = h(LAG.head);
+      const dip = bump(frac(b + 0.15), 0, 0.3) + 0.5 * bump(frac(b - 2 / 3 + 0.12), 0, 0.24);
+      const p = restPose();
+      p.sway = 0.22 * hc;
+      p.hips = [0.1 * Math.sin(Math.PI * b), 0.12 * h0, 0.2 * h0 + 0.06 * Math.cos(Math.PI * b)];
+      p.chest = [0.04 - 0.08 * Math.sin(Math.PI * sb(c, LAG.chest)), -0.08 * hc + 0.06 * Math.sin(4 * Math.PI * b), -0.12 * hc];
+      p.head = [0.02 + 0.06 * dip, -0.06 * hh, 0.16 * hh];
+      const wR = (1 + h0) / 2;
+      p.legR = [-0.12 * (1 - wR), 0, 0.3 + 0.12 * wR];
+      p.legL = [-0.12 * wR, 0, -(0.3 + 0.12 * (1 - wR))];
+      p.hipsY = -0.035 - 0.025 * dip;
+      p.stretch = -0.03 * dip;
+      let aR = [0.5 + 0.12 * (1 - ha), 0.4 + 0.25 * ha];
+      let aL = [0.5 + 0.12 * (1 + ha), 0.4 - 0.25 * ha];
+      if (o.clap) {
+        const L = inStep(c, o, LAG.arms);
+        const kc = bump(L, 0, 2) + bump(L, 2, 4); // shut on 2 and 4
+        aR = mixArm(aR, [0.45, 1.2], kc);
+        aL = mixArm(aL, [0.45, 1.2], kc);
+        const kv = ramp(L, 3.9, 5.3) * (1 - ramp(L, 6.8, 8));
+        const kin = 0.35 * (bump(L, 5.5, 6.5) + bump(L, 6.5, 7.5)); // in towards each other on 3 and 4
+        aR = mixArm(aR, [1.6, kin], kv);
+        aL = mixArm(aL, [1.6, kin], kv);
+        const Lh = inStep(c, o, LAG.head);
+        const kh = ramp(Lh, 3.9, 5.3) * (1 - ramp(Lh, 6.8, 8));
+        p.head[0] += -0.22 * kh;
+        p.chest[0] += -0.08 * kv;
+        p.head[0] += 0.08 * kc;
+      }
+      p.armR = armR(aR);
+      p.armL = armL(aL);
+      return p;
+    }
+  },
+  /**
+   * Cat wave: slinky — a body wave rolling up from the hips every two beats, the hips popping out to
+   * a side on the "and" of 2 and the "and" of 4 (syncopated) and dwelling there, the chest and head
+   * answering late; narrow, the free knee bent in; a paw on the hip, the other up framing the face.
+   */
+  catWave: {
+    counts: 12,
+    pose(c) {
+      const hp = (lag) => held(2 * sb(c, lag), [-1, -1, -1, 1, 1, 1, 1, -1], 0.8);
+      const h0 = hp(0), hc = hp(LAG.chest), hh = hp(LAG.head);
+      const w = (lag) => Math.sin(Math.PI * sb(c, lag));
+      const p = restPose();
+      p.hips = [-0.16 * w(0), 0.12 * h0, 0.26 * h0];
+      p.sway = 0.11 * hc;
+      p.chest = [0.27 * w(LAG.chest * 1.6), -0.06 * hc, -0.14 * hc];
+      p.head = [0.16 * w(LAG.head * 1.8), 0.1 * hh, 0.14 * hh];
+      p.hipsY = -0.02 + 0.015 * w(0);
+      const wR = (1 + h0) / 2;
+      p.legR = [-0.2 * (1 - wR), 0, -0.06 + 0.1 * wR];
+      p.legL = [-0.2 * wR, 0, 0.06 - 0.1 * (1 - wR)];
+      p.armL = [0, 0.9, -0.7];
+      p.armR = armR([1.38 + 0.08 * w(LAG.arms * 1.6), 0.35]);
+      p.reachR = 0.1;
+      p.stretch = 0.02 * w(LAG.chest);
+      return p;
+    }
+  },
+  /**
+   * Cat claw: the cat wave with a claw swipe — the paw by the cheek slashes down and across the face
+   * to land on the "and" of 1 and of 3, holds, and curls back up; the head turns after it.
+   */
+  catClaw: {
+    counts: 12,
+    pose(c, o) {
+      const p = MOVES.catWave.pose(c, o);
+      const k = swell(sb(c, LAG.arms), 2, 0.5, { rise: 0.7, hold: 0.45, fall: 0.85 });
+      const kh = swell(sb(c, LAG.head), 2, 0.5, { rise: 0.7, hold: 0.45, fall: 0.85 });
+      p.armR = armR(mixArm([1.46, 0.35], [0.86, 1.05], k), 0);
+      p.reachR = 0.1 + 0.08 * k;
+      p.head[1] += -0.22 * kh;
+      p.head[0] += 0.08 * kh;
+      p.chest[1] += -0.1 * k;
+      return p;
+    }
+  },
+  /**
+   * Cat spin: a body wave in, then up onto one foot — the other knee drawn up, a paw framing the face,
+   * one on the hip — for one slow turn over four and a half beats, landing back into the hip sway.
+   */
+  catSpin: {
+    counts: 12,
+    pose(c, o = {}) {
+      const L = inStep(c, o);
+      const base = MOVES.catWave.pose(c, o);
+      const k = ramp(L, 0.7, 1.6) * (1 - ramp(L, 6, 6.9));
+      const s = restPose();
+      s.armR = armR([1.55, 0.15]);
+      s.reachR = 0.15;
+      s.armL = [0, 0.9, -0.7];
+      s.legL = [-0.5, 0, -0.12];
+      s.legR = [0, 0, 0.02];
+      s.head = [-0.16, 0, 0.12];
+      s.chest = [-0.08, 0, 0.06];
+      s.stretch = 0.05;
+      const p = lerpPose(base, s, k);
+      p.yaw = spinYaw(turnAt(L, 1.5, 6, 0.3));
+      return p;
+    }
+  },
+  /**
+   * Robot: tutting, a held pose on every beat — the arms in straight lines and right angles (out
+   * flat, straight forward, down, up the diagonal, boxes in front), mostly one arm moving at a time,
+   * snapping over half a beat and holding; a chest pop on each beat, a sharp head tilt, the body
+   * clicking a quarter-turn left and right. `big`: the boxes routine.
+   */
+  robot: {
+    counts: 12,
+    pose(c, o = {}) {
+      const b = sb(c);
+      const seq = ROBOT[o.big ? 'boxes' : 'lines'];
+      const k = (lag, f, tr = 0.6) => held(sb(c, lag), seq.map(f), tr);
+      const p = restPose();
+      p.armR = armR(k(LAG.arms * 0.5, (s) => TUT[s[0]]));
+      p.armL = armL(k(LAG.arms * 0.5, (s) => TUT[s[1]]));
+      const tilt = k(LAG.head * 0.5, (s) => s[2], 0.35);
+      p.yaw = k(0, (s) => s[3], 0.45);
+      const pop = swell(b, 1, 0, { rise: 0.3, hold: 0.1, fall: 0.5 });
+      const popH = swell(sb(c, LAG.head * 0.5), 1, 0, { rise: 0.3, hold: 0.1, fall: 0.5 });
+      p.chest = [-0.2 * pop, -0.3 * p.yaw, 0];
+      p.head = [0.1 * popH - 0.04, 0.12 * tilt, 0.28 * tilt];
+      p.hips = [0.06 * pop, 0, 0];
+      p.legR = [0, 0, 0.12];
+      p.legL = [0, 0, -0.12];
+      p.hipsY = -0.012 - 0.015 * pop;
+      p.stretch = 0.03 * pop;
+      return p;
+    }
+  },
+  /**
+   * Fox pop: chest pops on every beat and a double on the "and" of 4, the arms held out flat like a
+   * T, clicking up and down in turn (a see-saw) on each hit, the head snapping its tilt every two beats, the
+   * body facing left for a bar, then right.
+   */
+  foxPop: {
+    counts: 12,
+    pose(c) {
+      const b = sb(c);
+      const P = { rise: 0.3, hold: 0.1, fall: 0.45 };
+      const pop = swell(b, 1, 0, P) + 0.7 * swell(b, 4, 3.5, { rise: 0.3, hold: 0.05, fall: 0.4 });
+      const popA = swell(sb(c, LAG.arms * 0.5), 1, 0, P);
+      const flick = held(sb(c, LAG.arms * 0.5), [1, -1], 0.5);
+      const p = restPose();
+      p.armR = armR([0.8 + 0.3 * flick + 0.08 * popA, 0.15]);
+      p.armL = armL([0.8 - 0.3 * flick + 0.08 * popA, 0.15]);
+      p.chest = [-0.26 * pop, 0, 0];
+      p.hips = [0.08 * pop, 0, 0];
+      const tilt = held(sb(c, LAG.head * 0.5) / 2, [1, -1, 1, 0], 0.3);
+      p.head = [0.12 * swell(sb(c, LAG.head * 0.5), 1, 0, P) - 0.04, 0, 0.28 * tilt];
+      p.yaw = 0.35 * held(b / 4, [1, -1], 0.15);
+      p.legR = [0, 0, 0.12];
+      p.legL = [0, 0, -0.12];
+      p.hipsY = -0.012 - 0.02 * pop;
+      p.stretch = 0.04 * pop;
+      return p;
+    }
+  },
+  /**
+   * Bear stomp: a big two-step — the left knee up and STOMP on 1, the right on 2, the body dropping
+   * into each one — then up into a flex held over 3 and 4: a double biceps on the first bar, a crab
+   * (arms down in front, hunched) on the second. Heavy, wide and slow-handed.
+   */
+  bearStomp: {
+    counts: 12,
+    pose(c) {
+      const b = sb(c), q = mod(b, 4), qa = mod(sb(c, LAG.arms), 4), qc = mod(sb(c, LAG.chest), 4);
+      const crab = mod(Math.floor(sb(c, LAG.arms) / 4), 2) === 1;
+      const up = (x, at) => {
+        const s = mod(x - at + 0.8, 4);
+        return s < 0.8 ? Math.sin((Math.PI * s) / 0.8) ** 2 : 0;
+      };
+      const hit = (x, at) => bump(mod(x - at + 0.05, 4), 0, 0.65);
+      const kL = up(q, 0), kR = up(q, 1);
+      const imp = hit(q, 0) + hit(q, 1), impC = hit(qc, 0) + hit(qc, 1);
+      const p = restPose();
+      p.legL = [-0.55 * kL, 0, -0.16];
+      p.legR = [-0.55 * kR, 0, 0.16];
+      p.hipsY = -0.025 - 0.06 * imp;
+      p.stretch = -0.11 * imp;
+      p.sway = 0.12 * (kL - kR) + 0.05 * (hit(qc, 1) - hit(qc, 0));
+      p.chest = [0.12 * impC, 0, 0.05 * (kR - kL)];
+      p.head = [0.08 * hit(mod(sb(c, LAG.head), 4), 0) + 0.08 * hit(mod(sb(c, LAG.head), 4), 1) - 0.06, 0, 0];
+      let aR = [0.05, 0.55 + 0.25 * up(qa, 0)];
+      let aL = [0.05, 0.55 + 0.25 * up(qa, 1)];
+      const kf = ramp(qa, 0.95, 2.05) * (1 - ramp(qa, 2.5, 3.5));
+      const kfc = ramp(qc, 0.95, 2.05) * (1 - ramp(qc, 2.5, 3.5));
+      const pump = 0.08 * bump(qa, 1.9, 2.7);
+      const flex = crab ? [0 + pump, 0.85] : [1.3 + pump, -0.15];
+      aR = mixArm(aR, flex, kf);
+      aL = mixArm(aL, flex, kf);
+      p.armR = armR(aR);
+      p.armL = armL(aL);
+      if (crab) {
+        p.chest[0] += 0.28 * kfc;
+        p.head[0] += 0.12 * kfc;
+        p.stretch += -0.06 * kfc;
+        p.hipsY += -0.03 * kfc;
+      } else {
+        p.chest[0] += -0.24 * kfc;
+        p.head[0] += -0.16 * kfc;
+        p.stretch += 0.06 * kfc;
+        p.reachL = p.reachR = 0.08 * kf;
+      }
+      p.legL[2] -= 0.08 * kfc;
+      p.legR[2] += 0.08 * kfc;
+      return p;
+    }
+  },
+  /**
+   * Bear rock: a big guy grooving — a slow, heavy rock from side to side every two beats, deep in the
+   * knees on every beat, the head nodding heavily, the paws out low and wide swinging after; a stomp
+   * on each bar's 1, and over its 3 and 4 one arm curls up into a flex, showing off.
+   */
+  bearRock: {
+    counts: 12,
+    pose(c, o = {}) {
+      const b = sb(c), q = mod(b, 4);
+      const h = (lag) => sided(o) * glide(sb(c, lag), 2, 0.3);
+      const h0 = h(0), hc = h(LAG.chest), ha = h(LAG.arms);
+      const p = restPose();
+      p.sway = 0.17 * hc;
+      p.hips = [0, 0.12 * h0, 0.16 * h0];
+      p.chest = [0.06 + 0.06 * onBeat(sb(c, LAG.chest), 2), -0.1 * hc, -0.1 * hc];
+      p.head = [0.12 * onBeat(sb(c, LAG.head), 2) - 0.08, 0, 0.1 * h(LAG.head)];
+      p.hipsY = -0.035 - 0.03 * onBeat(b, 2);
+      p.stretch = -0.05 * onBeat(sb(c, LAG.chest), 2);
+      const kS = (() => {
+        const s = mod(q + 0.8, 4);
+        return s < 0.8 ? Math.sin((Math.PI * s) / 0.8) ** 2 : 0;
+      })();
+      const left = mod(Math.floor((b + 0.8) / 4), 2) === 0;
+      p.legL = [-0.5 * (left ? kS : 0), 0, -0.22];
+      p.legR = [-0.5 * (left ? 0 : kS), 0, 0.22];
+      const qa = mod(sb(c, LAG.arms), 4);
+      const kf = ramp(qa, 1.1, 2.25) * (1 - ramp(qa, 2.8, 3.95));
+      p.armR = armR(mixArm([0.5 - 0.1 * ha, 0.2 * ha], [1.3 + 0.08 * bump(qa, 2.5, 3.3), -0.1], kf));
+      p.armL = armL([0.5 + 0.1 * ha, -0.2 * ha]);
+      p.chest[1] += 0.12 * kf;
+      p.head[1] += -0.15 * kf;
+      return p;
+    }
+  },
+  /**
+   * Frog swim: a deep squat with the knees right out, bouncing low on every beat; the paws swimming
+   * breaststroke — reaching forward together, sweeping out round to the sides, tucking back in — one
+   * stroke every two beats, the chest pushing forward with the reach, the chin up; and every two bars
+   * a little leap: down deeper, up off the ground with the paws diving forward, the legs kicking out
+   * behind, landing back in the squat for the next bar.
+   */
+  frogSwim: {
+    counts: 12,
+    pose(c, o = {}) {
+      const b = sb(c), L = inStep(c, o), La = inStep(c, o, LAG.arms);
+      const g = onBeat(b, 2);
+      const p = restPose();
+      p.hipsY = -0.07 - 0.015 * g;
+      p.stretch = -0.1 - 0.03 * g;
+      p.legR = [-0.3, 0, 0.5];
+      p.legL = [-0.3, 0, -0.5];
+      if (o.bounce) {
+        // paws on the knees, the body twisting to a side on every beat, the head bobbing after
+        const tw = (lag) => Math.sin(Math.PI * sb(c, lag));
+        p.armR = armR([-0.05 + 0.15 * onBeat(sb(c, LAG.arms), 2), 0.6]);
+        p.armL = armL([-0.05 + 0.15 * onBeat(sb(c, LAG.arms), 2), 0.6]);
+        p.hips = [0, 0.2 * tw(0), 0];
+        p.chest = [0.18, -0.14 * tw(LAG.chest), 0.06 * tw(LAG.chest)];
+        p.head = [-0.2, 0.1 * tw(LAG.head), 0.16 * tw(LAG.head)];
+        p.hipsY -= 0.008 * g;
+      } else {
+        const ta = Math.PI * sb(c, LAG.arms);
+        const a = [0.6 + 0.18 * Math.sin(ta), 0.8 + 0.45 * Math.cos(ta)];
+        p.armR = armR(a);
+        p.armL = armL(a);
+        const tc = Math.PI * sb(c, LAG.chest);
+        p.chest = [0.12 + 0.1 * Math.cos(tc), 0, 0];
+        p.head = [-0.24 - 0.06 * Math.cos(Math.PI * sb(c, LAG.head)), 0, 0];
+      }
+      // the leap, once in two bars: crouch, up, land by the next downbeat
+      const cr = bump(L, 5.4, 6.7);
+      const air = arc(L, 6.45, 7.55);
+      const wl = ramp(L, 5.9, 6.6) * (1 - ramp(L, 7.35, 8));
+      const wla = ramp(La, 5.8, 6.6) * (1 - ramp(La, 7.35, 8));
+      p.hipsY += -0.03 * cr;
+      p.stretch += -0.04 * cr + 0.16 * air;
+      p.lift = 0.13 * air;
+      p.legR = [p.legR[0] + (0.08 - p.legR[0]) * wl, 0, p.legR[2] + (0.22 - p.legR[2]) * wl];
+      p.legL = [p.legL[0] + (0.08 - p.legL[0]) * wl, 0, p.legL[2] + (-0.22 - p.legL[2]) * wl];
+      const dive = [1.08, 1.0];
+      p.armR = armR(mixArm([p.armR[2], -p.armR[1]], dive, wla));
+      p.armL = armL(mixArm([-p.armL[2], p.armL[1]], dive, wla));
+      p.head[0] += (-0.32 - p.head[0]) * wl;
+      return p;
+    }
+  },
+  /**
+   * Waddle: a stiff penguin rock from foot to foot on every beat (the body tilting as one piece, the
+   * free foot just off the ground, toes out), the stiff flippers flapping at the sides on every
+   * off-beat; and in the second bar a whole spin on the spot, flippers out, quick in the middle.
+   */
+  penguinWaddle: {
+    counts: 12,
+    pose(c, o = {}) {
+      const b = sb(c), L = inStep(c, o), La = inStep(c, o, LAG.arms);
+      const r = (lag) => Math.cos(Math.PI * sb(c, lag)); // +1 on the right foot (even beats)
+      const r0 = r(0);
+      const p = restPose();
+      p.sway = 0.2 * r0;
+      p.chest = [-0.04, 0, -0.05 * r(LAG.chest)];
+      p.head = [-0.12, 0, 0.06 * r(LAG.head)];
+      p.legR = [-0.16 * Math.max(0, -r0) ** 2, 0, 0.1];
+      p.legL = [-0.16 * Math.max(0, r0) ** 2, 0, -0.1];
+      p.hipsY = -0.012 * onBeat(b, 2);
+      const flap = 0.5 - 0.5 * Math.cos(2 * Math.PI * sb(c, LAG.arms * 0.5)); // up on the off-beat
+      let a = [0.3 + 0.3 * flap, -0.6];
+      if (o.spin !== false) {
+        const ks = ramp(La, 3.6, 4.4) * (1 - ramp(La, 7.6, 8.4));
+        a = mixArm(a, [0.78 + 0.1 * flap, -0.05], ks);
+        p.yaw = spinYaw(turnAt(L, 4.25, 7.75));
+        p.head[0] += -0.1 * ks;
+      }
+      p.armR = armR(a);
+      p.armL = armL(a);
+      return p;
+    }
+  },
+  /**
+   * Penguin glide: skating — leaning into a long glide to one side over two beats, the other leg
+   * stretched out behind, the flippers swept back, the body turned into it; then the other way; the
+   * second bar waddles and spins (as `penguinWaddle`).
+   */
+  penguinGlide: {
+    counts: 12,
+    pose(c, o = {}) {
+      const L = inStep(c, o);
+      const base = MOVES.penguinWaddle.pose(c, o);
+      const w = 1 - ramp(L, 3.3, 4.3);
+      if (w <= 0) return base;
+      const g = (lag) => glide(sb(c, lag) - (o.start ?? 0) / RATE, 2, 0.35);
+      const g0 = g(0), gc = g(LAG.chest), ga = g(LAG.arms);
+      const s = restPose();
+      s.sway = 0.2 * g0;
+      s.yaw = 0.35 * gc;
+      s.hips = [0, 0.1 * g0, 0.12 * g0];
+      s.chest = [0.16, -0.08 * gc, -0.08 * gc];
+      s.head = [-0.08, -0.1 * g(LAG.head), 0.12 * g(LAG.head)];
+      const wR = (1 + g0) / 2;
+      s.legR = [0.1 * (1 - wR), 0, 0.06 + 0.4 * (1 - wR)];
+      s.legL = [0.1 * wR, 0, -(0.06 + 0.4 * wR)];
+      s.hipsY = -0.045;
+      const fl = [0.5 + 0.1 * ga, -0.55];
+      s.armR = armR(fl);
+      s.armL = armL([0.5 - 0.1 * ga, -0.55]);
+      return lerpPose(base, s, w);
+    }
+  },
   /**
    * Strike: the routine's button, slow — the crossfade eases into a pose over a beat and a half and it
    * holds, breathing. `look`: cheer (a soft V), shrug, pose (the cat's: a paw on the hip, one up),
@@ -1232,6 +1704,33 @@ export const MOVES = {
         p.head = [-0.3, 0, -0.08];
         p.chest = [-0.1, 0, 0];
         p.stretch = 0.05;
+      } else if (look === 'bunny') {
+        // paws up by the cheeks, one foot kicked up behind, the head tipped: cute
+        p.armR = armR([1.0, 1.1]);
+        p.armL = armL([1.0, 1.1]);
+        p.legR = [0.45, 0, 0.05];
+        p.legL = [0, 0, -0.04];
+        p.head = [0.06, 0.1, 0.26];
+        p.chest = [0.06, 0, 0.06];
+        p.sway = 0.06;
+      } else if (look === 'robot') {
+        // a freeze: one arm out flat, the other straight forward (a right angle), the head snapped over
+        p.armR = armR(TUT.out);
+        p.armL = armL(TUT.fwd);
+        p.head = [0, 0.15, 0.3];
+        p.chest = [-0.12, 0, 0];
+        p.yaw = 0.3;
+        p.legR = [0, 0, 0.12];
+        p.legL = [0, 0, -0.12];
+      } else if (look === 'penguin') {
+        // proud: tall, chest out, chin up, the flippers swept back and down
+        p.armR = armR([0.4, -0.6]);
+        p.armL = armL([0.4, -0.6]);
+        p.chest = [-0.2, 0, 0];
+        p.head = [-0.34, 0, 0.06];
+        p.stretch = 0.08;
+        p.legR = [0, 0, 0.12];
+        p.legL = [0, 0, -0.12];
       } else {
         // point (and the cat's pose, the hip cocked): one paw up the diagonal, the other on the hip
         p.armR = [0, -0.1, 1.55];

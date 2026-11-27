@@ -8,128 +8,129 @@
  *   const pose = d.sample(beats);            // beats: where the song is, in beats
  *   applyPlushPose(rig, pose);
  *
- * Smooth, like real dancing to a fast song: the moves are written in half time and played at
- * exactly 1.5× that (RATE: three dance counts to every two beats of the song, counted from a bar
- * line, so it stays locked to the music — the dances feel Confetti Fanfare's 143.6 BPM at ~108, the big
- * gestures at ~54) — a pose arrives on the count, holds, then flows to the next with a sine ease; the
- * hips lead, the chest, arms and head follow 90–200 ms behind; the knees give in a soft groove, never
- * a hop (only the winner hops, once in two bars). Peak joint speeds stay under 6 rad/s
- * (tests/unit/motion-signatures.test.mjs).
+ * Seven different dances, not one dance seven times: each character has its own style (the
+ * signature-style moves in dance.js), with its own signature move, rhythm and silhouette —
+ *   Mallow (bunny)   hop kicks on every beat, paws by the cheeks, ears flapping; narrow, bouncing up and down
+ *   Peaches (pig)    a wide pendulum swing with a swing feel, belly circles, claps, then a V clapping overhead
+ *   Mochi (cat)      body waves, hip pops on the "and" (syncopated), a claw swipe framing the face, a slow spin on one foot
+ *   Pip (fox)        the robot: a held pose on every beat, arms in straight lines and right angles, chest pops, head snaps
+ *   Toffee (bear)    stomp-and-flex: a big two-step stomp, a double biceps then a crab, a slow heavy rock
+ *   Pickle (frog)    a deep knees-out squat, paws swimming breaststroke, a little leap every two bars
+ *   Pebble (penguin) a stiff waddle with flapping flippers, skating glides, a whole spin every two bars
+ * (tests/unit/motion-signatures.test.mjs measures how far apart every pair is, bar by bar.)
  *
- * A signature runs 8 bars (32 counts: four 8-count phrases — the hook, an answer, a variation,
- * and a phrase that ends on the character's own button), then again as one of four variants
- * (a different answer here, a mirror or a size there): the variant is the cycle number, so it
- * never loops the same two bars, and never differs between browsers.
+ * The pace: three dance counts to every two beats of the song (RATE 1.5, from a bar line), and the
+ * styles are written in the song's own beats, so the hits land on Confetti Fanfare's 143.6 BPM; poses
+ * ease (sine) and hold, the hips lead and the chest, arms and head follow 90–200 ms behind. Peak joint
+ * speeds stay under 6 rad/s (the fox's robot hits under 8.5).
+ *
+ * A signature runs 8 bars of the song (48 counts: four 12-count phrases of two bars — the hook, an
+ * answer, a variation, and a phrase that ends on the character's own button), then again as one of
+ * four variants (a mirror, a size, another answer): the variant is the cycle number, so it never
+ * loops the same two bars, and never differs between browsers.
  */
-import { MOVES, routine, rng, beatAt, restPose, lerpPose, clampPlushPose, easeSine, PLUSH_LIMITS } from './dance.js';
+import { MOVES, routine, rng, beatAt, restPose, lerpPose, clampPlushPose, easeSine, PLUSH_LIMITS, RATE } from './dance.js';
 
-/** Counts in a signature's cycle (8 bars of 4/4). */
-export const CYCLE = 32;
+/** Counts in a signature's cycle: four 12-count phrases, each two bars of the song (8 bars in all). */
+export const CYCLE = 48;
 /** How many variants a signature plays in turn. */
 export const VARIANTS = 4;
 /** Crossfade between a signature's moves, in dance counts (the change flows over a count and a half: a beat of the song). */
 export const BLEND = 1.5;
-/**
- * How fast the dances play: dance counts per beat of the song. The moves are written in half time;
- * played at 1.5× (holds two thirds as long, every move done in two thirds the time) they keep their
- * shapes and their ease, just livelier. Three counts land on every two beats, exactly.
- */
-export const RATE = 1.5;
+/** How fast the dances play: dance counts per beat of the song (1.5: three counts to every two beats; dance.js). */
+export { RATE };
 
 const mod = (a, n) => ((a % n) + n) % n;
-const pick = (r, list) => list[Math.floor(r() * list.length)];
-/** A size between 0.9 and 1.1 (variants only: the first cycle is the signature as written). */
-const size = (r, v) => (v ? 0.9 + r() * 0.2 : 1);
 
 /**
  * By species: who it is (Kickrani's crew, src/city/crew.js), what the dance is, how floppy the ears
  * and the tail are (`ears`, `tail`: spring gains), and its phrases — `(r, v) => [[steps]…]`, four
- * 8-count phrases; `r` a seeded random, `v` the variant (0: as written). The first phrase's opening
+ * 12-count phrases (two bars of the song each); `r` a seeded random, `v` the variant (0: as written). The first phrase's opening
  * step and the last phrase's button never vary, so cycles join without a jump.
  */
 export const SIGNATURES = {
   bunny: {
     who: 'Mallow, The Bounce',
-    dance: 'a gentle bounce-sway from foot to foot, paws swinging in arcs, ears flowing; the paws float up into a soft V and drift down; a cheer to finish',
-    ears: 1.6,
-    tail: 1.2,
+    dance: 'bunny hop kicks: a little hop off every beat, a foot kicking forward on each in turn (then out to the sides), paws up by the cheeks, ears flapping; paws by the cheeks and a foot kicked up behind to finish',
+    ears: 2.2,
+    tail: 1.4,
     phrases: (r, v) => [
-      [{ move: 'bounceSway', counts: 8 }],
-      [{ move: 'bounceSway', counts: 4, mirror: v % 2 === 1 }, { move: 'reachUp', counts: 4, amp: size(r, v) }],
-      [{ move: 'reachUp', counts: 4 }, { move: v ? pick(r, ['bounceSway', 'lazySway']) : 'bounceSway', counts: 4, amp: v ? 1.1 : 1, mirror: v >= 2 }],
-      [{ move: 'bounceSway', counts: 4 }, { move: 'strike', counts: 4, look: 'cheer' }]
+      [{ move: 'bunnyHop', counts: 12 }],
+      [{ move: 'bunnyHop', counts: 12, side: true, mirror: v % 2 === 1 }],
+      [{ move: 'bunnyHop', counts: 12, turn: true, side: v >= 2, mirror: v === 3 }],
+      [{ move: 'bunnyHop', counts: 6 }, { move: 'strike', counts: 6, look: 'bunny' }]
     ]
   },
   pig: {
     who: 'Peaches, Late Braker',
-    dance: 'a relaxed side-step with a clap on the half-time 2 and 4, a lazy sway with the belly circling, unbothered; a shrug to finish',
-    ears: 0.8,
+    dance: 'a wide pendulum shimmy: the whole body swinging side to side with a swing feel, the belly circling, paws low; claps on 2 and 4, then up into a V clapping overhead; a shrug to finish',
+    ears: 0.9,
     tail: 1.4,
     phrases: (r, v) => [
-      [{ move: 'sideClap', counts: 8 }],
-      [{ move: 'lazySway', counts: 8, amp: size(r, v) }],
-      [{ move: 'sideClap', counts: 4, mirror: v % 2 === 1 }, { move: v ? pick(r, ['lazySway', 'sideClap']) : 'lazySway', counts: 4 }],
-      [{ move: 'sideClap', counts: 4 }, { move: 'strike', counts: 4, look: 'shrug' }]
+      [{ move: 'pendulum', counts: 12 }],
+      [{ move: 'pendulum', counts: 12, clap: true, mirror: v === 3 }],
+      [{ move: 'pendulum', counts: 12, amp: v ? 1.1 : 1, big: true, mirror: v % 2 === 1 }],
+      [{ move: 'pendulum', counts: 6, big: true }, { move: 'strike', counts: 6, look: 'shrug' }]
     ]
   },
   cat: {
     who: 'Mochi, Corner Queen',
-    dance: 'a slow, sultry body wave and hip sway, a paw on the hip, the other sweeping out from the cheek; a pose to end',
+    dance: 'slinky body waves, the hips popping out on the "and" (syncopated), a paw framing the face slashing a claw swipe, one slow spin on one foot; a pose to end',
     ears: 0.7,
-    tail: 1.6,
+    tail: 1.8,
     phrases: (r, v) => [
-      [{ move: 'bodyWave', counts: 4 }, { move: 'sultrySway', counts: 4 }],
-      [{ move: 'sultrySway', counts: 4, mirror: v % 2 === 1 }, { move: 'pawArc', counts: 4, mirror: v % 2 === 1 }],
-      [{ move: v === 3 ? 'sultrySway' : 'bodyWave', counts: 4, amp: size(r, v) }, { move: 'pawArc', counts: 4, mirror: v % 2 === 0 }],
-      [{ move: 'sultrySway', counts: 4 }, { move: 'strike', counts: 4, look: 'pose' }]
+      [{ move: 'catWave', counts: 12 }],
+      [{ move: 'catClaw', counts: 12, mirror: v % 2 === 1 }],
+      [{ move: 'catSpin', counts: 12, mirror: v >= 2 }],
+      [{ move: 'catClaw', counts: 6 }, { move: 'strike', counts: 6, look: 'pose' }]
     ]
   },
   fox: {
     who: 'Pip, Straight-line Pip',
-    dance: 'slow chest pops, one every two beats, and a smooth arm wave rippling paw to paw; a point to end',
+    dance: 'robot: staccato hits on every beat, the arms tutting in straight lines, right angles and boxes, chest pops, sharp head tilts, clicking quarter-turns; a right-angle freeze to end',
     ears: 1,
     tail: 1.3,
     phrases: (r, v) => [
-      [{ move: 'slowPop', counts: 8 }],
-      v === 1 ? [{ move: 'slowPop', counts: 4 }, { move: 'armFlow', counts: 4 }] : [{ move: 'armFlow', counts: 8, amp: size(r, v) }],
-      [{ move: 'slowPop', counts: 4, amp: size(r, v) }, { move: 'armFlow', counts: 4, mirror: true }],
-      [{ move: 'slowPop', counts: 4 }, { move: 'strike', counts: 4, look: 'point' }]
+      [{ move: 'robot', counts: 12 }],
+      [{ move: 'foxPop', counts: 12 }],
+      [{ move: 'robot', counts: 12, big: true, mirror: v % 2 === 1 }],
+      [{ move: v ? 'foxPop' : 'robot', counts: 6 }, { move: 'strike', counts: 6, look: 'robot' }]
     ]
   },
   bear: {
     who: 'Toffee, The Wall',
-    dance: 'a heavy, slow, proud two-step deep in the knees, big slow shoulder rolls; a flex to finish',
+    dance: 'stomp-and-flex: a big two-step stomp, then a double-biceps flex (a crab flex the next bar), and a slow heavy rock like a big guy grooving; a flex to finish',
     ears: 0.6,
     tail: 0.8,
     phrases: (r, v) => [
-      [{ move: 'heavyStep', counts: 8 }],
-      [{ move: 'rollShoulders', counts: 4, amp: size(r, v) }, { move: 'rollShoulders', counts: 4, mirror: true }],
-      [{ move: 'heavyStep', counts: 4 }, { move: 'rollShoulders', counts: 4, mirror: v % 2 === 1 }],
-      [{ move: 'rollShoulders', counts: 4 }, { move: 'strike', counts: 4, look: 'flex' }]
+      [{ move: 'bearStomp', counts: 12 }],
+      [{ move: 'bearRock', counts: 12, mirror: v % 2 === 1 }],
+      [{ move: 'bearStomp', counts: 12, mirror: v >= 2 }],
+      [{ move: 'bearRock', counts: 6 }, { move: 'strike', counts: 6, look: 'flex' }]
     ]
   },
   frog: {
     who: 'Pickle, Kerb Hopper',
-    dance: 'a slow, wide squat-and-rise, the paws floating up as it rises, and a low splayed-leg wiggle that sinks and comes back',
+    dance: 'a deep knees-out squat bouncing low, the paws swimming breaststroke (or on the knees, twisting), and a little leap every two bars',
     ears: 0.5,
     tail: 0.8,
     phrases: (r, v) => [
-      [{ move: 'squatRise', counts: 8 }],
-      [{ move: 'wideWiggle', counts: 4, amp: size(r, v) }, { move: 'wideWiggle', counts: 4, double: true }],
-      [{ move: 'squatRise', counts: 4 }, { move: v ? pick(r, ['wideWiggle', 'reachUp']) : 'wideWiggle', counts: 4, mirror: v % 2 === 1 }],
-      [{ move: 'wideWiggle', counts: 4, double: v % 2 === 1 }, { move: 'strike', counts: 4, look: 'frog' }]
+      [{ move: 'frogSwim', counts: 12 }],
+      [{ move: 'frogSwim', counts: 12, bounce: true }],
+      [{ move: 'frogSwim', counts: 12, mirror: v % 2 === 1 }],
+      [{ move: 'frogSwim', counts: 6, bounce: v >= 2 }, { move: 'strike', counts: 6, look: 'frog' }]
     ]
   },
   penguin: {
     who: 'Pebble, Rain Dancer',
-    dance: 'a smooth waddle-glide from foot to foot, flipper waves, and a slow full turn',
+    dance: 'a stiff waddle-shuffle, flippers flapping at the sides, skating glides side to side, and a whole spin every two bars; chest out, flippers back to finish',
     ears: 0.5,
     tail: 1.2,
     phrases: (r, v) => [
-      [{ move: 'waddleGlide', counts: 8 }],
-      [{ move: 'flipperWave', counts: 4 }, { move: 'waddleGlide', counts: 4, amp: size(r, v) }],
-      [{ move: 'slowTurn', counts: 8, mirror: v >= 2 }],
-      [{ move: v % 2 ? 'flipperWave' : 'waddleGlide', counts: 4 }, { move: 'strike', counts: 4, look: 'flipper' }]
+      [{ move: 'penguinWaddle', counts: 12 }],
+      [{ move: 'penguinGlide', counts: 12 }],
+      [{ move: 'penguinWaddle', counts: 12, mirror: v % 2 === 1 }],
+      [{ move: 'penguinGlide', counts: 6, mirror: v >= 2 }, { move: 'strike', counts: 6, look: 'penguin' }]
     ]
   }
 };
@@ -170,7 +171,7 @@ export const FLOURISH = {
   3: { every: 2, at: 1, arms: 'both', raise: 1.25, reach: 0.1, w: 0.6, hop: 0 }
 };
 /** The flourish's timing in counts from its downbeat (÷ RATE for the song's beats): up from −RISE, held to HOLD, down by HOLD + FALL. */
-const RISE = 1.5, HOLD = 2, FALL = 1.5;
+const RISE = 2, HOLD = 2, FALL = 2;
 
 /** The raise at `j` beats from the flourish's downbeat: 0..1 (sine ease up, held, sine ease down). */
 const raiseAt = (j) => (j < -RISE || j > HOLD + FALL ? 0 : j < 0 ? easeSine((j + RISE) / RISE) : j < HOLD ? 1 : 1 - easeSine((j - HOLD) / FALL));
@@ -240,7 +241,8 @@ export function withFlourish(base, f) {
   out.reachR = base.reachR + (f.pose.reachR - base.reachR) * f.arms;
   if (f.both) out.reachL = base.reachL + (f.pose.reachL - base.reachL) * f.arms;
   if (f.hop) {
-    for (const j of ['legL', 'legR']) for (let i = 0; i < 3; i++) out[j][i] = base[j][i] + f.pose[j][i];
+    // the legs come together for the jump (the dance's own kicks and squats let go as the paws go up), then tuck
+    for (const j of ['legL', 'legR']) for (let i = 0; i < 3; i++) out[j][i] = base[j][i] * (1 - f.arms) + f.pose[j][i];
     out.lift = Math.max(base.lift, f.pose.lift);
     out.stretch = base.stretch + f.pose.stretch;
     out.hipsY = base.hipsY + f.pose.hipsY;
