@@ -85,6 +85,9 @@ function shapes() {
   };
 }
 
+/** Within this many metres of the camera (each way) people stand on the surface under their feet, every frame. */
+const FEET_NEAR = 70;
+
 export class StreetLife {
   /** @param {any} game the SeoulGame */
   constructor(game) {
@@ -398,15 +401,29 @@ export class StreetLife {
     m.oz = (m.oz ?? 0) + ((m.aside > 0 ? m.tz : 0) - (m.oz ?? 0)) * k;
     m.x = m.bx + m.ox;
     m.z = m.bz + m.oz;
-    // On the pavement: as high as the road beside it and the kerb; a motorbike on the road.
+    // On the pavement: as high as the road beside it and the kerb; a motorbike on the road. Near the
+    // camera, on what is really under their feet (surface.js: the pavement, the road, an alley's paving,
+    // tilted with the hill), every frame; further off a guess from the land, a few times a second. Only
+    // a step (a kerb) is eased: up and down a steep street the feet keep to it (eased as a whole, they
+    // trailed the slope by a few centimetres, more at a jog).
+    const ground = this.g.groundAt(m.x, m.z);
+    const cam = this.g.camera?.position;
+    const near = cam && this.g.surfaceAt && Math.abs(m.x - cam.x) < FEET_NEAR && Math.abs(m.z - cam.z) < FEET_NEAR;
     m.yT = (m.yT ?? 0) - dt;
-    if (m.yT <= 0 || m.y == null) {
+    // (In a small street, at road level: there is no kerb.)
+    const guess = m.road?.small ? 0.9 : m.kind === 'moto' ? 0.9 : m.kind === 'bike' ? 0.92 : 1.04;
+    if (near) {
+      // (off the pavement's edge, where nothing is laid, the guess: never down to the bare land below)
+      const under = this.g.surfaceAt(m.x, m.z, (m.y ?? ground + 1) + 0.4) - ground;
+      m.overGoal = under > guess - 0.35 && under < guess + 0.6 ? under : guess;
+    } else if (m.yT <= 0 || m.overGoal == null) {
       m.yT = 0.35;
-      // (In a small street, at road level: there is no kerb.)
-      m.yGoal = this.g.groundAt(m.x, m.z) + (m.road?.small ? 0.9 : m.kind === 'moto' ? 0.9 : m.kind === 'bike' ? 0.92 : 1.04);
-      m.y ??= m.yGoal;
+      m.overGoal = guess;
     }
-    m.y += (m.yGoal - m.y) * Math.min(1, dt * 6);
+    m.over ??= m.overGoal;
+    m.over += (m.overGoal - m.over) * Math.min(1, dt * (near ? 12 : 6));
+    m.y = ground + m.over;
+    m.yGoal = m.y;
     const rate = { walk: 3.6, jog: 2.7, dog: 3.6, shop: 3.6, stand: 0, bike: 1.7, moto: 2.6 }[m.kind];
     m.phase += dt * m.speed * rate * (m.stride ?? 1) + (m.kind === 'stand' ? dt : 0);
   }
