@@ -4163,7 +4163,9 @@ export class Race {
     }
     if (performance.now() - (g.dragAt ?? 0) > 1000) {
       const behind = r.mode === 'ride' ? r.s.travel ?? r.s.heading : g.yaw;
-      g.yaw += turn(g.yaw, behind) * 0.1;
+      // (it follows the way you go only while you are going: knocked to a stop by a wall or a car, the
+      // bounce does not swing it round into the wall — and so in close)
+      g.yaw += turn(g.yaw, behind) * 0.1 * Math.min(1, Math.max(0, (Math.abs(r.s.v) - 1) / 4));
       // A little higher in the alleys, to see over the clutter round the next corner.
       const here = this._at(this._line(r), 0);
       const alley = isSmall(here?.[3] ?? 4) && (here?.[2] ?? 6) < 5;
@@ -4175,7 +4177,10 @@ export class Race {
     const focus = new THREE.Vector3(r.s.x - Math.sin(g.yaw) * CHASE.ahead, r.y + CHASE.height, r.s.z - Math.cos(g.yaw) * CHASE.ahead).addScaledVector(side, 0.3);
     // Never inside a building or through a wall: the camera comes in close (and a little up) instead —
     // swept out from the rider against the same walls the rider meets.
-    let dist = (g.zoom ?? CHASE.zoom) + Math.min(1.5, Math.abs(r.s.v) * 0.07);
+    // (the speed's share eases out slowly: stopped dead by a hit, the camera does not jump in)
+    const pace = Math.min(1.5, Math.abs(r.s.v) * 0.07);
+    this._camPace = this._camPace == null || pace > this._camPace ? pace : this._camPace + (pace - this._camPace) * 0.02;
+    let dist = (g.zoom ?? CHASE.zoom) + this._camPace;
     const walls = this.course.walls;
     if (walls) {
       const cx = focus.x - dir.x * dist + side.x * 0.7;
@@ -4185,19 +4190,17 @@ export class Race {
       // and higher, looking down over the rider, never put beyond the wall and pushed out its far side)
       if (hit) dist = Math.max(0.35, dist * hit.t - 0.1);
     }
-    // Nor inside a car or a bus beside you, nor through a lamp post or a pole (a grey slab across the
-    // middle of the screen for a few frames): the camera comes in in front of it instead.
+    // Nor inside a car or a bus beside you (it rises over the roof, never zooms in), nor through a lamp
+    // post or a pole (a grey slab across the middle of the screen for a few frames): in front of that.
     const cars = (this.traffic?.vehicles ?? []).filter((v) => Math.hypot(v.box.x - r.s.x, v.box.z - r.s.z) < dist + 8);
     const poles = this.g.nightLights?.polesNear(r.s.x, r.s.z, dist + 2) ?? [];
     for (const p of this._props(r.s.x, r.s.z, dist + 2) ?? []) if (p.kind === 'pole') poles.push([p.x, p.z]);
+    let lift = 0;
     for (let d = 1.2; d <= dist; d += 0.4) {
       const x = focus.x - dir.x * d + side.x * 0.7 * (d / dist);
       const z = focus.z - dir.z * d + side.z * 0.7 * (d / dist);
       const y = focus.y - dir.y * d;
-      if (cars.some((v) => inBox(v, x, y, z, 0.45))) {
-        dist = Math.max(2.2, d - 0.5);
-        break;
-      }
+      for (const v of cars) if (inBox(v, x, y + lift, z, 0.45)) lift = Math.max(lift, (v.y ?? 0) + (v.view?.size?.height ?? (v.kind === 'bus' ? 3.2 : 1.6)) + 0.6 - y);
       if (poles.some((p) => Math.hypot(p[0] - x, p[1] - z) < 0.42)) {
         dist = Math.max(1.3, d - 0.45);
         break;
@@ -4208,6 +4211,8 @@ export class Race {
     camera.position.copy(focus).addScaledVector(dir, -this._camDist).addScaledVector(side, 0.7);
     // pulled in close (a wall, a car), it rises to look over the rider rather than into their back
     camera.position.y += Math.max(0, 4 - this._camDist) * 0.5;
+    this._camLift = this._camLift == null || lift > this._camLift ? lift : this._camLift + (lift - this._camLift) * 0.05;
+    camera.position.y += this._camLift;
     camera.position.y = Math.max(camera.position.y, g.surfaceAt(camera.position.x, camera.position.z, r.y) + 0.9);
     // Last word: out of any wall it still touches (a corner behind you, a wall it is swung along after
     // a tumble), the way the rider would be pushed — sliding along it, never into it.
@@ -4244,7 +4249,8 @@ export class Race {
     // The FOV opens with speed (58° standing, about 71° flat out) and kicks wider on a boost.
     const v = Math.abs(r.s.v);
     const fov = 58 + 13 * Math.min(1, Math.max(0, (v - 4) / 16)) + (r.s.boosting || r.drinkT > 0 ? 6 : 0) + (r.drinkT > 0 ? 3 : 0);
-    camera.fov += (fov - camera.fov) * 0.08;
+    // (wider quickly; narrower slowly, so a sudden stop against a wall or a car never reads as a zoom)
+    camera.fov += (fov - camera.fov) * (fov > camera.fov ? 0.08 : 0.015);
     // the gulp: a quick kick of the FOV as the drink's boost goes in
     if (this._drinkKick > 0) {
       camera.fov += this._drinkKick * 0.9;
