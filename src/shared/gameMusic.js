@@ -218,11 +218,8 @@ export const KICKRANI_COURSE_TRACKS = Object.freeze({
   mullae: 'kick-works',
   heritage: 'kick-palace',
   banpo: 'kick-river',
-  olympic: 'kick-boulevard',
   yeouido63: 'kick-river',
   bukak: 'kick-downhill',
-  itaewon: 'kick-hill',
-  sinchon: 'kick-market',
   skytower: 'kick-boulevard'
 });
 

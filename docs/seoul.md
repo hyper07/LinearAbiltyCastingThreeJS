@@ -55,7 +55,15 @@ including commercially, **with attribution** — the game credits it in its Cred
   crossing and a junction's corners aren't left as holes. The surface the riders stand on is
   `src/city/surface.js` (`surfaceOf`, tested in `tests/unit/city-surface.test.mjs`).
 - **N Seoul Tower** is in the register as a single point, so the game draws its own plain tower
-  there, to the real height. No other building is modelled by hand.
+  there, to the real height. Two more landmarks are drawn by hand (`src/city/skyline.js`): the
+  **Jamsil Sky Tower** (our name for the 555 m tower by Seokchon Lake, which the register leaves out — a
+  square tapering and curving in to a split crown, silver-white glass) and the **63 Building** (in the
+  register as one 250 m slab over its whole plot: drawn instead as its gold glass tower stepping in at
+  both ends, on a low podium). No company name or logo. Both are always on the skyline: past the camera's
+  far plane each is drawn as a smaller copy on the same line of sight, so they stand over the city from
+  across the river and from the other courses; ordinary haze greys them to a pale silhouette (never
+  gone), a fog bank hides them like everything else, and after dark their windows light and the tower's
+  crown glows.
 - Heights only shape the ground: **no elevation figure and no coordinate is ever shown.** Parks,
   subway lines and small streets are not in the map yet.
 - All three credits, with every model, texture and the music, are in the Credits panel (kept off
@@ -116,7 +124,7 @@ Seoul's real streets — and the streets stay open.
   (`terrain.bin`, with a hill shade), every road from `roads.bin` (motorways and trunk roads bold,
   tertiary roads thin, bridges dark-edged over the river), and close up the small streets
   (`alleys.bin`) and the buildings' footprints (the map tiles); the 25 districts, the hills, and
-  landmarks (N Seoul Tower, Gyeongbokgung, Lotte World Tower, the 63 Building, City Hall, COEX…).
+  landmarks (N Seoul Tower, Gyeongbokgung, the Jamsil Sky Tower, the 63 Building, City Hall, COEX…).
   Every course is drawn at its true size on its real streets in its own colour (Easy greens and
   blues, Medium ambers, Hard reds), with a pin at its start. Over the map, three **level tabs** —
   Easy, Medium, Hard, with one to three chillies (↑ ↓ too): picking one lists its courses below,
@@ -201,7 +209,7 @@ Seoul's real streets — and the streets stay open.
   - **Medium** — narrower avenues and a little of the residential lanes, 6–10 corners over 60°, a
     climb, a short cut or two, more traffic: Seochon Palace Lanes (under Inwangsan, two golmok short
     cuts), Seongsu Brick Works (the red-brick factory grid), and the **Jamsil Fairground** — round
-    Seokchon Lake under Lotte World Tower, past the "Starlight Fun Fair · 별빛 놀이공원", a fair of our
+    Seokchon Lake under the Jamsil Sky Tower, past the "Starlight Fun Fair · 별빛 놀이공원", a fair of our
     own (`src/city/fairground.js`, every ride our own design, no real park's castle, mascot or name):
     a wooden roller coaster on timber bents with a train of four cars (slow up the chain, fast down
     the drops), a 52 m drop tower whose ring of seats climbs, hangs and drops, a big wheel with sixteen
@@ -217,6 +225,37 @@ Seoul's real streets — and the streets stay open.
     wood of pines and November-coloured broadleaf trees, `src/city/hillwood.js`) and Sowol-ro to a
     finish gantry in the city below, about 145 m lower; speed builds downhill, so the braking points
     matter. One run, no laps; past the finish line a run-out to stop in.
+  - **The zig-zags** (`zigzag` in `BIKE_COURSES`) — five more, round Seoul's best-known places, on the
+    *local* streets: the secondary, tertiary and residential roads one lane each way or one-way, where a
+    course turns left, right, left — at least 8 m between the buildings (`ZIG_MIN_WIDTH`; most lanes have
+    no width on the map, so it is measured there, `measureRoom`; the Sky Tower's lanes 7 m, the Heritage
+    Run's stone-wall road its own — `minRoad`), the big straight
+    arterials (trunk and primary roads, two lanes or more each way) only to cross or for a short link,
+    the golmok narrower than that only as short cuts. Medium: the **Gwanghwamun Heritage Run** (the user's own
+    route round old Seoul, so on the big roads where it goes: down Sejong-daero's west side past the
+    square, the Sejong Center and Cheonggye Plaza to Seoul Plaza, along Deoksugung's stone-wall road
+    and up through Jeongdong, back by Saemunan-ro and up the east side, round in front of the
+    Gwanghwamun gate; with the traffic, so the square's sides are swapped from a walker's map), **Banpo
+    Riverside** (the Jamwon and Banpo side streets down to the Han and back) and **Yeouido 63 Lanes**
+    (the island's back streets under the golden 63 Building). Hard: the **Bukak Skyway** (one way, the
+    hairpins of the old ridge road over Bugaksan — Bukhansan's peaks to the north — between guard rails
+    and pines, about 145 m down and 75 up) and the **Jamsil Sky Tower** (Songpa's lanes south of Seokchon
+    Lake under the 555 m tower). Three more were planned and taken out again after the autopilot runs —
+    Olympic Park (Bangi-dong's grid), the Itaewon side streets and Hongdae–Sinchon: their lanes are 5.5–
+    8 m between the buildings, square corner after corner, hills, and the bots were put back on the course
+    4–13 times a lap there, laps 3.5–4.8 minutes (the lesson of the first Hard loops again); they wait on
+    better riding in one-car lanes. Each is planned through points of its own like the fairground's
+    (`via`), with the zig-zag costs (`PROFILE.zigzag`: local streets cheap, arterials 3.5–8× dearer,
+    turns cheap; a point snaps to the carriageway going its way); `links` join a side road to a divided
+    road's far carriageway where the map leaves a gap, `startAt` puts the Heritage Run's grid opposite the
+    National Museum of Korean Contemporary History. On their local streets the traffic is lighter than
+    the level's (`LEVELS['medium-local']`, `LEVELS['hard-local']`: three or four cars sent the other way
+    down the course and two or three going yours instead of 21–26 and 11–14, none parked at the kerb or
+    standing at a stop, and the lanes one car wide on the line kept clear like a short cut's golmok —
+    people at their doors and on the corners, not strolling down the racing line, no car driving them
+    while the race is on, nothing stood on the ground at their edges — `golmok.js` `sparse`) so a corner
+    is a corner, not a jam; and a bot takes a square corner between two
+    lanes one car wide at about 25 km/h (`race.js`: no room there to drift or swing wide).
 
   The level sets more than the streets: the bots' skill, how many cars are about, coming the other
   way and going yours (Easy busier but fair, Medium busy, Hard packed), how many cars are parked at
@@ -251,6 +290,17 @@ Seoul's real streets — and the streets stay open.
   | Hard | Mullae Ironworks | 2.49 | 8% | 11 / 9 | 161 m | 1 | 8 m | 1.4 / 1.4 |
   | Hard | Haebangchon Hill Lanes | 2.78 | 17% | 9 / 7 | 512 m | 0 | 90 m | 0 / 1.7 |
   | Hard | Namsan Tower Downhill (A→B) | 2.12 | 37% | 1 / 1 (and the park road's bends) | 486 m | 0 | 145 m down | 2.2 / 0.7 |
+  | Medium (zig-zag) | Gwanghwamun Heritage Run | 2.88 | 68% | 4 / 1 (4 left/right switches) | 1032 m | 0 | 24 m | 1 / 0 |
+  | Medium (zig-zag) | Banpo Riverside | 1.94 | 23% | 7 / 6 (4) | 192 m | 0 | 9 m | 1 / 0.7 |
+  | Medium (zig-zag) | Yeouido 63 Lanes | 2.24 | 20% | 12 / 10 (8) | 191 m | 0 | 12 m | 0 / 0.3 |
+  | Hard (zig-zag) | Bukak Skyway (A→B) | 2.88 | 0% | 2 / 0 (8: the hairpins are 40–60°) | 60 m | 0 | 143 m down, 77 up | 1 / 1 |
+  | Hard (zig-zag) | Jamsil Sky Tower | 2.32 | 32% | 10 / 4 (4) | 192 m | 0 | 12 m | 1 / 0.7 |
+
+  (The zig-zags, one lap on the autopilot with three bots, day, clear, Nov 2026: the bots' laps 178–198 s
+  on the Heritage Run, 139–141 s at Banpo, 184–199 s on the 63 Lanes, 201–224 s down the Bukak Skyway,
+  156–181 s round the Sky Tower; put back on the course a lap (you on the autopilot / each bot) 6 / 0–1,
+  2 / 1–4, 1 / 1–3, 3 / 2–3, 3 / 2–4 — more than the one aimed at: the corners between houses are still
+  where a rider ends up against a wall.)
 
   (Crashes counted without the items' — branches, marbles. On the Hard loops the bots are often
   put back on the course after getting nowhere in a tight corner: they are slow there, not unfair.)

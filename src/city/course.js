@@ -70,12 +70,6 @@ export const BIKE_COURSES = [
     via: [[2491, 5940], [2581, 6155], [2570, 6595], [2320, 6636], [2418, 6016]]
   },
   {
-    id: 'olympic', level: 'medium', name: 'Olympic Park Lanes', ko: '올림픽공원 방이동', x: 11850, z: 5600, r: 400, kind: 'Park', zigzag: true,
-    text: 'Along the edge of Olympic Park, the World Peace Gate up the road, and into the grid of Bangi-dong: left, right, left — a slalom of square corners and short straights.',
-    beside: 0.12,
-    via: [[11866, 5979], [12171, 5825], [12173, 5601], [12030, 5439], [11901, 5408], [11563, 5544], [11528, 5624], [11525, 5889]]
-  },
-  {
     id: 'yeouido63', level: 'medium', name: 'Yeouido 63 Lanes', ko: '여의도 63', x: -3950, z: 4950, r: 400, kind: 'Towers', zigzag: true,
     text: 'The back streets of Yeouido between the river and the park, the golden 63 Building over the rooftops at every turn.',
     via: [[-4268, 5172], [-4269, 4782], [-3951, 4737], [-3768, 4971], [-3959, 5179]]
@@ -85,20 +79,6 @@ export const BIKE_COURSES = [
     text: 'The old skyway along the ridge of Bugaksan, Bukhansan\'s granite peaks to the north: hairpin after hairpin through the pines, over the top by Palgakjeong and down toward Buam-dong — one way.',
     via: [[805, -4460], [740, -4600], [650, -4420], [500, -4290], [409, -4100], [180, -3885], [-190, -3800], [-300, -3720], [-450, -3700], [-320, -3480], [-440, -3345], [-640, -3400]],
     open: true, mountain: true, max: 4200
-  },
-  {
-    id: 'itaewon', level: 'hard', name: 'Itaewon Zig-zag', ko: '이태원 지그재그', x: 1320, z: 3480, r: 400, kind: 'Hill', zigzag: true,
-    text: 'Up and down the side streets either side of Itaewon-ro — restaurants from every country, steps and hills, Namsan Tower above — corner after corner.',
-    // (its hillside lanes: down to 6.5 m between the buildings, `minRoad`)
-    minRoad: 6.5,
-    via: [[1059, 3557], [1321, 3590], [1562, 3520], [1427, 3255], [1230, 3328]]
-  },
-  {
-    id: 'sinchon', level: 'hard', name: 'Hongdae–Sinchon Slalom', ko: '홍대–신촌', x: -4100, z: 1100, r: 450, kind: 'Campus', zigzag: true,
-    text: 'From Hongik University to Sinchon station through the streets of the student quarter: buskers, cafés and clubs, a left and a right at every block.',
-    // (the student quarter's lanes are narrow: down to 5.5 m between the buildings, `minRoad`)
-    minRoad: 5.5,
-    via: [[-4115, 956], [-4379, 821], [-4308, 1270], [-4020, 1387], [-3752, 1118]]
   },
   {
     id: 'skytower', level: 'hard', name: 'Jamsil Sky Tower', ko: '잠실 타워', x: 11380, z: 6500, r: 400, kind: 'Towers', zigzag: true,

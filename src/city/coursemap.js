@@ -35,8 +35,8 @@ export const COURSE_COLORS = {
   gwanghwamun: '#1f9e4a', dongdaemun: '#0f9488', namsan: '#3fb950', hongdae: '#2f80ed', yeouido: '#1c7ef2', cheongnyangni: '#20a4c8', teheran: '#00a596', jamsil: '#4a6cf0',
   seochon: '#f08c00', seongsu: '#e8a400', jamsilpark: '#ff7a1a',
   euljiro: '#e5383b', mullae: '#c2185b', haebangchon: '#ff4d6d', namsandown: '#b5179e',
-  heritage: '#ffb703', banpo: '#d98e04', olympic: '#f4a300', yeouido63: '#ffcf33',
-  bukak: '#9d0208', itaewon: '#ff006e', sinchon: '#d00000', skytower: '#a4133c'
+  heritage: '#ffb703', banpo: '#d98e04', yeouido63: '#ffcf33',
+  bukak: '#9d0208', skytower: '#a4133c'
 };
 
 /** A little red chilli pepper (SVG): the difficulty badge, one to three of them. */
