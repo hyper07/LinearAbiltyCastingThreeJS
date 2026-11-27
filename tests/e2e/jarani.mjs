@@ -35,7 +35,8 @@ import { boot, tally, until } from './lib.mjs';
  */
 export async function run(browser) {
   const t = tally();
-  const { context, page, errors } = await boot(browser, 'jarani', { view: 'home' });
+  // (the draft: these checks follow games/g_cv2yrhrpv2/ as committed; the card alone plays production)
+  const { context, page, errors } = await boot(browser, 'jarani', { view: 'home', query: 'draft=kickrani' });
   try {
     await page.route(/\/api\/games\/[^/]+\/play/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
     const card = '.home [data-game="official:seoul"]';

@@ -73,8 +73,15 @@ try {
   for (const [name, fn] of [['solo', solo], ['coop', coop], ['accounts', accounts], ['bag', bag], ['editor', editor], ['hotbar', hotbar], ['builder', builder], ['home', home], ['royale', royale], ['market', market], ['work', work], ['rts', rts], ['lanebreak', lanebreak], ['hearthvale', hearthvale], ['breachline', breachline], ['bastion', bastion], ['channels', channels], ['graphics', graphics], ['camera', camera], ['map', map], ['help', help], ['zones', zones], ['voice', voice], ['camdrag', camdrag], ['snowpuff', snowpuff], ['circuitlab', circuitlab], ['worlds', worlds], ['jarani', jarani], ['activities', activities]]) {
     if (ONLY.length && !ONLY.includes(name)) continue;
     console.log(`\n${name}`);
-    const t = await fn(browser);
-    failed += t.failed.length;
+    // (a suite that throws — a page gone, a selector never there — counts as one failure and the rest
+    // still run: one broken game used to stop every suite after it)
+    try {
+      const t = await fn(browser);
+      failed += t.failed.length;
+    } catch (error) {
+      console.log(`  ✗ ${name} stopped: ${String(error?.message ?? error).split('\n')[0]}`);
+      failed++;
+    }
   }
 } finally {
   await browser.close();

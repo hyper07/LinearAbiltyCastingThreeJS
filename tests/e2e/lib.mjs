@@ -27,7 +27,7 @@ const EXPECTED_MISSES = [/^\/models\/(walk|run)\.fbx$/, /^\/api\/library\/[a-z]+
  * and then — unless `view: 'home'` — into the hero menu (class, weapon,
  * Start), where most checks begin.
  */
-export async function boot(browser, name = 'page', { view = 'hero', firstHelp = false } = {}) {
+export async function boot(browser, name = 'page', { view = 'hero', firstHelp = false, query = '' } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   // How to play opens by itself the first time each game is played (shared/helpPanel.js); the checks
   // start in play unless they're about that panel.
@@ -55,7 +55,8 @@ export async function boot(browser, name = 'page', { view = 'hero', firstHelp = 
     if (EXPECTED_MISSES.some((re) => re.test(path)) && response.status() === 404) return;
     errors.push(`${name} ${response.status()} ${response.request().method()} ${path}`);
   });
-  await page.goto(base(), { waitUntil: 'load', timeout: 120000 });
+  // (`query`: the address's own params — ?draft=<game> plays a package's draft, not its production release)
+  await page.goto(query ? `${base()}?${query}` : base(), { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.app && window.app.phase === 'menu', null, { timeout: 120000 });
   // The loading veil fades out over the page: wait until a click would reach it, as a player's does.
   const clickable = (selector) =>
