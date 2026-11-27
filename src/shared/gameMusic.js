@@ -33,16 +33,16 @@ export const TRACK_TITLES = Object.freeze({
   defeat: 'Retreat',
   'level-up': 'Level Up',
   discovery: 'Treasure Found',
-  'kick-palace': 'Palace Gate Dash',
-  'kick-market': 'Night Market Rush',
-  'kick-boulevard': 'Neon Boulevard',
-  'kick-river': 'Riverside Breeze',
-  'kick-hill': 'Hilltop Sprint',
-  'kick-downhill': 'Tower Downhill',
-  'kick-fair': 'Starlight Fair',
-  'kick-works': 'Ironworks Groove',
-  'kick-lobby': 'Garage Showroom',
-  'kick-podium': 'Podium Party'
+  'kick-palace': 'Courtyard Overture',
+  'kick-market': 'Pizzicato Market',
+  'kick-boulevard': 'Boulevard Sweep',
+  'kick-river': 'Along the Han',
+  'kick-hill': 'Hilltop Gallop',
+  'kick-downhill': 'Downhill Flight',
+  'kick-fair': 'Carousel Waltz',
+  'kick-works': 'Workshop March',
+  'kick-lobby': 'Paddock Prelude',
+  'kick-podium': 'Confetti Fanfare'
 });
 
 /** The tracks (beds, then stingers) each game plays: its Credits panel lists these. */
@@ -195,10 +195,11 @@ export function lanternwoodTrack({ realm = 'lanternwood', area = null }) {
 }
 
 /**
- * Kickrani's race music by course (src/city/course.js ids): each place its own mood — the palace
- * lanes a pop beat under a plucked zither and hourglass drum, the markets brassy funk, the
- * boulevards bright city-pop, the river tropical synth-pop, the hills pop-rock, the Namsan
- * downhill fast electro-rock, the fairground a carnival band, the workshops gritty funk-rock.
+ * Kickrani's race music by course (src/city/course.js ids): a small, bright chamber orchestra, fast
+ * and light, each place its own colour — the palace lanes gayageum and daegeum over the strings, the
+ * markets bustling pizzicato and woodwinds, the boulevards sweeping strings, the river flowing
+ * strings and harp, the hills galloping strings and horns, the Namsan downhill soaring brass (the
+ * fastest), the fairground a carousel waltz, the workshops a bassoon-and-low-strings march.
  */
 export const KICKRANI_COURSE_TRACKS = Object.freeze({
   gwanghwamun: 'kick-palace',
@@ -224,8 +225,8 @@ export const KICKRANI_COURSE_TRACKS = Object.freeze({
 });
 
 /**
- * Kickrani: the showroom loop on the race menus, the course's own track from the grid through the
- * race, the podium's party at the ceremony and the results; Neon Overpass for a drive at night;
+ * Kickrani: the calm prelude on the race menus, the course's own track from the grid through the
+ * race, the podium's fanfare dance at the ceremony and the results; Neon Overpass for a drive at night;
  * quiet otherwise (the engine and the city).
  */
 export function seoulTrack({ mode, racing = false, night = false, course = null, menu = false, podium = false }) {

@@ -191,7 +191,6 @@
    "key": "C major",
    "seconds": 12,
    "prompt": "short triumphant orchestral victory fanfare, bright trumpets and horns, timpani roll, ends on a held major chord, video game victory jingle, instrumental",
-   "takes": 4,
    "pick": 180637
   },
   {
@@ -239,23 +238,26 @@
   },
   {
    "id": "kick-palace",
-   "pick": 799234,
-   "title": "Palace Gate Dash",
+   "pick": 815072,
+   "title": "Courtyard Overture",
    "kind": "loop",
    "tags": [
     "race",
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 150,
+   "bpm": 144,
    "key": "D major",
-   "seconds": 150,
-   "prompt": "upbeat energetic K-pop dance racing music, bright plucked gayageum zither riff over a punchy four-on-the-floor pop beat, janggu hourglass drum fills, slap bass, sparkling synth lead with a catchy hook, fun and cheerful for kids, fast arcade racing game soundtrack, instrumental"
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "fast playful heroic orchestral race music for a family animated film, bright chamber strings with lively spiccato violins and violas and warm cellos, plucked gayageum zither phrases and a breathy daegeum bamboo flute melody over the strings, a pentatonic tune, light timpani and soft snare, warm french horn, charming royal palace courtyard, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
   },
   {
    "id": "kick-market",
    "pick": 539390,
-   "title": "Night Market Rush",
+   "title": "Pizzicato Market",
    "kind": "loop",
    "tags": [
     "race",
@@ -264,13 +266,70 @@
    "mood": "race",
    "bpm": 148,
    "key": "G major",
-   "seconds": 150,
-   "prompt": "bouncy upbeat funk-pop racing music, tight brass section stabs, wah-wah funk guitar, popping slap bass, cowbell and hand claps, cheeky catchy saxophone hook, busy lively street market, playful kids arcade racing game soundtrack, instrumental"
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "fast bustling playful orchestral music for a family animated film, busy pizzicato strings, chattering flute, clarinet and oboe runs, staccato bassoon, xylophone sparkles, light snare and woodblock, cheeky and cheerful, a lively street market at a quick scamper, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
   },
   {
    "id": "kick-boulevard",
-   "pick": 731004,
-   "title": "Neon Boulevard",
+   "pick": 707247,
+   "title": "Boulevard Sweep",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 140,
+   "key": "A major",
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "fast uplifting orchestral race music for a family animated film, sweeping legato violin melody over driving spiccato strings, warm cellos, french horn countermelody, flute and clarinet flourishes, light timpani and soft cymbal swells, gliding down a wide sunny avenue, joyful and soaring, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
+  },
+  {
+   "id": "kick-river",
+   "pick": 24223,
+   "title": "Along the Han",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 136,
+   "key": "E major",
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "flowing quick orchestral music for a family animated film, rippling harp arpeggios, flowing legato strings, flute and clarinet melody like sunlight on water, soft pizzicato cellos, light glockenspiel, gentle timpani, a breezy ride along a wide river, bright and graceful, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
+  },
+  {
+   "id": "kick-hill",
+   "pick": 774848,
+   "title": "Hilltop Gallop",
+   "kind": "loop",
+   "tags": [
+    "race",
+    "kickrani"
+   ],
+   "mood": "race",
+   "bpm": 152,
+   "key": "Bb major",
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "galloping fast orchestral adventure music for a family animated film, galloping spiccato strings in a rhythmic ostinato, bold french horn melody, bright trumpet calls, woodwind runs, light timpani and snare, climbing a green hill road, plucky and heroic, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
+  },
+  {
+   "id": "kick-downhill",
+   "pick": 183976,
+   "title": "Downhill Flight",
    "kind": "loop",
    "tags": [
     "race",
@@ -278,60 +337,17 @@
    ],
    "mood": "race",
    "bpm": 156,
-   "key": "E major",
-   "seconds": 150,
-   "prompt": "bright sunny city-pop and synth-pop racing music, continuous driving groove with no breaks, steady punchy drums all the way through, shimmering electric piano chords, funky clean guitar, bouncy synth bass, soaring catchy synth lead melody, happy speeding down wide city avenues, fun kids arcade racing game soundtrack, instrumental",
-  "takes": 6
-  },
-  {
-   "id": "kick-river",
-   "pick": 16304,
-   "title": "Riverside Breeze",
-   "kind": "loop",
-   "tags": [
-    "race",
-    "kickrani"
-   ],
-   "mood": "race",
-   "bpm": 144,
-   "key": "A major",
-   "seconds": 150,
-   "prompt": "breezy upbeat tropical synth-pop racing music, marimba and steel drum hook, plucky synths, bouncy bass, crisp claps and snappy drums, sunny riverside, cheerful and catchy, fun kids arcade racing game soundtrack, instrumental"
-  },
-  {
-   "id": "kick-hill",
-   "pick": 766929,
-   "title": "Hilltop Sprint",
-   "kind": "loop",
-   "tags": [
-    "race",
-    "kickrani"
-   ],
-   "mood": "race",
-   "bpm": 160,
-   "key": "F major",
-   "seconds": 150,
-   "prompt": "energetic pop-rock racing music, driving electric guitars, fast pounding drums, bright synth brass hook, uplifting key changes, climbing a green hill road under a tower, fun heroic kids arcade racing game soundtrack, instrumental"
-  },
-  {
-   "id": "kick-downhill",
-   "pick": 176057,
-   "title": "Tower Downhill",
-   "kind": "loop",
-   "tags": [
-    "race",
-    "kickrani"
-   ],
-   "mood": "race",
-   "bpm": 170,
-   "key": "B minor",
-   "seconds": 150,
-   "prompt": "fast soaring high-energy electro-rock racing music, racing breakbeat drums, distorted power chords, soaring synth lead melody, rising arpeggios, the thrill of speeding downhill, exciting and bright, kids arcade racing game soundtrack, instrumental"
+   "key": "C major",
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "very fast exhilarating orchestral race music for a family animated film, soaring brass melody with warm french horns and bright trumpets, rushing string runs and spiccato violins, flutes racing alongside, rolling timpani and crisp snare, swooping down a hill at top speed, thrilling yet friendly, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
   },
   {
    "id": "kick-fair",
-   "pick": 851500,
-   "title": "Starlight Fair",
+   "pick": 867338,
+   "title": "Carousel Waltz",
    "kind": "loop",
    "tags": [
     "race",
@@ -339,58 +355,71 @@
    ],
    "mood": "race",
    "bpm": 150,
-   "key": "C major",
-   "seconds": 150,
-   "prompt": "bouncy carnival racing music, oom-pah brass band, cheerful band organ and calliope melody, glockenspiel, snare drum and cymbal crashes over a fast pop beat, playful funfair, catchy and silly, fun kids arcade racing game soundtrack, instrumental"
+   "key": "Eb major",
+   "timesig": "3",
+   "beatsPerBar": 3,
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "quick merry carousel waltz for a family animated film, bouncy oom-pah-pah strings, glockenspiel and celesta-like bell melody, flute and clarinet twirling, soft tuba and horn, light cymbal and triangle, a spinning fairground merry-go-round, whimsical and sweet, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
   },
   {
    "id": "kick-works",
-   "pick": 164608,
-   "title": "Ironworks Groove",
+   "pick": 180446,
+   "title": "Workshop March",
    "kind": "loop",
    "tags": [
     "race",
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 146,
-   "key": "E minor",
-   "seconds": 150,
-   "prompt": "gritty driving funk-rock racing music, crunchy overdriven guitar riff, heavy groovy bass, punchy live drums with clanking metal percussion, brass hits, workshop alleys and sparks, cool and catchy, kids arcade racing game soundtrack, instrumental"
+   "bpm": 132,
+   "key": "F major",
+   "seconds": 140,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "playful quick orchestral march for a family animated film, cheeky bassoon melody, low strings and cellos marching, pizzicato double basses, clarinet answering, light snare drum march and woodblock ticks, a little muted trumpet, busy friendly workshop, comic and bouncy, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
   },
   {
    "id": "kick-lobby",
-   "pick": 559955,
-   "title": "Garage Showroom",
+   "pick": 552036,
+   "title": "Paddock Prelude",
    "kind": "loop",
    "tags": [
     "menu",
     "kickrani"
    ],
    "mood": "calm",
-   "bpm": 120,
-   "key": "F major",
-   "seconds": 120,
+   "bpm": 100,
+   "key": "G major",
+   "seconds": 110,
    "loopMin": 40,
-  "takes": 5,
-   "prompt": "relaxed cheerful funky lounge pop for a game menu, mellow electric piano, clean funk guitar, smooth bass, light groovy drums, bright vibraphone melody, friendly and inviting, kids racing game menu music, instrumental"
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "gentle calm orchestral music for a family animated film menu, soft warm strings, light pizzicato, mellow flute and clarinet melody, soft harp, a touch of glockenspiel, relaxed and friendly, waiting at the starting line, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear melody, instrumental"
   },
   {
    "id": "kick-podium",
    "pick": 498654,
-   "title": "Podium Party",
+   "title": "Confetti Fanfare",
    "kind": "loop",
    "tags": [
     "victory",
     "kickrani"
    ],
    "mood": "victory",
-   "bpm": 140,
+   "bpm": 144,
    "key": "C major",
-   "seconds": 75,
+   "seconds": 70,
    "loopMin": 24,
-   "loopMax": 64,
-   "prompt": "joyful triumphant party celebration music, bright brass fanfare hook, bouncy disco-funk bass, hand claps, celebratory drums, confetti and dancing on a winners podium, happy and catchy, kids racing game celebration music, instrumental"
+   "loopMax": 60,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "short joyful triumphant orchestral fanfare dance for a family animated film, bright trumpet and french horn fanfare, bouncy staccato strings dancing, flute trills, glockenspiel, timpani and cymbal accents, celebrating on a winners podium with confetti, happy and catchy, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental"
   }
  ]
 }

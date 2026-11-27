@@ -552,7 +552,7 @@
   },
   {
    "id": "kick-lobby",
-   "title": "Garage Showroom",
+   "title": "Paddock Prelude",
    "file": "kick-lobby.ogg",
    "kind": "loop",
    "tags": [
@@ -560,19 +560,19 @@
     "kickrani"
    ],
    "mood": "calm",
-   "bpm": 120,
-   "key": "F major",
+   "bpm": 100,
+   "key": "G major",
    "measured": {
-    "tempo": 117.5,
-    "key": "C major"
+    "tempo": 99.4,
+    "key": "G major"
    },
-   "duration": 76.058,
-   "loopStart": 19.551208,
-   "loopEnd": 75.557729,
-   "lufs": -16.36,
-   "bytes": 846083,
-   "style": "relaxed cheerful funky lounge pop for a game menu, mellow electric piano, clean funk guitar, smooth bass, light groovy drums, bright vibraphone melody, friendly and inviting, kids racing game menu music, instrumental",
-   "seed": 559955,
+   "duration": 80.33,
+   "loopStart": 39.055958,
+   "loopEnd": 79.830208,
+   "lufs": -18,
+   "bytes": 940279,
+   "style": "gentle calm orchestral music for a family animated film menu, soft warm strings, light pizzicato, mellow flute and clarinet melody, soft harp, a touch of glockenspiel, relaxed and friendly, waiting at the starting line, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear melody, instrumental",
+   "seed": 552036,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -586,7 +586,7 @@
   },
   {
    "id": "kick-palace",
-   "title": "Palace Gate Dash",
+   "title": "Courtyard Overture",
    "file": "kick-palace.ogg",
    "kind": "loop",
    "tags": [
@@ -594,19 +594,19 @@
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 150,
+   "bpm": 144,
    "key": "D major",
    "measured": {
-    "tempo": 152,
-    "key": "F# major"
+    "tempo": 143.6,
+    "key": "D major"
    },
-   "duration": 92.985,
-   "loopStart": 9.264771,
-   "loopEnd": 92.485083,
-   "lufs": -16.07,
-   "bytes": 1214148,
-   "style": "upbeat energetic K-pop dance racing music, bright plucked gayageum zither riff over a punchy four-on-the-floor pop beat, janggu hourglass drum fills, slap bass, sparkling synth lead with a catchy hook, fun and cheerful for kids, fast arcade racing game soundtrack, instrumental",
-   "seed": 799234,
+   "duration": 89.966,
+   "loopStart": 6.617687,
+   "loopEnd": 89.466479,
+   "lufs": -18,
+   "bytes": 1029817,
+   "style": "fast playful heroic orchestral race music for a family animated film, bright chamber strings with lively spiccato violins and violas and warm cellos, plucked gayageum zither phrases and a breathy daegeum bamboo flute melody over the strings, a pentatonic tune, light timpani and soft snare, warm french horn, charming royal palace courtyard, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
+   "seed": 815072,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -620,7 +620,7 @@
   },
   {
    "id": "kick-market",
-   "title": "Night Market Rush",
+   "title": "Pizzicato Market",
    "file": "kick-market.ogg",
    "kind": "loop",
    "tags": [
@@ -632,14 +632,14 @@
    "key": "G major",
    "measured": {
     "tempo": 152,
-    "key": "B minor"
+    "key": "G major"
    },
-   "duration": 137.753,
-   "loopStart": 22.058958,
-   "loopEnd": 137.253146,
-   "lufs": -16.08,
-   "bytes": 1743545,
-   "style": "bouncy upbeat funk-pop racing music, tight brass section stabs, wah-wah funk guitar, popping slap bass, cowbell and hand claps, cheeky catchy saxophone hook, busy lively street market, playful kids arcade racing game soundtrack, instrumental",
+   "duration": 109.216,
+   "loopStart": 24.380958,
+   "loopEnd": 108.715833,
+   "lufs": -18,
+   "bytes": 1315049,
+   "style": "fast bustling playful orchestral music for a family animated film, busy pizzicato strings, chattering flute, clarinet and oboe runs, staccato bassoon, xylophone sparkles, light snare and woodblock, cheeky and cheerful, a lively street market at a quick scamper, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
    "seed": 539390,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
@@ -654,7 +654,7 @@
   },
   {
    "id": "kick-boulevard",
-   "title": "Neon Boulevard",
+   "title": "Boulevard Sweep",
    "file": "kick-boulevard.ogg",
    "kind": "loop",
    "tags": [
@@ -662,19 +662,19 @@
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 156,
-   "key": "E major",
+   "bpm": 140,
+   "key": "A major",
    "measured": {
-    "tempo": 152,
-    "key": "E major"
+    "tempo": 143.6,
+    "key": "A major"
    },
-   "duration": 135.71,
-   "loopStart": 9.775604,
-   "loopEnd": 135.209792,
-   "lufs": -16,
-   "bytes": 1718907,
-   "style": "bright sunny city-pop and synth-pop racing music, continuous driving groove with no breaks, steady punchy drums all the way through, shimmering electric piano chords, funky clean guitar, bouncy synth bass, soaring catchy synth lead melody, happy speeding down wide city avenues, fun kids arcade racing game soundtrack, instrumental",
-   "seed": 731004,
+   "duration": 116.878,
+   "loopStart": 27.237,
+   "loopEnd": 116.378417,
+   "lufs": -18,
+   "bytes": 1411676,
+   "style": "fast uplifting orchestral race music for a family animated film, sweeping legato violin melody over driving spiccato strings, warm cellos, french horn countermelody, flute and clarinet flourishes, light timpani and soft cymbal swells, gliding down a wide sunny avenue, joyful and soaring, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
+   "seed": 707247,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -688,7 +688,7 @@
   },
   {
    "id": "kick-river",
-   "title": "Riverside Breeze",
+   "title": "Along the Han",
    "file": "kick-river.ogg",
    "kind": "loop",
    "tags": [
@@ -696,19 +696,19 @@
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 144,
-   "key": "A major",
+   "bpm": 136,
+   "key": "E major",
    "measured": {
-    "tempo": 143.6,
+    "tempo": 136,
     "key": "E major"
    },
-   "duration": 137.01,
-   "loopStart": 14.814333,
-   "loopEnd": 136.510104,
-   "lufs": -16.11,
-   "bytes": 1869384,
-   "style": "breezy upbeat tropical synth-pop racing music, marimba and steel drum hook, plucky synths, bouncy bass, crisp claps and snappy drums, sunny riverside, cheerful and catchy, fun kids arcade racing game soundtrack, instrumental",
-   "seed": 16304,
+   "duration": 122.103,
+   "loopStart": 19.527979,
+   "loopEnd": 121.602896,
+   "lufs": -18,
+   "bytes": 1476706,
+   "style": "flowing quick orchestral music for a family animated film, rippling harp arpeggios, flowing legato strings, flute and clarinet melody like sunlight on water, soft pizzicato cellos, light glockenspiel, gentle timpani, a breezy ride along a wide river, bright and graceful, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
+   "seed": 24223,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -722,7 +722,7 @@
   },
   {
    "id": "kick-hill",
-   "title": "Hilltop Sprint",
+   "title": "Hilltop Gallop",
    "file": "kick-hill.ogg",
    "kind": "loop",
    "tags": [
@@ -730,19 +730,19 @@
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 160,
-   "key": "F major",
+   "bpm": 152,
+   "key": "Bb major",
    "measured": {
-    "tempo": 161.5,
-    "key": "A major"
+    "tempo": 152,
+    "key": "B major"
    },
-   "duration": 136.523,
-   "loopStart": 35.271104,
-   "loopEnd": 136.0225,
-   "lufs": -16,
-   "bytes": 1827983,
-   "style": "energetic pop-rock racing music, driving electric guitars, fast pounding drums, bright synth brass hook, uplifting key changes, climbing a green hill road under a tower, fun heroic kids arcade racing game soundtrack, instrumental",
-   "seed": 766929,
+   "duration": 104.038,
+   "loopStart": 20.503229,
+   "loopEnd": 103.537771,
+   "lufs": -18.06,
+   "bytes": 1080317,
+   "style": "galloping fast orchestral adventure music for a family animated film, galloping spiccato strings in a rhythmic ostinato, bold french horn melody, bright trumpet calls, woodwind runs, light timpani and snare, climbing a green hill road, plucky and heroic, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
+   "seed": 774848,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -756,7 +756,7 @@
   },
   {
    "id": "kick-downhill",
-   "title": "Tower Downhill",
+   "title": "Downhill Flight",
    "file": "kick-downhill.ogg",
    "kind": "loop",
    "tags": [
@@ -764,19 +764,19 @@
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 170,
-   "key": "B minor",
+   "bpm": 156,
+   "key": "C major",
    "measured": {
-    "tempo": 172.3,
-    "key": "B minor"
+    "tempo": 152,
+    "key": "C major"
    },
-   "duration": 136.801,
-   "loopStart": 41.424396,
-   "loopEnd": 136.301125,
-   "lufs": -16.17,
-   "bytes": 1900302,
-   "style": "fast soaring high-energy electro-rock racing music, racing breakbeat drums, distorted power chords, soaring synth lead melody, rising arpeggios, the thrill of speeding downhill, exciting and bright, kids arcade racing game soundtrack, instrumental",
-   "seed": 176057,
+   "duration": 121.662,
+   "loopStart": 18.901042,
+   "loopEnd": 121.161729,
+   "lufs": -18,
+   "bytes": 1407268,
+   "style": "very fast exhilarating orchestral race music for a family animated film, soaring brass melody with warm french horns and bright trumpets, rushing string runs and spiccato violins, flutes racing alongside, rolling timpani and crisp snare, swooping down a hill at top speed, thrilling yet friendly, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
+   "seed": 183976,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -790,7 +790,7 @@
   },
   {
    "id": "kick-fair",
-   "title": "Starlight Fair",
+   "title": "Carousel Waltz",
    "file": "kick-fair.ogg",
    "kind": "loop",
    "tags": [
@@ -799,18 +799,18 @@
    ],
    "mood": "race",
    "bpm": 150,
-   "key": "C major",
+   "key": "Eb major",
    "measured": {
     "tempo": 152,
-    "key": "G major"
+    "key": "D# minor"
    },
-   "duration": 120.895,
-   "loopStart": 17.995458,
-   "loopEnd": 120.395458,
-   "lufs": -16.54,
-   "bytes": 1459725,
-   "style": "bouncy carnival racing music, oom-pah brass band, cheerful band organ and calliope melody, glockenspiel, snare drum and cymbal crashes over a fast pop beat, playful funfair, catchy and silly, fun kids arcade racing game soundtrack, instrumental",
-   "seed": 851500,
+   "duration": 129.696,
+   "loopStart": 13.955187,
+   "loopEnd": 129.195833,
+   "lufs": -18.1,
+   "bytes": 1564576,
+   "style": "quick merry carousel waltz for a family animated film, bouncy oom-pah-pah strings, glockenspiel and celesta-like bell melody, flute and clarinet twirling, soft tuba and horn, light cymbal and triangle, a spinning fairground merry-go-round, whimsical and sweet, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
+   "seed": 867338,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -824,7 +824,7 @@
   },
   {
    "id": "kick-works",
-   "title": "Ironworks Groove",
+   "title": "Workshop March",
    "file": "kick-works.ogg",
    "kind": "loop",
    "tags": [
@@ -832,19 +832,19 @@
     "kickrani"
    ],
    "mood": "race",
-   "bpm": 146,
-   "key": "E minor",
+   "bpm": 132,
+   "key": "F major",
    "measured": {
-    "tempo": 143.6,
-    "key": "E minor"
+    "tempo": 136,
+    "key": "C major"
    },
-   "duration": 134.502,
-   "loopStart": 41.958458,
-   "loopEnd": 134.002354,
-   "lufs": -16.2,
-   "bytes": 1628732,
-   "style": "gritty driving funk-rock racing music, crunchy overdriven guitar riff, heavy groovy bass, punchy live drums with clanking metal percussion, brass hits, workshop alleys and sparks, cool and catchy, kids arcade racing game soundtrack, instrumental",
-   "seed": 164608,
+   "duration": 115.369,
+   "loopStart": 21.269479,
+   "loopEnd": 114.869125,
+   "lufs": -18.14,
+   "bytes": 1284130,
+   "style": "playful quick orchestral march for a family animated film, cheeky bassoon melody, low strings and cellos marching, pizzicato double basses, clarinet answering, light snare drum march and woodblock ticks, a little muted trumpet, busy friendly workshop, comic and bouncy, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
+   "seed": 180446,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
    "credit": {
@@ -858,7 +858,7 @@
   },
   {
    "id": "kick-podium",
-   "title": "Podium Party",
+   "title": "Confetti Fanfare",
    "file": "kick-podium.ogg",
    "kind": "loop",
    "tags": [
@@ -866,18 +866,18 @@
     "kickrani"
    ],
    "mood": "victory",
-   "bpm": 140,
+   "bpm": 144,
    "key": "C major",
    "measured": {
     "tempo": 143.6,
-    "key": "G major"
+    "key": "C major"
    },
-   "duration": 50.585,
-   "loopStart": 8.939687,
-   "loopEnd": 50.085437,
-   "lufs": -16,
-   "bytes": 667766,
-   "style": "joyful triumphant party celebration music, bright brass fanfare hook, bouncy disco-funk bass, hand claps, celebratory drums, confetti and dancing on a winners podium, happy and catchy, kids racing game celebration music, instrumental",
+   "duration": 50.934,
+   "loopStart": 12.144042,
+   "loopEnd": 50.43375,
+   "lufs": -18,
+   "bytes": 608850,
+   "style": "short joyful triumphant orchestral fanfare dance for a family animated film, bright trumpet and french horn fanfare, bouncy staccato strings dancing, flute trills, glockenspiel, timpani and cymbal accents, celebrating on a winners podium with confetti, happy and catchy, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear catchy melody, light and bouncy, instrumental",
    "seed": 498654,
    "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
    "licence": "MIT",
