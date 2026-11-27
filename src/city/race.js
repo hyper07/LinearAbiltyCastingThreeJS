@@ -1733,7 +1733,48 @@ export class Race {
           this.scGrid.get(key).add(seg);
         }
       }
+      // …and nobody put down at its square corners (the 12 m either side of each, its whole width and a
+      // metre over): the line through one sweeps the street kerb to kerb, and someone stood there was a
+      // rider run off the corner steering round them. People still walk through; they aren't put there.
+      this.cornerGrid = new Map();
+      const at = (i) => c.points[((i % n) + n) % n];
+      for (let i = 0; i < n; i++) {
+        const a = at(i);
+        const w = Math.min(a[2] ?? 8, at(i + 3)[2] ?? 8);
+        if (w >= 10) continue;
+        const hIn = Math.atan2(a[0] - at(i - 3)[0], a[1] - at(i - 3)[1]);
+        const hOut = Math.atan2(at(i + 3)[0] - a[0], at(i + 3)[1] - a[1]);
+        if (Math.abs(turn(hIn, hOut)) < 1.1) continue;
+        for (let k = -2; k <= 2; k++) {
+          const p = at(i + k);
+          const q = at(i + k + 1);
+          const seg = [p[0], p[1], q[0], q[1], w / 2 + 1.2];
+          for (const [x, z] of [[p[0], p[1]], [q[0], q[1]]]) {
+            const key = `${Math.floor(x / 20)}|${Math.floor(z / 20)}`;
+            if (!this.cornerGrid.has(key)) this.cornerGrid.set(key, new Set());
+            this.cornerGrid.get(key).add(seg);
+          }
+        }
+      }
+    } else this.cornerGrid = null;
+  }
+
+  /** Whether a point is at one of a zig-zag's square corners (nobody is put down there in a race). */
+  atCorner(x, z) {
+    if (!this.cornerGrid?.size) return false;
+    const ci = Math.floor(x / 20);
+    const cj = Math.floor(z / 20);
+    for (let i = ci - 1; i <= ci + 1; i++) {
+      for (let j = cj - 1; j <= cj + 1; j++) {
+        for (const [ax, az, bx, bz, half] of this.cornerGrid.get(`${i}|${j}`) ?? []) {
+          const dx = bx - ax;
+          const dz = bz - az;
+          const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+          if (Math.hypot(x - ax - dx * t, z - az - dz * t) < half) return true;
+        }
+      }
     }
+    return false;
   }
 
   /** What stands in the street near a point (planters, bins, parked scooters, poles): the course's and the short cuts'. */
@@ -2400,7 +2441,19 @@ export class Race {
       }
     } else {
       r.sc = null;
-      const loc = locate(c, r.s.x, r.s.z, r.idx);
+      let loc = locate(c, r.s.x, r.s.z, r.idx);
+      // (a jump far up the course — where it comes back past itself, the two ways of a hairpin 10 m apart
+      // in front of Gwanghwamun — only if the course here has really been left: else the nearer part on)
+      if ((loc.i - r.idx + n) % n > 8) {
+        let bi = r.idx;
+        let bd = Infinity;
+        for (let k = -15; k <= 8; k++) {
+          const q = c.points[(((r.idx + k) % n) + n) % n];
+          const d = Math.hypot(q[0] - r.s.x, q[1] - r.s.z);
+          if (d < bd) (bd = d), (bi = (((r.idx + k) % n) + n) % n);
+        }
+        if (bd < (c.points[bi][2] ?? 6) / 2 + 8) loc = { i: bi, off: bd };
+      }
       const width = c.points[loc.i][2] ?? 6;
       r.off = loc.off;
       if (loc.off < width / 2 + 20) r.idx = loc.i;
@@ -3273,9 +3326,21 @@ export class Race {
     // Rung at from behind: give them the middle of the road for a moment.
     r.yieldT = Math.max(0, (r.yieldT ?? 0) - dt);
     if (r.yieldT > 0 && !passing) want = band.hi - 0.15;
+    // A square corner coming in a street under 10 m (a lane between houses, a one-lane-each-way road):
+    // set up for it — out to the far side of the street from the way it turns, from about 40 m off, so
+    // the line through it is the widest the street has (kept to the right, a right turn was a U of 3 m
+    // round the corner's building: run wide into the wall opposite, or out across a square). Into the
+    // turn from 8 m before it, the band again.
+    const sq = this._squareAhead(P, 8);
+    let ease = 1.6;
+    if (sq && sq.d > 8 && !passing) {
+      want = sq.right ? wide.lo : wide.hi;
+      ease = 3.2;
+    }
+    r.tightSoon = Boolean(sq && sq.d < 30);
     // Ease across (a bike drifts over, it doesn't jump).
     r.lat ??= myLat;
-    r.lat += Math.max(-1.6 * dt, Math.min(1.6 * dt, want - r.lat));
+    r.lat += Math.max(-ease * dt, Math.min(ease * dt, want - r.lat));
     r.lane = r.lat;
     const aimX = t[0] + Math.cos(hd) * r.lat;
     const aimZ = t[1] - Math.sin(hd) * r.lat;
@@ -3384,6 +3449,8 @@ export class Race {
     // The walls (walls.js): feelers out ahead and to each side — one near on a side steers it away, one
     // straight ahead is a stop to brake for.
     let wallAhead = Infinity;
+    // (kept apart from the rest: a wall is steered off whichever side it is, round a corner too)
+    let wallPush = 0;
     const walls = this.course.walls;
     if (walls && v > 2) {
       const look = 3 + v * 0.75;
@@ -3398,9 +3465,23 @@ export class Race {
         // in our own path (a bike's width and a bit): a wall to brake for
         if (lateral < 0.9) wallAhead = Math.min(wallAhead, ahead2);
         // close beside the path ahead: ease away from it (a wall to the left (+a) pushes right: −)
-        else if (lateral < 1.7) push -= Math.sign(a) * (1 - lateral / 1.7) * (1 - ahead2 / look) * 1.6;
+        else if (lateral < 1.7) wallPush -= Math.sign(a) * (1 - lateral / 1.7) * (1 - ahead2 / look) * 1.6;
       }
     }
+    // At a square corner in a narrow street (from 14 m before it to 8 m past), nothing steers it away from
+    // the way it turns: someone at the corner, the pack, a car's nose pushed it straight on, off the corner
+    // and out across the street beyond (it brakes for what is really in the way instead). Walls still push.
+    // (and round any bend under way — a skyway's long hairpin, the pack bunched into it: steered round the
+    // others there, it was pushed off the outside of the bend)
+    const bendIn = Math.atan2(P(0)[0] - P(-3)[0], P(0)[1] - P(-3)[1]);
+    const bendOut = Math.atan2(P(3)[0] - P(0)[0], P(3)[1] - P(0)[1]);
+    const arc = P(-3) === P(0) || P(3) === P(0) ? 0 : turn(bendIn, bendOut);
+    const arcRight = (P(3)[0] - P(0)[0]) * -(P(0)[1] - P(-3)[1]) + (P(3)[1] - P(0)[1]) * (P(0)[0] - P(-3)[0]) > 0;
+    // (not once it has stood a second held there: then round it, whichever way)
+    const held = (r.waitT ?? 0) > 1;
+    if (!held && sq && sq.d > -8 && sq.d < 14) push = sq.right ? Math.min(push, 0.3) : Math.max(push, -0.3);
+    else if (!held && Math.abs(arc) > 0.35) push = arcRight ? Math.min(push, 0.3) : Math.max(push, -0.3);
+    push += wallPush;
     // Steering is + to the left; something on our right pushes us left.
     steer = Math.max(-1, Math.min(1, steer + push * r.skill));
     const grip = Math.min(1.05, this._grip() * (r.spec.grip ?? 1));
@@ -3422,7 +3503,9 @@ export class Race {
       // (a road's corner is cut across its width: the line through it is wider than the kerb's)
       const w = Math.min(a[2] ?? 8, b[2] ?? 8);
       // (into or along a small street there is far less room to swing wide: a much tighter line)
-      const tight = isSmall(b[3] ?? 4) || isSmall(a[3] ?? 4);
+      // (a lane between houses, or any road under 10 m between its kerbs: a secondary or tertiary road one
+      // lane each way is as tight round a square corner as a residential lane)
+      const tight = isSmall(b[3] ?? 4) || isSmall(a[3] ?? 4) || w < 10;
       let corner = cornerSpeed(Math.max(1e-3, bend / Math.min(30, tight ? 3 + w * 1.3 : 12 + w * 1.6)), grip, r.spec) * (0.78 + 0.14 * r.skill);
       if (bend > 0.9) {
         corner = Math.max(corner, driftV);
@@ -3432,6 +3515,12 @@ export class Race {
         // (a square corner into or out of a lane between houses, buildings to the kerb: no room to drift or
         // swing wide — round it at 25–30 km/h, a little quicker for the sharper riders and the wider lanes)
         if (bend > 1.1 && tight && w < 10) corner = Math.min(corner, 5.2 + w * 0.3 + (r.skill - 0.86) * 6);
+        // (a square corner off a road of 10–14 m — a one-way pair's carriageway, a two-lane road: a little
+        // more room, a drift allowed, but no 60 km/h swing round it: about 35 km/h)
+        else if (bend > 1.1 && w < 14) corner = Math.min(corner, 5.2 + w * 0.4 + (r.skill - 0.86) * 6);
+        // (a hairpin — round more than 115°, the two ways a few metres apart: Gwanghwamun's U-turn, the
+        // skyway's — whatever the road's width: about 20 km/h)
+        if (bend > 2) corner = Math.min(corner, 5.2 + (r.skill - 0.86) * 6);
       }
       target = Math.min(target, Math.sqrt(corner * corner + 2 * decel * Math.max(0, j * 6 - 5)));
     }
@@ -3468,11 +3557,22 @@ export class Race {
     if (pinch < 4.4) target = Math.min(target, 12.5 + 3 * (r.skill - 0.88) * 10);
     // A narrow stretch of road (a slip road, a lane between kerbs): no faster than its width lets you steer.
     else if (pinch < 7.5) target = Math.min(target, 4 + pinch * 1.9);
+    // Stopped, and held there: a stream of traffic across the junction is waited for (that isn't stuck —
+    // up to eight seconds); anything else that has stopped in front — a car that pulled up for this rider
+    // standing still (drivers do: traffic.js brakesFor), and so waits for it to go — is crept round at a
+    // walking pace, as you would, steering round it, rather than both standing there for ever.
+    r.waitT = v < 1.2 && this.phase === 'racing' ? (r.waitT ?? 0) + dt : 0;
+    r.trafficWait = r.waitT > 0 && crossing < 9 ? (r.trafficWait ?? 0) + dt : 0;
+    if (r.waitT > 1 && crossing >= 9) target = Math.max(target, 2.3);
     // (held by the police — five seconds at a standstill — isn't stuck: never put back on for it)
-    r.stuck = this.phase === 'racing' && v < 0.8 && !r.pulled ? r.stuck + dt : 0;
+    const waiting = r.trafficWait > 0 && r.trafficWait < 8;
+    r.stuck = this.phase === 'racing' && v < 0.8 && !r.pulled && !waiting ? r.stuck + dt : 0;
     // Nose against a wall (a square corner run wide in a narrow street) and stopped: the rider walks the
     // scooter round toward the way on, a step back off the wall, and rides again — as you would.
-    if (v < 1.2 && this.phase === 'racing' && (walls?.ray(s.x, s.z, -Math.sin(s.heading), -Math.cos(s.heading), 1.5) ?? 9) < 1.1) {
+    // (a wall met at a slant counts too: stopped with one a step off the bars, half left or half right)
+    const nose = (a) => walls?.ray(s.x, s.z, -Math.sin(s.heading + a), -Math.cos(s.heading + a), 1.5) ?? 9;
+    // (and stood a second and a half held by anything else — a kerb too tall to hop, a step, a post — the same)
+    if (v < 1.2 && this.phase === 'racing' && (nose(0) < 1.1 || (r.stuck > 0.8 && Math.min(nose(0.6), nose(-0.6)) < 0.9) || r.stuck > 1.5)) {
       const tgt = heading(P(1), P(4));
       const d = turn(s.heading, tgt);
       s.heading += Math.max(-2.4 * dt, Math.min(2.4 * dt, d));
@@ -3487,7 +3587,7 @@ export class Race {
       r.prog ??= { d: r.dist, t: 0 };
       r.prog.t += dt;
       // (on 4 m since — or put back, or anywhere else: counted afresh)
-      if (Math.abs(r.dist - r.prog.d) > 4 || r.pulled) r.prog = { d: r.dist, t: 0 };
+      if (Math.abs(r.dist - r.prog.d) > 4 || r.pulled || waiting) r.prog = { d: r.dist, t: 0 };
     }
     // (home and cooling down: none of this — it is meant to stop, and it has nothing left to use)
     if (r.done != null) return { steer, throttle: false, brake: true };
@@ -3507,7 +3607,9 @@ export class Race {
     };
     if (has('helmet') >= 0 && !r.helmet) this._use(r, has('helmet'));
     // the drink (the only boost): on a straight with open road, not already boosting (it is four seconds of boost)
-    if (has('drink') >= 0 && straight && block > 50 && v > 12 && !s.boosting && !(r.slip > 0)) this._use(r, has('drink'));
+    // (and nothing to slow for in the next hundred metres — four seconds of boost covers that: drunk before
+    // a corner, it ran into it at 85 km/h)
+    if (has('drink') >= 0 && straight && block > 50 && v > 12 && target >= r.spec.cruise && !s.boosting && !(r.slip > 0)) this._use(r, has('drink'));
     if (has('marbles') >= 0) {
       // poured when someone is right behind (or after holding them a while)
       r.heldMarbles = (r.heldMarbles ?? 0) + dt;
@@ -3578,7 +3680,34 @@ export class Race {
     const drift = r.driftT > 0 && v > 6;
     if (drift && Math.sign(steer) !== Math.sign(r.driftSide)) steer = r.driftSide * 0.4;
     if (drift) steer = Math.sign(steer || r.driftSide) * Math.max(Math.abs(steer), 0.75);
-    return { throttle: v < target - 0.2, brake: v > target + 1.2 && (!drift || v > target + 5), steer, drift };
+    // (coming up to a square corner in a narrow street, braked down to its speed, not left 4 km/h over)
+    return { throttle: v < target - 0.2, brake: v > target + (r.tightSoon ? 0.3 : 1.2) && (!drift || v > target + 5), steer, drift };
+  }
+
+  /**
+   * The next square corner (over ~63°) in a street under 10 m between its kerbs, within `within` points:
+   * { d (metres to it), right (it turns right) }, or null.
+   */
+  _squareAhead(P, within = 8) {
+    for (let j = -1; j <= within; j++) {
+      const a = P(j);
+      const b = P(j + 3);
+      const p0 = P(j - 3);
+      if (a === b) return null;
+      if (a === p0) continue;
+      const w = Math.min(a[2] ?? 8, b[2] ?? 8);
+      if (w >= 10) continue;
+      const hIn = Math.atan2(a[0] - p0[0], a[1] - p0[1]);
+      const hOut = Math.atan2(b[0] - a[0], b[1] - a[1]);
+      if (Math.abs(turn(hIn, hOut)) < 1.1) continue;
+      // (right of the way in: (−dz, dx))
+      const ix = a[0] - p0[0];
+      const iz = a[1] - p0[1];
+      const right = (b[0] - a[0]) * -iz + (b[1] - a[1]) * ix > 0;
+      const here = P(0);
+      return { d: Math.hypot(a[0] - here[0], a[1] - here[1]) * (j < 0 ? -1 : 1), right };
+    }
+    return null;
   }
 
   /**
@@ -4416,6 +4545,7 @@ export class Race {
     this.golmoks = [];
     this.paths = [];
     this.scGrid = null;
+    this.cornerGrid = null;
     if (this.decor) this.g.scene.remove(this.decor);
     this.decor = null;
     this.plates = [];

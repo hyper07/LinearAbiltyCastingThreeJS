@@ -243,8 +243,9 @@ Seoul's real streets — and the streets stay open.
     Lake under the 555 m tower). Three more were planned and taken out again after the autopilot runs —
     Olympic Park (Bangi-dong's grid), the Itaewon side streets and Hongdae–Sinchon: their lanes are 5.5–
     8 m between the buildings, square corner after corner, hills, and the bots were put back on the course
-    4–13 times a lap there, laps 3.5–4.8 minutes (the lesson of the first Hard loops again); they wait on
-    better riding in one-car lanes. Each is planned through points of its own like the fairground's
+    4–13 times a lap there, laps 3.5–4.8 minutes (the lesson of the first Hard loops again). Tried again
+    with the better cornering below (Nov 2026, one lap each on the autopilot): Olympic Park 1–3 put-backs a
+    rider, laps 162–183 s; Itaewon 2–4, 186–198 s; Hongdae–Sinchon up to 9, laps 4.5 minutes — still out. Each is planned through points of its own like the fairground's
     (`via`), with the zig-zag costs (`PROFILE.zigzag`: local streets cheap, arterials 3.5–8× dearer,
     turns cheap; a point snaps to the carriageway going its way); `links` join a side road to a divided
     road's far carriageway where the map leaves a gap, `startAt` puts the Heritage Run's grid opposite the
@@ -256,6 +257,24 @@ Seoul's real streets — and the streets stay open.
     while the race is on, nothing stood on the ground at their edges — `golmok.js` `sparse`) so a corner
     is a corner, not a jam; and a bot takes a square corner between two
     lanes one car wide at about 25 km/h (`race.js`: no room there to drift or swing wide).
+    A zig-zag's lane 7 m and up is drawn as a street, not an alley (`golmok.js` `_walkside`): a white line
+    down each edge and, two-way, a yellow one down the middle; and where no building stands at its edge —
+    Yeouido's offices and the flats estates set back behind open ground — a raised pavement out to the
+    buildings (or 3 m: kerb, block paving, stood on like the main roads') and a low steel railing along its
+    back (solid; none in a corner's approach or just round it), not an alley's garden wall: Yeouido's back
+    streets had read as walled lanes through an empty sand-coloured plaza. Nobody is put down at a
+    zig-zag's square corners in a race (`atCorner`: 12 m either side, the street's width and a metre).
+    **Riding them** (`_bot`, the autopilot too): a square corner in any street under 10 m between its
+    kerbs (a lane, or a secondary or tertiary road one lane each way) is taken at 25–30 km/h, one off a
+    10–14 m road at about 35, a hairpin (round over 115°, Gwanghwamun's U-turn) at about 20, braked down
+    to it, not left 4 km/h over; from about 40 m off the rider swings out to the far side of the street
+    from the way it turns, the widest line it has; round a corner or a bend under way nothing (someone at
+    the corner, the pack, a car's nose) steers it out toward the outside; the drink only
+    with nothing to slow for in the next 100 m; a rider stopped by crossing traffic waits (not "stuck",
+    up to 8 s), one held by anything else stopped in front — a car that pulled up for it — creeps round
+    it at a walking pace, and one stood a second and a half against anything is walked round toward the
+    way on; where the course comes back past itself (the U-turn's two ways 10 m apart) a rider's place
+    on it no longer jumps up the course to the other way.
 
   The level sets more than the streets: the bots' skill, how many cars are about, coming the other
   way and going yours (Easy busier but fair, Medium busy, Hard packed), how many cars are parked at
@@ -296,11 +315,14 @@ Seoul's real streets — and the streets stay open.
   | Hard (zig-zag) | Bukak Skyway (A→B) | 2.88 | 0% | 2 / 0 (8: the hairpins are 40–60°) | 60 m | 0 | 143 m down, 77 up | 1 / 1 |
   | Hard (zig-zag) | Jamsil Sky Tower | 2.32 | 32% | 10 / 4 (4) | 192 m | 0 | 12 m | 1 / 0.7 |
 
-  (The zig-zags, one lap on the autopilot with three bots, day, clear, Nov 2026: the bots' laps 178–198 s
-  on the Heritage Run, 139–141 s at Banpo, 184–199 s on the 63 Lanes, 201–224 s down the Bukak Skyway,
-  156–181 s round the Sky Tower; put back on the course a lap (you on the autopilot / each bot) 6 / 0–1,
-  2 / 1–4, 1 / 1–3, 3 / 2–3, 3 / 2–4 — more than the one aimed at: the corners between houses are still
-  where a rider ends up against a wall.)
+  (The zig-zags, one lap on the autopilot with three bots, day, clear, Nov 2026. Before the cornering
+  work: the bots' laps 178–198 s on the Heritage Run, 139–141 s at Banpo, 184–199 s on the 63 Lanes,
+  201–224 s down the Bukak Skyway, 156–181 s round the Sky Tower; put back on the course a lap (you on the
+  autopilot / each bot) 6 / 0–1, 2 / 1–4, 1 / 1–3, 3 / 2–3, 3 / 2–4 — measured again then (High tier):
+  3 / 0–1, 1 / 0–1, 2 / 0–3, 1 / 0–1, 6 / 1, often with only one or two riders home inside five minutes.
+  After: put back 0 / 0–1 on the Heritage Run, 0 / 0–1 at Banpo, 0 / 0 on the 63 Lanes, 0 / 0 down the
+  Skyway, 0 / 0–2 round the Sky Tower; laps 189–214 s, 127–151 s, 175–200 s, 199 s, 166–192 s. Crashes
+  — traffic, items, walls — are counted apart and not changed by it.)
 
   (Crashes counted without the items' — branches, marbles. On the Hard loops the bots are often
   put back on the course after getting nowhere in a tight corner: they are slow there, not unfair.)
