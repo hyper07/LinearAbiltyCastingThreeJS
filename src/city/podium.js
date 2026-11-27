@@ -6,9 +6,9 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * crossed the line in time) stand on a podium just past the finish line, in the city as it is —
  * the time of day and the weather carry on. 1st in the middle and highest, 2nd on its left, 3rd on
  * its right (as you look at it), a big number on each block; their scooters parked beside it on
- * their kickstands. Each dances its own species' signature (src/shared/motion/signatures.js), the
- * slow and smooth in half time; the winner raising its arms slowly into a V, held two beats, with one
- * soft hop every two bars, 2nd one paw, 3rd a small V (plushRider.js celebrate: procedural, ears and
+ * their kickstands. Each dances its own species' signature (src/shared/motion/signatures.js),
+ * smooth: half-time moves played at 1.5×; the winner raising its arms into a V on the downbeat, held
+ * a beat and a third, with one soft hop every two bars, 2nd one paw, 3rd a small V (plushRider.js celebrate: procedural, ears and
  * tails flowing on soft springs). Confetti
  * falls, the camera swings slowly round and pushes in. Your own rider, if it is up there, has a gold
  * ring round its block, the block's top glowing with it.
