@@ -68,11 +68,18 @@ export function lessonsIn(realm = 'land') {
     // A world whose new lessons are written but not live yet keeps teaching only its current ones.
     list = BY_REALM[key].filter((l) => subjects.includes(l.subject));
     if (list.length === BY_REALM[key].length) list = BY_REALM[key];
+    // A world whose old lessons are gone and whose new ones wait for the switch borrows the
+    // mountain's in the meantime, as a world still being written does (teachingRealm).
+    if (!list.length && key !== 'land') list = lessonsIn('land');
     taught.set(key, list);
   }
   return list;
 }
-/** Whose lessons, teachers and stories a world teaches with: its own realm once it has lessons, else the land's (a world still being written). */
+/**
+ * Whose lessons, teachers and stories a world teaches with: its own realm once it has lessons, else
+ * the land's (a world still being written). A world whose new lessons wait for LIVE keeps its own
+ * teachers and stories, and borrows only the mountain's lessons (lessonsIn).
+ */
 export const teachingRealm = (realm = 'land') => (BY_REALM[realm] ? realm : 'land');
 export const lessonById = (id) => BY_ID.get(id) ?? null;
 export const lessonsOn = (floor, subject = null, realm = 'land') => lessonsIn(realm).filter((l) => l.floor === floor && (!subject || l.subject === subject));

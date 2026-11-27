@@ -31,7 +31,7 @@ buddy are shared everywhere.
 | World | Realm | Teachers (Math · History · Physics) | What it teaches |
 | --- | --- | --- | --- |
 | Learning Mountain ⛰️ | land | Professor Hoot 🦉 · Tock 🐢 · Gizmo 🦝 | the lessons above |
-| The Great Tree 🌳 | forest | Nutmeg 🐿️ · Grandpa Bramble 🐻 · Dr. Ribbit 🐸 | Forest Math, Forest History, the Nature Lab: trees, plants, seasons and the people who studied and protected forests (`content/forest.js`) |
+| The Great Tree 🌳 | forest | Nutmeg 🐿️ · Grandpa Bramble 🐻 · Dr. Ribbit 🐸 | its own subjects, written and waiting for their translations (until then it borrows the mountain's lessons): 42 lessons in the Pattern Pod School (Logic & Patterns), the Weather Root Hall (Earth & Weather) and the Nature Lab (Biology) — sorting by a secret rule, repeating and growing patterns, tallies and pictographs, odd one out, Venn diagrams, chance words and chances in numbers, bar charts, if–then reasoning, a logic grid, symmetry in nature, line graphs and trends, branching keys; the seasons, weather and the pine-cone forecaster, the water cycle, Luke Howard's clouds, soil layers, fossils and deep time, rivers, wind and Beaufort's scale, the weather station, the rock cycle, Inge Lehmann and the Earth's layers and plates, weather maps and fronts, climate zones, Eunice Foote and how forests cool the planet; plant parts, living or not, animal groups, frog and butterfly life cycles, food chains, habitats, decomposers and fungi, adaptations, photosynthesis, pollination and seed travel, food webs and Yellowstone's wolves, the body's systems, the wood wide web (what's proven and what isn't) and conservation. Games: `sort` (the tree's own, in 30 lessons), `maphunt` (a logic-grid pond, a sky map of clouds, a river, a weather map, the world's climate zones, forest habitats, where endangered animals live), `dig` (puzzle pebbles, pattern stones, a soil pit, chance puzzles, the leaf-litter recyclers), and a guide to `chat` with in every Earth & Weather lesson, with timelines, treasures and experiments (`content/forest.js`) |
 | The Lagoon 🏝️ | sea | Captain Pip 🐧 · Grandma Inka 🐙 · Dr. Splash 🦭 | Sea Math, Sea Explorers, the Ocean Lab: navigators, lighthouses, ocean science, floating, tides and the deep sea (`content/sea.js`) |
 | The Desert of the Pyramids 🐪 | desert | Miss Lotus 🦛 · Uncle Reed (an ibis) · Dr. Sandy (a sand cat) | the Pyramid School, the Temple School and the Sun Observatory: 42 desert and Ancient Egypt lessons — hieroglyph numbers, cubits and the Nile's fields; farmers, scribes, Imhotep, Hatshepsut, Petra, the Rosetta Stone, Ibn Battuta, Alexandria, Timbuktu, Tutankhamun and Abu Simbel; shade, singing dunes, wet sand under sledges, the shadoof, mirages, hot-air balloons, sandstorms and Eratosthenes (`content/desert.js`) |
 | Mars 🔴 | mars | Miss Ruby (an otter) 🦦 · Professor Woolly (an alpaca) 🦙 · Dr. Digby (a star-nosed mole) | the Red Dome School, the Mars Museum and the Weather Lab on Olympus Mons: 42 Mars and planet lessons — counting rover wheels, rock samples in tens, the six times table, fractions of a space pizza, feeling about 3/8 as heavy, sols about 40 minutes longer, greenhouse areas, a Mars year of about 1.9 Earth years, below-zero nights, Mars percentages, rover-route equations and square solar fields; the red wandering star, Phobos and Deimos and Angeline Stickney, Schiaparelli's canal mix-up, Mariner 4's hand-coloured first picture, Viking, Sojourner, Spirit and Opportunity, Mangalyaan, Curiosity's sky crane, the UAE's Hope, Perseverance's sample tubes, Tianwen-1 and Zhurong, Ingenuity and MOXIE; why Mars is red, sols and blue sunsets, quiet thin air, falling in gentler gravity, ice caps and long-ago water, keeping warm, greenhouses and mirrors, rovers in soft sand, solar power and dust, robot arms and levers, flying in thin air, radio delay, Olympus Mons and Valles Marineris, and launch windows (`content/mars.js`) |
@@ -289,7 +289,11 @@ stay and take the slot's subject. Slot 1 is always the world's woven-in math.
 **A world teaches the mountain's math, history and physics until it goes live** (`LIVE` in
 `src/arcademia/content/subjects.js`; today only the mountain is). Until then it plays exactly as
 before; lessons in its new subjects may already sit in its content file — they validate, but are
-not taught (`lessonsIn` keeps only the subjects a world teaches now).
+not taught (`lessonsIn` keeps only the subjects a world teaches now), and are not in the voice script or
+required in the translations yet. A world whose old lessons are already gone (the Great Tree: its 42 new
+lessons are written, their translations come next) borrows the mountain's lessons until it is switched on,
+keeping its own teachers, stories and puzzle bosses. On the dev server, `arcademiaPreviewWorld('forest')`
+in the console switches a world over (and rebuilds its map) to preview its new lessons; `false` switches it back.
 
 The registry, `src/arcademia/content/subjects.js`:
 
@@ -332,7 +336,8 @@ For a world `<realm>` (say `desert`: geometry, archaeology, chemistry):
    should read differently.
 4. **Switch it on**: `<realm>: true` in `LIVE` (`content/subjects.js`).
 5. **Check**: `npm test`. `tests/unit/arcademia-subjects.test.mjs` "every live world is ready"
-   lists what is still missing (a floor short of lessons, a string not written in a language);
+   lists what is still missing (a floor short of lessons, a string not written in a language, a
+   lesson not yet translated into one);
    the lesson check, the i18n test and the voice tests cover the rest. The e2e suites enter schools
    by slot key (`enter('math', 1)` finds the world's slot-1 subject), so they keep working.
 6. **Voices**: the new lines (greetings, quest intros, reading cards, quizzes, guides) are in the

@@ -34,7 +34,7 @@
  * caller loads the language first (loadLocale or registerLocale).
  */
 import { tIn, localizeLesson, LOCALE_IDS } from '../i18n/index.js';
-import { LESSONS } from '../content/index.js';
+import { LESSONS, lessonsIn } from '../content/index.js';
 import { FLOOR_COUNT } from '../content/schema.js';
 import { SLOTS, subjectAt, slotOf, activitiesOf, helloKey, buildingKey } from '../content/subjects.js';
 
@@ -82,9 +82,9 @@ const DIRECTION = {
   hoot: 'Professor Hoot, a kind, slightly bookish owl who teaches math. Warm and encouraging, never rushed; smile in the voice. A soft “hoo-hoo” is welcome.',
   tock: 'Tock the Time-Keeper, an old, cosy tortoise who teaches history. A warm storyteller, unhurried, with a twinkle of wonder.',
   gizmo: 'Gizmo the Inventor, an excitable raccoon who runs the physics lab. Bright, curious and bouncy, with big “wow!” energy, but always clear.',
-  nutmeg: 'Nutmeg, a quick, cheerful squirrel who teaches Forest Math in a seed-pod school. Bright and bouncy, loves counting acorns, always patient.',
-  bramble: 'Grandpa Bramble, a big, gentle old bear who tells the forest’s history in the Root Hall. Deep, slow and cosy, like a story by the fire.',
-  ribbit: 'Dr. Ribbit, an excitable frog scientist who runs the Nature Lab. Curious and giggly, with a happy “ribbit!”, but always clear.',
+  nutmeg: 'Nutmeg, a quick, cheerful squirrel who teaches in the Great Tree’s seed-pod school: patterns, sorting and puzzles (Forest Math until the tree’s own subjects go live). Bright and bouncy, loves a good riddle, always patient.',
+  bramble: 'Grandpa Bramble, a big, gentle old bear who teaches in the Root Hall: the forest’s stories, and the Earth and its weather. Deep, slow and cosy, like a story by the fire.',
+  ribbit: 'Dr. Ribbit, an excitable frog scientist who runs the Nature Lab: experiments and living things. Curious and giggly, with a happy “ribbit!”, but always clear.',
   pip: 'Captain Pip, a cheerful little penguin sea captain who teaches Sea Math on the islands. Brisk and jolly, a sailor’s “ahoy!”, always patient.',
   inka: 'Grandma Inka, a wise, gentle old octopus who tells the sea’s history in her pavilion. Soft, cosy and full of wonder, like a bedtime story.',
   splash: 'Dr. Splash, a playful seal scientist who runs the Ocean Lab. Bubbly and curious, giggly “ooh!”s, but clear when explaining.',
@@ -212,6 +212,8 @@ const INTRO_CONTEXT = {
   'land.physics': 'Lesson start: every physics quest begins with this.',
   'forest.math': 'Lesson start: every Forest Math quest on the Great Tree begins with this.',
   'forest.physics': 'Lesson start: every Nature Lab quest on the Great Tree begins with this.',
+  'forest.logic': 'Lesson start: every Logic & Patterns quest in the Great Tree’s seed-pod school begins with this.',
+  'forest.biology': 'Lesson start: every Biology quest in the Great Tree’s Nature Lab begins with this.',
   'sea.math': 'Lesson start: every Sea Math quest on the islands begins with this.',
   'sea.physics': 'Lesson start: every Ocean Lab quest on the islands begins with this.',
   'desert.math': 'Lesson start: every Pyramid School quest in the desert begins with this.',
@@ -329,8 +331,9 @@ export function buildScript(lang = 'en') {
     add(cb, key('puzzle.lost'), 'bark', n, T('puzzle.lost'), 'Not enough right answers this time.');
   }
 
-  // ---- lessons, floor by floor
+  // ---- lessons, floor by floor (the ones taught now: a world's new lessons join once it is live)
   for (const lesson0 of LESSONS) {
+    if (!lessonsIn(lesson0.realm ?? 'land').includes(lesson0)) continue;
     const lesson = localizeLesson(lesson0, lang);
     const { id, floor, subject } = lesson0;
     const teacher = teacherOf(lesson0);

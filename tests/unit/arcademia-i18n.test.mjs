@@ -4,7 +4,7 @@ import { LOCALES, LOCALE_IDS, pickLocale, loadLocale, tIn, localizeLesson, lesso
 import { DEMO_LESSONS, DEMO_OVERLAYS } from '../fixtures/arcademia-activities.js';
 import { cipherFor, charsOf } from '../../src/arcademia/content/games.js';
 import en from '../../src/arcademia/i18n/locales/en/index.js';
-import { LESSONS, GENERATORS } from '../../src/arcademia/content/index.js';
+import { LESSONS, GENERATORS, lessonsIn } from '../../src/arcademia/content/index.js';
 import { lessonProblems } from '../../src/arcademia/content/schema.js';
 
 const OTHERS = LOCALE_IDS.filter((id) => id !== 'en');
@@ -54,8 +54,11 @@ test('i18n: every language has every key, with the same {placeholders}', () => {
 });
 
 test('i18n: every lesson is complete in every language and still well-formed', () => {
+  // Every lesson a world teaches now. (A world's lessons in its new subjects, written but waiting for
+  // LIVE, are translated before it goes live: the subjects test's "every live world is ready".)
+  const taught = LESSONS.filter((l) => lessonsIn(l.realm ?? 'land').includes(l));
   for (const id of OTHERS) {
-    for (const lesson of LESSONS) {
+    for (const lesson of taught) {
       const over = mods[id].lessons[lesson.id];
       assert.ok(over, `${id}: lesson ${lesson.id} is not translated`);
       for (const p of lessonTextPaths(lesson)) {

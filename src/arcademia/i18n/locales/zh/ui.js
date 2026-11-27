@@ -435,6 +435,10 @@ export default {
   'forest.quest.math': '你好，小小攀登者！森林里有好多东西要数一数、量一量、分一分。我们一起来吧！',
   'forest.quest.history': '来树根旁坐下吧！{name}要给你讲森林和热爱森林的人们的故事。',
   'forest.quest.physics': '呱！大自然里到处都是实验。先猜一猜，再到自然实验室里试一试！',
+  // 大树自己的科目（LIVE.forest 打开后）；每节地球与天气课都有一位向导（{name}）。
+  'forest.quest.logic': '你好，小小解谜家！大树上到处藏着规律、分类和线索。我们一起好好想一想吧！',
+  'forest.quest.earth': '来树根旁坐下吧！{name}对天空、天气和我们脚下的大地无所不知。',
+  'forest.quest.biology': '呱！生物身上满是惊喜。我们仔细看一看、分一分类，弄明白它们是怎样生活的吧！',
   'forest.building.math': '种荚学校',
   'forest.building.history': '树根大厅',
   'forest.building.physics': '自然实验室',

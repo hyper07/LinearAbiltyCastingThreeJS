@@ -456,6 +456,10 @@ export default {
   'forest.quest.math': 'Hello, little climber! The forest is full of things to count, measure and share. Let\'s work it out together!',
   'forest.quest.history': 'Come and sit by the roots! {name} has a story about forests and the people who loved them.',
   'forest.quest.physics': 'Ribbit! Nature is full of experiments. Guess first, then we\'ll test it in the Nature Lab!',
+  // The Great Tree's own subjects (taught once LIVE.forest is on); every Earth & Weather lesson has a guide ({name}).
+  'forest.quest.logic': 'Hello, puzzle-cracker! Patterns, groups and clues are hiding all over the Great Tree. Let\'s think it through together!',
+  'forest.quest.earth': 'Come and sit by the roots! {name} knows all about the sky, the weather and the ground beneath our paws.',
+  'forest.quest.biology': 'Ribbit! Living things are full of surprises. Let\'s look closely, sort them out and find out how they work!',
   'forest.building.math': 'Seed Pod School',
   'forest.building.history': 'Root Hall',
   'forest.building.physics': 'Nature Lab',

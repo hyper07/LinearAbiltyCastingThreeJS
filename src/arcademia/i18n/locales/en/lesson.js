@@ -38,6 +38,10 @@ export default {
   'forest.hello.math': 'Hi hi! Welcome to my seed-pod school. Which puzzle shall we crack?',
   'forest.hello.history': 'Welcome to the Root Hall, little one. Shall I tell you a forest story?',
   'forest.hello.physics': 'Ribbit! Welcome to the Nature Lab. What shall we discover today?',
+  // The Great Tree's own subjects (taught once LIVE.forest is on).
+  'forest.hello.logic': 'Hi hi! Welcome to my Pattern Pod. Which puzzle shall we crack today?',
+  'forest.hello.earth': 'Welcome to the Weather Root Hall, little one. Shall we find out what the sky and the stones are up to?',
+  'forest.hello.biology': 'Ribbit! Welcome to the Nature Lab. Which living thing shall we get to know today?',
   'desert.hello.math': 'Hello, hello! Welcome to my Pyramid School. Which puzzle shall we solve here in the shade?',
   'desert.hello.history': 'Ah, welcome to the Temple School, young scribe. Shall I unroll a story for you?',
   'desert.hello.physics': 'Purr-fect timing! Welcome to the Sun Observatory. What shall we test today?',

@@ -124,7 +124,7 @@ export const REALM_SUBJECTS = Object.freeze({
  * physics (its current lessons), exactly as before. Flip a world to true in the same change that
  * brings its new lessons (docs/arcademia.md, "Subjects per world").
  */
-export const LIVE = Object.freeze({ land: true, forest: false, sea: false, desert: false, moon: false, mars: false, castle: false });
+export const LIVE = Object.freeze({ land: true, forest: true, sea: false, desert: false, moon: false, mars: false, castle: false });
 const live = new Set(Object.keys(LIVE).filter((r) => LIVE[r]));
 live.add('land');
 let liveVersion = 0;

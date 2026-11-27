@@ -439,6 +439,10 @@ export default {
   'forest.quest.math': '¡Hola, pequeño escalador! El bosque está lleno de cosas para contar, medir y repartir. ¡Resolvámoslo juntos!',
   'forest.quest.history': '¡Ven a sentarte junto a las raíces! {name} tiene una historia sobre los bosques y las personas que los amaron.',
   'forest.quest.physics': '¡Croac! La naturaleza está llena de experimentos. ¡Primero adivina y luego lo probamos en el Laboratorio de la Naturaleza!',
+  // Las asignaturas propias del Gran Árbol (cuando LIVE.forest está activo); cada lección de La Tierra y el tiempo tiene un guía ({name}).
+  'forest.quest.logic': '¡Hola, descifra-acertijos! Hay patrones, grupos y pistas escondidos por todo el Gran Árbol. ¡Pensémoslo juntos!',
+  'forest.quest.earth': '¡Ven a sentarte junto a las raíces! {name} lo sabe todo sobre el cielo, el tiempo y la tierra bajo nuestras patas.',
+  'forest.quest.biology': '¡Croac! Los seres vivos están llenos de sorpresas. ¡Mirémoslos de cerca, ordenémoslos y descubramos cómo funcionan!',
   'forest.building.math': 'Escuela de la Vaina',
   'forest.building.history': 'Salón de las Raíces',
   'forest.building.physics': 'Laboratorio de la Naturaleza',

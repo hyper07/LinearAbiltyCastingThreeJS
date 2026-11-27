@@ -85,8 +85,29 @@ export async function run(browser) {
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.arcademia.enter('math', 1));
     t.check('a lesson opens from the tree, taught by Nutmeg the squirrel', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'squirrel', null, 20000));
-    t.check('the tree teaches its own 42 forest lessons', await page.evaluate(() => window.arcademia.lessons.length === 42 && window.arcademia.lessons.every((l) => l.realm === 'forest')));
+    // The tree teaches its own subjects (Logic & Patterns, Earth & Weather, Biology) once LIVE.forest is on
+    // (content/subjects.js); until then it borrows the mountain's lessons.
+    const taught = await page.evaluate(() => {
+      const ls = window.arcademia.lessons;
+      return { n: ls.length, own: ls.every((l) => l.realm === 'forest'), subjects: [...new Set(ls.map((l) => l.subject))].sort().join() };
+    });
+    if (taught.own) t.check('the tree teaches its own 42 lessons: logic, earth and biology', taught.n === 42 && taught.subjects === 'biology,earth,logic', JSON.stringify(taught));
+    else t.check('the tree borrows the mountain\'s lessons until its own subjects go live', taught.subjects === 'history,math,physics', JSON.stringify(taught));
     await page.evaluate(() => window.arcademia.leaveLesson());
+    // Its own subjects in its three schools (live, or previewed on the dev server: arcademiaPreviewWorld).
+    const previewed = !taught.own && (await page.evaluate(() => Boolean(window.arcademiaPreviewWorld?.('forest'))));
+    if (taught.own || previewed) {
+      await page.waitForTimeout(1500);
+      for (const [slot, subject, species, title] of [['math', 'logic', 'squirrel', /Secret Sorting Rule/], ['history', 'earth', 'bear', /Four Seasons/], ['physics', 'biology', 'frog', /Living or Not Living/]]) {
+        await page.evaluate((s) => window.arcademia.enter(s, 1), slot);
+        const ok = await until(page, ([sub, sp]) => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.subject === sub && window.arcademia.lesson?.teacher?.species === sp, [subject, species], 20000);
+        const listed = await page.evaluate(() => document.querySelector('.arcademia, body').textContent);
+        t.check(`the tree's ${slot} school teaches ${subject}, with its ${species} teacher, and lists its ring-1 lessons`, ok && title.test(listed));
+        await page.evaluate(() => window.arcademia.leaveLesson());
+        await page.waitForTimeout(600);
+      }
+      if (previewed) await page.evaluate(() => window.arcademiaPreviewWorld('forest', false));
+    }
     await page.reload();
     await open();
     t.check('the chosen world is kept after a reload', (await page.evaluate(() => window.arcademia.map.id)) === 'tree');

@@ -21,13 +21,16 @@ const DICTS = Object.fromEntries(await Promise.all(LOCALE_IDS.map(async (id) => 
   const d = (await import(`../../src/arcademia/i18n/locales/${id}/index.js`)).default;
   return [id, Object.assign({}, ...Object.entries(d).filter(([k]) => k !== 'lessons').map(([, v]) => v))];
 })));
+/** Each language's lesson overlays (i18n/locales/<lc>/lessons*.js), by lesson id. */
+const OVERLAYS = Object.fromEntries(await Promise.all(LOCALE_IDS.filter((id) => id !== 'en').map(async (id) => [id, (await import(`../../src/arcademia/i18n/locales/${id}/index.js`)).default.lessons])));
 /** A string written in a language (its own, not the English fallback). */
 const writtenIn = (lc, key) => typeof DICTS[lc][key] === 'string' && DICTS[lc][key].trim().length > 0;
 
 /**
  * What a live world still needs before players see it: two lessons per floor in each of its
  * subjects, and its words in every language (the subject, the school, the teacher's greeting, the
- * quest intro). Content agents: this must be empty before a world goes live (subjects.js LIVE).
+ * quest intro), and each of its lessons translated into every language. Content agents: this must
+ * be empty before a world goes live (subjects.js LIVE).
  */
 function liveRealmProblems(realm) {
   const out = [];
@@ -39,6 +42,8 @@ function liveRealmProblems(realm) {
     const keys = [`subject.${s}`, buildingKey(realm, slot), helloKey(realm, s), ...(realm === 'land' ? [] : [`${realm}.quest.${s}`])];
     for (const k of keys) for (const lc of LOCALE_IDS) if (!writtenIn(lc, k)) out.push(`${realm}: no ${lc} string ${k}`);
   }
+  // Every lesson it teaches, translated (the i18n test checks each overlay is complete).
+  if (realm !== 'land') for (const l of lessons) for (const [lc, o] of Object.entries(OVERLAYS)) if (!o[l.id]) out.push(`${realm}: ${l.id} has no ${lc} translation`);
   return out;
 }
 
@@ -139,9 +144,12 @@ test('subjects: worlds not live yet play exactly as before — the mountain\'s t
       assert.equal(buildingKey(realm, slot), realm === 'land' ? `building.${slot}` : `${realm}.building.${slot}`);
       assert.equal(teacherOf(realm, slot), teachersIn(realm)[slot]);
     }
-    // Every lesson is still taught (none filtered away), and its quest is told by the slot's teacher.
-    const all = LESSONS.filter((l) => (l.realm ?? 'land') === realm);
-    assert.equal(lessonsIn(realm).length, all.length, realm);
+    // Every lesson in the mountain's subjects is still taught, and its quest is told by the slot's
+    // teacher. A world whose lessons are all in its own new subjects (written, waiting for LIVE)
+    // borrows the mountain's lessons until it is switched on.
+    const all = LESSONS.filter((l) => (l.realm ?? 'land') === realm && LAND_SUBJECTS.includes(l.subject));
+    if (!all.length) assert.equal(lessonsIn(realm), lessonsIn('land'), `${realm} borrows the mountain's lessons until it is live`);
+    else assert.equal(lessonsIn(realm).length, all.length, realm);
     for (const l of all) {
       assert.equal(questFor(l).teacher, teachersIn(realm)[l.subject], l.id);
       assert.equal(voiceOf(l), REALM_TEACHER_OF[realm][l.subject], l.id);
@@ -209,16 +217,26 @@ test('subjects: a world on its own subjects validates its lessons and teaches th
     assert.equal(floorStars(stars, 1, lessonsIn('forest')).done, 3);
     assert.ok(openFloors(stars, { lessons: lessonsIn('forest') }).has(2));
     // The voice script: the slot's teacher greets with the new subject's line, once it is written.
-    assert.ok(!buildScript('en').some((l) => l.id === 't.forest.hello.logic'), 'no line for a string not written yet');
+    assert.ok(buildScript('en').some((l) => l.id === 't.forest.hello.logic' && l.char === 'nutmeg'), 'Nutmeg greets in the Pattern Pod School');
     // What still has to be written before it may ship.
     const todo = liveRealmProblems('forest');
     assert.ok(todo.some((p) => p.includes('floor 2 logic')));
-    assert.ok(todo.some((p) => p.includes('forest.hello.logic')));
+    assert.ok(!todo.some((p) => p.includes('forest.hello.') || p.includes('forest.quest.')), 'its greetings and quest intros are written');
+    assert.ok(todo.some((p) => p.includes('logic1-forest-fake-sort has no ko translation')), 'a lesson not translated yet is listed');
     assert.ok(!todo.some((p) => p.includes('subject.logic') || p.includes('forest.building.logic')), 'names and schools are written');
   });
-  assert.ok(!isLive('forest'), 'and back');
-  assert.equal(lessonsIn('forest'), FOREST_LESSONS);
+  assert.equal(isLive('forest'), LIVE.forest, 'and back');
+  assert.equal(lessonsIn('forest'), LIVE.forest ? FOREST_LESSONS : lessonsIn('land'), 'its own lessons once live, the mountain\'s until then');
   assert.equal(lessonById('logic1-forest-fake-sort'), null);
+});
+
+test('subjects: a world switched on before its words are written has no voice lines for them', () => {
+  const undo = setLive('desert', true);
+  try {
+    assert.ok(!buildScript('en').some((l) => l.id === 't.desert.hello.geometry'), 'no line for a string not written yet');
+  } finally {
+    undo();
+  }
 });
 
 test('subjects: lessons must fit their world, their id and their room', async () => {

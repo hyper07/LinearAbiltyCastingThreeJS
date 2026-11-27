@@ -266,11 +266,11 @@ const GUIDE_TALE = {
 /** The pool, in a fixed order (its index picks the design seed). */
 export const GUIDE_POOL = ['w0', 'w1', 'w2', 'w3', 'm0', 'm1', 'm2', 'm3', 'm4', 'g', 'b', 'tale-w', 'tale-m'];
 export const GUIDE_CAST = {
-  // the Great Tree
-  'h1-forest-woodland-life': 'w1', 'h1-forest-first-farms': 'w0', 'h2-forest-tree-to-paper': 'w2', 'h2-forest-oldest-trees': 'w1',
-  'h3-forest-johnny-appleseed': 'm1', 'h3-forest-maple-syrup': 'w2', 'h4-forest-linnaeus': 'm4', 'h4-forest-botanic-gardens': 'w0',
-  'h5-forest-john-muir': 'm2', 'h5-forest-beatrix-potter': 'w0', 'h6-forest-wangari-maathai': 'w2', 'h6-forest-jane-goodall': 'w3',
-  'h7-forest-mendel-peas': 'm3', 'h7-forest-amazon-scientists': 'w1',
+  // the Great Tree (Earth & Weather)
+  'earth1-forest-seasons': 'w0', 'earth1-forest-weather': 'b', 'earth2-forest-water-cycle': 'w1', 'earth2-forest-clouds': 'm0',
+  'earth3-forest-soil': 'm1', 'earth3-forest-fossils': 'g', 'earth4-forest-rivers': 'm4', 'earth4-forest-wind': 'w2',
+  'earth5-forest-weather-station': 'w0', 'earth5-forest-rock-cycle': 'w2', 'earth6-forest-inside-earth': 'w3', 'earth6-forest-forecast': 'w1',
+  'earth7-forest-climate-zones': 'w2', 'earth7-forest-forests-climate': 'w0',
   // the Lagoon
   'h1-sea-fishing-village': 'w2', 'h1-sea-rafts-to-ships': 'w0', 'h2-sea-lighthouse-alexandria': 'm2', 'h2-sea-shell-money': 'w1',
   'h3-sea-pacific-wayfinders': 'm0', 'h3-sea-phoenician-traders': 'm1', 'h4-sea-zheng-he': 'm4', 'h4-sea-compass-and-knots': 'w2',

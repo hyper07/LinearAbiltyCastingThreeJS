@@ -36,6 +36,10 @@ export default {
   'forest.hello.math': '안녕 안녕! 내 씨앗 꼬투리 학교에 온 걸 환영해. 어떤 퍼즐을 풀어 볼까?',
   'forest.hello.history': '뿌리 전당에 온 걸 환영한다, 아가. 숲 이야기를 하나 들려줄까?',
   'forest.hello.physics': '개굴! 자연 연구소에 온 걸 환영해. 오늘은 무엇을 알아볼까?',
+  // 큰 나무만의 과목 (LIVE.forest가 켜지면 가르쳐요).
+  'forest.hello.logic': '안녕 안녕! 내 패턴 꼬투리에 온 걸 환영해. 오늘은 어떤 퍼즐을 풀어 볼까?',
+  'forest.hello.earth': '날씨 뿌리 전당에 온 걸 환영한다, 아가. 하늘이랑 돌멩이가 무슨 일을 하는지 알아볼까?',
+  'forest.hello.biology': '개굴! 자연 연구소에 온 걸 환영해. 오늘은 어떤 생물이랑 친해져 볼까?',
   'desert.hello.math': '안녕 안녕! 내 피라미드 학교에 온 걸 환영해. 시원한 그늘에서 어떤 퍼즐을 풀어 볼까?',
   'desert.hello.history': '아, 신전 학교에 온 걸 환영한다, 꼬마 서기야. 이야기 두루마리를 하나 펼쳐 줄까?',
   'desert.hello.physics': '야옹, 딱 좋은 때에 왔구나! 태양 관측소에 온 걸 환영해. 오늘은 무엇을 실험해 볼까?',

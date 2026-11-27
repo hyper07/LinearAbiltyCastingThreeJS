@@ -14,7 +14,7 @@ import { worldsIn } from './quests.js';
 import { FLOORS } from './floors.js';
 import { MAPS, mapById } from './maps.js';
 import { LESSONS, lessonsOn, lessonsIn, guidesOn, previewLesson } from './content/index.js';
-import { subjectsOf, toSubject, SUBJECT_INFO } from './content/subjects.js';
+import { subjectsOf, toSubject, SUBJECT_INFO, setLive } from './content/subjects.js';
 import { floorStars, totalStars, openFloors } from './rules.js';
 import { t, num, loadLocale, setLocale, pickLocale, isLocale, localizeLesson, localeInfo, addLessonOverlays } from './i18n/index.js';
 import { startScreen, openSettings } from './ui/settings.js';
@@ -83,6 +83,20 @@ export class ArcademiaGame {
         addLessonOverlays(DEMO_OVERLAYS);
         if (this.mode === 'lesson') this.leaveLesson();
         return this.playLesson(DEMO_LESSONS[kind]);
+      };
+      // Dev server only: arcademiaPreviewWorld('forest') switches a world onto its own subjects before
+      // LIVE does (content/subjects.js setLive), to preview its new lessons in its schools; false
+      // switches it back. The map is rebuilt when you are in that world, so its schools take the new names.
+      window.arcademiaPreviewWorld = (realm, on = true) => {
+        setLive(realm, on);
+        if (this.mode === 'lesson') this.leaveLesson();
+        if (this.world && this.realm === realm) {
+          const id = this.map.id;
+          this.switchMap(MAPS.find((m) => m.id !== id).id);
+          this.switchMap(id);
+        }
+        this.refresh?.();
+        return subjectsOf(realm);
       };
     }
   }

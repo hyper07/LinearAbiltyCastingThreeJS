@@ -36,6 +36,10 @@ export default {
   'forest.hello.math': '¡Hola, hola! Bienvenido a mi escuela de la vaina. ¿Qué acertijo resolvemos?',
   'forest.hello.history': 'Bienvenido al Salón de las Raíces, pequeño. ¿Te cuento una historia del bosque?',
   'forest.hello.physics': '¡Croac! Bienvenido al Laboratorio de la Naturaleza. ¿Qué descubrimos hoy?',
+  // Las asignaturas propias del Gran Árbol (se enseñan cuando LIVE.forest está activo).
+  'forest.hello.logic': '¡Hola, hola! Bienvenido a mi Vaina de los Patrones. ¿Qué acertijo resolvemos hoy?',
+  'forest.hello.earth': 'Bienvenido al Salón de las Raíces del Tiempo, pequeño. ¿Descubrimos qué traman el cielo y las piedras?',
+  'forest.hello.biology': '¡Croac! Bienvenido al Laboratorio de la Naturaleza. ¿A qué ser vivo conocemos hoy?',
   'desert.hello.math': '¡Hola, hola! Bienvenido a mi Escuela Pirámide. ¿Qué acertijo resolvemos aquí a la sombra?',
   'desert.hello.history': 'Ah, bienvenido a la Escuela del Templo, joven escriba. ¿Desenrollo una historia para ti?',
   'desert.hello.physics': '¡Miau, llegas justo a tiempo! Bienvenido al Observatorio del Sol. ¿Qué probamos hoy?',

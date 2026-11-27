@@ -435,6 +435,10 @@ export default {
   'forest.quest.math': '안녕, 꼬마 등반가! 숲에는 세고, 재고, 나눌 것이 가득해요. 같이 풀어 봐요!',
   'forest.quest.history': '뿌리 옆에 앉아 봐요! {name} 님이 숲과 숲을 사랑한 사람들 이야기를 들려줄 거예요.',
   'forest.quest.physics': '개굴! 자연은 실험으로 가득해요. 먼저 맞혀 보고, 자연 연구소에서 실험해 봐요!',
+  // 큰 나무만의 과목 (LIVE.forest가 켜지면); 지구와 날씨 수업에는 모두 안내자({name})가 있어요.
+  'forest.quest.logic': '안녕, 꼬마 퍼즐 탐정! 큰 나무 곳곳에 패턴과 무리와 단서가 숨어 있어요. 같이 차근차근 생각해 봐요!',
+  'forest.quest.earth': '뿌리 옆에 앉아 봐요! {name} 님은 하늘과 날씨, 우리 발밑의 땅에 대해 모르는 게 없어요.',
+  'forest.quest.biology': '개굴! 생물은 놀라운 일로 가득해요. 자세히 보고, 나눠 보고, 어떻게 사는지 알아봐요!',
   'forest.building.math': '씨앗 꼬투리 학교',
   'forest.building.history': '뿌리 전당',
   'forest.building.physics': '자연 연구소',

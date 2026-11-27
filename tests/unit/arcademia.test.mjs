@@ -142,6 +142,8 @@ test('floors: floor 1 is open; the next opens at two thirds of the floor below',
   // Each realm opens its own floors: every forest, sea, desert, Moon, Mars or Sky Castle star opens nothing on the mountain, and the other way round.
   for (const realm of ['forest', 'sea', 'desert', 'moon', 'mars', 'castle']) {
     const mine = lessonsIn(realm);
+    // (A world whose new lessons wait for LIVE borrows the mountain's lessons, and its stars, until then.)
+    if (mine === lessonsIn('land')) continue;
     const theirs = Object.fromEntries(mine.map((l) => [l.id, 3]));
     assert.deepEqual([...openFloors(theirs)], [1], `${realm} stars do not open the mountain`);
     if (mine.length) assert.equal(openFloors(all, { lessons: mine }).size, 1, `mountain stars do not open the ${realm}`);

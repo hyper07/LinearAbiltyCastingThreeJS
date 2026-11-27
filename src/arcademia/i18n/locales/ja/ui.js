@@ -435,6 +435,10 @@ export default {
   'forest.quest.math': 'こんにちは、小さな登り手さん！森には数えたり、はかったり、分けたりするものがいっぱい。いっしょにとこう！',
   'forest.quest.history': '根っこのそばにすわって！{name}が森と、森を愛した人たちのお話をしてくれるよ。',
   'forest.quest.physics': 'ケロッ！自然は実験でいっぱい。まず予想して、自然ラボで実験しよう！',
+  // 大きな木だけの教科（LIVE.forest がオンになったら）。ちきゅうとてんきの授業には、いつも案内役（{name}）がいます。
+  'forest.quest.logic': 'こんにちは、なぞとき名人さん！大きな木のあちこちに、パターンやなかま分けや手がかりがかくれているよ。いっしょに考えよう！',
+  'forest.quest.earth': '根っこのそばにすわって！{name}は、空のこと、天気のこと、足もとの地面のことを何でも知っているよ。',
+  'forest.quest.biology': 'ケロッ！いきものはびっくりでいっぱい。よく見て、なかま分けして、どうやって生きているのか調べよう！',
   'forest.building.math': '種のさやの学校',
   'forest.building.history': '根っこのホール',
   'forest.building.physics': '自然ラボ',

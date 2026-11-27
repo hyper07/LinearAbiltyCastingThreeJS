@@ -36,6 +36,10 @@ export default {
   'forest.hello.math': '嗨嗨！欢迎来到我的种荚学校。我们来解哪个谜题呢？',
   'forest.hello.history': '欢迎来到树根大厅，小家伙。要我给你讲一个森林的故事吗？',
   'forest.hello.physics': '呱！欢迎来到自然实验室。今天我们来发现什么呢？',
+  // 大树自己的科目（LIVE.forest 打开后才教）。
+  'forest.hello.logic': '嗨嗨！欢迎来到我的规律种荚。今天我们来解哪个谜题呢？',
+  'forest.hello.earth': '欢迎来到天气树根大厅，小家伙。我们来看看天空和石头都在做什么，好吗？',
+  'forest.hello.biology': '呱！欢迎来到自然实验室。今天我们来认识哪种生物呢？',
   'desert.hello.math': '你好，你好！欢迎来到我的金字塔学校。我们在阴凉里解哪个谜题呢？',
   'desert.hello.history': '啊，欢迎来到神庙学校，小书吏。要我为你展开一卷故事吗？',
   'desert.hello.physics': '喵，你来得正是时候！欢迎来到太阳天文台。今天我们来测试什么呢？',
