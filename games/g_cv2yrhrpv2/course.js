@@ -1,3 +1,5 @@
+import { plazaRoads } from './plaza.js';
+
 /**
  * Race courses on Seoul's real roads. A course is planned, not drawn: four
  * points are set round a famous place, each is moved onto the nearest big
@@ -113,12 +115,35 @@ export const BIKE_COURSES = [
     // (a figure eight: its two loops meet on Yulgok-ro in front of the Gwanghwamun gate — the 200 m from the gate's
     // junction to Samcheong-ro ridden twice, the same way: first turning up round the palace, then on along Yulgok-ro
     // — `eight` lets the plan use it twice; a rider's place is looked for just round where it was, race.js, so it stays on the pass it is on)
+    // (`plaza`: the squares it rides through that the road map has no road over — plaza.js: up Gwanghwamun Square
+    // itself, past the fountain and round Admiral Yi's plinth, and across Cheong Wa Dae's lawn in front of its hall;
+    // `sweep`: the landmark the camera sweeps round during the countdown, the grid on the square before it)
     id: 'gyeongbok8', level: 'medium', name: 'Gyeongbokgung Figure Eight', ko: '경복궁 8자 코스', x: 0, z: -1150, r: 590, kind: 'Palace', ring: true, eight: true,
-    text: 'A figure eight crossed in front of the Gwanghwamun gate: up Sejong-daero past Admiral Yi and King Sejong to the gate, round Gyeongbokgung\'s walls — up Samcheong-ro, along the front of Cheong Wa Dae under Bugaksan, down Hyoja-ro — back across the gate\'s junction, then east along Yulgok-ro, down Ujeongguk-ro past Jogyesa and back along Jongno.',
-    roads: 'avenues', beside: 0.2, max: 5200, startAt: [-56, -470],
+    text: 'A figure eight crossed in front of the Gwanghwamun gate: from the grid before Admiral Yi up Gwanghwamun Square itself — through the fountain\'s spray, round the admiral\'s plinth, past King Sejong — straight at the gate, round Gyeongbokgung\'s walls, up across Cheong Wa Dae\'s lawn in front of its blue-roofed hall and down Hyoja-ro, back across the gate\'s junction, then east along Yulgok-ro, down Ujeongguk-ro past Jogyesa and back along Jongno to the square.',
+    roads: 'avenues', beside: 0.2, max: 5700, startAt: [-100, -460], plaza: ['gwanghwamun', 'cheongwadae'], sweep: 'yisunsin',
     // (Hyoja-ro's foot to Sajik-ro's eastbound carriageway: the left turn the map leaves out)
     links: [[[-322.5, -1058.1], [-321, -1043.2]]],
-    via: [[-56, -560], [20, -1035], [160, -1200], [200, -1600], [140, -1900], [-100, -1940], [-300, -1930], [-372, -1700], [-345, -1250], [-250, -1030], [20, -1035], [250, -1058], [441, -950], [445, -600], [200, -445], [-40, -445]]
+    via: [[-100, -500], [-109, -700], [-100, -940], [20, -1035], [160, -1200], [200, -1600], [140, -1900], [-165, -2040], [-268, -2200], [-345, -2040], [-372, -1700], [-345, -1250], [-250, -1030], [20, -1035], [250, -1058], [441, -950], [445, -600], [200, -445], [-40, -445]]
+  },
+  {
+    // (a short loop on and round the square: up its paving past the fountain, the admiral and King Sejong toward the
+    // gate, off its west side by the Sejong Center's north end along Sajik-ro 8-gil, down the winding lane through
+    // Doryeom-dong to Saemunan-ro, and back onto the square from its south end — the start and the finish on the
+    // square before the statue; the statue ahead up the square and again coming back along Saemunan-ro)
+    id: 'fountainrun', level: 'medium', name: 'Gwanghwamun Fountain Run', ko: '광화문 분수 런', x: -200, z: -660, r: 350, kind: 'Square', ring: true,
+    text: 'Start and finish on Gwanghwamun Square before Admiral Yi: up the square through the fountain\'s spray, round his plinth and past King Sejong toward the gate, off by the Sejong Center along Sajik-ro 8-gil, down the winding lane through Doryeom-dong, and back along Saemunan-ro to the fountain.',
+    beside: 0.12, min: 1000, max: 2400, startAt: [-100, -460], plaza: ['gwanghwamun'], sweep: 'yisunsin',
+    // (the lane down from Doryeom-dong comes out on Saemunan-ro's westbound carriageway: across to the eastbound one)
+    links: [[[-259, -439], [-243, -425]]],
+    via: [[-100, -500], [-109, -700], [-225, -879], [-305, -868], [-283, -651], [-264, -510], [-213, -426]]
+  },
+  {
+    // (round the 63 Building on its own: past its south side, up 63-ro under its east face, along the river under its
+    // north face, and back by the riverside lanes)
+    id: 'sixtythree', level: 'medium', name: '63 Riverside Loop', ko: '63 리버사이드', x: -3600, z: 5230, r: 420, kind: 'River', ring: true,
+    text: 'Round the foot of the golden 63 Building: past its podium, up 63-ro under its east face, west along the Han right under its north face, back by the riverside lanes — the tower filling the sky the whole way round.',
+    min: 1500, max: 3000, startAt: [-3711, 5326],
+    via: [[-3620, 5254], [-3428, 5104], [-3280, 5117], [-3367, 5325], [-3591, 5379], [-3862, 5417], [-3947, 5309], [-3860, 5311], [-3768, 5368]]
   },
   {
     id: 'noryangjin', level: 'medium', name: 'Noryangjin 63 View', ko: '노량진 63 전망', x: -3200, z: 6250, r: 450, kind: 'Hill', ring: true,
@@ -793,6 +818,8 @@ function planViaCourse(roads, def, { step, why, walls, prof }) {
   const small = def.small ?? prof.small;
   // (on a zig-zag a link is across a junction between a side road and the far carriageway of a divided one: a main road's piece)
   const links = (def.links ?? []).map(([a, b]) => (def.zigzag ? { pts: Float32Array.of(a[0], a[1], b[0], b[1]), width: 9, cls: 4, link: true } : { pts: Float32Array.of(a[0], a[1], b[0], b[1]), width: def.minWidth ?? 6, cls: 5, small: true, link: true }));
+  // (`plaza`: the squares it rides through — their lanes as streets, joined to the roads at their ends: plaza.js)
+  if (def.plaza) links.push(...plazaRoads(roads, def.plaza));
   // (`roads: 'avenues'`: a course drawn along the big roads too — the Gwanghwamun run's — priced as Medium's avenues)
   const nodes = buildGraph(links.length ? roads.concat(links) : roads, def.x, def.z, def.r * (def.reach ?? 3), def.roads === 'avenues' ? MEDIUM_COST : def.costs ?? prof.costs, walls, { short: Boolean(def.zigzag) });
   // (on a zig-zag, a small street is as wide as its buildings let it be)

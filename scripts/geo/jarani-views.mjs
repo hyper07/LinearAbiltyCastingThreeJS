@@ -7,8 +7,10 @@
  * the screen with nothing in the way: a building of the register (its real height, on the ground,
  * only within the draw distance — `--reach`, 1300 m like the Medium view), the land itself (within
  * the draw distance, and the hills skyline.js draws under its landmarks further out). Prints the share
- * of the course (or of its run from line to line) each landmark is in view, and after the slash the
- * share it is in the frame at all (hidden or not).
+ * of the course (or of its run from line to line) each landmark is in view, after the slash the share it
+ * is in the frame at all (hidden or not), and then the most of the frame's height it fills while in view
+ * (how big it gets on the screen). A course across a square (`plaza`) has the square's plinths, planters
+ * and bollards as walls too (plaza.js), as the race does.
  *
  *   node scripts/geo/jarani-views.mjs                 # every course
  *   node scripts/geo/jarani-views.mjs bukak namsan    # a few
@@ -21,6 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BIKE_COURSES, planCourse, finishCourse } from '../../games/g_cv2yrhrpv2/course.js';
 import { SKYLINE, landmarkParts, landmarkLookUp, courseBend, LOOK_BEND } from '../../games/g_cv2yrhrpv2/skyline.js';
 import { CHASE } from '../../games/g_cv2yrhrpv2/race.js';
+import { plazaRings } from '../../games/g_cv2yrhrpv2/plaza.js';
 import { decodeTile, tileKey, tileOf, TILE } from '../../games/g_cv2yrhrpv2/tiles.js';
 import { seoulData, roadsNear, wallsNear, seoulTerrain, ORIGIN } from '../../tests/unit/seoulData.mjs';
 
@@ -114,6 +117,7 @@ export function landmarkViews(def, c, { ground, reach = 1300, look = true, fov =
   const i1 = c.open ? c.finishI : n;
   const seen = new Map(near.map((l) => [l.id, 0]));
   const framed = new Map(near.map((l) => [l.id, 0]));
+  const size = new Map(near.map((l) => [l.id, 0]));
   let total = 0;
   let carry = 0;
   const tanV = Math.tan(((fov / 2) * Math.PI) / 180);
@@ -144,22 +148,31 @@ export function landmarkViews(def, c, { ground, reach = 1300, look = true, fov =
       const d = Math.hypot(l.x - cam[0], l.z - cam[2]);
       if (d > (l.range ?? 12000)) continue;
       let inFrame = false;
-      for (const pt of landmarkParts(l, ground)) {
+      let shown = false;
+      // (the lowest and highest of each of its sights' points on the screen: how much of the frame's height one spans)
+      const lo = [];
+      const hi = [];
+      for (const [pi, pt] of landmarkParts(l, ground).entries()) {
+        const k = Math.floor(pi / 8);
         const v = [pt[0] - cam[0], pt[1] - cam[1], pt[2] - cam[2]];
         const zc = v[0] * F[0] + v[1] * F[1] + v[2] * F[2];
         if (zc <= 0) continue;
         const xc = v[0] * R[0] + v[1] * R[1] + v[2] * R[2];
         const yc = v[0] * U[0] + v[1] * U[1] + v[2] * U[2];
-        if (Math.abs(xc / zc) > tanH * 0.96 || Math.abs(yc / zc) > tanV * 0.96) continue;
+        if (Math.abs(xc / zc) > tanH * 0.96) continue;
+        lo[k] = Math.min(lo[k] ?? Infinity, Math.max(-tanV, yc / zc));
+        hi[k] = Math.max(hi[k] ?? -Infinity, Math.min(tanV, yc / zc));
+        if (Math.abs(yc / zc) > tanV * 0.96) continue;
         inFrame = true;
-        if (!clear(cells, cam, pt, ground, reach, (x, z) => l.hill && Math.hypot(x - l.hill.x, z - l.hill.z) < l.hill.r)) continue;
+        if (shown || !clear(cells, cam, pt, ground, reach, (x, z) => l.hill && Math.hypot(x - l.hill.x, z - l.hill.z) < l.hill.r)) continue;
         seen.set(l.id, seen.get(l.id) + 1);
-        break;
+        shown = true;
       }
       if (inFrame) framed.set(l.id, framed.get(l.id) + 1);
+      if (shown) for (let k = 0; k < hi.length; k++) if (hi[k] > lo[k]) size.set(l.id, Math.max(size.get(l.id), (hi[k] - lo[k]) / (2 * tanV)));
     }
   }
-  for (const l of near) out[l.id] = { seen: seen.get(l.id) / Math.max(1, total), framed: framed.get(l.id) / Math.max(1, total) };
+  for (const l of near) out[l.id] = { seen: seen.get(l.id) / Math.max(1, total), framed: framed.get(l.id) / Math.max(1, total), size: size.get(l.id) };
   return out;
 }
 
@@ -183,13 +196,14 @@ async function main() {
     if (only.length && !only.includes(def.id)) continue;
     const reach = def.r * 4;
     const walls = wallsNear(def.x, def.z, reach);
+    if (def.plaza) for (const ring of plazaRings(def.plaza)) walls.addRing(ring.xs, ring.zs);
     const planned = planCourse(roadsNear(data.all, def, reach), def, { bike: true, walls });
     if (!planned) continue;
     const c = finishCourse(planned, { walls });
     const v = landmarkViews(def, c, { ground, reach: opt('--reach', 1300), look: opt('--look', 1) !== 0, fov: opt('--fov', 66) });
     if (!Object.keys(v).length) continue;
     const row = { id: def.id, km: +(c.length / 1000).toFixed(2) };
-    for (const [id, s] of Object.entries(v)) row[id] = `${Math.round(s.seen * 100)}% / ${Math.round(s.framed * 100)}%`;
+    for (const [id, s] of Object.entries(v)) row[id] = `${Math.round(s.seen * 100)}% / ${Math.round(s.framed * 100)}% / ${Math.round(s.size * 100)}%`;
     rows.push(row);
   }
   console.table(rows);

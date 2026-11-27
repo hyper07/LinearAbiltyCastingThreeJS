@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { bronzeMaterial } from './admiral.js';
 import { yiStatue, goldMaterial } from './yiStatue.js';
 import { Fountain } from './fountain.js';
+import { PlazaView, PLAZA_LIFT } from './plaza.js';
 
 /**
  * Seoul's skyline landmarks, modelled by hand and always on the skyline: the Jamsil Sky Tower (our name
@@ -877,8 +878,8 @@ function statues(l, ground) {
   ship.scale.setScalar(0.85);
   ship.position.set(0, 0.6, 9.6);
   yi.add(shipBase, ship);
-  // the fountain's pool down the middle of the square, south of him
-  const fountain = new Fountain(yi, { x: 0, z: 36 });
+  // the fountain down the middle of the square before him, on its paving as it slopes (fountain.js)
+  const fountain = new Fountain(yi, { y: (x, z) => ground(l.x + x, l.z + z) - base });
   g.add(yi);
   const sj = new THREE.Group();
   const plinth = stoneBox(10, 4.2, 8, granite);
@@ -890,7 +891,8 @@ function statues(l, ground) {
   sj.add(king);
   sj.position.set(l.sejong.x - l.x, ground(l.sejong.x, l.sejong.z) - base, l.sejong.z - l.z);
   g.add(sj);
-  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze, yiGold] };
+  // (on the square's paving, a kerb's height over the land: plaza.js)
+  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze, yiGold], lift: PLAZA_LIFT };
 }
 
 /**
@@ -957,11 +959,12 @@ export class Skyline {
     const add = (l, m, at, range) => {
       const holder = new THREE.Group();
       holder.add(m.group);
-      const pos = new THREE.Vector3(at.x, ground(at.x, at.z), at.z);
+      const pos = new THREE.Vector3(at.x, ground(at.x, at.z) + (m.lift ?? 0), at.z);
       holder.position.copy(pos);
       // (the palace, Cheong Wa Dae and the statues cast the sun's shadows and take them, as the streets round them do)
       holder.traverse((o) => {
-        if (o.isMesh) {
+        // (not the fountain's water and lights: see-through, they cast nothing)
+        if (o.isMesh && !o.userData.noShadow) {
           o.castShadow = Boolean(m.fogged);
           o.receiveShadow = Boolean(m.fogged);
         }
@@ -976,7 +979,37 @@ export class Skyline {
       // the hill it stands on (or under), seen from wherever its land isn't loaded
       if (l.hill) add(l, hillPatch(l.hill, ground), l.hill, Math.max(l.range ?? 12000, 12000));
     }
+    // the squares the courses ride through: Gwanghwamun Square's paving, planters and bollards, Cheong Wa Dae's drive
+    this.plazas = new PlazaView(game.scene, ground);
     this._fog = new THREE.Color();
+  }
+
+  /**
+   * The fountain's spray on the lens (0…1): a light mist and a few beads over the picture — no words, nothing
+   * to read; gone in a second or so once you are out of it.
+   */
+  _lens(amount) {
+    const root = this.g.root;
+    if (!root || typeof document === 'undefined') return;
+    if (!this._spray) {
+      if (amount < 0.02) return;
+      const el = document.createElement('div');
+      el.setAttribute('aria-hidden', 'true');
+      const beads = Array.from({ length: 14 }, (_, k) => {
+        const x = (k * 37 + 11) % 100;
+        const y = (k * 53 + 7) % 100;
+        const r = 10 + ((k * 17) % 22);
+        return `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.55) 0, rgba(220,240,255,0.25) ${r * 0.35}px, rgba(255,255,255,0) ${r}px)`;
+      });
+      el.style.cssText = `position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;transition:opacity 0.25s;background:${beads.join(',')},radial-gradient(ellipse at 50% 60%, rgba(235,245,255,0.18), rgba(235,245,255,0.42));backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px)`;
+      root.appendChild(el);
+      this._spray = el;
+    }
+    const o = Math.min(0.85, amount * 1.1);
+    if (Math.abs(o - (this._sprayO ?? 0)) > 0.02) {
+      this._spray.style.opacity = o.toFixed(2);
+      this._sprayO = o;
+    }
   }
 
   /**
@@ -986,6 +1019,7 @@ export class Skyline {
    */
   update(camera, { night = 0, thick = 0, fog = null } = {}) {
     const cam = camera.position;
+    this.plazas?.update(camera);
     const reach = camera.far * NEAR_SHARE;
     // (hazed toward a silhouette a little darker than the haze itself: a white tower still reads against a pale sky)
     if (fog) this._fog.copy(fog.color).multiplyScalar(0.8 + 0.2 * Math.min(1, thick * 3));
@@ -1007,7 +1041,8 @@ export class Skyline {
         for (const mat of it.m.lit) mat.emissiveIntensity = night * 0.5;
         // (the admiral lit softly from below after dark; the fountain's jets and lights)
         for (const mat of it.m.under ?? []) mat.emissiveIntensity = night * 0.7;
-        it.m.anim?.update(performance.now() / 1000, night, d);
+        it.m.anim?.update(performance.now() / 1000, night, d, cam);
+        if (it.m.anim) this._lens(it.m.anim.spray ?? 0);
         it.holder.visible = true;
         continue;
       }

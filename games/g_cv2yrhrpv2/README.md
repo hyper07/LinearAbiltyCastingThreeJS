@@ -84,7 +84,8 @@ module** as one exported constant (`SCOOT`, `CAR`, `BIKE`, `ITEMS`, `OIL`, `SMOK
 | `skyline.js` | hand-made skyline landmarks (Namsan Tower, 63 Building…) |
 | `admiral.js` | Admiral Yi in bronze (far/near) |
 | `yiStatue.js` | the supplied Admiral Yi sculpture (packed .bin) |
-| `fountain.js` | the Gwanghwamun fountain |
+| `fountain.js` | the Gwanghwamun fountain and its show (day and night) |
+| `plaza.js` | squares the courses ride through (Gwanghwamun Square, Cheong Wa Dae's drive): paving, lane, solids |
 | `fairground.js` | the Jamsil fun fair beside its course |
 | `hillwood.js` | woods beside hill roads |
 | `trees.js` | procedural ginkgos and plane trees |

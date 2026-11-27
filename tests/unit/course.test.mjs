@@ -173,7 +173,7 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
   const kinds = new Set();
   const byLevel = { easy: [], medium: [], hard: [] };
   for (const def of BIKE_COURSES) {
-    const walls = wallsNear(def.x, def.z, def.r * 4);
+    const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
     const planned = planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls });
     assert.ok(planned, `${def.id}: planned`);
     const c = finishCourse(planned, { walls });
@@ -196,8 +196,8 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
     } else if (def.ring) {
       // a landmark run: a loop round a place, laid out for its view (skyline.js) more than for its level's shape — a
       // raceable length, few residential lanes, a long run from the start
-      // (a figure eight is two loops: up to 5.2 km)
-      assert.ok(c.length > 1800 && c.length < (def.eight ? 5200 : 3300), `${def.id}: ${Math.round(c.length)} m`);
+      // (a figure eight is two loops: up to 5.7 km; a short run round a square, from its own `min`)
+      assert.ok(c.length > (def.min ?? 1800) && c.length < (def.eight ? 5700 : 3300), `${def.id}: ${Math.round(c.length)} m`);
       assert.ok(st.small <= 0.4, `${def.id}: ${Math.round(st.small * 100)}% residential lanes`);
       assert.ok(st.firstCorner >= 250, `${def.id}: ${Math.round(st.firstCorner)} m to the first corner`);
       if (def.level === 'easy') assert.ok(st.sharp <= 4 && st.small === 0 && st.wide >= 0.72, `${def.id}: an Easy loop (${st.sharp} sharp, ${Math.round(st.wide * 100)}% wide)`);
@@ -239,7 +239,7 @@ test('the hill roads (Hard, one way like the Bukak Skyway): roads cars use, on r
   for (const def of hillRoads) {
     assert.equal(def.level, 'hard', def.id);
     assert.ok(def.open && def.name && /[가-힣]/.test(def.ko) && def.text, def.id);
-    const walls = wallsNear(def.x, def.z, def.r * 4);
+    const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
     const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
     const st = courseStats(c);
     const run = c.points.slice(c.startI, c.finishI + 1);
@@ -351,12 +351,48 @@ test('the woods on a hill keep off the road', () => {
 test('the landmark runs: each laid out so its landmark stands ahead down its straights, seen from the race camera over a good share of the lap', { skip: !seoul && 'no Seoul map converted here' }, async () => {
   const { landmarkViews } = await import('../../scripts/geo/jarani-views.mjs');
   const ground = seoulTerrain();
-  // (the course, its landmark, the least share of the lap it is in view — measured Nov 2026: 32 %, 32 %, 13 %)
-  for (const [id, landmark, least] of [['gyeongbok8', 'gyeongbokgung', 0.2], ['gyeongbok8', 'cheongwadae', 0.15], ['noryangjin', 'yeouido63', 0.2], ['songpa', 'skytower', 0.08]]) {
+  // (the course, its landmark, the least share of the lap it is in view — measured Nov 2026: 32 %, 32 %, 13 % — and
+  // for the square's runs and the 63's loop, the least of the frame's height it fills at its biggest)
+  for (const [id, landmark, least, big = 0] of [['gyeongbok8', 'gyeongbokgung', 0.2], ['gyeongbok8', 'cheongwadae', 0.15], ['gyeongbok8', 'yisunsin', 0.04, 0.15], ['fountainrun', 'yisunsin', 0.3, 0.15], ['noryangjin', 'yeouido63', 0.2], ['sixtythree', 'yeouido63', 0.25, 0.3], ['songpa', 'skytower', 0.08]]) {
     const def = BIKE_COURSES.find((c) => c.id === id);
-    const walls = wallsNear(def.x, def.z, def.r * 4);
+    const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
     const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
     const v = landmarkViews(def, c, { ground })[landmark];
     assert.ok(v && v.seen >= least, `${id}: ${landmark} in view ${Math.round((v?.seen ?? 0) * 100)}% of the lap`);
+    assert.ok(v.size >= big, `${id}: ${landmark} at most ${Math.round(v.size * 100)}% of the frame's height`);
   }
+});
+
+test('Gwanghwamun Square is part of the race: the Figure Eight and the Fountain Run up its paving, past the fountain and round the admiral, the grid before him; the Figure Eight across Cheong Wa Dae\'s lawn', { skip: !seoul && 'no Seoul map converted here' }, async () => {
+  const { plazaAt, PLAZAS } = await import('../../games/g_cv2yrhrpv2/plaza.js');
+  const { SKYLINE } = await import('../../games/g_cv2yrhrpv2/skyline.js');
+  const yi = SKYLINE.find((l) => l.id === 'yisunsin');
+  const hall = SKYLINE.find((l) => l.id === 'cheongwadae');
+  const fountain = PLAZAS.find((p) => p.id === 'gwanghwamun');
+  for (const id of ['gyeongbok8', 'fountainrun']) {
+    const def = BIKE_COURSES.find((c) => c.id === id);
+    assert.equal(def.sweep, 'yisunsin', `${id}: the countdown sweeps round the admiral`);
+    const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
+    const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
+    const on = c.points.filter((p) => plazaAt(p[0], p[1], 'gwanghwamun'));
+    // up the square: 400 m and more of its paving, northward, past the admiral within 20 m and King Sejong within 25 m
+    assert.ok(on.length * 6 >= 400, `${id}: ${on.length * 6} m on the square`);
+    const near = (x, z) => Math.min(...c.points.map((p) => Math.hypot(p[0] - x, p[1] - z)));
+    assert.ok(near(yi.x, yi.z) < 20, `${id}: ${Math.round(near(yi.x, yi.z))} m from the admiral`);
+    assert.ok(near(yi.sejong.x, yi.sejong.z) < 25, `${id}: ${Math.round(near(yi.sejong.x, yi.sejong.z))} m from King Sejong`);
+    // beside the fountain's field (the lane through its west row's spray)
+    assert.ok(c.points.some((p) => p[1] < yi.z + 50 && p[1] > yi.z + 20 && Math.abs(p[0] - (yi.x - 9)) < 5), `${id}: alongside the fountain`);
+    // the start line on the square, before the statue and the fountain, the way on north toward them
+    const [s0, s1] = [c.points[0], c.points[3]];
+    assert.ok(plazaAt(s0[0], s0[1], 'gwanghwamun') && s0[1] > yi.z && s1[1] < s0[1], `${id}: the grid on the square, facing the statue`);
+    // nowhere through the plinths (centreLine keeps the line off them)
+    assert.ok(c.points.every((p) => !walls.inside(p[0], p[1])), `${id}: through something solid`);
+    assert.ok(fountain.lane.length > 5);
+  }
+  const def = BIKE_COURSES.find((c) => c.id === 'gyeongbok8');
+  const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
+  const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
+  const lawn = c.points.filter((p) => plazaAt(p[0], p[1], 'cheongwadae'));
+  assert.ok(lawn.length * 6 >= 300, `${lawn.length * 6} m across Cheong Wa Dae's lawn`);
+  assert.ok(Math.min(...c.points.map((p) => Math.hypot(p[0] - hall.x, p[1] - hall.z))) < 60, 'past the front of the hall');
 });

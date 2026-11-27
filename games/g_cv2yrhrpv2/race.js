@@ -37,7 +37,8 @@ import { raceSky, TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
 import { WetFx } from './wetfx.js';
 import { modeHint } from './controls.js';
 import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, resolveBump } from './pack.js';
-import { landmarkLookUp, courseBend, LOOK_BEND } from './skyline.js';
+import { landmarkLookUp, courseBend, LOOK_BEND, SKYLINE } from './skyline.js';
+import { PLAZA_LIFT, plazaAt, plazaRings, plazaFolk, inPlazaLane } from './plaza.js';
 
 /**
  * Kickrani: an electric-scooter race through Seoul's streets and
@@ -77,6 +78,14 @@ export const CHASE = { zoom: 4.4, pitch: -0.36, ahead: 1.1, height: 0.72, side: 
  * off than the wall beside it cut into the wall and showed the building's dark inside.
  */
 export const CAM_NEAR = { clear: 0.55, room: 1.9, min: 0.12, far: 1 };
+/**
+ * The countdown's sweep round a landmark the grid stands before (a course's `sweep`: Admiral Yi and the fountain
+ * on Gwanghwamun Square): `dur` seconds round it (held before the lights in a race of your own; in a room inside
+ * the countdown, `room` seconds, so everyone's lights still go out together), from `from` to `to` radians round
+ * (0: due south of it, looking north), `r` metres out, `high` to `low` metres up, then `settle` seconds easing
+ * down behind your rider. Any key or a drag skips it. No words on the screen.
+ */
+export const SWEEP = { dur: 5.5, room: 2.6, settle: 1.1, from: 1.4, to: -0.3, r: [30, 46], high: 15, low: 6, fov: 50, ahead: 18 };
 
 /** How far a point is from a vehicle's box on the ground (0 inside it). */
 function boxDist(v, x, z) {
@@ -389,6 +398,8 @@ export class Race {
       }
     }
     await Promise.all(jobs);
+    // (a course across a square: its plinths, planters and bollards are solid too — plaza.js)
+    if (def.plaza) for (const ring of plazaRings(def.plaza)) walls.addRing(ring.xs, ring.zs);
     this.wallSets.set(key, walls);
     return walls;
   }
@@ -735,6 +746,9 @@ export class Race {
     this._decor();
     this.phase = 'grid';
     this.count = 3.99;
+    // (the grid before a landmark: the camera sweeps round it first — SWEEP)
+    const sweepAt = SKYLINE.find((l) => l.id === course.def?.sweep);
+    this.sweep = sweepAt ? { l: sweepAt, t: 0, dur: this.session?.room ? SWEEP.room : SWEEP.dur, hold: !this.session?.room, keys: new Set(this.g.keys), drag: this.g.dragAt ?? 0 } : null;
     this.clock = 0;
     this.sent = 0;
     this.stop = 0;
@@ -765,6 +779,11 @@ export class Race {
     let k = 0;
     while (i < (c.open ? c.finishI - 8 : n - 20)) {
       const p = c.points[i];
+      // (none on a square's paving)
+      if (c.def?.plaza && plazaAt(p[0], p[1], c.def.plaza)) {
+        i += 4;
+        continue;
+      }
       const q = c.points[(i + 1) % n];
       const hd = heading(p, q);
       const w = p[2] ?? 8;
@@ -973,6 +992,8 @@ export class Race {
           this.fans.push(this.g.life.addFan({ x, y: this._standY(x, z), z, heading: hd + (side > 0 ? Math.PI / 2 : -Math.PI / 2) }));
         }
       }
+      // (and across a square, people standing about its edges, watching the fountain and the riders)
+      for (const f of c.def?.plaza ? plazaFolk(c.def.plaza) : []) this.fans.push(this.g.life.addFan({ x: f.x, y: this._standY(f.x, f.z), z: f.z, heading: f.heading }));
     }
   }
 
@@ -1366,13 +1387,15 @@ export class Race {
     const key = (...codes) => codes.some((c) => k.has(c));
     if (this.phase === 'grid') {
       const was = Math.ceil(this.count);
-      this.count -= dt;
+      // (while the camera sweeps round the landmark in a race of your own, the lights wait — and nothing is written)
+      const holding = this._sweepStep(rawDt);
+      if (!holding) this.count -= dt;
       const now = Math.ceil(this.count);
-      this.countEl.hidden = false;
+      this.countEl.hidden = holding;
       this.countEl.textContent = this.count > 0 ? String(now) : 'GO!';
       this.countEl.classList.toggle('is-go', this.count <= 0);
       // The keys, while the lights count down (from the same table How to play lists).
-      if (this.hintEl.hidden) {
+      if (this.hintEl.hidden && !holding) {
         this.hintEl.textContent = modeHint('race');
         this.hintEl.hidden = false;
       }
@@ -1942,6 +1965,8 @@ export class Race {
 
   /** Whether a point is in a short cut's golmok (nobody stands or drives there: it is a racing line). */
   keepClear(x, z) {
+    // (a square's racing lane: no car, nobody wandering into it — plaza.js)
+    if (this.course?.def?.plaza && inPlazaLane(x, z, 2, this.course.def.plaza)) return true;
     if (!this.scGrid?.size || !this.course) return false;
     const ci = Math.floor(x / 20);
     const cj = Math.floor(z / 20);
@@ -2489,6 +2514,8 @@ export class Race {
 
   /** What the wheels are on: paving on a pavement or a market lane, an alley's concrete, worn asphalt. */
   _surface(r) {
+    // (a square's granite paving)
+    if (this.course?.def?.plaza && plazaAt(r.s.x, r.s.z, this.course.def.plaza)) return 'paving';
     const p = this._at(this._line(r), 0);
     const w = p?.[2] ?? 6;
     // (off the course's street, paving only on a pavement: cutting a junction's corner is still the road)
@@ -4244,6 +4271,43 @@ export class Race {
   }
 
   /**
+   * The countdown's sweep (SWEEP): its clock, skipped by any key not already held as it began, or a drag.
+   * True while the lights are held for it (a race of your own).
+   */
+  _sweepStep(dt) {
+    const sw = this.sweep;
+    if (!sw) return false;
+    sw.t += dt;
+    const k = this.g.keys;
+    for (const c of [...sw.keys]) if (!k.has(c)) sw.keys.delete(c);
+    if (sw.t < sw.dur && sw.t > 0.3 && ([...k].some((c) => !sw.keys.has(c)) || (this.g.dragAt ?? 0) > sw.drag)) sw.t = sw.dur;
+    if (sw.t > sw.dur + SWEEP.settle) {
+      this.sweep = null;
+      return false;
+    }
+    return sw.hold && sw.t < sw.dur;
+  }
+
+  /** Where the sweep has the camera: { pos, look, k — its share over the chase view, 1 … 0 as it settles } or null. */
+  _sweepPose() {
+    const sw = this.sweep;
+    if (!sw) return null;
+    const l = sw.l;
+    // (round a point a little in front of the statue, over the fountain: on the square's paving)
+    const base = (this.g.groundAt?.(l.x, l.z) ?? 0) + PLAZA_LIFT;
+    const u = Math.min(1, sw.t / sw.dur);
+    const e = u * u * (3 - 2 * u);
+    const a = SWEEP.from + (SWEEP.to - SWEEP.from) * e;
+    const rr = SWEEP.r[0] + (SWEEP.r[1] - SWEEP.r[0]) * e;
+    const cz = l.z + SWEEP.ahead;
+    const pos = new THREE.Vector3(l.x + Math.sin(a) * rr, base + SWEEP.high + (SWEEP.low - SWEEP.high) * e, cz + Math.cos(a) * rr);
+    // (from the admiral's upper body down to the fountain before him)
+    const look = new THREE.Vector3(l.x, base + 12 - 6 * e, l.z + 12 * e);
+    const s = Math.max(0, Math.min(1, (sw.t - sw.dur) / SWEEP.settle));
+    return { pos, look, k: 1 - s * s * (3 - 2 * s) };
+  }
+
+  /**
    * The chase camera: behind the rider and a little up and to the left (a three-quarter view, so
    * the scooter's deck, stem and wheels show past the rider, and the road ahead stays in view),
    * swinging after them; wider when sprinting. Left-drag looks round.
@@ -4353,11 +4417,16 @@ export class Race {
       camera.position.x += (Math.sin(t * 41) + Math.sin(t * 27.3) * 0.6) * a;
       camera.position.y += (Math.sin(t * 37.1) + Math.sin(t * 19.7) * 0.5) * a * 0.8;
     }
-    camera.lookAt(focus);
+    // (the countdown's sweep round the landmark the grid stands before, eased down behind the rider as it ends)
+    const sweep = this._sweepPose();
+    if (sweep) {
+      camera.position.lerp(sweep.pos, sweep.k);
+      camera.lookAt(focus.clone().lerp(sweep.look, sweep.k));
+    } else camera.lookAt(focus);
     // A tall landmark ahead (Namsan Tower, the Sky Tower, the 63 Building) over the top of the frame: on a
     // straight, the view tilts up a little toward it (skyline.js landmarkLookUp, at most LOOK_MAX) and
     // back down before a corner — the camera itself stays where it is (no zoom, the same walls).
-    const straight = r.mode === 'ride' && r.sc == null && this.course?.points && courseBend(this.course.points, r.idx ?? 0, 50, this.course.open) < LOOK_BEND;
+    const straight = !sweep && r.mode === 'ride' && r.sc == null && this.course?.points && courseBend(this.course.points, r.idx ?? 0, 50, this.course.open) < LOOK_BEND;
     const look = straight ? landmarkLookUp(camera.position, g.yaw, { pitch: CHASE.pitch, vfov: camera.fov, aspect: camera.aspect, groundAt: (x, z) => g.groundAt?.(x, z) ?? 0 }) : 0;
     this.lookUp = (this.lookUp ?? 0) + (look - (this.lookUp ?? 0)) * 0.03;
     if (this.lookUp > 1e-3) camera.rotateX(this.lookUp);
@@ -4366,6 +4435,7 @@ export class Race {
     const fov = 58 + 13 * Math.min(1, Math.max(0, (v - 4) / 16)) + (r.s.boosting || r.drinkT > 0 ? 6 : 0) + (r.drinkT > 0 ? 3 : 0);
     // (wider quickly; narrower slowly, so a sudden stop against a wall or a car never reads as a zoom)
     camera.fov += (fov - camera.fov) * (fov > camera.fov ? 0.08 : 0.015);
+    if (sweep) camera.fov += (SWEEP.fov - camera.fov) * sweep.k;
     // the gulp: a quick kick of the FOV as the drink's boost goes in
     if (this._drinkKick > 0) {
       camera.fov += this._drinkKick * 0.9;
@@ -4634,6 +4704,7 @@ export class Race {
 
   /** Take the race down (riders, course, street dressing, HUD), keeping the room. */
   _end() {
+    this.sweep = null;
     // (the city's own near plane back: the chase camera's came in to the walls)
     if (this.g.camera.near !== CAM_NEAR.far) {
       this.g.camera.near = CAM_NEAR.far;

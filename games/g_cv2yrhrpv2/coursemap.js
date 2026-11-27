@@ -37,7 +37,7 @@ export const COURSE_COLORS = {
   euljiro: '#e5383b', mullae: '#c2185b', haebangchon: '#ff4d6d', namsandown: '#b5179e',
   heritage: '#ffb703', banpo: '#d98e04', yeouido63: '#ffcf33',
   bukak: '#9d0208', skytower: '#a4133c', songpa: '#ef233c',
-  gyeongbok8: '#ffd166', noryangjin: '#f4a261',
+  gyeongbok8: '#ffd166', noryangjin: '#f4a261', fountainrun: '#48cae4', sixtythree: '#e9c46a',
   inwangsan: '#d62828', samcheong: '#c9184a', arirang: '#6a040f'
 };
 

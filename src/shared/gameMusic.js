@@ -228,6 +228,8 @@ export const KICKRANI_COURSE_TRACKS = Object.freeze({
   samcheong: 'kick-palace',
   arirang: 'kick-hill',
   gyeongbok8: 'kick-palace',
+  fountainrun: 'kick-palace',
+  sixtythree: 'kick-river',
   noryangjin: 'kick-hill',
   songpa: 'kick-boulevard'
 });

@@ -114,12 +114,22 @@ including commercially, **with attribution** — the game credits it in its Cred
     (physical material, metalness 0.6, roughness 0.45, a soft sheen), lit softly from below after dark;
     6.5 m on his pale granite plinth (17 m in all) with the inscription down its face (忠武公李舜臣將軍像)
     and a bronze turtle ship on a low base before it; King Sejong seated, gilded, behind him. In front,
-    down the square's middle, **the fountain** (`games/g_cv2yrhrpv2/fountain.js`, our own take): a 42 m shallow
-    pool, a field of thin jets and a taller row along each edge rising and falling in waves; after dark
-    lit from below in slowly shifting cyan, blue and teal (one edge row pink), the wet stone glowing, a
-    strip of small green, red and white lights set in the paving along both sides (bloomed); by day
-    plain water. Cheap: every jet an instance of a thin open cone drawn additively by a small shader,
-    heights and colours set 20 times a second and only within 900 m. (An image-to-3D generation of the
+    down the square's middle, **the fountain** (`games/g_cv2yrhrpv2/fountain.js`, our own take): a floor
+    fountain you ride through — a field of 7 × 16 jets before the plinth and a row of tall jets (to 9 m)
+    along each side, 21 m apart, the racing lane running through the west row's spray. It runs a **show**
+    (`SHOW`): a wave rolling down the field, a sweep side to side, rings opening from the middle, a
+    chequer chasing, the field pulsing with the tall rows, and a burst from the centre to 12 m — ten
+    seconds each, cross-faded, the tall rows answering the field; every jet throws droplets off its crown
+    and splashes where it falls, the dark wet granite between them shining and rippling. By day sunlit
+    water, half see-through, glints running up the columns; after dark lit from below — the field cyan
+    and blue (pink flecks when the chequer chases), the west row teal, the east row pink, the wet floor
+    glowing with them, a strip of small green, red and white lights along both rows (bloomed). Ride (or
+    swing the camera) through a tall jet and the spray beads on the lens for a second (a light mist over
+    the picture, no words). Cheap: one draw each for the jets (thin open cones), the droplets (points) and
+    the splashes (discs), all small shaders; heights and colours set every frame within 250 m, a few times
+    a second further, nothing past 900 m. **The square itself** (`games/g_cv2yrhrpv2/plaza.js`) is paving at
+    pavement height between Sejong-daero's southbound carriageway and the buildings on its west, from the
+    Jongno crossing to Sajik-ro before the gate, a kerb round it; the statues stand on it. (An image-to-3D generation of the
     statue with TRELLIS.2 was tried on the Mac Studio: its decoder gave an empty mesh there twice, so the
     sculpt stands.)
   - **The hills under them**: Namsan, and Bugaksan behind the palace, drawn from the land's own heights
@@ -400,11 +410,14 @@ Seoul's real streets — and the streets stay open.
     straights — the share of a lap it is in view from the race camera measured with
     `scripts/geo/jarani-views.mjs`, and kept by `tests/unit/course.test.mjs`):
     - **Gyeongbokgung Figure Eight** (경복궁 8자 코스, Medium; the user's own drawing) — a figure eight
-      crossed in front of the Gwanghwamun gate: up Sejong-daero past Admiral Yi and King Sejong straight
-      at the gate with Bugaksan behind it, east along Yulgok-ro and up Samcheong-ro, along the front of
-      Cheong Wa Dae, down Hyoja-ro, back across the gate's junction on Sajik-ro and Yulgok-ro, then east
-      to Ujeongguk-ro, down past Jogyesa and back along Jongno. 4.9 km; the palace in view 28 % of the
-      lap, Cheong Wa Dae 23 %, Namsan Tower 18 %, the admiral 10 %. Its two loops meet on Yulgok-ro in
+      crossed in front of the Gwanghwamun gate: from the grid on Gwanghwamun Square before Admiral Yi, up
+      the square itself (below), straight at the gate with Bugaksan behind it, east along Yulgok-ro and up
+      Samcheong-ro, then up off the road onto Cheong Wa Dae's lawn — a paved drive (plaza.js) up to the
+      front of the main hall, 50 m before its terrace, across it and down again to Hyoja-ro — back across
+      the gate's junction on Sajik-ro and Yulgok-ro, then east to Ujeongguk-ro, down past Jogyesa and back
+      along Jongno to the square. About 5.4 km (was 4.9 km up Sejong-daero, along the road below Cheong Wa
+      Dae: the palace in view 28 % of the lap, Cheong Wa Dae 23 %, Namsan Tower 18 %, the admiral 10 % —
+      not measured again since). Its two loops meet on Yulgok-ro in
       front of the gate (the junction there is a T, the gate standing on its north side): the 200 m from
       the gate's junction to Samcheong-ro is ridden twice, the same way — the first time turning up round
       the palace, the second on along Yulgok-ro; `eight` lets the plan use it twice, a rider's place on
@@ -412,6 +425,38 @@ Seoul's real streets — and the streets stay open.
       counts right), and the way is the same both times (no wrong-way). Its lower loop runs the
       Gwanghwamun Avenues' streets, its upper one the palace walls, as one lap. A left turn the map leaves
       out (Hyoja-ro's foot onto Sajik-ro eastbound) is a `link`.
+    - **Gwanghwamun Square** is part of the race (`plaza` on a course, `games/g_cv2yrhrpv2/plaza.js`):
+      its lane (14 m) comes onto the square from the Jongno crossing, up its west side through the
+      fountain's west row, round the admiral's plinth on its west, past King Sejong, then a gentle weave
+      between granite planters and lines of stone bollards to Sajik-ro before the gate (or off its west
+      side by the Sejong Center's north end, onto Sajik-ro 8-gil). The planner takes the lane as a street
+      (class 4, two-way) joined to the real roads' own points at its ends (`plazaRoads`); the plinths,
+      the turtle ship's base, the planters and the bollards are walls (`plazaRings`, added to the course's
+      walls by race.js and the tools), so the line, the bots, the put-backs and the camera keep off them;
+      the surface is the paving (SeoulGame `surfaceAt`), the wheels say paving, no road plates on it, no
+      car spawns or strays into the lane and nobody wanders into it (race.js `keepClear`), people stand
+      about its edges watching. **The grid** is on the square at its south end, facing up it toward the
+      fountain and the statue; during the countdown the camera **sweeps** round the admiral and the
+      fountain (`SWEEP`, race.js: five and a half seconds from over Sejong-daero round to the grid, the
+      lights waiting in a race of your own; in a room inside the countdown so the lights still go out
+      together) and eases down behind your rider — any key or a drag skips it, no words. A loop's finish
+      is its start line, so the podium is on the square too.
+    - **Gwanghwamun Fountain Run** (광화문 분수 런, Medium, new) — the short one: start and finish on the
+      square before Admiral Yi, up it through the spray and round his plinth, past King Sejong toward the
+      gate, off by the Sejong Center along Sajik-ro 8-gil, down the winding lane through Doryeom-dong, and
+      back along Saemunan-ro (across its median to the eastbound side: a `link`) onto the square — about
+      1.3 km, the statue ahead up the square and again coming back along Saemunan-ro.
+    - **63 Riverside Loop** (63 리버사이드, Medium, new) — round the foot of the 63 Building: down the
+      riverside lane straight at it, past its podium, up 63-ro under its east face, west along the Han
+      under its north face, back by the lanes north-west of it — about 1.8 km.
+    - Namsan Tower: the Namsan Tower Downhill already starts on the summit road and passes some 75 m from
+      the tower's foot (the summit plaza round it has only footpaths on the map; not changed). The Jamsil
+      Sky Tower: the Jamsil Tower Loop and the Fairground pass 150 m from it, as close as the roads round
+      its mall come (not changed).
+    - Not measured yet (the courses above are new): the share of a lap each landmark is in view and how big
+      it gets (`node scripts/geo/jarani-views.mjs gyeongbok8 fountainrun sixtythree` prints both now — in
+      view / in the frame / the most of the frame's height); `tests/unit/course.test.mjs` asks the
+      Fountain Run for the admiral in view 30 % of the lap and 15 % of the frame's height at least once.
     - **Noryangjin 63 View** (노량진 63 전망, Medium) across the Han from Yeouido — 700 m north down
       Jangseungbaegi-ro straight at the 63 Building over the river (in view 32 % of the lap), along
       Noryangjin-ro, then the winding hill streets of Noryangjin-dong.

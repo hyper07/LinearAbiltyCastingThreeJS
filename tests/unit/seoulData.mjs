@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { readAlleys, readRoads } from '../../games/g_cv2yrhrpv2/alleys.js';
 import { decodeTile, tileKey, tileOf, TILE } from '../../games/g_cv2yrhrpv2/tiles.js';
 import { Walls, tileRings } from '../../games/g_cv2yrhrpv2/walls.js';
+import { plazaRings } from '../../games/g_cv2yrhrpv2/plaza.js';
 
 export const ORIGIN = { x: 198050, y: 551860 };
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '../../data/geo/seoul/tiles');
@@ -30,9 +31,13 @@ export function roadsNear(all, def, reach) {
   return all.filter((r) => Math.abs(r.pts[0] - def.x) < reach && Math.abs(r.pts[1] - def.z) < reach);
 }
 
-/** The footprints of every building within `reach` of a place, as a Walls. */
-export function wallsNear(x, z, reach) {
+/**
+ * The footprints of every building within `reach` of a place, as a Walls — and with `plaza` (a course's), what
+ * stands on its squares (plinths, planters, bollards: plaza.js), as the race has them.
+ */
+export function wallsNear(x, z, reach, plaza = null) {
   const walls = new Walls();
+  if (plaza) for (const ring of plazaRings(plaza)) walls.addRing(ring.xs, ring.zs);
   const [tx0, ty0] = tileOf(x - reach + ORIGIN.x, -(z + reach) + ORIGIN.y);
   const [tx1, ty1] = tileOf(x + reach + ORIGIN.x, -(z - reach) + ORIGIN.y);
   for (let tx = tx0; tx <= tx1; tx++) {

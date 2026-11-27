@@ -9,6 +9,7 @@ import { CONTROLS, modeHint } from './controls.js';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
 import { roadPieces } from './bridges.js';
+import { plazaY } from './plaza.js';
 import { surfaceOf, walkY } from './surface.js';
 import { endKey, JC, JL, JR, paintRuns } from './markings.js';
 import { Weather, WEATHERS, fogRange } from './weather.js';
@@ -1819,7 +1820,14 @@ export class SeoulGame {
    */
   surfaceAt(x, z, from = Infinity, mainOnly = false, exact = false) {
     const ground = this.groundAt(x, z);
+    // (a square's paving — Gwanghwamun Square, Cheong Wa Dae's drive: plaza.js — over the land, flush with the pavements)
+    const plaza = plazaY(x, z, () => ground);
+    if (plaza != null) return Math.max(plaza, this.roadHash ? this._surfaceOf(ground, x, z, from, mainOnly, exact) : ground);
     if (!this.roadHash) return ground;
+    return this._surfaceOf(ground, x, z, from, mainOnly, exact);
+  }
+
+  _surfaceOf(ground, x, z, from, mainOnly, exact) {
     const cx = Math.floor(x / ROAD_CELL);
     const cz = Math.floor(z / ROAD_CELL);
     const roads = [];
