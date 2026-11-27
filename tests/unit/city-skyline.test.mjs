@@ -24,14 +24,16 @@ test('Admiral Yi in bronze: 6.5 m to the tip of his finial, the sword at his rig
 });
 
 test('the fountain: jets rise and fall in waves (the edge rows taller), cyan to blue after dark, one edge row pink', () => {
-  const hs = Array.from({ length: 40 }, (_, k) => jetHeight(3, 2, k * 0.25));
-  assert.ok(Math.min(...hs) >= 0.5 && Math.max(...hs) <= 3.3 && Math.max(...hs) - Math.min(...hs) > 1.5, 'the middle field rises and falls');
-  assert.ok(jetHeight(0, 0, 0, { edge: true }) >= 2.6);
-  const c = jetColor(2, 1, 10);
-  const hsl = c.getHSL({});
+  // (fountain.js's show API: a jet is { kind, u, v, side, r, c }; the show itself is tested in the package's plaza.test.mjs)
+  const mid = { kind: 'field', r: 7, c: 3, u: 0, v: 0.47 };
+  const hs = Array.from({ length: 40 }, (_, k) => jetHeight(mid, k * 0.25));
+  assert.ok(Math.min(...hs) >= 0.3 && Math.max(...hs) <= 4.2 && Math.max(...hs) - Math.min(...hs) > 1.5, 'the middle field rises and falls');
+  const edgeTop = Math.max(...Array.from({ length: 40 }, (_, k) => jetHeight({ kind: 'edge', r: 0, side: -1, v: 0 }, k * 0.25)));
+  assert.ok(edgeTop > Math.max(...hs), 'the edge rows taller');
+  const hsl = jetColor({ kind: 'field', r: 2, c: 2, v: 0.2 }, 3).getHSL({});
   assert.ok(hsl.h > 0.38 && hsl.h < 0.62, `cyan–blue (${hsl.h.toFixed(2)})`);
-  assert.ok(jetColor(2, 9, 10, { edge: 1 }).getHSL({}).h > 0.8, 'pink');
-  assert.ok(FOUNTAIN.length > 30 && FOUNTAIN.width < 12);
+  assert.ok(jetColor({ kind: 'edge', r: 9, side: 1, v: 0.5 }, 10).getHSL({}).h > 0.8, 'pink');
+  assert.ok(FOUNTAIN.edge.z1 - FOUNTAIN.edge.z0 > 30 && FOUNTAIN.floor.width < 30);
 });
 
 test('the landmarks near the courses: Namsan Tower on the summit, Gyeongbokgung\'s gate and throne hall, Cheong Wa Dae under Bugaksan, the admiral on Gwanghwamun Square', () => {
