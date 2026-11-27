@@ -403,28 +403,26 @@ export class StreetLife {
     m.z = m.bz + m.oz;
     // On the pavement: as high as the road beside it and the kerb; a motorbike on the road. Near the
     // camera, on what is really under their feet (surface.js: the pavement, the road, an alley's paving,
-    // at its level), every frame; further off a guess from the land, a few times a second. Only
+    // tilted with the hill), every frame; further off a guess from the land, a few times a second. Only
     // a step (a kerb) is eased: up and down a steep street the feet keep to it (eased as a whole, they
     // trailed the slope by a few centimetres, more at a jog).
     const ground = this.g.groundAt(m.x, m.z);
-    // (the street's level over the land here: a hill street stands level across, over the slope — roadLevel.js)
-    const lift = Math.max(0, (this.g.baseAt?.(m.x, m.z) ?? ground) - ground);
     const cam = this.g.camera?.position;
     const near = cam && this.g.surfaceAt && Math.abs(m.x - cam.x) < FEET_NEAR && Math.abs(m.z - cam.z) < FEET_NEAR;
     m.yT = (m.yT ?? 0) - dt;
     // (In a small street, at road level: there is no kerb.)
-    const guess = (m.road?.small ? 0.9 : m.kind === 'moto' ? 0.9 : m.kind === 'bike' ? 0.92 : 1.04) + lift;
+    const guess = m.road?.small ? 0.9 : m.kind === 'moto' ? 0.9 : m.kind === 'bike' ? 0.92 : 1.04;
     // What is drawn under them (no crack bridged: they stand on what is there). A small street is laid only
     // where a race runs down it (golmok.js): any other is the bare land, and they walk on that — not at road
     // level in the air over it.
-    const under = () => this.g.surfaceAt(m.x, m.z, (m.y ?? ground + lift + 1) + 0.4, false, true) - ground;
+    const under = () => this.g.surfaceAt(m.x, m.z, (m.y ?? ground + 1) + 0.4, false, true) - ground;
     if (near) {
       // (where no pavement is laid by a main road — a side street's mouth, a corner — on the land there too:
       // not in the air at the pavement's height)
-      m.overGoal = Math.max(0, Math.min(1.3 + lift, under()));
+      m.overGoal = Math.max(0, Math.min(1.3, under()));
     } else if (m.yT <= 0 || m.overGoal == null) {
       m.yT = 0.35;
-      m.overGoal = m.road?.small && this.g.surfaceAt ? Math.max(0, Math.min(1.3 + lift, under())) : guess;
+      m.overGoal = m.road?.small && this.g.surfaceAt ? Math.max(0, Math.min(1.3, under())) : guess;
     }
     m.over ??= m.overGoal;
     m.over += (m.overGoal - m.over) * Math.min(1, dt * (near ? 12 : 6));

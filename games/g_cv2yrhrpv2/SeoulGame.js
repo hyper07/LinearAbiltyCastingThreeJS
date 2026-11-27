@@ -287,10 +287,6 @@ const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 
 const WATER = new THREE.Color('#3f74b3');
 /** Roads are looked up by squares this wide (metres). */
 const ROAD_CELL = 40;
-/** A street edge standing more than this over the land is a retaining wall (granite blocks), not the slab's side. */
-const CLIFF = 1.6;
-/** How far past a street's edge the hillside is looked at for a retaining wall up. */
-const UPHILL = 3;
 /** The asphalt's colour in a junction's middle, whichever road draws it there. */
 const JUNCTION_ASPHALT = new THREE.Color('#96989e');
 export { ROAD_CELL };
@@ -436,10 +432,12 @@ export class SeoulGame {
       this.index.landmarks = (this.index.landmarks ?? []).map((l) => ({ ...l, wx: l.x - ORIGIN.x, wz: -(l.y - ORIGIN.y) }));
       // The land and the roads, if the converter had them: both are needed before anything is built on them.
       const bin = (name) => fetch(`${this.base}${name}`).then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null);
-      // (and the small streets round the bike courses, alleys.bin if converted: levelled with the roads they meet)
-      const [terrain, roads, alleys] = await Promise.all([this.index.terrain ? bin('terrain.bin') : null, this.index.roads ? bin('roads.bin') : null, this.index.roads ? bin('alleys.bin') : null]);
+      const [terrain, roads] = await Promise.all([this.index.terrain ? bin('terrain.bin') : null, this.index.roads ? bin('roads.bin') : null]);
       if (terrain) this._terrain(terrain);
-      if (roads) this._roads(roads, alleys);
+      if (roads) this._roads(roads);
+      // The small streets round the bike courses (alleys.bin, if converted): planned on and walked, not drawn here.
+      const alleys = this.roadTiles ? await bin('alleys.bin') : null;
+      if (alleys) this._alleys(alleys);
       if (this.terrain) {
         this.ground.visible = false;
         this.pos.y += this.groundAt(this.pos.x, this.pos.z);
@@ -916,7 +914,7 @@ export class SeoulGame {
 
   /** Take a tile's land down: its ground, roads, pavements, kerbs, trees and lamps (and what they told surfaceAt). */
   _freeLand(l) {
-    for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls, l.retain]) {
+    for (const m of [l.ground, l.roads, l.walks, l.trees, l.lamps, l.walls]) {
       if (!m) continue;
       if (m.userData.treeId != null) this.streetTrees.remove(m.userData.treeId);
       if (m.userData.lampId != null) this.nightLights.remove(m.userData.lampId);
@@ -1234,19 +1232,10 @@ export class SeoulGame {
     return { ground, roads, ...(roads?.userData.street ?? {}) };
   }
 
-  /**
-   * Read roads.bin and sort every road into the tiles it crosses; level them all — with the small streets
-   * (alleys.bin) that meet them — flat across, smooth along (roadLevel.js), and keep where each lies (`levelAt`).
-   */
-  _roads(buf, alleyBuf = null) {
+  /** Read roads.bin and sort every road into the tiles it crosses. */
+  _roads(buf) {
     const all = readRoads(buf, ORIGIN);
     if (!all) return;
-    const small = alleyBuf ? readAlleys(alleyBuf, ORIGIN) : [];
-    // (an alley's point's key, as roads.bin's: where they share a point, the same)
-    const head = new DataView(buf);
-    const kx = head.getInt32(4, true);
-    const ky = head.getInt32(8, true);
-    const key = (x, z) => `${Math.round((x + ORIGIN.x - kx) * 10)}|${Math.round((-z + ORIGIN.y - ky) * 10)}`;
     this.roadTiles = new Map();
     for (const { road } of all) {
       // A road is listed with the tile it starts in (traffic, people, race courses).
@@ -1256,29 +1245,8 @@ export class SeoulGame {
     }
     this.roadPieces = roadPieces(all, {
       water: (x, z) => this.waterAt(x, z),
-      tile: (x, z) => tileKey(...tileOf(x + ORIGIN.x, -z + ORIGIN.y)),
-      ground: this.terrain ? (x, z) => this.groundAt(x, z) : null,
-      alleys: small,
-      key
+      tile: (x, z) => tileKey(...tileOf(x + ORIGIN.x, -z + ORIGIN.y))
     });
-    // Where every street lies (main roads and alleys alike), by 40 m cell: levelAt. (Stretches as 7 numbers
-    // each in one array — ax, az, bx, bz, the level at each end, half the width — listed by cell.)
-    let count = 0;
-    for (const road of [...all.map((a) => a.road), ...small]) if (road.level) count += road.level.h.length - 1;
-    const segs = (this.levelSegs = new Float32Array(count * 7));
-    this.levelHash = new Map();
-    let n = 0;
-    for (const road of [...all.map((a) => a.road), ...small]) {
-      const lv = road.level;
-      if (!lv) continue;
-      for (let i = 1; i < lv.h.length; i++, n++) {
-        segs.set([lv.xz[i * 2 - 2], lv.xz[i * 2 - 1], lv.xz[i * 2], lv.xz[i * 2 + 1], lv.h[i - 1], lv.h[i], road.width / 2], n * 7);
-        const cell = `${Math.floor((lv.xz[i * 2 - 2] + lv.xz[i * 2]) / 2 / ROAD_CELL)}_${Math.floor((lv.xz[i * 2 - 1] + lv.xz[i * 2 + 1]) / 2 / ROAD_CELL)}`;
-        let at = this.levelHash.get(cell);
-        if (!at) this.levelHash.set(cell, (at = []));
-        at.push(n);
-      }
-    }
     // Every road's surface on the map, by 40 m cell, so trees, lamps and pavements keep off all of them —
     // a big road is two roads in the data, one each way, and what lines one must not stand on the other.
     // (each with the road it is of, and listed by its ends' points too: where the paint stops, markings.js)
@@ -1304,54 +1272,6 @@ export class SeoulGame {
         }
       }
     }
-    if (small.length) this._alleys(small);
-  }
-
-  /**
-   * The level the street at a point is laid at (roadLevel.js: flat across it, smooth along it) — the land's
-   * height it lies over, its slab 0.9 m higher — or null off every street. Where two lie over each other (a
-   * dual carriageway's two ways, a junction), the one whose middle is nearest; `from` (a height), the one
-   * nearest it instead. `reach`: metres past a street's edge it still counts (its pavement).
-   */
-  levelAt(x, z, from = null, reach = 3) {
-    if (!this.levelHash) return null;
-    const cx = Math.floor(x / ROAD_CELL);
-    const cz = Math.floor(z / ROAD_CELL);
-    let best = null;
-    let score = Infinity;
-    for (let i = cx - 1; i <= cx + 1; i++) {
-      for (let j = cz - 1; j <= cz + 1; j++) {
-        for (const q of this.levelHash.get(`${i}_${j}`) ?? []) {
-          const o = q * 7;
-          const S = this.levelSegs;
-          const ax = S[o];
-          const az = S[o + 1];
-          const bx = S[o + 2];
-          const bz = S[o + 3];
-          const ha = S[o + 4];
-          const hb = S[o + 5];
-          const half = S[o + 6];
-          const dx = bx - ax;
-          const dz = bz - az;
-          const k = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
-          const d = Math.hypot(x - ax - dx * k, z - az - dz * k);
-          if (d > half + reach) continue;
-          const h = ha + (hb - ha) * k;
-          // (on its surface before beside it; then by height, or by how near its middle)
-          const s = (d > half ? 1000 : 0) + (from != null ? Math.abs(h + 0.9 - from) * 10 : 0) + d;
-          if (s < score) {
-            score = s;
-            best = h;
-          }
-        }
-      }
-    }
-    return best;
-  }
-
-  /** The level under a point if it is on (or by) a street, else the land's height: what heights there are measured from. */
-  baseAt(x, z, from = null) {
-    return this.levelAt(x, z, from) ?? this.groundAt(x, z);
   }
 
   /**
@@ -1359,7 +1279,8 @@ export class SeoulGame {
    * main roads, so the bike courses can be planned through them and people walk them.
    * They are not drawn with the city: the race lays the ones its course uses (golmok.js).
    */
-  _alleys(list) {
+  _alleys(buf) {
+    const list = readAlleys(buf, ORIGIN);
     for (const road of list) {
       const key = tileKey(...tileOf(road.pts[0] + ORIGIN.x, -road.pts[1] + ORIGIN.y));
       if (!this.roadTiles.has(key)) this.roadTiles.set(key, []);
@@ -1429,8 +1350,6 @@ export class SeoulGame {
     const walkA = []; // per pavement vertex: across (0 at the kerb, 1 at the building side), metres along, which side
     const wall = []; // the road's sides: kerbs, the slab's edge, bridge girders and parapets
     const wallCol = [];
-    const retain = []; // retaining walls: down to the land where a hill road stands over it, up where the hill rises beside it
-    const retainUV = [];
     const trees = [];
     const lamps = [];
     const c = new THREE.Color();
@@ -1441,12 +1360,9 @@ export class SeoulGame {
       // Points no more than 10 m apart, each with its deck height (worked out for the whole road network).
       let line = [];
       let eased = [];
-      // (and the level each point lies at: roadLevel.js, flat across; without one, the land under its middle)
-      let lv = [];
       for (let i = 0; i < r.line.length; i += 3) {
         line.push([r.line[i], r.line[i + 1]]);
         eased.push(r.line[i + 2]);
-        lv.push(r.level ? r.level[i / 3] : this.groundAt(r.line[i], r.line[i + 1]));
       }
       // Alley mouths across its pavements (setMouths): a point at each end of each drop and its ramps,
       // and how high the kerb is at every point, each side.
@@ -1459,7 +1375,6 @@ export class SeoulGame {
         if (!at.length) return;
         const out = [line[0]];
         const outE = [eased[0]];
-        const outL = [lv[0]];
         let acc = 0;
         for (let i = 1; i < line.length; i++) {
           const [ax, az] = line[i - 1];
@@ -1469,16 +1384,13 @@ export class SeoulGame {
             const t = (m - acc) / len;
             out.push([ax + (bx - ax) * t, az + (bz - az) * t]);
             outE.push(eased[i - 1] + (eased[i] - eased[i - 1]) * t);
-            outL.push(lv[i - 1] + (lv[i] - lv[i - 1]) * t);
           }
           out.push(line[i]);
           outE.push(eased[i]);
-          outL.push(lv[i]);
           acc += len;
         }
         line = out;
         eased = outE;
-        lv = outL;
       };
       insert(marks);
       // Where its paint stops (markings.js): its middle, its left edge line, its right, each inside another
@@ -1514,11 +1426,13 @@ export class SeoulGame {
         const dx = nx - px;
         const dz = nz - pz;
         const len = Math.hypot(dx, dz) || 1;
-        // Level from side to side, at its level (roadLevel.js): never tipped across with the hillside — where
-        // the land falls away beside it, it stands on a retaining wall over the drop; where streets meet, they
-        // meet on one flat plate.
-        const y = lv[i] + 0.9 + eased[i];
-        const edgeY = () => y;
+        const g0 = this.groundAt(x, z);
+        const y = g0 + 0.9 + eased[i];
+        // Each edge on the ground under it (not flat across at the middle's height): roads that meet
+        // at a junction on a slope then lie on one surface, not a ledge the width of the crossing road
+        // times the slope. A deck stays level across (eased over its first half-metre of lift).
+        const drape = Math.max(0, Math.min(1, 1 - eased[i] / 0.5));
+        const edgeY = (ex, ez) => y + (this.groundAt(ex, ez) - g0) * drape;
         const left = [x - (dz / len) * half, 0, z + (dx / len) * half];
         const right = [x + (dz / len) * half, 0, z - (dx / len) * half];
         left[1] = edgeY(left[0], left[2]);
@@ -1623,34 +1537,12 @@ export class SeoulGame {
             wall.push(a[0], ya0, a[2], b[0], yb0, b[2], b[0], yb1, b[2], a[0], ya0, a[2], b[0], yb1, b[2], a[0], ya1, a[2]);
             for (let k = 0; k < 6; k++) wallCol.push(col[0], col[1], col[2]);
           };
-          // (the blocks in metres: along the wall, and up it)
-          const retainQuad = (a, b, ya0, ya1, yb0, yb1, ua, ub) => {
-            retain.push(a[0], ya0, a[2], b[0], yb0, b[2], b[0], yb1, b[2], a[0], ya0, a[2], b[0], yb1, b[2], a[0], ya1, a[2]);
-            retainUV.push(ua, ya0 / 2.4, ub, yb0 / 2.4, ub, yb1 / 2.4, ua, ya0 / 2.4, ub, yb1 / 2.4, ua, ya1 / 2.4);
-          };
           const KERB = [0.78, 0.77, 0.74];
           const SLAB = [0.5, 0.49, 0.47];
           const GIRDER = [0.6, 0.6, 0.62];
           const BARRIER = [0.72, 0.71, 0.69];
           const gA = (p) => this.groundAt(p[0], p[2]) - 0.4;
           const bridgeDeck = onBridge || prev.bridge;
-          // The street's outer edge (`t0`–`t1` of this stretch, on `side`): down to the land — where the land falls
-          // away beside a hill road, a retaining wall of granite blocks over the drop (no rail: ride off it and you
-          // fall) — and where the hillside rises just past it, a retaining wall up, holding the hill back.
-          const edge = (a, b, t0, t1, side) => {
-            const ua = (prev.along + (along - prev.along) * t0) / 2.4;
-            const ub = (prev.along + (along - prev.along) * t1) / 2.4;
-            const ga = gA(a);
-            const gb = gA(b);
-            if (Math.max(a[1] - ga, b[1] - gb) > CLIFF) retainQuad(a, b, ga, a[1], gb, b[1], ua, ub);
-            else quad(a, b, ga, a[1], gb, b[1], SLAB);
-            const ox = (dz / len) * side * UPHILL;
-            const oz = (-dx / len) * side * UPHILL;
-            if (this.onRoad(a[0] + ox, a[2] + oz) || this.onRoad(b[0] + ox, b[2] + oz)) return;
-            const la = this.groundAt(a[0] + ox, a[2] + oz) + 0.3;
-            const lb = this.groundAt(b[0] + ox, b[2] + oz) + 0.3;
-            if (la > a[1] + 0.15 || lb > b[1] + 0.15) retainQuad(a, b, a[1], Math.max(a[1], la), b[1], Math.max(b[1], lb), ua, ub);
-          };
           for (const [pe, e, side] of [[prev.left, left, -1], [prev.right, right, 1]]) {
             const sd = sides.find((q) => q.side === side);
             if (sd) {
@@ -1666,7 +1558,9 @@ export class SeoulGame {
                   const a = lerp3(pe, e, t0);
                   const b = lerp3(pe, e, t1);
                   quad(a, b, a[1], lerp3(sd.pIn, sd.inn, t0)[1], b[1], lerp3(sd.pIn, sd.inn, t1)[1], KERB);
-                  edge(lerp3(sd.po, sd.oo, t0), lerp3(sd.po, sd.oo, t1), t0, t1, side);
+                  const po = lerp3(sd.po, sd.oo, t0);
+                  const oo = lerp3(sd.po, sd.oo, t1);
+                  quad(po, oo, gA(po), po[1], gA(oo), oo[1], SLAB);
                 }
                 at = Math.max(at, t1);
               }
@@ -1675,7 +1569,7 @@ export class SeoulGame {
               quad(pe, e, pe[1] - 1.7, pe[1], e[1] - 1.7, e[1], GIRDER);
               quad(pe, e, pe[1], pe[1] + 1.0, e[1], e[1] + 1.0, BARRIER);
             } else {
-              edge(pe, e, 0, 1, side);
+              quad(pe, e, gA(pe), pe[1], gA(e), e[1], SLAB);
               if (expressway) quad(pe, e, pe[1], pe[1] + 0.85, e[1], e[1] + 0.85, BARRIER);
             }
           }
@@ -1694,7 +1588,7 @@ export class SeoulGame {
             nextTree += 16;
           }
           // Remember the stretch, so someone walking here stands on the road and not under it.
-          // (with its edges' heights: level across, as the mesh — roadLevel.js)
+          // (with its edges' heights: the surface is level along each edge, sloped across like the mesh)
           const seg = { ax: last[0], ay: last[1], az: last[2], bx: x, by: y, bz: z, half: half + 0.5, w: half, aL: prev.left[1], aR: prev.right[1], bL: left[1], bR: right[1] }; // (ay, by: the middle's)
           const cell = `${Math.floor((last[0] + x) / 2 / ROAD_CELL)}_${Math.floor((last[2] + z) / 2 / ROAD_CELL)}`;
           if (!this.roadHash.has(cell)) this.roadHash.set(cell, []);
@@ -1734,19 +1628,6 @@ export class SeoulGame {
       walls.receiveShadow = true;
       this.scene.add(walls);
       mesh.userData.street.walls = walls;
-    }
-    if (retain.length) {
-      const rg = new THREE.BufferGeometry();
-      rg.setAttribute('position', new THREE.Float32BufferAttribute(retain, 3));
-      rg.setAttribute('uv', new THREE.Float32BufferAttribute(retainUV, 2));
-      rg.computeVertexNormals();
-      // Granite blocks with moss in the joints (ambientCG PavingStones138, CC0), a touch darker than the paving.
-      this.retainMaterial ??= new THREE.MeshLambertMaterial({ color: '#b9b4a8', side: THREE.DoubleSide, map: texture('PavingStones138', 'Color') });
-      const ret = new THREE.Mesh(rg, this.retainMaterial);
-      ret.receiveShadow = true;
-      ret.castShadow = true;
-      this.scene.add(ret);
-      mesh.userData.street.retain = ret;
     }
     return mesh;
   }

@@ -524,26 +524,9 @@ export class Facades {
     const type = buildingType({ kind: b.kind ?? 6, h: b.h, area, seed: b.seed ?? 0.5 });
     const spec = typeSpec(type, b.seed ?? 0.5);
     b.type = type;
-    // The road is laid 0.9 m over the land: the street level, and the height above it. Where the course's
-    // street beside it stands higher (a hill street is level across, on a retaining wall over the slope:
-    // roadLevel.js), its ground floor is at the street's level, a plinth under it down to the land.
-    let fl = b.top - b.h + 0.9;
-    {
-      const cx = (b.minx + b.maxx) / 2;
-      const cz = (b.minz + b.maxz) / 2;
-      let near = null;
-      let best = 30;
-      for (const q of this.pts ?? []) {
-        const d = Math.hypot(q[0] - cx, q[1] - cz);
-        if (d < best) {
-          best = d;
-          near = q;
-        }
-      }
-      const st = near ? this.g.levelAt?.(near[0], near[1]) : null;
-      if (st != null && st + 0.9 > fl && st + 0.9 - (b.top - b.h) < b.h - 3) fl = st + 0.9;
-    }
-    const H = Math.max(3, b.top - fl);
+    // The road is laid 0.9 m over the land: the street level, and the height above it.
+    const fl = b.top - b.h + 0.9;
+    const H = Math.max(3, b.h - 0.9);
     const F = floorsOf(H, spec);
     const r = rng((b.seed ?? 0.5) * 977 + b.minx * 0.013);
     const finish = spec.finish === 'glass' ? 'fin' : spec.finish;

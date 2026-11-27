@@ -461,7 +461,7 @@ export class ItemBoxes {
         }
       }
       if (!s.live || Math.hypot(s.x - p.x, s.z - p.z) > 220) continue;
-      if (s.y == null || Math.random() < 0.02) s.y = this.g.surfaceAt(s.x, s.z, (this.g.baseAt?.(s.x, s.z) ?? this.g.groundAt(s.x, s.z)) + 14);
+      if (s.y == null || Math.random() < 0.02) s.y = this.g.surfaceAt(s.x, s.z, this.g.groundAt(s.x, s.z) + 14);
       // Float and bob, turn slowly on a tilt; pop in big when it comes back.
       const bob = Math.sin(this.t * 2.2 + s.phase) * 0.08;
       s.pop = Math.max(0, (s.pop ?? 0) - dt);

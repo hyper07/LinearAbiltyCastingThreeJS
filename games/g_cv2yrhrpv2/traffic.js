@@ -1556,10 +1556,9 @@ export class RaceTraffic {
     const cam = this._cam ?? this.g.camera?.position;
     const d = cam ? Math.hypot(b.x - cam.x, b.z - cam.z) : 0;
     const near = d < SIT.near;
-    // (measured from the street's level under it — level across, smooth along: roadLevel.js — or the land)
-    const ground = this.g.baseAt?.(b.x, b.z, v.y) ?? this.g.groundAt?.(b.x, b.z) ?? 0;
+    const ground = this.g.groundAt?.(b.x, b.z) ?? 0;
     // (far off, every SIT.every frames: it can't be seen to the centimetre there — between, at the same
-    // height over the street's level, which the road follows)
+    // height over the land, which the road follows)
     v.sitT = (v.sitT ?? 0) + 1;
     if (dt && !near && v.sat && v.sitT < SIT.every) {
       v.y = ground + v.over;

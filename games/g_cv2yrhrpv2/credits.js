@@ -14,7 +14,6 @@ const CC0 = { licence: 'CC0 1.0', licenceUrl: 'https://creativecommons.org/publi
 export const AMBIENTCG = [
   ['Asphalt031', 'the roads'],
   ['PavingStones152', 'the brick-block pavements'],
-  ['PavingStones138', 'the granite retaining walls along the hill roads'],
   ['Concrete034', 'kerbs, slabs and garden walls'],
   ['Bricks101', 'red villa brick'],
   ['Bricks105', 'red-brick villas close up'],

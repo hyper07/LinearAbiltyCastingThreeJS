@@ -15,16 +15,10 @@
  *   - a bridge end that meets another bridge partway along (a ramp joining
  *     the deck) takes that bridge's height there.
  *
- * Given the land (`ground`), every road — and the small streets (`alleys`), which
- * meet them — is levelled first (roadLevel.js): flat across, smooth along, a
- * plate where streets meet; a bridge's lift is over that level.
- *
  * Then every road is cut into pieces of about 300 m, each drawn with the
  * tile its middle is in — so a 3 km bridge never vanishes under you because
  * its first tile is out of view.
  */
-
-import { joinEnds, levelNetwork } from './roadLevel.js';
 
 /** Deck heights above the ground, in metres: over water, and over land or a road. */
 export const DECK_WATER = 11;
@@ -81,15 +75,11 @@ export function addPoint(line, d) {
 /**
  * @param {{ road: { pts: Float32Array, width: number, bridge: boolean, cls: number }, keys: string[] }[]} all
  *   every road, with a key for each of its points (the same key where roads meet)
- * @param {{ water: (x: number, z: number) => boolean, tile: (x: number, z: number) => string,
- *   ground?: (x: number, z: number) => number, alleys?: { pts: Float32Array, width: number }[], key?: (x: number, z: number) => string }} world
- *   with `ground`, the roads are levelled (and the `alleys` with them, joined where `key` says they share a point)
- * @returns {Map<string, { line: Float32Array, level?: Float32Array, along: number, width: number, cls: number, bridge: boolean }[]>}
- *   pieces by tile; `line` is x, z, height above the level (a bridge's lift), for each point; `level`, the
- *   level each point lies at (without `ground`, none: the land's own). Each road and alley also gets its
- *   `level`: { xz, h } (its points, and the level at each).
+ * @param {{ water: (x: number, z: number) => boolean, tile: (x: number, z: number) => string }} world
+ * @returns {Map<string, { line: Float32Array, along: number, width: number, cls: number, bridge: boolean }[]>}
+ *   pieces by tile; `line` is x, z, height above the ground, for each point
  */
-export function roadPieces(all, { water, tile, ground = null, alleys = [], key = null }) {
+export function roadPieces(all, { water, tile }) {
   // Which points bridges pass through, and what else touches them.
   const bridgeKeys = new Set();
   for (const { road, keys } of all) if (road.bridge) for (const k of keys) bridgeKeys.add(k);
@@ -135,29 +125,6 @@ export function roadPieces(all, { water, tile, ground = null, alleys = [], key =
     if (h0 > 0) addPoint(lines[w], h0);
     if (h1 > 0) addPoint(lines[w], L - h1);
   });
-  // Every street levelled together (flat across, smooth along, a plate where streets meet).
-  if (ground) {
-    const PAVED = 3;
-    const plain = (r) => r.cls === 0 || r.bridge;
-    const net = all.map(({ road, keys }, w) => {
-      const l = lines[w];
-      l.keys = new Array(l.at.length).fill(null);
-      l.vert.forEach((i, j) => (l.keys[i] = keys[j]));
-      return Object.assign(l, { half: road.width / 2, reach: road.width / 2 + (plain(road) ? 0.5 : PAVED), pave: plain(road) ? 0.5 : PAVED });
-    });
-    const small = alleys.map((road) => {
-      const l = densify(road.pts);
-      l.keys = new Array(l.at.length).fill(null);
-      if (key) l.vert.forEach((i, j) => (l.keys[i] = key(road.pts[j * 2], road.pts[j * 2 + 1])));
-      // (an alley is paved out to the walls either side: golmok _verge)
-      return Object.assign(l, { half: road.width / 2, reach: road.width / 2 + 1, pave: 0.5 });
-    });
-    const every = [...net, ...small];
-    joinEnds(every);
-    levelNetwork(every, ground);
-    all.forEach(({ road }, w) => (road.level = { xz: Float32Array.from(lines[w].xz), h: Float32Array.from(lines[w].h) }));
-    alleys.forEach((road, k) => (road.level = { xz: Float32Array.from(small[k].xz), h: Float32Array.from(small[k].h) }));
-  }
   // A bridge any of whose pieces crosses water stands high.
   const wet = new Set();
   all.forEach(({ road }, w) => {
@@ -219,28 +186,24 @@ export function roadPieces(all, { water, tile, ground = null, alleys = [], key =
     lifts[w] = liftOf(w, a ?? first[0], b ?? first[first.length - 1], holdAt(keys[0]), holdAt(keys[keys.length - 1]));
   });
 
-  // (a bridge's own level, as kept with it, is its deck's: the street's level and its lift)
-  if (ground) all.forEach(({ road }, w) => lifts[w] && (road.level.h = Float32Array.from(lines[w].h, (h, i) => h + lifts[w][i])));
   // Cut into pieces, each with the tile its middle is in.
   const out = new Map();
   all.forEach(({ road }, w) => {
-    const { xz, at, h } = lines[w];
+    const { xz, at } = lines[w];
     const n = xz.length / 2;
     const lift = lifts[w];
     for (let s = 0; s < n - 1; s += PIECE - 1) {
       const e = Math.min(n - 1, s + PIECE - 1);
       const line = new Float32Array((e - s + 1) * 3);
-      const level = h ? new Float32Array(e - s + 1) : null;
       for (let i = s; i <= e; i++) {
         line[(i - s) * 3] = xz[i * 2];
         line[(i - s) * 3 + 1] = xz[i * 2 + 1];
         line[(i - s) * 3 + 2] = lift ? lift[i] : 0;
-        if (level) level[i - s] = h[i];
       }
       const mid = (s + e) >> 1;
       const key = tile(xz[mid * 2], xz[mid * 2 + 1]);
       if (!out.has(key)) out.set(key, []);
-      out.get(key).push({ line, level, along: at[s], width: road.width, cls: road.cls, bridge: road.bridge, oneway: Boolean(road.oneway), total: at[at.length - 1], id: w });
+      out.get(key).push({ line, along: at[s], width: road.width, cls: road.cls, bridge: road.bridge, oneway: Boolean(road.oneway), total: at[at.length - 1], id: w });
     }
   });
   return out;

@@ -1070,7 +1070,7 @@ export async function run(browser) {
       const r = window.seoul.race;
       const g = window.seoul;
       r.autopilot = true;
-      const st = (r._e2eHill = { samples: 0, tyres: 0, sunk: 0, worst: 0, parked: 0, overlap: 0, still: 0, across: 0, tilted: 0, worstTilt: 0, roll: 0 });
+      const st = (r._e2eHill = { samples: 0, tyres: 0, sunk: 0, worst: 0, parked: 0, overlap: 0, still: 0 });
       // (two boxes on the ground overlapping, a few centimetres in)
       const over = (a, b) => {
         if (Math.hypot(a.x - b.x, a.z - b.z) > a.halfLength + b.halfLength + 2) return false;
@@ -1082,23 +1082,6 @@ export async function run(browser) {
         if (!tr) return;
         st.samples++;
         const cam = g.camera.position;
-        // The street level across (roadLevel.js): at the course's points near you, one side of the street's
-        // width as high as the other — and the camera never rolled (its right-hand side level).
-        g.camera.updateMatrixWorld();
-        st.roll = Math.max(st.roll, Math.abs(g.camera.matrixWorld.elements[1]));
-        for (const p of r.course.points) {
-          if (Math.hypot(p[0] - cam.x, p[1] - cam.z) > 60) continue;
-          const q = r.course.points[(r.course.points.indexOf(p) + 1) % r.course.points.length];
-          const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
-          const o = Math.max(0.5, (p[2] ?? 6) / 2 - 1);
-          const sx = (-(q[1] - p[1]) / L) * o;
-          const sz = ((q[0] - p[0]) / L) * o;
-          const y = g.surfaceAt(p[0], p[1], Infinity, false, true);
-          const d = Math.abs(g.surfaceAt(p[0] + sx, p[1] + sz, y + 0.3, false, true) - g.surfaceAt(p[0] - sx, p[1] - sz, y + 0.3, false, true));
-          st.across++;
-          st.worstTilt = Math.max(st.worstTilt, d);
-          if (d > 0.05) st.tilted++;
-        }
         for (const v of tr.vehicles) {
           const ax = v.axles ?? v.view?.axles;
           if (!ax || !v.sat || Math.hypot(v.box.x - cam.x, v.box.z - cam.z) > 120) continue;
@@ -1187,8 +1170,6 @@ export async function run(browser) {
     const stand = await page.evaluate(() => (clearInterval(window.seoul.race._e2eStandT), window.seoul.race._e2eStand));
     t.check('Haebangchon: the traffic sits on the steep road — no tyre of a car near you sunk into it, parked or moving', hill.tyres > 500 && hill.sunk === 0, JSON.stringify({ ...hill, worst: Math.round(hill.worst * 100) / 100 }));
     t.check('…never one car in another, and none left standing in the road for good', hill.samples > 60 && hill.overlap === 0 && hill.still === 0, JSON.stringify(hill));
-    t.check('…its steep streets lie level across (no tilt with the hillside: one side as high as the other), and the camera never rolls', hill.across > 200 && hill.tilted <= hill.across * 0.03 && hill.roll < 1e-3, JSON.stringify({ across: hill.across, tilted: hill.tilted, worstTilt: Math.round(hill.worstTilt * 100) / 100, roll: hill.roll }));
-    t.check('…and nobody rode off a drop and stayed off: every fall put back on the course', await page.evaluate(() => window.seoul.race.racers.every((r) => !r.drop || r.crashT <= 1.6)), await page.evaluate(() => JSON.stringify(window.seoul.race.dropLog ?? [])));
     t.check('…the people, the fans, the alleys\' bins and poles and the shops\' standing signs stand on the ground drawn under them (none sunk or in the air), no sign out in the street', stand.people > 200 && stand.peopleOff <= stand.people * 0.06 && stand.peopleFar <= stand.people * 0.02 && stand.fansOff === 0 && stand.propsOff === 0 && stand.signsOff === 0 && stand.signsInStreet === 0, JSON.stringify({ ...stand, worst: Math.round(stand.worst * 100) / 100 }));
     await shot('haebangchon');
     t.check('…the alleys\' garden walls stop at the side streets\' mouths: none across a side street or out on a main road', await page.evaluate(() => {
