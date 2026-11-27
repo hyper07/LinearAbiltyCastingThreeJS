@@ -203,7 +203,7 @@ export function roadPieces(all, { water, tile }) {
       const mid = (s + e) >> 1;
       const key = tile(xz[mid * 2], xz[mid * 2 + 1]);
       if (!out.has(key)) out.set(key, []);
-      out.get(key).push({ line, along: at[s], width: road.width, cls: road.cls, bridge: road.bridge, oneway: Boolean(road.oneway), total: at[at.length - 1] });
+      out.get(key).push({ line, along: at[s], width: road.width, cls: road.cls, bridge: road.bridge, oneway: Boolean(road.oneway), total: at[at.length - 1], id: w });
     }
   });
   return out;

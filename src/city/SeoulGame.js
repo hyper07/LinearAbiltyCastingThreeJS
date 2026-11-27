@@ -10,6 +10,7 @@ import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
 import { roadPieces } from './bridges.js';
 import { surfaceOf, walkY } from './surface.js';
+import { endKey, JC, JL, JR, paintRuns } from './markings.js';
 import { Weather, WEATHERS, fogRange } from './weather.js';
 import { GroundMist } from './mist.js';
 import { StreetLife } from './life.js';
@@ -135,10 +136,13 @@ function roadMaterial(uniforms) {
     shader.uniforms.uWet = uniforms.uWet;
     shader.uniforms.uLamps = uniforms.uLamps;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec4 aPaint;\nvarying vec4 vPaint;\nvarying vec3 vLampW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaint = aPaint;\nvLampW = position;');
+      .replace('#include <common>', '#include <common>\nattribute vec4 aPaint;\nattribute vec4 aJunc;\nvarying vec4 vPaint;\nvarying vec4 vJunc;\nvarying vec3 vLampW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaint = aPaint;\nvJunc = aJunc;\nvLampW = position;')
+      // (inside another road, a hair behind it: where two lie over each other the road that keeps its paint
+      // is drawn, never the two fighting over each pixel)
+      .replace('#include <project_vertex>', '#include <project_vertex>\ngl_Position.z += step(0.5, aJunc.x) * 2.0e-5 * gl_Position.w;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec4 vPaint;\nvarying vec3 vLampW;\nuniform float uNight;\nuniform float uWet;\n${LAMP_FIELD_GLSL}\nvec3 roadGlow = vec3(0.0);\nfloat roadHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat roadNoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(roadHash(i), roadHash(i + vec2(1.0, 0.0)), f.x), mix(roadHash(i + vec2(0.0, 1.0)), roadHash(i + vec2(1.0, 1.0)), f.x), f.y); }`)
+      .replace('#include <common>', `#include <common>\nvarying vec4 vPaint;\nvarying vec4 vJunc;\nvarying vec3 vLampW;\nuniform float uNight;\nuniform float uWet;\n${LAMP_FIELD_GLSL}\nvec3 roadGlow = vec3(0.0);\nfloat roadHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat roadNoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(roadHash(i), roadHash(i + vec2(1.0, 0.0)), f.x), mix(roadHash(i + vec2(0.0, 1.0)), roadHash(i + vec2(1.0, 1.0)), f.x), f.y); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float w = vPaint.z;
         float o = vPaint.x;
@@ -149,10 +153,16 @@ function roadMaterial(uniforms) {
         float x = abs(o);
         float far = smoothstep(150.0, 600.0, length(vViewPosition));
         float near_ = 1.0 - far;
+        // In a junction's middle (markings.js): its own lines stop (jc: its middle line, je: this side's edge
+        // line), and the asphalt is the world's, not this road's — where two roads lie over each other there,
+        // both draw the same.
+        float jc = step(0.5, vJunc.x);
+        float je = step(0.5, vJunc.y);
+        vec2 wearAt = mix(vec2(along, o), vLampW.xz, jc);
         // Wear: patches of newer and older asphalt, grime along the kerbs.
-        float patch_ = roadNoise(vec2(along, o) * 0.11);
+        float patch_ = roadNoise(wearAt * 0.11);
         diffuseColor.rgb *= mix(0.9, 1.07, patch_);
-        diffuseColor.rgb *= mix(0.82, 1.0, smoothstep(0.0, 0.9, half_ - x));
+        diffuseColor.rgb *= mix(mix(0.82, 1.0, smoothstep(0.0, 0.9, half_ - x)), 1.0, jc);
         // The lanes: how many and how wide.
         float lanesAll = max(1.0, floor((w - (oneway ? 1.0 : 1.6)) / 3.25 + 0.5));
         float perSide = oneway ? lanesAll : max(1.0, floor(lanesAll / 2.0 + 0.5));
@@ -162,18 +172,23 @@ function roadMaterial(uniforms) {
         float inLane = fract(lp);
         // Wheel tracks: two darker, smoother bands in every lane.
         float track = exp(-pow((inLane - 0.27) * 9.0, 2.0)) + exp(-pow((inLane - 0.73) * 9.0, 2.0));
-        diffuseColor.rgb *= 1.0 - 0.1 * track * near_;
+        diffuseColor.rgb *= 1.0 - 0.1 * track * near_ * (1.0 - jc);
         // Wet: the asphalt goes dark; puddles where the road dips (in the wheel tracks and by the kerb), darker still.
         diffuseColor.rgb *= 1.0 - 0.45 * uWet;
-        float puddle = smoothstep(0.56, 0.7, roadNoise(vec2(along, o) * 0.31) * 0.65 + roadNoise(vec2(along, o) * 1.7) * 0.25 + track * 0.08 + smoothstep(half_ - 1.2, half_, x) * 0.12) * uWet * near_;
+        float puddle = smoothstep(0.56, 0.7, roadNoise(wearAt * 0.31) * 0.65 + roadNoise(wearAt * 1.7) * 0.25 + (track * 0.08 + smoothstep(half_ - 1.2, half_, x) * 0.12) * (1.0 - jc)) * uWet * near_;
         diffuseColor.rgb *= 1.0 - 0.4 * puddle;
         float lines = 0.0;
         float yellow = 0.0;
-        // Crossings at the ends of a road (its junctions), not on motorways and bridges.
-        float toEnd = min(along, total - along);
-        bool crossing = total > 1.0 && w > 6.0 && toEnd > 2.0 && toEnd < 6.0;
-        bool stop = total > 1.0 && w > 6.0 && toEnd > 6.8 && toEnd < 7.25;
-        if (crossing) {
+        // Crossings at the ends of a road (its junctions), not on motorways and bridges — back from the edge
+        // of the road it meets (vJunc.z, .w: how far into that road each end of this one is), not its middle.
+        float toEnd = min(along - vJunc.z, total - vJunc.w - along);
+        bool crossing = total > 1.0 && w > 6.0 && toEnd > 2.0 && toEnd < 6.0 && jc < 0.5;
+        bool stop = total > 1.0 && w > 6.0 && toEnd > 6.8 && toEnd < 7.25 && jc < 0.5;
+        // (the lines a road this wide has: markings.js lineRules — none on one under 4 m; no middle line on a
+        // two-way one under 5.5 m, where there is one lane to share)
+        float dash = 1.0 - max(jc, je);
+        if (w < 4.0) {
+        } else if (crossing) {
           // A zebra: long white bars along the road, 0.45 m wide, 0.9 m apart.
           lines += step(fract((o + 40.0) / 0.9), 0.5) * step(x, half_ - 0.4);
         } else if (stop) {
@@ -181,23 +196,23 @@ function roadMaterial(uniforms) {
         } else if (oneway) {
           // The median side: double yellow; the kerb side: solid white; dashes between the lanes.
           float ym = half_ - 0.35 - o;
-          yellow += step(abs(ym - 0.0), 0.08) + step(abs(ym - 0.3), 0.08);
-          lines += step(abs(o + half_ - 0.35), 0.08);
+          yellow += (step(abs(ym - 0.0), 0.08) + step(abs(ym - 0.3), 0.08)) * (1.0 - je);
+          lines += step(abs(o + half_ - 0.35), 0.08) * (1.0 - je);
           float edge = abs(fract(lp + 0.5) - 0.5) * laneW;
-          lines += step(edge, 0.08) * step(0.6, lp) * step(lp, perSide - 0.4) * step(fract(along / 12.0), 0.45);
+          lines += step(edge, 0.08) * step(0.6, lp) * step(lp, perSide - 0.4) * step(fract(along / 12.0), 0.45) * dash;
         } else if (w > 9.0) {
           // A two-way road: double yellow in the middle, lanes dashed each way, white edges.
-          yellow += step(0.12, x) * step(x, 0.27);
+          yellow += step(0.12, x) * step(x, 0.27) * (1.0 - jc);
           float edge = abs(fract(lp + 0.5) - 0.5) * laneW;
-          lines += step(edge, 0.08) * step(0.6, lp) * step(lp, perSide - 0.4) * step(fract(along / 12.0), 0.45);
-          lines += step(abs(x - (half_ - 0.35)), 0.08);
+          lines += step(edge, 0.08) * step(0.6, lp) * step(lp, perSide - 0.4) * step(fract(along / 12.0), 0.45) * dash;
+          lines += step(abs(x - (half_ - 0.35)), 0.08) * (1.0 - je);
         } else {
-          // A small street: one dashed white line down the middle.
-          lines += step(x, 0.08) * step(fract(along / 8.0), 0.5);
-          lines += step(abs(x - (half_ - 0.35)), 0.08);
+          // A small street: one dashed white line down the middle (two-way, wide enough for two), white edges.
+          lines += step(x, 0.08) * step(fract(along / 8.0), 0.5) * step(5.5, w) * (1.0 - jc);
+          lines += step(abs(x - (half_ - 0.35)), 0.08) * (1.0 - je);
         }
         // Paint is a little worn too.
-        float worn = 0.75 + 0.25 * roadNoise(vec2(along, o) * 1.7);
+        float worn = 0.75 + 0.25 * roadNoise(wearAt * 1.7);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.75, 0.15), clamp(yellow, 0.0, 1.0) * near_ * worn);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95), clamp(lines, 0.0, 1.0) * near_ * worn);
         // At night: the lamps' pools (the light field: the lamps beyond the few lit for real), brighter in the puddles.
@@ -206,7 +221,7 @@ function roadMaterial(uniforms) {
         vec3 vdir = normalize(vViewPosition);
         roadGlow += vec3(0.16, 0.2, 0.28) * uWet * pow(1.0 - abs(vdir.z), 4.0) * 0.6;
         // Puddles mirror the sky at a low angle, and the lamps by night (rippled by the rain).
-        float rip = 0.85 + 0.15 * sin(along * 7.0 + o * 5.0);
+        float rip = 0.85 + 0.15 * sin(wearAt.x * 7.0 + wearAt.y * 5.0);
         roadGlow += vec3(0.2, 0.25, 0.33) * puddle * pow(1.0 - abs(vdir.z), 2.0) * 0.9 * rip * (1.0 - 0.85 * uNight);
         roadGlow += pools * puddle * 0.35 * rip;`)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += roadGlow;');
@@ -267,6 +282,8 @@ const ATTRIBUTION = '건물 buildings: 국토교통부 GIS건물통합정보 · 
 const WATER = new THREE.Color('#3f74b3');
 /** Roads are looked up by squares this wide (metres). */
 const ROAD_CELL = 40;
+/** The asphalt's colour in a junction's middle, whichever road draws it there. */
+const JUNCTION_ASPHALT = new THREE.Color('#96989e');
 export { ROAD_CELL };
 
 /**
@@ -1227,16 +1244,26 @@ export class SeoulGame {
     });
     // Every road's surface on the map, by 40 m cell, so trees, lamps and pavements keep off all of them —
     // a big road is two roads in the data, one each way, and what lines one must not stand on the other.
+    // (each with the road it is of, and listed by its ends' points too: where the paint stops, markings.js)
     this.roadArea = new Map();
+    this.roadEnds = new Map();
+    const byEnd = (x, z, seg) => {
+      const k = endKey(x, z);
+      let at = this.roadEnds.get(k);
+      if (!at) this.roadEnds.set(k, (at = []));
+      at.push(seg);
+    };
     for (const list of this.roadPieces.values()) {
       for (const r of list) {
         const half = r.width / 2;
         for (let i = 3; i < r.line.length; i += 3) {
-          const seg = [r.line[i - 3], r.line[i - 2], r.line[i], r.line[i + 1], half];
+          const seg = [r.line[i - 3], r.line[i - 2], r.line[i], r.line[i + 1], half, r.id, Boolean(r.bridge)];
           const cell = `${Math.floor((seg[0] + seg[2]) / 2 / ROAD_CELL)}_${Math.floor((seg[1] + seg[3]) / 2 / ROAD_CELL)}`;
           let at = this.roadArea.get(cell);
           if (!at) this.roadArea.set(cell, (at = []));
           at.push(seg);
+          byEnd(seg[0], seg[1], seg);
+          byEnd(seg[2], seg[3], seg);
         }
       }
     }
@@ -1279,6 +1306,15 @@ export class SeoulGame {
     this._showWeather();
   }
 
+  /** The road surfaces' stretches (roadArea) in the squares round a point. */
+  _roadAreaNear(x, z) {
+    const cx = Math.floor(x / ROAD_CELL);
+    const cz = Math.floor(z / ROAD_CELL);
+    const out = [];
+    for (let i = cx - 1; i <= cx + 1; i++) for (let j = cz - 1; j <= cz + 1; j++) for (const s of this.roadArea?.get(`${i}_${j}`) ?? []) out.push(s);
+    return out;
+  }
+
   /** Whether a point is on any road's surface (with `margin` metres more each side). */
   onRoad(x, z, margin = 0) {
     if (!this.roadArea) return false;
@@ -1304,6 +1340,7 @@ export class SeoulGame {
     const pos = [];
     const col = [];
     const paint = []; // per vertex: metres across from the middle, metres along, the road's width
+    const junc = []; // per vertex: its middle in a junction (0/1), its strip's edge line in one, and how far into one each end of the road is
     const walk = []; // the pavements
     const walkA = []; // per pavement vertex: across (0 at the kerb, 1 at the building side), metres along, which side
     const wall = []; // the road's sides: kerbs, the slab's edge, bridge girders and parapets
@@ -1328,7 +1365,9 @@ export class SeoulGame {
       const RAMP = 0.9;
       const marks = [];
       for (const side of [-1, 1]) for (const [a, b] of drops[side]) marks.push(a - RAMP, a, b, b + RAMP);
-      if (marks.length) {
+      // (a point at each of these, metres along the line)
+      const insert = (at) => {
+        if (!at.length) return;
         const out = [line[0]];
         const outE = [eased[0]];
         let acc = 0;
@@ -1336,7 +1375,7 @@ export class SeoulGame {
           const [ax, az] = line[i - 1];
           const [bx, bz] = line[i];
           const len = Math.hypot(bx - ax, bz - az) || 1e-6;
-          for (const m of marks.filter((v) => v > acc + 0.05 && v < acc + len - 0.05).sort((u, v) => u - v)) {
+          for (const m of at.filter((v) => v > acc + 0.05 && v < acc + len - 0.05).sort((u, v) => u - v)) {
             const t = (m - acc) / len;
             out.push([ax + (bx - ax) * t, az + (bz - az) * t]);
             outE.push(eased[i - 1] + (eased[i] - eased[i - 1]) * t);
@@ -1347,7 +1386,18 @@ export class SeoulGame {
         }
         line = out;
         eased = outE;
-      }
+      };
+      insert(marks);
+      // Where its paint stops (markings.js): its middle, its left edge line, its right, each inside another
+      // road crossing it — a point where each changes, so the lines end there and not a stretch on.
+      const runs = r.bridge ? [[0, Infinity, 0]] : paintRuns(line, r.width / 2, r.id, (x, z) => this._roadAreaNear(x, z), this.roadEnds);
+      insert(runs.slice(1).map((q) => q[0]));
+      const flagsAt = (a) => (runs.find((q) => a < q[1]) ?? runs[runs.length - 1])?.[2] ?? 0;
+      // (a crossing and a stop line at a road's end are drawn back from the junction's edge, not its middle)
+      const lineLen = runs.length ? runs[runs.length - 1][1] : 0;
+      const startCut = (r.along ?? 0) < 0.5 && runs[0] && runs[0][2] & JC ? runs[0][1] : 0;
+      const tail = runs[runs.length - 1];
+      const endCut = r.total != null && Math.abs((r.along ?? 0) + lineLen - r.total) < 0.5 && tail && tail[2] & JC ? lineLen - tail[0] : 0;
       const kerbAt = (side, a) => {
         let k = 0;
         for (const [d0, d1] of drops[side]) k = Math.max(k, a >= d0 && a <= d1 ? 1 : a < d0 ? 1 - (d0 - a) / RAMP : 1 - (a - d1) / RAMP);
@@ -1403,7 +1453,13 @@ export class SeoulGame {
           const mid = [x, y, z];
           pos.push(...prev.left, ...prev.mid, ...mid, ...prev.left, ...mid, ...left);
           pos.push(...prev.mid, ...prev.right, ...right, ...prev.mid, ...right, ...mid);
-          for (let k = 0; k < 12; k++) col.push(c.r, c.g, c.b);
+          // (in a junction's middle, the asphalt is the same whichever road draws it: where two lie over each
+          // other on a hill, neither shows through the other)
+          const fl = flagsAt((prev.local + localAlong) / 2);
+          const tone = fl & JC ? JUNCTION_ASPHALT : c;
+          for (let k = 0; k < 12; k++) col.push(tone.r, tone.g, tone.b);
+          for (let k = 0; k < 6; k++) junc.push(fl & JC ? 1 : 0, fl & JL ? 1 : 0, startCut, endCut);
+          for (let k = 0; k < 6; k++) junc.push(fl & JC ? 1 : 0, fl & JR ? 1 : 0, startCut, endCut);
           const a0 = prev.along;
           for (const [o, v] of [[-half, a0], [0, a0], [0, along], [-half, a0], [0, along], [-half, along], [0, a0], [half, a0], [half, along], [0, a0], [half, along], [0, along]]) paint.push(o, v, r.width, mark);
           // (Not where it would lie across another road: the other carriageway, a crossing. Cut where it
@@ -1532,13 +1588,14 @@ export class SeoulGame {
           owned.push([cell, seg]);
         }
         last = [x, y, z];
-        prev = { left, right, mid: [x, y, z], inL, inR, outL, outR, along, bridge: onBridge };
+        prev = { left, right, mid: [x, y, z], inL, inR, outL, outR, along, bridge: onBridge, local: localAlong };
       });
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.setAttribute('aPaint', new THREE.Float32BufferAttribute(paint, 4));
+    geo.setAttribute('aJunc', new THREE.Float32BufferAttribute(junc, 4));
     const uv = [];
     for (let k = 0; k < pos.length; k += 3) uv.push(pos[k] / 6, pos[k + 2] / 6);
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
