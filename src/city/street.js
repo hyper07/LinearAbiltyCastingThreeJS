@@ -3,6 +3,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadPerson, Person, PEOPLE } from './people.js';
 import { loadCar, makeCar, PAINTS, setCarEnvironment } from './cars.js';
 import { stepCar, follow, pointOn, CAR } from './drive.js';
+import { narrowRoad } from './alleys.js';
 
 /**
  * Seoul's streets, lived in: you on foot as a real person (people.js),
@@ -269,9 +270,9 @@ export class Street {
     return list;
   }
 
-  /** Roads near a point that cars use, with their class and width. */
+  /** Roads near a point that cars use, with their class and width (never a narrow one: people only). */
   _roads(x, z) {
-    return (this.g.roadsNear?.(x, z) ?? []).filter((r) => r.cls <= 4 && r.pts.length >= 4);
+    return (this.g.roadsNear?.(x, z) ?? []).filter((r) => r.cls <= 4 && r.pts.length >= 4 && !narrowRoad(r));
   }
 
   /** Park a car (or a few) at the roadside near you. With `mine`, return the one nearest. */

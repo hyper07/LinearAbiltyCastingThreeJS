@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { isSmall } from './course.js';
+import { narrowPoint } from './alleys.js';
 
 
 /**
@@ -12,7 +13,7 @@ import { isSmall } from './course.js';
  * concrete utility poles with their tangle of wires overhead, a convex
  * mirror on a pole at the blind corners, vertical shop signs that light up
  * at night, striped awnings, styrofoam planters of greens, flower pots,
- * recycling bins, parked delivery scooters, steps up to doors and alley
+ * recycling bins, parked delivery scooters (not in a narrow one), steps up to doors and alley
  * lamps.
  *
  * Everything in a 48 m stretch is one mesh (vertex colours), plus one for
@@ -520,7 +521,7 @@ export class Golmok {
             r();
             if (i % 5 === (side > 0 ? 2 : 0)) lamps.push({ x: ex - rx * side * 0.55, z: ez - rz * side * 0.55, y: base + 3.4, wall: [ex + rx * side * 0.05, ez + rz * side * 0.05] });
           }
-          // On the ground by the edge: planters, pots, bins, a parked scooter, steps (never out on a main road) —
+          // On the ground by the edge: planters, pots, bins, a parked scooter (not in a narrow street), steps (never out on a main road) —
           // only where the lane is wide enough to ride round them, and never coming up to a corner.
           const gx = ex - rx * side * 0.3;
           const gz = ez - rz * side * 0.3;
@@ -551,8 +552,8 @@ export class Golmok {
             props.box(gx + ux * 0.6, base + 0.22, gz + uz * 0.6, 0.22, 0.22, 0.22, hd + 0.4, C('#eef0f2'));
             band(gx, base + 0.62, gz, 0.3, 0.355, hd);
             obstacles.push({ x: gx, z: gz, r: 0.45, kind: 'bin' });
-          } else if (roll < 0.37) {
-            // A parked delivery scooter, nose to the wall.
+          } else if (roll < 0.37 && !narrowPoint(b)) {
+            // A parked delivery scooter, nose to the wall (never in a narrow street: those are for people only).
             const col = pick(r, PAL.scooter);
             const sx = gx - rx * side * 0.25;
             const sz = gz - rz * side * 0.25;

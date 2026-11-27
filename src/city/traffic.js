@@ -4,6 +4,7 @@ import { follow } from './drive.js';
 import { isSmall, LEVELS } from './course.js';
 import { cornerZones } from './golmok.js';
 import { takeRider } from './folk.js';
+import { narrowPoint, narrowRoad } from './alleys.js';
 
 /**
  * The traffic a bike race rides through: cars, city buses and delivery
@@ -11,7 +12,12 @@ import { takeRider } from './folk.js';
  * turning at the junctions onto whatever road meets theirs (so they cross
  * the course), slowing for whatever is ahead in their lane and giving way to
  * one another across a junction, blinking before they turn or change lane,
- * honking when held up. Scooters also take the small streets.
+ * honking when held up. Scooters also take the residential lanes wide enough.
+ *
+ * Never in a narrow street (alleys.js isNarrow: every golmok and alley, a
+ * residential lane under 7 m, a two-way road under 6 m): those are for people
+ * only. Nothing drives into one, is put down in one, parks or stands in one —
+ * where the course runs down one, it has no traffic.
  *
  * They don't get out of the riders' way: coming the other way or across, a
  * vehicle holds its lane and its speed — no swerving, no braking, no waiting
@@ -353,12 +359,14 @@ export class RaceTraffic {
     this._glow();
   }
 
-  /** Roads a vehicle of a kind may drive: cars and buses the main roads, scooters also the small streets. */
+  /**
+   * Roads a vehicle of a kind may drive: cars and buses the main roads, scooters (and on Hard cars) also
+   * the residential lanes wide enough — never a narrow street (people only), nor a short cut's golmok.
+   */
   _roads(x, z, kind) {
-    // (never down a short cut's golmok: it is kept clear to race down)
     const keep = this.race.scRoads;
     const carMax = this.carsOnLanes ? 5 : 4;
-    return (this.g.roadsNear?.(x, z, 1) ?? []).filter((r) => r.pts.length >= 4 && r.cls >= 1 && (kind === 'scooter' ? r.cls <= 6 && r.cls !== 7 : r.cls <= carMax && (r.cls < 5 || r.width >= 5.5)) && !(kind === 'bus' && r.cls > 3) && !keep?.has(r));
+    return (this.g.roadsNear?.(x, z, 1) ?? []).filter((r) => r.pts.length >= 4 && r.cls >= 1 && r.cls <= (kind === 'scooter' ? 5 : kind === 'bus' ? 3 : carMax) && !narrowRoad(r) && !keep?.has(r));
   }
 
   /**
@@ -676,6 +684,8 @@ export class RaceTraffic {
       const k = this._ahead(anchor.idx, from + Math.random() * (600 - from));
       const i = c.open ? Math.min(n - 2, anchor.idx + k) : (anchor.idx + k) % n;
       const p = c.points[i];
+      // (a narrow stretch of the course has no traffic: people only)
+      if (narrowPoint(p)) continue;
       const q = c.points[c.open ? i + 1 : (i + 1) % n];
       const hx = q[0] - p[0];
       const hz = q[1] - p[1];
@@ -800,7 +810,8 @@ export class RaceTraffic {
         const p = c.points[i];
         const q = c.points[(i + 1) % n];
         const w = p[2] ?? 8;
-        if (calm[i] || c.wild?.[i]) continue;
+        // (never in a narrow street — people only — nor where the course comes out of one)
+        if (calm[i] || c.wild?.[i] || narrowPoint(p) || narrowPoint(q) || narrowPoint(c.points[(i - 1 + n) % n])) continue;
         if (kind === 'car' ? p[4] || w < (dense ? 6.5 : 7) || w > 15 : kind === 'scooter' ? p[4] || w < 4.5 || w > 12 : isSmall(p[3] ?? 4) || w < (p[4] ? 7.4 : 12)) continue;
         if ((c.shortcuts ?? []).some((sc) => Math.abs(sc.from - i) < 6 || Math.abs(sc.to - i) < 6)) continue;
         // (a bus's length clear of the next corner too)

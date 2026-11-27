@@ -9,6 +9,31 @@
 export const SMALL_WIDTH = { 5: 6.2, 6: 3.6, 7: 3.4 };
 
 /**
+ * Narrow streets are for people only: no car, taxi, truck, bus or delivery scooter drives, parks or
+ * stands in one. Narrow is
+ *   - every alley, service lane, living street, market lane and footway (class 6 and up: golmok);
+ *   - a residential lane (class 5: no lane markings) under `lane` metres wide — no room for a car and
+ *     a rider beside it;
+ *   - a main road (class 0–4, with markings) with under `way` metres a direction (a two-way road
+ *     narrower than 6 m).
+ */
+export const NARROW = { lane: 7, way: 3 };
+
+/** Whether a street of class `cls`, `width` metres wide (one-way or not), is narrow — people only. */
+export function isNarrow(cls, width, oneway = false) {
+  if (cls == null) return false;
+  if (cls >= 6) return true;
+  if (cls === 5) return (width || SMALL_WIDTH[5]) < NARROW.lane;
+  return (width || 8) / (oneway ? 1 : 2) < NARROW.way;
+}
+
+/** A road ({ cls, width, oneway }) that is narrow. */
+export const narrowRoad = (r) => isNarrow(r.cls, r.width, r.oneway);
+
+/** A course point ([x, z, width, cls, oneway]) on a narrow street. */
+export const narrowPoint = (p) => isNarrow(p[3] ?? 4, p[2], Boolean(p[4]));
+
+/**
  * Read alleys.bin. `origin` is where the world begins in the grid (City
  * Hall). Returns [] for anything that is not an alleys file.
  */
