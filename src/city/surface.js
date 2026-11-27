@@ -6,11 +6,13 @@
  *   road stretch: { ax, ay, az, bx, by, bz, half, alley?, w?, aL?, aR?, bL?, bR? }
  *     — its line's ends with the middle's heights, how far out it reaches (`half`); a main road also
  *       its half-width `w` and its edges' heights at each end (left/right of the way it runs), as drawn
- *   pavement strip: { ax, az, bx, bz, ya, yb, oa?, ob?, inner, outer, side }
+ *   pavement strip: { ax, az, bx, bz, ya, yb, oa?, ob?, inner, outer, side, q? }
  *     — along its road's line; its kerb-side heights (ya, yb) and outer edge's (oa, ob), from `inner`
- *       to `outer` metres off the line on `side` (−1 left, 1 right)
+ *       to `outer` metres off the line on `side` (−1 left, 1 right); `q`, its four corners as drawn
+ *       (x, z, y: inner and outer at its start, outer and inner at its end)
  *
  *   surfaceOf(ground, roads, walks, x, z, from)   // the height underfoot at x, z
+ *   surfaceOf(ground, roads, walks, x, z, from, false, true)   // only what is drawn there (no crack bridged)
  */
 
 /** A road stretch's height at a point `k` (0–1) along it: between its edges where it has them, else its middle's. */
@@ -28,8 +30,35 @@ export function segY(s, x, z, k) {
   return across(s.aR, s.ay, s.aL) * (1 - k) + across(s.bR, s.by, s.bL) * k;
 }
 
-/** A pavement strip's height at a point (null if the point isn't on it, or within `reach` metres of it). */
+/** The height of a quad's two triangles (corners `q`: x, z, y four times, a–b–c and a–c–d) at a point, or null off it. */
+function quadY(q, x, z) {
+  for (const [a, b, c] of [[0, 3, 6], [0, 6, 9]]) {
+    const ax = q[a];
+    const az = q[a + 1];
+    const e1x = q[b] - ax;
+    const e1z = q[b + 1] - az;
+    const e2x = q[c] - ax;
+    const e2z = q[c + 1] - az;
+    const det = e1x * e2z - e1z * e2x;
+    if (Math.abs(det) < 1e-9) continue;
+    const px = x - ax;
+    const pz = z - az;
+    const u = (px * e2z - pz * e2x) / det;
+    const v = (e1x * pz - e1z * px) / det;
+    // (a couple of centimetres' slack: the two triangles' shared edge, the quad's edges)
+    const eps = 0.02 / Math.sqrt(Math.abs(det));
+    if (u >= -eps && v >= -eps && u + v <= 1 + eps) return q[a + 2] + (q[b + 2] - q[a + 2]) * u + (q[c + 2] - q[a + 2]) * v;
+  }
+  return null;
+}
+
+/**
+ * A pavement strip's height at a point (null if the point isn't on it, or within `reach` metres of it).
+ * A strip that knows its drawn corners (`q`: the inner and outer edge at each end — round a bend they
+ * are mitred, not square to its line) is judged by those: on it is on what is drawn.
+ */
 export function walkY(s, x, z, reach = 0) {
+  if (s.q && reach === 0) return quadY(s.q, x, z);
   const dx = s.bx - s.ax;
   const dz = s.bz - s.az;
   const L2 = dx * dx + dz * dz || 1;
@@ -60,10 +89,11 @@ export function walkY(s, x, z, reach = 0) {
  * flat at that point's height — on a slope it stands proud of the road on) only counts where no
  * stretch runs through the point.
  */
-export function surfaceOf(ground, roads, walks, x, z, from = Infinity, mainOnly = false) {
+export function surfaceOf(ground, roads, walks, x, z, from = Infinity, mainOnly = false, exact = false) {
   // (a crack between two surfaces — where pavements meet at a junction's corner, round a bend, an
-  // alley's side — no wider than this is ridden over at the height you're at, not dropped into)
-  const CRACK = 1.2;
+  // alley's side — no wider than this is ridden over at the height you're at, not dropped into; not for
+  // something put down (`exact`): it stands on what is drawn under it, not on the height beside it)
+  const CRACK = exact ? 0 : 1.2;
   let crack = null;
   const near = (y) => {
     if (ref != null && Math.abs(y - ref) < 0.5 && (crack == null || Math.abs(y - ref) < Math.abs(crack - ref))) crack = y;
@@ -81,8 +111,9 @@ export function surfaceOf(ground, roads, walks, x, z, from = Infinity, mainOnly 
     const raw = ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1);
     const k = Math.max(0, Math.min(1, raw));
     const off = Math.hypot(x - (s.ax + dx * k), z - (s.az + dz * k));
-    if (off > s.half) {
-      if (off < s.half + CRACK && ref != null) near(segY(s, s.ax + dx * k + ((x - s.ax - dx * k) * s.half) / off, s.az + dz * k + ((z - s.az - dz * k) * s.half) / off, k));
+    // (put down: only on its width as drawn, not the half-metre past its edges a rider is carried over)
+    if (off > (exact && s.w != null ? s.w + 0.02 : s.half)) {
+      if (!exact && off < s.half + CRACK && ref != null) near(segY(s, s.ax + dx * k + ((x - s.ax - dx * k) * s.half) / off, s.az + dz * k + ((z - s.az - dz * k) * s.half) / off, k));
       continue;
     }
     const y = segY(s, x, z, k);
@@ -91,7 +122,10 @@ export function surfaceOf(ground, roads, walks, x, z, from = Infinity, mainOnly 
     // on a hill, its end's height isn't the ground's just before the next one.
     const end = raw < -0.02 || raw > 1.02;
     if (s.alley && end) alleyEnd = Math.max(alleyEnd, y);
-    else if (end) cap = Math.max(cap, y);
+    else if (end) {
+      // (a road's round end isn't drawn: only a rider is carried over it)
+      if (!exact) cap = Math.max(cap, y);
+    }
     // through this stretch: the one nearest your height (or the highest, asked from nowhere)
     else if (through == null || (ref == null ? y > through : Math.abs(y - ref) < Math.abs(through - ref))) through = y;
   }

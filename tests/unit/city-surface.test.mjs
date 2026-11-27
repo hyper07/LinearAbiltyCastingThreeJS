@@ -119,3 +119,27 @@ test('a crack between pavements at a junction corner is ridden over, not dropped
   const off = ride(roads(), walks, 11.5, 30, 16, 30);
   assert.ok(worstStep(off) > 0.8, `off the edge: ${worstStep(off).toFixed(3)} m`);
 });
+
+test('what is put down stands on what is drawn: no crack bridged, and a pavement round a bend by its drawn (mitred) corners', () => {
+  // The crack between pavements: someone walking over it (asked from their height) is carried over; a
+  // person, a sign or a bin put down in it (`exact`) stands on the ground drawn there.
+  const gap = [pavement(0, -60, 0, 60, NS, 1, 72, 120), pavement(-60, 0, 60, 0, EW, -1, 60 + NS / 2, 120)];
+  const from = ground(11.5) + 0.9 + KERB + 0.3;
+  assert.ok(surfaceOf(ground(11.5), roads(), gap, 11.5, 10.5, from) > ground(11.5) + 0.9, 'walked over');
+  assert.ok(Math.abs(surfaceOf(ground(11.5), roads(), gap, 11.5, 10.5, from, false, true) - ground(11.5)) < 1e-6, 'put down: the ground');
+  // Just past a road's edge, where nothing is laid: a rider is carried on at its height, a thing put down is on the ground.
+  const by = ground(-30) + 0.9 + 0.3;
+  assert.ok(surfaceOf(ground(-30), roads(), [], -30, 6.3, by) > ground(-30) + 0.8, 'ridden: the road');
+  assert.ok(Math.abs(surfaceOf(ground(-30), roads(), [], -30, 6.3, by, false, true) - ground(-30)) < 1e-6, 'put down: the ground');
+  // A strip from (0, 0) to (10, 0), 2–5 m to its right (z −2 … −5), its far end mitred for a bend (the
+  // outer corner 2 m on from square): on it by the drawn quad, not by the square.
+  const y = 1;
+  const q = [0, -2, y, 0, -5, y, 12, -5, y, 10, -2, y];
+  const strip = { ax: 0, az: 0, bx: 10, bz: 0, ya: y, yb: y, oa: y, ob: y, inner: 2, outer: 5, side: 1, q };
+  assert.equal(walkY({ ...strip, q: undefined }, 11.4, -4.6), null, 'square to its line: off its end');
+  assert.equal(walkY(strip, 11.4, -4.6), y, 'as drawn: on it');
+  assert.equal(walkY(strip, 9, -1), null, 'off its inner edge');
+  assert.equal(walkY(strip, 5, -3.5), y, 'in its middle');
+  // (within reach of it, as a crack is asked: by its line, as before)
+  assert.ok(walkY(strip, 11, -1.5, 1.2) != null);
+});

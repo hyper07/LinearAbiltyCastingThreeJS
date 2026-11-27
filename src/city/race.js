@@ -716,6 +716,8 @@ export class Race {
     this.golmok = new Golmok(this.g, course, { open: Boolean(course.open), walls: course.walls, avoid: lines.slice(1), mountain: course.def?.mountain ? course.wild : null, sparse: Boolean(course.def?.zigzag) });
     this.golmoks = (course.shortcuts ?? []).map((sc, k) => new Golmok(this.g, { id: sc.id, points: sc.points }, { open: true, walls: course.walls, avoid: lines.filter((_, j) => j !== k + 1), shortcut: true }));
     this.facades = new Facades(this.g, course);
+    // (each building once the lanes round it are laid: its standing signs stand on their paving)
+    this.facades.ready = (x, z) => ![this.golmok, ...this.golmoks].some((gm) => gm?.pendingNear(x, z, 40));
     this.wood = course.wild ? new HillWood(this.g, course, course.wild) : null;
     this.fair = course.def?.fair ? new Fairground(this.g, course) : null;
     this.wet = new WetFx(this.g);
@@ -957,7 +959,8 @@ export class Race {
           const x = p[0] - Math.sin(hd) * along + Math.cos(hd) * side * off;
           const z = p[1] - Math.cos(hd) * along - Math.sin(hd) * side * off;
           if (this.g.buildingAt?.(x, z)) continue;
-          this.fans.push(this.g.life.addFan({ x, y: this.g.surfaceAt(x, z) + 0.14, z, heading: hd + (side > 0 ? Math.PI / 2 : -Math.PI / 2) }));
+          // (on what is drawn under them — the pavement, once its road has come in: sat again in _lift)
+          this.fans.push(this.g.life.addFan({ x, y: this._standY(x, z), z, heading: hd + (side > 0 ? Math.PI / 2 : -Math.PI / 2) }));
         }
       }
     }
@@ -975,7 +978,8 @@ export class Race {
     const q = c.points[Math.min(n - 1, i + 1)] === p ? c.points[i - 1] : c.points[Math.min(n - 1, i + 1)];
     const w = Math.max(6, (p[2] ?? 8) + 2) + (big ? 1.5 : 0);
     const gate = new THREE.Group();
-    const post = (this._gatePost ??= new THREE.MeshStandardMaterial({ color: '#202226', metalness: 0.6, roughness: 0.4 }));
+    // (painted steel, not a mirror: with nothing round it to reflect, a metal post read as a black hole in the street)
+    const post = (this._gatePost ??= new THREE.MeshStandardMaterial({ color: '#4a4e57', metalness: 0.25, roughness: 0.55 }));
     const H = big ? 6.2 : 5;
     for (const sx of [-w / 2, w / 2]) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(big ? 0.5 : 0.3, H, big ? 0.5 : 0.3), post);
@@ -1315,6 +1319,17 @@ export class Race {
       if (all || Math.hypot(a.x - p.x, a.z - p.z) < 220) b.position.y = this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14);
     }
     for (const gt of [this.gate, this.finishGate]) if (gt && (all || Math.hypot(gt.position.x - p.x, gt.position.z - p.z) < 200)) gt.position.y = this.g.surfaceAt(gt.position.x, gt.position.z, this.g.groundAt(gt.position.x, gt.position.z) + 14);
+    // The fans at the line: put down at the start, often before their pavement had loaded (on the bare land
+    // under it, waist-deep in the paving drawn later) — stood on what is under their feet now.
+    for (const f of this.fans ?? []) {
+      const fp = f.group.position;
+      if (all || Math.hypot(fp.x - p.x, fp.z - p.z) < 200) fp.y = this._standY(fp.x, fp.z);
+    }
+  }
+
+  /** Where something put down beside the course stands: on what is drawn under it (street level, not a bridge over it). */
+  _standY(x, z) {
+    return this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 1.3, false, true);
   }
 
   /* ---------------------------------------------------------- a frame */
@@ -1802,7 +1817,7 @@ export class Race {
       for (let i = cx - 1; i <= cx + 1; i++) {
         for (let j = cz - 1; j <= cz + 1; j++) {
           for (const s of g.roadHash?.get(`${i}_${j}`) ?? []) {
-            if (!s.alley) continue;
+            if (!s.alley || s.verge) continue; // (the lane itself, not the paving out to its buildings)
             const dx = s.bx - s.ax;
             const dz = s.bz - s.az;
             // (round its ends too: a bend's corner is filled, golmok.js)

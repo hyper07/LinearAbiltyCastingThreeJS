@@ -20,6 +20,7 @@ import { boot, tally, until } from './lib.mjs';
  * its finish line below its start (point to point, its woods and guard
  * rails, the finish kept as progress), Haebangchon's steep lanes (its traffic
  * on the road — none sunk into it, none in another car, none stuck for good —
+ * the people, fans, alley props and standing signs on the ground drawn under them, no sign in the street —
  * its alleys' walls broken at the side streets' mouths, the lane lines stopped
  * where roads cross), and the Jamsil Fairground's rides
  * moving; then a race in a fog bank, a call to the police that stops the rider ahead for five seconds, (fog far under 40 m, the riders unfogged)
@@ -1081,10 +1082,68 @@ export async function run(browser) {
         for (let i = 0; i < V.length; i++) for (let j = i + 1; j < V.length; j++) if (over(V[i].box, V[j].box)) st.overlap++;
       }, 250);
     });
+    // …and whatever stands in the street stands on what is drawn under it (a hand's breadth either way at most):
+    // the people near you, the fans at the line, the alleys' bins, planters, scooters and poles, the shops'
+    // standing signs — and no standing sign out in the course's street.
+    await page.evaluate(() => {
+      const g = window.seoul;
+      const r = g.race;
+      const st = (r._e2eStand = { people: 0, peopleOff: 0, peopleFar: 0, fans: 0, fansOff: 0, props: 0, propsOff: 0, signs: 0, signsOff: 0, signsInStreet: 0, worst: 0 });
+      const under = (x, z, y) => g.surfaceAt(x, z, y + 0.3, false, true);
+      const off = (d) => {
+        st.worst = Math.max(st.worst, Math.abs(d));
+        return Math.abs(d) > 0.05;
+      };
+      const pts = r.course.points;
+      const inStreet = (x, z) => pts.some((a, i) => {
+        const b = pts[(i + 1) % pts.length];
+        const dx = b[0] - a[0];
+        const dz = b[1] - a[1];
+        const k = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+        return Math.hypot(x - a[0] - dx * k, z - a[1] - dz * k) < (b[2] ?? 6) / 2;
+      });
+      const seen = new Set();
+      r._e2eStandT = setInterval(() => {
+        const cam = g.camera.position;
+        const near = (x, z, R = 60) => Math.hypot(x - cam.x, z - cam.z) < R;
+        for (const p of g.life?.folk?.active ?? []) {
+          const m = p.m;
+          if (!m || !near(m.x, m.z)) continue;
+          const y = p.root.position.y;
+          if (m.kind === 'fan') {
+            st.fans++;
+            if (off(y - under(m.x, m.z, y))) st.fansOff++;
+          } else {
+            // (stepping up a kerb or off a pavement's edge onto the land, a step is eased over a moment)
+            const d = y - under(m.x, m.z, y);
+            st.people++;
+            if (off(d)) st.peopleOff++;
+            if (Math.abs(d) > 0.3) st.peopleFar++;
+          }
+        }
+        for (const gm of [r.golmok, ...(r.golmoks ?? [])]) {
+          for (const o of gm?.obstacles ?? []) {
+            if (seen.has(o) || o.y == null || !near(o.x, o.z, 150)) continue;
+            seen.add(o);
+            st.props++;
+            if (off(o.y - under(o.x, o.z, o.y))) st.propsOff++;
+          }
+        }
+        for (const s of r.facades?.standing ?? []) {
+          if (seen.has(s) || !near(s.x, s.z, 150)) continue;
+          seen.add(s);
+          st.signs++;
+          if (off(s.y - under(s.x, s.z, s.y))) st.signsOff++;
+          if (inStreet(s.x, s.z)) st.signsInStreet++;
+        }
+      }, 500);
+    });
     await page.waitForTimeout(30000);
     const hill = await page.evaluate(() => (clearInterval(window.seoul.race._e2eHillT), window.seoul.race._e2eHill));
+    const stand = await page.evaluate(() => (clearInterval(window.seoul.race._e2eStandT), window.seoul.race._e2eStand));
     t.check('Haebangchon: the traffic sits on the steep road — no tyre of a car near you sunk into it, parked or moving', hill.tyres > 500 && hill.sunk === 0, JSON.stringify({ ...hill, worst: Math.round(hill.worst * 100) / 100 }));
     t.check('…never one car in another, and none left standing in the road for good', hill.samples > 60 && hill.overlap === 0 && hill.still === 0, JSON.stringify(hill));
+    t.check('…the people, the fans, the alleys\' bins and poles and the shops\' standing signs stand on the ground drawn under them (none sunk or in the air), no sign out in the street', stand.people > 200 && stand.peopleOff <= stand.people * 0.06 && stand.peopleFar <= stand.people * 0.02 && stand.fansOff === 0 && stand.propsOff === 0 && stand.signsOff === 0 && stand.signsInStreet === 0, JSON.stringify({ ...stand, worst: Math.round(stand.worst * 100) / 100 }));
     await shot('haebangchon');
     t.check('…the alleys\' garden walls stop at the side streets\' mouths: none across a side street or out on a main road', await page.evaluate(() => {
       const g = window.seoul;

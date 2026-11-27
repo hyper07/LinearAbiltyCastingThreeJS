@@ -213,8 +213,11 @@ function roadMaterial(uniforms) {
         }
         // Paint is a little worn too.
         float worn = 0.75 + 0.25 * roadNoise(wearAt * 1.7);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.75, 0.15), clamp(yellow, 0.0, 1.0) * near_ * worn);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95), clamp(lines, 0.0, 1.0) * near_ * worn);
+        // (road paint, not a light: white thermoplastic is about 0.75 of white, with the asphalt's grain through it —
+        // a 0.95 flat white edge line beside the kerb read as a glowing tube in the sun, bloomed)
+        float grain = 0.88 + 0.12 * patch_;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.66, 0.14) * grain, clamp(yellow, 0.0, 1.0) * near_ * worn);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.74) * grain, clamp(lines, 0.0, 1.0) * near_ * worn);
         // At night: the lamps' pools (the light field: the lamps beyond the few lit for real), brighter in the puddles.
         vec3 pools = lampField(vLampW);
         roadGlow = diffuseColor.rgb * pools * 1.6;
@@ -1514,7 +1517,10 @@ export class SeoulGame {
               const az = last[2] + (z - last[2]) * t0;
               const bx = last[0] + (x - last[0]) * t1;
               const bz = last[2] + (z - last[2]) * t1;
-              const seg = { ax, az, bx, bz, ya: i0[1], yb: i1[1], oa: o0[1], ob: o1[1], inner: half, outer: half + 3, side: sd.side };
+              // (and its corners as drawn: round a bend they are mitred, not square to the line — someone stood
+              // by its outer edge there stood in the air over the land, or on paving the lookup didn't know)
+              const q = [i0[0], i0[2], i0[1], o0[0], o0[2], o0[1], o1[0], o1[2], o1[1], i1[0], i1[2], i1[1]];
+              const seg = { ax, az, bx, bz, ya: i0[1], yb: i1[1], oa: o0[1], ob: o1[1], inner: half, outer: half + 3, side: sd.side, q };
               const cell = `${Math.floor((ax + bx) / 2 / ROAD_CELL)}_${Math.floor((az + bz) / 2 / ROAD_CELL)}`;
               this.walkHash ??= new Map();
               if (!this.walkHash.has(cell)) this.walkHash.set(cell, []);
@@ -1686,8 +1692,11 @@ export class SeoulGame {
     return out;
   }
 
-  /** What you stand on at a point (surface.js `surfaceOf`): the road's, a pavement's, or the ground. */
-  surfaceAt(x, z, from = Infinity, mainOnly = false) {
+  /**
+   * What you stand on at a point (surface.js `surfaceOf`): the road's, a pavement's, or the ground.
+   * `exact`: only what is drawn right there (a person, a sign, a bin put down) — no crack bridged.
+   */
+  surfaceAt(x, z, from = Infinity, mainOnly = false, exact = false) {
     const ground = this.groundAt(x, z);
     if (!this.roadHash) return ground;
     const cx = Math.floor(x / ROAD_CELL);
@@ -1701,7 +1710,7 @@ export class SeoulGame {
         for (const s of this.walkHash?.get(key) ?? []) walks.push(s);
       }
     }
-    return surfaceOf(ground, roads, walks, x, z, from, mainOnly);
+    return surfaceOf(ground, roads, walks, x, z, from, mainOnly, exact);
   }
 
   /** A pavement strip's height at a point (null if the point isn't on it). */

@@ -695,6 +695,30 @@ Seoul's real streets — and the streets stay open.
   corner or just after it, each with a reflective yellow-and-black band. Every sharp corner has a
   chevron board across the end of its approach, and anything in your line ahead gets a warning at
   the top of the screen ("⚠ BINS · ⬅ KEEP LEFT 60 m").
+  The lane lies on the land under each point at road level, as the city's roads do (two strips either
+  side of its middle, sloped across with the hill — `surfaceAt` knows the slope), not flat across at
+  its middle's height; and it is paved out to the buildings either side (`_verge`: to a wall within 3 m,
+  a hand under it, or under a garden wall's foot), so the alley floor meets the building bases — before,
+  a strip down the middle of bare land, a ledge on the downhill side and the uphill land over its edge.
+  Its paving has real concrete grain (Concrete034). **What stands in a street stands on what is drawn
+  under it** (`surfaceAt(x, z, from, false, true)`, `exact`: no crack bridged, nothing past a road's
+  drawn width or round its end, a pavement by its drawn corners — mitred round a bend): the alleys'
+  bins, pots, planters, scooters, poles, mirrors, walls (their foot under the paving at both ends),
+  meters and lamps each at their own point, not one height per edge; the people (in a small street
+  the race doesn't run down — not drawn — on the land, not at road level in the air over it); the
+  fans at the line, sat again as their pavement comes in (they were put down at the start, often on
+  the bare land under a pavement still to load: all waist-deep); and the shops' standing signs
+  (`facades.js` `_signY`), against the shop's wall by its door on the pavement or the lane's paving,
+  never in the course's street nor over bare land (none, there), each building built once the lanes
+  round it are (`ready`). 90 s on autopilot, things more than 5 cm off what is drawn under them (a ray
+  down onto the drawn meshes): fans 100 % → 0 on Haebangchon, Gwanghwamun and the Bukak Skyway (all
+  0.9 m sunk); people 1667/4385 → 199/4203 samples on Haebangchon (left: 5–8 cm where the land's
+  triangles part from its bilinear height, and steps being eased), 1461/4281 → 35/4274 on Gwanghwamun,
+  2573/4374 → 418/4361 on Bukak (footways stepping on and off pavements); standing signs 103/105 (worst
+  4.4 m in the air) → 0/20 on Haebangchon, 125/127 → 0/8 on Gwanghwamun; alley props 6/9 (worst
+  0.4 m) → 0/32; course arrows 256/1620 → 44/1653 (one junction). The start gantry's posts
+  are painted steel (they read as a black hole as mirror metal), and road paint is 0.74 of white with
+  the asphalt's grain (a 0.95 flat white edge line by the kerb read as a glowing tube in the sun).
 - **Buildings beside the course** (`src/city/facades.js` and the city shader): window frames and
   sills on the shader's own grid, balconies and rails on flats and villas, shopfronts and striped
   awnings, downpipes, roof tanks and units; close up the walls are brick, tile or render, glass has

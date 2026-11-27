@@ -418,10 +418,18 @@ export class Facades {
     for (const b of this.batches) for (const m of b.meshes) if (m.name === 'shutter') m.visible = night > 0.55;
     const p = g.pos;
     if (this.t % 15 === 1) this._scan(p);
-    // Build a few queued buildings into the open batch; close it when full or the queue is empty.
+    // Build a few queued buildings into the open batch; close it when full or the queue is empty (or all
+    // that is left in it waits for its lane: what is built shows now).
+    let waiting = 0;
     for (let k = 0; k < PER_FRAME && this.queue.length; k++) {
       const b = this.queue.shift();
       if (this.done.has(b) || !b.tile?.mesh) continue;
+      // (not before the lane beside it is laid — golmok.js builds as you come near: its signs stand on that)
+      if (this.ready && !this.ready((b.minx + b.maxx) / 2, (b.minz + b.maxz) / 2)) {
+        this.queue.push(b);
+        waiting++;
+        continue;
+      }
       this.open ??= { geo: new Geo(), list: [], x: b.minx, z: b.minz };
       try {
         this._building(b, this.open.geo);
@@ -431,7 +439,7 @@ export class Facades {
       this.open.list.push(b);
       this.done.set(b, this.open);
     }
-    if (this.open && (this.open.list.length >= BATCH || !this.queue.length)) this._close();
+    if (this.open && (this.open.list.length >= BATCH || !this.queue.length || waiting)) this._close();
     for (const batch of [...this.batches]) {
       if (Math.hypot(batch.x - p.x, batch.z - p.z) < DROP) continue;
       for (const m of batch.meshes) {
@@ -444,6 +452,34 @@ export class Facades {
       }
       this.batches.splice(this.batches.indexOf(batch), 1);
     }
+  }
+
+  /**
+   * The height a standing sign at (x, z) stands at — on what is drawn there: a main road's pavement, a
+   * lane's paving out to its buildings (golmok.js) — or null where none should stand: in a street (a main
+   * road, the course or a short cut, kerb to kerb and a little more), or on the bare land between the
+   * streets (the land lies 0.9 m under street level: a sign there stood in the air at the shop's floor).
+   * (A building is built once the lanes' paving round it is: `ready`.)
+   */
+  _signY(x, z) {
+    const g = this.g;
+    if (g.onRoad?.(x, z, 0.4)) return null;
+    for (const line of [this.course.points, ...(this.course.shortcuts ?? []).map((sc) => sc.points)]) {
+      for (let i = 1; i < (line?.length ?? 0); i++) {
+        const a = line[i - 1];
+        const b = line[i];
+        if (Math.abs(a[0] - x) > 40 || Math.abs(a[1] - z) > 40) continue;
+        const dx = b[0] - a[0];
+        const dz = b[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+        const d = Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
+        const half = (b[2] ?? 6) / 2;
+        if (d < half + 0.4) return null;
+      }
+    }
+    const ground = g.groundAt(x, z);
+    const drawn = g.surfaceAt ? g.surfaceAt(x, z, ground + 1.3, false, true) : ground;
+    return drawn - ground > 0.5 ? drawn : null;
   }
 
   _scan(p) {
@@ -802,12 +838,20 @@ export class Facades {
           G.quad('fabric', W.P(a + 0.1, top - 0.05, 0.05), W.P(c - 0.1, top - 0.05, 0.05), W.P(c - 0.1, top - 0.55, out), W.P(a + 0.1, top - 0.55, out), [0, 0.9, 0.4], null, col);
           G.quad('fabric', W.P(a + 0.1, top - 0.55, out), W.P(c - 0.1, top - 0.55, out), W.P(c - 0.1, top - 0.8, out), W.P(a + 0.1, top - 0.8, out), W.n, null, mul(col, 0.9));
         }
-        // A lit standing sign on the pavement (not in the way of the course).
+        // A lit standing sign (입간판) by its door: against the shop's wall, standing on what is drawn there
+        // (the pavement, a lane's paving) — never out in a street anyone rides down, nor in the air over the
+        // bare land (_signY: where it can't stand, the shop has its sign over the door and no other).
         if (r() < 0.45) {
           const s = a + 0.5 + r() * Math.max(0.1, c - a - 1);
-          const d = 1.3 + r() * 0.5;
+          const d = 0.42 + r() * 0.2;
           const [px, , pz] = W.P(s, 0, d);
-          if (!(this.pts ?? []).some((q) => Math.hypot(q[0] - px, q[1] - pz) < (q[2] ?? 6) / 2 + 0.8)) this._tallSign(ctx, W, s - 0.16, s + 0.16, 0.02, 1.35, d - 0.16, d + 0.16, name, false);
+          const y = this._signY(px, pz);
+          if (y != null) {
+            this._tallSign(ctx, W, s - 0.16, s + 0.16, y - ctx.fl - 0.02, y - ctx.fl + 1.33, d - 0.16, d + 0.16, name, false);
+            // (where the standing signs stand — the latest few hundred — for the end-to-end checks)
+            (this.standing ??= []).push({ x: px, z: pz, y });
+            if (this.standing.length > 300) this.standing.shift();
+          }
         }
       }
     } else {
