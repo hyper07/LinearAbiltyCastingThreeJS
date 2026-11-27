@@ -358,6 +358,30 @@ export function noFog(obj) {
   });
 }
 
+/**
+ * How a scooter (its look: `front`, `rear` wheel z, nose to −z) at (x, z) heading `heading` sits on the
+ * surface (`surfaceAt(x, z, from)`): { y (under the deck's middle, on the line between the tyres'
+ * contacts), pitch (+ nose up), camber (the road's tilt across, + right side up: for lying on it) }.
+ */
+export function scooterOn(surfaceAt, x, z, heading, look, from = Infinity, across = false) {
+  const fx = -Math.sin(heading);
+  const fz = -Math.cos(heading);
+  const zf = look.front * SCOOTER_SCALE;
+  const zr = look.rear * SCOOTER_SCALE;
+  const yf = surfaceAt(x - fx * zf, z - fz * zf, from);
+  const yr = surfaceAt(x - fx * zr, z - fz * zr, from);
+  const base = zr - zf || 1;
+  let camber = 0;
+  if (across) camber = Math.atan2(surfaceAt(x - fz * 0.35, z + fx * 0.35, from) - surfaceAt(x + fz * 0.35, z - fx * 0.35, from), 0.7);
+  // (one tyre over a step steeper than any street — a wall's top, a high kerb met at the edge of the
+  // road: not a slope to tip the deck up to; it stands on what is under its middle, tipped no more than STEEPEST)
+  if (Math.abs(yf - yr) > STEEPEST * base) return { y: surfaceAt(x, z, from), pitch: Math.sign(yf - yr) * Math.atan(STEEPEST), camber };
+  return { y: yr + ((yf - yr) * zr) / base, pitch: Math.atan2(yf - yr, base), camber };
+}
+
+/** The steepest street a scooter's deck tips to (a 32 % grade; Bukak Skyway's steepest stretch is ~24 %). */
+export const STEEPEST = 0.32;
+
 export class PlushRider {
   /**
    * @param {string} species  a Snowpuff species (fox, bunny, bear, cat, frog, pig, penguin)
@@ -752,12 +776,12 @@ export class PlushRider {
 
   /**
    * The ceremony, procedural (no clips), on the music's beat (`beats`: where the track is, in beats):
-   * each species its own signature dance (src/shared/motion/signatures.js — slow and smooth, in half
-   * time: the bunny bounce-sways, the pig side-steps and claps, the cat body-waves and sways its hips,
+   * each species its own signature dance (src/shared/motion/signatures.js — smooth, half-time moves
+   * played at 1.5×: the bunny bounce-sways, the pig side-steps and claps, the cat body-waves and sways its hips,
    * the fox pops its chest every two beats and waves its arms, the bear two-steps heavily and rolls its
    * shoulders, the frog squats and rises wide, the penguin waddle-glides, waves its flippers and turns),
-   * eight bars in four variants, and its place's flourish on top (`place` 1: a slow V held two beats and
-   * one soft hop every two bars; 2 one paw up, 3 a small V; any other place a little side-clap). Species +
+   * eight bars in four variants, and its place's flourish on top (`place` 1: a V held a beat and a third
+   * and one soft hop every two bars; 2 one paw up, 3 a small V; any other place a little side-clap). Species +
    * place + `start` (the beat it began on) decide every pose: the same in every browser. The ears and the
    * tail follow on soft springs, flowing; the bunny's the floppiest.
    */
@@ -768,7 +792,8 @@ export class PlushRider {
     const B = this.bones;
     const S = this.sp2;
     this.root.rotation.y = heading;
-    this.lean.rotation.z = 0;
+    this.lean.rotation.set(0, 0, 0);
+    this.blob.rotation.set(0, 0, 0);
     this.jolt.position.set(0, 0, 0);
     this.jolt.rotation.set(0, 0, 0);
     this.scooter.update(dt, { roll: 0, steer: 0, braking: false, night, speed: 0, boost: false });
@@ -862,7 +887,12 @@ export class PlushRider {
       const k = mode === 'tumble' ? Math.min(1, Math.max(0, ft - (st.fallKind === 'wheel' ? 0.35 : 0)) / 0.25) : Math.max(0, 1 - Math.max(0, ft - 1.25) / 0.3);
       lean = (st.fallSide ?? 1) * 1.38 * k;
     }
-    this.lean.rotation.z = lean;
+    // On a slope the deck lies along the road (`pitch`, + nose up: both tyres on it); fallen, it lies
+    // on the road's own tilt across (`camber`) too.
+    const pitch = st.pitch ?? 0;
+    this.lean.rotation.x = pitch;
+    this.lean.rotation.z = lean + (down ? (st.camber ?? 0) * Math.min(1, Math.abs(lean) / 1.38) : 0);
+    this.blob.rotation.set(pitch, 0, 0);
     // bumps: a quick shake up and a tip back; a hop lifts it all
     const bump = st.bump ?? 0;
     this.jolt.position.y = (st.air ?? 0) + bump * 0.02 * Math.sin(t * 60);
@@ -890,7 +920,8 @@ export class PlushRider {
     // stance: turned a little, front foot forward
     this.body.rotation.y = Math.PI + (down ? 0 : 0.28);
     this.rider.position.set(0, this.deck + 0.005, -0.08);
-    this.rider.rotation.x = 0;
+    // (standing up straight against the hill, as a rider does: leaning into a climb, back going down)
+    this.rider.rotation.x = down ? 0 : -pitch * 0.8;
     this.rider.rotation.y = 0;
     const hips = B.get('hips'), chest = B.get('chest'), headB = B.get('head');
     // knees bent: the hips drop and push back; more in a crouch

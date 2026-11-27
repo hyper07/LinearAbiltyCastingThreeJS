@@ -14,7 +14,7 @@ import { ringBell } from './bell.js';
 import { THROW, branchModel, branchTarget, throwPlan, flightAt, snapSound, leafBurst, stepLeaves } from './branch.js';
 import { CREW, CREW_ORDER, rider, botRiders } from './crew.js';
 import { faceSvg } from '../snowpuff/riders.js';
-import { PlushRider, sculptSpecies } from './plushRider.js';
+import { PlushRider, sculptSpecies, scooterOn } from './plushRider.js';
 import { Podium, PODIUM_SECONDS } from './podium.js';
 import { PoliceStops, POLICE, policeTarget } from './police.js';
 import { RaceTraffic } from './traffic.js';
@@ -683,7 +683,7 @@ export class Race {
     for (const r of this.racers) this._clear(r);
     this.me = this.racers.find((r) => r.me);
     this.fx = new ComicFx(this.g.scene);
-    this.police = new PoliceStops(this.g.scene);
+    this.police = new PoliceStops(this.g.scene, (x, z, from) => this.g.surfaceAt(x, z, from));
     // (a zig-zag's local streets: the lighter traffic of its level's `-local` (course.js LEVELS) — traffic.js reads
     // the level off the course's def as it starts, so it is handed that one while it does)
     const def = course.def;
@@ -2224,20 +2224,32 @@ export class Race {
 
   _place(r, dt) {
     const s = r.s;
-    const target = r.net && !r.mine ? r.net.y : this.g.surfaceAt(s.x, s.z, r.y + 0.3);
-    // up a kerb at once (the hop carries it), down one quickly; a seam of a few centimetres eased over
-    // in a tenth of a second rather than snapped to (it read as a jump)
-    const dy = target - r.y;
-    r.y += dy * Math.min(1, dt * (Math.abs(dy) < 0.12 ? 10 : dy > 0 ? 30 : 14));
+    const v = r.view;
+    // Both wheels on the road: the surface under each tyre (the scooter's own wheelbase), the deck
+    // pitched to the line between them, its middle on that line.
+    const sit = scooterOn((x, z, from) => this.g.surfaceAt(x, z, from), s.x, s.z, s.heading, v.scooter.look, r.y + 0.3, r.mode !== 'ride');
+    const target = r.net && !r.mine ? r.net.y : sit.y;
+    // Up a kerb at once (the hop carries it), down one quickly; a seam of a few centimetres eased over
+    // in a tenth of a second rather than snapped to (it read as a jump) — only what the step adds over
+    // the hill: up or down a steep street the wheels stay on the road (eased as a whole, the scooter
+    // hung up to 20 cm above it going down and sank 12 cm into it going up).
+    const ground = this.g.groundAt(s.x, s.z);
+    const over = target - ground;
+    r.over ??= over;
+    const dy = over - r.over;
+    r.over += Math.abs(dy) > 0.8 ? dy : dy * Math.min(1, dt * (Math.abs(dy) < 0.12 ? 10 : dy > 0 ? 30 : 14));
+    r.y = ground + r.over;
+    const ease = 1 - Math.exp(-dt * 16);
+    r.pitch = (r.pitch ?? sit.pitch) + (sit.pitch - (r.pitch ?? sit.pitch)) * ease;
+    r.camber = (r.camber ?? sit.camber) + (sit.camber - (r.camber ?? sit.camber)) * ease;
     const night = this.g.uniforms?.uNight.value ?? 0;
     const won = r.done != null && this._rank(r) === 1 && s.v < 0.6;
-    const v = r.view;
     v.root.position.set(s.x, r.y, s.z);
     v.root.visible = !(r.safe > 0 && r.mode === 'ride' && Math.floor(r.safe * 12) % 2);
     const mode = won ? 'win' : this.phase === 'grid' ? 'grid' : r.mode;
     if (Boolean(v.helmetOn) !== Boolean(r.helmet)) v.setHelmet(r.helmet);
     const boosted = s.boosting || r.drinkT > 0;
-    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, drift: (s.drift ?? 0) * (s.driftSide ?? 0), steer: s.steer, braking: s.braking, boost: boosted, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0, (r.slip ?? 0) * 0.8), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, night, glow: r.drinkT > 0 ? '#c8ff9a' : null });
+    v.pose(dt, { heading: s.heading, speed: Math.abs(s.v), lean: s.lean, drift: (s.drift ?? 0) * (s.driftSide ?? 0), steer: s.steer, braking: s.braking, boost: boosted, bump: s.bump ?? 0, air: s.air ?? 0, landed: r.landed, wobble: Math.max(s.wobble ?? 0, r.wobble ?? 0, (r.slip ?? 0) * 0.8), mode, t: r.crashT, fallSide: r.fallSide ?? 1, fallKind: r.fallKind, throwK: r.throwT == null ? null : Math.min(1, r.throwT / 0.45), roll: s.roll, night, glow: r.drinkT > 0 ? '#c8ff9a' : null, pitch: r.pitch, camber: r.camber });
     // The drink's boost: a ribbon of green light behind the back wheel.
     if (r.drinkT > 0 || this.trails?.has(r.id)) {
       let tr = this.trails.get(r.id);

@@ -8,7 +8,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * them over: held to a stop for POLICE.hold seconds with a wobble, then let go, and the officer rides
  * off ahead and is gone.
  *
- *   const cops = new PoliceStops(scene);
+ *   const cops = new PoliceStops(scene, surfaceAt);   // surfaceAt(x, z, from): the road under it (optional)
  *   cops.call(target, { side });        // target: a racer ({ s: { x, z, heading, v }, y })
  *   cops.update(dt);                    // each frame; follows the target, flashes, leaves
  *
@@ -170,8 +170,9 @@ function glowTexture() {
 }
 
 export class PoliceStops {
-  constructor(scene) {
+  constructor(scene, surfaceAt = null) {
     this.scene = scene;
+    this.surfaceAt = surfaceAt;
     this.live = [];
   }
 
@@ -214,8 +215,15 @@ export class PoliceStops {
     const k = dt > 0 ? Math.min(1, dt * 18) : 1;
     st.x += (x - st.x) * k;
     st.z += (z - st.z) * k;
-    st.g.position.set(st.x, r.y ?? 0, st.z);
+    st.g.rotation.order = 'YXZ';
     st.g.rotation.y = h + (st.t < T ? -0.25 * st.side * (1 - st.t / T) : 0);
+    // on the road under its own wheels (beside the rider, a cambered road isn't at the rider's height),
+    // nose up or down the hill
+    const at = this.surfaceAt;
+    const from = (r.y ?? 0) + 0.3;
+    const y = at ? at(st.x, st.z, from) : r.y ?? 0;
+    st.g.position.set(st.x, y, st.z);
+    if (at) st.g.rotation.x = Math.atan2(at(st.x + fx * 0.7, st.z + fz * 0.7, from) - at(st.x - fx * 0.7, st.z - fz * 0.7, from), 1.4);
   }
 
   update(dt) {
