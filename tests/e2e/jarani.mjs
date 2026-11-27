@@ -454,8 +454,27 @@ export async function run(browser) {
     await page.keyboard.up('KeyF');
     t.check('F does nothing in a race: no boost without a drink', !fBoost.boosting, JSON.stringify(fBoost));
     await page.evaluate(() => {
-      window.seoul.race.me.safe = 5;
-      window.seoul.race.me.s.v = 19.4;
+      // (at the head of a straight with 100 m clear: the autopilot rides on, and coming up to a corner it
+      // brakes, and braking ends a boost — the drink is checked where there is room to feel it)
+      const r = window.seoul.race;
+      const c = r.course;
+      const n = c.points.length;
+      const at = (i) => c.points[((i % n) + n) % n];
+      const hd = (a, b) => Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
+      let best = r.me.idx;
+      let bestBend = Infinity;
+      for (let k = 0; k < n; k += 2) {
+        const i = (r.me.idx + 20 + k) % n;
+        let bend = 0;
+        for (let j = 0; j < 18; j++) bend = Math.max(bend, Math.abs(Math.atan2(Math.sin(hd(at(i + j + 1), at(i + j + 2)) - hd(at(i), at(i + 1))), Math.cos(hd(at(i + j + 1), at(i + j + 2)) - hd(at(i), at(i + 1))))));
+        if (bend < bestBend && (at(i)[2] ?? 6) >= 8) [best, bestBend] = [i, bend];
+        if (bestBend < 0.1) break;
+      }
+      const p = at(best);
+      const h = hd(p, at(best + 1));
+      const d0 = c.s[best] - c.s[r.me.idx];
+      Object.assign(r.me.s, { x: p[0] + Math.cos(h) * 1.5, z: p[1] - Math.sin(h) * 1.5, heading: h, travel: h, v: 19.4, lean: 0, steer: 0 });
+      Object.assign(r.me, { idx: best, sc: null, safe: 5, mode: 'ride', dist: r.me.dist + (d0 < 0 ? d0 + c.length : d0) });
     });
     await page.keyboard.press('Digit1');
     t.check('1 uses it: the energy drink — a gulp', await until(page, () => window.seoul.race.me.items[0] === null && (window.seoul.race.gulps ?? 0) > 0, null, 3000));
@@ -1136,6 +1155,8 @@ export async function run(browser) {
       const ahead = bots[0];
       me.items[0] = 'police';
       r.useSlot(0);
+      // (used up there and then — the slot is looked at now: riding on, you may pick up another from a box)
+      const used = me.items[0] === null;
       // (this call's own patrol: the bots go on racing and may call one of their own meanwhile)
       const mine = r.police.live.find((p) => p.target === ahead);
       const t0 = performance.now();
@@ -1156,9 +1177,9 @@ export async function run(browser) {
           if (performance.now() - t0 > 8200) ok(clearInterval(T));
         }, 50);
       });
-      return { slow: Math.round(slow * 10) / 10, held: Math.round(held * 10) / 10, beside: Math.round(beside * 10) / 10, stops: ahead.policeStops ?? 0, patrols: mine && r.police.live.includes(mine) ? 1 : mine ? 0 : -1, others: r.police.live.length, free: !ahead.pulled, slots: me.items.join() };
+      return { slow: Math.round(slow * 10) / 10, held: Math.round(held * 10) / 10, beside: Math.round(beside * 10) / 10, stops: ahead.policeStops ?? 0, patrols: mine && r.police.live.includes(mine) ? 1 : mine ? 0 : -1, others: r.police.live.length, free: !ahead.pulled, used, slots: me.items.join() };
     });
-    t.check('Call the police: a patrol pulls the rider ahead of you over — stopped for five seconds, the patrol beside them all the while, then let go and gone', cop.stops >= 1 && cop.slow >= 4.2 && cop.slow <= 6.4 && cop.beside >= cop.held - 0.3 && cop.free && cop.patrols === 0 && !cop.slots.includes('police'), JSON.stringify(cop));
+    t.check('Call the police: a patrol pulls the rider ahead of you over — stopped for five seconds, the patrol beside them all the while, then let go and gone', cop.stops >= 1 && cop.slow >= 4.2 && cop.slow <= 6.4 && cop.beside >= cop.held - 0.3 && cop.free && cop.patrols === 0 && cop.used, JSON.stringify(cop));
     // The finish: you home first; two bots close behind (they get their time), one far back (DNF).
     // (each where its distance says it is — behind you on the course: the police check above left the first
     // pulled over a few metres in front of you, in your way)
