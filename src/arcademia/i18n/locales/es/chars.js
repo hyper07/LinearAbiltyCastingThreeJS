@@ -39,7 +39,7 @@ export default {
   'picker.owned': 'Tuyo',
   'picker.dialogChoose': 'Elige a tu compañero',
   'picker.dialogYours': 'Tu compañero',
-  'voice.buddy.hello': '¡Hola! Qué alegría que estés aquí. ¡Vamos a subir la montaña!',
+  'voice.buddy.hello': '¡Otro día genial! ¿Qué vamos a aprender hoy? ¡Vamos juntos!',
   'voice.buddy.start': '¡Una misión nueva! ¡Vamos!',
   'voice.buddy.great': '¡Bien! ¡Buen trabajo!',
   'voice.buddy.wow': '¡Guau, qué bien lo haces!',

@@ -45,7 +45,7 @@ export default {
   'picker.dialogChoose': 'Choose your buddy',
   'picker.dialogYours': 'Your buddy',
   // Buddy and teacher barks: spoken only by real recorded voices (docs/arcademia.md, Voices); no recording, no sound
-  'voice.buddy.hello': 'Hi! I’m so happy you’re here. Let’s climb the mountain!',
+  'voice.buddy.hello': 'Another great day! What shall we learn today? Let’s go together!!',
   'voice.buddy.start': 'A new quest! Let’s go!',
   'voice.buddy.great': 'Yay! Great job!',
   'voice.buddy.wow': 'Wow, you’re so clever!',

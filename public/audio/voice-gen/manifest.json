@@ -4054,19 +4054,6 @@
      "err": 0,
      "lufs": -18,
      "peak": -4.6
-    },
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "en/buddy-bunny/t.voice.buddy.hello.webm"
-     },
-     "duration": 4,
-     "take": "2026-11-20T15:53:54.219Z",
-     "text": "64920c642b",
-     "voice": "buddy-bunny/en-normal",
-     "vkey": "fda7b25d89",
-     "err": 0,
-     "lufs": -18,
-     "peak": -2.2
     }
    },
    "buddy-dragon": {
@@ -4186,19 +4173,6 @@
      "err": 0,
      "lufs": -18,
      "peak": -2.6
-    },
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "en/buddy-dragon/t.voice.buddy.hello.webm"
-     },
-     "duration": 3.92,
-     "take": "2026-11-20T15:53:54.409Z",
-     "text": "64920c642b",
-     "voice": "buddy-dragon/en-normal",
-     "vkey": "c274cdac5c",
-     "err": 0,
-     "lufs": -18,
-     "peak": -4.6
     }
    },
    "buddy-fox": {
@@ -4318,19 +4292,6 @@
      "err": 0,
      "lufs": -18,
      "peak": -2.6
-    },
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "en/buddy-fox/t.voice.buddy.hello.webm"
-     },
-     "duration": 3.9,
-     "take": "2026-11-20T15:54:54.239Z",
-     "text": "64920c642b",
-     "voice": "buddy-fox/en-normal",
-     "vkey": "2505584136",
-     "err": 0,
-     "lufs": -18,
-     "peak": -2.6
     }
    },
    "buddy-puff": {
@@ -4385,19 +4346,6 @@
      "err": 0,
      "lufs": -18,
      "peak": -2.7
-    },
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "en/buddy-puff/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.24,
-     "take": "2026-11-20T15:54:54.439Z",
-     "text": "64920c642b",
-     "voice": "buddy-puff/en-normal",
-     "vkey": "4b8f7a63d5",
-     "err": 0,
-     "lufs": -18,
-     "peak": -3.3
     },
     "t.voice.buddy.end": {
      "files": {
@@ -5719,19 +5667,6 @@
     }
    },
    "buddy-robot": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "en/buddy-robot/t.voice.buddy.hello.webm"
-     },
-     "duration": 3.92,
-     "take": "2026-11-20T15:54:54.616Z",
-     "text": "64920c642b",
-     "voice": "buddy-robot/en-normal",
-     "vkey": "cf6aef1c60",
-     "err": 0,
-     "lufs": -18,
-     "peak": -2.3
-    },
     "t.voice.buddy.great": {
      "files": {
       "webm": "en/buddy-robot/t.voice.buddy.great.webm"
@@ -10256,19 +10191,6 @@
     }
    },
    "buddy-bunny": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ko/buddy-bunny/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.15,
-     "take": "2026-11-20T15:39:23.395Z",
-     "text": "85015afa2f",
-     "voice": "buddy-bunny/ko-normal",
-     "vkey": "3707e9e66d",
-     "err": 0.059,
-     "lufs": -18,
-     "peak": -3.1
-    },
     "t.voice.buddy.tap": {
      "files": {
       "webm": "ko/buddy-bunny/t.voice.buddy.tap.webm"
@@ -10388,19 +10310,6 @@
     }
    },
    "buddy-dragon": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ko/buddy-dragon/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.08,
-     "take": "2026-11-20T15:39:23.586Z",
-     "text": "85015afa2f",
-     "voice": "buddy-dragon/ko-normal",
-     "vkey": "317c888410",
-     "err": 0.059,
-     "lufs": -18,
-     "peak": -2.4
-    },
     "t.voice.buddy.tap": {
      "files": {
       "webm": "ko/buddy-dragon/t.voice.buddy.tap.webm"
@@ -10520,19 +10429,6 @@
     }
    },
    "buddy-fox": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ko/buddy-fox/t.voice.buddy.hello.webm"
-     },
-     "duration": 3.84,
-     "take": "2026-11-20T15:39:23.791Z",
-     "text": "85015afa2f",
-     "voice": "buddy-fox/ko-normal",
-     "vkey": "0fe7555b1d",
-     "err": 0.059,
-     "lufs": -18,
-     "peak": -1.6
-    },
     "t.voice.buddy.tap": {
      "files": {
       "webm": "ko/buddy-fox/t.voice.buddy.tap.webm"
@@ -10653,19 +10549,6 @@
     }
    },
    "buddy-puff": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ko/buddy-puff/t.voice.buddy.hello.webm"
-     },
-     "duration": 5.02,
-     "take": "2026-11-20T15:39:24.035Z",
-     "text": "85015afa2f",
-     "voice": "buddy-puff/ko-normal",
-     "vkey": "d6c09fbc5d",
-     "err": 0.059,
-     "lufs": -18,
-     "peak": -2.1
-    },
     "t.voice.buddy.great": {
      "files": {
       "webm": "ko/buddy-puff/t.voice.buddy.great.webm"
@@ -10785,19 +10668,6 @@
     }
    },
    "buddy-robot": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ko/buddy-robot/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.32,
-     "take": "2026-11-20T15:39:24.239Z",
-     "text": "85015afa2f",
-     "voice": "buddy-robot/ko-normal",
-     "vkey": "7b1eb3b6c8",
-     "err": 0,
-     "lufs": -18,
-     "peak": -2.4
-    },
     "t.voice.buddy.tap": {
      "files": {
       "webm": "ko/buddy-robot/t.voice.buddy.tap.webm"
@@ -18427,19 +18297,6 @@
     }
    },
    "buddy-bunny": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "es/buddy-bunny/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.54,
-     "take": "2026-11-20T16:13:24.970Z",
-     "text": "6fec49a9f2",
-     "voice": "buddy-bunny/es-normal",
-     "vkey": "f91337433c",
-     "err": 0,
-     "lufs": -18,
-     "peak": -3.1
-    },
     "t.voice.buddy.great": {
      "files": {
       "webm": "es/buddy-bunny/t.voice.buddy.great.webm"
@@ -18559,19 +18416,6 @@
     }
    },
    "buddy-dragon": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "es/buddy-dragon/t.voice.buddy.hello.webm"
-     },
-     "duration": 5.76,
-     "take": "2026-11-20T16:13:25.143Z",
-     "text": "6fec49a9f2",
-     "voice": "buddy-dragon/es-normal",
-     "vkey": "457daf37c4",
-     "err": 0,
-     "lufs": -18,
-     "peak": -2.4
-    },
     "t.voice.buddy.great": {
      "files": {
       "webm": "es/buddy-dragon/t.voice.buddy.great.webm"
@@ -18691,19 +18535,6 @@
     }
    },
    "buddy-fox": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "es/buddy-fox/t.voice.buddy.hello.webm"
-     },
-     "duration": 3.92,
-     "take": "2026-11-20T16:17:03.271Z",
-     "text": "6fec49a9f2",
-     "voice": "buddy-fox/es-normal",
-     "vkey": "dbd0262f46",
-     "err": 0,
-     "lufs": -18.1,
-     "peak": -1.1
-    },
     "t.voice.buddy.great": {
      "files": {
       "webm": "es/buddy-fox/t.voice.buddy.great.webm"
@@ -18824,19 +18655,6 @@
     }
    },
    "buddy-puff": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "es/buddy-puff/t.voice.buddy.hello.webm"
-     },
-     "duration": 3.56,
-     "take": "2026-11-20T16:17:03.429Z",
-     "text": "6fec49a9f2",
-     "voice": "buddy-puff/es-normal",
-     "vkey": "994a108cad",
-     "err": 0,
-     "lufs": -18,
-     "peak": -1.2
-    },
     "t.voice.buddy.great": {
      "files": {
       "webm": "es/buddy-puff/t.voice.buddy.great.webm"
@@ -18956,19 +18774,6 @@
     }
    },
    "buddy-robot": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "es/buddy-robot/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.24,
-     "take": "2026-11-20T16:17:03.588Z",
-     "text": "6fec49a9f2",
-     "voice": "buddy-robot/es-normal",
-     "vkey": "f50cfe342d",
-     "err": 0,
-     "lufs": -18.1,
-     "peak": -1.1
-    },
     "t.voice.buddy.great": {
      "files": {
       "webm": "es/buddy-robot/t.voice.buddy.great.webm"
@@ -22383,18 +22188,6 @@
     }
    },
    "buddy-bunny": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ja/buddy-bunny/t.voice.buddy.hello.webm"
-     },
-     "duration": 3.92,
-     "take": "2026-11-20T02:46:06.823Z",
-     "text": "cad2d24c6a",
-     "voice": "buddy-bunny/ja-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -3.3
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "ja/buddy-bunny/t.voice.buddy.wow.webm"
@@ -22505,18 +22298,6 @@
     }
    },
    "buddy-dragon": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ja/buddy-dragon/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.71,
-     "take": "2026-11-20T02:46:06.970Z",
-     "text": "cad2d24c6a",
-     "voice": "buddy-dragon/ja-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -3.3
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "ja/buddy-dragon/t.voice.buddy.wow.webm"
@@ -22627,18 +22408,6 @@
     }
    },
    "buddy-fox": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ja/buddy-fox/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.7,
-     "take": "2026-11-20T02:46:07.124Z",
-     "text": "cad2d24c6a",
-     "voice": "buddy-fox/ja-normal",
-     "err": 0.042,
-     "lufs": -18,
-     "peak": -4
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "ja/buddy-fox/t.voice.buddy.wow.webm"
@@ -22749,18 +22518,6 @@
     }
    },
    "buddy-puff": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ja/buddy-puff/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.43,
-     "take": "2026-11-20T02:46:07.271Z",
-     "text": "cad2d24c6a",
-     "voice": "buddy-puff/ja-normal",
-     "err": 0.042,
-     "lufs": -18,
-     "peak": -5.1
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "ja/buddy-puff/t.voice.buddy.wow.webm"
@@ -22871,18 +22628,6 @@
     }
    },
    "buddy-robot": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "ja/buddy-robot/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.61,
-     "take": "2026-11-20T02:46:07.424Z",
-     "text": "cad2d24c6a",
-     "voice": "buddy-robot/ja-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -4
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "ja/buddy-robot/t.voice.buddy.wow.webm"
@@ -24078,18 +23823,6 @@
     }
    },
    "buddy-bunny": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "zh/buddy-bunny/t.voice.buddy.hello.webm"
-     },
-     "duration": 4,
-     "take": "2026-11-20T02:47:35.411Z",
-     "text": "821a753020",
-     "voice": "buddy-bunny/zh-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -1.8
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "zh/buddy-bunny/t.voice.buddy.wow.webm"
@@ -24200,18 +23933,6 @@
     }
    },
    "buddy-dragon": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "zh/buddy-dragon/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.16,
-     "take": "2026-11-20T02:47:35.528Z",
-     "text": "821a753020",
-     "voice": "buddy-dragon/zh-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -2.8
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "zh/buddy-dragon/t.voice.buddy.wow.webm"
@@ -24322,18 +24043,6 @@
     }
    },
    "buddy-fox": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "zh/buddy-fox/t.voice.buddy.hello.webm"
-     },
-     "duration": 4,
-     "take": "2026-11-20T02:47:35.639Z",
-     "text": "821a753020",
-     "voice": "buddy-fox/zh-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -1.5
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "zh/buddy-fox/t.voice.buddy.wow.webm"
@@ -24444,18 +24153,6 @@
     }
    },
    "buddy-puff": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "zh/buddy-puff/t.voice.buddy.hello.webm"
-     },
-     "duration": 4.08,
-     "take": "2026-11-20T02:47:35.747Z",
-     "text": "821a753020",
-     "voice": "buddy-puff/zh-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -3
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "zh/buddy-puff/t.voice.buddy.wow.webm"
@@ -24566,18 +24263,6 @@
     }
    },
    "buddy-robot": {
-    "t.voice.buddy.hello": {
-     "files": {
-      "webm": "zh/buddy-robot/t.voice.buddy.hello.webm"
-     },
-     "duration": 4,
-     "take": "2026-11-20T02:47:35.855Z",
-     "text": "821a753020",
-     "voice": "buddy-robot/zh-normal",
-     "err": 0,
-     "lufs": -18,
-     "peak": -2.6
-    },
     "t.voice.buddy.wow": {
      "files": {
       "webm": "zh/buddy-robot/t.voice.buddy.wow.webm"

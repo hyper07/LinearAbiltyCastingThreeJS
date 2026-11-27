@@ -39,7 +39,7 @@ export default {
   'picker.owned': '내 거',
   'picker.dialogChoose': '내 친구 고르기',
   'picker.dialogYours': '내 친구',
-  'voice.buddy.hello': '안녕! 네가 와서 정말 기뻐. 같이 산에 오르자!',
+  'voice.buddy.hello': '오늘도 좋은 하루! 무엇을 공부해 볼까? 같이 가자!!',
   'voice.buddy.start': '새 퀘스트다! 가 보자!',
   'voice.buddy.great': '야호! 정말 잘했어!',
   'voice.buddy.wow': '우와, 너 정말 똑똑하다!',

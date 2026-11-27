@@ -39,7 +39,7 @@ export default {
   'picker.owned': '已拥有',
   'picker.dialogChoose': '挑选小伙伴',
   'picker.dialogYours': '我的小伙伴',
-  'voice.buddy.hello': '你好！你来了我真开心。我们一起爬山吧！',
+  'voice.buddy.hello': '今天也是美好的一天！我们来学点什么呢？一起出发吧！',
   'voice.buddy.start': '新任务！出发吧！',
   'voice.buddy.great': '耶！做得真棒！',
   'voice.buddy.wow': '哇，你真聪明！',

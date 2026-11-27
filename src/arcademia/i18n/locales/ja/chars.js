@@ -39,7 +39,7 @@ export default {
   'picker.owned': 'もってる',
   'picker.dialogChoose': 'あいぼうを えらぶ',
   'picker.dialogYours': 'きみの あいぼう',
-  'voice.buddy.hello': 'やあ！きてくれてうれしいな。いっしょに山をのぼろう！',
+  'voice.buddy.hello': 'きょうも いい 一日！ なにを べんきょう しようか？ いっしょに いこう！',
   'voice.buddy.start': 'あたらしいクエストだ！いこう！',
   'voice.buddy.great': 'やったね！すごいよ！',
   'voice.buddy.wow': 'わあ、かしこいね！',
